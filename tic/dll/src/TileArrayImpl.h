@@ -306,19 +306,28 @@ FileTileArray<V>::FileTileArray(const AbstrTileRangeData* trd, SharedStr filenam
 	if (rwMode <= dms_rw_mode::read_only)
 	{
 		auto cmfh = std::make_shared<ConstMappedFileHandle>(fullFileName, sfwa);
+		cmfh->OpenForRead(fullFileName, sfwa, true, false);
+		if constexpr (!is_fixed_size_element_v<V>)
+		{
+			cmfh->m_MemPageAllocTable.reset( new mempage_file_view(cmfh, trd->GetNrTiles() * sizeof(IndexRange<SizeT>)) );
+		}
 		for (tile_id t = 0; t != tn; ++t)
 		{
-			seqs[t].Reset(new mappable_const_sequence<elem_of_t<V>>(cmfh, trd->GetTileSize(t)));
+			seqs[t].Reset(new mappable_const_sequence<elem_of_t<V>>(cmfh, t, trd->GetTileSize(t)));
 			MGD_CHECKDATA(!seqs[t].IsLocked());
 		}
 	}
 	else
 	{
 		auto fmh = std::make_shared<MappedFileHandle>();
-		fmh->OpenRw(m_CacheFileName, sfwa, MinimalNrMemPages<V>(trd) * MEM_PAGE_SIZE, rwMode, isTmp);
+		fmh->OpenRw(fullFileName, sfwa, MinimalNrMemPages<V>(trd) * MEM_PAGE_SIZE, rwMode, isTmp);
+		if constexpr (!is_fixed_size_element_v<V>)
+		{
+			fmh->m_MemPageAllocTable.reset( new mempage_file_view(fmh, trd->GetNrTiles() * sizeof(IndexRange<SizeT>)) );
+		}
 		for (tile_id t = 0; t != tn; ++t)
 		{
-			seqs[t].Reset(new mappable_sequence<elem_of_t<V>>(fmh, trd->GetTileSize(t)));
+			seqs[t].Reset(new mappable_sequence<elem_of_t<V>>(fmh, t, trd->GetTileSize(t)));
 			MGD_CHECKDATA(!seqs[t].IsLocked());
 		}
 	}

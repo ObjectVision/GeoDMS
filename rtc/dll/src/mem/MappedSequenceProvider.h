@@ -21,9 +21,11 @@ template <typename V>
 class mappable_sequence : public abstr_sequence_provider<V>
 {
 public:
-	mappable_sequence(std::shared_ptr<MappedFileHandle> mfh, SizeT nrElem)
+	mappable_sequence(std::shared_ptr<MappedFileHandle> mfh, tile_id t, tile_offset nrElem)
 		: m_FileView(mfh, nrElem * sizeof(V))
-	{}
+	{
+		this->m_TileId = t;
+	}
 
 	using alloc_t = typename abstr_sequence_provider<V>::alloc_t;
 //	override abstr_sequence_provider
@@ -75,8 +77,9 @@ public:
 
 	abstr_sequence_provider<IndexRange<SizeT> >* CloneForSeqs() const override
 	{
-		return new mappable_sequence< IndexRange<SizeT> >(m_FileView.GetMappedFile(), 0);
+		return new mappable_sequence< IndexRange<SizeT> >(m_FileView.GetMappedFile(), this->m_TileId, 0);
 	}
+
 	/*
 
 	void Open(alloc_t& seq, SizeT nrElem, dms_rw_mode rwMode, bool isTmp, SafeFileWriterArray* sfwa MG_DEBUG_ALLOCATOR_SRC_ARG) override
@@ -125,6 +128,7 @@ private:
 		assert(m_FileView.filed_capacity() == seq.capacity());
 	}
 private:
+	tile_id              m_TileId = tile_id(-1);
 	rw_file_view<V>      m_FileView;
 	SafeFileWriterArray* m_SFWA = nullptr;
 };
@@ -140,9 +144,12 @@ struct mappable_const_sequence : abstr_sequence_provider<V>
 {
 	using alloc_t = typename abstr_sequence_provider<V>::alloc_t;
 
-	mappable_const_sequence(std::shared_ptr<ConstMappedFileHandle> cmfh, SizeT nrElem)
+	mappable_const_sequence(std::shared_ptr<ConstMappedFileHandle> cmfh, tile_id t, tile_offset nrElem)
 		: m_FileView(cmfh, nrElem * sizeof(V))
-	{}
+	{
+		if constexpr (!has_fixed_elem_size_v<V>)
+			this->m_TileId = t;
+	}
 
 	~mappable_const_sequence()
 	{}
@@ -165,7 +172,8 @@ struct mappable_const_sequence : abstr_sequence_provider<V>
 //	bool IsOpen  () const override { return m_FileView.IsOpen  (); }
 	abstr_sequence_provider<IndexRange<SizeT> >* CloneForSeqs() const override
 	{
-		return new mappable_const_sequence<IndexRange<SizeT> >(m_FileView.GetMappedFile(), m_FileView.SequenceMemPageAllocTable());
+		auto pageRange = m_FileView.SequenceMemPageAllocTable()->begin()[this->m_TileId];
+		return new mappable_const_sequence<IndexRange<SizeT> >(m_FileView.GetMappedFile(), pageRange.first, pageRange.second);
 	}
 /*
 	void Open(alloc_t& seq, SizeT nrElem, dms_rw_mode rwMode, bool isTmp, SafeFileWriterArray* sfwa MG_DEBUG_ALLOCATOR_SRC_ARG) override
@@ -196,8 +204,9 @@ private:
 		seq = alloc_t(mutable_iter(m_FileView.begin()), mutable_iter(m_FileView.end()), m_FileView.filed_capacity() );
 	}
 
+	tile_id              m_TileId = tile_id(-1);
 	const_file_view<V>   m_FileView;
-	SharedStr            m_FileName;
+//	SharedStr            m_FileName;
 	SafeFileWriterArray* m_SFWA = nullptr;
 };
 

@@ -129,6 +129,7 @@ struct sequence_generator {
 //=======================================
 // SequenceArray_Base: defines some common types
 //=======================================
+using sequence_index_range = IndexRange<SizeT>;
 
 template <typename T>
 struct SequenceArray_Base

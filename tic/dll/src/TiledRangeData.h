@@ -18,14 +18,7 @@
 #include "geo/Point.h"
 #include "geo/Range.h"
 #include "geo/RangeIndex.h"
-
-//----------------------------------------------------------------------
-
-const SizeT MEM_PAGE_SIZE = 4096;
-inline SizeT NrMemPages(SizeT nrBytes)
-{
-	return (nrBytes + (MEM_PAGE_SIZE - 1)) / MEM_PAGE_SIZE;
-}
+#include "ser/FileMapHandle.h"
 
 //----------------------------------------------------------------------
 

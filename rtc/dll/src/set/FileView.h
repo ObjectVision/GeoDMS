@@ -57,8 +57,8 @@ struct file_view_base : FVH
 	*/
 
 protected:
-	file_view_base() : m_NrElems( 0 ) {}
-	SizeT m_NrElems;
+	file_view_base() {}
+	SizeT m_NrElems = 0;
 };
 
 //----------------------------------------------------------------------
@@ -82,24 +82,28 @@ struct const_file_view : file_view_base<T, ConstFileViewHandle>
 		Open(fileName, sfwa, nrElems, throwOnError);
 	}
 */
-	void Open(WeakStr fileName, SafeFileWriterArray* sfwa, SizeT nrElems, bool throwOnError = true )
+	void Open(WeakStr fileName, SafeFileWriterArray* sfwa, tile_id nrElems, bool throwOnError = true )
 	{
 		this->OpenForRead(fileName, sfwa, throwOnError, true);
-		if (this->IsOpen())
+		if (!this->IsOpen())
+			return;
+
+		if (!IsDefined(nrElems))
 		{
-			if (!IsDefined(nrElems))
-			{
-				dms::filesize_t fileSize = this->GetFileSize();
-				nrElems = IsDefined(fileSize) ? size_calculator<T>().max_elems(fileSize) : 0;
-			}
-			if (this->GetFileSize() != size_calculator<T>().nr_bytes(nrElems))
-				throwErrorF("const_file_view", "FileSize of %u expected but file %s has a size of %u bytes"
-				,	size_calculator<T>().nr_bytes(nrElems)
-				,	fileName.c_str()
-				, this->GetFileSize()
-				);
-			this->m_NrElems = nrElems;
+			dms::filesize_t fileSize = this->GetFileSize();
+			nrElems = IsDefined(fileSize) ? size_calculator<T>().max_elems(fileSize) : 0;
 		}
+		if (this->GetFileSize() != size_calculator<T>().nr_bytes(nrElems))
+			throwErrorF("const_file_view", "FileSize of %u expected but file %s has a size of %u bytes"
+			,	size_calculator<T>().nr_bytes(nrElems)
+			,	fileName.c_str()
+			, this->GetFileSize()
+			);
+		this->m_NrElems = nrElems;
+	}
+	const mempage_file_view* SequenceMemPageAllocTable() const
+	{
+		return this->m_MappedFile->m_MemPageAllocTable.get();
 	}
 };
 
@@ -193,5 +197,9 @@ struct rw_file_view : file_view_base<T, FileViewHandle>
 	const_iterator end()   const { return iter_creator<T>()( DataBegin(), m_NrElems); }
 };
 
+struct mempage_file_view : rw_file_view < IndexRange<SizeT> >
+{
+	using rw_file_view < IndexRange<SizeT> >::rw_file_view; // inherit ctors
+};
 
 #endif //!defined(__RTC_SET_FILEVIEW_H)

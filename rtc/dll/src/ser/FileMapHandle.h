@@ -18,6 +18,14 @@ struct SafeFileWriterArray;
 
 #define UNDEFINED_FILE_SIZE UNDEFINED_VALUE(dms::filesize_t)
 
+//----------------------------------------------------------------------
+
+const SizeT MEM_PAGE_SIZE = 4096;
+inline SizeT NrMemPages(SizeT nrBytes)
+{
+	return (nrBytes + (MEM_PAGE_SIZE - 1)) / MEM_PAGE_SIZE;
+}
+
 //  -----------------------------------------------------------------------
 
 struct WinHandle
@@ -79,16 +87,32 @@ protected:
 	FileCreationMode m_FCM : 3 = FCM_Undefined;
 };
 
+struct mempage_file_view;
+
 struct MappedFileHandle : FileHandle
 {
-	dms::filesize_t m_AllocatedSize = 0;
+	RTC_CALL MappedFileHandle();
+	RTC_CALL ~MappedFileHandle();
 
 	RTC_CALL void OpenRw(WeakStr fileName, SafeFileWriterArray* sfwa, dms::filesize_t requiredNrBytes, dms_rw_mode rwMode, bool isTmp);
 	RTC_CALL void OpenForRead(WeakStr fileName, SafeFileWriterArray* sfwa, bool throwOnError, bool doRetry);
 
 	RTC_CALL FileChunckSpec alloc(dms::filesize_t vs);
 
+private:
+	void Map(bool alsoWrite);
+
+public:
 	WinHandle m_hFileMapping;
+	std::shared_mutex m_ResizeMutex;
+
+	std::unique_ptr< mempage_file_view > m_MemPageAllocTable;
+	dms::filesize_t m_AllocatedSize = 0;
+
+	MappedFileHandle(const MappedFileHandle&&) = delete;
+	MappedFileHandle(MappedFileHandle&&) = delete;
+	MappedFileHandle& operator =(const MappedFileHandle&) = delete;
+	MappedFileHandle& operator =(MappedFileHandle&&) = delete;
 };
 
 

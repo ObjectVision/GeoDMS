@@ -60,7 +60,7 @@ struct file : sequence_traits<V>::polymorph_vec_t, TileBase // TODO G8: replace 
 
 template <typename V> struct mapped_file : TileBase
 { 
-	SharedPtr<const file<V>> m_Info;
+	const file<V>* m_Info;
 //	bool               m_IsTmp = false;
 
 	mapped_file(const file<V>* info, dms_rw_mode rwMode)

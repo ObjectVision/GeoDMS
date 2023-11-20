@@ -9,6 +9,7 @@
 #endif //defined(CC_PRAGMAHDRSTOP)
 
 #include "ser/FileMapHandle.h"
+#include "set/FileView.h"
 
 #include "geo/MinMax.h"
 #include "geo/Undefined.h"
@@ -194,14 +195,43 @@ void FileHandle::ReadFileSize(CharPtr handleName)
 FileChunckSpec MappedFileHandle::alloc(dms::filesize_t vs)
 {
 	auto fs = m_AllocatedSize;
-	m_AllocatedSize += vs;
+	m_AllocatedSize += NrMemPages(vs) * MEM_PAGE_SIZE;
 	if (m_AllocatedSize > GetFileSize())
+	{
+		auto awaitExclusiveAcces = std::scoped_lock(m_ResizeMutex);
 		SetFileSize(m_AllocatedSize);
-
+		m_FileSize = m_AllocatedSize;
+		Map(true);
+	}
 	return {fs, vs};
 }
 
 //  -----------------------------------------------------------------------
+
+MappedFileHandle::MappedFileHandle()
+{}
+
+MappedFileHandle::~MappedFileHandle()
+{}
+
+
+void MappedFileHandle::Map(bool alsoWrite)
+{
+	m_hFileMapping = WinHandle();
+
+	WinHandle fileMapping =
+		CreateFileMapping(
+			m_hFile,                           // Current file handle. 
+			nullptr,                           // Default security. 
+			alsoWrite ? PAGE_READWRITE : PAGE_READONLY,
+			HiDWORD(m_FileSize), LoDWORD(m_FileSize),
+			nullptr                            // Name of mapping object. 
+		);
+	if (fileMapping == nullptr)
+		throwLastSystemError("FileMapHandle('%s').CreateFileMapping(%I64u)", m_FileName.c_str(), (UInt64)m_FileSize);
+
+	m_hFileMapping = std::move(fileMapping);
+}
 
 void MappedFileHandle::OpenRw(WeakStr fileName, SafeFileWriterArray* sfwa, dms::filesize_t requiredNrBytes, dms_rw_mode rwMode, bool isTmp)
 {
@@ -211,36 +241,14 @@ void MappedFileHandle::OpenRw(WeakStr fileName, SafeFileWriterArray* sfwa, dms::
 		m_hFileMapping = WinHandle();
 		return;
 	}
-	WinHandle fileMapping =
-		CreateFileMapping(
-			m_hFile,                           // Current file handle. 
-			nullptr,                           // Default security. 
-			PAGE_READWRITE,
-			HiDWORD(m_FileSize), LoDWORD(m_FileSize), 
-			nullptr                            // Name of mapping object. 
-		);
-	if (fileMapping == nullptr)
-		throwLastSystemError("FileMapHandle('%s').CreateFileMapping(%I64u)", fileName.c_str(), (UInt64)m_FileSize);
-
-	m_hFileMapping = std::move(fileMapping);
+	Map(true);
 }
 
 void MappedFileHandle::OpenForRead(WeakStr fileName, SafeFileWriterArray* sfwa, bool throwOnError, bool doRetry)
 {
 	FileHandle::OpenForRead(fileName, sfwa, throwOnError, doRetry);
 
-	WinHandle fileMapping =
-		CreateFileMapping(
-			m_hFile,                           // Current file handle. 
-			nullptr,                           // Default security. 
-			PAGE_READONLY,
-			HiDWORD(m_FileSize), LoDWORD(m_FileSize),
-			nullptr                            // Name of mapping object. 
-		);
-	if (fileMapping == nullptr)
-		throwLastSystemError("FileMapHandle('%s').CreateFileMapping(%I64u)", fileName.c_str(), (UInt64)m_FileSize);
-
-	m_hFileMapping = std::move(fileMapping);
+	Map(false);
 }
 
 //  -----------------------------------------------------------------------
@@ -281,8 +289,10 @@ void FileViewHandle::Map(bool alsoWrite)
 {
 	MG_CHECK(m_MappedFile); // precondition
 
-	if (m_ViewData)
+	if (m_ViewData || !GetViewSize())
 		return;
+
+	m_MappedFile->m_ResizeMutex.lock_shared();
 
 	while (true) {
 		m_ViewData =
@@ -306,7 +316,8 @@ void FileViewHandle::CloseView()
 	if (!m_ViewData)
 		return;
 	UnmapViewOfFile(m_ViewData); 
-	m_ViewData = nullptr; 
+	m_ViewData = nullptr;
+	m_MappedFile->m_ResizeMutex.unlock_shared();
 }
 
 void ConstFileViewHandle::Map()
@@ -315,6 +326,8 @@ void ConstFileViewHandle::Map()
 
 	if (m_ViewData)
 		return;
+
+	m_MappedFile->m_ResizeMutex.lock_shared();
 
 	while (true) {
 		m_ViewData =
@@ -339,6 +352,7 @@ void ConstFileViewHandle::CloseView()
 		return;
 	UnmapViewOfFile(m_ViewData);
 	m_ViewData = nullptr;
+	m_MappedFile->m_ResizeMutex.unlock_shared();
 }
 
 void FileViewHandle::realloc(dms::filesize_t requiredNrBytes)
