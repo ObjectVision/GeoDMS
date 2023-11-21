@@ -582,7 +582,6 @@ void DmsEventLog::onItemClicked(const QModelIndex& index)
 {
 	auto row = index.row();
 	const MsgData& item_data = MainWindow::TheOne()->m_eventlog_model->dataFiltered(row);
-	int i = 0;
 
 	auto log_item_message_view = std::string_view(item_data.m_Txt);
 	auto link_start_index = log_item_message_view.find_first_of('[[', 0);
