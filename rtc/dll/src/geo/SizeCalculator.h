@@ -42,7 +42,7 @@ struct capacity_calculator
 {
 	SizeT Byte2Size(std::size_t nrBytes) const
 	{
-		dms_assert(nrBytes % sizeof(T) == 0);
+		assert(nrBytes % sizeof(T) == 0);
 		return nrBytes / sizeof(T);
 	}
 };

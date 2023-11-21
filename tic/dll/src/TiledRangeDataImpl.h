@@ -125,10 +125,11 @@ struct RegularAdapter: Base
 	SizeT GetNrMemPages(UInt8 log2BytesPerElem) const override
 	{
 		// TODO OPTIMIZE for edge and corner tiles 
-		return NrMemPages(GetMaxTileSize() << log2BytesPerElem) * GetNrTiles();
+		return GetMemPageIndex(log2BytesPerElem, GetNrTiles());
 	}
 	SizeT GetMemPageIndex(UInt8 log2BytesPerElem, tile_id t) const override
 	{
+		assert(t < GetNrTiles());
 		// TODO OPTIMIZE for edge and corner tiles 
 		return NrMemPages(GetMaxTileSize() << log2BytesPerElem)* t;
 	}

@@ -447,7 +447,7 @@ void sequence_array<T>::Reset (abstr_sequence_provider<T>* pr)
 	MGD_CHECKDATA(!m_Indices.IsLocked());
 	MGD_CHECKDATA(!m_Values.IsLocked());
 
-	m_Indices.Reset(pr ? pr->CloneForSeqs() : 0); 
+	m_Indices.Reset(pr ? pr->CloneForSeqs() : nullptr); 
 	m_Values.Reset(pr); 
 	m_ActualDataSize = 0;
 

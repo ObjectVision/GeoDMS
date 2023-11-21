@@ -84,7 +84,7 @@ struct FileTileArray : GeneratedTileFunctor<V>
 	using typename TileFunctor<V>::locked_cseq_t;
 	using typename TileFunctor<V>::locked_seq_t;
 
-	using files_t = OwningPtrSizedArray<file<V>>;
+	using files_t = OwningPtrSizedArray<file_tile<V>>;
 
 	FileTileArray(const AbstrTileRangeData* domain, SharedStr filenameBase, dms_rw_mode rwMode, bool isTmp, SafeFileWriterArray* sfwa);
 
@@ -309,7 +309,7 @@ FileTileArray<V>::FileTileArray(const AbstrTileRangeData* trd, SharedStr filenam
 		cmfh->OpenForRead(fullFileName, sfwa, true, false);
 		if constexpr (!is_fixed_size_element_v<V>)
 		{
-			cmfh->m_MemPageAllocTable.reset( new mempage_file_view(cmfh, trd->GetNrTiles() * sizeof(IndexRange<SizeT>)) );
+			cmfh->m_MemPageAllocTable.reset( new mempage_file_view(cmfh, trd->GetNrTiles(), 0, trd->GetNrTiles() * sizeof(IndexRange<SizeT>)) );
 		}
 		for (tile_id t = 0; t != tn; ++t)
 		{
@@ -320,10 +320,10 @@ FileTileArray<V>::FileTileArray(const AbstrTileRangeData* trd, SharedStr filenam
 	else
 	{
 		auto fmh = std::make_shared<MappedFileHandle>();
-		fmh->OpenRw(fullFileName, sfwa, MinimalNrMemPages<V>(trd) * MEM_PAGE_SIZE, rwMode, isTmp);
+		fmh->OpenRw(fullFileName, sfwa, MinimalNrMemPages<V>(trd) << GetLog2AllocationGrannularity(), rwMode, isTmp);
 		if constexpr (!is_fixed_size_element_v<V>)
 		{
-			fmh->m_MemPageAllocTable.reset( new mempage_file_view(fmh, trd->GetNrTiles() * sizeof(IndexRange<SizeT>)) );
+			fmh->m_MemPageAllocTable.reset( new mempage_file_view(fmh, trd->GetNrTiles(), 0, trd->GetNrTiles() * sizeof(IndexRange<SizeT>) ) );
 		}
 		for (tile_id t = 0; t != tn; ++t)
 		{

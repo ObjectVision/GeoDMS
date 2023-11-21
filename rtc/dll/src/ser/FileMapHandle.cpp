@@ -30,6 +30,35 @@ inline DWORD LoDWORD(UInt64 qWord) { return qWord; } // truncate
 inline DWORD HiDWORD(UInt32 dWord) { return 0; }
 inline DWORD LoDWORD(UInt32 dWord) { return dWord; }
 
+static UInt32 GetAllocationGrannularityImpl()
+{
+	SYSTEM_INFO info;
+	GetSystemInfo(&info);
+	return info.dwAllocationGranularity;
+}
+
+UInt32 GetAllocationGrannularity()
+{
+	static UInt32 allocGrannularity = GetAllocationGrannularityImpl();
+	return allocGrannularity;
+}
+
+UInt8 GetLog2AllocationGrannularityImpl()
+{
+	UInt32 x = GetAllocationGrannularity();
+	MG_CHECK2(std::popcount(x) == 1, "System Allocation Grannularity is unexpectedly not a power of 2");
+
+	auto y = sizeof(UInt32) * 8 - std::countl_zero(x) -1;
+	MG_CHECK2(x == (1 << y), "System Allocation Grannularity is unexpectedly not a power of 2");
+	return y;
+}
+
+UInt8 GetLog2AllocationGrannularity()
+{
+	static auto result = GetLog2AllocationGrannularityImpl();
+	return result;
+}
+
 //  -----------------------------------------------------------------------
 
 DWORD GetCreationDisposition(FileCreationMode fcm)
@@ -195,7 +224,7 @@ void FileHandle::ReadFileSize(CharPtr handleName)
 FileChunckSpec MappedFileHandle::alloc(dms::filesize_t vs)
 {
 	auto fs = m_AllocatedSize;
-	m_AllocatedSize += NrMemPages(vs) * MEM_PAGE_SIZE;
+	m_AllocatedSize += NrMemPages(vs) << GetLog2AllocationGrannularity();
 	if (m_AllocatedSize > GetFileSize())
 	{
 		auto awaitExclusiveAcces = std::scoped_lock(m_ResizeMutex);
@@ -253,10 +282,11 @@ void MappedFileHandle::OpenForRead(WeakStr fileName, SafeFileWriterArray* sfwa, 
 
 //  -----------------------------------------------------------------------
 
-FileViewHandle::FileViewHandle(std::shared_ptr<MappedFileHandle> mfh, dms::filesize_t viewSize)
+FileViewHandle::FileViewHandle(std::shared_ptr<MappedFileHandle> mfh, dms::filesize_t viewOffset, dms::filesize_t viewSize)
 	: m_MappedFile(mfh)
 {
-	m_ViewSpec = mfh->alloc(viewSize);
+	if (viewOffset == -1)
+		m_ViewSpec = mfh->alloc(viewSize);
 //	Map(false);
 }
 
@@ -300,7 +330,7 @@ void FileViewHandle::Map(bool alsoWrite)
 				alsoWrite ? FILE_MAP_WRITE : FILE_MAP_READ,
 				HiDWORD(GetViewOffset()),
 				LoDWORD(GetViewOffset()),
-				GetViewSize()
+				NrMemPages(GetViewSize()) << GetLog2AllocationGrannularity()
 			);
 		if (m_ViewData)
 			break;

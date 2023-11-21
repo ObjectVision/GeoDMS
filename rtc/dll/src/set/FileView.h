@@ -23,8 +23,15 @@ struct file_view_base : FVH
 {
 	using const_iterator = typename sequence_traits<T>::const_pointer;
 	using const_reference = typename sequence_traits<T>::const_reference;
+	using mapped_file_type = typename FVH::mapped_file_type;
 
-	using FVH::FVH; // inherit ctors
+	file_view_base(std::shared_ptr<mapped_file_type> mfh, SizeT nrElem, dms::filesize_t fileOffset = -1, dms::filesize_t fileViewSize = -1)
+		: FVH(std::move(mfh), fileOffset, fileViewSize)
+		, m_NrElems(nrElem)
+	{}
+
+	file_view_base(file_view_base&&) = default;
+	file_view_base& operator = (file_view_base&&) = default;
 
 	const_iterator begin() const { return iter_creator<T>()(this->DataBegin(), 0 ); }
 	const_iterator end()   const { return iter_creator<T>()(this->DataBegin(), m_NrElems); }
@@ -75,13 +82,6 @@ struct const_file_view : file_view_base<T, ConstFileViewHandle>
 	using typename base_type::const_reference;
 	using file_view_base<T, ConstFileViewHandle>::file_view_base; // inherit ctors
 
-/*
-	const_file_view() {}
-	const_file_view(WeakStr fileName, SafeFileWriterArray* sfwa, SizeT nrElems = useExistingSize, bool throwOnError = true )
-	{
-		Open(fileName, sfwa, nrElems, throwOnError);
-	}
-*/
 	void Open(WeakStr fileName, SafeFileWriterArray* sfwa, tile_id nrElems, bool throwOnError = true )
 	{
 		this->OpenForRead(fileName, sfwa, throwOnError, true);
@@ -128,10 +128,7 @@ struct rw_file_view : file_view_base<T, FileViewHandle>
 	using base_type::m_NrElems;
 
 	using file_view_base<T, FileViewHandle>::file_view_base; // inherit ctors
-
-//	rw_file_view(std::shared_ptr<MappedFileHandle> mfh)
-//		: file_view_base<T>(std::move(mfh))
-//	{}
+	using file_view_base<T, FileViewHandle>::operator =;
 
 	void Open(WeakStr fileName, SafeFileWriterArray* sfwa, SizeT nrElems, dms_rw_mode rwMode, bool isTmp)
 	{

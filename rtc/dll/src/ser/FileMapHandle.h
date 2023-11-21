@@ -20,10 +20,14 @@ struct SafeFileWriterArray;
 
 //----------------------------------------------------------------------
 
-const SizeT MEM_PAGE_SIZE = 4096;
+RTC_CALL UInt32 GetAllocationGrannularity();
+RTC_CALL UInt8 GetLog2AllocationGrannularity();
+
 inline SizeT NrMemPages(SizeT nrBytes)
 {
-	return (nrBytes + (MEM_PAGE_SIZE - 1)) / MEM_PAGE_SIZE;
+	auto LOG_MEM_PAGE_SIZE = GetLog2AllocationGrannularity();
+	nrBytes += ((1 << LOG_MEM_PAGE_SIZE) - 1);
+	return nrBytes >> LOG_MEM_PAGE_SIZE;
 }
 
 //  -----------------------------------------------------------------------
@@ -127,10 +131,11 @@ struct ConstMappedFileHandle : MappedFileHandle
 
 struct FileViewHandle
 {
+	using mapped_file_type = MappedFileHandle;
+
 	FileViewHandle() = default;
-//	FileViewHandle(std::shared_ptr<ConstMappedFileHandle> cmfh, dms::filesize_t viewOffset = 0, dms::filesize_t viewSize = -1);
 	FileViewHandle(FileViewHandle&& rhs) { operator =(std::move(rhs)); }
-	RTC_CALL FileViewHandle(std::shared_ptr<MappedFileHandle> mfh, dms::filesize_t viewSize);
+	RTC_CALL FileViewHandle(std::shared_ptr<mapped_file_type> mfh, dms::filesize_t viewOffset = 0, dms::filesize_t viewSize = -1);
 
 
 	~FileViewHandle() { CloseView(); }
@@ -159,7 +164,7 @@ struct FileViewHandle
 	auto GetMappedFile() const { return m_MappedFile; }
 
 protected:
-	std::shared_ptr< MappedFileHandle> m_MappedFile;
+	std::shared_ptr< mapped_file_type> m_MappedFile;
 
 	RTC_CALL void CloseView();
 
@@ -169,6 +174,8 @@ protected:
 
 struct ConstFileViewHandle
 {
+	using mapped_file_type = ConstMappedFileHandle;
+
 	ConstFileViewHandle() = default;
 	ConstFileViewHandle(ConstFileViewHandle&& rhs) { operator =(std::move(rhs)); }
 	RTC_CALL ConstFileViewHandle(std::shared_ptr<ConstMappedFileHandle> cmfh, dms::filesize_t viewOffset = 0, dms::filesize_t viewSize = -1);
@@ -195,7 +202,7 @@ struct ConstFileViewHandle
 	auto GetMappedFile() const { return m_MappedFile; }
 
 protected:
-	std::shared_ptr< ConstMappedFileHandle> m_MappedFile;
+	std::shared_ptr< mapped_file_type> m_MappedFile;
 
 	RTC_CALL void CloseView();
 
