@@ -305,29 +305,48 @@ FileTileArray<V>::FileTileArray(const AbstrTileRangeData* trd, SharedStr filenam
 
 	if (rwMode <= dms_rw_mode::read_only)
 	{
-		auto cmfh = std::make_shared<ConstMappedFileHandle>(fullFileName, sfwa);
+		std::shared_ptr<ConstMappedFileHandle> cmfh = std::make_shared<ConstMappedFileHandle>(fullFileName, sfwa), cmfh_sequences;
 		cmfh->OpenForRead(fullFileName, sfwa, true, false);
-		if constexpr (!is_fixed_size_element_v<V>)
+		if constexpr (!has_fixed_elem_size_v<V>)
 		{
 			cmfh->m_MemPageAllocTable.reset( new mempage_file_view(cmfh, trd->GetNrTiles(), 0, trd->GetNrTiles() * sizeof(IndexRange<SizeT>)) );
+			cmfh_sequences = std::make_shared<ConstMappedFileHandle>(fullFileName + ".seq", sfwa);
 		}
 		for (tile_id t = 0; t != tn; ++t)
 		{
-			seqs[t].Reset(new mappable_const_sequence<elem_of_t<V>>(cmfh, t, trd->GetTileSize(t)));
+			if constexpr (has_fixed_elem_size_v<V>)
+				seqs[t].ResetAllocator(new mappable_const_sequence<elem_of_t<V>>(cmfh, t, trd->GetTileSize(t)));
+			else
+			{
+				auto ms_index = std::make_unique<mappable_const_sequence<IndexRange<SizeT>>>(cmfh_sequences, t, trd->GetTileSize(t));
+				auto ms_values = std::make_unique<mappable_const_sequence<elem_of_t<V>> >(cmfh, t, trd->GetTileSize(t));
+				seqs[t].ResetAllocators(ms_index.release(), ms_values.release());
+			}
 			MGD_CHECKDATA(!seqs[t].IsLocked());
 		}
 	}
 	else
 	{
-		auto fmh = std::make_shared<MappedFileHandle>();
-		fmh->OpenRw(fullFileName, sfwa, MinimalNrMemPages<V>(trd) << GetLog2AllocationGrannularity(), rwMode, isTmp);
-		if constexpr (!is_fixed_size_element_v<V>)
+		std::shared_ptr<MappedFileHandle> mfh = std::make_shared<MappedFileHandle>(), mfh_sequences;
+
+		mfh->OpenRw(fullFileName, sfwa, MinimalNrMemPages<V>(trd) << GetLog2AllocationGrannularity(), rwMode, isTmp);
+		if constexpr (!has_fixed_elem_size_v<V>)
 		{
-			fmh->m_MemPageAllocTable.reset( new mempage_file_view(fmh, trd->GetNrTiles(), 0, trd->GetNrTiles() * sizeof(IndexRange<SizeT>) ) );
+			mfh_sequences = std::make_shared<MappedFileHandle>();
+			mfh_sequences->OpenRw(fullFileName+".seq", sfwa, MinimalNrMemPages<V>(trd) << GetLog2AllocationGrannularity(), rwMode, isTmp);
+			mfh->m_MemPageAllocTable.reset( new mempage_file_view(mfh, trd->GetNrTiles(), 0, trd->GetNrTiles() * sizeof(IndexRange<SizeT>) ) );
 		}
 		for (tile_id t = 0; t != tn; ++t)
 		{
-			seqs[t].Reset(new mappable_sequence<elem_of_t<V>>(fmh, t, trd->GetTileSize(t)));
+			if constexpr (has_fixed_elem_size_v<V>)
+				seqs[t].ResetAllocator(new mappable_sequence<elem_of_t<V>>(mfh, t, trd->GetTileSize(t)));
+			else
+			{
+				auto ms_index  = std::make_unique<mappable_sequence<IndexRange<SizeT>>>(mfh_sequences, t, trd->GetTileSize(t));
+				auto ms_values = std::make_unique<mappable_sequence<elem_of_t<V>>>(mfh, t, trd->GetTileSize(t));
+				seqs[t].ResetAllocators(ms_index.release(), ms_values.release());
+			}
+
 			MGD_CHECKDATA(!seqs[t].IsLocked());
 		}
 	}

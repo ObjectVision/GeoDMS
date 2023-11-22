@@ -442,13 +442,19 @@ void sequence_array<T>::Lock(dms_rw_mode rwMode) const  // thread safe operation
 }
 
 template <typename T>
-void sequence_array<T>::Reset (abstr_sequence_provider<T>* pr) 
+void sequence_array<T>::ResetAllocator(abstr_sequence_provider<T>* pr) 
 { 
+	ResetAllocators(pr ? pr->CloneForSeqs() : nullptr, pr);
+}
+
+template <typename T>
+void sequence_array<T>::ResetAllocators(abstr_sequence_provider<IndexRange<SizeT>>* prIndex, abstr_sequence_provider<T>* prSeqs)
+{
 	MGD_CHECKDATA(!m_Indices.IsLocked());
 	MGD_CHECKDATA(!m_Values.IsLocked());
 
-	m_Indices.Reset(pr ? pr->CloneForSeqs() : nullptr); 
-	m_Values.Reset(pr); 
+	m_Indices.ResetAllocator(prIndex);
+	m_Values.ResetAllocator(prSeqs);
 	m_ActualDataSize = 0;
 
 	MGD_CHECKDATA(!m_Indices.IsLocked());
@@ -464,7 +470,7 @@ void sequence_array<T>::Reset(size_type nrSeqs, typename data_vector_t::size_typ
 	{
 		assert(!m_Values.IsAssigned());
 
-		Reset(heap_sequence_provider<T>::CreateProvider());
+		ResetAllocator(heap_sequence_provider<T>::CreateProvider());
 
 		assert(m_Indices.IsAssigned());
 		assert(m_Values.IsAssigned());
@@ -502,7 +508,7 @@ void sequence_array<T>::Resize(typename data_vector_t::size_type expectedDataSiz
 	assert(nrSeqs <= expectedSeqsSize); // PRECONDITION
 
 	if (!m_Indices.IsAssigned())
-		Reset(heap_sequence_provider<T>::CreateProvider());
+		ResetAllocator(heap_sequence_provider<T>::CreateProvider());
 
 	SeqLock<sequence_array> selfLock(*this, dms_rw_mode::read_write);
 

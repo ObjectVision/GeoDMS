@@ -769,7 +769,8 @@ public:
 //	void Drop  () { m_Indices.Drop (); m_Values.Drop (); dms_assert(Empty()); m_ActualDataSize = 0; }
 	WeakStr GetFileName() const { return m_Values.GetFileName(); }
 
-	RTC_CALL void Reset (abstr_sequence_provider<T>* pr = nullptr);
+	RTC_CALL void ResetAllocator(abstr_sequence_provider<T>* pr = nullptr);
+	RTC_CALL void ResetAllocators(abstr_sequence_provider<IndexRange<SizeT>>* prIndex, abstr_sequence_provider<T>* prSeqs);
 
 	RTC_CALL void Reset(seq_size_type nrSeqs, typename data_vector_t::size_type expectedDataSize MG_DEBUG_ALLOCATOR_SRC_ARG);
 	RTC_CALL void reset(seq_size_type nrSeqs, typename data_vector_t::size_type expectedDataSize MG_DEBUG_ALLOCATOR_SRC_ARG);

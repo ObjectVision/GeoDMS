@@ -73,11 +73,11 @@ public:
 	~sequence_obj() 
 	{
 		MGD_CHECKDATA(!IsLocked());
-		Reset();
+		ResetAllocator();
 	}
 	void operator = (sequence_obj&& rhs)  noexcept
 	{
-		Reset();
+		ResetAllocator();
 
 		m_Data = std::move(rhs.m_Data); rhs.m_Data = {};
 		m_Provider.swap( rhs.m_Provider );
@@ -149,8 +149,7 @@ public:
 	void cut(SizeT newNrElems)         { MGD_CHECKDATA(IsLocked()); MGD_CHECKDATA(m_Provider); m_Provider->cut(m_Data, newNrElems); }
 	void clear ()                      { MGD_CHECKDATA(IsLocked()); MGD_CHECKDATA(m_Provider); m_Provider->clear(m_Data); dms_assert(empty()); }
 
-	void Reset (provider_t* provider) { Reset(); m_Provider = provider; }
-	void Reset()
+	void ResetAllocator(provider_t* provider = nullptr)
 	{
 		MGD_CHECKDATA(!IsLocked());
 
@@ -160,7 +159,7 @@ public:
 		m_Provider->free(m_Data);
 		assert(m_Data.empty());
 //		assert(IsHeapAllocated() || !IsOpen());
-		m_Provider = nullptr;
+		m_Provider = provider;
 	}
 
 //	bool IsOpen    () const { return m_Provider && m_Provider->IsOpen  (); }

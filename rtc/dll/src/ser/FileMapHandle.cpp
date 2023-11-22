@@ -147,6 +147,10 @@ void FileHandle::OpenRw(WeakStr fileName, SafeFileWriterArray* sfwa, dms::filesi
 	if (IsDefined(requiredNrBytes))
 	{
 		m_FileSize = requiredNrBytes;
+		LARGE_INTEGER fs; fs.QuadPart = m_FileSize;
+		SetFilePointerEx(m_hFile, fs, nullptr, FILE_BEGIN);
+		fs.QuadPart = 0;
+		SetFilePointerEx(m_hFile, fs, nullptr, FILE_BEGIN);
 	}
 	else
 		if (readData)
