@@ -67,6 +67,7 @@ granted by an additional written contract for support, assistance and/or develop
 #include "TreeItemProps.h"
 #include "UnitClass.h"
 #include "ViewPortInfoEx.h"
+#include "Projection.h"
 
 #include "stg/StorageClass.h"
 
@@ -86,7 +87,6 @@ TiffSM::~TiffSM()
 { 
 	CloseStorage(); 
 }
-
 
 // Open for read/write
 void TiffSM::DoOpenStorage(const StorageMetaInfo& smi, dms_rw_mode rwMode) const
@@ -133,7 +133,6 @@ void TiffSM::DoCloseStorage(bool mustCommit) const
 	m_pImp.reset();
 	assert(m_pImp.is_null());
 }
-
 
 bool TiffSM::ReadDataItem(StorageMetaInfoPtr smi, AbstrDataObject* borrowedReadResultHolder, tile_id t)
 {
@@ -375,13 +374,26 @@ void TiffSM::DoUpdateTree(const TreeItem* storageHolder, TreeItem* curr, SyncMod
 	if (curr->IsStorable() && curr->HasCalculator())
 		return;
 
-
 	UpdateMarker::ChangeSourceLock changeStamp( storageHolder, "DoUpdateTree");
 	curr->SetFreeDataState(true);
 
 	SharedStr projectionFileName = replaceFileExtension(GetNameStr().c_str(), "tfw");
+	bool tfw_file_exists = IsFileOrDirAccessible(projectionFileName);
+
+	std::vector<Float64> pixel_to_world_transform = {};
+	auto storage_manager = storageHolder->GetStorageManager();
+	auto nmsm = dynamic_cast<NonmappableStorageManager*>(storage_manager);
+	if (nmsm)
+	{
+		auto smi = nmsm->GetMetaInfo(storageHolder, curr, StorageAction::read);
+		DoOpenStorage(*smi, dms_rw_mode::read_only);
+		pixel_to_world_transform = m_pImp->GetAffineTransformation();
+		m_IsOpen = true;
+		//DoCloseStorage(false);
+	}
+
 	// GridData item && GridPalette item
-	const AbstrDataItem* gridData  = GetGridData(storageHolder, IsFileOrDirAccessible(projectionFileName));
+	const AbstrDataItem* gridData  = GetGridData(storageHolder, tfw_file_exists || !pixel_to_world_transform.empty());
 	const AbstrDataItem* paletteData = GetPaletteData(storageHolder);
 
 	//if (!gridData || !paletteData)
@@ -389,9 +401,27 @@ void TiffSM::DoUpdateTree(const TreeItem* storageHolder, TreeItem* curr, SyncMod
 	MG_CHECK( !gridData || !paletteData || gridData->GetAbstrValuesUnit()->UnifyDomain(paletteData->GetAbstrDomainUnit()) );
 
 	// Compare value type of tiff with value type of griddata / palettedata
+	//DoOpenStorage(const StorageMetaInfo & smi, dms_rw_mode rwMode) const
 
+	// Use pixel to world transformation obtained form GeoTiff tags
+	if (!pixel_to_world_transform.empty())
+	{
+		AbstrUnit* gridDataDomainRW = GetGridDataDomainRW(const_cast<TreeItem*>(storageHolder));
+		if (!gridDataDomainRW)
+			return;
 
-	ReadProjection(curr, projectionFileName); // TODO: affine transformation, not projection
+		const AbstrUnit* uBase = FindProjectionBase(storageHolder, gridDataDomainRW);
+		if (!uBase)
+			return;
+		uBase->UpdateMetaInfo();
+		DPoint factor(pixel_to_world_transform[3], pixel_to_world_transform[0]);
+	    DPoint offset(pixel_to_world_transform[5], pixel_to_world_transform[4]);
+		gridDataDomainRW->SetProjection(new UnitProjection(AsUnit(uBase->GetCurrUltimateItem()), offset - 0.5 * factor, factor));
+		return;
+	}
+
+	// Final straw, get pixel to world transformation from .tfw file
+	ReadProjection(curr, projectionFileName);
 }
 
 // Register
