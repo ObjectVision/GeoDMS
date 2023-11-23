@@ -142,16 +142,10 @@ void FileHandle::OpenRw(WeakStr fileName, SafeFileWriterArray* sfwa, dms::filesi
 
 	assert(IsOpen());
 	assert(m_hFile != INVALID_HANDLE_VALUE);
-	MG_DEBUG_DATA_CODE( m_FCM = fcm; )
+	MG_DEBUG_DATA_CODE(m_FCM = fcm; )
 
 	if (IsDefined(requiredNrBytes))
-	{
-		m_FileSize = requiredNrBytes;
-		LARGE_INTEGER fs; fs.QuadPart = m_FileSize;
-		SetFilePointerEx(m_hFile, fs, nullptr, FILE_BEGIN);
-		fs.QuadPart = 0;
-		SetFilePointerEx(m_hFile, fs, nullptr, FILE_BEGIN);
-	}
+		SetFileSize(requiredNrBytes);
 	else
 		if (readData)
 			ReadFileSize(fileName.c_str());
@@ -160,6 +154,15 @@ void FileHandle::OpenRw(WeakStr fileName, SafeFileWriterArray* sfwa, dms::filesi
 	assert(m_FileSize != UNDEFINED_FILE_SIZE);
 	dbg_assert(m_FileSize <= sd_MaxFileSize);
 	// returns with valid m_hFileMap or throws a system error
+}
+
+void FileHandle::SetFileSize(dms::filesize_t requiredNrBytes)
+{ 
+	m_FileSize = requiredNrBytes;
+	LARGE_INTEGER fs; fs.QuadPart = m_FileSize;
+	SetFilePointerEx(m_hFile, fs, nullptr, FILE_BEGIN);
+	fs.QuadPart = 0;
+	SetFilePointerEx(m_hFile, fs, nullptr, FILE_BEGIN);
 }
 
 void FileHandle::OpenForRead(WeakStr fileName, SafeFileWriterArray* sfwa, bool throwOnError, bool doRetry, bool mayBeEmpty)
@@ -233,7 +236,7 @@ FileChunckSpec MappedFileHandle::alloc(dms::filesize_t vs)
 	{
 		auto awaitExclusiveAcces = std::scoped_lock(m_ResizeMutex);
 		SetFileSize(m_AllocatedSize);
-		m_FileSize = m_AllocatedSize;
+		assert(m_FileSize == m_AllocatedSize);
 		Map(true);
 	}
 	return {fs, vs};

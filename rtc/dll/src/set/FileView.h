@@ -26,7 +26,7 @@ struct file_view_base : FVH
 	using mapped_file_type = typename FVH::mapped_file_type;
 
 	file_view_base(std::shared_ptr<mapped_file_type> mfh, SizeT nrElem, dms::filesize_t fileOffset = -1, dms::filesize_t fileViewSize = -1)
-		: FVH(std::move(mfh), fileOffset, fileViewSize)
+		: FVH(std::move(mfh), fileOffset, fileViewSize == -1 ? sizeof(T) * nrElem : fileViewSize)
 		, m_NrElems(nrElem)
 	{}
 
@@ -44,7 +44,7 @@ struct file_view_base : FVH
 	SizeT filed_capacity() const
 	{
 		SizeT cap = capacity_calculator<T>().Byte2Size(this->GetViewSize());
-		assert(this->GetViewSize() <= cap);
+		assert(m_NrElems <= cap);
 		return cap;
 	}
 	SizeT max_size() const { return SizeT(-1) / sizeof(T); }

@@ -76,7 +76,7 @@ struct FileHandle
 	bool IsOpen  () const { return m_hFile; }
 
 	dms::filesize_t GetFileSize() const { return m_FileSize; }
-	void  SetFileSize(dms::filesize_t sz) { m_FileSize = sz; }
+	void  SetFileSize(dms::filesize_t requiredNrBytes);
 
 	SharedStr GetFileName() const { return m_FileName; }
 
