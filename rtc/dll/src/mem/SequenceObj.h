@@ -153,12 +153,12 @@ public:
 	{
 		MGD_CHECKDATA(!IsLocked());
 
-		if (!m_Provider)
-			return;
+		if (m_Provider)
+		{
 
-		m_Provider->free(m_Data);
-		assert(m_Data.empty());
-//		assert(IsHeapAllocated() || !IsOpen());
+			m_Provider->free(m_Data);
+			assert(m_Data.empty());
+		}
 		m_Provider = provider;
 	}
 
