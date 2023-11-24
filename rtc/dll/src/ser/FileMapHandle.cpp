@@ -300,7 +300,10 @@ FileViewHandle::FileViewHandle(std::shared_ptr<MappedFileHandle> mfh, dms::files
 ConstFileViewHandle::ConstFileViewHandle(std::shared_ptr<ConstMappedFileHandle> cmfh, dms::filesize_t viewOffset, dms::filesize_t viewSize)
 	:	m_MappedFile(cmfh)
 {
-	m_ViewSpec = { viewOffset, viewSize };
+	if (viewOffset == -1)
+		m_ViewSpec = cmfh->alloc(viewSize);
+	else
+		m_ViewSpec = { viewOffset, viewSize };
 
 	MakeMin(m_ViewSpec.first, cmfh->GetFileSize());
 	MakeMin(m_ViewSpec.second, cmfh->GetFileSize() - m_ViewSpec.first);

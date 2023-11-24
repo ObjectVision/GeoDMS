@@ -887,7 +887,7 @@ SharedStr AbstrUnit::GetRangeAsStr() const
 // Serialization and rtti
 //----------------------------------------------------------------------
 
-IMPL_CLASS(AbstrUnit, 0)
+IMPL_CLASS(AbstrUnit, nullptr)
 
 //----------------------------------------------------------------------
 // Dumping to Xml_OutStream

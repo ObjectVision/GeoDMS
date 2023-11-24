@@ -223,16 +223,16 @@ auto CreateFileData(AbstrDataItem* adi, const SharedObj* abstrValuesRangeData, S
 	auto sfwa = DSM::GetSafeFileWriterArray();
 	if (!sfwa)
 		return {};
-	return CreateFileTileArray(adi
+	return CreateFileTileArray(adi, abstrValuesRangeData
 		,	mustClear ? dms_rw_mode::write_only_mustzero : dms_rw_mode::write_only_all
 		,	filename, isTmp
 		,	sfwa.get()
 	);
 }
 
-auto OpenFileData(const AbstrDataItem* adi, SharedStr filenameBase, SafeFileWriterArray* sfwa) -> std::unique_ptr<const AbstrDataObject>
+auto OpenFileData(const AbstrDataItem* adi, const SharedObj* abstrValuesRangeData, SharedStr filenameBase, SafeFileWriterArray* sfwa) -> std::unique_ptr<const AbstrDataObject>
 {
-	return CreateFileTileArray(adi, dms_rw_mode::read_only, filenameBase, false, sfwa);
+	return CreateFileTileArray(adi, abstrValuesRangeData, dms_rw_mode::read_only, filenameBase, false, sfwa);
 }
 
 //const AbstrTileRangeData* domain, 

@@ -305,8 +305,9 @@ FileTileArray<V>::FileTileArray(const AbstrTileRangeData* trd, SharedStr filenam
 
 	if (rwMode <= dms_rw_mode::read_only)
 	{
-		std::shared_ptr<ConstMappedFileHandle> cmfh = std::make_shared<ConstMappedFileHandle>(fullFileName, sfwa), cmfh_sequences;
-		cmfh->OpenForRead(fullFileName, sfwa, true, false);
+		std::shared_ptr<ConstMappedFileHandle> 
+			cmfh = std::make_shared<ConstMappedFileHandle>(fullFileName, sfwa, true, false)
+		,	cmfh_sequences;
 		if constexpr (!has_fixed_elem_size_v<V>)
 		{
 			cmfh->m_MemPageAllocTable.reset( new mempage_file_view(cmfh, trd->GetNrTiles(), 0, trd->GetNrTiles() * sizeof(IndexRange<SizeT>)) );
@@ -327,9 +328,12 @@ FileTileArray<V>::FileTileArray(const AbstrTileRangeData* trd, SharedStr filenam
 	}
 	else
 	{
-		std::shared_ptr<MappedFileHandle> mfh = std::make_shared<MappedFileHandle>(), mfh_sequences;
+		std::shared_ptr<MappedFileHandle> 
+			mfh = std::make_shared<MappedFileHandle>()
+		,	mfh_sequences;
 
 		mfh->OpenRw(fullFileName, sfwa, MinimalNrMemPages<V>(trd) << GetLog2AllocationGrannularity(), rwMode, isTmp);
+
 		if constexpr (!has_fixed_elem_size_v<V>)
 		{
 			mfh_sequences = std::make_shared<MappedFileHandle>();

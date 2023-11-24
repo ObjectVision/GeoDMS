@@ -3370,17 +3370,20 @@ bool TreeItem::PrepareDataUsageImpl(DrlType drlFlags) const
 					auto rn = GetRelativeName(sp);
 
 					auto fn = DelimitedConcat(fsn, rn);
-					auto fh = OpenFileData(AsDataItem(this), fn, mmd->GetSFWA());
-					if (fh)
+					if (IsFileOrDirAccessible(fn))
 					{
-						AsDataItem(GetCurrUltimateItem())->m_DataObject.reset(fh.release()); // , !adi->IsPersistent(), true); // calls OpenFileData
-						return true;
+						auto fh = OpenFileData(AsDataItem(this), avu ? avu->GetTiledRangeData() : nullptr, fn, mmd->GetSFWA());
+						if (fh)
+						{
+							AsDataItem(GetCurrUltimateItem())->m_DataObject.reset(fh.release()); // , !adi->IsPersistent(), true); // calls OpenFileData
+							return true;
+						}
 					}
 				}
 			}
 		}
 	}
-	dms_assert(!SuspendTrigger::DidSuspend());
+	assert(!SuspendTrigger::DidSuspend());
 
 	try {
 		while (true)

@@ -47,8 +47,8 @@ enum class DrlType : UInt8 { UpdateNever = 0, Suspendible = 1, Certain = 2, Thro
 // FileData primitives; TODO G8.5:Move to DataStoreManager
 //----------------------------------------------------------------------
 
-auto CreateFileData(AbstrDataItem* adi, bool mustClear MG_DEBUG_ALLOCATOR_SRC_ARG)->std::unique_ptr<AbstrDataObject>;
-auto OpenFileData(const AbstrDataItem* adi, SharedStr filenameBase, SafeFileWriterArray* sfwa)->std::unique_ptr<const AbstrDataObject>;
+auto CreateFileData(AbstrDataItem* adi, bool mustClear)->std::unique_ptr<AbstrDataObject>;
+auto OpenFileData(const AbstrDataItem* adi, const SharedObj* abstrValuesRangeData, SharedStr filenameBase, SafeFileWriterArray* sfwa)->std::unique_ptr<const AbstrDataObject>;
 
 //----------------------------------------------------------------------
 // DataReadLockAtom: manages m_DataLockCount and unique consideration of LoadBlob and CreateFileData
