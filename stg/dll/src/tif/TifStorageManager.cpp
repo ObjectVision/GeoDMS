@@ -389,7 +389,6 @@ void TiffSM::DoUpdateTree(const TreeItem* storageHolder, TreeItem* curr, SyncMod
 		DoOpenStorage(*smi, dms_rw_mode::read_only);
 		pixel_to_world_transform = m_pImp->GetAffineTransformation();
 		m_IsOpen = true;
-		//DoCloseStorage(false);
 	}
 
 	// GridData item && GridPalette item
