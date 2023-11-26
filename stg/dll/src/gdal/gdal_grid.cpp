@@ -539,6 +539,7 @@ void GdalGridSM::DoUpdateTree(const TreeItem* storageHolder, TreeItem* curr, Syn
 				case GDT_Int64: vu = Unit<Int64>::GetStaticClass()->CreateDefault(); break;
 				case GDT_Float32: vu = Unit<Float32>::GetStaticClass()->CreateDefault(); break;
 				case GDT_Float64: vu = Unit<Float64>::GetStaticClass()->CreateDefault(); break;
+				default: throwErrorF("gdal.grid", "Cannot convert raster GDALDataType %d to GeoDMS values unit.", first_band_datatype); return;
 				}
 			}
 			auto gdal_vc = ValueComposition::Single;
