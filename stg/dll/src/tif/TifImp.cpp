@@ -204,7 +204,81 @@ UPoint TifImp::GetSize() const
 { 
 	return shp2dms_order(GetWidth(), GetHeight());
 }
- 
+
+Float32 TifImp::GetXRes() const
+{
+	float xres = 0;
+	TIFFGetField(m_TiffHandle, TIFFTAG_XRESOLUTION, &xres);
+	return xres;
+}
+
+Float32 TifImp::GetYRes() const
+{
+	float yres = 0;
+	TIFFGetField(m_TiffHandle, TIFFTAG_YRESOLUTION, &yres);
+	return yres;
+}
+
+constexpr uint32_t TIFFTAG_ModelTiePointTag = 33922; // TIFFTAG_GEOTIEPOINTS
+constexpr uint32_t TIFFTAG_ModelPixelScaleTag = 33550; // TIFFTAG_GEOPIXELSCALE
+constexpr uint32_t TIFFTAG_ModelTransformationTag = 34264; // TIFFTAG_GEOTRANSMATRIX
+STGIMPL_CALL std::vector<Float64> TifImp::GetAffineTransformation() const
+{
+	// See section GeoTIFF Tags for Coordinate Transformations 2.6.1: http://geotiff.maptools.org/spec/geotiff2.6.html
+	
+	// Read affine transform from TIFFTAG_ModelTransformationTag
+	std::vector<Float64> final_transform;
+	std::vector<Float64> transform = { 0.0, 0.0, 0.0, 0.0, 0.0, 
+									   0.0, 0.0, 0.0, 0.0, 0.0,
+									   0.0, 0.0, 0.0, 0.0, 0.0,
+									   0.0 };
+
+	/*
+	|-   -|     |-                 -|  |-   -|
+	|  X  |     |   a   b   0   d   |  |  I  |
+	|     |     |                   |  |     |
+	|  Y  |     |   e   f   0   h   |  |  J  |
+	|     |  =  |                   |  |     |
+	|  Z  |     |   0   0   0   0   |  |  K  |
+	|     |     |                   |  |     |
+	|  1  |     |   0   0   0   1   |  |  1  |
+	|-   -|     |-                 -|  |-   -|
+	*/
+
+	auto result = TIFFGetField(m_TiffHandle, TIFFTAG_ModelTransformationTag, transform.begin()); // https://www.awaresystems.be/imaging/tiff/tifftags/modeltransformationtag.html
+	if (result)
+	{
+		final_transform.push_back(transform[0]); // a: pixel size in the x-direction in map units
+		final_transform.push_back(transform[1]); // b: rotation about y-axis
+		final_transform.push_back(transform[4]); // e: rotation about x-axis
+		final_transform.push_back(-transform[5]); // f: pixel size in the y-direction in map in map units
+		final_transform.push_back(transform[3]); // d: x-coordinate of the upper left corner of the image
+		final_transform.push_back(transform[7]); // h: y-coordinate of the upper left corner of the image
+		
+		return final_transform;
+	}
+
+	// Read affine transform from TIFFTAG_ModelTiePointTag and TIFFTAG_ModelPixelScaleTag
+	double * data_tie;
+	uint32_t count = 0;
+	auto statusT = TIFFGetField(m_TiffHandle, TIFFTAG_ModelTiePointTag, &count, &data_tie);
+	if (!statusT || count!=6)
+		return final_transform;
+	
+	double * data_scale;	
+	auto statusS = TIFFGetField(m_TiffHandle, TIFFTAG_ModelPixelScaleTag, &count, &data_scale);
+	if (!statusS || count!=3)
+		return final_transform;
+
+	final_transform.push_back(data_scale[0]); // a: pixel size in the x-direction in map units
+	final_transform.push_back(0.0);			  // b: rotation about y-axis
+	final_transform.push_back(0.0);			  // e: rotation about x-axis
+	final_transform.push_back(-data_scale[1]); // f: pixel size in the y-direction in map in map units
+	final_transform.push_back(data_tie[3]);  // d: x-coordinate of the upper left corner of the image
+	final_transform.push_back(data_tie[4]);  // h: y-coordinate of the upper left corner of the image
+
+	return final_transform;
+}
 
 bool TifImp::HasColorTable() const
 {

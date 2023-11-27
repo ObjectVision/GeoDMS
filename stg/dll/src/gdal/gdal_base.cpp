@@ -662,21 +662,23 @@ VersionComponent s_ProjComponent(PROJ_VERSION_STRING);
 
 // *****************************************************************************
 
-GDALDataType gdalRasterDataType(ValueClassID tid)
+GDALDataType gdalRasterDataType(ValueClassID tid, bool write)
 {
 	switch (tid) {
-		//		case Int8: 
-	case ValueClassID::VT_Bool:
-	case ValueClassID::VT_UInt2:
-	case ValueClassID::VT_UInt4:
+	case ValueClassID::VT_Bool:	   return write ? GDT_Unknown : GDT_Byte;
+	case ValueClassID::VT_UInt2:   return write ? GDT_Unknown : GDT_Byte;
+	case ValueClassID::VT_UInt4:   return write ? GDT_Unknown : GDT_Byte;
+
 	case ValueClassID::VT_UInt8:   return GDT_Byte;
 	case ValueClassID::VT_UInt16:  return GDT_UInt16;
-	case ValueClassID::VT_Int16:   return GDT_Int16;
-
 	case ValueClassID::VT_UInt32:  return GDT_UInt32;
-	case ValueClassID::VT_Int32:   return GDT_Int32;
 	case ValueClassID::VT_UInt64:  return GDT_UInt64;
+
+	case ValueClassID::VT_Int8:   return GDT_Int8;
+	case ValueClassID::VT_Int16:   return GDT_Int16;
+	case ValueClassID::VT_Int32:   return GDT_Int32;
 	case ValueClassID::VT_Int64:   return GDT_Int64;
+
 	case ValueClassID::VT_Float32: return GDT_Float32;
 	case ValueClassID::VT_Float64: return GDT_Float64;
 
@@ -1219,7 +1221,7 @@ bool Gdal_DriverSupportsDmsValueType(UInt32 gdalOpenFlags, ValueClassID dms_valu
 	if (gdalOpenFlags & GDAL_OF_RASTER)
 	{
 		auto raster_driver_supported_value_types = std::string(driver->GetMetadataItem(GDAL_DMD_CREATIONDATATYPES));
-		auto target_gdal_raster_type = gdalRasterDataType(dms_value_class_id);
+		auto target_gdal_raster_type = gdalRasterDataType(dms_value_class_id, true);
 		return dmsAndDriverTypeAreCompatible(GDALGetDataTypeName(target_gdal_raster_type), raster_driver_supported_value_types);
 	}
 	else if (gdalOpenFlags & GDAL_OF_VECTOR)

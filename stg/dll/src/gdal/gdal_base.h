@@ -161,7 +161,7 @@ public:
 
 // *****************************************************************************
 
-GDALDataType gdalRasterDataType(ValueClassID tid);
+GDALDataType gdalRasterDataType(ValueClassID tid, bool write = false);
 
 // *****************************************************************************
 
