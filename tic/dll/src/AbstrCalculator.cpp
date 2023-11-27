@@ -583,6 +583,9 @@ SharedStr AbstrCalculator::EvaluateExpr(const TreeItem* context, CharPtrRange ex
 	while (nrEvals-- && !resultStr.empty())
 	{
 		AbstrCalculatorRef calculator = ConstructFromDirectStr(context, resultStr, cr);
+		auto dc = MakeResult(calculator);
+		irc.Add(dc);
+		
 		auto res = CalcResult(calculator, DataArray<SharedStr>::GetStaticClass());
 		assert(res);
 		if (res->WasFailed(FR_Data))
@@ -668,6 +671,8 @@ ActorVisitState AbstrCalculator::VisitImplSuppl(SupplierVisitFlag svf, const Act
 	while (!resultStr.empty())
 	{
 		AbstrCalculatorRef calculator = ConstructFromDirectStr(const_cast<TreeItem*>(context), resultStr, cr);
+		auto dc = MakeResult(calculator);
+		irc.Add(dc);
 
 		auto res = CalcResult(calculator, DataArray<SharedStr>::GetStaticClass());
 		irc.Add(res.get_ptr());

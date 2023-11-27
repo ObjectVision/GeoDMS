@@ -20,6 +20,7 @@
 #include <gdal_priv.h>
 
 #include "RtcGeneratedVersion.h"
+#include "TicPropDefConst.h"
 
 #include "act/UpdateMark.h"
 #include "dbg/debug.h"
@@ -504,13 +505,7 @@ void GdalGridSM::DoUpdateTree(const TreeItem* storageHolder, TreeItem* curr, Syn
 	curr->SetFreeDataState(true);
 
 	AbstrUnit* gridDataDomain = GetGridDataDomainRW(curr);
-	const AbstrUnit* uBase = FindProjectionBase(storageHolder, gridDataDomain);
-
-	if (!uBase)
-		uBase = FindProjectionBase(curr, gridDataDomain);
-
 	StorageReadHandle storageHandle(this, storageHolder, curr, StorageAction::updatetree);
-	
 	
 	if (storageHolder == curr && !GetGridData(curr)) // Construct GridData if unavailable
 	{
@@ -555,10 +550,47 @@ void GdalGridSM::DoUpdateTree(const TreeItem* storageHolder, TreeItem* curr, Syn
 		{
 			gridDataDomain->CatchFail(FR_MetaInfo);
 		}
-
-
 	}
 
+	// Get or create projection base
+	const AbstrUnit* uBase = FindProjectionBase(storageHolder, gridDataDomain);
+	if (!uBase)
+		uBase = FindProjectionBase(curr, gridDataDomain);
+
+	if (!uBase && storageHolder==curr)
+	{
+		try 
+		{
+			GDAL_ErrorFrame frame;
+			gdal_transform gdalTr;
+			
+			const OGRSpatialReference* spatial_ref = m_hDS->GetSpatialRef();
+			if (!spatial_ref)
+				spatial_ref = m_hDS->GetGCPSpatialRef();
+
+			if (spatial_ref)
+			{
+				CplString psz_wkt;
+				auto result = spatial_ref->exportToWkt(&psz_wkt.m_Text);
+
+				if (result == OGRERR_NONE)
+				{
+					uBase = Unit<UInt32>::GetStaticClass()->CreateUnit(curr, GetTokenID_st(SR_NAME));
+
+					auto spatial_ref_src = SharedStr(psz_wkt.m_Text);
+					auto spatialref_item = uBase->GetCurrRefItem();
+					const_cast<TreeItem*>(spatialref_item)->SetExpr(spatial_ref_src);
+					curr->SetDescr(spatialref_item->GetFullName());
+				}
+			}
+		}
+		catch (...)
+		{
+			gridDataDomain->CatchFail(FR_MetaInfo);
+		}
+	}
+
+	// Get pixel to world coordinates transformation
 	if (uBase && IsOpen() && m_hDS->GetRasterCount())
 	{
 		try {

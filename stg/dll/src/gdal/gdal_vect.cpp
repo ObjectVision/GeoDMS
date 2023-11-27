@@ -1561,8 +1561,8 @@ void UpdateSpatialRef(const GDALDatasetHandle& hDS, AbstrDataItem* geometry, std
 		return;
 	assert(geometry);
 
-	auto gvu = GetBaseProjectionUnitFromValuesUnit(geometry);
-	CheckSpatialReference(spatialRef, geometry, const_cast<AbstrUnit*>(gvu));
+	auto gvu = GetBaseProjectionUnitFromValuesUnit(geometry); // TODO: create spatial reference if unavailable
+	CheckSpatialReference(spatialRef, geometry, const_cast<AbstrUnit*>(gvu)); 
 
 	auto wkt = GetAsWkt(&*spatialRef);
 	if (!wkt.empty())
@@ -1599,7 +1599,6 @@ void GdalVectSM::DoUpdateTable(const TreeItem* storageHolder, AbstrUnit* layerDo
 		{
 			if (gdal_vc == ValueComposition::Unknown)
 			{
-				// TODO: interpret geometry type if possible from WKT
 				vu = Unit<SharedStr>::GetStaticClass()->CreateDefault();
 				gdal_vc = ValueComposition::String;
 			}
