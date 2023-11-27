@@ -14,6 +14,7 @@
 #include <QCheckBox>
 #include <QVBoxLayout>
 #include <QLineEdit>
+#include <QLabel>
 #include "qtextdocument.h"
 
 #include "DmsMainWindow.h"
@@ -35,6 +36,7 @@ public slots:
     QCheckBox* match_case = nullptr;
     QPushButton* previous = nullptr;
     QPushButton* next = nullptr;
+    QLabel* result_info = nullptr;
 };
 
 struct QUpdatableTextBrowser : QTextBrowser, MsgGenerator
