@@ -53,8 +53,9 @@ bool StrStorageManager::ReadDataItem (StorageMetaInfoPtr smi, AbstrDataObject* b
 		auto sfwa = DSM::GetSafeFileWriterArray(); 
 		if (!sfwa)
 			return false;
-		if (! file.OpenFH(GetFileName(storageHolder, adi, i), sfwa.get(), FCM_OpenReadOnly, false, NR_PAGES_DIRECTIO))
-			return false;
+		auto strFileName = GetFileName(storageHolder, adi, i);
+		if (!file.OpenFH(strFileName, sfwa.get(), FCM_OpenReadOnly, false, NR_PAGES_DIRECTIO))
+			throwErrorF("StrStorageManager", "Cannot open file '%s'", strFileName);
 
 		dms::filesize_t fileSize = file.GetFileSize();
 		if (sdo)
