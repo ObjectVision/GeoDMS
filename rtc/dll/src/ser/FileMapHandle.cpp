@@ -347,7 +347,10 @@ void FileViewHandle::Map(bool alsoWrite)
 
 		DWORD lastErr = GetLastError();
 		if (lastErr != ERROR_NOT_ENOUGH_MEMORY || !DMS_CoalesceHeap(GetViewSize()))
+		{
+			m_MappedFile->m_ResizeMutex.unlock_shared();
 			throwSystemError(lastErr, "FileMapHandle('%s').MapViewOfFile(%I64u)", m_MappedFile->GetFileName().c_str(), (UInt64)GetViewSize());
+		}
 	};
 }
 
@@ -382,7 +385,10 @@ void ConstFileViewHandle::Map()
 
 		DWORD lastErr = GetLastError();
 		if (lastErr != ERROR_NOT_ENOUGH_MEMORY || !DMS_CoalesceHeap(GetViewSize()))
+		{
+			m_MappedFile->m_ResizeMutex.unlock_shared();
 			throwSystemError(lastErr, "FileMapHandle('%s').MapViewOfFile(%I64u)", m_MappedFile->GetFileName().c_str(), (UInt64)GetViewSize());
+		}
 	};
 }
 
