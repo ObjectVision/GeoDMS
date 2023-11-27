@@ -132,7 +132,8 @@ MappedFileInpStreamBuff::MappedFileInpStreamBuff(WeakStr fileName, SafeFileWrite
 	:	m_FileName(fileName)
 {
 	auto cmfh = std::make_shared<ConstMappedFileHandle>(fileName, sfwa, throwOnOpenError, doRetry);
-	m_FileView = FileViewHandle(cmfh, cmfh->GetFileSize());
+	m_FileView = ConstFileViewHandle(cmfh);
+	m_FileView.Map();
 	if (IsOpen())
 		m_Curr = m_FileView.DataBegin();
 }
@@ -140,7 +141,9 @@ MappedFileInpStreamBuff::MappedFileInpStreamBuff(WeakStr fileName, SafeFileWrite
 
 
 MappedFileInpStreamBuff::~MappedFileInpStreamBuff()
-{}
+{
+	m_FileView.Unmap();
+}
 
 void MappedFileInpStreamBuff::ReadBytes(Byte* data, streamsize_t size) const
 {

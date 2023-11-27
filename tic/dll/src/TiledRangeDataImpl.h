@@ -129,7 +129,7 @@ struct RegularAdapter: Base
 	}
 	SizeT GetMemPageIndex(UInt8 log2BytesPerElem, tile_id t) const override
 	{
-		assert(t < GetNrTiles());
+		assert(t <= GetNrTiles());
 		// TODO OPTIMIZE for edge and corner tiles 
 		return NrMemPages(GetMaxTileSize() << log2BytesPerElem)* t;
 	}

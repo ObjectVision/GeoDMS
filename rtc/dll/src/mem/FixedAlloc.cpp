@@ -722,7 +722,7 @@ RTC_CALL auto UpdateFixedAllocStatus() -> FreeStackAllocSummary
 
 RTC_CALL auto GetFixedAllocStatus(const FreeStackAllocSummary& cumulBytes) -> SharedStr
 {
-	return mySSPrintF("Reserved in Blocks %d[MB]; allocated: %d[MB]; freed: %d[MB]; uncommitted: %d[MB]; PageFileUsage: %d[MB]"
+	return mySSPrintF("Reserved in Blocks %d[MB]; allocated: %d[MB]; freed: %d[MB]; uncommitted: %d[MB]; CommitCharge: %d[MB]"
 		, std::get<0>(cumulBytes) >> 20
 		, std::get<1>(cumulBytes) >> 20
 		, std::get<2>(cumulBytes) >> 20
@@ -758,7 +758,7 @@ RTC_CALL auto UpdateAndGetFixedAllocFinalSummary() -> SharedStr
 {
 	auto cumulBytes = maxCumulBytes;
 
-	return mySSPrintF( "Highest Reserved in Blocks %d[MB]; Highest allocated: %d[MB]; Highest freed: %d[MB]; Highest uncommitted: %d[MB]; Highest PageFileUsage: %d[MB]"
+	return mySSPrintF( "Highest Reserved in Blocks %d[MB]; Highest allocated: %d[MB]; Highest freed: %d[MB]; Highest uncommitted: %d[MB]; Highest CommitCharge: %d[MB]"
 		, std::get<0>(cumulBytes) >> 20
 		, std::get<1>(cumulBytes) >> 20
 		, std::get<2>(cumulBytes) >> 20
