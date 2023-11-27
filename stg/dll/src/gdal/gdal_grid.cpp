@@ -20,6 +20,7 @@
 #include <gdal_priv.h>
 
 #include "RtcGeneratedVersion.h"
+#include "TicPropDefConst.h"
 
 #include "act/UpdateMark.h"
 #include "dbg/debug.h"
@@ -126,7 +127,6 @@ bool GdalGridSM::ReadDataItem(StorageMetaInfoPtr smi, AbstrDataObject* borrowedR
 GDalGridImp::GDalGridImp(GDALDataset* hDS, const AbstrDataObject* ado, UPoint viewPortSize, SharedStr sqlBandSpecification)
 	: m_hDS(hDS)
 	, poBand(GetRasterBand(sqlBandSpecification))
-	//, poBands(GetRasterBands(sqlBandSpecification))
 	, m_ValueClassID(ado->GetValueClass()->GetValueClassID())
 	, m_ViewPortSize(viewPortSize)
 {
@@ -181,13 +181,6 @@ GDALRasterBand* GDalGridImp::GetRasterBand(SharedStr sqlBandSpecification)
 std::vector<GDALRasterBand*> GDalGridImp::GetRasterBands(SharedStr sqlBandSpecification)
 {
 	std::vector<GDALRasterBand*> poBands;
-	/*auto bandIndices = InterpretSqlBandSpecification(sqlBandSpecification);
-	if (bandIndices.empty())
-		return poBands; // default to no bands
-
-	for (auto ind : bandIndices)
-		poBands.push_back(m_hDS->GetRasterBand(ind));*/
-
 	return poBands;
 }
 
@@ -512,23 +505,101 @@ void GdalGridSM::DoUpdateTree(const TreeItem* storageHolder, TreeItem* curr, Syn
 	curr->SetFreeDataState(true);
 
 	AbstrUnit* gridDataDomain = GetGridDataDomainRW(curr);
-	const AbstrUnit* uBase = FindProjectionBase(storageHolder, gridDataDomain);
+	StorageReadHandle storageHandle(this, storageHolder, curr, StorageAction::updatetree);
+	
+	if (storageHolder == curr && !GetGridData(curr)) // Construct GridData if unavailable
+	{
+		const AbstrUnit* vu = nullptr;
+		try {
+			GDAL_ErrorFrame frame;
+			gdal_transform gdalTr;
+			auto number_of_bands = m_hDS->GetRasterCount();
+			auto first_band = m_hDS->GetRasterBand(1);
+			auto first_band_datatype = first_band->GetRasterDataType();
+			if (number_of_bands==4 && first_band_datatype ==GDT_Byte)
+			{
+				vu = Unit<UInt32>::GetStaticClass()->CreateDefault(); // interleaved reading
+			}
+			else
+			{
+				switch (first_band_datatype) // TODO: Take sql band specification into account
+				{
+				case GDT_Byte: vu = Unit<UInt8>::GetStaticClass()->CreateDefault(); break;
+				case GDT_Int8: vu = Unit<Int8>::GetStaticClass()->CreateDefault(); break;
+				case GDT_UInt16: vu = Unit<UInt16>::GetStaticClass()->CreateDefault(); break;
+				case GDT_Int16: vu = Unit<Int16>::GetStaticClass()->CreateDefault(); break;
+				case GDT_UInt32: vu = Unit<UInt32>::GetStaticClass()->CreateDefault(); break;
+				case GDT_Int32: vu = Unit<Int32>::GetStaticClass()->CreateDefault(); break;
+				case GDT_UInt64: vu = Unit<UInt64>::GetStaticClass()->CreateDefault(); break;
+				case GDT_Int64: vu = Unit<Int64>::GetStaticClass()->CreateDefault(); break;
+				case GDT_Float32: vu = Unit<Float32>::GetStaticClass()->CreateDefault(); break;
+				case GDT_Float64: vu = Unit<Float64>::GetStaticClass()->CreateDefault(); break;
+				default: throwErrorF("gdal.grid", "Cannot convert raster GDALDataType %d to GeoDMS values unit.", first_band_datatype); return;
+				}
+			}
+			auto gdal_vc = ValueComposition::Single;
 
+			auto gridData = CreateDataItem(
+				gridDataDomain, GRID_DATA_ID,
+				gridDataDomain, vu, gdal_vc
+			);
+
+			frame.ThrowUpWhateverCameUp();
+		}
+		catch (...)
+		{
+			gridDataDomain->CatchFail(FR_MetaInfo);
+		}
+	}
+
+	// Get or create projection base
+	const AbstrUnit* uBase = FindProjectionBase(storageHolder, gridDataDomain);
 	if (!uBase)
 		uBase = FindProjectionBase(curr, gridDataDomain);
 
-	StorageReadHandle storageHandle(this, storageHolder, curr, StorageAction::updatetree);
-	
+	if (!uBase && storageHolder==curr)
+	{
+		try 
+		{
+			GDAL_ErrorFrame frame;
+			gdal_transform gdalTr;
+			
+			const OGRSpatialReference* spatial_ref = m_hDS->GetSpatialRef();
+			if (!spatial_ref)
+				spatial_ref = m_hDS->GetGCPSpatialRef();
+
+			if (spatial_ref)
+			{
+				CplString psz_wkt;
+				auto result = spatial_ref->exportToWkt(&psz_wkt.m_Text);
+
+				if (result == OGRERR_NONE)
+				{
+					uBase = Unit<UInt32>::GetStaticClass()->CreateUnit(curr, GetTokenID_st(SR_NAME));
+
+					auto spatial_ref_src = SharedStr(psz_wkt.m_Text);
+					auto spatialref_item = uBase->GetCurrRefItem();
+					const_cast<TreeItem*>(spatialref_item)->SetExpr(spatial_ref_src);
+					curr->SetDescr(spatialref_item->GetFullName());
+				}
+			}
+		}
+		catch (...)
+		{
+			gridDataDomain->CatchFail(FR_MetaInfo);
+		}
+	}
+
+	// Get pixel to world coordinates transformation
 	if (uBase && IsOpen() && m_hDS->GetRasterCount())
 	{
 		try {
 			GDAL_ErrorFrame frame;
 			gdal_transform gdalTr;
+
+			// Pixel- to world coordinates transformation
 			m_hDS->GetGeoTransform(gdalTr);
-
 			gridDataDomain->SetProjection(new UnitProjection(uBase, GetTransformation(gdalTr)));
-
-			// spatial ref info
 			m_hDS.UpdateBaseProjection(curr, uBase);
 
 			frame.ThrowUpWhateverCameUp();
