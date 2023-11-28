@@ -243,14 +243,14 @@ namespace Grid {
 			if (!IsDefined(offset))
 				throwErrorD("GridStorageManager", "Unknown offset of viewPort");
 
-			//auto viewport_info_ex = dynamic_cast<ViewPortInfoEx<Int32>*>(viewPort2Grid);
-			UPoint tileSize = imp.GetTileSize();
-			auto tile_size_x = tileSize.X();
-			auto tile_size_y = tileSize.Y();
 			if (viewPort2Grid.m_smi)
 			{
-				std::call_once(viewPort2Grid.m_smi->m_compare_tile_size_flag, [&viewPort2Grid, tile_size_x, tile_size_y]()
+
+				std::call_once(viewPort2Grid.m_smi->m_compare_tile_size_flag, [&imp, &viewPort2Grid]()
 					{
+						UPoint tileSize = imp.GetTileSize();
+						auto tile_size_x = tileSize.X();
+						auto tile_size_y = tileSize.Y();
 						if (X_GRANULARITY != tile_size_x || Y_GRANULARITY != tile_size_y)
 						{
 							reportF(SeverityTypeID::ST_Warning, "GridStorageManager: Tilesize mismatch detected between storage %s: %d,%d and GeoDMS default tiling: %d,%d", viewPort2Grid.m_smi->CurrRI()->GetFullName(), tile_size_x, tile_size_y, X_GRANULARITY, Y_GRANULARITY);
