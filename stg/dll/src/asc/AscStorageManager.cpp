@@ -135,7 +135,7 @@ bool AsciiStorageManager::ReadDataItem(StorageMetaInfoPtr smi, AbstrDataObject* 
 
 	// Collect zoom info
 	const GridStorageMetaInfo* gbr = debug_cast<const GridStorageMetaInfo*>(smi.get());
-	ViewPortInfoEx vpi = gbr->m_VPIP.value().GetViewportInfoEx(t);
+	ViewPortInfoEx vpi = gbr->m_VPIP.value().GetViewportInfoEx(t, smi);
 	AbstrDataItem* adi = smi->CurrWD();
 	vpi.SetWritability(adi);
 

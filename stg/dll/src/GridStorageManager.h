@@ -17,6 +17,7 @@
 #include "mem/grid.h"
 #include "mem/RectCopy.h"
 #include "mem/tiledata.h"
+#include "TiledUnit.h"
 #include "utl/mySPrintF.h"
 
 #include "AbstrDataItem.h"
@@ -233,7 +234,7 @@ namespace Grid {
 	)
 	{
 		assert(pixels);
-
+		//viewPort2Grid.m
 		imp.UnpackCheck(nrbits_of_v<T>, imp.GetNrBitsPerPixel(), "GridData::ReadData", "to", dataSourceName);
 
 		if (viewPort2Grid.IsNonScaling() && nrbits_of_v<T> == imp.GetNrBitsPerPixel())
@@ -241,6 +242,22 @@ namespace Grid {
 			IPoint offset = Round<4>(viewPort2Grid.Offset());
 			if (!IsDefined(offset))
 				throwErrorD("GridStorageManager", "Unknown offset of viewPort");
+
+			//auto viewport_info_ex = dynamic_cast<ViewPortInfoEx<Int32>*>(viewPort2Grid);
+			UPoint tileSize = imp.GetTileSize();
+			auto tile_size_x = tileSize.X();
+			auto tile_size_y = tileSize.Y();
+			if (viewPort2Grid.m_smi)
+			{
+				std::call_once(viewPort2Grid.m_smi->m_compare_tile_size_flag, [&viewPort2Grid, tile_size_x, tile_size_y]()
+					{
+						if (X_GRANULARITY != tile_size_x || Y_GRANULARITY != tile_size_y)
+						{
+							reportF(SeverityTypeID::ST_Warning, "GridStorageManager: Tilesize mismatch detected between storage %s: %d,%d and GeoDMS default tiling: %d,%d", viewPort2Grid.m_smi->CurrRI()->GetFullName(), tile_size_x, tile_size_y, X_GRANULARITY, Y_GRANULARITY);
+						}
+					});
+			}
+			
 			ReadTiles<T>(imp, viewPort2Grid.GetViewPortOrigin() + offset, viewPort2Grid.GetViewPortSize(), defaultColor, pixels);
 			return;
 		}

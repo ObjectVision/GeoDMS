@@ -153,7 +153,7 @@ bool TiffSM::ReadDataItem(StorageMetaInfoPtr smi, AbstrDataObject* borrowedReadR
 
 	// Collect zoom info
 	const GridStorageMetaInfo* gbr = debug_cast<const GridStorageMetaInfo*>(smi.get());
-	auto vpi = gbr->m_VPIP.value().GetViewportInfoEx(t);
+	auto vpi = gbr->m_VPIP.value().GetViewportInfoEx(t, smi);
 
 	vpi.SetWritability(adi);
 
@@ -263,7 +263,7 @@ bool TiffSM::WriteDataItem(StorageMetaInfoPtr&& smiHolder)
 		const AbstrDataItem* adi = smi->CurrRD();
 		const ValueClass* streamType = GetStreamType(adi);
 		ViewPortInfoProvider vpip(smi->StorageHolder(), adi, false, true);
-		WriteGridData(*m_pImp, vpip.GetViewportInfoEx(no_tile), storageHolder, adi, streamType);     // Byte stream, full image 
+		WriteGridData(*m_pImp, vpip.GetViewportInfoEx(no_tile, storageHandle.MetaInfo()), storageHolder, adi, streamType);     // Byte stream, full image 
 	}
 
 	if (pd)
