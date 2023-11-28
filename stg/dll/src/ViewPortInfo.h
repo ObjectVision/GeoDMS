@@ -60,6 +60,7 @@ struct ViewPortInfo : CrdTransformation
 		  rect_type GetViewPortInGridAsIRect() const  { return Round<sizeof(signed_type)>(GetViewPortInGrid()); }
 
 	countcolor_t GetCountColor() const { return m_CountColor;  }
+	StorageMetaInfoPtr m_smi = nullptr;
 
 protected:
 	rect_type    m_ViewPortExtents; // [in ViewPort units]

@@ -14,6 +14,7 @@ FindTextWindow::FindTextWindow(QWidget* parent)
     next = new QPushButton("Next", this);
     QWidget* spacer = new QWidget(this);
     spacer->setSizePolicy(QSizePolicy::Minimum, QSizePolicy::Expanding);
+    result_info = new QLabel("", this);
 
     // connections
     connect(next, &QPushButton::clicked, this, &FindTextWindow::nextClicked);
@@ -26,6 +27,7 @@ FindTextWindow::FindTextWindow(QWidget* parent)
     layout->addWidget(previous);
     layout->addWidget(next);
     layout->addWidget(spacer);
+    layout->addWidget(result_info);
 
     setLayout(layout);
 }
@@ -44,7 +46,8 @@ void FindTextWindow::findInText(bool backwards)
     int match_whole_word_flag = match_whole_word->isChecked() ? QTextDocument::FindWholeWords : 0;
     QTextDocument::FindFlags find_flags = static_cast<QTextDocument::FindFlags>(backwards_flag | match_case_flag | match_whole_word_flag);
 
-    updatable_text_browser->find(find_text->text(), find_flags);
+    auto found = updatable_text_browser->find(find_text->text(), find_flags);
+    result_info->setText(found ? "" : "No more matches found");
 }
 
 void FindTextWindow::nextClicked(bool checked)

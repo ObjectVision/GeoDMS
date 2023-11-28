@@ -333,8 +333,12 @@ struct FreeStackAllocator
 			nrFreed = (totalBytes >> inner.log2ObjectStoreSize) - nrAllocated - nrUncommitted;
 			nrAllocatedBytes = inner.objectStoreSize * nrAllocated;
 		}
+
+		#if defined(MG_DEBUG_ALLOCATOR)
 		reportF(MsgCategory::memory, SeverityTypeID::ST_MinorTrace, "Block size: %d; pagecount: %d; alloc: %d; freed: %d; uncommitted: %d; total bytes: %d[MB] allocbytes = %d[MB]",
 			inner.objectStoreSize, pageCount, nrAllocated, nrFreed, nrUncommitted, totalBytes >> 20, nrAllocatedBytes >> 20);
+		#endif
+
 		return FreeStackAllocSummary(totalBytes, nrAllocatedBytes, nrFreed << inner.log2ObjectStoreSize, nrUncommitted << inner.log2ObjectStoreSize, 0);
 	}
 };
@@ -747,8 +751,9 @@ static UInt8 reportThrottler = 0;
 void ReportFixedAllocStatus()
 {
 	auto cumulBytes = UpdateFixedAllocStatus();
-	if (++reportThrottler == 0) // only report every 2^8 other time
+	if (++reportThrottler > 17) // only report to log every 17th time
 	{
+		reportThrottler = 0;
 		auto reportStr = GetFixedAllocStatus(cumulBytes);
 		reportD(MsgCategory::memory, SeverityTypeID::ST_MajorTrace, reportStr.c_str());
 	}

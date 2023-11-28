@@ -838,6 +838,10 @@ void sequence_array<T>::StreamIn (BinaryInpStream& ar, bool mayResize)
 	assert(m_Indices.begin() + s == m_Indices.end());
 	for (SizeT i = 0; i != s; ++i)
 		ar >> m_Indices[i].first >> m_Indices[i].second;
+	if (ar.Buffer().AtEnd())
+		throwErrorF("StreamIn", "provided input stream ended before sequence-array was read.\n"
+			"Did the input stream represent sequences or strings? Consider configuring a fixed size value type"
+		);
 
 	ar >> m_Values;
 	m_ActualDataSize = m_Values.size();

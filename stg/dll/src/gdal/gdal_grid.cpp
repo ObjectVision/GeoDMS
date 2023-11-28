@@ -107,9 +107,9 @@ bool GdalGridSM::ReadDataItem(StorageMetaInfoPtr smi, AbstrDataObject* borrowedR
 	{
 		// Collect zoom info
 		const GridStorageMetaInfo* gbr = debug_cast<const GridStorageMetaInfo*>(smi.get());
-		auto vpi = gbr->m_VPIP.value().GetViewportInfoEx(t);
+		auto vpi = gbr->m_VPIP.value().GetViewportInfoEx(t, smi);
 		vpi.SetWritability(adi);
-		auto test = vpi.GetCountColor();
+
 		if (vpi.GetCountColor() != -1)
 			ReadGridCounts(vpi, borrowedReadResultHolder, t, gbr->m_SqlString);
 		else
@@ -417,7 +417,7 @@ bool GdalGridSM::WriteDataItem(StorageMetaInfoPtr&& smi)
 
 	GDalGridImp imp(m_hDS, adi->GetCurrRefObj(), shp2dms_order(x, y), SharedStr(""));
 	ViewPortInfoProvider vpip(storageHolder, adi, false, true);
-	Grid::WriteGridData(imp, vpip.GetViewportInfoEx(no_tile), storageHolder, adi, adi->GetCurrRefObj()->GetValuesType(), GetNameStr().c_str());
+	Grid::WriteGridData(imp, vpip.GetViewportInfoEx(no_tile, smi), storageHolder, adi, adi->GetCurrRefObj()->GetValuesType(), GetNameStr().c_str());
 	return true;
 }
 
