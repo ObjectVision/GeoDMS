@@ -952,9 +952,10 @@ void MainWindow::updateToolbar()
     m_current_toolbar_style = view_style;
 
     // disable/enable coordinate tool
-    auto is_mapview_or_tableview = view_style == ViewStyle::tvsMapView || view_style == ViewStyle::tvsTableView;
-    m_statusbar_coordinate_label->setVisible(is_mapview_or_tableview);
-    m_statusbar_coordinates->setVisible(is_mapview_or_tableview);
+    auto is_mapview = view_style == ViewStyle::tvsMapView;
+    auto is_tableview = view_style == ViewStyle::tvsTableView;
+    m_statusbar_coordinate_label->setVisible(is_mapview);
+    m_statusbar_coordinates->setVisible(is_mapview || is_tableview);
     clearToolbarUpToDetailPagesTools();
 
     static std::vector<ToolButtonID> available_table_buttons = getAvailableTableviewButtonIds();
@@ -2531,7 +2532,7 @@ void MainWindow::createStatusBar()
     m_statusbar_coordinates = new QLineEdit(this);
     m_statusbar_coordinates->setReadOnly(true);
     m_statusbar_coordinates->setFixedWidth(310);
-    m_statusbar_coordinates->setAlignment(Qt::AlignmentFlag::AlignRight);
+    m_statusbar_coordinates->setAlignment(Qt::AlignmentFlag::AlignLeft);
     statusBar()->insertPermanentWidget(0, m_statusbar_coordinate_label);
     statusBar()->insertPermanentWidget(1, m_statusbar_coordinates);
     m_statusbar_coordinate_label->setVisible(false);
