@@ -46,7 +46,7 @@ granted by an additional written contract for support, assistance and/or develop
 class XdbStorageManager : public NonmappableStorageManager
 {
 public:
-	XdbStorageManager(CharPtr datExtension = "txt", bool saveColInfo = true);
+	XdbStorageManager(CharPtr datExtension);
 
 //	implement AbstrStorageManager interface
 	bool ReadDataItem(StorageMetaInfoPtr smi, AbstrDataObject* borrowedReadResultHolder, tile_id t) override;
@@ -55,16 +55,12 @@ public:
 	bool ReadUnitRange(const StorageMetaInfo& smi) const override;
 
 	void DoUpdateTree(const TreeItem* storageHolder, TreeItem* curr, SyncMode sm) const override;
-	void DoWriteTree(const TreeItem* storageHolder) override;
 
 protected:
 	// Helper functions
 	virtual void UpdateColInfo(class XdbImp& imp) const;
 
 	CharPtr m_DatExtension;
-	bool    m_SaveColInfo;
-
-	DECL_RTTI(STGDLL_CALL,StorageClass)
 };
 
 

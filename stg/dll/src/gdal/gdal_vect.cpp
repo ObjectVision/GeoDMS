@@ -1702,20 +1702,6 @@ void GdalVectSM::DoUpdateTree(const TreeItem* storageHolder, TreeItem* curr, Syn
 IMPL_DYNC_STORAGECLASS(GdalVectSM, "gdal.vect")
 IMPL_DYNC_STORAGECLASS(GdalWritableVectSM, "gdalwrite.vect")
 
-struct GdalVectSM2 : GdalVectSM
-{
-	GdalVectSM2()
-	{
-		reportD(SeverityTypeID::ST_Warning, "StorageManager gdal2.vect is depreciated and will be removed in GeoDms version 15.0.0");
-		static_assert(DMS_VERSION_MAJOR != 15);
-	}
-
-
-	DECL_RTTI(STGDLL_CALL, StorageClass)
-};
-
-IMPL_DYNC_STORAGECLASS(GdalVectSM2, "gdal2.vect")
-
 // type aliasses
 namespace {
 	StorageClass fgdbStorageManagers(CreateFunc<GdalVectSM>, GetTokenID_st("fgdb"));
