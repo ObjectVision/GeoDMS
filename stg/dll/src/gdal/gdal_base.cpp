@@ -1312,10 +1312,7 @@ GDALDatasetHandle Gdal_DoOpenStorage(const StorageMetaInfo& smi, dms_rw_mode rwM
 		{
 			driverShortName = GDALRegisterTrustedDriverFromKnownDriverShortName(driverArray[i]);
 			if (driverShortName.empty())
-			{
-				//GDALAllRegister();
 				throwErrorF("GDAL", "cannot register user specified gdal driver from GDAL_Driver array: %s", driverArray[i]);
-			}
 		}
 
 	}
@@ -1364,7 +1361,7 @@ GDALDatasetHandle Gdal_DoOpenStorage(const StorageMetaInfo& smi, dms_rw_mode rwM
 	if (!driverShortName.empty())
 		driverArray.AddString(driverShortName.c_str());
 
-	auto driver = GetGDALDriverManager()->GetDriverByName(driverShortName.c_str());//driverArray[0]);
+	auto driver = GetGDALDriverManager()->GetDriverByName(driverShortName.c_str());
 	if (!driver)
 		throwErrorF("GDAL", "Cannot find driver for %s", datasourceName);
 

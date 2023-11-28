@@ -253,7 +253,7 @@ SharedUnit FindProjectionBase(const TreeItem* storageHolder, const AbstrUnit* gr
 			if (prj)
 				uBase = prj->GetBaseUnit();
 			else
-				uBase = nullptr; // no self referring thing
+				uBase = nullptr; // avoid self-referencing
 		}
 	}
 
