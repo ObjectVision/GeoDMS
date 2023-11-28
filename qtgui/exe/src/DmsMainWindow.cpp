@@ -952,9 +952,9 @@ void MainWindow::updateToolbar()
     m_current_toolbar_style = view_style;
 
     // disable/enable coordinate tool
-    auto is_mapview = view_style == ViewStyle::tvsMapView;
-    m_statusbar_coordinate_label->setVisible(is_mapview);
-    m_statusbar_coordinates->setVisible(is_mapview);
+    auto is_mapview_or_tableview = view_style == ViewStyle::tvsMapView || view_style == ViewStyle::tvsTableView;
+    m_statusbar_coordinate_label->setVisible(is_mapview_or_tableview);
+    m_statusbar_coordinates->setVisible(is_mapview_or_tableview);
     clearToolbarUpToDetailPagesTools();
 
     static std::vector<ToolButtonID> available_table_buttons = getAvailableTableviewButtonIds();
