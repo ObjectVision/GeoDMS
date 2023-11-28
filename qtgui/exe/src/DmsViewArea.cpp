@@ -90,7 +90,6 @@ void DMS_CONV OnStatusText(void* clientHandle, SeverityTypeID st, CharPtr msg)
     else
     {
         MainWindow::TheOne()->m_statusbar_coordinates->setText(QString(msg));
-        // dva->lblCoord->SetCaption( msg ); // mouse info in world-coordinates
     }
 }
 

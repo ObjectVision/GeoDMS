@@ -382,7 +382,7 @@ namespace poly2grid
 			,	m_PolyAttr(polyAttr)
 			,	m_BoxesArrays(boxesArrays)
 			,	m_RasterTileId(tg)
-			,	m_ViewPortInfo(polyAttr, resDomain, tg, AsUnit(polyAttr->GetAbstrValuesUnit()->GetCurrRangeItem()), no_tile, false, false, countcolor_t(-1), false)
+			,	m_ViewPortInfo(polyAttr, resDomain, tg, AsUnit(polyAttr->GetAbstrValuesUnit()->GetCurrRangeItem()), no_tile, nullptr, false, false, countcolor_t(-1), false)
 		{
 			CreateSequenceGetter();
 		}
@@ -551,7 +551,7 @@ struct Poly2GridOperator : public BinaryOperator
 
 		if (!mustCalc)
 		{
-			ViewPortInfoEx<Int32> viewPortInfoCheck(polyAttr, gridDomainUnit, no_tile, AsUnit(polyAttr->GetAbstrValuesUnit()->GetCurrRangeItem()), no_tile, false, true, countcolor_t(-1), false);
+			ViewPortInfoEx<Int32> viewPortInfoCheck(polyAttr, gridDomainUnit, no_tile, AsUnit(polyAttr->GetAbstrValuesUnit()->GetCurrRangeItem()), no_tile, nullptr, false, true, countcolor_t(-1), false);
 		}
 		else
 		{

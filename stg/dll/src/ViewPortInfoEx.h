@@ -37,11 +37,11 @@ granted by an additional written contract for support, assistance and/or develop
 // *****************************************************************************
 
 template<typename SignedInt>
-struct ViewPortInfoEx : ViewPortInfo<SignedInt>
+struct ViewPortInfoEx : public ViewPortInfo<SignedInt>
 {
 	using rect_type = typename ViewPortInfo<SignedInt>::rect_type;
 
-	STGDLL_CALL ViewPortInfoEx(const TreeItem* context, const AbstrUnit* currDomain, tile_id tc, const AbstrUnit* gridDomain, tile_id tg
+	STGDLL_CALL ViewPortInfoEx(const TreeItem* context, const AbstrUnit* currDomain, tile_id tc, const AbstrUnit* gridDomain, tile_id tg, StorageMetaInfoPtr smi=nullptr
 		, bool correctGridOffset = false,  bool mustCheck = true, countcolor_t cc = -1, bool queryActualGridDomain = true);
 
 	bool Is1to1() const 
@@ -67,7 +67,7 @@ struct ViewPortInfoProvider
 {
 	STGDLL_CALL ViewPortInfoProvider(const TreeItem * storageHolder, const AbstrDataItem* adi, bool mayCreateDomain, bool queryActualRange);
 
-	STGDLL_CALL ViewPortInfoEx<Int32> GetViewportInfoEx(tile_id tc, tile_id tg=no_tile) const;
+	STGDLL_CALL ViewPortInfoEx<Int32> GetViewportInfoEx(tile_id tc, StorageMetaInfoPtr smi, tile_id tg=no_tile) const;
 
 	SharedPtr<const AbstrDataItem > m_ADI;
 	SharedUnitInterestPtr m_CurrDomain, m_GridDomain;

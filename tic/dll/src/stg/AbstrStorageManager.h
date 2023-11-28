@@ -151,6 +151,7 @@ public:
 	SharedStr m_RelativeName;
 	bool      m_MustRememberFailure = true;
 	std::mutex m_TileReadSection;
+	std::once_flag m_compare_tile_size_flag;
 };
 
 struct GdalMetaInfo :StorageMetaInfo
