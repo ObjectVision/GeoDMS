@@ -373,6 +373,9 @@ void TiffSM::DoUpdateTree(const TreeItem* storageHolder, TreeItem* curr, SyncMod
 		return;
 	if (curr->IsStorable() && curr->HasCalculator())
 		return;
+	const AbstrDataItem* configGridData = GetGridData(storageHolder);
+	if (configGridData && configGridData->HasCalculator())
+		return;
 
 	UpdateMarker::ChangeSourceLock changeStamp( storageHolder, "DoUpdateTree");
 	curr->SetFreeDataState(true);
