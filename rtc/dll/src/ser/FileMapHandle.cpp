@@ -311,16 +311,16 @@ ConstFileViewHandle::ConstFileViewHandle(std::shared_ptr<ConstMappedFileHandle> 
 //	Map(true);
 }
 
-void FileViewHandle::operator =(FileViewHandle&& rhs)
+void FileViewHandle::operator =(FileViewHandle&& rhs) noexcept
 {
 	m_MappedFile = std::move(rhs.m_MappedFile); assert(!rhs.m_MappedFile);
 	std::swap(m_ViewSpec, rhs.m_ViewSpec);
 	std::swap(m_ViewData, rhs.m_ViewData);
 }
 
-void ConstFileViewHandle::operator =(ConstFileViewHandle&& rhs)
+void ConstFileViewHandle::operator =(ConstFileViewHandle&& rhs) noexcept
 {
-	m_MappedFile = std::move(rhs.m_MappedFile); assert(!rhs.m_MappedFile);
+	m_MappedFile = std::move(rhs.m_MappedFile); assert(!rhs.m_MaqppedFile);
 	std::swap(m_ViewSpec, rhs.m_ViewSpec);
 	std::swap(m_ViewData, rhs.m_ViewData);
 }

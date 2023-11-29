@@ -38,11 +38,11 @@ struct WinHandle
 		: m_Hnd(hnd)
 	{}
 
-	WinHandle(WinHandle&& rhs)
+	WinHandle(WinHandle&& rhs) noexcept
 	{
 		operator =(std::move(rhs));
 	}
-	void operator = (WinHandle&& rhs)
+	void operator = (WinHandle&& rhs) noexcept
 	{
 		std::swap(m_Hnd, rhs.m_Hnd); 
 	}
@@ -134,12 +134,16 @@ struct FileViewHandle
 	using mapped_file_type = MappedFileHandle;
 
 	FileViewHandle() = default;
-	FileViewHandle(FileViewHandle&& rhs) { operator =(std::move(rhs)); }
+	FileViewHandle(FileViewHandle&& rhs) noexcept
+	{ 
+		operator =(std::move(rhs)); 
+	}
+
 	RTC_CALL FileViewHandle(std::shared_ptr<mapped_file_type> mfh, dms::filesize_t viewOffset = 0, dms::filesize_t viewSize = -1);
 
 
 	~FileViewHandle() { CloseView(); }
-	RTC_CALL void operator = (FileViewHandle&& rhs);
+	RTC_CALL void operator = (FileViewHandle&& rhs) noexcept;
 
 	RTC_CALL void realloc(dms::filesize_t requiredNrBytes);
 
@@ -177,11 +181,15 @@ struct ConstFileViewHandle
 	using mapped_file_type = ConstMappedFileHandle;
 
 	ConstFileViewHandle() = default;
-	ConstFileViewHandle(ConstFileViewHandle&& rhs) { operator =(std::move(rhs)); }
+	ConstFileViewHandle(ConstFileViewHandle&& rhs) noexcept 
+	{ 
+		operator =(std::move(rhs));
+	}
+
 	RTC_CALL ConstFileViewHandle(std::shared_ptr<ConstMappedFileHandle> cmfh, dms::filesize_t viewOffset = 0, dms::filesize_t viewSize = -1);
 
 	~ConstFileViewHandle() { CloseView(); }
-	RTC_CALL void operator = (ConstFileViewHandle&& rhs);
+	RTC_CALL void operator = (ConstFileViewHandle&& rhs) noexcept;
 
 	//	bool IsMapped() const { return m_hFileMap; }
 	bool IsUsable() const { return m_ViewData != nullptr || GetViewSize() == 0; }
