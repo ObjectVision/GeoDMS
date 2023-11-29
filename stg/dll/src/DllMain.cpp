@@ -503,7 +503,7 @@ bool CreateTreeItemColumnInfo(TreeItem* tiTable, CharPtr colName, const AbstrUni
 // ------------------------------------------------------------------------
 
 template <typename Int>
-ViewPortInfoEx<Int>::ViewPortInfoEx(const TreeItem* context, const AbstrUnit* currDomain, tile_id tc, const AbstrUnit* gridDomain, tile_id tg, bool correctGridOffset, bool mustCheck, countcolor_t cc, bool queryActualGridDomain)
+ViewPortInfoEx<Int>::ViewPortInfoEx(const TreeItem* context, const AbstrUnit* currDomain, tile_id tc, const AbstrUnit* gridDomain, tile_id tg, StorageMetaInfoPtr smi, bool correctGridOffset, bool mustCheck, countcolor_t cc, bool queryActualGridDomain)
 {
 	dms_assert(queryActualGridDomain || !IsDefined(tg));
 	dms_assert(!gridDomain || gridDomain == gridDomain->GetCurrRangeItem());
@@ -511,6 +511,10 @@ ViewPortInfoEx<Int>::ViewPortInfoEx(const TreeItem* context, const AbstrUnit* cu
 	dms_assert(queryActualGridDomain || !correctGridOffset);
 	dms_assert(queryActualGridDomain || tg == no_tile);
 	dms_assert(!correctGridOffset || queryActualGridDomain);
+
+	auto viewport_ptr = dynamic_cast<ViewPortInfo<Int>*>(this);
+	if (viewport_ptr)
+		viewport_ptr->m_smi = smi;
 
 	if (queryActualGridDomain && gridDomain)
 		m_GridExtents = ThrowingConvert<rect_type>(gridDomain->GetTileSizeAsI64Rect(tg));
@@ -612,10 +616,10 @@ ViewPortInfoProvider::ViewPortInfoProvider(const TreeItem * storageHolder, const
 		m_CountColor = -1;
 }
 
-ViewPortInfoEx<Int32> ViewPortInfoProvider::GetViewportInfoEx(tile_id tc, tile_id tg) const
+ViewPortInfoEx<Int32> ViewPortInfoProvider::GetViewportInfoEx(tile_id tc, StorageMetaInfoPtr smi, tile_id tg) const
 {
 	FixedContextHandle provideExceptionContext("in constructing a ViewPortInfo<Int32> (for transfering data from one tiling to another)");
-	return ViewPortInfoEx<Int32>(m_ADI, AsUnit(m_CurrDomain->GetCurrRangeItem()), tc, AsUnit(m_GridDomain->GetCurrRangeItem()), tg, true, false, m_CountColor, m_QueryActualGridDomain);
+	return ViewPortInfoEx<Int32>(m_ADI, AsUnit(m_CurrDomain->GetCurrRangeItem()), tc, AsUnit(m_GridDomain->GetCurrRangeItem()), tg, smi, true, false, m_CountColor, m_QueryActualGridDomain);
 }
 
 template ViewPortInfoEx<Int32>;

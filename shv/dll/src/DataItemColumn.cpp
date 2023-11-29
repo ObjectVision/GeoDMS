@@ -1085,6 +1085,28 @@ bool DataItemColumn::MouseEvent(MouseEventDispatcher& med)
 		}
 	}
 
+	if ((med.GetEventInfo().m_EventID & EID_MOUSEMOVE))
+	{
+		CrdPoint relClientPos = Convert<CrdPoint>(med.GetLogicalSize(med.GetEventInfo().m_Point)) - (med.GetClientLogicalAbsPos() + GetCurrClientRelPos());
+		auto logicalHeight = m_ElemSize.Y() + RowSepHeight();
+		if (HasElemBorder())
+			logicalHeight += (2 * BORDERSIZE);
+		SizeT rowNr = relClientPos.Y() / logicalHeight;
+
+		if (auto dv = GetDataView().lock())
+		{
+			constexpr size_t len = 100;
+			char buffer[len+1];
+			auto streamWrap = SilentMemoOutStreamBuff(ByteRange(buffer, len));
+			FormattedOutStream out(&streamWrap, FormattingFlags::ThousandSeparator);
+			out << "Row=" << rowNr << "; Col=" << m_ColumnNr;
+			out << char(0);
+			dv->SendStatusText(SeverityTypeID::ST_MinorTrace, buffer);
+		}
+
+		goto skip;
+	}
+
 	if ((med.GetEventInfo().m_EventID & EID_SETCURSOR ))
 	{
 		if (GetControlDeviceRegion(med.GetEventInfo().m_Point.x) != RG_MIDDLE )
