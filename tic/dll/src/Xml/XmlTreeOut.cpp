@@ -369,6 +369,13 @@ void XML_Table::Row::EditablePropCell(CharPtr propName, CharPtr propLabel /*= ""
 // *****************************************************************************
 //											COMPONENT HELPER FUNCS
 // *****************************************************************************
+void TabIndentation(OutStreamBase& out, UInt8 number_of_tabs)
+{
+	for (int i = 0; i < number_of_tabs; i++)
+	{
+		out << "    ";
+	}
+}
 
 void NewLine(OutStreamBase& out)
 {
