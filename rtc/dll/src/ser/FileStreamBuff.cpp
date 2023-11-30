@@ -180,7 +180,8 @@ MappedFileOutStreamBuff::MappedFileOutStreamBuff(WeakStr fileName, SafeFileWrite
 {
 	auto mfh = std::make_shared<MappedFileHandle>();
 	mfh->OpenRw(fileName, sfwa, nrBytes, dms_rw_mode::write_only_all, false);
-	m_FileView = FileViewHandle(mfh, nrBytes);
+	m_FileView = FileViewHandle(mfh, 0, nrBytes);
+	m_FileView.Map(true);
 
 	dms_assert(nrBytes);
 	m_Curr = m_FileView.DataBegin();

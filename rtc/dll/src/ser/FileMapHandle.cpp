@@ -294,6 +294,8 @@ FileViewHandle::FileViewHandle(std::shared_ptr<MappedFileHandle> mfh, dms::files
 {
 	if (viewOffset == -1)
 		m_ViewSpec = mfh->alloc(viewSize);
+	else
+		m_ViewSpec = { viewOffset, viewSize };
 //	Map(false);
 }
 
@@ -335,12 +337,14 @@ void FileViewHandle::Map(bool alsoWrite)
 	m_MappedFile->m_ResizeMutex.lock_shared();
 
 	while (true) {
+		if (alsoWrite)
+
 		m_ViewData =
 			MapViewOfFile(m_MappedFile->m_hFileMapping, // Handle to mapping object. 
 				alsoWrite ? FILE_MAP_WRITE : FILE_MAP_READ,
 				HiDWORD(GetViewOffset()),
 				LoDWORD(GetViewOffset()),
-				NrMemPages(GetViewSize()) << GetLog2AllocationGrannularity()
+				GetViewSize() // NrMemPages(GetViewSize()) << GetLog2AllocationGrannularity()
 			);
 		if (m_ViewData)
 			break;
