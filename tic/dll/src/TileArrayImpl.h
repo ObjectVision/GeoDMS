@@ -284,6 +284,23 @@ SizeT MinimalNrMemPages(const AbstrTileRangeData* trd)
 	return trd->GetNrMemPages(mpf::log2_v<sizeof seq_t>) + NrMemPages(trd->GetNrTiles() << mpf::log2_v<sizeof IndexRange<SizeT>>);
 }
 
+template <fixed_elem V>
+SizeT MinimalFileSize(const AbstrTileRangeData* trd)
+{
+	tile_id tn = trd->GetNrTiles();
+	SizeT rawSize = 0;
+	if (tn > 1)
+	{
+		rawSize = MinimalNrMemPages<V>(trd) - trd->GetNrMemPages(tn - 1);
+		rawSize <<= GetLog2AllocationGrannularity();
+	}
+	if (tn > 0)
+	{
+		rawSize += trd->GetTileSize(tn - 1) * sizeof(V);
+	}
+	return rawSize;
+}
+
 template <typename V>
 FileTileArray<V>::FileTileArray(const AbstrTileRangeData* trd, SharedStr filenameBase, dms_rw_mode rwMode, bool isTmp, SafeFileWriterArray* sfwa)
 	: m_CacheFileName(filenameBase)
@@ -332,7 +349,7 @@ FileTileArray<V>::FileTileArray(const AbstrTileRangeData* trd, SharedStr filenam
 			mfh = std::make_shared<MappedFileHandle>()
 		,	mfh_sequences;
 
-		mfh->OpenRw(fullFileName, sfwa, MinimalNrMemPages<V>(trd) << GetLog2AllocationGrannularity(), rwMode, isTmp);
+		mfh->OpenRw(fullFileName, sfwa, MinimalFileSize<V>(trd), rwMode, isTmp);
 
 		if constexpr (!has_fixed_elem_size_v<V>)
 		{

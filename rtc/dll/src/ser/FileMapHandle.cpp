@@ -231,7 +231,9 @@ void FileHandle::ReadFileSize(CharPtr handleName)
 FileChunckSpec MappedFileHandle::alloc(dms::filesize_t vs)
 {
 	auto fs = m_AllocatedSize;
-	m_AllocatedSize += NrMemPages(vs) << GetLog2AllocationGrannularity();
+	m_AllocatedSize = (NrMemPages(m_AllocatedSize) << GetLog2AllocationGrannularity());
+	m_AllocatedSize += vs;
+
 	if (m_AllocatedSize > GetFileSize())
 	{
 		auto awaitExclusiveAcces = std::scoped_lock(m_ResizeMutex);
@@ -322,7 +324,7 @@ void FileViewHandle::operator =(FileViewHandle&& rhs) noexcept
 
 void ConstFileViewHandle::operator =(ConstFileViewHandle&& rhs) noexcept
 {
-	m_MappedFile = std::move(rhs.m_MappedFile); assert(!rhs.m_MaqppedFile);
+	m_MappedFile = std::move(rhs.m_MappedFile); assert(!rhs.m_MappedFile);
 	std::swap(m_ViewSpec, rhs.m_ViewSpec);
 	std::swap(m_ViewData, rhs.m_ViewData);
 }
@@ -337,8 +339,6 @@ void FileViewHandle::Map(bool alsoWrite)
 	m_MappedFile->m_ResizeMutex.lock_shared();
 
 	while (true) {
-		if (alsoWrite)
-
 		m_ViewData =
 			MapViewOfFile(m_MappedFile->m_hFileMapping, // Handle to mapping object. 
 				alsoWrite ? FILE_MAP_WRITE : FILE_MAP_READ,
