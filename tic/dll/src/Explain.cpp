@@ -854,12 +854,16 @@ namespace Explain { // local defs
 	
 	void DataCalcExplanation::GetDescrImpl(CalcExplImpl* self, OutStreamBase& stream, bool isFirst, bool showHidden) const
 	{
+		auto domain_unit = m_DataItem->GetAbstrDomainUnit();
+		auto is_parameter = domain_unit->IsKindOf(Unit<Void>::GetStaticClass());
+		auto values_unit = m_DataItem->GetAbstrValuesUnit();
 		if (isFirst)
 		{
 			SizeT recno = m_Coordinates[0].first;
 			const AbstrValue* valuesValue = m_Coordinates[0].second;
 			auto val_str = GetDisplayValueString(calculatingStr, m_DataItem->GetAbstrValuesUnit(), valuesValue, true, m_Interests.m_valuesLabel, MAX_TEXTOUT_SIZE, m_UnitLabelLocks.second);
-			stream << "Explaining row: " << AsString(recno).c_str() << " with value: ";
+			auto explaining_string = is_parameter ? SharedStr("Explaining parameter with value: ") : SharedStr("Explaining row: ") + AsString(recno).c_str() + " with value: ";
+			stream << explaining_string.c_str();
 
 			{
 				XML_OutElement bold(stream, "B");
@@ -879,10 +883,18 @@ namespace Explain { // local defs
 				}
 				stream << " := ";  GetExprOrSourceDescr(stream, m_DataItem.get_ptr());
 			}
-			GetDescrBase(self, stream, isFirst, m_DataItem->GetAbstrDomainUnit(), m_DataItem->GetAbstrValuesUnit());
+
+			if (isFirst)
+			{
+				NewLine(stream);
+				stream << "With suppliers:";
+				return;
+			}
+
+			GetDescrBase(self, stream, isFirst, domain_unit, values_unit);
 		}
 
-		NewLine(stream);
+		//NewLine(stream);
 	}
 
 	void UnionOfAndsExplanation::AddLispExplanations(CalcExplImpl* self, LispPtr lispExprPtr, UInt32 level)
