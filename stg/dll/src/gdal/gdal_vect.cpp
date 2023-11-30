@@ -129,7 +129,7 @@ namespace gdalVectImpl {
 		case wkbCircularString:	 return ValueComposition::Sequence;
 		case wkbCompoundCurve:	 return ValueComposition::Sequence;
 		case wkbLineString:      return ValueComposition::Sequence;
-		case wkbMultiLineString: return ValueComposition::Unknown;
+		case wkbMultiLineString: return ValueComposition::Sequence;
 		case wkbPolygon:         return ValueComposition::Polygon;
 		case wkbMultiPolygon:    return ValueComposition::Polygon;
 		case wkbCurvePolygon:	 return ValueComposition::Polygon;
