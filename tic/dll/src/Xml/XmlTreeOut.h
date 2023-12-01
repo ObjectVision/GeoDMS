@@ -46,6 +46,7 @@ struct XML_ItemBody : XML_OutElement
 	XML_ItemBody(OutStreamBase& out, CharPtr caption, CharPtr subText, const TreeItem* item, bool showFullName = false);
 };
 
+void TabIndentation(OutStreamBase& out, UInt8 number_of_tabs);
 void NewLine(OutStreamBase& out);
 
 struct XML_Table : XML_OutElement

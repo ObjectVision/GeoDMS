@@ -55,7 +55,10 @@ leveled_critical_section scs_ExplainAccess(item_level_type(0), ord_level_type::M
 
 typedef InterestPtr<const TreeItem*> TreeItemInterestPtr;
 
+struct Explain::CalcExplImpl;
+
 namespace Explain { // local defs
+
 	using CoordinateCollectionType = std::vector<CoordinateType>;
 	static auto calculatingStr = SharedStr("Calculating...");
 
@@ -122,6 +125,19 @@ namespace Explain { // local defs
 		void GetDescrBase(CalcExplImpl* self, OutStreamBase& stream, bool isFirst, const AbstrUnit* domainUnit, const AbstrUnit* valuesUnit) const;
 	};
 
+	auto GetDisplayValueString(SharedStr default_result, const AbstrUnit* valuesUnit, const AbstrValue* valuesValue, bool useMetric, SharedDataItemInterestPtr& ipHolder, streamsize_t maxLen, GuiReadLock& lock) -> SharedStr
+	{
+		SharedStr valStr;
+		if (valuesValue)
+			valStr = DisplayValue(valuesUnit, valuesValue, useMetric, ipHolder, maxLen, lock);
+		else
+			valStr = default_result;
+
+		return valStr;
+	}
+
+
+
 	struct DataCalcExplanation : AbstrCalcExplanation
 	{
 		DataCalcExplanation(const AbstrDataItem* dataItem)
@@ -130,23 +146,8 @@ namespace Explain { // local defs
 
 		ArgRef GetCalcDataItem(Context* context) const override { return ArgRef(std::in_place_type<SharedTreeItem>, m_DataItem.get_ptr()); }
 
-		void GetDescrImpl(CalcExplImpl* self, OutStreamBase& stream, bool isFirst, bool showHidden) const override
-		{
-			NewLine(stream);
-			{
-				XML_hRef supplRef(stream, ItemUrl(m_DataItem.get_ptr()).c_str());
-				stream << m_DataItem->GetName().c_str();
-			}
-			stream << " := ";  GetExprOrSourceDescr(stream, m_DataItem.get_ptr());
-			NewLine(stream);
+		void GetDescrImpl(CalcExplImpl* self, OutStreamBase& stream, bool isFirst, bool showHidden) const override;
 
-			GetDescrBase(self, stream, isFirst, m_DataItem->GetAbstrDomainUnit(), m_DataItem->GetAbstrValuesUnit());
-
-			if (!isFirst)
-				return;
-
-			NewLine(stream);
-		}
 		void PrintSeqNr(OutStreamBase& stream) const override
 		{
 			auto fullName = SharedStr(m_DataItem->GetFullName());
@@ -409,10 +410,12 @@ namespace Explain { // local defs
 		void AddLispExplanation(LispPtr lispExprOrg, UInt32 level, const AbstrCalcExplanation* parent, arg_index seqNr);
 		void AddExplanations(const Actor* studyActor);
 		void AddExplanations();
+		auto GetExprLevel() -> arg_index {return m_ExprLevel;};
 		bool IsKnownDomain(const AbstrUnit* valuesUnit);
 		bool IsExplainable(const AbstrUnit* valuesUnit, SizeT index);
 		auto FindExpl(LispPtr key) -> const LispCalcExplanation*;
 		auto URL(const LispCalcExplanation* expl, SizeT recNo) -> SharedStr;
+
 
 		ExplArray                m_Expl;
 		std::set<LispRef>        m_KnownExpr;
@@ -562,6 +565,7 @@ namespace Explain { // local defs
 			)
 		);
 	}
+
 	void CalcExplImpl::AddLispExplanation(LispPtr lispExprOrg, UInt32 level, const AbstrCalcExplanation* parent, arg_index seqNr)
 	{
 		if (!lispExprOrg.IsRealList() || !lispExprOrg.Left().IsSymb() || lispExprOrg.Left().GetSymbID() == token::sourceDescr)
@@ -847,6 +851,51 @@ namespace Explain { // local defs
 			for (auto& factor: term.second)
 				self->AddLispExplanation(factor, level, this, ++seqNr);
 	}
+	
+	void DataCalcExplanation::GetDescrImpl(CalcExplImpl* self, OutStreamBase& stream, bool isFirst, bool showHidden) const
+	{
+		auto domain_unit = m_DataItem->GetAbstrDomainUnit();
+		auto is_parameter = domain_unit->IsKindOf(Unit<Void>::GetStaticClass());
+		auto values_unit = m_DataItem->GetAbstrValuesUnit();
+		if (isFirst)
+		{
+			SizeT recno = m_Coordinates[0].first;
+			const AbstrValue* valuesValue = m_Coordinates[0].second;
+			auto val_str = GetDisplayValueString(calculatingStr, m_DataItem->GetAbstrValuesUnit(), valuesValue, true, m_Interests.m_valuesLabel, MAX_TEXTOUT_SIZE, m_UnitLabelLocks.second);
+			auto explaining_string = is_parameter ? SharedStr("Explaining parameter with value: ") : SharedStr("Explaining row: ") + AsString(recno).c_str() + " with value: ";
+			stream << explaining_string.c_str();
+
+			{
+				XML_OutElement bold(stream, "B");
+				stream << val_str.c_str();
+			}
+			stream << " of item:";
+		}
+
+		{
+			XML_OutElement br(stream, "P", "", ClosePolicy::pairedButWithoutSeparator);
+			{
+				auto indentation_level_str = SharedStr("margin-left: " + AsString(isFirst ? (self->m_ExprLevel-1) : self->m_ExprLevel * 15) + "px");
+				stream.WriteAttr("style", indentation_level_str.c_str());
+				{
+					XML_hRef supplRef(stream, ItemUrl(m_DataItem.get_ptr()).c_str());
+					stream << m_DataItem->GetName().c_str();
+				}
+				stream << " := ";  GetExprOrSourceDescr(stream, m_DataItem.get_ptr());
+			}
+
+			if (isFirst)
+			{
+				NewLine(stream);
+				stream << "With suppliers:";
+				return;
+			}
+
+			GetDescrBase(self, stream, isFirst, domain_unit, values_unit);
+		}
+
+		//NewLine(stream);
+	}
 
 	void UnionOfAndsExplanation::AddLispExplanations(CalcExplImpl* self, LispPtr lispExprPtr, UInt32 level)
 	{
@@ -944,13 +993,21 @@ namespace Explain { // local defs
 		{
 			XML_Table::Row row(tab);
 			if (domainUnit)
-				row.ClickableCell(domainUnit->GetName().c_str(), ItemUrl(domainUnit).c_str());
-			row.ClickableCell(ItemOrValueTypeName(valuesUnit).c_str(), ItemUrl(valuesUnit).c_str());
+			{
+				XML_Table::Row::Cell xmlElemTD(row);
+				stream << "id in ";
+				hRefWithText(stream, domainUnit->GetName().c_str(), ItemUrl(domainUnit).c_str());
+
+				
+				//row.ClickableCell(domainUnit->GetName().c_str(), ItemUrl(domainUnit).c_str());
+			}
+			row.ClickableCell(m_DataItem->GetName().c_str(), ItemUrl(m_DataItem.get_ptr()).c_str());// ItemOrValueTypeName(valuesUnit).c_str(), ItemUrl(valuesUnit).c_str());
 		}
 
 		for (SizeT i = 0; i != n; ++i)
 		{
 			SizeT recno = m_Coordinates[i].first;
+
 
 			SharedStr locStr;
 			if (domainUnit)
@@ -961,12 +1018,8 @@ namespace Explain { // local defs
 					m_Interests.m_DomainLabel, MAX_TEXTOUT_SIZE, m_UnitLabelLocks.first
 				);
 
-			SharedStr valStr;
 			const AbstrValue* valuesValue = m_Coordinates[i].second;
-			if (valuesValue)
-				valStr = DisplayValue(valuesUnit, valuesValue, true, m_Interests.m_valuesLabel, MAX_TEXTOUT_SIZE, m_UnitLabelLocks.second);
-			else
-				valStr = calculatingStr;
+			auto valStr = GetDisplayValueString(calculatingStr, valuesUnit, valuesValue, true, m_Interests.m_valuesLabel, MAX_TEXTOUT_SIZE, m_UnitLabelLocks.second);
 
 			if (n == 1 && isFirst)
 			{
