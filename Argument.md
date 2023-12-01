@@ -1,1 +1,0 @@
-An argument is a value or set of values that can be passed to a function.

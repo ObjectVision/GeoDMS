@@ -1,1 +1,0 @@
-_GeoDMS documentation_<div align="right">&copy; Object Vision BV</div>

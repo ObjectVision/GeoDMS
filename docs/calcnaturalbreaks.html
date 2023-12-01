@@ -1,0 +1,390 @@
+<!DOCTYPE html> <html lang="en-US"> <head> <meta charset="UTF-8"> <meta http-equiv="X-UA-Compatible" content="IE=Edge"> <link rel="stylesheet" href="/assets/css/just-the-docs-default.css"> <link rel="stylesheet" href="/assets/css/just-the-docs-head-nav.css" id="jtd-head-nav-stylesheet"> <style id="jtd-nav-activation"> .site-nav ul li a { background-image: none; } </style> <script src="/assets/js/vendor/lunr.min.js"></script> <script src="/assets/js/just-the-docs.js"></script> <meta name="viewport" content="width=device-width, initial-scale=1"> <link rel="icon" href="/favicon.ico" type="image/x-icon"> <!-- Begin Jekyll SEO tag v2.8.0 --> <title>calcnaturalbreaks | GeoDMS wiki</title> <meta name="generator" content="Jekyll v4.3.2" /> <meta property="og:title" content="calcnaturalbreaks" /> <meta property="og:locale" content="en_US" /> <meta name="description" content="A starter template for a Jeykll site using the Just the Docs theme!" /> <meta property="og:description" content="A starter template for a Jeykll site using the Just the Docs theme!" /> <link rel="canonical" href="http://localhost:4000/docs/calcnaturalbreaks.html" /> <meta property="og:url" content="http://localhost:4000/docs/calcnaturalbreaks.html" /> <meta property="og:site_name" content="GeoDMS wiki" /> <meta property="og:type" content="website" /> <meta name="twitter:card" content="summary" /> <meta property="twitter:title" content="calcnaturalbreaks" /> <script type="application/ld+json"> {"@context":"https://schema.org","@type":"WebPage","description":"A starter template for a Jeykll site using the Just the Docs theme!","headline":"calcnaturalbreaks","url":"http://localhost:4000/docs/calcnaturalbreaks.html"}</script> <!-- End Jekyll SEO tag --> <!-- Automatically display code inside script tags with type=math/tex using MathJax --> <script type="text/javascript" defer src="../assets/js/mathjax-script-type.js"> </script> <!-- Copied from https://docs.mathjax.org/en/latest/web/components/combined.html --> <script type="text/javascript" id="MathJax-script" defer src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js"> </script> </head> <body> <a class="skip-to-main" href="#main-content">Skip to main content</a> <svg xmlns="http://www.w3.org/2000/svg" class="d-none"> <symbol id="svg-link" viewBox="0 0 24 24"> <title>Link</title> <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-link"> <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path> </svg> </symbol> <symbol id="svg-menu" viewBox="0 0 24 24"> <title>Menu</title> <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-menu"> <line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line> </svg> </symbol> <symbol id="svg-arrow-right" viewBox="0 0 24 24"> <title>Expand</title> <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-chevron-right"> <polyline points="9 18 15 12 9 6"></polyline> </svg> </symbol> <!-- Feather. MIT License: https://github.com/feathericons/feather/blob/master/LICENSE --> <symbol id="svg-external-link" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-external-link"> <title id="svg-external-link-title">(external link)</title> <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line> </symbol> <symbol id="svg-doc" viewBox="0 0 24 24"> <title>Document</title> <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-file"> <path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"></path><polyline points="13 2 13 9 20 9"></polyline> </svg> </symbol> <symbol id="svg-search" viewBox="0 0 24 24"> <title>Search</title> <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-search"> <circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line> </svg> </symbol> <!-- Bootstrap Icons. MIT License: https://github.com/twbs/icons/blob/main/LICENSE.md --> <symbol id="svg-copy" viewBox="0 0 16 16"> <title>Copy</title> <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-clipboard" viewBox="0 0 16 16"> <path d="M4 1.5H3a2 2 0 0 0-2 2V14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V3.5a2 2 0 0 0-2-2h-1v1h1a1 1 0 0 1 1 1V14a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V3.5a1 1 0 0 1 1-1h1v-1z"/> <path d="M9.5 1a.5.5 0 0 1 .5.5v1a.5.5 0 0 1-.5.5h-3a.5.5 0 0 1-.5-.5v-1a.5.5 0 0 1 .5-.5h3zm-3-1A1.5 1.5 0 0 0 5 1.5v1A1.5 1.5 0 0 0 6.5 4h3A1.5 1.5 0 0 0 11 2.5v-1A1.5 1.5 0 0 0 9.5 0h-3z"/> </svg> </symbol> <symbol id="svg-copied" viewBox="0 0 16 16"> <title>Copied</title> <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-clipboard-check-fill" viewBox="0 0 16 16"> <path d="M6.5 0A1.5 1.5 0 0 0 5 1.5v1A1.5 1.5 0 0 0 6.5 4h3A1.5 1.5 0 0 0 11 2.5v-1A1.5 1.5 0 0 0 9.5 0h-3Zm3 1a.5.5 0 0 1 .5.5v1a.5.5 0 0 1-.5.5h-3a.5.5 0 0 1-.5-.5v-1a.5.5 0 0 1 .5-.5h3Z"/> <path d="M4 1.5H3a2 2 0 0 0-2 2V14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V3.5a2 2 0 0 0-2-2h-1v1A2.5 2.5 0 0 1 9.5 5h-3A2.5 2.5 0 0 1 4 2.5v-1Zm6.854 7.354-3 3a.5.5 0 0 1-.708 0l-1.5-1.5a.5.5 0 0 1 .708-.708L7.5 10.793l2.646-2.647a.5.5 0 0 1 .708.708Z"/> </svg> </symbol> </svg> <div class="side-bar"> <div class="site-header" role="banner"> <a href="/" class="site-title lh-tight"> GeoDMS wiki </a> <button id="menu-button" class="site-button btn-reset" aria-label="Toggle menu" aria-pressed="false"> <svg viewBox="0 0 24 24" class="icon" aria-hidden="true"><use xlink:href="#svg-menu"></use></svg> </button> </div> <nav aria-label="Main" id="site-nav" class="site-nav"> <ul class="nav-list"><li class="nav-list-item"><a href="/" class="nav-list-link">home</a></li><li class="nav-list-item"><button class="nav-list-expander btn-reset" aria-label="toggle items in software category" aria-pressed="false"> <svg viewBox="0 0 24 24" aria-hidden="true"><use xlink:href="#svg-arrow-right"></use></svg> </button><a href="/docs/software.html" class="nav-list-link">software</a><ul class="nav-list"><li class="nav-list-item"><a href="/docs/system-requirements.html" class="nav-list-link">system-requirements</a></li><li class="nav-list-item"><a href="/docs/installation-instructions.html" class="nav-list-link">installation-instructions</a></li><li class="nav-list-item"><a href="/docs/folders-and-placeholders.html" class="nav-list-link">folders-and-placeholders</a></li><li class="nav-list-item"><a href="/docs/configuration-file-editor.html" class="nav-list-link">configuration-file-editor</a></li><li class="nav-list-item"><a href="/docs/known-issues.html" class="nav-list-link">known-issues</a></li></ul></li><li class="nav-list-item"><button class="nav-list-expander btn-reset" aria-label="toggle items in user-guide category" aria-pressed="false"> <svg viewBox="0 0 24 24" aria-hidden="true"><use xlink:href="#svg-arrow-right"></use></svg> </button><a href="/docs/user-guide.html" class="nav-list-link">user-guide</a><ul class="nav-list"><li class="nav-list-item"><a href="/docs/user-guide-geodms-gui.html" class="nav-list-link">user-guide-geodms-gui</a></li><li class="nav-list-item"><a href="/docs/user-guide-geodms-gui-older-variants-(delphi).html" class="nav-list-link">user-guide-geodms-gui-older-variants-(delphi)</a></li><li class="nav-list-item"><a href="/docs/user-guide-geodms-run.html" class="nav-list-link">user-guide-geodms-run</a></li></ul></li><li class="nav-list-item"><button class="nav-list-expander btn-reset" aria-label="toggle items in how-to-model category" aria-pressed="false"> <svg viewBox="0 0 24 24" aria-hidden="true"><use xlink:href="#svg-arrow-right"></use></svg> </button><a href="/docs/how-to-model.html" class="nav-list-link">how-to-model</a><ul class="nav-list"><li class="nav-list-item"><a href="/docs/configuration-basics.html" class="nav-list-link">configuration-basics</a></li><li class="nav-list-item"><a href="/docs/unit.html" class="nav-list-link">unit</a></li><li class="nav-list-item"><a href="/docs/data-source.html" class="nav-list-link">data-source</a></li><li class="nav-list-item"><a href="/docs/expression.html" class="nav-list-link">expression</a></li><li class="nav-list-item"><a href="/docs/template.html" class="nav-list-link">template</a></li><li class="nav-list-item"><a href="/docs/visualisation-style.html" class="nav-list-link">visualisation-style</a></li><li class="nav-list-item"><a href="/docs/property.html" class="nav-list-link">property</a></li></ul></li><li class="nav-list-item"><a href="/docs/value-type.html" class="nav-list-link">value-type</a></li><li class="nav-list-item"><a href="/docs/configuration-examples.html" class="nav-list-link">configuration-examples</a></li><li class="nav-list-item"><button class="nav-list-expander btn-reset" aria-label="toggle items in operator category" aria-pressed="false"> <svg viewBox="0 0 24 24" aria-hidden="true"><use xlink:href="#svg-arrow-right"></use></svg> </button><a href="/docs/operator.html" class="nav-list-link">operator</a><ul class="nav-list"><li class="nav-list-item"><a href="/docs/arithmetic-functions.html" class="nav-list-link">arithmetic-functions</a></li><li class="nav-list-item"><a href="/docs/ordering-functions.html" class="nav-list-link">ordering-functions</a></li><li class="nav-list-item"><a href="/docs/aggregation-functions.html" class="nav-list-link">aggregation-functions</a></li><li class="nav-list-item"><a href="/docs/conversion-functions.html" class="nav-list-link">conversion-functions</a></li><li class="nav-list-item"><a href="/docs/classify-functions.html" class="nav-list-link">classify-functions</a></li><li class="nav-list-item"><a href="/docs/transcendental-functions.html" class="nav-list-link">transcendental-functions</a></li><li class="nav-list-item"><a href="/docs/predicates-functions.html" class="nav-list-link">predicates-functions</a></li><li class="nav-list-item"><a href="/docs/logical-functions.html" class="nav-list-link">logical-functions</a></li><li class="nav-list-item"><a href="/docs/relational-functions.html" class="nav-list-link">relational-functions</a></li><li class="nav-list-item"><a href="/docs/selection-functions.html" class="nav-list-link">selection-functions</a></li><li class="nav-list-item"><a href="/docs/rescale-functions.html" class="nav-list-link">rescale-functions</a></li><li class="nav-list-item"><a href="/docs/constant-functions.html" class="nav-list-link">constant-functions</a></li><li class="nav-list-item"><a href="/docs/trigonometric-functions.html" class="nav-list-link">trigonometric-functions</a></li><li class="nav-list-item"><a href="/docs/geometric-functions.html" class="nav-list-link">geometric-functions</a></li><li class="nav-list-item"><a href="/docs/network-functions.html" class="nav-list-link">network-functions</a></li><li class="nav-list-item"><a href="/docs/grid-functions.html" class="nav-list-link">grid-functions</a></li><li class="nav-list-item"><a href="/docs/string-functions.html" class="nav-list-link">string-functions</a></li><li class="nav-list-item"><a href="/docs/file,-folder-and-read-functions.html" class="nav-list-link">file,-folder-and-read-functions</a></li><li class="nav-list-item"><a href="/docs/unit-functions.html" class="nav-list-link">unit-functions</a></li><li class="nav-list-item"><a href="/docs/matrix-functions.html" class="nav-list-link">matrix-functions</a></li><li class="nav-list-item"><a href="/docs/sequence-functions.html" class="nav-list-link">sequence-functions</a></li><li class="nav-list-item"><a href="/docs/metascript-functions.html" class="nav-list-link">metascript-functions</a></li><li class="nav-list-item"><a href="/docs/allocation-functions.html" class="nav-list-link">allocation-functions</a></li><li class="nav-list-item"><a href="/docs/miscellaneous-functions.html" class="nav-list-link">miscellaneous-functions</a></li></ul></li></ul> </nav> <footer class="site-footer"> </footer> </div> <div class="main" id="top"> <div id="main-header" class="main-header"> <div class="search" role="search"> <div class="search-input-wrap"> <input type="text" id="search-input" class="search-input" tabindex="0" placeholder="Search GeoDMS wiki" aria-label="Search GeoDMS wiki" autocomplete="off"> <label for="search-input" class="search-label"><svg viewBox="0 0 24 24" class="search-icon"><use xlink:href="#svg-search"></use></svg></label> </div> <div id="search-results" class="search-results"></div> </div> <nav aria-label="Auxiliary" class="aux-nav"> <ul class="aux-nav-list"> <li class="aux-nav-list-item"> <a href="https://github.com/ObjectVision/GeoDMS" class="site-button" > GeoDms on Github </a> </li> </ul> </nav> </div> <div class="main-content-wrap"> <div id="main-content" class="main-content"> <main> <p>This page contains C++ code of a <em>O</em>(<em>k</em>×<em>n</em>×<em>l<strong>o</strong>g</em>(<em>n</em>)) method for the classification of an array of numeric values such that the variance per class is minimal, known as a <a href="fisher's-natural-breaks-classification-complexity-proof">fisher’s-natural-breaks-classification-complexity-proof</a>. This algorithm is an improvement of <a href="http://en.wikipedia.org/wiki/Jenks_natural_breaks_optimization">Jenks’ Natural Breaks Optimization method</a>, which is an <em>O</em>(<em>k</em>×<em>n</em><sup>2</sup>) algorithm.</p> <p>This code is derived from clc/dll/src1/CalcClassBreaks.cpp in our <a href="https://github.com/ObjectVision/GeoDMS">GeoDMS</a> Repository, which implements the <a href="classifyjenksfisher">classifyjenksfisher</a> operation in the GeoDms. It is independently compilable and runnable and finds the JenksFisher class-breaks for an array of random numbers and made that available <a href="https://github.com/ObjectVision/GeoDMS/blob/main/tic/tst/src/JenksTest.cpp">here</a>.</p> <p>This code is written by Maarten Hilferink, © Object Vision BV, and is provided under <a href="http://www.gnu.org/licenses/gpl.html">GNU GPL v3.0 license</a></p> <h1 id="code"> <a href="#code" class="anchor-heading" aria-labelledby="code"><svg viewBox="0 0 16 16" aria-hidden="true"><use xlink:href="#svg-link"></use></svg></a> code </h1> <div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>#include &lt;assert.h&gt;
+#include &lt;vector&gt;
+#include &lt;algorithm&gt;
+
+typedef std::size_t                  SizeT;
+typedef SizeT                        CountType;
+typedef std::pair&lt;double, CountType&gt; ValueCountPair;
+typedef std::vector&lt;double&gt;          LimitsContainer;
+typedef std::vector&lt;ValueCountPair&gt;  ValueCountPairContainer;
+
+// helper funcs
+template &lt;typename T&gt; T Min(T a, T b) { return (a&lt;b) ? a : b; }
+
+SizeT GetTotalCount(const  ValueCountPairContainer&amp; vcpc)
+{
+    SizeT sum = 0;
+    ValueCountPairContainer::const_iterator
+        i = vcpc.begin(),
+        e = vcpc.end();
+    for(sum = 0; i!=e; ++i)
+        sum += (*i).second;
+    return sum;
+}
+
+// helper struct JenksFisher
+
+struct JenksFisher  // captures the intermediate data and methods for the calculation of Natural Class Breaks.
+{
+    JenksFisher(const ValueCountPairContainer&amp; vcpc, SizeT k)
+        :   m_M(vcpc.size())
+        ,   m_K(k)
+        ,   m_BufSize(vcpc.size()-(k-1))
+        ,   m_PrevSSM(m_BufSize)
+        ,   m_CurrSSM(m_BufSize)
+        ,   m_CB(m_BufSize * (m_K-1))
+        ,   m_CBPtr()
+    {
+        m_CumulValues.reserve(vcpc.size());
+        double cwv=0;
+        CountType cw = 0, w;
+
+        for(SizeT i=0; i!=m_M; ++i)
+        {
+            assert(!i || vcpc[i].first &gt; vcpc[i-1].first); // PRECONDITION: the value sequence must be strictly increasing
+
+            w   = vcpc[i].second;
+            assert(w &gt; 0); // PRECONDITION: all weights must be positive
+
+            cw  += w;
+            assert(cw &gt; w || !i); // No overflow? No loss of precision?
+
+            cwv += w * vcpc[i].first;
+            m_CumulValues.push_back(ValueCountPair(cwv, cw));
+            if (i &lt; m_BufSize)
+                m_PrevSSM[i] = cwv * cwv / cw; // prepare SSM for first class. Last (k-1) values are omitted
+        }
+    }
+
+    double GetW(SizeT b, SizeT e)
+    // Gets sum of weighs for elements b..e.
+    {
+        assert(b);    // First element always belongs to class 0, thus queries should never include it.
+        assert(b&lt;=e);
+        assert(e&lt;m_M);
+
+        double res = m_CumulValues[e].second;
+        res -= m_CumulValues[b-1].second;
+        return res;
+    }
+
+    double GetWV(SizeT b, SizeT e)
+    // Gets sum of weighed values for elements b..e
+    {
+        assert(b);
+        assert(b&lt;=e);
+        assert(e&lt;m_M);
+
+        double res = m_CumulValues[e].first;
+        res -= m_CumulValues[b-1].first;
+        return res;
+    }
+
+    double GetSSM(SizeT b, SizeT e)
+    // Gets the Squared Mean for elements b..e, multiplied by weight.
+    // Note that n*mean^2 = sum^2/n when mean := sum/n
+    {
+        double res = GetWV(b,e);
+        return res * res / GetW(b,e);
+    }
+
+    SizeT FindMaxBreakIndex(SizeT i, SizeT bp, SizeT ep)
+    // finds CB[i+m_NrCompletedRows] given that
+    // the result is at least bp+(m_NrCompletedRows-1)
+    // and less than          ep+(m_NrCompletedRows-1)
+    // Complexity: O(ep-bp) &lt;= O(m)
+    {
+        assert(bp &lt; ep);
+        assert(bp &lt;= i);
+        assert(ep &lt;= i+1);
+        assert(i  &lt;  m_BufSize);
+        assert(ep &lt;= m_BufSize);
+
+        double minSSM = m_PrevSSM[bp] + GetSSM(bp+m_NrCompletedRows, i+m_NrCompletedRows);
+        SizeT foundP = bp;
+        while (++bp &lt; ep)
+        {
+            double currSSM = m_PrevSSM[bp] + GetSSM(bp+m_NrCompletedRows, i+m_NrCompletedRows);
+            if (currSSM &gt; minSSM)
+            {
+                minSSM = currSSM;
+                foundP = bp;
+            }
+        }
+        m_CurrSSM[i] = minSSM;
+        return foundP;
+    }
+
+    void CalcRange(SizeT bi, SizeT ei, SizeT bp, SizeT ep)
+    // find CB[i+m_NrCompletedRows]
+    // for all i&gt;=bi and i&lt;ei given that
+    // the results are at least bp+(m_NrCompletedRows-1)
+    // and less than            ep+(m_NrCompletedRows-1)
+    // Complexity: O(log(ei-bi)*Max((ei-bi),(ep-bp))) &lt;= O(m*log(m))
+    {
+        assert(bi &lt;= ei);
+
+        assert(ep &lt;= ei);
+        assert(bp &lt;= bi);
+
+        if (bi == ei)
+            return;
+        assert(bp &lt; ep);
+
+        SizeT mi = (bi + ei)/2;
+        SizeT mp = FindMaxBreakIndex(mi, bp, Min&lt;SizeT&gt;(ep, mi+1));
+
+        assert(bp &lt;= mp);
+        assert(mp &lt;  ep);
+        assert(mp &lt;= mi);
+
+        // solve first half of the sub-problems with lower 'half' of possible outcomes
+        CalcRange(bi, mi, bp, Min&lt;SizeT&gt;(mi, mp+1));
+
+        m_CBPtr[ mi ] = mp; // store result for the middle element.
+
+        // solve second half of the sub-problems with upper 'half' of possible outcomes
+        CalcRange(mi+1, ei, mp, ep);
+    }
+
+
+    void CalcAll()
+    // complexity: O(m*log(m)*k)
+    {
+        if (m_K&gt;=2)
+        {
+            m_CBPtr = m_CB.begin();
+            for (m_NrCompletedRows=1; m_NrCompletedRows&lt;m_K-1; ++m_NrCompletedRows)
+            {
+                CalcRange(0, m_BufSize, 0, m_BufSize); // complexity: O(m*log(m))
+
+                m_PrevSSM.swap(m_CurrSSM);
+                m_CBPtr += m_BufSize;
+            }
+        }
+    }
+
+    SizeT                   m_M, m_K, m_BufSize;
+    ValueCountPairContainer m_CumulValues;
+
+    std::vector&lt;double&gt; m_PrevSSM;
+    std::vector&lt;double&gt; m_CurrSSM;
+    std::vector&lt;SizeT&gt;               m_CB;
+    std::vector&lt;SizeT&gt;::iterator     m_CBPtr;
+
+    SizeT                  m_NrCompletedRows;
+};
+
+// GetValueCountPairs
+//
+// GetValueCountPairs sorts chunks of values and then merges them in order to minimize extra memory and work when many values are equal.
+// This is done recursively while retaining used intermediary buffers in order to minimize heap allocations.
+
+const SizeT BUFFER_SIZE = 1024;
+
+void GetCountsDirect(ValueCountPairContainer&amp; vcpc, const double* values, SizeT size)
+{
+    assert(size &lt;= BUFFER_SIZE);
+    assert(size &gt; 0);
+    assert(vcpc.empty());
+
+    double buffer[BUFFER_SIZE];
+
+    std::copy(values, values+size, buffer);
+    std::sort(buffer, buffer+size);
+
+    double currValue = buffer[0];
+    SizeT     currCount = 1;
+    for (SizeT index = 1; index != size; ++index)
+    {
+        if (currValue &lt; buffer[index])
+        {
+            vcpc.push_back(ValueCountPair(currValue, currCount));
+            currValue = buffer[index];
+            currCount = 1;
+        }
+        else
+            ++currCount;
+    }
+    vcpc.push_back(ValueCountPair(currValue, currCount));
+}
+
+struct CompareFirst
+{
+    bool operator () (const ValueCountPair&amp; lhs, const ValueCountPair&amp; rhs)
+    {
+        return lhs.first &lt; rhs.first;
+    }
+};
+
+void MergeToLeft(ValueCountPairContainer&amp; vcpcLeft, const ValueCountPairContainer&amp; vcpcRight, ValueCountPairContainer&amp; vcpcDummy)
+{
+    assert(vcpcDummy.empty());
+    vcpcDummy.swap(vcpcLeft);
+    vcpcLeft.resize(vcpcRight.size() + vcpcDummy.size());
+
+    std::merge(vcpcRight.begin(), vcpcRight.end(), vcpcDummy.begin(), vcpcDummy.end(), vcpcLeft.begin(), CompareFirst());
+
+    ValueCountPairContainer::iterator
+        currPair = vcpcLeft.begin(),
+        lastPair = vcpcLeft.end();
+
+
+    ValueCountPairContainer::iterator index = currPair+1;
+    while (index != lastPair &amp;&amp; currPair-&gt;first &lt; index-&gt;first)
+    {
+        currPair = index;
+        ++index;
+    }
+
+    double currValue = currPair-&gt;first;
+    SizeT     currCount = currPair-&gt;second;
+    for (; index != lastPair;++index)
+    {
+        if (currValue &lt; index-&gt;first)
+        {
+            *currPair++ = ValueCountPair(currValue, currCount);
+            currValue = index-&gt;first;
+            currCount = index-&gt;second;
+        }
+        else
+            currCount += index-&gt;second;
+    }
+    *currPair++ = ValueCountPair(currValue, currCount);
+    vcpcLeft.erase(currPair, lastPair);
+
+    vcpcDummy.clear();
+}
+
+struct ValueCountPairContainerArray : std::vector&lt;ValueCountPairContainer&gt;
+{
+    void resize(SizeT k)
+    {
+        assert(capacity() &gt;= k);
+        while (size() &lt; k)
+        {
+            push_back(ValueCountPairContainer());
+            back().reserve(BUFFER_SIZE);
+        }
+    }
+
+    void GetValueCountPairs(ValueCountPairContainer&amp; vcpc, const double* values, SizeT size, unsigned int nrUsedContainers)
+    {
+        assert(vcpc.empty());
+        if (size &lt;= BUFFER_SIZE)
+            GetCountsDirect(vcpc, values, size);
+        else
+        {
+            resize(nrUsedContainers+2);
+
+            unsigned int m = size/2;
+
+            GetValueCountPairs(vcpc, values, m, nrUsedContainers);
+            GetValueCountPairs(begin()[nrUsedContainers], values + m, size - m, nrUsedContainers+1);
+
+            MergeToLeft(vcpc, begin()[nrUsedContainers], begin()[nrUsedContainers+1]);
+            begin()[nrUsedContainers].clear();
+        }
+        assert(GetTotalCount(vcpc) == size);
+    }
+};
+
+void GetValueCountPairs(ValueCountPairContainer&amp; vcpc, const double* values, SizeT n)
+{
+    vcpc.clear();
+
+    if(n)
+    {
+        ValueCountPairContainerArray vcpca;
+        // max nr halving is log2(max cardinality / BUFFER_SIZE); max cardinality is SizeT(-1)
+        vcpca.reserve(3+8*sizeof(SizeT)-10);
+        vcpca.GetValueCountPairs(vcpc, values, n, 0);
+
+        assert(vcpc.size());
+    }
+}
+
+void ClassifyJenksFisherFromValueCountPairs(LimitsContainer&amp; breaksArray, SizeT k, const ValueCountPairContainer&amp; vcpc)
+{
+    breaksArray.resize(k);
+    SizeT m  = vcpc.size();
+
+    assert(k &lt;= m); // PRECONDITION
+
+    if (!k)
+        return;
+
+    JenksFisher jf(vcpc,  k);
+
+    if (k &gt; 1)
+    {
+        jf.CalcAll();
+
+        SizeT lastClassBreakIndex = jf.FindMaxBreakIndex(jf.m_BufSize-1, 0, jf.m_BufSize);
+
+        while (--k)
+        {
+            breaksArray[k] = vcpc[lastClassBreakIndex+k].first;
+            assert(lastClassBreakIndex &lt; jf.m_BufSize);
+            if (k &gt; 1)
+            {
+                jf.m_CBPtr -= jf.m_BufSize;
+                lastClassBreakIndex = jf.m_CBPtr[lastClassBreakIndex];
+            }
+        }
+        assert(jf.m_CBPtr == jf.m_CB.begin());
+    }
+    assert( k == 0 );
+    breaksArray[0] = vcpc[0].first; // break for the first class is the minimum of the dataset.
+}
+
+
+// test code
+
+#include "boost/random.hpp"
+
+
+int main(int c, char** argv)
+{
+    const double rangeMin = 0.0;
+    const double rangeMax = 10.0;
+    typedef boost::uniform_real&lt;double&gt; NumberDistribution;
+    typedef boost::mt19937 RandomNumberGenerator;
+    typedef boost::variate_generator&lt;RandomNumberGenerator&amp;, NumberDistribution&gt; Generator;
+
+    NumberDistribution distribution(rangeMin, rangeMax);
+    RandomNumberGenerator generator;
+    generator.seed(0); // seed with the current time
+    Generator numberGenerator(generator, distribution);
+
+    const int n = 1000000;
+    const int k = 10;
+
+    std::cout &lt;&lt; "Generating random numbers..." &lt;&lt; std::endl;
+
+    std::vector&lt;double&gt; values;
+    values.reserve(n);
+    for (int i=0; i!=n; ++i)
+    {
+        double v = numberGenerator();
+        values.push_back(v*v); //populate a distribuiton slightly more interesting than uniform, with a lower density at higher values.
+    }
+    assert(values.size() == n);
+
+    std::cout &lt;&lt; "Generating sortedUniqueValueCounts ..." &lt;&lt; std::endl;
+    ValueCountPairContainer sortedUniqueValueCounts;
+    GetValueCountPairs(sortedUniqueValueCounts, &amp;values[0], n);
+
+    std::cout &lt;&lt; "Finding Jenks ClassBreaks..." &lt;&lt; std::endl;
+    LimitsContainer resultingbreaksArray;
+    ClassifyJenksFisherFromValueCountPairs(resultingbreaksArray, k, sortedUniqueValueCounts);
+
+    std::cout &lt;&lt; "Reporting results..." &lt;&lt; std::endl;
+    for (double breakValue: resultingbreaksArray)
+        std::cout &lt;&lt; breakValue &lt;&lt; std::endl &lt;&lt; std::endl;
+
+    std::cout &lt;&lt; "Press a char and &lt;enter&gt; to terminate" &lt;&lt; std::endl;
+    char ch;
+    std::cin &gt;&gt; ch; // wait for user to enter a key
+} // main
+</code></pre></div></div> </main> </div> </div> <div class="search-overlay"></div> </div> </body> </html>

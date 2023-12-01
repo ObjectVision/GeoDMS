@@ -1,5 +1,0 @@
-- Sub Byte Elements are values of type [[Bool]], [[UInt2]], or [[UInt4]], which require less than a byte for storage.
-- All Sub Byte Elements are Unsigned (aka non-negative).
-- Attributes store their values in arrays. Arrays of Sub Byte Elements are a multiple of 4 bytes long (DWORD) which each store 32 / NrOfBitsPerValue values per DWORD.
-- All units of Sub Byte Element Values have a pre-defined cardinality of 2<sup>*NrBits*</sup>, which cannot be overridden, their first value is 0.
-- There is no extra undefined value indicator for Sub Byte Elements.
