@@ -534,30 +534,18 @@ QSize DmsTreeView::minimumSizeHint() const
 	return QSize(m_default_size, 0);
 }
 
-DmsTreeView::DmsTreeView(QWidget* parent)
-	: QTreeView(parent)
+void DmsTreeView::setDmsStyleSheet(bool connecting_lines)
 {
-	setRootIsDecorated(true);
-	setUniformRowHeights(true);
-	setItemsExpandable(true);
-	setDragEnabled(true);
-	setDragDropMode(QAbstractItemView::DragOnly);
-	setContextMenuPolicy(Qt::CustomContextMenu);
-	setAttribute(Qt::WA_OpaquePaintEvent);
-	setAttribute(Qt::WA_ForceUpdatesDisabled);
-	header()->hide();
-	//header()->setSectionsMovable(false);
-	//header()->setCascadingSectionResizes(true);
-	
-	connect(this, &DmsTreeView::doubleClicked, this, &DmsTreeView::onDoubleClick);
-	connect(this, &DmsTreeView::customContextMenuRequested, this, &DmsTreeView::showTreeviewContextMenu);
-	
-	horizontalScrollBar()->setEnabled(true);
-	setHorizontalScrollBarPolicy(Qt::ScrollBarPolicy::ScrollBarAsNeeded);
-	header()->setStretchLastSection(false);
-	connect(header(), &QHeaderView::sectionClicked, this, &DmsTreeView::onHeaderSectionClicked);
-
-	header()->setSectionResizeMode(QHeaderView::ResizeToContents);
+	if (not(GetRegStatusFlags() & RSF_TreeView_ShowConnectingLines))
+	{
+		setStyleSheet(
+			"QTreeView {"
+			"           padding-top: 5px;"
+			"           background-color: transparent;"
+			"}"
+		);
+		return;
+	}
 
 	setStyleSheet(
 		"QTreeView::branch:has-siblings:!adjoins-item {\n"
@@ -591,6 +579,32 @@ DmsTreeView::DmsTreeView(QWidget* parent)
 		"           padding-top: 5px;"
 		"           background-color: transparent;"
 		"}");
+}
+
+DmsTreeView::DmsTreeView(QWidget* parent)
+	: QTreeView(parent)
+{
+	setRootIsDecorated(true);
+	setUniformRowHeights(true);
+	setItemsExpandable(true);
+	setDragEnabled(true);
+	setDragDropMode(QAbstractItemView::DragOnly);
+	setContextMenuPolicy(Qt::CustomContextMenu);
+	setAttribute(Qt::WA_OpaquePaintEvent);
+	setAttribute(Qt::WA_ForceUpdatesDisabled);
+	header()->hide();
+
+	connect(this, &DmsTreeView::doubleClicked, this, &DmsTreeView::onDoubleClick);
+	connect(this, &DmsTreeView::customContextMenuRequested, this, &DmsTreeView::showTreeviewContextMenu);
+	
+	horizontalScrollBar()->setEnabled(true);
+	setHorizontalScrollBarPolicy(Qt::ScrollBarPolicy::ScrollBarAsNeeded);
+	header()->setStretchLastSection(false);
+	connect(header(), &QHeaderView::sectionClicked, this, &DmsTreeView::onHeaderSectionClicked);
+
+	header()->setSectionResizeMode(QHeaderView::ResizeToContents);
+
+	setDmsStyleSheet();
 }
 
 void DmsTreeView::showTreeviewContextMenu(const QPoint& pos)
