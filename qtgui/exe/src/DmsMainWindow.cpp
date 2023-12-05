@@ -672,9 +672,7 @@ void DmsRecentFileEntry::onFileEntryPressed()
     main_window->saveRecentFileActionToRegistry();
 }
 
-
-
-DmsToolbuttonAction::DmsToolbuttonAction(const QIcon& icon, const QString& text, QObject* parent, ToolbarButtonData button_data, const ViewStyle vs)
+DmsToolbuttonAction::DmsToolbuttonAction(const ToolButtonID id, const QIcon& icon, const QString& text, QObject* parent, ToolbarButtonData button_data, const ViewStyle vs)
     : QAction(icon, text, parent)
 {
     assert(button_data.text.size()==2);
@@ -687,6 +685,9 @@ DmsToolbuttonAction::DmsToolbuttonAction(const QIcon& icon, const QString& text,
 
     if (button_data.ids.size() == 2) // toggle button
         setCheckable(true);
+
+    if (id == ToolButtonID::TB_Pan)
+        setChecked(true);
 
     m_data = std::move(button_data);
 }
@@ -707,13 +708,15 @@ void DmsToolbuttonAction::onToolbuttonPressed()
         return;
 
     auto number_of_button_states = getNumberOfStates();
+    bool button_is_toggle_type = number_of_button_states == 2;
+    bool global_toggle_button_is_currently_active = button_is_toggle_type and m_state and m_data.is_global;
 
     if (number_of_button_states - 1 == m_state) // state roll over
         m_state = 0;
     else
         m_state++;
 
-    if (m_data.is_global) // ie. zoom-in or zoom-out can be active at a single time
+    if (m_data.is_global) // ie. zoom-in and zoom-out are mutually exclusive
     {
         dms_view_area->getDataView()->GetContents()->OnCommand(ToolButtonID::TB_Neutral);
         for (auto action : MainWindow::TheOne()->m_toolbar->actions())
@@ -775,6 +778,7 @@ auto getToolbarButtonData(ToolButtonID button_id) -> ToolbarButtonData
     case TB_ZoomActiveLayer: return { {"","Make the extent of the active layer fit in the ViewPort"}, {TB_ZoomActiveLayer}, {":/res/images/TB_zoom_active_layer.bmp"}};
     case TB_ZoomIn2: return { {"","Zoom in by drawing a rectangle"}, {TB_Neutral, TB_ZoomIn2}, {":/res/images/TB_zoomin_button.bmp"}, true};
     case TB_ZoomOut2: return { {"","Zoom out by clicking on a ViewPort location"}, {TB_Neutral, TB_ZoomOut2}, {":/res/images/TB_zoomout_button.bmp"}, true};
+    case TB_Pan: return { {"","Pan by holding left mouse button down in the ViewPort and dragging"}, {TB_Neutral, TB_Pan}, {":/res/images/TB_pan_button.bmp"}, true };
     case TB_SelectObject: return { {"","Select elements in the active layer by mouse-click(use Shift to add or Ctrl to deselect)"}, {TB_Neutral, TB_SelectObject}, {":/res/images/TB_select_object.bmp"}, true};
     case TB_SelectRect: return { {"","Select elements in the active layer by drawing a rectangle(use Shift to add or Ctrl to deselect)"}, {TB_Neutral, TB_SelectRect}, {":/res/images/TB_select_rect.bmp"}, true};
     case TB_SelectCircle: return { {"","Select elements in the active layer by drawing a circle(use Shift to add or Ctrl to deselect)"}, {TB_Neutral, TB_SelectCircle}, {":/res/images/TB_select_circle.bmp"}, true};
@@ -871,7 +875,7 @@ auto getAvailableTableviewButtonIds() -> std::vector<ToolButtonID>
 auto getAvailableMapviewButtonIds() -> std::vector<ToolButtonID>
 {
     return { TB_Export , TB_CopyLC, TB_Copy, TB_Undefined,
-             TB_ZoomAllLayers, TB_ZoomActiveLayer, TB_ZoomIn2, TB_ZoomOut2, TB_Undefined,
+             TB_ZoomAllLayers, TB_ZoomActiveLayer, TB_Pan, TB_ZoomIn2, TB_ZoomOut2, TB_Undefined,
              TB_ZoomSelectedObj,TB_SelectObject,TB_SelectRect,TB_SelectCircle,TB_SelectPolygon,TB_SelectDistrict,TB_SelectAll,TB_SelectNone,TB_ShowSelOnlyOn, TB_Undefined,
              TB_Show_VP,TB_SP_All,TB_NeedleOn,TB_ScaleBarOn };
 }
@@ -985,7 +989,7 @@ void MainWindow::updateToolbar()
 
         auto button_data = getToolbarButtonData(button_id);
         auto button_icon = QIcon(button_data.icons[0]);
-        auto action = new DmsToolbuttonAction(button_icon, view_style==ViewStyle::tvsTableView ? button_data.text[0] : button_data.text[1], m_toolbar, button_data, view_style);
+        auto action = new DmsToolbuttonAction(button_id, button_icon, view_style==ViewStyle::tvsTableView ? button_data.text[0] : button_data.text[1], m_toolbar, button_data, view_style);
         m_current_dms_view_actions.push_back(action);
         auto is_command_enabled = dv->OnCommandEnable(button_id) == CommandStatus::ENABLED;
         if (!is_command_enabled)

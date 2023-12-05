@@ -166,6 +166,7 @@ enum ToolButtonID // GeoDmsGui.exe: keep this list in sync with type ToolButtonI
 	TB_ShowFirstSelectedRow,        // Button Command
 //	===========
 	TB_Neutral,				        // zero-Tool, includes cooordinate copying when Ctrl (with Shift) key is pressed
+	TB_Pan = TB_Neutral,
 //	===========
 	TB_Info,                        // SinglePoint Tool
 	TB_SelectObject,                // SinglePoint Tool

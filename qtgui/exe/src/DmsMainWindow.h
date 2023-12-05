@@ -114,7 +114,7 @@ class DmsToolbuttonAction : public QAction
 {
     Q_OBJECT
 public:
-    DmsToolbuttonAction(const QIcon& icon, const QString& text, QObject* parent = nullptr, ToolbarButtonData button_data = {}, ViewStyle vs=ViewStyle::tvsUndefined);
+    DmsToolbuttonAction(const ToolButtonID id, const QIcon& icon, const QString& text, QObject* parent = nullptr, ToolbarButtonData button_data = {}, ViewStyle vs=ViewStyle::tvsUndefined);
 
 public slots:
     void onToolbuttonPressed();
