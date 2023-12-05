@@ -556,7 +556,7 @@ namespace Grid {
 		MG_CHECK(vpi.IsNonScaling());
 
 		UInt8 bitsPerPixel = streamType->GetBitSize();
-		UInt8 samplesPerPixel = (streamType->GetValueClassID() == ValueClassID::VT_UInt32) ? 4 : 1;
+		UInt8 samplesPerPixel = 1;
 		UInt8 bitsPerSample = bitsPerPixel / samplesPerPixel;
 
 		imp.SetDataMode(bitsPerSample, samplesPerPixel, HasPaletteData(storageHolder), SAMPLEFORMAT(adi->GetAbstrValuesUnit()->GetValueType()));

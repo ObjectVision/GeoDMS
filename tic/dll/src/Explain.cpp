@@ -64,13 +64,13 @@ namespace Explain { // local defs
 
 	struct AbstrCalcExplanation
 	{
-		SharedDataItemInterestPtr             m_DataItem;
-		const AbstrUnit*                      m_UltimateDomainUnit;
-		const AbstrUnit*                      m_UltimateValuesUnit;
-		CoordinateCollectionType              m_Coordinates;
+		SharedDataItemInterestPtr              m_DataItem;
+		const AbstrUnit*                       m_UltimateDomainUnit;
+		const AbstrUnit*                       m_UltimateValuesUnit;
+		CoordinateCollectionType               m_Coordinates;
 		mutable SharedDataItemInterestPtrTuple m_Interests;
 		mutable GuiReadLockPair                m_UnitLabelLocks;
-		bool                                  m_IsExprOfExistingItem = false;
+		bool                                   m_IsExprOfExistingItem = false;
 		AbstrCalcExplanation(const AbstrDataItem* dataItem)
 			: m_DataItem(dataItem)
 			, m_UltimateDomainUnit(AsUnit(dataItem->GetAbstrDomainUnit()->GetUltimateItem()))
@@ -862,7 +862,7 @@ namespace Explain { // local defs
 			SizeT recno = m_Coordinates[0].first;
 			const AbstrValue* valuesValue = m_Coordinates[0].second;
 			auto val_str = GetDisplayValueString(calculatingStr, m_DataItem->GetAbstrValuesUnit(), valuesValue, true, m_Interests.m_valuesLabel, MAX_TEXTOUT_SIZE, m_UnitLabelLocks.second);
-			auto explaining_string = is_parameter ? SharedStr("Explaining parameter with value: ") : SharedStr("Explaining row: ") + AsString(recno).c_str() + " with value: ";
+			auto explaining_string = is_parameter ? SharedStr("Explaining parameter value: ") : SharedStr("Explaining row: ") + AsString(recno).c_str() + " with value: ";
 			stream << explaining_string.c_str();
 
 			{
@@ -887,7 +887,9 @@ namespace Explain { // local defs
 			if (isFirst)
 			{
 				NewLine(stream);
-				stream << "With suppliers:";
+				NewLine(stream);
+				if (self->m_Expl.size()>2)
+					stream << "With suppliers:";
 				return;
 			}
 
@@ -1045,6 +1047,16 @@ namespace Explain { // local defs
 			if (domainUnit)
 				row.ClickableCell(locStr.c_str(), explainUrl.c_str());
 			row.ClickableCell(valStr.c_str(), explainUrl.c_str());
+		}
+
+		auto domain_count = domainUnit ? domainUnit->GetCount() : 0;
+		if (domain_count > MaxNrEntries)
+		{
+			XML_Table::Row row(tab);
+			stream.WriteAttr("bgcolor", CLR_HROW);
+			if (domainUnit)
+				row.ValueCell("...");
+			row.ValueCell("...");
 		}
 	}
 

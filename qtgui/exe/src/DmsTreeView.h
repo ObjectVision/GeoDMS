@@ -87,6 +87,8 @@ public:
 	bool expandRecursiveFromCurrentItem();
 	QSize sizeHint() const override;
 	QSize minimumSizeHint() const override;
+	void setDmsStyleSheet(bool connecting_lines = true);
+
 	int m_default_size = 200;
 
 public slots:
