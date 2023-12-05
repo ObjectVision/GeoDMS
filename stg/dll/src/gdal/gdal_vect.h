@@ -88,7 +88,7 @@ struct GdalVectSM : NonmappableStorageManager, gdalVectComponent
 	virtual bool IsWritableGDAL() const { return false;  }
 
     // Implement AbstrStorageManager interface
-	bool DoCheckExistence(const TreeItem* storageHolder) const override;
+	bool DoCheckExistence(const TreeItem* storageHolder, const TreeItem* storageItem) const override;
 	void DoOpenStorage(const StorageMetaInfo& smi, dms_rw_mode rwMode) const override;
 	void DoCloseStorage(bool mustCommit) const override;
 	void DoUpdateTree(const TreeItem* storageHolder, TreeItem* curr, SyncMode sm) const override;

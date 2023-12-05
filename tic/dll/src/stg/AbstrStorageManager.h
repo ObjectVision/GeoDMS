@@ -205,7 +205,7 @@ public:
 
 	TIC_CALL virtual FileDateTime GetLastChangeDateTime(const TreeItem* storageHolder, CharPtr relativePath) const;
 	TIC_CALL FileDateTime GetCachedChangeDateTime(const TreeItem* storageHolder, CharPtr relativePath) const;
-	TIC_CALL virtual bool DoCheckExistence(const TreeItem* storageHolder)  const; // Default implementation now checks existence of m_Name as a file
+	TIC_CALL virtual bool DoCheckExistence(const TreeItem* storageHolder, const TreeItem* storageItem = nullptr)  const; // Default implementation now checks existence of m_Name as a file
 	TIC_CALL virtual bool DoCheckWritability() const;
 	TIC_CALL virtual SharedStr GetUrl() const;
 

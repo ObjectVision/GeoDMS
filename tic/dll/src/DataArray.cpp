@@ -944,7 +944,8 @@ auto CreateFileTileArray(const AbstrDataItem* adi, const SharedObj* abstrValuesR
 		)
 		return CreateAbstrHeapTileFunctor(adi, abstrValuesRangeData, rwMode == dms_rw_mode::write_only_mustzero);
 
-	visit<typelists::sequence_fields>(adi->GetAbstrValuesUnit(),
+	auto avu = AsUnit(adi->GetAbstrValuesUnit()->GetCurrRangeItem());
+	visit<typelists::sequence_fields>(avu,
 			[&resultHolder, adi, currTRD, rwMode, filenameBase, isTmp, sfwa] <typename value_type> (const Unit<value_type>*valuesUnitPtr)
 		{
 			auto newTileFunctor = std::make_unique<FileTileArray<value_type>>(currTRD, filenameBase, rwMode, isTmp, sfwa);

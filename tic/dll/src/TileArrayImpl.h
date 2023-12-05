@@ -281,7 +281,8 @@ SizeT MinimalNrMemPages(const AbstrTileRangeData* trd)
 {
 	assert(trd);
 	using seq_t = typename sequence_traits<V>::polymorph_vec_t::seq_t;
-	return trd->GetNrMemPages(mpf::log2_v<sizeof seq_t>) + NrMemPages(trd->GetNrTiles() << mpf::log2_v<sizeof IndexRange<SizeT>>);
+	auto log2BytesPerElem = mpf::log2_v<sizeof IndexRange<SizeT>>;
+	return trd->GetNrMemPages(mpf::log2_v<sizeof seq_t>) + NrMemPages(trd->GetNrTiles() << log2BytesPerElem);
 }
 
 template <fixed_elem V>
@@ -291,7 +292,8 @@ SizeT MinimalFileSize(const AbstrTileRangeData* trd)
 	SizeT rawSize = 0;
 	if (tn > 1)
 	{
-		rawSize = MinimalNrMemPages<V>(trd) - trd->GetNrMemPages(tn - 1);
+		auto log2BytesPerElem = mpf::log2_v<sizeof(V)>;
+		rawSize = MinimalNrMemPages<V>(trd) - NrMemPages(trd->GetTileSize(tn - 1) << log2BytesPerElem);
 		rawSize <<= GetLog2AllocationGrannularity();
 	}
 	if (tn > 0)

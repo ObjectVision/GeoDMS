@@ -656,7 +656,7 @@ bool AbstrStorageManager::IsWritable() const
 }
 
 // Default implementation now checks existence of m_Name as a file
-bool AbstrStorageManager::DoCheckExistence(const TreeItem* storageHolder) const
+bool AbstrStorageManager::DoCheckExistence(const TreeItem* storageHolder, const TreeItem* storageItem) const
 {
 	return IsFileOrDirAccessible(GetNameStr());
 }

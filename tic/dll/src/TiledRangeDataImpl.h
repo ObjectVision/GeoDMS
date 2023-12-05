@@ -131,7 +131,7 @@ struct RegularAdapter: Base
 	{
 		assert(t <= GetNrTiles());
 		// TODO OPTIMIZE for edge and corner tiles 
-		return NrMemPages(GetMaxTileSize() << log2BytesPerElem)* t;
+		return NrMemPages(GetMaxTileSize() << log2BytesPerElem) * t;
 	}
 
 	void CalcTilingExtent() override;
@@ -241,7 +241,7 @@ struct IrregularTileRangeData : TiledRangeData<V>
 		assert(t <= GetNrTiles());
 		SizeT result = 0;
 		while (t--)
-			result += NrMemPages(Cardinality(GetTileRange(t)) << log2BytesPerElem);
+			result += NrMemPages(this->GetTileSize(t) << log2BytesPerElem);
 
 		return result;
 	}

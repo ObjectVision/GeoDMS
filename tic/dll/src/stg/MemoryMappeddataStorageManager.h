@@ -46,6 +46,7 @@ protected:
 	bool EasyRereadTiles() const override { return true; }
 	TIC_CALL virtual bool CanWriteTiles() const { return true; }
 
+	bool DoCheckExistence(const TreeItem* storageHolder, const TreeItem* storageItem) const override; // Default implementation now checks existence of m_Name as a file
 
 //	std::unique_ptr<OutStreamBuff> DoOpenOutStream(const StorageMetaInfo& smi, CharPtr path, tile_id t) override;
 //	std::unique_ptr<InpStreamBuff> DoOpenInpStream(const StorageMetaInfo& smi, CharPtr path) const override;

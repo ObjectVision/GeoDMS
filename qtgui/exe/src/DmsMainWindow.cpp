@@ -79,7 +79,7 @@ bool MainWindow::ShowInDetailPage(SharedStr x)
     auto realm = Realm(x);
     if (realm.size() == 3 && !strncmp(realm.begin(), "dms", 3))
         return true;
-    if (!realm.empty())
+    if (!realm.empty() && realm.size() > 1)
         return false;
     CharPtrRange knownSuffix(".adms");
     return std::search(x.begin(), x.end(), knownSuffix.begin(), knownSuffix.end()) != x.end();

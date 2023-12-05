@@ -1263,8 +1263,15 @@ SharedTreeItem TreeItem::GetCurrStorageParent(bool alsoForWrite) const
 
 bool TreeItem::IsLoadable() const
 {
-	return (IsDataItem(this) || IsUnit(this)) 
-		&&	GetStorageParent(false);
+	if (!IsDataItem(this) && !IsUnit(this)) 
+		return false;
+	auto sp = GetStorageParent(false);
+	if (!sp)
+		return false;
+	auto sm = sp->GetStorageManager();
+	assert(sm);
+
+	return sm->DoCheckExistence(sp, this);
 }
 
 bool TreeItem::IsCurrLoadable() const
@@ -1390,9 +1397,13 @@ const TreeItem* TreeItem::GetNamespaceUsage(UInt32 i) const
 bool TreeItem::IsDataReadable() const
 {
 	bool isLoadable = IsLoadable();
+	if (!isLoadable)
+		return false;
 	bool hasCalculator = HasCalculatorImpl();
+	if (hasCalculator)
+		return false;
 	bool hasConfigData = HasConfigData();
-	return isLoadable && !hasCalculator && !hasConfigData;
+	return !hasConfigData;
 }
 
 //----------------------------------------------------------------------

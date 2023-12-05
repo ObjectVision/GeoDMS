@@ -63,6 +63,17 @@ FileDateTime MmdStorageManager::GetLastChangeDateTime(const TreeItem* storageHol
 	return m_FileTime; 
 }
 
+bool MmdStorageManager::DoCheckExistence(const TreeItem* storageHolder, const TreeItem* storageItem) const
+{
+	if (!storageItem)
+		return AbstrStorageManager::DoCheckExistence(storageHolder, storageItem);
+
+	auto relName = storageItem->GetRelativeName(storageHolder);
+	auto sfwa = DSM::GetSafeFileWriterArray(); MG_CHECK(sfwa);
+	return IsFileOrDirAccessible(sfwa.get()->GetWorkingFileName(GetFullFileName(relName.c_str()), FCM_OpenReadOnly));
+}
+
+
 /* REMOVE
 void MmdStorageManager::DoOpenStorage(const StorageMetaInfo& smi, dms_rw_mode rwMode) const
 {

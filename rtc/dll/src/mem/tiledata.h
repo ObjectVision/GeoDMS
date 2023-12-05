@@ -50,12 +50,14 @@ struct file_tile : sequence_traits<V>::polymorph_vec_t, TileBase // TODO G8: rep
 		{
 			result = std::make_shared<mapped_file_tile<V>>(this, rwMode);
 			m_OpenFile = result;
+			assert(this->IsLocked());
 		}
 		return result;
 	}
 
 	mutable std::mutex cs_file;
 	mutable std::weak_ptr<mapped_file_tile<V>> m_OpenFile;
+	mutable UInt32 m_NrMappedFileTiles = 0;
 };
 
 template <typename V> struct mapped_file_tile : TileBase
@@ -67,7 +69,8 @@ template <typename V> struct mapped_file_tile : TileBase
 	{
 		assert(info);
 		dbg_assert(!info->IsLocked());
-		info->Lock(rwMode);
+		if (!info->m_NrMappedFileTiles++)
+			info->Lock(rwMode);
 		dbg_assert(info->IsLocked());
 	}
 
@@ -78,8 +81,14 @@ template <typename V> struct mapped_file_tile : TileBase
 
 		std::lock_guard guard(m_Info->cs_file);
 
-		m_Info->m_OpenFile = {}; // free control block.
-		m_Info->UnLock();
+		dbg_assert(m_Info->IsLocked());
+		m_Info->m_OpenFile = {}; // free control block, this requires the guard
+		if (!--m_Info->m_NrMappedFileTiles)
+		{
+			m_Info->UnLock();
+			dbg_assert(!m_Info->IsLocked());
+		}
+		m_Info = nullptr;
 	}
 };
 

@@ -1535,7 +1535,7 @@ bool GdalVectSM::ReadUnitRange(const StorageMetaInfo& smi) const
 	return true;
 }
 
-bool GdalVectSM::DoCheckExistence(const TreeItem* storageHolder) const
+bool GdalVectSM::DoCheckExistence(const TreeItem* storageHolder, const TreeItem* storageItem) const
 {
 	return true;
 /*	TODO: factor out DoOpenStorage and DoCloseStorage stuff to a RAII handle and use it to check for existence and report to stream reason for non existence 
