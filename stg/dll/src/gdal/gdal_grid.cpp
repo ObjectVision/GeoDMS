@@ -575,12 +575,13 @@ void GdalGridSM::DoUpdateTree(const TreeItem* storageHolder, TreeItem* curr, Syn
 
 				if (result == OGRERR_NONE)
 				{
-					uBase = Unit<UInt32>::GetStaticClass()->CreateUnit(curr, GetTokenID_st(SR_NAME));
+					// TODO: implement 
+					/*uBase = Unit<UInt32>::GetStaticClass()->CreateUnit(curr, GetTokenID_st(SR_NAME));
 
 					auto spatial_ref_src = SharedStr(psz_wkt.m_Text);
 					auto spatialref_item = uBase->GetCurrRefItem();
 					const_cast<TreeItem*>(spatialref_item)->SetExpr(spatial_ref_src);
-					curr->SetDescr(spatialref_item->GetFullName());
+					curr->SetDescr(spatialref_item->GetFullName());*/
 				}
 			}
 		}
