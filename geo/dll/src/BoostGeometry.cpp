@@ -323,6 +323,9 @@ static CommonOperGroup grBgSimplify_polygon      ("bg_simplify_polygon");
 static CommonOperGroup grBgSimplify_linestring   ("bg_simplify_linestring");
 
 static CommonOperGroup grBgIntersect("bg_intersect");
+static CommonOperGroup grBgUnion    ("bg_union");
+static CommonOperGroup grBgXOR      ("bg_xor");
+static CommonOperGroup grBgSubtr     ("bg_subtr");
 
 static CommonOperGroup grBgBuffer_point        ("bg_buffer_point");
 static CommonOperGroup grBgBuffer_multi_point  ("bg_buffer_multi_point");

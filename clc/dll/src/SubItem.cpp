@@ -210,7 +210,7 @@ struct FenceContainerOperator : BinaryOperator
 			if (IsUnit(srcItem))
 			{
 				auto srcAbstrUnit = AsUnit(srcItem->GetCurrUltimateItem());
-				auto resAbstrUnit= AsUnit(resWalker);
+				auto resAbstrUnit = AsUnit(resWalker);
 				if (srcAbstrUnit->HasTiledRangeData())
 				{
 					visit<typelists::ranged_unit_objects>(srcAbstrUnit, [resAbstrUnit]<typename V>(const Unit<V>* srcUnit)
@@ -234,7 +234,7 @@ struct FenceContainerOperator : BinaryOperator
 			}
 			if (srcItem->WasFailed())
 				resWalker->Fail(srcItem);
-			assert(resWalker->WasFailed(FR_Data) || CheckDataReady(resWalker));
+//			assert(resWalker->WasFailed(FR_Data) || CheckDataReady(resWalker)); // m_ItemCount < 0 => CheckDataReady -> false;
 		}
 
 		fc->m_MetaInfo.reset();

@@ -37,7 +37,7 @@ static UInt32 GetAllocationGrannularityImpl()
 	return info.dwAllocationGranularity;
 }
 
-UInt32 GetAllocationGrannularity()
+SizeT GetAllocationGrannularity()
 {
 	static UInt32 allocGrannularity = GetAllocationGrannularityImpl();
 	return allocGrannularity;
@@ -45,7 +45,7 @@ UInt32 GetAllocationGrannularity()
 
 UInt8 GetLog2AllocationGrannularityImpl()
 {
-	UInt32 x = GetAllocationGrannularity();
+	auto x = GetAllocationGrannularityImpl();
 	MG_CHECK2(std::popcount(x) == 1, "System Allocation Grannularity is unexpectedly not a power of 2");
 
 	auto y = sizeof(UInt32) * 8 - std::countl_zero(x) -1;
@@ -230,8 +230,8 @@ void FileHandle::ReadFileSize(CharPtr handleName)
 
 FileChunckSpec MappedFileHandle::alloc(dms::filesize_t vs)
 {
-	auto fs = m_AllocatedSize;
 	m_AllocatedSize = (NrMemPages(m_AllocatedSize) << GetLog2AllocationGrannularity());
+	auto fs = m_AllocatedSize;
 	m_AllocatedSize += vs;
 
 	if (m_AllocatedSize > GetFileSize())
@@ -241,6 +241,7 @@ FileChunckSpec MappedFileHandle::alloc(dms::filesize_t vs)
 		assert(m_FileSize == m_AllocatedSize);
 		Map(true);
 	}
+	assert((fs & (GetAllocationGrannularity() - 1)) == 0);
 	return {fs, vs};
 }
 
@@ -298,6 +299,7 @@ FileViewHandle::FileViewHandle(std::shared_ptr<MappedFileHandle> mfh, dms::files
 		m_ViewSpec = mfh->alloc(viewSize);
 	else
 		m_ViewSpec = { viewOffset, viewSize };
+	assert((m_ViewSpec.first & (GetAllocationGrannularity()-1)) == 0);
 //	Map(false);
 }
 
@@ -308,9 +310,12 @@ ConstFileViewHandle::ConstFileViewHandle(std::shared_ptr<ConstMappedFileHandle> 
 		m_ViewSpec = cmfh->alloc(viewSize);
 	else
 		m_ViewSpec = { viewOffset, viewSize };
+	assert((m_ViewSpec.first & (GetAllocationGrannularity() - 1)) == 0);
 
-	MakeMin(m_ViewSpec.first, cmfh->GetFileSize());
+	MakeMin(m_ViewSpec.first, cmfh->GetFileSize() & ~(GetAllocationGrannularity() - 1));
 	MakeMin(m_ViewSpec.second, cmfh->GetFileSize() - m_ViewSpec.first);
+
+	assert((m_ViewSpec.first & (GetAllocationGrannularity() - 1)) == 0);
 
 //	Map(true);
 }
@@ -320,6 +325,8 @@ void FileViewHandle::operator =(FileViewHandle&& rhs) noexcept
 	m_MappedFile = std::move(rhs.m_MappedFile); assert(!rhs.m_MappedFile);
 	std::swap(m_ViewSpec, rhs.m_ViewSpec);
 	std::swap(m_ViewData, rhs.m_ViewData);
+
+	assert((m_ViewSpec.first & (GetAllocationGrannularity() - 1)) == 0);
 }
 
 void ConstFileViewHandle::operator =(ConstFileViewHandle&& rhs) noexcept
@@ -327,6 +334,8 @@ void ConstFileViewHandle::operator =(ConstFileViewHandle&& rhs) noexcept
 	m_MappedFile = std::move(rhs.m_MappedFile); assert(!rhs.m_MappedFile);
 	std::swap(m_ViewSpec, rhs.m_ViewSpec);
 	std::swap(m_ViewData, rhs.m_ViewData);
+
+	assert((m_ViewSpec.first & (GetAllocationGrannularity() - 1)) == 0);
 }
 
 void FileViewHandle::Map(bool alsoWrite)
@@ -337,6 +346,8 @@ void FileViewHandle::Map(bool alsoWrite)
 		return;
 
 	m_MappedFile->m_ResizeMutex.lock_shared();
+
+	assert((m_ViewSpec.first & (GetAllocationGrannularity() - 1)) == 0);
 
 	while (true) {
 		m_ViewData =

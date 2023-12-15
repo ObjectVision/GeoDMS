@@ -68,7 +68,6 @@ template <typename V> struct mapped_file_tile : TileBase
 		: m_Info(info)
 	{
 		assert(info);
-		dbg_assert(!info->IsLocked());
 		if (!info->m_NrMappedFileTiles++)
 			info->Lock(rwMode);
 		dbg_assert(info->IsLocked());

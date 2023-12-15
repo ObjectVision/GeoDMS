@@ -20,7 +20,7 @@ struct SafeFileWriterArray;
 
 //----------------------------------------------------------------------
 
-RTC_CALL UInt32 GetAllocationGrannularity();
+RTC_CALL SizeT GetAllocationGrannularity();
 RTC_CALL UInt8 GetLog2AllocationGrannularity();
 
 inline SizeT NrMemPages(SizeT nrBytes)
