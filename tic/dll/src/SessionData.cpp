@@ -192,7 +192,7 @@ std::shared_ptr<SessionData> SessionData::Create(CharPtr configLoadDir, CharPtr 
 	auto sectionLock = std::scoped_lock(sd_SessionDataCriticalSection);
 
 	if (s_CurrSD)
-		Curr()->deactivateThis();
+		s_CurrSD->deactivateThis();
 
 	assert(!s_CurrSD);
 	s_CurrSD = std::make_shared<SessionData>(MakeAbsolutePath(configLoadDir).c_str(), configSubDir );
