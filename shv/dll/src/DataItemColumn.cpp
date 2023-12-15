@@ -1193,8 +1193,24 @@ skip:
 void DataItemColumn::GenerateValueInfo()
 {
 	auto tc = GetTableControl().lock(); if (!tc) return;
-	if (tc->m_Rows.IsDefined())
-		CreateViewValueAction(GetActiveAttr(), tc->GetRecNo(tc->m_Rows.m_Curr), true);
+	if (!tc->m_Rows.IsDefined())
+		return;
+	auto rowNo = tc->m_Rows.m_Curr;
+	if (!IsDefined(rowNo))
+		return;
+	auto recNo = tc->GetRecNo(rowNo);
+	if (!IsDefined(recNo))
+		return;
+	auto activeTextAttr = GetActiveTextAttr();
+	if (!activeTextAttr)
+	{
+		auto theme = GetEnabledTheme(AN_LabelText);
+		if (!theme->IsFailed())
+			theme->GetValueGetter()->GenerateValueInfo(recNo);
+		return;
+	}
+
+	CreateViewValueAction(activeTextAttr, recNo, true);
 }
 
 

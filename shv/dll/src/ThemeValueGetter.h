@@ -40,6 +40,7 @@ public:
 	SharedStr GetStringValue  (entity_id entityIndex, GuiReadLock& lock) const;
 	TextInfo  GetTextInfo     (entity_id entityIndex, GuiReadLock& lock) const;
 	SharedStr GetDisplayValue (entity_id entityIndex, bool useMetric, SizeT maxLen, GuiReadLockPair& locks) const;
+	void GenerateValueInfo(entity_id entityIndex) const;
 
 	virtual entity_id GetClassIndex(entity_id entityID) const= 0;
 	virtual bool   MustRecalc() const { return true; }
