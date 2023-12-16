@@ -328,7 +328,7 @@ bool DrawPolygons(const GraphicPolygonLayer* layer, const FeatureDrawer& fd, con
 					: DmsColor2COLORREF(layer->GetDefaultOrThemeColor(AN_BrushColor)) // green as default color for polygons isn't really used since we have a theme
 					, layer->GetEnabledTheme(AN_BrushColor).get()
 					, layer->GetEnabledTheme(AN_HatchStyle).get()
-					, d, boundingBoxCache
+					, d, boundingBoxCache.get()
 					, trd, t
 					, data
 					,	indexCollector

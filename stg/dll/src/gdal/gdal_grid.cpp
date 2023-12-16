@@ -561,7 +561,6 @@ void GdalGridSM::DoUpdateTree(const TreeItem* storageHolder, TreeItem* curr, Syn
 		try 
 		{
 			GDAL_ErrorFrame frame;
-			gdal_transform gdalTr;
 			
 			const OGRSpatialReference* spatial_ref = m_hDS->GetSpatialRef();
 			if (!spatial_ref)
