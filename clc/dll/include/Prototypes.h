@@ -99,7 +99,7 @@ template<typename T> struct vref : fref<T> {};
 template<>           struct vref<OutStreamBuff> { using type = OutStreamBuff&; };
 template <typename T> using vref_t = typename vref<T>::type;
 
-template <typename T> T make_result(const T& output) { return output; }
+template <typename T> T make_result(const T&& output) { return std::forward<const T>(output); }
 template <typename T> using cref_t = typename cref<T>::type;
 
 // *****************************************************************************
@@ -217,7 +217,7 @@ struct ident_assignment : unary_assign<T, T>
 	
 	using unary_assign = typename ident_assignment::unary_assign;
 
-	void operator()(typename unary_assign::assignee_ref res, typename unary_assign::arg1_cref arg) const 
+	void operator()(typename unary_assign::assignee_ref res, auto&& arg) const 
 	{ 
 		res = arg; 
 	}

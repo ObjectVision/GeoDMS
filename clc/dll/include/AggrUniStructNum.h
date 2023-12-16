@@ -58,9 +58,21 @@ struct null_wrap : private std::pair<T, bool>
 	bool IsDefined() const { return this->second; };
 	operator typename param_type<T>::type () const { return this->first; }
 
-	void operator =(typename param_type<T>::type rhs)
+	void operator =(const null_wrap<T>& rhs)
 	{
-		this->first  = rhs;
+		Assign(this->first, rhs);
+		this->second = rhs.second;
+	}
+
+	void operator =(null_wrap<T>&& rhs)
+	{
+		Assign(this->first, std::move(rhs.first));
+		this->second = rhs.second;
+	}
+
+	void operator =(const auto&& rhs)
+	{
+		Assign(this->first,  rhs);
 		this->second = true;
 	}
 };
@@ -79,8 +91,36 @@ inline bool IsDefined(const null_wrap<T>& v)
 	return v.IsDefined();
 }
 
+template<typename T>
+void MakeUndefined(null_wrap<T>& output)
+{
+	output = null_wrap<T>();
+}
+
+template<typename T>
+void Assign(null_wrap<T>& output, const null_wrap<T>& rhs)
+{
+	output.first = rhs.first;
+	output.second = rhs.second;
+}
+
+template<typename T, typename U>
+void Assign(null_wrap<T>& output, U&& rhs)
+{
+	if constexpr (can_be_undefined_v<U>)
+	{
+		if (!IsDefined(rhs))
+		{
+			MakeUndefined(output);
+			return;
+		}
+	}
+	output.first = rhs;
+	output.second = true;
+}
+
 template <typename T>
-using nullable_t = std::conditional_t<has_undefines_v<T>, T, null_wrap<T>>;
+using nullable_t = std::conditional_t<has_undefines_v<T> && is_fixed_size_element_v<T>, T, null_wrap<T>>;
 
 // END MOVE
 
@@ -191,12 +231,12 @@ struct first_total_best
 	template <typename R>
 	static ConstUnitRef unit_creator(const AbstrOperGroup* gr, const ArgSeqType& args) { return CastUnit<R>(arg1_values_unit(args)); }
 
-	void Init(typename first_total_best::assignee_ref output) const
+	void Init(auto&& output) const
 	{
 		MakeUndefined(output);
 	}
 
-	void operator()(typename first_total_best::assignee_ref output, typename first_total_best::value_cseq1 input) const
+	void operator()(auto&& output, typename first_total_best::value_cseq1 input) const
 	{ 
 		if (IsDefined(output))
 			return;
@@ -207,7 +247,7 @@ struct first_total_best
 		{
 			if (IsDefined(*i))
 			{
-				output = *i;
+				Assign(output, *i);
 				break;
 			}
 		}	
@@ -241,12 +281,12 @@ struct last_total_best
 	static ConstUnitRef unit_creator(const AbstrOperGroup* gr, const ArgSeqType& args) { return CastUnit<R>(arg1_values_unit(args)); }
 
 	using base_type = unary_total_accumulation<T, T>;
-	void Init(typename base_type::assignee_ref output) const
+	void Init(auto&& output) const
 	{
 		output = UNDEFINED_OR_ZERO(T);
 	}
 
-	void operator()(typename base_type::assignee_ref output, typename base_type::value_cseq1 input) const
+	void operator()(auto&& output, typename base_type::value_cseq1 input) const
 	{ 
 		auto
 			i = input.end(),
