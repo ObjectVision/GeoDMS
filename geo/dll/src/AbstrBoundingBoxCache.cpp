@@ -14,7 +14,7 @@
 // class  : AbstrBoundingBoxCache
 //----------------------------------------------------------------------
 
-std::map<const AbstrDataObject*, const AbstrBoundingBoxCache*> g_BB_Register;
+std::map < const AbstrDataObject*, std::weak_ptr<const AbstrBoundingBoxCache>> g_BB_Register;
 leveled_critical_section cs_BB(item_level_type(0), ord_level_type::BoundingBoxCache1, "BoundingBoxCache");
 
 AbstrBoundingBoxCache::AbstrBoundingBoxCache(const AbstrDataObject* featureData)
@@ -23,11 +23,10 @@ AbstrBoundingBoxCache::AbstrBoundingBoxCache(const AbstrDataObject* featureData)
 
 AbstrBoundingBoxCache::~AbstrBoundingBoxCache()
 {
-	if (m_HasBeenRegistered)
-	{
-		leveled_critical_section::scoped_lock lockBB_register(cs_BB);
-		g_BB_Register.erase(m_FeatureData);
-	}
+	leveled_critical_section::scoped_lock lockBB_register(cs_BB);
+	auto ptr = g_BB_Register.find(m_FeatureData);
+	if (ptr != g_BB_Register.end() && !ptr->second.lock())
+		g_BB_Register.erase(ptr);
 }
 
 DRect AbstrBoundingBoxCache::GetBounds(tile_id t, tile_offset featureID) const

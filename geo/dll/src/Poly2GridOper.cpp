@@ -332,13 +332,13 @@ void rasterize_one_shape(AbstrRasterizeInfo* rasterInfo, std::vector<DPoint>& po
 
 #include "BoundingBoxCache.h"
 
-SharedPtr<const AbstrBoundingBoxCache> GetBounds(const AbstrDataItem* polyAttr, bool mustPrepare)
+std::shared_ptr<const AbstrBoundingBoxCache> GetSequenceBounds(const AbstrDataItem* polyAttr, bool mustPrepare)
 {
-	return visit_and_return_result<typelists::seq_points, SharedPtr<const AbstrBoundingBoxCache> >(polyAttr->GetAbstrValuesUnit(), [polyAttr, mustPrepare]<typename P >(const Unit<P>*)
+	return visit_and_return_result<typelists::seq_points, std::shared_ptr<const AbstrBoundingBoxCache> >(
+		polyAttr->GetAbstrValuesUnit(), 
+		[polyAttr, mustPrepare]<typename P >(const Unit<P>*)
 		{
-			SharedPtr<const AbstrBoundingBoxCache> result;
-			GetSequenceBoundingBoxCache<scalar_of_t<P>>(result, polyAttr, mustPrepare);
-			return result;
+			return GetSequenceBoundingBoxCache<scalar_of_t<P>>(polyAttr, mustPrepare);
 		}
 	);
 }
@@ -559,11 +559,11 @@ struct Poly2GridOperator : public BinaryOperator
 
 			DataReadLock arg1Lock(polyAttr);
 
-			auto bounds = GetBounds(polyAttr, false);
+			auto bounds = GetSequenceBounds(polyAttr, false);
 
 			DataWriteLock resLock(res, dms_rw_mode::write_only_mustzero);
 
-			Calculate(resLock.get(), res->GetAbstrDomainUnit(), polyAttr, bounds);
+			Calculate(resLock.get(), res->GetAbstrDomainUnit(), polyAttr, bounds.get());
 
 			resLock.Commit();
 		}
