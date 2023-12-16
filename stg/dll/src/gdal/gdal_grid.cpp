@@ -512,7 +512,6 @@ void GdalGridSM::DoUpdateTree(const TreeItem* storageHolder, TreeItem* curr, Syn
 		const AbstrUnit* vu = nullptr;
 		try {
 			GDAL_ErrorFrame frame;
-			gdal_transform gdalTr;
 			auto number_of_bands = m_hDS->GetRasterCount();
 			auto first_band = m_hDS->GetRasterBand(1);
 			auto first_band_datatype = first_band->GetRasterDataType();
@@ -575,12 +574,13 @@ void GdalGridSM::DoUpdateTree(const TreeItem* storageHolder, TreeItem* curr, Syn
 
 				if (result == OGRERR_NONE)
 				{
-					uBase = Unit<UInt32>::GetStaticClass()->CreateUnit(curr, GetTokenID_st(SR_NAME));
+					// TODO: implement 
+					/*uBase = Unit<UInt32>::GetStaticClass()->CreateUnit(curr, GetTokenID_st(SR_NAME));
 
 					auto spatial_ref_src = SharedStr(psz_wkt.m_Text);
 					auto spatialref_item = uBase->GetCurrRefItem();
 					const_cast<TreeItem*>(spatialref_item)->SetExpr(spatial_ref_src);
-					curr->SetDescr(spatialref_item->GetFullName());
+					curr->SetDescr(spatialref_item->GetFullName());*/
 				}
 			}
 		}

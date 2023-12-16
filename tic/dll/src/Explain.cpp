@@ -869,20 +869,26 @@ namespace Explain { // local defs
 				XML_OutElement bold(stream, "B");
 				stream << val_str.c_str();
 			}
-			stream << " of item:";
+			stream << " of item: ";
 		}
 
 		{
-			XML_OutElement br(stream, "P", "", ClosePolicy::pairedButWithoutSeparator);
 			{
-				auto indentation_level_str = SharedStr("margin-left: " + AsString(isFirst ? (self->m_ExprLevel-1) : self->m_ExprLevel * 15) + "px");
-				stream.WriteAttr("style", indentation_level_str.c_str());
+				XML_OutElement br(stream, "P", "", ClosePolicy::pairedButWithoutSeparator);
 				{
-					XML_hRef supplRef(stream, ItemUrl(m_DataItem.get_ptr()).c_str());
-					stream << m_DataItem->GetName().c_str();
+					auto indentation_level_str = SharedStr("margin-left: " + AsString(isFirst ? (self->m_ExprLevel - 1) : self->m_ExprLevel * 15) + "px");
+					stream.WriteAttr("style", indentation_level_str.c_str());
+					stream.WriteValue(""); // Close attr list
+					if (!isFirst)
+						stream.FormattingStream() << "&#8226;";
+					{
+						XML_hRef supplRef(stream, ItemUrl(m_DataItem.get_ptr()).c_str());
+						stream << m_DataItem->GetName().c_str();
+					}
+					stream << " := ";  GetExprOrSourceDescr(stream, m_DataItem.get_ptr());
 				}
-				stream << " := ";  GetExprOrSourceDescr(stream, m_DataItem.get_ptr());
 			}
+
 
 			if (isFirst)
 			{
@@ -892,8 +898,13 @@ namespace Explain { // local defs
 					stream << "With suppliers:";
 				return;
 			}
-
-			GetDescrBase(self, stream, isFirst, domain_unit, values_unit);
+			{
+				XML_OutElement br(stream, "P", "", ClosePolicy::pairedButWithoutSeparator);
+				auto indentation_level_str = SharedStr("margin-left: " + AsString(self->m_ExprLevel * 15+5) + "px");
+				stream.WriteAttr("style", indentation_level_str.c_str());
+				stream.WriteValue(""); // Close attr list
+				GetDescrBase(self, stream, isFirst, domain_unit, values_unit);
+			}
 		}
 
 		//NewLine(stream);
