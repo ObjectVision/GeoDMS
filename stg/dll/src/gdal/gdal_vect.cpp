@@ -820,6 +820,8 @@ void ReadDoubleAttrData(OGRLayer* layer, SizeT currFieldIndex, typename sequence
 bool GdalVectSM::ReadAttrData(const GdalVectlMetaInfo* br, AbstrDataObject * ado, tile_id t, SizeT firstIndex, SizeT size)
 {
 	OGRLayer* layer = br->Layer();
+	if (layer && t==0 && firstIndex == 0 && size)
+		layer->ResetReading();
 //	dms_assert(br->m_CurrFieldIndex != -1); 
 	// TODO G8: REMOVE following if, as it should have been set by the GdalVectlMetaInfo provider
 	if (br->m_CurrFieldIndex==-1) {
