@@ -180,6 +180,13 @@ TextInfo AbstrThemeValueGetter::GetTextInfo(SizeT entityIndex, GuiReadLock& lock
 	return TextInfo{ refObj->AsString(classIndex, lock), false };
 }
 
+void AbstrThemeValueGetter::GenerateValueInfo(entity_id entityIndex) const
+{
+	if (!m_PaletteAttr)
+		return;
+	CreateViewValueAction(m_PaletteAttr, entityIndex, true);
+}
+
 SharedStr AbstrThemeValueGetter::GetDisplayValue(SizeT entityIndex, bool useMetric, SizeT maxLen, GuiReadLockPair& locks) const
 {
 	assert(m_PaletteAttr);

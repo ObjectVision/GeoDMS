@@ -6,7 +6,7 @@
 #include "AbstrBoundingBoxCache.h"
 #include "ParallelTiles.h"
 
-GEO_CALL extern std::map<const AbstrDataObject*, const AbstrBoundingBoxCache*> g_BB_Register;
+GEO_CALL extern std::map<const AbstrDataObject*, std::weak_ptr<const AbstrBoundingBoxCache>> g_BB_Register;
 GEO_CALL extern leveled_critical_section cs_BB;
 
 //----------------------------------------------------------------------
@@ -187,8 +187,8 @@ SequenceBoundingBoxCache<F>::SequenceBoundingBoxCache(const AbstrDataObject* fea
 //----------------------------------------------------------------------
 
 template <typename ScalarType>
-const SequenceBoundingBoxCache<ScalarType>*
-GetSequenceBoundingBoxCache(SharedPtr<const AbstrBoundingBoxCache>& bbCacheSlot, WeakPtr<const AbstrDataItem> featureAttr, bool mustPrepare)
+std::shared_ptr<const SequenceBoundingBoxCache<ScalarType>>
+GetSequenceBoundingBoxCache(WeakPtr<const AbstrDataItem> featureAttr, bool mustPrepare)
 {
 	assert(featureAttr);
 	leveled_critical_section::scoped_lock lock(cs_BB);
@@ -197,19 +197,18 @@ GetSequenceBoundingBoxCache(SharedPtr<const AbstrBoundingBoxCache>& bbCacheSlot,
 
 	const AbstrDataObject* featureData = featureAttr->GetCurrRefObj();
 	auto& bbCache = g_BB_Register[featureData];
-	if (!bbCache)
+	auto result = bbCache.lock();
+	if (!result)
 	{
-		auto bbPtr = std::make_unique<SequenceBoundingBoxCache<ScalarType>> (featureData);
-		bbPtr->Register(); // remove from global cache upon destruction
-		bbCache = bbPtr.release();
+		result = std::make_shared<SequenceBoundingBoxCache<ScalarType>> (featureData);
+		bbCache = result;
 	}
-	bbCacheSlot = bbCache; // assign (shared) ownership to provided slot
-	return debug_cast<const SequenceBoundingBoxCache<ScalarType>*>(bbCache);
+	return { result, dynamic_cast<const SequenceBoundingBoxCache<ScalarType>*>(result.get()) };
 }
 
 template <typename ScalarType>
-const PointBoundingBoxCache<ScalarType>*
-GetPointBoundingBoxCache(SharedPtr<const AbstrBoundingBoxCache>& bbCacheSlot, WeakPtr<const AbstrDataItem> featureAttr, bool mustPrepare)
+std::shared_ptr<const PointBoundingBoxCache<ScalarType>>
+GetPointBoundingBoxCache(WeakPtr<const AbstrDataItem> featureAttr, bool mustPrepare)
 {
 	assert(featureAttr);
 	leveled_critical_section::scoped_lock lock(cs_BB);
@@ -218,14 +217,13 @@ GetPointBoundingBoxCache(SharedPtr<const AbstrBoundingBoxCache>& bbCacheSlot, We
 
 	const AbstrDataObject* featureData = featureAttr->GetCurrRefObj();
 	auto& bbCache = g_BB_Register[featureData];
-	if (!bbCache)
+	auto result = bbCache.lock();
+	if (!result)
 	{
-		auto bbPtr = std::make_unique<PointBoundingBoxCache<ScalarType>>(featureData);
-		bbPtr->Register(); // remove from global cache upon destruction
-		bbCache = bbPtr.release();
+		result = std::make_unique<PointBoundingBoxCache<ScalarType>>(featureData);
+		bbCache = result;
 	}
-	bbCacheSlot = bbCache; // assign (shared) ownership to provided slot
-	return debug_cast<const PointBoundingBoxCache<ScalarType>*>(bbCache);
+	return { result, dynamic_cast<const PointBoundingBoxCache<ScalarType>*>(result.get()) };
 }
 
 #endif // __GEO_BOUNDINGBOXCACHE_H
