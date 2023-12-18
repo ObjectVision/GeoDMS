@@ -318,9 +318,11 @@ void FeatureLayer::DoInvalidate() const
 	dms_assert(DoesHaveSupplInterest() || !GetInterestCount());
 }
 
-const AbstrBoundingBoxCache* FeatureLayer::GetBoundingBoxCache() const
+std::shared_ptr<const AbstrBoundingBoxCache> FeatureLayer::GetBoundingBoxCache() const
 {
-	return visit_and_return_result<typelists::seq_points, const AbstrBoundingBoxCache*>(GetFeatureAttr()->GetAbstrValuesUnit(), [this]<typename P>(const Unit<P>*) -> const AbstrBoundingBoxCache*
+	return visit_and_return_result<typelists::seq_points, std::shared_ptr<const AbstrBoundingBoxCache>>(
+		GetFeatureAttr()->GetAbstrValuesUnit(), 
+		[this]<typename P>(const Unit<P>*) -> std::shared_ptr<const AbstrBoundingBoxCache>
 		{
 			if (GetFeatureAttr()->GetValueComposition() == ValueComposition::Single)
 				return ::GetPointBoundingBoxCache<scalar_of_t<P>>(this);
@@ -1502,7 +1504,7 @@ SizeT FindArcByPoint(const GraphicArcLayer* layer, const Point<ScalarType>& pnt)
 
 	auto featureData = layer->GetFeatureAttr()->GetRefObj();
 	auto da = const_array_cast<PointSequenceType>(featureData);
-	auto bbCache = MakeShared( GetSequenceBoundingBoxCache<ScalarType>(layer) );
+	auto bbCache = GetSequenceBoundingBoxCache<ScalarType>(layer);
 	assert(bbCache);
 
 	SizeT entityID = UNDEFINED_VALUE(SizeT);
@@ -2063,8 +2065,6 @@ void GraphicPolygonLayer::InvalidateFeature(SizeT featureIndex)
 
 	InvalidateWorldRect(GetGeoTransformation().Apply(boundRect) + GetFeatureWorldExtents(), nullptr);
 }
-
-#include "DrawPolygons.h"
 
 bool GraphicPolygonLayer::DrawImpl(FeatureDrawer& fd) const
 {

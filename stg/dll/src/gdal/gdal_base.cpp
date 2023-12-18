@@ -1297,8 +1297,8 @@ GDALDatasetHandle Gdal_DoOpenStorage(const StorageMetaInfo& smi, dms_rw_mode rwM
 			optionArray.AddString("BIGTIFF=IF_SAFER");
 			optionArray.AddString("TFW=YES");
 			optionArray.AddString("TILED=YES");
-			optionArray.AddString("BLOCKXSIZE=512");
-			optionArray.AddString("BLOCKYSIZE=512");
+			optionArray.AddString("BLOCKXSIZE=256");
+			optionArray.AddString("BLOCKYSIZE=256");
 		}
 	}
 
