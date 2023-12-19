@@ -328,6 +328,7 @@ protected:
 public:
     void updateToolsMenu();
     void updateTracelogHandle();
+    bool CloseConfig(); // returns true when mdiSubWindows were closed
 
 private:
     void openConfigSourceFor(const TreeItem* context);
@@ -337,7 +338,6 @@ private:
     bool openErrorOnFailedCurrentItem();
     void clearActionsForEmptyCurrentItem();
     void updateActionsForNewCurrentItem();
-    bool CloseConfig(); // returns true when mdiSubWindows were closed
     void setupDmsCallbacks();
     void cleanupDmsCallbacks();
     void createActions();
