@@ -318,8 +318,7 @@ MainWindow::MainWindow(CmdLineSetttings& cmdLineSettings)
 
 MainWindow::~MainWindow()
 {
-    m_UpdateToolbarRequestPending = true; // avoid going into scheduleUpdateToolbar while destructing subWindows
-    CloseConfig();
+    g_IsTerminating = true;
 
     assert(s_CurrMainWindow == this);
     s_CurrMainWindow = nullptr;
@@ -796,7 +795,7 @@ auto getToolbarButtonData(ToolButtonID button_id) -> ToolbarButtonData
 void MainWindow::scheduleUpdateToolbar()
 {
     //ViewStyle current_toolbar_style = ViewStyle::tvsUndefined, requested_toolbar_viewstyle = ViewStyle::tvsUndefined;
-    if (m_UpdateToolbarRequestPending)
+    if (m_UpdateToolbarRequestPending || g_IsTerminating)
         return;
 
     // update requested toolbar style

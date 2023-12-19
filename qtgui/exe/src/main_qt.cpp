@@ -428,6 +428,7 @@ int main_without_SE_handler(int argc, char *argv[])
                 throw DmsException(msg);
             } 
         }
+        main_window.CloseConfig();
         return result;
     }
     catch (...)
