@@ -221,8 +221,9 @@ TreeItemAdmLock::~TreeItemAdmLock()
 	if (--s_nrTreeItemAdmLocks)
 		return;
 
-	dms_assert(s_TreeItems);
-	Report();
+	assert(s_TreeItems);
+	if (!g_IsTerminating)
+		Report();
 
 	assert(!s_TreeItems->size());
 	s_TreeItems.reset();
