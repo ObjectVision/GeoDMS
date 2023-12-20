@@ -1277,8 +1277,16 @@ bool TreeItem::IsLoadable() const
 bool TreeItem::IsCurrLoadable() const
 {
 	assert(!m_Parent || m_Parent->Was(PS_MetaInfo) || m_Parent->WasFailed());
-	return (IsDataItem(this) || IsUnit(this))
-		&& GetCurrStorageParent(false);
+	if (!IsDataItem(this) & !IsUnit(this))
+		return false;
+
+	auto sp = GetCurrStorageParent(false);
+	if (!sp)
+		return false;
+	auto sm = sp->GetCurrStorageManager();
+	assert(sm);
+
+	return sm->DoCheckExistence(sp, this);
 }
 
 bool TreeItem::IsStorable() const
@@ -2186,10 +2194,11 @@ MetaInfo TreeItem::GetCurrMetaInfo(metainfo_policy_flags mpf) const
 	if (mpf & metainfo_policy_flags::subst_never)
 		return MetaFuncCurry{ .fullLispExpr = CreateLispTree(this, true) }; // should this result in a SymcDC to itself ? No, present this tree only in GetKeyExpr
 
-	if (IsCurrLoadable())
-		//		return CreateLispTree(this, false); // will result in a SymbDC
-		//	if (IsUnit(this) || IsDerivable())
-		return MetaFuncCurry{ .fullLispExpr = CreateLispTree(this, false) };
+	if (IsUnit(this) || IsDataItem(this))
+		if (GetCurrStorageParent(false))
+			//		return CreateLispTree(this, false); // will result in a SymbDC
+			//	if (IsUnit(this) || IsDerivable())
+			return MetaFuncCurry{ .fullLispExpr = CreateLispTree(this, false) };
 
 	return MetaFuncCurry{}; // not as variant 2, as that would create an infinite recursion from GetOrgDC
 }
@@ -2416,7 +2425,9 @@ void TreeItem::UpdateMetaInfoImpl2() const
 
 	if (GetTreeParent())
 		GetTreeParent()->UpdateMetaInfo();
-
+	if (HasStorageManager())
+		GetStorageManager();
+	
 	try {
 		DetermineState();
 		if ((m_State.GetProgress()>=PS_MetaInfo) || WasFailed(FR_MetaInfo)) // reset by DetermineState when supplier was invalidated
@@ -3614,7 +3625,7 @@ bool TreeItem::CommitDataChanges() const
 		assert(sm); // guaranteed by IsStorable();
 
 		if (auto nmsm = dynamic_cast<NonmappableStorageManager*>(sm))
-			if (hasCalculator || IsDataReady(this) && !GetCurrRangeItem()->WasFailed(FR_Committed))
+			if (hasCalculator || IsDataReady(GetCurrRangeItem()) && !GetCurrRangeItem()->WasFailed(FR_Committed))
 			{
 				DBG_START("TreeItem", "CommitDataChanges", false);
 				DBG_TRACE(("self = %s", GetSourceName().c_str()));
