@@ -725,6 +725,8 @@ void DmsToolbuttonAction::onToolbuttonPressed()
             return;
         }
 
+        bool activate_pan_tool = was_checked ? true : false;
+
         dms_view_area->getDataView()->GetContents()->OnCommand(ToolButtonID::TB_Neutral);
         for (auto action : MainWindow::TheOne()->m_toolbar->actions())
         {
@@ -738,7 +740,10 @@ void DmsToolbuttonAction::onToolbuttonPressed()
             if (!dms_toolbar_action->m_data.is_global)
                 continue;
 
-            dms_toolbar_action->setChecked(false);
+            if (activate_pan_tool && dms_toolbar_action->m_data.id == TB_Pan)
+                dms_toolbar_action->setChecked(true);
+            else
+                dms_toolbar_action->setChecked(false);
             dms_toolbar_action->m_state = 0;
         }
     }
