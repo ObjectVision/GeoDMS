@@ -718,6 +718,13 @@ void DmsToolbuttonAction::onToolbuttonPressed()
 
     if (m_data.is_global) // ie. zoom-in and zoom-out are mutually exclusive
     {
+        auto was_checked = !isChecked();
+        if (was_checked && m_data.id == TB_Pan)
+        {
+            setChecked(true);
+            return;
+        }
+
         dms_view_area->getDataView()->GetContents()->OnCommand(ToolButtonID::TB_Neutral);
         for (auto action : MainWindow::TheOne()->m_toolbar->actions())
         {
@@ -763,31 +770,31 @@ auto getToolbarButtonData(ToolButtonID button_id) -> ToolbarButtonData
 {
     switch (button_id)
     {
-    case TB_Export: return { {"Save to file as semicolon delimited text", "Export the viewport data to bitmaps file(s) using the export settings and the current ROI"}, {TB_Export}, {":/res/images/TB_save.bmp"}};
-    case TB_TableCopy: return { {"Copy as semicolon delimited text to Clipboard",""}, {TB_TableCopy}, {":/res/images/TB_copy.bmp"}};
-    case TB_Copy: return { {"Copy the visible contents as image to Clipboard","Copy the visible contents of the viewport to the Clipboard"}, {TB_Copy}, {":/res/images/TB_vcopy.bmp"}};
-    case TB_CopyLC: return { {"","Copy the full contents of the LayerControlList to the Clipboard"}, {TB_CopyLC}, {":/res/images/TB_copy.bmp"}};
-    case TB_ShowFirstSelectedRow: return { {"Show the first selected row","Make the extent of the selected elements fit in the ViewPort"}, {TB_ShowFirstSelectedRow}, {":/res/images/TB_table_show_first_selected.bmp"} };
-    case TB_ZoomSelectedObj: return { {"Show the first selected row","Make the extent of the selected elements fit in the ViewPort"}, {TB_ZoomSelectedObj}, {":/res/images/TB_zoom_selected.bmp"}};
-    case TB_SelectRows: return { {"Select row(s) by mouse-click (use Shift to add or Ctrl to deselect)",""}, {TB_SelectRows}, {":/res/images/TB_table_select_row.bmp"}};
-    case TB_SelectAll: return { {"Select all rows","Select all elements in the active layer"}, {TB_SelectAll}, {":/res/images/TB_select_all.bmp"}};
-    case TB_SelectNone: return { {"Deselect all rows","Deselect all elements in the active layer"}, {TB_SelectNone}, {":/res/images/TB_select_none.bmp"}};
-    case TB_ShowSelOnlyOn: return { {"Show only selected rows","Show only selected elements"}, {TB_ShowSelOnlyOff, TB_ShowSelOnlyOn}, {":/res/images/TB_show_selected_features.bmp"}};
-    case TB_TableGroupBy: return { {"Group by the highlighted columns",""}, {TB_Neutral, TB_TableGroupBy}, {":/res/images/TB_group_by.bmp"}};
-    case TB_ZoomAllLayers: return { {"","Make the extents of all layers fit in the ViewPort"}, {TB_ZoomAllLayers}, {":/res/images/TB_zoom_all_layers.bmp"}};
-    case TB_ZoomActiveLayer: return { {"","Make the extent of the active layer fit in the ViewPort"}, {TB_ZoomActiveLayer}, {":/res/images/TB_zoom_active_layer.bmp"}};
-    case TB_ZoomIn2: return { {"","Zoom in by drawing a rectangle"}, {TB_Neutral, TB_ZoomIn2}, {":/res/images/TB_zoomin_button.bmp"}, true};
-    case TB_ZoomOut2: return { {"","Zoom out by clicking on a ViewPort location"}, {TB_Neutral, TB_ZoomOut2}, {":/res/images/TB_zoomout_button.bmp"}, true};
-    case TB_Pan: return { {"","Pan by holding left mouse button down in the ViewPort and dragging"}, {TB_Neutral, TB_Pan}, {":/res/images/TB_pan_button.bmp"}, true };
-    case TB_SelectObject: return { {"","Select elements in the active layer by mouse-click(use Shift to add or Ctrl to deselect)"}, {TB_Neutral, TB_SelectObject}, {":/res/images/TB_select_object.bmp"}, true};
-    case TB_SelectRect: return { {"","Select elements in the active layer by drawing a rectangle(use Shift to add or Ctrl to deselect)"}, {TB_Neutral, TB_SelectRect}, {":/res/images/TB_select_rect.bmp"}, true};
-    case TB_SelectCircle: return { {"","Select elements in the active layer by drawing a circle(use Shift to add or Ctrl to deselect)"}, {TB_Neutral, TB_SelectCircle}, {":/res/images/TB_select_circle.bmp"}, true};
-    case TB_SelectPolygon: return { {"","Select elements in the active layer by drawing a polygon(use Shift to add or Ctrl to deselect)"}, {TB_Neutral, TB_SelectPolygon}, {":/res/images/TB_select_poly.bmp"}, true};
-    case TB_SelectDistrict: return { {"","Select contiguous regions in the active layer by clicking on them (use Shift to add or Ctrl to deselect)"}, {TB_Neutral, TB_SelectDistrict}, {":/res/images/TB_select_district.bmp"}, true};
-    case TB_Show_VP: return { {"","Toggle the layout of the ViewPort between{MapView only, with LayerControlList, with Overview and LayerControlList}"}, {TB_Show_VPLCOV,TB_Show_VP, TB_Show_VPLC}, {":/res/images/TB_toggle_layout_3.bmp", ":/res/images/TB_toggle_layout_1.bmp", ":/res/images/TB_toggle_layout_2.bmp"}};
-    case TB_SP_All: return { {"","Toggle Palette Visibiliy between{All, Active Layer Only, None}"}, {TB_SP_All, TB_SP_Active, TB_SP_None}, {":/res/images/TB_toggle_palette.bmp"}};
-    case TB_NeedleOn: return { {"","Show / Hide NeedleController"}, {TB_NeedleOff, TB_NeedleOn}, {":/res/images/TB_toggle_needle.bmp"}};
-    case TB_ScaleBarOn: return { {"","Show / Hide ScaleBar"}, {TB_ScaleBarOff, TB_ScaleBarOn}, {":/res/images/TB_toggle_scalebar.bmp"}};
+    case TB_Export: return { TB_Export, {"Save to file as semicolon delimited text", "Export the viewport data to bitmaps file(s) using the export settings and the current ROI"}, {TB_Export}, {":/res/images/TB_save.bmp"}};
+    case TB_TableCopy: return { TB_TableCopy, {"Copy as semicolon delimited text to Clipboard",""}, {TB_TableCopy}, {":/res/images/TB_copy.bmp"}};
+    case TB_Copy: return { TB_Copy, {"Copy the visible contents as image to Clipboard","Copy the visible contents of the viewport to the Clipboard"}, {TB_Copy}, {":/res/images/TB_vcopy.bmp"}};
+    case TB_CopyLC: return { TB_CopyLC, {"","Copy the full contents of the LayerControlList to the Clipboard"}, {TB_CopyLC}, {":/res/images/TB_copy.bmp"}};
+    case TB_ShowFirstSelectedRow: return { TB_ShowFirstSelectedRow, {"Show the first selected row","Make the extent of the selected elements fit in the ViewPort"}, {TB_ShowFirstSelectedRow}, {":/res/images/TB_table_show_first_selected.bmp"} };
+    case TB_ZoomSelectedObj: return { TB_ZoomSelectedObj, {"Show the first selected row","Make the extent of the selected elements fit in the ViewPort"}, {TB_ZoomSelectedObj}, {":/res/images/TB_zoom_selected.bmp"}};
+    case TB_SelectRows: return { TB_SelectRows, {"Select row(s) by mouse-click (use Shift to add or Ctrl to deselect)",""}, {TB_SelectRows}, {":/res/images/TB_table_select_row.bmp"}};
+    case TB_SelectAll: return { TB_SelectAll, {"Select all rows","Select all elements in the active layer"}, {TB_SelectAll}, {":/res/images/TB_select_all.bmp"}};
+    case TB_SelectNone: return { TB_SelectNone, {"Deselect all rows","Deselect all elements in the active layer"}, {TB_SelectNone}, {":/res/images/TB_select_none.bmp"}};
+    case TB_ShowSelOnlyOn: return { TB_ShowSelOnlyOn, {"Show only selected rows","Show only selected elements"}, {TB_ShowSelOnlyOff, TB_ShowSelOnlyOn}, {":/res/images/TB_show_selected_features.bmp"}};
+    case TB_TableGroupBy: return { TB_TableGroupBy, {"Group by the highlighted columns",""}, {TB_Neutral, TB_TableGroupBy}, {":/res/images/TB_group_by.bmp"}};
+    case TB_ZoomAllLayers: return { TB_ZoomAllLayers, {"","Make the extents of all layers fit in the ViewPort"}, {TB_ZoomAllLayers}, {":/res/images/TB_zoom_all_layers.bmp"}};
+    case TB_ZoomActiveLayer: return { TB_ZoomActiveLayer, {"","Make the extent of the active layer fit in the ViewPort"}, {TB_ZoomActiveLayer}, {":/res/images/TB_zoom_active_layer.bmp"}};
+    case TB_ZoomIn2: return { TB_ZoomIn2, {"","Zoom in by drawing a rectangle"}, {TB_Neutral, TB_ZoomIn2}, {":/res/images/TB_zoomin_button.bmp"}, true};
+    case TB_ZoomOut2: return { TB_ZoomOut2, {"","Zoom out by clicking on a ViewPort location"}, {TB_Neutral, TB_ZoomOut2}, {":/res/images/TB_zoomout_button.bmp"}, true};
+    case TB_Pan: return { TB_Pan, {"","Pan by holding left mouse button down in the ViewPort and dragging"}, {TB_Neutral, TB_Pan}, {":/res/images/TB_pan_button.bmp"}, true };
+    case TB_SelectObject: return { TB_SelectObject, {"","Select elements in the active layer by mouse-click(use Shift to add or Ctrl to deselect)"}, {TB_Neutral, TB_SelectObject}, {":/res/images/TB_select_object.bmp"}, true};
+    case TB_SelectRect: return { TB_SelectRect, {"","Select elements in the active layer by drawing a rectangle(use Shift to add or Ctrl to deselect)"}, {TB_Neutral, TB_SelectRect}, {":/res/images/TB_select_rect.bmp"}, true};
+    case TB_SelectCircle: return { TB_SelectCircle, {"","Select elements in the active layer by drawing a circle(use Shift to add or Ctrl to deselect)"}, {TB_Neutral, TB_SelectCircle}, {":/res/images/TB_select_circle.bmp"}, true};
+    case TB_SelectPolygon: return { TB_SelectPolygon, {"","Select elements in the active layer by drawing a polygon(use Shift to add or Ctrl to deselect)"}, {TB_Neutral, TB_SelectPolygon}, {":/res/images/TB_select_poly.bmp"}, true};
+    case TB_SelectDistrict: return { TB_SelectDistrict, {"","Select contiguous regions in the active layer by clicking on them (use Shift to add or Ctrl to deselect)"}, {TB_Neutral, TB_SelectDistrict}, {":/res/images/TB_select_district.bmp"}, true};
+    case TB_Show_VP: return { TB_Show_VP, {"","Toggle the layout of the ViewPort between{MapView only, with LayerControlList, with Overview and LayerControlList}"}, {TB_Show_VPLCOV,TB_Show_VP, TB_Show_VPLC}, {":/res/images/TB_toggle_layout_3.bmp", ":/res/images/TB_toggle_layout_1.bmp", ":/res/images/TB_toggle_layout_2.bmp"}};
+    case TB_SP_All: return { TB_SP_All, {"","Toggle Palette Visibiliy between{All, Active Layer Only, None}"}, {TB_SP_All, TB_SP_Active, TB_SP_None}, {":/res/images/TB_toggle_palette.bmp"}};
+    case TB_NeedleOn: return { TB_NeedleOn, {"","Show / Hide NeedleController"}, {TB_NeedleOff, TB_NeedleOn}, {":/res/images/TB_toggle_needle.bmp"}};
+    case TB_ScaleBarOn: return { TB_ScaleBarOn, {"","Show / Hide ScaleBar"}, {TB_ScaleBarOff, TB_ScaleBarOn}, {":/res/images/TB_toggle_scalebar.bmp"}};
     }
 
     return {};

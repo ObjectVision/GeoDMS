@@ -93,6 +93,7 @@ enum DmsHelperWindowType
 
 struct ToolbarButtonData
 {
+    ToolButtonID id;
     std::vector<QString> text;
     std::vector<ToolButtonID> ids;
     std::vector<QString> icons;
