@@ -297,7 +297,15 @@ bool CustomEventFilter::nativeEventFilter(const QByteArray& /*eventType*/, void*
                     terminate();
             }
         }
+    /*case WM_PAINT:
+    {
+        RECT test_rect;
+        auto main_window = (HWND)MainWindow::TheOne()->winId();
+        GetUpdateRect(main_window, &test_rect, false);
+    }*/
     }
+
+
     return false;
     //    return QAbstractNativeEventFilter::nativeEventFilter(eventType, message, result);
 }
