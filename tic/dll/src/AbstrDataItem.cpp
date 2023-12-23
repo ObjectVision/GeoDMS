@@ -720,7 +720,12 @@ DataCheckMode AbstrDataItem::GetTiledCheckMode(tile_id t) const
 
 bool AbstrDataItem::HasVoidDomainGuarantee() const
 {
-	return GetAbstrDomainUnit()->IsKindOf( Unit<Void>::GetStaticClass() );
+	auto adu = GetAbstrDomainUnit();
+	if (!adu)
+	{
+		this->throwItemError("Invalid domain reference.");
+	}
+	return adu->IsKindOf( Unit<Void>::GetStaticClass() );
 }
 
 void AbstrDataItem::OnDomainUnitRangeChange(const DomainChangeInfo* info)
@@ -906,7 +911,11 @@ struct DomainUnitFullNamePropDef : ReadOnlyPropDef<AbstrDataItem, TokenID>
 	// implement PropDef get/set virtuals
 	TokenID GetValue(const AbstrDataItem* item) const override
 	{
-		return UnitName(item->GetAbstrDomainUnit());
+		auto adu = item->GetAbstrDomainUnit();
+		if (!adu)
+			return TokenID::GetUndefinedID();
+
+		return UnitName(adu);
 	}
 };
 
@@ -919,7 +928,10 @@ struct ValuesUnitFullNamePropDef : ReadOnlyPropDef<AbstrDataItem, TokenID>
 	// implement PropDef get/set virtuals
 	TokenID GetValue(const AbstrDataItem* item) const override
 	{
-		return UnitName(item->GetAbstrValuesUnit());
+		auto avu = item->GetAbstrValuesUnit();
+		if (!avu)
+			return TokenID::GetUndefinedID();
+		return UnitName(avu);
 	}
 };
 
