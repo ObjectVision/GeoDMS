@@ -1250,7 +1250,11 @@ void DataItemColumn::FillMenu(MouseEventDispatcher& med)
 	SharedStr caption = GetThemeDisplayName(this);
 
 	auto tc = GetTableControl().lock(); if (!tc) return;
-
+	{
+		SubMenu subMenu(med.m_MenuData, SharedStr("Activate...")); // SUBMENU
+		InsertSubMenu(med.m_MenuData, "Source Attribute", GetSrcAttr(), this);
+		InsertSubMenu(med.m_MenuData, "Table Domain", tc->GetEntity(), this);
+	}
 	if (tc->HasSortOptions())
 	{
 		SubMenu subMenu(med.m_MenuData, "Sort on " + GetThemeDisplayName(this)); // SUBMENU
