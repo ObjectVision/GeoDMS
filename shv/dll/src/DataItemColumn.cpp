@@ -26,6 +26,7 @@
 #include "DataItemClass.h"
 #include "DataController.h"
 #include "DisplayValue.h"
+#include "StateChangeNotification.h"
 #include "TreeItemProps.h"
 #include "Unit.h"
 #include "UnitClass.h"
@@ -1255,6 +1256,11 @@ void DataItemColumn::FillMenu(MouseEventDispatcher& med)
 		InsertSubMenu(med.m_MenuData, "Source Attribute", GetSrcAttr(), this);
 		InsertSubMenu(med.m_MenuData, "Table Domain", tc->GetEntity(), this);
 	}
+	auto sa = GetSrcAttr();
+	if (sa)
+		med.m_MenuData.emplace_back("Show Statistics of " + caption, new RequestClientCmd(sa, CC_ShowStatistics), this);
+
+
 	if (tc->HasSortOptions())
 	{
 		SubMenu subMenu(med.m_MenuData, "Sort on " + GetThemeDisplayName(this)); // SUBMENU
