@@ -328,6 +328,16 @@ const AbstrUnit* CompositeBase(const AbstrUnit* proj)
 	return res;
 }
 
+bool ProjectionIsColFirst(OGRSpatialReference &srs)
+{
+	OGRAxisOrientation PROJCS_peOrientation;
+	OGRAxisOrientation GEOGCS_peOrientation;
+	srs.GetAxis("PROJCS", 0, &PROJCS_peOrientation);
+	srs.GetAxis("GEOGCS", 0, &GEOGCS_peOrientation);
+	bool projection_is_col_first = PROJCS_peOrientation == OGRAxisOrientation::OAO_East || GEOGCS_peOrientation == OGRAxisOrientation::OAO_East;
+	return projection_is_col_first;
+}
+
 static leveled_critical_section cs_SpatialRefBlockCreation(item_level_type(0), ord_level_type::SpecificOperator, "SpatialRefBlock");
 
 #include <gdal_priv.h>
@@ -554,8 +564,9 @@ struct Type2DConversion: unary_func<TR, TA> // http://www.gdal.org/ogr/osr_tutor
 				frame.ThrowUpWhateverCameUp();
 				return;
 			}
+			m_PreRescaler *= m_PostRescaler;
 		}
-		m_PreRescaler *= m_PostRescaler;
+		
 		m_PostRescaler = CrdTransformation(); // clear
 	}
 
@@ -629,13 +640,14 @@ struct Type2DConversion: unary_func<TR, TA> // http://www.gdal.org/ogr/osr_tutor
 					resX[i] = rescaledA.Col();
 					resY[i] = rescaledA.Row();
 				}
-				if (!m_OgrComponentHolder->m_Transformer->Transform(s, resX, resY, nullptr /*Z*/, successFlags))
+ 				if (!m_OgrComponentHolder->m_Transformer->Transform(s, resX, resY, nullptr /*Z*/, successFlags))
 					fast_fill(successFlags, successFlags + PROJ_BLOCK_SIZE, 0);
 				for (int i = 0; i != s; ++ri, ++i)
 				{
 					if (successFlags[i])
 					{
-						auto reprojectedPoint = shp2dms_order(resX[i], resY[i]);
+						bool projection_is_col_first = ProjectionIsColFirst(m_OgrComponentHolder->m_Dst);
+						auto reprojectedPoint = prj2dms_order(resX[i], resY[i], projection_is_col_first);
 						auto rescaledPoint = m_PostRescaler.Apply(reprojectedPoint);
 						Assign(*ri, Convert<TR>(rescaledPoint));
 					}
