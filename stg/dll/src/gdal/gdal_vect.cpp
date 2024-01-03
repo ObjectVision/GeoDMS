@@ -715,8 +715,12 @@ void ReadStrAttrData(OGRLayer* layer, SizeT currFieldIndex, sequence_traits<Shar
 			DMS_ASyncContinueCheck();
 
 		DataArray<SharedStr>::reference dataElemRef = data[i];
-		gdalVectImpl::FeaturePtr feat = hDS->TestCapability(ODsCRandomLayerRead) ? GetNextFeatureInterleaved(layer, hDS) : layer->GetNextFeature();
-		if (feat && !feat->IsFieldNull(currFieldIndex) && feat->IsFieldSet(currFieldIndex))
+		bool dataset_has_random_layer_read_capability = hDS->TestCapability(ODsCRandomLayerRead);
+		gdalVectImpl::FeaturePtr feat = dataset_has_random_layer_read_capability ? GetNextFeatureInterleaved(layer, hDS) : layer->GetNextFeature();
+		bool feature_field_is_null = feat->IsFieldNull(currFieldIndex);
+		bool feature_field_is_set = feat->IsFieldSet(currFieldIndex);
+
+		if (feat && !feature_field_is_null && feature_field_is_set)
 		{
 			CharPtr fieldAsString;
 			fieldAsString = feat->GetFieldAsString(currFieldIndex);

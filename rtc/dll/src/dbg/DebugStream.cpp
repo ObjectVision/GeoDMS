@@ -103,6 +103,8 @@ void MsgDispatch(MsgData* msgData)
 	assert((msgData->m_SeverityType == SeverityTypeID::ST_Nothing) || IsMainThread());
 	if (!g_MsgCallbacks)
 		return;
+	if (g_IsTerminating)
+		return;
 
 	TMsgCallbackSinkContainer::iterator
 		b = g_MsgCallbacks->begin(),
