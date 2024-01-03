@@ -153,6 +153,8 @@ SpecialOperGroup sog_FenceContainer(token::FenceContainer, 2, oap_Fence, oper_po
 using fence_member_pair = std::pair<SharedPtr<TreeItem>, InterestPtr<SharedPtr<const TreeItem>>>;
 using fence_work_data = std::vector<fence_member_pair>;
 
+TIC_CALL void IncSchedulingOperContextGroupNumber();
+
 struct FenceContainerOperator : BinaryOperator
 {
 	FenceContainerOperator()
@@ -186,6 +188,7 @@ struct FenceContainerOperator : BinaryOperator
 			workData.emplace_back(resWalker, srcItem);
 		}
 		fc->m_MetaInfo = make_noncopyable_any<fence_work_data>(std::move(workData));
+		IncSchedulingOperContextGroupNumber();
 	}
 	bool CalcResult(TreeItemDualRef& resultHolder, ArgRefs args, std::vector<ItemReadLock> readLocks, OperationContext * fc, Explain::Context * context) const override
 	{
