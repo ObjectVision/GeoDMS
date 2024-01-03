@@ -129,8 +129,10 @@ struct CheckOperator : public BinaryOperator
 			SizeT nrFailures = arg2A->CountValues<Bool>(false);
 			if (nrFailures)
 			{
+				auto ultimate_item = resultHolder.GetUlt();
+				auto integrity_checked_item = ultimate_item ? resultHolder.GetUlt()->GetBackRef() : nullptr;
 				//	throwError(ICHECK_NAME, "%s", iChecker->GetExpr().c_str()); // will be caught by SuspendibleUpdate who will Fail this.
-				resultHolder.Fail(mySSPrintF(ICHECK_NAME ": %d element(s) failed",  nrFailures), FR_Validate); // will be caught by SuspendibleUpdate who will Fail this.
+				resultHolder.Fail(mySSPrintF( "[[%s]] %s : %d element(s) failed", integrity_checked_item ? integrity_checked_item->GetFullName() : SharedStr(""), ICHECK_NAME, nrFailures), FR_Validate); // will be caught by SuspendibleUpdate who will Fail this.
 				dms_assert(resultHolder.WasFailed(FR_Validate));
 //				return AVS_SuspendedOrFailed;
 			}
