@@ -42,7 +42,7 @@ template <typename T>
 constexpr bool is_null_wrap_v = is_null_wrap_t<T>::value;
 
 template <typename T>
-constexpr bool can_be_undefined_v = !is_bitvalue_v<T> && (is_fixed_size_element_v<T> || is_seq_ref_v<T> || is_null_wrap_t<T> );
+constexpr bool can_be_undefined_v = !is_bitvalue_v<T> && (is_fixed_size_element_v<T> || is_seq_ref_v<T> || is_null_wrap_v<T> );
  
 // *****************************************************************************
 //								ELEMENTARY ASSIGNMENT FUNCTORS 

@@ -65,9 +65,11 @@ struct initializer
 {
 	initializer(const TNullaryAssign& aFunc = TNullaryAssign()) : m_Assign(aFunc) {}
 
-	void Init(typename TNullaryAssign::assignee_ref accumulator) const
+	auto InitialValue() const
 	{
+		typename TNullaryAssign::assignee_type accumulator;
 		m_Assign(accumulator);
+		return accumulator;
 	}
 private:
 	TNullaryAssign m_Assign;

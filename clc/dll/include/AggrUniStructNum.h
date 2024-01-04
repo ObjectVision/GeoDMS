@@ -48,6 +48,13 @@ extern CommonOperGroup cog_Max;
 extern CommonOperGroup cog_First;
 extern CommonOperGroup cog_Last;
 
+
+inline void Assign(FPoint& lhs, const DPoint& rhs)
+{
+	lhs.first = rhs.first;
+	lhs.second = rhs.second;
+}
+
 template <typename T>
 struct null_wrap : private std::pair<T, bool>
 {
@@ -55,8 +62,23 @@ struct null_wrap : private std::pair<T, bool>
 	{
 		assert(!IsDefined());
 	}
+	null_wrap(null_wrap<T>&& rhs)
+	{
+		Assign(this->first, std::move(rhs.first));
+		this->second = rhs.second;
+	}
+	null_wrap(const null_wrap<T>& rhs)
+	{
+		Assign(this->first, rhs.first);
+		this->second = rhs.second;
+	}
 	bool IsDefined() const { return this->second; };
-	operator typename param_type<T>::type () const { return this->first; }
+
+	auto value() const -> const T&
+	{ 
+		assert(IsDefined());
+		return this->first; 
+	}
 
 	void operator =(const null_wrap<T>& rhs)
 	{
@@ -69,13 +91,27 @@ struct null_wrap : private std::pair<T, bool>
 		Assign(this->first, std::move(rhs.first));
 		this->second = rhs.second;
 	}
-
-	void operator =(const auto&& rhs)
+	void AssignValue(const T& rhs)
 	{
-		Assign(this->first,  rhs);
+		Assign(this->first, rhs);
 		this->second = true;
 	}
+	void AssignValue(T&& rhs)
+	{
+		Assign(this->first, rhs);
+		this->second = true;
+	}
+	template <typename T>
+	void operator =(const T&& rhs)
+	{
+		AssignValue(std::forward<T>(rhs));
+	}
+	      T* operator ->()       { assert(IsDefined()); return &this->first; }
+	const T* operator ->() const { assert(IsDefined()); return &this->first; }
 };
+
+template <typename T>
+inline constexpr bool IsDefined(const null_wrap<T>& v) { return v.IsDefined(); }
 
 template <typename T> struct DataArrayBase<null_wrap<T> > { typename T::dont_instantiate_this x; }; // DEBUG
 
@@ -85,12 +121,6 @@ null_wrap<T> UndefinedValue(const null_wrap<T>*)
 	return null_wrap<T>();
 }
 
-template <typename T>
-inline bool IsDefined(const null_wrap<T>& v)
-{
-	return v.IsDefined();
-}
-
 template<typename T>
 void MakeUndefined(null_wrap<T>& output)
 {
@@ -98,16 +128,41 @@ void MakeUndefined(null_wrap<T>& output)
 }
 
 template<typename T>
+inline void Assign(SA_Reference<T> lhs, const null_wrap<std::vector<T>>& rhs)
+{
+	if (rhs.IsDefined())
+		lhs.assign(begin_ptr(rhs.value()), end_ptr(rhs.value()));
+	else
+		lhs.assign(Undefined());
+}
+
+inline void Assign(StringRef lhs, const null_wrap<SharedStr>& rhs)
+{
+	if (rhs.IsDefined())
+		lhs.assign(rhs->begin(), rhs->send());
+	else
+		lhs.assign(Undefined());
+}
+
+template <bit_size_t N, typename Block, typename BV>
+inline void Assign(bit_reference<N, Block> lhs, const null_wrap<BV>& rhs)
+{
+	if (rhs.IsDefined())
+		lhs = rhs.value();
+	else
+		lhs = 0;
+}
+
+template<typename T>
 void Assign(null_wrap<T>& output, const null_wrap<T>& rhs)
 {
-	output.first = rhs.first;
-	output.second = rhs.second;
+	output = rhs;
 }
 
 template<typename T, typename U>
 void Assign(null_wrap<T>& output, U&& rhs)
 {
-	if constexpr (can_be_undefined_v<U>)
+	if constexpr (can_be_undefined_v<std::remove_cvref_t<U>>)
 	{
 		if (!IsDefined(rhs))
 		{
@@ -115,8 +170,7 @@ void Assign(null_wrap<T>& output, U&& rhs)
 			return;
 		}
 	}
-	output.first = rhs;
-	output.second = true;
+	output.AssignValue(rhs);
 }
 
 template <typename T>
@@ -231,9 +285,10 @@ struct first_total_best
 	template <typename R>
 	static ConstUnitRef unit_creator(const AbstrOperGroup* gr, const ArgSeqType& args) { return CastUnit<R>(arg1_values_unit(args)); }
 
-	void Init(auto&& output) const
+	using accumulator_type = nullable_t<T>;
+	accumulator_type InitialValue() const
 	{
-		MakeUndefined(output);
+		return UNDEFINED_VALUE(accumulator_type);
 	}
 
 	void operator()(auto&& output, typename first_total_best::value_cseq1 input) const
@@ -281,9 +336,11 @@ struct last_total_best
 	static ConstUnitRef unit_creator(const AbstrOperGroup* gr, const ArgSeqType& args) { return CastUnit<R>(arg1_values_unit(args)); }
 
 	using base_type = unary_total_accumulation<T, T>;
-	void Init(auto&& output) const
+
+	using accumulator_type = nullable_t<T>;
+	accumulator_type InitialValue() const
 	{
-		MakeUndefined(output);
+		return UNDEFINED_VALUE(accumulator_type);
 	}
 
 	void operator()(auto&& output, typename base_type::value_cseq1 input) const
@@ -295,7 +352,7 @@ struct last_total_best
 		{
 			if (IsDefined(*--i))
 			{
-				output = *i;
+				Assign(output, *i);
 				break;
 			}
 		}
