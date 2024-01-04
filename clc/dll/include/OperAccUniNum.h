@@ -40,7 +40,7 @@ struct OperAccTotUniNum : OperAccTotUni<TAcc1Func>
 		assert(result);
 
 		typename TAcc1Func::assignee_type value;
-		this->m_Acc1Func.Init(value);
+		this->m_Acc1Func.Init(value); // set value to MIN_VALUE, MAX_VALUE, or NULL depending on the TAcc1Func type
 
 		const AbstrUnit* e = arg1A->GetAbstrDomainUnit();
 
