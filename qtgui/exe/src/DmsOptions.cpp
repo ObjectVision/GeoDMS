@@ -59,8 +59,6 @@ colorOptionAttr sColorOptionData[(int)color_option::count] =
     { "Background", "Pick the Mapview background color", white, 256},
     { "RampStart", "Pick the classification ramp start color", DmsRed, 257},
     { "RampEnd", "Pick the classification ramp end color", DmsBlue, 258},
-
-
 };
 
 auto backgroundColor2StyleSheet(QColor clr) -> QString

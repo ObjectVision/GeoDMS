@@ -579,7 +579,10 @@ bool TreeItem_XML_DumpGeneralBody(const TreeItem* self, OutStreamBase* xmlOutStr
 	if (IsDataItem(self))
 	{
 		const AbstrDataItem* di = AsDataItem(self);
-		xmlTable.NameValueRow("ValuesType", di->GetAbstrValuesUnit()->GetValueType()->GetName().c_str());
+
+		if (auto avu = di->GetAbstrValuesUnit())
+			if (auto vt = avu->GetValueType())
+				xmlTable.NameValueRow("ValuesType", vt->GetName().c_str());
 		vc = di->GetValueComposition();
 		if (vc != ValueComposition::Single)
 			xmlTable.NameValueRow("ValueComposition", GetValueCompositionID(vc).GetStr().c_str());

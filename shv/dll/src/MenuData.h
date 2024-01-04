@@ -152,6 +152,7 @@ private:
 // InsertThemeActivationMenu
 //----------------------------------------------------------------------
 
+void InsertSubMenu(MenuData& menuData, CharPtr subMenuCaption, const TreeItem* item, GraphicObject* host);
 void InsertThemeActivationMenu(MenuData& menuData, const Theme* theme, GraphicObject* host);
 
 #endif // !defined(__SHV_MENUDATA_H)

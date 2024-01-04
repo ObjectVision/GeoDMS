@@ -210,7 +210,8 @@ TokenStr Object::GetName() const
 
 bool Object::IsKindOf(const Class* cls) const
 {
-	return GetDynamicClass()->IsDerivedFrom(cls);
+	auto dynamic_class =  GetDynamicClass();
+	return dynamic_class->IsDerivedFrom(cls);
 }
 
 TokenStr Object::GetXmlClassName() const

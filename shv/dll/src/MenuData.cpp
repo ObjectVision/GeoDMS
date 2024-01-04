@@ -145,10 +145,8 @@ GraphVisitState RequestClientCmd::DoObject(GraphicObject* go)
 
 void InsertItemRequests(MenuData& menuData, const TreeItem* item, GraphicObject* host)
 {
-	dms_assert(item);
-	const TreeItem* parent;
-
-	while (parent = item->GetTreeParent())
+	assert(item);
+	while (const TreeItem* parent = item->GetTreeParent())
 	{
 		menuData.push_back(
 			MenuItem(

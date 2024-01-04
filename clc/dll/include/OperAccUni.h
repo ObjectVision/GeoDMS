@@ -281,7 +281,7 @@ template <typename TAcc1Func, typename Base>
 struct FuncOperAccPartUni : Base
 {
 	FuncOperAccPartUni(AbstrOperGroup* gr, TAcc1Func&& acc1Func)
-		: Base(gr, &TAcc1Func::template unit_creator<typename Base::ResultValueType>)
+		: Base(gr, &TAcc1Func::template unit_creator<field_of_t<typename Base::ResultValueType>>)
 		, m_Acc1Func(std::move(acc1Func))
 	{}
 

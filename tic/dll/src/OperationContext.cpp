@@ -104,6 +104,11 @@ using RunningOperationsCounter = Int32;
 static std::atomic<RunningOperationsCounter> s_NrRunningOperations = 0;
 static std::atomic<OperContextGroupNumber> s_SchedulingOperContextGroupNumber = 0;
 
+TIC_CALL void IncSchedulingOperContextGroupNumber()
+{
+	++s_SchedulingOperContextGroupNumber;
+}
+
 static Int32 s_nrVCPUs = GetNrVCPUs();
 
 //using dep_link = Point<OperationContext * > ;
@@ -1268,8 +1273,8 @@ bool OperationContext::ScheduleCalcResult(Explain::Context* context, ArgRefs&& a
 
 		if (m_OperGroup->GetNameID() == token::FenceContainer)
 		{
-			++s_SchedulingOperContextGroupNumber;
-			MG_CHECK(s_SchedulingOperContextGroupNumber); // hoho we do not count on overflow
+			IncSchedulingOperContextGroupNumber();
+			MG_CHECK(s_SchedulingOperContextGroupNumber); // ho ho we do not count on overflow
 		}
 
 		assert(!argRefs.size()); // moved in ?

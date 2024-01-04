@@ -48,7 +48,14 @@ struct null_or_zero_value : public nullary_func<T>
 };
 
 template <typename T> struct assign_default   : nullary_assign_from_func< default_value<T> > {};
-template <typename T> struct assign_null_value: nullary_assign_from_func< null_value<T> > {};
+template <typename T> struct assign_null_value : nullary_assign<T>
+{
+	void operator()(typename nullary_assign<T>::assignee_ref res) const
+	{
+		MakeUndefined(res);
+	}
+};
+
 template <typename T> struct assign_null_or_zero: nullary_assign_from_func< null_or_zero_value<T> > {};
 template <typename T> struct assign_min_value : nullary_assign_from_func< min_value <T> > {};
 template <typename T> struct assign_max_value : nullary_assign_from_func< max_value <T> > {};
@@ -58,9 +65,11 @@ struct initializer
 {
 	initializer(const TNullaryAssign& aFunc = TNullaryAssign()) : m_Assign(aFunc) {}
 
-	void Init(typename TNullaryAssign::assignee_ref accumulator) const
+	auto InitialValue() const
 	{
+		typename TNullaryAssign::assignee_type accumulator;
 		m_Assign(accumulator);
+		return accumulator;
 	}
 private:
 	TNullaryAssign m_Assign;
@@ -75,7 +84,7 @@ struct assign_output
 {
 	assign_output(const TUnaryAssign& aFunc = TUnaryAssign()) : m_Assign(aFunc) {}
 
-	void AssignOutput(typename TUnaryAssign::assignee_ref res, typename TUnaryAssign::arg1_cref accumulator) const
+	void AssignOutput(typename TUnaryAssign::assignee_ref res, auto&& accumulator) const
 	{
 		m_Assign(res, accumulator);
 	}
@@ -86,13 +95,13 @@ private:
 template <typename T>
 struct assign_output_direct : assign_output<ident_assignment<T> >
 {
-	typedef T dms_result_type;
+	using dms_result_type = T;
 };
 
 template <typename T, typename S>
 struct assign_output_convert
 {
-	typedef T dms_result_type;
+	using dms_result_type = T;
 
 	void AssignOutput(typename sequence_traits<T>::reference res, typename sequence_traits<S>::const_reference buf) const
 	{

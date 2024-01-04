@@ -95,7 +95,7 @@ struct OperAccTotUniStr : OperAccTotUni<TAcc1Func>
 
 		assert(result->GetDataWrite().size() == 1);
 
-		this->m_Acc1Func.Init(result->GetDataWrite()[0]);
+		Assign(result->GetDataWrite()[0], this->m_Acc1Func.InitialValue());
 
 		tile_id tn = arg1A->GetAbstrDomainUnit()->GetNrTiles();
 		for (tile_id t = 0; t!=tn; ++t)

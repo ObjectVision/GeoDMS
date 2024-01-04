@@ -59,9 +59,9 @@ struct unary_assign_string_total_accumulation: unary_total_accumulation<SharedSt
 	:	m_SerFunc(f) 
 	{}
 
-	void Init(accumulation_ref output) const 
+	SharedStr InitialValue() const 
 	{
-		output.clear();
+		return {};
 	}
 
 	void operator()(accumulation_ref output, typename unary_assign_string_total_accumulation::value_cseq1 input) const
@@ -251,14 +251,14 @@ struct asitemlist_total : unary_assign_string_total_accumulation<unary_ser_asite
 //		unary_assign_asitemlist<T>, 
 //		assign_no_op<unary_assign_asitemlist<T>::assignee_ref> > 
 {
-	typedef SharedStr dms_result_type;
+	using dms_result_type = SharedStr;
 };
 
 // partial: generates Strings based on index_container<PartId>
 template <typename T> 
 struct asitemlist_partial : unary_assign_string_partial_accumulation< unary_ser_asitemlist<T> >
 {
-	typedef SharedStr dms_result_type;
+	using dms_result_type = SharedStr;
 };
 
 
