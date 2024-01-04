@@ -191,12 +191,12 @@ struct first_total_best
 	template <typename R>
 	static ConstUnitRef unit_creator(const AbstrOperGroup* gr, const ArgSeqType& args) { return CastUnit<R>(arg1_values_unit(args)); }
 
-	void Init(typename first_total_best::assignee_ref output) const
+	void Init(auto&& output) const
 	{
 		MakeUndefined(output);
 	}
 
-	void operator()(typename first_total_best::assignee_ref output, typename first_total_best::value_cseq1 input) const
+	void operator()(auto&& output, typename first_total_best::value_cseq1 input) const
 	{ 
 		if (IsDefined(output))
 			return;
@@ -241,12 +241,12 @@ struct last_total_best
 	static ConstUnitRef unit_creator(const AbstrOperGroup* gr, const ArgSeqType& args) { return CastUnit<R>(arg1_values_unit(args)); }
 
 	using base_type = unary_total_accumulation<T, T>;
-	void Init(typename base_type::assignee_ref output) const
+	void Init(auto&& output) const
 	{
-		output = UNDEFINED_OR_ZERO(T);
+		MakeUndefined(output);
 	}
 
-	void operator()(typename base_type::assignee_ref output, typename base_type::value_cseq1 input) const
+	void operator()(auto&& output, typename base_type::value_cseq1 input) const
 	{ 
 		auto
 			i = input.end(),

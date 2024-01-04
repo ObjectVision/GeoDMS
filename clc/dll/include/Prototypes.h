@@ -217,7 +217,7 @@ struct ident_assignment : unary_assign<T, T>
 	
 	using unary_assign = typename ident_assignment::unary_assign;
 
-	void operator()(typename unary_assign::assignee_ref res, typename unary_assign::arg1_cref arg) const 
+	void operator()(typename unary_assign::assignee_ref res, auto&& arg) const 
 	{ 
 		res = arg; 
 	}

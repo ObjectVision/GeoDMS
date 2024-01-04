@@ -75,7 +75,7 @@ struct assign_output
 {
 	assign_output(const TUnaryAssign& aFunc = TUnaryAssign()) : m_Assign(aFunc) {}
 
-	void AssignOutput(typename TUnaryAssign::assignee_ref res, typename TUnaryAssign::arg1_cref accumulator) const
+	void AssignOutput(typename TUnaryAssign::assignee_ref res, auto&& accumulator) const
 	{
 		m_Assign(res, accumulator);
 	}
@@ -86,13 +86,13 @@ private:
 template <typename T>
 struct assign_output_direct : assign_output<ident_assignment<T> >
 {
-	typedef T dms_result_type;
+	using dms_result_type = T;
 };
 
 template <typename T, typename S>
 struct assign_output_convert
 {
-	typedef T dms_result_type;
+	using dms_result_type = T;
 
 	void AssignOutput(typename sequence_traits<T>::reference res, typename sequence_traits<S>::const_reference buf) const
 	{
