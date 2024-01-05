@@ -542,7 +542,7 @@ protected:
 			DBG_TRACE(("arg %d: %s", i, args[i]->GetName().c_str()));
 		}
 #endif
-		dms_assert(args.size() == CalcNrArgs(m_Flags));
+		MG_CHECK(args.size() == CalcNrArgs(m_Flags));
 
 		arg_index argCount = 0;
 		const AbstrDataItem* argPoly = AsDataItem(args[argCount++]);

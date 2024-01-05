@@ -1204,10 +1204,17 @@ public:
 		const AbstrDataItem* paramStrA = AsDataItem(args[argCounter++]);
 		MG_CHECK(paramStrA->HasVoidDomainGuarantee());
 
-		df = DijkstraFlag(df | ParseDijkstraString(const_array_cast<SharedStr>(paramStrA)->GetIndexedValue(0).c_str()));
+		SharedStr paramSpec = const_array_cast<SharedStr>(paramStrA)->GetIndexedValue(0);
+		df = DijkstraFlag(df | ParseDijkstraString(paramSpec.c_str()));
 		CheckFlags(DijkstraFlag(df));
 
-		MG_CHECK(args.size() == CalcNrArgs(df)); // did user specify correctly?
+		if (args.size() != CalcNrArgs(df)) // did user specify correctly?
+			throwDmsErrF(
+				"number of given arguments doesn't match the specification '%s': %d arguments given (including the specification), but %d expected"
+			,	paramSpec.c_str()
+			,	args.size()
+			,	CalcNrArgs(df)
+			); 
 
 		const AbstrDataItem* adiLinkImp             = AsDataItem(args[argCounter++]); 
 		const AbstrDataItem* adiLinkF1              = AsDataItem(args[argCounter++]);
