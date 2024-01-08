@@ -301,9 +301,10 @@ namespace
 #endif //defined(DMS_USE_INTEL_IPPI)
 
 
+	DirectPotentialOperator<Float64> potDF64Def(&potentialDefault, AnalysisType::PotentialDefault);
 	DirectPotentialOperator<Float64> potDF64Ipps(&potentialIpps64, AnalysisType::PotentialIpps64);
 	DirectPotentialOperator<Float64> potDF64IppsR(&potentialRaw64, AnalysisType::PotentialRawIpps64);
-	DirectPotentialOperator<Float64> potDF64Slow(&potentialSlow, AnalysisType::PotentialSlow);
+	DirectPotentialOperator<Float64> potDF64Slow(&potentialSlow,   AnalysisType::PotentialSlow);
 
 #if defined(DMS_POTENTIAL_I16)
 
