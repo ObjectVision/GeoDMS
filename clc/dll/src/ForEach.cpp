@@ -143,7 +143,7 @@ const TreeItem* FindName(const TreeItem* context, const DataArray<SharedStr>* na
 	return result;
 }
 
-bool ForEach_CreateResult(TreeItemDualRef& resultHolder, const ArgSeqType& args, UInt32 argCount, TokenID groupNameID, field_spec fs)
+bool ForEach_CreateResult(TreeItemDualRef& resultHolder, const ArgSeqType& args, arg_index argCount, TokenID groupNameID, field_spec fs)
 {
 	dbg_assert(resultHolder);
 
@@ -330,11 +330,30 @@ bool ForEach_CreateResult(TreeItemDualRef& resultHolder, const ArgSeqType& args,
 	return true;
 }
 
+static arg_index CalcNrArgs(field_spec fs)
+{
+	arg_index nrParams = 1;
+	if (fs & FS_EXPR)        nrParams++;
+	if (fs & FS_CHECK)       nrParams++;
+	nrParams += UInt32(TemplMode(fs));
+	nrParams += UInt32(DomainMode(fs));
+	nrParams += UInt32(ValuesMode(fs));
+	nrParams += UInt32(UnitMode(fs));
+	if (fs & FS_LABEL)       nrParams++;
+	if (fs & FS_DESCR)       nrParams++;
+	if (fs & FS_STORAGENAME) nrParams++;
+	if (fs & FS_STORAGETYPE) nrParams++;
+	if (fs & FS_SQLSTRING) nrParams++;
+	if (fs & FS_CDF) nrParams++;
+	if (fs & FS_URL) nrParams++;
+	return nrParams;
+}
+
 // *****************************************************************************
 //									ForEachInd operator
 // *****************************************************************************
 
-field_spec ScanFirstArg(const AbstrOperGroup* og, CharPtr argSpecPtr)
+static field_spec ScanFirstArg(const AbstrOperGroup* og, CharPtr argSpecPtr)
 {
 	CharPtr argSpecBegin = argSpecPtr;
 	UInt32 fs = 0;
@@ -377,10 +396,17 @@ public:
 	// Override Operator
 	bool CreateResult(TreeItemDualRef& resultHolder, const ArgSeqType& args, bool mustCalc) const override
 	{
-		dms_assert(args.size() >= NrSpecifiedArgs());
-
+		assert(args.size() >= NrSpecifiedArgs());
 		SharedStr argSpec = GetValue<SharedStr>(args[0], 0);
 		auto fs = ScanFirstArg(GetGroup(), argSpec.begin());
+		auto nrExpectedArgs = CalcNrArgs(fs) + 1;
+		if (args.size() != nrExpectedArgs)
+			throwDmsErrF(
+				"number of given arguments doesn't match the specification '%s': %d arguments given (including the specification), but %d expected"
+				, argSpec.c_str()
+				, args.size()
+				, nrExpectedArgs
+			);
 
 		return ForEach_CreateResult(resultHolder, args, 1, GetGroup()->GetNameID(), fs);
 	}
@@ -392,24 +418,6 @@ public:
 
 class ForEachOperator : public VariadicOperator
 {
-	static UInt32 CalcNrArgs(field_spec fs)
-	{
-		UInt32 nrParams = 1;
-		if (fs & FS_EXPR)        nrParams++;
-		if (fs & FS_CHECK)       nrParams++;
-		nrParams += UInt32(TemplMode (fs));
-		nrParams += UInt32(DomainMode(fs));
-		nrParams += UInt32(ValuesMode(fs));
-		nrParams += UInt32(UnitMode  (fs));
-		if (fs & FS_LABEL)       nrParams++;
-		if (fs & FS_DESCR)       nrParams++;
-		if (fs & FS_STORAGENAME) nrParams++;
-		if (fs & FS_STORAGETYPE) nrParams++;
-		if (fs & FS_SQLSTRING  ) nrParams++;
-		if (fs & FS_CDF        ) nrParams++;
-		if (fs & FS_URL        ) nrParams++;
-		return nrParams;
-	}
 	static void AddClassInfo(param_t pt, ClassCPtr*& argClsIter, ClassCPtr desiredClass)
 	{
 		if (pt == pt_excluded) return;
@@ -427,7 +435,7 @@ public:
 		:	VariadicOperator(gr, TreeItem::GetStaticClass(), CalcNrArgs(fs))
 		,	m_FS(fs)
 	{
-		dms_assert(!(m_FS & (FS_CDF | FS_URL | FS_STORAGE_RO)));
+		assert(!(m_FS & (FS_CDF | FS_URL | FS_STORAGE_RO)));
 
 		ClassCPtr* argClsIter = m_ArgClasses.get();
 
