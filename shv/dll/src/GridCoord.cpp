@@ -42,7 +42,7 @@ GridCoord::GridCoord(ViewPort* owner, const grid_coord_key& key) //, GPoint clie
 GridCoord::~GridCoord()
 {
 #if defined(MG_DEBUG_COORD)
-	reportF(SeverityTypeID::ST_MajorTrace, "GridCoord::~GridCoord(%s)", AsString(m_Key).c_str());
+	reportF(SeverityTypeID::ST_MinorTrace, "GridCoord::~GridCoord(%s)", AsString(m_Key).c_str());
 #endif
 	auto owner = m_Owner.lock();
 	if (owner)
