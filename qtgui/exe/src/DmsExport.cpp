@@ -329,9 +329,6 @@ auto DoExportRasterOrMatrixData(const TreeItem* rasterItemOrDomain, bool nativeF
     auto gdal_driver_options = CreateDataItem(avd, UniqueName(avd, t_gdal_grid_driver_options), Unit<Void>::GetStaticClass()->CreateDefault(), Unit<SharedStr>::GetStaticClass()->CreateDefault(), ValueComposition::Void);
     SharedStr gdal_driver_options_expr("'TFW=YES'");// mySSPrintF("%s[%s]", expr.c_str(), baseGrid->GetFullName().c_str());
     gdal_driver_options->SetExpr(gdal_driver_options_expr);
-    
-    auto subContainer = avd->CreateItem(UniqueName(avd, rasterID));
-
 
     auto adu = IsUnit(rasterItemOrDomain) ? AsUnit(rasterItemOrDomain) : AsDataItem(rasterItemOrDomain)->GetAbstrDomainUnit();
     assert(CanBeRasterDomain(adu));
@@ -343,19 +340,21 @@ auto DoExportRasterOrMatrixData(const TreeItem* rasterItemOrDomain, bool nativeF
     }
     auto rasterDomain = baseGrid ? baseGrid->GetAbstrDomainUnit() : adu;
 
-    auto storeData = [=](const AbstrDataItem* adi)
+    auto storeData = [=](const AbstrDataItem* adi) -> AbstrDataItem*
     {
 
         assert(adi->GetValueComposition() == ValueComposition::Single);
-        auto vda = CreateDataItem(subContainer, UniqueName(subContainer, adi->GetID()), rasterDomain, adi->GetAbstrValuesUnit(), adi->GetValueComposition());
+        auto vda = CreateDataItem(avd, UniqueName(avd, adi->GetID()), rasterDomain, adi->GetAbstrValuesUnit(), adi->GetValueComposition());
         auto expr = adi->GetFullName();
         if (baseGrid)
             expr = mySSPrintF("%s[%s]", expr.c_str(), baseGrid->GetFullName().c_str());
         vda->SetExpr(expr);
+        return vda;
     };
 
+    AbstrDataItem* export_raster = nullptr;
     if (IsDataItem(rasterItemOrDomain))
-        storeData(AsDataItem(rasterItemOrDomain));
+        export_raster = storeData(AsDataItem(rasterItemOrDomain));
     else if (IsUnit(rasterItemOrDomain))
     {
         for (auto subItem = rasterItemOrDomain; subItem; subItem = rasterItemOrDomain->WalkConstSubTree(subItem))
@@ -368,13 +367,14 @@ auto DoExportRasterOrMatrixData(const TreeItem* rasterItemOrDomain, bool nativeF
                     continue;
                 if (!adi->GetAbstrValuesUnit()->GetValueType()->IsNumericOrBool())
                     continue;
-                storeData(adi);
+                export_raster = storeData(adi);
             }
     }
 
-    subContainer->SetStorageManager(fn.c_str(), storageTypeName, false, driverName, options);
+    if (export_raster)
+        export_raster->SetStorageManager(fn.c_str(), storageTypeName, false, driverName, options);
 
-    return subContainer;
+    return export_raster;
 }
 
 bool currentItemCanBeExportedToVector(const TreeItem* item)
