@@ -100,9 +100,9 @@ Range<P> shp2dms_order(const Range<P>& shpRect)
 RTC_CALL extern bool g_cfgColFirst;
 
 template <typename  F>
-Point<F> cfg2dms_order(const Point<F>& cfgPoint)
+Point<F> prj2dms_order(const Point<F>& cfgPoint, bool colFirst)
 {
-	if (g_cfgColFirst)
+	if (colFirst)
 	{
 		reorder_functor<
 			must_swap<
@@ -125,9 +125,9 @@ Point<F> cfg2dms_order(const Point<F>& cfgPoint)
 }
 
 template <typename  F>
-void cfg2dms_order_inplace(Point<F>& cfgPoint)
+void prj2dms_order_inplace(Point<F>& cfgPoint, bool colFirst)
 {
-	if (g_cfgColFirst)
+	if (colFirst)
 	{
 		reorder_functor<
 			must_swap<
@@ -147,6 +147,18 @@ void cfg2dms_order_inplace(Point<F>& cfgPoint)
 		> rf;
 		rf.inplace(cfgPoint);
 	}
+}
+
+template <typename  F>
+Point<F> prj2dms_order(F x, F y, bool colFirst)
+{
+	return prj2dms_order(Point<F>(x, y), colFirst);
+}
+
+template <typename  F>
+void cfg2dms_order_inplace(Point<F>& cfgPoint)
+{
+	prj2dms_order_inplace(cfgPoint, g_cfgColFirst);
 }
 
 template <typename  F>

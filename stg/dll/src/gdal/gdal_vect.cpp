@@ -1597,9 +1597,13 @@ void GdalVectSM::DoUpdateTable(const TreeItem* storageHolder, AbstrUnit* layerDo
 		AbstrDataItem* geometry = AsDynamicDataItem(geometry_item);
 		if (geometry)
 		{
-			ValueComposition configured_vc = geometry->GetValueComposition();
-			if (configured_vc != gdal_vc && gdal_vc != ValueComposition::Unknown)
-				geometry->Fail("Value composition incompatible with GDAL's formal geometry type", FR_MetaInfo);
+			auto vu = geometry->GetAbstrValuesUnit();
+			if (vu && vu->GetValueType()->GetValueClassID() != ValueClassID::VT_String)
+			{
+				ValueComposition configured_vc = geometry->GetValueComposition();
+				if (configured_vc != gdal_vc && gdal_vc != ValueComposition::Unknown)
+					geometry->Fail("Value composition incompatible with GDAL's formal geometry type", FR_MetaInfo);
+			}
 		}
 		else
 		{
@@ -1617,6 +1621,11 @@ void GdalVectSM::DoUpdateTable(const TreeItem* storageHolder, AbstrUnit* layerDo
 		if (gdal_vc != ValueComposition::String)
 		{
 			const OGRSpatialReference* ogrSR_ptr = layer->GetSpatialRef();
+			if (ogrSR_ptr)
+			{
+				auto axis_order = ogrSR_ptr->GetAxisMappingStrategy();
+				int i = 0;
+			}
 			std::optional<OGRSpatialReference> ogrSR; 
 			if (ogrSR_ptr) 
 				ogrSR = *ogrSR_ptr;
