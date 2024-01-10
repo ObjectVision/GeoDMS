@@ -649,18 +649,23 @@ struct Type2DConversion: unary_func<TR, TA> // http://www.gdal.org/ogr/osr_tutor
 					resY[i] = rescaledA.second;
 				}
 				if (!m_OgrComponentHolder->m_Transformer->Transform(s, resX, resY, nullptr /*Z*/, successFlags))
+				{
 					fast_fill(successFlags, successFlags + PROJ_BLOCK_SIZE, 0);
+				}
 
 				for (int i = 0; i != s; ++ri, ++i)
 				{
-					if (successFlags[i])
+					if (!successFlags[i])
 					{
-						auto reprojectedPoint = prj2dms_order(resX[i], resY[i], projection_is_col_first);
-						auto rescaledPoint = m_PostRescaler.Apply(reprojectedPoint);
-						Assign(*ri, Convert<TR>(rescaledPoint));
+						if (!m_OgrComponentHolder->m_Transformer->Transform(1, resX+i, resY+i, nullptr /*Z*/, successFlags+i))
+						{
+							Assign(*ri, Undefined());
+							continue;
+						}
 					}
-					else
-						Assign(*ri, Undefined());
+					auto reprojectedPoint = prj2dms_order(resX[i], resY[i], projection_is_col_first);
+					auto rescaledPoint = m_PostRescaler.Apply(reprojectedPoint);
+					Assign(*ri, Convert<TR>(rescaledPoint));
 				}
 				n -= s;
 			}
