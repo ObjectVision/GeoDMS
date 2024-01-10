@@ -247,9 +247,8 @@ public:
 		catch (const DmsException& x)
 		{
 			constUnitRef = compatible_values_unit_creator_func(1, &cog_unionData, GetItems(args), false);
-			reportF(SeverityTypeID::ST_Warning, "Depreciated usage of Union_data: %s\n%s"
+			reportF(SeverityTypeID::ST_Warning, "Depreciated usage of Union_data: %s"
 				, x.AsErrMsg()->Why().c_str()
-				, TreeItemContextHandle::CurrConfigItemAsStr().c_str()
 			);
 			hadToTryWithoutCategoricalCheck = true;
 		}

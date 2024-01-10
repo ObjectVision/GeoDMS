@@ -53,12 +53,25 @@ enum class SignatureType {
 };
 
 
-struct ConfigProd : AbstrDataBlockProd
+struct ConfigProd : AbstrDataBlockProd, AbstrContextHandle
 {
 	EmptyExprProd m_ExprProd = {};
 
 	ConfigProd(TreeItem* context);
 	~ConfigProd();
+
+//	impl AbstrContextHandle
+	bool HasItemContext() const override { return m_pCurrent;  }
+	auto ItemAsStr() const->SharedStr override 
+	{ 
+		assert(HasItemContext());  return m_pCurrent->GetSourceName(); 
+	}
+	bool Describe(FormattedOutStream& fos) override
+	{
+		fos << "while parsing item " << ItemAsStr()
+			<< "\nin config file " << m_CurrFileName;
+		return true;
+	}
 
 	TreeItem*  ParseFile  (CharPtr fileName);
 	TreeItem*  ParseString(CharPtr configString);
@@ -143,6 +156,7 @@ MG_DEBUGCODE(	void    ClearSignature(); )
 	// property support
 	TokenID                          m_sPropFileTypeID;
 	bool                             m_ResultCommitted;
+	SharedStr                        m_CurrFileName;
 };
 
 #endif

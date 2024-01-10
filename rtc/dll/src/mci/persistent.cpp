@@ -428,10 +428,7 @@ SharedStr PersistentSharedObj::GetSourceName() const
 {
 	if (GetParent())
 		return
-			mySSPrintF("%s: %s"
-			,	GetFullName().c_str()
-			,	GetClsName().c_str()
-			);
+			mySSPrintF("[%s]",	GetFullName().c_str());
 	TokenStr nameID = GetName();
 	return 
 		mySSPrintF("%s: %s"

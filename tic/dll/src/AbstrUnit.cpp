@@ -914,9 +914,7 @@ class FormatPropDef : public PropDef<AbstrUnit, TokenID>
 	ApiType GetValue(const AbstrUnit* item) const override { return item->GetSpatialReference(); }
 	void SetValue(AbstrUnit* item, ParamType val) override
 	{ 
-		auto fullName = SharedStr(item->GetFullName());
-		reportF(SeverityTypeID::ST_Warning, "%s: depreciated specification of the format property: use SpatialReference=\"%s\""
-			, fullName
+		reportF(SeverityTypeID::ST_Warning, "depreciated specification of the format property.\nReplace by: SpatialReference=\"%s\""
 			, val
 		);
 		item->SetSpatialReference(val); 

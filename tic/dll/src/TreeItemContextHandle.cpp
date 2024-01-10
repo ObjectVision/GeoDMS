@@ -63,19 +63,9 @@ TreeItemContextHandle::TreeItemContextHandle(const TreeItem* obj, const Class* c
 TreeItemContextHandle::~TreeItemContextHandle()
 {}
 
-const TreeItem* TreeItemContextHandle::FindCurrConfigItem()
+auto TreeItemContextHandle::ItemAsStr() const -> SharedStr
 {
-	for (auto ch = ContextHandle::GetLast(); ch; ch = ch->GetPrev())
-		if (auto tich = dynamic_cast<TreeItemContextHandle*>(ch))
-			if (auto ti = tich->GetItem())
-				if (!ti->IsCacheItem())
-					return ti;
-	return nullptr;
-}
-
-SharedStr TreeItemContextHandle::CurrConfigItemAsStr()
-{
-	auto cci = FindCurrConfigItem();
+	auto cci = GetItem();
 	if (!cci)
 		return {};
 	return cci->GetSourceName();

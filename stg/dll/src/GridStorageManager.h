@@ -246,14 +246,18 @@ namespace Grid {
 			if (viewPort2Grid.m_smi)
 			{
 
-				std::call_once(viewPort2Grid.m_smi->m_compare_tile_size_flag, [&imp, &viewPort2Grid]()
+				std::call_once(viewPort2Grid.m_smi->m_compare_tile_size_flag, [&imp, &viewPort2Grid, dataSourceName]()
 					{
 						UPoint tileSize = imp.GetTileSize();
 						auto tile_size_x = tileSize.X();
 						auto tile_size_y = tileSize.Y();
 						if (X_GRANULARITY != tile_size_x || Y_GRANULARITY != tile_size_y)
 						{
-							reportF(SeverityTypeID::ST_Warning, "GridStorageManager: Tilesize mismatch detected between storage %s: %d,%d and GeoDMS default tiling: %d,%d", viewPort2Grid.m_smi->CurrRI()->GetFullName(), tile_size_x, tile_size_y, X_GRANULARITY, Y_GRANULARITY);
+							reportF(SeverityTypeID::ST_Warning
+							, "GridStorageManager: Tilesize mismatch between data source %s of item %s: %d,%d and GeoDMS default tiling: %d,%d"
+							, dataSourceName
+							, viewPort2Grid.m_smi->CurrRI()->GetFullName(), tile_size_x, tile_size_y
+							, X_GRANULARITY, Y_GRANULARITY);
 						}
 					});
 			}

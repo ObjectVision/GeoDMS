@@ -2979,15 +2979,16 @@ SharedStr TreeItem::GetSourceName() const
 {
 	SharedStr inhSN = base_type::GetSourceName();
 
-	if (!GetConfigFileLineNr())
-		return inhSN;
-
+//	if (!GetConfigFileLineNr())
+	return inhSN;
+/*
 	return mySSPrintF("%s(%u,%u): %s"
 	,	ConvertDmsFileNameAlways(GetConfigFileName())
 	,	GetConfigFileLineNr()
 	,	GetConfigFileColNr()
 	,	inhSN
 	);
+*/
 }
 
 bool TreeItem::DoFail(ErrMsgPtr msg, FailType ft) const
