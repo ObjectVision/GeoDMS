@@ -566,12 +566,10 @@ struct Type2DConversion: unary_func<TR, TA> // http://www.gdal.org/ogr/osr_tutor
 				frame.ThrowUpWhateverCameUp();
 				return;
 			}
-			m_PreRescaler *= m_PostRescaler;
 		}
 		
 		m_PreRescaler *= m_PostRescaler;
 		m_PostRescaler = CrdTransformation(); // clear
-
 	}
 
 	TR ApplyDirect(const TA& p) const
@@ -592,9 +590,10 @@ struct Type2DConversion: unary_func<TR, TA> // http://www.gdal.org/ogr/osr_tutor
 		if (!IsDefined(p))
 			return UNDEFINED_OR_ZERO(TR);
 
-		DPoint res = p;
-		if (!m_OgrComponentHolder->m_Transformer->Transform(1, &res.Col(), &res.Row(), nullptr))
+		DPoint res = prj2dms_order(p.first, p.second, m_Source_is_expected_to_be_col_first);
+		if (!m_OgrComponentHolder->m_Transformer->Transform(1, &res.first, &res.second, nullptr))
 			return UNDEFINED_OR_ZERO(TR);
+		res = prj2dms_order(res.first, res.second, m_Projection_is_col_first);
 		return Convert<TR>(res);
 	}
 	TR ApplyScaled(const TA& p) const
@@ -617,8 +616,10 @@ struct Type2DConversion: unary_func<TR, TA> // http://www.gdal.org/ogr/osr_tutor
 			return UNDEFINED_OR_ZERO(TR);
 
 		DPoint res = m_PreRescaler.Apply(DPoint(p));
-		if (!m_OgrComponentHolder->m_Transformer->Transform(1, &res.Col(), &res.Row(), nullptr))
+		res = prj2dms_order(res.first, res.second, m_Source_is_expected_to_be_col_first);
+		if (!m_OgrComponentHolder->m_Transformer->Transform(1, &res.first, &res.second, nullptr))
 			return UNDEFINED_OR_ZERO(TR);
+		res = prj2dms_order(res.first, res.second, m_Projection_is_col_first);
 		return Convert<TR>( m_PostRescaler.Apply( res ) );
 	}
 
