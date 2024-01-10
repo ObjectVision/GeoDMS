@@ -710,6 +710,7 @@ void DispatchMapping(Type2DConversion<TR,TA>& functor, typename Type2DConversion
 			for (SizeT i = 0; i != n; ++i)
 			{
 				DPoint rescaledA = functor.m_PreRescaler.Apply(DPoint(Range_GetValue_naked(tileRange, i)));
+				rescaledA = prj2dms_order(rescaledA, m_Source_is_expected_to_be_col_first);
 				resX[i] = rescaledA.Col();
 				resY[i] = rescaledA.Row();
 			}
@@ -719,7 +720,7 @@ void DispatchMapping(Type2DConversion<TR,TA>& functor, typename Type2DConversion
 			{
 				if (successFlags[i])
 				{
-					auto reprojectedPoint = shp2dms_order(resX[i], resY[i]);
+					auto reprojectedPoint = prj2dms_order(resX[i], resY[i], m_Projection_is_col_first);
 					auto rescaledPoint = functor.m_PostRescaler.Apply(reprojectedPoint);
 					Assign(*ri, Convert<TR>(rescaledPoint));
 				}
