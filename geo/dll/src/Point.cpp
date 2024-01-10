@@ -313,8 +313,8 @@ namespace
 		typedef typename scalar_of<P>::type S;
 
 		PointOpers()
-			: ca2Point(&cog_Point, 2, false), ca2PointXY(&cog_Point, 2, true)
-			, ca3Point(&cog_Point, 3, false), ca3PointXY(&cog_Point, 3, true)
+			: ca2Point(&cog_Point, 2, false), ca2PointXY(&cog_PointXY, 2, true)
+			, ca3Point(&cog_Point, 3, false), ca3PointXY(&cog_PointXY, 3, true)
 			, ca2Row(&cog_PointRow)
 			, ca2Col(&cog_PointCol)
 			, ca2X(&cog_GetX)
