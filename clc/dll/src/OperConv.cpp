@@ -561,6 +561,8 @@ struct Type2DConversion: unary_func<TR, TA> // http://www.gdal.org/ogr/osr_tutor
 				OGRCheck(&m_OgrComponentHolder->m_Src, m_OgrComponentHolder->m_Src.SetFromUserInput(srcFormatStr.c_str()), srcFormatStr.c_str(), srcUnit );
 				OGRCheck(&m_OgrComponentHolder->m_Dst, m_OgrComponentHolder->m_Dst.SetFromUserInput(resFormatStr.c_str()), resFormatStr.c_str(), resUnit );
 				m_OgrComponentHolder->CreateTransformer();
+				m_Source_is_expected_to_be_col_first = ProjectionIsColFirst(m_OgrComponentHolder->m_Src);
+				m_Projection_is_col_first = ProjectionIsColFirst(m_OgrComponentHolder->m_Dst);
 				frame.ThrowUpWhateverCameUp();
 				return;
 			}
@@ -568,6 +570,7 @@ struct Type2DConversion: unary_func<TR, TA> // http://www.gdal.org/ogr/osr_tutor
 		}
 		
 		m_PostRescaler = CrdTransformation(); // clear
+
 	}
 
 	TR ApplyDirect(const TA& p) const
@@ -637,17 +640,18 @@ struct Type2DConversion: unary_func<TR, TA> // http://www.gdal.org/ogr/osr_tutor
 				for (int i = 0; i != s; ++ai, ++i)
 				{
 					DPoint rescaledA = m_PreRescaler.Apply(DPoint(*ai));
+					rescaledA = prj2dms_order(rescaledA, m_Source_is_expected_to_be_col_first);
 					resX[i] = rescaledA.Col();
 					resY[i] = rescaledA.Row();
 				}
- 				if (!m_OgrComponentHolder->m_Transformer->Transform(s, resX, resY, nullptr /*Z*/, successFlags))
+				if (!m_OgrComponentHolder->m_Transformer->Transform(s, resX, resY, nullptr /*Z*/, successFlags))
 					fast_fill(successFlags, successFlags + PROJ_BLOCK_SIZE, 0);
+
 				for (int i = 0; i != s; ++ri, ++i)
 				{
 					if (successFlags[i])
 					{
-						bool projection_is_col_first = ProjectionIsColFirst(m_OgrComponentHolder->m_Dst);
-						auto reprojectedPoint = prj2dms_order(resX[i], resY[i], projection_is_col_first);
+						auto reprojectedPoint = prj2dms_order(resX[i], resY[i], m_Projection_is_col_first);
 						auto rescaledPoint = m_PostRescaler.Apply(reprojectedPoint);
 						Assign(*ri, Convert<TR>(rescaledPoint));
 					}
@@ -686,6 +690,8 @@ struct Type2DConversion: unary_func<TR, TA> // http://www.gdal.org/ogr/osr_tutor
 	SharedPtr<SpatialRefBlock>   m_OgrComponentHolder;
 	CrdTransformation            m_PreRescaler;
 	CrdTransformation            m_PostRescaler;
+	bool                         m_Source_is_expected_to_be_col_first = dms_order_tag::col_first;
+	bool                         m_Projection_is_col_first = dms_order_tag::col_first;
 };
 
 template<typename TR, typename TA>
