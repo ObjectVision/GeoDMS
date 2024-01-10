@@ -688,6 +688,7 @@ struct Type2DConversion: unary_func<TR, TA> // http://www.gdal.org/ogr/osr_tutor
 				DispatchTransformation_impl(ri, ai, resX, resY, successFlags, s);
 				n -= s;
 				ai += s;
+				ri += s;
 			}
 		}
 		else 
