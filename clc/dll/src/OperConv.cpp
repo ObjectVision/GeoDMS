@@ -626,7 +626,7 @@ struct Type2DConversion: unary_func<TR, TA> // http://www.gdal.org/ogr/osr_tutor
 	using iterator = typename DataArrayBase<TR>::iterator;
 	using const_iterator = typename DataArrayBase<TA>::const_iterator;
 
-	void Dispatch(iterator ri, const_iterator ai, const_iterator ae)
+	void Dispatch(iterator ri, const_iterator ai, const_iterator ae, UInt32  blockSize = PROJ_BLOCK_SIZE)
 	{
 		if (m_OgrComponentHolder) 
 		{
@@ -640,7 +640,7 @@ struct Type2DConversion: unary_func<TR, TA> // http://www.gdal.org/ogr/osr_tutor
 			while (n)
 			{
 				auto s = n;
-				MakeMin(s, PROJ_BLOCK_SIZE);
+				MakeMin(s, blockSize);
 				for (int i = 0; i != s; ++ai, ++i)
 				{
 					DPoint rescaledA = m_PreRescaler.Apply(DPoint(*ai));
@@ -650,23 +650,30 @@ struct Type2DConversion: unary_func<TR, TA> // http://www.gdal.org/ogr/osr_tutor
 				}
 				if (!m_OgrComponentHolder->m_Transformer->Transform(s, resX, resY, nullptr /*Z*/, successFlags))
 				{
-					fast_fill(successFlags, successFlags + PROJ_BLOCK_SIZE, 0);
-				}
-
-				for (int i = 0; i != s; ++ri, ++i)
-				{
-					if (!successFlags[i])
+					if (s > 1)
 					{
-						if (!m_OgrComponentHolder->m_Transformer->Transform(1, resX+i, resY+i, nullptr /*Z*/, successFlags+i))
-						{
-							Assign(*ri, Undefined());
-							continue;
-						}
+						auto halfSize = s / 2;
+						Dispatch(ri, ai, ai+halfSize, halfSize);
+						Dispatch(ri + halfSize, ai + halfSize, ai+s, s - halfSize);
 					}
-					auto reprojectedPoint = prj2dms_order(resX[i], resY[i], projection_is_col_first);
-					auto rescaledPoint = m_PostRescaler.Apply(reprojectedPoint);
-					Assign(*ri, Convert<TR>(rescaledPoint));
+					else
+						Assign(*ri, Undefined());
 				}
+				else
+					for (int i = 0; i != s; ++ri, ++i)
+					{
+						if (!successFlags[i])
+						{
+							if (!m_OgrComponentHolder->m_Transformer->Transform(1, resX+i, resY+i, nullptr /*Z*/, successFlags+i))
+							{
+								Assign(*ri, Undefined());
+								continue;
+							}
+						}
+						auto reprojectedPoint = prj2dms_order(resX[i], resY[i], projection_is_col_first);
+						auto rescaledPoint = m_PostRescaler.Apply(reprojectedPoint);
+						Assign(*ri, Convert<TR>(rescaledPoint));
+					}
 				n -= s;
 			}
 		}
