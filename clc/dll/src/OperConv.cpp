@@ -738,7 +738,7 @@ void DispatchMapping(Type2DConversion<TR,TA>& functor, typename Type2DConversion
 		{
 			auto s = n;
 			MakeMin(s, PROJ_BLOCK_SIZE);
-			for (SizeT i = 0; i != n; ++i)
+			for (SizeT i = 0; i != s; ++i)
 			{
 				DPoint rescaledA = functor.m_PreRescaler.Apply(DPoint(Range_GetValue_naked(tileRange, i)));
 				rescaledA = prj2dms_order(rescaledA, source_is_expected_to_be_col_first);
@@ -746,8 +746,8 @@ void DispatchMapping(Type2DConversion<TR,TA>& functor, typename Type2DConversion
 				resY[i] = rescaledA.second;
 			}
 			if (!functor.m_OgrComponentHolder->m_Transformer->Transform(s, resX, resY, nullptr /*Z*/, successFlags))
-				fast_fill(successFlags, successFlags + PROJ_BLOCK_SIZE, 0);
-			for (SizeT i = 0; i != n; ++ri, ++i)
+				fast_fill(successFlags, successFlags + s, 0);
+			for (SizeT i = 0; i != s; ++ri, ++i)
 			{
 				if (successFlags[i])
 				{
