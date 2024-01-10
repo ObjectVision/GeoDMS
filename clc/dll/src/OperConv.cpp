@@ -334,7 +334,7 @@ bool ProjectionIsColFirst(OGRSpatialReference &srs)
 	OGRAxisOrientation GEOGCS_peOrientation;
 	srs.GetAxis("PROJCS", 0, &PROJCS_peOrientation);
 	srs.GetAxis("GEOGCS", 0, &GEOGCS_peOrientation);
-	bool projection_is_col_first = PROJCS_peOrientation == OGRAxisOrientation::OAO_East || GEOGCS_peOrientation == OGRAxisOrientation::OAO_East;
+	bool projection_is_col_first = PROJCS_peOrientation == OGRAxisOrientation::OAO_East || GEOGCS_peOrientation == OGRAxisOrientation::OAO_East || PROJCS_peOrientation == OGRAxisOrientation::OAO_West || GEOGCS_peOrientation == OGRAxisOrientation::OAO_West;
 	return projection_is_col_first;
 }
 
