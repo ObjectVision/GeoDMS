@@ -644,8 +644,8 @@ struct Type2DConversion: unary_func<TR, TA> // http://www.gdal.org/ogr/osr_tutor
 				{
 					DPoint rescaledA = m_PreRescaler.Apply(DPoint(*ai));
 					rescaledA = prj2dms_order(rescaledA, source_is_expected_to_be_col_first);
-					resX[i] = rescaledA.Col();
-					resY[i] = rescaledA.Row();
+					resX[i] = rescaledA.first;
+					resY[i] = rescaledA.second;
 				}
 				if (!m_OgrComponentHolder->m_Transformer->Transform(s, resX, resY, nullptr /*Z*/, successFlags))
 					fast_fill(successFlags, successFlags + PROJ_BLOCK_SIZE, 0);
@@ -716,8 +716,8 @@ void DispatchMapping(Type2DConversion<TR,TA>& functor, typename Type2DConversion
 			{
 				DPoint rescaledA = functor.m_PreRescaler.Apply(DPoint(Range_GetValue_naked(tileRange, i)));
 				rescaledA = prj2dms_order(rescaledA, source_is_expected_to_be_col_first);
-				resX[i] = rescaledA.Col();
-				resY[i] = rescaledA.Row();
+				resX[i] = rescaledA.first;
+				resY[i] = rescaledA.second;
 			}
 			if (!functor.m_OgrComponentHolder->m_Transformer->Transform(s, resX, resY, nullptr /*Z*/, successFlags))
 				fast_fill(successFlags, successFlags + PROJ_BLOCK_SIZE, 0);
