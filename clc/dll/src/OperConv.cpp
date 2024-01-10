@@ -631,6 +631,8 @@ struct Type2DConversion: unary_func<TR, TA> // http://www.gdal.org/ogr/osr_tutor
 			Float64 resX[PROJ_BLOCK_SIZE];
 			Float64 resY[PROJ_BLOCK_SIZE];
 			int     successFlags[PROJ_BLOCK_SIZE];
+			bool    source_is_expected_to_be_col_first = this->m_Source_is_expected_to_be_col_first;
+			bool    projection_is_col_first = this->m_Projection_is_col_first;
 
 			auto n = ae - ai;
 			while (n)
@@ -640,7 +642,7 @@ struct Type2DConversion: unary_func<TR, TA> // http://www.gdal.org/ogr/osr_tutor
 				for (int i = 0; i != s; ++ai, ++i)
 				{
 					DPoint rescaledA = m_PreRescaler.Apply(DPoint(*ai));
-					rescaledA = prj2dms_order(rescaledA, m_Source_is_expected_to_be_col_first);
+					rescaledA = prj2dms_order(rescaledA, source_is_expected_to_be_col_first);
 					resX[i] = rescaledA.Col();
 					resY[i] = rescaledA.Row();
 				}
@@ -651,7 +653,7 @@ struct Type2DConversion: unary_func<TR, TA> // http://www.gdal.org/ogr/osr_tutor
 				{
 					if (successFlags[i])
 					{
-						auto reprojectedPoint = prj2dms_order(resX[i], resY[i], m_Projection_is_col_first);
+						auto reprojectedPoint = prj2dms_order(resX[i], resY[i], projection_is_col_first);
 						auto rescaledPoint = m_PostRescaler.Apply(reprojectedPoint);
 						Assign(*ri, Convert<TR>(rescaledPoint));
 					}
@@ -702,6 +704,8 @@ void DispatchMapping(Type2DConversion<TR,TA>& functor, typename Type2DConversion
 		Float64 resX[PROJ_BLOCK_SIZE];
 		Float64 resY[PROJ_BLOCK_SIZE];
 		int     successFlags[PROJ_BLOCK_SIZE];
+		bool    source_is_expected_to_be_col_first = functor.m_Source_is_expected_to_be_col_first;
+		bool    projection_is_col_first = functor.m_Projection_is_col_first;
 
 		while (n)
 		{
@@ -710,7 +714,7 @@ void DispatchMapping(Type2DConversion<TR,TA>& functor, typename Type2DConversion
 			for (SizeT i = 0; i != n; ++i)
 			{
 				DPoint rescaledA = functor.m_PreRescaler.Apply(DPoint(Range_GetValue_naked(tileRange, i)));
-				rescaledA = prj2dms_order(rescaledA, m_Source_is_expected_to_be_col_first);
+				rescaledA = prj2dms_order(rescaledA, source_is_expected_to_be_col_first);
 				resX[i] = rescaledA.Col();
 				resY[i] = rescaledA.Row();
 			}
@@ -720,7 +724,7 @@ void DispatchMapping(Type2DConversion<TR,TA>& functor, typename Type2DConversion
 			{
 				if (successFlags[i])
 				{
-					auto reprojectedPoint = prj2dms_order(resX[i], resY[i], m_Projection_is_col_first);
+					auto reprojectedPoint = prj2dms_order(resX[i], resY[i], projection_is_col_first);
 					auto rescaledPoint = functor.m_PostRescaler.Apply(reprojectedPoint);
 					Assign(*ri, Convert<TR>(rescaledPoint));
 				}
