@@ -371,7 +371,9 @@ void TiffSM::DoUpdateTree(const TreeItem* storageHolder, TreeItem* curr, SyncMod
 	dms_assert(storageHolder);
 	if (storageHolder != curr)
 		return;
-	if (curr->IsStorable() && curr->HasCalculator())
+	auto curr_is_storable = curr->IsStorable();
+	auto curr_has_calculator = curr->HasCalculator();
+	if (curr_is_storable && curr->HasCalculator())
 		return;
 	const AbstrDataItem* configGridData = GetGridData(storageHolder);
 	if (configGridData && configGridData->HasCalculator())
@@ -384,15 +386,6 @@ void TiffSM::DoUpdateTree(const TreeItem* storageHolder, TreeItem* curr, SyncMod
 	bool tfw_file_exists = IsFileOrDirAccessible(projectionFileName);
 
 	std::vector<Float64> pixel_to_world_transform = {};
-	auto storage_manager = storageHolder->GetStorageManager();
-	auto nmsm = dynamic_cast<NonmappableStorageManager*>(storage_manager);
-	if (nmsm)
-	{
-		auto smi = nmsm->GetMetaInfo(storageHolder, curr, StorageAction::read);
-		DoOpenStorage(*smi, dms_rw_mode::read_only);
-		pixel_to_world_transform = m_pImp->GetAffineTransformation();
-		m_IsOpen = true;
-	}
 
 	// GridData item && GridPalette item
 	const AbstrDataItem* gridData  = GetGridData(storageHolder, tfw_file_exists || !pixel_to_world_transform.empty());
@@ -401,6 +394,14 @@ void TiffSM::DoUpdateTree(const TreeItem* storageHolder, TreeItem* curr, SyncMod
 	//if (!gridData || !paletteData)
 	//	storageHolder->throwItemErrorF("No user defined GridData or PaletteData attribute found for storage item %s.", storageHolder->GetFullName().c_str());
 	MG_CHECK( !gridData || !paletteData || gridData->GetAbstrValuesUnit()->UnifyDomain(paletteData->GetAbstrDomainUnit()) );
+	
+	if (gridData && gridData->HasCalculatorImpl())
+		return;
+
+	auto smi = this->GetMetaInfo(storageHolder, curr, StorageAction::read);
+	this->DoOpenStorage(*smi, dms_rw_mode::read_only);
+	pixel_to_world_transform = m_pImp->GetAffineTransformation();
+	m_IsOpen = true;
 
 	// Compare value type of tiff with value type of griddata / palettedata
 	//DoOpenStorage(const StorageMetaInfo & smi, dms_rw_mode rwMode) const

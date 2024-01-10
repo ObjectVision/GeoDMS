@@ -79,7 +79,7 @@ void TiffWarning2Report(CharPtr errType, CharPtr errFormat, va_list lst)
 {
 	#if defined(MG_DEBUG)
 	if (strncmp(errFormat, "unknown field", 13))
-		reportD(SeverityTypeID::ST_Warning, errType, myVSSPrintF(errFormat, lst).c_str());
+		reportD(SeverityTypeID::ST_MinorTrace, errType, myVSSPrintF(errFormat, lst).c_str());
 	#endif
 }
 
