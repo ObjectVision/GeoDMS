@@ -569,6 +569,8 @@ struct Type2DConversion: unary_func<TR, TA> // http://www.gdal.org/ogr/osr_tutor
 			m_PreRescaler *= m_PostRescaler;
 		}
 		
+		}
+		m_PreRescaler *= m_PostRescaler;
 		m_PostRescaler = CrdTransformation(); // clear
 
 	}
