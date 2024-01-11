@@ -1315,33 +1315,6 @@ bool TableControl::CheckCardinalityChangeRights(bool doThrow)
 	return false;
 }
 
-void TableControl::ClassSplit()
-{
-	CheckCardinalityChangeRights(true);
-
-	AbstrUnit* domain = const_cast<AbstrUnit*>(GetEntity());
-	SizeT currNrFocusRows = 1 + m_Rows.m_End - m_Rows.m_Begin;
-	domain->Split(m_Rows.m_Begin, currNrFocusRows);
-	SelChangeInvalidator sci(this);
-	m_Rows.m_End = m_Rows.m_Begin + 2*currNrFocusRows - 1;
-	if (m_Rows.m_Curr != m_Rows.m_Begin)
-		m_Rows.m_Curr = m_Rows.m_End;
-	sci.ProcessChange(m_Rows.m_Curr != m_Rows.m_Begin);
-}
-
-void TableControl::ClassMerge()
-{
-	CheckCardinalityChangeRights(true);
-	if (m_IndexAttr)
-		m_IndexAttr->throwItemError("Cannot Merge classes of a sorted table");
-
-	AbstrUnit* domain = const_cast<AbstrUnit*>(GetEntity());
-	SelChangeInvalidatorBase sci(this);
-	domain->Merge( GetRecNo(m_Rows.m_Begin+1), m_Rows.m_End - m_Rows.m_Begin);
-	m_Rows.CloseAt(m_Rows.m_Begin);
-	sci.ProcessChange(true);
-}
-
 ActorVisitState TableControl::VisitSuppliers(SupplierVisitFlag svf, const ActorVisitor& visitor) const
 {
 	if (	(visitor.Visit(m_Entity.get_ptr()) == AVS_SuspendedOrFailed)

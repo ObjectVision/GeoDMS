@@ -154,8 +154,6 @@ public:
 
 // Support for ordinals
 	virtual void SetCount(SizeT count);
-	virtual void Split   (SizeT pos, SizeT len);
-	virtual void Merge   (SizeT pos, SizeT len);
 
 	void OnDomainChange(const DomainChangeInfo* info);
 

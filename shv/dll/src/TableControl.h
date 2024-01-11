@@ -157,8 +157,6 @@ public:
 
 //	insert / delete rows
 	bool CheckCardinalityChangeRights(bool doThrow);
-	void ClassSplit();
-	void ClassMerge();
 
 //	override Actor mfuncs
 	ActorVisitState VisitSuppliers(SupplierVisitFlag svf, const ActorVisitor& visitor) const override;

@@ -300,13 +300,6 @@ void EditPaletteControl::FillMenu(MouseEventDispatcher& med)
 	auto dic = med.m_MenuData.m_DIC.lock();
 	if (dic)
 	{		
-		const AbstrUnit* du = GetDomain();
-		if (du && !du->IsDerivable())
-		{
-			SubMenu subMenu(med.m_MenuData, SharedStr("Classes")); // SUBMENU
-			med.m_MenuData.push_back(MenuItem(SharedStr("Split"), make_MembFuncCmd(&EditPaletteControl::ClassSplit), this, m_PaletteControl->m_Rows.IsDefined() ? 0 : MFS_GRAYED));
-			med.m_MenuData.push_back(MenuItem(SharedStr("Merge"), make_MembFuncCmd(&EditPaletteControl::ClassMerge), this, m_PaletteControl->m_Rows.IsDefined() ? 0 : MFS_GRAYED));
-		}
 		if (dic->GetActiveAttr() && dic->GetActiveAttr() == m_PaletteControl->GetLabelTextAttr())
 			med.m_MenuData.push_back( MenuItem(SharedStr("ReLabel"), make_MembFuncCmd(&EditPaletteControl::ReLabelRanges), this, 0) );
 	}
@@ -330,18 +323,6 @@ void EditPaletteControl::Sync(TreeItem* viewContext, ShvSyncMode sm)
 			m_ThemeAttr = m_PaletteControl->GetThemeAttr();
 		}
 	}
-}
-
-void EditPaletteControl::ClassSplit() 
-{
-	m_PaletteControl->ClassSplit();
-	UpdateNrClasses();
-}
-
-void EditPaletteControl::ClassMerge() 
-{
-	m_PaletteControl->ClassMerge();
-	UpdateNrClasses();
 }
 
 CrdPoint EditPaletteControl::CalcMaxSize() const

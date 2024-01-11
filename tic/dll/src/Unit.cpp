@@ -636,36 +636,6 @@ void MarkUnitChange(AbstrUnit* au) {
 	auto ts = UpdateMarker::GetActiveTS(MG_DEBUG_TS_SOURCE_CODE("SetRange"));
 	au->MarkTS(ts);
 	au->SetDC(nullptr);
-
-
-/*
-	TimeStamp ts = 0;
-	if (!TreeItem::s_ConfigReadLockCount)
-	if (au->HasConfigData() && !au->IsPassor())
-		ts = DataStoreManager::GetCachedConfigSourceTS(au);
-	if (ts == 0)
-		ts = UpdateMarker::GetActiveTS(MG_DEBUG_TS_SOURCE_CODE(mySSPrintF("SetRange(%s)", au->GetFullName().c_str()).c_str()));
-	au->MarkTS(ts);
-	au->SetDataInMem();
-
-	dms_assert(au->DataInMem());
-
-	if (TreeItem::s_ConfigReadLockCount)
-		return;
-	if (!au->IsAutoDeleteDisabled())
-		return;
-
-	dms_assert(au->IsDcKnown() || !au->IsSdKnown());
-	dms_assert(!au->IsDcKnown() || !au->mc_RefItem && (au->IsCacheItem() || au->HasConfigData() || au->IsDataReadable()));
-
-	dms_assert(au->HasVarRange());
-	if (!au->IsSdKnown())
-		DataStoreManager::StoreBlob(au);
-
-#if defined(MG_DEBUG_DATA)
-	dms_assert_impl(!au->IsSdKnown() || DataStoreManager::Curr()->CheckBlob(au));
-#endif
-*/
 }
 
 
@@ -676,7 +646,6 @@ void MarkUnitChange(AbstrUnit* au) {
 template <class V> typename std::enable_if_t<!std::is_floating_point_v< scalar_of_t<V> > >
 NotifyRangeDataChange(RangedUnit<V>* self, const typename RangedUnit<V>::range_data_t* oldRangeData, const typename RangedUnit<V>::range_data_t* newRangeData)
 {
-//	dms_assert(self->DataInMem());
 	auto oldSize = oldRangeData->GetDataSize();
 	auto newSize = newRangeData->GetDataSize();
 
@@ -691,28 +660,6 @@ NotifyRangeDataChange(RangedUnit<V>* self, const typename RangedUnit<V>::range_d
 
 	if (self->GetNrDataItemsOut()) // avoid constructing ChangeSourceLock when no DataItems are to be changed
 		self->OnDomainChange(&info);
-}
-
-template <class V>
-void OrderedUnit<V>::Split(SizeT pos, SizeT len)
-{
-	if (!len)
-		return;
-
-	auto currContext = domain_change_context{ pos };
-
-	this->SetRange(typename OrderedUnit::range_t(0, ThrowingConvert< V>(this->GetCount() + len)));
-}
-
-template <class V>
-void OrderedUnit<V>::Merge(SizeT pos, SizeT len)
-{
-	if (!len)
-		return;
-
-	auto currContext = domain_change_context{ pos };
-
-	this->SetRange(typename OrderedUnit::range_t(0, ThrowingConvert< V>(this->GetCount() - len)));
 }
 
 template <class V>
