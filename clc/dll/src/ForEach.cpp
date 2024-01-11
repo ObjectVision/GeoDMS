@@ -343,6 +343,7 @@ static arg_index CalcNrArgs(field_spec fs)
 	if (fs & FS_DESCR)       nrParams++;
 	if (fs & FS_STORAGENAME) nrParams++;
 	if (fs & FS_STORAGETYPE) nrParams++;
+	if (fs & FS_STORAGE_RO)  nrParams++;
 	if (fs & FS_SQLSTRING) nrParams++;
 	if (fs & FS_CDF) nrParams++;
 	if (fs & FS_URL) nrParams++;

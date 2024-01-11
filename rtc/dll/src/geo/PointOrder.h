@@ -100,9 +100,9 @@ Range<P> shp2dms_order(const Range<P>& shpRect)
 RTC_CALL extern bool g_cfgColFirst;
 
 template <typename  F>
-Point<F> cfg2dms_order(const Point<F>& cfgPoint)
+Point<F> prj2dms_order(const Point<F>& cfgPoint, bool colFirst)
 {
-	if (g_cfgColFirst)
+	if (colFirst)
 	{
 		reorder_functor<
 			must_swap<
@@ -122,36 +122,53 @@ Point<F> cfg2dms_order(const Point<F>& cfgPoint)
 		> rf;
 		return rf(cfgPoint);
 	}
+}
+
+template <typename  F>
+void prj2dms_order_inplace(Point<F>& cfgPoint, bool colFirst)
+{
+	if (colFirst)
+	{
+		reorder_functor<
+			must_swap<
+				colrow_order_tag, 
+				dms_order_tag
+			>::value
+		> rf;
+		rf.inplace(cfgPoint);
+	}
+	else
+	{
+		reorder_functor<
+			must_swap<
+				rowcol_order_tag, 
+				dms_order_tag
+			>::value
+		> rf;
+		rf.inplace(cfgPoint);
+	}
+}
+
+template <typename  F>
+Point<F> prj2dms_order(F x, F y, bool colFirst)
+{
+	return prj2dms_order(Point<F>(x, y), colFirst);
 }
 
 template <typename  F>
 void cfg2dms_order_inplace(Point<F>& cfgPoint)
 {
-	if (g_cfgColFirst)
-	{
-		reorder_functor<
-			must_swap<
-				colrow_order_tag, 
-				dms_order_tag
-			>::value
-		> rf;
-		rf.inplace(cfgPoint);
-	}
-	else
-	{
-		reorder_functor<
-			must_swap<
-				rowcol_order_tag, 
-				dms_order_tag
-			>::value
-		> rf;
-		rf.inplace(cfgPoint);
-	}
+	prj2dms_order_inplace(cfgPoint, g_cfgColFirst);
 }
 
 template <typename  F>
 void  dmsPoint_SetFirstCfgValue(Point<F>& cfgPoint, F firstVal)
 {
+	reportF(SeverityTypeID::ST_Warning, "depreciated syntax for point data used.\n"
+		"Use the point_xy operation to unambiguously define points.\n"
+		"Exchange the first and second argument unless ColRowOrder was set in Config.ini "
+	);
+
 	if (g_cfgColFirst)
 		cfgPoint.Col() = firstVal;
 	else
@@ -161,6 +178,13 @@ void  dmsPoint_SetFirstCfgValue(Point<F>& cfgPoint, F firstVal)
 template <typename  F>
 void  dmsPoint_SetSecondCfgValue(Point<F>& cfgPoint, F secondVal)
 {
+/*
+	reportF(SeverityTypeID::ST_Warning, "depreciated syntax for point data used.\n"
+		"Use the point_xy operation to unambiguously define points.\n"
+		"Exchange the first and second argument unless ColRowOrder was set in Config.ini "
+	);
+*/
+
 	if (g_cfgColFirst)
 		cfgPoint.Row() = secondVal;
 	else

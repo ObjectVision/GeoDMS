@@ -63,7 +63,7 @@ QVariant EventLogModel::data(const QModelIndex& index, int role) const
 		SharedStr msgTxt = item_data.m_Txt;
 		//auto dms_reg_status_flags = GetRegStatusFlags();
 		
-		if ((cached_reg_flags & RSF_EventLog_ShowAnyExtra) == 0)
+		if (((cached_reg_flags & RSF_EventLog_ShowAnyExtra) == 0) && !item_data.m_IsFollowup)
 			return QString(msgTxt.c_str());
 
 		bool showDateTime = (cached_reg_flags & RSF_EventLog_ShowDateTime);
@@ -72,21 +72,18 @@ QVariant EventLogModel::data(const QModelIndex& index, int role) const
 
 		VectorOutStreamBuff buff;
 		FormattedOutStream fout(&buff, {});
-		if (showDateTime)
-			fout << item_data.m_DateTime;
-		if (showThreadID)
+		if (!item_data.m_IsFollowup)
 		{
 			if (showDateTime)
-				fout << " ";
-			fout << "[" << item_data.m_ThreadID << "]";
+				fout << item_data.m_DateTime << " ";
+			if (showThreadID)
+				fout << "[" << item_data.m_ThreadID << "] ";
+			if (showCategory)
+				fout << AsString(item_data.m_MsgCategory) << " ";
 		}
-		if (showCategory)
-		{
-			if (showDateTime || showThreadID)
-				fout << " ";
-			fout << AsString(item_data.m_MsgCategory);
-		}
-		fout << " ";
+		else
+			fout << "        ";
+
 		fout << msgTxt;
 		fout << char(0);
 		return QString(buff.GetData());

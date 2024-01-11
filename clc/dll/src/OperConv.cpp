@@ -328,6 +328,16 @@ const AbstrUnit* CompositeBase(const AbstrUnit* proj)
 	return res;
 }
 
+bool ProjectionIsColFirst(OGRSpatialReference &srs)
+{
+	OGRAxisOrientation PROJCS_peOrientation;
+	OGRAxisOrientation GEOGCS_peOrientation;
+	srs.GetAxis("PROJCS", 0, &PROJCS_peOrientation);
+	srs.GetAxis("GEOGCS", 0, &GEOGCS_peOrientation);
+	bool projection_is_col_first = PROJCS_peOrientation == OGRAxisOrientation::OAO_East || GEOGCS_peOrientation == OGRAxisOrientation::OAO_East || PROJCS_peOrientation == OGRAxisOrientation::OAO_West || GEOGCS_peOrientation == OGRAxisOrientation::OAO_West;
+	return projection_is_col_first;
+}
+
 static leveled_critical_section cs_SpatialRefBlockCreation(item_level_type(0), ord_level_type::SpecificOperator, "SpatialRefBlock");
 
 #include <gdal_priv.h>
@@ -551,10 +561,13 @@ struct Type2DConversion: unary_func<TR, TA> // http://www.gdal.org/ogr/osr_tutor
 				OGRCheck(&m_OgrComponentHolder->m_Src, m_OgrComponentHolder->m_Src.SetFromUserInput(srcFormatStr.c_str()), srcFormatStr.c_str(), srcUnit );
 				OGRCheck(&m_OgrComponentHolder->m_Dst, m_OgrComponentHolder->m_Dst.SetFromUserInput(resFormatStr.c_str()), resFormatStr.c_str(), resUnit );
 				m_OgrComponentHolder->CreateTransformer();
+				m_Source_is_expected_to_be_col_first = ProjectionIsColFirst(m_OgrComponentHolder->m_Src);
+				m_Projection_is_col_first = ProjectionIsColFirst(m_OgrComponentHolder->m_Dst);
 				frame.ThrowUpWhateverCameUp();
 				return;
 			}
 		}
+		
 		m_PreRescaler *= m_PostRescaler;
 		m_PostRescaler = CrdTransformation(); // clear
 	}
@@ -577,9 +590,10 @@ struct Type2DConversion: unary_func<TR, TA> // http://www.gdal.org/ogr/osr_tutor
 		if (!IsDefined(p))
 			return UNDEFINED_OR_ZERO(TR);
 
-		DPoint res = p;
-		if (!m_OgrComponentHolder->m_Transformer->Transform(1, &res.Col(), &res.Row(), nullptr))
+		DPoint res = prj2dms_order(p.first, p.second, m_Source_is_expected_to_be_col_first);
+		if (!m_OgrComponentHolder->m_Transformer->Transform(1, &res.first, &res.second, nullptr))
 			return UNDEFINED_OR_ZERO(TR);
+		res = prj2dms_order(res.first, res.second, m_Projection_is_col_first);
 		return Convert<TR>(res);
 	}
 	TR ApplyScaled(const TA& p) const
@@ -602,13 +616,61 @@ struct Type2DConversion: unary_func<TR, TA> // http://www.gdal.org/ogr/osr_tutor
 			return UNDEFINED_OR_ZERO(TR);
 
 		DPoint res = m_PreRescaler.Apply(DPoint(p));
-		if (!m_OgrComponentHolder->m_Transformer->Transform(1, &res.Col(), &res.Row(), nullptr))
+		res = prj2dms_order(res.first, res.second, m_Source_is_expected_to_be_col_first);
+		if (!m_OgrComponentHolder->m_Transformer->Transform(1, &res.first, &res.second, nullptr))
 			return UNDEFINED_OR_ZERO(TR);
+		res = prj2dms_order(res.first, res.second, m_Projection_is_col_first);
 		return Convert<TR>( m_PostRescaler.Apply( res ) );
 	}
 
 	using iterator = typename DataArrayBase<TR>::iterator;
 	using const_iterator = typename DataArrayBase<TA>::const_iterator;
+
+	void DispatchTransformation_impl(iterator ri, const_iterator ai, Float64* resX, Float64* resY, int* successFlags, UInt32 s)
+	{
+		assert(m_OgrComponentHolder);
+		assert(s <= PROJ_BLOCK_SIZE);
+		bool source_is_expected_to_be_col_first = this->m_Source_is_expected_to_be_col_first;
+		bool projection_is_col_first = this->m_Projection_is_col_first;
+
+		for (int i = 0; i != s; ++i)
+		{
+			DPoint rescaledA = m_PreRescaler.Apply(DPoint(ai[i]));
+			rescaledA = prj2dms_order(rescaledA, source_is_expected_to_be_col_first);
+			resX[i] = rescaledA.first;
+			resY[i] = rescaledA.second;
+		}
+		if (!m_OgrComponentHolder->m_Transformer->Transform(s, resX, resY, nullptr /*Z*/, successFlags))
+		{
+			if (s > 1)
+			{
+				auto halfSize = s / 2;
+				DispatchTransformation_impl(ri, ai, resX, resY, successFlags, halfSize);
+				DispatchTransformation_impl(ri + halfSize, ai + halfSize, resX, resY, successFlags, s - halfSize);
+			}
+			else
+				Assign(*ri, Undefined());
+			return;
+		}
+		for (int i = 0; i != s; ++ri, ++i)
+		{
+			if (!successFlags[i])
+			{
+				DPoint rescaledA = m_PreRescaler.Apply(DPoint(ai[i]));
+				rescaledA = prj2dms_order(rescaledA, source_is_expected_to_be_col_first);
+				resX[i] = rescaledA.first;
+				resY[i] = rescaledA.second;
+				if (!m_OgrComponentHolder->m_Transformer->Transform(1, resX + i, resY + i, nullptr /*Z*/, successFlags + i))
+				{
+					Assign(*ri, Undefined());
+					continue;
+				}
+			}
+			auto reprojectedPoint = prj2dms_order(resX[i], resY[i], projection_is_col_first);
+			auto rescaledPoint = m_PostRescaler.Apply(reprojectedPoint);
+			Assign(*ri, Convert<TR>(rescaledPoint));
+		}
+	}
 
 	void Dispatch(iterator ri, const_iterator ai, const_iterator ae)
 	{
@@ -617,32 +679,16 @@ struct Type2DConversion: unary_func<TR, TA> // http://www.gdal.org/ogr/osr_tutor
 			Float64 resX[PROJ_BLOCK_SIZE];
 			Float64 resY[PROJ_BLOCK_SIZE];
 			int     successFlags[PROJ_BLOCK_SIZE];
-
+	
 			auto n = ae - ai;
 			while (n)
 			{
 				auto s = n;
 				MakeMin(s, PROJ_BLOCK_SIZE);
-				for (int i = 0; i != s; ++ai, ++i)
-				{
-					DPoint rescaledA = m_PreRescaler.Apply(DPoint(*ai));
-					resX[i] = rescaledA.Col();
-					resY[i] = rescaledA.Row();
-				}
-				if (!m_OgrComponentHolder->m_Transformer->Transform(s, resX, resY, nullptr /*Z*/, successFlags))
-					fast_fill(successFlags, successFlags + PROJ_BLOCK_SIZE, 0);
-				for (int i = 0; i != s; ++ri, ++i)
-				{
-					if (successFlags[i])
-					{
-						auto reprojectedPoint = shp2dms_order(resX[i], resY[i]);
-						auto rescaledPoint = m_PostRescaler.Apply(reprojectedPoint);
-						Assign(*ri, Convert<TR>(rescaledPoint));
-					}
-					else
-						Assign(*ri, Undefined());
-				}
+				DispatchTransformation_impl(ri, ai, resX, resY, successFlags, s);
 				n -= s;
+				ai += s;
+				ri += s;
 			}
 		}
 		else 
@@ -674,6 +720,8 @@ struct Type2DConversion: unary_func<TR, TA> // http://www.gdal.org/ogr/osr_tutor
 	SharedPtr<SpatialRefBlock>   m_OgrComponentHolder;
 	CrdTransformation            m_PreRescaler;
 	CrdTransformation            m_PostRescaler;
+	bool                         m_Source_is_expected_to_be_col_first = dms_order_tag::col_first;
+	bool                         m_Projection_is_col_first = dms_order_tag::col_first;
 };
 
 template<typename TR, typename TA>
@@ -684,24 +732,27 @@ void DispatchMapping(Type2DConversion<TR,TA>& functor, typename Type2DConversion
 		Float64 resX[PROJ_BLOCK_SIZE];
 		Float64 resY[PROJ_BLOCK_SIZE];
 		int     successFlags[PROJ_BLOCK_SIZE];
+		bool    source_is_expected_to_be_col_first = functor.m_Source_is_expected_to_be_col_first;
+		bool    projection_is_col_first = functor.m_Projection_is_col_first;
 
 		while (n)
 		{
 			auto s = n;
 			MakeMin(s, PROJ_BLOCK_SIZE);
-			for (SizeT i = 0; i != n; ++i)
+			for (SizeT i = 0; i != s; ++i)
 			{
 				DPoint rescaledA = functor.m_PreRescaler.Apply(DPoint(Range_GetValue_naked(tileRange, i)));
-				resX[i] = rescaledA.Col();
-				resY[i] = rescaledA.Row();
+				rescaledA = prj2dms_order(rescaledA, source_is_expected_to_be_col_first);
+				resX[i] = rescaledA.first;
+				resY[i] = rescaledA.second;
 			}
 			if (!functor.m_OgrComponentHolder->m_Transformer->Transform(s, resX, resY, nullptr /*Z*/, successFlags))
-				fast_fill(successFlags, successFlags + PROJ_BLOCK_SIZE, 0);
-			for (SizeT i = 0; i != n; ++ri, ++i)
+				fast_fill(successFlags, successFlags + s, 0);
+			for (SizeT i = 0; i != s; ++ri, ++i)
 			{
 				if (successFlags[i])
 				{
-					auto reprojectedPoint = shp2dms_order(resX[i], resY[i]);
+					auto reprojectedPoint = prj2dms_order(resX[i], resY[i], projection_is_col_first);
 					auto rescaledPoint = functor.m_PostRescaler.Apply(reprojectedPoint);
 					Assign(*ri, Convert<TR>(rescaledPoint));
 				}
