@@ -319,6 +319,7 @@ const ValueClassID TifImp::GetValueClassFromTiffDataTypeTag()
 		case 32: return ValueClassID::VT_UInt32;
 		case 64: return ValueClassID::VT_UInt64;
 		}
+		break;
 	}
 	case SAMPLEFORMAT_INT:
 	{
@@ -329,6 +330,7 @@ const ValueClassID TifImp::GetValueClassFromTiffDataTypeTag()
 		case 32: return ValueClassID::VT_Int32;
 		case 64: return ValueClassID::VT_Int64;
 		}
+		break;
 	}
 	case SAMPLEFORMAT_IEEEFP:
 	{
@@ -337,6 +339,7 @@ const ValueClassID TifImp::GetValueClassFromTiffDataTypeTag()
 		case 32: return ValueClassID::VT_Float32;
 		case 64: return ValueClassID::VT_Float64;
 		}
+		break;
 	}
 	}
 
