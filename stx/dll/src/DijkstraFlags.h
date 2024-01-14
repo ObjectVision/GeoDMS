@@ -1,32 +1,10 @@
-//<HEADER> 
-/*
-Data & Model Server (DMS) is a server written in C++ for DSS applications. 
-Version: see srv/dms/rtc/dll/src/RtcVersion.h for version info.
+// Copyright (C) 1998-2023 Object Vision b.v. 
+// License: GNU GPL 3
+/////////////////////////////////////////////////////////////////////////////
 
-Copyright (C) 1998-2004  YUSE GSO Object Vision BV. 
-
-Documentation on using the Data & Model Server software can be found at:
-http://www.ObjectVision.nl/DMS/
-
-See additional guidelines and notes in srv/dms/Readme-srv.txt 
-
-This library is free software; you can use, redistribute, and/or
-modify it under the terms of the GNU General Public License version 2 
-(the License) as published by the Free Software Foundation,
-provided that this entire header notice and readme-srv.txt is preserved.
-
-See LICENSE.TXT for terms of distribution or look at our web site:
-http://www.objectvision.nl/DMS/License.txt
-or alternatively at: http://www.gnu.org/copyleft/gpl.html
-
-This library is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
-General Public License for more details. However, specific warranties might be
-granted by an additional written contract for support, assistance and/or development
-*/
-//</HEADER>
+#if defined(_MSC_VER)
 #pragma once
+#endif
 
 #if !defined(__STX_DIJKSTRAFLAGS_H)
 #define __STX_DIJKSTRAFLAGS_H
@@ -81,12 +59,17 @@ enum class DijkstraFlag : UInt64
 	ProdOdImpedance = 0x200000,
 	ProdOdAltImpedance = 0x400000,
 
-	ProdOrgFactor = 0x00800000, // TODO ?
-	ProdOrgDemand = 0x01000000, // DONE ?
-	ProdOrgMaxImp = 0x02000000, // TODO
-	ProdDstFactor = 0x04000000, // TODO
-	ProdDstSupply = 0x08000000, // DONE ?
-	ProdLinkFlow = 0x10000000, // DONE ?
+	ProdOrgFactor = 0x00800000,
+	ProdOrgDemand = 0x01000000,
+	ProdOrgMaxImp = 0x02000000,
+	ProdDstFactor = 0x04000000,
+	ProdDstSupply = 0x08000000,
+	ProdLinkFlow = 0x10000000,
+	ProdOrgSumImp = 0x40'0000'0000, // TODO
+	ProdOrgSumAltImp = 0x80'0000'0000, // TODO
+	ProdOrgSqrtDist = 0x100'0000'0000, // TODO, low prio
+	ProdOrgDist = 0x200'0000'0000, // TODO, low prio
+
 	Counting = 0x20000000,
 
 	ProdOdStartPoint_rel = 0x01'0000'0000,
@@ -95,6 +78,8 @@ enum class DijkstraFlag : UInt64
 	OrgZoneLoc = 0x04'0000'0000,
 	DstZoneLoc = 0x08'0000'0000,
 	UseEuclidicFilter = 0x10'0000'0000,
+
+	OD_MaxSizeProvided = 0x20'0000'0000,
 
 	EuclidFlags = OrgZoneLoc | DstZoneLoc | UseEuclidicFilter,
 
