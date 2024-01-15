@@ -1341,6 +1341,8 @@ void MainWindow::defaultView()
 {
     reportF(MsgCategory::commands, SeverityTypeID::ST_MajorTrace, "defaultView // for item %s", m_current_item->GetFullName());
     auto default_view_style = SHV_GetDefaultViewStyle(m_current_item);
+    if (default_view_style == ViewStyle::tvsPaletteEdit)
+        default_view_style = ViewStyle::tvsTableView;
     if (default_view_style == ViewStyle::tvsDefault)
     {
         reportF(MsgCategory::other, SeverityTypeID::ST_Error, "Unable to deduce viewstyle for item %s, no view created.", m_current_item->GetFullName());
