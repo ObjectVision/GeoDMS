@@ -68,7 +68,8 @@ struct ConfigProd : AbstrDataBlockProd, AbstrContextHandle
 	}
 	bool Describe(FormattedOutStream& fos) override
 	{
-		fos << "while parsing item " << ItemAsStr()
+		auto item_name = HasItemContext() ? ItemAsStr() : SharedStr("");
+		fos << "while parsing item " << item_name
 			<< "\nin config file " << m_CurrFileName;
 		return true;
 	}
