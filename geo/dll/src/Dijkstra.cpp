@@ -748,7 +748,8 @@ SizeT ProcessDijkstra(TreeItemDualRef& resultHolder
 						if (zonalResultCount != givenZonalResultCount)
 						{
 							MG_CHECK(flags(df & DijkstraFlag::PrecalculatedNrDstZones));
-							reportF(SeverityTypeID::ST_Warning, "orgZone %1%: zonalResultCount %2% != givenZonalResultCount %3%", orgZone, zonalResultCount, givenZonalResultCount);
+							if (zonalResultCount > givenZonalResultCount)
+								throwDmsErrF("orgZone %1%: zonalResultCount %2% != givenZonalResultCount %3%", orgZone, zonalResultCount, givenZonalResultCount);
 						}
 					}
 				
@@ -1653,7 +1654,7 @@ public:
 			typename ArgParamType::locked_cseq_t tgOrgAlpha            = argOrgAlpha            ? argOrgAlpha           ->GetLockedDataRead() : typename ArgParamType::locked_cseq_t();
 
 			if (IsDefined(vector_find_if(linkImpData, [](ImpType v) { return v < 0;  })))
-				throwErrorF("Dijkstra", "Illegal negative value in Impedance data");
+				throwDmsErrD("Illegal negative value in Impedance data");
 // TODO: 
 //			MG_CHECK(v->IsOrdinalAndZeroBased());
 //			MG_CHECK(e->IsOrdinalAndZeroBased());
@@ -1810,8 +1811,8 @@ public:
 				,   resOrgNrDstZones? mutable_array_cast<ZoneType>(resOrgNrDstZonesLock)->GetDataWrite(no_tile, dms_rw_mode::write_only_all).begin() : nullptr
 				,	resOrgFactor    ? mutable_array_cast<MassType>(resOrgFactorLock)->GetDataWrite(no_tile, dms_rw_mode::write_only_mustzero).begin() : nullptr
 				,	resOrgDemand    ? mutable_array_cast<MassType>(resODLock)->GetDataWrite(no_tile, dms_rw_mode::write_only_mustzero).begin() : nullptr
-				,   resOrgSumImp    ? mutable_array_cast<MassType>(resOrgSumImpLock   )->GetDataWrite(no_tile, dms_rw_mode::write_only_all).begin() : nullptr
-//				,	resOrgSumAltImp ? mutable_array_cast<MassType>(resOrgSumAltImpLock)->GetDataWrite(no_tile, dms_rw_mode::write_only_all).begin() : nullptr
+				,   resOrgSumImp    ? mutable_array_cast<MassType>(resOrgSumImpLock   )->GetDataWrite(no_tile, dms_rw_mode::write_only_mustzero).begin() : nullptr
+//				,	resOrgSumAltImp ? mutable_array_cast<MassType>(resOrgSumAltImpLock)->GetDataWrite(no_tile, dms_rw_mode::write_only_mustzero).begin() : nullptr
 				,	resOrgMaxImp    ? mutable_array_cast<ImpType >(resOMILock)->GetDataWrite(no_tile, dms_rw_mode::write_only_mustzero).begin() : nullptr
 				,	resDstFactor    ? mutable_array_cast<MassType>(resDFLock)->GetDataWrite(no_tile, dms_rw_mode::write_only_mustzero).begin() : nullptr
 				,	resDstSupply    ? mutable_array_cast<MassType>(resDSLock)->GetDataWrite(no_tile, dms_rw_mode::write_only_mustzero).begin() : nullptr
