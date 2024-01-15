@@ -64,11 +64,13 @@ enum class DijkstraFlag : UInt64
 	ProdOrgMaxImp = 0x02000000,
 	ProdDstFactor = 0x04000000,
 	ProdDstSupply = 0x08000000,
-	ProdLinkFlow = 0x10000000,
-	ProdOrgSumImp = 0x40'0000'0000, // TODO
-	ProdOrgSumAltImp = 0x80'0000'0000, // TODO
-	ProdOrgSqrtDist = 0x100'0000'0000, // TODO, low prio
-	ProdOrgDist = 0x200'0000'0000, // TODO, low prio
+	ProdLinkFlow =  0x10000000,
+
+	ProdOrgNrDstZones = 0x40'0000'0000,
+	ProdOrgSumImp = 0x80'0000'0000,
+//	ProdOrgSumAltImp = 0x100'0000'0000, // TODO
+	ProdOrgSqrtDist = 0x200'0000'0000, // TODO, low prio
+	ProdOrgDist = 0x400'0000'0000, // TODO, low prio
 
 	Counting = 0x20000000,
 
@@ -79,7 +81,7 @@ enum class DijkstraFlag : UInt64
 	DstZoneLoc = 0x08'0000'0000,
 	UseEuclidicFilter = 0x10'0000'0000,
 
-	OD_AssumedCapacity = 0x20'0000'0000,
+	PrecalculatedNrDstZones = 0x20'0000'0000,
 
 	EuclidFlags = OrgZoneLoc | DstZoneLoc | UseEuclidicFilter,
 

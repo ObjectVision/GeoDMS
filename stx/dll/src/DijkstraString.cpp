@@ -98,8 +98,11 @@ DijkstraFlag ParseDijkstraString(CharPtr str)
 		>> RBRACE 
 		>> !(COLON >> 
 				(
-					strlit<>("D_i")[AssignFlags(result, DijkstraFlag::ProdOrgFactor)]
+					strlit<>("NrDstZones")[AssignFlags(result, DijkstraFlag::ProdOrgNrDstZones)]
+				|	strlit<>("D_i")[AssignFlags(result, DijkstraFlag::ProdOrgFactor)]
 				|	strlit<>("M_ix")[AssignFlags(result, DijkstraFlag::ProdOrgDemand)]
+				|   strlit<>("SumImp")[AssignFlags(result, DijkstraFlag::ProdOrgSumImp)]
+//				|	strlit<>("SumAltImp")[AssignFlags(result, DijkstraFlag::ProdOrgSumAltImp)]
 				|	strlit<>("C_j")[AssignFlags(result, DijkstraFlag::ProdDstFactor)]
 				|	strlit<>("M_xj")[AssignFlags(result, DijkstraFlag::ProdDstSupply)]
 				|	strlit<>("Link_flow"     )[AssignFlags(result, DijkstraFlag::ProdLinkFlow )]
@@ -115,7 +118,7 @@ DijkstraFlag ParseDijkstraString(CharPtr str)
 		|	strlit<>("od")
 		)
 		>> !(LBRACE
-			>>	strlit<>("assumed_capacity")[AssignFlags(result, DijkstraFlag::OD_AssumedCapacity)]
+			>>	strlit<>("precalculateted_NrDstZondes")[AssignFlags(result, DijkstraFlag::PrecalculatedNrDstZones)]
 			>> RBRACE
 			)
 		>> !(COLON >>
