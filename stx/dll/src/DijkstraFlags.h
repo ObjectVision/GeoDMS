@@ -79,7 +79,7 @@ enum class DijkstraFlag : UInt64
 	DstZoneLoc = 0x08'0000'0000,
 	UseEuclidicFilter = 0x10'0000'0000,
 
-	OD_MaxSizeProvided = 0x20'0000'0000,
+	OD_AssumedCapacity = 0x20'0000'0000,
 
 	EuclidFlags = OrgZoneLoc | DstZoneLoc | UseEuclidicFilter,
 
