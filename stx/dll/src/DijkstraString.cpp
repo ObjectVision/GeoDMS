@@ -118,7 +118,7 @@ DijkstraFlag ParseDijkstraString(CharPtr str)
 		|	strlit<>("od")
 		)
 		>> !(LBRACE
-			>>	strlit<>("precalculateted_NrDstZondes")[AssignFlags(result, DijkstraFlag::PrecalculatedNrDstZones)]
+			>>	strlit<>("precalculateted_NrDstZones")[AssignFlags(result, DijkstraFlag::PrecalculatedNrDstZones)]
 			>> RBRACE
 			)
 		>> !(COLON >>

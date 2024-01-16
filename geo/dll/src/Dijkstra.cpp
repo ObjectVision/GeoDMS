@@ -946,6 +946,7 @@ SizeT ProcessDijkstra(TreeItemDualRef& resultHolder
 						res.OrgMaxImp[orgZone] = maxImp;
 					if (!flags(df & DijkstraFlag::Interaction))
 						goto afterInteraction;
+
 					if (res.OrgNrDstZones)
 						res.OrgNrDstZones[orgZone] = zonalResultCount;
 
@@ -963,7 +964,7 @@ SizeT ProcessDijkstra(TreeItemDualRef& resultHolder
 							balancingFactor *= (orgAlpha == 1.0) ? totalPotential : exp(log(totalPotential) * orgAlpha);
 
 						if (res.OrgDemand)
-							res.OrgDemand[orgZone] = balancingFactor; // v_i * D_i^alpha
+							res.OrgDemand[orgZone] = balancingFactor; // M_ix == v_i * D_i^alpha
 						balancingFactor /= totalPotential; // v_i * D_i^(alpha-1)
 
 						for (SizeT j = 0; j != zonalResultCount; ++j)
@@ -1296,7 +1297,7 @@ public:
 		const Unit<NodeType>* dstZones = adiEndPointDstZone ? const_unit_cast<NodeType>(adiEndPointDstZone->GetAbstrValuesUnit()) : y;
 		const AbstrUnit* orgZonesOrVoid = orgZones ? orgZones : Unit<Void>::GetStaticClass()->CreateDefault();
 
-		dms_assert(e && v && impUnit && x && y && (orgZones || !flags(df & DijkstraFlag::OD))&& dstZones);
+		assert(e && v && impUnit && x && y && (orgZones || !flags(df & DijkstraFlag::OD))&& dstZones);
 		e->UnifyDomain(adiLinkF1->GetAbstrDomainUnit(), "Links", "Domain of FromNode_rel attribute", UM_Throw);
 		e->UnifyDomain(adiLinkF2->GetAbstrDomainUnit(), "Links", "Domain of ToNode_rel attribute", UM_Throw);
 		v->UnifyDomain(adiLinkF1->GetAbstrValuesUnit(), "Nodes", "Values of FromNode_rel attribute", UM_Throw);
@@ -1430,10 +1431,7 @@ public:
 		{
 
 			MG_CHECK(flags(df & DijkstraFlag::OD));
-			orgZonesOrVoid->UnifyDomain(adiPrecalculatedNrDstZones->GetAbstrDomainUnit(), "OrgZones", "Domain of precalculated number of destination zones", UnifyMode(UM_Throw | UM_AllowVoidRight));
-			MG_USERCHECK2(adiPrecalculatedNrDstZones->HasVoidDomainGuarantee()
-				, "AssumendCapacity as parameter (i.e. having a void domain) expected"
-			);
+			orgZonesOrVoid->UnifyDomain(adiPrecalculatedNrDstZones->GetAbstrDomainUnit(), "OrgZones", "Domain of precalculated number of destination zones", UM_Throw);
 			MG_USERCHECK2(dynamic_cast<const Unit<ZoneType>*>(adiPrecalculatedNrDstZones->GetAbstrValuesUnit())
 				, "Precalculated number of destination zones (aka PrecalculatedNrDstZones) expected as UInt32 values"
 			)
@@ -1496,11 +1494,11 @@ public:
 			: nullptr;
 
 		AbstrDataItem* resOrgNrDstZones = flags(df & DijkstraFlag::ProdOrgNrDstZones)
-			? CreateDataItem(resultContext, GetTokenID_mt("OrgZone_NrDstZones"), orgZonesOrVoid, impUnit)
+			? CreateDataItem(resultContext, GetTokenID_mt("OrgZone_NrDstZones"), orgZonesOrVoid, dstZones)
 			: nullptr;
 
 		AbstrDataItem* resOrgSumImp = flags(df & DijkstraFlag::ProdOrgSumImp)
-			? CreateDataItem(resultContext, GetTokenID_mt("OrgZone_SumImp"), orgZonesOrVoid, impUnit)
+			? CreateDataItem(resultContext, GetTokenID_mt("OrgZone_SumImp"), orgZonesOrVoid, imp2Unit)
 			: nullptr;
 
 //		AbstrDataItem* resOrgSumAltImp = flags(df & DijkstraFlag::ProdOrgSumAltImp)
