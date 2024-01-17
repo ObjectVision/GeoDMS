@@ -1126,7 +1126,7 @@ auto TryRegisterVectorDriverFromKnownDriverShortName(std::string_view knownDrive
 		RegisterOGRGML();
 
 	else if (knownDriverShortName == "OpenFileGDB")
-		RegisterOGROpenFileGDB(); // RegisterOGROpenFileGDB();
+		RegisterOGROpenFileGDB();
 
 	else if (knownDriverShortName == "GeoJSON")
 	{
