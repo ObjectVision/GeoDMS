@@ -946,6 +946,9 @@ void MainWindow::updateToolbar()
     }
 
     QMdiSubWindow* active_mdi_subwindow = m_mdi_area->activeSubWindow();
+    if (!active_mdi_subwindow)
+        clearToolbarUpToDetailPagesTools();
+
     if (m_tooled_mdi_subwindow == active_mdi_subwindow) // Do nothing
         return;
 
