@@ -306,8 +306,7 @@ struct point2colFunc : unary_func<Scalar, Point<Scalar> >
 namespace 
 {
 	Obsolete< CommonOperGroup> cog_Point("obsolete function point called.\n"
-		"Use the point_xy operation to unambiguously define points.\n"
-		"Exchange the first and second argument unless ColRowOrder was set in Config.ini"
+		"Use point_yx operation (or point_xy if ColRowOrder was set in Config.ini) to unambiguously define points.\n"
 		, token::point);
 
 	CommonOperGroup cog_PointRow("pointrow"), cog_PointCol("pointcol");
