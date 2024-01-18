@@ -41,47 +41,49 @@ enum class DijkstraFlag : UInt64
 	SparseResult = ImpCut | DstLimit,
 
 	UseAltLinkImp = 0x1000, // requires extra Mass per Edge, produces alternative dist per OD pair.
+	UseLinkAttr = 0x2000, // requires extra Mass per Edge, produces alternative dist per OD pair.
 
-	UInt64_Od = 0x2000,
+	UInt64_Od = 0x4000,
 
-	OrgMinImp = 0x4000,
-	DstMinImp = 0x8000,
-	InteractionAlpha = 0x10000,
-	DistDecay = 0x40000000,
-	DistLogit = 0x80000000,
+	OrgMinImp = 0x8000,
+	DstMinImp = 0x1'0000,
+	InteractionAlpha = 0x2'0000,
+	DistDecay = 0x4'0000,
+	DistLogit = 0x8'0000,
 
 	// production flags
-	ProdTraceBack = 0x20000, // only for non DMOF_OD
-	ProdOdLinkSet = 0x40000,
+	ProdTraceBack = 0x10'0000, // only for non DMOF_OD
+	ProdOdLinkSet = 0x20'0000,
 
-	ProdOdOrgZone_rel = 0x80000,
-	ProdOdDstZone_rel = 0x100000,
-	ProdOdImpedance = 0x200000,
-	ProdOdAltImpedance = 0x400000,
+	ProdOdOrgZone_rel = 0x100'0000,
+	ProdOdDstZone_rel = 0x200'0000,
+	ProdOdImpedance = 0x400'0000,
+	ProdOdAltImpedance = 0x800'0000,
+	ProdOdLinkAttr = 0x1000'0000, // used only for aggregation of link related data 
 
-	ProdOrgFactor = 0x00800000,
-	ProdOrgDemand = 0x01000000,
-	ProdOrgMaxImp = 0x02000000,
-	ProdDstFactor = 0x04000000,
-	ProdDstSupply = 0x08000000,
-	ProdLinkFlow =  0x10000000,
+	ProdOrgFactor = 0x1'0000'0000,
+	ProdOrgDemand = 0x2'0000'0000,
+	ProdOrgMaxImp = 0x4'0000'0000,
+	ProdDstFactor = 0x8'0000'0000,
+	ProdDstSupply = 0x10'0000'0000,
+	ProdLinkFlow  = 0x20'0000'0000,
 
-	ProdOrgNrDstZones = 0x40'0000'0000,
-	ProdOrgSumImp = 0x80'0000'0000,
-//	ProdOrgSumAltImp = 0x100'0000'0000, // TODO
+	ProdOrgNrDstZones  = 0x40'0000'0000,
+	ProdOrgSumImp      = 0x80'0000'0000,
+	ProdOrgSumLinkAttr = 0x100'0000'0000,
 	ProdOrgSqrtDist = 0x200'0000'0000, // TODO, low prio
 	ProdOrgDist = 0x400'0000'0000, // TODO, low prio
 
-	Counting = 0x20000000,
+	Counting = 0x800'0000'0000,
 
-	ProdOdStartPoint_rel = 0x01'0000'0000,
-	ProdOdEndPoint_rel = 0x02'0000'0000,
+	ProdOdStartPoint_rel = 0x1000'0000'0000,
+	ProdOdEndPoint_rel = 0x2000'0000'0000,
 
-	OrgZoneLoc = 0x04'0000'0000,
-	DstZoneLoc = 0x08'0000'0000,
-	UseEuclidicFilter = 0x10'0000'0000,
+	OrgZoneLoc = 0x4000'0000'0000,
+	DstZoneLoc = 0x8000'0000'0000,
+	UseEuclidicFilter = 0x1'0000'0000'0000,
 
-	PrecalculatedNrDstZones = 0x20'0000'0000,
+	PrecalculatedNrDstZones = 0x2'0000'0000'0000,
 
 	EuclidFlags = OrgZoneLoc | DstZoneLoc | UseEuclidicFilter,
 

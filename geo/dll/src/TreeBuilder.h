@@ -11,24 +11,21 @@
 #if !defined(__GEO_TREEBUILDER_H)
 #define __GEO_TREEBUILDER_H
 
-typedef UInt32 NodeType;
-typedef UInt32 LinkType;
+using NodeType = UInt32;
+using LinkType = UInt32;
 
 struct TreeNode;
-typedef TreeNode* treenode_pointer;
+using treenode_pointer = TreeNode*;
+using const_treenode_pointer = const TreeNode*;
 
 struct TreeNode
 {
-	TreeNode()
-		:	m_ParentNode    (treenode_pointer())
-		,	m_FirstChildNode(treenode_pointer())
-		,	m_SibblingNode  (treenode_pointer())
-	{}
+	TreeNode() = default;
 
 	void AddChild(treenode_pointer childPtr)
 	{
-		dms_assert(childPtr->m_SibblingNode == treenode_pointer()); // guaranteed to be processed once
-		dms_assert(childPtr->m_ParentNode   == treenode_pointer()); // guaranteed to be processed once
+		assert(childPtr->m_SibblingNode == treenode_pointer()); // guaranteed to be processed once
+		assert(childPtr->m_ParentNode   == treenode_pointer()); // guaranteed to be processed once
 
 		if (m_FirstChildNode != treenode_pointer())
 			childPtr->m_SibblingNode = m_FirstChildNode;
@@ -36,9 +33,17 @@ struct TreeNode
 		childPtr->m_ParentNode = this;
 	}
 
-	treenode_pointer m_ParentNode;
-	treenode_pointer m_FirstChildNode;
-	treenode_pointer m_SibblingNode;
+	const_treenode_pointer GetParent() const { return m_ParentNode; }
+	treenode_pointer GetParent() { return m_ParentNode; }
+	const_treenode_pointer GetFirstChild() const { return m_FirstChildNode; }
+	treenode_pointer GetFirstChild() { return m_FirstChildNode; }
+	const_treenode_pointer GetSibbling() const { return m_SibblingNode; }
+	treenode_pointer GetSibbling() { return m_SibblingNode; }
+
+private:
+	treenode_pointer m_ParentNode = {};
+	treenode_pointer m_FirstChildNode = {};
+	treenode_pointer m_SibblingNode = {};
 };
 
 struct TreeRelations
@@ -90,28 +95,60 @@ struct TreeRelations
 
 	static treenode_pointer MostDown(TreeNode* tn)
 	{
-		while (tn->m_FirstChildNode)
-			tn = tn->m_FirstChildNode;
+		while (auto cn = tn->GetFirstChild())
+			tn = cn;
 		return tn;
+	}
+
+	static const_treenode_pointer MostDown(const TreeNode* tn)
+	{
+		while (auto cn = tn->GetFirstChild())
+			tn = cn;
+		return tn;
+	}
+
+	const_treenode_pointer NextRoot(const TreeNode* tn) const
+	{
+		auto lastNode = end_ptr( m_TreeNodes );
+		while (tn != lastNode)
+		{
+			if (!tn->GetParent())
+				return tn;
+			++tn;
+		}
+		return {};
 	}
 
 	treenode_pointer NextRoot(TreeNode* tn)
 	{
-		treenode_pointer lastNode = end_ptr( m_TreeNodes );
+		auto lastNode = end_ptr(m_TreeNodes);
 		while (tn != lastNode)
 		{
-			if (!tn->m_ParentNode)
+			if (!tn->GetParent())
 				return tn;
 			++tn;
 		}
-		return treenode_pointer();
+		return {};
 	}
-	treenode_pointer NextRoot_Bottom(TreeNode* tn)
+
+	const_treenode_pointer NextRoot_Bottom(const TreeNode* tn) const
 	{
-		treenode_pointer lastNode = end_ptr( m_TreeNodes );
+		auto lastNode = end_ptr( m_TreeNodes );
 		while (tn != lastNode)
 		{
-			if (!tn->m_ParentNode)
+			if (!tn->GetParent())
+				return MostDown(tn);
+			++tn;
+		}
+		return nullptr;
+	}
+
+	treenode_pointer NextRoot_Bottom(TreeNode* tn)
+	{
+		auto lastNode = end_ptr( m_TreeNodes );
+		while (tn != lastNode)
+		{
+			if (!tn->GetParent())
 				return MostDown(tn);
 			++tn;
 		}
@@ -120,40 +157,61 @@ struct TreeRelations
 
 	treenode_pointer WalkDepthFirst_BottomUp(treenode_pointer tn)
 	{
-		dms_assert(tn);
+		assert(tn);
 
-		if (tn->m_SibblingNode)
+		if (auto sn = tn->GetSibbling())
 		{
-			return MostDown( tn->m_SibblingNode );
+			return MostDown( sn );
 		}
-		return tn->m_ParentNode;
+		return tn->GetParent();
 	}
 
 	treenode_pointer WalkDepthFirst_BottomUp_all(treenode_pointer tn)
 	{
 		if (!tn)
 			return NextRoot_Bottom(begin_ptr( m_TreeNodes ));
-		if (tn->m_SibblingNode)
-			return MostDown( tn->m_SibblingNode );
-		if (tn->m_ParentNode)
-			return tn->m_ParentNode;
+
+		if (auto sn = tn->GetSibbling())
+			return MostDown( sn );
+
+		if (auto pn = tn->GetParent())
+			return pn;
+
 		return NextRoot_Bottom(++tn);
+	}
+
+	const_treenode_pointer WalkDepthFirst_TopDown(const_treenode_pointer tn) const
+	{
+		assert(tn);
+
+		if (auto cn = tn->GetFirstChild())
+			return cn;
+		
+		while (true) 
+		{
+			if (auto sn = tn->GetSibbling())
+				return sn;
+			tn = tn->GetParent();
+			if (!tn)
+				return nullptr;
+		};
 	}
 
 	treenode_pointer WalkDepthFirst_TopDown(treenode_pointer tn)
 	{
-		dms_assert(tn);
+		assert(tn);
 
-		if (tn->m_FirstChildNode)
-			return tn->m_FirstChildNode;
-		
-		while (!tn->m_SibblingNode) 
+		if (auto cn = tn->GetFirstChild())
+			return cn;
+
+		while (true)
 		{
-			tn = tn->m_ParentNode;
+			if (auto sn = tn->GetSibbling())
+				return sn;
+			tn = tn->GetParent();
 			if (!tn)
 				return nullptr;
 		};
-		return tn->m_SibblingNode;
 	}
 
 	treenode_pointer WalkDepthFirst_TopDown_all(treenode_pointer tn)
@@ -161,19 +219,34 @@ struct TreeRelations
 		if (!tn)
 			return NextRoot(begin_ptr( m_TreeNodes ));
 
-		if (tn->m_FirstChildNode)
-			return tn->m_FirstChildNode;
+		if (auto cn = tn->GetFirstChild())
+			return cn;
 		
 		findSibbling:
-			if (tn->m_SibblingNode)
-				return tn->m_SibblingNode;
-			if (tn->m_ParentNode)
+			if (auto sn = tn->GetSibbling())
+				return sn;
+			if (auto pn = tn->GetParent())
 			{
-				tn = tn->m_ParentNode;
+				tn = pn;
 				goto findSibbling;
 			}
 		
 		return NextRoot(++tn);
+	}
+
+	UInt32 NrOfNode(this auto& self, const TreeNode* tn)
+	{
+		if (!tn)
+			return UNDEFINED_VALUE(UInt32);
+		return tn - &*self.m_TreeNodes.begin();
+	}
+
+	/*
+	UInt32 NrOfNode(const TreeNode* tn) const
+	{
+		if (!tn)
+			return UNDEFINED_VALUE(UInt32);
+		return tn - &*m_TreeNodes.begin();
 	}
 
 	UInt32 NrOfNode(TreeNode* tn)
@@ -182,6 +255,7 @@ struct TreeRelations
 			return UNDEFINED_VALUE(UInt32);
 		return tn - &*m_TreeNodes.begin();
 	}
+	*/
 
 	treenode_container m_TreeNodes;
 };

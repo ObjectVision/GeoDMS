@@ -68,8 +68,19 @@ DijkstraFlag ParseDijkstraString(CharPtr str)
 
 	
 	boost::spirit::rule<>  altLinkImpRule =
-		  strlit<>("alternative(link_imp)")[AssignFlags(result, DijkstraFlag::UseAltLinkImp)]
-		>> !(strlit<>(":alt_imp")[AssignFlags(result, DijkstraFlag::ProdOdAltImpedance)]);
+		strlit<>("alternative")
+		>>	LBRACE
+		>>	(	strlit<>("link_imp")[AssignFlags(result, DijkstraFlag::UseAltLinkImp)]
+			|	strlit<>("link_attr")[AssignFlags(result, DijkstraFlag::UseLinkAttr)]
+			)
+			% COMMA
+		>> RBRACE
+		>> !(COLON >>
+			(	strlit<>("alt_imp")[AssignFlags(result, DijkstraFlag::ProdOdAltImpedance)]
+			|	strlit<>("link_attr")[AssignFlags(result, DijkstraFlag::ProdOdLinkAttr)]
+			)
+			% COMMA
+			);
 
 	boost::spirit::rule<>  orgMinRule =
 		strlit<>("OrgZone_min")[AssignFlags(result, DijkstraFlag::OrgMinImp)];
@@ -102,7 +113,7 @@ DijkstraFlag ParseDijkstraString(CharPtr str)
 				|	strlit<>("D_i")[AssignFlags(result, DijkstraFlag::ProdOrgFactor)]
 				|	strlit<>("M_ix")[AssignFlags(result, DijkstraFlag::ProdOrgDemand)]
 				|   strlit<>("SumImp")[AssignFlags(result, DijkstraFlag::ProdOrgSumImp)]
-//				|	strlit<>("SumAltImp")[AssignFlags(result, DijkstraFlag::ProdOrgSumAltImp)]
+				|	strlit<>("SumLinkAttr")[AssignFlags(result, DijkstraFlag::ProdOrgSumLinkAttr)]
 				|	strlit<>("C_j")[AssignFlags(result, DijkstraFlag::ProdDstFactor)]
 				|	strlit<>("M_xj")[AssignFlags(result, DijkstraFlag::ProdDstSupply)]
 				|	strlit<>("Link_flow"     )[AssignFlags(result, DijkstraFlag::ProdLinkFlow )]
