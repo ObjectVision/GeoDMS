@@ -539,6 +539,8 @@ void MainWindow::fileOpen()
 void MainWindow::reopen()
 {
     auto cip = m_current_item_bar->text();
+    
+    reportF(MsgCategory::commands, SeverityTypeID::ST_MajorTrace, "Reopen configuration");
 
     if (GetRegStatusFlags() & RSF_EventLog_ClearOnReLoad)
         m_eventlog_model->clear();
