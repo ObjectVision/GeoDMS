@@ -760,19 +760,15 @@ TIC_CALL void TreeItem_XML_DumpSourceDescription(const TreeItem* self, SourceDes
 	SuspendTrigger::Resume();
 	SharedStr source_description_subtitle = {};
 	switch (mode) {
-	case SourceDescrMode::Configured: source_description_subtitle = "Configured Source Descriptions\n"; break;
-	case SourceDescrMode::ReadOnly:   source_description_subtitle = "Read Only Storage Managers\n"; break;
-	case SourceDescrMode::WriteOnly:  source_description_subtitle = "Non-Read Only Storage Managers\n"; break;
-	case SourceDescrMode::All:        source_description_subtitle = "Utilized Storage Managers\n"; break;
+	case SourceDescrMode::Configured:  source_description_subtitle = "Configured Source Descriptions\n"; break;
+	case SourceDescrMode::ReadOnly:    source_description_subtitle = "Read Only Storage Managers\n"; break;
+	case SourceDescrMode::WriteOnly:   source_description_subtitle = "Non-Read Only Storage Managers\n"; break;
+	case SourceDescrMode::All:         source_description_subtitle = "Utilized Storage Managers\n"; break;
+	case SourceDescrMode::DatasetInfo: source_description_subtitle = "Dataset metainfo and properties\n"; break;
 	}
 
 	XML_ItemBody xmlItemBody(*xmlOutStrPtr, "Source Description", source_description_subtitle.c_str(), self);
 	TreeItem_DumpSourceCalculator(self, mode, true, xmlOutStrPtr);
-	
-	//auto source_description = SourceCalculator(sdm, bShowHidden).GetDescr(studyObject); 
-	//TreeItem_GetSourceDescr(self, mode, true);
-	//GetSourceSequence(const TreeItem * ti)
-	//*xmlOutStrPtr << source_description.c_str();
 }
 
 TIC_CALL bool XML_MetaInfoRef(const TreeItem* self, OutStreamBase* xmlOutStrPtr)
@@ -813,6 +809,23 @@ TIC_CALL bool XML_MetaInfoRef(const TreeItem* self, OutStreamBase* xmlOutStrPtr)
 	}
 
 	return true;
+}
+
+TIC_CALL void TreeItem_XML_DumpDatasetInfo(const TreeItem* self, OutStreamBase* xmlOutStrPtr, const std::vector<std::pair<SharedStr, SharedStr>> metainfo)
+{
+	XML_ItemBody xmlItemBody(*xmlOutStrPtr, "Source Description", "Dataset metainfo and properties", self);
+	{
+		XML_Table table(*xmlOutStrPtr);
+		for (auto& dataset_metainfo_pair : metainfo)
+		{
+			XML_Table::Row row(table);
+			{
+				row.ValueCell(dataset_metainfo_pair.first.c_str());
+				row.ValueCell(dataset_metainfo_pair.second.c_str());
+			}
+			
+		}
+	}
 }
 
 void WritePropValueRows(XML_Table& xmlTable, const TreeItem* self, const Class* cls, bool showAll)

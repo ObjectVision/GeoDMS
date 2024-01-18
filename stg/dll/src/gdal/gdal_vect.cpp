@@ -1591,13 +1591,13 @@ void GdalVectSM::DoUpdateTable(const TreeItem* storageHolder, AbstrUnit* layerDo
 {
 	dms_assert(layer);
 	GDAL_ErrorFrame gdal_error_frame;
-
-	ValueComposition gdal_vc = gdalVectImpl::OGR2ValueComposition(layer->GetGeomType());
+	auto layer_geometry_type = layer->GetGeomType();
+	ValueComposition gdal_vc = gdalVectImpl::OGR2ValueComposition(layer_geometry_type);
 	auto vu = FindProjectionRef(storageHolder, layerDomain);
 	if (!vu)
 		vu = Unit<DPoint>::GetStaticClass()->CreateDefault();
 
-	if (!(layer->GetGeomType() == OGRwkbGeometryType::wkbNone))
+	if (!(layer_geometry_type == OGRwkbGeometryType::wkbNone))
 	{
 		auto geometry_item = layerDomain->GetSubTreeItemByID(token::geometry);
 		AbstrDataItem* geometry = AsDynamicDataItem(geometry_item);

@@ -1126,7 +1126,7 @@ auto TryRegisterVectorDriverFromKnownDriverShortName(std::string_view knownDrive
 		RegisterOGRGML();
 
 	else if (knownDriverShortName == "OpenFileGDB")
-		RegisterOGROpenFileGDB(); // RegisterOGROpenFileGDB();
+		RegisterOGROpenFileGDB();
 
 	else if (knownDriverShortName == "GeoJSON")
 	{
@@ -1458,4 +1458,32 @@ GDAL_SimpleReader::GDAL_SimpleReader()
 	GDALRegisterTrustedDriverFromKnownDriverShortName("PNG");
 	GDALRegisterTrustedDriverFromKnownDriverShortName("GTiff");
 	GDALRegisterTrustedDriverFromKnownDriverShortName("BMP");
+}
+
+// *****************************************************************************
+STGDLL_CALL auto GetMetaInfoFromStorageHolder(const TreeItem* studyObject) -> std::vector<std::pair<SharedStr, SharedStr>>
+{
+	auto result = std::vector<std::pair<SharedStr, SharedStr>>();
+	auto storage_holder = studyObject->GetStorageParent(false);
+	if (!storage_holder)
+		return result;
+
+	auto smi = GdalMetaInfo(storage_holder, studyObject);
+	auto gdal_ds_handle = Gdal_DoOpenStorage(smi, dms_rw_mode::read_only, 0, false);
+
+	//gdal_ds_handle->file
+
+	// spatial reference
+	auto srs = gdal_ds_handle->GetSpatialRef();
+	if (srs)
+	{
+		char* pszWKT = nullptr;
+		srs->exportToPrettyWkt(&pszWKT, false);
+		result.push_back({ SharedStr("SpatialReference"), SharedStr(pszWKT) });
+	}
+
+	// layers
+	result.push_back({ SharedStr("#layers"), AsString(gdal_ds_handle->GetLayerCount()) });
+
+	return result;
 }
