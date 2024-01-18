@@ -1225,6 +1225,7 @@ class DijkstraMatrOperator : public VariadicOperator
 		if (flags(df & DijkstraFlag::DstLimit)) nrArgs += 2;
 		if (flags(df & DijkstraFlag::UseEuclidicFilter)) nrArgs += 1; // requires OrgZoneLoc and DstZoneLoc
 		if (flags(df & DijkstraFlag::UseAltLinkImp)) ++nrArgs;
+		if (flags(df & DijkstraFlag::UseLinkAttr)) ++nrArgs;
 		if (flags(df & DijkstraFlag::Interaction)) nrArgs += 2;
 		if (flags(df & DijkstraFlag::DistDecay)) nrArgs += 1;
 		if (flags(df & DijkstraFlag::DistLogit)) nrArgs += 3;
