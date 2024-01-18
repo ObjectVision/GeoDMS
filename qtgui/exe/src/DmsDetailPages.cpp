@@ -251,6 +251,15 @@ SharedStr FindURL(const TreeItem* ti)
     return {};
 }
 
+#include "gdal/gdal_base.h"
+void DumpSourceDescriptionDatasetInfo(const TreeItem* studyObject, OutStreamBase* xmlOutStrPtr)
+{
+    auto metainfo = GetMetaInfoFromStorageHolder(studyObject);
+    
+    
+    TreeItem_XML_DumpDatasetInfo(studyObject, xmlOutStrPtr, metainfo);
+}
+
 void DmsDetailPages::drawPage()
 {
     if (!MainWindow::IsExisting())
@@ -290,9 +299,12 @@ void DmsDetailPages::drawPage()
     }
     case ActiveDetailPage::SOURCEDESCR:
     {
-        //(*xmlOut) << TreeItem_GetSourceDescr(current_item, m_SDM, true).c_str();
         main_window->hideDetailPagesRadioButtonWidgets(true, false);
-        TreeItem_XML_DumpSourceDescription(current_item, m_SDM, xmlOut.get());
+
+        if (m_SDM == SourceDescrMode::DatasetInfo)
+            DumpSourceDescriptionDatasetInfo(current_item, xmlOut.get());
+        else
+            TreeItem_XML_DumpSourceDescription(current_item, m_SDM, xmlOut.get());
         break;
     }
     case ActiveDetailPage::METADATA:
