@@ -698,6 +698,9 @@ void DmsToolbuttonAction::onToolbuttonPressed()
         return;
 
     auto subwindow_list = mdi_area->subWindowList(QMdiArea::WindowOrder::StackingOrder);
+    if (!subwindow_list.size())
+        return;
+
     auto subwindow_highest_in_z_order = subwindow_list.back();
     if (!subwindow_highest_in_z_order)
         return;

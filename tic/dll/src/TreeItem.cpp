@@ -3041,7 +3041,7 @@ bool TreeItem::ReadItem(StorageReadHandle&& srh) // TODO: Make this a method of 
 
 	try
 	{
-		reportF(MsgCategory::storage_read, SeverityTypeID::ST_MajorTrace, "Read %s(%s)"
+		reportF(MsgCategory::storage_read, SeverityTypeID::ST_MajorTrace, "Read %s [[%s]]"
 		,		storageParent->GetStorageManager()->GetNameStr().c_str()
 		,		GetFullName().c_str()
 		);	
