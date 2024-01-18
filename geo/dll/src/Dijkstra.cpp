@@ -509,15 +509,15 @@ SizeT ProcessDijkstra(TreeItemDualRef& resultHolder
 	Timer processTimer;
 	std::atomic<SizeT> resultCount = 0, zoneCount = 0;
 
-	dms_assert(flags(df & DijkstraFlag::OD) || !bool(ni.startPoints.Zone_rel));
+	assert(flags(df & DijkstraFlag::OD) || !bool(ni.startPoints.Zone_rel));
 
-	dms_assert(altLinkWeights || !res.od_AltLinkImp);
+	assert(altLinkWeights || !res.od_AltLinkImp);
 
 	bool tgBetaDecayIsZero = (tgBetaDecay == 0.0);
 	bool tgBetaDecayIsOne  = (tgBetaDecay == 1.0);
 	bool tgBetaDecayIsZeroOrOne = tgBetaDecayIsZero || tgBetaDecayIsOne;
 	bool useSrcZoneStamps = flags(df & DijkstraFlag::SparseResult) && flags(df & DijkstraFlag::OD);
-	bool useTraceBack = (altLinkWeights || res.od_LS || res.LinkFlow || flags(df & DijkstraFlag::VerboseLogging) && !res.node_TB);
+	bool useTraceBack = (altLinkWeights || linkAttr || res.od_LS || res.LinkFlow || flags(df & DijkstraFlag::VerboseLogging) && !res.node_TB);
 
 	WriteBlock writeBlocks;
 
@@ -570,7 +570,7 @@ SizeT ProcessDijkstra(TreeItemDualRef& resultHolder
 				}
 
 				bool trIsUsed = false;
-				if (altLinkWeights || res.LinkFlow)
+				if (altLinkWeights || res.LinkFlow || linkAttr)
 				{
 					tr.InitNodes(ni.nrV);
 					trIsUsed = true;
@@ -591,9 +591,9 @@ SizeT ProcessDijkstra(TreeItemDualRef& resultHolder
 				
 				if (res.node_TB)
 				{
-					dms_assert(!useTraceBack);
-					dms_assert(!flags(df & DijkstraFlag::OD));
-					dms_assert(!dh.m_TraceBackData);
+					assert(!useTraceBack);
+					assert(!flags(df & DijkstraFlag::OD));
+					assert(!dh.m_TraceBackData);
 					dh.m_TraceBackDataPtr = res.node_TB;
 					fast_undefine(dh.m_TraceBackDataPtr, dh.m_TraceBackDataPtr + ni.nrV); // REMOVE WHEN new Tree is implemented
 				}
@@ -644,7 +644,7 @@ SizeT ProcessDijkstra(TreeItemDualRef& resultHolder
 
 					if (trIsUsed)
 					{
-						dms_assert(dh.m_TraceBackDataPtr);
+						assert(dh.m_TraceBackDataPtr);
 						LinkType backLink = dh.m_TraceBackDataPtr[currNode];
 						if (IsDefined(backLink))
 						{
@@ -878,7 +878,7 @@ SizeT ProcessDijkstra(TreeItemDualRef& resultHolder
 				const ImpType* d_vj = dh.m_ResultDataPtr;
 				const ImpType* la_vj = nullptr;
 
-				dms_assert(nodeALW || !res.od_AltLinkImp);
+				assert(nodeALW || !res.od_AltLinkImp);
 				if (altLinkWeights)
 				{
 					assert(trIsUsed);
@@ -1041,10 +1041,10 @@ SizeT ProcessDijkstra(TreeItemDualRef& resultHolder
 					// ===================== Write Link_flow, WARNING: nodeALW is reused and overwritten.
 					if (res.LinkFlow && totalPotential)
 					{
-						dms_assert(dh.m_TraceBackDataPtr);
-						dms_assert(nodeALW);
-						dms_assert(tr.IsUsed());
-						dms_assert(flags(df & DijkstraFlag::Interaction));
+						assert(dh.m_TraceBackDataPtr);
+						assert(nodeALW);
+						assert(tr.IsUsed());
+						assert(flags(df & DijkstraFlag::Interaction));
 
 						// init nodeALW for used nodes to zero.
 						for (ZoneType startPointIndex = ni.orgZone_startPoint_inv.FirstOrSame(orgZone); IsDefined(startPointIndex); startPointIndex = ni.orgZone_startPoint_inv.NextOrNone(startPointIndex))
@@ -1323,7 +1323,7 @@ public:
 		const AbstrDataItem* adiOrgAlpha            = flags(df & DijkstraFlag::InteractionAlpha) ? AsCheckedDataItem(args[argCounter++]) : nullptr; // demand alpha
 		const AbstrDataItem* adiPrecalculatedNrDstZones = flags(df & DijkstraFlag::PrecalculatedNrDstZones) ? AsCheckedDataItem(args[argCounter++]) : nullptr; // assumed capacity
 
-		assert(argCounter == args.size()); // all arguments have been processed.
+		MG_CHECK(argCounter == args.size()); // all arguments have been processed.
 
 		dms_assert(adiLinkImp && adiLinkF1 && adiLinkF2);
 		dms_assert((adiOrgMassLimit != nullptr) == (adiDstMassLimit != nullptr));
@@ -1399,6 +1399,11 @@ public:
 			imp2Unit= const_unit_cast<ImpType>(adiLinkAltImp->GetAbstrValuesUnit());
 			impUnitRef = "AltImpUnit";
 			e->UnifyDomain(adiLinkAltImp->GetAbstrDomainUnit(), "Edges", "Domain of Alternative Impedances", UnifyMode(UM_Throw | UM_AllowVoidRight));
+		}
+		const Unit<ImpType>* linkAttrUnit = nullptr;
+		if (adiLinkAttr)
+		{
+			linkAttrUnit = const_unit_cast<ImpType>(adiLinkAttr->GetAbstrValuesUnit());
 		}
 
 		// interaction parameters
@@ -1520,7 +1525,7 @@ public:
 			:	nullptr;
 
 		AbstrDataItem* resLinkAttr = flags(df & DijkstraFlag::ProdOdLinkAttr)
-			? CreateDataItem(resultContext, GetTokenID_mt("LinkAttr"), resultUnit, imp2Unit)
+			? CreateDataItem(resultContext, GetTokenID_mt("LinkAttr"), resultUnit, linkAttrUnit)
 			: nullptr;
 
 		AbstrDataItem* resOrgFactor = flags(df & DijkstraFlag::ProdOrgFactor)
@@ -1545,7 +1550,7 @@ public:
 			: nullptr;
 
 		AbstrDataItem* resOrgSumLinkAttr = flags(df & DijkstraFlag::ProdOrgSumLinkAttr)
-			? CreateDataItem(resultContext, GetTokenID_mt("OrgZone_SumLinkAttr"), orgZonesOrVoid, impUnit)
+			? CreateDataItem(resultContext, GetTokenID_mt("OrgZone_SumLinkAttr"), orgZonesOrVoid, linkAttrUnit)
 			: nullptr;
 
 		AbstrDataItem* resOrgMaxImp = flags(df & DijkstraFlag::ProdOrgMaxImp)
@@ -1758,7 +1763,7 @@ public:
 							, euclidicSqrDist
 							, graph
 							, node_endPoint_inv
-							, (df & ~DijkstraFlag::InteractionOrMaxImp) | DijkstraFlag::Counting
+							, (df & ~DijkstraFlag::InteractionOrMaxImp & ~DijkstraFlag::UseLinkAttr) | DijkstraFlag::Counting
 							, nullptr, HasVoidDomainGuarantee(adiLinkAltImp)
 							, nullptr, HasVoidDomainGuarantee(adiLinkAttr)
 							, nullptr, HasVoidDomainGuarantee(adiOrgMinImp)
@@ -1808,7 +1813,7 @@ public:
 			DataWriteLock resLinkSetLock(resLS,      dms_rw_mode::write_only_mustzero); // per OD
 
 			DataWriteLock resALWLock(resAltLinkImp); // per OD
-			DataWriteLock resLALock (resLinkAttr); // per OD
+			DataWriteLock resLinkAttrLock (resLinkAttr); // per OD
 			DataWriteLock resOrgNrDstZonesLock(resOrgNrDstZones); // per OrgZone
 			DataWriteLock resOrgSumImpLock(resOrgSumImp); // per OrgZone
 			DataWriteLock resOrgSumLinkAttrLock(resOrgSumLinkAttr); // per OrgZone
@@ -1845,7 +1850,7 @@ public:
 			,	ResultInfo<ZoneType, ImpType, MassType>{
 					resDist         ? mutable_array_cast<ImpType >(resDistLock)->GetDataWrite(no_tile, dms_rw_mode::write_only_all).begin() : nullptr
 				,   resAltLinkImp   ? mutable_array_cast<ImpType >(resALWLock)->GetDataWrite(no_tile, dms_rw_mode::write_only_all).begin() : nullptr
-				,	resLinkAttr     ? mutable_array_cast<ImpType >(resLALock)->GetDataWrite(no_tile, dms_rw_mode::write_only_all).begin() : nullptr
+				,	resLinkAttr     ? mutable_array_cast<ImpType >(resLinkAttrLock)->GetDataWrite(no_tile, dms_rw_mode::write_only_all).begin() : nullptr
 				,   resSrcZone      ? mutable_array_cast<ZoneType>(resSrcZoneLock)->GetDataWrite(no_tile, dms_rw_mode::write_only_all).begin() : nullptr
 				,   resDstZone      ? mutable_array_cast<ZoneType>(resDstZoneLock)->GetDataWrite(no_tile, dms_rw_mode::write_only_all).begin() : nullptr
 				,   resStartPoint   ? mutable_array_cast<ZoneType>(resStartPointLock)->GetDataWrite(no_tile, dms_rw_mode::write_only_all).begin() : nullptr
@@ -1887,11 +1892,12 @@ public:
 			if (resTB) resTraceBackLock.Commit();
 			if (resLS) resLinkSetLock.Commit();
 			if (resAltLinkImp) resALWLock.Commit();
+			if (resLinkAttr) resLinkAttrLock.Commit();
 			if (resOrgNrDstZones) resOrgNrDstZonesLock.Commit();
 			if (resOrgFactor) resOrgFactorLock.Commit();
 			if (resOrgDemand) resODLock.Commit();
 			if (resOrgSumImp) resOrgSumImpLock.Commit();
-//			if (resOrgSumAlsImp) resOrgSumAltImpLock.Commit();
+			if (resOrgSumLinkAttr) resOrgSumLinkAttrLock.Commit();
 			if (resOrgMaxImp) resOMILock.Commit();
 			if (resDstFactor) resDFLock.Commit();
 			if (resDstSupply) resDSLock.Commit();

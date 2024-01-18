@@ -92,7 +92,7 @@ enum class DijkstraFlag : UInt64
 	InteractionOrMaxImp = Interaction | ProdOrgMaxImp,
 	Calc_pot_ij = ProdDstFactor | ProdDstSupply | ProdLinkFlow,
 
-	OD_Data = ProdOdOrgZone_rel | ProdOdDstZone_rel | ProdOdStartPoint_rel | ProdOdEndPoint_rel | ProdOdImpedance | ProdOdAltImpedance | ProdOdLinkSet,
+	OD_Data = ProdOdOrgZone_rel | ProdOdDstZone_rel | ProdOdStartPoint_rel | ProdOdEndPoint_rel | ProdOdImpedance | ProdOdAltImpedance | ProdOdLinkAttr | ProdOdLinkSet,
 //	TmbTB = DijkstraFlag::UseAltLinkImp | DijkstraFlag::ProdLinkFlow | DijkstraFlag::ProdOdLinkSet,
 };
 

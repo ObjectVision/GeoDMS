@@ -119,7 +119,7 @@ struct DijkstraHeap
 	const HeapElemType& Front() const { return m_NodeHeap.front(); }
 
 	ImpType* m_ResultDataPtr = nullptr;
-	typename sequence_traits<LinkType>::seq_t::iterator m_TraceBackDataPtr = typename sequence_traits<LinkType>::seq_t::iterator(); // LinkType can be BitValue<4>
+	typename sequence_traits<LinkType>::seq_t::iterator m_TraceBackDataPtr = {}; // LinkType can be BitValue<4>
 	ImpType m_MaxImp = MaxValue<ImpType>();
 
 protected:
