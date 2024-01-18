@@ -167,15 +167,14 @@ void DmsDetailPages::sourceDescriptionButtonToggled(QAbstractButton* button, boo
     auto main_window = MainWindow::TheOne();
     if (main_window->m_detail_page_source_description_buttons->sd_readonly == button) // read only
         m_SDM = SourceDescrMode::ReadOnly;
-
-    if (main_window->m_detail_page_source_description_buttons->sd_configured == button) // configured
+    else if (main_window->m_detail_page_source_description_buttons->sd_configured == button) // configured
         m_SDM = SourceDescrMode::Configured;
-
-    if (main_window->m_detail_page_source_description_buttons->sd_nonreadonly == button) // non read only
+    else if (main_window->m_detail_page_source_description_buttons->sd_nonreadonly == button) // non read only
         m_SDM = SourceDescrMode::WriteOnly;
-
-    if (main_window->m_detail_page_source_description_buttons->sd_all == button) // all
+    else if (main_window->m_detail_page_source_description_buttons->sd_all == button) // all
         m_SDM = SourceDescrMode::All;
+    else if (main_window->m_detail_page_source_description_buttons->sd_dataset_information == button) // dataset information
+        m_SDM = SourceDescrMode::DatasetInfo;
 
     scheduleDrawPageImpl(0);
 }

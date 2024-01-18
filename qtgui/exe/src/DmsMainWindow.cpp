@@ -52,8 +52,6 @@
 
 #include "dataview.h"
 
-
-
 static MainWindow* s_CurrMainWindow = nullptr;
 UInt32 s_errorWindowActivationCount = 0;
 
