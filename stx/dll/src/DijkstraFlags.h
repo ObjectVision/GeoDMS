@@ -89,7 +89,7 @@ enum class DijkstraFlag : UInt64
 
 	EuclidFlags = OrgZoneLoc | DstZoneLoc | UseEuclidicFilter,
 
-	TripDistr = ProdOrgFactor | ProdOrgDemand | ProdDstFactor | ProdDstSupply | ProdOrgSumImp || ProdOrgSumLinkAttr,
+	TripDistr = ProdOrgFactor | ProdOrgDemand | ProdDstFactor | ProdDstSupply | ProdOrgSumImp | ProdOrgSumLinkAttr,
 	Interaction = TripDistr | ProdLinkFlow,
 	InteractionOrMaxImp = Interaction | ProdOrgMaxImp,
 	Calc_pot_ij = ProdDstFactor | ProdDstSupply | ProdLinkFlow | ProdOrgSumImp | ProdOrgSumLinkAttr,
