@@ -47,6 +47,8 @@ enum class DijkstraFlag : UInt64
 
 	OrgMinImp = 0x8000,
 	DstMinImp = 0x1'0000,
+	InteractionVi = 0x4'0000'0000'0000,
+	InteractionWj = 0x8'0000'0000'0000,
 	InteractionAlpha = 0x2'0000,
 	DistDecay = 0x4'0000,
 	DistLogit = 0x8'0000,
@@ -90,7 +92,7 @@ enum class DijkstraFlag : UInt64
 	TripDistr = ProdOrgFactor | ProdOrgDemand | ProdDstFactor | ProdDstSupply,
 	Interaction = TripDistr | ProdLinkFlow,
 	InteractionOrMaxImp = Interaction | ProdOrgMaxImp,
-	Calc_pot_ij = ProdDstFactor | ProdDstSupply | ProdLinkFlow,
+	Calc_pot_ij = ProdDstFactor | ProdDstSupply | ProdLinkFlow | ProdOrgSumImp | ProdOrgSumLinkAttr,
 
 	OD_Data = ProdOdOrgZone_rel | ProdOdDstZone_rel | ProdOdStartPoint_rel | ProdOdEndPoint_rel | ProdOdImpedance | ProdOdAltImpedance | ProdOdLinkAttr | ProdOdLinkSet,
 //	TmbTB = DijkstraFlag::UseAltLinkImp | DijkstraFlag::ProdLinkFlow | DijkstraFlag::ProdOdLinkSet,

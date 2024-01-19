@@ -82,31 +82,20 @@ DijkstraFlag ParseDijkstraString(CharPtr str)
 			% COMMA
 			);
 
-	boost::spirit::rule<>  orgMinRule =
-		strlit<>("OrgZone_min")[AssignFlags(result, DijkstraFlag::OrgMinImp)];
-
-	boost::spirit::rule<>  dstMinRule =
-		strlit<>("DstZone_min")[AssignFlags(result, DijkstraFlag::DstMinImp)];
-
-	boost::spirit::rule<>  orgAlphaRule =
-		strlit<>("OrgZone_alpha")[AssignFlags(result, DijkstraFlag::InteractionAlpha)];
-
-	boost::spirit::rule<>  distDecayRule = 
-		strlit<>("dist_decay")[AssignFlags(result, DijkstraFlag::DistDecay)];
-
-	boost::spirit::rule<>  distLogitRule =
-	strlit<>("dist_logit(alpha,beta,gamma)")[AssignFlags(result, DijkstraFlag::DistLogit)];
-
 	boost::spirit::rule<>  interactionRule =
 		strlit<>("interaction")
-		>> LBRACE
-			>> !(orgMinRule >> COMMA)
-			>> !(dstMinRule >> COMMA)
-			>> "v_i,w_j"
-			>> !(COMMA >> distDecayRule)
-			>> !(COMMA >> distLogitRule)
-			>> !(COMMA >> orgAlphaRule)
-		>> RBRACE 
+		>> !(LBRACE >>
+			(
+				strlit<>("OrgZone_min")[AssignFlags(result, DijkstraFlag::OrgMinImp)]
+			|	strlit<>("DstZone_min")[AssignFlags(result, DijkstraFlag::DstMinImp)]
+			|	strlit<>("v_i")[AssignFlags(result, DijkstraFlag::InteractionVi)]
+			|	strlit<>("w_j")[AssignFlags(result, DijkstraFlag::InteractionWj)]
+			|	strlit<>("dist_decay")[AssignFlags(result, DijkstraFlag::DistDecay)]
+			|	strlit<>("dist_logit(alpha,beta,gamma)")[AssignFlags(result, DijkstraFlag::DistLogit)]
+			|	strlit<>("OrgZone_alpha")[AssignFlags(result, DijkstraFlag::InteractionAlpha)]
+			) 
+			% COMMA
+		>> RBRACE)
 		>> !(COLON >> 
 				(
 					strlit<>("NrDstZones")[AssignFlags(result, DijkstraFlag::ProdOrgNrDstZones)]
