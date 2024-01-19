@@ -141,9 +141,7 @@ bool UnitCombine_impl(AbstrUnit* res, const ArgSeqType& args, bool mustCalc, boo
 			continue; // go to next sub
 		}
 
-		SizeT unitBase = ithUnit->GetBase();
 		SizeT unitCount = ithUnit->GetCount();
-		SizeT unitUB = unitCount + unitBase;
 
 		SizeT cycleSize = groupSize * unitCount;
 		auto trd = res->GetTiledRangeData();
