@@ -1018,7 +1018,10 @@ SizeT ProcessDijkstra(TreeItemDualRef& resultHolder
 						}
 						if (orgAlphaCopy != 0.0)
 						{
-							balancingFactor *= (orgAlphaCopy == 1.0) ? totalPotential : exp(log(totalPotential) * orgAlphaCopy);
+							if (orgAlphaCopy == 1.0)
+								balancingFactor *= totalPotential;
+							else
+								balancingFactor *= exp(log(totalPotential) * orgAlphaCopy);
 						}
 
 						if (res.orgZone_Demand)
