@@ -10,7 +10,13 @@
 #include "geo/Couple.h"
 #include "geo/ElemTraits.h"
 
+#include "RtcGeneratedVersion.h"
+
+#if DMS_VERSION_MAJOR < 15
+
 #define DMS_POINT_ROWCOL
+
+#endif
 
 //----------------------------------------------------------------------
 // class  : Point<T>
