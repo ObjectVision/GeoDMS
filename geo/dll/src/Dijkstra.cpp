@@ -961,6 +961,7 @@ SizeT ProcessDijkstra(TreeItemDualRef& resultHolder
 
 						if (impedance <= 0 && !tgBetaDecayIsZero)
 							continue;
+
 						assert(impedance > 0 || tgBetaDecayIsZero);
 						MakeMax(maxImp, impedance);
 
@@ -968,15 +969,17 @@ SizeT ProcessDijkstra(TreeItemDualRef& resultHolder
 							continue; // next j.
 
 						// t_ij
-						Float64 potential;
+						Float64 potential = 1.0;
 
-						assert(flags(df & (DijkstraFlag::DistDecay | DijkstraFlag::DistLogit)));
+						if (!tgBetaDecayIsZero)
+						{
+							if (tgBetaDecayIsOne)
+								potential = 1.0 / impedance;
+							else 
+								potential = exp(log(impedance) * -tgBetaDecay);
+						}
 
-						if (flags(df & DijkstraFlag::DistDecay))
-							potential = (tgBetaDecayIsZeroOrOne)
-							? tgBetaDecayIsZero ? 1.0 : 1.0 / impedance
-							: exp(log(impedance)*-tgBetaDecay);
-						else
+						if (flags(df & DijkstraFlag::DistLogit))
 						{
 							if (impedance > 0)
 								potential = 1.0 / (1.0 + exp(tgAlphaLogit + tgBetaLogit * log(impedance) + tgGammaLogit * impedance));
