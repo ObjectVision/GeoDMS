@@ -203,8 +203,8 @@ QDmsViewArea::QDmsViewArea(QMdiArea* parent, TreeItem* viewContext, const TreeIt
 
     m_DataView = SHV_DataView_Create(viewContext, viewStyle, ShvSyncMode::SM_Load);
     if (!m_DataView)
-        throwErrorF("CreateView", "Cannot create view with style %d with context '%s'"
-            , viewStyle
+        throwErrorF("CreateView", "Cannot create view with style %s with context '%s'"
+            , GetViewStyleName(viewStyle)
             , viewContext->GetFullName().c_str()
         );
 

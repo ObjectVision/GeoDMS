@@ -42,7 +42,7 @@ class FocusCaret;
 class DataView;
 
 //----------------------------------------------------------------------
-// struct : MsgStruct
+// ViewStyle
 //----------------------------------------------------------------------
 
 // ViewStyle must be in sync with ilTreeview in unit fMain.dfm and TTreeItemViewStyle in uDmsInterface.pas
@@ -69,6 +69,8 @@ enum ViewStyle {
 ,   tvsCalculationTimes
 ,	tvsCurrentConfigFileList
 };
+
+SHV_CALL CharPtr GetViewStyleName(ViewStyle ct);
 	
 enum ViewStyleFlags {
 	vsfNone               = 0,
