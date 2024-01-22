@@ -717,6 +717,12 @@ void ReadStrAttrData(OGRLayer* layer, SizeT currFieldIndex, sequence_traits<Shar
 		DataArray<SharedStr>::reference dataElemRef = data[i];
 		bool dataset_has_random_layer_read_capability = hDS->TestCapability(ODsCRandomLayerRead);
 		gdalVectImpl::FeaturePtr feat = dataset_has_random_layer_read_capability ? GetNextFeatureInterleaved(layer, hDS) : layer->GetNextFeature();
+		if (!feat)
+		{
+			Assign(dataElemRef, Undefined());
+			continue;
+		}
+
 		bool feature_field_is_null = feat->IsFieldNull(currFieldIndex);
 		bool feature_field_is_set = feat->IsFieldSet(currFieldIndex);
 
@@ -1597,13 +1603,13 @@ void GdalVectSM::DoUpdateTable(const TreeItem* storageHolder, AbstrUnit* layerDo
 		AbstrDataItem* geometry = AsDynamicDataItem(geometry_item);
 		if (geometry)
 		{
-			auto vu = geometry->GetAbstrValuesUnit();
-			if (vu && vu->GetValueType()->GetValueClassID() != ValueClassID::VT_String)
-			{
-				ValueComposition configured_vc = geometry->GetValueComposition();
-				if (configured_vc != gdal_vc && gdal_vc != ValueComposition::Unknown)
-					geometry->Fail("Value composition incompatible with GDAL's formal geometry type", FR_MetaInfo);
-			}
+			if (auto gvu = geometry->GetAbstrValuesUnit())
+				if (gvu->GetValueType()->GetValueClassID() != ValueClassID::VT_String)
+				{
+					ValueComposition configured_vc = geometry->GetValueComposition();
+					if (configured_vc != gdal_vc && gdal_vc != ValueComposition::Unknown)
+						geometry->Fail("Value composition incompatible with GDAL's formal geometry type", FR_MetaInfo);
+				}
 		}
 		else
 		{

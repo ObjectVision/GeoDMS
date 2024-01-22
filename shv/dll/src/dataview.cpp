@@ -66,6 +66,36 @@ GPoint LParam2Point(LPARAM lParam)
 {
 	return GPoint(GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam));
 }
+
+//----------------------------------------------------------------------
+// ViewStyle
+//----------------------------------------------------------------------
+
+SHV_CALL CharPtr GetViewStyleName(ViewStyle ct)
+{
+	switch (ct) {
+		case tvsMapView: return "MapView";
+		case tvsTableView: return "TableView";
+		case tvsExprEdit: return "ExprEdit";
+		case tvsClassificationEdit: return "ClassificationEdit";
+		case tvsPaletteEdit: return "PaletteEdit";
+		case tvsDefault: return "Default";
+		case tvsContainer: return "Container";
+		case tvsTableContainer: return "TableContainer";
+		case tvsHistogram: return "Histogram";
+		case tvsUpdateItem: return "UpdateItem";
+		case tvsUpdateTree: return "UpdateTree";
+		case tvsSubItemSchema: return "SubItemSchema";
+		case tvsSupplierSchema: return "SupplierSchema";
+		case tvsExprSchema: return "ExprSchema";
+		case tvsUndefined: return "Undefined";
+		case tvsStatistics: return "Statistics";
+		case tvsCalculationTimes: return "CalculationTimes";
+		case tvsCurrentConfigFileList: return "CurrentConfigFileList";
+		default: return "Unknown";
+	}
+}
+
 //----------------------------------------------------------------------
 // struct : MsgStruct
 //----------------------------------------------------------------------

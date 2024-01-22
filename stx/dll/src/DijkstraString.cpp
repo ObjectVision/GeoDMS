@@ -68,38 +68,41 @@ DijkstraFlag ParseDijkstraString(CharPtr str)
 
 	
 	boost::spirit::rule<>  altLinkImpRule =
-		  strlit<>("alternative(link_imp)")[AssignFlags(result, DijkstraFlag::UseAltLinkImp)]
-		>> !(strlit<>(":alt_imp")[AssignFlags(result, DijkstraFlag::ProdOdAltImpedance)]);
-
-	boost::spirit::rule<>  orgMinRule =
-		strlit<>("OrgZone_min")[AssignFlags(result, DijkstraFlag::OrgMinImp)];
-
-	boost::spirit::rule<>  dstMinRule =
-		strlit<>("DstZone_min")[AssignFlags(result, DijkstraFlag::DstMinImp)];
-
-	boost::spirit::rule<>  orgAlphaRule =
-		strlit<>("OrgZone_alpha")[AssignFlags(result, DijkstraFlag::InteractionAlpha)];
-
-	boost::spirit::rule<>  distDecayRule = 
-		strlit<>("dist_decay")[AssignFlags(result, DijkstraFlag::DistDecay)];
-
-	boost::spirit::rule<>  distLogitRule =
-	strlit<>("dist_logit(alpha,beta,gamma)")[AssignFlags(result, DijkstraFlag::DistLogit)];
+		strlit<>("alternative")
+		>>	LBRACE
+		>>	(	strlit<>("link_imp")[AssignFlags(result, DijkstraFlag::UseAltLinkImp)]
+			|	strlit<>("link_attr")[AssignFlags(result, DijkstraFlag::UseLinkAttr)]
+			)
+			% COMMA
+		>> RBRACE
+		>> !(COLON >>
+			(	strlit<>("alt_imp")[AssignFlags(result, DijkstraFlag::ProdOdAltImpedance)]
+			|	strlit<>("link_attr")[AssignFlags(result, DijkstraFlag::ProdOdLinkAttr)]
+			)
+			% COMMA
+			);
 
 	boost::spirit::rule<>  interactionRule =
 		strlit<>("interaction")
-		>> LBRACE
-			>> !(orgMinRule >> COMMA)
-			>> !(dstMinRule >> COMMA)
-			>> "v_i,w_j"
-			>> !(COMMA >> distDecayRule)
-			>> !(COMMA >> distLogitRule)
-			>> !(COMMA >> orgAlphaRule)
-		>> RBRACE 
+		>> !(LBRACE >>
+			(
+				strlit<>("OrgZone_min")[AssignFlags(result, DijkstraFlag::OrgMinImp)]
+			|	strlit<>("DstZone_min")[AssignFlags(result, DijkstraFlag::DstMinImp)]
+			|	strlit<>("v_i")[AssignFlags(result, DijkstraFlag::InteractionVi)]
+			|	strlit<>("w_j")[AssignFlags(result, DijkstraFlag::InteractionWj)]
+			|	strlit<>("dist_decay")[AssignFlags(result, DijkstraFlag::DistDecay)]
+			|	strlit<>("dist_logit(alpha,beta,gamma)")[AssignFlags(result, DijkstraFlag::DistLogit)]
+			|	strlit<>("OrgZone_alpha")[AssignFlags(result, DijkstraFlag::InteractionAlpha)]
+			) 
+			% COMMA
+		>> RBRACE)
 		>> !(COLON >> 
 				(
-					strlit<>("D_i")[AssignFlags(result, DijkstraFlag::ProdOrgFactor)]
+					strlit<>("NrDstZones")[AssignFlags(result, DijkstraFlag::ProdOrgNrDstZones)]
+				|	strlit<>("D_i")[AssignFlags(result, DijkstraFlag::ProdOrgFactor)]
 				|	strlit<>("M_ix")[AssignFlags(result, DijkstraFlag::ProdOrgDemand)]
+				|   strlit<>("SumImp")[AssignFlags(result, DijkstraFlag::ProdOrgSumImp)]
+				|	strlit<>("SumLinkAttr")[AssignFlags(result, DijkstraFlag::ProdOrgSumLinkAttr)]
 				|	strlit<>("C_j")[AssignFlags(result, DijkstraFlag::ProdDstFactor)]
 				|	strlit<>("M_xj")[AssignFlags(result, DijkstraFlag::ProdDstSupply)]
 				|	strlit<>("Link_flow"     )[AssignFlags(result, DijkstraFlag::ProdLinkFlow )]
@@ -115,7 +118,7 @@ DijkstraFlag ParseDijkstraString(CharPtr str)
 		|	strlit<>("od")
 		)
 		>> !(LBRACE
-			>>	strlit<>("assumed_capacity")[AssignFlags(result, DijkstraFlag::OD_AssumedCapacity)]
+			>>	strlit<>("precalculateted_NrDstZones")[AssignFlags(result, DijkstraFlag::PrecalculatedNrDstZones)]
 			>> RBRACE
 			)
 		>> !(COLON >>

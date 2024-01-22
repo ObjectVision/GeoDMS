@@ -10,6 +10,7 @@
 
 #include "OperUnit.h"
 
+#include "RtcGeneratedVersion.h"
 #include "geo/GeoSequence.h"
 #include "mci/CompositeCast.h"
 #include "mci/ValueWrap.h"
@@ -132,18 +133,19 @@ bool UnitCombine_impl(AbstrUnit* res, const ArgSeqType& args, bool mustCalc, boo
 		AbstrDataItem* resSub = CreateDataItem(res, subItemNameID[i-1], res, ithUnit);
 		resSub->SetTSF(TSF_Categorical);
 
-		if (!mustCalc)
+		if constexpr (DMS_VERSION_MAJOR < 15)
 		{
-			auto depreciatedRes = CreateDataItem(res, GetTokenID_mt(myArrayPrintF<10>("nr_%d", i)), res, AsCertainUnit(args[i - 1]));
-			depreciatedRes->SetTSF(TSF_Categorical);
-			depreciatedRes->SetTSF(TSF_Depreciated);
-			depreciatedRes->SetReferredItem(resSub);
-			continue; // go to next sub
+			if (!mustCalc)
+			{
+				auto depreciatedRes = CreateDataItem(res, GetTokenID_mt(myArrayPrintF<10>("nr_%d", i)), res, AsCertainUnit(args[i - 1]));
+				depreciatedRes->SetTSF(TSF_Categorical);
+				depreciatedRes->SetTSF(TSF_Depreciated);
+				depreciatedRes->SetReferredItem(resSub);
+				continue; // go to next sub
+			}
 		}
 
-		SizeT unitBase = ithUnit->GetBase();
 		SizeT unitCount = ithUnit->GetCount();
-		SizeT unitUB = unitCount + unitBase;
 
 		SizeT cycleSize = groupSize * unitCount;
 		auto trd = res->GetTiledRangeData();

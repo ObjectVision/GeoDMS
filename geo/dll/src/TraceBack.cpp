@@ -147,7 +147,7 @@ struct TraceBackOperator : QuaternaryOperator
 			// thus 
 			//	resultData[tbLink] += flow[currNode]; 
 			//	if (resultData[tbLink])
-			//		NodeType parentNode = tr.NrOfNode(currNodePtr->m_ParentNode)
+			//		NodeType parentNode = tr.NrOfNode(currNodePtr->GetParent())
 			//		if (parentNode) // is there an upstream link?
 			//			parentLink = tbData[parentNode];
 			//			dms_assert(parentLink < nrE); 
@@ -161,19 +161,19 @@ struct TraceBackOperator : QuaternaryOperator
 			TreeNode* currNodePtr = nullptr;
 			while(currNodePtr = tr.WalkDepthFirst_BottomUp_all(currNodePtr))
 			{
-				if (! currNodePtr->m_ParentNode ) continue; // nothing to flow
+				if (! currNodePtr->GetParent()) continue; // nothing to flow
 
 				NodeType currNode = tr.NrOfNode(currNodePtr);
 				dms_assert(currNode < nrV);
 				FlowType flow =  flowDataCopy[currNode];
 
 				LinkType tbLink = tbData[currNode];
-				dms_assert(tbLink < nrE); // guaranteed by value of m_ParentNode
+				dms_assert(tbLink < nrE); // guaranteed by value of GetParent()
 
 				resultData[tbLink] = flow;
 
 				if (flow == FlowType()) continue;
-				flowDataCopy[tr.NrOfNode(currNodePtr->m_ParentNode)] += flow;
+				flowDataCopy[tr.NrOfNode(currNodePtr->GetParent())] += flow;
 			}
 			
 			resLock.Commit();
@@ -269,7 +269,7 @@ public:
 			{
 				NodeType currNode = tr.NrOfNode(currNodePtr);
 
-				if (! currNodePtr->m_ParentNode ) 
+				if (! currNodePtr->GetParent())
 					currRoot = currNode;
 
 				dms_assert(IsDefined( currRoot  ));
