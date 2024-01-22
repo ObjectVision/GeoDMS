@@ -449,28 +449,35 @@ const Operator* AbstrOperGroup::FindOper(arg_index nrArgs, const ClassCPtr* argT
 			if (!MustCacheResult())
 				while (nrSpecifiedArgs > nrArgs && GetArgPolicy(nrSpecifiedArgs - 1, nullptr) == oper_arg_policy::calc_as_result)
 					--nrSpecifiedArgs;
-			if (nrArgs < nrSpecifiedArgs - b->NrOptionalArgs())
-				continue;
-			nrSpecifiedArgs = nrArgs;
+//			if (nrArgs < nrSpecifiedArgs - b->NrOptionalArgs())
+//				continue;
+//			nrSpecifiedArgs = nrArgs;
 		}
 
 		const ClassCPtr* requiredTypes = b->m_ArgClassesBegin;
 		const ClassCPtr* givenTypes    = argTypes;
 
-		arg_index match_count = 0;
+		arg_index match_count = 0, nrRequiredArgs = nrSpecifiedArgs - b->NrOptionalArgs();
 		for (arg_index i=0, ie = nrSpecifiedArgs; i!= ie; ++i, ++requiredTypes, ++givenTypes, ++match_count)
-			if (!(*givenTypes)->IsDerivedFrom(*requiredTypes))
+		{
+			if (i >= nrArgs)
 			{
-				if (match_count > best_count)
-				{
-					best_count = match_count;
-					best_oper = b;
-					nr_best_match = 0;
-				}
-				if (match_count == best_count)
-					++nr_best_match;
+				if (i >= nrRequiredArgs)
+					break;
 				goto next;
 			}
+			else if ((*givenTypes)->IsDerivedFrom(*requiredTypes))
+				continue;
+
+			if (match_count > best_count)
+			{
+				best_count = match_count;
+				best_oper = b;
+				nr_best_match = 1;
+			}
+			else if (match_count == best_count)
+				++nr_best_match;
+		}
 
 		return b;
 	next:;
