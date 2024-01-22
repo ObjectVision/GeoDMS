@@ -436,14 +436,9 @@ const Operator* AbstrOperGroup::FindOper(arg_index nrArgs, const ClassCPtr* argT
 
 	for (; b; b = b->GetNextGroupMember())
 	{
-		dms_assert(b->m_Group == this);
+		assert(b->m_Group == this);
 		arg_index nrSpecifiedArgs = b->NrSpecifiedArgs();
-		if (nrSpecifiedArgs < nrArgs)
-		{
-			if (!AllowExtraArgs())
-				continue;
-		}
-		else if (nrSpecifiedArgs > nrArgs)
+		if (nrSpecifiedArgs > nrArgs)
 		{
 			// allow for skipped trailing args of select_xxx that are processed as lispExpr only for now 
 			if (!MustCacheResult())
@@ -466,8 +461,8 @@ const Operator* AbstrOperGroup::FindOper(arg_index nrArgs, const ClassCPtr* argT
 					break;
 				goto next;
 			}
-			else if ((*givenTypes)->IsDerivedFrom(*requiredTypes))
-				continue;
+			else if (!(*givenTypes)->IsDerivedFrom(*requiredTypes))
+				goto next;
 
 			if (match_count > best_count)
 			{
@@ -478,8 +473,8 @@ const Operator* AbstrOperGroup::FindOper(arg_index nrArgs, const ClassCPtr* argT
 			else if (match_count == best_count)
 				++nr_best_match;
 		}
-
-		return b;
+		if (nrSpecifiedArgs >= nrArgs || AllowExtraArgs())
+			return b;
 	next:;
 	}
 	auto nameStr = SharedStr(GetName());
@@ -488,12 +483,13 @@ const Operator* AbstrOperGroup::FindOper(arg_index nrArgs, const ClassCPtr* argT
 		"Possible cause: argument type mismatch. Check the types of the used arguments.\n"
 		"\nThere are %d operators registered for the %s operator-group."
 		"\n%d operator%s correspond%s with these arguments for the first %d argument%s, %s the following signature:\n"
-		"%s%s"
+		"%s%s%s"
 		, GenerateArgClsDescription(nrArgs, argTypes).c_str()
 		, GetNrMembers(), nameStr.c_str()
 		, nr_best_match, (nr_best_match==1 ? "": "s"), (nr_best_match == 1 ? "s" : ""), best_count, (best_count == 1 ? "" : "s"), (nr_best_match == 1 ? "with" : "of which the first operator has")
 		, GenerateArgClsDescription(best_oper->NrSpecifiedArgs(), best_oper->m_ArgClassesBegin).c_str()
 		, AllowExtraArgs() ? "\nand supplemental args" : ""
+		, HasAnnotation() ? mySSPrintF("\n\n%s", GetAnnotation()).c_str() : ""
 	);
 
 	return nullptr;

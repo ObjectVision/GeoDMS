@@ -37,7 +37,10 @@ CommonOperGroup cog_unionUnit08("union_unit_uint8", oper_policy::allow_extra_arg
 CommonOperGroup cog_unionUnit16("union_unit_uint16", oper_policy::allow_extra_args);
 CommonOperGroup cog_unionUnit32("union_unit_uint32", oper_policy::allow_extra_args);
 CommonOperGroup cog_unionUnit64("union_unit_uint64", oper_policy::allow_extra_args);
-CommonOperGroup cog_unionData (token::union_data, oper_policy::allow_extra_args|oper_policy::can_explain_value);
+Annotated<CommonOperGroup> cog_unionData (
+	"Note that the first argument indicates the domain of the result and subsequent arguments (at least one) determine the unit and type of the resulting values."
+,	token::union_data, oper_policy::allow_extra_args|oper_policy::can_explain_value
+);
 
 // *****************************************************************************
 //                         UnionOperator
