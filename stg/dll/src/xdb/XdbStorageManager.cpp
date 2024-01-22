@@ -134,7 +134,7 @@ XdbStorageManager::XdbStorageManager(CharPtr datExtension, bool saveColInfo)
 	{
 		// generic .xdb will no longer be supported; specific .xyz might still be 
 		reportD(SeverityTypeID::ST_Warning, "XdbStorageManager is depreciated for .xyz files and will be removed in GeoDms version 15.0.0");
-		static_assert(DMS_VERSION_MAJOR != 15);
+		static_assert(DMS_VERSION_MAJOR < 15);
 	}
 }
 

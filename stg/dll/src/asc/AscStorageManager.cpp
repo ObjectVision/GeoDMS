@@ -72,7 +72,7 @@ struct GridDataReader :  boost::mpl::fold<typelists::numerics, GridDataReaderBas
 AsciiStorageManager::AsciiStorageManager()
 {
 	reportD(SeverityTypeID::ST_Warning, "AsciiStorageManager is depreciated and will be removed in GeoDms version 15.0.0");
-	static_assert(DMS_VERSION_MAJOR != 15);
+	static_assert(DMS_VERSION_MAJOR < 15);
 }
 
 bool AsciiStorageManager::ReadGridData(const StgViewPortInfo& vpi, AbstrDataItem* adi, AbstrDataObject* ado, tile_id t)
