@@ -18,12 +18,16 @@ BinaryInpStream& operator >> (BinaryInpStream& ar, IterRange<Iter> seq)
 	using value_type = typename IterRange<Iter>::value_type;
 	typename IterRange<Iter>::size_type len;
 	ar >> len;
-	MG_CHECK(IsDefined(len) || !seq.size())
 	if (!IsDefined(len))
 	{
+		if (seq.size())
+			throwErrorD("ReadSequence", "the GeoDms seems to have reached an unexpected end of stream");
+
 		MakeUndefined(seq);
 	}
-	else {
+	else 
+	{
+
 		if (len != seq.size())
 			throwErrorF("ReadSequence", "the GeoDms is trying to read %u bytes of data, which does not match the expected size of %u bytes"
 				, len
