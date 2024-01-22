@@ -755,7 +755,8 @@ row_id  AbstrUnit::GetTileIndex(tile_id t, tile_offset tileOffset) const
 
 tile_id AbstrUnit::GetNrTiles() const
 {
-	auto si = AsUnit(this->GetCurrRangeItem())->GetTiledRangeData();
+	auto range_item = this->GetCurrRangeItem();
+	auto si = AsUnit(range_item)->GetTiledRangeData();
 	MG_CHECK(si);
 	return si->GetNrTiles();
 }
