@@ -1609,8 +1609,23 @@ void GdalVectSM::DoUpdateTable(const TreeItem* storageHolder, AbstrUnit* layerDo
 		{
 			if (gdal_vc == ValueComposition::Unknown)
 			{
-				vu = Unit<SharedStr>::GetStaticClass()->CreateDefault();
-				gdal_vc = ValueComposition::String;
+				// interpret using first feature
+
+				auto first_feature = layer->GetNextFeature();
+				auto geometry_ref = first_feature->GetGeometryRef();
+				auto first_feature_geometry_type = geometry_ref->getGeometryType();
+				layer->ResetReading();
+
+				switch (first_feature_geometry_type)
+				{
+				case wkbPoint:		  vu = Unit<DPoint>::GetStaticClass()->CreateDefault(); gdal_vc = ValueComposition::Single; break;
+				case wkbLineString:   
+				case wkbCurve:		  vu = Unit<DPoint>::GetStaticClass()->CreateDefault(); gdal_vc = ValueComposition::Sequence; break;
+				case wkbPolygon:	  
+				case wkbMultiPolygon: 
+				case wkbCurvePolygon: vu = Unit<DPoint>::GetStaticClass()->CreateDefault(); gdal_vc = ValueComposition::Polygon; break;
+				default:              vu = Unit<SharedStr>::GetStaticClass()->CreateDefault(); gdal_vc = ValueComposition::String; break;
+				}
 			}
 			geometry = CreateDataItem(
 				layerDomain, token::geometry,
