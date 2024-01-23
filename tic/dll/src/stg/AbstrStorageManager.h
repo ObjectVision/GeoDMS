@@ -73,27 +73,6 @@ struct ActorVisitor;
 class NonmappableStorageManager;
 enum SyncMode { SM_AllTables, SM_AttrsOfConfiguredTables, SM_None };
 
-
-using prop_name = TokenID; // cannot contain name delimiters, e.g. "attr1"
-using path_name = std::vector<TokenID>; // can contain name delimiters, e.g. "table1/attr1", "table1/attr2"
-using prop_value = SharedStr;
-using named_propvalue = std::pair<prop_name, prop_value>;
-using prop_table = std::vector<named_propvalue>;
-using named_proptable = std::vector < std::pair<path_name, prop_table>>;
-using prop_tables = std::vector < std::pair<path_name, named_proptable>>;
-
-/*
-struct prop_node : single_linked_list< prop_table >
-{
-	~prop_node()
-	{ 
-		delete this->m_FirstSub;
-		delete this->m_Next;
-	}
-
-};
-*/
-
 // *****************************************************************************
 // 
 // polymorphic StorageMetaInfo, provided prior to read/write tasks commence
@@ -224,7 +203,7 @@ public:
 	TIC_CALL virtual bool EasyRereadTiles() const { return false; }
 	TIC_CALL virtual bool CanWriteTiles() const { return false;  }
 
-	TIC_CALL virtual prop_tables GetPropTables() const { return {}; }
+	TIC_CALL virtual prop_tables GetPropTables(const TreeItem* storageHolder=nullptr, TreeItem* curr=nullptr) const { return {}; }
 
 	TIC_CALL virtual FileDateTime GetLastChangeDateTime(const TreeItem* storageHolder, CharPtr relativePath) const;
 	TIC_CALL FileDateTime GetCachedChangeDateTime(const TreeItem* storageHolder, CharPtr relativePath) const;
