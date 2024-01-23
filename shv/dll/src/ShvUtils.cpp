@@ -979,19 +979,18 @@ void CreateNonzeroJenksFisherBreakAttr(std::weak_ptr<DataView> dv_wptr, const Ab
 
 	auto dv = dv_wptr.lock(); if (!dv) return;
 
-	TimeStamp tsActive = UpdateMarker::GetActiveTS(MG_DEBUG_TS_SOURCE_CODE("Obtaining active frame for JenksFisher job"));
-
 	auto siwlPaletteDomain = std::make_shared<ItemWriteLock>(std::move(iwlPaletteDomain));
 	auto siwlBreakAttr = std::make_shared<ItemWriteLock>(std::move(iwlBreakAttr)); // TODO G8: Can this be moved into a functor's data field directly? Requires no functor copy!
-	dv->AddGuiOper([tsActive, paletteDomain
+	dv->AddGuiOper([paletteDomain
 			, siwlMovedPaletteDomain = std::move(siwlPaletteDomain)
 			, breakAttrPtr, siwlBreakAttr, nrBreaks
 			, resultCopy = std::move(result)
 			, thematicValuesRangeData, aNr, dv_wptr
 			]() 
 		{
-			UpdateMarker::ChangeSourceLock tsLock(tsActive, "JenksFisher application");
 			paletteDomain->SetCount(nrBreaks);
+			auto tsActive = UpdateMarker::GetFreshTS(MG_DEBUG_TS_SOURCE_CODE("CreateNonzeroJenksFisherBreakAttr"));
+			paletteDomain->MarkTS(tsActive);
 
 			// Alleviate restriction on breakAttr write-access to avoid dead-lock, which requires mutable=synchronized=unique access to the ItemWriteLock
 			// Could the move fix the dangling writeLock on PaletteDomain issue ? No, since the spawning thread doesn't write, except for when the destructor could run, which has unique access, guaranteed by shared_ptr.
@@ -1000,8 +999,6 @@ void CreateNonzeroJenksFisherBreakAttr(std::weak_ptr<DataView> dv_wptr, const Ab
 			auto tryReadLock = ItemReadLock(std::move(paletteInterest), try_token);
 			if (!tryReadLock.has_ptr())
 				return; // no accces because of other classifying action, pray for the other action to fill this palette
-
-			breakAttrPtr->MarkTS(tsActive);
 
 			FillBreakAttrFromArray(breakAttrPtr, resultCopy, thematicValuesRangeData);
 			if (aNr != AN_AspectCount)
