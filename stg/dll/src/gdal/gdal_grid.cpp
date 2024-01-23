@@ -468,6 +468,19 @@ prop_tables GdalGridSM::GetPropTables(const TreeItem* storageHolder, TreeItem* c
 		grid_dataset_properties.push_back({ 1, {GetTokenID_st("Spatial reference"), SharedStr(pszWKT)} });
 	}
 
+	// Bands
+	auto bands = m_hDS->GetBands();
+	grid_dataset_properties.push_back({ 1, {GetTokenID_st("Number of bands"), AsString(bands.size())} });
+
+	int band_index = 0;
+	for (auto band : bands)
+	{
+		grid_dataset_properties.push_back({ 2, {GetTokenID_st("Band #"), AsString(band_index)} });
+		auto raster_data_type = GDALGetDataTypeName(band->GetRasterDataType());
+		grid_dataset_properties.push_back({ 3, {GetTokenID_st("Value type"), SharedStr(raster_data_type)} });
+	}
+
+	DoCloseStorage(false);
 	return grid_dataset_properties;
 }
 
