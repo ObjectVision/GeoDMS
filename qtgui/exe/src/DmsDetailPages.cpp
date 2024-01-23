@@ -251,22 +251,33 @@ SharedStr FindURL(const TreeItem* ti)
     return {};
 }
 
-void DumpSourceDescriptionDatasetInfo(const TreeItem* studyObject, OutStreamBase* xmlOutStrPtr)
+bool CurrOrParentHasStorageManager(const TreeItem* ti)
 {
-    auto storage_parent = studyObject->GetStorageParent(false);
+    auto storage_parent = ti->GetStorageParent(false);
     if (!storage_parent)
-		return;
+        return false;
 
     if (!storage_parent->HasStorageManager())
-        return;
+        return false;
 
     auto storage_manager = storage_parent->GetStorageManager();
     if (!storage_manager)
-        return;
+        return false;
+
+    return true;
+}
+
+bool DumpSourceDescriptionDatasetInfo(const TreeItem* studyObject, OutStreamBase* xmlOutStrPtr)
+{
+    if (!CurrOrParentHasStorageManager(studyObject))
+		return false;
+
+    auto storage_parent = studyObject->GetStorageParent(false);
+    auto storage_manager = storage_parent->GetStorageManager();
 
     auto dataset_properties = storage_manager->GetPropTables(studyObject, const_cast<TreeItem*>(studyObject));
     TreeItem_XML_ConvertAndDumpDatasetProperties(studyObject, dataset_properties, xmlOutStrPtr);
-
+    return true;
 }
 
 void DmsDetailPages::drawPage()
@@ -278,6 +289,12 @@ void DmsDetailPages::drawPage()
     auto* current_item = MainWindow::TheOne()->getCurrentTreeItem();
     if (!current_item)
         return;
+
+    // Disable or enable dataset info mode
+    auto has_storage_manager = CurrOrParentHasStorageManager(current_item);
+    main_window->m_detail_page_source_description_buttons->sd_dataset_information->setDisabled(!has_storage_manager);
+    if (m_SDM == SourceDescrMode::DatasetInfo && !has_storage_manager) // Switch to configured mode if dataset info mode is selected but no storage manager is available
+        main_window->m_detail_page_source_description_buttons->sd_configured->setChecked(true);
 
     bool ready = true;
     SuspendTrigger::Resume();
@@ -311,8 +328,13 @@ void DmsDetailPages::drawPage()
         main_window->hideDetailPagesRadioButtonWidgets(true, false);
 
         if (m_SDM == SourceDescrMode::DatasetInfo)
-            DumpSourceDescriptionDatasetInfo(current_item, xmlOut.get());
-        else
+        {
+            auto has_storage_manager = DumpSourceDescriptionDatasetInfo(current_item, xmlOut.get());
+            if (!has_storage_manager)
+                main_window->m_detail_page_source_description_buttons->sd_configured->setChecked(true);
+        }
+        
+        if (m_SDM != SourceDescrMode::DatasetInfo)
             TreeItem_XML_DumpSourceDescription(current_item, m_SDM, xmlOut.get());
         break;
     }
