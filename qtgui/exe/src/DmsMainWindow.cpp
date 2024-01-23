@@ -52,8 +52,6 @@
 
 #include "dataview.h"
 
-
-
 static MainWindow* s_CurrMainWindow = nullptr;
 UInt32 s_errorWindowActivationCount = 0;
 
@@ -539,6 +537,8 @@ void MainWindow::fileOpen()
 void MainWindow::reopen()
 {
     auto cip = m_current_item_bar->text();
+    
+    reportF(MsgCategory::commands, SeverityTypeID::ST_MajorTrace, "Reopen configuration");
 
     if (GetRegStatusFlags() & RSF_EventLog_ClearOnReLoad)
         m_eventlog_model->clear();
@@ -698,6 +698,9 @@ void DmsToolbuttonAction::onToolbuttonPressed()
         return;
 
     auto subwindow_list = mdi_area->subWindowList(QMdiArea::WindowOrder::StackingOrder);
+    if (!subwindow_list.size())
+        return;
+
     auto subwindow_highest_in_z_order = subwindow_list.back();
     if (!subwindow_highest_in_z_order)
         return;
@@ -946,6 +949,9 @@ void MainWindow::updateToolbar()
     }
 
     QMdiSubWindow* active_mdi_subwindow = m_mdi_area->activeSubWindow();
+    if (!active_mdi_subwindow)
+        clearToolbarUpToDetailPagesTools();
+
     if (m_tooled_mdi_subwindow == active_mdi_subwindow) // Do nothing
         return;
 
@@ -1341,6 +1347,8 @@ void MainWindow::defaultView()
 {
     reportF(MsgCategory::commands, SeverityTypeID::ST_MajorTrace, "defaultView // for item %s", m_current_item->GetFullName());
     auto default_view_style = SHV_GetDefaultViewStyle(m_current_item);
+    if (default_view_style == ViewStyle::tvsPaletteEdit)
+        default_view_style = ViewStyle::tvsTableView;
     if (default_view_style == ViewStyle::tvsDefault)
     {
         reportF(MsgCategory::other, SeverityTypeID::ST_Error, "Unable to deduce viewstyle for item %s, no view created.", m_current_item->GetFullName());

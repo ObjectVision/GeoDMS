@@ -1,31 +1,6 @@
-//<HEADER> 
-/*
-Data & Model Server (DMS) is a server written in C++ for DSS applications. 
-Version: see srv/dms/rtc/dll/src/RtcVersion.h for version info.
-
-Copyright (C) 1998-2004  YUSE GSO Object Vision BV. 
-
-Documentation on using the Data & Model Server software can be found at:
-http://www.ObjectVision.nl/DMS/
-
-See additional guidelines and notes in srv/dms/Readme-srv.txt 
-
-This library is free software; you can use, redistribute, and/or
-modify it under the terms of the GNU General Public License version 2 
-(the License) as published by the Free Software Foundation,
-provided that this entire header notice and readme-srv.txt is preserved.
-
-See LICENSE.TXT for terms of distribution or look at our web site:
-http://www.objectvision.nl/DMS/License.txt
-or alternatively at: http://www.gnu.org/copyleft/gpl.html
-
-This library is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
-General Public License for more details. However, specific warranties might be
-granted by an additional written contract for support, assistance and/or development
-*/
-//</HEADER>
+// Copyright (C) 1998-2023 Object Vision b.v. 
+// License: GNU GPL 3
+/////////////////////////////////////////////////////////////////////////////
 
 #include "ShvDllPch.h"
 
@@ -51,6 +26,7 @@ granted by an additional written contract for support, assistance and/or develop
 #include "DataStoreManagerCaller.h"
 #include "LispTreeType.h"
 #include "OperationContext.h"
+#include "PropFuncs.h"
 #include "TicInterface.h"
 #include "Unit.h"
 #include "UnitClass.h"
@@ -1073,7 +1049,7 @@ void TableControl::AddLayer(const TreeItem* viewCandidate, bool isDropped)
 
 	if (!m_Entity)
 		SetEntity( SHV_DataContainer_GetDomain(viewCandidate, 1, hasAdminMode) );
-	dms_assert(m_Entity);
+	assert(m_Entity);
 
 	if (!isDropped && IsDataItem(viewCandidate))
 	{
@@ -1086,9 +1062,21 @@ void TableControl::AddLayer(const TreeItem* viewCandidate, bool isDropped)
 		}
 	}
 	for(SizeT nrCols = SHV_DataContainer_GetItemCount(viewCandidate, m_Entity, 1, hasAdminMode), colNr=0; colNr != nrCols; ++colNr)
+	{
+		auto adi = SHV_DataContainer_GetItem(viewCandidate, m_Entity, colNr, 1, hasAdminMode);
+		AspectNrSet possibleAspects = ASE_LabelText;
+		AspectNr    activeTheme = AN_LabelText;
+
+		if (IsColorAspectNameID(TreeItem_GetDialogType(adi)))
+		{
+			possibleAspects = ASE_LabelBackColor;
+			activeTheme = AN_LabelBackColor;
+		}
+
 		InsertColumn(
-			make_shared_gr<DataItemColumn>(this,  SHV_DataContainer_GetItem(viewCandidate, m_Entity, colNr, 1, hasAdminMode) )().get()
+			make_shared_gr<DataItemColumn>(this, adi, possibleAspects, activeTheme)().get()
 		);
+	}
 }
 
 static TokenID idID = GetTokenID_st("id");
@@ -1313,33 +1301,6 @@ bool TableControl::CheckCardinalityChangeRights(bool doThrow)
 	if (doThrow)
 		m_Entity->throwItemError("Cannot change a derived cardinality");
 	return false;
-}
-
-void TableControl::ClassSplit()
-{
-	CheckCardinalityChangeRights(true);
-
-	AbstrUnit* domain = const_cast<AbstrUnit*>(GetEntity());
-	SizeT currNrFocusRows = 1 + m_Rows.m_End - m_Rows.m_Begin;
-	domain->Split(m_Rows.m_Begin, currNrFocusRows);
-	SelChangeInvalidator sci(this);
-	m_Rows.m_End = m_Rows.m_Begin + 2*currNrFocusRows - 1;
-	if (m_Rows.m_Curr != m_Rows.m_Begin)
-		m_Rows.m_Curr = m_Rows.m_End;
-	sci.ProcessChange(m_Rows.m_Curr != m_Rows.m_Begin);
-}
-
-void TableControl::ClassMerge()
-{
-	CheckCardinalityChangeRights(true);
-	if (m_IndexAttr)
-		m_IndexAttr->throwItemError("Cannot Merge classes of a sorted table");
-
-	AbstrUnit* domain = const_cast<AbstrUnit*>(GetEntity());
-	SelChangeInvalidatorBase sci(this);
-	domain->Merge( GetRecNo(m_Rows.m_Begin+1), m_Rows.m_End - m_Rows.m_Begin);
-	m_Rows.CloseAt(m_Rows.m_Begin);
-	sci.ProcessChange(true);
 }
 
 ActorVisitState TableControl::VisitSuppliers(SupplierVisitFlag svf, const ActorVisitor& visitor) const

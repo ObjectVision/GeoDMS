@@ -331,4 +331,5 @@ TIC_CALL void DMS_CONV DMS_Tic_Load();
 TIC_CALL bool XML_MetaInfoRef(const TreeItem* self, OutStreamBase* xmlOutStrPtr);
 TIC_CALL bool TreeItem_XML_DumpGeneral(const TreeItem* self, OutStreamBase* xmlOutStrPtr);
 TIC_CALL void TreeItem_XML_DumpSourceDescription(const TreeItem* self, SourceDescrMode mode, OutStreamBase* xmlOutStrPtr);
+TIC_CALL void TreeItem_XML_DumpDatasetInfo(const TreeItem* self, OutStreamBase* xmlOutStrPtr, const std::vector<std::pair<SharedStr, SharedStr>> metainfo);
 #endif // __TIC_INTERFACE_H

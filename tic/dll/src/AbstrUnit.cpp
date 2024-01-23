@@ -655,16 +655,6 @@ void AbstrUnit::SetCount(SizeT)
 	throwIllegalAbstract(MG_POS, this, "SetCount"); 
 }
 
-void AbstrUnit::Split(SizeT pos, SizeT len)
-{
-	throwIllegalAbstract(MG_POS, this, "Split"); 
-}
-
-void AbstrUnit::Merge(SizeT pos, SizeT len)
-{
-	throwIllegalAbstract(MG_POS, this, "Merge"); 
-}
-
 void AbstrUnit::OnDomainChange(const DomainChangeInfo* info)
 {
 	UInt32 i = GetNrDataItemsOut();

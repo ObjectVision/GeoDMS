@@ -245,7 +245,7 @@
     <ClInclude Include="src\mci\CompositeCast.h">
       <Filter>Meta Class Information</Filter>
     </ClInclude>
-    <ClInclude Include="src\mci\DoubleLinkedList.h">
+    <ClInclude Include="src\mci\DoubleLinkedTree.h">
       <Filter>Meta Class Information</Filter>
     </ClInclude>
     <ClInclude Include="src\mci\PropDef.h">
@@ -551,7 +551,7 @@
     <ClInclude Include="src\mem\ManagedAllocData.ipp">
       <Filter>Memory</Filter>
     </ClInclude>
-    <ClInclude Include="src\mci\DoubleLinkedList.inc">
+    <ClInclude Include="src\mci\DoubleLinkedTree.inc">
       <Filter>Meta Class Information</Filter>
     </ClInclude>
     <ClInclude Include="src\act\ActorVisitor.h">
@@ -587,7 +587,7 @@
     <ClInclude Include="src\dbg\Timer.h">
       <Filter>Debug Files</Filter>
     </ClInclude>
-    <ClInclude Include="src\mci\SingleLinkedList.h">
+    <ClInclude Include="src\mci\SingleLinkedTree.h">
       <Filter>Meta Class Information</Filter>
     </ClInclude>
     <ClInclude Include="src\ipolygon\polygon_with_holes_data.hpp">
@@ -1013,7 +1013,7 @@
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <None Include="src\mci\SingleLinkedList.inc">
+    <None Include="src\mci\SingleLinkedTree.inc">
       <Filter>Meta Class Information</Filter>
     </None>
     <None Include="src\act\ActorEnums.txt">

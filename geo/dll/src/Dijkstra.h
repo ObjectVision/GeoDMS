@@ -1,33 +1,10 @@
-//<HEADER> 
-/*
-Data & Model Server (DMS) is a server written in C++ for DSS applications. 
-Version: see srv/dms/rtc/dll/src/RtcVersion.h for version info.
+// Copyright (C) 1998-2023 Object Vision b.v. 
+// License: GNU GPL 3
+/////////////////////////////////////////////////////////////////////////////
 
-Copyright (C) 1998-2004  YUSE GSO Object Vision BV. 
-
-Documentation on using the Data & Model Server software can be found at:
-http://www.ObjectVision.nl/DMS/
-
-See additional guidelines and notes in srv/dms/Readme-srv.txt 
-
-This library is free software; you can use, redistribute, and/or
-modify it under the terms of the GNU General Public License version 2 
-(the License) as published by the Free Software Foundation,
-provided that this entire header notice and readme-srv.txt is preserved.
-
-See LICENSE.TXT for terms of distribution or look at our web site:
-http://www.objectvision.nl/DMS/License.txt
-or alternatively at: http://www.gnu.org/copyleft/gpl.html
-
-This library is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
-General Public License for more details. However, specific warranties might be
-granted by an additional written contract for support, assistance and/or development
-*/
-//</HEADER>
-
+#if defined(_MSC_VER)
 #pragma once
+#endif
 
 #if !defined(__GEO_DIJKSTRA_H)
 #define __GEO_DIJKSTRA_H
@@ -77,41 +54,41 @@ struct DijkstraHeap
 		if (!m_SrcZoneStamp)
 			fast_fill(m_ResultDataPtr, m_ResultDataPtr + m_NrV, m_MaxImp); // OPTIMIZE: INIT operations per Src of Complexity Order(nrV)	
 	}
-	bool IsStale(NodeType v)
+	bool IsStale(NodeType v) const
 	{
-		dms_assert(v < m_NrV);
+		assert(v < m_NrV);
 		return m_SrcZoneStamp && (m_SrcZoneStamp[v] != m_CurrSrcZoneTick);
 	}
 	void Stamp(NodeType v)
 	{
-		dms_assert(v < m_NrV);
+		assert(v < m_NrV);
 		if (m_SrcZoneStamp)
 			m_SrcZoneStamp[v] = m_CurrSrcZoneTick;
 	}
 
 	void MarkTentative(NodeType v, ImpType d)
 	{
-		dms_assert(v < m_NrV);
+		assert(v < m_NrV);
 		m_ResultDataPtr[v] = d;
 		Stamp(v);
 	}
-	bool IsBetter(NodeType v, ImpType d)
+	bool IsBetter(NodeType v, ImpType d) const
 	{
-		dms_assert(v < m_NrV);
+		assert(v < m_NrV);
 
-		dms_assert(IsStale(v) || m_ResultDataPtr[v] >= 0);
+		assert(IsStale(v) || m_ResultDataPtr[v] >= 0);
 		return IsStale(v) || (d < m_ResultDataPtr[v]);
 	}
 	bool MarkFinal(NodeType v, ImpType d)
 	{
-		dms_assert(!IsStale(v)); // was already inserted in heap.
-		dms_assert(v < m_NrV);
-		dms_assert(m_ResultDataPtr[v] >= 0);
+		assert(!IsStale(v)); // was already inserted in heap.
+		assert(v < m_NrV);
+		assert(m_ResultDataPtr[v] >= 0);
 		if (m_ResultDataPtr[v] < d)
 			return false;
 		if (d >= m_MaxImp) // maximp could have been reduced when dstlimit was reached.
 			return false;
-		dms_assert(m_ResultDataPtr[v] == d); // was already marked tentatively, which is 
+		assert(m_ResultDataPtr[v] == d); // was already marked tentatively, which is 
 		return true;
 	}
 
@@ -119,9 +96,9 @@ struct DijkstraHeap
 	{
 		if (d >= m_MaxImp)
 			return;
-		dms_assert(v < m_NrV);
+		assert(v < m_NrV);
 
-		dms_assert(d >= 0);
+		assert(d >= 0);
 		if (!IsBetter(v, d))
 			return;
 
@@ -142,7 +119,7 @@ struct DijkstraHeap
 	const HeapElemType& Front() const { return m_NodeHeap.front(); }
 
 	ImpType* m_ResultDataPtr = nullptr;
-	typename sequence_traits<LinkType>::seq_t::iterator m_TraceBackDataPtr = typename sequence_traits<LinkType>::seq_t::iterator(); // LinkType can be BitValue<4>
+	typename sequence_traits<LinkType>::seq_t::iterator m_TraceBackDataPtr = {}; // LinkType can be BitValue<4>
 	ImpType m_MaxImp = MaxValue<ImpType>();
 
 protected:
@@ -183,7 +160,7 @@ struct OwningDijkstraHeap : DijkstraHeap<NodeType, LinkType, ZoneType,ImpType>
 
 	OwningPtrSizedArray<ImpType> m_ResultData;
 	OwningPtrSizedArray<LinkType> m_TraceBackData;
-	OwningPtrSizedArray<ImpType> m_AltLinkWeight;
+	OwningPtrSizedArray<ImpType> m_AltLinkWeight, m_LinkAttr;
 };
 
 #endif //!defined(__GEO_DIJKSTRA_H))

@@ -243,10 +243,6 @@ struct OrderedUnit : CountableUnit<V>
 	static_assert(std::is_integral_v<V>);
 
 	row_id GetBase() const override { return this->GetRange().first; }
-	// 
-	//	Support for OrderedUnits
-	void Split   (row_id pos, row_id len) override;
-	void Merge   (row_id pos, row_id len) override;
 
 	V GetTileFirstValue (tile_id t) const;
 	V GetTileValue (tile_id t, tile_offset localIndex) const;

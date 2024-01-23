@@ -436,43 +436,45 @@ const Operator* AbstrOperGroup::FindOper(arg_index nrArgs, const ClassCPtr* argT
 
 	for (; b; b = b->GetNextGroupMember())
 	{
-		dms_assert(b->m_Group == this);
+		assert(b->m_Group == this);
 		arg_index nrSpecifiedArgs = b->NrSpecifiedArgs();
-		if (nrSpecifiedArgs < nrArgs)
-		{
-			if (!AllowExtraArgs())
-				continue;
-		}
-		else if (nrSpecifiedArgs > nrArgs)
+		if (nrSpecifiedArgs > nrArgs)
 		{
 			// allow for skipped trailing args of select_xxx that are processed as lispExpr only for now 
 			if (!MustCacheResult())
 				while (nrSpecifiedArgs > nrArgs && GetArgPolicy(nrSpecifiedArgs - 1, nullptr) == oper_arg_policy::calc_as_result)
 					--nrSpecifiedArgs;
-			if (nrArgs < nrSpecifiedArgs - b->NrOptionalArgs())
-				continue;
-			nrSpecifiedArgs = nrArgs;
+//			if (nrArgs < nrSpecifiedArgs - b->NrOptionalArgs())
+//				continue;
+//			nrSpecifiedArgs = nrArgs;
 		}
 
 		const ClassCPtr* requiredTypes = b->m_ArgClassesBegin;
 		const ClassCPtr* givenTypes    = argTypes;
 
-		arg_index match_count = 0;
+		arg_index match_count = 0, nrRequiredArgs = nrSpecifiedArgs - b->NrOptionalArgs();
 		for (arg_index i=0, ie = nrSpecifiedArgs; i!= ie; ++i, ++requiredTypes, ++givenTypes, ++match_count)
-			if (!(*givenTypes)->IsDerivedFrom(*requiredTypes))
+		{
+			if (i >= nrArgs)
 			{
-				if (match_count > best_count)
-				{
-					best_count = match_count;
-					best_oper = b;
-					nr_best_match = 0;
-				}
-				if (match_count == best_count)
-					++nr_best_match;
+				if (i >= nrRequiredArgs)
+					break;
 				goto next;
 			}
+			else if (!(*givenTypes)->IsDerivedFrom(*requiredTypes))
+				goto next;
 
-		return b;
+			if (match_count > best_count)
+			{
+				best_count = match_count;
+				best_oper = b;
+				nr_best_match = 1;
+			}
+			else if (match_count == best_count)
+				++nr_best_match;
+		}
+		if (nrSpecifiedArgs >= nrArgs || AllowExtraArgs())
+			return b;
 	next:;
 	}
 	auto nameStr = SharedStr(GetName());
@@ -481,12 +483,13 @@ const Operator* AbstrOperGroup::FindOper(arg_index nrArgs, const ClassCPtr* argT
 		"Possible cause: argument type mismatch. Check the types of the used arguments.\n"
 		"\nThere are %d operators registered for the %s operator-group."
 		"\n%d operator%s correspond%s with these arguments for the first %d argument%s, %s the following signature:\n"
-		"%s%s"
+		"%s%s%s"
 		, GenerateArgClsDescription(nrArgs, argTypes).c_str()
 		, GetNrMembers(), nameStr.c_str()
 		, nr_best_match, (nr_best_match==1 ? "": "s"), (nr_best_match == 1 ? "s" : ""), best_count, (best_count == 1 ? "" : "s"), (nr_best_match == 1 ? "with" : "of which the first operator has")
 		, GenerateArgClsDescription(best_oper->NrSpecifiedArgs(), best_oper->m_ArgClassesBegin).c_str()
 		, AllowExtraArgs() ? "\nand supplemental args" : ""
+		, HasAnnotation() ? mySSPrintF("\n\n%s", GetAnnotation()).c_str() : ""
 	);
 
 	return nullptr;

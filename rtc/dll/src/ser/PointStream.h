@@ -74,8 +74,8 @@ FormattedInpStream& operator >> (FormattedInpStream& is, Point<T>& p)
 	is >> "{" >> p.first >> ", " >> p.second >> "}";
 
 	reportF(SeverityTypeID::ST_Warning, "depreciated syntax for point data used.\n"
-		"Use the point_xy operation to unambiguously create points.\n"
-		"Exchange the first and second argument unless ColRowOrder was set in Config.ini "
+		"Use the %s operation to unambiguously create points.\n"
+		, g_cfgColFirst ? "point_xy" : "point_yx"
 	);
 
 	cfg2dms_order_inplace(p);

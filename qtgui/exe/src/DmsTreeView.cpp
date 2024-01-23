@@ -234,7 +234,7 @@ color_option getColorOption(const TreeItem* ti)
 
 	if (isInTemplate)
 		return color_option::tv_template;
-	assert(ti->Was(PS_MetaInfo) || ti->WasFailed());
+//	assert(ti->Was(PS_MetaInfo) || ti->WasFailed());
 	if (ti->Was(PS_MetaInfo))
 	{
 		if (IsDataCurrReady(ti->GetCurrRangeItem()))

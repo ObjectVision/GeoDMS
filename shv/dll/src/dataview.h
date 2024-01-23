@@ -16,7 +16,7 @@
 #include "act/Actor.h"
 #include "geo/Geometry.h"
 #include "geo/Range.h"
-#include "mci/DoubleLinkedList.h"
+#include "mci/DoubleLinkedTree.h"
 #include "ptr/OwningPtr.h"
 #include "ptr/SharedPtr.h"
 
@@ -42,7 +42,7 @@ class FocusCaret;
 class DataView;
 
 //----------------------------------------------------------------------
-// struct : MsgStruct
+// ViewStyle
 //----------------------------------------------------------------------
 
 // ViewStyle must be in sync with ilTreeview in unit fMain.dfm and TTreeItemViewStyle in uDmsInterface.pas
@@ -69,6 +69,8 @@ enum ViewStyle {
 ,   tvsCalculationTimes
 ,	tvsCurrentConfigFileList
 };
+
+SHV_CALL CharPtr GetViewStyleName(ViewStyle ct);
 	
 enum ViewStyleFlags {
 	vsfNone               = 0,
@@ -122,10 +124,10 @@ const UInt32 DVF_TextCaretCreated = actor_flag_set::AF_Next * 0x0010;
 const int nrPaletteColors = 16;
 
 //----------------------------------------------------------------------
-// class  : DataViewList
+// class  : DataViewTree
 //----------------------------------------------------------------------
 
-struct DataViewList : double_linked_list<DataView>
+struct DataViewTree : double_linked_tree<DataView>
 {
 	void BringChildToTop(DataView* dv);
 	void AddChildView(DataView* childView);
@@ -170,7 +172,7 @@ struct MdiCreateStruct
 // class  : DataView
 //----------------------------------------------------------------------
 
-class DataView : public Actor, public DataViewList, public enable_shared_from_this_base<DataView>, private MsgGenerator
+class DataView : public Actor, public DataViewTree, public enable_shared_from_this_base<DataView>, private MsgGenerator
 {
 	typedef Actor base_type;
 public:
@@ -316,7 +318,7 @@ protected:
 	StatusTextCaller              m_StatusTextCaller;
 
 private:
-	DataViewList*                 m_ParentView;  friend DataViewList;
+	DataViewTree*                 m_ParentView;  friend DataViewTree;
 	ScrollPort*                   m_ScrollEventsReceiver;
 
 	std::list < std::function<void()>>  m_GuiOperQueue;

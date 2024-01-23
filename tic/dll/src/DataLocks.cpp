@@ -328,14 +328,14 @@ SharedStr incompletedWriteTransactionMsg("Exception occured during generating op
 
 TIC_CALL void DataWriteLock::Commit()
 {
-	dms_assert(IsLocked());
+	assert(IsLocked());
 	auto adi = std::move(m_adi);
-	dms_assert(adi);
-	dms_assert(!m_adi);
+	assert(adi);
+	assert(!m_adi);
 
 	adi->m_DataObject = get(); reset(); // move from Writable to const
-	dms_assert(adi->m_DataObject);
-	dms_assert(!get());
+	assert(adi->m_DataObject);
+	assert(!get());
 	if (adi->mc_Calculator)
 	{
 		adi->SetDC(nullptr, nullptr);

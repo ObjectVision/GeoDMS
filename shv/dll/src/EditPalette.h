@@ -103,9 +103,6 @@ protected: // override GraphicObject virtuals
 
 	void ClassifyLogInterval  ();
 
-	void ClassSplit();
-	void ClassMerge();
-
 	void UpdateCounts();
 
 private:

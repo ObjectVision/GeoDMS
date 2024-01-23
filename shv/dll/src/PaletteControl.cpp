@@ -159,8 +159,6 @@ void PaletteControl::CreateSymbolColumnFromLayer()
 		{
 			std::shared_ptr<Theme> theme = m_Layer->GetTheme(a); 
 
-			
-
 			if (!theme) {
 				FeatureLayer* fLayer = dynamic_cast<FeatureLayer*>(m_Layer.get()); if (!fLayer) continue;
 				DmsColor* value;

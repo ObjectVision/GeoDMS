@@ -183,6 +183,7 @@ auto GetOGRSpatialReferenceFromDataItems(const TreeItem* storageHolder) -> std::
 void CheckSpatialReference(std::optional<OGRSpatialReference>& ogrSR, const TreeItem* treeitem, const AbstrUnit* mutBase);
 STGDLL_CALL auto GetUnitSizeInMeters(const AbstrUnit* projectionBaseUnit) -> Float64;
 STGDLL_CALL void ValidateSpatialReferenceFromWkt(OGRSpatialReference* ogrSR, CharPtr wkt_prj_str);
+STGDLL_CALL auto GetMetaInfoFromStorageHolder(const TreeItem* studyObject) -> std::vector<std::pair<SharedStr, SharedStr>>;
 
 struct GDALDatasetHandle
 {
@@ -236,6 +237,7 @@ private:
 
 // *****************************************************************************
 GDALDatasetHandle Gdal_DoOpenStorage(const StorageMetaInfo& smi, dms_rw_mode rwMode, UInt32 gdalOpenFlags, bool continueWrite);
+
 
 using gdal_transform = double[6];
 
