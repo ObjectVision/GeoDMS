@@ -785,7 +785,7 @@ TIC_CALL void TreeItem_XML_ConvertAndDumpDatasetProperties(const TreeItem* self,
 				auto indentation_level_str = SharedStr("margin-left: " + AsString(level * 15) + "px");
 				xmlOutStrPtr->WriteAttr("style", indentation_level_str.c_str());
 				xmlOutStrPtr->WriteValue(""); // Close attr list
-				xmlOutStrPtr->FormattingStream() << "&#8226;" << name.GetStr().c_str() << " : " << value.c_str();
+				xmlOutStrPtr->FormattingStream() << name.GetStr().c_str() << " : " << value.c_str();
 			}
 		}
 	}

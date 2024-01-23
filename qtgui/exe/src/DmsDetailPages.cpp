@@ -275,7 +275,7 @@ bool DumpSourceDescriptionDatasetInfo(const TreeItem* studyObject, OutStreamBase
     auto storage_parent = studyObject->GetStorageParent(false);
     auto storage_manager = storage_parent->GetStorageManager();
 
-    auto dataset_properties = storage_manager->GetPropTables(studyObject, const_cast<TreeItem*>(studyObject));
+    auto dataset_properties = storage_manager->GetPropTables(storage_parent, const_cast<TreeItem*>(studyObject));
     TreeItem_XML_ConvertAndDumpDatasetProperties(studyObject, dataset_properties, xmlOutStrPtr);
     return true;
 }
