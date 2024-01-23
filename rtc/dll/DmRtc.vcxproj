@@ -147,7 +147,7 @@
     <ClInclude Include="src\ipolygon\voronoi_geometry_type.hpp" />
     <ClInclude Include="src\LockLevels.h" />
     <ClInclude Include="src\mci\Object.h" />
-    <ClInclude Include="src\mci\SingleLinkedList.h" />
+    <ClInclude Include="src\mci\SingleLinkedTree.h" />
     <ClInclude Include="src\mem\FixedAlloc.h" />
     <ClInclude Include="src\mem\grid.h" />
     <ClInclude Include="src\mem\RectCopy.h" />
@@ -268,7 +268,7 @@
     <ClInclude Include="src\mci\AbstrValue.h" />
     <ClInclude Include="src\mci\Class.h" />
     <ClInclude Include="src\mci\CompositeCast.h" />
-    <ClInclude Include="src\mci\DoubleLinkedList.h" />
+    <ClInclude Include="src\mci\DoubleLinkedTree.h" />
     <ClInclude Include="src\mci\PropDef.h" />
     <ClInclude Include="src\mci\PropdefEnums.h" />
     <ClInclude Include="src\mci\register.h" />
@@ -323,7 +323,7 @@
     <ClInclude Include="src\StreamBuffInterface.h" />
     <ClInclude Include="src\dllimp\RunDllProc.h" />
     <ClInclude Include="src\utl\case.h" />
-    <ClInclude Include="src\mci\DoubleLinkedList.inc" />
+    <ClInclude Include="src\mci\DoubleLinkedTree.inc" />
     <ClInclude Include="src\mem\HeapSequenceProvider.ipp" />
     <ClInclude Include="src\mem\ManagedAllocData.ipp" />
   </ItemGroup>
@@ -383,7 +383,7 @@
   <ItemGroup>
     <None Include="src\act\ActorEnums.txt" />
     <None Include="src\geo\SequenceArray.txt" />
-    <None Include="src\mci\SingleLinkedList.inc" />
+    <None Include="src\mci\SingleLinkedTree.inc" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

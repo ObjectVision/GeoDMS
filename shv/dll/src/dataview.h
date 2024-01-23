@@ -127,7 +127,7 @@ const int nrPaletteColors = 16;
 // class  : DataViewList
 //----------------------------------------------------------------------
 
-struct DataViewList : double_linked_list<DataView>
+struct DataViewTree : double_linked_tree<DataView>
 {
 	void BringChildToTop(DataView* dv);
 	void AddChildView(DataView* childView);
