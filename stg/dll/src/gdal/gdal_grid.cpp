@@ -441,6 +441,39 @@ bool GdalGridSM::WriteUnitRange(StorageMetaInfoPtr&& smi)
 	return smi->CurrRU() == smi->StorageHolder();
 }
 
+prop_tables GdalGridSM::GetPropTables() const
+{
+	prop_tables  grid_dataset_properties;
+
+	/*auto result = std::vector<std::pair<SharedStr, SharedStr>>();
+	auto storage_holder = studyObject->GetStorageParent(false);
+	if (!storage_holder)
+		return result;
+
+	auto smi = GdalMetaInfo(storage_holder, studyObject);
+	auto gdal_ds_handle = Gdal_DoOpenStorage(smi, dms_rw_mode::read_only, 0, false);
+
+	//gdal_ds_handle->file
+
+	// spatial reference
+	auto srs = gdal_ds_handle->GetSpatialRef();
+	if (srs)
+	{
+		char* pszWKT = nullptr;
+		srs->exportToPrettyWkt(&pszWKT, false);
+		result.push_back({ SharedStr("SpatialReference"), SharedStr(pszWKT) });
+	}
+
+	// layers
+	result.push_back({ SharedStr("#layers"), AsString(gdal_ds_handle->GetLayerCount()) });
+
+	return result;*/
+
+
+
+	return grid_dataset_properties;
+}
+
 struct netCDFSubdatasetInfo
 {
 	UInt32 nx = 0;

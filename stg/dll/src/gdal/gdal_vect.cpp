@@ -1616,10 +1616,13 @@ void GdalVectSM::DoUpdateTable(const TreeItem* storageHolder, AbstrUnit* layerDo
 			if (gdal_vc == ValueComposition::Unknown)
 			{
 				// interpret using first feature
-
+				OGRwkbGeometryType first_feature_geometry_type = OGRwkbGeometryType::wkbUnknown;
 				auto first_feature = layer->GetNextFeature();
-				auto geometry_ref = first_feature->GetGeometryRef();
-				auto first_feature_geometry_type = geometry_ref->getGeometryType();
+				if (first_feature)
+				{
+					auto geometry_ref = first_feature->GetGeometryRef();
+					first_feature_geometry_type = geometry_ref->getGeometryType();
+				}
 				layer->ResetReading();
 
 				switch (first_feature_geometry_type)
