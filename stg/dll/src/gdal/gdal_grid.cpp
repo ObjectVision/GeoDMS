@@ -441,35 +441,32 @@ bool GdalGridSM::WriteUnitRange(StorageMetaInfoPtr&& smi)
 	return smi->CurrRU() == smi->StorageHolder();
 }
 
-prop_tables GdalGridSM::GetPropTables() const
+prop_tables GdalGridSM::GetPropTables(const TreeItem* storageHolder, TreeItem* curr) const
 {
-	prop_tables  grid_dataset_properties;
+	prop_tables grid_dataset_properties;
 
-	/*auto result = std::vector<std::pair<SharedStr, SharedStr>>();
-	auto storage_holder = studyObject->GetStorageParent(false);
-	if (!storage_holder)
-		return result;
+	// Filename
+	auto grid_dataset_filename = GetNameStr();
+	grid_dataset_properties.push_back({ 0, {GetTokenID_st("Filename"), grid_dataset_filename} });
 
-	auto smi = GdalMetaInfo(storage_holder, studyObject);
+	GDAL_ErrorFrame gdal_error_frame;
+	auto smi = GdalMetaInfo(storageHolder, curr);
+	DoOpenStorage(smi, dms_rw_mode::read_only);
 	auto gdal_ds_handle = Gdal_DoOpenStorage(smi, dms_rw_mode::read_only, 0, false);
 
-	//gdal_ds_handle->file
+	// Raster xy size
+	auto raster_x_size = m_hDS->GetRasterXSize();
+	auto raster_y_size = m_hDS->GetRasterXSize();
+	grid_dataset_properties.push_back({ 1, {GetTokenID_st("Size"), AsString(raster_x_size) + "," + AsString(raster_y_size)}});
 
-	// spatial reference
-	auto srs = gdal_ds_handle->GetSpatialRef();
+	// Spatial reference
+	auto srs = m_hDS->GetSpatialRef();
 	if (srs)
 	{
 		char* pszWKT = nullptr;
 		srs->exportToPrettyWkt(&pszWKT, false);
-		result.push_back({ SharedStr("SpatialReference"), SharedStr(pszWKT) });
+		grid_dataset_properties.push_back({ 1, {GetTokenID_st("Spatial reference"), SharedStr(pszWKT)} });
 	}
-
-	// layers
-	result.push_back({ SharedStr("#layers"), AsString(gdal_ds_handle->GetLayerCount()) });
-
-	return result;*/
-
-
 
 	return grid_dataset_properties;
 }

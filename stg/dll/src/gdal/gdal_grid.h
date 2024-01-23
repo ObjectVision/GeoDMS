@@ -57,7 +57,7 @@ struct GdalGridSM : AbstrGridStorageManager, gdalComponent
 
 	bool ReadDataItem(StorageMetaInfoPtr smi, AbstrDataObject* borrowedReadResultHolder, tile_id t) override;
 	bool WriteDataItem(StorageMetaInfoPtr&& smiHolder) override;
-	prop_tables GetPropTables() const override;
+	prop_tables GetPropTables(const TreeItem* storageHolder=nullptr, TreeItem* curr=nullptr) const override;
 
 private:
 	void ReadGridData  (StgViewPortInfo& vip, AbstrDataObject* ado, tile_id t, SharedStr sqlBandSpecification);

@@ -251,13 +251,22 @@ SharedStr FindURL(const TreeItem* ti)
     return {};
 }
 
-#include "gdal/gdal_base.h"
 void DumpSourceDescriptionDatasetInfo(const TreeItem* studyObject, OutStreamBase* xmlOutStrPtr)
 {
-    auto metainfo = GetMetaInfoFromStorageHolder(studyObject);
-    
-    
-    TreeItem_XML_DumpDatasetInfo(studyObject, xmlOutStrPtr, metainfo);
+    auto storage_parent = studyObject->GetStorageParent(false);
+    if (!storage_parent)
+		return;
+
+    if (!storage_parent->HasStorageManager())
+        return;
+
+    auto storage_manager = storage_parent->GetStorageManager();
+    if (!storage_manager)
+        return;
+
+    auto dataset_properties = storage_manager->GetPropTables(studyObject, const_cast<TreeItem*>(studyObject));
+    TreeItem_XML_ConvertAndDumpDatasetProperties(studyObject, dataset_properties, xmlOutStrPtr);
+
 }
 
 void DmsDetailPages::drawPage()
