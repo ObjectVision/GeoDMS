@@ -873,12 +873,13 @@ SharedDataItemInterestPtr CreateSystemColorPalette(DataView* dv, const AbstrUnit
 	return result.get_ptr();
 }
 
-SharedDataItemInterestPtr CreateSystemLabelPalette(DataView* dv, const AbstrUnit* paletteDomain, AspectNr aNr)
+SharedDataItemInterestPtr CreateSystemLabelPalette(DataView* dv, const AbstrUnit* paletteDomain, AspectNr aNr, bool always)
 {
 	dms_assert(!paletteDomain->WasFailed(FR_Data));
 	TreeItem* paletteContainer = CreatePaletteContainer(dv, paletteDomain);
 	SharedDataItemInterestPtr result = AsDynamicDataItem( paletteContainer->GetSubTreeItemByID(GetAspectNameID(aNr)) );
-	if (!result)
+
+	if (always || !result)
 	{
 		SizeT n = paletteDomain->GetPreparedCount();
 		SharedMutableDataItem newResult = CreateDataItem(paletteContainer, GetAspectNameID(aNr), paletteDomain, Unit<SharedStr>::GetStaticClass()->CreateDefault() );
@@ -1001,18 +1002,18 @@ void CreateNonzeroJenksFisherBreakAttr(std::weak_ptr<DataView> dv_wptr, const Ab
 				return; // no accces because of other classifying action, pray for the other action to fill this palette
 
 			FillBreakAttrFromArray(breakAttrPtr, resultCopy, thematicValuesRangeData);
+			auto dv = dv_wptr.lock(); if (!dv) return;
 			if (aNr != AN_AspectCount)
-			{
-				auto dv = dv_wptr.lock(); if (!dv) return;
 				CreatePaletteData(dv.get(), paletteDomain, aNr, true, true, begin_ptr( resultCopy ), end_ptr( resultCopy ));
-			}
+			if (aNr != AN_LabelText)
+				CreatePaletteData(dv.get(), paletteDomain, AN_LabelText, true, true, begin_ptr(resultCopy), end_ptr(resultCopy));
 		}
 	);
 }
 
 const AbstrDataItem* GetSystemPalette(const AbstrUnit* paletteDomain, AspectNr aNr)
 {
-	dms_assert(paletteDomain);
+	assert(paletteDomain);
 	return  AsDynamicDataItem( paletteDomain->GetConstSubTreeItemByID(GetAspectNameID(aNr)) );
 }
 
