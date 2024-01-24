@@ -343,12 +343,8 @@ void TreeItem::EnableAutoDeleteImpl() // does not call UpdateMetaInfo
 	while (subItem)
 	{
 		if (subItem->IsAutoDeleteDisabled() )
-		{
-			#if defined(MG_DEBUG_DATA)
-				auto_flag_recursion_lock<ASFD_SetAutoDeleteLock> reentryLock(subItem->Actor::m_State);
-			#endif
 			subItem->EnableAutoDeleteImpl();
-		}
+
 		subItem = subItem->GetNextItem(); // this line may cause the destruction of the old subItem
 	}
 
@@ -388,11 +384,6 @@ void TreeItem::EnableAutoDelete() // does not call UpdateMetaInfo
 {
 	if (! IsAutoDeleteDisabled())
 		return;
-
-	#if defined(MG_DEBUG_DATA)
-		dms_assert(!Actor::m_State.Get(ASFD_SetAutoDeleteLock)); 
-		Actor::m_State.Set(ASFD_SetAutoDeleteLock);
-	#endif
 
 	bool isConfigRoot = !(IsCacheItem() || IsEndogenous() || GetTreeParent());
 
@@ -3835,25 +3826,36 @@ AbstrStorageManager* TreeItem::GetStorageManager(bool throwOnFailure) const
 { 
 	if (!m_StorageManager)
 	{
+		assert(IsMetaThread());
+
+		if (m_State.Get(ASF_GetStorageManagerLock))
+		{
+			throwItemError(
+				"Invalid recursion detected in GetStorageManager.\n"
+				"Check the storage definition rule and other referring properties of this item and/or its SubItems"
+			);
+		}
+		auto_flag_recursion_lock< ASF_GetStorageManagerLock, true> lockit(m_State);
+
 		dms_assert(HasStorageManager()); // prcondition: GetStorageManager may only be called when HasStorageManager() returns true
-			dms_assert(!IsCacheItem());        // implied by HasStorageManager()
-			dms_assert(!InTemplate());         // implied by HasStorageManager()
-			dms_assert(!IsDisabledStorage());  // implied by HasStorageManager()
-			dms_assert( storageNamePropDefPtr->HasNonDefaultValue(this));
+		dms_assert(!IsCacheItem());        // implied by HasStorageManager()
+		dms_assert(!InTemplate());         // implied by HasStorageManager()
+		dms_assert(!IsDisabledStorage());  // implied by HasStorageManager()
+		dms_assert(storageNamePropDefPtr->HasNonDefaultValue(this));
 
 		SharedStr storageName = TreeItemPropertyValue(this, storageNamePropDefPtr);
 		auto sm = AbstrStorageManager::Construct(this
-		,	storageName
-		,	storageTypePropDefPtr    ->GetValue(this)
-		,	storageReadOnlyPropDefPtr->GetValue(this)
-		,	throwOnFailure
+			, storageName
+			, storageTypePropDefPtr->GetValue(this)
+			, storageReadOnlyPropDefPtr->GetValue(this)
+			, throwOnFailure
 		);
 
 		dms_assert(sm || !throwOnFailure); // guaranteed by AbstrStorageManager::Construct
 		if (sm)
 			const_cast<TreeItem*>(this)->SetStorageManager(sm); // resets m_DisabledStorage
 	}
-	dms_assert(m_StorageManager || !throwOnFailure);
+	assert(m_StorageManager || !throwOnFailure);
 	return m_StorageManager;
 }
 
