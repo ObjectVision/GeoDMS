@@ -2340,10 +2340,21 @@ LispRef TreeItem::GetCheckedKeyExpr() const
 		auto valueList = AsDataItem(this)->GetDataObj()->GetValuesAsKeyArgs(adi->GetAbstrValuesUnit()->GetCheckedKeyExpr());
 		if (adi->HasVoidDomainGuarantee())
 		{
-			dms_assert(valueList.IsRealList());
-			dms_assert(valueList.Right().EndP());
+			assert(valueList.IsRealList());
+			assert(valueList.Right().EndP());
 			return valueList.Left();
 		}
+		if (valueList.EndP())
+			return ExprList(token::const_
+				,	ExprList(adi->GetAbstrValuesUnit()->GetValueType()->GetID()
+					,	LispRef(Number(0))
+					)
+				,	adi->GetAbstrDomainUnit()->GetCheckedKeyExpr()
+				);
+
+		// more than one value, so we need a union
+		assert(valueList.IsRealList());
+		assert(valueList.Right().IsRealList());
 		return LispRef(
 			LispRef(token::union_data)
 			, LispRef(adi->GetAbstrDomainUnit()->GetCheckedKeyExpr()
