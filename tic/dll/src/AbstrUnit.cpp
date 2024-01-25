@@ -19,6 +19,7 @@
 #include "set/StaticQuickAssoc.h"
 #include "set/VectorFunc.h"
 #include "utl/mySPrintF.h"
+#include "utl/Quotes.h"
 #include "xct/DmsException.h"
 
 #include "LockLevels.h"
@@ -32,6 +33,7 @@
 #include "TiledUnit.h"
 #include "TreeItemClass.h"
 #include "TreeItemContextHandle.h"
+#include "PropFuncs.h"
 #include "Unit.h"
 #include "UnitClass.h"
 
@@ -369,13 +371,44 @@ void AbstrUnit::SetSpatialReference(TokenID format)
 	);
 }
 
+std::pair<SharedStr, SharedStr> GetSpatialReferenceDialogDataPair(const AbstrUnit* self)
+{
+	auto m = self->GetMetric();
+	if (m && m->m_BaseUnits.size() == 1 && m->m_BaseUnits.begin()->second == 1)
+	{
+		auto pair_str = m->m_BaseUnits.begin()->first;
+		auto tab_pos = std::find(pair_str.begin(), pair_str.send(), '\t');
+		if (tab_pos != pair_str.send())
+		{
+			return { 
+				  DoubleUnQuote(pair_str.begin(), tab_pos)
+				, DoubleUnQuote(tab_pos + 1,pair_str.send())
+			};
+		} 
+	}
+	return {};
+
+}
+
+SharedStr AbstrUnit::GetBackgroundReference() const
+{
+	auto dd = TreeItem_GetDialogData(this);
+	if (not dd.empty())
+		return dd;
+
+	auto m = GetMetric();
+	if (m && m->m_BaseUnits.size() == 1 && m->m_BaseUnits.begin()->second == 1)
+		return GetSpatialReferenceDialogDataPair(this).second;
+	return {};
+}
+
 TokenID AbstrUnit::GetSpatialReference() const
 {
 	if (GetTSF(USF_HasSpatialReference))
 		return s_SpatialReferenceAssoc.GetExisting(this);
 	auto m = GetMetric();
 	if (m && m->m_BaseUnits.size() == 1 && m->m_BaseUnits.begin()->second == 1)
-		return TokenID(m->m_BaseUnits.begin()->first);
+		return TokenID(GetSpatialReferenceDialogDataPair(this).first);
 	return TokenID::GetEmptyID();
 }
 

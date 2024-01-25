@@ -28,6 +28,7 @@
 #include "DataLocks.h"
 #include "Metric.h"
 #include "Projection.h"
+#include "PropFuncs.h"
 #include "TiledRangeData.h"
 #include "TicInterface.h"
 #include "TiledRangeDataImpl.h"
@@ -135,8 +136,13 @@ LispRef UnitBase<V>::GetKeyExprImpl() const
 				if (sr)
 				{
 					// BaseUnit( 'sr', result ) provides a format specific identity
-					auto srStr = sr.AsStrRange();
-					baseUnitMetricExpr = LispRef(srStr.m_CharPtrRange.first, srStr.m_CharPtrRange.second);
+					//auto srStr = sr.AsStrRange();
+					auto dd = TreeItem_GetDialogData(this);
+					auto sr_range = sr.AsStrRange();
+					auto str1 = DoubleQuote(sr_range.operator CharPtrRange().begin(), sr_range.operator CharPtrRange().end());
+					auto str2 = DoubleQuote(dd.begin(), dd.send());
+					SharedStr srStr = str1 + "\t" + str2;
+					baseUnitMetricExpr = LispRef(srStr.begin(), srStr.send());
 				}
 				else
 				{

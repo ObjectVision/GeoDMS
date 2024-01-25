@@ -145,7 +145,7 @@ public:
 			std::shared_ptr<LayerSet>     defaultLayerSet;
 			std::shared_ptr<GraphicLayer> singletonTopoLayer;
 
-			SharedStr dd = TreeItem_GetDialogData(m_WorldCrdUnit);
+			SharedStr dd = m_WorldCrdUnit->GetBackgroundReference();
 			CharPtr
 				i = dd.begin(), 
 				e = dd.send();
