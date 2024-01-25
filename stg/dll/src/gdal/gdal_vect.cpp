@@ -1737,13 +1737,15 @@ void GdalVectSM::DoUpdateTree(const TreeItem* storageHolder, TreeItem* curr, Syn
 	}
 }
 
+
+
 prop_tables GdalVectSM::GetPropTables(const TreeItem* storageHolder, TreeItem* curr) const
 {
 	prop_tables vector_dataset_properties;
 
 	// Filename
 	auto grid_dataset_filename = GetNameStr();
-	vector_dataset_properties.push_back({ 0, {GetTokenID_st("Filename"), grid_dataset_filename} });
+	vector_dataset_properties.push_back({ 0, {GetTokenID_mt("Filename"), grid_dataset_filename} });
 
 	GDAL_ErrorFrame gdal_error_frame;
 	auto smi = GdalMetaInfo(storageHolder, curr);
@@ -1756,21 +1758,21 @@ prop_tables GdalVectSM::GetPropTables(const TreeItem* storageHolder, TreeItem* c
 	{
 		char* pszWKT = nullptr;
 		srs->exportToPrettyWkt(&pszWKT, false);
-		vector_dataset_properties.push_back({ 1, {GetTokenID_st("Spatial reference"), SharedStr(pszWKT)} });
+		vector_dataset_properties.push_back({ 1, {GetTokenID_mt("Spatial reference"), SharedStr(pszWKT)} });
 	}
 
 	// Layers
 	auto layers = m_hDS->GetLayers();
-	vector_dataset_properties.push_back({ 1, {GetTokenID_st("Number of layers"), AsString(layers.size())} });
+	vector_dataset_properties.push_back({ 1, {GetTokenID_mt("Number of layers"), AsString(layers.size())} });
 	for (auto layer : layers)
 	{
-		vector_dataset_properties.push_back({ 2, {GetTokenID_st("Layer"), SharedStr(layer->GetName())}});
+		vector_dataset_properties.push_back({ 2, {GetTokenID_mt("Layer"), SharedStr(layer->GetName())}});
 		auto layer_definition = layer->GetLayerDefn();
 
 		// geometry field
 		auto geometry_field = layer_definition->GetGeomFieldDefn(0);
 		auto geometry_type = geometry_field->GetType();
-		vector_dataset_properties.push_back({ 3, {GetTokenID_st("Geometry"), SharedStr(OGRGeometryTypeToName(geometry_type)) }});
+		vector_dataset_properties.push_back({ 3, {GetTokenID_mt("Geometry"), SharedStr(OGRGeometryTypeToName(geometry_type)) }});
 
 		auto field_count = layer_definition->GetFieldCount();
 		// fields
@@ -1778,7 +1780,7 @@ prop_tables GdalVectSM::GetPropTables(const TreeItem* storageHolder, TreeItem* c
 		{
 			auto field = layer_definition->GetFieldDefn(i);
 			auto field_name = field->GetNameRef();
-			vector_dataset_properties.push_back({ 3, {GetTokenID_st(field_name), SharedStr(field->GetFieldTypeName(field->GetType()) + SharedStr(", ") + SharedStr(field->GetFieldSubTypeName(field->GetSubType())))} });
+			vector_dataset_properties.push_back({ 3, {GetTokenID_mt(field_name), SharedStr(field->GetFieldTypeName(field->GetType()) + SharedStr(", ") + SharedStr(field->GetFieldSubTypeName(field->GetSubType())))} });
 		}
 	}
 

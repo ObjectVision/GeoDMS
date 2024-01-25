@@ -447,7 +447,7 @@ prop_tables GdalGridSM::GetPropTables(const TreeItem* storageHolder, TreeItem* c
 
 	// Filename
 	auto grid_dataset_filename = GetNameStr();
-	grid_dataset_properties.push_back({ 0, {GetTokenID_st("Filename"), grid_dataset_filename} });
+	grid_dataset_properties.push_back({ 0, {GetTokenID_mt("Filename"), grid_dataset_filename} });
 
 	GDAL_ErrorFrame gdal_error_frame;
 	auto smi = GdalMetaInfo(storageHolder, curr);
@@ -457,7 +457,7 @@ prop_tables GdalGridSM::GetPropTables(const TreeItem* storageHolder, TreeItem* c
 	// Raster xy size
 	auto raster_x_size = m_hDS->GetRasterXSize();
 	auto raster_y_size = m_hDS->GetRasterXSize();
-	grid_dataset_properties.push_back({ 1, {GetTokenID_st("Size"), AsString(raster_x_size) + "," + AsString(raster_y_size)}});
+	grid_dataset_properties.push_back({ 1, {GetTokenID_mt("Size"), AsString(raster_x_size) + "," + AsString(raster_y_size)}});
 
 	// Spatial reference
 	auto srs = m_hDS->GetSpatialRef();
@@ -465,19 +465,19 @@ prop_tables GdalGridSM::GetPropTables(const TreeItem* storageHolder, TreeItem* c
 	{
 		char* pszWKT = nullptr;
 		srs->exportToPrettyWkt(&pszWKT, false);
-		grid_dataset_properties.push_back({ 1, {GetTokenID_st("Spatial reference"), SharedStr(pszWKT)} });
+		grid_dataset_properties.push_back({ 1, {GetTokenID_mt("Spatial reference"), SharedStr(pszWKT)} });
 	}
 
 	// Bands
 	auto bands = m_hDS->GetBands();
-	grid_dataset_properties.push_back({ 1, {GetTokenID_st("Number of bands"), AsString(bands.size())} });
+	grid_dataset_properties.push_back({ 1, {GetTokenID_mt("Number of bands"), AsString(bands.size())} });
 
 	int band_index = 0;
 	for (auto band : bands)
 	{
-		grid_dataset_properties.push_back({ 2, {GetTokenID_st("Band #"), AsString(band_index++)} });
+		grid_dataset_properties.push_back({ 2, {GetTokenID_mt("Band #"), AsString(band_index++)} });
 		auto raster_data_type = GDALGetDataTypeName(band->GetRasterDataType());
-		grid_dataset_properties.push_back({ 3, {GetTokenID_st("Value type"), SharedStr(raster_data_type)} });
+		grid_dataset_properties.push_back({ 3, {GetTokenID_mt("Value type"), SharedStr(raster_data_type)} });
 	}
 
 	DoCloseStorage(false);
