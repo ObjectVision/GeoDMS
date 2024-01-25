@@ -101,7 +101,7 @@ void TreeItemContextHandle::GenerateDescription()
 void GenerateSystemInfo(AbstrPropWriter& apw, const TreeItem* curr)
 {
 	// Default handling when no configured MetaInfo
-	dms_assert(curr);
+	assert(curr);
 
 	apw.OpenSection("DefaultInfo");
 

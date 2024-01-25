@@ -49,6 +49,7 @@ namespace token {
 	extern TIC_CALL TokenID false_;
 	extern TIC_CALL TokenID pi;
 
+	extern TIC_CALL TokenID const_;
 	extern TIC_CALL TokenID null_b;
 	extern TIC_CALL TokenID null_w;
 	extern TIC_CALL TokenID null_u;
