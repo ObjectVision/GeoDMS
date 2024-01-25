@@ -10,6 +10,7 @@
 #include "RtcBase.h"
 
 RTC_CALL SharedStr DoubleQuote(CharPtr str);
+
 RTC_CALL SharedStr DoubleUnQuoteMiddle(CharPtr str);
 RTC_CALL void      DoubleUnQuoteMiddle(SharedStr& result, CharPtr first, CharPtr last);
 RTC_CALL SharedStr DoubleUnQuote(CharPtr str);
@@ -40,9 +41,19 @@ RTC_CALL void SingleUnQuote(StringRef& ref, CharPtr b, CharPtr e);
 RTC_CALL void DoubleQuote  (SharedStr& ref, CharPtr b, CharPtr e);
 RTC_CALL void DoubleUnQuote(SharedStr& ref, CharPtr b, CharPtr e);
 
+inline auto DoubleQuote(CharPtr b, CharPtr e)
+{
+	SharedStr result;
+	DoubleQuote(result, b, e);
+	return result;
+};
+
+RTC_CALL auto DoubleUnQuote(CharPtr b, CharPtr e) -> SharedStr;
+
 RTC_CALL void SingleQuote  (SharedStr& ref, CharPtr b, CharPtr e);
 RTC_CALL void SingleUnQuote(SharedStr& ref, CharPtr b, CharPtr e);
 
+RTC_CALL SharedStr SingleUnQuote(CharPtr begin, CharPtr end);
 
 
 #endif // __RTC_UTL_QUOTES_H
