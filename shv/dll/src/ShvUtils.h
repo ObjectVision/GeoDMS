@@ -280,7 +280,7 @@ NewBreakAttrItems CreateBreakAttr(DataView* dv, const AbstrUnit* thematicUnit, c
 SharedDataItemInterestPtr CreateSystemColorPalette(DataView*, const AbstrUnit* paletteDomain, AspectNr aNr, bool ramp, bool always, bool unique, const Float64* first, const Float64* last);
 SharedDataItemInterestPtr CreateColorPalette(DataView*, const AbstrUnit* paletteDomain, AspectNr aNr, DmsColor clr);
 const AbstrDataItem*      GetSystemPalette        (const AbstrUnit* paletteDomain, AspectNr aNr);
-SharedDataItemInterestPtr CreateSystemLabelPalette    (DataView*, const AbstrUnit* paletteDomain, AspectNr aNr);
+SharedDataItemInterestPtr CreateSystemLabelPalette    (DataView*, const AbstrUnit* paletteDomain, AspectNr aNr, bool always);
 SharedDataItemInterestPtr CreateEqualCountBreakAttr   (std::weak_ptr<DataView>, const AbstrDataItem* thematicAttr);
 //void CreateJenksFisherBreakAttr(std::weak_ptr<DataView> dv_wptr, const AbstrDataItem* thematicAttr, ItemWriteLock&& iwlPaletteDomain, AbstrDataItem* breakAttr, ItemWriteLock&& iwlBreakAttr, AspectNr aNr = AN_AspectCount);
 void CreateNonzeroJenksFisherBreakAttr(std::weak_ptr<DataView> dv_wptr, const AbstrDataItem* thematicAttr, ItemWriteLock&& iwlPaletteDomain, AbstrDataItem* breakAttr, ItemWriteLock&& iwlBreakAttr, AspectNr aNr = AN_AspectCount);

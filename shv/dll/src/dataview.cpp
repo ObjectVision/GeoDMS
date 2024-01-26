@@ -14,7 +14,7 @@
 #include "geo/Conversions.h"
 #include "geo/PointOrder.h"
 #include "mci/Class.h"
-#include "mci/DoubleLinkedList.inc"
+#include "mci/DoubleLinkedTree.inc"
 #include "set/VectorFunc.h"
 #include "xct/DmsException.h"
 
@@ -53,7 +53,7 @@
 //    NOANIMATE    Animate control.
 
 #include "CommCtrl.h"
-ActorVisitState UpdateChildViews(DataViewList* dvl);
+ActorVisitState UpdateChildViews(DataViewTree* dvl);
 
 ////////////////////////////////////////////////////////////////////////////
 // const
@@ -109,18 +109,18 @@ bool MsgStruct::Send() const
 }
 
 //----------------------------------------------------------------------
-// class  : DataViewList
+// class  : DataViewTree
 //----------------------------------------------------------------------
 
-DataViewList g_DataViewRoots;
+DataViewTree g_DataViewRoots;
 
-void DataViewList::BringChildToTop(DataView* dv)
+void DataViewTree::BringChildToTop(DataView* dv)
 {
 	DelSub(dv);
 	AddSub(dv); // top of Z-order
 }
 
-void DataViewList::AddChildView(DataView* childView)
+void DataViewTree::AddChildView(DataView* childView)
 {
 	dms_assert(childView);
 	dms_assert(childView->m_ParentView == nullptr);
@@ -128,7 +128,7 @@ void DataViewList::AddChildView(DataView* childView)
 	childView->m_ParentView = this;
 }
 
-void DataViewList::DelChildView(DataView* childView)
+void DataViewTree::DelChildView(DataView* childView)
 {
 	dms_assert(childView);
 	dms_assert(childView->m_ParentView == this);
@@ -136,7 +136,7 @@ void DataViewList::DelChildView(DataView* childView)
 	childView->m_ParentView = nullptr;
 }
 
-void DataViewList::BroadcastCmd(ToolButtonID id)
+void DataViewTree::BroadcastCmd(ToolButtonID id)
 {
 	for (auto cv = _GetFirstSubItem(); cv; cv = cv->GetNextItem())
 	{
@@ -972,7 +972,7 @@ UINT GetShowCmd(HWND hWnd)
 	return wpl.showCmd;
 }
 
-ActorVisitState UpdateChildViews(DataViewList* dvl)
+ActorVisitState UpdateChildViews(DataViewTree* dvl)
 {
 	DataView* dv = dvl->_GetFirstSubItem();
 	while (dv)

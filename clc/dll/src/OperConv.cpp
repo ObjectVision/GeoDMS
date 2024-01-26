@@ -29,6 +29,7 @@
 #include "UnitClass.h"
 #include "DataItemClass.h"
 #include "TreeItemClass.h"
+#include "LispTreeType.h"
 
 #include "gdal/gdal_base.h"
 
@@ -44,7 +45,7 @@
 //			ConstAttrOperator
 // *****************************************************************************
 
-CommonOperGroup cog_const("const");
+CommonOperGroup cog_const(token::const_);
 
 template <typename TR>
 class ConstAttrOperator : public AbstrConstOperator
