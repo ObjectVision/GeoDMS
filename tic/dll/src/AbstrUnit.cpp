@@ -420,7 +420,7 @@ TokenID AbstrUnit::GetCurrSpatialReference() const
 		return s_SpatialReferenceAssoc.GetExisting(this);
 	auto m = GetCurrMetric();
 	if (m && m->m_BaseUnits.size() == 1 && m->m_BaseUnits.begin()->second == 1)
-		return TokenID(m->m_BaseUnits.begin()->first);
+		return TokenID(GetSpatialReferenceDialogDataPair(this).first);
 	return TokenID::GetEmptyID();
 }
 

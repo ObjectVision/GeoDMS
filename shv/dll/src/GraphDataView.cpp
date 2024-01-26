@@ -90,8 +90,6 @@ public:
 	AddLayerCmd(const AbstrDataItem* viewItem, const LayerInfo& info, bool isDropped)
 		:	m_ViewItem(viewItem)
 		,	m_LayerInfo(info)
-		,	m_Result(nullptr)
-		,	m_WorldCrdUnit(nullptr)
 		,	m_IsDropped(isDropped)
 	{}
 	GraphVisitState DoLayerSet(LayerSet* ls) override
@@ -126,7 +124,12 @@ public:
 			while (i != e)
 			{
 				try {
-					const TreeItem* topographicItem = GetNextDialogDataRef(m_WorldCrdUnit, i, e);
+					MG_CHECK(m_Result);
+					auto geoCrdUnitContext = m_Result->GetGeoCrdUnit();
+					geoCrdUnitContext = AsUnit(geoCrdUnitContext->GetUltimateSourceItem());
+
+					MG_CHECK(geoCrdUnitContext);
+					const TreeItem* topographicItem = GetNextDialogDataRef(geoCrdUnitContext, i, e);
 					if (!topographicItem || topographicItem == m_ViewItem)
 						continue;
 					LayerSet* currSet = defaultLayerSet ? defaultLayerSet.get() : ls;
@@ -358,7 +361,7 @@ private:
 	const AbstrDataItem*    m_ViewItem;
 	LayerInfo               m_LayerInfo;
 	std::shared_ptr<GraphicLayer> m_Result;
-	const AbstrUnit*        m_WorldCrdUnit;
+	const AbstrUnit*        m_WorldCrdUnit = nullptr;
 	bool                    m_IsDropped;
 };
 
