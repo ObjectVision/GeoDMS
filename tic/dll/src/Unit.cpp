@@ -139,10 +139,15 @@ LispRef UnitBase<V>::GetKeyExprImpl() const
 					//auto srStr = sr.AsStrRange();
 					auto dd = TreeItem_GetDialogData(this);
 					auto sr_range = sr.AsStrRange();
-					auto str1 = DoubleQuote(sr_range.operator CharPtrRange().begin(), sr_range.operator CharPtrRange().end());
-					auto str2 = DoubleQuote(dd.begin(), dd.send());
-					SharedStr srStr = str1 + "\t" + str2;
-					baseUnitMetricExpr = LispRef(srStr.begin(), srStr.send());
+
+					MG_CHECK(std::find(sr_range.begin(), sr_range.end(), char(0xFF)) == sr_range.end());
+
+					auto baseUnitStr = OwningPtrSizedArray<char>(dd.ssize() + sr_range.size() + 1, dont_initialize);
+					auto resultIter = fast_copy(sr_range.begin(), sr_range.end(), baseUnitStr.begin());
+					* resultIter++ = char(0xFF);
+					resultIter = fast_copy(dd.begin(), dd.send(), resultIter);
+					assert(resultIter - baseUnitStr.begin() == baseUnitStr.size());
+					baseUnitMetricExpr = LispRef(baseUnitStr.begin(), baseUnitStr.end());
 				}
 				else
 				{

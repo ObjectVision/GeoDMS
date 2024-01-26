@@ -81,6 +81,10 @@ struct TokenStrRange
 		m_CharPtrRange = src.m_CharPtrRange;
 	}
 
+	auto begin() const { return m_CharPtrRange.begin(); }
+	auto end  () const { return m_CharPtrRange.end(); }
+	auto size () const { return m_CharPtrRange.size(); }
+
 	operator CharPtrRange() const { return m_CharPtrRange; }
 
 	IndexedString_shared_lock m_Guard;
