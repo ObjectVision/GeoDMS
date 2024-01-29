@@ -16,7 +16,7 @@ template <typename Functor>
 auto throttled_async(Functor f) -> std::future<decltype(f())>
 {
 	throttle_counter()++;
-	if (throttle_counter() <= GetNrVCPUs() && !IsLowOnFreeRAM())
+	if (throttle_counter() <= GetNrVCPUs() && !IsLowOnFreeRAM() && IsMultiThreaded1())
 		return std::async(std::launch::async, [f]
 		{ 
 			auto x = make_scoped_exit([] {throttle_counter()--;  });  
