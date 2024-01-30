@@ -458,12 +458,22 @@ prop_tables GdalGridSM::GetPropTables(const TreeItem* storageHolder, TreeItem* c
 	auto raster_x_size = m_hDS->GetRasterXSize();
 	auto raster_y_size = m_hDS->GetRasterXSize();
 	grid_dataset_properties.push_back({ 1, {GetTokenID_mt("Size"), AsString(raster_x_size) + "," + AsString(raster_y_size)}});
+
 	auto ds_metainfo_image_structure = gdal_ds_handle->GetMetadata("IMAGE_STRUCTURE");
 	if (ds_metainfo_image_structure)
 	{
-		auto compression = CSLFetchNameValue(ds_metainfo_image_structure, "COMPRESSION");
-		grid_dataset_properties.push_back({ 1, {GetTokenID_mt("Compression"), SharedStr(compression)} });
+		// Compression
+		auto compression_method = SharedStr(CSLFetchNameValue(ds_metainfo_image_structure, "COMPRESSION"));
+		grid_dataset_properties.push_back({ 1, {GetTokenID_mt("Compression"), compression_method} });
+
+		// NBits
+		auto number_of_bits = SharedStr(CSLFetchNameValue(ds_metainfo_image_structure, "NBITS"));
+		if (!number_of_bits.empty())
+			grid_dataset_properties.push_back({ 1, {GetTokenID_mt("Bits per pixel"), number_of_bits} });
 	}
+
+
+
 
 	// Spatial reference
 	auto srs = m_hDS->GetSpatialRef();
