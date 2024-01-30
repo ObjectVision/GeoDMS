@@ -460,6 +460,22 @@ prop_tables GdalGridSM::GetPropTables(const TreeItem* storageHolder, TreeItem* c
 	auto raster_y_size = m_hDS->GetRasterXSize();
 	grid_dataset_properties.push_back({ 1, {GetTokenID_mt("Size"), AsString(raster_x_size) + "," + AsString(raster_y_size)}});
 
+	auto ds_metainfo_image_structure = gdal_ds_handle->GetMetadata("IMAGE_STRUCTURE");
+	if (ds_metainfo_image_structure)
+	{
+		// Compression
+		auto compression_method = SharedStr(CSLFetchNameValue(ds_metainfo_image_structure, "COMPRESSION"));
+		grid_dataset_properties.push_back({ 1, {GetTokenID_mt("Compression"), compression_method} });
+
+		// NBits
+		auto number_of_bits = SharedStr(CSLFetchNameValue(ds_metainfo_image_structure, "NBITS"));
+		if (!number_of_bits.empty())
+			grid_dataset_properties.push_back({ 1, {GetTokenID_mt("Bits per pixel"), number_of_bits} });
+	}
+
+
+
+
 	// Spatial reference
 	auto srs = m_hDS->GetSpatialRef();
 	if (srs)
@@ -539,7 +555,7 @@ void GdalGridSM::DoUpdateTree(const TreeItem* storageHolder, TreeItem* curr, Syn
 
 	if (sm == SM_None)
 		return;
-	dms_assert(storageHolder);
+	assert(storageHolder);
 	if (storageHolder != curr)
 		return;
 	if (curr->IsStorable() && curr->HasCalculator())
@@ -582,10 +598,7 @@ void GdalGridSM::DoUpdateTree(const TreeItem* storageHolder, TreeItem* curr, Syn
 			}
 			auto gdal_vc = ValueComposition::Single;
 
-			auto gridData = CreateDataItem(
-				gridDataDomain, GRID_DATA_ID,
-				gridDataDomain, vu, gdal_vc
-			);
+			auto gridData = CreateDataItem(curr, GRID_DATA_ID, gridDataDomain, vu, gdal_vc);
 
 			frame.ThrowUpWhateverCameUp();
 		}

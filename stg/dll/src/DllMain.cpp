@@ -512,9 +512,7 @@ ViewPortInfoEx<Int>::ViewPortInfoEx(const TreeItem* context, const AbstrUnit* cu
 	dms_assert(queryActualGridDomain || tg == no_tile);
 	dms_assert(!correctGridOffset || queryActualGridDomain);
 
-	auto viewport_ptr = dynamic_cast<ViewPortInfo<Int>*>(this);
-	if (viewport_ptr)
-		viewport_ptr->m_smi = smi;
+	this->m_smi = smi;
 
 	if (queryActualGridDomain && gridDomain)
 		m_GridExtents = ThrowingConvert<rect_type>(gridDomain->GetTileSizeAsI64Rect(tg));
@@ -553,7 +551,12 @@ ViewPortInfoEx<Int>::ViewPortInfoEx(const TreeItem* context, const AbstrUnit* cu
 	if (currDomain)
 	{
 		try {
-			this->m_ViewPortExtents = ThrowingConvert<rect_type>(currDomain->GetTiledRangeData()->GetTileRangeAsI64Rect(tc));
+			auto tileRange = currDomain->GetTiledRangeData()->GetTileRangeAsI64Rect(tc);
+			this->m_ViewPortExtents = ThrowingConvert<rect_type>(tileRange);
+			MG_CHECK(IsDefined(this->m_ViewPortExtents.first.first));
+			MG_CHECK(IsDefined(this->m_ViewPortExtents.first.second));
+			MG_CHECK(IsDefined(this->m_ViewPortExtents.second.first));
+			MG_CHECK(IsDefined(this->m_ViewPortExtents.second.second));
 		}
 		catch (...)
 		{

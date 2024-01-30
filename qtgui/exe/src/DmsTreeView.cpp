@@ -358,13 +358,8 @@ void TreeItemDelegate::paint(QPainter* painter, const QStyleOptionViewItem& opti
 	try
 	{
 		ti = GetTreeItem(index);
-
-
 		if (!ti)
 			return;
-
-		//if (ti->GetTSF(TSF_IsHidden))
-		//	return;
 
 		const TreeItem* storageHolder = nullptr;
 		if (ti->HasStorageManager())
@@ -722,7 +717,6 @@ void DmsTreeView::onDoubleClick(const QModelIndex& index)
 
 void  DmsTreeView::onHeaderSectionClicked(int index)
 {
-	int i = 0;
 }
 
 auto createTreeview(MainWindow* dms_main_window) -> QPointer<DmsTreeView>
