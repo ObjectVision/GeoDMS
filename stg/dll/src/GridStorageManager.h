@@ -2,7 +2,9 @@
 // License: GNU GPL 3
 /////////////////////////////////////////////////////////////////////////////
 
+#if defined(_MSC_VER)
 #pragma once
+#endif
 
 #if !defined(__TIC_STG_GRIDSTORAGEMANAGER_H)
 #define __TIC_STG_GRIDSTORAGEMANAGER_H

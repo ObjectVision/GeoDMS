@@ -126,11 +126,11 @@ bool GdalGridSM::ReadDataItem(StorageMetaInfoPtr smi, AbstrDataObject* borrowedR
 
 GDalGridImp::GDalGridImp(GDALDataset* hDS, const AbstrDataObject* ado, UPoint viewPortSize, SharedStr sqlBandSpecification)
 	: m_hDS(hDS)
-	, poBand(GetRasterBand(sqlBandSpecification))
+	, m_RasterBand(GetRasterBand(sqlBandSpecification))
 	, m_ValueClassID(ado->GetValueClass()->GetValueClassID())
 	, m_ViewPortSize(viewPortSize)
 {
-	MG_CHECK(poBand);
+	MG_CHECK(m_RasterBand);
 }
 
 std::vector<int> GDalGridImp::UnpackBandIndicesFromValue(std::string value)
@@ -185,13 +185,14 @@ std::vector<GDALRasterBand*> GDalGridImp::GetRasterBands(SharedStr sqlBandSpecif
 }
 
 
-UInt32 GDalGridImp::GetWidth() const { return poBand->GetXSize(); }
-UInt32 GDalGridImp::GetHeight() const { return poBand->GetYSize(); }
+UInt32 GDalGridImp::GetWidth() const { return m_RasterBand->GetXSize(); }
+UInt32 GDalGridImp::GetHeight() const { return m_RasterBand->GetYSize(); }
 UPoint GDalGridImp::GetTileSize() const {
 	int x, y;
-	poBand->GetBlockSize(&x, &y);
+	m_RasterBand->GetBlockSize(&x, &y);
 	return shp2dms_order(x, y);
 }
+
 UInt32 GDalGridImp::GetNrBitsPerPixel() const { return GDALGetDataTypeSize(gdalRasterDataType(m_ValueClassID)); }
 UInt32 GDalGridImp::GetTileByteWidth() const {
 	return (GetTileSize().X() * GetNrBitsPerPixel() + 7) / 8;
@@ -227,10 +228,10 @@ CPLErr ReadMultiBandTileNaive(void* stripBuff, UInt32 tile_x, UInt32 tile_y, UIn
 	return CE_None;
 }*/
 
-CPLErr GDalGridImp::ReadSingleBandTile(void* stripBuff, UInt32 tile_x, UInt32 tile_y, UInt32 sx, UInt32 sy, GDALRasterBand* poBand) const
+CPLErr GDalGridImp::ReadSingleBandTile(void* stripBuff, UInt32 tile_x, UInt32 tile_y, UInt32 sx, UInt32 sy, GDALRasterBand* m_RasterBand) const
 {
 	GDAL_ErrorFrame x;
-	auto resultCode = poBand->RasterIO(GF_Read,
+	auto resultCode = m_RasterBand->RasterIO(GF_Read,
 		tile_x, tile_y,
 		sx, sy,
 		stripBuff,
@@ -241,7 +242,7 @@ CPLErr GDalGridImp::ReadSingleBandTile(void* stripBuff, UInt32 tile_x, UInt32 ti
 	);
 
 	// apply color table
-	auto color_table = poBand->GetColorTable();
+	auto color_table = m_RasterBand->GetColorTable();
 	if (!color_table)
 		return resultCode;
 
@@ -282,12 +283,12 @@ SizeT GDalGridImp::ReadTile(void* stripBuff, UInt32 tile_x, UInt32 tile_y, UInt3
 	UPoint tileSize = GetTileSize();
 	auto resultCode = CE_None;
 	auto nBandCount = m_hDS->GetRasterCount();
-	auto bandType = poBand->GetRasterDataType();
+	auto bandType = m_RasterBand->GetRasterDataType();
 
 	if (bandType == GDT_Byte && nBandCount == 4 && m_ValueClassID == ValueClassID::VT_UInt32) // interleaved UInt32 four bands of type GDT_Byte
 		resultCode = ReadInterleavedMultiBandTile(stripBuff, tile_x, tile_y, sx, sy, nBandCount);
 	else // single band
-		resultCode = ReadSingleBandTile(stripBuff, tile_x, tile_y, sx, sy, poBand);
+		resultCode = ReadSingleBandTile(stripBuff, tile_x, tile_y, sx, sy, m_RasterBand);
 
 	dms_assert(resultCode == CE_None);
 	return GetTileByteSize();
@@ -302,7 +303,7 @@ Int32 GDalGridImp::WriteTile(void* stripBuff, UInt32 tile_x, UInt32 tile_y) // R
 	dms_assert(GetTileByteSize() <= tileByteSize);
 
 	GDAL_ErrorFrame x;
-	auto resultCode = poBand->RasterIO(GF_Write,
+	auto resultCode = m_RasterBand->RasterIO(GF_Write,
 		tile_x, tile_y,
 		sx, sy,
 		stripBuff,
@@ -710,24 +711,20 @@ void GdalGridSM::DoUpdateTree(const TreeItem* storageHolder, TreeItem* curr, Syn
 				dataItem->SetStorageManager(subDatasetName.c_str(), "gdal.grid", true);
 		}
 	}
-
-
-
-
 }
 
 // *****************************************************************************
 
-void ReadBand(GDALRasterBand* poBand, GDAL_SimpleReader::band_data& buffer)
+void ReadBand(GDALRasterBand* m_RasterBand, GDAL_SimpleReader::band_data& buffer)
 {
-	auto width = poBand->GetXSize();
-	auto height = poBand->GetYSize();
+	auto width = m_RasterBand->GetXSize();
+	auto height = m_RasterBand->GetYSize();
 
 	typedef UInt32 color_type;
 	vector_resize(buffer, Cardinality(IPoint(width, height) ));
 
 	GDAL_ErrorFrame x;
-	auto resultCode = poBand->RasterIO(GF_Read,
+	auto resultCode = m_RasterBand->RasterIO(GF_Read,
 		0, 0, // roi offset
 		width, height, // roi size
 		&buffer[0],
