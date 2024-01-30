@@ -141,9 +141,10 @@ bool UnitCombine_impl(AbstrUnit* res, const ArgSeqType& args, bool mustCalc, boo
 				depreciatedRes->SetTSF(TSF_Categorical);
 				depreciatedRes->SetTSF(TSF_Depreciated);
 				depreciatedRes->SetReferredItem(resSub);
-				continue; // go to next sub
 			}
 		}
+		if (!mustCalc)
+			continue; // go to next sub)
 
 		SizeT unitCount = ithUnit->GetCount();
 
