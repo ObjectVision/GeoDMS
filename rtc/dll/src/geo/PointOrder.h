@@ -77,6 +77,7 @@ template <> struct reorder_functor<true>
 };
 
 using shp_reorder_functor = reorder_functor< must_swap<shp_order_tag, dms_order_tag>::value >;
+using rowcol_reorder_functor = reorder_functor< must_swap<rowcol_order_tag, dms_order_tag>::value >;
 
 
 template <typename  F>
@@ -95,6 +96,12 @@ template <typename P>
 Range<P> shp2dms_order(const Range<P>& shpRect)
 {
 	return shp_reorder_functor()(shpRect);
+}
+
+template <typename  F>
+Point<F> rowcol2dms_order(F x, F y)
+{
+	return rowcol_reorder_functor()(Point<F>(x, y));
 }
 
 RTC_CALL extern bool g_cfgColFirst;
