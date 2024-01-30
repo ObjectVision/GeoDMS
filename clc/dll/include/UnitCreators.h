@@ -60,7 +60,7 @@ inline ConstUnitRef default_unit_creator_and_check_input(const AbstrOperGroup* g
 					, metric->AsString(FormattingFlags::ThousandSeparator)
 				);
 				if constexpr (DMS_VERSION_MAJOR >= 15)
-					throwDmsErrD(diagnostic);
+					throwDmsErrD(diagnostic.c_str());
 				else
 					reportD(SeverityTypeID::ST_Warning, diagnostic.c_str());
 			}
