@@ -25,13 +25,11 @@
 
 static_assert(actor_flag_set::AF_Next == 0x4000);
 
-const UInt32 ASF_MakeCalculatorLock  = 0x0001 * actor_flag_set::AF_Next; 
-const UInt32 ASF_WasLoaded           = 0x0002 * actor_flag_set::AF_Next; // TODO G8.5 ? REMOVE AFTER CalcCache restoration
+const UInt32 ASF_MakeCalculatorLock    = 0x0001 * actor_flag_set::AF_Next; 
+const UInt32 ASF_WasLoaded             = 0x0002 * actor_flag_set::AF_Next; // TODO G8.5 ? REMOVE AFTER CalcCache restoration
+const UInt32 ASF_GetStorageManagerLock = 0x0004 * actor_flag_set::AF_Next;
 
-#if defined(MG_DEBUG_DATA)
-const UInt32 ASFD_SetAutoDeleteLock  = 0x0004 * actor_flag_set::AF_Next;
-#endif
-const UInt32 ASF_GetCalcMetaInfo = 0x0008 * actor_flag_set::AF_Next;
+const UInt32 ASF_GetCalcMetaInfo       = 0x0008 * actor_flag_set::AF_Next;
 
 //----------------------------------------------------------------------
 // TreeItemStatusFlags stored in m_StatusFlags

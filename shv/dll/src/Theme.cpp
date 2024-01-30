@@ -396,7 +396,7 @@ SharedDataItemInterestPtr CreatePaletteData(DataView* dv, const AbstrUnit* domai
 		case AT_Ordinal:  uc = Unit<UInt16 >::GetStaticClass(); break;
 		case AT_Cardinal: uc = Unit<UInt32 >::GetStaticClass(); break;
 		case AT_Color:   return CreateSystemColorPalette(dv, domain, aNr, ramp, always, domain->GetValueType()->GetBitSize() == 1, first, last);
-		case AT_Text:    return CreateSystemLabelPalette(dv, domain, aNr);
+		case AT_Text:    return CreateSystemLabelPalette(dv, domain, aNr, always);
 	}
 	return nullptr;
 }

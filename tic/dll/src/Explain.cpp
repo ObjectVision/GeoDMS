@@ -136,8 +136,6 @@ namespace Explain { // local defs
 		return valStr;
 	}
 
-
-
 	struct DataCalcExplanation : AbstrCalcExplanation
 	{
 		DataCalcExplanation(const AbstrDataItem* dataItem)

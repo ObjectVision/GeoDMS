@@ -19,6 +19,7 @@
 #include "set/StaticQuickAssoc.h"
 #include "set/VectorFunc.h"
 #include "utl/mySPrintF.h"
+#include "utl/Quotes.h"
 #include "xct/DmsException.h"
 
 #include "LockLevels.h"
@@ -32,6 +33,7 @@
 #include "TiledUnit.h"
 #include "TreeItemClass.h"
 #include "TreeItemContextHandle.h"
+#include "PropFuncs.h"
 #include "Unit.h"
 #include "UnitClass.h"
 
@@ -369,13 +371,36 @@ void AbstrUnit::SetSpatialReference(TokenID format)
 	);
 }
 
+SharedStr AbstrUnit::GetBackgroundReference() const
+{
+	auto dd = TreeItem_GetDialogData(this);
+	if (not dd.empty())
+		return dd;
+
+	auto m = GetMetric();
+	if (m && m->m_BaseUnits.size() == 1 && m->m_BaseUnits.begin()->second == 1)
+	{
+		const SharedStr pair_str = m->m_BaseUnits.begin()->first;
+		auto tab_pos = std::find(pair_str.begin(), pair_str.send(), char(0xFF));
+		if (tab_pos != pair_str.send())
+			return SharedStr(tab_pos + 1, pair_str.send());
+	}
+	return {};
+}
+
 TokenID AbstrUnit::GetSpatialReference() const
 {
 	if (GetTSF(USF_HasSpatialReference))
 		return s_SpatialReferenceAssoc.GetExisting(this);
+
 	auto m = GetMetric();
 	if (m && m->m_BaseUnits.size() == 1 && m->m_BaseUnits.begin()->second == 1)
-		return TokenID(m->m_BaseUnits.begin()->first);
+	{
+		const SharedStr pair_str = m->m_BaseUnits.begin()->first;
+		auto tab_pos = std::find(pair_str.begin(), pair_str.send(), char(0xFF));
+		if (tab_pos != pair_str.send())
+			return GetTokenID_mt(pair_str.begin(), tab_pos);
+	}
 	return TokenID::GetEmptyID();
 }
 
@@ -387,7 +412,12 @@ TokenID AbstrUnit::GetCurrSpatialReference() const
 		return s_SpatialReferenceAssoc.GetExisting(this);
 	auto m = GetCurrMetric();
 	if (m && m->m_BaseUnits.size() == 1 && m->m_BaseUnits.begin()->second == 1)
-		return TokenID(m->m_BaseUnits.begin()->first);
+	{
+		const SharedStr pair_str = m->m_BaseUnits.begin()->first;
+		auto tab_pos = std::find(pair_str.begin(), pair_str.send(), char(0xFF));
+		if (tab_pos != pair_str.send())
+			return GetTokenID_mt(pair_str.begin(), tab_pos);
+	}
 	return TokenID::GetEmptyID();
 }
 
@@ -755,7 +785,8 @@ row_id  AbstrUnit::GetTileIndex(tile_id t, tile_offset tileOffset) const
 
 tile_id AbstrUnit::GetNrTiles() const
 {
-	auto si = AsUnit(this->GetCurrRangeItem())->GetTiledRangeData();
+	auto range_item = this->GetCurrRangeItem();
+	auto si = AsUnit(range_item)->GetTiledRangeData();
 	MG_CHECK(si);
 	return si->GetNrTiles();
 }

@@ -251,13 +251,35 @@ SharedStr FindURL(const TreeItem* ti)
     return {};
 }
 
-#include "gdal/gdal_base.h"
-void DumpSourceDescriptionDatasetInfo(const TreeItem* studyObject, OutStreamBase* xmlOutStrPtr)
+bool CurrOrParentHasStorageManager(const TreeItem* ti)
 {
-    auto metainfo = GetMetaInfoFromStorageHolder(studyObject);
-    
-    
-    TreeItem_XML_DumpDatasetInfo(studyObject, xmlOutStrPtr, metainfo);
+    auto storage_parent = ti->GetStorageParent(false);
+    if (!storage_parent)
+        return false;
+
+    if (!storage_parent->HasStorageManager())
+        return false;
+
+    auto storage_manager = storage_parent->GetStorageManager();
+    if (!storage_manager)
+        return false;
+
+    return true;
+}
+
+bool DumpSourceDescriptionDatasetInfo(const TreeItem* studyObject, OutStreamBase* xmlOutStrPtr)
+{
+    if (!CurrOrParentHasStorageManager(studyObject))
+		return false;
+
+    auto storage_parent = studyObject->GetStorageParent(false);
+    auto storage_manager = storage_parent->GetStorageManager();
+    bool is_read_only = storage_manager->IsReadOnly();
+    prop_tables dataset_properties = {};
+    if (is_read_only)
+        dataset_properties = storage_manager->GetPropTables(storage_parent, const_cast<TreeItem*>(studyObject));
+    TreeItem_XML_ConvertAndDumpDatasetProperties(studyObject, dataset_properties, xmlOutStrPtr);
+    return true;
 }
 
 void DmsDetailPages::drawPage()
@@ -269,6 +291,19 @@ void DmsDetailPages::drawPage()
     auto* current_item = MainWindow::TheOne()->getCurrentTreeItem();
     if (!current_item)
         return;
+
+    // Disable or enable dataset information radio button
+    auto has_storage_manager = CurrOrParentHasStorageManager(current_item);
+    bool has_read_only_storage_manager = false;
+    if (has_storage_manager)
+    {
+	    auto storage_parent = current_item->GetStorageParent(false);
+	    auto storage_manager = storage_parent->GetStorageManager();
+	    has_read_only_storage_manager = storage_manager->IsReadOnly();
+	}
+    main_window->m_detail_page_source_description_buttons->sd_dataset_information->setDisabled(!has_read_only_storage_manager);
+    if (m_SDM == SourceDescrMode::DatasetInfo && !has_read_only_storage_manager) // Switch to configured mode if dataset info mode is selected but no storage manager is available
+        main_window->m_detail_page_source_description_buttons->sd_configured->setChecked(true);
 
     bool ready = true;
     SuspendTrigger::Resume();
@@ -302,8 +337,13 @@ void DmsDetailPages::drawPage()
         main_window->hideDetailPagesRadioButtonWidgets(true, false);
 
         if (m_SDM == SourceDescrMode::DatasetInfo)
-            DumpSourceDescriptionDatasetInfo(current_item, xmlOut.get());
-        else
+        {
+            auto has_storage_manager = DumpSourceDescriptionDatasetInfo(current_item, xmlOut.get());
+            if (!has_storage_manager)
+                main_window->m_detail_page_source_description_buttons->sd_configured->setChecked(true);
+        }
+        
+        if (m_SDM != SourceDescrMode::DatasetInfo)
             TreeItem_XML_DumpSourceDescription(current_item, m_SDM, xmlOut.get());
         break;
     }

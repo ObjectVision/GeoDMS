@@ -1615,8 +1615,26 @@ void GdalVectSM::DoUpdateTable(const TreeItem* storageHolder, AbstrUnit* layerDo
 		{
 			if (gdal_vc == ValueComposition::Unknown)
 			{
-				vu = Unit<SharedStr>::GetStaticClass()->CreateDefault();
-				gdal_vc = ValueComposition::String;
+				// interpret using first feature
+				OGRwkbGeometryType first_feature_geometry_type = OGRwkbGeometryType::wkbUnknown;
+				auto first_feature = layer->GetNextFeature();
+				if (first_feature)
+				{
+					auto geometry_ref = first_feature->GetGeometryRef();
+					first_feature_geometry_type = geometry_ref->getGeometryType();
+				}
+				layer->ResetReading();
+
+				switch (first_feature_geometry_type)
+				{
+				case wkbPoint:		  vu = Unit<DPoint>::GetStaticClass()->CreateDefault(); gdal_vc = ValueComposition::Single; break;
+				case wkbLineString:   
+				case wkbCurve:		  vu = Unit<DPoint>::GetStaticClass()->CreateDefault(); gdal_vc = ValueComposition::Sequence; break;
+				case wkbPolygon:	  
+				case wkbMultiPolygon: 
+				case wkbCurvePolygon: vu = Unit<DPoint>::GetStaticClass()->CreateDefault(); gdal_vc = ValueComposition::Polygon; break;
+				default:              vu = Unit<SharedStr>::GetStaticClass()->CreateDefault(); gdal_vc = ValueComposition::String; break;
+				}
 			}
 			geometry = CreateDataItem(
 				layerDomain, token::geometry,
@@ -1717,6 +1735,57 @@ void GdalVectSM::DoUpdateTree(const TreeItem* storageHolder, TreeItem* curr, Syn
 			Unit<UInt32>::GetStaticClass()->CreateUnit(curr, layerID);
 		}
 	}
+}
+
+
+
+prop_tables GdalVectSM::GetPropTables(const TreeItem* storageHolder, TreeItem* curr) const
+{
+	prop_tables vector_dataset_properties;
+
+	// Filename
+	auto grid_dataset_filename = GetNameStr();
+	vector_dataset_properties.push_back({ 0, {GetTokenID_mt("Filename"), grid_dataset_filename} });
+
+	GDAL_ErrorFrame gdal_error_frame;
+	auto smi = GdalMetaInfo(storageHolder, curr);
+	DoOpenStorage(smi, dms_rw_mode::read_only);
+	auto gdal_ds_handle = Gdal_DoOpenStorage(smi, dms_rw_mode::read_only, 0, false);
+
+	// Spatial reference
+	auto srs = m_hDS->GetSpatialRef();
+	if (srs)
+	{
+		char* pszWKT = nullptr;
+		srs->exportToPrettyWkt(&pszWKT, false);
+		vector_dataset_properties.push_back({ 1, {GetTokenID_mt("Spatial reference"), SharedStr(pszWKT)} });
+	}
+
+	// Layers
+	auto layers = m_hDS->GetLayers();
+	vector_dataset_properties.push_back({ 1, {GetTokenID_mt("Number of layers"), AsString(layers.size())} });
+	for (auto layer : layers)
+	{
+		vector_dataset_properties.push_back({ 2, {GetTokenID_mt("Layer"), SharedStr(layer->GetName())}});
+		auto layer_definition = layer->GetLayerDefn();
+
+		// geometry field
+		auto geometry_field = layer_definition->GetGeomFieldDefn(0);
+		auto geometry_type = geometry_field->GetType();
+		vector_dataset_properties.push_back({ 3, {GetTokenID_mt("Geometry"), SharedStr(OGRGeometryTypeToName(geometry_type)) }});
+
+		auto field_count = layer_definition->GetFieldCount();
+		// fields
+		for (int i=0; i<field_count; i++)
+		{
+			auto field = layer_definition->GetFieldDefn(i);
+			auto field_name = field->GetNameRef();
+			vector_dataset_properties.push_back({ 3, {GetTokenID_mt(field_name), SharedStr(field->GetFieldTypeName(field->GetType()) + SharedStr(", ") + SharedStr(field->GetFieldSubTypeName(field->GetSubType())))} });
+		}
+	}
+
+	DoCloseStorage(false);
+	return vector_dataset_properties;
 }
 
 // Register

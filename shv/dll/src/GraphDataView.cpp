@@ -1,33 +1,7 @@
-//<HEADER> 
-/*
-Data & Model Server (DMS) is a server written in C++ for DSS applications. 
-Version: see srv/dms/rtc/dll/src/RtcVersion.h for version info.
+// Copyright (C) 1998-2023 Object Vision b.v. 
+// License: GNU GPL 3
+/////////////////////////////////////////////////////////////////////////////
 
-Copyright (C) 1998-2004  YUSE GSO Object Vision BV. 
-
-Documentation on using the Data & Model Server software can be found at:
-http://www.ObjectVision.nl/DMS/
-
-See additional guidelines and notes in srv/dms/Readme-srv.txt 
-
-This library is free software; you can use, redistribute, and/or
-modify it under the terms of the GNU General Public License version 2 
-(the License) as published by the Free Software Foundation,
-provided that this entire header notice and readme-srv.txt is preserved.
-
-See LICENSE.TXT for terms of distribution or look at our web site:
-http://www.objectvision.nl/DMS/License.txt
-or alternatively at: http://www.gnu.org/copyleft/gpl.html
-
-This library is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
-General Public License for more details. However, specific warranties might be
-granted by an additional written contract for support, assistance and/or development
-*/
-//</HEADER>
-// SheetVisualTestView.cpp : implementation of the DataView class
-//
 #include "ShvDllPch.h"
 
 #include <memory>
@@ -65,7 +39,7 @@ GraphDataView::GraphDataView(TreeItem* viewContext, ShvSyncMode sm)
 
 std::shared_ptr<MapControl> GraphDataView::GetContents()       
 {
-	dms_assert(m_Contents);
+	assert(m_Contents);
 	return debug_pointer_cast<MapControl>(m_Contents);
 }
 
@@ -79,13 +53,13 @@ std::shared_ptr<const MapControl> GraphDataView::GetContents() const
 
 bool CompatibleCrds(const AbstrUnit* a, const AbstrUnit* b)
 {
-	dms_assert(a);
+	assert(a);
 	if (!b)
 		return true;
 	
 	// Callers guarantee that stuff came from GetWorldCrdUnit that went all the way to the last object
-	dms_assert(a->m_State.GetProgress() >= PS_MetaInfo);
-	dms_assert(b->m_State.GetProgress() >= PS_MetaInfo);
+	assert(a->m_State.GetProgress() >= PS_MetaInfo);
+	assert(b->m_State.GetProgress() >= PS_MetaInfo);
 
 	return a == b
 		|| a->IsCacheItem() && b->GetUltimateItem() == a
@@ -116,8 +90,6 @@ public:
 	AddLayerCmd(const AbstrDataItem* viewItem, const LayerInfo& info, bool isDropped)
 		:	m_ViewItem(viewItem)
 		,	m_LayerInfo(info)
-		,	m_Result(nullptr)
-		,	m_WorldCrdUnit(nullptr)
 		,	m_IsDropped(isDropped)
 	{}
 	GraphVisitState DoLayerSet(LayerSet* ls) override
@@ -145,14 +117,19 @@ public:
 			std::shared_ptr<LayerSet>     defaultLayerSet;
 			std::shared_ptr<GraphicLayer> singletonTopoLayer;
 
-			SharedStr dd = TreeItem_GetDialogData(m_WorldCrdUnit);
+			SharedStr dd = m_WorldCrdUnit->GetBackgroundReference();
 			CharPtr
 				i = dd.begin(), 
 				e = dd.send();
 			while (i != e)
 			{
 				try {
-					const TreeItem* topographicItem = GetNextDialogDataRef(m_WorldCrdUnit, i, e);
+					MG_CHECK(m_Result);
+					auto geoCrdUnitContext = m_Result->GetGeoCrdUnit();
+					geoCrdUnitContext = AsUnit(geoCrdUnitContext->GetUltimateSourceItem());
+
+					MG_CHECK(geoCrdUnitContext);
+					const TreeItem* topographicItem = GetNextDialogDataRef(geoCrdUnitContext, i, e);
 					if (!topographicItem || topographicItem == m_ViewItem)
 						continue;
 					LayerSet* currSet = defaultLayerSet ? defaultLayerSet.get() : ls;
@@ -384,7 +361,7 @@ private:
 	const AbstrDataItem*    m_ViewItem;
 	LayerInfo               m_LayerInfo;
 	std::shared_ptr<GraphicLayer> m_Result;
-	const AbstrUnit*        m_WorldCrdUnit;
+	const AbstrUnit*        m_WorldCrdUnit = nullptr;
 	bool                    m_IsDropped;
 };
 

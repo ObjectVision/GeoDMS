@@ -110,9 +110,12 @@ namespace token {
 	TIC_CALL TokenID not_ = GetTokenID_st("not");
 	TIC_CALL TokenID iif = GetTokenID_st("iif");
 
+	TIC_CALL TokenID const_ = GetTokenID_st("const");;
+
 	TIC_CALL TokenID true_ = GetTokenID_st("true");
 	TIC_CALL TokenID false_ = GetTokenID_st("false");
 	TIC_CALL TokenID pi = GetTokenID_st("?");
+
 	TIC_CALL TokenID null_b = GetTokenID_st("null_b");
 	TIC_CALL TokenID null_w = GetTokenID_st("null_w");
 	TIC_CALL TokenID null_u = GetTokenID_st("null_u");

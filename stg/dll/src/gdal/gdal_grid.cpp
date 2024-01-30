@@ -441,6 +441,65 @@ bool GdalGridSM::WriteUnitRange(StorageMetaInfoPtr&& smi)
 	return smi->CurrRU() == smi->StorageHolder();
 }
 
+prop_tables GdalGridSM::GetPropTables(const TreeItem* storageHolder, TreeItem* curr) const
+{
+	prop_tables grid_dataset_properties;
+
+	// Filename
+	auto grid_dataset_filename = GetNameStr();
+	grid_dataset_properties.push_back({ 0, {GetTokenID_mt("Filename"), grid_dataset_filename} });
+
+	GDAL_ErrorFrame gdal_error_frame;
+	auto smi = GdalMetaInfo(storageHolder, curr);
+	DoOpenStorage(smi, dms_rw_mode::read_only);
+	auto gdal_ds_handle = Gdal_DoOpenStorage(smi, dms_rw_mode::read_only, 0, false);
+
+	// Raster xy size
+	auto raster_x_size = m_hDS->GetRasterXSize();
+	auto raster_y_size = m_hDS->GetRasterXSize();
+	grid_dataset_properties.push_back({ 1, {GetTokenID_mt("Size"), AsString(raster_x_size) + "," + AsString(raster_y_size)}});
+
+	auto ds_metainfo_image_structure = gdal_ds_handle->GetMetadata("IMAGE_STRUCTURE");
+	if (ds_metainfo_image_structure)
+	{
+		// Compression
+		auto compression_method = SharedStr(CSLFetchNameValue(ds_metainfo_image_structure, "COMPRESSION"));
+		grid_dataset_properties.push_back({ 1, {GetTokenID_mt("Compression"), compression_method} });
+
+		// NBits
+		auto number_of_bits = SharedStr(CSLFetchNameValue(ds_metainfo_image_structure, "NBITS"));
+		if (!number_of_bits.empty())
+			grid_dataset_properties.push_back({ 1, {GetTokenID_mt("Bits per pixel"), number_of_bits} });
+	}
+
+
+
+
+	// Spatial reference
+	auto srs = m_hDS->GetSpatialRef();
+	if (srs)
+	{
+		char* pszWKT = nullptr;
+		srs->exportToPrettyWkt(&pszWKT, false);
+		grid_dataset_properties.push_back({ 1, {GetTokenID_mt("Spatial reference"), SharedStr(pszWKT)} });
+	}
+
+	// Bands
+	auto bands = m_hDS->GetBands();
+	grid_dataset_properties.push_back({ 1, {GetTokenID_mt("Number of bands"), AsString(bands.size())} });
+
+	int band_index = 0;
+	for (auto band : bands)
+	{
+		grid_dataset_properties.push_back({ 2, {GetTokenID_mt("Band #"), AsString(band_index++)} });
+		auto raster_data_type = GDALGetDataTypeName(band->GetRasterDataType());
+		grid_dataset_properties.push_back({ 3, {GetTokenID_mt("Value type"), SharedStr(raster_data_type)} });
+	}
+
+	DoCloseStorage(false);
+	return grid_dataset_properties;
+}
+
 struct netCDFSubdatasetInfo
 {
 	UInt32 nx = 0;
@@ -495,7 +554,7 @@ void GdalGridSM::DoUpdateTree(const TreeItem* storageHolder, TreeItem* curr, Syn
 
 	if (sm == SM_None)
 		return;
-	dms_assert(storageHolder);
+	assert(storageHolder);
 	if (storageHolder != curr)
 		return;
 	if (curr->IsStorable() && curr->HasCalculator())
@@ -538,10 +597,7 @@ void GdalGridSM::DoUpdateTree(const TreeItem* storageHolder, TreeItem* curr, Syn
 			}
 			auto gdal_vc = ValueComposition::Single;
 
-			auto gridData = CreateDataItem(
-				gridDataDomain, GRID_DATA_ID,
-				gridDataDomain, vu, gdal_vc
-			);
+			auto gridData = CreateDataItem(curr, GRID_DATA_ID, gridDataDomain, vu, gdal_vc);
 
 			frame.ThrowUpWhateverCameUp();
 		}

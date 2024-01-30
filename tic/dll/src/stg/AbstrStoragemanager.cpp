@@ -977,8 +977,8 @@ StorageWriteHandle::StorageWriteHandle(StorageMetaInfoPtr&& smi)
 
 void GenerateMetaInfo(AbstrPropWriter& apw, const TreeItem* curr, const TreeItem* contents)
 {
-	dms_assert(contents);
-	dms_assert(IsMainThread());
+	assert(contents);
+	assert(IsMainThread());
 
 	GenerateSystemInfo(apw, curr);
 
