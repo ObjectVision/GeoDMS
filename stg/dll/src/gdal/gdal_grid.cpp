@@ -538,7 +538,7 @@ void GdalGridSM::DoUpdateTree(const TreeItem* storageHolder, TreeItem* curr, Syn
 
 	if (sm == SM_None)
 		return;
-	dms_assert(storageHolder);
+	assert(storageHolder);
 	if (storageHolder != curr)
 		return;
 	if (curr->IsStorable() && curr->HasCalculator())
@@ -581,10 +581,7 @@ void GdalGridSM::DoUpdateTree(const TreeItem* storageHolder, TreeItem* curr, Syn
 			}
 			auto gdal_vc = ValueComposition::Single;
 
-			auto gridData = CreateDataItem(
-				gridDataDomain, GRID_DATA_ID,
-				gridDataDomain, vu, gdal_vc
-			);
+			auto gridData = CreateDataItem(curr, GRID_DATA_ID, gridDataDomain, vu, gdal_vc);
 
 			frame.ThrowUpWhateverCameUp();
 		}
