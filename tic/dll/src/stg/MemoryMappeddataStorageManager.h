@@ -53,6 +53,8 @@ protected:
 
 //	void DoOpenStorage  (const StorageMetaInfo& smi, dms_rw_mode rwMode) const override;
 //	void DoCloseStorage (bool mustCommit) const override;
+	void DoUpdateTree(const TreeItem* storageHolder, TreeItem* curr, SyncMode sm) const override;
+	void DoWriteTree(const TreeItem* storageHolder) override;
 
 	mutable FileHandle m_MmdLockFile;
 	mutable std::unique_ptr<SafeFileWriterArray> m_SFWA;
@@ -62,5 +64,9 @@ protected:
 
 	DECL_RTTI(TIC_CALL, StorageClass)
 };
+
+using AppendTreeFromConfigurationFuncPtr = auto (*) (const char* fileName, TreeItem* treeItem)->TreeItem*;
+extern TIC_CALL AppendTreeFromConfigurationFuncPtr s_AppendTreeFromConfigurationPtr;
+
 
 #endif // !defined(__STG_MMD_STORAGEMANAGER_H)

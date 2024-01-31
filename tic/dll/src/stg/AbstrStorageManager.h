@@ -211,6 +211,14 @@ public:
 	TIC_CALL virtual bool DoCheckWritability() const;
 	TIC_CALL virtual SharedStr GetUrl() const;
 
+	// public interface funcs wrap derived StorageManagers virtual funcs
+	TIC_CALL void UpdateTree(const TreeItem* storageHolder, TreeItem* curr) const;
+
+protected:
+	// overridable helper functions which are only called from the wrapper funcs 
+	TIC_CALL virtual void DoUpdateTree(const TreeItem* storageHolder, TreeItem* curr, SyncMode sm) const;
+	TIC_CALL virtual void DoWriteTree(const TreeItem* storageHolder);
+
 public:
 	using mutex_t = leveled_critical_section;
 	using lock_t = mutex_t::scoped_lock;
@@ -263,18 +271,12 @@ public:
 
 	TIC_CALL virtual void DropStream(const TreeItem* item, CharPtr path);
 
-	// public interface funcs wrap derived StorageManagers
-	// code is left here for instructional purposes and is to be removed to impl
-
-	TIC_CALL void ExportMetaInfo(const TreeItem* storageHolder, const TreeItem* curr);
-	TIC_CALL void UpdateTree(const TreeItem* storageHolder, TreeItem* curr) const;
+	// public interface funcs wrap derived StorageManagers virtual funcs
 	TIC_CALL virtual AbstrUnit* CreateGridDataDomain(const TreeItem* storageHolder);
+	TIC_CALL void ExportMetaInfo(const TreeItem* storageHolder, const TreeItem* curr);
 
 protected:
 	// overridable helper functions which are only called from the wrapper funcs 
-	TIC_CALL virtual void DoUpdateTree(const TreeItem* storageHolder, TreeItem* curr, SyncMode sm) const;
-	TIC_CALL virtual void DoWriteTree (const TreeItem* storageHolder);
-
 	TIC_CALL virtual void DoCreateStorage(const StorageMetaInfo& smi);
 	TIC_CALL virtual void DoOpenStorage  (const StorageMetaInfo& smi, dms_rw_mode rwMode) const;
 	TIC_CALL virtual void DoCloseStorage (bool mustCommit) const;

@@ -17,12 +17,16 @@
 #include "utl/Environment.h"
 #include "utl/mySPrintF.h"
 #include "utl/SplitPath.h"
+#include "xml/XMLOut.h"
 
 #include "AbstrDataItem.h"
 #include "AbstrDataObject.h"
 #include "DataStoreManagerCaller.h"
+#include "TreeItemProps.h"
 
 #include "stg/StorageClass.h"
+
+TIC_CALL AppendTreeFromConfigurationFuncPtr s_AppendTreeFromConfigurationPtr = nullptr;
 
 //////////////////////////////////////////////////////////////////////
 // MmdStorageManager implementation
@@ -71,6 +75,36 @@ bool MmdStorageManager::DoCheckExistence(const TreeItem* storageHolder, const Tr
 	auto relName = storageItem->GetRelativeName(storageHolder);
 	auto sfwa = DSM::GetSafeFileWriterArray(); MG_CHECK(sfwa);
 	return IsFileOrDirAccessible(sfwa.get()->GetWorkingFileName(GetFullFileName(relName.c_str()), FCM_OpenReadOnly));
+}
+
+void MmdStorageManager::DoUpdateTree(const TreeItem* storageHolder, TreeItem* curr, SyncMode sm) const
+{
+	if (curr != storageHolder)
+		return;
+	auto dirFileName = GetFullFileName("0.dms");
+	auto sfwa = DSM::GetSafeFileWriterArray(); MG_CHECK(sfwa);
+	auto workingFileName = sfwa.get()->GetWorkingFileName(dirFileName, FCM_OpenReadOnly);
+
+	if (!IsFileOrDirAccessible(workingFileName))
+		return;
+	if (!s_AppendTreeFromConfigurationPtr)
+		throwErrorD("MmdStorageManager::DoUpdateTree", "s_AppendTreeFromConfigurationPtr is not set");
+
+	s_AppendTreeFromConfigurationPtr(workingFileName.c_str(), curr);
+}
+
+void MmdStorageManager::DoWriteTree(const TreeItem* storageHolder)
+{
+	if (!storageHolder)
+		return;
+
+	auto dirFileName = GetFullFileName("0.dms");
+	auto sfwa = DSM::GetSafeFileWriterArray(); MG_CHECK(sfwa);
+
+	auto osb = FileOutStreamBuff(dirFileName, sfwa.get(), true);
+	auto out = OutStream_DMS(&osb, calcRulePropDefPtr);
+
+	storageHolder->XML_Dump(&out);
 }
 
 

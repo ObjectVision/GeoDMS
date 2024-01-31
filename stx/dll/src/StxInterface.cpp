@@ -84,7 +84,7 @@ SYNTAX_CALL TreeItem* CreateTreeFromConfiguration(CharPtr sourceFilename)
 #if defined(MG_DEBUG_INTERESTSOURCE)
 			DemandManagement::IncInterestDetector incInterestLock("DMS_CreateTreeFromConfiguration()");
 #endif // MG_DEBUG_INTERESTSOURCE
-			res = AppendTreeFromConfiguration(fileName, 0);
+			res = AppendTreeFromConfiguration(fileName, nullptr);
 		}
 		currSession->Open(res);
 		auto fts = UpdateMarker::GetFreshTS(MG_DEBUG_TS_SOURCE_CODE("CreateTreeFromConfiguration"));
@@ -160,6 +160,22 @@ bool TryAppendTreeFromConfiguration(CharPtr dektopRootFolderName, CharPtr deskto
 	AppendTreeFromConfiguration(desktopRootFile, context);
 	return true;
 }
+#include "stg/MemoryMappeddataStorageManager.h"
+
+struct InitAppendFuncPtr
+{
+	InitAppendFuncPtr()
+	{
+		s_AppendTreeFromConfigurationPtr = AppendTreeFromConfiguration;
+	}
+	~InitAppendFuncPtr()
+	{
+		s_AppendTreeFromConfigurationPtr = nullptr; // bye bye
+	}
+};
+
+static InitAppendFuncPtr s_SetCallbackfunc;
+
 
 TreeItem* AppendTreeFromConfiguration(CharPtr sourceFileName, TreeItem* context /*can be NULL*/ )
 {
