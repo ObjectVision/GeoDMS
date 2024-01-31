@@ -739,41 +739,6 @@ bool GraphicObject::OnCommand(ToolButtonID id)
 
 CommandStatus GraphicObject::OnCommandEnable(ToolButtonID id) const
 {
-	switch (id)
-	{
-		case TB_CutSel:
-		case TB_CopySel:
-		case TB_PasteSelDirect:
-		case TB_PasteSel:
-		case TB_DeleteSel:
-			if (GetUserMode() < UM_Edit) return CommandStatus::HIDDEN;
-			break;
-
-		case TB_ZoomSelectedObj:
-		case TB_SelectObject:
-		case TB_SelectRect:
-		case TB_SelectCircle:
-		case TB_SelectPolygon:
-		case TB_SelectDistrict:
-		case TB_SelectRows:
-		case TB_SelectAll:
-		case TB_SelectNone:
-			if (GetUserMode() < UM_Select) return CommandStatus::HIDDEN;
-			break;
-
-		case TB_ShowSelOnlyOn:
-		case TB_ShowSelOnlyOff:
-		{
-			return CommandStatus::ENABLED;
-			/*if (GetUserMode() < UM_Select) return CommandStatus::HIDDEN;
-			bool showSelectedOnly = ShowSelectedOnly();
-			return (ShowSelectedOnlyEnabled() || showSelectedOnly)
-					?	showSelectedOnly
-						? CommandStatus::DOWN
-						: CommandStatus::UP
-					: CommandStatus::DISABLED;*/
-		}
-	}
 	return CommandStatus::ENABLED;
 }
 

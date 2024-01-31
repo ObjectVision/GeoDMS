@@ -1221,23 +1221,7 @@ void UpdateShowSelOnlyImpl(
 	}
 }
 
-//----------------------------------------------------------------------
-// GetUserMode section
-//----------------------------------------------------------------------
 #include "SessionData.h"
-
-UserMode GetUserMode()
-{
-	static UserMode userMode = UM_Unknown;
-	if (userMode == UM_Unknown)
-	{
-		Int32 userModeID = SessionData::Curr()->ReadConfigValue("Tools", "NrGroups", UM_Edit);
-		userMode = UserMode(userModeID);
-		MakeMax(userMode, UM_View);
-		MakeMin(userMode, UM_Edit);
-	}
-	return userMode;
-}
 
 GraphVisitState GVS_BreakOnSuspended()
 {
