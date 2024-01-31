@@ -2,7 +2,9 @@
 // License: GNU GPL 3
 /////////////////////////////////////////////////////////////////////////////
 
+#if defined(_MSC_VER)
 #pragma once
+#endif
 
 #ifndef __MG_SYMBOL_TOKEN_H
 #define __MG_SYMBOL_TOKEN_H
