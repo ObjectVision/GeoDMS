@@ -1982,6 +1982,8 @@ void MainWindow::doViewAction(TreeItem* tiContext, CharPtrRange sAction, QWidget
     }
 }
 
+static bool s_TreeViewRefreshPending = false;
+
 void AnyTreeItemStateHasChanged(ClientHandle clientHandle, const TreeItem* self, NotificationCode notificationCode)
 {
     auto mainWindow = reinterpret_cast<MainWindow*>(clientHandle);
@@ -1989,12 +1991,25 @@ void AnyTreeItemStateHasChanged(ClientHandle clientHandle, const TreeItem* self,
     case NC_Deleting:
         // TODO: remove self from any representation to avoid accessing it's dangling pointer
         break;
+    case NC_Creating:
+        assert(IsMainThread());
+        if (!s_TreeViewRefreshPending)
+        {
+			s_TreeViewRefreshPending = true;
+			QTimer::singleShot(0, mainWindow->m_treeview, [mainWindow]() 
+                { 
+                    s_TreeViewRefreshPending = false;
+                    mainWindow->m_treeview->update(); 
+                }
+            );
+        }
+        break;
     case CC_CreateMdiChild:
     {
         assert(IsMainThread());
         auto* createStruct = const_cast<MdiCreateStruct*>(reinterpret_cast<const MdiCreateStruct*>(self));
         assert(createStruct);
-        new QDmsViewArea(mainWindow->m_mdi_area.get(), createStruct); // TODO: no parent, memory leak
+        new QDmsViewArea(mainWindow->m_mdi_area.get(), createStruct);
         return;
     }
     case CC_Activate:
