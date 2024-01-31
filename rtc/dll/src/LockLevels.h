@@ -66,44 +66,45 @@ enum class ord_level_type : UInt32
 	Tile = TileShadow + 1,
 	SafeFileWriterArray = MOST_INNER_LOCK,
 
-	SpecificOperator = TileShadow - 1,
+	SpecificOperator = TileShadow - 1, // MOST_INNER_LOCK - 4
 	SpecificOperatorGroup = SpecificOperator - 1,
 	DataViewQueue = SpecificOperator - 1,
 	UpdateActionSet = DataViewQueue,
-	Storage = SpecificOperator - 1,
+	Storage = SpecificOperator - 1, // MOST_INNER_LOCK - 5
 	AbstrStorage = Storage - 1,
 	BoundingBoxCache2 = SpecificOperator - 1,
 	BoundingBoxCache1 = BoundingBoxCache2 - 1,
 
-	DataRefContainer = 1,
+	// // MOST_INNER_LOCK - 4
+	DataRefContainer = Storage + 1,
 
-	// level c
+	// level c == MOST_INNER_LOCK - 2
 	ThreadMessing = TileShadow+1, //lowest_of(CountSection - 1, IndexedString - 1), // calls CountSections.
 	CountSection = ThreadMessing+1,
 
-	// level c+1
+	// level c+1 == MOST_INNER_LOCK - 1
 	FailSection = ThreadMessing + 1,
 	OperContextAccess = ThreadMessing + 1,
 
-	// level c+2
+	// level c+2 == MOST_INNER_LOCK
 	TileAccessMap = highest_of(ThreadMessing, CountSection) + 1, // can be used in SymbObjSection and in CountSection
 	IndexedString = CountSection + 1,
 	LispObjCache = IndexedString + 1,
 	MoveSupplInterest = FailSection + 1,
 
-	// level c+3
+	// level c+3 == MOST_INNER_LOCK + 1
 	GDALComponent = IndexedString + 1,
 	FLispUsageCache = IndexedString - 1,
 //	SymbObjSection = IndexedString + 1, // can be used while IndexedString is locked
 	NotifyTargetCount = MoveSupplInterest + 1,
 
-	// level c+4
+	// level c+4 == MOST_INNER_LOCK + 2
 	ObjectRegister = LispObjCache + 1, // can be used in SymbObjSection
 
-	// level c+5
+	// level c+5 == MOST_INNER_LOCK + 3
 	DebugOutStream = ObjectRegister + 1,
 
-	// level c+6
+	// level c+6 == MOST_INNER_LOCK + 4
 	OperationQueue = DebugOutStream + 1,
 };
 
