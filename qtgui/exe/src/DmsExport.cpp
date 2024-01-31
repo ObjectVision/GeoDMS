@@ -320,11 +320,6 @@ auto DoExportRasterOrMatrixData(const TreeItem* rasterItemOrDomain, bool nativeF
         return nullptr;
 
     auto avd = GetExportsContainer(GetDefaultDesktopContainer(rasterItemOrDomain));
-    //TreeItem* context,
-    //    TokenID          nameID,
-    //    const AbstrUnit* domainUnit,
-    //    const AbstrUnit* valuesUnit,
-    //    ValueComposition vc)
     TokenID t_gdal_grid_driver_options = GetTokenID_mt("GDAL_Options");
     auto gdal_driver_options = CreateDataItem(avd, UniqueName(avd, t_gdal_grid_driver_options), Unit<Void>::GetStaticClass()->CreateDefault(), Unit<SharedStr>::GetStaticClass()->CreateDefault(), ValueComposition::Void);
     SharedStr gdal_driver_options_expr("'TFW=YES'");// mySSPrintF("%s[%s]", expr.c_str(), baseGrid->GetFullName().c_str());
