@@ -3392,17 +3392,36 @@ bool TreeItem::PrepareDataUsageImpl(DrlType drlFlags) const
 				assert(sm);
 				if (auto mmd = dynamic_cast<MmdStorageManager*>(sm))
 				{
-					auto fsn = sm->GetNameStr();
-					auto rn = GetRelativeName(sp);
-
-					auto fn = DelimitedConcat(fsn, rn);
-					if (IsFileOrDirAccessible(fn))
+					bool mustWrite = HasCalculator();
+					bool mustSkip = false;
+					if (!mmd->IsOpen() ||  !mmd->IsOpenForWrite() && mustWrite)
 					{
-						auto fh = OpenFileData(AsDataItem(this), avu ? avu->GetTiledRangeData() : nullptr, fn, mmd->GetSFWA());
-						if (fh)
+						auto parent = GetStorageParent(mustWrite);
+						if (!parent)
+							mustSkip = true;
+						else
 						{
-							AsDataItem(GetCurrUltimateItem())->m_DataObject.reset(fh.release()); // , !adi->IsPersistent(), true); // calls OpenFileData
-							return true;
+							auto smi = StorageMetaInfo(parent, this);
+							if (mustWrite)
+								mmd->OpenForWrite(smi);
+							else
+								mmd->OpenForRead(smi);
+						}
+					}
+					if (!mustSkip)
+					{
+						auto fsn = sm->GetNameStr();
+						auto rn = GetRelativeName(sp);
+
+						auto fn = DelimitedConcat(fsn, rn);
+						if (IsFileOrDirAccessible(fn))
+						{
+							auto fh = OpenFileData(AsDataItem(this), avu ? avu->GetTiledRangeData() : nullptr, fn, mmd->GetSFWA());
+							if (fh)
+							{
+								AsDataItem(GetCurrUltimateItem())->m_DataObject.reset(fh.release()); // , !adi->IsPersistent(), true); // calls OpenFileData
+								return true;
+							}
 						}
 					}
 				}
@@ -3739,7 +3758,7 @@ void TreeItem::ClearData(garbage_t&) const
 #include <time.h>
 
 
-void TreeItem::XML_Dump(OutStreamBase* xmlOutStr) const
+void TreeItem::XML_Dump(OutStreamBase* xmlOutStr, bool dumpSubTags) const
 { 
 	// write #include <filename> if configStore defined
 	if (xmlOutStr->GetLevel() > 0)
@@ -3768,7 +3787,9 @@ void TreeItem::XML_Dump(OutStreamBase* xmlOutStr) const
 	XML_OutElement xmlElem(*xmlOutStr, tagName.c_str(), GetName().c_str());
 
 	xmlOutStr->DumpPropList(this);
-	xmlOutStr->DumpSubTags(this);
+
+	if (dumpSubTags)
+		xmlOutStr->DumpSubTags(this);
 	// end of Copy
 
 	if (IsDataItem(this))
@@ -3806,7 +3827,7 @@ void TreeItem::XML_Dump(OutStreamBase* xmlOutStr) const
 	while (subItem)
 	{
 		if (!subItem->IsEndogenous())
-			subItem->XML_Dump(xmlOutStr);
+			subItem->XML_Dump(xmlOutStr, dumpSubTags);
 		subItem = subItem->GetNextItem();
 	}
 	xmlOutStr->EndSubItems();

@@ -216,8 +216,10 @@ bool AbstrDataItem::DoReadItem(StorageMetaInfoPtr smi)
 {
 	assert(CheckCalculatingOrReady(GetAbstrDomainUnit()->GetCurrRangeItem()));
 
-	auto* sm = smi->StorageManager();
-	assert(sm);
+	auto* sm_ = smi->StorageManager();
+	assert(sm_);
+	auto* sm = dynamic_cast<NonmappableStorageManager*>(sm_);
+	MG_CHECK(sm);
 
 	if (!sm->DoesExist(smi->StorageHolder()))
 		throwItemErrorF( "Storage %s does not exist", sm->GetNameStr().c_str() );
@@ -286,7 +288,11 @@ bool AbstrDataItem::DoWriteItem(StorageMetaInfoPtr&& smi) const
 
 	DataReadLock lockForSave(this);
 
-	auto sm = smi->StorageManager();
+	auto* sm_ = smi->StorageManager();
+	assert(sm_);
+	auto* sm = dynamic_cast<NonmappableStorageManager*>(sm_);
+	MG_CHECK(sm);
+
 	reportF(MsgCategory::storage_write, SeverityTypeID::ST_MajorTrace, "%s IS STORED IN %s",
 		GetSourceName().c_str()
 	,	sm->GetNameStr().c_str()

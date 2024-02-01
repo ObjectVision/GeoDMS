@@ -162,7 +162,7 @@ public:
 
 // Dumping 
 
-	TIC_CALL virtual void XML_Dump(OutStreamBase* out) const; // DumpDecl
+	TIC_CALL virtual void XML_Dump(OutStreamBase* out, bool dumpSubTags = true) const; // DumpDecl
 
 //	storage
 

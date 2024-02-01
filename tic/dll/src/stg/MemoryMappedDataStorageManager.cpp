@@ -104,7 +104,7 @@ void MmdStorageManager::DoWriteTree(const TreeItem* storageHolder)
 	auto osb = FileOutStreamBuff(dirFileName, sfwa.get(), true);
 	auto out = OutStream_DMS(&osb, calcRulePropDefPtr);
 
-	storageHolder->XML_Dump(&out);
+	storageHolder->XML_Dump(&out, false);
 }
 
 

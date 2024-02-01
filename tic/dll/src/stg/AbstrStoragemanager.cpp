@@ -672,6 +672,20 @@ FileDateTime AbstrStorageManager::GetCachedChangeDateTime(const TreeItem* storag
 	return m_FileTime;
 }
 
+void AbstrStorageManager::DoCreateStorage(const StorageMetaInfo& smi)
+{
+	dms_assert(!m_IsReadOnly);
+	DoOpenStorage(smi, dms_rw_mode::write_only_all);
+}
+
+void AbstrStorageManager::DoOpenStorage(const StorageMetaInfo& smi, dms_rw_mode rwMode) const
+{
+	dms_assert(!IsOpen());
+}
+
+void AbstrStorageManager::DoCloseStorage(bool mustCommit) const
+{}
+
 void AbstrStorageManager::DoWriteTree(const TreeItem* storageHolder)
 {}
 
@@ -717,10 +731,26 @@ StorageMetaInfoPtr NonmappableStorageManager::GetMetaInfo(const TreeItem* storag
 	return std::make_unique<StorageMetaInfo>(storageHolder, focusItem);
 }
 
-bool NonmappableStorageManager::ReadDataItem  (StorageMetaInfoPtr smi, AbstrDataObject* borrowedReadResultHolder, tile_id t) { return false; }
-bool NonmappableStorageManager::WriteDataItem (StorageMetaInfoPtr&& smi) { return false; }
-bool NonmappableStorageManager::ReadUnitRange (const StorageMetaInfo& smi) const       { return false; }
-bool NonmappableStorageManager::WriteUnitRange(StorageMetaInfoPtr&& smi)       { return false; }
+bool AbstrStorageManager::ReadDataItem  (StorageMetaInfoPtr smi, AbstrDataObject* borrowedReadResultHolder, tile_id t) 
+{ 
+	throwIllegalAbstract(MG_POS, "AbstrStorageManager::ReadDataItem");
+}
+
+bool AbstrStorageManager::WriteDataItem(StorageMetaInfoPtr&& smi)
+{
+	throwIllegalAbstract(MG_POS, "AbstrStorageManager::WriteDataItem");
+}
+
+bool AbstrStorageManager::ReadUnitRange (const StorageMetaInfo& smi) const
+{
+	throwIllegalAbstract(MG_POS, "AbstrStorageManager::ReadUnitRange");
+}
+
+bool AbstrStorageManager::WriteUnitRange(StorageMetaInfoPtr&& smi)  
+{
+	throwIllegalAbstract(MG_POS, "AbstrStorageManager::WriteUnitRange");
+}
+
 
 ActorVisitState NonmappableStorageManager::VisitSuppliers(SupplierVisitFlag svf, const ActorVisitor& visitor, const TreeItem* storageHolder, const TreeItem* self) const
 {
@@ -763,9 +793,9 @@ void NonmappableStorageManager::StopInterest(const TreeItem* storageHolder, cons
 
 // Wrapper functions for consistent calls to specific StorageManager overrides
 
-bool NonmappableStorageManager::OpenForRead(const StorageMetaInfo& smi) const
+bool AbstrStorageManager::OpenForRead(const StorageMetaInfo& smi) const
 {
-	dms_assert(smi.StorageHolder());
+	assert(smi.StorageHolder());
 
 	const TreeItem* storageHolder = smi.StorageHolder();
 	if (m_IsOpen) 
@@ -784,7 +814,7 @@ bool NonmappableStorageManager::OpenForRead(const StorageMetaInfo& smi) const
 	return true;
 }
 
-void NonmappableStorageManager::OpenForWrite(const StorageMetaInfo& smi) // PRECONDITION !m_IsReadOnly
+void AbstrStorageManager::OpenForWrite(const StorageMetaInfo& smi) // PRECONDITION !m_IsReadOnly
 {
 	if (m_IsReadOnly)
 		throwItemError("Storage is read only - write request is denied");
@@ -805,7 +835,7 @@ void NonmappableStorageManager::OpenForWrite(const StorageMetaInfo& smi) // PREC
 	DoWriteTree(smi.StorageHolder());
 }
 
-void NonmappableStorageManager::CloseStorage() const
+void AbstrStorageManager::CloseStorage() const
 {
 	if (!m_IsOpen) 
 		return;
@@ -813,21 +843,6 @@ void NonmappableStorageManager::CloseStorage() const
 	DoCloseStorage(m_Commit && m_IsOpenedForWrite);
 	m_IsOpen = false;
 }
-
-
-void NonmappableStorageManager::DoCreateStorage(const StorageMetaInfo& smi)
-{
-	dms_assert(!m_IsReadOnly);
-	DoOpenStorage(smi, dms_rw_mode::write_only_all);
-}
-
-void NonmappableStorageManager::DoOpenStorage(const StorageMetaInfo& smi, dms_rw_mode rwMode) const
-{
-	dms_assert(!IsOpen());
-}
-
-void NonmappableStorageManager::DoCloseStorage (bool mustCommit) const
-{}
 
 IMPL_CLASS(AbstrStorageManager, nullptr)
 IMPL_CLASS(NonmappableStorageManager, nullptr)

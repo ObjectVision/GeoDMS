@@ -125,7 +125,7 @@ struct StorageMetaInfo : std::enable_shared_from_this<StorageMetaInfo>
 	{}
 
 	StorageMetaInfo(const TreeItem* storageHolder, const TreeItem* curr)
-		: m_StorageManager(debug_cast<NonmappableStorageManager*>(storageHolder->GetStorageManager()))
+		: m_StorageManager(storageHolder->GetStorageManager())
 		, m_StorageHolder(storageHolder)
 		, m_Curr(curr)
 		, m_RelativeName(storageHolder->DoesContain(curr) ? curr->GetRelativeName(storageHolder).c_str() : curr->GetFullName().c_str())
@@ -141,11 +141,11 @@ struct StorageMetaInfo : std::enable_shared_from_this<StorageMetaInfo>
 	AbstrUnit*     CurrWU() const { return const_cast<AbstrUnit*>(CurrRU()); }
 	TreeItem*      CurrWI() const { return const_cast<TreeItem*>(CurrRI()); }
 
-	NonmappableStorageManager* StorageManager() const { return m_StorageManager; }
+	AbstrStorageManager* StorageManager() const { return m_StorageManager; }
 	const TreeItem* StorageHolder() const { return m_StorageHolder; }
 
 protected:
-	SharedPtr<NonmappableStorageManager> m_StorageManager;
+	SharedPtr<AbstrStorageManager> m_StorageManager;
 	SharedPtr<const TreeItem> m_StorageHolder, m_Curr;
 public:
 	SharedStr m_RelativeName;
@@ -198,6 +198,14 @@ public:
 	bool IsReadOnly() const { return m_IsReadOnly; }
 	bool IsOpenForWrite() const { return IsOpen() && !IsReadOnly(); }
 
+public:
+	// Wrapper functions for consistent StorageManager derivations
+	// of the public interface funcs
+	TIC_CALL void OpenForWrite(const StorageMetaInfo& smi); friend struct StorageWriteHandle;
+	TIC_CALL void CloseStorage() const; friend struct StorageCloseHandle;
+	TIC_CALL bool OpenForRead(const StorageMetaInfo& smi) const; friend struct StorageReadHandle; // POSTCONDITION: m_IsOpen == returnValue
+
+
 	//	Abstact interface
 	TIC_CALL virtual bool AllowRandomTileAccess() const { return false; }
 	TIC_CALL virtual bool EasyRereadTiles() const { return false; }
@@ -214,8 +222,18 @@ public:
 	// public interface funcs wrap derived StorageManagers virtual funcs
 	TIC_CALL void UpdateTree(const TreeItem* storageHolder, TreeItem* curr) const;
 
+	// public interface funcs only implemented in NonmappableStorageManagers
+	TIC_CALL virtual bool ReadDataItem(StorageMetaInfoPtr smi, AbstrDataObject* borrowedReadResultHolder, tile_id t);
+	TIC_CALL virtual bool WriteDataItem(StorageMetaInfoPtr&& smiHolder);
+
+	TIC_CALL virtual bool ReadUnitRange(const StorageMetaInfo& smi) const;
+	TIC_CALL virtual bool WriteUnitRange(StorageMetaInfoPtr&& smi);
+
 protected:
 	// overridable helper functions which are only called from the wrapper funcs 
+	TIC_CALL virtual void DoCreateStorage(const StorageMetaInfo& smi);
+	TIC_CALL virtual void DoOpenStorage(const StorageMetaInfo& smi, dms_rw_mode rwMode) const;
+	TIC_CALL virtual void DoCloseStorage(bool mustCommit) const;
 	TIC_CALL virtual void DoUpdateTree(const TreeItem* storageHolder, TreeItem* curr, SyncMode sm) const;
 	TIC_CALL virtual void DoWriteTree(const TreeItem* storageHolder);
 
@@ -259,12 +277,6 @@ public:
 //	Abstact interface
 	TIC_CALL virtual StorageMetaInfoPtr GetMetaInfo(const TreeItem* storageHolder, TreeItem* curr, StorageAction sa) const;
 
-	TIC_CALL virtual bool ReadDataItem  (StorageMetaInfoPtr smi, AbstrDataObject* borrowedReadResultHolder, tile_id t)=0;
-	TIC_CALL virtual bool WriteDataItem (StorageMetaInfoPtr&& smiHolder);
-
-	TIC_CALL virtual bool ReadUnitRange (const StorageMetaInfo& smi) const;
-	TIC_CALL virtual bool WriteUnitRange(StorageMetaInfoPtr&& smi);
-
 	TIC_CALL virtual ActorVisitState VisitSuppliers(SupplierVisitFlag svf, const ActorVisitor& visitor, const TreeItem* storageHolder, const TreeItem* self) const;
 	TIC_CALL virtual void StartInterest(const TreeItem* storageHolder, const TreeItem* self) const;
 	TIC_CALL virtual void StopInterest (const TreeItem* storageHolder, const TreeItem* self) const noexcept;
@@ -274,21 +286,6 @@ public:
 	// public interface funcs wrap derived StorageManagers virtual funcs
 	TIC_CALL virtual AbstrUnit* CreateGridDataDomain(const TreeItem* storageHolder);
 	TIC_CALL void ExportMetaInfo(const TreeItem* storageHolder, const TreeItem* curr);
-
-protected:
-	// overridable helper functions which are only called from the wrapper funcs 
-	TIC_CALL virtual void DoCreateStorage(const StorageMetaInfo& smi);
-	TIC_CALL virtual void DoOpenStorage  (const StorageMetaInfo& smi, dms_rw_mode rwMode) const;
-	TIC_CALL virtual void DoCloseStorage (bool mustCommit) const;
-
-public:
-	TIC_CALL void OpenForWrite(const StorageMetaInfo& smi); friend struct StorageWriteHandle;
-	TIC_CALL void CloseStorage() const; friend struct StorageCloseHandle;
-	//	helper functions
-private:
-	// Wrapper functions for consistent StorageManager derivations
-	// of the public interface funcs
-	TIC_CALL bool OpenForRead (const StorageMetaInfo& smi) const; friend struct StorageReadHandle; // POSTCONDITION: m_IsOpen == returnValue
 
 private:
 	using interest_holders_container = std::vector<InterestPtr<SharedPtr<const Actor>>>;
@@ -322,9 +319,9 @@ private:
 	void Init(const AbstrStorageManager* storageManager, const TreeItem* storageHolder, const TreeItem* focusItem);
 
 protected:
-	StorageMetaInfoPtr                         m_MetaInfo;
-	SharedPtr<const NonmappableStorageManager> m_StorageManager;
-	SharedTreeItem                             m_StorageHolder, m_FocusItem;
+	StorageMetaInfoPtr                   m_MetaInfo;
+	SharedPtr<const AbstrStorageManager> m_StorageManager;
+	SharedTreeItem                       m_StorageHolder, m_FocusItem;
 private:
 	AbstrStorageManager::lock_t    m_StorageLock;
 	TimeStamp                      m_TimeStampBefore;
