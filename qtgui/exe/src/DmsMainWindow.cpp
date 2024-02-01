@@ -1031,6 +1031,9 @@ bool MainWindow::event(QEvent* event)
                 {
                     auto changed_files = std::string(vos.GetData(), vos.GetDataEnd());
                     m_file_changed_window->setFileChangedMessage(changed_files);
+
+                    // now allow MsgQueue to process GUI events, such TreeView item activation, 
+                    // that initiated the WindowActivate, before showing the FileChangedWindow
                     QTimer::singleShot(0, this, [=]()
                         {
                             m_file_changed_window->show();
