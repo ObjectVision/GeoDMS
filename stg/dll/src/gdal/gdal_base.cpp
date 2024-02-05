@@ -402,7 +402,7 @@ void CheckCompatibility(const TreeItem* treeitem, OGRSpatialReference* fromGDAL,
 	if (authority_code_from_gdal == authority_code_from_value_unit)
 		return;
 
-	reportF(SeverityTypeID::ST_Warning, "GDAL: item %s spatial reference (%s) differs from the spatial reference (%s) GDAL obtained from dataset"
+	reportF(SeverityTypeID::ST_Warning, "GDAL: item [[%s]] spatial reference (%s) differs from the spatial reference (%s) GDAL obtained from dataset"
 		, treeitem->GetFullName().c_str()
 		, authority_code_from_gdal.c_str()
 		, authority_code_from_value_unit.c_str()

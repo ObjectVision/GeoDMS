@@ -16,7 +16,6 @@
 #include "ogrsf_frmts.h"
 #include "ogr_api.h"
 
-
 #include "dbg/debug.h"
 #include "dbg/SeverityType.h"
 #include "geo/Conversions.h"
@@ -1573,12 +1572,12 @@ void UpdateSpatialRef(const GDALDatasetHandle& hDS, AbstrDataItem* geometry, std
 		return;
 	assert(geometry);
 
-	auto gvu = GetBaseProjectionUnitFromValuesUnit(geometry); // TODO: create spatial reference if unavailable
+	auto gvu = GetBaseProjectionUnitFromValuesUnit(geometry);
 	CheckSpatialReference(spatialRef, geometry, const_cast<AbstrUnit*>(gvu)); 
 
-	auto wkt = GetAsWkt(&*spatialRef);
-	if (!wkt.empty())
-		geometry->SetDescr(wkt);
+	//auto wkt = GetAsWkt(&*spatialRef);
+	//if (!wkt.empty())
+	//	geometry->SetDescr(wkt);
 }
 
 #include "mci/ValueWrap.h"
@@ -1593,6 +1592,7 @@ void GdalVectSM::DoUpdateTable(const TreeItem* storageHolder, AbstrUnit* layerDo
 	GDAL_ErrorFrame gdal_error_frame;
 	auto layer_geometry_type = layer->GetGeomType();
 	ValueComposition gdal_vc = gdalVectImpl::OGR2ValueComposition(layer_geometry_type);
+	bool create_vu_from_datasource = false;
 	auto vu = FindProjectionRef(storageHolder, layerDomain);
 	if (!vu)
 		vu = Unit<DPoint>::GetStaticClass()->CreateDefault();
@@ -1615,9 +1615,10 @@ void GdalVectSM::DoUpdateTable(const TreeItem* storageHolder, AbstrUnit* layerDo
 		{
 			if (gdal_vc == ValueComposition::Unknown)
 			{
-				// interpret using first feature
+				// attempt interpreting geometry type using first feature
 				OGRwkbGeometryType first_feature_geometry_type = OGRwkbGeometryType::wkbUnknown;
 				auto first_feature = layer->GetNextFeature();
+				layer->GetGeometryColumn();
 				if (first_feature)
 				{
 					auto geometry_ref = first_feature->GetGeometryRef();
@@ -1636,27 +1637,30 @@ void GdalVectSM::DoUpdateTable(const TreeItem* storageHolder, AbstrUnit* layerDo
 				default:              vu = Unit<SharedStr>::GetStaticClass()->CreateDefault(); gdal_vc = ValueComposition::String; break;
 				}
 			}
+
+			auto vu = Unit<DPoint>::GetStaticClass()->CreateUnit(layerDomain, GetTokenID_mt("SpatialReference"));
+			dynamic_cast<TreeItem*>(vu)->SetDescr(SharedStr("EPSG:28992"));
+			dynamic_cast<TreeItem*>(vu)->SetExpr(SharedStr("range(DPoint, LowerBound(DPoint), UpperBound(DPoint))"));
+
 			geometry = CreateDataItem(
 				layerDomain, token::geometry,
 				layerDomain, vu, gdal_vc
 			);
 		}
+
+		// Update spatial reference information
 		dms_assert(geometry);
 		if (gdal_vc != ValueComposition::String)
 		{
 			const OGRSpatialReference* ogrSR_ptr = layer->GetSpatialRef();
-			if (ogrSR_ptr)
-			{
-				auto axis_order = ogrSR_ptr->GetAxisMappingStrategy();
-				int i = 0;
-			}
 			std::optional<OGRSpatialReference> ogrSR; 
 			if (ogrSR_ptr) 
 				ogrSR = *ogrSR_ptr;
+
+			//geometry
 			UpdateSpatialRef(m_hDS, geometry, ogrSR);
 		}
 	}
-
 
 	// Update Attribute Fields
 	WeakPtr<OGRFeatureDefn> featureDefn = layer->GetLayerDefn();
