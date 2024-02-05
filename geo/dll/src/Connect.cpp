@@ -725,7 +725,9 @@ public:
 					//				auto data2 = composite_cast<ResSubType2*>(resSub2)->GetDataWrite(); auto r2 = data2.begin();
 					AbstrDataObject* ado2 = OnlyDistResult ? nullptr : res2Lock.get();
 
-					WritableTileLock arcIdDataLock(ado2, t, dms_rw_mode::write_only_all);
+					std::optional<WritableTileLock> arcIdDataLock;
+					if (!OnlyDistResult)
+						arcIdDataLock = WritableTileLock(ado2, t, dms_rw_mode::write_only_all);
 
 					typename ResSubType3::locked_seq_t data3; typename ResSubType3::iterator r3;
 					typename ResSubType4::locked_seq_t data4; typename ResSubType4::iterator r4;
@@ -837,11 +839,11 @@ public:
 					}
 				});
 			res1Lock.Commit();
-			res2Lock.Commit();
-			res3Lock.Commit();
-			res4Lock.Commit();
-			res5Lock.Commit();
-			res6Lock.Commit();
+			if (res2Lock) res2Lock.Commit();
+			if (res3Lock) res3Lock.Commit();
+			if (res4Lock) res4Lock.Commit();
+			if (res5Lock) res5Lock.Commit();
+			if (res6Lock) res6Lock.Commit();
 			if (!OnlyDistResult)
 				resultHolder->SetIsInstantiated();
 		}
