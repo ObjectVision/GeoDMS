@@ -46,7 +46,7 @@ MmdStorageManager::~MmdStorageManager()
 
 SharedStr MmdStorageManager::GetFullFileName(CharPtr name) const
 {
-	return DelimitedConcat(GetNameStr().c_str(), MakeDataFileName(name).c_str());
+	return DelimitedConcat(GetNameStr().c_str(), MakeFileName(name).c_str());
 }
 
 auto MmdStorageManager::GetSFWA() const->SafeFileWriterArray*
@@ -81,7 +81,7 @@ void MmdStorageManager::DoUpdateTree(const TreeItem* storageHolder, TreeItem* cu
 {
 	if (curr != storageHolder)
 		return;
-	auto dirFileName = GetFullFileName("0.dms");
+	auto dirFileName = GetFullFileName("0Dictionary.dms");
 	auto sfwa = DSM::GetSafeFileWriterArray(); MG_CHECK(sfwa);
 	auto workingFileName = sfwa.get()->GetWorkingFileName(dirFileName, FCM_OpenReadOnly);
 
@@ -98,10 +98,11 @@ void MmdStorageManager::DoWriteTree(const TreeItem* storageHolder)
 	if (!storageHolder)
 		return;
 
-	auto dirFileName = GetFullFileName("0.dms");
-	auto sfwa = DSM::GetSafeFileWriterArray(); MG_CHECK(sfwa);
+	auto dirFileName = GetFullFileName("0Dictionary.dms");
+//	auto sfwa = DSM::GetSafeFileWriterArray(); MG_CHECK(sfwa);
+//	auto osb = FileOutStreamBuff(dirFileName, sfwa.get(), true);
 
-	auto osb = FileOutStreamBuff(dirFileName, sfwa.get(), true);
+	auto osb = FileOutStreamBuff(dirFileName, nullptr, true);
 	auto out = OutStream_DMS(&osb, calcRulePropDefPtr);
 
 	storageHolder->XML_Dump(&out, false);

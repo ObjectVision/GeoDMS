@@ -891,7 +891,11 @@ auto CreateAbstrHeapTileFunctor(const AbstrDataItem* adi, SharedPtr<const Shared
 	MG_CHECK(adi->GetAbstrValuesUnit());
 	dbg_assert(adi->GetAbstrDomainUnit()->CheckMetaInfoReadyOrPassor());
 	dbg_assert(adi->GetAbstrValuesUnit()->CheckMetaInfoReadyOrPassor());
-	SharedPtr<const AbstrTileRangeData> currTRD = AsUnit(adi->GetAbstrDomainUnit()->GetCurrRangeItem())->GetTiledRangeData();
+
+	auto adu = adi->GetAbstrDomainUnit();
+	assert(adu);
+	assert(adu->HasInterest());
+	SharedPtr<const AbstrTileRangeData> currTRD = AsUnit(adu->GetCurrRangeItem())->GetTiledRangeData();
 	MG_CHECK(currTRD);
 	SharedPtr<const AbstrUnit> valuesUnit = AsUnit(adi->GetAbstrValuesUnit()->GetCurrRangeItem());
 
@@ -934,7 +938,11 @@ auto CreateFileTileArray(const AbstrDataItem* adi, const SharedObj* abstrValuesR
 	MG_CHECK(adi->GetAbstrDomainUnit());
 	MG_CHECK(adi->GetAbstrValuesUnit());
 
-	SharedPtr<const AbstrTileRangeData> currTRD = adi->GetAbstrDomainUnit()->GetTiledRangeData();
+	auto adu = adi->GetAbstrDomainUnit();
+	assert(adu);
+	assert(adu->HasInterest());
+
+	SharedPtr<const AbstrTileRangeData> currTRD = AsUnit(adu->GetCurrRangeItem())->GetTiledRangeData();
 	assert(currTRD);
 
 	std::unique_ptr<AbstrDataObject> resultHolder;

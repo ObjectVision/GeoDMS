@@ -2463,8 +2463,7 @@ void TreeItem::UpdateMetaInfoImpl2() const
 		if (storageParent)
 		{
 			auto sm = storageParent->GetStorageManager();
-			if (auto nmsm = dynamic_cast<NonmappableStorageManager*>(sm))
-				nmsm->UpdateTree(storageParent, const_cast<TreeItem*>(this));
+			sm->UpdateTree(storageParent, const_cast<TreeItem*>(this));
 		}
 		// validate units with refObject if it wasn't copied by the parent
 
