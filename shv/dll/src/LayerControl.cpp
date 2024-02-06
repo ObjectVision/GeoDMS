@@ -154,6 +154,10 @@ void LayerControlBase::FillMenu(MouseEventDispatcher& med)
 	med.m_MenuData.AddSeparator();
 
 	med.m_MenuData.push_back(
+		MenuItem(SharedStr("Show / hide layer"), make_MembFuncCmd(&ScalableObject::ToggleVisibility), m_LayerElem)
+	);
+
+	med.m_MenuData.push_back(
 		MenuItem(
 			mySSPrintF("Hide %s for %s"
 			,	GetDynamicClass()->GetName().c_str()
