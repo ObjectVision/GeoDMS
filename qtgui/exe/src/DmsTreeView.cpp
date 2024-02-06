@@ -422,7 +422,7 @@ void TreeItemDelegate::paint(QPainter* painter, const QStyleOptionViewItem& opti
 	}
 	catch (...)
 	{
-		auto errMsg = catchException(false);
+		auto errMsg = catchAndReportException();
 		return;
 	}
 	return;

@@ -192,8 +192,8 @@ void OutStream_XmlBase::WriteName(XML_OutElement& elem, CharPtr itemName)
 
 void OutStream_XmlBase::DumpSubTag(CharPtr tagName, CharPtr tagValue, bool isPrimaryTag)
 {
-	dms_assert(tagName);
-	dms_assert(tagValue);
+	assert(tagName);
+	assert(tagValue);
 	if (!tagValue || !*tagValue) 
 		return;
 
@@ -467,8 +467,8 @@ void OutStream_DMS::EndSubItems()
 
 void OutStream_DMS::DumpSubTag(CharPtr tagName, CharPtr tagValue, bool isPrimaryTag)
 {
-	dms_assert(tagName);
-	dms_assert(tagValue);
+	assert(tagName);
+	assert(tagValue);
 	if (!tagValue || !*tagValue) 
 		return;
 

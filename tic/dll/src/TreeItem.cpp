@@ -3760,7 +3760,7 @@ void TreeItem::ClearData(garbage_t&) const
 void TreeItem::XML_Dump(OutStreamBase* xmlOutStr, bool dumpSubTags) const
 { 
 	// write #include <filename> if configStore defined
-	if (xmlOutStr->GetLevel() > 0)
+	if (xmlOutStr->GetLevel() > 0 && dumpSubTags)
 	{
 		SharedStr dirName = SharedStr( configStorePropDefPtr->GetValue(this) );
 		if (!dirName.empty())
@@ -3804,6 +3804,17 @@ void TreeItem::XML_Dump(OutStreamBase* xmlOutStr, bool dumpSubTags) const
 				TreeItemInterestPtr holder(this);
 				XML_DumpData(xmlOutStr);
 			}
+		}
+	}
+	else if (IsUnit(this) && !dumpSubTags)
+	{
+		auto au = AsUnit(this);
+		if (au->HasVarRange())
+		{
+			TreeItemInterestPtr xholder(this);
+			this->PrepareDataUsage(DrlType::Certain);
+
+			xmlOutStr->DumpSubTag("Range", au->GetRangeAsStr().c_str(), false);
 		}
 	}
 

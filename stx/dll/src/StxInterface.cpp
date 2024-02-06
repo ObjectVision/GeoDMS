@@ -162,11 +162,25 @@ bool TryAppendTreeFromConfiguration(CharPtr dektopRootFolderName, CharPtr deskto
 }
 #include "stg/MemoryMappeddataStorageManager.h"
 
+TreeItem* AppendTreeFromDictionary(CharPtr sourceFileName, TreeItem* context /*can be NULL*/)
+{
+	auto configLoadDir = splitFullPath(sourceFileName);
+	try {
+		ConfigurationFilenameContainer filenameContainer(configLoadDir, ++s_LoadNumber);
+		context = AppendTreeFromConfiguration(sourceFileName, context);
+	}
+	catch (...)
+	{
+		context->CatchFail(FR_MetaInfo);
+	}
+	return context;
+}
+
 struct InitAppendFuncPtr
 {
 	InitAppendFuncPtr()
 	{
-		s_AppendTreeFromConfigurationPtr = AppendTreeFromConfiguration;
+		s_AppendTreeFromConfigurationPtr = AppendTreeFromDictionary;
 	}
 	~InitAppendFuncPtr()
 	{

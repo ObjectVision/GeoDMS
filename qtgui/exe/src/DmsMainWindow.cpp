@@ -1230,6 +1230,7 @@ void MainWindow::code_analysis_set_source()
    catch (...)
    {
        auto errMsg = catchException(false);
+       MainWindow::TheOne()->reportErrorAndTryReload(errMsg);
    }
 }
 
@@ -1242,6 +1243,7 @@ void MainWindow::code_analysis_set_target()
     catch (...)
     {
         auto errMsg = catchException(false);
+        reportErrorAndTryReload(errMsg);
     }
 }
 
@@ -1254,6 +1256,7 @@ void MainWindow::code_analysis_add_target()
     catch (...)
     {
         auto errMsg = catchException(false);
+        reportErrorAndTryReload(errMsg);
     }
 }
 
