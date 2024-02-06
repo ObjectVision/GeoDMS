@@ -1565,21 +1565,6 @@ bool IsVatDomain(const AbstrUnit* au)
 #include "DataItemClass.h"
 #include "Unit.h"
 #include "UnitClass.h"
-
-void UpdateSpatialRef(const GDALDatasetHandle& hDS, AbstrDataItem* geometry, std::optional<OGRSpatialReference>& spatialRef)
-{
-	if (!spatialRef)
-		return;
-	assert(geometry);
-
-	auto gvu = GetBaseProjectionUnitFromValuesUnit(geometry);
-	CheckSpatialReference(spatialRef, geometry, const_cast<AbstrUnit*>(gvu)); 
-
-	//auto wkt = GetAsWkt(&*spatialRef);
-	//if (!wkt.empty())
-	//	geometry->SetDescr(wkt);
-}
-
 #include "mci/ValueWrap.h"
 #include "mci/ValueClass.h"
 #include "Unit.h"
@@ -1593,9 +1578,11 @@ void GdalVectSM::DoUpdateTable(const TreeItem* storageHolder, AbstrUnit* layerDo
 	auto layer_geometry_type = layer->GetGeomType();
 	ValueComposition gdal_vc = gdalVectImpl::OGR2ValueComposition(layer_geometry_type);
 	bool create_vu_from_datasource = false;
-	auto vu = FindProjectionRef(storageHolder, layerDomain);
-	if (!vu)
-		vu = Unit<DPoint>::GetStaticClass()->CreateDefault();
+
+	const OGRSpatialReference* ogrSR_ptr = layer->GetSpatialRef();
+	std::optional<OGRSpatialReference> ogrSR;
+	if (ogrSR_ptr)
+		ogrSR = *ogrSR_ptr;
 
 	if (!(layer_geometry_type == OGRwkbGeometryType::wkbNone))
 	{
@@ -1613,9 +1600,9 @@ void GdalVectSM::DoUpdateTable(const TreeItem* storageHolder, AbstrUnit* layerDo
 		}
 		else
 		{
-			if (gdal_vc == ValueComposition::Unknown)
+			if (gdal_vc == ValueComposition::Unknown) // attempt interpreting geometry type using first feature
 			{
-				// attempt interpreting geometry type using first feature
+				gdal_vc = ValueComposition::String;
 				OGRwkbGeometryType first_feature_geometry_type = OGRwkbGeometryType::wkbUnknown;
 				auto first_feature = layer->GetNextFeature();
 				layer->GetGeometryColumn();
@@ -1623,43 +1610,38 @@ void GdalVectSM::DoUpdateTable(const TreeItem* storageHolder, AbstrUnit* layerDo
 				{
 					auto geometry_ref = first_feature->GetGeometryRef();
 					first_feature_geometry_type = geometry_ref->getGeometryType();
+					gdal_vc = gdalVectImpl::OGR2ValueComposition(first_feature_geometry_type);
 				}
 				layer->ResetReading();
-
-				switch (first_feature_geometry_type)
-				{
-				case wkbPoint:		  vu = Unit<DPoint>::GetStaticClass()->CreateDefault(); gdal_vc = ValueComposition::Single; break;
-				case wkbLineString:   
-				case wkbCurve:		  vu = Unit<DPoint>::GetStaticClass()->CreateDefault(); gdal_vc = ValueComposition::Sequence; break;
-				case wkbPolygon:	  
-				case wkbMultiPolygon: 
-				case wkbCurvePolygon: vu = Unit<DPoint>::GetStaticClass()->CreateDefault(); gdal_vc = ValueComposition::Polygon; break;
-				default:              vu = Unit<SharedStr>::GetStaticClass()->CreateDefault(); gdal_vc = ValueComposition::String; break;
-				}
 			}
 
-			auto vu = Unit<DPoint>::GetStaticClass()->CreateUnit(layerDomain, GetTokenID_mt("SpatialReference"));
-			dynamic_cast<TreeItem*>(vu)->SetDescr(SharedStr("EPSG:28992"));
-			dynamic_cast<TreeItem*>(vu)->SetExpr(SharedStr("range(DPoint, LowerBound(DPoint), UpperBound(DPoint))"));
+			// create default value unit from gdal_vc
+			auto vu = FindProjectionRef(storageHolder, layerDomain);
+			if (gdal_vc == ValueComposition::String)
+				vu = Unit<SharedStr>::GetStaticClass()->CreateDefault();
+			else if (ogrSR_ptr) // spatial reference available
+			{
+				SharedStr wkt = GetAsWkt(&*ogrSR_ptr);
+				if (!wkt.empty())
+				{
+					auto vu_tmp = Unit<DPoint>::GetStaticClass()->CreateUnit(layerDomain, GetTokenID_mt("SpatialReference"));
+					vu_tmp->SetSpatialReference(GetTokenID_mt(wkt));
+					vu_tmp->DisableStorage(true); // used to avoid reentrance on DoUpdateTree
+					vu = vu_tmp;
+				}
+			}
+			else if (!vu) // default value
+				vu = Unit<DPoint>::GetStaticClass()->CreateDefault();
 
+			// create missing geometry treeitem
 			geometry = CreateDataItem(
 				layerDomain, token::geometry,
 				layerDomain, vu, gdal_vc
 			);
 		}
-
-		// Update spatial reference information
-		dms_assert(geometry);
-		if (gdal_vc != ValueComposition::String)
-		{
-			const OGRSpatialReference* ogrSR_ptr = layer->GetSpatialRef();
-			std::optional<OGRSpatialReference> ogrSR; 
-			if (ogrSR_ptr) 
-				ogrSR = *ogrSR_ptr;
-
-			//geometry
-			UpdateSpatialRef(m_hDS, geometry, ogrSR);
-		}
+		// check spatial reference
+		auto gvu = GetBaseProjectionUnitFromValuesUnit(geometry);
+		CheckSpatialReference(ogrSR, geometry, const_cast<AbstrUnit*>(gvu));
 	}
 
 	// Update Attribute Fields
@@ -1685,6 +1667,9 @@ void GdalVectSM::DoUpdateTable(const TreeItem* storageHolder, AbstrUnit* layerDo
 void GdalVectSM::DoUpdateTree(const TreeItem* storageHolder, TreeItem* curr, SyncMode sm) const
 {
 	if (dynamic_cast<const GdalWritableVectSM*>(this))
+		return;
+
+	if (curr->IsDisabledStorage())
 		return;
 
 	NonmappableStorageManager::DoUpdateTree(storageHolder, curr, sm);
