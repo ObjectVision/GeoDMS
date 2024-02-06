@@ -50,6 +50,13 @@ private:
     std::vector<Explain::context_handle> garbage;
 };
 
+class ValueInfoWindow : public QWidget
+{
+public:
+    ValueInfoWindow(QWidget* parent = nullptr);
+    ValueInfoBrowser* m_browser;
+};
+
 struct ValueInfoBrowser : QUpdatableTextBrowser
 {
     ValueInfoBrowser(QWidget* parent, SharedDataItemInterestPtr studyObject, SizeT index, SharedStr extraInfo, QWidget* window);

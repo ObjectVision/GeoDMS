@@ -90,6 +90,14 @@ void StudyObjectHistory::insert(SharedDataItemInterestPtr studyObject, SizeT ind
     assert(current_index + 1 == study_objects.size());
 }
 
+ValueInfoWindow::ValueInfoWindow(QWidget* parent)
+    : QWidget(parent)
+{
+    // close value info window shortcut
+    QShortcut* shortcut = new QShortcut(QKeySequence(Qt::ALT + Qt::Key_R), this);
+    QObject::connect(shortcut, &QShortcut::activated, this, &QWidget::close);
+}
+
 ValueInfoBrowser::ValueInfoBrowser(QWidget* parent, SharedDataItemInterestPtr studyObject, SizeT index, SharedStr extraInfo, QWidget* window)
     : QUpdatableTextBrowser(parent)
 {

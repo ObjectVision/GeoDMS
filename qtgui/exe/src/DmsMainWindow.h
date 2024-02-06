@@ -219,14 +219,6 @@ bool IsPostRequest(const QUrl& /*link*/);
 auto Realm(const auto& x) -> CharPtrRange;
 auto getLinkFromErrorMessage(std::string_view error_message, unsigned int lineNumber = 0) -> link_info;
 
-class ValueInfoWindow : public QWidget
-{
-    using QWidget::QWidget;
-
-public:
-    ValueInfoBrowser* m_browser;
-};
-
 class MainWindow : public QMainWindow
 {
     Q_OBJECT
