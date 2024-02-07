@@ -2086,7 +2086,6 @@ void MainWindow::createActions()
                                             "}\n"
                                             "QComboBox::drop-down:button{\n"
                                                 "background-color: transparant;\n"
-                                                "padding: 5px;\n"
                                             "}\n"
                                             "QComboBox::down-arrow {\n"
                                                 "image: url(:/res/images/arrow_down.png);\n"
