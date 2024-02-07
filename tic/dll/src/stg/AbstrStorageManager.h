@@ -283,10 +283,9 @@ public:
 	TIC_CALL void OpenForWrite(const StorageMetaInfo& smi); friend struct StorageWriteHandle;
 	TIC_CALL void CloseStorage() const; friend struct StorageCloseHandle;
 	//	helper functions
-private:
 	// Wrapper functions for consistent StorageManager derivations
 	// of the public interface funcs
-	TIC_CALL bool OpenForRead (const StorageMetaInfo& smi) const; friend struct StorageReadHandle; // POSTCONDITION: m_IsOpen == returnValue
+	TIC_CALL bool OpenForRead(const StorageMetaInfo& smi) const; friend struct StorageReadHandle; // POSTCONDITION: m_IsOpen == returnValue
 
 private:
 	using interest_holders_container = std::vector<InterestPtr<SharedPtr<const Actor>>>;
