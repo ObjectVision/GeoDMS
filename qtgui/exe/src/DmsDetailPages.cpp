@@ -282,7 +282,20 @@ bool DumpSourceDescriptionDatasetInfo(const TreeItem* studyObject, OutStreamBase
     return true;
 }
 
-void DmsDetailPages::drawPage()
+void DmsDetailPages::drawPage() noexcept
+{
+    try
+    {
+        drawPageImpl();
+    }
+    catch (...)
+    {
+        auto errMsg = catchException(false);
+        MainWindow::TheOne()->reportErrorAndTryReload(errMsg);
+    }
+}
+
+void DmsDetailPages::drawPageImpl()
 {
     if (!MainWindow::IsExisting())
         return;
@@ -350,16 +363,7 @@ void DmsDetailPages::drawPage()
     case ActiveDetailPage::METADATA:
     {
         SharedStr url = {};
-        try
-        {
-            url = FindURL(current_item);
-        }
-        catch (...)
-        {
-            auto errMsg = catchException(false);
-            MainWindow::TheOne()->reportErrorAndTryReload(errMsg);
-        }
-
+        url = FindURL(current_item);
         if (!url.empty())
         {
             if (main_window->ShowInDetailPage(url))

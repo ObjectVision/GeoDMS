@@ -467,7 +467,7 @@ void CountableUnitBase<V>::LoadRangeImpl(BinaryInpStream& pis)
 
 		if constexpr (has_small_range_v<V>)
 		{
-			MG_CHECK(tn == 0);
+			MG_CHECK(tn == no_tile);
 			if (range.empty())
 				this->m_RangeDataPtr.reset();
 			else
