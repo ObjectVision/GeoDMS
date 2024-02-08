@@ -15,7 +15,7 @@ public:
 	TIC_CALL XmlTreeParser(InpStreamBuff* inpBuff);
 	TIC_CALL ~XmlTreeParser();
 
-	TIC_CALL TreeItem* ReadTree(TreeItem* context);
+	TIC_CALL TreeItem* ReadTree(TreeItem* context, bool rootIsFirstItem);
 
 protected: // override XmlParser
 	virtual void ReadAttrCallback(XmlElement& element);
@@ -23,6 +23,7 @@ protected: // override XmlParser
 
 private:
 	TreeItem* m_CurrItem = nullptr;
+	bool      m_RootIsFirstItem = false;
 
 	UInt32 m_CurrItemLevel;
 	UInt32 m_CurrElemLevel;

@@ -3385,7 +3385,7 @@ bool TreeItem::PrepareDataUsageImpl(DrlType drlFlags) const
 		}
 		if (!IsCacheItem())
 		{
-			if (auto sp = GetCurrStorageParent(true))
+			if (auto sp = GetCurrStorageParent(false))
 			{
 				auto sm = sp->GetStorageManager();
 				assert(sm);
@@ -3393,7 +3393,7 @@ bool TreeItem::PrepareDataUsageImpl(DrlType drlFlags) const
 				{
 					bool mustWrite = HasCalculator();
 					bool mustSkip = false;
-					if (!mmd->IsOpen() ||  !mmd->IsOpenForWrite() && mustWrite)
+					if (!mmd->IsOpen() || mustWrite && !mmd->IsOpenForWrite())
 					{
 						auto parent = GetStorageParent(mustWrite);
 						if (!parent)

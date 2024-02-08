@@ -1,31 +1,7 @@
-//<HEADER> 
-/*
-Data & Model Server (DMS) is a server written in C++ for DSS applications. 
-Version: see srv/dms/rtc/dll/src/RtcVersion.h for version info.
+// Copyright (C) 1998-2023 Object Vision b.v. 
+// License: GNU GPL 3
+/////////////////////////////////////////////////////////////////////////////
 
-Copyright (C) 1998-2004  YUSE GSO Object Vision BV. 
-
-Documentation on using the Data & Model Server software can be found at:
-http://www.ObjectVision.nl/DMS/
-
-See additional guidelines and notes in srv/dms/Readme-srv.txt 
-
-This library is free software; you can use, redistribute, and/or
-modify it under the terms of the GNU General Public License version 2 
-(the License) as published by the Free Software Foundation,
-provided that this entire header notice and readme-srv.txt is preserved.
-
-See LICENSE.TXT for terms of distribution or look at our web site:
-http://www.objectvision.nl/DMS/License.txt
-or alternatively at: http://www.gnu.org/copyleft/gpl.html
-
-This library is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
-General Public License for more details. However, specific warranties might be
-granted by an additional written contract for support, assistance and/or development
-*/
-//</HEADER>
 #include "StxPch.h"
 
 #if defined(CC_PRAGMAHDRSTOP)
@@ -56,8 +32,9 @@ granted by an additional written contract for support, assistance and/or develop
 
 // ============================= CLASS: ConfigProd
 
-ConfigProd::ConfigProd(TreeItem* context)
+ConfigProd::ConfigProd(TreeItem* context, bool rootIsFirstItem)
 :	m_pCurrent(nullptr)
+,	m_rootIsFirstItem(rootIsFirstItem)
 ,	m_ResultCommitted(false)
 #if defined(MG_DEBUG)
 ,	md_IsIncludedFile(context)
@@ -91,7 +68,7 @@ ConfigProd::~ConfigProd()
 TreeItem* ConfigProd::GetContextItem() const
 {
 	return CurrentIsRoot() 
-		?	0
+		?	nullptr
 		:	m_stackContexts.back1(); 
 }
 
@@ -113,10 +90,11 @@ void ConfigProd::DoInclude()
 	SharedStr fileName = SharedStr(m_strIdentifierID);
 	m_pCurrent =
 		AppendTreeFromConfiguration(
-			fileName.c_str(), 
-			CurrentIsRoot() 
+			fileName.c_str()
+		,	CurrentIsRoot() 
 				? m_pCurrent.get_ptr()
 				: GetContextItem()
+		,	false
 		);
 	if (!m_pCurrent)
 		throwSemanticError(mgFormat2string("Parse error in included config file %s", GetTokenStr(m_strIdentifierID)).c_str());
@@ -222,17 +200,17 @@ void ConfigProd::CreateItem(TokenID nameID, const iterator_t& loc)
 		if(m_eSignatureType != SignatureType::TreeItem)
 			throwSemanticError("root of configuration tree must be a container");
 
-		dms_assert( m_stackContexts.empty() );
+		assert( m_stackContexts.empty() );
 		if (m_pCurrent)
 		{
-			dms_assert(m_pCurrent->GetID() == nameID);
+			assert(m_pCurrent->GetID() == nameID);
 		}
 		else
 			m_pCurrent = TreeItem::CreateConfigRoot(nameID);
 	}
 	else // stackContexts not empty
 	{
-		dms_assert(GetContextItem()); // only nonnulls in stackContexts
+		assert(GetContextItem()); // only nonnulls in stackContexts
 			
 		CheckIsNew(GetContextItem(), nameID);
 

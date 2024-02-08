@@ -62,9 +62,10 @@ private:
 	XmlTreeParser* m_Xml;
 };
 
-TreeItem* XmlTreeParser::ReadTree(TreeItem* root)
+TreeItem* XmlTreeParser::ReadTree(TreeItem* root, bool rootIsFirstItem)
 {
 	m_CurrItem = root;
+	m_RootIsFirstItem = rootIsFirstItem;
 
 	DMS_CALL_BEGIN
 
@@ -78,7 +79,7 @@ TreeItem* XmlTreeParser::ReadTree(TreeItem* root)
 	if (!root) 
 	{
 		root = m_CurrItem; // is Root?
-		dms_assert(root == m_CurrItem->GetRoot());
+		assert(root == m_CurrItem->GetRoot());
 	}
 	return root;
 }

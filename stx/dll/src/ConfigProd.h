@@ -57,7 +57,7 @@ struct ConfigProd : AbstrDataBlockProd, AbstrContextHandle
 {
 	EmptyExprProd m_ExprProd = {};
 
-	ConfigProd(TreeItem* context);
+	ConfigProd(TreeItem* context, bool rootIsFirstItem);
 	~ConfigProd();
 
 //	impl AbstrContextHandle
@@ -141,6 +141,7 @@ MG_DEBUGCODE(	void    ClearSignature(); )
 
 	TreeItemRef                      m_pCurrent;
 	quick_replace_stack<TreeItemRef> m_stackContexts;
+	bool                             m_rootIsFirstItem = false;
 
 	TokenID                          m_ItemNameID;
 	TokenID                          m_strIdentifierID;

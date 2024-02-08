@@ -84,7 +84,7 @@ SYNTAX_CALL TreeItem* CreateTreeFromConfiguration(CharPtr sourceFilename)
 #if defined(MG_DEBUG_INTERESTSOURCE)
 			DemandManagement::IncInterestDetector incInterestLock("DMS_CreateTreeFromConfiguration()");
 #endif // MG_DEBUG_INTERESTSOURCE
-			res = AppendTreeFromConfiguration(fileName, nullptr);
+			res = AppendTreeFromConfiguration(fileName, nullptr, false);
 		}
 		currSession->Open(res);
 		auto fts = UpdateMarker::GetFreshTS(MG_DEBUG_TS_SOURCE_CODE("CreateTreeFromConfiguration"));
@@ -129,7 +129,7 @@ SYNTAX_CALL TreeItem* DMS_CONV DMS_CreateTreeFromString(CharPtr configString)
 			DemandManagement::IncInterestDetector incInterestLock("DMS_CreateTreeFromString()");
 #endif // MG_DEBUG_INTERESTSOURCE
 
-			ConfigProd cp(0);
+			ConfigProd cp(nullptr, false);
 			res = cp.ParseString(configString);
 		}
 		SessionData::Curr()->Open(res);
@@ -157,7 +157,7 @@ bool TryAppendTreeFromConfiguration(CharPtr dektopRootFolderName, CharPtr deskto
 
 	if (!IsFileOrDirAccessible(desktopRootFileNameStr))
 		return false;
-	AppendTreeFromConfiguration(desktopRootFile, context);
+	AppendTreeFromConfiguration(desktopRootFile, context, false);
 	return true;
 }
 #include "stg/MemoryMappeddataStorageManager.h"
@@ -167,7 +167,7 @@ TreeItem* AppendTreeFromDictionary(CharPtr sourceFileName, TreeItem* context /*c
 	auto configLoadDir = splitFullPath(sourceFileName);
 	try {
 		ConfigurationFilenameContainer filenameContainer(configLoadDir, ++s_LoadNumber);
-		context = AppendTreeFromConfiguration(sourceFileName, context);
+		context = AppendTreeFromConfiguration(sourceFileName, context, true);
 	}
 	catch (...)
 	{
@@ -191,7 +191,7 @@ struct InitAppendFuncPtr
 static InitAppendFuncPtr s_SetCallbackfunc;
 
 
-TreeItem* AppendTreeFromConfiguration(CharPtr sourceFileName, TreeItem* context /*can be NULL*/ )
+TreeItem* AppendTreeFromConfiguration(CharPtr sourceFileName, TreeItem* context /*can be NULL*/, bool rootIsFirstItem)
 {
 	TreeItem* result = nullptr;
 
@@ -231,11 +231,11 @@ TreeItem* AppendTreeFromConfiguration(CharPtr sourceFileName, TreeItem* context 
 		MG_CHECK(sfwa);
 		FileInpStreamBuff streamBuff(sourcePathNameStrFromCurrent, sfwa.get(), true);
 		XmlTreeParser xmlParse(&streamBuff);
-		result =  xmlParse.ReadTree(context);
+		result =  xmlParse.ReadTree(context, rootIsFirstItem);
 	}
 	else
 	{
-		ConfigProd cp(context);
+		ConfigProd cp(context, rootIsFirstItem);
 		result = cp.ParseFile(sourcePathNameStrFromCurrent.c_str());
 
 	}
