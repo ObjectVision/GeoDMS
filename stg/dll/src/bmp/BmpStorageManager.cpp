@@ -408,7 +408,7 @@ void BmpPalStorageManager::DoUpdateTree(const TreeItem* storageHolder, TreeItem*
 
 	MG_CHECK(!gridData || !paletteData || gridData->GetAbstrValuesUnit() == paletteData->GetAbstrDomainUnit());
 
-	ReadProjection(curr, projectionFileName);
+	GetImageToWorldTransformFromFile(curr, projectionFileName);
 }
 
 

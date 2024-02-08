@@ -222,7 +222,7 @@ Float32 TifImp::GetYRes() const
 constexpr uint32_t TIFFTAG_ModelTiePointTag = 33922; // TIFFTAG_GEOTIEPOINTS
 constexpr uint32_t TIFFTAG_ModelPixelScaleTag = 33550; // TIFFTAG_GEOPIXELSCALE
 constexpr uint32_t TIFFTAG_ModelTransformationTag = 34264; // TIFFTAG_GEOTRANSMATRIX
-STGIMPL_CALL std::vector<Float64> TifImp::GetAffineTransformation() const
+STGIMPL_CALL std::vector<Float64> TifImp::GetImageToWorldTransform() const
 {
 	// See section GeoTIFF Tags for Coordinate Transformations 2.6.1: http://geotiff.maptools.org/spec/geotiff2.6.html
 	

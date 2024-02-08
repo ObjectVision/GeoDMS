@@ -151,7 +151,7 @@ public:
 	STGIMPL_CALL UPoint GetSize  () const;
 	STGIMPL_CALL Float32 GetXRes () const;
 	STGIMPL_CALL Float32 GetYRes() const;
-	STGIMPL_CALL std::vector<Float64> GetAffineTransformation() const;
+	STGIMPL_CALL std::vector<Float64> GetImageToWorldTransform() const;
 
 	STGIMPL_CALL void SetHeight(UInt32);
 	STGIMPL_CALL void SetWidth (UInt32);

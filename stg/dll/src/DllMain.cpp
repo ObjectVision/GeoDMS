@@ -273,7 +273,7 @@ SharedUnit FindProjectionBase(const TreeItem* storageHolder, const AbstrUnit* gr
 	return uBase;
 }
 
-void ReadProjection(TreeItem* storageHolder, WeakStr geoRefFileName)
+void GetImageToWorldTransformFromFile(TreeItem* storageHolder, WeakStr geoRefFileName)
 {
 	assert(storageHolder); // PRECONDITION
 /* 
@@ -286,7 +286,7 @@ void ReadProjection(TreeItem* storageHolder, WeakStr geoRefFileName)
 	if (!gridDataDomainRW)
 		return;
 
-	const AbstrUnit* uBase = FindProjectionBase(storageHolder, gridDataDomainRW );
+	const AbstrUnit* uBase = FindProjectionBase(storageHolder, gridDataDomainRW);
 	if (!uBase)
 		return;
 

@@ -982,21 +982,41 @@ void ViewPort::FillMenu(MouseEventDispatcher& med)
 	base_type::FillMenu(med);
 }
 
-
-CommandStatus ViewPort::OnCommandEnable(ToolButtonID id) const
+bool isSelectionTool(ToolButtonID id)
 {
 	switch (id)
 	{
-		case TB_ShowSelOnlyOn:
-		case TB_ShowSelOnlyOff:
-			if (GetUserMode() < UM_Select) return CommandStatus::HIDDEN;
-			{
-				const GraphicLayer* al = GetActiveLayer();
-				if (!al)
-					return CommandStatus::DISABLED;
-				return al->OnCommandEnable(id);
-			}
+	case TB_CutSel:
+	case TB_CopySel:
+	case TB_PasteSelDirect:
+	case TB_PasteSel:
+	case TB_DeleteSel:
+	case TB_ZoomSelectedObj:
+	case TB_SelectObject:
+	case TB_SelectRect:
+	case TB_SelectCircle:
+	case TB_SelectPolygon:
+	case TB_SelectDistrict:
+	case TB_SelectRows:
+	case TB_SelectAll:
+	case TB_SelectNone:
+	case TB_ShowSelOnlyOn:
+	case TB_ShowSelOnlyOff:
+		return true;
+	default: return false;
 	}
+}
+
+CommandStatus ViewPort::OnCommandEnable(ToolButtonID id) const
+{
+	if (isSelectionTool(id))
+	{
+		const GraphicLayer* al = GetActiveLayer();
+		if (!al)
+			return CommandStatus::DISABLED;
+		return al->OnCommandEnable(id);
+	}
+
 	return base_type::OnCommandEnable(id);
 }
 
