@@ -457,7 +457,7 @@ prop_tables GdalGridSM::GetPropTables(const TreeItem* storageHolder, TreeItem* c
 
 	// Raster xy size
 	auto raster_x_size = m_hDS->GetRasterXSize();
-	auto raster_y_size = m_hDS->GetRasterXSize();
+	auto raster_y_size = m_hDS->GetRasterYSize();
 	grid_dataset_properties.push_back({ 1, {GetTokenID_mt("Size"), AsString(raster_x_size) + "," + AsString(raster_y_size)}});
 
 	auto ds_metainfo_image_structure = gdal_ds_handle->GetMetadata("IMAGE_STRUCTURE");
