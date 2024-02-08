@@ -23,6 +23,8 @@
 #include <QMainWindow>
 #include <QApplication>
 
+#include "utl/scoped_exit.h"
+
 #include "dbg/Check.h"
 #include "dbg/DmsCatch.h"
 #include "dbg/SeverityType.h"
@@ -354,6 +356,8 @@ void TreeItemDelegate::paint(QPainter* painter, const QStyleOptionViewItem& opti
 	QStyledItemDelegate::paint(painter, option, index);
 	painter->save();
 
+	auto painter_exit_guard = make_scoped_exit([painter] { painter->restore(); });
+
 	// draw storage icon if needed
 	TreeItem* ti = nullptr;
 	try
@@ -420,9 +424,9 @@ void TreeItemDelegate::paint(QPainter* painter, const QStyleOptionViewItem& opti
 	}
 	catch (...)
 	{
-		auto errMsg = catchAndReportException();
+		catchAndReportException();
 	}
-	painter->restore();
+
 	return;
 }
 
