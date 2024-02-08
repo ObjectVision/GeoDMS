@@ -366,7 +366,7 @@ template <typename T>
 struct CountableVarRangeConverter<Point<T>> {
 	CountableVarRangeConverter(const range_data_ptr_or_void<Point<T>>& src) : m_Range(src->GetRange()) {}
 
-	template <typename I> Point<T> GetValue(I i) const { return Range_GetValue_checked(m_Range, Convert<T>(i)); }
+	template <typename I> Point<T> GetValue(I i) const { return Range_GetValue_checked(m_Range, Convert<SizeT>(i)); }
 	template <typename I> I GetScalar(const Point<T>& v) const { return Convert<I>(Range_GetIndex_checked(m_Range, v)); }
 private:
 	Range<Point<T> > m_Range;
