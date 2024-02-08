@@ -262,10 +262,12 @@ typedef sequence_vector<char> StringVector;
 
 typedef SA_ConstReference<char> StringCRef;
 typedef SA_Reference     <char> StringRef;
+
 #define SEQ_SUFFIX "seq.dmsdata" 
-typedef UInt32 tile_id;
-typedef UInt32 tile_offset;
-typedef UInt64 row_id;
+
+using tile_id = UInt32;
+using tile_offset = UInt32;
+using row_id = UInt64;
 using tile_loc = std::pair<tile_id, tile_offset>;
 
 const tile_id no_tile   = -1;
