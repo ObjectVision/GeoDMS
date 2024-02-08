@@ -65,7 +65,8 @@ public slots:
 
 private:
 	void toggleVisualState(ActiveDetailPage new_active_detail_page, bool toggle);
-	void drawPage();
+	void drawPage() noexcept;
+	void drawPageImpl();
 
 	std::atomic<bool> m_DrawPageRequestPending = false;
 	UInt32 m_current_width = 500;

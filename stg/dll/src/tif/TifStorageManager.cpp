@@ -107,7 +107,7 @@ void TiffSM::DoOpenStorage(const StorageMetaInfo& smi, dms_rw_mode rwMode) const
 			if (!smi.CurrRD() || !GetGridData(smi.CurrRD(), false))
 				smi.StorageHolder()->throwItemErrorF("TiffSM %s has no GridData sub item of the expected type and domain", GetNameStr().c_str());
 		auto sfwa = DSM::GetSafeFileWriterArray();
-		if (!sfwa|| ! imp->Open(GetNameStr(), TifFileMode::WRITE, sfwa.get()) )
+		if (!sfwa || !imp->Open(GetNameStr(), TifFileMode::WRITE, sfwa.get()) )
 			throwItemError("Unable to open for Write");
 	}
 	else
@@ -118,7 +118,6 @@ void TiffSM::DoOpenStorage(const StorageMetaInfo& smi, dms_rw_mode rwMode) const
 	}
 	m_pImp = imp.release();
 }
-
 
 // Close any open file and forget about it
 void TiffSM::DoCloseStorage(bool mustCommit) const
@@ -399,14 +398,15 @@ void TiffSM::DoUpdateTree(const TreeItem* storageHolder, TreeItem* curr, SyncMod
 		return;
 
 	auto smi = this->GetMetaInfo(storageHolder, curr, StorageAction::read);
-	this->DoOpenStorage(*smi, dms_rw_mode::read_only);
-	pixel_to_world_transform = m_pImp->GetAffineTransformation();
-	m_IsOpen = true;
+	if(!smi)
+		return;
 
-	// Compare value type of tiff with value type of griddata / palettedata
-	//DoOpenStorage(const StorageMetaInfo & smi, dms_rw_mode rwMode) const
+	this->OpenForRead(*smi);
+	if (this->m_pImp.is_null())
+		return;
 
-	// Use pixel to world transformation obtained form GeoTiff tags
+	// Obtain pixel to world transformation obtained form GeoTiff tags
+	pixel_to_world_transform = m_pImp->GetImageToWorldTransform();
 	if (!pixel_to_world_transform.empty())
 	{
 		AbstrUnit* gridDataDomainRW = GetGridDataDomainRW(const_cast<TreeItem*>(storageHolder));
@@ -418,13 +418,13 @@ void TiffSM::DoUpdateTree(const TreeItem* storageHolder, TreeItem* curr, SyncMod
 			return;
 		uBase->UpdateMetaInfo();
 		DPoint factor(pixel_to_world_transform[3], pixel_to_world_transform[0]);
-	    DPoint offset(pixel_to_world_transform[5], pixel_to_world_transform[4]);
+		DPoint offset(pixel_to_world_transform[5], pixel_to_world_transform[4]);
 		gridDataDomainRW->SetProjection(new UnitProjection(AsUnit(uBase->GetCurrUltimateItem()), offset, factor));
 		return;
 	}
 
 	// Final straw, get pixel to world transformation from .tfw file
-	ReadProjection(curr, projectionFileName);
+	GetImageToWorldTransformFromFile(curr, projectionFileName);
 }
 
 // Register

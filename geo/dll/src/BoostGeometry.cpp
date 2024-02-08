@@ -542,9 +542,9 @@ struct SimplifyLinestringOperator : public AbstrSimplifyOperator
 	{
 		auto polyData = const_array_cast<PolygonType>(polyItem)->GetTile(t);
 		auto resData = mutable_array_cast<PolygonType>(resItem)->GetWritableTile(t);
-		dms_assert(polyData.size() == resData.size());
+		assert(polyData.size() == resData.size());
 
-		dms_assert(polyItem->GetValueComposition() == ValueComposition::Sequence);
+		assert(polyItem->GetValueComposition() == ValueComposition::Sequence);
 
 		bg_linestring_t currGeometry, resGeometry;
 
@@ -582,14 +582,14 @@ protected:
 
 	bool CreateResult(TreeItemDualRef& resultHolder, const ArgSeqType& args, bool mustCalc) const override
 	{
-		dms_assert(args.size() == 3);
+		assert(args.size() == 3);
 
 		const AbstrDataItem* arg1A = AsDataItem(args[0]);
 		const AbstrDataItem* arg2A = AsDataItem(args[1]);
 		const AbstrDataItem* arg3A = AsDataItem(args[2]);
-		dms_assert(arg1A);
-		dms_assert(arg2A);
-		dms_assert(arg3A);
+		assert(arg1A);
+		assert(arg2A);
+		assert(arg3A);
 
 		const AbstrUnit* domain1Unit = arg1A->GetAbstrDomainUnit(); bool e1IsVoid = domain1Unit->GetValueType() == ValueWrap<Void>::GetStaticClass();
 		const AbstrUnit* values1Unit = arg1A->GetAbstrValuesUnit();
@@ -598,13 +598,10 @@ protected:
 		const AbstrUnit* values2Unit = arg2A->GetAbstrValuesUnit();
 
 		const AbstrUnit* domain3Unit = arg3A->GetAbstrDomainUnit(); bool e3IsVoid = domain3Unit->GetValueType() == ValueWrap<Void>::GetStaticClass();
-//		const AbstrUnit* values3Unit = arg2A->GetAbstrValuesUnit();
+//		const AbstrUnit* values3Unit = arg3A->GetAbstrValuesUnit();
 
 		domain1Unit->UnifyDomain(domain2Unit, "e1", "e2", UnifyMode(UM_Throw | UM_AllowVoidRight));
 		domain1Unit->UnifyDomain(domain3Unit, "e1", "e3", UnifyMode(UM_Throw | UM_AllowVoidRight));
-
-		MG_CHECK(e2IsVoid);
-		MG_CHECK(e3IsVoid);
 
 		if (!resultHolder)
 			resultHolder = CreateCacheDataItem(domain1Unit, values1Unit, ValueComposition::Polygon);
@@ -613,16 +610,20 @@ protected:
 		{
 			DataReadLock arg1Lock(arg1A);
 			DataReadLock arg2Lock(arg2A);
-			Float64 bufferDistance = const_array_cast<Float64>(arg2A)->GetLockedDataRead()[0];
-			UInt8 nrPointsInCircle = const_array_cast<UInt8  >(arg3A)->GetLockedDataRead()[0];
+			DataReadLock arg3Lock(arg3A);
+
+			Float64 bufferDistance = e2IsVoid ? const_array_cast<Float64>(arg2A)->GetLockedDataRead()[0] : 0;
+			UInt8 nrPointsInCircle = e3IsVoid ? const_array_cast<UInt8  >(arg3A)->GetLockedDataRead()[0] : 0;
+
 			auto resItem = AsDataItem(resultHolder.GetNew());
 			DataWriteLock resLock(resItem, dms_rw_mode::write_only_mustzero);
 
-			parallel_tileloop(domain1Unit->GetNrTiles(), [this, resObj = resLock.get(), arg1A, bufferDistance, nrPointsInCircle](tile_id t)->void
+			parallel_tileloop(domain1Unit->GetNrTiles(), [=, this, resObj = resLock.get()](tile_id t)->void
 				{
-					ReadableTileLock readPoly1Lock(arg1A->GetCurrRefObj(), t);
-
-					Calculate(resObj, arg1A, bufferDistance, nrPointsInCircle, t);
+					this->Calculate(resObj, arg1A
+						, e2IsVoid, arg2A, bufferDistance
+						, e3IsVoid, arg3A, nrPointsInCircle
+						, t);
 				}
 			);
 
@@ -630,7 +631,11 @@ protected:
 		}
 		return true;
 	}
-	virtual void Calculate(AbstrDataObject* resObj, const AbstrDataItem* polyItem, Float64 bufferDistance, UInt8 pointsPerCircle, tile_id t) const = 0;
+	virtual void Calculate(AbstrDataObject* resObj
+		, const AbstrDataItem* polyItem
+		, bool e2IsVoid, const AbstrDataItem* bufDistItem, Float64 bufferDistance
+		, bool e3IsVoid, const AbstrDataItem* ppcItem, UInt8 pointsPerCircle
+		, tile_id t) const = 0;
 };
 
 template <typename P>
@@ -645,32 +650,52 @@ struct BufferPointOperator : public AbstrBufferOperator
 		: AbstrBufferOperator(grBgBuffer_point, ResultType::GetStaticClass(), Arg1Type::GetStaticClass())
 	{}
 
-	void Calculate(AbstrDataObject* resObj, const AbstrDataItem* pointItem, Float64 bufferDistance, UInt8 pointsPerCircle, tile_id t) const override
+	void Calculate(AbstrDataObject* resObj, const AbstrDataItem* pointItem
+		, bool e2IsVoid, const AbstrDataItem* bufDistItem, Float64 bufferDistance
+		, bool e3IsVoid, const AbstrDataItem* ppcItem, UInt8 pointsPerCircle
+		, tile_id t) const override
 	{
 		auto pointData = const_array_cast<PointType>(pointItem)->GetTile(t);
+		auto bufDistData = e2IsVoid ? DataArray<Float64>::locked_cseq_t{} : const_array_cast<Float64>(bufDistItem)->GetTile(t);
+		auto ppcData     = e3IsVoid ? DataArray<UInt8  >::locked_cseq_t{} : const_array_cast<UInt8>  (ppcItem    )->GetTile(t);
+
 		auto resData = mutable_array_cast<PolygonType>(resObj)->GetWritableTile(t);
-		dms_assert(pointData.size() == resData.size());
+		assert(pointData.size() == resData.size());
 
-		boost::geometry::strategy::buffer::distance_symmetric<Float64> distStrategy(bufferDistance);
-		boost::geometry::strategy::buffer::join_round                  joinStrategy(pointsPerCircle);
-		boost::geometry::strategy::buffer::end_round                   endStrategy(pointsPerCircle);
-		boost::geometry::strategy::buffer::point_circle                circleStrategy(pointsPerCircle);
-		boost::geometry::strategy::buffer::side_straight               sideStrategy;
+		SizeT i=0, n = pointData.size(); if (!n) return;
 
-		std::vector<PointType> ringClosurePoints;
-		dms_assert(pointItem->GetValueComposition() == ValueComposition::Single);
-
-		using bg_polygon_t = boost::geometry::model::polygon<DPoint>;
-
-		boost::geometry::model::multi_polygon<bg_polygon_t> resMP;
-		boost::geometry::buffer(DPoint(0, 0), resMP, distStrategy, sideStrategy, joinStrategy, endStrategy, circleStrategy);
-		boost::geometry::model::ring<DPoint> resRing = resMP[0].outer(), movedRing;
-
-		for (SizeT i = 0, n = pointData.size(); i != n; ++i)
+		while (true)
 		{
+			if (!e2IsVoid)
+				bufferDistance = bufDistData[i];
+			if (!e3IsVoid)
+				pointsPerCircle = ppcData[i];
+
+			boost::geometry::strategy::buffer::distance_symmetric<Float64> distStrategy(bufferDistance);
+			boost::geometry::strategy::buffer::join_round                  joinStrategy(pointsPerCircle);
+			boost::geometry::strategy::buffer::end_round                   endStrategy(pointsPerCircle);
+			boost::geometry::strategy::buffer::point_circle                circleStrategy(pointsPerCircle);
+			boost::geometry::strategy::buffer::side_straight               sideStrategy;
+
+			std::vector<PointType> ringClosurePoints;
+			assert(pointItem->GetValueComposition() == ValueComposition::Single);
+
+			using bg_polygon_t = boost::geometry::model::polygon<DPoint>;
+
+			boost::geometry::model::multi_polygon<bg_polygon_t> resMP;
+			boost::geometry::buffer(DPoint(0, 0), resMP, distStrategy, sideStrategy, joinStrategy, endStrategy, circleStrategy);
+
+			boost::geometry::model::ring<DPoint> resRing = resMP[0].outer();
+			boost::geometry::model::ring<DPoint> movedRing;
+
+		nextPointWithSameResRing:
 			movedRing = resRing;
 			move(movedRing, DPoint(pointData[i]));
 			store_ring(resData[i], movedRing);
+			if (++i == n)
+				break;
+			if (e2IsVoid && e3IsVoid)
+				goto nextPointWithSameResRing;
 		}
 	}
 };
@@ -686,26 +711,40 @@ struct BufferMultiPointOperator : public AbstrBufferOperator
 		: AbstrBufferOperator(grBgBuffer_multi_point, Arg1Type::GetStaticClass())
 	{}
 
-	void Calculate(AbstrDataObject* resObj, const AbstrDataItem* polyItem, Float64 bufferDistance, UInt8 pointsPerCircle, tile_id t) const override
+	void Calculate(AbstrDataObject* resObj, const AbstrDataItem* polyItem
+		, bool e2IsVoid, const AbstrDataItem* bufDistItem, Float64 bufferDistance
+		, bool e3IsVoid, const AbstrDataItem* ppcItem, UInt8 pointsPerCircle
+		, tile_id t) const override
 	{
 		auto polyData = const_array_cast<PolygonType>(polyItem)->GetTile(t);
+		auto bufDistData = e2IsVoid ? DataArray<Float64>::locked_cseq_t{} : const_array_cast<Float64>(bufDistItem)->GetTile(t);
+		auto ppcData = e3IsVoid ? DataArray<UInt8  >::locked_cseq_t{} : const_array_cast<UInt8>  (ppcItem)->GetTile(t);
+
 		auto resData = mutable_array_cast<PolygonType>(resObj)->GetWritableTile(t);
-		dms_assert(polyData.size() == resData.size());
+		assert(polyData.size() == resData.size());
 
-		boost::geometry::strategy::buffer::distance_symmetric<Float64> distStrategy(bufferDistance);
-		boost::geometry::strategy::buffer::join_round                  joinStrategy(pointsPerCircle);
-		boost::geometry::strategy::buffer::end_round                   endStrategy(pointsPerCircle);
-		boost::geometry::strategy::buffer::point_circle                circleStrategy(pointsPerCircle);
-		boost::geometry::strategy::buffer::side_straight               sideStrategy;
+		SizeT i = 0, n = polyData.size(); if (!n) return;
 
-		std::vector<DPoint> ringClosurePoints;
-		dms_assert(polyItem->GetValueComposition() == ValueComposition::Sequence);
-
-		boost::geometry::model::multi_point<DPoint> currGeometry;
-		bg_multi_polygon_t resMP;
-
-		for (SizeT i = 0, n = polyData.size(); i != n; ++i)
+		while (true)
 		{
+			if (!e2IsVoid)
+				bufferDistance = bufDistData[i];
+			if (!e3IsVoid)
+				pointsPerCircle = ppcData[i];
+
+			boost::geometry::strategy::buffer::distance_symmetric<Float64> distStrategy(bufferDistance);
+			boost::geometry::strategy::buffer::join_round                  joinStrategy(pointsPerCircle);
+			boost::geometry::strategy::buffer::end_round                   endStrategy(pointsPerCircle);
+			boost::geometry::strategy::buffer::point_circle                circleStrategy(pointsPerCircle);
+			boost::geometry::strategy::buffer::side_straight               sideStrategy;
+
+			std::vector<DPoint> ringClosurePoints;
+			dms_assert(polyItem->GetValueComposition() == ValueComposition::Sequence);
+
+			boost::geometry::model::multi_point<DPoint> currGeometry;
+			bg_multi_polygon_t resMP;
+
+		nextPointWithSameResRing:
 			resMP.clear();
 			currGeometry.assign(begin_ptr(polyData[i]), end_ptr(polyData[i]));
 
@@ -717,6 +756,11 @@ struct BufferMultiPointOperator : public AbstrBufferOperator
 			move(resMP, p);
 
 			store_multi_polygon(resData[i], resMP, ringClosurePoints);
+
+			if (++i == n)
+				break;
+			if (e2IsVoid && e3IsVoid)
+				goto nextPointWithSameResRing;
 		}
 	}
 };
@@ -732,27 +776,42 @@ struct BufferLineStringOperator : public AbstrBufferOperator
 		: AbstrBufferOperator(grBgBuffer_linestring, Arg1Type::GetStaticClass())
 	{}
 
-	void Calculate(AbstrDataObject* resItem, const AbstrDataItem* polyItem, Float64 bufferDistance, UInt8 pointsPerCircle, tile_id t) const override
+	void Calculate(AbstrDataObject* resItem, const AbstrDataItem* polyItem
+		, bool e2IsVoid, const AbstrDataItem* bufDistItem, Float64 bufferDistance
+		, bool e3IsVoid, const AbstrDataItem* ppcItem, UInt8 pointsPerCircle
+		, tile_id t) const override
 	{
 		dms_assert(polyItem->GetValueComposition() == ValueComposition::Sequence);
 
 		auto polyData = const_array_cast<PolygonType>(polyItem)->GetTile(t);
+		auto bufDistData = e2IsVoid ? DataArray<Float64>::locked_cseq_t{} : const_array_cast<Float64>(bufDistItem)->GetTile(t);
+		auto ppcData = e3IsVoid ? DataArray<UInt8  >::locked_cseq_t{} : const_array_cast<UInt8>  (ppcItem)->GetTile(t);
+
 		auto resData = mutable_array_cast<PolygonType>(resItem)->GetWritableTile(t);
-		dms_assert(polyData.size() == resData.size());
+		assert(polyData.size() == resData.size());
 
-		boost::geometry::strategy::buffer::distance_symmetric<Float64> distStrategy(bufferDistance);
-		boost::geometry::strategy::buffer::join_round                  joinStrategy(pointsPerCircle);
-		boost::geometry::strategy::buffer::end_round                   endStrategy(pointsPerCircle);
-		boost::geometry::strategy::buffer::point_circle                circleStrategy(pointsPerCircle);
-		boost::geometry::strategy::buffer::side_straight               sideStrategy;
+		SizeT i = 0, n = polyData.size(); if (!n) return;
 
-		std::vector<DPoint> ringClosurePoints;
-
-		bg_linestring_t currGeometry;
-		bg_multi_polygon_t resMP;
-
-		for (SizeT i = 0, n = polyData.size(); i != n; ++i)
+		while (true)
 		{
+			if (!e2IsVoid)
+				bufferDistance = bufDistData[i];
+			if (!e3IsVoid)
+				pointsPerCircle = ppcData[i];
+
+			boost::geometry::strategy::buffer::distance_symmetric<Float64> distStrategy(bufferDistance);
+			boost::geometry::strategy::buffer::join_round                  joinStrategy(pointsPerCircle);
+			boost::geometry::strategy::buffer::end_round                   endStrategy(pointsPerCircle);
+			boost::geometry::strategy::buffer::point_circle                circleStrategy(pointsPerCircle);
+			boost::geometry::strategy::buffer::side_straight               sideStrategy;
+
+			std::vector<DPoint> ringClosurePoints;
+
+			bg_linestring_t currGeometry;
+			bg_multi_polygon_t resMP;
+
+	nextPointWithSameResRing:
+
 			resMP.clear();
 			currGeometry.assign(begin_ptr(polyData[i]), end_ptr(polyData[i]));
 
@@ -764,6 +823,10 @@ struct BufferLineStringOperator : public AbstrBufferOperator
 			move(resMP, p);
 
 			store_multi_polygon(resData[i], resMP, ringClosurePoints);
+			if (++i == n)
+				break;
+			if (e2IsVoid && e3IsVoid)
+				goto nextPointWithSameResRing;
 		}
 	}
 };
@@ -779,26 +842,39 @@ struct BufferMultiPolygonOperator : public AbstrBufferOperator
 		: AbstrBufferOperator(grBgBuffer_multi_polygon, Arg1Type::GetStaticClass())
 	{}
 
-	void Calculate(AbstrDataObject* resItem, const AbstrDataItem* polyItem, Float64 bufferDistance, UInt8 pointsPerCircle, tile_id t) const override
+	void Calculate(AbstrDataObject* resItem, const AbstrDataItem* polyItem
+		, bool e2IsVoid, const AbstrDataItem* bufDistItem, Float64 bufferDistance
+		, bool e3IsVoid, const AbstrDataItem* ppcItem, UInt8 pointsPerCircle
+		, tile_id t) const override
 	{
 		auto polyData = const_array_cast<PolygonType>(polyItem)->GetTile(t);
+		auto bufDistData = e2IsVoid ? DataArray<Float64>::locked_cseq_t{} : const_array_cast<Float64>(bufDistItem)->GetTile(t);
+		auto ppcData = e3IsVoid ? DataArray<UInt8  >::locked_cseq_t{} : const_array_cast<UInt8>  (ppcItem)->GetTile(t);
 		auto resData = mutable_array_cast<PolygonType>(resItem)->GetWritableTile(t);
-		dms_assert(polyData.size() == resData.size());
+		assert(polyData.size() == resData.size());
 
-		boost::geometry::strategy::buffer::distance_symmetric<Float64> distStrategy(bufferDistance);
-		boost::geometry::strategy::buffer::join_round                  joinStrategy(pointsPerCircle);
-		boost::geometry::strategy::buffer::end_round                   endStrategy(pointsPerCircle);
-		boost::geometry::strategy::buffer::point_circle                circleStrategy(pointsPerCircle);
-		boost::geometry::strategy::buffer::side_straight               sideStrategy;
+		SizeT i = 0, n = polyData.size(); if (!n) return;
 
-		std::vector<DPoint> helperPointArray;
-		bg_ring_t helperRing;
-
-		bg_polygon_t helperPolygon;
-		bg_multi_polygon_t currMP, resMP;
-
-		for (SizeT i = 0, n = polyData.size(); i != n; ++i)
+		while (true)
 		{
+			if (!e2IsVoid)
+				bufferDistance = bufDistData[i];
+			if (!e3IsVoid)
+				pointsPerCircle = ppcData[i];
+			boost::geometry::strategy::buffer::distance_symmetric<Float64> distStrategy(bufferDistance);
+			boost::geometry::strategy::buffer::join_round                  joinStrategy(pointsPerCircle);
+			boost::geometry::strategy::buffer::end_round                   endStrategy(pointsPerCircle);
+			boost::geometry::strategy::buffer::point_circle                circleStrategy(pointsPerCircle);
+			boost::geometry::strategy::buffer::side_straight               sideStrategy;
+
+			std::vector<DPoint> helperPointArray;
+			bg_ring_t helperRing;
+
+			bg_polygon_t helperPolygon;
+			bg_multi_polygon_t currMP, resMP;
+
+		nextPointWithSameResRing:
+
 			assign_multi_polygon(currMP, polyData[i], true, helperPolygon, helperRing);
 
 			auto lb = MaxValue<DPoint>();
@@ -810,6 +886,10 @@ struct BufferMultiPolygonOperator : public AbstrBufferOperator
 			move(resMP, lb);
 
 			store_multi_polygon(resData[i], resMP, helperPointArray);
+			if (++i == n)
+				break;
+			if (e2IsVoid && e3IsVoid)
+				goto nextPointWithSameResRing;
 		}
 	}
 };
@@ -825,27 +905,40 @@ struct BufferPolygonOperator : public AbstrBufferOperator
 		: AbstrBufferOperator(grBgBuffer_polygon, Arg1Type::GetStaticClass())
 	{}
 
-	void Calculate(AbstrDataObject* resObj, const AbstrDataItem* polyItem, Float64 bufferDistance, UInt8 pointsPerCircle, tile_id t) const override
+	void Calculate(AbstrDataObject* resObj, const AbstrDataItem* polyItem
+		, bool e2IsVoid, const AbstrDataItem* bufDistItem, Float64 bufferDistance
+		, bool e3IsVoid, const AbstrDataItem* ppcItem, UInt8 pointsPerCircle
+		, tile_id t) const override
 	{
 		auto polyData = const_array_cast<PolygonType>(polyItem)->GetTile(t);
+		auto bufDistData = e2IsVoid ? DataArray<Float64>::locked_cseq_t{} : const_array_cast<Float64>(bufDistItem)->GetTile(t);
+		auto ppcData = e3IsVoid ? DataArray<UInt8  >::locked_cseq_t{} : const_array_cast<UInt8>  (ppcItem)->GetTile(t);
 		auto resData = mutable_array_cast<PolygonType>(resObj)->GetWritableTile(t);
-		dms_assert(polyData.size() == resData.size());
+		assert(polyData.size() == resData.size());
 
-		boost::geometry::strategy::buffer::distance_symmetric<Float64> distStrategy(bufferDistance);
-		boost::geometry::strategy::buffer::join_round                  joinStrategy(pointsPerCircle);
-		boost::geometry::strategy::buffer::end_round                   endStrategy(pointsPerCircle);
-		boost::geometry::strategy::buffer::point_circle                circleStrategy(pointsPerCircle);
-		boost::geometry::strategy::buffer::side_straight               sideStrategy;
+		SizeT i = 0, n = polyData.size(); if (!n) return;
 
-		std::vector<DPoint> ringClosurePoints;
-		boost::geometry::model::ring<DPoint> helperRing;
-
-		using bg_polygon_t = boost::geometry::model::polygon<DPoint>;
-		bg_polygon_t currPoly;
-		boost::geometry::model::multi_polygon<bg_polygon_t> resMP;
-
-		for (SizeT i = 0, n = polyData.size(); i != n; ++i)
+		while (true)
 		{
+			if (!e2IsVoid)
+				bufferDistance = bufDistData[i];
+			if (!e3IsVoid)
+				pointsPerCircle = ppcData[i];
+			boost::geometry::strategy::buffer::distance_symmetric<Float64> distStrategy(bufferDistance);
+			boost::geometry::strategy::buffer::join_round                  joinStrategy(pointsPerCircle);
+			boost::geometry::strategy::buffer::end_round                   endStrategy(pointsPerCircle);
+			boost::geometry::strategy::buffer::point_circle                circleStrategy(pointsPerCircle);
+			boost::geometry::strategy::buffer::side_straight               sideStrategy;
+
+			std::vector<DPoint> ringClosurePoints;
+			boost::geometry::model::ring<DPoint> helperRing;
+
+			using bg_polygon_t = boost::geometry::model::polygon<DPoint>;
+			bg_polygon_t currPoly;
+			boost::geometry::model::multi_polygon<bg_polygon_t> resMP;
+
+		nextPointWithSameResRing:
+
 			assign_polygon(currPoly, polyData[i], true, helperRing);
 			if (currPoly.outer().empty())
 				continue;
@@ -859,6 +952,10 @@ struct BufferPolygonOperator : public AbstrBufferOperator
 			move(resMP, lb);
 
 			store_multi_polygon(resData[i], resMP, ringClosurePoints);
+			if (++i == n)
+				break;
+			if (e2IsVoid && e3IsVoid)
+				goto nextPointWithSameResRing;
 		}
 	}
 };

@@ -42,9 +42,6 @@ granted by an additional written contract for support, assistance and/or develop
 //----------------------------------------------------------------------
 
 CounterStacks::CounterStacks()
-	:	m_NrActiveCounters(0)
-	,	m_CurrCounter(0)
-	,	m_DidBreak(false)
 {
 	m_Stacks.reserve(8);
 }
@@ -60,7 +57,6 @@ void CounterStacks::Reset(Region&& drawRegion)
 
 	m_DidBreak = false;
 	AddDrawRegion(std::move(drawRegion));
-
 }
 
 bool CounterStacks::CurrStackEmpty()

@@ -50,7 +50,7 @@ STGDLL_CALL SharedUnit FindProjectionRef (const TreeItem* storageHolder, const A
 STGDLL_CALL SharedUnit FindProjectionBase(const TreeItem* storageHolder, const AbstrUnit* uDomain);
 
 bool WriteGeoRefFile(const AbstrDataItem* diGrid, WeakStr geoRefFileName);
-void ReadProjection(TreeItem* storageHolder, WeakStr geoRefFileName);
+void GetImageToWorldTransformFromFile(TreeItem* storageHolder, WeakStr geoRefFileName);
 
 
 #endif __STG_IMPL_H

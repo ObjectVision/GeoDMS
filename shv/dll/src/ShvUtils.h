@@ -316,13 +316,6 @@ void UpdateShowSelOnlyImpl(GraphicObject* self, const AbstrUnit* entity, const A
 ,	Theme* selTheme
 );
 
-//----------------------------------------------------------------------
-// GetUserMode section
-//----------------------------------------------------------------------
-
-enum UserMode { UM_Unknown, UM_View, UM_Select, UM_Edit };
-UserMode GetUserMode();
-
 inline dms_rw_mode DmsRwChangeType(bool mustCreateNew)
 {
 	return mustCreateNew
