@@ -147,9 +147,9 @@ private: friend struct ResumableCounter;
 
 	CounterStackCollection    m_Stacks;
 	std::vector<SizeT>        m_Counters;
-	SizeT                     m_NrActiveCounters;
-	const ResumableCounter*   m_CurrCounter;
-	bool                      m_DidBreak;
+	SizeT                     m_NrActiveCounters = 0;
+	const ResumableCounter*   m_CurrCounter = nullptr;
+	bool                      m_DidBreak = false;
 };
 
 //----------------------------------------------------------------------
