@@ -1637,6 +1637,9 @@ void GdalVectSM::DoUpdateTable(const TreeItem* storageHolder, AbstrUnit* layerDo
 				vu = Unit<DPoint>::GetStaticClass()->CreateDefault();
 
 			// create missing geometry treeitem
+			if (gdal_vc == ValueComposition::Unknown)
+				gdal_vc = ValueComposition::String; // == ValueComposition::Single
+
 			geometry = CreateDataItem(
 				layerDomain, token::geometry,
 				layerDomain, vu, gdal_vc
