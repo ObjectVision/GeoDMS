@@ -9,6 +9,7 @@
 #endif //defined(CC_PRAGMAHDRSTOP)
 
 #include "RtcTypeLists.h"
+#include "RtcGeneratedVersion.h"
 
 #include "mci/ValueClass.h"
 #include "mci/ValueWrap.h"
@@ -324,12 +325,22 @@ static CommonOperGroup grBgIntersect("bg_intersect");
 
 static CommonOperGroup grBgBuffer_point        ("bg_buffer_point");
 static CommonOperGroup grBgBuffer_multi_point  ("bg_buffer_multi_point");
-static CommonOperGroup grBgBuffer_polygon      ("bg_buffer_polygon");
+
+#if DMS_VERSION_MAJOR < 15
+static Obsolete<CommonOperGroup> grBgBuffer_polygon("use bg_buffer_single_polygon", "bg_buffer_polygon");
+#endif
+
+static CommonOperGroup grBgBuffer_single_polygon("bg_buffer_single_polygon");
 static CommonOperGroup grBgBuffer_multi_polygon("bg_buffer_multi_polygon");
 static CommonOperGroup grBgBuffer_linestring   ("bg_buffer_linestring");
 
-static CommonOperGroup grOuter_polygon("outer_polygon");
-static CommonOperGroup grOuter_multi_polygon("outer_multi_polygon");
+#if DMS_VERSION_MAJOR < 15
+static Obsolete<CommonOperGroup> grOuter_polygon("use bg_outer_single_polygon", "outer_polygon");
+static Obsolete<CommonOperGroup> grOuter_multi_polygon("use bg_outer_multi_polygon", "outer_multi_polygon");
+#endif
+
+static CommonOperGroup grBgOuter_single_polygon("bg_outer_single_polygon");
+static CommonOperGroup grBgOuter_multi_polygon("bg_outer_multi_polygon");
 
 
 class AbstrSimplifyOperator : public BinaryOperator
@@ -833,8 +844,8 @@ struct BufferMultiPolygonOperator : public AbstrBufferOperator
 	using PolygonType = std::vector<PointType>;
 	using Arg1Type = DataArray<PolygonType>;
 
-	BufferMultiPolygonOperator()
-		: AbstrBufferOperator(grBgBuffer_multi_polygon, Arg1Type::GetStaticClass())
+	BufferMultiPolygonOperator(AbstrOperGroup& gr)
+		: AbstrBufferOperator(gr, Arg1Type::GetStaticClass())
 	{}
 
 	void Calculate(AbstrDataObject* resItem, const AbstrDataItem* polyItem
@@ -890,14 +901,14 @@ struct BufferMultiPolygonOperator : public AbstrBufferOperator
 };
 
 template <typename P>
-struct BufferPolygonOperator : public AbstrBufferOperator
+struct BufferSinglePolygonOperator : public AbstrBufferOperator
 {
 	using PointType = P;
 	using PolygonType = std::vector<PointType>;
 	using Arg1Type = DataArray<PolygonType>;
 
-	BufferPolygonOperator()
-		: AbstrBufferOperator(grBgBuffer_polygon, Arg1Type::GetStaticClass())
+	BufferSinglePolygonOperator(AbstrOperGroup& gr)
+		: AbstrBufferOperator(gr, Arg1Type::GetStaticClass())
 	{}
 
 	void Calculate(AbstrDataObject* resObj, const AbstrDataItem* polyItem
@@ -1003,8 +1014,8 @@ struct OuterMultiPolygonOperator : public AbstrOuterOperator
 	using PolygonType = std::vector<PointType>;
 	using Arg1Type = DataArray<PolygonType>;
 
-	OuterMultiPolygonOperator()
-		: AbstrOuterOperator(grOuter_multi_polygon, Arg1Type::GetStaticClass())
+	OuterMultiPolygonOperator(AbstrOperGroup& gr)
+		: AbstrOuterOperator(gr, Arg1Type::GetStaticClass())
 	{}
 
 	void Calculate(AbstrDataObject* resItem, const AbstrDataItem* polyItem, tile_id t) const override
@@ -1031,14 +1042,14 @@ struct OuterMultiPolygonOperator : public AbstrOuterOperator
 };
 
 template <typename P>
-struct OuterPolygonOperator : public AbstrOuterOperator
+struct OuterSingePolygonOperator : public AbstrOuterOperator
 {
 	using PointType = P;
 	using PolygonType = std::vector<PointType>;
 	using Arg1Type = DataArray<PolygonType>;
 
-	OuterPolygonOperator()
-		: AbstrOuterOperator(grOuter_polygon, Arg1Type::GetStaticClass())
+	OuterSingePolygonOperator(AbstrOperGroup& gr)
+		: AbstrOuterOperator(gr, Arg1Type::GetStaticClass())
 	{}
 
 	void Calculate(AbstrDataObject* resObj, const AbstrDataItem* polyItem, tile_id t) const override
@@ -1073,10 +1084,18 @@ namespace
 	tl_oper::inst_tuple_templ<typelists::points, BufferPointOperator> bufferPointOperators;
 	tl_oper::inst_tuple_templ<typelists::points, BufferMultiPointOperator> bufferMultiPointOperators;
 	tl_oper::inst_tuple_templ<typelists::points, BufferLineStringOperator> bufferLineStringOperators;
-	tl_oper::inst_tuple_templ<typelists::points, BufferPolygonOperator> bufferPolygonOperators;
-	tl_oper::inst_tuple_templ<typelists::points, BufferMultiPolygonOperator> bufferMultiPolygonOperators;
 
-	tl_oper::inst_tuple_templ<typelists::points, OuterPolygonOperator> outerPolygonOperators;
-	tl_oper::inst_tuple_templ<typelists::points, OuterMultiPolygonOperator> outerMultiPolygonOperators;
+#if DMS_VERSION_MAJOR < 15
+	tl_oper::inst_tuple_templ<typelists::points, BufferSinglePolygonOperator, AbstrOperGroup&> bg_bufferPolygonOperators(grBgBuffer_polygon);
+#endif
+	tl_oper::inst_tuple_templ<typelists::points, BufferSinglePolygonOperator, AbstrOperGroup&> bg_buffersinglePolygonOperators(grBgBuffer_single_polygon);
+	tl_oper::inst_tuple_templ<typelists::points, BufferMultiPolygonOperator, AbstrOperGroup&> bg_bufferMultiPolygonOperators(grBgBuffer_multi_polygon);
+
+#if DMS_VERSION_MAJOR < 15
+	tl_oper::inst_tuple_templ<typelists::points, OuterSingePolygonOperator, AbstrOperGroup&> outerPolygonOperators(grOuter_polygon);
+	tl_oper::inst_tuple_templ<typelists::points, OuterMultiPolygonOperator, AbstrOperGroup&> outerMultiPolygonOperators(grOuter_multi_polygon);
+#endif
+	tl_oper::inst_tuple_templ<typelists::points, OuterSingePolygonOperator, AbstrOperGroup&> bg_outerSinglePolygonOperators(grBgOuter_single_polygon);
+	tl_oper::inst_tuple_templ<typelists::points, OuterMultiPolygonOperator, AbstrOperGroup&> bg_outerMultiPolygonOperators(grBgOuter_multi_polygon);
 }
 
