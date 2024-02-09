@@ -34,14 +34,19 @@
 
 ConfigProd::ConfigProd(TreeItem* context, bool rootIsFirstItem)
 :	m_pCurrent(nullptr)
-,	m_rootIsFirstItem(rootIsFirstItem)
 ,	m_ResultCommitted(false)
 #if defined(MG_DEBUG)
 ,	md_IsIncludedFile(context)
 #endif
 {
+	m_MergeIntoExisting = rootIsFirstItem;
 	if (context)
-		m_stackContexts.push_back(context);
+	{
+		if (rootIsFirstItem)
+			m_pCurrent = context;
+		else
+			m_stackContexts.push_back(context);
+	}
 
 	MG_DEBUGCODE( ClearSignature(); )
 }
@@ -203,7 +208,13 @@ void ConfigProd::CreateItem(TokenID nameID, const iterator_t& loc)
 		assert( m_stackContexts.empty() );
 		if (m_pCurrent)
 		{
-			assert(m_pCurrent->GetID() == nameID);
+			if (m_pCurrent->GetID() != nameID)
+				reportF(MsgCategory::storage_read, SeverityTypeID::ST_Warning
+					, "Configuration file %s: root item '%s' was already provided with name '%s'"
+					, ConfigurationFilenameLock::GetCurrentFileDescrFromConfigLoadDir()->GetFileName().c_str()
+					, AsString(m_pCurrent->GetID()).c_str()
+					, AsString(nameID).c_str()
+				);
 		}
 		else
 			m_pCurrent = TreeItem::CreateConfigRoot(nameID);
@@ -211,8 +222,9 @@ void ConfigProd::CreateItem(TokenID nameID, const iterator_t& loc)
 	else // stackContexts not empty
 	{
 		assert(GetContextItem()); // only nonnulls in stackContexts
-			
-		CheckIsNew(GetContextItem(), nameID);
+		
+		if (!m_MergeIntoExisting)
+			CheckIsNew(GetContextItem(), nameID);
 
 		switch (m_eSignatureType) {
 			case SignatureType::TreeItem: CreateContainer(nameID); break;

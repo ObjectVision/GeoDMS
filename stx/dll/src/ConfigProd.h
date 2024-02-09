@@ -135,13 +135,13 @@ MG_DEBUGCODE(	void    ClearSignature(); )
 
 	[[noreturn]] virtual void throwSemanticError(CharPtr msg) override;
 
-	typedef SharedPtr<TreeItem>      TreeItemRef;
+	using TreeItemRef = SharedPtr<TreeItem>;
 
 	MG_DEBUGCODE(bool                md_IsIncludedFile; )
 
 	TreeItemRef                      m_pCurrent;
 	quick_replace_stack<TreeItemRef> m_stackContexts;
-	bool                             m_rootIsFirstItem = false;
+	bool                             m_MergeIntoExisting = false;
 
 	TokenID                          m_ItemNameID;
 	TokenID                          m_strIdentifierID;

@@ -237,7 +237,6 @@ inline auto AsLispRef(SharedStr s, LispPtr valuesUnitKeyExpr) -> LispRef
 template <typename T>
 auto AsLispRef(const Range<T>& range, LispRef&& base, bool asCategorical) -> LispRef
 {
-	assert(!(base.IsRealList() && base.Left().IsSymb() && base.Left().GetSymbID() == token::range));
 	return ExprList(asCategorical ? token::cat_range : token::range, base
 		, AsLispRef(range.first)
 		, AsLispRef(range.second)
