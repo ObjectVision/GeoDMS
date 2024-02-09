@@ -7,7 +7,9 @@
 //      are changed infrequently
 //
 
+#if defined(_MSC_VER)
 #pragma once
+#endif
 
 #if !defined(__RTC_CALL_H)
 #define __RTC_CALL_H

@@ -939,13 +939,13 @@ GeoUnitAdapter<U>::CopyProps(TreeItem* result, const CopyTreeContext& copyContex
 //----------------------------------------------------------------------
 
 template <typename Range> 
-UInt32 CheckedCardinality(const TreeItem* context, const Range& range, bool throwOnUndefined)
+SizeT CheckedCardinality(const TreeItem* context, const Range& range, bool throwOnUndefined)
 {
 	if (!IsDefined(range))
 		if (throwOnUndefined)
 			context->throwItemError("Cardinality is undefined");
 		else
-			return UNDEFINED_VALUE(UInt32);
+			return UNDEFINED_VALUE(SizeT);
 	return Cardinality(range);
 }
 
