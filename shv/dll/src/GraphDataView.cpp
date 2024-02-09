@@ -14,6 +14,7 @@
 
 #include "AbstrUnit.h"
 #include "OperationContext.h"
+#include "Projection.h"
 #include "PropFuncs.h"
 #include "TreeItemProps.h"
 
@@ -56,7 +57,24 @@ bool CompatibleCrds(const AbstrUnit* a, const AbstrUnit* b)
 	assert(a);
 	if (!b)
 		return true;
-	
+
+redo_a:
+	if (auto ap = a->GetProjection())
+		if (auto apb = ap->GetBaseUnit())
+			if (a != apb)
+			{
+				a = apb;
+				goto redo_a;
+			}
+
+redo_b:
+	if (auto bp = b->GetProjection())
+		if (auto bpb = bp->GetBaseUnit())
+		{
+			b = bpb;
+			goto redo_b;
+		}
+
 	// Callers guarantee that stuff came from GetWorldCrdUnit that went all the way to the last object
 	assert(a->m_State.GetProgress() >= PS_MetaInfo);
 	assert(b->m_State.GetProgress() >= PS_MetaInfo);
@@ -75,12 +93,12 @@ bool GraphDataView::CanContain(const TreeItem* viewCandidate) const
 	LayerInfo res = GetLayerInfo(AsDynamicDataItem(viewCandidate));
 	if (!res.IsComplete())
 		return false;
-	dms_assert(!res.IsAspect());
-	return
-		CompatibleCrds(
-			res.GetWorldCrdUnit(), 
-			GetContents()->GetViewPort()->GetWorldCrdUnit()
-		);
+	assert(!res.IsAspect());
+
+	SharedUnit resCrdUnit = res.GetWorldCrdUnit();
+	SharedUnit vpCrdUnit = GetContents()->GetViewPort()->GetWorldCrdUnit();
+
+	return CompatibleCrds(resCrdUnit.get(), vpCrdUnit.get());
 }
 
 class AddLayerCmd : public AbstrCmd
