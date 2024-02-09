@@ -34,24 +34,22 @@ struct LayerInfo
 	SharedDataItemInterestPtr m_diThemeOrGeoRel;       // (E<->EK)  (E<->EK)      nil       nil         E->V
 	SharedUnitInterestPtr     m_uEntity;               //  E         E            P=E       V           E
 
-	const LayerClass*    m_LayerClass;
+	const LayerClass*    m_LayerClass = nullptr;
 
 	SharedStr m_Descr;
 
-	LayerInfo(
-		State state, 
-		const AbstrDataItem* diAspectOrFeature, 
-		const AbstrDataItem* diExtKey   = 0, 
-		const AbstrDataItem* diThemeOrGeoRel   = 0,
-		const LayerClass*    layerClass = 0
+	LayerInfo(State state
+	,	const AbstrDataItem* diAspectOrFeature
+	,	const AbstrDataItem* diExtKey        = nullptr
+	,	const AbstrDataItem* diThemeOrGeoRel = nullptr
+	,	const LayerClass*    layerClass      = nullptr
 	);
 
 	LayerInfo(WeakStr infoTxt);
-	LayerInfo(WeakStr infoTxt,
-		State state,
-		const AbstrDataItem* diAspectOrFeature, 
-		const AbstrDataItem* diClassBreaksOrExtKey, 
-		const AbstrDataItem* diThemeOrGeoRel
+	LayerInfo(WeakStr infoTxt, State state
+	,	const AbstrDataItem* diAspectOrFeature
+	,	const AbstrDataItem* diClassBreaksOrExtKey
+	,	const AbstrDataItem* diThemeOrGeoRel
 	);
 
 	bool IsComplete() const { return m_State >= Feature; }

@@ -45,35 +45,27 @@ LayerInfo::LayerInfo(
 	const AbstrDataItem* diClassBreaksOrExtKey, 
 	const AbstrDataItem* diThemeOrGeoRel,
 	const LayerClass*    layerClass
-)	:	m_State(state)
+)	:	m_State                (state)
 	,	m_diAspectOrFeature    (diAspectOrFeature)
 	,	m_diClassBreaksOrExtKey(diClassBreaksOrExtKey)
 	,	m_diThemeOrGeoRel      (diThemeOrGeoRel)
-	,	m_uAspectOrFeature(nullptr)
-	,	m_uEntity         (nullptr)
-	,	m_LayerClass(layerClass)
+	,	m_LayerClass           (layerClass)
 
 {
-	dms_assert(diThemeOrGeoRel || diClassBreaksOrExtKey || diAspectOrFeature);
+	assert(diThemeOrGeoRel || diClassBreaksOrExtKey || diAspectOrFeature);
 
-	dms_assert(!IsGrid  () || (diClassBreaksOrExtKey && HasGridDomain(diClassBreaksOrExtKey) && !diAspectOrFeature));
-	dms_assert(!IsFeat  () || diAspectOrFeature);
-	dms_assert(!IsAspect() || diThemeOrGeoRel);
-	dms_assert(!IsComplete() || m_LayerClass || IsAspect());
+	assert(!IsGrid  () || (diClassBreaksOrExtKey && HasGridDomain(diClassBreaksOrExtKey) && !diAspectOrFeature));
+	assert(!IsFeat  () || diAspectOrFeature);
+	assert(!IsAspect() || diThemeOrGeoRel);
+	assert(!IsComplete() || m_LayerClass || IsAspect());
 
 	InitUnits();
-	dms_assert(m_uAspectOrFeature);
-	dms_assert(m_uEntity);
+	assert(m_uAspectOrFeature);
+	assert(m_uEntity);
 }
 
 LayerInfo::LayerInfo(WeakStr descr)
 	:	m_State(ConfigError)
-	,	m_diAspectOrFeature(nullptr)
-	,	m_diClassBreaksOrExtKey(nullptr)
-	,	m_diThemeOrGeoRel(nullptr)
-	,	m_uAspectOrFeature(nullptr)
-	,	m_uEntity(nullptr)
-	,	m_LayerClass(nullptr)
 	,	m_Descr(descr)
 {
 	reportD(SeverityTypeID::ST_MajorTrace, "LayerInfo: ", m_Descr.c_str());
@@ -90,18 +82,15 @@ LayerInfo::LayerInfo(
 	,	m_diAspectOrFeature(diAspectOrFeature)
 	,	m_diClassBreaksOrExtKey(diClassBreaksOrExtKey)
 	,	m_diThemeOrGeoRel(diThemeOrGeoRel)
-	,	m_uAspectOrFeature(nullptr)
-	,	m_uEntity(nullptr)
-	,	m_LayerClass(nullptr)
 	,	m_Descr(descr)
 {
-	dms_assert(state != ConfigError); // Precondition
+	assert(state != ConfigError); // Precondition
 	InitUnits();
 }
 
 void LayerInfo::InitUnits()
 {
-	dms_assert(m_uAspectOrFeature == nullptr);
+	assert(m_uAspectOrFeature == nullptr);
 
 	if (m_diAspectOrFeature)
 		m_uAspectOrFeature = m_diAspectOrFeature->GetAbstrValuesUnit();
@@ -110,7 +99,7 @@ void LayerInfo::InitUnits()
 	else if (m_diThemeOrGeoRel)
 		m_uAspectOrFeature = m_diThemeOrGeoRel->GetAbstrValuesUnit();
 
-	m_uAspectOrFeature = GetWorldCrdUnitFromGeoUnit( m_uAspectOrFeature );
+//	m_uAspectOrFeature = GetWorldCrdUnitFromGeoUnit( m_uAspectOrFeature );
 
 	dms_assert(m_uEntity == nullptr);
 	if (m_diThemeOrGeoRel)
@@ -638,6 +627,11 @@ LayerInfo GetAspectInfo(AspectNr aNr, const AbstrDataItem* adi, const LayerInfo&
 			}
 			if (featureInfo.m_uAspectOrFeature) {
 				res = FindAspectParam(aNr, featureInfo.m_uAspectOrFeature.get_ptr(), layerClass); if (res) goto returnAspectParam;
+				auto wrldCrdUnit = GetWorldCrdUnitFromGeoUnit(featureInfo.m_uAspectOrFeature);
+				if (wrldCrdUnit && wrldCrdUnit != featureInfo.m_uAspectOrFeature)
+				{
+					res = FindAspectParam(aNr, wrldCrdUnit, layerClass); if (res) goto returnAspectParam;
+				}
 			}
 #		if defined(SHV_SUPPORT_OLDNAMES)
 			if (featureInfo.m_diAspectOrFeature)
