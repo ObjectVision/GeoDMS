@@ -123,8 +123,8 @@ const AbstrUnit* LayerInfo::GetPaletteDomain() const
 
 const AbstrUnit* LayerInfo::GetWorldCrdUnit() const
 {
-	dms_assert(IsComplete()); // PRECONDITION
-	dms_assert(!IsAspect());  // PRECONDITION
+	assert(IsComplete()); // PRECONDITION
+	assert(!IsAspect());  // PRECONDITION
 	return m_uAspectOrFeature;
 }
 
