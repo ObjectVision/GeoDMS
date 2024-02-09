@@ -1602,7 +1602,6 @@ void GdalVectSM::DoUpdateTable(const TreeItem* storageHolder, AbstrUnit* layerDo
 		{
 			if (gdal_vc == ValueComposition::Unknown) // attempt interpreting geometry type using first feature
 			{
-				gdal_vc = ValueComposition::String;
 				OGRwkbGeometryType first_feature_geometry_type = OGRwkbGeometryType::wkbUnknown;
 				auto first_feature = layer->GetNextFeature();
 				layer->GetGeometryColumn();
@@ -1616,10 +1615,13 @@ void GdalVectSM::DoUpdateTable(const TreeItem* storageHolder, AbstrUnit* layerDo
 			}
 
 			// create default value unit from gdal_vc
-			auto vu = FindProjectionRef(storageHolder, layerDomain);
-			if (gdal_vc == ValueComposition::String)
+			SharedUnit vu;
+			if (gdal_vc == ValueComposition::Unknown)
 				vu = Unit<SharedStr>::GetStaticClass()->CreateDefault();
-			else if (ogrSR_ptr) // spatial reference available
+			else
+				vu = FindProjectionRef(storageHolder, layerDomain);
+
+			if (ogrSR_ptr) // spatial reference available
 			{
 				SharedStr wkt = GetAsWkt(&*ogrSR_ptr);
 				if (!wkt.empty())
@@ -1627,7 +1629,8 @@ void GdalVectSM::DoUpdateTable(const TreeItem* storageHolder, AbstrUnit* layerDo
 					auto vu_tmp = Unit<DPoint>::GetStaticClass()->CreateUnit(layerDomain, GetTokenID_mt("SpatialReference"));
 					vu_tmp->SetSpatialReference(GetTokenID_mt(wkt));
 					vu_tmp->DisableStorage(true); // used to avoid reentrance on DoUpdateTree
-					vu = vu_tmp;
+					if (!vu)
+						vu = vu_tmp;
 				}
 			}
 			else if (!vu) // default value
