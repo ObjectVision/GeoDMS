@@ -225,11 +225,14 @@ SharedUnit FindProjectionRef(const TreeItem* storageHolder, const AbstrUnit* gri
 	if (uBase == nullptr && storageHolder != gridDataDomain)
 	{
 		coordRef = dialogDataPropDefPtr->GetValue(storageHolder);
-		auto coordItem = storageHolder->FindItem(coordRef);
-		if (!coordItem && !HasMapType(storageHolder))
-			storageHolder->throwItemErrorF("Cannot find DialogData reference '%s'", coordRef.c_str());
-		if (IsUnit(coordItem))
-			uBase = AsUnit(coordItem);
+		if (!coordRef.empty())
+		{
+			auto coordItem = storageHolder->FindItem(coordRef);
+			if (!coordItem && !HasMapType(storageHolder))
+				storageHolder->throwItemErrorF("Cannot find DialogData reference '%s'", coordRef.c_str());
+			if (IsUnit(coordItem))
+				uBase = AsUnit(coordItem);
+		}
 	}
 	return uBase;
 }

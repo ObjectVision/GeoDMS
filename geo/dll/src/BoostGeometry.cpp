@@ -1,31 +1,6 @@
-//<HEADER> 
-/*
-Data & Model Server (DMS) is a server written in C++ for DSS applications. 
-Version: see srv/dms/rtc/dll/src/RtcVersion.h for version info.
-
-Copyright (C) 1998-2004  YUSE GSO Object Vision BV. 
-
-Documentation on using the Data & Model Server software can be found at:
-http://www.ObjectVision.nl/DMS/
-
-See additional guidelines and notes in srv/dms/Readme-srv.txt 
-
-This library is free software; you can use, redistribute, and/or
-modify it under the terms of the GNU General Public License version 2 
-(the License) as published by the Free Software Foundation,
-provided that this entire header notice and readme-srv.txt is preserved.
-
-See LICENSE.TXT for terms of distribution or look at our web site:
-http://www.objectvision.nl/DMS/License.txt
-or alternatively at: http://www.gnu.org/copyleft/gpl.html
-
-This library is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
-General Public License for more details. However, specific warranties might be
-granted by an additional written contract for support, assistance and/or development
-*/
-//</HEADER>
+// Copyright (C) 1998-2023 Object Vision b.v. 
+// License: GNU GPL 3
+/////////////////////////////////////////////////////////////////////////////
 
 #include "GeoPCH.h"
 
@@ -34,6 +9,7 @@ granted by an additional written contract for support, assistance and/or develop
 #endif //defined(CC_PRAGMAHDRSTOP)
 
 #include "RtcTypeLists.h"
+#include "RtcGeneratedVersion.h"
 
 #include "mci/ValueClass.h"
 #include "mci/ValueWrap.h"
@@ -45,6 +21,7 @@ granted by an additional written contract for support, assistance and/or develop
 #include "UnitClass.h"
 
 #include <boost/geometry.hpp>
+#include <boost/geometry/algorithms/within.hpp>
 
 #include "ipolygon/polygon.hpp"
 #include "geo/BoostPolygon.h"
@@ -116,14 +93,14 @@ void MakeLowerBound(P& lb, const boost::geometry::model::multi_polygon<Polygon>&
 
 bool clean(bg_ring_t& ring)
 {
-	dms_assert(ring.front() == ring.back());
+	assert(ring.front() == ring.back());
 	remove_adjacents_and_spikes(ring);
 	if (ring.size() < 3)
 	{
 		ring.clear();
 		return false;
 	}
-	dms_assert(ring.front() != ring.back());
+	assert(ring.front() != ring.back());
 	ring.emplace_back(ring.front());
 	return true;
 }
@@ -223,7 +200,11 @@ void assign_polygon(bg_polygon_t& resPoly, SA_ConstReference<DmsPointType> polyR
 		else
 		{
 			if (outerOrientation == currOrientation)
-				break; // don't start on 2nd polygon
+				// don't start on 2nd polygon
+				throwErrorD("assign_polygon", "second ring with same orientation detected as first ring; "
+					"consider using an operation that supports multi_polygons (bg_buffer_multi_polygon or outer_multi_polygon)"
+				);
+
 			if (mustInsertInnerRings)
 				resPoly.inners().emplace_back(helperRing);
 		}
@@ -245,8 +226,8 @@ void assign_multi_polygon(bg_multi_polygon_t& resMP, SA_ConstReference<DmsPointT
 	bool outerOrientation = true;
 	for (; ri != re; ++ri)
 	{
-		dms_assert((*ri).begin() != (*ri).end());
-		dms_assert((*ri).begin()[0] == (*ri).end()[-1]); // closed ?
+		assert((*ri).begin() != (*ri).end());
+		assert((*ri).begin()[0] == (*ri).end()[-1]); // closed ?
 
 		helperRing.assign((*ri).begin(), (*ri).end());
 		if (!clean(helperRing))
@@ -254,23 +235,41 @@ void assign_multi_polygon(bg_multi_polygon_t& resMP, SA_ConstReference<DmsPointT
 			continue;
 		}
 
-		dms_assert(helperRing.begin() != helperRing.end());
-		dms_assert(helperRing.begin()[0] == helperRing.end()[-1]); // closed ?
+		assert(helperRing.begin() != helperRing.end());
+		assert(helperRing.begin()[0] == helperRing.end()[-1]); // closed ?
 		bool currOrientation = (boost::geometry::area(helperRing) > 0);
 		if (ri == rb || currOrientation == outerOrientation)
 		{
-			if (ri != rb)
+			if (ri != rb && !helperPolygon.outer().empty())
 				resMP.emplace_back(helperPolygon);
-			helperPolygon.clear(); dms_assert(helperPolygon.outer().empty() && helperPolygon.inners().empty());
+			helperPolygon.clear(); assert(helperPolygon.outer().empty() && helperPolygon.inners().empty());
 			helperPolygon.outer() = bg_ring_t(helperRing.begin(), helperRing.end());
 			outerOrientation = currOrientation;
+
+			// skip outer rings that intersect with a previous outer ring if innerRings are skipped
+			if (!mustInsertInnerRings)
+			{ 
+				for (auto& p : resMP)
+				{
+					if (boost::geometry::intersects(p.outer(), helperPolygon.outer()))
+					{
+						MG_CHECK(!boost::geometry::overlaps(p.outer(), helperPolygon.outer()))
+						if (boost::geometry::within(p.outer(), helperPolygon.outer()))
+							p.outer() = std::move(helperPolygon.outer());
+						helperPolygon.clear();
+						assert(helperPolygon.outer().empty() && helperPolygon.inners().empty());
+						break;
+					}
+				}
+			}
 		}
 		else if (mustInsertInnerRings)
 		{
 			helperPolygon.inners().emplace_back(helperRing);
 		}
 	}
-	resMP.emplace_back(helperPolygon);
+	if (!helperPolygon.outer().empty())
+		resMP.emplace_back(helperPolygon);
 }
 
 template <typename Numeric>
@@ -282,7 +281,7 @@ auto sqr(Numeric x)
 template <typename DmsPointType>
 void store_ring(SA_Reference<DmsPointType> resDataElem, const bg_ring_t& ring)
 {
-	dms_assert(ring.begin()[0] == ring.end()[-1]); // closed ?
+	assert(ring.begin()[0] == ring.end()[-1]); // closed ?
 	resDataElem.append(ring.begin(), ring.end());
 }
 
@@ -329,12 +328,22 @@ static CommonOperGroup grBgSubtr     ("bg_subtr");
 
 static CommonOperGroup grBgBuffer_point        ("bg_buffer_point");
 static CommonOperGroup grBgBuffer_multi_point  ("bg_buffer_multi_point");
-static CommonOperGroup grBgBuffer_polygon      ("bg_buffer_polygon");
+
+#if DMS_VERSION_MAJOR < 15
+static Obsolete<CommonOperGroup> grBgBuffer_polygon("use bg_buffer_single_polygon", "bg_buffer_polygon");
+#endif
+
+static CommonOperGroup grBgBuffer_single_polygon("bg_buffer_single_polygon");
 static CommonOperGroup grBgBuffer_multi_polygon("bg_buffer_multi_polygon");
 static CommonOperGroup grBgBuffer_linestring   ("bg_buffer_linestring");
 
-static CommonOperGroup grOuter_polygon("outer_polygon");
-static CommonOperGroup grOuter_multi_polygon("outer_multi_polygon");
+#if DMS_VERSION_MAJOR < 15
+static Obsolete<CommonOperGroup> grOuter_polygon("use bg_outer_single_polygon", "outer_polygon");
+static Obsolete<CommonOperGroup> grOuter_multi_polygon("use bg_outer_multi_polygon", "outer_multi_polygon");
+#endif
+
+static CommonOperGroup grBgOuter_single_polygon("bg_outer_single_polygon");
+static CommonOperGroup grBgOuter_multi_polygon("bg_outer_multi_polygon");
 
 
 class AbstrSimplifyOperator : public BinaryOperator
@@ -838,8 +847,8 @@ struct BufferMultiPolygonOperator : public AbstrBufferOperator
 	using PolygonType = std::vector<PointType>;
 	using Arg1Type = DataArray<PolygonType>;
 
-	BufferMultiPolygonOperator()
-		: AbstrBufferOperator(grBgBuffer_multi_polygon, Arg1Type::GetStaticClass())
+	BufferMultiPolygonOperator(AbstrOperGroup& gr)
+		: AbstrBufferOperator(gr, Arg1Type::GetStaticClass())
 	{}
 
 	void Calculate(AbstrDataObject* resItem, const AbstrDataItem* polyItem
@@ -895,14 +904,14 @@ struct BufferMultiPolygonOperator : public AbstrBufferOperator
 };
 
 template <typename P>
-struct BufferPolygonOperator : public AbstrBufferOperator
+struct BufferSinglePolygonOperator : public AbstrBufferOperator
 {
 	using PointType = P;
 	using PolygonType = std::vector<PointType>;
 	using Arg1Type = DataArray<PolygonType>;
 
-	BufferPolygonOperator()
-		: AbstrBufferOperator(grBgBuffer_polygon, Arg1Type::GetStaticClass())
+	BufferSinglePolygonOperator(AbstrOperGroup& gr)
+		: AbstrBufferOperator(gr, Arg1Type::GetStaticClass())
 	{}
 
 	void Calculate(AbstrDataObject* resObj, const AbstrDataItem* polyItem
@@ -1008,40 +1017,42 @@ struct OuterMultiPolygonOperator : public AbstrOuterOperator
 	using PolygonType = std::vector<PointType>;
 	using Arg1Type = DataArray<PolygonType>;
 
-	OuterMultiPolygonOperator()
-		: AbstrOuterOperator(grOuter_multi_polygon, Arg1Type::GetStaticClass())
+	OuterMultiPolygonOperator(AbstrOperGroup& gr)
+		: AbstrOuterOperator(gr, Arg1Type::GetStaticClass())
 	{}
 
 	void Calculate(AbstrDataObject* resItem, const AbstrDataItem* polyItem, tile_id t) const override
 	{
 		auto polyData = const_array_cast<PolygonType>(polyItem)->GetTile(t);
 		auto resData = mutable_array_cast<PolygonType>(resItem)->GetWritableTile(t);
-		dms_assert(polyData.size() == resData.size());
+		assert(polyData.size() == resData.size());
 
 		std::vector<DPoint> ringClosurePoints;
 		bg_ring_t currRing;
 
 		using bg_polygon_t = boost::geometry::model::polygon<DPoint>;
 		bg_polygon_t currPoly;
-		bg_multi_polygon_t currMP, resMP;
+		bg_multi_polygon_t currMP;
 
 		for (SizeT i = 0, n = polyData.size(); i != n; ++i)
 		{
 			assign_multi_polygon(currMP, polyData[i], false, currPoly, currRing);
-			store_multi_polygon(resData[i], resMP, ringClosurePoints);
+
+			if (!currMP.empty())
+				store_multi_polygon(resData[i], currMP, ringClosurePoints);
 		}
 	}
 };
 
 template <typename P>
-struct OuterPolygonOperator : public AbstrOuterOperator
+struct OuterSingePolygonOperator : public AbstrOuterOperator
 {
 	using PointType = P;
 	using PolygonType = std::vector<PointType>;
 	using Arg1Type = DataArray<PolygonType>;
 
-	OuterPolygonOperator()
-		: AbstrOuterOperator(grOuter_polygon, Arg1Type::GetStaticClass())
+	OuterSingePolygonOperator(AbstrOperGroup& gr)
+		: AbstrOuterOperator(gr, Arg1Type::GetStaticClass())
 	{}
 
 	void Calculate(AbstrDataObject* resObj, const AbstrDataItem* polyItem, tile_id t) const override
@@ -1050,17 +1061,16 @@ struct OuterPolygonOperator : public AbstrOuterOperator
 		auto resData = mutable_array_cast<PolygonType>(resObj)->GetWritableTile(t);
 		dms_assert(polyData.size() == resData.size());
 
-		std::vector<DPoint> ringClosurePoints;
 		bg_ring_t helperRing;
 
 		bg_polygon_t  currPoly;
-		bg_multi_polygon_t resMP;
 
 		for (SizeT i = 0, n = polyData.size(); i != n; ++i)
 		{
 			assign_polygon(currPoly, polyData[i], false, helperRing);
 
-			store_multi_polygon(resData[i], resMP, ringClosurePoints);
+			if (!currPoly.outer().empty())
+				store_ring(resData[i], currPoly.outer());
 		}
 	}
 };
@@ -1077,10 +1087,18 @@ namespace
 	tl_oper::inst_tuple_templ<typelists::points, BufferPointOperator> bufferPointOperators;
 	tl_oper::inst_tuple_templ<typelists::points, BufferMultiPointOperator> bufferMultiPointOperators;
 	tl_oper::inst_tuple_templ<typelists::points, BufferLineStringOperator> bufferLineStringOperators;
-	tl_oper::inst_tuple_templ<typelists::points, BufferPolygonOperator> bufferPolygonOperators;
-	tl_oper::inst_tuple_templ<typelists::points, BufferMultiPolygonOperator> bufferMultiPolygonOperators;
 
-	tl_oper::inst_tuple_templ<typelists::points, OuterPolygonOperator> outerPolygonOperators;
-	tl_oper::inst_tuple_templ<typelists::points, OuterMultiPolygonOperator> outerMultiPolygonOperators;
+#if DMS_VERSION_MAJOR < 15
+	tl_oper::inst_tuple_templ<typelists::points, BufferSinglePolygonOperator, AbstrOperGroup&> bg_bufferPolygonOperators(grBgBuffer_polygon);
+#endif
+	tl_oper::inst_tuple_templ<typelists::points, BufferSinglePolygonOperator, AbstrOperGroup&> bg_buffersinglePolygonOperators(grBgBuffer_single_polygon);
+	tl_oper::inst_tuple_templ<typelists::points, BufferMultiPolygonOperator, AbstrOperGroup&> bg_bufferMultiPolygonOperators(grBgBuffer_multi_polygon);
+
+#if DMS_VERSION_MAJOR < 15
+	tl_oper::inst_tuple_templ<typelists::points, OuterSingePolygonOperator, AbstrOperGroup&> outerPolygonOperators(grOuter_polygon);
+	tl_oper::inst_tuple_templ<typelists::points, OuterMultiPolygonOperator, AbstrOperGroup&> outerMultiPolygonOperators(grOuter_multi_polygon);
+#endif
+	tl_oper::inst_tuple_templ<typelists::points, OuterSingePolygonOperator, AbstrOperGroup&> bg_outerSinglePolygonOperators(grBgOuter_single_polygon);
+	tl_oper::inst_tuple_templ<typelists::points, OuterMultiPolygonOperator, AbstrOperGroup&> bg_outerMultiPolygonOperators(grBgOuter_multi_polygon);
 }
 

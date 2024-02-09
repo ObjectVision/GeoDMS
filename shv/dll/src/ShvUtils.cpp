@@ -153,7 +153,7 @@ const AbstrUnit* GetWorldCrdUnitFromGeoUnit(const AbstrUnit* geoUnit)
 	if (proj)
 	{
 		geoUnit = proj->GetCompositeBase();
-		dms_assert(geoUnit);                   // projection always has a BaseUnit, guaranteed by constructors of UnitProjection!
+		assert(geoUnit);                   // projection always has a BaseUnit, guaranteed by constructors of UnitProjection!
 	}
 
 	return AsUnit(geoUnit->GetUltimateSourceItem());

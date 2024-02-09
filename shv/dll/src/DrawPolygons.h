@@ -44,7 +44,7 @@ granted by an additional written contract for support, assistance and/or develop
 #include "ThemeValueGetter.h"
 #include "RemoveAdjacentsAndSpikes.h"
 
-#define MIN_WORLD_SIZE 0.5
+extern Float64 s_DrawingSizeThresholdInPixels;
 
 using pointBuffer_t = std::vector<GPoint>;
 
@@ -128,7 +128,7 @@ bool DrawPolygonInterior(
 
 	dms_assert(zoomLevel > 1.0e-30); // we assume that nothing remains visible on such a small scale to avoid numerical overflow in the following inversion
 
-	ScalarType minWorldWidth  = MIN_WORLD_SIZE / zoomLevel;
+	ScalarType minWorldWidth  = s_DrawingSizeThresholdInPixels / zoomLevel;
 	ScalarType minWorldHeight = minWorldWidth;
 
 	GdiHandle<HPEN>         invisiblePen(CreatePen(PS_NULL, 0, RGB(0, 0, 0)));
@@ -289,7 +289,7 @@ bool DrawPolygons(const GraphicPolygonLayer* layer, const FeatureDrawer& fd, con
 	CrdType zoomLevel = Abs(d.GetTransformation().ZoomLevel());
 	assert(zoomLevel > 1.0e-30); // we assume that nothing remains visible on such a small scale to avoid numerical overflow in the following inversion
 
-	ScalarType minWorldWidth  = MIN_WORLD_SIZE / zoomLevel;
+	ScalarType minWorldWidth  = s_DrawingSizeThresholdInPixels / zoomLevel;
 	ScalarType minWorldHeight = minWorldWidth;
 
 	typename p_traits::RangeType clipRect = Convert<typename p_traits::RangeType>( layer->GetWorldClipRect(d) );
