@@ -199,7 +199,11 @@ void assign_polygon(bg_polygon_t& resPoly, SA_ConstReference<DmsPointType> polyR
 		else
 		{
 			if (outerOrientation == currOrientation)
-				break; // don't start on 2nd polygon
+				// don't start on 2nd polygon
+				throwErrorD("assign_polygon", "second ring with same orientation detected as first ring; "
+					"consider using an operation that supports multi_polygons (bg_buffer_multi_polygon or outer_multi_polygon)"
+				);
+
 			if (mustInsertInnerRings)
 				resPoly.inners().emplace_back(helperRing);
 		}
