@@ -249,17 +249,24 @@ void assign_multi_polygon(bg_multi_polygon_t& resMP, SA_ConstReference<DmsPointT
 			// skip outer rings that intersect with a previous outer ring if innerRings are skipped
 			if (!mustInsertInnerRings)
 			{ 
-				for (auto& p : resMP)
+				SizeT polygonIndex = 0;
+				while (polygonIndex < resMP.size())
 				{
-					if (boost::geometry::intersects(p.outer(), helperPolygon.outer()))
+					const auto* currPolygon = resMP.begin() + polygonIndex;
+					if (boost::geometry::intersects(currPolygon->outer(), helperPolygon.outer()))
 					{
-						MG_CHECK(!boost::geometry::overlaps(p.outer(), helperPolygon.outer()))
-						if (boost::geometry::within(p.outer(), helperPolygon.outer()))
-							p.outer() = std::move(helperPolygon.outer());
+						MG_CHECK(!boost::geometry::overlaps(currPolygon->outer(), helperPolygon.outer()));
+						if (boost::geometry::within(currPolygon->outer(), helperPolygon.outer()))
+						{
+							resMP.erase(currPolygon);
+							continue;
+						}
+						MG_CHECK(boost::geometry::within(helperPolygon.outer(), currPolygon->outer()));
 						helperPolygon.clear();
 						assert(helperPolygon.outer().empty() && helperPolygon.inners().empty());
 						break;
 					}
+					polygonIndex++;
 				}
 			}
 		}
