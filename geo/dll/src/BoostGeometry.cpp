@@ -252,7 +252,7 @@ void assign_multi_polygon(bg_multi_polygon_t& resMP, SA_ConstReference<DmsPointT
 				SizeT polygonIndex = 0;
 				while (polygonIndex < resMP.size())
 				{
-					const auto* currPolygon = resMP.begin() + polygonIndex;
+					auto currPolygon = resMP.begin() + polygonIndex;
 					if (boost::geometry::intersects(currPolygon->outer(), helperPolygon.outer()))
 					{
 						MG_CHECK(!boost::geometry::overlaps(currPolygon->outer(), helperPolygon.outer()));
