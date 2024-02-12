@@ -246,7 +246,7 @@ const AbstrUnit* TableControl::GetRowEntity() const
 	if (m_SelEntity)
 		return m_SelEntity;
 
-	dms_assert(m_Entity == nullptr);
+	assert(m_Entity == nullptr);
 	return nullptr;
 }
 

@@ -114,7 +114,7 @@ notCalculated:
 
 SharedStr GetStrCount(const AbstrUnit* unit)
 {
-	dms_assert(unit->GetValueType()->IsCountable());
+	assert(unit->GetValueType()->IsCountable());
 	try {	
 		if (!CheckDataReady(unit->GetCurrRangeItem()))
 			return SharedStr("Not Calculated");

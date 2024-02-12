@@ -925,7 +925,7 @@ auto GetUnitSizeInMeters(const AbstrUnit* projectionBaseUnit) -> Float64
 	if (projStr.empty())
 		return 1.0;
 	auto spOrErr = GetSpatialReferenceFromUserInput(projStr);
-	if (spOrErr.second == OGRERR_NONE)
+	if (spOrErr.second != OGRERR_NONE)
 		return 1.0;
 	auto result = GetUnitSizeInMeters(&spOrErr.first);
 	return result;

@@ -2,7 +2,9 @@
 // License: GNU GPL 3
 /////////////////////////////////////////////////////////////////////////////
 
-//#pragma once
+#if defined(_MSC_VER)
+#pragma once
+#endif
 
 #ifndef __SER_ASSTRING_H
 
@@ -13,13 +15,6 @@
 #include "ser/FormattedStream.h"
 #include "ser/MoreStreamBuff.h"
 #include "utl/Quotes.h"
-
-/*
-#include "geo/iterrange.h"
-#include "ser/PointStream.h"
-#include "ser/StringStream.h"
-#include "ser/SequenceArrayStream.h"
-//*/
 
 #define __SER_ASSTRING_H
 
