@@ -402,7 +402,7 @@ void CheckCompatibility(const TreeItem* treeitem, OGRSpatialReference* fromGDAL,
 	if (authority_code_from_gdal == authority_code_from_value_unit)
 		return;
 
-	reportF(SeverityTypeID::ST_Warning, "GDAL: item %s spatial reference (%s) differs from the spatial reference (%s) GDAL obtained from dataset"
+	reportF(SeverityTypeID::ST_Warning, "GDAL: item [[%s]] spatial reference (%s) differs from the spatial reference (%s) GDAL obtained from dataset"
 		, treeitem->GetFullName().c_str()
 		, authority_code_from_gdal.c_str()
 		, authority_code_from_value_unit.c_str()
@@ -925,7 +925,7 @@ auto GetUnitSizeInMeters(const AbstrUnit* projectionBaseUnit) -> Float64
 	if (projStr.empty())
 		return 1.0;
 	auto spOrErr = GetSpatialReferenceFromUserInput(projStr);
-	if (spOrErr.second == OGRERR_NONE)
+	if (spOrErr.second != OGRERR_NONE)
 		return 1.0;
 	auto result = GetUnitSizeInMeters(&spOrErr.first);
 	return result;
@@ -1126,7 +1126,7 @@ auto TryRegisterVectorDriverFromKnownDriverShortName(std::string_view knownDrive
 		RegisterOGRGML();
 
 	else if (knownDriverShortName == "OpenFileGDB")
-		RegisterOGROpenFileGDB(); // RegisterOGROpenFileGDB();
+		RegisterOGROpenFileGDB();
 
 	else if (knownDriverShortName == "GeoJSON")
 	{
@@ -1297,8 +1297,8 @@ GDALDatasetHandle Gdal_DoOpenStorage(const StorageMetaInfo& smi, dms_rw_mode rwM
 			optionArray.AddString("BIGTIFF=IF_SAFER");
 			optionArray.AddString("TFW=YES");
 			optionArray.AddString("TILED=YES");
-			optionArray.AddString("BLOCKXSIZE=512");
-			optionArray.AddString("BLOCKYSIZE=512");
+			optionArray.AddString("BLOCKXSIZE=256");
+			optionArray.AddString("BLOCKYSIZE=256");
 		}
 	}
 

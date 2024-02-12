@@ -153,10 +153,9 @@ const AbstrUnit* GetWorldCrdUnitFromGeoUnit(const AbstrUnit* geoUnit)
 	if (proj)
 	{
 		geoUnit = proj->GetCompositeBase();
-		dms_assert(geoUnit);                   // projection always has a BaseUnit, guaranteed by constructors of UnitProjection!
+		assert(geoUnit);                   // projection always has a BaseUnit, guaranteed by constructors of UnitProjection!
 	}
-	if (geoUnit->IsCacheItem() && geoUnit->m_BackRef)
-		geoUnit = AsUnit(geoUnit->m_BackRef);
+
 	return AsUnit(geoUnit->GetUltimateSourceItem());
 }
 
@@ -873,12 +872,13 @@ SharedDataItemInterestPtr CreateSystemColorPalette(DataView* dv, const AbstrUnit
 	return result.get_ptr();
 }
 
-SharedDataItemInterestPtr CreateSystemLabelPalette(DataView* dv, const AbstrUnit* paletteDomain, AspectNr aNr)
+SharedDataItemInterestPtr CreateSystemLabelPalette(DataView* dv, const AbstrUnit* paletteDomain, AspectNr aNr, bool always)
 {
 	dms_assert(!paletteDomain->WasFailed(FR_Data));
 	TreeItem* paletteContainer = CreatePaletteContainer(dv, paletteDomain);
 	SharedDataItemInterestPtr result = AsDynamicDataItem( paletteContainer->GetSubTreeItemByID(GetAspectNameID(aNr)) );
-	if (!result)
+
+	if (always || !result)
 	{
 		SizeT n = paletteDomain->GetPreparedCount();
 		SharedMutableDataItem newResult = CreateDataItem(paletteContainer, GetAspectNameID(aNr), paletteDomain, Unit<SharedStr>::GetStaticClass()->CreateDefault() );
@@ -979,19 +979,18 @@ void CreateNonzeroJenksFisherBreakAttr(std::weak_ptr<DataView> dv_wptr, const Ab
 
 	auto dv = dv_wptr.lock(); if (!dv) return;
 
-	TimeStamp tsActive = UpdateMarker::GetActiveTS(MG_DEBUG_TS_SOURCE_CODE("Obtaining active frame for JenksFisher job"));
-
 	auto siwlPaletteDomain = std::make_shared<ItemWriteLock>(std::move(iwlPaletteDomain));
 	auto siwlBreakAttr = std::make_shared<ItemWriteLock>(std::move(iwlBreakAttr)); // TODO G8: Can this be moved into a functor's data field directly? Requires no functor copy!
-	dv->AddGuiOper([tsActive, paletteDomain
+	dv->AddGuiOper([paletteDomain
 			, siwlMovedPaletteDomain = std::move(siwlPaletteDomain)
 			, breakAttrPtr, siwlBreakAttr, nrBreaks
 			, resultCopy = std::move(result)
 			, thematicValuesRangeData, aNr, dv_wptr
 			]() 
 		{
-			UpdateMarker::ChangeSourceLock tsLock(tsActive, "JenksFisher application");
 			paletteDomain->SetCount(nrBreaks);
+			auto tsActive = UpdateMarker::GetFreshTS(MG_DEBUG_TS_SOURCE_CODE("CreateNonzeroJenksFisherBreakAttr"));
+			paletteDomain->MarkTS(tsActive);
 
 			// Alleviate restriction on breakAttr write-access to avoid dead-lock, which requires mutable=synchronized=unique access to the ItemWriteLock
 			// Could the move fix the dangling writeLock on PaletteDomain issue ? No, since the spawning thread doesn't write, except for when the destructor could run, which has unique access, guaranteed by shared_ptr.
@@ -1001,21 +1000,19 @@ void CreateNonzeroJenksFisherBreakAttr(std::weak_ptr<DataView> dv_wptr, const Ab
 			if (!tryReadLock.has_ptr())
 				return; // no accces because of other classifying action, pray for the other action to fill this palette
 
-			breakAttrPtr->MarkTS(tsActive);
-
 			FillBreakAttrFromArray(breakAttrPtr, resultCopy, thematicValuesRangeData);
+			auto dv = dv_wptr.lock(); if (!dv) return;
 			if (aNr != AN_AspectCount)
-			{
-				auto dv = dv_wptr.lock(); if (!dv) return;
 				CreatePaletteData(dv.get(), paletteDomain, aNr, true, true, begin_ptr( resultCopy ), end_ptr( resultCopy ));
-			}
+			if (aNr != AN_LabelText)
+				CreatePaletteData(dv.get(), paletteDomain, AN_LabelText, true, true, begin_ptr(resultCopy), end_ptr(resultCopy));
 		}
 	);
 }
 
 const AbstrDataItem* GetSystemPalette(const AbstrUnit* paletteDomain, AspectNr aNr)
 {
-	dms_assert(paletteDomain);
+	assert(paletteDomain);
 	return  AsDynamicDataItem( paletteDomain->GetConstSubTreeItemByID(GetAspectNameID(aNr)) );
 }
 
@@ -1224,23 +1221,7 @@ void UpdateShowSelOnlyImpl(
 	}
 }
 
-//----------------------------------------------------------------------
-// GetUserMode section
-//----------------------------------------------------------------------
 #include "SessionData.h"
-
-UserMode GetUserMode()
-{
-	static UserMode userMode = UM_Unknown;
-	if (userMode == UM_Unknown)
-	{
-		Int32 userModeID = SessionData::Curr()->ReadConfigValue("Tools", "NrGroups", UM_Edit);
-		userMode = UserMode(userModeID);
-		MakeMax(userMode, UM_View);
-		MakeMin(userMode, UM_Edit);
-	}
-	return userMode;
-}
 
 GraphVisitState GVS_BreakOnSuspended()
 {

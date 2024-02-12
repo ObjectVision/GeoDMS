@@ -72,7 +72,8 @@ enum class SourceDescrMode {
 	Configured = 0,
 	ReadOnly = 1,
 	WriteOnly = 2,
-	All = 3
+	All = 3,
+	DatasetInfo
 };
 
 TIC_CALL SharedStr TreeItem_GetSourceDescr(const TreeItem* studyObject, SourceDescrMode sdm, bool bShowHidden); // defined in SourceDescr.cpp

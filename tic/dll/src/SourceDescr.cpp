@@ -281,21 +281,6 @@ TIC_CALL void TreeItem_DumpSourceCalculator(const TreeItem* studyObject, SourceD
 		auto list_item = XML_OutElement(*xmlOutStrPtr, "li");
 		*xmlOutStrPtr << SharedStr(*tokenPtr).c_str();
 	}
-		/*out.WriteAttr("bgcolor", CLR_BODY);
-
-		{
-			XML_OutElement page_title_table(out, "TABLE");
-			out.WriteAttr("width", "100%");
-			//out.WriteAttr("style", "font-size:200%");
-			XML_OutElement table_row(out, "TR");
-			out.WriteAttr("bgcolor", "#89CFF0");
-			XML_OutElement table_col(out, "TD");
-			{
-				XML_OutElement font_size(out, "font");
-				out.WriteAttr("size", "4");
-				out << caption;
-*/
-
 	
 	return ;
 }

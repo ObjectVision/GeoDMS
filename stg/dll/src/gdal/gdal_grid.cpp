@@ -126,11 +126,11 @@ bool GdalGridSM::ReadDataItem(StorageMetaInfoPtr smi, AbstrDataObject* borrowedR
 
 GDalGridImp::GDalGridImp(GDALDataset* hDS, const AbstrDataObject* ado, UPoint viewPortSize, SharedStr sqlBandSpecification)
 	: m_hDS(hDS)
-	, poBand(GetRasterBand(sqlBandSpecification))
+	, m_RasterBand(GetRasterBand(sqlBandSpecification))
 	, m_ValueClassID(ado->GetValueClass()->GetValueClassID())
 	, m_ViewPortSize(viewPortSize)
 {
-	MG_CHECK(poBand);
+	MG_CHECK(m_RasterBand);
 }
 
 std::vector<int> GDalGridImp::UnpackBandIndicesFromValue(std::string value)
@@ -185,13 +185,14 @@ std::vector<GDALRasterBand*> GDalGridImp::GetRasterBands(SharedStr sqlBandSpecif
 }
 
 
-UInt32 GDalGridImp::GetWidth() const { return poBand->GetXSize(); }
-UInt32 GDalGridImp::GetHeight() const { return poBand->GetYSize(); }
+UInt32 GDalGridImp::GetWidth() const { return m_RasterBand->GetXSize(); }
+UInt32 GDalGridImp::GetHeight() const { return m_RasterBand->GetYSize(); }
 UPoint GDalGridImp::GetTileSize() const {
 	int x, y;
-	poBand->GetBlockSize(&x, &y);
+	m_RasterBand->GetBlockSize(&x, &y);
 	return shp2dms_order(x, y);
 }
+
 UInt32 GDalGridImp::GetNrBitsPerPixel() const { return GDALGetDataTypeSize(gdalRasterDataType(m_ValueClassID)); }
 UInt32 GDalGridImp::GetTileByteWidth() const {
 	return (GetTileSize().X() * GetNrBitsPerPixel() + 7) / 8;
@@ -227,10 +228,10 @@ CPLErr ReadMultiBandTileNaive(void* stripBuff, UInt32 tile_x, UInt32 tile_y, UIn
 	return CE_None;
 }*/
 
-CPLErr GDalGridImp::ReadSingleBandTile(void* stripBuff, UInt32 tile_x, UInt32 tile_y, UInt32 sx, UInt32 sy, GDALRasterBand* poBand) const
+CPLErr GDalGridImp::ReadSingleBandTile(void* stripBuff, UInt32 tile_x, UInt32 tile_y, UInt32 sx, UInt32 sy, GDALRasterBand* m_RasterBand) const
 {
 	GDAL_ErrorFrame x;
-	auto resultCode = poBand->RasterIO(GF_Read,
+	auto resultCode = m_RasterBand->RasterIO(GF_Read,
 		tile_x, tile_y,
 		sx, sy,
 		stripBuff,
@@ -241,7 +242,7 @@ CPLErr GDalGridImp::ReadSingleBandTile(void* stripBuff, UInt32 tile_x, UInt32 ti
 	);
 
 	// apply color table
-	auto color_table = poBand->GetColorTable();
+	auto color_table = m_RasterBand->GetColorTable();
 	if (!color_table)
 		return resultCode;
 
@@ -282,12 +283,12 @@ SizeT GDalGridImp::ReadTile(void* stripBuff, UInt32 tile_x, UInt32 tile_y, UInt3
 	UPoint tileSize = GetTileSize();
 	auto resultCode = CE_None;
 	auto nBandCount = m_hDS->GetRasterCount();
-	auto bandType = poBand->GetRasterDataType();
+	auto bandType = m_RasterBand->GetRasterDataType();
 
 	if (bandType == GDT_Byte && nBandCount == 4 && m_ValueClassID == ValueClassID::VT_UInt32) // interleaved UInt32 four bands of type GDT_Byte
 		resultCode = ReadInterleavedMultiBandTile(stripBuff, tile_x, tile_y, sx, sy, nBandCount);
 	else // single band
-		resultCode = ReadSingleBandTile(stripBuff, tile_x, tile_y, sx, sy, poBand);
+		resultCode = ReadSingleBandTile(stripBuff, tile_x, tile_y, sx, sy, m_RasterBand);
 
 	dms_assert(resultCode == CE_None);
 	return GetTileByteSize();
@@ -302,7 +303,7 @@ Int32 GDalGridImp::WriteTile(void* stripBuff, UInt32 tile_x, UInt32 tile_y) // R
 	dms_assert(GetTileByteSize() <= tileByteSize);
 
 	GDAL_ErrorFrame x;
-	auto resultCode = poBand->RasterIO(GF_Write,
+	auto resultCode = m_RasterBand->RasterIO(GF_Write,
 		tile_x, tile_y,
 		sx, sy,
 		stripBuff,
@@ -441,6 +442,65 @@ bool GdalGridSM::WriteUnitRange(StorageMetaInfoPtr&& smi)
 	return smi->CurrRU() == smi->StorageHolder();
 }
 
+prop_tables GdalGridSM::GetPropTables(const TreeItem* storageHolder, TreeItem* curr) const
+{
+	prop_tables grid_dataset_properties;
+
+	// Filename
+	auto grid_dataset_filename = GetNameStr();
+	grid_dataset_properties.push_back({ 0, {GetTokenID_mt("Filename"), grid_dataset_filename} });
+
+	GDAL_ErrorFrame gdal_error_frame;
+	auto smi = GdalMetaInfo(storageHolder, curr);
+	DoOpenStorage(smi, dms_rw_mode::read_only);
+	auto gdal_ds_handle = Gdal_DoOpenStorage(smi, dms_rw_mode::read_only, 0, false);
+
+	// Raster xy size
+	auto raster_x_size = m_hDS->GetRasterXSize();
+	auto raster_y_size = m_hDS->GetRasterYSize();
+	grid_dataset_properties.push_back({ 1, {GetTokenID_mt("Size"), AsString(raster_x_size) + "," + AsString(raster_y_size)}});
+
+	auto ds_metainfo_image_structure = gdal_ds_handle->GetMetadata("IMAGE_STRUCTURE");
+	if (ds_metainfo_image_structure)
+	{
+		// Compression
+		auto compression_method = SharedStr(CSLFetchNameValue(ds_metainfo_image_structure, "COMPRESSION"));
+		grid_dataset_properties.push_back({ 1, {GetTokenID_mt("Compression"), compression_method} });
+
+		// NBits
+		auto number_of_bits = SharedStr(CSLFetchNameValue(ds_metainfo_image_structure, "NBITS"));
+		if (!number_of_bits.empty())
+			grid_dataset_properties.push_back({ 1, {GetTokenID_mt("Bits per pixel"), number_of_bits} });
+	}
+
+
+
+
+	// Spatial reference
+	auto srs = m_hDS->GetSpatialRef();
+	if (srs)
+	{
+		char* pszWKT = nullptr;
+		srs->exportToPrettyWkt(&pszWKT, false);
+		grid_dataset_properties.push_back({ 1, {GetTokenID_mt("Spatial reference"), SharedStr(pszWKT)} });
+	}
+
+	// Bands
+	auto bands = m_hDS->GetBands();
+	grid_dataset_properties.push_back({ 1, {GetTokenID_mt("Number of bands"), AsString(bands.size())} });
+
+	int band_index = 0;
+	for (auto band : bands)
+	{
+		grid_dataset_properties.push_back({ 2, {GetTokenID_mt("Band #"), AsString(band_index++)} });
+		auto raster_data_type = GDALGetDataTypeName(band->GetRasterDataType());
+		grid_dataset_properties.push_back({ 3, {GetTokenID_mt("Value type"), SharedStr(raster_data_type)} });
+	}
+
+	DoCloseStorage(false);
+	return grid_dataset_properties;
+}
+
 struct netCDFSubdatasetInfo
 {
 	UInt32 nx = 0;
@@ -495,7 +555,7 @@ void GdalGridSM::DoUpdateTree(const TreeItem* storageHolder, TreeItem* curr, Syn
 
 	if (sm == SM_None)
 		return;
-	dms_assert(storageHolder);
+	assert(storageHolder);
 	if (storageHolder != curr)
 		return;
 	if (curr->IsStorable() && curr->HasCalculator())
@@ -512,7 +572,6 @@ void GdalGridSM::DoUpdateTree(const TreeItem* storageHolder, TreeItem* curr, Syn
 		const AbstrUnit* vu = nullptr;
 		try {
 			GDAL_ErrorFrame frame;
-			gdal_transform gdalTr;
 			auto number_of_bands = m_hDS->GetRasterCount();
 			auto first_band = m_hDS->GetRasterBand(1);
 			auto first_band_datatype = first_band->GetRasterDataType();
@@ -539,10 +598,7 @@ void GdalGridSM::DoUpdateTree(const TreeItem* storageHolder, TreeItem* curr, Syn
 			}
 			auto gdal_vc = ValueComposition::Single;
 
-			auto gridData = CreateDataItem(
-				gridDataDomain, GRID_DATA_ID,
-				gridDataDomain, vu, gdal_vc
-			);
+			auto gridData = CreateDataItem(curr, GRID_DATA_ID, gridDataDomain, vu, gdal_vc);
 
 			frame.ThrowUpWhateverCameUp();
 		}
@@ -562,7 +618,6 @@ void GdalGridSM::DoUpdateTree(const TreeItem* storageHolder, TreeItem* curr, Syn
 		try 
 		{
 			GDAL_ErrorFrame frame;
-			gdal_transform gdalTr;
 			
 			const OGRSpatialReference* spatial_ref = m_hDS->GetSpatialRef();
 			if (!spatial_ref)
@@ -669,24 +724,20 @@ void GdalGridSM::DoUpdateTree(const TreeItem* storageHolder, TreeItem* curr, Syn
 				dataItem->SetStorageManager(subDatasetName.c_str(), "gdal.grid", true);
 		}
 	}
-
-
-
-
 }
 
 // *****************************************************************************
 
-void ReadBand(GDALRasterBand* poBand, GDAL_SimpleReader::band_data& buffer)
+void ReadBand(GDALRasterBand* m_RasterBand, GDAL_SimpleReader::band_data& buffer)
 {
-	auto width = poBand->GetXSize();
-	auto height = poBand->GetYSize();
+	auto width = m_RasterBand->GetXSize();
+	auto height = m_RasterBand->GetYSize();
 
 	typedef UInt32 color_type;
 	vector_resize(buffer, Cardinality(IPoint(width, height) ));
 
 	GDAL_ErrorFrame x;
-	auto resultCode = poBand->RasterIO(GF_Read,
+	auto resultCode = m_RasterBand->RasterIO(GF_Read,
 		0, 0, // roi offset
 		width, height, // roi size
 		&buffer[0],

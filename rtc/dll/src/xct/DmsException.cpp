@@ -260,43 +260,57 @@ extern "C" RTC_CALL void DMS_CONV DMS_DisplayError(CharPtr msg)
 	DMS_CALL_END
 }
 
-RTC_CALL void reportD_without_cancellation_check(MsgCategory msgCat, SeverityTypeID st, CharPtr msg)
+auto getContext(SeverityTypeID st) -> SharedStr
+{
+	if (st >= SeverityTypeID::ST_Warning)
+		for (auto ch = ContextHandle::GetLast(); ch; ch = ch->GetPrev())
+			if (ch->HasItemContext())
+				return ch->ItemAsStr();
+
+	return {};
+}
+
+void reportD_without_cancellation_check_impl(MsgCategory msgCat, SeverityTypeID st, auto&& payload)
 {
 	if (!g_DebugStream)
 		return;
 
+	auto contextStr = getContext(st);
 	DebugOutStream::scoped_lock lock(g_DebugStream, st, msgCat);
-	*g_DebugStream << msg;
+
+	payload();
+
+	if (contextStr.empty())
+		return;
+	*g_DebugStream << "\n" << contextStr;
+}
+
+RTC_CALL void reportD_without_cancellation_check(MsgCategory msgCat, SeverityTypeID st, CharPtr msg)
+{
+	reportD_without_cancellation_check_impl(msgCat, st, [=] { *g_DebugStream << msg; });
 }
 
 RTC_CALL void reportD(MsgCategory msgCat, SeverityTypeID st, CharPtr msg)
 {
 	DMS_ASyncContinueCheck();
-	reportD_without_cancellation_check(msgCat, st, msg);
+
+	reportD_without_cancellation_check_impl(msgCat, st, [=] {*g_DebugStream << msg;  });
 }
 
-RTC_CALL void reportD_impl(MsgCategory msgCat, SeverityTypeID st, const CharPtrRange& msg)
+
+RTC_CALL void reportD_impl(MsgCategory msgCat, SeverityTypeID st, CharPtrRange&& msg)
 {
-	if (!g_DebugStream)
-		return;
-
 	DMS_ASyncContinueCheck();
-	DebugOutStream::scoped_lock lock(g_DebugStream, st, msgCat);
 
-	*g_DebugStream << msg;
+	reportD_without_cancellation_check_impl(msgCat, st, [=] { *g_DebugStream << msg; });
 }
 
 RTC_CALL void reportD(MsgCategory msgCat, SeverityTypeID st, CharPtr msg1, CharPtr msg2)
 {
-	if (!g_DebugStream)
-		return;
-
 	DMS_ASyncContinueCheck();
-	DebugOutStream::scoped_lock lock(g_DebugStream, st, msgCat);
 
-	*g_DebugStream << msg1 << msg2;
+	reportD_without_cancellation_check_impl(msgCat, st, [=] { *g_DebugStream << msg1 << msg2; });
 }
-
 
 RTC_CALL void ReportSuspension()
 {

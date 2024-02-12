@@ -2,7 +2,9 @@
 // License: GNU GPL 3
 /////////////////////////////////////////////////////////////////////////////
 
+#if defined(_MSC_VER)
 #pragma once
+#endif
 
 #ifndef __MG_SYMBOL_TOKEN_H
 #define __MG_SYMBOL_TOKEN_H
@@ -80,6 +82,10 @@ struct TokenStrRange
 		m_Guard = std::move(src.m_Guard);
 		m_CharPtrRange = src.m_CharPtrRange;
 	}
+
+	auto begin() const { return m_CharPtrRange.begin(); }
+	auto end  () const { return m_CharPtrRange.end(); }
+	auto size () const { return m_CharPtrRange.size(); }
 
 	operator CharPtrRange() const { return m_CharPtrRange; }
 

@@ -134,8 +134,7 @@ struct OperAccTotBin : AbstrOperAccTotBin
 		ResultType* result = mutable_array_cast<ResultValueType>(res);
 		assert(result);
 
-		AccumulationType value;
-		m_Acc2Func.Init(value);
+		AccumulationType value = m_Acc2Func.InitialValue();
 		const AbstrUnit* e = arg1A->GetAbstrDomainUnit();
 		for (tile_id t = 0, te = e->GetNrTiles(); t!=te; ++t)
 			m_Acc2Func(value, arg1->GetTile(t), arg2->GetTile(t));

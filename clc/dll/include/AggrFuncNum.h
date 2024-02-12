@@ -17,6 +17,33 @@
 #include "UnitCreators.h"
 #include "AttrBinStruct.h"
 
+
+template <typename T> struct null_wrap;
+
+template <typename T>
+struct is_seq_ref : std::false_type {};
+
+template <typename T>
+struct is_seq_ref<SA_Reference<T>> : std::true_type {};
+
+template <typename T>
+struct is_seq_ref<SA_ConstReference<T>> : std::true_type {};
+
+template <typename T>
+constexpr bool is_seq_ref_v = is_seq_ref<T>::value;
+
+template <typename T>
+struct is_null_wrap_t : std::false_type {};
+
+template <typename T>
+struct is_null_wrap_t<null_wrap<T>> : std::true_type {};
+
+template <typename T>
+constexpr bool is_null_wrap_v = is_null_wrap_t<T>::value;
+
+template <typename T>
+constexpr bool can_be_undefined_v = !is_bitvalue_v<T> && (is_fixed_size_element_v<T> || is_seq_ref_v<T> || is_null_wrap_v<T> );
+ 
 // *****************************************************************************
 //								ELEMENTARY ASSIGNMENT FUNCTORS 
 // *****************************************************************************
@@ -161,7 +188,7 @@ struct unary_assign_once : unary_assign<OR, T>
 		if constexpr (has_undefines_v<T>)
 			if (!IsDefined(arg))
 				return;
-		assignee = arg;
+		Assign(assignee, arg);
 	}
 };
 
@@ -176,7 +203,7 @@ struct unary_assign_overwrite: unary_assign<T, T>
 		if constexpr (has_undefines_v<T>)
 			if (!IsDefined(arg))
 				return;
-		assignee = arg;
+		Assign(assignee, arg);
 	}
 };
 

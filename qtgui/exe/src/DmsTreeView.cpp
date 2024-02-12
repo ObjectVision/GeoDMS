@@ -23,6 +23,8 @@
 #include <QMainWindow>
 #include <QApplication>
 
+#include "utl/scoped_exit.h"
+
 #include "dbg/Check.h"
 #include "dbg/DmsCatch.h"
 #include "dbg/SeverityType.h"
@@ -234,7 +236,7 @@ color_option getColorOption(const TreeItem* ti)
 
 	if (isInTemplate)
 		return color_option::tv_template;
-	assert(ti->Was(PS_MetaInfo) || ti->WasFailed());
+//	assert(ti->Was(PS_MetaInfo) || ti->WasFailed());
 	if (ti->Was(PS_MetaInfo))
 	{
 		if (IsDataCurrReady(ti->GetCurrRangeItem()))
@@ -352,19 +354,17 @@ auto DmsModel::flags(const QModelIndex& index) const -> Qt::ItemFlags
 void TreeItemDelegate::paint(QPainter* painter, const QStyleOptionViewItem& option, const QModelIndex& index) const
 {
 	QStyledItemDelegate::paint(painter, option, index);
+	painter->save();
 
-	// draw storage icon applicable
+	auto painter_exit_guard = make_scoped_exit([painter] { painter->restore(); });
+
+	// draw storage icon if needed
 	TreeItem* ti = nullptr;
 	try
 	{
 		ti = GetTreeItem(index);
-
-
 		if (!ti)
 			return;
-
-		//if (ti->GetTSF(TSF_IsHidden))
-		//	return;
 
 		const TreeItem* storageHolder = nullptr;
 		if (ti->HasStorageManager())
@@ -399,7 +399,6 @@ void TreeItemDelegate::paint(QPainter* painter, const QStyleOptionViewItem& opti
 		if (ti->IsDisabledStorage())
 			return;
 
-		painter->save();
 		QFontMetrics fm(QApplication::font());
 		int offset_item_text = fm.horizontalAdvance(index.data(Qt::DisplayRole).toString());
 
@@ -422,14 +421,12 @@ void TreeItemDelegate::paint(QPainter* painter, const QStyleOptionViewItem& opti
 		if (ti->IsDataFailed())
 			painter->setPen(QColor(255,0,0,255));
 		painter->drawText(QPoint(offset, rect.center().y() + 5), is_read_only ? "\uEC15":"\uF0B0");
-
-		painter->restore();
 	}
 	catch (...)
 	{
 		auto errMsg = catchException(false);
-		return;
 	}
+
 	return;
 }
 
@@ -709,7 +706,15 @@ void DmsTreeView::setNewCurrentItem(TreeItem* target_item)
 		}
 	}
 
-	expandToItem(target_item);
+	try
+	{
+		expandToItem(target_item);
+	}
+	catch (...)
+	{
+		catchException(false);
+	}
+	
 }
 
 void DmsTreeView::onDoubleClick(const QModelIndex& index)
@@ -722,7 +727,6 @@ void DmsTreeView::onDoubleClick(const QModelIndex& index)
 
 void  DmsTreeView::onHeaderSectionClicked(int index)
 {
-	int i = 0;
 }
 
 auto createTreeview(MainWindow* dms_main_window) -> QPointer<DmsTreeView>

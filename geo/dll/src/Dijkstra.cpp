@@ -30,6 +30,8 @@
 #include "TreeBuilder.h"
 #include "DijkstraFlags.h"
 #include "InvertedRel.h"
+
+#include <numeric>
 #include <semaphore>
 
 template <class T>
@@ -61,11 +63,16 @@ void CheckFlags(DijkstraFlag df)
 	MG_USERCHECK2(flags(df & DijkstraFlag::OD) || !flags(df & DijkstraFlag::OrgZone), "OrgZone is not allowed for impedance_table");
 	MG_CHECK(flags(df & DijkstraFlag::OD) || !flags(df & DijkstraFlag::UInt64_Od));
 	MG_CHECK(flags(df & DijkstraFlag::OD) || !flags(df & DijkstraFlag::OD_Data));
+	MG_CHECK(flags(df & DijkstraFlag::OD) || !flags(df & DijkstraFlag::PrecalculatedNrDstZones));
 	MG_USERCHECK2(flags(df & DijkstraFlag::Interaction) || !flags(df & DijkstraFlag::InteractionAlpha), "pointless specification of InteractionAlpha without request for producing trip distribution output.");
+	MG_USERCHECK2(flags(df & DijkstraFlag::Interaction) || !flags(df & DijkstraFlag::InteractionVi), "pointless specification of V_i without request for producing trip distribution output.");
+	MG_USERCHECK2(flags(df & DijkstraFlag::Interaction) || !flags(df & DijkstraFlag::InteractionWj), "pointless specification of W_j without request for producing trip distribution output.");
 	MG_USERCHECK2(flags(df & DijkstraFlag::Interaction) || !flags(df & DijkstraFlag::OrgMinImp), "pointless specification of OrgMinImp without request for producing trip distribution output.");
 	MG_USERCHECK2(flags(df & DijkstraFlag::Interaction) || !flags(df & DijkstraFlag::DstMinImp), "pointless specification of DstMinImp without request for producing trip distribution output.");
 	MG_CHECK(!flags(df & DijkstraFlag::Bidirectional) || !flags(df & DijkstraFlag::BidirFlag));
-	MG_CHECK(flags(df & DijkstraFlag::UseAltLinkImp) || !flags(df & DijkstraFlag::ProdOdAltImpedance));
+	MG_USERCHECK2(flags(df & DijkstraFlag::UseAltLinkImp) || !flags(df & DijkstraFlag::ProdOdAltImpedance), "alternative(link_imp) required for alt_imp");
+	MG_USERCHECK2(flags(df & DijkstraFlag::UseLinkAttr) || !flags(df & DijkstraFlag::ProdOdLinkAttr), "alternative(link_Attr) required for link_attr");
+	MG_USERCHECK2(flags(df & DijkstraFlag::UseLinkAttr) || !flags(df & DijkstraFlag::ProdOrgSumLinkAttr), "alternative(link_Attr) required for interaction:OrgZone_SumLinkAttr");
 	MG_CHECK(((df & DijkstraFlag::EuclidFlags) == DijkstraFlag::None) || ((df & DijkstraFlag::EuclidFlags) == DijkstraFlag::EuclidFlags));
 }
 
@@ -296,60 +303,61 @@ struct NodeZoneConnector
 		}
 	}
 
-	bool IsConnected(ZoneType zoneID)
+	bool IsConnected(ZoneType zoneID) const
 	{
-		dms_assert(zoneID < m_NetworkInfoPtr->nrDstZones);
+		assert(zoneID < m_NetworkInfoPtr->nrDstZones);
 		if (!IsDense() && m_LastCommittedSrcZone[zoneID] != m_CurrSrcZoneTick)
 			return false;
 		return IsDefined(m_ResImpPerDstZone[zoneID]);
 	}
 
-	ZoneType Res2EndPoint(ZoneType resIndex)
+	ZoneType Res2EndPoint(ZoneType resIndex) const
 	{
-		dms_assert(resIndex < ZonalResCount());
-		dms_assert(m_FoundYPerRes.size() || resIndex < m_NetworkInfoPtr->nrDstZones);
-		dms_assert(m_FoundYPerRes.empty() || resIndex < m_FoundYPerRes.size());
+		assert(resIndex < ZonalResCount());
+		assert(m_FoundYPerRes.size() || resIndex < m_NetworkInfoPtr->nrDstZones);
+		assert(m_FoundYPerRes.empty() || resIndex < m_FoundYPerRes.size());
 		return LookupOrSame(begin_ptr(m_FoundYPerRes), resIndex);
 	}
 
-	ZoneType Res2DstZone(ZoneType resIndex)
+	ZoneType Res2DstZone(ZoneType resIndex) const
 	{
 		ZoneType y = Res2EndPoint(resIndex);
 		return LookupOrSame(m_NetworkInfoPtr->endPoints.Zone_rel, y);
 	}
-	ZoneType DstZone2EndPoint(ZoneType dstZone)
+	ZoneType DstZone2EndPoint(ZoneType dstZone) const
 	{
-		dms_assert(dstZone < m_NetworkInfoPtr->nrDstZones);
+		assert(dstZone < m_NetworkInfoPtr->nrDstZones);
 
-		dms_assert(IsDense() || IsConnected(dstZone));
+		assert(IsDense() || IsConnected(dstZone));
 		if (IsDense() && !IsConnected(dstZone))
 			return UNDEFINED_VALUE(NodeType);
 
 		ZoneType y = LookupOrSame(m_FoundYPerDstZone.begin(), dstZone);
-		dms_assert(IsDefined(y) || !m_LastCommittedSrcZone);
+		assert(IsDefined(y) || !m_LastCommittedSrcZone);
 		return y;
 	}
 
-	NodeType DstZone2EndNode(ZoneType dstZone)
+	NodeType DstZone2EndNode(ZoneType dstZone) const
 	{
 		auto y = DstZone2EndPoint(dstZone);
 		if (!IsDefined(y))
 			return UNDEFINED_VALUE(NodeType);
 
 		NodeType node = LookupOrSame(m_NetworkInfoPtr->endPoints.Node_rel, y);
-		dms_assert(node < m_NetworkInfoPtr->nrV);
-		return node;
-	}
-	NodeType Res2EndNode(ZoneType resIndex)
-	{
-		ZoneType dstZone = Res2DstZone(resIndex);
-		NodeType node = DstZone2EndNode(dstZone);
-		dms_assert(IsDefined(node) || IsDense());
-		dms_assert(IsConnected(dstZone) || !IsDefined(node));
+		assert(node < m_NetworkInfoPtr->nrV);
 		return node;
 	}
 
-	ImpType Res2Imp(ZoneType resIndex)
+	NodeType Res2EndNode(ZoneType resIndex) const
+	{
+		ZoneType dstZone = Res2DstZone(resIndex);
+		NodeType node = DstZone2EndNode(dstZone);
+		assert(IsDefined(node) || IsDense());
+		assert(IsConnected(dstZone) || !IsDefined(node));
+		return node;
+	}
+
+	ImpType Res2Imp(ZoneType resIndex) const
 	{
 		ZoneType zoneId = Res2DstZone(resIndex);
 		dbg_assert(IsConnected(zoneId));
@@ -380,21 +388,26 @@ struct NodeZoneConnector
 
 template <typename ZoneType, typename ImpType, typename MassType>
 struct ResultInfo {
-	typedef ImpType * ImpTypeArray;
-	typedef ZoneType* ZoneTypeArray;
-	typedef MassType* MassTypeArray;
-	typedef typename sequence_traits<std::vector<LinkType>>::seq_t::iterator LinkSeqArray;
+	using ImpTypeArray = ImpType*;
+	using ZoneTypeArray = ZoneType*;
+	using MassTypeArray = MassType*;
+	using LinkSeqArray = typename sequence_traits<std::vector<LinkType>>::seq_t::iterator;
 
-	ImpTypeArray  od_ImpData, od_AltLinkImp;
-	ZoneTypeArray od_SrcZoneIds, od_DstZoneIds;
-	ZoneTypeArray od_StartPointIds, od_EndPointIds;
-	LinkSeqArray od_LS; // link set
-	LinkType* node_TB;
+	ImpTypeArray  od_ImpData = nullptr, od_AltLinkImp = nullptr, od_LinkAttr = nullptr;
+	ZoneTypeArray od_SrcZoneIds = nullptr, od_DstZoneIds = nullptr;
+	ZoneTypeArray od_StartPointIds = nullptr, od_EndPointIds = nullptr;
+	LinkSeqArray od_LS = {}; // link set
+	LinkType* node_TB = nullptr;
 
-	MassTypeArray OrgFactor, OrgDemand;
-	ImpType*      OrgMaxImp;
-	MassTypeArray DstFactor, DstSupply;
-	MassTypeArray LinkFlow;
+	ZoneTypeArray orgZone_NrDstZones = nullptr; // NrDstZones, DijkstraFlag::ProdOrgNrDstZones
+	MassTypeArray orgZone_Factor     = nullptr; // D_i, DijkstraFlag::ProdOrgFactor
+	MassTypeArray orgZone_Demand     = nullptr; // M_ix, DijkstraFlag::ProdOrgDemand
+	MassTypeArray orgZone_SumImp     = nullptr; // SumImp, DijkstraFlag::ProdOrgSumImp
+	MassTypeArray orgZone_SumLinkAttr= nullptr; // SumLinkAttr, DijkstraFlag::ProdOrgSumLinkAttr
+	ImpTypeArray  orgZone_MaxImp     = nullptr; // max_imp, DijkstrFlag::ProdOrgMaxImp
+	MassTypeArray dstZone_Factor     = nullptr; // C_j, DijkstraFlag::ProdDstFactor
+	MassTypeArray dstZone_Supply     = nullptr; // M_xj, DijkstraFlag::ProdDstSupply
+	MassTypeArray LinkFlow           = nullptr; // Link_flow, DijkstraFlag::ProdLinkFlow
 };
 
 // *****************************************************************************
@@ -404,12 +417,59 @@ struct ResultInfo {
 struct WriteBlock {
 	WriteBlock()
 		: od_LS(item_level_type(0), ord_level_type::SpecificOperator, "Dijkstra.LS")
-		, dstFactor(item_level_type(0), ord_level_type::SpecificOperator, "Dijkstra.DstFactor")
-		, dstSupply(item_level_type(0), ord_level_type::SpecificOperator, "Dijkstra.DstSupply")
+		, dstFactor(item_level_type(0), ord_level_type::SpecificOperator, "Dijkstra.dstZone_Factor")
+		, dstSupply(item_level_type(0), ord_level_type::SpecificOperator, "Dijkstra.dstZone_Supply")
 	{}
 	leveled_critical_section od_LS, dstFactor, dstSupply;
 };
 
+
+// *****************************************************************************
+//									ProcessDijkstra
+// *****************************************************************************
+
+template <typename NodeType, typename LinkType, typename ZoneType, typename ImpType>
+void UpdateALW(const NetworkInfo<NodeType, ZoneType, ImpType>& ni, const OwningDijkstraHeap<NodeType, LinkType, ZoneType, ImpType>& dh, 
+	const TreeRelations& tr, const NodeZoneConnector<NodeType, LinkType, ZoneType, ImpType>& nzc,
+	const ImpType* altLinkWeights, bool altLinkWeightsHasVoidDomain, ZoneType orgZone, ZoneType zonalResultCount, SizeT resultCountBase, ImpType* nodeALW, ImpType* altLinkImp)
+{
+	assert(nodeALW);
+	assert(dh.m_TraceBackDataPtr);
+
+	for (ZoneType startPointIndex = ni.orgZone_startPoint_inv.FirstOrSame(orgZone); IsDefined(startPointIndex); startPointIndex = ni.orgZone_startPoint_inv.NextOrNone(startPointIndex)) // walk through each tree of all startPoints
+	{
+		NodeType node = LookupOrSame(ni.startPoints.Node_rel, startPointIndex);
+		assert(node < ni.nrV);
+		nodeALW[node] = 0;
+
+		auto currNodePtr = &tr.m_TreeNodes[node];
+		assert(!currNodePtr->GetParent());
+		while (currNodePtr = tr.WalkDepthFirst_TopDown(currNodePtr))
+		{
+			assert(currNodePtr && currNodePtr->GetParent());
+			node = tr.NrOfNode(currNodePtr);
+			assert(node < ni.nrV);
+
+			LinkType currLink = dh.m_TraceBackDataPtr[node];
+			NodeType prevNode = tr.NrOfNode(currNodePtr->GetParent());
+			assert(currLink < ni.nrE);
+			nodeALW[node] = altLinkWeights[altLinkWeightsHasVoidDomain ? 0 : currLink] + nodeALW[prevNode];
+		}
+	}
+
+	// copy nodeALW -> resAltLinkImp
+	if (altLinkImp) {
+		auto currPtr = altLinkImp + resultCountBase;
+		for (ZoneType j = 0; j != zonalResultCount; ++j)
+		{
+			NodeType node = nzc.Res2EndNode(j);
+			assert(IsDefined(node) || nzc.IsDense());
+			assert(!IsDefined(node) || !dh.IsStale(node));// guaranteed by Res2EndNode(j);
+
+			*currPtr++ = IsDefined(node) ? nodeALW[node] : UNDEFINED_VALUE(ImpType);
+		}
+	}
+}
 
 // *****************************************************************************
 //									ProcessDijkstra
@@ -430,6 +490,7 @@ SizeT ProcessDijkstra(TreeItemDualRef& resultHolder
 
 // stuff not required for counting
 ,	const ImpType * altLinkWeights, bool altLinkWeightsHasVoidDomain
+,	const ImpType*  linkAttr,       bool linkAttrHasVoidDomain
 ,	const ImpType * orgMinImp, bool orgMinImpHasVoidDomain
 ,	const ImpType * dstMinImp, bool dstMinImpHasVoidDomain
 ,	const MassType* tgOrgMass, bool tgOrgMassHasVoidDomain
@@ -439,7 +500,7 @@ SizeT ProcessDijkstra(TreeItemDualRef& resultHolder
 ,	const ParamType tgBetaLogit
 ,	const ParamType tgGammaLogit
 ,   const ParamType* tgOrgAlpha, bool tgOrgAlphaHasVoidDomain
-,	const SizeT*   resCumulCount
+,	const SizeT*   resCumulCount, SizeT nrRes
 
 // result area
 ,	SizeT* resCount
@@ -453,15 +514,15 @@ SizeT ProcessDijkstra(TreeItemDualRef& resultHolder
 	Timer processTimer;
 	std::atomic<SizeT> resultCount = 0, zoneCount = 0;
 
-	dms_assert(flags(df & DijkstraFlag::OD) || !bool(ni.startPoints.Zone_rel));
+	assert(flags(df & DijkstraFlag::OD) || !bool(ni.startPoints.Zone_rel));
 
-	dms_assert(altLinkWeights || !res.od_AltLinkImp);
+	assert(altLinkWeights || !res.od_AltLinkImp);
 
 	bool tgBetaDecayIsZero = (tgBetaDecay == 0.0);
 	bool tgBetaDecayIsOne  = (tgBetaDecay == 1.0);
 	bool tgBetaDecayIsZeroOrOne = tgBetaDecayIsZero || tgBetaDecayIsOne;
 	bool useSrcZoneStamps = flags(df & DijkstraFlag::SparseResult) && flags(df & DijkstraFlag::OD);
-	bool useTraceBack = (altLinkWeights || res.od_LS || res.LinkFlow || flags(df & DijkstraFlag::VerboseLogging) && !res.node_TB);
+	bool useTraceBack = (altLinkWeights || linkAttr || res.od_LS || res.LinkFlow || flags(df & DijkstraFlag::VerboseLogging) && !res.node_TB);
 
 	WriteBlock writeBlocks;
 
@@ -476,6 +537,18 @@ SizeT ProcessDijkstra(TreeItemDualRef& resultHolder
 	concurrency::task_group tasks;
 
 	auto available_tasks = std::counting_semaphore(MaxConcurrentTreads());
+
+	MassType orgMass = 1.0; if (tgOrgMass && tgOrgMassHasVoidDomain)
+	{
+		orgMass = tgOrgMass[0]; tgOrgMass = nullptr; tgOrgMassHasVoidDomain = false;
+	}
+
+	ParamType orgAlpha = 0.0;
+	if (tgOrgAlpha && tgOrgAlphaHasVoidDomain)
+	{
+		orgAlpha = tgOrgAlpha[0]; tgOrgAlpha = nullptr; tgOrgAlphaHasVoidDomain = false;
+		MG_USERCHECK(orgAlpha >= 0.0);
+	}
 
 	for (ZoneType orgZone = 0; orgZone != ni.nrOrgZones; ++orgZone)
 	{
@@ -501,10 +574,11 @@ SizeT ProcessDijkstra(TreeItemDualRef& resultHolder
 				auto& dh = dhC.local();
 				TreeRelations& tr = trC.local();
 				auto& nodeALW = dh.m_AltLinkWeight;
+				auto& nodeLA = dh.m_LinkAttr;
 				auto& resLinkFlow = resLinkFlowC.local();
 
-				dms_assert(orgZone < ni.nrOrgZones);
-				dms_assert(dh.Empty());
+				assert(orgZone < ni.nrOrgZones);
+				assert(dh.Empty());
 
 				if (!nzc.m_ResImpPerDstZone) // initialized before?
 				{
@@ -513,22 +587,30 @@ SizeT ProcessDijkstra(TreeItemDualRef& resultHolder
 				}
 
 				bool trIsUsed = false;
-				if (altLinkWeights || res.LinkFlow)
+				if (altLinkWeights || res.LinkFlow || linkAttr)
 				{
 					tr.InitNodes(ni.nrV);
 					trIsUsed = true;
-					if (!nodeALW)
-						nodeALW = OwningPtrSizedArray<ImpType>(ni.nrV, dont_initialize MG_DEBUG_ALLOCATOR_SRC("dijkstra: nodeALW"));
-					if (res.LinkFlow)
-						resLinkFlow.resize(ni.nrE, 0);
+					if (altLinkWeights || res.LinkFlow)
+					{
+						if (!nodeALW)
+							nodeALW = OwningPtrSizedArray<ImpType>(ni.nrV, dont_initialize MG_DEBUG_ALLOCATOR_SRC("dijkstra: nodeALW"));
+						if (res.LinkFlow)
+							resLinkFlow.resize(ni.nrE, 0);
+					}
+					if (linkAttr)
+					{
+						if (!nodeLA)
+							nodeLA = OwningPtrSizedArray<ImpType>(ni.nrV, dont_initialize MG_DEBUG_ALLOCATOR_SRC("dijkstra: nodeLA"));
+					}
 				}
 
 				
 				if (res.node_TB)
 				{
-					dms_assert(!useTraceBack);
-					dms_assert(!flags(df & DijkstraFlag::OD));
-					dms_assert(!dh.m_TraceBackData);
+					assert(!useTraceBack);
+					assert(!flags(df & DijkstraFlag::OD));
+					assert(!dh.m_TraceBackData);
 					dh.m_TraceBackDataPtr = res.node_TB;
 					fast_undefine(dh.m_TraceBackDataPtr, dh.m_TraceBackDataPtr + ni.nrV); // REMOVE WHEN new Tree is implemented
 				}
@@ -538,6 +620,9 @@ SizeT ProcessDijkstra(TreeItemDualRef& resultHolder
 
 				dh.ResetImpedances();
 				nzc.ResetSrc(orgZone);
+//				if (res.orgZone_MaxImp) res.orgZone_MaxImp[orgZone] = 0.0;
+				if (res.orgZone_SumImp) res.orgZone_SumImp[orgZone] = 0.0;
+				if (res.orgZone_SumLinkAttr) res.orgZone_SumLinkAttr[orgZone] = 0.0;
 
 				// ===================== InsertNode for all statPoints of current orgZone
 				for (ZoneType startPointIndex = ni.orgZone_startPoint_inv.FirstOrSame(orgZone); IsDefined(startPointIndex); startPointIndex = ni.orgZone_startPoint_inv.NextOrNone(startPointIndex))
@@ -579,7 +664,7 @@ SizeT ProcessDijkstra(TreeItemDualRef& resultHolder
 
 					if (trIsUsed)
 					{
-						dms_assert(dh.m_TraceBackDataPtr);
+						assert(dh.m_TraceBackDataPtr);
 						LinkType backLink = dh.m_TraceBackDataPtr[currNode];
 						if (IsDefined(backLink))
 						{
@@ -726,8 +811,28 @@ SizeT ProcessDijkstra(TreeItemDualRef& resultHolder
 					}
 				}
 				// ===================== count number of reached/processed dstZones j from this orgZone i 
-				SizeT zonalResultCount = nzc.ZonalResCount();
-				SizeT resultCountBase = nzc.IsDense() ? SizeT(ni.nrDstZones) * SizeT(orgZone) : resCumulCount ? resCumulCount[orgZone] : SizeT(0);
+				ZoneType zonalResultCount = nzc.ZonalResCount();
+				SizeT resultCountBase = 0;
+				if (nzc.IsDense())
+					resultCountBase = SizeT(ni.nrDstZones) * SizeT(orgZone);
+				else
+				{
+					if (resCumulCount)
+					{
+						resultCountBase = resCumulCount[orgZone];
+						SizeT givenZonalResultCount;
+						if (orgZone + 1 < ni.nrOrgZones)
+							givenZonalResultCount = resCumulCount[orgZone + 1] - resultCountBase;
+						else
+							givenZonalResultCount = nrRes - resultCountBase;
+						if (zonalResultCount != givenZonalResultCount)
+						{
+							MG_CHECK(flags(df & DijkstraFlag::PrecalculatedNrDstZones));
+							if (zonalResultCount > givenZonalResultCount)
+								throwDmsErrF("orgZone %1%: zonalResultCount %2% != givenZonalResultCount %3%", orgZone, zonalResultCount, givenZonalResultCount);
+						}
+					}
+				}
 
 				// ===================== write optional od related res.od_ImpData, res.od_DstZoneIds, and res.od_SrcZoneIds
 
@@ -789,49 +894,27 @@ SizeT ProcessDijkstra(TreeItemDualRef& resultHolder
 					auto currPtr = res.od_SrcZoneIds + resultCountBase;
 					fast_fill(currPtr, currPtr + zonalResultCount, orgZone);
 				}
+
+				if (res.orgZone_NrDstZones)
+					res.orgZone_NrDstZones[orgZone] = zonalResultCount;
+
 				// ===================== calculate optional alternative impedances, and write to resAltLinkImp if requested
 				const ImpType* d_vj = dh.m_ResultDataPtr;
-				dms_assert(nodeALW || !res.od_AltLinkImp);
+				const ImpType* la_vj = nullptr;
+
+				assert(nodeALW || !res.od_AltLinkImp);
 				if (altLinkWeights)
 				{
-					dms_assert(nodeALW);
-					dms_assert(dh.m_TraceBackDataPtr);
-					dms_assert(trIsUsed);
-
-					for (ZoneType startPointIndex = ni.orgZone_startPoint_inv.FirstOrSame(orgZone); IsDefined(startPointIndex); startPointIndex = ni.orgZone_startPoint_inv.NextOrNone(startPointIndex)) // walk through each tree of all startPoints
-					{
-						NodeType node = LookupOrSame(ni.startPoints.Node_rel, startPointIndex);
-						dms_assert(node < ni.nrV);
-						nodeALW[node] = 0;
-
-						treenode_pointer currNodePtr = &tr.m_TreeNodes[node];
-						dms_assert(!currNodePtr->m_ParentNode);
-						while (currNodePtr = tr.WalkDepthFirst_TopDown(currNodePtr))
-						{
-							dms_assert(currNodePtr && currNodePtr->m_ParentNode);
-							node = tr.NrOfNode(currNodePtr);
-							dms_assert(node < ni.nrV);
-
-							LinkType currLink = dh.m_TraceBackDataPtr[node];
-							NodeType prevNode = tr.NrOfNode(currNodePtr->m_ParentNode);
-							dms_assert(currLink < ni.nrE);
-							nodeALW[node] = altLinkWeights[altLinkWeightsHasVoidDomain ? 0 : currLink] + nodeALW[prevNode];
-						}
-					}
-
-					// copy nodeALW -> resAltLinkImp
-					if (res.od_AltLinkImp) {
-						auto currPtr = res.od_AltLinkImp + resultCountBase;
-						for (SizeT j = 0; j != zonalResultCount; ++j)
-						{
-							NodeType node = nzc.Res2EndNode(j);
-							dms_assert(IsDefined(node) || nzc.IsDense());
-							dms_assert(!IsDefined(node) || !dh.IsStale(node));// guaranteed by Res2EndNode(j);
-
-							*currPtr++ = IsDefined(node) ? nodeALW[node] : UNDEFINED_VALUE(ImpType);
-						}
-					}
+					assert(trIsUsed);
 					d_vj = nodeALW.begin();
+					UpdateALW(ni, dh, tr, nzc, altLinkWeights, altLinkWeightsHasVoidDomain, orgZone, zonalResultCount, resultCountBase, nodeALW.begin(), res.od_AltLinkImp);
+				}
+				assert(linkAttr || !flags(df & DijkstraFlag::UseLinkAttr));
+				if (linkAttr)
+				{
+					assert(trIsUsed);
+					la_vj = nodeLA.begin();
+					UpdateALW(ni, dh, tr, nzc, linkAttr, linkAttrHasVoidDomain, orgZone, zonalResultCount, resultCountBase, nodeLA.begin(), res.od_LinkAttr);
 				}
 
 				// ===================== interaction: calculate t[i, j] etc.
@@ -847,12 +930,13 @@ SizeT ProcessDijkstra(TreeItemDualRef& resultHolder
 
 					// flow[i, j] : = v[i] * pot[i, j] * D_i ^ (alpha - 1);
 					// OrgZone_demand[i] : = SUM j: flow[i, j] 
+					// orgZone_SumImp[i] : = SUM j: impedance[i, j] * flow[i, j]
 					// DstZone_supply[j] : = SUM i: flow[i, j]
 					// flow[l] : = SUM l in (i->j): flow[i, j]
 					// see: http://wiki.objectvision.nl/index.php/Accessibility#Attraction_Potential
 					// and: http://wiki.objectvision.nl/index.php/Dijkstra_functions
 
-					dms_assert(flags(df & DijkstraFlag::Calc_pot_ij) == (res.DstFactor || res.DstSupply || res.LinkFlow));
+					assert(flags(df & DijkstraFlag::Calc_pot_ij) == (res.dstZone_Factor || res.dstZone_Supply || res.LinkFlow || res.orgZone_SumImp || res.orgZone_SumLinkAttr));
 					if (flags(df & DijkstraFlag::Calc_pot_ij))
 						vector_zero_n_reuse(pot_ij, zonalResultCount);
 					for (SizeT j = 0; j != zonalResultCount; ++j)
@@ -869,33 +953,36 @@ SizeT ProcessDijkstra(TreeItemDualRef& resultHolder
 							continue;
 						}
 						Float64 impedance = d_vj[node];
-						dms_assert(IsDefined(impedance));
-						dms_assert(impedance >= 0.0);
-						if (ni.endPoints.Impedances)
+						assert(IsDefined(impedance));
+						assert(impedance >= 0.0);
+						if (ni.endPoints.Impedances && !altLinkWeights)
 							impedance += ni.endPoints.Impedances[dstZone]; // TODO: check of dit niet dubbel werk is
 
 						if (orgMinImp) MakeMax(impedance, orgMinImp[orgMinImpHasVoidDomain ? 0 : orgZone]);
 						if (dstMinImp) MakeMax(impedance, dstMinImp[dstMinImpHasVoidDomain ? 0 : dstZone]);
-						dms_assert(impedance >= 0.0);
+						assert(impedance >= 0.0);
 
 						if (impedance <= 0 && !tgBetaDecayIsZero)
 							continue;
-						dms_assert(impedance > 0 || tgBetaDecayIsZero);
+
+						assert(impedance > 0 || tgBetaDecayIsZero);
 						MakeMax(maxImp, impedance);
 
 						if (!flags(df & DijkstraFlag::Interaction))
 							continue; // next j.
 
 						// t_ij
-						Float64 potential;
+						Float64 potential = 1.0;
 
-						dms_assert(flags(df & (DijkstraFlag::DistDecay | DijkstraFlag::DistLogit)));
+						if (!tgBetaDecayIsZero)
+						{
+							if (tgBetaDecayIsOne)
+								potential = 1.0 / impedance;
+							else 
+								potential = exp(log(impedance) * -tgBetaDecay);
+						}
 
-						if (flags(df & DijkstraFlag::DistDecay))
-							potential = (tgBetaDecayIsZeroOrOne)
-							? tgBetaDecayIsZero ? 1.0 : 1.0 / impedance
-							: exp(log(impedance)*-tgBetaDecay);
-						else
+						if (flags(df & DijkstraFlag::DistLogit))
 						{
 							if (impedance > 0)
 								potential = 1.0 / (1.0 + exp(tgAlphaLogit + tgBetaLogit * log(impedance) + tgGammaLogit * impedance));
@@ -911,69 +998,112 @@ SizeT ProcessDijkstra(TreeItemDualRef& resultHolder
 							potential *= tgDstMass[tdDstMassHasVoidDomain ? 0 : dstZone];  // w_j * t_ij
 						totalPotential += potential; // SUM w_j * t_ij = D_i
 					}
-					if (res.OrgMaxImp)
-						res.OrgMaxImp[orgZone] = maxImp;
+					if (res.orgZone_MaxImp)
+						res.orgZone_MaxImp[orgZone] = maxImp;
+
 					if (!flags(df & DijkstraFlag::Interaction))
 						goto afterInteraction;
-					if (res.OrgFactor)
-						res.OrgFactor[orgZone] = totalPotential; // D_i
 
-					MassType orgMass = (tgOrgMass) ? tgOrgMass[tgOrgMassHasVoidDomain ? 0 : orgZone] : 1.0;
-					Float64 orgAlpha = (tgOrgAlpha) ? tgOrgAlpha[tgOrgAlphaHasVoidDomain ? 0 : orgZone] : 0.0;
-					dms_assert(orgAlpha >= 0.0);
+					if (res.orgZone_Factor)
+						res.orgZone_Factor[orgZone] = totalPotential; // D_i
+
 					if (totalPotential)
 					{
-						dms_assert(totalPotential >= 0.0);
+						assert(totalPotential >= 0.0);
 						Float64 balancingFactor = orgMass;
-						if (orgAlpha != 0.0)
-							balancingFactor *= (orgAlpha == 1.0) ? totalPotential : exp(log(totalPotential) * orgAlpha);
-
-						if (res.OrgDemand)
-							res.OrgDemand[orgZone] = balancingFactor; // v_i * D_i^alpha
-						balancingFactor /= totalPotential; // v_i * D_i^(alpha-1)
-
-						for (SizeT j = 0; j != zonalResultCount; ++j)
+						if (tgOrgMass)
+							balancingFactor = tgOrgMass[orgZone]; // v_i
+						auto orgAlphaCopy = orgAlpha;
+						if (tgOrgAlpha)
 						{
-							if (flags(df & DijkstraFlag::Calc_pot_ij))
+							orgAlphaCopy = tgOrgAlpha[orgZone];
+							MG_USERCHECK(orgAlphaCopy >= 0.0);
+						}
+						if (orgAlphaCopy != 0.0)
+						{
+							if (orgAlphaCopy == 1.0)
+								balancingFactor *= totalPotential;
+							else
+								balancingFactor *= exp(log(totalPotential) * orgAlphaCopy);
+						}
+
+						if (res.orgZone_Demand)
+							res.orgZone_Demand[orgZone] = balancingFactor; // M_ix == v_i * D_i^alpha
+						balancingFactor /= totalPotential; // M_ix / D_i == v_i * D_i^(alpha-1)
+
+						if (flags(df & DijkstraFlag::Calc_pot_ij))
+						{
+							Float64 sumImp = 0.0, sumLinkAttr = 0.0;
+							for (ZoneType j = 0; j != zonalResultCount; ++j)
+							{
 								pot_ij[j] *= balancingFactor; // v_i * D_i^(alpha-1) * t_ij
 
-							ZoneType dstZone = nzc.Res2DstZone(j);
-							dms_assert(dstZone < ni.nrDstZones);
-							dms_assert(!flags(df & DijkstraFlag::SparseResult) || nzc.IsConnected(dstZone));
-							dms_assert(nzc.IsConnected(dstZone) || pot_ij.empty() || (pot_ij[j] == 0));
+								ZoneType dstZone = nzc.Res2DstZone(j);
+								assert(dstZone < ni.nrDstZones);
+								assert(!flags(df & DijkstraFlag::SparseResult) || nzc.IsConnected(dstZone));
+								assert(nzc.IsConnected(dstZone) || pot_ij.empty() || (pot_ij[j] == 0));
 
-							if (res.DstFactor)
-							{
-								assert(!pot_ij.empty());
-
-								leveled_critical_section::scoped_lock lock(writeBlocks.dstFactor);
-								res.DstFactor[dstZone] += pot_ij[j];
-							}
-							if (res.DstSupply || res.LinkFlow && totalPotential)
-							{
-								assert(!pot_ij.empty());
-								if (tgDstMass)
-									pot_ij[j] *= tgDstMass[tdDstMassHasVoidDomain ? 0 : dstZone];  // v_i * D_i^(alpha-1) * w_j * t_ij
-								if (res.DstSupply)
+								if (res.dstZone_Factor)
 								{
-									leveled_critical_section::scoped_lock lock(writeBlocks.dstSupply);
-									res.DstSupply[dstZone] += pot_ij[j];
+									assert(!pot_ij.empty());
+
+									leveled_critical_section::scoped_lock lock(writeBlocks.dstFactor);
+									res.dstZone_Factor[dstZone] += pot_ij[j];
+								}
+								if (res.dstZone_Supply || (flags(df & (DijkstraFlag::ProdLinkFlow | DijkstraFlag::ProdOrgSumImp | DijkstraFlag::ProdOrgSumLinkAttr))))
+								{
+									assert(!pot_ij.empty());
+									if (tgDstMass)
+										pot_ij[j] *= tgDstMass[tdDstMassHasVoidDomain ? 0 : dstZone];  // M_ij == v_i * D_i^(alpha-1) * w_j * t_ij
+									if (res.dstZone_Supply)
+									{
+										leveled_critical_section::scoped_lock lock(writeBlocks.dstSupply);
+										res.dstZone_Supply[dstZone] += pot_ij[j];
+									}
+								}
+
+								if (!flags(df & (DijkstraFlag::ProdOrgSumImp | DijkstraFlag::ProdOrgSumLinkAttr)))
+									continue;
+
+								NodeType node = nzc.DstZone2EndNode(dstZone);
+								if (!IsDefined(node))
+									continue;
+
+								if (res.orgZone_SumImp)
+								{
+									assert(d_vj);
+									Float64 impedance = d_vj[node];
+									sumImp += impedance * pot_ij[j];
+								}
+								if (res.orgZone_SumLinkAttr)
+								{
+									assert(la_vj);
+									Float64 linkAttr = la_vj[node];
+									sumLinkAttr += linkAttr * pot_ij[j];
 								}
 							}
+							if (res.orgZone_SumImp)
+								res.orgZone_SumImp[orgZone] = sumImp;
+							if (res.orgZone_SumLinkAttr)
+								res.orgZone_SumLinkAttr[orgZone] = sumLinkAttr;
 						}
 					}
 					else
 					{
-						if (res.OrgDemand)
-							res.OrgDemand[orgZone] = 0.0; // v_i * D_i^alpha with D_i is zero.
+						if (res.orgZone_Demand)
+							res.orgZone_Demand[orgZone] = 0.0; // v_i * D_i^alpha with D_i is zero.
+						if (res.orgZone_SumImp)
+							res.orgZone_SumImp[orgZone] = 0.0;
+						if (res.orgZone_SumLinkAttr)
+							res.orgZone_SumLinkAttr[orgZone] = 0.0;
 					}
 					// ===================== Write Link_flow, WARNING: nodeALW is reused and overwritten.
 					if (res.LinkFlow && totalPotential)
 					{
-						dms_assert(dh.m_TraceBackDataPtr);
-						dms_assert(nodeALW);
-						dms_assert(tr.IsUsed());
-						dms_assert(flags(df & DijkstraFlag::Interaction));
+						assert(dh.m_TraceBackDataPtr);
+						assert(nodeALW);
+						assert(tr.IsUsed());
+						assert(flags(df & DijkstraFlag::Interaction));
 
 						// init nodeALW for used nodes to zero.
 						for (ZoneType startPointIndex = ni.orgZone_startPoint_inv.FirstOrSame(orgZone); IsDefined(startPointIndex); startPointIndex = ni.orgZone_startPoint_inv.NextOrNone(startPointIndex))
@@ -983,11 +1113,11 @@ SizeT ProcessDijkstra(TreeItemDualRef& resultHolder
 
 							treenode_pointer currNodePtr = &tr.m_TreeNodes[currNode];
 
-							for (currNodePtr = tr.MostDown(currNodePtr); currNodePtr->m_ParentNode; currNodePtr = tr.WalkDepthFirst_BottomUp(currNodePtr))
+							for (currNodePtr = tr.MostDown(currNodePtr); currNodePtr->GetParent(); currNodePtr = tr.WalkDepthFirst_BottomUp(currNodePtr))
 							{
-								dms_assert(currNodePtr && currNodePtr->m_ParentNode);
+								assert(currNodePtr && currNodePtr->GetParent());
 								currNode = tr.NrOfNode(currNodePtr);
-								dms_assert(currNode < ni.nrV);
+								assert(currNode < ni.nrV);
 
 								nodeALW[currNode] = 0;
 							}
@@ -1000,11 +1130,11 @@ SizeT ProcessDijkstra(TreeItemDualRef& resultHolder
 
 							treenode_pointer currNodePtr = &tr.m_TreeNodes[currNode];
 
-							for (currNodePtr = tr.MostDown(currNodePtr); currNodePtr->m_ParentNode; currNodePtr = tr.WalkDepthFirst_BottomUp(currNodePtr))
+							for (currNodePtr = tr.MostDown(currNodePtr); currNodePtr->GetParent(); currNodePtr = tr.WalkDepthFirst_BottomUp(currNodePtr))
 							{
-								dms_assert(currNodePtr && currNodePtr->m_ParentNode);
+								assert(currNodePtr && currNodePtr->GetParent());
 								currNode = tr.NrOfNode(currNodePtr);
-								dms_assert(currNode < ni.nrV);
+								assert(currNode < ni.nrV);
 
 								MassType* flowPtr = &nodeALW[currNode];
 								ZoneType y = node_endPoint_inv.FirstOrSame(currNode);
@@ -1015,7 +1145,7 @@ SizeT ProcessDijkstra(TreeItemDualRef& resultHolder
 										*flowPtr += pot_ij[j];
 									y = node_endPoint_inv.NextOrNone(y);
 								}
-								NodeType prevNode = tr.NrOfNode(currNodePtr->m_ParentNode);
+								NodeType prevNode = tr.NrOfNode(currNodePtr->GetParent());
 								dms_assert(prevNode < ni.nrV);
 								LinkType currLink = dh.m_TraceBackDataPtr[currNode];
 								dms_assert(currLink < ni.nrE);
@@ -1031,35 +1161,36 @@ SizeT ProcessDijkstra(TreeItemDualRef& resultHolder
 
 				// ===================== Write resulting Link Set per found OD pair
 			afterInteraction:
+
 				if (res.od_LS)
 				{
-					dms_assert(dh.m_TraceBackDataPtr);
-					for (SizeT j = 0; j != zonalResultCount; ++j)
+					assert(dh.m_TraceBackDataPtr);
+					for (ZoneType j = 0; j != zonalResultCount; ++j)
 					{
 						NodeType node = nzc.Res2EndNode(j);
-						dms_assert(IsDefined(node) || nzc.IsDense());
-						dms_assert(!IsDefined(node) || !dh.IsStale(node)); // guaranteed by IsConnected(zoneId);
+						assert(IsDefined(node) || nzc.IsDense());
+						assert(!IsDefined(node) || !dh.IsStale(node)); // guaranteed by IsConnected(zoneId);
 						if (!IsDefined(node))
 							continue;
 						leveled_critical_section::scoped_lock lock(writeBlocks.od_LS);
 						auto resLinkSetRef = res.od_LS[resultCountBase + j];
 						while (true)
 						{
-							dms_assert(node < ni.nrV);
+							assert(node < ni.nrV);
 							LinkType currLink = dh.m_TraceBackDataPtr[node];
-							dms_assert(!dh.IsStale(node));
+							assert(!dh.IsStale(node));
 							if (!IsDefined(currLink))
 								break;
-							dms_assert(currLink < ni.nrE);
+							assert(currLink < ni.nrE);
 
 							if (graph.linkF2Data[currLink] == node)
 								node = graph.linkF1Data[currLink];
 							else
 							{
-								dms_assert(graph.linkF1Data[currLink] == node);
+								assert(graph.linkF1Data[currLink] == node);
 								node = graph.linkF2Data[currLink];
 							}
-							dms_assert(IsDefined(node));
+							assert(IsDefined(node));
 
 							resLinkSetRef.push_back(currLink);
 						}
@@ -1100,11 +1231,11 @@ SizeT ProcessDijkstra(TreeItemDualRef& resultHolder
 template <class T>
 class DijkstraMatrOperator : public VariadicOperator
 {
-	typedef T       ImpType;
-	typedef T       MassType;
-	typedef div_type_t<T> ParamType;
-	typedef UInt32 LinkType;
-	typedef UInt32 ZoneType;
+	using ImpType = T;
+	using MassType = T;
+	using ParamType = div_type_t<T>;
+	using LinkType = UInt32;
+	using ZoneType = UInt32;
 	typedef std::vector<LinkType> EdgeSeq;
 
 	typedef DataArray<ImpType>  ArgImpType;  // link_imp, alt_imp, (optional) impCut: E->Imp
@@ -1135,9 +1266,9 @@ class DijkstraMatrOperator : public VariadicOperator
 	typedef DataArray<ZoneType> ResultSubType; // ResultType->ZoneType (subitems SrcZone and DstZone) in case of a sparse result (MaxDist or LimitMass)
 	typedef DataArray<EdgeSeq > ResultLinkSetType; // DijkstraFlag::ProdOdLinkSet
 
-	static UInt32 CalcNrArgs(DijkstraFlag df)
+	static arg_index CalcNrArgs(DijkstraFlag df)
 	{
-		UInt32 nrArgs = 4;
+		arg_index nrArgs = 4;
 		if (flags(df & DijkstraFlag::BidirFlag)) ++nrArgs;
 		if (flags(df & DijkstraFlag::OrgNode)) ++nrArgs;
 		if (flags(df & DijkstraFlag::OrgImp)) ++nrArgs;
@@ -1151,14 +1282,17 @@ class DijkstraMatrOperator : public VariadicOperator
 		if (flags(df & DijkstraFlag::DstMinImp)) ++nrArgs;
 		if (flags(df & DijkstraFlag::ImpCut)) ++nrArgs;
 		if (flags(df & DijkstraFlag::DstLimit)) nrArgs += 2;
-		if (flags(df & DijkstraFlag::UseEuclidicFilter)) nrArgs += 1; // requires OrgZoneLoc and DstZoneLoc
+		if (flags(df & DijkstraFlag::UseEuclidicFilter)) ++nrArgs; // requires OrgZoneLoc and DstZoneLoc
 		if (flags(df & DijkstraFlag::UseAltLinkImp)) ++nrArgs;
-		if (flags(df & DijkstraFlag::Interaction)) nrArgs += 2;
-		if (flags(df & DijkstraFlag::DistDecay)) nrArgs += 1;
+		if (flags(df & DijkstraFlag::UseLinkAttr)) ++nrArgs;
+		if (flags(df & DijkstraFlag::InteractionVi)) ++nrArgs;
+		if (flags(df & DijkstraFlag::InteractionWj)) ++nrArgs;
+		if (flags(df & DijkstraFlag::DistDecay)) ++nrArgs;
 		if (flags(df & DijkstraFlag::DistLogit)) nrArgs += 3;
 		if (flags(df & DijkstraFlag::InteractionAlpha)) ++nrArgs;
+		if (flags(df & DijkstraFlag::PrecalculatedNrDstZones)) ++nrArgs;
 
-		dms_assert(nrArgs >= 3 && nrArgs <= 24);
+		assert(nrArgs >= 3 && nrArgs <= 25);
 		return nrArgs;
 	}
 
@@ -1204,10 +1338,17 @@ public:
 		const AbstrDataItem* paramStrA = AsDataItem(args[argCounter++]);
 		MG_CHECK(paramStrA->HasVoidDomainGuarantee());
 
-		df = DijkstraFlag(df | ParseDijkstraString(const_array_cast<SharedStr>(paramStrA)->GetIndexedValue(0).c_str()));
+		SharedStr paramSpec = const_array_cast<SharedStr>(paramStrA)->GetIndexedValue(0);
+		df = DijkstraFlag(df | ParseDijkstraString(paramSpec.c_str()));
 		CheckFlags(DijkstraFlag(df));
 
-		MG_CHECK(args.size() == CalcNrArgs(df)); // did user specify correctly?
+		if (args.size() != CalcNrArgs(df)) // did user specify correctly?
+			throwDmsErrF(
+				"number of given arguments doesn't match the specification '%s': %d arguments given (including the specification), but %d expected"
+			,	paramSpec.c_str()
+			,	args.size()
+			,	CalcNrArgs(df)
+			); 
 
 		const AbstrDataItem* adiLinkImp             = AsDataItem(args[argCounter++]); 
 		const AbstrDataItem* adiLinkF1              = AsDataItem(args[argCounter++]);
@@ -1228,19 +1369,21 @@ public:
 
 		const AbstrDataItem* adiEuclidicSqrDist     = flags(df & DijkstraFlag::UseEuclidicFilter) ? AsCheckedDataItem(args[argCounter++]) : nullptr;
 
-		const AbstrDataItem* adiLinkAltImp      = flags(df & DijkstraFlag::UseAltLinkImp) ? AsCheckedDataItem(args[argCounter++]) : nullptr;
+		const AbstrDataItem* adiLinkAltImp          = flags(df & DijkstraFlag::UseAltLinkImp) ? AsCheckedDataItem(args[argCounter++]) : nullptr;
+		const AbstrDataItem* adiLinkAttr            = flags(df & DijkstraFlag::UseLinkAttr  ) ? AsCheckedDataItem(args[argCounter++]) : nullptr;
 
 		const AbstrDataItem* adiOrgMinImp  = flags(df & DijkstraFlag::OrgMinImp) ? AsCheckedDataItem(args[argCounter++]) : nullptr;
 		const AbstrDataItem* adiDstMinImp  = flags(df & DijkstraFlag::DstMinImp) ? AsCheckedDataItem(args[argCounter++]) : nullptr;
-		const AbstrDataItem* adiOrgMass    = flags(df & DijkstraFlag::Interaction) ? AsCheckedDataItem(args[argCounter++]) : nullptr; // orgMass
-		const AbstrDataItem* adiDstMass    = flags(df & DijkstraFlag::Interaction) ? AsCheckedDataItem(args[argCounter++]) : nullptr; // dstMassLimit
+		const AbstrDataItem* adiOrgMass    = flags(df & DijkstraFlag::InteractionVi) ? AsCheckedDataItem(args[argCounter++]) : nullptr; // orgMass
+		const AbstrDataItem* adiDstMass    = flags(df & DijkstraFlag::InteractionWj) ? AsCheckedDataItem(args[argCounter++]) : nullptr; // dstMassLimit
 		const AbstrDataItem* adiDistDecayBetaParam  = flags(df & DijkstraFlag::DistDecay) ? AsCheckedDataItem(args[argCounter++]) : nullptr; // DecayBeta
 		const AbstrDataItem* adiDistLogitAlphaParam = flags(df & DijkstraFlag::DistLogit) ? AsCheckedDataItem(args[argCounter++]) : nullptr; // LogitAlpha
 		const AbstrDataItem* adiDistLogitBetaParam  = flags(df & DijkstraFlag::DistLogit) ? AsCheckedDataItem(args[argCounter++]) : nullptr; // LogitBeta
 		const AbstrDataItem* adiDistLogitGammaParam = flags(df & DijkstraFlag::DistLogit) ? AsCheckedDataItem(args[argCounter++]) : nullptr; // LogistGamma
 		const AbstrDataItem* adiOrgAlpha            = flags(df & DijkstraFlag::InteractionAlpha) ? AsCheckedDataItem(args[argCounter++]) : nullptr; // demand alpha
+		const AbstrDataItem* adiPrecalculatedNrDstZones = flags(df & DijkstraFlag::PrecalculatedNrDstZones) ? AsCheckedDataItem(args[argCounter++]) : nullptr; // assumed capacity
 
-		dms_assert(argCounter == args.size()); // all arguments have been processed.
+		MG_CHECK(argCounter == args.size()); // all arguments have been processed.
 
 		dms_assert(adiLinkImp && adiLinkF1 && adiLinkF2);
 		dms_assert((adiOrgMassLimit != nullptr) == (adiDstMassLimit != nullptr));
@@ -1253,7 +1396,7 @@ public:
 		const Unit<NodeType>* dstZones = adiEndPointDstZone ? const_unit_cast<NodeType>(adiEndPointDstZone->GetAbstrValuesUnit()) : y;
 		const AbstrUnit* orgZonesOrVoid = orgZones ? orgZones : Unit<Void>::GetStaticClass()->CreateDefault();
 
-		dms_assert(e && v && impUnit && x && y && (orgZones || !flags(df & DijkstraFlag::OD))&& dstZones);
+		assert(e && v && impUnit && x && y && (orgZones || !flags(df & DijkstraFlag::OD))&& dstZones);
 		e->UnifyDomain(adiLinkF1->GetAbstrDomainUnit(), "Links", "Domain of FromNode_rel attribute", UM_Throw);
 		e->UnifyDomain(adiLinkF2->GetAbstrDomainUnit(), "Links", "Domain of ToNode_rel attribute", UM_Throw);
 		v->UnifyDomain(adiLinkF1->GetAbstrValuesUnit(), "Nodes", "Values of FromNode_rel attribute", UM_Throw);
@@ -1288,8 +1431,8 @@ public:
 
 		if (adiOrgMaxImp) // maxDist
 		{
-			orgZonesOrVoid->UnifyDomain(adiOrgMaxImp->GetAbstrDomainUnit(), "OrgZones", "Domain of OrgMaxImp", UnifyMode(UM_Throw | UM_AllowVoidRight));
-			impUnit->UnifyValues(adiOrgMaxImp->GetAbstrValuesUnit(), "ImpedanceUnit", "Values of OrgMaxImp", UnifyMode(UM_Throw | UM_AllowDefault));
+			orgZonesOrVoid->UnifyDomain(adiOrgMaxImp->GetAbstrDomainUnit(), "OrgZones", "Domain of orgZone_MaxImp", UnifyMode(UM_Throw | UM_AllowVoidRight));
+			impUnit->UnifyValues(adiOrgMaxImp->GetAbstrValuesUnit(), "ImpedanceUnit", "Values of orgZone_MaxImp", UnifyMode(UM_Throw | UM_AllowDefault));
 		}
 		if (adiOrgMassLimit) // limitMass
 		{
@@ -1317,6 +1460,11 @@ public:
 			impUnitRef = "AltImpUnit";
 			e->UnifyDomain(adiLinkAltImp->GetAbstrDomainUnit(), "Edges", "Domain of Alternative Impedances", UnifyMode(UM_Throw | UM_AllowVoidRight));
 		}
+		const Unit<ImpType>* linkAttrUnit = nullptr;
+		if (adiLinkAttr)
+		{
+			linkAttrUnit = const_unit_cast<ImpType>(adiLinkAttr->GetAbstrValuesUnit());
+		}
 
 		// interaction parameters
 		if (adiOrgMinImp)
@@ -1332,7 +1480,6 @@ public:
 		if (adiOrgMass) // SrcMass
 		{
 			assert(adiDistDecayBetaParam);
-			assert(adiDstMass);
 			orgZonesOrVoid->UnifyDomain(adiOrgMass->GetAbstrDomainUnit(), "OrgZones", "Domain of OrgMass attribute", UnifyMode(UM_Throw | UM_AllowVoidRight));
 			MG_USERCHECK2(dynamic_cast<const Unit<MassType>*>(adiOrgMass->GetAbstrValuesUnit())
 				, "value type of the OrgMass attribute doesn't match with the value type of Impedance");
@@ -1369,7 +1516,6 @@ public:
 		assert(adiDistDecayBetaParam || (!adiOrgMass && !adiDstMass));
 		if (adiDstMass) // DstMass
 		{
-			assert(adiOrgMass);
 			dstZones->UnifyDomain(adiDstMass->GetAbstrDomainUnit(), "DstZones", "Domain of DstMass attribute", UnifyMode(UM_Throw | UM_AllowVoidRight));
 			MG_USERCHECK2(dynamic_cast<const Unit<MassType>*>(adiDstMass->GetAbstrValuesUnit())
 				, "value type of the DstMass doesn't match with the value type of Impedance"
@@ -1377,12 +1523,20 @@ public:
 		}
 		if (adiOrgAlpha)
 		{
-			assert(adiOrgMass);
 			orgZonesOrVoid->UnifyDomain(adiOrgAlpha->GetAbstrDomainUnit(), "OrgZones", "Domain of OrgAlpha attribute", UnifyMode(UM_Throw | UM_AllowVoidRight));
 			MG_USERCHECK2(dynamic_cast<const Unit<MassType>*>(adiOrgAlpha->GetAbstrValuesUnit())
 				, "value type of OrgAlpha doesn't match with the value type of Impedance"
 			);
 		}
+		if (adiPrecalculatedNrDstZones)
+		{
+			MG_CHECK(flags(df & DijkstraFlag::OD));
+			orgZonesOrVoid->UnifyDomain(adiPrecalculatedNrDstZones->GetAbstrDomainUnit(), "OrgZones", "Domain of precalculated number of destination zones", UM_Throw);
+			MG_USERCHECK2(dynamic_cast<const Unit<ZoneType>*>(adiPrecalculatedNrDstZones->GetAbstrValuesUnit())
+				, "Precalculated number of destination zones (aka PrecalculatedNrDstZones) expected as UInt32 values"
+			)
+		}
+
 		const AbstrUnit* resultUnit;
 		AbstrUnit* mutableResultUnit;
 		AbstrDataItem* resDist;
@@ -1426,17 +1580,39 @@ public:
 			? CreateDataItem(resultContext, GetTokenID_mt("alt_imp"), resultUnit, imp2Unit)
 			:	nullptr;
 
+		AbstrDataItem* resLinkAttr = flags(df & DijkstraFlag::ProdOdLinkAttr)
+			? CreateDataItem(resultContext, GetTokenID_mt("LinkAttr"), resultUnit, linkAttrUnit)
+			: nullptr;
+
+		auto mijMassUnit = Unit<MassType>::GetStaticClass()->CreateDefault();
+		auto orgMassUnit = adiOrgMass ? adiOrgMass->GetAbstrValuesUnit() : mijMassUnit;
+		auto dstMassUnit = adiDstMass ? adiDstMass->GetAbstrValuesUnit() : mijMassUnit;
+
 		AbstrDataItem* resOrgFactor = flags(df & DijkstraFlag::ProdOrgFactor)
-			? CreateDataItem(resultContext, GetTokenID_mt("D_i"), orgZonesOrVoid, adiOrgMass->GetAbstrValuesUnit())
+			? CreateDataItem(resultContext, GetTokenID_mt("D_i"), orgZonesOrVoid, dstMassUnit)
 			: nullptr;
 		AbstrDataItem* resOrgDemand = flags(df & DijkstraFlag::ProdOrgDemand)
-			? CreateDataItem(resultContext, GetTokenID_mt("M_ix"), orgZonesOrVoid, adiOrgMass->GetAbstrValuesUnit())
+			? CreateDataItem(resultContext, GetTokenID_mt("M_ix"), orgZonesOrVoid, mijMassUnit)
 			: nullptr;
+
+		// Copilot, what is the best values unit for resDstFactor and resDstSupply?
 		AbstrDataItem* resDstFactor = flags(df & DijkstraFlag::ProdDstFactor)
-			? CreateDataItem(resultContext, GetTokenID_mt("C_j"), dstZones, adiOrgMass->GetAbstrValuesUnit())
+			? CreateDataItem(resultContext, GetTokenID_mt("C_j"), dstZones, orgMassUnit)
 			: nullptr;
 		AbstrDataItem* resDstSupply = flags(df & DijkstraFlag::ProdDstSupply)
-			? CreateDataItem(resultContext, GetTokenID_mt("M_xj"), dstZones, adiOrgMass->GetAbstrValuesUnit())
+			? CreateDataItem(resultContext, GetTokenID_mt("M_xj"), dstZones, mijMassUnit)
+			: nullptr;
+
+		AbstrDataItem* resOrgNrDstZones = flags(df & DijkstraFlag::ProdOrgNrDstZones)
+			? CreateDataItem(resultContext, GetTokenID_mt("OrgZone_NrDstZones"), orgZonesOrVoid, dstZones)
+			: nullptr;
+
+		AbstrDataItem* resOrgSumImp = flags(df & DijkstraFlag::ProdOrgSumImp)
+			? CreateDataItem(resultContext, GetTokenID_mt("OrgZone_SumImp"), orgZonesOrVoid, imp2Unit)
+			: nullptr;
+
+		AbstrDataItem* resOrgSumLinkAttr = flags(df & DijkstraFlag::ProdOrgSumLinkAttr)
+			? CreateDataItem(resultContext, GetTokenID_mt("OrgZone_SumLinkAttr"), orgZonesOrVoid, linkAttrUnit)
 			: nullptr;
 
 		AbstrDataItem* resOrgMaxImp = flags(df & DijkstraFlag::ProdOrgMaxImp)
@@ -1489,6 +1665,7 @@ public:
 			DataReadLock argDistLogitB(adiDistLogitBetaParam);
 			DataReadLock argDistLogitC(adiDistLogitGammaParam);
 			DataReadLock argOrgAlphaLock(adiOrgAlpha);
+			DataReadLock argPrecalculatedNrDstZonesLock(adiPrecalculatedNrDstZones);
 
 			DataReadLock argOrgZoneLocationLock(adiOrgZoneLocation);
 			DataReadLock argDstZoneLocationLock(adiDstZoneLocation);
@@ -1506,12 +1683,14 @@ public:
 			const DstDistType* argEndPointImpedance = const_opt_array_checkedcast<ImpType  >(adiEndPointImpedance);
 			const DstZoneType* argEndPointDstZone = const_opt_array_checkedcast<ZoneType >(adiEndPointDstZone);
 			const ZoneLocType* argDstZoneLocation = const_opt_array_checkedcast<euclid_location_t >(adiDstZoneLocation);
+			const DstZoneType* argPrecalculatedNrDstZones = const_opt_array_checkedcast<ZoneType >(adiPrecalculatedNrDstZones);
 			const ArgImpType* argOrgMinImp = const_opt_array_checkedcast<ImpType  >(adiOrgMinImp);
 			const ArgImpType* argDstMinImp = const_opt_array_checkedcast<ImpType  >(adiDstMinImp);
 			const ArgImpType* argOrgMaxImp = const_opt_array_checkedcast<ImpType  >(adiOrgMaxImp);
 			const ArgMassType* argOrgMassLimit = const_opt_array_checkedcast<MassType >(adiOrgMassLimit);
 			const ArgMassType* argDstMassLimit = const_opt_array_checkedcast<MassType >(adiDstMassLimit);
 			const ArgImpType* argLinkAltImp = const_opt_array_checkedcast<MassType >(adiLinkAltImp);
+			const ArgImpType* argLinkAttr = const_opt_array_checkedcast<MassType >(adiLinkAttr);
 			const ArgSMType* argOrgMass = const_opt_array_checkedcast<MassType >(adiOrgMass);
 			const ArgDMType* argDstMass = const_opt_array_checkedcast<MassType >(adiDstMass);
 			const ArgParamType* argDistDecayBetaParam = const_opt_array_checkedcast<ParamType>(adiDistDecayBetaParam);
@@ -1520,8 +1699,8 @@ public:
 			const ArgParamType* argDistLogitGammaParam = const_opt_array_checkedcast<ParamType>(adiDistLogitGammaParam);
 			const ArgParamType* argOrgAlpha = const_opt_array_checkedcast<ParamType>(adiOrgAlpha);
 
-			dms_assert(argLinkImp && argLinkF1 && argLinkF2);
-			dms_assert((argOrgMassLimit != nullptr) == (argDstMassLimit != nullptr));
+			assert(argLinkImp && argLinkF1 && argLinkF2);
+			assert((argOrgMassLimit != nullptr) == (argDstMassLimit != nullptr));
 
 #if MG_DEBUG_DIJKSTRA
 			SharedStr groupName = SharedStr(GetGroup()->GetName());
@@ -1575,6 +1754,7 @@ public:
 			typename ArgMassType ::locked_cseq_t orgMassLimit          = argOrgMassLimit        ? argOrgMassLimit       ->GetLockedDataRead() : typename ArgMassType ::locked_cseq_t();
 			typename ArgMassType ::locked_cseq_t dstMassLimit          = argDstMassLimit        ? argDstMassLimit       ->GetLockedDataRead() : typename ArgMassType ::locked_cseq_t();
 			typename ArgImpType  ::locked_cseq_t altWeight             = argLinkAltImp          ? argLinkAltImp         ->GetLockedDataRead() : typename ArgImpType  ::locked_cseq_t();
+			typename ArgImpType  ::locked_cseq_t linkAttr              = argLinkAttr            ? argLinkAttr           ->GetLockedDataRead() : typename ArgImpType  ::locked_cseq_t();
 			typename ArgSMType   ::locked_cseq_t tgOrgMass             = argOrgMass             ? argOrgMass            ->GetLockedDataRead() : typename ArgSMType   ::locked_cseq_t();
 			typename ArgDMType   ::locked_cseq_t tgDstMass             = argDstMass             ? argDstMass            ->GetLockedDataRead() : typename ArgDMType   ::locked_cseq_t();
 			typename ArgParamType::locked_cseq_t tgDistDecayBetaParam  = argDistDecayBetaParam  ? argDistDecayBetaParam ->GetLockedDataRead() : typename ArgParamType::locked_cseq_t();
@@ -1584,7 +1764,7 @@ public:
 			typename ArgParamType::locked_cseq_t tgOrgAlpha            = argOrgAlpha            ? argOrgAlpha           ->GetLockedDataRead() : typename ArgParamType::locked_cseq_t();
 
 			if (IsDefined(vector_find_if(linkImpData, [](ImpType v) { return v < 0;  })))
-				throwErrorF("Dijkstra", "Illegal negative value in Impedance data");
+				throwDmsErrD("Illegal negative value in Impedance data");
 // TODO: 
 //			MG_CHECK(v->IsOrdinalAndZeroBased());
 //			MG_CHECK(e->IsOrdinalAndZeroBased());
@@ -1635,36 +1815,44 @@ public:
 			{
 				if (flags(df & DijkstraFlag::SparseResult))
 				{
-					resCount = OwningPtrSizedArray<SizeT>( networkInfo.nrOrgZones, dont_initialize MG_DEBUG_ALLOCATOR_SRC("dijkstra: resCount"));
-					nrRes = ProcessDijkstra<NodeType, LinkType, ZoneType, ImpType, MassType, ParamType>(resultHolder, networkInfo
-						, orgMaxImpedances.begin(), HasVoidDomainGuarantee(adiOrgMaxImp)
-						, orgMassLimit.begin(), HasVoidDomainGuarantee(adiOrgMassLimit)
-						, dstMassLimit.begin(), HasVoidDomainGuarantee(adiDstMassLimit)
-						, euclidicSqrDist
-						, graph
-						, node_endPoint_inv
-						, (df & ~DijkstraFlag::InteractionOrMaxImp) | DijkstraFlag::Counting
-						, nullptr, HasVoidDomainGuarantee(adiLinkAltImp)
-						, nullptr, HasVoidDomainGuarantee(adiOrgMinImp)
-						, nullptr, HasVoidDomainGuarantee(adiDstMinImp)
-						, nullptr, HasVoidDomainGuarantee(adiOrgMass)
-						, nullptr, HasVoidDomainGuarantee(adiDstMass)
-						, ParamType()
-						, ParamType(), ParamType(), ParamType()
-						, nullptr, HasVoidDomainGuarantee(adiOrgAlpha)
-						// mutable src specific working area
-						, nullptr
-						, resCount.begin()
-						// result area, not for counting
-						, ResultInfo<ZoneType, ImpType, MassType>{nullptr, nullptr, nullptr, nullptr, nullptr, nullptr
-							, sequence_traits<EdgeSeq>::seq_t::iterator()
-							, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr
-							}
+					resCount = OwningPtrSizedArray<SizeT>(networkInfo.nrOrgZones, dont_initialize MG_DEBUG_ALLOCATOR_SRC("dijkstra: resCount"));
+					if (!flags(df & DijkstraFlag::PrecalculatedNrDstZones))
+					{
+						nrRes = ProcessDijkstra<NodeType, LinkType, ZoneType, ImpType, MassType, ParamType>(resultHolder, networkInfo
+							, orgMaxImpedances.begin(), HasVoidDomainGuarantee(adiOrgMaxImp)
+							, orgMassLimit.begin(), HasVoidDomainGuarantee(adiOrgMassLimit)
+							, dstMassLimit.begin(), HasVoidDomainGuarantee(adiDstMassLimit)
+							, euclidicSqrDist
+							, graph
+							, node_endPoint_inv
+							, (df & ~DijkstraFlag::InteractionOrMaxImp & ~DijkstraFlag::UseLinkAttr) | DijkstraFlag::Counting
+							, nullptr, HasVoidDomainGuarantee(adiLinkAltImp)
+							, nullptr, HasVoidDomainGuarantee(adiLinkAttr)
+							, nullptr, HasVoidDomainGuarantee(adiOrgMinImp)
+							, nullptr, HasVoidDomainGuarantee(adiDstMinImp)
+							, nullptr, HasVoidDomainGuarantee(adiOrgMass)
+							, nullptr, HasVoidDomainGuarantee(adiDstMass)
+							, ParamType()
+							, ParamType(), ParamType(), ParamType()
+							, nullptr, HasVoidDomainGuarantee(adiOrgAlpha)
+							// mutable src specific working area
+							, nullptr, 0
+							, resCount.begin()
+							// result area, not for counting
+							, ResultInfo<ZoneType, ImpType, MassType>()
 						, no_tile
-						, "Counting"
-					);
-					if (!IsDefined(nrRes))
-						return false;
+							, "Counting"
+							);
+						if (!IsDefined(nrRes))
+							return false;
+					}
+					else
+					{
+						MG_CHECK(argPrecalculatedNrDstZones);
+						DstZoneType::locked_cseq_t precalculatedNrDstZoneData = argPrecalculatedNrDstZones->GetLockedDataRead();
+						std::copy(precalculatedNrDstZoneData.begin(), precalculatedNrDstZoneData.end(), resCount.begin());
+						nrRes = std::accumulate(precalculatedNrDstZoneData.begin(), precalculatedNrDstZoneData.end(), SizeT(0));
+					}
 					make_cumulative_base(resCount.begin(), resCount.begin() + networkInfo.nrOrgZones);
 				}
 				else
@@ -1687,7 +1875,11 @@ public:
 			DataWriteLock resLinkSetLock(resLS,      dms_rw_mode::write_only_mustzero); // per OD
 
 			DataWriteLock resALWLock(resAltLinkImp); // per OD
-			DataWriteLock resOFLock(resOrgFactor); // per OrgZone
+			DataWriteLock resLinkAttrLock (resLinkAttr); // per OD
+			DataWriteLock resOrgNrDstZonesLock(resOrgNrDstZones); // per OrgZone
+			DataWriteLock resOrgSumImpLock(resOrgSumImp); // per OrgZone
+			DataWriteLock resOrgSumLinkAttrLock(resOrgSumLinkAttr); // per OrgZone
+			DataWriteLock resOrgFactorLock(resOrgFactor); // per OrgZone
 			DataWriteLock resODLock(resOrgDemand); // per OrgZone
 			DataWriteLock resOMILock(resOrgMaxImp); // per OrgZone
 			DataWriteLock resDFLock(resDstFactor,      dms_rw_mode::write_only_mustzero); // per DstZone
@@ -1702,6 +1894,7 @@ public:
 			,	graph, node_endPoint_inv
 			,	df
 			,	altWeight.begin(), HasVoidDomainGuarantee(adiLinkAltImp)
+			,	linkAttr.begin(), HasVoidDomainGuarantee(adiLinkAttr)
 			,	orgMinImpData.begin(), HasVoidDomainGuarantee(adiOrgMinImp)
 			,	dstMinImpData.begin(), HasVoidDomainGuarantee(adiDstMinImp)
 			,	tgOrgMass.begin(), HasVoidDomainGuarantee(adiOrgMass)
@@ -1711,26 +1904,31 @@ public:
 			,	argDistLogitBetaParam? tgDistLogitB[0] : ParamType()
 			,	argDistLogitGammaParam? tgDistLogitC[0] : ParamType()
 			,   tgOrgAlpha.begin(), HasVoidDomainGuarantee(adiOrgAlpha)
-			,	resCount.begin()
+			,	resCount.begin(), nrRes
 
 			// mutable src specific working area
 			,	nullptr
+
 			// result area
 			,	ResultInfo<ZoneType, ImpType, MassType>{
-					resDist       ? mutable_array_cast<ImpType >(resDistLock)->GetDataWrite(no_tile, dms_rw_mode::write_only_all).begin() : nullptr
-				, resAltLinkImp ? mutable_array_cast<ImpType >(resALWLock)->GetDataWrite(no_tile, dms_rw_mode::write_only_all).begin() : nullptr
-				, resSrcZone    ? mutable_array_cast<ZoneType>(resSrcZoneLock)->GetDataWrite(no_tile, dms_rw_mode::write_only_all).begin() : nullptr
-				, resDstZone    ? mutable_array_cast<ZoneType>(resDstZoneLock)->GetDataWrite(no_tile, dms_rw_mode::write_only_all).begin() : nullptr
-				, resStartPoint ? mutable_array_cast<ZoneType>(resStartPointLock)->GetDataWrite(no_tile, dms_rw_mode::write_only_all).begin() : nullptr
-				, resEndPoint   ? mutable_array_cast<ZoneType>(resEndPointLock)->GetDataWrite(no_tile, dms_rw_mode::write_only_all).begin() : nullptr
-				,	resLS         ? mutable_array_cast<EdgeSeq >(resLinkSetLock)->GetDataWrite(no_tile, dms_rw_mode::write_only_mustzero).begin() : DataArray<EdgeSeq>::iterator()
-				,	resTB ? mutable_array_cast<LinkType>(resTraceBackLock)->GetDataWrite(no_tile, dms_rw_mode::write_only_all).begin() : nullptr
-				,	resOrgFactor  ? mutable_array_cast<MassType>(resOFLock)->GetDataWrite(no_tile, dms_rw_mode::write_only_mustzero).begin() : nullptr
-				,	resOrgDemand  ? mutable_array_cast<MassType>(resODLock)->GetDataWrite(no_tile, dms_rw_mode::write_only_mustzero).begin() : nullptr
-				,	resOrgMaxImp  ? mutable_array_cast<ImpType >(resOMILock)->GetDataWrite(no_tile, dms_rw_mode::write_only_mustzero).begin() : nullptr
-				,	resDstFactor  ? mutable_array_cast<MassType>(resDFLock)->GetDataWrite(no_tile, dms_rw_mode::write_only_mustzero).begin() : nullptr
-				,	resDstSupply  ? mutable_array_cast<MassType>(resDSLock)->GetDataWrite(no_tile, dms_rw_mode::write_only_mustzero).begin() : nullptr
-				,	resLinkFlow   ? mutable_array_cast<MassType>(resLinkFlowLock)->GetDataWrite(no_tile, dms_rw_mode::write_only_mustzero).begin() : nullptr
+				  .od_ImpData          = resDist          ? mutable_array_cast<ImpType >(resDistLock          )->GetDataWrite(no_tile, dms_rw_mode::write_only_all).begin() : nullptr
+				, .od_AltLinkImp       = resAltLinkImp    ? mutable_array_cast<ImpType >(resALWLock           )->GetDataWrite(no_tile, dms_rw_mode::write_only_all).begin() : nullptr
+				, .od_LinkAttr         = resLinkAttr      ? mutable_array_cast<ImpType >(resLinkAttrLock      )->GetDataWrite(no_tile, dms_rw_mode::write_only_all).begin() : nullptr
+				, .od_SrcZoneIds       = resSrcZone       ? mutable_array_cast<ZoneType>(resSrcZoneLock       )->GetDataWrite(no_tile, dms_rw_mode::write_only_all).begin() : nullptr
+				, .od_DstZoneIds       = resDstZone       ? mutable_array_cast<ZoneType>(resDstZoneLock       )->GetDataWrite(no_tile, dms_rw_mode::write_only_all).begin() : nullptr
+				, .od_StartPointIds    = resStartPoint    ? mutable_array_cast<ZoneType>(resStartPointLock    )->GetDataWrite(no_tile, dms_rw_mode::write_only_all).begin() : nullptr
+				, .od_EndPointIds      = resEndPoint      ? mutable_array_cast<ZoneType>(resEndPointLock      )->GetDataWrite(no_tile, dms_rw_mode::write_only_all).begin() : nullptr
+				, .od_LS               = resLS            ? mutable_array_cast<EdgeSeq >(resLinkSetLock       )->GetDataWrite(no_tile, dms_rw_mode::write_only_mustzero).begin() : DataArray<EdgeSeq>::iterator()
+				, .node_TB             = resTB            ? mutable_array_cast<LinkType>(resTraceBackLock     )->GetDataWrite(no_tile, dms_rw_mode::write_only_all).begin() : nullptr
+				, .orgZone_NrDstZones  = resOrgNrDstZones ? mutable_array_cast<ZoneType>(resOrgNrDstZonesLock )->GetDataWrite(no_tile, dms_rw_mode::write_only_all).begin() : nullptr
+				, .orgZone_Factor      = resOrgFactor     ? mutable_array_cast<MassType>(resOrgFactorLock     )->GetDataWrite(no_tile, dms_rw_mode::write_only_mustzero).begin() : nullptr
+				, .orgZone_Demand      = resOrgDemand     ? mutable_array_cast<MassType>(resODLock            )->GetDataWrite(no_tile, dms_rw_mode::write_only_mustzero).begin() : nullptr
+				, .orgZone_SumImp      = resOrgSumImp     ? mutable_array_cast<MassType>(resOrgSumImpLock     )->GetDataWrite(no_tile, dms_rw_mode::write_only_mustzero).begin() : nullptr
+				, .orgZone_SumLinkAttr = resOrgSumLinkAttr? mutable_array_cast<MassType>(resOrgSumLinkAttrLock)->GetDataWrite(no_tile, dms_rw_mode::write_only_mustzero).begin() : nullptr
+				, .orgZone_MaxImp      = resOrgMaxImp     ? mutable_array_cast<ImpType >(resOMILock           )->GetDataWrite(no_tile, dms_rw_mode::write_only_mustzero).begin() : nullptr
+				, .dstZone_Factor      = resDstFactor     ? mutable_array_cast<MassType>(resDFLock            )->GetDataWrite(no_tile, dms_rw_mode::write_only_mustzero).begin() : nullptr
+				, .dstZone_Supply      = resDstSupply     ? mutable_array_cast<MassType>(resDSLock            )->GetDataWrite(no_tile, dms_rw_mode::write_only_mustzero).begin() : nullptr
+				, .LinkFlow            = resLinkFlow      ? mutable_array_cast<MassType>(resLinkFlowLock      )->GetDataWrite(no_tile, dms_rw_mode::write_only_mustzero).begin() : nullptr
 				}
 			,	(flags(df & DijkstraFlag::OD_Data) || !mutableResultUnit) ? resultUnit->GetNrTiles() : no_tile
 			,	"Filling"
@@ -1757,8 +1955,12 @@ public:
 			if (resTB) resTraceBackLock.Commit();
 			if (resLS) resLinkSetLock.Commit();
 			if (resAltLinkImp) resALWLock.Commit();
-			if (resOrgFactor) resOFLock.Commit();
+			if (resLinkAttr) resLinkAttrLock.Commit();
+			if (resOrgNrDstZones) resOrgNrDstZonesLock.Commit();
+			if (resOrgFactor) resOrgFactorLock.Commit();
 			if (resOrgDemand) resODLock.Commit();
+			if (resOrgSumImp) resOrgSumImpLock.Commit();
+			if (resOrgSumLinkAttr) resOrgSumLinkAttrLock.Commit();
 			if (resOrgMaxImp) resOMILock.Commit();
 			if (resDstFactor) resDFLock.Commit();
 			if (resDstSupply) resDSLock.Commit();

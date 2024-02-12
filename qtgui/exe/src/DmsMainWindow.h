@@ -93,6 +93,7 @@ enum DmsHelperWindowType
 
 struct ToolbarButtonData
 {
+    ToolButtonID id;
     std::vector<QString> text;
     std::vector<ToolButtonID> ids;
     std::vector<QString> icons;
@@ -218,14 +219,6 @@ bool IsPostRequest(const QUrl& /*link*/);
 auto Realm(const auto& x) -> CharPtrRange;
 auto getLinkFromErrorMessage(std::string_view error_message, unsigned int lineNumber = 0) -> link_info;
 
-class ValueInfoWindow : public QWidget
-{
-    using QWidget::QWidget;
-
-public:
-    ValueInfoBrowser* m_browser;
-};
-
 class MainWindow : public QMainWindow
 {
     Q_OBJECT
@@ -328,6 +321,7 @@ protected:
 public:
     void updateToolsMenu();
     void updateTracelogHandle();
+    bool CloseConfig(); // returns true when mdiSubWindows were closed
 
 private:
     void openConfigSourceFor(const TreeItem* context);
@@ -337,7 +331,6 @@ private:
     bool openErrorOnFailedCurrentItem();
     void clearActionsForEmptyCurrentItem();
     void updateActionsForNewCurrentItem();
-    bool CloseConfig(); // returns true when mdiSubWindows were closed
     void setupDmsCallbacks();
     void cleanupDmsCallbacks();
     void createActions();

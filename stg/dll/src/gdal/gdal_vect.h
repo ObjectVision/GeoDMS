@@ -101,6 +101,7 @@ struct GdalVectSM : NonmappableStorageManager, gdalVectComponent
 	bool WriteDataItem(StorageMetaInfoPtr&& smiHolder) override;
 
 	void DoUpdateTable(const TreeItem* storageHolder, AbstrUnit* curr, OGRLayer* layer) const;
+	prop_tables GetPropTables(const TreeItem* storageHolder = nullptr, TreeItem* curr = nullptr) const override;
 
 	mutable DataItemsWriteStatusInfo m_DataItemsStatusInfo;
 private:

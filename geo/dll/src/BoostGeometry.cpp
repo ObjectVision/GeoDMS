@@ -1,31 +1,6 @@
-//<HEADER> 
-/*
-Data & Model Server (DMS) is a server written in C++ for DSS applications. 
-Version: see srv/dms/rtc/dll/src/RtcVersion.h for version info.
-
-Copyright (C) 1998-2004  YUSE GSO Object Vision BV. 
-
-Documentation on using the Data & Model Server software can be found at:
-http://www.ObjectVision.nl/DMS/
-
-See additional guidelines and notes in srv/dms/Readme-srv.txt 
-
-This library is free software; you can use, redistribute, and/or
-modify it under the terms of the GNU General Public License version 2 
-(the License) as published by the Free Software Foundation,
-provided that this entire header notice and readme-srv.txt is preserved.
-
-See LICENSE.TXT for terms of distribution or look at our web site:
-http://www.objectvision.nl/DMS/License.txt
-or alternatively at: http://www.gnu.org/copyleft/gpl.html
-
-This library is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
-General Public License for more details. However, specific warranties might be
-granted by an additional written contract for support, assistance and/or development
-*/
-//</HEADER>
+// Copyright (C) 1998-2023 Object Vision b.v. 
+// License: GNU GPL 3
+/////////////////////////////////////////////////////////////////////////////
 
 #include "GeoPCH.h"
 
@@ -34,6 +9,7 @@ granted by an additional written contract for support, assistance and/or develop
 #endif //defined(CC_PRAGMAHDRSTOP)
 
 #include "RtcTypeLists.h"
+#include "RtcGeneratedVersion.h"
 
 #include "mci/ValueClass.h"
 #include "mci/ValueWrap.h"
@@ -45,6 +21,7 @@ granted by an additional written contract for support, assistance and/or develop
 #include "UnitClass.h"
 
 #include <boost/geometry.hpp>
+#include <boost/geometry/algorithms/within.hpp>
 
 #include "ipolygon/polygon.hpp"
 #include "geo/BoostPolygon.h"
@@ -116,14 +93,14 @@ void MakeLowerBound(P& lb, const boost::geometry::model::multi_polygon<Polygon>&
 
 bool clean(bg_ring_t& ring)
 {
-	dms_assert(ring.front() == ring.back());
+	assert(ring.front() == ring.back());
 	remove_adjacents_and_spikes(ring);
 	if (ring.size() < 3)
 	{
 		ring.clear();
 		return false;
 	}
-	dms_assert(ring.front() != ring.back());
+	assert(ring.front() != ring.back());
 	ring.emplace_back(ring.front());
 	return true;
 }
@@ -223,7 +200,11 @@ void assign_polygon(bg_polygon_t& resPoly, SA_ConstReference<DmsPointType> polyR
 		else
 		{
 			if (outerOrientation == currOrientation)
-				break; // don't start on 2nd polygon
+				// don't start on 2nd polygon
+				throwErrorD("assign_polygon", "second ring with same orientation detected as first ring; "
+					"consider using an operation that supports multi_polygons (bg_buffer_multi_polygon or outer_multi_polygon)"
+				);
+
 			if (mustInsertInnerRings)
 				resPoly.inners().emplace_back(helperRing);
 		}
@@ -245,8 +226,8 @@ void assign_multi_polygon(bg_multi_polygon_t& resMP, SA_ConstReference<DmsPointT
 	bool outerOrientation = true;
 	for (; ri != re; ++ri)
 	{
-		dms_assert((*ri).begin() != (*ri).end());
-		dms_assert((*ri).begin()[0] == (*ri).end()[-1]); // closed ?
+		assert((*ri).begin() != (*ri).end());
+		assert((*ri).begin()[0] == (*ri).end()[-1]); // closed ?
 
 		helperRing.assign((*ri).begin(), (*ri).end());
 		if (!clean(helperRing))
@@ -254,23 +235,48 @@ void assign_multi_polygon(bg_multi_polygon_t& resMP, SA_ConstReference<DmsPointT
 			continue;
 		}
 
-		dms_assert(helperRing.begin() != helperRing.end());
-		dms_assert(helperRing.begin()[0] == helperRing.end()[-1]); // closed ?
+		assert(helperRing.begin() != helperRing.end());
+		assert(helperRing.begin()[0] == helperRing.end()[-1]); // closed ?
 		bool currOrientation = (boost::geometry::area(helperRing) > 0);
 		if (ri == rb || currOrientation == outerOrientation)
 		{
-			if (ri != rb)
+			if (ri != rb && !helperPolygon.outer().empty())
 				resMP.emplace_back(helperPolygon);
-			helperPolygon.clear(); dms_assert(helperPolygon.outer().empty() && helperPolygon.inners().empty());
+			helperPolygon.clear(); assert(helperPolygon.outer().empty() && helperPolygon.inners().empty());
 			helperPolygon.outer() = bg_ring_t(helperRing.begin(), helperRing.end());
 			outerOrientation = currOrientation;
+
+			// skip outer rings that intersect with a previous outer ring if innerRings are skipped
+			if (!mustInsertInnerRings)
+			{ 
+				SizeT polygonIndex = 0;
+				while (polygonIndex < resMP.size())
+				{
+					auto currPolygon = resMP.begin() + polygonIndex;
+					if (boost::geometry::intersects(currPolygon->outer(), helperPolygon.outer()))
+					{
+						MG_CHECK(!boost::geometry::overlaps(currPolygon->outer(), helperPolygon.outer()));
+						if (boost::geometry::within(currPolygon->outer(), helperPolygon.outer()))
+						{
+							resMP.erase(currPolygon);
+							continue;
+						}
+						MG_CHECK(boost::geometry::within(helperPolygon.outer(), currPolygon->outer()));
+						helperPolygon.clear();
+						assert(helperPolygon.outer().empty() && helperPolygon.inners().empty());
+						break;
+					}
+					polygonIndex++;
+				}
+			}
 		}
 		else if (mustInsertInnerRings)
 		{
 			helperPolygon.inners().emplace_back(helperRing);
 		}
 	}
-	resMP.emplace_back(helperPolygon);
+	if (!helperPolygon.outer().empty())
+		resMP.emplace_back(helperPolygon);
 }
 
 template <typename Numeric>
@@ -282,7 +288,7 @@ auto sqr(Numeric x)
 template <typename DmsPointType>
 void store_ring(SA_Reference<DmsPointType> resDataElem, const bg_ring_t& ring)
 {
-	dms_assert(ring.begin()[0] == ring.end()[-1]); // closed ?
+	assert(ring.begin()[0] == ring.end()[-1]); // closed ?
 	resDataElem.append(ring.begin(), ring.end());
 }
 
@@ -326,12 +332,22 @@ static CommonOperGroup grBgIntersect("bg_intersect");
 
 static CommonOperGroup grBgBuffer_point        ("bg_buffer_point");
 static CommonOperGroup grBgBuffer_multi_point  ("bg_buffer_multi_point");
-static CommonOperGroup grBgBuffer_polygon      ("bg_buffer_polygon");
+
+#if DMS_VERSION_MAJOR < 15
+static Obsolete<CommonOperGroup> grBgBuffer_polygon("use bg_buffer_single_polygon", "bg_buffer_polygon");
+#endif
+
+static CommonOperGroup grBgBuffer_single_polygon("bg_buffer_single_polygon");
 static CommonOperGroup grBgBuffer_multi_polygon("bg_buffer_multi_polygon");
 static CommonOperGroup grBgBuffer_linestring   ("bg_buffer_linestring");
 
-static CommonOperGroup grOuter_polygon("outer_polygon");
-static CommonOperGroup grOuter_multi_polygon("outer_multi_polygon");
+#if DMS_VERSION_MAJOR < 15
+static Obsolete<CommonOperGroup> grOuter_polygon("use bg_outer_single_polygon", "outer_polygon");
+static Obsolete<CommonOperGroup> grOuter_multi_polygon("use bg_outer_multi_polygon", "outer_multi_polygon");
+#endif
+
+static CommonOperGroup grBgOuter_single_polygon("bg_outer_single_polygon");
+static CommonOperGroup grBgOuter_multi_polygon("bg_outer_multi_polygon");
 
 
 class AbstrSimplifyOperator : public BinaryOperator
@@ -539,9 +555,9 @@ struct SimplifyLinestringOperator : public AbstrSimplifyOperator
 	{
 		auto polyData = const_array_cast<PolygonType>(polyItem)->GetTile(t);
 		auto resData = mutable_array_cast<PolygonType>(resItem)->GetWritableTile(t);
-		dms_assert(polyData.size() == resData.size());
+		assert(polyData.size() == resData.size());
 
-		dms_assert(polyItem->GetValueComposition() == ValueComposition::Sequence);
+		assert(polyItem->GetValueComposition() == ValueComposition::Sequence);
 
 		bg_linestring_t currGeometry, resGeometry;
 
@@ -579,14 +595,14 @@ protected:
 
 	bool CreateResult(TreeItemDualRef& resultHolder, const ArgSeqType& args, bool mustCalc) const override
 	{
-		dms_assert(args.size() == 3);
+		assert(args.size() == 3);
 
 		const AbstrDataItem* arg1A = AsDataItem(args[0]);
 		const AbstrDataItem* arg2A = AsDataItem(args[1]);
 		const AbstrDataItem* arg3A = AsDataItem(args[2]);
-		dms_assert(arg1A);
-		dms_assert(arg2A);
-		dms_assert(arg3A);
+		assert(arg1A);
+		assert(arg2A);
+		assert(arg3A);
 
 		const AbstrUnit* domain1Unit = arg1A->GetAbstrDomainUnit(); bool e1IsVoid = domain1Unit->GetValueType() == ValueWrap<Void>::GetStaticClass();
 		const AbstrUnit* values1Unit = arg1A->GetAbstrValuesUnit();
@@ -595,13 +611,10 @@ protected:
 		const AbstrUnit* values2Unit = arg2A->GetAbstrValuesUnit();
 
 		const AbstrUnit* domain3Unit = arg3A->GetAbstrDomainUnit(); bool e3IsVoid = domain3Unit->GetValueType() == ValueWrap<Void>::GetStaticClass();
-//		const AbstrUnit* values3Unit = arg2A->GetAbstrValuesUnit();
+//		const AbstrUnit* values3Unit = arg3A->GetAbstrValuesUnit();
 
 		domain1Unit->UnifyDomain(domain2Unit, "e1", "e2", UnifyMode(UM_Throw | UM_AllowVoidRight));
 		domain1Unit->UnifyDomain(domain3Unit, "e1", "e3", UnifyMode(UM_Throw | UM_AllowVoidRight));
-
-		MG_CHECK(e2IsVoid);
-		MG_CHECK(e3IsVoid);
 
 		if (!resultHolder)
 			resultHolder = CreateCacheDataItem(domain1Unit, values1Unit, ValueComposition::Polygon);
@@ -610,16 +623,20 @@ protected:
 		{
 			DataReadLock arg1Lock(arg1A);
 			DataReadLock arg2Lock(arg2A);
-			Float64 bufferDistance = const_array_cast<Float64>(arg2A)->GetLockedDataRead()[0];
-			UInt8 nrPointsInCircle = const_array_cast<UInt8  >(arg3A)->GetLockedDataRead()[0];
+			DataReadLock arg3Lock(arg3A);
+
+			Float64 bufferDistance = e2IsVoid ? const_array_cast<Float64>(arg2A)->GetLockedDataRead()[0] : 0;
+			UInt8 nrPointsInCircle = e3IsVoid ? const_array_cast<UInt8  >(arg3A)->GetLockedDataRead()[0] : 0;
+
 			auto resItem = AsDataItem(resultHolder.GetNew());
 			DataWriteLock resLock(resItem, dms_rw_mode::write_only_mustzero);
 
-			parallel_tileloop(domain1Unit->GetNrTiles(), [this, resObj = resLock.get(), arg1A, bufferDistance, nrPointsInCircle](tile_id t)->void
+			parallel_tileloop(domain1Unit->GetNrTiles(), [=, this, resObj = resLock.get()](tile_id t)->void
 				{
-					ReadableTileLock readPoly1Lock(arg1A->GetCurrRefObj(), t);
-
-					Calculate(resObj, arg1A, bufferDistance, nrPointsInCircle, t);
+					this->Calculate(resObj, arg1A
+						, e2IsVoid, arg2A, bufferDistance
+						, e3IsVoid, arg3A, nrPointsInCircle
+						, t);
 				}
 			);
 
@@ -627,7 +644,11 @@ protected:
 		}
 		return true;
 	}
-	virtual void Calculate(AbstrDataObject* resObj, const AbstrDataItem* polyItem, Float64 bufferDistance, UInt8 pointsPerCircle, tile_id t) const = 0;
+	virtual void Calculate(AbstrDataObject* resObj
+		, const AbstrDataItem* polyItem
+		, bool e2IsVoid, const AbstrDataItem* bufDistItem, Float64 bufferDistance
+		, bool e3IsVoid, const AbstrDataItem* ppcItem, UInt8 pointsPerCircle
+		, tile_id t) const = 0;
 };
 
 template <typename P>
@@ -642,32 +663,52 @@ struct BufferPointOperator : public AbstrBufferOperator
 		: AbstrBufferOperator(grBgBuffer_point, ResultType::GetStaticClass(), Arg1Type::GetStaticClass())
 	{}
 
-	void Calculate(AbstrDataObject* resObj, const AbstrDataItem* pointItem, Float64 bufferDistance, UInt8 pointsPerCircle, tile_id t) const override
+	void Calculate(AbstrDataObject* resObj, const AbstrDataItem* pointItem
+		, bool e2IsVoid, const AbstrDataItem* bufDistItem, Float64 bufferDistance
+		, bool e3IsVoid, const AbstrDataItem* ppcItem, UInt8 pointsPerCircle
+		, tile_id t) const override
 	{
 		auto pointData = const_array_cast<PointType>(pointItem)->GetTile(t);
+		auto bufDistData = e2IsVoid ? DataArray<Float64>::locked_cseq_t{} : const_array_cast<Float64>(bufDistItem)->GetTile(t);
+		auto ppcData     = e3IsVoid ? DataArray<UInt8  >::locked_cseq_t{} : const_array_cast<UInt8>  (ppcItem    )->GetTile(t);
+
 		auto resData = mutable_array_cast<PolygonType>(resObj)->GetWritableTile(t);
-		dms_assert(pointData.size() == resData.size());
+		assert(pointData.size() == resData.size());
 
-		boost::geometry::strategy::buffer::distance_symmetric<Float64> distStrategy(bufferDistance);
-		boost::geometry::strategy::buffer::join_round                  joinStrategy(pointsPerCircle);
-		boost::geometry::strategy::buffer::end_round                   endStrategy(pointsPerCircle);
-		boost::geometry::strategy::buffer::point_circle                circleStrategy(pointsPerCircle);
-		boost::geometry::strategy::buffer::side_straight               sideStrategy;
+		SizeT i=0, n = pointData.size(); if (!n) return;
 
-		std::vector<PointType> ringClosurePoints;
-		dms_assert(pointItem->GetValueComposition() == ValueComposition::Single);
-
-		using bg_polygon_t = boost::geometry::model::polygon<DPoint>;
-
-		boost::geometry::model::multi_polygon<bg_polygon_t> resMP;
-		boost::geometry::buffer(DPoint(0, 0), resMP, distStrategy, sideStrategy, joinStrategy, endStrategy, circleStrategy);
-		boost::geometry::model::ring<DPoint> resRing = resMP[0].outer(), movedRing;
-
-		for (SizeT i = 0, n = pointData.size(); i != n; ++i)
+		while (true)
 		{
+			if (!e2IsVoid)
+				bufferDistance = bufDistData[i];
+			if (!e3IsVoid)
+				pointsPerCircle = ppcData[i];
+
+			boost::geometry::strategy::buffer::distance_symmetric<Float64> distStrategy(bufferDistance);
+			boost::geometry::strategy::buffer::join_round                  joinStrategy(pointsPerCircle);
+			boost::geometry::strategy::buffer::end_round                   endStrategy(pointsPerCircle);
+			boost::geometry::strategy::buffer::point_circle                circleStrategy(pointsPerCircle);
+			boost::geometry::strategy::buffer::side_straight               sideStrategy;
+
+			std::vector<PointType> ringClosurePoints;
+			assert(pointItem->GetValueComposition() == ValueComposition::Single);
+
+			using bg_polygon_t = boost::geometry::model::polygon<DPoint>;
+
+			boost::geometry::model::multi_polygon<bg_polygon_t> resMP;
+			boost::geometry::buffer(DPoint(0, 0), resMP, distStrategy, sideStrategy, joinStrategy, endStrategy, circleStrategy);
+
+			boost::geometry::model::ring<DPoint> resRing = resMP[0].outer();
+			boost::geometry::model::ring<DPoint> movedRing;
+
+		nextPointWithSameResRing:
 			movedRing = resRing;
 			move(movedRing, DPoint(pointData[i]));
 			store_ring(resData[i], movedRing);
+			if (++i == n)
+				break;
+			if (e2IsVoid && e3IsVoid)
+				goto nextPointWithSameResRing;
 		}
 	}
 };
@@ -683,26 +724,40 @@ struct BufferMultiPointOperator : public AbstrBufferOperator
 		: AbstrBufferOperator(grBgBuffer_multi_point, Arg1Type::GetStaticClass())
 	{}
 
-	void Calculate(AbstrDataObject* resObj, const AbstrDataItem* polyItem, Float64 bufferDistance, UInt8 pointsPerCircle, tile_id t) const override
+	void Calculate(AbstrDataObject* resObj, const AbstrDataItem* polyItem
+		, bool e2IsVoid, const AbstrDataItem* bufDistItem, Float64 bufferDistance
+		, bool e3IsVoid, const AbstrDataItem* ppcItem, UInt8 pointsPerCircle
+		, tile_id t) const override
 	{
 		auto polyData = const_array_cast<PolygonType>(polyItem)->GetTile(t);
+		auto bufDistData = e2IsVoid ? DataArray<Float64>::locked_cseq_t{} : const_array_cast<Float64>(bufDistItem)->GetTile(t);
+		auto ppcData = e3IsVoid ? DataArray<UInt8  >::locked_cseq_t{} : const_array_cast<UInt8>  (ppcItem)->GetTile(t);
+
 		auto resData = mutable_array_cast<PolygonType>(resObj)->GetWritableTile(t);
-		dms_assert(polyData.size() == resData.size());
+		assert(polyData.size() == resData.size());
 
-		boost::geometry::strategy::buffer::distance_symmetric<Float64> distStrategy(bufferDistance);
-		boost::geometry::strategy::buffer::join_round                  joinStrategy(pointsPerCircle);
-		boost::geometry::strategy::buffer::end_round                   endStrategy(pointsPerCircle);
-		boost::geometry::strategy::buffer::point_circle                circleStrategy(pointsPerCircle);
-		boost::geometry::strategy::buffer::side_straight               sideStrategy;
+		SizeT i = 0, n = polyData.size(); if (!n) return;
 
-		std::vector<DPoint> ringClosurePoints;
-		dms_assert(polyItem->GetValueComposition() == ValueComposition::Sequence);
-
-		boost::geometry::model::multi_point<DPoint> currGeometry;
-		bg_multi_polygon_t resMP;
-
-		for (SizeT i = 0, n = polyData.size(); i != n; ++i)
+		while (true)
 		{
+			if (!e2IsVoid)
+				bufferDistance = bufDistData[i];
+			if (!e3IsVoid)
+				pointsPerCircle = ppcData[i];
+
+			boost::geometry::strategy::buffer::distance_symmetric<Float64> distStrategy(bufferDistance);
+			boost::geometry::strategy::buffer::join_round                  joinStrategy(pointsPerCircle);
+			boost::geometry::strategy::buffer::end_round                   endStrategy(pointsPerCircle);
+			boost::geometry::strategy::buffer::point_circle                circleStrategy(pointsPerCircle);
+			boost::geometry::strategy::buffer::side_straight               sideStrategy;
+
+			std::vector<DPoint> ringClosurePoints;
+			dms_assert(polyItem->GetValueComposition() == ValueComposition::Sequence);
+
+			boost::geometry::model::multi_point<DPoint> currGeometry;
+			bg_multi_polygon_t resMP;
+
+		nextPointWithSameResRing:
 			resMP.clear();
 			currGeometry.assign(begin_ptr(polyData[i]), end_ptr(polyData[i]));
 
@@ -714,6 +769,11 @@ struct BufferMultiPointOperator : public AbstrBufferOperator
 			move(resMP, p);
 
 			store_multi_polygon(resData[i], resMP, ringClosurePoints);
+
+			if (++i == n)
+				break;
+			if (e2IsVoid && e3IsVoid)
+				goto nextPointWithSameResRing;
 		}
 	}
 };
@@ -729,27 +789,42 @@ struct BufferLineStringOperator : public AbstrBufferOperator
 		: AbstrBufferOperator(grBgBuffer_linestring, Arg1Type::GetStaticClass())
 	{}
 
-	void Calculate(AbstrDataObject* resItem, const AbstrDataItem* polyItem, Float64 bufferDistance, UInt8 pointsPerCircle, tile_id t) const override
+	void Calculate(AbstrDataObject* resItem, const AbstrDataItem* polyItem
+		, bool e2IsVoid, const AbstrDataItem* bufDistItem, Float64 bufferDistance
+		, bool e3IsVoid, const AbstrDataItem* ppcItem, UInt8 pointsPerCircle
+		, tile_id t) const override
 	{
 		dms_assert(polyItem->GetValueComposition() == ValueComposition::Sequence);
 
 		auto polyData = const_array_cast<PolygonType>(polyItem)->GetTile(t);
+		auto bufDistData = e2IsVoid ? DataArray<Float64>::locked_cseq_t{} : const_array_cast<Float64>(bufDistItem)->GetTile(t);
+		auto ppcData = e3IsVoid ? DataArray<UInt8  >::locked_cseq_t{} : const_array_cast<UInt8>  (ppcItem)->GetTile(t);
+
 		auto resData = mutable_array_cast<PolygonType>(resItem)->GetWritableTile(t);
-		dms_assert(polyData.size() == resData.size());
+		assert(polyData.size() == resData.size());
 
-		boost::geometry::strategy::buffer::distance_symmetric<Float64> distStrategy(bufferDistance);
-		boost::geometry::strategy::buffer::join_round                  joinStrategy(pointsPerCircle);
-		boost::geometry::strategy::buffer::end_round                   endStrategy(pointsPerCircle);
-		boost::geometry::strategy::buffer::point_circle                circleStrategy(pointsPerCircle);
-		boost::geometry::strategy::buffer::side_straight               sideStrategy;
+		SizeT i = 0, n = polyData.size(); if (!n) return;
 
-		std::vector<DPoint> ringClosurePoints;
-
-		bg_linestring_t currGeometry;
-		bg_multi_polygon_t resMP;
-
-		for (SizeT i = 0, n = polyData.size(); i != n; ++i)
+		while (true)
 		{
+			if (!e2IsVoid)
+				bufferDistance = bufDistData[i];
+			if (!e3IsVoid)
+				pointsPerCircle = ppcData[i];
+
+			boost::geometry::strategy::buffer::distance_symmetric<Float64> distStrategy(bufferDistance);
+			boost::geometry::strategy::buffer::join_round                  joinStrategy(pointsPerCircle);
+			boost::geometry::strategy::buffer::end_round                   endStrategy(pointsPerCircle);
+			boost::geometry::strategy::buffer::point_circle                circleStrategy(pointsPerCircle);
+			boost::geometry::strategy::buffer::side_straight               sideStrategy;
+
+			std::vector<DPoint> ringClosurePoints;
+
+			bg_linestring_t currGeometry;
+			bg_multi_polygon_t resMP;
+
+	nextPointWithSameResRing:
+
 			resMP.clear();
 			currGeometry.assign(begin_ptr(polyData[i]), end_ptr(polyData[i]));
 
@@ -761,6 +836,10 @@ struct BufferLineStringOperator : public AbstrBufferOperator
 			move(resMP, p);
 
 			store_multi_polygon(resData[i], resMP, ringClosurePoints);
+			if (++i == n)
+				break;
+			if (e2IsVoid && e3IsVoid)
+				goto nextPointWithSameResRing;
 		}
 	}
 };
@@ -772,30 +851,43 @@ struct BufferMultiPolygonOperator : public AbstrBufferOperator
 	using PolygonType = std::vector<PointType>;
 	using Arg1Type = DataArray<PolygonType>;
 
-	BufferMultiPolygonOperator()
-		: AbstrBufferOperator(grBgBuffer_multi_polygon, Arg1Type::GetStaticClass())
+	BufferMultiPolygonOperator(AbstrOperGroup& gr)
+		: AbstrBufferOperator(gr, Arg1Type::GetStaticClass())
 	{}
 
-	void Calculate(AbstrDataObject* resItem, const AbstrDataItem* polyItem, Float64 bufferDistance, UInt8 pointsPerCircle, tile_id t) const override
+	void Calculate(AbstrDataObject* resItem, const AbstrDataItem* polyItem
+		, bool e2IsVoid, const AbstrDataItem* bufDistItem, Float64 bufferDistance
+		, bool e3IsVoid, const AbstrDataItem* ppcItem, UInt8 pointsPerCircle
+		, tile_id t) const override
 	{
 		auto polyData = const_array_cast<PolygonType>(polyItem)->GetTile(t);
+		auto bufDistData = e2IsVoid ? DataArray<Float64>::locked_cseq_t{} : const_array_cast<Float64>(bufDistItem)->GetTile(t);
+		auto ppcData = e3IsVoid ? DataArray<UInt8  >::locked_cseq_t{} : const_array_cast<UInt8>  (ppcItem)->GetTile(t);
 		auto resData = mutable_array_cast<PolygonType>(resItem)->GetWritableTile(t);
-		dms_assert(polyData.size() == resData.size());
+		assert(polyData.size() == resData.size());
 
-		boost::geometry::strategy::buffer::distance_symmetric<Float64> distStrategy(bufferDistance);
-		boost::geometry::strategy::buffer::join_round                  joinStrategy(pointsPerCircle);
-		boost::geometry::strategy::buffer::end_round                   endStrategy(pointsPerCircle);
-		boost::geometry::strategy::buffer::point_circle                circleStrategy(pointsPerCircle);
-		boost::geometry::strategy::buffer::side_straight               sideStrategy;
+		SizeT i = 0, n = polyData.size(); if (!n) return;
 
-		std::vector<DPoint> helperPointArray;
-		bg_ring_t helperRing;
-
-		bg_polygon_t helperPolygon;
-		bg_multi_polygon_t currMP, resMP;
-
-		for (SizeT i = 0, n = polyData.size(); i != n; ++i)
+		while (true)
 		{
+			if (!e2IsVoid)
+				bufferDistance = bufDistData[i];
+			if (!e3IsVoid)
+				pointsPerCircle = ppcData[i];
+			boost::geometry::strategy::buffer::distance_symmetric<Float64> distStrategy(bufferDistance);
+			boost::geometry::strategy::buffer::join_round                  joinStrategy(pointsPerCircle);
+			boost::geometry::strategy::buffer::end_round                   endStrategy(pointsPerCircle);
+			boost::geometry::strategy::buffer::point_circle                circleStrategy(pointsPerCircle);
+			boost::geometry::strategy::buffer::side_straight               sideStrategy;
+
+			std::vector<DPoint> helperPointArray;
+			bg_ring_t helperRing;
+
+			bg_polygon_t helperPolygon;
+			bg_multi_polygon_t currMP, resMP;
+
+		nextPointWithSameResRing:
+
 			assign_multi_polygon(currMP, polyData[i], true, helperPolygon, helperRing);
 
 			auto lb = MaxValue<DPoint>();
@@ -807,42 +899,59 @@ struct BufferMultiPolygonOperator : public AbstrBufferOperator
 			move(resMP, lb);
 
 			store_multi_polygon(resData[i], resMP, helperPointArray);
+			if (++i == n)
+				break;
+			if (e2IsVoid && e3IsVoid)
+				goto nextPointWithSameResRing;
 		}
 	}
 };
 
 template <typename P>
-struct BufferPolygonOperator : public AbstrBufferOperator
+struct BufferSinglePolygonOperator : public AbstrBufferOperator
 {
 	using PointType = P;
 	using PolygonType = std::vector<PointType>;
 	using Arg1Type = DataArray<PolygonType>;
 
-	BufferPolygonOperator()
-		: AbstrBufferOperator(grBgBuffer_polygon, Arg1Type::GetStaticClass())
+	BufferSinglePolygonOperator(AbstrOperGroup& gr)
+		: AbstrBufferOperator(gr, Arg1Type::GetStaticClass())
 	{}
 
-	void Calculate(AbstrDataObject* resObj, const AbstrDataItem* polyItem, Float64 bufferDistance, UInt8 pointsPerCircle, tile_id t) const override
+	void Calculate(AbstrDataObject* resObj, const AbstrDataItem* polyItem
+		, bool e2IsVoid, const AbstrDataItem* bufDistItem, Float64 bufferDistance
+		, bool e3IsVoid, const AbstrDataItem* ppcItem, UInt8 pointsPerCircle
+		, tile_id t) const override
 	{
 		auto polyData = const_array_cast<PolygonType>(polyItem)->GetTile(t);
+		auto bufDistData = e2IsVoid ? DataArray<Float64>::locked_cseq_t{} : const_array_cast<Float64>(bufDistItem)->GetTile(t);
+		auto ppcData = e3IsVoid ? DataArray<UInt8  >::locked_cseq_t{} : const_array_cast<UInt8>  (ppcItem)->GetTile(t);
 		auto resData = mutable_array_cast<PolygonType>(resObj)->GetWritableTile(t);
-		dms_assert(polyData.size() == resData.size());
+		assert(polyData.size() == resData.size());
 
-		boost::geometry::strategy::buffer::distance_symmetric<Float64> distStrategy(bufferDistance);
-		boost::geometry::strategy::buffer::join_round                  joinStrategy(pointsPerCircle);
-		boost::geometry::strategy::buffer::end_round                   endStrategy(pointsPerCircle);
-		boost::geometry::strategy::buffer::point_circle                circleStrategy(pointsPerCircle);
-		boost::geometry::strategy::buffer::side_straight               sideStrategy;
+		SizeT i = 0, n = polyData.size(); if (!n) return;
 
-		std::vector<DPoint> ringClosurePoints;
-		boost::geometry::model::ring<DPoint> helperRing;
-
-		using bg_polygon_t = boost::geometry::model::polygon<DPoint>;
-		bg_polygon_t currPoly;
-		boost::geometry::model::multi_polygon<bg_polygon_t> resMP;
-
-		for (SizeT i = 0, n = polyData.size(); i != n; ++i)
+		while (true)
 		{
+			if (!e2IsVoid)
+				bufferDistance = bufDistData[i];
+			if (!e3IsVoid)
+				pointsPerCircle = ppcData[i];
+			boost::geometry::strategy::buffer::distance_symmetric<Float64> distStrategy(bufferDistance);
+			boost::geometry::strategy::buffer::join_round                  joinStrategy(pointsPerCircle);
+			boost::geometry::strategy::buffer::end_round                   endStrategy(pointsPerCircle);
+			boost::geometry::strategy::buffer::point_circle                circleStrategy(pointsPerCircle);
+			boost::geometry::strategy::buffer::side_straight               sideStrategy;
+
+			std::vector<DPoint> ringClosurePoints;
+			boost::geometry::model::ring<DPoint> helperRing;
+
+			using bg_polygon_t = boost::geometry::model::polygon<DPoint>;
+			bg_polygon_t currPoly;
+			boost::geometry::model::multi_polygon<bg_polygon_t> resMP;
+
+		nextPointWithSameResRing:
+
 			assign_polygon(currPoly, polyData[i], true, helperRing);
 			if (currPoly.outer().empty())
 				continue;
@@ -856,6 +965,10 @@ struct BufferPolygonOperator : public AbstrBufferOperator
 			move(resMP, lb);
 
 			store_multi_polygon(resData[i], resMP, ringClosurePoints);
+			if (++i == n)
+				break;
+			if (e2IsVoid && e3IsVoid)
+				goto nextPointWithSameResRing;
 		}
 	}
 };
@@ -908,40 +1021,42 @@ struct OuterMultiPolygonOperator : public AbstrOuterOperator
 	using PolygonType = std::vector<PointType>;
 	using Arg1Type = DataArray<PolygonType>;
 
-	OuterMultiPolygonOperator()
-		: AbstrOuterOperator(grOuter_multi_polygon, Arg1Type::GetStaticClass())
+	OuterMultiPolygonOperator(AbstrOperGroup& gr)
+		: AbstrOuterOperator(gr, Arg1Type::GetStaticClass())
 	{}
 
 	void Calculate(AbstrDataObject* resItem, const AbstrDataItem* polyItem, tile_id t) const override
 	{
 		auto polyData = const_array_cast<PolygonType>(polyItem)->GetTile(t);
 		auto resData = mutable_array_cast<PolygonType>(resItem)->GetWritableTile(t);
-		dms_assert(polyData.size() == resData.size());
+		assert(polyData.size() == resData.size());
 
 		std::vector<DPoint> ringClosurePoints;
 		bg_ring_t currRing;
 
 		using bg_polygon_t = boost::geometry::model::polygon<DPoint>;
 		bg_polygon_t currPoly;
-		bg_multi_polygon_t currMP, resMP;
+		bg_multi_polygon_t currMP;
 
 		for (SizeT i = 0, n = polyData.size(); i != n; ++i)
 		{
 			assign_multi_polygon(currMP, polyData[i], false, currPoly, currRing);
-			store_multi_polygon(resData[i], resMP, ringClosurePoints);
+
+			if (!currMP.empty())
+				store_multi_polygon(resData[i], currMP, ringClosurePoints);
 		}
 	}
 };
 
 template <typename P>
-struct OuterPolygonOperator : public AbstrOuterOperator
+struct OuterSingePolygonOperator : public AbstrOuterOperator
 {
 	using PointType = P;
 	using PolygonType = std::vector<PointType>;
 	using Arg1Type = DataArray<PolygonType>;
 
-	OuterPolygonOperator()
-		: AbstrOuterOperator(grOuter_polygon, Arg1Type::GetStaticClass())
+	OuterSingePolygonOperator(AbstrOperGroup& gr)
+		: AbstrOuterOperator(gr, Arg1Type::GetStaticClass())
 	{}
 
 	void Calculate(AbstrDataObject* resObj, const AbstrDataItem* polyItem, tile_id t) const override
@@ -950,17 +1065,16 @@ struct OuterPolygonOperator : public AbstrOuterOperator
 		auto resData = mutable_array_cast<PolygonType>(resObj)->GetWritableTile(t);
 		dms_assert(polyData.size() == resData.size());
 
-		std::vector<DPoint> ringClosurePoints;
 		bg_ring_t helperRing;
 
 		bg_polygon_t  currPoly;
-		bg_multi_polygon_t resMP;
 
 		for (SizeT i = 0, n = polyData.size(); i != n; ++i)
 		{
 			assign_polygon(currPoly, polyData[i], false, helperRing);
 
-			store_multi_polygon(resData[i], resMP, ringClosurePoints);
+			if (!currPoly.outer().empty())
+				store_ring(resData[i], currPoly.outer());
 		}
 	}
 };
@@ -977,10 +1091,18 @@ namespace
 	tl_oper::inst_tuple_templ<typelists::points, BufferPointOperator> bufferPointOperators;
 	tl_oper::inst_tuple_templ<typelists::points, BufferMultiPointOperator> bufferMultiPointOperators;
 	tl_oper::inst_tuple_templ<typelists::points, BufferLineStringOperator> bufferLineStringOperators;
-	tl_oper::inst_tuple_templ<typelists::points, BufferPolygonOperator> bufferPolygonOperators;
-	tl_oper::inst_tuple_templ<typelists::points, BufferMultiPolygonOperator> bufferMultiPolygonOperators;
 
-	tl_oper::inst_tuple_templ<typelists::points, OuterPolygonOperator> outerPolygonOperators;
-	tl_oper::inst_tuple_templ<typelists::points, OuterMultiPolygonOperator> outerMultiPolygonOperators;
+#if DMS_VERSION_MAJOR < 15
+	tl_oper::inst_tuple_templ<typelists::points, BufferSinglePolygonOperator, AbstrOperGroup&> bg_bufferPolygonOperators(grBgBuffer_polygon);
+#endif
+	tl_oper::inst_tuple_templ<typelists::points, BufferSinglePolygonOperator, AbstrOperGroup&> bg_buffersinglePolygonOperators(grBgBuffer_single_polygon);
+	tl_oper::inst_tuple_templ<typelists::points, BufferMultiPolygonOperator, AbstrOperGroup&> bg_bufferMultiPolygonOperators(grBgBuffer_multi_polygon);
+
+#if DMS_VERSION_MAJOR < 15
+	tl_oper::inst_tuple_templ<typelists::points, OuterSingePolygonOperator, AbstrOperGroup&> outerPolygonOperators(grOuter_polygon);
+	tl_oper::inst_tuple_templ<typelists::points, OuterMultiPolygonOperator, AbstrOperGroup&> outerMultiPolygonOperators(grOuter_multi_polygon);
+#endif
+	tl_oper::inst_tuple_templ<typelists::points, OuterSingePolygonOperator, AbstrOperGroup&> bg_outerSinglePolygonOperators(grBgOuter_single_polygon);
+	tl_oper::inst_tuple_templ<typelists::points, OuterMultiPolygonOperator, AbstrOperGroup&> bg_outerMultiPolygonOperators(grBgOuter_multi_polygon);
 }
 

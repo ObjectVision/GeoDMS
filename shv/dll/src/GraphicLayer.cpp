@@ -314,12 +314,10 @@ void GraphicLayer::FillLcMenu(MenuData& menuData)
 
 //	Get Statistics
 	if (GetThemeDisplayItem()) // false if ThemeSet has just been initialized
-		menuData.push_back(
-			MenuItem(
-				"Show Statistics on " + GetThemeDisplayName(this), 
+		menuData.emplace_back(
+				"Show Statistics of " + GetThemeDisplayName(this), 
 				new RequestClientCmd(GetThemeDisplayItem(), CC_ShowStatistics),
 				this
-			) 
 		);
 
 	std::vector<AspectNr> classifialbeAspects;

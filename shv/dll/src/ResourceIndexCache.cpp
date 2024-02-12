@@ -82,7 +82,7 @@ ResourceIndexCache::ResourceIndexCache(
 			m_WorldWidthValueGetter = worldWidthTheme->GetValueGetter();
 	}
 	else if (m_DefaultWorldWidth > 0)
-		m_DefaultWorldWidth = GetUnitSizeInMeters(projectionBaseUnit);
+		m_DefaultWorldWidth /= GetUnitSizeInMeters(projectionBaseUnit); // assume that the given default world width was in meters and we need Coordinate Units
 }
 
 bool ResourceIndexCache::CompareValueGetter(const AbstrThemeValueGetter* additionalTheme) const

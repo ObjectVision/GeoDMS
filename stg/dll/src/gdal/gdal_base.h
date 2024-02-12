@@ -237,6 +237,7 @@ private:
 // *****************************************************************************
 GDALDatasetHandle Gdal_DoOpenStorage(const StorageMetaInfo& smi, dms_rw_mode rwMode, UInt32 gdalOpenFlags, bool continueWrite);
 
+
 using gdal_transform = double[6];
 
 CrdTransformation GetTransformation(gdal_transform gdalTr);

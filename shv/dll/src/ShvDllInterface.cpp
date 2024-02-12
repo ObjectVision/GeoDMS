@@ -448,7 +448,6 @@ SHV_CALL ViewStyleFlags DMS_CONV SHV_GetViewStyleFlags(const TreeItem* item)
 {
 	DMS_CALL_BEGIN
 
-//		SuspendTrigger::Resume();
 		SuspendTrigger::FencedBlocker blockSuspension;
 
 		dms_assert(item);
@@ -492,7 +491,6 @@ SHV_CALL ViewStyleFlags DMS_CONV SHV_GetViewStyleFlags(const TreeItem* item)
 		return ViewStyleFlags( g_LastViewStyleFlags );
 
 	DMS_CALL_END
-
 	return vsfNone;
 }
 
@@ -505,13 +503,13 @@ SHV_CALL ViewStyle DMS_CONV SHV_GetDefaultViewStyle (const TreeItem* item)
 		SuspendTrigger::FencedBlocker lock;
 
 		ViewStyleFlags vsf = SHV_GetViewStyleFlags(item);
-		if (vsf & vsfMapView           )return tvsMapView;
-		if (vsf & vsfPaletteEdit       )return tvsPaletteEdit;
-		if (vsf & vsfClassificationEdit)return tvsClassificationEdit;
-		if (vsf & vsfTableView         )return tvsTableView;
-		if (vsf & vsfTableContainer    )return tvsTableContainer;
-		if (vsf & vsfContainer         )return tvsContainer;
-		if (vsf & vsfExprEdit          )return tvsExprEdit;
+		if (vsf & vsfMapView           ) return tvsMapView;
+		if (vsf & vsfPaletteEdit       ) return tvsPaletteEdit;
+		if (vsf & vsfClassificationEdit) return tvsClassificationEdit;
+		if (vsf & vsfTableView         ) return tvsTableView;
+		if (vsf & vsfTableContainer    ) return tvsTableContainer;
+		if (vsf & vsfContainer         ) return tvsContainer;
+		if (vsf & vsfExprEdit          ) return tvsExprEdit;
 
 	DMS_CALL_END_NOTHROW
 	return tvsDefault;

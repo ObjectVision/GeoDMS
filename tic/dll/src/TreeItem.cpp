@@ -17,7 +17,7 @@
 #include "act/UpdateMark.h"
 #include "dbg/debug.h"
 #include "dbg/DmsCatch.h"
-#include "mci/SingleLinkedList.inc"
+#include "mci/SingleLinkedTree.inc"
 #include "mci/PropDef.h"
 #include "ser/VectorStream.h"
 #include "set/VectorFunc.h"
@@ -221,8 +221,9 @@ TreeItemAdmLock::~TreeItemAdmLock()
 	if (--s_nrTreeItemAdmLocks)
 		return;
 
-	dms_assert(s_TreeItems);
-	Report();
+	assert(s_TreeItems);
+	if (!g_IsTerminating)
+		Report();
 
 	assert(!s_TreeItems->size());
 	s_TreeItems.reset();
@@ -342,12 +343,8 @@ void TreeItem::EnableAutoDeleteImpl() // does not call UpdateMetaInfo
 	while (subItem)
 	{
 		if (subItem->IsAutoDeleteDisabled() )
-		{
-			#if defined(MG_DEBUG_DATA)
-				auto_flag_recursion_lock<ASFD_SetAutoDeleteLock> reentryLock(subItem->Actor::m_State);
-			#endif
 			subItem->EnableAutoDeleteImpl();
-		}
+
 		subItem = subItem->GetNextItem(); // this line may cause the destruction of the old subItem
 	}
 
@@ -387,11 +384,6 @@ void TreeItem::EnableAutoDelete() // does not call UpdateMetaInfo
 {
 	if (! IsAutoDeleteDisabled())
 		return;
-
-	#if defined(MG_DEBUG_DATA)
-		dms_assert(!Actor::m_State.Get(ASFD_SetAutoDeleteLock)); 
-		Actor::m_State.Set(ASFD_SetAutoDeleteLock);
-	#endif
 
 	bool isConfigRoot = !(IsCacheItem() || IsEndogenous() || GetTreeParent());
 
@@ -2339,10 +2331,21 @@ LispRef TreeItem::GetCheckedKeyExpr() const
 		auto valueList = AsDataItem(this)->GetDataObj()->GetValuesAsKeyArgs(adi->GetAbstrValuesUnit()->GetCheckedKeyExpr());
 		if (adi->HasVoidDomainGuarantee())
 		{
-			dms_assert(valueList.IsRealList());
-			dms_assert(valueList.Right().EndP());
+			assert(valueList.IsRealList());
+			assert(valueList.Right().EndP());
 			return valueList.Left();
 		}
+		if (valueList.EndP())
+			return ExprList(token::const_
+				,	ExprList(adi->GetAbstrValuesUnit()->GetValueType()->GetID()
+					,	LispRef(Number(0))
+					)
+				,	adi->GetAbstrDomainUnit()->GetCheckedKeyExpr()
+				);
+
+		// more than one value, so we need a union
+		assert(valueList.IsRealList());
+		assert(valueList.Right().IsRealList());
 		return LispRef(
 			LispRef(token::union_data)
 			, LispRef(adi->GetAbstrDomainUnit()->GetCheckedKeyExpr()
@@ -2978,15 +2981,16 @@ SharedStr TreeItem::GetSourceName() const
 {
 	SharedStr inhSN = base_type::GetSourceName();
 
-	if (!GetConfigFileLineNr())
-		return inhSN;
-
+//	if (!GetConfigFileLineNr())
+	return inhSN;
+/*
 	return mySSPrintF("%s(%u,%u): %s"
 	,	ConvertDmsFileNameAlways(GetConfigFileName())
 	,	GetConfigFileLineNr()
 	,	GetConfigFileColNr()
 	,	inhSN
 	);
+*/
 }
 
 bool TreeItem::DoFail(ErrMsgPtr msg, FailType ft) const
@@ -3039,7 +3043,7 @@ bool TreeItem::ReadItem(StorageReadHandle&& srh) // TODO: Make this a method of 
 
 	try
 	{
-		reportF(MsgCategory::storage_read, SeverityTypeID::ST_MajorTrace, "Read %s(%s)"
+		reportF(MsgCategory::storage_read, SeverityTypeID::ST_MajorTrace, "Read %s [[%s]]"
 		,		storageParent->GetStorageManager()->GetNameStr().c_str()
 		,		GetFullName().c_str()
 		);	
@@ -3822,25 +3826,36 @@ AbstrStorageManager* TreeItem::GetStorageManager(bool throwOnFailure) const
 { 
 	if (!m_StorageManager)
 	{
+		assert(IsMetaThread());
+
+		if (m_State.Get(ASF_GetStorageManagerLock))
+		{
+			throwItemError(
+				"Invalid recursion detected in GetStorageManager.\n"
+				"Check the storage definition rule and other referring properties of this item and/or its SubItems"
+			);
+		}
+		auto_flag_recursion_lock< ASF_GetStorageManagerLock, true> lockit(m_State);
+
 		dms_assert(HasStorageManager()); // prcondition: GetStorageManager may only be called when HasStorageManager() returns true
-			dms_assert(!IsCacheItem());        // implied by HasStorageManager()
-			dms_assert(!InTemplate());         // implied by HasStorageManager()
-			dms_assert(!IsDisabledStorage());  // implied by HasStorageManager()
-			dms_assert( storageNamePropDefPtr->HasNonDefaultValue(this));
+		dms_assert(!IsCacheItem());        // implied by HasStorageManager()
+		dms_assert(!InTemplate());         // implied by HasStorageManager()
+		dms_assert(!IsDisabledStorage());  // implied by HasStorageManager()
+		dms_assert(storageNamePropDefPtr->HasNonDefaultValue(this));
 
 		SharedStr storageName = TreeItemPropertyValue(this, storageNamePropDefPtr);
 		auto sm = AbstrStorageManager::Construct(this
-		,	storageName
-		,	storageTypePropDefPtr    ->GetValue(this)
-		,	storageReadOnlyPropDefPtr->GetValue(this)
-		,	throwOnFailure
+			, storageName
+			, storageTypePropDefPtr->GetValue(this)
+			, storageReadOnlyPropDefPtr->GetValue(this)
+			, throwOnFailure
 		);
 
 		dms_assert(sm || !throwOnFailure); // guaranteed by AbstrStorageManager::Construct
 		if (sm)
 			const_cast<TreeItem*>(this)->SetStorageManager(sm); // resets m_DisabledStorage
 	}
-	dms_assert(m_StorageManager || !throwOnFailure);
+	assert(m_StorageManager || !throwOnFailure);
 	return m_StorageManager;
 }
 

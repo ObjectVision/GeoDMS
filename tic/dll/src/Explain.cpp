@@ -136,8 +136,6 @@ namespace Explain { // local defs
 		return valStr;
 	}
 
-
-
 	struct DataCalcExplanation : AbstrCalcExplanation
 	{
 		DataCalcExplanation(const AbstrDataItem* dataItem)
@@ -862,7 +860,7 @@ namespace Explain { // local defs
 			SizeT recno = m_Coordinates[0].first;
 			const AbstrValue* valuesValue = m_Coordinates[0].second;
 			auto val_str = GetDisplayValueString(calculatingStr, m_DataItem->GetAbstrValuesUnit(), valuesValue, true, m_Interests.m_valuesLabel, MAX_TEXTOUT_SIZE, m_UnitLabelLocks.second);
-			auto explaining_string = is_parameter ? SharedStr("Explaining parameter value: ") : SharedStr("Explaining row: ") + AsString(recno).c_str() + " with value: ";
+			auto explaining_string = is_parameter ? SharedStr("Explaining parameter value ") : SharedStr("Explaining row: ") + AsString(recno).c_str() + " with value ";
 			stream << explaining_string.c_str();
 
 			{

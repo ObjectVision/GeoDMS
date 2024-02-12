@@ -210,7 +210,8 @@ TokenStr Object::GetName() const
 
 bool Object::IsKindOf(const Class* cls) const
 {
-	return GetDynamicClass()->IsDerivedFrom(cls);
+	auto dynamic_class =  GetDynamicClass();
+	return dynamic_class->IsDerivedFrom(cls);
 }
 
 TokenStr Object::GetXmlClassName() const
@@ -427,10 +428,7 @@ SharedStr PersistentSharedObj::GetSourceName() const
 {
 	if (GetParent())
 		return
-			mySSPrintF("%s: %s"
-			,	GetFullName().c_str()
-			,	GetClsName().c_str()
-			);
+			mySSPrintF("[[%s]]", GetFullName().c_str());
 	TokenStr nameID = GetName();
 	return 
 		mySSPrintF("%s: %s"

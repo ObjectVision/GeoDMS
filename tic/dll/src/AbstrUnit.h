@@ -90,6 +90,7 @@ public:
 	TIC_CALL bool HasVarRangeData() const;
 	TIC_CALL void SetSpatialReference(TokenID format);
 
+	TIC_CALL SharedStr GetBackgroundReference() const;
 	TIC_CALL TokenID   GetSpatialReference    () const;
 	TIC_CALL TokenID   GetCurrSpatialReference() const;
 	TIC_CALL SharedStr GetMetricStr           (FormattingFlags ff) const;
@@ -154,8 +155,6 @@ public:
 
 // Support for ordinals
 	virtual void SetCount(SizeT count);
-	virtual void Split   (SizeT pos, SizeT len);
-	virtual void Merge   (SizeT pos, SizeT len);
 
 	void OnDomainChange(const DomainChangeInfo* info);
 

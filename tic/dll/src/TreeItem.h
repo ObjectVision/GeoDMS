@@ -39,7 +39,7 @@ granted by an additional written contract for support, assistance and/or develop
 
 #include "act/Actor.h"
 #include "act/Any.h"
-#include "mci/SingleLinkedList.h"
+#include "mci/SingleLinkedTree.h"
 #include "ptr/InterestHolders.h"
 #include "ptr/PersistentSharedObj.h"
 #include "ptr/OwningPtr.h"
@@ -68,7 +68,7 @@ struct SupplCache;
 struct SourceLocation;
 
 class AbstrCalculator;
-using TreeItemList = single_linked_list<TreeItem>;
+using ItemTree = single_linked_tree<TreeItem>;
 
 #if defined(MG_DEBUG)
 
@@ -108,7 +108,7 @@ TIC_CALL const TreeItem* FindTreeItemByID(const TreeItem* searchLoc, TokenID sub
 // class  : TreeItem
 //----------------------------------------------------------------------
 
-struct TreeItem : Actor, TreeItemList
+struct TreeItem : Actor, ItemTree
 {
 	using base_type = Actor ;
 

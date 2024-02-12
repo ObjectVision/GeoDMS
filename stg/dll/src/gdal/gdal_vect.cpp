@@ -16,7 +16,6 @@
 #include "ogrsf_frmts.h"
 #include "ogr_api.h"
 
-
 #include "dbg/debug.h"
 #include "dbg/SeverityType.h"
 #include "geo/Conversions.h"
@@ -715,8 +714,18 @@ void ReadStrAttrData(OGRLayer* layer, SizeT currFieldIndex, sequence_traits<Shar
 			DMS_ASyncContinueCheck();
 
 		DataArray<SharedStr>::reference dataElemRef = data[i];
-		gdalVectImpl::FeaturePtr feat = hDS->TestCapability(ODsCRandomLayerRead) ? GetNextFeatureInterleaved(layer, hDS) : layer->GetNextFeature();
-		if (feat && !feat->IsFieldNull(currFieldIndex) && feat->IsFieldSet(currFieldIndex))
+		bool dataset_has_random_layer_read_capability = hDS->TestCapability(ODsCRandomLayerRead);
+		gdalVectImpl::FeaturePtr feat = dataset_has_random_layer_read_capability ? GetNextFeatureInterleaved(layer, hDS) : layer->GetNextFeature();
+		if (!feat)
+		{
+			Assign(dataElemRef, Undefined());
+			continue;
+		}
+
+		bool feature_field_is_null = feat->IsFieldNull(currFieldIndex);
+		bool feature_field_is_set = feat->IsFieldSet(currFieldIndex);
+
+		if (feat && !feature_field_is_null && feature_field_is_set)
 		{
 			CharPtr fieldAsString;
 			fieldAsString = feat->GetFieldAsString(currFieldIndex);
@@ -820,6 +829,8 @@ void ReadDoubleAttrData(OGRLayer* layer, SizeT currFieldIndex, typename sequence
 bool GdalVectSM::ReadAttrData(const GdalVectlMetaInfo* br, AbstrDataObject * ado, tile_id t, SizeT firstIndex, SizeT size)
 {
 	OGRLayer* layer = br->Layer();
+	if (layer && t==0 && firstIndex == 0 && size)
+		layer->ResetReading();
 //	dms_assert(br->m_CurrFieldIndex != -1); 
 	// TODO G8: REMOVE following if, as it should have been set by the GdalVectlMetaInfo provider
 	if (br->m_CurrFieldIndex==-1) {
@@ -1554,21 +1565,6 @@ bool IsVatDomain(const AbstrUnit* au)
 #include "DataItemClass.h"
 #include "Unit.h"
 #include "UnitClass.h"
-
-void UpdateSpatialRef(const GDALDatasetHandle& hDS, AbstrDataItem* geometry, std::optional<OGRSpatialReference>& spatialRef)
-{
-	if (!spatialRef)
-		return;
-	assert(geometry);
-
-	auto gvu = GetBaseProjectionUnitFromValuesUnit(geometry); // TODO: create spatial reference if unavailable
-	CheckSpatialReference(spatialRef, geometry, const_cast<AbstrUnit*>(gvu)); 
-
-	auto wkt = GetAsWkt(&*spatialRef);
-	if (!wkt.empty())
-		geometry->SetDescr(wkt);
-}
-
 #include "mci/ValueWrap.h"
 #include "mci/ValueClass.h"
 #include "Unit.h"
@@ -1579,45 +1575,80 @@ void GdalVectSM::DoUpdateTable(const TreeItem* storageHolder, AbstrUnit* layerDo
 {
 	dms_assert(layer);
 	GDAL_ErrorFrame gdal_error_frame;
+	auto layer_geometry_type = layer->GetGeomType();
+	ValueComposition gdal_vc = gdalVectImpl::OGR2ValueComposition(layer_geometry_type);
+	bool create_vu_from_datasource = false;
 
-	ValueComposition gdal_vc = gdalVectImpl::OGR2ValueComposition(layer->GetGeomType());
-	auto vu = FindProjectionRef(storageHolder, layerDomain);
-	if (!vu)
-		vu = Unit<DPoint>::GetStaticClass()->CreateDefault();
+	const OGRSpatialReference* ogrSR_ptr = layer->GetSpatialRef();
+	std::optional<OGRSpatialReference> ogrSR;
+	if (ogrSR_ptr)
+		ogrSR = *ogrSR_ptr;
 
-	if (!(layer->GetGeomType() == OGRwkbGeometryType::wkbNone))
+	if (!(layer_geometry_type == OGRwkbGeometryType::wkbNone))
 	{
 		auto geometry_item = layerDomain->GetSubTreeItemByID(token::geometry);
 		AbstrDataItem* geometry = AsDynamicDataItem(geometry_item);
 		if (geometry)
 		{
-			ValueComposition configured_vc = geometry->GetValueComposition();
-			if (configured_vc != gdal_vc && gdal_vc != ValueComposition::Unknown)
-				geometry->Fail("Value composition incompatible with GDAL's formal geometry type", FR_MetaInfo);
+			if (auto gvu = geometry->GetAbstrValuesUnit())
+				if (gvu->GetValueType()->GetValueClassID() != ValueClassID::VT_String)
+				{
+					ValueComposition configured_vc = geometry->GetValueComposition();
+					if (configured_vc != gdal_vc && gdal_vc != ValueComposition::Unknown)
+						geometry->Fail("Value composition incompatible with GDAL's formal geometry type", FR_MetaInfo);
+				}
 		}
 		else
 		{
-			if (gdal_vc == ValueComposition::Unknown)
+			if (gdal_vc == ValueComposition::Unknown) // attempt interpreting geometry type using first feature
 			{
-				vu = Unit<SharedStr>::GetStaticClass()->CreateDefault();
-				gdal_vc = ValueComposition::String;
+				OGRwkbGeometryType first_feature_geometry_type = OGRwkbGeometryType::wkbUnknown;
+				auto first_feature = layer->GetNextFeature();
+				layer->GetGeometryColumn();
+				if (first_feature)
+				{
+					auto geometry_ref = first_feature->GetGeometryRef();
+					first_feature_geometry_type = geometry_ref->getGeometryType();
+					gdal_vc = gdalVectImpl::OGR2ValueComposition(first_feature_geometry_type);
+				}
+				layer->ResetReading();
 			}
+
+			// create default value unit from gdal_vc
+			SharedUnit vu;
+			if (gdal_vc == ValueComposition::Unknown)
+				vu = Unit<SharedStr>::GetStaticClass()->CreateDefault();
+			else
+				vu = FindProjectionRef(storageHolder, layerDomain);
+
+			if (ogrSR_ptr) // spatial reference available
+			{
+				SharedStr wkt = GetAsWkt(&*ogrSR_ptr);
+				if (!wkt.empty())
+				{
+					auto vu_tmp = Unit<DPoint>::GetStaticClass()->CreateUnit(layerDomain, GetTokenID_mt("SpatialReference"));
+					vu_tmp->SetSpatialReference(GetTokenID_mt(wkt));
+					vu_tmp->DisableStorage(true); // used to avoid reentrance on DoUpdateTree
+					if (!vu)
+						vu = vu_tmp;
+				}
+			}
+			else if (!vu) // default value
+				vu = Unit<DPoint>::GetStaticClass()->CreateDefault();
+
+			// create missing geometry treeitem
+			if (gdal_vc == ValueComposition::Unknown)
+				gdal_vc = ValueComposition::String; // == ValueComposition::Single
+
 			geometry = CreateDataItem(
 				layerDomain, token::geometry,
 				layerDomain, vu, gdal_vc
 			);
 		}
-		dms_assert(geometry);
-		if (gdal_vc != ValueComposition::String)
-		{
-			const OGRSpatialReference* ogrSR_ptr = layer->GetSpatialRef();
-			std::optional<OGRSpatialReference> ogrSR; 
-			if (ogrSR_ptr) 
-				ogrSR = *ogrSR_ptr;
-			UpdateSpatialRef(m_hDS, geometry, ogrSR);
-		}
+		// check spatial reference
+		auto gvu = GetBaseProjectionUnitFromValuesUnit(geometry);
+		CheckSpatialReference(ogrSR, geometry, const_cast<AbstrUnit*>(gvu));
 	}
-
 
 	// Update Attribute Fields
 	WeakPtr<OGRFeatureDefn> featureDefn = layer->GetLayerDefn();
@@ -1642,6 +1673,9 @@ void GdalVectSM::DoUpdateTable(const TreeItem* storageHolder, AbstrUnit* layerDo
 void GdalVectSM::DoUpdateTree(const TreeItem* storageHolder, TreeItem* curr, SyncMode sm) const
 {
 	if (dynamic_cast<const GdalWritableVectSM*>(this))
+		return;
+
+	if (curr->IsDisabledStorage())
 		return;
 
 	NonmappableStorageManager::DoUpdateTree(storageHolder, curr, sm);
@@ -1696,6 +1730,57 @@ void GdalVectSM::DoUpdateTree(const TreeItem* storageHolder, TreeItem* curr, Syn
 			Unit<UInt32>::GetStaticClass()->CreateUnit(curr, layerID);
 		}
 	}
+}
+
+
+
+prop_tables GdalVectSM::GetPropTables(const TreeItem* storageHolder, TreeItem* curr) const
+{
+	prop_tables vector_dataset_properties;
+
+	// Filename
+	auto grid_dataset_filename = GetNameStr();
+	vector_dataset_properties.push_back({ 0, {GetTokenID_mt("Filename"), grid_dataset_filename} });
+
+	GDAL_ErrorFrame gdal_error_frame;
+	auto smi = GdalMetaInfo(storageHolder, curr);
+	DoOpenStorage(smi, dms_rw_mode::read_only);
+	auto gdal_ds_handle = Gdal_DoOpenStorage(smi, dms_rw_mode::read_only, 0, false);
+
+	// Spatial reference
+	auto srs = m_hDS->GetSpatialRef();
+	if (srs)
+	{
+		char* pszWKT = nullptr;
+		srs->exportToPrettyWkt(&pszWKT, false);
+		vector_dataset_properties.push_back({ 1, {GetTokenID_mt("Spatial reference"), SharedStr(pszWKT)} });
+	}
+
+	// Layers
+	auto layers = m_hDS->GetLayers();
+	vector_dataset_properties.push_back({ 1, {GetTokenID_mt("Number of layers"), AsString(layers.size())} });
+	for (auto layer : layers)
+	{
+		vector_dataset_properties.push_back({ 2, {GetTokenID_mt("Layer"), SharedStr(layer->GetName())}});
+		auto layer_definition = layer->GetLayerDefn();
+
+		// geometry field
+		auto geometry_field = layer_definition->GetGeomFieldDefn(0);
+		auto geometry_type = geometry_field->GetType();
+		vector_dataset_properties.push_back({ 3, {GetTokenID_mt("Geometry"), SharedStr(OGRGeometryTypeToName(geometry_type)) }});
+
+		auto field_count = layer_definition->GetFieldCount();
+		// fields
+		for (int i=0; i<field_count; i++)
+		{
+			auto field = layer_definition->GetFieldDefn(i);
+			auto field_name = field->GetNameRef();
+			vector_dataset_properties.push_back({ 3, {GetTokenID_mt(field_name), SharedStr(field->GetFieldTypeName(field->GetType()) + SharedStr(", ") + SharedStr(field->GetFieldSubTypeName(field->GetSubType())))} });
+		}
+	}
+
+	DoCloseStorage(false);
+	return vector_dataset_properties;
 }
 
 // Register

@@ -72,6 +72,12 @@ template <typename T> inline
 FormattedInpStream& operator >> (FormattedInpStream& is, Point<T>& p)
 {
 	is >> "{" >> p.first >> ", " >> p.second >> "}";
+
+	reportF(SeverityTypeID::ST_Warning, "depreciated syntax for point data used.\n"
+		"Use the %s operation to unambiguously create points.\n"
+		, g_cfgColFirst ? "point_xy" : "point_yx"
+	);
+
 	cfg2dms_order_inplace(p);
 	return is;
 }

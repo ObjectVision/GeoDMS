@@ -118,6 +118,11 @@ CharPtr AbstrMsgGenerator::GetDescription()
 	return "ABSTRACT AbstrContextHandle::GetDescription()";
 }
 
+auto AbstrMsgGenerator::ItemAsStr() const->SharedStr
+{
+	return SharedStr("ABSTRACT AbstrContextHandle::ItemAsStr()");
+}
+
 template <> AbstrContextHandle* AbstrContextHandle::GetPrev() const
 {
 	return m_Prev;

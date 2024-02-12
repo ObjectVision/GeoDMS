@@ -1,31 +1,6 @@
-//<HEADER> 
-/*
-Data & Model Server (DMS) is a server written in C++ for DSS applications. 
-Version: see srv/dms/rtc/dll/src/RtcVersion.h for version info.
-
-Copyright (C) 1998-2004  YUSE GSO Object Vision BV. 
-
-Documentation on using the Data & Model Server software can be found at:
-http://www.ObjectVision.nl/DMS/
-
-See additional guidelines and notes in srv/dms/Readme-srv.txt 
-
-This library is free software; you can use, redistribute, and/or
-modify it under the terms of the GNU General Public License version 2 
-(the License) as published by the Free Software Foundation,
-provided that this entire header notice and readme-srv.txt is preserved.
-
-See LICENSE.TXT for terms of distribution or look at our web site:
-http://www.objectvision.nl/DMS/License.txt
-or alternatively at: http://www.gnu.org/copyleft/gpl.html
-
-This library is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
-General Public License for more details. However, specific warranties might be
-granted by an additional written contract for support, assistance and/or development
-*/
-//</HEADER>
+// Copyright (C) 1998-2023 Object Vision b.v. 
+// License: GNU GPL 3
+/////////////////////////////////////////////////////////////////////////////
 
 #include "ClcPCH.h"
 
@@ -33,6 +8,7 @@ granted by an additional written contract for support, assistance and/or develop
 #pragma hdrstop
 #endif //defined(CC_PRAGMAHDRSTOP)
 
+#include "RtcGeneratedVersion.h"
 #include "geo/RangeIndex.h"
 #include "utl/mySPrintF.h"
 
@@ -62,29 +38,44 @@ public:
 
 	void CreateResultCaller(TreeItemDualRef& resultHolder, const ArgRefs& args, OperationContext*, LispPtr) const override
 	{
-		dms_assert(args.size() >= 2);
+		assert(args.size() == 2);
 
 		if (resultHolder)
 			return;
 
 		const AbstrDataItem* arg1A = AsDataItem(args[0]);
-		dms_assert(arg1A);
+		assert(arg1A);
 		const AbstrUnit* arg1_DomainUnit = arg1A->GetAbstrDomainUnit();
-		dms_assert(arg1_DomainUnit);
-		for (arg_index i = 1; i != args.size(); ++i)
-		{
-			MG_CHECK(AsDynamicDataItem(GetItem(args[i])));
+		assert(arg1_DomainUnit);
 
-			arg1A->GetAbstrValuesUnit()->UnifyValues(AsDataItem(args[i])->GetAbstrValuesUnit(), "v1", "Values of a following argument", UnifyMode(UM_Throw));
-		}
-		auto res  = static_cast<const UnitClass*>(GetResultClass())->CreateResultUnit(resultHolder);
-		resultHolder = res;
-		for (arg_index i = 0; i != args.size(); ++i)
+		MG_CHECK(AsDynamicDataItem(GetItem(args[1])));
+
+		arg1A->GetAbstrValuesUnit()->UnifyValues(AsDataItem(args[1])->GetAbstrValuesUnit(), "v1", "v2", UnifyMode(UM_Throw));
+
+		auto AB = static_cast<const UnitClass*>(GetResultClass())->CreateResultUnit(resultHolder);
+		resultHolder = AB;
+
+		AbstrDataItem* resSubA = CreateDataItem(AB, GetTokenID_mt("first_rel"), AB, AsDataItem(args[0])->GetAbstrDomainUnit());
+		AbstrDataItem* resSubB = CreateDataItem(AB, GetTokenID_mt("second_rel"), AB, AsDataItem(args[1])->GetAbstrDomainUnit());
+		AbstrDataItem* resSubX = CreateDataItem(AB, GetTokenID_mt("X_rel"), AB, AsDataItem(args[0])->GetAbstrValuesUnit());
+
+		if constexpr (DMS_VERSION_MAJOR < 15)
 		{
-			TokenID refToken = GetTokenID_mt(myArrayPrintF<20>("nr_%d_rel", i+1));
-			AbstrDataItem* resSub1 = CreateDataItem(res, refToken, res, AsDataItem(args[i])->GetAbstrDomainUnit());
+			auto depreciatedRes1 = CreateDataItem(AB, GetTokenID_mt("nr_1_rel"), AB, AsDataItem(args[0])->GetAbstrDomainUnit());
+			depreciatedRes1->SetTSF(TSF_Categorical);
+			depreciatedRes1->SetTSF(TSF_Depreciated);
+			depreciatedRes1->SetReferredItem(resSubA);
+
+			auto depreciatedRes2 = CreateDataItem(AB, GetTokenID_mt("nr_2_rel"), AB, AsDataItem(args[1])->GetAbstrDomainUnit());
+			depreciatedRes2->SetTSF(TSF_Categorical);
+			depreciatedRes2->SetTSF(TSF_Depreciated);
+			depreciatedRes2->SetReferredItem(resSubB);
+
+			auto depreciatedResX = CreateDataItem(AB, GetTokenID_mt("nr_X_rel"), AB, AsDataItem(args[0])->GetAbstrValuesUnit());
+			depreciatedResX->SetTSF(TSF_Categorical);
+			depreciatedResX->SetTSF(TSF_Depreciated);
+			depreciatedResX->SetReferredItem(resSubX);
 		}
-		AbstrDataItem* resSubX = CreateDataItem(res, GetTokenID_mt("nr_X_rel"), res, AsDataItem(args[0])->GetAbstrValuesUnit());
 	}
 };
 
@@ -140,9 +131,9 @@ struct JoinEqualValuesOperator : AbstrJoinEqualValuesOperator
 		}
 		AB->SetCount(nr_AB);
 
-		AbstrDataItem* resSubA = CreateDataItem(AB, GetTokenID_mt("nr_1_rel"), AB, AsDataItem(args[0])->GetAbstrDomainUnit());
-		AbstrDataItem* resSubB = CreateDataItem(AB, GetTokenID_mt("nr_2_rel"), AB, AsDataItem(args[1])->GetAbstrDomainUnit());
-		AbstrDataItem* resSubX = CreateDataItem(AB, GetTokenID_mt("nr_X_rel"), AB, AsDataItem(args[0])->GetAbstrValuesUnit());
+		AbstrDataItem* resSubA = CreateDataItem(AB, GetTokenID_mt("first_rel"), AB, AsDataItem(args[0])->GetAbstrDomainUnit());
+		AbstrDataItem* resSubB = CreateDataItem(AB, GetTokenID_mt("second_rel"), AB, AsDataItem(args[1])->GetAbstrDomainUnit());
+		AbstrDataItem* resSubX = CreateDataItem(AB, GetTokenID_mt("X_rel"), AB, AsDataItem(args[0])->GetAbstrValuesUnit());
 
 		DataWriteLock resSubALock(resSubA);
 

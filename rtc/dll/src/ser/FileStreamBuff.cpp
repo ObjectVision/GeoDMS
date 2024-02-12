@@ -105,7 +105,7 @@ void FileInpStreamBuff::ReadBytes(Byte* data, streamsize_t size) const
 {
 	m_ifstream.read(data, size);
 	streamsize_t count = m_ifstream.gcount();
-	dms_assert(count <=size);
+	assert(count <=size);
 	m_ByteCount += count;
 	if (count < size)
 		fast_fill(data+count, data+size, EOF);

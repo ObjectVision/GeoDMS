@@ -116,7 +116,7 @@ struct datablock_grammar : public boost::spirit::grammar<datablock_grammar>
 				=	(	
 							LBRACK
 						>> (!arrayAssignments)
-						>>	assert_d("']' after data value assignments expected")
+						>>	assert_d("']' or literals expected after opening bracket")
 							[RBRACK]
 					);
 

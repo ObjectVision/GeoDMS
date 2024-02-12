@@ -203,8 +203,8 @@ QDmsViewArea::QDmsViewArea(QMdiArea* parent, TreeItem* viewContext, const TreeIt
 
     m_DataView = SHV_DataView_Create(viewContext, viewStyle, ShvSyncMode::SM_Load);
     if (!m_DataView)
-        throwErrorF("CreateView", "Cannot create view with style %d with context '%s'"
-            , viewStyle
+        throwErrorF("CreateView", "Cannot create view with style %s with context '%s'"
+            , GetViewStyleName(viewStyle)
             , viewContext->GetFullName().c_str()
         );
 
@@ -219,9 +219,9 @@ QDmsViewArea::QDmsViewArea(QMdiArea* parent, TreeItem* viewContext, const TreeIt
         auto current_item = MainWindow::TheOne()->getCurrentTreeItem();
         m_DataView->AddLayer(currItem, false);
         if (m_DataView->GetViewType()== ViewStyle::tvsMapView)
-            reportF(MsgCategory::commands, SeverityTypeID::ST_MinorTrace, "Command: add layer for item %s in %s", current_item->GetFullName(), m_DataView->GetCaption());
+            reportF(MsgCategory::commands, SeverityTypeID::ST_MinorTrace, "Add layer for item %s in %s", current_item->GetFullName(), m_DataView->GetCaption());
         else
-            reportF(MsgCategory::commands, SeverityTypeID::ST_MinorTrace, "Command: add column for item %s in %s", current_item->GetFullName(), m_DataView->GetCaption());
+            reportF(MsgCategory::commands, SeverityTypeID::ST_MinorTrace, "Add column for item %s in %s", current_item->GetFullName(), m_DataView->GetCaption());
     }
     catch (...) {
         CloseWindow((HWND)m_DataViewHWnd); // calls SHV_DataView_Destroy

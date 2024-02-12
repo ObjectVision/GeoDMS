@@ -114,7 +114,7 @@ notCalculated:
 
 SharedStr GetStrCount(const AbstrUnit* unit)
 {
-	dms_assert(unit->GetValueType()->IsCountable());
+	assert(unit->GetValueType()->IsCountable());
 	try {	
 		if (!CheckDataReady(unit->GetCurrRangeItem()))
 			return SharedStr("Not Calculated");
@@ -579,7 +579,10 @@ bool TreeItem_XML_DumpGeneralBody(const TreeItem* self, OutStreamBase* xmlOutStr
 	if (IsDataItem(self))
 	{
 		const AbstrDataItem* di = AsDataItem(self);
-		xmlTable.NameValueRow("ValuesType", di->GetAbstrValuesUnit()->GetValueType()->GetName().c_str());
+
+		if (auto avu = di->GetAbstrValuesUnit())
+			if (auto vt = avu->GetValueType())
+				xmlTable.NameValueRow("ValuesType", vt->GetName().c_str());
 		vc = di->GetValueComposition();
 		if (vc != ValueComposition::Single)
 			xmlTable.NameValueRow("ValueComposition", GetValueCompositionID(vc).GetStr().c_str());
@@ -757,19 +760,35 @@ TIC_CALL void TreeItem_XML_DumpSourceDescription(const TreeItem* self, SourceDes
 	SuspendTrigger::Resume();
 	SharedStr source_description_subtitle = {};
 	switch (mode) {
-	case SourceDescrMode::Configured: source_description_subtitle = "Configured Source Descriptions\n"; break;
-	case SourceDescrMode::ReadOnly:   source_description_subtitle = "Read Only Storage Managers\n"; break;
-	case SourceDescrMode::WriteOnly:  source_description_subtitle = "Non-Read Only Storage Managers\n"; break;
-	case SourceDescrMode::All:        source_description_subtitle = "Utilized Storage Managers\n"; break;
+	case SourceDescrMode::Configured:  source_description_subtitle = "Configured Source Descriptions\n"; break;
+	case SourceDescrMode::ReadOnly:    source_description_subtitle = "Read Only Storage Managers\n"; break;
+	case SourceDescrMode::WriteOnly:   source_description_subtitle = "Non-Read Only Storage Managers\n"; break;
+	case SourceDescrMode::All:         source_description_subtitle = "Utilized Storage Managers\n"; break;
+	case SourceDescrMode::DatasetInfo: source_description_subtitle = "Dataset metainfo and properties\n"; break;
 	}
 
 	XML_ItemBody xmlItemBody(*xmlOutStrPtr, "Source Description", source_description_subtitle.c_str(), self);
 	TreeItem_DumpSourceCalculator(self, mode, true, xmlOutStrPtr);
-	
-	//auto source_description = SourceCalculator(sdm, bShowHidden).GetDescr(studyObject); 
-	//TreeItem_GetSourceDescr(self, mode, true);
-	//GetSourceSequence(const TreeItem * ti)
-	//*xmlOutStrPtr << source_description.c_str();
+}
+
+TIC_CALL void TreeItem_XML_ConvertAndDumpDatasetProperties(const TreeItem* self, const prop_tables& dataset_properties, OutStreamBase* xmlOutStrPtr)
+{
+	XML_ItemBody xmlItemBody(*xmlOutStrPtr, "Source Description", "Dataset metainfo and properties", self);
+	for (auto& property : dataset_properties)
+	{
+		auto level = property.first;
+		auto name = property.second.first;
+		auto value = property.second.second;
+		{
+			XML_OutElement br(*xmlOutStrPtr, "P", "", ClosePolicy::pairedButWithoutSeparator);
+			{
+				auto indentation_level_str = SharedStr("margin-left: " + AsString(level * 15) + "px");
+				xmlOutStrPtr->WriteAttr("style", indentation_level_str.c_str());
+				xmlOutStrPtr->WriteValue(""); // Close attr list
+				xmlOutStrPtr->FormattingStream() << name.GetStr().c_str() << " : " << value.c_str();
+			}
+		}
+	}
 }
 
 TIC_CALL bool XML_MetaInfoRef(const TreeItem* self, OutStreamBase* xmlOutStrPtr)

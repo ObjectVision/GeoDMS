@@ -14,7 +14,7 @@
 #include "geo/Conversions.h"
 #include "geo/PointOrder.h"
 #include "mci/Class.h"
-#include "mci/DoubleLinkedList.inc"
+#include "mci/DoubleLinkedTree.inc"
 #include "set/VectorFunc.h"
 #include "xct/DmsException.h"
 
@@ -53,7 +53,7 @@
 //    NOANIMATE    Animate control.
 
 #include "CommCtrl.h"
-ActorVisitState UpdateChildViews(DataViewList* dvl);
+ActorVisitState UpdateChildViews(DataViewTree* dvl);
 
 ////////////////////////////////////////////////////////////////////////////
 // const
@@ -66,6 +66,36 @@ GPoint LParam2Point(LPARAM lParam)
 {
 	return GPoint(GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam));
 }
+
+//----------------------------------------------------------------------
+// ViewStyle
+//----------------------------------------------------------------------
+
+SHV_CALL CharPtr GetViewStyleName(ViewStyle ct)
+{
+	switch (ct) {
+		case tvsMapView: return "MapView";
+		case tvsTableView: return "TableView";
+		case tvsExprEdit: return "ExprEdit";
+		case tvsClassificationEdit: return "ClassificationEdit";
+		case tvsPaletteEdit: return "PaletteEdit";
+		case tvsDefault: return "Default";
+		case tvsContainer: return "Container";
+		case tvsTableContainer: return "TableContainer";
+		case tvsHistogram: return "Histogram";
+		case tvsUpdateItem: return "UpdateItem";
+		case tvsUpdateTree: return "UpdateTree";
+		case tvsSubItemSchema: return "SubItemSchema";
+		case tvsSupplierSchema: return "SupplierSchema";
+		case tvsExprSchema: return "ExprSchema";
+		case tvsUndefined: return "Undefined";
+		case tvsStatistics: return "Statistics";
+		case tvsCalculationTimes: return "CalculationTimes";
+		case tvsCurrentConfigFileList: return "CurrentConfigFileList";
+		default: return "Unknown";
+	}
+}
+
 //----------------------------------------------------------------------
 // struct : MsgStruct
 //----------------------------------------------------------------------
@@ -79,18 +109,18 @@ bool MsgStruct::Send() const
 }
 
 //----------------------------------------------------------------------
-// class  : DataViewList
+// class  : DataViewTree
 //----------------------------------------------------------------------
 
-DataViewList g_DataViewRoots;
+DataViewTree g_DataViewRoots;
 
-void DataViewList::BringChildToTop(DataView* dv)
+void DataViewTree::BringChildToTop(DataView* dv)
 {
 	DelSub(dv);
 	AddSub(dv); // top of Z-order
 }
 
-void DataViewList::AddChildView(DataView* childView)
+void DataViewTree::AddChildView(DataView* childView)
 {
 	dms_assert(childView);
 	dms_assert(childView->m_ParentView == nullptr);
@@ -98,7 +128,7 @@ void DataViewList::AddChildView(DataView* childView)
 	childView->m_ParentView = this;
 }
 
-void DataViewList::DelChildView(DataView* childView)
+void DataViewTree::DelChildView(DataView* childView)
 {
 	dms_assert(childView);
 	dms_assert(childView->m_ParentView == this);
@@ -106,7 +136,7 @@ void DataViewList::DelChildView(DataView* childView)
 	childView->m_ParentView = nullptr;
 }
 
-void DataViewList::BroadcastCmd(ToolButtonID id)
+void DataViewTree::BroadcastCmd(ToolButtonID id)
 {
 	for (auto cv = _GetFirstSubItem(); cv; cv = cv->GetNextItem())
 	{
@@ -942,7 +972,7 @@ UINT GetShowCmd(HWND hWnd)
 	return wpl.showCmd;
 }
 
-ActorVisitState UpdateChildViews(DataViewList* dvl)
+ActorVisitState UpdateChildViews(DataViewTree* dvl)
 {
 	DataView* dv = dvl->_GetFirstSubItem();
 	while (dv)

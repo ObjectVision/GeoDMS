@@ -26,6 +26,7 @@
 #include "DataItemClass.h"
 #include "DataController.h"
 #include "DisplayValue.h"
+#include "StateChangeNotification.h"
 #include "TreeItemProps.h"
 #include "Unit.h"
 #include "UnitClass.h"
@@ -1250,6 +1251,15 @@ void DataItemColumn::FillMenu(MouseEventDispatcher& med)
 	SharedStr caption = GetThemeDisplayName(this);
 
 	auto tc = GetTableControl().lock(); if (!tc) return;
+	{
+		SubMenu subMenu(med.m_MenuData, SharedStr("Activate...")); // SUBMENU
+		InsertSubMenu(med.m_MenuData, "Source Attribute", GetSrcAttr(), this);
+		InsertSubMenu(med.m_MenuData, "Table Domain", tc->GetEntity(), this);
+	}
+	auto sa = GetSrcAttr();
+	if (sa)
+		med.m_MenuData.emplace_back("Show Statistics of " + caption, new RequestClientCmd(sa, CC_ShowStatistics), this);
+
 
 	if (tc->HasSortOptions())
 	{

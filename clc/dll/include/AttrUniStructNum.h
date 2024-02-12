@@ -101,7 +101,10 @@ struct exp_func_checked: unary_func<product_type_t<T>, T>
 		return exp(typename exp_func_checked::res_type(arg));
 	}
 
-	static ConstUnitRef unit_creator(const AbstrOperGroup* gr, const ArgSeqType& args) { return default_unit_creator< typename product_type<T>::type >(); }
+	static ConstUnitRef unit_creator(const AbstrOperGroup* gr, const ArgSeqType& args)
+	{
+		return default_unit_creator_and_check_input< typename product_type<T>::type >(gr, args);
+	}
 };
 
 template <typename T> 
@@ -115,7 +118,10 @@ struct log_func_checked: unary_func<typename product_type<T>::type, T>
 			:	UNDEFINED_VALUE(typename log_func_checked::res_type);
 	}
 
-	static ConstUnitRef unit_creator(const AbstrOperGroup* gr, const ArgSeqType& args) { return default_unit_creator< typename product_type<T>::type >(); }
+	static ConstUnitRef unit_creator(const AbstrOperGroup* gr, const ArgSeqType& args) 
+	{ 
+		return default_unit_creator_and_check_input< typename product_type<T>::type >(gr, args);
+	}
 };
 
 template <typename res_type, typename V> 

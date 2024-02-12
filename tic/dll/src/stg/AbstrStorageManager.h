@@ -203,6 +203,8 @@ public:
 	TIC_CALL virtual bool EasyRereadTiles() const { return false; }
 	TIC_CALL virtual bool CanWriteTiles() const { return false;  }
 
+	TIC_CALL virtual prop_tables GetPropTables(const TreeItem* storageHolder=nullptr, TreeItem* curr=nullptr) const { return {}; }
+
 	TIC_CALL virtual FileDateTime GetLastChangeDateTime(const TreeItem* storageHolder, CharPtr relativePath) const;
 	TIC_CALL FileDateTime GetCachedChangeDateTime(const TreeItem* storageHolder, CharPtr relativePath) const;
 	TIC_CALL virtual bool DoCheckExistence(const TreeItem* storageHolder)  const; // Default implementation now checks existence of m_Name as a file
@@ -281,10 +283,9 @@ public:
 	TIC_CALL void OpenForWrite(const StorageMetaInfo& smi); friend struct StorageWriteHandle;
 	TIC_CALL void CloseStorage() const; friend struct StorageCloseHandle;
 	//	helper functions
-private:
 	// Wrapper functions for consistent StorageManager derivations
 	// of the public interface funcs
-	TIC_CALL bool OpenForRead (const StorageMetaInfo& smi) const; friend struct StorageReadHandle; // POSTCONDITION: m_IsOpen == returnValue
+	TIC_CALL bool OpenForRead(const StorageMetaInfo& smi) const; friend struct StorageReadHandle; // POSTCONDITION: m_IsOpen == returnValue
 
 private:
 	using interest_holders_container = std::vector<InterestPtr<SharedPtr<const Actor>>>;

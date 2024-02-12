@@ -79,7 +79,7 @@ void TiffWarning2Report(CharPtr errType, CharPtr errFormat, va_list lst)
 {
 	#if defined(MG_DEBUG)
 	if (strncmp(errFormat, "unknown field", 13))
-		reportD(SeverityTypeID::ST_Warning, errType, myVSSPrintF(errFormat, lst).c_str());
+		reportD(SeverityTypeID::ST_MinorTrace, errType, myVSSPrintF(errFormat, lst).c_str());
 	#endif
 }
 
@@ -222,7 +222,7 @@ Float32 TifImp::GetYRes() const
 constexpr uint32_t TIFFTAG_ModelTiePointTag = 33922; // TIFFTAG_GEOTIEPOINTS
 constexpr uint32_t TIFFTAG_ModelPixelScaleTag = 33550; // TIFFTAG_GEOPIXELSCALE
 constexpr uint32_t TIFFTAG_ModelTransformationTag = 34264; // TIFFTAG_GEOTRANSMATRIX
-STGIMPL_CALL std::vector<Float64> TifImp::GetAffineTransformation() const
+STGIMPL_CALL std::vector<Float64> TifImp::GetImageToWorldTransform() const
 {
 	// See section GeoTIFF Tags for Coordinate Transformations 2.6.1: http://geotiff.maptools.org/spec/geotiff2.6.html
 	
@@ -319,6 +319,7 @@ const ValueClassID TifImp::GetValueClassFromTiffDataTypeTag()
 		case 32: return ValueClassID::VT_UInt32;
 		case 64: return ValueClassID::VT_UInt64;
 		}
+		break;
 	}
 	case SAMPLEFORMAT_INT:
 	{
@@ -329,6 +330,7 @@ const ValueClassID TifImp::GetValueClassFromTiffDataTypeTag()
 		case 32: return ValueClassID::VT_Int32;
 		case 64: return ValueClassID::VT_Int64;
 		}
+		break;
 	}
 	case SAMPLEFORMAT_IEEEFP:
 	{
@@ -337,6 +339,7 @@ const ValueClassID TifImp::GetValueClassFromTiffDataTypeTag()
 		case 32: return ValueClassID::VT_Float32;
 		case 64: return ValueClassID::VT_Float64;
 		}
+		break;
 	}
 	}
 

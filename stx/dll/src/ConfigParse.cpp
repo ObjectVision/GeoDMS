@@ -302,7 +302,9 @@ TreeItem* ConfigProd::ParseFile(CharPtr fileName)
 {
 	AuthErrorDisplayLock recursionLock;
 
-	MappedConstFileMapHandle fv(SharedStr(fileName), nullptr, true, false); // SFWA
+	m_CurrFileName = SharedStr(fileName);
+	MappedConstFileMapHandle fv(m_CurrFileName, nullptr, true, false); // SFWA
+
 	try {
 
 		parse_info_t info

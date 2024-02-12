@@ -130,7 +130,7 @@ protected: friend FeatureDrawer; friend struct LabelDrawer;
 	virtual bool DrawImpl(FeatureDrawer& fd) const =0;
 	virtual SizeT FindFeatureByPoint(const CrdPoint& geoPnt) = 0;
 
-	const AbstrBoundingBoxCache* GetBoundingBoxCache() const;
+	std::shared_ptr<const AbstrBoundingBoxCache> GetBoundingBoxCache() const;
 
 	FontIndexCache* GetFontIndexCache(FontRole fr) const;
 	PenIndexCache*  GetPenIndexCache(DmsColor defaultColor) const;
@@ -148,7 +148,7 @@ protected: friend FeatureDrawer; friend struct LabelDrawer;
 	void DoInvalidate () const override;
 
 public:
-	mutable SharedPtr<const AbstrBoundingBoxCache> m_BoundingBoxCache;
+	mutable std::shared_ptr<const AbstrBoundingBoxCache> m_BoundingBoxCache;
 
 private:
 	DmsColor& UpdateDefaultColor(DmsColor& mutableDefaultPaletteColor) const;
@@ -290,19 +290,23 @@ GetPointFeautureBoundingBoxCache(const FeatureLayer* layer)
 }
 
 template <typename ScalarType>
-const SequenceBoundingBoxCache<ScalarType>*
+std::shared_ptr<const SequenceBoundingBoxCache<ScalarType>>
 GetSequenceBoundingBoxCache(const FeatureLayer* layer)
 {
-	dms_assert(IsMetaThread());
-	return GetSequenceBoundingBoxCache<ScalarType>(layer->m_BoundingBoxCache, layer->GetFeatureAttr(), true);
+	assert(IsMetaThread());
+	if (!layer->m_BoundingBoxCache)
+		layer->m_BoundingBoxCache = GetSequenceBoundingBoxCache<ScalarType>(layer->GetFeatureAttr(), true);
+	return { layer->m_BoundingBoxCache, dynamic_cast<const SequenceBoundingBoxCache<ScalarType>*>(layer->m_BoundingBoxCache.get()) };
 }
 
 template <typename ScalarType>
-const PointBoundingBoxCache<ScalarType>*
+std::shared_ptr<const PointBoundingBoxCache<ScalarType>>
 GetPointBoundingBoxCache(const FeatureLayer* layer)
 {
-	dms_assert(IsMetaThread());
-	return GetPointBoundingBoxCache<ScalarType>(layer->m_BoundingBoxCache, layer->GetFeatureAttr(), true);
+	assert(IsMetaThread());
+	if (!layer->m_BoundingBoxCache)
+		layer->m_BoundingBoxCache = GetPointBoundingBoxCache<ScalarType>(layer->GetFeatureAttr(), true);
+	return { layer->m_BoundingBoxCache, dynamic_cast<const PointBoundingBoxCache<ScalarType>*>(layer->m_BoundingBoxCache.get()) };
 }
 
 #endif // __SHV_FEATURELAYER_H

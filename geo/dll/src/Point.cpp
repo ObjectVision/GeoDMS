@@ -30,6 +30,11 @@
 //									ConvertAttrToPointOperator
 // *****************************************************************************
 
+enum class convert_order_type { 
+	xy_order, yx_order, cfg_order 
+,	traditional_gis_order = xy_order
+};
+
 template <class T>
 class ConvertAttrToPointOperator : public TernaryOperator
 {
@@ -38,13 +43,16 @@ class ConvertAttrToPointOperator : public TernaryOperator
 	typedef DataArray<T>                   Arg2Type;	
 	typedef Unit<PointType>	               Arg3Type;
 	typedef DataArray<PointType>           ResultType;
-			
+
+	convert_order_type m_COT = convert_order_type::traditional_gis_order;
+
 public:
-	ConvertAttrToPointOperator(AbstrOperGroup* gr, UInt32 nrArgs)
+	ConvertAttrToPointOperator(AbstrOperGroup* gr, arg_index nrArgs, convert_order_type cot)
 		:	TernaryOperator(gr, 
 				ResultType::GetStaticClass(), 
 				Arg1Type::GetStaticClass(), Arg2Type::GetStaticClass(), Arg3Type::GetStaticClass()
 			) 
+		,	m_COT(cot)
 	{
 		if (nrArgs == 2)
 			--m_ArgClassesEnd;
@@ -86,7 +94,14 @@ public:
 		const AbstrUnit* entity1 = arg1A->GetAbstrDomainUnit();
 
 		// GROTE WISSELTRUUK
-		if (g_cfgColFirst != dms_order_tag::col_first)
+		bool colFirst = false; 
+		switch (m_COT)
+		{
+			case convert_order_type::xy_order:  colFirst = true; break;
+			case convert_order_type::yx_order:  colFirst = false; break;
+			case convert_order_type::cfg_order: colFirst = g_cfgColFirst; break;
+		}
+		if (colFirst != dms_order_tag::col_first)
 		{
 			omni::swap(arg1A, arg2A);
 		}
@@ -220,11 +235,8 @@ public:
 			UInt32 size    = Cardinality(Size(rect));
 			UInt32 nrCol   = Size(rect).Col();
 
-//			SPoint topLeft = rect.first;
-//			SPoint botRight= rect.second;
-			
-			dms_assert(rect.first.first  <= rect.second.first);
-			dms_assert(rect.first.second <= rect.second.second);
+			assert(rect.first.first  <= rect.second.first);
+			assert(rect.first.second <= rect.second.second);
 
 			TreeItem* res = resultHolder;
 			DataWriteLock resLock(debug_cast<AbstrDataItem*>(res));
@@ -293,7 +305,14 @@ struct point2colFunc : unary_func<Scalar, Point<Scalar> >
 
 namespace 
 {
-	CommonOperGroup cog_Point(token::point), cog_PointRow("pointrow"), cog_PointCol("pointcol");
+	Obsolete< CommonOperGroup> cog_Point("obsolete function point called.\n"
+		"Use point_yx operation (or point_xy if ColRowOrder was set in Config.ini) to unambiguously define points.\n"
+		, token::point);
+
+	CommonOperGroup cog_PointRow("pointrow"), cog_PointCol("pointcol");
+
+	CommonOperGroup
+		cog_PointXY("point_xy"), cog_PointYX("point_yx"), cog_GetX("get_x"), cog_GetY("get_y");
 
 	template <typename P>
 	struct PointOpers
@@ -301,16 +320,24 @@ namespace
 		typedef typename scalar_of<P>::type S;
 
 		PointOpers()
-			: ca2Point(&cog_Point, 2)
-			, ca3Point(&cog_Point, 3)
+			: ca2Point  (&cog_Point,   2, convert_order_type::cfg_order)
+			, ca2PointXY(&cog_PointXY, 2, convert_order_type::xy_order)
+			, ca2PointYX(&cog_PointYX, 2, convert_order_type::yx_order)
+			, ca3Point  (&cog_Point,   3, convert_order_type::cfg_order)
+			, ca3PointXY(&cog_PointXY, 3, convert_order_type::xy_order)
+			, ca3PointYX(&cog_PointYX, 3, convert_order_type::yx_order)
 			, ca2Row(&cog_PointRow)
 			, ca2Col(&cog_PointCol)
+			, ca2X(&cog_GetX)
+			, ca2Y(&cog_GetY)
 		{}
 
 		ConvertAttrToPointOperator<S> ca2Point, ca3Point;
+		ConvertAttrToPointOperator<S> ca2PointXY, ca3PointXY;
+		ConvertAttrToPointOperator<S> ca2PointYX, ca3PointYX;
 
-		UnaryAttrSpecialFuncOperator<point2rowFunc<S> > ca2Row;
-		UnaryAttrSpecialFuncOperator<point2colFunc<S> > ca2Col;
+		UnaryAttrSpecialFuncOperator<point2rowFunc<S> > ca2Row, ca2X;
+		UnaryAttrSpecialFuncOperator<point2colFunc<S> > ca2Col, ca2Y;
 	};
 	//	oper_arg_policy oap_point[3] = { oper_arg_policy::calc_as_result, oper_arg_policy::calc_as_result, oper_arg_policy::calc_never };
 	tl_oper::inst_tuple_templ<typelists::points, PointOpers > pointOpers;

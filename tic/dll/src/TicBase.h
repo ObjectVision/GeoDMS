@@ -74,7 +74,15 @@ using StorageMetaInfoPtr = std::shared_ptr<StorageMetaInfo>;
 struct StorageReadHandle;
 class AbstrCalculator;
 
-//SharedPtr
+// Name value indentation level
+using prop_name = TokenID; // cannot contain name delimiters, e.g. "attr1"
+using prop_level = int;
+using prop_value = SharedStr;
+using prop_name_value = std::pair<prop_name, prop_value>;
+using level_propvalue = std::pair<prop_level, prop_name_value>;
+using prop_tables = std::vector<level_propvalue>;
+
+// SharedPtr
 using SharedTreeItem = SharedPtr<const TreeItem>;
 using SharedDataItem = SharedPtr<const AbstrDataItem>;
 using SharedUnit     = SharedPtr<const AbstrUnit>;
