@@ -139,8 +139,9 @@ RTC_CALL bool ShowThousandSeparator();
 
 enum class RegDWordEnum
 {
-	MemoryFlushThreshold =0,
-	SwapFileMinSize   = 1,
+	MemoryFlushThreshold = 0,
+	SwapFileMinSize = 1,
+	DrawingSizeInPixels = 2
 };
 
 extern "C" RTC_CALL DWORD DMS_CONV RTC_GetRegDWord(RegDWordEnum i);
