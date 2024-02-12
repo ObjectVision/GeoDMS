@@ -533,7 +533,7 @@ QSize DmsTreeView::minimumSizeHint() const
 
 void DmsTreeView::setDmsStyleSheet(bool connecting_lines)
 {
-	if (not(GetRegStatusFlags() & RSF_TreeView_ShowConnectingLines))
+	if (GetRegStatusFlags() & RSF_TreeView_FollowOSLayout)
 	{
 		setStyleSheet(
 			"QTreeView {"

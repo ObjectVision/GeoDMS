@@ -122,7 +122,7 @@ enum RegStatusFlags
 	RSF_EventLog_ClearOnLoad = 0x40000,
 	RSF_EventLog_ClearOnReLoad = 0x80000,
 	
-	RSF_TreeView_ShowConnectingLines = 0x100000,
+	RSF_TreeView_FollowOSLayout = 0x100000,
 	
 	RSF_WasRead = 0x80000000,
 	RSF_Default = RSF_AdminMode | RSF_ShowStateColors | RSF_AllPanelsVisible | RSF_AllMultiThreading

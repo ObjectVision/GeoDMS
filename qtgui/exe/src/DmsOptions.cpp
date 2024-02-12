@@ -167,7 +167,7 @@ DmsGuiOptionsWindow::DmsGuiOptionsWindow(QWidget* parent)
     : QDialog(parent)
 {
     setupUi(this);
-    connect(m_show_connecting_lines, &QCheckBox::stateChanged, this, &DmsGuiOptionsWindow::hasChanged);
+    connect(m_follow_os_layout, &QCheckBox::stateChanged, this, &DmsGuiOptionsWindow::hasChanged);
     connect(m_show_hidden_items, &QCheckBox::stateChanged, this, &DmsGuiOptionsWindow::hasChanged);
     connect(m_show_thousand_separator, &QCheckBox::stateChanged, this, &DmsGuiOptionsWindow::hasChanged);
     connect(m_show_state_colors_in_treeview, &QCheckBox::stateChanged, this, &DmsGuiOptionsWindow::hasChanged);
@@ -196,7 +196,7 @@ void DmsGuiOptionsWindow::setChanged(bool isChanged)
 void DmsGuiOptionsWindow::apply()
 {
     auto dms_reg_status_flags = GetRegStatusFlags();
-    setSF(m_show_connecting_lines->isChecked(), dms_reg_status_flags, RSF_TreeView_ShowConnectingLines);
+    setSF(m_follow_os_layout->isChecked(), dms_reg_status_flags, RSF_TreeView_FollowOSLayout);
     setSF(m_show_hidden_items->isChecked(), dms_reg_status_flags, RSF_AdminMode);
     setSF(m_show_thousand_separator->isChecked(), dms_reg_status_flags, RSF_ShowThousandSeparator);
     setSF(m_show_state_colors_in_treeview->isChecked(), dms_reg_status_flags, RSF_ShowStateColors);
@@ -215,7 +215,7 @@ void DmsGuiOptionsWindow::apply()
     auto main_window = MainWindow::TheOne();
 
     // connecting lines
-    main_window->m_treeview->setDmsStyleSheet(dms_reg_status_flags & RSF_TreeView_ShowConnectingLines);
+    main_window->m_treeview->setDmsStyleSheet(dms_reg_status_flags & RSF_TreeView_FollowOSLayout);
 
     // hidden items
     
@@ -227,7 +227,7 @@ void DmsGuiOptionsWindow::apply()
 void DmsGuiOptionsWindow::restoreOptions()
 {   
     auto dms_reg_status_flags = GetRegStatusFlags();
-    m_show_connecting_lines->setChecked(dms_reg_status_flags & RSF_TreeView_ShowConnectingLines);
+    m_follow_os_layout->setChecked(dms_reg_status_flags & RSF_TreeView_FollowOSLayout);
     m_show_hidden_items->setChecked(dms_reg_status_flags & RSF_AdminMode);
     m_show_thousand_separator->setChecked(dms_reg_status_flags & RSF_ShowThousandSeparator);
     m_show_state_colors_in_treeview->setChecked(dms_reg_status_flags & RSF_ShowStateColors);
