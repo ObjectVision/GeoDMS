@@ -1235,6 +1235,8 @@ bool DataView::DispatchMouseEvent(UInt32 event, WPARAM nFlags, GPoint devicePoin
 	if (eventInfo.m_EventID & EID_RBUTTONUP)
 		m_TextEditController.CloseCurr();
 
+	SuspendTrigger::FencedBlocker blockSuspension;
+
 	MouseEventDispatcher med(this, eventInfo);
 	bool result = med.Visit(GetContents().get() );
 
