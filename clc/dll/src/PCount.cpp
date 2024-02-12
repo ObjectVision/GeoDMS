@@ -1,31 +1,6 @@
-//<HEADER> 
-/*
-Data & Model Server (DMS) is a server written in C++ for DSS applications. 
-Version: see srv/dms/rtc/dll/src/RtcVersion.h for version info.
-
-Copyright (C) 1998-2004  YUSE GSO Object Vision BV. 
-
-Documentation on using the Data & Model Server software can be found at:
-http://www.ObjectVision.nl/DMS/
-
-See additional guidelines and notes in srv/dms/Readme-srv.txt 
-
-This library is free software; you can use, redistribute, and/or
-modify it under the terms of the GNU General Public License version 2 
-(the License) as published by the Free Software Foundation,
-provided that this entire header notice and readme-srv.txt is preserved.
-
-See LICENSE.TXT for terms of distribution or look at our web site:
-http://www.objectvision.nl/DMS/License.txt
-or alternatively at: http://www.gnu.org/copyleft/gpl.html
-
-This library is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
-General Public License for more details. However, specific warranties might be
-granted by an additional written contract for support, assistance and/or development
-*/
-//</HEADER>
+//<HEADER> // Copyright (C) 1998-2023 Object Vision b.v. 
+// License: GNU GPL 3
+/////////////////////////////////////////////////////////////////////////////
 
 #include "ClcPCH.h"
 
@@ -41,7 +16,11 @@ granted by an additional written contract for support, assistance and/or develop
 
 #include "ParallelTiles.h"
 #include "TreeItemClass.h"
+
 #include "UnitCreators.h"
+
+#include "AggrFuncNum.h"
+//#include "AttrBinStruct.h"
 
 // *****************************************************************************
 //                            PartCountOperator
@@ -125,9 +104,9 @@ namespace {
 							auto resData = mutable_array_cast<E>(resObj)->GetDataWrite(no_tile, dms_rw_mode::write_only_mustzero);
 							counts.combine_each(
 								[&resData](auto& localCounts) {
-									dms_assert(resData.size() == localCounts.size());
+									assert(resData.size() == localCounts.size());
 									for (SizeT i = 0, n = resData.size(); i != n; ++i)
-										resData[i] += localCounts[i];
+										SafeAccumulate(resData[i], localCounts[i]);
 								});
 						}
 					);
@@ -175,13 +154,13 @@ namespace {
 
 		bool CreateResult(TreeItemDualRef& resultHolder, const ArgSeqType& args, bool mustCalc) const override
 		{
-			dms_assert(args.size() == 1);
+			assert(args.size() == 1);
 
 			const AbstrDataItem* arg1A = AsDataItem(args[0]);
-			dms_assert(arg1A);
+			assert(arg1A);
 
 			const Unit<enum_t>* e1 = debug_cast<const Unit<enum_t>*>(arg1A->GetAbstrValuesUnit()); // LANDUSE CLASSES
-			dms_assert(e1);
+			assert(e1);
 
 			if (!resultHolder)
 			{
@@ -195,7 +174,7 @@ namespace {
 				AbstrDataItem* res = AsDataItem(resultHolder.GetNew());
 
 				const Arg1Type* arg1 = const_array_cast<enum_t>(arg1A);
-				dms_assert(arg1);
+				assert(arg1);
 
 				DataReadLock  arg1Lock(arg1A);
 				DataWriteLock resLock(res, dms_rw_mode::write_only_mustzero);
@@ -220,7 +199,7 @@ namespace {
 					);
 					hasAnies.combine_each(
 						[&resData](auto& localHasAnies) {
-							dms_assert(resData.size() == localHasAnies.size());
+							assert(resData.size() == localHasAnies.size());
 							for (SizeT i = 0, n = resData.size(); i != n; ++i)
 								if (localHasAnies[i].value())
 									resData[i] = true;

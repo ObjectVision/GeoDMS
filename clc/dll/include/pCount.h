@@ -1,31 +1,7 @@
-//<HEADER> 
-/*
-Data & Model Server (DMS) is a server written in C++ for DSS applications. 
-Version: see srv/dms/rtc/dll/src/RtcVersion.h for version info.
+// Copyright (C) 1998-2023 Object Vision b.v. 
+// License: GNU GPL 3
+/////////////////////////////////////////////////////////////////////////////
 
-Copyright (C) 1998-2004  YUSE GSO Object Vision BV. 
-
-Documentation on using the Data & Model Server software can be found at:
-http://www.ObjectVision.nl/DMS/
-
-See additional guidelines and notes in srv/dms/Readme-srv.txt 
-
-This library is free software; you can use, redistribute, and/or
-modify it under the terms of the GNU General Public License version 2 
-(the License) as published by the Free Software Foundation,
-provided that this entire header notice and readme-srv.txt is preserved.
-
-See LICENSE.TXT for terms of distribution or look at our web site:
-http://www.objectvision.nl/DMS/License.txt
-or alternatively at: http://www.gnu.org/copyleft/gpl.html
-
-This library is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
-General Public License for more details. However, specific warranties might be
-granted by an additional written contract for support, assistance and/or development
-*/
-//</HEADER>
 #pragma once
 
 #if !defined(__CLC_PCOUNT_H)
@@ -45,11 +21,14 @@ void pcount_range(const T* sb, const T* se, I rb, SizeT rs, typename Unit<T>::ra
 	rb -= domainRange.first;
 	for (; sb != se; ++sb)
 	{
-		dms_assert(IsIncluding(domainRange, *sb));
+		auto i = *sb;
+		assert(IsIncluding(domainRange, i));
 
-		dms_assert(Range_GetIndex_naked(domainRange, *sb) < rs);
-		++rb[*sb];
-		MG_CHECK2(rb[*sb], "pcount: numeric overflow");
+		assert(Range_GetIndex_naked(domainRange, i) < rs);
+	
+		++rb[i];
+		if (!rb[i])
+			throwErrorF("pcount", "numeric overflow of region %d", i);
 	}
 }
 
@@ -58,12 +37,13 @@ void pcount_range(const Point<T>* sb, const Point<T>* se, I rb, SizeT rs, typena
 {
 	for (; sb != se; ++sb)
 	{
-		dms_assert(IsIncluding(domainRange, *sb));
+		assert(IsIncluding(domainRange, *sb));
 
 		SizeT i = Range_GetIndex_naked(domainRange, *sb);
-		dms_assert(i < rs);
+		assert(i < rs);
 		++rb[i];
-		MG_CHECK2(rb[i], "pcount: numeric overflow");
+		if (!rb[i])
+			throwErrorF("pcount", "numeric overflow of region %d", i);
 	}
 }
 
@@ -77,7 +57,8 @@ void pcount_range_checked(const T* sb, const T* se, I rb, SizeT rs, typename Uni
 		if (i < rs)
 		{
 			++rb[i];
-			MG_CHECK2(rb[i], "pcount: numeric overflow");
+			if (!rb[i])
+				throwErrorF("pcount", "numeric overflow of region %d", i);
 		}
 	}
 }
@@ -88,11 +69,13 @@ void pcount_range(const T* sb, const T* se, UInt64* rb, SizeT rs, typename Unit<
 	rb -= domainRange.first;
 	for (; sb != se; ++sb)
 	{
-		dms_assert(IsIncluding(domainRange, *sb));
+		auto i = *sb;
+		assert(IsIncluding(domainRange, i));
 
-		dms_assert(Range_GetIndex_naked(domainRange, *sb) < rs);
-		++rb[*sb];
-		dms_assert(rb[*sb]);
+		assert(Range_GetIndex_naked(domainRange, i) < rs);
+		++rb[i];
+		if (!rb[i])
+			throwErrorF("pcount", "numeric overflow of region %d", i);
 	}
 }
 
@@ -101,12 +84,13 @@ void pcount_range(const Point<T>* sb, const Point<T>* se, UInt64* rb, SizeT rs, 
 {
 	for (; sb != se; ++sb)
 	{
-		dms_assert(IsIncluding(domainRange, *sb));
+		assert(IsIncluding(domainRange, *sb));
 
 		SizeT i = Range_GetIndex_naked(domainRange, *sb);
-		dms_assert(i < rs);
+		assert(i < rs);
 		++rb[i];
-		dms_assert(rb[i]);
+		if (!rb[i])
+			throwErrorF("pcount", "numeric overflow of region %d", i);
 	}
 }
 
@@ -120,7 +104,8 @@ void pcount_range_checked(const T* sb, const T* se, UInt64* rb, SizeT rs, typena
 		if (i < rs)
 		{
 			++rb[i];
-			dms_assert(rb[i]);
+			if (!rb[i])
+				throwErrorF("pcount", "numeric overflow of region %d", i);
 		}
 	}
 }
@@ -237,7 +222,7 @@ void pcount_container(
 	auto rb = resData.begin();
 	SizeT rs = resData.size();
 
-	dms_assert(rs == Cardinality(domainRange));
+	assert(rs == Cardinality(domainRange));
 
 	pcount_best(sb, se, rb, rs, domainRange, dcm, mustInit);
 }
