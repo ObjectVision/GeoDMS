@@ -34,11 +34,15 @@ granted by an additional written contract for support, assistance and/or develop
 
 using index_t       = SizeT;
 using index_range_t = Range<index_t>;
+using index_range_vector_t = std::vector<index_range_t>;
 
 struct pointIndexBuffer_t : std::vector<index_range_t> 
 {
-	std::vector<index_range_t> m_StackBuffer;
+	index_range_vector_t m_StackBuffer;
 };
+
+static_assert(std::allocator_traits<pointIndexBuffer_t::allocator_type>::is_always_equal::value);
+static_assert(std::allocator_traits<index_range_vector_t::allocator_type>::is_always_equal::value);
 
 template <typename PI>
 void fillPointIndexBufferImpl(pointIndexBuffer_t& buf, PI iBase, PI ii, PI ie, bool isClosedRing)
