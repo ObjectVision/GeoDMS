@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>617</width>
-    <height>628</height>
+    <width>620</width>
+    <height>634</height>
    </rect>
   </property>
   <property name="sizePolicy">
@@ -163,7 +163,6 @@
        <property name="font">
         <font>
          <pointsize>10</pointsize>
-         <weight>75</weight>
          <bold>true</bold>
         </font>
        </property>
@@ -405,7 +404,6 @@
        <property name="font">
         <font>
          <pointsize>10</pointsize>
-         <weight>75</weight>
          <bold>true</bold>
         </font>
        </property>
@@ -542,6 +540,9 @@
      </item>
      <item row="10" column="6">
       <widget class="QPushButton" name="m_param_info">
+       <property name="cursor">
+        <cursorShape>WhatsThisCursor</cursorShape>
+       </property>
        <property name="toolTip">
         <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;B&gt;&lt;span style=&quot; font-weight:600;&quot;&gt;Script Editor Parameters&lt;/span&gt;&lt;/B&gt;
 
@@ -575,7 +576,6 @@ For Notepad ++ the advised default parameters are:
        <property name="font">
         <font>
          <pointsize>10</pointsize>
-         <weight>75</weight>
          <bold>true</bold>
         </font>
        </property>
@@ -631,7 +631,6 @@ For Notepad ++ the advised default parameters are:
        <property name="font">
         <font>
          <pointsize>10</pointsize>
-         <weight>75</weight>
          <bold>true</bold>
         </font>
        </property>
@@ -656,6 +655,9 @@ For Notepad ++ the advised default parameters are:
          <horstretch>0</horstretch>
          <verstretch>0</verstretch>
         </sizepolicy>
+       </property>
+       <property name="cursor">
+        <cursorShape>WhatsThisCursor</cursorShape>
        </property>
        <property name="toolTip">
         <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;span style=&quot; font-weight:600;&quot;&gt;Trehsold for memory flushing wait procedure&lt;/span&gt;&lt;BR&gt;&lt;BR&gt;
@@ -685,7 +687,6 @@ In most cases we advice to use a value between 80% and 90%.</string>
        <property name="font">
         <font>
          <pointsize>10</pointsize>
-         <weight>75</weight>
          <bold>true</bold>
         </font>
        </property>
