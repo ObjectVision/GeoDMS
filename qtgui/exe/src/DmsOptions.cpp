@@ -50,6 +50,7 @@ static DmsColor darkGrey = CombineRGB(100, 100, 100);
 static DmsColor cool_blue = CombineRGB(82, 136, 219);
 static DmsColor cool_green = CombineRGB(0, 153, 51);
 static DmsColor white = CombineRGB(255, 255, 255);
+static DmsColor black = CombineRGB(0, 0, 0);
 
 colorOptionAttr sColorOptionData[(int)color_option::count] =
 {
@@ -223,9 +224,9 @@ void DmsGuiOptionsWindow::apply()
     // treeview follow os layout
     main_window->m_treeview->setDmsStyleSheet(dms_reg_status_flags & RSF_TreeView_FollowOSLayout);
 
-    // hidden items
+    // hidden items and state colors
     main_window->m_eventlog_model->cached_reg_flags = dms_reg_status_flags;
-    if (main_window->m_dms_model->updateShowHiddenItems())
+    if (main_window->m_dms_model->updateChachedDisplayFlags())
         main_window->m_dms_model->reset();
 
     // drawing size in pixels
