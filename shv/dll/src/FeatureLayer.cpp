@@ -1648,7 +1648,8 @@ void GraphicArcLayer::InvalidateFeature(SizeT featureIndex)
 	InvalidateWorldRect(GetGeoTransformation().Apply(boundRect) + GetFeatureWorldExtents(), nullptr);
 }
 
-Float64 s_DrawingSizeThresholdInPixels = 0.0;
+
+//Float64 s_DrawingSizeTresholdInPixels = 0.0;
 
 // TODO: SelectedColor and selectedOnly
 template <typename ScalarType>
@@ -1673,7 +1674,7 @@ bool DrawArcs(const GraphicArcLayer* layer, const FeatureDrawer& fd, const PenIn
 	CrdType zoomLevel = Abs(transformer.ZoomLevel());
 	dms_assert(zoomLevel > 1.0e-30); // we assume that nothing remains visible on such a small scale to avoid numerical overflow in the following inversion
 
-	ScalarType minWorldWidth  = s_DrawingSizeThresholdInPixels / zoomLevel;
+	ScalarType minWorldWidth  = s_DrawingSizeTresholdInPixels / zoomLevel;
 	ScalarType minWorldHeight = minWorldWidth;
 
 	ResumableCounter mainCount(d.GetCounterStacks(), false);

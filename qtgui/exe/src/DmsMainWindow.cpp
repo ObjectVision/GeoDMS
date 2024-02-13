@@ -263,8 +263,6 @@ MainWindow::MainWindow(CmdLineSetttings& cmdLineSettings)
     m_error_window = new DmsErrorWindow(this);
     m_export_window = new DmsExportWindow(this);
 
-
-
     setCentralWidget(m_mdi_area.get());
     m_mdi_area->show();
 
@@ -283,7 +281,7 @@ MainWindow::MainWindow(CmdLineSetttings& cmdLineSettings)
     setupDmsCallbacks();
 
     m_dms_model = std::make_unique<DmsModel>();
-    m_dms_model->updateShowHiddenItems();
+    m_dms_model->updateChachedDisplayFlags();
 
     m_treeview->setModel(m_dms_model.get());
 
@@ -310,6 +308,10 @@ MainWindow::MainWindow(CmdLineSetttings& cmdLineSettings)
     setUnifiedTitleAndToolBarOnMac(true);
     scheduleUpdateToolbar();
     LoadColors();
+
+    // set drawing size in pixels for polygons and arcs
+    Float32 drawing_size_in_pixels = GetDrawingSizeInPixels(); // from registry
+    SetDrawingSizeTresholdValue(drawing_size_in_pixels);
 
     resizeDocksToNaturalSize();
 }
@@ -975,7 +977,6 @@ void MainWindow::updateToolbar()
     // disable/enable coordinate tool
     auto is_mapview = view_style == ViewStyle::tvsMapView;
     auto is_tableview = view_style == ViewStyle::tvsTableView;
-    m_statusbar_coordinate_label->setVisible(is_mapview);
     m_statusbar_coordinates->setVisible(is_mapview || is_tableview);
     clearToolbarUpToDetailPagesTools();
 
@@ -2565,14 +2566,11 @@ void MainWindow::createStatusBar()
     statusBar()->showMessage(tr("Ready"));
     
     connect(statusBar(), &QStatusBar::messageChanged, this, &MainWindow::on_status_msg_changed);
-    m_statusbar_coordinate_label = new QLabel("Coordinate", this);
     m_statusbar_coordinates = new QLineEdit(this);
     m_statusbar_coordinates->setReadOnly(true);
     m_statusbar_coordinates->setFixedWidth(310);
     m_statusbar_coordinates->setAlignment(Qt::AlignmentFlag::AlignLeft);
-    statusBar()->insertPermanentWidget(0, m_statusbar_coordinate_label);
-    statusBar()->insertPermanentWidget(1, m_statusbar_coordinates);
-    m_statusbar_coordinate_label->setVisible(false);
+    statusBar()->insertPermanentWidget(0, m_statusbar_coordinates);
     m_statusbar_coordinates->setVisible(false);
 }
 
@@ -2733,21 +2731,8 @@ void MainWindow::createDetailPagesDock()
     //m_value_info_dock->setVisible(false);
 }
 
-void MainWindow::createValueInfoDock()
-{
-    //m_value_info_dock = new QDockWidget(QObject::tr("Value Info"), this);
-    //m_value_info_dock->setTitleBarWidget(new QWidget(m_value_info_dock));
-    //m_value_info_mdi_area = new QDmsMdiArea(m_value_info_dock);
-    //m_value_info_mdi_area->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
-
-    //m_value_info_dock->setWidget(m_value_info_mdi_area);
-    //m_value_info_dock->setVisible(true);
-    //addDockWidget(Qt::RightDockWidgetArea, m_value_info_dock);
-}
-
 void MainWindow::createDmsHelperWindowDocks()
 {
-    createValueInfoDock();
     createDetailPagesDock();
 
     m_treeview = createTreeview(this);

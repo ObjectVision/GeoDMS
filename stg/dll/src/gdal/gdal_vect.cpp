@@ -1766,6 +1766,8 @@ prop_tables GdalVectSM::GetPropTables(const TreeItem* storageHolder, TreeItem* c
 
 		// geometry field
 		auto geometry_field = layer_definition->GetGeomFieldDefn(0);
+		if (!geometry_field)
+			continue;
 		auto geometry_type = geometry_field->GetType();
 		vector_dataset_properties.push_back({ 3, {GetTokenID_mt("Geometry"), SharedStr(OGRGeometryTypeToName(geometry_type)) }});
 
