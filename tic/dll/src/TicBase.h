@@ -109,6 +109,9 @@ using GuiReadLockPair = Point<GuiReadLock>;
 using TStateChangeNotificationFunc = void (*)(ClientHandle clientHandle, const TreeItem* self, NotificationCode notificationCode);
 using TSupplCallbackFunc = bool (*)(ClientHandle clientHandle, const TreeItem* supplier);
 
+using UnitLabelScalePair = std::pair<TokenID, Float64>;
+using GetUnitlabeledScalePairFuncType = auto (*)(TokenID) ->UnitLabelScalePair;
+
 template <typename T> struct OwningPtrSizedArray;
 using BlobBuffer = OwningPtrSizedArray<Byte>;
 

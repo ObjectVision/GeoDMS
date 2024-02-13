@@ -238,6 +238,7 @@ public:
 	);
 
 protected: // override PointController callback
+	bool Move(EventInfo& eventInfo) override;
 	bool Exec(EventInfo& eventInfo) override;
 
 	CrdTransformation m_Transformation;
@@ -256,6 +257,7 @@ public:
 	);
 
 protected: // override PointController callback
+	bool Move(EventInfo& eventInfo) override;
 	bool Exec(EventInfo& eventInfo) override;
 
 	CrdTransformation m_Transformation;
