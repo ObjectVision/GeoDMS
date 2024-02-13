@@ -11,6 +11,8 @@
 #include "DataCheckMode.h"
 #include "Unit.h"
 
+#include "AggrFuncNum.h"
+
 // *****************************************************************************
 //                            PartCount
 // *****************************************************************************
@@ -26,9 +28,7 @@ void pcount_range(const T* sb, const T* se, I rb, SizeT rs, typename Unit<T>::ra
 
 		assert(Range_GetIndex_naked(domainRange, i) < rs);
 	
-		++rb[i];
-		if (!rb[i])
-			throwErrorF("pcount", "numeric overflow of region %d", i);
+		SafeIncrement(rb[i]);
 	}
 }
 
@@ -41,9 +41,7 @@ void pcount_range(const Point<T>* sb, const Point<T>* se, I rb, SizeT rs, typena
 
 		SizeT i = Range_GetIndex_naked(domainRange, *sb);
 		assert(i < rs);
-		++rb[i];
-		if (!rb[i])
-			throwErrorF("pcount", "numeric overflow of region %d", i);
+		SafeIncrement(rb[i]);
 	}
 }
 
@@ -56,9 +54,7 @@ void pcount_range_checked(const T* sb, const T* se, I rb, SizeT rs, typename Uni
 		SizeT i = Range_GetIndex_checked(domainRange, v);
 		if (i < rs)
 		{
-			++rb[i];
-			if (!rb[i])
-				throwErrorF("pcount", "numeric overflow of region %d", i);
+			SafeIncrement(rb[i]);
 		}
 	}
 }
@@ -73,9 +69,7 @@ void pcount_range(const T* sb, const T* se, UInt64* rb, SizeT rs, typename Unit<
 		assert(IsIncluding(domainRange, i));
 
 		assert(Range_GetIndex_naked(domainRange, i) < rs);
-		++rb[i];
-		if (!rb[i])
-			throwErrorF("pcount", "numeric overflow of region %d", i);
+		SafeIncrement(rb[i]);
 	}
 }
 
@@ -88,9 +82,7 @@ void pcount_range(const Point<T>* sb, const Point<T>* se, UInt64* rb, SizeT rs, 
 
 		SizeT i = Range_GetIndex_naked(domainRange, *sb);
 		assert(i < rs);
-		++rb[i];
-		if (!rb[i])
-			throwErrorF("pcount", "numeric overflow of region %d", i);
+		SafeIncrement(rb[i]);
 	}
 }
 
@@ -103,9 +95,7 @@ void pcount_range_checked(const T* sb, const T* se, UInt64* rb, SizeT rs, typena
 		SizeT i = Range_GetIndex_checked(domainRange, v);
 		if (i < rs)
 		{
-			++rb[i];
-			if (!rb[i])
-				throwErrorF("pcount", "numeric overflow of region %d", i);
+			SafeIncrement(rb[i]);
 		}
 	}
 }
@@ -125,7 +115,7 @@ void pcount_best(
 
 	if (dcm & (DCM_CheckDefined|DCM_CheckRange))
 	{
-		dms_assert((dcm != DCM_CheckBoth) || IsIncluding(domainRange, UNDEFINED_VALUE(T) ) );
+		assert((dcm != DCM_CheckBoth) || IsIncluding(domainRange, UNDEFINED_VALUE(T) ) );
 		pcount_range_checked(sb, se, rb, rs, domainRange);
 	}
 	else
@@ -141,27 +131,28 @@ void pcount_bitvalues(bit_iterator<N, Block> sb, bit_iterator<N, Block> se, Coun
 	This should be a generic facility at the bit_info<N> level.
 */
 	for (; sb.m_NrElems && sb != se; ++sb)
-		++counts[bit_value<N>(*sb)];
+		SafeIncrement(counts[bit_value<N>(*sb)]);
+
 	while (sb.m_BlockData != se.m_BlockData)
 	{
 		if ((*sb.m_BlockData & bit_info<N, Block>::used_bits_mask) == 0)
 		{
-			counts[0] += bit_info<N, Block>::nr_elem_per_block;
+			SafeAccumulate(counts[0],  bit_info<N, Block>::nr_elem_per_block);
 			++sb.m_BlockData;
 		}
 		else if ((*sb.m_BlockData & bit_info<N, Block>::used_bits_mask) == bit_info<N, Block>::used_bits_mask)
 		{
-			counts[bit_info<N, Block>::value_mask] += bit_info<N, Block>::nr_elem_per_block;
+			SafeAccumulate(counts[bit_info<N, Block>::value_mask], bit_info<N, Block>::nr_elem_per_block);
 			++sb.m_BlockData;
 		}
 		else
 			do {
-				++counts[bit_value<N>(*sb)];
+				SafeIncrement(counts[bit_value<N>(*sb)]);
 				++sb;
 			} while (sb.m_NrElems);
 	}
 	for (; sb != se; ++sb)
-		++counts[bit_value<N>(*sb)];
+		SafeIncrement(counts[bit_value<N>(*sb)]);
 }
 
 template<bit_size_t N, typename Block, typename I>
@@ -171,9 +162,9 @@ void pcount_best(
 	typename Unit<bit_value<N>>::range_t domainRange, 
 	DataCheckMode dcm, bool mustInit)
 {
-	dms_assert(dcm == DCM_None);
-	dms_assert(rs == bit_value<N>::nr_values);
-	dms_assert(domainRange.first == 0 && domainRange.second == bit_value<N>::nr_values);
+	assert(dcm == DCM_None);
+	assert(rs == bit_value<N>::nr_values);
+	assert(domainRange.first == 0 && domainRange.second == bit_value<N>::nr_values);
 
 	SizeT counts[bit_value<N>::nr_values]; 
 	fast_zero(counts, counts + bit_value<N>::nr_values);
@@ -187,7 +178,7 @@ void pcount_best(
 		fast_copy(counts, counts + bit_value<N>::nr_values, rb);
 	else
 		for (UInt32 i = 0; i != bit_value<N>::nr_values; ++i)
-			rb[i] += ThrowingConvertNonNull<U>(counts[i]);
+			SafeAccumulate(rb[i], ThrowingConvertNonNull<U>(counts[i]));
 }
 
 template<bit_size_t N, typename Block>
@@ -197,9 +188,9 @@ void pcount_best(
 	typename Unit<bit_value<N>>::range_t domainRange,
 	DataCheckMode dcm, bool mustInit)
 {
-	dms_assert(dcm == DCM_None);
-	dms_assert(rs == bit_value<N>::nr_values);
-	dms_assert(domainRange.first == 0 && domainRange.second == bit_value<N>::nr_values);
+	assert(dcm == DCM_None);
+	assert(rs == bit_value<N>::nr_values);
+	assert(domainRange.first == 0 && domainRange.second == bit_value<N>::nr_values);
 
 	if (mustInit)
 		fast_zero(rb, rb + bit_value<N>::nr_values);
