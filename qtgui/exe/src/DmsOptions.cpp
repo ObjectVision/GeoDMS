@@ -22,6 +22,8 @@
 #include <QColorDialog>
 #include <QProcess>
 
+#include "DrawPolygons.h"
+
 struct colorOptionAttr {
 
     CharPtr regKey;
@@ -194,6 +196,11 @@ void DmsGuiOptionsWindow::setChanged(bool isChanged)
     m_undo->setEnabled(isChanged);
 }
 
+void SetDrawingSizeTresholdValue(Float32 drawing_size)
+{
+    s_DrawingSizeTresholdInPixels = drawing_size;
+}
+
 void DmsGuiOptionsWindow::apply()
 {
     auto dms_reg_status_flags = GetRegStatusFlags();
@@ -223,10 +230,19 @@ void DmsGuiOptionsWindow::apply()
 
     // drawing size in pixels
     Float32 drawing_size_in_pixels = m_drawing_size->value();
-    UInt32  drawing_size_dword = reinterpret_cast<UInt32&>(drawing_size_in_pixels);
+    SetDrawingSizeTresholdValue(drawing_size_in_pixels);
+    UInt32  drawing_size_dword = reinterpret_cast<UInt32&>(drawing_size_in_pixels); // Float32 stored as UInt32(DWORD) in registry
     SetGeoDmsRegKeyDWord("DrawingSizeInPixels", drawing_size_dword);
 
     setChanged(false);
+}
+
+Float32 GetDrawingSizeInPixels()
+{
+    auto default_drawing_size_in_pixels = RTC_GetRegDWord(RegDWordEnum::DrawingSizeInPixels);
+    UInt32 dms_reg_drawing_size_pixels = GetGeoDmsRegKeyDWord("DrawingSizeInPixels", default_drawing_size_in_pixels);
+    Float32 drawing_size_in_pixels = reinterpret_cast<Float32&>(dms_reg_drawing_size_pixels); // Float32 stored as UInt32(DWORD) in registry
+    return drawing_size_in_pixels;
 }
 
 void DmsGuiOptionsWindow::restoreOptions()
@@ -237,12 +253,8 @@ void DmsGuiOptionsWindow::restoreOptions()
     m_show_thousand_separator->setChecked(dms_reg_status_flags & RSF_ShowThousandSeparator);
     m_show_state_colors_in_treeview->setChecked(dms_reg_status_flags & RSF_ShowStateColors);
 
-    auto default_drawing_size_in_pixels = RTC_GetRegDWord(RegDWordEnum::DrawingSizeInPixels);
-    UInt32 dms_reg_drawing_size_pixels = GetGeoDmsRegKeyDWord("DrawingSizeInPixels", default_drawing_size_in_pixels);
-
-    //UInt32 dms_reg_drawing_size_pixels = RTC_GetRegDWord(RegDWordEnum::DrawingSizeInPixels);
-    Float32 dms_reg_drawing_size_pixels_float = reinterpret_cast<Float32&>(dms_reg_drawing_size_pixels);
-    m_drawing_size->setValue(dms_reg_drawing_size_pixels_float);
+    auto drawing_size_in_pixels = GetDrawingSizeInPixels();
+    m_drawing_size->setValue(drawing_size_in_pixels);
 
     setBackgroundColor(m_valid_color_ti_button, color_option::tv_valid);
     setBackgroundColor(m_not_calculated_color_ti_button, color_option::tv_not_calculated);
