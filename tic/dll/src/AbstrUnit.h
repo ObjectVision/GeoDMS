@@ -97,6 +97,7 @@ public:
 	TIC_CALL SharedStr GetCurrMetricStr       (FormattingFlags ff) const;
 	TIC_CALL SharedStr GetFormattedMetricStr  () const;
 	TIC_CALL SharedStr GetProjectionStr       (FormattingFlags ff) const;
+	TIC_CALL auto GetUnitlabeledScalePair() const->UnitLabelScalePair;
 
 	TIC_CALL SharedDataItemInterestPtr GetLabelAttr() const;
 	TIC_CALL ActorVisitState VisitLabelAttr(const ActorVisitor& visitor, SharedDataItemInterestPtr& labelLock) const;

@@ -543,6 +543,7 @@ RegDWordAttr s_RegDWordAttrs[] =
 {
 	{ "MemoryFlushThreshold", 80, false},
 	{ "SwapFileMinSize", 0, false },
+    { "DrawingSizeInPixels", 0, false }
 };
 
 extern "C" RTC_CALL DWORD RTC_GetRegDWord(RegDWordEnum i)

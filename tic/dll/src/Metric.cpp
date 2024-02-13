@@ -399,6 +399,14 @@ const AbstrUnit* UnitProjection::GetCompositeBase() const
 	return base;
 }
 
+auto UnitProjection::GetUnitlabeledScalePair() const -> UnitLabelScalePair
+{
+	const AbstrUnit* base = GetCompositeBase();
+	auto result = base->GetUnitlabeledScalePair();
+	result.second *= GetCompositeTransform(this).ZoomLevel();
+	return result;
+}
+
 Transformation<Float64> UnitProjection::GetCompositeTransform(const UnitProjection* curr)
 {
 	Transformation result;

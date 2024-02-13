@@ -22,6 +22,8 @@
 #include <QColorDialog>
 #include <QProcess>
 
+#include "DrawPolygons.h"
+
 struct colorOptionAttr {
 
     CharPtr regKey;
@@ -48,6 +50,7 @@ static DmsColor darkGrey = CombineRGB(100, 100, 100);
 static DmsColor cool_blue = CombineRGB(82, 136, 219);
 static DmsColor cool_green = CombineRGB(0, 153, 51);
 static DmsColor white = CombineRGB(255, 255, 255);
+static DmsColor black = CombineRGB(0, 0, 0);
 
 colorOptionAttr sColorOptionData[(int)color_option::count] =
 {
@@ -167,7 +170,7 @@ DmsGuiOptionsWindow::DmsGuiOptionsWindow(QWidget* parent)
     : QDialog(parent)
 {
     setupUi(this);
-    connect(m_show_connecting_lines, &QCheckBox::stateChanged, this, &DmsGuiOptionsWindow::hasChanged);
+    connect(m_follow_os_layout, &QCheckBox::stateChanged, this, &DmsGuiOptionsWindow::hasChanged);
     connect(m_show_hidden_items, &QCheckBox::stateChanged, this, &DmsGuiOptionsWindow::hasChanged);
     connect(m_show_thousand_separator, &QCheckBox::stateChanged, this, &DmsGuiOptionsWindow::hasChanged);
     connect(m_show_state_colors_in_treeview, &QCheckBox::stateChanged, this, &DmsGuiOptionsWindow::hasChanged);
@@ -177,6 +180,7 @@ DmsGuiOptionsWindow::DmsGuiOptionsWindow(QWidget* parent)
     connect(m_background_color_button, &QPushButton::released, this, &DmsGuiOptionsWindow::changeMapviewBackgroundColor);
     connect(m_start_color_button, &QPushButton::released, this, &DmsGuiOptionsWindow::changeClassificationStartColor);
     connect(m_end_color_button, &QPushButton::released, this, &DmsGuiOptionsWindow::changeClassificationEndColor);
+    connect(m_drawing_size, &QDoubleSpinBox::valueChanged, this, &DmsGuiOptionsWindow::hasChanged);
 
     connect(m_ok, &QPushButton::released, this, &DmsGuiOptionsWindow::ok);
     connect(m_cancel, &QPushButton::released, this, &DmsGuiOptionsWindow::cancel);
@@ -193,10 +197,15 @@ void DmsGuiOptionsWindow::setChanged(bool isChanged)
     m_undo->setEnabled(isChanged);
 }
 
+void SetDrawingSizeTresholdValue(Float32 drawing_size)
+{
+    s_DrawingSizeTresholdInPixels = drawing_size;
+}
+
 void DmsGuiOptionsWindow::apply()
 {
     auto dms_reg_status_flags = GetRegStatusFlags();
-    setSF(m_show_connecting_lines->isChecked(), dms_reg_status_flags, RSF_TreeView_ShowConnectingLines);
+    setSF(m_follow_os_layout->isChecked(), dms_reg_status_flags, RSF_TreeView_FollowOSLayout);
     setSF(m_show_hidden_items->isChecked(), dms_reg_status_flags, RSF_AdminMode);
     setSF(m_show_thousand_separator->isChecked(), dms_reg_status_flags, RSF_ShowThousandSeparator);
     setSF(m_show_state_colors_in_treeview->isChecked(), dms_reg_status_flags, RSF_ShowStateColors);
@@ -210,27 +219,43 @@ void DmsGuiOptionsWindow::apply()
     saveBackgroundColor(m_start_color_button, color_option::mapview_ramp_start);
     saveBackgroundColor(m_end_color_button, color_option::mapview_ramp_end);
 
-    setChanged(false);
-
     auto main_window = MainWindow::TheOne();
 
-    // connecting lines
-    main_window->m_treeview->setDmsStyleSheet(dms_reg_status_flags & RSF_TreeView_ShowConnectingLines);
+    // treeview follow os layout
+    main_window->m_treeview->setDmsStyleSheet(dms_reg_status_flags & RSF_TreeView_FollowOSLayout);
 
-    // hidden items
-    
+    // hidden items and state colors
     main_window->m_eventlog_model->cached_reg_flags = dms_reg_status_flags;
-    if (main_window->m_dms_model->updateShowHiddenItems())
+    if (main_window->m_dms_model->updateChachedDisplayFlags())
         main_window->m_dms_model->reset();
+
+    // drawing size in pixels
+    Float32 drawing_size_in_pixels = m_drawing_size->value();
+    SetDrawingSizeTresholdValue(drawing_size_in_pixels);
+    UInt32  drawing_size_dword = reinterpret_cast<UInt32&>(drawing_size_in_pixels); // Float32 stored as UInt32(DWORD) in registry
+    SetGeoDmsRegKeyDWord("DrawingSizeInPixels", drawing_size_dword);
+
+    setChanged(false);
+}
+
+Float32 GetDrawingSizeInPixels()
+{
+    auto default_drawing_size_in_pixels = RTC_GetRegDWord(RegDWordEnum::DrawingSizeInPixels);
+    UInt32 dms_reg_drawing_size_pixels = GetGeoDmsRegKeyDWord("DrawingSizeInPixels", default_drawing_size_in_pixels);
+    Float32 drawing_size_in_pixels = reinterpret_cast<Float32&>(dms_reg_drawing_size_pixels); // Float32 stored as UInt32(DWORD) in registry
+    return drawing_size_in_pixels;
 }
 
 void DmsGuiOptionsWindow::restoreOptions()
 {   
     auto dms_reg_status_flags = GetRegStatusFlags();
-    m_show_connecting_lines->setChecked(dms_reg_status_flags & RSF_TreeView_ShowConnectingLines);
+    m_follow_os_layout->setChecked(dms_reg_status_flags & RSF_TreeView_FollowOSLayout);
     m_show_hidden_items->setChecked(dms_reg_status_flags & RSF_AdminMode);
     m_show_thousand_separator->setChecked(dms_reg_status_flags & RSF_ShowThousandSeparator);
     m_show_state_colors_in_treeview->setChecked(dms_reg_status_flags & RSF_ShowStateColors);
+
+    auto drawing_size_in_pixels = GetDrawingSizeInPixels();
+    m_drawing_size->setValue(drawing_size_in_pixels);
 
     setBackgroundColor(m_valid_color_ti_button, color_option::tv_valid);
     setBackgroundColor(m_not_calculated_color_ti_button, color_option::tv_not_calculated);
@@ -438,6 +463,7 @@ void DmsLocalMachineOptionsWindow::apply()
 
     MainWindow::TheOne()->updateTracelogHandle();
 
+    // flush treshold
     auto flushThreshold = m_flush_treshold->value();
     SetGeoDmsRegKeyDWord("MemoryFlushThreshold", flushThreshold);
     RTC_SetCachedDWord(RegDWordEnum::MemoryFlushThreshold, flushThreshold);
