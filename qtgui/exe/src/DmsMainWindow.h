@@ -306,7 +306,6 @@ public slots:
     void forward();
 
     void scheduleUpdateToolbar();
-    //void showTreeviewContextMenu(const QPoint& pos);
     void showStatisticsDirectly(const TreeItem* tiContext);
     void showValueInfo(const AbstrDataItem* studyObject, SizeT index, SharedStr extraInfo);
     void showStatistics() { showStatisticsDirectly(getCurrentTreeItem()); }
@@ -325,8 +324,6 @@ public:
 
 private:
     void openConfigSourceFor(const TreeItem* context);
-    //auto createRecentFilesWidgetAction(int index, std::string_view cfg, QWidget* parent) -> QWidgetAction*;
-    void reconnectToolbarActionsForSameStyleView();
     void clearToolbarUpToDetailPagesTools();
     bool openErrorOnFailedCurrentItem();
     void clearActionsForEmptyCurrentItem();
@@ -336,7 +333,6 @@ private:
     void createActions();
     void createStatusBar();
     void createDetailPagesDock();
-    void createValueInfoDock();
     void createDmsHelperWindowDocks();
     void updateFileMenu();
     void updateViewMenu();

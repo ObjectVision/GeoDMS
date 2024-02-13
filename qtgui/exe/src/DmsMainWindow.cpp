@@ -263,8 +263,6 @@ MainWindow::MainWindow(CmdLineSetttings& cmdLineSettings)
     m_error_window = new DmsErrorWindow(this);
     m_export_window = new DmsExportWindow(this);
 
-
-
     setCentralWidget(m_mdi_area.get());
     m_mdi_area->show();
 
@@ -310,6 +308,10 @@ MainWindow::MainWindow(CmdLineSetttings& cmdLineSettings)
     setUnifiedTitleAndToolBarOnMac(true);
     scheduleUpdateToolbar();
     LoadColors();
+
+    // set drawing size in pixels for polygons and arcs
+    Float32 drawing_size_in_pixels = GetDrawingSizeInPixels(); // from registry
+    SetDrawingSizeTresholdValue(drawing_size_in_pixels);
 
     resizeDocksToNaturalSize();
 }
@@ -2733,21 +2735,8 @@ void MainWindow::createDetailPagesDock()
     //m_value_info_dock->setVisible(false);
 }
 
-void MainWindow::createValueInfoDock()
-{
-    //m_value_info_dock = new QDockWidget(QObject::tr("Value Info"), this);
-    //m_value_info_dock->setTitleBarWidget(new QWidget(m_value_info_dock));
-    //m_value_info_mdi_area = new QDmsMdiArea(m_value_info_dock);
-    //m_value_info_mdi_area->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
-
-    //m_value_info_dock->setWidget(m_value_info_mdi_area);
-    //m_value_info_dock->setVisible(true);
-    //addDockWidget(Qt::RightDockWidgetArea, m_value_info_dock);
-}
-
 void MainWindow::createDmsHelperWindowDocks()
 {
-    createValueInfoDock();
     createDetailPagesDock();
 
     m_treeview = createTreeview(this);
