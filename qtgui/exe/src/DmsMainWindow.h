@@ -388,7 +388,6 @@ public:
     std::unique_ptr<QComboBox> m_treeitem_visit_history;
 
     // helper windows; TODO: destroy these before the above model objects
-    QPointer<QLabel> m_statusbar_coordinate_label;
     QPointer<QLineEdit> m_statusbar_coordinates;
     std::unique_ptr<Ui::dp_properties> m_detail_page_properties_buttons;
     std::unique_ptr<Ui::dp_sourcedescription> m_detail_page_source_description_buttons;

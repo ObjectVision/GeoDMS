@@ -977,7 +977,6 @@ void MainWindow::updateToolbar()
     // disable/enable coordinate tool
     auto is_mapview = view_style == ViewStyle::tvsMapView;
     auto is_tableview = view_style == ViewStyle::tvsTableView;
-    m_statusbar_coordinate_label->setVisible(is_mapview);
     m_statusbar_coordinates->setVisible(is_mapview || is_tableview);
     clearToolbarUpToDetailPagesTools();
 
@@ -2567,14 +2566,11 @@ void MainWindow::createStatusBar()
     statusBar()->showMessage(tr("Ready"));
     
     connect(statusBar(), &QStatusBar::messageChanged, this, &MainWindow::on_status_msg_changed);
-    m_statusbar_coordinate_label = new QLabel("Coordinate", this);
     m_statusbar_coordinates = new QLineEdit(this);
     m_statusbar_coordinates->setReadOnly(true);
     m_statusbar_coordinates->setFixedWidth(310);
     m_statusbar_coordinates->setAlignment(Qt::AlignmentFlag::AlignLeft);
-    statusBar()->insertPermanentWidget(0, m_statusbar_coordinate_label);
-    statusBar()->insertPermanentWidget(1, m_statusbar_coordinates);
-    m_statusbar_coordinate_label->setVisible(false);
+    statusBar()->insertPermanentWidget(0, m_statusbar_coordinates);
     m_statusbar_coordinates->setVisible(false);
 }
 
