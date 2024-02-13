@@ -80,6 +80,37 @@ struct unary_assign_inc : unary_assign<I, T>
 	}
 };
 
+template<typename R> void SafeIncrement(R& assignee) // see the similarity with safe_plus
+{
+	R orgAssignee = assignee; // may-be used in check
+	if constexpr (has_undefines_v<R>)
+	{
+		if constexpr (is_signed_v<R> && !std::is_floating_point_v<R>)
+			if (!IsDefined(assignee))
+				return;
+	}
+
+	if constexpr (!std::is_floating_point_v<R>)
+	{
+		if constexpr (is_signed_v<R>)
+		{
+			if (assignee == MAX_VALUE(R))
+				throwErrorD("SafeIncrement", "non-representable numerical overflow");
+		}
+	}
+
+	++assignee;
+
+	if constexpr (!std::is_floating_point_v<R>)
+	{
+		if constexpr (!is_signed_v<R>)
+		{
+			if (!assignee)
+				throwErrorD("SafeIncrement", "non-representable numerical overflow");
+		}
+	}
+}
+
 template<typename R, typename T> void SafeAccumulate(R& assignee, T arg) // see the similarity with safe_plus
 {
 	R orgAssignee = assignee; // may-be used in check
@@ -95,7 +126,7 @@ template<typename R, typename T> void SafeAccumulate(R& assignee, T arg) // see 
 
 	assignee += arg;
 
-	if constexpr (!std::is_floating_point_v<T>)
+	if constexpr (!std::is_floating_point_v<R>)
 	{
 		if constexpr (!is_signed_v<R>)
 		{
@@ -109,7 +140,7 @@ template<typename R, typename T> void SafeAccumulate(R& assignee, T arg) // see 
 			}
 
 			if (hasOverflow)
-				throwDmsErrD("non-representable numerical overflow in aggregation");
+				throwDmsErrD("non-representable numerical overflow in accumulation");
 		}
 		else
 		{
@@ -120,7 +151,7 @@ template<typename R, typename T> void SafeAccumulate(R& assignee, T arg) // see 
 			{
 				auto resultNonnegative = (assignee>= 0);
 				if (aNonnegative != resultNonnegative)
-					throwDmsErrD("non-representable numerical overflow in aggregation");
+					throwDmsErrD("non-representable numerical overflow in accumulation");
 			}
 		}
 	}

@@ -135,7 +135,7 @@ struct RegTileCounterBase : UnitProcessor
 		std::vector<DataArray<CounterType>::locked_seq_t> countsArray;
 		countsArray.reserve(n);
 		for (auto i=regionInfoArrayPtr->begin(), e=regionInfoArrayPtr->end(); i!=e; ++i)
-			countsArray.push_back(mutable_array_cast<CounterType>(i->m_WriteLock)->GetDataWrite());
+			countsArray.push_back(mutable_array_cast<CounterType>(i->m_WriteLock)->GetDataWrite(no_tile, dms_rw_mode::write_only_mustzero));
 
 		DataReadLock arg1Lock(arg1A);
 
@@ -158,8 +158,11 @@ struct RegTileCounterBase : UnitProcessor
 				PartitionIndex j = ri.m_Partition ? ri.m_IndexGetter->Get( c ) : 0;
 
 				auto& counts = countsArray[lu];
-				if (j < counts.size())
-					++(counts[j]);
+				if (j >= counts.size())
+					continue;
+				++(counts[j]);
+				if (!counts[j])
+					throwErrorF("RegCount", "Overflow in count for region %d of class %d", j, lu);
 			}
 		}
 	}

@@ -755,7 +755,7 @@ struct BufferMultiPointOperator : public AbstrBufferOperator
 			boost::geometry::strategy::buffer::side_straight               sideStrategy;
 
 			std::vector<DPoint> ringClosurePoints;
-			dms_assert(polyItem->GetValueComposition() == ValueComposition::Sequence);
+			assert(polyItem->GetValueComposition() == ValueComposition::Sequence);
 
 			boost::geometry::model::multi_point<DPoint> currGeometry;
 			bg_multi_polygon_t resMP;
@@ -830,15 +830,17 @@ struct BufferLineStringOperator : public AbstrBufferOperator
 
 			resMP.clear();
 			currGeometry.assign(begin_ptr(polyData[i]), end_ptr(polyData[i]));
+			if (!currGeometry.empty())
+			{
+				auto p = MaxValue<DPoint>();
+				MakeLowerBound(p, currGeometry);
+				move(currGeometry, -p);
 
-			auto p = MaxValue<DPoint>();
-			MakeLowerBound(p, currGeometry);
-			move(currGeometry, -p);
+				boost::geometry::buffer(currGeometry, resMP, distStrategy, sideStrategy, joinStrategy, endStrategy, circleStrategy);
+				move(resMP, p);
 
-			boost::geometry::buffer(currGeometry, resMP,	distStrategy, sideStrategy, joinStrategy, endStrategy, circleStrategy);
-			move(resMP, p);
-
-			store_multi_polygon(resData[i], resMP, ringClosurePoints);
+				store_multi_polygon(resData[i], resMP, ringClosurePoints);
+			}
 			if (++i == n)
 				break;
 			if (e2IsVoid && e3IsVoid)
@@ -892,16 +894,18 @@ struct BufferMultiPolygonOperator : public AbstrBufferOperator
 		nextPointWithSameResRing:
 
 			assign_multi_polygon(currMP, polyData[i], true, helperPolygon, helperRing);
+			if (!currMP.empty())
+			{
+				auto lb = MaxValue<DPoint>();
+				MakeLowerBound(lb, currMP);
+				move(currMP, -lb);
 
-			auto lb = MaxValue<DPoint>();
-			MakeLowerBound(lb, currMP);
-			move(currMP, -lb);
+				boost::geometry::buffer(currMP, resMP
+					, distStrategy, sideStrategy, joinStrategy, endStrategy, circleStrategy);
+				move(resMP, lb);
 
-			boost::geometry::buffer(currMP, resMP
-				, distStrategy, sideStrategy, joinStrategy, endStrategy, circleStrategy);
-			move(resMP, lb);
-
-			store_multi_polygon(resData[i], resMP, helperPointArray);
+				store_multi_polygon(resData[i], resMP, helperPointArray);
+			}
 			if (++i == n)
 				break;
 			if (e2IsVoid && e3IsVoid)
@@ -956,18 +960,19 @@ struct BufferSinglePolygonOperator : public AbstrBufferOperator
 		nextPointWithSameResRing:
 
 			assign_polygon(currPoly, polyData[i], true, helperRing);
-			if (currPoly.outer().empty())
-				continue;
+			if (!currPoly.outer().empty())
+			{
 
-			auto lb = MaxValue<DPoint>();
-			MakeLowerBound(lb, currPoly);
-			move(currPoly, -lb);
+				auto lb = MaxValue<DPoint>();
+				MakeLowerBound(lb, currPoly);
+				move(currPoly, -lb);
 
-			boost::geometry::buffer(currPoly, resMP
-				, distStrategy, sideStrategy, joinStrategy, endStrategy, circleStrategy);
-			move(resMP, lb);
+				boost::geometry::buffer(currPoly, resMP
+					, distStrategy, sideStrategy, joinStrategy, endStrategy, circleStrategy);
+				move(resMP, lb);
 
-			store_multi_polygon(resData[i], resMP, ringClosurePoints);
+				store_multi_polygon(resData[i], resMP, ringClosurePoints);
+			}
 			if (++i == n)
 				break;
 			if (e2IsVoid && e3IsVoid)
