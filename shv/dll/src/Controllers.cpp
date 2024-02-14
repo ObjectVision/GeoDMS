@@ -91,10 +91,20 @@ static TokenID meterToken1 = GetTokenID_st("metre");
 static TokenID meterToken2 = GetTokenID_st("meter");
 static TokenID kmToken = GetTokenID_st("km");
 
+static TokenID degreeToken = GetTokenID_st("degree");
+static TokenID minuteToken = GetTokenID_st("min");
+static TokenID secondToken = GetTokenID_st("sec");
+
 bool isMeterToken(TokenID token)
 {
 
 	return token == meterToken1 || token == meterToken2;
+}
+
+bool isDegreeToken(TokenID token)
+{
+
+	return token == degreeToken;
 }
 
 bool AbstrController::SendStatusText(CharPtr format, CrdType dst, CrdType dst2) const
@@ -106,21 +116,20 @@ bool AbstrController::SendStatusText(CharPtr format, CrdType dst, CrdType dst2) 
 	auto to = GetTargetObject().lock();
 
 	UnitLabelScalePair lsPair;
-	if (to)
-		if (auto vp = dynamic_cast<ViewPort*>(to.get()))
-			if (auto worldCrdUnit = vp->GetWorldCrdUnit())
-				if (auto projection = worldCrdUnit->GetProjection())
-					lsPair = projection->GetUnitlabeledScalePair();
-				else
-					lsPair = AsUnit(worldCrdUnit->GetUltimateItem())->GetUnitlabeledScalePair();
-/*
-	if (lsPair.first)
+	if (!m_UnitLabelScalePtr)
 	{
-		dst *= lsPair.second;
-		dst2 *= (lsPair.second * lsPair.second);
+		m_UnitLabelScalePtr = std::make_unique<UnitLabelScalePair>();
+		if (to)
+			if (auto vp = dynamic_cast<ViewPort*>(to.get()))
+				if (auto worldCrdUnit = vp->GetWorldCrdUnit())
+					if (auto projection = worldCrdUnit->GetProjection())
+						*m_UnitLabelScalePtr = projection->GetUnitlabeledScalePair();
+					else
+						*m_UnitLabelScalePtr = AsUnit(worldCrdUnit->GetUltimateItem())->GetUnitlabeledScalePair();
 	}
-*/
-	TokenID unitToken = lsPair.first;
+
+	MG_CHECK(m_UnitLabelScalePtr);
+	TokenID unitToken = m_UnitLabelScalePtr->first;
 
 	if (isMeterToken(unitToken))
 	{
@@ -131,7 +140,22 @@ bool AbstrController::SendStatusText(CharPtr format, CrdType dst, CrdType dst2) 
 			unitToken = kmToken;
 		}
 	}
-		
+	if (isDegreeToken(unitToken))
+	{
+		if (abs(dst) < 1.0)
+		{
+			dst *= 60;
+			dst2 *= 60*60;
+			unitToken = minuteToken;
+		}
+		if (abs(dst) < 1.0)
+		{
+			dst *= 60;
+			dst2 *= 60 * 60;
+			unitToken = secondToken;
+		}
+	}
+
 	// insert some replacements here
 
 	auto unitLabel = unitToken.GetStr();
@@ -567,8 +591,9 @@ bool SelectRectController::Move(EventInfo& eventInfo)
 	auto result = DualPointCaretController::Move(eventInfo);
 	CrdPoint orgPoint = m_Transformation.Reverse(g2dms_order<CrdType>(m_Origin));
 	CrdPoint dstPoint = m_Transformation.Reverse(g2dms_order<CrdType>(eventInfo.m_Point));
-	CrdType dst2 = SqrDist<CrdType>(orgPoint, dstPoint);
-	CrdType dst = sqrt(dst2);
+	CrdPoint deltaPoint = dstPoint - orgPoint;
+	CrdType dst = sqrt(Norm<CrdType>(deltaPoint));
+	CrdType dst2 = CrdType(deltaPoint.first) * CrdType(deltaPoint.second);
 
 	SendStatusText("Diagonal: % f[% s]; Area: % f[% s ^ 2]", dst, dst2);
 	eventInfo.m_EventID |= EID_TEXTSENT;

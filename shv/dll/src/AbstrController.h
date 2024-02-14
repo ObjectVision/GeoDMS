@@ -148,6 +148,7 @@ private:
 	std::weak_ptr<GraphicObject> m_TargetObject;
 	UInt32 m_MoveEvents, m_ExecEvents, m_StopEvents;
 	ToolButtonID                 m_ToolID;
+	mutable std::unique_ptr< UnitLabelScalePair> m_UnitLabelScalePtr;
 };
 
 //----------------------------------------------------------------------
