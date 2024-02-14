@@ -113,12 +113,13 @@ bool AbstrController::SendStatusText(CharPtr format, CrdType dst, CrdType dst2) 
 					lsPair = projection->GetUnitlabeledScalePair();
 				else
 					lsPair = AsUnit(worldCrdUnit->GetUltimateItem())->GetUnitlabeledScalePair();
-
+/*
 	if (lsPair.first)
 	{
 		dst *= lsPair.second;
 		dst2 *= (lsPair.second * lsPair.second);
 	}
+*/
 	TokenID unitToken = lsPair.first;
 
 	if (isMeterToken(unitToken))
