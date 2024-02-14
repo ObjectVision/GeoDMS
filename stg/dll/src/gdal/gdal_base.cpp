@@ -396,17 +396,29 @@ void CheckCompatibility(const TreeItem* treeitem, OGRSpatialReference* fromGDAL,
 	if (fromGDAL->IsSame(fromConfig))
 		return;
 
-	SharedStr authority_code_from_gdal       = SharedStr(fromGDAL->GetAuthorityName(NULL)) + ":" + fromGDAL->GetAuthorityCode(NULL);
-	SharedStr authority_code_from_value_unit = SharedStr(fromConfig->GetAuthorityName(NULL)) + ":" + fromConfig->GetAuthorityCode(NULL);
+	auto gdal_authority = SharedStr(fromGDAL->GetAuthorityName(NULL));
+	auto vu_authority = SharedStr(fromConfig->GetAuthorityName(NULL));
+	auto gdal_code = SharedStr(fromGDAL->GetAuthorityCode(NULL));
+	auto vu_code = SharedStr(fromConfig->GetAuthorityCode(NULL));
 
-	if (authority_code_from_gdal == authority_code_from_value_unit)
+	// for a valid comparison both authority and code must be present from value unit and gdal side
+	if (gdal_authority.empty() or vu_authority.empty() or gdal_code.empty() or vu_code.empty()) 
 		return;
 
-	reportF(SeverityTypeID::ST_Warning, "GDAL: item [[%s]] spatial reference (%s) differs from the spatial reference (%s) GDAL obtained from dataset"
+	SharedStr authority_and_code_from_gdal       = gdal_authority + ":" + gdal_code;
+	SharedStr authority_and_code_from_value_unit = vu_authority + ":" + vu_code;
+
+	if (authority_and_code_from_gdal == authority_and_code_from_value_unit)
+		return;
+	SharedStr projection_mismatch_error_message = mySSPrintF(
+		"GDAL: item [[%s]] spatial reference (%s) differs from the spatial reference (%s) obtained from the dataset"
 		, treeitem->GetFullName().c_str()
-		, authority_code_from_gdal.c_str()
-		, authority_code_from_value_unit.c_str()
-	);
+		, authority_and_code_from_gdal.c_str()
+		, authority_and_code_from_value_unit.c_str());
+
+	//reportF(SeverityTypeID::ST_Error, projection_mismatch_error_message.c_str());
+
+	treeitem->Fail(projection_mismatch_error_message, FailType::FR_MetaInfo);
 }
 
 auto ConvertProjectionStrToAuthorityIdentifierAndCode(const std::string projection) -> SharedStr
