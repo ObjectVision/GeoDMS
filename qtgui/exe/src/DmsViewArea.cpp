@@ -321,7 +321,6 @@ void QDmsViewArea::closeEvent(QCloseEvent* event)
     auto number_of_active_subwindows = main_window->m_mdi_area->subWindowList().size();
     if (number_of_active_subwindows==1) // the window that is about to be closed is the only window, set coordinate widget to disabled
     {
-        main_window->m_statusbar_coordinate_label->setVisible(false);
         main_window->m_statusbar_coordinates->setVisible(false);
     }
     QMdiSubWindow::closeEvent(event);

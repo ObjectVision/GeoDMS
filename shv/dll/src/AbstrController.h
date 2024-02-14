@@ -90,6 +90,7 @@ enum EventID {
 	EID_SETCURSOR     = 0x00020000,
 	EID_COPYCOORD     = 0x00040000,
 	EID_MOUSEWHEEL    = 0x00080000,
+	EID_TEXTSENT      = 0x00100000,
 };
 typedef UInt32 EventIdType;
 
@@ -123,8 +124,8 @@ public:
 
 	virtual ~AbstrController();
 
-	std::weak_ptr<DataView>      GetOwner         () { return m_Owner; }
-	std::weak_ptr<GraphicObject> GetTargetObject  () { return m_TargetObject; }
+	std::weak_ptr<DataView>      GetOwner         () const { return m_Owner; }
+	std::weak_ptr<GraphicObject> GetTargetObject  () const { return m_TargetObject; }
 
 	bool Event(EventInfo& eventInfo);
 
@@ -134,6 +135,8 @@ public:
 			return PressStatus::Dn;
 		return PressStatus::DontCare;
 	}
+
+	bool SendStatusText(CharPtr format, CrdType dst, CrdType dst2) const;
 
 protected:
 	virtual bool Move(EventInfo& eventInfo);
@@ -145,6 +148,7 @@ private:
 	std::weak_ptr<GraphicObject> m_TargetObject;
 	UInt32 m_MoveEvents, m_ExecEvents, m_StopEvents;
 	ToolButtonID                 m_ToolID;
+	mutable std::unique_ptr< UnitLabelScalePair> m_UnitLabelScalePtr;
 };
 
 //----------------------------------------------------------------------

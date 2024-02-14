@@ -860,11 +860,24 @@ public:
 	void Calculate(AbstrDataObject* res, const AbstrUnit* e) const override
 	{
 		const Arg1Type *e1 = debug_cast<const Arg1Type*>(e);
-		dms_assert(e1);
+		assert(e1);
 
 		ResultType *result = composite_cast<ResultType*>(res);
-		dms_assert(result);
+		assert(result);
 
+		if constexpr (!is_bitvalue_v<E1>)
+		{
+			if (e1->GetRange().first == UNDEFINED_VALUE(E1))
+				reportD(SeverityTypeID::ST_Warning, "LowerBoundOperator: start of range of argument is UNDEFINED");
+			if (e1->GetRange().first == MAX_VALUE(E1))
+				reportD(SeverityTypeID::ST_Warning, "LowerBoundOperator: start of range of argument is MAX_VALUE");
+
+			if constexpr (is_signed_v<E1>)
+			{
+				if (e1->GetRange().first == MIN_VALUE(E1))
+					reportD(SeverityTypeID::ST_Warning, "LowerBoundOperator: start of range of argument is MIN_VALUE");
+			}
+		}
 		result->GetDataWrite()[0] = e1->GetRange().first;
 	}
 };
@@ -889,6 +902,19 @@ public:
 		ResultType *result = composite_cast<ResultType*>(res);
 		dms_assert(result);
 
+		if constexpr (!is_bitvalue_v<E1>)
+		{
+			if (e1->GetRange().second == UNDEFINED_VALUE(E1))
+				reportD(SeverityTypeID::ST_Warning, "UpperBoundOperator: end of range of argument is UNDEFINED");
+			if (e1->GetRange().second == MAX_VALUE(E1))
+				reportD(SeverityTypeID::ST_Warning, "UpperBoundOperator: end of range of argument is MAX_VALUE");
+
+			if constexpr (is_signed_v<E1>)
+			{
+				if (e1->GetRange().second == MIN_VALUE(E1))
+					reportD(SeverityTypeID::ST_Warning, "UpperBoundOperator: end of range of argument is MIN_VALUE");
+			}
+		}
 		result->GetDataWrite()[0] = e1->GetRange().second;
 	}
 };

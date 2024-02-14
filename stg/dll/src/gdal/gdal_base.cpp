@@ -341,6 +341,45 @@ auto GetSpatialReferenceFromUserInput(SharedStr wktPrjStr) -> std::pair<OGRSpati
 	return { src, err };
 }
 
+auto GetUnitlabeledScalePair(TokenID wktPrjToken) -> UnitLabelScalePair
+{
+	if (!wktPrjToken)
+		return {};
+
+	auto wktPrjStr = AsString(wktPrjToken);
+	auto srOrErr = GetSpatialReferenceFromUserInput(wktPrjStr);
+	if (srOrErr.second != OGRERR_NONE)
+		return {};
+
+	auto sr = srOrErr.first;
+	CharPtr metricUnitStr;
+
+	auto unitScale = sr.GetLinearUnits(&metricUnitStr);
+	MG_CHECK(metricUnitStr != nullptr);
+	if (strcmp(metricUnitStr, "unknown") == 0)
+	{
+		unitScale = sr.GetAngularUnits(&metricUnitStr);
+	}
+	return { GetTokenID_mt(metricUnitStr), unitScale };
+}
+
+extern TIC_CALL GetUnitlabeledScalePairFuncType s_GetUnitlabeledScalePairFunc;
+
+struct SetUnitlabeledScalePairFuncType
+{
+	SetUnitlabeledScalePairFuncType()
+	{
+		s_GetUnitlabeledScalePairFunc = GetUnitlabeledScalePair;
+	}
+	~SetUnitlabeledScalePairFuncType()
+	{
+		s_GetUnitlabeledScalePairFunc = nullptr;
+	}
+};
+
+static SetUnitlabeledScalePairFuncType s_SetUnitlabeledScalePairFunc;
+
+
 SharedStr GetWkt(const OGRSpatialReference* sr)
 {
 	assert(sr);

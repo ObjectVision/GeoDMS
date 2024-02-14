@@ -43,6 +43,10 @@ class QLabel;
 class QFileDialog;
 class QLineEdit;
 
+
+
+void SetDrawingSizeTresholdValue(Float32 drawing_size);
+Float32 GetDrawingSizeInPixels();
 class DmsGuiOptionsWindow : public QDialog, Ui::DmsGuiOptionsWindow
 {
     Q_OBJECT
@@ -60,7 +64,6 @@ private slots:
     void cancel();
     void apply();
     void restoreOptions();
-
     void changeColor(QPushButton*, color_option co);
 
 private:

@@ -195,13 +195,26 @@ int DmsModel::columnCount(const QModelIndex& /*parent*/) const
 	return 1;
 }
 
-bool DmsModel::updateShowHiddenItems()
+bool DmsModel::updateChachedDisplayFlags()
 {
-	  bool mustShowAll = GetRegStatusFlags() & RSF_AdminMode;
-	  if (show_hidden_items == mustShowAll)
-		  return false;
-	  show_hidden_items = mustShowAll;
-	  return true;
+	bool was_updated = false;
+	auto dms_reg_status_flags = GetRegStatusFlags();
+
+	bool reg_show_hidden_items = (dms_reg_status_flags & RSF_AdminMode);
+	if (!show_hidden_items == reg_show_hidden_items)
+	{
+		was_updated = true;
+		show_hidden_items = reg_show_hidden_items;
+	}
+
+	bool reg_show_state_colors = (dms_reg_status_flags & RSF_ShowStateColors);
+	if (!show_state_colors == reg_show_state_colors)
+	{
+		was_updated = true;
+		show_state_colors = reg_show_state_colors;
+	}
+
+	return was_updated;
 }
 
 QVariant DmsModel::getTreeItemIcon(const QModelIndex& index) const
@@ -236,7 +249,7 @@ color_option getColorOption(const TreeItem* ti)
 
 	if (isInTemplate)
 		return color_option::tv_template;
-//	assert(ti->Was(PS_MetaInfo) || ti->WasFailed());
+
 	if (ti->Was(PS_MetaInfo))
 	{
 		if (IsDataCurrReady(ti->GetCurrRangeItem()))
@@ -253,6 +266,9 @@ QVariant DmsModel::getTreeItemColor(const QModelIndex& index) const
 	auto ti = GetTreeItemOrRoot(index);
 	assert(ti);
 	
+	if (!show_state_colors)
+		return QColor(0,0,0); // black
+
 	if (ti->WasFailed())
 		return QColor(255, 255, 255); // white
 
@@ -533,7 +549,7 @@ QSize DmsTreeView::minimumSizeHint() const
 
 void DmsTreeView::setDmsStyleSheet(bool connecting_lines)
 {
-	if (not(GetRegStatusFlags() & RSF_TreeView_ShowConnectingLines))
+	if (GetRegStatusFlags() & RSF_TreeView_FollowOSLayout)
 	{
 		setStyleSheet(
 			"QTreeView {"

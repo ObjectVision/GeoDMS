@@ -130,9 +130,33 @@ struct f64_accumulator
 	}
 };
 
+struct point64_accumulator
+{
+	SizeT d = 0;
+	DPoint
+		s   = DPoint(0, 0),
+		min = MaxValue<DPoint>(),
+		max = MinValue<DPoint>();
+
+	void operator ()(DPoint xy)
+	{
+		++d;
+		s += xy;
+		MakeMin(min, xy);
+		MakeMax(max, xy);
+	}
+	void operator +=(const point64_accumulator& rhs)
+	{
+		d += rhs.d;
+		s += rhs.s;
+		MakeMin(min, rhs.min);
+		MakeMax(max, rhs.max);
+	}
+};
+
 using bin_count_type = std::vector<SizeT>;
 
-void AccumulateData(f64_accumulator& accu, bin_count_type& binCounts, const AbstrDataItem* di)
+void AccumulateNumericData(f64_accumulator& accu, bin_count_type& binCounts, const AbstrDataItem* di)
 {
 	auto valueBitSize = di->GetRefObj()->GetValuesType()->GetBitSize();
 	if (valueBitSize && valueBitSize <= 16)
@@ -182,7 +206,7 @@ void AccumulateData(f64_accumulator& accu, bin_count_type& binCounts, const Abst
 	}
 }
 
-void WriteAccuData(PostLinkedTable& table, f64_accumulator& accu, const AbstrDataItem* di)
+void WriteNumericAccuData(PostLinkedTable& table, const f64_accumulator& accu, const AbstrDataItem* di)
 {
 	auto vu = di->GetAbstrValuesUnit();
 	auto metricPtr = vu->GetMetric();
@@ -206,6 +230,72 @@ void WriteAccuData(PostLinkedTable& table, f64_accumulator& accu, const AbstrDat
 
 		if (accu.d > 1)
 			table.NameValueRow("StdDev", AsString(sqrt(sumXtimesErr / (accu.d - 1))).c_str());
+	}
+}
+
+void AccumulatePointData(point64_accumulator& accu, const AbstrDataItem* di)
+{
+	auto domain = di->GetAbstrDomainUnit();
+	auto vu = di->GetAbstrValuesUnit();
+	auto vc = di->GetValueComposition();
+	for (tile_id t = 0, tn = domain->GetNrTiles(); t != tn; ++t)
+	{
+		ReadableTileLock tileLck(di->GetRefObj(), t);
+
+		if (vc == ValueComposition::Single)
+		{
+			visit<typelists::points>(vu,
+				[di, t, &accu] <typename P> (const Unit<P>*)
+			{
+				auto tileData = const_array_cast<P>(di)->GetTile(t);
+				for (auto x : tileData)
+				{
+					if (!IsDefined(x))
+						continue;
+					accu(Convert<DPoint>(x));
+				}
+			}
+			);
+		}
+		else
+		{
+			visit<typelists::points>(vu,
+				[di, t, &accu] <typename P> (const Unit<P>*)
+			{
+				using SequenceType = sequence_traits<P>::container_type;
+
+				auto tileData = const_array_cast<SequenceType>(di)->GetTile(t);
+				for (auto seq : tileData)
+				{
+					if (!IsDefined(seq))
+						continue;
+					for (auto p: seq)
+						accu(Convert<DPoint>(p));
+				}
+			}
+			);
+		}
+	}
+}
+
+void WritePointAccuData(PostLinkedTable& table, const point64_accumulator& accu, const AbstrDataItem* di)
+{
+	auto vu = di->GetAbstrValuesUnit();
+	auto metricPtr = vu->GetMetric();
+	table.NameValueRow(mySSPrintF("Formal Range %s", vu->GetName().c_str()).c_str(), di->GetAbstrValuesUnit()->GetRangeAsStr().c_str());
+	if (metricPtr)
+		table.NameValueRow("Metric Units", metricPtr->AsString(FormattingFlags::ThousandSeparator).c_str());
+
+	table.NameValueRow("Maximum", AsString(accu.max).c_str());
+	table.NameValueRow("Minimum", AsString(accu.min).c_str());
+
+	if (accu.d) // there is actual data?
+	{
+		DPoint mean = accu.s;
+		mean.first  /= accu.d;
+		mean.second /= accu.d;
+
+		table.NameValueRow("Average", AsString(mean).c_str());
 	}
 }
 
@@ -325,13 +415,21 @@ CLC_CALL bool NumericDataItem_GetStatistics(const TreeItem* item, vos_buffer_typ
 			DataReadLock lock(di);
 			if (!vt->IsNumeric() && vt->GetValueClassID() != ValueClassID::VT_Bool)
 			{
-				d = n - di->GetRefObj()->GetNrNulls();
+				if (vt->GetNrDims() == 2)
+				{
+					point64_accumulator accu;
+					AccumulatePointData(accu, di);
+					WritePointAccuData(table, accu, di);
+					d = accu.d;
+				}
+				else
+					d = n - di->GetRefObj()->GetNrNulls();
 			}
 			else
 			{
 				f64_accumulator accu;
-				AccumulateData(accu, binCounts, di);
-				WriteAccuData(table, accu, di);
+				AccumulateNumericData(accu, binCounts, di);
+				WriteNumericAccuData(table, accu, di);
 				d = accu.d;
 			}
 			table.NameValueRow("#Nulls", AsString(n - d).c_str());

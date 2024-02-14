@@ -839,21 +839,24 @@ GraphVisitState MouseEventDispatcher::DoViewPort(ViewPort* vp)
 
 	assert(IsMainThread());
 
-	auto viewPoint = ViewPoint(m_WorldCrd, vp->GetCurrLogicalZoomLevel(), {});
-	char buffer[201];
+	if (!(r_EventInfo.m_EventID & EID_TEXTSENT))
+	{
+		auto viewPoint = ViewPoint(m_WorldCrd, vp->GetCurrLogicalZoomLevel(), {});
+		char buffer[201];
 
-	if (auto dv = m_Owner.lock())
-	{
-		if (!viewPoint.WriteAsString(buffer, 200, FormattingFlags::ThousandSeparator))
-			buffer[200] = char(0); // truncate
-		dv->SendStatusText(SeverityTypeID::ST_MinorTrace, buffer);
-	}
-	if (r_EventInfo.m_EventID & EID_COPYCOORD )
-	{
-		if (viewPoint.WriteAsString(buffer, 200, FormattingFlags::None))
+		if (auto dv = m_Owner.lock())
 		{
-			ClipBoard clp;
-			clp.AddTextLine(buffer);
+			if (!viewPoint.WriteAsString(buffer, 200, FormattingFlags::ThousandSeparator))
+				buffer[200] = char(0); // truncate
+				dv->SendStatusText(SeverityTypeID::ST_MinorTrace, buffer);
+		}
+		if (r_EventInfo.m_EventID & EID_COPYCOORD)
+		{
+			if (viewPoint.WriteAsString(buffer, 200, FormattingFlags::None))
+			{
+				ClipBoard clp;
+				clp.AddTextLine(buffer);
+			}
 		}
 	}
 

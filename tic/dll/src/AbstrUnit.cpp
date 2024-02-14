@@ -456,6 +456,16 @@ SharedStr AbstrUnit::GetProjectionStr (FormattingFlags ff) const
 	return p->AsString(ff);
 }
 
+TIC_CALL GetUnitlabeledScalePairFuncType s_GetUnitlabeledScalePairFunc = nullptr;
+
+auto AbstrUnit::GetUnitlabeledScalePair() const -> UnitLabelScalePair
+{
+	if (!s_GetUnitlabeledScalePairFunc)
+		return {};
+	auto srToken = GetSpatialReference();
+	return (*s_GetUnitlabeledScalePairFunc)(srToken);
+}
+
 const UnitProjection* AbstrUnit::GetProjection() const
 {
 	return nullptr;
