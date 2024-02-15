@@ -600,12 +600,15 @@ struct Poly2GridOperator : public BinaryOperator
 // *****************************************************************************
 
 	template <typename DomPoint>
-	struct DomainInst : Poly2GridOperator
+	struct DomainInst
 	{
-		typedef Unit<DomPoint> DomainUnitType;
+		using DomainUnitType = Unit<DomPoint>;
+
+		Poly2GridOperator m_TiledOper, m_UntiledOper;
 
 		DomainInst(const DataItemClass* polygonDataClass)
-			: Poly2GridOperator(polygonDataClass, DomainUnitType::GetStaticClass(), false)
+			: m_TiledOper  (polygonDataClass, DomainUnitType::GetStaticClass(), false)
+			, m_UntiledOper(polygonDataClass, DomainUnitType::GetStaticClass(), true)
 		{}
 	};
 
