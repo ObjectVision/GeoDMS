@@ -477,12 +477,15 @@ break_array ClassifyNZEqualInterval(AbstrDataItem* breakAttr, const ValueCountPa
 	auto mz = 0; while (mz < m && vcpc[mz].first < 0.0) ++mz; 
 	bool hasNegative = (mz > 0);
 
-	Float64 minValueN = vcpc[0].first; MG_CHECK(minValueN < 0.0); 
-	Float64 maxValueN = vcpc[mz - 1].first;
-
+	Float64 minValueN = 0.0, maxValueN = 0.0;
+	if (hasNegative)
+	{
+		minValueN = vcpc[0].first;      MG_CHECK(minValueN < 0.0);
+		maxValueN = vcpc[mz - 1].first; MG_CHECK(maxValueN < 0.0);
+	}
 	assert(IsDefined(minValueN));
 	assert(IsDefined(maxValueN));
-	assert(minValueN <= maxValueN); 
+	assert(minValueN <= maxValueN);
 
 	auto kk = k;
 	bool hasZero = vcpc[mz].first == 0.0 && k > 2; // if k==2 we just treat zero as a positive number
@@ -493,17 +496,24 @@ break_array ClassifyNZEqualInterval(AbstrDataItem* breakAttr, const ValueCountPa
 	}
 	bool hasPositive = (mz < m);
 
-	Float64 minValueP = hasPositive ? vcpc[mz].first : 0.0;
-	Float64 maxValueP = hasPositive ? vcpc[m - 1].first : 0.0;
+	Float64 minValueP = 0.0;
+	Float64 maxValueP = 0.0;
+	if (hasPositive)
+	{
+		minValueP = vcpc[mz].first;
+		maxValueP = vcpc[m - 1].first;
+	}
 
 	Float64 deltaN = (maxValueN - minValueN);
 	Float64 deltaP = (maxValueP - minValueP);
 
-	SizeT kn = 1;
+	SizeT kn = hasNegative ? 1 : 0;
 	if (minValueN == maxValueN)
 		;
 	else if (minValueP == maxValueP)
-		kn = kk - 1;
+	{
+		kn = kk - (hasPositive ? 1 : 0);
+	}
 	else
 	{
 		auto minDelta = Max(deltaN, deltaP);
