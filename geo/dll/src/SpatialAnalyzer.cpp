@@ -337,11 +337,11 @@ bool SpatialAnalyzer<T>::FindFirstNotProcessedPoint(IGridPoint& point)
 	typename sequence_traits<T>::const_pointer inputData = m_Input.GetDataPtr();
 	SizeType pos = Pos(point);
 	SizeType end = GridSize();
-	dms_assert(pos < end);
+	assert(pos < end);
 	while (Bool(m_Processed[pos]) || !IsDefined(inputData[pos]))
 		if (++pos == end)
 			return false;
-	dms_assert(pos < end);
+	assert(pos < end);
 	point = GetPoint(pos);
 	return true;
 }

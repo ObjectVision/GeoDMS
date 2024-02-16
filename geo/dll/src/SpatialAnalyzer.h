@@ -116,13 +116,13 @@ private:
 	SizeType GridSize() { return m_Size; }
 	SizeType Pos(const UGridPoint& p)   
 	{ 
-		dms_assert(p.Col() >= 0);
-		dms_assert(p.Row() >= 0);
-		dms_assert(p.Col() < m_Input.GetSize().Col());
-		dms_assert(p.Row() < m_Input.GetSize().Row());
-		return m_NrCols* p.Row()+ p.Col();
+		assert(p.Col() >= 0);
+		assert(p.Row() >= 0);
+		assert(p.Col() < m_Input.GetSize().Col());
+		assert(p.Row() < m_Input.GetSize().Row());
+		return m_NrCols * p.Row() + p.Col();
 	}
-	UGridPoint GetPoint(SizeType pos) { return UGridPoint(pos / m_NrCols, pos % m_NrCols); }
+	UGridPoint GetPoint(SizeType pos) { return shp2dmsorder(pos % m_NrCols, pos / m_NrCols); }
 	
 	// districting
 	DistrSelVecType m_Processed;
