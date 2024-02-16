@@ -35,7 +35,7 @@ template<typename T, typename U> struct Pair;
 
 template<typename T> struct is_binary_streamable<const T  >  : is_binary_streamable< T > {};
 template<typename T> struct is_binary_streamable<Range<T>  > : is_binary_streamable< T > {};
-template<typename T> struct is_binary_streamable<Point<T>  > : is_binary_streamable< T > {};
+template<typename T> struct is_binary_streamable<Point<T>  > : std::false_type {}; // support coordinate reversal if required
 template<typename T> struct is_binary_streamable<Couple<T> > : is_binary_streamable< T > {};
 template<typename T> struct is_binary_streamable<IndexRange<T> >: is_binary_streamable< T > {};
 template<typename T, typename U> struct is_binary_streamable<Pair<T, U> > : std::bool_constant<is_binary_streamable<T>::value && is_binary_streamable<U>::value > {};

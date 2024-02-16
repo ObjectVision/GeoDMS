@@ -35,7 +35,8 @@ template <typename Tag1, typename Tag2> struct must_swap
 	struct dms_order_tag : colrow_order_tag {};
 #endif
 
-	struct shp_order_tag : colrow_order_tag {};
+struct shp_order_tag : colrow_order_tag {};
+struct fss_order_tag : rowcol_order_tag {};
 
 template <bool MustSwap> struct reorder_functor;
 template <> struct reorder_functor<false>
@@ -77,6 +78,7 @@ template <> struct reorder_functor<true>
 };
 
 using shp_reorder_functor = reorder_functor< must_swap<shp_order_tag, dms_order_tag>::value >;
+using fss_reorder_functor = reorder_functor< must_swap<fss_order_tag, dms_order_tag>::value >;
 using rowcol_reorder_functor = reorder_functor< must_swap<rowcol_order_tag, dms_order_tag>::value >;
 
 
