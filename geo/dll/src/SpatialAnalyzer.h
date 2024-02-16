@@ -122,7 +122,7 @@ private:
 		assert(p.Row() < m_Input.GetSize().Row());
 		return m_NrCols * p.Row() + p.Col();
 	}
-	UGridPoint GetPoint(SizeType pos) { return shp2dmsorder(pos % m_NrCols, pos / m_NrCols); }
+	UGridPoint GetPoint(SizeType pos) { return shp2dms_order(pos % m_NrCols, pos / m_NrCols); }
 	
 	// districting
 	DistrSelVecType m_Processed;
