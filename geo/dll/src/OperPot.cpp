@@ -277,17 +277,17 @@ public:
 
 namespace
 {
-	CommonOperGroup potentialDefault  ("potential"         );
+	CommonOperGroup potentialDefault  ("potential", oper_policy::better_not_in_meta_scripting);
 #if defined(DMS_USE_INTEL_IPPS)
-	CommonOperGroup potentialIpps64("potentialIpps64");
+	CommonOperGroup potentialIpps64("potentialIpps64", oper_policy::better_not_in_meta_scripting);
 #endif //defined(DMS_USE_INTEL_IPPS)
 #if defined(DMS_USE_INTEL_IPPI)
-	CommonOperGroup potentialIppi32("potentialIppi32");
+	CommonOperGroup potentialIppi32("potentialIppi32", oper_policy::better_not_in_meta_scripting);
 #endif //defined(DMS_USE_INTEL_IPPI)
-	CommonOperGroup potentialRaw64("potentialRaw64");
-	CommonOperGroup potentialSlow("potentialSlow");
-	CommonOperGroup potentialPacked("potentialPacked");
-	CommonOperGroup potentialRawPacked("potentialRawPacked");
+	CommonOperGroup potentialRaw64("potentialRaw64", oper_policy::better_not_in_meta_scripting);
+	CommonOperGroup potentialSlow("potentialSlow", oper_policy::better_not_in_meta_scripting);
+	CommonOperGroup potentialPacked("potentialPacked", oper_policy::better_not_in_meta_scripting);
+	CommonOperGroup potentialRawPacked("potentialRawPacked", oper_policy::better_not_in_meta_scripting);
 
 	DirectPotentialOperator<Float32> potDF32Def(&potentialDefault, AnalysisType::PotentialDefault);
 	DirectPotentialOperator<Float32> potDF32Ipps(&potentialIpps64, AnalysisType::PotentialIpps64);
@@ -319,7 +319,7 @@ namespace
 
 #endif //defined(DMS_POTENTIAL_I16)
 
-	CommonOperGroup proximity("proximity");
+	CommonOperGroup proximity("proximity", oper_policy::better_not_in_meta_scripting);
 
 	DirectPotentialOperator<Float32> proxDF32(&proximity, AnalysisType::Proximity);
 	DirectPotentialOperator<Float64> proxDF64(&proximity, AnalysisType::Proximity);

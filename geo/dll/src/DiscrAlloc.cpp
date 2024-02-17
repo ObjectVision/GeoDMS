@@ -2846,10 +2846,10 @@ namespace
 			oper_arg_policy::calc_never,                                    // feasibilityCertificate
 	};
 
-	SpecialOperGroup hitchcockGroup   ("discrete_alloc",          11, da_oap);
-	SpecialOperGroup hitchcockGroup_16("discrete_alloc_16",       11, da_oap);
-	SpecialOperGroup greedyGroup("greedy_alloc", 11, da_oap);
-	SpecialOperGroup greedyGroup_16("greedy_alloc_16", 11, da_oap);
+	SpecialOperGroup hitchcockGroup   ("discrete_alloc",          11, da_oap, oper_policy::better_not_in_meta_scripting);
+	SpecialOperGroup hitchcockGroup_16("discrete_alloc_16",       11, da_oap, oper_policy::better_not_in_meta_scripting);
+	SpecialOperGroup greedyGroup("greedy_alloc", 11, da_oap, oper_policy::better_not_in_meta_scripting);
+	SpecialOperGroup greedyGroup_16("greedy_alloc_16", 11, da_oap, oper_policy::better_not_in_meta_scripting);
 
 	template <typename S, typename AR>
 	struct HitchcockTransportationOperators

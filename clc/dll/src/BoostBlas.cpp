@@ -27,9 +27,9 @@
 #include "VersionComponent.h"
 static VersionComponent s_BoostBlas("boost::blas"); // BOOST_STRINGIZE(BOOST_POLYGON_VERSION));
 
-CommonOperGroup cogMM("matr_mul");
-CommonOperGroup cogMV("matr_var");
-CommonOperGroup cogMI("matr_inv");
+CommonOperGroup cogMM("matr_mul", oper_policy::better_not_in_meta_scripting);
+CommonOperGroup cogMV("matr_var", oper_policy::better_not_in_meta_scripting);
+CommonOperGroup cogMI("matr_inv", oper_policy::better_not_in_meta_scripting);
 
 // *****************************************************************************
 //	MatrMulOperator

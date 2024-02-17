@@ -21,7 +21,7 @@
 //											PerimeterOperator
 // *****************************************************************************
 
-CommonOperGroup cogPerimeter("perimeter", oper_policy::dynamic_result_class);
+CommonOperGroup cogPerimeter("perimeter", oper_policy::dynamic_result_class | oper_policy::better_not_in_meta_scripting);
 
 template <typename T>
 class PerimeterOperator : public UnaryOperator

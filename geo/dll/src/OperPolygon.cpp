@@ -983,7 +983,7 @@ void point_in_polygon(
 	}
 }
 
-CommonOperGroup cogPP("point_in_polygon", oper_policy::dynamic_result_class);
+CommonOperGroup cogPP("point_in_polygon", oper_policy::dynamic_result_class | oper_policy::better_not_in_meta_scripting);
 
 class AbstrPointInPolygonOperator : public BinaryOperator
 {
@@ -1289,7 +1289,7 @@ void point_in_ranked_polygon(
 	}
 }
 
-CommonOperGroup cogPRP("point_in_ranked_polygon", oper_policy::dynamic_result_class);
+CommonOperGroup cogPRP("point_in_ranked_polygon", oper_policy::dynamic_result_class | oper_policy::better_not_in_meta_scripting);
 
 class AbstrPointInRankedPolygonOperator : public TernaryOperator
 {
@@ -1516,7 +1516,7 @@ public:
 // *****************************************************************************
 
 
-static CommonOperGroup s_grPiaP("point_in_all_polygons", oper_policy::dynamic_result_class);
+static CommonOperGroup s_grPiaP("point_in_all_polygons", oper_policy::dynamic_result_class | oper_policy::better_not_in_meta_scripting);
 
 static TokenID
 	s_tGM = token::geometry,
@@ -1799,50 +1799,50 @@ public:
 
 namespace 
 {
-	CommonOperGroup cogLB("lower_bound");
-	CommonOperGroup cogUB("upper_bound");
+	CommonOperGroup cogLB("lower_bound", oper_policy::better_not_in_meta_scripting);
+	CommonOperGroup cogUB("upper_bound", oper_policy::better_not_in_meta_scripting);
 	CommonOperGroup cogCB("center_bound");
 
 	Obsolete<CommonOperGroup> cogFN("use first_point instead", "first_node", oper_policy::depreciated);
 	Obsolete<CommonOperGroup> cogLN("use last_point instead",  "last_node", oper_policy::depreciated);
 
-	CommonOperGroup cogFP("first_point");
-	CommonOperGroup cogLP("last_point");
+	CommonOperGroup cogFP("first_point", oper_policy::better_not_in_meta_scripting);
+	CommonOperGroup cogLP("last_point", oper_policy::better_not_in_meta_scripting);
 
-	CommonOperGroup cogCentroid     ("centroid");
-	CommonOperGroup cogMid          ("mid");
-	CommonOperGroup cogCentroidOrMid("centroid_or_mid");
+	CommonOperGroup cogCentroid     ("centroid", oper_policy::better_not_in_meta_scripting);
+	CommonOperGroup cogMid          ("mid", oper_policy::better_not_in_meta_scripting);
+	CommonOperGroup cogCentroidOrMid("centroid_or_mid", oper_policy::better_not_in_meta_scripting);
 
-	CommonOperGroup cogAL("arc_length");
-	CommonOperGroup cogAREA("area");
+	CommonOperGroup cogAL("arc_length", oper_policy::better_not_in_meta_scripting);
+	CommonOperGroup cogAREA("area", oper_policy::better_not_in_meta_scripting);
 
-	CommonOperGroup cogP2S    ("points2sequence");
-	CommonOperGroup cogP2S_p  ("points2sequence_p");
-	CommonOperGroup cogP2S_ps ("points2sequence_ps");
-	CommonOperGroup cogP2S_po ("points2sequence_po");
-	CommonOperGroup cogP2S_pso("points2sequence_pso");
+	CommonOperGroup cogP2S    ("points2sequence", oper_policy::better_not_in_meta_scripting);
+	CommonOperGroup cogP2S_p  ("points2sequence_p", oper_policy::better_not_in_meta_scripting);
+	CommonOperGroup cogP2S_ps ("points2sequence_ps", oper_policy::better_not_in_meta_scripting);
+	CommonOperGroup cogP2S_po ("points2sequence_po", oper_policy::better_not_in_meta_scripting);
+	CommonOperGroup cogP2S_pso("points2sequence_pso", oper_policy::better_not_in_meta_scripting);
 
-	CommonOperGroup cogP2P    ("points2polygon");
-	CommonOperGroup cogP2P_p  ("points2polygon_p");
-	CommonOperGroup cogP2P_ps ("points2polygon_ps");
-	CommonOperGroup cogP2P_po ("points2polygon_po");
-	CommonOperGroup cogP2P_pso("points2polygon_pso");
+	CommonOperGroup cogP2P    ("points2polygon", oper_policy::better_not_in_meta_scripting);
+	CommonOperGroup cogP2P_p  ("points2polygon_p", oper_policy::better_not_in_meta_scripting);
+	CommonOperGroup cogP2P_ps ("points2polygon_ps", oper_policy::better_not_in_meta_scripting);
+	CommonOperGroup cogP2P_po ("points2polygon_po", oper_policy::better_not_in_meta_scripting);
+	CommonOperGroup cogP2P_pso("points2polygon_pso", oper_policy::better_not_in_meta_scripting);
 
-	CommonOperGroup cogS2P("sequence2points");
-	CommonOperGroup cogS2P_uint64("sequence2points_uint64");
+	CommonOperGroup cogS2P("sequence2points", oper_policy::better_not_in_meta_scripting);
+	CommonOperGroup cogS2P_uint64("sequence2points_uint64", oper_policy::better_not_in_meta_scripting);
 
-	CommonOperGroup cogArc2segm("arc2segm");
-	CommonOperGroup cogArc2segm_uint64("arc2segm_uint64");
+	CommonOperGroup cogArc2segm("arc2segm", oper_policy::better_not_in_meta_scripting);
+	CommonOperGroup cogArc2segm_uint64("arc2segm_uint64", oper_policy::better_not_in_meta_scripting);
 
-	CommonOperGroup cogDynaPoint("dyna_point");
-	CommonOperGroup cogDynaPointWithEnds("dyna_point_with_ends");
-	CommonOperGroup cogDynaSegment("dyna_segment");
-	CommonOperGroup cogDynaSegmentWithEnds("dyna_segment_with_ends");
+	CommonOperGroup cogDynaPoint("dyna_point", oper_policy::better_not_in_meta_scripting);
+	CommonOperGroup cogDynaPointWithEnds("dyna_point_with_ends", oper_policy::better_not_in_meta_scripting);
+	CommonOperGroup cogDynaSegment("dyna_segment", oper_policy::better_not_in_meta_scripting);
+	CommonOperGroup cogDynaSegmentWithEnds("dyna_segment_with_ends", oper_policy::better_not_in_meta_scripting);
 
-	CommonOperGroup cogDynaPoint_uint64("dyna_point_uint64");
-	CommonOperGroup cogDynaPointWithEnds_uint64("dyna_point_with_ends_uint64");
-	CommonOperGroup cogDynaSegment_uint64("dyna_segment_uint64");
-	CommonOperGroup cogDynaSegmentWithEnds_uint64("dyna_segment_with_ends_uint64");
+	CommonOperGroup cogDynaPoint_uint64("dyna_point_uint64", oper_policy::better_not_in_meta_scripting);
+	CommonOperGroup cogDynaPointWithEnds_uint64("dyna_point_with_ends_uint64", oper_policy::better_not_in_meta_scripting);
+	CommonOperGroup cogDynaSegment_uint64("dyna_segment_uint64", oper_policy::better_not_in_meta_scripting);
+	CommonOperGroup cogDynaSegmentWithEnds_uint64("dyna_segment_with_ends_uint64", oper_policy::better_not_in_meta_scripting);
 
 	template <typename T>
 	struct SequenceOperators

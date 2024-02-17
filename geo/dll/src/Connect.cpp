@@ -1,31 +1,6 @@
-//<HEADER> 
-/*
-Data & Model Server (DMS) is a server written in C++ for DSS applications. 
-Version: see srv/dms/rtc/dll/src/RtcVersion.h for version info.
-
-Copyright (C) 1998-2004  YUSE GSO Object Vision BV. 
-
-Documentation on using the Data & Model Server software can be found at:
-http://www.ObjectVision.nl/DMS/
-
-See additional guidelines and notes in srv/dms/Readme-srv.txt 
-
-This library is free software; you can use, redistribute, and/or
-modify it under the terms of the GNU General Public License version 2 
-(the License) as published by the Free Software Foundation,
-provided that this entire header notice and readme-srv.txt is preserved.
-
-See LICENSE.TXT for terms of distribution or look at our web site:
-http://www.objectvision.nl/DMS/License.txt
-or alternatively at: http://www.gnu.org/copyleft/gpl.html
-
-This library is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
-General Public License for more details. However, specific warranties might be
-granted by an additional written contract for support, assistance and/or development
-*/
-//</HEADER>
+// Copyright (C) 1998-2023 Object Vision b.v. 
+// License: GNU GPL 3
+/////////////////////////////////////////////////////////////////////////////
 
 #include "GeoPCH.h"
 
@@ -55,19 +30,19 @@ granted by an additional written contract for support, assistance and/or develop
 #include "IndexGetterCreator.h"
 #include "LispTreeType.h"
 
-CommonOperGroup cogCONNEIGH("connect_neighbour",   oper_policy::dynamic_result_class);
-CommonOperGroup cogCON     ("connect",             oper_policy::dynamic_result_class);
-CommonOperGroup cogCCON    ("capacitated_connect", oper_policy::dynamic_result_class);
-CommonOperGroup cogCONINFO ("connect_info");
-CommonOperGroup cogDISTINFO("dist_info");
-CommonOperGroup cogIndex   ("spatialIndex");
+CommonOperGroup cogCONNEIGH("connect_neighbour",   oper_policy::dynamic_result_class | oper_policy::better_not_in_meta_scripting);
+CommonOperGroup cogCON     ("connect",             oper_policy::dynamic_result_class | oper_policy::better_not_in_meta_scripting);
+CommonOperGroup cogCCON    ("capacitated_connect", oper_policy::dynamic_result_class | oper_policy::better_not_in_meta_scripting);
+CommonOperGroup cogCONINFO ("connect_info", oper_policy::better_not_in_meta_scripting);
+CommonOperGroup cogDISTINFO("dist_info", oper_policy::better_not_in_meta_scripting);
+CommonOperGroup cogIndex   ("spatialIndex", oper_policy::better_not_in_meta_scripting);
 
-CommonOperGroup cogCON_EQ("connect_eq", oper_policy::dynamic_result_class);
-CommonOperGroup cogCON_NE("connect_ne", oper_policy::dynamic_result_class);
-CommonOperGroup cogCONINFO_EQ("connect_info_eq");
-CommonOperGroup cogCONINFO_NE("connect_info_ne");
-CommonOperGroup cogDISTINFO_EQ("dist_info_eq");
-CommonOperGroup cogDISTINFO_NE("dist_info_ne");
+CommonOperGroup cogCON_EQ("connect_eq", oper_policy::dynamic_result_class | oper_policy::better_not_in_meta_scripting);
+CommonOperGroup cogCON_NE("connect_ne", oper_policy::dynamic_result_class | oper_policy::better_not_in_meta_scripting);
+CommonOperGroup cogCONINFO_EQ("connect_info_eq", oper_policy::better_not_in_meta_scripting);
+CommonOperGroup cogCONINFO_NE("connect_info_ne", oper_policy::better_not_in_meta_scripting);
+CommonOperGroup cogDISTINFO_EQ("dist_info_eq", oper_policy::better_not_in_meta_scripting);
+CommonOperGroup cogDISTINFO_NE("dist_info_ne", oper_policy::better_not_in_meta_scripting);
 
 typedef UInt32 seq_index_type;
 

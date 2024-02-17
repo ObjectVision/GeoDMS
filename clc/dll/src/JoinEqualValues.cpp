@@ -229,7 +229,7 @@ struct JoinEqualValuesOperator : AbstrJoinEqualValuesOperator
 
 namespace 
 {
-	static const oper_policy op = oper_policy::none; // op_allow_extra_args;
+	static const oper_policy op = oper_policy::better_not_in_meta_scripting; // op_allow_extra_args;
 	CommonOperGroup cog_jev("join_equal_values", op);
 	CommonOperGroup cog_jev_u8("join_equal_values_uint8", op);
 	CommonOperGroup cog_jev_u16("join_equal_values_uint16", op);

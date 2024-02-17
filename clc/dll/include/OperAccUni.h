@@ -29,6 +29,7 @@ struct AbstrOperAccTotUni: UnaryOperator
 		,	m_ValueComposition(vc)
 	{
 		gr->SetCanExplainValue();
+		gr->SetBetterNotInMetaScripting();
 	}
 
 	void CreateResultCaller(TreeItemDualRef& resultHolder, const ArgRefs& args, OperationContext*, LispPtr) const override
@@ -122,6 +123,7 @@ struct AbstrOperAccPartUni: BinaryOperator
 	{
 		assert(gr);
 		gr->SetCanExplainValue();
+		gr->SetBetterNotInMetaScripting();
 	}
 
 	void CreateResultCaller(TreeItemDualRef& resultHolder, const ArgRefs& args, OperationContext*, LispPtr) const override
