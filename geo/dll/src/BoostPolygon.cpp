@@ -1,31 +1,6 @@
-//<HEADER> 
-/*
-Data & Model Server (DMS) is a server written in C++ for DSS applications. 
-Version: see srv/dms/rtc/dll/src/RtcVersion.h for version info.
-
-Copyright (C) 1998-2004  YUSE GSO Object Vision BV. 
-
-Documentation on using the Data & Model Server software can be found at:
-http://www.ObjectVision.nl/DMS/
-
-See additional guidelines and notes in srv/dms/Readme-srv.txt 
-
-This library is free software; you can use, redistribute, and/or
-modify it under the terms of the GNU General Public License version 2 
-(the License) as published by the Free Software Foundation,
-provided that this entire header notice and readme-srv.txt is preserved.
-
-See LICENSE.TXT for terms of distribution or look at our web site:
-http://www.objectvision.nl/DMS/License.txt
-or alternatively at: http://www.gnu.org/copyleft/gpl.html
-
-This library is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
-General Public License for more details. However, specific warranties might be
-granted by an additional written contract for support, assistance and/or development
-*/
-//</HEADER>
+// Copyright (C) 1998-2023 Object Vision b.v. 
+// License: GNU GPL 3
+/////////////////////////////////////////////////////////////////////////////
 
 #include "GeoPCH.h"
 
@@ -98,7 +73,7 @@ coords_using_more_than_25_bits(const Rect& rect)
 // *****************************************************************************
 
 
-static CommonOperGroup gr("overlay_polygon", oper_policy::dynamic_result_class);
+static CommonOperGroup gr("overlay_polygon", oper_policy::dynamic_result_class | oper_policy::better_not_in_meta_scripting);
 
 static TokenID 
 	s_tGM = token::geometry,
@@ -966,7 +941,7 @@ public:
 
 #include "IndexAssigner.h"
 
-CommonOperGroup cogPC("polygon_connectivity");
+CommonOperGroup cogPC("polygon_connectivity", oper_policy::better_not_in_meta_scripting);
 static TokenID tF1 = GetTokenID_st("F1"), tF2 = GetTokenID_st("F2");
 
 class AbstrPolygonConnectivityOperator : public UnaryOperator
@@ -1100,7 +1075,9 @@ namespace
 		PolyOperatorGroup(CharPtr name, PolygonFlags flags)
 			: CommonOperGroup(name)
 			, m_Instances(std::pair<AbstrOperGroup*, PolygonFlags>(this, flags))
-		{}
+		{
+			SetBetterNotInMetaScripting();
+		}
 
 		tl_oper::inst_tuple_templ<typelists::sint_points, PolygonOperator, std::pair<AbstrOperGroup*, PolygonFlags>>
 			m_Instances;

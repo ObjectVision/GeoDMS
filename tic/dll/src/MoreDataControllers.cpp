@@ -599,9 +599,9 @@ bool FuncDC::MakeResultImpl() const
 		return false;
 	}
 
-	dms_assert(m_Data);
-	dms_assert(!SuspendTrigger::DidSuspend() && !WasFailed(FR_MetaInfo) );  // if we asked for MetaInfo and only DataProcesing failed, we should at least get a result
-	dms_assert(m_Data->IsCacheItem() || m_Data->IsPassor() || m_OperatorGroup->CanResultToConfigItem() || IsTmp());
+	assert(m_Data);
+	assert(!SuspendTrigger::DidSuspend() && !WasFailed(FR_MetaInfo) );  // if we asked for MetaInfo and only DataProcesing failed, we should at least get a result
+	assert(m_Data->IsCacheItem() || m_Data->IsPassor() || m_OperatorGroup->CanResultToConfigItem() || IsTmp());
 
 	return true;
 }
@@ -614,13 +614,13 @@ void FuncDC::CalcResultImpl(Explain::Context* context) const
 	DBG_START("FuncDc::CalcResult", md_sKeyExpr.c_str(), MG_DEBUG_FUNCDC);
 #endif
 
-	dms_assert(IsMetaThread());
+	assert(IsMetaThread());
 	dms_check_not_debugonly;
 
-	dms_assert(!WasFailed(FR_Data));
-	dms_assert(!SuspendTrigger::DidSuspend());
-	dms_assert(m_Data);
-	dms_assert(GetInterestCount());
+	assert(!WasFailed(FR_Data));
+	assert(!SuspendTrigger::DidSuspend());
+	assert(m_Data);
+	assert(GetInterestCount());
 
 //	SharedTreeItemInterestPtr promise = m_Data;
 
@@ -643,11 +643,11 @@ void FuncDC::CalcResultImpl(Explain::Context* context) const
 			dms_assert(m_Data->WasFailed(FR_Data) || SuspendTrigger::DidSuspend());
 			return;
 		}
-		dms_assert(!SuspendTrigger::DidSuspend());
+		assert(!SuspendTrigger::DidSuspend());
 
 		UpdateMarker::ChangeSourceLock changeStamp(this, "FuncDC::MakeResult");
 
-		dms_assert(!WasFailed(FR_Data)); // should have resulted in exit.
+		assert(!WasFailed(FR_Data)); // should have resulted in exit.
 
 		UpdateLock lock(this, actor_flag_set::AF_CalculatingData);
 
@@ -657,9 +657,9 @@ void FuncDC::CalcResultImpl(Explain::Context* context) const
 		{
 			leveled_critical_section::scoped_lock ocaLock(cs_OperContextAccess);
 			operContext = m_OperContext;
-			dms_assert(!operContext || operContext->getStatus() != task_status::cancelled); // ==  OperContext should call ResetOperContextImplAndStopSupplInterest before status==Canceled.
+			assert(!operContext || operContext->getStatus() != task_status::cancelled); // ==  OperContext should call ResetOperContextImplAndStopSupplInterest before status==Canceled.
 		}
-		dms_assert(operContext || CheckDataReady(m_Data) || !IsNew());
+		assert(operContext || CheckDataReady(m_Data) || !IsNew());
 		if (operContext && !operContext->IsScheduled())
 		{
 			OperationContext_AssignResult(operContext.get(), this);

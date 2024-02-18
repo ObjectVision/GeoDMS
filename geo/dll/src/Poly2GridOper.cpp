@@ -514,8 +514,8 @@ namespace poly2grid
 //									Poly2GridOper (PolygonAttr, GridSet)
 // *****************************************************************************
 
-CommonOperGroup cog_poly2grid("poly2grid", oper_policy::dynamic_result_class);
-CommonOperGroup cog_poly2grid_untiled("poly2grid_untiled", oper_policy::dynamic_result_class);
+CommonOperGroup cog_poly2grid("poly2grid", oper_policy::dynamic_result_class | oper_policy::better_not_in_meta_scripting);
+CommonOperGroup cog_poly2grid_untiled("poly2grid_untiled", oper_policy::dynamic_result_class | oper_policy::better_not_in_meta_scripting);
 
 struct Poly2GridOperator : public BinaryOperator
 {

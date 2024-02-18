@@ -41,6 +41,7 @@ enum class oper_policy
 	obsolete               = 0x4000, // error when used; instruct preferred alternative
 	can_be_rewritten       = 0x8000, // operator-name appears as pattern-head in rewrite list, therefore: try rewriting, NYI, WIP.
 	has_annotation        = 0x10000, // operator has an annotation
+	better_not_in_meta_scripting = 0x20000, // operator is not suitable for processing meta-scripting
 };
 
 inline bool  operator & (oper_policy a, oper_policy b) { return int(a) & int(b); }

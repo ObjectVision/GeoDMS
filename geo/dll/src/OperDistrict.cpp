@@ -198,9 +198,9 @@ public:
 	}
 };
 
-CommonOperGroup cogDistrict("district");
-CommonOperGroup cogDistrict4("district_4");
-CommonOperGroup cogDistrict8("district_8");
+CommonOperGroup cogDistrict("district", oper_policy::better_not_in_meta_scripting);
+CommonOperGroup cogDistrict4("district_4", oper_policy::better_not_in_meta_scripting);
+CommonOperGroup cogDistrict8("district_8", oper_policy::better_not_in_meta_scripting);
 
 
 template <typename ZoneType>

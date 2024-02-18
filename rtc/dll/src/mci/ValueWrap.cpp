@@ -315,8 +315,8 @@ const ValueClass* ValueWrap<T>::GetStaticClass()
 		s_StaticCls.assign(
 			new ValueClass(
 				CreateFunc<ValueWrap<T> >, inviterFunc, GetTokenID_st(GetScriptName<T>() ), GetTypeID<T>(),
-				Int32(is_binary_streamable<T>::value ? sizeof(T)      : -1),
-				Int32(is_binary_streamable<T>::value ? nrbits_of_v<T> :  -1),
+				Int32(has_fixed_elem_size_v<T> ? sizeof(T)      : -1),
+				Int32(has_fixed_elem_size_v<T> ? nrbits_of_v<T> :  -1),
 				dimension_of<field_of_t<T>>::value,
 				is_numeric_v<T>,
 				is_integral<T>::value,

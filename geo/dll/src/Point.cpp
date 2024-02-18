@@ -342,6 +342,6 @@ namespace
 	//	oper_arg_policy oap_point[3] = { oper_arg_policy::calc_as_result, oper_arg_policy::calc_as_result, oper_arg_policy::calc_never };
 	tl_oper::inst_tuple_templ<typelists::points, PointOpers > pointOpers;
 
-	CommonOperGroup dist2("dist2");       
+	CommonOperGroup dist2("dist2", oper_policy::better_not_in_meta_scripting);
 	Dist2Operator dist2Oper(&dist2);
 }
