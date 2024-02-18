@@ -39,7 +39,9 @@ static TokenID s_LRC = GetTokenID_st("LRC");
 template <typename T>
 class CanyonOperator : public NonaryOperator
 {
-	typedef T                                  PointType;
+	using PointType = T;
+	using scalar_type = scalar_of_t<T>;
+
 	typedef Range<PointType>                   RangeType;
 	typedef std::vector<PointType>             PolyType;
 	typedef Int16                              HeightType;
@@ -222,11 +224,9 @@ public:
 
 					HeightType hoogte = *hoogtePtr;
 					UInt32     segmentId = *segmentIdPtr;
-					PointType segmVec = segmentEnd  [segmentId] - segmentBegin[segmentId];
-					PointType
-						diagVec ( segmVec.second, -segmVec.first); // sight-axis is perpendicular to street direction
-					PointType
-						contrVec(shp2dms_order(PointType(diagVec.Col(), -diagVec.Row()))); // sort of complex conjugate to reverse rotatie building and sight-axis to to x-axis
+					PointType segmVec  = segmentEnd  [segmentId] - segmentBegin[segmentId];
+					PointType diagVec  = shp2dms_order<scalar_type>(-segmVec.Row(),  segmVec.Col()); // sight-axis is perpendicular to street direction
+					PointType contrVec = shp2dms_order<scalar_type>( diagVec.Col(), -diagVec.Row()); // sort of complex conjugate to reverse rotatie building and sight-axis to to x-axis
 					SqrDistType norm = Norm<SqrDistType>(segmVec);
 					dms_assert(norm >= 0);
 					if (!norm)
@@ -288,7 +288,7 @@ public:
 									if (rc >  *ri2)
 									{
 										*ri2 = rc;
-										*ri1= *pointPtr - complexmul(diagVec, shp2dms_order(PointType(dist/norm, 0)));
+										*ri1 = *pointPtr - complexmul(diagVec, shp2dms_order<scalar_type>(dist / norm, 0));
 									}
 								}
 								else
@@ -296,7 +296,7 @@ public:
 									if (rc >  *ri4)
 									{
 										*ri4 = rc;
-										*ri3= *pointPtr - complexmul(diagVec, shp2dms_order(PointType(dist/norm, 0)));
+										*ri3= *pointPtr - complexmul(diagVec, shp2dms_order<scalar_type>(dist / norm, 0.0));
 									}
 								}
 							}
