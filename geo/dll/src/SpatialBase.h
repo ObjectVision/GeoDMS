@@ -45,8 +45,8 @@ typedef UInt16 RadiusType;
 typedef Int16  FormType;   // signed version of RadiusType to support all 4 quadrants
 typedef UInt32 SizeType;
 
-typedef Point< FormType> FormPoint;
-typedef Range<FormPoint> FormRect;
+using FormPoint = Point< FormType>;
+using FormRect = Range<FormPoint>;
 
 
 #endif //!defined(__GEO_SPATIALBASE_H)

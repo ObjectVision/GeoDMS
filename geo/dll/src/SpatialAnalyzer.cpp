@@ -1,31 +1,6 @@
-//<HEADER> 
-/*
-Data & Model Server (DMS) is a server written in C++ for DSS applications. 
-Version: see srv/dms/rtc/dll/src/RtcVersion.h for version info.
-
-Copyright (C) 1998-2004  YUSE GSO Object Vision BV. 
-
-Documentation on using the Data & Model Server software can be found at:
-http://www.ObjectVision.nl/DMS/
-
-See additional guidelines and notes in srv/dms/Readme-srv.txt 
-
-This library is free software; you can use, redistribute, and/or
-modify it under the terms of the GNU General Public License version 2 
-(the License) as published by the Free Software Foundation,
-provided that this entire header notice and readme-srv.txt is preserved.
-
-See LICENSE.TXT for terms of distribution or look at our web site:
-http://www.objectvision.nl/DMS/License.txt
-or alternatively at: http://www.gnu.org/copyleft/gpl.html
-
-This library is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
-General Public License for more details. However, specific warranties might be
-granted by an additional written contract for support, assistance and/or development
-*/
-//</HEADER>
+// Copyright (C) 1998-2023 Object Vision b.v. 
+// License: GNU GPL 3
+/////////////////////////////////////////////////////////////////////////////
 
 #include "GeoPCH.h"
 
@@ -44,7 +19,7 @@ granted by an additional written contract for support, assistance and/or develop
 //											TForm
 // *****************************************************************************
 
-void	TForm::Init(RadiusType radius, bool isCircle)
+void TForm::Init(RadiusType radius, bool isCircle)
 { 
 	DBG_START("TForm", "Init", true);
 
@@ -122,17 +97,17 @@ inline FormPoint TForm::Translate(const FormPoint& p1, TOctant o)
 { 
 	switch (o)
 	{
-		case o_1_1:	return	FormPoint( p1.Row(), p1.Col());
-		case o_1_2:	return	FormPoint( p1.Col(), p1.Row());
+		case o_1_1:	return	rowcol2dms_order<FormType>( p1.Row(), p1.Col());
+		case o_1_2:	return	rowcol2dms_order<FormType>( p1.Col(), p1.Row());
 
-		case o_2_1:	return	FormPoint( p1.Row(),-p1.Col());
-		case o_2_2:	return	FormPoint(-p1.Col(), p1.Row());
+		case o_2_1:	return	rowcol2dms_order<FormType>( p1.Row(),-p1.Col());
+		case o_2_2:	return	rowcol2dms_order<FormType>(-p1.Col(), p1.Row());
 
-		case o_3_1:	return	FormPoint(-p1.Row(),-p1.Col());
-		case o_3_2:	return	FormPoint(-p1.Col(),-p1.Row());
+		case o_3_1:	return	rowcol2dms_order<FormType>(-p1.Row(),-p1.Col());
+		case o_3_2:	return	rowcol2dms_order<FormType>(-p1.Col(),-p1.Row());
 
-		case o_4_1:	return	FormPoint(-p1.Row(), p1.Col());
-		case o_4_2:	return	FormPoint( p1.Col(),-p1.Row());
+		case o_4_1:	return	rowcol2dms_order<FormType>(-p1.Row(), p1.Col());
+		case o_4_2:	return	rowcol2dms_order<FormType>( p1.Col(),-p1.Row());
 	} // switch
 	return FormPoint();
 } // TForm::Translate
@@ -311,18 +286,18 @@ void SpatialAnalyzer<T>::GetDistrict(IGridPoint seedPoint, D districtId, bool ru
 		bool nonLeft   = seedPoint.Col()   > m_Rectangle.first .Col();
 		bool nonRight  = seedPoint.Col()+1 < m_Rectangle.second.Col();
 
-		if (nonTop   ) ConsiderPoint(IGridPoint(seedPoint.Row()-1, seedPoint.Col()), districtId, val, stack);
-		if (nonBottom) ConsiderPoint(IGridPoint(seedPoint.Row()+1, seedPoint.Col()), districtId, val, stack);
-		if (nonLeft  ) ConsiderPoint(IGridPoint(seedPoint.Row(), seedPoint.Col()-1), districtId, val, stack);
-		if (nonRight ) ConsiderPoint(IGridPoint(seedPoint.Row(), seedPoint.Col()+1), districtId, val, stack);
+		if (nonTop   ) ConsiderPoint(rowcol2dms_order< ICoordType>(seedPoint.Row()-1, seedPoint.Col()), districtId, val, stack);
+		if (nonBottom) ConsiderPoint(rowcol2dms_order< ICoordType>(seedPoint.Row()+1, seedPoint.Col()), districtId, val, stack);
+		if (nonLeft  ) ConsiderPoint(rowcol2dms_order< ICoordType>(seedPoint.Row(), seedPoint.Col()-1), districtId, val, stack);
+		if (nonRight ) ConsiderPoint(rowcol2dms_order< ICoordType>(seedPoint.Row(), seedPoint.Col()+1), districtId, val, stack);
 
 
 		if (rule8)
 		{
-			if (nonTop    && nonLeft ) ConsiderPoint(IGridPoint(seedPoint.Row()-1, seedPoint.Col()-1), districtId, val, stack);
-			if (nonTop    && nonRight) ConsiderPoint(IGridPoint(seedPoint.Row()-1, seedPoint.Col()+1), districtId, val, stack);
-			if (nonBottom && nonLeft ) ConsiderPoint(IGridPoint(seedPoint.Row()+1, seedPoint.Col()-1), districtId, val, stack);
-			if (nonBottom && nonRight) ConsiderPoint(IGridPoint(seedPoint.Row()+1, seedPoint.Col()+1), districtId, val, stack);
+			if (nonTop    && nonLeft ) ConsiderPoint(rowcol2dms_order< ICoordType>(seedPoint.Row()-1, seedPoint.Col()-1), districtId, val, stack);
+			if (nonTop    && nonRight) ConsiderPoint(rowcol2dms_order< ICoordType>(seedPoint.Row()-1, seedPoint.Col()+1), districtId, val, stack);
+			if (nonBottom && nonLeft ) ConsiderPoint(rowcol2dms_order< ICoordType>(seedPoint.Row()+1, seedPoint.Col()-1), districtId, val, stack);
+			if (nonBottom && nonRight) ConsiderPoint(rowcol2dms_order< ICoordType>(seedPoint.Row()+1, seedPoint.Col()+1), districtId, val, stack);
 		}
 		if (stack.empty())
 			return;
@@ -497,7 +472,7 @@ SpatialAnalyzer<T>::DiversityDifference(const IGridPoint& center, DivVectorType&
 	DivCountType divCount = 0;
 
 	m_Form.SetCenter(center);
-	dms_assert(m_InputUpperBound == divVector.size());
+	assert(m_InputUpperBound == divVector.size());
 
 	if (add)
 	{
