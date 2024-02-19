@@ -47,11 +47,7 @@ FormattedOutStream& operator << (FormattedOutStream& os, const Point<T>& p)
 template <typename T> inline
 FormattedInpStream& operator >> (FormattedInpStream& is, Point<T>& p)
 {
-	T first, second;
-	is >> "{" >> first >> ", " >> second >> "}";
-
-	dmsPoint_SetFirstCfgValue(p, first);
-	dmsPoint_SetSecondCfgValue(p, second);
+	is >> "{" >> p.first >> ", " >> p.second >> "}";
 
 	reportF(SeverityTypeID::ST_Warning, "depreciated syntax for point data used.\n"
 		"Use the %s operation to unambiguously create points.\n"
