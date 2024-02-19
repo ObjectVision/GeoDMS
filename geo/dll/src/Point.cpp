@@ -336,8 +336,8 @@ namespace
 		ConvertAttrToPointOperator<S> ca2PointXY, ca3PointXY;
 		ConvertAttrToPointOperator<S> ca2PointYX, ca3PointYX;
 
-		UnaryAttrSpecialFuncOperator<point2rowFunc<S> > ca2Row, ca2X;
-		UnaryAttrSpecialFuncOperator<point2colFunc<S> > ca2Col, ca2Y;
+		UnaryAttrSpecialFuncOperator<point2rowFunc<S> > ca2Row, ca2Y;
+		UnaryAttrSpecialFuncOperator<point2colFunc<S> > ca2Col, ca2X;
 	};
 	//	oper_arg_policy oap_point[3] = { oper_arg_policy::calc_as_result, oper_arg_policy::calc_as_result, oper_arg_policy::calc_never };
 	tl_oper::inst_tuple_templ<typelists::points, PointOpers > pointOpers;
