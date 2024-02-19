@@ -604,26 +604,27 @@ bool TreeItem_XML_DumpGeneralBody(const TreeItem* self, OutStreamBase* xmlOutStr
 	xmlTable.LinedRow();
 	GetExprOrSourceDescrRow(xmlTable, self);
 
-#if defined(MG_DEBUG)
-	if (self->HasCalculator() && !self->WasFailed(FR_MetaInfo))
+	if (GetRegStatusFlags() & RSF_AdminMode)
 	{
-		auto c = self->GetCalculator();
-		if (c)
-			GetLispRefRow(xmlTable, c->GetLispExprOrg(), "ParseResult");
-	}
-	if (!self->WasFailed(FR_MetaInfo))
-	{
-		auto metaInfo = self->GetCurrMetaInfo({});
-		auto calcExpr = GetAsLispRef(metaInfo);
-		GetLispRefRow(xmlTable, calcExpr, "CalcExpr");
-		if (metaInfo.index() == 1 || metaInfo.index() == 0 && std::get<MetaFuncCurry>(metaInfo).fullLispExpr.EndP())
+		if (self->HasCalculator() && !self->WasFailed(FR_MetaInfo))
 		{
-			auto keyExpr = self->GetCheckedKeyExpr();
-			if (keyExpr != calcExpr)
-				GetLispRefRow(xmlTable, keyExpr, "CheckedKeyExpr");
+			auto c = self->GetCalculator();
+			if (c)
+				GetLispRefRow(xmlTable, c->GetLispExprOrg(), "ParseResult");
+		}
+		if (!self->WasFailed(FR_MetaInfo))
+		{
+			auto metaInfo = self->GetCurrMetaInfo({});
+			auto calcExpr = GetAsLispRef(metaInfo);
+			GetLispRefRow(xmlTable, calcExpr, "CalcExpr");
+			if (metaInfo.index() == 1 || metaInfo.index() == 0 && std::get<MetaFuncCurry>(metaInfo).fullLispExpr.EndP())
+			{
+				auto keyExpr = self->GetCheckedKeyExpr();
+				if (keyExpr != calcExpr)
+					GetLispRefRow(xmlTable, keyExpr, "CheckedKeyExpr");
+			}
 		}
 	}
-#endif
 
 	// ==================== Explicit Suppliers
 	if (self->HasSupplCache())
