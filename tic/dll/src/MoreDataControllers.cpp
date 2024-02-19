@@ -392,6 +392,14 @@ auto FuncDC::CalcResult(Explain::Context* context) const -> FutureData
 	if (WasFailed(FR_Data) && !context || WasFailed(FR_MetaInfo))
 		return {};
 
+	assert(m_OperatorGroup);
+	if (SuspendTrigger::BlockerBase::IsBlocked())
+	{
+		if (m_OperatorGroup->IsBetterNotInMetaScripting())
+		{
+			reportF(SeverityTypeID::ST_Warning, "operator %s is not suitable for processing meta-scripting", m_OperatorGroup->GetName());
+		}
+	}
 	dms_assert(GetInterestCount());
 	dms_assert(m_Data->IsPassor() || m_OperatorGroup->CanResultToConfigItem() );
 	if (context && !m_OperatorGroup->CanExplainValue())
