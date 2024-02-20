@@ -287,10 +287,19 @@ bool AbstrDataItem::DoWriteItem(StorageMetaInfoPtr&& smi) const
 	DataReadLock lockForSave(this);
 
 	auto sm = smi->StorageManager();
+	FencedInterestRetainContext irc;
+	try {
+		SharedPtr<const TreeItem> storageHolder = smi->StorageHolder();
+		sm->ExportMetaInfo(storageHolder, this);
+		if (sm->WriteDataItem(std::move(smi)))
+		{
 	reportF(MsgCategory::storage_write, SeverityTypeID::ST_MajorTrace, "%s IS STORED IN %s",
 		GetSourceName().c_str()
-	,	sm->GetNameStr().c_str()
+				, sm->GetNameStr().c_str()
 	);
+		}
+		else
+			throwItemError("Failure during Writing");
 
 	FencedInterestRetainContext irc;
 	try {
