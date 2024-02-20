@@ -84,14 +84,14 @@ AbstrDataItem::~AbstrDataItem() noexcept
 // class  : AbstrDataItem (inline) functions that forward to DataObject
 //----------------------------------------------------------------------
 
-inline const AbstrUnit* AbstrDataItem::GetAbstrDomainUnit() const 
+auto AbstrDataItem::GetAbstrDomainUnit() const -> const AbstrUnit*
 { 
 	if (!m_DomainUnit && IsMetaThread())
 		m_DomainUnit = FindUnit(m_tDomainUnit, "Domain", nullptr);
 	return m_DomainUnit;
 }
 
-inline const AbstrUnit*  AbstrDataItem::GetAbstrValuesUnit() const 
+auto AbstrDataItem::GetAbstrValuesUnit() const -> const AbstrUnit*
 { 
 	if (!m_ValuesUnit && IsMetaThread())
 	{
@@ -100,6 +100,33 @@ inline const AbstrUnit*  AbstrDataItem::GetAbstrValuesUnit() const
 	}
 	return m_ValuesUnit;
 }
+
+TIC_CALL auto AbstrDataItem::GetNonDefaultDomainUnit() const -> const AbstrUnit*
+{
+	auto adi = this;
+	do {
+		auto adu = adi->GetAbstrDomainUnit();
+		assert(adu);
+		if (!adu->IsDefaultUnit())
+			return adu;
+		adi = AsDataItem(adi->GetReferredItem());
+	} while (adi);
+	return GetAbstrDomainUnit();
+}
+
+TIC_CALL auto AbstrDataItem::GetNonDefaultValuesUnit() const -> const AbstrUnit*
+{
+	auto adi = this;
+	do {
+		auto avu = adi->GetAbstrValuesUnit();
+		assert(avu);
+		if (!avu->IsDefaultUnit())
+			return avu;
+		adi = AsDataItem(adi->GetReferredItem());
+	} while (adi);
+	return GetAbstrValuesUnit();
+}
+
 
 inline const AbstrDataObject* AbstrDataItem::GetCurrRefObj()      const 
 {

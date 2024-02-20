@@ -62,9 +62,12 @@ public:
 	TIC_CALL garbage_t StopInterest () const noexcept override;
 
 //	wrapper funcs that forward to DataObject
-	TIC_CALL const AbstrUnit*  GetAbstrDomainUnit() const;
-	TIC_CALL const AbstrUnit*  GetAbstrValuesUnit() const;
-	TIC_CALL AbstrValue*       CreateAbstrValue  () const;
+	TIC_CALL auto GetAbstrDomainUnit() const -> const AbstrUnit*;
+	TIC_CALL auto GetAbstrValuesUnit() const -> const AbstrUnit*;
+	TIC_CALL auto CreateAbstrValue() const->AbstrValue*;
+
+	TIC_CALL auto GetNonDefaultDomainUnit() const -> const AbstrUnit*;
+	TIC_CALL auto GetNonDefaultValuesUnit() const -> const AbstrUnit*;
 
 //	Override TreeItem virtuals
 	SharedStr GetDescr() const override;
