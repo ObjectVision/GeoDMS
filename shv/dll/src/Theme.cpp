@@ -178,52 +178,50 @@ CharPtr Theme::GetAspectName() const
 const AbstrUnit* Theme::GetThemeEntityUnit() const
 {
 	if (GetThemeAttr())
-		return GetThemeAttr()->GetAbstrDomainUnit();
+		return GetThemeAttr()->GetNonDefaultDomainUnit();
 	if (GetClassification())
-		return GetClassification()->GetAbstrValuesUnit();
+		return GetClassification()->GetNonDefaultValuesUnit();
 	if (GetPaletteAttr())
-		return GetPaletteAttr()->GetAbstrDomainUnit();
+		return GetPaletteAttr()->GetNonDefaultDomainUnit();
 	return Unit<Void>::GetStaticClass()->CreateDefault();
 }
 
 const AbstrUnit* Theme::GetThemeValuesUnit() const
 {
 	if (GetThemeAttr())
-		return GetThemeAttr()->GetAbstrValuesUnit();
+		return GetThemeAttr()->GetNonDefaultValuesUnit();
 	if (GetClassification())
-		return GetClassification()->GetAbstrValuesUnit();
+		return GetClassification()->GetNonDefaultValuesUnit();
 	if (!GetPaletteAttr())
 		return nullptr;
-	return GetPaletteAttr()->GetAbstrDomainUnit();
+	return GetPaletteAttr()->GetNonDefaultDomainUnit();
 }
 
 const AbstrUnit* Theme::GetClassIdUnit() const
 {
 	if (GetClassification())
-		return GetClassification()->GetAbstrDomainUnit();
+		return GetClassification()->GetNonDefaultDomainUnit();
 	if (GetPaletteAttr())
-		return GetPaletteAttr()->GetAbstrDomainUnit();
-	dms_assert(GetThemeAttr());
-	return GetThemeAttr()->GetAbstrValuesUnit();
+		return GetPaletteAttr()->GetNonDefaultValuesUnit();
+	assert(GetThemeAttr());
+	return GetThemeAttr()->GetNonDefaultValuesUnit();
 }
 
 const AbstrUnit* Theme::GetPaletteValuesUnit()  const
 {
 	if (GetPaletteAttr())
-		return GetPaletteAttr()->GetAbstrValuesUnit();
+		return GetPaletteAttr()->GetNonDefaultValuesUnit();
 	return GetClassIdUnit();
 }
 
 const AbstrUnit* Theme::GetPaletteDomain() const
 {
 	if (GetPaletteAttr())
-		return GetPaletteAttr()->GetAbstrDomainUnit();
+		return GetPaletteAttr()->GetNonDefaultDomainUnit();
 	if (GetClassification())
-		return GetClassification()->GetAbstrDomainUnit();
-	dms_assert(GetThemeAttr());
-		return GetThemeAttr()->GetAbstrDomainUnit();
-//	dms_assert(GetPaletteOrThemeAttr());
-//	return GetPaletteOrThemeAttr()->GetAbstrDomainUnit();
+		return GetClassification()->GetNonDefaultDomainUnit();
+	assert(GetThemeAttr());
+	return GetThemeAttr()->GetNonDefaultDomainUnit();
 }
 
 bool Theme::IsAspectParameter() const
