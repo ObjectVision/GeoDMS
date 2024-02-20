@@ -225,7 +225,17 @@ bool AbstrDataItem::DoReadItem(StorageMetaInfoPtr smi)
 	try {
 		MG_DEBUGCODE(TimeStamp currTS = LastChangeTS(); )
 
-		auto tn = GetAbstrDomainUnit()->GetNrTiles();
+		auto abstract_domain_unit = GetAbstrDomainUnit();
+		assert(abstract_domain_unit);
+
+		auto number_of_dimensions = abstract_domain_unit->GetNrDimensions();
+		if (number_of_dimensions == 2)
+		{
+			sm->DoCheckFactorSimilarity(smi);
+			sm->DoCheck50PercentExtentOverlap(smi);
+		}
+
+		auto tn = abstract_domain_unit->GetNrTiles();
 		if (IsMultiThreaded3() && tn > 1 && sm->AllowRandomTileAccess())
 		{
 			auto readerFarm = std::make_shared<reader_clone_farm>();
@@ -293,20 +303,14 @@ bool AbstrDataItem::DoWriteItem(StorageMetaInfoPtr&& smi) const
 		sm->ExportMetaInfo(storageHolder, this);
 		if (sm->WriteDataItem(std::move(smi)))
 		{
-	reportF(MsgCategory::storage_write, SeverityTypeID::ST_MajorTrace, "%s IS STORED IN %s",
-		GetSourceName().c_str()
+			reportF(MsgCategory::storage_write, SeverityTypeID::ST_MajorTrace, "%s IS STORED IN %s",
+				GetSourceName().c_str()
 				, sm->GetNameStr().c_str()
-	);
+			);
 		}
 		else
 			throwItemError("Failure during Writing");
-
-	FencedInterestRetainContext irc;
-	try {
-		SharedPtr<const TreeItem> storageHolder = smi->StorageHolder();
-		if (!sm->WriteDataItem(std::move(smi)))
-			throwItemError("Failure during Writing");
-		sm->ExportMetaInfo(storageHolder, this);
+		
 	}
 	catch (const DmsException& x)
 	{
