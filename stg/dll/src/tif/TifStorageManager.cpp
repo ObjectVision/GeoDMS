@@ -234,8 +234,12 @@ bool TiffSM::WriteDataItem(StorageMetaInfoPtr&& smiHolder)
 {
 	auto smi = smiHolder.get();
 	SharedPtr<const TreeItem> storageHolder = smi->StorageHolder();
-	if (smi->CurrWD()->GetAbstrDomainUnit()->GetValueType()->GetNrDims() != 2)
+	auto current_writable_dataitem = smi->CurrWD();
+	if (current_writable_dataitem->GetAbstrDomainUnit()->GetValueType()->GetNrDims() != 2)
+	{
+		current_writable_dataitem->throwItemError("Domain should be 2-dimensional.");
 		return true;
+	}
 
 	SharedPtr<const AbstrDataItem> pd = GetPaletteData(storageHolder);
 	if (pd)
