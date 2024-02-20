@@ -70,7 +70,8 @@ struct ViewPortInfoProvider
 	STGDLL_CALL ViewPortInfoEx<Int32> GetViewportInfoEx(tile_id tc, StorageMetaInfoPtr smi, tile_id tg=no_tile) const;
 
 	SharedPtr<const AbstrDataItem > m_ADI;
-	SharedUnitInterestPtr m_CurrDomain, m_GridDomain;
+	SharedUnitInterestPtr m_CurrDomain; // target domain when reading from storage or viewport extent when drawing
+	SharedUnitInterestPtr m_GridDomain; // source pixel range in case of storage or domain of dataitem when drawing
 	countcolor_t m_CountColor;
 	bool         m_QueryActualGridDomain;
 };
