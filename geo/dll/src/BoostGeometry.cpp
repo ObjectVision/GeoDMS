@@ -324,31 +324,30 @@ void store_multi_polygon(SA_Reference<DmsPointType> resDataElem, bg_multi_polygo
 // *****************************************************************************
 
 
-static CommonOperGroup grBgSimplify_multi_polygon("bg_simplify_multi_polygon");
-static CommonOperGroup grBgSimplify_polygon      ("bg_simplify_polygon");
-static CommonOperGroup grBgSimplify_linestring   ("bg_simplify_linestring");
+static CommonOperGroup grBgSimplify_multi_polygon("bg_simplify_multi_polygon", oper_policy::better_not_in_meta_scripting);
+static CommonOperGroup grBgSimplify_polygon      ("bg_simplify_polygon", oper_policy::better_not_in_meta_scripting);
+static CommonOperGroup grBgSimplify_linestring   ("bg_simplify_linestring", oper_policy::better_not_in_meta_scripting);
 
-static CommonOperGroup grBgIntersect("bg_intersect");
+static CommonOperGroup grBgIntersect("bg_intersect", oper_policy::better_not_in_meta_scripting);
 
-static CommonOperGroup grBgBuffer_point        ("bg_buffer_point");
-static CommonOperGroup grBgBuffer_multi_point  ("bg_buffer_multi_point");
-
-#if DMS_VERSION_MAJOR < 15
-static Obsolete<CommonOperGroup> grBgBuffer_polygon("use bg_buffer_single_polygon", "bg_buffer_polygon");
-#endif
-
-static CommonOperGroup grBgBuffer_single_polygon("bg_buffer_single_polygon");
-static CommonOperGroup grBgBuffer_multi_polygon("bg_buffer_multi_polygon");
-static CommonOperGroup grBgBuffer_linestring   ("bg_buffer_linestring");
+static CommonOperGroup grBgBuffer_point        ("bg_buffer_point", oper_policy::better_not_in_meta_scripting);
+static CommonOperGroup grBgBuffer_multi_point  ("bg_buffer_multi_point", oper_policy::better_not_in_meta_scripting);
 
 #if DMS_VERSION_MAJOR < 15
-static Obsolete<CommonOperGroup> grOuter_polygon("use bg_outer_single_polygon", "outer_polygon");
-static Obsolete<CommonOperGroup> grOuter_multi_polygon("use bg_outer_multi_polygon", "outer_multi_polygon");
+static Obsolete<CommonOperGroup> grBgBuffer_polygon("use bg_buffer_single_polygon", "bg_buffer_polygon", oper_policy::better_not_in_meta_scripting);
 #endif
 
-static CommonOperGroup grBgOuter_single_polygon("bg_outer_single_polygon");
-static CommonOperGroup grBgOuter_multi_polygon("bg_outer_multi_polygon");
+static CommonOperGroup grBgBuffer_single_polygon("bg_buffer_single_polygon", oper_policy::better_not_in_meta_scripting);
+static CommonOperGroup grBgBuffer_multi_polygon("bg_buffer_multi_polygon", oper_policy::better_not_in_meta_scripting);
+static CommonOperGroup grBgBuffer_linestring   ("bg_buffer_linestring", oper_policy::better_not_in_meta_scripting);
 
+#if DMS_VERSION_MAJOR < 15
+static Obsolete<CommonOperGroup> grOuter_polygon("use bg_outer_single_polygon", "outer_polygon", oper_policy::better_not_in_meta_scripting);
+static Obsolete<CommonOperGroup> grOuter_multi_polygon("use bg_outer_multi_polygon", "outer_multi_polygon", oper_policy::better_not_in_meta_scripting);
+#endif
+
+static CommonOperGroup grBgOuter_single_polygon("bg_outer_single_polygon", oper_policy::better_not_in_meta_scripting);
+static CommonOperGroup grBgOuter_multi_polygon("bg_outer_multi_polygon", oper_policy::better_not_in_meta_scripting);
 
 class AbstrSimplifyOperator : public BinaryOperator
 {

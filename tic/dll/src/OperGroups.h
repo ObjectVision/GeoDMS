@@ -80,10 +80,12 @@ struct AbstrOperGroup : SharedObj
 	bool IsDepreciated        () const { return m_Policy & oper_policy::depreciated; }
 	bool IsObsolete           () const { return m_Policy & oper_policy::obsolete; }
 	bool HasAnnotation        () const { return m_Policy & oper_policy::has_annotation; }
+	bool IsBetterNotInMetaScripting() const { return m_Policy & oper_policy::better_not_in_meta_scripting; }
 
 	auto GetCalcFactor        () const { return m_CalcFactor; }
 
 	void SetCanExplainValue() { m_Policy = 	oper_policy(m_Policy | oper_policy::can_explain_value); }
+	void SetBetterNotInMetaScripting () { m_Policy = oper_policy(m_Policy | oper_policy::better_not_in_meta_scripting); }
 
 	virtual oper_arg_policy GetArgPolicy(arg_index argNr, CharPtr firstArgValue) const =0;
 	virtual CharPtr GetObsoleteMsg() const { return "NO OBSOLETE MSG PROVIDED"; }

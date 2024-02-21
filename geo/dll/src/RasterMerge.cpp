@@ -56,8 +56,8 @@ granted by an additional written contract for support, assistance and/or develop
 namespace 
 {
 
-CommonOperGroup cog_rasterMerge("raster_merge", oper_policy(oper_policy::allow_extra_args));
-CommonOperGroup cog_simpleMerge("merge",        oper_policy(oper_policy::allow_extra_args));
+CommonOperGroup cog_rasterMerge("raster_merge", oper_policy::allow_extra_args | oper_policy::better_not_in_meta_scripting);
+CommonOperGroup cog_simpleMerge("merge",        oper_policy::allow_extra_args | oper_policy::better_not_in_meta_scripting);
 
 
 struct AbstrRasterMergeOperator : public BinaryOperator

@@ -274,11 +274,12 @@ namespace wms {
 
 	void ProcessPendingTasks()
 	{
+		UInt32 retryCounter = 256;
 		//MG_DEBUGCODE(reportD(MsgCategory::wms, SeverityTypeID::ST_MinorTrace, "STARTED: GetIOC()"));
 		while (TileLoader::s_InstanceCount) // destructor of last TileLoader, presumably called outside the run-loop, can queue new TileLoaders with new events
 		{
 			GetIOC()->run();
-			if (!TileLoader::s_InstanceCount)
+			if (!TileLoader::s_InstanceCount || !--retryCounter)
 				break;
 			//MG_DEBUGCODE(reportD(MsgCategory::wms, SeverityTypeID::ST_MinorTrace, "SUSPENDED: GetIOC()"); )
 		} 

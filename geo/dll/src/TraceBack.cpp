@@ -44,8 +44,8 @@ granted by an additional written contract for support, assistance and/or develop
 #include "TreeBuilder.h"
 
 namespace {
-	static CommonOperGroup cogTB("trace_back");
-	static CommonOperGroup cogSAO("service_area");
+	static CommonOperGroup cogTB("trace_back", oper_policy::better_not_in_meta_scripting);
+	static CommonOperGroup cogSAO("service_area", oper_policy::better_not_in_meta_scripting);
 }
 
 // *****************************************************************************

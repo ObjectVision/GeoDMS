@@ -55,7 +55,9 @@ struct AbstrOperAccTotBin : public BinaryOperator
 	)	:	BinaryOperator(gr, resultCls, arg1Cls, arg2Cls) 
 		,	m_UnitCreatorPtr(std::move(ucp))
 		,	m_ValueComposition(vc)
-	{}
+	{
+		gr->SetBetterNotInMetaScripting();
+	}
 
 	// Override Operator
 	bool CreateResult(TreeItemDualRef& resultHolder, const ArgSeqType& args, bool mustCalc) const override
@@ -157,7 +159,9 @@ struct AbstrOperAccPartBin: TernaryOperator
 	)	:	TernaryOperator(gr, resultCls, arg1Cls, arg2Cls, arg3Cls)
 		,	m_ValueComposition(vc)
 		,	m_UnitCreatorPtr(std::move(ucp))
-	{}
+	{
+		gr->SetBetterNotInMetaScripting();
+	}
 
 	bool CreateResult(TreeItemDualRef& resultHolder, const ArgSeqType& args, bool mustCalc) const override
 	{

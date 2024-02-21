@@ -1986,13 +1986,13 @@ namespace
 	typedef boost::mpl::vector<Float64, Float32, UInt32, UInt64> DistTypeList; // Int32 no longer supported as Impedance
 	typedef tl_oper::inst_tuple_templ< DistTypeList, DijkstraMatrOperator, AbstrOperGroup*, DijkstraFlag> DijkstraOperListType;
 
-	CommonOperGroup dsGroup("dijkstra_s", oper_policy::allow_extra_args);
-	CommonOperGroup dm32Group("dijkstra_m", oper_policy::allow_extra_args);
-	CommonOperGroup dm64Group("dijkstra_m64", oper_policy::allow_extra_args);
+	CommonOperGroup dsGroup("dijkstra_s", oper_policy::allow_extra_args | oper_policy::better_not_in_meta_scripting);
+	CommonOperGroup dm32Group("dijkstra_m", oper_policy::allow_extra_args | oper_policy::better_not_in_meta_scripting);
+	CommonOperGroup dm64Group("dijkstra_m64", oper_policy::allow_extra_args | oper_policy::better_not_in_meta_scripting);
 
-	CommonOperGroup itGroup("impedance_table", oper_policy::allow_extra_args);
-	CommonOperGroup im32Group("impedance_matrix", oper_policy::allow_extra_args);
-	CommonOperGroup im64Group("impedance_matrix_od64", oper_policy::allow_extra_args);
+	CommonOperGroup itGroup("impedance_table", oper_policy::allow_extra_args | oper_policy::better_not_in_meta_scripting);
+	CommonOperGroup im32Group("impedance_matrix", oper_policy::allow_extra_args | oper_policy::better_not_in_meta_scripting);
+	CommonOperGroup im64Group("impedance_matrix_od64", oper_policy::allow_extra_args | oper_policy::better_not_in_meta_scripting);
 
 
 	DijkstraOperListType dsOpers  (&dsGroup  , DijkstraFlag());

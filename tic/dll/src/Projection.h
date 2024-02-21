@@ -38,6 +38,9 @@ public:
 
 	static TIC_CALL CrdTransformation GetCompositeTransform(const UnitProjection* curr);
 	TIC_CALL const AbstrUnit* GetCompositeBase() const;
+
+	TIC_CALL auto GetUnitlabeledScalePair() const->UnitLabelScalePair;
+
 	
 private:
 	SharedPtr<const AbstrUnit> m_BaseUnit;

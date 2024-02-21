@@ -1,38 +1,20 @@
-//<HEADER> 
-/*
-Data & Model Server (DMS) is a server written in C++ for DSS applications. 
-Version: see srv/dms/rtc/dll/src/RtcVersion.h for version info.
-
-Copyright (C) 1998-2004  YUSE GSO Object Vision BV. 
-
-Documentation on using the Data & Model Server software can be found at:
-http://www.ObjectVision.nl/DMS/
-
-See additional guidelines and notes in srv/dms/Readme-srv.txt 
-
-This library is free software; you can use, redistribute, and/or
-modify it under the terms of the GNU General Public License version 2 
-(the License) as published by the Free Software Foundation,
-provided that this entire header notice and readme-srv.txt is preserved.
-
-See LICENSE.TXT for terms of distribution or look at our web site:
-http://www.objectvision.nl/DMS/License.txt
-or alternatively at: http://www.gnu.org/copyleft/gpl.html
-
-This library is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
-General Public License for more details. However, specific warranties might be
-granted by an additional written contract for support, assistance and/or development
-*/
-//</HEADER>
+// Copyright (C) 1998-2023 Object Vision b.v. 
+// License: GNU GPL 3
+/////////////////////////////////////////////////////////////////////////////
 
 #include "ShvDllPch.h"
 
+#pragma hdrstop
+
+#include <numbers>
+
 #include "act/MainThread.h"
 #include "dbg/debug.h"
+#include "geo/Area.h"
+#include "geo/DynamicPoint.h"
 
 #include "Param.h"
+#include "Projection.h"
 
 #include "Controllers.h"
 #include "MovableContainer.h"
@@ -40,6 +22,7 @@ granted by an additional written contract for support, assistance and/or develop
 #include "CaretOperators.h"
 #include "GraphVisitor.h"
 #include "LayerSet.h"
+#include "ViewPort.h"
 
 //----------------------------------------------------------------------
 // class  : AbstrCmd
@@ -103,6 +86,86 @@ AbstrController::AbstrController(DataView* owner, GraphicObject* target
 
 AbstrController::~AbstrController()
 {}
+
+static TokenID meterToken1 = GetTokenID_st("metre");
+static TokenID meterToken2 = GetTokenID_st("meter");
+static TokenID kmToken = GetTokenID_st("km");
+
+static TokenID degreeToken = GetTokenID_st("degree");
+static TokenID minuteToken = GetTokenID_st("min");
+static TokenID secondToken = GetTokenID_st("sec");
+
+bool isMeterToken(TokenID token)
+{
+
+	return token == meterToken1 || token == meterToken2;
+}
+
+bool isDegreeToken(TokenID token)
+{
+
+	return token == degreeToken;
+}
+
+bool AbstrController::SendStatusText(CharPtr format, CrdType dst, CrdType dst2) const
+{
+	auto dv = GetOwner().lock();
+	if (!dv)
+		return false;
+
+	auto to = GetTargetObject().lock();
+
+	UnitLabelScalePair lsPair;
+	if (!m_UnitLabelScalePtr)
+	{
+		m_UnitLabelScalePtr = std::make_unique<UnitLabelScalePair>();
+		if (to)
+			if (auto vp = dynamic_cast<ViewPort*>(to.get()))
+				if (auto worldCrdUnit = vp->GetWorldCrdUnit())
+					if (auto projection = worldCrdUnit->GetProjection())
+						*m_UnitLabelScalePtr = projection->GetUnitlabeledScalePair();
+					else
+						*m_UnitLabelScalePtr = AsUnit(worldCrdUnit->GetUltimateItem())->GetUnitlabeledScalePair();
+	}
+
+	MG_CHECK(m_UnitLabelScalePtr);
+	TokenID unitToken = m_UnitLabelScalePtr->first;
+
+	if (isMeterToken(unitToken))
+	{
+		if (dst > 1000)
+		{
+			dst /= 1000;
+			dst2 /= 1000000;
+			unitToken = kmToken;
+		}
+	}
+	if (isDegreeToken(unitToken))
+	{
+		if (abs(dst) < 1.0)
+		{
+			dst *= 60;
+			dst2 *= 60*60;
+			unitToken = minuteToken;
+		}
+		if (abs(dst) < 1.0)
+		{
+			dst *= 60;
+			dst2 *= 60 * 60;
+			unitToken = secondToken;
+		}
+	}
+
+	// insert some replacements here
+
+	auto unitLabel = unitToken.GetStr();
+
+	char buffer[201];
+	auto nrBytesWritten = myFixedBufferWrite(buffer, 200, format, dst, unitLabel.c_str(), dst2, unitLabel.c_str());
+	buffer[nrBytesWritten] = char(0); // truncate
+	dv->SendStatusText(SeverityTypeID::ST_MinorTrace, buffer);
+	return true;
+}
 
 struct ControllerStopper
 {
@@ -523,6 +586,21 @@ SelectRectController::SelectRectController(DataView* owner, ViewPort* target
 	,	m_Transformation(transformation)
 {}
 
+bool SelectRectController::Move(EventInfo& eventInfo)
+{
+	auto result = DualPointCaretController::Move(eventInfo);
+	CrdPoint orgPoint = m_Transformation.Reverse(g2dms_order<CrdType>(m_Origin));
+	CrdPoint dstPoint = m_Transformation.Reverse(g2dms_order<CrdType>(eventInfo.m_Point));
+	CrdPoint deltaPoint = dstPoint - orgPoint;
+	CrdType dst = sqrt(Norm<CrdType>(deltaPoint));
+	CrdType dst2 = CrdType(deltaPoint.first) * CrdType(deltaPoint.second);
+
+	SendStatusText("Diagonal: % f[% s]; Area: % f[% s ^ 2]", dst, dst2);
+	eventInfo.m_EventID |= EID_TEXTSENT;
+
+	return result;
+}
+
 // override PointCaretController callback
 bool SelectRectController::Exec(EventInfo& eventInfo)
 {
@@ -554,6 +632,20 @@ SelectCircleController::SelectCircleController(
 		,	EID_MOUSEDRAG|EID_LBUTTONUP, EID_LBUTTONUP,EID_CLOSE_EVENTS, ToolButtonID::TB_SelectCircle)
 	,	m_Transformation(transformation)
 {
+}
+
+bool SelectCircleController::Move(EventInfo& eventInfo)
+{
+	auto result = DualPointCaretController::Move(eventInfo);
+	CrdPoint orgPoint = m_Transformation.Reverse(g2dms_order<CrdType>(m_Origin));
+	CrdPoint dstPoint = m_Transformation.Reverse(g2dms_order<CrdType>(eventInfo.m_Point));
+	CrdType dst2 = SqrDist<CrdType>(orgPoint, dstPoint);
+	CrdType dst = sqrt(dst2);
+
+	SendStatusText("Radius: %f[%s]; Area: %f[%s^2]", dst, std::numbers::pi_v<Float64> *dst2);
+	eventInfo.m_EventID |= EID_TEXTSENT;
+
+	return result;
 }
 
 // override PointCaretController callback
@@ -623,7 +715,7 @@ DrawPolygonController::DrawPolygonController(
 	,	m_PolygonCaret(0)
 	,	m_Transformation(transformation)
 {
-	dms_assert(owner);
+	assert(owner);
 	AddPoint(origin);
 	if (drawEndLine)
 	{
@@ -663,6 +755,33 @@ bool DrawPolygonController::Move(EventInfo& eventInfo)
 		m_EndLineCaret, 
 		DualPointCaretOperator(eventInfo.m_Point, m_Points.front(), to.get() )
 	);
+
+	MG_CHECK(m_Points.size() >= 1);
+	if (m_Points.size() == 1)
+	{
+		auto basePoint = m_Transformation.Reverse(g2dms_order<CrdType>(m_Points[0]));
+		auto currPoint = m_Transformation.Reverse(g2dms_order<CrdType>(eventInfo.m_Point));
+
+		CrdType dst2 = SqrDist<CrdType>(basePoint, currPoint);
+		CrdType dst = sqrt(dst2);
+
+		SendStatusText("Distance: %f[%s]; Area: %f[%s^2]", dst, 0.0);
+	}
+	else
+	{
+		std::vector<CrdPoint> worldPoints; worldPoints.reserve(m_Points.size() + 1);
+		for (auto p : m_Points)
+			worldPoints.emplace_back(m_Transformation.Reverse(g2dms_order<CrdType>(p)));
+		worldPoints.emplace_back(m_Transformation.Reverse(g2dms_order<CrdType>(eventInfo.m_Point)));
+		worldPoints.emplace_back(worldPoints.front());
+
+		auto perimeter = ArcLength<Float64>(worldPoints.begin(), worldPoints.end());
+		auto area = Area<Float64>(worldPoints.begin(), worldPoints.end());
+
+		SendStatusText("Perimeter: %f[%s]; Area: %f[%s^2]", perimeter, area);
+	}
+
+	eventInfo.m_EventID |= EID_TEXTSENT;
 
 	if (eventInfo.m_EventID & (EID_LBUTTONDOWN|EID_LBUTTONUP|EID_LBUTTONDBLCLK))
 		AddPoint(eventInfo.m_Point);

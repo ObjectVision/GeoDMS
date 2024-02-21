@@ -514,8 +514,8 @@ namespace poly2grid
 //									Poly2GridOper (PolygonAttr, GridSet)
 // *****************************************************************************
 
-CommonOperGroup cog_poly2grid("poly2grid", oper_policy::dynamic_result_class);
-CommonOperGroup cog_poly2grid_untiled("poly2grid_untiled", oper_policy::dynamic_result_class);
+CommonOperGroup cog_poly2grid("poly2grid", oper_policy::dynamic_result_class | oper_policy::better_not_in_meta_scripting);
+CommonOperGroup cog_poly2grid_untiled("poly2grid_untiled", oper_policy::dynamic_result_class | oper_policy::better_not_in_meta_scripting);
 
 struct Poly2GridOperator : public BinaryOperator
 {
@@ -600,12 +600,15 @@ struct Poly2GridOperator : public BinaryOperator
 // *****************************************************************************
 
 	template <typename DomPoint>
-	struct DomainInst : Poly2GridOperator
+	struct DomainInst
 	{
-		typedef Unit<DomPoint> DomainUnitType;
+		using DomainUnitType = Unit<DomPoint>;
+
+		Poly2GridOperator m_TiledOper, m_UntiledOper;
 
 		DomainInst(const DataItemClass* polygonDataClass)
-			: Poly2GridOperator(polygonDataClass, DomainUnitType::GetStaticClass(), false)
+			: m_TiledOper  (polygonDataClass, DomainUnitType::GetStaticClass(), false)
+			, m_UntiledOper(polygonDataClass, DomainUnitType::GetStaticClass(), true)
 		{}
 	};
 
