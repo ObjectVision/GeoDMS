@@ -213,7 +213,7 @@ namespace py_geodms
 
 } // namespace py_geodms
 
-PYBIND11_MODULE(GeoDmsPython, m) {
+PYBIND11_MODULE(geodms, m) {
 	py::class_<py_geodms::Item>(m, "Item")
 		.def("isNull", &py_geodms::Item::IsNull)
 		.def("find", &py_geodms::Item::find)
@@ -225,8 +225,8 @@ PYBIND11_MODULE(GeoDmsPython, m) {
 		.def("nextItem", &py_geodms::Item::GetNextItem)
 		;
 
-	py::class_<py_geodms::DataItem>(m, "DataItem");
-	py::class_<py_geodms::DataItem>(m, "UnitItem");
+	//py::class_<py_geodms::DataItem>(m, "DataItem");
+	//py::class_<py_geodms::DataItem>(m, "UnitItem");
 
 	py::class_<py_geodms::Config>(m, "Config")
 		.def("getRoot", &py_geodms::Config::get_root);
