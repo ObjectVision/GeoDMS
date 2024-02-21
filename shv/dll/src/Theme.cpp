@@ -202,7 +202,7 @@ const AbstrUnit* Theme::GetClassIdUnit() const
 	if (GetClassification())
 		return GetClassification()->GetNonDefaultDomainUnit();
 	if (GetPaletteAttr())
-		return GetPaletteAttr()->GetNonDefaultValuesUnit();
+		return GetPaletteAttr()->GetNonDefaultDomainUnit();
 	assert(GetThemeAttr());
 	return GetThemeAttr()->GetNonDefaultValuesUnit();
 }
