@@ -1260,11 +1260,24 @@ bool TreeItem::IsLoadable() const
 	auto sp = GetStorageParent(false);
 	if (!sp)
 		return false;
+	return true;
+}
+
+/*
+bool TreeItem::IsLoadableAndExists() const
+{
+	if (!IsDataItem(this) && !IsUnit(this))
+		return false;
+	auto sp = GetStorageParent(false);
+	if (!sp)
+		return false;
+
 	auto sm = sp->GetStorageManager();
 	assert(sm);
 
 	return sm->DoCheckExistence(sp, this);
 }
+*/
 
 bool TreeItem::IsCurrLoadable() const
 {
@@ -2186,11 +2199,10 @@ MetaInfo TreeItem::GetCurrMetaInfo(metainfo_policy_flags mpf) const
 	if (mpf & metainfo_policy_flags::subst_never)
 		return MetaFuncCurry{ .fullLispExpr = CreateLispTree(this, true) }; // should this result in a SymcDC to itself ? No, present this tree only in GetKeyExpr
 
-	if (IsUnit(this) || IsDataItem(this))
-		if (GetCurrStorageParent(false))
-			//		return CreateLispTree(this, false); // will result in a SymbDC
-			//	if (IsUnit(this) || IsDerivable())
-			return MetaFuncCurry{ .fullLispExpr = CreateLispTree(this, false) };
+	if (IsCurrLoadable())
+		//		return CreateLispTree(this, false); // will result in a SymbDC
+		//	if (IsUnit(this) || IsDerivable())
+		return MetaFuncCurry{ .fullLispExpr = CreateLispTree(this, false) };
 
 	return MetaFuncCurry{}; // not as variant 2, as that would create an infinite recursion from GetOrgDC
 }

@@ -128,7 +128,7 @@ typedef void (DMS_CONV *CreateViewActionFunc)(
 
 using sel_caret_key  = std::pair<const AbstrDataItem*, const IndexCollector*>;
 using sel_caret_map  = std::map<sel_caret_key, std::weak_ptr<SelCaret>>;
-using grid_coord_key = Pair<CrdTransformation, IRect>;
+using grid_coord_key = std::pair<CrdTransformation, IRect>;
 using grid_coord_map = std::map<grid_coord_key, std::weak_ptr<GridCoord>>;
 
 using GridCoordPtr = std::shared_ptr<GridCoord>;

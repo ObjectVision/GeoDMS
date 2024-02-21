@@ -68,6 +68,20 @@ struct Range : Couple<T>
 
 
 //----------------------------------------------------------------------
+// Section      :	ordering
+//----------------------------------------------------------------------
+
+template <typename T>
+bool operator < (const Range<T>& lhs, const Range<T>& rhs)
+{
+	return
+		lhs.first < rhs.first ||
+		(!(rhs.first < lhs.first)
+			&& lhs.second < rhs.second
+			);
+}
+
+//----------------------------------------------------------------------
 // Section      : Undefined
 //----------------------------------------------------------------------
 

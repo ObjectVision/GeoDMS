@@ -75,6 +75,20 @@ template<class T> inline auto get_x(Point<T>& p) noexcept-> T& { return p.X(); }
 template<class T> inline auto get_y(Point<T>& p) noexcept-> T& { return p.Y(); }
 
 //----------------------------------------------------------------------
+// Section      :	ordering
+//----------------------------------------------------------------------
+
+template <typename T>
+bool operator < (const Point<T>& lhs, const Point<T>& rhs)
+{
+	return
+		lhs.Row() < rhs.Row() ||
+		(!(rhs.Row() < lhs.Row())
+			&& lhs.Col() < rhs.Col()
+			);
+}
+
+//----------------------------------------------------------------------
 // Main Section   PointBounds
 //----------------------------------------------------------------------
 

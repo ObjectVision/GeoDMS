@@ -30,9 +30,9 @@ struct ptr_type<const T>
 
 template <typename T> using ptr_type_t = typename ptr_type<T>::type;
 
-typedef Int32             ICoordType;
-typedef Point<ICoordType> IGridPoint;
-typedef Range<IGridPoint> IGridRect;
+using ICoordType = Int32;
+using IGridPoint = Point<ICoordType>;
+using IGridRect = Range<IGridPoint>;
 
 using UCoordType = UInt32;
 using UGridPoint = Point<UCoordType>;

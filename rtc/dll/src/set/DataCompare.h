@@ -61,7 +61,7 @@ template <typename T>
 struct DataCompare : DataCompareImpl<T, has_undefines_v<T> && !has_min_as_null_v<T> && has_fixed_elem_size_v<T>> {};
 
 template <typename T>
-struct DataCompare<Couple<T> >
+struct DataCompare<Point<T> >
 {
 	using is_transparent = int;
 
@@ -75,8 +75,6 @@ struct DataCompare<Couple<T> >
 	}
 	DataCompare<T> m_ElemComp;
 };
-
-template <typename T> struct DataCompare<Point<T> > : DataCompare<Couple<T> > {};
 
 
 #endif // __RTC_SET_DATACOMPARE_H
