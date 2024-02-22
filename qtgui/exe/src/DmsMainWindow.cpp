@@ -2396,25 +2396,6 @@ void MainWindow::updateFileMenu()
         addRecentFilesEntry(recent_file);
 
     }
-
-    /*for (auto* recent_file_action : m_recent_files_actions)
-    {
-        m_file_menu->removeAction(recent_file_action);
-        delete recent_file_action;
-    }
-    m_recent_files_actions.clear(); // delete old actions;
-
-    // rebuild latest recent files from registry
-    cleanRecentFilesThatDoNotExist();
-    auto recent_files_from_registry = GetGeoDmsRegKeyMultiString("RecentFiles");
-    
-    for (std::string_view recent_file : recent_files_from_registry)
-    {
-        auto new_recent_file_action_widget = createRecentFilesWidgetAction(m_recent_files_actions.size(), recent_file, m_file_menu.get());
-        m_file_menu->addAction(new_recent_file_action_widget);
-        m_recent_files_actions.push_back(new_recent_file_action_widget);
-        m_recent_files_selection_statuses.push_back(false);
-    }*/
 }
 
 void MainWindow::updateViewMenu()
