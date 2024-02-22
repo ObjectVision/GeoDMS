@@ -745,17 +745,22 @@ bool GDALFieldCanBeInterpretedAsInteger(gdalVectImpl::FeaturePtr &feat, SizeT &c
 
 bool GDALFieldCanBeInterpretedAsDouble(gdalVectImpl::FeaturePtr& feat, SizeT& currFieldIndex)
 {
-	if (!feat)
+	if (!feat->IsFieldSet(currFieldIndex))
 		return false;
-	if (!feat->IsFieldSetAndNotNull(currFieldIndex))
+
+	if (!feat->IsFieldNull(currFieldIndex))
 		return false;
-	if (feat->GetFieldAsDouble(currFieldIndex) != 0)
+
+	if (feat->GetFieldAsDouble(currFieldIndex) != 0) [[likely]] // usually the case, however geodms users may override string values 
 		return true;
-	auto fieldAsCharPtr = feat->GetFieldAsString(currFieldIndex); // who owns this ? lifetime ?
-	if (!fieldAsCharPtr || !*fieldAsCharPtr)
+
+	// attempt to interpret string field representation as double, expensive but rarily
+	auto fieldAsString = SharedStr(feat->GetFieldAsString(currFieldIndex));
+	if (fieldAsString.empty())
 		return false;
+	
 	Float64 fieldAsFloat64 = 0;
-	AssignValueFromCharPtr(fieldAsFloat64, fieldAsCharPtr);
+	AssignValueFromCharPtr(fieldAsFloat64, fieldAsString.c_str());
 	if (fieldAsFloat64 == 0)
 	{
 		dms_assert(IsDefined(fieldAsFloat64));
@@ -819,6 +824,9 @@ void ReadDoubleAttrData(OGRLayer* layer, SizeT currFieldIndex, typename sequence
 		typename DataArray<T>::reference dataElemRef = data[i];
 
 		gdalVectImpl::FeaturePtr feat = hDS->TestCapability(ODsCRandomLayerRead) ? GetNextFeatureInterleaved(layer, hDS) : layer->GetNextFeature();
+		if (!feat)
+			continue;
+
 		if (GDALFieldCanBeInterpretedAsDouble(feat, currFieldIndex))
 			dataElemRef = feat->GetFieldAsDouble(currFieldIndex);
 		else
