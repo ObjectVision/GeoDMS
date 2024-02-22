@@ -1,0 +1,65 @@
+container basic_data_test
+{
+	unit<uint32> reference: nrofrows = 5
+	{
+		attribute<int32>   IntegerAtt           : [0,1,256,-100,9999];
+		attribute<int32>   IntegerAttNull       : [null,1,256,-100,9999];
+		attribute<uint32>  UIntegerAtt          := uint32(IntegerAtt); 
+		attribute<int64>   Int64Att             := int64(IntegerAtt);
+		attribute<uint64>  UInt64Att            := uint64(IntegerAtt); 
+		attribute<uint2>   UInt2Att             := uint2(IntegerAtt);
+		attribute<uint4>   UInt4Att             := uint4(IntegerAtt);
+		attribute<uint8>   UInt8Att             := uint8(IntegerAtt);
+
+		attribute<float32> FloatAtt             : [0,1,9999999,-2.5,99.9];
+		attribute<float32> FloatAttNull         : [null,1,9999999,-2.5,99.9];
+		attribute<float64> Float64Att           := Float64(FloatAtt);
+		attribute<fpoint>  FPointAtt            := point_yx(FloatAtt, FloatAtt, fpoint);
+
+		attribute<bool>    BoolAtt              : [False, True, True, False, True];
+		attribute<string>  StringAtt            : ['Hello','Test',null,'Two words','88a'];
+		attribute<string>  StringAttSingleEmpty : ['Hello','Test','','Two words','88a'];
+		attribute<string>  StringAttEmpty       : ['Hello','Test','','','88a'];
+		attribute<string>  StringAttNull        : ['Hello','Test',null, null,'88a'];
+
+		attribute<string>  StringAttNoNull      : ['Hello','Test','12345','Two words','88a'];
+
+		unit<uint32> point: nrofrows = 5
+		{
+			attribute<fpoint> geometry :[{401331, 115135},{399476, 111803},{399289, 114903},{401729, 111353},{398696, 111741}];
+			attribute<string> label    := 'point_' + string(id(.));
+		}
+
+		unit<uint32> arc : nrofrows = 3
+		{
+			unit<uint32> pointset: nrofrows = 8
+			{
+				attribute<fpoint> geometry : [{411022, 120157},{413887, 120487},{414205, 120584},{410929, 119680},{411022, 120157},{410640, 120123},{410900, 120146},{411022, 120157}];
+				attribute<arc>    seq_nr   : [0,0,0,1,1,2,2,2];
+				attribute<uint32> ordinal  : [0,1,2,0,1,0,1,2];
+			}
+			attribute<fpoint> geometry (arc) := points2sequence(pointset/geometry, pointset/seq_nr, pointset/ordinal);
+			attribute<string> label          : ['A27;E311','A59','A27;E311'];
+		}
+
+		unit<uint32> polygon : nrofrows = 3
+		{
+			unit<uint32> pointset: nrofrows = 8
+			{
+				attribute<fpoint>  geometry : [{411022, 120157},{413887, 120487},{414205, 120584},{411022, 120157},{410640, 120123},{410900, 120146},{411022, 120157},{410640, 120123}];
+				attribute<polygon> seq_nr   : [0,0,0,0,2,2,2,2];
+				attribute<uint32>  ordinal  : [0,1,2,3,0,1,2,3];
+			}
+			attribute<fpoint> geometry (poly) := points2sequence(pointset/geometry, pointset/seq_nr, pointset/ordinal);
+			attribute<string> label           : ['A27;E311','A59','A27;E311'];
+		}
+
+		unit<spoint> grid := range(spoint, point(0s, 0s), point(4s, 4s))
+		{
+			attribute<uint32>  GridData_uint32  : [0, 100, 12607552, 2000, 65535, 8405088, 49376, 1, 16777215, 12639424, 17, 8437920, 12624064, 4294967294, 4294967295, null];
+			attribute<uint8>   GridData_uint8   : [0, 254, 100, 200, 55, 1, 200, 10, 125, 37, 189, 5, 150, 800, 255, null];
+			attribute<float32> GridData_float32 : [0, 254.5628, 100.0, 200.5, 55, 10101, 2, -10, -125.87, 37, 189.0000001, 5, -150, 175, null, null];
+			attribute<bool>    GridData_bool    : [true, true, false, true, false, true, true, true, true, true, false, false, true, false, true, null];
+		}
+	}
+}

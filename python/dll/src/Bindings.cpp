@@ -59,11 +59,11 @@ namespace py_geodms
 		}
 		bool is_data_item() const
 		{
-			return IsDataItem(m_item.get());
+			return IsDataItem(m_item.get_ptr());
 		}
 		bool is_unit_item() const
 		{
-			return IsUnit(m_item.get());
+			return IsUnit(m_item.get_ptr());
 		}
 		std::string expr() const {
 			CheckNonNull();
@@ -84,20 +84,9 @@ namespace py_geodms
 			MG_USERCHECK2(m_item, "invalid dereference of item nullptr");
 		}
 
-		SharedPtr<const TreeItem> m_item;
-
+		SharedTreeItemInterestPtr m_item;
 	};
-
-	struct DataItem
-	{
-		DataItem(const AbstrDataItem* adi)
-			: m_adi(adi)
-		{}
-
-		SharedPtr<const AbstrDataItem> m_adi;
-	};
-
-
+	
 	struct UnitItem
 	{
 		UnitItem(const AbstrUnit* au)
@@ -107,17 +96,43 @@ namespace py_geodms
 		SharedPtr<const AbstrUnit> m_au;
 	};
 
+	struct DataItem
+	{
+		DataItem(const AbstrDataItem* adi)
+			: m_adi(adi)
+		{}
+
+		UnitItem GetAbstrDomainUnit()
+		{
+			return UnitItem(m_adi->GetAbstrDomainUnit());
+		}
+
+		size_t size()
+		{
+			m_adi->UpdateMetaInfo();
+			auto adu = m_adi->GetAbstrDomainUnit();
+			PreparedDataReadLock lck2(m_adi);
+			auto count = adu->GetCount();
+
+			auto range = adu->GetRangeAsIRect();
+
+			return count;
+		}
+
+
+		SharedPtr<const AbstrDataItem> m_adi;
+	};
 
 	DataItem AsDataItem(const Item& item)
 	{
 		MG_USERCHECK(item.is_data_item());
-		return DataItem(::AsDataItem(item.m_item.get()));
+		return DataItem(::AsDataItem(item.m_item.get_ptr()));
 	}
 
 	UnitItem AsUnitItem(const Item& item)
 	{
 		MG_USERCHECK(item.is_unit_item());
-		return UnitItem(::AsUnit(item.m_item.get()));
+		return UnitItem(::AsUnit(item.m_item.get_ptr()));
 	}
 
 	struct Engine;
@@ -203,7 +218,7 @@ namespace py_geodms
 		Config load_config(CharPtr config_file_name)
 		{
 			return Config(config_file_name);
-		} 
+		}
 
 		Config create_config_root(CharPtr akaName)
 		{
@@ -225,17 +240,24 @@ PYBIND11_MODULE(geodms, m) {
 		.def("nextItem", &py_geodms::Item::GetNextItem)
 		;
 
-	//py::class_<py_geodms::DataItem>(m, "DataItem");
-	//py::class_<py_geodms::DataItem>(m, "UnitItem");
+	py::class_<py_geodms::DataItem>(m, "DataItem")
+		.def("getDomainUnit", &py_geodms::DataItem::GetAbstrDomainUnit)
+		.def("size", &py_geodms::DataItem::size);
+		;
+
+	py::class_<py_geodms::UnitItem>(m, "UnitItem");
 
 	py::class_<py_geodms::Config>(m, "Config")
-		.def("getRoot", &py_geodms::Config::get_root);
+		.def("getRoot", &py_geodms::Config::get_root)
+	;
 
 	py::class_<py_geodms::Engine>(m, "Engine")
 		.def(py::init())
 		.def("loadConfig", &py_geodms::Engine::load_config)
 		.def("createRoot", &py_geodms::Engine::create_config_root)
 	;
+
+	
 
 	m.def("AsDataItem", &py_geodms::AsDataItem);
 	m.def("version", DMS_GetVersion);
