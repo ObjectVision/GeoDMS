@@ -640,7 +640,7 @@ SizeT LayerFieldEnable(OGRLayer* layer, CharPtrRange itemName, const Actor* cont
 				CharPtr columnName = featureDefn->GetFieldDefn(fieldID)->GetNameRef();
 				SizeT columnNameLen = StrLen(columnName);
 				auto columnNameAsItemName = as_item_name(columnName, columnName + columnNameLen);
-				if (!stricmp(itemName.first, columnNameAsItemName.c_str())) //layerNameSet.FieldNameToMappedName(featureDefn->GetFieldDefn(fieldID)->GetNameRef()).c_str()))
+				if (!stricmp(itemName.first, columnNameAsItemName.c_str()))
 					goto found;
 				fieldID++;
 			}
@@ -839,7 +839,6 @@ bool GdalVectSM::ReadAttrData(const GdalVectlMetaInfo* br, AbstrDataObject * ado
 	OGRLayer* layer = br->Layer();
 	if (layer && t==0 && firstIndex == 0 && size)
 		layer->ResetReading();
-//	dms_assert(br->m_CurrFieldIndex != -1); 
 	// TODO G8: REMOVE following if, as it should have been set by the GdalVectlMetaInfo provider
 	if (br->m_CurrFieldIndex==-1) {
 		// TODO: Lock.
@@ -1428,17 +1427,12 @@ bool GdalVectSM::WriteDataItem(StorageMetaInfoPtr&& smiHolder)
 	if (not adi->IsStorable())
 		return true;
 
-//	auto data_object = adi->GetDataObj();
 	SharedStr fieldname(adi->GetName());
 	auto layerTokenT = GetTokenID_mt(layername.c_str());
 
 	StorageWriteHandle storageHandle(std::move(smiHolder)); // open dataset
 	if (not m_DataItemsStatusInfo.m_continueWrite)
 	{
-		// disable spatial index in case of GPKG, SQLite
-		//if (!strcmpi(this->m_hDS->GetDriverName(), "GPKG") || !strcmpi(this->m_hDS->GetDriverName(), "SQLite"))
-		//	layerOptionArray.AddString("SPATIAL_INDEX=NO");
-
 		InitializeLayersFieldsAndDataitemsStatus(*smi, m_DataItemsStatusInfo, this->m_hDS, layerOptionArray); gdal_error_frame.ThrowUpWhateverCameUp();
 		m_DataItemsStatusInfo.m_continueWrite = true;
 	}
