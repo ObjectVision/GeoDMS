@@ -27,7 +27,10 @@ granted by an additional written contract for support, assistance and/or develop
 */
 //</HEADER>
 #include "StoragePCH.h"
+
+#if defined(CC_PRAGMAHDRSTOP)
 #pragma hdrstop
+#endif //defined(CC_PRAGMAHDRSTOP)
 
 
 // *****************************************************************************
@@ -44,7 +47,7 @@ granted by an additional written contract for support, assistance and/or develop
 #include "dbg/debug.h"
 #include "dbg/SeverityType.h"
 #include "geo/BaseBounds.h"
-#include "geo/Color.h"
+#include "geo/color.h"
 #include "geo/Round.h"
 #include "mci/ValueClass.h"
 #include "mci/ValueClassID.h"
@@ -64,6 +67,7 @@ granted by an additional written contract for support, assistance and/or develop
 #include "TreeItemProps.h"
 #include "UnitClass.h"
 #include "ViewPortInfoEx.h"
+#include "Projection.h"
 
 #include "stg/StorageClass.h"
 
@@ -84,35 +88,36 @@ TiffSM::~TiffSM()
 	CloseStorage(); 
 }
 
-
 // Open for read/write
 void TiffSM::DoOpenStorage(const StorageMetaInfo& smi, dms_rw_mode rwMode) const
 {
 	DBG_START("TiffSM", "OpenStorage", true);
 
 	dms_assert(!IsOpen());
-	dms_assert(rwMode != dms_rw_mode::unspecified);
+	assert(rwMode != dms_rw_mode::unspecified);
 
 	DBG_TRACE(("storageName =  %s", GetNameStr().c_str()));
 
-	dms_assert(m_pImp.is_null());
+	assert(m_pImp.is_null());
 
 	auto imp = std::make_unique<TifImp>();
 	if (rwMode > dms_rw_mode::read_only)
 	{
 		if (!GetGridData(smi.StorageHolder(), false))
-			smi.StorageHolder()->throwItemErrorF("TiffSM %s has no GridData sub item of the expected type and domain", GetNameStr().c_str());
-		if (! imp->Open(GetNameStr(), TifFileMode::WRITE, DSM::GetSafeFileWriterArray(smi.StorageHolder())) )
+			if (!smi.CurrRD() || !GetGridData(smi.CurrRD(), false))
+				smi.StorageHolder()->throwItemErrorF("TiffSM %s has no GridData sub item of the expected type and domain", GetNameStr().c_str());
+		auto sfwa = DSM::GetSafeFileWriterArray();
+		if (!sfwa || !imp->Open(GetNameStr(), TifFileMode::WRITE, sfwa.get()) )
 			throwItemError("Unable to open for Write");
 	}
 	else
 	{
-		bool result = imp->Open(GetNameStr(), TifFileMode::READ, DSM::GetSafeFileWriterArray(smi.StorageHolder()));
+		auto sfwa = DSM::GetSafeFileWriterArray();
+		bool result = sfwa && imp->Open(GetNameStr(), TifFileMode::READ, sfwa.get());
 		MG_CHECK(result); // false after TIFF open error
 	}
 	m_pImp = imp.release();
 }
-
 
 // Close any open file and forget about it
 void TiffSM::DoCloseStorage(bool mustCommit) const
@@ -120,70 +125,104 @@ void TiffSM::DoCloseStorage(bool mustCommit) const
 	DBG_START("TiffSM", "DoCloseStorage", true);
 
 	dms_assert(IsOpen());
-	dms_assert(m_pImp.has_ptr());
+	assert(m_pImp.has_ptr());
 
 	DBG_TRACE(("storageName=  %s", GetNameStr().c_str()));
 
 	m_pImp.reset();
-	dms_assert(m_pImp.is_null());
+	assert(m_pImp.is_null());
 }
 
-
-bool TiffSM::ReadDataItem(const StorageMetaInfo& smi, AbstrDataObject* borrowedReadResultHolder, tile_id t)
+bool TiffSM::ReadDataItem(StorageMetaInfoPtr smi, AbstrDataObject* borrowedReadResultHolder, tile_id t)
 {
-	const TreeItem* storageHolder = smi.StorageHolder();
-	AbstrDataItem*   adi = smi.CurrWD();
+	assert(smi);
+	assert(borrowedReadResultHolder);
 
-	dms_assert(storageHolder);
-	dms_assert(adi);
+	const TreeItem* storageHolder = smi->StorageHolder();
+	AbstrDataItem*  adi = smi->CurrWD();
 
-	dms_assert(IsOpen());
-	dms_assert(m_pImp->IsOpen());
+	assert(storageHolder);
+	assert(adi);
+
+	assert(IsOpen());
+	assert(m_pImp->IsOpen());
 
 	if (adi->GetID() == PALETTE_DATA_ID)
-		return ReadPalette(*m_pImp, borrowedReadResultHolder);
+		return ReadPalette(borrowedReadResultHolder);
 
 	// Collect zoom info
-	const GridStorageMetaInfo* gbr = debug_cast<const GridStorageMetaInfo*>(&smi);
-	auto vpi = gbr->m_VPIP.value().GetViewportInfoEx(t);
+	const GridStorageMetaInfo* gbr = debug_cast<const GridStorageMetaInfo*>(smi.get());
+	auto vpi = gbr->m_VPIP.value().GetViewportInfoEx(t, smi);
 
 	vpi.SetWritability(adi);
 
 	if (vpi.GetCountColor() != -1)
-		ReadGridCounts(*m_pImp, vpi, borrowedReadResultHolder, t);
+		ReadGridCounts(vpi, adi, borrowedReadResultHolder, t);
 	else
-		ReadGridData  (*m_pImp, vpi, borrowedReadResultHolder, t);
+		ReadGridData  (vpi, adi, borrowedReadResultHolder, t);
 	return true;
 }
 
-void TiffSM::ReadGridCounts(const TifImp& imp, const StgViewPortInfo& vpi, AbstrDataObject* ado, tile_id t)
+void TiffSM::ReadGridCounts(const StgViewPortInfo& vpi, AbstrDataItem* adi, AbstrDataObject* ado, tile_id t)
 {
 	DBG_START("TiffSM", "ReadGridCounts", true);
+	assert(m_pImp);
+	assert(adi);
+	assert(ado);
 
-	Grid::ReadGridCounts(imp, vpi, ado, t);
+	Grid::ReadGridCounts(*m_pImp, vpi, ado, t, GetNameStr().c_str());
 }
 
-void TiffSM::ReadGridData(const TifImp& imp, const StgViewPortInfo& vpi, AbstrDataObject* ado, tile_id t)
+void TiffSM::ReadGridData(const StgViewPortInfo& vpi, AbstrDataItem* adi, AbstrDataObject* ado, tile_id t)
 {
 	DBG_START("TiffSM", "ReadGridData", false);
-	Grid::ReadGridData(imp, vpi, ado, t);
+	assert(m_pImp);
+	assert(adi);
+	assert(ado);
+
+	// Check if values match with tiff raster value elements
+	auto vc_ado = ado->GetValueClass();
+	assert(vc_ado);
+
+	auto vcid_ado = vc_ado->GetValueClassID();
+
+	auto vcid_tiff = m_pImp->GetValueClassFromTiffDataTypeTag();
+	auto vc_tiff = ValueClass::FindByValueClassID(vcid_tiff);
+	if (!vc_tiff)
+		adi->throwItemErrorF("Uknown tiff pixel value type");
+	if (vc_ado->GetBitSize() != vc_tiff->GetBitSize())
+		adi->throwItemErrorF("Mismatch in number of bits between user specified value type: '%s' and tiff pixel value type: '%s'."
+			, AsString(vc_ado->GetID())
+			, AsString(vc_tiff->GetID())
+		);
+
+	if (vcid_ado != vcid_tiff)
+		reportF(MsgCategory::storage_read, SeverityTypeID::ST_Warning, "Mismatch between user specified value type: '%s' and tiff pixel value type: '%s' for item %s."
+			, AsString(vc_ado->GetID())
+			, AsString(vc_tiff->GetID())
+			, adi->GetFullName()
+		);
+
+
+	Grid::ReadGridData(*m_pImp, vpi, ado, t, GetNameStr().c_str());
 }
 
-bool TiffSM::ReadPalette(const TifImp& imp, AbstrDataObject* ado)
+bool TiffSM::ReadPalette(AbstrDataObject* ado)
 {
 	DBG_START("TiffSM", "ReadPalette", true);
-
-	dms_assert(ado);
-	UInt32 nrElems = ado->GetTiledRangeData()->GetRangeSize();
-	UInt32 nrColors = (imp.HasColorTable())
-		?	Min<UInt32>(UInt32(imp.GetClrImportant()), nrElems)
+	assert(m_pImp);
+	assert(ado);
+	
+	auto nrElems = ado->GetTiledRangeData()->GetRangeSize();
+	auto nrColors = (m_pImp->HasColorTable())
+		?	Min<SizeT>(m_pImp->GetClrImportant(), nrElems)
 		:	0;
 
-	UInt32 i;
+	SizeT i;
 	for (i=0; i!=nrColors; ++i)
-		ado->SetValueAsUInt32(i, imp.GetColor( i ) ); 
+		ado->SetValueAsUInt32(i, m_pImp->GetColor( i ) );
 
-	dms_assert(i <=nrElems);
+	assert(i <= nrElems);
 	// Beyond Eof?
 	for (; i != nrElems; ++i)
 		ado->SetValueAsUInt32(i, 0 ); 
@@ -203,7 +242,7 @@ bool TiffSM::WriteDataItem(StorageMetaInfoPtr&& smiHolder)
 	{
 		pd->UpdateMetaInfo();
 		ValueClassID streamTypeID = GetStreamType(pd)->GetValueClassID();
-		if (streamTypeID == VT_UInt32 || streamTypeID == VT_Int32
+		if (streamTypeID == ValueClassID::VT_UInt32 || streamTypeID == ValueClassID::VT_Int32
 			&& pd->GetID() == PALETTE_DATA_ID
 			&& m_pImp->GetNrBitsPerPixel() <= MAX_BITS_PAL
 			)
@@ -223,14 +262,16 @@ bool TiffSM::WriteDataItem(StorageMetaInfoPtr&& smiHolder)
 		const AbstrDataItem* adi = smi->CurrRD();
 		const ValueClass* streamType = GetStreamType(adi);
 		ViewPortInfoProvider vpip(smi->StorageHolder(), adi, false, true);
-		WriteGridData(*m_pImp, vpip.GetViewportInfoEx(no_tile), storageHolder, adi, streamType);     // Byte stream, full image 
+		WriteGridData(*m_pImp, vpip.GetViewportInfoEx(no_tile, storageHandle.MetaInfo()), storageHolder, adi, streamType);     // Byte stream, full image 
 	}
 
 	if (pd)
-	{
-		auto paletteWriteMetaInfo = storageHolder->GetStorageManager()->GetMetaInfo(storageHolder, const_cast<AbstrDataItem*>(pd.get_ptr()), StorageAction::write);
-		WritePalette(*m_pImp, storageHolder, pd); // Long stream, palette colors
-	}
+		if (auto nmsm = dynamic_cast<NonmappableStorageManager*>(storageHolder->GetStorageManager()))
+		{
+			auto paletteWriteMetaInfo = nmsm->GetMetaInfo(storageHolder, const_cast<AbstrDataItem*>(pd.get_ptr()), StorageAction::write);
+			WritePalette(*m_pImp, storageHolder, pd); // Long stream, palette colors
+		}
+
 	return true;
 }
 
@@ -240,7 +281,7 @@ void TiffSM::WriteGridData(TifImp& imp, const StgViewPortInfo& vpi, const TreeIt
 
 	WriteGeoRefFile(adi, replaceFileExtension(GetNameStr().c_str(), "tfw"));
 
-	Grid::WriteGridData(imp, vpi, storageHolder, adi, streamType);
+	Grid::WriteGridData(imp, vpi, storageHolder, adi, streamType, GetNameStr().c_str());
 }
 
 void TiffSM::WritePalette(TifImp& imp, const TreeItem* storageHolder, const AbstrDataItem* adi)
@@ -315,7 +356,7 @@ bool TiffSM::ReadUnitRange(const StorageMetaInfo& smi) const
 	{
 		if (!m_pImp->HasColorTable())
 			return false; // cannot return Range of ValuesUnit if Tiff has no palette (assumed when more bits per pixel)
-		smi.CurrWU()->SetRangeAsFloat64(0, m_pImp->GetClrImportant());
+		smi.CurrWU()->SetRangeAsUInt64(0, m_pImp->GetClrImportant());
 	}
 	return true;
 }
@@ -329,21 +370,61 @@ void TiffSM::DoUpdateTree(const TreeItem* storageHolder, TreeItem* curr, SyncMod
 	dms_assert(storageHolder);
 	if (storageHolder != curr)
 		return;
-	if (curr->IsStorable() && curr->HasCalculator())
+	auto curr_is_storable = curr->IsStorable();
+	auto curr_has_calculator = curr->HasCalculator();
+	if (curr_is_storable && curr->HasCalculator())
 		return;
-
+	const AbstrDataItem* configGridData = GetGridData(storageHolder);
+	if (configGridData && configGridData->HasCalculator())
+		return;
 
 	UpdateMarker::ChangeSourceLock changeStamp( storageHolder, "DoUpdateTree");
 	curr->SetFreeDataState(true);
 
 	SharedStr projectionFileName = replaceFileExtension(GetNameStr().c_str(), "tfw");
+	bool tfw_file_exists = IsFileOrDirAccessible(projectionFileName);
+
+	std::vector<Float64> pixel_to_world_transform = {};
+
 	// GridData item && GridPalette item
-	const AbstrDataItem* gridData  = GetGridData(storageHolder, IsFileOrDirAccessible(projectionFileName));
+	const AbstrDataItem* gridData  = GetGridData(storageHolder, tfw_file_exists || !pixel_to_world_transform.empty());
 	const AbstrDataItem* paletteData = GetPaletteData(storageHolder);
 
+	//if (!gridData || !paletteData)
+	//	storageHolder->throwItemErrorF("No user defined GridData or PaletteData attribute found for storage item %s.", storageHolder->GetFullName().c_str());
 	MG_CHECK( !gridData || !paletteData || gridData->GetAbstrValuesUnit()->UnifyDomain(paletteData->GetAbstrDomainUnit()) );
+	
+	if (gridData && gridData->HasCalculatorImpl())
+		return;
 
-	ReadProjection(curr, projectionFileName);
+	auto smi = this->GetMetaInfo(storageHolder, curr, StorageAction::read);
+	if(!smi)
+		return;
+
+	this->OpenForRead(*smi);
+	if (this->m_pImp.is_null())
+		return;
+
+	// Obtain pixel to world transformation obtained form GeoTiff tags
+	pixel_to_world_transform = m_pImp->GetImageToWorldTransform();
+	if (!pixel_to_world_transform.empty())
+	{
+		AbstrUnit* gridDataDomainRW = GetGridDataDomainRW(const_cast<TreeItem*>(storageHolder));
+		if (!gridDataDomainRW)
+			return;
+
+		const AbstrUnit* uBase = FindProjectionBase(storageHolder, gridDataDomainRW);
+		if (!uBase)
+			return;
+		uBase->UpdateMetaInfo();
+		DPoint factor(pixel_to_world_transform[3], pixel_to_world_transform[0]);
+		DPoint offset(pixel_to_world_transform[5], pixel_to_world_transform[4]);
+		gridDataDomainRW->SetProjection(new UnitProjection(AsUnit(uBase->GetCurrUltimateItem()), offset, factor));
+		return;
+	}
+
+	// Final straw, get pixel to world transformation from .tfw file
+	GetImageToWorldTransformFromFile(curr, projectionFileName);
 }
 
 // Register

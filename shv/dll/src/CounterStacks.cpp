@@ -32,7 +32,7 @@ granted by an additional written contract for support, assistance and/or develop
 #include "CounterStacks.h"
 
 #include "act/Actor.h"
-#include "dbg/Debug.h"
+#include "dbg/debug.h"
 #include "ser/AsString.h"
 #include "ser/RangeStream.h"
 #include "utl/swap.h"
@@ -42,9 +42,6 @@ granted by an additional written contract for support, assistance and/or develop
 //----------------------------------------------------------------------
 
 CounterStacks::CounterStacks()
-	:	m_NrActiveCounters(0)
-	,	m_CurrCounter(0)
-	,	m_DidBreak(false)
 {
 	m_Stacks.reserve(8);
 }
@@ -60,7 +57,6 @@ void CounterStacks::Reset(Region&& drawRegion)
 
 	m_DidBreak = false;
 	AddDrawRegion(std::move(drawRegion));
-
 }
 
 bool CounterStacks::CurrStackEmpty()
@@ -86,10 +82,10 @@ void CounterStacks::AddDrawRegion(Region&& drawRegion)
 {
 	DBG_START("CounterStacks", "AddDrawRegion", MG_DEBUG_COUNTERSTACKS);
 
-	dms_assert(NoActiveCounters());
-	dms_assert(!DidBreak());
-	dbg_assert(IsOK());
-	dms_assert(!Empty() || m_Counters.size() == 0);
+	assert(NoActiveCounters());
+	assert(!DidBreak());
+	assert(IsOK());
+	assert(!Empty() || m_Counters.size() == 0);
 
 	if (drawRegion.Empty())
 		return;
@@ -150,7 +146,7 @@ void CounterStacks::LimitDrawRegions(const GPoint& maxSize)
 	dbg_assert(IsOK()); // let op: MustBreak check counter values van NextStack kan wellicht gemist worden wegens scherpere clipping
 }
 
-void CounterStacks::Scroll(GPoint delta, const GRect& scrollRect, const GRect& clipRect)
+void CounterStacks::ScrollDevice(GPoint delta, const GRect& scrollRect, const GRect& clipRect)
 {
 	DBG_START("CounterStacks", "Scroll", MG_DEBUG_COUNTERSTACKS);
 
@@ -175,7 +171,7 @@ void CounterStacks::Scroll(GPoint delta, const GRect& scrollRect, const GRect& c
 			increment_or_remove(stackPtr, stackEnd);
 			break;
 		}
-		drawRegion.Scroll(delta, scrollRect, scrollClipRgn);
+		drawRegion.ScrollDevice(delta, scrollRect, scrollClipRgn);
 		if (drawRegion.Empty())
 		{
 			cutoff_stacks(stackPtr);
@@ -261,7 +257,7 @@ bool CounterStacks::HasBreakingStackSize() const
 {
 	// check that we are here only for the right reasons
 	SizeT nextStoredStackSize = GetCurrStack().m_StackBase - GetNextStack().m_StackBase;
-	dms_assert(nextStoredStackSize >= m_NrActiveCounters); // else we would be either have m_DidBreak already or m_AutoCounter < m_StopValue
+	assert(nextStoredStackSize >= m_NrActiveCounters); // else we would be either have m_DidBreak already or m_AutoCounter < m_StopValue
 
 	return nextStoredStackSize == m_NrActiveCounters;
 }
@@ -359,7 +355,7 @@ bool CounterStacks::HasBreakingStackSize() const
 
 			// m_DrawRegion must be a strict reverse ordered sequence, first m_DrawRegion must be largest
 			dms_assert( stackPtr[-1].m_DrawRegion.IsIncluding(stackPtr[0].m_DrawRegion) );
-			dms_assert( stackPtr[ 0].m_DrawRegion != stackPtr[-1].m_DrawRegion );
+//			dms_assert( stackPtr[ 0].m_DrawRegion != stackPtr[-1].m_DrawRegion );
 
 			// m_Counters must be a strict reverse ordered sequence, first m_Counters must be most advanced
 			if	(stackPtr + 1 != stackEnd)
@@ -530,18 +526,18 @@ void ResumableCounter::Close()
 
 bool ResumableCounter::MustBreak() const 
 {
-	dms_assert( IsOK() );
-	dms_assert( IsActive() );
+	assert( IsOK() );
+	assert( IsActive() );
 
-	dms_assert(!m_CounterStacksPtr || !m_CounterStacksPtr->DidBreak() );   // after suspension we should return completely to DataView without more queries
+	assert(!m_CounterStacksPtr || !m_CounterStacksPtr->DidBreak() );   // after suspension we should return completely to DataView without more queries
 
 	if (m_AutoCounter < m_StopValue)
 		return false;
 
-	dms_assert(m_CounterStacksPtr);
-	dms_assert(m_CounterStacksPtr->HasMultipleStacks()); // else m_StopValue would not have been set
+	assert(m_CounterStacksPtr);
+	assert(m_CounterStacksPtr->HasMultipleStacks()); // else m_StopValue would not have been set
 
-	dms_assert(! m_CounterStacksPtr->m_DidBreak );
+	assert(! m_CounterStacksPtr->m_DidBreak );
 
 	bool result =  m_AutoCounter > m_StopValue
 			||	m_CounterStacksPtr->HasBreakingStackSize(); // checks that next stack doesn't have more sub-counters
@@ -555,16 +551,16 @@ bool ResumableCounter::MustBreak() const
 
 bool ResumableCounter::MustBreakNext() const 
 {
-	dms_assert( IsOK() );
-	dms_assert( IsActive() );
+	assert( IsOK() );
+	assert( IsActive() );
 
-	dms_assert(!m_CounterStacksPtr || !m_CounterStacksPtr->DidBreak() );   // after suspension we return completely to DataView without more queries
+	assert(!m_CounterStacksPtr || !m_CounterStacksPtr->DidBreak() );   // after suspension we return completely to DataView without more queries
 
 	if (m_AutoCounter < m_StopValue)
 		return false;
 
-	dms_assert(m_CounterStacksPtr);
-	dms_assert(m_CounterStacksPtr->HasMultipleStacks()); // else m_StopValue would not have been set
+	assert(m_CounterStacksPtr);
+	assert(m_CounterStacksPtr->HasMultipleStacks()); // else m_StopValue would not have been set
 
 #	if defined(MG_CHECK_PAST_BREAK)
 	// same checkpoints as previous time

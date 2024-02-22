@@ -35,7 +35,7 @@ granted by an additional written contract for support, assistance and/or develop
 
 #include "ptr/OwningPtr.h"
 #include "ptr/WeakPtr.h"
-#include "geo/Color.h"
+#include "geo/color.h"
 
 #include "DataArray.h"
 
@@ -112,15 +112,15 @@ public:
 	CrdRect CalcSelectedFullWorldRect  () const override;
 
 //	override virtual of GraphicObject
-	GRect   GetBorderPixelExtents    (CrdType subPixelFactor) const override;
+	TRect   GetBorderLogicalExtents() const override;
 	bool    OnCommand(ToolButtonID id)        override;
 	void    FillLcMenu(MenuData& menuData) override;
 
 	virtual  CrdRect GetFeatureWorldExtents   () const;
-	virtual  GRect   GetFeaturePixelExtents   (CrdType subPixelFactor) const;
+	virtual  TRect   GetFeatureLogicalExtents() const;
 	virtual  CrdRect CalcSelectedClientWorldRect() const;
 
-  	CrdRect GetExtentsInflator(const CrdTransformation& tr, CrdType subPixelFactor) const;
+  	CrdRect GetExtentsInflator(const CrdTransformation& tr) const;
   	CrdRect GetWorldClipRect  (const GraphDrawer& d) const;
 
 protected: friend FeatureDrawer; friend struct LabelDrawer;
@@ -128,9 +128,9 @@ protected: friend FeatureDrawer; friend struct LabelDrawer;
 
 //	new interface
 	virtual bool DrawImpl(FeatureDrawer& fd) const =0;
-	virtual SizeT _FindFeatureByPoint(const CrdPoint& geoPnt, const AbstrDataObject* featureData, ValueClassID vid)=0;
+	virtual SizeT FindFeatureByPoint(const CrdPoint& geoPnt) = 0;
 
-	const AbstrBoundingBoxCache* GetBoundingBoxCache() const;
+	std::shared_ptr<const AbstrBoundingBoxCache> GetBoundingBoxCache() const;
 
 	FontIndexCache* GetFontIndexCache(FontRole fr) const;
 	PenIndexCache*  GetPenIndexCache(DmsColor defaultColor) const;
@@ -148,7 +148,7 @@ protected: friend FeatureDrawer; friend struct LabelDrawer;
 	void DoInvalidate () const override;
 
 public:
-	mutable SharedPtr<const AbstrBoundingBoxCache> m_BoundingBoxCache;
+	mutable std::shared_ptr<const AbstrBoundingBoxCache> m_BoundingBoxCache;
 
 private:
 	DmsColor& UpdateDefaultColor(DmsColor& mutableDefaultPaletteColor) const;
@@ -173,7 +173,7 @@ class GraphicPointLayer : public FeatureLayer
 public:
 	GraphicPointLayer(GraphicObject* owner, const LayerClass* cls = GetStaticClass());
 
-	GRect   GetFeaturePixelExtents(CrdType subPixelFactor) const override;
+	TRect   GetFeatureLogicalExtents() const override;
 	CrdRect GetFeatureWorldExtents() const override;
 
 protected:
@@ -186,8 +186,8 @@ protected:
 
 	CrdRect CalcSelectedClientWorldRect() const override; // specialization that doesn't use BoundinBox
 
-	SizeT _FindFeatureByPoint(const CrdPoint& geoPnt, const AbstrDataObject* featureData, ValueClassID vid) override;
-	void   _InvalidateFeature(SizeT featureIndex) override;
+	SizeT FindFeatureByPoint(const CrdPoint& geoPnt) override;
+	void   InvalidateFeature(SizeT featureIndex) override;
 
 private:
 	void InvalidatePoint(UInt32 selectedID);
@@ -222,7 +222,7 @@ class GraphicArcLayer : public FeatureLayer
 public:
 	GraphicArcLayer(GraphicObject* owner);
 
-	GRect   GetFeaturePixelExtents(CrdType subPixelFactor) const override;
+	TRect   GetFeatureLogicalExtents() const override;
 	CrdRect GetFeatureWorldExtents() const override;
 
 protected:
@@ -234,8 +234,8 @@ protected:
 	void SelectCircle (CrdPoint worldPnt, CrdType worldRadius, EventID eventID) override;
 	void SelectPolygon(const CrdPoint* first, const CrdPoint* last, EventID eventID) override;
 
-	SizeT _FindFeatureByPoint(const CrdPoint& geoPnt, const AbstrDataObject* featureData, ValueClassID vid) override;
-	void  _InvalidateFeature(SizeT featureIndex) override;
+	SizeT FindFeatureByPoint(const CrdPoint& geoPnt) override;
+	void  InvalidateFeature(SizeT featureIndex) override;
 
 	DECL_RTTI(SHV_CALL, LayerClass);
 };
@@ -251,7 +251,7 @@ class GraphicPolygonLayer : public FeatureLayer
 public:
 	GraphicPolygonLayer(GraphicObject* owner);
 
-	GRect   GetFeaturePixelExtents(CrdType subPixelFactor) const override;
+	TRect   GetFeatureLogicalExtents() const override;
 	CrdRect GetFeatureWorldExtents() const override;
 
 protected:
@@ -263,11 +263,51 @@ protected:
 	void SelectCircle (CrdPoint worldPnt, CrdType worldRadius, EventID eventID) override;
 	void SelectPolygon(const CrdPoint* first, const CrdPoint* last, EventID eventID) override;
 
-	SizeT _FindFeatureByPoint(const CrdPoint& geoPnt, const AbstrDataObject* featureData, ValueClassID vid) override;
-	void  _InvalidateFeature(SizeT featureIndex) override;
+	SizeT FindFeatureByPoint(const CrdPoint& geoPnt) override;
+	void  InvalidateFeature(SizeT featureIndex) override;
 
 	DECL_RTTI(SHV_CALL, LayerClass);
 };
+
+//----------------------------------------------------------------------
+// AbstrBoundingBoxCache
+//----------------------------------------------------------------------
+
+#include "BoundingBoxCache.h"
+
+template <typename ScalarType>
+const SequenceBoundingBoxCache<ScalarType>*
+GetSequenceFeatureBoundingBoxCache(const FeatureLayer* layer)
+{
+	return GetSequenceBoundingBoxCache<ScalarType>(layer->m_BoundingBoxCache, layer->GetFeatureAttr(), true);
+}
+
+template <typename ScalarType>
+const PointBoundingBoxCache<ScalarType>*
+GetPointFeautureBoundingBoxCache(const FeatureLayer* layer)
+{
+	return GetPointBoundingBoxCache<ScalarType>(layer->m_BoundingBoxCache, layer->GetFeatureAttr(), true);
+}
+
+template <typename ScalarType>
+std::shared_ptr<const SequenceBoundingBoxCache<ScalarType>>
+GetSequenceBoundingBoxCache(const FeatureLayer* layer)
+{
+	assert(IsMetaThread());
+	if (!layer->m_BoundingBoxCache)
+		layer->m_BoundingBoxCache = GetSequenceBoundingBoxCache<ScalarType>(layer->GetFeatureAttr(), true);
+	return { layer->m_BoundingBoxCache, dynamic_cast<const SequenceBoundingBoxCache<ScalarType>*>(layer->m_BoundingBoxCache.get()) };
+}
+
+template <typename ScalarType>
+std::shared_ptr<const PointBoundingBoxCache<ScalarType>>
+GetPointBoundingBoxCache(const FeatureLayer* layer)
+{
+	assert(IsMetaThread());
+	if (!layer->m_BoundingBoxCache)
+		layer->m_BoundingBoxCache = GetPointBoundingBoxCache<ScalarType>(layer->GetFeatureAttr(), true);
+	return { layer->m_BoundingBoxCache, dynamic_cast<const PointBoundingBoxCache<ScalarType>*>(layer->m_BoundingBoxCache.get()) };
+}
 
 #endif // __SHV_FEATURELAYER_H
 

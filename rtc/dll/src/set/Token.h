@@ -1,42 +1,19 @@
-//<HEADER> 
-/*
-Data & Model Server (DMS) is a server written in C++ for DSS applications. 
-Version: see srv/dms/rtc/dll/src/RtcVersion.h for version info.
+// Copyright (C) 1998-2023 Object Vision b.v. 
+// License: GNU GPL 3
+/////////////////////////////////////////////////////////////////////////////
 
-Copyright (C) 1998-2004  YUSE GSO Object Vision BV. 
-
-Documentation on using the Data & Model Server software can be found at:
-http://www.ObjectVision.nl/DMS/
-
-See additional guidelines and notes in srv/dms/Readme-srv.txt 
-
-This library is free software; you can use, redistribute, and/or
-modify it under the terms of the GNU General Public License version 2 
-(the License) as published by the Free Software Foundation,
-provided that this entire header notice and readme-srv.txt is preserved.
-
-See LICENSE.TXT for terms of distribution or look at our web site:
-http://www.objectvision.nl/DMS/License.txt
-or alternatively at: http://www.gnu.org/copyleft/gpl.html
-
-This library is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
-General Public License for more details. However, specific warranties might be
-granted by an additional written contract for support, assistance and/or development
-*/
-//</HEADER>
-/****************** TokenList  *******************/
+#if defined(_MSC_VER)
+#pragma once
+#endif
 
 #ifndef __MG_SYMBOL_TOKEN_H
 #define __MG_SYMBOL_TOKEN_H
 
 #include <atomic>
 #include "cpc/Types.h"
-#include "geo/IterRange.h"
 #include "geo/Undefined.h"
-//#include "IndexedStrings.h"
-#include "parallel.h"
+#include "Parallel.h"
+#include "geo/CharPtrRange.h"
 
 using IndexedString_critical_section = leveled_counted_section;
 using IndexedString_shared_lock = leveled_counted_section::shared_lock;
@@ -106,6 +83,10 @@ struct TokenStrRange
 		m_CharPtrRange = src.m_CharPtrRange;
 	}
 
+	auto begin() const { return m_CharPtrRange.begin(); }
+	auto end  () const { return m_CharPtrRange.end(); }
+	auto size () const { return m_CharPtrRange.size(); }
+
 	operator CharPtrRange() const { return m_CharPtrRange; }
 
 	IndexedString_shared_lock m_Guard;
@@ -147,6 +128,8 @@ struct TokenID
 	RTC_CALL TokenStr GetStrEnd() const;
 	RTC_CALL UInt32   GetStrLen() const;
 	RTC_CALL TokenStrRange AsStrRange() const;
+	RTC_CALL SharedStr AsSharedStr() const;
+	RTC_CALL std::string AsStdString() const;
 
 	static CharPtr  GetEmptyStr()    { return s_EmptyStr; }
 	static TokenStr GetEmptyTokenStr() { return TokenID().GetStr(); }
@@ -190,7 +173,7 @@ private:
 RTC_CALL extern std::atomic<UInt32> gd_TokenCreationBlockCount;
 #endif
 
-inline TokenID UndefinedValue(const TokenID* x) { return TokenID(Undefined()); }
+inline TokenID UndefinedValue(const TokenID*) { return TokenID(Undefined()); }
 
 // ===================== Interface
 

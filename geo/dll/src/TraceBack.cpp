@@ -28,9 +28,12 @@ granted by an additional written contract for support, assistance and/or develop
 //</HEADER>
 
 #include "GeoPCH.h"
-#pragma hdrstop
 
-#include "dbg/Debug.h"
+#if defined(CC_PRAGMAHDRSTOP)
+#pragma hdrstop
+#endif //defined(CC_PRAGMAHDRSTOP)
+
+#include "dbg/debug.h"
 #include "mci/CompositeCast.h"
 
 #include "DataArray.h"
@@ -41,8 +44,8 @@ granted by an additional written contract for support, assistance and/or develop
 #include "TreeBuilder.h"
 
 namespace {
-	static CommonOperGroup cogTB("trace_back");
-	static CommonOperGroup cogSAO("service_area");
+	static CommonOperGroup cogTB("trace_back", oper_policy::better_not_in_meta_scripting);
+	static CommonOperGroup cogSAO("service_area", oper_policy::better_not_in_meta_scripting);
 }
 
 // *****************************************************************************
@@ -144,7 +147,7 @@ struct TraceBackOperator : QuaternaryOperator
 			// thus 
 			//	resultData[tbLink] += flow[currNode]; 
 			//	if (resultData[tbLink])
-			//		NodeType parentNode = tr.NrOfNode(currNodePtr->m_ParentNode)
+			//		NodeType parentNode = tr.NrOfNode(currNodePtr->GetParent())
 			//		if (parentNode) // is there an upstream link?
 			//			parentLink = tbData[parentNode];
 			//			dms_assert(parentLink < nrE); 
@@ -158,19 +161,19 @@ struct TraceBackOperator : QuaternaryOperator
 			TreeNode* currNodePtr = nullptr;
 			while(currNodePtr = tr.WalkDepthFirst_BottomUp_all(currNodePtr))
 			{
-				if (! currNodePtr->m_ParentNode ) continue; // nothing to flow
+				if (! currNodePtr->GetParent()) continue; // nothing to flow
 
 				NodeType currNode = tr.NrOfNode(currNodePtr);
 				dms_assert(currNode < nrV);
 				FlowType flow =  flowDataCopy[currNode];
 
 				LinkType tbLink = tbData[currNode];
-				dms_assert(tbLink < nrE); // guaranteed by value of m_ParentNode
+				dms_assert(tbLink < nrE); // guaranteed by value of GetParent()
 
 				resultData[tbLink] = flow;
 
 				if (flow == FlowType()) continue;
-				flowDataCopy[tr.NrOfNode(currNodePtr->m_ParentNode)] += flow;
+				flowDataCopy[tr.NrOfNode(currNodePtr->GetParent())] += flow;
 			}
 			
 			resLock.Commit();
@@ -266,7 +269,7 @@ public:
 			{
 				NodeType currNode = tr.NrOfNode(currNodePtr);
 
-				if (! currNodePtr->m_ParentNode ) 
+				if (! currNodePtr->GetParent())
 					currRoot = currNode;
 
 				dms_assert(IsDefined( currRoot  ));

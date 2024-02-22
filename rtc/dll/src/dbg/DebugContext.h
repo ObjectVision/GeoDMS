@@ -1,32 +1,11 @@
-//<HEADER> 
-/*
-Data & Model Server (DMS) is a server written in C++ for DSS applications. 
-Version: see srv/dms/rtc/dll/src/RtcVersion.h for version info.
+// Copyright (C) 1998-2023 Object Vision b.v. 
+// License: GNU GPL 3
+/////////////////////////////////////////////////////////////////////////////
 
-Copyright (C) 1998-2004  YUSE GSO Object Vision BV. 
-
-Documentation on using the Data & Model Server software can be found at:
-http://www.ObjectVision.nl/DMS/
-
-See additional guidelines and notes in srv/dms/Readme-srv.txt 
-
-This library is free software; you can use, redistribute, and/or
-modify it under the terms of the GNU General Public License version 2 
-(the License) as published by the Free Software Foundation,
-provided that this entire header notice and readme-srv.txt is preserved.
-
-See LICENSE.TXT for terms of distribution or look at our web site:
-http://www.objectvision.nl/DMS/License.txt
-or alternatively at: http://www.gnu.org/copyleft/gpl.html
-
-This library is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
-General Public License for more details. However, specific warranties might be
-granted by an additional written contract for support, assistance and/or development
-*/
-//</HEADER>
+#if defined(_MSC_VER)
 #pragma once
+#endif
+
 
 #if !defined(__DBG_DEBUGCONTEXT_H)
 #define __DBG_DEBUGCONTEXT_H
@@ -43,30 +22,40 @@ granted by an additional written contract for support, assistance and/or develop
 #include "set/Token.h"
 struct FormattedOutStream;
 
-/********** AbstrContextHandle **********/
+/********** AbstrMsgGenerator **********/
 
-struct AbstrContextHandle :noncopyable
+struct AbstrMsgGenerator :noncopyable
 {
-	RTC_CALL AbstrContextHandle() noexcept;
-	RTC_CALL ~AbstrContextHandle()  noexcept;
+	RTC_CALL AbstrMsgGenerator() noexcept;
+	RTC_CALL virtual ~AbstrMsgGenerator()  noexcept;
 
 	RTC_CALL virtual bool Describe(FormattedOutStream& fos); // default: calls GetDescription
-	
+
 	RTC_CALL virtual CharPtr GetDescription();
 
-	RTC_CALL AbstrContextHandle* GetPrev() const;
-	static RTC_CALL AbstrContextHandle* GetLast();
-	RTC_CALL UInt32 GetContextLevel() const;
 	RTC_CALL virtual bool IsFinalContext() const { return false; }
+	RTC_CALL virtual bool HasItemContext() const { return false; }
+	RTC_CALL virtual auto ItemAsStr() const->SharedStr;
+};
 
-protected:
-	RTC_CALL void PushNotification();
-	RTC_CALL void PopNotification();
+/********** AbstrContextHandle **********/
+
+template<typename Base>
+struct StackHandle : Base
+{
+	RTC_CALL StackHandle() noexcept;
+	RTC_CALL ~StackHandle()  noexcept;
+
+	RTC_CALL StackHandle* GetPrev() const;
+	static RTC_CALL StackHandle* GetLast();
+	RTC_CALL UInt32 GetContextLevel() const;
 
 private:
-	AbstrContextHandle *m_Prev;
-	
+	StackHandle* m_Prev;
+	THREAD_LOCAL static StackHandle* s_Last;
 };
+
+using AbstrContextHandle = StackHandle<AbstrMsgGenerator>;
 
 /********** FixedContextHandle **********/
 
@@ -96,31 +85,55 @@ private:
 
 /********** ContextHandle **********/
 
-struct ContextHandle : AbstrContextHandle 
+template <typename Base>
+struct MsgGeneratorPolicy : Base 
 {
-	RTC_CALL CharPtr GetDescription() override;
+	CharPtr GetDescription() override
+	{
+		try {
+
+			if(m_Context.empty())	
+				GenerateDescription();
+			return m_Context.c_str();
+
+		}
+		catch (...) {}
+		return "<MsgGeneratorPolicy::GenerateDescription() threw an exception>";
+	}
 
 protected:
 	RTC_CALL virtual void GenerateDescription() = 0;
-	RTC_CALL         void SetText(WeakStr context);
+
+	void SetText(WeakStr context)
+	{
+		m_Context = context;
+	}
 
 private:
 	SharedStr m_Context;
 };
 
+using MsgGenerator = MsgGeneratorPolicy< AbstrMsgGenerator >;
+using ContextHandle = MsgGeneratorPolicy< AbstrContextHandle >;
+
+
 /********** ObjectContextHandle **********/
 
-struct ObjectContextHandleBase : ContextHandle 
+template <typename Base>
+struct ObjectContextPolicy : Base
 {
-	ObjectContextHandleBase(const Object* obj, CharPtr role = nullptr) : m_Obj(obj), m_Role(role) {}
+	ObjectContextPolicy(const Object* obj, CharPtr role = nullptr) : m_Obj(obj), m_Role(role) {}
 
 	RTC_CALL void GenerateDescription() override;
 	RTC_CALL bool IsFinalContext() const override final;
 
 protected:
-	CharPtr m_Role;
 	const Object* m_Obj;
+	CharPtr m_Role;
 };
+
+using ObjectContextHandleBase = ObjectContextPolicy<ContextHandle>;
+using ObjectMsgGenerator = ObjectContextPolicy<MsgGenerator>;
 
 struct ObjectContextHandle : ObjectContextHandleBase 
 {
@@ -173,14 +186,6 @@ LambdaContextHandle<Func> MakeLCH(Func&& func)
 {
 	return LambdaContextHandle<Func>(std::forward<Func>(func));
 }
-
-/********** CDebugCOutHandle  **********/
-
-struct CDebugCOutHandle
-{
-	RTC_CALL CDebugCOutHandle();
-	RTC_CALL ~CDebugCOutHandle();
-};
 
 /********** CDebugContextHandle  **********/
 

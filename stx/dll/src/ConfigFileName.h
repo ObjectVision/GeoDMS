@@ -40,7 +40,7 @@ granted by an additional written contract for support, assistance and/or develop
 
 struct ConfigurationFilenameContainer
 {
-	ConfigurationFilenameContainer(WeakStr configLoadDir);
+	ConfigurationFilenameContainer(WeakStr configLoadDir, UInt32 loadNumber);
 	~ConfigurationFilenameContainer();
 	FileDescrPtr GetFileRef(CharPtr name);
 	static ConfigurationFilenameContainer* GetIt();
@@ -49,6 +49,7 @@ struct ConfigurationFilenameContainer
 private:
 	std::vector<FileDescrPtr>              m_FileRefs;
 	SharedStr                              m_ConfigLoadDir;
+	UInt32                                 m_LoadNumber;
 	static ConfigurationFilenameContainer* s_Singleton;
 };
 
@@ -63,6 +64,7 @@ struct ConfigurationFilenameLockBase
 
 	static FileDescr* GetCurrentFileDescrFromConfigLoadDir();
 	static CharPtr GetCurrentDirNameFromConfigLoadDir();
+	static SharedStr GetConfigDir();
 
 	FileDescr* GetFileRef() const { return m_SourceFileRef; }
 

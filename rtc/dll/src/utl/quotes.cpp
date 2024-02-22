@@ -27,7 +27,10 @@ granted by an additional written contract for support, assistance and/or develop
 */
 //</HEADER>
 #include "RtcPCH.h"
+
+#if defined(CC_PRAGMAHDRSTOP)
 #pragma hdrstop
+#endif //defined(CC_PRAGMAHDRSTOP)
 
 #include "utl/Quotes.h"
 #include "dbg/debug.h"
@@ -390,7 +393,7 @@ void _DoubleQuoteMiddle(OutStreamBuff& buf, CharPtr str)
 	}
 }
 
-void _DoubleQuoteMiddle(OutStreamBuff& buf, CharPtr begin, CharPtr end)
+void DoubleQuoteMiddle(OutStreamBuff& buf, CharPtr begin, CharPtr end)
 {
 	dms_assert(end || !begin);
 	CharPtr strBegin = begin;
@@ -420,7 +423,7 @@ inline void _DoubleQuote(OutStreamBuff& buf, CharPtr str)
 inline void _DoubleQuote(OutStreamBuff& buf, CharPtr begin, CharPtr end)
 {
 	buf.WriteByte('\"'); 
-	_DoubleQuoteMiddle(buf, begin, end);
+	DoubleQuoteMiddle(buf, begin, end);
 	buf.WriteByte('\"'); 
 }
 
@@ -753,6 +756,19 @@ SharedStr DoubleUnQuote(CharPtr str)
 	return DoubleUnQuoteMiddle(str+1);
 }
 
+RTC_CALL void DoubleQuote(SharedStr& ref, CharPtr b, CharPtr e)
+{
+
+	ref.resize(sizeDoubleQuouteMiddle(b, e)+2);
+
+	auto ref_iter = ref.begin();
+	*ref_iter++ = '\"';
+	ref_iter = _DoubleUnQuoteMiddle(ref_iter, b, e);
+	*ref_iter++ = '\"';
+	assert(ref.ssize() == ref_iter - ref.begin());
+	*ref_iter++ = '\0';
+}
+
 void SingleUnQuote(StringRef& result, CharPtr begin, CharPtr end)
 {
 	dms_assert(begin+2 <= end);
@@ -777,4 +793,29 @@ void DoubleUnQuote(StringRef& result, CharPtr begin, CharPtr end)
 		end = _DoubleUnQuoteMiddle(&(result[0]), begin, end);
 		dms_assert(result.size() == end - &(result[0]));
 	}
+}
+
+void DoubleUnQuote(SharedStr& result, CharPtr begin, CharPtr end)
+{
+	dms_assert(begin + 2 <= end);
+	MG_PRECONDITION(begin && end != begin && *begin == '\"' && end && *(end - 1) == '\"');
+
+	auto sz = _DoubleUnQuoteMiddleSize(++begin, --end);
+	result.resize(sz);
+
+	auto res_end = _DoubleUnQuoteMiddle(result.begin(), begin, end);
+	assert(result[sz] == '\0');
+	assert(result.ssize() == res_end - result.begin());
+}
+
+SharedStr DoubleUnQuote(CharPtr begin, CharPtr end)
+{
+	dms_assert(begin + 2 <= end);
+	MG_PRECONDITION(begin && end != begin && *begin == '\"' && end && *(end - 1) == '\"');
+
+	SharedCharArray* resPtr = SharedCharArray::CreateUninitialized(_DoubleUnQuoteMiddleSize(++begin, --end) + 1);
+
+	auto res_end = _DoubleUnQuoteMiddle(resPtr->begin(), begin, end);
+	*res_end = '\0';
+	return SharedStr(resPtr);
 }

@@ -1,37 +1,16 @@
-//<HEADER> 
-/*
-Data & Model Server (DMS) is a server written in C++ for DSS applications. 
-Version: see srv/dms/rtc/dll/src/RtcVersion.h for version info.
+// Copyright (C) 1998-2023 Object Vision b.v. 
+// License: GNU GPL 3
+/////////////////////////////////////////////////////////////////////////////
 
-Copyright (C) 1998-2004  YUSE GSO Object Vision BV. 
-
-Documentation on using the Data & Model Server software can be found at:
-http://www.ObjectVision.nl/DMS/
-
-See additional guidelines and notes in srv/dms/Readme-srv.txt 
-
-This library is free software; you can use, redistribute, and/or
-modify it under the terms of the GNU General Public License version 2 
-(the License) as published by the Free Software Foundation,
-provided that this entire header notice and readme-srv.txt is preserved.
-
-See LICENSE.TXT for terms of distribution or look at our web site:
-http://www.objectvision.nl/DMS/License.txt
-or alternatively at: http://www.gnu.org/copyleft/gpl.html
-
-This library is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
-General Public License for more details. However, specific warranties might be
-granted by an additional written contract for support, assistance and/or development
-*/
-//</HEADER>
-
+#if defined(_MSC_VER)
 #pragma once
+#endif
 
 #if !defined(__CLC_UNITCREATORS_H)
 #define __CLC_UNITCREATORS_H
 
+#include "RtcGeneratedVersion.h"
+#include "utl/mySPrintF.h"
 #include "ClcBase.h"
 
 #include "AbstrDataItem.h"
@@ -65,6 +44,32 @@ inline ConstUnitRef default_unit_creator(const AbstrOperGroup* gr, const ArgSeqT
 	return default_unit_creator<T>();
 }
 
+template<typename T>
+inline ConstUnitRef default_unit_creator_and_check_input(const AbstrOperGroup* gr, const ArgSeqType& args)
+{
+	// check input
+	for (const auto& arg : args)
+	{
+		if (IsDataItem(arg))
+		{
+			auto metric = AsDataItem(arg)->GetAbstrValuesUnit()->GetMetric();
+			if (metric && !metric->Empty())
+			{
+				auto diagnostic = mySSPrintF("value(s) of operator %s have metric %s but are expected to be without metric"
+					, gr->GetName()
+					, metric->AsString(FormattingFlags::ThousandSeparator)
+				);
+				if constexpr (DMS_VERSION_MAJOR >= 16)
+					throwDmsErrD(diagnostic);
+				else
+					reportD(SeverityTypeID::ST_Warning, diagnostic.c_str());
+			}
+		}
+	}
+
+	return default_unit_creator<T>();
+}
+
 inline ConstUnitRef mul2_unit_creator(const AbstrOperGroup* gr, const ArgSeqType& args)
 {
 	dms_assert(args.size()== 2);
@@ -86,7 +91,7 @@ inline ConstUnitRef div_unit_creator(const AbstrOperGroup* gr, const ArgSeqType&
 	return operated_unit_creator(&cog_div, args);
 }
 
-CLC1_CALL ConstUnitRef inv_unit_creator(const AbstrOperGroup* gr, const ArgSeqType& args);
+CLC_CALL ConstUnitRef inv_unit_creator(const AbstrOperGroup* gr, const ArgSeqType& args);
 
 
 inline ConstUnitRef square_unit_creator(const AbstrOperGroup* gr, const ArgSeqType& args)
@@ -111,7 +116,7 @@ inline ConstUnitRef arg1_values_unit(const AbstrOperGroup* gr, const ArgSeqType&
 	return arg1_values_unit(args);
 }
 
-CLC1_CALL ConstUnitRef compatible_values_unit_creator_func(UInt32 nrSkippedArgs, const AbstrOperGroup* gr, const ArgSeqType& args, bool mustCheckCategories);
+CLC_CALL ConstUnitRef compatible_values_unit_creator_func(UInt32 nrSkippedArgs, const AbstrOperGroup* gr, const ArgSeqType& args, bool mustCheckCategories);
 
 inline ConstUnitRef compatible_values_or_categories_unit_creator(const AbstrOperGroup* gr, const ArgSeqType& args)
 {
@@ -136,21 +141,21 @@ inline ConstUnitRef compare_unit_creator(const AbstrOperGroup* gr, const ArgSeqT
 
 inline ConstUnitRef domain_unit_creator(const AbstrOperGroup* gr, const ArgSeqType& args)
 {
-	dms_assert(args.size() >= 1 && IsDataItem(args[0])); // PRECONDITION
+	assert(args.size() >= 1 && IsDataItem(args[0])); // PRECONDITION
 	return AsDataItem(args[0])->GetAbstrDomainUnit();
 }
 
-CLC1_CALL ConstUnitRef count_unit_creator(const AbstrDataItem* adi);
+CLC_CALL ConstUnitRef count_unit_creator(const AbstrDataItem* adi);
 
 inline ConstUnitRef count_unit_creator(const ArgSeqType& args)
 {
-	dms_assert(args.size() >= 1 && IsDataItem(args[0])); // PRECONDITION
+	assert(args.size() >= 1 && IsDataItem(args[0])); // PRECONDITION
 	return count_unit_creator(AsDataItem(args[0]));
 }
 
 
-CLC1_CALL ConstUnitRef CastUnit(const UnitClass* uc, ConstUnitRef v);
-CLC1_CALL ConstUnitRef CastUnit(const UnitClass* uc, const ArgSeqType& args);
+CLC_CALL ConstUnitRef CastUnit(const UnitClass* uc, ConstUnitRef v);
+CLC_CALL ConstUnitRef CastUnit(const UnitClass* uc, const ArgSeqType& args);
 
 template <typename Field>
 inline ConstUnitRef cast_unit_creator(const ArgSeqType& args)

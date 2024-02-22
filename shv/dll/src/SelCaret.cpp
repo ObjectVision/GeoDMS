@@ -27,12 +27,15 @@ granted by an additional written contract for support, assistance and/or develop
 */
 //</HEADER>
 #include "ShvDllPch.h"
+
+#if defined(CC_PRAGMAHDRSTOP)
 #pragma hdrstop
+#endif //defined(CC_PRAGMAHDRSTOP)
 
 #include "SelCaret.h"
 
 
-#include "dbg/Debug.h"
+#include "dbg/debug.h"
 
 #include "DataArray.h"
 
@@ -98,21 +101,22 @@ void SelCaret::OnZoom()
 	m_Ready = false;
 }
 
-void SelCaret::OnScroll(const GPoint& delta)
+void SelCaret::OnDeviceScroll(const GPoint& delta)
 {
 	if (!m_Ready)
 		return;
 	auto owner = m_Owner.lock(); if (!owner) return;
 
-	GRect  clipRect = TRect2GRect( owner->GetCurrClientAbsRect() );
-	Region clipRgn(clipRect);
+	CrdRect  clipRect = owner->GetCurrClientAbsDeviceRect();
+	GRect intClipRect = CrdRect2GRect(clipRect);
+	Region clipRgn(intClipRect);
 
 	// Scroll m_SelCaretRgn but don't Set since this is done by DataView::Scroll
 	if (m_SelCaretRgn.IsIntersecting(clipRgn))
-		m_SelCaretRgn.Scroll(delta, clipRect, clipRgn);
+		m_SelCaretRgn.ScrollDevice(delta, intClipRect, clipRgn);
 
 	// Add scrolled-in stuff to SelCaret
-	UpdateRgn(clipRgn - Region( TRect2GRect( owner->GetCurrClientAbsRect() + TPoint(delta) ) ));
+	UpdateRgn(clipRgn - Region(CrdRect2GRect( owner->GetCurrClientAbsDeviceRect()) + delta ));
 }
 
 Region SelCaret::UpdateRectImpl(const GRect& updateRect)
@@ -123,7 +127,8 @@ Region SelCaret::UpdateRectImpl(const GRect& updateRect)
 	dms_assert(allRows.Empty());
 	dms_assert(allCols.Empty());
 
-	auto selData = const_array_cast<Bool>( m_SelAttr )->GetDataRead();
+	// TODO: MT1 support and merge resulting Regions from worker-threads.
+	auto selData = const_array_cast<Bool>( m_SelAttr )->GetDataRead(); 
 
 	IPoint gridSize = Size(m_GridCoords->GetGridRect());
 	if (gridSize.first <= 0 || gridSize.second <= 0)
@@ -203,13 +208,13 @@ void SelCaret::UpdateRgn(const Region& updateRgn)
 	// =========== Get DataReadLocks
 	PreparedDataReadLock readLock(m_SelAttr);
 
-	m_GridCoords->Update(1.0);
-	Region clippedUpdateRgn = Region( m_GridCoords->GetClippedRelRect() );
+	m_GridCoords->UpdateUnscaled();
+	Region clippedUpdateRgn = Region( m_GridCoords->GetClippedRelDeviceRect() );
 	clippedUpdateRgn &= updateRgn;
 	if (clippedUpdateRgn.Empty())
 		return;
 
-	dms_assert(IsMainThread()); // licensed to use statics ?
+	assert(IsMainThread()); // licensed to use statics ?
 
 	static RectArray ra;
 	clippedUpdateRgn.FillRectArray(ra);
@@ -225,7 +230,7 @@ void SelCaret::UpdateRgn(const Region& updateRgn)
 	Region selCaretRgn = regionTower.GetResult();
 	dms_assert((selCaretRgn - clippedUpdateRgn).Empty());
 
-	SetSelCaretRgn(selCaretRgn | (GetSelCaretRgn() - updateRgn));
+	SetSelCaretRgn(selCaretRgn | (GetSelCaretRgn() - updateRgn)); // replace updateRgn with selCaretRgn, leave rest unaltered
 	m_Ready = true;
 }
 

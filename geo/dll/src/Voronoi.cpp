@@ -28,7 +28,10 @@ granted by an additional written contract for support, assistance and/or develop
 //</HEADER>
 
 #include "GeoPCH.h"
+
+#if defined(CC_PRAGMAHDRSTOP)
 #pragma hdrstop
+#endif //defined(CC_PRAGMAHDRSTOP)
 
 #include "mci/CompositeCast.h"
 
@@ -262,15 +265,14 @@ public:
 //											INSTANTIATION
 // *****************************************************************************
 
+#include "utl/TypeListOper.h"
+#include "RtcTypeLists.h" 
+
 namespace 
 {
 	CommonOperGroup cogTR("triangualize");
 
-	#define INSTANTIATE(x) \
-		TriangualizeOperator<x> tr##x(&cogTR); \
-
-	INSTANTIATE_SEQ_POINTS
-	#undef INSTANTIATE
+	tl_oper::inst_tuple_templ<typelists::seq_points, TriangualizeOperator, AbstrOperGroup*> trOPers(&cogTR);
 }
 
 /******************************************************************************/

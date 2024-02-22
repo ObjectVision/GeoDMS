@@ -1,31 +1,7 @@
-//<HEADER> 
-/*
-Data & Model Server (DMS) is a server written in C++ for DSS applications. 
-Version: see srv/dms/rtc/dll/src/RtcVersion.h for version info.
+// Copyright (C) 1998-2023 Object Vision b.v. 
+// License: GNU GPL 3
+/////////////////////////////////////////////////////////////////////////////
 
-Copyright (C) 1998-2004  YUSE GSO Object Vision BV. 
-
-Documentation on using the Data & Model Server software can be found at:
-http://www.ObjectVision.nl/DMS/
-
-See additional guidelines and notes in srv/dms/Readme-srv.txt 
-
-This library is free software; you can use, redistribute, and/or
-modify it under the terms of the GNU General Public License version 2 
-(the License) as published by the Free Software Foundation,
-provided that this entire header notice and readme-srv.txt is preserved.
-
-See LICENSE.TXT for terms of distribution or look at our web site:
-http://www.objectvision.nl/DMS/License.txt
-or alternatively at: http://www.gnu.org/copyleft/gpl.html
-
-This library is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
-General Public License for more details. However, specific warranties might be
-granted by an additional written contract for support, assistance and/or development
-*/
-//</HEADER>
 #pragma once
 
 /***************************************************************************
@@ -44,6 +20,7 @@ granted by an additional written contract for support, assistance and/or develop
 
 #include "geo/Range.h"
 #include "geo/Point.h"
+#include "ser/FormattedStream.h"
 
 [[noreturn]] RTC_CALL void IllegalSingularity();
 
@@ -58,8 +35,8 @@ enum class OrientationType
 	NegateY    = 2,
 };
 
-inline bool IsRightLeft(OrientationType orientation) { return int(orientation) & int(OrientationType::RightLeft); }
-inline bool IsBottomTop(OrientationType orientation) { return int(orientation) & int(OrientationType::BottomTop); }
+inline bool IsRightLeft(OrientationType orientation) { return int(orientation) & 1; }
+inline bool IsBottomTop(OrientationType orientation) { return int(orientation) & 2; }
 inline bool MustNegateX(OrientationType orientation) { return IsRightLeft(orientation); }
 inline bool MustNegateY(OrientationType orientation) { return IsBottomTop(orientation); }
 
@@ -134,7 +111,7 @@ public:
 	template <typename P> Range<P> Reverse(const Range<P>& r) const { return Range<P>(Reverse(r.first), Reverse(r.second));}
 
 //	Inplace Apply operators (that modify their arguments)
-	template <typename F> void  InplApply  (Point<F>& p) const { p *= m_Factor; p += m_Offset;   }
+	template <typename F> void  InplApply  (Point<F>& p) const { p *= m_Factor; p += m_Offset; }
 	template <typename F> void  InplReverse(Point<F>& p) const { dms_assert(!IsSingular()); p -= m_Offset; p /= m_Factor; }
 	template <typename P> void  InplApply  (Range<P>& r) const { InplApply  (r.first); InplApply  (r.second); MakeBounds(r.first, r.second); }
 	template <typename P >void  InplReverse(Range<P>& r) const { InplReverse(r.first); InplReverse(r.second); MakeBounds(r.first, r.second); }
@@ -193,13 +170,13 @@ public:
 
 	bool operator == (const Transformation& rhs) const { return m_Factor == rhs.Factor() && m_Offset == rhs.Offset(); }
 
-	const point_type& Factor()      const { return m_Factor; }
-	area_type         FactorProd()  const { return m_Factor.first * m_Factor.second; }
-	bool              IsSingular()  const { return m_Factor.first == 0 || m_Factor.second == 0; }
-	Float64           ZoomLevel()   const { return Abs(m_Factor.first); }
-	point_type        V2WFactor()   const { dms_assert(!IsSingular()); return point_type(1.0 / m_Factor.first, 1.0 / m_Factor.second); }
-	const point_type& Offset()      const { return m_Offset; }
-	OrientationType   Orientation() const 
+	point_type      Factor()      const { return m_Factor; }
+	area_type       FactorProd()  const { return m_Factor.first * m_Factor.second; }
+	bool            IsSingular()  const { return m_Factor.first == 0 || m_Factor.second == 0; }
+	Float64         ZoomLevel()   const { return Abs(m_Factor.first); }
+	point_type      V2WFactor()   const { assert(!IsSingular()); return point_type(1.0 / m_Factor.first, 1.0 / m_Factor.second); }
+	point_type      Offset()      const { return m_Offset; }
+	OrientationType Orientation() const 
 	{
 		return OrientationType(
 			int((m_Factor.Y()>=0) ? OrientationType::Default : OrientationType::NegateY)
@@ -220,19 +197,14 @@ private:
 	point_type m_Offset, m_Factor;
 };
 
-template <class T> inline
-FormattedOutStream& operator << (FormattedOutStream& os, const Transformation<T>& t)
-{
-	os << "[ *" << t.Factor() << " + " << t.Offset() << "]";
-	return os;
-}
 
+using CrdType =  Float64;
+using CrdPoint = Point<CrdType>;
+using CrdRect =  Range<CrdPoint>;
+using CrdTransformation = Transformation<CrdType>;
 
+RTC_CALL FormattedOutStream& operator << (FormattedOutStream& os, const CrdTransformation& t);
 
-typedef Float64                 CrdType;
-typedef Point<CrdType>          CrdPoint;
-typedef Range<CrdPoint>         CrdRect;
-typedef Transformation<CrdType> CrdTransformation;
 inline CrdRect GetDefaultCrdRect() { return CrdRect(0.001*MinValue<CrdPoint>(), 0.001*MaxValue<CrdPoint>()); }
 
 #endif // __RTC_GEO_TRANSFORM_H

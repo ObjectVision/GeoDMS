@@ -33,7 +33,7 @@ granted by an additional written contract for support, assistance and/or develop
 
 #include "act/InvalidationBlock.h"
 #include "act/TriggerOperator.h"
-#include "dbg/Debug.h"
+#include "dbg/debug.h"
 #include "geo/Conversions.h"
 #include "geo/IsInside.h"
 #include "geo/Point.h"
@@ -56,6 +56,7 @@ granted by an additional written contract for support, assistance and/or develop
 #include "Cmds.h"
 #include "Clipboard.h"
 #include "CounterStacks.h"
+#include "dataview.h"
 #include "GraphVisitor.h"
 #include "GridCoord.h"
 #include "GridDrawer.h"
@@ -176,20 +177,21 @@ void GridLayer::SelectRegion(CrdRect worldRect, const AbstrRowProcessor<T>& rowP
 	InvalidationBlock dataChangeLock(GetEditTheme()->GetThemeAttr()); // REMOVE, MOVE TO DataWriteLock as a Generic facility
 	{
 		DataWriteLock lock(selAttr, CompoundWriteType(eventID));
+		{
+			auto selData = mutable_array_cast<T>(lock)->GetDataWrite(no_tile, CompoundWriteType(eventID));
 
-		auto selData = mutable_array_cast<T>(lock)->GetDataWrite();
-
-		auto i = selData.begin() + Range_GetIndex_naked(gridRect, shp2dms_order(IPoint(_Left(selectRect), _Top(selectRect))));
-		UInt32 gridWidth = _Width(gridRect);
-		for (Int32 r = _Top(selectRect); r != _Bottom(selectRect); ++r, i += gridWidth)
-			rowProcessor(r, _Left(selectRect),  _Right (selectRect), i, tr);
+			auto i = selData.begin() + Range_GetIndex_naked(gridRect, shp2dms_order(IPoint(Left(selectRect), Top(selectRect))));
+			UInt32 gridWidth = Width(gridRect);
+			for (Int32 r = Top(selectRect); r != Bottom(selectRect); ++r, i += gridWidth)
+				rowProcessor(r, Left(selectRect), Right(selectRect), i, tr);
+		}
 		lock.Commit();
 	}
 	if (!IsCreateNewEvent(eventID) && !HasEntityIndex())
 	{
 		dataChangeLock.ProcessChange();
 		viewChangeLock.ProcessChange();
-		GRect borderExtents(-1, -1, 1, 1);
+		TRect borderExtents(-1, -1, 1, 1);
 		InvalidateWorldRect(tr.Apply(Convert<CrdRect>(selectRect)), &borderExtents);
 	}
 }
@@ -376,9 +378,9 @@ void GridLayer::AssignValues(sequence_traits<Bool>::cseq_t selData)
 
 void GridLayer::AssignSelValues()
 {
-	dms_assert(m_Themes[AN_Selections]); // PRECONDITION 
+	assert(m_Themes[AN_Selections]); // PRECONDITION 
 	const AbstrDataItem* selAttr= m_Themes[AN_Selections]->GetThemeAttrSource();
-	dms_assert(selAttr);                // PRECONDITION
+	assert(selAttr);                // PRECONDITION
 
 	PreparedDataReadLock drl(selAttr);
 	AssignValues(composite_cast<const DataArray<Bool>*>(selAttr)->GetDataRead(no_tile));
@@ -395,7 +397,7 @@ void District(
 {
 	switch (ado->GetValuesType()->GetValueClassID())
 	{
-		case VT_UInt32:
+		case ValueClassID::VT_UInt32:
 			MDL_DistrictUI32(
 				UCUInt32Grid(
 					size,
@@ -406,7 +408,7 @@ void District(
 				changedRect
 			);
 			return;
-		case VT_Int32:
+		case ValueClassID::VT_Int32:
 			MDL_DistrictUI32(
 				UCUInt32Grid(
 					size,
@@ -417,7 +419,7 @@ void District(
 				changedRect
 			);
 			return;
-		case VT_UInt8:
+		case ValueClassID::VT_UInt8:
 			MDL_DistrictUI8(
 				UCUInt8Grid(
 					size,
@@ -428,7 +430,7 @@ void District(
 				changedRect
 			);
 			return;
-		case VT_Int8:
+		case ValueClassID::VT_Int8:
 			MDL_DistrictUI8(
 				UCUInt8Grid(
 					size,
@@ -439,7 +441,7 @@ void District(
 				changedRect
 			);
 			return;
-		case VT_Bool:
+		case ValueClassID::VT_Bool:
 			MDL_DistrictBool(
 				UCBoolGrid(
 					size,
@@ -516,7 +518,7 @@ void GridLayer::SelectDistrict(CrdPoint pnt, EventID eventID)
 		InvalidateDraw();
 	else if (!changedRect.empty())
 	{
-		GRect borderExtents(-1, -1, 1, 1);
+		TRect borderExtents(-1, -1, 1, 1);
 		InvalidateWorldRect(GetGeoTransformation().Apply(Convert<CrdRect>(changedRect)), &borderExtents);
 	}
 }
@@ -535,39 +537,60 @@ IRect GridLayer::CalcSelectedGeoRect()  const
 		auto selData = const_array_cast<SelectionID>(selAttr)->GetDataRead();
 
 		IRect gridRect = GetGeoCrdUnit()->GetRangeAsIRect();
+		auto indexCollectorPtr = GetIndexCollector();
 
-		DataArray<SelectionID>::const_iterator 
-			sdb = selData.begin(),
-			sdi = sdb;
+		auto sdb = selData.begin();
 
-		Int32 c      = _Left (gridRect);
-		Int32 cRight = _Right(gridRect);
-		for (Int32 r = _Top (gridRect), re = _Bottom(gridRect); r != re; ++r)
+		Int32 c      = Left (gridRect);
+		Int32 cRight = Right(gridRect);
+		if (indexCollectorPtr)
 		{
-			while (c < cRight)
+			SizeT i = 0;
+			for (Int32 r = Top(gridRect), re = Bottom(gridRect); r != re; ++r)
 			{
-				dms_assert(Range_GetIndex_naked(gridRect, shp2dms_order(IPoint(c,r))) == (sdi-sdb));
-				if (sdi.nr_elem() || *sdi.data_begin())
+				while (c < cRight)
 				{
-					if (SelectionID(*sdi))
-					{
-						selectRect |= shp2dms_order(IPoint(c,r));
-						if (c < selectRect.second.Col())
-						{
-							sdi += (selectRect.second.Col() - c);
-							c = selectRect.second.Col();
-						}
-					}
-					++sdi;
+					assert(i == Range_GetIndex_naked(gridRect, shp2dms_order(IPoint(c, r))));
+					SizeT sdIndex = indexCollectorPtr->GetEntityIndex(i);
+					if (SelectionID(sdb[sdIndex]))
+						selectRect |= shp2dms_order(IPoint(c, r));
 					++c;
+					if (c >= selectRect.first.Col() && c < selectRect.second.Col())
+						c = selectRect.second.Col();
 				}
-				else
-				{
-					sdi.skip_full_block();
-					c += sdi.nr_elem_per_block;
-				}
+				assert(c == cRight);
+				c -= Width(gridRect);
 			}
-			c -= _Width(gridRect);
+		}
+		else
+		{
+			auto sdi = sdb;
+			for (Int32 r = Top(gridRect), re = Bottom(gridRect); r != re; ++r)
+			{
+				while (c < cRight)
+				{
+					assert(Range_GetIndex_naked(gridRect, shp2dms_order(IPoint(c, r))) == sdi - sdb);
+					if (sdi.nr_elem() || *sdi.data_begin())
+					{
+						if (SelectionID(*sdi))
+							selectRect |= shp2dms_order(IPoint(c, r));
+						++sdi;
+						++c;
+					}
+					else
+					{
+						sdi.skip_full_block();
+						c += sdi.nr_elem_per_block;
+					}
+					if (c >= selectRect.first.Col() && c < selectRect.second.Col())
+					{
+						sdi += (selectRect.second.Col() - c);
+						c = selectRect.second.Col();
+					}
+				}
+				assert(c >= cRight);
+				c -= Width(gridRect);
+			}
 		}
 
 		if (!selectRect.empty())
@@ -610,13 +633,17 @@ CrdRect GridLayer::GetWorldExtents(feature_id featureIndex) const
 	return ::GetWorldExtents(geoCrdUnit->GetRangeAsIRect(), geoCrdUnit->GetProjection(), featureIndex);
 }
 
-void GridLayer::_InvalidateFeature(SizeT featureIndex)
+void GridLayer::InvalidateFeature(SizeT featureIndex)
 {
-	dms_assert(IsDefined(featureIndex));
+	assert(IsDefined(featureIndex));
 
-	Int32 focusSize = RoundUp<4>(FOCUS_BORDER_SIZE1* GetDesktopDIP2pixFactor());
+	auto dv = GetDataView().lock();
+	if (!dv)
+		return;
 
-	GRect borderExtents(-focusSize, -focusSize, focusSize, focusSize);
+	Int32 focusSize = FOCUS_BORDER_SIZE1;
+
+	TRect borderExtents(-focusSize, -focusSize, focusSize, focusSize);
 	InvalidateWorldRect(GetWorldExtents(featureIndex),	&borderExtents);
 }
 
@@ -682,10 +709,10 @@ void GridLayer::CopySelValues()
 	const ClassID*            colorArray= colorData->GetDataRead().begin();
 
 	IRect gridRange = colorTheme->GetThemeEntityUnit()->GetRangeAsIRect();
-	Int32 gridWidth = _Width(gridRange);
+	Int32 gridWidth = Width(gridRange);
 
 	IRect  selRect  = Convert<IRect>( CalcSelectedGeoRect() ); if (selRect.empty()) return;
-	Int32  selWidth = _Width(selRect);
+	Int32  selWidth = Width(selRect);
 	UInt32 selSize  = Cardinality(selRect);
 
 	UInt32 dataSize = sizeof(SelValuesData) + sizeof(ClassID) * selSize;
@@ -750,7 +777,7 @@ void GridLayer::InvalidatePasteArea()
 		return;
 
 	IRect rect = m_PasteHandler->GetSelValues()->m_Rect;
-	GRect borderExtents(-1, -1, 1, 1);
+	TRect borderExtents(-1, -1, 1, 1);
 	InvalidateWorldRect(
 		AsWorldExtents(
 			Convert<CrdRect>( rect ),
@@ -794,21 +821,21 @@ void GridLayer::PasteNow()
 	IRect copyRect = pselRect & gridRect;
 	if (copyRect.empty())
 		return;
-	UInt32 nrCols = _Right(copyRect) - _Left(copyRect);
+	UInt32 nrCols = Right(copyRect) - Left(copyRect);
 	const ClassID* pselArray = m_PasteHandler->GetSelValues()->m_Data;
 
-	for (Int32 row = _Top(copyRect); row!=_Bottom(copyRect); ++row)
+	for (Int32 row = Top(copyRect); row != Bottom(copyRect); ++row)
 	{
-		const ClassID* srcPtr = pselArray + Range_GetIndex_naked(pselRect, shp2dms_order(IPoint(_Left(copyRect),row)));
+		const ClassID* srcPtr = pselArray + Range_GetIndex_naked(pselRect, shp2dms_order(IPoint(Left(copyRect),row)));
 		copy_defined(
 			srcPtr,
 			srcPtr + nrCols,
-			colorArray + Range_GetIndex_naked(gridRect, shp2dms_order(IPoint(_Left(copyRect),row)))
+			colorArray + Range_GetIndex_naked(gridRect, shp2dms_order(IPoint(Left(copyRect),row)))
 		);
 	}
 	lock.Commit();
 	dataChangeLock.ProcessChange();
-	GRect borderExtents(-1, -1, 1, 1);
+	TRect borderExtents(-1, -1, 1, 1);
 	InvalidateWorldRect(GetGeoTransformation().Apply(Convert<CrdRect>(copyRect)), &borderExtents);
 	viewChangeLock.ProcessChange();
 }
@@ -821,7 +848,7 @@ void GridLayer::ClearPaste()
 
 void GridLayer::CopySelValuesToBitmap()
 {
-	ClipBoard clipBoard;
+	ClipBoard clipBoard(false);
 	if (!clipBoard.IsOpen())
 		throwItemError("Cannot open Clipboard");
 
@@ -840,14 +867,14 @@ void GridLayer::CopySelValuesToBitmap()
 	if (featureTheme)
 		readLocks.push_back(featureTheme, DrlType::Certain);
 
-	GRect selectRect = Convert<GRect>( CalcSelectedGeoRect() );
 
-	GridCoord mapping(nullptr,
-		GetGridCoordKey(GetGeoCrdUnit()), 
-		selectRect.Size(), 
-		CrdTransformation(-Convert<CrdPoint>(selectRect.TopLeft()), shp2dms_order(CrdPoint(1,1)) ) 
-	);
-	mapping.Update(1.0);
+	GridCoord mapping(nullptr, GetGridCoordKey(GetGeoCrdUnit()));
+
+	auto selectIRect = CalcSelectedGeoRect();
+	GRect selectGRect = GRect(Left(selectIRect), Top(selectIRect), Right(selectIRect), Bottom(selectIRect));
+
+	mapping.Init(selectGRect.Size(), CrdTransformation(-Convert<CrdPoint>(selectIRect.first), CrdPoint(1.0, 1.0)));
+	mapping.UpdateUnscaled();
 
 	GridColorPalette colorPalette(colorTheme);
 	dms_assert(colorPalette.IsReady());
@@ -859,18 +886,12 @@ void GridLayer::CopySelValuesToBitmap()
 	,	&colorPalette
 	,	nullptr	// selValues
 	,	0	// HDC hDC
-	,	GRect(GPoint(0,0), GPoint(selectRect.Size())) // viewExtents
+	,	GRect(GPoint(0,0), selectGRect.Size()) // viewExtents
 	);
 
 	GdiHandle<HBITMAP> 
 		hPaletteBitmap = drawer.Apply(),
-		hCompatibleBitmap(
-			CreateCompatibleBitmap(
-				DcHandleBase(dv->GetHWnd()), // memDC,
-				selectRect.Width(), 
-				selectRect.Height()
-			)
-		);
+		hCompatibleBitmap = GdiHandle(CreateCompatibleBitmap(DcHandleBase(dv->GetHWnd()), selectGRect.Width(), selectGRect.Height())); // memDC,
 
 	CompatibleDcHandle 
 		memPaletteDC(NULL, 0),
@@ -880,12 +901,7 @@ void GridLayer::CopySelValuesToBitmap()
 		selectBitmap1(memPaletteDC,    hPaletteBitmap),
 		selectBitmap2(memCompatibleDC, hCompatibleBitmap);
 
-	BitBlt(memCompatibleDC, 
-		0, 
-		0, 
-		selectRect.Width(), selectRect.Height(), 
-		memPaletteDC, 0, 0, SRCCOPY
-	);
+	BitBlt(memCompatibleDC, 0, 0, selectGRect.Width(), selectGRect.Height(), memPaletteDC, 0, 0, SRCCOPY);
 
 	clipBoard.SetBitmap( hCompatibleBitmap );
 }
@@ -928,7 +944,7 @@ bool GridLayer::DrawAllRects(GraphDrawer& d, const GridColorPalette& colorPalett
 	DBG_TRACE(("Region  : %s", d.GetAbsClipRegion().AsString().c_str()));
 
 	GridCoordPtr drawGridCoords = GetGridCoordInfo(d.GetViewPortPtr() );
-	drawGridCoords->Update(d.GetSubPixelFactor());
+	drawGridCoords->UpdateToScale(d.GetSubPixelFactors());
 	if (!d.GetDC())
 		return false;
 
@@ -940,22 +956,22 @@ bool GridLayer::DrawAllRects(GraphDrawer& d, const GridColorPalette& colorPalett
 	const AbstrUnit* gridDomain = grid->GetAbstrDomainUnit();
 	dms_assert(gridDomain->GetValueType()->GetNrDims() == 2);
 
-	GPoint viewportOffset = TPoint2GPoint(d.GetClientOffset());
-	GRect clippedAbsRect = drawGridCoords->GetClippedRelRect() + viewportOffset;
+	auto viewportDeviceOffset = CrdPoint2GPoint( ScaleCrdPoint(d.GetClientLogicalAbsPos(), d.GetSubPixelFactors()) );
+	GRect clippedAbsRect = drawGridCoords->GetClippedRelDeviceRect() + viewportDeviceOffset;
 
 	ResumableCounter tileCounter(d.GetCounterStacks(), true);
 	for (tile_id t=tileCounter.Value(), tn=gridDomain->GetNrTiles(); t!=tn; ++t)
 	{
 		bool doneAnything = false;
 		IRect tileGridRect = gridDomain->GetTileRangeAsIRect(t);
-		GRect tileViewRect = drawGridCoords->GetClippedRelRect(tileGridRect);
+		GRect tileViewRect = drawGridCoords->GetClippedRelDeviceRect(tileGridRect);
 		for (RectArray::iterator rectPtr = ra.begin(), rectEnd = ra.end(); rectPtr != rectEnd; ++rectPtr)
 		{
 			*rectPtr &= clippedAbsRect;
 			if (rectPtr->empty())
 				continue;
 
-			GRect viewRelRect = *rectPtr - viewportOffset;
+			GRect viewRelRect = *rectPtr - viewportDeviceOffset;
 			GRect tileRelRect = viewRelRect & tileViewRect;
 			if (tileRelRect.empty())
 				continue;
@@ -978,7 +994,7 @@ bool GridLayer::DrawAllRects(GraphDrawer& d, const GridColorPalette& colorPalett
 			,	tileGridRect - drawGridCoords->GetGridRect().first // adjusted tileRect
 			);
 			if (!drawer.empty())
-				drawer.CopyDIBSection( drawer.Apply(), viewportOffset, SRCAND );
+				drawer.CopyDIBSection( drawer.Apply(), viewportDeviceOffset, SRCAND );
 		}
 		++tileCounter; 
 		if (tileCounter.MustBreak()) return true;
@@ -1007,7 +1023,7 @@ void GridLayer::DrawPaste(GraphDrawer& d, const GridColorPalette& colorPalette) 
 	// =========== Get Data
 
 	GridCoordPtr drawGridCoords = GetGridCoordInfo(d.GetViewPortPtr() );
-	drawGridCoords->Update(1.0);
+	drawGridCoords->UpdateUnscaled();
 
 	static RectArray ra;
 	d.GetAbsClipRegion().FillRectArray(ra);
@@ -1016,8 +1032,10 @@ void GridLayer::DrawPaste(GraphDrawer& d, const GridColorPalette& colorPalette) 
 		rectPtr = ra.begin(),
 		rectEnd = ra.end();
 
-	GPoint viewportOffset = TPoint2GPoint(d.GetClientOffset());
-	GRect  clippedAbsRect = drawGridCoords->GetClippedRelRect(m_PasteHandler->GetSelValues()->m_Rect) + viewportOffset;
+	auto sf = GetScaleFactors();
+
+	auto viewportOffset = CrdPoint2GPoint( ScaleCrdPoint(d.GetClientLogicalAbsPos(), sf) );
+	GRect  clippedAbsRect = drawGridCoords->GetClippedRelDeviceRect(m_PasteHandler->GetSelValues()->m_Rect) + viewportOffset;
 
 	if (clippedAbsRect.empty())
 		return;
@@ -1089,20 +1107,11 @@ bool GridLayer::Draw(GraphDrawer& d) const
 				IRect tileRect = geoCrdUnit->GetTileRangeAsIRect(t); 
 
 				// SKIP tiles that don't intersect with view area
-				GRect clipRect = d.GetAbsClipRect();
+				GRect clipRect = d.GetAbsClipDeviceRect();
 				clipRect.Expand(focusSize);
-				if (!IsIntersecting(
-						DRect2GRect( 
-							d.GetTransformation().Apply(
-								AsWorldExtents(
-									Convert<CrdRect>(tileRect)
-								,	proj
-								)
-							)
-						)
-					,	clipRect
-					)
-				)
+				auto tileWorldExtents = AsWorldExtents(Convert<CrdRect>(tileRect), proj);
+				auto tileAsDeviceExtents = DRect2GRect(tileWorldExtents, d.GetTransformation());
+				if (!IsIntersecting(tileAsDeviceExtents, clipRect))
 					continue;
 
 				LockedIndexCollectorPtr indexCollector(GetIndexCollector(), t);
@@ -1123,9 +1132,9 @@ bool GridLayer::Draw(GraphDrawer& d) const
 							++minFE;							
 						}
 
-						GRect focusViewRect = DRect2GRect( d.GetTransformation().Apply(focusWorldRect) );
+						GRect focusViewRect = DRect2GRect(focusWorldRect, d.GetTransformation() );
 						GRect focusBordRect = focusViewRect; focusBordRect.Expand(focusSize);
-						if (IsIntersecting(focusBordRect, d.GetAbsClipRect()))
+						if (IsIntersecting(focusBordRect, d.GetAbsClipDeviceRect()))
 						{
 							focusViewRgnTower.Add( Region( focusViewRect ) );
 							focusBordRgnTower.Add( Region( focusBordRect ) );
@@ -1142,10 +1151,10 @@ bool GridLayer::Draw(GraphDrawer& d) const
 				goto skipDrawFocus;
 
 			CrdRect focusWorldRect = ::GetWorldExtents(geoCrdRect, proj, fe);
-			GRect focusViewRect = DRect2GRect( d.GetTransformation().Apply(focusWorldRect) );
+			GRect focusViewRect = DRect2GRect(focusWorldRect, d.GetTransformation());
 			GRect focusBordRect = focusViewRect; focusBordRect.Expand(focusSize);
 
-			if (!IsIntersecting(focusBordRect, d.GetAbsClipRect()))
+			if (!IsIntersecting(focusBordRect, d.GetAbsClipDeviceRect()))
 				goto skipDrawFocus;
 			focusViewRgn = Region( focusViewRect );
 			focusBordRgn = Region( focusBordRect );
@@ -1176,11 +1185,9 @@ void GridLayer::DoUpdateView()
 	}
 }
 
-GRect GridLayer::GetBorderPixelExtents(CrdType subPixelFactor) const
+TRect GridLayer::GetBorderLogicalExtents() const
 {
-	Int32 focusSize = RoundUp<4>(FOCUS_BORDER_SIZE* subPixelFactor);
-
-	return GRect(-focusSize, -focusSize, focusSize, focusSize);  // max rounding error without considering orientation
+	return TRect(-int(FOCUS_BORDER_SIZE), -int(FOCUS_BORDER_SIZE), FOCUS_BORDER_SIZE, FOCUS_BORDER_SIZE);  // max rounding error without considering orientation
 }
 
 void GridLayer::Zoom1To1(ViewPort* vp)
@@ -1278,7 +1285,7 @@ void GridLayer::FillMenu(MouseEventDispatcher& med)
 		med.m_MenuData.push_back( 
 			MenuItem(
 				"Fill Selected Cells with "+ GetCurrClassLabel(),
-				new MembFuncCmd<GridLayer>( &GridLayer::AssignSelValues),
+				make_MembFuncCmd( &GridLayer::AssignSelValues),
 				this
 			)
 		);	
@@ -1289,7 +1296,7 @@ void GridLayer::FillMenu(MouseEventDispatcher& med)
 		med.m_MenuData.push_back( 
 			MenuItem(
 				SharedStr("Copy Selected Cells to Clipboard"),
-				new MembFuncCmd<GridLayer>( &GridLayer::CopySelValues),
+				make_MembFuncCmd( &GridLayer::CopySelValues),
 				this
 			)
 		);	
@@ -1300,7 +1307,7 @@ void GridLayer::FillMenu(MouseEventDispatcher& med)
 		med.m_MenuData.push_back( 
 			MenuItem(
 				SharedStr("Paste Selected Cells from Clipboard"),
-				new MembFuncCmd<GridLayer>( &GridLayer::PasteSelValues),
+				make_MembFuncCmd( &GridLayer::PasteSelValues),
 				this
 			)
 		);	
@@ -1326,7 +1333,7 @@ void GridLayerBase::FillLcMenu(MenuData& menuData)
 	menuData.push_back(
 		MenuItem(
 			SharedStr("Zoom &1 Grid to 1 Pixel"),
-			new MembFuncCmd<GridLayerBase>(&GridLayerBase::Zoom1To1Caller),
+			make_MembFuncCmd(&GridLayerBase::Zoom1To1Caller),
 			this,
 			IsVisible() ? 0 : MFS_GRAYED
 		)
@@ -1336,7 +1343,7 @@ void GridLayerBase::FillLcMenu(MenuData& menuData)
 
 void GridLayer::CreateSelCaretInfo()  const
 {
-	dms_assert( m_Themes[AN_Selections] ); // callers responsibility not to call this when no SelAttr was created
+	assert( m_Themes[AN_Selections] ); // callers responsibility not to call this when no SelAttr was created
 	if (m_SelCaret)
 		return;
 

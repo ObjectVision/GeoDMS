@@ -1,31 +1,7 @@
-//<HEADER> 
-/*
-Data & Model Server (DMS) is a server written in C++ for DSS applications. 
-Version: see srv/dms/rtc/dll/src/RtcVersion.h for version info.
+// Copyright (C) 1998-2023 Object Vision b.v. 
+// License: GNU GPL 3
+/////////////////////////////////////////////////////////////////////////////
 
-Copyright (C) 1998-2004  YUSE GSO Object Vision BV. 
-
-Documentation on using the Data & Model Server software can be found at:
-http://www.ObjectVision.nl/DMS/
-
-See additional guidelines and notes in srv/dms/Readme-srv.txt 
-
-This library is free software; you can use, redistribute, and/or
-modify it under the terms of the GNU General Public License version 2 
-(the License) as published by the Free Software Foundation,
-provided that this entire header notice and readme-srv.txt is preserved.
-
-See LICENSE.TXT for terms of distribution or look at our web site:
-http://www.objectvision.nl/DMS/License.txt
-or alternatively at: http://www.gnu.org/copyleft/gpl.html
-
-This library is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
-General Public License for more details. However, specific warranties might be
-granted by an additional written contract for support, assistance and/or development
-*/
-//</HEADER>
 #pragma once
 
 #if !defined(__CPC_COMPCHAR_H)
@@ -70,9 +46,10 @@ granted by an additional written contract for support, assistance and/or develop
 #	define CC_COMPILER_NAME "Intel C++"
 #	define CC_PROCESSOR_INTEL
 #	define CC_BYTEORDER_INTEL
-#	define CC_POCESSOR_MINVERSION 80486
 #	define CC_NO_VTAB_BY_EXPLICIT_INSTANTIATION
 #	define CC_UNWINDING_ADM_PROBLEM
+#	define CC_PRAGMAHDRSTOP
+#	define CC_ASSUME(X) __assume(X)
 // for some reasons my Intel C++ 8.0 in MSVC6.0 has _WCHAR_T_DEFINED but no intrinsic wchar_c,
 // so logic as indicated in http://aspn.activestate.com/ASPN/Mail/Message/boost/1614864 fails
 #	define BOOST_NO_INTRINSIC_WCHAR_T
@@ -99,14 +76,16 @@ granted by an additional written contract for support, assistance and/or develop
 
 #	define CC_BYTEORDER_INTEL
 
-#	if _MSC_VER < 1920
-#		error "This GeoDMS source is only valid for Microsoft Visual C++ 2019 Version 16.0 or newer"
+#	if _MSC_VER < 1930
+#		error "This GeoDMS source is only valid for Microsoft Visual C++ 2022 Version 17.0 or newer"
 #	endif
 #	define CC_COMPILER_NAME "Microsoft Visual C++"
 
 #	pragma warning( disable : 4200) // nonstandard extension used : zero-sized array in struct/union
 #	pragma warning( disable : 4355) // use 'this' in base member initializer list without nagging
 
+#	define CC_PRAGMAHDRSTOP
+#	define CC_ASSUME(X) __assume(X)
 #	define CC_STL_1300
 #	define CC_ITERATOR_CHECKED
 #	define CC_HAS_OVERRIDE
@@ -124,13 +103,15 @@ granted by an additional written contract for support, assistance and/or develop
 #	define CC_DOUBLE_64
 #	define CC_LONGDOUBLE_64
 #	define CC_PROCESSOR_INTEL
-#	define CC_POCESSOR_MINVERSION 80486
 // See http://msdn.microsoft.com/en-us/library/vstudio/hh697468.aspx
 //#	define _ITERATOR_DEBUG_LEVEL 0
 //# define _HAS_ITERATOR_DEBUGGING	0
 //# define _SECURE_SCL 0
 #	pragma warning( disable : 4520) // multiple default constructors specified (1 explicit and 1 by variadic list).
 
+#if !defined(WIN32)
+#	define WIN32
+#endif
 //  boost parameterization
 
 #	define BOOST_FALLTHROUGH [[fallthrough]]
@@ -145,6 +126,7 @@ granted by an additional written contract for support, assistance and/or develop
 #  ifdef CC_COMPILER_NAME
 #    error Second compiler recognized!
 #  endif
+#	define CC_ASSUME(X) if (!(X)) { __builtin_unreachable(); }
 #	define CC_BYTEORDER_INTEL
 #	define CC_SHORT_16
 #	define CC_INT_32
@@ -153,10 +135,35 @@ granted by an additional written contract for support, assistance and/or develop
 #	define CC_DOUBLE_64
 //#	define CC_LONGDOUBLE_80
 #	define CC_PROCESSOR_INTEL
-#	define CC_POCESSOR_MINVERSION 80486
 
-#  define CC_COMPILER_NAME "gcc compiler"
+#  define CC_COMPILER_NAME "gcc compiler (on Windwows)"
 #endif
+
+#ifdef __GNUC__
+
+#  ifdef CC_COMPILER_NAME
+#    error Second compiler recognized!
+#  endif
+#	define CC_ASSUME(X) if (!(X)) __builtin_unreachable()
+#	define CC_ITERATOR_CHECKED
+#	define CC_BYTEORDER_INTEL
+#	define CC_SHORT_16
+#	define CC_INT_32
+#	define CC_LONG_32
+#	define CC_FLOAT_32
+#	define CC_DOUBLE_64
+//#	define CC_LONGDOUBLE_80
+#	define CC_PROCESSOR_INTEL
+
+#  define CC_COMPILER_NAME "gcc compiler (on Linux)"
+
+#if defined(WIN32)
+#	undef WIN32
+#endif
+
+
+#endif
+
 
 // Stop compiling if there is no compiler recognized in the above statements.
 #if ! defined(CC_COMPILER_NAME)
@@ -192,8 +199,6 @@ granted by an additional written contract for support, assistance and/or develop
 #if defined(_DEBUG)
 #  define _STLP_DEBUG
 #endif
-
-#include <boost/config.hpp>
 
 #if defined(__SGI_STL_PORT) || defined(_STLPORT_VERSION)
 	#define CC_STL_PORT

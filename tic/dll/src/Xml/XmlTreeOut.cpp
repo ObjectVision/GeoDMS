@@ -1,34 +1,12 @@
-//<HEADER> 
-/*
-Data & Model Server (DMS) is a server written in C++ for DSS applications. 
-Version: see srv/dms/rtc/dll/src/RtcVersion.h for version info.
-
-Copyright (C) 1998-2004  YUSE GSO Object Vision BV. 
-
-Documentation on using the Data & Model Server software can be found at:
-http://www.ObjectVision.nl/DMS/
-
-See additional guidelines and notes in srv/dms/Readme-srv.txt 
-
-This library is free software; you can use, redistribute, and/or
-modify it under the terms of the GNU General Public License version 2 
-(the License) as published by the Free Software Foundation,
-provided that this entire header notice and readme-srv.txt is preserved.
-
-See LICENSE.TXT for terms of distribution or look at our web site:
-http://www.objectvision.nl/DMS/License.txt
-or alternatively at: http://www.gnu.org/copyleft/gpl.html
-
-This library is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
-General Public License for more details. However, specific warranties might be
-granted by an additional written contract for support, assistance and/or development
-*/
-//</HEADER>
+// Copyright (C) 1998-2023 Object Vision b.v. 
+// License: GNU GPL 3
+/////////////////////////////////////////////////////////////////////////////
 
 #include "TicPCH.h"
+
+#if defined(CC_PRAGMAHDRSTOP)
 #pragma hdrstop
+#endif //defined(CC_PRAGMAHDRSTOP)
 
 #include "xml/XmlTreeOut.h"
 
@@ -36,6 +14,7 @@ granted by an additional written contract for support, assistance and/or develop
 #include "act/TriggerOperator.h"
 #include "dbg/DmsCatch.h"
 #include "mci/ValueClass.h"
+#include "ser/AsString.h"
 #include "ser/FileStreamBuff.h"
 #include "utl/Environment.h"
 #include "utl/splitPath.h"
@@ -135,7 +114,7 @@ notCalculated:
 
 SharedStr GetStrCount(const AbstrUnit* unit)
 {
-	dms_assert(unit->GetValueType()->IsCountable());
+	assert(unit->GetValueType()->IsCountable());
 	try {	
 		if (!CheckDataReady(unit->GetCurrRangeItem()))
 			return SharedStr("Not Calculated");
@@ -173,10 +152,9 @@ void WriteCdf(XML_Table& xmlTable, const TreeItem* ti)
 
 bool WriteUnitProps(XML_Table& xmlTable, const AbstrUnit* unit, bool allTileInfo)
 {
-	dms_assert(unit);
-	dms_assert(!SuspendTrigger::DidSuspend()); // PRECONDITION
-	dms_assert(IsMainThread());
-	dms_assert(unit->GetInterestCount() || unit->WasFailed(FR_Data));
+	assert(unit);
+	assert(!SuspendTrigger::DidSuspend()); // PRECONDITION
+	assert(IsMainThread());
 
 	xmlTable.NameValueRow("ValueType", unit->GetValueType()->GetName().c_str());
 
@@ -184,6 +162,9 @@ bool WriteUnitProps(XML_Table& xmlTable, const AbstrUnit* unit, bool allTileInfo
 		return false;
 	if (unit->GetUnitClass() == Unit<Void>::GetStaticClass())
 		return true;
+
+	if (unit->GetTSF(TSF_Categorical))
+		xmlTable.NameValueRow("Categorical", "Yes");
 
 	if (unit->GetNrDimensions() == 1)
 	{
@@ -258,9 +239,7 @@ bool WriteUnitProps(XML_Table& xmlTable, const AbstrUnit* unit, bool allTileInfo
 
 bool WriteUnitInfo(XML_Table& xmlTable, CharPtr role, const AbstrUnit* unit)
 {
-	dms_assert(unit);
-
-	dms_assert(unit->GetInterestCount() || unit->WasFailed(FR_Data));
+	assert(unit);
 
 	xmlTable.LinedRow();
 	if (unit->IsDefaultUnit())
@@ -281,25 +260,53 @@ bool WriteUnitInfo(XML_Table& xmlTable, CharPtr role, const AbstrUnit* unit)
 
 // ********** XML_ItemBody                                             *********
 
-XML_ItemBody::XML_ItemBody(OutStreamBase& out, const TreeItem* item, bool showFullName)
-	:	XML_OutElement(out, "BODY")
+XML_ItemBody::XML_ItemBody(OutStreamBase& out, CharPtr caption, CharPtr subText, const TreeItem* item, bool showFullName)
+	: XML_OutElement(out, "BODY")
 {
 	out.WriteAttr("bgcolor", CLR_BODY);
 
-	XML_OutElement xmlElemH2(out, "H2");
-	XML_OutElement xmlElemA (out, "A");
-	out.WriteAttr("href", ItemUrl(item).c_str());
-	if (showFullName)
 	{
-		if (item->GetTreeParent())
-			out << item->GetFullName().c_str();
-		else
-			out << "(ROOT)";
+		XML_OutElement page_title_table(out, "TABLE");
+		out.WriteAttr("width", "100%");
+		//out.WriteAttr("style", "font-size:200%");
+		XML_OutElement table_row(out, "TR");
+		out.WriteAttr("bgcolor", "#89CFF0");
+		XML_OutElement table_col(out, "TD");
+		{
+			XML_OutElement font_size(out, "font");
+			out.WriteAttr("size", "4");
+			out << caption;
+		}
 	}
-	else
-		out << item->GetName().c_str();
+
+	{
+	XML_OutElement page_title_table(out, "I");
+	if (subText && *subText)
+		out << subText;
+    }
+
+	/*XML_Table current_item_table(out);
+	XML_OutElement table_row0(out, "TR");
+	XML_Table::Row row = XML_Table::Row(current_item_table);
+	auto cell = XML_Table::Row::Cell(row);
+	row.ValueCell("Active Item");
+	auto cell2 = XML_Table::Row::Cell(row);
+	row.ItemCell(item, true);
+	XML_OutElement table_row2(out, "TR");*/
+	NewLine(out);
+	NewLine(out);
+	{
+		XML_OutElement bold(out, "B");
+		{
+			XML_hRef supplRef(out, ItemUrl(item->GetFullName().c_str()));
+			out << item->GetFullName().c_str();
+		}
+	}
+	NewLine(out);
+
 }
 
+// ********** XML_Table                                             *********
 
 void XML_Table::NameErrRow(CharPtr propName, const ErrMsg& err, const TreeItem* self)
 {
@@ -313,31 +320,71 @@ void XML_Table::NameErrRow(CharPtr propName, const ErrMsg& err, const TreeItem* 
 	if (errSrc.first && errSrc.first != self)
 	{
 		Row row(*this);
-		Row::Cell xmlElemTD(row);
-		xmlElemTD.OutStream().WriteAttr("colspan", "2");
-		
-		OutStream() << "see ";
 		{
-			XML_hRef xmlElemA(OutStream(), ItemUrl(errSrc.first).c_str());
-			OutStream() << errSrc.first->GetFullName().c_str();
+			Row::Cell xmlElemTD(row);
+			OutStream().WriteTrimmed("Also failed");
+			NewLine(OutStream());
+			OutStream().WriteTrimmed("(F2 target)");
 		}
-		OutStream() << " or press F2";
+//		row.ValueCell("Also Failed (F2 target)");
+		row.ItemCell(errSrc.first);
+	}
+}
+
+// ********** XML_Table::Row                                        *********
+
+void XML_Table::Row::ClickableCell(CharPtr value, CharPtr hRef, bool bold /* = false */)
+{
+	Cell xmlElemTD(*this);
+	if (bold)
+	{
+		auto boldElement = XML_OutElement(OutStream(), "B");
+		hRefWithText(OutStream(), value, hRef);
+	}
+	else
+		hRefWithText(OutStream(), value, hRef);
+}
+
+void XML_Table::Row::EditablePropCell(CharPtr propName, CharPtr propLabel /*= ""*/, const TreeItem* item /* = nullptr */)
+{
+	assert(propName);
+	assert(propLabel);
+
+	if (!*propLabel)
+		propLabel = propName;
+	if (item && item->IsCacheItem())
+		ValueCell(propLabel);
+	else
+	{
+		/*SharedStr editUrl = (item)
+			?	mySSPrintF("dms:edit!%s:%s", propName, item->GetFullName().c_str())
+			:	mySSPrintF("dms:edit!%s", propName);*/
+
+		//ClickableCell(propLabel, editUrl.c_str());
+
+		ValueCell(propLabel);
 	}
 }
 
 // *****************************************************************************
 //											COMPONENT HELPER FUNCS
 // *****************************************************************************
+void TabIndentation(OutStreamBase& out, UInt8 number_of_tabs)
+{
+	for (int i = 0; i < number_of_tabs; i++)
+	{
+		out << "    ";
+	}
+}
 
 void NewLine(OutStreamBase& out)
 {
-	XML_OutElement br(out, "BR", "", false);
+	XML_OutElement br(out, "BR", "", ClosePolicy::nonPairedElement);
 }
 
 void WriteLispRefExpr(OutStreamBase& stream, LispPtr lispExpr)
 {
-//	lispExpr.PrintAsFLisp(stream.FormattingStream(), 0); doesn't do HtmlEncode
-	stream << AsFLispSharedStr(lispExpr).c_str();
+	stream << AsFLispSharedStr(lispExpr, FormattingFlags::ThousandSeparator).c_str();
 }
 
 TIC_CALL void(*s_AnnotateExprFunc)(OutStreamBase& outStream, const TreeItem* searchContext, SharedStr expr);
@@ -399,7 +446,12 @@ const TreeItem* GetExprOrSourceDescrAndReturnSourceItem(OutStreamBase& stream, c
 	}
 	SharedPtr<const AbstrCalculator> calc = ti->GetCalculator();
 	if (calc)
-		stream << calc->GetAsFLispExprOrg().c_str();
+	{
+		if (calc->IsDataBlock())
+			stream << "[ ... ]";
+		else
+			stream << calc->GetAsFLispExprOrg(FormattingFlags::ThousandSeparator).c_str();
+	}
 	return nullptr;
 }
 
@@ -408,8 +460,8 @@ void GetExprOrSourceDescr(OutStreamBase& stream, const TreeItem* ti)
 	const TreeItem* si = GetExprOrSourceDescrAndReturnSourceItem(stream, ti);
 	while (si)
 	{
-		dms_assert(si != ti);
-		dms_assert(!si->IsCacheItem());
+		assert(si != ti);
+		assert(!si->IsCacheItem());
 		NewLine(stream);
 		stream << "which refers to";
 		{
@@ -425,8 +477,10 @@ void GetExprOrSourceDescrRow(XML_Table& xmlTable, const TreeItem* ti)
 {
 	XML_Table::Row exprRow(xmlTable);
 		exprRow.OutStream().WriteAttr("bgcolor", CLR_HROW);
-		exprRow.ClickableCell("CalculationRule", "dms:Edit Definition");
 		XML_Table::Row::Cell xmlElemTD(exprRow);
+		exprRow.OutStream().WriteTrimmed("CalculationRule");
+		//exprRow.ClickableCell("CalculationRule", "dms:Edit Definition");
+		XML_Table::Row::Cell xmlElemTD1(exprRow);
 			GetExprOrSourceDescr(xmlTable.OutStream(), ti);
 }
 
@@ -468,17 +522,22 @@ TIC_CALL void DMS_CONV DMS_TreeItem_XML_Dump(const TreeItem* self, OutStreamBase
 {
 	DMS_CALL_BEGIN
 
-		dms_assert(xmlOutStr);
-
-		self->XML_Dump(xmlOutStr);
+		assert(xmlOutStr);
+		try {
+			self->XML_Dump(xmlOutStr);
+		}
+		catch (...)
+		{
+			*xmlOutStr << catchException(false)->Why().c_str();
+		}
 
 	DMS_CALL_END
 }
 
-bool TreeItem_XML_DumpGeneralBody(const TreeItem* self, OutStreamBase* xmlOutStrPtr, bool showAll)
+bool TreeItem_XML_DumpGeneralBody(const TreeItem* self, OutStreamBase* xmlOutStrPtr)
 {
 	XML_Table xmlTable(*xmlOutStrPtr);
-	xmlTable.EditableNameValueRow("FullName", self->GetFullName().c_str());
+	//xmlTable.EditableNameValueRow("FullName", self->GetFullName().c_str());
 
 #if defined(MG_DEBUG)
 	if (!self->InTemplate())
@@ -520,10 +579,15 @@ bool TreeItem_XML_DumpGeneralBody(const TreeItem* self, OutStreamBase* xmlOutStr
 	if (IsDataItem(self))
 	{
 		const AbstrDataItem* di = AsDataItem(self);
-		xmlTable.NameValueRow("ValuesType", di->GetAbstrValuesUnit()->GetValueType()->GetName().c_str());
+
+		if (auto avu = di->GetAbstrValuesUnit())
+			if (auto vt = avu->GetValueType())
+				xmlTable.NameValueRow("ValuesType", vt->GetName().c_str());
 		vc = di->GetValueComposition();
 		if (vc != ValueComposition::Single)
 			xmlTable.NameValueRow("ValueComposition", GetValueCompositionID(vc).GetStr().c_str());
+		if (di->GetTSF(TSF_Categorical))
+			xmlTable.NameValueRow("Categorical", "Yes");
 
 		WriteCdf(xmlTable, di);
 	}
@@ -540,26 +604,27 @@ bool TreeItem_XML_DumpGeneralBody(const TreeItem* self, OutStreamBase* xmlOutStr
 	xmlTable.LinedRow();
 	GetExprOrSourceDescrRow(xmlTable, self);
 
-#if defined(MG_DEBUG)
-	if (self->HasCalculator() && !self->WasFailed(FR_MetaInfo))
+	if (GetRegStatusFlags() & RSF_AdminMode)
 	{
-		auto c = self->GetCalculator();
-		if (c)
-			GetLispRefRow(xmlTable, c->GetLispExprOrg(), "ParseResult");
-	}
-	if (!self->WasFailed(FR_MetaInfo))
-	{
-		auto metaInfo = self->GetCurrMetaInfo({});
-		auto calcExpr = GetAsLispRef(metaInfo);
-		GetLispRefRow(xmlTable, calcExpr, "CalcExpr");
-		if (metaInfo.index() == 1 || metaInfo.index() == 0 && std::get<MetaFuncCurry>(metaInfo).fullLispExpr.EndP())
+		if (self->HasCalculator() && !self->WasFailed(FR_MetaInfo))
 		{
-			auto keyExpr = self->GetCheckedKeyExpr();
-			if (keyExpr != calcExpr)
-				GetLispRefRow(xmlTable, keyExpr, "CheckedKeyExpr");
+			auto c = self->GetCalculator();
+			if (c)
+				GetLispRefRow(xmlTable, c->GetLispExprOrg(), "ParseResult");
+		}
+		if (!self->WasFailed(FR_MetaInfo))
+		{
+			auto metaInfo = self->GetCurrMetaInfo({});
+			auto calcExpr = GetAsLispRef(metaInfo);
+			GetLispRefRow(xmlTable, calcExpr, "CalcExpr");
+			if (metaInfo.index() == 1 || metaInfo.index() == 0 && std::get<MetaFuncCurry>(metaInfo).fullLispExpr.EndP())
+			{
+				auto keyExpr = self->GetCheckedKeyExpr();
+				if (keyExpr != calcExpr)
+					GetLispRefRow(xmlTable, keyExpr, "CheckedKeyExpr");
+			}
 		}
 	}
-#endif
 
 	// ==================== Explicit Suppliers
 	if (self->HasSupplCache())
@@ -614,7 +679,7 @@ bool TreeItem_XML_DumpGeneralBody(const TreeItem* self, OutStreamBase* xmlOutStr
 			xmlTable.NameValueRow("AccessType", readOnly ? "ReadOnly" : "ReadWrite");
 
 			result = TreeItemPropertyValue(self, sqlStringPropDefPtr);
-			if (showAll || !result.empty())
+			if (!result.empty())
 				xmlTable.EditableNameValueRow(SQLSTRING_NAME, result.c_str());
 		}
 	}
@@ -669,29 +734,101 @@ bool TreeItem_XML_DumpGeneralBody(const TreeItem* self, OutStreamBase* xmlOutStr
 	return true;
 }
 
-TIC_CALL bool DMS_CONV DMS_TreeItem_XML_DumpGeneral(const TreeItem* self, OutStreamBase* xmlOutStrPtr, bool showAll)
+TIC_CALL bool TreeItem_XML_DumpGeneral(const TreeItem* self, OutStreamBase* xmlOutStrPtr)
 {
-	DMS_CALL_BEGIN
+	assert(xmlOutStrPtr);
+	SuspendTrigger::Resume();
+	XML_ItemBody xmlItemBody(*xmlOutStrPtr, "Generic properties", "Item definition and determination of primary data", self);
 
-		dms_assert(self->GetInterestCount() || self->WasFailed(FR_Data));
-		dms_assert(xmlOutStrPtr);
+	try {
+		if (!TreeItem_XML_DumpGeneralBody(self, xmlOutStrPtr))
+			return false;
+	} catch (...)
+	{
+		auto err = catchException(true);
+		if (!err)
+			*xmlOutStrPtr << "unrecognized error";
+		else
+			*xmlOutStrPtr << *err;
+	}
 
-		SuspendTrigger::Resume();
+	return true;
+}
+#include "TreeItemProps.h"
+TIC_CALL void TreeItem_XML_DumpSourceDescription(const TreeItem* self, SourceDescrMode mode, OutStreamBase* xmlOutStrPtr)
+{
+	assert(xmlOutStrPtr);
+	SuspendTrigger::Resume();
+	SharedStr source_description_subtitle = {};
+	switch (mode) {
+	case SourceDescrMode::Configured:  source_description_subtitle = "Configured Source Descriptions\n"; break;
+	case SourceDescrMode::ReadOnly:    source_description_subtitle = "Read Only Storage Managers\n"; break;
+	case SourceDescrMode::WriteOnly:   source_description_subtitle = "Non-Read Only Storage Managers\n"; break;
+	case SourceDescrMode::All:         source_description_subtitle = "Utilized Storage Managers\n"; break;
+	case SourceDescrMode::DatasetInfo: source_description_subtitle = "Dataset metainfo and properties\n"; break;
+	}
 
-		XML_ItemBody xmlItemBody(*xmlOutStrPtr, self);
-		try {
-			if (!TreeItem_XML_DumpGeneralBody(self, xmlOutStrPtr, showAll))
-				return false;
-		} catch (...)
+	XML_ItemBody xmlItemBody(*xmlOutStrPtr, "Source Description", source_description_subtitle.c_str(), self);
+	TreeItem_DumpSourceCalculator(self, mode, true, xmlOutStrPtr);
+}
+
+TIC_CALL void TreeItem_XML_ConvertAndDumpDatasetProperties(const TreeItem* self, const prop_tables& dataset_properties, OutStreamBase* xmlOutStrPtr)
+{
+	XML_ItemBody xmlItemBody(*xmlOutStrPtr, "Source Description", "Dataset metainfo and properties", self);
+	for (auto& property : dataset_properties)
+	{
+		auto level = property.first;
+		auto name = property.second.first;
+		auto value = property.second.second;
 		{
-			auto err = catchException(true);
-			if (!err)
-				*xmlOutStrPtr << "unrecognized error";
-			else
-				*xmlOutStrPtr << *err;
+			XML_OutElement br(*xmlOutStrPtr, "P", "", ClosePolicy::pairedButWithoutSeparator);
+			{
+				auto indentation_level_str = SharedStr("margin-left: " + AsString(level * 15) + "px");
+				xmlOutStrPtr->WriteAttr("style", indentation_level_str.c_str());
+				xmlOutStrPtr->WriteValue(""); // Close attr list
+				xmlOutStrPtr->FormattingStream() << name.GetStr().c_str() << " : " << value.c_str();
+			}
 		}
+	}
+}
 
-	DMS_CALL_END_NOTHROW
+TIC_CALL bool XML_MetaInfoRef(const TreeItem* self, OutStreamBase* xmlOutStrPtr)
+{
+	assert(xmlOutStrPtr);
+	assert(self);
+	SuspendTrigger::Resume();
+
+	XML_ItemBody xmlItemBody(*xmlOutStrPtr, "Meta information reference", "a link to description or documentation", self);
+	try {
+		XML_Table table(*xmlOutStrPtr);
+		for (auto cursor=self; cursor; cursor = cursor->GetTreeParent())
+		{
+			auto url = TreeItemPropertyValue(cursor, urlPropDefPtr);
+			if (!url.empty())
+			{
+				XML_Table::Row row(table);
+				row.ItemCell(cursor);
+				auto context = cursor;
+				if (url[0] == '#')
+				{
+					context = self;
+					url = SharedStr(url.begin() + 1, url.send());
+				}
+
+				auto expandedUrl = AbstrStorageManager::GetFullStorageName(context, url);
+				row.ClickableCell(expandedUrl.c_str(), expandedUrl.c_str());
+			}
+		}
+	}
+	catch (...)
+	{
+		auto err = catchException(true);
+		if (!err)
+			*xmlOutStrPtr << "unrecognized error";
+		else
+			*xmlOutStrPtr << *err;
+	}
+
 	return true;
 }
 
@@ -709,11 +846,15 @@ void WritePropValueRows(XML_Table& xmlTable, const TreeItem* self, const Class* 
 		bool firstValue = true;
 		bool canBeIndirect = pd->CanBeIndirect();
 		try {
-			if (!showAll && !pd->HasNonDefaultValue(self))
-				continue;
 			if (pd->IsDepreciated())
 				continue;
+			if (!showAll && !pd->HasNonDefaultValue(self))
+				continue;
+			if (SuspendTrigger::DidSuspend())
+				return;
 			result = pd->GetValueAsSharedStr(self);
+			if (SuspendTrigger::DidSuspend())
+				return;
 		}
 		catch (...)
 		{
@@ -765,15 +906,23 @@ TIC_CALL bool DMS_CONV DMS_TreeItem_XML_DumpAllProps(const TreeItem* self, OutSt
 {
 	DMS_CALL_BEGIN
 
-		dms_assert(xmlOutStrPtr);
+		assert(xmlOutStrPtr);
+		assert(!SuspendTrigger::DidSuspend());
 
-		XML_ItemBody xmlItemBody(*xmlOutStrPtr, self);
+		CharPtr caption = showAll
+			? "All properties"
+			: "Properties with non-default values";
+
+		XML_ItemBody xmlItemBody(*xmlOutStrPtr, caption, "ordered by specificity and then property-name", self);
 		XML_Table    xmlTable   (*xmlOutStrPtr);
 
 		const Class* cls = self->GetDynamicClass();
 		while (cls)
 		{
 			WritePropValueRows(xmlTable, self, cls, showAll);
+			if (SuspendTrigger::DidSuspend())
+				return false;
+
 			cls = cls->GetBaseClass();
 		}
 
@@ -836,11 +985,9 @@ void TreeItem_XML_DumpItem(const TreeItem* subItem, XML_Table& xmlTable, bool vi
 	}
 }
 
-void TreeItem_XML_DumpExploreThisAndParents(const TreeItem* self, OutStreamBase* xmlOutStrPtr, bool viewHidden, TreeItemSetType& doneItems, const TreeItem* calledBy, CharPtr callingRole)
+void TreeItem_XML_DumpExploreThisAndParents_impl(const TreeItem* self, OutStreamBase* xmlOutStrPtr
+	, bool viewHidden, TreeItemSetType& doneItems, const TreeItem* calledBy, CharPtr callingRole)
 {
-	dms_assert(self);
-	XML_ItemBody xmlItemBody(*xmlOutStrPtr, self, true);
-	dms_assert(xmlOutStrPtr);
 	{
 		XML_Table    xmlTable   (*xmlOutStrPtr);
 		if (calledBy)
@@ -882,14 +1029,14 @@ void TreeItem_XML_DumpExploreThisAndParents(const TreeItem* self, OutStreamBase*
 				if (i)
 					role = "is parent and used by";
 			}
-			TreeItem_XML_DumpExploreThisAndParents(us, xmlOutStrPtr, viewHidden, doneItems, self, role);
+			TreeItem_XML_DumpExploreThisAndParents_impl(us, xmlOutStrPtr, viewHidden, doneItems, self, role);
 		}
 	}
 	else
 	{
 		const TreeItem* parent = self->GetTreeParent();
 		if (parent)
-			TreeItem_XML_DumpExploreThisAndParents(parent, xmlOutStrPtr, viewHidden, doneItems, self, "is parent of");
+			TreeItem_XML_DumpExploreThisAndParents_impl(parent, xmlOutStrPtr, viewHidden, doneItems, self, "is parent of");
 	}
 	return;
 
@@ -898,14 +1045,22 @@ omit_repetition:
 	(*xmlOutStrPtr) << "(repetition of sub items omitted)";
 }
 
+void TreeItem_XML_DumpExploreThisAndParents(const TreeItem* self, OutStreamBase* xmlOutStrPtr, bool viewHidden, const TreeItem* calledBy, CharPtr callingRole)
+{
+	assert(self);
+	assert(self);
+
+	TreeItemSetType doneItems;
+	XML_ItemBody xmlItemBody(*xmlOutStrPtr, "Explore accessible namespaces", "in search order.", self, true);
+
+	TreeItem_XML_DumpExploreThisAndParents_impl(self, xmlOutStrPtr, viewHidden, doneItems, calledBy, callingRole);
+}
+
 TIC_CALL void DMS_CONV DMS_TreeItem_XML_DumpExplore(const TreeItem* self, OutStreamBase* xmlOutStrPtr, bool viewHidden)
 {
 	DMS_CALL_BEGIN
 
-		* xmlOutStrPtr << "items visible from here per namespace in search order";
-
-		TreeItemSetType doneItems;
-		TreeItem_XML_DumpExploreThisAndParents(self, xmlOutStrPtr, viewHidden, doneItems, nullptr, "");
+		TreeItem_XML_DumpExploreThisAndParents(self, xmlOutStrPtr, viewHidden, nullptr, "");
 
 	DMS_CALL_END
 }
@@ -1079,7 +1234,10 @@ TIC_CALL bool DMS_CONV DMS_TreeItem_Dump(const TreeItem* self, CharPtr fileName)
 			dms_assert(s_gDumpFolder.empty() );
 			fileNameStr = MakeAbsolutePath( fileNameStr.c_str() );
 		}
-		ItemSave(self, fileNameStr.c_str(), DSM::GetSafeFileWriterArray(self), isRoot);
+		auto sfwa = DSM::GetSafeFileWriterArray();
+		if (!sfwa)
+			return false;
+		ItemSave(self, fileNameStr.c_str(), sfwa.get(), isRoot);
 		return true;
 
 	DMS_CALL_END

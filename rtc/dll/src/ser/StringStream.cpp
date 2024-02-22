@@ -27,10 +27,13 @@ granted by an additional written contract for support, assistance and/or develop
 */
 //</HEADER>
 #include "RtcPCH.h"
+
+#if defined(CC_PRAGMAHDRSTOP)
 #pragma hdrstop
+#endif //defined(CC_PRAGMAHDRSTOP)
 
 #include "dbg/DmsCatch.h"
-#include "geo/Color.h"
+#include "geo/color.h"
 #include "geo/Conversions.h"
 #include "geo/SequenceArray.h"
 #include "ser/BinaryStream.h"
@@ -49,6 +52,7 @@ granted by an additional written contract for support, assistance and/or develop
 
 SizeT StrLen(CharPtr str)
 {
+	assert(str != nullptr);
 	return strlen(str);
 }
 
@@ -230,7 +234,7 @@ BinaryInpStream& operator >>(BinaryInpStream& ar, SharedStr& str)
 // Section      : Serialization support for SharedStr
 //----------------------------------------------------------------------
 
-#include "geo/IterRange.h"
+#include "geo/iterrange.h"
 
 FormattedInpStream& operator >> (FormattedInpStream& is, SharedStr& str)
 {

@@ -138,7 +138,7 @@ struct Actor : PersistentSharedObj
 protected:
 	//	Override this method to implement the working of an SuspendibleUpdate"
 	//	function. For example: sort(Data).
-	RTC_CALL virtual bool MustApplyImpl() const;
+	RTC_CALL bool MustApplyImpl() const;
 
 	RTC_CALL virtual ActorVisitState DoUpdate(ProgressState ps);
 	RTC_CALL virtual bool DoFail(ErrMsgPtr msg, FailType ft) const;
@@ -216,7 +216,6 @@ protected:
 	RTC_CALL virtual SharedStr GetExpr() const { return SharedStr(); }
 #endif
 
-	friend struct DataStoreManager;
 	friend struct OperationContext;
 	friend struct DetermineStateLock;
 };

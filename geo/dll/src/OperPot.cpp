@@ -1,5 +1,8 @@
 #include "GeoPCH.h"
+
+#if defined(CC_PRAGMAHDRSTOP)
 #pragma hdrstop
+#endif //defined(CC_PRAGMAHDRSTOP)
 
 #include "dbg/DebugContext.h"
 #include "geo/Conversions.h"
@@ -88,7 +91,7 @@ struct AbstrDirectPotentialOperator : public BinaryOperator
 			for (tile_id ti = 0; ti != te; ++ti)
 				MakeUpperBound(maxDataTileSize, Convert<Point<UInt32>>(Size(resDomainUnit->GetTileRangeAsIRect(ti))));
 
-			OwningPtrSizedArray<result_tile_protector> resTileAddition(te MG_DEBUG_ALLOCATOR_SRC("OperPot: resTileAddition"));
+			OwningPtrSizedArray<result_tile_protector> resTileAddition(te, value_construct MG_DEBUG_ALLOCATOR_SRC("OperPot: resTileAddition"));
 
 			auto kernelInfo = CreateKernelInfo(weightGridA, Size(weightRect), maxDataTileSize);
 			for (tile_id ti = 0; ti != te; ++ti)
@@ -274,17 +277,17 @@ public:
 
 namespace
 {
-	CommonOperGroup potentialDefault  ("potential"         );
+	CommonOperGroup potentialDefault  ("potential", oper_policy::better_not_in_meta_scripting);
 #if defined(DMS_USE_INTEL_IPPS)
-	CommonOperGroup potentialIpps64("potentialIpps64");
+	CommonOperGroup potentialIpps64("potentialIpps64", oper_policy::better_not_in_meta_scripting);
 #endif //defined(DMS_USE_INTEL_IPPS)
 #if defined(DMS_USE_INTEL_IPPI)
-	CommonOperGroup potentialIppi32("potentialIppi32");
+	CommonOperGroup potentialIppi32("potentialIppi32", oper_policy::better_not_in_meta_scripting);
 #endif //defined(DMS_USE_INTEL_IPPI)
-	CommonOperGroup potentialRaw64("potentialRaw64");
-	CommonOperGroup potentialSlow("potentialSlow");
-	CommonOperGroup potentialPacked("potentialPacked");
-	CommonOperGroup potentialRawPacked("potentialRawPacked");
+	CommonOperGroup potentialRaw64("potentialRaw64", oper_policy::better_not_in_meta_scripting);
+	CommonOperGroup potentialSlow("potentialSlow", oper_policy::better_not_in_meta_scripting);
+	CommonOperGroup potentialPacked("potentialPacked", oper_policy::better_not_in_meta_scripting);
+	CommonOperGroup potentialRawPacked("potentialRawPacked", oper_policy::better_not_in_meta_scripting);
 
 	DirectPotentialOperator<Float32> potDF32Def(&potentialDefault, AnalysisType::PotentialDefault);
 	DirectPotentialOperator<Float32> potDF32Ipps(&potentialIpps64, AnalysisType::PotentialIpps64);
@@ -298,9 +301,10 @@ namespace
 #endif //defined(DMS_USE_INTEL_IPPI)
 
 
+	DirectPotentialOperator<Float64> potDF64Def(&potentialDefault, AnalysisType::PotentialDefault);
 	DirectPotentialOperator<Float64> potDF64Ipps(&potentialIpps64, AnalysisType::PotentialIpps64);
 	DirectPotentialOperator<Float64> potDF64IppsR(&potentialRaw64, AnalysisType::PotentialRawIpps64);
-	DirectPotentialOperator<Float64> potDF64Slow(&potentialSlow, AnalysisType::PotentialSlow);
+	DirectPotentialOperator<Float64> potDF64Slow(&potentialSlow,   AnalysisType::PotentialSlow);
 
 #if defined(DMS_POTENTIAL_I16)
 
@@ -315,7 +319,7 @@ namespace
 
 #endif //defined(DMS_POTENTIAL_I16)
 
-	CommonOperGroup proximity("proximity");
+	CommonOperGroup proximity("proximity", oper_policy::better_not_in_meta_scripting);
 
 	DirectPotentialOperator<Float32> proxDF32(&proximity, AnalysisType::Proximity);
 	DirectPotentialOperator<Float64> proxDF64(&proximity, AnalysisType::Proximity);

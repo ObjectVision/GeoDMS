@@ -27,7 +27,10 @@ granted by an additional written contract for support, assistance and/or develop
 */
 //</HEADER>
 #include "StxPch.h"
+
+#if defined(CC_PRAGMAHDRSTOP)
 #pragma hdrstop
+#endif //defined(CC_PRAGMAHDRSTOP)
 
 #include "DataBlockTask.h"
 
@@ -44,9 +47,6 @@ granted by an additional written contract for support, assistance and/or develop
 #include "DataStoreManagerCaller.h"
 
 #include "ConfigProd.h"
-
-//REMOVE #include <boost/thread/tss.hpp>
-//REMOVE #include <boost/thread/detail/tss_hooks.hpp>
 
 // ============================= CLASS: DataBlockProd
 
@@ -90,24 +90,24 @@ void DataBlockProd::DoArrayAssignment()
 	tile_id currTileID = currTileLocation.first;
 	if (currTileID == no_tile)
 	{
-		if (m_eValueType == VT_Unknown)
+		if (m_eValueType == ValueClassID::VT_Unknown)
 			return; // OK to have undefined values for untiled area 
 		adi->throwItemErrorF("DoArrayAssignment: Index %d is not part of any tile. Untiled area's cannot be assigned, this index should have a null value", m_nIndexValue);
 	}
 
 	switch (m_eValueType) 
 	{
-		case VT_SharedStr:
+		case ValueClassID::VT_SharedStr:
 		{
 //			DMS_AnyDataItem_SetValueAsCharArray(adi, i, m_StringVal.c_str());
 			m_AbstrValue->AssignFromCharPtrs(m_StringVal.begin(), m_StringVal.send());
 			m_Lock->SetAbstrValue(i, *m_AbstrValue); // OPTIMIZE: Avoid searching TileID(i) by GetLockedDataWrite(GetTileID(index)) in the called SetIndexedValue
 			break;
 		}
-		case VT_DPoint:
+		case ValueClassID::VT_DPoint:
 			m_Lock->SetValueAsDPoint(i, m_DPointVal); // OPTIMIZE: Avoid searching TileID(i) by GetLockedDataWrite(GetTileID(index)) in the called SetIndexedValue
 			break;
-		case VT_Bool:
+		case ValueClassID::VT_Bool:
 		{
 			DataArray<Bool>* di = mutable_array_dynacast<Bool>(m_Lock);
 			if (di) 
@@ -119,12 +119,18 @@ void DataBlockProd::DoArrayAssignment()
 			m_FloatVal = m_BoolVal;
 		}
 		[[fallthrough]];
-		case VT_UInt32:
-		case VT_Int32:
-		case VT_Float64:
+		case ValueClassID::VT_UInt32:
+		case ValueClassID::VT_Int32:
+		case ValueClassID::VT_Float64:
 			m_Lock->SetValueAsFloat64(i, m_FloatVal ); // OPTIMIZE: Avoid searching TileID(i) by GetLockedDataWrite(GetTileID(index)) in the called SetIndexedValue
 			break;
-		case VT_Unknown:
+		case ValueClassID::VT_UInt64:
+			m_Lock->SetValueAsSizeT(i, m_IntValAsUInt64); // OPTIMIZE: Avoid searching TileID(i) by GetLockedDataWrite(GetTileID(index)) in the called SetIndexedValue
+			break;
+		case ValueClassID::VT_Int64:
+			m_Lock->SetValueAsDiffT(i, m_IntValAsInt64); // OPTIMIZE: Avoid searching TileID(i) by GetLockedDataWrite(GetTileID(index)) in the called SetIndexedValue
+			break;
+		case ValueClassID::VT_Unknown:
 			m_Lock->SetNull(i); //  OPTIMIZE: Avoid GetLockedDataWrite(GetTileID(index))
 			break;
 
@@ -134,6 +140,7 @@ void DataBlockProd::DoArrayAssignment()
 			);
 	}
 }
+
 void DataBlockProd::Commit() 
 { 
 	while (m_nIndexValue < m_ElemCount)
@@ -144,7 +151,7 @@ void DataBlockProd::Commit()
 
 void DataBlockProd::throwSemanticError(CharPtr msg)
 {
-	Object::throwItemErrorF(CurrDI(), "DataBlockAssignment error %s", msg);
+	throwItemErrorF(CurrDI(), "DataBlockAssignment error %s", msg);
 }
 
 // ============================= ConfigProd
@@ -156,7 +163,6 @@ void ConfigProd::DoArrayAssignment()
 {
 	m_nIndexValue++;
 }
-
 
 void ConfigProd::DataBlockCompleted(iterator_t first, iterator_t last)
 {

@@ -1,33 +1,12 @@
-//<HEADER> 
-/*
-Data & Model Server (DMS) is a server written in C++ for DSS applications. 
-Version: see srv/dms/rtc/dll/src/RtcVersion.h for version info.
+// Copyright (C) 1998-2023 Object Vision b.v. 
+// License: GNU GPL 3
+/////////////////////////////////////////////////////////////////////////////
 
-Copyright (C) 1998-2004  YUSE GSO Object Vision BV. 
-
-Documentation on using the Data & Model Server software can be found at:
-http://www.ObjectVision.nl/DMS/
-
-See additional guidelines and notes in srv/dms/Readme-srv.txt 
-
-This library is free software; you can use, redistribute, and/or
-modify it under the terms of the GNU General Public License version 2 
-(the License) as published by the Free Software Foundation,
-provided that this entire header notice and readme-srv.txt is preserved.
-
-See LICENSE.TXT for terms of distribution or look at our web site:
-http://www.objectvision.nl/DMS/License.txt
-or alternatively at: http://www.gnu.org/copyleft/gpl.html
-
-This library is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
-General Public License for more details. However, specific warranties might be
-granted by an additional written contract for support, assistance and/or development
-*/
-//</HEADER>
 #include "RtcPCH.h"
+
+#if defined(CC_PRAGMAHDRSTOP)
 #pragma hdrstop
+#endif //defined(CC_PRAGMAHDRSTOP)
 
 #include "DbgInterface.h"
 
@@ -38,11 +17,9 @@ granted by an additional written contract for support, assistance and/or develop
 #include "dbg/DmsCatch.h"
 #include "ser/DebugOutStream.h"
 #include "utl/Environment.h"
-#include "utl/MySPrintF.h"
+#include "utl/mySPrintF.h"
 #include "utl/swapper.h"
 #include "Parallel.h"
-
-#include <windows.h>
 
 //----------------------------------------------------------------------
 // class  : TreeItemContextNotification
@@ -56,7 +33,7 @@ namespace { // local defs
 
 extern "C" RTC_CALL void DMS_CONV DMS_SetContextNotification(TContextNotification clientFunc, ClientHandle clientHandle)
 {
-	dms_assert(IsMainThread());
+	assert(IsMainThread());
 	s_clientFunc  = clientFunc;
 	s_cientHandle = clientHandle;
 }
@@ -68,41 +45,65 @@ void ProgressMsg(CharPtr msg)
 		(*s_clientFunc)(s_cientHandle, msg);
 }
 
+/********** MsgCategory **********/
+CharPtr AsString(MsgCategory msgCat)
+{
+	switch (msgCat) {
+	case MsgCategory::other: {return "[other]"; }
+	case MsgCategory::storage_read: {return "[storage read]"; }
+	case MsgCategory::storage_write: {return "[storage write]";}
+	case MsgCategory::background_layer_connection: {return "[background layer connection]"; }
+	case MsgCategory::background_layer_request: {return "[background layer request]"; }
+	case MsgCategory::progress: {return "[progress]"; }
+	case MsgCategory::memory: {return "[memory]"; }
+	case MsgCategory::commands: { return "[commands]"; }
+	}
+	return "";
+}
 /********** AbstrContextHandle **********/
 
-THREAD_LOCAL static AbstrContextHandle* s_LastAbstrContextHandle = nullptr;
+template<typename Base>
+THREAD_LOCAL StackHandle<Base>* StackHandle<Base>::s_Last = nullptr;
 
 #if defined(MG_DEBUG)
 THREAD_LOCAL static AbstrContextHandle* sd_PrevAbstrContextHandle = nullptr;
 THREAD_LOCAL static UInt32 sd_ContextHandleCount = 0;
 #endif
 
-AbstrContextHandle::AbstrContextHandle() noexcept
-	:	m_Prev(s_LastAbstrContextHandle)
+template<typename Base>
+StackHandle<Base>::StackHandle() noexcept
+	:	m_Prev(s_Last)
 { 
-	s_LastAbstrContextHandle = this; 
+	s_Last = this; 
 #if defined(MG_DEBUG)
 	++sd_ContextHandleCount;
 	sd_PrevAbstrContextHandle = m_Prev;
 #endif
-	dms_assert(m_Prev != this);
+	assert(m_Prev != this);
 }
 
-AbstrContextHandle::~AbstrContextHandle() noexcept
-{ 
-	dms_assert(s_LastAbstrContextHandle == this);
-	dms_assert(m_Prev != this);
-	s_LastAbstrContextHandle = m_Prev;
+template<typename Base>
+StackHandle<Base>::~StackHandle() noexcept
+{
+	assert(s_Last == this);
+	assert(m_Prev != this);
+	s_Last = m_Prev;
 #if defined(MG_DEBUG)
 	--sd_ContextHandleCount;
 	dms_assert(m_Prev == sd_PrevAbstrContextHandle); // no stack frame corruption due to buffer overflow ?
 	if (m_Prev)
 		sd_PrevAbstrContextHandle = m_Prev->m_Prev;
 #endif
-	dms_assert(s_LastAbstrContextHandle != this);
+	assert(s_Last != this);
 }
 
-bool AbstrContextHandle::Describe(FormattedOutStream& fos) // default: calls GetDescription
+AbstrMsgGenerator::AbstrMsgGenerator() noexcept
+{}
+
+AbstrMsgGenerator::~AbstrMsgGenerator() noexcept
+{}
+
+bool AbstrMsgGenerator::Describe(FormattedOutStream& fos) // default: calls GetDescription
 {
 	CharPtr extraInfo = GetDescription();
 	if (!extraInfo || !*extraInfo)
@@ -112,18 +113,24 @@ bool AbstrContextHandle::Describe(FormattedOutStream& fos) // default: calls Get
 	return true;
 }
 
-CharPtr AbstrContextHandle::GetDescription()
+CharPtr AbstrMsgGenerator::GetDescription()
 {
 	return "ABSTRACT AbstrContextHandle::GetDescription()";
 }
 
-AbstrContextHandle* AbstrContextHandle::GetPrev() const
+auto AbstrMsgGenerator::ItemAsStr() const->SharedStr
+{
+	return SharedStr("ABSTRACT AbstrContextHandle::ItemAsStr()");
+}
+
+template <> AbstrContextHandle* AbstrContextHandle::GetPrev() const
 {
 	return m_Prev;
 }
 
 
-UInt32 AbstrContextHandle::GetContextLevel() const
+template<typename Base>
+UInt32 StackHandle<Base>::GetContextLevel() const
 {
 	dms_assert(this);
 	UInt32 r=1;
@@ -137,10 +144,14 @@ UInt32 AbstrContextHandle::GetContextLevel() const
 }
 
 
-AbstrContextHandle* AbstrContextHandle::GetLast()
+template<typename Base>
+StackHandle<Base>* StackHandle<Base>::GetLast()
 {
-	return s_LastAbstrContextHandle;
+	return s_Last;
 }
+
+
+template struct StackHandle<AbstrMsgGenerator>;
 
 /********** FixedContextHandle **********/
 
@@ -158,46 +169,36 @@ CharPtr SharedStrContextHandle::GetDescription()
 	return m_MsgStr.c_str(); 
 }
 
-/********** ContextHandle **********/
-
-void ContextHandle::SetText(WeakStr context) 
-{
-	m_Context = context;
-}
-
-CharPtr ContextHandle::GetDescription()
-{
-	try {
-
-		GenerateDescription();
-		return m_Context.c_str();
-
-	}
-	catch (...) {}
-	return "<ContextHandle::GenerateDescription() threw an exception>";
-}
-
 /********** ObjectContextHandle **********/
 
-void ObjectContextHandleBase::GenerateDescription()
+template <typename Base>
+void ObjectContextPolicy<Base>::GenerateDescription()
 {
 	if (!m_Role) 
 		m_Role = "Object";
 	if (m_Obj)
-		SetText(
+	{
+		auto pso = dynamic_cast<const PersistentSharedObj*>(m_Obj);
+		auto name = pso ? pso->GetFullName() : m_Obj->GetSourceName();
+		this->SetText(
 			mySSPrintF("while in %s for %s"
-			,	m_Role
-			,	m_Obj->GetSourceName().c_str()
+				, m_Role
+				, name.c_str()
 			)
 		);
+	}
 	else
-		SetText(mySSPrintF("while in %s('null')", m_Role));
+		this->SetText(mySSPrintF("while in %s('null')", m_Role));
 }
 
-bool ObjectContextHandleBase::IsFinalContext() const
+template <typename Base>
+bool ObjectContextPolicy<Base>::IsFinalContext() const
 {
 	return m_Obj && m_Obj->GetLocation() != nullptr;
 }
+
+template struct ObjectContextPolicy<MsgGenerator>;
+template struct ObjectContextPolicy<ContextHandle>;
 
 void ObjectIdContextHandle::GenerateDescription()
 {
@@ -207,29 +208,7 @@ void ObjectIdContextHandle::GenerateDescription()
 	ObjectContextHandle::GenerateDescription();
 }
 
-/********** CDebugCOutHandle  **********/
-#include <iostream>
-
-static void DMS_CONV DebugMsgCallback(ClientHandle clientHandle, SeverityTypeID st, CharPtr msg)
-{
-	std::cerr << '\n' << msg;
-}
-
-CDebugCOutHandle::CDebugCOutHandle()
-{
-	DMS_RegisterMsgCallback(DebugMsgCallback, typesafe_cast<ClientHandle>(this));
-}
-
-CDebugCOutHandle::~CDebugCOutHandle()
-{
-	DMS_ReleaseMsgCallback(DebugMsgCallback, typesafe_cast<ClientHandle>(this));
-}
-
 /********** CDebugContextHandle  **********/
-
-#include <concrt.h>
-//#include "Parallel.h"
-//#include "ptr/SharedBase.h"
 
 namespace { // local defs
 
@@ -272,8 +251,6 @@ CDebugContextHandle::~CDebugContextHandle()
 		DebugOutStream::scoped_lock lock(g_DebugStream);
 		*g_DebugStream << "} " << m_ClassName  << "::" << m_FuncName << " (" << RunningTime() << " secs)";
 	}
-
-//	PopNotification(); AVOID DIFFERENCES BETWEEN DEBUG AND RELEASE
 }
 
 void CDebugContextHandle::GenerateDescription()

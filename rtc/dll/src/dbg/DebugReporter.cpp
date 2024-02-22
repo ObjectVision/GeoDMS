@@ -27,7 +27,10 @@ granted by an additional written contract for support, assistance and/or develop
 */
 //</HEADER>
 #include "RtcPCH.h"
+
+#if defined(CC_PRAGMAHDRSTOP)
 #pragma hdrstop
+#endif //defined(CC_PRAGMAHDRSTOP)
 
 #include "mem/FixedAlloc.h"
 
@@ -41,7 +44,7 @@ granted by an additional written contract for support, assistance and/or develop
 #include "dbg/SeverityType.h"
 #include "ptr/StaticPtr.h"
 #include "ptr/OwningPtr.h"
-#include "utl/MySPrintF.h"
+#include "utl/mySPrintF.h"
 
 #include "ser/FormattedStream.h"
 
@@ -93,7 +96,7 @@ void ReportCount() // TODO RECOMPILE G8: include in DbgInterface.h
 	static int debugCounter = 0;
 	static std::mutex debugOutputSection;
 	{
-		auto serializedDebugOutput = std::scoped_lock(debugOutputSection);
+		std::lock_guard serializedDebugOutput(debugOutputSection);
 		debugCounter++;
 		reportF(SeverityTypeID::ST_MajorTrace, "GetKeyExprImpl debugCounter=%d", debugCounter);
 	}
@@ -109,10 +112,6 @@ void ReportCount() // TODO RECOMPILE G8: include in DbgInterface.h
 #if defined(MG_DEBUGREPORTER)
 
 auto test = MakeDebugCaller(
-	[]() { dms_assert(1 + 1 == 2);  }
-);
-
-auto test2 = MakeDebugCaller(
 	[]() { dms_assert(1 + 1 == 2);  }
 );
 

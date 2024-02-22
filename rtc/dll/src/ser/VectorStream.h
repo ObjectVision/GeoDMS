@@ -1,32 +1,10 @@
-//<HEADER> 
-/*
-Data & Model Server (DMS) is a server written in C++ for DSS applications. 
-Version: see srv/dms/rtc/dll/src/RtcVersion.h for version info.
+//<HEADER> // Copyright (C) 1998-2023 Object Vision b.v. 
+// License: GNU GPL 3
+/////////////////////////////////////////////////////////////////////////////
 
-Copyright (C) 1998-2004  YUSE GSO Object Vision BV. 
-
-Documentation on using the Data & Model Server software can be found at:
-http://www.ObjectVision.nl/DMS/
-
-See additional guidelines and notes in srv/dms/Readme-srv.txt 
-
-This library is free software; you can use, redistribute, and/or
-modify it under the terms of the GNU General Public License version 2 
-(the License) as published by the Free Software Foundation,
-provided that this entire header notice and readme-srv.txt is preserved.
-
-See LICENSE.TXT for terms of distribution or look at our web site:
-http://www.objectvision.nl/DMS/License.txt
-or alternatively at: http://www.gnu.org/copyleft/gpl.html
-
-This library is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
-General Public License for more details. However, specific warranties might be
-granted by an additional written contract for support, assistance and/or development
-*/
-//</HEADER>
+#if defined(_MSC_VER)
 #pragma once
+#endif
 
 #if !defined(__SER_VECTORSTREAM_H)
 #define __SER_VECTORSTREAM_H
@@ -36,6 +14,9 @@ granted by an additional written contract for support, assistance and/or develop
 #include "geo/SequenceTraits.h"
 #include "geo/Undefined.h"
 #include "ptr/IterCast.h"
+#include "ser/FormattedStream.h"
+#include "ser/PointStream.h"
+#include "ser/PolyStream.h"
 #include "ser/StreamTraits.h"
 #include "set/VectorFunc.h"
 #include "xct/DmsException.h"
@@ -118,7 +99,7 @@ void ReadBinRange(InpStream& ar, Vector& vec)
 template <typename OutStream, typename T> inline
 void WriteBinRangeImpl(OutStream& ar, const T* first, const T* last, const directcpy_streamable_tag*)
 {
-	ar.Buffer().WriteBytes(reinterpret_cast<const Byte*>(first), ThrowingConvert<SizeT>(sizeof(T)*(last-first)));
+	ar.Buffer().WriteBytes(reinterpret_cast<const Byte*>(first), sizeof(T)*(last-first));
 }
 
 template <typename OutStream, typename CFwdIt> inline
@@ -140,7 +121,7 @@ template <typename OutStream, typename Vector> inline
 void WriteBinRange(OutStream& ar, const Vector& vec)
 {
 	if (!IsDefined(vec))
-		ar << UNDEFINED_VALUE(Vector::size_type);
+		ar << UNDEFINED_VALUE(typename Vector::size_type);
 	else
 	{
 		ar << vec.size();
@@ -194,7 +175,7 @@ void ReadFormattedRange(FormattedInpStream& is, Vector& vec)
 {
 	SizeT len;
 	is >> "{" >> len >> ":";
-	vec.resize(len, Vector::value_type());
+	vec.resize(len, typename Vector::value_type());
 	typename Vector::iterator first = vec.begin();
 	typename Vector::iterator last  = vec.end();
 	while (first != last && !is.Buffer().AtEnd())

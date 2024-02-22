@@ -1,11 +1,16 @@
 #include "TicPCH.h"
+
+#if defined(CC_PRAGMAHDRSTOP)
 #pragma hdrstop
+#endif //defined(CC_PRAGMAHDRSTOP)
 
 #include "DataController.h"
 
 #include "act/TriggerOperator.h"
 #include "act/UpdateMark.h"
 #include "dbg/SeverityType.h"
+#include "ser/AsString.h"
+#include "utl/mySPrintF.h"
 
 #include "LispRef.h"
 
@@ -154,11 +159,7 @@ garbage_t TreeItemDualRef::DecDataInterestCount() const
 	dbg_assert( m_State.Get(DCFD_DataCounted));
 	auto result = m_Data->DecInterestCount();
 	MG_DEBUGCODE( m_State.Clear(DCFD_DataCounted));
-/*
-	result |= std::move(m_Data);
-	m_State.Clear(DCF_IsOld | DCF_IsTmp);
-	dms_assert(!m_Data);
-*/
+
 	return result;
 }
 
@@ -207,7 +208,7 @@ void DataControllerContextHandle::GenerateDescription()
 
 namespace {
 
-	DataController* CreateDC(LispPtr keyExpr)
+	DataControllerRef CreateDC(LispPtr keyExpr)
 	{
 
 #if defined(MG_DEBUG_LISP_TREE)
@@ -239,14 +240,7 @@ namespace {
 			}
 			const AbstrOperGroup* og = AbstrOperGroup::FindName(head->GetSymbID());
 			dms_assert(og->MustCacheResult());
-//			if (og->MustCacheResult())
 			return new FuncDC(keyExpr, og);
-/* REMOVE
-			else if (og->IsTemplateCall())
-				return new TemplDC(keyExpr, og);
-			else
-				return new CompoundDC(keyExpr, og);
-*/
 		}
 		else if (keyExpr.IsSymb())
 			return new SymbDC(keyExpr, keyExpr.GetSymbID());
@@ -259,60 +253,32 @@ namespace {
 		}
 		else
 		{
-			dms_assert(keyExpr.IsUI64());
+			assert(keyExpr.IsUI64());
 			return new UI64DC(keyExpr);
 		}
 	}
 }	// anonymous namespace
 
 // *****************************************************************************
-// Section:     DataControllerMap Component
+// auxiliary contructs
 // *****************************************************************************
 
-DataControllerMap::~DataControllerMap()
-{
-	#if defined(MG_DEBUG_DATA)
+/********** DataControllerMap **********/
 
-		UInt32 n = size();
-		if (n)
-		{
-			TreeItemAdmLock::Report(); // present additional info. Note that some non-config specific items might be destroyed later
+using DataControllerMap = std::map<DataController::DataControllerKey, const DataController*>;
 
-			DataControllerMap::const_iterator i = begin(), e = end();
-			UInt32 c=0;
-			while (i!=e)
-			{
-				const DataController* dcPtr = (*i++).second;
-				reportF(SeverityTypeID::ST_MajorTrace, "MemoryLeak DataController(%d, %d, %d): %s",
-					c++, 
-					dcPtr->GetRefCount(), 
-					dcPtr->GetInterestCount(), 
-					#if defined (MG_DEBUG_DCDATA)
-						dcPtr->md_sKeyExpr.c_str()
-					#else
-						AsFLispSharedStr(dcPtr->GetLispRef()).c_str()
-					#endif
-				);
-			}			
-			reportF(SeverityTypeID::ST_Error, "MemoryLeak of %u DataControllers. See EventLog for details.", n);
-		}
-	#endif
-	dms_assert(!size());
-}
-
+static DataControllerMap s_DcMap;
+static std::mutex sd_DataControllerMapCriticalSeciton;
+static std::condition_variable sd_DataControllerMapCriticalSectionWasRevisited;
 
 // *****************************************************************************
 // Section:     DataController Implementation
 // *****************************************************************************
 
-#include "SessionData.h"
-
-inline DataControllerMap& CurrDcMap() { return SessionData::Curr()->GetDcMap(); }
-
 DataController::DataController(LispPtr keyExpr)
 	:	m_Key(keyExpr)
 #if defined(MG_DEBUG_DCDATA)
-	,	md_sKeyExpr(AsFLispSharedStr(keyExpr))
+	,	md_sKeyExpr(AsFLispSharedStr(keyExpr, FormattingFlags::ThousandSeparator))
 #endif
 {}
 
@@ -321,34 +287,53 @@ DataController::~DataController()
 	dms_assert(GetInterestCount() == 0);
 	dms_assert(!IsNew() || m_Data->GetInterestCount() == 0 || (m_Data->GetRefCount() > 1));
 
-	CurrDcMap().erase(m_Key);
+	std::lock_guard dcLock(sd_DataControllerMapCriticalSeciton);
+
+	s_DcMap.erase(m_Key);
+
+	sd_DataControllerMapCriticalSectionWasRevisited.notify_all();
 }
 
 DataControllerRef
 GetDataControllerImpl(LispPtr keyExpr, bool mayCreate)
 {
+	MG_CHECK(IsMainThread() || !mayCreate);
+
 	if (keyExpr.EndP())
 		return {};
 
-	DataControllerMap& dcMap = CurrDcMap();
-	DataControllerMap::iterator dcPtrLoc = dcMap.lower_bound(keyExpr);
-	
-	if (dcPtrLoc != dcMap.end() && dcPtrLoc->first == keyExpr)
-		return dcPtrLoc->second;
-	if (!mayCreate)
-		return nullptr;
+	DataControllerMap::iterator dcPtrLoc;
+	{
+		auto dcLock = std::unique_lock(sd_DataControllerMapCriticalSeciton);
 
+	retry:
+		dcPtrLoc = s_DcMap.lower_bound(keyExpr);
+		if (dcPtrLoc != s_DcMap.end() && dcPtrLoc->first == keyExpr)
+		{
+			if (!dcPtrLoc->second->IsOwned()) // destruction is pending, wait for it and retry
+			{
+				sd_DataControllerMapCriticalSectionWasRevisited.wait(dcLock);
+				goto retry;
+			}
+			return dcPtrLoc->second;
+		}
+		if (!mayCreate)
+			return nullptr;
+	}
+	// we now have uqiue access to dcPtrLoc, as this is only called from one thread and keyExpr cannot be self-referential.
 #if defined(MG_DEBUG_LISP_TREE)
 	reportD(SeverityTypeID::ST_MinorTrace, "===GetDataController===");
 	reportD(SeverityTypeID::ST_MinorTrace, AsString(keyExpr).c_str());
 #endif
-	dms_assert(!keyExpr.EndP()); // entry condition
+	assert(!keyExpr.EndP()); // entry condition
+	assert(mayCreate);
+	assert(IsMainThread());
 
-	DataControllerRef dcRef = CreateDC(keyExpr);
-	dms_assert(dcRef->GetLispRef() == keyExpr);
+	auto dcRef = CreateDC(keyExpr);
+	assert(dcRef->GetLispRef() == keyExpr);
 
-	dcMap.insert(dcPtrLoc, DataControllerMap::value_type(keyExpr, dcRef));
-
+	std::lock_guard scopedcLock(sd_DataControllerMapCriticalSeciton);
+	s_DcMap.insert(dcPtrLoc, DataControllerMap::value_type(keyExpr, dcRef));
 	return dcRef;
 }
 
@@ -410,7 +395,7 @@ FutureData DataController::CalcCertainResult()  const
 
 SharedStr DataController::GetSourceName() const
 {
-	auto keyStr = AsFLispSharedStr(m_Key);
+	auto keyStr = AsFLispSharedStr(m_Key, FormattingFlags::None);
 	return mySSPrintF("%s: %s"
 		,	keyStr.c_str()
 		,	GetClsName().c_str()
@@ -440,8 +425,6 @@ bool DataController::IsCalculating() const
 
 void DataController::DoInvalidate () const
 {
-	DataStoreManager::Curr()->InvalidateDC(this);
-
 	TreeItemDualRef::DoInvalidate();
 
 	dms_assert(DoesHaveSupplInterest() || !GetInterestCount());

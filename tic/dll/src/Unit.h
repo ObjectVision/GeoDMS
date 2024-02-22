@@ -1,31 +1,7 @@
-//<HEADER> 
-/*
-Data & Model Server (DMS) is a server written in C++ for DSS applications. 
-Version: see srv/dms/rtc/dll/src/RtcVersion.h for version info.
+// Copyright (C) 1998-2023 Object Vision b.v. 
+// License: GNU GPL 3
+/////////////////////////////////////////////////////////////////////////////
 
-Copyright (C) 1998-2004  YUSE GSO Object Vision BV. 
-
-Documentation on using the Data & Model Server software can be found at:
-http://www.ObjectVision.nl/DMS/
-
-See additional guidelines and notes in srv/dms/Readme-srv.txt 
-
-This library is free software; you can use, redistribute, and/or
-modify it under the terms of the GNU General Public License version 2 
-(the License) as published by the Free Software Foundation,
-provided that this entire header notice and readme-srv.txt is preserved.
-
-See LICENSE.TXT for terms of distribution or look at our web site:
-http://www.objectvision.nl/DMS/License.txt
-or alternatively at: http://www.gnu.org/copyleft/gpl.html
-
-This library is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
-General Public License for more details. However, specific warranties might be
-granted by an additional written contract for support, assistance and/or development
-*/
-//</HEADER>
 #pragma once
 
 #if !defined(__TIC_UNIT_H)
@@ -35,11 +11,12 @@ granted by an additional written contract for support, assistance and/or develop
 // used modules and forward class references
 //----------------------------------------------------------------------
 
+#include "geo/CheckedCalc.h"
 #include "geo/RangeIndex.h"
+#include "geo/SequenceArray.h"
 #include "ptr/LifetimeProtector.h"
 #include "ser/PointStream.h"
 #include "ser/RangeStream.h"
-#include "geo/SequenceArray.h"
 
 #include "AbstrUnit.h"
 #include "TiledRangeData.h"
@@ -148,6 +125,7 @@ struct VarNumRangeUnitAdapter : NumRangeUnitAdapterBase<U> // all numeric object
 	static_assert(has_var_range_field_v<U>);
 	// Support for Numerics
 	TIC_CALL void SetRangeAsFloat64(Float64 begin, Float64 end) override;
+	TIC_CALL void SetRangeAsUInt64 (UInt64 begin, UInt64 end) override;
 };
 
 template <typename U> 
@@ -206,7 +184,7 @@ struct CountableUnitBase : RangedUnit<V> // all integral objects and integral po
 	TIC_CALL void SetRange(const range_t& range) override;
 	TIC_CALL void SetMaxRange() override;
 
-	auto GetTiledRangeData() const  -> const AbstrTileRangeData* override;
+	auto GetTiledRangeData() const -> SharedPtr<const AbstrTileRangeData> override;
 
 	bool IsTiled() const override;
 	bool IsCurrTiled() const override;
@@ -265,10 +243,6 @@ struct OrderedUnit : CountableUnit<V>
 	static_assert(std::is_integral_v<V>);
 
 	row_id GetBase() const override { return this->GetRange().first; }
-	// 
-	//	Support for OrderedUnits
-	void Split   (row_id pos, row_id len) override;
-	void Merge   (row_id pos, row_id len) override;
 
 	V GetTileFirstValue (tile_id t) const;
 	V GetTileValue (tile_id t, tile_offset localIndex) const;
@@ -295,25 +269,27 @@ struct BitUnitBase : UnitBase<bit_value<N>>
 
 	typedef bit_value<N>  value_t;
 	typedef Range<UInt32> range_t;
+	using range_data_t = FixedRange<N>;
 
 	static const UInt32 elem_count = mpf::exp2<N>::value;
 
-	auto GetTiledRangeData() const  -> const AbstrTileRangeData* override { 
-		static SharedPtr<FixedRange<N>> s_RangeData = new FixedRange<N>;
-		return s_RangeData;
-	}
+	auto GetTiledRangeData() const -> SharedPtr <const AbstrTileRangeData> override { return GetCurrSegmInfo(); }
 
 	range_t GetRange() const { return range_t(0, elem_count); }
-//	range_t GetPreparedRange() const { return GetRange(); }
 
 	range_t GetTileRange(tile_id t) const { dms_assert(t == 0); return range_t(0, elem_count); }
-//	range_t GetPreparedTileRange(tile_id t) const { return GetTileRange(t); }
 
 	SharedStr GetRangeAsStr() const override { return AsString(GetRange()); }
 
 //	Support for Numerics; TODO merge this func with the NumericUnitAdapter version
 	value_t GetValueAtIndex (SizeT   i) const { return i; }
 	SizeT  GetIndexForValue(value_t v) const { return v; }
+
+	auto GetCurrSegmInfo() const -> SharedPtr<const range_data_t> {
+		static SharedPtr<const range_data_t> s_RangeData = new range_data_t;
+		return s_RangeData;
+	}
+	auto GetSegmInfo() const -> SharedPtr <const range_data_t> { return GetCurrSegmInfo(); }
 };
 
 //----------------------------------------------------------------------
@@ -321,20 +297,20 @@ struct VoidUnitBase : UnitBase<Void>
 {
 	static_assert(!has_var_range_field_v<Void>);
 
-	typedef Void          value_t;
-	typedef Range<UInt32> range_t;
+	using value_t = Void;
+	using range_t = Range<UInt32>;
 
-	auto GetTiledRangeData() const  -> const AbstrTileRangeData* override {
+	auto GetTiledRangeData() const  -> SharedPtr<const AbstrTileRangeData> override {
 		static SharedPtr<FixedRange<0>> s_RangeData = new FixedRange<0>;
-		return s_RangeData;
+		return s_RangeData.get();
 	}
 
 	range_t GetRange() const { return range_t(0, 1); }
-	range_t GetTileRange(tile_id t) const { dms_assert(t==0); return range_t(0, 1); }
+	range_t GetTileRange(tile_id t) const { assert(t==0); return range_t(0, 1); }
 
 // Support for Numerics
-	value_t GetValueAtIndex (row_id   i) const { dms_assert(!i); return Void(); }
-	row_id  GetIndexForValue(value_t v) const { return 0; }
+	value_t GetValueAtIndex (row_id i) const { assert(!i); return Void(); }
+	row_id  GetIndexForValue(value_t ) const { return 0; }
 };
 
 template <bit_size_t N>
@@ -404,8 +380,8 @@ auto get_range_ptr_of_valuesunit(const Unit<E>* valuesUnitPtr)
 		if (valuesUnitPtr)
 		{
 			dbg_assert(valuesUnitPtr->CheckMetaInfoReadyOrPassor());
-			dms_assert(valuesUnitPtr == valuesUnitPtr->GetCurrRangeItem()); // PRECONDITION ? REMOVE !
-			dms_assert(valuesUnitPtr->m_RangeDataPtr); // DEBUG TEST
+//			dms_assert(valuesUnitPtr == valuesUnitPtr->GetCurrRangeItem()); // PRECONDITION ? REMOVE !
+//			dms_assert(valuesUnitPtr->m_RangeDataPtr); // DEBUG TEST
 
 			valuesUnitPtr = const_unit_cast<E>(valuesUnitPtr->GetCurrRangeItem()); // Or fix it here
 			if (!valuesUnitPtr->m_RangeDataPtr)
@@ -414,7 +390,7 @@ auto get_range_ptr_of_valuesunit(const Unit<E>* valuesUnitPtr)
 	}
 	if (!valuesUnitPtr)
 		valuesUnitPtr = const_unit_cast<E>(Unit<E>::GetStaticClass()->CreateDefault());
-	dms_assert(valuesUnitPtr);
+	assert(valuesUnitPtr);
 	return valuesUnitPtr->m_RangeDataPtr;
 }
 

@@ -141,7 +141,7 @@ extern "C" TIC_CALL void DMS_CONV DMS_TreeItem_RegisterStateChangeNotification(T
 		if (!g_TreeItemStateChangeNotificationSink) 
 			g_TreeItemStateChangeNotificationSink.assign( new TTreeItemStateChangeNotificationSinkContainer );
 
-		dms_assert(g_TreeItemStateChangeNotificationSink);
+		assert(g_TreeItemStateChangeNotificationSink);
 
 		g_TreeItemStateChangeNotificationSink->insert(
 				TTreeItemStateChangeNotificationSink(self, TStateChangeNotificationSink(fcb, clientHandle))

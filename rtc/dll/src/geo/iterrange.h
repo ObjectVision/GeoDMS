@@ -1,42 +1,19 @@
-//<HEADER> 
-/*
-Data & Model Server (DMS) is a server written in C++ for DSS applications. 
-Version: see srv/dms/rtc/dll/src/RtcVersion.h for version info.
+// Copyright (C) 1998-2023 Object Vision b.v. 
+// License: GNU GPL 3
+/////////////////////////////////////////////////////////////////////////////
 
-Copyright (C) 1998-2004  YUSE GSO Object Vision BV. 
-
-Documentation on using the Data & Model Server software can be found at:
-http://www.ObjectVision.nl/DMS/
-
-See additional guidelines and notes in srv/dms/Readme-srv.txt 
-
-This library is free software; you can use, redistribute, and/or
-modify it under the terms of the GNU General Public License version 2 
-(the License) as published by the Free Software Foundation,
-provided that this entire header notice and readme-srv.txt is preserved.
-
-See LICENSE.TXT for terms of distribution or look at our web site:
-http://www.objectvision.nl/DMS/License.txt
-or alternatively at: http://www.gnu.org/copyleft/gpl.html
-
-This library is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
-General Public License for more details. However, specific warranties might be
-granted by an additional written contract for support, assistance and/or development
-*/
-//</HEADER>
 #pragma once
 
 #if !defined(__RTC_GEO_ITERRANGE_H)
 #define __RTC_GEO_ITERRANGE_H
 
 #include "geo/Couple.h"
-#include "geo/sequenceTraits.h"
+#include "geo/IterTraits.h"
 #include "geo/StringBounds.h"
 #include "ptr/IterCast.h"
+#include "geo/SequenceTraits.h"
 
-#include <xutility>
+// REMOVE ? #include <xutility>
 
 //=======================================
 // IterRange
@@ -61,18 +38,18 @@ struct IterRange : Couple<Iter>
 	using size_type       = typename sizetype_of_iterator<iterator>::type;
 	using difference_type = typename difftype_of_iterator<iterator>::type;
 
-	IterRange(Iter first, Iter second)   : Couple<Iter>(first, second)  { dms_assert((first == iterator() == (second == iterator()))); }
-	IterRange(Iter first, std::size_t n) : Couple<Iter>(first, first+n) { dms_assert((first == iterator() == (second == iterator()))); }
+	IterRange(Iter first, Iter second)   : Couple<Iter>(first, second)  { assert(((first == iterator()) == (second == iterator()))); }
+	IterRange(Iter first, std::size_t n) : Couple<Iter>(first, first+n) { assert(((first == iterator()) == (second == iterator()))); }
 
 	template <std::size_t N>
-	IterRange(value_type values[N]) : Couple(values, values+ N) { dms_assert((first == iterator() == (second == iterator()))); }
+	IterRange(value_type values[N]) : Couple<Iter>(values, values+ N)   { assert(((first == iterator()) == (second == iterator()))); }
 
 //	special ctor to identify an Undefined sequence (as a NULL string value in SQL)
-	IterRange() {}
+	IterRange() {} // value-initialisation
 
 	template <typename CIter>
 		IterRange(const IterRange<CIter>& src)
-			:	Couple(src.begin(), src.end())
+			:	Couple<Iter>(src.begin(), src.end())
 		{}
 
 	template <typename Container>
@@ -126,30 +103,5 @@ IterRange<Iter> UndefinedValue(const IterRange<Iter>*)
 {
 	return IterRange<Iter>();
 }
-
-struct CharPtrRange : IterRange<CharPtr> {
-	CharPtrRange() {}
-	CharPtrRange(Undefined) {} // creates an Undefined values, for an empty string, construct from ""
-
-	CharPtrRange(CharPtr str) : IterRange(str, str + StrLen(str)) {}
-
-//	template <typename Char, int N>
-//	CharPtrRange(Char str[N]) : IterRange(str, str + (N > 0 && !str[N - 1] ? N - 1 : N))
-//	{}
-	CharPtrRange(iterator first, iterator second) : IterRange(first, second) 
-	{}
-	CharPtrRange(iterator first, std::size_t n) : IterRange(first, n) 
-	{}
-};
-
-typedef IterRange<char*> MutableCharPtrRange;
-
-template <typename Char, typename Traits>
-std::basic_ostream<Char, Traits>& operator << (std::basic_ostream<Char, Traits>& os, CharPtrRange x)
-{
-	os.write(x.cbegin(), x.size());
-	return os;
-}
-
 
 #endif // !defined(__RTC_GEO_ITERRANGE_H)

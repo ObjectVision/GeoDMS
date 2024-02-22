@@ -1,41 +1,11 @@
-//<HEADER> 
-/*
-Data & Model Server (DMS) is a server written in C++ for DSS applications. 
-Version: see srv/dms/rtc/dll/src/RtcVersion.h for version info.
-
-Copyright (C) 1998-2004  YUSE GSO Object Vision BV. 
-
-Documentation on using the Data & Model Server software can be found at:
-http://www.ObjectVision.nl/DMS/
-
-See additional guidelines and notes in srv/dms/Readme-srv.txt 
-
-This library is free software; you can use, redistribute, and/or
-modify it under the terms of the GNU General Public License version 2 
-(the License) as published by the Free Software Foundation,
-provided that this entire header notice and readme-srv.txt is preserved.
-
-See LICENSE.TXT for terms of distribution or look at our web site:
-http://www.objectvision.nl/DMS/License.txt
-or alternatively at: http://www.gnu.org/copyleft/gpl.html
-
-This library is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
-General Public License for more details. However, specific warranties might be
-granted by an additional written contract for support, assistance and/or development
-*/
-//</HEADER>
-// SheetVisualTestView.h : interface of the DataView class
-//
+// Copyright (C) 1998-2023 Object Vision b.v. 
+// License: GNU GPL 3
 /////////////////////////////////////////////////////////////////////////////
+
+#pragma once
 
 #if !defined(__SHV_EDITPALETTE_H)
 #define __SHV_EDITPALETTE_H
-
-#if _MSC_VER >= 1000
-#pragma once
-#endif // _MSC_VER >= 1000
 
 //----------------------------------------------------------------------
 // used modules and forward class references
@@ -117,22 +87,21 @@ protected: // override GraphicObject virtuals
 	void FillMenu(MouseEventDispatcher& med) override;
 	bool OnCommand(ToolButtonID id) override;
 	void Sync(TreeItem* viewContext, ShvSyncMode sm) override;
-	void ProcessSize(TPoint viewClientSize) override;
+	void ProcessSize(CrdPoint viewClientSize) override;
 
 //	override Actor virtuals
 	void DoInvalidate() const override;
 
 	void ClassifyUniqueValues ();
 	void ClassifyEqualCount   ();
+	void ClassifyNZEqualCount ();
 	void ClassifyEqualInterval();
+	void ClassifyNZEqualInterval();
 	void ClassifyJenksFisher  (bool separateZero);
 	void ClassifyNZJenksFisher() { ClassifyJenksFisher(true); } // separate out zero
 	void ClassifyCRJenksFisher() { ClassifyJenksFisher(false); } // Continuous Range without special treatment of zero
 
 	void ClassifyLogInterval  ();
-
-	void ClassSplit();
-	void ClassMerge();
 
 	void UpdateCounts();
 
@@ -150,7 +119,7 @@ private:
 	void UpdateNrClasses();
 
 public:
-	TPoint CalcMaxSize() const override;
+	CrdPoint CalcMaxSize() const override;
 
 private:
 	SharedDataItemInterestPtr           m_ThemeAttr;
@@ -186,6 +155,8 @@ public:
 	EditPaletteView(TreeItem* viewContents, GraphicLayer*  layer,     const AbstrDataItem* themeAttr);
 	EditPaletteView(TreeItem* viewContents, AbstrDataItem* classAttr, const AbstrDataItem* themeAttr, const AbstrUnit* themeUnit, ShvSyncMode sm);
 	EditPaletteView(TreeItem* viewContents, ShvSyncMode sm);
+
+	auto GetViewType() const -> ViewStyle override { return ViewStyle::tvsPaletteEdit;  }
 
 	      EditPaletteControl* GetEditPaletteControl()       { return debug_cast<      EditPaletteControl*>(GetContents().get()); }
 	const EditPaletteControl* GetEditPaletteControl() const { return debug_cast<const EditPaletteControl*>(GetContents().get()); }

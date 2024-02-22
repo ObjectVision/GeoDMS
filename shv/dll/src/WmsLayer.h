@@ -93,7 +93,7 @@ protected:
 	const AbstrUnit* GetGeoCrdUnit() const override { throwIllegalAbstract(MG_POS, this, "GetGeoCrdUnit"); }
 
 	CrdRect CalcSelectedFullWorldRect() const override { throwIllegalAbstract(MG_POS, this, "CalcSelectedFullWorldRect"); }
-	void _InvalidateFeature(SizeT featureIndex) override { throwIllegalAbstract(MG_POS, this, "_InvalidateFeature"); }
+	void InvalidateFeature(SizeT featureIndex) override { throwIllegalAbstract(MG_POS, this, "_InvalidateFeature"); }
 
 	void Sync(TreeItem* viewContext, ShvSyncMode sm);
 

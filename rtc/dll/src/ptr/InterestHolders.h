@@ -32,8 +32,8 @@ granted by an additional written contract for support, assistance and/or develop
 //  Name        : dms\tic\src\InterestHolders.h
 //  -----------------------------------------------------------------------
 
-#if !defined(__TIC_TI_INTERESTHOLDER_H)
-#define __TIC_TI_INTERESTHOLDER_H
+#if !defined(__RTC_PTR_INTERESTHOLDER_H)
+#define __RTC_PTR_INTERESTHOLDER_H
 
 #include "RtcBase.h"
 #include "act/any.h"
@@ -165,7 +165,7 @@ private:
 // class  : Specific InterestPtrs
 //----------------------------------------------------------------------
 
-typedef InterestPtr<SharedPtr<const Actor> > SharedActorInterestPtr;
+using SharedActorInterestPtr = InterestPtr<SharedPtr<const Actor> >;
 
 
-#endif // __TIC_TI_INTERESTHOLDER_H
+#endif // __RTC_PTR_INTERESTHOLDER_H

@@ -28,14 +28,17 @@ granted by an additional written contract for support, assistance and/or develop
 //</HEADER>
 
 #include "GeoPCH.h"
+
+#if defined(CC_PRAGMAHDRSTOP)
 #pragma hdrstop
+#endif //defined(CC_PRAGMAHDRSTOP)
 
 #include "SpatialAnalyzer.h"
 
-#include "dbg/Debug.h"
+#include "dbg/debug.h"
 #include "geo/Conversions.h"
 #include "geo/PointOrder.h"
-#include "mth/MathLib.h"
+#include "mth/Mathlib.h"
 
 // *****************************************************************************
 //											TForm
@@ -364,10 +367,10 @@ void SpatialAnalyzer<T>::GetDiversity1()
 
 	DivVectorType divVector(m_InputUpperBound, DivCountType(0));
 
-	ICoordType rowBegin= _Top   (m_Rectangle);
-	ICoordType rowEnd  = _Bottom(m_Rectangle);
-	ICoordType colBegin= _Left  (m_Rectangle);
-	ICoordType colEnd  = _Right (m_Rectangle);
+	ICoordType rowBegin= Top   (m_Rectangle);
+	ICoordType rowEnd  = Bottom(m_Rectangle);
+	ICoordType colBegin= Left  (m_Rectangle);
+	ICoordType colEnd  = Right (m_Rectangle);
 	for (ICoordType row = rowBegin; row != rowEnd; row++)
 	{
 		bool

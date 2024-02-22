@@ -44,7 +44,7 @@ struct IndexRange : Couple<T>
 	using Couple<T>::first;
 	using Couple<T>::second;
 
-	IndexRange()	{}
+	IndexRange() {} // value-initialize
 	IndexRange(T v1, T v2): Couple<T>(v1, v2)  {}
 
 	IndexRange(Undefined): Couple<T>(Undefined() ) {}

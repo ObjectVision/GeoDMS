@@ -41,12 +41,12 @@ granted by an additional written contract for support, assistance and/or develop
 #include "StgBase.h"
 
 // storagemanager for saving string info
-class StrStorageManager : public AbstrStorageManager
+class StrStorageManager : public NonmappableStorageManager
 {
 	void DoUpdateTree(const TreeItem* storageHolder, TreeItem* curr, SyncMode sm) const override;
 
 protected:
-	bool ReadDataItem(const StorageMetaInfo& smi, AbstrDataObject* borrowedReadResultHolder, tile_id t) override;
+	bool ReadDataItem(StorageMetaInfoPtr smi, AbstrDataObject* borrowedReadResultHolder, tile_id t) override;
 	bool WriteDataItem(StorageMetaInfoPtr&& smiHolder) override;
 
 	virtual SharedStr GetFileName(const TreeItem* storageHolder, const TreeItem* curr, SizeT recNo) const;
@@ -63,7 +63,7 @@ public:
 	void DoUpdateTree (const TreeItem* storageHolder, TreeItem* curr, SyncMode sm) const override;
 
 	StorageMetaInfoPtr GetMetaInfo(const TreeItem* storageHolder, TreeItem* adi, StorageAction) const override;
-	bool ReadDataItem(const StorageMetaInfo& smi, AbstrDataObject* borrowedReadResultHolder, tile_id t) override;
+	bool ReadDataItem(StorageMetaInfoPtr smi, AbstrDataObject* borrowedReadResultHolder, tile_id t) override;
 	bool WriteDataItem(StorageMetaInfoPtr&& smiHolder) override;
 
 protected:

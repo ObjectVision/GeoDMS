@@ -1,40 +1,20 @@
-//<HEADER> 
-/*
-Data & Model Server (DMS) is a server written in C++ for DSS applications. 
-Version: see srv/dms/rtc/dll/src/RtcVersion.h for version info.
-
-Copyright (C) 1998-2004  YUSE GSO Object Vision BV. 
-
-Documentation on using the Data & Model Server software can be found at:
-http://www.ObjectVision.nl/DMS/
-
-See additional guidelines and notes in srv/dms/Readme-srv.txt 
-
-This library is free software; you can use, redistribute, and/or
-modify it under the terms of the GNU General Public License version 2 
-(the License) as published by the Free Software Foundation,
-provided that this entire header notice and readme-srv.txt is preserved.
-
-See LICENSE.TXT for terms of distribution or look at our web site:
-http://www.objectvision.nl/DMS/License.txt
-or alternatively at: http://www.gnu.org/copyleft/gpl.html
-
-This library is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
-General Public License for more details. However, specific warranties might be
-granted by an additional written contract for support, assistance and/or development
-*/
-//</HEADER>
+// Copyright (C) 1998-2023 Object Vision b.v. 
+// License: GNU GPL 3
+/////////////////////////////////////////////////////////////////////////////
 
 #include "RtcPCH.h"
+
+#if defined(CC_PRAGMAHDRSTOP)
 #pragma hdrstop
+#endif //defined(CC_PRAGMAHDRSTOP)
 
 #include "ptr/OwningPtr.h"
 #include "ptr/SharedStr.h"
 
 #include "geo/iterrangefuncs.h"
 #include "geo/StringBounds.h"
+
+#include <algorithm>
 
 //============================= SharedStr Creators
 
@@ -126,8 +106,20 @@ bool SharedCharArrayPtr::operator < (CharPtr b) const
 	dms_assert(b && IsDefined());
 	if (empty())
 		return *b;
-	return  strnicmp(begin(), b, ssize())< 0; 
+	assert(m_Ptr);
+	auto sz = m_Ptr->size();
+	assert(sz);
+	assert(begin()[sz-1] == char(0));
+	return strnicmp(begin(), b, sz) < 0;
 }
+
+CharPtrRange SharedCharArrayPtr::AsRange() const
+{ 
+	if (!has_ptr())
+		return {};
+	return CharPtrRange(get_ptr()->begin(), get_ptr()->end() - 1);
+}
+
 bool SharedCharArrayPtr::operator ==(CharPtr b) const
 { 
 	if (!IsDefined())
@@ -137,7 +129,11 @@ bool SharedCharArrayPtr::operator ==(CharPtr b) const
 	dms_assert(b && IsDefined());
 	if (empty())
 		return !*b;
-	return  strnicmp(begin(), b, ssize()) == 0; 
+	assert(m_Ptr);
+	auto sz = m_Ptr->size();
+	assert(sz);
+	assert(begin()[sz-1] == char(0));
+	return strnicmp(begin(), b, sz) == 0;
 }
 
 bool SharedCharArrayPtr::operator !=(CharPtr b) const
@@ -149,7 +145,28 @@ bool SharedCharArrayPtr::operator !=(CharPtr b) const
 	dms_assert(b && IsDefined());
 	if (empty())
 		return *b;
-	return  strnicmp(begin(), b, ssize()) != 0; 
+	assert(m_Ptr);
+	auto sz = m_Ptr->size();
+	assert(sz);
+	assert(begin()[sz-1] == char(0));
+	return strnicmp(begin(), b, sz) != 0;
+}
+
+std::string SharedCharArrayPtr::AsStdString() const 
+{ 
+	auto ptr = get_ptr();
+	if (!::IsDefined(ptr))
+		return std::string(UNDEFINED_VALUE_STRING, UNDEFINED_VALUE_STRING_LEN);
+	assert(ptr);
+	assert(ptr->size());
+	return std::string(ptr->begin(), ptr->size() - 1);
+}
+
+//============================= WeakStr
+
+RTC_CALL WeakStr::operator CharPtrRange() const
+{
+	return { begin(), send() };
 }
 
 //============================= SharedStr mfuncs
@@ -164,6 +181,15 @@ SharedStr::SharedStr() noexcept
 SharedStr::SharedStr(const SA_ConstReference<char>& range)
 	:	base_type(SharedCharArray_Create(range.begin(), range.end()) )
 {}
+
+SharedStr::SharedStr(MutableCharPtrRange range)
+	: base_type(SharedCharArray_Create(range.begin(), range.end())) 
+{}
+
+SharedStr::SharedStr(CharPtrRange range) 
+	: base_type(SharedCharArray_Create(range.begin(), range.end())) 
+{}
+
 
 SharedStr::SharedStr(TokenID id)
 	:	base_type(SharedCharArray_Create(id)) 
@@ -189,6 +215,12 @@ void SharedStr::MakeUnique()
 	dms_assert(!has_ptr() || get_ptr()->GetRefCount() == 1 || !ssize());
 }
 
+MutableCharPtrRange SharedStr::GetAsMutableRange() 
+{ 
+	MakeUnique(); 
+	return MutableCharPtrRange(const_cast<char*>(begin()), const_cast<char*>(send())); 
+}
+
 void SharedStr::resize(SizeT sz)
 {
 	MakeUnique();
@@ -209,6 +241,22 @@ void SharedStr::resize(SizeT sz)
 		,	result->end()
 		);
 	}
+}
+
+bool SharedStr::contains(CharPtrRange subStr)
+{
+	assert(!subStr.empty());
+	return std::search(begin(), end(), subStr.first, subStr.second) != end();
+}
+
+bool SharedStr::contains_case_insensitive(CharPtrRange subStr)
+{
+	bool str_contains_substr = std::search(begin(), end(), subStr.first, subStr.second
+		, [](unsigned char a, unsigned char b) { 
+			return std::tolower(a) == std::tolower(b); 
+		}
+	) != end();
+	return str_contains_substr;
 }
 
 void SharedStr::insert(SizeT pos, char ch) 
@@ -264,6 +312,11 @@ RTC_CALL SharedStr SharedStr::replace(CharPtr key, CharPtr val) const
 	*r = char(0);
 	dms_assert(++r == sca->end()); // mutates res ONLY in debug mode but this cannot have side effects
 	return result;
+}
+
+SharedStr::operator CharPtrRange() const
+{ 
+	return AsRange(); 
 }
 
 void SharedStr::clear() 

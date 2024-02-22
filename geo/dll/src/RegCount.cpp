@@ -1,34 +1,12 @@
-//<HEADER> 
-/*
-Data & Model Server (DMS) is a server written in C++ for DSS applications. 
-Version: see srv/dms/rtc/dll/src/RtcVersion.h for version info.
-
-Copyright (C) 1998-2004  YUSE GSO Object Vision BV. 
-
-Documentation on using the Data & Model Server software can be found at:
-http://www.ObjectVision.nl/DMS/
-
-See additional guidelines and notes in srv/dms/Readme-srv.txt 
-
-This library is free software; you can use, redistribute, and/or
-modify it under the terms of the GNU General Public License version 2 
-(the License) as published by the Free Software Foundation,
-provided that this entire header notice and readme-srv.txt is preserved.
-
-See LICENSE.TXT for terms of distribution or look at our web site:
-http://www.objectvision.nl/DMS/License.txt
-or alternatively at: http://www.gnu.org/copyleft/gpl.html
-
-This library is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
-General Public License for more details. However, specific warranties might be
-granted by an additional written contract for support, assistance and/or development
-*/
-//</HEADER>
+// Copyright (C) 1998-2023 Object Vision b.v. 
+// License: GNU GPL 3
+/////////////////////////////////////////////////////////////////////////////
 
 #include "GeoPCH.h"
+
+#if defined(CC_PRAGMAHDRSTOP)
 #pragma hdrstop
+#endif //defined(CC_PRAGMAHDRSTOP)
 
 #include "RtcTypeLists.h"
 #include "act/any.h"
@@ -65,10 +43,10 @@ oper_arg_policy oap_regCount[4] = {
 	oper_arg_policy::calc_always
 };
 
-SpecialOperGroup sog_regCount  ("reg_count"       , 4, oap_regCount);
-SpecialOperGroup sog_regCount32("reg_count_uint32", 4, oap_regCount);
-SpecialOperGroup sog_regCount16("reg_count_uint16", 4, oap_regCount);
-SpecialOperGroup sog_regCount8 ("reg_count_uint8" , 4, oap_regCount);
+SpecialOperGroup sog_regCount  ("reg_count"       , 4, oap_regCount, oper_policy::better_not_in_meta_scripting);
+SpecialOperGroup sog_regCount32("reg_count_uint32", 4, oap_regCount, oper_policy::better_not_in_meta_scripting);
+SpecialOperGroup sog_regCount16("reg_count_uint16", 4, oap_regCount, oper_policy::better_not_in_meta_scripting);
+SpecialOperGroup sog_regCount8 ("reg_count_uint8" , 4, oap_regCount, oper_policy::better_not_in_meta_scripting);
 
 typedef UInt32 ActorTypeIndex;
 typedef SizeT  PartitionIndex;
@@ -132,7 +110,7 @@ struct RegTileCounterBase : UnitProcessor
 		std::vector<DataArray<CounterType>::locked_seq_t> countsArray;
 		countsArray.reserve(n);
 		for (auto i=regionInfoArrayPtr->begin(), e=regionInfoArrayPtr->end(); i!=e; ++i)
-			countsArray.push_back(mutable_array_cast<CounterType>(i->m_WriteLock)->GetDataWrite());
+			countsArray.push_back(mutable_array_cast<CounterType>(i->m_WriteLock)->GetDataWrite(no_tile, dms_rw_mode::write_only_mustzero));
 
 		DataReadLock arg1Lock(arg1A);
 
@@ -155,8 +133,11 @@ struct RegTileCounterBase : UnitProcessor
 				PartitionIndex j = ri.m_Partition ? ri.m_IndexGetter->Get( c ) : 0;
 
 				auto& counts = countsArray[lu];
-				if (j < counts.size())
-					++(counts[j]);
+				if (j >= counts.size())
+					continue;
+				++(counts[j]);
+				if (!counts[j])
+					throwErrorF("RegCount", "Overflow in count for region %d of class %d", j, lu);
 			}
 		}
 	}
@@ -250,7 +231,7 @@ struct RegCountOperator : public QuaternaryOperator
 		fc->m_MetaInfo = make_noncopyable_any<RegionInfoArray>(std::move(regionInfoArray));
 	}
 
-	bool CalcResult(TreeItemDualRef& resultHolder, const ArgRefs& args, OperationContext* fc, Explain::Context* context) const override
+	bool CalcResult(TreeItemDualRef& resultHolder, ArgRefs args, std::vector<ItemReadLock> readLocks, OperationContext* fc, Explain::Context* context) const override
 	{
 		dms_assert(resultHolder);
 		RegionInfoArray* regionInfoArrayPtr = noncopyable_any_cast<RegionInfoArray>(&fc->m_MetaInfo);
@@ -317,7 +298,7 @@ struct RegCountOperators
 
 namespace 
 {
-	tl_oper::inst_tuple<typelists::domain_elements, RegCountOperators<_> > regCountOpers;
+	tl_oper::inst_tuple_templ<typelists::domain_elements, RegCountOperators > regCountOpers;
 }	// end anonymous namespace
 
 /******************************************************************************/

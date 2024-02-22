@@ -13,7 +13,7 @@
 
 // ============== Main
 
-#include "dbg/Debug.h"
+#include "dbg/debug.h"
 #include "dbg/DebugLog.h"
 #include "dbg/DmsCatch.h"
 #include "set/IndexedStrings.h"
@@ -52,9 +52,6 @@ int main(int argc, char** argv)
 			std::cout << "REKENLES: " << r << e << k << e << n << l << e << s << std::endl;
 		}
 	return 0;
-
-	DBG_INIT_COUT;
-
 
 	CDebugLog tracelog(SharedStr("c:/LocalData/Trace.log"));
 

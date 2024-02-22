@@ -27,7 +27,10 @@ granted by an additional written contract for support, assistance and/or develop
 */
 //</HEADER>
 #include "TicPCH.h"
+
+#if defined(CC_PRAGMAHDRSTOP)
 #pragma hdrstop
+#endif //defined(CC_PRAGMAHDRSTOP)
 
 #include "Operator.h"
 
@@ -53,8 +56,8 @@ Operator::Operator(AbstrOperGroup* group, ClassCPtr resultCls, const ClassCPtr* 
 	,	m_ResultClass(resultCls)
 	,	m_NrOptionalArgs(0)
 {
-	dms_assert(resultCls);
-
+	assert(resultCls);
+	assert(group);
 	group->Register(this);
 }
 

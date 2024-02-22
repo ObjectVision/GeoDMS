@@ -37,16 +37,19 @@ granted by an additional written contract for support, assistance and/or develop
 #if !defined(__STG_XDB_STORAGEMANAGER_H)
 #define __STG_XDB_STORAGEMANAGER_H
 
+
+#include "RtcGeneratedVersion.h"
+
 // for AbstactStorageManager interface
 #include "StgBase.h"
 
-class XdbStorageManager : public AbstrStorageManager
+class XdbStorageManager : public NonmappableStorageManager
 {
 public:
 	XdbStorageManager(CharPtr datExtension = "txt", bool saveColInfo = true);
 
 //	implement AbstrStorageManager interface
-	bool ReadDataItem(const StorageMetaInfo& smi, AbstrDataObject* borrowedReadResultHolder, tile_id t) override;
+	bool ReadDataItem(StorageMetaInfoPtr smi, AbstrDataObject* borrowedReadResultHolder, tile_id t) override;
 	bool WriteDataItem(StorageMetaInfoPtr&& smiHolder) override;
 
 	bool ReadUnitRange(const StorageMetaInfo& smi) const override;

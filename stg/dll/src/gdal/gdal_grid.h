@@ -1,32 +1,10 @@
-//<HEADER> 
-/*
-Data & Model Server (DMS) is a server written in C++ for DSS applications. 
-Version: see srv/dms/rtc/dll/src/RtcVersion.h for version info.
+// Copyright (C) 1998-2023 Object Vision b.v. 
+// License: GNU GPL 3
+/////////////////////////////////////////////////////////////////////////////
 
-Copyright (C) 1998-2004  YUSE GSO Object Vision BV. 
-
-Documentation on using the Data & Model Server software can be found at:
-http://www.ObjectVision.nl/DMS/
-
-See additional guidelines and notes in srv/dms/Readme-srv.txt 
-
-This library is free software; you can use, redistribute, and/or
-modify it under the terms of the GNU General Public License version 2 
-(the License) as published by the Free Software Foundation,
-provided that this entire header notice and readme-srv.txt is preserved.
-
-See LICENSE.TXT for terms of distribution or look at our web site:
-http://www.objectvision.nl/DMS/License.txt
-or alternatively at: http://www.gnu.org/copyleft/gpl.html
-
-This library is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
-General Public License for more details. However, specific warranties might be
-granted by an additional written contract for support, assistance and/or development
-*/
-//</HEADER>
+#if defined(_MSC_VER)
 #pragma once
+#endif
 
 #if !defined(__STG_GDAL_GRID_H)
 #define __STG_GDAL_GRID_H
@@ -55,8 +33,9 @@ struct GdalGridSM : AbstrGridStorageManager, gdalComponent
 	bool ReadUnitRange(const StorageMetaInfo& smi) const override;
 	bool WriteUnitRange(StorageMetaInfoPtr&& smi) override;
 
-	bool ReadDataItem(const StorageMetaInfo& smi, AbstrDataObject* borrowedReadResultHolder, tile_id t) override;
+	bool ReadDataItem(StorageMetaInfoPtr smi, AbstrDataObject* borrowedReadResultHolder, tile_id t) override;
 	bool WriteDataItem(StorageMetaInfoPtr&& smiHolder) override;
+	prop_tables GetPropTables(const TreeItem* storageHolder=nullptr, TreeItem* curr=nullptr) const override;
 
 private:
 	void ReadGridData  (StgViewPortInfo& vip, AbstrDataObject* ado, tile_id t, SharedStr sqlBandSpecification);
@@ -99,7 +78,7 @@ public:
 	GDalGridImp(GDALDataset* hDS, const AbstrDataObject* ado, UPoint viewPortSize, SharedStr sqlBandSpecification);
 	SizeT ReadTile(void* stripBuff, UInt32 tile_x, UInt32 tile_y, UInt32 strip_y, SizeT tileByteSize) const;
 	Int32 WriteTile(void* stripBuff, UInt32 tile_x, UInt32 tile_y);
-	void UnpackCheck(UInt32 nrDmsBitsPerPixel, UInt32 nrRasterBitsPerPixel, CharPtr functionName) const;
+	void UnpackCheck(UInt32 nrDmsBitsPerPixel, UInt32 nrRasterBitsPerPixel, CharPtr functionName, CharPtr direction, CharPtr dataSourceName) const;
 	
 	template <typename ...Args> static void UnpackStrip(Args...)  {};
 	void PackStrip(void* stripBuf, Int32 currDataSize, UInt32 nrBitsPerPixel) const;
@@ -127,11 +106,10 @@ private:
 	CPLErr ReadSingleBandTile(void* stripBuff, UInt32 tile_x, UInt32 tile_y, UInt32 sx, UInt32 sy, GDALRasterBand* poBand) const;
 	CPLErr ReadInterleavedMultiBandTile(void* stripBuff, UInt32 tile_x, UInt32 tile_y, UInt32 sx, UInt32 sy, UInt32 nBandCount) const;
 
-	GDALDataset* m_hDS;
-	GDALRasterBand* poBand;
-	//std::vector<GDALRasterBand*> poBands;
-	UPoint m_ViewPortSize;
-	ValueClassID m_ValueClassID;
+	GDALDataset*    m_hDS;
+	GDALRasterBand* m_RasterBand;
+	UPoint          m_ViewPortSize;
+	ValueClassID    m_ValueClassID;
 };
 
 #endif // __STG_GDAL_GRID_H

@@ -1,31 +1,6 @@
-﻿//<HEADER> 
-/*
-Data & Model Server (DMS) is a server written in C++ for DSS applications. 
-Version: see srv/dms/rtc/dll/src/RtcVersion.h for version info.
-
-Copyright (C) 1998-2004  YUSE GSO Object Vision BV. 
-
-Documentation on using the Data & Model Server software can be found at:
-http://www.ObjectVision.nl/DMS/
-
-See additional guidelines and notes in srv/dms/Readme-srv.txt 
-
-This library is free software; you can use, redistribute, and/or
-modify it under the terms of the GNU General Public License version 2 
-(the License) as published by the Free Software Foundation,
-provided that this entire header notice and readme-srv.txt is preserved.
-
-See LICENSE.TXT for terms of distribution or look at our web site:
-http://www.objectvision.nl/DMS/License.txt
-or alternatively at: http://www.gnu.org/copyleft/gpl.html
-
-This library is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
-General Public License for more details. However, specific warranties might be
-granted by an additional written contract for support, assistance and/or development
-*/
-//</HEADER>
+﻿// Copyright (C) 1998-2023 Object Vision b.v. 
+// License: GNU GPL 3
+/////////////////////////////////////////////////////////////////////////////
 
 #include "ShvDllPch.h"
 
@@ -145,7 +120,7 @@ void PaletteControl::CreateSymbolColumnFromLayer()
 		AspectNrSet(as|ASE_LabelTextColor | ASE_LabelBackColor|ASE_LabelText),
 		AN_LabelTextColor //m_Layer->GetLayerClass()->GetMainAspect()
 	)();
-	column->SetElemSize(GPoint( COLOR_PIX_WIDTH * 2, DEF_TEXT_PIX_HEIGHT));
+	column->SetElemSize(shp2dms_order<UInt16>( COLOR_PIX_WIDTH * 2, DEF_TEXT_PIX_HEIGHT));
 
 	as = AspectNrSet(as & column->GetPossibleAspects());
 
@@ -158,8 +133,6 @@ void PaletteControl::CreateSymbolColumnFromLayer()
 		if ((1<<a) & as)
 		{
 			std::shared_ptr<Theme> theme = m_Layer->GetTheme(a); 
-
-			
 
 			if (!theme) {
 				FeatureLayer* fLayer = dynamic_cast<FeatureLayer*>(m_Layer.get()); if (!fLayer) continue;
@@ -353,7 +326,7 @@ void PaletteControl::CreateColumnsImpl()
 	{
 		m_LabelTextAttr = m_PaletteDomain->GetLabelAttr();
 		if (!m_LabelTextAttr && !m_PaletteDomain->IsFailed(FR_Data) && m_PaletteDomain->GetValueType()->GetSize() < 4)
-			m_LabelTextAttr = CreateSystemLabelPalette(dv.get(), m_PaletteDomain, AN_LabelText);
+			m_LabelTextAttr = CreateSystemLabelPalette(dv.get(), m_PaletteDomain, AN_LabelText, true);
 	}
 	if (m_LabelTextAttr)
 		CreateLabelTextColumn();
@@ -411,7 +384,11 @@ void PaletteControl::CreateColumnsImpl()
 
 void PaletteControl::DoUpdateView()
 {
-	SetRowHeight(GetDefaultFontHeightDIP( GetFontSizeCategory() ) );
+	auto dv = GetDataView().lock();
+	if (!dv)
+		return;
+
+	SetRowHeight(GetDefaultFontHeightDIP( GetFontSizeCategory() ));
 	base_type::DoUpdateView();
 }
 

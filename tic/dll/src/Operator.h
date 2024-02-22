@@ -1,31 +1,11 @@
-//<HEADER> 
-/*
-Data & Model Server (DMS) is a server written in C++ for DSS applications. 
-Version: see srv/dms/rtc/dll/src/RtcVersion.h for version info.
+// Copyright (C) 1998-2023 Object Vision b.v. 
+// License: GNU GPL 3
+/////////////////////////////////////////////////////////////////////////////
 
-Copyright (C) 1998-2004  YUSE GSO Object Vision BV. 
+#if defined(_MSC_VER)
+#pragma once
+#endif
 
-Documentation on using the Data & Model Server software can be found at:
-http://www.ObjectVision.nl/DMS/
-
-See additional guidelines and notes in srv/dms/Readme-srv.txt 
-
-This library is free software; you can use, redistribute, and/or
-modify it under the terms of the GNU General Public License version 2 
-(the License) as published by the Free Software Foundation,
-provided that this entire header notice and readme-srv.txt is preserved.
-
-See LICENSE.TXT for terms of distribution or look at our web site:
-http://www.objectvision.nl/DMS/License.txt
-or alternatively at: http://www.gnu.org/copyleft/gpl.html
-
-This library is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
-General Public License for more details. However, specific warranties might be
-granted by an additional written contract for support, assistance and/or development
-*/
-//</HEADER>
 #if !defined(__TIC_OPERATOR_H)
 #define __TIC_OPERATOR_H
 
@@ -37,6 +17,9 @@ template <typename V> class Unit;
 #include "TreeItemDualRef.h"
 #include "ptr/OwningPtrSizedArray.h"
 #include "Explain.h"
+#include "DataController.h"
+#include "ItemLocks.h"
+struct ItemReadLock;
 
 // *****************************************************************************
 // Section:     enums
@@ -89,7 +72,7 @@ public:
 		dms_assert(resultHolder);
 	}
 
-	virtual bool CalcResult(TreeItemDualRef& resultHolder, const ArgRefs& args, OperationContext*, Explain::Context* context = nullptr) const
+	virtual bool CalcResult(TreeItemDualRef& resultHolder, ArgRefs args, std::vector<ItemReadLock> readLocks, OperationContext*, Explain::Context* context = nullptr) const
 	{
 		dms_assert(resultHolder);
 		dms_assert(!CanExplainValue()); // or this method should be overridden.

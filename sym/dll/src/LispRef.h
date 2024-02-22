@@ -41,8 +41,8 @@ struct LispRef;
 class SymbObj;
 class NumbObj;
 class ListObj;
-typedef UInt32 ChroID;
-
+using ChroID = UInt32;
+enum class FormattingFlags;
 struct FormattedOutStream;
 
 /****************** LispComponent *******************/
@@ -208,7 +208,7 @@ inline FormattedOutStream& operator <<(FormattedOutStream& output, LispPtr R)
 	return output;
 }
 
-SYM_CALL SharedStr AsFLispSharedStr(LispPtr lispRef);
+SYM_CALL SharedStr AsFLispSharedStr(LispPtr lispRef, FormattingFlags ff);
 SYM_CALL void LispError(CharPtr msg, LispPtr ref);
 
 #endif // __SYM_LISPREF_H

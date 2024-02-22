@@ -1,31 +1,10 @@
-//<HEADER> 
-/*
-Data & Model Server (DMS) is a server written in C++ for DSS applications. 
-Version: see srv/dms/rtc/dll/src/RtcVersion.h for version info.
+// Copyright (C) 1998-2023 Object Vision b.v. 
+// License: GNU GPL 3
+/////////////////////////////////////////////////////////////////////////////
 
-Copyright (C) 1998-2004  YUSE GSO Object Vision BV. 
-
-Documentation on using the Data & Model Server software can be found at:
-http://www.ObjectVision.nl/DMS/
-
-See additional guidelines and notes in srv/dms/Readme-srv.txt 
-
-This library is free software; you can use, redistribute, and/or
-modify it under the terms of the GNU General Public License version 2 
-(the License) as published by the Free Software Foundation,
-provided that this entire header notice and readme-srv.txt is preserved.
-
-See LICENSE.TXT for terms of distribution or look at our web site:
-http://www.objectvision.nl/DMS/License.txt
-or alternatively at: http://www.gnu.org/copyleft/gpl.html
-
-This library is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
-General Public License for more details. However, specific warranties might be
-granted by an additional written contract for support, assistance and/or development
-*/
-//</HEADER>
+#if defined(_MSC_VER)
+#pragma once
+#endif
 
 #if !defined(__SHV_DIC_H)
 #define __SHV_DIC_H
@@ -70,7 +49,7 @@ public:
 	);
 	DataItemColumn(const DataItemColumn& src);
 
-	GraphicClassFlags GetGraphicClassFlags() const override { dms_assert(!base_type::GetGraphicClassFlags()); return GCF_ClipExtents; };
+	GraphicClassFlags GetGraphicClassFlags() const override { return GraphicClassFlags::ClipExtents; };
 
 	~DataItemColumn(); // hide call to dtor of SharedPtr<FontIndexCache>
 
@@ -83,17 +62,17 @@ public:
 	const AbstrDataItem* GetSrcAttr() const;
 
 	SharedStr Caption() const;
-	void SetElemWidth(GType width);
-	void SetElemSize(const GPoint& size);
+	void SetElemWidth(UInt16 width);
+	void SetElemSize(WPoint size);
 	void SetElemBorder(bool hasBorder) { m_State.Set(DIC_HasElemBorder, hasBorder); }
 	bool HasElemBorder() const         { return m_State.Get(DIC_HasElemBorder); }
 
 	UInt32 ColumnNr() const    { dms_assert(IsDefined(m_ColumnNr)); return m_ColumnNr; }
 	void SetColumnNr(SizeT nr) { dms_assert(IsDefined(nr)); m_ColumnNr = nr; }
 
-	const GPoint& ElemSize()     const { return m_ElemSize; }
-	UInt32        RowSepHeight() const;
-	void          DrawElement(GraphDrawer& d, SizeT recNo, GRect absElemRect, GuiReadLockPair& locks) const;
+	WPoint ElemSize()     const { return m_ElemSize; }
+	UInt32 RowSepHeight() const;
+	void   DrawElement(GraphDrawer& d, SizeT recNo, GRect absElemDeviceRect, GuiReadLockPair& locks) const;
 
 	void  SetActiveRow(SizeT row);
 	SizeT GetActiveRow() const { return m_ActiveRow; }
@@ -147,7 +126,7 @@ protected:
 	bool    IsNumeric     () const;
 	Float64 GetColumnTotal() const;
 private:
-	void InvalidateRelRect(TRect rect);
+	void InvalidateRelRect(CrdRect rect);
 
 //	override AbstrTextEditControl callbacks
 	void InvalidateDrawnActiveElement()              override;
@@ -164,7 +143,7 @@ private:
 
 	void UpdateTheme();
 
-	TRect GetElemFullRelRect  ( SizeT rowNr) const;
+	CrdRect GetElemFullRelLogicalRect( SizeT rowNr) const;
 	void  SetFocusRect();
 	DataItemColumn* GetPrevControl();
 
@@ -183,7 +162,7 @@ private:
 
 	SharedDataItemInterestPtr m_FutureSrcAttr, m_FutureAggrAttr;
 
-	GPoint m_ElemSize;
+	WPoint m_ElemSize;
 	SizeT m_ColumnNr;
 	SizeT m_ActiveRow;
 

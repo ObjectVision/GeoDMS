@@ -1,31 +1,7 @@
-//<HEADER> 
-/*
-Data & Model Server (DMS) is a server written in C++ for DSS applications. 
-Version: see srv/dms/rtc/dll/src/RtcVersion.h for version info.
+// Copyright (C) 1998-2023 Object Vision b.v. 
+// License: GNU GPL 3
+/////////////////////////////////////////////////////////////////////////////
 
-Copyright (C) 1998-2004  YUSE GSO Object Vision BV. 
-
-Documentation on using the Data & Model Server software can be found at:
-http://www.ObjectVision.nl/DMS/
-
-See additional guidelines and notes in srv/dms/Readme-srv.txt 
-
-This library is free software; you can use, redistribute, and/or
-modify it under the terms of the GNU General Public License version 2 
-(the License) as published by the Free Software Foundation,
-provided that this entire header notice and readme-srv.txt is preserved.
-
-See LICENSE.TXT for terms of distribution or look at our web site:
-http://www.objectvision.nl/DMS/License.txt
-or alternatively at: http://www.gnu.org/copyleft/gpl.html
-
-This library is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
-General Public License for more details. However, specific warranties might be
-granted by an additional written contract for support, assistance and/or development
-*/
-//</HEADER>
 #pragma once
 
 #ifndef __RTC_GEO_POINTORDER_H
@@ -45,14 +21,12 @@ template <typename P> struct sequence_traits;
 // various defines
 //----------------------------------------------------------------------
 
-struct colrow_order_tag { enum { col_first = true  }; };
-struct rowcol_order_tag { enum { col_first = false }; };
+struct colrow_order_tag { static constexpr bool col_first = true; };
+struct rowcol_order_tag { static constexpr bool col_first = false; };
 
 template <typename Tag1, typename Tag2> struct must_swap
 {
-	enum { 
-		value = (Tag1::col_first != Tag2::col_first) 
-	};
+	static constexpr bool value = (Tag1::col_first != Tag2::col_first);
 };
 
 #if defined(DMS_POINT_ROWCOL)
@@ -61,7 +35,8 @@ template <typename Tag1, typename Tag2> struct must_swap
 	struct dms_order_tag : colrow_order_tag {};
 #endif
 
-	struct shp_order_tag : colrow_order_tag {};
+struct shp_order_tag : colrow_order_tag {};
+struct fss_order_tag : rowcol_order_tag {};
 
 template <bool MustSwap> struct reorder_functor;
 template <> struct reorder_functor<false>
@@ -102,7 +77,9 @@ template <> struct reorder_functor<true>
 	}
 };
 
-typedef reorder_functor< must_swap<shp_order_tag, dms_order_tag>::value > shp_reorder_functor;
+using shp_reorder_functor = reorder_functor< must_swap<shp_order_tag, dms_order_tag>::value >;
+using fss_reorder_functor = reorder_functor< must_swap<fss_order_tag, dms_order_tag>::value >;
+using rowcol_reorder_functor = reorder_functor< must_swap<rowcol_order_tag, dms_order_tag>::value >;
 
 
 template <typename  F>
@@ -123,12 +100,18 @@ Range<P> shp2dms_order(const Range<P>& shpRect)
 	return shp_reorder_functor()(shpRect);
 }
 
+template <typename  F>
+Point<F> rowcol2dms_order(F x, F y)
+{
+	return rowcol_reorder_functor()(Point<F>(x, y));
+}
+
 RTC_CALL extern bool g_cfgColFirst;
 
 template <typename  F>
-Point<F> cfg2dms_order(const Point<F>& cfgPoint)
+Point<F> prj2dms_order(const Point<F>& cfgPoint, bool colFirst)
 {
-	if (g_cfgColFirst)
+	if (colFirst)
 	{
 		reorder_functor<
 			must_swap<
@@ -148,36 +131,53 @@ Point<F> cfg2dms_order(const Point<F>& cfgPoint)
 		> rf;
 		return rf(cfgPoint);
 	}
+}
+
+template <typename  F>
+void prj2dms_order_inplace(Point<F>& cfgPoint, bool colFirst)
+{
+	if (colFirst)
+	{
+		reorder_functor<
+			must_swap<
+				colrow_order_tag, 
+				dms_order_tag
+			>::value
+		> rf;
+		rf.inplace(cfgPoint);
+	}
+	else
+	{
+		reorder_functor<
+			must_swap<
+				rowcol_order_tag, 
+				dms_order_tag
+			>::value
+		> rf;
+		rf.inplace(cfgPoint);
+	}
+}
+
+template <typename  F>
+Point<F> prj2dms_order(F x, F y, bool colFirst)
+{
+	return prj2dms_order(Point<F>(x, y), colFirst);
 }
 
 template <typename  F>
 void cfg2dms_order_inplace(Point<F>& cfgPoint)
 {
-	if (g_cfgColFirst)
-	{
-		reorder_functor<
-			must_swap<
-				colrow_order_tag, 
-				dms_order_tag
-			>::value
-		> rf;
-		rf.inplace(cfgPoint);
-	}
-	else
-	{
-		reorder_functor<
-			must_swap<
-				rowcol_order_tag, 
-				dms_order_tag
-			>::value
-		> rf;
-		rf.inplace(cfgPoint);
-	}
+	prj2dms_order_inplace(cfgPoint, g_cfgColFirst);
 }
 
 template <typename  F>
 void  dmsPoint_SetFirstCfgValue(Point<F>& cfgPoint, F firstVal)
 {
+	reportF(SeverityTypeID::ST_Warning, "depreciated syntax for point data used.\n"
+		"Use the %s operation to unambiguously define points."
+	,	g_cfgColFirst ? "point_xy" : "point_yx"
+	);
+
 	if (g_cfgColFirst)
 		cfgPoint.Col() = firstVal;
 	else

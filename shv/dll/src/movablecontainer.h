@@ -1,31 +1,7 @@
-//<HEADER> 
-/*
-Data & Model Server (DMS) is a server written in C++ for DSS applications. 
-Version: see srv/dms/rtc/dll/src/RtcVersion.h for version info.
+// Copyright (C) 1998-2023 Object Vision b.v. 
+// License: GNU GPL 3
+/////////////////////////////////////////////////////////////////////////////
 
-Copyright (C) 1998-2004  YUSE GSO Object Vision BV. 
-
-Documentation on using the Data & Model Server software can be found at:
-http://www.ObjectVision.nl/DMS/
-
-See additional guidelines and notes in srv/dms/Readme-srv.txt 
-
-This library is free software; you can use, redistribute, and/or
-modify it under the terms of the GNU General Public License version 2 
-(the License) as published by the Free Software Foundation,
-provided that this entire header notice and readme-srv.txt is preserved.
-
-See LICENSE.TXT for terms of distribution or look at our web site:
-http://www.objectvision.nl/DMS/License.txt
-or alternatively at: http://www.gnu.org/copyleft/gpl.html
-
-This library is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
-General Public License for more details. However, specific warranties might be
-granted by an additional written contract for support, assistance and/or development
-*/
-//</HEADER>
 #pragma once
 
 #ifndef __SHV_MOVABLECONTAINER_H
@@ -82,8 +58,8 @@ public:
 	void ProcessCollectionChange() override;
 	void DrawBackground(const GraphDrawer& d) const override;
 
-	void GrowHor(TType xDelta, TType xRelPos, const MovableObject* sourceItem) override;
-	void GrowVer(TType xDelta, TType xRelPos, const MovableObject* sourceItem) override;
+	void GrowHor(CrdType xDelta, CrdType xRelPos, const MovableObject* sourceItem) override;
+	void GrowVer(CrdType xDelta, CrdType xRelPos, const MovableObject* sourceItem) override;
 
 	void SetMaxColWidth (TType  maxColWidth);
 	void SetRowSepHeight(UInt32 rowSepHeight);
@@ -102,7 +78,7 @@ private:
 
 class GraphicVarCols : public AutoSizeContainer
 {
-	typedef AutoSizeContainer base_type;
+	using base_type = AutoSizeContainer;
 protected:
 	GraphicVarCols(MovableObject* owner);
 
@@ -112,14 +88,14 @@ public:
 	void ProcessCollectionChange() override;
 	void DrawBackground(const GraphDrawer& d) const override;
 
-	void GrowHor(TType xDelta, TType xRelPos, const MovableObject* sourceItem) override;
-	void GrowVer(TType xDelta, TType xRelPos, const MovableObject* sourceItem) override;
+	void GrowHor(CrdType xDelta, CrdType xRelPos, const MovableObject* sourceItem) override;
+	void GrowVer(CrdType xDelta, CrdType xRelPos, const MovableObject* sourceItem) override;
 
 	void SetMaxRowHeight(TType  maxRowHeight);
 	void SetColSepWidth (UInt32 colSepWidth);
 
-	TType   MaxElemHeight() const { return m_MaxRowHeight; }
-	UInt32  ColSepWidth  () const { return m_ColSepWidth;  }
+	TType   MaxElemHeight() const { return m_MaxRowHeight; } // in logical coordinates
+	UInt32  ColSepWidth  () const { return m_ColSepWidth;  } // in logical coordinates
 
 private:
 	TType  m_MaxRowHeight;

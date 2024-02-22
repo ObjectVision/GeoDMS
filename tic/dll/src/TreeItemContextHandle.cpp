@@ -27,13 +27,16 @@ granted by an additional written contract for support, assistance and/or develop
 */
 //</HEADER>
 #include "TicPCH.h"
+
+#if defined(CC_PRAGMAHDRSTOP)
 #pragma hdrstop
+#endif //defined(CC_PRAGMAHDRSTOP)
 
 #include "TreeItemContexthandle.h"
 
 #include "dbg/DmsCatch.h"
 #include "utl/Environment.h"
-#include "utl/MySPrintF.h" 
+#include "utl/mySPrintF.h" 
 
 //----------------------------------------------------------------------
 // class  : TreeItemContextHandle
@@ -59,6 +62,14 @@ TreeItemContextHandle::TreeItemContextHandle(const TreeItem* obj, const Class* c
 
 TreeItemContextHandle::~TreeItemContextHandle()
 {}
+
+auto TreeItemContextHandle::ItemAsStr() const -> SharedStr
+{
+	auto cci = GetItem();
+	if (!cci)
+		return {};
+	return cci->GetSourceName();
+}
 
 void TreeItemContextHandle::GenerateDescription()
 {
@@ -90,7 +101,7 @@ void TreeItemContextHandle::GenerateDescription()
 void GenerateSystemInfo(AbstrPropWriter& apw, const TreeItem* curr)
 {
 	// Default handling when no configured MetaInfo
-	dms_assert(curr);
+	assert(curr);
 
 	apw.OpenSection("DefaultInfo");
 

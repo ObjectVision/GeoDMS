@@ -1,31 +1,10 @@
-//<HEADER> 
-/*
-Data & Model Server (DMS) is a server written in C++ for DSS applications. 
-Version: see srv/dms/rtc/dll/src/RtcVersion.h for version info.
+// Copyright (C) 1998-2023 Object Vision b.v. 
+// License: GNU GPL 3
+/////////////////////////////////////////////////////////////////////////////
 
-Copyright (C) 1998-2004  YUSE GSO Object Vision BV. 
-
-Documentation on using the Data & Model Server software can be found at:
-http://www.ObjectVision.nl/DMS/
-
-See additional guidelines and notes in srv/dms/Readme-srv.txt 
-
-This library is free software; you can use, redistribute, and/or
-modify it under the terms of the GNU General Public License version 2 
-(the License) as published by the Free Software Foundation,
-provided that this entire header notice and readme-srv.txt is preserved.
-
-See LICENSE.TXT for terms of distribution or look at our web site:
-http://www.objectvision.nl/DMS/License.txt
-or alternatively at: http://www.gnu.org/copyleft/gpl.html
-
-This library is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
-General Public License for more details. However, specific warranties might be
-granted by an additional written contract for support, assistance and/or development
-*/
-//</HEADER>
+#if defined(_MSC_VER)
+#pragma once
+#endif
 
 #ifndef __SHV_LAYERCONTROL_H
 #define __SHV_LAYERCONTROL_H
@@ -48,6 +27,8 @@ class LayerHeaderControl : public TextControl
 {
 public:
 	LayerHeaderControl(MovableObject* owner);
+
+	bool MouseEvent(MouseEventDispatcher& med) override;
 };
 
 //----------------------------------------------------------------------
@@ -103,7 +84,7 @@ private:
 
 private:
 	ScalableObject*           m_LayerElem; // ownership must be guarded by derived class that sees the complete type
-	FontSizeCategory          m_FID;
+	FontSizeCategory          m_FID = FontSizeCategory::MEDIUM;
 
 	std::shared_ptr<LayerHeaderControl>  m_HeaderControl;
 
@@ -171,7 +152,7 @@ class LayerControlSet : public GraphicVarRows
 public:
 	LayerControlSet(MovableObject* owner, LayerSet* layerSet);
 
-	GraphicClassFlags GetGraphicClassFlags() const override { dms_assert(!base_type::GetGraphicClassFlags()); return GraphicClassFlags(GCF_PushVisibility|GCF_ClipExtents); }
+	GraphicClassFlags GetGraphicClassFlags() const override { return GraphicClassFlags::PushVisibility| GraphicClassFlags::ClipExtents; }
 
 //	override virtuals of GraphicObject
   	GraphVisitState InviteGraphVistor(AbstrVisitor&) override;
@@ -206,7 +187,7 @@ public:
 	~LayerControlGroup();
 	void Init(LayerSet* layerSet, CharPtr caption);
 
-	GraphicClassFlags GetGraphicClassFlags() const override { dms_assert(!base_type::GetGraphicClassFlags()); return GraphicClassFlags(GCF_ClipExtents); }
+	GraphicClassFlags GetGraphicClassFlags() const override { return GraphicClassFlags::ClipExtents; }
 
 //	override virtuals of GraphicObject
 	void FillMenu(MouseEventDispatcher& med) override;

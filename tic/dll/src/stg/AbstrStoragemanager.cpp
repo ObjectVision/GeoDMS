@@ -1,34 +1,12 @@
-//<HEADER> 
-/*
-Data & Model Server (DMS) is a server written in C++ for DSS applications. 
-Version: see srv/dms/rtc/dll/src/RtcVersion.h for version info.
-
-Copyright (C) 1998-2004  YUSE GSO Object Vision BV. 
-
-Documentation on using the Data & Model Server software can be found at:
-http://www.ObjectVision.nl/DMS/
-
-See additional guidelines and notes in srv/dms/Readme-srv.txt 
-
-This library is free software; you can use, redistribute, and/or
-modify it under the terms of the GNU General Public License version 2 
-(the License) as published by the Free Software Foundation,
-provided that this entire header notice and readme-srv.txt is preserved.
-
-See LICENSE.TXT for terms of distribution or look at our web site:
-http://www.objectvision.nl/DMS/License.txt
-or alternatively at: http://www.gnu.org/copyleft/gpl.html
-
-This library is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
-General Public License for more details. However, specific warranties might be
-granted by an additional written contract for support, assistance and/or development
-*/
-//</HEADER>
+// Copyright (C) 1998-2023 Object Vision b.v. 
+// License: GNU GPL 3
+/////////////////////////////////////////////////////////////////////////////
 
 #include "TicPCH.h"
+
+#if defined(CC_PRAGMAHDRSTOP)
 #pragma hdrstop
+#endif //defined(CC_PRAGMAHDRSTOP)
 
 #include <iostream> // DEBUG
 
@@ -41,7 +19,7 @@ granted by an additional written contract for support, assistance and/or develop
 #include "act/InterestRetainContext.h"
 #include "act/SupplierVisitFlag.h"
 #include "act/UpdateMark.h"
-#include "dbg/Debug.h"
+#include "dbg/debug.h"
 #include "ptr/InterestHolders.h"
 #include "utl/Environment.h"
 #include "utl/splitPath.h"
@@ -51,6 +29,7 @@ granted by an additional written contract for support, assistance and/or develop
 
 #include "AbstrCalculator.h"
 #include "AbstrDataItem.h"
+#include "AbstrUnit.h"
 #include "DataLocks.h"
 #include "DataArray.h"
 #include "DataStoreManagerCaller.h"
@@ -75,7 +54,21 @@ static std::mutex sd_asm;
 #endif
 
 StorageMetaInfo::~StorageMetaInfo()
-{}
+{
+	if (m_StorageManager)
+	{
+		m_StorageManager->CloseStorage();
+		/*
+			if (m_StorageHolder && m_StorageHolder->DoesContain(m_FocusItem) && !m_StorageManager->IsReadOnly())
+			{
+				assert(m_FocusItem);
+				FileDateTime fdt = m_StorageManager->GetLastChangeDateTime(m_StorageHolder, m_FocusItem->GetRelativeName(m_StorageHolder).c_str());
+				if (fdt)
+					DataStoreManager::Curr()->RegisterExternalTS(fdt, m_TimeStampBefore);
+			}
+		*/
+	}
+}
 
 const AbstrDataItem* StorageMetaInfo::CurrRD() const { return AsDataItem(m_Curr.get_ptr()); }
 const AbstrUnit*     StorageMetaInfo::CurrRU() const { return AsUnit(m_Curr.get_ptr()); }
@@ -86,6 +79,8 @@ void StorageMetaInfo::OnPreLock()
 	{
 		SharedPtr<const AbstrUnit> adu = CurrRD()->GetAbstrDomainUnit();
 		adu->GetCount(); // Prepare for later DataWriteLock->DoCreateMemoryStorage
+		SharedPtr<const AbstrUnit> avu = CurrRD()->GetAbstrValuesUnit();
+		WaitForReadyOrSuspendTrigger(avu->GetCurrRangeItem());
 	}
 }
 
@@ -113,12 +108,6 @@ const TreeItem* GetExportMetaInfo(const TreeItem* curr)
 // Section:     AbstractStorageManager counted wrapper
 // *****************************************************************************
 
-bool AbstrStorageManager::s_ReduceResources(ClientHandle clientHandle)
-{
-	AbstrStorageManager* self = reinterpret_cast<AbstrStorageManager*>(clientHandle);
-	return self->ReduceResources();
-}
-
 AbstrStorageManager::AbstrStorageManager()
 	:	m_Commit(true)
 	,	m_IsOpen(false)
@@ -127,27 +116,10 @@ AbstrStorageManager::AbstrStorageManager()
 	,	m_LastCheckTS(0)
 	,	m_CriticalSection(item_level_type(0), ord_level_type::AbstrStorage, "AbstrStorageManager")
 {
-	DMS_RegisterReduceResourcesFunc(s_ReduceResources, typesafe_cast<ClientHandle>(this));
-
 #if MG_DEBUG_ASM
-	std::lock_guard lock(sd_asm);
+	std::lock_guard guard(sd_asm);
 	sd_ASM_set[this] = ++sd_AsmNr;
 #endif // MG_DEBUG_ASM
-}
-
-bool AbstrStorageManager::ReduceResources()
-{
-	return true;
-}
-
-bool AbstrStorageManager::CanWriteTiles() const
-{
-	return false;
-}
-
-AbstrUnit* AbstrStorageManager::CreateGridDataDomain(const TreeItem* storageHolder)
-{
-	throwIllegalAbstract(MG_POS, this, "CreateGridDataDomain");
 }
 
 void AbstrStorageManager::InitStorageManager(CharPtr name, bool readOnly, item_level_type itemLevel)
@@ -155,8 +127,8 @@ void AbstrStorageManager::InitStorageManager(CharPtr name, bool readOnly, item_l
 	MGD_PRECONDITION(name != nullptr);
 
 	m_ID = TokenID(name, multi_threading_tag_v);
-	m_IsReadOnly              = readOnly;
-	m_IsOpenedForWrite        = false;
+	m_IsReadOnly = readOnly;
+	m_IsOpenedForWrite = false;
 #if defined(MG_DEBUG_LOCKLEVEL)
 	m_CriticalSection.m_ItemLevel = itemLevel;
 #endif
@@ -166,16 +138,22 @@ AbstrStorageManager::~AbstrStorageManager()
 {
 #if MG_DEBUG_ASM
 	{
-		std::lock_guard lock(sd_asm);
+		std::scoped_lock lock(sd_asm);
 		sd_ASM_set.erase(this);
 	}
 #endif // MG_DEBUG_ASM
+}
 
-	DMS_ReleaseReduceResourcesFunc(s_ReduceResources, typesafe_cast<ClientHandle>(this));
+// *****************************************************************************
+// Section:     NonmappableStorageManager impl
+// *****************************************************************************
+
+AbstrUnit* NonmappableStorageManager::CreateGridDataDomain(const TreeItem* storageHolder)
+{
+	throwIllegalAbstract(MG_POS, this, "CreateGridDataDomain");
 }
 
 // Static interface functions
-
 #include "SessionData.h"
 
 SharedStr GetConfigIniFileName()
@@ -204,7 +182,7 @@ SharedStr GetRegConfigSetting(const TreeItem* configRoot, CharPtr key, CharPtr d
 	if (!result.empty())
 		return result;
 
-	const TreeItem* configSettings = SessionData::GetIt(configRoot)->GetConfigSettings();
+	const TreeItem* configSettings = SessionData::getIt(configRoot)->GetConfigSettings();
 	if (configSettings)
 	{
 		TokenID tidKey = GetTokenID_mt(key);
@@ -278,38 +256,40 @@ SharedStr GetStorageBaseName(const TreeItem* configStore)
 	return SharedStr();
 }
 
-static SharedStr s_ProjDir;
 
 SharedStr GetProjDir(CharPtr configDir)
 {	
-	dms_assert(*configDir);
-	dms_assert(!HasDosDelimiters(configDir));
-	dms_assert(IsAbsolutePath(configDir));
+	assert(IsMainThread());
+	assert(*configDir);
+	assert(!HasDosDelimiters(configDir));
+	assert(IsAbsolutePath(configDir));
 
-	DBG_START("GetProjDir", configDir, false);
+	DBG_START("GetProjDir", configDir, true);
 
 	static SharedStr prevConfigDir;
+	static SharedStr proj_dir;
 
+	// memoization: only (re)calculate proj_dir when configDir is different than at last call
 	if (prevConfigDir != configDir)
 	{
-		s_ProjDir = GetConvertedConfigDirKeyString(configDir, "projDir", "..");
-		if (!s_ProjDir.empty() && s_ProjDir[0] == '.')
+		proj_dir = GetConvertedConfigDirKeyString(configDir, "projDir", "..");
+		if (!proj_dir.empty() && proj_dir[0] == '.')
 		{
 			SharedStr configLoadDir = splitFullPath(configDir);
 			UInt32 c = 0;
 			UInt32 cc = 0;
 			UInt32 p = 1;
 			do {
-				while (s_ProjDir[p] == '.')
+				while (proj_dir[p] == '.')
 				{
 					++c, ++p;
 				}
-				switch (s_ProjDir[p])
+				switch (proj_dir[p])
 				{
 					case '/':     ++p; [[fallthrough]];
 					case char(0): cc += c; c = -1;
 				}
-			} while(s_ProjDir[p] == '.');
+			} while(proj_dir[p] == '.');
 			DBG_TRACE(("GoUp %d times on %s", cc, configLoadDir.c_str()));
 			while (cc)
 			{
@@ -317,13 +297,13 @@ SharedStr GetProjDir(CharPtr configDir)
 				--cc;
 			}
 			DBG_TRACE(("GoUp %d times on %s", cc, configLoadDir.c_str()));
-			s_ProjDir = DelimitedConcat(configLoadDir.c_str(), SharedStr(s_ProjDir.cbegin()+p, s_ProjDir.csend()).c_str());
-			DBG_TRACE(("result after GoUp %s", s_ProjDir.c_str()));
+			proj_dir = DelimitedConcat(configLoadDir.c_str(), SharedStr(proj_dir.cbegin()+p, proj_dir.csend()).c_str());
+			DBG_TRACE(("result after GoUp %s", proj_dir.c_str()));
 		}
 		prevConfigDir = configDir;
 	}
-	dms_assert(!HasDosDelimiters(s_ProjDir.c_str()));
-	return s_ProjDir;
+	assert(!HasDosDelimiters(proj_dir.c_str()));
+  	return proj_dir;
 }
 
 SharedStr GetLocalTime()
@@ -420,13 +400,15 @@ SharedStr GetPlaceholderValue(const TreeItem* configStore, CharPtr placeHolder)
 	if (!stricmp(placeHolder, "dataDir"          )) return GetDataDir          (SessionData::Curr()->GetConfigRoot());
 
 	SharedStr result = GetPlaceholderValue(SessionData::Curr()->GetConfigDir().c_str(), placeHolder, false);
-	if (result.empty())
-	{
-		result = GetConvertedRegConfigSetting(SessionData::Curr()->GetConfigRoot(), placeHolder, "");
-		if (result.empty())
-			return SharedStr(placeHolder);
-	}
-	return result;
+	if (!result.empty())
+		return result;
+
+	result = GetConvertedRegConfigSetting(SessionData::Curr()->GetConfigRoot(), placeHolder, "");
+	if (!result.empty())
+		return result;
+
+	reportF(MsgCategory::progress, SeverityTypeID::ST_Warning, "Unable to find placeholder: %%%s%%.", placeHolder);
+	return SharedStr(placeHolder);
 }
 
 SharedStr AbstrStorageManager::Expand(const TreeItem* configStore, SharedStr storageName)
@@ -475,7 +457,7 @@ SharedStr AbstrStorageManager::GetFullStorageName(const TreeItem* configStore, S
 	return storageName;
 }
 
-SharedStr AbstrStorageManager::GetFullStorageName(CharPtr subDirName, CharPtr storageNameCStr)
+SharedStr AbstrStorageManager::Expand(CharPtr subDirName, CharPtr storageNameCStr)
 {
 	SharedStr storageName = SharedStr(storageNameCStr);
 	SharedStr subDirNameStr;
@@ -484,20 +466,63 @@ SharedStr AbstrStorageManager::GetFullStorageName(CharPtr subDirName, CharPtr st
 		subDirNameStr = MakeAbsolutePath(subDirName);
 		subDirName = subDirNameStr.c_str();
 	}
+
+	if (storageName.ssize() > 65000)
+		throwDmsErrF("AbstrStorageManager::GetFullStorageName(): length of storage name is %d; anything larger than 65000 bytes is assumed to be faulty."
+			"\nStorage name: '%s'"
+			, storageNameCStr
+			, storageName.ssize()
+		);
+
+	UInt32 substCount = 0;
 	while (true)
 	{
+		if (storageName.ssize() > 65000)
+			throwDmsErrF("AbstrStorageManager::GetFullStorageName(): length of intermediate name during substitution is %d; anything larger than 65000 bytes is assumed to be faulty."
+				"\nNumber of completed substitutions: %d"
+				"\nStorage name                     : '%s'"
+				"\nCurent substitution result       : '%s'"
+				, storageName.ssize()
+				, substCount
+				, storageNameCStr
+				, storageName.c_str()
+			);
+
 		CharPtr p1 = storageName.find('%');
 		if (p1 == storageName.csend())
 			break;
-		CharPtr p2 = std::find(p1+1, storageName.csend(), '%');
+		CharPtr p2 = std::find(p1 + 1, storageName.csend(), '%');
 		if (p2 == storageName.csend())
-			throwDmsErrF("GetFullStorageName('%s'): unbalanced placeholder delimiters (%%).", storageName.c_str());
-		storageName 
-				= SharedStr(storageName.cbegin(), p1) 
-				+ GetPlaceholderValue(subDirName,  SharedStr(p1+1, p2).c_str(), true)
-				+ SharedStr(p2+1, storageName.csend());
+			throwDmsErrF("AbstrStorageManager::GetFullStorageName(): unbalanced placeholder delimiter (%%) at position %d."
+				"\nNumber of completed substitutions: %d"
+				"\nStorage name                     : '%s'"
+				"\nCurent substitution result       : '%s'"
+				, p1 - storageName.begin()
+				, substCount
+				, storageNameCStr
+				, storageName.c_str()
+			);
+		if (substCount >= 1024)
+			throwDmsErrF("AbstrStorageManager::GetFullStorageName(): substitution aborted after too many substitutions. Resursion suspected."
+				"\nNumber of completed substitutions: %d"
+				"\nStorage name                     : '%s'"
+				"\nCurent substitution result       : '%s'"
+				, substCount
+				, storageNameCStr
+				, storageName.c_str()
+			);
+		++substCount;
+		storageName
+			= SharedStr(storageName.cbegin(), p1)
+			+ GetPlaceholderValue(subDirName, SharedStr(p1 + 1, p2).c_str(), true)
+			+ SharedStr(p2 + 1, storageName.csend());
 	}
+	return storageName;
+}
 
+SharedStr AbstrStorageManager::GetFullStorageName(CharPtr subDirName, CharPtr storageNameCStr)
+{
+	auto storageName = Expand(subDirName, storageNameCStr);
 	return IsAbsolutePath(storageName.c_str())
 		?	storageName
 		:	DelimitedConcat(subDirName, storageName.c_str());
@@ -526,6 +551,29 @@ SyncMode AbstrStorageManager::GetSyncMode(const TreeItem* storageHolder)
 	while (storageHolder);
 	return SM_AttrsOfConfiguredTables; // default
 }
+
+NonmappableStorageManager::NonmappableStorageManager()
+{}
+
+NonmappableStorageManager::~NonmappableStorageManager()
+{}
+
+NonmappableStorageManagerRef NonmappableStorageManager::ReaderClone(const StorageMetaInfo& smi) const
+{
+	auto cls = dynamic_cast<const StorageClass*>(GetDynamicClass());
+	MG_CHECK(cls);
+	NonmappableStorageManagerRef result = debug_cast<NonmappableStorageManager*>(cls->CreateObj());
+	assert(result);
+
+	auto itemLevel = item_level_type(0);
+#if defined(MG_DEBUG_LOCKLEVEL)
+	itemLevel = item_level_type(UInt32( m_CriticalSection.m_ItemLevel) + 1 );
+#endif
+	result->InitStorageManager(GetNameStr().c_str(), true, itemLevel);
+	result->OpenForRead(smi);
+	return result;
+}
+
 
 bool AbstrStorageManager::DoesExistEx(CharPtr storageName, TokenID storageType, const TreeItem* storageHolder)
 {
@@ -637,17 +685,17 @@ FileDateTime AbstrStorageManager::GetCachedChangeDateTime(const TreeItem* storag
 	return m_FileTime; 
 }
 
-StorageMetaInfoPtr AbstrStorageManager::GetMetaInfo(const TreeItem* storageHolder, TreeItem* focusItem, StorageAction) const
+StorageMetaInfoPtr NonmappableStorageManager::GetMetaInfo(const TreeItem* storageHolder, TreeItem* focusItem, StorageAction) const
 {
 	return std::make_unique<StorageMetaInfo>(storageHolder, focusItem);
 }
 
-bool AbstrStorageManager::ReadDataItem  (const StorageMetaInfo& smi, AbstrDataObject* borrowedReadResultHolder, tile_id t) { return false; }
-bool AbstrStorageManager::WriteDataItem (StorageMetaInfoPtr&& smi) { return false; }
-bool AbstrStorageManager::ReadUnitRange (const StorageMetaInfo& smi) const       { return false; }
-bool AbstrStorageManager::WriteUnitRange(StorageMetaInfoPtr&& smi)       { return false; }
+bool NonmappableStorageManager::ReadDataItem  (StorageMetaInfoPtr smi, AbstrDataObject* borrowedReadResultHolder, tile_id t) { return false; }
+bool NonmappableStorageManager::WriteDataItem (StorageMetaInfoPtr&& smi) { return false; }
+bool NonmappableStorageManager::ReadUnitRange (const StorageMetaInfo& smi) const       { return false; }
+bool NonmappableStorageManager::WriteUnitRange(StorageMetaInfoPtr&& smi)       { return false; }
 
-ActorVisitState AbstrStorageManager::VisitSuppliers(SupplierVisitFlag svf, const ActorVisitor& visitor, const TreeItem* storageHolder, const TreeItem* self) const
+ActorVisitState NonmappableStorageManager::VisitSuppliers(SupplierVisitFlag svf, const ActorVisitor& visitor, const TreeItem* storageHolder, const TreeItem* self) const
 {
 	if (self->IsStorable() && (self->HasCalculator() || self->HasConfigData()))
 	{
@@ -658,12 +706,12 @@ ActorVisitState AbstrStorageManager::VisitSuppliers(SupplierVisitFlag svf, const
 	return AVS_Ready;
 }
 
-void AbstrStorageManager::DropStream(const TreeItem* item, CharPtr path)
+void NonmappableStorageManager::DropStream(const TreeItem* item, CharPtr path)
 {
 	throwIllegalAbstract(MG_POS, this, "DropStream");
 }
 
-void AbstrStorageManager::UpdateTree(const TreeItem* storageHolder, TreeItem* curr) const
+void NonmappableStorageManager::UpdateTree(const TreeItem* storageHolder, TreeItem* curr) const
 { 
 	auto nameStr = GetNameStr();
 	CDebugContextHandle dch1("AbstrStorageManager::UpdateTree", nameStr.c_str(), false);
@@ -673,7 +721,7 @@ void AbstrStorageManager::UpdateTree(const TreeItem* storageHolder, TreeItem* cu
 	DoUpdateTree(storageHolder, curr, syncMode);
 }
 
-void AbstrStorageManager::DoUpdateTree (const TreeItem* storageHolder, TreeItem* curr, SyncMode sm) const 
+void NonmappableStorageManager::DoUpdateTree (const TreeItem* storageHolder, TreeItem* curr, SyncMode sm) const
 {
 	if (curr != storageHolder)
 		return;
@@ -684,10 +732,15 @@ void AbstrStorageManager::DoUpdateTree (const TreeItem* storageHolder, TreeItem*
 				curr->Fail("Item has both a Calculation Rule and a read-only storage spec", FR_MetaInfo);
 }
 
-void AbstrStorageManager::StartInterest(const TreeItem* storageHolder, const TreeItem* self) const
+void NonmappableStorageManager::StartInterest(const TreeItem* storageHolder, const TreeItem* self) const
 {
 	interest_holders_container interestHolders;
-	auto visitor = MakeDerivedProcVistor([&interestHolders](const Actor* item) { if (!item->IsPassorOrChecked()) interestHolders.emplace_back(item); });
+
+	auto visitorImpl = [&interestHolders](const Actor* item) 
+		{ 
+			if (!item->IsPassorOrChecked()) interestHolders.emplace_back(item); 
+		};
+	auto visitor = MakeDerivedProcVisitor(std::move(visitorImpl));
 
 	VisitSuppliers(SupplierVisitFlag::StartSupplInterest, visitor, storageHolder, self);
 
@@ -697,17 +750,17 @@ void AbstrStorageManager::StartInterest(const TreeItem* storageHolder, const Tre
 		StopInterest(storageHolder, self);
 }
 
-void AbstrStorageManager::StopInterest(const TreeItem* storageHolder, const TreeItem* self) const noexcept
+void NonmappableStorageManager::StopInterest(const TreeItem* storageHolder, const TreeItem* self) const noexcept
 {
 	m_InterestHolders.erase(interest_holders_key(storageHolder, self));
 }
 
-void AbstrStorageManager::DoWriteTree(const TreeItem* storageHolder)
+void NonmappableStorageManager::DoWriteTree(const TreeItem* storageHolder)
 {}
 
 // Wrapper functions for consistent calls to specific StorageManager overrides
 
-bool AbstrStorageManager::OpenForRead(const StorageMetaInfo& smi) const
+bool NonmappableStorageManager::OpenForRead(const StorageMetaInfo& smi) const
 {
 	dms_assert(smi.StorageHolder());
 
@@ -720,13 +773,15 @@ bool AbstrStorageManager::OpenForRead(const StorageMetaInfo& smi) const
 	}
 	catch (...)
 	{
+		if (!smi.m_MustRememberFailure)
+			throw;
 		storageHolder->CatchFail(FR_MetaInfo);
 		storageHolder->ThrowFail();
 	}
 	return true;
 }
 
-void AbstrStorageManager::OpenForWrite(const StorageMetaInfo& smi) // PRECONDITION !m_IsReadOnly
+void NonmappableStorageManager::OpenForWrite(const StorageMetaInfo& smi) // PRECONDITION !m_IsReadOnly
 {
 	if (m_IsReadOnly)
 		throwItemError("Storage is read only - write request is denied");
@@ -747,32 +802,34 @@ void AbstrStorageManager::OpenForWrite(const StorageMetaInfo& smi) // PRECONDITI
 	DoWriteTree(smi.StorageHolder());
 }
 
-void AbstrStorageManager::CloseStorage() const
+void NonmappableStorageManager::CloseStorage() const
 {
 	if (!m_IsOpen) 
 		return;
+
 	DoCloseStorage(m_Commit && m_IsOpenedForWrite);
 	m_IsOpen = false;
 }
 
 
-void AbstrStorageManager::DoCreateStorage(const StorageMetaInfo& smi)
+void NonmappableStorageManager::DoCreateStorage(const StorageMetaInfo& smi)
 {
 	dms_assert(!m_IsReadOnly);
 	DoOpenStorage(smi, dms_rw_mode::write_only_all);
 }
 
-void AbstrStorageManager::DoOpenStorage(const StorageMetaInfo& smi, dms_rw_mode rwMode) const
+void NonmappableStorageManager::DoOpenStorage(const StorageMetaInfo& smi, dms_rw_mode rwMode) const
 {
 	dms_assert(!IsOpen());
 }
 
-void AbstrStorageManager::DoCloseStorage (bool mustCommit) const
+void NonmappableStorageManager::DoCloseStorage (bool mustCommit) const
 {}
 
-IMPL_CLASS(AbstrStorageManager, 0)
+IMPL_CLASS(AbstrStorageManager, nullptr)
+IMPL_CLASS(NonmappableStorageManager, nullptr)
 
-TIC_CALL const Class*     DMS_CONV DMS_AbstrStorageManager_GetStaticClass()
+TIC_CALL const Class* DMS_CONV DMS_AbstrStorageManager_GetStaticClass()
 {
 	return AbstrStorageManager::GetStaticClass();
 }
@@ -785,11 +842,17 @@ TIC_CALL const Class*     DMS_CONV DMS_AbstrStorageManager_GetStaticClass()
 
 GdalMetaInfo::GdalMetaInfo(const TreeItem* storageHolder, const TreeItem* curr)
 	: StorageMetaInfo(storageHolder, curr)
-	, m_OptionsItem(storageHolder->FindItem("GDAL_Options"))
-	, m_DriverItem(storageHolder->FindItem("GDAL_Driver"))
+	, m_OptionsItem(storageOptionsPropDefPtr->HasNonDefaultValue(storageHolder) ? nullptr : storageHolder->FindItem("GDAL_Options"))
+	, m_DriverItem (storageDriverPropDefPtr ->HasNonDefaultValue(storageHolder) ? nullptr : storageHolder->FindItem("GDAL_Driver"))
 	, m_LayerCreationOptions(storageHolder->FindItem("GDAL_LayerCreationOptions"))
 	, m_ConfigurationOptions(storageHolder->FindItem("GDAL_ConfigurationOptions"))
 {
+	if (storageOptionsPropDefPtr->HasNonDefaultValue(storageHolder))
+		m_Options = storageOptionsPropDefPtr->GetValue(storageHolder).c_str();
+
+	if (storageDriverPropDefPtr->HasNonDefaultValue(storageHolder))
+		m_Driver = storageDriverPropDefPtr->GetValue(storageHolder).c_str();
+
 	if (m_OptionsItem)
 		m_OptionsItem->PrepareDataUsage(DrlType::Certain);
 	if (m_DriverItem)
@@ -806,7 +869,7 @@ GdalMetaInfo::GdalMetaInfo(const TreeItem* storageHolder, const TreeItem* curr)
 //
 // *****************************************************************************
 
-StorageCloseHandle::StorageCloseHandle(const AbstrStorageManager* storageManager, const TreeItem* storageHolder, const TreeItem* focusItem, StorageAction sa)
+StorageCloseHandle::StorageCloseHandle(const NonmappableStorageManager* storageManager, const TreeItem* storageHolder, const TreeItem* focusItem, StorageAction sa)
 	: m_MetaInfo(storageManager->GetMetaInfo(storageHolder, const_cast<TreeItem*>(focusItem), sa))
 	, m_TimeStampBefore()
 	, m_StorageManager(storageManager)
@@ -830,38 +893,32 @@ StorageCloseHandle::StorageCloseHandle(StorageMetaInfoPtr&& smi)
 
 void StorageCloseHandle::Init(const AbstrStorageManager* storageManager, const TreeItem* storageHolder, const TreeItem* focusItem)
 {
-	dms_assert(m_MetaInfo);
+	assert(m_MetaInfo);
 	if (storageHolder->DoesContain(focusItem))
 	{
-		dms_assert(focusItem);
+		assert(focusItem);
 		// enable Registration of external DateTime stamp changes during the lifetime of this StorageHandle
 		// Registers LastChange with the latest Filesystem TimeStamp of the storage to prevent data consumers from external 
 		// TODO: Also update FileSystem timestamp for other items with the same storageManager
 		// ISSUE: mapping between item hierarchy and hierarchy of external TimeStamps and external change detection
 		// ISSUE: different sources with the same external Filesystem Timestamp may be registered at different internal times
+/*
 		FileDateTime fdt = storageManager->GetCachedChangeDateTime(storageHolder, m_MetaInfo->m_RelativeName.c_str());
 		if (fdt)
 		{
 			m_TimeStampBefore = DataStoreManager::Curr()->DetermineExternalChange(fdt);
-			dms_assert(m_TimeStampBefore); // POSTCONDITION
+			assert(m_TimeStampBefore); // POSTCONDITION
 		}
 		else
-			m_TimeStampBefore = focusItem->GetLastChangeTS();
+	*/
+		m_TimeStampBefore = focusItem->GetLastChangeTS();
 	}
 };
 
 StorageCloseHandle::~StorageCloseHandle()
 {
-	dms_assert(m_StorageManager);
-	m_MetaInfo.reset();
-	m_StorageManager->CloseStorage();
-	if (m_StorageHolder && m_StorageHolder->DoesContain(m_FocusItem) && !m_StorageManager->IsReadOnly())
-	{
-		dms_assert(m_FocusItem);
-		FileDateTime fdt = m_StorageManager->GetLastChangeDateTime(m_StorageHolder, m_FocusItem->GetRelativeName(m_StorageHolder).c_str());
-		if (fdt)
-			DataStoreManager::Curr()->RegisterExternalTS(fdt, m_TimeStampBefore);
-	}
+	assert(m_StorageManager);
+	m_MetaInfo.reset(); // Does m_StorageManager->CloseStorage();
 }
 
 StorageReadHandle::StorageReadHandle(StorageMetaInfoPtr&& smi)
@@ -870,17 +927,18 @@ StorageReadHandle::StorageReadHandle(StorageMetaInfoPtr&& smi)
 	Init();
 }
 
-StorageReadHandle::StorageReadHandle(const AbstrStorageManager* sm, const TreeItem* storageHolder, TreeItem* focusItem, StorageAction sa)
+StorageReadHandle::StorageReadHandle(const NonmappableStorageManager* sm, const TreeItem* storageHolder, TreeItem* focusItem, StorageAction sa, bool mustRememberFailure)
 	: StorageCloseHandle(sm, storageHolder, focusItem, sa)
 {
+	m_MetaInfo->m_MustRememberFailure = mustRememberFailure;
 	Init();
 }
 
 void StorageReadHandle::Init()
 {
-	dms_assert(m_StorageManager);
-	dms_assert(m_StorageHolder);
-	dms_assert(MetaInfo());
+	assert(m_StorageManager);
+	assert(m_StorageHolder);
+	assert(MetaInfo());
 	m_StorageManager->OpenForRead(*MetaInfo());
 	if (m_StorageManager->IsOpen())
 	{
@@ -890,8 +948,8 @@ void StorageReadHandle::Init()
 
 bool StorageReadHandle::Read() const
 {
-	dms_assert(m_FocusItem); // note that storageHolder may be nullptr
-	dms_assert(m_StorageManager);
+	assert(m_FocusItem); // note that storageHolder may be nullptr
+	assert(m_StorageManager);
 	if (!m_StorageManager->IsOpen())
 		return false;
 
@@ -915,12 +973,12 @@ StorageWriteHandle::StorageWriteHandle(StorageMetaInfoPtr&& smi)
 //
 // *****************************************************************************
 
-#include "Xml/PropWriter.h"
+#include "xml/PropWriter.h"
 
 void GenerateMetaInfo(AbstrPropWriter& apw, const TreeItem* curr, const TreeItem* contents)
 {
-	dms_assert(contents);
-	dms_assert(IsMainThread());
+	assert(contents);
+	assert(IsMainThread());
 
 	GenerateSystemInfo(apw, curr);
 
@@ -981,7 +1039,8 @@ void ExportMetaInfoToFileImpl(const TreeItem* curr)
 	if (fileNamePattern.empty())
 		return;
 	SharedStr fileName = AbstrStorageManager::Expand(curr, fileNamePattern);
-	fileName = DSM::GetSafeFileWriterArray(curr)->GetWorkingFileName(fileName, FCM_CreateAlways);
+	auto sfwa = DSM::GetSafeFileWriterArray(); MG_CHECK(sfwa);
+	fileName = sfwa->GetWorkingFileName(fileName, FCM_CreateAlways);
 	if (isXml)
 	{
 		XmlPropWriter writer(fileName);
@@ -994,7 +1053,7 @@ void ExportMetaInfoToFileImpl(const TreeItem* curr)
 	}
 }
 
-void AbstrStorageManager::ExportMetaInfo(const TreeItem* storageHolder, const TreeItem* curr)
+void NonmappableStorageManager::ExportMetaInfo(const TreeItem* storageHolder, const TreeItem* curr)
 {
 	ExportMetaInfoToFileImpl(curr);
 }

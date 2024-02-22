@@ -1,35 +1,12 @@
-//<HEADER> 
-/*
-Data & Model Server (DMS) is a server written in C++ for DSS applications. 
-Version: see srv/dms/rtc/dll/src/RtcVersion.h for version info.
-
-Copyright (C) 1998-2004  YUSE GSO Object Vision BV. 
-
-Documentation on using the Data & Model Server software can be found at:
-http://www.ObjectVision.nl/DMS/
-
-See additional guidelines and notes in srv/dms/Readme-srv.txt 
-
-This library is free software; you can use, redistribute, and/or
-modify it under the terms of the GNU General Public License version 2 
-(the License) as published by the Free Software Foundation,
-provided that this entire header notice and readme-srv.txt is preserved.
-
-See LICENSE.TXT for terms of distribution or look at our web site:
-http://www.objectvision.nl/DMS/License.txt
-or alternatively at: http://www.gnu.org/copyleft/gpl.html
-
-This library is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
-General Public License for more details. However, specific warranties might be
-granted by an additional written contract for support, assistance and/or development
-*/
-//</HEADER>
+// Copyright (C) 1998-2023 Object Vision b.v. 
+// License: GNU GPL 3
+/////////////////////////////////////////////////////////////////////////////
 
 #include "GeoPCH.h"
-#pragma hdrstop
 
+#if defined(CC_PRAGMAHDRSTOP)
+#pragma hdrstop
+#endif //defined(CC_PRAGMAHDRSTOP)
 
 #include "dbg/SeverityType.h"
 #include "geo/BoostPolygon.h"
@@ -96,7 +73,7 @@ coords_using_more_than_25_bits(const Rect& rect)
 // *****************************************************************************
 
 
-static CommonOperGroup gr("overlay_polygon", oper_policy::dynamic_result_class);
+static CommonOperGroup gr("overlay_polygon", oper_policy::dynamic_result_class | oper_policy::better_not_in_meta_scripting);
 
 static TokenID 
 	s_tGM = token::geometry,
@@ -174,7 +151,11 @@ protected:
 						}
 					}
 				);
-				reportF(SeverityTypeID::ST_MajorTrace, "Intersect count %d of %dx%d", intersectCount, domain1Unit->GetNrTiles(), ue); // DEBUG
+				reportF(SeverityTypeID::ST_MajorTrace, "overlay_polygon at %d tiles of first argument x %d tiles of second argument resulted in %d matches"
+					, domain1Unit->GetNrTiles()
+					, ue
+					, intersectCount
+				);
 			}
 
 			StoreRes(res, resG, res1, res2, resData);
@@ -448,7 +429,7 @@ void UnionPolygon(ResourceArrayHandle& r, SizeT n, const AbstrDataItem* polyData
 			SizeT i = p1-pb;
 			if (unionPermState != PolygonFlags::none)
 			{
-				dms_assert(unionPermState == PolygonFlags::F_DoPartUnion);
+				assert(unionPermState == PolygonFlags::F_DoPartUnion);
 				SizeT ri = vg->Get(i);	
 				if (ri >= n)
 				{
@@ -458,7 +439,7 @@ void UnionPolygon(ResourceArrayHandle& r, SizeT n, const AbstrDataItem* polyData
 				}
 				i = ri;
 			}
-			dms_assert( i < n);
+			assert( i < n);
 			geometryPtr += i;
 		}
 #if defined(MG_DEBUG_POLYGON)
@@ -536,7 +517,7 @@ protected:
 			DBG_TRACE(("arg %d: %s", i, args[i]->GetName().c_str()));
 		}
 #endif
-		dms_assert(args.size() == CalcNrArgs(m_Flags));
+		MG_CHECK(args.size() == CalcNrArgs(m_Flags));
 
 		arg_index argCount = 0;
 		const AbstrDataItem* argPoly = AsDataItem(args[argCount++]);
@@ -567,10 +548,23 @@ protected:
 		if (m_Flags & PolygonFlags::F_DoSplit)
 		{
 			resUnit = Unit<UInt32>::GetStaticClass()->CreateResultUnit(resultHolder);
+			resUnit->SetTSF(TSF_Categorical);
+
 			resultHolder = resUnit;
 			resGeometry = CreateDataItem(resUnit, token::geometry, resUnit, values1Unit, ValueComposition::Polygon);
-			if (!resDomain->IsKindOf( Unit<Void>::GetStaticClass() ))
-				resNrOrgEntity = CreateDataItem(resUnit, token::nr_OrgEntity, resUnit, resDomain, ValueComposition::Single);
+			if (!resDomain->IsKindOf(Unit<Void>::GetStaticClass()))
+			{
+				resNrOrgEntity = CreateDataItem(resUnit, argPart ? token::part_rel : token::polygon_rel, resUnit, resDomain, ValueComposition::Single);
+				resNrOrgEntity->SetTSF(TSF_Categorical);
+
+				if (!mustCalc)
+				{
+					auto depreciatedRes = CreateDataItem(resUnit, token::nr_OrgEntity, resUnit, resDomain, ValueComposition::Single);
+					depreciatedRes->SetTSF(TSF_Categorical);
+					depreciatedRes->SetTSF(TSF_Depreciated);
+					depreciatedRes->SetReferredItem(resNrOrgEntity);
+				}
+			}
 		}
 		else
 		{
@@ -880,7 +874,7 @@ public:
 			dms_assert(geometryDataPtr);
 
 			domainCount = geometryDataPtr->Size();
-			geometryPtr = OwningPtrSizedArray<typename traits_t::polygon_result_type>(domainCount MG_DEBUG_ALLOCATOR_SRC("BoostPolygon: geometryPtr"));
+			geometryPtr = OwningPtrSizedArray<typename traits_t::polygon_result_type>(domainCount, value_construct MG_DEBUG_ALLOCATOR_SRC("BoostPolygon: geometryPtr"));
 
 			typename traits_t::polygon_set_data_type::clean_resources cleanResources;
 			for (SizeT i = 0; i != domainCount; ++i) // TODO G8: parallel_for and cleanResources in a threadLocal thing
@@ -947,7 +941,7 @@ public:
 
 #include "IndexAssigner.h"
 
-CommonOperGroup cogPC("polygon_connectivity");
+CommonOperGroup cogPC("polygon_connectivity", oper_policy::better_not_in_meta_scripting);
 static TokenID tF1 = GetTokenID_st("F1"), tF2 = GetTokenID_st("F2");
 
 class AbstrPolygonConnectivityOperator : public UnaryOperator
@@ -969,6 +963,8 @@ protected:
 		const AbstrUnit* domain1Unit = arg1A->GetAbstrDomainUnit();
 
 		AbstrUnit* res = Unit<UInt32>::GetStaticClass()->CreateResultUnit(resultHolder);
+		res->SetTSF(TSF_Categorical);
+
 		resultHolder = res;
 
 		AbstrDataItem* resF1 = CreateDataItem(res, tF1, res, domain1Unit);
@@ -1079,9 +1075,11 @@ namespace
 		PolyOperatorGroup(CharPtr name, PolygonFlags flags)
 			: CommonOperGroup(name)
 			, m_Instances(std::pair<AbstrOperGroup*, PolygonFlags>(this, flags))
-		{}
+		{
+			SetBetterNotInMetaScripting();
+		}
 
-		tl_oper::inst_tuple<typelists::sint_points, PolygonOperator<_>, std::pair<AbstrOperGroup*, PolygonFlags>>
+		tl_oper::inst_tuple_templ<typelists::sint_points, PolygonOperator, std::pair<AbstrOperGroup*, PolygonFlags>>
 			m_Instances;
 	};
 
@@ -1128,8 +1126,8 @@ namespace
 		{}
 	};
 
-	tl_oper::inst_tuple<typelists::sint_points, PolygonOverlayOperator     <_>> polygonOverlayOperators;
-	tl_oper::inst_tuple<typelists::sint_points, PolygonConnectivityOperator<_>>	polygonConnectivityOperators;
+	tl_oper::inst_tuple_templ<typelists::sint_points, PolygonOverlayOperator     > polygonOverlayOperators;
+	tl_oper::inst_tuple_templ<typelists::sint_points, PolygonConnectivityOperator>	polygonConnectivityOperators;
 
 	PolyOperatorGroupss simple("", PolygonFlags());
 	PolyOperatorGroupsss f2 (SharedStr(""),          PolygonFlags());

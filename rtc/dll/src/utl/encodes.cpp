@@ -27,7 +27,10 @@ granted by an additional written contract for support, assistance and/or develop
 */
 //</HEADER>
 #include "RtcPCH.h"
+
+#if defined(CC_PRAGMAHDRSTOP)
 #pragma hdrstop
+#endif //defined(CC_PRAGMAHDRSTOP)
 
 #include "utl/Encodes.h"
 
@@ -47,6 +50,116 @@ const auto& GetCp1250Locale()
 	static boost::locale::generator gen;
 	static auto usLocale = gen("cp1250");
 	return usLocale;
+}
+
+namespace url
+{
+
+	/*	URL Encoding replaces spaces with "+" signs, and unsafe ASCII characters with "%" followed by their hex equivalent.
+		Safe characters are defined in RFC2396. They are the 7-bit ASCII alphanumerics and the mark characters "-_.!~*'()".
+		(Note that the standard JavaScript escape and unescape functions operate slightly differently: they encode space as "%20", and treat "+" as a safe character.)
+		see: http://www.albionresearch.com/misc/urlencode.php
+		and: http://www.ietf.org/rfc/rfc2396.txt
+	*/
+	namespace impl
+	{
+		static bool isInitialized = false;
+		static bool isSafe[128 - 32];
+
+		void SetRange(char first, char count)
+		{
+			dms_assert(first >= 32);
+			first -= 32;
+			dms_assert(count < 128 - 32 && first + count <= 128 - 32);
+			bool* firstPtr = isSafe + first;
+			fast_fill(firstPtr, firstPtr + count, true);
+		}
+		void SetChars(CharPtr chPtr)
+		{
+			while (*chPtr)
+				isSafe[*chPtr++ - char(32)] = true;
+		}
+		void InitSafeChars()
+		{
+			if (isInitialized)
+				return;
+			SetRange('0', 10);
+			SetRange('A', 26);
+			SetRange('a', 26);
+			SetChars("-_.!~*\'()");
+			SetChars("+"); // count as one character; transforms to space 
+			isInitialized = true;
+		}
+	}
+	bool IsSafeChar(char ch)
+	{
+		impl::InitSafeChars();
+		return ch >= 32 && ch < 128 && impl::isSafe[ch - 32];
+	}
+}
+
+bool isHex(char ch)
+{
+	return (ch >= '0' && ch <= '9') || (ch >= 'A' && ch <= 'F') || (ch >= 'a' && ch <= 'f');
+}
+
+char hexVal(char ch)
+{
+	dms_assert(isHex(ch));
+
+	if (ch >= '0' && ch <= '9')
+		return ch - '0';
+
+	if (ch >= 'A' && ch <= 'F')
+		return ch - ('A' - 10);
+
+	if (ch >= 'a' && ch <= 'f')
+		return ch - ('a' - 10);
+
+	throwErrorD("RTC", "Unexpected char in UrlDecode.hexVal)");
+}
+
+SizeT UrlDecodeSize(WeakStr urlStr)
+{
+	SizeT c = 0;
+	for (CharPtr chPtr = urlStr.begin(), chEnd = urlStr.send(); chPtr != chEnd; ++chPtr)
+		if (*chPtr == '%')
+		{
+			++c;
+			if (++chPtr == chEnd || !isHex(*chPtr) || ++chPtr == chEnd || !isHex(*chPtr))
+				throwErrorD("UrlDecode", "invalid escape code");
+		}
+	//		else if (!url::IsSafeChar(*chPtr))
+	//			throwErrorF("UrlDecode", "invalid character '%c'", *chPtr);
+	assert(3 * c <= urlStr.ssize());
+	return urlStr.ssize() - 2 * c;
+}
+
+SharedStr UrlDecode(WeakStr urlStr)
+{
+	SizeT sz = UrlDecodeSize(urlStr);
+	if (sz == urlStr.ssize() && urlStr.find('+') == urlStr.send())
+		return urlStr;
+
+	auto result = SharedCharArray::CreateUninitialized(sz + 1);
+	SharedStr resultStr(result); // assign ownership
+
+	char* resultPtr = result->begin();
+	for (CharPtr chPtr = urlStr.begin(), chEnd = urlStr.send(); chPtr != chEnd; ++resultPtr, ++chPtr)
+	{
+		char ch = *chPtr;
+		if (ch == '%')
+		{
+			ch = (hexVal(*++chPtr) << 4);
+			ch += hexVal(*++chPtr);
+		}
+		else if (ch == '+')
+			ch = ' ';
+		*resultPtr = ch;
+	}
+	assert(resultPtr == resultStr.csend());
+	*resultPtr = char(0);
+	return resultStr;
 }
 
 SharedStr to_utf(CharPtr first, CharPtr last)
@@ -77,7 +190,7 @@ bool itemName_test(CharPtr p)
 
 CharPtr ParseTreeItemName(CharPtr name)
 {
-	dms_assert(name);
+	assert(name);
 	if (itemNameFirstChar_test(*name))
 	{
 		++name;
@@ -89,7 +202,7 @@ CharPtr ParseTreeItemName(CharPtr name)
 
 CharPtr ParseTreeItemPath(CharPtr name)
 {
-	dms_assert(name);
+	assert(name);
 	while (true)
 	{
 		name = ParseTreeItemName(name); // could be empty
@@ -127,14 +240,14 @@ SharedStr as_item_name(CharPtr first, CharPtr last)
 	SizeT n = last - first;
 	if (!n)
 		return {};
-	if (isdigit(*first))
+	if (isdigit((unsigned char)*first))
 		++n;
 
 	auto resultPtr = SharedCharArray::Create(n+1, false); // size + zero termination
 	auto resultStr = SharedStr(resultPtr);
 
 	auto dstPtr = resultPtr->begin();
-	if (isdigit(*first))
+	if (isdigit((unsigned char)*first))
 		*dstPtr++ = '_';
 
 	auto dstEnd = fast_copy(first, last, dstPtr);
@@ -161,115 +274,7 @@ SharedStr as_item_name(CharPtr first, CharPtr last)
 	return resultStr;
 }
 
-namespace url
-{
 
-/*	URL Encoding replaces spaces with "+" signs, and unsafe ASCII characters with "%" followed by their hex equivalent. 
-	Safe characters are defined in RFC2396. They are the 7-bit ASCII alphanumerics and the mark characters "-_.!~*'()". 
-	(Note that the standard JavaScript escape and unescape functions operate slightly differently: they encode space as "%20", and treat "+" as a safe character.) 
-	see: http://www.albionresearch.com/misc/urlencode.php
-	and: http://www.ietf.org/rfc/rfc2396.txt
-*/
-	namespace impl
-	{
-		static bool isInitialized = false;
-		static bool isSafe[128-32];
-
-		void SetRange(char first, char count)
-		{
-			dms_assert(first >= 32);
-			first -= 32;
-			dms_assert(count < 128-32 && first + count <= 128-32);
-			bool* firstPtr = isSafe + first;
-			fast_fill(firstPtr, firstPtr+count, true);
-		}
-		void SetChars(CharPtr chPtr)
-		{
-			while (*chPtr)
-				isSafe[*chPtr++ - char(32)] = true;
-		}
-		void InitSafeChars()
-		{
-			if (isInitialized)
-				return;
-			SetRange('0', 10);
-			SetRange('A', 26);
-			SetRange('a', 26);
-			SetChars("-_.!~*\'()");
-			SetChars("+"); // count as one character; transforms to space 
-			isInitialized = true;
-		}
-	}
-	bool IsSafeChar(char ch)
-	{
-		impl::InitSafeChars();
-		return ch >= 32 && ch < 128 && impl::isSafe[ch-32];
-	}
-}
-
-bool isHex(char ch)
-{
-	return (ch >='0' && ch <= '9') || (ch >='A' && ch <='F') || (ch >='a' && ch <='f');
-}
-
-char hexVal(char ch)
-{
-	dms_assert(isHex(ch));
-
-	if (ch >= '0' && ch <= '9')
-		return ch-'0';
-
-	if (ch >= 'A' && ch <= 'F')
-		return ch - ('A'-10);
-
-	if (ch >= 'a' && ch <= 'f')
-		return ch - ('a'-10);
-
-	throwErrorD("RTC", "Unexpected char in UrlDecode.hexVal)");
-}
-
-SizeT UrlDecodeSize(WeakStr urlStr)
-{
-	SizeT c = 0;
-	for (CharPtr chPtr = urlStr.begin(), chEnd = urlStr.send(); chPtr != chEnd; ++chPtr)
-		if (*chPtr == '%')
-		{
-			++c;
-			if (++chPtr == chEnd || !isHex(*chPtr ) || ++chPtr == chEnd || !isHex(*chPtr ))
-				throwErrorD("UrlDecode", "invalid escape code");
-		}
-		else if (!url::IsSafeChar(*chPtr))
-			throwErrorF("UrlDecode", "invalid character '%c'", *chPtr);
-	dms_assert(3*c <= urlStr.ssize());
-	return urlStr.ssize() - 2*c;
-}
-
-SharedStr UrlDecode(WeakStr urlStr)
-{
-	SizeT sz = UrlDecodeSize(urlStr);
-	if (sz == urlStr.ssize() && urlStr.find('+') == urlStr.send())
-		return urlStr;
-
-	auto result = SharedCharArray::CreateUninitialized(sz+1);
-	SharedStr resultStr(result); // assign ownership
-
-	char* resultPtr = result->begin();
-	for (CharPtr chPtr = urlStr.begin(), chEnd = urlStr.send(); chPtr != chEnd; ++resultPtr, ++chPtr)
-	{
-		char ch = *chPtr;
-		if (ch == '%')
-		{
-			ch = (hexVal(*++chPtr) << 4);
-			ch += hexVal(*++chPtr);
-		}
-		else if (ch == '+')
-			ch = ' ';
-		*resultPtr = ch;
-	}
-	dms_assert(resultPtr == resultStr.csend());
-	*resultPtr = char(0);
-	return resultStr;
-}
 
 
 SharedStr AsFilename(WeakStr filenameStr)

@@ -90,6 +90,7 @@ enum EventID {
 	EID_SETCURSOR     = 0x00020000,
 	EID_COPYCOORD     = 0x00040000,
 	EID_MOUSEWHEEL    = 0x00080000,
+	EID_TEXTSENT      = 0x00100000,
 };
 typedef UInt32 EventIdType;
 
@@ -98,10 +99,10 @@ inline auto CompoundWriteType(EventID eid) { return DmsRwChangeType(IsCreateNewE
 
 struct EventInfo
 {
-	EventInfo(EventID eventID, UINT wParam, GPoint point = GPoint())
+	EventInfo(EventID eventID, UINT wParam, GPoint devicePoint = GPoint())
 		:	m_EventID(eventID)
 		,	m_wParam(wParam)
-		,	m_Point(point)
+		,	m_Point(devicePoint)
 	{}
 
 	EventID GetID() const { return EventID(m_EventID); }
@@ -115,19 +116,27 @@ class AbstrController : public SharedObj
 {
 	typedef PersistentSharedObj base_type;
 public:
-	AbstrController(
-		DataView*                owner, 
-		GraphicObject*           target, 
-		EventIdType              moveEvents,  // = EID_MOUSEMOVE|EID_MOUSEDRAG
-		EventIdType              execEvents,
-		EventIdType              stopEvents
+	AbstrController(DataView* owner, GraphicObject* target
+	,	EventIdType moveEvents  // = EID_MOUSEMOVE|EID_MOUSEDRAG
+	,	EventIdType execEvents, EventIdType stopEvents
+	,	ToolButtonID toolID
 	);
+
 	virtual ~AbstrController();
 
-	std::weak_ptr<DataView>      GetOwner         () { return m_Owner; }
-	std::weak_ptr<GraphicObject> GetTargetObject  () { return m_TargetObject; }
+	std::weak_ptr<DataView>      GetOwner         () const { return m_Owner; }
+	std::weak_ptr<GraphicObject> GetTargetObject  () const { return m_TargetObject; }
 
 	bool Event(EventInfo& eventInfo);
+
+	auto GetPressStatus(ToolButtonID id) const -> PressStatus
+	{
+		if (id == m_ToolID)
+			return PressStatus::Dn;
+		return PressStatus::DontCare;
+	}
+
+	bool SendStatusText(CharPtr format, CrdType dst, CrdType dst2) const;
 
 protected:
 	virtual bool Move(EventInfo& eventInfo);
@@ -137,8 +146,9 @@ protected:
 private:
 	std::weak_ptr<DataView>      m_Owner;
 	std::weak_ptr<GraphicObject> m_TargetObject;
-
 	UInt32 m_MoveEvents, m_ExecEvents, m_StopEvents;
+	ToolButtonID                 m_ToolID;
+	mutable std::unique_ptr< UnitLabelScalePair> m_UnitLabelScalePtr;
 };
 
 //----------------------------------------------------------------------

@@ -104,6 +104,7 @@ struct datablock_grammar : public boost::spirit::grammar<datablock_grammar>
 			chlit<> RBRACK(']');
 			chlit<> LPAREN('(');
 			chlit<> RPAREN(')');
+			chlit<> PERCENT('%');
 
 			chlit<> PLUS ('+');
 			chlit<> MINUS('-');
@@ -115,7 +116,7 @@ struct datablock_grammar : public boost::spirit::grammar<datablock_grammar>
 				=	(	
 							LBRACK
 						>> (!arrayAssignments)
-						>>	assert_d("']' after data value assignments expected")
+						>>	assert_d("']' or literals expected after opening bracket")
 							[RBRACK]
 					);
 
@@ -128,7 +129,7 @@ struct datablock_grammar : public boost::spirit::grammar<datablock_grammar>
 
 			basicValue
 				= numericValue
-				| m_StringDef.string_value[([&](...) { currDBP.SetValueType(VT_SharedStr);})]
+				| m_StringDef.string_value[([&](...) { currDBP.SetValueType(ValueClassID::VT_SharedStr);})]
 				| rgbValue
 				| pointValue
 				| boolValue
@@ -147,7 +148,7 @@ struct datablock_grammar : public boost::spirit::grammar<datablock_grammar>
 					>>	numericValue[([&](...) { currDBP.DoSecondPointValue();})]
 					]
 				>>	assert_d("'}' after point value expected")[ RBRACE ]
-					[([&](...) { currDBP.SetValueType(VT_DPoint);})];
+					[([&](...) { currDBP.SetValueType(ValueClassID::VT_DPoint);})];
 
 				parenthesizedPointValue
 					= LPAREN
@@ -157,7 +158,7 @@ struct datablock_grammar : public boost::spirit::grammar<datablock_grammar>
 					>> numericValue[([&](...) { currDBP.DoSecondPointValue();})]
 					]
 				>>	assert_d("')' after point value expected")[ RPAREN ]
-					[([&](...) { currDBP.SetValueType(VT_DPoint);})];
+					[([&](...) { currDBP.SetValueType(ValueClassID::VT_DPoint);})];
 
 			rgbValue
 				=	as_lower_d["rgb"] 
@@ -179,12 +180,13 @@ struct datablock_grammar : public boost::spirit::grammar<datablock_grammar>
 					|	epsilon_p[([&](...) { currDBP.SetSign(true);})]
 					)
 				>>	( floatValue
-					| integerValue
+					| unsignedInteger
 					);
 
 			floatValue = strict_ureal_p[([&](Float64 v) { currDBP.DoFloatValue(v);})];
-			integerValue = uint_p[([&](UInt32 v) { currDBP.DoIntegerValue(v);})];
-
+			unsignedInteger = (uint64_p[([&](auto u64) { currDBP.DoUInt64(u64); })])
+				| (PERCENT >> (hex64_p[([&](auto u64) { currDBP.DoUInt64(u64); })]));
+				
 			boolValue
 				= as_lower_d["true" ][([&](...) { currDBP.DoBoolValue(true );})]
 				| as_lower_d["false"][([&](...) { currDBP.DoBoolValue(false);})];
@@ -197,7 +199,7 @@ struct datablock_grammar : public boost::spirit::grammar<datablock_grammar>
 			arrayAssignments, 
 			arrayAssignment, 
 			basicValue, rgbValue, pointValue, parenthesizedPointValue, bracedPointValue,
-			numericValue, floatValue, integerValue, 
+			numericValue, floatValue, unsignedInteger, 
 			boolValue;
 
 		boost::spirit::rule<ScannerT> const& start() const { return main; }

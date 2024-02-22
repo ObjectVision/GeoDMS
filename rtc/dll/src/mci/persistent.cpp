@@ -1,46 +1,25 @@
-//<HEADER> 
-/*
-Data & Model Server (DMS) is a server written in C++ for DSS applications. 
-Version: see srv/dms/rtc/dll/src/RtcVersion.h for version info.
+// Copyright (C) 1998-2023 Object Vision b.v. 
+// License: GNU GPL 3
+/////////////////////////////////////////////////////////////////////////////
 
-Copyright (C) 1998-2004  YUSE GSO Object Vision BV. 
-
-Documentation on using the Data & Model Server software can be found at:
-http://www.ObjectVision.nl/DMS/
-
-See additional guidelines and notes in srv/dms/Readme-srv.txt 
-
-This library is free software; you can use, redistribute, and/or
-modify it under the terms of the GNU General Public License version 2 
-(the License) as published by the Free Software Foundation,
-provided that this entire header notice and readme-srv.txt is preserved.
-
-See LICENSE.TXT for terms of distribution or look at our web site:
-http://www.objectvision.nl/DMS/License.txt
-or alternatively at: http://www.gnu.org/copyleft/gpl.html
-
-This library is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
-General Public License for more details. However, specific warranties might be
-granted by an additional written contract for support, assistance and/or development
-*/
-//</HEADER>
 #include "RtcPCH.h"
+
+#if defined(CC_PRAGMAHDRSTOP)
 #pragma hdrstop
+#endif //defined(CC_PRAGMAHDRSTOP)
 
 #include "PropDefInterface.h"
 
 #include "ptr/PersistentSharedObj.h"
 #include "mci/Class.h"
 #include "mci/PropDef.h"
-#include "mci/PropDefEnums.h"
+#include "mci/PropdefEnums.h"
 #include "ptr/SharedStr.h"
 #include "set/VectorFunc.h"
-#include "xml/XmlOut.h"
+#include "xml/XMLOut.h"
 
 #include "dbg/DmsCatch.h"
-#include "dbg/Debug.h"
+#include "dbg/debug.h"
 #include "utl/splitPath.h"
 #include "utl/mySPrintF.h"
 #include "xct/DmsException.h"
@@ -50,7 +29,8 @@ granted by an additional written contract for support, assistance and/or develop
 // *****************************************************************************
 // Section:     Annotated Object register for CheckPtr
 // *****************************************************************************
-#if defined(MG_DEBUG) && 1
+
+#if defined(MG_DEBUG) && 0
 #include <crtdbg.h>
 #	define MG_CHECKPTR
 #endif
@@ -144,14 +124,10 @@ granted by an additional written contract for support, assistance and/or develop
 	void CheckPtr(const Object* item, const Class* cls, CharPtr dmsFunc)
 	{
 		if (!item) 
-			throwErrorF("CheckPtr", 
-				"Invalid Null Pointer in %s" ,
-				dmsFunc
-			);
+			throwErrorF("CheckPtr", "Invalid Null Pointer in %s", dmsFunc);
+
 		if (cls && !item->IsKindOf(cls) && !item->GetDynamicObjClass()->IsDerivedFrom(cls))
-			item->throwItemErrorF("Invalid Item in %s; %s expected" ,
-				dmsFunc, cls->GetName().c_str()
-			);
+			throwErrorF("CheckPtr", "Invalid Item in %s; %s expected" , dmsFunc, cls->GetName().c_str());
 	}
 	static UInt32 g_NrPersistentObjects = 0;
 	
@@ -161,26 +137,26 @@ granted by an additional written contract for support, assistance and/or develop
 		{
 			DMS_CALL_BEGIN
 
+#if defined(_MSC_VER)
 				_RPT1(_CRT_WARN, "\n\nMemory Leak of %d Objects after destructing all DMS Runtime components\nUse MG_CHECKPTR to determine which objects", 
 					g_NrPersistentObjects
 				);
+#else //defined(_MSC_VER)
+
+				// GNU TODO
+
+#endif //defined(_MSC_VER)
+
 			DMS_CALL_END
 		}
 	}
 
-	Object::Objectr()
+	Object::Object()
 	{
 		++g_NrPersistentObjects;
 	}
-	/*
-	Object::Object(const Object& )
-		: Base((const Base&)rhs)
-	{
-		++g_NrPersistentObjects;
-	}
-	*/
 	
-	Object::~Object
+	Object::~Object()
 	{
 		--g_NrPersistentObjects;
 	}
@@ -227,9 +203,20 @@ TokenID Object::GetClsID() const
 return cls->GetID();
 }
 
+TokenStr Object::GetName() const
+{
+	return GetID().GetStr();
+}
+
 bool Object::IsKindOf(const Class* cls) const
 {
-	return GetDynamicClass()->IsDerivedFrom(cls);
+	auto dynamic_class =  GetDynamicClass();
+	return dynamic_class->IsDerivedFrom(cls);
+}
+
+TokenStr Object::GetXmlClassName() const
+{ 
+	return GetXmlClassID().GetStr(); 
 }
 
 TokenID Object::GetXmlClassID() const
@@ -441,10 +428,7 @@ SharedStr PersistentSharedObj::GetSourceName() const
 {
 	if (GetParent())
 		return
-			mySSPrintF("%s: %s"
-			,	GetFullName().c_str()
-			,	GetClsName().c_str()
-			);
+			mySSPrintF("[[%s]]", GetFullName().c_str());
 	TokenStr nameID = GetName();
 	return 
 		mySSPrintF("%s: %s"
@@ -453,24 +437,24 @@ SharedStr PersistentSharedObj::GetSourceName() const
 		);
 }
 
-void Object::throwItemError(ErrMsgPtr msg)
+void throwItemError(ErrMsgPtr msg)
 {
 	DmsException::throwMsg(msg);
 }
 
-void Object::throwItemError(const PersistentSharedObj* self, WeakStr msgStr)
+void throwItemError(const PersistentSharedObj* self, WeakStr msgStr)
 { 
 	throwItemError(std::make_shared<ErrMsg>( msgStr, self ) ); 
 }
 
-void  Object::throwItemError(const PersistentSharedObj* self, CharPtr msg)
+void throwItemError(const PersistentSharedObj* self, CharPtr msg)
 {
 	throwItemError(self, SharedStr(msg));
 }
 
 void Object::XML_Dump(OutStreamBase* xmlOutStr) const
 { 
-	XML_OutElement xmlElem(*xmlOutStr, GetXmlClassName().c_str(), GetName().c_str(), true);
+	XML_OutElement xmlElem(*xmlOutStr, GetXmlClassName().c_str(), GetName().c_str(), ClosePolicy::pairedOnNewline);
 
 	xmlOutStr->DumpPropList(this);
 	xmlOutStr->DumpSubTags(this);
@@ -542,7 +526,7 @@ RTC_CALL const Class* DMS_CONV DMS_GetRootClass()
 // Section:     Class CODE
 // *****************************************************************************
 
-#include "mci/Register.h"
+#include "mci/register.h"
 
 StaticRegister<const Class, TokenID, CompareLtItemIdPtrs<Class> > g_ClassKernel;
 

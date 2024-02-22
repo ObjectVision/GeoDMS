@@ -27,7 +27,10 @@ granted by an additional written contract for support, assistance and/or develop
 */
 //</HEADER>
 #include "TicPCH.h"
+
+#if defined(CC_PRAGMAHDRSTOP)
 #pragma hdrstop
+#endif //defined(CC_PRAGMAHDRSTOP)
 
 #include "TreeItemProps.h"
 
@@ -87,8 +90,9 @@ bool TreeItemHasPropertyValue(const TreeItem* ti, const AbstrPropDef* pd)
 
 #include "PropFuncs.h"
 
-TokenID TreeItem_GetDialogType(const TreeItem* self) { 
-	dms_assert(self);
+TokenID TreeItem_GetDialogType(const TreeItem* self) 
+{ 
+	assert(self);
 
 	if (dialogTypePropDefPtr->HasNonDefaultValue(self))
 		return dialogTypePropDefPtr->GetValue(self);
@@ -137,7 +141,7 @@ void MakeClassBreakAttr(AbstrDataItem* adi)
 
 bool HasMapType(const TreeItem* ti)
 {
-	dms_assert(ti);
+	assert(ti);
 	return TreeItem_GetDialogType(ti) == token::map;
 }
 
@@ -196,7 +200,11 @@ namespace { // local defs
 	{
 	public:
 		ExprPropDef(bool depreciatedName)
-			:	PropDef<TreeItem, SharedStr>(depreciatedName ? EXPR_NAME : CALCRULE_NAME, set_mode::optional, xml_mode::element, cpy_mode::expr, chg_mode::invalidate, false, true, true)
+			:	PropDef<TreeItem, SharedStr>(depreciatedName ? EXPR_NAME : CALCRULE_NAME
+				,	set_mode::optional
+				,	depreciatedName ? xml_mode::none : xml_mode::element
+				,	depreciatedName ? cpy_mode::none : cpy_mode::expr
+				,	chg_mode::invalidate, false, true, true)
 		{
 			if (depreciatedName)
 				SetDepreciated();
@@ -226,7 +234,7 @@ namespace { // local defs
 		void SetValueAsCharArray(Object* self, CharPtr value) override
 		{
 			TreeItem* ti = debug_cast<TreeItem*>(self);
-			dms_assert(ti);
+			assert(ti);
 			ti->SetExpr( SharedStr(value) );
 		}
 	};
@@ -240,19 +248,19 @@ namespace { // local defs
 		// override base class
 		ApiType GetValue(TreeItem const * ti) const override 
 		{
-			dms_assert(ti);
+			assert(ti);
 			return ti->IsDisabledStorage();
 		}
 		void SetValue(TreeItem* ti, ParamType value) override
 		{
-			dms_assert(ti);
+			assert(ti);
 			ti->AssertPropChangeRights(DISABLESTORAGE_NAME);
 			ti->DisableStorage(value);
 		}
 		bool HasNonDefaultValue(const Object* self) const
 		{
 			const TreeItem* ti = debug_cast<const TreeItem*>(self);
-			dms_assert(ti);
+			assert(ti);
 			return GetValue(ti) && ! ti->HasConfigData();
 		}
 	};
@@ -266,23 +274,52 @@ namespace { // local defs
 		// override base class
 		ApiType GetValue(TreeItem const * ti) const override 
 		{
-			dms_assert(ti);
+			assert(ti);
 			return ti->GetKeepDataState();
 		}
 		void SetValue(TreeItem* ti, ParamType value) override
 		{
-			dms_assert(ti);
+			assert(ti);
 			ti->AssertPropChangeRights(KEEPDATA_NAME);
 			ti->SetKeepDataState(value);
 		}
 		bool HasNonDefaultValue(const Object* self) const
 		{
 			const TreeItem* ti = debug_cast<const TreeItem*>(self);
-			dms_assert(ti);
+			assert(ti);
 			const TreeItem* parent = ti->GetTreeParent();
 			return parent 
 				? (GetValue(ti) != GetValue(parent))
 				:  GetValue(ti);
+		}
+	};
+	 
+	struct LazyCalculatedPropDef : PropDef<TreeItem, PropBool>
+	{
+		LazyCalculatedPropDef()
+			: PropDef<TreeItem, PropBool>(LAZYCALC_NAME, set_mode::optional, xml_mode::element, cpy_mode::expr)
+		{}
+
+		// override base class
+		ApiType GetValue(TreeItem const* ti) const override
+		{
+			assert(ti);
+			return ti->GetLazyCalculatedState();
+		}
+		void SetValue(TreeItem* ti, ParamType value) override
+		{
+			assert(ti);
+			ti->AssertPropChangeRights(KEEPDATA_NAME);
+			ti->SetLazyCalculatedState(value);
+		}
+		bool HasNonDefaultValue(const Object* self) const
+		{
+			const TreeItem* ti = debug_cast<const TreeItem*>(self);
+			assert(ti);
+			const TreeItem* parent = ti->GetTreeParent();
+			return parent
+				? (GetValue(ti) != GetValue(parent))
+				: GetValue(ti);
 		}
 	};
 
@@ -295,19 +332,19 @@ namespace { // local defs
 		// override base class
 		ApiType GetValue(TreeItem const * ti) const override 
 		{
-			dms_assert(ti);
+			assert(ti);
 			return ti->GetFreeDataState();
 		}
 		void SetValue(TreeItem* ti, ParamType value) override
 		{
-			dms_assert(ti);
+			assert(ti);
 			ti->AssertPropChangeRights(FREEDATA_NAME);
 			ti->SetFreeDataState(value);
 		}
 		bool HasNonDefaultValue(const Object* self) const
 		{
 			const TreeItem* ti = debug_cast<const TreeItem*>(self);
-			dms_assert(ti);
+			assert(ti);
 			const TreeItem* parent = ti->GetTreeParent();
 			return parent 
 				? (GetValue(ti) != GetValue(parent))
@@ -324,19 +361,19 @@ namespace { // local defs
 		// override base class
 		ApiType GetValue(TreeItem const * ti) const override 
 		{
-			dms_assert(ti);
+			assert(ti);
 			return ti->GetStoreDataState();
 		}
 		void SetValue(TreeItem* ti, ParamType value) override
 		{
-			dms_assert(ti);
+			assert(ti);
 			ti->AssertPropChangeRights(STOREDATA_NAME);
 			ti->SetStoreDataState(value);
 		}
 		bool HasNonDefaultValue(const Object* self) const
 		{
 			const TreeItem* ti = debug_cast<const TreeItem*>(self);
-			dms_assert(ti);
+			assert(ti);
 			const TreeItem* parent = ti->GetTreeParent();
 			return parent 
 				? (GetValue(ti) != GetValue(parent))
@@ -633,7 +670,7 @@ namespace { // local defs
 		}
 		void SetValue(TreeItem* ti, ParamType val) override 
 		{ 
-			dms_assert(ti);
+			assert(ti);
 			ti->AssertPropChangeRights(USING_NAME);
 			ti->ClearNamespaceUsage();
 			if (!val.empty())
@@ -655,7 +692,7 @@ namespace { // local defs
 		}
 		void SetValue(TreeItem* ti, ParamType val) override 
 		{ 
-			dms_assert(ti);
+			assert(ti);
 			ti->AssertPropChangeRights(EXPLICITSUPPLIERS_NAME);
 			ti->GetOrCreateSupplCache()->SetSupplString(val);
 			ti->TriggerEvaluation();
@@ -675,6 +712,7 @@ namespace {
 	static ExprPropDef calcRulePropDef(false);
 	static DisableStoragePropDef disableStoragePropDef;
 	static KeepDataPropDef keepDataPropDef;
+	static LazyCalculatedPropDef lazyCalculatedPropDef;
 	static FreeDataPropDef freeDataPropDef;
 	static StoreDataPropDef storeDataPropDef;
 	static NrSubItemsPropDef nrSubItemsPropDef;
@@ -693,6 +731,7 @@ namespace {
 	static StoredPropDef<TreeItem, SharedStr> integrityCheckPropDef(ICHECK_NAME, set_mode::optional, xml_mode::element, cpy_mode::expr, true);
 	static StoredPropDef<TreeItem, SharedStr> storageNamePropDef(STORAGENAME_NAME, set_mode::optional, xml_mode::element, stg_cpy_mode, true, chg_mode::invalidate);
 	static StoredPropDef<TreeItem, TokenID  > storageTypePropDef(STORAGETYPE_NAME, set_mode::optional, xml_mode::element, stg_cpy_mode, false, chg_mode::invalidate);
+	static StoredPropDef<TreeItem, SharedStr> storageDriverPropDef(STORAGEDRIVER_NAME, set_mode::optional, xml_mode::element, stg_cpy_mode, true, chg_mode::invalidate);
 	static StoredPropDef<TreeItem, SharedStr> storageOptionsPropDef(STORAGEOPTIONS_NAME, set_mode::optional, xml_mode::element, stg_cpy_mode, true, chg_mode::invalidate);
 	static StoredPropDef<TreeItem, PropBool > storageReadOnlyPropDef(STORAGEREADONLY_NAME, set_mode::optional, xml_mode::element, stg_cpy_mode, false);
 	static StoredPropDef<TreeItem, TokenID  > syncModePropDef(SYNCMODE_NAME, set_mode::optional, xml_mode::element, stg_cpy_mode, false);
@@ -746,6 +785,7 @@ PropDef<TreeItem, SharedStr>* explicitSupplPropDefPtr  = &explicitSupplPropDef;
 
 PropDef<TreeItem, SharedStr>* storageNamePropDefPtr    = &storageNamePropDef;
 PropDef<TreeItem, TokenID  >* storageTypePropDefPtr    = &storageTypePropDef;
+PropDef<TreeItem, SharedStr>* storageDriverPropDefPtr  = &storageDriverPropDef;
 PropDef<TreeItem, SharedStr>* storageOptionsPropDefPtr = &storageOptionsPropDef;
 PropDef<TreeItem, PropBool >* storageReadOnlyPropDefPtr= &storageReadOnlyPropDef;
 PropDef<TreeItem, TokenID  >* syncModePropDefPtr       = &syncModePropDef;

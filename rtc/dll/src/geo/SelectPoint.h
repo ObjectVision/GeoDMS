@@ -31,7 +31,7 @@ granted by an additional written contract for support, assistance and/or develop
 #ifndef __RTC_GEO_SELECTPOINT_H
 #define __RTC_GEO_SELECTPOINT_H
 
-#include "dbg/Debug.h"
+#include "dbg/debug.h"
 #include "geo/Area.h"
 #include "set/VectorFunc.h"
 #include "geo/CalcWidth.h"
@@ -77,7 +77,7 @@ ScalarType SelectRow(ConstPointIter polyBegin, ConstPointIter polyEnd, DensityTy
 		{
 			ScalarType currRow   = polyBegin[*currPointIndexPtr].Row();
 			ScalarType currWidth = CalcWidth<ScalarType>(polyBegin, polyEnd,  polyBegin[*currPointIndexPtr]);
-			DensityType deltaDoubleArea = DensityType(prevWidth + currWidth) * (DensityType(currRow) - DensityType(prevRow));
+			DensityType deltaDoubleArea = (DensityType(prevWidth) + DensityType(currWidth)) * (DensityType(currRow) - DensityType(prevRow));
 
 			DBG_TRACE(("currPoint  %s", AsString(polyBegin[*currPointIndexPtr]).c_str()));
 			DBG_TRACE(("currWidth  %s", AsString(currWidth).c_str()));

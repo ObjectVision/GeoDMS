@@ -1,31 +1,3 @@
-//<HEADER> 
-/*
-Data & Model Server (DMS) is a server written in C++ for DSS applications. 
-Version: see srv/dms/rtc/dll/src/RtcVersion.h for version info.
-
-Copyright (C) 1998-2004  YUSE GSO Object Vision BV. 
-
-Documentation on using the Data & Model Server software can be found at:
-http://www.ObjectVision.nl/DMS/
-
-See additional guidelines and notes in srv/dms/Readme-srv.txt 
-
-This library is free software; you can use, redistribute, and/or
-modify it under the terms of the GNU General Public License version 2 
-(the License) as published by the Free Software Foundation,
-provided that this entire header notice and readme-srv.txt is preserved.
-
-See LICENSE.TXT for terms of distribution or look at our web site:
-http://www.objectvision.nl/DMS/License.txt
-or alternatively at: http://www.gnu.org/copyleft/gpl.html
-
-This library is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
-General Public License for more details. However, specific warranties might be
-granted by an additional written contract for support, assistance and/or development
-*/
-//</HEADER>
 #pragma once
 
 #include "ShvDllPch.h"
@@ -56,46 +28,46 @@ const UInt32  MIN_GRIDLINE_SIZE = 25;
 // class  : GridCoord
 //----------------------------------------------------------------------
 
-GridCoord::GridCoord(ViewPort* owner, const grid_coord_key& key, GPoint clientSize, const CrdTransformation& w2vTr)
+GridCoord::GridCoord(ViewPort* owner, const grid_coord_key& key) //, GPoint clientSize, const CrdTransformation& w2vTr)
 	:	m_Owner(owner->shared_from_base<ViewPort>())
 		,	m_Key(key)
-		,	m_SubPixelFactor(-1.0)
+		,	m_SubPixelFactors(-1.0, -1.0)
 {
 #if defined(MG_DEBUG_COORD)
-	reportF(SeverityTypeID::ST_MajorTrace, "GridCoord::GridCoord(%s)", AsString(key).c_str());
+	reportF(SeverityTypeID::ST_MinorTrace, "GridCoord::GridCoord(%s)", AsString(key).c_str());
 #endif
-	Init(clientSize, w2vTr);
+//	Init(clientSize, w2vTr);
 }
 
 GridCoord::~GridCoord()
 {
 #if defined(MG_DEBUG_COORD)
-	reportF(SeverityTypeID::ST_MajorTrace, "GridCoord::~GridCoord(%s)", AsString(m_Key).c_str());
+	reportF(SeverityTypeID::ST_MinorTrace, "GridCoord::~GridCoord(%s)", AsString(m_Key).c_str());
 #endif
 	auto owner = m_Owner.lock();
 	if (owner)
 		owner->m_GridCoordMap.erase(m_Key);
 }
 
-void GridCoord::Init(GPoint clientSize, const CrdTransformation& w2vTr)
+void GridCoord::Init(GPoint deviceSize, const CrdTransformation& w2dTr)
 {
-	m_ClientSize     = clientSize;
-	m_World2ClientTr = w2vTr;
+	m_DeviceSize     = deviceSize;
+	m_World2DeviceTr = w2dTr;
 	m_IsDirty        = true;
 }
 
 bool GridCoord::Empty() const
 {
-	dms_assert(!m_IsDirty);
-	return m_ClippedRelRect.empty(); 
+	assert(!m_IsDirty);
+	return m_ClippedRelDeviceRect.empty(); 
 }
 
 void CalcGridNrs(UInt32* gridCoords, UInt32* linedCoords, CrdType currGridCrd, CrdType deltaGridCrd, CrdType subPixelFactor, UInt32 nrGridPos, UInt32 nrViewPos)
 {
-	dms_assert(nrViewPos);
+	assert(nrViewPos);
 
-	dms_assert(currGridCrd <  nrGridPos);
-	dms_assert(currGridCrd >= 0);
+	assert(currGridCrd <  nrGridPos);
+	assert(currGridCrd >= 0);
 	UInt32 currGridPos = RoundDownPositive<4>( currGridCrd ), prevGridPos = currGridPos;
 
 	// if (lineCoords) go back (subPixelFactor) cells to determine showLinesNow
@@ -109,7 +81,7 @@ void CalcGridNrs(UInt32* gridCoords, UInt32* linedCoords, CrdType currGridCrd, C
 	}
 	while (true)
 	{
-		dms_assert(currGridPos <= currGridCrd );
+		assert(currGridPos <= currGridCrd );
 
 		*gridCoords++ = currGridPos;
 
@@ -132,8 +104,8 @@ void CalcGridNrs(UInt32* gridCoords, UInt32* linedCoords, CrdType currGridCrd, C
 			return;
 
 		currGridCrd += deltaGridCrd;
-		dms_assert(currGridCrd >= 0);
-		dms_assert(currGridCrd <  nrGridPos);
+		assert(currGridCrd >= 0);
+		assert(currGridCrd <  nrGridPos);
 
 		prevGridPos = currGridPos;
 		currGridPos = RoundDownPositive<4>( currGridCrd );
@@ -153,7 +125,7 @@ void CalcGridNrs(grid_coord_array& gridCoords, grid_coord_array& linedCoords, Cr
 	if (nrViewPos)
 		CalcGridNrs(
 			&*gridCoords.begin()
-		,	showLines ? &*linedCoords.begin() : 0
+		,	showLines ? &*linedCoords.begin() : nullptr
 		,	firstGridCrd
 		,	deltaGridCrd, subPixelFactor
 		,	nrGridPos, nrViewPos
@@ -163,74 +135,76 @@ void CalcGridNrs(grid_coord_array& gridCoords, grid_coord_array& linedCoords, Cr
 void GridCoord::Recalc()
 {
 	// determine transformation and cliprect
-	CrdTransformation grid2ClientTr = m_Key.first * m_World2ClientTr;
-	if (!m_Owner.lock())
-		grid2ClientTr = m_World2ClientTr;
-	m_Orientation = grid2ClientTr.Orientation();
+	CrdTransformation grid2DeviceTr = m_Key.first;
+	grid2DeviceTr *= m_World2DeviceTr;
+
+	auto vp = m_Owner.lock();
+
+	m_Orientation = grid2DeviceTr.Orientation();
 
 	CrdRect gridCRect = Deflate(Convert<CrdRect>(m_Key.second), CrdPoint(GRID_EXTENTS_MARGIN, GRID_EXTENTS_MARGIN));
-	CrdRect viewCRect = grid2ClientTr.Apply(gridCRect); // reduced grid in client coordinates
+	CrdRect viewDRect = grid2DeviceTr.Apply(gridCRect); // grid in device coordinates
 
-	CrdRect clientRect = CrdRect(CrdPoint(0,0), Convert<CrdPoint>(m_ClientSize) );
+	CrdRect clientDeviceRect = CrdRect(CrdPoint(0,0), g2dms_order<CrdType>(m_DeviceSize) );
 
-	CrdRect gridClipRect = gridCRect &  grid2ClientTr.Reverse(clientRect); // (viewport & reduced grid) in grid coords
+	CrdRect gridClipRect = gridCRect & grid2DeviceTr.Reverse(clientDeviceRect); // (viewport & reduced grid) in grid coords
 
 	m_GridOrigin.Col() = IsRightLeft(m_Orientation) ? gridClipRect.second.Col() : gridClipRect.first.Col();
 	m_GridOrigin.Row() = IsBottomTop(m_Orientation) ? gridClipRect.second.Row() : gridClipRect.first.Row();
 	m_GridOrigin -= Convert<CrdPoint>( GetGridRect().first ); // make row & col nrs zero based; Roworder is usually reversed (O_BottomTop)
-	m_GridCellSize = grid2ClientTr.V2WFactor();
+	m_GridCellSize = grid2DeviceTr.V2WFactor();
 
-	clientRect &= viewCRect;                                               // (viewport & grid) in client coords
-	if (clientRect.empty())
-		m_ClippedRelRect = GRect();
+	clientDeviceRect &= viewDRect;                                          // (viewport & grid) in device coords
+	if (clientDeviceRect.empty())
+		m_ClippedRelDeviceRect = GRect();
 	else
 	{
-		m_ClippedRelRect = Rect2GRect( RoundUp<4>(clientRect) ); 
-		dms_assert(m_GridOrigin.Row() >= 0);
-		dms_assert(m_GridOrigin.Col() >= 0);
-		dms_assert(m_ClippedRelRect.Size().x >= 0);
-		dms_assert(m_ClippedRelRect.Size().y >= 0);
+		auto devRect = RoundUp<4>(clientDeviceRect);
+		m_ClippedRelDeviceRect = GRect(devRect.first.X(), devRect.first.Y(), devRect.second.X(), devRect.second.Y() ); 
+		assert(m_GridOrigin.Row() >= 0);
+		assert(m_GridOrigin.Col() >= 0);
+		assert(m_ClippedRelDeviceRect.Size().x >= 0);
+		assert(m_ClippedRelDeviceRect.Size().y >= 0);
 
-		dms_assert((m_GridCellSize.Row() >= 0) || (m_GridOrigin.Row() + (m_ClippedRelRect.Size().y - 1) * m_GridCellSize.Row() >= 0));
-		dms_assert((m_GridCellSize.Col() >= 0) || (m_GridOrigin.Col() + (m_ClippedRelRect.Size().x - 1) * m_GridCellSize.Col() >= 0));
+		assert((m_GridCellSize.Row() >= 0) || (m_GridOrigin.Row() + (m_ClippedRelDeviceRect.Size().y - 1) * m_GridCellSize.Row() >= 0));
+		assert((m_GridCellSize.Col() >= 0) || (m_GridOrigin.Col() + (m_ClippedRelDeviceRect.Size().x - 1) * m_GridCellSize.Col() >= 0));
 	}
 }
 
-void GridCoord::Update(Float64 subPixelFactor)
+void GridCoord::UpdateToScale(DPoint subPixelFactors)
 {
-	dms_assert(subPixelFactor > 0.0);
-	if (subPixelFactor != m_SubPixelFactor)
+	if (subPixelFactors != m_SubPixelFactors)
 		m_IsDirty = true;
 	if (!m_IsDirty)
 		return;
 
-	m_SubPixelFactor = subPixelFactor;
+	m_SubPixelFactors = subPixelFactors;
 	Recalc();
 	m_IsDirty = false;
 
 // process
-	GPoint viewSize = m_ClippedRelRect.Size();
+	GPoint viewSize = m_ClippedRelDeviceRect.Size();
 	IPoint gridSize = Size(GetGridRect());
-	dms_assert(gridSize.first  >= 0);
-	dms_assert(gridSize.second >= 0);
-	dms_assert(viewSize.x >= 0);
-	dms_assert(viewSize.y >= 0);
+	assert(gridSize.first  >= 0);
+	assert(gridSize.second >= 0);
+	assert(viewSize.x >= 0);
+	assert(viewSize.y >= 0);
 
 
 #if defined(MG_DEBUG_COORD)
-	reportF(SeverityTypeID::ST_MajorTrace, "GridCoord::Update(%s)", AsString(m_Key).c_str());
+	reportF(SeverityTypeID::ST_MinorTrace, "GridCoord::Update(%s)", AsString(m_Key).c_str());
 #endif
 
-	CalcGridNrs(m_GridCols, m_LinedCols, m_GridOrigin.Col(), m_GridCellSize.Col(), subPixelFactor, gridSize.Col(), viewSize.x);
-	CalcGridNrs(m_GridRows, m_LinedRows, m_GridOrigin.Row(), m_GridCellSize.Row(), subPixelFactor, gridSize.Row(), viewSize.y);
+	CalcGridNrs(m_GridCols, m_LinedCols, m_GridOrigin.Col(), m_GridCellSize.Col(), subPixelFactors.first , gridSize.Col(), viewSize.x);
+	CalcGridNrs(m_GridRows, m_LinedRows, m_GridOrigin.Row(), m_GridCellSize.Row(), subPixelFactors.second, gridSize.Row(), viewSize.y);
 }
 
 void AdjustGridNrs(grid_coord_array& gridCoords, grid_coord_array& linedCoords, Int32 deltaBegin, Int32 deltaSecond, CrdType gridOriginCrd, CrdType gridCellSize, CrdType subPixelFactor, UInt32 nrGridPos)
 {
-	dms_assert(subPixelFactor > 0.0); // Update was called before
+	assert(subPixelFactor > 0.0); // Update was called before
 	bool showLines = MustShowLines(gridCellSize, subPixelFactor);
 
-	dms_assert(linedCoords.size() == (showLines ? gridCoords.size() : 0));
+	assert(linedCoords.size() == (showLines ? gridCoords.size() : 0));
 	if (deltaBegin > 0) 
 	{
 		gridCoords.erase (gridCoords.begin(),  gridCoords.begin() + deltaBegin);
@@ -276,9 +250,9 @@ void AdjustGridNrs(grid_coord_array& gridCoords, grid_coord_array& linedCoords, 
 	}
 }
 
-void GridCoord::OnScroll(const GPoint& delta)
+void GridCoord::OnDeviceScroll(const GPoint& delta)
 {
-	m_World2ClientTr += Convert<CrdPoint>(delta);
+	m_World2DeviceTr += g2dms_order<CrdType>(delta);
 
 	if (m_IsDirty)
 		return;
@@ -288,7 +262,7 @@ void GridCoord::OnScroll(const GPoint& delta)
 		return;
 	}
 
-	GRect oldClippedRelRect = m_ClippedRelRect;
+	GRect oldClippedRelRect = m_ClippedRelDeviceRect;
 	Recalc();
 	if (Empty())
 	{
@@ -303,28 +277,28 @@ void GridCoord::OnScroll(const GPoint& delta)
 
 	//==========
 
-	GType deltaLeft  = m_ClippedRelRect.Left () - oldClippedRelRect.Left ();
-	GType deltaRight = m_ClippedRelRect.Right() - oldClippedRelRect.Right();
+	GType deltaLeft  = m_ClippedRelDeviceRect.Left () - oldClippedRelRect.Left ();
+	GType deltaRight = m_ClippedRelDeviceRect.Right() - oldClippedRelRect.Right();
 
-	AdjustGridNrs(m_GridCols, m_LinedCols, deltaLeft, deltaRight, m_GridOrigin.Col(), m_GridCellSize.Col(), m_SubPixelFactor, gridSize.Col());
+	AdjustGridNrs(m_GridCols, m_LinedCols, deltaLeft, deltaRight, m_GridOrigin.Col(), m_GridCellSize.Col(), m_SubPixelFactors.first, gridSize.Col());
 
 	//==========
 
-	TType deltaTop    = m_ClippedRelRect.Top   () - oldClippedRelRect.Top   ();
-	TType deltaBottom = m_ClippedRelRect.Bottom() - oldClippedRelRect.Bottom();
+	TType deltaTop    = m_ClippedRelDeviceRect.Top   () - oldClippedRelRect.Top   ();
+	TType deltaBottom = m_ClippedRelDeviceRect.Bottom() - oldClippedRelRect.Bottom();
 
-	AdjustGridNrs(m_GridRows, m_LinedRows, deltaTop, deltaBottom, m_GridOrigin.Row(), m_GridCellSize.Row(),  m_SubPixelFactor, gridSize.Row());
+	AdjustGridNrs(m_GridRows, m_LinedRows, deltaTop, deltaBottom, m_GridOrigin.Row(), m_GridCellSize.Row(),  m_SubPixelFactors.second, gridSize.Row());
 }
 
 const grid_rowcol_id* GridCoord::GetGridRowPtr(view_rowcol_id currViewRelRow, bool withLines) const
 {
-	dms_assert(!IsDirty()); 
+	assert(!IsDirty()); 
 	if (Empty())
 		return nullptr;
 
-	dms_assert(currViewRelRow >= view_rowcol_id(m_ClippedRelRect.Top()));
-	currViewRelRow -= m_ClippedRelRect.top; 
-	dms_assert(currViewRelRow <= m_GridRows.size()); 
+	assert(currViewRelRow >= view_rowcol_id(m_ClippedRelDeviceRect.Top()));
+	currViewRelRow -= m_ClippedRelDeviceRect.top; 
+	assert(currViewRelRow <= m_GridRows.size()); 
 	if (withLines && !m_LinedRows.empty())
 		return begin_ptr(m_LinedRows) + currViewRelRow;
 	return begin_ptr(m_GridRows) + currViewRelRow; 
@@ -338,8 +312,8 @@ const grid_rowcol_id* GridCoord::GetGridColPtr(view_rowcol_id currViewRelCol, bo
 
 //	if (m_Owner)
 //		currViewRelCol -= m_Owner->GetCurrClientAbsPos().x;
-	dms_assert(currViewRelCol >= view_rowcol_id(m_ClippedRelRect.Left())); 
-	currViewRelCol -= m_ClippedRelRect.left; 
+	dms_assert(currViewRelCol >= view_rowcol_id(m_ClippedRelDeviceRect.Left())); 
+	currViewRelCol -= m_ClippedRelDeviceRect.left; 
 	dms_assert(currViewRelCol <= m_GridCols.size()); 
 	if (withLines && !m_LinedCols.empty())
 		return begin_ptr(m_LinedCols) + currViewRelCol;
@@ -350,7 +324,7 @@ const grid_rowcol_id* GridCoord::GetGridRowPtrFromAbs(view_rowcol_id currViewAbs
 {
 	auto owner = m_Owner.lock();
 	if (owner)
-		currViewAbsRow -= owner->GetCurrClientAbsPos().y();
+		currViewAbsRow -= owner->GetCurrClientAbsDevicePos().Y();
 	return GetGridRowPtr(currViewAbsRow, withLines);
 }
 
@@ -358,7 +332,7 @@ const grid_rowcol_id* GridCoord::GetGridColPtrFromAbs(view_rowcol_id currViewAbs
 {
 	auto owner = m_Owner.lock();
 	if (owner)
-		currViewAbsCol -= owner->GetCurrClientAbsPos().x();
+		currViewAbsCol -= owner->GetCurrClientAbsDevicePos().X();
 	return GetGridColPtr(currViewAbsCol, withLines);
 }
 
@@ -376,7 +350,7 @@ UInt32 FindViewPos(const grid_coord_array& coords, Int32 gridCrd, bool reversedO
 
 GType GridCoord::FirstViewCol(Int32 col) const 
 {
-	return FindViewPos(m_GridCols,col - GetGridRect().first.Col(),  IsRightLeft(m_Orientation));
+	return FindViewPos(m_GridCols, col - GetGridRect().first.Col(), IsRightLeft(m_Orientation));
 }
 
 GType GridCoord::FirstViewRow(Int32 row) const 
@@ -390,67 +364,68 @@ IRect GridCoord::GetClippedGridRect(const GRect& viewRelRect) const
 		return IRect();
 
 	IRect result = IRect(
-		GetGridCoord(viewRelRect.TopLeft())
-	,	GetGridCoord(viewRelRect.BottomRight()-GPoint(1,1))
+		GetGridCoord(viewRelRect.LeftTop())
+	,	GetGridCoord(viewRelRect.RightBottom()-GPoint(1,1))
 	);
 	result.second += IPoint(1,1);
 	return result;
 }
 
-GRect GridCoord::GetClippedRelRect(const IRect& selRect) const 
+GRect GridCoord::GetClippedRelDeviceRect(const IRect& selRect) const 
 { 
-	dms_assert(!IsDirty()); 
+	assert(!IsDirty()); 
 	GRect result(
 		FirstViewCol(selRect.first .Col() ),
 		FirstViewRow(selRect.first .Row() ),
 		FirstViewCol(selRect.second.Col() ),
 		FirstViewRow(selRect.second.Row() )
 	);
-	if (IsBottomTop(m_Orientation)) omni::swap(result.bottom, result.top ); dms_assert(result.top <= result.bottom); 
-	if (IsRightLeft(m_Orientation)) omni::swap(result.right,  result.left); dms_assert(result.left<= result.right ); 
+	if (IsBottomTop(m_Orientation)) omni::swap(result.bottom, result.top ); assert(result.top <= result.bottom); 
+	if (IsRightLeft(m_Orientation)) omni::swap(result.right,  result.left); assert(result.left<= result.right ); 
 	
-	result += m_ClippedRelRect.TopLeft();
-	result &= m_ClippedRelRect;
+	result += m_ClippedRelDeviceRect.LeftTop();
+	result &= m_ClippedRelDeviceRect;
 
 	return result;
 } 
 
-IPoint GridCoord::GetGridCoord(const GPoint& clientRelPoint) const
+IPoint GridCoord::GetGridCoord(const GPoint& deviceRelPoint) const
 {
-	dms_assert(!IsDirty()); 
-	dms_assert(!Empty());
-	dms_assert(IsIncluding(m_ClippedRelRect, clientRelPoint));
+	assert(!IsDirty()); 
+	assert(!Empty());
+	assert(IsIncluding(m_ClippedRelDeviceRect, deviceRelPoint));
 	// END OF PRECONDITIONS
 
 	return 
 		shp2dms_order(
 			IPoint(
-				*GetGridColPtr(clientRelPoint.x, false), 
-				*GetGridRowPtr(clientRelPoint.y, false)
+				*GetGridColPtr(deviceRelPoint.x, false),
+				*GetGridRowPtr(deviceRelPoint.y, false)
 			) 
 		)	
 	+	GetGridRect().first;
 }
 
-IPoint GridCoord::GetExtGridCoord(GPoint clientRelPoint) const
+IPoint GridCoord::GetExtGridCoord(GPoint deviceRelPoint) const
 {
 	dms_assert(!IsDirty()); 
 //	if (Empty())
 //		return Undefined();
 
-	if (!IsIncluding(m_ClippedRelRect, clientRelPoint))
-		return RoundDown<4>(
-			m_GridOrigin 
-		+	m_GridCellSize * Convert<CrdPoint>(clientRelPoint - m_ClippedRelRect.TopLeft())
-		) + GetGridRect().first;
+	if (!IsIncluding(m_ClippedRelDeviceRect, deviceRelPoint))
+	{
+		auto deviceOffset = deviceRelPoint - m_ClippedRelDeviceRect.LeftTop();
+		auto gridPos = m_GridOrigin + m_GridCellSize * shp2dms_order<CrdType>(deviceOffset.x, deviceOffset.y);
+		return RoundDown<4>(gridPos) + GetGridRect().first;
+	}
 
-	return GetGridCoord(clientRelPoint);
+	return GetGridCoord(deviceRelPoint);
 }
 
 IPoint GridCoord::GetExtGridCoordFromAbs(GPoint clientAbsPoint) const
 {	
 	auto owner = m_Owner.lock();
 	if (owner)
-		clientAbsPoint -= TPoint2GPoint(owner->GetCurrClientAbsPos());
+		clientAbsPoint -= CrdPoint2GPoint( owner->GetCurrClientAbsDevicePos() );
 	return GetExtGridCoord(clientAbsPoint);
 }

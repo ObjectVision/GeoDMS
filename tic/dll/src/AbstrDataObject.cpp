@@ -1,33 +1,12 @@
-//<HEADER> 
-/*
-Data & Model Server (DMS) is a server written in C++ for DSS applications. 
-Version: see srv/dms/rtc/dll/src/RtcVersion.h for version info.
+// Copyright (C) 1998-2023 Object Vision b.v. 
+// License: GNU GPL 3
+/////////////////////////////////////////////////////////////////////////////
 
-Copyright (C) 1998-2004  YUSE GSO Object Vision BV. 
-
-Documentation on using the Data & Model Server software can be found at:
-http://www.ObjectVision.nl/DMS/
-
-See additional guidelines and notes in srv/dms/Readme-srv.txt 
-
-This library is free software; you can use, redistribute, and/or
-modify it under the terms of the GNU General Public License version 2 
-(the License) as published by the Free Software Foundation,
-provided that this entire header notice and readme-srv.txt is preserved.
-
-See LICENSE.TXT for terms of distribution or look at our web site:
-http://www.objectvision.nl/DMS/License.txt
-or alternatively at: http://www.gnu.org/copyleft/gpl.html
-
-This library is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
-General Public License for more details. However, specific warranties might be
-granted by an additional written contract for support, assistance and/or development
-*/
-//</HEADER>
 #include "TicPCH.h"
+
+#if defined(CC_PRAGMAHDRSTOP)
 #pragma hdrstop
+#endif //defined(CC_PRAGMAHDRSTOP)
 
 #include "AbstrDataObject.h"
 #include "TiledRangeData.h"
@@ -177,6 +156,7 @@ void    AbstrDataObject::SetValueAsInt32(SizeT index, Int32 val)              { 
 UInt32  AbstrDataObject::GetValueAsUInt32(SizeT index) const                  { illegalNumericOperation(); }
 SizeT   AbstrDataObject::GetValueAsSizeT(SizeT index) const                   { illegalNumericOperation(); }
 void    AbstrDataObject::SetValueAsSizeT(SizeT index, SizeT val)              { illegalNumericOperation(); }
+void    AbstrDataObject::SetValueAsDiffT(SizeT index, DiffT val)              { illegalNumericOperation(); }
 void    AbstrDataObject::SetValueAsSizeT(SizeT index, SizeT val, tile_id t)   { illegalNumericOperation(); }
 UInt8   AbstrDataObject::GetValueAsUInt8 (SizeT index) const                  { illegalNumericOperation(); }
 void    AbstrDataObject::SetValueAsUInt32(SizeT index, UInt32 val)            { illegalNumericOperation(); }
@@ -215,3 +195,22 @@ void AbstrDataObject::GetValueAsDPoints(SizeT index, std::vector<DPoint>& dpoint
 
 
 IMPL_CLASS(AbstrDataObject, 0)
+
+
+//----------------------------------------------------------------------
+// FutureTileArray
+//----------------------------------------------------------------------
+
+#include "FutureTileArray.h"
+
+TIC_CALL auto GetAbstrFutureTileArray(const AbstrDataObject* ado) -> abstr_future_tile_array
+{
+	using abstr_future_tile_ptr = SharedPtr<abstr_future_tile>;
+	using abstr_future_tile_array = OwningPtrSizedArray< abstr_future_tile_ptr >;
+	assert(ado); // PRECONDITION
+	auto tn = ado->GetTiledRangeData()->GetNrTiles();
+	auto result = abstr_future_tile_array(tn, ValueConstruct_tag() MG_DEBUG_ALLOCATOR_SRC("GetAbstrFutureTileArray"));
+	for (tile_id t = 0; t != tn; ++t)
+		result[t] = ado->GetFutureAbstrTile(t);
+	return result;
+}

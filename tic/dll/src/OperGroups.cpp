@@ -27,7 +27,10 @@ granted by an additional written contract for support, assistance and/or develop
 */
 //</HEADER>
 #include "TicPCH.h"
+
+#if defined(CC_PRAGMAHDRSTOP)
 #pragma hdrstop
+#endif //defined(CC_PRAGMAHDRSTOP)
 
 #include "OperGroups.h"
 #include "Operator.h"
@@ -329,7 +332,7 @@ SpecialOperGroup::SpecialOperGroup(TokenID operNameID, arg_index maxNrArgs, oper
 {
 	DetermineOperPolicy();
 #if defined(MG_DEBUG_SPECIAL_OPERATORS)
-	CharPtr calcability[6] = { "never", "as_result", "subitem_root", "always", "template", "supply_tree"};
+	CharPtr calcability[7] = { "never", "as_result", "subitem_root", "always", "template", "supply_tree", "calc_at_subitem"};
 
 	if (op != oper_policy::none)
 	{
@@ -339,7 +342,7 @@ SpecialOperGroup::SpecialOperGroup(TokenID operNameID, arg_index maxNrArgs, oper
 		for (auto i = 0; i != maxNrArgs; ++i)
 		{
 			auto oap = argPolicyArray[i];
-			dms_assert(oap <= oper_arg_policy::subst_with_subitems);
+			dms_assert(oap <= oper_arg_policy::calc_at_subitem);
 			DBG_TRACE(("arg %d calc %s", i, calcability[int(oap)]));
 		}
 	}
@@ -383,7 +386,7 @@ TemplOperGroup::TemplOperGroup()
 
 oper_arg_policy TemplOperGroup::GetArgPolicy(arg_index argNr, CharPtr firstArgValue) const
 {
-	dms_assert(!firstArgValue);
+	assert(firstArgValue == nullptr || *firstArgValue == char(0));
 	return oper_arg_policy::calc_never;
 }
 
@@ -406,15 +409,20 @@ SharedStr GenerateArgClsDescription(arg_index nrArgs, const ClassCPtr* args)
 	return msg;
 }
 
+UInt32 AbstrOperGroup::GetNrMembers() const
+{
+	UInt32 count = 0;
+	for (auto b = GetFirstMember(); b; b = b->GetNextGroupMember())
+		++count;
+
+	return count;
+}
 
 const Operator* AbstrOperGroup::FindOper(arg_index nrArgs, const ClassCPtr* argTypes) const
 {
 	dms_assert(!IsTemplateCall());
 
-	typedef const Operator* oper_cptr_t;
-
-	oper_cptr_t
-		b = GetFirstMember();
+	auto b = GetFirstMember();
 
 	if (!b)
 	{
@@ -422,41 +430,66 @@ const Operator* AbstrOperGroup::FindOper(arg_index nrArgs, const ClassCPtr* argT
 		throwDmsErrF("There is no implemented operator for operator name '%s'. This operator name name might have been reserved for future implementation or might be obsolete."
 			, nameStr);
 	}
+
+	auto best_oper = b; arg_index best_count = 0;
+	UInt32 nr_best_match = 0;
+
 	for (; b; b = b->GetNextGroupMember())
 	{
-		dms_assert(b->m_Group == this);
+		assert(b->m_Group == this);
 		arg_index nrSpecifiedArgs = b->NrSpecifiedArgs();
-		if (nrSpecifiedArgs < nrArgs)
-		{
-			if (!AllowExtraArgs())
-				continue;
-		}
-		else if (nrSpecifiedArgs > nrArgs)
+		if (nrSpecifiedArgs > nrArgs)
 		{
 			// allow for skipped trailing args of select_xxx that are processed as lispExpr only for now 
 			if (!MustCacheResult())
 				while (nrSpecifiedArgs > nrArgs && GetArgPolicy(nrSpecifiedArgs - 1, nullptr) == oper_arg_policy::calc_as_result)
 					--nrSpecifiedArgs;
-			if (nrArgs < nrSpecifiedArgs - b->NrOptionalArgs())
-				continue;
-			nrSpecifiedArgs = nrArgs;
+//			if (nrArgs < nrSpecifiedArgs - b->NrOptionalArgs())
+//				continue;
+//			nrSpecifiedArgs = nrArgs;
 		}
 
 		const ClassCPtr* requiredTypes = b->m_ArgClassesBegin;
 		const ClassCPtr* givenTypes    = argTypes;
 
-		for (arg_index i=0, ie = nrSpecifiedArgs; i!= ie; ++i, ++requiredTypes, ++givenTypes)
-			if (!(*givenTypes)->IsDerivedFrom(*requiredTypes))
+		arg_index match_count = 0, nrRequiredArgs = nrSpecifiedArgs - b->NrOptionalArgs();
+		for (arg_index i=0, ie = nrSpecifiedArgs; i!= ie; ++i, ++requiredTypes, ++givenTypes, ++match_count)
+		{
+			if (i >= nrArgs)
+			{
+				if (i >= nrRequiredArgs)
+					break;
+				goto next;
+			}
+			else if (!(*givenTypes)->IsDerivedFrom(*requiredTypes))
 				goto next;
 
-		return b;
+			if (match_count > best_count)
+			{
+				best_count = match_count;
+				best_oper = b;
+				nr_best_match = 1;
+			}
+			else if (match_count == best_count)
+				++nr_best_match;
+		}
+		if (nrSpecifiedArgs >= nrArgs || AllowExtraArgs())
+			return b;
 	next:;
 	}
 	auto nameStr = SharedStr(GetName());
 	throwErrorF(nameStr.c_str(), "Cannot find operator for these arguments:\n"
 		"%s"
-		"Possible cause: argument type mismatch. Check the types of the used arguments.\n",
-		GenerateArgClsDescription(nrArgs, argTypes).c_str()
+		"Possible cause: argument type mismatch. Check the types of the used arguments.\n"
+		"\nThere are %d operators registered for the %s operator-group."
+		"\n%d operator%s correspond%s with these arguments for the first %d argument%s, %s the following signature:\n"
+		"%s%s%s"
+		, GenerateArgClsDescription(nrArgs, argTypes).c_str()
+		, GetNrMembers(), nameStr.c_str()
+		, nr_best_match, (nr_best_match==1 ? "": "s"), (nr_best_match == 1 ? "s" : ""), best_count, (best_count == 1 ? "" : "s"), (nr_best_match == 1 ? "with" : "of which the first operator has")
+		, GenerateArgClsDescription(best_oper->NrSpecifiedArgs(), best_oper->m_ArgClassesBegin).c_str()
+		, AllowExtraArgs() ? "\nand supplemental args" : ""
+		, HasAnnotation() ? mySSPrintF("\n\n%s", GetAnnotation()).c_str() : ""
 	);
 
 	return nullptr;

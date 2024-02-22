@@ -1,31 +1,6 @@
-//<HEADER> 
-/*
-Data & Model Server (DMS) is a server written in C++ for DSS applications. 
-Version: see srv/dms/rtc/dll/src/RtcVersion.h for version info.
-
-Copyright (C) 1998-2004  YUSE GSO Object Vision BV. 
-
-Documentation on using the Data & Model Server software can be found at:
-http://www.ObjectVision.nl/DMS/
-
-See additional guidelines and notes in srv/dms/Readme-srv.txt 
-
-This library is free software; you can use, redistribute, and/or
-modify it under the terms of the GNU General Public License version 2 
-(the License) as published by the Free Software Foundation,
-provided that this entire header notice and readme-srv.txt is preserved.
-
-See LICENSE.TXT for terms of distribution or look at our web site:
-http://www.objectvision.nl/DMS/License.txt
-or alternatively at: http://www.gnu.org/copyleft/gpl.html
-
-This library is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
-General Public License for more details. However, specific warranties might be
-granted by an additional written contract for support, assistance and/or development
-*/
-//</HEADER>
+// Copyright (C) 1998-2023 Object Vision b.v. 
+// License: GNU GPL 3
+/////////////////////////////////////////////////////////////////////////////
 
 #pragma once
 
@@ -36,6 +11,7 @@ granted by an additional written contract for support, assistance and/or develop
 
 #include "AggrUniStruct.h"
 #include "AggrUniStructString.h"
+#include "FutureTileArray.h"
 #include "Explain.h"
 #include "OperAcc.h"
 #include "TreeItemClass.h"
@@ -53,6 +29,9 @@ struct AbstrOperAccTotUni: UnaryOperator
 		,	m_ValueComposition(vc)
 	{
 		gr->SetCanExplainValue();
+
+		if (resultCls != DataArray<SharedStr>::GetStaticClass()) // aggregations such as asItemList are allowed to be used in meta scripting
+			gr->SetBetterNotInMetaScripting();
 	}
 
 	void CreateResultCaller(TreeItemDualRef& resultHolder, const ArgRefs& args, OperationContext*, LispPtr) const override
@@ -73,7 +52,7 @@ struct AbstrOperAccTotUni: UnaryOperator
 		);
 	}
 
-	bool CalcResult(TreeItemDualRef& resultHolder, const ArgRefs& args, OperationContext*, Explain::Context* context) const override
+	bool CalcResult(TreeItemDualRef& resultHolder, ArgRefs args, std::vector<ItemReadLock> readLocks, OperationContext*, Explain::Context* context) const override
 	{
 		dms_assert(resultHolder);
 		AbstrDataItem* res = AsDataItem(resultHolder.GetNew());
@@ -87,22 +66,22 @@ struct AbstrOperAccTotUni: UnaryOperator
 		dms_assert(dontRecalc || !context);
 		if (!dontRecalc)
 		{
-			DataReadLock arg1Lock(arg1A);
+//			DataReadLock arg1Lock(arg1A);
 			DataWriteLock resLock(res, dms_rw_mode::write_only_mustzero); 
-			Calculate(resLock, arg1A);
+			Calculate(resLock, arg1A, std::move(args), std::move(readLocks));
 			resLock.Commit();
 		}
 		if (context)
 		{
 			const AbstrUnit* adu = arg1A->GetAbstrDomainUnit();
 			SizeT n = adu->GetCount();
-			MakeMin(n, Explain::MaxNrEntries);
+			MakeMin<SizeT>(n, Explain::MaxNrEntries);
 			for (SizeT i=0; i!=n; ++i)
-				DMS_CalcExpl_AddQueueEntry(context->m_CalcExpl, adu, i);
+				Explain::AddQueueEntry(context->m_CalcExpl, adu, i);
 		}
 		return true;
 	}
-	virtual void Calculate(DataWriteLock& res, const AbstrDataItem* arg1A) const =0;
+	virtual void Calculate(DataWriteLock& res, const AbstrDataItem* arg1A, ArgRefs args, std::vector<ItemReadLock> readLocks) const =0;
 
 private:
 	UnitCreatorPtr m_UnitCreatorPtr;
@@ -118,7 +97,7 @@ struct OperAccTotUni : AbstrOperAccTotUni
 	typedef DataArray<ResultValueType>          ResultType;
 	typedef DataArray<ValueType>                ArgType;
 			
-	OperAccTotUni(AbstrOperGroup* gr, const TAcc1Func& acc1Func = TAcc1Func())
+	OperAccTotUni(AbstrOperGroup* gr, TAcc1Func&& acc1Func = TAcc1Func())
 		:	AbstrOperAccTotUni(gr
 			,	ResultType::GetStaticClass(), ArgType::GetStaticClass()
 			,	&TAcc1Func::template unit_creator<ResultValueType>, COMPOSITION(ResultValueType)
@@ -144,7 +123,11 @@ struct AbstrOperAccPartUni: BinaryOperator
 		,	m_UnitCreatorPtr(std::move(ucp))
 		,	m_ValueComposition(vc)
 	{
+		assert(gr);
 		gr->SetCanExplainValue();
+
+		if (resultCls != DataArray<SharedStr>::GetStaticClass()) // aggregations such as asItemList are allowed to be used in meta scripting
+			gr->SetBetterNotInMetaScripting();
 	}
 
 	void CreateResultCaller(TreeItemDualRef& resultHolder, const ArgRefs& args, OperationContext*, LispPtr) const override
@@ -170,7 +153,7 @@ struct AbstrOperAccPartUni: BinaryOperator
 		resultHolder = CreateCacheDataItem(p2, (*m_UnitCreatorPtr)(GetGroup(), argSeq), m_ValueComposition);
 	}
 
-	bool CalcResult(TreeItemDualRef& resultHolder, const ArgRefs& args, OperationContext*, Explain::Context* context) const override
+	bool CalcResult(TreeItemDualRef& resultHolder, ArgRefs args, std::vector<ItemReadLock> readLocks, OperationContext* oc, Explain::Context* context) const override
 	{
 		const AbstrDataItem* arg1A = AsDataItem(args[0]);
 		const AbstrDataItem* arg2A = AsDataItem(args[1]);
@@ -179,7 +162,6 @@ struct AbstrOperAccPartUni: BinaryOperator
 		const AbstrUnit* e2 = arg2A->GetAbstrDomainUnit();
 
 		dms_assert(resultHolder);
-		DataReadLock arg2Lock(arg2A);
 
 		AbstrDataItem* res = AsDataItem(resultHolder.GetNew());
 		dms_assert(res);
@@ -187,26 +169,27 @@ struct AbstrOperAccPartUni: BinaryOperator
 		dms_assert(context || doRecalc);
 		if (doRecalc)
 		{
-			DataReadLock arg1Lock(arg1A);
+//			DataReadLock arg1Lock(arg1A);
 
 			DataWriteLock resLock(res);
 
-			Calculate(resLock, arg1A, arg2A);
+			Calculate(resLock, arg1A, arg2A, std::move(args), std::move(readLocks));
 
 			resLock.Commit();
 		}
 		if (context)
 		{
+			DataReadLock arg2Lock(arg2A);
 			SizeT f = context->m_Coordinate->first;
 
 			// search in partitioning for values with index f.
 			const AbstrDataObject* ado = arg2A->GetCurrRefObj();
-			SizeT i = 0, k=0;
-			while (true) {
+			SizeT i = 0, k = 0, n = ado->GetTiledRangeData()->GetElemCount();
+			while (i < n) {
 				i = ado->FindPosOfSizeT(f, i);
 				if (!IsDefined(i))
 					break;
-				DMS_CalcExpl_AddQueueEntry(context->m_CalcExpl, e2, i);
+				Explain::AddQueueEntry(context->m_CalcExpl, e2, i);
 				if (++k >= Explain::MaxNrEntries)
 					break;
 				++i;
@@ -214,7 +197,7 @@ struct AbstrOperAccPartUni: BinaryOperator
 		}
 		return true;
 	}
-	virtual void Calculate(DataWriteLock& res, const AbstrDataItem* arg1A,  const AbstrDataItem* arg2A) const =0;
+	virtual void Calculate(DataWriteLock& res, const AbstrDataItem* arg1A,  const AbstrDataItem* arg2A, ArgRefs args, std::vector<ItemReadLock> readLocks) const =0;
 
 private:
 	UnitCreatorPtr   m_UnitCreatorPtr;
@@ -224,16 +207,6 @@ private:
 // *****************************************************************************
 //											OperAccPartUni
 // *****************************************************************************
-
-template <typename TAcc1Func, typename ResultValueType> 
-struct OperAccPartUniMixin
-{
-	typedef typename TAcc1Func::value_type1            ValueType;
-	typedef typename TAcc1Func::accumulation_seq       AccumulationSeq;
-	typedef DataArray<ResultValueType>                 ResultType;
-	typedef DataArray<ValueType>                       Arg1Type; // value vector
-	typedef AbstrDataItem                              Arg2Type; // index vector, must be partition type
-};
 
 namespace impl {
 	namespace has_dms_result_type_details {
@@ -248,66 +221,107 @@ namespace impl {
 	};
 }
 
-//template <typename TAcc1Func, typename ResultValueType = typename dms_result_type_of<TAcc1Func>::type> 
-template <typename TAcc1Func, typename ResultValueType = typename TAcc1Func::accumulation_seq::value_type> 
-struct OperAccPartUni: AbstrOperAccPartUni, OperAccPartUniMixin<TAcc1Func, ResultValueType>
+template <typename V, typename R> 
+struct OperAccPartUni: AbstrOperAccPartUni
 {
-	OperAccPartUni(AbstrOperGroup* gr, const TAcc1Func& acc1Func) 
+	using Arg1Type = DataArray<V>; // value vector
+	using Arg2Type = AbstrDataItem; // index vector, must be partition type
+	using ResultValueType = R;
+	using ResultType = DataArray<ResultValueType>;;
+	/*
+	using ValueType = typename TAcc1Func::value_type1;
+	using AccumulationSeq = typename TAcc1Func::accumulation_seq;
+	*/
+	OperAccPartUni(AbstrOperGroup* gr, UnitCreatorPtr ucp)
 	:	AbstrOperAccPartUni(gr
-		,   OperAccPartUni::ResultType::GetStaticClass(), OperAccPartUni::Arg1Type::GetStaticClass(), OperAccPartUni::Arg2Type::GetStaticClass()
-		,	&TAcc1Func::template unit_creator<ResultValueType>, COMPOSITION(ResultValueType)
+		,   ResultType::GetStaticClass(), Arg1Type::GetStaticClass(), Arg2Type::GetStaticClass()
+		,	ucp, COMPOSITION(ResultValueType)
 		)
-	,	m_Acc1Func(acc1Func)
+	{}
+};
 
+//template <typename TAcc1Func, typename ResultValueType = typename dms_result_type_of<TAcc1Func>::type> 
+template <typename V, typename R>
+struct OperAccPartUniWithCFTA : OperAccPartUni<V, R> // with consumable tile array
+{
+	using OperAccPartUni<V, R>::OperAccPartUni;
+	using ValueType = V;
+	using ResultType = DataArray<R>;
+
+	struct ProcessDataInfo {
+		const AbstrDataItem* arg2A;
+		future_tile_array<V> values_fta;
+		abstr_future_tile_array part_fta;
+		SizeT n;
+		tile_id nrTiles;
+		value_range_data<V> valuesRangeData;
+		SizeT resCount;
+	};
+
+	void Calculate(DataWriteLock& res, const AbstrDataItem* arg1A, const AbstrDataItem* arg2A, ArgRefs args, std::vector<ItemReadLock> readLocks) const override
+	{
+		assert(arg2A);
+		auto arg1 = (DataReadLock(arg1A), const_array_cast<V>(arg1A));
+		assert(arg1);
+		auto pdi = ProcessDataInfo{
+			.arg2A = arg2A,
+			.values_fta = GetFutureTileArray(arg1),
+			.part_fta = (DataReadLock(arg2A), GetAbstrFutureTileArray(arg2A->GetCurrRefObj())),
+			.n = arg1A->GetAbstrDomainUnit()->GetCount(),
+			.nrTiles = arg1A->GetAbstrDomainUnit()->GetNrTiles(),
+			.valuesRangeData = arg1->GetValueRangeData(),
+			.resCount = arg2A->GetAbstrValuesUnit()->GetCount()
+		};
+		arg1 = nullptr;
+		args.clear();
+		readLocks.clear();
+
+//		if (IsMultiThreaded3())
+		ProcessData(mutable_array_cast<R>(res), pdi);
+	}
+	virtual void ProcessData(ResultType* result, ProcessDataInfo& pdi) const = 0;
+};
+
+
+template <typename TAcc1Func, typename Base>
+struct FuncOperAccPartUni : Base
+{
+	FuncOperAccPartUni(AbstrOperGroup* gr, TAcc1Func&& acc1Func)
+		: Base(gr, &TAcc1Func::template unit_creator<field_of_t<typename Base::ResultValueType>>)
+		, m_Acc1Func(std::move(acc1Func))
 	{}
 
-	void Calculate(DataWriteLock& res, const AbstrDataItem* arg1A,  const AbstrDataItem* arg2A) const override
-	{
-		auto arg1 = const_array_cast<typename OperAccPartUni::ValueType>(arg1A);
-		dms_assert(arg1 && arg2A);
-
-		tile_id tn  = arg1A->GetAbstrDomainUnit()->GetNrTiles();
-
-		ProcessData(
-			mutable_array_cast<ResultValueType>(res)
-		,	arg1, arg2A
-		, 	tn,	arg1A->HasUndefinedValues()
-		);
-	}
-	virtual void ProcessData(typename OperAccPartUni::ResultType* result, const typename OperAccPartUni::Arg1Type *arg1, const AbstrDataItem* arg2, tile_id nrTiles, bool arg1HasUndefinedValues) const=0;
 protected:
 	TAcc1Func m_Acc1Func;
 };
 
-template <class TAcc1Func> 
-struct OperAccPartUniBuffered : OperAccPartUni<TAcc1Func, typename TAcc1Func::dms_result_type>
+template <class TAcc1Func>
+struct OperAccPartUniBuffered : FuncOperAccPartUni<TAcc1Func, OperAccPartUniWithCFTA<typename TAcc1Func::value_type1, typename TAcc1Func::dms_result_type> >
 {
-	OperAccPartUniBuffered(AbstrOperGroup* gr, const TAcc1Func& acc1Func = TAcc1Func()) 
-		:	OperAccPartUni<TAcc1Func, typename TAcc1Func::dms_result_type>(gr, acc1Func)
+	using ResultValueType = typename TAcc1Func::dms_result_type;
+	using ValueType = typename TAcc1Func::value_type1;
+	using ResultType = DataArray<ResultValueType>;
+	using base_type = FuncOperAccPartUni<TAcc1Func, OperAccPartUniWithCFTA<ValueType, ResultValueType> >;
+	using ProcessDataInfo = base_type::ProcessDataInfo;
+	using AccumulationSeq = typename TAcc1Func::accumulation_seq;
+
+	OperAccPartUniBuffered(AbstrOperGroup* gr, TAcc1Func&& acc1Func = TAcc1Func())
+		:	base_type(gr, std::move(acc1Func))
 	{}
 
-	void ProcessData(typename OperAccPartUniBuffered::ResultType* result,
-		const typename OperAccPartUniBuffered::Arg1Type *arg1,
-		const typename OperAccPartUniBuffered::Arg2Type *arg2, tile_id nrTiles, bool arg1HasUndefinedValues) const override
+	void ProcessData(ResultType* result, ProcessDataInfo& pdi) const override
 	{
 		using res_buffer_type = typename sequence_traits<typename TAcc1Func::accumulation_type>::container_type;
-		SizeT resCount = arg2->GetAbstrValuesUnit()->GetCount();
-//		auto resBuffer = res_buffer_type(resCount);
-		res_buffer_type resBuffer(resCount);
+		res_buffer_type resBuffer(pdi.resCount);
 
-		this->m_Acc1Func.Init(OperAccPartUniBuffered::AccumulationSeq( &resBuffer ) );
+		this->m_Acc1Func.Init(AccumulationSeq( &resBuffer ) );
 
-		for (tile_id t = 0; t!=nrTiles; ++t)
+		for (tile_id t = 0, tn = pdi.nrTiles; t!= tn; ++t)
 		{
-			auto arg1Data = arg1->GetTile(t);
-			OwningPtr<IndexGetter> indexGetter = IndexGetterCreator::Create(arg2, t);
+			auto arg1Data = pdi.values_fta[t]->GetTile(); pdi.values_fta[t] = nullptr;
+			OwningPtr<IndexGetter> indexGetter = IndexGetterCreator::Create(pdi.arg2A, pdi.part_fta[t]); pdi.part_fta[t] = nullptr;
 
-			this->m_Acc1Func(
-				OperAccPartUniBuffered::AccumulationSeq( &resBuffer )
-			,	arg1Data
-			,	indexGetter 
-			,	arg1HasUndefinedValues
-			);
+			this->m_Acc1Func( AccumulationSeq( &resBuffer ),	arg1Data, indexGetter );
 		}
 
 		this->m_Acc1Func.AssignOutput(result->GetDataWrite(no_tile, dms_rw_mode::write_only_all), resBuffer);
@@ -315,110 +329,96 @@ struct OperAccPartUniBuffered : OperAccPartUni<TAcc1Func, typename TAcc1Func::dm
 };
 
 template <class TAcc1Func> 
-struct OperAccPartUniDirect : OperAccPartUni<TAcc1Func, typename TAcc1Func::result_type>
+struct OperAccPartUniDirect : FuncOperAccPartUni<TAcc1Func, OperAccPartUniWithCFTA<typename TAcc1Func::value_type1, typename TAcc1Func::result_type> >
 {
-	OperAccPartUniDirect(AbstrOperGroup* gr, const TAcc1Func& acc1Func = TAcc1Func()) 
-		:	OperAccPartUni<TAcc1Func, typename TAcc1Func::result_type>(gr, acc1Func)
+	using ResultValueType = typename TAcc1Func::result_type;
+	using ValueType = typename TAcc1Func::value_type1;
+	using ResultType = DataArray<ResultValueType>;
+	using base_type = FuncOperAccPartUni<TAcc1Func, OperAccPartUniWithCFTA<ValueType, ResultValueType> >;
+	using ProcessDataInfo = base_type::ProcessDataInfo;
+
+	OperAccPartUniDirect(AbstrOperGroup* gr, TAcc1Func&& acc1Func = TAcc1Func())
+		: base_type(gr, std::move(acc1Func))
 	{}
 
-	void ProcessData(typename OperAccPartUniDirect::ResultType* result, const typename OperAccPartUniDirect::Arg1Type *arg1, const typename OperAccPartUniDirect::Arg2Type *arg2, tile_id nrTiles, bool arg1HasUndefinedValues) const override
+	void ProcessData(ResultType* result, ProcessDataInfo& pdi) const override
 	{
 		auto resData = result->GetDataWrite(no_tile, dms_rw_mode::write_only_all); // check what Init does
 		m_Acc1Func.Init(resData);
 
-		for (tile_id t = 0; t!=nrTiles; ++t)
+		for (tile_id t = 0, tn = pdi.nrTiles; t!=tn; ++t)
 		{
-			auto arg1Data = arg1->GetTile(t);
-			OwningPtr<IndexGetter> indexGetter = IndexGetterCreator::Create(arg2, t);
+			auto arg1Data = pdi.values_fta[t]->GetTile(); pdi.values_fta[t] = nullptr;
+			OwningPtr<IndexGetter> indexGetter = IndexGetterCreator::Create(pdi.arg2A, pdi.part_fta[t]); pdi.part_fta[t] = nullptr;
 
-			m_Acc1Func(
-				resData
-			,	arg1Data
-			,	indexGetter
-			,	arg1HasUndefinedValues
-			);
+			m_Acc1Func(resData, arg1Data, indexGetter);
 		}
 	}
 private:
 	TAcc1Func m_Acc1Func;
 };
 
-template <class TAcc1Func> struct make_direct   { typedef OperAccPartUniDirect  <TAcc1Func> type; };
-template <class TAcc1Func> struct make_buffered { typedef OperAccPartUniBuffered<TAcc1Func> type; };
+template <class TAcc1Func> struct make_direct   { using type = OperAccPartUniDirect  <TAcc1Func>; };
+template <class TAcc1Func> struct make_buffered { using type = OperAccPartUniBuffered<TAcc1Func>; };
 
 template <class TAcc1Func> using base_of = std::conditional_t< impl::has_dms_result_type<TAcc1Func>::value,	make_buffered<TAcc1Func>, make_direct<TAcc1Func> >;
+template <class TAcc1Func> using OperAccPartUniBest = typename base_of<TAcc1Func>::type;
 
-template <class TAcc1Func> 
-struct OperAccPartUniBest: base_of<TAcc1Func>
+template <typename TAcc1Func>
+void CalcOperAccPartUniSer(DataWriteLock& res, const AbstrDataItem* arg1A, const AbstrDataItem* arg2A, TAcc1Func acc1Func = TAcc1Func())
 {
-	OperAccPartUniBest(AbstrOperGroup* gr, const TAcc1Func& acc1Func = TAcc1Func()) 
-		:	base_of<TAcc1Func>(gr, acc1Func)
-	{}
-};
+	using ValueType = typename TAcc1Func::value_type1;
+//	using AccumulationSeq = typename TAcc1Func::accumulation_seq;
 
-template <typename TAcc1Func> 
-struct OperAccPartUniSer_impl : OperAccPartUniMixin<TAcc1Func, SharedStr>
-{
-	OperAccPartUniSer_impl(const TAcc1Func& acc1Func = TAcc1Func())
-		:	m_Acc1Func(acc1Func)
-	{}
+	DataReadLock arg1Lock(arg1A);
+	DataReadLock arg2Lock(arg2A);
 
-	void operator() (typename OperAccPartUniSer_impl::ResultType* result, const typename OperAccPartUniSer_impl::Arg1Type *arg1, const typename OperAccPartUniSer_impl::Arg2Type *arg2, tile_id nrTiles, bool arg1HasUndefinedValues)
+	auto nrTiles = arg1A->GetAbstrDomainUnit()->GetNrTiles();
+	auto arg1 = const_array_cast<ValueType>(arg1A);
+	auto resData = mutable_array_cast<SharedStr>(res)->GetDataWrite(no_tile, dms_rw_mode::write_only_all);
+	//		m_Acc1Func.Init(resData);
 	{
-		auto resData = result->GetDataWrite(no_tile, dms_rw_mode::write_only_all);
-//		m_Acc1Func.Init(resData);
+
+		length_finder_array lengthFinderArray(resData.size());
+		for (tile_id t = 0; t != nrTiles; ++t)
 		{
-			length_finder_array lengthFinderArray(resData.size());
-			for (tile_id t = 0; t!=nrTiles; ++t)
-			{
-				auto arg1Data = arg1->GetTile(t);
-				OwningPtr<IndexGetter> indexGetter = IndexGetterCreator::Create(arg2, t);
+			typename DataArray<ValueType>::locked_cseq_t arg1Data = arg1->GetTile(t);
+			OwningPtr<IndexGetter> indexGetter = IndexGetterCreator::Create(arg2A, t);
 
-				m_Acc1Func.InspectData(
-					lengthFinderArray
-				,	arg1Data
-				,	indexGetter 
-				,	arg1HasUndefinedValues
-				);
-			}
-			// allocate sufficent space in outputs
-			InitOutput(resData, lengthFinderArray);
-			// can destruct lengthFinderArray now
+			acc1Func.InspectData(lengthFinderArray, arg1Data, indexGetter);
 		}
-
-		// build memo_out_stream_array that refers to each of the allocated output cells.
-		memo_out_stream_array outStreamArray;
-		m_Acc1Func.ReserveData(outStreamArray, resData);
-
-		for (tile_id t = 0; t!=nrTiles; ++t)
-		{
-			auto arg1Data = arg1->GetTile(t);
-			OwningPtr<IndexGetter> indexGetter = IndexGetterCreator::Create(arg2, t);
-
-			m_Acc1Func.ProcessTileData(
-				outStreamArray
-			,	arg1Data
-			,	indexGetter
-			,	arg1HasUndefinedValues
-			);
-		}
+		// allocate sufficent space in outputs
+		InitOutput(resData, lengthFinderArray);
+		// can destruct lengthFinderArray now
 	}
-	private:
-		TAcc1Func m_Acc1Func;
-};
+
+	// build memo_out_stream_array that refers to each of the allocated output cells.
+	memo_out_stream_array outStreamArray;
+	acc1Func.ReserveData(outStreamArray, resData);
+
+	for (tile_id t = 0; t != nrTiles; ++t)
+	{
+		auto arg1Data = arg1->GetTile(t);
+		OwningPtr<IndexGetter> indexGetter = IndexGetterCreator::Create(arg2A, t);
+
+		acc1Func.ProcessTileData(outStreamArray, arg1Data, indexGetter);
+	}
+}
 
 
 template <typename TAcc1Func> 
-struct OperAccPartUniSer : OperAccPartUni<TAcc1Func, SharedStr>
+struct OperAccPartUniSer : FuncOperAccPartUni<TAcc1Func, OperAccPartUni<typename TAcc1Func::value_type1, SharedStr> >
 {
-	OperAccPartUniSer(AbstrOperGroup* gr, const TAcc1Func& acc1Func = TAcc1Func()) 
-		:	OperAccPartUni<TAcc1Func, SharedStr>(gr, acc1Func)
+	using ValueType = typename TAcc1Func::value_type1;
+	using base_type = FuncOperAccPartUni<TAcc1Func, OperAccPartUni<ValueType, SharedStr> >;
+
+	OperAccPartUniSer(AbstrOperGroup* gr, TAcc1Func&& acc1Func = TAcc1Func())
+		: base_type(gr, std::move(acc1Func))
 	{}
 
-	void ProcessData(typename OperAccPartUniSer::ResultType* result, const typename OperAccPartUniSer::Arg1Type *arg1, const typename OperAccPartUniSer::Arg2Type *arg2, tile_id nrTiles, bool arg1HasUndefinedValues) const override
+	void Calculate(DataWriteLock& res, const AbstrDataItem* arg1A, const AbstrDataItem* arg2A, ArgRefs args, std::vector<ItemReadLock> readLocks) const override
 	{
-		OperAccPartUniSer_impl<TAcc1Func> impl(this->m_Acc1Func);
-		impl(result, arg1, arg2, nrTiles, arg1HasUndefinedValues);
+		CalcOperAccPartUniSer<TAcc1Func>(res, arg1A, arg2A, this->m_Acc1Func);
 	}
 };
 

@@ -37,6 +37,7 @@ granted by an additional written contract for support, assistance and/or develop
 #include <vector>
 
 #include "ShvBase.h"
+#include "rlookup.h"
 
 class Theme;
 class AbstrUnit;
@@ -49,6 +50,8 @@ class AbstrThemeValueGetter;
 struct ResourceIndexCache
 {
 	resource_index_t GetKeyIndex(entity_id entityId) const;
+	Int32 GetWidth(entity_id e) const;
+	auto GetDefaultPixelWidth()->Float64 { return m_DefaultPixelWidth; }
 
 protected: 
 	ResourceIndexCache(
@@ -76,6 +79,24 @@ protected:
 
 	mutable std::vector<resource_index_t> m_KeyIndices;
 };
+
+template<typename KeyType> 
+void MakeKeyIndex(std::vector<resource_index_t>& keyIndices, KeyType& keys)
+{
+	assert(keys.size());
+	auto orgKeys = keys;
+
+	std::sort(keys.begin(), keys.end());
+	keys.erase(std::unique(keys.begin(), keys.end()), keys.end());
+
+	if (keys.size() > 1)
+	{
+		keyIndices.resize(orgKeys.size());
+		rlookup2index_array(keyIndices, orgKeys, keys);
+	}
+	else
+		keyIndices.clear();
+}
 
 
 #endif // __SHV_INDEXCACHE_H

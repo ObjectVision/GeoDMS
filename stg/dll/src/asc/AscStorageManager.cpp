@@ -1,33 +1,13 @@
-//<HEADER> 
-/*
-Data & Model Server (DMS) is a server written in C++ for DSS applications. 
-Version: see srv/dms/rtc/dll/src/RtcVersion.h for version info.
+// Copyright (C) 1998-2023 Object Vision b.v. 
+// License: GNU GPL 3
+/////////////////////////////////////////////////////////////////////////////
 
-Copyright (C) 1998-2004  YUSE GSO Object Vision BV. 
-
-Documentation on using the Data & Model Server software can be found at:
-http://www.ObjectVision.nl/DMS/
-
-See additional guidelines and notes in srv/dms/Readme-srv.txt 
-
-This library is free software; you can use, redistribute, and/or
-modify it under the terms of the GNU General Public License version 2 
-(the License) as published by the Free Software Foundation,
-provided that this entire header notice and readme-srv.txt is preserved.
-
-See LICENSE.TXT for terms of distribution or look at our web site:
-http://www.objectvision.nl/DMS/License.txt
-or alternatively at: http://www.gnu.org/copyleft/gpl.html
-
-This library is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
-General Public License for more details. However, specific warranties might be
-granted by an additional written contract for support, assistance and/or development
-*/
-//</HEADER>
 #include "StoragePCH.h"
+#include "ImplMain.h"
+
+#if defined(CC_PRAGMAHDRSTOP)
 #pragma hdrstop
+#endif //defined(CC_PRAGMAHDRSTOP)
 
 // *****************************************************************************
 //
@@ -49,6 +29,8 @@ granted by an additional written contract for support, assistance and/or develop
 #include "ser/BaseStreamBuff.h"  
 #include "utl/Environment.h"
 #include "utl/mySPrintF.h"
+
+#include "RtcGeneratedVersion.h"
 
 #include "AbstrDataItem.h"
 #include "AbstrUnit.h"
@@ -87,13 +69,22 @@ public:
 struct GridDataReader :  boost::mpl::fold<typelists::numerics, GridDataReaderBase, VisitorImpl<Unit<boost::mpl::_2>, boost::mpl::_1> >::type
 {};
 
-bool AsciiStorageManager::ReadGridData(const StgViewPortInfo& vpi, AbstrDataItem* adi, AbstrDataObject* ado, tile_id t) 
+AsciiStorageManager::AsciiStorageManager()
+{
+	reportD(SeverityTypeID::ST_Warning, "AsciiStorageManager is depreciated and will be removed in GeoDms version 15.0.0");
+	static_assert(DMS_VERSION_MAJOR < 15);
+}
+
+bool AsciiStorageManager::ReadGridData(const StgViewPortInfo& vpi, AbstrDataItem* adi, AbstrDataObject* ado, tile_id t)
 {
 	if (!vpi.IsNonScaling())
 		throwItemError("Reading asciigrid for a scaled grid not implemented");
 	// Pass a stream object
+	auto sfwa = DSM::GetSafeFileWriterArray();
+	if (!sfwa)
+		return false;
 	GridDataReader reader;
-	if (! reader.m_Imp.OpenForRead(GetNameStr(), DSM::GetSafeFileWriterArray()) )
+	if (! reader.m_Imp.OpenForRead(GetNameStr(), sfwa.get()) )
 		throwItemError("cannot open file for reading");
 
 	reader.m_VPI    = &vpi;
@@ -110,14 +101,15 @@ bool AsciiStorageManager::ReadGridData(const StgViewPortInfo& vpi, AbstrDataItem
 void AsciiStorageManager::ReadGridCounts(const StgViewPortInfo& vpi, AbstrDataObject* borrowedReadResultHolder, tile_id t)
 {
 	DBG_START("AsciiStorageManager", "ReadGridCounts", false);
+	auto sfwa = DSM::GetSafeFileWriterArray(); MG_CHECK(sfwa);
 
 	AsciiImp imp;
 	// Pass a stream object
-	if (! imp.OpenForRead(GetNameStr(), DSM::GetSafeFileWriterArray()) )
+	if (! imp.OpenForRead(GetNameStr(), sfwa.get()) )
 		throwItemError("cannot open file for reading");
 
 	const ValueClass* streamType = GetStreamType(borrowedReadResultHolder);
-	dms_assert(streamType);
+	assert(streamType);
 
 	// Pick up data type
 	UInt32 bitsPerPixel = streamType->GetBitSize();
@@ -132,9 +124,9 @@ void AsciiStorageManager::ReadGridCounts(const StgViewPortInfo& vpi, AbstrDataOb
 	throwErrorF("ReadGridCounts", "Cannot count AsciiGrid cells as this type of elements");
 }
 
-bool AsciiStorageManager::ReadDataItem(const StorageMetaInfo& smi, AbstrDataObject* borrowedReadResultHolder, tile_id t)
+bool AsciiStorageManager::ReadDataItem(StorageMetaInfoPtr smi, AbstrDataObject* borrowedReadResultHolder, tile_id t)
 {
-	dms_assert( DoesExist(smi.StorageHolder()) );
+	assert( DoesExist(smi->StorageHolder()) );
 	//dms_assert(t == no_tile);
 
 	SuspendTrigger::FencedBlocker suspendingInputStreams_NYI;
@@ -142,12 +134,12 @@ bool AsciiStorageManager::ReadDataItem(const StorageMetaInfo& smi, AbstrDataObje
 		return false;
 
 	// Collect zoom info
-	const GridStorageMetaInfo* gbr = debug_cast<const GridStorageMetaInfo*>(&smi);
-	ViewPortInfoEx vpi = gbr->m_VPIP.value().GetViewportInfoEx(t);
-	AbstrDataItem* adi = smi.CurrWD();
+	const GridStorageMetaInfo* gbr = debug_cast<const GridStorageMetaInfo*>(smi.get());
+	ViewPortInfoEx vpi = gbr->m_VPIP.value().GetViewportInfoEx(t, smi);
+	AbstrDataItem* adi = smi->CurrWD();
 	vpi.SetWritability(adi);
 
-	dms_assert(adi->GetDataObjLockCount() < 0);
+	assert(adi->GetDataObjLockCount() < 0);
 	if (vpi.GetCountColor() != -1)
 		ReadGridCounts(vpi, borrowedReadResultHolder, t);
 	else
@@ -165,7 +157,10 @@ struct GridDataWriterBase : UnitProcessor
 		dms_assert(m_ADI);
 
 		auto data = const_array_cast<E>(m_ADI)->GetDataRead();
-		m_Success = m_Imp.WriteCells<E>(m_FileNameStr, DSM::GetSafeFileWriterArray(inviter), data.begin(), m_NrElem);
+		auto sfwa = DSM::GetSafeFileWriterArray();
+		if (!sfwa)
+			return;
+		m_Success = m_Imp.WriteCells<E>(m_FileNameStr, sfwa.get(), data.begin(), m_NrElem);
 	}
 public:
 	mutable AsciiImp     m_Imp;
@@ -234,8 +229,12 @@ bool AsciiStorageManager::ReadUnitRange(const StorageMetaInfo& smi) const
 	if (gridDataDomain->GetNrDimensions() != 2)
 		return false;
 
+	auto sfwa = DSM::GetSafeFileWriterArray();
+	if (!sfwa)
+		return false;
+
 	AsciiImp imp;
-	if (!imp.OpenForRead(GetNameStr(), DSM::GetSafeFileWriterArray(smi.StorageHolder())))
+	if (!imp.OpenForRead(GetNameStr(), sfwa.get()))
 		return false;
 
 	dms_assert(gridDataDomain);
@@ -267,9 +266,11 @@ void AsciiStorageManager::DoUpdateTree(const TreeItem* storageHolder, TreeItem* 
 		return;
 
 	StorageReadHandle storageHandle(this, storageHolder, curr, StorageAction::updatetree);
-
+	auto sfwa = DSM::GetSafeFileWriterArray();
+	if (!sfwa)
+		return;
 	AsciiImp imp;
-	if (!imp.OpenForRead(GetNameStr(), DSM::GetSafeFileWriterArray(storageHolder)))
+	if (!imp.OpenForRead(GetNameStr(), sfwa.get()))
 		return;
 
 	DPoint offset, factor;

@@ -39,7 +39,7 @@ granted by an additional written contract for support, assistance and/or develop
 #include "PartitionTypes.h"
 
 // *****************************************************************************
-extern CLC1_CALL CommonOperGroup cog_lookup;
+extern CLC_CALL CommonOperGroup cog_lookup;
 
 // *****************************************************************************
 //                      Lookup operations

@@ -1,33 +1,12 @@
-//<HEADER> 
-/*
-Data & Model Server (DMS) is a server written in C++ for DSS applications. 
-Version: see srv/dms/rtc/dll/src/RtcVersion.h for version info.
+﻿// Copyright (C) 1998-2023 Object Vision b.v. 
+// License: GNU GPL 3
+/////////////////////////////////////////////////////////////////////////////
 
-Copyright (C) 1998-2004  YUSE GSO Object Vision BV. 
-
-Documentation on using the Data & Model Server software can be found at:
-http://www.ObjectVision.nl/DMS/
-
-See additional guidelines and notes in srv/dms/Readme-srv.txt 
-
-This library is free software; you can use, redistribute, and/or
-modify it under the terms of the GNU General Public License version 2 
-(the License) as published by the Free Software Foundation,
-provided that this entire header notice and readme-srv.txt is preserved.
-
-See LICENSE.TXT for terms of distribution or look at our web site:
-http://www.objectvision.nl/DMS/License.txt
-or alternatively at: http://www.gnu.org/copyleft/gpl.html
-
-This library is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
-General Public License for more details. However, specific warranties might be
-granted by an additional written contract for support, assistance and/or development
-*/
-//</HEADER>
 #include "TicPCH.h"
+
+#if defined(CC_PRAGMAHDRSTOP)
 #pragma hdrstop
+#endif //defined(CC_PRAGMAHDRSTOP)
 
 #include <memory>
 
@@ -76,33 +55,38 @@ leveled_critical_section scs_ExplainAccess(item_level_type(0), ord_level_type::M
 
 typedef InterestPtr<const TreeItem*> TreeItemInterestPtr;
 
+struct Explain::CalcExplImpl;
+
 namespace Explain { // local defs
+
 	using CoordinateCollectionType = std::vector<CoordinateType>;
 	static auto calculatingStr = SharedStr("Calculating...");
 
 	struct AbstrCalcExplanation
 	{
-		SharedDataItemInterestPtr             m_DataItem;
-		const AbstrUnit*                      m_UltimateDomainUnit;
-		const AbstrUnit*                      m_UltimateValuesUnit;
-		CoordinateCollectionType              m_Coordinates;
+		SharedDataItemInterestPtr              m_DataItem;
+		const AbstrUnit*                       m_UltimateDomainUnit;
+		const AbstrUnit*                       m_UltimateValuesUnit;
+		CoordinateCollectionType               m_Coordinates;
 		mutable SharedDataItemInterestPtrTuple m_Interests;
-		mutable GuiReadLockPair               m_UnitLabelLocks;
+		mutable GuiReadLockPair                m_UnitLabelLocks;
+		bool                                   m_IsExprOfExistingItem = false;
 		AbstrCalcExplanation(const AbstrDataItem* dataItem)
-			:	m_DataItem(dataItem)
-			,	m_UltimateDomainUnit(AsUnit(dataItem->GetAbstrDomainUnit()->GetUltimateItem()))
-			,	m_UltimateValuesUnit(AsUnit(dataItem->GetAbstrValuesUnit()->GetUltimateItem()))
-
+			: m_DataItem(dataItem)
+			, m_UltimateDomainUnit(AsUnit(dataItem->GetAbstrDomainUnit()->GetUltimateItem()))
+			, m_UltimateValuesUnit(AsUnit(dataItem->GetAbstrValuesUnit()->GetUltimateItem()))
 		{}
-		virtual ~AbstrCalcExplanation() 
+		virtual ~AbstrCalcExplanation()
 		{
 			reportD(SeverityTypeID::ST_MinorTrace, "Byte");
 		}
 
-		virtual ArgRef GetCalcDataItem(Context* context) const =0;
+		virtual ArgRef GetCalcDataItem(Context* context) const = 0;
 
 		CoordinateType* AddIndex(SizeT index) // returns nullptr if abundant
 		{
+			if (!IsDefined(index))
+				return nullptr;
 			for (auto& c : m_Coordinates)
 				if (c.first == index)
 					return &c;
@@ -110,136 +94,47 @@ namespace Explain { // local defs
 			if (m_Coordinates.size() >= MaxNrEntries)
 				return nullptr;
 
-			m_Coordinates.push_back(CoordinateType(index, AbstrValueRef() ) ); // calculate later
+			m_Coordinates.push_back(CoordinateType(index, AbstrValueRef())); // calculate later
 			return &m_Coordinates.back();
 		}
 
-		const AbstrValue* CalcValue(Context* context) // returns nullptr if suspended
-		{
-			dms_assert(context);
-			dms_assert(context->m_CalcExpl);
-			dms_assert(context->m_Domain == m_UltimateDomainUnit);
-			CoordinateType* crd = context->m_Coordinate;
-			dms_assert(crd);
-			dms_assert(!crd->second);
+		const AbstrValue* CalcValue(Context* context); // returns nullptr if suspended
 
-			SizeT entityNr = crd->first;
-			if (!IsDefined(entityNr))
-				context = nullptr;
+		void GetDescr(CalcExplImpl* self, OutStreamBase& stream, bool& isFirst, bool showHidden) const;
+		void DescrValue(OutStreamBase& stream) const;
 
-			try {
-				auto result = GetCalcDataItem(context);
-				auto resultData = GetItem(result);
-				if (!resultData)
-				{
-					dms_assert(SuspendTrigger::DidSuspend());
-					return nullptr; // calc suspended
-				}
-				dms_assert(resultData);
-				resultData->UpdateMetaInfo();
-
-				if (!resultData->PrepareDataUsage(DrlType::Suspendible))
-				{
-					if (resultData->WasFailed(FR_Data))
-						resultData->ThrowFail();
-					dms_assert(SuspendTrigger::DidSuspend());
-					return nullptr;
-				}
-
-				if (!IsDefined(entityNr))
-				{
-					static SharedStr nullStr("<null>");
-					crd->second.assign( new ValueWrap<SharedStr>(nullStr) );
-				}
-				else
-				{
-					if (!WaitForReadyOrSuspendTrigger(resultData->GetCurrUltimateItem()))
-						return nullptr;
-
-					DataReadLock dlr(AsDataItem(resultData));
-					dms_assert(dlr.IsLocked());
-
-					const AbstrDataObject* resultObj = dlr.get_ptr();
-					if (not (entityNr < resultObj->GetTiledRangeData()->GetRangeSize()))
-					{
-						static SharedStr oorStr("<OutOfRange>");
-						crd->second = new ValueWrap<SharedStr>(oorStr);
-					}
-					else
-					{
-						OwningPtr<AbstrValue> valuePtr( resultObj->CreateAbstrValue() );
-
-						resultObj->GetAbstrValue(crd->first, *valuePtr);
-
-						crd->second = std::move( valuePtr );
-					}
-				}
-			}
-			catch (const DmsException& x)
-			{
-				crd->second = OwningPtr<AbstrValue>( new ValueWrap<SharedStr>(x.GetAsText()) );
-			}
-
-			dms_assert(crd->second);
-			return crd->second;
-		}
-
-		virtual void GetDescr(CalcExplImpl* self, OutStreamBase& stream, bool isFirst, bool showHidden) const = 0;
+		virtual void GetDescrImpl(CalcExplImpl* self, OutStreamBase& stream, bool isFirst, bool showHidden) const = 0;
 		virtual void PrintSeqNr(OutStreamBase& stream) const = 0;
 
-	protected:
-		void GetDescrBase(OutStreamBase& stream, bool isFirst, const AbstrUnit* domainUnit, const AbstrUnit* valuesUnit) const
+		auto RelativeExprPath() const -> SharedStr
 		{
-			if (domainUnit->IsKindOf(Unit<Void>::GetStaticClass()))
-				domainUnit = nullptr;
-
-			SizeT n = m_Coordinates.size();
-			stream << "Selected value"; if (n!=1) stream << "s";
-			NewLine(stream);
-
-			XML_Table tab(stream);
-			{
-				XML_Table::Row row(tab);
-				row.ClickableCell(
-					domainUnit ? domainUnit->GetName().c_str() : "",
-					domainUnit ? ItemUrl(domainUnit).c_str() : "");
-				row.ClickableCell(valuesUnit->GetName().c_str(), ItemUrl(valuesUnit).c_str());
-			}
-
-			for (SizeT i=0; i!=n; ++i)
-			{
-				SizeT recno = m_Coordinates[i].first;
-
-				SharedStr locStr = (domainUnit)
-					?	DisplayValue(
-							domainUnit, 
-							recno,
-							true,
-							m_Interests.m_DomainLabel, MAX_TEXTOUT_SIZE, m_UnitLabelLocks.first
-						)
-					:	SharedStr();
-
-				const AbstrValue* valuesValue = m_Coordinates[i].second;
-
-				SharedStr valStr;
-				if (valuesValue)
-					valStr = DisplayValue(valuesUnit, valuesValue, true, m_Interests.m_valuesLabel, MAX_TEXTOUT_SIZE, m_UnitLabelLocks.second);
-				else
-					valStr = calculatingStr;
-
-				if (n == 1 && isFirst || m_DataItem->IsCacheItem())
-					tab.NameValueRow(locStr.c_str(), valStr.c_str());
-				else
-				{
-					XML_Table::Row row(tab);
-					stream.WriteAttr("bgcolor", CLR_HROW);
-					SharedStr explainUrl = mySSPrintF("dms:dp.VI.ATTR!%d:%s", recno, m_DataItem->GetFullName().c_str());
-					row.ClickableCell(locStr.c_str(), explainUrl.c_str());
-					row.ClickableCell(valStr.c_str(), explainUrl.c_str());
-				}
-			}
+			VectorOutStreamBuff buff;
+			OutStream_DMS x(&buff, nullptr);
+			PrintSeqNr(x);
+			return SharedStr(buff.GetData(), buff.GetDataEnd());
 		}
+		auto MatchesExtraInfo(std::string_view extraInfo) const -> match_status
+		{
+			CheckEqualityOutStreamBuff buff(CByteRange(begin_ptr(extraInfo), end_ptr(extraInfo)));
+			OutStream_DMS x(&buff, nullptr);
+			PrintSeqNr(x);
+			return buff.GetStatus();
+		}
+
+	protected:
+		void GetDescrBase(CalcExplImpl* self, OutStreamBase& stream, bool isFirst, const AbstrUnit* domainUnit, const AbstrUnit* valuesUnit) const;
 	};
+
+	auto GetDisplayValueString(SharedStr default_result, const AbstrUnit* valuesUnit, const AbstrValue* valuesValue, bool useMetric, SharedDataItemInterestPtr& ipHolder, streamsize_t maxLen, GuiReadLock& lock) -> SharedStr
+	{
+		SharedStr valStr;
+		if (valuesValue)
+			valStr = DisplayValue(valuesUnit, valuesValue, useMetric, ipHolder, maxLen, lock);
+		else
+			valStr = default_result;
+
+		return valStr;
+	}
 
 	struct DataCalcExplanation : AbstrCalcExplanation
 	{
@@ -249,29 +144,8 @@ namespace Explain { // local defs
 
 		ArgRef GetCalcDataItem(Context* context) const override { return ArgRef(std::in_place_type<SharedTreeItem>, m_DataItem.get_ptr()); }
 
-		void GetDescr(CalcExplImpl* self, OutStreamBase& stream, bool isFirst, bool showHidden) const override
-		{
-			NewLine(stream);
-			{
-				XML_hRef supplRef(stream, ItemUrl(m_DataItem.get_ptr()).c_str());
-				stream << m_DataItem->GetFullName().c_str();
-			}
-			NewLine(stream);
+		void GetDescrImpl(CalcExplImpl* self, OutStreamBase& stream, bool isFirst, bool showHidden) const override;
 
-
-			GetDescrBase(stream, isFirst, m_DataItem->GetAbstrDomainUnit(), m_DataItem->GetAbstrValuesUnit());
-
-			if (!isFirst)
-				return;
-
-			if (m_DataItem->HasCalculator())
-			{
-				stream << "Calculated as:";
-				NewLine(stream);
-			}
-			GetExprOrSourceDescr(stream, m_DataItem.get_ptr());
-			NewLine(stream);
-		}
 		void PrintSeqNr(OutStreamBase& stream) const override
 		{
 			auto fullName = SharedStr(m_DataItem->GetFullName());
@@ -283,7 +157,7 @@ namespace Explain { // local defs
 	{
 		LispCalcExplanation(const AbstrCalculator* calcPtr, const AbstrCalcExplanation* parent, arg_index seqNr)
 			: LispCalcExplanation(GetDC(calcPtr), calcPtr, parent, seqNr)
-			
+
 		{}
 
 		LispCalcExplanation(DataControllerRef dc, const AbstrCalculator* calcPtr, const AbstrCalcExplanation* parent, arg_index seqNr)
@@ -302,30 +176,21 @@ namespace Explain { // local defs
 			return CalcResult(m_CalcPtr, AbstrDataItem::GetStaticClass());
 		}
 
-		void GetDescr(CalcExplImpl* self, OutStreamBase& stream, bool isFirst, bool showHidden) const override;
+		void GetDescrImpl(CalcExplImpl* self, OutStreamBase& stream, bool isFirst, bool showHidden) const override;
 
 		virtual void AddLispExplanations(CalcExplImpl* self, LispPtr lispExprPtr, UInt32 level);
 
-		void PrintSeqNr(OutStreamBase& stream) const
+		void PrintSeqNr(OutStreamBase& stream) const override
 		{
-//			assert(m_Parent);
-			if (m_Parent) {
+			if (!m_Parent) 
+				stream << "#";
+			else
+			{
 				m_Parent->PrintSeqNr(stream);
 				if (dynamic_cast<const DataCalcExplanation*>(m_Parent))
 					stream << "?";
-				else
-					stream << ".";
-				stream << AsString(m_SeqNr).c_str();
 			}
-			else
-				assert(m_SeqNr == 1);
-		}
-		auto RelativeExprPath() const -> SharedStr
-		{
-			VectorOutStreamBuff buff;
-			OutStream_DMS x(&buff, nullptr);
-			PrintSeqNr(x);
-			return SharedStr(buff.GetData(), buff.GetDataEnd());
+			stream << AsString(m_SeqNr).c_str() << ".";
 		}
 
 		DataControllerRef                m_DC;
@@ -340,12 +205,17 @@ namespace Explain { // local defs
 	using SignedTerm = std::pair<bool, Term>;
 	using SumOfTermsExpr = std::vector<SignedTerm>;
 
+	using Predicate = LispRef;
+	using Intersection = std::vector<Predicate>;
+	using Union = std::vector<Intersection>;
+
 	void operator <<=(Term& left, Term&& right)
 	{
 		left.reserve(left.size() + right.size());
 		for (auto& factor : right)
 			left.emplace_back(std::move(factor));
 	}
+
 
 	struct SumOfTermsExplanation : LispCalcExplanation
 	{
@@ -357,22 +227,29 @@ namespace Explain { // local defs
 
 		void ProcessTerms(LispPtr terms, bool additive)
 		{
-			assert(IsSumOfTerms(terms));
-			bool negateThisTerm = additive;
+			assert(CanHandle(terms));
+			if (!IsSumOfTerms(terms))
+			{
+				auto term = ProcessFactors(terms);
+				m_Expr.emplace_back(additive, std::move(term));
+				return;
+			}
+
+			bool addThisTerm = additive;
 			bool isSub = (terms.Left().GetSymbID() == token::sub);
-			bool negateNextTerms = additive ^ isSub;
+			bool addNextTerms = isSub ? (!addThisTerm) : addThisTerm;
 
 			for (auto termListPtr = terms.Right(); termListPtr.IsRealList(); termListPtr = termListPtr.Right())
 			{
 				auto nextTerm = termListPtr.Left();
-				if (IsSumOfTerms(nextTerm))
-					ProcessTerms(nextTerm, negateThisTerm);
+				if (CanHandle(nextTerm))
+					ProcessTerms(nextTerm, addThisTerm);
 				else
 				{
 					auto term = ProcessFactors(nextTerm);
-					m_Expr.emplace_back(negateThisTerm, std::move(term));
+					m_Expr.emplace_back(addThisTerm, std::move(term));
 				}
-				negateThisTerm = negateNextTerms;
+				addThisTerm = addNextTerms;
 			}
 		}
 		Term ProcessFactors(LispPtr factors)
@@ -392,6 +269,11 @@ namespace Explain { // local defs
 		}
 
 		SumOfTermsExpr m_Expr;
+
+		static bool CanHandle(LispPtr lispExpr)
+		{
+			return IsSumOfTerms(lispExpr) || IsProductOfFactors(lispExpr);
+		}
 
 		static bool IsSumOfTerms(LispPtr lispExpr)
 		{
@@ -413,9 +295,93 @@ namespace Explain { // local defs
 			return symbID == token::mul ;
 		}
 
-		void GetDescr(CalcExplImpl* self, OutStreamBase& stream, bool isFirst, bool showHidden) const override;
+		void GetDescrImpl(CalcExplImpl* self, OutStreamBase& stream, bool isFirst, bool showHidden) const override;
 		void AddLispExplanations(CalcExplImpl* self, LispPtr lispExprPtr, UInt32 level) override;
 	};
+
+	struct UnionOfAndsExplanation : LispCalcExplanation
+	{
+		UnionOfAndsExplanation(const AbstrCalculator* calcPtr, const AbstrCalcExplanation* parent, arg_index seqNr)
+			: LispCalcExplanation(calcPtr, parent, seqNr)
+		{
+			Process(calcPtr->GetLispExprOrg(), 0);
+		}
+
+		void Process(LispPtr terms, UInt32 level)
+		{
+			assert(CanHandle(terms));
+			if (!IsUnion(terms))
+			{
+				assert(IsIntersection(terms));
+				auto term = ProcessIntersection(terms, level);
+				m_Expr.emplace_back(std::move(term));
+				return;
+			}
+
+			for (auto termListPtr = terms.Right(); termListPtr.IsRealList(); termListPtr = termListPtr.Right())
+			{
+				auto nextTerm = termListPtr.Left();
+				if (CanHandle(nextTerm))
+					Process(nextTerm, level+1);
+				else
+				{
+					auto term = ProcessIntersection(nextTerm, level+1);
+					m_Expr.emplace_back(std::move(term));
+				}
+			}
+		}
+		Intersection ProcessIntersection(LispPtr factors, UInt32 level)
+		{
+			Intersection result;
+			if (IsIntersection(factors) && level < 3)
+			{
+				bool isRightIntersection = false;
+				for (auto factorListPtr = factors.Right(); factorListPtr.IsRealList(); factorListPtr = factorListPtr.Right())
+				{
+					result <<= ProcessIntersection(factorListPtr.Left(), level + UInt32(isRightIntersection));
+					isRightIntersection = true;
+				}
+			}
+			else
+				result.emplace_back(ProcessPredicate(factors));
+			return result;
+		}
+
+		Factor ProcessPredicate(LispPtr factors)
+		{
+			return factors;
+		}
+
+		Union m_Expr;
+
+		static bool CanHandle(LispPtr lispExpr)
+		{
+			return IsUnion(lispExpr) || IsIntersection(lispExpr);
+		}
+
+		static bool IsUnion(LispPtr lispExpr)
+		{
+			if (!lispExpr.IsRealList())
+				return false;
+			if (!lispExpr.Left().IsSymb())
+				return false;
+			auto symbID = lispExpr.Left().GetSymbID();
+			return symbID == token::or_;
+		}
+
+		static bool IsIntersection(LispPtr lispExpr)
+		{
+			if (!lispExpr.IsRealList())
+				return false;
+			if (!lispExpr.Left().IsSymb())
+				return false;
+			auto symbID = lispExpr.Left().GetSymbID();
+			return symbID == token::and_;
+		}
+		void GetDescrImpl(CalcExplImpl* self, OutStreamBase& stream, bool isFirst, bool showHidden) const override;
+		void AddLispExplanations(CalcExplImpl* self, LispPtr lispExprPtr, UInt32 level) override;
+	};
+
 
 	/*
 	Description of value(s) of <dataitemname>
@@ -425,234 +391,29 @@ namespace Explain { // local defs
 	*  <suppliers>
 	*/
 
-
-	typedef std::pair<const AbstrUnit*, SizeT>    QueueEntry;
-	typedef OwningPtr<AbstrCalcExplanation>       ExplArrayEntry;
-	typedef std::vector<ExplArrayEntry>           ExplArray;
-	typedef std::vector<TreeItemInterestPtr>      ItemInterestArray;
-	typedef std::vector<CalcInterestPtr>          CalcInterestArray;
+	
+	using QueueEntry        = std::pair<const AbstrUnit*, SizeT>;
+	using ExplArrayEntry    = OwningPtr<AbstrCalcExplanation>;
+	using ExplArray         = std::vector<ExplArrayEntry>;
+	using ItemInterestArray = std::vector<TreeItemInterestPtr>;
+	using CalcInterestArray = std::vector<CalcInterestPtr>;
 
 	struct CalcExplImpl
 	{
-		void Init(const AbstrDataItem* studyObject, SizeT studyIdx)
-		{
-			if (	studyObject == m_StudyObject
-				&&	studyIdx    == m_StudyIdx
-				&& (!studyObject || studyObject->GetLastChangeTS() == m_LastChange))
-				return;
+		void Init(const AbstrDataItem* studyObject, SizeT studyIdx, CharPtr extraInfo);
+		bool IsClear() const;
+		void AddQueueEntry(const AbstrUnit* domain, SizeT index);
+		bool ProcessQueue(); // returns false if suspended
+		void AddExplanation(const AbstrDataItem* explItem);
+		void AddLispExplanation(LispPtr lispExprOrg, UInt32 level, const AbstrCalcExplanation* parent, arg_index seqNr);
+		void AddExplanations(const Actor* studyActor);
+		void AddExplanations();
+		auto GetExprLevel() -> arg_index {return m_ExprLevel;};
+		bool IsKnownDomain(const AbstrUnit* valuesUnit);
+		bool IsExplainable(const AbstrUnit* valuesUnit, SizeT index);
+		auto FindExpl(LispPtr key) -> const LispCalcExplanation*;
+		auto URL(const LispCalcExplanation* expl, SizeT recNo) -> SharedStr;
 
-			m_StudyObject = studyObject;
-			m_StudyIdx    = studyIdx;
-			m_Queue.clear();
-			m_DoneQueueEntries = m_DoneExpl = 0;
-
-			auto oldExpl          = std::move(m_Expl);
-			auto oldLispRefSet    = std::move(m_KnownExpr);
-			auto oldItemInterests = std::move(m_ItemInterests);
-			auto oldCalcInterests = std::move(m_CalcInterests);
-
-			if (studyObject)
-			{
-				m_LastChange  = studyObject->GetLastChangeTS();
-
-				AddExplanations();
-
-				AddQueueEntry(m_Expl[0]->m_UltimateDomainUnit, studyIdx);
-				AddQueueEntry(Unit<Void>::GetStaticClass()->CreateDefault(), 0);
-			}
-		}
-#if defined(MG_DEBUG)
-		bool IsClear() const
-		{
-			dms_assert(m_Queue.empty());
-			dms_assert(m_Expl.empty());
-			dms_assert(m_ItemInterests.empty());
-			dms_assert(m_CalcInterests.empty());
-			dms_assert(m_StudyObject.is_null());
-			return m_Expl.empty() && m_Queue.empty() && m_ItemInterests.empty() && m_CalcInterests.empty() && m_StudyObject.is_null();
-		}
-#endif
-		void AddQueueEntry(const AbstrUnit* domain, SizeT index)
-		{
-			leveled_critical_section::scoped_lock lock(scs_ExplainAccess);
-
-			dms_assert(domain);
-			domain = AsUnit(domain->GetUltimateItem());
-			dms_assert(domain);
-			for (auto entryPtr = m_Queue.begin(); entryPtr != m_Queue.end(); ++entryPtr)
-				if (entryPtr->first == domain && entryPtr->second == index)
-					return;
-
-			if (IsExplainable(domain, index))
-				m_Queue.push_back(QueueEntry(domain, index));
-		}
-
-		bool ProcessQueue() // returns false if suspended
-		{
-			while (m_DoneQueueEntries < m_Queue.size())
-			{
-				QueueEntry entry = m_Queue[m_DoneQueueEntries];
-				for (; m_DoneExpl < m_Expl.size(); ++m_DoneExpl)
-				{
-					AbstrCalcExplanation* explanation = m_Expl[ m_DoneExpl ].get();
-
-					if (entry.first != explanation->m_UltimateDomainUnit)
-						continue;
-
-					CoordinateType* coordPtr = explanation->AddIndex(entry.second);
-					if (!coordPtr)
-						continue;
-					dms_assert( coordPtr->second.is_null() ); // we don't expect to process the same entry twice
-
-					Context context { this, entry.first, coordPtr };
-
-					const AbstrValue* value = explanation->CalcValue(&context);
-					if (! value )
-						return false; // suspend
-		
-					const AbstrUnit* valuesUnit = explanation->m_UltimateValuesUnit;
-					if (!value->IsNull() && (value->GetValueClass() != ValueWrap<SharedStr>::GetStaticClass()) && IsKnownDomain(valuesUnit))
-					{
-						if (!valuesUnit->PrepareDataUsage(DrlType::Suspendible))
-						{
-							if (valuesUnit->WasFailed(FR_Data))
-								continue;
-							dms_assert(SuspendTrigger::DidSuspend());
-							return false;
-						}
-						AddQueueEntry(valuesUnit, valuesUnit->GetIndexForAbstrValue(*value));
-					}
-				}
-
-				m_DoneExpl = 0;
-				++m_DoneQueueEntries;
-			}
-			return true;
-		}
-
-		void AddExplanation(const AbstrDataItem* explItem)
-		{
-			for (const auto& explPtr: m_Expl)
-				if (explPtr->m_DataItem == explItem)
-					return;
-
-			m_Expl.push_back(
-				ExplArrayEntry(
-					new DataCalcExplanation(explItem) 
-				)
-			);
-		}
-		void AddLispExplanation(LispPtr lispExpr, UInt32 level, const AbstrCalcExplanation* parent, arg_index seqNr)
-		{
-			if (!lispExpr.IsRealList() || !lispExpr.Left().IsSymb() || lispExpr.Left().GetSymbID() == token::sourceDescr)
-				return;
-			if (m_KnownExpr.contains(lispExpr))
-				return;
-			m_KnownExpr.insert(lispExpr);
-
-//			DisplayAuthLock suppressErrorDisplay;
-			OwningPtr<LispCalcExplanation> newExpl;
-			LispCalcExplanation* newExplPtr = nullptr;
-			try {
-
-				AbstrCalculatorRef calc = AbstrCalculator::ConstructFromLispRef(m_StudyObject, lispExpr, CalcRole::Calculator); // lispExpr already substitited ?
-				auto metaInfo = calc->GetMetaInfo();
-//				if (metaInfo.index() == 2)
-//					AddLispExplanation(std::get<2>(metaInfo)->GetKeyExpr(CalcRole::Other), level, parent, seqNr);
-				if (metaInfo.index() != 1)
-					return;
-				auto dc = GetExistingDataController(lispExpr);
-				auto res = dc->MakeResult();
-				if (!IsDataItem(res.get_ptr()))
-					return;
-
-				if (SumOfTermsExplanation::IsSumOfTerms(lispExpr))
-					newExpl = new  SumOfTermsExplanation(calc, parent, seqNr);
-				else
-					newExpl = new LispCalcExplanation(calc, parent, seqNr);
-				newExplPtr = newExpl.release();
-				m_Expl.push_back( ExplArrayEntry(newExplPtr) );
-				m_CalcInterests.push_back(dc);
-			} 
-			catch (const DmsException&)
-			{}
-
-			if (level < MaxLevel && newExplPtr)
-				newExplPtr->AddLispExplanations(this, lispExpr, level+1);
-		}
-
-		void AddExplanations(const Actor* studyActor)
-		{			
-			VisitSupplProcImpl(studyActor, SupplierVisitFlag::Explain, 
-				[&] (const Actor* supplier)
-				{
-					const AbstrDataItem* supplDI= AsDynamicDataItem( supplier );
-					if	( supplDI)
-						AddExplanation(supplDI);
-					if (dynamic_cast<const AbstrCalculator*>( supplier ))
-						AddExplanations( supplier );
-				}
-			);
-		}
-		void AddExplanations()
-		{
-			AddExplanation (m_StudyObject);
-			AddExplanations(m_StudyObject);
-
-			if (m_StudyObject->HasCalculator())
-			{
-				auto metaInfo = m_StudyObject->GetCurrMetaInfo({});
-				if (metaInfo.index() == 2)
-					AddExplanation(AsDataItem(std::get<SharedTreeItem>(metaInfo).get_ptr()));
-				if (metaInfo.index() == 1)
-					AddLispExplanation(std::get<LispRef>(metaInfo), 0, nullptr, 1);
-			}
-		}
-
-
-		bool IsKnownDomain(const AbstrUnit* valuesUnit)
-		{
-			for (const auto& expl: m_Expl)
-				if (expl->m_UltimateDomainUnit == valuesUnit) 
-					return true;
-			return false;
-		}
-
-		bool IsExplainable(const AbstrUnit* valuesUnit, SizeT index)
-		{
-			bool result = false;
-			for (const auto& expl : m_Expl)
-				if (expl->m_UltimateDomainUnit == valuesUnit)
-					if (expl->AddIndex(index))
-						result = true;
-
-			return result;
-		}
-
-		auto FindExpl(LispPtr key) -> const LispCalcExplanation*
-		{
-			for (const auto& expl : m_Expl)
-			{
-				const auto* lispCalc = dynamic_cast<const LispCalcExplanation*>(expl.get());
-				if (!lispCalc)
-					continue;
-				if (lispCalc->m_CalcPtr->GetLispExprOrg() == key)
-					return lispCalc;
-			}
-			return nullptr;
-//			auto errMsg = mySSPrintF("Unexpected key: %s", AsFLispSharedStr(key).c_str());
-//			throwCheckFailed(MG_POS, errMsg.c_str());
-		}
-		auto URL(const LispCalcExplanation* expl) -> SharedStr
-		{
-			auto fullPath = SharedStr(m_StudyObject->GetFullName());
-			auto relExprPath = expl->RelativeExprPath();
-			return mySSPrintF("dms:dp.VI.ATTR!%d:%s?%s"
-				, m_StudyIdx
-				, fullPath.c_str()
-				, relExprPath.c_str()
-			);
-		}
 
 		ExplArray                m_Expl;
 		std::set<LispRef>        m_KnownExpr;
@@ -663,27 +424,304 @@ namespace Explain { // local defs
 		CalcInterestArray        m_CalcInterests;
 
 		SharedDataItem           m_StudyObject = 0;
-		SizeT                    m_StudyIdx = 0;
+		SizeT                    m_StudyIdx = -1;
+		std::string              m_ExtraInfo;
+		std::string_view         m_ExprRelPath;
+		SizeT                    m_ExprLocationIdx = -1;
+		arg_index                m_ExprSeqNr  = 0;
+		arg_index                m_ExprLevel  = 0;
 		TimeStamp                m_LastChange = 0;
 
 		friend struct CalcExplanations;
 	};
 
-	CalcExplImpl g_CalcExplImpl;
+	void CalcExplImpl::Init(const AbstrDataItem* studyObject, SizeT studyIdx, CharPtr extraInfo)
+	{
+		if (!extraInfo)
+			extraInfo = "";
+
+		if (studyObject == m_StudyObject
+			&& studyIdx == m_StudyIdx
+			&& (strcmp(extraInfo, m_ExtraInfo.c_str()) == 0)
+			&& (!studyObject || studyObject->GetLastChangeTS() == m_LastChange)
+			)
+			return;
+
+		m_StudyObject = studyObject;
+		m_StudyIdx = studyIdx;
+		m_ExtraInfo = extraInfo;
+		m_ExprSeqNr = 0;
+		m_ExprLevel = 0;
+		m_Queue.clear();
+		m_DoneQueueEntries = m_DoneExpl = 0;
+		if (m_ExtraInfo.contains(':'))
+		{
+			auto colonPos = m_ExtraInfo.find(':');
+			m_ExprRelPath = std::string_view(m_ExtraInfo.data(), colonPos);
+			m_ExprLocationIdx = Convert<SizeT>(std::string_view(m_ExtraInfo.begin() + colonPos + 1, m_ExtraInfo.end()));
+		}
+		else
+		{
+			m_ExprRelPath = m_ExtraInfo;
+			m_ExprLocationIdx = m_StudyIdx;
+		}
+
+		auto oldExpl = std::move(m_Expl);
+		auto oldLispRefSet = std::move(m_KnownExpr);
+		auto oldItemInterests = std::move(m_ItemInterests);
+		auto oldCalcInterests = std::move(m_CalcInterests);
+
+		if (studyObject)
+		{
+			m_LastChange = studyObject->GetLastChangeTS();
+
+			AddExplanations();
+
+			if (m_ExtraInfo.empty())
+				AddQueueEntry(m_Expl[0]->m_UltimateDomainUnit, studyIdx);
+			AddQueueEntry(Unit<Void>::GetStaticClass()->CreateDefault(), 0);
+		}
+	}
+
+	bool CalcExplImpl::IsClear() const
+	{
+		assert(m_Queue.empty());
+		assert(m_Expl.empty());
+		assert(m_ItemInterests.empty());
+		assert(m_CalcInterests.empty());
+		assert(m_StudyObject.is_null());
+		return m_Expl.empty() && m_Queue.empty() && m_ItemInterests.empty() && m_CalcInterests.empty() && m_StudyObject.is_null();
+	}
+
+	void CalcExplImpl::AddQueueEntry(const AbstrUnit* domain, SizeT index)
+	{
+		leveled_critical_section::scoped_lock lock(scs_ExplainAccess);
+
+		dms_assert(domain);
+		domain = AsUnit(domain->GetUltimateItem());
+		dms_assert(domain);
+		for (auto entryPtr = m_Queue.begin(); entryPtr != m_Queue.end(); ++entryPtr)
+			if (entryPtr->first == domain && entryPtr->second == index)
+				return;
+
+		if (IsExplainable(domain, index))
+			m_Queue.push_back(QueueEntry(domain, index));
+	}
+
+	bool CalcExplImpl::ProcessQueue() // returns false if suspended
+	{
+		while (m_DoneQueueEntries < m_Queue.size())
+		{
+			QueueEntry entry = m_Queue[m_DoneQueueEntries];
+			for (; m_DoneExpl < m_Expl.size(); ++m_DoneExpl)
+			{
+				AbstrCalcExplanation* explanation = m_Expl[m_DoneExpl].get();
+
+				if (entry.first != explanation->m_UltimateDomainUnit)
+					continue;
+
+				CoordinateType* coordPtr = explanation->AddIndex(entry.second);
+				if (!coordPtr || !IsDefined(coordPtr->first))
+					continue;
+				dms_assert(coordPtr->second.is_null()); // we don't expect to process the same entry twice
+
+				Context context{ this, entry.first, coordPtr };
+
+				const AbstrValue* value = explanation->CalcValue(&context);
+				if (!value)
+					return false; // suspend or NULL
+
+				const AbstrUnit* valuesUnit = explanation->m_UltimateValuesUnit;
+				if (!value->IsNull() && (value->GetValueClass() != ValueWrap<SharedStr>::GetStaticClass()) && IsKnownDomain(valuesUnit))
+				{
+					if (!valuesUnit->PrepareDataUsage(DrlType::Suspendible))
+					{
+						if (valuesUnit->WasFailed(FR_Data))
+							continue;
+						dms_assert(SuspendTrigger::DidSuspend());
+						return false;
+					}
+					AddQueueEntry(valuesUnit, valuesUnit->GetIndexForAbstrValue(*value));
+				}
+			}
+
+			m_DoneExpl = 0;
+			++m_DoneQueueEntries;
+		}
+		return true;
+	}
+
+	void CalcExplImpl::AddExplanation(const AbstrDataItem* explItem)
+	{
+		for (const auto& explPtr : m_Expl)
+			if (explPtr->m_DataItem == explItem)
+				return;
+
+		m_Expl.push_back(
+			ExplArrayEntry(
+				new DataCalcExplanation(explItem)
+			)
+		);
+	}
+
+	void CalcExplImpl::AddLispExplanation(LispPtr lispExprOrg, UInt32 level, const AbstrCalcExplanation* parent, arg_index seqNr)
+	{
+		if (!lispExprOrg.IsRealList() || !lispExprOrg.Left().IsSymb() || lispExprOrg.Left().GetSymbID() == token::sourceDescr)
+			return;
+		if (m_KnownExpr.contains(lispExprOrg))
+			return;
+
+		m_KnownExpr.insert(lispExprOrg);
+
+		OwningPtr<LispCalcExplanation> newExpl;
+		LispCalcExplanation* newExplPtr = nullptr;
+		try {
+
+			AbstrCalculatorRef calc = AbstrCalculator::ConstructFromLispRef(m_StudyObject, lispExprOrg, CalcRole::Calculator); // lispExpr already substitited ?
+			auto metaInfo = calc->GetMetaInfo();
+
+			//				if (metaInfo.index() == 2)
+			//					AddLispExplanation(std::get<2>(metaInfo)->GetKeyExpr(CalcRole::Other), level, parent, seqNr);
+
+			if (metaInfo.index() != 1)
+				return;
+			auto dc = GetExistingDataController(std::get<LispRef>(metaInfo));
+			if (!dc)
+				return;
+			auto res = dc->MakeResult();
+			if (!IsDataItem(res.get_ptr()))
+				return;
+
+			bool mustCalcNextLevel = true;
+			if (SumOfTermsExplanation::CanHandle(lispExprOrg))
+				newExpl = new  SumOfTermsExplanation(calc, parent, seqNr);
+			else if (UnionOfAndsExplanation::CanHandle(lispExprOrg))
+				newExpl = new  UnionOfAndsExplanation(calc, parent, seqNr);
+			else
+			{
+				newExpl = new LispCalcExplanation(calc, parent, seqNr);
+				mustCalcNextLevel = false;
+			}
+			auto matchInfo = newExpl->MatchesExtraInfo(m_ExprRelPath);
+			if (matchInfo == match_status::different)
+				return;
+
+			if (matchInfo > match_status::partial)
+				if (mustCalcNextLevel || (level + 1 < MaxLevel))
+					++level;
+
+			// check if already covered by visible supplying data item
+			for (const auto& oldExpl : m_Expl)
+			{
+				//					if (oldExpl->MatchesExtraInfo(m_ExprRelPath) <= match_status::partial)
+				//						continue;
+				const AbstrDataItem* adi = oldExpl->m_DataItem;
+				if (adi && !adi->IsCacheItem() && adi->HasCalculator())
+					if (adi->GetCheckedKeyExpr() == dc->GetLispRef())
+					{
+						newExpl->m_IsExprOfExistingItem = true;
+						break;
+					}
+			}
+
+			newExplPtr = newExpl.release();
+			m_Expl.push_back(ExplArrayEntry(newExplPtr));
+			m_CalcInterests.push_back(dc);
+			if (matchInfo == match_status::full)
+				AddQueueEntry(newExplPtr->m_UltimateDomainUnit, m_ExprLocationIdx);
+		}
+		catch (const DmsException&)
+		{
+		}
+
+		if (level < MaxLevel && newExplPtr)
+			newExplPtr->AddLispExplanations(this, lispExprOrg, level);
+	}
+
+	void CalcExplImpl::AddExplanations(const Actor* studyActor)
+	{
+		VisitSupplProcImpl(studyActor, SupplierVisitFlag::Explain,
+			[&](const Actor* supplier)
+			{
+				const AbstrDataItem* supplDI = AsDynamicDataItem(supplier);
+				if (supplDI && !supplDI->IsCacheItem())
+					AddExplanation(supplDI);
+				else if (dynamic_cast<const AbstrCalculator*>(supplier))
+					AddExplanations(supplier);
+			}
+		);
+	}
+	void CalcExplImpl::AddExplanations()
+	{
+		AddExplanation(m_StudyObject);
+		AddExplanations(m_StudyObject);
+
+		if (m_StudyObject->HasCalculator())
+		{
+			//				auto keyExpr = m_StudyObject->GetCalculator()->GetLispExprOrg();
+			//				AddLispExplanation(keyExpr, 0, nullptr, ++m_ExprSeqNr);
+			auto metaInfo = m_StudyObject->GetCurrMetaInfo({});
+			if (metaInfo.index() == 2)
+				AddExplanation(AsDataItem(std::get<SharedTreeItem>(metaInfo).get_ptr()));
+			if (metaInfo.index() == 1)
+				AddLispExplanation(std::get<LispRef>(metaInfo), 0, nullptr, ++m_ExprSeqNr);
+		}
+	}
+
+
+	bool CalcExplImpl::IsKnownDomain(const AbstrUnit* valuesUnit)
+	{
+		for (const auto& expl : m_Expl)
+			if (expl->m_UltimateDomainUnit == valuesUnit)
+				return true;
+		return false;
+	}
+
+	bool CalcExplImpl::IsExplainable(const AbstrUnit* valuesUnit, SizeT index)
+	{
+		bool result = false;
+		for (const auto& expl : m_Expl)
+			if (expl->m_UltimateDomainUnit == valuesUnit)
+				if (expl->AddIndex(index))
+					result = true;
+
+		return result;
+	}
+
+	auto CalcExplImpl::FindExpl(LispPtr key) -> const LispCalcExplanation*
+	{
+		for (const auto& expl : m_Expl)
+		{
+			const auto* lispCalc = dynamic_cast<const LispCalcExplanation*>(expl.get());
+			if (!lispCalc)
+				continue;
+			if (lispCalc->m_CalcPtr->GetLispExprOrg() == key)
+				return lispCalc;
+		}
+		return nullptr;
+	}
+	auto CalcExplImpl::URL(const LispCalcExplanation* expl, SizeT recNo) -> SharedStr
+	{
+		auto fullPath = SharedStr(m_StudyObject->GetFullName());
+		auto relExprPath = expl->RelativeExprPath();
+		return mySSPrintF("dms:dp.vi.attr!%d:%s?%s:%d", m_StudyIdx, fullPath.c_str(), relExprPath.c_str(), recNo);
+	}
+
 
 	struct CalcExplanations
 	{
-		CalcExplanations(OutStreamBase& xmlOutStr, bool bShowHidden)
+		CalcExplanations(OutStreamBase& xmlOutStr, bool bShowHidden, CalcExplImpl* calcExplImplPtr)
 			:	m_OutStream(xmlOutStr)
 			,	m_bShowHidden(bShowHidden)
+			,	m_CalcExplImplPtr(calcExplImplPtr)
 		{}
 
 		bool MakeExplanationIdx(const AbstrDataItem* studyObject, SizeT index, CharPtr extraInfo)
 		{
 			try {
 
-				Explain::g_CalcExplImpl.Init(studyObject, index);
-				return Explain::g_CalcExplImpl.ProcessQueue();
+				m_CalcExplImplPtr->Init(studyObject, index, extraInfo);
+				return m_CalcExplImplPtr->ProcessQueue();
 
 			}
 			catch (...) 
@@ -692,6 +730,7 @@ namespace Explain { // local defs
 			}
 			return true; // don't come back
 		}
+
 		bool MakeExplanationLoc(const AbstrDataItem* studyObject, const AbstrValue& location, CharPtr extraInfo)
 		{
 			return 
@@ -706,16 +745,15 @@ namespace Explain { // local defs
 		{
 			SuspendTrigger::FencedBlocker nowProvideValuesWithLabelsWithoutSuspension;
 
-			dms_assert(g_CalcExplImpl.m_Expl.size() >= 1);
+			assert(m_CalcExplImplPtr->m_Expl.size() >= 1);
 
+			NewLine(m_OutStream);
 			bool isFirst = true;
-			for (const auto& expl: g_CalcExplImpl.m_Expl)
+			for (const auto& expl: m_CalcExplImplPtr->m_Expl)
 			{
 				if (expl->m_Coordinates.empty())
 					continue;
-				if (!isFirst) NewLine(m_OutStream);
-				expl->GetDescr(&g_CalcExplImpl, m_OutStream, isFirst, m_bShowHidden);
-				isFirst = false;
+				expl->GetDescr(m_CalcExplImplPtr, m_OutStream, isFirst, m_bShowHidden);
 			}
 			GetSupplDescr(studyObject);
 
@@ -762,13 +800,44 @@ namespace Explain { // local defs
 		OutStreamBase&  m_OutStream;
 		bool            m_bShowHidden;;
 		ErrMsgPtr       m_LastErrorPtr;
+		CalcExplImpl*   m_CalcExplImplPtr;
 	};
+
+	// ========================== impl struct NonStaticCalcExplanation
+
+	NonStaticCalcExplanations::NonStaticCalcExplanations(OutStreamBase& xmlOutStr, const AbstrDataItem* studyObject, SizeT index, CharPtr extraInfo)
+		: m_Impl(std::make_unique<CalcExplImpl>())
+		, m_Interface(std::make_unique<CalcExplanations>(xmlOutStr, true, m_Impl.get()))
+		, m_StudyObject(studyObject)
+	{
+		m_Impl->Init(studyObject, index, extraInfo);
+	}
+
+	bool NonStaticCalcExplanations::ProcessQueue()
+	{
+		try {
+			return m_Impl->ProcessQueue();
+		}
+		catch (...)
+		{
+			m_Interface->m_LastErrorPtr = catchException(true); // will be processed in WriteDescr
+		}
+		return true; // don't come back
+	}
+
+	void NonStaticCalcExplanations::WriteDescr()
+	{
+		m_Interface->GetDescr(m_StudyObject);
+	}
+
+
+	// ========================== impl struct LispCalcExplanation, SumOfTermsExplanation, UnionOfAndsExplanation
 
 	void LispCalcExplanation::AddLispExplanations(CalcExplImpl* self, LispPtr lispExprPtr, UInt32 level)
 	{
 		assert(self);		
 		for (arg_index seqNr = 0; lispExprPtr.IsRealList(); lispExprPtr = lispExprPtr->Right())
-			self->AddLispExplanation(lispExprPtr->Left(), level, m_Parent, ++seqNr);
+			self->AddLispExplanation(lispExprPtr->Left(), level, this, ++seqNr);
 
 		dms_assert(lispExprPtr.EndP());
 	}
@@ -778,77 +847,343 @@ namespace Explain { // local defs
 		arg_index seqNr = 0;
 		for (auto& term: m_Expr)
 			for (auto& factor: term.second)
-				self->AddLispExplanation(factor, level, m_Parent, ++seqNr);
+				self->AddLispExplanation(factor, level, this, ++seqNr);
 	}
-
-	void LispCalcExplanation::GetDescr(CalcExplImpl* self, OutStreamBase& stream, bool isFirst, bool showHidden) const
+	
+	void DataCalcExplanation::GetDescrImpl(CalcExplImpl* self, OutStreamBase& stream, bool isFirst, bool showHidden) const
 	{
-		dms_assert(!isFirst);
-		NewLine(stream);
-		stream << "Expr ";
-		PrintSeqNr(stream);
-		stream << " (in FLisp format): ";
+		auto domain_unit = m_DataItem->GetAbstrDomainUnit();
+		auto is_parameter = domain_unit->IsKindOf(Unit<Void>::GetStaticClass());
+		auto values_unit = m_DataItem->GetAbstrValuesUnit();
+		if (isFirst)
 		{
-			auto valueURL = self->URL(this);
+			SizeT recno = m_Coordinates[0].first;
+			const AbstrValue* valuesValue = m_Coordinates[0].second;
+			auto val_str = GetDisplayValueString(calculatingStr, m_DataItem->GetAbstrValuesUnit(), valuesValue, true, m_Interests.m_valuesLabel, MAX_TEXTOUT_SIZE, m_UnitLabelLocks.second);
+			auto explaining_string = is_parameter ? SharedStr("Explaining parameter value ") : SharedStr("Explaining row: ") + AsString(recno).c_str() + " with value ";
+			stream << explaining_string.c_str();
 
-			XML_hRef xmlElemA(stream, valueURL.c_str());
-			stream.WriteTrimmed(m_CalcPtr->GetAsFLispExprOrg().c_str());
+			{
+				XML_OutElement bold(stream, "B");
+				stream << val_str.c_str();
+			}
+			stream << " of item: ";
 		}
-		NewLine(stream);
 
-		GetDescrBase(stream, isFirst, m_UltimateDomainUnit, m_UltimateValuesUnit);
+		{
+			{
+				XML_OutElement br(stream, "P", "", ClosePolicy::pairedButWithoutSeparator);
+				{
+					auto indentation_level_str = SharedStr("margin-left: " + AsString(isFirst ? (self->m_ExprLevel - 1) : self->m_ExprLevel * 15) + "px");
+					stream.WriteAttr("style", indentation_level_str.c_str());
+					stream.WriteValue(""); // Close attr list
+					if (!isFirst)
+						stream.FormattingStream() << "&#8226;";
+					{
+						XML_hRef supplRef(stream, ItemUrl(m_DataItem.get_ptr()).c_str());
+						stream << m_DataItem->GetName().c_str();
+					}
+					stream << " := ";  GetExprOrSourceDescr(stream, m_DataItem.get_ptr());
+				}
+			}
+
+
+			if (isFirst)
+			{
+				NewLine(stream);
+				NewLine(stream);
+				if (self->m_Expl.size()>2)
+					stream << "With suppliers:";
+				return;
+			}
+			{
+				XML_OutElement br(stream, "P", "", ClosePolicy::pairedButWithoutSeparator);
+				auto indentation_level_str = SharedStr("margin-left: " + AsString(self->m_ExprLevel * 15+5) + "px");
+				stream.WriteAttr("style", indentation_level_str.c_str());
+				stream.WriteValue(""); // Close attr list
+				GetDescrBase(self, stream, isFirst, domain_unit, values_unit);
+			}
+		}
+
+		//NewLine(stream);
 	}
 
-	void SumOfTermsExplanation::GetDescr(CalcExplImpl* self, OutStreamBase& stream, bool isFirst, bool showHidden) const
+	void UnionOfAndsExplanation::AddLispExplanations(CalcExplImpl* self, LispPtr lispExprPtr, UInt32 level)
 	{
-		dms_assert(!isFirst);
-		NewLine(stream);
-		stream << "Expr ";
+		arg_index seqNr = 0;
+		for (auto& term : m_Expr)
+			for (auto& factor : term)
+				self->AddLispExplanation(factor, level, this, ++seqNr);
+	}
+
+	const AbstrValue* AbstrCalcExplanation::CalcValue(Context* context) // returns nullptr if suspended
+	{
+		dms_assert(context);
+		dms_assert(context->m_CalcExpl);
+		dms_assert(context->m_Domain == m_UltimateDomainUnit);
+		CoordinateType* crd = context->m_Coordinate;
+		dms_assert(crd);
+		dms_assert(!crd->second);
+
+		SizeT entityNr = crd->first;
+		assert(IsDefined(entityNr));
+
+		try {
+			auto result = GetCalcDataItem(context);
+			auto resultData = GetItem(result);
+			if (!resultData)
+			{
+				dms_assert(SuspendTrigger::DidSuspend());
+				return nullptr; // calc suspended
+			}
+			dms_assert(resultData);
+			resultData->UpdateMetaInfo();
+
+			if (!resultData->PrepareDataUsage(DrlType::Suspendible))
+			{
+				if (resultData->WasFailed(FR_Data))
+					resultData->ThrowFail();
+				dms_assert(SuspendTrigger::DidSuspend());
+				return nullptr;
+			}
+
+			if (!IsDefined(entityNr))
+			{
+				static SharedStr nullStr("<null>");
+				crd->second.assign(new ValueWrap<SharedStr>(nullStr));
+			}
+			else
+			{
+				if (!WaitForReadyOrSuspendTrigger(resultData->GetCurrUltimateItem()))
+					return nullptr;
+
+				DataReadLock dlr(AsDataItem(resultData));
+				dms_assert(dlr.IsLocked());
+
+				const AbstrDataObject* resultObj = dlr.get_ptr();
+				if (not (entityNr < resultObj->GetTiledRangeData()->GetRangeSize()))
+				{
+					static SharedStr oorStr("<OutOfRange>");
+					crd->second = new ValueWrap<SharedStr>(oorStr);
+				}
+				else
+				{
+					OwningPtr<AbstrValue> valuePtr(resultObj->CreateAbstrValue());
+
+					resultObj->GetAbstrValue(crd->first, *valuePtr);
+
+					crd->second = std::move(valuePtr);
+				}
+			}
+		}
+		catch (const DmsException& x)
+		{
+			crd->second = OwningPtr<AbstrValue>(new ValueWrap<SharedStr>(x.GetAsText()));
+		}
+
+		dms_assert(crd->second);
+		return crd->second;
+	}
+
+	TokenStr ItemOrValueTypeName(const AbstrUnit* au)
+	{
+		assert(au);
+		return au->GetID().empty() ? au->GetValueType()->GetName() : au->GetName();
+	}
+
+	void AbstrCalcExplanation::GetDescrBase(CalcExplImpl* self, OutStreamBase& stream, bool isFirst, const AbstrUnit* domainUnit, const AbstrUnit* valuesUnit) const
+	{
+		if (domainUnit->IsKindOf(Unit<Void>::GetStaticClass()))
+			domainUnit = nullptr;
+
+		SizeT n = m_Coordinates.size();
+		if (!n)
+			return;
+
+		XML_Table tab(stream);
+		{
+			XML_Table::Row row(tab);
+			if (domainUnit)
+			{
+				XML_Table::Row::Cell xmlElemTD(row);
+				stream << "id in ";
+				hRefWithText(stream, domainUnit->GetName().c_str(), ItemUrl(domainUnit).c_str());
+
+				
+				//row.ClickableCell(domainUnit->GetName().c_str(), ItemUrl(domainUnit).c_str());
+			}
+			row.ClickableCell(m_DataItem->GetName().c_str(), ItemUrl(m_DataItem.get_ptr()).c_str());// ItemOrValueTypeName(valuesUnit).c_str(), ItemUrl(valuesUnit).c_str());
+		}
+
+		for (SizeT i = 0; i != n; ++i)
+		{
+			SizeT recno = m_Coordinates[i].first;
+
+
+			SharedStr locStr;
+			if (domainUnit)
+				locStr = DisplayValue(
+					domainUnit,
+					recno,
+					true,
+					m_Interests.m_DomainLabel, MAX_TEXTOUT_SIZE, m_UnitLabelLocks.first
+				);
+
+			const AbstrValue* valuesValue = m_Coordinates[i].second;
+			auto valStr = GetDisplayValueString(calculatingStr, valuesUnit, valuesValue, true, m_Interests.m_valuesLabel, MAX_TEXTOUT_SIZE, m_UnitLabelLocks.second);
+
+			if (n == 1 && isFirst)
+			{
+				XML_Table::Row row(tab);
+				if (domainUnit)
+					row.ValueCell(locStr.c_str());
+				row.ValueCell(valStr.c_str());
+				return;
+			}
+
+			XML_Table::Row row(tab);
+			stream.WriteAttr("bgcolor", CLR_HROW);
+
+			SharedStr explainUrl;
+			if (m_DataItem->IsCacheItem())
+			{
+				auto lispExpr = dynamic_cast<const LispCalcExplanation*>(this);
+				if (lispExpr)
+					explainUrl = self->URL(lispExpr, recno);
+			}
+			else
+				explainUrl = mySSPrintF("dms:dp.vi.attr!%d:%s", recno, m_DataItem->GetFullName().c_str());
+			if (domainUnit)
+				row.ClickableCell(locStr.c_str(), explainUrl.c_str());
+			row.ClickableCell(valStr.c_str(), explainUrl.c_str());
+		}
+
+		auto domain_count = domainUnit ? domainUnit->GetCount() : 0;
+		if (domain_count > MaxNrEntries)
+		{
+			XML_Table::Row row(tab);
+			stream.WriteAttr("bgcolor", CLR_HROW);
+			if (domainUnit)
+				row.ValueCell("...");
+			row.ValueCell("...");
+		}
+	}
+
+	void AbstrCalcExplanation::GetDescr(CalcExplImpl* self, OutStreamBase& stream, bool& isFirst, bool showHidden) const
+	{
+		if (MatchesExtraInfo(self->m_ExprRelPath) < match_status::full)
+			return;
+
+		auto parent = this;
+		do {
+			if (parent->m_IsExprOfExistingItem)
+			{
+				if (parent != this)
+				{
+					if (MatchesExtraInfo(self->m_ExprRelPath) >= match_status::full)
+						return;
+				}
+				else if (   dynamic_cast<const SumOfTermsExplanation*>(this) == nullptr
+					&& dynamic_cast<const UnionOfAndsExplanation*>(this) == nullptr)
+					return;
+			}
+			auto castedParent = dynamic_cast<const LispCalcExplanation*>(parent);
+			if (!castedParent)
+				break;
+			parent = castedParent->m_Parent;
+
+		} while (parent);
+
+		if (self->m_ExprLevel > 3)
+			return;
+
+		DynamicIncrementalLock lock(self->m_ExprLevel);
+		GetDescrImpl(self, stream, isFirst, showHidden);
+		isFirst = false;
+	}
+
+	void LispCalcExplanation::GetDescrImpl(CalcExplImpl* self, OutStreamBase& stream, bool isFirst, bool showHidden) const
+	{
+		if (!isFirst)
+			NewLine(stream);
+		stream << "Expression ";
 		PrintSeqNr(stream);
-		stream << " (in FLisp format): " << m_CalcPtr->GetAsFLispExprOrg().c_str();
+		stream << ": "; stream.WriteTrimmed(m_CalcPtr->GetAsFLispExprOrg(FormattingFlags::ThousandSeparator).c_str());
 		NewLine(stream);
 
+		GetDescrBase(self, stream, isFirst, m_UltimateDomainUnit, m_UltimateValuesUnit);
+	}
 
+	void AbstrCalcExplanation::DescrValue(OutStreamBase& stream) const
+	{
 		auto domain = m_UltimateDomainUnit;
+		assert(domain);
 		if (domain->IsKindOf(Unit<Void>::GetStaticClass()))
 			domain = nullptr;
 
 		SizeT n = m_Coordinates.size(); if (!n) return;
 
-		stream << ((n != 1) ? "First selected value " : "Selected value ");
+		stream << "Value ";
 		SizeT recno = m_Coordinates[0].first;
 		if (domain)
 		{
 			auto locStr = DisplayValue(domain, recno, true, m_Interests.m_DomainLabel, MAX_TEXTOUT_SIZE, m_UnitLabelLocks.first);
 			stream << "at " << locStr.c_str() << " ";
 		}
-		stream << "=";
-
-		const AbstrValue* valuesValue = m_Coordinates[0].second;
 
 		SharedStr valStr;
+		const AbstrValue* valuesValue = m_Coordinates[0].second;
 		if (valuesValue)
 			valStr = DisplayValue(m_UltimateValuesUnit, valuesValue, true, m_Interests.m_valuesLabel, MAX_TEXTOUT_SIZE, m_UnitLabelLocks.second);
 		else
 		{
-			static auto calculatingStr = SharedStr("Calculating...");
+			static auto calculatingStr = SharedStr("being calculated...");
 			valStr = calculatingStr;
 		}
+		stream << "is " << valStr.c_str();
+		NewLine(stream);
+	}
 
+	void SumOfTermsExplanation::GetDescrImpl(CalcExplImpl* self, OutStreamBase& stream, bool isFirst, bool showHidden) const
+	{
+		if (!isFirst)
+			NewLine(stream);
+
+		if (m_Expr.empty())
+			return;
+
+		XML_OutElement paragraph(stream, "P", "", ClosePolicy::nonPairedElement);
+		if (m_Expr.size() == 1)
+			stream << mySSPrintF("Summary of values of %d factors", m_Expr[0].second.size()).c_str();
+		else
+			stream << mySSPrintF("Summary of values of %d terms ", m_Expr.size()).c_str();
+
+		stream << " of ";
+		PrintSeqNr(stream);
+		stream << m_CalcPtr->GetAsFLispExprOrg(FormattingFlags::ThousandSeparator).c_str();
 		NewLine(stream);
 
+		DescrValue(stream);
+
 		XML_Table tab(stream);
+		UInt32 rowCounter = 0;
 		for (const auto& signedTerm : m_Expr)
 		{
 			XML_Table::Row row(tab);
-			row.ValueCell(signedTerm.first ? "+" : "-");
+			row.ValueCell(signedTerm.first ? (rowCounter>0 ? "+" : " ") : "-" );
+			++rowCounter;
 
+			UInt32 colCounter = 0;
 			for (const auto& factor : signedTerm.second)
 			{
+				if (colCounter > 0)
+					row.ValueCell(CharPtr(u8"⋅"));
+
+				++colCounter;
 				auto expl = self->FindExpl(factor);
 				if (expl)
 				{
-					auto valueURL = self->URL(expl);
+					auto valueURL = self->URL(expl, expl->m_Coordinates[0].first);
 					auto valuePtr = expl->m_Coordinates[0].second.get();
 					if (valuePtr)
 						row.ClickableCell(valuePtr->AsString().c_str(), valueURL.c_str());
@@ -857,7 +1192,63 @@ namespace Explain { // local defs
 				}
 				else
 				{
-					auto factorStr = AsFLispSharedStr(factor);
+					auto factorStr = AsFLispSharedStr(factor, FormattingFlags::ThousandSeparator);
+					row.ValueCell(factorStr.c_str());
+				}
+			}
+		}
+	}
+
+	void UnionOfAndsExplanation::GetDescrImpl(CalcExplImpl* self, OutStreamBase& stream, bool isFirst, bool showHidden) const
+	{
+		if (!isFirst)
+			NewLine(stream);
+
+		if (m_Expr.empty())
+			return;
+
+		XML_OutElement paragraph(stream, "P", "", ClosePolicy::nonPairedElement);
+		if (m_Expr.size()==1)
+			stream << mySSPrintF("Summary of %d conjunctions of boolean values", m_Expr[0].size()).c_str();
+		else
+			stream << mySSPrintF("Summary of %d disjuctions of (conjuncted) boolean values", m_Expr.size()).c_str();
+
+		stream << " of ";
+		PrintSeqNr(stream);
+		stream << m_CalcPtr->GetAsFLispExprOrg(FormattingFlags::ThousandSeparator).c_str();
+		NewLine(stream);
+
+		DescrValue(stream);
+
+		XML_Table tab(stream);
+		UInt32 rowCounter = 0;
+		for (const auto& signedTerm : m_Expr)
+		{
+			XML_Table::Row row(tab);
+			row.ValueCell((rowCounter>0) ? CharPtr(u8"∨") : "");
+			rowCounter++;
+
+			UInt32 colCounter = 0;
+			for (const auto& factor : signedTerm)
+			{
+
+				if (colCounter > 0)
+					row.ValueCell(CharPtr(u8"∧"));
+				colCounter++;
+				auto expl = self->FindExpl(factor);
+				assert(expl);
+				if (expl)
+				{
+					auto valueURL = self->URL(expl, expl->m_Coordinates[0].first);
+					auto valuePtr = expl->m_Coordinates[0].second.get();
+					if (valuePtr)
+						row.ClickableCell(valuePtr->AsString().c_str(), valueURL.c_str());
+					else
+						row.ClickableCell(calculatingStr.c_str(), valueURL.c_str());
+				}
+				else
+				{
+					auto factorStr = AsFLispSharedStr(factor, FormattingFlags::ThousandSeparator);
 					row.ValueCell(factorStr.c_str());
 				}
 			}
@@ -869,47 +1260,38 @@ namespace Explain { // local defs
 //  extern "C" interface functions
 //  -----------------------------------------------------------------------
 
-extern "C"
-void DMS_CalcExpl_AddQueueEntry(Explain::CalcExplImpl* explImpl, const AbstrUnit* domain, SizeT index)
+
+namespace Explain
 {
-	dms_assert(explImpl);
-	dms_assert(domain);	
-	dms_assert(explImpl == &Explain::g_CalcExplImpl); // single threading singleton hack.
-	explImpl->AddQueueEntry(domain, index);
-}
+	void DeleteContext(Explain::CalcExplImpl* self)
+	{
+		delete self;
+	}
 
-extern "C"
-TIC_CALL void DMS_CONV DMS_ExplainValue_Clear()
-{
-	DMS_CALL_BEGIN
+	context_handle CreateContext()
+	{
+		return context_handle{ new Explain::CalcExplImpl, DeleteContext };
+	}
 
-		Explain::g_CalcExplImpl.Init(nullptr, 0);
-		
-	DMS_CALL_END
-}
+	void AddQueueEntry(Explain::CalcExplImpl* explImpl, const AbstrUnit * domain, SizeT index)
+	{
+		assert(explImpl);
+		assert(domain);
+		//	dms_assert(explImpl == &Explain::g_CalcExplImpl); // single threading singleton hack.
+		explImpl->AddQueueEntry(domain, index);
+	}
 
-#if defined(MG_DEBUG)
-bool ExplainValue_IsClear()
-{
-	return Explain::g_CalcExplImpl.IsClear();
-}
-#endif
-
-extern "C"
-TIC_CALL bool DMS_CONV DMS_DataItem_ExplainAttrValueToXML(const AbstrDataItem* studyObject, OutStreamBase* xmlOutStrPtr, SizeT index, CharPtr extraInfo, bool bShowHidden)
-{
-	DMS_CALL_BEGIN
-
-		XML_ItemBody itemBody(*xmlOutStrPtr, studyObject);
-
+	bool AttrValueToXML(Explain::CalcExplImpl* context, const AbstrDataItem* studyObject, OutStreamBase* xmlOutStrPtr, SizeT index, CharPtr extraInfo, bool bShowHidden)
+	{
+		XML_ItemBody itemBody(*xmlOutStrPtr, "Value Info", "", studyObject);
 		try {
 			TreeItemContextHandle hnd(studyObject, AbstrDataItem::GetStaticClass(), "DMS_DataItem_ExplainAttrValue");
 
-			dms_assert(!SuspendTrigger::DidSuspend());
+			assert(!SuspendTrigger::DidSuspend());
 
-			dms_assert(IsMainThread());
+			assert(IsMainThread());
 
-			Explain::CalcExplanations expl(*xmlOutStrPtr, bShowHidden);
+			Explain::CalcExplanations expl(*xmlOutStrPtr, bShowHidden, context);
 
 			bool result = expl.MakeExplanationIdx(studyObject, index, extraInfo);
 
@@ -922,36 +1304,16 @@ TIC_CALL bool DMS_CONV DMS_DataItem_ExplainAttrValueToXML(const AbstrDataItem* s
 			if (result)
 				*xmlOutStrPtr << "Error occured during EplainAttrValue: " << *result;
 		}
+		return true;
+	}
 
-	DMS_CALL_END
-	return true;
+	CalcExplImpl g_CalcExplImpl;
 }
 
-extern "C"
-TIC_CALL bool DMS_CONV DMS_DataItem_ExplainGridValueToXML(const AbstrDataItem* studyObject, OutStreamBase* xmlOutStrPtr, 
-	Int32 row, Int32 col, CharPtr extraInfo, bool bShowHidden)
+#if defined(MG_DEBUG)
+bool ExplainValue_IsClear()
 {
-	DMS_CALL_BEGIN
-
-		try {
-
-			TreeItemContextHandle hnd(studyObject, AbstrDataItem::GetStaticClass(), "DMS_DataItem_ExplainGridValue");
-
-			Explain::CalcExplanations expl(*xmlOutStrPtr, bShowHidden);
-
-			ValueWrap<SPoint> value(SPoint(row, col));
-			bool result = expl.MakeExplanationLoc(studyObject, value, extraInfo);
-
-			expl.GetDescr(studyObject);
-
-			return result;
-		}
-		catch (...) {
-			auto result = catchException(true);
-			if (result)	
-				*xmlOutStrPtr << "Error occured during EplainGridValue: " << *result;
-		}
-
-	DMS_CALL_END
-	return true;
+	return Explain::g_CalcExplImpl.IsClear();
 }
+#endif
+

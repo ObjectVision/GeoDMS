@@ -1,31 +1,11 @@
-//<HEADER> 
-/*
-Data & Model Server (DMS) is a server written in C++ for DSS applications. 
-Version: see srv/dms/rtc/dll/src/RtcVersion.h for version info.
+// Copyright (C) 1998-2023 Object Vision b.v. 
+// License: GNU GPL 3
+/////////////////////////////////////////////////////////////////////////////
 
-Copyright (C) 1998-2004  YUSE GSO Object Vision BV. 
+#if defined(_MSC_VER)
+#pragma once
+#endif
 
-Documentation on using the Data & Model Server software can be found at:
-http://www.ObjectVision.nl/DMS/
-
-See additional guidelines and notes in srv/dms/Readme-srv.txt 
-
-This library is free software; you can use, redistribute, and/or
-modify it under the terms of the GNU General Public License version 2 
-(the License) as published by the Free Software Foundation,
-provided that this entire header notice and readme-srv.txt is preserved.
-
-See LICENSE.TXT for terms of distribution or look at our web site:
-http://www.objectvision.nl/DMS/License.txt
-or alternatively at: http://www.gnu.org/copyleft/gpl.html
-
-This library is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
-General Public License for more details. However, specific warranties might be
-granted by an additional written contract for support, assistance and/or development
-*/
-//</HEADER>
 #if !defined(__TIC_OPERGROUPS_H)
 #define __TIC_OPERGROUPS_H
 
@@ -99,21 +79,31 @@ struct AbstrOperGroup : SharedObj
 	bool HasDynamicArgPolicies() const { return m_Policy & oper_policy::dynamic_argument_policies; }
 	bool IsDepreciated        () const { return m_Policy & oper_policy::depreciated; }
 	bool IsObsolete           () const { return m_Policy & oper_policy::obsolete; }
+	bool HasAnnotation        () const { return m_Policy & oper_policy::has_annotation; }
+	bool IsBetterNotInMetaScripting() const { return m_Policy & oper_policy::better_not_in_meta_scripting; }
 
 	auto GetCalcFactor        () const { return m_CalcFactor; }
 
 	void SetCanExplainValue() { m_Policy = 	oper_policy(m_Policy | oper_policy::can_explain_value); }
+	void SetBetterNotInMetaScripting () { m_Policy = oper_policy(m_Policy | oper_policy::better_not_in_meta_scripting); }
 
 	virtual oper_arg_policy GetArgPolicy(arg_index argNr, CharPtr firstArgValue) const =0;
-	virtual CharPtr GetObsoleteMsg() const { return "NOT OBSOLETE"; }
+	virtual CharPtr GetObsoleteMsg() const { return "NO OBSOLETE MSG PROVIDED"; }
+	virtual CharPtr GetAnnotation() const { return ""; }
 
-	bool MaySubstArg(arg_index argNr, CharPtr firstArgValue) const { auto oap = GetArgPolicy(argNr, firstArgValue); return oap != oper_arg_policy::is_templ && oap!=oper_arg_policy::calc_never; }
+	bool MaySubstArg(arg_index argNr, CharPtr firstArgValue) const 
+	{ 
+		auto oap = GetArgPolicy(argNr, firstArgValue); 
+		return oap != oper_arg_policy::is_templ && oap != oper_arg_policy::calc_never && oap != oper_arg_policy::calc_at_subitem;
+	}
 	bool MustSupplyTree(arg_index argNr, CharPtr firstArgValue) const { return GetArgPolicy(argNr, firstArgValue) == oper_arg_policy::subst_with_subitems; }
 	bool IsArgTempl (arg_index argNr, CharPtr firstArgValue) const { return GetArgPolicy(argNr, firstArgValue) == oper_arg_policy::is_templ; }
 
 	TokenID   GetNameID()            const { return m_OperNameID; }
 	TokenStr  GetName()              const { return GetTokenStr(GetNameID()); }
+	CharPtr   GetNameStr()           const { return m_OperName.c_str(); }
 	const Operator* GetFirstMember() const { return m_FirstMember; }
+	UInt32    GetNrMembers() const;
 
 	TIC_CALL void UpdateNameID();
 
@@ -157,7 +147,7 @@ struct SpecialOperGroup: AbstrOperGroup
 		: SpecialOperGroup(GetTokenID_st(operName), maxNrArgs, argPolicyArray, op)
 	{}
 
-	oper_arg_policy GetArgPolicy(arg_index argNr, CharPtr firstArgValue) const override;
+	TIC_CALL oper_arg_policy GetArgPolicy(arg_index argNr, CharPtr firstArgValue) const override;
 
 private:
 	void DetermineOperPolicy();
@@ -187,4 +177,23 @@ struct Obsolete : OperGroupType {
 	}
 	CharPtr m_ObsMsg;
 };
+
+template <typename OperGroupType>
+struct Annotated : OperGroupType {
+
+	template<typename ...OtherArgs>
+	Annotated(CharPtr obsMsg, OtherArgs&& ...args)
+		: OperGroupType(std::forward<OtherArgs>(args)...)
+		, m_Annotation(obsMsg)
+	{
+		this->m_Policy |= oper_policy::has_annotation;
+	}
+
+	virtual CharPtr GetAnnotation() const override
+	{
+		return m_Annotation;
+	}
+	CharPtr m_Annotation;
+};
+
 #endif // __TIC_OPERGROUPS_H

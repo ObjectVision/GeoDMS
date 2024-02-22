@@ -86,12 +86,12 @@ RangeFromPtr(typename sequence_array_index<PointType> polygon)
 template <typename PointType>
 UInt32 GetQuadrantOffset(UInt32 offset, const PointType& p, const PointType& mid)
 {
-	//bool firstHigh
-	if (mid.first <= p.first)
+	//bool y_High
+	if (mid.Y() <= p.Y())
 		offset+= 2;
 	
-	//bool secondHigh 
-	if (mid.second <= p.second)
+	//bool x_High 
+	if (mid.X() <= p.X())
 		offset+= 1;
 
 	return offset;
@@ -100,17 +100,17 @@ UInt32 GetQuadrantOffset(UInt32 offset, const PointType& p, const PointType& mid
 template <typename PointType>
 UInt32 GetQuadrantOffset(UInt32 offset, const Range<PointType>& r, const PointType& mid)
 {
-	//bool firstHigh
-	dms_assert(r.first.first <= r.second.first);
-	if (mid.first <= r.first.first)
+	//bool y_High
+	assert(r.first.first <= r.second.first);
+	if (mid.Y() <= r.first.Y())
 		offset += 2;
-	else if (mid.first <= r.second.first)
+	else if (mid.Y() <= r.second.Y())
 		return 0;
 	
-	//bool secondHigh 
-	if (mid.second <= r.first.second)
+	//bool x_High 
+	if (mid.X() <= r.first.X())
 		offset += 1;
-	else if (mid.second <= r.second.second)
+	else if (mid.X() <= r.second.X())
 		return 0;
 
 	return offset;
@@ -502,8 +502,8 @@ private:
 		UInt32 offset = m_Nodes.size() - nodeIdx;
 		nodePtr->m_OffsetToFirstQuadrant = offset;
 		m_Nodes.push_back(Node(RangeType(box.first, mid), offset++));
-		m_Nodes.push_back(Node(RangeType(PointType(_Top(box), mid.Col()), PointType(mid.Row(), _Right(box) )), offset++));
-		m_Nodes.push_back(Node(RangeType(PointType(mid.Row(), _Left(box)), PointType(_Bottom(box), mid.Col() )), offset++));
+		m_Nodes.push_back(Node(RangeType(rowcol2dms_order( Top(box), mid.Col()), rowcol2dms_order(  mid.Row(), Right(box) )), offset++));
+		m_Nodes.push_back(Node(RangeType(rowcol2dms_order(mid.Row(), Left(box)), rowcol2dms_order(Bottom(box), mid.Col()  )), offset++));
 		m_Nodes.push_back(Node(RangeType(mid, box.second), offset++));
 
 		nodePtr = &*m_Nodes.begin() + nodeIdx; // m_Nodes could have been grown

@@ -79,7 +79,7 @@ struct GdalVectlMetaInfo : GdalMetaInfo
 
 
 // storagemanager for GDal vector data
-struct GdalVectSM : AbstrStorageManager, gdalVectComponent
+struct GdalVectSM : NonmappableStorageManager, gdalVectComponent
 {
 #if defined(MG_DEBUG)
 	GdalVectSM();
@@ -97,10 +97,11 @@ struct GdalVectSM : AbstrStorageManager, gdalVectComponent
 	bool WriteUnitRange(StorageMetaInfoPtr&& smi) override;
 
 	StorageMetaInfoPtr GetMetaInfo(const TreeItem* storageHolder, TreeItem* adi, StorageAction) const override;
-	bool ReadDataItem(const StorageMetaInfo& smi, AbstrDataObject* borrowedReadResultHolder, tile_id t) override;
+	bool ReadDataItem(StorageMetaInfoPtr smi, AbstrDataObject* borrowedReadResultHolder, tile_id t) override;
 	bool WriteDataItem(StorageMetaInfoPtr&& smiHolder) override;
 
 	void DoUpdateTable(const TreeItem* storageHolder, AbstrUnit* curr, OGRLayer* layer) const;
+	prop_tables GetPropTables(const TreeItem* storageHolder = nullptr, TreeItem* curr = nullptr) const override;
 
 	mutable DataItemsWriteStatusInfo m_DataItemsStatusInfo;
 private:

@@ -1,31 +1,6 @@
-//<HEADER> 
-/*
-Data & Model Server (DMS) is a server written in C++ for DSS applications. 
-Version: see srv/dms/rtc/dll/src/RtcVersion.h for version info.
-
-Copyright (C) 1998-2004  YUSE GSO Object Vision BV. 
-
-Documentation on using the Data & Model Server software can be found at:
-http://www.ObjectVision.nl/DMS/
-
-See additional guidelines and notes in srv/dms/Readme-srv.txt 
-
-This library is free software; you can use, redistribute, and/or
-modify it under the terms of the GNU General Public License version 2 
-(the License) as published by the Free Software Foundation,
-provided that this entire header notice and readme-srv.txt is preserved.
-
-See LICENSE.TXT for terms of distribution or look at our web site:
-http://www.objectvision.nl/DMS/License.txt
-or alternatively at: http://www.gnu.org/copyleft/gpl.html
-
-This library is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
-General Public License for more details. However, specific warranties might be
-granted by an additional written contract for support, assistance and/or development
-*/
-//</HEADER>
+// Copyright (C) 1998-2023 Object Vision b.v. 
+// License: GNU GPL 3
+/////////////////////////////////////////////////////////////////////////////
 
 #if !defined(__CLC_CASTEDUNARYATTROPER_H)
 #define __CLC_CASTEDUNARYATTROPER_H
@@ -63,12 +38,12 @@ public:
 		const AbstrUnit* argUnitA= AsUnit(args[m_ReverseArgs ? 0 : 1]);
 
 		if (!resultHolder)
-			resultHolder = CreateCacheDataItem(
-				argDataA->GetAbstrDomainUnit() 
-			,	argUnitA 
-			,	m_VC
-			);
-		
+		{
+			resultHolder = CreateCacheDataItem(argDataA->GetAbstrDomainUnit(), argUnitA, m_VC);
+			if (argUnitA->GetTSF(TSF_Categorical))
+				resultHolder->SetTSF(TSF_Categorical);
+		}
+
 		if (mustCalc)
 		{
 			AbstrDataItem* res = AsDataItem(resultHolder.GetNew());
@@ -80,11 +55,11 @@ public:
 			if (IsMultiThreaded3() && (nrTiles > 1) && !res->HasRepetitiveUsers() && (LTF_ElementWeight(argDataA) <= LTF_ElementWeight(res)))
 			{
 				auto valuesUnitA = AsUnit(res->GetAbstrValuesUnit()->GetCurrRangeItem());
-				AsDataItem(resultHolder.GetOld())->m_DataObject = CreateFutureTileCaster(valuesUnitA, argDataA, argUnitA MG_DEBUG_ALLOCATOR_SRC("res->md_FullName + :  + GetGroup()->GetName().c_str()"));
+				AsDataItem(resultHolder.GetOld())->m_DataObject = CreateFutureTileCaster(res, res->GetLazyCalculatedState(), valuesUnitA, argDataA, argUnitA MG_DEBUG_ALLOCATOR_SRC("res->md_FullName + :  + GetGroup()->GetName().c_str()"));
 			}
 			else
 			{
-				DataWriteLock resLock(res, dms_rw_mode::write_only_mustzero);
+				DataWriteLock resLock(res, dms_rw_mode::write_only_all);
 
 				parallel_tileloop(nrTiles, [this, argDataA, argUnitA, &resLock, res](tile_id t)->void
 					{
@@ -103,7 +78,7 @@ public:
 		return true;
 	}
 	virtual void Calculate(AbstrDataObject* res, const AbstrDataItem* argDataA, const AbstrUnit* argUnit, tile_id t) const =0;
-	virtual SharedPtr<const AbstrDataObject> CreateFutureTileCaster(const AbstrUnit* valuesUnitA, const AbstrDataItem* arg1A, const AbstrUnit* argUnitA MG_DEBUG_ALLOCATOR_SRC_ARG) const = 0;
+	virtual auto CreateFutureTileCaster(SharedPtr<AbstrDataItem> resultAdi, bool lazy, const AbstrUnit* valuesUnitA, const AbstrDataItem* arg1A, const AbstrUnit* argUnitA MG_DEBUG_ALLOCATOR_SRC_ARG) const -> SharedPtr<const AbstrDataObject> = 0;
 
 private:
 	ValueComposition m_VC;
@@ -149,7 +124,7 @@ public:
 				visit<typelists::fields>(valuesUnit, [binaryOper, res, argDomainUnit, argValuesUnit, tileRangeData]<typename V>(const Unit<V>*valuesUnit) {
 					SharedUnitInterestPtr retainedArgDomainUnit = argDomainUnit;
 					SharedUnitInterestPtr retainedArgValuesUnit = argValuesUnit;
-					auto lazyTileFunctor = make_unique_LazyTileFunctor<V>(tileRangeData, valuesUnit->m_RangeDataPtr, tileRangeData->GetNrTiles()
+					auto lazyTileFunctor = make_unique_LazyTileFunctor<V>(res, tileRangeData, valuesUnit->m_RangeDataPtr
 						, [binaryOper, res, retainedArgDomainUnit, retainedArgValuesUnit](AbstrDataObject* self, tile_id t) {
 							binaryOper->Calculate(self, retainedArgDomainUnit, retainedArgValuesUnit, t); // write into the same tile.
 						}
@@ -249,17 +224,17 @@ public:
 	{}
 
 	// Override Operator
-	SharedPtr<const AbstrDataObject> CreateFutureTileCaster(const AbstrUnit* valuesUnitA, const AbstrDataItem* arg1A, const AbstrUnit* argUnitA MG_DEBUG_ALLOCATOR_SRC_ARG) const override
+	auto CreateFutureTileCaster(SharedPtr<AbstrDataItem> resultAdi, bool lazy, const AbstrUnit* valuesUnitA, const AbstrDataItem* arg1A, const AbstrUnit* argUnitA MG_DEBUG_ALLOCATOR_SRC_ARG) const -> SharedPtr<const AbstrDataObject> override
 	{
 		auto tileRangeData = AsUnit(arg1A->GetAbstrDomainUnit()->GetCurrRangeItem())->GetTiledRangeData();
 		auto valuesUnit = debug_cast<const Unit<field_of_t<ResultValueType>>*>(valuesUnitA);
 
-		const Arg1Type* arg1 = const_array_cast<Arg1Values>(arg1A);
-		dms_assert(arg1);
+		auto arg1 = MakeShared(const_array_cast<Arg1Values>(arg1A));
+		assert(arg1);
 
 		using prepare_data = SharedPtr<Arg1Type::future_tile>;
 	
-		auto futureTileFunctor = make_unique_FutureTileFunctor<ResultValueType, prepare_data, false>(tileRangeData, get_range_ptr_of_valuesunit(valuesUnit), tileRangeData->GetNrTiles()
+		auto futureTileFunctor = make_unique_FutureTileFunctor<ResultValueType, prepare_data, false>(resultAdi, lazy, tileRangeData, get_range_ptr_of_valuesunit(valuesUnit)
 			, [arg1](tile_id t) { return arg1->GetFutureTile(t); }
 			, [](sequence_traits<ResultValueType>::seq_t resData, prepare_data arg1FutureData)
 			{

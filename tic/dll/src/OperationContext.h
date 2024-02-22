@@ -17,6 +17,7 @@
 bool WaitForCompletedTaskOrTimeout(std::chrono::milliseconds waitFor = std::chrono::milliseconds(300));
 
 using dms_task = concurrency::task<void>;
+using OperContextGroupNumber = UInt32;
 inline bool is_empty(const dms_task& x) { return x == dms_task();  }
 
 template<typename Func>
@@ -117,8 +118,9 @@ struct OperationContext : std::enable_shared_from_this<OperationContext>
 	SharedActorInterestPtr m_ResKeeper;
 	std::atomic<task_status> m_Status = task_status::none;
 
-	void safe_run_impl() noexcept;
-	void safe_run() noexcept;
+	void safe_run_with_catch() noexcept;
+	void safe_run_with_cleanup() noexcept;
+	void safe_run_caller() noexcept;
 public:
 	std::function<void(Explain::Context*)> m_TaskFunc;
 	Explain::Context*               m_Context = nullptr;
@@ -129,23 +131,18 @@ private:
 	dms_task m_Task;
 
 public:
+	OperContextGroupNumber m_OperContextGroupNumber;
 	std::vector<ItemReadLock> SetReadLocks(const FutureSuppliers& allInterests);
 	bool SetReadLock(std::vector<ItemReadLock>& locks, const TreeItem* si);
 
-//	bool CreateResult();
 	bool ScheduleCalcResult(Explain::Context* context, ArgRefs&& argInterest);
 
 	bool MustCalcArg(arg_index i, CharPtr firstArgValue) const;
 
 	TIC_CALL void AddDependency(const DataController* keyExpr);
-	void RunOperator(Explain::Context* context, const ArgRefs& allInterests);
+	void RunOperator(Explain::Context* context, ArgRefs allInterests, std::vector<ItemReadLock> readLocks);
 
 	const FuncDC* GetFuncDC() const { return m_FuncDC;  }
-
-// private: TODO G8.5
-//	DataControllerRef getArgDC(arg_index i) const;
-//	arg_index getNrSupplOC() const;
-//	std::shared_ptr<OperationContext> getSupplOC(arg_index i) const;
 
 	std::vector<DataControllerRef> m_OtherSuppliers;
 

@@ -1,38 +1,14 @@
-//<HEADER> 
-/*
-Data & Model Server (DMS) is a server written in C++ for DSS applications. 
-Version: see srv/dms/rtc/dll/src/RtcVersion.h for version info.
+// Copyright (C) 1998-2023 Object Vision b.v. 
+// License: GNU GPL 3
+/////////////////////////////////////////////////////////////////////////////
 
-Copyright (C) 1998-2004  YUSE GSO Object Vision BV. 
-
-Documentation on using the Data & Model Server software can be found at:
-http://www.ObjectVision.nl/DMS/
-
-See additional guidelines and notes in srv/dms/Readme-srv.txt 
-
-This library is free software; you can use, redistribute, and/or
-modify it under the terms of the GNU General Public License version 2 
-(the License) as published by the Free Software Foundation,
-provided that this entire header notice and readme-srv.txt is preserved.
-
-See LICENSE.TXT for terms of distribution or look at our web site:
-http://www.objectvision.nl/DMS/License.txt
-or alternatively at: http://www.gnu.org/copyleft/gpl.html
-
-This library is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
-General Public License for more details. However, specific warranties might be
-granted by an additional written contract for support, assistance and/or development
-*/
-//</HEADER>
 #pragma once
 
 #if !defined(__RTC_PTR_SHAREDCHARARRAY_H)
 #define __RTC_PTR_SHAREDCHARARRAY_H
 
 #include "geo/BaseBounds.h"
-#include "geo/IterRangeFuncs.h"
+#include "geo/iterrangefuncs.h"
 #include "geo/StringBounds.h"
 #include "geo/Undefined.h"
 #include "ptr/IterCast.h"
@@ -42,20 +18,67 @@ granted by an additional written contract for support, assistance and/or develop
 #include "ser/format.h"
 
 struct TokenID;
+struct CharPtrRange;
+struct MutableCharPtrRange;
 
 //----------------------------------------------------------------------
 // Section      : String compare functions that override std::lexicographical_compare
 //----------------------------------------------------------------------
+#if !defined(_MSC_VER)
+
+#include <cctype>
+
+inline int strncmp(CharPtr lhs, CharPtr rhs, SizeT maxCount)
+{
+	for (; maxCount; ++lhs, ++rhs, --maxCount)
+	{
+		char lhsCh = *lhs, rhsCh = *rhs;
+		if (lhsCh < rhsCh)
+			return -1;
+		if (lhsCh > rhsCh)
+			return +1;
+		if (!lhsCh)
+			return 0;
+	}
+}
+
+inline int strnicmp(CharPtr lhs, CharPtr rhs, SizeT maxCount)
+{
+	for (; maxCount; ++lhs, ++rhs, --maxCount)
+	{
+		char lhsCh = tolower(*lhs), rhsCh = tolower(*rhs);
+		if (lhsCh < rhsCh)
+			return -1;
+		if (lhsCh > rhsCh)
+			return +1;
+		if (!lhsCh)
+			return 0;
+	}
+}
+
+inline int stricmp(CharPtr lhs, CharPtr rhs)
+{
+	for (; ; ++lhs, ++rhs)
+	{
+		char lhsCh = tolower(*lhs), rhsCh = tolower(*rhs);
+		if (lhsCh < rhsCh)
+			return -1;
+		if (lhsCh > rhsCh)
+			return +1;
+		if (!lhsCh)
+			return 0;
+	}
+}
+
+#endif
 
 inline bool lex_compare_cs(CharPtr f1, CharPtr l1, CharPtr f2, CharPtr l2)
 {
-	UInt32 
-		sz1 = l1-f1, 
-		sz2 = l2-f2;
-	UInt32 szMin = Min<UInt32>(sz1, sz2);
+	auto sz1 = l1-f1, sz2 = l2-f2;
+	auto szMin = Min(sz1, sz2);
 	if (szMin)
 	{
-		int cmpRes = strncmp(f1, f2,  szMin );
+		auto cmpRes = strncmp(f1, f2,  szMin );
 		if (cmpRes < 0) return true;
 		if (cmpRes > 0) return false;
 	}
@@ -64,13 +87,11 @@ inline bool lex_compare_cs(CharPtr f1, CharPtr l1, CharPtr f2, CharPtr l2)
 
 inline bool lex_compare_ci(CharPtr f1, CharPtr l1, CharPtr f2, CharPtr l2)
 {
-	UInt32 
-		sz1 = l1-f1, 
-		sz2 = l2-f2;
-	UInt32 szMin = Min<UInt32>(sz1, sz2);
+	auto sz1 = l1-f1, sz2 = l2-f2;
+	auto szMin = Min(sz1, sz2);
 	if (szMin)
 	{
-		int cmpRes = strnicmp(f1, f2,  szMin );
+		auto cmpRes = strnicmp(f1, f2,  szMin );
 		if (cmpRes < 0) return true;
 		if (cmpRes > 0) return false;
 	}
@@ -99,10 +120,9 @@ inline bool lex_compare<CharPtr, CharPtr>(CharPtr f1, CharPtr l1, CharPtr f2, Ch
 	return lex_compare_cs(f1, l1, f2, l2);
 }
 
-
 inline bool equal_cs(CharPtr f1, CharPtr l1, CharPtr f2, CharPtr l2)
 {
-	UInt32 size = l1-f1;
+	auto size = l1-f1;
 
 	if (size != l2-f2) return false;
 	if (!size)         return true;
@@ -112,7 +132,7 @@ inline bool equal_cs(CharPtr f1, CharPtr l1, CharPtr f2, CharPtr l2)
 
 inline bool equal_ci(CharPtr f1, CharPtr l1, CharPtr f2, CharPtr l2)
 {
-	UInt32 size = l1-f1;
+	auto size = l1-f1;
 
 	if (size != l2-f2) return false;
 	if (!size)         return true;
@@ -179,8 +199,8 @@ struct SharedCharArrayPtr : protected WeakPtrWrap<ptr_wrap<SharedCharArray, copy
 	RTC_CALL bool operator ==(CharPtr b) const;
 	RTC_CALL bool operator !=(CharPtr b) const;
 
-	CharPtrRange AsRange() const  { return has_ptr() ? CharPtrRange(get_ptr()->begin(), get_ptr()->end()-1) : CharPtrRange(); }
-
+	RTC_CALL CharPtrRange AsRange() const;
+	RTC_CALL std::string AsStdString() const;
 	void swap(SharedCharArrayPtr& oth) { WeakPtrWrap::swap(oth); }
 };
 
@@ -189,7 +209,7 @@ struct SharedCharArrayPtr : protected WeakPtrWrap<ptr_wrap<SharedCharArray, copy
 struct WeakStr: WeakPtrWrap<SharedCharArrayPtr>
 {
 	WeakStr(const SharedStr& str);
-	operator CharPtrRange() const { return { begin(), send() }; }
+	RTC_CALL operator CharPtrRange() const;
 };
 
 //----------------------------------------------------------------------
@@ -212,9 +232,9 @@ public:
 	template <unsigned int N> explicit SharedStr(const char(&str)[N] )     : base_type(SharedCharArray_Create(str, str+N-1) ){ dms_assert(!str[N-1]); }
 	template <unsigned int N> explicit SharedStr(const char8_t(&str)[N])   : base_type(SharedCharArray_Create(reinterpret_cast<CharPtr>(str), reinterpret_cast<CharPtr>(str) + N - 1)) { dms_assert(!str[N - 1]); }
 	explicit SharedStr(SharedCharArray* arrayPtr): base_type(arrayPtr) {}
-	explicit SharedStr(MutableCharPtrRange range): base_type(SharedCharArray_Create(range.begin(), range.end()) ){}
-	explicit SharedStr(CharPtrRange range)       : base_type(SharedCharArray_Create(range.begin(), range.end()) ){}
-	explicit SharedStr(const Undefined&)         : base_type(SharedCharArray_CreateUndefined() ) {}
+	explicit SharedStr(const Undefined&) : base_type(SharedCharArray_CreateUndefined()) {}
+	RTC_CALL explicit SharedStr(MutableCharPtrRange range);
+	RTC_CALL explicit SharedStr(CharPtrRange range);
 	RTC_CALL explicit SharedStr(TokenID id);
 	RTC_CALL explicit SharedStr(const struct TokenStr& str);
 	RTC_CALL SharedStr(const SA_ConstReference<char>& range);
@@ -231,7 +251,7 @@ public:
 
 	SharedStr& operator = (const SharedStr&) = default;
 
-	operator CharPtrRange() const { return AsRange(); }
+	RTC_CALL operator CharPtrRange() const;
 
 	RTC_CALL void clear();
 
@@ -254,17 +274,19 @@ public:
 	RTC_CALL void insert(SizeT pos, char ch);
 	RTC_CALL SharedStr replace(CharPtr key, CharPtr val) const;
 
-	MutableCharPtrRange GetAsMutableRange() { MakeUnique(); return MutableCharPtrRange(const_cast<char*>(begin()), const_cast<char*>(send())); }
+	RTC_CALL MutableCharPtrRange GetAsMutableRange();
 	SharedCharArray* GetAsMutableCharArray()   { MakeUnique(); return const_cast<SharedCharArray*>(get_ptr()); }
 
 	RTC_CALL void resize(SizeT sz);
+	RTC_CALL bool contains(CharPtrRange subStr);
+	RTC_CALL bool contains_case_insensitive(CharPtrRange subStr);
 
 private:
 	RTC_CALL void MakeUnique();
 
 friend WeakStr;
 friend inline void MakeUndefined(SharedStr& v) { v.assign( SharedCharArray_CreateUndefined() ); }
-friend inline SharedStr UndefinedValue(const SharedStr* x) { return SharedStr(Undefined()); }
+friend inline SharedStr UndefinedValue(const SharedStr*) { return SharedStr(Undefined()); }
 };
 
 inline WeakStr::WeakStr(const SharedStr& str)
@@ -310,8 +332,8 @@ inline void MakeBounds(SharedStr& a, SharedStr& b)  { MakeRange<SharedStr>(a, b)
 inline bool IsDefined(WeakStr v)          { return v.IsDefined(); }
 inline bool IsDefined(const SharedStr& v) { return v.IsDefined(); }
 
-inline CharPtr begin_ptr(const std::string& data) { return &*data.begin(); }
-inline CharPtr end_ptr(const std::string& data)   { return &*data.end(); }
+inline CharPtr begin_ptr(const std::string& data) { return data.empty() ? nullptr : &(data.begin()[ 0]); }
+inline CharPtr end_ptr(const std::string& data)   { return data.empty() ? nullptr : &(data.end  ()[-1])+1; }
 
 inline CharPtr begin_ptr(WeakStr data)          { return data.begin(); }
 inline CharPtr end_ptr  (WeakStr data)          { return data.send();  }
@@ -351,8 +373,35 @@ SharedStr mgFormat2SharedStr(CharPtr msg, Args&&... args)
 //RTC_CALL SharedStr SequenceArrayString();
 //RTC_CALL SharedStr IndexedString();
 
-#endif defined(MG_DEBUG_ALLOCATOR)
+#endif //defined(MG_DEBUG_ALLOCATOR)
 
+//----------------------------------------------------------------------
+// StreamableDataTime
+//----------------------------------------------------------------------
+
+struct StreamableDateTime // Display operating system-style date and time. 
+{
+	RTC_CALL StreamableDateTime();
+
+private:
+	time_t m_time;
+	friend RTC_CALL FormattedOutStream& operator <<(FormattedOutStream& fos, const StreamableDateTime& self);
+};
+
+//----------------------------------------------------------------------
+// Section      : MsgData
+//----------------------------------------------------------------------
+
+struct MsgData {
+	SeverityTypeID m_SeverityType;
+	MsgCategory m_MsgCategory : 7;
+	bool        m_IsFollowup : 1 = false;
+	dms_thread_id m_ThreadID;
+	StreamableDateTime m_DateTime;
+	SharedStr m_Txt;
+};
+
+extern "C" RTC_CALL CharPtr DMS_CONV RTC_MsgData_GetMsgAsCStr(MsgData * msgData);
 
 #endif // __RTC_PTR_SHAREDCHARARRAY_H
 

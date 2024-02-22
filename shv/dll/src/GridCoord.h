@@ -1,31 +1,3 @@
-//<HEADER> 
-/*
-Data & Model Server (DMS) is a server written in C++ for DSS applications. 
-Version: see srv/dms/rtc/dll/src/RtcVersion.h for version info.
-
-Copyright (C) 1998-2004  YUSE GSO Object Vision BV. 
-
-Documentation on using the Data & Model Server software can be found at:
-http://www.ObjectVision.nl/DMS/
-
-See additional guidelines and notes in srv/dms/Readme-srv.txt 
-
-This library is free software; you can use, redistribute, and/or
-modify it under the terms of the GNU General Public License version 2 
-(the License) as published by the Free Software Foundation,
-provided that this entire header notice and readme-srv.txt is preserved.
-
-See LICENSE.TXT for terms of distribution or look at our web site:
-http://www.objectvision.nl/DMS/License.txt
-or alternatively at: http://www.gnu.org/copyleft/gpl.html
-
-This library is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
-General Public License for more details. However, specific warranties might be
-granted by an additional written contract for support, assistance and/or development
-*/
-//</HEADER>
 #pragma once
 
 #ifndef __SHV_GRIDCOORD_H
@@ -40,9 +12,9 @@ granted by an additional written contract for support, assistance and/or develop
 #include "geo/Pair.h"
 #include "ptr/SharedBase.h"
 
-typedef UInt32 grid_rowcol_id;
-typedef UInt32 view_rowcol_id;
-typedef std::vector<grid_rowcol_id> grid_coord_array;
+using grid_rowcol_id = UInt32 ;
+using view_rowcol_id = UInt32;
+using grid_coord_array = std::vector<grid_rowcol_id>;
 
 //----------------------------------------------------------------------
 // class  : GridCoordInfo
@@ -50,23 +22,24 @@ typedef std::vector<grid_rowcol_id> grid_coord_array;
 
 struct GridCoord : public std::enable_shared_from_this<GridCoord>
 {
-	GridCoord(ViewPort* owner, const grid_coord_key&, GPoint clientSize, const CrdTransformation& w2vTr);
+	GridCoord(ViewPort* owner, const grid_coord_key&); //, GPoint clientSize, const CrdTransformation& w2vTr);
 	~GridCoord();
 
-	void Init(GPoint clientSize, const CrdTransformation& w2vTr);
+	void Init(GPoint deviceSize, const CrdTransformation& w2dTr);
 
-	void OnScroll(const GPoint& delta);
-	void Update(Float64 subPixelFactor);
+	void OnDeviceScroll(const GPoint& delta);
+	void UpdateToScale(CrdPoint subPixelFactors);
+	void UpdateUnscaled() { UpdateToScale(CrdPoint(1.0, 1.0)); }
 
 	bool Empty  () const;
 	bool IsDirty() const { return m_IsDirty; }
 
-	const GRect& GetClippedRelRect() const { dms_assert(!IsDirty()); return m_ClippedRelRect; } 
+	const GRect& GetClippedRelDeviceRect() const { dms_assert(!IsDirty()); return m_ClippedRelDeviceRect; } 
 	const IRect& GetGridRect      () const { return m_Key.second; }
 
 	IRect GetClippedGridRect       (const GRect& viewRelRect) const;
 
-	GRect GetClippedRelRect (const IRect& selRect ) const;
+	GRect GetClippedRelDeviceRect (const IRect& selRect ) const;
 	IPoint GetExtGridCoord       (GPoint clientRelPoint) const;
 	IPoint GetExtGridCoordFromAbs(GPoint clientAbsPoint) const;
 
@@ -86,17 +59,17 @@ private:
 	std::weak_ptr<ViewPort>    m_Owner;
 	grid_coord_key             m_Key;
 
-	GPoint                     m_ClientSize;     // m_ClientRect
-	CrdTransformation          m_World2ClientTr; // m_w2vTr;
+	GPoint                     m_DeviceSize;
+	CrdTransformation          m_World2DeviceTr; // m_w2vTr;
 	bool                       m_IsDirty;
 
 	// ========== calculated results
 
-	GRect                      m_ClippedRelRect; // m_ViewExtents;
+	GRect                      m_ClippedRelDeviceRect; // m_ViewExtents;
 	CrdPoint                   m_GridOrigin;
 	CrdPoint                   m_GridCellSize;
 	OrientationType            m_Orientation;
-	CrdType                    m_SubPixelFactor;
+	CrdPoint                   m_SubPixelFactors;
 	grid_coord_array           m_GridRows,  m_GridCols;
 	grid_coord_array           m_LinedRows, m_LinedCols;
 

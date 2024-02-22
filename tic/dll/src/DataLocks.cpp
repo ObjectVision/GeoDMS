@@ -1,33 +1,12 @@
-//<HEADER> 
-/*
-Data & Model Server (DMS) is a server written in C++ for DSS applications. 
-Version: see srv/dms/rtc/dll/src/RtcVersion.h for version info.
+// Copyright (C) 1998-2023 Object Vision b.v. 
+// License: GNU GPL 3
+/////////////////////////////////////////////////////////////////////////////
 
-Copyright (C) 1998-2004  YUSE GSO Object Vision BV. 
-
-Documentation on using the Data & Model Server software can be found at:
-http://www.ObjectVision.nl/DMS/
-
-See additional guidelines and notes in srv/dms/Readme-srv.txt 
-
-This library is free software; you can use, redistribute, and/or
-modify it under the terms of the GNU General Public License version 2 
-(the License) as published by the Free Software Foundation,
-provided that this entire header notice and readme-srv.txt is preserved.
-
-See LICENSE.TXT for terms of distribution or look at our web site:
-http://www.objectvision.nl/DMS/License.txt
-or alternatively at: http://www.gnu.org/copyleft/gpl.html
-
-This library is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
-General Public License for more details. However, specific warranties might be
-granted by an additional written contract for support, assistance and/or development
-*/
-//</HEADER>
 #include "TicPCH.h"
+
+#if defined(CC_PRAGMAHDRSTOP)
 #pragma hdrstop
+#endif //defined(CC_PRAGMAHDRSTOP)
 
 #include "DataLocks.h"
 
@@ -35,11 +14,12 @@ granted by an additional written contract for support, assistance and/or develop
 
 #include "act/ActorLock.h"
 #include "act/TriggerOperator.h"
-#include "dbg/Debug.h"
+#include "dbg/debug.h"
 #include "dbg/DebugCast.h"
 #include "dbg/DmsCatch.h"
 #include "mci/ValueClassID.h"
 #include "utl/IncrementalLock.h"
+#include "utl/splitPath.h"
 #include "xct/DmsException.h"
 
 #include "AbstrCalculator.h"
@@ -52,6 +32,7 @@ granted by an additional written contract for support, assistance and/or develop
 #include "TreeItemContextHandle.h"
 #include "TreeItemUtils.h"
 #include "UnitProcessor.h"
+#include "stg/MemoryMappeddataStorageManager.h"
 
 #if defined(MG_DEBUG)
 #define MG_DEBUG_DATALOCKS 0
@@ -61,7 +42,7 @@ bool HasFixedRange(const ValueClass* vc)
 {
 	if (vc->HasFixedValues())
 		return true;
-	return vc->GetValueClassID() == VT_Void;
+	return vc->GetValueClassID() == ValueClassID::VT_Void;
 }
 
 #if defined(MG_DEBUG)
@@ -120,9 +101,9 @@ DataReadLockAtom::DataReadLockAtom(const AbstrDataItem* item)
 
 	dms_assert(!item->InTemplate());
 
-	dbg_assert(!IsMultiThreaded2() || IsReadLocked(item) || IsMetaThread());
+	assert(!IsMultiThreaded2() || IsReadLocked(item) || IsMetaThread());
 
-	dms_assert(!SuspendTrigger::DidSuspend()); // PRECONDITION THAT each suspend has been acted upon or we're on Certain mode, which hides MustSuspend
+	assert(!SuspendTrigger::DidSuspend()); // PRECONDITION THAT each suspend has been acted upon or we're on Certain mode, which hides MustSuspend
 
 	// From here we grant lock
 	{
@@ -138,7 +119,7 @@ DataReadLockAtom::DataReadLockAtom(const AbstrDataItem* item)
 			return;
 		}
 	}
-	dms_assert(CheckDataReady(item));
+	assert(CheckDataReady(item));
 
 	actor_section_lock_map::ScopedLock localDataOpenLock(MG_SOURCE_INFO_CODE("DataReadLockAtom::ctor") sg_ActorLockMap, item);
 
@@ -233,27 +214,20 @@ PreparedDataReadLock::PreparedDataReadLock(const AbstrDataItem* adi)
 	:	DataReadLock((Update(adi), adi))
 {}
 
-SharedStr MakeTmpStreamName(stream_id_t lastStreamID) // TODO G8.4: Merge with 
-{
-	SharedStr result;
-	dms_assert(lastStreamID); // no overflow?
-	while (lastStreamID)
-	{
-		result = mySSPrintF("/%02x", lastStreamID % 256) + result;
-		lastStreamID /= 256;
-	}
-	result = ".tmp" + result;
-	return result;
-}
-
-auto CreateFileData(AbstrDataItem* adi, bool mustClear) -> std::unique_ptr<AbstrDataObject>
+auto CreateFileData(AbstrDataItem* adi, const SharedObj* abstrValuesRangeData, SharedStr filename, bool mustClear) -> std::unique_ptr<AbstrDataObject>
 {
 	bool isPersistent = adi->IsCacheItem() && MustStorePersistent(adi);
 	bool isTmp = !isPersistent;
 
-	SharedStr filename = adi->m_FileName;
-	dms_assert(!filename.empty());
-	return CreateFileTileArray(adi, mustClear ? dms_rw_mode::write_only_mustzero : dms_rw_mode::write_only_all, filename, isTmp, DataStoreManager::Curr()->GetSafeFileWriterArray());
+	assert(!filename.empty());
+	auto sfwa = DSM::GetSafeFileWriterArray();
+	if (!sfwa)
+		return {};
+	return CreateFileTileArray(adi
+		,	mustClear ? dms_rw_mode::write_only_mustzero : dms_rw_mode::write_only_all
+		,	filename, isTmp
+		,	sfwa.get()
+	);
 }
 
 auto OpenFileData(const AbstrDataItem* adi, SharedStr filenameBase, SafeFileWriterArray* sfwa) -> std::unique_ptr<const AbstrDataObject>
@@ -268,7 +242,7 @@ auto OpenFileData(const AbstrDataItem* adi, SharedStr filenameBase, SafeFileWrit
 
 DataWriteLock::DataWriteLock(AbstrDataItem* adi, dms_rw_mode rwm, const SharedObj* abstrValuesRangeData) // was lockTile 
 {
-	dms_assert(std::uncaught_exceptions() == 0);
+	assert(std::uncaught_exceptions() == 0);
 
 	DBG_START("DataWriteLock", "CreateFromItem", MG_DEBUG_DATALOCKS);
 	DBG_TRACE(("adi = %s", adi ? adi->GetFullName().c_str() : "<null>" ));
@@ -286,10 +260,26 @@ DataWriteLock::DataWriteLock(AbstrDataItem* adi, dms_rw_mode rwm, const SharedOb
 		DataLockError(adi, "Write");
 
 	bool mustClear = (rwm == dms_rw_mode::write_only_mustzero);
-	if (!adi->m_FileName.empty())
-		reset(CreateFileData(adi, mustClear).release() ); // , !adi->IsPersistent(), true); // calls OpenFileData
-	else
-		reset(CreateAbstrHeapTileFunctor(adi, abstrValuesRangeData, mustClear MG_DEBUG_ALLOCATOR_SRC("DataWriteLock")).release() );
+	auto configItem = SharedPtr<const AbstrDataItem>((adi->m_BackRef) ? AsDataItem(adi->m_BackRef) : adi);
+	if (!configItem->IsCacheItem())
+	{
+		if (auto sp = configItem->GetCurrStorageParent(true))
+		{
+			auto sm = sp->GetStorageManager();
+			assert(sm);
+			if (auto mmd = dynamic_cast<MmdStorageManager*>(sm))
+			{
+				auto fsn = sm->GetNameStr();
+				auto rn = configItem->GetRelativeName(sp);
+
+				auto fn = DelimitedConcat(fsn, rn);
+				reset(CreateFileData(adi, abstrValuesRangeData, fn, mustClear).release()); // , !adi->IsPersistent(), true); // calls OpenFileData
+				goto afterReset;
+			}
+		}
+	}
+
+	reset(CreateAbstrHeapTileFunctor(adi, abstrValuesRangeData, mustClear MG_DEBUG_ALLOCATOR_SRC("DataWriteLock")).release() );
 /*
 	if (abstrValuesRangeData)
 	{
@@ -303,7 +293,10 @@ DataWriteLock::DataWriteLock(AbstrDataItem* adi, dms_rw_mode rwm, const SharedOb
 				tileFunctor->InitValueRangeData(dynamic_cast<const range_or_void_data<T>*>(abstrValuesRangeData));
 		});
 	}
-*/		
+*/	
+
+afterReset:
+
 	dms_assert(get());
 	if (rwm == dms_rw_mode::read_write)
 		CopyData(adi->GetRefObj(), get());
@@ -335,14 +328,14 @@ SharedStr incompletedWriteTransactionMsg("Exception occured during generating op
 
 TIC_CALL void DataWriteLock::Commit()
 {
-	dms_assert(IsLocked());
+	assert(IsLocked());
 	auto adi = std::move(m_adi);
-	dms_assert(adi);
-	dms_assert(!m_adi);
+	assert(adi);
+	assert(!m_adi);
 
 	adi->m_DataObject = get(); reset(); // move from Writable to const
-	dms_assert(adi->m_DataObject);
-	dms_assert(!get());
+	assert(adi->m_DataObject);
+	assert(!get());
 	if (adi->mc_Calculator)
 	{
 		adi->SetDC(nullptr, nullptr);

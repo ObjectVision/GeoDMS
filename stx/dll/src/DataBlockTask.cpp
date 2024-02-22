@@ -27,7 +27,10 @@ granted by an additional written contract for support, assistance and/or develop
 */
 //</HEADER>
 #include "StxPch.h"
+
+#if defined(CC_PRAGMAHDRSTOP)
 #pragma hdrstop
+#endif //defined(CC_PRAGMAHDRSTOP)
 
 #include "DataBlockTask.h"
 
@@ -45,8 +48,7 @@ DataBlockTask::DataBlockTask(AbstrDataItem* adiContext,
 	,	m_NrElems(nrElems)
 	,	m_DataBlock(LispRef(begin, end))
 {
-	dms_assert(adiContext);
-	adiContext->DisableStorage();
+	assert(adiContext);
 }
 
 DataBlockTask::DataBlockTask(AbstrDataItem* adiContext, const DataBlockTask& src)
@@ -55,7 +57,6 @@ DataBlockTask::DataBlockTask(AbstrDataItem* adiContext, const DataBlockTask& src
 	,	m_DataBlock(src.m_DataBlock)
 {
 	dms_assert(adiContext);
-	adiContext->DisableStorage();
 }
 
 DataBlockTask::~DataBlockTask()

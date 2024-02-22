@@ -65,13 +65,20 @@ void visit(const AbstrUnit* inviter, UnitPtrAutoLambda&& al)
 	inviter->InviteUnitProcessor(alc);
 }
 
+template<typename TypeList, typename ResultType, typename UnitPtrAutoLambda>
+auto visit_and_return_result(const AbstrUnit* inviter, UnitPtrAutoLambda&& al) -> ResultType
+{
+	ResultType result;
+	visit<TypeList>(inviter, [&result, al = std::forward<UnitPtrAutoLambda>(al)](auto unit) { result = al(unit); });
+	return result;
+}
+
+/* REMOVE
 template<typename ValuePtrAutoLambda>
 auto value_ptr_caller(ValuePtrAutoLambda&& autoLambda)
 {
-	return [autoLambda](auto valuesUnit) {
-		using values_unit = std::remove_reference_t<decltype(*valuesUnit)>;
-		using value_type = typename values_unit::value_t;
-		value_type* v = nullptr;
+	return [autoLambda]<typename V>(const Unit<V>* valuesUnit) {
+		V* v = nullptr;
 		autoLambda(v);
 	};
 }
@@ -81,8 +88,7 @@ void visit_value_ptr(const AbstrUnit* inviter, ValuePtrAutoLambda&& autoLambda)
 {
 	visit<TypeList>(value_ptr_caller(std::forward<ValuePtrAutoLambda>(autoLambda)));
 }
-
-
+*/
 
 
 #endif // __UNITPROCESSOR_H

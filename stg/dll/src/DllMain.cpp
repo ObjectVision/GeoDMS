@@ -1,34 +1,13 @@
-//<HEADER> 
-/*
-Data & Model Server (DMS) is a server written in C++ for DSS applications. 
-Version: see srv/dms/rtc/dll/src/RtcVersion.h for version info.
-
-Copyright (C) 1998-2004  YUSE GSO Object Vision BV. 
-
-Documentation on using the Data & Model Server software can be found at:
-http://www.ObjectVision.nl/DMS/
-
-See additional guidelines and notes in srv/dms/Readme-srv.txt 
-
-This library is free software; you can use, redistribute, and/or
-modify it under the terms of the GNU General Public License version 2 
-(the License) as published by the Free Software Foundation,
-provided that this entire header notice and readme-srv.txt is preserved.
-
-See LICENSE.TXT for terms of distribution or look at our web site:
-http://www.objectvision.nl/DMS/License.txt
-or alternatively at: http://www.gnu.org/copyleft/gpl.html
-
-This library is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
-General Public License for more details. However, specific warranties might be
-granted by an additional written contract for support, assistance and/or development
-*/
-//</HEADER>
+// Copyright (C) 1998-2023 Object Vision b.v. 
+// License: GNU GPL 3
+/////////////////////////////////////////////////////////////////////////////
 
 #include "StoragePCH.h"
+#include "ImplMain.h"
+
+#if defined(CC_PRAGMAHDRSTOP)
 #pragma hdrstop
+#endif //defined(CC_PRAGMAHDRSTOP)
 
 #include "dbg/DebugCast.h"
 #include "dbg/DmsCatch.h"
@@ -39,7 +18,9 @@ granted by an additional written contract for support, assistance and/or develop
 #include "mci/ValueClass.h"
 #include "mci/ValueWrap.h"
 #include "utl/Environment.h"
+#include "utl/mySPrintF.h"
 #include "utl/Encodes.h"
+#include "xct/DmsException.h"
 
 #include "AbstrDataItem.h"
 #include "AbstrDataObject.h"
@@ -156,7 +137,10 @@ bool WriteGeoRefFile(const AbstrDataItem* diGrid, WeakStr geoRefFileName)
 
 	auto [gridBegin, gridEnd] = colDomain->GetRangeAsDRect();
 	
-	FilePtrHandle bmpwHnd; bmpwHnd.OpenFH(geoRefFileName, DSM::GetSafeFileWriterArray(diGrid), FCM_CreateAlways, true, NR_PAGES_HDRFILE);
+	auto sfwa = DSM::GetSafeFileWriterArray();
+	if (!sfwa)
+		return false;
+	FilePtrHandle bmpwHnd; bmpwHnd.OpenFH(geoRefFileName, sfwa.get(), FCM_CreateAlways, true, NR_PAGES_HDRFILE);
 
 	if (bmpwHnd == NULL)
 		return false;
@@ -196,11 +180,9 @@ void ReadGeoRefFile(WeakStr geoRefFileName, AbstrUnit* uDomain, const AbstrUnit*
 	{
 		FilePtrHandle file;
 
-		file.OpenFH(
-			geoRefFileName
-		,	DSM::GetSafeFileWriterArray(uDomain)
-		,	FCM_OpenReadOnly, false, NR_PAGES_HDRFILE
-		);
+		auto sfwa = DSM::GetSafeFileWriterArray();
+		if (sfwa)
+			file.OpenFH(geoRefFileName, sfwa.get(), FCM_OpenReadOnly, false, NR_PAGES_HDRFILE);
 		if(file)
 		{
 			SizeT size = file.GetFileSize();
@@ -228,9 +210,9 @@ void ReadGeoRefFile(WeakStr geoRefFileName, AbstrUnit* uDomain, const AbstrUnit*
 	uDomain->throwItemErrorF("Error reading geographic reference info from %s", geoRefFileName.c_str());
 }
 
-const AbstrUnit* FindProjectionRef(const TreeItem* storageHolder, const AbstrUnit* gridDataDomain)
+SharedUnit FindProjectionRef(const TreeItem* storageHolder, const AbstrUnit* gridDataDomain)
 {
-	const AbstrUnit* uBase = nullptr;
+	SharedUnit uBase = nullptr;
 	SharedStr coordRef = dialogDataPropDefPtr->GetValue(gridDataDomain);
 	if (!coordRef.empty())
 	{
@@ -243,18 +225,21 @@ const AbstrUnit* FindProjectionRef(const TreeItem* storageHolder, const AbstrUni
 	if (uBase == nullptr && storageHolder != gridDataDomain)
 	{
 		coordRef = dialogDataPropDefPtr->GetValue(storageHolder);
-		auto coordItem = storageHolder->FindItem(coordRef);
-		if (!coordItem && !HasMapType(storageHolder))
-			storageHolder->throwItemErrorF("Cannot find DialogData reference '%s'", coordRef.c_str());
-		if (IsUnit(coordItem))
-			uBase = AsUnit(coordItem);
+		if (!coordRef.empty())
+		{
+			auto coordItem = storageHolder->FindItem(coordRef);
+			if (!coordItem && !HasMapType(storageHolder))
+				storageHolder->throwItemErrorF("Cannot find DialogData reference '%s'", coordRef.c_str());
+			if (IsUnit(coordItem))
+				uBase = AsUnit(coordItem);
+		}
 	}
 	return uBase;
 }
 
-const AbstrUnit* FindProjectionBase(const TreeItem* storageHolder, const AbstrUnit* gridDataDomain)
+SharedUnit FindProjectionBase(const TreeItem* storageHolder, const AbstrUnit* gridDataDomain)
 {
-	dms_assert(storageHolder); // PRECONDITION
+	assert(storageHolder); // PRECONDITION
 	if (!gridDataDomain)
 		return nullptr;
 	if (!storageHolder->DoesContain(gridDataDomain) && (gridDataDomain->GetTreeParent() || !gridDataDomain->IsPassor() ) )
@@ -271,7 +256,7 @@ const AbstrUnit* FindProjectionBase(const TreeItem* storageHolder, const AbstrUn
 			if (prj)
 				uBase = prj->GetBaseUnit();
 			else
-				uBase = nullptr; // no self referring thing
+				uBase = nullptr; // avoid self-referencing
 		}
 	}
 
@@ -291,9 +276,9 @@ const AbstrUnit* FindProjectionBase(const TreeItem* storageHolder, const AbstrUn
 	return uBase;
 }
 
-void ReadProjection(TreeItem* storageHolder, WeakStr geoRefFileName)
+void GetImageToWorldTransformFromFile(TreeItem* storageHolder, WeakStr geoRefFileName)
 {
-	dms_assert(storageHolder); // PRECONDITION
+	assert(storageHolder); // PRECONDITION
 /* 
 	const AbstrUnit* gridDataDomainRO = GetGridDataDomainRO(storageHolder); 
 	if (!storageHolder->DoesContain(gridDataDomainRO))
@@ -301,7 +286,10 @@ void ReadProjection(TreeItem* storageHolder, WeakStr geoRefFileName)
 */
 
 	AbstrUnit* gridDataDomainRW = GetGridDataDomainRW(storageHolder);
-	const AbstrUnit* uBase = FindProjectionBase(storageHolder, gridDataDomainRW );
+	if (!gridDataDomainRW)
+		return;
+
+	const AbstrUnit* uBase = FindProjectionBase(storageHolder, gridDataDomainRW);
 	if (!uBase)
 		return;
 
@@ -316,11 +304,9 @@ void ReadProjection(TreeItem* storageHolder, WeakStr geoRefFileName)
 
 SharedStr ToUpperCase(SharedStr src)
 {
-	SharedStr result(src.begin(), src.send());
-	typedef char* charPtr;
-	for (charPtr chPtr = result.begin(), chEnd = result.send(); chPtr != chEnd; ++chPtr)
-		*chPtr = toupper(*chPtr);
-	return result;
+	for (auto& ch: src) // non-const begin and end quarantee unique access
+		ch = std::toupper(ch);
+	return src;
 }
 
 TNameSet::TNameSet(const UInt32 len)
@@ -520,7 +506,7 @@ bool CreateTreeItemColumnInfo(TreeItem* tiTable, CharPtr colName, const AbstrUni
 // ------------------------------------------------------------------------
 
 template <typename Int>
-ViewPortInfoEx<Int>::ViewPortInfoEx(const TreeItem* context, const AbstrUnit* currDomain, tile_id tc, const AbstrUnit* gridDomain, tile_id tg, bool correctGridOffset, bool mustCheck, countcolor_t cc, bool queryActualGridDomain)
+ViewPortInfoEx<Int>::ViewPortInfoEx(const TreeItem* context, const AbstrUnit* currDomain, tile_id tc, const AbstrUnit* gridDomain, tile_id tg, StorageMetaInfoPtr smi, bool correctGridOffset, bool mustCheck, countcolor_t cc, bool queryActualGridDomain)
 {
 	dms_assert(queryActualGridDomain || !IsDefined(tg));
 	dms_assert(!gridDomain || gridDomain == gridDomain->GetCurrRangeItem());
@@ -528,6 +514,8 @@ ViewPortInfoEx<Int>::ViewPortInfoEx(const TreeItem* context, const AbstrUnit* cu
 	dms_assert(queryActualGridDomain || !correctGridOffset);
 	dms_assert(queryActualGridDomain || tg == no_tile);
 	dms_assert(!correctGridOffset || queryActualGridDomain);
+
+	this->m_smi = smi;
 
 	if (queryActualGridDomain && gridDomain)
 		m_GridExtents = ThrowingConvert<rect_type>(gridDomain->GetTileSizeAsI64Rect(tg));
@@ -566,7 +554,12 @@ ViewPortInfoEx<Int>::ViewPortInfoEx(const TreeItem* context, const AbstrUnit* cu
 	if (currDomain)
 	{
 		try {
-			this->m_ViewPortExtents = ThrowingConvert<rect_type>(currDomain->GetTiledRangeData()->GetTileRangeAsI64Rect(tc));
+			auto tileRange = currDomain->GetTiledRangeData()->GetTileRangeAsI64Rect(tc);
+			this->m_ViewPortExtents = ThrowingConvert<rect_type>(tileRange);
+			MG_CHECK(IsDefined(this->m_ViewPortExtents.first.first));
+			MG_CHECK(IsDefined(this->m_ViewPortExtents.first.second));
+			MG_CHECK(IsDefined(this->m_ViewPortExtents.second.first));
+			MG_CHECK(IsDefined(this->m_ViewPortExtents.second.second));
 		}
 		catch (...)
 		{
@@ -601,7 +594,9 @@ ViewPortInfoProvider::ViewPortInfoProvider(const TreeItem * storageHolder, const
 	SharedUnitInterestPtr currDomain = CheckedGridDomain(adi); dms_assert(currDomain);
 	SharedUnitInterestPtr gridDomain = GetGridDataDomainRO(storageHolder);
 	if (!gridDomain && mayCreateDomain)
-		gridDomain = storageHolder->GetStorageManager()->CreateGridDataDomain(storageHolder);
+		if (auto nmsm = dynamic_cast<NonmappableStorageManager*>(storageHolder->GetStorageManager()))
+			gridDomain = nmsm->CreateGridDataDomain(storageHolder);
+
 	if (!gridDomain)
 		gridDomain = currDomain;
 
@@ -627,10 +622,10 @@ ViewPortInfoProvider::ViewPortInfoProvider(const TreeItem * storageHolder, const
 		m_CountColor = -1;
 }
 
-ViewPortInfoEx<Int32> ViewPortInfoProvider::GetViewportInfoEx(tile_id tc, tile_id tg) const
+ViewPortInfoEx<Int32> ViewPortInfoProvider::GetViewportInfoEx(tile_id tc, StorageMetaInfoPtr smi, tile_id tg) const
 {
 	FixedContextHandle provideExceptionContext("in constructing a ViewPortInfo<Int32> (for transfering data from one tiling to another)");
-	return ViewPortInfoEx<Int32>(m_ADI, AsUnit(m_CurrDomain->GetCurrRangeItem()), tc, AsUnit(m_GridDomain->GetCurrRangeItem()), tg, true, false, m_CountColor, m_QueryActualGridDomain);
+	return ViewPortInfoEx<Int32>(m_ADI, AsUnit(m_CurrDomain->GetCurrRangeItem()), tc, AsUnit(m_GridDomain->GetCurrRangeItem()), tg, smi, true, false, m_CountColor, m_QueryActualGridDomain);
 }
 
 template ViewPortInfoEx<Int32>;

@@ -55,18 +55,20 @@ struct AbstrOperAccTotBin : public BinaryOperator
 	)	:	BinaryOperator(gr, resultCls, arg1Cls, arg2Cls) 
 		,	m_UnitCreatorPtr(std::move(ucp))
 		,	m_ValueComposition(vc)
-	{}
+	{
+		gr->SetBetterNotInMetaScripting();
+	}
 
 	// Override Operator
 	bool CreateResult(TreeItemDualRef& resultHolder, const ArgSeqType& args, bool mustCalc) const override
 	{
-		dms_assert(args.size() == 2);
+		assert(args.size() == 2);
 		
 		const AbstrDataItem *arg1A= AsDataItem(args[0]);
 		const AbstrDataItem *arg2A= AsDataItem(args[1]);
 
-		dms_assert(arg1A);
-		dms_assert(arg2A);
+		assert(arg1A);
+		assert(arg2A);
 
 		if (!resultHolder)
 			resultHolder = CreateCacheDataItem(
@@ -123,36 +125,21 @@ struct OperAccTotBin : AbstrOperAccTotBin
 	{}
 
 	// Override Operator
-	void Calculate(
-		DataWriteLock& res,
-		const AbstrDataItem* arg1A, 
-		const AbstrDataItem* arg2A
-	) const override
+	void Calculate(DataWriteLock& res, const AbstrDataItem* arg1A, const AbstrDataItem* arg2A) const override
 	{
 		const Arg1Type* arg1 = const_array_cast<ValueType1>(arg1A);
 		const Arg2Type* arg2 = const_array_cast<ValueType2>(arg2A);
 
-		dms_assert(arg1);
-		dms_assert(arg2);
+		assert(arg1);
+		assert(arg2);
 
 		ResultType* result = mutable_array_cast<ResultValueType>(res);
-		dms_assert(result);
+		assert(result);
 
-		AccumulationType value;
-		m_Acc2Func.Init(value);
+		AccumulationType value = m_Acc2Func.InitialValue();
 		const AbstrUnit* e = arg1A->GetAbstrDomainUnit();
 		for (tile_id t = 0, te = e->GetNrTiles(); t!=te; ++t)
-		{
-			m_Acc2Func(value, 
-				arg1->GetTile(t), 
-				arg2->GetTile(t),
-				arg1A->HasUndefinedValues() || arg2A->HasUndefinedValues()
-			);
-		}
-
-//		TAcc2Func::dms_result_type resValue;
-//		m_Acc2Func.AssignOutput(resValue, value);
-//		Assign(result->GetDataWrite()[0], Convert<ResultValueType>(resValue) );
+			m_Acc2Func(value, arg1->GetTile(t), arg2->GetTile(t));
 
 		m_Acc2Func.AssignOutput(result->GetDataWrite()[0], value);
 	}
@@ -172,7 +159,9 @@ struct AbstrOperAccPartBin: TernaryOperator
 	)	:	TernaryOperator(gr, resultCls, arg1Cls, arg2Cls, arg3Cls)
 		,	m_ValueComposition(vc)
 		,	m_UnitCreatorPtr(std::move(ucp))
-	{}
+	{
+		gr->SetBetterNotInMetaScripting();
+	}
 
 	bool CreateResult(TreeItemDualRef& resultHolder, const ArgSeqType& args, bool mustCalc) const override
 	{
@@ -181,9 +170,9 @@ struct AbstrOperAccPartBin: TernaryOperator
 		const AbstrDataItem* arg1A = debug_cast<const AbstrDataItem*>(args[0]);
 		const AbstrDataItem* arg2A = debug_cast<const AbstrDataItem*>(args[1]);
 		const AbstrDataItem* arg3A = debug_cast<const AbstrDataItem*>(args[2]);
-		dms_assert(arg1A);
-		dms_assert(arg2A);
-		dms_assert(arg3A);
+		assert(arg1A);
+		assert(arg2A);
+		assert(arg3A);
 
 		const AbstrUnit* e1 = arg1A->GetAbstrDomainUnit();
 		const AbstrUnit* e2 = arg2A->GetAbstrDomainUnit();
@@ -192,7 +181,7 @@ struct AbstrOperAccPartBin: TernaryOperator
 		e3->UnifyDomain(e2, "e3", "e2", UM_Throw);
 
 		const AbstrUnit* p3 = arg3A->GetAbstrValuesUnit();
-		dms_assert(p3);
+		assert(p3);
 
 		if (!resultHolder)
 			resultHolder
@@ -209,7 +198,7 @@ struct AbstrOperAccPartBin: TernaryOperator
 			DataReadLock arg3Lock(arg3A);
 
 			AbstrDataItem* res = debug_cast<AbstrDataItem*>(resultHolder.GetNew());
-			dms_assert(res);
+			assert(res);
 			DataWriteLock resLock(res);
 
 			Calculate(resLock, arg1A, arg2A, arg3A);
@@ -260,9 +249,9 @@ struct OperAccPartBin : AbstrOperAccPartBin
 		const Arg1Type *arg1 = const_array_cast<ValueType1>(arg1A);
 		const Arg2Type *arg2 = const_array_cast<ValueType2>(arg2A);
 
-		dms_assert(arg1);
-		dms_assert(arg2);
-		dms_assert(arg3A);
+		assert(arg1);
+		assert(arg2);
+		assert(arg3A);
 
 		tile_id tn = arg1A->GetAbstrDomainUnit()->GetNrTiles();
 
@@ -274,7 +263,7 @@ struct OperAccPartBin : AbstrOperAccPartBin
 			auto arg1Data = arg1->GetTile(t);
 			auto arg2Data = arg2->GetTile(t);
 
-			dms_assert(arg1Data.size() == arg2Data.size());
+			assert(arg1Data.size() == arg2Data.size());
 
 			OwningPtr<IndexGetter> indexGetter = IndexGetterCreator::Create(arg3A, t);
 	
@@ -282,7 +271,6 @@ struct OperAccPartBin : AbstrOperAccPartBin
 				AccumulationSeq( &resBuffer ) // explicit constructor
 			,	arg1Data, arg2Data
 			,	indexGetter
-			,	arg1A->HasUndefinedValues() || arg2A->HasUndefinedValues()
 			);
 		}
 		using buffered_assigner_functor = assign_partial_output_from_buffer<assign_output_direct<ResultValueType>>;

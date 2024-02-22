@@ -36,7 +36,7 @@ granted by an additional written contract for support, assistance and/or develop
 //----------------------------------------------------------------------
 // An enumeration type that represents the values that can be put in a unit
 
-enum class ValueComposition {
+enum class ValueComposition : UInt8 {
 	Single   = 0
 ,	Polygon  = 1
 ,	Sequence = 2
@@ -70,6 +70,8 @@ template <>           struct composition_of<SharedStr>       { static const Valu
 template <>           struct composition_of<CharPtr>         { static const ValueComposition value = ValueComposition::String;   };
 template <typename T> struct composition_of<Range<T> >       { static const ValueComposition value = ValueComposition::Range;    };
 template <typename T> struct composition_of<std::vector<T> > { static const ValueComposition value = ValueComposition::Sequence; };
+
+template <typename T> constexpr ValueComposition composition_of_v = composition_of<T>::value;
 
 //----------------------------------------------------------------------
 // ValueComposition helper functions

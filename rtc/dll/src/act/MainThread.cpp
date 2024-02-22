@@ -1,36 +1,19 @@
-//<HEADER> 
-/*
-Data & Model Server (DMS) is a server written in C++ for DSS applications. 
-Version: see srv/dms/rtc/dll/src/RtcVersion.h for version info.
+// Copyright (C) 1998-2023 Object Vision b.v. 
+// License: GNU GPL 3
+/////////////////////////////////////////////////////////////////////////////
 
-Copyright (C) 1998-2004  YUSE GSO Object Vision BV. 
-
-Documentation on using the Data & Model Server software can be found at:
-http://www.ObjectVision.nl/DMS/
-
-See additional guidelines and notes in srv/dms/Readme-srv.txt 
-
-This library is free software; you can use, redistribute, and/or
-modify it under the terms of the GNU General Public License version 2 
-(the License) as published by the Free Software Foundation,
-provided that this entire header notice and readme-srv.txt is preserved.
-
-See LICENSE.TXT for terms of distribution or look at our web site:
-http://www.objectvision.nl/DMS/License.txt
-or alternatively at: http://www.gnu.org/copyleft/gpl.html
-
-This library is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
-General Public License for more details. However, specific warranties might be
-granted by an additional written contract for support, assistance and/or development
-*/
-//</HEADER>
 #include "RtcPCH.h"
+
+#if defined(CC_PRAGMAHDRSTOP)
 #pragma hdrstop
+#endif //defined(CC_PRAGMAHDRSTOP)
 
-
+#if defined(WIN32)
 #include <windows.h>
+
+#else
+
+#endif
 
 #include "LockLevels.h"
 #include "Parallel.h"
@@ -57,6 +40,8 @@ dms_thread_id GetThreadID()
 	return sThreadID;
 }
 
+#if defined(WIN32)
+
 void SetPriority()
 {
 	HANDLE currThread = GetCurrentThread();
@@ -66,12 +51,30 @@ void SetPriority()
 	sPriorityThread = currThread;
 }
 
+bool IsElevatedThread()
+{
+	return GetThreadPriority(GetCurrentThread()) >= THREAD_PRIORITY_ABOVE_NORMAL;
+}
+
+#else //defined(WIN32)
+
+// GNU TODO
+
+void SetPriority() {}
+
+bool IsElevatedThread()
+{
+	return false;
+}
+
+#endif //defined(WIN32)
+
 void SetMainThreadID()
 {
-	dms_assert(sMainThreadID == sThreadID); // must be set from this thread or not set/called at all.
+	assert(sMainThreadID == sThreadID); // must be set from this thread or not set/called at all.
 	sMainThreadID = GetThreadID();
 	sMetaThreadID = GetThreadID();
-	dms_assert(sMainThreadID == 1);
+	assert(sMainThreadID == 1);
 	SetPriority();
 }
 
@@ -98,14 +101,10 @@ bool NoOtherThreadsStarted()
 	return IsMainThread() && (sThreadID == 1);
 }
 
-bool IsElevatedThread()
-{
-	return GetThreadPriority(GetCurrentThread()) >= THREAD_PRIORITY_ABOVE_NORMAL;
-}
-
 std::vector < std::function<void()>>  s_OperQueue;
 
 leveled_std_section s_QueueSection(item_level_type(0), ord_level_type::OperationQueue, "OperationQueue");
+
 
 void AddMainThreadOper(std::function<void()>&& func, bool postAlways)
 {
@@ -116,14 +115,31 @@ void AddMainThreadOper(std::function<void()>&& func, bool postAlways)
 		return;
 	}
 	leveled_std_section::scoped_lock lock(s_QueueSection);
+	bool wasEmpty = s_OperQueue.empty();
 	s_OperQueue.emplace_back(std::move(func));
 	SuspendTrigger::DoSuspend();
 }
 
 static UInt32 s_ProcessMainThreadOperLevel = 0;
+RTC_CALL bool IsProcessingMainThreadOpers()
+{
+	assert(IsMainThread());
+	return s_ProcessMainThreadOperLevel != 0;
+}
+
+MainThreadBlocker::MainThreadBlocker()
+{
+	++s_ProcessMainThreadOperLevel;
+}
+
+MainThreadBlocker::~MainThreadBlocker()
+{
+	--s_ProcessMainThreadOperLevel;
+}
+
 void ProcessMainThreadOpers()
 {
-	dms_assert(IsMainThread());
+	assert(IsMainThread());
 
 	if (s_ProcessMainThreadOperLevel)
 		return;
@@ -148,9 +164,17 @@ std::atomic<UInt32>& throttle_counter()
 }
 
 
-#include <concrtrm.h>
-
 UInt32 GetNrVCPUs()
 {
-	return concurrency::GetProcessorCount();
+	auto nrVCPUs = std::thread::hardware_concurrency();
+	if (nrVCPUs < 1)
+		return 1;
+	return nrVCPUs;
+}
+
+RTC_CALL UInt32 MaxConcurrentTreads()
+{
+	if (!IsMultiThreaded1())
+		return 1;
+	return GetNrVCPUs();
 }

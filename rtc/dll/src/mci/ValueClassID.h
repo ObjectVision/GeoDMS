@@ -36,9 +36,9 @@ granted by an additional written contract for support, assistance and/or develop
 //----------------------------------------------------------------------
 // An enumeration type that represents the values that can be put in a unit
 
-#include "RtcTypeModel.h"
+#include "rtctypemodel.h"
 
-enum ValueClassID {
+enum class ValueClassID : UInt8 {
 	VT_UInt32 = 0,
 	VT_Int32 = 1,
 	VT_UInt16 = 2,

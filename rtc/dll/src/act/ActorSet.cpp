@@ -26,8 +26,12 @@ General Public License for more details. However, specific warranties might be
 granted by an additional written contract for support, assistance and/or development
 */
 //</HEADER>
+
 #include "RtcPCH.h"
+
+#if defined(_MSC_VER)
 #pragma hdrstop
+#endif
 
 #include "act/ActorSet.h"
 

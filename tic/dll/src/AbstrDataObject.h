@@ -72,7 +72,8 @@ struct ptr : ptr_base<T, copyable>
 	explicit ptr(T* p) : ptr_base<T, copyable>( p ) {}
 };
 
-struct abstr_future_tile : TileBase {
+struct abstr_future_tile : TileBase
+{
 	virtual auto GetTileCRef() -> TileCRef = 0;
 };
 
@@ -81,12 +82,13 @@ class AbstrDataObject: public PersistentSharedObj
 	friend class AbstrDataItem; 
 	friend class AbstrStorageManager;
 	friend struct DataWriteLock;
-	friend struct DataStoreManager;
 
 	using base_type = AbstrDataItem;
 public:
 	using data_read_begin_handle = locked_seq<ptr<const Byte>, TileCRef>;
 	using data_write_begin_handle = locked_seq<ptr<Byte>, TileRef>;
+
+	TIC_CALL ~AbstrDataObject();
 
 	TIC_CALL SharedPtr<const AbstrTileRangeData> GetTiledRangeData() const;
 
@@ -145,6 +147,7 @@ public:
 	TIC_CALL virtual void    SetValueAsUInt32(SizeT index, UInt32 val);
 	TIC_CALL virtual SizeT   GetValueAsSizeT (SizeT index) const;
 	TIC_CALL virtual void    SetValueAsSizeT (SizeT index, SizeT val);
+	TIC_CALL virtual void    SetValueAsDiffT(SizeT index, DiffT val);
 	TIC_CALL virtual void    SetValueAsSizeT(SizeT index, SizeT val, tile_id t);
 	TIC_CALL virtual UInt8   GetValueAsUInt8 (SizeT index) const;
 	TIC_CALL virtual SizeT   FindPosOfSizeT(SizeT val, SizeT startPos = 0) const;
@@ -211,6 +214,7 @@ public:
 
 public:
 	SharedPtr<const AbstrTileRangeData> m_TileRangeData; // this replaces m_DomainUnitCopy
+	mutable TileBase* m_shadowTilePtr = nullptr; // a kind of weak ptr
 
 #if defined(MG_DEBUG_ALLOCATOR)
 	SharedStr md_SrcStr;
@@ -281,7 +285,7 @@ TIC_CALL auto CreateHeapTileArrayU(const AbstrTileRangeData* tdr, const Unit<fie
 template<typename V>
 TIC_CALL auto CreateHeapTileArrayV(const AbstrTileRangeData* tdr, const range_or_void_data<field_of_t<V>>* valuesRangeDataPtr, bool mustClear MG_DEBUG_ALLOCATOR_SRC_ARG) -> std::unique_ptr<TileFunctor<V>>;
 
-auto CreateAbstrHeapTileFunctor(const AbstrDataItem* adi, const SharedObj* abstrValuesRangeData, const bool mustClear MG_DEBUG_ALLOCATOR_SRC_ARG)->std::unique_ptr<AbstrDataObject>;
+auto CreateAbstrHeapTileFunctor(const AbstrDataItem* adi, SharedPtr<const SharedObj> abstrValuesRangeData, const bool mustClear MG_DEBUG_ALLOCATOR_SRC_ARG)->std::unique_ptr<AbstrDataObject>;
 auto CreateFileTileArray(const AbstrDataItem* adi, dms_rw_mode rwMode, SharedStr filenameBase, bool isTmp, SafeFileWriterArray* sfwa)->std::unique_ptr<AbstrDataObject>;
 
 struct ReadableTileLock : TileCRef // TODO G8: REMOVE

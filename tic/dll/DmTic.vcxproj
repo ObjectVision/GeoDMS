@@ -54,8 +54,8 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="FileName.cpp" />
     <ClCompile Include="src\Aspect.cpp" />
-    <ClCompile Include="src\CalcDestroyer.cpp" />
     <ClCompile Include="src\DedicatedAttrs.cpp" />
     <ClCompile Include="src\ExprRewrite.cpp" />
     <ClCompile Include="src\ItemLocks.cpp" />
@@ -65,6 +65,7 @@
     <ClCompile Include="src\stg\AbstrStoragemanager.cpp" />
     <ClCompile Include="src\stg\AbstrStreamManager.cpp" />
     <ClCompile Include="src\stg\AsmUtil.cpp" />
+    <ClCompile Include="src\stg\MemoryMappedDataStorageManager.cpp" />
     <ClCompile Include="src\stg\StorageClass.cpp" />
     <ClCompile Include="src\stg\StorageInterface.cpp" />
     <ClCompile Include="src\AbstrCalculator.cpp" />
@@ -110,11 +111,10 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\aspect.h" />
-    <ClInclude Include="src\calcdestroyer.h" />
     <ClInclude Include="src\dedicatedattrs.h" />
     <ClInclude Include="src\Explain.h" />
     <ClInclude Include="src\ExprRewrite.h" />
-    <ClInclude Include="src\ItemContext.h" />
+    <ClInclude Include="src\FutureTileArray.h" />
     <ClInclude Include="src\ItemLocks.h" />
     <ClInclude Include="src\LispContextHandle.h" />
     <ClInclude Include="src\MetaInfo.h" />
@@ -125,6 +125,7 @@
     <ClInclude Include="src\propfuncs.h" />
     <ClInclude Include="src\stg\AbstrStorageManager.h" />
     <ClInclude Include="src\stg\AsmUtil.h" />
+    <ClInclude Include="src\stg\MemoryMappeddataStorageManager.h" />
     <ClInclude Include="src\stg\StorageClass.h" />
     <ClInclude Include="src\stg\StorageInterface.h" />
     <ClInclude Include="src\AbstrCalculator.h" />

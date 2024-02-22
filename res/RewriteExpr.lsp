@@ -23,13 +23,18 @@
 
 [(value _P _VU)                  (convert _P _VU)]
 [(const _P _E _VU)               (const (value _P _VU) _E)]
-[(convert (convert _X _U1) _U2)  (convert _X _U2)]
-
-/*********** Renamed Functions *********/
-
-[(interpolate_linear _D _U) (interpolate_linear _D (SubItem _U "X") (SubItem _U "Y"))]
 
 /*********** selection Functions *********/
+
+[(select_data (select        _Cond) _Data) (select_data (select        _Cond) _Cond _Data)]
+[(select_data (select_uint8  _Cond) _Data) (select_data (select_uint8  _Cond) _Cond _Data)]
+[(select_data (select_uint16 _Cond) _Data) (select_data (select_uint16 _Cond) _Cond _Data)]
+[(select_data (select_uint32 _Cond) _Data) (select_data (select_uint32 _Cond) _Cond _Data)]
+
+[(select_data (select_with_org_rel        _Cond) _Data) (select_data (select_with_org_rel        _Cond) _Cond _Data)]
+[(select_data (select_uint8_with_org_rel  _Cond) _Data) (select_data (select_uint8_with_org_rel  _Cond) _Cond _Data)]
+[(select_data (select_uint16_with_org_rel _Cond) _Data) (select_data (select_uint16_with_org_rel _Cond) _Cond _Data)]
+[(select_data (select_uint32_with_org_rel _Cond) _Data) (select_data (select_uint32_with_org_rel _Cond) _Cond _Data)]
 
 [(select_data (select_unit        _Cond) _Data) (select_data (select_unit        _Cond) _Cond _Data)]
 [(select_data (select_unit_uint8  _Cond) _Data) (select_data (select_unit_uint8  _Cond) _Cond _Data)]
@@ -40,6 +45,21 @@
 [(select_data (select_orgrel_uint8  _Cond) _Data) (select_data (select_orgrel_uint8  _Cond) _Cond _Data)]
 [(select_data (select_orgrel_uint16 _Cond) _Data) (select_data (select_orgrel_uint16 _Cond) _Cond _Data)]
 [(select_data (select_orgrel_uint32 _Cond) _Data) (select_data (select_orgrel_uint32 _Cond) _Cond _Data)]
+
+[(collect_by_cond (select        _Cond) _Data) (collect_by_cond (select        _Cond) _Cond _Data)]
+[(collect_by_cond (select_uint8  _Cond) _Data) (collect_by_cond (select_uint8  _Cond) _Cond _Data)]
+[(collect_by_cond (select_uint16 _Cond) _Data) (collect_by_cond (select_uint16 _Cond) _Cond _Data)]
+[(collect_by_cond (select_uint32 _Cond) _Data) (collect_by_cond (select_uint32 _Cond) _Cond _Data)]
+
+[(collect_by_cond (select_with_org_rel        _Cond) _Data) (collect_by_cond (select_with_org_rel        _Cond) _Cond _Data)]
+[(collect_by_cond (select_uint8_with_org_rel  _Cond) _Data) (collect_by_cond (select_uint8_with_org_rel  _Cond) _Cond _Data)]
+[(collect_by_cond (select_uint16_with_org_rel _Cond) _Data) (collect_by_cond (select_uint16_with_org_rel _Cond) _Cond _Data)]
+[(collect_by_cond (select_uint32_with_org_rel _Cond) _Data) (collect_by_cond (select_uint32_with_org_rel _Cond) _Cond _Data)]
+
+[(collect_by_org_rel (select_with_org_rel        _Cond) _Data) (lookup (subitem (select_with_org_rel        _Cond) "org_rel") _Data)]
+[(collect_by_org_rel (select_uint8_with_org_rel  _Cond) _Data) (lookup (subitem (select_uint8_with_org_rel  _Cond) "org_rel") _Data)]
+[(collect_by_org_rel (select_uint16_with_org_rel _Cond) _Data) (lookup (subitem (select_uint16_with_org_rel _Cond) "org_rel") _Data)]
+[(collect_by_org_rel (select_uint32_with_org_rel _Cond) _Data) (lookup (subitem (select_uint32_with_org_rel _Cond) "org_rel") _Data)]
 
 /*********** Elementary funcs  *********/
 
@@ -55,27 +75,6 @@
 [(pow x (neg _y))           (div 1 (pow _x _y))]
 
 [(pow _x _y)                (exp (mul (log _x) _y))]
-
-/* right associative */
-/* REMOVE
-[(max_elem_r _a)             _a]
-[(min_elem_r _a)             _a]
-[[max_elem_r [_a _T]]        (iif (gt_or_rhs_null [max_elem_r _T] _a) [max_elem_r _T] _a)]
-[[min_elem_r [_a _T]]        (iif (lt_or_rhs_null [min_elem_r _T] _a) [min_elem_r _T] _a)]
-
-[(max_elem_fast_r _a)             _a]
-[(min_elem_fast_r _a)             _a]
-[[max_elem_fast_r [_a _T]]        (iif (gt [max_elem_fast_r _T] _a) [max_elem_fast_r _T] _a)]  // take left only if left is not less that right; take right is one of them is null
-[[min_elem_fast_r [_a _T]]        (iif (lt [min_elem_fast_r _T] _a) [min_elem_fast_r _T] _a)]  // take left only if left is not greater that right; take right is one of them is null
-*/
-
-/*********** Helper functions for lists are OBSOLETE and DEPRECIATED  *********/
-
-[[add_list _T] [add _T]]
-[[mul_list _T] [mul _T]]
-[[or_list  _T] [or  _T]]
-[[and_list _T] [and _T]]
-
 /*********** Associative Binary functions *********/
 
 [(add _a1)                    _a1]
@@ -98,13 +97,6 @@
 [(concat _a1) (MakeDefined _a1 "")]
 [[concat [_a1 _T]] (add (MakeDefined _a1 "") [concat _T] ) ]
 [(concat) ""]
-
-
-//[(add _a (add _b _c))        (add (add _a _b) _c) ]
-//[(mul _a (mul _b _c))        (mul (mul _a _b) _c) ] geeft problemen bij claimHa2 = (10000 *Meter *Meter) * (10000 *Meter *Meter)
-//[(and _a (and _b _c))        (and (and _a _b) _c) ]
-//[(or  _a (or  _b _c))        (or  (or  _a _b) _c) ]
-
 
 /*********** switch case   *********/
 
@@ -146,10 +138,6 @@
 
 /*********** Predicate functions *********/
 
-// [(isPositive _x)      (gt _x (neg _x))]
-// [(isNegative _x)      (lt _x (neg _x))]
-// [(isZero     _x)      (eq _x (neg _x))]
-
 [(order _A _B) (interval (min_elem _A _B) (max_elem _A _B))]
 
 [(isOverlapping (interval _A1 _A2)(interval _B1 _B2))
@@ -163,7 +151,7 @@
 
 [(float_isNearby _A _B _Factor)
 	(isOverlapping (neighbourhood _A _Factor) (neighbourhood _B _Factor))]
-
+   
 [(point_isNearby _A _B _Factor)
 	(and
 		(float_isNearby (pointRow _A) (pointRow _B) _Factor)
@@ -226,10 +214,7 @@
 
 [(normalize _x )           (normalize _x  0 1 )] /* is rewritten to: (div (sub _x  (mean _x )) (sd   _x )) */
 [(normalize _x _E )        (normalize _x _E 1 )] /* is rewritten to: (add (div (sub _x  (mean _x )) (sd   _x )) _E) */
-
 [(normalize _x _E _SD)     (add (mul (sub _x  (mean _x )) (div _SD (sd   _x ))) _E)]
-[(normalize _x _p _E _SD)  (add (mul (sub _x  (lookup _p (mean _x _p))) 
-                               (lookup _p (div _SD (sd   _x _p)))) _E)]
 
 /*********** Remove symbolic constants from rescale & normalize *********/
 
@@ -257,93 +242,15 @@
 
 [[replace [_X [_V1 [_W1 [_V2 _T]]]]]  [replace [(replace _X _V1 _W1) [_V2 _T]]] ]
 
-/*********** EXECUTE External .exe and .dll functions *********/
-
-/* TODO
-// [(EXEC_ACCESS_PROC   _PROC)      (EXECDLL "AccessRun.dll" "RunProcAndWait"   ProcMdb _PROC)]
-// [(EXEC_ACCESS_ACTION _ACT )      (EXECDLL "AccessRun.dll" "RunActionAndWait" ProcMdb _ACT)]
-*/
-
-[(EXEC_ACCESS_PROC_DB        _DB _PROC) (EXECDLL "AccessRun.dll" "RunProcAndWait"            _DB _PROC)]
-[(EXEC_ACCESS_ACTION_DB      _DB _ACT ) (EXECDLL "AccessRun.dll" "RunActionAndWait"          _DB _ACT )]
-[(EXEC_VIS_ACCESS_PROC_DB    _DB _ACT ) (EXECDLL "AccessRun.dll" "RunProcVisible"            _DB _ACT )]
-[(EXEC_VIS_ACCESS_ACTION_DB  _DB _ACT ) (EXECDLL "AccessRun.dll" "RunActionVisible"          _DB _ACT )]
-[(EXEC_WAIT_ACCESS_ACTION_DB _DB _ACT ) (EXECDLL "AccessRun.dll" "RunActionAndWaitUserClose" _DB _ACT )]
-
-[(EXEC_ACCESS_SQL    _TBL _SQL)  (EXECDLL "AccessRun.dll" "RunSqlAndWait" "storage_name" _TBL _SQL)]
-
 /*********** RuimteScanner specifics *********/
 
 /* _Tj never gets negative, but it can get 0; causing _Mj to be zero in the next iteration */
-[(claim_div     _ADj _Mj) (iif (isPositive _ADj) (div _ADj _Mj) (value 0 '/Units/DemandUnit'))]
 [(claim_divF32  _ADj _Mj) (iif (isPositive _ADj) (div _ADj _Mj) (Float32 0 ))]
-[(claim_divF64  _ADj _Mj) (iif (isPositive _ADj) (div _ADj _Mj) 0.0)]
-[(claim_divF32D _ADj _Mj) 
-					(iif (isPositive _ADj) 
-						(div _ADj (max_elem _Mj (value 20 ggHa))) 
-						(Float32 0 ))]
-
-[(claim_corr _ADj _Mj _Oper) 
-                     (iif (eq _Oper (value 0 '/Units/OperatorRange')) (min_elem (claim_div _ADj _Mj) (value 1 '/Units/DemandUnit')) /* resulting _Aj such that: _Mj * _Aj <= _ADj */
-                     (iif (eq _Oper (value 1 '/Units/OperatorRange'))           (claim_div _ADj _Mj)                                /* resulting _Aj such that: _Mj * _Aj == _ADj */   
-                     (iif (eq _Oper (value 2 '/Units/OperatorRange')) (max_elem (claim_div _ADj _Mj) (value 1 '/Units/DemandUnit')) /* resulting _Aj such that: _Mj * _Aj >= _ADj */
-                            (value 1 '/Units/DemandUnit') )))]
 [(claim_corrF32 _ADj _Mj _Oper) 
                      (iif (eq _Oper (value 0 '/Classifications/OperatorType')) (min_elem (claim_divF32 _ADj _Mj) (Float32 1 )) /* resulting _Aj such that: _Mj * _Aj <= _ADj */
                      (iif (eq _Oper (value 1 '/Classifications/OperatorType'))           (claim_divF32 _ADj _Mj)               /* resulting _Aj such that: _Mj * _Aj == _ADj */
                      (iif (eq _Oper (value 2 '/Classifications/OperatorType')) (max_elem (claim_divF32 _ADj _Mj) (Float32 1 )) /* resulting _Aj such that: _Mj * _Aj >= _ADj */
                             (Float32 1 ) )))]
-
-[(claim_corrF32D _ADj _Mj _Oper) 
-                     (iif (eq _Oper (value 0 '/Classifications/OperatorType')) (min_elem (claim_divF32D _ADj _Mj) (Float32 1 )) /* resulting _Aj such that: _Mj * _Aj <= _ADj */
-                     (iif (eq _Oper (value 1 '/Classifications/OperatorType'))           (claim_divF32D _ADj _Mj)               /* resulting _Aj such that: _Mj * _Aj == _ADj */
-                     (iif (eq _Oper (value 2 '/Classifications/OperatorType')) (max_elem (claim_divF32D _ADj _Mj) (Float32 1 )) /* resulting _Aj such that: _Mj * _Aj >= _ADj */
-                            (Float32 1 ) )))]
-[(claim_corrF32DL _ADj _Mj _Oper) 
-                     (iif (eq _Oper (value 0 '/Classifications/OperatorType')) (min_elem (sub _ADj _Mj) (value 0 EUR_M2)) /* resulting _Aj such that: _Mj * _Aj <= _ADj */
-                     (iif (eq _Oper (value 1 '/Classifications/OperatorType'))           (sub _ADj _Mj)                   /* resulting _Aj such that: _Mj * _Aj == _ADj */
-                     (iif (eq _Oper (value 2 '/Classifications/OperatorType')) (max_elem (sub _ADj _Mj) (value 0 EUR_M2)) /* resulting _Aj such that: _Mj * _Aj >= _ADj */
-                            (value 0 EUR_M2) )))]
-
-[(claim_minmax_corrF32 _ADj_min _ADj_max _Mj) 
-	(median 
-		(Float32 1 ) 
-		(interval
-			(MakeDefined (claim_divF32 _ADj_min _Mj) (Float32 0))
-			(MakeDefined (claim_divF32 _ADj_max _Mj) (Float32 1))
-		)
-	)
-]
-
-[(claim_minmax_corrF64 _ADj_min _ADj_max _Mj) 
-	(median 
-		1.0 
-		(interval
-			(MakeDefined (claim_divF64 _ADj_min _Mj) 0.0)
-			(MakeDefined (claim_divF64 _ADj_max _Mj) 1.0)
-		)
-	)
-]
-
-[(claim_minmax_corrF32D _ADj_min _ADj_max _Mj) 
-	(median 
-		(Float32 1 ) 
-		(interval
-			(MakeDefined (claim_divF32D _ADj_min _Mj) (Float32 0))
-			(MakeDefined (claim_divF32D _ADj_max _Mj) (Float32 1))
-		)
-	)
-]
-
-[(claim_minmax_corrF32L _logADj_min _logADj_max _logMj) 
-	(median 
-		(Float32 0 ) 
-		(interval
-			(MakeDefined (sum _logADj_min _logMj) (Float32 -80))
-			(MakeDefined (sum _logADj_max _logMj) (Float32 0))
-		)
-	)
-]
 
 /*********** Logit funcs       *********/
 
@@ -355,7 +262,7 @@
 [(rjoin _a _b _c)            (lookup (rlookup _a _b) _c)]
 [(lookup (rlookup _a _a) _c) _c]
 [(sort_str _a)            (lookup (index _a) _a)]
-[(reversed_id _D)         (sub (sub  (add (UpperBound _D) (LowerBound _D) ) (convert 1 _D)) (ID _D))]
+[(reversed_id _D)         (sub (sub  (add (UpperBound _D) (LowerBound _D) ) (ID _D)) (convert 1 _D))]
 [(reverse _a)             (lookup (reversed_id (domainUnit _a)) _a)]
 [[index [_a [_b _R]]]     [subindex [(index _a) [(rank_sorted (index_a) _a) [_b _R]]]] ]
 
@@ -374,10 +281,6 @@
 [(UInt32 (div _V _V)) (UInt32 1)]                                   // rewrite gridverhouding for 100m
 [(div (pointrow _GRIDIDS) (convert (UInt32 1) _PRU)) (pointrow _GRIDIDS)] // rewrite pseudo divide
 [(div (pointcol _GRIDIDS) (convert (UInt32 1) _PRU)) (pointcol _GRIDIDS)] // rewrite pseudo divide
-
-//[(point (Float32 (neg (convert _V1 _U))) (Float32 (convert _V2 _U)) _GU) (point (Float32 (neg _V1)) (Float32 _V2) _GU)]
-//[(Float32 (neg (UInt32 _V))) (Float32 (neg _V))]
-//[(Float32      (UInt32 _V) ) (Float32      _V )]
 
 [(div _X (UInt32 1)) _X] // rewrite calculation of #cells of gridset
 

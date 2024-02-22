@@ -27,7 +27,10 @@ granted by an additional written contract for support, assistance and/or develop
 */
 //</HEADER>
 #include "StxPch.h"
+
+#if defined(CC_PRAGMAHDRSTOP)
 #pragma hdrstop
+#endif //defined(CC_PRAGMAHDRSTOP)
 
 #include "ConfigFileName.h"
 #include "ConfigProd.h"
@@ -165,7 +168,7 @@ void ConfigProd::SetSignature(SignatureType type)
 
 void ConfigProd::DoEntitySignature()
 {
-	SetSignature(ST_Unit);
+	SetSignature(SignatureType::Unit);
 	m_eValueClass = ValueWrap<UInt32>::GetStaticClass();
 }
 
@@ -181,7 +184,7 @@ void ConfigProd::ClearSignature()
 
 void ConfigProd::DoAttrSignature()
 {
-	SetSignature(ST_Attribute);
+	SetSignature(SignatureType::Attribute);
 }
 
 // *****************************************************************************
@@ -216,7 +219,7 @@ void ConfigProd::CreateItem(TokenID nameID, const iterator_t& loc)
 {
 	if (CurrentIsRoot())
 	{
-		if(m_eSignatureType != ST_TreeItem)
+		if(m_eSignatureType != SignatureType::TreeItem)
 			throwSemanticError("root of configuration tree must be a container");
 
 		dms_assert( m_stackContexts.empty() );
@@ -234,11 +237,11 @@ void ConfigProd::CreateItem(TokenID nameID, const iterator_t& loc)
 		CheckIsNew(GetContextItem(), nameID);
 
 		switch (m_eSignatureType) {
-			case ST_TreeItem: CreateContainer(nameID); break;
-			case ST_Template: CreateTemplate (nameID); break;
-			case ST_Unit:     CreateUnit     (nameID); break;
-			case ST_Attribute:CreateAttribute(nameID); break;
-			case ST_Parameter:CreateParameter(nameID); break;
+			case SignatureType::TreeItem: CreateContainer(nameID); break;
+			case SignatureType::Template: CreateTemplate (nameID); break;
+			case SignatureType::Unit:     CreateUnit     (nameID); break;
+			case SignatureType::Attribute:CreateAttribute(nameID); break;
+			case SignatureType::Parameter:CreateParameter(nameID); break;
 			default: dms_assert(0); // syntax only produces CreateItem with valid signature types
 		}
 	}
@@ -304,7 +307,7 @@ void ConfigProd::CreateTemplate(TokenID nameID)
 
 bool IsPolygonType(ValueClassID vid)
 {
-	return (vid >= VT_FirstPolygon && vid < VT_FirstAfterPolygon);
+	return (vid >= ValueClassID::VT_FirstPolygon && vid < ValueClassID::VT_FirstAfterPolygon);
 }
 
 void ConfigProd::CreateUnit(TokenID nameID)
@@ -395,7 +398,7 @@ void ConfigProd::OnItemDecl()
 		if (!expr.empty())
 		{
 			// m_pCurrent->throwItemError("Combination of range and Calculation rule depreciated");
-			reportF(ST_Warning, "%s: Combination of range and Calculation rule depreciated", m_pCurrent->GetSourceName().c_str());
+			reportF(SignatureType::Warning, "%s: Combination of range and Calculation rule depreciated", m_pCurrent->GetSourceName().c_str());
 		}
 		switch (unit->GetValueType()->GetNrDims())
 		{
@@ -458,7 +461,7 @@ void ConfigProd::DoBasicType()
 {
 	m_eValueClass = ValueClass::FindByScriptName(m_strIdentifierID);
 	if (!m_eValueClass)
-		throwErrorD( "Unknown ValueType", m_strIdentifierID.GetStr().c_str());
+		throwErrorD( "ConfigProd::DoBasicType: Unknown ValueType", m_strIdentifierID.GetStr().c_str());
 }
 
 void ConfigProd::DoEntityParam()
@@ -468,7 +471,9 @@ void ConfigProd::DoEntityParam()
 
 void ConfigProd::SetVC (ValueComposition    vc)
 {
-	dms_assert(m_eParamVC == ValueComposition::Unknown);
+	if (m_eParamVC != ValueComposition::Unknown)
+		throwErrorD("ConfigProd::SetValueComposition", "duplicate specification of ValueComposition not allowed");
+
 	m_eParamVC = vc;
 }
 
@@ -479,9 +484,9 @@ void ConfigProd::SetVC (ValueComposition    vc)
 // *****************************************************************************
 
 // REMOVE COMMENT: Integreer met DoNrOfRowsProp()
-void ConfigProd::DoUnitRangeProp()
+void ConfigProd::DoUnitRangeProp(bool isCategorical)
 {
-	dms_assert(m_pCurrent);
+	assert(m_pCurrent);
 	AbstrUnit* unit = AsCheckedUnit(m_pCurrent.get_ptr());
 	dms_assert(unit);
 	const ValueClass* vc = unit->GetValueType();
@@ -502,8 +507,8 @@ void ConfigProd::DoUnitRangeProp()
 
 		case 2:
 			unit->SetRangeAsDPoint(
-				_Top   (m_DPointInterval), _Left (m_DPointInterval),
-				_Bottom(m_DPointInterval), _Right(m_DPointInterval)
+				Top   (m_DPointInterval), Left (m_DPointInterval),
+				Bottom(m_DPointInterval), Right(m_DPointInterval)
 			);
 			break;
 
@@ -586,10 +591,19 @@ void ConfigProd::DoItemName()
 
 void ConfigProd::DoNrOfRowsProp()
 {
-	m_FloatInterval.first = 0;
-	m_FloatInterval.second = m_FloatVal;
-	m_eAssignmentDomainType = m_eValueType;
-	DoUnitRangeProp();
+	assert(m_eValueType == ValueClassID::VT_UInt64);
+	assert(m_pCurrent);
+
+	AbstrUnit* unit = AsCheckedUnit(m_pCurrent.get_ptr());
+	assert(unit);
+	const ValueClass* vc = unit->GetValueType();
+	assert(vc);
+
+	if (!vc->IsNumeric())
+		throwSemanticError(mgFormat2string("DoUnitRangeProp: the provided range is incompatible with the ValueType %s of this unit", vc->GetName()).c_str());
+
+	unit->SetTSF(USF_HasConfigRange | TSF_Categorical);
+	unit->SetRangeAsUInt64(0, m_IntValAsUInt64);
 }
 
 void ConfigProd::throwSemanticError(CharPtr msg)
@@ -599,5 +613,5 @@ void ConfigProd::throwSemanticError(CharPtr msg)
 	while (!curr && i--)
 		curr = m_stackContexts[i];
 
-	Object::throwItemErrorF(curr, "Semantic error %s", msg);
+	throwItemErrorF(curr, "Semantic error %s", msg);
 }

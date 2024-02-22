@@ -44,7 +44,7 @@ granted by an additional written contract for support, assistance and/or develop
 struct undefined_or_zero_func
 {
 	template <typename U, typename T>
-	U apply(const T& v) const
+	U apply(const T& /* v */) const
 	{
 		return UNDEFINED_OR_ZERO(U);
 	}

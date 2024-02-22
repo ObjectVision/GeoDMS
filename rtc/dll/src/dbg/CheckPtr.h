@@ -44,7 +44,7 @@ granted by an additional written contract for support, assistance and/or develop
 #if defined(MG_DEBUG)
 	RTC_CALL void CheckPtr(const Object* item, const Class* cls, CharPtr dmsFunc);
 #else
-	inline void CheckPtr(const Object* item, const Class* cls, CharPtr dmsFunc) {}
+	inline void CheckPtr(const Object*, const Class*, CharPtr) {}
 #endif
 
 

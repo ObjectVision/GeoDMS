@@ -1,31 +1,7 @@
-//<HEADER> 
-/*
-Data & Model Server (DMS) is a server written in C++ for DSS applications. 
-Version: see srv/dms/rtc/dll/src/RtcVersion.h for version info.
+// Copyright (C) 1998-2023 Object Vision b.v. 
+// License: GNU GPL 3
+/////////////////////////////////////////////////////////////////////////////
 
-Copyright (C) 1998-2004  YUSE GSO Object Vision BV. 
-
-Documentation on using the Data & Model Server software can be found at:
-http://www.ObjectVision.nl/DMS/
-
-See additional guidelines and notes in srv/dms/Readme-srv.txt 
-
-This library is free software; you can use, redistribute, and/or
-modify it under the terms of the GNU General Public License version 2 
-(the License) as published by the Free Software Foundation,
-provided that this entire header notice and readme-srv.txt is preserved.
-
-See LICENSE.TXT for terms of distribution or look at our web site:
-http://www.objectvision.nl/DMS/License.txt
-or alternatively at: http://www.gnu.org/copyleft/gpl.html
-
-This library is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
-General Public License for more details. However, specific warranties might be
-granted by an additional written contract for support, assistance and/or development
-*/
-//</HEADER>
 #pragma once
 
 #if !defined(__CLC_PCOUNT_H)
@@ -34,6 +10,8 @@ granted by an additional written contract for support, assistance and/or develop
 #include "set/BitVector.h"
 #include "DataCheckMode.h"
 #include "Unit.h"
+
+#include "AggrFuncNum.h"
 
 // *****************************************************************************
 //                            PartCount
@@ -45,11 +23,12 @@ void pcount_range(const T* sb, const T* se, I rb, SizeT rs, typename Unit<T>::ra
 	rb -= domainRange.first;
 	for (; sb != se; ++sb)
 	{
-		dms_assert(IsIncluding(domainRange, *sb));
+		auto i = *sb;
+		assert(IsIncluding(domainRange, i));
 
-		dms_assert(Range_GetIndex_naked(domainRange, *sb) < rs);
-		++rb[*sb];
-		MG_CHECK2(rb[*sb], "pcount: numeric overflow");
+		assert(Range_GetIndex_naked(domainRange, i) < rs);
+	
+		SafeIncrement(rb[i]);
 	}
 }
 
@@ -58,12 +37,11 @@ void pcount_range(const Point<T>* sb, const Point<T>* se, I rb, SizeT rs, typena
 {
 	for (; sb != se; ++sb)
 	{
-		dms_assert(IsIncluding(domainRange, *sb));
+		assert(IsIncluding(domainRange, *sb));
 
 		SizeT i = Range_GetIndex_naked(domainRange, *sb);
-		dms_assert(i < rs);
-		++rb[i];
-		MG_CHECK2(rb[i], "pcount: numeric overflow");
+		assert(i < rs);
+		SafeIncrement(rb[i]);
 	}
 }
 
@@ -76,8 +54,7 @@ void pcount_range_checked(const T* sb, const T* se, I rb, SizeT rs, typename Uni
 		SizeT i = Range_GetIndex_checked(domainRange, v);
 		if (i < rs)
 		{
-			++rb[i];
-			MG_CHECK2(rb[i], "pcount: numeric overflow");
+			SafeIncrement(rb[i]);
 		}
 	}
 }
@@ -88,11 +65,11 @@ void pcount_range(const T* sb, const T* se, UInt64* rb, SizeT rs, typename Unit<
 	rb -= domainRange.first;
 	for (; sb != se; ++sb)
 	{
-		dms_assert(IsIncluding(domainRange, *sb));
+		auto i = *sb;
+		assert(IsIncluding(domainRange, i));
 
-		dms_assert(Range_GetIndex_naked(domainRange, *sb) < rs);
-		++rb[*sb];
-		dms_assert(rb[*sb]);
+		assert(Range_GetIndex_naked(domainRange, i) < rs);
+		SafeIncrement(rb[i]);
 	}
 }
 
@@ -101,12 +78,11 @@ void pcount_range(const Point<T>* sb, const Point<T>* se, UInt64* rb, SizeT rs, 
 {
 	for (; sb != se; ++sb)
 	{
-		dms_assert(IsIncluding(domainRange, *sb));
+		assert(IsIncluding(domainRange, *sb));
 
 		SizeT i = Range_GetIndex_naked(domainRange, *sb);
-		dms_assert(i < rs);
-		++rb[i];
-		dms_assert(rb[i]);
+		assert(i < rs);
+		SafeIncrement(rb[i]);
 	}
 }
 
@@ -119,8 +95,7 @@ void pcount_range_checked(const T* sb, const T* se, UInt64* rb, SizeT rs, typena
 		SizeT i = Range_GetIndex_checked(domainRange, v);
 		if (i < rs)
 		{
-			++rb[i];
-			dms_assert(rb[i]);
+			SafeIncrement(rb[i]);
 		}
 	}
 }
@@ -140,7 +115,7 @@ void pcount_best(
 
 	if (dcm & (DCM_CheckDefined|DCM_CheckRange))
 	{
-		dms_assert((dcm != DCM_CheckBoth) || IsIncluding(domainRange, UNDEFINED_VALUE(T) ) );
+		assert((dcm != DCM_CheckBoth) || IsIncluding(domainRange, UNDEFINED_VALUE(T) ) );
 		pcount_range_checked(sb, se, rb, rs, domainRange);
 	}
 	else
@@ -156,27 +131,28 @@ void pcount_bitvalues(bit_iterator<N, Block> sb, bit_iterator<N, Block> se, Coun
 	This should be a generic facility at the bit_info<N> level.
 */
 	for (; sb.m_NrElems && sb != se; ++sb)
-		++counts[bit_value<N>(*sb)];
+		SafeIncrement(counts[bit_value<N>(*sb)]);
+
 	while (sb.m_BlockData != se.m_BlockData)
 	{
 		if ((*sb.m_BlockData & bit_info<N, Block>::used_bits_mask) == 0)
 		{
-			counts[0] += bit_info<N, Block>::nr_elem_per_block;
+			SafeAccumulate(counts[0],  bit_info<N, Block>::nr_elem_per_block);
 			++sb.m_BlockData;
 		}
 		else if ((*sb.m_BlockData & bit_info<N, Block>::used_bits_mask) == bit_info<N, Block>::used_bits_mask)
 		{
-			counts[bit_info<N, Block>::value_mask] += bit_info<N, Block>::nr_elem_per_block;
+			SafeAccumulate(counts[bit_info<N, Block>::value_mask], bit_info<N, Block>::nr_elem_per_block);
 			++sb.m_BlockData;
 		}
 		else
 			do {
-				++counts[bit_value<N>(*sb)];
+				SafeIncrement(counts[bit_value<N>(*sb)]);
 				++sb;
 			} while (sb.m_NrElems);
 	}
 	for (; sb != se; ++sb)
-		++counts[bit_value<N>(*sb)];
+		SafeIncrement(counts[bit_value<N>(*sb)]);
 }
 
 template<bit_size_t N, typename Block, typename I>
@@ -186,9 +162,9 @@ void pcount_best(
 	typename Unit<bit_value<N>>::range_t domainRange, 
 	DataCheckMode dcm, bool mustInit)
 {
-	dms_assert(dcm == DCM_None);
-	dms_assert(rs == bit_value<N>::nr_values);
-	dms_assert(domainRange.first == 0 && domainRange.second == bit_value<N>::nr_values);
+	assert(dcm == DCM_None);
+	assert(rs == bit_value<N>::nr_values);
+	assert(domainRange.first == 0 && domainRange.second == bit_value<N>::nr_values);
 
 	SizeT counts[bit_value<N>::nr_values]; 
 	fast_zero(counts, counts + bit_value<N>::nr_values);
@@ -202,7 +178,7 @@ void pcount_best(
 		fast_copy(counts, counts + bit_value<N>::nr_values, rb);
 	else
 		for (UInt32 i = 0; i != bit_value<N>::nr_values; ++i)
-			rb[i] += ThrowingConvertNonNull<U>(counts[i]);
+			SafeAccumulate(rb[i], ThrowingConvertNonNull<U>(counts[i]));
 }
 
 template<bit_size_t N, typename Block>
@@ -212,9 +188,9 @@ void pcount_best(
 	typename Unit<bit_value<N>>::range_t domainRange,
 	DataCheckMode dcm, bool mustInit)
 {
-	dms_assert(dcm == DCM_None);
-	dms_assert(rs == bit_value<N>::nr_values);
-	dms_assert(domainRange.first == 0 && domainRange.second == bit_value<N>::nr_values);
+	assert(dcm == DCM_None);
+	assert(rs == bit_value<N>::nr_values);
+	assert(domainRange.first == 0 && domainRange.second == bit_value<N>::nr_values);
 
 	if (mustInit)
 		fast_zero(rb, rb + bit_value<N>::nr_values);
@@ -237,7 +213,7 @@ void pcount_container(
 	auto rb = resData.begin();
 	SizeT rs = resData.size();
 
-	dms_assert(rs == Cardinality(domainRange));
+	assert(rs == Cardinality(domainRange));
 
 	pcount_best(sb, se, rb, rs, domainRange, dcm, mustInit);
 }

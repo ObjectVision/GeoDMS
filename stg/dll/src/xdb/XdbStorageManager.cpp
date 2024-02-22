@@ -27,7 +27,10 @@ granted by an additional written contract for support, assistance and/or develop
 */
 //</HEADER>
 #include "StoragePCH.h"
+
+#if defined(CC_PRAGMAHDRSTOP)
 #pragma hdrstop
+#endif //defined(CC_PRAGMAHDRSTOP)
 
 
 // *****************************************************************************
@@ -58,18 +61,21 @@ granted by an additional written contract for support, assistance and/or develop
 
 #define MG_DEBUG_XDB false
 
-bool XdbStorageManager::ReadDataItem(const StorageMetaInfo& smi, AbstrDataObject* borrowedReadResultHolder, tile_id t)
+bool XdbStorageManager::ReadDataItem(StorageMetaInfoPtr smi, AbstrDataObject* borrowedReadResultHolder, tile_id t)
 {
-	AbstrDataItem* adi = smi.CurrWD();
+	AbstrDataItem* adi = smi->CurrWD();
 	dms_assert(!t);
 
-	dms_assert( DoesExist(smi.StorageHolder()) );
+	dms_assert( DoesExist(smi->StorageHolder()) );
 	dms_assert(adi);
 
 	XdbImp imp;
 	UpdateColInfo(imp);
 
-	bool result = imp.OpenForRead(GetNameStr(), DSM::GetSafeFileWriterArray(), m_DatExtension, m_SaveColInfo); 
+	auto sfwa = DSM::GetSafeFileWriterArray();
+	if (!sfwa)
+		return false;
+	bool result = imp.OpenForRead(GetNameStr(), sfwa.get(), m_DatExtension, m_SaveColInfo);
 
 	MG_CHECK2(result, "Cannot open Xdb for reading");
 
@@ -83,7 +89,7 @@ bool XdbStorageManager::ReadDataItem(const StorageMetaInfo& smi, AbstrDataObject
 	return imp.ReadColumn(
 		reinterpret_cast<void *>(ado->GetDataWriteBegin().get_ptr()),
 		nr_cells, 
-		imp.ColIndex(adi->GetRelativeName(smi.StorageHolder()).c_str())
+		imp.ColIndex(adi->GetRelativeName(smi->StorageHolder()).c_str())
 	);
 }
 
@@ -95,14 +101,17 @@ bool XdbStorageManager::WriteDataItem(StorageMetaInfoPtr&& smiHolder)
 	XdbImp imp;
 	UpdateColInfo(imp);
 
-	bool result = imp.Open  (GetNameStr(), DSM::GetSafeFileWriterArray(), FCM_OpenRwFixed, m_DatExtension, m_SaveColInfo);
+	auto sfwa = DSM::GetSafeFileWriterArray();
+	if (!sfwa)
+		return false;
+	bool result = imp.Open  (GetNameStr(), sfwa.get(), FCM_OpenRwFixed, m_DatExtension, m_SaveColInfo);
 	if (!result)
-		result  = imp.Create(GetNameStr(), DSM::GetSafeFileWriterArray(), m_DatExtension, m_SaveColInfo);
+		result  = imp.Create(GetNameStr(), sfwa.get(), m_DatExtension, m_SaveColInfo);
 	MG_CHECK2(result, "Cannot open Xdb");
 
 	const AbstrDataItem* adi = smi->CurrRD();
 
-	dms_assert(adi->GetDataRefLockCount());
+	assert(adi->GetDataRefLockCount());
 
 	const AbstrDataObject* ado = adi->GetRefObj();
 	ValueClassID  vclsid = ado->GetValuesType()->GetValueClassID();
@@ -116,12 +125,17 @@ bool XdbStorageManager::WriteDataItem(StorageMetaInfoPtr&& smiHolder)
 	);
 }
 
-
 // Constructor for this implementation of the abstact storagemanager interface
 XdbStorageManager::XdbStorageManager(CharPtr datExtension, bool saveColInfo)
 	:	m_DatExtension(datExtension)
 	,	m_SaveColInfo(saveColInfo)
 {
+	if (saveColInfo)
+	{
+		// generic .xdb will no longer be supported; specific .xyz might still be 
+		reportD(SeverityTypeID::ST_Warning, "XdbStorageManager is depreciated for .xyz files and will be removed in GeoDms version 15.0.0");
+		static_assert(DMS_VERSION_MAJOR < 15);
+	}
 }
 
 
@@ -130,17 +144,20 @@ bool XdbStorageManager::ReadUnitRange(const StorageMetaInfo& smi) const
 	XdbImp imp;
 	UpdateColInfo(imp);
 
-	if (!imp.OpenForRead(GetNameStr(), DSM::GetSafeFileWriterArray(), m_DatExtension, m_SaveColInfo))
+	auto sfwa = DSM::GetSafeFileWriterArray();
+	if (!sfwa)
+		return false;
+
+	if (!imp.OpenForRead(GetNameStr(), sfwa.get(), m_DatExtension, m_SaveColInfo))
 		return false;
 
 	smi.CurrWU()->SetCount(imp.NrOfRows());
 	return true;
 }
 
-// Unclear in this context, but obligatory
 void XdbStorageManager::DoUpdateTree(const TreeItem* storageHolder, TreeItem* curr, SyncMode sm) const
 {
-	AbstrStorageManager::DoUpdateTree(storageHolder, curr, sm);
+	NonmappableStorageManager::DoUpdateTree(storageHolder, curr, sm);
 
 	if (sm == SM_None)
 		return;
@@ -153,11 +170,13 @@ void XdbStorageManager::DoUpdateTree(const TreeItem* storageHolder, TreeItem* cu
 	XdbImp imp;
 	UpdateColInfo(imp);
 
+	auto sfwa = DSM::GetSafeFileWriterArray(); MG_CHECK(sfwa);
 	// Pick up the content of the file
-	if (m_SaveColInfo && !imp.OpenForRead(GetNameStr(), DSM::GetSafeFileWriterArray(), m_DatExtension, true))
+	if (m_SaveColInfo && !imp.OpenForRead(GetNameStr(), sfwa.get(), m_DatExtension, true))
 		return;
 
 	const AbstrUnit* u_row = StorageHolder_GetTableDomain(storageHolder);
+
 
 	Int32 colcnt = imp.NrOfCols();
 	for (Int32 i =0; i<colcnt; i++)
@@ -174,7 +193,7 @@ void XdbStorageManager::DoUpdateTree(const TreeItem* storageHolder, TreeItem* cu
 			if (!OverlappingTypes(
 					adi->GetDynamicObjClass()->GetValuesType(), 
 					ValueClass::FindByValueClassID(imp.ColType(i))))
-				throwItemErrorF("Column %s is configured with a unit type that is incompatible with the xdb type %d", colName, imp.ColType(i));
+				throwItemErrorF("Column %s is configured with a unit type that is incompatible with the xdb type %d", colName, int(imp.ColType(i)));
 		}
 		else if (sm !=SM_None)
 		{
@@ -186,6 +205,7 @@ void XdbStorageManager::DoUpdateTree(const TreeItem* storageHolder, TreeItem* cu
 		}
 	}
 }
+
 
 // Inspect the current tree and creates c.q synchronises the ascii table
 void SyncItem(XdbStorageManager* self, XdbImp& imp, bool saveColInfo, const TreeItem* subItem)
@@ -200,8 +220,8 @@ void SyncItem(XdbStorageManager* self, XdbImp& imp, bool saveColInfo, const Tree
 	const AbstrUnit* du = curdi->GetAbstrDomainUnit();
 	const AbstrUnit* vu = curdi->GetAbstrValuesUnit();
 
-	dms_assert(du);
-	dms_assert(vu);
+	assert(du);
+	assert(vu);
 
 	// Get domain range
 	long range = du->GetCount();
@@ -213,20 +233,21 @@ void SyncItem(XdbStorageManager* self, XdbImp& imp, bool saveColInfo, const Tree
 	ValueClassID vid = vu->GetValueType()->GetValueClassID();
 	switch (vid)
 	{
-		case VT_UInt32: col_size = 12;  break;
-		case VT_Int32:  col_size = 12;  break;
-		case VT_Float32: col_size = 16; break;
-		case VT_Float64: col_size = 25; break;
+		case ValueClassID::VT_UInt32:  col_size = 12;  break;
+		case ValueClassID::VT_Int32:   col_size = 12;  break;
+		case ValueClassID::VT_Float32: col_size = 16; break;
+		case ValueClassID::VT_Float64: col_size = 25; break;
 		default: self->throwItemErrorF("xdb: unsupported value-type %s", vu->GetValueType()->GetName());
 	}
-	DBG_TRACE(("col_type = %d", vid));
+	DBG_TRACE(("col_type = %d", int(vid)));
 	DBG_TRACE(("col_size = %d", col_size));
 
 	// Write dummy content to disk (if the column doesn't exist yet)
-	imp.AppendColumn(curdi->GetName().c_str(), DSM::GetSafeFileWriterArray(subItem), col_size, vid, range, saveColInfo);
+	auto sfwa = DSM::GetSafeFileWriterArray(); MG_CHECK(sfwa);
+	auto result = imp.AppendColumn(curdi->GetName().c_str(), sfwa.get(), col_size, vid, range, saveColInfo);
+	MG_CHECK(result);
 }
 
-// Unclear in this context, but obligatory
 void XdbStorageManager::DoWriteTree(const TreeItem* storageHolder)
 {
 	if (!m_SaveColInfo)
@@ -235,8 +256,11 @@ void XdbStorageManager::DoWriteTree(const TreeItem* storageHolder)
 	// inspect the tree and append the corresponding columns
 	// if the column exists nothing is changed	
 
+	auto sfwa = DSM::GetSafeFileWriterArray(); MG_CHECK(sfwa);
 	XdbImp imp;
-	imp.OpenForRead(GetNameStr(), DSM::GetSafeFileWriterArray(), m_DatExtension, m_SaveColInfo); // to pass the storage name and lookup column name
+	auto result = imp.OpenForRead(GetNameStr(), sfwa.get(), m_DatExtension, m_SaveColInfo); // to pass the storage name and lookup column name
+	MG_CHECK(result);
+
 	SyncItem(this, imp, m_SaveColInfo, storageHolder);
 	for (const TreeItem* subItem = storageHolder->GetFirstSubItem(); subItem; subItem = subItem->GetNextItem())
 		SyncItem(this, imp, m_SaveColInfo, subItem);
@@ -261,9 +285,9 @@ public:
 		imp.m_RecSize = 32;
 		imp.m_LineBreakSize = 1;
 		imp.ColDescriptions.resize(3);
-		imp.ColDescriptions[0].m_Name =  "X"; imp.ColDescriptions[0].m_Offset =  0; imp.ColDescriptions[0].m_Type = VT_Float32;
-		imp.ColDescriptions[1].m_Name =  "Y"; imp.ColDescriptions[1].m_Offset = 12; imp.ColDescriptions[1].m_Type = VT_Float32;
-		imp.ColDescriptions[2].m_Name =  "Z"; imp.ColDescriptions[2].m_Offset = 24; imp.ColDescriptions[2].m_Type = VT_Float32;
+		imp.ColDescriptions[0].m_Name =  "X"; imp.ColDescriptions[0].m_Offset =  0; imp.ColDescriptions[0].m_Type = ValueClassID::VT_Float32;
+		imp.ColDescriptions[1].m_Name =  "Y"; imp.ColDescriptions[1].m_Offset = 12; imp.ColDescriptions[1].m_Type = ValueClassID::VT_Float32;
+		imp.ColDescriptions[2].m_Name =  "Z"; imp.ColDescriptions[2].m_Offset = 24; imp.ColDescriptions[2].m_Type = ValueClassID::VT_Float32;
 	};
 
 	DECL_RTTI(STGDLL_CALL,StorageClass)

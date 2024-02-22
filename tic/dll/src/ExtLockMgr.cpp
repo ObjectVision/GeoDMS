@@ -27,7 +27,10 @@ granted by an additional written contract for support, assistance and/or develop
 */
 //</HEADER>
 #include "TicPCH.h"
+
+#if defined(CC_PRAGMAHDRSTOP)
 #pragma hdrstop
+#endif //defined(CC_PRAGMAHDRSTOP)
 
 //----------------------------------------------------------------------
 // used modules and forward class references
@@ -79,7 +82,7 @@ namespace {
 			while (i!=e)
 			{
 				const TreeItem* ti = *i++;
-				reportF(SeverityTypeID::ST_MajorTrace, "%s Leak: %s (%d,%d) %s",
+				reportF(MsgCategory::memory, SeverityTypeID::ST_MajorTrace, "%s Leak: %s (%d,%d) %s",
 					m_ObjName,
 					ti->GetDynamicClass()->GetName(), 
 					ti->GetRefCount(), 
@@ -223,7 +226,7 @@ TIC_CALL UInt32 DMS_CONV DMS_TreeItem_GetInterestCount(const TreeItem* self)
 //----------------------------------------------------------------------
 
 #include "StoredPropDef.h"
-#include "mci/PropDefEnums.h"
+#include "mci/PropdefEnums.h"
 
 TIC_CALL AbstrPropDef* DMS_CONV DMS_StoredStringPropDef_Create(CharPtr name)
 {

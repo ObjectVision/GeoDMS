@@ -31,7 +31,7 @@ granted by an additional written contract for support, assistance and/or develop
 #if !defined(__PTR_SHAREDPTR_H)
 #define __PTR_SHAREDPTR_H
 
-#include <concrt.h>
+//REMOVE #include <concrt.h>
 
 #include "RtcBase.h"
 #include "dbg/Check.h"
@@ -114,7 +114,7 @@ struct SharedPtr : SharedPtrWrap<ptr_base<T, copyable> >
 	SharedPtr(SharedPtr&& rhs) noexcept
 		: base_type(std::move(rhs))
 	{ 
-		dms_assert(rhs.m_Ptr == 0); 
+		assert(rhs.m_Ptr == nullptr); 
 	}
 	SharedPtr(const SharedPtr& rhs) = default;
 

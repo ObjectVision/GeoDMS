@@ -51,11 +51,11 @@ struct SelChangeInvalidatorBase
 	~SelChangeInvalidatorBase();
 	void ProcessChange(bool mustSetFocusElemIndex = true);
 
-	TRect GetSelRect() const;
+	CrdRect GetSelRect() const;
 
 private:
 	TableControl* m_TableControl;
-	TRect         m_OldSelRect;
+	CrdRect       m_OldSelRect;
 	SelRange      m_OldRowRange;
 	SelRange      m_OldColRange;
 };
@@ -80,7 +80,7 @@ class TableControl : public GraphicVarCols
 public:
 	TableControl(MovableObject* owner);
 	~TableControl();
-	GraphicClassFlags GetGraphicClassFlags() const override { dms_assert(!base_type::GetGraphicClassFlags()); return GCF_ChildCovered; };
+	GraphicClassFlags GetGraphicClassFlags() const override { return GraphicClassFlags::ChildCovered; };
 
 	DataItemColumn* GetColumn(gr_elem_index i);
 	const DataItemColumn* GetConstColumn(gr_elem_index i) const;
@@ -93,6 +93,7 @@ public:
 	bool OnKeyDown(UInt32 virtKey) override;
 	void ProcessCollectionChange() override;
 	bool OnCommand(ToolButtonID id) override;
+	auto OnCommandEnable(ToolButtonID id) const -> CommandStatus override;
 	void Sync(TreeItem* viewContext, ShvSyncMode sm) override;
 	void DoUpdateView() override;
 
@@ -118,7 +119,7 @@ public:
 	void GoEnd  (bool shift);
 	void GoRow(SizeT row, bool mustSetFocusElemIndex);
 
-	void SetRowHeight(UInt32 height);
+	void SetRowHeight(UInt16 height);
 
 	void HideSortOptions(bool value = true) { m_State.Set(TCF_HideSortOptions, value);   }
 	bool HasSortOptions() const             { return ! m_State.Get(TCF_HideSortOptions); }
@@ -129,6 +130,10 @@ public:
 	SizeT GetRecNo(SizeT i) const;
 	SizeT GetRowNr(SizeT i) const;
 	ExportInfo GetExportInfo();
+
+	SizeT nrRows() const;
+	SizeT getRecNo(SizeT i) const;
+	SizeT getRowNr(SizeT i) const;
 
 	bool  InSelRange(SizeT row, gr_elem_index col) const { return m_Cols.IsInRange(col) && m_Rows.IsInRange(row); }
 	void  Export();
@@ -152,8 +157,6 @@ public:
 
 //	insert / delete rows
 	bool CheckCardinalityChangeRights(bool doThrow);
-	void ClassSplit();
-	void ClassMerge();
 
 //	override Actor mfuncs
 	ActorVisitState VisitSuppliers(SupplierVisitFlag svf, const ActorVisitor& visitor) const override;

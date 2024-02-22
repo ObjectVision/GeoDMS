@@ -27,7 +27,10 @@ granted by an additional written contract for support, assistance and/or develop
 */
 //</HEADER>
 #include "RtcPCH.h"
+
+#if defined(CC_PRAGMAHDRSTOP)
 #pragma hdrstop
+#endif //defined(CC_PRAGMAHDRSTOP)
 
 /*
  *  Name        : ser\BaseStreamBuff.cpp
@@ -86,4 +89,8 @@ OutStreamBuff:: OutStreamBuff() {}
 OutStreamBuff::~OutStreamBuff() {}
 WeakStr OutStreamBuff::FileName() { return SharedStr(); }
 
+void OutStreamBuff::WriteBytes(CharPtr cstr)
+{
+	WriteBytes(cstr, StrLen(cstr)); 
+}
 

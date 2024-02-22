@@ -60,7 +60,7 @@ struct AbstrDataBlockProd : private boost::noncopyable
 	void DoRgbValue3(UInt32);
 
 	void DoFloatValue(const Float64&);
-	void DoIntegerValue(UInt32);
+	void DoUInt64(UInt64);
 	void DoBoolValue(bool v);
 	void DoNullValue();
 	void SetValueType(ValueClassID vid) { m_eValueType = vid; }
@@ -71,20 +71,20 @@ struct AbstrDataBlockProd : private boost::noncopyable
 	// data collection support
 	row_id              m_nIndexValue = 0;
 
-	ValueClassID        m_eAssignmentDomainType = VT_Unknown;     // type of interval or selector value
+	ValueClassID        m_eAssignmentDomainType = ValueClassID::VT_Unknown;     // type of interval or selector value
 
 	Range<Float64>      m_FloatInterval;
 	Range<DPoint>       m_DPointInterval;
 
 
 	// basicValue elements
-	ValueClassID        m_eValueType = VT_Unknown;   // type of basicValue
+	ValueClassID        m_eValueType = ValueClassID::VT_Unknown;   // type of basicValue
 	StringProd          m_StringVal;
 	bool                m_BoolVal = false;
 	DPoint              m_DPointVal;
 	Float64             m_FloatVal = 0.0;
-	Int32               m_IntValAsInt32 = 0;  // the read integer or UNDEFINED(Int32)  if out of range(Int32)
-	UInt32              m_IntValAsUInt32 = 0; // the read integer or UNDEFINED(UInt32) if out of range(UInt32)
+	Int64               m_IntValAsInt64 = 0;  // the read integer or UNDEFINED(Int64)  if out of range(Int32)
+	UInt64              m_IntValAsUInt64 = 0; // the read integer or UNDEFINED(UInt64) if out of range(UInt32)
 	bool                m_bSignIsPlus = false;
 
 protected:

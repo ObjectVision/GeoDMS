@@ -1,31 +1,7 @@
-//<HEADER> 
-/*
-Data & Model Server (DMS) is a server written in C++ for DSS applications. 
-Version: see srv/dms/rtc/dll/src/RtcVersion.h for version info.
+// Copyright (C) 1998-2023 Object Vision b.v. 
+// License: GNU GPL 3
+/////////////////////////////////////////////////////////////////////////////
 
-Copyright (C) 1998-2004  YUSE GSO Object Vision BV. 
-
-Documentation on using the Data & Model Server software can be found at:
-http://www.ObjectVision.nl/DMS/
-
-See additional guidelines and notes in srv/dms/Readme-srv.txt 
-
-This library is free software; you can use, redistribute, and/or
-modify it under the terms of the GNU General Public License version 2 
-(the License) as published by the Free Software Foundation,
-provided that this entire header notice and readme-srv.txt is preserved.
-
-See LICENSE.TXT for terms of distribution or look at our web site:
-http://www.objectvision.nl/DMS/License.txt
-or alternatively at: http://www.gnu.org/copyleft/gpl.html
-
-This library is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
-General Public License for more details. However, specific warranties might be
-granted by an additional written contract for support, assistance and/or development
-*/
-//</HEADER>
 #pragma once
 
 #if !defined(__TIC_ABSTRDATAITEM_H)
@@ -86,9 +62,12 @@ public:
 	TIC_CALL garbage_t StopInterest () const noexcept override;
 
 //	wrapper funcs that forward to DataObject
-	TIC_CALL const AbstrUnit*  GetAbstrDomainUnit() const;
-	TIC_CALL const AbstrUnit*  GetAbstrValuesUnit() const;
-	TIC_CALL AbstrValue*       CreateAbstrValue  () const;
+	TIC_CALL auto GetAbstrDomainUnit() const -> const AbstrUnit*;
+	TIC_CALL auto GetAbstrValuesUnit() const -> const AbstrUnit*;
+	TIC_CALL auto CreateAbstrValue() const->AbstrValue*;
+
+	TIC_CALL auto GetNonDefaultDomainUnit() const -> const AbstrUnit*;
+	TIC_CALL auto GetNonDefaultValuesUnit() const -> const AbstrUnit*;
 
 //	Override TreeItem virtuals
 	SharedStr GetDescr() const override;
@@ -96,7 +75,7 @@ public:
 
 //	Override TreeItem virtuals that forward to DataObject
 	SharedStr GetSignature() const override;
-	bool DoReadItem(StorageMetaInfo* smi) override;
+	bool DoReadItem(StorageMetaInfoPtr smi) override;
 	bool DoWriteItem(StorageMetaInfoPtr&& smi) const override;
 	void ClearData(garbage_t&) const override;
 
@@ -151,6 +130,9 @@ public:
 	template <typename V> V LockAndGetValue(SizeT index) const;
 	template <typename V> SizeT LockAndCountValues(param_type_t<typename sequence_traits<V>::value_type> value) const;
 
+	TokenID DomainUnitToken() const { return m_tDomainUnit; }
+	TokenID ValuesUnitToken() const { return m_tValuesUnit; }
+
 protected:
 	TIC_CALL void CopyProps(TreeItem* result, const CopyTreeContext& copyContext) const override;
 
@@ -169,7 +151,7 @@ private:
 public: // TODO G8: Re-encapsulate
 	mutable SharedPtr<const AbstrDataObject> m_DataObject;
 	mutable std::atomic<Int32>               m_DataLockCount = 0; // -1 = WriteLock; positive: nr Of Read Locks on Data
-	SharedStr                                m_FileName;
+//REMOVE	SharedStr                                m_FileName;
 
 	friend struct DataReadLock;
 	friend struct DataReadLockAtom; 
@@ -181,6 +163,18 @@ public: // TODO G8: Re-encapsulate
 
 //	Serialization
 	DECL_RTTI(TIC_CALL, TreeItemClass)
+};
+
+//----------------------------------------------------------------------
+// PropDefPtrs
+//----------------------------------------------------------------------
+
+struct TableColumnSpec
+{
+	SharedDataItemInterestPtr m_DataItem;
+	TokenID m_ColumnName;
+	bool    m_RelativeDisplay = false;
+	mutable Float64 m_ColumnTotal = 0.0;
 };
 
 //----------------------------------------------------------------------

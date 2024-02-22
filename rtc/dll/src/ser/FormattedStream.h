@@ -1,54 +1,18 @@
-//<HEADER> 
-/*
-Data & Model Server (DMS) is a server written in C++ for DSS applications. 
-Version: see srv/dms/rtc/dll/src/RtcVersion.h for version info.
-
-Copyright (C) 1998-2004  YUSE GSO Object Vision BV. 
-
-Documentation on using the Data & Model Server software can be found at:
-http://www.ObjectVision.nl/DMS/
-
-See additional guidelines and notes in srv/dms/Readme-srv.txt 
-
-This library is free software; you can use, redistribute, and/or
-modify it under the terms of the GNU General Public License version 2 
-(the License) as published by the Free Software Foundation,
-provided that this entire header notice and readme-srv.txt is preserved.
-
-See LICENSE.TXT for terms of distribution or look at our web site:
-http://www.objectvision.nl/DMS/License.txt
-or alternatively at: http://www.gnu.org/copyleft/gpl.html
-
-This library is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
-General Public License for more details. However, specific warranties might be
-granted by an additional written contract for support, assistance and/or development
-*/
-//</HEADER>
+// Copyright (C) 1998-2023 Object Vision b.v. 
+// License: GNU GPL 3
+/////////////////////////////////////////////////////////////////////////////
 
 #pragma once
 
 #if !defined(__RTC_SER_FORMATTEDSTREAM_H)
 #define __RTC_SER_FORMATTEDSTREAM_H
 
+#include "ser/FormattingFlags.h"
 #include "ser/BaseStreamBuff.h"
-#include "geo/IterRange.h"
+#include "geo/iterrange.h"
 #include "geo/StringBounds.h"
 #include "ptr/StaticPtr.h"
-#include "utl/instantiate.h"
-
-//----------------------------------------------------------------------
-// FormattingFlags
-//----------------------------------------------------------------------
-
-enum class FormattingFlags {
-	None = 0,
-	ThousandSeparator = 1
-};
-
-inline bool HasThousandSeparator(FormattingFlags ff) { return UInt32(ff) & UInt32(FormattingFlags::ThousandSeparator);  }
-
+#include "utl/Instantiate.h"
 
 // *****************************************************************************
 // Section:     FormattedOutStream
@@ -56,7 +20,7 @@ inline bool HasThousandSeparator(FormattingFlags ff) { return UInt32(ff) & UInt3
 
 struct FormattedOutStream : boost::noncopyable
 { 
-	RTC_CALL FormattedOutStream(OutStreamBuff* out, FormattingFlags ff);
+	RTC_CALL FormattedOutStream(OutStreamBuff* out, FormattingFlags ff = FormattingFlags::ThousandSeparator);
 
 	OutStreamBuff& Buffer() { return *m_OutStreamBuff; }
 	FormattingFlags GetFormattingFlags() const { return m_FormattingFlags; }
@@ -133,7 +97,7 @@ struct FormattedInpStream : std::iterator<std::input_iterator_tag, char>
 	streamsize_t   m_LineStartPos;
 	bool           m_AtEnd;
 	reader_flags   m_Flags;
-	MG_DEBUGCODE( streamsize_t md_LastPos; )
+	MG_DEBUGCODE( streamsize_t md_LastPos = 0; )
 };
 
 #define INSTANTIATE(T) \
@@ -181,21 +145,14 @@ inline FormattedOutStream& operator <<(FormattedOutStream& str, CharPtr value)
 	return str;
 }
 
+inline FormattedOutStream& operator <<(FormattedOutStream& str, CharPtrRange value)
+{
+	str.Buffer().WriteBytes(value.begin(), value.size());
+	return str;
+}
 
 RTC_CALL FormattedInpStream& operator >>(FormattedInpStream& str, CharPtr value);
 
-//----------------------------------------------------------------------
-// StreamableDataTime
-//----------------------------------------------------------------------
-
-struct StreamableDataTime // Display operating system-style date and time. 
-{
-	char dateBuff[128], timeBuff[128];
-
-	StreamableDataTime();
-};
-
-FormattedOutStream& operator <<(FormattedOutStream& fos, const StreamableDataTime& self);
 
 
 #endif // __RTC_SER_FORMATTEDSTREAM_H

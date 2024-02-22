@@ -27,7 +27,10 @@ granted by an additional written contract for support, assistance and/or develop
 */
 //</HEADER>
 #include "StxPch.h"
+
+#if defined(CC_PRAGMAHDRSTOP)
 #pragma hdrstop
+#endif //defined(CC_PRAGMAHDRSTOP)
 
 #include "geo/StringBounds.h"
 #include "mci/ValueComposition.h"
@@ -64,8 +67,8 @@ struct config_grammar : public boost::spirit::grammar<config_grammar>
 	template <typename ScannerT>
 	struct definition
 	{
-		typedef datablock_grammar::definition<ScannerT> datablock_definition_t;
-		typedef expr_grammar<EmptyExprProd>::definition<ScannerT> expr_definition_t;
+		using datablock_definition_t = datablock_grammar::definition<ScannerT>;
+		using expr_definition_t = expr_grammar<EmptyExprProd>::definition<ScannerT>;
 
 		datablock_definition_t m_DataBlockDef;
 		expr_definition_t      m_ExprDef;
@@ -167,11 +170,11 @@ struct config_grammar : public boost::spirit::grammar<config_grammar>
 									[([&cp](auto _1, auto _2) { cp.DoItemHeading(_1, _2);})];
 
 								itemSignature =
-									as_lower_d[CONTAINER][([&cp](...) { cp.SetSignature(ST_TreeItem);})]
-									| as_lower_d[TEMPLATE][([&cp](...) { cp.SetSignature(ST_Template);})]
+									as_lower_d[CONTAINER][([&cp](...) { cp.SetSignature(SignatureType::TreeItem);})]
+									| as_lower_d[TEMPLATE][([&cp](...) { cp.SetSignature(SignatureType::Template);})]
 									| (as_lower_d[ATTRIBUTE] >> '<' >> unitIdentifier >> '>')[([&cp](...) { cp.DoAttrSignature();})]
-									| (as_lower_d[PARAMETER] >> '<' >> unitIdentifier >> '>')[([&cp](...) { cp.SetSignature(ST_Parameter);})]
-									| (as_lower_d[UNIT] >> '<' >> basicType >> '>')[([&cp](...) { cp.SetSignature(ST_Unit);})]
+									| (as_lower_d[PARAMETER] >> '<' >> unitIdentifier >> '>')[([&cp](...) { cp.SetSignature(SignatureType::Parameter);})]
+									| (as_lower_d[UNIT] >> '<' >> basicType >> '>')[([&cp](...) { cp.SetSignature(SignatureType::Unit);})]
 									| (as_lower_d[ENTITY])[([&cp](...) { cp.DoEntitySignature();})]
 									;
 
@@ -239,7 +242,7 @@ struct config_grammar : public boost::spirit::grammar<config_grammar>
 								//<entity nr of rows prop> ::= nrofrows = <integer value> ;
 								entityNrOfRowsProp = (as_lower_d["nrofrows"]
 									>> EQUAL[([&cp](...) { cp.SetSign(true); })]
-									>> m_DataBlockDef.integerValue
+									>> m_DataBlockDef.unsignedInteger
 									)[([&cp](...) { cp.DoNrOfRowsProp(); })];
 
 								directExpr = EQUAL >> m_ExprDef.start()[([&cp](auto _1, auto _2) { cp.DoExprProp(_1, _2);})];
@@ -299,7 +302,9 @@ TreeItem* ConfigProd::ParseFile(CharPtr fileName)
 {
 	AuthErrorDisplayLock recursionLock;
 
-	MappedConstFileMapHandle fv(SharedStr(fileName), nullptr, true, false); // SFWA
+	m_CurrFileName = SharedStr(fileName);
+	MappedConstFileMapHandle fv(m_CurrFileName, nullptr, true, false); // SFWA
+
 	try {
 
 		parse_info_t info

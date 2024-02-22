@@ -28,13 +28,16 @@ granted by an additional written contract for support, assistance and/or develop
 //</HEADER>
 
 #include "GeoPCH.h"
-#pragma hdrstop
 
-#include "dbg/Debug.h"
+#if defined(CC_PRAGMAHDRSTOP)
+#pragma hdrstop
+#endif //defined(CC_PRAGMAHDRSTOP)
+
+#include "dbg/debug.h"
 #include "dbg/SeverityType.h"
 #include "geo/Pair.h"
 #include "mci/CompositeCast.h"
-#include "mth/MathLib.h"
+#include "mth/Mathlib.h"
 #include "ptr/OwningPtrSizedArray.h"
 #include "ser/PairStream.h"
 #include "utl/mySPrintF.h"
@@ -50,6 +53,12 @@ granted by an additional written contract for support, assistance and/or develop
 
 #include "bi_graph.h"
 #include "PCount.h"
+
+/*
+	discrete allocation, O(n*k), see:
+		Tokuyama, T., & Nakano, J.(1995). Efficient algorithms for the Hitchcock transportation problem. SIAM Journal on Computing, 24(3), 563–578.
+		Koomen, E., Hilferink, M., & Borsboom-van Beurden, J. (2011). Introducing land use scanner (pp. 3-21). Springer Netherlands. paragraph 1.3.3
+*/
 
 /*
 HT<S> takes the following arguments:
@@ -80,46 +89,47 @@ results in:
 
 */
 /* 
-	SMALL PERTUBATIONS
-	In order to make exact allocation possible, equal suitabilities are virtually pertubated.
-	It should never be the case that for any two cells i,l and types j,k,
-	the distance from points Si and Sl to the facet (j,k) is equal
+	SMALL PERTURBATIONS
+	In order to make exact allocation possible, equal suitabilities are virtually perturbated.
+	It should never be the case that for any two cells i,h and types j,k,
+	the distance from points i and h to the facet (j,k) is equal
 	or formally:
 
 	(R1):
 
-		(Sij + Cj) - (Sik + Ck) <> (Slj + Cj) - (Slk + Ck)
-	or	(Sij - Sik) + (Cj - Ck) <> (Slj - Slk) + ( Cj - Ck)
-	or	(Sij - Sik)             <> (Slj - Slk)
+		(S_ij + C_j ) - (S_ik + C_k) <> (S_hj + C_j) - (S_hk + C_k)
+	or	(S_ij - S_ik) + (C_j  - C_k) <> (S_hj - S_hk) + ( C_j - C_k)
+	or	(S_ij - S_ik)                <> (S_hj - S_hk)
 
-	unless i==l OR j==k.
+	unless i==h OR j==k.
 
 
-	This is achieved by applying symbolic pertubations to the cost values and
+	This is achieved by applying symbolic perturbations to the cost values and
 	require some administration which points are compared. 
 
-	Sij(epsilon) := Sij + epsilon*i*j
+	S_ij(epsilon) := S_ij + epsilon*i*j
 
-	Thus Sij(epsilon) <> Skl(epsilon) for i<>k XOR j<>l
-	since Sij == Skl implies Sij(epsilon) - Skl(epsilon) == epsilon*(ij - kl)
+	Thus S_ij(epsilon) <> S_kh(epsilon) for i<>k XOR j<>h
+	since S_ij == Skh implies S_ij(epsilon) - S_kh(epsilon) == epsilon*(ij - kh)
 
-	and (Sij(epsilon) - Sik(epsilon)) - (Slj(epsilon) - Slk(epsilon))
-	== epsilon * [(ij - ik) - (lj - lk)]
-	== epsilon * [(i-l)(j-k)],
+	and (S_ij(epsilon) - S_ik(epsilon)) - (S_hj(epsilon) - S_hk(epsilon))
+	== epsilon * [(ij - ik) - (hj - hk)]
+	== epsilon * [(i-h)(j-k)],
 	which fullfills requirement (R1).
 
-	The sufficiency of (R1) and thus the fact that degeneracies such as Sij == Slk for i<>l AND j<>k doesn't matter
+	The sufficiency of (R1) and thus the fact that degeneracies such as S_ij == S_hk for i<>h AND j<>k doesn't matter
 	follows from close analysis of the used operators:
 		
-	- We take and count maxima per cell i of (Sij + Cj) over j.
-	- We keep a queue of cells i for each communicating (j,k) facet, strictly ordered by (Sij(epsilon) - Sik(epsilon)), small values have priority
-	- We update Cj(epsilon) := Ck(epsilon) - (Sij(epsilon) - Sik(epsilon)) using facet (j,k)
-	  =>        Cj.first    := Ck.first    - heap(j,k).top.first
-	  =>        Cj.second   := Ck.second   - epsilon*i*(j-k)
+	- We take and count maxima per cell i of (S_ij + C_j) over j.
+	- We keep a queue of cells i for each communicating (j,k) facet, strictly ordered by (S_ij(epsilon) - S_ik(epsilon)), small values have priority
+	- We update C_j(epsilon) := C_k(epsilon) - (S_ij(epsilon) - S_ik(epsilon)) using facet (j,k)
+
+	  =>        C[j].first    := C[k].first    - heap(j,k).top.first
+	  =>        C[j].second   := C[k].second   - epsilon * i * (j-k)
 
 
 	See:
-	Edelsbrunner, H. And Mcke, E. Simulation of simplicity: a technique to cope with degenerate cases in geometric algorithms, 4th Annual ACM Symposium on Computational Geometry (1988) 118-133.
+	Edelsbrunner, H. And Mücke, E. Simulation of simplicity: a technique to cope with degenerate cases in geometric algorithms, 4th Annual ACM Symposium on Computational Geometry (1988) 118-133.
 */
 
 #define EPSILON(x) (x)
@@ -334,7 +344,7 @@ struct partitioning_info_t
 		DataReadLock lock(m_AtomicRegionPartitioningDI);
 		auto nrAtomicRegions = m_AtomicRegionPartitioningDI->GetCurrRefObj()->GetNrFeaturesNow();
 		MG_DEBUGCODE( md_NrAtomicRegions = nrAtomicRegions);
-		m_AtomicRegionPartitioningData = OwningPtrSizedArray<UInt32>(nrAtomicRegions MG_DEBUG_ALLOCATOR_SRC("DiscrAlloc: m_AtomicRegionPartitioningData"));
+		m_AtomicRegionPartitioningData = OwningPtrSizedArray<UInt32>(nrAtomicRegions, dont_initialize MG_DEBUG_ALLOCATOR_SRC("DiscrAlloc: m_AtomicRegionPartitioningData"));
 		m_AtomicRegionPartitioningDI->GetCurrRefObj()->GetValuesAsUInt32Array(tile_loc(0, 0), nrAtomicRegions, m_AtomicRegionPartitioningData.begin());
 	}
 
@@ -2410,7 +2420,11 @@ void IncrementAtomicRegionCount(std::vector<UInt32>& atomicRegionCount, const re
 		dms_assert(regionInfo.m_CurrPI < regionInfo.m_N);
 		UInt32 ar = regionInfo.m_AtomicRegionMapData[regionInfo.m_CurrPI];
 		if (ar >= atomicRegionCount.size())
-			regionInfo.m_AtomicRegionMap->GetAbstrValuesUnit()->throwItemErrorF("Value %u out of range of valid Atomic Regions", ar);
+			regionInfo.m_AtomicRegionMap->GetAbstrValuesUnit()->throwItemErrorF(
+					"Value %u%s out of range of valid Atomic Regions"
+				,	ar
+				,	IsDefined(ar) ? "" : "(a.k.a. null-value)"
+			);
 		++atomicRegionCount[ar];
 	}
 	dms_assert(regionInfo.m_CurrPI >= regionInfo.m_N);
@@ -2561,7 +2575,7 @@ class HitchcockTransportationOperator : public UndenaryOperator
 	typedef ClaimType     ResultTotalType;   
 	typedef PriceType     ResultShadowPriceType; 
 	using htp_info_type = htp_info_t<S, AR, AT>;
-	bool m_MustAdjust;
+	const bool m_MustAdjust;
 
 public:
 	HitchcockTransportationOperator(AbstrOperGroup* gr, bool mustAdjust)
@@ -2615,7 +2629,7 @@ public:
 		dms_assert(res);
 
 		AbstrDataItem* resLanduse = CreateDataItem(res, GetTokenID_mt("landuse"), allocUnit, ggTypeSet);
-		resLanduse->SetTSF(DSF_Categorical);
+		resLanduse->SetTSF(TSF_Categorical);
 
 		AbstrDataItem* resStatus =
 			CreateDataItem(
@@ -2660,7 +2674,7 @@ public:
 			resPrices = CreateDataItem(res, GetTokenID_mt("bid_price"), allocUnit, htpInfo.m_PriceUnit);
 	}
 
-	bool CalcResult(TreeItemDualRef& resultHolder, const ArgRefs& args, OperationContext* fc, Explain::Context* context) const override
+	bool CalcResult(TreeItemDualRef& resultHolder, ArgRefs args, std::vector<ItemReadLock> readLocks, OperationContext* fc, Explain::Context* context) const override
 	{
 		dms_assert(args.size() == 11);
 		htp_info_type& htpInfo = *noncopyable_any_cast<htp_info_type>(&fc->m_MetaInfo);
@@ -2832,10 +2846,10 @@ namespace
 			oper_arg_policy::calc_never,                                    // feasibilityCertificate
 	};
 
-	SpecialOperGroup hitchcockGroup   ("discrete_alloc",          11, da_oap);
-	SpecialOperGroup hitchcockGroup_16("discrete_alloc_16",       11, da_oap);
-	SpecialOperGroup greedyGroup("greedy_alloc", 11, da_oap);
-	SpecialOperGroup greedyGroup_16("greedy_alloc_16", 11, da_oap);
+	SpecialOperGroup hitchcockGroup   ("discrete_alloc",          11, da_oap, oper_policy::better_not_in_meta_scripting);
+	SpecialOperGroup hitchcockGroup_16("discrete_alloc_16",       11, da_oap, oper_policy::better_not_in_meta_scripting);
+	SpecialOperGroup greedyGroup("greedy_alloc", 11, da_oap, oper_policy::better_not_in_meta_scripting);
+	SpecialOperGroup greedyGroup_16("greedy_alloc_16", 11, da_oap, oper_policy::better_not_in_meta_scripting);
 
 	template <typename S, typename AR>
 	struct HitchcockTransportationOperators

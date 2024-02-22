@@ -388,9 +388,6 @@ bool E00StorageManager::RetrieveHeaderInfoOnly()
 	return true;
 }
 
-
-
-// Unclear in this context, but obligatory
 void E00StorageManager::DoWriteTree(const TreeItem* storageHolder)
 {
 	DBG_START("E00StorageManager", "DoWriteTree", true);

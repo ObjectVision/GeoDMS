@@ -43,6 +43,8 @@ TIC_CALL extern PropDef<TreeItem, SharedStr>* explicitSupplPropDefPtr;
 
 TIC_CALL extern PropDef<TreeItem, SharedStr>* storageNamePropDefPtr;
 TIC_CALL extern PropDef<TreeItem, TokenID  >* storageTypePropDefPtr;
+TIC_CALL extern PropDef<TreeItem, SharedStr>* storageDriverPropDefPtr;
+TIC_CALL extern PropDef<TreeItem, SharedStr>* storageOptionsPropDefPtr;
 TIC_CALL extern PropDef<TreeItem, PropBool >* storageReadOnlyPropDefPtr;
 TIC_CALL extern PropDef<TreeItem, TokenID  >* syncModePropDefPtr;
 
@@ -70,9 +72,10 @@ enum class SourceDescrMode {
 	Configured = 0,
 	ReadOnly = 1,
 	WriteOnly = 2,
-	All = 3
+	All = 3,
+	DatasetInfo
 };
 
 TIC_CALL SharedStr TreeItem_GetSourceDescr(const TreeItem* studyObject, SourceDescrMode sdm, bool bShowHidden); // defined in SourceDescr.cpp
-
+TIC_CALL void TreeItem_DumpSourceCalculator(const TreeItem* studyObject, SourceDescrMode sdm, bool bShowHidden, OutStreamBase* xmlOutStrPtr);
 #endif // __TIC_TREEITEMPROPS_H

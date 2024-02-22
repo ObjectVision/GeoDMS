@@ -61,6 +61,11 @@ public:
 	}
 };
 
+struct TileBase : SharedObj
+{
+	RTC_CALL virtual void DecoupleShadowFromOwner();
+};
+
 template <typename T>
 class SharedThing : public SharedObj
 {

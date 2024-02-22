@@ -58,7 +58,15 @@
     <ClInclude Include="src\SpatialInterface.h">
       <Filter>Geo Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\rtc\dll\src\ipolygon\polygon.hpp" />
+    <ClInclude Include="..\..\rtc\dll\src\ipolygon\polygon.hpp">
+      <Filter>Geo Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\AbstrBoundingBoxCache.h">
+      <Filter>Geo Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\BoundingBoxCache.h">
+      <Filter>Geo Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\Canyon.cpp">
@@ -124,10 +132,22 @@
     <ClCompile Include="src\BoostPolygon.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="src\PolyOper.cpp" />
-    <ClCompile Include="src\GridDist.cpp" />
-    <ClCompile Include="src\Perimeter.cpp" />
     <ClCompile Include="src\BoostGeometry.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\GridDist.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Perimeter.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\PolyOper.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\AbstrBoundingBoxCache.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Poly2GridOper.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

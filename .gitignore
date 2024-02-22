@@ -15,3 +15,12 @@ todo*.txt
 /XE2/General/DmsInterface/__history
 
 /XE2/DMS/GeoDmsGui.identcache
+/exe/gui/GeoDmsGuiQt.vcxproj.filters
+/exe/gui/GeoDmsGuiQt.filters
+/qtgui/exe/res/images/down_arrow.xcf
+/XE2/DMS/GeoDmsGuiDelphi.dproj.local
+/XE2/DMS/GeoDmsGuiDelphi.identcache
+/XE2/DMS/GeoDmsGuiDelphi.res
+/msbuild_linux/obj
+/rtc/dll/obj
+/rtc/dll/obj/x64/Debug

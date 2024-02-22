@@ -28,7 +28,10 @@ granted by an additional written contract for support, assistance and/or develop
 //</HEADER>
 
 #include "StxPCH.h"
+
+#if defined(CC_PRAGMAHDRSTOP)
 #pragma hdrstop
+#endif //defined(CC_PRAGMAHDRSTOP)
 
 #include "SpiritTools.h"
 
@@ -103,7 +106,7 @@ LispRef parseExpr(CharPtr exprBegin, CharPtr exprEnd)
 
 SYNTAX_CALL void annotateExpr(OutStreamBase& outStream, const TreeItem* searchContext, SharedStr expr)
 {
-	dms_assert(IsMainThread());
+	assert(IsMainThread());
 
 	HtmlProd prod(outStream, searchContext, expr);
 	expr_grammar<HtmlProd> p(prod);

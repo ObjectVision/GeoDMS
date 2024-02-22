@@ -1,40 +1,18 @@
-//<HEADER> 
-/*
-Data & Model Server (DMS) is a server written in C++ for DSS applications. 
-Version: see srv/dms/rtc/dll/src/RtcVersion.h for version info.
+// Copyright (C) 1998-2023 Object Vision b.v. 
+// License: GNU GPL 3
+/////////////////////////////////////////////////////////////////////////////
 
-Copyright (C) 1998-2004  YUSE GSO Object Vision BV. 
-
-Documentation on using the Data & Model Server software can be found at:
-http://www.ObjectVision.nl/DMS/
-
-See additional guidelines and notes in srv/dms/Readme-srv.txt 
-
-This library is free software; you can use, redistribute, and/or
-modify it under the terms of the GNU General Public License version 2 
-(the License) as published by the Free Software Foundation,
-provided that this entire header notice and readme-srv.txt is preserved.
-
-See LICENSE.TXT for terms of distribution or look at our web site:
-http://www.objectvision.nl/DMS/License.txt
-or alternatively at: http://www.gnu.org/copyleft/gpl.html
-
-This library is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
-General Public License for more details. However, specific warranties might be
-granted by an additional written contract for support, assistance and/or development
-*/
-//</HEADER>
 #pragma once
 
 #if !defined(__RTC_ACT_ENUMS_H)
 #define __RTC_ACT_ENUMS_H
 
 #include "dbg/Check.h"
-#include "geo/MPF.h"
+#include "geo/mpf.h"
 
+#if defined(_MSC_VER)
 #pragma warning( disable: 26812 ) // enum type 'xxx' is unscoped. Prefer 'enum class' over 'enum'
+#endif
 
 //  -----------------------------------------------------------------------
 //  ActorVisitor enum
@@ -64,13 +42,13 @@ struct flag_set {
 	bool Get(UInt32 sf) const { return GetBits(sf) != 0; }
 	void Set(UInt32 sf, bool value) { if (value) Set(sf); else Clear(sf); }
 
-	template <bool VALUE> void SetV(UInt32 sf);
-	template <> void SetV<true >(UInt32 sf) { Set  (sf); }
-	template <> void SetV<false>(UInt32 sf) { Clear(sf); }
-
 private:
 	UInt32 m_DW;
 };
+
+template <bool VALUE> void SetV(flag_set& fs, UInt32 sf);
+template <> inline void SetV<true >(flag_set& fs, UInt32 sf) { fs.Set(sf); }
+template <> inline void SetV<false>(flag_set& fs, UInt32 sf) { fs.Clear(sf); }
 
 template<UInt32 MASK>
 struct auto_flag
@@ -95,12 +73,12 @@ struct auto_flag_recursion_lock
 		:	m_Flags(flags) 
 	{
 		dms_assert(flags.Get(MASK) != VALUE); 
-		flags.SetV<VALUE>(MASK);
+		SetV<VALUE>(flags, MASK);
 	}
 	~auto_flag_recursion_lock()
 	{
 		dms_assert(m_Flags.Get(MASK) == VALUE);
-		m_Flags.SetV<!VALUE>(MASK);
+		SetV<!VALUE>(m_Flags, MASK);
 	}
 
 private:
@@ -205,8 +183,8 @@ public:
 	void   SetTransState(TransState state) { SetBits(AF_TransientMask, state); }
 	void   ClearTransState() { Clear(AF_TransientMask); }
 
-	void SetPassor  () { dms_assert(!IsPassor()); Set  (AF_IsPassor); }
-	void ClearPassor() { dms_assert( IsPassor()); Clear(AF_IsPassor); }
+	void SetPassor  () { Set  (AF_IsPassor); }
+	void ClearPassor() { Clear(AF_IsPassor); }
 	bool IsPassor   () const { return Get(AF_IsPassor); }
 
 	bool IsDeterminingCheck() const { return GetTransState()==AF_DeterminingCheck; }

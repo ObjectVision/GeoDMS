@@ -1,33 +1,12 @@
-//<HEADER> 
-/*
-Data & Model Server (DMS) is a server written in C++ for DSS applications. 
-Version: see srv/dms/rtc/dll/src/RtcVersion.h for version info.
+// Copyright (C) 1998-2023 Object Vision b.v. 
+// License: GNU GPL 3
+/////////////////////////////////////////////////////////////////////////////
 
-Copyright (C) 1998-2004  YUSE GSO Object Vision BV. 
-
-Documentation on using the Data & Model Server software can be found at:
-http://www.ObjectVision.nl/DMS/
-
-See additional guidelines and notes in srv/dms/Readme-srv.txt 
-
-This library is free software; you can use, redistribute, and/or
-modify it under the terms of the GNU General Public License version 2 
-(the License) as published by the Free Software Foundation,
-provided that this entire header notice and readme-srv.txt is preserved.
-
-See LICENSE.TXT for terms of distribution or look at our web site:
-http://www.objectvision.nl/DMS/License.txt
-or alternatively at: http://www.gnu.org/copyleft/gpl.html
-
-This library is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
-General Public License for more details. However, specific warranties might be
-granted by an additional written contract for support, assistance and/or development
-*/
-//</HEADER>
 #include "TicPCH.h"
+
+#if defined(CC_PRAGMAHDRSTOP)
 #pragma hdrstop
+#endif //defined(CC_PRAGMAHDRSTOP)
 
 #include "SymInterface.h"
 
@@ -43,6 +22,7 @@ granted by an additional written contract for support, assistance and/or develop
 #include "dbg/debug.h"
 #include "dbg/DebugCast.h"
 #include "dbg/DmsCatch.h"
+#include "geo/Conversions.h"
 #include "utl/Encodes.h"
 
 #include "stg/AbstrStorageManager.h"
@@ -281,7 +261,7 @@ TIC_CALL auto TreeItem_GetBestItemAndUnfoundPart(const TreeItem* context, CharPt
 {
 	assert(context);
 
-	while (*path && !itemNameFirstChar_test(*path))
+	while (*path && *path != '/' && !itemNameFirstChar_test(*path))
 		++path;
 
 	CharPtrRange pathRange = { path, ParseTreeItemPath(path) }; // skip trailing trash
@@ -651,7 +631,7 @@ TIC_CALL void DMS_CONV DMS_TreeItem_Invalidate(TreeItem* self)
 	DMS_CALL_END
 }
 
-bool ItemUpdateImpl(const TreeItem* self, CharPtr context, TreeItemInterestPtr& holder )
+bool ItemUpdateImpl(const TreeItem* self, CharPtr context, SharedTreeItemInterestPtr& holder )
 {
 	CheckPtr(self, TreeItem::GetStaticClass(), context);
 
@@ -670,19 +650,26 @@ TIC_CALL void DMS_CONV DMS_TreeItem_Update(const TreeItem* self)
 	DMS_CALL_BEGIN
 
 		SuspendTrigger::FencedBlocker lockSuspend;
-		TreeItemInterestPtr holder;
+		SharedTreeItemInterestPtr holder;
 		ItemUpdateImpl(self, "DMS_TreeItem_Update", holder);
 
 	DMS_CALL_END
 }
 
-bool TreeUpdateImpl(const TreeItem* self, CharPtr context, TreeItemInterestPtr& holder )
+bool TreeUpdateImpl(const TreeItem* self, CharPtr context, SharedTreeItemInterestPtr& holder )
 {
 	for (const TreeItem* walker = self; walker; walker = self->WalkConstSubTree(walker))
 		if (!ItemUpdateImpl(walker, context, holder))
 			return false;
 
 	return true;
+}
+
+TIC_CALL void Tree_Update(const TreeItem* self, CharPtr context)
+{
+	SuspendTrigger::FencedBlocker lockSuspend;
+	SharedTreeItemInterestPtr holder;
+	TreeUpdateImpl(self, context, holder);
 }
 
 #include "time.h"
@@ -699,11 +686,12 @@ UInt32 TreeItem_GetProgressState(const TreeItem* self)
 		if (self->InTemplate() || self->IsPassor())
 			return NC2_Committed;
 
-		if (IsDataCurrReady(self->GetCurrRangeItem()))
+		auto treeitem_progress_state = self->m_State.GetProgress();
+		if (IsDataCurrReady(self->GetCurrRangeItem())) // treeitem_progress_state < PS_Committed && 
 			return NC2_DataReady;
 		
-		self->DetermineState();
-		switch (self->m_State.GetProgress())
+//		self->DetermineState();
+		switch (treeitem_progress_state)//self->m_State.GetProgress())
 		{
 			case PS_Validated: return NC2_Validated;
 			case PS_Committed: return NC2_Committed;
@@ -998,18 +986,24 @@ TIC_CALL const TreeItem* DMS_CONV DMS_TreeItem_GetTemplSourceItem(const TreeItem
 TIC_CALL BestItemRef TreeItem_GetErrorSource(const TreeItem* src, bool tryCalcSuppliers)
 {
 	TreeItemContextHandle checkPtr1(src, TreeItem::GetStaticClass(), "TreeItem_GetErrorSource");
+	if (!src)
+		return { nullptr, {} };
 
-	if (src)
+	if (!src->WasFailed())
 	{
-		assert(src->WasFailed());
-
-		// parent ?
-		auto context = src->GetTreeParent();
+		if (WasInFailed(src))
+			return { src->GetTreeParent(), {} };
+		return { nullptr, {} };
+	}
+	// parent ?
+	auto context = src->GetTreeParent();
+	if (context)
+	{
 		if (WasInFailed(context))
 			return { context, {} };
 
 		// using refs ?
-		if (context && src->CurrHasUsingCache())
+		if (src->CurrHasUsingCache())
 		{
 			auto usingCache = src->GetUsingCache();
 			assert(usingCache);
@@ -1023,111 +1017,120 @@ TIC_CALL BestItemRef TreeItem_GetErrorSource(const TreeItem* src, bool tryCalcSu
 		}
 
 		// explicit Suppliers ?
-		if (context)
+		SharedStr strConfigured = explicitSupplPropDefPtr->GetValueAsSharedStr(src);
+		if (AbstrCalculator::MustEvaluate(strConfigured.c_str()))
 		{
-			SharedStr strConfigured = explicitSupplPropDefPtr->GetValueAsSharedStr(src);
-			if (AbstrCalculator::MustEvaluate(strConfigured.c_str()))
-			{
-				auto result = AbstrCalculator::GetErrorSource(src, strConfigured);
-				if (result.first)
-					return result;
-				strConfigured = AbstrCalculator::EvaluatePossibleStringExpr(src, strConfigured, CalcRole::Other);
-			}
-
-
-			CharPtr
-				iBegin = strConfigured.begin(),
-				iEnd = strConfigured.send();
-			while (iBegin != iEnd)
-			{
-				CharPtr iFirstEnd = std::find(iBegin, iEnd, ';');
-				CharPtrRange explicitSupplierName(iBegin, iFirstEnd);
-				Trim(explicitSupplierName);
-				if (!explicitSupplierName.empty())
-				{
-					auto ur = context->FindBestItem(explicitSupplierName);
-					if (ur.first && WasInFailed(ur.first))
-						return ur;
-				}
-				if (iFirstEnd == iEnd)
-					break;
-				iBegin = iFirstEnd + 1;
-			}
+			auto result = AbstrCalculator::GetErrorSource(src, strConfigured);
+			if (result.first)
+				return result;
+			strConfigured = AbstrCalculator::EvaluatePossibleStringExpr(src, strConfigured, CalcRole::Other);
 		}
 
-		// domain and values units ?
-		if (IsDataItem(src))
+
+		CharPtr
+			iBegin = strConfigured.begin(),
+			iEnd = strConfigured.send();
+		while (iBegin != iEnd)
 		{
-			BestItemRef result = { AsDataItem(src)->GetAbstrDomainUnit(), {} };
-			if (!result.first)
-				result = src->FindBestItem(AsDataItem(src)->m_tDomainUnit.AsStrRange());
+			CharPtr iFirstEnd = std::find(iBegin, iEnd, ';');
+			CharPtrRange explicitSupplierName(iBegin, iFirstEnd);
+			Trim(explicitSupplierName);
+			if (!explicitSupplierName.empty())
+			{
+				auto ur = context->FindBestItem(explicitSupplierName);
+				if (ur.first && WasInFailed(ur.first))
+					return ur;
+			}
+			if (iFirstEnd == iEnd)
+				break;
+			iBegin = iFirstEnd + 1;
+		}
+	}
 
-			if (result.first && WasInFailed(result.first))
-				return result;
+	// domain and values units ?
+	if (IsDataItem(src))
+	{
+		BestItemRef result = { AsDataItem(src)->GetAbstrDomainUnit(), {} };
+		if (!result.first)
+			result = src->FindBestItem(AsDataItem(src)->m_tDomainUnit.AsStrRange());
 
-			result = { AsDataItem(src)->GetAbstrValuesUnit(), {} };
-			if (!result.first)
-				result = src->FindBestItem(AsDataItem(src)->m_tValuesUnit.AsStrRange());
-			if (result.first && WasInFailed(result.first))
+		if (result.first && WasInFailed(result.first))
+			return result;
+
+		result = { AsDataItem(src)->GetAbstrValuesUnit(), {} };
+		if (!result.first)
+			result = src->FindBestItem(AsDataItem(src)->m_tValuesUnit.AsStrRange());
+		if (result.first && WasInFailed(result.first))
+			return result;
+	}
+
+	// CalcRule ?
+	if (src->HasCalculator())
+	{
+		if (AbstrCalculator::MustEvaluate(src->mc_Expr.c_str()))
+		{
+			auto result = AbstrCalculator::GetErrorSource(src, src->mc_Expr);
+			if (result.first)
 				return result;
 		}
 
-		// CalcRule ?
+		auto sc = src->GetCalculator();
+		if (sc)
+		{
+			BestItemRef si = sc->FindErrorneousItem();
+			if (si.first && WasInFailed(si.first))
+				return si;
+		}
+	}
+
+	// SourceItem
+	auto sourceItem = src->GetCurrSourceItem();
+	if (sourceItem)
+	{
+		assert(!sourceItem->IsCacheItem());
+		assert(sourceItem != src);
+		if (WasInFailed(sourceItem))
+			return { sourceItem, {} };
+	}
+
+	// try all suppliers
+	const TreeItem* errorneousItem = nullptr;
+	auto errorChecker = [&errorneousItem](const Actor* a)
+		{
+			auto ti = dynamic_cast<const TreeItem*>(a);
+			if (ti && !ti->IsCacheItem() && WasInFailed(ti))
+			{
+				errorneousItem = ti;
+				return  AVS_SuspendedOrFailed;
+			}
+			return AVS_Ready;
+		};
+	auto visitor = MakeDerivedBoolVisitor(std::move(errorChecker));
+
+	src->VisitSuppliers(SupplierVisitFlag::CalcErrorSearch, std::move(visitor));
+	if (errorneousItem)
+		return { errorneousItem , {} };
+
+	// if FailReason was > FR_Data, try finding a supplier that fails too when pressed.
+	if (tryCalcSuppliers && src->WasFailed(FR_Data) && !src->WasFailed(FR_MetaInfo))
+	{
 		if (src->HasCalculator())
 		{
-			if (AbstrCalculator::MustEvaluate(src->mc_Expr.c_str()))
-			{
-				auto result = AbstrCalculator::GetErrorSource(src, src->mc_Expr);
-				if (result.first)
-					return result;
-			}
-
 			auto sc = src->GetCalculator();
-			if (sc)
-			{
-				BestItemRef si = sc->FindErrorneousItem();
-				if (si.first && WasInFailed(si.first))
-					return si;
-			}
-		}
-
-		// SourceItem
-		auto sourceItem = src->GetCurrSourceItem();
-		if (sourceItem)
-		{
-			assert(!sourceItem->IsCacheItem());
-			assert(sourceItem != src);
-			if (WasInFailed(sourceItem))
-				return { sourceItem, {} };
-		}
-
-		// if FailReason was > FR_Data, try finding a supplier that fails too when pressed.
-		if (tryCalcSuppliers && src->WasFailed(FR_Data) && !src->WasFailed(FR_MetaInfo))
-		{
-			if (src->HasCalculator())
-			{
-				auto sc = src->GetCalculator();
-				return sc->FindPrimaryDataFailedItem();
-			}
+			return sc->FindPrimaryDataFailedItem();
 		}
 	}
 	return { nullptr, {} };
 }
 
-BestItemRef TreeItem_GetErrorSourceCaller(const TreeItem* src)
+TIC_CALL BestItemRef TreeItem_GetErrorSourceCaller(const TreeItem* src)
 {
 	try {
 		return TreeItem_GetErrorSource(src, true);
 	}
-	catch (const DmsException& x)
+	catch (...)
 	{
-		auto fullName = x.AsErrMsg()->m_FullName;
-		if (!fullName.empty())
-		{
-			src = DSM::Curr()->m_ConfigRoot;
-			if (src)
-				return src->FindBestItem(fullName);
-		}
+		catchAndReportException();
 	}
 	return {};
 }

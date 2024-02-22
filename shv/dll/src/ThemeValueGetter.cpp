@@ -1,32 +1,3 @@
-//<HEADER> 
-/*
-Data & Model Server (DMS) is a server written in C++ for DSS applications. 
-Version: see srv/dms/rtc/dll/src/RtcVersion.h for version info.
-
-Copyright (C) 1998-2004  YUSE GSO Object Vision BV. 
-
-Documentation on using the Data & Model Server software can be found at:
-http://www.ObjectVision.nl/DMS/
-
-See additional guidelines and notes in srv/dms/Readme-srv.txt 
-
-This library is free software; you can use, redistribute, and/or
-modify it under the terms of the GNU General Public License version 2 
-(the License) as published by the Free Software Foundation,
-provided that this entire header notice and readme-srv.txt is preserved.
-
-See LICENSE.TXT for terms of distribution or look at our web site:
-http://www.objectvision.nl/DMS/License.txt
-or alternatively at: http://www.gnu.org/copyleft/gpl.html
-
-This library is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
-General Public License for more details. However, specific warranties might be
-granted by an additional written contract for support, assistance and/or development
-*/
-//</HEADER>
-
 #include "ShvDllPch.h"
 
 #include "ptr/InterestHolders.h"
@@ -53,20 +24,6 @@ granted by an additional written contract for support, assistance and/or develop
 //	MakeClassIndexArray
 //----------------------------------------------------------------------
 
-template <typename II, typename T, typename TI>
-typename std::enable_if<has_undefines_v<typename std::iterator_traits<TI>::value_type>, UInt32 >::type
-classify2index_best(II ib, II ie, const T& dataValue, TI classBoundsPtr)
-{
-	return classify2index_checked(ib, ie, dataValue, classBoundsPtr);
-}
-
-template <typename II, typename T, typename TI>
-typename std::enable_if<!has_undefines_v<typename std::iterator_traits<TI>::value_type>, UInt32 >::type
-classify2index_best(II ib, II ie, const T& dataValue, TI classBoundsPtr)
-{
-	return classify2index(ib, ie, dataValue, classBoundsPtr);
-}
-
 template <typename ThemeValuesType, typename IndexType = SizeT>
 struct ClassifyFunc
 {
@@ -83,7 +40,7 @@ struct ClassifyFunc
 	}
 	IndexType operator ()( typename param_type<ThemeValuesType>::type value) const
 	{
-		return Convert<IndexType>(classify2index_best(
+		return Convert<IndexType>(classify2index(
 			begin_ptr(m_Index)
 		,	end_ptr  (m_Index)
 		,	value
@@ -108,14 +65,13 @@ MakeClassIndexArray(ThemeClassPairType tcp)
 	SharedArrayPtr<typename sequence_traits<ClassIdType>::value_type> 
 		resultingArray(SharedArray<typename sequence_traits<ClassIdType>::value_type>::Create(themeData.size(), false) );
 
-	classify2index_range_best(
+	classify2index_range(
 		begin_ptr(resultingArray)
 	,	end_ptr  (resultingArray)
 	,	begin_ptr(classifyFunc.m_Index)
 	,	end_ptr  (classifyFunc.m_Index)
 	,	begin_ptr(themeData)
 	,	begin_ptr(classifyFunc.m_ClassBreakData)
-	,	tcp.first->HasUndefinedValues()
 	);
 
 	return resultingArray; // ownership is transferred to caller
@@ -180,7 +136,7 @@ Int32 AbstrThemeValueGetter::GetOrdinalValue(SizeT entityIndex) const
 
 UInt32 AbstrThemeValueGetter::GetCardinalValue(SizeT entityIndex) const
 {
-	dms_assert(m_PaletteAttr);
+	assert(m_PaletteAttr);
 	entity_id classIndex = GetClassIndex(entityIndex);
 	if (!IsDefined(classIndex))
 		return UNDEFINED_VALUE(Int32);
@@ -208,7 +164,7 @@ TextInfo AbstrThemeValueGetter::GetTextInfo(SizeT entityIndex, GuiReadLock& lock
 		if (auto cvg = dynamic_cast<const ConstValueGetter<SharedStr>*>(this))
 			return TextInfo{ cvg->m_Value, false };
 	}
-	dms_assert(m_PaletteAttr);
+	assert(m_PaletteAttr);
 	entity_id classIndex = GetClassIndex(entityIndex);
 	if (!IsDefined(classIndex))
 	{
@@ -224,9 +180,16 @@ TextInfo AbstrThemeValueGetter::GetTextInfo(SizeT entityIndex, GuiReadLock& lock
 	return TextInfo{ refObj->AsString(classIndex, lock), false };
 }
 
+void AbstrThemeValueGetter::GenerateValueInfo(entity_id entityIndex) const
+{
+	if (!m_PaletteAttr)
+		return;
+	CreateViewValueAction(m_PaletteAttr, entityIndex, true);
+}
+
 SharedStr AbstrThemeValueGetter::GetDisplayValue(SizeT entityIndex, bool useMetric, SizeT maxLen, GuiReadLockPair& locks) const
 {
-	dms_assert(m_PaletteAttr);
+	assert(m_PaletteAttr);
 	entity_id classIndex = GetClassIndex(entityIndex);
 	if (!IsDefined(classIndex))
 		return UNDEFINED_VALUE(SharedStr);
@@ -236,7 +199,7 @@ SharedStr AbstrThemeValueGetter::GetDisplayValue(SizeT entityIndex, bool useMetr
 
 const AbstrThemeValueGetter* AbstrThemeValueGetter::CreatePaletteGetter() const
 {
-	dms_assert(m_PaletteAttr);
+	assert(m_PaletteAttr);
 	if (IsDirectGetter())
 		return this;
 	if (m_PaletteGetter.is_null() || m_PaletteAttr != m_PaletteGetter->GetPaletteAttr())
@@ -355,7 +318,6 @@ struct LazyGetter : public AbstrThemeValueGetter
 
 	SizeT GetCount() const override
 	{
-
 		return m_ThemeAttr->GetCurrRefObj()->GetTiledRangeData()->GetRangeSize();
 	}
 
@@ -427,9 +389,8 @@ struct LazyClassifyGetter : public LazyGetter<V>
 		using PixelType = pixel_type_t<ClassIdType>;
 		auto themeData = const_array_cast<V>(this->GetThemeAttr())->GetLockedDataRead(t);
 		dms_assert(themeData.size() == Cardinality(themeArrayIndexRange) || drawer->m_EntityIndex.is_null());
-		GridFill<V, PixelType>(
-			drawer
-		,	themeData.begin()
+		GridFill<V, PixelType>(drawer
+		,	themeData.begin(), themeData.size()
 		,	m_ClassifyFunc
 		,   themeArrayIndexRange
 		,   isLastRun

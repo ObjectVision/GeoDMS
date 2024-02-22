@@ -1,5 +1,12 @@
+// Copyright (C) 1998-2023 Object Vision b.v. 
+// License: GNU GPL 3
+/////////////////////////////////////////////////////////////////////////////
+
 #include "TicPCH.h"
+
+#if defined(CC_PRAGMAHDRSTOP)
 #pragma hdrstop
+#endif //defined(CC_PRAGMAHDRSTOP)
 
 #include "AbstrUnit.h"
 
@@ -11,6 +18,8 @@
 #include "mci/ValueClass.h"
 #include "set/StaticQuickAssoc.h"
 #include "set/VectorFunc.h"
+#include "utl/mySPrintF.h"
+#include "utl/Quotes.h"
 #include "xct/DmsException.h"
 
 #include "LockLevels.h"
@@ -24,6 +33,7 @@
 #include "TiledUnit.h"
 #include "TreeItemClass.h"
 #include "TreeItemContextHandle.h"
+#include "PropFuncs.h"
 #include "Unit.h"
 #include "UnitClass.h"
 
@@ -125,7 +135,7 @@ inline DataItemRefContainer& AbstrUnit::GetDataItemsAssoc() const
 	return *m_DataItemsAssocPtr;
 }
 
-const AbstrTileRangeData* AbstrUnit::GetTiledRangeData() const
+SharedPtr<const AbstrTileRangeData> AbstrUnit::GetTiledRangeData() const
 {
 	return nullptr;
 }
@@ -180,6 +190,8 @@ SharedStr AbstrUnit::GetProjMetrString() const
 
 using CharPtrPair = std::pair<CharPtr, CharPtr>;
 
+
+
 auto RelabelX(CharPtr role, CharPtr role2) -> CharPtrPair
 {
 	if (!role[2]) // zero-termination
@@ -224,7 +236,7 @@ void AbstrUnit::UnifyError(const AbstrUnit* cu, CharPtr reason, CharPtr leftRole
 	auto leftPair = Relabel(leftRole);
 	auto rightPair = Relabel(rightRole);
 
-	SharedStr msg = mgFormat2SharedStr("%s unification of %s%s (%s %s: %s) with %s%s (%s %s: %s) is not possible%s"
+	SharedStr msg = mgFormat2SharedStr("%s mismatch between %s%s (%s %s: %s) and %s%s (%s %s: %s)%s"
 		,	isDomain ? "Domain" : "Values"
 		,	leftPair.first, leftPair.second, 	GetFullName(),     GetProjMetrString(),     GetValueType()->GetName()
 		,	rightPair.first, rightPair.second, cu->GetFullName(), cu->GetProjMetrString(), cu->GetValueType()->GetName()
@@ -234,21 +246,15 @@ void AbstrUnit::UnifyError(const AbstrUnit* cu, CharPtr reason, CharPtr leftRole
 	if (um & UM_Throw)
 		throwItemError(msg);
 
-	dms_assert(resultMsg);
+	assert(resultMsg);
 	*resultMsg = msg;
 }
 
 bool AbstrUnit::DoWriteItem(StorageMetaInfoPtr&& smi) const
 {
-	dms_assert( GetInterestCount() );
+	assert( GetInterestCount() );
 
-	AbstrStorageManager* sm = smi->StorageManager();
-
-	reportF(SeverityTypeID::ST_MajorTrace, "%s IS PROVIDED TO %s",
-		GetSourceName().c_str()
-	,	sm->GetNameStr().c_str()
-	);	
-
+	auto sm = smi->StorageManager();
 	return sm->WriteUnitRange(std::move(smi));
 }
 
@@ -291,7 +297,7 @@ bool AbstrUnit::UnifyDomain(const AbstrUnit* cu, CharPtr leftRole, CharPtr right
 			SharedTreeItem thatRepresentation = cu;
 			if (!cu->IsCacheItem())
 			{
-				auto thatDC = GetOrCreateDataController(cu->GetCheckedKeyExpr());
+				auto thatDC = GetExistingDataController(cu->GetCheckedKeyExpr());
 				if (!thatDC)
 					goto error;
 				thatRepresentation = thatDC->MakeResult();
@@ -365,13 +371,36 @@ void AbstrUnit::SetSpatialReference(TokenID format)
 	);
 }
 
+SharedStr AbstrUnit::GetBackgroundReference() const
+{
+	auto dd = TreeItem_GetDialogData(this);
+	if (not dd.empty())
+		return dd;
+
+	auto m = GetMetric();
+	if (m && m->m_BaseUnits.size() == 1 && m->m_BaseUnits.begin()->second == 1)
+	{
+		const SharedStr pair_str = m->m_BaseUnits.begin()->first;
+		auto tab_pos = std::find(pair_str.begin(), pair_str.send(), char(0xFF));
+		if (tab_pos != pair_str.send())
+			return SharedStr(tab_pos + 1, pair_str.send());
+	}
+	return {};
+}
+
 TokenID AbstrUnit::GetSpatialReference() const
 {
 	if (GetTSF(USF_HasSpatialReference))
 		return s_SpatialReferenceAssoc.GetExisting(this);
+
 	auto m = GetMetric();
 	if (m && m->m_BaseUnits.size() == 1 && m->m_BaseUnits.begin()->second == 1)
-		return TokenID(m->m_BaseUnits.begin()->first);
+	{
+		const SharedStr pair_str = m->m_BaseUnits.begin()->first;
+		auto tab_pos = std::find(pair_str.begin(), pair_str.send(), char(0xFF));
+		if (tab_pos != pair_str.send())
+			return GetTokenID_mt(pair_str.begin(), tab_pos);
+	}
 	return TokenID::GetEmptyID();
 }
 
@@ -383,7 +412,12 @@ TokenID AbstrUnit::GetCurrSpatialReference() const
 		return s_SpatialReferenceAssoc.GetExisting(this);
 	auto m = GetCurrMetric();
 	if (m && m->m_BaseUnits.size() == 1 && m->m_BaseUnits.begin()->second == 1)
-		return TokenID(m->m_BaseUnits.begin()->first);
+	{
+		const SharedStr pair_str = m->m_BaseUnits.begin()->first;
+		auto tab_pos = std::find(pair_str.begin(), pair_str.send(), char(0xFF));
+		if (tab_pos != pair_str.send())
+			return GetTokenID_mt(pair_str.begin(), tab_pos);
+	}
 	return TokenID::GetEmptyID();
 }
 
@@ -422,6 +456,16 @@ SharedStr AbstrUnit::GetProjectionStr (FormattingFlags ff) const
 	return p->AsString(ff);
 }
 
+TIC_CALL GetUnitlabeledScalePairFuncType s_GetUnitlabeledScalePairFunc = nullptr;
+
+auto AbstrUnit::GetUnitlabeledScalePair() const -> UnitLabelScalePair
+{
+	if (!s_GetUnitlabeledScalePairFunc)
+		return {};
+	auto srToken = GetSpatialReference();
+	return (*s_GetUnitlabeledScalePairFunc)(srToken);
+}
+
 const UnitProjection* AbstrUnit::GetProjection() const
 {
 	return nullptr;
@@ -437,7 +481,7 @@ static TokenID s_LabelID = GetTokenID_st("Label"), s_LabelTextID = GetTokenID_st
 
 SharedDataItemInterestPtr AbstrUnit::GetLabelAttr() const
 {
-	dms_assert(this);
+	assert(this);
 
 	const TreeItem* si = GetConstSubTreeItemByID(s_LabelID);
 	if (!si) 
@@ -459,7 +503,7 @@ SharedDataItemInterestPtr AbstrUnit::GetLabelAttr() const
 
 const AbstrDataItem* GetCurrLabelAttr(const AbstrUnit* au)
 {
-	dms_assert(au);
+	assert(au);
 
 	const TreeItem* si = const_cast<AbstrUnit*>(au)->GetSubTreeItemByID(s_LabelID);
 	if (!si)
@@ -480,9 +524,10 @@ const AbstrDataItem* GetCurrLabelAttr(const AbstrUnit* au)
 
 SharedStr AbstrUnit::GetLabelAtIndex(SizeT index, SharedDataItemInterestPtr& ipHolder, streamsize_t maxLen, GuiReadLock& lock) const
 {
+	assert(IsMainThread());
 	if (!ipHolder)
 		ipHolder = GetLabelAttr();
-	dms_assert(ipHolder == GetCurrLabelAttr(this));
+	assert(ipHolder == GetCurrLabelAttr(this));
 	if (!ipHolder)
 		return SharedStr();
 
@@ -490,19 +535,27 @@ SharedStr AbstrUnit::GetLabelAtIndex(SizeT index, SharedDataItemInterestPtr& ipH
 #if defined(MG_DEBUG_INTERESTSOURCE)
 	DemandManagement::BlockIncInterestDetector allowIncInterestsForLabelAccess; // user must choose label wisely; new interest leaks out of this frame.
 #endif //defined(MG_DEBUG_INTERESTSOURCE)
-	if (!ipHolder->PrepareData())
-		return SharedStr();
+	if (IsMainThread())
+	{
+		if (!ipHolder->PrepareDataUsage(DrlType::Certain))
+			return SharedStr();
+	}
+	else
+	{
+		if (!IsDataReady(ipHolder.get_ptr()))
+			return SharedStr();
+	}
 
 	try {
-	DataReadLock drl(ipHolder);
+		DataReadLock drl(ipHolder);
 
-	const AbstrDataObject* ado = ipHolder->GetCurrRefObj();
+		const AbstrDataObject* ado = ipHolder->GetCurrRefObj();
 
-	MakeMin(maxLen, ado->AsCharArraySize(index, maxLen, lock, FormattingFlags::ThousandSeparator));
-	SharedStr result = SharedStr(SharedArray<char>::Create(maxLen + 1, false));
-	ado->AsCharArray(index, result.begin(), maxLen, lock, FormattingFlags::ThousandSeparator);
-	result.begin()[maxLen] = char(0);
-	return result;
+		MakeMin(maxLen, ado->AsCharArraySize(index, maxLen, lock, FormattingFlags::ThousandSeparator));
+		SharedStr result = SharedStr(SharedArray<char>::Create(maxLen + 1, false));
+		ado->AsCharArray(index, result.begin(), maxLen, lock, FormattingFlags::ThousandSeparator);
+		result.begin()[maxLen] = char(0);
+		return result;
 	}
 	catch (const DmsException& x)
 	{
@@ -622,7 +675,7 @@ auto AbstrUnit::GetScriptName(const TreeItem* context) const -> SharedStr
 	return base_type::GetScriptName(context);
 }
 
-bool AbstrUnit::DoReadItem(StorageMetaInfo* smi)
+bool AbstrUnit::DoReadItem(StorageMetaInfoPtr smi)
 {
 	dms_assert(!IsDisabledStorage());
 	dms_assert(IsInWriteLock(this));
@@ -640,16 +693,6 @@ bool AbstrUnit::DoReadItem(StorageMetaInfo* smi)
 void AbstrUnit::SetCount(SizeT)
 { 
 	throwIllegalAbstract(MG_POS, this, "SetCount"); 
-}
-
-void AbstrUnit::Split(SizeT pos, SizeT len)
-{
-	throwIllegalAbstract(MG_POS, this, "Split"); 
-}
-
-void AbstrUnit::Merge(SizeT pos, SizeT len)
-{
-	throwIllegalAbstract(MG_POS, this, "Merge"); 
 }
 
 void AbstrUnit::OnDomainChange(const DomainChangeInfo* info)
@@ -752,7 +795,8 @@ row_id  AbstrUnit::GetTileIndex(tile_id t, tile_offset tileOffset) const
 
 tile_id AbstrUnit::GetNrTiles() const
 {
-	auto si = AsUnit(this->GetCurrRangeItem())->GetTiledRangeData();
+	auto range_item = this->GetCurrRangeItem();
+	auto si = AsUnit(range_item)->GetTiledRangeData();
 	MG_CHECK(si);
 	return si->GetNrTiles();
 }
@@ -807,7 +851,12 @@ void AbstrUnit::SetRangeAsFloat64(Float64 begin, Float64 end)
 	throwIllegalAbstract(MG_POS, this, "SetRangeAsFloat64"); 
 }
 
-Range<Float64> AbstrUnit::GetRangeAsFloat64() const 
+void AbstrUnit::SetRangeAsUInt64(UInt64 begin, UInt64 end)
+{
+	throwIllegalAbstract(MG_POS, this, "SetRangeAsUInt64");
+}
+
+Range<Float64> AbstrUnit::GetRangeAsFloat64() const
 { 
 	throwIllegalAbstract(MG_POS, this, "GetRangeAsFloat64");
 }
@@ -880,7 +929,7 @@ IMPL_CLASS(AbstrUnit, 0)
 #include "TicPropDefConst.h"
 
 #include "mci/PropDef.h"
-#include "mci/PropDefEnums.h"
+#include "mci/PropdefEnums.h"
 
 namespace {
 class FormatPropDef : public PropDef<AbstrUnit, TokenID>
@@ -888,14 +937,15 @@ class FormatPropDef : public PropDef<AbstrUnit, TokenID>
   public:
 	FormatPropDef()
 		:	PropDef<AbstrUnit, TokenID>(FORMAT_NAME, set_mode::optional, xml_mode::none, cpy_mode::none, chg_mode::none, false, true, false)
-	{}
+	{
+		SetDepreciated();
+	}
+
 	// override base class
 	ApiType GetValue(const AbstrUnit* item) const override { return item->GetSpatialReference(); }
 	void SetValue(AbstrUnit* item, ParamType val) override
 	{ 
-		auto fullName = SharedStr(item->GetFullName());
-		reportF(SeverityTypeID::ST_Warning, "%s: depreciated specification of the format property: use SpatialReference=\"%s\""
-			, fullName
+		reportF(SeverityTypeID::ST_Warning, "depreciated specification of the format property.\nReplace by: SpatialReference=\"%s\""
 			, val
 		);
 		item->SetSpatialReference(val); 
@@ -906,7 +956,7 @@ class SpatialReferencePropDef : public PropDef<AbstrUnit, TokenID>
 {
 public:
 	SpatialReferencePropDef()
-		: PropDef<AbstrUnit, TokenID>(FORMAT_NAME, set_mode::optional, xml_mode::element, cpy_mode::all, chg_mode::none, false, true, false)
+		: PropDef<AbstrUnit, TokenID>(SR_NAME, set_mode::optional, xml_mode::element, cpy_mode::all, chg_mode::none, false, true, false)
 	{}
 	// override base class
 	ApiType GetValue(const AbstrUnit* item) const override { return item->GetSpatialReference(); }
@@ -943,6 +993,7 @@ struct ValueTypePropDef : ReadOnlyPropDef<AbstrUnit, TokenID>
 };
 
 FormatPropDef formatPropDef;
+SpatialReferencePropDef srPropDef;
 MetricPropDef metricPropDef;
 ProjectionPropDef projectionPropDef;
 ValueTypePropDef valueTypePropDef;

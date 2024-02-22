@@ -1,33 +1,7 @@
-//<HEADER> 
-/*
-Data & Model Server (DMS) is a server written in C++ for DSS applications. 
-Version: see srv/dms/rtc/dll/src/RtcVersion.h for version info.
+// Copyright (C) 1998-2023 Object Vision b.v. 
+// License: GNU GPL 3
+/////////////////////////////////////////////////////////////////////////////
 
-Copyright (C) 1998-2004  YUSE GSO Object Vision BV. 
-
-Documentation on using the Data & Model Server software can be found at:
-http://www.ObjectVision.nl/DMS/
-
-See additional guidelines and notes in srv/dms/Readme-srv.txt 
-
-This library is free software; you can use, redistribute, and/or
-modify it under the terms of the GNU General Public License version 2 
-(the License) as published by the Free Software Foundation,
-provided that this entire header notice and readme-srv.txt is preserved.
-
-See LICENSE.TXT for terms of distribution or look at our web site:
-http://www.objectvision.nl/DMS/License.txt
-or alternatively at: http://www.gnu.org/copyleft/gpl.html
-
-This library is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
-General Public License for more details. However, specific warranties might be
-granted by an additional written contract for support, assistance and/or development
-*/
-//</HEADER>
-// SheetVisualTestView.cpp : implementation of the DataView class
-//
 #include "ShvDllPch.h"
 
 #include <memory>
@@ -40,7 +14,9 @@ granted by an additional written contract for support, assistance and/or develop
 
 #include "AbstrUnit.h"
 #include "OperationContext.h"
+#include "Projection.h"
 #include "PropFuncs.h"
+#include "TreeItemProps.h"
 
 #include "AbstrCmd.h"
 #include "GraphicRect.h"
@@ -64,7 +40,7 @@ GraphDataView::GraphDataView(TreeItem* viewContext, ShvSyncMode sm)
 
 std::shared_ptr<MapControl> GraphDataView::GetContents()       
 {
-	dms_assert(m_Contents);
+	assert(m_Contents);
 	return debug_pointer_cast<MapControl>(m_Contents);
 }
 
@@ -78,13 +54,30 @@ std::shared_ptr<const MapControl> GraphDataView::GetContents() const
 
 bool CompatibleCrds(const AbstrUnit* a, const AbstrUnit* b)
 {
-	dms_assert(a);
+	assert(a);
 	if (!b)
 		return true;
-	
+
+redo_a:
+	if (auto ap = a->GetProjection())
+		if (auto apb = ap->GetBaseUnit())
+			if (a != apb)
+			{
+				a = apb;
+				goto redo_a;
+			}
+
+redo_b:
+	if (auto bp = b->GetProjection())
+		if (auto bpb = bp->GetBaseUnit())
+		{
+			b = bpb;
+			goto redo_b;
+		}
+
 	// Callers guarantee that stuff came from GetWorldCrdUnit that went all the way to the last object
-	dms_assert(a->m_State.GetProgress() >= PS_MetaInfo);
-	dms_assert(b->m_State.GetProgress() >= PS_MetaInfo);
+	assert(a->m_State.GetProgress() >= PS_MetaInfo);
+	assert(b->m_State.GetProgress() >= PS_MetaInfo);
 
 	return a == b
 		|| a->IsCacheItem() && b->GetUltimateItem() == a
@@ -100,12 +93,12 @@ bool GraphDataView::CanContain(const TreeItem* viewCandidate) const
 	LayerInfo res = GetLayerInfo(AsDynamicDataItem(viewCandidate));
 	if (!res.IsComplete())
 		return false;
-	dms_assert(!res.IsAspect());
-	return
-		CompatibleCrds(
-			res.GetWorldCrdUnit(), 
-			GetContents()->GetViewPort()->GetWorldCrdUnit()
-		);
+	assert(!res.IsAspect());
+
+	SharedUnit resCrdUnit = res.GetWorldCrdUnit();
+	SharedUnit vpCrdUnit = GetContents()->GetViewPort()->GetWorldCrdUnit();
+
+	return CompatibleCrds(resCrdUnit.get(), vpCrdUnit.get());
 }
 
 class AddLayerCmd : public AbstrCmd
@@ -115,8 +108,6 @@ public:
 	AddLayerCmd(const AbstrDataItem* viewItem, const LayerInfo& info, bool isDropped)
 		:	m_ViewItem(viewItem)
 		,	m_LayerInfo(info)
-		,	m_Result(nullptr)
-		,	m_WorldCrdUnit(nullptr)
 		,	m_IsDropped(isDropped)
 	{}
 	GraphVisitState DoLayerSet(LayerSet* ls) override
@@ -144,14 +135,19 @@ public:
 			std::shared_ptr<LayerSet>     defaultLayerSet;
 			std::shared_ptr<GraphicLayer> singletonTopoLayer;
 
-			SharedStr dd = TreeItem_GetDialogData(m_WorldCrdUnit);
+			SharedStr dd = m_WorldCrdUnit->GetBackgroundReference();
 			CharPtr
 				i = dd.begin(), 
 				e = dd.send();
 			while (i != e)
 			{
 				try {
-					const TreeItem* topographicItem = GetNextDialogDataRef(m_WorldCrdUnit, i, e);
+					MG_CHECK(m_Result);
+					auto geoCrdUnitContext = m_Result->GetGeoCrdUnit();
+					geoCrdUnitContext = AsUnit(geoCrdUnitContext->GetUltimateSourceItem());
+
+					MG_CHECK(geoCrdUnitContext);
+					const TreeItem* topographicItem = GetNextDialogDataRef(geoCrdUnitContext, i, e);
 					if (!topographicItem || topographicItem == m_ViewItem)
 						continue;
 					LayerSet* currSet = defaultLayerSet ? defaultLayerSet.get() : ls;
@@ -222,7 +218,6 @@ public:
 			{
 				dms_assert(m_Result->DetailsVisible());
 
-				// spawn []() { GetPreparedCount() }.then([](){ if main.lock mainlock->notify([](){})})
 				SharedPtr<const AbstrUnit> paletteDomain = m_Result->GetActiveTheme()->GetPaletteDomain();
 
 				//TODO: Dit moet toch handiger kunnen 
@@ -231,6 +226,7 @@ public:
 				{
 					SuspendTrigger::DoSuspend();
 					paletteDomain->PrepareData(); // wants to know GetCount();
+					assert(IsCalculatingOrReady(paletteDomain->GetCurrRangeItem()));
 					SuspendTrigger::Resume();
 				}
 				else
@@ -238,6 +234,11 @@ public:
 					SuspendTrigger::SilentBlocker xx;
 					paletteDomain->PrepareData();
 				}
+#if defined(MG_DEBUG)
+				auto* ultimateCU = AsUnit(paletteDomain->GetCurrRangeItem());
+				dbg_assert(ultimateCU->CheckMetaInfoReadyOrPassor());
+				dbg_assert(CheckCalculatingOrReady(ultimateCU) || ultimateCU->WasFailed(FR_Data));
+#endif
 				std::weak_ptr<GraphicLayer> wResLayer = m_Result;
 				std::weak_ptr<LayerSet> wLayerSet = ls->weak_from_base<LayerSet>();
 				std::weak_ptr<DataView> wDv = ls->GetDataView();
@@ -378,19 +379,19 @@ private:
 	const AbstrDataItem*    m_ViewItem;
 	LayerInfo               m_LayerInfo;
 	std::shared_ptr<GraphicLayer> m_Result;
-	const AbstrUnit*        m_WorldCrdUnit;
+	const AbstrUnit*        m_WorldCrdUnit = nullptr;
 	bool                    m_IsDropped;
 };
 
 void GraphDataView::AddLayer(const TreeItem* viewItem, bool isDropped)
 {
-	dms_assert(!SuspendTrigger::DidSuspend());
-	dms_assert(IsDataItem(viewItem));
+	assert(!SuspendTrigger::DidSuspend());
+	MG_USERCHECK(IsDataItem(viewItem));
 
 	LayerInfo info = GetCompleteLayerInfoOrThrow(viewItem);
-	dms_assert(!SuspendTrigger::DidSuspend());
+	assert(!SuspendTrigger::DidSuspend());
 
-	dms_assert(info.IsComplete());
+	MG_USERCHECK(info.IsComplete());
 	AddLayerCmd(AsDynamicDataItem(viewItem), info, isDropped).Visit(GetContents().get());
 }
 
@@ -399,20 +400,34 @@ ExportInfo GraphDataView::GetExportInfo()
 	return GetContents()->GetViewPort()->GetExportInfo();
 }
 
-SharedStr GraphDataView::GetCaption() const
+SharedStr GraphDataView::GetCaption() const // Mapview caption
 {
 	auto mapContents = GetContents();
 	if (mapContents)
 	{
-		auto ls = mapContents->GetLayerSet();
-		if (ls)
+		SharedStr spatialRefStr;
+		auto wcu = mapContents->GetViewPort()->GetWorldCrdUnit();
+		if (wcu)
 		{
-			auto al = ls->GetActiveLayer();
-			if (al)
-				return al->GetCaption();
+			auto world_crd_unit_label_property = TreeItemPropertyValue(wcu, labelPropDefPtr);
+			if (!world_crd_unit_label_property.empty()) // prioritize label over srs def in mapview caption
+				spatialRefStr = world_crd_unit_label_property;
+			else
+				spatialRefStr = wcu->GetSpatialReference();
 		}
+
+		if (spatialRefStr.empty())
+			spatialRefStr = "";
+		else
+			spatialRefStr = "with " + spatialRefStr;
+
+		if (auto ls = mapContents->GetLayerSet())
+			if (auto active_layer = ls->GetActiveLayer())
+				return spatialRefStr + ", " + active_layer->GetCaption();
+
+		return spatialRefStr;
 	}
-	return SharedStr("MapView");
+	return SharedStr("");
 }
 
 LayerInfo GraphDataView::GetCompleteLayerInfoOrThrow(const TreeItem* viewItem) const

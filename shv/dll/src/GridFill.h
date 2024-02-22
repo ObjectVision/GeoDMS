@@ -153,7 +153,7 @@ void PostProcessLine(bit_iterator<4, Block> b, bit_iterator<4, Block> e)
 template <typename ClassIdType, typename PixelType, typename ValuesFunctor>
 void GridFill(
 		const GridDrawer*                                    gridDrawer
-	,	typename sequence_traits<ClassIdType>::const_pointer classIdArray
+	,	typename sequence_traits<ClassIdType>::const_pointer classIdArray, SizeT classIdArraySize
 	,	const ValuesFunctor&                                 applicator
 	,	Range<SizeT>                                         tileIndexRange
 	,   bool                                                 isLastRun
@@ -166,13 +166,13 @@ void GridFill(
 	dms_assert(!gridDrawer->m_SelValues || IsDefined( gridDrawer->m_SelValues->m_Rect.first.Row() ) );
 
 	const IndexCollector* entityIndex = gridDrawer->m_EntityIndex;
-	dms_assert(!tileIndexRange.inverted() || !entityIndex);
+	assert(!tileIndexRange.inverted() || !entityIndex);
 	SizeT tileIndexRangeSize = Cardinality(tileIndexRange);
 
 //	Prepare loop
 	GType viewColBegin = gridDrawer->m_sViewRect.left;
 	GType viewColEnd   = gridDrawer->m_sViewRect.right;
-	dms_assert(viewColBegin < viewColEnd);
+	assert(viewColBegin < viewColEnd);
 
 	UInt32 viewColSize = GetAligned4Size(resultingClassIds, viewColEnd - viewColBegin);
 
@@ -183,8 +183,8 @@ void GridFill(
 	IPoint gridSize = gridDrawer->m_SelValues 
 		?	Size(gridDrawer->m_SelValues->m_Rect)
 		:	Size(gridDrawer->m_TileRect);
-	dms_assert(gridSize.first  >= 0);
-	dms_assert(gridSize.second >= 0);
+	assert(gridSize.first  >= 0);
+	assert(gridSize.second >= 0);
 
 	const grid_rowcol_id* currGridRowPtr = gridDrawer->m_GridCoords->GetGridRowPtr(currViewRow, true);
 	MG_DEBUGCODE(const grid_rowcol_id* gridRowBeginPtr = currGridRowPtr; )
@@ -199,54 +199,61 @@ void GridFill(
 	{
 		grid_rowcol_id currGridRow = *--currGridRowPtr;
 		--currViewRow;
-		dbg_assert(gridDrawer->m_sViewRect.bottom - currViewRow == gridRowBeginPtr - currGridRowPtr );
+		assert(gridDrawer->m_sViewRect.bottom - currViewRow == gridRowBeginPtr - currGridRowPtr );
 
 		if (IsDefined(currGridRow))
 		{
+			if (currGridRow < rowOffset)
+				continue;
+
 			typename sequence_traits<PixelType>::pointer resultingClassIdRowBegin = resultingClassIds;
-			dms_assert(currGridRow >= rowOffset);
 			currGridRow -= rowOffset;
 
-			dms_assert(currGridRow < grid_rowcol_id(gridSize.Row()) );
+			if (currGridRow >= grid_rowcol_id(gridSize.Row()))
+				continue;
 
 			const grid_rowcol_id* currGridColPtr = gridColBeginPtr;
 
-			SizeT currGridRowBegin =  CheckedMul<SizeT>(currGridRow, gridSize.Col());
+			SizeT currGridRowBegin = CheckedMul<SizeT>(currGridRow, gridSize.Col(), false);
 
 			GType currViewCol = viewColBegin;
 			PixelType result;
 
-			while ( true )
+			while (true)
 			{
-				dms_assert(currViewCol - viewColBegin == currGridColPtr - gridColBeginPtr );
+				assert(currViewCol - viewColBegin == currGridColPtr - gridColBeginPtr);
 
 				grid_rowcol_id currGridCol = *currGridColPtr;
 				if (IsDefined(currGridCol))
 				{
-					grid_rowcol_id colOffset = (gridDrawer->m_SelValues) 
-						?	gridDrawer->m_SelValues->m_Rect.first.Col()
-						:	gridDrawer->m_TileRect.first.Col();
-					dms_assert(currGridCol >= colOffset);
-					currGridCol -= colOffset;
-
-					dms_assert(currGridCol < grid_rowcol_id(gridSize.Col()) || !IsDefined(currGridCol));
-					SizeT currGridNr = currGridRowBegin+currGridCol;
-					if (entityIndex)
+					grid_rowcol_id colOffset = (gridDrawer->m_SelValues)
+						? gridDrawer->m_SelValues->m_Rect.first.Col()
+						: gridDrawer->m_TileRect.first.Col();
+					if (currGridCol >= colOffset)
 					{
-						entity_id e = entityIndex->GetEntityIndex( currGridNr );
-						if (!IsDefined(e))
-							goto assignUndefined;
-						currGridNr = e - tileIndexRange.first;
-						if (currGridNr >= tileIndexRangeSize)
-							goto skipResult;
+						currGridCol -= colOffset;
+						if (currGridCol < grid_rowcol_id(gridSize.Col()))
+						{
+							SizeT currGridNr = currGridRowBegin + currGridCol;
+							if (entityIndex)
+							{
+								entity_id e = entityIndex->GetEntityIndex(currGridNr);
+								if (!IsDefined(e))
+									goto assignUndefined;
+								currGridNr = e - tileIndexRange.first;
+								if (currGridNr >= tileIndexRangeSize)
+									goto skipResult;
+							}
+							assert(classIdArray);
+							assert(currGridNr < classIdArraySize);
+							result = Convert<PixelType>(applicator(classIdArray[currGridNr]));
+							valueAdjuster(result);
+							goto applyResult;
+						}
 					}
-					dms_assert(classIdArray);
-					result = Convert<PixelType>( applicator( classIdArray[ currGridNr ] ) );
-					valueAdjuster(result);
-					goto applyResult;
 				}
 			assignUndefined:
-				Assign(result, valueAdjuster.GetUndefValue() );
+				Assign(result, valueAdjuster.GetUndefValue());
 
 			applyResult:
 				// copy duplicate columns
@@ -279,7 +286,7 @@ void GridFill(
 					return;
 				if (currGridRow != currGridRowPtr[-1])
 					break;
-		
+
 				if (isLastRun)
 					fast_copy(
 						resultingClassIdRowBegin,

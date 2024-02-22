@@ -1,32 +1,15 @@
-//<HEADER> 
-/*
-Data & Model Server (DMS) is a server written in C++ for DSS applications. 
-Version: see srv/dms/rtc/dll/src/RtcVersion.h for version info.
+// Copyright (C) 1998-2023 Object Vision b.v. 
+// License: GNU GPL 3
+/////////////////////////////////////////////////////////////////////////////
 
-Copyright (C) 1998-2004  YUSE GSO Object Vision BV. 
+// include file for standard system include files,
+//  or project specific include files that are used frequently, but
+//      are changed infrequently
+//
 
-Documentation on using the Data & Model Server software can be found at:
-http://www.ObjectVision.nl/DMS/
-
-See additional guidelines and notes in srv/dms/Readme-srv.txt 
-
-This library is free software; you can use, redistribute, and/or
-modify it under the terms of the GNU General Public License version 2 
-(the License) as published by the Free Software Foundation,
-provided that this entire header notice and readme-srv.txt is preserved.
-
-See LICENSE.TXT for terms of distribution or look at our web site:
-http://www.objectvision.nl/DMS/License.txt
-or alternatively at: http://www.gnu.org/copyleft/gpl.html
-
-This library is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
-General Public License for more details. However, specific warranties might be
-granted by an additional written contract for support, assistance and/or development
-*/
-//</HEADER>
+#if defined(_MSC_VER)
 #pragma once
+#endif
 
 #if !defined(__RTC_CALL_H)
 #define __RTC_CALL_H
@@ -56,7 +39,8 @@ granted by an additional written contract for support, assistance and/or develop
 
 #include "cpc/CompChar.h"
 #include "cpc/Types.h"
-typedef UInt32 dms_thread_id;
+
+using dms_thread_id = UInt32;
 
 #include <vector>
 
@@ -64,8 +48,8 @@ typedef UInt32 dms_thread_id;
 // BitValue support
 //----------------------------------------------------------------------
 
-typedef int    bit_size_t;
-typedef UInt32 bit_block_t;
+using bit_size_t = int;
+using bit_block_t = UInt32 ;
 
 template <bit_size_t N> struct bit_value;
 template <bit_size_t N, typename Block> struct bit_reference;
@@ -90,7 +74,14 @@ struct bit_sequence;
 // C style Interface DLL export support 
 //----------------------------------------------------------------------
 
-#define DMS_CONV __cdecl
+#if defined(_MSC_VER)
+#	define DMS_CONV __cdecl
+#else
+#	define DMS_CONV
+#	undef DMRTC_EXPORTS
+#	define DMRTC_STATIC
+#endif
+
 #if defined(DMRTC_EXPORTS)
 #	define RTC_CALL __declspec(dllexport)
 #else
@@ -118,7 +109,7 @@ struct bit_sequence;
 
 #	define MG_DEBUG_DATA
 //#	define MG_DEBUG_UPDATESOURCE
-#	define MG_DEBUG_ALLOCATOR
+//#	define MG_DEBUG_ALLOCATOR
 #	define MG_DEBUG_INTERESTSOURCE 
 #	define MG_DEBUG_DATASTORELOCK
 
@@ -133,8 +124,11 @@ struct bit_sequence;
 
 #if defined(MG_DEBUG_INTERESTSOURCE) || defined(MG_DEBUG_ALLOCATOR)
 #	define MG_DEBUGREPORTER
+#	define MG_DEBUG_INTERESTSOURCE_LOGGING
 #	define MG_DEBUG_DATA
 #   define MG_UNIT_TESTING
+#else
+#	undef MG_DEBUG_INTERESTSOURCE_LOGGING
 #endif
 
 #if defined(MG_DEBUG)
@@ -173,10 +167,10 @@ class  PersistentSharedObj;
 struct IString;
 struct Undefined;
 
-enum   class SeverityTypeID;
-enum   ValueClassID;
-enum   class ValueComposition;
-enum   class dms_rw_mode;
+enum   class SeverityTypeID  : UInt8;
+enum   class ValueClassID    : UInt8;
+enum   class ValueComposition: UInt8;
+enum   class dms_rw_mode     : Int8; // can have negative values
 
 struct SafeFileWriterArray;
 
@@ -203,6 +197,7 @@ class OutStreamBuff;
 		typedef void (DMS_CONV *CallbackStreamFuncType)(ClientHandle clientHandle, const Byte* data, streamsize_t size);
 
 const int utf8CP = 65001;
+using vos_buffer_type = std::vector<Byte>;
 
 //----------------------------------------------------------------------
 // Common typedefs
@@ -269,10 +264,12 @@ typedef sequence_vector<char> StringVector;
 
 typedef SA_ConstReference<char> StringCRef;
 typedef SA_Reference     <char> StringRef;
+
 #define SEQ_SUFFIX "seq.dmsdata" 
-typedef UInt32 tile_id;
-typedef UInt32 tile_offset;
-typedef UInt64 row_id;
+
+using tile_id = UInt32;
+using tile_offset = UInt32;
+using row_id = UInt64;
 using tile_loc = std::pair<tile_id, tile_offset>;
 
 const tile_id no_tile   = -1;
@@ -306,11 +303,9 @@ namespace std {
 
 //======================================= pointer destillation
 
-using TileBase = SharedObj;
+struct TileBase;
 using TileRef = SharedPtr < SharedObj >;
 using TileCRef = SharedPtr < const SharedObj >;
-
-#include <boost/mpl/identity.hpp>
 
 //----------------------------------------------------------------------
 // metafunc : pointer_traits
@@ -350,7 +345,7 @@ namespace std
 }
 
 
-extern RTC_CALL bool g_IsTerminating;
+extern bool RTC_CALL g_IsTerminating;
 
 
 #endif // __RTC_CALL_H

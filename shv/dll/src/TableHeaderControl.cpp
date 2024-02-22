@@ -118,8 +118,9 @@ private:
 //----------------------------------------------------------------------
 
 ColumnHeaderDragger::ColumnHeaderDragger(DataView* owner, ColumnHeaderControl* target, GPoint origin)
-	:	DualPointCaretController(owner, new RectCaret, target, origin, EID_MOUSEDRAG|EID_LBUTTONUP, EID_LBUTTONUP, EID_CLOSE_EVENTS)
-	,	m_HooverRect( owner->ViewRect() )
+	:	DualPointCaretController(owner, new RectCaret, target, origin
+		,	EID_MOUSEDRAG|EID_LBUTTONUP, EID_LBUTTONUP, EID_CLOSE_EVENTS, ToolButtonID::TB_Undefined)
+	,	m_HooverRect( owner->ViewDeviceRect() )
 	,	m_Activated(false)
 {}
 
@@ -128,7 +129,7 @@ bool ColumnHeaderDragger::Move(EventInfo& eventInfo)
 	auto dv = GetOwner().lock(); if (!dv) return true;
 	auto to = GetTargetObject().lock(); if (!to) return true;
 	dms_assert(m_Caret);
-	std::shared_ptr<MovableObject> hooverObj = GraphObjLocator::Locate(dv.get(), eventInfo.m_Point, GetDesktopDIP2pixFactor())->shared_from_this();
+	std::shared_ptr<MovableObject> hooverObj = GraphObjLocator::Locate(dv.get(), eventInfo.m_Point)->shared_from_this();
 	while	(	hooverObj 
 			&&	(	!dynamic_cast<ColumnHeaderControl*>(hooverObj.get())
 				||	to->IsOwnerOf(hooverObj->GetOwner().lock().get())
@@ -145,7 +146,7 @@ bool ColumnHeaderDragger::Move(EventInfo& eventInfo)
 		if (m_HooverObj && m_HooverObj != to)
 		{
 			m_Before = (m_HooverObj->ColumnNr() < debug_cast<ColumnHeaderControl*>(to.get())->ColumnNr());
-			m_HooverRect = TRect2GRect( m_HooverObj->GetCurrFullAbsRect() );
+			m_HooverRect = CrdRect2GRect( m_HooverObj->GetCurrFullAbsDeviceRect() );
 //				m_HooverRect.second.Row() = m_HooverRect.first.Row() +  6;
 			if (m_Before)
 				MakeMin(m_HooverRect.right, m_HooverRect.left  + 12);
@@ -155,7 +156,7 @@ bool ColumnHeaderDragger::Move(EventInfo& eventInfo)
 		else 
 			m_HooverRect = GRect(0, 0, 0, 0);
 
-		dv->MoveCaret(m_Caret, DualPointCaretOperator(m_HooverRect.TopLeft(), m_HooverRect.BottomRight(), m_HooverObj.get()));
+		dv->MoveCaret(m_Caret, DualPointCaretOperator(m_HooverRect.RightBottom(), m_HooverRect.RightBottom(), m_HooverObj.get()));
 	}
 	return true;
 }
@@ -189,7 +190,7 @@ bool ColumnHeaderControl::MouseEvent(MouseEventDispatcher& med)
 
 	if ((med.GetEventInfo().m_EventID & EID_SETCURSOR ))
 	{
-		if (GetControlRegion(med.GetEventInfo().m_Point.x) != RG_MIDDLE )
+		if (GetControlDeviceRegion(med.GetEventInfo().m_Point.x) != RG_MIDDLE )
 		{
 			SetCursor(LoadCursor(NULL, IDC_SIZEWE));
 			return true;
@@ -199,45 +200,33 @@ bool ColumnHeaderControl::MouseEvent(MouseEventDispatcher& med)
 	if ((med.GetEventInfo().m_EventID & EID_LBUTTONDOWN) && m_Dic)
 	{
 		GPoint mousePoint = med.GetEventInfo().m_Point;
-		if (GetControlRegion(mousePoint.x) != RG_MIDDLE)
+		if (GetControlDeviceRegion(mousePoint.x) != RG_MIDDLE)
 			return m_Dic->MouseEvent(med);
 
 		//	Controls for columnn ordering
 		m_Dic->SelectCol();
 		auto owner = GetOwner().lock(); if (!owner) return true;
 		medOwner->InsertController(
-			new TieCursorController(
-				medOwner.get(),
-				owner.get(),
-				TRect2GRect(owner->GetCurrClientAbsRect()),
-				EID_MOUSEDRAG, EID_CLOSE_EVENTS
+			new TieCursorController(medOwner.get(), owner.get()
+			,	CrdRect2GRect( owner->GetCurrClientAbsDeviceRect() )
+			,	EID_MOUSEDRAG, EID_CLOSE_EVENTS
 			)
 		);
 
 		medOwner->InsertController(
-			new DualPointCaretController(
-				medOwner.get(),
-				new BoundaryCaret(this),
-				this,
-				mousePoint,
-				EID_MOUSEDRAG, 0, EID_CLOSE_EVENTS
+			new DualPointCaretController(medOwner.get(), new BoundaryCaret(this)
+			,	this, mousePoint
+			,	EID_MOUSEDRAG, 0, EID_CLOSE_EVENTS, ToolButtonID::TB_Undefined
 			)
 		);
 		medOwner->InsertController(
-			new DualPointCaretController(
-				medOwner.get(),
-				new BoundaryCaret(m_Dic.get()),
-				this,
-				mousePoint,
-				EID_MOUSEDRAG, 0, EID_CLOSE_EVENTS
+			new DualPointCaretController(medOwner.get(), new BoundaryCaret(m_Dic.get())
+			,	this, mousePoint
+			,	EID_MOUSEDRAG, 0, EID_CLOSE_EVENTS, ToolButtonID::TB_Undefined
 			)
 		);
 		medOwner->InsertController(
-			new ColumnHeaderDragger(
-				medOwner.get(), 
-				this,
-				mousePoint
-			)
+			new ColumnHeaderDragger(medOwner.get(), this, mousePoint)
 		);
 	}
 
@@ -262,8 +251,10 @@ TableHeaderControl::TableHeaderControl(MovableObject* owner, TableControl* table
 	,	m_TableControl(tableControl)
 	, m_connElemSetChanged(tableControl->m_cmdElemSetChanged.connect([this]() { this->InvalidateView(); } ))
 {
-	dms_assert(tableControl);
-	SetMaxRowHeight(DEF_TEXT_PIX_HEIGHT + 2* BORDERSIZE);
+	assert(tableControl);
+	assert(owner);
+	auto dv = owner->GetDataView().lock(); assert(dv);
+	SetMaxRowHeight((DEF_TEXT_PIX_HEIGHT  + 2* BORDERSIZE));
 }
 
 void TableHeaderControl::DoUpdateView()
@@ -304,7 +295,9 @@ void TableHeaderControl::DoUpdateView()
 			columnHeader->SetDic( dic->shared_from_base<DataItemColumn>() );
 		}
 		columnHeader->SetText(dic->Caption());
-		columnHeader->SetClientSize(TPoint(dic->CalcClientSize().x() + dic->GetBorderPixelExtents().Width() - columnHeader->GetBorderPixelExtents().Width(), DEF_TEXT_PIX_HEIGHT));
+		auto headerWidth = dic->CalcClientSize().X() + Width(dic->GetBorderLogicalExtents()) - Width(columnHeader->GetBorderLogicalExtents());
+		auto headerSize = shp2dms_order<TType>(headerWidth, DEF_TEXT_PIX_HEIGHT);
+		columnHeader->SetClientSize(headerSize);
 		columnHeader->SetIsInverted(m_TableControl->m_Cols.IsInRange(i));
 		if (activeDic == dic)
 			dv->Activate(columnHeader.get());
@@ -320,13 +313,14 @@ bool TableHeaderControl::MouseEvent(MouseEventDispatcher& med)
 {
 	if ((med.GetEventInfo().m_EventID & EID_LBUTTONDOWN)  && med.m_FoundObject.get() ==  this)
 	{
-		TType curX = med.GetEventInfo().m_Point.x;
+		auto sf = med.GetSubPixelFactors();
+		auto curX = med.GetEventInfo().m_Point.x / sf.first;
 		// find child that is left of position
 		for (UInt32 i=0, n=NrEntries(); i!=n; ++i)
 		{
 			MovableObject* chc = GetEntry(i);
-			TType x = chc->GetCurrFullAbsRect().Right();
-			if ((x <= curX) && (curX < x + TType(ColSepWidth())))
+			auto x = chc->GetCurrFullAbsLogicalRect().second.X();
+			if ((x <= curX) && (curX < x + CrdType(ColSepWidth())))
 			{
 				auto dic = debug_cast<ColumnHeaderControl*>(chc)->GetDic();
 				if (dic) 

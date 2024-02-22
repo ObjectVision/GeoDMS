@@ -65,14 +65,14 @@ public:
 	GraphicRect(ScalableObject* owner);
 	~GraphicRect();
 
-	GraphicClassFlags GetGraphicClassFlags() const override { dms_assert(!base_type::GetGraphicClassFlags()); return GCF_ClipExtents; };
+	GraphicClassFlags GetGraphicClassFlags() const override { return GraphicClassFlags::ClipExtents; };
 
 	void SetROI(const CrdRect& roi);
 
 //	override GraphicObject virtuals for size & display of GraphicObjects
 	void UpdateExtents();
 	void    DoUpdateView() override;
-	GRect   GetBorderPixelExtents(CrdType subPixelFactor) const override;
+	TRect   GetBorderLogicalExtents() const override;
 	bool Draw(GraphDrawer& d) const override;
 
 	bool MouseEvent(MouseEventDispatcher& med) override;

@@ -42,7 +42,7 @@ granted by an additional written contract for support, assistance and/or develop
 
 #include "dbg/debug.h"
 #include "ptr/OwningPtrArray.h"
-#include "set/RangeFuncs.h"
+#include "set/rangefuncs.h"
 
 template <class T>
 struct OwningPtrReservedArray : private ref_base<T, movable>
@@ -56,9 +56,9 @@ struct OwningPtrReservedArray : private ref_base<T, movable>
 	typedef pointer iterator;
 	typedef const_pointer const_iterator;
 
-	OwningPtrReservedArray() {}
+	OwningPtrReservedArray() noexcept {}
 	OwningPtrReservedArray(SizeT capacity) { initial_reserve(capacity); }
-	OwningPtrReservedArray(OwningPtrReservedArray<T>&& oth) { swap(oth); }
+	OwningPtrReservedArray(OwningPtrReservedArray<T>&& oth) noexcept { swap(oth); }
 
 	~OwningPtrReservedArray()
 	{
@@ -70,14 +70,14 @@ struct OwningPtrReservedArray : private ref_base<T, movable>
 	SizeT size() const { return m_Size; }
 	SizeT capacity() const { return m_Capacity; }
 
-	void swap(OwningPtrReservedArray<T>& oth)
+	void swap(OwningPtrReservedArray<T>& oth) noexcept
 	{
 		ref_base<T, movable>::swap(oth);
 		std::swap(m_Size, oth.m_Size);
 		std::swap(m_Capacity, oth.m_Capacity);
 	}
 	void clear() { OwningPtrReservedArray empty; swap(empty); }
-	void operator = (OwningPtrReservedArray<T>&& rhs) { clear(); swap(rhs); }
+	void operator = (OwningPtrReservedArray<T>&& rhs) noexcept { clear(); swap(rhs); }
 
 	pointer        begin() { return this->get_ptr(); }
 	const_pointer  begin()   const { return this->get_ptr(); }

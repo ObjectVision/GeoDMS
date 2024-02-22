@@ -36,7 +36,7 @@ granted by an additional written contract for support, assistance and/or develop
 //----------------------------------------------------------------------
 
 #include "mci/PropDef.h"
-#include "mci/PropDefEnums.h"
+#include "mci/PropdefEnums.h"
 #include "ser/MapStream.h"
 
 #include "StateChangeNotification.h"

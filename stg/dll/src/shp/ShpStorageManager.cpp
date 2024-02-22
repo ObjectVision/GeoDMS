@@ -1,33 +1,12 @@
-//<HEADER> 
-/*
-Data & Model Server (DMS) is a server written in C++ for DSS applications. 
-Version: see srv/dms/rtc/dll/src/RtcVersion.h for version info.
+// Copyright (C) 1998-2023 Object Vision b.v. 
+// License: GNU GPL 3
+/////////////////////////////////////////////////////////////////////////////
 
-Copyright (C) 1998-2004  YUSE GSO Object Vision BV. 
-
-Documentation on using the Data & Model Server software can be found at:
-http://www.ObjectVision.nl/DMS/
-
-See additional guidelines and notes in srv/dms/Readme-srv.txt 
-
-This library is free software; you can use, redistribute, and/or
-modify it under the terms of the GNU General Public License version 2 
-(the License) as published by the Free Software Foundation,
-provided that this entire header notice and readme-srv.txt is preserved.
-
-See LICENSE.TXT for terms of distribution or look at our web site:
-http://www.objectvision.nl/DMS/License.txt
-or alternatively at: http://www.gnu.org/copyleft/gpl.html
-
-This library is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
-General Public License for more details. However, specific warranties might be
-granted by an additional written contract for support, assistance and/or development
-*/
-//</HEADER>
 #include "StoragePCH.h"
+
+#if defined(CC_PRAGMAHDRSTOP)
 #pragma hdrstop
+#endif //defined(CC_PRAGMAHDRSTOP)
 
 
 // *****************************************************************************
@@ -110,9 +89,9 @@ static const AbstrDataItem* GetPolyData(const TreeItem* storageHolder)
 
 static const AbstrDataItem* GetPointData(const TreeItem* storageHolder)
 {
-	dms_assert(storageHolder);
+	assert(storageHolder);
 	// Look up storageHolder item
-	const AbstrDataItem* pData = AsDynamicDataItem(storageHolder);
+	auto pData = AsDynamicDataItem(storageHolder);
 	if (!IsPointData(pData))
 		pData = nullptr;
 
@@ -146,9 +125,9 @@ void ReadSequences(AbstrDataObject* ado, UInt32 shpImpFeatureCount, ShpImp* pImp
 	auto polyData = debug_valcast<DataArray<PolygonType>*>(ado)->GetDataWrite();
 
 	dms_assert(polyData.size() == shpImpFeatureCount);
-	MG_CHECK(pImp->GetShapeType() != ST_Point);
+	MG_CHECK(pImp->GetShapeType() != ShapeTypes::ST_Point);
 
-	bool mustCloseRings = (pImp->GetShapeType() == ST_Polygon);
+	bool mustCloseRings = (pImp->GetShapeType() == ShapeTypes::ST_Polygon);
 
 	SeqLock<sequence_array<ShpPointIndex> > lockParts (pImp->m_SeqParts , dms_rw_mode::read_only);
 	SeqLock<sequence_array<ShpPoint>      > lockPoints(pImp->m_SeqPoints, dms_rw_mode::read_only);
@@ -209,7 +188,7 @@ void ReadSequences(AbstrDataObject* ado, UInt32 shpImpFeatureCount, ShpImp* pImp
 template <typename PointType>
 void ReadArray(AbstrDataObject* ado, UInt32 shpImpFeatureCount, ShpImp* pImp)
 {
-	MG_CHECK(pImp->GetShapeType() == ST_Point);
+	MG_CHECK(pImp->GetShapeType() == ShapeTypes::ST_Point);
 
 	auto pointData 
 		= debug_valcast<DataArray<PointType>*>(ado)->GetDataWrite();
@@ -221,19 +200,23 @@ void ReadArray(AbstrDataObject* ado, UInt32 shpImpFeatureCount, ShpImp* pImp)
 	);
 }
 
-bool ShpStorageManager::ReadDataItem(const StorageMetaInfo& smi, AbstrDataObject* borrowedReadResultHolder, tile_id t)
+bool ShpStorageManager::ReadDataItem(StorageMetaInfoPtr smi, AbstrDataObject* borrowedReadResultHolder, tile_id t)
 {
 	if (t)
 		return true;
 
-	const TreeItem* storageHolder = smi.StorageHolder();
-	AbstrDataItem*   adi = smi.CurrWD();
+	const TreeItem* storageHolder = smi->StorageHolder();
+	AbstrDataItem*   adi = smi->CurrWD();
 
 	dms_assert(adi->GetDataObjLockCount() < 0); // Write lock is already set.
 
 	ShpImp impl;
 
-	if (!impl.Read( GetNameStr(), DSM::GetSafeFileWriterArray(storageHolder) ) )
+	auto sfwa = DSM::GetSafeFileWriterArray();
+	if (!sfwa)
+		return false;
+
+	if (!impl.Read( GetNameStr(), sfwa.get()) )
 		return false;
 	
 	const ValueClass* vc = borrowedReadResultHolder->GetValuesType();
@@ -253,7 +236,7 @@ bool ShpStorageManager::ReadDataItem(const StorageMetaInfo& smi, AbstrDataObject
 	}
 	else
 	{
-		visit<typelists::points>(adi->GetAbstrValuesUnit(),
+		visit<typelists::seq_points>(adi->GetAbstrValuesUnit(),
 			[borrowedReadResultHolder, shpImpFeatureCount, &impl] <typename P> (const Unit<P>*)
 			{
 				ReadSequences<P>(borrowedReadResultHolder, shpImpFeatureCount, &impl); // also reads (Multi)Polygons
@@ -320,7 +303,7 @@ void WriteSequences(const AbstrDataObject* ado, ShpImp* pImp, WeakStr nameStr, c
 		> func_iter;
 
 		auto feature = pImp->ShapeSet_PushBackPolygon();
-		if (pImp->GetShapeType() == ST_Polygon)
+		if (pImp->GetShapeType() == ShapeTypes::ST_Polygon)
 		{
 			boost::polygon::SA_ConstRingIterator<PointType> 
 				ri(polygon,  0), 
@@ -345,7 +328,8 @@ void WriteSequences(const AbstrDataObject* ado, ShpImp* pImp, WeakStr nameStr, c
 
 	auto wktPrjStr = GetWktProjectionFromValuesUnit(adi);
 
-	if (!pImp->Write( nameStr, DSM::GetSafeFileWriterArray(storageHolder), wktPrjStr) )
+	auto sfwa = DSM::GetSafeFileWriterArray(); MG_CHECK(sfwa);
+	if (!pImp->Write( nameStr, sfwa.get(), wktPrjStr) )
 		adi->throwItemErrorF("ShpStorage error: Cannot write to %s", nameStr.c_str());
 }
 
@@ -369,7 +353,9 @@ void WriteArray(const AbstrDataObject* ado, ShpImp* pImp, WeakStr nameStr, const
 
 	auto wktPrjStr = GetWktProjectionFromValuesUnit(adi);
 
-	if (!pImp->Write( nameStr, DSM::GetSafeFileWriterArray(storageHolder), wktPrjStr) )
+	auto sfwa = DSM::GetSafeFileWriterArray();
+
+	if (!sfwa || !pImp->Write( nameStr, sfwa.get(), wktPrjStr) )
 		adi->throwItemErrorF("ShpStorage error: Cannot write to %s", nameStr.c_str());
 }
 
@@ -397,14 +383,14 @@ bool ShpStorageManager::WriteDataItem(StorageMetaInfoPtr&& smiHolder)
 	ValueClassID           vtId       = vClass->GetValueClassID();
 	ValueComposition       vComp    =   adi->GetValueComposition();
 
-	ShapeTypes shapeType = ST_Point;
+	ShapeTypes shapeType = ShapeTypes::ST_Point;
 	if (vComp == ValueComposition::Sequence)
 	{
-		shapeType = ST_Polyline;
-		vtId = ValueClassID(vtId + VT_DArc - VT_DPolygon); // (D/F/S/I)Poly -> (D/F/S/I)Arc
+		shapeType = ShapeTypes::ST_Polyline;
+		vtId = ValueClassID(int(vtId) + int(ValueClassID::VT_DArc) - int(ValueClassID::VT_DPolygon)); // (D/F/S/I)Poly -> (D/F/S/I)Arc
 	}
 	if (vComp == ValueComposition::Polygon)
-		shapeType = ST_Polygon;
+		shapeType = ShapeTypes::ST_Polygon;
 
 	ShpImp impl;
 	impl.SetShapeType(shapeType);
@@ -420,7 +406,7 @@ bool ShpStorageManager::WriteDataItem(StorageMetaInfoPtr&& smiHolder)
 	}
 	else
 	{
-		visit<typelists::points>(adi->GetAbstrValuesUnit(), 
+		visit<typelists::seq_points>(adi->GetAbstrValuesUnit(), 
 			[this, ado, storageHolder, adi, &impl] <typename P> (const Unit<P>*)
 			{
 				WriteSequences<P>(ado, &impl, this->GetNameStr(), storageHolder, adi); // also reads (Multi)Polygons
@@ -434,7 +420,7 @@ bool ShpStorageManager::WriteDataItem(StorageMetaInfoPtr&& smiHolder)
 // Insert params into client tree
 void ShpStorageManager::DoUpdateTree(const TreeItem* storageHolder, TreeItem* curr, SyncMode sm) const
 {
-	AbstrStorageManager::DoUpdateTree(storageHolder, curr, sm);
+	NonmappableStorageManager::DoUpdateTree(storageHolder, curr, sm);
 
 	dms_assert(storageHolder);
 	if (storageHolder != curr)
@@ -444,8 +430,12 @@ void ShpStorageManager::DoUpdateTree(const TreeItem* storageHolder, TreeItem* cu
 
 	StorageReadHandle storageHandle(this, storageHolder, curr, StorageAction::updatetree);
 
+	auto sfwa = DSM::GetSafeFileWriterArray();
+	if (!sfwa)
+		return;
+
 	ShpImp impl;
-	if (!impl.OpenAndReadHeader( GetNameStr(), DSM::GetSafeFileWriterArray(storageHolder) ))
+	if (!impl.OpenAndReadHeader( GetNameStr(), sfwa.get() ))
 		return; // nothing read; file does not exist; probably has to write data and not read
 
 	const AbstrDataItem* pData = nullptr;
@@ -455,11 +445,11 @@ void ShpStorageManager::DoUpdateTree(const TreeItem* storageHolder, TreeItem* cu
 
 	switch (shapeType)
 	{
-		case ST_MultiPoint:
-		case ST_Polyline: vc = ValueComposition::Sequence; pData = GetPolyData(storageHolder); dataNameID = POLYGON_DATA_ID; break;
-		case ST_Polygon:  vc = ValueComposition::Polygon;  pData = GetPolyData(storageHolder); dataNameID = POLYGON_DATA_ID; break;
-		case ST_Point:    pData=GetPointData(storageHolder);dataNameID = POINT_DATA_ID;   break;
-		default: throwItemErrorF("ShapeType %d is not supported", shapeType);
+		case ShapeTypes::ST_MultiPoint:
+		case ShapeTypes::ST_Polyline: vc = ValueComposition::Sequence; pData = GetPolyData(storageHolder); dataNameID = POLYGON_DATA_ID; break;
+		case ShapeTypes::ST_Polygon:  vc = ValueComposition::Polygon;  pData = GetPolyData(storageHolder); dataNameID = POLYGON_DATA_ID; break;
+		case ShapeTypes::ST_Point:    pData=GetPointData(storageHolder);dataNameID = POINT_DATA_ID;   break;
+		default: throwItemErrorF("ShapeType %d is not supported", int(shapeType));
 	}
 
 	if (pData)
@@ -477,8 +467,11 @@ void ShpStorageManager::DoUpdateTree(const TreeItem* storageHolder, TreeItem* cu
 
 bool ShpStorageManager::ReadUnitRange(const StorageMetaInfo& smi) const
 {
+	auto sfwa = DSM::GetSafeFileWriterArray();
+	if (!sfwa)
+		return false;
 	ShpImp impl;
-	if (!impl.OpenAndReadHeader( GetNameStr(), DSM::GetSafeFileWriterArray(smi.StorageHolder()) ))
+	if (!impl.OpenAndReadHeader( GetNameStr(), sfwa.get()))
 		return false;
 
 	AbstrUnit* au = smi.CurrWU();

@@ -1,32 +1,3 @@
-//<HEADER> 
-/*
-Data & Model Server (DMS) is a server written in C++ for DSS applications. 
-Version: see srv/dms/rtc/dll/src/RtcVersion.h for version info.
-
-Copyright (C) 1998-2004  YUSE GSO Object Vision BV. 
-
-Documentation on using the Data & Model Server software can be found at:
-http://www.ObjectVision.nl/DMS/
-
-See additional guidelines and notes in srv/dms/Readme-srv.txt 
-
-This library is free software; you can use, redistribute, and/or
-modify it under the terms of the GNU General Public License version 2 
-(the License) as published by the Free Software Foundation,
-provided that this entire header notice and readme-srv.txt is preserved.
-
-See LICENSE.TXT for terms of distribution or look at our web site:
-http://www.objectvision.nl/DMS/License.txt
-or alternatively at: http://www.gnu.org/copyleft/gpl.html
-
-This library is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
-General Public License for more details. However, specific warranties might be
-granted by an additional written contract for support, assistance and/or development
-*/
-//</HEADER>
-
 #include "ShvDllPch.h"
 
 #include "GraphVisitor.h"
@@ -132,11 +103,11 @@ GraphVisitState AbstrVisitor::DoVarCols   (GraphicVarCols*   goc) { return DoMov
 GraphVisitState AbstrVisitor::DoScalable  (ScalableObject*   obj) { return DoObject(obj); }
 
 GraphVisitState AbstrVisitor::DoDataItemColumn(DataItemColumn* dic)  { return DoMovable(dic); }
-void  AbstrVisitor::DoElement       (DataItemColumn* dic, SizeT i, const GRect& absElemRect) { }
+void  AbstrVisitor::DoElement(DataItemColumn* dic, SizeT i, const GRect& absElemDeviceRect) { }
 
 GraphVisitState AbstrVisitor::DoWrapper(Wrapper* obj)
 {
-	dms_assert(obj->GetContents());
+	assert(obj->GetContents());
 
 	if (Visit( obj->GetContents() ) != GVS_Continue)
 		return GVS_Break;
@@ -183,70 +154,69 @@ bool AbstrVisitor::MustBreak() const
 // GraphVisitor members
 //----------------------------------------------------------------------
 
-GraphVisitor::GraphVisitor(const GRect& clipRect, CrdType subPixelFactor)
-	:	m_ClipRect(clipRect)
-	,	m_Transformation()
-	,	m_ClientOffset(0, 0)
-	,	m_SubPixelFactor(subPixelFactor)
+GraphVisitor::GraphVisitor(const GRect& clipDeviceRect, DPoint scaleFactors)
+	:	m_ClipDeviceRect(clipDeviceRect)
+	,	m_ClientLogicalAbsPos(Point<TType>(0, 0))
+	,	m_Transformation(CrdPoint(0, 0), scaleFactors)
+	,	m_SubPixelFactors(scaleFactors)
 {}
 
 GraphVisitState GraphVisitor::Visit(GraphicObject* obj)
 {
 	DBG_START(typeid(*this).name(), "Visit", MG_DEBUG_VIEWINVALIDATE);
 	DBG_TRACE(("%s %x: %x", obj->GetDynamicClass()->GetName().c_str(), obj, &*(obj->GetOwner().lock())));
-	DBG_TRACE(("Cliprect     : %s", AsString(m_ClipRect).c_str()));
+	DBG_TRACE(("Cliprect     : %s", AsString(m_ClipDeviceRect).c_str()));
 
-	dms_assert(obj);
-	dms_assert(obj->AllVisible());
+	assert(obj);
+	assert(obj->AllVisible());
 
-	dms_assert(!SuspendTrigger::DidSuspend());
+	assert(!SuspendTrigger::DidSuspend());
 	obj->UpdateView();
-	dms_assert(!SuspendTrigger::DidSuspend());
+	assert(!SuspendTrigger::DidSuspend());
 
-	dms_assert(obj->AllVisible());
+	assert(obj->AllVisible());
 
 	if (MustBreak())
 		return GVS_Break; // equals GVS_Handled
 
 	if (obj->InviteGraphVistor(*this) == GVS_Handled)
 		return GVS_Handled; // return;
-	dms_assert(!SuspendTrigger::DidSuspend());
+	assert(!SuspendTrigger::DidSuspend());
 
 	obj->UpdateView(); // retry
-	dms_assert(!SuspendTrigger::DidSuspend());
+	assert(!SuspendTrigger::DidSuspend());
 
-	dms_assert(obj->IsUpdated() || obj->WasFailed());
+	assert(obj->IsUpdated() || obj->WasFailed());
 	return GVS_UnHandled;
 }
 
 GraphVisitState GraphVisitor::DoMovableContainer(MovableContainer* gc)
 {
-	dms_assert(gc);
-	dms_assert(!MustBreak());
+	assert(gc);
+	assert(!MustBreak());
 
 	SizeT n = gc->NrEntries();
 
 	ResumableCounter counter( GetCounterStacks(), false); if (counter.MustBreakOrSuspend()) return GVS_Break;
 	{
-		AddClientOffset localBase(this, gc->GetCurrClientRelPos());
+		AddClientLogicalOffset localBase(this, gc->GetCurrClientRelPos());
 
-		while (counter.Value() < n)
+		while (counter < n)
 		{
 			MovableObject* gEntry = gc->GetEntry( counter.Value() );
-			dms_assert(gEntry);
+			assert(gEntry);
 			if ( !gEntry->IsVisible() ) 
 				goto nextEntry;
 			else
 			{	
-//				dms_assert(!HasCounterStacks() || gEntry->IsUpdated());
-				if (gEntry->GetClippedCurrFullAbsRect(*this).empty())
+				if (gEntry->GetClippedCurrFullAbsDeviceRect(*this).empty())
 					goto nextEntry;
 			}
 			if (Visit(gEntry))
 				return GVS_Break; // suspend processing, come back here with the same counter
 
 		nextEntry:
-			if (! counter.Inc())
+			if (!counter.Inc())
 				return GVS_Break; // euqals GVS_Handled
 		}
 	}
@@ -280,8 +250,7 @@ GraphVisitState GraphVisitor::DoLayerSet(LayerSet* gc)
 			goto nextEntry;
 		else
 		{	
-			dms_assert(!HasCounterStacks() || gEntry->IsUpdated() || gEntry->WasFailed(FR_Data));
-			if (gEntry->GetClippedCurrFullAbsRect(*this).empty() && gEntry->HasDefinedExtent())
+			if (gEntry->GetClippedCurrFullAbsDeviceRect(*this).empty() && gEntry->HasDefinedExtent())
 				goto nextEntry;
 		}
 		if (Visit(gEntry) != GVS_Continue)
@@ -300,53 +269,60 @@ GraphVisitState GraphVisitor::DoLayerSet(LayerSet* gc)
 
 GraphVisitState GraphVisitor::DoDataItemColumn(DataItemColumn* dic)
 {
-	dms_assert(!SuspendTrigger::DidSuspend());
-	dms_assert(m_Transformation.Factor() == CrdPoint(1, 1));
+	assert(!SuspendTrigger::DidSuspend());
 	auto tc = dic->GetTableControl().lock(); if (!tc) return GVS_Continue;
 	SizeT n = tc->NrRows();
 	if (!n)
 		return GVS_Continue;
 
 	{
-		AddClientOffset localBase(this, dic->GetCurrClientRelPos());
-		GPoint elemSize = dic->ElemSize();
+		auto sf = GetSubPixelFactors();
+		AddClientLogicalOffset localBase(this, dic->GetCurrClientRelPos());
+		TPoint elemSize = Convert<TPoint>(dic->ElemSize());
 		if (dic->HasElemBorder())
 		{
-			elemSize.x += 2*BORDERSIZE;
-			elemSize.y += 2*BORDERSIZE;
+			elemSize.X() += 2*BORDERSIZE;
+			elemSize.Y() += 2*BORDERSIZE;
 		}
 
-		TType rowDelta = elemSize.y + dic->RowSepHeight();
+		TType rowLogicalDelta = (elemSize.Y() + dic->RowSepHeight());
+		CrdType rowDeviceDelta = rowLogicalDelta * sf.second;
+		CrdType clientDeviceRow = m_ClientLogicalAbsPos.Y() * sf.second;
 
-		SizeT firstRecNo = (m_ClipRect.Top() > m_ClientOffset.y())
-			?	(m_ClipRect.Top() - m_ClientOffset.y()) / rowDelta
+		SizeT firstRecNo = (m_ClipDeviceRect.Top() > clientDeviceRow)
+			?	(m_ClipDeviceRect.Top() - clientDeviceRow) / rowDeviceDelta
 			:	0;
 
 		dms_assert(!SuspendTrigger::DidSuspend());
 		ResumableCounter counter(GetCounterStacks(), true);
 		SizeT recNo = counter.Value() + firstRecNo;
 		TType
-			currRow    = recNo * rowDelta + dic->RowSepHeight(),
-			clipEndRow = m_ClipRect.Bottom() - m_ClientOffset.y();
-
-		while ( recNo < n && currRow < clipEndRow)
+			currRow = recNo * rowLogicalDelta + dic->RowSepHeight(),
+			clipEndRow = m_ClipDeviceRect.Bottom() / sf.second - m_ClientLogicalAbsPos.Y(); // in device pixel units
+		if (currRow < clipEndRow)
 		{
-			dms_assert(!SuspendTrigger::DidSuspend());
-			AddClientOffset localRowBase(this, TPoint(0, currRow));
+			auto clientLogicalAbsPos = m_ClientLogicalAbsPos;
+			auto clientLogicalEnd = clientLogicalAbsPos.Y() + clipEndRow;
+			clientLogicalAbsPos.Y() += currRow;
+			MakeMin(n, recNo + (clipEndRow - currRow)/ rowLogicalDelta + 1);
+			while (recNo < n)
+			{
+				assert(!SuspendTrigger::DidSuspend());
+				auto absElemDeviceRect = ScaleCrdRect(CrdRect(clientLogicalAbsPos, clientLogicalAbsPos + Convert<CrdPoint>(elemSize)), sf);
+				auto intElemDeviceRect = CrdRect2GRect(absElemDeviceRect);
+				VisitorDeviceRectSelector clipper(this, intElemDeviceRect);
 
-			GRect absElemRect = GRect(TPoint2GPoint(m_ClientOffset), TPoint2GPoint(m_ClientOffset + TPoint(elemSize)) );
-			VisitorRectSelector clipper(this, absElemRect );
+				assert(!SuspendTrigger::DidSuspend());
+				if (!clipper.empty())
+					DoElement(dic, recNo, intElemDeviceRect);
+				if (SuspendTrigger::DidSuspend())
+					return GraphVisitState::GVS_Break;
 
-			dms_assert(!SuspendTrigger::DidSuspend());
-			if (!clipper.empty())
-				DoElement(dic, recNo, absElemRect);
-			if (SuspendTrigger::DidSuspend())
-				return GraphVisitState::GVS_Break;
+				++recNo;
+				++counter;
 
-			++recNo;
-			++counter; 
-
-			currRow += rowDelta;
+				clientLogicalAbsPos.Y() += rowLogicalDelta;
+			}
 		}
 		counter.Close();
 	}
@@ -355,18 +331,19 @@ GraphVisitState GraphVisitor::DoDataItemColumn(DataItemColumn* dic)
 
 GraphVisitState GraphVisitor::DoViewPort(ViewPort* vp)
 {
-	dms_assert(vp);
+	assert(vp);
 	if (vp->GetWorldCrdUnit())
 	{
-		VisitorRectSelector clipper(this, TRect2GRect( vp->GetCurrClientRelRect() + m_ClientOffset ));
+		auto vpRect = m_Transformation.Apply(vp->GetCurrClientRelLogicalRect());
+		VisitorDeviceRectSelector clipper(this, CrdRect2GRect(vpRect));
 		if (clipper.empty()) 
 			return GVS_UnHandled;
 
-		AddClientOffset viewportOffset(this, vp->GetCurrClientRelPos());
-		dms_assert(!HasCounterStacks() || vp->IsUpdated());
+		AddClientLogicalOffset viewportOffset(this, vp->GetCurrClientRelPos());
+		assert(!HasCounterStacks() || vp->IsUpdated());
 		AddTransformation transformHolder(
 			this
-		, 	vp->GetCurrWorldToClientTransformation() + Convert<CrdPoint>(m_ClientOffset)
+		, 	vp->GetCurrWorldToClientTransformation() + Convert<CrdPoint>(m_ClientLogicalAbsPos)
 		);
 
 		if (Visit(vp->GetContents()) != GVS_UnHandled) // this is what DoWrapper does 
@@ -381,13 +358,15 @@ GraphVisitState GraphVisitor::DoScrollPort(ScrollPort* sp)
 	{
 		DBG_START("GraphVisitor", "DoScrollPort", MG_DEBUG_VIEWINVALIDATE);
 
-		VisitorRectSelector clipper( this, TRect2GRect( sp->GetCurrNettAbsRect(*this) ) );
+		auto absNettLogicalRect = sp->GetCurrNettAbsLogicalRect(*this);
+		auto absNettDeviceRect = m_Transformation.Apply(absNettLogicalRect);
+		VisitorDeviceRectSelector clipper( this, CrdRect2GRect(absNettDeviceRect));
 		DBG_TRACE(("clipperEmpty: %d", clipper.empty()));
 
 		if (clipper.empty()) 
 			return GVS_UnHandled;
 
-		AddClientOffset localOffset(this, sp->GetCurrClientRelPos());
+		AddClientLogicalOffset localOffset(this, sp->GetCurrClientRelPos());
 
 		if (Visit(sp->GetContents()) != GVS_UnHandled) // this is what DoWrapper does 
 			return GVS_Handled;
@@ -397,26 +376,42 @@ GraphVisitState GraphVisitor::DoScrollPort(ScrollPort* sp)
 
 CrdRect GraphVisitor::GetWorldClipRect() const
 {
-	return m_Transformation.Reverse(Convert<CrdRect>( GetAbsClipRect() ) ); 
+	return m_Transformation.Reverse(g2dms_order<CrdType>( GetAbsClipDeviceRect() ) ); 
 }
 
-Float64 GraphVisitor::GetSubPixelFactor() const
+GPoint GraphVisitor::GetDeviceSize(TPoint relPoint) const
 {
-	return m_SubPixelFactor;
+	return GPoint(relPoint.X() * m_SubPixelFactors.first, relPoint.Y() * m_SubPixelFactors.second );
+}
+
+TPoint GraphVisitor::GetLogicalSize(GPoint devicePoint) const
+{
+	return shp2dms_order<TType>(devicePoint.x / m_SubPixelFactors.first, devicePoint.y / m_SubPixelFactors.second);
+}
+
+CrdPoint GraphVisitor::GetSubPixelFactors() const
+{
+	return m_SubPixelFactors;
+}
+
+CrdType GraphVisitor::GetSubPixelFactor() const
+{
+	return 0.5 * (m_SubPixelFactors.first + m_SubPixelFactors.second);
 }
 
 //----------------------------------------------------------------------
 // class  : GraphObjLocator
 //----------------------------------------------------------------------
 
-GraphObjLocator::GraphObjLocator(GPoint pnt, CrdType subPixelFactor)
-	:	GraphVisitor(SelectPoint2Rect(pnt), subPixelFactor) 
+GraphObjLocator::GraphObjLocator(GPoint pnt, CrdPoint scaleFactor)
+	:	GraphVisitor(SelectPoint2Rect(pnt), scaleFactor) 
 {}
 
-MovableObject* GraphObjLocator::Locate(DataView* view, GPoint pnt, CrdType subPixelFactor)
+MovableObject* GraphObjLocator::Locate(DataView* dv, GPoint pnt)
 {
-	GraphObjLocator locator(pnt, subPixelFactor);
-	locator.Visit(view->GetContents().get());
+	assert(dv);
+	GraphObjLocator locator(pnt, dv->GetScaleFactors());
+	locator.Visit(dv->GetContents().get());
 	return locator.m_TheOne.lock().get();
 }
 
@@ -433,17 +428,12 @@ GraphVisitState GraphObjLocator::DoMovable(MovableObject* obj)
 
 #include "utl/IncrementalLock.h"
 
-GraphDrawer::GraphDrawer(
-		HDC            hDC
-	,	CounterStacks& doneGraphics
-	,	DataView*      viewPtr
-	,	GdMode         gdMode
-	,	Float32        subPixelFactor
-	)	:	GraphVisitor( doneGraphics.CurrRegion().BoundingBox(), subPixelFactor)
+GraphDrawer::GraphDrawer(HDC hDC, CounterStacks& doneGraphics, DataView* dv, GdMode gdMode, CrdPoint scaleFactors)
+	:	GraphVisitor( doneGraphics.CurrRegion().BoundingBox(), scaleFactors)
 		,	m_hDC(hDC)
 		,	m_AbsClipRegion(doneGraphics.CurrRegion().Clone())
 		,	m_DoneGraphics(&doneGraphics)
-		,	m_ViewPtr(viewPtr)
+		,	m_ViewPtr(dv)
 		,	m_GdMode(gdMode)
 {
 	dms_assert( doneGraphics.NoActiveCounters() );
@@ -454,17 +444,12 @@ GraphDrawer::GraphDrawer(
 	dms_assert( (GetDC() != 0) ==  (DoDrawBackground() || DoDrawData()) );
 }
 
-GraphDrawer::GraphDrawer(
-		HDC            hDC
-	,	const Region&  rgn
-	,	DataView*      viewPtr
-	,	GdMode         gdMode
-	,	Float32        subPixelFactor
-	)	:	GraphVisitor(rgn.BoundingBox(), subPixelFactor)
+GraphDrawer::GraphDrawer(HDC hDC, const Region&  rgn, DataView* dv, GdMode gdMode, CrdPoint scaleFactors)
+	:	GraphVisitor(rgn.BoundingBox(), scaleFactors)
 		,	m_hDC(hDC)
 		,	m_AbsClipRegion( rgn.Clone() )
 		,	m_DoneGraphics(0)
-		,	m_ViewPtr(viewPtr)
+		,	m_ViewPtr(dv)
 		,	m_GdMode(gdMode)
 {
 	dms_assert(! IsSuspendible() );
@@ -478,7 +463,7 @@ GraphVisitState GraphDrawer::Visit(GraphicObject* go)
 {
 	DBG_START("GraphDrawer", "Visit", MG_DEBUG_VIEWINVALIDATE);
 	DBG_TRACE(("%s %x: %x", go->GetDynamicClass()->GetName().c_str(), go, &*(go->GetOwner().lock())));
-	DBG_TRACE(("ClipRect     : %s", AsString(m_ClipRect).c_str()));
+	DBG_TRACE(("ClipRect     : %s", AsString(m_ClipDeviceRect).c_str()));
 
 	bool suspendible = IsSuspendible();
 
@@ -503,15 +488,15 @@ GraphVisitState GraphDrawer::Visit(GraphicObject* go)
 	}
 	dms_assert(!SuspendTrigger::DidSuspend());
 
-	GRect absFullRect = TRect2GRect(go->GetCurrFullAbsRect(*this));
-	dms_assert(!SuspendTrigger::DidSuspend());
-	dms_assert(suspendible || go->IsUpdated() || (m_GdMode & GD_OnPaint));
+	auto absFullRect = go->GetCurrFullAbsDeviceRect(*this);
+	assert(!SuspendTrigger::DidSuspend());
+	assert(suspendible || go->IsUpdated() || (m_GdMode & GD_OnPaint));
 
 	bool hasDefinedExtent = go->HasDefinedExtent();
 	if (absFullRect.empty() && hasDefinedExtent)
 		return GVS_Continue;
 
-	VisitorRectSelector clipper(this, absFullRect);
+	VisitorDeviceRectSelector clipper(this, CrdRect2GRect(absFullRect));
 	if (clipper.empty() && hasDefinedExtent)
 		return GVS_Continue;
 
@@ -521,7 +506,7 @@ GraphVisitState GraphDrawer::Visit(GraphicObject* go)
 		dms_assert(!owner || owner->IsDrawn());
 
 		// CLIP ON ANCHESTORS BOUNDARIES, BUT NOT ON OnPaint Areas. 
-		GRect ownerRect = owner ? owner->GetDrawnNettAbsRect() : m_ViewPtr->ViewRect();
+		auto ownerRect = owner ? owner->GetDrawnNettAbsDeviceRect() : GRect2CrdRect( m_ViewPtr->ViewDeviceRect() );
 		if (hasDefinedExtent)
 			ownerRect &= absFullRect;
 
@@ -532,15 +517,12 @@ GraphVisitState GraphDrawer::Visit(GraphicObject* go)
 
 	if ( (DoDrawData() && go->MustClip()) || (DoDrawBackground() && go->MustFill()))
 	{
-		dms_assert(hasDefinedExtent); // implied by go->MustClip() ?
+		assert(hasDefinedExtent); // implied by go->MustClip() ?
 		if (clipper.empty())
 			return GVS_Continue;
 
-		DcClipRegionSelector clipRegionSelector(
-			GetDC(), 
-			m_AbsClipRegion, 
-			m_ClipRect // absFullRect
-		);
+		DcClipRegionSelector clipRegionSelector(GetDC(), m_AbsClipRegion, m_ClipDeviceRect);
+
 		if (clipRegionSelector.empty())
 			return GVS_Continue; // processing completed
 		return Visit2(go);
@@ -582,13 +564,10 @@ GraphVisitState GraphDrawer::DoMovable(MovableObject* obj)
 
 	if (obj->HasBorder() && DoDrawBackground())
 	{
-		auto extents = TRect2GRect(obj->GetCurrFullAbsRect(*this));
-
-		DrawBorder(
-			GetDC(),
-			extents,
-			obj->RevBorder()
-		);
+		auto extents = obj->GetCurrFullAbsLogicalRect(*this);
+		auto devExtents = m_Transformation.Apply( extents );
+		auto gExtents = CrdRect2GRect(devExtents);
+		DrawBorder(GetDC(), gExtents, obj->RevBorder());
 	}
 	return GVS_UnHandled;
 }
@@ -666,10 +645,10 @@ GraphVisitState GraphDrawer::DoDataItemColumn(DataItemColumn* dic)
 	return base_type::DoDataItemColumn(dic);
 }
 
-void GraphDrawer::DoElement(DataItemColumn* dic, SizeT i, const GRect& absElemRect)
+void GraphDrawer::DoElement(DataItemColumn* dic, SizeT i, const GRect& absElemDeviceRect)
 {
 	dms_assert(DoDrawData());
-	dic->DrawElement(*this, i, absElemRect, m_TileLocks);
+	dic->DrawElement(*this, i, absElemDeviceRect, m_TileLocks);
 }
 
 GraphVisitState GraphDrawer::DoViewPort(ViewPort* vp)
@@ -711,8 +690,8 @@ GraphVisitState GraphInvalidator::Visit(GraphicObject* go)
 // class  : GraphUpdater
 //----------------------------------------------------------------------
 
-GraphUpdater::GraphUpdater(const GRect& clipRect, CrdType subPixelFactor)
-	:	GraphVisitor(clipRect, subPixelFactor) 
+GraphUpdater::GraphUpdater(const GRect& clipDeviceRect, CrdPoint subPixelFactors)
+	:	GraphVisitor(clipDeviceRect, subPixelFactors) 
 {}
 
 GraphVisitState GraphUpdater::DoObject(GraphicObject* go)
@@ -726,6 +705,12 @@ GraphVisitState GraphUpdater::DoObject(GraphicObject* go)
 //		go->SuspendibleUpdate(PS_Committed);
 	return GVS_BreakOnSuspended();
 }
+
+GraphVisitState GraphUpdater::DoDataItemColumn(DataItemColumn* dic)
+{
+	return DoObject(dic);
+}
+
 
 //----------------------------------------------------------------------
 // UpdateViewProcessor members
@@ -791,11 +776,11 @@ revisit:
 #include "MouseEventDispatcher.h"
 
 MouseEventDispatcher::MouseEventDispatcher(DataView* owner, EventInfo& eventInfo)
-:	GraphVisitor(SelectPoint2Rect(eventInfo.m_Point), GetDesktopDIP2pixFactor())
+:	GraphVisitor(SelectPoint2Rect(eventInfo.m_Point), owner->GetScaleFactors() )
 	,	m_Owner(owner->shared_from_this())
 	,	r_EventInfo(eventInfo)
 {
-	dms_assert((eventInfo.m_EventID & EID_OBJECTFOUND) == 0);
+	assert((eventInfo.m_EventID & EID_OBJECTFOUND) == 0);
 }
 
 
@@ -808,7 +793,7 @@ GraphVisitState MouseEventDispatcher::DoObject(GraphicObject* go)
 {
 	if ((r_EventInfo.m_EventID & EID_OBJECTFOUND) == 0)
 	{
-		m_WorldCrd    = m_Transformation.Reverse(Convert<CrdPoint>(r_EventInfo.m_Point));
+		m_WorldCrd    = m_Transformation.Reverse(g2dms_order<CrdType>(r_EventInfo.m_Point));
 		m_FoundObject = go->shared_from_this();
 		r_EventInfo.m_EventID |= EID_OBJECTFOUND;
 
@@ -839,34 +824,40 @@ GraphVisitState MouseEventDispatcher::DoMovable(MovableObject* obj)
 	return result;
 }
 
-GraphVisitState MouseEventDispatcher::DoViewPort(ViewPort*  vp)
+GraphVisitState MouseEventDispatcher::DoViewPort(ViewPort* vp)
 {
 	vp->SetNeedle(&m_Transformation, r_EventInfo.m_Point);
 
 	GraphVisitState result = base_type::DoViewPort(vp);
 
-	dms_assert(r_EventInfo.m_EventID & EID_OBJECTFOUND);
+	assert(r_EventInfo.m_EventID & (EID_OBJECTFOUND| EID_SETCURSOR));
 
-	dms_assert(IsMainThread());
-	static ExternalVectorOutStreamBuff::VectorType buffer;
+	if (r_EventInfo.m_EventID & EID_SETCURSOR)
+		return result; 
+	if (!(r_EventInfo.m_EventID & EID_OBJECTFOUND))
+		return result;
 
-	buffer.clear();
-	buffer.reserve(30);
-	ExternalVectorOutStreamBuff strBuff(buffer);
-	auto dv = m_Owner.lock();
-	if (dv)
+	assert(IsMainThread());
+
+	if (!(r_EventInfo.m_EventID & EID_TEXTSENT))
 	{
-		FormattedOutStream out(&strBuff, FormattingFlags::ThousandSeparator);
-		out << "X=" << m_WorldCrd.Col() << "; Y=" << m_WorldCrd.Row() << char(0);
-		dv->SendStatusText(SeverityTypeID::ST_MinorTrace, &*buffer.begin());
-	}
-	buffer.clear();
-	if (r_EventInfo.m_EventID & EID_COPYCOORD )
-	{
-		FormattedOutStream out(&strBuff, FormattingFlags::None);
-		out << "[ X=" << m_WorldCrd.Col() << "; Y=" << m_WorldCrd.Row() << "]" << char(0);
-		ClipBoard clp;
-		clp.AddTextLine(&*buffer.begin());
+		auto viewPoint = ViewPoint(m_WorldCrd, vp->GetCurrLogicalZoomLevel(), {});
+		char buffer[201];
+
+		if (auto dv = m_Owner.lock())
+		{
+			if (!viewPoint.WriteAsString(buffer, 200, FormattingFlags::ThousandSeparator))
+				buffer[200] = char(0); // truncate
+				dv->SendStatusText(SeverityTypeID::ST_MinorTrace, buffer);
+		}
+		if (r_EventInfo.m_EventID & EID_COPYCOORD)
+		{
+			if (viewPoint.WriteAsString(buffer, 200, FormattingFlags::None))
+			{
+				ClipBoard clp;
+				clp.AddTextLine(buffer);
+			}
+		}
 	}
 
 	return result;

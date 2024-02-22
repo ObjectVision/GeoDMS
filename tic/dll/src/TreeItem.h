@@ -39,7 +39,7 @@ granted by an additional written contract for support, assistance and/or develop
 
 #include "act/Actor.h"
 #include "act/Any.h"
-#include "mci/SingleLinkedList.h"
+#include "mci/SingleLinkedTree.h"
 #include "ptr/InterestHolders.h"
 #include "ptr/PersistentSharedObj.h"
 #include "ptr/OwningPtr.h"
@@ -66,8 +66,9 @@ struct OperationContext;
 struct UsingCache;
 struct SupplCache;
 struct SourceLocation;
+
 class AbstrCalculator;
-using TreeItemList = single_linked_list<TreeItem>;
+using ItemTree = single_linked_tree<TreeItem>;
 
 #if defined(MG_DEBUG)
 
@@ -107,7 +108,7 @@ TIC_CALL const TreeItem* FindTreeItemByID(const TreeItem* searchLoc, TokenID sub
 // class  : TreeItem
 //----------------------------------------------------------------------
 
-struct TreeItem : Actor, TreeItemList
+struct TreeItem : Actor, ItemTree
 {
 	using base_type = Actor ;
 
@@ -165,7 +166,7 @@ public:
 
 //	storage
 
-	TIC_CALL void SetStorageManager(CharPtr storageName, CharPtr storageType, bool readOnly);
+	TIC_CALL void SetStorageManager(CharPtr storageName, CharPtr storageType, bool readOnly, CharPtr driver = nullptr, CharPtr options = nullptr);
 	TIC_CALL bool HasStorageManager() const;
 	TIC_CALL AbstrStorageManager* GetStorageManager(bool throwOnFailure = true) const;
 	         AbstrStorageManager* GetCurrStorageManager() const { return m_StorageManager; }
@@ -197,22 +198,24 @@ public:
 	// Parents
 
 	TIC_CALL const PersistentSharedObj* GetParent () const override;       // override PersistentSharedObj
-	         const TreeItem*   GetTreeParent   () const   { return m_Parent; }
-	TIC_CALL const TreeItem*   GetStorageParent(bool alsoForWrite) const;
-	TIC_CALL const TreeItem* GetCurrStorageParent(bool alsoForWrite) const;
+	         SharedTreeItem GetTreeParent   () const   { return m_Parent; }
+	TIC_CALL SharedTreeItem GetStorageParent(bool alsoForWrite) const;
+	TIC_CALL SharedTreeItem GetCurrStorageParent(bool alsoForWrite) const;
 
 // Search Items by name
 
-	TIC_CALL const TreeItem*   GetConstSubTreeItemByID(TokenID subItemName) const; // calls UpdateMetaInfo
-	TIC_CALL const TreeItem*   GetCurrSubTreeItemByID(TokenID subItemName) const;
+	TIC_CALL SharedTreeItem   GetConstSubTreeItemByID(TokenID subItemName) const; // calls UpdateMetaInfo
+	TIC_CALL SharedTreeItem   GetCurrSubTreeItemByID(TokenID subItemName) const;
 	TIC_CALL       TreeItem*   GetSubTreeItemByID(TokenID subItemName);
 
 	TIC_CALL       TreeItem* GetItem     (CharPtrRange subItemNames);
 	TIC_CALL       TreeItem* GetBestItem (CharPtrRange subItemNames);
-	TIC_CALL const TreeItem* GetCurrItem (CharPtrRange subItemNames) const; // doesn't call UpdateMetaInfo
+	TIC_CALL SharedTreeItem GetCurrItem (CharPtrRange subItemNames) const; // doesn't call UpdateMetaInfo
 
-	TIC_CALL const TreeItem* FindItem    (CharPtrRange subItemNames) const; // calls UpdateMetaInfo
+	TIC_CALL SharedTreeItem FindItem    (CharPtrRange subItemNames) const; // calls UpdateMetaInfo
 	TIC_CALL BestItemRef FindBestItem(CharPtrRange subItemNames) const; // calls UpdateMetaInfo
+	auto FindAndVisitItem(CharPtrRange subItemNames, SupplierVisitFlag svf, const ActorVisitor& visitor) const->std::optional<SharedTreeItem>;  // directly referred persistent object.
+
 	TIC_CALL const TreeItem* CheckObjCls(const Class* requiredClass) const;
 	TIC_CALL       TreeItem* CheckCls   (const Class* requiredClass);
 	TIC_CALL const TreeItem* FollowDots(CharPtrRange dots) const;
@@ -233,7 +236,8 @@ public:
 	TIC_CALL bool IsLoadable()      const;
 	TIC_CALL bool IsStorable()      const;
 
-	TIC_CALL bool IsCurrLoadable()      const;
+	TIC_CALL bool IsCurrLoadable()  const;
+	TIC_CALL bool IsCurrStorable()  const;
 
 	bool IsDerivable()     const { return IsLoadable() || HasCalculator() && !HasConfigData(); }
 	TIC_CALL bool HasConfigData() const;
@@ -330,7 +334,11 @@ public:
 
 	TIC_CALL void SetKeepDataState(bool value);
 	         bool GetKeepDataState () const { return GetTSF(TSF_KeepData); }
-	         bool HasRepetitiveUsers() const { return GetTSF(TSF_KeepData|TSF_THA_Keep); }
+
+	TIC_CALL void SetLazyCalculatedState(bool value);
+	         bool GetLazyCalculatedState() const { return GetTSF(TSF_LazyCalculated); }
+
+			bool HasRepetitiveUsers() const { return GetTSF(TSF_KeepData|TSF_THA_Keep); }
 	TIC_CALL void SetStoreDataState(bool value);
 	         bool GetStoreDataState() const { return GetTSF(TSF_StoreData); }
 	TIC_CALL void SetFreeDataState(bool value);
@@ -360,7 +368,7 @@ public:
 	TIC_CALL SharedTreeItemInterestPtr GetInterestPtrOrCancel() const;
 
 //protected: // new callback functions
-	TIC_CALL virtual bool DoReadItem(StorageMetaInfo* smi); friend struct StorageReadHandle;
+	TIC_CALL virtual bool DoReadItem(StorageMetaInfoPtr smi); friend struct StorageReadHandle;
 	TIC_CALL virtual bool DoWriteItem(StorageMetaInfoPtr&& smiHolder) const;
 	TIC_CALL virtual void ClearData(garbage_t&) const;
 	TIC_CALL virtual void CopyProps(TreeItem* result, const CopyTreeContext& copyContext) const;
@@ -392,7 +400,6 @@ public:
 
 protected:
 	void StartInterest() const override;
-//	bool MustApplyImpl(bool mayInvalidate) const override;
 	garbage_t StopInterest () const noexcept override;
 
 private:
@@ -407,7 +414,7 @@ public: // TODO G8: Re-encapsulate
 	void AddItem   (TreeItem* child); // PRECONDITION: child->GetParent()==0;
 	void RemoveItem(TreeItem* child); // PRECONDITION: child->GetParent()==this
 
-	bool ReadItem(const StorageReadHandle& srh);
+	bool ReadItem(StorageReadHandle&& srh);
 	void SetStorageManager(AbstrStorageManager* sm);
 
 	void SetMetaInfoReady() const;
@@ -463,7 +470,6 @@ public:
 	mutable AbstrStorageManagerRef m_StorageManager; 
 	mutable rtc::any::Any          m_ReadAssets; friend struct OperationContext;
 
-protected: friend struct CalcDestroyer;
 public: // TODO G8: encapsulate and move config attr (aka mc_ ) into a separate ConfigTreeItem class
 
 	mutable treeitem_flag_set      m_StatusFlags;

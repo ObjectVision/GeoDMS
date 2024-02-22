@@ -1,35 +1,6 @@
-//<HEADER> 
-/*
-Data & Model Server (DMS) is a server written in C++ for DSS applications. 
-Version: see srv/dms/rtc/dll/src/RtcVersion.h for version info.
-
-Copyright (C) 1998-2004  YUSE GSO Object Vision BV. 
-
-Documentation on using the Data & Model Server software can be found at:
-http://www.ObjectVision.nl/DMS/
-
-See additional guidelines and notes in srv/dms/Readme-srv.txt 
-
-This library is free software; you can use, redistribute, and/or
-modify it under the terms of the GNU General Public License version 2 
-(the License) as published by the Free Software Foundation,
-provided that this entire header notice and readme-srv.txt is preserved.
-
-See LICENSE.TXT for terms of distribution or look at our web site:
-http://www.objectvision.nl/DMS/License.txt
-or alternatively at: http://www.gnu.org/copyleft/gpl.html
-
-This library is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
-General Public License for more details. However, specific warranties might be
-granted by an additional written contract for support, assistance and/or development
-*/
-//</HEADER>
-// stdafx.h : include file for standard system include files,
-//  or project specific include files that are used frequently, but
-//      are changed infrequently
-//
+// Copyright (C) 1998-2023 Object Vision b.v. 
+// License: GNU GPL 3
+/////////////////////////////////////////////////////////////////////////////
 
 #include "ShvDllPch.h"
 
@@ -64,6 +35,7 @@ granted by an additional written contract for support, assistance and/or develop
 #include "TreeItemClass.h"
 #include "Unit.h"
 #include "UnitClass.h"
+#include "UnitProcessor.h"
 
 #include "StgBase.h"
 
@@ -77,17 +49,17 @@ granted by an additional written contract for support, assistance and/or develop
 #include "LayerClass.h"
 #include "Theme.h"
 
+#include "shellscalingapi.h"
+
 //----------------------------------------------------------------------
 // section : StatusText
 //----------------------------------------------------------------------
-
 
 void StatusTextCaller::operator() (SeverityTypeID st, CharPtr msg) const
 {
 	if (m_Func)
 		m_Func(m_ClientHandle, st, msg);
 }
-
 
 //----------------------------------------------------------------------
 // section : Instance
@@ -125,6 +97,11 @@ void CreateViewValueAction(const TreeItem* tiContext, SizeT index, bool mustOpen
 		CreateViewAction(tiContext, mySSPrintF("dp.vi.attr!%d", index).c_str(), -1, -1, -1, true, false, mustOpenDetailsPage);
 }
 
+void CreateGotoAction(const TreeItem* tiContext)
+{
+	CreateViewAction(tiContext, "goto", 0, 0, 0, false, false, false);
+}
+
 //----------------------------------------------------------------------
 // section : TPoint & TRect
 //----------------------------------------------------------------------
@@ -132,8 +109,7 @@ void CreateViewValueAction(const TreeItem* tiContext, SizeT index, bool mustOpen
 GPoint GPoint::ScreenToClient(HWND hWnd) const 
 {
 	GPoint result = *this;
-	CheckedGdiCall( 
-		::ScreenToClient(hWnd, &result),
+	CheckedGdiCall( ::ScreenToClient(hWnd, &result),
 		"ScreenToClient"
 	);
 	return result;
@@ -144,12 +120,12 @@ GPoint GPoint::ScreenToClient(HWND hWnd) const
 
 FormattedOutStream& operator <<(FormattedOutStream& os, const GRect& rect)
 {
-	return os << Convert<IRect>(rect);
+	return os << g2dms_order<TType>(rect);
 }
 
 FormattedOutStream& operator <<(FormattedOutStream& os, const GPoint& point)
 {
-	return os << Convert<IPoint>(point);
+	return os << g2dms_order<TType>(point);
 }
 
 FormattedOutStream& operator <<(FormattedOutStream& os, const TPoint& point)
@@ -177,10 +153,9 @@ const AbstrUnit* GetWorldCrdUnitFromGeoUnit(const AbstrUnit* geoUnit)
 	if (proj)
 	{
 		geoUnit = proj->GetCompositeBase();
-		dms_assert(geoUnit);                   // projection always has a BaseUnit, guaranteed by constructors of UnitProjection!
+		assert(geoUnit);                   // projection always has a BaseUnit, guaranteed by constructors of UnitProjection!
 	}
-	if (geoUnit->IsCacheItem() && geoUnit->m_BackRef)
-		geoUnit = AsUnit(geoUnit->m_BackRef);
+
 	return AsUnit(geoUnit->GetUltimateSourceItem());
 }
 
@@ -441,7 +416,7 @@ void ChangePoint(AbstrDataItem* pointItem, const CrdPoint& point, bool isNew)
 
 TokenID UniqueName(TreeItem* context, CharPtr nameBase)
 {
-	dms_assert(context);
+	assert(context);
 	UInt32 i = 0;
 	while (true) {
 		SharedStr nameStr = mySSPrintF("%s%d", nameBase, i++);
@@ -453,15 +428,18 @@ TokenID UniqueName(TreeItem* context, CharPtr nameBase)
 
 TokenID UniqueName(TreeItem* context, TokenID nameBaseID)
 {
-	dms_assert(context);
-	UInt32 i = 0;
-	while (true) {
-		SharedStr nameStr = mySSPrintF("%s%d", nameBaseID, i++);
-		TokenID result = GetTokenID_mt(nameStr.c_str() );
-		if  (!context->GetConstSubTreeItemByID(result)) 
-			return result;
+	assert(context);
+	TokenID result = nameBaseID;
+	if (context->GetConstSubTreeItemByID(nameBaseID))
+	{
+		UInt32 i = 0;
+		do {
+			SharedStr nameStr = mySSPrintF("%s%d", nameBaseID, ++i);
+			result = GetTokenID_mt(nameStr.c_str());
+		} while (context->GetConstSubTreeItemByID(result));
 	}
-}	
+	return result;
+}
 
 TokenID UniqueName(TreeItem* context, const Class* cls)
 {
@@ -518,11 +496,6 @@ void CheckedGdiCall(bool result, CharPtr context)
 // section : Colors
 //----------------------------------------------------------------------
 
-void CheckColor(DmsColor clr)
-{
-	MG_CHECK(clr  <= MAX_COLOR);
-}
-
 COLORREF GetFocusClr() { return ::GetSysColor(COLOR_HIGHLIGHT); }
 COLORREF GetDefaultClr(UInt32 i) { return DmsColor2COLORREF(STG_Bmp_GetDefaultColor(i)); }
 COLORREF GetSelectedClr(SelectionID i) { return GetDefaultClr(i); }
@@ -560,35 +533,36 @@ void ShadowRect(HDC dc, GRect rect, HBRUSH lightBrush, HBRUSH darkBrush)
 	FillRectWithBrush(dc, GRect(rect.left, nextTop,  nextLeft, prevBottom), lightBrush );  // left vertical line
 }
 
-void DrawButtonBorder(HDC dc, GRect& clientRect)
+void DrawButtonBorder(HDC dc, GRect& clientDeviceRect)
 {
 	HBRUSH lightBrush = GetSysColorBrush(COLOR_3DLIGHT);
 	HBRUSH blackBrush = GetSysColorBrush(COLOR_3DDKSHADOW);
 
-	ShadowRect(dc, clientRect, lightBrush, blackBrush);
-	clientRect.Shrink(1);
+	ShadowRect(dc, clientDeviceRect, lightBrush, blackBrush);
+	clientDeviceRect.Shrink(1);
 
 	HBRUSH whiteBrush = GetSysColorBrush(COLOR_3DHIGHLIGHT);
 	HBRUSH shadowBrush= GetSysColorBrush(COLOR_3DSHADOW);
 
-	ShadowRect(dc, clientRect, whiteBrush, shadowBrush);
-	clientRect.Shrink(1);
+	ShadowRect(dc, clientDeviceRect, whiteBrush, shadowBrush);
+	clientDeviceRect.Shrink(1);
 }
 
-void DrawReversedBorder(HDC dc, GRect& clientRect)
+void DrawReversedBorder(HDC dc, GRect& clientDeviceRect)
 {
 	HBRUSH lightBrush = GetSysColorBrush(COLOR_3DLIGHT);
 	HBRUSH blackBrush = GetSysColorBrush(COLOR_3DDKSHADOW);
 
-	ShadowRect(dc, clientRect, blackBrush, lightBrush);
-	clientRect.Shrink(1);
+	ShadowRect(dc, clientDeviceRect, blackBrush, lightBrush);
+	clientDeviceRect.Shrink(1);
 
 	HBRUSH whiteBrush = GetSysColorBrush(COLOR_3DHIGHLIGHT);
 	HBRUSH shadowBrush= GetSysColorBrush(COLOR_3DSHADOW);
 
-	ShadowRect(dc, clientRect, shadowBrush, whiteBrush);
-	clientRect.Shrink(1);
+	ShadowRect(dc, clientDeviceRect, shadowBrush, whiteBrush);
+	clientDeviceRect.Shrink(1);
 }
+
 void DrawRectDmsColor(HDC dc, const GRect& rect, DmsColor color)
 {
 	GdiHandle<HBRUSH> brush(
@@ -614,11 +588,12 @@ void FillRectDmsColor(HDC dc, const GRect& rect, DmsColor color)
 // enum class FontSizeCategory
 //----------------------------------------------------------------------
 
-static const UInt32 g_DefaultFontHDIP[static_cast<int>(FontSizeCategory::COUNT)] = { 16, 20, 24 };
+static const UInt32 g_DefaultFontHDIP[static_cast<int>(FontSizeCategory::COUNT)] = { 12, 16, 20 };
 static CharPtr      g_DefaultFontName[static_cast<int>(FontSizeCategory::COUNT)] = { "Small", "Medium", "Large" };
 
 CharPtr GetDefaultFontName(FontSizeCategory fid)
 {
+	assert(fid >= FontSizeCategory::SMALL && fid <= FontSizeCategory::COUNT);
 	if (fid < FontSizeCategory::SMALL || fid > FontSizeCategory::COUNT)
 		fid = FontSizeCategory::SMALL;
 
@@ -627,17 +602,55 @@ CharPtr GetDefaultFontName(FontSizeCategory fid)
 
 UInt32 GetDefaultFontHeightDIP(FontSizeCategory fid)
 {
+	assert(fid >= FontSizeCategory::SMALL && fid <= FontSizeCategory::COUNT);
 	if (fid < FontSizeCategory::SMALL || fid > FontSizeCategory::COUNT)
 		fid = FontSizeCategory::SMALL;
 
 	return g_DefaultFontHDIP[static_cast<int>(fid)];
 }
 
-
-Float64 GetDesktopDIP2pixFactor()
+Point<UINT> GetWindowEffectiveDPI(HWND hWnd)
 {
-	static Float64 dip2PixFactor = GetDeviceCaps(DcHandleBase(NULL), LOGPIXELSY) / 96.0;
-	return dip2PixFactor;
+	assert(hWnd);
+	HWND hTopWnd = GetAncestor(hWnd, GA_ROOT);
+	assert(hTopWnd);
+	HMONITOR hMonitor = MonitorFromWindow(hTopWnd, MONITOR_DEFAULTTONEAREST);
+	assert(hMonitor);
+	UINT dpiX, dpiY;
+
+	auto result = GetDpiForMonitor(hMonitor, MDT_EFFECTIVE_DPI, &dpiX, &dpiY);
+	assert(result == S_OK);
+	return shp2dms_order<UINT>( dpiX, dpiY );
+}
+
+Float64 GetWindowDip2PixFactorX(HWND hWnd)
+{
+	auto dpi = GetWindowEffectiveDPI(hWnd);
+	return dpi.X() / 96.0;
+}
+
+Float64 GetWindowDip2PixFactorY(HWND hWnd)
+{
+	auto dpi = GetWindowEffectiveDPI(hWnd);
+	return dpi.Y() / 96.0;
+}
+
+Point<Float64> GetWindowDip2PixFactors(HWND hWnd)
+{
+	auto dpi = GetWindowEffectiveDPI(hWnd);
+	return { dpi.first / 96.0, dpi.second / 96.0 };
+}
+
+Float64 GetWindowDip2PixFactor(HWND hWnd)
+{
+	auto dpi = GetWindowEffectiveDPI(hWnd);
+	return (dpi.first + dpi.second) / (2.0*96.0);
+}
+
+Point<Float64> GetWindowPix2DipFactors(HWND hWnd)
+{
+	auto dpi = GetWindowEffectiveDPI(hWnd);
+	return shp2dms_order<Float64>(96.0 / dpi.first, 96.0 / dpi.second);
 }
 
 //----------------------------------------------------------------------
@@ -660,15 +673,36 @@ inline TreeItem* SafeCreateItemFromPath(TreeItem* context, CharPtr path)
 	return result;
 }
 
+static TokenID desktopsID = GetTokenID_st("Desktops");
+static TokenID defaultID  = GetTokenID_st("Default");
 static TokenID viewDataID = GetTokenID_st("ViewData");
+static TokenID exportsID  = GetTokenID_st("Exports");
+
+TreeItem* GetDefaultDesktopContainer(const TreeItem* ti)
+{
+	assert(ti);
+	assert(!ti->IsCacheItem());
+	const TreeItem* pi = nullptr;
+	while (pi = ti->GetTreeParent())
+		ti = pi;
+	auto desktops = const_cast<TreeItem*>(ti)->CreateItem(desktopsID);
+	return desktops->CreateItem(defaultID);
+}
+
+TreeItem* GetExportsContainer(TreeItem* desktopItem)
+{
+	assert(desktopItem && !desktopItem->IsCacheItem());
+	auto result = desktopItem->CreateItem(exportsID);
+	assert(result && !result->IsCacheItem());
+	return result;
+}
 
 TreeItem* GetViewDataContainer(TreeItem* desktopItem)
 {
-	TreeItem* viewDataContainer = desktopItem->GetSubTreeItemByID(viewDataID);
-	if (!viewDataContainer)
-		viewDataContainer = desktopItem->CreateItem(viewDataID);
-	dms_assert(viewDataContainer && !viewDataContainer->IsCacheItem());
-	return viewDataContainer;
+	assert(desktopItem && !desktopItem->IsCacheItem());
+	auto result = desktopItem->CreateItem(viewDataID);
+	assert(result && !result->IsCacheItem());
+	return result;
 }
 
 TreeItem* CreateContainer_impl(TreeItem* container, const TreeItem* item)
@@ -838,12 +872,13 @@ SharedDataItemInterestPtr CreateSystemColorPalette(DataView* dv, const AbstrUnit
 	return result.get_ptr();
 }
 
-SharedDataItemInterestPtr CreateSystemLabelPalette(DataView* dv, const AbstrUnit* paletteDomain, AspectNr aNr)
+SharedDataItemInterestPtr CreateSystemLabelPalette(DataView* dv, const AbstrUnit* paletteDomain, AspectNr aNr, bool always)
 {
 	dms_assert(!paletteDomain->WasFailed(FR_Data));
 	TreeItem* paletteContainer = CreatePaletteContainer(dv, paletteDomain);
 	SharedDataItemInterestPtr result = AsDynamicDataItem( paletteContainer->GetSubTreeItemByID(GetAspectNameID(aNr)) );
-	if (!result)
+
+	if (always || !result)
 	{
 		SizeT n = paletteDomain->GetPreparedCount();
 		SharedMutableDataItem newResult = CreateDataItem(paletteContainer, GetAspectNameID(aNr), paletteDomain, Unit<SharedStr>::GetStaticClass()->CreateDefault() );
@@ -854,10 +889,15 @@ SharedDataItemInterestPtr CreateSystemLabelPalette(DataView* dv, const AbstrUnit
 		newResult->UpdateMetaInfo();
 		result = newResult.get_ptr();
 		DataWriteLock lock(newResult);
-
 		auto resultData = mutable_array_cast<SharedStr>(lock)->GetDataWrite();
-		for (SizeT i = 0; i != n; ++i)
-			resultData[i] = AsString(i);
+
+		visit<typelists::domain_elements>(paletteDomain, [n, &resultData]<typename V>(const Unit<V>* pd)
+			{
+				auto domainRange = pd->GetRange();
+				for (SizeT i = 0; i != n; ++i)
+					resultData[i] = AsString(Range_GetValue_checked(domainRange, i));
+			}
+		);
 
 		lock.Commit();
 	}
@@ -939,38 +979,40 @@ void CreateNonzeroJenksFisherBreakAttr(std::weak_ptr<DataView> dv_wptr, const Ab
 
 	auto dv = dv_wptr.lock(); if (!dv) return;
 
-	TimeStamp tsActive = UpdateMarker::GetActiveTS(MG_DEBUG_TS_SOURCE_CODE("Obtaining active frame for JenksFisher job"));
-
 	auto siwlPaletteDomain = std::make_shared<ItemWriteLock>(std::move(iwlPaletteDomain));
 	auto siwlBreakAttr = std::make_shared<ItemWriteLock>(std::move(iwlBreakAttr)); // TODO G8: Can this be moved into a functor's data field directly? Requires no functor copy!
-	dv->AddGuiOper([tsActive, paletteDomain
+	dv->AddGuiOper([paletteDomain
 			, siwlMovedPaletteDomain = std::move(siwlPaletteDomain)
 			, breakAttrPtr, siwlBreakAttr, nrBreaks
 			, resultCopy = std::move(result)
 			, thematicValuesRangeData, aNr, dv_wptr
 			]() 
 		{
-			UpdateMarker::ChangeSourceLock tsLock(tsActive, "JenksFisher application");
 			paletteDomain->SetCount(nrBreaks);
+			auto tsActive = UpdateMarker::GetFreshTS(MG_DEBUG_TS_SOURCE_CODE("CreateNonzeroJenksFisherBreakAttr"));
+			paletteDomain->MarkTS(tsActive);
 
 			// Alleviate restriction on breakAttr write-access to avoid dead-lock, which requires mutable=synchronized=unique access to the ItemWriteLock
 			// Could the move fix the dangling writeLock on PaletteDomain issue ? No, since the spawning thread doesn't write, except for when the destructor could run, which has unique access, guaranteed by shared_ptr.
 			*siwlMovedPaletteDomain = ItemWriteLock(); 
-			breakAttrPtr->MarkTS(tsActive);
+			auto paletteInterest = SharedTreeItemInterestPtr(paletteDomain.get());
+			auto tryReadLock = ItemReadLock(std::move(paletteInterest), try_token);
+			if (!tryReadLock.has_ptr())
+				return; // no accces because of other classifying action, pray for the other action to fill this palette
 
 			FillBreakAttrFromArray(breakAttrPtr, resultCopy, thematicValuesRangeData);
+			auto dv = dv_wptr.lock(); if (!dv) return;
 			if (aNr != AN_AspectCount)
-			{
-				auto dv = dv_wptr.lock(); if (!dv) return;
 				CreatePaletteData(dv.get(), paletteDomain, aNr, true, true, begin_ptr( resultCopy ), end_ptr( resultCopy ));
-			}
+			if (aNr != AN_LabelText)
+				CreatePaletteData(dv.get(), paletteDomain, AN_LabelText, true, true, begin_ptr(resultCopy), end_ptr(resultCopy));
 		}
 	);
 }
 
 const AbstrDataItem* GetSystemPalette(const AbstrUnit* paletteDomain, AspectNr aNr)
 {
-	dms_assert(paletteDomain);
+	assert(paletteDomain);
 	return  AsDynamicDataItem( paletteDomain->GetConstSubTreeItemByID(GetAspectNameID(aNr)) );
 }
 
@@ -993,15 +1035,15 @@ bool IsBusy()
 	return g_BusyMode;
 }
 
-extern "C" SHV_CALL void DMS_CONV SHV_SetAdminMode(bool v) 
+SHV_CALL void SetBusy(bool v)
+{
+	g_BusyMode = v;
+}
+
+SHV_CALL void SHV_SetAdminMode(bool v)
 {
 	MG_DEBUGCODE( gd_AdminModeKnown = true; )
 	g_AdminMode = v;
-}
-
-extern "C" SHV_CALL void DMS_CONV SHV_SetBusyMode(bool v) 
-{
-	g_BusyMode = v;
 }
 
 //----------------------------------------------------------------------
@@ -1037,7 +1079,7 @@ const AbstrUnit* SHV_DataContainer_GetDomain(const TreeItem* ti, UInt32 level, b
 
 UInt32 SHV_DataContainer_GetItemCount(const TreeItem* ti, const AbstrUnit* domain, UInt32 level, bool adminMode)
 {
-	dms_assert(domain);
+	assert(domain);
 	if (!ti || !adminMode && ti->GetTSF(TSF_InHidden)) return 0;
 
 	UInt32 result =0;
@@ -1056,9 +1098,43 @@ UInt32 SHV_DataContainer_GetItemCount(const TreeItem* ti, const AbstrUnit* domai
 	return result;
 }
 
+auto DataContainer_NextItem(const TreeItem* ti, const TreeItem* si, const AbstrUnit* domain, bool adminMode) -> const AbstrDataItem*
+{
+	assert(ti);
+	while (si = ti->WalkConstSubTree(si))
+	{
+		// skip hidden items
+		if (!adminMode)
+			while (si->GetTSF(TSF_InHidden))
+			{
+				if (si == ti)
+					return nullptr;
+				const TreeItem* next;
+				while ((next = si->GetNextItem()) == nullptr) // skip sub-tree
+				{
+					si = si->GetTreeParent();
+					if (si == ti)
+						return nullptr;
+					assert(si);
+				}
+				si = next;
+			}
+
+		// return dataItem if compatible
+		assert(si);
+		if (IsDataItem(si))
+		{
+			auto adi = AsDataItem(si);
+			if (adi->GetAbstrDomainUnit()->UnifyDomain(domain))
+				return adi;
+		}
+	}
+	return nullptr;
+}
+
 const AbstrDataItem* SHV_DataContainer_GetItem(const TreeItem* ti, const AbstrUnit* domain, UInt32 k, UInt32 level, bool adminMode)
 {
-	dms_assert(domain);
+	assert(domain);
 	if (!ti || !adminMode && ti->GetTSF(TSF_InHidden)) return 0;
 
 	UInt32 result =0;
@@ -1107,7 +1183,7 @@ void UpdateShowSelOnlyImpl(
 		SharedStr expr = selAttr->GetFullName();
 		if (indexAttr)
 			expr = mySSPrintF("lookup(%s, %s)", indexAttr->GetFullName().c_str(), expr.c_str());
-		expr = mySSPrintF("SubSet(%s)", expr.c_str());
+		expr = mySSPrintF("select_with_org_rel(%s)", expr.c_str());
 
 		const ValueClass* vc           = entity->GetValueType();
 		const UnitClass*  resDomainCls = UnitClass::Find(vc->GetCrdClass());
@@ -1127,11 +1203,12 @@ void UpdateShowSelOnlyImpl(
 		newSelIndexAttr->DisableStorage(true);
 
 
-		expr = "nr_OrgEntity";
 		if (indexAttr)
-			expr = mySSPrintF("lookup(%s, %s)", expr.c_str(), indexAttr->GetFullName().c_str());
+			expr = mySSPrintF("lookup(org_rel, %s)", indexAttr->GetFullName().c_str());
+		else
+			expr = "org_rel";
 
-		newSelIndexAttr->SetExpr( SharedStr(expr) );
+		newSelIndexAttr->SetExpr( expr );
 	}
 	else
 	{
@@ -1144,23 +1221,7 @@ void UpdateShowSelOnlyImpl(
 	}
 }
 
-//----------------------------------------------------------------------
-// GetUserMode section
-//----------------------------------------------------------------------
 #include "SessionData.h"
-
-UserMode GetUserMode()
-{
-	static UserMode userMode = UM_Unknown;
-	if (userMode == UM_Unknown)
-	{
-		Int32 userModeID = SessionData::Curr()->ReadConfigValue("Tools", "NrGroups", UM_Edit);
-		userMode = UserMode(userModeID);
-		MakeMax(userMode, UM_View);
-		MakeMin(userMode, UM_Edit);
-	}
-	return userMode;
-}
 
 GraphVisitState GVS_BreakOnSuspended()
 {

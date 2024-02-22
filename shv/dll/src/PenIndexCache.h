@@ -33,7 +33,7 @@ granted by an additional written contract for support, assistance and/or develop
 
 #include "ResourceIndexCache.h"
 
-#include "geo/Color.h"
+#include "geo/color.h"
 
 #include<utility>
 
@@ -77,7 +77,6 @@ struct PenKeyType
 
 template <> constexpr bool has_undefines_v<PenKeyType> = false;
 
-//template <> struct has_undefines<PenKeyType> : boost::false_type {};
 //----------------------------------------------------------------------
 // struct  : PenIndexCache
 //----------------------------------------------------------------------
@@ -105,14 +104,12 @@ struct PenIndexCache : ResourceIndexCache
 	}
 #endif
 
-
 private: friend struct PenArray;
 	const AbstrUnit* GetCommonClassIdUnit() const;
 	void AddKeys(const AbstrThemeValueGetter* pixelwidth, const AbstrThemeValueGetter*  worldWidth, const AbstrThemeValueGetter* penColor, const AbstrThemeValueGetter* penStyle, entity_id n) const;
 	void AddKey(Float64 penSize, Float64 worldSize, DmsColor penColor, PenStyle penStyle) const;
 	void AddUndefinedKey() const;
-	void MakeKeyIndex() const;
-
+	
 	DmsColor m_DefaultPenColor;
 	Int16    m_DefaultPenStyle;
 
@@ -131,19 +128,25 @@ private: friend struct PenArray;
 
 struct PenArray
 {
+	using SafePenHandle = GdiHandle<HPEN>;
+
 	PenArray(HDC hDC, const PenIndexCache*& indexer);
 	~PenArray();
 
+	void ResetPen();
 	bool SelectPen(UInt32 index);
+	void SetSpecificPen(HPEN pen);
+
 	SizeT size() const { return m_Collection.size(); }
 
 private:
-	typedef GdiHandle<HPEN>                         SafePenHandle; // derived from boost::noncopyable
-	typedef std::vector<SafePenHandle>              PenHandleCollection;
+	void SetPen(HPEN pen);
 
-	PenHandleCollection m_Collection;
-	HDC                 m_hDC;
-	HPEN                m_OrgHPen;
+	std::vector<SafePenHandle> m_Collection;
+	HDC                        m_hDC;
+	HPEN                       m_OrgHPen = nullptr; // zodat dat weer terug te zetten is in destructor, bewaar pas bij eerste Selectie
+	bool                       m_CurrPenIsExceptional = false;
+
 };
 
 

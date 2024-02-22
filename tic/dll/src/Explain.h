@@ -32,7 +32,7 @@ granted by an additional written contract for support, assistance and/or develop
 
 #include "TicBase.h"
 
-typedef OwningPtr<AbstrValue>           AbstrValueRef;
+using AbstrValueRef = OwningPtr<AbstrValue>;
 
 namespace Explain {
 	struct CalcExplImpl;
@@ -45,24 +45,29 @@ namespace Explain {
 	};
 
 	// magic constants
+	const UInt32 MaxNrEntries = 6;
+	const UInt32 MaxLevel     = 3;
 
-	const UInt32 MaxNrEntries = 5;
-	const UInt32 MaxLevel     = 7;
+	struct CalcExplImpl;
+	struct CalcExplanations;
+
+	struct NonStaticCalcExplanations
+	{
+		TIC_CALL NonStaticCalcExplanations(OutStreamBase& xmlOutStr, const AbstrDataItem* studyObject, SizeT index, CharPtr extraInfo);
+		TIC_CALL bool ProcessQueue();
+		TIC_CALL void WriteDescr();
+
+		std::unique_ptr<CalcExplImpl>     m_Impl;
+		std::unique_ptr<CalcExplanations> m_Interface;
+		SharedDataItem   m_StudyObject;
+	};
+
+
+	using context_handle = std::unique_ptr<Explain::CalcExplImpl, void (*)(Explain::CalcExplImpl*)>;
+	TIC_CALL context_handle CreateContext();
+	TIC_CALL void AddQueueEntry(Explain::CalcExplImpl* explImpl, const AbstrUnit* domain, SizeT index);
+	TIC_CALL bool AttrValueToXML(Explain::CalcExplImpl* context, const AbstrDataItem* studyObject, OutStreamBase* xmlOutStrPtr, SizeT index, CharPtr extraInfo, bool bShowHidden);
 }
-//  -----------------------------------------------------------------------
-//  extern "C" interface functions
-//  -----------------------------------------------------------------------
 
-extern "C" {
-
-TIC_CALL void DMS_CONV DMS_ExplainValue_Clear();
-TIC_CALL bool DMS_CONV DMS_DataItem_ExplainAttrValueToXML(const AbstrDataItem* studyObject, OutStreamBase* xmlOutStrPtr, 
-	SizeT index, CharPtr extraInfo, bool bShowHidden);
-TIC_CALL bool DMS_CONV DMS_DataItem_ExplainGridValueToXML(const AbstrDataItem* studyObject, OutStreamBase* xmlOutStrPtr, 
-	Int32 row, Int32 col, CharPtr extraInfo, bool bShowHidden);
-
-TIC_CALL void DMS_CalcExpl_AddQueueEntry(Explain::CalcExplImpl* explImpl, const AbstrUnit* domain, SizeT index);
-
-} // extern "C"
 
 #endif //!defined(__TIC_EXPLAIN_H)

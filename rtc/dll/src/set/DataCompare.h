@@ -58,7 +58,7 @@ template <typename T> struct DataCompareImpl<T, true> {
 };
 
 template <typename T>
-struct DataCompare : DataCompareImpl<T, has_undefines<T>::value && !has_min_as_null<T>::value && has_fixed_elem_size<T>::value> {};
+struct DataCompare : DataCompareImpl<T, has_undefines_v<T> && !has_min_as_null_v<T> && has_fixed_elem_size_v<T>> {};
 
 template <typename T>
 struct DataCompare<Couple<T> >

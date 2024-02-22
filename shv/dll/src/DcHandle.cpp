@@ -1,37 +1,12 @@
-//<HEADER> 
-/*
-Data & Model Server (DMS) is a server written in C++ for DSS applications. 
-Version: see srv/dms/rtc/dll/src/RtcVersion.h for version info.
-
-Copyright (C) 1998-2004  YUSE GSO Object Vision BV. 
-
-Documentation on using the Data & Model Server software can be found at:
-http://www.ObjectVision.nl/DMS/
-
-See additional guidelines and notes in srv/dms/Readme-srv.txt 
-
-This library is free software; you can use, redistribute, and/or
-modify it under the terms of the GNU General Public License version 2 
-(the License) as published by the Free Software Foundation,
-provided that this entire header notice and readme-srv.txt is preserved.
-
-See LICENSE.TXT for terms of distribution or look at our web site:
-http://www.objectvision.nl/DMS/License.txt
-or alternatively at: http://www.gnu.org/copyleft/gpl.html
-
-This library is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
-General Public License for more details. However, specific warranties might be
-granted by an additional written contract for support, assistance and/or development
-*/
-//</HEADER>
+// Copyright (C) 1998-2023 Object Vision b.v. 
+// License: GNU GPL 3
+/////////////////////////////////////////////////////////////////////////////
 
 #include "ShvDllPch.h"
 
 #include "DcHandle.h"
 
-#include "dbg/Debug.h"
+#include "dbg/debug.h"
 #include "utl/Environment.h"
 #include "ser/AsString.h"
 #include "utl/Environment.h"
@@ -151,7 +126,7 @@ CaretHider::~CaretHider()
 //----------------------------------------------------------------------
 
 ClippedDC::ClippedDC(DataView* dv, const Region& rgn)
-	:	DcHandle(dv->GetHWnd(), dv->GetDefaultFont(FontSizeCategory::SMALL, GetDesktopDIP2pixFactor()) )
+	:	DcHandle(dv->GetHWnd(), dv->GetDefaultFont(FontSizeCategory::MEDIUM) )
 {
 	m_Empty = ( SelectClipRgn(GetHDC(), rgn.GetHandle() ) == NULLREGION );
 }
@@ -176,20 +151,19 @@ AddTransformation::AddTransformation(GraphVisitor* v, const CrdTransformation& w
 }
 
 //----------------------------------------------------------------------
-// AddClientOffset
+// AddClientLogicalOffset
 //----------------------------------------------------------------------
 
-AddClientOffset::AddClientOffset(GraphVisitor* v, const TPoint& c2p)
-	:	tmp_swapper<TPoint>(v->m_ClientOffset, v->m_ClientOffset+c2p)
-{
-}
+AddClientLogicalOffset::AddClientLogicalOffset(GraphVisitor* v, CrdPoint c2p)
+	: clientSwapper(v->m_ClientLogicalAbsPos, v->m_ClientLogicalAbsPos + c2p)
+{}
 
 //----------------------------------------------------------------------
 // VistorRectSelector
 //----------------------------------------------------------------------
 
-VisitorRectSelector::VisitorRectSelector(GraphVisitor* v, const GRect& objRect)
-	:	ClipRectSelector(v->m_ClipRect, objRect)
+VisitorDeviceRectSelector::VisitorDeviceRectSelector(GraphVisitor* v, GRect objRect)
+	:	ClipDeviceRectSelector(v->m_ClipDeviceRect, objRect)
 {
 }
 
@@ -232,7 +206,7 @@ DcClipRegionSelector::~DcClipRegionSelector()
 	}
 	m_OrgRegionPtr->swap(m_OrgRegionCopy);
 
-	dms_assert(! m_OrgRegionPtr->Empty() ); // else we shoudn't get here at all
+	assert(! m_OrgRegionPtr->Empty() ); // else we shoudn't get here at all
 }
 
 

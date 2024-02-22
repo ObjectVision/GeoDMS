@@ -41,7 +41,7 @@ enum ExceptionContextState {
 	ECS_SE,
 };
 
-struct DmsException : private ErrMsgPtr
+struct DmsException : std::exception, private ErrMsgPtr
 {
 	[[noreturn]] static RTC_CALL void throwMsg(ErrMsgPtr msg);
 	[[noreturn]] static RTC_CALL void throwMsgD(WeakStr);
@@ -51,7 +51,7 @@ struct DmsException : private ErrMsgPtr
 	[[noreturn]] static void throwMsgF(CharPtr fmt, Args&& ...args) { throwMsgD(mgFormat2SharedStr(fmt, std::forward<Args>(args)...)); }
 
 	ErrMsgPtr AsErrMsg() const { return *this;  }
-
+	RTC_CALL const char* what() const noexcept override;
 	auto GetAsText() const { return get()->GetAsText(); }
 
 	RTC_CALL virtual ~DmsException();
@@ -81,5 +81,6 @@ RTC_CALL SharedStr GetErrorContext(WeakStr msg);
 RTC_CALL SharedStr GetFirstLine(WeakStr msg);
 RTC_CALL SharedStr GetLastErrorMsgStr();
 RTC_CALL ErrMsgPtr GetUnrollingErrorMsgPtr();
+RTC_CALL unsigned int GetLastExceptionCode();
 
 #endif // __RTC_XCT_DMSEXCEPTION_H

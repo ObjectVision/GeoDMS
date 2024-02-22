@@ -42,22 +42,37 @@ granted by an additional written contract for support, assistance and/or develop
 #include "ExprProd.h"
 
 
-enum SignatureType {
-	ST_TreeItem,
-	ST_Template,
-	ST_Function,
-	ST_Unit,
-	ST_Attribute,
-	ST_Parameter
+enum class SignatureType {
+	Undefined,
+	TreeItem,
+	Template,
+	Function,
+	Unit,
+	Attribute,
+	Parameter
 };
 
 
-struct ConfigProd : AbstrDataBlockProd
+struct ConfigProd : AbstrDataBlockProd, AbstrContextHandle
 {
 	EmptyExprProd m_ExprProd = {};
 
 	ConfigProd(TreeItem* context);
 	~ConfigProd();
+
+//	impl AbstrContextHandle
+	bool HasItemContext() const override { return m_pCurrent;  }
+	auto ItemAsStr() const->SharedStr override 
+	{ 
+		assert(HasItemContext());  return m_pCurrent->GetSourceName(); 
+	}
+	bool Describe(FormattedOutStream& fos) override
+	{
+		auto item_name = HasItemContext() ? ItemAsStr() : SharedStr("");
+		fos << "while parsing item " << item_name
+			<< "\nin config file " << m_CurrFileName;
+		return true;
+	}
 
 	TreeItem*  ParseFile  (CharPtr fileName);
 	TreeItem*  ParseString(CharPtr configString);
@@ -85,7 +100,7 @@ struct ConfigProd : AbstrDataBlockProd
 	void DoStorageProp();
 	void DoFileType();
 	void DoUsingProp();
-	void DoUnitRangeProp();
+	void DoUnitRangeProp(bool isCategorical);
 	void DoNrOfRowsProp();
 
 	void DoArrayAssignment   () override;
@@ -131,17 +146,18 @@ MG_DEBUGCODE(	void    ClearSignature(); )
 	TokenID                          m_strIdentifierID;
 
 	// Signature support
-	SignatureType                    m_eSignatureType;    // see enum above
+	SignatureType                    m_eSignatureType = SignatureType::Undefined;
 	WeakPtr<const ValueClass>        m_eValueClass;        // signature of unit definition
 	TokenID                          m_pSignatureUnit;
 
 	// param support
 	TokenID                          m_pParamEntity;
-	ValueComposition                 m_eParamVC;
+	ValueComposition                 m_eParamVC = ValueComposition::Unknown;
 
 	// property support
 	TokenID                          m_sPropFileTypeID;
 	bool                             m_ResultCommitted;
+	SharedStr                        m_CurrFileName;
 };
 
 #endif

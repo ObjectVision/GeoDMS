@@ -48,7 +48,6 @@ struct ExprProd
 
 	void ProdBracketedExpr();
 	void ProdUnaryOper(TokenID id);
-	void ProdNullaryOper(TokenID id);
 	void ProdStringValue();
 	void ProdFunctionCall();
 	void ProdIdentifier(iterator_t first, iterator_t last);
@@ -57,7 +56,9 @@ struct ExprProd
 	void ProdUInt32WithoutSuffix();
 	void ProdSuffix    (iterator_t first, iterator_t last);
 	void RefocusAfterArrow() {}
+	void RefocusAfterScope() {}
 	void ProdArrow() { ProdBinaryOper(token::arrow); }
+	void ProdScope() { ProdBinaryOper(token::scope); }
 
 	void StartExprList();
 	void CloseExprList();
@@ -78,7 +79,7 @@ struct ExprProdBase
 
 	void ProdBracketedExpr() {}
 	void ProdUnaryOper(TokenID id) {}
-	void ProdNullaryOper(TokenID id) {}
+//	void ProdNullaryOper(TokenID id) {}
 	void ProdStringValue() {}
 	void ProdFunctionCall() {}
 	void ProdUInt64(UInt64 n) {}
@@ -97,7 +98,9 @@ struct EmptyExprProd : ExprProdBase
 	void ProdIdentifier(iterator_t first, iterator_t last) {}
 	void ProdSuffix(iterator_t first, iterator_t last) {}
 	void RefocusAfterArrow() {}
+	void RefocusAfterScope() {}
 	void ProdArrow() {}
+	void ProdScope() {}
 };
 
 struct HtmlProd : ExprProdBase
@@ -128,11 +131,20 @@ struct HtmlProd : ExprProdBase
 		if (IsDataItem(m_LastIdentifier))
 			m_SearchContext = AsDataItem(m_LastIdentifier)->GetAbstrValuesUnit();
 	}
-	void ProdArrow() 
+	void RefocusAfterScope()
 	{
-		dms_assert(!m_SearchContextStack.empty());
+		m_SearchContextStack.emplace_back(m_SearchContext);
+		m_SearchContext = m_LastIdentifier;
+	}
+
+	void popSearchContext()
+	{
+		assert(!m_SearchContextStack.empty());
 		m_SearchContext = m_SearchContextStack.back(); m_SearchContextStack.pop_back();
 	}
+
+	void ProdArrow() { popSearchContext(); }
+	void ProdScope() { popSearchContext(); }
 
 	using string_prod_type = StringProd;
 	StringProd  m_StringProd;

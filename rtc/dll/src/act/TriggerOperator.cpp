@@ -28,7 +28,10 @@ granted by an additional written contract for support, assistance and/or develop
 //</HEADER>
 
 #include "RtcPCH.h"
+
+#if defined(CC_PRAGMAHDRSTOP)
 #pragma hdrstop
+#endif //defined(CC_PRAGMAHDRSTOP)
 
 #include "act/Actor.h"
 #include "act/InterestRetainContext.h"
@@ -39,7 +42,7 @@ granted by an additional written contract for support, assistance and/or develop
 #include "set/QuickContainers.h"
 #include "set/VectorFunc.h"
 #include "utl/Environment.h"
-#include "utl/MySPrintF.h"
+#include "utl/mySPrintF.h"
 #include "LockLevels.h"
 
 #include "RtcInterface.h"
@@ -332,7 +335,7 @@ namespace DemandManagement {
 	{
 		if (!g_IncInterestDetectorCount)
 			return;
- 		reportD(SeverityTypeID::ST_MajorTrace, "IncInterestDetector Failure: Starting Interest while in ", g_CurrIncInterestDetectorContextDescr);
+ 		reportD(SeverityTypeID::ST_MinorTrace, "IncInterestDetector Failure: Starting Interest while in ", g_CurrIncInterestDetectorContextDescr);
 //		dms_assert(0);
 	}
 
@@ -424,7 +427,6 @@ namespace SuspendTrigger {
 
 		MGD_CHECKDATA(gd_TriggerApplyLockCount == 0); // find who pulls the trigger
 
-
 		if (IsMetaThread())
 			ProcessMainThreadOpers();
 
@@ -439,7 +441,7 @@ namespace SuspendTrigger {
 
 	void Resume() noexcept
 	{
-		dms_assert(IsMetaThread());
+		assert(IsMetaThread());
 //		dms_assert(!s_SuspendLevel); // receipe for trouble later on
 		s_bLastResult  = false;
 		s_ProgressMade = false;

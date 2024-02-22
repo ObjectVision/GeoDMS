@@ -1,8 +1,11 @@
+// Copyright (C) 1998-2023 Object Vision b.v. 
+// License: GNU GPL 3
+/////////////////////////////////////////////////////////////////////////////
+
 #pragma once
 
 #if !defined(__RTC_VERSION_H)
 #define __RTC_VERSION_H
-
 
 #include "RtcBase.h"
 #include "RtcGeneratedVersion.h"

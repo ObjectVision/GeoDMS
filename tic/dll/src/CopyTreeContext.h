@@ -35,7 +35,7 @@ granted by an additional written contract for support, assistance and/or develop
 // used modules and forward class references
 //----------------------------------------------------------------------
 
-#include "mci/PropDefEnums.h"
+#include "mci/PropdefEnums.h"
 #include "utl/IncrementalLock.h"
 #include "ptr/PersistentSharedObj.h"
 #include "ptr/SharedPtr.h"
@@ -57,6 +57,8 @@ enum class DataCopyMode
 	MakePassor = 0x40,
 	DontCopySubItems = 0x80,
 	DontUpdateMetaInfo = 0x100,
+	CopyAlsoReferredItems = 0x200,
+	InFenceOperator = 0x400,
 };
 
 inline DataCopyMode operator |(DataCopyMode a, DataCopyMode b) { return DataCopyMode(int(a) | int(b)); }
@@ -79,7 +81,8 @@ struct CopyTreeContext
 	bool SetInheritFlag    () const { return (m_Dcm & DataCopyMode::SetInheritFlag); }
 	bool DontCopySubItems  () const { return (m_Dcm & DataCopyMode::DontCopySubItems); }
 	bool MustUpdateMetaInfo() const { return (m_Dcm & DataCopyMode::DontUpdateMetaInfo) == false; }
-
+	bool InFenceOperator   () const { return (m_Dcm & DataCopyMode::InFenceOperator); }
+	bool CopyReferredItems () const { return (m_Dcm & DataCopyMode::CopyAlsoReferredItems); }
 	DataCopyMode GetDCM()          const { return m_Dcm; }
 
 	cpy_mode  MinCpyMode        (bool isRoot) const 
@@ -104,11 +107,8 @@ struct CopyTreeContext
 	}
 	TreeItem* ApplyImpl()
 	{
-		return
-			debug_cast<const TreeItem*>(m_SrcRoot)
-			->Copy(debug_cast<TreeItem*>(m_DstContext), m_DstRootID, *this);
+		return m_SrcRoot->Copy(m_DstContext, m_DstRootID, *this);
 	}
-
 
 	TreeItem*            m_DstContext;
 	const TreeItem*      m_SrcRoot;

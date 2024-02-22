@@ -1,31 +1,8 @@
-//<HEADER> 
-/*
-Data & Model Server (DMS) is a server written in C++ for DSS applications. 
-Version: see srv/dms/rtc/dll/src/RtcVersion.h for version info.
+// Copyright (C) 1998-2023 Object Vision b.v. 
+// License: GNU GPL 3
+/////////////////////////////////////////////////////////////////////////////
 
-Copyright (C) 1998-2004  YUSE GSO Object Vision BV. 
-
-Documentation on using the Data & Model Server software can be found at:
-http://www.ObjectVision.nl/DMS/
-
-See additional guidelines and notes in srv/dms/Readme-srv.txt 
-
-This library is free software; you can use, redistribute, and/or
-modify it under the terms of the GNU General Public License version 2 
-(the License) as published by the Free Software Foundation,
-provided that this entire header notice and readme-srv.txt is preserved.
-
-See LICENSE.TXT for terms of distribution or look at our web site:
-http://www.objectvision.nl/DMS/License.txt
-or alternatively at: http://www.gnu.org/copyleft/gpl.html
-
-This library is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
-General Public License for more details. However, specific warranties might be
-granted by an additional written contract for support, assistance and/or development
-*/
-//</HEADER>
+#pragma once
 
 #if !defined(__STX_EXPRPARSE_H)
 #define __STX_EXPRPARSE_H
@@ -62,10 +39,6 @@ struct itennameNextChar_parser : public boost::spirit::char_parser<itennameFirst
 auto const itemNameFirstChar_p = itennameFirstChar_parser();
 auto const itemNameNextChar_p = itemNameFirstChar_p | boost::spirit::digit_p;
 auto const itemName_p = itemNameFirstChar_p >> *itemNameNextChar_p;
-
-
-auto const uint64_p = boost::spirit::uint_parser<UInt64>();
-auto const hex64_p = boost::spirit::uint_parser<UInt64, 16>();
 
 ///////////////////////////////////////////////////////////////////////////////
 //
@@ -110,9 +83,6 @@ struct expr_grammar : public boost::spirit::grammar<expr_grammar<Prod>>
 			chlit<>     COMMA(',');
 			chlit<>     UNDERSCORE('_');
 
-			strlit<>    TRUE("true");
-			strlit<>    FALSE("false");
-
 			chlit<>     LPAREN('(');
 			chlit<>     RPAREN(')');
 
@@ -150,12 +120,12 @@ struct expr_grammar : public boost::spirit::grammar<expr_grammar<Prod>>
 
 			strlit<>    C_OR("||");
 			strlit<>    P_OR("or");
+			strlit<>    P_SCOPE("scope");
 
 
 			chlit<>     C_IF('?');
 			chlit<>     C_ELSE(':');
 
-			keywords = "true", "false";
 			//-----------------------------------------------------------------
 			// TOKENS
 			//-----------------------------------------------------------------
@@ -243,8 +213,8 @@ struct expr_grammar : public boost::spirit::grammar<expr_grammar<Prod>>
 			element = // expr4
 				numericValueElement
 				| stringValueElement
+				| scopeCall // requires specific production at html, not for keyExpr generation
 				| functionCallOrIdentifier // expr5
-				| bool_literal
 				//				|	dots
 				| (LBRACK >> exprList >> RBRACK)[syntaxError("value-array syntax in expression NYI")]
 				| (LPAREN
@@ -277,6 +247,13 @@ struct expr_grammar : public boost::spirit::grammar<expr_grammar<Prod>>
 			nonEmptyExprList
 				=	expression % COMMA;
 
+//			if (mustScanScope)
+				scopeCall 
+					= P_SCOPE 
+					>> LPAREN >> identifier[([&](...) { cp.RefocusAfterScope(); })]
+					>> COMMA  >> expression
+					>> RPAREN [([&](...) { cp.ProdScope(); })];
+
 			functionCallOrIdentifier
 				 = identifier 
 				 >> ! 
@@ -286,7 +263,7 @@ struct expr_grammar : public boost::spirit::grammar<expr_grammar<Prod>>
 						)[([&](...) { cp.ProdFunctionCall();})];
 					
 			identifier
-				= (lexeme_d[ +DOT || +(!SLASH >> itemName_p) ] - as_lower_d[keywords])
+				= (lexeme_d[ +DOT || +(!SLASH >> itemName_p) ])
 				[([&](auto first, auto last) { cp.ProdIdentifier(first, last);})];
 
 			unsignedInteger
@@ -296,9 +273,6 @@ struct expr_grammar : public boost::spirit::grammar<expr_grammar<Prod>>
 			unsignedReal
 				= strict_ureal_p[([&](auto f64) { cp.ProdFloat64(f64);})];
 
-			bool_literal
-				= as_lower_d[TRUE][([&](...) { cp.ProdNullaryOper(token::true_);})]
-				| as_lower_d[FALSE][([&](...) { cp.ProdNullaryOper(token::false_);})];
 			//-----------------------------------------------------------------
 			//  End grammar definition
 			//-----------------------------------------------------------------
@@ -309,12 +283,12 @@ struct expr_grammar : public boost::spirit::grammar<expr_grammar<Prod>>
 
 		boost::spirit::symbols<> keywords;
 		boost::spirit::rule<ScannerT>
-			expression, exprLW, exprL0, exprL1, exprL2, exprL3, exprL4, exprN0, term, factor, pow_element, compound_element, 
+			expression, exprLW, exprL0, exprL1, exprL2, exprL3, exprL4, exprN0, term, factor, pow_element, compound_element,
 			element, numericValueElement, suffix, stringValueElement,
-			exprList, 
+			exprList,
 			nonEmptyExprList,
-			functionCallOrIdentifier, identifier, // dots, 
-			unsignedInteger, /*hexInteger, */ unsignedReal, bool_literal;
+			scopeCall, functionCallOrIdentifier, identifier, // dots, 
+			unsignedInteger, unsignedReal;
 	};
 };
 

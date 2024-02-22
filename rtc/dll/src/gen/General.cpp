@@ -27,14 +27,17 @@ granted by an additional written contract for support, assistance and/or develop
 */
 //</HEADER>
 #include "RtcPCH.h"
+
+#if defined(CC_PRAGMAHDRSTOP)
 #pragma hdrstop
+#endif //defined(CC_PRAGMAHDRSTOP)
 
 #include "ser/FormattedStream.h"
 #include "ser/MoreStreamBuff.h"
 #include "utl/Environment.h"
 #include "utl/mySPrintF.h"
 
-#include "RtcTypeModel.h"
+#include "rtctypemodel.h"
 #include "RtcVersion.h"
 #include "RtcInterface.h"
 
@@ -54,6 +57,21 @@ granted by an additional written contract for support, assistance and/or develop
 Float64 DMS_CONV DMS_GetVersionNumber()
 {
 	return DMS_VERSION_MAJOR + 0.01 * DMS_VERSION_MINOR + DMS_VERSION_PATCH * 0.0001;
+}
+
+UInt32 DMS_CONV DMS_GetMajorVersionNumber()
+{
+	return DMS_VERSION_MAJOR;
+}
+
+UInt32 DMS_CONV DMS_GetMinorVersionNumber()
+{
+	return DMS_VERSION_MINOR;
+}
+
+UInt32 DMS_CONV DMS_GetPatchNumber()
+{
+	return DMS_VERSION_PATCH;
 }
 
 CharPtr DMS_CONV DMS_GetPlatform()
@@ -142,8 +160,13 @@ void DMS_CONV DMS_VisitVersionComponents(ClientHandle clientHandle, VersionCompo
 		c->Visit(clientHandle, callBack, 1);
 }
 
-VersionComponent s_Compiler  (BOOST_COMPILER " ( " BOOST_STRINGIZE(_MSC_VER) " ) ");
-VersionComponent s_Platform("Platform  : " BOOST_PLATFORM);
+VersionComponent s_Compiler  (CC_COMPILER_NAME " ( _MSC_VER = " BOOST_STRINGIZE(_MSC_VER) " ) ");
+VersionComponent s_Platform("Platform : " BOOST_PLATFORM);
+static SharedStr s_PtrSizeC = mySSPrintF("ptr size : %d bits", sizeof(void*)*8);
+static SharedStr s_IntSizeC = mySSPrintF("int size : %d bits", sizeof(int  )*8);
+VersionComponent s_PtrSize(s_PtrSizeC.c_str());
+VersionComponent s_IntSize(s_IntSizeC.c_str());
+
 VersionComponent s_StrVersion( BOOST_STDLIB );
 #if defined(__EDG_VERSION__)
 VersionComponent s_EdgVersion("EdgVersion: " BOOST_STRINGIZE(MG_EDG_VERSION));
@@ -157,7 +180,7 @@ SharedStr GetCurrentTimeStr()
 {
 	VectorOutStreamBuff outBuff;
 	FormattedOutStream fout(&outBuff, FormattingFlags::None);
-	fout << StreamableDataTime();
+	fout << StreamableDateTime();
 	return SharedStr(outBuff.GetData(), outBuff.GetDataEnd());
 }
 
@@ -175,7 +198,7 @@ SharedStr GetSessionStartTimeStr()
 
 #include "RtcInterface.h"
 #include "geo/Range.h"
-#include "geo/IterRange.h"
+#include "geo/iterrange.h"
 
 bool RangeTest()
 {

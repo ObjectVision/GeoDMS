@@ -38,12 +38,19 @@ granted by an additional written contract for support, assistance and/or develop
 #include <set/VectorFunc.h>
 #include "geo/StringBounds.h"
 #include "geo/GeoSequence.h"
-#include "geo/IterRange.h"
+#include "geo/iterrange.h"
 #include "geo/SequenceArray.h"
+#include "ptr/LifetimeProtector.h"
 
 #include "AbstrDataObject.h"
 #include "TiledRangeData.h"
 #include "TileLock.h"
+
+template <typename V>
+using value_range_data = std::conditional_t<
+	has_range_v<field_of_t<V>>
+	, SharedPtr<const range_or_void_data<field_of_t<V>>>
+	, Void>;
 
 //----------------------------------------------------------------------
 // class  : DataArrayBase
@@ -152,15 +159,17 @@ struct DataArrayBase : AbstrDataObject
 	void InitValueRangeData(value_range_ptr_t vrp) { m_ValueRangeDataPtr = std::move(vrp); }
 
 	[[no_unique_address]] value_range_ptr_t m_ValueRangeDataPtr;
-	auto GetValueRangeData() const -> const range_or_void_data<field_of_t<V>>*
+	auto GetValueRangeData() const -> value_range_data<V>
 	{
 		if constexpr (has_var_range_v < field_of_t<V>>)
 			return m_ValueRangeDataPtr.get_ptr();
-		else
+		else if constexpr (is_bitvalue_v<field_of_t<V>> || is_void_v<V>)
 		{
 			static LifetimeProtector< range_or_void_data<field_of_t<V>> > s_SingletonRangeData;
 			return &*s_SingletonRangeData;
 		}
+		else
+			return {};
 	}
 	TICTOC_CALL SharedPtr<const SharedObj> GetAbstrValuesRangeData() const override 
 	{ 
@@ -191,7 +200,8 @@ struct NumericArray : DataArrayBase<V>
 	TIC_CALL void    SetValueAsUInt32 (SizeT index, UInt32 val)                 override;
 	TIC_CALL SizeT   GetValueAsSizeT  (SizeT index)                       const override;
 	TIC_CALL void    SetValueAsSizeT  (SizeT index, SizeT val)                  override;
-	TIC_CALL void    SetValueAsSizeT(SizeT index, SizeT val, tile_id t)         override;
+	TIC_CALL void    SetValueAsDiffT  (SizeT index, DiffT val)                  override;
+	TIC_CALL void    SetValueAsSizeT  (SizeT index, SizeT val, tile_id t)       override;
 	TIC_CALL UInt8   GetValueAsUInt8  (SizeT index)                       const override;
 	TIC_CALL SizeT   FindPosOfSizeT   (SizeT val, SizeT startPos)         const override;
 
@@ -317,7 +327,6 @@ struct TileFunctor : data_array_traits<V>::type
 		this->InitValueRangeData(valueRangePtr);
 	}
 
-	virtual void Commit() { throwIllegalAbstract(MG_POS, "TileFunctor::Commit"); }
 #if defined(MG_DEBUG_ALLOCATOR)
 	SharedStr md_SrcStr;
 #endif
@@ -339,6 +348,7 @@ struct GeneratedTileFunctor : TileFunctor<V>
 		{
 			return self->GetTile(t);
 		}
+
 		tile_id t;
 		SharedPtr<const TileFunctor<V>> self;
 	};

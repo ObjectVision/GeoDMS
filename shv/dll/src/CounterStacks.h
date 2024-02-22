@@ -95,7 +95,7 @@ struct CounterStacks : private boost::noncopyable
 	void AddDrawRegion   (Region&& drawRegion);
 	void LimitDrawRegions(const GPoint& maxSize);
 
-	void Scroll(GPoint delta, const GRect& scrollRect, const GRect& clipRect);
+	void ScrollDevice(GPoint delta, const GRect& scrollRect, const GRect& clipRect);
 	void PopBack();
 
 	bool Empty()               const { return m_Stacks.empty(); }
@@ -147,9 +147,9 @@ private: friend struct ResumableCounter;
 
 	CounterStackCollection    m_Stacks;
 	std::vector<SizeT>        m_Counters;
-	SizeT                     m_NrActiveCounters;
-	const ResumableCounter*   m_CurrCounter;
-	bool                      m_DidBreak;
+	SizeT                     m_NrActiveCounters = 0;
+	const ResumableCounter*   m_CurrCounter = nullptr;
+	bool                      m_DidBreak = false;
 };
 
 //----------------------------------------------------------------------
@@ -164,22 +164,24 @@ struct ResumableCounter : private boost::noncopyable
 
 	SizeT Value() const
 	{
-		dms_assert(IsOK());
+		assert(IsOK());
 		return m_AutoCounter; 
+	}
+	operator SizeT() const {
+		return m_AutoCounter;
 	}
 
 	void SetValue(SizeT newValue)
 	{
-		dms_assert(IsChangable());
-		dms_assert(newValue >= m_AutoCounter);
+		assert(IsChangable());
+		assert(newValue >= m_AutoCounter);
 		m_AutoCounter = newValue;
-		dms_assert(IsOK());
-
+		assert(IsOK());
 	}
 
 	bool Inc()
 	{
-		dms_assert(IsOK());
+		assert(IsOK());
 		if (m_CounterStacksPtr)
 			m_CounterStacksPtr->EraseSuspended();
 		if (MustBreakNext())
@@ -190,7 +192,7 @@ struct ResumableCounter : private boost::noncopyable
 
 	void operator ++()
 	{
-		dms_assert(IsChangable());
+		assert(IsChangable());
 		++m_AutoCounter;
 		if (m_MarkProgress)
 			SuspendTrigger::MarkProgress();
@@ -198,11 +200,9 @@ struct ResumableCounter : private boost::noncopyable
 
 	void operator +=(SizeT inc)
 	{
-		dms_assert(IsChangable());
+		assert(IsChangable());
 		m_AutoCounter += inc;
 	}
-
-	bool operator ==(SizeT value) const { return m_AutoCounter == value; }
 
 	bool MustBreak         () const;
 	bool MustBreakOrSuspend() const;
@@ -215,16 +215,16 @@ struct ResumableCounter : private boost::noncopyable
 private: friend CounterStacks;
 	bool IsChangable() const 
 	{ 
-		dms_assert( IsActive() );
-		dms_assert(!m_CounterStacksPtr || m_CounterStacksPtr->NoSuspendedCounters());
+		assert( IsActive() );
+		assert(!m_CounterStacksPtr || m_CounterStacksPtr->NoSuspendedCounters());
 		return m_AutoCounter < m_StopValue;
 	}
 	bool IsOK ()       const 
 	{ 
 #		if defined(MG_CHECK_PAST_BREAK)
-		dms_assert(m_AutoCounter <= m_StopValue || (m_CounterStacksPtr && m_CounterStacksPtr->HasBreakingStackSize()) );
+		assert(m_AutoCounter <= m_StopValue || (m_CounterStacksPtr && m_CounterStacksPtr->HasBreakingStackSize()) );
 #		endif
-		return m_AutoCounter != UNDEFINED_VALUE(SizeT); 
+		return m_AutoCounter  != UNDEFINED_VALUE(SizeT); 
 	}
 	bool IsActive()    const { return !m_CounterStacksPtr || m_CounterStacksPtr->m_CurrCounter == this; }
 

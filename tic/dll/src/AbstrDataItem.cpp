@@ -1,33 +1,14 @@
-//<HEADER> 
-/*
-Data & Model Server (DMS) is a server written in C++ for DSS applications. 
-Version: see srv/dms/rtc/dll/src/RtcVersion.h for version info.
+// Copyright (C) 1998-2023 Object Vision b.v. 
+// License: GNU GPL 3
+/////////////////////////////////////////////////////////////////////////////
 
-Copyright (C) 1998-2004  YUSE GSO Object Vision BV. 
-
-Documentation on using the Data & Model Server software can be found at:
-http://www.ObjectVision.nl/DMS/
-
-See additional guidelines and notes in srv/dms/Readme-srv.txt 
-
-This library is free software; you can use, redistribute, and/or
-modify it under the terms of the GNU General Public License version 2 
-(the License) as published by the Free Software Foundation,
-provided that this entire header notice and readme-srv.txt is preserved.
-
-See LICENSE.TXT for terms of distribution or look at our web site:
-http://www.objectvision.nl/DMS/License.txt
-or alternatively at: http://www.gnu.org/copyleft/gpl.html
-
-This library is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
-General Public License for more details. However, specific warranties might be
-granted by an additional written contract for support, assistance and/or development
-*/
-//</HEADER>
 #include "TicPCH.h"
+
+#if defined(CC_PRAGMAHDRSTOP)
 #pragma hdrstop
+#endif //defined(CC_PRAGMAHDRSTOP)
+
+#include <semaphore>
 
 #include "AbstrDataItem.h"
 
@@ -43,6 +24,7 @@ granted by an additional written contract for support, assistance and/or develop
 #include "mci/PropDef.h"
 #include "ser/FileCreationMode.h"
 #include "utl/mySPrintF.h"
+#include "utl/scoped_exit.h"
 #include "xct/DmsException.h"
 #include "xml/XmlOut.h"
 
@@ -60,6 +42,7 @@ granted by an additional written contract for support, assistance and/or develop
 #include "LispTreeType.h"
 #include "ParallelTiles.h"
 #include "TileAccess.h"
+#include "TileFunctorImpl.h"
 #include "TileLock.h"
 #include "TreeItemClass.h"
 #include "TreeItemUtils.h"
@@ -82,8 +65,8 @@ AbstrDataItem::AbstrDataItem()
 
 AbstrDataItem::~AbstrDataItem() noexcept
 {
-	dms_assert(!GetInterestCount());
-	dms_assert(!GetRefCount());
+	assert(!GetInterestCount());
+	assert(!IsOwned());
 	SetKeepDataState(false);
 	if (m_DataObject)
 		CleanupMem(true, 0);
@@ -94,20 +77,21 @@ AbstrDataItem::~AbstrDataItem() noexcept
 	m_DomainUnit.reset();
 	m_ValuesUnit.reset();
 
-	dms_assert(m_DataLockCount == 0);
+	assert(m_DataLockCount == 0);
 }
 
 //----------------------------------------------------------------------
 // class  : AbstrDataItem (inline) functions that forward to DataObject
 //----------------------------------------------------------------------
 
-inline const AbstrUnit* AbstrDataItem::GetAbstrDomainUnit() const 
+auto AbstrDataItem::GetAbstrDomainUnit() const -> const AbstrUnit*
 { 
 	if (!m_DomainUnit && IsMetaThread())
 		m_DomainUnit = FindUnit(m_tDomainUnit, "Domain", nullptr);
 	return m_DomainUnit;
 }
-inline const AbstrUnit*  AbstrDataItem::GetAbstrValuesUnit() const 
+
+auto AbstrDataItem::GetAbstrValuesUnit() const -> const AbstrUnit*
 { 
 	if (!m_ValuesUnit && IsMetaThread())
 	{
@@ -116,6 +100,33 @@ inline const AbstrUnit*  AbstrDataItem::GetAbstrValuesUnit() const
 	}
 	return m_ValuesUnit;
 }
+
+TIC_CALL auto AbstrDataItem::GetNonDefaultDomainUnit() const -> const AbstrUnit*
+{
+	auto adi = this;
+	do {
+		auto adu = adi->GetAbstrDomainUnit();
+		assert(adu);
+		if (!adu->IsDefaultUnit())
+			return adu;
+		adi = AsDataItem(adi->GetReferredItem());
+	} while (adi);
+	return GetAbstrDomainUnit();
+}
+
+TIC_CALL auto AbstrDataItem::GetNonDefaultValuesUnit() const -> const AbstrUnit*
+{
+	auto adi = this;
+	do {
+		auto avu = adi->GetAbstrValuesUnit();
+		assert(avu);
+		if (!avu->IsDefaultUnit())
+			return avu;
+		adi = AsDataItem(adi->GetReferredItem());
+	} while (adi);
+	return GetAbstrValuesUnit();
+}
+
 
 inline const AbstrDataObject* AbstrDataItem::GetCurrRefObj()      const 
 {
@@ -126,7 +137,7 @@ inline const AbstrDataObject* AbstrDataItem::GetCurrRefObj()      const
 
 inline const AbstrDataObject* AbstrDataItem::GetRefObj()          const 
 {
-	dms_assert(IsMetaThread());
+	assert(IsMetaThread());
 	MG_SIGNAL_ON_UPDATEMETAINFO
 
 	return debug_cast<const AbstrDataItem*>(GetUltimateItem())->GetDataObj(); 
@@ -148,26 +159,26 @@ AbstrValue* AbstrDataItem::CreateAbstrValue  () const
 
 void AbstrDataItem::ClearData(garbage_t& garbage) const
 {
-	dms_assert(GetDataObjLockCount() == 0);
+	assert(GetDataObjLockCount() == 0);
 #if defined(MG_DEBUG)
 //	static TokenID testsID = GetTokenID("tests");
 //	if (m_BackRef && m_BackRef->GetID() == testsID)
 //		__debugbreak();
 #endif
 	garbage |= std::move(m_DataObject);
-	dms_assert(!m_DataObject);
+	assert(!m_DataObject);
 
-	dms_assert(GetDataObjLockCount() == 0);
+	assert(GetDataObjLockCount() == 0);
 }
 
 /* REMOVE
 garbage_t AbstrDataItem::CloseData() const
 {
-	dms_assert(GetDataObjLockCount() == 0);
+	assert(GetDataObjLockCount() == 0);
 
 	garbage_t garbage;
 	garbage |= std::move(m_DataObject);
-	dms_assert(!m_DataObject);
+	assert(!m_DataObject);
 
 	return garbage;
 }
@@ -175,7 +186,7 @@ garbage_t AbstrDataItem::CloseData() const
 
 void AbstrDataItem::XML_DumpData(OutStreamBase* xmlOutStr) const
 { 
-	dms_assert(GetInterestCount()); // PRECONDITION, Callers responsibility
+	assert(GetInterestCount()); // PRECONDITION, Callers responsibility
 	XML_DataBracket dataBracket(*xmlOutStr);
 	GetDataObj()->XML_DumpObjData(xmlOutStr, this); 
 }
@@ -192,29 +203,100 @@ TokenID AbstrDataItem::GetXmlClassID() const
 	return DataItemClass::GetStaticClass()->GetID(); // We avoid calling GetDynamicObjClass
 }
 
-bool AbstrDataItem::DoReadItem(StorageMetaInfo* smi)
+using semaphore_t = std::counting_semaphore<>;
+struct reader_clone_farm
 {
-	dms_assert(CheckCalculatingOrReady(GetAbstrDomainUnit()->GetCurrRangeItem()));
+	semaphore_t m_Countdown;
+	std::vector<NonmappableStorageManagerRef> m_ClonePtrs;
+	std::mutex m_CloneCS;
+	std::vector<UInt32> m_Tokens;
 
-	AbstrStorageManager* sm = smi->StorageManager();
-	dms_assert(sm);
+	reader_clone_farm()
+		: m_Countdown(MaxConcurrentTreads())
+	{
+		auto nrThreads = MaxConcurrentTreads();
+		m_ClonePtrs.resize(nrThreads);
+		m_Tokens.reserve(nrThreads);
+		while (nrThreads)
+			m_Tokens.emplace_back(--nrThreads);
+	}
+
+	UInt32 acquire()
+	{
+		m_Countdown.acquire();
+		std::lock_guard csLock(m_CloneCS);
+		auto token = m_Tokens.back();
+		m_Tokens.pop_back();
+		return token;
+	}
+	void release(UInt32 token)
+	{
+		{
+			std::lock_guard csLock(m_CloneCS);
+			m_Tokens.emplace_back(token);
+		}
+		m_Countdown.release();
+	}
+};
+
+bool AbstrDataItem::DoReadItem(StorageMetaInfoPtr smi)
+{
+	assert(CheckCalculatingOrReady(GetAbstrDomainUnit()->GetCurrRangeItem()));
+
+	auto* sm = smi->StorageManager();
+	assert(sm);
 
 	if (!sm->DoesExist(smi->StorageHolder()))
 		throwItemErrorF( "Storage %s does not exist", sm->GetNameStr().c_str() );
 
-	DataWriteLock readResultHolder(this);
-
 	try {
 		MG_DEBUGCODE(TimeStamp currTS = LastChangeTS(); )
 
-		serial_for<tile_id>(0, GetAbstrDomainUnit()->GetNrTiles(),
-			[sm, smi, this, &readResultHolder](tile_id t)->void
+		auto tn = GetAbstrDomainUnit()->GetNrTiles();
+		if (IsMultiThreaded3() && tn > 1 && sm->AllowRandomTileAccess())
+		{
+			auto readerFarm = std::make_shared<reader_clone_farm>();
+
+			auto sharedSm = MakeShared(sm);
+			auto tileGenerator = [this, sharedSm, smi, readerFarm](AbstrDataObject* self, tile_id t)
 			{
-				if (! sm->ReadDataItem(*smi, readResultHolder.get_ptr(), t))
-					throwItemError("Failure during Reading from storage");
+				auto token = readerFarm->acquire();
+				auto returnTokenOnExit = make_scoped_exit([&readerFarm, token]() { readerFarm->release(token); });
+
+				auto& readerClonePtr = readerFarm->m_ClonePtrs[token];
+				if (!readerClonePtr)
+					readerClonePtr = sharedSm->ReaderClone(*smi);
+				if (!readerClonePtr->ReadDataItem(smi, self, t))
+					this->throwItemError("Failure during Reading from storage");
+			};
+			auto rangeDomainUnit = AsUnit(GetAbstrDomainUnit()->GetCurrRangeItem()); assert(rangeDomainUnit);
+			auto tileRangeData = rangeDomainUnit->GetTiledRangeData();
+			auto rangeValuesUnit = AsUnit(GetAbstrValuesUnit()->GetCurrRangeItem()); assert(rangeValuesUnit);
+			MG_CHECK(tileRangeData);
+			if (true || sm->EasyRereadTiles())
+			{
+				visit<typelists::numerics>(rangeValuesUnit, [this, tileRangeData, &tileGenerator]<typename V>(const Unit<V>*valuesUnit) {
+					this->m_DataObject = make_unique_LazyTileFunctor<V>(this, tileRangeData, valuesUnit->m_RangeDataPtr, std::move(tileGenerator)
+						MG_DEBUG_ALLOCATOR_SRC("AbstrDataItem::DoReadItem of random rereadable tiles")
+					).release();
+				});
 			}
-		);
-		dbg_assert(currTS == LastChangeTS() );
+		}
+		else
+		{
+			DataWriteLock readResultHolder(this);
+			assert(readResultHolder.get_ptr());
+
+			serial_for<tile_id>(0, GetAbstrDomainUnit()->GetNrTiles(),
+				[sm, smi, this, &readResultHolder](tile_id t)->void
+				{
+					if (!sm->ReadDataItem(smi, readResultHolder.get_ptr(), t))
+						throwItemError("Failure during Reading from storage");
+				}
+			);
+			readResultHolder.Commit();
+		}
+		dbg_assert(currTS == LastChangeTS());
 	}
 	catch (const DmsException& x)
 	{
@@ -222,18 +304,17 @@ bool AbstrDataItem::DoReadItem(StorageMetaInfo* smi)
 			DoFail(x.AsErrMsg(), FR_Data);
 		throw;
 	}
-	readResultHolder.Commit();
 	return true;
 }
 
 bool AbstrDataItem::DoWriteItem(StorageMetaInfoPtr&& smi) const
 {
-	dms_assert(CheckDataReady(GetCurrUltimateItem()));
+	assert(CheckDataReady(GetCurrUltimateItem()));
 
 	DataReadLock lockForSave(this);
 
-	AbstrStorageManager* sm = smi->StorageManager();
-	reportF(SeverityTypeID::ST_MajorTrace, "%s IS STORED IN %s",
+	auto sm = smi->StorageManager();
+	reportF(MsgCategory::storage_write, SeverityTypeID::ST_MajorTrace, "%s IS STORED IN %s",
 		GetSourceName().c_str()
 	,	sm->GetNameStr().c_str()
 	);
@@ -264,9 +345,9 @@ void AbstrDataItem::InitAbstrDataItem(TokenID domainUnit, TokenID valuesUnit, Va
 			debug_newValuesUnitStr = valuesUnit.GetStr().c_str();
 #endif
 
-	dms_assert((m_tDomainUnit == domainUnit) || !IsDefined(m_tDomainUnit) || !domainUnit); // only called once?
-	dms_assert((m_tValuesUnit == valuesUnit) || !IsDefined(m_tValuesUnit) || !valuesUnit); // only called once?
-//	dms_assert(!m_DataObject || (!valuesUnit && !domainUnit));             // and before it resulted in further construction
+	assert((m_tDomainUnit == domainUnit) || !IsDefined(m_tDomainUnit) || !domainUnit); // only called once?
+	assert((m_tValuesUnit == valuesUnit) || !IsDefined(m_tValuesUnit) || !valuesUnit); // only called once?
+//	assert(!m_DataObject || (!valuesUnit && !domainUnit));             // and before it resulted in further construction
 
 	m_tDomainUnit = domainUnit;
 	m_tValuesUnit = valuesUnit;
@@ -303,7 +384,7 @@ void AbstrDataItem::Unify(const TreeItem* refItem, CharPtr leftRole, CharPtr rig
 	GetAbstrValuesUnit()->UnifyValues(refAsDi->GetAbstrValuesUnit(), leftRole, rightRole, UnifyMode(UM_AllowDefaultLeft|UM_Throw));
 
 /*
-	if (refAsDi->GetTSF(DSF_Categorical))
+	if (refAsDi->GetTSF(TSF_Categorical))
 	{
 		SharedStr resultMsg;
 		if (!GetAbstrValuesUnit()->UnifyDomain(refAsDi->GetAbstrValuesUnit(), UnifyMode(UM_AllowDefaultLeft), &resultMsg))
@@ -321,63 +402,71 @@ void AbstrDataItem::CopyProps(TreeItem* result, const CopyTreeContext& copyConte
 	TreeItem::CopyProps(result, copyContext);
 
 	auto res = debug_cast<AbstrDataItem*>(result);
+	
+	res->m_StatusFlags.SetValueComposition(GetValueComposition());
+	if (copyContext.InFenceOperator())
+	{
+		res->m_DomainUnit = GetAbstrDomainUnit();
+		res->m_ValuesUnit = GetAbstrValuesUnit();
+		return;
+	}
 
 	// only copy unitnames when not defined
 	if (copyContext.MustCopyExpr() || !IsDefined(res->m_tDomainUnit))
 	{
+		res->m_tDomainUnit = m_tDomainUnit;
 		try {
 			auto adu = GetAbstrDomainUnit();
-			assert(adu);
-			res->m_tDomainUnit = copyContext.GetAbsOrRelUnitID(adu, this, res);
+			if (adu)
+				res->m_tDomainUnit = copyContext.GetAbsOrRelUnitID(adu, this, res);
 		}
 		catch (...)
 		{
 			CatchFail(FR_MetaInfo);
-			res->m_tDomainUnit = m_tDomainUnit;
 		}
 	}
 	if (copyContext.MustCopyExpr() || !IsDefined(res->m_tValuesUnit))
 	{
+		res->m_tValuesUnit = m_tValuesUnit;
 		try {
 			auto avu = GetAbstrValuesUnit();
-			res->m_tValuesUnit = copyContext.GetAbsOrRelUnitID(avu, this, res);
+			if (avu)
+				res->m_tValuesUnit = copyContext.GetAbsOrRelUnitID(avu, this, res);
 		}
 		catch (...)
 		{
 			CatchFail(FR_MetaInfo);
-			res->m_tValuesUnit = m_tValuesUnit;
 		}
 	}
-	res->m_StatusFlags.SetValueComposition(GetValueComposition());
 }
 
 ValueComposition AbstrDataItem::GetValueComposition() const
 {
 	ValueComposition vc = m_StatusFlags.GetValueComposition();
-	dms_assert(vc != ValueComposition::Unknown);
+	assert(vc != ValueComposition::Unknown);
 	return vc;
 }
 
 void AbstrDataItem::LoadBlobStream (const InpStreamBuff* f)
 {
 	
-//	dms_assert(IsMetaThread());
-	dms_assert(m_State.GetProgress() >= PS_MetaInfo || IsPassor());
-	dms_assert(GetCurrDataObj());
-	dms_assert(!m_DataLockCount);
-//	dms_assert(IsSdKnown());
+//	assert(IsMetaThread());
+	assert(m_State.GetProgress() >= PS_MetaInfo || IsPassor());
+	assert(GetCurrDataObj());
+	assert(!m_DataLockCount);
+//	assert(IsSdKnown());
 
 	const AbstrUnit* adu = GetAbstrDomainUnit();
-	dms_assert(adu && adu->GetInterestCount());
+	assert(adu && adu->GetInterestCount());
 	const AbstrUnit* adr = AsUnit(adu->GetCurrRangeItem());
-	dms_assert(adr && adr->GetInterestCount());
-	dms_assert(CheckDataReady(adr));
+	assert(adr && adr->GetInterestCount());
+	assert(CheckDataReady(adr));
 
-	dms_assert(CheckCalculatingOrReady(adr));
+	assert(CheckCalculatingOrReady(adr));
 
-	dms_assert(IsReadLocked(this) || !IsMultiThreaded2());
+	assert(IsReadLocked(this) || !IsMultiThreaded2());
 	DataWriteLock lock(const_cast<AbstrDataItem*>(this));
-	//	dms_assert(m_DataLockCount < 0);
+	//	assert(m_DataLockCount < 0);
 	BinaryInpStream ar(f);
 
 //	auto adu = GetAbstrDomainUnit()->GetTiledRangeData();
@@ -394,8 +483,8 @@ void AbstrDataItem::LoadBlobStream (const InpStreamBuff* f)
 
 void AbstrDataItem::StoreBlobStream(OutStreamBuff* f) const
 {
-	dms_assert(GetCurrDataObj());
-	dms_assert(!GetAbstrDomainUnit()->IsCurrTiled());
+	assert(GetCurrDataObj());
+	assert(!GetAbstrDomainUnit()->IsCurrTiled());
 
 	BinaryOutStream out(f);
 	for (tile_id t = 0, e = GetAbstrDomainUnit()->GetNrTiles(); t != e; ++t)
@@ -404,7 +493,7 @@ void AbstrDataItem::StoreBlobStream(OutStreamBuff* f) const
 
 bool AbstrDataItem::CheckResultItem(const TreeItem* refItem) const
 {
-	dms_assert(refItem);
+	assert(refItem);
 	if (!base_type::CheckResultItem(refItem))
 		return false;
 	const AbstrDataItem* adi = AsDataItem(refItem);
@@ -413,24 +502,35 @@ bool AbstrDataItem::CheckResultItem(const TreeItem* refItem) const
 	{
 		auto mydu = GetAbstrDomainUnit(); mydu->UpdateMetaInfo();
 		auto refdu = adi->GetAbstrDomainUnit(); refdu->UpdateMetaInfo();
-		if (!mydu->UnifyDomain(refdu, "the specified Domain", "the domain of the calculation results", UnifyMode::UM_AllowDefaultLeft, &errMsgStr))
+		if (!mydu->UnifyDomain(refdu, "the specified Domain", "the domain of the results of the calculation", UnifyMode::UM_AllowDefaultLeft, &errMsgStr))
 			goto failResultMsg;
 	}
 	dbg_assert(m_LastGetStateTS == refItem->m_LastGetStateTS || refItem->IsPassor());
 	{
 		auto myvu = GetAbstrValuesUnit(); myvu->UpdateMetaInfo();
 		auto refvu = adi->GetAbstrValuesUnit(); refvu->UpdateMetaInfo();
-		if (!myvu->UnifyValues(refvu, "the specified ValuesUnit", "the values unit of the calculation results", UnifyMode::UM_AllowDefaultLeft, &errMsgStr))
-			goto failResultMsg;
-	}
-	if (adi->GetTSF(DSF_Categorical))
-	{
-		if (!GetAbstrValuesUnit()->UnifyDomain(adi->GetAbstrValuesUnit(), "the specified ValuesUnit", "the categorical calculation results", UnifyMode::UM_AllowDefaultLeft))
-			goto failResultMsg;
-		SetTSF(DSF_Categorical);
-	}
-	return true;
+		bool myvuIsCategorical = myvu->GetTSF(TSF_Categorical);
+		CharPtr myvuTypeStr = myvuIsCategorical
+			? "the specified categorical ValuesUnit"
+			: "the specified noncategorical ValuesUnit";
 
+		if (!myvu->UnifyValues(refvu, myvuTypeStr, "the values unit of the calculation results", UnifyMode::UM_AllowDefaultLeft, &errMsgStr))
+			goto failResultMsg;
+
+		if (adi->GetTSF(TSF_Categorical))
+		{
+			if (!myvu->UnifyDomain(refvu, myvuTypeStr, "the categorical calculation results", UnifyMode::UM_AllowDefaultLeft, &errMsgStr))
+				goto failResultMsg;
+			SetTSF(TSF_Categorical);
+		}
+		else if (myvuIsCategorical)
+		{
+			if (!myvu->UnifyDomain(refvu, myvuTypeStr, "the noncategorical calculation results", UnifyMode::UM_AllowDefaultRight, &errMsgStr))
+				goto failResultMsg;
+			SetTSF(TSF_Categorical);
+		}
+		return true;
+	}
 failResultMsg:
 	Fail(errMsgStr, FR_Determine);
 	return false;
@@ -438,11 +538,11 @@ failResultMsg:
 
 const AbstrUnit* AbstrDataItem::FindUnit(TokenID t, CharPtr role, ValueComposition* vcPtr) const
 {
-	dms_assert(GetTreeParent());
+	assert(GetTreeParent());
 	if (t == TokenID::GetUndefinedID())
 		ThrowFail(mySSPrintF("Undefined %s unit", role), FR_MetaInfo);
 	const AbstrUnit* result = UnitClass::GetUnitOrDefault(GetTreeParent(), t, vcPtr);
-	if (!result)
+	if (!result && !InTemplate())
 	{
 		auto msg = mySSPrintF("Cannot find %s unit %s", role, GetTokenStr(t));
 		ThrowFail(msg, FR_MetaInfo);
@@ -452,7 +552,7 @@ const AbstrUnit* AbstrDataItem::FindUnit(TokenID t, CharPtr role, ValueCompositi
 
 void AbstrDataItem::InitDataItem(const AbstrUnit* du, const AbstrUnit* vu, const DataItemClass* dic)
 {
-	dms_assert( m_StatusFlags.GetValueComposition() != ValueComposition::Unknown );
+	assert( m_StatusFlags.GetValueComposition() != ValueComposition::Unknown );
 	m_DomainUnit = du;
 	m_ValuesUnit = vu;
 }
@@ -460,16 +560,16 @@ void AbstrDataItem::InitDataItem(const AbstrUnit* du, const AbstrUnit* vu, const
 const AbstrDataObject* AbstrDataItem::GetDataObj() const
 {
 	auto dataObj = m_DataObject;
-	dms_assert(dataObj);
+	assert(dataObj);
 
 //	if (!dataObj)
 //		throwItemError("No DataObj");
-//	dms_assert(m_DataLockCount > 0);
-//	dms_assert(m_DataObject);
+//	assert(m_DataLockCount > 0);
+//	assert(m_DataObject);
 /* REMOVE
 	if (!m_DataObject)
 	{
-		dms_assert((GetTreeParent() == nullptr) or GetTreeParent()->Was(PS_MetaInfo) or GetTreeParent()->WasFailed(FR_MetaInfo));
+		assert((GetTreeParent() == nullptr) or GetTreeParent()->Was(PS_MetaInfo) or GetTreeParent()->WasFailed(FR_MetaInfo));
 
 		MG_CHECK2(false, "TODO G8");
 
@@ -496,7 +596,7 @@ const Object* AbstrDataItem::_GetAs(const Class* cls) const
 //	Override Actor
 void AbstrDataItem::StartInterest() const
 {
-	dms_assert(GetInterestCount()==0);
+	assert(GetInterestCount()==0);
 
 	InterestPtr<const TreeItem*>
 		domainHolder = GetAbstrDomainUnit()
@@ -512,7 +612,7 @@ void AbstrDataItem::StartInterest() const
 
 garbage_t AbstrDataItem::StopInterest() const noexcept
 {
-	dms_assert(GetInterestCount() == 0);
+	assert(GetInterestCount() == 0);
 
 	garbage_t garbage;
 	garbage |= OptionalInterestDec( GetAbstrDomainUnit() );
@@ -544,11 +644,11 @@ bool AbstrDataItem::HasUndefinedValues() const // REMOVE, XXX TRY TO REPLACE BY 
 
 void AbstrDataItem::GetRawCheckModeImpl() const
 {
-	dms_assert(!GetTSF(DSF_ValuesChecked)); // PRECONDITION
+	assert(!GetTSF(DSF_ValuesChecked)); // PRECONDITION
 	const AbstrDataObject* ado = GetDataObj();
 	DataCheckMode dcm = ado->DoGetCheckMode();
 
-	dms_assert(!GetTSF(DSF_ValuesChecked)); // NO CONCURRENCY
+	assert(!GetTSF(DSF_ValuesChecked)); // NO CONCURRENCY
 	m_StatusFlags.SetDataCheckMode(dcm);
 }
 
@@ -567,15 +667,15 @@ DataCheckMode AbstrDataItem::GetRawCheckMode() const
 	MG_LOCKER_NO_UPDATEMETAINFO
 
 	const AbstrDataItem* adi = debug_cast<const AbstrDataItem*>(GetCurrUltimateItem()); 
-	dms_assert(adi);
-	dms_assert(CheckDataReady(adi));
+	assert(adi);
+	assert(CheckDataReady(adi));
 
-	dms_assert(adi->GetDataObjLockCount() > 0 );
+	assert(adi->GetDataObjLockCount() > 0 );
 
 	if (!adi->GetTSF(DSF_ValuesChecked))
 	{
 		dbg_assert(IsMultiThreaded2() || !gd_nrActiveLoops);
-		dms_assert(IsMetaThread() || IsMultiThreaded2());
+		assert(IsMetaThread() || IsMultiThreaded2());
 		if (IsMultiThreaded2())
 		{
 			data_flags_lock_map::ScopedLock localLock(MG_SOURCE_INFO_CODE("AbstrDataItem::GetRawCheckMode") sg_DataFlagsLockMap, adi);
@@ -584,7 +684,7 @@ DataCheckMode AbstrDataItem::GetRawCheckMode() const
 		}
 		else
 		{
-			dms_assert(IsMetaThread());
+			assert(IsMetaThread());
 			adi->GetRawCheckModeImpl();
 		}
 	}
@@ -597,13 +697,13 @@ DataCheckMode AbstrDataItem::DetermineRawCheckMode() const
 	MG_LOCKER_NO_UPDATEMETAINFO
 	
 	const AbstrDataItem* adi = debug_cast<const AbstrDataItem*>(GetCurrUltimateItem());
-	dms_assert(adi);
-	dms_assert(CheckDataReady(adi));
+	assert(adi);
+	assert(CheckDataReady(adi));
 
-	dms_assert(adi->GetDataObjLockCount() > 0);
+	assert(adi->GetDataObjLockCount() > 0);
 
 	dbg_assert(IsMultiThreaded2() || !gd_nrActiveLoops);
-	dms_assert(IsMetaThread() || IsMultiThreaded2());
+	assert(IsMetaThread() || IsMultiThreaded2());
 	if (IsMultiThreaded2())
 	{
 		data_flags_lock_map::ScopedLock localLock(MG_SOURCE_INFO_CODE("AbstrDataItem::GetRawCheckMode") sg_DataFlagsLockMap, adi);
@@ -611,7 +711,7 @@ DataCheckMode AbstrDataItem::DetermineRawCheckMode() const
 	}
 	else
 	{
-		dms_assert(IsMetaThread());
+		assert(IsMetaThread());
 		return adi->DetermineRawCheckModeImpl();
 	}
 }
@@ -640,14 +740,19 @@ DataCheckMode AbstrDataItem::GetTiledCheckMode(tile_id t) const
 	}
 	else
 	{
-		dms_assert(t == no_tile || t == 0);
+		assert(t == no_tile || t == 0);
 		return GetCheckMode();
 	}
 }
 
 bool AbstrDataItem::HasVoidDomainGuarantee() const
 {
-	return GetAbstrDomainUnit()->IsKindOf( Unit<Void>::GetStaticClass() );
+	auto adu = GetAbstrDomainUnit();
+	if (!adu)
+	{
+		this->throwItemError("Invalid domain reference.");
+	}
+	return adu->IsKindOf( Unit<Void>::GetStaticClass() );
 }
 
 void AbstrDataItem::OnDomainUnitRangeChange(const DomainChangeInfo* info)
@@ -657,13 +762,13 @@ void AbstrDataItem::OnDomainUnitRangeChange(const DomainChangeInfo* info)
 	{
 		// is info->oldRangeData nog "actief" ? "actief" <-> Actor <-> TimeStamp of land change <-!-> Value Bases Calculation <-> declarative modelling
 		try {
-			dms_assert(!GetDataObjLockCount());
+			assert(!GetDataObjLockCount());
 			auto oldDataObject = GetDataObj();
 			
 			DataWriteLock lock(this); // calls CreateAbstrHeapTileFunctor(); is dan nu ineens info->newDataRange "actief" ?
 			CopyData(oldDataObject, lock.get(), info); // can I reuse tiles ?
 			lock.Commit();
-			dms_assert(!mc_Calculator); // DataWriteLock::Commit() destroyed DataBlockTask
+			assert(!mc_Calculator); // DataWriteLock::Commit() destroyed DataBlockTask
 		}
 		catch (DmsException& x)
 		{
@@ -685,10 +790,10 @@ bool AbstrDataItem::TryCleanupMemImpl(garbage_t& garbageCan) const
 		return false;
 
 	//ClearTSF(TSF_DataInMem);
-	dms_assert(!GetTSF(TSF_DataInMem));
+	assert(!GetTSF(TSF_DataInMem));
 
-	dms_assert(!GetDataObjLockCount());
-	dms_assert(!PartOfInterest());
+	assert(!GetDataObjLockCount());
+	assert(!PartOfInterest());
 
 	if (GetDataRefLockCount())
 		return false;
@@ -696,13 +801,13 @@ bool AbstrDataItem::TryCleanupMemImpl(garbage_t& garbageCan) const
 	if (!m_DataObject)
 		return false;
 
-	dms_assert(!PartOfInterestOrKeep());
+	assert(!PartOfInterestOrKeep());
 
 	if (m_DataObject->IsMemoryObject() && m_DataObject->IsSmallerThan(KEEPMEM_MAX_NR_BYTES)) // TODO G8: Consider leaning on CleanupMem; is the same if applied twice ?
 		return true;
 
 	bool hasSource = !HasCurrConfigData();
-//	dms_assert(!hasSource || IsCacheItem() || GetCurrStorageParent(false) || mc_Calculator)
+//	assert(!hasSource || IsCacheItem() || GetCurrStorageParent(false) || mc_Calculator)
 	garbageCan |= const_cast<AbstrDataItem*>(this)->CleanupMem(hasSource, KEEPMEM_MAX_NR_BYTES+1);
 
 	// copied from TreeItem::TryCleanupMemImpl, TODO G8: Reorder logic and avoid double code
@@ -719,7 +824,7 @@ garbage_t AbstrDataItem::CleanupMem(bool hasSourceOrExit, std::size_t minNrBytes
 {
 	MG_LOCKER_NO_UPDATEMETAINFO
 
-	dms_assert(m_DataObject);
+	assert(m_DataObject);
 	// Drop Composite from root when Out Of Interest
 	garbage_t garbageCan;
 	if (hasSourceOrExit && !GetKeepDataState())
@@ -728,13 +833,35 @@ garbage_t AbstrDataItem::CleanupMem(bool hasSourceOrExit, std::size_t minNrBytes
 	return garbageCan;
 }
 
+bool FindAndVisitUnit(const AbstrDataItem* adi, TokenID t, SupplierVisitFlag svf, const ActorVisitor& visitor)
+{
+	const ValueClass* vc = ValueClass::FindByScriptName(t);
+	if (vc)
+		return true;
+	auto context = adi->GetTreeParent();
+	if (!context)
+		return true;
+
+	SharedStr itemRefStr(t.AsStrRange());
+	return context->FindAndVisitItem(itemRefStr, svf, visitor).has_value();
+}
+
 //	override virtuals of Actor
 ActorVisitState AbstrDataItem::VisitSuppliers(SupplierVisitFlag svf, const ActorVisitor& visitor) const
 {
-	if (Test(svf, SupplierVisitFlag::DomainValues)) // already done by StartInterest
+	if (!InTemplate())
 	{
-		if (visitor.Visit(GetAbstrDomainUnit()) == AVS_SuspendedOrFailed) return AVS_SuspendedOrFailed;
-		if (visitor.Visit(GetAbstrValuesUnit()) == AVS_SuspendedOrFailed) return AVS_SuspendedOrFailed;
+
+		if (Test(svf, SupplierVisitFlag::DomainValues)) // already done by StartInterest
+		{
+			if (visitor.Visit(GetAbstrDomainUnit()) == AVS_SuspendedOrFailed) return AVS_SuspendedOrFailed;
+			if (visitor.Visit(GetAbstrValuesUnit()) == AVS_SuspendedOrFailed) return AVS_SuspendedOrFailed;
+		}
+		if (Test(svf, SupplierVisitFlag::ImplSuppliers))
+		{
+			if (m_tDomainUnit) if (!FindAndVisitUnit(this, m_tDomainUnit, svf, visitor)) return AVS_SuspendedOrFailed;
+			if (m_tValuesUnit) if (!FindAndVisitUnit(this, m_tValuesUnit, svf, visitor)) return AVS_SuspendedOrFailed;
+		}
 	}
 	return TreeItem::VisitSuppliers(svf, visitor);
 }
@@ -765,7 +892,7 @@ struct DomainUnitPropDef : ReadOnlyPropDef<AbstrDataItem, SharedStr>
 	// implement PropDef get/set virtuals
 	auto GetValue(const AbstrDataItem* item) const-> SharedStr override
 	{ 
-		dms_assert(IsDefined(item->m_tDomainUnit));
+		assert(IsDefined(item->m_tDomainUnit));
 		if (item->m_tDomainUnit)
 			return SharedStr(item->m_tDomainUnit);
 
@@ -786,7 +913,7 @@ struct ValuesUnitPropDef : ReadOnlyPropDef<AbstrDataItem, SharedStr>
 	// implement PropDef get/set virtuals
 	auto GetValue(const AbstrDataItem* item) const -> SharedStr override
 	{ 
-		dms_assert(IsDefined(item->m_tValuesUnit));
+		assert(IsDefined(item->m_tValuesUnit));
 		if (item->m_tValuesUnit)
 			return SharedStr(item->m_tValuesUnit);
 
@@ -811,7 +938,11 @@ struct DomainUnitFullNamePropDef : ReadOnlyPropDef<AbstrDataItem, TokenID>
 	// implement PropDef get/set virtuals
 	TokenID GetValue(const AbstrDataItem* item) const override
 	{
-		return UnitName(item->GetAbstrDomainUnit());
+		auto adu = item->GetAbstrDomainUnit();
+		if (!adu)
+			return TokenID::GetUndefinedID();
+
+		return UnitName(adu);
 	}
 };
 
@@ -824,7 +955,10 @@ struct ValuesUnitFullNamePropDef : ReadOnlyPropDef<AbstrDataItem, TokenID>
 	// implement PropDef get/set virtuals
 	TokenID GetValue(const AbstrDataItem* item) const override
 	{
-		return UnitName(item->GetAbstrValuesUnit());
+		auto avu = item->GetAbstrValuesUnit();
+		if (!avu)
+			return TokenID::GetUndefinedID();
+		return UnitName(avu);
 	}
 };
 
@@ -928,74 +1062,50 @@ TIC_CALL UInt32 DMS_CONV DMS_AbstrDataItem_GetNrFeatures(const AbstrDataItem* se
 	return 0;
 }
 
-/* REMOVE
-TIC_CALL void DMS_CONV DMS_DataItem_CopyData(AbstrDataItem* dest, const AbstrDataItem* source)
+TIC_CALL void DMS_CONV Table_Dump(OutStreamBuff* out, const TableColumnSpec* columnSpecPtr, const TableColumnSpec* columnSpecEnd, const SizeT* recNos, const SizeT* recNoEnd)
 {
-	DMS_CALL_BEGIN
-
-		CheckPtr(dest,   AbstrDataItem::GetStaticClass(), "DMS_DataItem_CopyData");
-		CheckPtr(source, AbstrDataItem::GetStaticClass(), "DMS_DataItem_CopyData");
-
-
-		source->GetAbstrDomainUnit()->UnifyDomain(dest->GetAbstrDomainUnit(), UnifyMode(UM_Throw| UM_AllowAllEqualCount));
-		source->GetAbstrValuesUnit()->UnifyValues(dest->GetAbstrValuesUnit(), UnifyMode(UM_Throw));
-
-		ExternalVectorOutStreamBuff::VectorType dataBuff;
-		PreparedDataReadLock sourceLock(source);
-		DataWriteLock        destLock(dest);
-		for (tile_id t = source->GetAbstrDomainUnit()->GetNrTiles(); t--; )
-		{
-			dataBuff.clear();
-			{
-				ExternalVectorOutStreamBuff streamToBuff(dataBuff);
-				BinaryOutStream os(&streamToBuff);
-				source->GetRefObj()->DoWriteData(os, t);
-			}
-			{
-				MemoInpStreamBuff streamFromBuff(begin_ptr(dataBuff), end_ptr(dataBuff));
-				BinaryInpStream is(&streamFromBuff);
-				destLock->DoReadData(is, t);
-			}
-		}
-		destLock.Commit();
-	DMS_CALL_END
-}
-REMOVE */
-TIC_CALL void DMS_CONV Table_Dump(OutStreamBuff* out, const ConstAbstrDataItemPtr* dataItemArray, const ConstAbstrDataItemPtr* dataItemArrayEnd, const SizeT* recNos, const SizeT* recNoEnd)
-{
-	SizeT nrDataItems = dataItemArrayEnd - dataItemArray;
+	SizeT nrDataItems = columnSpecEnd - columnSpecPtr;
 	if (!nrDataItems)
 		return;
 
-	const AbstrUnit* domain = dataItemArray[0]->GetAbstrDomainUnit();
-	for (const ConstAbstrDataItemPtr* dataItemIter = dataItemArray + 1; dataItemIter != dataItemArrayEnd; ++dataItemIter)
-		domain->UnifyDomain((*dataItemIter)->GetAbstrDomainUnit(), "Domain of the first column", "Domain of a following column", UM_Throw);
-
-	std::vector<SharedDataItemInterestPtr> keepInterest; keepInterest.reserve(nrDataItems);
-	for (const ConstAbstrDataItemPtr* dataItemIter = dataItemArray; dataItemIter != dataItemArrayEnd; ++dataItemIter)
-		keepInterest.emplace_back(*dataItemIter);
+	const AbstrUnit* domain = columnSpecPtr[0].m_DataItem->GetAbstrDomainUnit();
+	for (auto columnSpecIter = columnSpecPtr + 1; columnSpecIter != columnSpecEnd; ++columnSpecIter)
+		domain->UnifyDomain(columnSpecIter->m_DataItem->GetAbstrDomainUnit(), "Domain of the first column", "Domain of a following column", UM_Throw);
 
 	DataReadLockContainer readLocks; readLocks.reserve(nrDataItems);
-	for (const ConstAbstrDataItemPtr* dataItemIter = dataItemArray; dataItemIter != dataItemArrayEnd; ++dataItemIter)
-		readLocks.push_back(PreparedDataReadLock(*dataItemIter));
-
-	std::vector<OwningPtr<const AbstrReadableTileData>> tileLocks; keepInterest.reserve(nrDataItems);
+	for (auto columnSpecIter = columnSpecPtr; columnSpecIter != columnSpecEnd; ++columnSpecIter)
+	{
+		readLocks.push_back(PreparedDataReadLock(columnSpecIter->m_DataItem));
+		if (columnSpecIter->m_RelativeDisplay)
+			columnSpecIter->m_ColumnTotal = columnSpecIter->m_DataItem->GetRefObj()->GetSumAsFloat64();
+	}
+	std::vector<OwningPtr<const AbstrReadableTileData>> tileLocks; tileLocks.reserve(nrDataItems);
 	for (const auto& drl : readLocks)
 		tileLocks.emplace_back(drl.GetRefObj()->CreateReadableTileData(no_tile));
 
 	FormattedOutStream fout(out, FormattingFlags::None);
-	for (const ConstAbstrDataItemPtr* dataItemIter = dataItemArray; dataItemIter != dataItemArrayEnd; ++dataItemIter)
+	for (auto columnSpecIter = columnSpecPtr; columnSpecIter != columnSpecEnd; ++columnSpecIter)
 	{
-		if (dataItemIter != dataItemArray)
+		if (columnSpecIter != columnSpecPtr)
 			out->WriteByte(';');
-		SharedStr themeDisplName = GetDisplayNameWithinContext(*dataItemIter, true, [dataItemArray, dataItemArrayEnd]() mutable -> const AbstrDataItem*
-			{
-				if (dataItemArray == dataItemArrayEnd)
-					return nullptr;
-				return *dataItemArray++;
-			}
-		);
-		DoubleQuote(fout, themeDisplName);
+		if (columnSpecIter->m_ColumnName)
+		{
+			auto columnStr = columnSpecIter->m_ColumnName.AsStrRange();
+			DoubleQuote(fout, columnStr.m_CharPtrRange.first, columnStr.m_CharPtrRange.second);
+		}
+		else
+		{
+			SharedStr themeDisplName = GetDisplayNameWithinContext(columnSpecIter->m_DataItem, true, [columnSpecPtr, columnSpecEnd]() mutable -> const AbstrDataItem*
+				{
+					if (columnSpecPtr == columnSpecEnd)
+						return nullptr;
+					const AbstrDataItem* dataItem = columnSpecPtr->m_DataItem;
+					++columnSpecPtr;
+					return dataItem;
+				}
+			);
+			DoubleQuote(fout, themeDisplName);
+		}
 	}
 	out->WriteByte('\n');
 
@@ -1008,7 +1118,10 @@ TIC_CALL void DMS_CONV Table_Dump(OutStreamBuff* out, const ConstAbstrDataItemPt
 		for (SizeT j = 0; j != nrCols; ++j) {
 			if (j)
 				out->WriteByte(';');
-			tileLocks[j]->WriteFormattedValue(fout, recNo);
+			if (columnSpecPtr[j].m_RelativeDisplay)
+				fout << (100.0 * tileLocks[j]->GetAsFloat64(recNo) / columnSpecPtr[j].m_ColumnTotal);
+			else
+				tileLocks[j]->WriteFormattedValue(fout, recNo);
 		}
 		out->WriteByte('\n');
 	}
@@ -1018,7 +1131,16 @@ TIC_CALL void DMS_CONV DMS_Table_Dump(OutStreamBuff* out, UInt32 nrDataItems, co
 {
 	DMS_CALL_BEGIN
 
-		Table_Dump(out, dataItemArray, dataItemArray + nrDataItems, nullptr, nullptr);
+		std::vector<TableColumnSpec> columnSpecs;
+		columnSpecs.reserve(nrDataItems);
+		while (nrDataItems--)
+		{
+			auto& currDataItemSpec = columnSpecs.emplace_back();
+			auto dataItem = *dataItemArray++;
+			currDataItemSpec.m_DataItem = dataItem;
+//			currDataItemSpec.m_ColumnName = dataItem->GetID(); let Table_Dump fill this in
+		}
+		Table_Dump(out, begin_ptr(columnSpecs), end_ptr(columnSpecs), nullptr, nullptr);
 
 	DMS_CALL_END
 }
@@ -1034,7 +1156,7 @@ TIC_CALL const Class* DMS_CONV DMS_AbstrDataItem_GetStaticClass()
 
 const AbstrUnit* AbstrValuesUnit(const AbstrDataItem* adi)
 {
-	dms_assert(adi);
+	assert(adi);
 	while (true)
 	{
 		auto au = adi->GetAbstrValuesUnit();
@@ -1089,8 +1211,9 @@ struct InterestReporter : DebugReporter
 	{
 		if (!focusItem)
 			return;
+		assert(focusItem);
 
-		dms_assert(focusItem->GetInterestCount());
+		assert(focusItem->GetInterestCount());
 
 		const TreeItem* ti = dynamic_cast<const TreeItem*>(focusItem);
 
@@ -1099,7 +1222,7 @@ struct InterestReporter : DebugReporter
 
 #if defined(MG_DEBUG_DCDATA)
 		auto dc = dynamic_cast<const DataController*>(focusItem);
-		reportF(SeverityTypeID::ST_MinorTrace, "%x LVL %d IC %d KD %s SI %s; %s %s %s: %s", focusItem,  level,
+		reportF(MsgCategory::other, SeverityTypeID::ST_MinorTrace, "%x LVL %d IC %d KD %s SI %s; %s %s %s: %s", focusItem,  level,
 			focusItem->GetInterestCount(),
 			YesNo(ti ? ti->GetKeepDataState() : false),
 			YesNo(focusItem->DoesHaveSupplInterest()),
@@ -1123,23 +1246,13 @@ struct InterestReporter : DebugReporter
 				ReportTree(done, tidr->m_Data, level, "CACHEDATA");
 #endif
 		}
-/*
-		const AbstrCalculator* ac = dynamic_cast<const AbstrCalculator*>(focusItem);
-		if (ac)
-		{
-			if (ac->m_DcRef)
-				ReportTree(done, ac->m_DcRef, "DC_REF");
-		}
-*/
 		if (ti)
 		{
-//			return;  // DEBUG
 
 			if (ti->IsCacheItem())
 				ReportTree(done, ti->GetTreeParent(), level, "PARENT");
 			ReportTree(done, ti->mc_RefItem, level, "REF_ITEM");
 			ReportTree(done, ti->mc_DC, level, "CALC");
-//			ReportTree(done, ti->mc_IntegrityChecker, "ICHECK");
 	
 
 			if (IsDataItem(focusItem))
@@ -1171,15 +1284,15 @@ struct InterestReporter : DebugReporter
 	}
 	static void TrimSuppliers(ActorMap& interestRoots, const Actor* focusItem)
 	{
-		dms_assert(focusItem);
-		dms_assert(focusItem->GetInterestCount());
+		assert(focusItem);
+		assert(focusItem->GetInterestCount());
 
 		if (focusItem->DoesHaveSupplInterest() && s_SupplTreeInterest)
 		{
 			auto supplPtr = s_SupplTreeInterest->find(focusItem);
 			if (supplPtr != s_SupplTreeInterest->end())
 			{
-				dms_assert(supplPtr->first == focusItem);
+				assert(supplPtr->first == focusItem);
 				for (SupplInterestListElem* suppl = supplPtr->second; suppl; suppl = suppl->m_NextPtr)
 					ReduceInterest(interestRoots, suppl->m_Value.get_ptr());
 			}
@@ -1218,9 +1331,9 @@ struct InterestReporter : DebugReporter
 		if (!a)
 			return;
 		auto asPtr = as.find(a);
-		dms_assert(asPtr != as.end());
-		dms_assert(asPtr->first == a);
-		dms_assert(asPtr->second > 0);
+		assert(asPtr != as.end());
+		assert(asPtr->first == a);
+		assert(asPtr->second > 0);
 		asPtr->second--;
 /* REMOVE
 		if (!--asPtr->second)

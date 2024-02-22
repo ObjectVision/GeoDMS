@@ -1,31 +1,3 @@
-//<HEADER> 
-/*
-Data & Model Server (DMS) is a server written in C++ for DSS applications. 
-Version: see srv/dms/rtc/dll/src/RtcVersion.h for version info.
-
-Copyright (C) 1998-2004  YUSE GSO Object Vision BV. 
-
-Documentation on using the Data & Model Server software can be found at:
-http://www.ObjectVision.nl/DMS/
-
-See additional guidelines and notes in srv/dms/Readme-srv.txt 
-
-This library is free software; you can use, redistribute, and/or
-modify it under the terms of the GNU General Public License version 2 
-(the License) as published by the Free Software Foundation,
-provided that this entire header notice and readme-srv.txt is preserved.
-
-See LICENSE.TXT for terms of distribution or look at our web site:
-http://www.objectvision.nl/DMS/License.txt
-or alternatively at: http://www.gnu.org/copyleft/gpl.html
-
-This library is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
-General Public License for more details. However, specific warranties might be
-granted by an additional written contract for support, assistance and/or development
-*/
-//</HEADER>
 #pragma once
 
 #include "ShvDllPch.h"
@@ -130,6 +102,9 @@ GridColorPalette::GridColorPalette(const Theme* colorTheme)
 
 	if (usePalette && m_ClassIdUnit)
 	{
+		m_ClassIdUnit->PrepareDataUsage(DrlType::Certain);
+		if (m_ClassIdUnit->WasFailed(FR_Data))
+			m_ClassIdUnit->ThrowFail();
 		m_Count = m_ClassIdUnit->GetCount();
 		if (m_Count >= MaxPaletteSize) 
 			throwErrorD("GridDraw", "Palette too large to represent in an indirect bitmap");
@@ -245,9 +220,8 @@ GdiHandle<HBITMAP> GridDrawer::Apply() const
 }
 
 template <typename ClassIdType>
-void GridDrawer::FillPaletteIds(
-		const Unit<ClassIdType>* classIdUnit
-	,	typename sequence_traits<ClassIdType>::const_pointer classIdArray
+void GridDrawer::FillPaletteIds(const Unit<ClassIdType>* classIdUnit
+	,	typename sequence_traits<ClassIdType>::const_pointer classIdArray, SizeT classIdArraySize
 	,	Range<SizeT> themeArrayIndexRange,	bool isLastRun
 	) const
 {
@@ -255,31 +229,33 @@ void GridDrawer::FillPaletteIds(
 	dms_assert(m_ColorPalette);
 	dms_assert(m_ColorPalette->GetPaletteCount());
 
-	GridFill<ClassIdType, PixelType>(
-		this, classIdArray
-	,	ConvertThemeValue2ClassIndexFunc<ClassIdType>(classIdUnit->GetRange())
-	,	themeArrayIndexRange, isLastRun
+	GridFill<ClassIdType, PixelType>(this
+		, classIdArray, classIdArraySize
+		, ConvertThemeValue2ClassIndexFunc<ClassIdType>(classIdUnit->GetRange())
+		, themeArrayIndexRange, isLastRun
 	);
 }
 
 template <typename ClassIdType>
-void GridDrawer::FillTrueColor(const Unit<ClassIdType>* classIdUnit, typename sequence_traits<ClassIdType>::const_pointer classIdArray,	bool isLastRun) const
+void GridDrawer::FillTrueColor(const Unit<ClassIdType>* classIdUnit
+	, typename sequence_traits<ClassIdType>::const_pointer classIdArray, SizeT classIdArraySize
+	, bool isLastRun) const
 {
 	dms_assert(m_ColorPalette && !m_ColorPalette->GetPaletteCount());
 
-	GridFill<ClassIdType, ClassIdType>(
-		this, classIdArray
-	,	DmsColor2RgbQuadFunc()
-	,  Range<SizeT>(), isLastRun
+	GridFill<ClassIdType, ClassIdType>(this
+		, classIdArray, classIdArraySize
+		, DmsColor2RgbQuadFunc()
+		, Range<SizeT>(), isLastRun
 	);
 }
 
-void GridDrawer::FillDirect(const UInt32* classIdArray, bool isLastRun) const
+void GridDrawer::FillDirect(const UInt32* classIdArray, SizeT classIdArraySize, bool isLastRun) const
 {
 	dms_assert(m_ColorPalette && !m_ColorPalette->GetPaletteCount());
 
 	GridFill<UInt32, UInt32>(
-		this, classIdArray
+		this, classIdArray, classIdArraySize
 		, [](UInt32 c) { return c; }
 		, Range<SizeT>(), isLastRun
 		);
@@ -289,25 +265,25 @@ template <typename ClassIdType> typename boost::enable_if_c<sizeof(ClassIdType) 
 GridDrawer_VisitImplDirect(
 		const GridDrawer* self
 	,	const Unit<ClassIdType>* classIdUnit
-	,	typename sequence_traits<ClassIdType>::const_pointer classIdArray
+	,	typename sequence_traits<ClassIdType>::const_pointer classIdArray, SizeT classIdArraySize
 	,	Range<SizeT> themeArrayIndexRange,	bool isLastRun
 	)
 {
 	if (self->m_ColorPalette->GetPaletteCount())
-		self->FillPaletteIds(classIdUnit, classIdArray, themeArrayIndexRange, isLastRun);
+		self->FillPaletteIds(classIdUnit, classIdArray, classIdArraySize, themeArrayIndexRange, isLastRun);
 	else
-		self->FillTrueColor(classIdUnit, classIdArray, isLastRun);
+		self->FillTrueColor(classIdUnit, classIdArray, classIdArraySize, isLastRun);
 }
 
 template <typename ClassIdType> typename boost::enable_if_c<sizeof(ClassIdType) != 4>::type
 GridDrawer_VisitImplDirect(
 		const GridDrawer* self
 	,	const Unit<ClassIdType>* classIdUnit
-	,	typename sequence_traits<ClassIdType>::const_pointer classIdArray
+	,	typename sequence_traits<ClassIdType>::const_pointer classIdArray, SizeT classIdArraySize
 	,	Range<SizeT> themeArrayIndexRange, bool isLastRun
 	)
 {
-	self->FillPaletteIds(classIdUnit, classIdArray, themeArrayIndexRange, isLastRun);
+	self->FillPaletteIds(classIdUnit, classIdArray, classIdArraySize, themeArrayIndexRange, isLastRun);
 }
 
 template <typename ClassIdType>
@@ -345,7 +321,7 @@ void GridDrawer::FillClassIds(const Unit<ClassIdType>* classIdUnit) const
 			themeRange = Range<SizeT>(tileFirstIndex, tileFirstIndex+ themeDomain->GetTileCount(no_tile));
 		}
 		GridFill<ClassIdType, PixelType>(this
-		,	avg->GetClassIndexArray()
+		,	avg->GetClassIndexArray(), avg->GetCount()
 		,	ID_Func()
 		,	themeRange
 		,	true
@@ -373,20 +349,21 @@ void GridDrawer::_VisitImpl(const Unit<ClassIdType>* classIdUnit) const
 			for (tile_id t=0, tn= tileRanges->GetNrTiles(); t!=tn; ++t)
 			{
 				SizeT tileFirstIndex = tileRanges->GetFirstRowIndex(t);
-				GridDrawer_VisitImplDirect(
-					this, classIdUnit, 
-					colorThemeTileFunctor->GetTile(t).begin()
+				auto colorThemeTile = colorThemeTileFunctor->GetTile(t);
+				GridDrawer_VisitImplDirect(this, classIdUnit
+				,	colorThemeTile.begin(), colorThemeTile.size()
 				,	Range<SizeT>(tileFirstIndex, tileFirstIndex+tileRanges->GetTileSize(t)), t+1==tn
 				);
 			}
 		}
 		else
-			GridDrawer_VisitImplDirect(
-				this, 
-				classIdUnit, 
-				colorThemeTileFunctor->GetTile(m_TileID).begin()
-			,	Range<SizeT>(), true
+		{
+			auto colorThemeTile = colorThemeTileFunctor->GetTile(m_TileID);
+			GridDrawer_VisitImplDirect(this, classIdUnit
+				, colorThemeTile.begin(), colorThemeTile.size()
+				, Range<SizeT>(), true
 			);
+		}
 	}
 }
 
@@ -401,13 +378,7 @@ void GridDrawer::VisitImpl(const Unit<ClassID>* classIdUnit) const // override f
 {
 	if (m_SelValues)
 	{	
-		GridFill<ClassID, ClassID>(
-			this, 
-			m_SelValues->m_Data,
-			ID_Func(),
-			Range<SizeT>(),
-			true
-		);
+		GridFill<ClassID, ClassID>(this, m_SelValues->m_Data, m_SelValues->m_Size, ID_Func(), Range<SizeT>(), true);
 	}
 	else 
 		_VisitImpl(classIdUnit);

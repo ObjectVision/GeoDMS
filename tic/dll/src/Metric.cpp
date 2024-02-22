@@ -28,7 +28,10 @@ granted by an additional written contract for support, assistance and/or develop
 //</HEADER>
 
 #include "TicPCH.h"
+
+#if defined(CC_PRAGMAHDRSTOP)
 #pragma hdrstop
+#endif //defined(CC_PRAGMAHDRSTOP)
 
 #include "Metric.h"
 #include "AbstrUnit.h"
@@ -394,6 +397,14 @@ const AbstrUnit* UnitProjection::GetCompositeBase() const
 		curr = base->GetCurrProjection();
 	}
 	return base;
+}
+
+auto UnitProjection::GetUnitlabeledScalePair() const -> UnitLabelScalePair
+{
+	const AbstrUnit* base = GetCompositeBase();
+	auto result = base->GetUnitlabeledScalePair();
+	result.second *= GetCompositeTransform(this).ZoomLevel();
+	return result;
 }
 
 Transformation<Float64> UnitProjection::GetCompositeTransform(const UnitProjection* curr)

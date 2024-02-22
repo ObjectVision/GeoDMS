@@ -90,6 +90,7 @@ public:
 	const AbstrDataItem* GetClassification() const;
 	const AbstrDataItem* GetPaletteAttr()    const;
 	const AbstrDataItem* GetPaletteOrThemeAttr()    const;
+	const AbstrDataItem* GetThemeOrPaletteAttr() const;
 	AspectNr             GetAspectNr()       const { return m_AspectNr; }
 	CharPtr              GetAspectName()     const;
 
@@ -117,7 +118,11 @@ public:
 	void Disable()          { m_State.Set  (THF_IsDisabled); }
 	void Enable ()          { m_State.Clear(THF_IsDisabled); }
 	bool IsDisabled() const { return m_State.Get  (THF_IsDisabled); }
-
+	bool IsEditable() const
+	{
+		auto adi = GetThemeAttrSource();
+		return !adi || adi->IsEditable();
+	}
 	static std::shared_ptr<Theme> Create(
 		AspectNr aNr,
 		const AbstrDataItem* thematicAttr,

@@ -5,11 +5,21 @@
 
 #include "dbg/Check.h"
 
-#include <concrt.h>
-#include <ppl.h>
 #include <thread>
 #include <mutex>
 #include <shared_mutex>
+
+#if defined(WIN32)
+
+#include "pplinterface.h"
+using task_canceled = Concurrency::task_canceled;
+
+#else
+
+struct task_canceled : std::exception
+{};
+
+#endif
 
 #define THREAD_LOCAL thread_local
 
@@ -17,6 +27,7 @@ RTC_CALL bool IsMultiThreaded0(); /// RSF_SuspendForGUI
 RTC_CALL bool IsMultiThreaded1();
 RTC_CALL bool IsMultiThreaded2();
 RTC_CALL bool IsMultiThreaded3();
+RTC_CALL UInt32 MaxConcurrentTreads();
 
 //#define MG_ITEMLEVEL
 enum class item_level_type : UInt32 {};

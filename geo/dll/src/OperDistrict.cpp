@@ -1,38 +1,16 @@
-//<HEADER> 
-/*
-Data & Model Server (DMS) is a server written in C++ for DSS applications. 
-Version: see srv/dms/rtc/dll/src/RtcVersion.h for version info.
-
-Copyright (C) 1998-2004  YUSE GSO Object Vision BV. 
-
-Documentation on using the Data & Model Server software can be found at:
-http://www.ObjectVision.nl/DMS/
-
-See additional guidelines and notes in srv/dms/Readme-srv.txt 
-
-This library is free software; you can use, redistribute, and/or
-modify it under the terms of the GNU General Public License version 2 
-(the License) as published by the Free Software Foundation,
-provided that this entire header notice and readme-srv.txt is preserved.
-
-See LICENSE.TXT for terms of distribution or look at our web site:
-http://www.objectvision.nl/DMS/License.txt
-or alternatively at: http://www.gnu.org/copyleft/gpl.html
-
-This library is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
-General Public License for more details. However, specific warranties might be
-granted by an additional written contract for support, assistance and/or development
-*/
-//</HEADER>
+// Copyright (C) 1998-2023 Object Vision b.v. 
+// License: GNU GPL 3
+/////////////////////////////////////////////////////////////////////////////
 
 #include "GeoPCH.h"
+
+#if defined(CC_PRAGMAHDRSTOP)
 #pragma hdrstop
+#endif //defined(CC_PRAGMAHDRSTOP)
 
 #include "SpatialAnalyzer.h"
 
-#include "dbg/Debug.h"
+#include "dbg/debug.h"
 #include "dbg/SeverityType.h"
 #include "geo/Conversions.h"
 #include "geo/Point.h"
@@ -77,8 +55,10 @@ struct DistrictOperator : public UnaryOperator
 
 		const AbstrUnit* domain = inputGridA->GetAbstrDomainUnit();
 
-		AbstrUnit* resUnit = ResultUnitType::GetStaticClass()->CreateResultUnit(resultHolder);
-		dms_assert(resUnit);
+		auto resUnit = ResultUnitType::GetStaticClass()->CreateResultUnit(resultHolder);
+		resUnit->SetTSF(TSF_Categorical);
+
+		assert(resUnit);
 		resultHolder = resUnit;
 
 		AbstrDataItem*
@@ -106,8 +86,8 @@ struct DistrictOperator : public UnaryOperator
 			IRect rect = domain->GetRangeAsIRect();
 			if (!rect.empty())
 			{
-				dms_assert(_Left(rect) < _Right(rect));
-				dms_assert(_Top(rect) < _Bottom(rect));
+				dms_assert(Left(rect) < Right(rect));
+				dms_assert(Top(rect) < Bottom(rect));
 				dms_assert(inputVec.size() == Cardinality(rect));
 				dms_assert(outputVec.size() == Cardinality(rect));
 
@@ -218,9 +198,9 @@ public:
 	}
 };
 
-CommonOperGroup cogDistrict("district");
-CommonOperGroup cogDistrict4("district_4");
-CommonOperGroup cogDistrict8("district_8");
+CommonOperGroup cogDistrict("district", oper_policy::better_not_in_meta_scripting);
+CommonOperGroup cogDistrict4("district_4", oper_policy::better_not_in_meta_scripting);
+CommonOperGroup cogDistrict8("district_8", oper_policy::better_not_in_meta_scripting);
 
 
 template <typename ZoneType>

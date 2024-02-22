@@ -1,37 +1,13 @@
-//<HEADER> 
-/*
-Data & Model Server (DMS) is a server written in C++ for DSS applications. 
-Version: see srv/dms/rtc/dll/src/RtcVersion.h for version info.
+// Copyright (C) 1998-2023 Object Vision b.v. 
+// License: GNU GPL 3
+/////////////////////////////////////////////////////////////////////////////
 
-Copyright (C) 1998-2004  YUSE GSO Object Vision BV. 
-
-Documentation on using the Data & Model Server software can be found at:
-http://www.ObjectVision.nl/DMS/
-
-See additional guidelines and notes in srv/dms/Readme-srv.txt 
-
-This library is free software; you can use, redistribute, and/or
-modify it under the terms of the GNU General Public License version 2 
-(the License) as published by the Free Software Foundation,
-provided that this entire header notice and readme-srv.txt is preserved.
-
-See LICENSE.TXT for terms of distribution or look at our web site:
-http://www.objectvision.nl/DMS/License.txt
-or alternatively at: http://www.gnu.org/copyleft/gpl.html
-
-This library is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
-General Public License for more details. However, specific warranties might be
-granted by an additional written contract for support, assistance and/or development
-*/
-//</HEADER>
 #pragma once
 
 #if !defined(__RTC_UTL_INSTANTIATE_H)
 #define __RTC_UTL_INSTANTIATE_H
 
-#include "RtcTypeModel.h"
+#include "rtctypemodel.h"
 
 //----------------------------------------------------------------------
 // Some macros to support instantiation of a set of value-types
@@ -96,10 +72,8 @@ granted by an additional written contract for support, assistance and/or develop
 #define INSTANTIATE_NUM_POLYS_OBSOLETE INSTANTIATE_SINT_POLYS_OBSOLETE INSTANTIATE_UINT_POLYS_OBSOLETE INSTANTIATE_FLOAT_POLYS_OBSOLETE
 #define INSTANTIATE_POINT_POLYS_OBSOLETE INSTANTIATE(SPolygon) INSTANTIATE(IPolygon) INSTANTIATE(WPolygon) INSTANTIATE(UPolygon) INSTANTIATE(FPolygon) INSTANTIATE(DPolygon)
 #define INSTANTIATE_POLYS INSTANTIATE_NUM_POLYS_OBSOLETE INSTANTIATE_POINT_POLYS_OBSOLETE 
-#define INSTANTIATE_SEQ_POINTS INSTANTIATE(SPoint) INSTANTIATE(IPoint) INSTANTIATE(WPoint) INSTANTIATE(UPoint) INSTANTIATE(FPoint) INSTANTIATE(DPoint)
 #else
 #define INSTANTIATE_POLYS INSTANTIATE(FPolygon) INSTANTIATE(DPolygon)
-#define INSTANTIATE_SEQ_POINTS INSTANTIATE(FPoint) INSTANTIATE(DPoint)
 #endif
 
 #define INSTANTIATE_VOID  INSTANTIATE(Void)

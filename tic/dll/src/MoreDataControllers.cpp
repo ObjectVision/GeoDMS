@@ -1,34 +1,8 @@
-//<HEADER> 
-/*
-Data & Model Server (DMS) is a server written in C++ for DSS applications. 
-Version: see srv/dms/rtc/dll/src/RtcVersion.h for version info.
-
-Copyright (C) 1998-2004  YUSE GSO Object Vision BV. 
-
-Documentation on using the Data & Model Server software can be found at:
-http://www.ObjectVision.nl/DMS/
-
-See additional guidelines and notes in srv/dms/Readme-srv.txt 
-
-This library is free software; you can use, redistribute, and/or
-modify it under the terms of the GNU General Public License version 2 
-(the License) as published by the Free Software Foundation,
-provided that this entire header notice and readme-srv.txt is preserved.
-
-See LICENSE.TXT for terms of distribution or look at our web site:
-http://www.objectvision.nl/DMS/License.txt
-or alternatively at: http://www.gnu.org/copyleft/gpl.html
-
-This library is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
-General Public License for more details. However, specific warranties might be
-granted by an additional written contract for support, assistance and/or development
-*/
-//</HEADER>
-
 #include "TicPCH.h"
+
+#if defined(CC_PRAGMAHDRSTOP)
 #pragma hdrstop
+#endif //defined(CC_PRAGMAHDRSTOP)
 
 #include "MoreDataControllers.h"
 
@@ -42,6 +16,7 @@ granted by an additional written contract for support, assistance and/or develop
 #include "dbg/SeverityType.h"
 #include "geo/StringArray.h"
 #include "ser/FileStreamBuff.h"
+#include "utl/mySPrintF.h"
 #include "utl/swap.h"
 #include "xct/DmsException.h"
 
@@ -142,6 +117,8 @@ const AbstrDataItem* AsDataItem(const ArgRef& ar)
 // Section:     FuncDC implementation
 // *****************************************************************************
 
+#include "TreeItemContextHandle.h"
+
 FuncDC::FuncDC(LispPtr keyExpr,	const AbstrOperGroup* og)
 	:	DataController(keyExpr)
 	,	m_OperatorGroup(og)
@@ -149,13 +126,19 @@ FuncDC::FuncDC(LispPtr keyExpr,	const AbstrOperGroup* og)
 	dms_assert(og && (og->MustCacheResult() || !og->CanResultToConfigItem()));
 
 	DBG_START("FuncDC", "ctor", false);
-	DBG_TRACE(("keyExpr = %s", AsFLispSharedStr(keyExpr).c_str()));
+	DBG_TRACE(("keyExpr = %s", AsFLispSharedStr(keyExpr, FormattingFlags::ThousandSeparator).c_str()));
 
 	if (og->IsDepreciated())
-		reportF(SeverityTypeID::ST_Warning, "depreciated operator %s used: %s", og->GetName(), og->GetObsoleteMsg());
+		reportF(SeverityTypeID::ST_Warning, "depreciated operator %s used: %s."
+			, og->GetName()
+			, og->GetObsoleteMsg()
+		);
 
 	if (og->IsObsolete())
-		reportF(SeverityTypeID::ST_Error, "obsolete operator %s used: %s", og->GetName(), og->GetObsoleteMsg());
+		reportF(SeverityTypeID::ST_Error, "obsolete operator %s used: %s."
+			, og->GetName()
+			, og->GetObsoleteMsg()
+		);
 
 	dms_assert(GetLispRef().IsRealList());    // no EndP allowed
 	dms_assert(GetLispRef().Left().IsSymb()); // operator or calculation scheme call
@@ -169,7 +152,7 @@ FuncDC::FuncDC(LispPtr keyExpr,	const AbstrOperGroup* og)
 	OwningPtr<DcRefListElem>* nextArgPtr = &m_Args;
 	for (LispPtr tailPtr = keyExpr.Right(); !tailPtr.EndP(); tailPtr = tailPtr.Right()) 
 	{
-		DBG_TRACE(("arg = %s", AsFLispSharedStr(tailPtr->Left()).c_str()));
+		DBG_TRACE(("arg = %s", AsFLispSharedStr(tailPtr->Left(), FormattingFlags::ThousandSeparator).c_str()));
 		DcRefListElem* dcRef = new DcRefListElem;
 		nextArgPtr->assign(dcRef);
 		MG_CHECK(tailPtr->Left());
@@ -245,21 +228,6 @@ void FuncDC::DoInvalidate() const
 	CancelOperContext();
 	dms_assert(!IsCalculating());
 
-/*
-	if (m_Data && m_Data->IsCacheRoot())
-		for (TreeItem* cacheItem = GetNew(); cacheItem = GetNew()->WalkCurrSubTree(cacheItem); )
-		{
-			dms_assert(cacheItem != GetNew());
-			dms_assert(cacheItem->m_LastChangeTS <= m_LastChangeTS);
-//			cacheItem->SetDcKnown();
-			dms_assert(cacheItem->mc_RefItem == nullptr);
-
-			auto dc = DSM::Curr()->GetSubItemDC(this, cacheItem, false);
-			if (!dc)
-				continue;
-			dc->InvalidateAt(m_LastChangeTS);
-		}
-*/
 	base_type::DoInvalidate();
 
 	dms_assert(!m_Data);										 // dropped by base_type::DoInvalidate
@@ -272,7 +240,6 @@ garbage_t FuncDC::StopInterest () const noexcept
 { 
 	auto garbage = ResetOperContextImplAndStopSupplInterest();
 	garbage |= DataController::StopInterest(); 
-//	garbage |= m_Data->TryCleanupMem();
 	m_State.Clear(DCF_CalcStarted);
 	return garbage;
 }
@@ -288,18 +255,6 @@ oper_arg_policy FuncDC::GetArgPolicy(arg_index argNr, CharPtr firstArgValue) con
 	dms_assert(op);
 	return op->GetArgPolicy(argNr, firstArgValue);
 }
-
-// CalcCacheStorage
-/*  REMOVE
-class CalcCacheStorageManager : public AbstrStorageManager
-{
-	SharedStr m_FilenameBase;
-	bool ReadDataItem(const StorageMetaInfo& smi, AbstrDataObject* borrowedReadResultHolder, tile_id t) override
-	{
-		MG_CHECK2(false, "NYI");
-	}
-};
-*/
 
 // Postcondition of CalcResult(true):
 //		Null is returned OR calculation has started that will make m_Data have valid data such that it can be accessed (DataReadLock can be set) or become failed
@@ -332,10 +287,10 @@ SharedTreeItem FuncDC::MakeResult() const // produce signature
 #if defined(MG_DEBUG_DCDATA)
 	DBG_START("FuncDc::MakeResult", md_sKeyExpr.c_str(), MG_DEBUG_FUNCDC);
 
-	auto_flag_recursion_lock<DCFD_IsCalculating> reentryLock(Actor::m_State);
+//	auto_flag_recursion_lock<DCFD_IsCalculating> reentryLock(Actor::m_State);
 	const TreeItem* dContext = m_Data;
 
-	dms_assert(IsMetaThread());
+	assert(IsMetaThread() || m_Data);
 #endif
 
 	DetermineState(); // may trigger DoInvalidate -> reset m_Data, only MainThread may re-MakeResult
@@ -359,50 +314,8 @@ SharedTreeItem FuncDC::MakeResult() const // produce signature
 		DBG_TRACE(("MakeResult completed well"));
 	}
 	
-	if (IsNew()) // && !m_State.Get(DCF_CacheRootKnown))
-	{
-		dms_assert(m_Data->IsCacheRoot());
-/*
-		auto storeRecordPtr = DataStoreManager::Curr()->GetStoreRecord(GetLispRef());
-		if (storeRecordPtr)
-		{
-			m_State.Set(DCF_CacheRootKnown);
-			bool isStored = (storeRecordPtr->ts != 0);
-			auto sfwa = DataStoreManager::Curr()->GetSafeFileWriterArray();
+	assert(!IsNew() || m_Data->IsCacheRoot());
 
-			SharedStr filenameBase = DataStoreManager::Curr()->m_StoreMap[GetLispRef()].fileNameBase;
-			dms_assert(!filenameBase.empty());
-
-			auto cacheRoot = GetNew();
-			for (auto cacheItem = cacheRoot; cacheItem; cacheItem->WalkCurrSubTree(cacheItem))
-			{
-				bool isDataItem = IsDataItem(cacheItem);
-				if (!isStored && !isDataItem)
-					continue;
-				SharedStr filename = filenameBase;
-				if (cacheItem != cacheRoot)
-					filename += '/' + cacheRoot->GetRelativeName(cacheItem);
-					
-				if (isDataItem)
-				{
-					auto openFile = OpenFileData(AsDataItem(cacheItem), filename+".dmsdata", sfwa); // issue: requires DataReady on domain => always store domain
-					if (isStored)
-						AsDataItem(cacheItem)->m_DataObject.assign(openFile.release());
-					else
-						AsDataItem(cacheItem)->m_FileName = filename;
-				}
-				else if (IsUnit(cacheItem))
-				{
-					MappedFileInpStreamBuff fin(filename+".dmsunit", sfwa, true, false);
-					cacheItem->LoadBlobStream(&fin);
-				}
-
-			}
-		}
-*/
-	}
-
-//	dms_assert(m_State.Get(DCF_CacheRootKnown) == (IsNew() && m_Data->IsDcKnown()));
 	if (m_Data->WasFailed(FR_MetaInfo))
 		Fail(m_Data);
 
@@ -428,7 +341,7 @@ auto FuncDC::CalcResult(Explain::Context* context) const -> FutureData
 #if defined(MG_DEBUG_DCDATA)
 	DBG_START("FuncDc::CalcResult", md_sKeyExpr.c_str(), MG_DEBUG_FUNCDC);
 
-	auto_flag_recursion_lock<DCFD_IsCalculating> reentryLock(Actor::m_State);
+//	auto_flag_recursion_lock<DCFD_IsCalculating> reentryLock(Actor::m_State);
 	const TreeItem* dContext = m_Data;
 
 	dms_assert(IsMetaThread());
@@ -479,6 +392,14 @@ auto FuncDC::CalcResult(Explain::Context* context) const -> FutureData
 	if (WasFailed(FR_Data) && !context || WasFailed(FR_MetaInfo))
 		return {};
 
+	assert(m_OperatorGroup);
+	if (SuspendTrigger::BlockerBase::IsBlocked())
+	{
+		if (m_OperatorGroup->IsBetterNotInMetaScripting())
+		{
+			reportF(SeverityTypeID::ST_Warning, "operator %s is not suitable for processing meta-scripting", m_OperatorGroup->GetName());
+		}
+	}
 	dms_assert(GetInterestCount());
 	dms_assert(m_Data->IsPassor() || m_OperatorGroup->CanResultToConfigItem() );
 	if (context && !m_OperatorGroup->CanExplainValue())
@@ -525,6 +446,7 @@ bool FuncDC::MustCalcArg(oper_arg_policy ap, bool doCalc)
 		case oper_arg_policy::calc_always:    
 			return true;
 //		case oper_arg_policy::calc_never:
+//		case oper_arg_policy::calc_at_subitem:
 //		case oper_arg_policy::is_templ:       
 //		case oper_arg_policy::subst_with_subitems:
 		default:
@@ -685,9 +607,9 @@ bool FuncDC::MakeResultImpl() const
 		return false;
 	}
 
-	dms_assert(m_Data);
-	dms_assert(!SuspendTrigger::DidSuspend() && !WasFailed(FR_MetaInfo) );  // if we asked for MetaInfo and only DataProcesing failed, we should at least get a result
-	dms_assert(m_Data->IsCacheItem() || m_Data->IsPassor() || m_OperatorGroup->CanResultToConfigItem() || IsTmp());
+	assert(m_Data);
+	assert(!SuspendTrigger::DidSuspend() && !WasFailed(FR_MetaInfo) );  // if we asked for MetaInfo and only DataProcesing failed, we should at least get a result
+	assert(m_Data->IsCacheItem() || m_Data->IsPassor() || m_OperatorGroup->CanResultToConfigItem() || IsTmp());
 
 	return true;
 }
@@ -700,13 +622,13 @@ void FuncDC::CalcResultImpl(Explain::Context* context) const
 	DBG_START("FuncDc::CalcResult", md_sKeyExpr.c_str(), MG_DEBUG_FUNCDC);
 #endif
 
-	dms_assert(IsMetaThread());
+	assert(IsMetaThread());
 	dms_check_not_debugonly;
 
-	dms_assert(!WasFailed(FR_Data));
-	dms_assert(!SuspendTrigger::DidSuspend());
-	dms_assert(m_Data);
-	dms_assert(GetInterestCount());
+	assert(!WasFailed(FR_Data));
+	assert(!SuspendTrigger::DidSuspend());
+	assert(m_Data);
+	assert(GetInterestCount());
 
 //	SharedTreeItemInterestPtr promise = m_Data;
 
@@ -729,11 +651,11 @@ void FuncDC::CalcResultImpl(Explain::Context* context) const
 			dms_assert(m_Data->WasFailed(FR_Data) || SuspendTrigger::DidSuspend());
 			return;
 		}
-		dms_assert(!SuspendTrigger::DidSuspend());
+		assert(!SuspendTrigger::DidSuspend());
 
 		UpdateMarker::ChangeSourceLock changeStamp(this, "FuncDC::MakeResult");
 
-		dms_assert(!WasFailed(FR_Data)); // should have resulted in exit.
+		assert(!WasFailed(FR_Data)); // should have resulted in exit.
 
 		UpdateLock lock(this, actor_flag_set::AF_CalculatingData);
 
@@ -743,9 +665,9 @@ void FuncDC::CalcResultImpl(Explain::Context* context) const
 		{
 			leveled_critical_section::scoped_lock ocaLock(cs_OperContextAccess);
 			operContext = m_OperContext;
-			dms_assert(!operContext || operContext->getStatus() != task_status::cancelled); // ==  OperContext should call ResetOperContextImplAndStopSupplInterest before status==Canceled.
+			assert(!operContext || operContext->getStatus() != task_status::cancelled); // ==  OperContext should call ResetOperContextImplAndStopSupplInterest before status==Canceled.
 		}
-		dms_assert(operContext || CheckDataReady(m_Data) || !IsNew());
+		assert(operContext || CheckDataReady(m_Data) || !IsNew());
 		if (operContext && !operContext->IsScheduled())
 		{
 			OperationContext_AssignResult(operContext.get(), this);
@@ -757,7 +679,7 @@ void FuncDC::CalcResultImpl(Explain::Context* context) const
 				SuspendTrigger::MarkProgress();
 		}
 
-		dms_assert(!result || (operContext && operContext->IsScheduled()) || CheckDataReady(m_Data) || (!IsNew() && CheckCalculatingOrReady(GetCacheRoot(m_Data))));
+		assert(!result || (operContext && operContext->IsScheduled()) || CheckDataReady(m_Data) || (!IsNew() && CheckCalculatingOrReady(GetCacheRoot(m_Data))));
 	}
 	catch (...)
 	{
@@ -786,7 +708,7 @@ void FuncDC::CalcResultImpl(Explain::Context* context) const
 
 ActorVisitState FuncDC::VisitSuppliers(SupplierVisitFlag svf, const ActorVisitor& visitor) const
 {
-	DcRefListElem* dcRefElem = m_Args.get_ptr(); // points to curr DcRefListElem
+	DcRefListElem* dcRefElem = m_Args.get_ptr(); // points to currently uniquely owned DcRefListElem
 	SharedStr firstArgValue;
 	for (arg_index argNr = 0; dcRefElem; dcRefElem = dcRefElem->m_Next, ++argNr)
 	{
@@ -794,7 +716,7 @@ ActorVisitState FuncDC::VisitSuppliers(SupplierVisitFlag svf, const ActorVisitor
 		if (!Test(svf, SupplierVisitFlag::ReadyDcsToo) && !MustCalcArg(argNr, true, firstArgValue.begin()) && !m_OperatorGroup->MustSupplyTree(argNr, firstArgValue.begin()))
 			continue;
 
-		const DataController* dc = dcRefElem->m_DC;
+		const DataController* dc = dcRefElem->m_DC; // borrow shared owned dc;
 
 		if (visitor(dc) == AVS_SuspendedOrFailed)
 			return AVS_SuspendedOrFailed;

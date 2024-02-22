@@ -1,31 +1,6 @@
-//<HEADER> 
-/*
-Data & Model Server (DMS) is a server written in C++ for DSS applications. 
-Version: see srv/dms/rtc/dll/src/RtcVersion.h for version info.
-
-Copyright (C) 1998-2004  YUSE GSO Object Vision BV. 
-
-Documentation on using the Data & Model Server software can be found at:
-http://www.ObjectVision.nl/DMS/
-
-See additional guidelines and notes in srv/dms/Readme-srv.txt 
-
-This library is free software; you can use, redistribute, and/or
-modify it under the terms of the GNU General Public License version 2 
-(the License) as published by the Free Software Foundation,
-provided that this entire header notice and readme-srv.txt is preserved.
-
-See LICENSE.TXT for terms of distribution or look at our web site:
-http://www.objectvision.nl/DMS/License.txt
-or alternatively at: http://www.gnu.org/copyleft/gpl.html
-
-This library is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
-General Public License for more details. However, specific warranties might be
-granted by an additional written contract for support, assistance and/or development
-*/
-//</HEADER>
+// Copyright (C) 1998-2023 Object Vision b.v. 
+// License: GNU GPL 3
+/////////////////////////////////////////////////////////////////////////////
 
 #pragma once
 
@@ -73,7 +48,14 @@ struct null_or_zero_value : public nullary_func<T>
 };
 
 template <typename T> struct assign_default   : nullary_assign_from_func< default_value<T> > {};
-template <typename T> struct assign_null_value: nullary_assign_from_func< null_value<T> > {};
+template <typename T> struct assign_null_value : nullary_assign<T>
+{
+	void operator()(typename nullary_assign<T>::assignee_ref res) const
+	{
+		MakeUndefined(res);
+	}
+};
+
 template <typename T> struct assign_null_or_zero: nullary_assign_from_func< null_or_zero_value<T> > {};
 template <typename T> struct assign_min_value : nullary_assign_from_func< min_value <T> > {};
 template <typename T> struct assign_max_value : nullary_assign_from_func< max_value <T> > {};
@@ -83,9 +65,11 @@ struct initializer
 {
 	initializer(const TNullaryAssign& aFunc = TNullaryAssign()) : m_Assign(aFunc) {}
 
-	void Init(typename TNullaryAssign::assignee_ref accumulator) const
+	auto InitialValue() const
 	{
+		typename TNullaryAssign::assignee_type accumulator;
 		m_Assign(accumulator);
+		return accumulator;
 	}
 private:
 	TNullaryAssign m_Assign;
@@ -100,7 +84,7 @@ struct assign_output
 {
 	assign_output(const TUnaryAssign& aFunc = TUnaryAssign()) : m_Assign(aFunc) {}
 
-	void AssignOutput(typename TUnaryAssign::assignee_ref res, typename TUnaryAssign::arg1_cref accumulator) const
+	void AssignOutput(typename TUnaryAssign::assignee_ref res, auto&& accumulator) const
 	{
 		m_Assign(res, accumulator);
 	}
@@ -111,13 +95,13 @@ private:
 template <typename T>
 struct assign_output_direct : assign_output<ident_assignment<T> >
 {
-	typedef T dms_result_type;
+	using dms_result_type = T;
 };
 
 template <typename T, typename S>
 struct assign_output_convert
 {
-	typedef T dms_result_type;
+	using dms_result_type = T;
 
 	void AssignOutput(typename sequence_traits<T>::reference res, typename sequence_traits<S>::const_reference buf) const
 	{
@@ -135,7 +119,7 @@ struct assign_partial_output_from_buffer
 	template<typename Container>
 	void AssignOutput(dms_seq res, const Container& outputs) const
 	{
-		dms_assert(res.size() == outputs.size());
+		assert(res.size() == outputs.size());
 		auto ri = res.begin();
 		auto
 			oi = outputs.begin(),
@@ -170,9 +154,9 @@ struct unary_assign_total_accumulation
 		,	m_Initializer(init) 
 	{}
 
-	void operator()(typename unary_assign_total_accumulation::assignee_ref output, typename unary_assign_total_accumulation::value_cseq1 input, bool hasUndefinedValues) const
+	void operator()(typename unary_assign_total_accumulation::assignee_ref output, typename unary_assign_total_accumulation::value_cseq1 input) const
 	{ 
-		aggr1_total_best<TUniAssign>(output, input.begin(), input.end(), hasUndefinedValues, m_AssignFunc);
+		aggr1_total<TUniAssign>(output, input.begin(), input.end(), m_AssignFunc);
 	}
 
 private:
@@ -208,9 +192,9 @@ struct unary_assign_partial_accumulation
 		transform_assign(outputs.begin(), outputs.end(), m_Initializer);
 	}
 
-	void operator()(typename unary_assign_partial_accumulation::accumulation_seq outputs, typename unary_assign_partial_accumulation::value_cseq1 input, const IndexGetter* indices, bool hasUndefinedValues) const
+	void operator()(typename unary_assign_partial_accumulation::accumulation_seq outputs, typename unary_assign_partial_accumulation::value_cseq1 input, const IndexGetter* indices) const
 	{ 
-		aggr_fw_best_partial<TUniAssign>(outputs.begin(), input.begin(), input.end(), indices, hasUndefinedValues, m_AssignFunc);
+		aggr_fw_partial<TUniAssign>(outputs.begin(), input.begin(), input.end(), indices, m_AssignFunc);
 	}
 
 	TUniAssign     m_AssignFunc;

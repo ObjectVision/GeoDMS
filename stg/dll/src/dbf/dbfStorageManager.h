@@ -48,20 +48,19 @@ class DbfImpl;
 struct TNameSet;
 
 // storagemanager for 'Dbf-grids'
-class DbfStorageManager : public AbstrStorageManager
+class DbfStorageManager : public NonmappableStorageManager
 {
 	StorageMetaInfoPtr GetMetaInfo(const TreeItem* storageHolder, TreeItem* adi, StorageAction) const override;
 	void DoUpdateTree (const TreeItem* storageHolder, TreeItem* curr, SyncMode sm) const override;
 	void DoWriteTree  (const TreeItem* storageHolder) override;
 
-	bool ReadDataItem (const StorageMetaInfo& smi, AbstrDataObject* borrowedReadResultHolder, tile_id t) override;
+	bool ReadDataItem (StorageMetaInfoPtr smi, AbstrDataObject* borrowedReadResultHolder, tile_id t) override;
 	bool WriteDataItem(StorageMetaInfoPtr&& smiHolder) override;
 
 	bool ReadUnitRange(const StorageMetaInfo& smi) const override;
 	bool WriteUnitRange(StorageMetaInfoPtr&& smi) override;
 
 private:
-	virtual bool  ReduceResources();
 	TNameSet*     BuildNameSet(const TreeItem* storageHolder) const;
 	void          TestDomain(const AbstrDataItem* adi) const;
 

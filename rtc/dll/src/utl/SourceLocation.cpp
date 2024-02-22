@@ -27,9 +27,20 @@ granted by an additional written contract for support, assistance and/or develop
 */
 //</HEADER>
 #include "RtcPCH.h"
+
+#if defined(CC_PRAGMAHDRSTOP)
 #pragma hdrstop
+#endif //defined(CC_PRAGMAHDRSTOP)
 
 #include "RtcInterface.h"
+
+#if defined(WIN32)
+
+#include <windows.h>
+#include "timezoneapi.h"
+
+#endif //defined(WIN32)
+
 
 //----------------------------------------------------------------------
 // used modules and forward class references
@@ -40,32 +51,30 @@ granted by an additional written contract for support, assistance and/or develop
 //*****************************************************************
 //**********         FileDescr Interface                 **********
 //*****************************************************************
-#include "set/QuickContainers.h"
 
-struct CompareFD
-{
-	bool operator()(const FileDescr* a, FileDescr* b) const
-	{
-		dms_assert(a);
-		dms_assert(b);
-		return a->GetFileName() < b->GetFileName();
-	}
-};
-
-typedef std::set<FileDescr*, CompareFD> FileDescrSet;
-
+using FileDescrSet = std::vector<FileDescr*>;
 static FileDescrSet s_FDS;
+std::mutex cs_FDS;
 
-FileDescr::FileDescr(WeakStr str, FileDateTime fdt)
+FileDescr::FileDescr(WeakStr str, FileDateTime fdt, UInt32 loadNumber)
 	:	m_FileName(str)
-	,	m_Fdt(fdt)
+	,	m_ReadFdt(fdt)
+	,	m_LoadNumber(loadNumber)
 {
-	s_FDS.insert(this);
+	reportF(MsgCategory::other, SeverityTypeID::ST_MinorTrace, "load %s", str);
+
+	auto lock = std::scoped_lock(cs_FDS);
+	s_FDS.emplace_back(this);
 }
 
 FileDescr::~FileDescr()
 {
-	s_FDS.erase(this);
+	reportF(MsgCategory::other, SeverityTypeID::ST_MinorTrace, "unload %s", GetFileName());
+
+	auto lock = std::scoped_lock(cs_FDS);
+	auto pos = std::find(s_FDS.begin(), s_FDS.end(), this);
+	assert(pos != s_FDS.end());
+	s_FDS.erase(pos);
 }
 
 
@@ -76,36 +85,79 @@ FileDescr::~FileDescr()
 #include "ser/MoreStreamBuff.h"
 #include "ser/FormattedStream.h"
 #include "utl/Environment.h"
+#include "xml/XMLOut.h"
 
-IStringHandle DMS_ReportChangedFiles(bool updateFileTimes)
+auto ReportChangedFiles() -> VectorOutStreamBuff
 {
-	DMS_CALL_BEGIN
+	VectorOutStreamBuff vos;
+	FormattedOutStream fos(&vos, FormattingFlags::None);
 
-		VectorOutStreamBuff vos;
-		FormattedOutStream fos(&vos, FormattingFlags::None);
-
-		FileDateTime fdt;
-		auto 
-			i = s_FDS.begin(), 
-			e = s_FDS.end();
-		while (i!=e)
+	FileDateTime fdt;
+	auto
+		i = s_FDS.begin(),
+		e = s_FDS.end();
+	while (i != e)
+	{
+		FileDescr* fd = *i;
+		fdt = GetFileOrDirDateTime(fd->GetFileName());
+		if (fdt != fd->LastFdt())
 		{
-			FileDescr* fd = *i;
-			fdt = GetFileOrDirDateTime(fd->GetFileName());
-			if (fdt != fd->m_Fdt)
-			{
-				if (updateFileTimes)
-					fd->m_Fdt = fdt;
-				fos << fd->GetFileName().c_str() << "\n";
-			}
-			++i;
+			fd->m_LaterFdt = fdt;
+			fos << fd->GetFileName().c_str() << "\n";
 		}
-		if (vos.CurrPos() == 0)
-			return nullptr;
-		return IString::Create(vos.GetData(), vos.GetDataEnd());
+		++i;
+	}
+	
+	return vos;
+}
 
-	DMS_CALL_END
-	return nullptr;
+void ReportCurrentConfigFileList(OutStreamBase& os)
+{
+	XML_OutElement table(os, "TABLE");
+	{
+		XML_OutElement header_row(os, "TR");
+		{
+			XML_OutElement header_col1(os, "TH");
+			os << "Configuration Files";
+		}
+		{
+			XML_OutElement header_col2(os, "TH");
+			os << "Load Number";
+		}
+		{
+			XML_OutElement header_col3(os, "TH");
+			os << "File date & time when read";
+		}
+		{
+			XML_OutElement header_col4(os, "TH");
+			os << "... when ignored";
+		}
+	}
+	auto
+		i = s_FDS.begin(),
+		e = s_FDS.end();
+	for (; i != e; ++i)
+	{
+		FileDescr* fd = *i;
+		XML_OutElement row(os, "TR");
+		{
+			XML_OutElement col(os, "TD");
+			os << fd->GetFileName().c_str();
+		}
+		{
+			XML_OutElement col(os, "TD");
+			os << AsString(fd->m_LoadNumber).c_str();
+		}
+		{
+			XML_OutElement col(os, "TD");
+			os << AsDateTimeString(fd->m_ReadFdt).c_str();
+		}
+		if (fd->m_LaterFdt) // this files change is only to be notified once in current configuration session
+		{
+			XML_OutElement col(os, "TD");
+			os << AsDateTimeString(fd->m_LaterFdt).c_str();
+		}
+	}
 }
 
 //----------------------------------------------------------------------

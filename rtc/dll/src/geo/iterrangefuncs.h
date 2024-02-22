@@ -31,7 +31,7 @@ granted by an additional written contract for support, assistance and/or develop
 #if !defined(__RTC_GEO_ITERRANGEFUNCS_H)
 #define __RTC_GEO_ITERRANGEFUNCS_H
 
-#include "geo/IterRange.h"
+#include "geo/iterrange.h"
 
 //----------------------------------------------------------------------
 // IterRangeFuncs

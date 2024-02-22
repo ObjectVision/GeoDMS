@@ -32,7 +32,7 @@ granted by an additional written contract for support, assistance and/or develop
 #if !defined(__CLC_AGGRUNISTRUCTSTRING_H)
 #define __CLC_AGGRUNISTRUCTSTRING_H
 
-#include "dbg/Debug.h"
+#include "dbg/debug.h"
 #include "ser/SequenceArrayStream.h"
 #include "ser/MoreStreamBuff.h"
 
@@ -59,12 +59,12 @@ struct unary_assign_string_total_accumulation: unary_total_accumulation<SharedSt
 	:	m_SerFunc(f) 
 	{}
 
-	void Init(accumulation_ref output) const 
+	SharedStr InitialValue() const 
 	{
-		output.clear();
+		return {};
 	}
 
-	void operator()(accumulation_ref output, typename unary_assign_string_total_accumulation::value_cseq1 input, bool hasUndefinedValues) const
+	void operator()(accumulation_ref output, typename unary_assign_string_total_accumulation::value_cseq1 input) const
 	{
 		DBG_START("unary_assign_string_total_accumulation", "operator()", false);
 
@@ -73,14 +73,14 @@ struct unary_assign_string_total_accumulation: unary_total_accumulation<SharedSt
 		InfiniteNullOutStreamBuff lengthFinderStreamBuff;
 		lengthFinderStreamBuff.m_CurrPos += sz;
 
-		aggr1_total_best(lengthFinderStreamBuff, input.begin(), input.end(), hasUndefinedValues, m_SerFunc);
+		aggr1_total<TSerFunc>(lengthFinderStreamBuff, input.begin(), input.end(), m_SerFunc);
 
 		output.resize_uninitialized(lengthFinderStreamBuff.CurrPos());
 
-		ThrowingMemoOutStreamBuff writerStreamBuff(begin_ptr( output ), end_ptr( output ));
+		ThrowingMemoOutStreamBuff writerStreamBuff(ByteRange(begin_ptr( output ), end_ptr( output )));
 		writerStreamBuff.m_Curr += sz;
 		
-		aggr1_total_best(writerStreamBuff, input.begin(), input.end(), hasUndefinedValues, m_SerFunc);
+		aggr1_total<TSerFunc>(writerStreamBuff, input.begin(), input.end(), m_SerFunc);
 	}
 
 	TSerFunc m_SerFunc;
@@ -109,30 +109,32 @@ typedef std::vector<ThrowingMemoOutStreamBuff> memo_out_stream_array;
 template <typename TSerFunc>
 struct unary_assign_string_partial_accumulation : unary_partial_accumulation<SharedStr, typename TSerFunc::arg1_type>
 {
+	using base_type = unary_partial_accumulation<SharedStr, typename TSerFunc::arg1_type>;
+	using value_cseq = typename base_type::value_cseq1;
+	using accumulator_seq = typename base_type::accumulation_seq;
+
 	template <typename R>
 	static ConstUnitRef unit_creator(const AbstrOperGroup* gr, const ArgSeqType& args) { return TSerFunc::template unit_creator<R>(gr, args); }
 
 	unary_assign_string_partial_accumulation(const TSerFunc& assignFunc = TSerFunc())
-	:	m_AssignFunc(assignFunc) {}
+		:	m_AssignFunc(assignFunc) {}
 
-
-	void InspectData(length_finder_array& lengthFinderArray, typename unary_assign_string_partial_accumulation::value_cseq1 input, const IndexGetter* indices, bool hasUndefinedValues) const
+	void InspectData(length_finder_array& lengthFinderArray, value_cseq input, const IndexGetter* indices) const
 	{ 
-		aggr_fw_best_partial(lengthFinderArray.begin(), input.begin(), input.end(), indices, hasUndefinedValues, m_AssignFunc);
-
+		aggr_fw_partial(lengthFinderArray.begin(), input.begin(), input.end(), indices, m_AssignFunc);
 	}
 
-	void ReserveData(memo_out_stream_array& outStreamArray, typename unary_assign_string_partial_accumulation::accumulation_seq outputs) const
+	void ReserveData(memo_out_stream_array& outStreamArray, accumulator_seq outputs) const
 	{ 
 		outStreamArray.reserve(outputs.size());
 		for (auto resultSequence: outputs)
-			outStreamArray.push_back(ThrowingMemoOutStreamBuff(begin_ptr(resultSequence), end_ptr(resultSequence)));
+			outStreamArray.push_back(ThrowingMemoOutStreamBuff(ByteRange(begin_ptr(resultSequence), end_ptr(resultSequence))));
 	}
 
-	void ProcessTileData(memo_out_stream_array& outStreamArray, typename unary_assign_string_partial_accumulation::value_cseq1 input, const IndexGetter* indices, bool hasUndefinedValues) const
+	void ProcessTileData(memo_out_stream_array& outStreamArray, value_cseq input, const IndexGetter* indices) const
 	{ 
 		// re-write everything into the allocated buffers.
-		aggr_fw_best_partial(outStreamArray.begin(), input.begin(), input.end(), indices, hasUndefinedValues, m_AssignFunc);
+		aggr_fw_partial(outStreamArray.begin(), input.begin(), input.end(), indices, m_AssignFunc);
 	}
 private:
 	TSerFunc m_AssignFunc;
@@ -186,6 +188,9 @@ struct unary_ser_aslist: unary_assign<OutStreamBuff, SharedStr>
 
 	void operator()(OutStreamBuff& assignee, cref<SharedStr>::type arg) const	
 	{ 
+		if (!IsDefined(arg))
+			return;
+
 		if (assignee.CurrPos() && arg.size())
 			assignee.WriteBytes(begin_ptr( m_Separator ), m_Separator.size());
 		assignee.WriteBytes(begin_ptr( arg ), arg.size());
@@ -246,14 +251,14 @@ struct asitemlist_total : unary_assign_string_total_accumulation<unary_ser_asite
 //		unary_assign_asitemlist<T>, 
 //		assign_no_op<unary_assign_asitemlist<T>::assignee_ref> > 
 {
-	typedef SharedStr dms_result_type;
+	using dms_result_type = SharedStr;
 };
 
 // partial: generates Strings based on index_container<PartId>
 template <typename T> 
 struct asitemlist_partial : unary_assign_string_partial_accumulation< unary_ser_asitemlist<T> >
 {
-	typedef SharedStr dms_result_type;
+	using dms_result_type = SharedStr;
 };
 
 

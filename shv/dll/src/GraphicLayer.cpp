@@ -137,12 +137,11 @@ void GraphicLayer::SetActive(bool newState)
 			{
 				e = Entity2FeatureIndex(e);
 				if (IsDefined(e))
-					_InvalidateFeature(e);
+					InvalidateFeature(e);
 			}
 		}
 		if (newState)
 		{
-			CreateViewValueAction(GetActiveAttr(), GetFocusElemIndex(), false);
 			auto dv = GetDataView().lock();
 			dv->OnCaptionChanged();
 		}
@@ -170,11 +169,16 @@ SharedStr GraphicLayer::GetCaption() const
 
 	const AbstrUnit* domain = GetActiveEntity();
 	if (!domain)
-		return mgFormat2SharedStr("MapView %s", GetThemeDisplayName(this));
+		return mgFormat2SharedStr("%s", GetThemeDisplayName(this)); // Map View 
 
 	SizeT nrRecs = dv && const_cast<GraphicLayer*>(this)->PrepareDataOrUpdateViewLater(domain) ? domain->GetCount() : UNDEFINED_VALUE(SizeT);
+
 	SharedStr domainName = SharedStr(domain->GetID());
-	return mgFormat2SharedStr("%s recs in MapView %s %s", AsString(nrRecs, FormattingFlags::ThousandSeparator), GetThemeDisplayName(this), domainName);
+	return mgFormat2SharedStr("Active layer: %s (#%s = %s)"
+		, GetThemeDisplayName(this)
+		, domainName
+		, IsDefined(nrRecs) ? AsString(nrRecs, FormattingFlags::ThousandSeparator).c_str() : "..."
+	);
 }
 
 struct ActivateClassificationCmd : AbstrCmd
@@ -310,12 +314,10 @@ void GraphicLayer::FillLcMenu(MenuData& menuData)
 
 //	Get Statistics
 	if (GetThemeDisplayItem()) // false if ThemeSet has just been initialized
-		menuData.push_back(
-			MenuItem(
-				"Show Statistics on " + GetThemeDisplayName(this), 
+		menuData.emplace_back(
+				"Show Statistics of " + GetThemeDisplayName(this), 
 				new RequestClientCmd(GetThemeDisplayItem(), CC_ShowStatistics),
 				this
-			) 
 		);
 
 	std::vector<AspectNr> classifialbeAspects;
@@ -398,7 +400,7 @@ TokenID GraphicLayer::GetID() const
 
 bool GraphicLayer::VisibleLevel(GraphDrawer& d) const
 {
-	Float64 currNrPixelsPerUnit = d.GetTransformation().ZoomLevel() / d.GetSubPixelFactor();
+	auto currNrPixelsPerUnit = d.GetTransformation().ZoomLevel() / d.GetSubPixelFactor();
 	return VisibleLevel(currNrPixelsPerUnit);
 }
 
@@ -576,17 +578,18 @@ bool GraphicLayer::SelectEntityIndex(AbstrDataObject* selAttrObj, SizeT selected
 
 	bool keepExistingValues = doSetClassID || !IsCreateNewEvent(eventID);
 
+	auto tileLoc = selAttrObj->GetTiledLocation(selectedIndex);
 	if (doSetClassID)
 	{ 
-		auto selData = mutable_array_cast<ClassID>(selAttrObj)->GetDataWrite();
-		if (ClassID(selData[selectedIndex]) == currClassID)
+		auto selData = mutable_array_cast<ClassID>(selAttrObj)->GetWritableTile(tileLoc.first);
+		if (ClassID(selData[tileLoc.second]) == currClassID)
 			goto cancel;
 
-		selData[selectedIndex] = currClassID;
+		selData[tileLoc.second] = currClassID;
 	}
 	else
 	{
-		auto selData = mutable_array_cast<SelectionID>(selAttrObj)->GetDataWrite();
+		auto selData = mutable_array_cast<SelectionID>(selAttrObj)->GetWritableTile(tileLoc.first);
 
 		// oldValue  FALSE   TRUE
 		// ========  ======  =====
@@ -594,16 +597,16 @@ bool GraphicLayer::SelectEntityIndex(AbstrDataObject* selAttrObj, SizeT selected
 		// FALSE     ->TRUE  cancel
 		// TRUE      ->TRUE  ->FALSE
 
-		if (doToggle && !selData[selectedIndex] )
+		if (doToggle && !selData[tileLoc.second] )
 			goto cancel;
 
-		selData[selectedIndex] = (not doToggle) || ( selData[selectedIndex]==0);
+		selData[tileLoc.second] = (not doToggle) || ( selData[tileLoc.second]==0);
 	}
 	if (keepExistingValues && !HasEntityAggr())
 	{
 		selectedIndex = Entity2FeatureIndex(selectedIndex);
 		if (IsDefined(selectedIndex))
-			_InvalidateFeature( selectedIndex ); // only invalidate changed feature of Layer
+			InvalidateFeature( selectedIndex ); // only invalidate changed feature of Layer
 	}
 	else
 		InvalidateDraw(); // change 
@@ -633,10 +636,12 @@ bool GraphicLayer::IsEntitySelected(SizeT entityID) const
 		return false;
 
 	auto selTheme =  CreateSelectionsTheme();
-	dms_assert(selTheme);
-	const AbstrDataItem* selAttr = const_cast<AbstrDataItem*>(selTheme->GetThemeAttr());
+	assert(selTheme);
+	const AbstrDataItem* selAttr = selTheme->GetThemeAttr();
+	assert(selAttr);
 
-	return selAttr->LockAndGetValue<SelectionID>(entityID);
+	assert(selAttr->m_DataLockCount > 0); //	return selAttr->LockAndGetValue<SelectionID>(entityID);
+	return selAttr->GetValue<SelectionID>(entityID);
 }
 
 
@@ -658,8 +663,8 @@ void GraphicLayer::OnFocusElemChanged(SizeT newSelectedID, SizeT oldSelectedID)
 		return;
 	}
 
-	if (IsDefined(oldSelectedID)) _InvalidateFeature(Entity2FeatureIndex(oldSelectedID));
-	if (IsDefined(newSelectedID)) _InvalidateFeature(Entity2FeatureIndex(newSelectedID));
+	if (IsDefined(oldSelectedID)) InvalidateFeature(Entity2FeatureIndex(oldSelectedID));
+	if (IsDefined(newSelectedID)) InvalidateFeature(Entity2FeatureIndex(newSelectedID));
 }
 
 bool GraphicLayer::OnCommand(ToolButtonID id)

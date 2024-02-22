@@ -245,7 +245,7 @@
     <ClInclude Include="src\mci\CompositeCast.h">
       <Filter>Meta Class Information</Filter>
     </ClInclude>
-    <ClInclude Include="src\mci\DoubleLinkedList.h">
+    <ClInclude Include="src\mci\DoubleLinkedTree.h">
       <Filter>Meta Class Information</Filter>
     </ClInclude>
     <ClInclude Include="src\mci\PropDef.h">
@@ -551,7 +551,7 @@
     <ClInclude Include="src\mem\ManagedAllocData.ipp">
       <Filter>Memory</Filter>
     </ClInclude>
-    <ClInclude Include="src\mci\DoubleLinkedList.inc">
+    <ClInclude Include="src\mci\DoubleLinkedTree.inc">
       <Filter>Meta Class Information</Filter>
     </ClInclude>
     <ClInclude Include="src\act\ActorVisitor.h">
@@ -587,7 +587,7 @@
     <ClInclude Include="src\dbg\Timer.h">
       <Filter>Debug Files</Filter>
     </ClInclude>
-    <ClInclude Include="src\mci\SingleLinkedList.h">
+    <ClInclude Include="src\mci\SingleLinkedTree.h">
       <Filter>Meta Class Information</Filter>
     </ClInclude>
     <ClInclude Include="src\ipolygon\polygon_with_holes_data.hpp">
@@ -852,6 +852,10 @@
     <ClInclude Include="src\geo\IsNotUndef.h" />
     <ClInclude Include="src\ASync.h" />
     <ClInclude Include="src\RtcGeneratedVersion.h" />
+    <ClInclude Include="src\throwItemError.h" />
+    <ClInclude Include="src\geo\CharPtrRange.h" />
+    <ClInclude Include="src\geo\IterTraits.h" />
+    <ClInclude Include="src\ser\FormattingFlags.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\act\Actor.cpp">
@@ -1001,9 +1005,15 @@
     <ClCompile Include="src\utl\SourceLocation.cpp">
       <Filter>Mathematic Utilities</Filter>
     </ClCompile>
+    <ClCompile Include="src\ser\AsString.cpp">
+      <Filter>Mathematic Utilities</Filter>
+    </ClCompile>
+    <ClCompile Include="src\geo\Transform.cpp">
+      <Filter>Mathematic Utilities</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <None Include="src\mci\SingleLinkedList.inc">
+    <None Include="src\mci\SingleLinkedTree.inc">
       <Filter>Meta Class Information</Filter>
     </None>
     <None Include="src\act\ActorEnums.txt">

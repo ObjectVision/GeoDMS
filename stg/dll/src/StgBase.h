@@ -35,7 +35,7 @@ granted by an additional written contract for support, assistance and/or develop
 #include "stg/AbstrStorageManager.h"
 
 #include <set>
-#include "geo/Color.h"
+#include "geo/color.h"
 
 #ifdef DMSTGDLL_EXPORTS
 #	define STGDLL_CALL __declspec(dllexport)
@@ -47,6 +47,7 @@ granted by an additional written contract for support, assistance and/or develop
 #	endif
 #endif
 
+#define STGIMPL_CALL
 
 const PALETTE_SIZE CI_NODATA     = 255;
 const PALETTE_SIZE CI_BACKGROUND = 256;

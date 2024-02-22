@@ -46,8 +46,7 @@
   </PropertyGroup>
   <ItemDefinitionGroup>
     <ClCompile>
-      <AdditionalIncludeDirectories>C:\Program Files (x86)\Intel\oneAPI\ipp\latest\include;../../clc/dll/include;../../rtc/dll/src;../../stx/dll/src;../../tic/dll/src;../../stg/dll/src;../../stgimpl/dll/src;../../sym/dll/src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
-      <AdditionalOptions>/bigobj %(AdditionalOptions)</AdditionalOptions>
+      <AdditionalIncludeDirectories>C:\Program Files (x86)\Intel\oneAPI\ipp\latest\include;../../clc/dll/include;../../rtc/dll/src;../../stx/dll/src;../../tic/dll/src;../../stg/dll/src;../../sym/dll/src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Platform)'=='Win32'">
@@ -62,6 +61,9 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ProjectReference Include="..\..\clc\dll\Clc.vcxproj">
+      <Project>{41dd88b1-2f24-45aa-9cbb-4318f97bbc22}</Project>
+    </ProjectReference>
     <ProjectReference Include="..\..\rtc\dll\DmRtc.vcxproj">
       <Project>{f1f7b558-ce16-4452-a876-eadb679a4463}</Project>
     </ProjectReference>
@@ -74,13 +76,12 @@
     <ProjectReference Include="..\..\tic\dll\DmTic.vcxproj">
       <Project>{ede22514-d90d-4600-aa3c-f2e149e57a4e}</Project>
     </ProjectReference>
-    <ProjectReference Include="..\..\clc\dll\clc1.vcxproj">
-      <Project>{41DD88B1-2F24-45AA-9CBB-4318F97BBC22}</Project>
-    </ProjectReference>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\rtc\dll\src\ipolygon\polygon.hpp" />
+    <ClInclude Include="src\AbstrBoundingBoxCache.h" />
     <ClInclude Include="src\bi_graph.h" />
+    <ClInclude Include="src\BoundingBoxCache.h" />
     <ClInclude Include="src\Dijkstra.h" />
     <ClInclude Include="src\GeoBase.h" />
     <ClInclude Include="src\GeoInterface.h" />
@@ -97,6 +98,7 @@
     <ClInclude Include="src\UseIpp.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="src\AbstrBoundingBoxCache.cpp" />
     <ClCompile Include="src\BoostGeometry.cpp" />
     <ClCompile Include="src\BoostPolygon.cpp" />
     <ClCompile Include="src\Canyon.cpp" />
@@ -114,6 +116,7 @@
     <ClCompile Include="src\OperPot.cpp" />
     <ClCompile Include="src\Perimeter.cpp" />
     <ClCompile Include="src\Point.cpp" />
+    <ClCompile Include="src\Poly2GridOper.cpp" />
     <ClCompile Include="src\PolyOper.cpp" />
     <ClCompile Include="src\Potential.cpp" />
     <ClCompile Include="src\RasterMerge.cpp" />

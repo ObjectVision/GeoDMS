@@ -93,7 +93,7 @@ struct AbstrUnaryAttrOperator: UnaryOperator
 
 			auto valuesUnitA = AsUnit(res->GetAbstrValuesUnit()->GetCurrRangeItem());
 			if (IsMultiThreaded3() && (tn > 1) && (LTF_ElementWeight(arg1A) <= LTF_ElementWeight(res)))
-				AsDataItem(resultHolder.GetOld())->m_DataObject = CreateFutureTileFunctor(valuesUnitA, arg1A, af MG_DEBUG_ALLOCATOR_SRC("res->md_FullName + GetGroup()->GetName().c_str()"));
+				AsDataItem(resultHolder.GetOld())->m_DataObject = CreateFutureTileFunctor(res, res->GetLazyCalculatedState(), valuesUnitA, arg1A, af MG_DEBUG_ALLOCATOR_SRC("res->md_FullName + GetGroup()->GetName().c_str()"));
 			else
 			{
 				DataWriteLock resLock(res);
@@ -111,7 +111,7 @@ struct AbstrUnaryAttrOperator: UnaryOperator
 		return true;
 	}
 
-	virtual SharedPtr<const AbstrDataObject> CreateFutureTileFunctor(const AbstrUnit* valuesUnitA, const AbstrDataItem* arg1A, ArgFlags af MG_DEBUG_ALLOCATOR_SRC_ARG) const = 0;
+	virtual SharedPtr<const AbstrDataObject> CreateFutureTileFunctor(SharedPtr<AbstrDataItem> resultAdi, bool lazy, const AbstrUnit* valuesUnitA, const AbstrDataItem* arg1A, ArgFlags af MG_DEBUG_ALLOCATOR_SRC_ARG) const = 0;
 	virtual void Calculate(AbstrDataObject* borrowedDataHandle, const AbstrDataItem* arg1A, ArgFlags af, tile_id t) const =0;
 
 private:
@@ -132,15 +132,15 @@ public:
 		: AbstrUnaryAttrOperator(gr, ResultType::GetStaticClass(), Arg1Type::GetStaticClass(), possibleArgFlags, ucp, vc)
 	{}
 
-	SharedPtr<const AbstrDataObject> CreateFutureTileFunctor(const AbstrUnit* valuesUnitA, const AbstrDataItem* arg1A, ArgFlags af MG_DEBUG_ALLOCATOR_SRC_ARG) const override
+	SharedPtr<const AbstrDataObject> CreateFutureTileFunctor(SharedPtr<AbstrDataItem> resultAdi, bool lazy, const AbstrUnit* valuesUnitA, const AbstrDataItem* arg1A, ArgFlags af MG_DEBUG_ALLOCATOR_SRC_ARG) const override
 	{
 		auto tileRangeData = AsUnit(arg1A->GetAbstrDomainUnit()->GetCurrRangeItem())->GetTiledRangeData();
 		auto valuesUnit = debug_cast<const Unit<field_of_t<ResultValueType>>*>(valuesUnitA);
 
-		auto arg1 = const_array_cast<Arg1ValueType>(arg1A); dms_assert(arg1);
+		auto arg1 = MakeShared(const_array_cast<Arg1ValueType>(arg1A)); assert(arg1);
 
 		using prepare_data = SharedPtr<typename Arg1Type::future_tile>;
-		auto futureTileFunctor = make_unique_FutureTileFunctor<ResultValueType, prepare_data, false>(tileRangeData, get_range_ptr_of_valuesunit(valuesUnit), tileRangeData->GetNrTiles()
+		auto futureTileFunctor = make_unique_FutureTileFunctor<ResultValueType, prepare_data, false>(resultAdi, lazy, tileRangeData, get_range_ptr_of_valuesunit(valuesUnit)
 			, [arg1, af](tile_id t) { return arg1->GetFutureTile(t); }
 			, [this, af MG_DEBUG_ALLOCATOR_SRC_PARAM](sequence_traits<ResultValueType>::seq_t resData, prepare_data futureData)
 			{

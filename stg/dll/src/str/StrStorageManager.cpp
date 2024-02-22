@@ -1,33 +1,12 @@
-//<HEADER> 
-/*
-Data & Model Server (DMS) is a server written in C++ for DSS applications. 
-Version: see srv/dms/rtc/dll/src/RtcVersion.h for version info.
+// Copyright (C) 1998-2023 Object Vision b.v. 
+// License: GNU GPL 3
+/////////////////////////////////////////////////////////////////////////////
 
-Copyright (C) 1998-2004  YUSE GSO Object Vision BV. 
-
-Documentation on using the Data & Model Server software can be found at:
-http://www.ObjectVision.nl/DMS/
-
-See additional guidelines and notes in srv/dms/Readme-srv.txt 
-
-This library is free software; you can use, redistribute, and/or
-modify it under the terms of the GNU General Public License version 2 
-(the License) as published by the Free Software Foundation,
-provided that this entire header notice and readme-srv.txt is preserved.
-
-See LICENSE.TXT for terms of distribution or look at our web site:
-http://www.objectvision.nl/DMS/License.txt
-or alternatively at: http://www.gnu.org/copyleft/gpl.html
-
-This library is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
-General Public License for more details. However, specific warranties might be
-granted by an additional written contract for support, assistance and/or development
-*/
-//</HEADER>
 #include "StoragePCH.h"
+
+#if defined(CC_PRAGMAHDRSTOP)
 #pragma hdrstop
+#endif //defined(CC_PRAGMAHDRSTOP)
 
 
 // *****************************************************************************
@@ -56,23 +35,27 @@ granted by an additional written contract for support, assistance and/or develop
 
 
 // ================ Read / Write data
-bool StrStorageManager::ReadDataItem (const StorageMetaInfo& smi, AbstrDataObject* borrowedReadResultHolder, tile_id t)
+bool StrStorageManager::ReadDataItem (StorageMetaInfoPtr smi, AbstrDataObject* borrowedReadResultHolder, tile_id t)
 {
 	MG_CHECK(t == 0);
 
 	std::size_t dataSize; 
 	AbstrDataObject::data_write_begin_handle dataBeginHolder;
 	void* dataBegin;
-	const TreeItem* storageHolder = smi.StorageHolder();
-	AbstrDataItem* adi = smi.CurrWD();
+	const TreeItem* storageHolder = smi->StorageHolder();
+	AbstrDataItem* adi = smi->CurrWD();
 	dms_assert(adi);
 	AbstrDataObject* ado = borrowedReadResultHolder;
 	dms_assert(ado);
 	DataArray<SharedStr>* sdo = dynamic_cast<DataArray<SharedStr>*>(ado);
 	for (SizeT i=0, n = GetNrFiles(storageHolder, adi); i!=n; ++i) {
 		FilePtrHandle file;
-		if (! file.OpenFH(GetFileName(storageHolder, adi, i), DSM::GetSafeFileWriterArray(storageHolder), FCM_OpenReadOnly, false, NR_PAGES_DIRECTIO))
+		auto sfwa = DSM::GetSafeFileWriterArray(); 
+		if (!sfwa)
 			return false;
+		auto strFileName = GetFileName(storageHolder, adi, i);
+		if (!file.OpenFH(strFileName, sfwa.get(), FCM_OpenReadOnly, false, NR_PAGES_DIRECTIO))
+			throwErrorF("StrStorageManager", "Cannot open file '%s'", strFileName);
 
 		dms::filesize_t fileSize = file.GetFileSize();
 		if (sdo)
@@ -107,6 +90,10 @@ bool StrStorageManager::WriteDataItem(StorageMetaInfoPtr&& smiHolder)
 	const AbstrDataObject* ado = adi->GetRefObj();
 	const TreeItem* storageHolder = smi->StorageHolder();
 
+	auto sfwa = DSM::GetSafeFileWriterArray();
+	if (!sfwa)
+		return false;
+
 	auto sda = const_array_dynacast<SharedStr>(ado);
 	if (sda)
 	{
@@ -115,8 +102,9 @@ bool StrStorageManager::WriteDataItem(StorageMetaInfoPtr&& smiHolder)
 		dms_assert(sdData.size() == n);
 		for (SizeT i = 0; i != n; ++i)
 		{
+
 			FilePtrHandle file;
-			if (!file.OpenFH(GetFileName(storageHolder, adi, i), DSM::GetSafeFileWriterArray(storageHolder), FCM_CreateAlways, false, NR_PAGES_DIRECTIO))
+			if (!file.OpenFH(GetFileName(storageHolder, adi, i), sfwa.get(), FCM_CreateAlways, false, NR_PAGES_DIRECTIO))
 				return false;
 
 			auto dataBegin = sdData[i].begin();
@@ -130,7 +118,7 @@ bool StrStorageManager::WriteDataItem(StorageMetaInfoPtr&& smiHolder)
 		for (SizeT i = 0; i != n; ++i)
 		{
 			FilePtrHandle file;
-			if (!file.OpenFH(GetFileName(storageHolder, adi, i), DSM::GetSafeFileWriterArray(storageHolder), FCM_CreateAlways, false, NR_PAGES_DIRECTIO))
+			if (!file.OpenFH(GetFileName(storageHolder, adi, i), sfwa.get(), FCM_CreateAlways, false, NR_PAGES_DIRECTIO))
 				return false;
 			MG_CHECK(adi->GetValueComposition() == ValueComposition::Single);
 
@@ -142,11 +130,9 @@ bool StrStorageManager::WriteDataItem(StorageMetaInfoPtr&& smiHolder)
 	return true;
 }
 
-
-// Unclear in this context, but obligatory
 void StrStorageManager::DoUpdateTree(const TreeItem* storageHolder, TreeItem* curr, SyncMode sm) const
 {
-	AbstrStorageManager::DoUpdateTree(storageHolder, curr, sm);
+	NonmappableStorageManager::DoUpdateTree(storageHolder, curr, sm);
 
 	if (curr != storageHolder)
 		return; // noop
@@ -180,15 +166,15 @@ SizeT StrStorageManager::GetNrFiles (const TreeItem* storageHolder, const TreeIt
 
 const AbstrDataItem* StrFilesStorageManager::GetFileNameAttr(const TreeItem* storageHolder, const TreeItem* self) const
 {
-	dms_assert(storageHolder == self);
+	assert(storageHolder == self);
 	if (!m_FileNameAttr) {
 		if (storageHolder == self)
 			storageHolder = storageHolder->GetTreeParent();
-		dms_assert(storageHolder);
+		assert(storageHolder);
 		auto fileNameItem = storageHolder->FindItem("FileName");
 		if (!fileNameItem)
 			storageHolder->throwItemError("StrFilesStorageManager requires an attribute<string> FileName with the same domain as this to be in its parent namespace");
-		m_FileNameAttr = checked_cast<const AbstrDataItem*>(fileNameItem);
+		m_FileNameAttr = AsCheckedDataItem(fileNameItem);
 	}
 	return m_FileNameAttr;
 }
@@ -216,9 +202,9 @@ StorageMetaInfoPtr StrFilesStorageManager::GetMetaInfo(const TreeItem* storageHo
 	return base_type::GetMetaInfo(storageHolder, curr, sa);
 }
 
-bool StrFilesStorageManager::ReadDataItem(const StorageMetaInfo& smi, AbstrDataObject* borrowedReadResultHolder, tile_id t)
+bool StrFilesStorageManager::ReadDataItem(StorageMetaInfoPtr smi, AbstrDataObject* borrowedReadResultHolder, tile_id t)
 {
-	DataReadLock drl(GetFileNameAttr(smi.StorageHolder(), smi.CurrRD()));
+	DataReadLock drl(GetFileNameAttr(smi->StorageHolder(), smi->CurrRD()));
 	return base_type::ReadDataItem(smi, borrowedReadResultHolder, t);
 }
 
@@ -242,7 +228,7 @@ ActorVisitState StrFilesStorageManager::VisitSuppliers(SupplierVisitFlag svf, co
 
 void StrFilesStorageManager::DoUpdateTree(const TreeItem* storageHolder, TreeItem* curr, SyncMode sm) const
 {
-	AbstrStorageManager::DoUpdateTree(storageHolder, curr, sm);
+	NonmappableStorageManager::DoUpdateTree(storageHolder, curr, sm);
 	m_FileNameAttr.reset(); // 
 
 	if (curr != storageHolder)

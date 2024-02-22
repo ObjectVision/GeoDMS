@@ -1,35 +1,10 @@
-//<HEADER> 
-/*
-Data & Model Server (DMS) is a server written in C++ for DSS applications. 
-Version: see srv/dms/rtc/dll/src/RtcVersion.h for version info.
+// Copyright (C) 1998-2023 Object Vision b.v. 
+// License: GNU GPL 3
+/////////////////////////////////////////////////////////////////////////////
 
-Copyright (C) 1998-2004  YUSE GSO Object Vision BV. 
-
-Documentation on using the Data & Model Server software can be found at:
-http://www.ObjectVision.nl/DMS/
-
-See additional guidelines and notes in srv/dms/Readme-srv.txt 
-
-This library is free software; you can use, redistribute, and/or
-modify it under the terms of the GNU General Public License version 2 
-(the License) as published by the Free Software Foundation,
-provided that this entire header notice and readme-srv.txt is preserved.
-
-See LICENSE.TXT for terms of distribution or look at our web site:
-http://www.objectvision.nl/DMS/License.txt
-or alternatively at: http://www.gnu.org/copyleft/gpl.html
-
-This library is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
-General Public License for more details. However, specific warranties might be
-granted by an additional written contract for support, assistance and/or development
-*/
-//</HEADER>
-#pragma once
+//#pragma once
 
 #ifndef __RTC_GEO_CONVERSIONS_H
-#define __RTC_GEO_CONVERSIONS_H
 
 //----------------------------------------------------------------------
 // used modules and forward class references
@@ -43,6 +18,21 @@ granted by an additional written contract for support, assistance and/or develop
 #include "geo/Undefined.h"
 #include "ser/AsString.h"
 #include "ser/FormattedStream.h"
+
+#define __RTC_GEO_CONVERSIONS_H
+
+//----------------------------------------------------------------------
+// Section      : has_equivalent_null
+//----------------------------------------------------------------------
+
+template <typename T, typename U> constexpr bool has_equivalent_null_v = 
+	(is_bitvalue_v<T> || is_bitvalue_v<U> 
+		? is_bitvalue_v<T> && is_bitvalue_v<U> 
+		: U(UNDEFINED_OR_ZERO(T)) == UNDEFINED_OR_ZERO(U)
+	);
+
+template <typename T, typename U> struct has_equivalent_null : std::bool_constant<has_equivalent_null_v<T, U>> {};
+template <typename T>             struct has_equivalent_null<T, T> : std::true_type {};
 
 //----------------------------------------------------------------------
 // Bool conversions
@@ -194,7 +184,7 @@ struct NumericDefinedConverter // throws on undefined values
 	U operator ()(const T& val) const
 	{
 		if (!definedF(val) || !minF(val) || !maxF(val))
-			return exceptF.apply<U>(val);
+			return exceptF.template apply<U>(val);
 		return convF(val);
 	}
 	CheckDefFunc definedF;
@@ -210,7 +200,7 @@ struct NumericNonnullConverter // converts undefined values
 	U operator ()(const T& val) const
 	{
 		if (!minF(val) || !maxF(val))
-			return exceptF.apply<U>(val);
+			return exceptF.template apply<U>(val);
 		return convF(val);
 	}
 	CheckMinFunc minF;
@@ -227,7 +217,7 @@ struct NumericCheckedConverter // converts undefined values
 		if (!definedF(val))
 			return UNDEFINED_VALUE(U);
 		if (!minF(val) || !maxF(val))
-			return exceptF.apply<U>(val);
+			return exceptF.template apply<U>(val);
 		return convF(val);
 	}
 	CheckDefFunc definedF;
@@ -239,7 +229,7 @@ struct NumericCheckedConverter // converts undefined values
 
 template <typename T, typename U, typename ExceptFunc, typename ConvertFunc>
 typename std::enable_if_t<is_numeric_v<T> && is_numeric<U>::value, U>
-Convert4(const T& val, const U* dummy, const ExceptFunc*, const ConvertFunc*)
+Convert4(const T& val, const U* /*dummy*/, const ExceptFunc*, const ConvertFunc*)
 {
 	using CDefF = typename check_def_mf<T, U>::type;
 	using CMinF = typename check_min_mf<T, U>::type;
@@ -252,7 +242,7 @@ Convert4(const T& val, const U* dummy, const ExceptFunc*, const ConvertFunc*)
 
 template <typename T, typename U, typename ExceptFunc, typename ConvertFunc>
 typename std::enable_if_t<is_numeric_v<T> && is_numeric<U>::value, U>
-ConvertNonNull4(const T& val, const U* dummy, const ExceptFunc*, const ConvertFunc*)
+ConvertNonNull4(const T& val, const U* /*dummy*/, const ExceptFunc*, const ConvertFunc*)
 {
 	return NumericNonnullConverter<T, U, typename check_min_mf<T, U>::type, typename check_max_mf<T, U>::type, ExceptFunc, ConvertFunc>()(val);
 }
@@ -264,7 +254,7 @@ ConvertNonNull4(const T& val, const U* dummy, const ExceptFunc*, const ConvertFu
 //}
 
 template <typename Dst, bit_size_t N, typename Block, typename ExceptFunc, typename ConvertFunc>
-Dst Convert4(const bit_reference<N, Block>& ref, const Dst* dummy, const ExceptFunc* dummyExceptFunc, const ConvertFunc* dummyConvertFunc)
+Dst Convert4(const bit_reference<N, Block>& ref, const Dst* /*dummy*/, const ExceptFunc* dummyExceptFunc, const ConvertFunc* dummyConvertFunc)
 {
 	return Convert4(bit_value<N>(ref), TYPEID(Dst), dummyExceptFunc, dummyConvertFunc);
 }
@@ -295,6 +285,17 @@ inline T Convert4(StringCRef val, const T*, const ExceptFunc* dummyExceptFunc, c
 	return result;
 }
 
+template <typename T, typename ExceptFunc, typename ConvertFunc>
+inline T Convert4(std::string_view val, const T*, const ExceptFunc* dummyExceptFunc, const ConvertFunc* dummyConvertFunc)
+{
+	T result;
+	if (IsDefined(val))
+		AssignValueFromCharPtrs(result, begin_ptr(val), end_ptr(val));
+	else
+		Assign(result, Undefined());
+	return result;
+}
+
 template <typename ExceptFunc, typename ConvertFunc>
 inline SharedStr Convert4(StringCRef val, const SharedStr*, const ExceptFunc* dummyFunc, const ConvertFunc* dummyConvertFunc) 
 { 
@@ -303,9 +304,17 @@ inline SharedStr Convert4(StringCRef val, const SharedStr*, const ExceptFunc* du
 		:	UNDEFINED_VALUE(SharedStr); 
 }
 
+template <typename ExceptFunc, typename ConvertFunc>
+inline SharedStr Convert4(std::string_view val, const SharedStr*, const ExceptFunc* dummyFunc, const ConvertFunc* dummyConvertFunc)
+{
+	return IsDefined(val)
+		? SharedStr(val.begin(), val.end())
+		: UNDEFINED_VALUE(SharedStr);
+}
+
 // conversions to string
 template <typename T, typename ExceptFunc, typename ConvertFunc>
-inline SharedStr Convert4(const T& val, const SharedStr*, const ExceptFunc* dummyExceptFunc, const ConvertFunc* dummyConvertFunc)
+inline SharedStr Convert4(const T& val, const SharedStr*, const ExceptFunc* /*dummyExceptFunc*/, const ConvertFunc* /*dummyConvertFunc*/)
 {
 	return AsString(val);
 }
@@ -340,7 +349,7 @@ template <typename T, typename ExceptFunc, typename ConvertFunc>
 inline std::vector<T> Convert4(typename sequence_array<T>::const_reference v, const std::vector<T>*, const ExceptFunc* dummyExceptFunc, const ConvertFunc* dummyConvertFunc)
 { 
 	if (!v.IsDefined())
-		return ExceptFunc().apply<std::vector<T>>(v);
+		return ExceptFunc().template apply<std::vector<T>>(v);
 	return std::vector<T>(v.begin(), v.end()); 
 }
 

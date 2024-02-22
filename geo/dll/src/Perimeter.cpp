@@ -1,34 +1,12 @@
-//<HEADER> 
-/*
-Data & Model Server (DMS) is a server written in C++ for DSS applications. 
-Version: see srv/dms/rtc/dll/src/RtcVersion.h for version info.
-
-Copyright (C) 1998-2004  YUSE GSO Object Vision BV. 
-
-Documentation on using the Data & Model Server software can be found at:
-http://www.ObjectVision.nl/DMS/
-
-See additional guidelines and notes in srv/dms/Readme-srv.txt 
-
-This library is free software; you can use, redistribute, and/or
-modify it under the terms of the GNU General Public License version 2 
-(the License) as published by the Free Software Foundation,
-provided that this entire header notice and readme-srv.txt is preserved.
-
-See LICENSE.TXT for terms of distribution or look at our web site:
-http://www.objectvision.nl/DMS/License.txt
-or alternatively at: http://www.gnu.org/copyleft/gpl.html
-
-This library is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
-General Public License for more details. However, specific warranties might be
-granted by an additional written contract for support, assistance and/or development
-*/
-//</HEADER>
+// Copyright (C) 1998-2023 Object Vision b.v. 
+// License: GNU GPL 3
+/////////////////////////////////////////////////////////////////////////////
 
 #include "GeoPCH.h"
+
+#if defined(CC_PRAGMAHDRSTOP)
 #pragma hdrstop
+#endif //defined(CC_PRAGMAHDRSTOP)
 
 #include "geo/RangeIndex.h"
 #include "mci/ValueClass.h"
@@ -43,7 +21,7 @@ granted by an additional written contract for support, assistance and/or develop
 //											PerimeterOperator
 // *****************************************************************************
 
-CommonOperGroup cogPerimeter("perimeter", oper_policy::dynamic_result_class);
+CommonOperGroup cogPerimeter("perimeter", oper_policy::dynamic_result_class | oper_policy::better_not_in_meta_scripting);
 
 template <typename T>
 class PerimeterOperator : public UnaryOperator
@@ -54,13 +32,12 @@ public:
 	PerimeterOperator():
 		UnaryOperator(&cogPerimeter, AbstrDataItem::GetStaticClass(), ArgType::GetStaticClass()) {}
 
-	// Override Operator
 	bool CreateResult(TreeItemDualRef& resultHolder, const ArgSeqType& args, bool mustCalc) const override
 	{
 		MG_PRECONDITION(args.size() == 1);
 
 		const AbstrDataItem* inputGridA = AsDataItem(args[0]);
-		dms_assert(inputGridA);
+		assert(inputGridA);
 
 		const AbstrUnit* domain = inputGridA->GetAbstrDomainUnit();
 		MG_CHECK(domain->GetValueType()->GetNrDims() == 2);
@@ -68,15 +45,15 @@ public:
 		const AbstrUnit* regionsUnit = inputGridA->GetAbstrValuesUnit();
 
 		const AbstrUnit* resUnit = count_unit_creator(args);
-		dms_assert(resUnit);
-		if (!resultHolder) resultHolder = CreateCacheDataItem(regionsUnit, resUnit);
-
+		assert(resUnit);
+		if (!resultHolder)
+			resultHolder = CreateCacheDataItem(regionsUnit, resUnit);
 
 		if (mustCalc)
 		{
 			DataReadLock arg1Lock(inputGridA);
 			const ArgType* inputGrid = const_array_cast<T>(arg1Lock.get_ptr());
-			dms_assert(inputGrid);
+			assert(inputGrid);
 
 			AbstrDataItem* result = AsDataItem(resultHolder.GetNew());
 
@@ -85,9 +62,9 @@ public:
 			auto inputVec   = inputGrid->GetDataRead();
 
 			IRect rect = domain->GetRangeAsIRect();
-			dms_assert(_Left(rect) < _Right (rect));
-			dms_assert(_Top (rect) < _Bottom(rect));
-			dms_assert(inputVec .size() == Cardinality(rect));
+			assert(Left(rect) < Right (rect));
+			assert(Top (rect) < Bottom(rect));
+			assert(inputVec .size() == Cardinality(rect));
 
 
 			// TODO: move to UniProcessor for resUnit to accomodate large (IPoint, UPoint) domains
@@ -102,8 +79,8 @@ public:
 			auto outputVec = mutable_array_checkedcast<count_type>(resLock)->GetDataWrite();
 			SizeT pos = 0, outputVecSize = outputVec.size();
 			dms_assert(outputVecSize == Cardinality(districtRange));
-			Int32 e = _Width(rect), pe = e-1;
-			for (Int32 j = 0, f = _Height(rect), pf = f-1; j != f; ++j)
+			Int32 e = Width(rect), pe = e-1;
+			for (Int32 j = 0, f = Height(rect), pf = f-1; j != f; ++j)
 				for (Int32 i = 0; i != e; ++pos, ++i)
 				{
 					T v = inputVec[pos];
@@ -196,8 +173,8 @@ public:
 				westVec  = const_array_cast<R>(args[4])->GetDataRead();
 
 			IRect rect = domain->GetRangeAsIRect();
-			dms_assert(_Left(rect) < _Right (rect));
-			dms_assert(_Top (rect) < _Bottom(rect));
+			dms_assert(Left(rect) < Right (rect));
+			dms_assert(Top (rect) < Bottom(rect));
 			dms_assert(inputVec .size() == Cardinality(rect));
 
 			const Unit<R>* resultUnit = debug_cast<const Unit<R>*>(resUnit);
@@ -207,8 +184,8 @@ public:
 			auto outputVec = mutable_array_checkedcast<R>(resLock)->GetDataWrite();
 			SizeT pos = 0, outputVecSize = outputVec.size();
 			dms_assert(outputVecSize == Cardinality(districtRange));
-			Int32 e = _Width(rect), pe = e-1;
-			for (Int32 j = 0, f = _Height(rect), pf = f-1; j != f; ++j)
+			Int32 e = Width(rect), pe = e-1;
+			for (Int32 j = 0, f = Height(rect), pf = f-1; j != f; ++j)
 				for (Int32 i = 0; i != e; ++pos, ++i)
 				{
 					T v = inputVec[pos];
@@ -245,7 +222,7 @@ struct PerimeterOperators : PerimeterOperator<T>
 
 namespace
 {
-	tl_oper::inst_tuple<typelists::domain_ints, PerimeterOperators<_>> perimeterOpers;
+	tl_oper::inst_tuple_templ<typelists::domain_ints, PerimeterOperators> perimeterOpers;
 }
 
 /******************************************************************************/

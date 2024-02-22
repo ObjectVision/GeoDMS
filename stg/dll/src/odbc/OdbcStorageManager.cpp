@@ -1,33 +1,12 @@
-//<HEADER> 
-/*
-Data & Model Server (DMS) is a server written in C++ for DSS applications. 
-Version: see srv/dms/rtc/dll/src/RtcVersion.h for version info.
+// Copyright (C) 1998-2023 Object Vision b.v. 
+// License: GNU GPL 3
+/////////////////////////////////////////////////////////////////////////////
 
-Copyright (C) 1998-2004  YUSE GSO Object Vision BV. 
-
-Documentation on using the Data & Model Server software can be found at:
-http://www.ObjectVision.nl/DMS/
-
-See additional guidelines and notes in srv/dms/Readme-srv.txt 
-
-This library is free software; you can use, redistribute, and/or
-modify it under the terms of the GNU General Public License version 2 
-(the License) as published by the Free Software Foundation,
-provided that this entire header notice and readme-srv.txt is preserved.
-
-See LICENSE.TXT for terms of distribution or look at our web site:
-http://www.objectvision.nl/DMS/License.txt
-or alternatively at: http://www.gnu.org/copyleft/gpl.html
-
-This library is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
-General Public License for more details. However, specific warranties might be
-granted by an additional written contract for support, assistance and/or development
-*/
-//</HEADER>
 #include "StoragePCH.h"
+
+#if defined(CC_PRAGMAHDRSTOP)
 #pragma hdrstop
+#endif //defined(CC_PRAGMAHDRSTOP)
 
 // *****************************************************************************
 // Implementations of
@@ -124,16 +103,16 @@ SQLSMALLINT	ValueClassID2CType(ValueClassID vid)
 {
 	switch (vid)
 	{
-		case VT_SharedStr:	return SQL_C_CHAR;
-		case VT_UInt32: return SQL_C_ULONG;
-		case VT_Int32:  return SQL_C_SLONG;
-		case VT_UInt16: return SQL_C_USHORT;
-		case VT_Int16:  return SQL_C_SSHORT;
-		case VT_UInt8:  return SQL_C_UTINYINT;
-		case VT_Int8:   return SQL_C_STINYINT;
-		case VT_Bool:   return SQL_C_BIT;
-		case VT_Float64:return SQL_C_DOUBLE;
-		case VT_Float32:return SQL_C_FLOAT;
+		case ValueClassID::VT_SharedStr:	return SQL_C_CHAR;
+		case ValueClassID::VT_UInt32: return SQL_C_ULONG;
+		case ValueClassID::VT_Int32:  return SQL_C_SLONG;
+		case ValueClassID::VT_UInt16: return SQL_C_USHORT;
+		case ValueClassID::VT_Int16:  return SQL_C_SSHORT;
+		case ValueClassID::VT_UInt8:  return SQL_C_UTINYINT;
+		case ValueClassID::VT_Int8:   return SQL_C_STINYINT;
+		case ValueClassID::VT_Bool:   return SQL_C_BIT;
+		case ValueClassID::VT_Float64:return SQL_C_DOUBLE;
+		case ValueClassID::VT_Float32:return SQL_C_FLOAT;
 
 	}
 	throwErrorF("ODBC", "ValueType %s has no equivalent SQL_C type",
@@ -358,13 +337,13 @@ struct OdbcMetaInfo : StorageMetaInfo
 {
 	OdbcMetaInfo(const ODBCStorageManager* sm, const TreeItem* storageHolder, const TreeItem* curr)
 		: StorageMetaInfo(storageHolder, curr)
-		, m_TableHolder(IsDataItem(curr) ? curr->GetTreeParent() : curr)
+		, m_TableHolder(IsDataItem(curr) ? curr->GetTreeParent() : MakeShared(curr))
 	{
 		if (m_TableHolder)
 			m_SqlString = GetOrCreateSqlString(m_TableHolder);
 	}
 
-	SharedPtr<const TreeItem> m_TableHolder;
+	SharedTreeItem m_TableHolder;
 	SharedStr m_SqlString;
 };
 
@@ -626,7 +605,7 @@ private:
 	const ValueClass*    m_InternalValueClass;
 	ODBCStorageManager*  m_ODBCStorageManager;
 	const OdbcMetaInfo*  m_OdbcInfo;
-	TreeItem*            m_TableHolder; // Maybe we read all columns at once
+	SharedPtr<TreeItem>  m_TableHolder; // Maybe we read all columns at once
 	std::vector<BYTE>    m_CharBuffer;
 };
 
@@ -637,14 +616,6 @@ private:
 StorageMetaInfoPtr ODBCStorageManager::GetMetaInfo(const TreeItem* storageHolder, TreeItem* adi, StorageAction sa) const
 {
 	return std::make_unique<OdbcMetaInfo>(this, storageHolder, adi);
-}
-
-bool ODBCStorageManager::ReduceResources()
-{
-	if (m_Database.is_null())
-		return false;
-	m_Database->Close();
-	return true;
 }
 
 ODBCStorageManager::ODBCStorageManager()
@@ -746,17 +717,17 @@ void ReadData(ODBCStorageReader& isb, sequence_traits<SharedStr>::seq_t data)
 
 typedef SharedStr String;
 
-bool ODBCStorageManager::ReadDataItem(const StorageMetaInfo& smi, AbstrDataObject* borrowedReadResultHolder, tile_id t)
+bool ODBCStorageManager::ReadDataItem(StorageMetaInfoPtr smi, AbstrDataObject* borrowedReadResultHolder, tile_id t)
 {
 	dms_assert(t == 0);
 
-	AbstrDataItem* adi = smi.CurrWD();
+	AbstrDataItem* adi = smi->CurrWD();
 	dms_assert(adi->GetDataObjLockCount() < 0); // DataWriteLock is already set
 
-	TreeItem* tableHolder = const_cast<TreeItem*>(adi->GetTreeParent());
+	SharedPtr<TreeItem> tableHolder = const_cast<TreeItem*>(adi->GetTreeParent().get());
 
 	leveled_critical_section::scoped_lock lock(s_OdbcSection);
-	ODBCStorageReader ir(this, debug_cast<const OdbcMetaInfo*>(&smi), tableHolder, adi->GetName().c_str(), adi);
+	ODBCStorageReader ir(this, debug_cast<const OdbcMetaInfo*>(smi.get()), tableHolder, adi->GetName().c_str(), adi);
 
 	adi->GetAbstrDomainUnit()->ValidateCount(ir.GetRecordCount());
 
@@ -764,7 +735,7 @@ bool ODBCStorageManager::ReadDataItem(const StorageMetaInfo& smi, AbstrDataObjec
 
 	switch (vc)
 	{
-#define INSTANTIATE(T) case VT_##T: ::ReadData(ir, mutable_array_cast<T>(borrowedReadResultHolder)->GetDataWrite().get_view()); break;
+#define INSTANTIATE(T) case ValueClassID::VT_##T: ::ReadData(ir, mutable_array_cast<T>(borrowedReadResultHolder)->GetDataWrite().get_view()); break;
 		INSTANTIATE_NUM_ORG
 		INSTANTIATE_OTHER
 #undef INSTANTIATE
@@ -787,7 +758,7 @@ bool ODBCStorageManager::ReadUnitRange(const StorageMetaInfo& smi) const
 
 void ODBCStorageManager::DoUpdateTree(const TreeItem* storageHolder, TreeItem* curr, SyncMode sm) const
 {
-	AbstrStorageManager::DoUpdateTree(storageHolder, curr, sm);
+	NonmappableStorageManager::DoUpdateTree(storageHolder, curr, sm);
 
 	dms_assert(sm != SM_None);
 

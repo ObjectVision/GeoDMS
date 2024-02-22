@@ -1,46 +1,24 @@
-//<HEADER> 
-/*
-Data & Model Server (DMS) is a server written in C++ for DSS applications. 
-Version: see srv/dms/rtc/dll/src/RtcVersion.h for version info.
+// Copyright (C) 1998-2023 Object Vision b.v. 
+// License: GNU GPL 3
+/////////////////////////////////////////////////////////////////////////////
 
-Copyright (C) 1998-2004  YUSE GSO Object Vision BV. 
-
-Documentation on using the Data & Model Server software can be found at:
-http://www.ObjectVision.nl/DMS/
-
-See additional guidelines and notes in srv/dms/Readme-srv.txt 
-
-This library is free software; you can use, redistribute, and/or
-modify it under the terms of the GNU General Public License version 2 
-(the License) as published by the Free Software Foundation,
-provided that this entire header notice and readme-srv.txt is preserved.
-
-See LICENSE.TXT for terms of distribution or look at our web site:
-http://www.objectvision.nl/DMS/License.txt
-or alternatively at: http://www.gnu.org/copyleft/gpl.html
-
-This library is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
-General Public License for more details. However, specific warranties might be
-granted by an additional written contract for support, assistance and/or development
-*/
-//</HEADER>
 #include "RtcPCH.h"
+
+#if defined(CC_PRAGMAHDRSTOP)
 #pragma hdrstop
+#endif //defined(CC_PRAGMAHDRSTOP)
 
 #include "utl/mySPrintF.h"
 
 #include "dbg/DebugContext.h"
-#include "geo/IterRange.h"
-#include "geo/StringBOunds.h"
+#include "geo/iterrange.h"
+#include "geo/StringBounds.h"
 #include "utl/splitPath.h"
 #include "utl/Environment.h"
 #include "act/MainThread.h"
 
 #include <stdio.h>
 #include <stdarg.h>
-#include "parallel.h"
 
 //----------------------------------------------------------------------
 
@@ -58,7 +36,7 @@ SharedStr myVSSPrintF(CharPtr format, va_list argList)
 
 	for (;;) 
 	{
-		SizeT nrCharsWritten = _vsnprintf(buf, size, format, argList); // returns UInt32(-1) if size of buf is too small
+		SizeT nrCharsWritten = std::vsnprintf(buf, size, format, argList); // returns UInt32(-1) if size of buf is too small
 		if (nrCharsWritten <= size)
 			return SharedStr(buf, buf+nrCharsWritten);
 		size *= 2;
@@ -117,43 +95,43 @@ CharPtr getFileName(CharPtr fullPath)
 	if (*fullPath)
 	{
 		CharPtr fullPathEnd = fullPath + StrLen(fullPath); // go to end of null-terminated fullPath
-		dms_assert(!*fullPathEnd);
+		assert(!*fullPathEnd);
 		while (--fullPathEnd != fullPath)
 		{
-			dms_assert(*fullPathEnd != '\\');
+			assert(*fullPathEnd != '\\');
 			if (*fullPathEnd == DELIMITER_CHAR)
 				return fullPathEnd+1; // return extracted file-name and return path base without last delimiter
 		}
-		dms_assert(fullPathEnd == fullPath);
+		assert(fullPathEnd == fullPath);
 	}
 	return fullPath;
 }
 
 CharPtr getFileName(CharPtr fullPath, CharPtr fullPathEnd)
 {
-	dms_assert(!*fullPathEnd);
+	assert(!*fullPathEnd);
 	while (--fullPathEnd != fullPath)
 	{
-		dms_assert(*fullPathEnd != '\\');
+		assert(*fullPathEnd != '\\');
 		if (*fullPathEnd == DELIMITER_CHAR)
 			return fullPathEnd+1; // return extracted file-name and return path base without last delimiter
 	}
-	dms_assert(fullPathEnd == fullPath);
+	assert(fullPathEnd == fullPath);
 	return fullPath;
 }
 
 SharedStr splitFullPath(CharPtr full_path)
 {
 	CharPtr new_path = full_path + StrLen(full_path); // go to end of null-terminated full_path
-	dms_assert(!*new_path);
+	assert(!*new_path);
 	if (new_path != full_path)
 		while (--new_path != full_path)
 		{
-			dms_assert(*new_path != '\\');
+			assert(*new_path != '\\');
 			if (*new_path == DELIMITER_CHAR)
 				return SharedStr(full_path, new_path); // return extracted file-name and return path base without last delimiter
 		}
-	dms_assert(new_path == full_path);
+	assert(new_path == full_path);
 	return SharedStr();
 }
 

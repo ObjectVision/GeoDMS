@@ -1,39 +1,18 @@
-//<HEADER> 
-/*
-Data & Model Server (DMS) is a server written in C++ for DSS applications. 
-Version: see srv/dms/rtc/dll/src/RtcVersion.h for version info.
-
-Copyright (C) 1998-2004  YUSE GSO Object Vision BV. 
-
-Documentation on using the Data & Model Server software can be found at:
-http://www.ObjectVision.nl/DMS/
-
-See additional guidelines and notes in srv/dms/Readme-srv.txt 
-
-This library is free software; you can use, redistribute, and/or
-modify it under the terms of the GNU General Public License version 2 
-(the License) as published by the Free Software Foundation,
-provided that this entire header notice and readme-srv.txt is preserved.
-
-See LICENSE.TXT for terms of distribution or look at our web site:
-http://www.objectvision.nl/DMS/License.txt
-or alternatively at: http://www.gnu.org/copyleft/gpl.html
-
-This library is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
-General Public License for more details. However, specific warranties might be
-granted by an additional written contract for support, assistance and/or development
-*/
-//</HEADER>
+// Copyright (C) 1998-2023 Object Vision b.v. 
+// License: GNU GPL 3
+/////////////////////////////////////////////////////////////////////////////
 
 #include "RtcPCH.h"
+
+#if defined(CC_PRAGMAHDRSTOP)
 #pragma hdrstop
+#endif //defined(CC_PRAGMAHDRSTOP)
 
 #include "act/MainThread.h"
 #include "utl/Registry.h"
 #include "utl/Environment.h"
 
+#if defined(WIN32)
 #include <windows.h>
 
 //  -----------------------------------------------------------------------
@@ -147,11 +126,20 @@ SharedStr RegistryHandle::ReadString(CharPtr name) const
 	return resultStr;
 }
 
-bool RegistryHandle::WriteString(CharPtr name, std::string str) const
+void RegistryHandle::WriteString(CharPtr name, std::string str) const
 {
-	auto reg_value = PackStringAsVectorBytes(str);
-	RegSetValueEx(m_Key, name, NULL, REG_SZ, &reg_value[0], str.size());
-	return true;
+	RegSetValueEx(m_Key, name, NULL, REG_SZ, (const BYTE*)str.data(), str.size());
+}
+
+void RegistryHandle::DeleteValue(CharPtr name) const
+{
+	RegDeleteValue(m_Key, name);
+}
+
+
+void RegistryHandle::WriteString(CharPtr name, CharPtrRange str) const
+{
+	RegSetValueEx(m_Key, name, NULL, REG_SZ, (const BYTE*)str.begin(), str.size());
 }
 
 std::vector<std::string> RegistryHandle::ReadMultiString(CharPtr name) const
@@ -194,17 +182,6 @@ std::vector<BYTE> RegistryHandle::PackVectorStringAsVectorBytes(std::vector<std:
 	return result;
 }
 
-std::vector<BYTE> RegistryHandle::PackStringAsVectorBytes(std::string string) const
-{
-	std::vector<BYTE> result;
-	for (auto& c : string)
-	{
-		result.push_back(c);
-	}
-	result.push_back('\0');
-	return result;
-}
-
 bool RegistryHandle::WriteMultiString(CharPtr name, std::vector<std::string> strings) const
 {
 	auto reg_value = PackVectorStringAsVectorBytes(strings);
@@ -233,20 +210,24 @@ RegistryHandleCurrentUserRO::RegistryHandleCurrentUserRO()
 	: RegistryHandle(OpenKeyReadOnly(HKEY_CURRENT_USER, "Software\\ObjectVision\\DMS"))
 {}
 
-SharedStr GetLocalMachinePath()
+SharedStr GetLocalMachinePath(CharPtr section)
 {
 	static SharedStr s_Result = "Software\\ObjectVision\\" + PlatformInfo::GetComputerNameA() + "\\GeoDMS";
-	return s_Result;
+	if (!section || !*section)
+		return s_Result;
+	return s_Result + "\\" + section;
 }
 
 
-RegistryHandleLocalMachineRO::RegistryHandleLocalMachineRO()
-	: RegistryHandle(OpenKeyReadOnly(HKEY_CURRENT_USER, GetLocalMachinePath().c_str()))
+RegistryHandleLocalMachineRO::RegistryHandleLocalMachineRO(CharPtr section)
+	: RegistryHandle(OpenKeyReadOnly(HKEY_CURRENT_USER, GetLocalMachinePath(section).c_str()))
 {}
 
 //  -----------------------------------------------------------------------
 
-RegistryHandleLocalMachineRW::RegistryHandleLocalMachineRW()
-	: RegistryHandle(OpenKey(HKEY_CURRENT_USER, GetLocalMachinePath().c_str()))
+RegistryHandleLocalMachineRW::RegistryHandleLocalMachineRW(CharPtr section)
+	: RegistryHandle(OpenKey(HKEY_CURRENT_USER, GetLocalMachinePath(section).c_str()))
 {}
+
+#endif //defined(WIN32)
 

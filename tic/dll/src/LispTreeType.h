@@ -1,31 +1,8 @@
-//<HEADER> 
-/*
-Data & Model Server (DMS) is a server written in C++ for DSS applications. 
-Version: see srv/dms/rtc/dll/src/RtcVersion.h for version info.
+// Copyright (C) 1998-2023 Object Vision b.v. 
+// License: GNU GPL 3
+/////////////////////////////////////////////////////////////////////////////
 
-Copyright (C) 1998-2004  YUSE GSO Object Vision BV. 
-
-Documentation on using the Data & Model Server software can be found at:
-http://www.ObjectVision.nl/DMS/
-
-See additional guidelines and notes in srv/dms/Readme-srv.txt 
-
-This library is free software; you can use, redistribute, and/or
-modify it under the terms of the GNU General Public License version 2 
-(the License) as published by the Free Software Foundation,
-provided that this entire header notice and readme-srv.txt is preserved.
-
-See LICENSE.TXT for terms of distribution or look at our web site:
-http://www.objectvision.nl/DMS/License.txt
-or alternatively at: http://www.gnu.org/copyleft/gpl.html
-
-This library is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
-General Public License for more details. However, specific warranties might be
-granted by an additional written contract for support, assistance and/or development
-*/
-//</HEADER>
+#pragma once
 
 #ifndef __TIC_LISPTREETYPE_H
 #define __TIC_LISPTREETYPE_H
@@ -35,6 +12,7 @@ granted by an additional written contract for support, assistance and/or develop
 
 struct TreeItem;
 #include "geo/SequenceArray.h"
+#include "mci/ValueWrap.h"
 
 #if defined(MG_DEBUG)
 //#define MG_DEBUG_LISP_TREE
@@ -66,8 +44,30 @@ namespace token {
 	extern TIC_CALL TokenID not_;
 
 	extern TIC_CALL TokenID iif;
+
 	extern TIC_CALL TokenID true_;
 	extern TIC_CALL TokenID false_;
+	extern TIC_CALL TokenID pi;
+
+	extern TIC_CALL TokenID const_;
+	extern TIC_CALL TokenID null_b;
+	extern TIC_CALL TokenID null_w;
+	extern TIC_CALL TokenID null_u;
+	extern TIC_CALL TokenID null_u64;
+	extern TIC_CALL TokenID null_c;
+	extern TIC_CALL TokenID null_s;
+	extern TIC_CALL TokenID null_i;
+	extern TIC_CALL TokenID null_i64;
+	extern TIC_CALL TokenID null_f;
+	extern TIC_CALL TokenID null_d;
+	extern TIC_CALL TokenID null_sp;
+	extern TIC_CALL TokenID null_wp;
+	extern TIC_CALL TokenID null_ip;
+	extern TIC_CALL TokenID null_up;
+	extern TIC_CALL TokenID null_fp;
+	extern TIC_CALL TokenID null_dp;
+
+	TIC_CALL bool isConst(TokenID t);
 
 	extern TIC_CALL TokenID arrow;
 	extern TIC_CALL TokenID lookup;
@@ -78,6 +78,7 @@ namespace token {
 	extern TIC_CALL TokenID subitem;
 	extern TIC_CALL TokenID NrOfRows;
 	extern TIC_CALL TokenID range;
+	extern TIC_CALL TokenID cat_range;
 	extern TIC_CALL TokenID TiledUnit;
 	extern TIC_CALL TokenID point;
 
@@ -91,32 +92,88 @@ namespace token {
 	extern TIC_CALL TokenID union_data;
 	extern TIC_CALL TokenID sourceDescr;
 	extern TIC_CALL TokenID container;
-	extern TIC_CALL TokenID select_data;
+
+//	SELECT section BEGIN
+	extern TIC_CALL TokenID select;
+	extern TIC_CALL TokenID select_uint8;
+	extern TIC_CALL TokenID select_uint16;
+	extern TIC_CALL TokenID select_uint32;
+	extern TIC_CALL TokenID select_uint64;
+
+	extern TIC_CALL TokenID select_with_org_rel;
+	extern TIC_CALL TokenID select_uint8_with_org_rel;
+	extern TIC_CALL TokenID select_uint16_with_org_rel;
+	extern TIC_CALL TokenID select_uint32_with_org_rel;
+	extern TIC_CALL TokenID select_uint64_with_org_rel;
+
+	// DEPRECIATED BEGIN
 	extern TIC_CALL TokenID select_unit;
 	extern TIC_CALL TokenID select_orgrel;
 	extern TIC_CALL TokenID select_unit_uint8;
 	extern TIC_CALL TokenID select_orgrel_uint8;
+	extern TIC_CALL TokenID select_unit_uint8_org_rel;
 	extern TIC_CALL TokenID select_unit_uint16;
 	extern TIC_CALL TokenID select_orgrel_uint16;
 	extern TIC_CALL TokenID select_unit_uint32;
 	extern TIC_CALL TokenID select_orgrel_uint32;
+	// DEPRECIATED END
+
+	extern TIC_CALL TokenID select_with_attr_by_cond;
+	extern TIC_CALL TokenID select_uint8_with_attr_by_cond;
+	extern TIC_CALL TokenID select_uint16_with_attr_by_cond;
+	extern TIC_CALL TokenID select_uint32_with_attr_by_cond;
+	extern TIC_CALL TokenID select_uint64_with_attr_by_cond;
+
+	extern TIC_CALL TokenID select_with_org_rel_with_attr_by_cond;
+	extern TIC_CALL TokenID select_uint8_with_org_rel_with_attr_by_cond;
+	extern TIC_CALL TokenID select_uint16_with_org_rel_with_attr_by_cond;
+	extern TIC_CALL TokenID select_uint32_with_org_rel_with_attr_by_cond;
+	extern TIC_CALL TokenID select_uint64_with_org_rel_with_attr_by_cond;
+
+	extern TIC_CALL TokenID select_with_attr_by_org_rel;
+	extern TIC_CALL TokenID select_uint8_with_attr_by_org_rel;
+	extern TIC_CALL TokenID select_uint16_with_attr_by_org_rel;
+	extern TIC_CALL TokenID select_uint32_with_attr_by_org_rel;
+	extern TIC_CALL TokenID select_uint64_with_attr_by_org_rel;
+
+	extern TIC_CALL TokenID select_data;
+
+	extern TIC_CALL TokenID collect_by_cond;  // synonymous with select_data
+	extern TIC_CALL TokenID collect_by_org_rel; // synonimous with lookup, arrow-operator, and (reversed) array-index operator
+
+	extern TIC_CALL TokenID collect_attr_by_cond;
+	extern TIC_CALL TokenID collect_attr_by_org_rel;
+
+	// DEPRECIATED BEGIN
 	extern TIC_CALL TokenID select_many;
 	extern TIC_CALL TokenID select_afew;
-	extern TIC_CALL TokenID relate_attr;
 	extern TIC_CALL TokenID select_many_uint8;
 	extern TIC_CALL TokenID select_afew_uint8;
 	extern TIC_CALL TokenID select_many_uint16;
 	extern TIC_CALL TokenID select_afew_uint16;
 	extern TIC_CALL TokenID select_many_uint32;
 	extern TIC_CALL TokenID select_afew_uint32;
+	// DEPRECIATED END
+
+	extern TIC_CALL TokenID recollect_by_cond;
+	extern TIC_CALL TokenID recollect_by_org_rel;
+
+//	SELECT section END
+
 	extern TIC_CALL TokenID nr_OrgEntity;
+	extern TIC_CALL TokenID polygon_rel;
+	extern TIC_CALL TokenID part_rel;
+	extern TIC_CALL TokenID arc_rel;
+	extern TIC_CALL TokenID sequence_rel;
 	extern TIC_CALL TokenID org_rel;
 	extern TIC_CALL TokenID first_rel;
 	extern TIC_CALL TokenID second_rel;
+	extern TIC_CALL TokenID ordinal;
 	extern TIC_CALL TokenID integrity_check;
 
 	extern TIC_CALL TokenID map;
 	extern TIC_CALL TokenID geometry;
+	extern TIC_CALL TokenID FenceContainer;
 
 }
 
@@ -178,11 +235,10 @@ inline auto AsLispRef(SharedStr s, LispPtr valuesUnitKeyExpr) -> LispRef
 }
 
 template <typename T>
-auto AsLispRef(const Range<T>& range, LispRef&& base) -> LispRef
+auto AsLispRef(const Range<T>& range, LispRef&& base, bool asCategorical) -> LispRef
 {
-	dms_assert(!(base.IsRealList() && base.Left().IsSymb() && base.Left().GetSymbID() == token::range));
-	return List(LispRef(token::range)
-		, base
+	assert(!(base.IsRealList() && base.Left().IsSymb() && base.Left().GetSymbID() == token::range));
+	return ExprList(asCategorical ? token::cat_range : token::range, base
 		, AsLispRef(range.first)
 		, AsLispRef(range.second)
 	);

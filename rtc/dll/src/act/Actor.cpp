@@ -1,36 +1,15 @@
-//<HEADER> 
-/*
-Data & Model Server (DMS) is a server written in C++ for DSS applications. 
-Version: see srv/dms/rtc/dll/src/RtcVersion.h for version info.
+// Copyright (C) 1998-2023 Object Vision b.v. 
+// License: GNU GPL 3
+/////////////////////////////////////////////////////////////////////////////
 
-Copyright (C) 1998-2004  YUSE GSO Object Vision BV. 
-
-Documentation on using the Data & Model Server software can be found at:
-http://www.ObjectVision.nl/DMS/
-
-See additional guidelines and notes in srv/dms/Readme-srv.txt 
-
-This library is free software; you can use, redistribute, and/or
-modify it under the terms of the GNU General Public License version 2 
-(the License) as published by the Free Software Foundation,
-provided that this entire header notice and readme-srv.txt is preserved.
-
-See LICENSE.TXT for terms of distribution or look at our web site:
-http://www.objectvision.nl/DMS/License.txt
-or alternatively at: http://www.gnu.org/copyleft/gpl.html
-
-This library is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
-General Public License for more details. However, specific warranties might be
-granted by an additional written contract for support, assistance and/or development
-*/
-//</HEADER>
 #include "RtcPCH.h"
+
+#if defined(_MSC_VER)
 #pragma hdrstop
+#endif //defined(_MSC_VER)
 
 #include "act/Actor.h"
-#include "act/Any.h"
+#include "act/any.h"
 #include "act/ActorEnums.h"
 #include "act/ActorSet.h"
 #include "act/ActorVisitor.h"
@@ -47,7 +26,7 @@ granted by an additional written contract for support, assistance and/or develop
 #include "set/StaticQuickAssoc.h"
 #include "set/VectorFunc.h"
 #include "utl/Environment.h"
-#include "utl/MySPrintF.h"
+#include "utl/mySPrintF.h"
 #include "utl/scoped_exit.h"
 #include "xct/DmsException.h"
 
@@ -55,17 +34,15 @@ granted by an additional written contract for support, assistance and/or develop
 #include "LockLevels.h"
 
 #include <set>
-#include <ppltasks.h>
+//#include <ppltasks.h>
 
 #if defined(MG_DEBUG_INTERESTSOURCE)
 
-#define MG_DEBUG_INTERESTSOURCE_LOGGING
 #define MG_DEBUG_INTERESTSOURCE_VALUE false
 
 #else
 
 #define MG_DEBUG_INTERESTSOURCE_VALUE false
-#undef MG_DEBUG_INTERESTSOURCE_LOGGING
 
 #endif
 
@@ -214,8 +191,8 @@ bool InterestRetainContextBase::IsActive()
 
 void InterestRetainContextBase::Add(const Actor* actor)
 {
-	dms_assert(IsActive()); // PRECONDITION
-	if (IsActive()) // else it will never be removed; REMOVE IF ASSERT IS PROVEN
+//	assert(IsActive()); // PRECONDITION
+	if (IsActive() && actor) // else it will never be removed; REMOVE IF ASSERT IS PROVEN
 		push_front(GetRetainContext(), actor);
 }
 
@@ -293,17 +270,17 @@ void Actor::InvalidateAt (TimeStamp invalidate_ts) const
 #if defined(MG_DEBUG)
 	MGD_CHECKDATA(!sd_InvalidationProtectCount);
 #endif
-	dms_assert(m_LastChangeTS <= invalidate_ts); // invalidations must have a chronological cause
+	assert(m_LastChangeTS <= invalidate_ts); // invalidations must have a chronological cause
 
 	if	(m_LastChangeTS == invalidate_ts)
 	{
 		//	new invalidation (after Update, Suspend or failure) must have a cause
-		dms_assert(! m_State.IsFailed() ); 
-		dms_assert(m_State.GetProgress() <= PS_MetaInfo || invalidate_ts == UpdateMarker::tsBereshit); 
+		assert(! m_State.IsFailed() ); 
+		assert(m_State.GetProgress() <= PS_MetaInfo || invalidate_ts == UpdateMarker::tsBereshit); 
 		return;
 	}
 
-	dms_assert(m_LastChangeTS < invalidate_ts); // implied from above
+	assert(m_LastChangeTS < invalidate_ts); // implied from above
 
 	// don't Update or reCheckIntegrity until next Invalidation
 	ClearFail();
@@ -315,12 +292,12 @@ void Actor::InvalidateAt (TimeStamp invalidate_ts) const
 
 	SupplInterestListPtr keepOldInterest = MoveSupplInterest(this);
 	DoInvalidate();       // call-back for specific behaviour, which calls StartSupplInterest();
-	dms_assert(DoesHaveSupplInterest() || !m_InterestCount || IsPassor());
+	assert(DoesHaveSupplInterest() || !m_InterestCount || IsPassor() || WasFailed(FR_Data));
 }
 
 void Actor::SetProgress(ProgressState ps) const // called by SetProgressAt( UpdateMarker::GetActiveTS() );
 {
-	dms_assert(m_LastChangeTS || IsPassor()); // must have gone through DetermineState
+	assert(m_LastChangeTS || IsPassor()); // must have gone through DetermineState
 //	dms_assert(ps >= m_State.GetProgress());  // activated at 21-08-2012, see if it holds, REMOVE COMMENT
 
 	if (ps > m_State.GetProgress())
@@ -393,7 +370,7 @@ void Actor::TriggerEvaluation() const
 TimeStamp Actor::GetLastChangeTS () const
 {
 	DetermineState();
-	dms_assert(m_LastChangeTS || IsPassor() || WasFailed() || m_State.IsDeterminingCheck()); // must have been set by DetermineState unless it was a Passor or DetermineState Failed
+	assert(m_LastChangeTS || IsPassor() || WasFailed() || m_State.IsDeterminingCheck()); // must have been set by DetermineState unless it was a Passor or DetermineState Failed
 	return m_LastChangeTS;
 }
 
@@ -462,13 +439,16 @@ ActorVisitState Actor::SuspendibleUpdate(ProgressState ps) const // returns fals
 
 	if (updateRes == AVS_SuspendedOrFailed)
 	{
-		dms_assert(SuspendTrigger::DidSuspend());
+		assert(SuspendTrigger::DidSuspend());
 		return AVS_SuspendedOrFailed;
 	}
+	if (m_State.GetProgress() >= ProgressState::PS_Committed)
+		StopSupplInterest();
+
 	if (m_State.GetProgress() >= ps) // a supplier could have been a creator/manager
 		return AVS_Ready;
 
-	dms_assert(m_LastGetStateTS == UpdateMarker::LastTS());
+	assert(m_LastGetStateTS == UpdateMarker::LastTS());
 	UpdateMarker::ChangeSourceLock changeStamp(this,  "Update");
 
 #if defined(MG_DEBUG_INTERESTSOURCE)
@@ -551,8 +531,8 @@ void Actor::DoInvalidate () const
 		UpdateLock lock(this, actor_flag_set::AF_ChangingInterest);
 		StartSupplInterest();
 	}
-	dms_assert(!WasFailed(FR_Data));
-	dms_assert(DoesHaveSupplInterest() || !m_InterestCount || IsPassor());
+	dms_assert(!WasFailed(FR_Data) || !DoesHaveSupplInterest());
+	dms_assert(DoesHaveSupplInterest() || !m_InterestCount || IsPassor() || WasFailed(FR_Data));
 }
 
 void Actor::UpdateMetaInfo() const
@@ -644,12 +624,17 @@ ActorVisitState Actor::VisitSuppliers(SupplierVisitFlag svf, const ActorVisitor&
 
 ActorVisitState Actor::UpdateSuppliers(ProgressState ps) const // returns US_Valid, US_UpdatingElsewhere, US_Suspended, US_FailedData, US_FailedCheck, US_FailedCommit
 {
-	dms_assert((ps == PS_Committed) || (ps == PS_Validated));
-	dms_assert(ps == PS_Committed); // TODO: clean-up if this holds
+	assert((ps == PS_Committed) || (ps == PS_Validated));
+	assert(ps == PS_Committed); // TODO: clean-up if this holds
+
+	if (!DoesHaveSupplInterest() && GetInterestCount())
+		return AVS_Ready;
+
 	FailType ft = (ps == PS_Committed) ? FR_Committed : FR_Validate;
 
-	dms_assert(!WasFailed(FR_MetaInfo));
-	dms_assert(!WasFailed(ft)); // precondition
+	assert(!WasFailed(FR_MetaInfo));
+	assert(!WasFailed(ft)); // precondition
+	assert(DoesHaveSupplInterest() || !GetInterestCount());
 
 	ActorVisitState updateRes = 
 		VisitSupplBoolImpl(this, SupplierVisitFlag::Update,
@@ -832,17 +817,21 @@ bool Actor::DoFail(ErrMsgPtr msg, FailType ft) const
 
 		assert(msg->Why().IsDefined() && !msg->Why().empty());
 
-		msg->TellWhere(this);
 		s_ActorFailReasonAssoc.assoc(this, msg);
 		m_State.SetFailure(ft);
-		if (msg->MustReport())
-		{
-			auto st = ft <= FR_Data ? SeverityTypeID::ST_Error : SeverityTypeID::ST_Warning;
-			if (msg->m_FullName.empty())
-				reportD(st, msg->m_Why.c_str());
-			else
-				reportF(st, "[[%s]] %s", msg->m_FullName, msg->m_Why);
+		try {
+			msg->TellWhere(this);
+			if (msg->MustReport())
+			{
+				auto st = ft <= FR_Data ? SeverityTypeID::ST_Error : SeverityTypeID::ST_Warning;
+				if (msg->m_FullName.empty())
+					reportD(st, msg->m_Why.c_str());
+				else
+					reportF(st, "[[%s]] %s", msg->m_FullName, msg->m_Why);
+			}
 		}
+		catch (...)
+		{}
 
 		// data generation is no longer needed
 		if (ft <= FR_Data)
@@ -926,7 +915,7 @@ void Actor::Fail(const Actor* src) const
 
 //=============================== ConcurrentMap (client is responsible for scoping and stack unwinding issues)
 
-#include "actorlock.h"
+#include "act/ActorLock.h"
 #include "LockLevels.h"
 
 // define global mappings
@@ -957,7 +946,7 @@ void Actor::IncInterestCount() const // NO UpdateMetaInfo, Just work on existing
 		}
 	}
 
-	dms_assert(IsMetaThread()); // Starting Interest only allowed from main thread. From other threads, DataReadLocks may increase, but not initiate interest.
+	assert(IsMetaThread()); // Starting Interest only allowed from main thread. From other threads, DataReadLocks may increase, but not initiate interest.
 
 #if defined(MG_DEBUG_INTERESTSOURCE_LOGGING)
 	DBG_START("IncInterestCount", "Actor", MG_DEBUG_INTERESTSOURCE_VALUE);
@@ -1031,7 +1020,7 @@ garbage_t Actor::DecInterestCount() const noexcept // nothrow, JUST LIKE destruc
 		reportF(SeverityTypeID::ST_MajorTrace, "DecInterestCount %s", GetInterestCount());
 #endif
 
-	dms_assert(m_InterestCount);
+	assert(m_InterestCount);
 
 	if (!m_InterestCount) 
 		return {}; // DEBUG, MITIGATION OF ISSUE
@@ -1066,13 +1055,13 @@ garbage_t Actor::DecInterestCount() const noexcept // nothrow, JUST LIKE destruc
 
 void Actor::StartInterest() const
 {
-	dms_assert(IsMetaThread());
+	assert(IsMetaThread());
 
-	dms_assert(m_InterestCount == 0); // PRECONDITION guaranteed by IncInterestCount
-	dms_assert( !DoesHaveSupplInterest() ); // PRECONDITION
+	assert(m_InterestCount == 0); // PRECONDITION guaranteed by IncInterestCount
+	assert( !DoesHaveSupplInterest() ); // PRECONDITION
 
 	StartSupplInterest();
-	dms_assert(m_InterestCount == 0); // no recursion
+	assert(m_InterestCount == 0); // no recursion
 
 #if defined(MG_DEBUG_INTERESTSOURCE)
 	DemandManagement::AddTempTarget(this);
@@ -1114,18 +1103,18 @@ SupplInterestListPtr Actor::GetSupplInterest() const
 
 void Actor::StartSupplInterest() const
 {
-	dms_assert(IsMetaThread());
+	assert(IsMetaThread());
 
-	if (IsPassor())
+	if (IsPassor() || WasFailed(FR_Data))
 		return;
 
-	dms_assert(!DoesHaveSupplInterest() ); // PRECONDITION
-	dms_assert(m_State.GetBits(actor_flag_set::AF_TransientMask) == actor_flag_set::AF_ChangingInterest); // PRECONDITION
+	assert(!DoesHaveSupplInterest() ); // PRECONDITION
+	assert(m_State.GetBits(actor_flag_set::AF_TransientMask) == actor_flag_set::AF_ChangingInterest); // PRECONDITION
 
 	//UpdateSupplMetaInfo();
 	SupplInterestListPtr supplInterestListPtr = GetSupplInterest(); // can throw
 
-	dms_assert(!IsPassor()); // follows from previous if.
+	assert(!IsPassor()); // follows from previous if.
 	IncRemainingTargetCount(this); // can throw
 	auto undoTargetCount = make_releasable_scoped_exit([this]() { DecRemainingTargetCount(this); });
 
@@ -1134,12 +1123,19 @@ void Actor::StartSupplInterest() const
 		s_SupplTreeInterest.assign ( new SupplTreeInterestType );
 
 	SupplInterestListPtr& supplInterestListRef = (*s_SupplTreeInterest)[this]; // can insert new and throw bad_alloc
+	assert(!supplInterestListRef);
+
+	assert(!DoesHaveSupplInterest()); // POSTCONDITION
 
 	// nothrow from here
-	supplInterestListRef.init( supplInterestListPtr.release() );
-	m_State.Set(actor_flag_set::AF_SupplInterest);
-	undoTargetCount.release();
-	dms_assert( DoesHaveSupplInterest() ); // POSTCONDITION
+	if (!WasFailed(FR_Data))
+	{
+
+		supplInterestListRef.init(supplInterestListPtr.release());
+		m_State.Set(actor_flag_set::AF_SupplInterest);
+		undoTargetCount.release();
+		assert(DoesHaveSupplInterest()); // POSTCONDITION
+	}
 }
 
 SupplInterestListPtr MoveSupplInterest(const Actor* self)
@@ -1172,7 +1168,7 @@ SupplInterestListPtr MoveSupplInterest(const Actor* self)
 			reportD_without_cancellation_check(SeverityTypeID::ST_MinorTrace, "Concurrent MoveSupplInterest happening");
 		}
 #endif
-		dms_assert( !self->DoesHaveSupplInterest() ) ; // POSTCONDITION
+		assert( !self->DoesHaveSupplInterest() ) ; // POSTCONDITION
 	}
 
 	return localInterestHolder;
@@ -1221,7 +1217,7 @@ SupplInterestListPtr::~SupplInterestListPtr()
 
 SharedActorInterestPtr Actor::GetInterestPtrOrNull() const
 {
-	dms_assert(this);
+	assert(this);
 
 	leveled_std_section::scoped_lock globalSectionLock(sg_CountSection);
 	if (!m_InterestCount)
@@ -1235,7 +1231,7 @@ SharedActorInterestPtr Actor::GetInterestPtrOrNull() const
 
 	SharedPtr<const Actor> result = this;
 
-	dms_assert(m_InterestCount);
+	assert(m_InterestCount);
 	++m_InterestCount;
 
 	return std::move(*reinterpret_cast<SharedActorInterestPtr*>(&result));

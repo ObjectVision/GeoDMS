@@ -1,31 +1,6 @@
-//<HEADER> 
-/*
-Data & Model Server (DMS) is a server written in C++ for DSS applications. 
-Version: see srv/dms/rtc/dll/src/RtcVersion.h for version info.
-
-Copyright (C) 1998-2004  YUSE GSO Object Vision BV. 
-
-Documentation on using the Data & Model Server software can be found at:
-http://www.ObjectVision.nl/DMS/
-
-See additional guidelines and notes in srv/dms/Readme-srv.txt 
-
-This library is free software; you can use, redistribute, and/or
-modify it under the terms of the GNU General Public License version 2 
-(the License) as published by the Free Software Foundation,
-provided that this entire header notice and readme-srv.txt is preserved.
-
-See LICENSE.TXT for terms of distribution or look at our web site:
-http://www.objectvision.nl/DMS/License.txt
-or alternatively at: http://www.gnu.org/copyleft/gpl.html
-
-This library is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
-General Public License for more details. However, specific warranties might be
-granted by an additional written contract for support, assistance and/or development
-*/
-//</HEADER>
+// Copyright (C) 1998-2023 Object Vision b.v. 
+// License: GNU GPL 3
+/////////////////////////////////////////////////////////////////////////////
 
 #include "ShvDllPch.h"
 
@@ -40,7 +15,7 @@ granted by an additional written contract for support, assistance and/or develop
 #include "ser/FormattedStream.h"
 #include "ser/MoreStreamBuff.h"
 #include "ser/StringStream.h"
-#include "utl/MySPrintF.h"
+#include "utl/mySPrintF.h"
 
 #include "LispList.h"
 
@@ -51,6 +26,7 @@ granted by an additional written contract for support, assistance and/or develop
 #include "DataStoreManagerCaller.h"
 #include "LispTreeType.h"
 #include "OperationContext.h"
+#include "PropFuncs.h"
 #include "TicInterface.h"
 #include "Unit.h"
 #include "UnitClass.h"
@@ -108,11 +84,14 @@ void SelChangeInvalidatorBase::ProcessChange(bool mustSetFocusElemIndex)
 
 	if (m_TableControl->IsDrawn())
 	{
-		TRect newSelRect = GetSelRect();
+		auto newSelRect = GetSelRect();
 		if (m_OldSelRect != newSelRect)
 		{
-			Region selChange( TRect2GRect(m_OldSelRect) );
-			selChange ^= Region( TRect2GRect(newSelRect) );
+			auto sf = dv->GetScaleFactors();
+			auto devRect = ScaleCrdRect(m_OldSelRect, sf);
+			Region selChange( CrdRect2GRect(devRect) );
+			devRect = ScaleCrdRect(newSelRect, sf);
+			selChange ^= Region(CrdRect2GRect(devRect));
 			dv->InvalidateRgn(selChange);
 		}
 	}
@@ -131,17 +110,24 @@ void SelChangeInvalidatorBase::ProcessChange(bool mustSetFocusElemIndex)
 	m_TableControl = nullptr;
 }
 
-TRect SelChangeInvalidatorBase::GetSelRect() const
+CrdRect SelChangeInvalidatorBase::GetSelRect() const
 {
+	if (!m_TableControl->m_Cols.IsDefined() && m_TableControl->m_Rows.IsDefined())
+	{
+		if (m_TableControl->NrEntries() > 1)
+			m_TableControl->m_Cols = SelRange{ 1, 1, 1 };
+		else
+			m_TableControl->m_Rows = SelRange();
+	}
+
 	dms_assert(m_TableControl);
 	dms_assert(m_TableControl->m_Rows.IsDefined() == m_TableControl->m_Cols.IsDefined());
-	if (!m_TableControl->IsDrawn() || !m_TableControl->m_Rows.IsDefined())
-		return TRect(0, 0, 0, 0);
+	if (!m_TableControl->IsDrawn() || !m_TableControl->m_Rows.IsDefined() || !m_TableControl->m_Cols.IsDefined())
+		return CrdRect(CrdPoint(0, 0), CrdPoint(0, 0));
 
 	// topleft corner
 	const DataItemColumn* dic = m_TableControl->GetConstColumn(m_TableControl->m_Cols.m_Begin);
-	TRect 
-		result  = dic->GetElemFullRelRect(m_TableControl->m_Rows.m_Begin) + dic->GetCurrClientRelPos();
+	auto result = dic->GetElemFullRelLogicalRect(m_TableControl->m_Rows.m_Begin) + dic->GetCurrClientRelPos();
 
 	// expand to bottom right corner if any direction is a strict range (aka open)
 	if (!m_TableControl->m_Cols.IsClosed() || !m_TableControl->m_Rows.IsClosed())
@@ -150,16 +136,16 @@ TRect SelChangeInvalidatorBase::GetSelRect() const
 		gr_elem_index DEBUG2 = DEBUG;
 
 		dic = m_TableControl->GetConstColumn(m_TableControl->m_Cols.m_End  );
-		result |= TRect(dic->GetElemFullRelRect(m_TableControl->m_Rows.m_End  ) + dic->GetCurrClientRelPos());
+		auto elemFullAbsLogicalRect = dic->GetElemFullRelLogicalRect(m_TableControl->m_Rows.m_End) + dic->GetCurrClientRelPos();
+		result |= elemFullAbsLogicalRect;
 	}
 
 	// clip
-	result &= TRect(TPoint(0,0), m_TableControl->GetCurrClientSize());
-	result += m_TableControl->GetCurrClientAbsPos();
-	result &= TRect(m_TableControl->GetDrawnFullAbsRect());
+	result &= CrdRect(CrdPoint(0,0), m_TableControl->GetCurrClientSize());
+	result += m_TableControl->GetCurrClientAbsLogicalPos();
 	if (result.empty())
-		return TRect(0, 0, 0, 0);
-	
+		return CrdRect(CrdPoint(0, 0), CrdPoint(0, 0));
+
 	return result;
 }
 
@@ -186,7 +172,12 @@ void SelChangeInvalidator::ProcessChange(bool mustSetFocusElemIndex)
 TableControl::TableControl(MovableObject* owner)
 	:	base_type(owner)
 	,	m_TableView(0)
-{}
+{
+	assert(owner);
+	auto dv = owner->GetDataView().lock();
+	assert(dv);
+	SetRowHeight(GetDefaultFontHeightDIP(GetFontSizeCategory()));
+}
 
 TableControl::~TableControl()
 {
@@ -255,7 +246,7 @@ const AbstrUnit* TableControl::GetRowEntity() const
 	if (m_SelEntity)
 		return m_SelEntity;
 
-	dms_assert(m_Entity == nullptr);
+	assert(m_Entity == nullptr);
 	return nullptr;
 }
 
@@ -283,6 +274,29 @@ SizeT TableControl::GetRecNo(SizeT rowNr) const
 	if (!const_cast<TableControl*>(this)->PrepareDataOrUpdateViewLater(m_SelIndexAttr.get_ptr()))
 		return UNDEFINED_VALUE(SizeT);
 	PreparedDataReadLock lck(m_SelIndexAttr);
+	return m_SelIndexAttr->GetRefObj()->GetValueAsUInt32(rowNr);
+}
+
+SizeT TableControl::nrRows() const
+{
+	dms_assert(!SuspendTrigger::DidSuspend());
+	auto rowEntity = GetRowEntity();
+	if (!rowEntity)
+		return 8;
+
+	return rowEntity->GetCount();
+}
+
+SizeT TableControl::getRecNo(SizeT rowNr) const
+{
+	if (!IsDefined(rowNr) || rowNr >= nrRows())
+		return UNDEFINED_VALUE(SizeT);
+
+	if (m_State.Get(TCF_FlipSortOrder))
+		rowNr = (nrRows() - (rowNr + 1));
+	if (!m_SelIndexAttr)
+		return rowNr;
+	assert(m_SelIndexAttr->m_DataLockCount > 0);
 	return m_SelIndexAttr->GetRefObj()->GetValueAsUInt32(rowNr);
 }
 
@@ -451,11 +465,12 @@ SharedStr TableControl::GetCaption() const
 
 	SizeT nrRows = NrRows();
 	SizeT nrRecs = const_cast<TableControl*>(this)->PrepareDataOrUpdateViewLater(domain) ? domain->GetCount() : UNDEFINED_VALUE(SizeT);
+	
 	if (m_GroupByEntity)
-		return mgFormat2SharedStr("%d recs in %s grouped in %d rows by %s ", nrRecs, domain->GetName(), nrRows, m_GroupByEntity->GetExpr());
+		return mgFormat2SharedStr("#%s = %s, grouped to %d rows by %s", domain->GetName(), AsString(nrRecs), nrRows, m_GroupByEntity->GetExpr());
 	if (nrRows == nrRecs)
-		return mgFormat2SharedStr("%s recs in %s", AsString(nrRecs), domain->GetName());
-	return mgFormat2SharedStr("%s/%s recs in %s", AsString(nrRows), AsString(nrRecs), domain->GetName());
+		return mgFormat2SharedStr("#%s = %s", domain->GetName(), AsString(nrRecs));
+	return mgFormat2SharedStr("#%s = %s, %s selected", domain->GetName(), AsString(nrRecs), AsString(nrRows));
 }
 
 void TableControl::NotifyCaptionChange()
@@ -601,7 +616,7 @@ redo:
 
 void TableControl::GoHome(bool shift, bool firstActiveCol)
 {
-	dms_assert(m_Rows.IsDefined() == m_Cols.IsDefined());
+	assert(m_Rows.IsDefined() == m_Cols.IsDefined());
 
 	if (!m_Rows.IsDefined())
 	{
@@ -613,8 +628,6 @@ void TableControl::GoHome(bool shift, bool firstActiveCol)
 	auto activeCol = FirstActiveCol();
 	if (activeCol < NrEntries())
 	{
-		if (firstActiveCol)
-			m_Cols.Go(shift,  activeCol);
 		m_Rows.GoHome(shift);
 	}
 	sci.ProcessChange(true);
@@ -629,7 +642,7 @@ void TableControl::GoEnd(bool shift)
 
 	SelChangeInvalidator sci(this);
 	m_Rows.GoEnd(shift, NrRows()-1);
-	m_Cols.GoEnd(shift, NrEntries()-1);
+//	m_Cols.GoEnd(shift, NrEntries()-1);
 	sci.ProcessChange(true);
 }
 
@@ -755,7 +768,7 @@ bool TableControl::OnCommand(ToolButtonID id)
 		case TB_SelectAll :      SelectAllRows( true); return true;
 		case TB_SelectNone:      SelectAllRows(false); return true;
 		case TB_SelectRows:      SelectRows();         return true;
-		case TB_ZoomSelectedObj: GoToFirstSelected();  return true;
+		case TB_ShowFirstSelectedRow: GoToFirstSelected();  return true;
 		case TB_Export:          Export();             return true;
 		case TB_TableCopy:       TableCopy();          return true;
 
@@ -784,6 +797,17 @@ bool TableControl::OnCommand(ToolButtonID id)
 		}
 	}
 	return base_type::OnCommand(id);
+}
+
+auto TableControl::OnCommandEnable(ToolButtonID id) const -> CommandStatus
+{
+	SuspendTrigger::Resume();
+	switch (id)
+	{
+	case TB_TableGroupBy:
+		return NrRows() > 1 ? CommandStatus::ENABLED : CommandStatus::DISABLED;
+	}
+	return GraphicVarCols::OnCommandEnable(id);
 }
 
 void TableControl::RemoveEntry(MovableObject* g)
@@ -934,18 +958,23 @@ void TableControl::SaveTo(OutStreamBuff* buffPtr) const
 
 	SizeT pk = k2 - 1;
 
-	std::vector<const AbstrDataItem*>   itemArray; itemArray.reserve(k2 - k1);
+	std::vector<TableColumnSpec> itemArray; itemArray.reserve(k2 - k1);
 	for (SizeT j = k1; j != k2; ++j)
 	{
 		const DataItemColumn* dic = GetConstColumn(j);
 		if (!dic) continue;
-		const AbstrDataItem* adi = dic->GetActiveAttr();
-		if (adi)
-			itemArray.emplace_back(adi);
+		const AbstrDataItem* adi = dic->GetActiveTextAttr();
+		if (!adi)
+			continue;
+		auto& currSpec = itemArray.emplace_back();
+		currSpec.m_DataItem = adi;
+		currSpec.m_ColumnName = dic->GetActiveTheme()->GetThemeAttr()->GetID();
+		currSpec.m_RelativeDisplay = dic->m_State.Get(DIC_RelativeDisplay);
 	}
 	std::vector<SizeT> recNos; recNos.reserve(n2 - n1);
 	for (SizeT i = n1; i != n2; ++i)
 		recNos.emplace_back(GetRecNo(i));
+
 	Table_Dump(buffPtr, begin_ptr(itemArray), end_ptr(itemArray), begin_ptr(recNos), end_ptr(recNos));
 }
 
@@ -955,8 +984,8 @@ void TableControl::TableCopy() const
 
 	SaveTo(&buff);
 
-	ClipBoard board;
-	board.SetText(buff.GetData(), buff.GetDataEnd());
+	ClipBoard clipBoard(false); if (!clipBoard.IsOpen()) return;
+	clipBoard.SetText(buff.GetData(), buff.GetDataEnd());
 }
 
 ExportInfo TableControl::GetExportInfo()
@@ -989,11 +1018,13 @@ void TableControl::Export()
 	
 	SharedStr fileName = mySSPrintF("%s.csv", info.m_FullFileNameBase.c_str());
 
-	FileOutStreamBuff buff(fileName, DSM::GetSafeFileWriterArray(), true);
+	auto sfwa = DSM::GetSafeFileWriterArray();
+	MG_CHECK(sfwa);
+	FileOutStreamBuff buff(fileName, sfwa.get(), true);
 	SaveTo(&buff);
 }
 
-void TableControl::SetRowHeight(UInt32 height)
+void TableControl::SetRowHeight(UInt16 height)
 {
 	SizeT n = NrEntries(); 
 	while (n)
@@ -1004,9 +1035,9 @@ void TableControl::SetRowHeight(UInt32 height)
 		if (dic->HasElemBorder())
 			elemHeight -= 2*BORDERSIZE;
 
-		GPoint elemSize(elemHeight, elemHeight);
+		WPoint elemSize(elemHeight, elemHeight);
 		if (dic->GetTheme(AN_LabelText))
-			elemSize.x= dic->ElemSize().x;
+			elemSize.X() = dic->ElemSize().X();
 		dic->SetElemSize(elemSize);
 	}
 }
@@ -1018,7 +1049,7 @@ void TableControl::AddLayer(const TreeItem* viewCandidate, bool isDropped)
 
 	if (!m_Entity)
 		SetEntity( SHV_DataContainer_GetDomain(viewCandidate, 1, hasAdminMode) );
-	dms_assert(m_Entity);
+	assert(m_Entity);
 
 	if (!isDropped && IsDataItem(viewCandidate))
 	{
@@ -1031,9 +1062,21 @@ void TableControl::AddLayer(const TreeItem* viewCandidate, bool isDropped)
 		}
 	}
 	for(SizeT nrCols = SHV_DataContainer_GetItemCount(viewCandidate, m_Entity, 1, hasAdminMode), colNr=0; colNr != nrCols; ++colNr)
+	{
+		auto adi = SHV_DataContainer_GetItem(viewCandidate, m_Entity, colNr, 1, hasAdminMode);
+		AspectNrSet possibleAspects = ASE_LabelText;
+		AspectNr    activeTheme = AN_LabelText;
+
+		if (IsColorAspectNameID(TreeItem_GetDialogType(adi)))
+		{
+			possibleAspects = ASE_LabelBackColor;
+			activeTheme = AN_LabelBackColor;
+		}
+
 		InsertColumn(
-			make_shared_gr<DataItemColumn>(this,  SHV_DataContainer_GetItem(viewCandidate, m_Entity, colNr, 1, hasAdminMode) )().get()
+			make_shared_gr<DataItemColumn>(this, adi, possibleAspects, activeTheme)().get()
 		);
+	}
 }
 
 static TokenID idID = GetTokenID_st("id");
@@ -1182,7 +1225,10 @@ void TableControl::CreateTableGroupBy(bool activate)
 				);
 			}
 		}
-		SharedPtr<AbstrUnit> groupByEntity = Unit<UInt32>::GetStaticClass()->CreateUnit(GetContext(), GetTokenID_mt("GroupBy"));
+		const auto* vc = m_Entity->GetUnitClass()->GetValueType();
+		const auto* resDomainCls = UnitClass::Find(vc->GetCrdClass());
+
+		SharedPtr<AbstrUnit> groupByEntity = resDomainCls->CreateUnit(GetContext(), GetTokenID_mt("GroupBy"));
 		groupByEntity->DisableStorage();
 		groupByEntity->SetExpr(mgFormat2SharedStr("unique(%s)", expr));
 		m_GroupByEntity = groupByEntity.get_ptr();
@@ -1257,33 +1303,6 @@ bool TableControl::CheckCardinalityChangeRights(bool doThrow)
 	return false;
 }
 
-void TableControl::ClassSplit()
-{
-	CheckCardinalityChangeRights(true);
-
-	AbstrUnit* domain = const_cast<AbstrUnit*>(GetEntity());
-	SizeT currNrFocusRows = 1 + m_Rows.m_End - m_Rows.m_Begin;
-	domain->Split(m_Rows.m_Begin, currNrFocusRows);
-	SelChangeInvalidator sci(this);
-	m_Rows.m_End = m_Rows.m_Begin + 2*currNrFocusRows - 1;
-	if (m_Rows.m_Curr != m_Rows.m_Begin)
-		m_Rows.m_Curr = m_Rows.m_End;
-	sci.ProcessChange(m_Rows.m_Curr != m_Rows.m_Begin);
-}
-
-void TableControl::ClassMerge()
-{
-	CheckCardinalityChangeRights(true);
-	if (m_IndexAttr)
-		m_IndexAttr->throwItemError("Cannot Merge classes of a sorted table");
-
-	AbstrUnit* domain = const_cast<AbstrUnit*>(GetEntity());
-	SelChangeInvalidatorBase sci(this);
-	domain->Merge( GetRecNo(m_Rows.m_Begin+1), m_Rows.m_End - m_Rows.m_Begin);
-	m_Rows.CloseAt(m_Rows.m_Begin);
-	sci.ProcessChange(true);
-}
-
 ActorVisitState TableControl::VisitSuppliers(SupplierVisitFlag svf, const ActorVisitor& visitor) const
 {
 	if (	(visitor.Visit(m_Entity.get_ptr()) == AVS_SuspendedOrFailed)
@@ -1304,13 +1323,13 @@ bool TableControl::MouseEvent(MouseEventDispatcher& med)
 {
 	if ((med.GetEventInfo().m_EventID & EID_LBUTTONDOWN)  && med.m_FoundObject.get() ==  this)
 	{
-		GType curX = med.GetEventInfo().m_Point.x;
+		auto curX = med.GetEventInfo().m_Point.x / med.GetSubPixelFactors().first;
 		// find child that is left of position
 		for (SizeT i=0, n=NrEntries(); i!=n; ++i)
 		{
 			MovableObject* chc = GetEntry(i);
-			TType x = chc->GetCurrFullAbsRect().Right();
-			if ((x <= curX) && (curX < x + TType(ColSepWidth())))
+			auto x = chc->GetCurrFullAbsLogicalRect().second.Y();
+			if ((x <= curX) && (curX < x + ColSepWidth()))
 			{
 				debug_cast<DataItemColumn*>(chc)->StartResize(med);
 				break;

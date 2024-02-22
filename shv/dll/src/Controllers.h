@@ -48,13 +48,11 @@ class PointCaretController : public AbstrController
 {
 	typedef AbstrController base_type;
   public:
-	PointCaretController(
-		DataView*                owner,
-		AbstrCaret*              caret,
-		GraphicObject*           target,
-		UInt32                   moveEvents, //= EventID(EID_MOUSEMOVE|EID_MOUSEDRAG) 
-		UInt32                   execEvents,
-		UInt32                   stopEvents
+	PointCaretController(DataView* owner, AbstrCaret* caret, GraphicObject* target
+	,	UInt32                   moveEvents //= EventID(EID_MOUSEMOVE|EID_MOUSEDRAG) 
+	,	UInt32                   execEvents
+	,	UInt32                   stopEvents
+	,	ToolButtonID             toolID
 	);
 	~PointCaretController();
 
@@ -63,7 +61,7 @@ protected:
 	void Stop() override;
 
 private:
-  	AbstrCaret* m_Caret;
+  	AbstrCaret*  m_Caret;
 };
 
 //----------------------------------------------------------------------
@@ -74,13 +72,11 @@ class DualPointController : public AbstrController
 {
 	typedef AbstrController base_type;
 public:
-	DualPointController(
-		DataView*                owner, 
-		GraphicObject*           target, 
-		const GPoint&            origin,
-		UInt32 moveEvents, // = EID_MOUSEDRAG,
-		UInt32 execEvents, // = EID_LBNUTTONUP,
-		UInt32 stopEvents  // = EID_CLOSE_EVENTS
+	DualPointController(DataView* owner, GraphicObject* target, const GPoint& origin
+	,	UInt32 moveEvents  // = EID_MOUSEDRAG,
+	,	UInt32 execEvents  // = EID_LBNUTTONUP,
+	,	UInt32 stopEvents  // = EID_CLOSE_EVENTS
+	,	ToolButtonID toolID
 	);
 
 protected:
@@ -95,14 +91,12 @@ class DualPointCaretController : public DualPointController
 {
 	typedef DualPointController base_type;
 public:
-	DualPointCaretController(
-		DataView*                owner, 
-		AbstrCaret*              caret,
-		GraphicObject*           target, 
-		const GPoint&            origin,
-		UInt32 moveEvents, // = EID_MOUSEDRAG,
-		UInt32 execEvents, // = EID_LBNUTTONUP,
-		UInt32 stopEvents  // = EID_CLOSE_EVENTS
+	DualPointCaretController(DataView* owner, AbstrCaret* caret
+	,	GraphicObject* target, const GPoint& origin
+	,	UInt32 moveEvents  // = EID_MOUSEDRAG,
+	,	UInt32 execEvents  // = EID_LBNUTTONUP,
+	,	UInt32 stopEvents  // = EID_CLOSE_EVENTS
+	,	ToolButtonID toolID
 	);
 	~DualPointCaretController();
 
@@ -121,12 +115,10 @@ class TieCursorController : public AbstrController
 {
 	typedef AbstrController base_type;
 public:
-	TieCursorController(
-		DataView*      owner, 
-		GraphicObject* target, 
-		const GRect&   tieRect,   
-		UInt32         moveEvents, // = EID_MOUSEDRAG,
-		UInt32         stopEvents  // = EID_CLOSE_EVENTS
+	TieCursorController(DataView* owner, GraphicObject* target
+	,	GRect tieRect
+	,	UInt32 moveEvents  // = EID_MOUSEDRAG,
+	,	UInt32 stopEvents  // = EID_CLOSE_EVENTS
 	);
 
 protected:
@@ -144,11 +136,8 @@ class ZoomInController : public DualPointCaretController // DualPointController 
 {
 	typedef DualPointCaretController base_type;
 public:
-	ZoomInController(
-		DataView*                owner, 
-		ViewPort*                target,
-		const CrdTransformation& transformation, 
-		const GPoint&            origin
+	ZoomInController(DataView* owner, ViewPort* target
+	,	const CrdTransformation& transformation, const GPoint& origin
 	);
 
 protected: // override TDualPointController callback
@@ -180,11 +169,7 @@ protected: // override TDualPointController callback
 struct PanController : DualPointController // <ViewPort>
 {
 	typedef DualPointCaretController base_type;
-	PanController(
-		DataView*                owner, 
-		ViewPort*                target,
-		const GPoint&            origin
-	);
+	PanController(DataView* owner, ViewPort* target, const GPoint& origin);
 
 protected: // override TDualPointController callback
 	bool Exec(EventInfo& eventInfo) override;
@@ -201,12 +186,8 @@ class RectPanController : public DualPointController // <ViewPort>
 {
 	typedef DualPointCaretController base_type;
 public:
-	RectPanController(
-		DataView*                owner, 
-		GraphicRect*             target,
-		const CrdTransformation& transformation, 
-		const GPoint&            origin
-	);
+	RectPanController(DataView* owner, GraphicRect* target
+	,	const CrdTransformation& transformation, const GPoint&origin);
 
 protected: // override TDualPointController callback
 	bool Exec(EventInfo& eventInfo) override;
@@ -234,10 +215,8 @@ class SelectObjectController : public AbstrController
 {
 	typedef AbstrController base_type;
 public:
-	SelectObjectController(
-		DataView* owner, 
-		ViewPort* target,
-		const CrdTransformation& transformation
+	SelectObjectController(DataView* owner, ViewPort* target
+	, const CrdTransformation& transformation
 	);
 
 protected: // override TPointCaretController callback
@@ -254,14 +233,12 @@ class SelectRectController : public DualPointCaretController
 {
 	typedef DualPointCaretController base_type;
 public:
-	SelectRectController(
-		DataView*                owner, 
-		ViewPort*                target,
-		const CrdTransformation& transformation, 
-		const GPoint&            origin
+	SelectRectController(DataView* owner, ViewPort* target
+	,	const CrdTransformation& transformation, const GPoint& origin
 	);
 
 protected: // override PointController callback
+	bool Move(EventInfo& eventInfo) override;
 	bool Exec(EventInfo& eventInfo) override;
 
 	CrdTransformation m_Transformation;
@@ -275,14 +252,12 @@ class SelectCircleController : public DualPointCaretController
 {
 	typedef DualPointCaretController base_type;
 public:
-	SelectCircleController(
-		DataView*                owner, 
-		ViewPort*                target,
-		const CrdTransformation& transformation, 
-		const GPoint&            origin
+	SelectCircleController(DataView* owner, ViewPort* target
+		, const CrdTransformation& transformation, const GPoint& origin
 	);
 
 protected: // override PointController callback
+	bool Move(EventInfo& eventInfo) override;
 	bool Exec(EventInfo& eventInfo) override;
 
 	CrdTransformation m_Transformation;

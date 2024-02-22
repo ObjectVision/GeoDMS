@@ -33,7 +33,7 @@ granted by an additional written contract for support, assistance and/or develop
 #include "Theme.h"
 
 #include "act/ActorVisitor.h"
-#include "dbg/Debug.h"
+#include "dbg/debug.h"
 #include "mci/ValueClass.h"
 
 #include "AbstrDataItem.h"
@@ -88,8 +88,6 @@ Theme::Theme(AspectNr aNr, const AbstrDataItem* themeAttr, const AbstrDataItem* 
 	,	m_PaletteAttr(palette)
 	,	m_MaxValue(UNDEFINED_VALUE(Float64))
 {
-	if (themeAttr)
-		themeAttr->SetTSF(TSF_KeepData);
 	if (classBreaks)
 		classBreaks->SetTSF(TSF_KeepData);
 	if (palette)
@@ -133,11 +131,11 @@ const AbstrDataItem* Theme::GetThemeAttrSource() const
 {
 	dms_assert(!SuspendTrigger::DidSuspend());
 	if (!m_ThemeAttr)
-		return 0;
+		return nullptr;
 	const AbstrDataItem* result = m_ThemeAttr;
 	while (true)
 	{
-		const AbstrDataItem* result2 = debug_cast<const AbstrDataItem*>(result->GetSourceItem());
+		const AbstrDataItem* result2 = debug_cast<const AbstrDataItem*>(result->GetCurrSourceItem());
 		if (!result2)
 			return result;
 		result = result2;
@@ -159,8 +157,17 @@ const AbstrDataItem* Theme::GetPaletteOrThemeAttr() const
 	if (m_PaletteAttr)
 		return m_PaletteAttr;
 	if (m_Classification)
-		return 0;
+		return nullptr;
 	return m_ThemeAttr;
+}
+
+const AbstrDataItem* Theme::GetThemeOrPaletteAttr() const
+{
+	if (m_ThemeAttr)
+		return m_ThemeAttr;
+	if (m_Classification)
+		return nullptr;
+	return m_PaletteAttr;
 }
 
 CharPtr Theme::GetAspectName() const
@@ -171,52 +178,50 @@ CharPtr Theme::GetAspectName() const
 const AbstrUnit* Theme::GetThemeEntityUnit() const
 {
 	if (GetThemeAttr())
-		return GetThemeAttr()->GetAbstrDomainUnit();
+		return GetThemeAttr()->GetNonDefaultDomainUnit();
 	if (GetClassification())
-		return GetClassification()->GetAbstrValuesUnit();
+		return GetClassification()->GetNonDefaultValuesUnit();
 	if (GetPaletteAttr())
-		return GetPaletteAttr()->GetAbstrDomainUnit();
+		return GetPaletteAttr()->GetNonDefaultDomainUnit();
 	return Unit<Void>::GetStaticClass()->CreateDefault();
 }
 
 const AbstrUnit* Theme::GetThemeValuesUnit() const
 {
 	if (GetThemeAttr())
-		return GetThemeAttr()->GetAbstrValuesUnit();
+		return GetThemeAttr()->GetNonDefaultValuesUnit();
 	if (GetClassification())
-		return GetClassification()->GetAbstrValuesUnit();
+		return GetClassification()->GetNonDefaultValuesUnit();
 	if (!GetPaletteAttr())
 		return nullptr;
-	return GetPaletteAttr()->GetAbstrDomainUnit();
+	return GetPaletteAttr()->GetNonDefaultDomainUnit();
 }
 
 const AbstrUnit* Theme::GetClassIdUnit() const
 {
 	if (GetClassification())
-		return GetClassification()->GetAbstrDomainUnit();
+		return GetClassification()->GetNonDefaultDomainUnit();
 	if (GetPaletteAttr())
-		return GetPaletteAttr()->GetAbstrDomainUnit();
-	dms_assert(GetThemeAttr());
-	return GetThemeAttr()->GetAbstrValuesUnit();
+		return GetPaletteAttr()->GetNonDefaultDomainUnit();
+	assert(GetThemeAttr());
+	return GetThemeAttr()->GetNonDefaultValuesUnit();
 }
 
 const AbstrUnit* Theme::GetPaletteValuesUnit()  const
 {
 	if (GetPaletteAttr())
-		return GetPaletteAttr()->GetAbstrValuesUnit();
+		return GetPaletteAttr()->GetNonDefaultValuesUnit();
 	return GetClassIdUnit();
 }
 
 const AbstrUnit* Theme::GetPaletteDomain() const
 {
 	if (GetPaletteAttr())
-		return GetPaletteAttr()->GetAbstrDomainUnit();
+		return GetPaletteAttr()->GetNonDefaultDomainUnit();
 	if (GetClassification())
-		return GetClassification()->GetAbstrDomainUnit();
-	dms_assert(GetThemeAttr());
-		return GetThemeAttr()->GetAbstrDomainUnit();
-//	dms_assert(GetPaletteOrThemeAttr());
-//	return GetPaletteOrThemeAttr()->GetAbstrDomainUnit();
+		return GetClassification()->GetNonDefaultDomainUnit();
+	assert(GetThemeAttr());
+	return GetThemeAttr()->GetNonDefaultDomainUnit();
 }
 
 bool Theme::IsAspectParameter() const
@@ -389,7 +394,7 @@ SharedDataItemInterestPtr CreatePaletteData(DataView* dv, const AbstrUnit* domai
 		case AT_Ordinal:  uc = Unit<UInt16 >::GetStaticClass(); break;
 		case AT_Cardinal: uc = Unit<UInt32 >::GetStaticClass(); break;
 		case AT_Color:   return CreateSystemColorPalette(dv, domain, aNr, ramp, always, domain->GetValueType()->GetBitSize() == 1, first, last);
-		case AT_Text:    return CreateSystemLabelPalette(dv, domain, aNr);
+		case AT_Text:    return CreateSystemLabelPalette(dv, domain, aNr, always);
 	}
 	return nullptr;
 }

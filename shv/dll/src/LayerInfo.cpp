@@ -1,31 +1,7 @@
-//<HEADER> 
-/*
-Data & Model Server (DMS) is a server written in C++ for DSS applications. 
-Version: see srv/dms/rtc/dll/src/RtcVersion.h for version info.
+// Copyright (C) 1998-2023 Object Vision b.v. 
+// License: GNU GPL 3
+/////////////////////////////////////////////////////////////////////////////
 
-Copyright (C) 1998-2004  YUSE GSO Object Vision BV. 
-
-Documentation on using the Data & Model Server software can be found at:
-http://www.ObjectVision.nl/DMS/
-
-See additional guidelines and notes in srv/dms/Readme-srv.txt 
-
-This library is free software; you can use, redistribute, and/or
-modify it under the terms of the GNU General Public License version 2 
-(the License) as published by the Free Software Foundation,
-provided that this entire header notice and readme-srv.txt is preserved.
-
-See LICENSE.TXT for terms of distribution or look at our web site:
-http://www.objectvision.nl/DMS/License.txt
-or alternatively at: http://www.gnu.org/copyleft/gpl.html
-
-This library is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
-General Public License for more details. However, specific warranties might be
-granted by an additional written contract for support, assistance and/or development
-*/
-//</HEADER>
 // stdafx.h : include file for standard system include files,
 //  or project specific include files that are used frequently, but
 //      are changed infrequently
@@ -38,6 +14,7 @@ granted by an additional written contract for support, assistance and/or develop
 #include "dbg/DmsCatch.h"
 #include "mci/ValueClass.h"
 #include "mci/ValueWrap.h"
+#include "ser/AsString.h"
 #include "utl/mySPrintF.h"
 
 #include "AbstrDataItem.h"
@@ -56,11 +33,11 @@ granted by an additional written contract for support, assistance and/or develop
 #include "GridLayer.h"
 #include "FeatureLayer.h"
 #include "LayerClass.h"
+#include "Waiter.h"
 
 //----------------------------------------------------------------------
 // section : LayerInfo
 //----------------------------------------------------------------------
-
 
 LayerInfo::LayerInfo(
 	State state, 
@@ -68,35 +45,27 @@ LayerInfo::LayerInfo(
 	const AbstrDataItem* diClassBreaksOrExtKey, 
 	const AbstrDataItem* diThemeOrGeoRel,
 	const LayerClass*    layerClass
-)	:	m_State(state)
+)	:	m_State                (state)
 	,	m_diAspectOrFeature    (diAspectOrFeature)
 	,	m_diClassBreaksOrExtKey(diClassBreaksOrExtKey)
 	,	m_diThemeOrGeoRel      (diThemeOrGeoRel)
-	,	m_uAspectOrFeature(nullptr)
-	,	m_uEntity         (nullptr)
-	,	m_LayerClass(layerClass)
+	,	m_LayerClass           (layerClass)
 
 {
-	dms_assert(diThemeOrGeoRel || diClassBreaksOrExtKey || diAspectOrFeature);
+	assert(diThemeOrGeoRel || diClassBreaksOrExtKey || diAspectOrFeature);
 
-	dms_assert(!IsGrid  () || (diClassBreaksOrExtKey && HasGridDomain(diClassBreaksOrExtKey) && !diAspectOrFeature));
-	dms_assert(!IsFeat  () || diAspectOrFeature);
-	dms_assert(!IsAspect() || diThemeOrGeoRel);
-	dms_assert(!IsComplete() || m_LayerClass || IsAspect());
+	assert(!IsGrid  () || (diClassBreaksOrExtKey && HasGridDomain(diClassBreaksOrExtKey) && !diAspectOrFeature));
+	assert(!IsFeat  () || diAspectOrFeature);
+	assert(!IsAspect() || diThemeOrGeoRel);
+	assert(!IsComplete() || m_LayerClass || IsAspect());
 
 	InitUnits();
-	dms_assert(m_uAspectOrFeature);
-	dms_assert(m_uEntity);
+	assert(m_uAspectOrFeature);
+	assert(m_uEntity);
 }
 
 LayerInfo::LayerInfo(WeakStr descr)
 	:	m_State(ConfigError)
-	,	m_diAspectOrFeature(nullptr)
-	,	m_diClassBreaksOrExtKey(nullptr)
-	,	m_diThemeOrGeoRel(nullptr)
-	,	m_uAspectOrFeature(nullptr)
-	,	m_uEntity(nullptr)
-	,	m_LayerClass(nullptr)
 	,	m_Descr(descr)
 {
 	reportD(SeverityTypeID::ST_MajorTrace, "LayerInfo: ", m_Descr.c_str());
@@ -113,18 +82,15 @@ LayerInfo::LayerInfo(
 	,	m_diAspectOrFeature(diAspectOrFeature)
 	,	m_diClassBreaksOrExtKey(diClassBreaksOrExtKey)
 	,	m_diThemeOrGeoRel(diThemeOrGeoRel)
-	,	m_uAspectOrFeature(nullptr)
-	,	m_uEntity(nullptr)
-	,	m_LayerClass(nullptr)
 	,	m_Descr(descr)
 {
-	dms_assert(state != ConfigError); // Precondition
+	assert(state != ConfigError); // Precondition
 	InitUnits();
 }
 
 void LayerInfo::InitUnits()
 {
-	dms_assert(m_uAspectOrFeature == nullptr);
+	assert(m_uAspectOrFeature == nullptr);
 
 	if (m_diAspectOrFeature)
 		m_uAspectOrFeature = m_diAspectOrFeature->GetAbstrValuesUnit();
@@ -133,7 +99,7 @@ void LayerInfo::InitUnits()
 	else if (m_diThemeOrGeoRel)
 		m_uAspectOrFeature = m_diThemeOrGeoRel->GetAbstrValuesUnit();
 
-	m_uAspectOrFeature = GetWorldCrdUnitFromGeoUnit( m_uAspectOrFeature );
+//	m_uAspectOrFeature = GetWorldCrdUnitFromGeoUnit( m_uAspectOrFeature );
 
 	dms_assert(m_uEntity == nullptr);
 	if (m_diThemeOrGeoRel)
@@ -157,8 +123,8 @@ const AbstrUnit* LayerInfo::GetPaletteDomain() const
 
 const AbstrUnit* LayerInfo::GetWorldCrdUnit() const
 {
-	dms_assert(IsComplete()); // PRECONDITION
-	dms_assert(!IsAspect());  // PRECONDITION
+	assert(IsComplete()); // PRECONDITION
+	assert(!IsAspect());  // PRECONDITION
 	return m_uAspectOrFeature;
 }
 
@@ -219,7 +185,7 @@ const AbstrDataItem* GetDialogDataAttr(const TreeItem* ti)
 	return AsDynamicDataItem( ref );
 }
 
-const TreeItem* GetMappingItem(const TreeItem* ti)
+auto GetMappingItem(const TreeItem* ti) -> const TreeItem*
 {
 	dms_assert(ti); // PRECONDITION
 	do
@@ -227,12 +193,12 @@ const TreeItem* GetMappingItem(const TreeItem* ti)
 		dms_assert(!SuspendTrigger::DidSuspend());
 		if (IsThisMappable(ti))
 			return ti;
-		ti = ti->GetReferredItem();
+		ti = Waiter::IsWaiting() ? ti->GetCurrRefItem() : ti->GetReferredItem();
 	} while (ti);
 	return nullptr;
 }
 
-const AbstrDataItem* GetMappedData(const TreeItem* ti)
+auto GetMappedData(const TreeItem* ti) -> const AbstrDataItem*
 {
 	dms_assert(ti); // PRECONDITION
 	ti = GetMappingItem(ti);
@@ -436,10 +402,10 @@ LayerInfo GetLayerInfo(const AbstrDataItem* adi)
 
 	const TreeItem* mappingItem = GetMappingItem(adi);
 	if (mappingItem)
-		infoTxt = mySSPrintF("the selected %s", mappingItem->GetFullName().c_str());
+		infoTxt = mySSPrintF("the selected '%s'", mappingItem->GetFullName().c_str());
 	else
 	{
-		infoTxt = mySSPrintF("the DomainUnit %s", adu->GetFullName().c_str());
+		infoTxt = mySSPrintF("the DomainUnit '%s'", adu->GetFullName().c_str());
 		mappingItem = GetMappingItem(adu);
 	}
 	if (!mappingItem)
@@ -661,6 +627,11 @@ LayerInfo GetAspectInfo(AspectNr aNr, const AbstrDataItem* adi, const LayerInfo&
 			}
 			if (featureInfo.m_uAspectOrFeature) {
 				res = FindAspectParam(aNr, featureInfo.m_uAspectOrFeature.get_ptr(), layerClass); if (res) goto returnAspectParam;
+				auto wrldCrdUnit = GetWorldCrdUnitFromGeoUnit(featureInfo.m_uAspectOrFeature);
+				if (wrldCrdUnit && wrldCrdUnit != featureInfo.m_uAspectOrFeature)
+				{
+					res = FindAspectParam(aNr, wrldCrdUnit, layerClass); if (res) goto returnAspectParam;
+				}
 			}
 #		if defined(SHV_SUPPORT_OLDNAMES)
 			if (featureInfo.m_diAspectOrFeature)

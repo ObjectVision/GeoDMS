@@ -1,31 +1,7 @@
-//<HEADER> 
-/*
-Data & Model Server (DMS) is a server written in C++ for DSS applications. 
-Version: see srv/dms/rtc/dll/src/RtcVersion.h for version info.
+// Copyright (C) 1998-2023 Object Vision b.v. 
+// License: GNU GPL 3
+/////////////////////////////////////////////////////////////////////////////
 
-Copyright (C) 1998-2004  YUSE GSO Object Vision BV. 
-
-Documentation on using the Data & Model Server software can be found at:
-http://www.ObjectVision.nl/DMS/
-
-See additional guidelines and notes in srv/dms/Readme-srv.txt 
-
-This library is free software; you can use, redistribute, and/or
-modify it under the terms of the GNU General Public License version 2 
-(the License) as published by the Free Software Foundation,
-provided that this entire header notice and readme-srv.txt is preserved.
-
-See LICENSE.TXT for terms of distribution or look at our web site:
-http://www.objectvision.nl/DMS/License.txt
-or alternatively at: http://www.gnu.org/copyleft/gpl.html
-
-This library is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
-General Public License for more details. However, specific warranties might be
-granted by an additional written contract for support, assistance and/or development
-*/
-//</HEADER>
 #pragma once
 
 #if !defined(__TIC_TREEITEMFLAGS_H)
@@ -49,12 +25,11 @@ granted by an additional written contract for support, assistance and/or develop
 
 static_assert(actor_flag_set::AF_Next == 0x4000);
 
-const UInt32 ASF_MakeCalculatorLock  = 0x0001 * actor_flag_set::AF_Next; 
-const UInt32 ASF_WasLoaded           = 0x0002 * actor_flag_set::AF_Next; // TODO G8.5 ? REMOVE AFTER CalcCache restoration
+const UInt32 ASF_MakeCalculatorLock    = 0x0001 * actor_flag_set::AF_Next; 
+const UInt32 ASF_WasLoaded             = 0x0002 * actor_flag_set::AF_Next; // TODO G8.5 ? REMOVE AFTER CalcCache restoration
+const UInt32 ASF_GetStorageManagerLock = 0x0004 * actor_flag_set::AF_Next;
 
-#if defined(MG_DEBUG_DATA)
-const UInt32 ASFD_SetAutoDeleteLock  = 0x0004 * actor_flag_set::AF_Next;
-#endif
+const UInt32 ASF_GetCalcMetaInfo       = 0x0008 * actor_flag_set::AF_Next;
 
 //----------------------------------------------------------------------
 // TreeItemStatusFlags stored in m_StatusFlags
@@ -88,25 +63,25 @@ const TreeItemStatusFlags TSF_InHidden                    = 0x00020000;
 const TreeItemStatusFlags TSF_IsTemplate                  = 0x00040000;
 const TreeItemStatusFlags TSF_InTemplate                  = 0x00080000;
 
+const TreeItemStatusFlags TSF_Categorical                 = 0x00100000;
+const TreeItemStatusFlags TSF_LazyCalculated              = 0x00200000;
 const TreeItemStatusFlags TSF_StoreData                   = 0x00400000; // Also use CalcCache when data is below the data-size threshold
 const TreeItemStatusFlags TSF_Depreciated                 = 0x00800000; // unallocated bit
+//REMOVE const TreeItemStatusFlags TSF_HasMemoryStorageManager     = 0x01000000; // unallocated bit
 
 // Unit flags can overlap with Data flags as a TreeItem is never both.
-const UnitItemStatusFlags USF_HasSpatialReference         = 0x01000000;
-const UnitItemStatusFlags USF_HasConfigRange              = 0x02000000;
+const UnitItemStatusFlags USF_HasSpatialReference         = 0x02000000;
+const UnitItemStatusFlags USF_HasConfigRange              = 0x04000000;
 
 // REMOVE, TODO: CONSIDER STORING THE FOLLOWING PER TILE
-const int DCM2DSF_SHIFT = 24;
+const int DCM2DSF_SHIFT = 25;
 const int DCM_MASK = 0x03U;
-const DataItemStatusFlags DSF_HasUndefinedValues     = 0x01000000;
-const DataItemStatusFlags DSF_HasOutOfRangeValues    = 0x02000000;
-const DataItemStatusFlags DSF_ValuesChecked          = 0x04000000;
+const DataItemStatusFlags DSF_HasUndefinedValues     = 0x02000000;
+const DataItemStatusFlags DSF_HasOutOfRangeValues    = 0x04000000;
+const DataItemStatusFlags DSF_ValuesChecked          = 0x08000000;
 
 const int VC2DSF_SHIFT = DCM2DSF_SHIFT + 3;
 const int VC_MASK = 0x03U;
-const DataItemStatusFlags DSF_VC_Range               = 0x08000000; // VC_Range   << VC2DSF_SHIFT
-const DataItemStatusFlags DSF_VC_Sequence            = 0x10000000; // VC_Sequence<< VC2DSF_SHIFT
-const DataItemStatusFlags DSF_Categorical            = 0x20000000;
 
 struct treeitem_flag_set : flag_set
 {

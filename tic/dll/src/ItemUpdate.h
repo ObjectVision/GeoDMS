@@ -35,9 +35,8 @@ granted by an additional written contract for support, assistance and/or develop
 
 #include "ptr/Interestholders.h"
 
-typedef InterestPtr<const TreeItem*> TreeItemInterestPtr;
-
-TIC_CALL bool ItemUpdateImpl(const TreeItem* self, CharPtr context, TreeItemInterestPtr& holder );
-TIC_CALL bool TreeUpdateImpl(const TreeItem* self, CharPtr context, TreeItemInterestPtr& holder );
+TIC_CALL bool ItemUpdateImpl(const TreeItem* self, CharPtr context, SharedTreeItemInterestPtr& holder );
+TIC_CALL bool TreeUpdateImpl(const TreeItem* self, CharPtr context, SharedTreeItemInterestPtr& holder );
+TIC_CALL void Tree_Update(const TreeItem* self, CharPtr context);
 
 #endif // __TIC_ITEMUPDATE_H

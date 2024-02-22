@@ -31,7 +31,7 @@ granted by an additional written contract for support, assistance and/or develop
 #define __TEXTCONTROL_H
 
 #include "MovableObject.h"
-#include "geo/Color.h"
+#include "geo/color.h"
 
 class GraphDrawer;
 
@@ -91,7 +91,7 @@ public:
 		COLORREF textColor = CLR_INVALID, 
 		COLORREF bkColor   = CLR_INVALID
 	);
-	GraphicClassFlags GetGraphicClassFlags() const override { dms_assert(!base_type::GetGraphicClassFlags()); return GCF_ClipExtents; };
+	GraphicClassFlags GetGraphicClassFlags() const override { return GraphicClassFlags::ClipExtents; };
 
 	void SetWidth (UInt32 width);
 	void SetHeight(UInt32 height);

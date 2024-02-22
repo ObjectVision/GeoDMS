@@ -77,6 +77,28 @@
       <Filter>GDAL</Filter>
     </ClCompile>
     <ClCompile Include="src\GridStoragemanager.cpp" />
+    <ClCompile Include="src\ImplMain.cpp" />
+    <ClCompile Include="src\asc\AsciiImp.cpp">
+      <Filter>Ascii Grid</Filter>
+    </ClCompile>
+    <ClCompile Include="src\bmp\BmpImp.cpp">
+      <Filter>Bmp</Filter>
+    </ClCompile>
+    <ClCompile Include="src\dbf\dbfImp.cpp">
+      <Filter>dbf</Filter>
+    </ClCompile>
+    <ClCompile Include="src\odbc\OdbcImp.cpp">
+      <Filter>Odbc</Filter>
+    </ClCompile>
+    <ClCompile Include="src\shp\ShpImp.cpp">
+      <Filter>Shp</Filter>
+    </ClCompile>
+    <ClCompile Include="src\xdb\XdbImp.cpp">
+      <Filter>Ascii Table</Filter>
+    </ClCompile>
+    <ClCompile Include="src\tif\TifImp.cpp">
+      <Filter>TIF</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\asc\AscStorageManager.h">
@@ -124,9 +146,29 @@
       <Filter>GDAL</Filter>
     </ClInclude>
     <ClInclude Include="src\GridStorageManager.h" />
-  </ItemGroup>
-  <ItemGroup>
-    <CustomBuild Include="C:\dev\vcpkg\installed\$(Platform)-windows\share\proj4\proj.db" />
-    <CustomBuild Include="C:\dev\vcpkg\installed\$(Platform)-windows\share\gdal\LICENSE.TXT" />
+    <ClInclude Include="src\viewportinfo.h" />
+    <ClInclude Include="src\FilePtrHandle.h" />
+    <ClInclude Include="src\ImplMain.h" />
+    <ClInclude Include="src\asc\AsciiImp.h">
+      <Filter>Ascii Grid</Filter>
+    </ClInclude>
+    <ClInclude Include="src\bmp\BmpImp.h">
+      <Filter>Bmp</Filter>
+    </ClInclude>
+    <ClInclude Include="src\dbf\dbfImpl.h">
+      <Filter>dbf</Filter>
+    </ClInclude>
+    <ClInclude Include="src\odbc\OdbcImp.h">
+      <Filter>Odbc</Filter>
+    </ClInclude>
+    <ClInclude Include="src\shp\ShpImp.h">
+      <Filter>Shp</Filter>
+    </ClInclude>
+    <ClInclude Include="src\xdb\XdbImp.h">
+      <Filter>Ascii Table</Filter>
+    </ClInclude>
+    <ClInclude Include="src\tif\TifImp.h">
+      <Filter>TIF</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>

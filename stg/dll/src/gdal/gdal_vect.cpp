@@ -1,41 +1,20 @@
-﻿//<HEADER> 
-/*
-Data & Model Server (DMS) is a server written in C++ for DSS applications. 
-Version: see srv/dms/rtc/dll/src/RtcVersion.h for version info.
+﻿// Copyright (C) 1998-2023 Object Vision b.v. 
+// License: GNU GPL 3
+/////////////////////////////////////////////////////////////////////////////
 
-Copyright (C) 1998-2004  YUSE GSO Object Vision BV. 
-
-Documentation on using the Data & Model Server software can be found at:
-http://www.ObjectVision.nl/DMS/
-
-See additional guidelines and notes in srv/dms/Readme-srv.txt 
-
-This library is free software; you can use, redistribute, and/or
-modify it under the terms of the GNU General Public License version 2 
-(the License) as published by the Free Software Foundation,
-provided that this entire header notice and readme-srv.txt is preserved.
-
-See LICENSE.TXT for terms of distribution or look at our web site:
-http://www.objectvision.nl/DMS/License.txt
-or alternatively at: http://www.gnu.org/copyleft/gpl.html
-
-This library is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
-General Public License for more details. However, specific warranties might be
-granted by an additional written contract for support, assistance and/or development
-*/
-//</HEADER>
 #include "StoragePCH.h"
-#pragma hdrstop
 
+#if defined(CC_PRAGMAHDRSTOP)
+#pragma hdrstop
+#endif //defined(CC_PRAGMAHDRSTOP)
+
+#include "RtcGeneratedVersion.h"
 
 #include "gdal_base.h"
 #include "gdal_vect.h"
 
 #include "ogrsf_frmts.h"
 #include "ogr_api.h"
-
 
 #include "dbg/debug.h"
 #include "dbg/SeverityType.h"
@@ -103,25 +82,25 @@ namespace gdalVectImpl {
 	{
 		switch (subType) {
 			case OFSTBoolean:
-				return VT_Bool;
+				return ValueClassID::VT_Bool;
 			case OFSTInt16:
-				return VT_UInt16;
+				return ValueClassID::VT_UInt16;
 			case OFSTFloat32:
-				return VT_Float32;
+				return ValueClassID::VT_Float32;
 		}
 
 		switch (attrType) {
 		case OFTInteger:
-			return VT_Int32;
+			return ValueClassID::VT_Int32;
 		case OFTInteger64:
-			return VT_Int64;
+			return ValueClassID::VT_Int64;
 		case OFTReal:
-			return VT_Float64;
+			return ValueClassID::VT_Float64;
 		case OFTString:
 		case OFTStringList:
 		case OFTWideString:     // Depreciated
 		case OFTWideStringList: // Depreciated
-			return VT_SharedStr;
+			return ValueClassID::VT_SharedStr;
 		case OFTIntegerList:
 		case OFTRealList:
 		case OFTBinary:
@@ -129,15 +108,15 @@ namespace gdalVectImpl {
 		case OFTTime:
 		case OFTDateTime:
 		default:
-			return VT_Unknown;
+			return ValueClassID::VT_Unknown;
 		}
 	}
 
 	const ValueClass* OGR2ValueClass(OGRFieldType attrType, OGRFieldSubType subType)
 	{
 		ValueClassID vcid = OGR2ValueType(attrType, subType);
-		if (vcid == VT_Unknown)
-			vcid = VT_SharedStr;
+		if (vcid == ValueClassID::VT_Unknown)
+			vcid = ValueClassID::VT_SharedStr;
 		return ValueClass::FindByValueClassID(vcid);
 	}
 
@@ -149,7 +128,7 @@ namespace gdalVectImpl {
 		case wkbCircularString:	 return ValueComposition::Sequence;
 		case wkbCompoundCurve:	 return ValueComposition::Sequence;
 		case wkbLineString:      return ValueComposition::Sequence;
-		case wkbMultiLineString: return ValueComposition::Unknown;
+		case wkbMultiLineString: return ValueComposition::Sequence;
 		case wkbPolygon:         return ValueComposition::Polygon;
 		case wkbMultiPolygon:    return ValueComposition::Polygon;
 		case wkbCurvePolygon:	 return ValueComposition::Polygon;
@@ -334,29 +313,23 @@ void GdalVectlMetaInfo::SetCurrFeatureIndex(SizeT firstFeatureIndex) const
 // *****************************************************************************
 
 #if defined(MG_DEBUG)
-static std::atomic < UInt32>  sd_GdalCounter;
 
 GdalVectSM::GdalVectSM()
 {
-	DBG_START("GdalVectSM", "ctor", true);
 	dms_assert(m_hDS == nullptr);
-	DBG_TRACE(("#SM -> %d", ++sd_GdalCounter));
 }
-
 #endif
 
 GdalVectSM::~GdalVectSM()
 {
 	CloseStorage();
 	dms_assert(m_hDS == nullptr);
-	DBG_START("GdalVectSM", "dtor", true);
-	DBG_TRACE(("#SM -> %d", --sd_GdalCounter));
 }
 
 void GdalVectSM::DoOpenStorage(const StorageMetaInfo& smi, dms_rw_mode rwMode) const
 {
-	DBG_START("GdalVectSM", "OpenStorage", true);
-	dms_assert(m_hDS == nullptr);
+	DBG_START("GdalVectSM", "OpenStorage", false);
+	assert(m_hDS == nullptr);
 	if (rwMode != dms_rw_mode::read_only && !IsWritableGDAL())
 		throwErrorF("gdal.vect", "Cannot use storage manager %s with readonly type %s for writing data"
 			,	smi.StorageManager()->GetFullName().c_str()
@@ -368,7 +341,7 @@ void GdalVectSM::DoOpenStorage(const StorageMetaInfo& smi, dms_rw_mode rwMode) c
 
 void GdalVectSM::DoCloseStorage(bool mustCommit) const
 {
-	DBG_START("GdalVectSM", "DoCloseStorage", true);
+	DBG_START("GdalVectSM", "DoCloseStorage", false);
 	dms_assert(m_hDS);
 
 	m_hDS = nullptr; // calls GDALClose
@@ -586,7 +559,7 @@ void ReadPolyData(typename sequence_traits<PolygonType>::seq_t dataArray, OGRLay
 			else if (dynamic_cast<OGRMultiLineString*>(geo))
 			{
 				if (!i && !firstIndex) // only report once
-					reportD(SeverityTypeID::ST_MajorTrace, "gdal.vect: wicked conversion of MultiLineStrings to skinny MultiPolygons");
+					reportD(MsgCategory::storage_read, SeverityTypeID::ST_MajorTrace, "gdal.vect: wicked conversion of MultiLineStrings to skinny MultiPolygons");
 				AddMultiLineString<PolygonType>(dataElemRef, static_cast<OGRMultiLineString*>(geo));
 			}
 		}
@@ -695,27 +668,27 @@ bool GdalVectSM::ReadGeometry(const GdalVectlMetaInfo* br, AbstrDataObject* ado,
 	const ValueClass* vc = ado->GetValuesType();
 	switch (vc->GetValueClassID())
 	{
-		case VT_DArc:
-		case VT_DPolygon: ReadPolyData<DPolygon>(mutable_array_cast<DPolygon>(ado)->GetWritableTile(t), layer, firstIndex, size, br->m_ReadBuffer, m_hDS); break;
-		case VT_FArc:
-		case VT_FPolygon: ReadPolyData<FPolygon>(mutable_array_cast<FPolygon>(ado)->GetWritableTile(t), layer, firstIndex, size, br->m_ReadBuffer, m_hDS); break;
+		case ValueClassID::VT_DArc:
+		case ValueClassID::VT_DPolygon: ReadPolyData<DPolygon>(mutable_array_cast<DPolygon>(ado)->GetWritableTile(t), layer, firstIndex, size, br->m_ReadBuffer, m_hDS); break;
+		case ValueClassID::VT_FArc:
+		case ValueClassID::VT_FPolygon: ReadPolyData<FPolygon>(mutable_array_cast<FPolygon>(ado)->GetWritableTile(t), layer, firstIndex, size, br->m_ReadBuffer, m_hDS); break;
 #if defined (DMS_TM_HAS_INT_SEQ)
-		case VT_IArc:
-		case VT_IPolygon: ReadPolyData<IPolygon>(mutable_array_cast<IPolygon>(ado)->GetWritableTile(t), layer, firstIndex, size, br->m_ReadBuffer, m_hDS); break;
-		case VT_UArc:
-		case VT_UPolygon: ReadPolyData<UPolygon>(mutable_array_cast<UPolygon>(ado)->GetWritableTile(t), layer, firstIndex, size, br->m_ReadBuffer, m_hDS); break;
-		case VT_WArc:
-		case VT_WPolygon: ReadPolyData<WPolygon>(mutable_array_cast<WPolygon>(ado)->GetWritableTile(t), layer, firstIndex, size, br->m_ReadBuffer, m_hDS); break;
-		case VT_SArc:
-		case VT_SPolygon: ReadPolyData<SPolygon>(mutable_array_cast<SPolygon>(ado)->GetWritableTile(t), layer, firstIndex, size, br->m_ReadBuffer, m_hDS); break;
+		case ValueClassID::VT_IArc:
+		case ValueClassID::VT_IPolygon: ReadPolyData<IPolygon>(mutable_array_cast<IPolygon>(ado)->GetWritableTile(t), layer, firstIndex, size, br->m_ReadBuffer, m_hDS); break;
+		case ValueClassID::VT_UArc:
+		case ValueClassID::VT_UPolygon: ReadPolyData<UPolygon>(mutable_array_cast<UPolygon>(ado)->GetWritableTile(t), layer, firstIndex, size, br->m_ReadBuffer, m_hDS); break;
+		case ValueClassID::VT_WArc:
+		case ValueClassID::VT_WPolygon: ReadPolyData<WPolygon>(mutable_array_cast<WPolygon>(ado)->GetWritableTile(t), layer, firstIndex, size, br->m_ReadBuffer, m_hDS); break;
+		case ValueClassID::VT_SArc:
+		case ValueClassID::VT_SPolygon: ReadPolyData<SPolygon>(mutable_array_cast<SPolygon>(ado)->GetWritableTile(t), layer, firstIndex, size, br->m_ReadBuffer, m_hDS); break;
 #endif
-		case VT_DPoint: ReadPointData<DPoint>(mutable_array_cast<DPoint>(ado)->GetWritableTile(t), layer, firstIndex, size, m_hDS); break;
-		case VT_FPoint: ReadPointData<FPoint>(mutable_array_cast<FPoint>(ado)->GetWritableTile(t), layer, firstIndex, size, m_hDS); break;
-		case VT_IPoint: ReadPointData<IPoint>(mutable_array_cast<IPoint>(ado)->GetWritableTile(t), layer, firstIndex, size, m_hDS); break;
-		case VT_UPoint: ReadPointData<UPoint>(mutable_array_cast<UPoint>(ado)->GetWritableTile(t), layer, firstIndex, size, m_hDS); break;
-		case VT_SPoint: ReadPointData<SPoint>(mutable_array_cast<SPoint>(ado)->GetWritableTile(t), layer, firstIndex, size, m_hDS); break;
-		case VT_WPoint: ReadPointData<WPoint>(mutable_array_cast<WPoint>(ado)->GetWritableTile(t), layer, firstIndex, size, m_hDS); break;
-		case VT_SharedStr: ReadStringData(mutable_array_cast<SharedStr>(ado)->GetWritableTile(t), layer, firstIndex, size, br->m_ReadBuffer, m_hDS); break;
+		case ValueClassID::VT_DPoint: ReadPointData<DPoint>(mutable_array_cast<DPoint>(ado)->GetWritableTile(t), layer, firstIndex, size, m_hDS); break;
+		case ValueClassID::VT_FPoint: ReadPointData<FPoint>(mutable_array_cast<FPoint>(ado)->GetWritableTile(t), layer, firstIndex, size, m_hDS); break;
+		case ValueClassID::VT_IPoint: ReadPointData<IPoint>(mutable_array_cast<IPoint>(ado)->GetWritableTile(t), layer, firstIndex, size, m_hDS); break;
+		case ValueClassID::VT_UPoint: ReadPointData<UPoint>(mutable_array_cast<UPoint>(ado)->GetWritableTile(t), layer, firstIndex, size, m_hDS); break;
+		case ValueClassID::VT_SPoint: ReadPointData<SPoint>(mutable_array_cast<SPoint>(ado)->GetWritableTile(t), layer, firstIndex, size, m_hDS); break;
+		case ValueClassID::VT_WPoint: ReadPointData<WPoint>(mutable_array_cast<WPoint>(ado)->GetWritableTile(t), layer, firstIndex, size, m_hDS); break;
+		case ValueClassID::VT_SharedStr: ReadStringData(mutable_array_cast<SharedStr>(ado)->GetWritableTile(t), layer, firstIndex, size, br->m_ReadBuffer, m_hDS); break;
 	default:
 			ado->throwItemErrorF(
 				"GdalVectSM::ReadDataItem not implemented for DataItems with ValuesUnitType: %s", 
@@ -741,8 +714,18 @@ void ReadStrAttrData(OGRLayer* layer, SizeT currFieldIndex, sequence_traits<Shar
 			DMS_ASyncContinueCheck();
 
 		DataArray<SharedStr>::reference dataElemRef = data[i];
-		gdalVectImpl::FeaturePtr feat = hDS->TestCapability(ODsCRandomLayerRead) ? GetNextFeatureInterleaved(layer, hDS) : layer->GetNextFeature();
-		if (feat && !feat->IsFieldNull(currFieldIndex) && feat->IsFieldSet(currFieldIndex))
+		bool dataset_has_random_layer_read_capability = hDS->TestCapability(ODsCRandomLayerRead);
+		gdalVectImpl::FeaturePtr feat = dataset_has_random_layer_read_capability ? GetNextFeatureInterleaved(layer, hDS) : layer->GetNextFeature();
+		if (!feat)
+		{
+			Assign(dataElemRef, Undefined());
+			continue;
+		}
+
+		bool feature_field_is_null = feat->IsFieldNull(currFieldIndex);
+		bool feature_field_is_set = feat->IsFieldSet(currFieldIndex);
+
+		if (feat && !feature_field_is_null && feature_field_is_set)
 		{
 			CharPtr fieldAsString;
 			fieldAsString = feat->GetFieldAsString(currFieldIndex);
@@ -846,6 +829,8 @@ void ReadDoubleAttrData(OGRLayer* layer, SizeT currFieldIndex, typename sequence
 bool GdalVectSM::ReadAttrData(const GdalVectlMetaInfo* br, AbstrDataObject * ado, tile_id t, SizeT firstIndex, SizeT size)
 {
 	OGRLayer* layer = br->Layer();
+	if (layer && t==0 && firstIndex == 0 && size)
+		layer->ResetReading();
 //	dms_assert(br->m_CurrFieldIndex != -1); 
 	// TODO G8: REMOVE following if, as it should have been set by the GdalVectlMetaInfo provider
 	if (br->m_CurrFieldIndex==-1) {
@@ -853,7 +838,7 @@ bool GdalVectSM::ReadAttrData(const GdalVectlMetaInfo* br, AbstrDataObject * ado
 		auto adi = br->CurrWD();
 		br->m_CurrFieldIndex = LayerFieldEnable(layer, adi->GetName().c_str(), adi); // only set once
 		if (br->m_CurrFieldIndex == -1)
-			throwErrorF("GdalVectSM::ReadAttrData", "No column index provided");
+			throwErrorF("GdalVectSM::ReadAttrData", "No column '%s' available in datasource", br->m_RelativeName);
 	}
 	dms_assert(br->m_CurrFieldIndex != -1); 
 
@@ -861,77 +846,77 @@ bool GdalVectSM::ReadAttrData(const GdalVectlMetaInfo* br, AbstrDataObject * ado
 	dms_assert(layerDefn);
 	OGRFieldDefn* fieldDefn = layerDefn->GetFieldDefn(br->m_CurrFieldIndex);
 	
-	ValueClassID ft = fieldDefn ? gdalVectImpl::OGR2ValueType(fieldDefn->GetType(), fieldDefn->GetSubType()) : VT_Unknown;
+	ValueClassID ft = fieldDefn ? gdalVectImpl::OGR2ValueType(fieldDefn->GetType(), fieldDefn->GetSubType()) : ValueClassID::VT_Unknown;
 	ValueClassID at = ado->GetValuesType()->GetValueClassID();
 
 	switch (ft)
 	{
-		case VT_Unknown:
-		case VT_SharedStr: switch (at) {
-			case VT_SharedStr: ::ReadStrAttrData           (layer, br->m_CurrFieldIndex, mutable_array_cast<SharedStr>(ado)->GetWritableTile(t, dms_rw_mode::write_only_all), firstIndex, size, m_hDS); goto ready;
-			case VT_Bool:      ::ReadInt64AttrData<Bool>   (layer, br->m_CurrFieldIndex, mutable_array_cast<Bool>     (ado)->GetWritableTile(t, dms_rw_mode::write_only_all), firstIndex, size, m_hDS); goto ready;
-			case VT_UInt2:     ::ReadInt64AttrData<UInt2>  (layer, br->m_CurrFieldIndex, mutable_array_cast<UInt2>    (ado)->GetWritableTile(t, dms_rw_mode::write_only_all), firstIndex, size, m_hDS); goto ready;
-			case VT_UInt4:     ::ReadInt64AttrData<UInt4>  (layer, br->m_CurrFieldIndex, mutable_array_cast<UInt4>    (ado)->GetWritableTile(t, dms_rw_mode::write_only_all), firstIndex, size, m_hDS); goto ready;
-			case VT_Int64:     ::ReadInt64AttrData< Int64> (layer, br->m_CurrFieldIndex, mutable_array_cast<Int64>    (ado)->GetWritableTile(t, dms_rw_mode::write_only_all), firstIndex, size, m_hDS); goto ready;
-			case VT_UInt64:    ::ReadInt64AttrData<UInt64> (layer, br->m_CurrFieldIndex, mutable_array_cast<UInt64>   (ado)->GetWritableTile(t, dms_rw_mode::write_only_all), firstIndex, size, m_hDS); goto ready;
-			case VT_Int32:     ::ReadInt64AttrData< Int32> (layer, br->m_CurrFieldIndex, mutable_array_cast<Int32>    (ado)->GetWritableTile(t, dms_rw_mode::write_only_all), firstIndex, size, m_hDS); goto ready;
-			case VT_UInt32:    ::ReadInt64AttrData<UInt32> (layer, br->m_CurrFieldIndex, mutable_array_cast<UInt32>   (ado)->GetWritableTile(t, dms_rw_mode::write_only_all), firstIndex, size, m_hDS); goto ready;
-			case VT_Int16:     ::ReadInt64AttrData< Int16> (layer, br->m_CurrFieldIndex, mutable_array_cast<Int16>    (ado)->GetWritableTile(t, dms_rw_mode::write_only_all), firstIndex, size, m_hDS); goto ready;
-			case VT_UInt16:    ::ReadInt64AttrData<UInt16> (layer, br->m_CurrFieldIndex, mutable_array_cast<UInt16>   (ado)->GetWritableTile(t, dms_rw_mode::write_only_all), firstIndex, size, m_hDS); goto ready;
-			case VT_Int8:      ::ReadInt64AttrData< Int8 > (layer, br->m_CurrFieldIndex, mutable_array_cast<Int8>     (ado)->GetWritableTile(t, dms_rw_mode::write_only_all), firstIndex, size, m_hDS); goto ready;
-			case VT_UInt8:     ::ReadInt64AttrData<UInt8 > (layer, br->m_CurrFieldIndex, mutable_array_cast<UInt8>    (ado)->GetWritableTile(t, dms_rw_mode::write_only_all), firstIndex, size, m_hDS); goto ready;
-			case VT_Float32:   ::ReadInt64AttrData<Float32>(layer, br->m_CurrFieldIndex, mutable_array_cast<Float32>  (ado)->GetWritableTile(t, dms_rw_mode::write_only_all), firstIndex, size, m_hDS); goto ready;
-			case VT_Float64:   ::ReadInt64AttrData<Float64>(layer, br->m_CurrFieldIndex, mutable_array_cast<Float64>  (ado)->GetWritableTile(t, dms_rw_mode::write_only_all), firstIndex, size, m_hDS); goto ready;
+		case ValueClassID::VT_Unknown:
+		case ValueClassID::VT_SharedStr: switch (at) {
+			case ValueClassID::VT_SharedStr: ::ReadStrAttrData           (layer, br->m_CurrFieldIndex, mutable_array_cast<SharedStr>(ado)->GetWritableTile(t, dms_rw_mode::write_only_all), firstIndex, size, m_hDS); goto ready;
+			case ValueClassID::VT_Bool:      ::ReadInt64AttrData<Bool>   (layer, br->m_CurrFieldIndex, mutable_array_cast<Bool>     (ado)->GetWritableTile(t, dms_rw_mode::write_only_all), firstIndex, size, m_hDS); goto ready;
+			case ValueClassID::VT_UInt2:     ::ReadInt64AttrData<UInt2>  (layer, br->m_CurrFieldIndex, mutable_array_cast<UInt2>    (ado)->GetWritableTile(t, dms_rw_mode::write_only_all), firstIndex, size, m_hDS); goto ready;
+			case ValueClassID::VT_UInt4:     ::ReadInt64AttrData<UInt4>  (layer, br->m_CurrFieldIndex, mutable_array_cast<UInt4>    (ado)->GetWritableTile(t, dms_rw_mode::write_only_all), firstIndex, size, m_hDS); goto ready;
+			case ValueClassID::VT_Int64:     ::ReadInt64AttrData< Int64> (layer, br->m_CurrFieldIndex, mutable_array_cast<Int64>    (ado)->GetWritableTile(t, dms_rw_mode::write_only_all), firstIndex, size, m_hDS); goto ready;
+			case ValueClassID::VT_UInt64:    ::ReadInt64AttrData<UInt64> (layer, br->m_CurrFieldIndex, mutable_array_cast<UInt64>   (ado)->GetWritableTile(t, dms_rw_mode::write_only_all), firstIndex, size, m_hDS); goto ready;
+			case ValueClassID::VT_Int32:     ::ReadInt64AttrData< Int32> (layer, br->m_CurrFieldIndex, mutable_array_cast<Int32>    (ado)->GetWritableTile(t, dms_rw_mode::write_only_all), firstIndex, size, m_hDS); goto ready;
+			case ValueClassID::VT_UInt32:    ::ReadInt64AttrData<UInt32> (layer, br->m_CurrFieldIndex, mutable_array_cast<UInt32>   (ado)->GetWritableTile(t, dms_rw_mode::write_only_all), firstIndex, size, m_hDS); goto ready;
+			case ValueClassID::VT_Int16:     ::ReadInt64AttrData< Int16> (layer, br->m_CurrFieldIndex, mutable_array_cast<Int16>    (ado)->GetWritableTile(t, dms_rw_mode::write_only_all), firstIndex, size, m_hDS); goto ready;
+			case ValueClassID::VT_UInt16:    ::ReadInt64AttrData<UInt16> (layer, br->m_CurrFieldIndex, mutable_array_cast<UInt16>   (ado)->GetWritableTile(t, dms_rw_mode::write_only_all), firstIndex, size, m_hDS); goto ready;
+			case ValueClassID::VT_Int8:      ::ReadInt64AttrData< Int8 > (layer, br->m_CurrFieldIndex, mutable_array_cast<Int8>     (ado)->GetWritableTile(t, dms_rw_mode::write_only_all), firstIndex, size, m_hDS); goto ready;
+			case ValueClassID::VT_UInt8:     ::ReadInt64AttrData<UInt8 > (layer, br->m_CurrFieldIndex, mutable_array_cast<UInt8>    (ado)->GetWritableTile(t, dms_rw_mode::write_only_all), firstIndex, size, m_hDS); goto ready;
+			case ValueClassID::VT_Float32:   ::ReadDoubleAttrData<Float32>(layer, br->m_CurrFieldIndex, mutable_array_cast<Float32>  (ado)->GetWritableTile(t, dms_rw_mode::write_only_all), firstIndex, size, m_hDS); goto ready;
+			case ValueClassID::VT_Float64:   ::ReadDoubleAttrData<Float64>(layer, br->m_CurrFieldIndex, mutable_array_cast<Float64>  (ado)->GetWritableTile(t, dms_rw_mode::write_only_all), firstIndex, size, m_hDS); goto ready;
 			default: goto typeConflict;
 		}
 
 		// gdal subtypes
-		case VT_Int64: switch (at) {
-			case VT_Bool:    ::ReadInt64AttrData<Bool>   (layer, br->m_CurrFieldIndex, mutable_array_cast<Bool> (ado)->GetWritableTile(t).get_view(), firstIndex, size, m_hDS); goto ready;
-			case VT_UInt2:   ::ReadInt64AttrData<UInt2>  (layer, br->m_CurrFieldIndex, mutable_array_cast<UInt2> (ado)->GetWritableTile(t).get_view(), firstIndex, size, m_hDS); goto ready;
-			case VT_UInt4:   ::ReadInt64AttrData<UInt4>  (layer, br->m_CurrFieldIndex, mutable_array_cast<UInt4> (ado)->GetWritableTile(t).get_view(), firstIndex, size, m_hDS); goto ready;
-			case VT_Int64:   ::ReadInt64AttrData< Int64> (layer, br->m_CurrFieldIndex, mutable_array_cast<Int64> (ado)->GetWritableTile(t).get_view(), firstIndex, size, m_hDS); goto ready;
-			case VT_UInt64:  ::ReadInt64AttrData<UInt64> (layer, br->m_CurrFieldIndex, mutable_array_cast<UInt64>(ado)->GetWritableTile(t).get_view(), firstIndex, size, m_hDS); goto ready;
-			case VT_Int32:   ::ReadInt64AttrData< Int32> (layer, br->m_CurrFieldIndex, mutable_array_cast<Int32> (ado)->GetWritableTile(t).get_view(), firstIndex, size, m_hDS); goto ready;
-			case VT_UInt32:  ::ReadInt64AttrData<UInt32> (layer, br->m_CurrFieldIndex, mutable_array_cast<UInt32> (ado)->GetWritableTile(t).get_view(), firstIndex, size, m_hDS); goto ready;
-			case VT_Int16:   ::ReadInt64AttrData< Int16> (layer, br->m_CurrFieldIndex, mutable_array_cast<Int16> (ado)->GetWritableTile(t).get_view(), firstIndex, size, m_hDS); goto ready;
-			case VT_UInt16:  ::ReadInt64AttrData<UInt16> (layer, br->m_CurrFieldIndex, mutable_array_cast<UInt16> (ado)->GetWritableTile(t).get_view(), firstIndex, size, m_hDS); goto ready;
-			case VT_Int8:    ::ReadInt64AttrData< Int8 > (layer, br->m_CurrFieldIndex, mutable_array_cast<Int8> (ado)->GetWritableTile(t).get_view(), firstIndex, size, m_hDS); goto ready;
-			case VT_UInt8:   ::ReadInt64AttrData<UInt8 > (layer, br->m_CurrFieldIndex, mutable_array_cast<UInt8> (ado)->GetWritableTile(t).get_view(), firstIndex, size, m_hDS); goto ready;
-			case VT_Float32: ::ReadInt64AttrData<Float32>(layer, br->m_CurrFieldIndex, mutable_array_cast<Float32>(ado)->GetWritableTile(t).get_view(), firstIndex, size, m_hDS); goto ready;
-			case VT_Float64: ::ReadInt64AttrData<Float64>(layer, br->m_CurrFieldIndex, mutable_array_cast<Float64>(ado)->GetWritableTile(t).get_view(), firstIndex, size, m_hDS); goto ready;
+		case ValueClassID::VT_Int64: switch (at) {
+			case ValueClassID::VT_Bool:    ::ReadInt64AttrData<Bool>   (layer, br->m_CurrFieldIndex, mutable_array_cast<Bool> (ado)->GetWritableTile(t).get_view(), firstIndex, size, m_hDS); goto ready;
+			case ValueClassID::VT_UInt2:   ::ReadInt64AttrData<UInt2>  (layer, br->m_CurrFieldIndex, mutable_array_cast<UInt2> (ado)->GetWritableTile(t).get_view(), firstIndex, size, m_hDS); goto ready;
+			case ValueClassID::VT_UInt4:   ::ReadInt64AttrData<UInt4>  (layer, br->m_CurrFieldIndex, mutable_array_cast<UInt4> (ado)->GetWritableTile(t).get_view(), firstIndex, size, m_hDS); goto ready;
+			case ValueClassID::VT_Int64:   ::ReadInt64AttrData< Int64> (layer, br->m_CurrFieldIndex, mutable_array_cast<Int64> (ado)->GetWritableTile(t).get_view(), firstIndex, size, m_hDS); goto ready;
+			case ValueClassID::VT_UInt64:  ::ReadInt64AttrData<UInt64> (layer, br->m_CurrFieldIndex, mutable_array_cast<UInt64>(ado)->GetWritableTile(t).get_view(), firstIndex, size, m_hDS); goto ready;
+			case ValueClassID::VT_Int32:   ::ReadInt64AttrData< Int32> (layer, br->m_CurrFieldIndex, mutable_array_cast<Int32> (ado)->GetWritableTile(t).get_view(), firstIndex, size, m_hDS); goto ready;
+			case ValueClassID::VT_UInt32:  ::ReadInt64AttrData<UInt32> (layer, br->m_CurrFieldIndex, mutable_array_cast<UInt32> (ado)->GetWritableTile(t).get_view(), firstIndex, size, m_hDS); goto ready;
+			case ValueClassID::VT_Int16:   ::ReadInt64AttrData< Int16> (layer, br->m_CurrFieldIndex, mutable_array_cast<Int16> (ado)->GetWritableTile(t).get_view(), firstIndex, size, m_hDS); goto ready;
+			case ValueClassID::VT_UInt16:  ::ReadInt64AttrData<UInt16> (layer, br->m_CurrFieldIndex, mutable_array_cast<UInt16> (ado)->GetWritableTile(t).get_view(), firstIndex, size, m_hDS); goto ready;
+			case ValueClassID::VT_Int8:    ::ReadInt64AttrData< Int8 > (layer, br->m_CurrFieldIndex, mutable_array_cast<Int8> (ado)->GetWritableTile(t).get_view(), firstIndex, size, m_hDS); goto ready;
+			case ValueClassID::VT_UInt8:   ::ReadInt64AttrData<UInt8 > (layer, br->m_CurrFieldIndex, mutable_array_cast<UInt8> (ado)->GetWritableTile(t).get_view(), firstIndex, size, m_hDS); goto ready;
+			case ValueClassID::VT_Float32: ::ReadInt64AttrData<Float32>(layer, br->m_CurrFieldIndex, mutable_array_cast<Float32>(ado)->GetWritableTile(t).get_view(), firstIndex, size, m_hDS); goto ready;
+			case ValueClassID::VT_Float64: ::ReadInt64AttrData<Float64>(layer, br->m_CurrFieldIndex, mutable_array_cast<Float64>(ado)->GetWritableTile(t).get_view(), firstIndex, size, m_hDS); goto ready;
 			default: goto typeConflict;
 		}
-		case VT_Bool:
-		case VT_UInt16:
-		case VT_Int16:
-		case VT_Int32: switch (at) {
-			case VT_Bool:    ::ReadInt32AttrData<Bool>(layer, br->m_CurrFieldIndex, mutable_array_cast<Bool> (ado)->GetWritableTile(t).get_view(), firstIndex, size, m_hDS); goto ready;
-			case VT_UInt2:   ::ReadInt32AttrData<UInt2>(layer, br->m_CurrFieldIndex, mutable_array_cast<UInt2> (ado)->GetWritableTile(t).get_view(), firstIndex, size, m_hDS); goto ready;
-			case VT_UInt4:   ::ReadInt32AttrData<UInt4>(layer, br->m_CurrFieldIndex, mutable_array_cast<UInt4> (ado)->GetWritableTile(t).get_view(), firstIndex, size, m_hDS); goto ready;
-			case VT_Int64:   ::ReadInt32AttrData< Int64> (layer, br->m_CurrFieldIndex, mutable_array_cast<Int64> (ado)->GetWritableTile(t).get_view(), firstIndex, size, m_hDS); goto ready;
-			case VT_UInt64:  ::ReadInt32AttrData<UInt64> (layer, br->m_CurrFieldIndex, mutable_array_cast<UInt64>(ado)->GetWritableTile(t).get_view(), firstIndex, size, m_hDS); goto ready;
-			case VT_Int32:   ::ReadInt32AttrData< Int32> (layer, br->m_CurrFieldIndex, mutable_array_cast< Int32> (ado)->GetWritableTile(t).get_view(), firstIndex, size, m_hDS); goto ready;
-			case VT_UInt32:  ::ReadInt32AttrData<UInt32> (layer, br->m_CurrFieldIndex, mutable_array_cast<UInt32> (ado)->GetWritableTile(t).get_view(), firstIndex, size, m_hDS); goto ready;
-			case VT_Int16:   ::ReadInt32AttrData< Int16> (layer, br->m_CurrFieldIndex, mutable_array_cast< Int16> (ado)->GetWritableTile(t).get_view(), firstIndex, size, m_hDS); goto ready;
-			case VT_UInt16:  ::ReadInt32AttrData<UInt16> (layer, br->m_CurrFieldIndex, mutable_array_cast<UInt16> (ado)->GetWritableTile(t).get_view(), firstIndex, size, m_hDS); goto ready;
-			case VT_Int8:    ::ReadInt32AttrData< Int8 > (layer, br->m_CurrFieldIndex, mutable_array_cast< Int8 > (ado)->GetWritableTile(t).get_view(), firstIndex, size, m_hDS); goto ready;
-			case VT_UInt8:   ::ReadInt32AttrData<UInt8 > (layer, br->m_CurrFieldIndex, mutable_array_cast<UInt8 > (ado)->GetWritableTile(t).get_view(), firstIndex, size, m_hDS); goto ready;
-			case VT_Float32: ::ReadInt32AttrData<Float32>(layer, br->m_CurrFieldIndex, mutable_array_cast<Float32>(ado)->GetWritableTile(t).get_view(), firstIndex, size, m_hDS); goto ready;
-			case VT_Float64: ::ReadInt32AttrData<Float64>(layer, br->m_CurrFieldIndex, mutable_array_cast<Float64>(ado)->GetWritableTile(t).get_view(), firstIndex, size, m_hDS); goto ready;
+		case ValueClassID::VT_Bool:
+		case ValueClassID::VT_UInt16:
+		case ValueClassID::VT_Int16:
+		case ValueClassID::VT_Int32: switch (at) {
+			case ValueClassID::VT_Bool:    ::ReadInt32AttrData<Bool>(layer, br->m_CurrFieldIndex, mutable_array_cast<Bool> (ado)->GetWritableTile(t).get_view(), firstIndex, size, m_hDS); goto ready;
+			case ValueClassID::VT_UInt2:   ::ReadInt32AttrData<UInt2>(layer, br->m_CurrFieldIndex, mutable_array_cast<UInt2> (ado)->GetWritableTile(t).get_view(), firstIndex, size, m_hDS); goto ready;
+			case ValueClassID::VT_UInt4:   ::ReadInt32AttrData<UInt4>(layer, br->m_CurrFieldIndex, mutable_array_cast<UInt4> (ado)->GetWritableTile(t).get_view(), firstIndex, size, m_hDS); goto ready;
+			case ValueClassID::VT_Int64:   ::ReadInt32AttrData< Int64> (layer, br->m_CurrFieldIndex, mutable_array_cast<Int64> (ado)->GetWritableTile(t).get_view(), firstIndex, size, m_hDS); goto ready;
+			case ValueClassID::VT_UInt64:  ::ReadInt32AttrData<UInt64> (layer, br->m_CurrFieldIndex, mutable_array_cast<UInt64>(ado)->GetWritableTile(t).get_view(), firstIndex, size, m_hDS); goto ready;
+			case ValueClassID::VT_Int32:   ::ReadInt32AttrData< Int32> (layer, br->m_CurrFieldIndex, mutable_array_cast< Int32> (ado)->GetWritableTile(t).get_view(), firstIndex, size, m_hDS); goto ready;
+			case ValueClassID::VT_UInt32:  ::ReadInt32AttrData<UInt32> (layer, br->m_CurrFieldIndex, mutable_array_cast<UInt32> (ado)->GetWritableTile(t).get_view(), firstIndex, size, m_hDS); goto ready;
+			case ValueClassID::VT_Int16:   ::ReadInt32AttrData< Int16> (layer, br->m_CurrFieldIndex, mutable_array_cast< Int16> (ado)->GetWritableTile(t).get_view(), firstIndex, size, m_hDS); goto ready;
+			case ValueClassID::VT_UInt16:  ::ReadInt32AttrData<UInt16> (layer, br->m_CurrFieldIndex, mutable_array_cast<UInt16> (ado)->GetWritableTile(t).get_view(), firstIndex, size, m_hDS); goto ready;
+			case ValueClassID::VT_Int8:    ::ReadInt32AttrData< Int8 > (layer, br->m_CurrFieldIndex, mutable_array_cast< Int8 > (ado)->GetWritableTile(t).get_view(), firstIndex, size, m_hDS); goto ready;
+			case ValueClassID::VT_UInt8:   ::ReadInt32AttrData<UInt8 > (layer, br->m_CurrFieldIndex, mutable_array_cast<UInt8 > (ado)->GetWritableTile(t).get_view(), firstIndex, size, m_hDS); goto ready;
+			case ValueClassID::VT_Float32: ::ReadInt32AttrData<Float32>(layer, br->m_CurrFieldIndex, mutable_array_cast<Float32>(ado)->GetWritableTile(t).get_view(), firstIndex, size, m_hDS); goto ready;
+			case ValueClassID::VT_Float64: ::ReadInt32AttrData<Float64>(layer, br->m_CurrFieldIndex, mutable_array_cast<Float64>(ado)->GetWritableTile(t).get_view(), firstIndex, size, m_hDS); goto ready;
 			default: goto typeConflict;
 		}
 
-		case VT_Float32:
-		case VT_Float64: switch (at) {
-			case VT_Int32:   ::ReadDoubleAttrData< Int32> (layer, br->m_CurrFieldIndex, mutable_array_cast< Int32> (ado)->GetWritableTile(t).get_view(), firstIndex, size, m_hDS); goto ready;
-			case VT_UInt32:  ::ReadDoubleAttrData<UInt32> (layer, br->m_CurrFieldIndex, mutable_array_cast<UInt32> (ado)->GetWritableTile(t).get_view(), firstIndex, size, m_hDS); goto ready;
-			case VT_Int16:   ::ReadDoubleAttrData< Int16> (layer, br->m_CurrFieldIndex, mutable_array_cast< Int16> (ado)->GetWritableTile(t).get_view(), firstIndex, size, m_hDS); goto ready;
-			case VT_UInt16:  ::ReadDoubleAttrData<UInt16> (layer, br->m_CurrFieldIndex, mutable_array_cast<UInt16> (ado)->GetWritableTile(t).get_view(), firstIndex, size, m_hDS); goto ready;
-			case VT_Int8:    ::ReadDoubleAttrData< Int8 > (layer, br->m_CurrFieldIndex, mutable_array_cast< Int8 > (ado)->GetWritableTile(t).get_view(), firstIndex, size, m_hDS); goto ready;
-			case VT_UInt8:   ::ReadDoubleAttrData<UInt8 > (layer, br->m_CurrFieldIndex, mutable_array_cast<UInt8 > (ado)->GetWritableTile(t).get_view(), firstIndex, size, m_hDS); goto ready;
-			case VT_Float32: ::ReadDoubleAttrData<Float32>(layer, br->m_CurrFieldIndex, mutable_array_cast<Float32>(ado)->GetWritableTile(t).get_view(), firstIndex, size, m_hDS); goto ready;
-			case VT_Float64: ::ReadDoubleAttrData<Float64>(layer, br->m_CurrFieldIndex, mutable_array_cast<Float64>(ado)->GetWritableTile(t).get_view(), firstIndex, size, m_hDS); goto ready;
+		case ValueClassID::VT_Float32:
+		case ValueClassID::VT_Float64: switch (at) {
+			case ValueClassID::VT_Int32:   ::ReadDoubleAttrData< Int32> (layer, br->m_CurrFieldIndex, mutable_array_cast< Int32> (ado)->GetWritableTile(t).get_view(), firstIndex, size, m_hDS); goto ready;
+			case ValueClassID::VT_UInt32:  ::ReadDoubleAttrData<UInt32> (layer, br->m_CurrFieldIndex, mutable_array_cast<UInt32> (ado)->GetWritableTile(t).get_view(), firstIndex, size, m_hDS); goto ready;
+			case ValueClassID::VT_Int16:   ::ReadDoubleAttrData< Int16> (layer, br->m_CurrFieldIndex, mutable_array_cast< Int16> (ado)->GetWritableTile(t).get_view(), firstIndex, size, m_hDS); goto ready;
+			case ValueClassID::VT_UInt16:  ::ReadDoubleAttrData<UInt16> (layer, br->m_CurrFieldIndex, mutable_array_cast<UInt16> (ado)->GetWritableTile(t).get_view(), firstIndex, size, m_hDS); goto ready;
+			case ValueClassID::VT_Int8:    ::ReadDoubleAttrData< Int8 > (layer, br->m_CurrFieldIndex, mutable_array_cast< Int8 > (ado)->GetWritableTile(t).get_view(), firstIndex, size, m_hDS); goto ready;
+			case ValueClassID::VT_UInt8:   ::ReadDoubleAttrData<UInt8 > (layer, br->m_CurrFieldIndex, mutable_array_cast<UInt8 > (ado)->GetWritableTile(t).get_view(), firstIndex, size, m_hDS); goto ready;
+			case ValueClassID::VT_Float32: ::ReadDoubleAttrData<Float32>(layer, br->m_CurrFieldIndex, mutable_array_cast<Float32>(ado)->GetWritableTile(t).get_view(), firstIndex, size, m_hDS); goto ready;
+			case ValueClassID::VT_Float64: ::ReadDoubleAttrData<Float64>(layer, br->m_CurrFieldIndex, mutable_array_cast<Float64>(ado)->GetWritableTile(t).get_view(), firstIndex, size, m_hDS); goto ready;
 			default: goto typeConflict;
 		}
 		default: goto typeConflict;
@@ -940,7 +925,7 @@ ready:
 	br->m_CurrFeatureIndex += size;
 	return true;
 typeConflict:
-	throwErrorF("gdal.vect", "Cannot read attribute data of type %d into attribute of type %d", ft, at);
+	throwErrorF("gdal.vect", "Cannot read attribute data of type %d into attribute of type %d", int(ft), int(at));
 }
 
 bool GdalVectSM::ReadLayerData(const GdalVectlMetaInfo* br, AbstrDataObject* ado, tile_id t)
@@ -962,11 +947,11 @@ StorageMetaInfoPtr GdalVectSM::GetMetaInfo(const TreeItem* storageHolder, TreeIt
 	return std::make_unique<GdalVectlMetaInfo>(this, storageHolder, adi);
 }
 
-bool GdalVectSM::ReadDataItem(const StorageMetaInfo& smi, AbstrDataObject* borrowedReadResultHolder, tile_id t)
+bool GdalVectSM::ReadDataItem(StorageMetaInfoPtr smi, AbstrDataObject* borrowedReadResultHolder, tile_id t)
 {
 	dms_assert(IsOpen());
 
-	return ReadLayerData(debug_cast<const GdalVectlMetaInfo*>(&smi), borrowedReadResultHolder, t);
+	return ReadLayerData(debug_cast<const GdalVectlMetaInfo*>(smi.get()), borrowedReadResultHolder, t);
 }
 
 OGRLayer* GetLayerFromDataItem(GDALDatasetHandle& m_hDS, SharedStr layername)
@@ -1235,59 +1220,59 @@ SizeT ReadUnitRange(OGRLayer* layer, GDALDataset* m_hDS)
 	return count;
 }
 
-OGRFieldType DmsType2OGRFieldType(ValueClassID id, ValueComposition vc)
+OGRFieldType DmsType2OGRFieldType(ValueClassID id)
 {
 	switch (id) {
-	case VT_Int32:
+	case ValueClassID::VT_Int32:
 		return OFTInteger;
-	case VT_Bool:
+	case ValueClassID::VT_Bool:
 		return OFTInteger;
-	case VT_UInt2:
+	case ValueClassID::VT_UInt2:
 		return OFTInteger;
-	case VT_UInt4:
+	case ValueClassID::VT_UInt4:
 		return OFTInteger;
-	case VT_UInt8:
+	case ValueClassID::VT_UInt8:
 		return OFTInteger;
-	case VT_Int8:
+	case ValueClassID::VT_Int8:
 		return OFTInteger;
-	case VT_UInt16:
+	case ValueClassID::VT_UInt16:
 		return OFTInteger;
-	case VT_Int16:
+	case ValueClassID::VT_Int16:
 		return OFTInteger;
-	case VT_UInt32:
+	case ValueClassID::VT_UInt32:
 		return OFTInteger;
-	case VT_Int64:
+	case ValueClassID::VT_Int64:
 		return OFTInteger64;
-	case VT_UInt64:
+	case ValueClassID::VT_UInt64:
 		return OFTInteger64;
-	case VT_Float32:
+	case ValueClassID::VT_Float32:
 		return OFTReal;
-	case VT_Float64:
+	case ValueClassID::VT_Float64:
 		return OFTReal;
-	case VT_SharedStr:
+	case ValueClassID::VT_SharedStr:
 		return OFTString;
 	default:
-		return OGRFieldType::OFTBinary;
+		return OGRFieldType::OFTMaxType;
 	}
 }
 
-OGRFieldSubType DmsType2OGRSubFieldType(ValueClassID id, ValueComposition vc)
+OGRFieldSubType DmsType2OGRSubFieldType(ValueClassID id)
 {
 	switch (id) {
-	case VT_Bool:
+	case ValueClassID::VT_Bool:
 		return OFSTBoolean;
-	case VT_UInt16:
+	case ValueClassID::VT_UInt16:
 		return OFSTInt16;
-	case VT_Int16:
+	case ValueClassID::VT_Int16:
 		return OFSTInt16;
-	case VT_Float32:
+	case ValueClassID::VT_Float32:
 		return OFSTFloat32;
 	default:
 		return OFSTNone;
 	}
 }
 
-OGRwkbGeometryType DmsType2OGRGeometryType(ValueClassID id, ValueComposition vc)
+OGRwkbGeometryType DmsType2OGRGeometryType(ValueComposition vc)
 {
 	switch (vc) {
 	case ValueComposition::Single:
@@ -1323,8 +1308,8 @@ void SetFeatureDefnForOGRLayerFromLayerHolder(const TreeItem* subItem, OGRLayer*
 			SharedStr       fieldName = SharedStr(fieldCandidate->GetID());
 			int             bApproxOK = TRUE;
 
-			OGRFieldType    type    = DmsType2OGRFieldType(vci, vc);
-			OGRFieldSubType subtype = DmsType2OGRSubFieldType(vci, vc);
+			OGRFieldType    type    = DmsType2OGRFieldType(vci);
+			OGRFieldSubType subtype = DmsType2OGRSubFieldType(vci);
 			OGRFieldDefn    fieldDefn(fieldName.c_str(), type);         error_frame.ThrowUpWhateverCameUp();
 			fieldDefn.SetSubType(subtype);                   error_frame.ThrowUpWhateverCameUp();
 			layerHandle->CreateField(&fieldDefn, bApproxOK); error_frame.ThrowUpWhateverCameUp();
@@ -1397,7 +1382,7 @@ void InitializeLayersFieldsAndDataitemsStatus(const StorageMetaInfo& smi, DataIt
 		auto vci = subDI->GetAbstrValuesUnit()->GetValueType()->GetValueClassID();
 		auto vc = subDI->GetValueComposition();
 
-		if (subItem->GetID() == token::geometry || vc <= ValueComposition::Sequence && (vci >= ValueClassID::VT_SPoint && vci < ValueClassID::VT_FirstAfterPolygon))
+		if (vc <= ValueComposition::Sequence && (vci >= ValueClassID::VT_SPoint && vci < ValueClassID::VT_FirstAfterPolygon))
 		{
 			disi.setFieldIsWritten(GetTokenID_mt(layerName), GetTokenID_mt(fieldName), false);
 			disi.setIsGeometry(GetTokenID_mt(layerName), GetTokenID_mt(fieldName), true);
@@ -1411,7 +1396,7 @@ void InitializeLayersFieldsAndDataitemsStatus(const StorageMetaInfo& smi, DataIt
 
 bool GdalVectSM::WriteDataItem(StorageMetaInfoPtr&& smiHolder)
 {
-	DBG_START("gdal.vect", "WriteDataItem", false);
+	DBG_START("gdalwrite.vect", "WriteDataItem", false);
 	
 	auto smi = smiHolder.get();
 	SharedStr datasourceName = smi->StorageManager()->GetNameStr();
@@ -1443,8 +1428,8 @@ bool GdalVectSM::WriteDataItem(StorageMetaInfoPtr&& smiHolder)
 	if (not m_DataItemsStatusInfo.m_continueWrite)
 	{
 		// disable spatial index in case of GPKG, SQLite
-		if (!strcmpi(this->m_hDS->GetDriverName(), "GPKG") || !strcmpi(this->m_hDS->GetDriverName(), "SQLite"))
-			layerOptionArray.AddString("SPATIAL_INDEX=NO");
+		//if (!strcmpi(this->m_hDS->GetDriverName(), "GPKG") || !strcmpi(this->m_hDS->GetDriverName(), "SQLite"))
+		//	layerOptionArray.AddString("SPATIAL_INDEX=NO");
 
 		InitializeLayersFieldsAndDataitemsStatus(*smi, m_DataItemsStatusInfo, this->m_hDS, layerOptionArray); gdal_error_frame.ThrowUpWhateverCameUp();
 		m_DataItemsStatusInfo.m_continueWrite = true;
@@ -1455,7 +1440,6 @@ bool GdalVectSM::WriteDataItem(StorageMetaInfoPtr&& smiHolder)
 	
 	if (not m_DataItemsStatusInfo.LayerIsReadyForWriting(layerTokenT))
 		return true;
-
 
 	auto dataReadLocks = ReadableDataHandles(layername, m_DataItemsStatusInfo);
 	auto layer = this->m_hDS->GetLayerByName(layername.c_str()); gdal_error_frame.ThrowUpWhateverCameUp();
@@ -1481,8 +1465,9 @@ bool GdalVectSM::WriteDataItem(StorageMetaInfoPtr&& smiHolder)
 	SizeT featureIndex = 0, tileFeatureIndex = 0;
 	for (tile_id t = 0, te = adu->GetNrTiles(); t != te; ++t)
 	{
-		reportF(SeverityTypeID::ST_MajorTrace, "gdalwrite.vect, tile %u of %u tiles of layer %s",
-			t+1, adu->GetNrTiles(), layername);
+		if (t+1 == te)
+			reportF(MsgCategory::storage_write, SeverityTypeID::ST_MajorTrace, "gdalwrite.vect, written %u tiles of layer %s",
+				adu->GetNrTiles(), layername);
 
 		GDAL_TransactionFrame transaction_frame(this->m_hDS);
 		auto tileReadLocks = ReadableTileHandles(dataReadLocks, t);
@@ -1580,19 +1565,6 @@ bool IsVatDomain(const AbstrUnit* au)
 #include "DataItemClass.h"
 #include "Unit.h"
 #include "UnitClass.h"
-
-void UpdateSpatialRef(const GDALDatasetHandle& hDS, AbstrDataItem* geometry, std::optional<OGRSpatialReference>& spatialRef)
-{
-	assert(geometry);
-	auto gvu = GetBaseProjectionUnitFromValuesUnit(geometry);
-	CheckSpatialReference(spatialRef, const_cast<AbstrUnit*>(gvu));
-	if (!spatialRef)
-		return;
-	auto wkt = GetAsWkt(&*spatialRef);
-	if (!wkt.empty())
-		geometry->SetDescr(wkt);
-}
-
 #include "mci/ValueWrap.h"
 #include "mci/ValueClass.h"
 #include "Unit.h"
@@ -1603,45 +1575,80 @@ void GdalVectSM::DoUpdateTable(const TreeItem* storageHolder, AbstrUnit* layerDo
 {
 	dms_assert(layer);
 	GDAL_ErrorFrame gdal_error_frame;
+	auto layer_geometry_type = layer->GetGeomType();
+	ValueComposition gdal_vc = gdalVectImpl::OGR2ValueComposition(layer_geometry_type);
+	bool create_vu_from_datasource = false;
 
-	ValueComposition gdal_vc = gdalVectImpl::OGR2ValueComposition(layer->GetGeomType());
-	auto vu = FindProjectionRef(storageHolder, layerDomain);
-	if (!vu)
-		vu = Unit<DPoint>::GetStaticClass()->CreateDefault();
+	const OGRSpatialReference* ogrSR_ptr = layer->GetSpatialRef();
+	std::optional<OGRSpatialReference> ogrSR;
+	if (ogrSR_ptr)
+		ogrSR = *ogrSR_ptr;
 
-	if (!(layer->GetGeomType() == OGRwkbGeometryType::wkbNone))
+	if (!(layer_geometry_type == OGRwkbGeometryType::wkbNone))
 	{
-		AbstrDataItem* geometry = AsDynamicDataItem(layerDomain->GetSubTreeItemByID(token::geometry));
+		auto geometry_item = layerDomain->GetSubTreeItemByID(token::geometry);
+		AbstrDataItem* geometry = AsDynamicDataItem(geometry_item);
 		if (geometry)
 		{
-			ValueComposition configured_vc = geometry->GetValueComposition();
-			if (configured_vc != gdal_vc && gdal_vc != ValueComposition::Unknown)
-				geometry->Fail("Value composition incompatible with GDAL's formal geometry type", FR_MetaInfo);
+			if (auto gvu = geometry->GetAbstrValuesUnit())
+				if (gvu->GetValueType()->GetValueClassID() != ValueClassID::VT_String)
+				{
+					ValueComposition configured_vc = geometry->GetValueComposition();
+					if (configured_vc != gdal_vc && gdal_vc != ValueComposition::Unknown)
+						geometry->Fail("Value composition incompatible with GDAL's formal geometry type", FR_MetaInfo);
+				}
 		}
 		else
 		{
-			if (gdal_vc == ValueComposition::Unknown)
+			if (gdal_vc == ValueComposition::Unknown) // attempt interpreting geometry type using first feature
 			{
-				// TODO: interpret geometry type if possible from WKT
-				vu = Unit<SharedStr>::GetStaticClass()->CreateDefault();
-				gdal_vc = ValueComposition::String;
+				OGRwkbGeometryType first_feature_geometry_type = OGRwkbGeometryType::wkbUnknown;
+				auto first_feature = layer->GetNextFeature();
+				layer->GetGeometryColumn();
+				if (first_feature)
+				{
+					auto geometry_ref = first_feature->GetGeometryRef();
+					first_feature_geometry_type = geometry_ref->getGeometryType();
+					gdal_vc = gdalVectImpl::OGR2ValueComposition(first_feature_geometry_type);
+				}
+				layer->ResetReading();
 			}
+
+			// create default value unit from gdal_vc
+			SharedUnit vu;
+			if (gdal_vc == ValueComposition::Unknown)
+				vu = Unit<SharedStr>::GetStaticClass()->CreateDefault();
+			else
+				vu = FindProjectionRef(storageHolder, layerDomain);
+
+			if (ogrSR_ptr) // spatial reference available
+			{
+				SharedStr wkt = GetAsWkt(&*ogrSR_ptr);
+				if (!wkt.empty())
+				{
+					auto vu_tmp = Unit<DPoint>::GetStaticClass()->CreateUnit(layerDomain, GetTokenID_mt("SpatialReference"));
+					vu_tmp->SetSpatialReference(GetTokenID_mt(wkt));
+					vu_tmp->DisableStorage(true); // used to avoid reentrance on DoUpdateTree
+					if (!vu)
+						vu = vu_tmp;
+				}
+			}
+			else if (!vu) // default value
+				vu = Unit<DPoint>::GetStaticClass()->CreateDefault();
+
+			// create missing geometry treeitem
+			if (gdal_vc == ValueComposition::Unknown)
+				gdal_vc = ValueComposition::String; // == ValueComposition::Single
+
 			geometry = CreateDataItem(
 				layerDomain, token::geometry,
 				layerDomain, vu, gdal_vc
 			);
 		}
-		dms_assert(geometry);
-		if (gdal_vc != ValueComposition::String)
-		{
-			const OGRSpatialReference* ogrSR_ptr = layer->GetSpatialRef();
-			std::optional<OGRSpatialReference> ogrSR; 
-			if (ogrSR_ptr) 
-				ogrSR = *ogrSR_ptr;
-			UpdateSpatialRef(m_hDS, geometry, ogrSR);
-		}
+		// check spatial reference
+		auto gvu = GetBaseProjectionUnitFromValuesUnit(geometry);
+		CheckSpatialReference(ogrSR, geometry, const_cast<AbstrUnit*>(gvu));
 	}
-
 
 	// Update Attribute Fields
 	WeakPtr<OGRFeatureDefn> featureDefn = layer->GetLayerDefn();
@@ -1665,7 +1672,13 @@ void GdalVectSM::DoUpdateTable(const TreeItem* storageHolder, AbstrUnit* layerDo
 
 void GdalVectSM::DoUpdateTree(const TreeItem* storageHolder, TreeItem* curr, SyncMode sm) const
 {
-	AbstrStorageManager::DoUpdateTree(storageHolder, curr, sm);
+	if (dynamic_cast<const GdalWritableVectSM*>(this))
+		return;
+
+	if (curr->IsDisabledStorage())
+		return;
+
+	NonmappableStorageManager::DoUpdateTree(storageHolder, curr, sm);
 
 	dms_assert(storageHolder);
 
@@ -1688,7 +1701,7 @@ void GdalVectSM::DoUpdateTree(const TreeItem* storageHolder, TreeItem* curr, Syn
 		StorageReadHandle storageHandle(this, storageHolder, curr, StorageAction::updatetree);
 		if (m_hDS)
 		{
-			auto layer = debug_cast<GdalVectlMetaInfo*>(storageHandle.MetaInfo())->m_Layer;
+			auto layer = debug_cast<GdalVectlMetaInfo*>(storageHandle.MetaInfo().get())->m_Layer;
 			if (layer)
 				DoUpdateTable(storageHolder, AsUnit(curr), layer);
 		}
@@ -1719,12 +1732,72 @@ void GdalVectSM::DoUpdateTree(const TreeItem* storageHolder, TreeItem* curr, Syn
 	}
 }
 
+
+
+prop_tables GdalVectSM::GetPropTables(const TreeItem* storageHolder, TreeItem* curr) const
+{
+	prop_tables vector_dataset_properties;
+
+	// Filename
+	auto grid_dataset_filename = GetNameStr();
+	vector_dataset_properties.push_back({ 0, {GetTokenID_mt("Filename"), grid_dataset_filename} });
+
+	GDAL_ErrorFrame gdal_error_frame;
+	auto smi = GdalMetaInfo(storageHolder, curr);
+	DoOpenStorage(smi, dms_rw_mode::read_only);
+	auto gdal_ds_handle = Gdal_DoOpenStorage(smi, dms_rw_mode::read_only, 0, false);
+
+	// Spatial reference
+	auto srs = m_hDS->GetSpatialRef();
+	if (srs)
+	{
+		char* pszWKT = nullptr;
+		srs->exportToPrettyWkt(&pszWKT, false);
+		vector_dataset_properties.push_back({ 1, {GetTokenID_mt("Spatial reference"), SharedStr(pszWKT)} });
+	}
+
+	// Layers
+	auto layers = m_hDS->GetLayers();
+	vector_dataset_properties.push_back({ 1, {GetTokenID_mt("Number of layers"), AsString(layers.size())} });
+	for (auto layer : layers)
+	{
+		vector_dataset_properties.push_back({ 2, {GetTokenID_mt("Layer"), SharedStr(layer->GetName())}});
+		auto layer_definition = layer->GetLayerDefn();
+
+		// geometry field
+		auto geometry_field = layer_definition->GetGeomFieldDefn(0);
+		if (!geometry_field)
+			continue;
+		auto geometry_type = geometry_field->GetType();
+		vector_dataset_properties.push_back({ 3, {GetTokenID_mt("Geometry"), SharedStr(OGRGeometryTypeToName(geometry_type)) }});
+
+		auto field_count = layer_definition->GetFieldCount();
+		// fields
+		for (int i=0; i<field_count; i++)
+		{
+			auto field = layer_definition->GetFieldDefn(i);
+			auto field_name = field->GetNameRef();
+			vector_dataset_properties.push_back({ 3, {GetTokenID_mt(field_name), SharedStr(field->GetFieldTypeName(field->GetType()) + SharedStr(", ") + SharedStr(field->GetFieldSubTypeName(field->GetSubType())))} });
+		}
+	}
+
+	DoCloseStorage(false);
+	return vector_dataset_properties;
+}
+
 // Register
 IMPL_DYNC_STORAGECLASS(GdalVectSM, "gdal.vect")
 IMPL_DYNC_STORAGECLASS(GdalWritableVectSM, "gdalwrite.vect")
 
 struct GdalVectSM2 : GdalVectSM
 {
+	GdalVectSM2()
+	{
+		reportD(SeverityTypeID::ST_Warning, "StorageManager gdal2.vect is depreciated and will be removed in GeoDms version 15.0.0");
+		static_assert(DMS_VERSION_MAJOR != 15);
+	}
+
+
 	DECL_RTTI(STGDLL_CALL, StorageClass)
 };
 

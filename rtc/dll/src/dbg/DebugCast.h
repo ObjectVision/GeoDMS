@@ -100,7 +100,7 @@ inline DerivedPtr debug_cast(Base* basePtr)
 	// polymorphic_downcast okays casting NULL to NULL; as dynamic_cast for pointers does
 //	dms_assert( dynamic_cast<typename raw_ptr<DerivedPtr>::type>(basePtr) == basePtr );  // detect logic error
 //	return static_cast<typename raw_ptr<DerivedPtr>::type>(basePtr);
-	dms_assert( dynamic_cast<DerivedPtr>(basePtr) == basePtr );  // detect logic error
+	assert( dynamic_cast<DerivedPtr>(basePtr) == basePtr );  // detect logic error
     return static_cast<DerivedPtr>(basePtr);
 }
 
@@ -110,7 +110,7 @@ inline std::shared_ptr<Derived> debug_pointer_cast(std::shared_ptr<Base> basePtr
 	// polymorphic_downcast okays casting NULL to NULL; as dynamic_cast for pointers does
 //	dms_assert( dynamic_cast<typename raw_ptr<DerivedPtr>::type>(basePtr) == basePtr );  // detect logic error
 //	return static_cast<typename raw_ptr<DerivedPtr>::type>(basePtr);
-	dms_assert(std::dynamic_pointer_cast<Derived>(basePtr) == basePtr);  // detect logic error
+	assert(std::dynamic_pointer_cast<Derived>(basePtr) == basePtr);  // detect logic error
 	return std::static_pointer_cast<Derived>(basePtr);
 }
 
@@ -122,7 +122,7 @@ inline DerivedPtr debug_valcast(Base* basePtr)
 	// prefer this cast over debug_cast if you directly access the derived class object
 	//	while assuming the basePtr != NULL; which is checked here
 
-	dms_assert(basePtr != nullptr); // we don't accept refs to nullptr
+	assert(basePtr != nullptr); // we don't accept refs to nullptr
 	return debug_cast<DerivedPtr>(basePtr);
 }
 

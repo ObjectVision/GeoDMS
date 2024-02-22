@@ -1,31 +1,6 @@
-//<HEADER> 
-/*
-Data & Model Server (DMS) is a server written in C++ for DSS applications. 
-Version: see srv/dms/rtc/dll/src/RtcVersion.h for version info.
-
-Copyright (C) 1998-2004  YUSE GSO Object Vision BV. 
-
-Documentation on using the Data & Model Server software can be found at:
-http://www.ObjectVision.nl/DMS/
-
-See additional guidelines and notes in srv/dms/Readme-srv.txt 
-
-This library is free software; you can use, redistribute, and/or
-modify it under the terms of the GNU General Public License version 2 
-(the License) as published by the Free Software Foundation,
-provided that this entire header notice and readme-srv.txt is preserved.
-
-See LICENSE.TXT for terms of distribution or look at our web site:
-http://www.objectvision.nl/DMS/License.txt
-or alternatively at: http://www.gnu.org/copyleft/gpl.html
-
-This library is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
-General Public License for more details. However, specific warranties might be
-granted by an additional written contract for support, assistance and/or development
-*/
-//</HEADER>
+// Copyright (C) 1998-2023 Object Vision b.v. 
+// License: GNU GPL 3
+/////////////////////////////////////////////////////////////////////////////
 
 #include "ShvDllPch.h"
 
@@ -33,11 +8,13 @@ granted by an additional written contract for support, assistance and/or develop
 
 #include "act/ActorVisitor.h"
 #include "geo/PointOrder.h"
+#include "ser/AsString.h"
 #include "utl/mySPrintF.h"
 
 #include "AbstrUnit.h"
 #include "Metric.h"
 
+#include "DataView.h"
 #include "GraphVisitor.h"
 #include "ShvUtils.h"
 #include "TextControl.h"
@@ -57,20 +34,21 @@ ScaleBarBase::~ScaleBarBase()
 const UInt32 MIN_MEASURE_SIZE = 16;
 const UInt32 MAX_TEXT_HEIGHT = 12;
 
-bool ScaleBarBase::Draw(HDC dc, const GRect& clientAbsRect) const
+bool ScaleBarBase::Draw(HDC dc, CrdRect devAbsRect) const
 {
+	GRect clientAbsRect = CrdRect2GRect(devAbsRect);
 	GPoint clientSize = clientAbsRect.Size();
 	if (clientSize.y < 30)
 		return false;
 
-	const Float64 maxTextHeight = MAX_TEXT_HEIGHT * m_ViewPort->GetSubPixelFactor();
+	const Float64 maxTextHeight = MAX_TEXT_HEIGHT * GetWindowDip2PixFactorY(WindowFromDC(dc));
 	CrdType measureGroupSize = m_MeasureSize * m_MeasureGroupCount;
 	UInt32  nrGroups         = clientSize.x / measureGroupSize; if (nrGroups == 0) return false;
-	TType   top              = clientSize.y / 3;
-	TType   textTop          = Max<TType>(top - TType(maxTextHeight +2), TType(0));
-	TType   bottom           = clientSize.y - top;
-	TType   textBottom       = Min<TType>(bottom + TType(maxTextHeight +2), clientSize.y);
-	TType   mid              = (top+bottom)/2;
+	GType   top              = clientSize.y / 3;
+	GType   textTop          = Max<GType>(top - GType(maxTextHeight+2), GType(0));
+	GType   bottom           = clientSize.y - top;
+	GType   textBottom       = Min<GType>(bottom + GType(maxTextHeight +2), clientSize.y);
+	GType   mid              = (top+bottom)/2;
 	CrdType left             = 0.5*(clientSize.x - measureGroupSize * nrGroups);
 	Float64 topVal           = 0.0;
 	Float64 botVal           = 0.0;
@@ -78,7 +56,7 @@ bool ScaleBarBase::Draw(HDC dc, const GRect& clientAbsRect) const
 	GdiHandle<HBRUSH> brw( CreateSolidBrush( DmsColor2COLORREF(CombineRGB(0xFF, 0xFF, 0xFF)) ) );
 	GdiHandle<HBRUSH> br1( CreateSolidBrush( DmsColor2COLORREF(0) ) );
 	GdiHandle<HBRUSH> br2( CreateSolidBrush( DmsColor2COLORREF(CombineRGB(0xFF, 0, 0)) ) );
-	GPoint topLeft = clientAbsRect.TopLeft();
+	GPoint topLeft = clientAbsRect.LeftTop();
 	for (; nrGroups; --nrGroups)
 	{
 		{
@@ -127,23 +105,23 @@ bool ScaleBarBase::Draw(HDC dc, const GRect& clientAbsRect) const
 
 bool ScaleBarBase::MustUpdateView() const
 {
-	dms_assert(m_ViewPort);
-	CrdType          currFactor  = m_ViewPort->GetCurrZoomLevel();
+	assert(m_ViewPort);
+	CrdType          currFactor  = m_ViewPort->GetCurrWorldToDeviceZoomLevel();
 	const AbstrUnit* currCrdUnit = m_ViewPort->GetWorldCrdUnit();
 
 	return m_Factor != currFactor || m_CrdUnit != currCrdUnit;
 }
 
-bool ScaleBarBase::DoUpdateViewImpl() 
+bool ScaleBarBase::DoUpdateViewImpl(CrdPoint scaleFactor)
 {
-	dms_assert(m_ViewPort);
-	CrdType          currFactor  = m_ViewPort->GetCurrZoomLevel();
+	assert(m_ViewPort);
+	CrdType          currFactor  = m_ViewPort->GetCurrWorldToDeviceZoomLevel();
 	const AbstrUnit* currCrdUnit = m_ViewPort->GetWorldCrdUnit();
 
 	if (m_Factor == currFactor && m_CrdUnit == currCrdUnit)
 		return false;
-	m_Factor  = currFactor;  dms_assert(IsDefined(m_Factor));
-	m_CrdUnit = currCrdUnit; dms_assert(m_CrdUnit);
+	m_Factor  = currFactor;  assert(IsDefined(m_Factor));
+	m_CrdUnit = currCrdUnit; assert(m_CrdUnit);
 
 	m_MeasureSize = m_Factor;
 
@@ -176,7 +154,8 @@ bool ScaleBarBase::DoUpdateViewImpl()
 
 	UInt32 measureMantissa   = 1;
 	Int32  measureExponent   = 0;
-	const Float64 minMeasureSize = MIN_MEASURE_SIZE * m_ViewPort->GetSubPixelFactor();
+
+	const Float64 minMeasureSize = MIN_MEASURE_SIZE * scaleFactor.first;
 
 	m_MeasureGroupCount = 5;
 	while (m_MeasureSize >  2.0*minMeasureSize) { m_MeasureSize *= 0.1; --measureExponent; }
@@ -229,15 +208,18 @@ ActorVisitState ScaleBarObj::VisitSuppliers(SupplierVisitFlag svf, const ActorVi
 bool ScaleBarObj::Draw(GraphDrawer& d) const
 {
 	//const_cast<ScaleBarObj*>(this)->DoUpdateView();  // maybe size has changed the factor without invalidating the viewport
-	dms_assert(IsUpdated());
-	return m_Impl.Draw(d.GetDC(), TRect2GRect(GetCurrClientRelRect() + d.GetClientOffset()));
+	assert(IsUpdated());
+	auto absLogicalRect = GetCurrClientRelLogicalRect() + d.GetClientLogicalAbsPos();
+	return m_Impl.Draw(d.GetDC(), ScaleCrdRect(absLogicalRect, GetScaleFactors()));
 }
 
 void ScaleBarObj::DoUpdateView()
 {
 	m_Impl.GetViewPort()->UpdateView();
-	dms_assert(m_Impl.GetViewPort()->IsUpdated());
-	if (m_Impl.DoUpdateViewImpl())
+	assert(m_Impl.GetViewPort()->IsUpdated());
+
+	auto dv = GetDataView().lock();
+	if (dv && m_Impl.DoUpdateViewImpl(dv->GetScaleFactors()))
 		InvalidateDraw();
 }
 
@@ -260,37 +242,40 @@ void ScaleBarCaret::Reverse(HDC dc, bool newVisibleState)
 	if (newVisibleState)
 	{
 		DcMixModeSelector xxxDontXRor(dc, R2_COPYPEN);
-		m_Impl.DoUpdateViewImpl();
-		m_Impl.Draw(dc, GetCurrBoundingBox());
+		m_Impl.DoUpdateViewImpl(GetWindowDip2PixFactors(WindowFromDC(dc)));
+		m_Impl.Draw(dc, GetCurrDeviceExtents());
 	}
 }
 
-GRect ScaleBarCaret::GetCurrBoundingBox() const
+CrdRect ScaleBarCaret::GetCurrDeviceExtents() const
 {
-	return m_Rect;
+	return m_DeviceExtents;
 }
 
-TPoint ScaleBarBase::GetSize(Float64 subPixelFactor) const
+CrdPoint ScaleBarBase::GetLogicalSize() const
 {
-	return TPoint(250 * subPixelFactor, 48 * subPixelFactor);
-}	
+	return shp2dms_order<CrdType>(250, 48);
+}
 
-TRect ScaleBarBase::DetermineBoundingBox(const MovableObject* owner, Float64 subPixelFactor) const
+CrdRect ScaleBarBase::DetermineBoundingBox(const MovableObject* owner, CrdPoint subPixelFactors) const
 {
-	TRect rect = owner->GetCurrClientAbsRect();
-	MakeMax<Point<TType>>(rect.first, rect.second - GetSize(subPixelFactor));
+	auto rect = owner->GetCurrClientAbsDeviceRect();
+	auto logicalSize = GetLogicalSize();
+	auto scaleBarSize = ScaleCrdPoint(logicalSize, subPixelFactors);
+	MakeMax(rect.first.X(), rect.second.X() - scaleBarSize.X());
+	MakeMax(rect.first.Y(), rect.second.Y() - scaleBarSize.Y());
 	return rect;
 }
 
-void ScaleBarObj::DetermineAndSetBoundingBox(TPoint currTL, TPoint currPageSize, Float64 subPixelFactor)
+void ScaleBarObj::DetermineAndSetLogicalBoundingBox(CrdPoint currTL, CrdPoint currPageSize)
 {
-	SetClientRect( TRect(currPageSize - m_Impl.GetSize(subPixelFactor), currPageSize) - currTL );
+	SetClientRect( CrdRect(currPageSize - m_Impl.GetLogicalSize(), currPageSize) - currTL );
 	UpdateView();
 }
 
-void ScaleBarCaret::DetermineAndSetBoundingBox()
+void ScaleBarCaret::DetermineAndSetBoundingBox(CrdPoint scaleFactor)
 {
-	m_Rect = TRect2GRect( m_Impl.DetermineBoundingBox(m_Impl.GetViewPort(), m_Impl.GetViewPort()->GetSubPixelFactor()) );
+	m_DeviceExtents = m_Impl.DetermineBoundingBox(m_Impl.GetViewPort(), scaleFactor);
 }
 
 void ScaleBarCaret::Move(const AbstrCaretOperator& caretOper, HDC dc)
@@ -302,6 +287,14 @@ void ScaleBarCaret::Move(const AbstrCaretOperator& caretOper, HDC dc)
 
 void ScaleBarCaretOperator::operator() (AbstrCaret* c) const
 {
-	debug_cast<ScaleBarCaret*>(c)->DetermineAndSetBoundingBox();
-	c->SetStartPoint(GPoint(0, 0) );
+	assert(c);
+	auto sbc = dynamic_cast<ScaleBarCaret*>(c);
+	assert(sbc); if (!sbc) return;
+	auto vp = sbc->GetViewPort();
+	assert(vp); if (!vp) return;
+
+	auto dv = vp->GetDataView().lock(); if (!dv) return;
+
+	sbc->DetermineAndSetBoundingBox(dv->GetScaleFactors());
+	sbc->SetStartPoint(GPoint(0, 0) );
 }

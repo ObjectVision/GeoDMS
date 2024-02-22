@@ -1,31 +1,6 @@
-//<HEADER> 
-/*
-Data & Model Server (DMS) is a server written in C++ for DSS applications. 
-Version: see srv/dms/rtc/dll/src/RtcVersion.h for version info.
-
-Copyright (C) 1998-2004  YUSE GSO Object Vision BV. 
-
-Documentation on using the Data & Model Server software can be found at:
-http://www.ObjectVision.nl/DMS/
-
-See additional guidelines and notes in srv/dms/Readme-srv.txt 
-
-This library is free software; you can use, redistribute, and/or
-modify it under the terms of the GNU General Public License version 2 
-(the License) as published by the Free Software Foundation,
-provided that this entire header notice and readme-srv.txt is preserved.
-
-See LICENSE.TXT for terms of distribution or look at our web site:
-http://www.objectvision.nl/DMS/License.txt
-or alternatively at: http://www.gnu.org/copyleft/gpl.html
-
-This library is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
-General Public License for more details. However, specific warranties might be
-granted by an additional written contract for support, assistance and/or development
-*/
-//</HEADER>
+// Copyright (C) 1998-2023 Object Vision b.v. 
+// License: GNU GPL 3
+/////////////////////////////////////////////////////////////////////////////
 
 #pragma once
 
@@ -48,22 +23,70 @@ extern CommonOperGroup cog_Max;
 extern CommonOperGroup cog_First;
 extern CommonOperGroup cog_Last;
 
+
+inline void Assign(FPoint& lhs, const DPoint& rhs)
+{
+	lhs.first = rhs.first;
+	lhs.second = rhs.second;
+}
+
 template <typename T>
 struct null_wrap : private std::pair<T, bool>
 {
 	null_wrap()
 	{
-		dms_assert(!IsDefined());
+		assert(!IsDefined());
+	}
+	null_wrap(null_wrap<T>&& rhs) noexcept
+	{
+		Assign(this->first, std::move(rhs.first));
+		this->second = rhs.second;
+	}
+	null_wrap(const null_wrap<T>& rhs)
+	{
+		Assign(this->first, rhs.first);
+		this->second = rhs.second;
 	}
 	bool IsDefined() const { return this->second; };
-	operator typename param_type<T>::type () const { return this->first; }
 
-	void operator =(typename param_type<T>::type rhs)
+	auto value() const -> const T&
+	{ 
+		assert(IsDefined());
+		return this->first; 
+	}
+
+	void operator =(const null_wrap<T>& rhs)
 	{
-		this->first  = rhs;
+		Assign(this->first, rhs);
+		this->second = rhs.second;
+	}
+
+	void operator =(null_wrap<T>&& rhs) noexcept
+	{
+		Assign(this->first, std::move(rhs.first));
+		this->second = rhs.second;
+	}
+	void AssignValue(const T& rhs)
+	{
+		Assign(this->first, rhs);
 		this->second = true;
 	}
+	void AssignValue(T&& rhs)
+	{
+		Assign(this->first, rhs);
+		this->second = true;
+	}
+	template <typename T>
+	void operator =(const T&& rhs)
+	{
+		AssignValue(std::forward<T>(rhs));
+	}
+	      T* operator ->()       { assert(IsDefined()); return &this->first; }
+	const T* operator ->() const { assert(IsDefined()); return &this->first; }
 };
+
+template <typename T>
+inline constexpr bool IsDefined(const null_wrap<T>& v) { return v.IsDefined(); }
 
 template <typename T> struct DataArrayBase<null_wrap<T> > { typename T::dont_instantiate_this x; }; // DEBUG
 
@@ -73,14 +96,60 @@ null_wrap<T> UndefinedValue(const null_wrap<T>*)
 	return null_wrap<T>();
 }
 
-template <typename T>
-inline bool IsDefined(const null_wrap<T>& v)
+template<typename T>
+void MakeUndefined(null_wrap<T>& output)
 {
-	return v.IsDefined();
+	output = null_wrap<T>();
+}
+
+template<typename T>
+inline void Assign(SA_Reference<T> lhs, const null_wrap<std::vector<T>>& rhs)
+{
+	if (rhs.IsDefined())
+		lhs.assign(begin_ptr(rhs.value()), end_ptr(rhs.value()));
+	else
+		lhs.assign(Undefined());
+}
+
+inline void Assign(StringRef lhs, const null_wrap<SharedStr>& rhs)
+{
+	if (rhs.IsDefined())
+		lhs.assign(rhs->begin(), rhs->send());
+	else
+		lhs.assign(Undefined());
+}
+
+template <bit_size_t N, typename Block, typename BV>
+inline void Assign(bit_reference<N, Block> lhs, const null_wrap<BV>& rhs)
+{
+	if (rhs.IsDefined())
+		lhs = rhs.value();
+	else
+		lhs = 0;
+}
+
+template<typename T>
+void Assign(null_wrap<T>& output, const null_wrap<T>& rhs)
+{
+	output = rhs;
+}
+
+template<typename T, typename U>
+void Assign(null_wrap<T>& output, U&& rhs)
+{
+	if constexpr (can_be_undefined_v<std::remove_cvref_t<U>>)
+	{
+		if (!IsDefined(rhs))
+		{
+			MakeUndefined(output);
+			return;
+		}
+	}
+	output.AssignValue(rhs);
 }
 
 template <typename T>
-using nullable_t = std::conditional_t<has_undefines_v<T>, T, null_wrap<T>>;
+using nullable_t = std::conditional_t<has_undefines_v<T> && is_fixed_size_element_v<T>, T, null_wrap<T>>;
 
 // END MOVE
 
@@ -99,9 +168,9 @@ struct count_total_best
 	template <typename R>
 	static ConstUnitRef unit_creator(const AbstrOperGroup* gr, const ArgSeqType& args) { return CastUnit<R>(count_unit_creator(args)); }
 
-	void operator()(typename count_total_best::assignee_ref output, typename count_total_best::value_cseq1 input, bool hasUndefinedValues) const
+	void operator()(typename count_total_best::assignee_ref output, typename count_total_best::value_cseq1 input) const
 	{ 
-		count_best_total(output, input.begin(), input.end(), hasUndefinedValues);
+		count_best_total(output, input.begin(), input.end());
 	}
 };
 
@@ -191,12 +260,13 @@ struct first_total_best
 	template <typename R>
 	static ConstUnitRef unit_creator(const AbstrOperGroup* gr, const ArgSeqType& args) { return CastUnit<R>(arg1_values_unit(args)); }
 
-	void Init(typename first_total_best::assignee_ref output) const
+	using accumulator_type = nullable_t<T>;
+	accumulator_type InitialValue() const
 	{
-		MakeUndefined(output);
+		return UNDEFINED_VALUE(accumulator_type);
 	}
 
-	void operator()(typename first_total_best::assignee_ref output, typename first_total_best::value_cseq1 input, bool hasUndefinedValues) const
+	void operator()(auto&& output, typename first_total_best::value_cseq1 input) const
 	{ 
 		if (IsDefined(output))
 			return;
@@ -207,7 +277,7 @@ struct first_total_best
 		{
 			if (IsDefined(*i))
 			{
-				output = *i;
+				Assign(output, *i);
 				break;
 			}
 		}	
@@ -241,12 +311,14 @@ struct last_total_best
 	static ConstUnitRef unit_creator(const AbstrOperGroup* gr, const ArgSeqType& args) { return CastUnit<R>(arg1_values_unit(args)); }
 
 	using base_type = unary_total_accumulation<T, T>;
-	void Init(typename base_type::assignee_ref output) const
+
+	using accumulator_type = nullable_t<T>;
+	accumulator_type InitialValue() const
 	{
-		output = UNDEFINED_OR_ZERO(T);
+		return UNDEFINED_VALUE(accumulator_type);
 	}
 
-	void operator()(typename base_type::assignee_ref output, typename base_type::value_cseq1 input, bool hasUndefinedValues) const
+	void operator()(auto&& output, typename base_type::value_cseq1 input) const
 	{ 
 		auto
 			i = input.end(),
@@ -255,7 +327,7 @@ struct last_total_best
 		{
 			if (IsDefined(*--i))
 			{
-				output = *i;
+				Assign(output, *i);
 				break;
 			}
 		}
@@ -281,7 +353,7 @@ struct expectation_accumulation_type
 
 	operator exp_type() const
 	{
-		return div_func_best<sum_type, count_type>()(total, n); 
+		return div_func_best<div_type_t<T>, sum_type, count_type>()(total, n);
 	}
 
 	count_type n;
@@ -299,6 +371,10 @@ struct unary_assign_exp: unary_assign<expectation_accumulation_type<typename TUn
 
 	void operator () (typename unary_assign_exp::assignee_ref a, typename unary_assign_exp::arg1_cref x) const
 	{
+		if constexpr (has_undefines_v<typename unary_assign_exp::arg1_type>)
+			if (!IsDefined(x))
+				return;
+
 		++a.n;
 		SafeAccumulate(a.total, m_Func(x));
 	}
@@ -345,7 +421,7 @@ struct var_accumulation_type
 	typedef typename aggr_type<sum_type>::type var_type;
 	typedef typename scalar_of<var_type>::type var_scalar_type;
 
-	var_accumulation_type(): n(), x(), xx() {}
+	var_accumulation_type() {}
 	var_accumulation_type(count_type n_, sum_type x_, sum_type xx_): n(n_), x(x_), xx(xx_) {}
 
 	operator var_type() const
@@ -363,8 +439,8 @@ struct var_accumulation_type
 		return res;
 	}
 
-	count_type  n;
-	sum_type    x, xx;
+	count_type  n = 0;
+	sum_type    x = sum_type(), xx = sum_type();
 };
 
 template <typename T>
@@ -375,9 +451,12 @@ struct unary_assign_var: unary_assign<var_accumulation_type<T>, T>
 
 	void operator () (typename unary_assign_var::assignee_ref a, typename unary_assign_var::arg1_cref x) const
 	{
-		++ a.n;
-		SafeAccumulate(a.x, x);
-		a.xx += m_SqrFunc(x);
+		if (IsDefined(x))
+		{
+			++a.n;
+			SafeAccumulate(a.x, x);
+			a.xx += m_SqrFunc(x);
+		}
 	}
 
 private:

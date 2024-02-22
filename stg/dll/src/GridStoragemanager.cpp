@@ -1,41 +1,15 @@
-//<HEADER> 
-/*
-Data & Model Server (DMS) is a server written in C++ for DSS applications. 
-Version: see srv/dms/rtc/dll/src/RtcVersion.h for version info.
-
-Copyright (C) 1998-2004  YUSE GSO Object Vision BV. 
-
-Documentation on using the Data & Model Server software can be found at:
-http://www.ObjectVision.nl/DMS/
-
-See additional guidelines and notes in srv/dms/Readme-srv.txt 
-
-This library is free software; you can use, redistribute, and/or
-modify it under the terms of the GNU General Public License version 2 
-(the License) as published by the Free Software Foundation,
-provided that this entire header notice and readme-srv.txt is preserved.
-
-See LICENSE.TXT for terms of distribution or look at our web site:
-http://www.objectvision.nl/DMS/License.txt
-or alternatively at: http://www.gnu.org/copyleft/gpl.html
-
-This library is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
-General Public License for more details. However, specific warranties might be
-granted by an additional written contract for support, assistance and/or development
-*/
-//</HEADER>
-
 #include "StoragePCH.h"
+
+#if defined(CC_PRAGMAHDRSTOP)
 #pragma hdrstop
+#endif //defined(CC_PRAGMAHDRSTOP)
 
 #include "GridStorageManager.h"
 #include "TreeItemProps.h"
+#include "AbstrDataItem.h"
 
 #include "act/ActorVisitor.h"
 #include "act/MainThread.h"
-//#include "dbg/DebugContext.h"
 
 #include "Unit.h"
 
@@ -84,19 +58,22 @@ AbstrUnit* GetGridDataDomainRW(TreeItem * storageHolder)
 
 	AbstrDataItem* gridData = AsDynamicDataItem(storageHolder->GetSubTreeItemByID(GRID_DATA_ID));
 	if (gridData)
-		return InheritMutability(storageHolder, CheckedGridDomain(gridData));
+		return InheritMutability(storageHolder, CheckedGridDomain(gridData).get());
 	gdd = AsDynamicUnit(storageHolder->GetSubTreeItemByID(GRID_DOMAIN_ID));
 	if (gdd)
 		return gdd;
 
-	return storageHolder->GetStorageManager()->CreateGridDataDomain(storageHolder);
+	if (auto sm = storageHolder->GetStorageManager())
+		if (auto nmsm = dynamic_cast<NonmappableStorageManager*>(sm))
+			return nmsm->CreateGridDataDomain(storageHolder);
+	return nullptr;
 }
 
-const AbstrDataItem* GetPaletteData(const TreeItem * storageHolder)
+SharedDataItem GetPaletteData(const TreeItem * storageHolder)
 {
 	dms_assert(storageHolder);
 
-	return AsDynamicDataItem(storageHolder->GetConstSubTreeItemByID(PALETTE_DATA_ID));
+	return AsDynamicDataItem(storageHolder->GetConstSubTreeItemByID(PALETTE_DATA_ID).get());
 }
 
 // *****************************************************************************
@@ -113,9 +90,14 @@ AbstrUnit* AbstrGridStorageManager::CreateGridDataDomain(const TreeItem* storage
 	if (!m_GridDomainUnit)
 	{
 		m_GridDomainUnit = Unit<IPoint>::GetStaticClass()->CreateResultUnit(nullptr);
-
-		StorageReadHandle storageHandle(this, storageHolder, m_GridDomainUnit, StorageAction::read);
-		ReadUnitRange(*storageHandle.MetaInfo());
+		try {
+			StorageReadHandle storageHandle(this, storageHolder, m_GridDomainUnit, StorageAction::read, false);
+			ReadUnitRange(*storageHandle.MetaInfo());
+		}
+		catch (...)
+		{
+			m_GridDomainUnit = nullptr;
+		}
 	}
 	return m_GridDomainUnit;
 }
@@ -136,7 +118,7 @@ ActorVisitState AbstrGridStorageManager::VisitSuppliers(SupplierVisitFlag svf, c
 		if (gridDomain && visitor(gridDomain) == AVS_SuspendedOrFailed) // self might be readData or readCount that requires the Projection Info of GridData
 			return AVS_SuspendedOrFailed;
 	}
-	return AbstrStorageManager::VisitSuppliers(svf, visitor, storageHolder, self);
+	return NonmappableStorageManager::VisitSuppliers(svf, visitor, storageHolder, self);
 }
 
 //  --CLASSES------------------------------------------------------------------
@@ -220,20 +202,20 @@ bool HasGridDomain(const AbstrDataItem* adi)
 	return IsGridDomain( adi->GetAbstrDomainUnit() );
 }
 
-const AbstrDataItem* GetGridData(const TreeItem* storageHolder) // Look up the 'GridData' item
+SharedDataItem GetGridData(const TreeItem* storageHolder) // Look up the 'GridData' item
 {
 	dms_assert(storageHolder);
 
-	const AbstrDataItem* pData = AsDynamicDataItem(storageHolder->GetConstSubTreeItemByID(GRID_DATA_ID));
+	SharedDataItem pData = AsDynamicDataItem(storageHolder->GetConstSubTreeItemByID(GRID_DATA_ID));
 	if (pData && !GridDomain(pData)) 
-		pData = 0;
+		return nullptr;
 
 	return pData;
 }
 
-const AbstrDataItem* GetGridData(const TreeItem* storageHolder, bool projectionSpecsAvailable)
+SharedDataItem GetGridData(const TreeItem* storageHolder, bool projectionSpecsAvailable)
 {
-	const AbstrDataItem* pData = GetGridData(storageHolder);
+	auto pData = GetGridData(storageHolder);
 
 	// try storageHolder
 	if (!pData)
@@ -242,26 +224,26 @@ const AbstrDataItem* GetGridData(const TreeItem* storageHolder, bool projectionS
 		{
 			pData = AsDynamicDataItem(storageHolder);
 			if (pData && !GridDomain(pData)) 
-				pData = 0;
+				pData = nullptr;
 		}
 	}
 	return pData;
 }
 
-const AbstrUnit* GridDomain(const AbstrDataItem* adi)
+SharedUnit GridDomain(const AbstrDataItem* adi)
 {
-	dms_assert(adi);
-	const AbstrUnit* gridDomain = adi->GetAbstrDomainUnit();
-	dms_assert(gridDomain);
-	return IsGridDomain(gridDomain)
-		?	gridDomain
-		:	0;
+	assert(adi);
+	auto gridDomain = adi->GetAbstrDomainUnit();
+	assert(gridDomain);
+	if (!IsGridDomain(gridDomain))
+		return {};
+	return gridDomain;
 }
 
-const AbstrUnit* CheckedGridDomain(const AbstrDataItem* adi)
+SharedUnit CheckedGridDomain(const AbstrDataItem* adi)
 {
-	dms_assert(adi); // PRECONDITION
-	const AbstrUnit* gridDomain = GridDomain(adi);
+	assert(adi); // PRECONDITION
+	auto gridDomain = GridDomain(adi);
 	if (!gridDomain)
 		adi->throwItemErrorF(
 			"ViewPortInfo expected a GridDataItem but the domain of this DataItem is %s"

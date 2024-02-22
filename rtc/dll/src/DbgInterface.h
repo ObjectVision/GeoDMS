@@ -36,8 +36,12 @@ granted by an additional written contract for support, assistance and/or develop
 class CDebugContext;
 class CDebugLog;
 
-typedef bool (*CoalesceHeapFuncType)(std::size_t, CharPtr);
-typedef bool (*InternalCoalesceHeapFuncType)(std::size_t reqestedData);
+using CoalesceHeapFuncType = bool (*)(std::size_t, CharPtr);
+enum class MsgCategory : UInt8;
+
+
+struct MsgData;
+
 //----------------------------------------------------------------------
 // class  : ContextNotification
 //----------------------------------------------------------------------
@@ -46,14 +50,14 @@ typedef void (DMS_CONV *TContextNotification)(ClientHandle clientHandle, CharPtr
 
 void ProgressMsg(CharPtr msg);
 
-// The following typedef defines the type TMsgCallbackFunc
+// The following typedef defines the type MsgCallbackFunc
 // which is a pointer to a procedure type that takes 
 //		st: an integer representing a severity,
 //		msg: a PChar representing a DMS generated message
 //		clientHandle: a client suppplied DWord to identify a client object that handles the message
 
-typedef void (DMS_CONV *TMsgCallbackFunc)(ClientHandle clientHandle, SeverityTypeID st, CharPtr msg);
-typedef void (DMS_CONV *TASyncContinueCheck)();
+using MsgCallbackFunc = void (DMS_CONV *)(ClientHandle clientHandle, const MsgData* data);
+using TASyncContinueCheck = void (DMS_CONV *)();
 
 RTC_CALL void MustCoalesceHeap(SizeT size);
 
@@ -63,8 +67,8 @@ RTC_CALL void       DMS_CONV DMS_SetContextNotification(TContextNotification cnF
 
 RTC_CALL void       DMS_CONV DMS_SetASyncContinueCheck(TASyncContinueCheck asyncContinueCheckFunc);
 
-RTC_CALL void       DMS_CONV DMS_RegisterMsgCallback(TMsgCallbackFunc fcb, ClientHandle clientHandle);
-RTC_CALL void       DMS_CONV DMS_ReleaseMsgCallback(TMsgCallbackFunc fcb, ClientHandle clientHandle);
+RTC_CALL void       DMS_CONV DMS_RegisterMsgCallback(MsgCallbackFunc fcb, ClientHandle clientHandle);
+RTC_CALL void       DMS_CONV DMS_ReleaseMsgCallback(MsgCallbackFunc fcb, ClientHandle clientHandle);
 
 RTC_CALL CDebugLog* DMS_CONV DBG_DebugLog_Open(CharPtr fileName);
 RTC_CALL void       DMS_CONV DBG_DebugLog_Close(CDebugLog*);
@@ -78,6 +82,8 @@ RTC_CALL bool       DMS_CONV DMS_CoalesceHeap(std::size_t requiredSize);
 }
 
 // not called from outside
+
+void MsgDispatch(SeverityTypeID st, MsgCategory msgCat, CharPtr msg);
 
 RTC_CALL void DMS_ASyncContinueCheck();
 RTC_CALL void DBG_TraceStr(CharPtr msg);

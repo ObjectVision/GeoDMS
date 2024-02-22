@@ -27,7 +27,11 @@ granted by an additional written contract for support, assistance and/or develop
 */
 //</HEADER>
 #include "StoragePCH.h"
+#include "ImplMain.h"
+
+#if defined(CC_PRAGMAHDRSTOP)
 #pragma hdrstop
+#endif //defined(CC_PRAGMAHDRSTOP)
 
 // CompoundStorageManager.cpp: implementation of the CompoundStorageManager class.
 //
@@ -306,7 +310,7 @@ std::unique_ptr<OutStreamBuff> CompoundStorageManager::DoOpenOutStream(const Sto
 	dms_assert(!m_IsReadOnly);
 	dms_assert(DoesExist(smi.StorageHolder()));
 
-	reportF(SeverityTypeID::ST_MajorTrace, "Write cfs(%s,%s)", GetNameStr().c_str(), path);
+	reportF(MsgCategory::storage_write, SeverityTypeID::ST_MajorTrace, "Write cfs(%s,%s)", GetNameStr().c_str(), path);
 
 	// create new Compound storage file
 	SharedPtr<cfsptr<IStream> > stream(GetStream(path, true));
@@ -318,7 +322,7 @@ std::unique_ptr<OutStreamBuff> CompoundStorageManager::DoOpenOutStream(const Sto
 
 std::unique_ptr<InpStreamBuff> CompoundStorageManager::DoOpenInpStream(const StorageMetaInfo&, CharPtr path) const
 {
-	reportF(SeverityTypeID::ST_MajorTrace, "Read  cfs(%s,%s)", GetNameStr().c_str(), path);
+	reportF(MsgCategory::storage_read, SeverityTypeID::ST_MajorTrace, "Read  cfs(%s,%s)", GetNameStr().c_str(), path);
 
 	dms_assert(IsOpen());
 

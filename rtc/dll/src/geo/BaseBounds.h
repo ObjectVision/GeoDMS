@@ -164,7 +164,7 @@ inline void Assign           (Bool& a, Bool  b) { a = b; }
 // Section      : Void
 //----------------------------------------------------------------------
 
-inline void Assign(Void& lhs, Void rhs) { }
+inline void Assign(Void& /*lhs*/, Void /*rhs*/) { }
 
 [[noreturn]] RTC_CALL Float64 AsFloat64(const Void& ); // illegal abstract
 
@@ -190,8 +190,8 @@ inline UInt8  Cardinality(Int8   i) { return i; }
 
 void NeverLinkThis(); // this function is never defined, so it can only be used in functions that should never be called, such as Copy Constructors
 
-inline Float32 Cardinality(Float32 i) { throwIllegalAbstract(MG_POS, "Cardiality"); }
-inline Float64 Cardinality(Float64 i) { throwIllegalAbstract(MG_POS, "Cardiality"); }
+inline Float32 Cardinality(Float32) { throwIllegalAbstract(MG_POS, "Cardiality"); }
+inline Float64 Cardinality(Float64) { throwIllegalAbstract(MG_POS, "Cardiality"); }
 
 
 //----------------------------------------------------------------------

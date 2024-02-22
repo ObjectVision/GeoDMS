@@ -48,19 +48,16 @@ void MG_TRACE(CharPtr msg, Args&&... args)
 	DBG_TraceStr(mgFormat2string<Args...>(msg, std::forward<Args>(args)...).c_str());
 }
 
-#	define  DMS_INIT_COUT            CDebugCOutHandle    debugCout
 #	define  DMS_START(cls, fnc, act) CDebugContextHandle debugContext(cls, fnc, act)
 #	define  DMS_TRACE(s)             if (debugContext.m_Active) { MG_TRACE s; }
 #	define  DMS_TEST(name, cond)     DMS_Test(name, #cond, cond) 
 
 #if defined( MG_DEBUG )
-#	define  DBG_INIT_COUT            DMS_INIT_COUT
 #	define  DBG_START(cls, fnc, act) DMS_START(cls, fnc, act)
 #	define  MGD_TRACE(s)             MG_TRACE(s)
 #	define  DBG_TRACE(s)             DMS_TRACE(s)
 #	define  DBG_TEST(name, cond)     DMS_TEST(name, cond) 
 #else
-#	define  DBG_INIT_COUT
 #	define  DBG_START(a, b, act)
 #	define	MGD_TRACE(s)
 #	define  DBG_TRACE(s)

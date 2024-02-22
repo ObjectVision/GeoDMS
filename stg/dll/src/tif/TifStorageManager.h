@@ -33,7 +33,7 @@ granted by an additional written contract for support, assistance and/or develop
 
 #include "StgBase.h"
 #include "GridStorageManager.h"
-#include "geo/Color.h"
+#include "geo/color.h"
 #include "ptr/OwningPtr.h"
 
 // hidden implementation
@@ -53,15 +53,15 @@ struct TiffSM : AbstrGridStorageManager
 	void DoUpdateTree(const TreeItem* storageHolder, TreeItem* curr, SyncMode sm) const override;
 	bool ReadUnitRange(const StorageMetaInfo& smi) const override;
 
-	bool ReadDataItem (const StorageMetaInfo& smi, AbstrDataObject* borrowedReadResultHolder, tile_id t) override;
+	bool ReadDataItem (StorageMetaInfoPtr smi, AbstrDataObject* borrowedReadResultHolder, tile_id t) override;
 	bool WriteDataItem(StorageMetaInfoPtr&& smiHolder) override;
 
 	bool CanWriteTiles() const override { return true; }
 
 private:
-	void ReadGridCounts(const TifImp& imp, const StgViewPortInfo& vpi, AbstrDataObject* borrowedReadResultHolder, tile_id t);
-	void ReadGridData  (const TifImp& imp, const StgViewPortInfo& vpi, AbstrDataObject* borrowedReadResultHolder, tile_id t);
-	bool ReadPalette   (const TifImp& imp, AbstrDataObject* ado);
+	void ReadGridCounts(const StgViewPortInfo& vpi, AbstrDataItem* adi, AbstrDataObject* borrowedReadResultHolder, tile_id t);
+	void ReadGridData  (const StgViewPortInfo& vpi, AbstrDataItem* adi, AbstrDataObject* borrowedReadResultHolder, tile_id t);
+	bool ReadPalette   (AbstrDataObject* ado);
 
 	void WriteGridData(TifImp& imp, const StgViewPortInfo& vpi, const TreeItem* storageHolder, const AbstrDataItem* adi, const ValueClass* streamType);
 	void WritePalette (TifImp& imp, const TreeItem* storageHolder, const AbstrDataItem* adi);

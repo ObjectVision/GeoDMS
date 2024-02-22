@@ -47,7 +47,7 @@ granted by an additional written contract for support, assistance and/or develop
 #include "ser/StringStream.h"
 #include "ser/VectorStream.h"
 #include "geo/StringBounds.h"
-#include "utl/instantiate.h"
+#include "utl/Instantiate.h"
 
 #include "RtcTypeLists.h"
 #include "utl/TypeListOper.h"
@@ -252,7 +252,7 @@ IMPL_RTTI_METACLASS(ValueClass, "VALUE", nullptr);
 template <typename T, typename F>
 struct get_field_type
 {
-	typedef ValueWrap<F> type;
+	using type = ValueWrap<F>;
 };
 
 template <typename T>
@@ -263,6 +263,8 @@ struct get_field_type<T, T>
 		static ValueClass* GetStaticClass() { return nullptr; }
 	};
 };
+
+template <typename T, typename F> using get_field_type_t = typename get_field_type<T, F>::type;
 
 template <bool IsNumeric, typename T>
 struct GetExtremesAsFloat64
@@ -284,7 +286,7 @@ template <typename T> ValueClassID GetTypeID();
 typedef SharedStr String;
 #define INSTANTIATE(T) \
 	template <> CharPtr      GetScriptName<T>() { return #T; } \
-	template <> ValueClassID GetTypeID    <T>() { return VT_##T; }
+	template <> ValueClassID GetTypeID    <T>() { return ValueClassID::VT_##T; }
 
 INSTANTIATE_ALL_VC
 
@@ -292,13 +294,9 @@ INSTANTIATE_ALL_VC
 
 #define INSTANTIATE(T) \
 	template <> CharPtr      GetScriptName<Range<T> >() { return "Range" #T;  } \
-	template <> ValueClassID GetTypeID    <Range<T> >() { return VT_Range##T; }
+	template <> ValueClassID GetTypeID    <Range<T> >() { return ValueClassID::VT_Range##T; }
 
 INSTANTIATE_NUM_ORG
-//INSTANTIATE_UINTS_ORG 
-//INSTANTIATE_SINTS
-//INSTANTIATE_INTS_ORG
-//INSTANTIATE_FLOATS
 
 #undef INSTANTIATE
 
@@ -317,20 +315,20 @@ const ValueClass* ValueWrap<T>::GetStaticClass()
 		s_StaticCls.assign(
 			new ValueClass(
 				CreateFunc<ValueWrap<T> >, inviterFunc, GetTokenID_st(GetScriptName<T>() ), GetTypeID<T>(),
-				Int32(is_binary_streamable<T>::value ? sizeof(T)      : -1),
-				Int32(is_binary_streamable<T>::value ? nrbits_of_v<T> :  -1),
-				dimension_of<field_of<T>::type>::value,
+				Int32(has_fixed_elem_size_v<T> ? sizeof(T)      : -1),
+				Int32(has_fixed_elem_size_v<T> ? nrbits_of_v<T> :  -1),
+				dimension_of<field_of_t<T>>::value,
 				is_numeric_v<T>,
 				is_integral<T>::value,
 				is_signed<T>::value,
-				composition_of<T>::value,
+				composition_of_v<T>,
 				(const Byte*)(&s_UndefinedValue),
 				is_numeric_v<T> ? ::AsFloat64(s_UndefinedValue):0.0,
 				GetExtremesAsFloat64<is_numeric_v<T>, T>::MaxValue(),
 				GetExtremesAsFloat64<is_numeric_v<T>, T>::MinValue(),
-				get_field_type<T, field_of <T>::type>::type::GetStaticClass(),
-				get_field_type<T, scalar_of<T>::type>::type::GetStaticClass(),
-				get_field_type<T, cardinality_type<T>::type>::type::GetStaticClass()
+				get_field_type_t<T, field_of_t<T>>::GetStaticClass(),
+				get_field_type_t<T, scalar_of_t<T>>::GetStaticClass(),
+				get_field_type_t<T, cardinality_type_t<T>>::GetStaticClass()
 			)
 		);
 	}
@@ -361,14 +359,14 @@ RTC_CALL FormattedOutStream& operator <<(FormattedOutStream& os, const ValueClas
 
 const ValueClass* ValueClass::GetUnsignedClass() const
 {
-	dms_assert(IsIntegral() && IsSigned()); 
-	return FindByValueClassID(ValueClassID(m_ValueClassID-1));
+	assert(IsIntegral() && IsSigned()); 
+	return FindByValueClassID(ValueClassID(UInt8(m_ValueClassID)-1));
 }
 
 const ValueClass* ValueClass::GetSignedClass()   const
 {
 	dms_assert(IsIntegral() && !IsSigned()); 
-	return FindByValueClassID(ValueClassID(m_ValueClassID+1));
+	return FindByValueClassID(ValueClassID(UInt8(m_ValueClassID)+1));
 }
 
 const ValueClass* ValueClass::GetCrdClass() const // ord version for Countable
@@ -401,7 +399,7 @@ const ValueClass* ValueClass::FindByValueClassID(ValueClassID vt)
 {
 	switch (vt) {
 
-#	define INSTANTIATE(T) case VT_##T:  return ValueWrap<T> ::GetStaticClass();
+#	define INSTANTIATE(T) case ValueClassID::VT_##T:  return ValueWrap<T> ::GetStaticClass();
 
 	INSTANTIATE_ALL_VC
 
@@ -426,7 +424,7 @@ RTC_CALL ValueClassID DMS_CONV DMS_ValueType_GetID(const ValueClass* vc)
 		ObjectContextHandle checkPtr(vc, ValueClass::GetStaticClass(), "DMS_ValueType_GetID");
 		return vc->GetValueClassID();
 	DMS_CALL_END
-	return VT_Unknown;
+	return ValueClassID::VT_Unknown;
 }
 
 RTC_CALL Float64  DMS_CONV DMS_ValueType_GetUndefinedValueAsFloat64(const ValueClass* vc)

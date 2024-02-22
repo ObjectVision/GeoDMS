@@ -37,7 +37,7 @@ granted by an additional written contract for support, assistance and/or develop
 
 // The priority of an error is given by the following classification:
 
-enum class SeverityTypeID {
+enum class SeverityTypeID : UInt8 {
 	ST_MinorTrace = 0,
 	ST_MajorTrace = 1,
 	ST_Warning    = 2,
@@ -46,5 +46,18 @@ enum class SeverityTypeID {
 	ST_DispError  = 5,
 	ST_Nothing    = 6
 };
+
+enum class MsgCategory : UInt8 {
+	progress,
+	storage_read,
+	storage_write,
+	background_layer_connection,
+	background_layer_request,
+	other,
+	memory,
+	commands,
+};
+
+RTC_CALL CharPtr AsString(MsgCategory);
 
 #endif // __RTC_DBG_SEVERITYTYPE_H

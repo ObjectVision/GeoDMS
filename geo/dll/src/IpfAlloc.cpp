@@ -1,34 +1,12 @@
-//<HEADER> 
-/*
-Data & Model Server (DMS) is a server written in C++ for DSS applications. 
-Version: see srv/dms/rtc/dll/src/RtcVersion.h for version info.
-
-Copyright (C) 1998-2004  YUSE GSO Object Vision BV. 
-
-Documentation on using the Data & Model Server software can be found at:
-http://www.ObjectVision.nl/DMS/
-
-See additional guidelines and notes in srv/dms/Readme-srv.txt 
-
-This library is free software; you can use, redistribute, and/or
-modify it under the terms of the GNU General Public License version 2 
-(the License) as published by the Free Software Foundation,
-provided that this entire header notice and readme-srv.txt is preserved.
-
-See LICENSE.TXT for terms of distribution or look at our web site:
-http://www.objectvision.nl/DMS/License.txt
-or alternatively at: http://www.gnu.org/copyleft/gpl.html
-
-This library is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
-General Public License for more details. However, specific warranties might be
-granted by an additional written contract for support, assistance and/or development
-*/
-//</HEADER>
+// Copyright (C) 1998-2023 Object Vision b.v. 
+// License: GNU GPL 3
+/////////////////////////////////////////////////////////////////////////////
 
 #include "GeoPCH.h"
+
+#if defined(CC_PRAGMAHDRSTOP)
 #pragma hdrstop
+#endif //defined(CC_PRAGMAHDRSTOP)
 
 #include "DataArray.h"
 #include "CheckedDomain.h"
@@ -546,6 +524,26 @@ namespace
 	
 	SpecialOperGroup ipfGroup("ipf_alloc", 10, ipf_oap);
 	IterativeProportionalFittingOperator<Int32> ipf(&ipfGroup);
+
+	CharPtr rewriteObsoleteWarning = "claim correction related rewrite rules have been removed from RewriteExpr.lsp";
+
+	Obsolete< CommonOperGroup > whatever[] =
+	{
+		Obsolete< CommonOperGroup >(rewriteObsoleteWarning, "claim_div", oper_policy::better_not_in_meta_scripting),
+//		Obsolete< CommonOperGroup >(rewriteObsoleteWarning, "claim_divF32", oper_policy::better_not_in_meta_scripting),
+		Obsolete< CommonOperGroup >(rewriteObsoleteWarning, "claim_divF64", oper_policy::better_not_in_meta_scripting),
+		Obsolete< CommonOperGroup >(rewriteObsoleteWarning, "claim_divF32D", oper_policy::better_not_in_meta_scripting),
+		Obsolete< CommonOperGroup >(rewriteObsoleteWarning, "claim_corr", oper_policy::better_not_in_meta_scripting),
+//		Obsolete< CommonOperGroup >(rewriteObsoleteWarning, "claim_corrF32", oper_policy::better_not_in_meta_scripting),
+		Obsolete< CommonOperGroup >(rewriteObsoleteWarning, "claim_corrF32D", oper_policy::better_not_in_meta_scripting),
+		Obsolete< CommonOperGroup >(rewriteObsoleteWarning, "claim_corrF32DL", oper_policy::better_not_in_meta_scripting),
+
+		Obsolete< CommonOperGroup >(rewriteObsoleteWarning, "claim_minmax_corrF32", oper_policy::better_not_in_meta_scripting),
+		Obsolete< CommonOperGroup >(rewriteObsoleteWarning, "claim_minmax_corrF64", oper_policy::better_not_in_meta_scripting),
+
+		Obsolete< CommonOperGroup >(rewriteObsoleteWarning, "claim_minmax_corrF32D", oper_policy::better_not_in_meta_scripting),
+		Obsolete< CommonOperGroup >(rewriteObsoleteWarning, "claim_minmax_corrF32L", oper_policy::better_not_in_meta_scripting)
+	};
 }
 
 /******************************************************************************/

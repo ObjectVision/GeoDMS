@@ -1,37 +1,17 @@
-//<HEADER> 
-/*
-Data & Model Server (DMS) is a server written in C++ for DSS applications. 
-Version: see srv/dms/rtc/dll/src/RtcVersion.h for version info.
-
-Copyright (C) 1998-2004  YUSE GSO Object Vision BV. 
-
-Documentation on using the Data & Model Server software can be found at:
-http://www.ObjectVision.nl/DMS/
-
-See additional guidelines and notes in srv/dms/Readme-srv.txt 
-
-This library is free software; you can use, redistribute, and/or
-modify it under the terms of the GNU General Public License version 2 
-(the License) as published by the Free Software Foundation,
-provided that this entire header notice and readme-srv.txt is preserved.
-
-See LICENSE.TXT for terms of distribution or look at our web site:
-http://www.objectvision.nl/DMS/License.txt
-or alternatively at: http://www.gnu.org/copyleft/gpl.html
-
-This library is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
-General Public License for more details. However, specific warranties might be
-granted by an additional written contract for support, assistance and/or development
-*/
-//</HEADER>
+// Copyright (C) 1998-2023 Object Vision b.v. 
+// License: GNU GPL 3
+/////////////////////////////////////////////////////////////////////////////
 
 #include "GeoPCH.h"
+
+#if defined(CC_PRAGMAHDRSTOP)
 #pragma hdrstop
+#endif //defined(CC_PRAGMAHDRSTOP)
+
+#include "async.h"
 
 #include "mci/CompositeCast.h"
-#include "mth/MathLib.h"
+#include "mth/Mathlib.h"
 #include "geo/PointOrder.h"
 #include "ser/AsString.h"
 #include "ser/RangeStream.h"
@@ -50,6 +30,11 @@ granted by an additional written contract for support, assistance and/or develop
 //									ConvertAttrToPointOperator
 // *****************************************************************************
 
+enum class convert_order_type { 
+	xy_order, yx_order, cfg_order 
+,	traditional_gis_order = xy_order
+};
+
 template <class T>
 class ConvertAttrToPointOperator : public TernaryOperator
 {
@@ -58,13 +43,16 @@ class ConvertAttrToPointOperator : public TernaryOperator
 	typedef DataArray<T>                   Arg2Type;	
 	typedef Unit<PointType>	               Arg3Type;
 	typedef DataArray<PointType>           ResultType;
-			
+
+	convert_order_type m_COT = convert_order_type::traditional_gis_order;
+
 public:
-	ConvertAttrToPointOperator(AbstrOperGroup* gr, UInt32 nrArgs)
+	ConvertAttrToPointOperator(AbstrOperGroup* gr, arg_index nrArgs, convert_order_type cot)
 		:	TernaryOperator(gr, 
 				ResultType::GetStaticClass(), 
 				Arg1Type::GetStaticClass(), Arg2Type::GetStaticClass(), Arg3Type::GetStaticClass()
 			) 
+		,	m_COT(cot)
 	{
 		if (nrArgs == 2)
 			--m_ArgClassesEnd;
@@ -76,40 +64,44 @@ public:
 		if (resultHolder)
 			return;
 
-		const AbstrDataItem* arg1A = AsDataItem(args[0]);
-		const AbstrDataItem* arg2A = AsDataItem(args[1]);
-		dms_assert(arg1A);
-		dms_assert(arg2A);
+		const AbstrDataItem* arg1A = AsDataItem(args[0]); assert(arg1A);
+		const AbstrDataItem* arg2A = AsDataItem(args[1]); assert(arg2A);
 
-		const Arg3Type* arg3 = debug_cast<const Arg3Type*>
-			(
-			(args.size() > 2)
-				? GetItem(args[2])
-				: Arg3Type::GetStaticClass()->CreateDefault()
-				);
-		dms_assert(arg3);
+		auto arg3A = (args.size() > 2)
+			? GetItem(args[2])
+			: Arg3Type::GetStaticClass()->CreateDefault();
+		assert(arg3A);
+
+		const Arg3Type* arg3 = debug_cast<const Arg3Type*>(arg3A); assert(arg3);
 
 		const AbstrUnit* entity1 = arg1A->GetAbstrDomainUnit();
 		const AbstrUnit* entity2 = arg2A->GetAbstrDomainUnit();
 		entity1->UnifyDomain(entity2, "e1", "e2", UM_Throw);
 
 		resultHolder = CreateCacheDataItem(entity1, arg3);
-		dms_assert(resultHolder);
+		assert(resultHolder);
 	}
 
-	bool CalcResult(TreeItemDualRef& resultHolder, const ArgRefs& args, OperationContext*, Explain::Context* context = nullptr) const override
+	bool CalcResult(TreeItemDualRef& resultHolder, ArgRefs args, std::vector<ItemReadLock> readLocks, OperationContext*, Explain::Context* context = nullptr) const override
 	{
 		dms_assert(resultHolder);
 
 		const AbstrDataItem* arg1A = AsDataItem(args[0]);
 		const AbstrDataItem* arg2A = AsDataItem(args[1]);
-		dms_assert(arg1A); 
-		dms_assert(arg2A); 
+		assert(arg1A); 
+		assert(arg2A); 
 
 		const AbstrUnit* entity1 = arg1A->GetAbstrDomainUnit();
 
 		// GROTE WISSELTRUUK
-		if (g_cfgColFirst != dms_order_tag::col_first)
+		bool colFirst = false; 
+		switch (m_COT)
+		{
+			case convert_order_type::xy_order:  colFirst = true; break;
+			case convert_order_type::yx_order:  colFirst = false; break;
+			case convert_order_type::cfg_order: colFirst = g_cfgColFirst; break;
+		}
+		if (colFirst != dms_order_tag::col_first)
 		{
 			omni::swap(arg1A, arg2A);
 		}
@@ -117,48 +109,73 @@ public:
 		DataReadLock arg1Lock(arg1A);
 		DataReadLock arg2Lock(arg2A);
 
-		TreeItem* res = resultHolder;
-		DataWriteLock resLock(AsDataItem(res));
+		AbstrDataItem* res = AsDataItem(resultHolder.GetNew());
+		auto tn = entity1->GetNrTiles();
 
-		for (tile_id t = 0, tn = entity1->GetNrTiles(); t!=tn; ++t)
+		if (IsMultiThreaded3() && (tn > 1) && (LTF_ElementWeight(arg1A) + LTF_ElementWeight(arg2A) <= LTF_ElementWeight(res)))
+			res->m_DataObject = CreateFutureTileFunctor(res, res->GetLazyCalculatedState(), res->GetAbstrValuesUnit(), arg1A, arg2A);
+		else
 		{
-			auto arg1Data = const_array_cast<T>(arg1A)->GetLockedDataRead(t);
-			auto arg2Data = const_array_cast<T>(arg2A)->GetLockedDataRead(t);
+			DataWriteLock resLock(res);
+			auto resTileFunctor = mutable_array_cast<PointType>(resLock);
+			auto arg1 = const_array_cast<T>(arg1A);
+			auto arg2 = const_array_cast<T>(arg2A);
 
-			auto resData = mutable_array_cast<PointType>(resLock)->GetWritableTile(t);
-
-			auto cardinality = entity1->GetTileCount(t);
-
-			dms_assert(arg1Data.size() == cardinality);
-			dms_assert(arg2Data.size() == cardinality);
-			dms_assert(resData.size() == cardinality);
-
-			auto
-				b1 = arg1Data.begin(),
-				e1 = arg1Data.end();
-			auto b2 = arg2Data.begin();
-			auto br = resData.begin();
-
-
-			if	(	arg1A->HasUndefinedValues()
-				||	arg2A->HasUndefinedValues())
-			{
-				for ( ; b1 != e1; ++br, ++b1, ++b2)
-					if (!IsDefined(*b1) || !IsDefined(*b2))
-						MakeUndefined(*br);
-					else
-						*br = PointType(*b1, *b2);
-			}
-			else
-				for ( ; b1 != e1; ++br, ++b1, ++b2)
+			parallel_tileloop(tn, [this, &resLock, arg1, arg2, resTileFunctor](tile_id t)
 				{
-					dms_assert(IsDefined(*b1) && IsDefined(*b2));
-					*br = PointType(*b1, *b2);
-				}
-		}
-		resLock.Commit();
+					auto arg1Data = arg1->GetTile(t);
+					auto arg2Data = arg2->GetTile(t);
 
+					auto resData = resTileFunctor->GetWritableTile(t);
+					this->CalcTile(resData, arg1Data, arg2Data);
+				}
+			);
+			resLock.Commit();
+		}
 		return true;
+	}
+
+	SharedPtr<const AbstrDataObject> CreateFutureTileFunctor(SharedPtr<AbstrDataItem> resultAdi, bool lazy, const AbstrUnit* valuesUnitA, const AbstrDataItem* arg1A, const AbstrDataItem* arg2A) const
+	{
+		auto tileRangeData = AsUnit(arg1A->GetAbstrDomainUnit()->GetCurrRangeItem())->GetTiledRangeData();
+		auto valuesUnit = debug_cast<const Unit<PointType>*>(valuesUnitA);
+		auto arg1 = MakeShared(const_array_cast<T>(arg1A)); assert(arg1);
+		auto arg2 = MakeShared(const_array_cast<T>(arg2A)); assert(arg2);
+
+		using prepare_data = std::pair<SharedPtr<typename Arg1Type::future_tile>, SharedPtr<typename Arg2Type::future_tile>>;
+		auto futureTileFunctor = make_unique_FutureTileFunctor<PointType, prepare_data, false>(resultAdi, lazy, tileRangeData, get_range_ptr_of_valuesunit(valuesUnit)
+			, [arg1, arg2](tile_id t) { return prepare_data{ arg1->GetFutureTile(t), arg2->GetFutureTile(t) }; }
+			, [this](sequence_traits<PointType>::seq_t resData, prepare_data futureData)
+			{
+				auto futureTileA = throttled_async([&futureData] { return futureData.first->GetTile();  });
+				auto tileB = futureData.second->GetTile();
+				this->CalcTile(resData, futureTileA.get().get_view(), tileB.get_view());
+			}
+			MG_DEBUG_ALLOCATOR_SRC("Point tile functor")
+			);
+
+		return futureTileFunctor.release();
+	}
+
+	// conform BinaryAttrOper
+	void CalcTile(sequence_traits<PointType>::seq_t resData, sequence_traits<T>::cseq_t arg1Data, sequence_traits<T>::cseq_t arg2Data) const
+	{
+		auto cardinality = arg1Data.size();
+		assert(arg2Data.size() == cardinality);
+		assert(resData.size() == cardinality);
+
+		auto
+			b1 = arg1Data.begin(),
+			e1 = arg1Data.end();
+		auto b2 = arg2Data.begin();
+		auto br = resData.begin();
+
+
+		for (; b1 != e1; ++br, ++b1, ++b2)
+			if (!IsDefined(*b1) || !IsDefined(*b2))
+				MakeUndefined(*br);
+			else
+				*br = PointType(*b1, *b2);
 	}
 };
 
@@ -218,11 +235,8 @@ public:
 			UInt32 size    = Cardinality(Size(rect));
 			UInt32 nrCol   = Size(rect).Col();
 
-//			SPoint topLeft = rect.first;
-//			SPoint botRight= rect.second;
-			
-			dms_assert(rect.first.first  <= rect.second.first);
-			dms_assert(rect.first.second <= rect.second.second);
+			assert(rect.first.first  <= rect.second.first);
+			assert(rect.first.second <= rect.second.second);
 
 			TreeItem* res = resultHolder;
 			DataWriteLock resLock(debug_cast<AbstrDataItem*>(res));
@@ -291,7 +305,14 @@ struct point2colFunc : unary_func<Scalar, Point<Scalar> >
 
 namespace 
 {
-	CommonOperGroup cog_Point(token::point), cog_PointRow("pointrow"), cog_PointCol("pointcol");
+	Obsolete< CommonOperGroup> cog_Point("obsolete function point called.\n"
+		"Use point_yx operation (or point_xy if ColRowOrder was set in Config.ini) to unambiguously define points.\n"
+		, token::point);
+
+	CommonOperGroup cog_PointRow("pointrow"), cog_PointCol("pointcol");
+
+	CommonOperGroup
+		cog_PointXY("point_xy"), cog_PointYX("point_yx"), cog_GetX("get_x"), cog_GetY("get_y");
 
 	template <typename P>
 	struct PointOpers
@@ -299,20 +320,28 @@ namespace
 		typedef typename scalar_of<P>::type S;
 
 		PointOpers()
-			: ca2Point(&cog_Point, 2)
-			, ca3Point(&cog_Point, 3)
+			: ca2Point  (&cog_Point,   2, convert_order_type::cfg_order)
+			, ca2PointXY(&cog_PointXY, 2, convert_order_type::xy_order)
+			, ca2PointYX(&cog_PointYX, 2, convert_order_type::yx_order)
+			, ca3Point  (&cog_Point,   3, convert_order_type::cfg_order)
+			, ca3PointXY(&cog_PointXY, 3, convert_order_type::xy_order)
+			, ca3PointYX(&cog_PointYX, 3, convert_order_type::yx_order)
 			, ca2Row(&cog_PointRow)
 			, ca2Col(&cog_PointCol)
+			, ca2X(&cog_GetX)
+			, ca2Y(&cog_GetY)
 		{}
 
 		ConvertAttrToPointOperator<S> ca2Point, ca3Point;
+		ConvertAttrToPointOperator<S> ca2PointXY, ca3PointXY;
+		ConvertAttrToPointOperator<S> ca2PointYX, ca3PointYX;
 
-		UnaryAttrSpecialFuncOperator<point2rowFunc<S> > ca2Row;
-		UnaryAttrSpecialFuncOperator<point2colFunc<S> > ca2Col;
+		UnaryAttrSpecialFuncOperator<point2rowFunc<S> > ca2Row, ca2Y;
+		UnaryAttrSpecialFuncOperator<point2colFunc<S> > ca2Col, ca2X;
 	};
 	//	oper_arg_policy oap_point[3] = { oper_arg_policy::calc_as_result, oper_arg_policy::calc_as_result, oper_arg_policy::calc_never };
-	tl_oper::inst_tuple<typelists::points, PointOpers<_> > pointOpers;
+	tl_oper::inst_tuple_templ<typelists::points, PointOpers > pointOpers;
 
-	CommonOperGroup dist2("dist2");       
+	CommonOperGroup dist2("dist2", oper_policy::better_not_in_meta_scripting);
 	Dist2Operator dist2Oper(&dist2);
 }

@@ -49,17 +49,35 @@ struct SelValuesData;
 struct WmsLayer;
 
 enum ToolButtonID;
+using SharedRwDataItemInterestPtr = InterestPtr<SharedPtr<AbstrDataItem> >;
+
+//----------------------------------------------------------------------
+// class  : ViewPoint
+//----------------------------------------------------------------------
+
+struct ViewPoint
+{
+	CrdPoint center = Undefined();
+	CrdType  zoomLevel = UNDEFINED_VALUE(CrdType);
+	SharedStr spatialReference;
+
+	ViewPoint(CrdPoint c, CrdType zl, SharedStr sr)
+		: center(c), zoomLevel(zl), spatialReference(sr)
+	{}
+	ViewPoint(CharPtrRange viewPointStr);
+
+	bool WriteAsString(char* buffer, SizeT len, FormattingFlags flags);
+};
 
 //----------------------------------------------------------------------
 // class  : ViewPort
 //----------------------------------------------------------------------
-typedef InterestPtr<SharedPtr<AbstrDataItem> > SharedRwDataItemInterestPtr;
 
 class ViewPort : public Wrapper
 {
 	typedef Wrapper base_type;
 public:
-	ViewPort(MovableObject* owner, DataView* dv, CharPtr caption, CrdType subPixelfactor);
+	ViewPort(MovableObject* owner, DataView* dv, CharPtr caption);
 	~ViewPort();
 
 //	delayed construction
@@ -78,30 +96,37 @@ public:
 	void AL_ZoomAll();
 	void ZoomIn1();
 	void ZoomFactor(CrdType factor);
-	void SetCurrZoomLevel(CrdType scale) { ZoomFactor(GetCurrZoomLevel() / scale); }
+	void SetCurrZoomLevel(CrdType scale) { ZoomFactor(GetCurrLogicalZoomLevel() / scale); }
 	void AL_ZoomSel();
 
 	void ZoomOut1();
 	ExportInfo GetExportInfo();
 	void Export();
-	void Scroll(const GPoint& delta);
-	void InvalidateWorldRect(const CrdRect& rect, const GRect& borderExtents) const;
+	void ScrollDevice(GPoint delta);
+	void ScrollLogical(TPoint delta) { ScrollDevice(TPoint2GPoint(delta, GetScaleFactors())); }
+	void InvalidateWorldRect(CrdRect rect, TRect borderExtents) const;
 
+	void Pan  (CrdPoint delta);
 	void PanTo(CrdPoint newCenter);
+
 	void PanToClipboardLocation();
+	void ZoomToClipboardLocation();
+	void PanAndZoomToClipboardLocation();
+	void CopyLocationAndZoomlevelToClipboard();
 
 	bool IsNeedleVisible() const { return m_State.Get(VPF_NeedleVisible); }
 	void ToggleNeedleController();
 	void AL_SelectAllObjects(bool select);
 
 	// props
-	void ZoomWorldFullRect(const TRect& relClientRect) ;
-	CrdRect GetCurrWorldFullRect() const;
-	CrdRect GetCurrWorldClientRect() const;
-	CrdRect CalcCurrWorldClientRect() const; // called by GraphicRect::AdjustTargetViewPort, which is called from DoUpdateView
-	CrdRect CalcWorldClientRect() const;
-	CrdType GetCurrZoomLevel() const;
-	CrdType GetSubPixelFactor() const { return m_SubPixelFactor; }
+	void ZoomWorldFullRect(CrdRect relClientRect) ;
+	CrdRect  GetCurrWorldFullRect() const;
+	CrdRect  GetCurrWorldClientRect() const;
+	CrdRect  CalcCurrWorldClientRect() const; // called by GraphicRect::AdjustTargetViewPort, which is called from DoUpdateView
+	CrdRect  CalcWorldClientRect() const;
+	CrdType  GetCurrLogicalZoomLevel() const;
+	CrdPoint GetCurrLogicalZoomFactors() const;
+	//	CrdPoint GetSubPixelFactors() const;
 
   	void        SetROI(const CrdRect& r);
 	CrdRect     GetROI() const;
@@ -121,6 +146,10 @@ public:
 	CrdTransformation CalcWorldToClientTransformation() const; // calls DoUpdateView -> AdjustTargetViewport
 	CrdTransformation CalcCurrWorldToClientTransformation() const; // called by DoUpdateView and GraphicRect::AdjustTargetViewport, uses m_ROI and GetCurrClientSize()
 	CrdTransformation GetCurrWorldToClientTransformation() const { return m_w2vTr; }
+	CrdPoint          CalcCurrWorldToDeviceFactors() const { return CalcCurrWorldToClientTransformation().Factor() * GetScaleFactors(); }
+	CrdPoint          GetCurrWorldToDeviceFactors() const { return m_w2vTr.Factor() * GetScaleFactors(); }
+	CrdType           CalcCurrWorldToDeviceZoomLevel() const { return Abs(CalcCurrWorldToDeviceFactors().first); }
+	CrdType           GetCurrWorldToDeviceZoomLevel() const { return Abs(GetCurrWorldToDeviceFactors().first); }
 
 //	override other virtuals of GraphicObject
   	GraphVisitState InviteGraphVistor(AbstrVisitor&) override;
@@ -129,7 +158,7 @@ public:
 	void FillMenu(MouseEventDispatcher& med) override;
 	CommandStatus OnCommandEnable(ToolButtonID id) const override;
 	COLORREF GetBkColor() const override;
-	void SetClientSize(TPoint newSize) override;
+	void SetClientSize(CrdPoint newSize) override;
 	bool Draw(GraphDrawer& d) const override;
 
 	      ScalableObject* GetContents();
@@ -169,7 +198,6 @@ private:
 	ScaleBarCaret*             m_ScaleBarCaret;
 	grid_coord_map             m_GridCoordMap;
 	sel_caret_map              m_SelCaretMap;
-	CrdType                    m_SubPixelFactor;
 
 	friend GridCoord;
 	friend SelCaret;

@@ -27,7 +27,10 @@ granted by an additional written contract for support, assistance and/or develop
 */
 //</HEADER>
 #include "TicPCH.h"
+
+#if defined(CC_PRAGMAHDRSTOP)
 #pragma hdrstop
+#endif //defined(CC_PRAGMAHDRSTOP)
 
 #include "DedicatedAttrs.h"
 
@@ -168,14 +171,14 @@ TIC_CALL UInt32 DMS_CONV DMS_DataItem_VisitClassBreakCandidates(const AbstrDataI
 				if (candidate && IsNewItem(candidate, doneItems))
 					f(candidate);
 			}
-			catch (const concurrency::task_canceled&)
+			catch (const task_canceled&)
 			{
 				throw;
 			}
 			catch (...) {}
 		};
 
-		VisitConstVisibleSubTrees( context, MakeDerivedProcVistor(std::move(newF)) );
+		VisitConstVisibleSubTrees( context, MakeDerivedProcVisitor(std::move(newF)) );
 
 	DMS_CALL_END
 
@@ -220,7 +223,7 @@ UInt32 DMS_CONV DMS_DomainUnit_VisitPaletteCandidates (const AbstrUnit* domain, 
 
 		VisitAllVisibleSubItems(domain,    f, doneItems);
 
-		VisitConstVisibleSubTrees( domain, MakeDerivedProcVistor(std::move(newF)) );
+		VisitConstVisibleSubTrees( domain, MakeDerivedProcVisitor(std::move(newF)) );
 
 	DMS_CALL_END
 
