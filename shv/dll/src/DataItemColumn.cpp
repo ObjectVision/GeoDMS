@@ -1251,22 +1251,14 @@ void DataItemColumn::FillMenu(MouseEventDispatcher& med)
 	SharedStr caption = GetThemeDisplayName(this);
 
 	auto tc = GetTableControl().lock(); if (!tc) return;
-	{
-		SubMenu subMenu(med.m_MenuData, SharedStr("Activate...")); // SUBMENU
-		InsertSubMenu(med.m_MenuData, "Source Attribute", GetSrcAttr(), this);
-		InsertSubMenu(med.m_MenuData, "Table Domain", tc->GetEntity(), this);
-	}
 	auto sa = GetSrcAttr();
 	if (sa)
 		med.m_MenuData.emplace_back("Show Statistics of " + caption, new RequestClientCmd(sa, CC_ShowStatistics), this);
 
-
 	if (tc->HasSortOptions())
 	{
-		SubMenu subMenu(med.m_MenuData, "Sort on " + GetThemeDisplayName(this)); // SUBMENU
-
-		med.m_MenuData.emplace_back( SharedStr("Ascending" ), make_MembFuncCmd(&DataItemColumn::SortAsc ), this );
-		med.m_MenuData.emplace_back( SharedStr("Descending"), make_MembFuncCmd(&DataItemColumn::SortDesc), this );
+		med.m_MenuData.emplace_back(SharedStr("Sort"), make_MembFuncCmd(&DataItemColumn::SortAsc ), this );
+		med.m_MenuData.emplace_back(SharedStr("Sort reversed"), make_MembFuncCmd(&DataItemColumn::SortDesc), this );
 	}
 	if (tc->m_GroupByEntity && !IsDefined(m_GroupByIndex)) {
 		SubMenu subMenu(med.m_MenuData, SharedStr("Aggregate by ")); // SUBMENU
@@ -1278,6 +1270,12 @@ void DataItemColumn::FillMenu(MouseEventDispatcher& med)
 					this,
 					am == m_AggrMethod ? MF_CHECKED : 0
 				));
+	}
+
+	{
+		SubMenu subMenu(med.m_MenuData, SharedStr("Activate...")); // SUBMENU
+		InsertSubMenu(med.m_MenuData, "Source Attribute", GetSrcAttr(), this);
+		InsertSubMenu(med.m_MenuData, "Table Domain", tc->GetEntity(), this);
 	}
 
 //	Display Relative

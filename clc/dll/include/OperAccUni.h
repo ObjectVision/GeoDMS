@@ -29,7 +29,9 @@ struct AbstrOperAccTotUni: UnaryOperator
 		,	m_ValueComposition(vc)
 	{
 		gr->SetCanExplainValue();
-		gr->SetBetterNotInMetaScripting();
+
+		if (resultCls != DataArray<SharedStr>::GetStaticClass()) // aggregations such as asItemList are allowed to be used in meta scripting
+			gr->SetBetterNotInMetaScripting();
 	}
 
 	void CreateResultCaller(TreeItemDualRef& resultHolder, const ArgRefs& args, OperationContext*, LispPtr) const override
@@ -123,7 +125,9 @@ struct AbstrOperAccPartUni: BinaryOperator
 	{
 		assert(gr);
 		gr->SetCanExplainValue();
-		gr->SetBetterNotInMetaScripting();
+
+		if (resultCls != DataArray<SharedStr>::GetStaticClass()) // aggregations such as asItemList are allowed to be used in meta scripting
+			gr->SetBetterNotInMetaScripting();
 	}
 
 	void CreateResultCaller(TreeItemDualRef& resultHolder, const ArgRefs& args, OperationContext*, LispPtr) const override
