@@ -171,6 +171,7 @@ protected:
 
 	void SaveTo(OutStreamBuff* buffPtr) const;
 	void NotifyCaptionChange();
+	void NotifyRowColChange();
 	void ProcessDIC(DataItemColumn* dic);
 	void UpdateActiveCell(bool mustSetFocusElemIndex);
 	void SetEntity(const AbstrUnit* newDomain);
