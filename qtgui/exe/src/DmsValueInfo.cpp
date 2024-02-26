@@ -94,7 +94,7 @@ ValueInfoWindow::ValueInfoWindow(QWidget* parent)
     : QWidget(parent)
 {
     // close value info window shortcut
-    QShortcut* shortcut = new QShortcut(QKeySequence(Qt::ALT + Qt::Key_R), this);
+    QShortcut* shortcut = new QShortcut(QKeySequence(Qt::CTRL + Qt::Key_R), this);
     QObject::connect(shortcut, &QShortcut::activated, this, &QWidget::close);
 }
 
