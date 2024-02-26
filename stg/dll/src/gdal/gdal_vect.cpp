@@ -994,12 +994,12 @@ bool GdalVectSM::WriteUnitRange(StorageMetaInfoPtr&& smi)
 }
 
 template<typename PointType>
-void SetPointGeometryForFeature(OGRFeature * feature, PointType b, ValueComposition vc)
+void SetPointGeometryForFeature(OGRFeature * feature, PointType p, ValueComposition vc)
 {
 	dms_assert(vc == ValueComposition::Single);
 	OGRPoint pt;
-	pt.setX(b.Col());
-	pt.setY(b.Row());
+	pt.setX(p.X());
+	pt.setY(p.Y());
 	feature->SetGeometry(&pt); // TODO: makes a copy, switch to SetGeometryDirectly
 }
 
@@ -1012,15 +1012,15 @@ void SetArcGeometryForFeature(OGRFeature* feature, SequenceType b, ValueComposit
 	typedef typename sequence_traits<SequenceType>::container_type SequenceArray;
 //	typename DataArrayBase<SequenceType>::const_reference sequence = b;
 
-	for (auto&& [x, y] : b) { // points in x, y order
-		OGRPoint pt(x, y);
+	for (auto&& p : b) {
+		OGRPoint pt(p.X(), p.Y());
 		OGRLine->addPoint(&pt);
 	}
 	feature->SetGeometry((OGRGeometry*)OGRLine); // TODO: makes a copy, switch to SetGeometryDirectly
 }
 
 template<typename PointType>
-void SetPolygonGeometryForFeature(OGRFeature* feature, SA_ConstReference<PointType> b, ValueComposition vc)
+void SetPolygonGeometryForFeature(OGRFeature* feature, SA_ConstReference<PointType> polygon, ValueComposition vc)
 {
 	dms_assert(vc == ValueComposition::Polygon);
 
@@ -1030,7 +1030,6 @@ void SetPolygonGeometryForFeature(OGRFeature* feature, SA_ConstReference<PointTy
 
 	typedef typename sequence_traits<PointType  >::container_type PolygonType;
 	typedef typename sequence_traits<PolygonType>::container_type PolygonArray;
-	typename DataArrayBase<PolygonType>::const_reference polygon = b;
 
 	boost::polygon::SA_ConstRingIterator<PointType>
 		ri(polygon, 0),
@@ -1041,10 +1040,10 @@ void SetPolygonGeometryForFeature(OGRFeature* feature, SA_ConstReference<PointTy
 		auto ring = *ri;
 		auto OGRRing = (OGRLinearRing*)OGRGeometryFactory::createGeometry(wkbLinearRing);
 
-		for (auto&& [x, y] : ring) { // points in x, y order
+		for (auto&& p : ring) { // points; outer-rings clock-wise, inner rings in reverse order
 			OGRPoint pt;
-			pt.setX(x);
-			pt.setY(y);
+			pt.setX(p.X());
+			pt.setY(p.Y());
 			OGRRing->addPoint(&pt);
 		}
 
