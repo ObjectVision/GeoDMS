@@ -1012,7 +1012,7 @@ void SetArcGeometryForFeature(OGRFeature* feature, SequenceType b, ValueComposit
 	typedef typename sequence_traits<SequenceType>::container_type SequenceArray;
 //	typename DataArrayBase<SequenceType>::const_reference sequence = b;
 
-	for (auto&& [y, x] : b) { // points in reverse order
+	for (auto&& [x, y] : b) { // points in x, y order
 		OGRPoint pt(x, y);
 		OGRLine->addPoint(&pt);
 	}
@@ -1041,7 +1041,7 @@ void SetPolygonGeometryForFeature(OGRFeature* feature, SA_ConstReference<PointTy
 		auto ring = *ri;
 		auto OGRRing = (OGRLinearRing*)OGRGeometryFactory::createGeometry(wkbLinearRing);
 
-		for (auto&& [y, x] : ring) { // points, in reverse order
+		for (auto&& [x, y] : ring) { // points in x, y order
 			OGRPoint pt;
 			pt.setX(x);
 			pt.setY(y);
