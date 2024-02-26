@@ -94,8 +94,10 @@ ValueInfoWindow::ValueInfoWindow(QWidget* parent)
     : QWidget(parent)
 {
     // close value info window shortcut
-    QShortcut* shortcut = new QShortcut(QKeySequence(Qt::CTRL + Qt::Key_R), this);
-    QObject::connect(shortcut, &QShortcut::activated, this, &QWidget::close);
+    QShortcut* shortcut_CTRL_W = new QShortcut(QKeySequence(Qt::CTRL + Qt::Key_W), this);
+    QShortcut* shortcut_CTRL_F4 = new QShortcut(QKeySequence(Qt::CTRL + Qt::Key_F4), this);
+    QObject::connect(shortcut_CTRL_W, &QShortcut::activated, this, &QWidget::close);
+    QObject::connect(shortcut_CTRL_F4, &QShortcut::activated, this, &QWidget::close);
 }
 
 ValueInfoBrowser::ValueInfoBrowser(QWidget* parent, SharedDataItemInterestPtr studyObject, SizeT index, SharedStr extraInfo, QWidget* window)
