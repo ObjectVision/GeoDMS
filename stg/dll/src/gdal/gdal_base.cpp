@@ -1163,6 +1163,9 @@ auto TryRegisterVectorDriverFromKnownDriverShortName(std::string_view knownDrive
 
 	else if (knownDriverShortName == "GML")
 		RegisterOGRGML();
+	
+	else if (knownDriverShortName == "MVT")
+		RegisterOGRMVT();
 
 	else if (knownDriverShortName == "OpenFileGDB")
 		RegisterOGROpenFileGDB();
@@ -1198,6 +1201,9 @@ auto TryRegisterRasterDriverFromKnownDriverShortName(std::string_view knownDrive
 
 	else if (knownDriverShortName == "BMP")
 		GDALRegister_BMP();
+
+	else if (knownDriverShortName == "MBTiles")
+		GDALRegister_MBTiles();
 }
 
 auto GDALRegisterTrustedDriverFromKnownDriverShortName(std::string_view knownDriverShortName) -> std::string
@@ -1396,9 +1402,9 @@ GDALDatasetHandle Gdal_DoOpenStorage(const StorageMetaInfo& smi, dms_rw_mode rwM
 	if (!std::filesystem::is_directory(path.c_str()) && !std::filesystem::create_directories(path.c_str()))
 		throwErrorF("GDAL", "Unable to create directories: %s", path);
 
-	auto driverShortName = GDALRegisterTrustedDriverFromFileExtension(ext);
-	if (!driverShortName.empty())
-		driverArray.AddString(driverShortName.c_str());
+	auto driverShortName = GDALRegisterTrustedDriverFromFileExtension(ext); // first option, get from filename ext
+	if (driverShortName.empty())
+		driverShortName = driverArray.size() ? driverArray[0] : ""; // secondary option, get from driverArray
 
 	auto driver = GetGDALDriverManager()->GetDriverByName(driverShortName.c_str());
 	if (!driver)
@@ -1456,7 +1462,7 @@ GDALDatasetHandle Gdal_DoOpenStorage(const StorageMetaInfo& smi, dms_rw_mode rwM
 	}
 	else
 	{
-		result = reinterpret_cast<GDALDataset*>(GDALOpenEx(datasourceName.c_str(), GDAL_OF_UPDATE | GDAL_OF_VERBOSE_ERROR, nullptr, nullptr, nullptr));
+		result = reinterpret_cast<GDALDataset*>(GDALOpenEx(datasourceName.c_str(), GDAL_OF_UPDATE | GDAL_OF_VERBOSE_ERROR, driverArray, nullptr, nullptr));
 	}
 
 	if (gdal_error_frame.HasError())
