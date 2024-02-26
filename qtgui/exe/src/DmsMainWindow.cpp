@@ -2449,8 +2449,6 @@ void MainWindow::updateViewMenu()
     if (hasToolbar)
         m_toggle_toolbar_action->setChecked(m_toolbar->isVisible());
     m_toggle_currentitembar_action->setChecked(m_current_item_bar_container->isVisible());
-    //m_toggle_valueinfo_action->setChecked(m_value_info_dock->isVisible());
-    //m_toggle_valueinfo_action->setEnabled(m_value_info_mdi_area->subWindowList().size() > 0);
 
     m_processing_records.empty() ? m_view_calculation_times_action->setDisabled(true) : m_view_calculation_times_action->setEnabled(true);
 }
@@ -2578,7 +2576,7 @@ void MainWindow::createStatusBar()
     connect(statusBar(), &QStatusBar::messageChanged, this, &MainWindow::on_status_msg_changed);
     m_statusbar_coordinates = new QLineEdit(this);
     m_statusbar_coordinates->setReadOnly(true);
-    m_statusbar_coordinates->setFixedWidth(310);
+    m_statusbar_coordinates->setFixedWidth(500);
     m_statusbar_coordinates->setAlignment(Qt::AlignmentFlag::AlignLeft);
     statusBar()->insertPermanentWidget(0, m_statusbar_coordinates);
     m_statusbar_coordinates->setVisible(false);
