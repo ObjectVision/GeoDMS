@@ -1595,7 +1595,14 @@ void GdalVectSM::DoUpdateTable(const TreeItem* storageHolder, AbstrUnit* layerDo
 				{
 					ValueComposition configured_vc = geometry->GetValueComposition();
 					if (configured_vc != gdal_vc && gdal_vc != ValueComposition::Unknown)
-						geometry->Fail("Value composition incompatible with GDAL's formal geometry type", FR_MetaInfo);
+					{
+						auto fail_reason = mySSPrintF("Value composition is \"%s\", which is incompatible with GDAL's geometry type \"%s\""
+							, AsString(GetValueCompositionID(configured_vc))
+							, OGRGeometryTypeToName(layer_geometry_type)
+						);
+
+						geometry->Fail(fail_reason, FR_MetaInfo);
+					}
 				}
 		}
 		else
