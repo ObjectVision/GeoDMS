@@ -142,15 +142,15 @@ struct point64_accumulator
 	{
 		++d;
 		s += xy;
-		MakeMin(min, xy);
-		MakeMax(max, xy);
+		MakeLowerBound(min, xy);
+		MakeUpperBound(max, xy);
 	}
 	void operator +=(const point64_accumulator& rhs)
 	{
 		d += rhs.d;
 		s += rhs.s;
-		MakeMin(min, rhs.min);
-		MakeMax(max, rhs.max);
+		MakeLowerBound(min, rhs.min);
+		MakeUpperBound(max, rhs.max);
 	}
 };
 
@@ -214,8 +214,8 @@ void WriteNumericAccuData(PostLinkedTable& table, const f64_accumulator& accu, c
 	if (metricPtr)
 		table.NameValueRow("Metric Units", metricPtr->AsString(FormattingFlags::ThousandSeparator).c_str());
 
-	table.NameValueRow("Maximum", AsString(accu.max).c_str());
 	table.NameValueRow("Minimum", AsString(accu.min).c_str());
+	table.NameValueRow("Maximum", AsString(accu.max).c_str());
 	table.NameValueRow("Sum", AsString(accu.s).c_str());
 
 	if (accu.d) // there is actual data?
@@ -248,12 +248,8 @@ void AccumulatePointData(point64_accumulator& accu, const AbstrDataItem* di)
 				[di, t, &accu] <typename P> (const Unit<P>*)
 			{
 				auto tileData = const_array_cast<P>(di)->GetTile(t);
-				for (auto x : tileData)
-				{
-					if (!IsDefined(x))
-						continue;
+				for (auto x : tileData) if (IsDefined(x))
 					accu(Convert<DPoint>(x));
-				}
 			}
 			);
 		}
@@ -265,13 +261,9 @@ void AccumulatePointData(point64_accumulator& accu, const AbstrDataItem* di)
 				using SequenceType = sequence_traits<P>::container_type;
 
 				auto tileData = const_array_cast<SequenceType>(di)->GetTile(t);
-				for (auto seq : tileData)
-				{
-					if (!IsDefined(seq))
-						continue;
-					for (auto p: seq)
+				for (auto seq : tileData) if (IsDefined(seq))
+					for (auto p: seq) if (IsDefined(p))
 						accu(Convert<DPoint>(p));
-				}
 			}
 			);
 		}
@@ -286,8 +278,8 @@ void WritePointAccuData(PostLinkedTable& table, const point64_accumulator& accu,
 	if (metricPtr)
 		table.NameValueRow("Metric Units", metricPtr->AsString(FormattingFlags::ThousandSeparator).c_str());
 
-	table.NameValueRow("Maximum", AsString(accu.max).c_str());
 	table.NameValueRow("Minimum", AsString(accu.min).c_str());
+	table.NameValueRow("Maximum", AsString(accu.max).c_str());
 
 	if (accu.d) // there is actual data?
 	{
