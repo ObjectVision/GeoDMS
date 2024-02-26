@@ -1382,6 +1382,7 @@ bool MainWindow::CloseConfig()
 {
     TreeItem_SetAnalysisSource(nullptr); // clears all code-analysis coding
 
+    // close all dms views
     bool has_active_dms_views = false;
     if (m_mdi_area)
     {
@@ -1389,6 +1390,7 @@ bool MainWindow::CloseConfig()
         m_mdi_area->closeAllSubWindows();
     }
 
+    // reset all dms tree data
     if (m_root)
     {
         m_detail_pages->leaveThisConfig(); // reset ValueInfo cached results
@@ -1400,6 +1402,14 @@ bool MainWindow::CloseConfig()
         m_root = nullptr;
         m_current_item.reset();
         m_current_item = nullptr;
+    }
+
+    // close all active value info windows
+    QList<QWidget*> value_info_windows = this->findChildren<QWidget*>(Qt::FindDirectChildrenOnly);
+    for (auto* widget : value_info_windows)
+    {
+        if (dynamic_cast<ValueInfoWindow*>(widget))
+            widget->close();
     }
 
     SessionData::ReleaseCurr();
