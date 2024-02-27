@@ -6,6 +6,8 @@
 #include <QThread> // TODO: remove
 #include <QPainter>
 #include <QFontDatabase>
+#include <QScreen>
+#include <QMouseEvent>
 
 #include <memory>
 

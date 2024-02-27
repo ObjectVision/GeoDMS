@@ -9,6 +9,8 @@
 #include <QGridLayout>
 #include <QScrollBar>
 #include <QClipBoard>
+#include <QEvent>
+#include <QKeyEvent>
 
 #include "dbg/Timer.h"
 
@@ -460,7 +462,7 @@ void DmsEventLog::copySelectedEventlogLinesToClipboard()
 
 void DmsEventLog::keyPressEvent(QKeyEvent* event)
 {
-	if (event == QKeySequence::Copy)
+	if (event->matches(QKeySequence::Copy))
 	{
 		//return QWidget::keyPressEvent(event);
 		copySelectedEventlogLinesToClipboard();

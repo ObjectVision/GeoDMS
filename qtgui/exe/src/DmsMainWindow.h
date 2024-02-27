@@ -12,6 +12,7 @@
 #include <QToolBar>
 #include <QTextEdit>
 #include <QDialog>
+#include <QPushButton>
 #include <QCheckbox>
 #include <QSlider>
 #include <QFileDialog>
@@ -25,9 +26,9 @@
 #include "ShvUtils.h"
 #include "dataview.h"
 
-#include "DockManager.h"
-#include "DockAreaWidget.h"
-#include "DockWidget.h"
+//#include "DockManager.h"
+//#include "DockAreaWidget.h"
+//#include "DockWidget.h"
 
 #include "ui_DmsDetailPageProperties.h"
 #include "ui_DmsDetailPageSourceDescription.h"
