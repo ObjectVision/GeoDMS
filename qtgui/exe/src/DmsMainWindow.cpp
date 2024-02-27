@@ -2556,7 +2556,7 @@ void MainWindow::createStatusBar()
     connect(statusBar(), &QStatusBar::messageChanged, this, &MainWindow::on_status_msg_changed);
     m_statusbar_coordinates = new QLineEdit(this);
     m_statusbar_coordinates->setReadOnly(true);
-    m_statusbar_coordinates->setFixedWidth(500);
+    m_statusbar_coordinates->setFixedWidth(300);
     m_statusbar_coordinates->setAlignment(Qt::AlignmentFlag::AlignLeft);
     statusBar()->insertPermanentWidget(0, m_statusbar_coordinates);
     m_statusbar_coordinates->setVisible(false);
