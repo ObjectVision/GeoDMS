@@ -176,17 +176,20 @@ QModelIndex DmsModel::parent(const QModelIndex& child) const
 
 int DmsModel::rowCount(const QModelIndex& parent) const
 {
-	auto ti = GetTreeItemOrRoot(parent);
-	if (!ti)
-		return 0;
-
 	int number_of_rows = 0;
-	for (auto si = ti->GetFirstSubItem(); si; si = si->GetNextItem())
-	{
-		if (show_hidden_items || !si->GetTSF(TSF_IsHidden))
-			number_of_rows++;
+	try {
+		auto ti = GetTreeItemOrRoot(parent);
+		if (ti)
+			for (auto si = ti->GetFirstSubItem(); si; si = si->GetNextItem())
+			{
+				if (show_hidden_items || !si->GetTSF(TSF_IsHidden))
+					number_of_rows++;
+			}
 	}
-
+	catch (...)
+	{
+		catchException(false);
+	}
 	return number_of_rows;
 }
 
@@ -278,85 +281,99 @@ QVariant DmsModel::getTreeItemColor(const QModelIndex& index) const
 
 QVariant DmsModel::data(const QModelIndex& index, int role) const
 {
-	if (!index.isValid())
-		return QVariant();
+	try {
+		if (!index.isValid())
+			return QVariant();
 
-	auto ti = GetTreeItemOrRoot(index);
+		auto ti = GetTreeItemOrRoot(index);
 
-	if (!ti)
-		return QVariant();
+		if (!ti)
+			return QVariant();
 
-	SuspendTrigger::Resume();
-	if (!ti->Was(PS_MetaInfo) && !ti->WasFailed())
-	{
-		ObjectMsgGenerator thisMsgGenerator(ti, "UpdateMetaInfo");
-		Waiter showWaitingStatus(&thisMsgGenerator);
-
-		try {
-			ti->UpdateMetaInfo();
-		}
-		catch (...)
-		{}
-	}
-	switch (role)
-	{
-	case Qt::DecorationRole: 
-		return getTreeItemIcon(index);
-
-	case Qt::EditRole: 
-	case Qt::DisplayRole:
-		return QString(ti->GetName().c_str());
-
-	case Qt::ForegroundRole:
-		return getTreeItemColor(index);
-
-	case Qt::BackgroundRole:
-		if (ti->WasFailed() && !MainWindow::TheOne()->m_treeview->selectionModel()->selectedIndexes().empty()
-			                && MainWindow::TheOne()->m_treeview->selectionModel()->selectedIndexes().at(0)==index)
+		SuspendTrigger::Resume();
+		if (!ti->Was(PS_MetaInfo) && !ti->WasFailed())
 		{
+			ObjectMsgGenerator thisMsgGenerator(ti, "UpdateMetaInfo");
+			Waiter showWaitingStatus(&thisMsgGenerator);
+
+			try {
+				ti->UpdateMetaInfo();
+			}
+			catch (...)
+			{
+			}
+		}
+		switch (role)
+		{
+		case Qt::DecorationRole:
+			return getTreeItemIcon(index);
+
+		case Qt::EditRole:
+		case Qt::DisplayRole:
+			return QString(ti->GetName().c_str());
+
+		case Qt::ForegroundRole:
+			return getTreeItemColor(index);
+
+		case Qt::BackgroundRole:
+			if (ti->WasFailed() && !MainWindow::TheOne()->m_treeview->selectionModel()->selectedIndexes().empty()
+				&& MainWindow::TheOne()->m_treeview->selectionModel()->selectedIndexes().at(0) == index)
+			{
 				return QColor(150, 0, 0);
-		}
+			}
 
-		if (ti->WasFailed())
-			return QColor(255, 0, 0);
+			if (ti->WasFailed())
+				return QColor(255, 0, 0);
 
-		switch (TreeItem_GetSupplierLevel(ti))
+			switch (TreeItem_GetSupplierLevel(ti))
+			{
+			case supplier_level::calc: return QColor(158, 201, 226); // clSkyBlue;
+			case supplier_level::meta: return QColor(192, 220, 192); // $C0DCC0 clMoneyGreen;
+			case supplier_level::calc_source: return QColor(000, 000, 255); // clBlue;
+			case supplier_level::meta_source: return QColor(000, 255, 000); // clGreen;
+			}
+			break; // default background color
+
+		case Qt::SizeHintRole:
 		{
-		case supplier_level::calc: return QColor(158, 201, 226); // clSkyBlue;
-		case supplier_level::meta: return QColor(192, 220, 192); // $C0DCC0 clMoneyGreen;
-		case supplier_level::calc_source: return QColor(000, 000, 255); // clBlue;
-		case supplier_level::meta_source: return QColor(000, 255, 000); // clGreen;
+			auto font = QApplication::font();
+			auto font_metrics = QFontMetrics(font);
+			int pixels_wide = font_metrics.horizontalAdvance(ti->GetName().c_str()) + 50;
+			int pixels_high = font_metrics.height();
+			return QSize(pixels_wide, pixels_high);
 		}
-		break; // default background color
 
-	case Qt::SizeHintRole:
-	{
-		auto font = QApplication::font();
-		auto font_metrics = QFontMetrics(font);
-		int pixels_wide = font_metrics.horizontalAdvance(ti->GetName().c_str()) + 50;
-		int pixels_high = font_metrics.height();
-		return QSize(pixels_wide, pixels_high);
+		case Qt::FontRole:
+			return QApplication::font();
+
+		}
 	}
-
-	case Qt::FontRole: 
-		return QApplication::font();
-
+	catch (...)
+	{
+		catchException(false);
 	}
 	return QVariant();
 }
 
 bool DmsModel::hasChildren(const QModelIndex& parent) const
 {
-	auto ti = GetTreeItemOrRoot(parent);
-	if (!ti)
-		return false;
+	try {
+		auto ti = GetTreeItemOrRoot(parent);
+		if (!ti)
+			return false;
 
-	if (ti->Was(PS_MetaInfo))
-		return ti->_GetFirstSubItem() != nullptr;
+		if (ti->Was(PS_MetaInfo))
+			return ti->_GetFirstSubItem() != nullptr;
 
-	ObjectMsgGenerator context(ti, "HasSubItems");
-	Waiter monitor(&context);
-	return ti->HasSubItems();
+		ObjectMsgGenerator context(ti, "HasSubItems");
+		Waiter monitor(&context);
+		return ti->HasSubItems();
+	}
+	catch (...)
+	{
+		catchException(false);
+	}
+	return false;
 }
 
 auto DmsModel::flags(const QModelIndex& index) const -> Qt::ItemFlags
@@ -440,7 +457,7 @@ void TreeItemDelegate::paint(QPainter* painter, const QStyleOptionViewItem& opti
 	}
 	catch (...)
 	{
-		auto errMsg = catchException(false);
+		catchException(false);
 	}
 
 	return;
