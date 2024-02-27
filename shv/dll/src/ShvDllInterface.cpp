@@ -44,6 +44,7 @@ granted by an additional written contract for support, assistance and/or develop
 #include "TreeItemClass.h"
 #include "TreeItemContextHandle.h"
 #include "TreeItemProps.h"
+#include "TreeItemUtils.h"
 
 #include "DataView.h"
 

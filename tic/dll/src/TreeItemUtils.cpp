@@ -38,6 +38,7 @@ granted by an additional written contract for support, assistance and/or develop
 #include "utl/splitPath.h"
 
 #include "AbstrCalculator.h"
+#include "LispTreeType.h"
 #include "StateChangeNotification.h"
 #include "TreeItemUtils.h"
 #include "Unit.h"
@@ -150,6 +151,40 @@ SharedStr GetPartialName(const TreeItem* themeDisplayItem, UInt32 nameLevel)
 		dms_assert(themeDisplayItem); // not root
 	}
 	return result;
+}
+
+const AbstrDataItem* GeometrySubItem(const TreeItem* ti)
+{
+	dms_assert(ti);
+	ti->UpdateMetaInfo();
+	const TreeItem* si = const_cast<TreeItem*>(ti)->GetSubTreeItemByID(token::geometry);
+	if (!IsDataItem(si))
+		return nullptr;
+	auto gi = AsDataItem(si);
+	if (gi->GetAbstrValuesUnit()->GetValueType()->GetNrDims() != 2)
+		return nullptr;
+	return gi;
+}
+
+#include "PropFuncs.h"
+
+bool IsThisMappable(const TreeItem* ti)
+{
+	dms_assert(ti);
+	return HasMapType(ti) || GeometrySubItem(ti);
+}
+
+auto GetMappingItem(const TreeItem* ti) -> const TreeItem*
+{
+	dms_assert(ti); // PRECONDITION
+	do
+	{
+		dms_assert(!SuspendTrigger::DidSuspend());
+		if (IsThisMappable(ti))
+			return ti;
+		ti = ti->GetReferredItem();
+	} while (ti);
+	return nullptr;
 }
 
 

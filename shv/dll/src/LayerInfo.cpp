@@ -23,6 +23,7 @@
 #include "LispTreeType.h"
 #include "Metric.h"
 #include "PropFuncs.h"
+#include "TreeItemUtils.h"
 #include "Unit.h"
 #include "UnitClass.h"
 
@@ -137,16 +138,11 @@ bool IsEqualUnit(const AbstrUnit* a, const AbstrUnit* b)
 	return a->GetUltimateItem() == b->GetUltimateItem();
 }
 
-const AbstrDataItem* GeometrySubItem(const TreeItem* ti)
+/*const AbstrDataItem* GeometrySubItem(const TreeItem* ti)
 {
 	dms_assert(ti);
 	ti->UpdateMetaInfo();
-/* REMOVE
-	auto pi = ti->GetTreeParent();
-	if (pi) pi->UpdateMetaInfo();
-	if (!ti->_GetFirstSubItem() && IsDataItem(ti))
-		return nullptr;
-*/
+
 	const TreeItem* si = const_cast<TreeItem*>(ti)->GetSubTreeItemByID(token::geometry);
 //	if (!si) 
 //		si = ti->GetConstSubTreeItemByID(geoTokenID); // can call UpdateMetaInfo to retrieve stuff from a StorageManager
@@ -156,13 +152,13 @@ const AbstrDataItem* GeometrySubItem(const TreeItem* ti)
 	if (gi->GetAbstrValuesUnit()->GetValueType()->GetNrDims() != 2)
 		return nullptr;
 	return gi;
-}
+}*/
 
-bool IsThisMappable(const TreeItem* ti)
+/*bool IsThisMappable(const TreeItem* ti)
 {
 	dms_assert(ti);
 	return HasMapType(ti) || GeometrySubItem(ti);
-}
+}*/
 
 bool RefersToMappable(const TreeItem* ti)
 {
@@ -185,7 +181,7 @@ const AbstrDataItem* GetDialogDataAttr(const TreeItem* ti)
 	return AsDynamicDataItem( ref );
 }
 
-auto GetMappingItem(const TreeItem* ti) -> const TreeItem*
+/*auto GetMappingItem(const TreeItem* ti) -> const TreeItem*
 {
 	dms_assert(ti); // PRECONDITION
 	do
@@ -196,7 +192,7 @@ auto GetMappingItem(const TreeItem* ti) -> const TreeItem*
 		ti = Waiter::IsWaiting() ? ti->GetCurrRefItem() : ti->GetReferredItem();
 	} while (ti);
 	return nullptr;
-}
+}*/
 
 auto GetMappedData(const TreeItem* ti) -> const AbstrDataItem*
 {
