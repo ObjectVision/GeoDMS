@@ -43,6 +43,7 @@ granted by an additional written contract for support, assistance and/or develop
 #include "mci/ValueComposition.h"
 #include "set/Token.h"
 #include "utl/mySPrintF.h"
+
 #include "utl/SplitPath.h"
 
 #include "AbstrDataItem.h"
@@ -88,12 +89,18 @@ ViewPoint::ViewPoint(CharPtrRange viewPointStr)
 bool ViewPoint::WriteAsString(char* buffer, SizeT len, FormattingFlags flags)
 {
 	auto streamWrap = SilentMemoOutStreamBuff(ByteRange(buffer, len));
-	FormattedOutStream out(&streamWrap, flags);
-	out << "X=" << center.Col() << "; Y=" << center.Row() << "; ZL=" << zoomLevel;
+	//FormattedOutStream out(&streamWrap, flags);
+
+	static SharedStr format = SharedStr("X= % 10.2f; Y= % 10.2f; ZL= % 10.2f");
+
+	auto nrBytesWritten = myFixedBufferWrite(buffer, len, format.c_str(), center.Col(), center.Row(), zoomLevel);
+	buffer[nrBytesWritten] = char(0); // truncate
+
+	//out << "X=" << center.Col() << "; Y=" << center.Row() << "; ZL=" << zoomLevel;
 
 	if (streamWrap.CurrPos() >= len)
 		return false;
-	out << char(0);
+	//out << char(0);
 	return true;
 }
 
