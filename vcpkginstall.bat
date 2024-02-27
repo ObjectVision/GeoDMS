@@ -16,11 +16,6 @@ vcpkg integrate install
 set VCPKG_DEFAULT_TRIPLET=x64-windows
 
 vcpkg install boost boost-locale ms-gsl openssl openssl-windows sqlite3[rtree] gdal
-echo "Base packages installed ? Continue to install GeoDmsGui packages ?"
+echo "Base packages installed. See https://github.com/ObjectVision/GeoDMS/wiki/Compiling-the-GeoDMS for further instructions."
 pause
 
-vcpkg install glfw3 opengl stb glew
-echo "GeoDmsGui packages installed ? Continue to install yasm and cgal package ?
-pause
-
-vcpkg install yasm-tool cgal
