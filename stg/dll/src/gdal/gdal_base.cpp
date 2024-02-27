@@ -1037,10 +1037,35 @@ auto GetOGRSpatialReferenceFromDataItems(const TreeItem* storageHolder) -> std::
 	return {};
 }
 
-OGRwkbGeometryType GetGeometryTypeFromGeometryDataItem(const TreeItem* subItem)
+#include "TreeItemUtils.h"
+OGRwkbGeometryType GetGeometryTypeFromLayerHolder(const TreeItem* subItem)
 {
 	auto geot = OGRwkbGeometryType::wkbNone;
 	auto vcprev = ValueComposition::Single;
+
+	// get mapping item from unit subitem
+	const TreeItem* mapping_item = GetMappingItem(subItem);
+	if (!mapping_item)
+	{
+		auto adu = AsUnit(subItem);
+		if (adu)
+			mapping_item = GetMappingItem(adu);
+	}
+
+	// get geometry item from mapping item
+	if (mapping_item)
+	{
+		auto geometry_item = GeometrySubItem(mapping_item);
+		auto adi = AsDataItem(geometry_item);
+		auto vc = adi->GetValueComposition();
+		auto vci = adi->GetAbstrValuesUnit()->GetValueType()->GetValueClassID();
+		geot = DmsType2OGRGeometryType(vc);
+	}
+
+	/*auto adi = AsDataItem(subItem);
+	auto mapping_item_2 = GetMappingItem(adi->GetAbstrDomainUnit());
+	auto geometry_item = GeometrySubItem(mapping_item_2);
+
 	for (auto subDataItem = subItem; subDataItem; subDataItem = subItem->WalkConstSubTree(subDataItem))
 	{
 		if (not (IsDataItem(subDataItem) and subDataItem->IsStorable()))
@@ -1059,7 +1084,10 @@ OGRwkbGeometryType GetGeometryTypeFromGeometryDataItem(const TreeItem* subItem)
 			geot = DmsType2OGRGeometryType(vc);
 			vcprev = vc;
 		}
-	}
+	}*/
+
+
+
 	return geot;
 }
 

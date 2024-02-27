@@ -176,7 +176,7 @@ const TreeItem* GetLayerHolderFromDataItem(const TreeItem* storageHolder, const 
 auto GetOptionArray(const TreeItem* optionsItem) -> CPLStringList;
 void SetFeatureDefnForOGRLayerFromLayerHolder(const TreeItem* subItem, OGRLayer* layerHandle);
 STGDLL_CALL auto GetBaseProjectionUnitFromValuesUnit(const AbstrDataItem* adi) -> const AbstrUnit*;
-auto GetGeometryTypeFromGeometryDataItem(const TreeItem* subItem) -> OGRwkbGeometryType;
+auto GetGeometryTypeFromLayerHolder(const TreeItem* subItem) -> OGRwkbGeometryType;
 auto GetAsWkt(const OGRSpatialReference* sr) -> SharedStr;
 auto GetAffineTransformationFromDataItem(const TreeItem* storageHolder) -> std::vector<double>;
 auto GetOGRSpatialReferenceFromDataItems(const TreeItem* storageHolder) -> std::optional<OGRSpatialReference>;

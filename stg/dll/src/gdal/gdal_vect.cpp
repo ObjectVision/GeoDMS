@@ -1359,7 +1359,7 @@ void InitializeLayersFieldsAndDataitemsStatus(const StorageMetaInfo& smi, DataIt
 
 		if (not layerHandle)
 		{
-			OGRwkbGeometryType eGType = GetGeometryTypeFromGeometryDataItem(unitItem);
+			OGRwkbGeometryType eGType = GetGeometryTypeFromLayerHolder(unitItem);
 			auto ogrSR = GetOGRSpatialReferenceFromDataItems(storageHolder);
 			
 			error_frame.ThrowUpWhateverCameUp();
@@ -1381,7 +1381,7 @@ void InitializeLayersFieldsAndDataitemsStatus(const StorageMetaInfo& smi, DataIt
 		auto vci = subDI->GetAbstrValuesUnit()->GetValueType()->GetValueClassID();
 		auto vc = subDI->GetValueComposition();
 
-		if (vc <= ValueComposition::Sequence && (vci >= ValueClassID::VT_SPoint && vci < ValueClassID::VT_FirstAfterPolygon))
+		if (vc <= ValueComposition::Sequence && (vci >= ValueClassID::VT_SPoint && vci < ValueClassID::VT_FirstAfterPolygon)) // geometry
 		{
 			disi.setFieldIsWritten(GetTokenID_mt(layerName), GetTokenID_mt(fieldName), false);
 			disi.setIsGeometry(GetTokenID_mt(layerName), GetTokenID_mt(fieldName), true);
@@ -1447,7 +1447,7 @@ bool GdalVectSM::WriteDataItem(StorageMetaInfoPtr&& smiHolder)
 
 	if (not layer)
 	{
-		OGRwkbGeometryType eGType = GetGeometryTypeFromGeometryDataItem(unitItem);
+		OGRwkbGeometryType eGType = GetGeometryTypeFromLayerHolder(unitItem);
 		auto ogrSR = GetOGRSpatialReferenceFromDataItems(storageHolder); gdal_error_frame.ThrowUpWhateverCameUp();
 		layer = this->m_hDS->CreateLayer(layername.c_str(), ogrSR ? &ogrSR.value() : nullptr, eGType, layerOptionArray); gdal_error_frame.ThrowUpWhateverCameUp();
 		SetFeatureDefnForOGRLayerFromLayerHolder(unitItem, layer, layername, m_DataItemsStatusInfo);
@@ -1672,7 +1672,10 @@ void GdalVectSM::DoUpdateTable(const TreeItem* storageHolder, AbstrUnit* layerDo
 void GdalVectSM::DoUpdateTree(const TreeItem* storageHolder, TreeItem* curr, SyncMode sm) const
 {
 	if (dynamic_cast<const GdalWritableVectSM*>(this))
+	{
+
 		return;
+	}
 
 	if (curr->IsDisabledStorage())
 		return;
