@@ -453,8 +453,15 @@ namespace wms {
 	void TileLoader::on_read(boost::system::error_code ec, std::size_t size)
 	{
 		m_Timer.cancel();
-		if (!ec && m_ImageFormatType == image_format_type::png && m_Response.body().substr(0, 4) != "\x89PNG")
-			ec = boost::asio::error::basic_errors::invalid_argument;
+		
+		auto response_body = m_Response.body();// DEBUG
+		
+
+		
+		if (!ec) 
+			if (m_ImageFormatType == image_format_type::png)
+				if (strncmp(m_Response.body().c_str(), "\x89PNG", 4)==0)
+					ec = boost::asio::error::basic_errors::invalid_argument;
 
 		if (report_status(ec, "on_read"))
 			return;

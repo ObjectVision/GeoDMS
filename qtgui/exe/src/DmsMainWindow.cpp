@@ -1382,6 +1382,7 @@ bool MainWindow::CloseConfig()
 {
     TreeItem_SetAnalysisSource(nullptr); // clears all code-analysis coding
 
+    // close all dms views
     bool has_active_dms_views = false;
     if (m_mdi_area)
     {
@@ -1389,6 +1390,7 @@ bool MainWindow::CloseConfig()
         m_mdi_area->closeAllSubWindows();
     }
 
+    // reset all dms tree data
     if (m_root)
     {
         m_detail_pages->leaveThisConfig(); // reset ValueInfo cached results
@@ -1400,6 +1402,14 @@ bool MainWindow::CloseConfig()
         m_root = nullptr;
         m_current_item.reset();
         m_current_item = nullptr;
+    }
+
+    // close all active value info windows
+    QList<QWidget*> value_info_windows = this->findChildren<QWidget*>(Qt::FindDirectChildrenOnly);
+    for (auto* widget : value_info_windows)
+    {
+        if (dynamic_cast<ValueInfoWindow*>(widget))
+            widget->close();
     }
 
     SessionData::ReleaseCurr();
@@ -1597,27 +1607,7 @@ void MainWindow::showValueInfo(const AbstrDataItem* studyObject, SizeT index, Sh
 {
     assert(studyObject);
 
-    auto* value_info_window = new ValueInfoWindow(this);
-    
-    value_info_window->setWindowFlag(Qt::Window, true);
-    value_info_window->setAttribute(Qt::WA_DeleteOnClose, true);
-    QVBoxLayout* v_layout = new QVBoxLayout(this);
-    QHBoxLayout* h_layout = new QHBoxLayout(this);
-
-    value_info_window->m_browser = new ValueInfoBrowser(value_info_window, studyObject, index, extraInfo, value_info_window);
-    h_layout->addWidget(value_info_window->m_browser->back_button.get());
-    h_layout->addWidget(value_info_window->m_browser->forward_button.get());
-    v_layout->addLayout(h_layout);
-    v_layout->addWidget(value_info_window->m_browser);
-
-    value_info_window->setWindowIcon(QIcon(":/res/images/DP_ValueInfo.bmp"));
-
-    value_info_window->setLayout(v_layout);
-    value_info_window->resize(800, 500);
-    value_info_window->show();
-
-    value_info_window->m_browser->restart_updating();
-
+    auto* value_info_window = new ValueInfoWindow(studyObject, index, extraInfo, this);
     return;
 }
 
@@ -2439,8 +2429,6 @@ void MainWindow::updateViewMenu()
     if (hasToolbar)
         m_toggle_toolbar_action->setChecked(m_toolbar->isVisible());
     m_toggle_currentitembar_action->setChecked(m_current_item_bar_container->isVisible());
-    //m_toggle_valueinfo_action->setChecked(m_value_info_dock->isVisible());
-    //m_toggle_valueinfo_action->setEnabled(m_value_info_mdi_area->subWindowList().size() > 0);
 
     m_processing_records.empty() ? m_view_calculation_times_action->setDisabled(true) : m_view_calculation_times_action->setEnabled(true);
 }
@@ -2568,7 +2556,7 @@ void MainWindow::createStatusBar()
     connect(statusBar(), &QStatusBar::messageChanged, this, &MainWindow::on_status_msg_changed);
     m_statusbar_coordinates = new QLineEdit(this);
     m_statusbar_coordinates->setReadOnly(true);
-    m_statusbar_coordinates->setFixedWidth(310);
+    m_statusbar_coordinates->setFixedWidth(300);
     m_statusbar_coordinates->setAlignment(Qt::AlignmentFlag::AlignLeft);
     statusBar()->insertPermanentWidget(0, m_statusbar_coordinates);
     m_statusbar_coordinates->setVisible(false);

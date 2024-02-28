@@ -181,7 +181,6 @@ namespace py_geodms
 
 	Config* Config::currSingleConfig = nullptr;
 
-
 	struct Engine
 	{
 		Engine()
@@ -204,7 +203,8 @@ namespace py_geodms
 		Config load_config(CharPtr config_file_name)
 		{
 			return Config(config_file_name);
-		}
+		} 
+
 		Config create_config_root(CharPtr akaName)
 		{
 			return Config(akaName, int(0));
@@ -225,15 +225,12 @@ PYBIND11_MODULE(GeoDmsPython, m) {
 		.def("nextItem", &py_geodms::Item::GetNextItem)
 		;
 
-	py::class_<py_geodms::DataItem>(m, "DataItem")
-		;
-
-	py::class_<py_geodms::DataItem>(m, "UnitItem")
-		;
+	py::class_<py_geodms::DataItem>(m, "DataItem");
+	py::class_<py_geodms::DataItem>(m, "UnitItem");
 
 	py::class_<py_geodms::Config>(m, "Config")
-		.def("getRoot", &py_geodms::Config::get_root)
-		;
+		.def("getRoot", &py_geodms::Config::get_root);
+
 	py::class_<py_geodms::Engine>(m, "Engine")
 		.def(py::init())
 		.def("loadConfig", &py_geodms::Engine::load_config)
@@ -241,6 +238,5 @@ PYBIND11_MODULE(GeoDmsPython, m) {
 	;
 
 	m.def("AsDataItem", &py_geodms::AsDataItem);
-
 	m.def("version", DMS_GetVersion);
 }

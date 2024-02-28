@@ -53,8 +53,8 @@ private:
 class ValueInfoWindow : public QWidget
 {
 public:
-    ValueInfoWindow(QWidget* parent = nullptr);
-    ValueInfoBrowser* m_browser;
+    ValueInfoWindow(SharedDataItemInterestPtr studyObject, SizeT index, SharedStr extraInfo, QWidget* parent = nullptr);
+    ValueInfoBrowser* m_browser = nullptr;
 };
 
 struct ValueInfoBrowser : QUpdatableTextBrowser

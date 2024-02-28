@@ -12,6 +12,7 @@
 #include <QToolBar>
 #include <QTextEdit>
 #include <QDialog>
+#include <QPushButton>
 #include <QCheckbox>
 #include <qpushbutton>
 #include <QSlider>
@@ -355,7 +356,6 @@ private:
 public: 
     // helper window docks
     QPointer<QDockWidget> m_detailpages_dock, m_treeview_dock, m_eventlog_dock, m_value_info_dock;
-    QPointer<QDmsMdiArea> m_value_info_mdi_area;
 
     std::unique_ptr<QMenu> m_file_menu, m_edit_menu, m_view_menu, m_tools_menu, m_window_menu, m_settings_menu, m_help_menu, m_code_analysis_submenu;
 

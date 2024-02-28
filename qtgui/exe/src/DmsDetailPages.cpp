@@ -274,10 +274,18 @@ bool DumpSourceDescriptionDatasetInfo(const TreeItem* studyObject, OutStreamBase
 
     auto storage_parent = studyObject->GetStorageParent(false);
     auto storage_manager = storage_parent->GetStorageManager();
-    bool is_read_only = storage_manager->IsReadOnly();
+    //bool is_read_only = storage_manager->IsReadOnly();
     prop_tables dataset_properties = {};
-    if (is_read_only)
+    try
+    {
         dataset_properties = storage_manager->GetPropTables(storage_parent, const_cast<TreeItem*>(studyObject));
+    }
+    catch (...)
+    {
+		auto err = catchException(false);
+        dataset_properties = {};
+	}
+    
     TreeItem_XML_ConvertAndDumpDatasetProperties(studyObject, dataset_properties, xmlOutStrPtr);
     return true;
 }
@@ -291,7 +299,7 @@ void DmsDetailPages::drawPage() noexcept
     catch (...)
     {
         auto errMsg = catchException(false);
-        MainWindow::TheOne()->reportErrorAndTryReload(errMsg);
+        //MainWindow::TheOne()->reportErrorAndTryReload(errMsg);
     }
 }
 
@@ -307,15 +315,8 @@ void DmsDetailPages::drawPageImpl()
 
     // Disable or enable dataset information radio button
     auto has_storage_manager = CurrOrParentHasStorageManager(current_item);
-    bool has_read_only_storage_manager = false;
-    if (has_storage_manager)
-    {
-	    auto storage_parent = current_item->GetStorageParent(false);
-	    auto storage_manager = storage_parent->GetStorageManager();
-	    has_read_only_storage_manager = storage_manager->IsReadOnly();
-	}
-    main_window->m_detail_page_source_description_buttons->sd_dataset_information->setDisabled(!has_read_only_storage_manager);
-    if (m_SDM == SourceDescrMode::DatasetInfo && !has_read_only_storage_manager) // Switch to configured mode if dataset info mode is selected but no storage manager is available
+    main_window->m_detail_page_source_description_buttons->sd_dataset_information->setDisabled(!has_storage_manager);
+    if (m_SDM == SourceDescrMode::DatasetInfo && !has_storage_manager) // Switch to configured mode if dataset info mode is selected but no storage manager is available
         main_window->m_detail_page_source_description_buttons->sd_configured->setChecked(true);
 
     bool ready = true;
@@ -355,9 +356,9 @@ void DmsDetailPages::drawPageImpl()
             if (!has_storage_manager)
                 main_window->m_detail_page_source_description_buttons->sd_configured->setChecked(true);
         }
-        
-        if (m_SDM != SourceDescrMode::DatasetInfo)
+        else
             TreeItem_XML_DumpSourceDescription(current_item, m_SDM, xmlOut.get());
+
         break;
     }
     case ActiveDetailPage::METADATA:

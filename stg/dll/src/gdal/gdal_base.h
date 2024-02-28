@@ -128,6 +128,16 @@ struct FieldInfo
 	SharedDataItemInterestPtr m_DataHolder; // Ptr to keep data alive until all data for layer items of interest is present.
 };
 
+struct affine_transformation
+{
+	Float64 x_offset = 0.0;
+	Float64 x_scale = 1.0;
+	Float64 x_rotation = 0.0;
+	Float64 y_offset = 0.0;
+	Float64 y_rotation = 0.0;
+	Float64 y_scale = 1.0;
+};
+
 // REVIEW: TokenT vervangen door TokenID maakt code simpeler en encapsuleert implementatie van Tokens.
 
 class DataItemsWriteStatusInfo
@@ -178,7 +188,6 @@ void SetFeatureDefnForOGRLayerFromLayerHolder(const TreeItem* subItem, OGRLayer*
 STGDLL_CALL auto GetBaseProjectionUnitFromValuesUnit(const AbstrDataItem* adi) -> const AbstrUnit*;
 auto GetGeometryTypeFromGeometryDataItem(const TreeItem* subItem) -> OGRwkbGeometryType;
 auto GetAsWkt(const OGRSpatialReference* sr) -> SharedStr;
-auto GetAffineTransformationFromDataItem(const TreeItem* storageHolder) -> std::vector<double>;
 auto GetOGRSpatialReferenceFromDataItems(const TreeItem* storageHolder) -> std::optional<OGRSpatialReference>;
 void CheckSpatialReference(std::optional<OGRSpatialReference>& ogrSR, const TreeItem* treeitem, const AbstrUnit* mutBase);
 STGDLL_CALL auto GetUnitSizeInMeters(const AbstrUnit* projectionBaseUnit) -> Float64;
