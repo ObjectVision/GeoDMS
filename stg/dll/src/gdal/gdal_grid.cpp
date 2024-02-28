@@ -107,8 +107,20 @@ bool GdalGridSM::ReadDataItem(StorageMetaInfoPtr smi, AbstrDataObject* borrowedR
 	{
 		// Collect zoom info
 		const GridStorageMetaInfo* gbr = debug_cast<const GridStorageMetaInfo*>(smi.get());
+
 		auto vpi = gbr->m_VPIP.value().GetViewportInfoEx(t, smi);
 		vpi.SetWritability(adi);
+		//Transformation<double> = { m_Offset = (-493430012.98830098; -631659984.00149012) m_Factor = (120000.00000000480; 120000.00000000480) }
+		if (vpi.Offset().X() < -493430012.988)
+		{
+			int i = 0;
+		}
+
+
+		// DEBUG CODE
+		auto vpi_test = gbr->m_VPIP.value().GetViewportInfoEx(t, smi);
+
+		// END DEBUG CODE
 
 		if (vpi.GetCountColor() != -1)
 			ReadGridCounts(vpi, borrowedReadResultHolder, t, gbr->m_SqlString);

@@ -90,12 +90,40 @@ void StudyObjectHistory::insert(SharedDataItemInterestPtr studyObject, SizeT ind
     assert(current_index + 1 == study_objects.size());
 }
 
-ValueInfoWindow::ValueInfoWindow(QWidget* parent)
+ValueInfoWindow::ValueInfoWindow(SharedDataItemInterestPtr studyObject, SizeT index, SharedStr extraInfo, QWidget* parent)
     : QWidget(parent)
 {
-    // close value info window shortcut
-    QShortcut* shortcut = new QShortcut(QKeySequence(Qt::ALT + Qt::Key_R), this);
-    QObject::connect(shortcut, &QShortcut::activated, this, &QWidget::close);
+    // window flags
+    setWindowFlag(Qt::Window, true);
+    setAttribute(Qt::WA_DeleteOnClose, true);
+
+    // icon
+    setWindowIcon(QIcon(":/res/images/DP_ValueInfo.bmp"));
+
+    // layout
+    QVBoxLayout* v_layout = new QVBoxLayout(this);
+    QHBoxLayout* h_layout = new QHBoxLayout(this);
+
+    // close value info window shortcuts
+    QShortcut* shortcut_CTRL_W = new QShortcut(QKeySequence(Qt::CTRL + Qt::Key_W), this);
+    QShortcut* shortcut_CTRL_F4 = new QShortcut(QKeySequence(Qt::CTRL + Qt::Key_F4), this);
+    QObject::connect(shortcut_CTRL_W, &QShortcut::activated, this, &QWidget::close);
+    QObject::connect(shortcut_CTRL_F4, &QShortcut::activated, this, &QWidget::close);
+
+    m_browser = new ValueInfoBrowser(this, studyObject, index, extraInfo, this);
+    h_layout->addWidget(m_browser->back_button.get());
+    h_layout->addWidget(m_browser->forward_button.get());
+    v_layout->addLayout(h_layout);
+    v_layout->addWidget(m_browser);
+
+
+
+    setLayout(v_layout);
+    resize(800, 500);
+
+    show();
+
+    m_browser->restart_updating();
 }
 
 ValueInfoBrowser::ValueInfoBrowser(QWidget* parent, SharedDataItemInterestPtr studyObject, SizeT index, SharedStr extraInfo, QWidget* window)

@@ -435,17 +435,29 @@ void CheckCompatibility(const TreeItem* treeitem, OGRSpatialReference* fromGDAL,
 	if (fromGDAL->IsSame(fromConfig))
 		return;
 
-	SharedStr authority_code_from_gdal       = SharedStr(fromGDAL->GetAuthorityName(NULL)) + ":" + fromGDAL->GetAuthorityCode(NULL);
-	SharedStr authority_code_from_value_unit = SharedStr(fromConfig->GetAuthorityName(NULL)) + ":" + fromConfig->GetAuthorityCode(NULL);
+	auto gdal_authority = SharedStr(fromGDAL->GetAuthorityName(NULL));
+	auto vu_authority = SharedStr(fromConfig->GetAuthorityName(NULL));
+	auto gdal_code = SharedStr(fromGDAL->GetAuthorityCode(NULL));
+	auto vu_code = SharedStr(fromConfig->GetAuthorityCode(NULL));
 
-	if (authority_code_from_gdal == authority_code_from_value_unit)
+	// for a valid comparison both authority and code must be present from value unit and gdal side
+	if (gdal_authority.empty() or vu_authority.empty() or gdal_code.empty() or vu_code.empty()) 
 		return;
 
-	reportF(SeverityTypeID::ST_Warning, "GDAL: item [[%s]] spatial reference (%s) differs from the spatial reference (%s) GDAL obtained from dataset"
+	SharedStr authority_and_code_from_gdal       = gdal_authority + ":" + gdal_code;
+	SharedStr authority_and_code_from_value_unit = vu_authority + ":" + vu_code;
+
+	if (authority_and_code_from_gdal == authority_and_code_from_value_unit)
+		return;
+	SharedStr projection_mismatch_error_message = mySSPrintF(
+		"GDAL: item [[%s]] spatial reference (%s) differs from the spatial reference (%s) obtained from the dataset"
 		, treeitem->GetFullName().c_str()
-		, authority_code_from_gdal.c_str()
-		, authority_code_from_value_unit.c_str()
-	);
+		, authority_and_code_from_gdal.c_str()
+		, authority_and_code_from_value_unit.c_str());
+
+	//reportF(SeverityTypeID::ST_Error, projection_mismatch_error_message.c_str());
+
+	treeitem->Fail(projection_mismatch_error_message, FailType::FR_MetaInfo);
 }
 
 auto ConvertProjectionStrToAuthorityIdentifierAndCode(const std::string projection) -> SharedStr
@@ -970,9 +982,9 @@ auto GetUnitSizeInMeters(const AbstrUnit* projectionBaseUnit) -> Float64
 	return result;
 }
 
-auto GetAffineTransformationFromDataItem(const TreeItem* storageHolder) -> std::vector<double>
+auto GetAffineTransformationFromDataItem(const TreeItem* storageHolder) -> affine_transformation
 {
-	auto affine_transformation = std::vector<double>();
+	affine_transformation affine_transformation;
 	
 	if (!IsDataItem(storageHolder))
 		return {};
@@ -980,19 +992,28 @@ auto GetAffineTransformationFromDataItem(const TreeItem* storageHolder) -> std::
 	auto adi = AsDataItem(storageHolder);
 	const AbstrUnit* colDomain = adi->GetAbstrDomainUnit();
 	auto unit_projection = colDomain->GetProjection();
-	auto [gridBegin, gridEnd] = colDomain->GetRangeAsDRect();
+	auto grid_extends = colDomain->GetRangeAsDRect();
 
+	auto transformation = UnitProjection::GetCompositeTransform(unit_projection); 
+	auto factor = transformation.Factor();
+
+	affine_transformation.x_offset = transformation.Offset().X();
+	affine_transformation.y_offset = transformation.Offset().Y();
+	affine_transformation.x_scale = factor.X();
+	affine_transformation.y_scale = factor.Y();
+
+	/*
 	DPoint factor = (unit_projection) ? unit_projection->Factor() : DPoint(1.0, 1.0), f2 = factor;
 	if (factor.X() < 0) { f2.X() = -factor.X(); gridBegin.Col() = gridEnd.Col(); }
 	if (factor.Y() > 0) { f2.Y() = -factor.Y(); gridBegin.Row() = gridEnd.Row(); }
-	DPoint offset = ((unit_projection) ? unit_projection->Offset() : DPoint()) + gridBegin * factor + 0.5 * f2;
+	DPoint offset = ((unit_projection) ? unit_projection->Offset() : DPoint()) + gridBegin * factor;
 
 	affine_transformation.push_back(offset.X());   // x-coordinate of the upper-left corner of the upper-left pixel.
 	affine_transformation.push_back(f2.X());       // w-e pixel resolution / pixel width.
 	affine_transformation.push_back(Float64(0.0)); // row rotation (typically zero).
 	affine_transformation.push_back(offset.Y());   // y-coordinate of the upper-left corner of the upper-left pixel.
 	affine_transformation.push_back(Float64(0.0)); // column rotation (typically zero).
-	affine_transformation.push_back(f2.Y()); 	   // n-s pixel resolution / pixel height (negative value for a north-up image).
+	affine_transformation.push_back(f2.Y()); 	   // n-s pixel resolution / pixel height (negative value for a north-up image).*/
 	return affine_transformation;
 }
 
@@ -1433,10 +1454,7 @@ GDALDatasetHandle Gdal_DoOpenStorage(const StorageMetaInfo& smi, dms_rw_mode rwM
 
 			// affine transformation
 			auto affine_transformation = GetAffineTransformationFromDataItem(storageHolder);
-			if (!affine_transformation.empty())
-			{
-				result->SetGeoTransform(&affine_transformation[0]);
-			}
+			result->SetGeoTransform(&affine_transformation.x_offset);
 		}
 
 		if (!result && !Gdal_DetermineIfDriverHasVectorOrRasterCapability(gdalOpenFlags, driver))

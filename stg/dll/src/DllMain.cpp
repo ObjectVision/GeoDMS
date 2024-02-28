@@ -625,7 +625,12 @@ ViewPortInfoProvider::ViewPortInfoProvider(const TreeItem * storageHolder, const
 ViewPortInfoEx<Int32> ViewPortInfoProvider::GetViewportInfoEx(tile_id tc, StorageMetaInfoPtr smi, tile_id tg) const
 {
 	FixedContextHandle provideExceptionContext("in constructing a ViewPortInfo<Int32> (for transfering data from one tiling to another)");
-	return ViewPortInfoEx<Int32>(m_ADI, AsUnit(m_CurrDomain->GetCurrRangeItem()), tc, AsUnit(m_GridDomain->GetCurrRangeItem()), tg, smi, true, false, m_CountColor, m_QueryActualGridDomain);
+	auto curr_range_unit = AsUnit(m_CurrDomain->GetCurrRangeItem());
+	auto grid_range_unit = AsUnit(m_GridDomain->GetCurrRangeItem());
+
+
+
+	return ViewPortInfoEx<Int32>(m_ADI, curr_range_unit, tc, grid_range_unit, tg, smi, true, false, m_CountColor, m_QueryActualGridDomain);
 }
 
 template ViewPortInfoEx<Int32>;

@@ -12,6 +12,8 @@
 #include <QGridLayout>
 #include <QScrollBar>
 #include <QClipBoard>
+#include <QEvent>
+#include <QKeyEvent>
 
 #include "dbg/Timer.h"
 
