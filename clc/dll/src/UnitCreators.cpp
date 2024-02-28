@@ -29,6 +29,7 @@ CommonOperGroup
 	cog_sub("sub"),
 	cog_bitand("bitand"),
 	cog_bitor ("bitor"),
+	cog_bitxor("bitxor"),
 	cog_pow("pow"),
 	cog_eq("eq"),
 	cog_ne("ne"),
