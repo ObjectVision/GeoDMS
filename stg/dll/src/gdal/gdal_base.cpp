@@ -42,6 +42,7 @@
 #include "LispTreeType.h"
 #include "TreeItemContextHandle.h"
 #include "TreeItemProps.h"
+#include "TreeItemUtils.h"
 #include "Unit.h"
 #include "UnitClass.h"
 
@@ -789,6 +790,15 @@ bool DataItemsWriteStatusInfo::fieldIsWritten(TokenID layerID, TokenID fieldID)
 	return m_LayerAndFieldIDMapping[layerID][fieldID].isWritten;
 }
 
+bool DataItemsWriteStatusInfo::hasGeometry(TokenID layerID)
+{
+	for (auto& field : m_LayerAndFieldIDMapping[layerID])
+		if (field.second.isGeometry)
+			return true;
+		
+	return false;
+}
+
 void DataItemsWriteStatusInfo::setFieldIsWritten(TokenID layerID, TokenID fieldID, bool isWritten)
 {
 	m_LayerAndFieldIDMapping[layerID][fieldID].isWritten = isWritten;
@@ -1037,56 +1047,47 @@ auto GetOGRSpatialReferenceFromDataItems(const TreeItem* storageHolder) -> std::
 	return {};
 }
 
-#include "TreeItemUtils.h"
-OGRwkbGeometryType GetGeometryTypeFromLayerHolder(const TreeItem* subItem)
+auto GetGeometryItemFromLayerHolder(const TreeItem* subItem) -> const TreeItem*
 {
-	auto geot = OGRwkbGeometryType::wkbNone;
-	auto vcprev = ValueComposition::Single;
-
 	// get mapping item from unit subitem
 	const TreeItem* mapping_item = GetMappingItem(subItem);
+
 	if (!mapping_item)
 	{
-		auto adu = AsUnit(subItem);
-		if (adu)
-			mapping_item = GetMappingItem(adu);
+		if (IsUnit(subItem))
+		{
+			auto adu = AsUnit(subItem);
+			if (adu)
+				mapping_item = GetMappingItem(adu);
+		}
+		else if (IsDataItem(subItem))
+		{
+			auto adi = AsDataItem(subItem);
+			if (adi)
+			{
+				auto adu = adi->GetAbstrDomainUnit();
+				mapping_item = GetMappingItem(adu);
+			}
+		}
 	}
+	return mapping_item ? GeometrySubItem(mapping_item) : nullptr;
+}
+
+auto GetGeometryTypeFromLayerHolder(const TreeItem* subItem) -> OGRwkbGeometryType
+{
+	auto geot = OGRwkbGeometryType::wkbNone;
+
+	// get geometry item
+	auto geometry_item = GetGeometryItemFromLayerHolder(subItem);
 
 	// get geometry item from mapping item
-	if (mapping_item)
+	if (geometry_item)
 	{
-		auto geometry_item = GeometrySubItem(mapping_item);
 		auto adi = AsDataItem(geometry_item);
 		auto vc = adi->GetValueComposition();
 		auto vci = adi->GetAbstrValuesUnit()->GetValueType()->GetValueClassID();
 		geot = DmsType2OGRGeometryType(vc);
 	}
-
-	/*auto adi = AsDataItem(subItem);
-	auto mapping_item_2 = GetMappingItem(adi->GetAbstrDomainUnit());
-	auto geometry_item = GeometrySubItem(mapping_item_2);
-
-	for (auto subDataItem = subItem; subDataItem; subDataItem = subItem->WalkConstSubTree(subDataItem))
-	{
-		if (not (IsDataItem(subDataItem) and subDataItem->IsStorable()))
-			continue;
-
-		auto subDI = AsDataItem(subDataItem);
-		auto vc = subDI->GetValueComposition();
-		auto vci = subDI->GetAbstrValuesUnit()->GetValueType()->GetValueClassID();
-		auto id = subDataItem->GetID();
-
-		if (id == token::geometry)
-			return DmsType2OGRGeometryType(vc);
-
-		if (vc >= vcprev && vc <= ValueComposition::Sequence && (vci >= ValueClassID::VT_SPoint && vci < ValueClassID::VT_FirstAfterPolygon))
-		{
-			geot = DmsType2OGRGeometryType(vc);
-			vcprev = vc;
-		}
-	}*/
-
-
 
 	return geot;
 }

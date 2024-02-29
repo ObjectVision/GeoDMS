@@ -145,6 +145,7 @@ public:
 
 	int  getNumberOfLayers();
 	bool fieldIsWritten(TokenID layerID, TokenID  fieldID);
+	bool hasGeometry(TokenID layerID);
 	void setFieldIsWritten(TokenID layerID, TokenID  fieldID, bool isWritten);
 	void setIsGeometry(TokenID layerID, TokenID  geometryFieldID, bool isGeometry);
 	void setInterest(TokenID layerID, TokenID  fieldID, bool hasInterest);
@@ -176,6 +177,7 @@ const TreeItem* GetLayerHolderFromDataItem(const TreeItem* storageHolder, const 
 auto GetOptionArray(const TreeItem* optionsItem) -> CPLStringList;
 void SetFeatureDefnForOGRLayerFromLayerHolder(const TreeItem* subItem, OGRLayer* layerHandle);
 STGDLL_CALL auto GetBaseProjectionUnitFromValuesUnit(const AbstrDataItem* adi) -> const AbstrUnit*;
+auto GetGeometryItemFromLayerHolder(const TreeItem* subItem) -> const TreeItem*;
 auto GetGeometryTypeFromLayerHolder(const TreeItem* subItem) -> OGRwkbGeometryType;
 auto GetAsWkt(const OGRSpatialReference* sr) -> SharedStr;
 auto GetAffineTransformationFromDataItem(const TreeItem* storageHolder) -> std::vector<double>;
