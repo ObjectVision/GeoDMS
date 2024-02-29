@@ -209,7 +209,7 @@ bool Districter<T, D>::FindFirstNotProcessedPoint(IGridPoint& point)
 template <typename T, typename D>
 void Districter<T, D>::GetDistrict(IGridPoint seedPoint, D districtId, bool rule8)
 {
-	assert(IsIncluding(m_Rectangle, seedPoint));
+	assert(IsIncluding(this->m_Rectangle, seedPoint));
 
 	auto pos = this->Pos(seedPoint);
 	auto val = this->m_Input.GetDataPtr()[pos];
