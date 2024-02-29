@@ -98,17 +98,17 @@ FormPoint TForm::Translate(const FormPoint& p1, TOctant o)
 { 
 	switch (o)
 	{
-		case o_1_1:	return	FormPoint( p1.Row(), p1.Col());
-		case o_1_2:	return	FormPoint( p1.Col(), p1.Row());
+		case o_1_1:	return	rowcol2dms_order<FormType>(p1.Row(), p1.Col());
+		case o_1_2:	return	rowcol2dms_order<FormType>(p1.Col(), p1.Row());
 
-		case o_2_1:	return	FormPoint( p1.Row(),-p1.Col());
-		case o_2_2:	return	FormPoint(-p1.Col(), p1.Row());
+		case o_2_1:	return	rowcol2dms_order<FormType>(p1.Row(), -p1.Col());
+		case o_2_2:	return	rowcol2dms_order<FormType>(-p1.Col(), p1.Row());
 
-		case o_3_1:	return	FormPoint(-p1.Row(),-p1.Col());
-		case o_3_2:	return	FormPoint(-p1.Col(),-p1.Row());
+		case o_3_1:	return	rowcol2dms_order<FormType>(-p1.Row(), -p1.Col());
+		case o_3_2:	return	rowcol2dms_order<FormType>(-p1.Col(), -p1.Row());
 
-		case o_4_1:	return	FormPoint(-p1.Row(), p1.Col());
-		case o_4_2:	return	FormPoint( p1.Col(),-p1.Row());
+		case o_4_1:	return	rowcol2dms_order<FormType>(-p1.Row(), p1.Col());
+		case o_4_2:	return	rowcol2dms_order<FormType>(p1.Col(), -p1.Row());
 	}
 	return FormPoint();
 }
@@ -159,172 +159,16 @@ inline bool TForm::NextBorderPoint(IGridPoint& p, TTranslation t)
 }
 
 // *****************************************************************************
-//											SpatialAnalyzer
+//											DiversityCalculator
 // *****************************************************************************
 
 template <typename T>
-void SpatialAnalyzer<T>::Init(const DataGridType& input)
-{
-	DBG_START("SpatialAnalyzer", "Init", false);
-
-	m_Input		  = input;
-	m_Rectangle	  = IGridRect(IGridPoint(0, 0), Convert<IGridPoint>(input.GetSize()));
-
-
-	ICoordType nrCols = input.GetSize().Col();
-	MG_CHECK(nrCols>0);
-
-	m_NrCols = nrCols;
-	m_Size   = Cardinality(input.GetSize());
-
-	DBG_TRACE(("Size() %d", GridSize()));
-
-	MG_CHECK(m_Size>0);
-}
-
-template <typename T>
-void DiversityCalculator<T>::Init(const DataGridType& input, RadiusType radius, bool isCircle, const DivCountGridType& output)
+void DiversityCalculator<T>::InitFrom(const DataGridType& input, RadiusType radius, bool isCircle, const DivCountGridType& output)
 {
 	dms_assert(input.GetSize() == output.GetSize()); // PRECONDITIOON;
 	m_Form.Init(radius, isCircle);
 	m_DivOutput = output;
-	Init(input);
-}
-
-template <typename T, typename DistrIdType>
-void Districter<T, DistrIdType>::GetDistricts(const UGrid<const T>& input, const UGrid<DistrIdType>& output, DistrIdType* resNrDistricts, bool rule8)
-{
-	m_DistrOutput = output;
-
-	assert(input.GetSize() == output.GetSize()); // PRECONDITION;
 	this->Init(input);
-
-	auto point = this->m_Rectangle.first;
-
-	fast_fill(
-		m_DistrOutput.GetDataPtr(),
-		m_DistrOutput.GetDataPtr() + this->GridSize(), 
-		UNDEFINED_VALUE(DistrIdType)
-	);
-	m_Processed = DistrSelVecType(this->GridSize(), false);
-//	vector_zero_n(m_Processed, GridSize());
-
-	for (; FindFirstNotProcessedPoint(point); ++*resNrDistricts)
-	{
-		if (!resNrDistricts)
-			throwErrorF("district", "number of found districts exceeds the maximum of the chosen district operator that stores only %d bytes per cell", sizeof(DistrIdType));
-
-		GetDistrict(point, *resNrDistricts, rule8);
-	}
-}
-
-template <typename T, typename DistrIdType>
-void Districter<T, DistrIdType>::GetDistrict(const DataGridType& input, const DistrSelSeqType& output, const IGridPoint& seedPoint, IGridRect& resRect)
-{
-	m_DistrBoolOutput = output;
-	this->m_ResRect = IGridRect();
-
-	assert(input.size() == output.size()); // PRECONDITION
-	Init(input);
-
-	m_Processed = DistrSelVecType(this->GridSize(), false);
-//	vector_zero_n(m_Processed, GridSize());
-
-	GetDistrict(seedPoint, true, false);
-
-	resRect = this->m_ResRect;
-}
-
-template <typename T, typename DistrIdType>
-void Districter<T, DistrIdType>::SetDistrictId(SizeType pos, DistrIdType districtId)
-{
-	m_DistrOutput.GetDataPtr()[pos] = districtId;
-	m_Processed[pos] = true;
-}
-
-template <typename T, typename DistrIdType>
-void Districter<T, DistrIdType>::SetDistrictId(SizeType pos, bool districtId)
-{
-	m_DistrBoolOutput[pos] = districtId;
-	m_Processed[pos] = true;
-}
-
-
-inline void UpdateRect(IGridRect& resRect, const IGridPoint& point, const DistrIdType* dummy)
-{
-	// nop
-}
-
-inline void UpdateRect(IGridRect& resRect, const IGridPoint& point, const bool* dummy)
-{
-	resRect |= point;
-}
-
-template <typename T, typename D>
-void Districter<T, D>::ConsiderPoint(IGridPoint seedPoint, D districtId, DataGridValType val, std::vector<IGridPoint>& stack)
-{
-	SizeType pos = Pos(seedPoint);
-	if (Bool(m_Processed[pos])) return;
-	if (m_Input.GetDataPtr()[pos] != val) return;
-
-	SetDistrictId(pos, districtId);
-	UpdateRect(m_ResRect, seedPoint, &districtId);
-	stack.push_back(seedPoint);
-}
-
-
-template <typename T, typename D>
-void Districter<T, D>::GetDistrict(IGridPoint seedPoint, D districtId, bool rule8)
-{
-	assert(IsIncluding(m_Rectangle, seedPoint));
-
-	SizeType pos = Pos(seedPoint);
-	DataGridValType val = m_Input.GetDataPtr()[Pos(seedPoint)];
-	SetDistrictId(pos, districtId);
-	UpdateRect(m_ResRect, seedPoint, &districtId);
-
-	IGridRect reducedRect = Deflate(m_Rectangle, IGridPoint(1,1) );
-
-	std::vector<IGridPoint> stack;
-	while(true) {
-		bool nonTop    = seedPoint.Row()   > m_Rectangle.first .Row();
-		bool nonBottom = seedPoint.Row()+1 < m_Rectangle.second.Row();
-		bool nonLeft   = seedPoint.Col()   > m_Rectangle.first .Col();
-		bool nonRight  = seedPoint.Col()+1 < m_Rectangle.second.Col();
-
-		if (nonTop   ) ConsiderPoint(IGridPoint(seedPoint.Row()-1, seedPoint.Col()), districtId, val, stack);
-		if (nonBottom) ConsiderPoint(IGridPoint(seedPoint.Row()+1, seedPoint.Col()), districtId, val, stack);
-		if (nonLeft  ) ConsiderPoint(IGridPoint(seedPoint.Row(), seedPoint.Col()-1), districtId, val, stack);
-		if (nonRight ) ConsiderPoint(IGridPoint(seedPoint.Row(), seedPoint.Col()+1), districtId, val, stack);
-
-
-		if (rule8)
-		{
-			if (nonTop    && nonLeft ) ConsiderPoint(IGridPoint(seedPoint.Row()-1, seedPoint.Col()-1), districtId, val, stack);
-			if (nonTop    && nonRight) ConsiderPoint(IGridPoint(seedPoint.Row()-1, seedPoint.Col()+1), districtId, val, stack);
-			if (nonBottom && nonLeft ) ConsiderPoint(IGridPoint(seedPoint.Row()+1, seedPoint.Col()-1), districtId, val, stack);
-			if (nonBottom && nonRight) ConsiderPoint(IGridPoint(seedPoint.Row()+1, seedPoint.Col()+1), districtId, val, stack);
-		}
-		if (stack.empty())
-			return;
-		seedPoint = stack.back();
-		stack.pop_back();
-	}
-}
-
-template <typename T, typename D>
-void Districter<T, D>::FindFirstNotProcessedPoint(IGridPoint& point)
-{
-	typename sequence_traits<T>::const_pointer inputData = m_Input.GetDataPtr();
-	SizeType pos = Pos(point);
-	SizeType end = GridSize();
-	dms_assert(pos < end);
-	while (Bool(m_Processed[pos]) || !IsDefined(inputData[pos]))
-		if (++pos == end)
-			return false;
-	dms_assert(pos < end);
-	point = GetPoint(pos);
-	return true;
 }
 
 template <typename T>
@@ -336,7 +180,7 @@ void DiversityCalculator<T>::GetDiversity(
 {
 	DBG_START("SpatialAnalyzer", "GetDiversity", true);
 	m_InputUpperBound = inputUpperBound;
-	Init(input, radius, isCircle, output);
+	InitFrom(input, radius, isCircle, output);
 
 	GetDiversity1();
 }
@@ -377,13 +221,18 @@ void DiversityCalculator<T>::GetDiversity2()
 	DBG_START("DiversityCalculator", "GetDiversity2", true);
 
 	DivVectorType divVector(DivCountType(0), m_InputUpperBound);
-	for (ICoordType row = this->m_Rectangle.first.Row(), rowEnd = this->m_Rectangle.second.Row(); row < rowEnd; ++row)
-		for (ICoordType col = this->m_Rectangle.first.Col(), colEnd =  this->m_Rectangle.second.Col(); col < colEnd; ++col)
+	ICoordType rowBegin = Top   (this->m_Rectangle);
+	ICoordType rowEnd   = Bottom(this->m_Rectangle);
+	ICoordType colBegin = Left  (this->m_Rectangle);
+	ICoordType colEnd   = Right (this->m_Rectangle);
+
+	for (ICoordType row = rowBegin; row != rowEnd; row++)
+		for (ICoordType col = colBegin; col != colEnd; col++)
 		{
 			vector_fill_n(divVector, DivCountType(0), m_InputUpperBound);
 			m_DivOutput->m_Data[Pos(shp2dms_order(col, row))] = DiversityCountAll(shp2dms_order(col, row), divVector);
 		}
-} // SpatialAnalyzer::GetDiversity2
+}
 
 template <typename T>
 void DiversityCalculator<T>::DiversityCountIncremental(
@@ -397,7 +246,7 @@ void DiversityCalculator<T>::DiversityCountIncremental(
 		DiversityCountVertical(point, divVector, isFirstRow);
 	else
 		DiversityCountHorizontal(point, divVector, right ? tIncCol : tDecCol);
-} // SpatialAnalyzer::DiversityCount
+}
 
 template <typename T>
 void DiversityCalculator<T>::DiversityCountVertical(
@@ -411,21 +260,21 @@ void DiversityCalculator<T>::DiversityCountVertical(
 
 	DBG_TRACE(("isFirstRow %d", isFirstRow));
 
-	m_DivOutput.GetDataPtr()[Pos(point)] =
+	m_DivOutput.GetDataPtr()[this->Pos(point)] =
 		(
 			isFirstRow
 			?
 			DiversityCountAll(prevPoint, divVector)
 			:
 			(
-				m_DivOutput.GetDataPtr()[Pos(prevPoint)] 
+				m_DivOutput.GetDataPtr()[this->Pos(prevPoint)]
 				- 
 				DiversityDifference(prevPoint, divVector, tIncRow, false)
 			)
 		)
 		+	
 		DiversityDifference(point, divVector, tIncRow, true);
-} // SpatialAnalyzer::DiversityCountVertical
+}
 
 template <typename T>
 void DiversityCalculator<T>::DiversityCountHorizontal(const IGridPoint& point, DivVectorType& divVector, TTranslation trans)
@@ -434,8 +283,8 @@ void DiversityCalculator<T>::DiversityCountHorizontal(const IGridPoint& point, D
 	if (trans == tIncCol) --prevPoint.Col();
 	if (trans == tDecCol ) ++prevPoint.Col();
 
-	dms_assert(IsIncluding(m_Rectangle, prevPoint));
-	m_DivOutput.GetDataPtr()[Pos(point)]	=	m_DivOutput.GetDataPtr()[Pos(prevPoint)]
+	assert(IsIncluding(this->m_Rectangle, prevPoint));
+	m_DivOutput.GetDataPtr()[this->Pos(point)]	=	m_DivOutput.GetDataPtr()[this->Pos(prevPoint)]
 												-
 												DiversityDifference(prevPoint, divVector, trans, false)
 												+
@@ -454,9 +303,9 @@ DiversityCalculator<T>::DiversityCountAll(const IGridPoint& center, DivVectorTyp
 
 	while (m_Form.NextContainedPoint(point))
 	{
-		if (IsIncluding(m_Rectangle, point))
+		if (IsIncluding(this->m_Rectangle, point))
 		{
-			SizeType val = m_Input.GetDataPtr()[Pos(point)];
+			SizeType val = this->m_Input.GetDataPtr()[this->Pos(point)];
 
 			if (val < m_InputUpperBound)
 			{
@@ -468,7 +317,7 @@ DiversityCalculator<T>::DiversityCountAll(const IGridPoint& center, DivVectorTyp
 		}
 	}
 	return	divCount;
-} // SpatialAnalyzer::DiversityCount
+}
 
 template <typename T>
 typename DiversityCalculator<T>::DivCountType
@@ -478,15 +327,15 @@ DiversityCalculator<T>::DiversityDifference(const IGridPoint& center, DivVectorT
 	DivCountType divCount = 0;
 
 	m_Form.SetCenter(center);
-	dms_assert(m_InputUpperBound == divVector.size());
+	assert(m_InputUpperBound == divVector.size());
 
 	if (add)
 	{
 		while (NextBorderPoint(point, trans, true))
 		{
-			if (IsIncluding(m_Rectangle, point))
+			if (IsIncluding(this->m_Rectangle, point))
 			{
-				SizeType val = m_Input.GetDataPtr()[Pos(point)];
+				SizeType val = this->m_Input.GetDataPtr()[this->Pos(point)];
 				if (val < m_InputUpperBound)
 				{
 					if (++divVector[val] == 1)
@@ -498,9 +347,9 @@ DiversityCalculator<T>::DiversityDifference(const IGridPoint& center, DivVectorT
 	{
 		while (NextBorderPoint(point, trans, false))
 		{
-			if (IsIncluding(m_Rectangle, point))
+			if (IsIncluding(this->m_Rectangle, point))
 			{
-				SizeType val = m_Input.GetDataPtr()[Pos(point)];
+				SizeType val = this->m_Input.GetDataPtr()[this->Pos(point)];
 				if (val < m_InputUpperBound)
 				{
 					if (--divVector[val] == 0)
@@ -511,7 +360,7 @@ DiversityCalculator<T>::DiversityDifference(const IGridPoint& center, DivVectorT
 	}
 
 	return	divCount;
-} // SpatialAnalyzer::DiversityDifference
+}
 
 template <typename T>
 bool DiversityCalculator<T>::NextBorderPoint(IGridPoint& point, TTranslation trans, bool add)
@@ -524,7 +373,7 @@ bool DiversityCalculator<T>::NextBorderPoint(IGridPoint& point, TTranslation tra
 		case tDecRow: return m_Form.NextBorderPoint(point, add ? tDecRow : tIncRow);
 	}
 	return false;
-} // SpatialAnalyzer::NextBorderPoint
+}
 
 // *****************************************************************************
 //	INTERFACE FUNCTIONS: Districting

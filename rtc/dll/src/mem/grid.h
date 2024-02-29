@@ -40,13 +40,13 @@ granted by an additional written contract for support, assistance and/or develop
 template <typename T>
 struct ptr_type
 {
-	typedef typename sequence_traits<T>::seq_t::iterator type;
+	using type = typename sequence_traits<T>::seq_t::iterator;
 };
 
 template <typename T>
 struct ptr_type<const T>
 {
-	typedef typename sequence_traits<T>::cseq_t::const_iterator type;
+	using type = typename sequence_traits<T>::cseq_t::const_iterator;
 };
 
 template <typename T> using ptr_type_t = typename ptr_type<T>::type;
@@ -66,7 +66,7 @@ struct TGridBase
 	typedef Point<CoordType> GridPoint;
 	typedef Range<GridPoint> GridRect;
 
-	typedef typename ptr_type<T>::type data_ptr;
+	using data_ptr = ptr_type_t<T>;
 
 	TGridBase() : m_Size(0, 0), m_Data() 
 	{}

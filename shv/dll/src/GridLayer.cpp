@@ -50,7 +50,8 @@ granted by an additional written contract for support, assistance and/or develop
 
 #include "StgBase.h"
 
-#include "SpatialInterface.h"
+//#include "SpatialInterface.h"
+#include "SpatialAnalyzer.h"
 
 #include "AbstrController.h"
 #include "Cmds.h"
@@ -398,7 +399,7 @@ void District(
 	switch (ado->GetValuesType()->GetValueClassID())
 	{
 		case ValueClassID::VT_UInt32:
-			MDL_DistrictUI32(
+			Districter<UInt32>().GetDistrict(
 				UCUInt32Grid(
 					size,
 					const_array_cast<UInt32>(ado)->GetDataRead().begin()
@@ -409,7 +410,7 @@ void District(
 			);
 			return;
 		case ValueClassID::VT_Int32:
-			MDL_DistrictUI32(
+			Districter<UInt32>().GetDistrict(
 				UCUInt32Grid(
 					size,
 					reinterpret_cast<const UInt32*>(const_array_cast<Int32>(ado)->GetDataRead().begin())
@@ -420,7 +421,7 @@ void District(
 			);
 			return;
 		case ValueClassID::VT_UInt16:
-			MDL_DistrictUI16(
+			Districter<UInt16>().GetDistrict(
 				UCUInt16Grid(
 					size,
 					const_array_cast<UInt16>(ado)->GetDataRead().begin()
@@ -431,7 +432,7 @@ void District(
 			);
 			return;
 		case ValueClassID::VT_Int16:
-			MDL_DistrictUI16(
+			Districter<UInt16>().GetDistrict(
 				UCUInt16Grid(
 					size,
 					reinterpret_cast<const UInt16*>(const_array_cast<Int16>(ado)->GetDataRead().begin())
@@ -442,7 +443,7 @@ void District(
 			);
 			return;
 		case ValueClassID::VT_UInt8:
-			MDL_DistrictUI8(
+			Districter<UInt8>().GetDistrict(
 				UCUInt8Grid(
 					size,
 					const_array_cast<UInt8>(ado)->GetDataRead().begin()
@@ -453,7 +454,7 @@ void District(
 			);
 			return;
 		case ValueClassID::VT_Int8:
-			MDL_DistrictUI8(
+			Districter<UInt8>().GetDistrict(
 				UCUInt8Grid(
 					size,
 					reinterpret_cast<const UInt8*>(const_array_cast<Int8>(ado)->GetDataRead().begin())
@@ -464,7 +465,7 @@ void District(
 			);
 			return;
 		case ValueClassID::VT_Bool:
-			MDL_DistrictBool(
+			Districter<Bool>().GetDistrict(
 				UCBoolGrid(
 					size,
 					const_array_cast<Bool>(ado)->GetDataRead(no_tile).begin()

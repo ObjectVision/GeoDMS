@@ -93,11 +93,11 @@ struct DistrictOperator : public UnaryOperator
 				UGrid<const ArgType::value_type> input(Size(rect), inputVec.begin());
 				UGrid<ResultSubType::value_type> output(input.GetSize(), outputVec.begin());
 
-				Districting(input, output, &nrDistricts, m_Rule8);
+				Districting(input, output, &nrDistricts, this->m_Use8Neighbours);
 			}
 			ResultUnitType* resultUnit = debug_cast<ResultUnitType*>(resUnit);
 			dms_assert(resultUnit);
-			resultUnit->SetRange(Range<UInt32>(0, nrDistricts));
+			resultUnit->SetRange(Unit<R>::range_t(0, nrDistricts));
 
 			resLock->InitValueRangeData( resultUnit->m_RangeDataPtr );
 			resSub->m_DataObject = resLock.release();
@@ -233,7 +233,7 @@ namespace
 		, distrUInt8 (og, use8Neighbours)
 		, distrBool  (og, use8Neighbours)
 		{
-			og->SetBetterNotInMetaScripting();
+			og.SetBetterNotInMetaScripting();
 		}
 
 		DistrictOperator <UInt32, R>  distrUInt32;
