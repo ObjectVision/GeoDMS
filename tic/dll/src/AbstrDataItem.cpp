@@ -310,6 +310,7 @@ bool AbstrDataItem::DoReadItem(StorageMetaInfoPtr smi)
 bool AbstrDataItem::DoWriteItem(StorageMetaInfoPtr&& smi) const
 {
 	assert(CheckDataReady(GetCurrUltimateItem()));
+	dms_assert(IsMetaThread());
 
 	DataReadLock lockForSave(this);
 
