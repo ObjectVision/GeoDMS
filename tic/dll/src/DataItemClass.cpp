@@ -217,7 +217,7 @@ const DataItemClass* DataItemClass::FindCertain(
 	const ValueClass* valuesType,
 	const TreeItem* context)
 {
-	dms_assert(valuesType); // PRECONDITION
+	assert(valuesType); // PRECONDITION
 	const DataItemClass* dic = Find(valuesType);
 	if (!dic)
 		context->throwItemErrorF(

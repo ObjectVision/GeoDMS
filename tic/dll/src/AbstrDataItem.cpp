@@ -376,7 +376,22 @@ const DataItemClass* AbstrDataItem::GetDynamicObjClass() const
 	auto avu = GetAbstrValuesUnit();
 	assert(avu);
 	auto vc = GetValueComposition();
-	auto vt = avu->GetUnitClass()->GetValueType(vc);
+	auto au = avu->GetUnitClass();
+	assert(au);
+
+	auto vt = au->GetValueType(vc);
+
+	if (!vt)
+	{
+		assert(vc != ValueComposition::Single);
+		auto vcStr = GetValueCompositionID(vc).AsSharedStr();
+		auto vtSingle = au->GetValueType(ValueComposition::Single);
+		assert(vtSingle);
+		auto vtSingleStr = vtSingle->GetID().AsSharedStr();
+
+		throwDmsErrF("No ValueType for %s composition of %s values", vcStr.c_str(), vtSingleStr.c_str());
+	}
+	MG_CHECK(vt);
 	auto dic = DataItemClass::FindCertain(vt, this);
 	return dic;
 }
