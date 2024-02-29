@@ -1389,8 +1389,10 @@ void InitializeLayerFields(const TreeItem* unit_item, SharedStr layer_name, cons
 			adi->GetAbstrDomainUnit()->UnifyDomain(layer_domain, "Domain of attribute", "layerDomain", UnifyMode::UM_Throw); // Check that domain of subItem is DomainUnifyable with layerItem
 
 		auto vci = adi->GetAbstrValuesUnit()->GetValueType()->GetValueClassID();
+		auto vc = adi->GetValueComposition();
 
-		disi.setFieldIsWritten(GetTokenID_mt(layer_name), GetTokenID_mt(field_name), false);
+		if (!CheckVCAndVCIForGeometry(vc, vci)) // field
+			disi.setFieldIsWritten(GetTokenID_mt(layer_name), GetTokenID_mt(field_name), false);
 	}
 }
 
