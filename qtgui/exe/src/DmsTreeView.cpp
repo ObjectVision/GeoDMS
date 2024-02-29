@@ -292,16 +292,12 @@ QVariant DmsModel::data(const QModelIndex& index, int role) const
 		ObjectMsgGenerator thisMsgGenerator(ti, "UpdateMetaInfo");
 		Waiter showWaitingStatus(&thisMsgGenerator);
 
-		try {
 			ti->UpdateMetaInfo();
 		}
-		catch (...)
-		{}
-	}
-	switch (role)
-	{
-	case Qt::DecorationRole: 
-		return getTreeItemIcon(index);
+		switch (role)
+		{
+		case Qt::DecorationRole:
+			return getTreeItemIcon(index);
 
 	case Qt::EditRole: 
 	case Qt::DisplayRole:
