@@ -209,7 +209,7 @@ bool Districter<T, D>::FindFirstNotProcessedPoint(IGridPoint& point)
 template <typename T, typename D>
 void Districter<T, D>::GetDistrict(IGridPoint seedPoint, D districtId, bool rule8)
 {
-	assert(IsIncluding(m_Rectangle, seedPoint));
+	assert(IsIncluding(this->m_Rectangle, seedPoint));
 
 	auto pos = this->Pos(seedPoint);
 	auto val = this->m_Input.GetDataPtr()[pos];
@@ -220,22 +220,22 @@ void Districter<T, D>::GetDistrict(IGridPoint seedPoint, D districtId, bool rule
 
 	std::vector<IGridPoint> stack;
 	while (true) {
-		bool nonTop = seedPoint.Row() > this->m_Rectangle.first.Row();
+		bool nonTop    = seedPoint.Row() > this->m_Rectangle.first.Row();
 		bool nonBottom = seedPoint.Row() + 1 < this->m_Rectangle.second.Row();
-		bool nonLeft = seedPoint.Col() > this->m_Rectangle.first.Col();
-		bool nonRight = seedPoint.Col() + 1 < this->m_Rectangle.second.Col();
+		bool nonLeft   = seedPoint.Col() > this->m_Rectangle.first.Col();
+		bool nonRight  = seedPoint.Col() + 1 < this->m_Rectangle.second.Col();
 
-		if (nonTop) ConsiderPoint(rowcol2dms_order< ICoordType>(seedPoint.Row() - 1, seedPoint.Col()), districtId, val, stack);
+		if (nonTop   ) ConsiderPoint(rowcol2dms_order< ICoordType>(seedPoint.Row() - 1, seedPoint.Col()), districtId, val, stack);
 		if (nonBottom) ConsiderPoint(rowcol2dms_order< ICoordType>(seedPoint.Row() + 1, seedPoint.Col()), districtId, val, stack);
-		if (nonLeft) ConsiderPoint(rowcol2dms_order< ICoordType>(seedPoint.Row(), seedPoint.Col() - 1), districtId, val, stack);
-		if (nonRight) ConsiderPoint(rowcol2dms_order< ICoordType>(seedPoint.Row(), seedPoint.Col() + 1), districtId, val, stack);
+		if (nonLeft  ) ConsiderPoint(rowcol2dms_order< ICoordType>(seedPoint.Row(), seedPoint.Col() - 1), districtId, val, stack);
+		if (nonRight ) ConsiderPoint(rowcol2dms_order< ICoordType>(seedPoint.Row(), seedPoint.Col() + 1), districtId, val, stack);
 
 
 		if (rule8)
 		{
-			if (nonTop && nonLeft) ConsiderPoint(rowcol2dms_order< ICoordType>(seedPoint.Row() - 1, seedPoint.Col() - 1), districtId, val, stack);
-			if (nonTop && nonRight) ConsiderPoint(rowcol2dms_order< ICoordType>(seedPoint.Row() - 1, seedPoint.Col() + 1), districtId, val, stack);
-			if (nonBottom && nonLeft) ConsiderPoint(rowcol2dms_order< ICoordType>(seedPoint.Row() + 1, seedPoint.Col() - 1), districtId, val, stack);
+			if (nonTop    && nonLeft ) ConsiderPoint(rowcol2dms_order< ICoordType>(seedPoint.Row() - 1, seedPoint.Col() - 1), districtId, val, stack);
+			if (nonTop    && nonRight) ConsiderPoint(rowcol2dms_order< ICoordType>(seedPoint.Row() - 1, seedPoint.Col() + 1), districtId, val, stack);
+			if (nonBottom && nonLeft ) ConsiderPoint(rowcol2dms_order< ICoordType>(seedPoint.Row() + 1, seedPoint.Col() - 1), districtId, val, stack);
 			if (nonBottom && nonRight) ConsiderPoint(rowcol2dms_order< ICoordType>(seedPoint.Row() + 1, seedPoint.Col() + 1), districtId, val, stack);
 		}
 		if (stack.empty())

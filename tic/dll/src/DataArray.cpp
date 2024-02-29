@@ -894,7 +894,6 @@ auto CreateAbstrHeapTileFunctor(const AbstrDataItem* adi, SharedPtr<const Shared
 
 	auto adu = adi->GetAbstrDomainUnit();
 	assert(adu);
-	assert(adu->HasInterest());
 	SharedPtr<const AbstrTileRangeData> currTRD = AsUnit(adu->GetCurrRangeItem())->GetTiledRangeData();
 	MG_CHECK(currTRD);
 	SharedPtr<const AbstrUnit> valuesUnit = AsUnit(adi->GetAbstrValuesUnit()->GetCurrRangeItem());
