@@ -282,7 +282,7 @@ void Districter<T, D>::GetDistricts(const DataGridType& input, const UGrid<D>& o
 
 	for (; FindFirstNotProcessedPoint(point); ++*resNrDistricts)
 	{
-		if (!resNrDistricts)
+		if (!*resNrDistricts)
 			throwErrorF("district", "number of found districts exceeds the maximum of the chosen district operator that stores only %d bytes per cell", sizeof(D));
 
 		GetDistrict(point, *resNrDistricts, rule8);
