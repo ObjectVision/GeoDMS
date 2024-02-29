@@ -99,12 +99,14 @@ typedef UGrid<      Int32>   UInt32Grid;
 typedef UGrid<const Int32>   UCInt32Grid;
 typedef UGrid<      UInt32>  UUInt32Grid;
 typedef UGrid<const UInt32>  UCUInt32Grid;
+typedef UGrid<      UInt16>  UUInt16Grid;
+typedef UGrid<const UInt16>  UCUInt16Grid;
+typedef UGrid<      Int16  > UInt16Grid;
+typedef UGrid<const Int16  > UCInt16Grid;
 typedef UGrid<      UInt8 >  UUInt8Grid;
 typedef UGrid<const UInt8 >  UCUInt8Grid;
 typedef UGrid<      Bool  >  UBoolGrid;
 typedef UGrid<const Bool  >  UCBoolGrid;
-typedef UGrid<      Int16  > UInt16Grid;
-typedef UGrid<const Int16  > UCInt16Grid;
 
 typedef UGrid<      Float32> UFloat32Grid;
 typedef UGrid<const Float32> UCFloat32Grid;

@@ -419,6 +419,28 @@ void District(
 				changedRect
 			);
 			return;
+		case ValueClassID::VT_UInt16:
+			MDL_DistrictUI16(
+				UCUInt16Grid(
+					size,
+					const_array_cast<UInt16>(ado)->GetDataRead().begin()
+				),
+				resData,
+				gridLoc,
+				changedRect
+			);
+			return;
+		case ValueClassID::VT_Int16:
+			MDL_DistrictUI16(
+				UCUInt16Grid(
+					size,
+					reinterpret_cast<const UInt16*>(const_array_cast<Int16>(ado)->GetDataRead().begin())
+				),
+				resData,
+				gridLoc,
+				changedRect
+			);
+			return;
 		case ValueClassID::VT_UInt8:
 			MDL_DistrictUI8(
 				UCUInt8Grid(

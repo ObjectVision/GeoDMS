@@ -1,31 +1,6 @@
-//<HEADER> 
-/*
-Data & Model Server (DMS) is a server written in C++ for DSS applications. 
-Version: see srv/dms/rtc/dll/src/RtcVersion.h for version info.
-
-Copyright (C) 1998-2004  YUSE GSO Object Vision BV. 
-
-Documentation on using the Data & Model Server software can be found at:
-http://www.ObjectVision.nl/DMS/
-
-See additional guidelines and notes in srv/dms/Readme-srv.txt 
-
-This library is free software; you can use, redistribute, and/or
-modify it under the terms of the GNU General Public License version 2 
-(the License) as published by the Free Software Foundation,
-provided that this entire header notice and readme-srv.txt is preserved.
-
-See LICENSE.TXT for terms of distribution or look at our web site:
-http://www.objectvision.nl/DMS/License.txt
-or alternatively at: http://www.gnu.org/copyleft/gpl.html
-
-This library is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
-General Public License for more details. However, specific warranties might be
-granted by an additional written contract for support, assistance and/or development
-*/
-//</HEADER>
+// Copyright (C) 1998-2023 Object Vision b.v. 
+// License: GNU GPL 3
+/////////////////////////////////////////////////////////////////////////////
 
 #include "GeoPCH.h"
 
@@ -44,11 +19,11 @@ granted by an additional written contract for support, assistance and/or develop
 //											TForm
 // *****************************************************************************
 
-void	TForm::Init(RadiusType radius, bool isCircle)
+void TForm::Init(RadiusType radius, bool isCircle)
 { 
 	DBG_START("TForm", "Init", true);
 
-	dms_assert(radius <= MAX_VALUE(FormType));
+	assert(radius <= MAX_VALUE(FormType));
 	m_Defined	= false; 
 	m_Radius	= radius;
 	m_IsCircle	= isCircle;
@@ -70,41 +45,42 @@ bool TForm::Contains (const UGridPoint& p)
 	return ContainsCentered(Convert<FormPoint>(p - m_Center)); 
 }
 
-bool	TForm::ContainsCentered(const FormPoint& p)	
+bool TForm::ContainsCentered(const FormPoint& p)	
 { 
-	return	abs(p.first) <= m_Radius && abs(p.second) <= m_Radius
-				&&
-				(
-					! m_IsCircle
-					||
-					(
-						abs(p.second) <= m_CirclePoint[abs(p.first)]
-						&&
-						abs(p.first) <= m_CirclePoint[abs(p.second)]
-					)
-				);
-} // TForm::ContainsCentered
+	if (abs(p.Row()) > m_Radius) return false;
+	if (abs(p.Col()) > m_Radius) return false;
 
-bool	TForm::GetOtherCoordinateCentered(FormType p1, FormType& p2)
+	if (!m_IsCircle) return true;
+
+	if (abs(p.Row()) > m_CirclePoint[abs(p.Row())]) return false;
+	if (abs(p.Col()) > m_CirclePoint[abs(p.Col())]) return false;
+
+	return true;
+}
+
+bool TForm::GetOtherCoordinateCentered(FormType p1, FormType& p2)
 {
 	RadiusType up1 = abs(p1);
 	bool res = up1 <= m_Radius;
 	if (res) 
 		p2	= m_IsCircle ? m_CirclePoint[up1] : m_Radius;
 	return res;
-} // TForm::GetOtherCoordinateCentered
+}
 
 
-TQuadrant	TForm::Quadrant(const FormPoint& p)
+TQuadrant TForm::Quadrant(const FormPoint& p)
 { 
-	return p.Col() >= 0 
-		? (p.Row() >= 0 
-			? q_1 
-			: q_4) 
-		: (p.Row() >= 0 
-			? q_2 
-			: q_3);
-} // TForm::Quadrant
+	if (p.Col() >= 0)
+		if (p.Row() >= 0)
+			return q_1;
+		else
+			return q_4;
+	else
+		if (p.Row() >= 0)
+			return q_2;
+		else
+			return q_3;
+}
 
 TOctant	TForm::Octant(const FormPoint& p)
 { 
@@ -115,10 +91,10 @@ TOctant	TForm::Octant(const FormPoint& p)
 		case	q_3	:	return abs(p.Col()) <= abs(p.Row()) ? o_3_1 : o_3_2;
 		case	q_4	:	return abs(p.Col()) <= abs(p.Row()) ? o_4_1 : o_4_2;
 		default:	return o_0;
-	} // switch
-} // TForm::Octant
+	}
+}
 
-inline FormPoint TForm::Translate(const FormPoint& p1, TOctant o)
+FormPoint TForm::Translate(const FormPoint& p1, TOctant o)
 { 
 	switch (o)
 	{
@@ -133,11 +109,11 @@ inline FormPoint TForm::Translate(const FormPoint& p1, TOctant o)
 
 		case o_4_1:	return	FormPoint(-p1.Row(), p1.Col());
 		case o_4_2:	return	FormPoint( p1.Col(),-p1.Row());
-	} // switch
+	}
 	return FormPoint();
-} // TForm::Translate
+}
 
-inline bool TForm::NextContainedPoint(IGridPoint& p)
+bool TForm::NextContainedPoint(IGridPoint& p)
 {
 	if (! m_Defined)
 	{
@@ -159,7 +135,7 @@ inline bool TForm::NextContainedPoint(IGridPoint& p)
 		p = m_Center + Convert<UGridPoint>(m_CurrentPoint);
 
 	return m_Defined;
-} // TForm::NextContainedPoint
+}
 
 inline bool TForm::NextBorderPoint(IGridPoint& p, TTranslation t)
 {
@@ -180,7 +156,7 @@ inline bool TForm::NextBorderPoint(IGridPoint& p, TTranslation t)
 		}
 	}
 	return m_Defined;
-} // TForm::NextBroderPoint
+}
 
 // *****************************************************************************
 //											SpatialAnalyzer
@@ -207,7 +183,7 @@ void SpatialAnalyzer<T>::Init(const DataGridType& input)
 }
 
 template <typename T>
-void SpatialAnalyzer<T>::Init(const DataGridType& input, RadiusType radius, bool isCircle, const DivCountGridType& output)
+void DiversityCalculator<T>::Init(const DataGridType& input, RadiusType radius, bool isCircle, const DivCountGridType& output)
 {
 	dms_assert(input.GetSize() == output.GetSize()); // PRECONDITIOON;
 	m_Form.Init(radius, isCircle);
@@ -215,54 +191,59 @@ void SpatialAnalyzer<T>::Init(const DataGridType& input, RadiusType radius, bool
 	Init(input);
 }
 
-template <typename T>
-void SpatialAnalyzer<T>::GetDistricts(const DataGridType& input, const DistrIdGridType& output, DistrIdType* resNrDistricts, bool rule8)
+template <typename T, typename DistrIdType>
+void Districter<T, DistrIdType>::GetDistricts(const UGrid<const T>& input, const UGrid<DistrIdType>& output, DistrIdType* resNrDistricts, bool rule8)
 {
 	m_DistrOutput = output;
 
-	dms_assert(input.GetSize() == output.GetSize()); // PRECONDITION;
-	Init(input);
+	assert(input.GetSize() == output.GetSize()); // PRECONDITION;
+	this->Init(input);
 
-	auto point = m_Rectangle.first;
+	auto point = this->m_Rectangle.first;
 
 	fast_fill(
 		m_DistrOutput.GetDataPtr(),
-		m_DistrOutput.GetDataPtr() + GridSize(), 
+		m_DistrOutput.GetDataPtr() + this->GridSize(), 
 		UNDEFINED_VALUE(DistrIdType)
 	);
-	m_Processed = DistrSelVecType(GridSize(), false);
+	m_Processed = DistrSelVecType(this->GridSize(), false);
 //	vector_zero_n(m_Processed, GridSize());
 
 	for (; FindFirstNotProcessedPoint(point); ++*resNrDistricts)
+	{
+		if (!resNrDistricts)
+			throwErrorF("district", "number of found districts exceeds the maximum of the chosen district operator that stores only %d bytes per cell", sizeof(DistrIdType));
+
 		GetDistrict(point, *resNrDistricts, rule8);
+	}
 }
 
-template <typename T>
-void SpatialAnalyzer<T>::GetDistrict(const DataGridType& input, const DistrSelSeqType& output, const IGridPoint& seedPoint, IGridRect& resRect)
+template <typename T, typename DistrIdType>
+void Districter<T, DistrIdType>::GetDistrict(const DataGridType& input, const DistrSelSeqType& output, const IGridPoint& seedPoint, IGridRect& resRect)
 {
 	m_DistrBoolOutput = output;
-	m_ResRect = IGridRect();
+	this->m_ResRect = IGridRect();
 
-	dms_assert(input.size() == output.size()); // PRECONDITION
+	assert(input.size() == output.size()); // PRECONDITION
 	Init(input);
 
-	m_Processed = DistrSelVecType(GridSize(), false);
+	m_Processed = DistrSelVecType(this->GridSize(), false);
 //	vector_zero_n(m_Processed, GridSize());
 
 	GetDistrict(seedPoint, true, false);
 
-	resRect = m_ResRect;
+	resRect = this->m_ResRect;
 }
 
-template <typename T>
-inline void SpatialAnalyzer<T>::SetDistrictId(SizeType pos, DistrIdType districtId)
+template <typename T, typename DistrIdType>
+void Districter<T, DistrIdType>::SetDistrictId(SizeType pos, DistrIdType districtId)
 {
 	m_DistrOutput.GetDataPtr()[pos] = districtId;
 	m_Processed[pos] = true;
 }
 
-template <typename T>
-inline void SpatialAnalyzer<T>::SetDistrictId(SizeType pos, bool districtId)
+template <typename T, typename DistrIdType>
+void Districter<T, DistrIdType>::SetDistrictId(SizeType pos, bool districtId)
 {
 	m_DistrBoolOutput[pos] = districtId;
 	m_Processed[pos] = true;
@@ -279,8 +260,8 @@ inline void UpdateRect(IGridRect& resRect, const IGridPoint& point, const bool* 
 	resRect |= point;
 }
 
-template <typename T> template <typename D>
-inline void SpatialAnalyzer<T>::ConsiderPoint(IGridPoint seedPoint, D districtId, DataGridValType val, std::vector<IGridPoint>& stack)
+template <typename T, typename D>
+void Districter<T, D>::ConsiderPoint(IGridPoint seedPoint, D districtId, DataGridValType val, std::vector<IGridPoint>& stack)
 {
 	SizeType pos = Pos(seedPoint);
 	if (Bool(m_Processed[pos])) return;
@@ -292,10 +273,10 @@ inline void SpatialAnalyzer<T>::ConsiderPoint(IGridPoint seedPoint, D districtId
 }
 
 
-template <typename T> template <typename D>
-void SpatialAnalyzer<T>::GetDistrict(IGridPoint seedPoint, D districtId, bool rule8)
+template <typename T, typename D>
+void Districter<T, D>::GetDistrict(IGridPoint seedPoint, D districtId, bool rule8)
 {
-	dms_assert(IsIncluding(m_Rectangle, seedPoint));
+	assert(IsIncluding(m_Rectangle, seedPoint));
 
 	SizeType pos = Pos(seedPoint);
 	DataGridValType val = m_Input.GetDataPtr()[Pos(seedPoint)];
@@ -331,8 +312,8 @@ void SpatialAnalyzer<T>::GetDistrict(IGridPoint seedPoint, D districtId, bool ru
 	}
 }
 
-template <typename T>
-bool SpatialAnalyzer<T>::FindFirstNotProcessedPoint(IGridPoint& point)
+template <typename T, typename D>
+void Districter<T, D>::FindFirstNotProcessedPoint(IGridPoint& point)
 {
 	typename sequence_traits<T>::const_pointer inputData = m_Input.GetDataPtr();
 	SizeType pos = Pos(point);
@@ -347,7 +328,7 @@ bool SpatialAnalyzer<T>::FindFirstNotProcessedPoint(IGridPoint& point)
 }
 
 template <typename T>
-void SpatialAnalyzer<T>::GetDiversity(
+void DiversityCalculator<T>::GetDiversity(
 		const DataGridType& input, 
 		DataGridValType inputUpperBound, 
 		RadiusType radius, bool isCircle, 
@@ -361,16 +342,16 @@ void SpatialAnalyzer<T>::GetDiversity(
 }
 
 template <typename T>
-void SpatialAnalyzer<T>::GetDiversity1()
+void DiversityCalculator<T>::GetDiversity1()
 {
-	DBG_START("SpatialAnalyzer", "GetDiversity1", false);
+	DBG_START("DiversityCalculator", "GetDiversity1", false);
 
 	DivVectorType divVector(m_InputUpperBound, DivCountType(0));
 
-	ICoordType rowBegin= Top   (m_Rectangle);
-	ICoordType rowEnd  = Bottom(m_Rectangle);
-	ICoordType colBegin= Left  (m_Rectangle);
-	ICoordType colEnd  = Right (m_Rectangle);
+	ICoordType rowBegin= Top   (this->m_Rectangle);
+	ICoordType rowEnd  = Bottom(this->m_Rectangle);
+	ICoordType colBegin= Left  (this->m_Rectangle);
+	ICoordType colEnd  = Right (this->m_Rectangle);
 	for (ICoordType row = rowBegin; row != rowEnd; row++)
 	{
 		bool
@@ -391,13 +372,13 @@ void SpatialAnalyzer<T>::GetDiversity1()
 }
 
 template <typename T>
-void SpatialAnalyzer<T>::GetDiversity2()
+void DiversityCalculator<T>::GetDiversity2()
 {
-	DBG_START("SpatialAnalyzer", "GetDiversity2", true);
+	DBG_START("DiversityCalculator", "GetDiversity2", true);
 
 	DivVectorType divVector(DivCountType(0), m_InputUpperBound);
-	for (ICoordType row = m_Rectangle.first.second; row < m_Rectangle.second.second; ++row)
-		for (ICoordType col = m_Rectangle.first.first; col < m_Rectangle.second.first; ++col)
+	for (ICoordType row = this->m_Rectangle.first.Row(), rowEnd = this->m_Rectangle.second.Row(); row < rowEnd; ++row)
+		for (ICoordType col = this->m_Rectangle.first.Col(), colEnd =  this->m_Rectangle.second.Col(); col < colEnd; ++col)
 		{
 			vector_fill_n(divVector, DivCountType(0), m_InputUpperBound);
 			m_DivOutput->m_Data[Pos(shp2dms_order(col, row))] = DiversityCountAll(shp2dms_order(col, row), divVector);
@@ -405,7 +386,7 @@ void SpatialAnalyzer<T>::GetDiversity2()
 } // SpatialAnalyzer::GetDiversity2
 
 template <typename T>
-void SpatialAnalyzer<T>::DiversityCountIncremental(
+void DiversityCalculator<T>::DiversityCountIncremental(
 	const IGridPoint& point, 
 	DivVectorType& divVector, 
 	bool isFirstRow, 
@@ -419,7 +400,7 @@ void SpatialAnalyzer<T>::DiversityCountIncremental(
 } // SpatialAnalyzer::DiversityCount
 
 template <typename T>
-void	SpatialAnalyzer<T>::DiversityCountVertical(
+void DiversityCalculator<T>::DiversityCountVertical(
 	const IGridPoint& point, 
 	DivVectorType& divVector, 
 	bool isFirstRow)
@@ -447,7 +428,7 @@ void	SpatialAnalyzer<T>::DiversityCountVertical(
 } // SpatialAnalyzer::DiversityCountVertical
 
 template <typename T>
-void SpatialAnalyzer<T>::DiversityCountHorizontal(const IGridPoint& point, DivVectorType& divVector, TTranslation trans)
+void DiversityCalculator<T>::DiversityCountHorizontal(const IGridPoint& point, DivVectorType& divVector, TTranslation trans)
 {
 	IGridPoint prevPoint = point;
 	if (trans == tIncCol) --prevPoint.Col();
@@ -462,8 +443,8 @@ void SpatialAnalyzer<T>::DiversityCountHorizontal(const IGridPoint& point, DivVe
 } // SpatialAnalyzer::DiversityCountHorizontal
 
 template <typename T>
-typename SpatialAnalyzer<T>::DivCountType
-SpatialAnalyzer<T>::DiversityCountAll(const IGridPoint& center, DivVectorType& divVector)
+typename DiversityCalculator<T>::DivCountType
+DiversityCalculator<T>::DiversityCountAll(const IGridPoint& center, DivVectorType& divVector)
 {
 	IGridPoint point;
 	DivCountType divCount = 0;
@@ -490,8 +471,8 @@ SpatialAnalyzer<T>::DiversityCountAll(const IGridPoint& center, DivVectorType& d
 } // SpatialAnalyzer::DiversityCount
 
 template <typename T>
-typename SpatialAnalyzer<T>::DivCountType 
-SpatialAnalyzer<T>::DiversityDifference(const IGridPoint& center, DivVectorType& divVector, TTranslation trans, bool add)
+typename DiversityCalculator<T>::DivCountType
+DiversityCalculator<T>::DiversityDifference(const IGridPoint& center, DivVectorType& divVector, TTranslation trans, bool add)
 {
 	IGridPoint    point;
 	DivCountType divCount = 0;
@@ -533,7 +514,7 @@ SpatialAnalyzer<T>::DiversityDifference(const IGridPoint& center, DivVectorType&
 } // SpatialAnalyzer::DiversityDifference
 
 template <typename T>
-bool SpatialAnalyzer<T>::NextBorderPoint(IGridPoint& point, TTranslation trans, bool add)
+bool DiversityCalculator<T>::NextBorderPoint(IGridPoint& point, TTranslation trans, bool add)
 {
 	switch (trans)
 	{
@@ -553,22 +534,22 @@ extern "C" {
 
 void MDL_DistrictingI32(const UCInt32Grid& input, const UUInt32Grid& output, SizeType* resNrDistricts)
 {
-	SpatialAnalyzer<Int32>().GetDistricts(input, output, resNrDistricts, false);
+	Districter<Int32, UInt32>().GetDistricts(input, output, resNrDistricts, false);
 }
 
 void MDL_DistrictingUI32(const UCUInt32Grid& input, const UUInt32Grid& output, SizeType* resNrDistricts)
 {
-	SpatialAnalyzer<UInt32>().GetDistricts(input, output, resNrDistricts, false);
+	Districter<UInt32>().GetDistricts(input, output, resNrDistricts, false);
 }
 
 void MDL_DistrictingUI8(const UCUInt8Grid& input, const UUInt32Grid& output, SizeType* resNrDistricts)
 {
-	SpatialAnalyzer<UInt8>().GetDistricts(input, output, resNrDistricts, false);
+	Districter<UInt8>().GetDistricts(input, output, resNrDistricts, false);
 }
 
 void MDL_DistrictingBool(const UCBoolGrid& input, const UUInt32Grid& output, SizeType* resNrDistricts)
 {
-	SpatialAnalyzer<Bool>().GetDistricts(input, output, resNrDistricts, false);
+	Districter<Bool>().GetDistricts(input, output, resNrDistricts, false);
 }
 
 // *****************************************************************************
@@ -582,7 +563,17 @@ GEO_CALL void DMS_CONV MDL_DistrictUI32(
 	IGridRect&                          resRect
 )
 {
-	SpatialAnalyzer<UInt32>().GetDistrict(input, output, seedPoint, resRect);
+	Districter<UInt32>().GetDistrict(input, output, seedPoint, resRect);
+}
+
+GEO_CALL void DMS_CONV MDL_DistrictUI16(
+	const UCUInt16Grid& input,
+	const sequence_traits<Bool>::seq_t output,
+	const IGridPoint& seedPoint,
+	IGridRect& resRect
+)
+{
+	Districter<UInt16>().GetDistrict(input, output, seedPoint, resRect);
 }
 
 GEO_CALL void DMS_CONV MDL_DistrictUI8(
@@ -592,7 +583,7 @@ GEO_CALL void DMS_CONV MDL_DistrictUI8(
 	IGridRect&                          resRect
 )
 {
-	SpatialAnalyzer<UInt8>().GetDistrict(input, output, seedPoint, resRect);
+	Districter<UInt8>().GetDistrict(input, output, seedPoint, resRect);
 }
 
 GEO_CALL void DMS_CONV MDL_DistrictBool(
@@ -602,7 +593,7 @@ GEO_CALL void DMS_CONV MDL_DistrictBool(
 	IGridRect&                         resRect
 )
 {
-	SpatialAnalyzer<Bool>().GetDistrict(input, output, seedPoint, resRect);
+	Districter<Bool>().GetDistrict(input, output, seedPoint, resRect);
 }
 
 // *****************************************************************************
@@ -611,12 +602,12 @@ GEO_CALL void DMS_CONV MDL_DistrictBool(
 
 void MDL_DiversityUI32(const UCUInt32Grid& input, UInt32 inputUpperBound, RadiusType radius, bool isCircle, const UUInt32Grid& divOutput)
 {
-	SpatialAnalyzer<UInt32>().GetDiversity(input, inputUpperBound, radius, isCircle, divOutput);
+	DiversityCalculator<UInt32>().GetDiversity(input, inputUpperBound, radius, isCircle, divOutput);
 }
 
 void MDL_DiversityUI8(const UCUInt8Grid& input, UInt8 inputUpperBound, RadiusType radius, bool isCircle, const UUInt8Grid& divOutput)
 {
-	SpatialAnalyzer<UInt8>().GetDiversity(input, inputUpperBound, radius, isCircle, divOutput);
+	DiversityCalculator<UInt8>().GetDiversity(input, inputUpperBound, radius, isCircle, divOutput);
 }
 
 } // extern "C"
