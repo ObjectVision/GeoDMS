@@ -187,9 +187,8 @@ int DmsModel::rowCount(const QModelIndex& parent) const
 			}
 	}
 	catch (...)
-	{
-		catchException(false);
-	}
+	{}
+
 	return number_of_rows;
 }
 
@@ -291,7 +290,7 @@ QVariant DmsModel::data(const QModelIndex& index, int role) const
 			return QVariant();
 
 		SuspendTrigger::Resume();
-		if (!ti->Was(PS_MetaInfo) && !ti->WasFailed())
+		if (!ti->Was(PS_MetaInfo) && !ti->WasFailed(FR_MetaInfo))
 		{
 			ObjectMsgGenerator thisMsgGenerator(ti, "UpdateMetaInfo");
 			Waiter showWaitingStatus(&thisMsgGenerator);
@@ -301,6 +300,7 @@ QVariant DmsModel::data(const QModelIndex& index, int role) const
 			}
 			catch (...)
 			{
+				ti->CatchFail(FR_MetaInfo);
 			}
 		}
 		switch (role)
