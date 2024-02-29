@@ -326,13 +326,13 @@ namespace Grid {
 				if (currRowInGrid >= stripEnd)
 					break;
 
-				dms_assert(currYInGrid >= readRectInGrid.first .Row());
-				dms_assert(currYInGrid <= readRectInGrid.second.Row());
+				assert(currYInGrid >= readRectInGrid.first .Row());
+				assert(currYInGrid <= readRectInGrid.second.Row());
 
-				dms_assert(currViewPortSize.Row() > 0);
+				assert(currViewPortSize.Row() > 0);
 
-				dms_assert(currRowInGrid >= readRectInGrid.first.Row());
-				dms_assert(currRowInGrid < readRectInGrid.second.Row());
+				assert(currRowInGrid >= readRectInGrid.first.Row());
+				assert(currRowInGrid < readRectInGrid.second.Row());
 
 				typename OwningPtrSizedArray<T>::pointer
 					pixelPtr = pixels,
