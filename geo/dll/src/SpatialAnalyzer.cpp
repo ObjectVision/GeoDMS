@@ -220,7 +220,7 @@ void DiversityCalculator<T>::GetDiversity2()
 {
 	DBG_START("DiversityCalculator", "GetDiversity2", true);
 
-	DivVectorType divVector(DivCountType(0), m_InputUpperBound);
+	DivVectorType divVector(DivCountType(0), this->m_InputUpperBound);
 	ICoordType rowBegin = Top   (this->m_Rectangle);
 	ICoordType rowEnd   = Bottom(this->m_Rectangle);
 	ICoordType colBegin = Left  (this->m_Rectangle);
@@ -229,8 +229,9 @@ void DiversityCalculator<T>::GetDiversity2()
 	for (ICoordType row = rowBegin; row != rowEnd; row++)
 		for (ICoordType col = colBegin; col != colEnd; col++)
 		{
-			vector_fill_n(divVector, DivCountType(0), m_InputUpperBound);
-			m_DivOutput->m_Data[Pos(shp2dms_order(col, row))] = DiversityCountAll(shp2dms_order(col, row), divVector);
+			vector_fill_n(divVector, DivCountType(0), this->m_InputUpperBound);
+			auto center = shp2dms_order(col, row);
+			m_DivOutput.GetDataPtr()[this->Pos(center)] = DiversityCountAll(center, divVector);
 		}
 }
 
@@ -313,6 +314,8 @@ DiversityCalculator<T>::DiversityCountAll(const IGridPoint& center, DivVectorTyp
 					divCount++;
 			
 				divVector[val]++;
+				if (divVector[val] == 0)
+					throwErrorF("Diversity", "Numeric overflow in counting diversity around location %s", AsString(point).c_str());
 			}
 		}
 	}
@@ -338,8 +341,12 @@ DiversityCalculator<T>::DiversityDifference(const IGridPoint& center, DivVectorT
 				SizeType val = this->m_Input.GetDataPtr()[this->Pos(point)];
 				if (val < m_InputUpperBound)
 				{
-					if (++divVector[val] == 1)
+					if (divVector[val] == 0)
 						divCount++;
+
+					divVector[val]++;
+					if (divVector[val] == 0)
+						throwErrorF("Diversity", "Numeric overflow in counting diversity around location %s", AsString(point).c_str());
 				}
 			}
 		}
@@ -352,6 +359,7 @@ DiversityCalculator<T>::DiversityDifference(const IGridPoint& center, DivVectorT
 				SizeType val = this->m_Input.GetDataPtr()[this->Pos(point)];
 				if (val < m_InputUpperBound)
 				{
+					assert(divVector[val]); // logic of caller required divVector was incremented before for this value.
 					if (--divVector[val] == 0)
 						divCount++;
 				}
@@ -375,89 +383,6 @@ bool DiversityCalculator<T>::NextBorderPoint(IGridPoint& point, TTranslation tra
 	return false;
 }
 
-// *****************************************************************************
-//	INTERFACE FUNCTIONS: Districting
-// *****************************************************************************
 
-extern "C" {
-
-void MDL_DistrictingI32(const UCInt32Grid& input, const UUInt32Grid& output, SizeType* resNrDistricts)
-{
-	Districter<Int32, UInt32>().GetDistricts(input, output, resNrDistricts, false);
-}
-
-void MDL_DistrictingUI32(const UCUInt32Grid& input, const UUInt32Grid& output, SizeType* resNrDistricts)
-{
-	Districter<UInt32>().GetDistricts(input, output, resNrDistricts, false);
-}
-
-void MDL_DistrictingUI8(const UCUInt8Grid& input, const UUInt32Grid& output, SizeType* resNrDistricts)
-{
-	Districter<UInt8>().GetDistricts(input, output, resNrDistricts, false);
-}
-
-void MDL_DistrictingBool(const UCBoolGrid& input, const UUInt32Grid& output, SizeType* resNrDistricts)
-{
-	Districter<Bool>().GetDistricts(input, output, resNrDistricts, false);
-}
-
-// *****************************************************************************
-//	INTERFACE FUNCTIONS: Select 1 District
-// *****************************************************************************
-
-GEO_CALL void DMS_CONV MDL_DistrictUI32(
-	const UCUInt32Grid&                input, 
-	const sequence_traits<Bool>::seq_t output,
-	const IGridPoint&                   seedPoint,
-	IGridRect&                          resRect
-)
-{
-	Districter<UInt32>().GetDistrict(input, output, seedPoint, resRect);
-}
-
-GEO_CALL void DMS_CONV MDL_DistrictUI16(
-	const UCUInt16Grid& input,
-	const sequence_traits<Bool>::seq_t output,
-	const IGridPoint& seedPoint,
-	IGridRect& resRect
-)
-{
-	Districter<UInt16>().GetDistrict(input, output, seedPoint, resRect);
-}
-
-GEO_CALL void DMS_CONV MDL_DistrictUI8(
-	const UCUInt8Grid&                 input, 
-	const sequence_traits<Bool>::seq_t output,
-	const IGridPoint&                   seedPoint,
-	IGridRect&                          resRect
-)
-{
-	Districter<UInt8>().GetDistrict(input, output, seedPoint, resRect);
-}
-
-GEO_CALL void DMS_CONV MDL_DistrictBool(
-	const UCBoolGrid&                  input, 
-	const sequence_traits<Bool>::seq_t output,
-	const IGridPoint&                  seedPoint,
-	IGridRect&                         resRect
-)
-{
-	Districter<Bool>().GetDistrict(input, output, seedPoint, resRect);
-}
-
-// *****************************************************************************
-//	INTERFACE FUNCTIONS: Diversity
-// *****************************************************************************
-
-void MDL_DiversityUI32(const UCUInt32Grid& input, UInt32 inputUpperBound, RadiusType radius, bool isCircle, const UUInt32Grid& divOutput)
-{
-	DiversityCalculator<UInt32>().GetDiversity(input, inputUpperBound, radius, isCircle, divOutput);
-}
-
-void MDL_DiversityUI8(const UCUInt8Grid& input, UInt8 inputUpperBound, RadiusType radius, bool isCircle, const UUInt8Grid& divOutput)
-{
-	DiversityCalculator<UInt8>().GetDiversity(input, inputUpperBound, radius, isCircle, divOutput);
-}
-
-} // extern "C"
-
+template DiversityCalculator<UInt32>;
+template DiversityCalculator<UInt8>;
