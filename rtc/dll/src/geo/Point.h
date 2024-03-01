@@ -14,7 +14,7 @@
 
 #if DMS_VERSION_MAJOR < 15
 
-#define DMS_POINT_ROWCOL
+//#define DMS_POINT_ROWCOL
 
 #endif
 

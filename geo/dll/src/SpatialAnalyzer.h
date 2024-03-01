@@ -83,7 +83,7 @@ protected:
 		assert(p.Row() < m_Input.GetSize().Row());
 		return m_NrCols* p.Row()+ p.Col();
 	}
-	UGridPoint GetPoint(SizeType pos) { return UGridPoint(pos / m_NrCols, pos % m_NrCols); }
+	UGridPoint GetPoint(SizeType pos) { return rowcol2dms_order<UCoordType>(pos / m_NrCols, pos % m_NrCols); }
 };
 
 template <typename T, typename D = SizeType>
