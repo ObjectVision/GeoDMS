@@ -7,7 +7,10 @@
 
 #include <QObject>
 #include <QDockWidget>
-#include <QTextBrowser>
+//#include <QTextBrowser>
+//#include <QWebEngine>
+#include <QWebEnginePage>
+#include <QWebEngineView>
 #include <QTimer>
 #include <Qclipboard.h>
 
@@ -40,6 +43,30 @@
 #ifdef _DEBUG
 #define new MYDEBUG_NEW 
 #endif
+
+// =================================================================================================
+// code from ChatGPT
+// =================================================================================================
+
+class CustomWebEnginePage : public QWebEnginePage {
+public:
+    using QWebEnginePage::QWebEnginePage; // Inherit constructors from QWebEnginePage
+
+protected:
+    bool acceptNavigationRequest(const QUrl& url, NavigationType type, bool isMainFrame) override {
+        if (type == NavigationTypeLinkClicked) {
+            // Handle the link click, for example, by emitting a custom signal
+            emit linkClicked(url);
+            return false; // Prevent the navigation within the QWebEngineView
+        }
+        return true; // Allow other navigation requests
+    }
+
+signals:
+    void linkClicked(const QUrl& url); // Define a custom signal
+};
+
+// =================================================================================================
 
 void DmsDetailPages::setActiveDetailPage(ActiveDetailPage new_active_detail_page)
 {
