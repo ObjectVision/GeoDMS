@@ -198,9 +198,18 @@ namespace wms {
 
 			SetTimer();
 
-			static dms_task runTask;
 			if (s_InstanceCount == 1)
-				runTask = dms_task([]() { ProcessPendingTasks(); });
+				PostPendingTasks();
+		}
+
+		static void PostPendingTasks()
+		{
+			AddMainThreadOper([]() 
+				{ 
+					static dms_task runTask;
+					runTask = dms_task([]() { ProcessPendingTasks(); });
+				}
+			);
 		}
 
 		void report(MsgCategory ct, SeverityTypeID st, CharPtr what, CharPtr msg, bool alive);
@@ -279,8 +288,15 @@ namespace wms {
 		while (TileLoader::s_InstanceCount) // destructor of last TileLoader, presumably called outside the run-loop, can queue new TileLoaders with new events
 		{
 			GetIOC()->run();
-			if (!TileLoader::s_InstanceCount || !--retryCounter)
+			if (!TileLoader::s_InstanceCount)
 				break;
+
+			if (!--retryCounter)
+			{
+				TileLoader::PostPendingTasks();
+				break;
+			}
+
 			//MG_DEBUGCODE(reportD(MsgCategory::wms, SeverityTypeID::ST_MinorTrace, "SUSPENDED: GetIOC()"); )
 		} 
 		//MG_DEBUGCODE(reportD(MsgCategory::wms, SeverityTypeID::ST_MinorTrace, "STOPPED: GetIOC()"));
