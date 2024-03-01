@@ -98,13 +98,13 @@ struct Districter : SpatialAnalyzer<T>
 	{}
 
 	D GetDistricts(UGrid<D> output, bool rule8);
-	void GetDistrict(UGrid<D> output, UGridPoint seedPoint, UGridRect& resRect); // only for T==Bool?
+	void GetDistrict(DistrDataPtr output, UGridPoint seedPoint, UGridRect& resRect); // only for T==Bool?
 
 private:
-	void ConsiderPoint(UGrid<D> output, UGridPoint seedPoint, D districtId, DataGridValType val, std::vector<IGridPoint>& stack);
-	void GetDistrict(DistrDataPtr output, UGridPoint seedPoint, D districtId, bool rule8);
-	bool FindFirstNotProcessedPoint(UGridPoint& foundPoint);
+	void ConsiderPoint(DistrDataPtr output, UGridPoint seedPoint, D districtId, DataGridValType val, std::vector<IGridPoint>& stack);
+	void GetDistrict  (DistrDataPtr output, UGridPoint seedPoint, D districtId, bool rule8);
 	void SetDistrictId(DistrDataPtr output, SizeT pos, D districtId);
+	bool FindFirstNotProcessedPoint(UGridPoint& foundPoint);
 
 	UGridRect       m_ResRect;
 	DistrSelVecType m_Processed;
@@ -159,7 +159,7 @@ void Districter<T, DistrIdType>::SetDistrictId(DistrDataPtr output, SizeT pos, D
 }
 
 template <typename T, typename D>
-void Districter<T, D>::ConsiderPoint(UGrid<D> output, UGridPoint seedPoint, D districtId, DataGridValType val, std::vector<IGridPoint>& stack)
+void Districter<T, D>::ConsiderPoint(DistrDataPtr output, UGridPoint seedPoint, D districtId, DataGridValType val, std::vector<IGridPoint>& stack)
 {
 	auto pos = this->Pos(seedPoint);
 	if (Bool(m_Processed[pos])) return;
@@ -188,7 +188,7 @@ bool Districter<T, D>::FindFirstNotProcessedPoint(UGridPoint& point)
 template <typename T, typename D>
 void Districter<T, D>::GetDistrict(DistrDataPtr output, UGridPoint seedPoint, D districtId, bool rule8)
 {
-	assert(IsStrictlyLower(seedPoint, this->GetSize()));
+	assert(IsStrictlyLower(seedPoint, this->m_Input.GetSize()));
 
 	auto pos = this->Pos(seedPoint);
 	auto val = this->m_Input.GetDataPtr()[pos];
@@ -222,10 +222,8 @@ void Districter<T, D>::GetDistrict(DistrDataPtr output, UGridPoint seedPoint, D 
 }
 
 template <typename T, typename D>
-void Districter<T, D>::GetDistrict(UGrid<D> output, UGridPoint seedPoint, UGridRect& resRect)
+void Districter<T, D>::GetDistrict(DistrDataPtr output, UGridPoint seedPoint, UGridRect& resRect)
 {
-	assert(this->m_Input.size() == output.size()); // PRECONDITION
-
 	m_Processed = DistrSelVecType(this->GridSize(), false);
 	//	vector_zero_n(m_Processed, GridSize());
 
@@ -254,7 +252,7 @@ D Districter<T, D>::GetDistricts(UGrid<D> output, bool rule8)
 		if (!resNrDistricts && !isFirstDistrict)
 			throwErrorF("district", "number of found districts exceeds the maximum of the chosen district operator that stores only %d bytes per cell", sizeof(D));
 
-		GetDistrict(output, point, resNrDistricts, rule8);
+		GetDistrict(output.GetDataPtr(), point, resNrDistricts, rule8);
 		isFirstDistrict = false;
 	}
 	return resNrDistricts;

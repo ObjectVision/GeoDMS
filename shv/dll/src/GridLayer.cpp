@@ -449,7 +449,7 @@ void GridLayer::SelectDistrict(CrdPoint pnt, EventID eventID)
 	InvalidationBlock viewChangeLock(this);
 	InvalidationBlock dataChangeLock(GetEditTheme()->GetThemeAttr()); // REMOVE, MOVE TO DataWriteLock as a Generic facility
 
-	IRect changedRect;
+	URect changedRect;
 	auto dwlt = DmsRwChangeType(false);
 	if (HasEditAttr() && IsDefined(GetCurrClassID()))
 	{
@@ -483,7 +483,7 @@ void GridLayer::SelectDistrict(CrdPoint pnt, EventID eventID)
 		);
 		dwl.Commit();
 	}
-	changedRect.second += IPoint(1, 1);
+	changedRect.second += UPoint(1, 1);
 
 	dataChangeLock.ProcessChange();
 	viewChangeLock.ProcessChange();
