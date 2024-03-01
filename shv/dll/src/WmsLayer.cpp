@@ -198,9 +198,18 @@ namespace wms {
 
 			SetTimer();
 
-			static dms_task runTask;
 			if (s_InstanceCount == 1)
-				runTask = dms_task([]() { ProcessPendingTasks(); });
+				PostPendingTasks();
+		}
+
+		static void PostPendingTasks()
+		{
+			AddMainThreadOper([]() 
+				{ 
+					static dms_task runTask;
+					runTask = dms_task([]() { ProcessPendingTasks(); });
+				}
+			);
 		}
 
 		void report(MsgCategory ct, SeverityTypeID st, CharPtr what, CharPtr msg, bool alive);
@@ -270,7 +279,7 @@ namespace wms {
 		boost::asio::deadline_timer m_Timer;
 	};
 
-	std::atomic<UInt32>  TileLoader::s_InstanceCount = 0;
+	std::atomic<UInt32> TileLoader::s_InstanceCount = 0;
 
 	void ProcessPendingTasks()
 	{
@@ -279,8 +288,15 @@ namespace wms {
 		while (TileLoader::s_InstanceCount) // destructor of last TileLoader, presumably called outside the run-loop, can queue new TileLoaders with new events
 		{
 			GetIOC()->run();
-			if (!TileLoader::s_InstanceCount || !--retryCounter)
+			if (!TileLoader::s_InstanceCount)
 				break;
+/*
+			if (!--retryCounter)
+			{
+				TileLoader::PostPendingTasks();
+				break;
+			}
+*/
 			//MG_DEBUGCODE(reportD(MsgCategory::wms, SeverityTypeID::ST_MinorTrace, "SUSPENDED: GetIOC()"); )
 		} 
 		//MG_DEBUGCODE(reportD(MsgCategory::wms, SeverityTypeID::ST_MinorTrace, "STOPPED: GetIOC()"));
@@ -347,9 +363,17 @@ namespace wms {
 					.replace("@TR@", AsString(t.second.Row()).c_str())
 					.replace("@TC@", AsString(t.second.Col()).c_str());
 
-				info.m_Status = IsFileOrDirAccessible(info.m_FileName) // maybe it was already loaded by an earlier session or different View
-					? image_status::ready
-					: image_status::loading;
+				if (IsFileOrDirAccessible(info.m_FileName))
+					// maybe it was already loaded by an earlier session or different View
+				{
+					info.m_Status = image_status::ready;
+					reportF(MsgCategory::background_layer_request, SeverityTypeID::ST_MinorTrace
+						, "Read from cache: %s"
+						, info.m_FileName.c_str()
+					);
+					return true;
+				}
+				info.m_Status = image_status::loading;
 			}
 			return info.m_Status == image_status::ready; // already or just loading -> false, ready -> true
 		}
@@ -460,7 +484,7 @@ namespace wms {
 		
 		if (!ec) 
 			if (m_ImageFormatType == image_format_type::png)
-				if (strncmp(m_Response.body().c_str(), "\x89PNG", 4)==0)
+				if (strncmp(m_Response.body().c_str(), "\x89PNG", 4)!=0)
 					ec = boost::asio::error::basic_errors::invalid_argument;
 
 		if (report_status(ec, "on_read"))
