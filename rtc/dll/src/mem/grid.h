@@ -79,7 +79,7 @@ struct TGridBase
 	data_ptr  end  ()                const { return begin() + size(); }
 	data_ptr  rowptr (CoordType row) const { return m_Data + SizeT(row) *  SizeT(m_Size.Col()); }
 	data_ptr  elemptr(GridPoint pos) const { return rowptr(pos.Row())+pos.Col(); }
-	data_ptr  GetDataPtr()           const { dms_assert(m_Data); return begin(); }
+	data_ptr  GetDataPtr()           const { assert(m_Data); return begin(); }
 	void SetDataPtr(data_ptr dataPtr)      { m_Data = dataPtr; }
 	const GridPoint& GetSize()       const { return m_Size; }
 	SizeT size()                     const { return Cardinality(m_Size); }
