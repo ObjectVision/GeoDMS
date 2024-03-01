@@ -347,9 +347,17 @@ namespace wms {
 					.replace("@TR@", AsString(t.second.Row()).c_str())
 					.replace("@TC@", AsString(t.second.Col()).c_str());
 
-				info.m_Status = IsFileOrDirAccessible(info.m_FileName) // maybe it was already loaded by an earlier session or different View
-					? image_status::ready
-					: image_status::loading;
+				if (IsFileOrDirAccessible(info.m_FileName))
+					// maybe it was already loaded by an earlier session or different View
+				{
+					info.m_Status = image_status::ready;
+					reportF(MsgCategory::background_layer_request, SeverityTypeID::ST_MinorTrace
+						, "Read from cache: %s"
+						, info.m_FileName.c_str()
+					);
+					return true;
+				}
+				info.m_Status = image_status::loading;
 			}
 			return info.m_Status == image_status::ready; // already or just loading -> false, ready -> true
 		}
