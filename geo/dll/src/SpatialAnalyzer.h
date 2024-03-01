@@ -79,7 +79,7 @@ protected:
 		assert(p.Row() < m_Input.GetSize().Row());
 		return m_NrCols * p.Row()+ p.Col();
 	}
-	UGridPoint GetPoint(SizeType pos) { return UGridPoint(pos / m_NrCols, pos % m_NrCols); }
+	UGridPoint GetPoint(SizeType pos) { return rowcol2dms_order<UCoordType>(pos / m_NrCols, pos % m_NrCols); }
 };
 
 template <typename T, typename D = SizeType>
@@ -87,6 +87,7 @@ struct Districter : SpatialAnalyzer<T>
 {
 	using DistrSelSeqType = sequence_traits<Bool>::seq_t;
 	using DistrSelVecType = sequence_traits<Bool>::container_type;
+	using DistrDataPtr = typename sequence_traits<D>::seq_t::iterator;
 
 	using DistrIdGridType = UGrid<D>;
 	using typename SpatialAnalyzer<T>::DataGridType;
@@ -101,10 +102,9 @@ struct Districter : SpatialAnalyzer<T>
 
 private:
 	void ConsiderPoint(UGrid<D> output, UGridPoint seedPoint, D districtId, DataGridValType val, std::vector<IGridPoint>& stack);
-	void GetDistrict(DistrSelSeqType output, UGridPoint seedPoint, D districtId, bool rule8);
+	void GetDistrict(DistrDataPtr output, UGridPoint seedPoint, D districtId, bool rule8);
 	bool FindFirstNotProcessedPoint(UGridPoint& foundPoint);
-	void SetDistrictId(DistrIdGridType output, SizeT pos, D districtId);
-	void SetDistrictId(DistrSelVecType output, SizeT pos, bool districtId);
+	void SetDistrictId(DistrDataPtr output, SizeT pos, D districtId);
 
 	UGridRect       m_ResRect;
 	DistrSelVecType m_Processed;
@@ -152,19 +152,11 @@ SpatialAnalyzer<T>::SpatialAnalyzer(DataGridType input)
 //==================================================== Districter: template member functions
 
 template <typename T, typename DistrIdType>
-void Districter<T, DistrIdType>::SetDistrictId(DistrIdGridType output, SizeT pos, DistrIdType districtId)
-{
-	output.GetDataPtr()[pos] = districtId;
-	m_Processed[pos] = true;
-}
-
-template <typename T, typename DistrIdType>
-void Districter<T, DistrIdType>::SetDistrictId(DistrSelVecType output, SizeT pos, bool districtId)
+void Districter<T, DistrIdType>::SetDistrictId(DistrDataPtr output, SizeT pos, DistrIdType districtId)
 {
 	output[pos] = districtId;
 	m_Processed[pos] = true;
 }
-
 
 template <typename T, typename D>
 void Districter<T, D>::ConsiderPoint(UGrid<D> output, UGridPoint seedPoint, D districtId, DataGridValType val, std::vector<IGridPoint>& stack)
@@ -194,7 +186,7 @@ bool Districter<T, D>::FindFirstNotProcessedPoint(UGridPoint& point)
 }
 
 template <typename T, typename D>
-void Districter<T, D>::GetDistrict(DistrSelSeqType output, UGridPoint seedPoint, D districtId, bool rule8)
+void Districter<T, D>::GetDistrict(DistrDataPtr output, UGridPoint seedPoint, D districtId, bool rule8)
 {
 	assert(IsStrictlyLower(seedPoint, this->GetSize()));
 
@@ -247,7 +239,7 @@ void Districter<T, D>::GetDistrict(UGrid<D> output, UGridPoint seedPoint, UGridR
 template <typename T, typename D>
 D Districter<T, D>::GetDistricts(UGrid<D> output, bool rule8)
 {
-	assert(input.GetSize() == output.GetSize()); // PRECONDITION;
+	assert(this->m_Input.GetSize() == output.GetSize()); // PRECONDITION;
 
 	auto point = UGridPoint(0, 0);
 

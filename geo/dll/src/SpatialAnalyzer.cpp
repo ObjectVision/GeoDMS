@@ -234,11 +234,11 @@ void DiversityCalculator<T>::DiversityCountVertical(DivCountGridType output, IGr
 template <typename T>
 void DiversityCalculator<T>::DiversityCountHorizontal(DivCountGridType output, IGridPoint point, DivVectorType& divVector, TTranslation trans)
 {
-	IGridPoint prevPoint = point;
+	UGridPoint prevPoint = point;
 	if (trans == tIncCol) --prevPoint.Col();
 	if (trans == tDecCol) ++prevPoint.Col();
 
-	assert(IsIncluding(this->m_Rectangle, prevPoint));
+	assert(IsStrictlyLower(prevPoint, this->m_Input.GetSize()));
 	output.GetDataPtr()[this->Pos(point)] = output.GetDataPtr()[this->Pos(prevPoint)]
 		-	DiversityDifference(prevPoint, divVector, trans, false)
 		+	DiversityDifference(point, divVector, trans, true);
