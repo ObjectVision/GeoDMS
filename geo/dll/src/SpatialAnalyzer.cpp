@@ -12,6 +12,7 @@
 
 #include "dbg/debug.h"
 #include "geo/Conversions.h"
+#include "geo/Point.h"
 #include "geo/PointOrder.h"
 #include "mth/Mathlib.h"
 
@@ -40,12 +41,12 @@ void TForm::Init(RadiusType radius, bool isCircle)
 	DBG_TRACE(("m_Radius %d, m_IsCircle %d", m_Radius, m_IsCircle));
 }
 
-bool TForm::Contains (const UGridPoint& p)
+bool TForm::Contains (UGridPoint p)
 {
-	return ContainsCentered(Convert<FormPoint>(p - m_Center)); 
+	return ContainsCentered(FormPoint(p - m_Center)); 
 }
 
-bool TForm::ContainsCentered(const FormPoint& p)	
+bool TForm::ContainsCentered(FormPoint p)	
 { 
 	if (abs(p.Row()) > m_Radius) return false;
 	if (abs(p.Col()) > m_Radius) return false;
@@ -113,7 +114,7 @@ FormPoint TForm::Translate(const FormPoint& p1, TOctant o)
 	return FormPoint();
 }
 
-bool TForm::NextContainedPoint(IGridPoint& p)
+bool TForm::NextContainedPoint(UGridPoint& p)
 {
 	if (! m_Defined)
 	{
@@ -132,12 +133,12 @@ bool TForm::NextContainedPoint(IGridPoint& p)
 	}
 
 	if (m_Defined)
-		p = m_Center + Convert<UGridPoint>(m_CurrentPoint);
+		p = m_Center + m_CurrentPoint;
 
 	return m_Defined;
 }
 
-inline bool TForm::NextBorderPoint(IGridPoint& p, TTranslation t)
+bool TForm::NextBorderPoint(UGridPoint& p, TTranslation t)
 {
 	if (! m_Defined)
 		m_CurrentPoint.Col() = -m_Radius;
@@ -149,10 +150,10 @@ inline bool TForm::NextBorderPoint(IGridPoint& p, TTranslation t)
 		p = m_Center;
 		switch (t)
 		{
-			case tIncRow: p += Convert<IGridPoint>(Translate(m_CurrentPoint, o_1_1) ); break;
-			case tDecRow: p += Convert<IGridPoint>(Translate(m_CurrentPoint, o_4_1) ); break;
-			case tDecCol: p += Convert<IGridPoint>(Translate(m_CurrentPoint, o_4_2) ); break;
-			case tIncCol: p += Convert<IGridPoint>(Translate(m_CurrentPoint, o_1_2) ); break;
+			case tIncRow: p += UGridPoint(Translate(m_CurrentPoint, o_1_1)); break;
+			case tDecRow: p += UGridPoint(Translate(m_CurrentPoint, o_4_1)); break;
+			case tDecCol: p += UGridPoint(Translate(m_CurrentPoint, o_4_2)); break;
+			case tIncCol: p += UGridPoint(Translate(m_CurrentPoint, o_1_2)); break;
 		}
 	}
 	return m_Defined;
@@ -163,97 +164,56 @@ inline bool TForm::NextBorderPoint(IGridPoint& p, TTranslation t)
 // *****************************************************************************
 
 template <typename T>
-void DiversityCalculator<T>::InitFrom(const DataGridType& input, RadiusType radius, bool isCircle, const DivCountGridType& output)
+DiversityCalculator<T>::DiversityCalculator(DataGridType input, DataGridValType inputUpperBound, RadiusType radius, bool isCircle)
+	:	SpatialAnalyzer<T>(input)
 {
-	dms_assert(input.GetSize() == output.GetSize()); // PRECONDITIOON;
+	m_InputUpperBound = inputUpperBound;
 	m_Form.Init(radius, isCircle);
-	m_DivOutput = output;
-	this->Init(input);
 }
 
 template <typename T>
-void DiversityCalculator<T>::GetDiversity(
-		const DataGridType& input, 
-		DataGridValType inputUpperBound, 
-		RadiusType radius, bool isCircle, 
-		const DivCountGridType& output)
+void DiversityCalculator<T>::GetDiversity(DivCountGridType output)
 {
 	DBG_START("SpatialAnalyzer", "GetDiversity", true);
-	m_InputUpperBound = inputUpperBound;
-	InitFrom(input, radius, isCircle, output);
-
-	GetDiversity1();
-}
-
-template <typename T>
-void DiversityCalculator<T>::GetDiversity1()
-{
-	DBG_START("DiversityCalculator", "GetDiversity1", false);
+	MG_CHECK(this->m_Input.GetSize() == output.GetSize()); // PRECONDITIOON;
 
 	DivVectorType divVector(m_InputUpperBound, DivCountType(0));
 
-	ICoordType rowBegin= Top   (this->m_Rectangle);
-	ICoordType rowEnd  = Bottom(this->m_Rectangle);
-	ICoordType colBegin= Left  (this->m_Rectangle);
-	ICoordType colEnd  = Right (this->m_Rectangle);
+	ICoordType rowBegin = 0;
+	ICoordType colBegin = 0;
+	ICoordType rowEnd = this->m_Input.GetSize().Row();
+	ICoordType colEnd = this->m_Input.GetSize().Col();
+
 	for (ICoordType row = rowBegin; row != rowEnd; row++)
 	{
 		bool
-			isFirstRow = (row == rowBegin),
+			isFirstRow = (row == 0),
 			right      = Even(row);
 
 		if (right)
 		{
-			for (ICoordType col = colBegin; col != colEnd; col++)
-				DiversityCountIncremental(shp2dms_order(col, row), divVector, isFirstRow, col == colBegin, true);
+			for (ICoordType col = 0; col != colEnd; col++)
+				DiversityCountIncremental(output, shp2dms_order(col, row), divVector, isFirstRow, col == colBegin, true);
 		}
 		else
 		{
-			for (ICoordType col = colEnd - 1; col >= colBegin; col--)
-				DiversityCountIncremental(shp2dms_order(col, row), divVector, isFirstRow, col == colEnd - 1, false);
+			for (ICoordType col = colEnd - 1; col >= 0; col--)
+				DiversityCountIncremental(output, shp2dms_order(col, row), divVector, isFirstRow, col == colEnd - 1, false);
 		}
 	}
 }
 
 template <typename T>
-void DiversityCalculator<T>::GetDiversity2()
-{
-	DBG_START("DiversityCalculator", "GetDiversity2", true);
-
-	DivVectorType divVector(DivCountType(0), this->m_InputUpperBound);
-	ICoordType rowBegin = Top   (this->m_Rectangle);
-	ICoordType rowEnd   = Bottom(this->m_Rectangle);
-	ICoordType colBegin = Left  (this->m_Rectangle);
-	ICoordType colEnd   = Right (this->m_Rectangle);
-
-	for (ICoordType row = rowBegin; row != rowEnd; row++)
-		for (ICoordType col = colBegin; col != colEnd; col++)
-		{
-			vector_fill_n(divVector, DivCountType(0), this->m_InputUpperBound);
-			auto center = shp2dms_order(col, row);
-			m_DivOutput.GetDataPtr()[this->Pos(center)] = DiversityCountAll(center, divVector);
-		}
-}
-
-template <typename T>
-void DiversityCalculator<T>::DiversityCountIncremental(
-	const IGridPoint& point, 
-	DivVectorType& divVector, 
-	bool isFirstRow, 
-	bool isFirstCol, 
-	bool right)
+void DiversityCalculator<T>::DiversityCountIncremental(DivCountGridType output, IGridPoint point, DivVectorType& divVector, bool isFirstRow, bool isFirstCol, bool right)
 {
 	if (isFirstCol)
-		DiversityCountVertical(point, divVector, isFirstRow);
+		DiversityCountVertical(output, point, divVector, isFirstRow);
 	else
-		DiversityCountHorizontal(point, divVector, right ? tIncCol : tDecCol);
+		DiversityCountHorizontal(output, point, divVector, right ? tIncCol : tDecCol);
 }
 
 template <typename T>
-void DiversityCalculator<T>::DiversityCountVertical(
-	const IGridPoint& point, 
-	DivVectorType& divVector, 
-	bool isFirstRow)
+void DiversityCalculator<T>::DiversityCountVertical(DivCountGridType output, IGridPoint point, DivVectorType& divVector, bool isFirstRow)
 {
 	DBG_START("SpatialAnalyzer", "DiversityCountVertical", false);
 
@@ -261,42 +221,34 @@ void DiversityCalculator<T>::DiversityCountVertical(
 
 	DBG_TRACE(("isFirstRow %d", isFirstRow));
 
-	m_DivOutput.GetDataPtr()[this->Pos(point)] =
+	output.GetDataPtr()[this->Pos(point)] =
 		(
 			isFirstRow
-			?
-			DiversityCountAll(prevPoint, divVector)
-			:
-			(
-				m_DivOutput.GetDataPtr()[this->Pos(prevPoint)]
-				- 
-				DiversityDifference(prevPoint, divVector, tIncRow, false)
-			)
+			?	DiversityCountAll(prevPoint,	divVector)
+			:	output.GetDataPtr()[this->Pos(prevPoint)]
+				-	DiversityDifference(prevPoint, divVector, tIncRow, false)
 		)
-		+	
-		DiversityDifference(point, divVector, tIncRow, true);
+		+	DiversityDifference(point, divVector, tIncRow, true);
 }
 
 template <typename T>
-void DiversityCalculator<T>::DiversityCountHorizontal(const IGridPoint& point, DivVectorType& divVector, TTranslation trans)
+void DiversityCalculator<T>::DiversityCountHorizontal(DivCountGridType output, IGridPoint point, DivVectorType& divVector, TTranslation trans)
 {
-	IGridPoint prevPoint = point;
+	UGridPoint prevPoint = point;
 	if (trans == tIncCol) --prevPoint.Col();
-	if (trans == tDecCol ) ++prevPoint.Col();
+	if (trans == tDecCol) ++prevPoint.Col();
 
-	assert(IsIncluding(this->m_Rectangle, prevPoint));
-	m_DivOutput.GetDataPtr()[this->Pos(point)]	=	m_DivOutput.GetDataPtr()[this->Pos(prevPoint)]
-												-
-												DiversityDifference(prevPoint, divVector, trans, false)
-												+
-												DiversityDifference(point, divVector, trans, true);
-} // SpatialAnalyzer::DiversityCountHorizontal
+	assert(IsStrictlyLower(prevPoint, this->m_Input.GetSize()));
+	output.GetDataPtr()[this->Pos(point)] = output.GetDataPtr()[this->Pos(prevPoint)]
+		-	DiversityDifference(prevPoint, divVector, trans, false)
+		+	DiversityDifference(point, divVector, trans, true);
+}
 
 template <typename T>
 typename DiversityCalculator<T>::DivCountType
-DiversityCalculator<T>::DiversityCountAll(const IGridPoint& center, DivVectorType& divVector)
+DiversityCalculator<T>::DiversityCountAll(UGridPoint center, DivVectorType& divVector)
 {
-	IGridPoint point;
+	UGridPoint point;
 	DivCountType divCount = 0;
 
 	m_Form.SetCenter(center);
@@ -304,7 +256,7 @@ DiversityCalculator<T>::DiversityCountAll(const IGridPoint& center, DivVectorTyp
 
 	while (m_Form.NextContainedPoint(point))
 	{
-		if (IsIncluding(this->m_Rectangle, point))
+		if (IsStrictlyLower(point, this->m_Input.GetSize()))
 		{
 			SizeType val = this->m_Input.GetDataPtr()[this->Pos(point)];
 
@@ -324,19 +276,19 @@ DiversityCalculator<T>::DiversityCountAll(const IGridPoint& center, DivVectorTyp
 
 template <typename T>
 typename DiversityCalculator<T>::DivCountType
-DiversityCalculator<T>::DiversityDifference(const IGridPoint& center, DivVectorType& divVector, TTranslation trans, bool add)
+DiversityCalculator<T>::DiversityDifference(UGridPoint center, DivVectorType& divVector, TTranslation trans, bool doAdd)
 {
-	IGridPoint    point;
+	UGridPoint   point;
 	DivCountType divCount = 0;
 
 	m_Form.SetCenter(center);
 	assert(m_InputUpperBound == divVector.size());
 
-	if (add)
+	if (doAdd)
 	{
 		while (NextBorderPoint(point, trans, true))
 		{
-			if (IsIncluding(this->m_Rectangle, point))
+			if (IsStrictlyLower(point, this->m_Input.GetSize()))
 			{
 				SizeType val = this->m_Input.GetDataPtr()[this->Pos(point)];
 				if (val < m_InputUpperBound)
@@ -354,7 +306,7 @@ DiversityCalculator<T>::DiversityDifference(const IGridPoint& center, DivVectorT
 	{
 		while (NextBorderPoint(point, trans, false))
 		{
-			if (IsIncluding(this->m_Rectangle, point))
+			if (IsStrictlyLower(point, this->m_Input.GetSize()))
 			{
 				SizeType val = this->m_Input.GetDataPtr()[this->Pos(point)];
 				if (val < m_InputUpperBound)
@@ -371,7 +323,7 @@ DiversityCalculator<T>::DiversityDifference(const IGridPoint& center, DivVectorT
 }
 
 template <typename T>
-bool DiversityCalculator<T>::NextBorderPoint(IGridPoint& point, TTranslation trans, bool add)
+bool DiversityCalculator<T>::NextBorderPoint(UGridPoint& point, TTranslation trans, bool add)
 {
 	switch (trans)
 	{
