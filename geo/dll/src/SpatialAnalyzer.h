@@ -96,7 +96,7 @@ struct Districter : SpatialAnalyzer<T>
 	using typename SpatialAnalyzer<T>::DataGridType;
 	using typename SpatialAnalyzer<T>::DataGridValType;
 
-	void GetDistricts(const DataGridType& input, const UGrid<D>& output, D* resNrDistricts, bool rule8);
+	D GetDistricts(const DataGridType& input, const UGrid<D>& output, bool rule8);
 	void GetDistrict(const DataGridType& input, const DistrSelSeqType& output, const IGridPoint& seedPoint, IGridRect& resRect); // only for T==Bool?
 
 private:
@@ -263,7 +263,7 @@ void Districter<T, D>::GetDistrict(const DataGridType& input, const DistrSelSeqT
 }
 
 template <typename T, typename D>
-void Districter<T, D>::GetDistricts(const DataGridType& input, const UGrid<D>& output, D* resNrDistricts, bool rule8)
+D Districter<T, D>::GetDistricts(const DataGridType& input, const UGrid<D>& output, bool rule8)
 {
 	m_DistrOutput = output;
 
@@ -279,22 +279,25 @@ void Districter<T, D>::GetDistricts(const DataGridType& input, const UGrid<D>& o
 	);
 	m_Processed = DistrSelVecType(this->GridSize(), false);
 	//	vector_zero_n(m_Processed, GridSize());
-
-	for (; FindFirstNotProcessedPoint(point); ++*resNrDistricts)
+	
+	D resNrDistricts = 0; bool isFirstDistrict = true;
+	for (; FindFirstNotProcessedPoint(point); ++resNrDistricts)
 	{
-		if (!*resNrDistricts)
+		if (!resNrDistricts && !isFirstDistrict)
 			throwErrorF("district", "number of found districts exceeds the maximum of the chosen district operator that stores only %d bytes per cell", sizeof(D));
 
-		GetDistrict(point, *resNrDistricts, rule8);
+		GetDistrict(point, resNrDistricts, rule8);
+		isFirstDistrict = false;
 	}
+	return resNrDistricts;
 }
 
 //==================================================== dispatching functions
 
 template <typename ZoneType, typename ResultType>
-void Districting(const UGrid<const ZoneType>& input, const UGrid<ResultType>& output, ResultType* resNrDistricts, bool rule8)
+ResultType Districting(const UGrid<const ZoneType>& input, const UGrid<ResultType>& output, bool rule8)
 { 
-	Districter<ZoneType, ResultType>().GetDistricts(input, output, resNrDistricts, rule8);
+	return Districter<ZoneType, ResultType>().GetDistricts(input, output, rule8);
 }
 
 template <typename ZoneType>

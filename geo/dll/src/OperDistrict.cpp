@@ -93,7 +93,7 @@ struct DistrictOperator : public UnaryOperator
 				UGrid<const ArgType::value_type> input(Size(rect), inputVec.begin());
 				UGrid<ResultSubType::value_type> output(input.GetSize(), outputVec.begin());
 
-				Districting(input, output, &nrDistricts, this->m_Use8Neighbours);
+				nrDistricts = Districting(input, output, this->m_Use8Neighbours);
 			}
 			ResultUnitType* resultUnit = debug_cast<ResultUnitType*>(resUnit);
 			dms_assert(resultUnit);
