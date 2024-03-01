@@ -279,7 +279,7 @@ namespace wms {
 		boost::asio::deadline_timer m_Timer;
 	};
 
-	std::atomic<UInt32>  TileLoader::s_InstanceCount = 0;
+	std::atomic<UInt32> TileLoader::s_InstanceCount = 0;
 
 	void ProcessPendingTasks()
 	{
@@ -290,13 +290,13 @@ namespace wms {
 			GetIOC()->run();
 			if (!TileLoader::s_InstanceCount)
 				break;
-
+/*
 			if (!--retryCounter)
 			{
 				TileLoader::PostPendingTasks();
 				break;
 			}
-
+*/
 			//MG_DEBUGCODE(reportD(MsgCategory::wms, SeverityTypeID::ST_MinorTrace, "SUSPENDED: GetIOC()"); )
 		} 
 		//MG_DEBUGCODE(reportD(MsgCategory::wms, SeverityTypeID::ST_MinorTrace, "STOPPED: GetIOC()"));
