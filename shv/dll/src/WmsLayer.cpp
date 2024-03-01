@@ -460,7 +460,7 @@ namespace wms {
 		
 		if (!ec) 
 			if (m_ImageFormatType == image_format_type::png)
-				if (strncmp(m_Response.body().c_str(), "\x89PNG", 4)==0)
+				if (strncmp(m_Response.body().c_str(), "\x89PNG", 4)!=0)
 					ec = boost::asio::error::basic_errors::invalid_argument;
 
 		if (report_status(ec, "on_read"))
