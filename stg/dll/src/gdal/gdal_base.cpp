@@ -1269,25 +1269,7 @@ bool Gdal_DetermineIfDriverHasVectorOrRasterCapability(UInt32 gdalOpenFlags, GDA
 
 bool dmsAndDriverTypeAreCompatible(std::string_view target_type, std::string_view supported_types_sequence)
 {
-	int word_begin = 0;
-	int word_end = 0;
-	for (char const& c : supported_types_sequence)
-	{
-		if (c == ' ')
-		{
-			auto supported_type = supported_types_sequence.substr(word_begin, word_end - word_begin);
-			if (supported_type.compare(target_type) == 0) // driver supports this value type!
-				return true;
-
-			word_begin = word_end + 1;
-		}
-
-		word_end++;
-
-		if (c == '\n')
-			break;
-	}
-	return false;
+	return supported_types_sequence.contains(target_type);
 }
 
 bool Gdal_DriverSupportsDmsValueType(UInt32 gdalOpenFlags, ValueClassID dms_value_class_id, ValueComposition dms_value_composition, GDALDriver* driver)
