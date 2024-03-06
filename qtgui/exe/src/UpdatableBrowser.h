@@ -7,7 +7,9 @@
 #if !defined(DMS_QT_UPDATABLE_BROWSER_H)
 #define DMS_QT_UPDATABLE_BROWSER_H
 
-#include <QTextBrowser.h>
+//#include <QTextBrowser.h>
+#include <QWebEngineView>
+
 #include <QTimer.h>
 #include <QMdiSubWindow.h>
 #include <QShortCut>
@@ -39,7 +41,7 @@ public slots:
     QLabel* result_info = nullptr;
 };
 
-struct QUpdatableTextBrowser : QTextBrowser, MsgGenerator
+struct QUpdatableTextBrowser : QWebEngineView, MsgGenerator // QTextBrowser
 {
     QUpdatableTextBrowser(QWidget* parent);
     void restart_updating();

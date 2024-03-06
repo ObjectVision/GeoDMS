@@ -603,11 +603,21 @@ bool TreeItem_XML_DumpGeneralBody(const TreeItem* self, OutStreamBase* xmlOutStr
 	// ==================== Calculation rule and/or Storage description
 	xmlTable.LinedRow();
 	{
-		XML_OutElement details(*xmlOutStrPtr, "details");
 		{
-			XML_OutElement summary(*xmlOutStrPtr, "summary");
-			GetExprOrSourceDescrRow(xmlTable, self);
+			XML_OutElement details(*xmlOutStrPtr, "details");
+			{
+				{
+					XML_OutElement summary(*xmlOutStrPtr, "summary");
+					*xmlOutStrPtr << "ExprSummaryTest";
+				}
+
+				XML_OutElement p_tag(*xmlOutStrPtr, "div");
+				{
+					GetExprOrSourceDescrRow(xmlTable, self);
+				}
+			}
 		}
+
 		if (GetRegStatusFlags() & RSF_AdminMode)
 		{
 			XML_OutElement paragraph(*xmlOutStrPtr, "p");

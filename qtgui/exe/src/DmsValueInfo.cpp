@@ -131,10 +131,10 @@ ValueInfoBrowser::ValueInfoBrowser(QWidget* parent, SharedDataItemInterestPtr st
 {
     m_history.insert(studyObject, index, extraInfo);
     setProperty("DmsHelperWindowType", DmsHelperWindowType::HW_VALUEINFO);
-    setOpenLinks(false);
+    /*setOpenLinks(false);
     setOpenExternalLinks(false);
     setWordWrapMode(QTextOption::NoWrap);
-    connect(this, &QTextBrowser::anchorClicked, this, &ValueInfoBrowser::onAnchorClicked);
+    connect(this, &QTextBrowser::anchorClicked, this, &ValueInfoBrowser::onAnchorClicked);*/
 
     back_button = std::make_unique<QPushButton>(QIcon(":/res/images/DP_back.bmp"), "");
     forward_button = std::make_unique<QPushButton>(QIcon(":/res/images/DP_forward.bmp"), "");
@@ -160,7 +160,7 @@ bool ValueInfoBrowser::update()
     bool done = Explain::AttrValueToXML(m_history.currentContext(), m_history.currentStudyObject(), &xmlOut, m_history.currentIndex(), m_history.currentExtraInfo().c_str(), true); // m_Context.get(), m_StudyObject, & xmlOut, m_Index, "", true);
     outStreamBuff.WriteByte(char(0));
 
-    setText(outStreamBuff.GetData());
+    setHtml(outStreamBuff.GetData());
 
     // clean-up;
     m_history.ClearGarbage();

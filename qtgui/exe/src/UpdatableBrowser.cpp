@@ -46,8 +46,9 @@ void FindTextWindow::findInText(bool backwards)
     int match_whole_word_flag = match_whole_word->isChecked() ? QTextDocument::FindWholeWords : 0;
     QTextDocument::FindFlags find_flags = static_cast<QTextDocument::FindFlags>(backwards_flag | match_case_flag | match_whole_word_flag);
 
-    auto found = updatable_text_browser->find(find_text->text(), find_flags);
-    result_info->setText(found ? "" : "No more matches found");
+    // TODO: implement find
+    //auto found = updatable_text_browser->find(find_text->text(), find_flags);
+    //result_info->setText(found ? "" : "No more matches found");
 }
 
 void FindTextWindow::nextClicked(bool checked)
@@ -61,10 +62,10 @@ void FindTextWindow::previousClicked(bool checked)
 }
 
 QUpdatableTextBrowser::QUpdatableTextBrowser(QWidget* parent)
-    : QTextBrowser(parent)
+    : QWebEngineView(parent)
 {
-    setOpenLinks(false);
-    setOpenExternalLinks(false);
+    /*setOpenLinks(false);
+    setOpenExternalLinks(false);*/
     setProperty("DmsHelperWindowType", DmsHelperWindowType::HW_UNKNOWN);
 
     find_shortcut = new QShortcut(QKeySequence(tr("Ctrl+F", "Find")), this);

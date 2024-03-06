@@ -9,8 +9,8 @@
 #include <QDockWidget>
 //#include <QTextBrowser>
 //#include <QWebEngine>
-#include <QWebEnginePage>
 #include <QWebEngineView>
+#include <QWebEnginePage>
 #include <QTimer>
 #include <Qclipboard.h>
 
@@ -54,7 +54,7 @@ public:
 
 protected:
     bool acceptNavigationRequest(const QUrl& url, NavigationType type, bool isMainFrame) override {
-        if (type == NavigationTypeLinkClicked) {
+        if (type == NavigationType::NavigationTypeLinkClicked) {
             // Handle the link click, for example, by emitting a custom signal
             emit linkClicked(url);
             return false; // Prevent the navigation within the QWebEngineView
@@ -454,10 +454,11 @@ auto DmsDetailPages::activeDetailPageFromName(CharPtrRange sName) -> ActiveDetai
 DmsDetailPages::DmsDetailPages(QWidget* parent)
     : QUpdatableTextBrowser(parent)
 {
-    setOpenLinks(false);
-    setOpenExternalLinks(false);
+    //TODO: replace this behavior to comply to QtWebView
+    //setOpenLinks(false);
+    //setOpenExternalLinks(false);
     setProperty("DmsHelperWindowType", DmsHelperWindowType::HW_DETAILPAGES);
-    connect(this, &QTextBrowser::anchorClicked, this, &DmsDetailPages::onAnchorClicked);
+    //connect(this, &QTextBrowser::anchorClicked, this, &DmsDetailPages::onAnchorClicked);*/
 }
 
 bool DmsDetailPages::update()
@@ -478,7 +479,8 @@ QSize DmsDetailPages::minimumSizeHint() const
 void DmsDetailPages::resizeEvent(QResizeEvent* event)
 {
     m_current_width = width();
-    QTextBrowser::resizeEvent(event);
+    //TODO: reimplement this behavior to comply to QtWebView
+    //QTextBrowser::resizeEvent(event);
 }
 
 #include <QDesktopServices>
