@@ -28,12 +28,12 @@ public:
 	TForm()                                 { Init(0, false); }
 	TForm(RadiusType radius, bool isCircle) { Init(radius, isCircle); }	
 
-	void             Init(RadiusType radius, bool isCircle);
-	void             SetCenter(const UGridPoint& p) { m_Center = p; m_Defined = false; }
-	bool             Contains (const UGridPoint& p);
+	void Init(RadiusType radius, bool isCircle);
+	void SetCenter(UGridPoint p) { m_Center = p; m_Defined = false; }
+	bool Contains (UGridPoint p);
 
-	bool             NextContainedPoint(IGridPoint&);	// gives all points of form in Bitmap order (=lexicographic (row, col))
-	bool             NextBorderPoint(IGridPoint& p, TTranslation t); // all points in Translated order
+	bool NextContainedPoint(UGridPoint&);	// gives all points of form in Bitmap order (=lexicographic (row, col))
+	bool NextBorderPoint(UGridPoint& p, TTranslation t); // all points in Translated order
 
 private:
 	UGridPoint m_Center;
@@ -48,7 +48,7 @@ private:
 	static FormPoint Translate(const FormPoint& p) { return Translate(p, Octant(p)); }
 	static FormPoint Translate(const FormPoint&, TOctant);
 
-	bool ContainsCentered(const FormPoint&);	
+	bool ContainsCentered(FormPoint);	
 	bool GetOtherCoordinateCentered(FormType, FormType&);
 };
 
@@ -63,25 +63,21 @@ struct SpatialAnalyzer
 	using DataGridValType = T;
 	using DataGridType = UGrid<const DataGridValType>;
 
-	void Init(const DataGridType& input);
+	SpatialAnalyzer(DataGridType input);
 
 protected:
-	DataGridType     m_Input;
+	DataGridType m_Input;
+	SizeT        m_Size = 0;
+	UCoordType   m_NrCols = 0;
 
-	SizeType m_Size = 0;
-	SizeType m_NrCols = 0;
-	IGridRect m_Rectangle;
-	IGridRect m_ResRect;
-
-
-	SizeType GridSize() { return m_Size; }
-	SizeType Pos(const UGridPoint& p)   
+	SizeT GridSize() const { return m_Size; }
+	SizeType Pos(UGridPoint p)   
 	{ 
 		assert(p.Col() >= 0);
 		assert(p.Row() >= 0);
 		assert(p.Col() < m_Input.GetSize().Col());
 		assert(p.Row() < m_Input.GetSize().Row());
-		return m_NrCols* p.Row()+ p.Col();
+		return m_NrCols * p.Row()+ p.Col();
 	}
 	UGridPoint GetPoint(SizeType pos) { return rowcol2dms_order<UCoordType>(pos / m_NrCols, pos % m_NrCols); }
 };
@@ -91,24 +87,26 @@ struct Districter : SpatialAnalyzer<T>
 {
 	using DistrSelSeqType = sequence_traits<Bool>::seq_t;
 	using DistrSelVecType = sequence_traits<Bool>::container_type;
+	using DistrDataPtr = typename sequence_traits<D>::seq_t::iterator;
 
 	using DistrIdGridType = UGrid<D>;
 	using typename SpatialAnalyzer<T>::DataGridType;
 	using typename SpatialAnalyzer<T>::DataGridValType;
 
-	D GetDistricts(const DataGridType& input, const UGrid<D>& output, bool rule8);
-	void GetDistrict(const DataGridType& input, const DistrSelSeqType& output, const IGridPoint& seedPoint, IGridRect& resRect); // only for T==Bool?
+	Districter(DataGridType input)
+		: SpatialAnalyzer<T>(input)
+	{}
+
+	D GetDistricts(UGrid<D> output, bool rule8);
+	void GetDistrict(DistrDataPtr output, UGridPoint seedPoint, UGridRect& resRect); // only for T==Bool?
 
 private:
-	void ConsiderPoint(IGridPoint seedPoint, D districtId, DataGridValType val, std::vector<IGridPoint>& stack);
-	void GetDistrict(IGridPoint seedPoint, D districtId, bool rule8);
-	bool FindFirstNotProcessedPoint(IGridPoint& foundPoint);
-	void SetDistrictId(SizeType pos, D districtId);
-	void SetDistrictId(SizeType pos, bool        districtId);
+	void ConsiderPoint(DistrDataPtr output, UGridPoint seedPoint, D districtId, DataGridValType val, std::vector<IGridPoint>& stack);
+	void GetDistrict  (DistrDataPtr output, UGridPoint seedPoint, D districtId, bool rule8);
+	void SetDistrictId(DistrDataPtr output, SizeT pos, D districtId);
+	bool FindFirstNotProcessedPoint(UGridPoint& foundPoint);
 
-
-	DistrIdGridType m_DistrOutput;
-	DistrSelSeqType m_DistrBoolOutput;
+	UGridRect       m_ResRect;
 	DistrSelVecType m_Processed;
 };
 
@@ -120,83 +118,64 @@ struct DiversityCalculator : SpatialAnalyzer<T>
 	using typename SpatialAnalyzer<T>::DataGridType;
 	using typename SpatialAnalyzer<T>::DataGridValType;
 
-	void InitFrom(const DataGridType& input, RadiusType radius, bool isCircle, const DivCountGridType& distrOutput);
+	DiversityCalculator(DataGridType input, DataGridValType inputUpperBound, RadiusType radius, bool isCircle);
 
-	void GetDiversity(const DataGridType& input, DataGridValType inputUpperBound, RadiusType radius, bool isCircle, const DivCountGridType& output);
+	void GetDiversity(DivCountGridType output);
 
 private:
-	void GetDiversity1();
-	void GetDiversity2();
+	void DiversityCountIncremental(DivCountGridType output, IGridPoint, DivVectorType&, bool isFirstRow, bool isFirstCol, bool right);
+	void DiversityCountVertical   (DivCountGridType output, IGridPoint, DivVectorType&, bool isFirstRow);
+	void DiversityCountHorizontal (DivCountGridType output, IGridPoint, DivVectorType&, TTranslation);
 
-	void         DiversityCountIncremental(const IGridPoint&, DivVectorType&, bool isFirstRow, bool isFirstCol, bool right);
-	void         DiversityCountVertical(const IGridPoint&, DivVectorType&, bool);
-	void         DiversityCountHorizontal(const IGridPoint&, DivVectorType&, TTranslation);
-	DivCountType DiversityCountAll(const IGridPoint&, DivVectorType&);
-	DivCountType DiversityDifference(const IGridPoint&, DivVectorType&, TTranslation, bool);
-	bool         NextBorderPoint(IGridPoint&, TTranslation, bool forward);
+	DivCountType DiversityDifference      (UGridPoint, DivVectorType&, TTranslation, bool doAdd);
+	DivCountType DiversityCountAll        (UGridPoint, DivVectorType&);
+
+	bool         NextBorderPoint(UGridPoint&, TTranslation, bool forward);
 
 	TForm  m_Form;
-	T      m_InputUpperBound = T();
-	DivCountGridType m_DivOutput;
+	T      m_InputUpperBound = 0;
 };
 
 //==================================================== SpatialAnalyzer: template member functions
 
 template <typename T>
-void SpatialAnalyzer<T>::Init(const DataGridType& input)
+SpatialAnalyzer<T>::SpatialAnalyzer(DataGridType input)
+	: m_Input( input)
 {
-	DBG_START("SpatialAnalyzer", "Init", false);
-
-	m_Input = input;
-	m_Rectangle = IGridRect(IGridPoint(0, 0), Convert<IGridPoint>(input.GetSize()));
-
-
-	ICoordType nrCols = input.GetSize().Col();
-	MG_CHECK(nrCols > 0);
-
-	m_NrCols = nrCols;
 	m_Size = Cardinality(input.GetSize());
-
-	DBG_TRACE(("Size() %d", GridSize()));
-
 	MG_CHECK(m_Size > 0);
+
+	m_NrCols = input.GetSize().Col();
+	MG_CHECK(m_NrCols > 0);
 }
 
 //==================================================== Districter: template member functions
 
 template <typename T, typename DistrIdType>
-void Districter<T, DistrIdType>::SetDistrictId(SizeType pos, DistrIdType districtId)
+void Districter<T, DistrIdType>::SetDistrictId(DistrDataPtr output, SizeT pos, DistrIdType districtId)
 {
-	m_DistrOutput.GetDataPtr()[pos] = districtId;
+	output[pos] = districtId;
 	m_Processed[pos] = true;
 }
-
-template <typename T, typename DistrIdType>
-void Districter<T, DistrIdType>::SetDistrictId(SizeType pos, bool districtId)
-{
-	m_DistrBoolOutput[pos] = districtId;
-	m_Processed[pos] = true;
-}
-
 
 template <typename T, typename D>
-void Districter<T, D>::ConsiderPoint(IGridPoint seedPoint, D districtId, DataGridValType val, std::vector<IGridPoint>& stack)
+void Districter<T, D>::ConsiderPoint(DistrDataPtr output, UGridPoint seedPoint, D districtId, DataGridValType val, std::vector<IGridPoint>& stack)
 {
-	SizeType pos = this->Pos(seedPoint);
+	auto pos = this->Pos(seedPoint);
 	if (Bool(m_Processed[pos])) return;
 	if (this->m_Input.GetDataPtr()[pos] != val) return;
 
-	SetDistrictId(pos, districtId);
-	this->m_ResRect |= seedPoint;
+	SetDistrictId(output, pos, districtId);
+	m_ResRect |= seedPoint;
 	stack.push_back(seedPoint);
 }
 
 template <typename T, typename D>
-bool Districter<T, D>::FindFirstNotProcessedPoint(IGridPoint& point)
+bool Districter<T, D>::FindFirstNotProcessedPoint(UGridPoint& point)
 {
 	typename sequence_traits<T>::const_pointer inputData = this->m_Input.GetDataPtr();
-	SizeType pos = this->Pos(point);
-	SizeType end = this->GridSize();
+	auto pos = this->Pos(point);
+	auto end = this->GridSize();
 	assert(pos < end);
 	while (Bool(m_Processed[pos]) || !IsDefined(inputData[pos]))
 		if (++pos == end)
@@ -207,36 +186,33 @@ bool Districter<T, D>::FindFirstNotProcessedPoint(IGridPoint& point)
 }
 
 template <typename T, typename D>
-void Districter<T, D>::GetDistrict(IGridPoint seedPoint, D districtId, bool rule8)
+void Districter<T, D>::GetDistrict(DistrDataPtr output, UGridPoint seedPoint, D districtId, bool rule8)
 {
-	assert(IsIncluding(this->m_Rectangle, seedPoint));
+	assert(IsStrictlyLower(seedPoint, this->m_Input.GetSize()));
 
 	auto pos = this->Pos(seedPoint);
 	auto val = this->m_Input.GetDataPtr()[pos];
-	SetDistrictId(pos, districtId);
-	this->m_ResRect |= seedPoint;
-
-	IGridRect reducedRect = Deflate(this->m_Rectangle, IGridPoint(1, 1));
+	SetDistrictId(output, pos, districtId);
+	m_ResRect |= seedPoint;
 
 	std::vector<IGridPoint> stack;
 	while (true) {
-		bool nonTop    = seedPoint.Row() > this->m_Rectangle.first.Row();
-		bool nonBottom = seedPoint.Row() + 1 < this->m_Rectangle.second.Row();
-		bool nonLeft   = seedPoint.Col() > this->m_Rectangle.first.Col();
-		bool nonRight  = seedPoint.Col() + 1 < this->m_Rectangle.second.Col();
+		bool nonTop    = seedPoint.Row() > 0;
+		bool nonBottom = seedPoint.Row() + 1 < this->m_Input.GetSize().Row();
+		bool nonLeft   = seedPoint.Col() > 0;
+		bool nonRight  = seedPoint.Col() + 1 < this->m_Input.GetSize().Col();
 
-		if (nonTop   ) ConsiderPoint(rowcol2dms_order< ICoordType>(seedPoint.Row() - 1, seedPoint.Col()), districtId, val, stack);
-		if (nonBottom) ConsiderPoint(rowcol2dms_order< ICoordType>(seedPoint.Row() + 1, seedPoint.Col()), districtId, val, stack);
-		if (nonLeft  ) ConsiderPoint(rowcol2dms_order< ICoordType>(seedPoint.Row(), seedPoint.Col() - 1), districtId, val, stack);
-		if (nonRight ) ConsiderPoint(rowcol2dms_order< ICoordType>(seedPoint.Row(), seedPoint.Col() + 1), districtId, val, stack);
-
+		if (nonTop   ) ConsiderPoint(output, rowcol2dms_order<ICoordType>(seedPoint.Row() - 1, seedPoint.Col()), districtId, val, stack);
+		if (nonBottom) ConsiderPoint(output, rowcol2dms_order<ICoordType>(seedPoint.Row() + 1, seedPoint.Col()), districtId, val, stack);
+		if (nonLeft  ) ConsiderPoint(output, rowcol2dms_order<ICoordType>(seedPoint.Row(), seedPoint.Col() - 1), districtId, val, stack);
+		if (nonRight ) ConsiderPoint(output, rowcol2dms_order<ICoordType>(seedPoint.Row(), seedPoint.Col() + 1), districtId, val, stack);
 
 		if (rule8)
 		{
-			if (nonTop    && nonLeft ) ConsiderPoint(rowcol2dms_order< ICoordType>(seedPoint.Row() - 1, seedPoint.Col() - 1), districtId, val, stack);
-			if (nonTop    && nonRight) ConsiderPoint(rowcol2dms_order< ICoordType>(seedPoint.Row() - 1, seedPoint.Col() + 1), districtId, val, stack);
-			if (nonBottom && nonLeft ) ConsiderPoint(rowcol2dms_order< ICoordType>(seedPoint.Row() + 1, seedPoint.Col() - 1), districtId, val, stack);
-			if (nonBottom && nonRight) ConsiderPoint(rowcol2dms_order< ICoordType>(seedPoint.Row() + 1, seedPoint.Col() + 1), districtId, val, stack);
+			if (nonTop    && nonLeft ) ConsiderPoint(output, rowcol2dms_order<ICoordType>(seedPoint.Row() - 1, seedPoint.Col() - 1), districtId, val, stack);
+			if (nonTop    && nonRight) ConsiderPoint(output, rowcol2dms_order<ICoordType>(seedPoint.Row() - 1, seedPoint.Col() + 1), districtId, val, stack);
+			if (nonBottom && nonLeft ) ConsiderPoint(output, rowcol2dms_order<ICoordType>(seedPoint.Row() + 1, seedPoint.Col() - 1), districtId, val, stack);
+			if (nonBottom && nonRight) ConsiderPoint(output, rowcol2dms_order<ICoordType>(seedPoint.Row() + 1, seedPoint.Col() + 1), districtId, val, stack);
 		}
 		if (stack.empty())
 			return;
@@ -246,37 +222,27 @@ void Districter<T, D>::GetDistrict(IGridPoint seedPoint, D districtId, bool rule
 }
 
 template <typename T, typename D>
-void Districter<T, D>::GetDistrict(const DataGridType& input, const DistrSelSeqType& output, const IGridPoint& seedPoint, IGridRect& resRect)
+void Districter<T, D>::GetDistrict(DistrDataPtr output, UGridPoint seedPoint, UGridRect& resRect)
 {
-	m_DistrBoolOutput = output;
-	this->m_ResRect = IGridRect();
-
-	assert(input.size() == output.size()); // PRECONDITION
-	this->Init(input);
-
 	m_Processed = DistrSelVecType(this->GridSize(), false);
 	//	vector_zero_n(m_Processed, GridSize());
 
-	GetDistrict(seedPoint, true, false);
+	m_ResRect = UGridRect();
 
-	resRect = this->m_ResRect;
+	GetDistrict(output, seedPoint, true, false);
+
+	resRect = m_ResRect;
 }
 
 template <typename T, typename D>
-D Districter<T, D>::GetDistricts(const DataGridType& input, const UGrid<D>& output, bool rule8)
+D Districter<T, D>::GetDistricts(UGrid<D> output, bool rule8)
 {
-	m_DistrOutput = output;
+	assert(this->m_Input.GetSize() == output.GetSize()); // PRECONDITION;
 
-	assert(input.GetSize() == output.GetSize()); // PRECONDITION;
-	this->Init(input);
+	auto point = UGridPoint(0, 0);
 
-	auto point = this->m_Rectangle.first;
+	fast_undefine(output.begin(), output.end());
 
-	fast_fill(
-		m_DistrOutput.GetDataPtr(),
-		m_DistrOutput.GetDataPtr() + this->GridSize(),
-		UNDEFINED_VALUE(D)
-	);
 	m_Processed = DistrSelVecType(this->GridSize(), false);
 	//	vector_zero_n(m_Processed, GridSize());
 	
@@ -286,7 +252,7 @@ D Districter<T, D>::GetDistricts(const DataGridType& input, const UGrid<D>& outp
 		if (!resNrDistricts && !isFirstDistrict)
 			throwErrorF("district", "number of found districts exceeds the maximum of the chosen district operator that stores only %d bytes per cell", sizeof(D));
 
-		GetDistrict(point, resNrDistricts, rule8);
+		GetDistrict(output.GetDataPtr(), point, resNrDistricts, rule8);
 		isFirstDistrict = false;
 	}
 	return resNrDistricts;
@@ -295,15 +261,16 @@ D Districter<T, D>::GetDistricts(const DataGridType& input, const UGrid<D>& outp
 //==================================================== dispatching functions
 
 template <typename ZoneType, typename ResultType>
-ResultType Districting(const UGrid<const ZoneType>& input, const UGrid<ResultType>& output, bool rule8)
+ResultType Districting(UGrid<const ZoneType> input, UGrid<ResultType> output, bool rule8)
 { 
-	return Districter<ZoneType, ResultType>().GetDistricts(input, output, rule8);
+	return Districter<ZoneType, ResultType>(input).GetDistricts(output, rule8);
 }
 
 template <typename ZoneType>
-void Diversity(const UGrid<const ZoneType>& input, ZoneType inputUpperBound, RadiusType radius, bool isCircle, UGrid<ZoneType>& divOutput)
+void Diversity(UGrid<const ZoneType> input, ZoneType inputUpperBound, RadiusType radius, bool isCircle, UGrid<ZoneType> divOutput)
 { 
-	DiversityCalculator<ZoneType>().GetDiversity(input, inputUpperBound, radius, isCircle, divOutput);
+	// TODO: LowerBound
+	DiversityCalculator<ZoneType>(input, inputUpperBound, radius, isCircle).GetDiversity(divOutput);
 }
 
 // *****************************************************************************
