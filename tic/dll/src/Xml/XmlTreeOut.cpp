@@ -611,10 +611,8 @@ bool TreeItem_XML_DumpGeneralBody(const TreeItem* self, OutStreamBase* xmlOutStr
 					*xmlOutStrPtr << "ExprSummaryTest";
 				}
 
-				XML_OutElement p_tag(*xmlOutStrPtr, "div");
-				{
-					GetExprOrSourceDescrRow(xmlTable, self);
-				}
+				*xmlOutStrPtr << "Hier volgen de details !"; // DEBUG
+				GetExprOrSourceDescrRow(xmlTable, self);
 			}
 		}
 
