@@ -819,7 +819,13 @@ void MainWindow::scheduleUpdateToolbar()
     // update requested toolbar style
     QMdiSubWindow* active_mdi_subwindow = m_mdi_area->activeSubWindow();
     QDmsViewArea* dms_active_mdi_subwindow = dynamic_cast<QDmsViewArea*>(active_mdi_subwindow);
-    !dms_active_mdi_subwindow ? m_current_toolbar_style = ViewStyle::tvsUndefined : dms_active_mdi_subwindow->getDataView()->GetViewType();
+    m_current_toolbar_style = ViewStyle::tvsUndefined;
+    if (dms_active_mdi_subwindow)
+    {
+        auto dv = dms_active_mdi_subwindow->getDataView();
+        if (dv)
+			m_current_toolbar_style = dv->GetViewType();
+    }
     
     m_UpdateToolbarRequestPending = true;
     QTimer::singleShot(0, [this]()
