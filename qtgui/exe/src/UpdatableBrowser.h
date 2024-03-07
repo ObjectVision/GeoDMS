@@ -56,6 +56,7 @@ protected:
     virtual bool update() = 0;
 
 private:
+    void openPageSource();
     QShortcut* find_shortcut = nullptr;
     FindTextWindow* find_window = nullptr;
 };

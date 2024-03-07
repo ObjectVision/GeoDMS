@@ -94,9 +94,10 @@ void MainWindow::SaveValueInfoImpl(CharPtr filename)
         if (!value_info_window_candidate)
             continue;
 
-        auto htmlSource = value_info_window_candidate->m_browser->toHtml();
-        auto htmlsourceAsUtf8 = htmlSource.toUtf8();
-        buff.WriteBytes(htmlsourceAsUtf8.data(), htmlsourceAsUtf8.size());
+        // TODO: implement this for qwebengineview
+        //auto htmlSource = value_info_window_candidate->m_browser->toHtml();
+        //auto htmlsourceAsUtf8 = htmlSource.toUtf8();
+        //buff.WriteBytes(htmlsourceAsUtf8.data(), htmlsourceAsUtf8.size());
     }
 }
 

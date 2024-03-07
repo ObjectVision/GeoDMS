@@ -64,6 +64,9 @@ void FindTextWindow::previousClicked(bool checked)
 QUpdatableTextBrowser::QUpdatableTextBrowser(QWidget* parent)
     : QWebEngineView(parent)
 {
+
+    connect(pageAction(QWebEnginePage::ViewSource), SIGNAL(triggered(bool)), this, SLOT(slt_openImage_triggered()));
+
     /*setOpenLinks(false);
     setOpenExternalLinks(false);*/
     setProperty("DmsHelperWindowType", DmsHelperWindowType::HW_UNKNOWN);

@@ -18,7 +18,8 @@ struct StatisticsBrowser : QUpdatableTextBrowser
         : QUpdatableTextBrowser(parent)
     {
         setProperty("DmsHelperWindowType", DmsHelperWindowType::HW_STATISTICS);
-        connect(this, &StatisticsBrowser::anchorClicked, this, &StatisticsBrowser::onAnchorClicked);
+        //TODO: implement onAnchorClicked for qwebengineview
+        //connect(this, &StatisticsBrowser::anchorClicked, this, &StatisticsBrowser::onAnchorClicked);
     }
 
     bool update() override
