@@ -125,6 +125,7 @@ struct RasterizeInfo : AbstrRasterizeInfo
 };
 
 struct IFP_resouces {
+	std::vector<DPoint> dPoints;
 	std::vector<rowcol_t> rows, cols;
 	std::vector<seq_index_t> edgeListStarts;
 	std::vector<poly_edge_node> edgeLists;
@@ -415,14 +416,12 @@ namespace poly2grid
 
 			CrdTransformation transForm = m_ViewPortInfo.Inverse();
 			transForm -= base;
-			std::vector<DPoint> dPoints;
-			IFP_resouces ifpResources;
 
 			auto res = mutable_array_cast<E>(m_ResObj)->GetDataWrite(m_RasterTileId, dms_rw_mode::write_only_all);
 			OwningPtr<AbstrRasterizeInfo> rasterInfoPtr;
 			rasterInfoPtr.assign( new RasterizeInfo<E>(Convert<RasterSizeType>(size), res.begin()) );
-
-			dms_assert(m_BoxesArrays);
+			auto rasterInfo = rasterInfoPtr.get();
+			assert(m_BoxesArrays);
 
 			for (tile_id t = 0, te = abstrPolyDomain->GetNrTiles(); t!=te; ++t)
 			{
@@ -432,35 +431,42 @@ namespace poly2grid
 					continue;
 
 				AbstrSequenceGetter* sg = m_SequenceGetter;
-				dms_assert(sg);
+				assert(sg);
 				sg->OpenTile(polyData, t);
 
-				for (tile_offset i = 0, e = abstrPolyDomain->GetTileCount(t); i != e; ++i)
-				{
-					if (!(i % AbstrBoundingBoxCache::c_BlockSize))
-						while (!IsIntersecting(clipRect, m_BoxesArrays->GetBlockBounds(t, i / AbstrBoundingBoxCache::c_BlockSize)))
+				tile_offset e = abstrPolyDomain->GetTileCount(t);
+				tile_offset nrBlocks = e / AbstrBoundingBoxCache::c_BlockSize; 
+				if (nrBlocks * AbstrBoundingBoxCache::c_BlockSize < e)
+					++nrBlocks; // ceil the required number of blocks
+
+				parallel_for_if_separable<tile_offset, E>(0, nrBlocks, [clipRect, this, t, e, nrBlocks, sg, transForm, tileIndexRange, rasterInfo](tile_offset blockNr)
+					{
+						if (!IsIntersecting(clipRect, this->m_BoxesArrays->GetBlockBounds(t, blockNr)))
+							return;
+
+						
+						IFP_resouces ifpResources;
+
+						tile_offset i = blockNr * AbstrBoundingBoxCache::c_BlockSize;
+						tile_offset ie = (blockNr+1 == nrBlocks) ? e : i + AbstrBoundingBoxCache::c_BlockSize;
+						for (; i != ie; ++i)
 						{
-							i += AbstrBoundingBoxCache::c_BlockSize;
-							if (!(i < e))
-								goto end_of_tile_loop;
+							if (!IsIntersecting(clipRect, this->m_BoxesArrays->GetBounds(t, i)))
+								continue;
+							sg->GetValue(i, ifpResources.dPoints);
+
+							remove_adjacents_and_spikes(ifpResources.dPoints);
+							if (ifpResources.dPoints.size() < 3)
+								continue;
+
+							for (auto& p: ifpResources.dPoints)
+								transForm.InplApply(p);
+
+							E eBurnValueSource = Range_GetValue_naked(tileIndexRange, i);
+
+							rasterize_one_shape(rasterInfo, dPoints, eBurnValueSource, ifpResources);
 						}
-
-					if (!IsIntersecting(clipRect, m_BoxesArrays->GetBounds(t, i)))
-						continue;
-					sg->GetValue(i, dPoints);
-
-					remove_adjacents_and_spikes(dPoints);
-					if (dPoints.size() < 3)
-						continue;
-
-					for (auto pi = dPoints.begin(), pe = dPoints.end(); pi != pe; ++pi)
-						transForm.InplApply(*pi);
-
-					E eBurnValueSource = Range_GetValue_naked(tileIndexRange, i);
-
-					rasterize_one_shape(rasterInfoPtr, dPoints,eBurnValueSource, ifpResources);
-				}
-			end_of_tile_loop:;
+					});
 			}
 		}
 	};
