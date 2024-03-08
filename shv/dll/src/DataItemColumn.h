@@ -19,18 +19,27 @@ struct FontIndexCache;
 struct FontArray;
 
 enum class AggrMethod {
-	sum = 0,
-	min = 1,
-	max = 2,
-	first = 3,
-	last = 4,
-	asItemList = 5,
-	union_polygon = 6,
-	mean = 7,
-	sd = 8,
-	modus = 9,
-	count = 10,
-	nr_methods = 11
+	undefined = 0,
+	sum,
+	min,
+	max,
+	first,
+	last,
+	asItemList,
+	union_polygon,
+	mean,
+	sd,
+	count,
+	modus,
+	modus_count,
+	unique_count,
+	bounding_box,
+	diversity,
+	entropy,
+	any,
+	all,
+	frequency_table,
+	nr_methods = 18
 };
 
 //----------------------------------------------------------------------
@@ -167,7 +176,7 @@ private:
 	SizeT m_ActiveRow;
 
 	gr_elem_index m_GroupByIndex = -1;
-	AggrMethod m_AggrMethod = AggrMethod::sum;
+	AggrMethod m_AggrMethod = AggrMethod::undefined;
 
 	mutable Float64 m_ColumnTotal = 0.0;
 	mutable SharedDataItemInterestPtrTuple m_DisplayInterest;

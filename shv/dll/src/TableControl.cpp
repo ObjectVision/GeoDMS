@@ -1100,8 +1100,6 @@ void TableControl::AddLayer(const TreeItem* viewCandidate, bool isDropped)
 	}
 }
 
-static TokenID idID = GetTokenID_st("id");
-
 SharedPtr<AbstrDataItem> TableControl::CreateIdAttr(const AbstrUnit* domain, const AbstrDataItem* exampleAttr)
 {
 	dms_assert(HasSortOptions());
@@ -1115,7 +1113,7 @@ SharedPtr<AbstrDataItem> TableControl::CreateIdAttr(const AbstrUnit* domain, con
 
 	SharedPtr<AbstrDataItem> idAttr = CreateDataItem(
 		CreateDesktopContainer(dv->GetDesktopContext(), domain)
-	,	idID
+	,	token::id	
 	,	domain 
 	,	domain
 	);
@@ -1125,7 +1123,7 @@ SharedPtr<AbstrDataItem> TableControl::CreateIdAttr(const AbstrUnit* domain, con
 
 	if (domain->IsCacheItem())
 	{
-		dms_assert(exampleAttr);
+		assert(exampleAttr);
 		auto keyExpr = ExprList(token::id, ExprList(token::DomainUnit, exampleAttr->GetCheckedKeyExpr()));
 		idAttr->SetDC(GetOrCreateDataController(keyExpr));
 	}
