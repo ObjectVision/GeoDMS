@@ -63,7 +63,7 @@ struct AbstrOperAccTotUni: UnaryOperator
 		dms_assert(arg1A);
 
 		bool dontRecalc = res->m_DataObject;
-		dms_assert(dontRecalc || !context);
+//		dms_assert(dontRecalc || !context);
 		if (!dontRecalc)
 		{
 //			DataReadLock arg1Lock(arg1A);

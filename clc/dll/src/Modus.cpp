@@ -28,24 +28,55 @@
 //											Modus Helper funcs
 // *****************************************************************************
 
+/* REMOVE
 template <typename ACC, typename CFI>
-SizeT argmax(CFI bufferB, UInt32 lastVi)
+SizeT argmax(CFI bufferB, SizeT lastVi)
 {
 	SizeT maxVi = UNDEFINED_VALUE(SizeT);
 	ACC maxC = 0; // MIN_VALUE(ACC);
-	for (UInt32 vi = 0; vi != lastVi; ++vi)
+	for (SizeT vi = 0; vi != lastVi; ++vi)
 	{
 		auto c = *bufferB++;
 		if (c > maxC) { maxC = c; maxVi = vi; }
 	}
 	return maxVi;
 }
+*/
+
+template <typename Counter, typename CIter>
+CIter arg_max(CIter b, CIter e, auto countF)
+{
+	Counter maxC = 0; // MIN_VALUE(ACC);
+	CIter maxP = e;
+	for (; b != e; ++b)
+	{
+		auto c = countF(b);
+		if (c <= maxC)
+			continue;
+		maxC = c; 
+		maxP = b;
+	}
+	return maxP;
+}
+
+template <typename Counter, typename Value>
+struct modusFunc {
+	template <typename CIter>
+	auto operator ()(CIter b, CIter e, auto countF, auto valueF) -> Value
+	{
+		CIter p = arg_max<Counter>(b, e, countF);
+		if (p == e)
+			return UNDEFINED_OR_ZERO(Value);
+		return valueF(p);
+	}
+};
 
 bool OnlyDefinedCheckRequired(const AbstrDataItem* adi)
 {
 	DataCheckMode dcm = adi->GetCheckMode();
 	return !(dcm & DCM_CheckDefined);
 }
+
 /* 
 template <typename V>
 typename Unit<V>::range_t 
@@ -54,6 +85,7 @@ GetRange(const DataArray<V>* da)
 	return da->GetValueRangeData()->GetRange();
 }
 */
+
 template <typename V>
 typename Unit<V>::range_t
 GetRange(const AbstrDataItem* adi)
@@ -79,22 +111,24 @@ void ModusTotBySet(const AbstrDataItem* valuesItem, typename sequence_traits<V>:
 		     valuesEnd  = valuesLock.end();
 
 		for (; valuesIter != valuesEnd; ++valuesIter)
-			if (IsDefined(*valuesIter))
-				++counters[*valuesIter];
-	}
-
-	SizeT    maxC    = 0;
-	resData = UNDEFINED_VALUE(V);
-	for (auto i = counters.begin(), e = counters.end(); i!=e; ++i)
-	{
-		if (i->second > maxC)
 		{
-			maxC    = i->second;
-			resData = i->first;
+			if (!IsDefined(*valuesIter))
+				continue;
+			auto counterPtr = &(counters[*valuesIter]);
+			++*counterPtr;
+			assert(*counterPtr); // SizeT cannot overflow when counting distict addressable elements
 		}
 	}
+
+	modusFunc<SizeT, V> aggrFunc;
+
+	resData = aggrFunc(counters.begin(), counters.end()
+	,	[](auto i) { return i->second; }
+	,	[](auto i) { return i->first; }
+	);
 }
 
+/* REMOVE
 // assume v >> n; time complexity: n*log(min(v, n))
 template<typename V>
 void ModusTotByIndex(const AbstrDataItem* valuesItem, typename sequence_traits<V>::reference resData)
@@ -143,6 +177,7 @@ void ModusTotByIndexOrSet(
 		ModusTotByIndex<V>(valuesItem, resData);
 }
 
+REMOVE */
 
 template<typename V>
 void ModusTotByTable(
@@ -165,18 +200,20 @@ void ModusTotByTable(
 		{
 			if (IsDefined(*valuesIter))
 			{
-				UInt32 i = Range_GetIndex_naked(valuesRange, *valuesIter);
-				dms_assert(i < vCount);
-				++(bufferB[i]);
+				auto i = Range_GetIndex_naked(valuesRange, *valuesIter);
+				assert(i < vCount);
+				auto bufferPtr = bufferB + i;
+				++*bufferPtr;
+				assert(*bufferPtr); // SizeT cannot overflow when counting distict addressable elements
 			}
 		}
 	}
+	modusFunc<SizeT, V> aggrFunc;
 
-	vCount = argmax<SizeT>(bufferB, vCount);
-	if (IsDefined(vCount))
-		resData = Range_GetValue_naked(valuesRange, vCount);
-	else
-		resData = UNDEFINED_OR_ZERO(V);
+	resData = aggrFunc(buffer.begin(), buffer.end()
+	, [ ](auto i) { return *i; }
+	, [&](auto i) { return Range_GetValue_naked(valuesRange, i - buffer.begin()); }
+	);
 }
 
 template<typename V>
@@ -186,7 +223,7 @@ void ModusTotDispatcher(
 ,	const inf_type_tag*)
 {
 	// NonCountable values; go for Set implementation
-	ModusTotByIndexOrSet<V>(valuesItem, resData);
+	ModusTotBySet<V>(valuesItem, resData);
 }
 
 // make tradeoff between 
@@ -225,7 +262,7 @@ void ModusTotDispatcher(
 		,	valuesRange
 		);
 	else
-		ModusTotByIndexOrSet<V>(valuesItem, resData);
+		ModusTotBySet<V>(valuesItem, resData);
 }
 
 template<typename V>
@@ -272,26 +309,29 @@ void ModusPartBySet(const AbstrDataItem* indicesItem, future_tile_array<V> value
 				}
 			}
 	}
+	modusFunc<SizeT, V> aggrFunc;
+
 	auto i = counters.begin(), e = counters.end();
+	auto ri = 0;
 	while (i != e)
 	{
-		SizeT pi = i->first.first;
-		dms_assert(IsNotUndef(pi));
-		dms_assert(pi < pCount);
-		SizeT maxC = 0;
-		do 
-		{
-			SizeT c = i->second;
-			dms_assert( i->second>0);
-			if ( i->second > maxC)
-			{
-				maxC         = i->second;
-				resBegin[pi] = i->first.second;
-			}
-		}	while (++i != e && i->first.first == pi);
+		SizeT p = i->first.first;
+		auto pb = i;
+		while (++i != e)
+			if (i->first.first != p)
+				break;
+		while (ri < p)
+			resBegin[ri++] = UNDEFINED_VALUE(V);
+		resBegin[p] = aggrFunc(pb, i
+		, [](auto counterPtr) { return counterPtr->second; }
+		, [](auto counterPtr) { return counterPtr->first.second; }
+		);
+		ri = p + 1;
 	}
+	fast_undefine(resBegin + ri, resBegin + pCount);
 }
 
+/* REMOVE
 // assume v >> n; time complexity: n*log(min(v, n))
 template<typename V, typename OIV>
 void ModusPartByIndex(const AbstrDataItem* indicesItem, typename DataArray<V>::locked_cseq_t values, abstr_future_tile* part_ft, OIV resBegin, SizeT pCount)
@@ -358,7 +398,7 @@ void ModusPartByIndexOrSet(const AbstrDataItem* indicesItem, future_tile_array<V
 	else
 		ModusPartByIndex<V, OIV>(indicesItem, values_fta[0]->GetTile(), part_fta[0], resBegin, nrP);
 }
-
+*/
 
 template<typename V, typename OIV>
 void ModusPartByTable(const AbstrDataItem* indicesItem, future_tile_array<V> values_fta, abstr_future_tile_array part_afta
@@ -383,18 +423,22 @@ void ModusPartByTable(const AbstrDataItem* indicesItem, future_tile_array<V> val
 			if (vi >= vCount)
 				continue;
 			SizeT pi = indexGetter->Get(i);
-			if (pi < pCount)
-				++(bufferB[pi * vCount + vi]);
+			if (pi >= pCount)
+				continue;
+			auto bufferPtr = bufferB + pi * vCount + vi;
+			++*bufferPtr;
+			assert(*bufferPtr); // SizeT cannot overflow when counting distict addressable elements
 		}
 	}
 
+	modusFunc<SizeT, V> aggrFunc;
+
 	for (OIV resEnd = resBegin + pCount; resBegin != resEnd; ++resBegin)
 	{
-		SizeT i = argmax<UInt32>(bufferB, vCount);
-		if (i < vCount)
-			*resBegin = Range_GetValue_naked(valuesRange, i);
-		else
-			*resBegin = UNDEFINED_OR_ZERO(V);
+		*resBegin = aggrFunc(bufferB, bufferB + vCount
+		, [ ](auto i) { return *i; }
+		, [&](auto i) { return Range_GetValue_naked(valuesRange, i - bufferB); }
+		);
 
 		bufferB += vCount;
 	}
@@ -424,19 +468,16 @@ void WeightedModusTotBySet(const AbstrDataItem* valuesItem, const AbstrDataItem*
 				counters[*valuesIter] += weightsGetter->Get(weightsIter);
 	}
 
-	Float64 maxC = 0;
-	resData = UNDEFINED_VALUE(V);
 
-	for (auto i = counters.begin(), e = counters.end(); i!=e; ++i)
-	{
-		if (i->second > maxC)
-		{
-			maxC    = i->second;
-			resData = i->first;
-		}
-	}
+	modusFunc<Float64, V> aggrFunc;
+
+	resData = aggrFunc(counters.begin(), counters.end()
+	, [](auto i) { return i->second; }
+	, [](auto i) { return i->first; }
+	);
+
 }
-
+/* REMOVE
 // assume v >> n; time complexity: n*log(min(v, n))
 template<typename V>
 void WeightedModusTotByIndex(
@@ -491,6 +532,7 @@ void WeightedModusTotByIndexOrSet(
 	else
 		WeightedModusTotByIndex<V>(valuesItem, weightItem, resData);
 }
+*/
 
 template<typename V>
 void WeightedModusTotByTable(
@@ -501,8 +543,6 @@ void WeightedModusTotByTable(
 {
 	UInt32 vCount = Cardinality(valuesRange);
 	std::vector<Float64> buffer(vCount, 0);
-	std::vector<Float64>::iterator
-		bufferB = buffer.begin();
 
 	for (tile_id t =0, tn = valuesItem->GetAbstrDomainUnit()->GetNrTiles(); t!=tn; ++t)
 	{
@@ -517,15 +557,16 @@ void WeightedModusTotByTable(
 		{
 			UInt32 v = Range_GetIndex_checked(valuesRange, *valuesIter);
 			if (v < vCount)
-				bufferB[v] += weightsGetter->Get(weightIter);
+				buffer[v] += weightsGetter->Get(weightIter);
 		}
 	}
 
-	vCount = argmax<Float64>(bufferB, vCount);
-	if (IsDefined(vCount))
-		resData = Range_GetValue_naked(valuesRange, vCount);
-	else
-		resData = UNDEFINED_OR_ZERO(V);
+	modusFunc<Float64, V> aggrFunc;
+
+	resData = aggrFunc(buffer.begin(), buffer.end()
+	, [ ](auto i) { return *i; }
+	, [&](auto i) { return Range_GetValue_naked(valuesRange, i - buffer.begin()); }
+	);
 }
 
 template<typename V>
@@ -537,7 +578,7 @@ void WeightedModusTotDispatcher(
 )
 {
 	// NonCountable values; go for Set implementation
-	WeightedModusTotByIndexOrSet<V>(
+	WeightedModusTotBySet<V>(
 		valuesItem
 	,	weightItem
 	,	resData
@@ -581,7 +622,7 @@ void WeightedModusTotDispatcher(
 		,	valuesRange
 		);
 	else
-		WeightedModusTotByIndexOrSet<V>(
+		WeightedModusTotBySet<V>(
 			valuesItem
 		,	weightItem
 		,	resData
@@ -637,31 +678,35 @@ void WeightedModusPartBySet(
 					SizeT p = indexGetter->Get(i);
 					if (IsDefined(p))
 					{
-						dms_assert(p < pCount);
+						assert(p < pCount);
 						counters[value_type(p, *valuesIter)] += weight;
 					}
 				}
 			}
 	}
+	modusFunc<SizeT, V> aggrFunc;
+
 	auto i = counters.begin(), e = counters.end();
+	auto ri = 0;
 	while (i != e)
 	{
 		SizeT p = i->first.first;
-		dms_assert( IsDefined(p) );
-		dms_assert( p < pCount );
-		Float64 maxC = 0;
-		do 
-		{
-			dms_assert( i->second>0);
-			if ( i->second > maxC)
-			{
-				maxC        = i->second;
-				resBegin[p] = i->first.second;
-			}
-		}	while (++i != e && i->first.first == p);
+		auto pb = i;
+		while (++i != e)
+			if (i->first.first != p)
+				break;
+		while (ri < p)
+			resBegin[ri++] = UNDEFINED_VALUE(V);
+		resBegin[p] = aggrFunc(pb, i
+		, [](auto counterPtr) { return counterPtr->second; }
+		, [](auto counterPtr) { return counterPtr->first.second; }
+		);
+		ri = p + 1;
 	}
+	fast_undefine(resBegin + ri, resBegin + pCount);
 }
 
+/* REMOVE
 // assume v >> n; time complexity: n*log(min(v, n))
 template<typename V, typename OIV>
 void WeightedModusPartByIndex(
@@ -731,6 +776,7 @@ void WeightedModusPartByIndexOrSet(const AbstrDataItem* valuesItem, const AbstrD
 	else
 		WeightedModusPartByIndex<V, OIV>(valuesItem, weightItem, indicesItem, resBegin, pCount);
 }
+*/
 
 template<typename V, typename OIV>
 void WeightedModusPartByTable(
@@ -771,16 +817,18 @@ void WeightedModusPartByTable(
 			}
 	}
 
-	for(OIV resEnd = resBegin + pCount; resBegin != resEnd; ++resBegin)
+	modusFunc<Float64, V> aggrFunc;
+
+	for (OIV resEnd = resBegin + pCount; resBegin != resEnd; ++resBegin)
 	{
-		SizeT i = argmax<Float64>(bufferB, vCount);
-		if (IsDefined(i))
-			*resBegin = Range_GetValue_naked(valuesRange, i);
-		else
-			*resBegin = UNDEFINED_OR_ZERO(V);
+		*resBegin = aggrFunc(bufferB, bufferB + vCount
+		, [ ](auto i) { return *i; }
+		, [&](auto i) { return Range_GetValue_naked(valuesRange, i - bufferB); }
+		);
+
 		bufferB += vCount;
 	}
-	dms_assert(bufferB == buffer.end());
+	assert(bufferB == buffer.end());
 }
 
 template<typename V, typename OIV>
@@ -788,7 +836,7 @@ void WeightedModusPartDispatcher(const AbstrDataItem* valuesItem, const AbstrDat
 	, const inf_type_tag*)
 {
 	// NonCountable values; go for Set implementation
-	WeightedModusPartByIndexOrSet<V, OIV>(valuesItem, weightItem, indicesItem, resBegin, nrP);
+	WeightedModusPartBySet<V, OIV>(valuesItem, weightItem, indicesItem, resBegin, nrP);
 }
 
 // make tradeoff between 
@@ -835,7 +883,7 @@ void WeightedModusPartDispatcher(
 		,	nrP
 		);
 	else
-		WeightedModusPartByIndexOrSet<V>(
+		WeightedModusPartBySet<V>(
 			valuesItem, weightItem,	indicesItem
 		,	resBegin
 		,	nrP
@@ -973,7 +1021,7 @@ struct ModusPart : OperAccPartUniWithCFTA<V, V>
 				) // memory condition v*p<=n, thus TableTime <= 2n.
 				ModusPartByTable<V>(pdi.arg2A, std::move(pdi.values_fta), std::move(pdi.part_fta), resBegin, pdi.valuesRangeData->GetRange(), pdi.resCount);
 			else
-				ModusPartByIndexOrSet<V>(pdi.arg2A, std::move(pdi.values_fta), std::move(pdi.part_fta), resBegin, pdi.resCount);
+				ModusPartBySet<V>(pdi.arg2A, std::move(pdi.values_fta), std::move(pdi.part_fta), resBegin, pdi.resCount);
 		}
 	}
 };
