@@ -9,6 +9,7 @@
 #endif //defined(CC_PRAGMAHDRSTOP)
 
 #include <numbers>
+#include <cmath>
 
 #include "geo/CheckedCalc.h"
 #include "geo/Conversions.h"
@@ -116,12 +117,12 @@ struct entropyFunc {
 			totalCount += countF(i);
 		if (!totalCount)
 			return 0;
-		Float64 result = totalCount * log(totalCount), result2 = 0;
+		Float64 result = totalCount * std::log(totalCount), result2 = 0;
 		for (auto i = b; i != e; ++i)
 		{
 			Counter c = countF(i);
 			if (c)
-				result2 += c * log(c);
+				result2 += c * std::log(c);
 		}	
 		return (result - result2) * log2_inv;
 	}
@@ -139,12 +140,12 @@ struct average_entropyFunc {
 			totalCount += countF(i);
 		if (!totalCount)
 			return 0;
-		Float64 result = log(totalCount), result2 = 0;
+		Float64 result = std::log(totalCount), result2 = 0;
 		for (auto i = b; i != e; ++i)
 		{
 			Counter c = countF(i);
 			if (c)
-				result2 += c * log(c);
+				result2 += c * std::log(c);
 		}
 		return (result - result2 / totalCount) * log2_inv;
 	}
