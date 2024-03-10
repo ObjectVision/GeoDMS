@@ -24,24 +24,22 @@
 #include "UnitCreators.h"
 #include "IndexGetterCreator.h"
 
+
+
+template<typename R> void SafeIncrementCounter(R& assignee)
+{
+	SafeIncrement(assignee);
+}
+
+void SafeIncrementCounter(SizeT& assignee)
+{
+	assignee++;
+	assert(assignee); // SizeT cannot overflow when counting distict addressable elements
+}
+
 // *****************************************************************************
 //											Modus Helper funcs
 // *****************************************************************************
-
-/* REMOVE
-template <typename ACC, typename CFI>
-SizeT argmax(CFI bufferB, SizeT lastVi)
-{
-	SizeT maxVi = UNDEFINED_VALUE(SizeT);
-	ACC maxC = 0; // MIN_VALUE(ACC);
-	for (SizeT vi = 0; vi != lastVi; ++vi)
-	{
-		auto c = *bufferB++;
-		if (c > maxC) { maxC = c; maxVi = vi; }
-	}
-	return maxVi;
-}
-*/
 
 template <typename Counter, typename CIter>
 CIter arg_max(CIter b, CIter e, auto countF)
@@ -61,13 +59,90 @@ CIter arg_max(CIter b, CIter e, auto countF)
 
 template <typename Counter, typename Value>
 struct modusFunc {
+	using result_type = Value;
+
 	template <typename CIter>
-	auto operator ()(CIter b, CIter e, auto countF, auto valueF) -> Value
+	auto operator ()(CIter b, CIter e, auto countF, auto valueF) -> result_type
 	{
 		CIter p = arg_max<Counter>(b, e, countF);
 		if (p == e)
 			return UNDEFINED_OR_ZERO(Value);
 		return valueF(p);
+	}
+};
+
+template <typename Counter>
+struct modusCountFunc {
+	using result_type = Counter;
+
+	template <typename CIter>
+	auto operator ()(CIter b, CIter e, auto countF, auto valueF) -> result_type
+	{
+		CIter p = arg_max<Counter>(b, e, countF);
+		if (p == e)
+			return 0;
+		return countF(p);
+	}
+};
+
+template <typename Counter>
+struct uniqueCountFunc {
+	using result_type = Counter;
+
+	template <typename CIter>
+	auto operator ()(CIter b, CIter e, auto countF, auto valueF) -> result_type
+	{
+		Counter uniqueValueCount = 0;
+		for (auto i = b; i != e; ++i)
+			if (countF(i))
+				SafeIncrement(uniqueValueCount);
+		return uniqueValueCount;
+	}
+};
+
+template <typename Counter>
+struct entropyFunc {
+	using result_type = Float64;
+
+	template <typename CIter>
+	auto operator ()(CIter b, CIter e, auto countF, auto valueF) -> result_type
+	{
+		Counter totalCount = 0;
+		for (auto i = b; i != e; ++i)
+			totalCount += countF(i);
+		if (!totalCount)
+			return 0;
+		Float64 result = totalCount * log(totalCount), result2 = 0;
+		for (auto i = b; i != e; ++i)
+		{
+			Counter c = countF(i);
+			if (c)
+				result2 += c * log(c);
+		}	
+		return result - result2;
+	}
+};
+
+template <typename Counter>
+struct average_entropyFunc {
+	using result_type = Float64;
+
+	template <typename CIter>
+	auto operator ()(CIter b, CIter e, auto countF, auto valueF) -> result_type
+	{
+		Counter totalCount = 0;
+		for (auto i = b; i != e; ++i)
+			totalCount += countF(i);
+		if (!totalCount)
+			return 0;
+		Float64 result = log(totalCount), result2 = 0;
+		for (auto i = b; i != e; ++i)
+		{
+			Counter c = countF(i);
+			if (c)
+				result2 += c * log(c);
+		}
+		return result - result2 / totalCount;
 	}
 };
 
@@ -98,8 +173,8 @@ GetRange(const AbstrDataItem* adi)
 // *****************************************************************************
 
 // assume v >> n; time complexity: n*log(min(v, n))
-template<typename V>
-void ModusTotBySet(const AbstrDataItem* valuesItem, typename sequence_traits<V>::reference resData)
+template<typename V, typename R, typename AggrFunc>
+void ModusTotBySet(const AbstrDataItem* valuesItem, typename sequence_traits<R>::reference resData, AggrFunc aggrFunc)
 {
 	std::map<V, SizeT> counters;
 
@@ -114,13 +189,9 @@ void ModusTotBySet(const AbstrDataItem* valuesItem, typename sequence_traits<V>:
 		{
 			if (!IsDefined(*valuesIter))
 				continue;
-			auto counterPtr = &(counters[*valuesIter]);
-			++*counterPtr;
-			assert(*counterPtr); // SizeT cannot overflow when counting distict addressable elements
+			SafeIncrementCounter(counters[*valuesIter]);
 		}
 	}
-
-	modusFunc<SizeT, V> aggrFunc;
 
 	resData = aggrFunc(counters.begin(), counters.end()
 	,	[](auto i) { return i->second; }
@@ -172,18 +243,15 @@ void ModusTotByIndexOrSet(
 	typename sequence_traits<V>::reference resData)
 {
 	if (valuesItem->GetAbstrDomainUnit()->IsCurrTiled())
-		ModusTotBySet  <V>(valuesItem, resData);
+		ModusTotBySet  <V, R>(valuesItem, resData);
 	else
 		ModusTotByIndex<V>(valuesItem, resData);
 }
 
 REMOVE */
 
-template<typename V>
-void ModusTotByTable(
-	const AbstrDataItem* valuesItem,
-	typename sequence_traits<V>::reference resData, 
-	typename Unit<V>::range_t valuesRange)
+template<typename V, typename R, typename AggrFunc>
+void ModusTotByTable(const AbstrDataItem* valuesItem, typename sequence_traits<R>::reference resData,  typename Unit<V>::range_t valuesRange, AggrFunc aggrFunc)
 {
 	SizeT vCount = Cardinality(valuesRange);
 	std::vector<SizeT> buffer(vCount, 0);
@@ -202,28 +270,21 @@ void ModusTotByTable(
 			{
 				auto i = Range_GetIndex_naked(valuesRange, *valuesIter);
 				assert(i < vCount);
-				auto bufferPtr = bufferB + i;
-				++*bufferPtr;
-				assert(*bufferPtr); // SizeT cannot overflow when counting distict addressable elements
+				SafeIncrementCounter(bufferB[i]);
 			}
 		}
 	}
-	modusFunc<SizeT, V> aggrFunc;
-
 	resData = aggrFunc(buffer.begin(), buffer.end()
 	, [ ](auto i) { return *i; }
 	, [&](auto i) { return Range_GetValue_naked(valuesRange, i - buffer.begin()); }
 	);
 }
 
-template<typename V>
-void ModusTotDispatcher(
-	const AbstrDataItem* valuesItem
-,	typename sequence_traits<V>::reference resData
-,	const inf_type_tag*)
+template<typename V, typename R, typename AggrFunc>
+void ModusTotDispatcher(const AbstrDataItem* valuesItem, typename sequence_traits<R>::reference resData, AggrFunc aggrFunc, const inf_type_tag*)
 {
 	// NonCountable values; go for Set implementation
-	ModusTotBySet<V>(valuesItem, resData);
+	ModusTotBySet<V, R>(valuesItem, resData);
 }
 
 // make tradeoff between 
@@ -233,18 +294,21 @@ void ModusTotDispatcher(
 //
 // Note that ModusTotal is a special case of ModusPatial with p=1
 //
-// When memory condition doesnt favour Set: n >= v*p
+// When memory condition doesn't favour Set: n >= v*p
 // then Table time O(n+v*p) <= O(2n) < O(n*log(min(n,v))
 // Thus, tradeof is made at v*p <= n.
 
 template<typename V>template <typename V> using map_node_type = std::_Tree_node<std::pair<std::pair<SizeT, V>, SizeT>, void*>;
 template <typename V> constexpr UInt32 map_node_type_size = sizeof(map_node_type<V>);
 
-template <typename V> 
-void ModusTotDispatcher(
-	const AbstrDataItem* valuesItem
-,	typename sequence_traits<V>::reference resData
-,	const int_type_tag*)
+template<typename V, typename R, typename AggrFunc>
+void ModusTotDispatcher(const AbstrDataItem* valuesItem, typename sequence_traits<R>::reference resData, AggrFunc aggrFunc, const bool_type_tag*)
+{
+	ModusTotByTable<V, R>(valuesItem, resData, GetRange<V>(valuesItem), aggrFunc);
+}
+
+template <typename V, typename R, typename AggrFunc>
+void ModusTotDispatcher(const AbstrDataItem* valuesItem, typename sequence_traits<R>::reference resData, AggrFunc aggrFunc, const int_type_tag*)
 {
 	typename Unit<V>::range_t valuesRange = GetRange<V>( valuesItem );
 	// Countable values; go for Table if sensible
@@ -256,26 +320,9 @@ void ModusTotDispatcher(
 		&&	(v / map_node_type_size<V> <= n / sizeof(V))
 		&& OnlyDefinedCheckRequired(valuesItem) // memory condition v*p<=n, thus TableTime <= 2n.
 		)
-		ModusTotByTable<V>(
-			valuesItem
-		,	resData
-		,	valuesRange
-		);
+		ModusTotByTable<V, R>(valuesItem, resData, valuesRange, aggrFunc);
 	else
-		ModusTotBySet<V>(valuesItem, resData);
-}
-
-template<typename V>
-void ModusTotDispatcher(
-	const AbstrDataItem* valuesItem,
-	typename sequence_traits<V>::reference resData,
-	const bool_type_tag*)
-{
-	ModusTotByTable<V>(
-		valuesItem
-	,	resData
-	,	GetRange<V>( valuesItem )
-	);
+		ModusTotBySet<V, R>(valuesItem, resData, aggrFunc);
 }
 
 // *****************************************************************************
@@ -283,8 +330,8 @@ void ModusTotDispatcher(
 // *****************************************************************************
 
 // assume v >> n; time complexity: n*log(min(v, n))
-template<typename V, typename OIV>
-void ModusPartBySet(const AbstrDataItem* indicesItem, future_tile_array<V> values_fta, abstr_future_tile_array part_fta, OIV resBegin, SizeT pCount)  // countable dommain unit of result; P can be Void.
+template<typename V, typename OIV, typename AggrFunc>
+void ModusPartBySet(const AbstrDataItem* indicesItem, future_tile_array<V> values_fta, abstr_future_tile_array part_fta, OIV resBegin, SizeT pCount, AggrFunc aggrFunc)  // countable dommain unit of result; P can be Void.
 {
 	assert(values_fta.size() == part_fta.size());
 
@@ -309,10 +356,10 @@ void ModusPartBySet(const AbstrDataItem* indicesItem, future_tile_array<V> value
 				}
 			}
 	}
-	modusFunc<SizeT, V> aggrFunc;
-
 	auto i = counters.begin(), e = counters.end();
 	auto ri = 0;
+	auto getCount = [](auto counterPtr) { return counterPtr->second; };
+	auto getValue = [](auto counterPtr) { return counterPtr->first.second; };
 	while (i != e)
 	{
 		SizeT p = i->first.first;
@@ -321,14 +368,12 @@ void ModusPartBySet(const AbstrDataItem* indicesItem, future_tile_array<V> value
 			if (i->first.first != p)
 				break;
 		while (ri < p)
-			resBegin[ri++] = UNDEFINED_VALUE(V);
-		resBegin[p] = aggrFunc(pb, i
-		, [](auto counterPtr) { return counterPtr->second; }
-		, [](auto counterPtr) { return counterPtr->first.second; }
-		);
+			resBegin[ri++] = aggrFunc(pb, pb, getCount, getValue);
+		resBegin[p] = aggrFunc(pb, i, getCount, getValue);
 		ri = p + 1;
 	}
-	fast_undefine(resBegin + ri, resBegin + pCount);
+	while (ri < pCount)
+		resBegin[ri++] = aggrFunc(e, e, getCount, getValue);
 }
 
 /* REMOVE
@@ -400,9 +445,10 @@ void ModusPartByIndexOrSet(const AbstrDataItem* indicesItem, future_tile_array<V
 }
 */
 
-template<typename V, typename OIV>
+template<typename V, typename OIV, typename AggrFunc>
 void ModusPartByTable(const AbstrDataItem* indicesItem, future_tile_array<V> values_fta, abstr_future_tile_array part_afta
-	, OIV resBegin, typename Unit<V>::range_t valuesRange, SizeT pCount)  // countable dommain unit of result; P can be Void.
+	, OIV resBegin, typename Unit<V>::range_t valuesRange, SizeT pCount  // countable dommain unit of result; P can be Void.
+	, AggrFunc aggrFunc)
 {
 	SizeT vCount = Cardinality(valuesRange);
 	std::vector<SizeT> buffer(vCount*pCount, 0);
@@ -425,13 +471,9 @@ void ModusPartByTable(const AbstrDataItem* indicesItem, future_tile_array<V> val
 			SizeT pi = indexGetter->Get(i);
 			if (pi >= pCount)
 				continue;
-			auto bufferPtr = bufferB + pi * vCount + vi;
-			++*bufferPtr;
-			assert(*bufferPtr); // SizeT cannot overflow when counting distict addressable elements
+			SafeIncrementCounter(bufferB[ pi * vCount + vi]);
 		}
 	}
-
-	modusFunc<SizeT, V> aggrFunc;
 
 	for (OIV resEnd = resBegin + pCount; resBegin != resEnd; ++resBegin)
 	{
@@ -685,6 +727,8 @@ void WeightedModusPartBySet(
 			}
 	}
 	modusFunc<SizeT, V> aggrFunc;
+	auto getCount = [](auto counterPtr) { return counterPtr->second; };
+	auto getValue = [](auto counterPtr) { return counterPtr->first.second; };
 
 	auto i = counters.begin(), e = counters.end();
 	auto ri = 0;
@@ -696,14 +740,12 @@ void WeightedModusPartBySet(
 			if (i->first.first != p)
 				break;
 		while (ri < p)
-			resBegin[ri++] = UNDEFINED_VALUE(V);
-		resBegin[p] = aggrFunc(pb, i
-		, [](auto counterPtr) { return counterPtr->second; }
-		, [](auto counterPtr) { return counterPtr->first.second; }
-		);
+			resBegin[ri++] = aggrFunc(pb, pb, getCount, getValue);
+		resBegin[p] = aggrFunc(pb, i, getCount, getValue);
 		ri = p + 1;
 	}
-	fast_undefine(resBegin + ri, resBegin + pCount);
+	while (ri < pCount)
+		resBegin[ri++] = aggrFunc(e, e, getCount, getValue);
 }
 
 /* REMOVE
@@ -908,33 +950,28 @@ void WeightedModusPartDispatcher(
 	);
 }
 
-template <typename V> 
+template <typename V, typename AggrFunc>
 struct ModusTotal : AbstrOperAccTotUni
 {
-	typedef V                     ValueType;
-	typedef DataArray<ValueType>  Arg1Type;   // value vector
-	typedef DataArray<ValueType>  ResultType; // will contain the first most occuring value
+	using ValueType = V;
+	using ResultValueType = typename AggrFunc::result_type;
+	using Arg1Type = DataArray<ValueType>;   // value vector
+	using ResultType = DataArray<ResultValueType>; // will contain the first most occuring value
 			
 public:
-	ModusTotal(AbstrOperGroup* gr) 
-		:	AbstrOperAccTotUni(gr
-			,	ResultType::GetStaticClass(), Arg1Type::GetStaticClass()
-			,	arg1_values_unit, COMPOSITION(V)
-			)
+	ModusTotal(AbstrOperGroup* gr, UnitCreatorPtr ucp)
+		:	AbstrOperAccTotUni(gr, ResultType::GetStaticClass(), Arg1Type::GetStaticClass(), ucp, COMPOSITION(ResultType))
 	{}
 
 	void Calculate(DataWriteLock& res, const AbstrDataItem* arg1A, ArgRefs args, std::vector<ItemReadLock> readLocks) const override
 	{
-		ResultType* result = mutable_array_cast<ValueType>(res);
-		dms_assert(result);
+		ResultType* result = mutable_array_cast<ResultValueType>(res);
+		assert(result);
 		auto  resData = result->GetDataWrite();
 
-		ModusTotDispatcher<V>(
-			arg1A,
-			resData[0],
-			TYPEID(elem_traits<V>)
-		);
+		ModusTotDispatcher<V, ResultValueType>(arg1A, resData[0], m_AggrFunc, TYPEID(elem_traits<V>));
 	}
+	AggrFunc m_AggrFunc;
 };
 
 template <typename V> 
@@ -967,19 +1004,19 @@ public:
 	}
 };
 
-template <typename V> 
-struct ModusPart : OperAccPartUniWithCFTA<V, V>
+template <typename V, typename AggrFunc>
+struct ModusPart : OperAccPartUniWithCFTA<V, typename AggrFunc::result_type>
 {
 	typedef V                     ValueType;
 	typedef DataArray<ValueType>  Arg1Type;   // value vector
 	typedef AbstrDataItem         Arg2Type;   // index vector
-
-	typedef DataArray<ValueType>  ResultType; // will contain the first most occuring value per index value
-	using base_type = OperAccPartUniWithCFTA<V, V>;
+	using ResultValueType = typename AggrFunc::result_type;
+	typedef DataArray<ResultValueType>  ResultType; // will contain the first most occuring value per index value
+	using base_type = OperAccPartUniWithCFTA<V, ResultValueType>;
 	using ProcessDataInfo = base_type::ProcessDataInfo;
 
-	ModusPart(AbstrOperGroup* gr) 
-		: base_type(gr, arg1_values_unit)
+	ModusPart(AbstrOperGroup* gr, UnitCreatorPtr ucp)
+		: base_type(gr, ucp)
 	{}
 
 	void ProcessData(ResultType* result, ProcessDataInfo& pdi) const override
@@ -990,7 +1027,9 @@ struct ModusPart : OperAccPartUniWithCFTA<V, V>
 		auto resBegin = resData.begin();
 
 		if constexpr(is_bitvalue_v<V>)
-			ModusPartByTable<V>(pdi.arg2A, std::move(pdi.values_fta), std::move(pdi.part_fta), resBegin, typename Unit<V>::range_t(0, 1 << nrbits_of_v<V>), pdi.resCount);
+		{
+			ModusPartByTable<V>(pdi.arg2A, std::move(pdi.values_fta), std::move(pdi.part_fta), resBegin, typename Unit<V>::range_t(0, 1 << nrbits_of_v<V>), pdi.resCount, m_AggrFunc);
+		}
 		else
 		{
 			// make tradeoff between 
@@ -1019,11 +1058,13 @@ struct ModusPart : OperAccPartUniWithCFTA<V, V>
 				//		&& (!resCount || v / map_node_type_size<V> <= n / resCount / sizeof(SizeT))
 				&& (!pdi.resCount || v <= pdi.n / pdi.resCount)
 				) // memory condition v*p<=n, thus TableTime <= 2n.
-				ModusPartByTable<V>(pdi.arg2A, std::move(pdi.values_fta), std::move(pdi.part_fta), resBegin, pdi.valuesRangeData->GetRange(), pdi.resCount);
+				ModusPartByTable<V>(pdi.arg2A, std::move(pdi.values_fta), std::move(pdi.part_fta), resBegin, pdi.valuesRangeData->GetRange(), pdi.resCount, m_AggrFunc);
 			else
-				ModusPartBySet<V>(pdi.arg2A, std::move(pdi.values_fta), std::move(pdi.part_fta), resBegin, pdi.resCount);
+				ModusPartBySet<V>(pdi.arg2A, std::move(pdi.values_fta), std::move(pdi.part_fta), resBegin, pdi.resCount, m_AggrFunc);
 		}
 	}
+
+	AggrFunc m_AggrFunc;
 };
 
 template <typename V> 
@@ -1072,27 +1113,84 @@ struct WeightedModusPart : public AbstrOperAccPartBin
 
 namespace 
 {
+	CommonOperGroup cogEntropy("entropy");
+	CommonOperGroup cogAvgEntropy("average_entropy");
+
+	CommonOperGroup cogModusCount08("modus_count_uint8");
+	CommonOperGroup cogModusCount16("modus_count_uint17");
+	CommonOperGroup cogModusCount32("modus_count_uint32");
+	CommonOperGroup cogModusCount64("modus_count_uint64");
+
+	CommonOperGroup cogUniqueCount08("unique_count_uint8");
+	CommonOperGroup cogUniqueCount16("unique_count_uint16");
+	CommonOperGroup cogUniqueCount32("unique_count_uint32");
+	CommonOperGroup cogUniqueCount64("unique_count_uint64");
+
 	CommonOperGroup cogModus("modus");
 	CommonOperGroup cogModusW("modus_weighted");
 
-	template <typename V>
-	struct ModusInst
+	template <typename V, typename AggrFunc>
+	struct AggrFuncInst
 	{
-		ModusInst()
-			: mt(&cogModus)
-			, wmt(&cogModusW)
-			, mp(&cogModus)
+		AggrFuncInst(AbstrOperGroup& aog, UnitCreatorPtr ucp)
+			: mt(&aog, ucp)
+			, mp(&aog, ucp)
+		{}
+
+	private:
+		ModusTotal<V, AggrFunc> mt;
+		ModusPart <V, AggrFunc> mp;
+	};
+
+	template <typename V>
+	struct AggrFuncsInst
+	{
+		AggrFuncsInst()
+			: m_ModusFunc(cogModus, arg1_values_unit)
+			, m_ModusCountFunc08(cogModusCount08, default_unit_creator<UInt8>)
+			, m_ModusCountFunc16(cogModusCount16, default_unit_creator<UInt16>)
+			, m_ModusCountFunc32(cogModusCount32, default_unit_creator<UInt32>)
+			, m_ModusCountFunc64(cogModusCount64, default_unit_creator<UInt64>)
+			, m_UniqueCountFunc08(cogUniqueCount08, default_unit_creator<UInt8>)
+			, m_UniqueCountFunc16(cogUniqueCount16, default_unit_creator<UInt16>)
+			, m_UniqueCountFunc32(cogUniqueCount32, default_unit_creator<UInt32>)
+			, m_UniqueCountFunc64(cogUniqueCount64, default_unit_creator<UInt64>)
+			, m_EntropyFunc(cogEntropy, default_unit_creator<Float64>)
+			, m_AvgEntropyFunc(cogAvgEntropy, default_unit_creator<Float64>)
+		{}
+
+	private:
+		AggrFuncInst<V, modusFunc<SizeT, V> > m_ModusFunc;
+
+		AggrFuncInst<V, modusCountFunc<UInt8 > > m_ModusCountFunc08;
+		AggrFuncInst<V, modusCountFunc<UInt16> > m_ModusCountFunc16;
+		AggrFuncInst<V, modusCountFunc<UInt32> > m_ModusCountFunc32;
+		AggrFuncInst<V, modusCountFunc<UInt64> > m_ModusCountFunc64;
+
+		AggrFuncInst<V, uniqueCountFunc<UInt8 > > m_UniqueCountFunc08;
+		AggrFuncInst<V, uniqueCountFunc<UInt16> > m_UniqueCountFunc16;
+		AggrFuncInst<V, uniqueCountFunc<UInt32> > m_UniqueCountFunc32;
+		AggrFuncInst<V, uniqueCountFunc<UInt64> > m_UniqueCountFunc64;
+
+		AggrFuncInst<V, entropyFunc<SizeT> > m_EntropyFunc;
+		AggrFuncInst<V, average_entropyFunc<SizeT> > m_AvgEntropyFunc;
+	};
+
+	template <typename V>
+	struct WeightedModusInst
+	{
+		WeightedModusInst()
+			: wmt(&cogModusW)
 			, wmp(&cogModusW)
 		{}
 
 	private:
-		ModusTotal<V>         mt;
 		WeightedModusTotal<V> wmt;
-		ModusPart<V>          mp;
 		WeightedModusPart<V> wmp;
 	};
 
-	tl_oper::inst_tuple<typelists::aints, ModusInst<_> > modusOpers;
+	tl_oper::inst_tuple<typelists::aints, AggrFuncsInst<_> > aggrOpers;
+	tl_oper::inst_tuple<typelists::aints, WeightedModusInst<_> > weigthedModusOpers;
 
 //	ModusInst<SharedStr> mpString; //TODO, ook TODO: optimize dispatchers voor (U)Int4/2
 }

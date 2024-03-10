@@ -131,6 +131,10 @@ bool Allowed(const AbstrDataItem* adi, AggrMethod am)
 	const ValueClass* vc = avu->GetValueType();
 
 	switch (am) {
+		case AggrMethod::frequency_table:
+		case AggrMethod::diversity:
+			return false;
+
 		case AggrMethod::any:
 		case AggrMethod::all:
 			return vc->GetValueClassID() == ValueClassID::VT_Bool;
@@ -140,7 +144,7 @@ bool Allowed(const AbstrDataItem* adi, AggrMethod am)
 			return true;
 
 		case AggrMethod::count:
-			return vc->GetValueClassID() == ValueClassID::VT_UInt32 && vcm == ValueComposition::Single; // we dont want to have to change the ValuesUnit type
+			return vcm == ValueComposition::Single && (vc->IsIntegral() || vc->GetNrDims() == 2);
 
 		case AggrMethod::union_polygon:
 			return vc->GetNrDims() == 2 && vcm == ValueComposition::Polygon && vc->IsIntegral();
@@ -148,10 +152,9 @@ bool Allowed(const AbstrDataItem* adi, AggrMethod am)
 		case AggrMethod::modus:
 		case AggrMethod::modus_count:
 		case AggrMethod::unique_count:
-		case AggrMethod::frequency_table:
-		case AggrMethod::diversity:
 		case AggrMethod::entropy:
-			if (!vc->IsIntegral())
+		case AggrMethod::average_entropy:
+			if (!vc->IsCountable())
 				return false;
 			return vcm == ValueComposition::Single;
 
@@ -177,7 +180,7 @@ bool Allowed(const AbstrDataItem* adi, AggrMethod am)
 	return false;
 }
 
-std::pair<ConstUnitRef, ValueComposition> ValuesUnitAndComposition(const AbstrDataItem* adi, AggrMethod am)
+std::pair<ConstUnitRef, ValueComposition> ValuesUnitAndComposition(const AbstrDataItem* adi, const AbstrDataItem* groupByRel, AggrMethod am)
 {
 	assert(Allowed(adi, am));
 
@@ -188,6 +191,7 @@ std::pair<ConstUnitRef, ValueComposition> ValuesUnitAndComposition(const AbstrDa
 			return {Unit<SharedStr>::GetStaticClass()->CreateDefault(), ValueComposition::String };
 
 		case AggrMethod::entropy:
+		case AggrMethod::average_entropy:
 		case AggrMethod::sum:
 			return { Unit<Float64>::GetStaticClass()->CreateDefault(), ValueComposition::Single };
 
@@ -204,11 +208,12 @@ std::pair<ConstUnitRef, ValueComposition> ValuesUnitAndComposition(const AbstrDa
 			return { avu, adi->GetValueComposition() };
 
 		case AggrMethod::modus_count:
+		{
+			return { count_unit_creator(adi), ValueComposition::Single };
+		}
 		case AggrMethod::unique_count:
 		{
-			auto adu = adi->GetAbstrDomainUnit();
-			auto uc = UnitClass::Find(adu->GetValueType()->GetCrdClass());
-			return { uc->CreateDefault(), ValueComposition::Single };
+			return { unique_count_unit_creator(adi, groupByRel), ValueComposition::Single };
 		}
 
 		case AggrMethod::frequency_table:
@@ -216,6 +221,19 @@ std::pair<ConstUnitRef, ValueComposition> ValuesUnitAndComposition(const AbstrDa
 
 	}
 	return { avu, ValueComposition::Single };
+}
+
+CharPtr SelectCardinality(const AbstrUnit* au, CharPtr oper8, CharPtr oper16, CharPtr oper32, CharPtr oper64)
+{
+	auto vt = au->GetValueType(); assert(vt);
+	auto vtCrd = vt->GetCrdClass(); assert(vtCrd);
+	if (vtCrd->GetBitSize() <= 8)
+		return oper8;
+	if (vtCrd->GetBitSize() <= 16)
+		return oper16;
+	if (vtCrd->GetBitSize() <= 32)
+		return oper32;
+	return oper64;
 }
 
 CharPtr OperName(const AbstrDataItem* adi, AggrMethod am)
@@ -226,7 +244,6 @@ CharPtr OperName(const AbstrDataItem* adi, AggrMethod am)
 		case AggrMethod::any: return "any";
 		case AggrMethod::all: return "all";
 		case AggrMethod::sum: return "sum";
-		case AggrMethod::count: return "count";
 		case AggrMethod::union_polygon: return "partitioned_union_polygon";
 		case AggrMethod::asItemList: return "asItemList";
 		case AggrMethod::min:  return "min";
@@ -236,12 +253,17 @@ CharPtr OperName(const AbstrDataItem* adi, AggrMethod am)
 		case AggrMethod::mean: return "mean";
 		case AggrMethod::sd  : return "sd";
 		case AggrMethod::modus: return "modus";
-		case AggrMethod::modus_count: return "modus_count";
+
+		case AggrMethod::count: return "count";
+		case AggrMethod::modus_count : return "modus_count";
 		case AggrMethod::unique_count: return "unique_count";
-		case AggrMethod::diversity: return "diversity";
+
 		case AggrMethod::entropy: return "entropy";
-		case AggrMethod::frequency_table: return "frequency_table";
+		case AggrMethod::average_entropy: return "average_entropy";
 		case AggrMethod::bounding_box: return "bounds";
+
+		case AggrMethod::diversity: return "diversity";
+		case AggrMethod::frequency_table: return "frequency_table";
 	}
 	return "unknown";
 }
@@ -251,7 +273,7 @@ CharPtr OperName(const AbstrDataItem* adi, AggrMethod am)
 //	%2% = adi->GetFullName()
 //	%3% = groupByItemName
 
-CharPtr OperExprFormat(const AbstrDataItem* adi, AggrMethod am)
+CharPtr OperExprFormat(const AbstrDataItem* adi, const AbstrDataItem* groupBy_rel, AggrMethod am)
 {
 	switch (am)
 	{
@@ -279,6 +301,9 @@ CharPtr OperExprFormat(const AbstrDataItem* adi, AggrMethod am)
 		if (adi->GetValueComposition() != ValueComposition::Single)
 			return "mean(centroid(%2%), %3%))";
 		break;
+	case AggrMethod::count: return SelectCardinality(count_unit_creator(adi), "count_uint8(%2%, %3%)", "count_uint16(%2%, %3%)", "count_uint32(%2%, %3%)", "count_uint64(%2%, %3%)");
+	case AggrMethod::modus_count: return SelectCardinality(count_unit_creator(adi), "modus_count_uint8(%2%, %3%)", "modus_count_uint16(%2%, %3%)", "modus_count_uint32(%2%, %3%)", "modus_count_uint64(%2%, %3%)");
+	case AggrMethod::unique_count: return SelectCardinality(unique_count_unit_creator(adi, groupBy_rel), "unique_count_uint8(%2%, %3%)", "unique_count_uint16(%2%, %3%)", "unique_count_uint32(%2%, %3%)", "unique_count_uint64(%2%, %3%)");
 	case AggrMethod::bounding_box:
 		if (adi->GetValueComposition() != ValueComposition::Single)
 			return "'['+String(min(lower_bound(%2%), %3%))+'...'+String(max(upper_bound(%2%), %3%))+']'";
@@ -287,10 +312,10 @@ CharPtr OperExprFormat(const AbstrDataItem* adi, AggrMethod am)
 	return "%1%(%2%, %3%)"; // fits for most cases
 }
 
-SharedStr OperExpr(const AbstrDataItem* adi, AggrMethod am)
+SharedStr OperExpr(const AbstrDataItem* adi, const AbstrDataItem* groupBy_rel, AggrMethod am)
 {
 	CharPtr groupByItemName = "../GroupBy/per_Row";
-	return mgFormat2SharedStr(OperExprFormat(adi, am), OperName(adi, am) , adi->GetFullName(), groupByItemName);
+	return mgFormat2SharedStr(OperExprFormat(adi, groupBy_rel, am), OperName(adi, am) , adi->GetFullName(), groupByItemName);
 }
 
 const AbstrDataItem* DataItemColumn::GetActiveTextAttr() const
@@ -343,11 +368,11 @@ void DataItemColumn::UpdateTheme()
 		}
 		m_AggrMethod = aggrMethod;
 
-		auto aggrValuesSpec = ValuesUnitAndComposition(GetSrcAttr(), aggrMethod);
+		auto aggrValuesSpec = ValuesUnitAndComposition(GetSrcAttr(), tc->m_GroupByRel, aggrMethod);
 		SharedPtr<AbstrDataItem> aggrAttr = CreateDataItem(GetContext(), aggrID, tc->m_GroupByEntity, aggrValuesSpec.first, aggrValuesSpec.second);
 		aggrAttr->SetKeepDataState(false);
 		aggrAttr->DisableStorage(true);
-		aggrAttr->SetExpr(OperExpr(GetSrcAttr(), aggrMethod));
+		aggrAttr->SetExpr(OperExpr(GetSrcAttr(), tc->m_GroupByRel, aggrMethod));
 
 		m_FutureAggrAttr = aggrAttr.get_ptr(); m_FutureAggrAttr->PrepareDataUsage(DrlType::Certain); // can throw when Expr is invalid, m_FutureAggrAttr will then not be updated
 		attr = aggrAttr;

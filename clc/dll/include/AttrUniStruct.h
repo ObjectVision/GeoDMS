@@ -97,7 +97,7 @@ struct is_nonzero: unary_func<Bool, T>
 template<typename ResSpan, typename ArgSpan, typename AttrAssigner, typename OrgAttrAssigner>
 void do_unary_assign(ResSpan resData, ArgSpan argData, const AttrAssigner& oper, bool hasUndefinedValues, const OrgAttrAssigner* orgOperPtr)
 {
-	dms_assert(argData.size() == resData.size());
+	assert(argData.size() == resData.size());
 
 	OrgAttrAssigner::PrepareTile(resData, argData);
 	using assignee_ref = vref_t<typename ResSpan::value_type>;

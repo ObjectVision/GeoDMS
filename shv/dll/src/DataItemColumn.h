@@ -18,6 +18,13 @@
 struct FontIndexCache;
 struct FontArray;
 
+// AggrMethods are related to the srcAttr of DataItemColumns
+// see DefaultAggrMethod(...) for getting a default aggregation method for a srcAttr
+// see Allowed(...) for selecting which methods are allowed for a srcAttr
+// see ValuesUnitAndComposition(...) for generating the appropriate resulting data item
+// see OperName(..) for the name that represents the appropiate operator
+// see OperExprFormat(..) for generating an appropriate calculation rule
+
 enum class AggrMethod {
 	undefined = 0,
 	sum,
@@ -36,6 +43,7 @@ enum class AggrMethod {
 	bounding_box,
 	diversity,
 	entropy,
+	average_entropy,
 	any,
 	all,
 	frequency_table,
