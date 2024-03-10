@@ -8,6 +8,8 @@
 #pragma hdrstop
 #endif //defined(CC_PRAGMAHDRSTOP)
 
+#include <numbers>
+
 #include "geo/CheckedCalc.h"
 #include "geo/Conversions.h"
 #include "geo/IsNotUndef.h"
@@ -100,6 +102,8 @@ struct uniqueCountFunc {
 	}
 };
 
+constexpr Float64 log2_inv = 1.0 / std::numbers::ln2_v<Float64>;
+
 template <typename Counter>
 struct entropyFunc {
 	using result_type = Float64;
@@ -119,7 +123,7 @@ struct entropyFunc {
 			if (c)
 				result2 += c * log(c);
 		}	
-		return result - result2;
+		return (result - result2) * log2_inv;
 	}
 };
 
@@ -142,7 +146,7 @@ struct average_entropyFunc {
 			if (c)
 				result2 += c * log(c);
 		}
-		return result - result2 / totalCount;
+		return (result - result2 / totalCount) * log2_inv;
 	}
 };
 
