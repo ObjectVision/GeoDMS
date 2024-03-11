@@ -1,8 +1,5 @@
 This document describes most of the folder structure of source code of the GeoDMS and how to build the GeoDMS from it.
 
-Geographic Data & Model Server (GeoDMS) is a platform for developing Geographic Planning Support Systems. 
-Copyright (C) 2006...    Object Vision BV. 
-
 https://github.com/ObjectVision/GeoDMS
 
 Version info: see rtc/dll/src/RtcGeneratedVersion.h
@@ -13,22 +10,38 @@ The C++ products can be compiled with MS Visual Studio 2023 (17.9.x)
 Supported Platforms: x64 (Win32 still available but not recently tested)
 Supported Configurations: Debug and Release
 
-Open the workspace file: all22.sln. The workspace file refers to the following project files:
-rtc: Runtime Core Library
-tic: Tree Item Classes, Data Items and Units and related services.
-stx: configuration syntax parser and producer of an internal representation of a model and its calculation rules.
-sym: Lisp evaluator for processing parsed calculation rules
-stg: Storage Managers, providing a generic interface to various storage managers, such as LibTIFF and GDAL
-clc: implementation of common operators
-geo: implementation of geometric and network operators, such as impedance matrix functions, raster convolution, polygon and arc operations
-shv: Viewer Components (TableViewer, MapViewer) and related Carets, and Graphic Components.
-GeoDmsGuiQT
-geoDmsRun
-GeoDmsPython
+Open the VS solution file: all22.sln. This solution refers to projects in the following folders for building specific .dlls and .exes:
 
-auxiliary folders:
-obj: folder that contains only intermediate products of the build process, such as .obj files, with sub folders $(Configuration)\$(Platform)
-bin: folder that contains only products of the build process with sub folders $(Configuration)\$(Platform)
+Folders which relate to Dynamic Link Libraries (DLLs) of the GeoDMS:
+- rtc: Runtime Core Library
+- sym: Lisp evaluator for processing parsed calculation rules
+- tic: Tree Item Classes, Data Items and Units and related services.
+- stx: configuration syntax parser and producer of an internal representation of a model and its calculation rules.
+- stg: Storage Managers, providing a generic interface to various storage managers, such as LibTIFF and GDAL
+- clc: implementation of common operators
+- geo: implementation of geometric and network operators, such as impedance matrix functions, raster convolution, polygon and arc operations
+- shv: Viewer Components (TableViewer, MapViewer) and related Carets, and Graphic Components.
+- python: Python bindings to the GeoDMS
+
+Folders which relate to Executables (EXEs) of the GeoDMS:
+- qtgui
+- run
+- GeoDmsPython
+- doc: folder that contains some technical and architectural working documents; not up to date, complete, correct or implemented.
+
+Other product related folders:
+- LoadConfigFromPython: a python component to load a GeoDms configuration and retrieve data from it.
+- msbuild_linux
+- nsi
+
+
+Auxiliary folders:
+- html: possible resources
+- res
+- splash
+- obj: folder that contains only intermediate products of the build process, such as .obj files, with sub folders $(Configuration)\$(Platform)
+- bin: folder that contains only products of the build process with sub folders $(Configuration)\$(Platform)
+- distr: folder that contains the results of running BuildSignAndCreateSetup.bat, that follows a successful build to generate a setup file for the GeoDMS.
 
 For installing GDAL, OpenSLL, boost, etc., use vcpkg as described at https://github.com/ObjectVision/GeoDMS/wiki/Compiling-the-GeoDMS
 
