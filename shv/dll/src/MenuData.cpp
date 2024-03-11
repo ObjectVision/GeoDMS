@@ -74,7 +74,7 @@ bool MenuItem::Execute() const
 	auto host = m_Host.lock();
 	if (!host)
 		return false;
-	SuspendTrigger::SilentBlocker blockDuringExecution;
+	SuspendTrigger::SilentBlocker blockDuringExecution("MenuItem::Execute()");
 	return m_Cmd->Visit(host.get());
 }
 

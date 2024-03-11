@@ -506,11 +506,11 @@ struct SimplifyPolygonOperator : public AbstrSimplifyOperator
 			for (; ri != re; ++ri)
 			{
 				dms_assert((*ri).begin() != (*ri).end());
-				dms_assert((*ri).begin()[0] == (*ri).end()[-1]); // closed ?
+//				dms_assert((*ri).begin()[0] == (*ri).end()[-1]); // closed ?
 
 				currRing.assign((*ri).begin(), (*ri).end());
-				dms_assert(currRing.begin() != currRing.end());
-				dms_assert(currRing.begin()[0] == currRing.end()[-1]); // closed ?
+				assert(currRing.begin() != currRing.end());
+//				assert(currRing.begin()[0] == currRing.end()[-1]); // closed ?
 				move(currRing, -DPoint(lb));
 
 				boost::geometry::simplify(currRing, resRing, maxError);

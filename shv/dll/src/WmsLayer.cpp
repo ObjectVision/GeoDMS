@@ -594,7 +594,7 @@ void WmsLayer::SetSpecContainer(const TreeItem* specContainer)
 
 	m_TileCache = std::make_unique<wms::TileCache>(hostName, targetTemplStr, AbstrStorageManager::GetFullStorageName("", ("%LocalDataDir%/wms/"+layerName+"/@TM@/@TR@_@TC@."+imageFormat).c_str()), ift);
 
-	SuspendTrigger::SilentBlocker block;
+	SuspendTrigger::SilentBlocker block("WmsLayer::SetSpecContainer");
 
 	SharedPtr<const TreeItem> tileMatrices = specContainer->GetConstSubTreeItemByID(GetTokenID_mt("TileMatrix"));
 	{

@@ -312,11 +312,11 @@ bool GraphicObject::PrepareDataOrUpdateViewLater(const TreeItem* item)
 	if (IsDataReady(item->GetCurrRangeItem()))
 		return true;
 
-	SuspendTrigger::FencedBlocker lockSuspend;
+//	SuspendTrigger::FencedBlocker lockSuspend("GraphicObject::PrepareDataOrUpdateViewLater");
 	SharedTreeItemInterestPtr itemHolder(item);
 	assert(item->HasInterest());
 
-	if (!itemHolder->PrepareDataUsage(DrlType::Certain))
+	if (!itemHolder->PrepareDataUsageImpl(DrlType::Suspendible))
 		return false;
 
 	if (!IsMultiThreaded2())

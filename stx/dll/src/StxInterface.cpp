@@ -280,7 +280,7 @@ IStringHandle DMS_ProcessADMS(const TreeItem* context, CharPtr url)
 {
 	DMS_CALL_BEGIN
 
-		SuspendTrigger::FencedBlocker blockSuspendCheck;  // DEBUG, HELPS?
+		SuspendTrigger::FencedBlocker blockSuspendCheck("DMS_ProcessADMS");  // DEBUG, HELPS?
 		StaticMtIncrementalLock<TreeItem::s_NotifyChangeLockCount> dontNotify;
 
 		auto result = ProcessADMS(context, url);

@@ -256,7 +256,7 @@ void MapControl::Sync(TreeItem* context, ShvSyncMode sm)
 
 	ObjectContextHandle contextHandle(context, "MapControl::Sync");
 
-	SilentInterestRetainContext irc;
+	SilentInterestRetainContext irc("MapControl::Sync");
 
 	GetViewPort    ()->Sync( context->CreateItem(s_ViewPortTokenID), sm );
 	GetOverviewPort()->Sync( context->CreateItem(s_OverviewTokenID), sm );

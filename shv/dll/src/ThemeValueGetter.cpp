@@ -32,7 +32,7 @@ struct ClassifyFunc
 	ClassifyFunc(const AbstrDataItem* classBreaks)
 	{
 		//	make index for log(n) accesss: ValuesType by sorting the IndexType->V index on values of V
-		PreparedDataReadLock drl(classBreaks);
+		PreparedDataReadLock drl(classBreaks, "ClassBreak function");
 		auto classBreakData = const_array_cast<ThemeValuesType>( classBreaks )->GetDataRead();
 		m_ClassBreakData = ClassBreakData(classBreakData.begin(), classBreakData.end() );
 		m_Index.clear();
@@ -59,7 +59,7 @@ MakeClassIndexArray(ThemeClassPairType tcp)
 	const ClassifyFunc<ThemeValuesType> classifyFunc(tcp.second);
 
 	//	Prepare loop
-	PreparedDataReadLock drl2(tcp.first);
+	PreparedDataReadLock drl2(tcp.first, "ThemeValueGeter::MakeClassIndexArray");
 	auto themeData = debug_cast<const DataArray<ThemeValuesType>*>(tcp.first->GetRefObj())->GetDataRead();
 
 	SharedArrayPtr<typename sequence_traits<ClassIdType>::value_type> 
