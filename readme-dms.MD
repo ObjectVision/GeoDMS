@@ -2,7 +2,7 @@ This document describes most of the folder structure of source code of the GeoDM
 
 https://github.com/ObjectVision/GeoDMS
 
-Version info: see rtc/dll/src/RtcGeneratedVersion.h
+Version info: see [rtc/dll/src/RtcGeneratedVersion.h](https://github.com/ObjectVision/GeoDMS/blob/main/rtc/dll/src/RtcGeneratedVersion.h)
 
 This folder contains all the code for building the executables and required libraries of the GeoDMS.
 

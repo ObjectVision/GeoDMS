@@ -9,7 +9,7 @@ For the full documentation of GeoDMS, including additional examples, see [our wi
 
 # Compilation
 Build instructions for GeoDMS can be found at our [wiki compilation page](https://github.com/ObjectVision/GeoDMS/wiki/Compiling-the-GeoDMS) or our [web-site](https://geodms.nl/docs/compiling-the-geodms.html).
-For a technical overview of the GeoDMS software, see readme-dms.MD in the GeoDMS source code root folder, or [here](https://github.com/ObjectVision/GeoDMS/blob/v14/readme-dms.MD)
+For a technical overview of the GeoDMS software, see readme-dms.MD in the GeoDMS source code root folder, or [here](https://github.com/ObjectVision/GeoDMS/blob/main/readme-dms.MD)
 
 # Terms of use
 This open source software; you can use, redistribute, and/or
