@@ -446,7 +446,7 @@ auto GetProjAuthorityCodeFromCompoundCS(OGRSpatialReference* srs) -> SharedStr
 	return SharedStr(authority_node->GetValue()) + ":" + code_node->GetValue();
 }
 
-void CheckCompatibility(const TreeItem* treeitem, OGRSpatialReference* fromGDAL, OGRSpatialReference* fromConfig)
+void SpatialReferencesAreCompatibile(const TreeItem* treeitem, OGRSpatialReference* fromGDAL, OGRSpatialReference* fromConfig)
 {
 	assert(fromGDAL);
 	assert(fromConfig);
@@ -513,7 +513,7 @@ void CheckSpatialReference(std::optional<OGRSpatialReference>& ogrSR, const Tree
 	if (ogrSR)
 	{
 		ValidateSpatialReferenceFromWkt(&spOrErr.first, wktPrjStr.c_str());
-		CheckCompatibility(treeitem, &*ogrSR, &spOrErr.first);
+		SpatialReferencesAreCompatibile(treeitem, &*ogrSR, &spOrErr.first);
 	}
 	else
 		ogrSR = spOrErr.first;
