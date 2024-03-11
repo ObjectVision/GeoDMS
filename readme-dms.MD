@@ -18,9 +18,9 @@ Folders which relate to Dynamic Link Libraries (DLLs) of the GeoDMS:
 - tic: Tree Item Classes, Data Items and Units and related services.
 - stx: configuration syntax parser and producer of an internal representation of a model and its calculation rules.
 - stg: Storage Managers, providing a generic interface to various storage managers, such as LibTIFF and GDAL
-- clc: implementation of common operators
-- geo: implementation of geometric and network operators, such as impedance matrix functions, raster convolution, polygon and arc operations
-- shv: Viewer Components (TableViewer, MapViewer) and related Carets, and Graphic Components.
+- clc: implementation of most common operators and functions: arithmetic, aggregation, relational, logical, meta-scripting, string operations, overlay, ramp
+- geo: implementation of geometric and network operators, such as impedance matrix functions, raster convolution, polygon and linestring operations
+- shv: Viewer Components (TableView, MapView) and related Carets, Controllers, and Graphic Components.
 - python: Python bindings to the GeoDMS
 
 Folders which relate to Executables (EXEs) of the GeoDMS:
@@ -36,8 +36,8 @@ Other product related folders:
 
 
 Auxiliary folders:
-- html: possible resources
-- res
+- html: resources that are/were used for supporting the .adms implementation of ExportSettings.
+- res: various resources, such as editor syntax files, the dms.ttf, RewriteExpr.lsp
 - splash
 - obj: folder that contains only intermediate products of the build process, such as .obj files, with sub folders $(Configuration)\$(Platform)
 - bin: folder that contains only products of the build process with sub folders $(Configuration)\$(Platform)
