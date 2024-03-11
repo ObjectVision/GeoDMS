@@ -14,7 +14,6 @@ Supported Platforms: x64 (Win32 still available but not recently tested)
 Supported Configurations: Debug and Release
 
 Open the workspace file: all22.sln. The workspace file refers to the following project files:
-
 rtc: Runtime Core Library
 tic: Tree Item Classes, Data Items and Units and related services.
 stx: configuration syntax parser and producer of an internal representation of a model and its calculation rules.
@@ -27,8 +26,9 @@ GeoDmsGuiQT
 geoDmsRun
 GeoDmsPython
 
-They all compiled to bin/%Config%/%platform%/%ProjName%.dll
-
+auxiliary folders:
+obj: folder that contains only intermediate products of the build process, such as .obj files, with sub folders $(Configuration)\$(Platform)
+bin: folder that contains only products of the build process with sub folders $(Configuration)\$(Platform)
 
 For installing GDAL, OpenSLL, boost, etc., use vcpkg as described at https://github.com/ObjectVision/GeoDMS/wiki/Compiling-the-GeoDMS
 
