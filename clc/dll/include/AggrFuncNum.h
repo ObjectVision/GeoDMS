@@ -48,46 +48,13 @@ constexpr bool can_be_undefined_v = !is_bitvalue_v<T> && (is_fixed_size_element_
 //								ELEMENTARY ASSIGNMENT FUNCTORS 
 // *****************************************************************************
 
-template <typename T, typename I>
-struct unary_assign_inc : unary_assign<I, T>
-{
-	template <typename R>
-	static ConstUnitRef unit_creator(const AbstrOperGroup* gr, const ArgSeqType& args) { return default_unit_creator<R>(); }
-
-	void operator()(vref_t<I> assignee, cref_t<T> arg) const
-	{ 
-		if constexpr (has_undefines_v<I>)
-		{
-			if (!IsDefined(assignee))
-				return;
-		}
-		if constexpr (has_undefines_v<T>)
-		{
-			if (!IsDefined(arg))
-				return;
-		}
-		assignee++;
-		if constexpr (!has_undefines_v<I>)
-		{ 
-			if (assignee == I())
-				throwDmsErrD("non-representable numerical overflow of sub-byte value");
-		}
-		else
-		{
-			if (!IsDefined(assignee))
-				throwDmsErrD("non-representable numerical overflow of sub-byte value");
-		}
-	}
-};
-
 template<typename R> void SafeIncrement(R& assignee) // see the similarity with safe_plus
 {
 	R orgAssignee = assignee; // may-be used in check
 	if constexpr (has_undefines_v<R>)
 	{
-		if constexpr (is_signed_v<R> && !std::is_floating_point_v<R>)
-			if (!IsDefined(assignee))
-				return;
+		if (!IsDefined(assignee))
+			return;
 	}
 
 	if constexpr (!std::is_floating_point_v<R>)
@@ -103,13 +70,36 @@ template<typename R> void SafeIncrement(R& assignee) // see the similarity with 
 
 	if constexpr (!std::is_floating_point_v<R>)
 	{
-		if constexpr (!is_signed_v<R>)
+		if constexpr (!has_undefines_v<R>)
 		{
-			if (!assignee)
+			if (assignee == R())
+				throwErrorD("SafeIncrement", "non-representable numerical overflow of sub-byte value");
+		}
+		else
+		{
+			if (!IsDefined(assignee))
 				throwErrorD("SafeIncrement", "non-representable numerical overflow");
 		}
 	}
 }
+
+template <typename T, typename I>
+struct unary_assign_inc : unary_assign<I, T>
+{
+	template <typename R>
+	static ConstUnitRef unit_creator(const AbstrOperGroup* gr, const ArgSeqType& args) { return default_unit_creator<R>(); }
+
+	void operator()(vref_t<I> assignee, cref_t<T> arg) const
+	{ 
+		static_assert(!std::is_floating_point_v<I>);
+		if constexpr (has_undefines_v<T>)
+		{
+			if (!IsDefined(arg))
+				return;
+		}
+		SafeIncrement<I>(assignee);
+	}
+};
 
 template<typename R, typename T> void SafeAccumulate(R& assignee, T arg) // see the similarity with safe_plus
 {

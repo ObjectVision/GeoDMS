@@ -174,13 +174,9 @@ struct count_total_best
 	}
 };
 
-template <typename T> struct count_total_best_UInt32 : count_total_best<T, UInt32> {};
-
 template <typename T, typename I> 
 struct count_partial_best: unary_assign_partial_accumulation<unary_assign_inc<T, I> >
 {};
-
-template <typename T> struct count_partial_best_UInt32 : count_partial_best<T, UInt32> {};
 
 /*****************************************************************************/
 //											SUM data
