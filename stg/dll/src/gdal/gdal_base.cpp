@@ -454,11 +454,11 @@ void SpatialReferencesAreCompatibile(const TreeItem* treeitem, OGRSpatialReferen
 	if (fromGDAL->IsSame(fromConfig))
 		return;
 
-	SharedStr authority_code_from_gdal = SharedStr(fromGDAL->GetAuthorityName(NULL)) + ":" + fromGDAL->GetAuthorityCode(NULL);
-	SharedStr authority_code_from_value_unit = SharedStr(fromConfig->GetAuthorityName(NULL)) + ":" + fromConfig->GetAuthorityCode(NULL);
+	SharedStr authority_and_code_from_gdal = SharedStr(fromGDAL->GetAuthorityName(NULL)) + ":" + fromGDAL->GetAuthorityCode(NULL);
+	SharedStr authority_and_code_from_value_unit = SharedStr(fromConfig->GetAuthorityName(NULL)) + ":" + fromConfig->GetAuthorityCode(NULL);
 
 	// AUTHORITY:CODE comparison
-	if (authority_code_from_gdal == authority_code_from_value_unit)
+	if (authority_and_code_from_gdal == authority_and_code_from_value_unit)
 		return;
 
 	// Compound srs compatibility check fromGDAL
@@ -466,7 +466,7 @@ void SpatialReferencesAreCompatibile(const TreeItem* treeitem, OGRSpatialReferen
 	if (from_gdal_is_compound)
 	{
 		auto proj_authority_code = GetProjAuthorityCodeFromCompoundCS(fromGDAL);
-		if (proj_authority_code == authority_code_from_value_unit)
+		if (proj_authority_code == authority_and_code_from_value_unit)
 			return;
 	}
 
@@ -475,16 +475,15 @@ void SpatialReferencesAreCompatibile(const TreeItem* treeitem, OGRSpatialReferen
 	if (from_config_is_compound)
 	{
 		auto proj_authority_code = GetProjAuthorityCodeFromCompoundCS(fromConfig);
-		if (proj_authority_code == authority_code_from_gdal)
+		if (proj_authority_code == authority_and_code_from_gdal)
 			return;
 	}
 
-	reportF(SeverityTypeID::ST_Warning, "GDAL: item [[%s]] spatial reference (%s) differs from the spatial reference (%s) GDAL obtained from dataset"
+	SharedStr projection_mismatch_error_message = mySSPrintF(
+		"GDAL: item [[%s]] spatial reference (%s) differs from the spatial reference (%s) obtained from the dataset"
 		, treeitem->GetFullName().c_str()
 		, authority_and_code_from_gdal.c_str()
 		, authority_and_code_from_value_unit.c_str());
-
-	//reportF(SeverityTypeID::ST_Error, projection_mismatch_error_message.c_str());
 
 	treeitem->Fail(projection_mismatch_error_message, FailType::FR_MetaInfo);
 }
