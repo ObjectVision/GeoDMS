@@ -1,31 +1,7 @@
-//<HEADER> 
-/*
-Data & Model Server (DMS) is a server written in C++ for DSS applications. 
-Version: see srv/dms/rtc/dll/src/RtcVersion.h for version info.
+// Copyright (C) 1998-2023 Object Vision b.v. 
+// License: GNU GPL 3
+/////////////////////////////////////////////////////////////////////////////
 
-Copyright (C) 1998-2004  YUSE GSO Object Vision BV. 
-
-Documentation on using the Data & Model Server software can be found at:
-http://www.ObjectVision.nl/DMS/
-
-See additional guidelines and notes in srv/dms/Readme-srv.txt 
-
-This library is free software; you can use, redistribute, and/or
-modify it under the terms of the GNU General Public License version 2 
-(the License) as published by the Free Software Foundation,
-provided that this entire header notice and readme-srv.txt is preserved.
-
-See LICENSE.TXT for terms of distribution or look at our web site:
-http://www.objectvision.nl/DMS/License.txt
-or alternatively at: http://www.gnu.org/copyleft/gpl.html
-
-This library is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
-General Public License for more details. However, specific warranties might be
-granted by an additional written contract for support, assistance and/or development
-*/
-//</HEADER>
 #include "StxPch.h"
 
 #if defined(CC_PRAGMAHDRSTOP)
@@ -44,6 +20,7 @@ granted by an additional written contract for support, assistance and/or develop
 #include "ExprParse.h"
 
 #include <time.h>
+
 ///////////////////////////////////////////////////////////////////////////////
 //
 //  Our dms grammar
@@ -118,7 +95,7 @@ struct config_grammar : public boost::spirit::grammar<config_grammar>
 			ConfigProd& cp = cg.m_ConfigProd;
 
 			main
-				= (! UTF8_BOM ) >> dms_guard_d(item);
+				= (! UTF8_BOM ) >> dms_guard_d(+item); // multiple item declarations are only allowed in #included sub-configurations
 
 			//<item> ::=
 			//	<item decl> <item block> | include file
@@ -136,117 +113,116 @@ struct config_grammar : public boost::spirit::grammar<config_grammar>
 					]
 					);
 
-						preprocStatement
-							= "include"
-							>> assert_d("'<' relative filename '>' expected after include directive")[
-								'<'
-									>> fileRef
-									>> '>'
-							][([&cp](...) { cp.DoInclude();})];
+			preprocStatement
+				= "include"
+				>> assert_d("'<' relative filename '>' expected after include directive")[
+					'<'
+						>> fileRef
+						>> '>'
+				][([&cp](...) { cp.DoInclude();})];
+
+			//<item block> ::=	<begin block> <items> <end block> | <empty>
+			itemBlock =
+				LBRACE
+				[([&cp](...) { cp.DoBeginBlock();})]
+			>> *item
+				>> assert_d("item definition or block terminator '}' expected")[RBRACE]
+				[([&cp](...) { cp.DoEndBlock(); })];
+
+			// ==== ITEM DECL
+
+			itemDecl = (itemHeading
+				>> !(COLON >> itemProp >> *(',' >> itemProp)))
+				//[ ([&cp](auto,auto) { cp.OnItemDecl(); }) ];
+				[([&cp](...) { cp.OnItemDecl();})];
+
+			// ==== ==== ITEM HEADING
+
+			itemHeading =
+				(itemSignature
+					>> identifier[([&cp](...) { cp.DoItemName();})]
+					>> !(LPAREN >> itemParam >> *(',' >> itemParam) >> RPAREN)
+					)
+				[([&cp](auto _1, auto _2) { cp.DoItemHeading(_1, _2);})];
+
+			itemSignature =
+				as_lower_d[CONTAINER][([&cp](...) { cp.SetSignature(SignatureType::TreeItem);})]
+				| as_lower_d[TEMPLATE][([&cp](...) { cp.SetSignature(SignatureType::Template);})]
+				| (as_lower_d[ATTRIBUTE] >> '<' >> unitIdentifier >> '>')[([&cp](...) { cp.DoAttrSignature();})]
+				| (as_lower_d[PARAMETER] >> '<' >> unitIdentifier >> '>')[([&cp](...) { cp.SetSignature(SignatureType::Parameter);})]
+				| (as_lower_d[UNIT] >> '<' >> basicType >> '>')[([&cp](...) { cp.SetSignature(SignatureType::Unit);})]
+				| (as_lower_d[ENTITY])[([&cp](...) { cp.DoEntitySignature();})]
+				;
+
+			//<unit identifier> ::=	<item ref>
+			unitIdentifier = itemRef[([&cp](...) { cp.DoUnitIdentifier(); })];
+
+			//<basic type> ::= IDENTIFIER
+			basicType = identifier[([&cp](...) { cp.DoBasicType(); })];
+
+			itemRef
+				= lexeme_d[+DOT || +(!SLASH >> itemName_p)]
+				[([&cp](auto _1, auto _2) { cp.ProdIdentifier(_1, _2);})];
+
+			fileRef
+				= lexeme_d[+(alnum_p | UNDERSCORE | SLASH | BACKSLASH | DOT | SPACE | COLON | PERCENT)]
+				[([&cp](auto _1, auto _2) { cp.ProdIdentifier(_1, _2);})]
+			| m_DataBlockDef.m_StringDef.string_value
+				[([&cp](...) { cp.ProdQuotedIdentifier(); })];
+
+			identifier = lexeme_d[itemName_p]
+				[([&cp](auto _1, auto _2) { cp.ProdIdentifier(_1, _2);})];
+
+			// ==== ==== ITEM PARAMS
+			itemParam =
+				pizza_p("arc")[([&cp](...) { cp.SetVC(ValueComposition::Sequence); })]
+				| pizza_p("polygon")[([&cp](...) { cp.SetVC(ValueComposition::Polygon); })]
+				| pizza_p("poly")[([&cp](...) { cp.SetVC(ValueComposition::Polygon); })]
+				| itemRef[([&cp](...) { cp.DoEntityParam(); })];
 
 
-								//<item block> ::=	<begin block> <items> <end block> | <empty>
-								itemBlock =
-									LBRACE
-									[([&cp](...) { cp.DoBeginBlock();})]
-								>> *item
-									>> assert_d("item definition or block terminator '}' expected")[RBRACE]
-									[([&cp](...) { cp.DoEndBlock(); })];
+			// ==== ==== ITEM PROP LIST
 
-								// ==== ITEM DECL
+			itemProp
+				= assert_d("property definition expected")[
+					anyProp
+						| storageProp
+						| usingProp
+						| entityNrOfRowsProp
+						| directExpr
+						| dataBlock
+				];
 
-								itemDecl = (itemHeading
-									>> !(COLON >> itemProp >> *(',' >> itemProp)))
-									//[ ([&cp](auto,auto) { cp.OnItemDecl(); }) ];
-									[([&cp](...) { cp.OnItemDecl();})];
+			anyPropImpl
+				= (
+					identifier
+					>> '='
+					>> m_DataBlockDef.m_StringDef.string_value
+					);
+			anyProp
+				= anyPropImpl[([&cp](...) { cp.DoAnyProp(); })]; // action at anyprop gives weird error
 
-								// ==== ==== ITEM HEADING
+			storageProp
+				= pizza_p("storage")
+				>> '='
+				>> identifier[([&cp](...) { cp.DoFileType(); })]
+				>> assert_d("property format 'storage = FILETYPE ( FILENAME )'  expected")
+				['(' >> fileRef >> ')']
+			[([&cp](...) { cp.DoStorageProp(); })];
 
-								itemHeading =
-									(itemSignature
-										>> identifier[([&cp](...) { cp.DoItemName();})]
-										>> !(LPAREN >> itemParam >> *(',' >> itemParam) >> RPAREN)
-										)
-									[([&cp](auto _1, auto _2) { cp.DoItemHeading(_1, _2);})];
+			usingProp = (as_lower_d["using"]
+				>> EQUAL
+				>> itemRef
+				)[([&cp](...) { cp.DoUsingProp(); })];
 
-								itemSignature =
-									as_lower_d[CONTAINER][([&cp](...) { cp.SetSignature(SignatureType::TreeItem);})]
-									| as_lower_d[TEMPLATE][([&cp](...) { cp.SetSignature(SignatureType::Template);})]
-									| (as_lower_d[ATTRIBUTE] >> '<' >> unitIdentifier >> '>')[([&cp](...) { cp.DoAttrSignature();})]
-									| (as_lower_d[PARAMETER] >> '<' >> unitIdentifier >> '>')[([&cp](...) { cp.SetSignature(SignatureType::Parameter);})]
-									| (as_lower_d[UNIT] >> '<' >> basicType >> '>')[([&cp](...) { cp.SetSignature(SignatureType::Unit);})]
-									| (as_lower_d[ENTITY])[([&cp](...) { cp.DoEntitySignature();})]
-									;
+			//<entity nr of rows prop> ::= nrofrows = <integer value> ;
+			entityNrOfRowsProp = (as_lower_d["nrofrows"]
+				>> EQUAL[([&cp](...) { cp.SetSign(true); })]
+				>> m_DataBlockDef.unsignedInteger
+				)[([&cp](...) { cp.DoNrOfRowsProp(); })];
 
-								//<unit identifier> ::=	<item ref>
-								unitIdentifier = itemRef[([&cp](...) { cp.DoUnitIdentifier(); })];
-
-								//<basic type> ::= IDENTIFIER
-								basicType = identifier[([&cp](...) { cp.DoBasicType(); })];
-
-								itemRef
-									= lexeme_d[+DOT || +(!SLASH >> itemName_p)]
-									[([&cp](auto _1, auto _2) { cp.ProdIdentifier(_1, _2);})];
-
-								fileRef
-									= lexeme_d[+(alnum_p | UNDERSCORE | SLASH | BACKSLASH | DOT | SPACE | COLON | PERCENT)]
-									[([&cp](auto _1, auto _2) { cp.ProdIdentifier(_1, _2);})]
-								| m_DataBlockDef.m_StringDef.string_value
-									[([&cp](...) { cp.ProdQuotedIdentifier(); })];
-
-								identifier = lexeme_d[itemName_p]
-									[([&cp](auto _1, auto _2) { cp.ProdIdentifier(_1, _2);})];
-
-								// ==== ==== ITEM PARAMS
-								itemParam =
-									pizza_p("arc")[([&cp](...) { cp.SetVC(ValueComposition::Sequence); })]
-									| pizza_p("polygon")[([&cp](...) { cp.SetVC(ValueComposition::Polygon); })]
-									| pizza_p("poly")[([&cp](...) { cp.SetVC(ValueComposition::Polygon); })]
-									| itemRef[([&cp](...) { cp.DoEntityParam(); })];
-
-
-								// ==== ==== ITEM PROP LIST
-
-								itemProp
-									= assert_d("property definition expected")[
-										anyProp
-											| storageProp
-											| usingProp
-											| entityNrOfRowsProp
-											| directExpr
-											| dataBlock
-									];
-
-								anyPropImpl
-									= (
-										identifier
-										>> '='
-										>> m_DataBlockDef.m_StringDef.string_value
-										);
-								anyProp
-									= anyPropImpl[([&cp](...) { cp.DoAnyProp(); })]; // action at anyprop gives weird error
-
-								storageProp
-									= pizza_p("storage")
-									>> '='
-									>> identifier[([&cp](...) { cp.DoFileType(); })]
-									>> assert_d("property format 'storage = FILETYPE ( FILENAME )'  expected")
-									['(' >> fileRef >> ')']
-								[([&cp](...) { cp.DoStorageProp(); })];
-
-								usingProp = (as_lower_d["using"]
-									>> EQUAL
-									>> itemRef
-									)[([&cp](...) { cp.DoUsingProp(); })];
-
-								//<entity nr of rows prop> ::= nrofrows = <integer value> ;
-								entityNrOfRowsProp = (as_lower_d["nrofrows"]
-									>> EQUAL[([&cp](...) { cp.SetSign(true); })]
-									>> m_DataBlockDef.unsignedInteger
-									)[([&cp](...) { cp.DoNrOfRowsProp(); })];
-
-								directExpr = EQUAL >> m_ExprDef.start()[([&cp](auto _1, auto _2) { cp.DoExprProp(_1, _2);})];
-								dataBlock = m_DataBlockDef.dataBlockProp[([&cp](auto _1, auto _2) {cp.DataBlockCompleted(_1, _2); })];
+			directExpr = EQUAL >> m_ExprDef.start()[([&cp](auto _1, auto _2) { cp.DoExprProp(_1, _2);})];
+			dataBlock = m_DataBlockDef.dataBlockProp[([&cp](auto _1, auto _2) {cp.DataBlockCompleted(_1, _2); })];
 		};
 
 		boost::spirit::rule<ScannerT> const& start() const { return main; }

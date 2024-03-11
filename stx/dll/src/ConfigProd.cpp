@@ -208,20 +208,23 @@ void ConfigProd::CreateItem(TokenID nameID, const iterator_t& loc)
 		assert( m_stackContexts.empty() );
 		if (m_pCurrent)
 		{
-			if (m_pCurrent->GetID() != nameID)
-				reportF(MsgCategory::storage_read, SeverityTypeID::ST_Warning
-					, "Configuration file %s: root item '%s' was already provided with name '%s'"
-					, ConfigurationFilenameLock::GetCurrentFileDescrFromConfigLoadDir()->GetFileName().c_str()
-					, AsString(m_pCurrent->GetID()).c_str()
-					, AsString(nameID).c_str()
-				);
+			if (m_pCurrent->GetID() == nameID)
+				return;
+			if (!m_MergeIntoExisting)
+				throwDmsErrD("Illegal 2nd item after root of configuration tree.");
+			reportF(MsgCategory::storage_read, SeverityTypeID::ST_Warning
+				, "Configuration file %s: root item '%s' was already provided with name '%s'"
+				, ConfigurationFilenameLock::GetCurrentFileDescrFromConfigLoadDir()->GetFileName().c_str()
+				, AsString(m_pCurrent->GetID()).c_str()
+				, AsString(nameID).c_str()
+			);
 		}
 		else
 			m_pCurrent = TreeItem::CreateConfigRoot(nameID);
 	}
 	else // stackContexts not empty
 	{
-		assert(GetContextItem()); // only nonnulls in stackContexts
+		assert(GetContextItem()); // only non-nulls in stackContexts
 		
 		if (!m_MergeIntoExisting)
 			CheckIsNew(GetContextItem(), nameID);
@@ -236,7 +239,7 @@ void ConfigProd::CreateItem(TokenID nameID, const iterator_t& loc)
 		}
 	}
 
-	dms_assert(m_pCurrent);
+	assert(m_pCurrent);
 	
 	position_t const& pos = loc.get_position(); 
 
@@ -278,8 +281,8 @@ void ConfigProd::CreateDataItem(TokenID nameID, TokenID domainUnit, TokenID valu
 
 void ConfigProd::CreateContainer(TokenID nameID)
 {
-	dms_assert(!m_eValueClass);
-	dms_assert(!m_pSignatureUnit);
+	assert(!m_eValueClass);
+	assert(!m_pSignatureUnit);
 
 	if (m_eParamVC != ValueComposition::Unknown)
 		throwDmsErrD("Illegal ValueComposition at container definition");
@@ -375,68 +378,7 @@ void ConfigProd::CreateParameter(TokenID nameID)
 
 void ConfigProd::OnItemDecl()
 {
-	dms_assert(m_pCurrent);
-
-/*  REMOVE
-	if (IsUnit(m_pCurrent.get_ptr()) && m_pCurrent->HasConfigData())
-	{
-		AbstrUnit* unit = AsUnit(m_pCurrent.get_ptr());
-		const ValueClass* vc = unit->GetValueType();
-		TokenStr valueClassName = vc->GetName();
-		SharedStr expr = m_pCurrent->_GetExprStr();
-
-		if (!expr.empty())
-		{
-			// m_pCurrent->throwItemError("Combination of range and Calculation rule depreciated");
-			reportF(SignatureType::Warning, "%s: Combination of range and Calculation rule depreciated", m_pCurrent->GetSourceName().c_str());
-		}
-		switch (unit->GetValueType()->GetNrDims())
-		{
-			case 1: {
-				Range<Float64> r = unit->GetRangeAsFloat64();
-
-				if (!expr.empty())
-					m_pCurrent->SetExpr(
-						mySSPrintF("range(%s,%s(%g),%s(%g))",
-							expr
-							, valueClassName, r.first
-							, valueClassName, r.second
-						)
-					);
-
-				else
-				{
-					expr = mySSPrintF("BaseUnit(Left('+Quote(PropValue(., 'FullName')+'/%s')+',0),%s)", m_pCurrent->GetName(), valueClassName);
-					m_pCurrent->SetExpr(
-						mySSPrintF("='range(%s,%s(%g),%s(%g))'",
-							expr
-							, valueClassName, r.first
-							, valueClassName, r.second
-						)
-					);
-				}
-				break;
-			}
-			case 2: {
-				if (expr.empty())
-					expr = valueClassName.c_str();
-
-				valueClassName = vc->GetScalarClass()->GetName();
-				DRect r = unit->GetRangeAsDRect();
-				m_pCurrent->SetExpr(
-					mySSPrintF("range(%s, point(%s(%g), %s(%g)), point(%s(%g), %s(%g)))",
-						expr
-						, valueClassName, dmsPoint_GetFirstCfgValue(r.first ), valueClassName, dmsPoint_GetSecondCfgValue(r.first )
-						, valueClassName, dmsPoint_GetFirstCfgValue(r.second), valueClassName, dmsPoint_GetSecondCfgValue(r.second)
-					)
-				);
-				break;
-			}
-		}
-		unit->ClearData();
-	}
-*/
-
+	assert(m_pCurrent);
 }
 
 // *****************************************************************************
