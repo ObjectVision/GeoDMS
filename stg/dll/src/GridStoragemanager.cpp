@@ -12,6 +12,7 @@
 #include "act/MainThread.h"
 
 #include "Unit.h"
+#include "Projection.h"
 
 // ------------------------------------------------------------------------
 // Implementation of IsGridDomain, HasGridDomain, GetGridDataDomain & GetPaletteData
@@ -177,6 +178,98 @@ StorageMetaInfoPtr AbstrGridStorageManager::GetMetaInfo(const TreeItem* storageH
 {
 	return std::make_unique<GridStorageMetaInfo>(storageHolder, curr, sa);
 }
+
+bool AbstrGridStorageManager::DoCheckFactorSimilarity(StorageMetaInfoPtr smi) const
+{
+	const GridStorageMetaInfo* gbr = debug_cast<const GridStorageMetaInfo*>(smi.get());
+	bool result = true;
+	if (!gbr)
+		return false;
+
+	auto vpi = gbr->m_VPIP.value().GetViewportInfoEx(no_tile, smi);
+	auto grid_projection = gbr->m_VPIP->m_GridDomain->GetCurrProjection();
+	auto curr_projection = gbr->m_VPIP->m_CurrDomain->GetCurrProjection();
+
+	if (!grid_projection) // no projection, assume similar factor
+		return true;
+	if (!curr_projection) // no projection, assume similar factor
+		return true;
+
+	// actual factor comparison
+	auto grid_factor = grid_projection->Factor();
+	auto curr_factor = curr_projection->Factor();
+	if (grid_factor != curr_factor)
+	{
+		reportF(MsgCategory::storage_read, SeverityTypeID::ST_Warning, "Factor difference encountered between item %s: [%d,%d] and storage %s: [%d,%d]",
+			GetSourceName().c_str()
+			, curr_factor.X()
+			, curr_factor.Y()
+			, GetNameStr().c_str()
+			, grid_factor.X()
+			, grid_factor.Y()
+		);
+		result = false;
+	}
+
+	return result;
+}
+
+bool AbstrGridStorageManager::DoCheck50PercentExtentOverlap(StorageMetaInfoPtr smi) const
+{
+	const GridStorageMetaInfo* gbr = debug_cast<const GridStorageMetaInfo*>(smi.get());
+	bool result = true;
+
+	if (!gbr)
+		return true;
+
+	auto vpi = gbr->m_VPIP.value().GetViewportInfoEx(no_tile, smi);
+	auto grid_projection = gbr->m_VPIP->m_GridDomain->GetCurrProjection();
+	auto curr_projection = gbr->m_VPIP->m_CurrDomain->GetCurrProjection();
+	if (!grid_projection) // no projection, assume extent overlap >= 50%
+		return true;
+	if (!curr_projection) // no projection, assume extent overlap >= 50%
+		return true;
+
+	// affine transformed grid extent
+	auto grid_extent = vpi.GetGridExtents();
+	auto grid_factor = grid_projection->Factor();
+	auto grid_offset = grid_projection->Offset();
+	auto grid_extent_in_world_coordinates = DRect(DPoint(grid_extent.first) * grid_factor + grid_offset, DPoint(grid_extent.second) * grid_factor + grid_offset);
+
+	// affine transformed curr extent
+	auto curr_extent = vpi.GetViewPortExtents();
+	auto curr_factor = grid_projection->Factor();
+	auto curr_offset = grid_projection->Offset();
+	auto curr_extent_in_world_coordinates = DRect(DPoint(curr_extent.first) * curr_factor + curr_offset, DPoint(curr_extent.second) * curr_factor + curr_offset);
+
+	// actual extent check
+	auto intersect = grid_extent_in_world_coordinates & curr_extent_in_world_coordinates;
+	if (intersect.empty())
+	{
+		reportF(MsgCategory::storage_read, SeverityTypeID::ST_Warning, "Extent of domain of item %s and storage %s overlap less than 50 percent",
+			GetSourceName().c_str()
+			, GetNameStr().c_str()
+		);
+		return false;
+	}
+
+	auto read_area         = (curr_extent_in_world_coordinates.second - curr_extent_in_world_coordinates.first).X() * (curr_extent_in_world_coordinates.second - curr_extent_in_world_coordinates.first).Y();
+	auto intersection_area = (intersect.second-intersect.first).X() * (intersect.second - intersect.first).Y();
+	
+	auto intersection_faction = intersection_area / read_area;
+	if (intersection_faction < 0.5)
+	{
+		reportF(MsgCategory::storage_read, SeverityTypeID::ST_Warning, "Extent of domain of item %s and storage %s overlap less than 50 percent: %d",
+			GetSourceName().c_str()
+			, GetNameStr().c_str()
+			, intersection_faction
+		);
+		result = false;
+	}
+
+	return result;
+}
+
 
 // ------------------------------------------------------------------------
 // Implementation of IsGridDomain, HasGridDomain, GetGridDataDomain & GetPaletteData

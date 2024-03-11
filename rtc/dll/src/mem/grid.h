@@ -40,13 +40,13 @@ granted by an additional written contract for support, assistance and/or develop
 template <typename T>
 struct ptr_type
 {
-	typedef typename sequence_traits<T>::seq_t::iterator type;
+	using type = typename sequence_traits<T>::seq_t::iterator;
 };
 
 template <typename T>
 struct ptr_type<const T>
 {
-	typedef typename sequence_traits<T>::cseq_t::const_iterator type;
+	using type = typename sequence_traits<T>::cseq_t::const_iterator;
 };
 
 template <typename T> using ptr_type_t = typename ptr_type<T>::type;
@@ -66,7 +66,7 @@ struct TGridBase
 	typedef Point<CoordType> GridPoint;
 	typedef Range<GridPoint> GridRect;
 
-	typedef typename ptr_type<T>::type data_ptr;
+	using data_ptr = ptr_type_t<T>;
 
 	TGridBase() : m_Size(0, 0), m_Data() 
 	{}
@@ -79,7 +79,7 @@ struct TGridBase
 	data_ptr  end  ()                const { return begin() + size(); }
 	data_ptr  rowptr (CoordType row) const { return m_Data + SizeT(row) *  SizeT(m_Size.Col()); }
 	data_ptr  elemptr(GridPoint pos) const { return rowptr(pos.Row())+pos.Col(); }
-	data_ptr  GetDataPtr()           const { dms_assert(m_Data); return begin(); }
+	data_ptr  GetDataPtr()           const { assert(m_Data); return begin(); }
 	void SetDataPtr(data_ptr dataPtr)      { m_Data = dataPtr; }
 	const GridPoint& GetSize()       const { return m_Size; }
 	SizeT size()                     const { return Cardinality(m_Size); }
@@ -99,12 +99,14 @@ typedef UGrid<      Int32>   UInt32Grid;
 typedef UGrid<const Int32>   UCInt32Grid;
 typedef UGrid<      UInt32>  UUInt32Grid;
 typedef UGrid<const UInt32>  UCUInt32Grid;
+typedef UGrid<      UInt16>  UUInt16Grid;
+typedef UGrid<const UInt16>  UCUInt16Grid;
+typedef UGrid<      Int16  > UInt16Grid;
+typedef UGrid<const Int16  > UCInt16Grid;
 typedef UGrid<      UInt8 >  UUInt8Grid;
 typedef UGrid<const UInt8 >  UCUInt8Grid;
 typedef UGrid<      Bool  >  UBoolGrid;
 typedef UGrid<const Bool  >  UCBoolGrid;
-typedef UGrid<      Int16  > UInt16Grid;
-typedef UGrid<const Int16  > UCInt16Grid;
 
 typedef UGrid<      Float32> UFloat32Grid;
 typedef UGrid<const Float32> UCFloat32Grid;

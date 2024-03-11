@@ -430,8 +430,8 @@ CLC_CALL bool NumericDataItem_GetStatistics(const TreeItem* item, vos_buffer_typ
 			if (di->GetAbstrValuesUnit()->GetValueType()->GetValueClassID() == ValueClassID::VT_String)
 			{
 				auto da = const_array_cast<SharedStr>(di)->GetDataRead();
-				table.NameValueRow("# actual   bytes in elements", AsString(da.get_sa().actual_data_size()).c_str());
-				table.NameValueRow("# reserved bytes in elements", AsString(da.get_sa().data_size()).c_str());
+				table.NameValueRow("# actual   bytes in strings", AsString(da.get_sa().actual_data_size()).c_str());
+				table.NameValueRow("# reserved bytes in strings", AsString(da.get_sa().data_size()).c_str());
 			}
 			if (di->GetValueComposition() != ValueComposition::Single)
 			{
@@ -441,8 +441,8 @@ CLC_CALL bool NumericDataItem_GetStatistics(const TreeItem* item, vos_buffer_typ
 					using a_seq = sequence_traits<V>::container_type;
 
 					auto da = const_array_cast<a_seq>(di)->GetDataRead();
-					table.NameValueRow("# actual   bytes in elements", AsString(da.get_sa().actual_data_size()).c_str());
-					table.NameValueRow("# reserved bytes in elements", AsString(da.get_sa().data_size()).c_str());
+					table.NameValueRow("# actual   elements in values", AsString(da.get_sa().actual_data_size()).c_str());
+					table.NameValueRow("# reserved elements in values", AsString(da.get_sa().data_size()).c_str());
 				}
 				);
 			}

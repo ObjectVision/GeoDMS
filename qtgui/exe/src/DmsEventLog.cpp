@@ -2,13 +2,18 @@
 #include <QColor>
 #include <QObject>
 #include <QDockWidget>
+#include <QKeyEvent>
+#include <QKeySequence>
 #include <QMenubar>
+#include <QEvent>
 #include <QTimer>
 #include <QVBoxLayout>
 #include <QHBoxLayout>
 #include <QGridLayout>
 #include <QScrollBar>
 #include <QClipBoard>
+#include <QEvent>
+#include <QKeyEvent>
 
 #include "dbg/Timer.h"
 
@@ -460,7 +465,7 @@ void DmsEventLog::copySelectedEventlogLinesToClipboard()
 
 void DmsEventLog::keyPressEvent(QKeyEvent* event)
 {
-	if (event == QKeySequence::Copy)
+	if (event->matches(QKeySequence::Copy))
 	{
 		//return QWidget::keyPressEvent(event);
 		copySelectedEventlogLinesToClipboard();

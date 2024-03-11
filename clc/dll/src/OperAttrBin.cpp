@@ -351,8 +351,7 @@ template<typename T> struct is_safe_for_undefines<less_equal<T>> : std::true_typ
 template <typename T> struct binary_and : binary_base<T> { T operator()(cref_t<T> a, cref_t<T> b) const { return a&b; } };
 template <typename T> struct binary_or  : binary_base<T> { T operator()(cref_t<T> a, cref_t<T> b) const { return a|b; } };
 template <typename T> struct binary_eq  : binary_base<T> { T operator()(cref_t<T> a, cref_t<T> b) const { return ~(a^b); } };
-template <typename T> struct binary_ne  : binary_base<T> { T operator()(cref_t<T> a, cref_t<T> b) const { return (a^b); } };
-
+template <typename T> struct binary_xor : binary_base<T> { T operator()(cref_t<T> a, cref_t<T> b) const { return (a^b); } };
 
 template <bit_size_t N> struct binary_and<bit_value<N> >   : binary_base<bit_value<N> >
 {
@@ -378,7 +377,7 @@ template <> struct equal_to<Bool> : binary_base<Bool>
 
 template <> struct not_equal_to<Bool>: binary_base<Bool>
 {
-	using block_func = binary_ne<bit_block_t>;
+	using block_func = binary_xor<bit_block_t>;
 
 	block_func m_BlockFunc;
 };
@@ -499,6 +498,7 @@ namespace {
 
 	BinaryInstantiation<aints, binary_and>  sBitAnd(&cog_bitand);
 	BinaryInstantiation<aints, binary_or >  sBitOr(&cog_bitor);
+	BinaryInstantiation<aints, binary_xor >  sBitXOr(&cog_bitxor);
 
 	CogBinaryInstantiation<aints, logical_and> sAnd("and");
 	CogBinaryInstantiation<aints, logical_or > sOr("or");

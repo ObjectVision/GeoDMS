@@ -1,11 +1,13 @@
-#include <QApplication>
 #include <QAbstractNativeEventFilter>
-#include <QResource>
+#include <QApplication>
 #include <QByteArray>
+#include <QFontDatabase>
+#include <QMouseEvent>
+#include <QPainter>
+#include <QResource>
+#include <QScreen>
 #include <QSplashScreen>
 #include <QThread> // TODO: remove
-#include <QPainter>
-#include <QFontDatabase>
 
 #include <memory>
 

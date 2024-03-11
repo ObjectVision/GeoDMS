@@ -94,6 +94,9 @@ public:
 	STGDLL_CALL ActorVisitState VisitSuppliers(SupplierVisitFlag svf, const ActorVisitor& visitor, const TreeItem* storageHolder, const TreeItem* self) const override;
 	STGDLL_CALL StorageMetaInfoPtr GetMetaInfo(const TreeItem* storageHolder, TreeItem* curr, StorageAction) const override;
 	STGDLL_CALL bool AllowRandomTileAccess() const override { return true;  }
+	bool DoCheckFactorSimilarity(StorageMetaInfoPtr smi) const override;
+	bool DoCheck50PercentExtentOverlap(StorageMetaInfoPtr smi) const override;
+
 	SharedPtr<AbstrUnit> m_GridDomainUnit;
 };
 
@@ -159,7 +162,8 @@ namespace Grid {
 			rawBuffer = OwningPtrSizedArray<char>(tileByteSizeNative, dont_initialize MG_DEBUG_ALLOCATOR_SRC("GridStoragemanager.ReadTiles: rawBuffer"));
 			stripBuff = rawBuffer.begin();
 		}
-			
+		
+		assert(tyr.t_min>=-1);
 
 		MG_DEBUGCODE(auto bufCopy = buf); // DEBUG
 		for (UInt32 ty = 0; ty<tyr.t_cnt; ++ty) // loop through all tiles/strips that intersect with [y, y+dy)

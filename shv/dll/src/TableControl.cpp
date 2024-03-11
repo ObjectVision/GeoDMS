@@ -418,6 +418,20 @@ void TableControl::UpdateShowSelOnly()
 
 }
 
+void TableControl::NotifyRowColChange()
+{
+	if (auto dv = GetDataView().lock())
+	{
+		constexpr size_t len = 100;
+		char buffer[len + 1];
+		auto streamWrap = SilentMemoOutStreamBuff(ByteRange(buffer, len));
+		FormattedOutStream out(&streamWrap, FormattingFlags::ThousandSeparator);
+		out << "Row=" << GetActiveRow() << "; Col=" << GetActiveCol();
+		out << char(0);
+		dv->SendStatusText(SeverityTypeID::ST_MinorTrace, buffer);
+	}
+}
+
 void TableControl::GoTo(SizeT row, gr_elem_index col)
 {
 	dbg_assert(sd_SelChangeInvalidatorCount == 1);
@@ -534,6 +548,7 @@ void TableControl::GoUp(bool shift, UInt32 c)
 	m_Rows.GoLeft(shift, c);
 	if (!shift) m_Cols.Close();
 	sci.ProcessChange(true);
+	NotifyRowColChange();
 }
 
 void TableControl::GoDn(bool shift, UInt32 c)
@@ -550,6 +565,7 @@ void TableControl::GoDn(bool shift, UInt32 c)
 	m_Rows.GoRight(shift, c, nrRows-1);
 	if (!shift) m_Cols.Close();
 	sci.ProcessChange(true);
+	NotifyRowColChange();
 }
 
 void TableControl::GoLeft(bool shift)
@@ -581,6 +597,7 @@ redo:
 		GoTo(row, col);
 	}
 	sci.ProcessChange(true);
+	NotifyRowColChange();
 }
 
 void TableControl::GoRight(bool shift)
@@ -612,6 +629,7 @@ redo:
 		GoTo(row, col);
 	}
 	sci.ProcessChange(true);
+	NotifyRowColChange();
 }
 
 void TableControl::GoHome(bool shift, bool firstActiveCol)
@@ -631,6 +649,7 @@ void TableControl::GoHome(bool shift, bool firstActiveCol)
 		m_Rows.GoHome(shift);
 	}
 	sci.ProcessChange(true);
+	NotifyRowColChange();
 }
 
 void TableControl::GoEnd(bool shift)
@@ -644,6 +663,7 @@ void TableControl::GoEnd(bool shift)
 	m_Rows.GoEnd(shift, NrRows()-1);
 //	m_Cols.GoEnd(shift, NrEntries()-1);
 	sci.ProcessChange(true);
+	NotifyRowColChange();
 }
 
 SizeT TableControl::FirstActiveCol() const
@@ -678,6 +698,7 @@ void TableControl::GoRow(SizeT row, bool mustSetFocusElemIndex)
 
 ready:
 	sci.ProcessChange(mustSetFocusElemIndex);
+	NotifyRowColChange();
 }
 
 FormattedOutStream& operator << (FormattedOutStream& fos, const SelRange& sr)
@@ -1079,8 +1100,6 @@ void TableControl::AddLayer(const TreeItem* viewCandidate, bool isDropped)
 	}
 }
 
-static TokenID idID = GetTokenID_st("id");
-
 SharedPtr<AbstrDataItem> TableControl::CreateIdAttr(const AbstrUnit* domain, const AbstrDataItem* exampleAttr)
 {
 	dms_assert(HasSortOptions());
@@ -1094,7 +1113,7 @@ SharedPtr<AbstrDataItem> TableControl::CreateIdAttr(const AbstrUnit* domain, con
 
 	SharedPtr<AbstrDataItem> idAttr = CreateDataItem(
 		CreateDesktopContainer(dv->GetDesktopContext(), domain)
-	,	idID
+	,	token::id	
 	,	domain 
 	,	domain
 	);
@@ -1104,7 +1123,7 @@ SharedPtr<AbstrDataItem> TableControl::CreateIdAttr(const AbstrUnit* domain, con
 
 	if (domain->IsCacheItem())
 	{
-		dms_assert(exampleAttr);
+		assert(exampleAttr);
 		auto keyExpr = ExprList(token::id, ExprList(token::DomainUnit, exampleAttr->GetCheckedKeyExpr()));
 		idAttr->SetDC(GetOrCreateDataController(keyExpr));
 	}

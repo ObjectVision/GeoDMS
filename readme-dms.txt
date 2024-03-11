@@ -7,9 +7,9 @@ https://github.com/ObjectVision/GeoDMS
 
 Version info: see rtc/dll/src/RtcGeneratedVersion.h
 
-This folder contains all the code for the .DLL's and .Exe of the GeoDMS.
+This folder contains all the code for building the executables and required libraries of the GeoDMS.
 
-The C++ products can be compiled with MS Visual Studio 2023 (17.8.x)
+The C++ products can be compiled with MS Visual Studio 2023 (17.9.x)
 Supported Platforms: x64 (Win32 still available but not recently tested)
 Supported Configurations: Debug and Release
 

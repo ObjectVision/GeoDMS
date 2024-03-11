@@ -252,7 +252,17 @@ bool AbstrDataItem::DoReadItem(StorageMetaInfoPtr smi)
 	try {
 		MG_DEBUGCODE(TimeStamp currTS = LastChangeTS(); )
 
-		auto tn = GetAbstrDomainUnit()->GetNrTiles();
+		auto abstract_domain_unit = GetAbstrDomainUnit();
+		assert(abstract_domain_unit);
+
+		auto number_of_dimensions = abstract_domain_unit->GetNrDimensions();
+		if (number_of_dimensions == 2)
+		{
+			sm->DoCheckFactorSimilarity(smi);
+			sm->DoCheck50PercentExtentOverlap(smi);
+		}
+
+		auto tn = abstract_domain_unit->GetNrTiles();
 		if (IsMultiThreaded3() && tn > 1 && sm->AllowRandomTileAccess())
 		{
 			auto readerFarm = std::make_shared<reader_clone_farm>();
@@ -315,17 +325,20 @@ bool AbstrDataItem::DoWriteItem(StorageMetaInfoPtr&& smi) const
 	DataReadLock lockForSave(this);
 
 	auto sm = smi->StorageManager();
-	reportF(MsgCategory::storage_write, SeverityTypeID::ST_MajorTrace, "%s IS STORED IN %s",
-		GetSourceName().c_str()
-	,	sm->GetNameStr().c_str()
-	);
-
 	FencedInterestRetainContext irc;
 	try {
 		SharedPtr<const TreeItem> storageHolder = smi->StorageHolder();
-		if (!sm->WriteDataItem(std::move(smi)))
-			throwItemError("Failure during Writing");
 		sm->ExportMetaInfo(storageHolder, this);
+		if (sm->WriteDataItem(std::move(smi)))
+		{
+			reportF(MsgCategory::storage_write, SeverityTypeID::ST_MajorTrace, "%s IS STORED IN %s",
+				GetSourceName().c_str()
+				, sm->GetNameStr().c_str()
+			);
+		}
+		else
+			throwItemError("Failure during Writing");
+		
 	}
 	catch (const DmsException& x)
 	{
@@ -361,7 +374,22 @@ const DataItemClass* AbstrDataItem::GetDynamicObjClass() const
 	auto avu = GetAbstrValuesUnit();
 	assert(avu);
 	auto vc = GetValueComposition();
-	auto vt = avu->GetUnitClass()->GetValueType(vc);
+	auto au = avu->GetUnitClass();
+	assert(au);
+
+	auto vt = au->GetValueType(vc);
+
+	if (!vt)
+	{
+		assert(vc != ValueComposition::Single);
+		auto vcStr = GetValueCompositionID(vc).AsSharedStr();
+		auto vtSingle = au->GetValueType(ValueComposition::Single);
+		assert(vtSingle);
+		auto vtSingleStr = vtSingle->GetID().AsSharedStr();
+
+		throwDmsErrF("No ValueType for %s composition of %s values", vcStr.c_str(), vtSingleStr.c_str());
+	}
+	MG_CHECK(vt);
 	auto dic = DataItemClass::FindCertain(vt, this);
 	return dic;
 }

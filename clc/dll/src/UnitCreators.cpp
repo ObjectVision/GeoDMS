@@ -11,6 +11,7 @@
 #include "UnitCreators.h"
 
 #include "mci/ValueClass.h"
+#include "mci/ValueClassID.h"
 #include "utl/mySPrintF.h"
 
 #include "Metric.h"
@@ -29,6 +30,7 @@ CommonOperGroup
 	cog_sub("sub"),
 	cog_bitand("bitand"),
 	cog_bitor ("bitor"),
+	cog_bitxor("bitxor"),
 	cog_pow("pow"),
 	cog_eq("eq"),
 	cog_ne("ne"),
@@ -70,8 +72,43 @@ ConstUnitRef count_unit_creator(const AbstrDataItem* adi)
 	assert(adu);
 
 	const ValueClass* vc = adu->GetValueType(); assert(vc);
-	const ValueClass* vcCrd = vc->GetCrdClass();
-	return UnitClass::Find(vcCrd)->CreateDefault();
+	const ValueClass* vcCrd = vc->GetCrdClass(); assert(vcCrd);
+	auto uc = UnitClass::Find(vcCrd); assert(uc);
+	return uc->CreateDefault();
+}
+
+ConstUnitRef unique_count_unit_creator(const AbstrDataItem* adi, const AbstrDataItem* groupBy_rel)
+{
+	const AbstrUnit* adu = adi->GetAbstrDomainUnit(); // Partition Domain
+	assert(adu);
+
+	const ValueClass* dvc = adu->GetValueType(); assert(dvc);
+	const ValueClass* vcCrd = dvc->GetCrdClass(); assert(vcCrd);
+
+	if (adi->GetValueComposition() == ValueComposition::Single)
+	{
+		auto vvc = adi->GetAbstrValuesUnit()->GetValueType();
+		if (vvc->GetValueClassID() != ValueClassID::VT_SharedStr)
+		{
+			const ValueClass* vvcCrd = vvc->GetCrdClass(); assert(vvcCrd);
+			if (vvcCrd->GetBitSize() < vcCrd->GetBitSize())
+				vcCrd = vvcCrd;
+
+		}
+	}
+	if (groupBy_rel->GetValueComposition() == ValueComposition::Single)
+	{
+		auto vvc = groupBy_rel->GetAbstrValuesUnit()->GetValueType();
+		if (vvc->GetValueClassID() != ValueClassID::VT_SharedStr)
+		{
+			const ValueClass* vvcCrd = vvc->GetCrdClass(); assert(vvcCrd);
+			if (vvcCrd->GetBitSize() < vcCrd->GetBitSize())
+				vcCrd = vvcCrd;
+
+		}
+	}
+	auto uc = UnitClass::Find(vcCrd); assert(uc);
+	return uc->CreateDefault();
 }
 
 // *****************************************************************************
