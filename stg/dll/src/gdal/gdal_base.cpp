@@ -428,6 +428,24 @@ SharedStr GetWktProjectionFromValuesUnit(const AbstrDataItem* adi)
 	return GetWktProjectionFromBaseProjectionUnit(baseProjectionUnit);
 }
 
+auto GetProjAuthorityCodeFromCompoundCS(OGRSpatialReference* srs) -> SharedStr
+{
+	auto* proj_cs_node = srs->GetAttrNode("PROJCS");
+	if (!proj_cs_node)
+		return {};
+	
+	auto* auth_node = proj_cs_node->GetNode("AUTHORITY");
+	if (!auth_node)
+		return {};
+
+	if (!(auth_node->GetChildCount()==2))
+		return {};
+
+	auto authority_node = auth_node->GetChild(0);
+	auto code_node = auth_node->GetChild(1);
+	return SharedStr(authority_node->GetValue()) + ":" + code_node->GetValue();
+}
+
 void CheckCompatibility(const TreeItem* treeitem, OGRSpatialReference* fromGDAL, OGRSpatialReference* fromConfig)
 {
 	assert(fromGDAL);
@@ -439,8 +457,27 @@ void CheckCompatibility(const TreeItem* treeitem, OGRSpatialReference* fromGDAL,
 	SharedStr authority_code_from_gdal = SharedStr(fromGDAL->GetAuthorityName(NULL)) + ":" + fromGDAL->GetAuthorityCode(NULL);
 	SharedStr authority_code_from_value_unit = SharedStr(fromConfig->GetAuthorityName(NULL)) + ":" + fromConfig->GetAuthorityCode(NULL);
 
+	// AUTHORITY:CODE comparison
 	if (authority_code_from_gdal == authority_code_from_value_unit)
 		return;
+
+	// Compound srs compatibility check fromGDAL
+	auto from_gdal_is_compound = fromGDAL->IsCompound();
+	if (from_gdal_is_compound)
+	{
+		auto proj_authority_code = GetProjAuthorityCodeFromCompoundCS(fromGDAL);
+		if (proj_authority_code == authority_code_from_value_unit)
+			return;
+	}
+
+	// Compound srs compatibility check fromConfig
+	auto from_config_is_compound = fromConfig->IsCompound();
+	if (from_config_is_compound)
+	{
+		auto proj_authority_code = GetProjAuthorityCodeFromCompoundCS(fromConfig);
+		if (proj_authority_code == authority_code_from_gdal)
+			return;
+	}
 
 	reportF(SeverityTypeID::ST_Warning, "GDAL: item [[%s]] spatial reference (%s) differs from the spatial reference (%s) GDAL obtained from dataset"
 		, treeitem->GetFullName().c_str()
