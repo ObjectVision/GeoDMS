@@ -62,12 +62,12 @@ void fillPointIndexBufferImpl(pointIndexBuffer_t& buf, PI iBase, PI ii, PI ie, b
 		dms_assert(nrPointsIncLast <= SizeT(ie-ii));
 		index_t offset = ii - iBase;
 		if (nrPoints > 2)
-			buf.push_back(index_range_t(offset, offset + nrPointsIncLast));
+			buf.emplace_back(offset, offset + nrPointsIncLast);
 
 		// skip points before 2nd starting point
 		ii = ij;
 
-		if (ie - ii < 6)  // minimal InnerRing with non-zero surface: SO SI p1 p2 SI SO
+		if (ie - ii < 4)  // minimal Ring with non-zero surface: p0 p1 p2 p0
 			break;
 
 		dms_assert(ii != ie);         // follows from not breaking
@@ -75,12 +75,14 @@ void fillPointIndexBufferImpl(pointIndexBuffer_t& buf, PI iBase, PI ii, PI ie, b
 		ij = ie;
 
 		dms_assert(ij != ii);
-		while (--ij != ii)
+		while (ij - ii >= 6) // minimal InnerRing has non-zero surface: SO SI pb pc SI SO
 		{
-			if (ij[0] == ii[0] && ij[-1]==ii[1])
+			--ij;
+			if (ij[0] == ii[0] && ij[-1]==ii[1]) // SO S1 ... SI SO ...
 			{
 				dms_assert(ij < ie); // follows from ij = ie followed by decrement
-				buf.m_StackBuffer.emplace_back(ii+1-iBase, ij-iBase);
+				if (ij - ii >= 5) 
+					buf.m_StackBuffer.emplace_back(ii+1-iBase, ij-iBase);
 				ii = ij;
 				ij = ie;
 				dms_assert(ii < ij);  // follows from previous assert

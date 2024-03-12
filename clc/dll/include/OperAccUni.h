@@ -63,7 +63,7 @@ struct AbstrOperAccTotUni: UnaryOperator
 		dms_assert(arg1A);
 
 		bool dontRecalc = res->m_DataObject;
-		dms_assert(dontRecalc || !context);
+//		dms_assert(dontRecalc || !context);
 		if (!dontRecalc)
 		{
 //			DataReadLock arg1Lock(arg1A);
@@ -227,7 +227,7 @@ struct OperAccPartUni: AbstrOperAccPartUni
 	using Arg1Type = DataArray<V>; // value vector
 	using Arg2Type = AbstrDataItem; // index vector, must be partition type
 	using ResultValueType = R;
-	using ResultType = DataArray<ResultValueType>;;
+	using ResultType = DataArray<ResultValueType>;
 	/*
 	using ValueType = typename TAcc1Func::value_type1;
 	using AccumulationSeq = typename TAcc1Func::accumulation_seq;

@@ -394,11 +394,11 @@ const TreeItem* GetExprOrSourceDescrAndReturnSourceItem(OutStreamBase& stream, c
 	SharedStr result = ti->GetExpr();
 	if (!result.empty())
 	{
-		dms_assert(s_AnnotateExprFunc);
+		assert(s_AnnotateExprFunc);
 		s_AnnotateExprFunc(stream, AbstrCalculator::GetSearchContext(ti, CalcRole::Calculator), result);
 		if (AbstrCalculator::MustEvaluate(result.begin()))
 		{
-			NewLine(stream);
+				NewLine(stream);
 			if (ti->InTemplate())
 				stream << "which isn't evaluated here since this item is part of a template definition";
 			else
@@ -420,7 +420,7 @@ const TreeItem* GetExprOrSourceDescrAndReturnSourceItem(OutStreamBase& stream, c
 		if (storageParent)
 		{
 			const AbstrStorageManager* sm = storageParent->GetStorageManager();
-			dms_assert(sm); // because of POSTCONDITION of GetStorageParant
+			assert(sm); // because of POSTCONDITION of GetStorageParant
 			stream << "Read from " << sm->GetNameStr().c_str();
 		}
 		else
@@ -430,8 +430,8 @@ const TreeItem* GetExprOrSourceDescrAndReturnSourceItem(OutStreamBase& stream, c
 	const TreeItem* si = ti->GetSourceItem();
 	if (si)
 	{
-		dms_assert(si != ti);
-		dms_assert(!si->IsCacheItem());
+		assert(si != ti);
+		assert(!si->IsCacheItem());
 		stream << "assigned by ";
 		{
 			XML_hRef parentRef(stream, ItemUrl(ti->GetTreeParent()).c_str());
@@ -476,12 +476,12 @@ void GetExprOrSourceDescr(OutStreamBase& stream, const TreeItem* ti)
 void GetExprOrSourceDescrRow(XML_Table& xmlTable, const TreeItem* ti)
 {
 	XML_Table::Row exprRow(xmlTable);
-		exprRow.OutStream().WriteAttr("bgcolor", CLR_HROW);
-		XML_Table::Row::Cell xmlElemTD(exprRow);
-		exprRow.OutStream().WriteTrimmed("CalculationRule");
-		//exprRow.ClickableCell("CalculationRule", "dms:Edit Definition");
-		XML_Table::Row::Cell xmlElemTD1(exprRow);
-			GetExprOrSourceDescr(xmlTable.OutStream(), ti);
+	exprRow.OutStream().WriteAttr("bgcolor", CLR_HROW);
+	XML_Table::Row::Cell xmlElemTD(exprRow);
+	exprRow.OutStream().WriteTrimmed("CalculationRule");
+	//exprRow.ClickableCell("CalculationRule", "dms:Edit Definition");
+	XML_Table::Row::Cell xmlElemTD1(exprRow);
+	GetExprOrSourceDescr(xmlTable.OutStream(), ti);
 }
 
 void GetLispRefRow(XML_Table& xmlTable, LispPtr lispExpr, CharPtr title)
@@ -603,44 +603,37 @@ bool TreeItem_XML_DumpGeneralBody(const TreeItem* self, OutStreamBase* xmlOutStr
 	// ==================== Calculation rule and/or Storage description
 	xmlTable.LinedRow();
 	{
+		XML_OutElement details(*xmlOutStrPtr, "details");
 		{
-			XML_OutElement details(*xmlOutStrPtr, "details");
-			{
-				{
-					XML_OutElement summary(*xmlOutStrPtr, "summary");
-					*xmlOutStrPtr << "ExprSummaryTest";
-				}
-
-				*xmlOutStrPtr << "Hier volgen de details !"; // DEBUG
-				GetExprOrSourceDescrRow(xmlTable, self);
-			}
+			XML_OutElement summary(*xmlOutStrPtr, "summary");
+			GetExprOrSourceDescrRow(xmlTable, self);
 		}
 
-		if (GetRegStatusFlags() & RSF_AdminMode)
+		if (self->HasCalculator() && !self->WasFailed(FR_MetaInfo))
 		{
-			XML_OutElement paragraph(*xmlOutStrPtr, "p");
-
-			if (self->HasCalculator() && !self->WasFailed(FR_MetaInfo))
+			auto c = self->GetCalculator();
+			if (c)
+				GetLispRefRow(xmlTable, c->GetLispExprOrg(), "ParseResult");
+		}
+		if (!self->WasFailed(FR_MetaInfo))
+		{
+			auto metaInfo = self->GetCurrMetaInfo({});
+			auto calcExpr = GetAsLispRef(metaInfo);
+			GetLispRefRow(xmlTable, calcExpr, "CalcExpr");
+			if (metaInfo.index() == 1 || metaInfo.index() == 0 && std::get<MetaFuncCurry>(metaInfo).fullLispExpr.EndP())
 			{
-				auto c = self->GetCalculator();
-				if (c)
-					GetLispRefRow(xmlTable, c->GetLispExprOrg(), "ParseResult");
+				auto keyExpr = self->GetCheckedKeyExpr();
+				if (keyExpr != calcExpr)
+					GetLispRefRow(xmlTable, keyExpr, "CheckedKeyExpr");
 			}
-			if (!self->WasFailed(FR_MetaInfo))
-			{
-				auto metaInfo = self->GetCurrMetaInfo({});
-				auto calcExpr = GetAsLispRef(metaInfo);
-				GetLispRefRow(xmlTable, calcExpr, "CalcExpr");
-				if (metaInfo.index() == 1 || metaInfo.index() == 0 && std::get<MetaFuncCurry>(metaInfo).fullLispExpr.EndP())
-				{
-					auto keyExpr = self->GetCheckedKeyExpr();
-					if (keyExpr != calcExpr)
-						GetLispRefRow(xmlTable, keyExpr, "CheckedKeyExpr");
-				}
-			}
+		}
+		else
+		{
+			XML_Table::Row row(xmlTable);
+			row.ValueCell("CheckedKeyExpr");
+			row.ValueCell("Not available due to failure");
 		}
 	}
-
 	// ==================== Explicit Suppliers
 	if (self->HasSupplCache())
 	{

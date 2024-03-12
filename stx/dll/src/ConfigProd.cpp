@@ -1,31 +1,7 @@
-//<HEADER> 
-/*
-Data & Model Server (DMS) is a server written in C++ for DSS applications. 
-Version: see srv/dms/rtc/dll/src/RtcVersion.h for version info.
+// Copyright (C) 1998-2023 Object Vision b.v. 
+// License: GNU GPL 3
+/////////////////////////////////////////////////////////////////////////////
 
-Copyright (C) 1998-2004  YUSE GSO Object Vision BV. 
-
-Documentation on using the Data & Model Server software can be found at:
-http://www.ObjectVision.nl/DMS/
-
-See additional guidelines and notes in srv/dms/Readme-srv.txt 
-
-This library is free software; you can use, redistribute, and/or
-modify it under the terms of the GNU General Public License version 2 
-(the License) as published by the Free Software Foundation,
-provided that this entire header notice and readme-srv.txt is preserved.
-
-See LICENSE.TXT for terms of distribution or look at our web site:
-http://www.objectvision.nl/DMS/License.txt
-or alternatively at: http://www.gnu.org/copyleft/gpl.html
-
-This library is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
-General Public License for more details. However, specific warranties might be
-granted by an additional written contract for support, assistance and/or development
-*/
-//</HEADER>
 #include "StxPch.h"
 
 #if defined(CC_PRAGMAHDRSTOP)
@@ -91,7 +67,7 @@ ConfigProd::~ConfigProd()
 TreeItem* ConfigProd::GetContextItem() const
 {
 	return CurrentIsRoot() 
-		?	0
+		?	nullptr
 		:	m_stackContexts.back1(); 
 }
 
@@ -222,17 +198,19 @@ void ConfigProd::CreateItem(TokenID nameID, const iterator_t& loc)
 		if(m_eSignatureType != SignatureType::TreeItem)
 			throwSemanticError("root of configuration tree must be a container");
 
-		dms_assert( m_stackContexts.empty() );
+		assert( m_stackContexts.empty() );
 		if (m_pCurrent)
 		{
-			dms_assert(m_pCurrent->GetID() == nameID);
+			if (m_pCurrent->GetID() == nameID)
+				return;
+			throwDmsErrD("Illegal 2nd item after root of configuration tree.");
 		}
 		else
 			m_pCurrent = TreeItem::CreateConfigRoot(nameID);
 	}
 	else // stackContexts not empty
 	{
-		dms_assert(GetContextItem()); // only nonnulls in stackContexts
+		assert(GetContextItem()); // only non-nulls in stackContexts
 			
 		CheckIsNew(GetContextItem(), nameID);
 
@@ -246,7 +224,7 @@ void ConfigProd::CreateItem(TokenID nameID, const iterator_t& loc)
 		}
 	}
 
-	dms_assert(m_pCurrent);
+	assert(m_pCurrent);
 	
 	position_t const& pos = loc.get_position(); 
 
@@ -288,8 +266,8 @@ void ConfigProd::CreateDataItem(TokenID nameID, TokenID domainUnit, TokenID valu
 
 void ConfigProd::CreateContainer(TokenID nameID)
 {
-	dms_assert(!m_eValueClass);
-	dms_assert(!m_pSignatureUnit);
+	assert(!m_eValueClass);
+	assert(!m_pSignatureUnit);
 
 	if (m_eParamVC != ValueComposition::Unknown)
 		throwDmsErrD("Illegal ValueComposition at container definition");
@@ -385,68 +363,7 @@ void ConfigProd::CreateParameter(TokenID nameID)
 
 void ConfigProd::OnItemDecl()
 {
-	dms_assert(m_pCurrent);
-
-/*  REMOVE
-	if (IsUnit(m_pCurrent.get_ptr()) && m_pCurrent->HasConfigData())
-	{
-		AbstrUnit* unit = AsUnit(m_pCurrent.get_ptr());
-		const ValueClass* vc = unit->GetValueType();
-		TokenStr valueClassName = vc->GetName();
-		SharedStr expr = m_pCurrent->_GetExprStr();
-
-		if (!expr.empty())
-		{
-			// m_pCurrent->throwItemError("Combination of range and Calculation rule depreciated");
-			reportF(SignatureType::Warning, "%s: Combination of range and Calculation rule depreciated", m_pCurrent->GetSourceName().c_str());
-		}
-		switch (unit->GetValueType()->GetNrDims())
-		{
-			case 1: {
-				Range<Float64> r = unit->GetRangeAsFloat64();
-
-				if (!expr.empty())
-					m_pCurrent->SetExpr(
-						mySSPrintF("range(%s,%s(%g),%s(%g))",
-							expr
-							, valueClassName, r.first
-							, valueClassName, r.second
-						)
-					);
-
-				else
-				{
-					expr = mySSPrintF("BaseUnit(Left('+Quote(PropValue(., 'FullName')+'/%s')+',0),%s)", m_pCurrent->GetName(), valueClassName);
-					m_pCurrent->SetExpr(
-						mySSPrintF("='range(%s,%s(%g),%s(%g))'",
-							expr
-							, valueClassName, r.first
-							, valueClassName, r.second
-						)
-					);
-				}
-				break;
-			}
-			case 2: {
-				if (expr.empty())
-					expr = valueClassName.c_str();
-
-				valueClassName = vc->GetScalarClass()->GetName();
-				DRect r = unit->GetRangeAsDRect();
-				m_pCurrent->SetExpr(
-					mySSPrintF("range(%s, point(%s(%g), %s(%g)), point(%s(%g), %s(%g)))",
-						expr
-						, valueClassName, dmsPoint_GetFirstCfgValue(r.first ), valueClassName, dmsPoint_GetSecondCfgValue(r.first )
-						, valueClassName, dmsPoint_GetFirstCfgValue(r.second), valueClassName, dmsPoint_GetSecondCfgValue(r.second)
-					)
-				);
-				break;
-			}
-		}
-		unit->ClearData();
-	}
-*/
-
+	assert(m_pCurrent);
 }
 
 // *****************************************************************************

@@ -14,6 +14,7 @@
 
 #include "DataArray.h"
 #include "DataItemClass.h"
+#include "LispTreeType.h"
 #include "ParallelTiles.h"
 #include "Unit.h"
 #include "UnitClass.h"
@@ -33,7 +34,7 @@
 //                         ID
 // *****************************************************************************
 
-CommonOperGroup cog_id("id");
+CommonOperGroup cog_id(token::id);
 
 class AbstrIDOperator : public UnaryOperator
 {
