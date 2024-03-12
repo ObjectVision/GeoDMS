@@ -422,22 +422,28 @@
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <ClCompile>
-      <AdditionalIncludeDirectories>.\src;/mnt/c/dev/vcpkg/installed/x64-linux/include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>.\src;~/dev/vcpkg/installed/x64-linux/include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>DMRTC_EXPORTS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <CppLanguageStandard>c++2a</CppLanguageStandard>
     </ClCompile>
     <Link />
     <Link>
       <AdditionalOptions>-nostdlib %(AdditionalOptions)</AdditionalOptions>
+      <IgnoreSpecificDefaultLibraries>
+      </IgnoreSpecificDefaultLibraries>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <ClCompile>
-      <AdditionalIncludeDirectories>.\src;/mnt/c/dev/vcpkg/installed/x64-linux/include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>.\src;~/dev/vcpkg/installed/x64-linux/include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>DMRTC_EXPORTS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <CppLanguageStandard>c++2a</CppLanguageStandard>
     </ClCompile>
     <Link />
+    <Link>
+      <IgnoreSpecificDefaultLibraries>
+      </IgnoreSpecificDefaultLibraries>
+    </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x86'">
     <ClCompile>

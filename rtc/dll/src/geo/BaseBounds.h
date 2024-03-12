@@ -119,7 +119,7 @@ inline Bool IsNegative(T v)
 }
 
 #define INSTANTIATE(T) \
-	inline	Float64 AsFloat64(T x)                        { return x; }         \
+	inline	Float64 AsFloat64(T x)                        { return Float64(x); }         \
 	inline	T    LowerBound       (param_type<T>::type a, param_type<T>::type b) { return Min<T>(a, b); } \
 	inline	T    UpperBound       (param_type<T>::type a, param_type<T>::type b) { return Max<T>(a, b); } \
 	inline	bool IsLowerBound     (param_type<T>::type a, param_type<T>::type b) { return ! (b < a); } \
