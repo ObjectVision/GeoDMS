@@ -183,7 +183,7 @@ Int32 FeatureLayer::GetMaxLabelStrLen() const
 		if (labelTextTheme)
 		{
 			const AbstrDataItem* labelPalette = labelTextTheme->GetPaletteOrThemeAttr();
-			PreparedDataReadLock drl(labelPalette);
+			PreparedDataReadLock drl(labelPalette, "FeatureLayer::GetMaxLabelStrLen()");
 
 			const DataArray<SharedStr>* labelArray = const_array_dynacast<SharedStr>(labelPalette);
 			if (labelArray) //use fast way
@@ -286,7 +286,7 @@ void FeatureLayer::DoUpdateView()
 		assert(valuesItem);
 		if (PrepareDataOrUpdateViewLater(valuesItem)) 
 		{
-			PreparedDataReadLock lock(valuesItem);
+			PreparedDataReadLock lock(valuesItem, "FeatureLayer::DoUpdateView()");
 			m_FeatureDataExtents = AsWorldExtents(
 				valuesItem->GetCurrRefObj()->GetActualRangeAsDRect(
 					valuesItem->HasUndefinedValues()
@@ -554,7 +554,7 @@ CrdRect FeatureLayer::CalcSelectedClientWorldRect() const
 		const AbstrDataItem* selAttr = selTheme->GetThemeAttr();
 		assert(selAttr);
 
-		PreparedDataReadLock selLock(selAttr);
+		PreparedDataReadLock selLock(selAttr, "FeatureLayer::CalcSelectedClientWorldRect()");
 
 		SizeT f = featureCount;
 		while (f)
@@ -1035,7 +1035,7 @@ CrdRect GraphicPointLayer::CalcSelectedClientWorldRect() const
 	DRect selectRect;
 
 	const AbstrDataItem* featureAttr = GetFeatureAttr();
-	PreparedDataReadLock featLock(featureAttr);
+	PreparedDataReadLock featLock(featureAttr, "GraphicPointLayer::CalcSelectedClientWorldRect()");
 	const AbstrDataObject* featureData = featureAttr->GetRefObj();
 
 	if (m_Themes[AN_Selections])
@@ -1045,7 +1045,7 @@ CrdRect GraphicPointLayer::CalcSelectedClientWorldRect() const
 		dms_assert(selTheme);
 		const AbstrDataItem* selAttr = selTheme->GetThemeAttr();
 
-		PreparedDataReadLock selLock(selAttr);
+		PreparedDataReadLock selLock(selAttr, "GraphicPointLayer::CalcSelectedClientWorldRect()");
 
 		auto f = featureAttr->GetAbstrDomainUnit()->GetCount();
 		while (f)
@@ -1083,7 +1083,7 @@ void GraphicPointLayer::InvalidateFeature(SizeT featureIndex)
 	const AbstrDataItem* valuesItem = GetFeatureAttr();
 	dms_assert(valuesItem);
 
-	PreparedDataReadLock lck(valuesItem); 
+	PreparedDataReadLock lck(valuesItem, "GraphicPointLayer::InvalidateFeature()");
 	dms_assert(lck.IsLocked());
 
 	DPoint pnt  = valuesItem->GetRefObj()->GetValueAsDPoint(featureIndex);

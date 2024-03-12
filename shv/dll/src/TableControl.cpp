@@ -273,7 +273,7 @@ SizeT TableControl::GetRecNo(SizeT rowNr) const
 
 	if (!const_cast<TableControl*>(this)->PrepareDataOrUpdateViewLater(m_SelIndexAttr.get_ptr()))
 		return UNDEFINED_VALUE(SizeT);
-	PreparedDataReadLock lck(m_SelIndexAttr);
+	PreparedDataReadLock lck(m_SelIndexAttr, "TableControl::GetRecNo");
 	return m_SelIndexAttr->GetRefObj()->GetValueAsUInt32(rowNr);
 }
 
@@ -307,7 +307,7 @@ SizeT TableControl::GetRowNr(SizeT recNo) const
 
 	if (m_SelIndexAttr)
 	{
-		PreparedDataReadLock lck(m_SelIndexAttr);
+		PreparedDataReadLock lck(m_SelIndexAttr, "TableControl::GetRowNr");
 		if (GetRecNo(GetActiveRow())==recNo) // best guess
 			return m_Rows.m_Curr;
 		recNo = m_SelIndexAttr->GetRefObj()->FindPosOfSizeT(recNo);
@@ -906,7 +906,7 @@ void TableControl::SelectRows()
 
 	DataWriteLock writeLock(selThemeAttr, DmsRwChangeType(!(shftPressed || ctrlPressed)));
 
-	PreparedDataReadLock  indexLock(m_IndexAttr); // lock is required in GetRecNo in inner-loop
+	PreparedDataReadLock  indexLock(m_IndexAttr, "TableControl::SelectRows()"); // lock is required in GetRecNo in inner-loop
 
 	auto selData = mutable_array_cast<SelectionID>(writeLock)->GetDataWrite();
 
@@ -935,9 +935,9 @@ void TableControl::GoToFirstSelected()
 		return;
 
 	const AbstrDataItem* selThemeAttr = selTheme->GetThemeAttr();
-	dms_assert(selThemeAttr);
-	PreparedDataReadLock selLock  (selThemeAttr);
-	PreparedDataReadLock indexLock(m_SelIndexAttr);
+	assert(selThemeAttr);
+	PreparedDataReadLock selLock  (selThemeAttr  , "TableControl::GoToFirstSelected()");
+	PreparedDataReadLock indexLock(m_SelIndexAttr, "TableControl::GoToFirstSelected()");
 
 	auto selData = const_array_cast<SelectionID>(selThemeAttr)->GetDataRead();
 	auto b = selData.begin();

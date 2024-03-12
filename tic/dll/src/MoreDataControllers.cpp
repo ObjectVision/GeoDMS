@@ -397,7 +397,12 @@ auto FuncDC::CalcResult(Explain::Context* context) const -> FutureData
 	{
 		if (m_OperatorGroup->IsBetterNotInMetaScripting())
 		{
-			reportF(SeverityTypeID::ST_Warning, "operator %s is not suitable for processing meta-scripting", m_OperatorGroup->GetName());
+			auto context = SuspendTrigger::BlockerBase::GetCurrBlockingAction();
+			if (context && *context != '@')
+				reportF(SeverityTypeID::ST_Warning, "operator %s is not suitable for processing %s"
+					, m_OperatorGroup->GetName()
+					, context
+				);
 		}
 	}
 	dms_assert(GetInterestCount());

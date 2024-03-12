@@ -516,8 +516,7 @@ BestItemRef AbstrCalculator::GetErrorSource(const TreeItem* context, WeakStr exp
 	dms_assert(nrEvals); // else MustEvaluate would have returned false; PRECONDITION
 
 	dms_assert(!MustEvaluate(exprPtr.begin()));
-	FencedInterestRetainContext irc;
-	SuspendTrigger::FencedBlocker lockSuspend;
+	FencedInterestRetainContext irc("AbstrCalculator::GetErrorSource");
 
 	SharedStr resultStr(exprPtr);
 	dms_assert(!MustEvaluate(resultStr.begin()));
@@ -575,8 +574,7 @@ SharedStr AbstrCalculator::EvaluateExpr(const TreeItem* context, CharPtrRange ex
 	dms_assert(!expr.empty()); // idem
 
 	dms_assert(!MustEvaluate(expr.begin()));
-	FencedInterestRetainContext irc;
-	SuspendTrigger::FencedBlocker lockSuspend;
+	FencedInterestRetainContext irc("EvaluateExpr");
 
 	SharedStr resultStr(expr);
 	if (!context->InTemplate())
@@ -664,8 +662,7 @@ ActorVisitState AbstrCalculator::VisitImplSuppl(SupplierVisitFlag svf, const Act
 	TreeItemContextHandle checkPtr(context, "Context");
 
 	dms_assert(nrEvals);
-	FencedInterestRetainContext irc;
-	SuspendTrigger::FencedBlocker lockSuspend;
+	FencedInterestRetainContext irc("AbstrCalculator::VisitImplSuppl");
 
 	SharedStr resultStr(exprPtr+nrEvals); // creates a new copy of exprPtr
 	while (!resultStr.empty())
@@ -1113,7 +1110,7 @@ void ApplyAsMetaFunction(TreeItem* holder, const AbstrCalculator* ac, const Abst
 	StaticStIncrementalLock<TreeItem::s_MakeEndoLockCount> makeEndoLock;
 	InterestRetainContextBase base;
 
-	SuspendTrigger::FencedBlocker lockSuspend;
+	SuspendTrigger::FencedBlocker lockSuspend("ApplyAsMetaFunction");
 
 	bool resultFlag = ApplyMetaFunc_impl(holder, ac, og, metaCallArgs);
 

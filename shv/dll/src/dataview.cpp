@@ -698,7 +698,7 @@ bool DataView::DispatchMsg(const MsgStruct& msg)
 
 		case WM_COMMAND:
 		{
-			SuspendTrigger::FencedBlocker suspendLock;
+			SuspendTrigger::FencedBlocker suspendLock("DataView::OnCommand()");
 			if (HIWORD(msg.m_wParam) == 0 && GetContents()->OnCommand(ToolButtonID(LOWORD(msg.m_wParam))))
 				goto completed;
 			goto defaultProcessing;
@@ -1265,7 +1265,7 @@ bool DataView::DispatchMouseEvent(UInt32 event, WPARAM nFlags, GPoint devicePoin
 	if (eventInfo.m_EventID & EID_RBUTTONUP)
 		m_TextEditController.CloseCurr();
 
-	SuspendTrigger::FencedBlocker blockSuspension;
+	SuspendTrigger::FencedBlocker blockSuspension("DataView::DispatchMouseEvent");
 
 	MouseEventDispatcher med(this, eventInfo);
 	bool result = med.Visit(GetContents().get() );

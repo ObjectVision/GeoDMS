@@ -614,7 +614,7 @@ void DataItemColumn::DrawBackground(const GraphDrawer& d) const
 	if (penTheme)
 	{
 		ThemeReadLocks trl;
-		SuspendTrigger::BlockerBase block;
+		SuspendTrigger::BlockerBase block("DataItemColumn::DrawBackground");
 		trl.push_back(penTheme.get(), DrlType::Certain);
 
 		br = GdiHandle<HBRUSH>(CreateSolidBrush(DmsColor2COLORREF(penTheme->GetValueGetter()->GetColorValue(Min<SizeT>(recNo, nrRows-1)))));

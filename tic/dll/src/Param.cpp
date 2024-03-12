@@ -84,7 +84,7 @@ TIC_CALL Float64 DMS_CONV DMS_NumericParam_GetValueAsFloat64(const AbstrParam* s
 
 		TreeItemContextHandle context(self, AbstrDataItem::GetStaticClass(), "DMS_NumericParam_GetValueAsFloat64");
 
-		PreparedDataReadLock dlr(self);
+		PreparedDataReadLock dlr(self, "DMS_NumericParam_GetValueAsFloat64");
 
 		dms_assert(self->GetAbstrDomainUnit()->GetCount() == 1);
 		return self->GetDataObj()->GetValueAsFloat64(0);
@@ -110,9 +110,9 @@ TIC_CALL void DMS_CONV DMS_NumericParam_SetValueAsFloat64(AbstrParam* self, Floa
 
 Int32 NumericParam_GetValueAsInt32(const AbstrParam* self)
 {
-	FencedInterestRetainContext irc;
+	FencedInterestRetainContext irc("NumericParam_GetValueAsInt32");
 	InterestRetainContextBase::Add(self);
-	PreparedDataReadLock dlr(self);
+	PreparedDataReadLock dlr(self, "NumericParam_GetValueAsInt32");
 
 	dms_assert(self->GetAbstrDomainUnit()->GetCount() == 1);
 	return self->GetRefObj()->GetValueAsInt32(0);

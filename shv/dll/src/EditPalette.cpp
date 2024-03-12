@@ -558,7 +558,7 @@ void EditPaletteControl::ReLabelValues()
 
 	SizeT k = GetDomain()->GetCount();
 
-	PreparedDataReadLock  breakLock(breakAttr);
+	PreparedDataReadLock  breakLock(breakAttr, "EditPaletteControl::ReLabelValues()");
 	DataWriteLock labelLock(labelAttr);
 	const AbstrDataObject* breakObj = breakAttr->GetRefObj();
 	GuiReadLock lockHolder;
@@ -582,7 +582,7 @@ void EditPaletteControl::ReLabelRanges()
 	auto breakIndex = m_PaletteControl->CreateIndex(breakAttr);
 	
 
-	PreparedDataReadLock  breakLock(breakAttr);
+	PreparedDataReadLock  breakLock(breakAttr, "EditPaletteControl::ReLabelRanges()");
 	DataReadLock  breakIndexLock(AsDataItem(GetItem(breakIndex)));
 	DataWriteLock labelLock(labelAttr);
 

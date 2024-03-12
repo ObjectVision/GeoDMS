@@ -760,7 +760,7 @@ void ViewPort::Export()
 	auto dv = GetDataView().lock(); if (!dv) return;
 
 	FixedContextHandle context("while Exporting full ViewPort contents");
-	FencedInterestRetainContext resultHolder;
+	FencedInterestRetainContext resultHolder("ViewPort::Export()");
 
 	dms_assert(!SuspendTrigger::DidSuspend()); // DEBUG.
 	dbg_assert(DataViewOK());
@@ -1185,7 +1185,7 @@ Float64 GetSubItemValue(const TreeItem* context, TokenID id, Float64 defaultVal)
 		return defaultVal;
 
 	InterestPtr<const TreeItem*> tii(si);
-	PreparedDataReadLock drl(AsDataItem(si));
+	PreparedDataReadLock drl(AsDataItem(si), "GetSubItemValue");
 	return AsDataItem(si)->GetRefObj()->GetValueAsFloat64(0);
 }
 
@@ -1231,7 +1231,7 @@ void ViewPort::SetROI(const CrdRect& r)
 
 	ChangePoint(m_ROI_TL, rr.first , tlIsNew);
 	ChangePoint(m_ROI_BR, rr.second, brIsNew);
-	CertainUpdate(PS_Committed);
+	CertainUpdate(PS_Committed, "ViewPort::SetROI()");
 	m_ROI = rr;
 
 	DBG_TRACE(("TlChanged: %d", GetContext() ? m_ROI_TL->GetLastChangeTS() : 0 ));
@@ -1296,7 +1296,7 @@ ActorVisitState ViewPort::DoUpdate(ProgressState ps)
 CrdRect ViewPort::GetROI() const
 { 
 	dms_assert(GetContents());
-	CertainUpdate(PS_Committed);
+	CertainUpdate(PS_Committed, "ViewPort::GetROI()");
 // ISSUE 262, WIP
 //	if (m_ROI.empty())
 //		const_cast<ViewPort*>(this)->ZoomAll();

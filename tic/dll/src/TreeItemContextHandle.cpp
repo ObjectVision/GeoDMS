@@ -43,21 +43,24 @@ granted by an additional written contract for support, assistance and/or develop
 //----------------------------------------------------------------------
 
 TreeItemContextHandle::TreeItemContextHandle(const TreeItem* obj, CharPtr role)
-	:	m_Obj(obj)
-	,	m_Role(role) 
+	:	m_Role(role) 
 {
-	dms_assert(GetPrev() != this);
+	if (obj)
+	{
+		CheckPtr(obj, nullptr, role);
+		m_Obj = obj;
+	}
+	assert(GetPrev() != this);
 }
 
 TreeItemContextHandle::TreeItemContextHandle(const TreeItem* obj, const Class* cls, CharPtr role)
-	:	m_Obj(0)
-	,	m_Role(role) 
+	:	m_Role(role) 
 {
 	CheckPtr(obj, cls, role);
 	m_Obj = obj;
-	dms_assert(m_Obj);
+	assert(m_Obj);
 
-	dms_assert(GetPrev() != this);
+	assert(GetPrev() != this);
 }
 
 TreeItemContextHandle::~TreeItemContextHandle()

@@ -1018,7 +1018,7 @@ TIC_CALL api_type<T>::type DMS_CONV DMS_##T##Attr_GetValue(const AbstrDataItem* 
 	DMS_CALL_BEGIN \
 		TreeItemContextHandle checkPtr(self, DataArray<T>::GetStaticClass(), "DMS_" #T "Attr_GetValue"); \
 		dms_assert(self->GetInterestCount()); \
-		PreparedDataReadLock lock(self); \
+		PreparedDataReadLock lock(self, "DMS_" #T "Attr_GetValue"); \
 		return const_array_cast<T>(self)->GetIndexedValue(index); \
 	DMS_CALL_END \
 	return UNDEFINED_OR_ZERO(T); \
@@ -1029,7 +1029,7 @@ TIC_CALL void DMS_CONV DMS_##T##Attr_GetValueArray(const AbstrDataItem* self, Si
 	DMS_CALL_BEGIN \
 		TreeItemContextHandle checkPtr(self, DataArray<T>::GetStaticClass(), "DMS_" #T "Attr_GetValueArray"); \
 		dms_assert(self->GetInterestCount()); \
-		PreparedDataReadLock lock(self); \
+		PreparedDataReadLock lock(self, "DMS_" #T "Attr_GetValueArray"); \
 		return const_array_cast<T>(self)->GetIndexedValueArray(firstRow, len, valueBuffer); \
 	DMS_CALL_END \
 }
