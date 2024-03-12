@@ -257,6 +257,7 @@ MainWindow::MainWindow(CmdLineSetttings& cmdLineSettings)
     QString family = QFontDatabase::applicationFontFamilies(id).at(0);
     QFont dms_text_font(family, 10);
     QApplication::setFont(dms_text_font);
+    //QApplication::setAttribute(Qt::AA_UseSoftwareOpenGL); // force software rendering 
     QFontDatabase::addApplicationFont(":/res/fonts/remixicon.ttf");
 
     // helper dialogues

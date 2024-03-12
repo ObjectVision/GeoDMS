@@ -41,7 +41,19 @@ public slots:
     QLabel* result_info = nullptr;
 };
 
-struct QUpdatableTextBrowser : QWebEngineView, MsgGenerator // QTextBrowser
+struct DmsWebEnginePage : QWebEnginePage
+{
+    DmsWebEnginePage(QObject* parent = nullptr);
+	bool acceptNavigationRequest(const QUrl &url, QWebEnginePage::NavigationType type, bool isMainFrame) override;
+};
+
+
+// override bool QWebEnginePage::acceptNavigationRequest(const QUrl &url, QWebEnginePage::NavigationType type, bool isMainFrame)
+// implement custompage
+// custom page
+// setPage(QWebEnginePage *page)
+// custom page should be child of QWebEngineView
+struct QUpdatableTextBrowser : QWebEngineView, MsgGenerator // QTextBrowser // TODO: rename
 {
     QUpdatableTextBrowser(QWidget* parent);
     void restart_updating();
@@ -56,7 +68,7 @@ protected:
     virtual bool update() = 0;
 
 private:
-    void openPageSource();
+    DmsWebEnginePage* page = nullptr;
     QShortcut* find_shortcut = nullptr;
     FindTextWindow* find_window = nullptr;
 };

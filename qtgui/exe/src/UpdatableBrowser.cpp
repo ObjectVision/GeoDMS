@@ -61,9 +61,31 @@ void FindTextWindow::previousClicked(bool checked)
     findInText(true);
 }
 
+
+DmsWebEnginePage::DmsWebEnginePage(QObject* parent)
+	: QWebEnginePage(parent)
+{
+
+}
+
+bool DmsWebEnginePage::acceptNavigationRequest(const QUrl& url, QWebEnginePage::NavigationType type, bool isMainFrame)
+{
+    if (type == QWebEnginePage::NavigationType::NavigationTypeLinkClicked)
+    {
+        MainWindow::TheOne()->onInternalLinkClick(url, dynamic_cast<QWidget*>(parent()));
+        return false;
+    }
+    int i = 0;
+
+
+    return true;
+}
+
 QUpdatableTextBrowser::QUpdatableTextBrowser(QWidget* parent)
     : QWebEngineView(parent)
 {
+    page = new DmsWebEnginePage(this);
+    setPage(page);
 
     connect(pageAction(QWebEnginePage::ViewSource), SIGNAL(triggered(bool)), this, SLOT(slt_openImage_triggered()));
 
@@ -73,6 +95,10 @@ QUpdatableTextBrowser::QUpdatableTextBrowser(QWidget* parent)
 
     find_shortcut = new QShortcut(QKeySequence(tr("Ctrl+F", "Find")), this);
     connect(find_shortcut, &QShortcut::activated, this, &QUpdatableTextBrowser::openFindWindow);
+
+    // process internal clicked links:
+    //void QWebEngineView::triggerPageAction(QWebEnginePage::WebAction action, bool checked = false)
+
 }
 
 void QUpdatableTextBrowser::restart_updating()
