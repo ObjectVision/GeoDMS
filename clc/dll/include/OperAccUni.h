@@ -126,8 +126,6 @@ struct AbstrOperAccPartUni: BinaryOperator
 		assert(gr);
 		gr->SetCanExplainValue();
 
-		if (resultCls != DataArray<SharedStr>::GetStaticClass()) // aggregations such as asItemList are allowed to be used in meta scripting
-			gr->SetBetterNotInMetaScripting();
 	}
 
 	void CreateResultCaller(TreeItemDualRef& resultHolder, const ArgRefs& args, OperationContext*, LispPtr) const override

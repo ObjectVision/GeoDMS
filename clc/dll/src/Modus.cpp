@@ -1118,21 +1118,21 @@ struct WeightedModusPart : public AbstrOperAccPartBin
 
 namespace 
 {
-	CommonOperGroup cogEntropy("entropy");
-	CommonOperGroup cogAvgEntropy("average_entropy");
+	CommonOperGroup cogEntropy("entropy", oper_policy::better_not_in_meta_scripting);
+	CommonOperGroup cogAvgEntropy("average_entropy", oper_policy::better_not_in_meta_scripting);
 
-	CommonOperGroup cogModusCount08("modus_count_uint8");
-	CommonOperGroup cogModusCount16("modus_count_uint17");
-	CommonOperGroup cogModusCount32("modus_count_uint32");
-	CommonOperGroup cogModusCount64("modus_count_uint64");
+	CommonOperGroup cogModusCount08("modus_count_uint8", oper_policy::better_not_in_meta_scripting);
+	CommonOperGroup cogModusCount16("modus_count_uint17", oper_policy::better_not_in_meta_scripting);
+	CommonOperGroup cogModusCount32("modus_count_uint32", oper_policy::better_not_in_meta_scripting);
+	CommonOperGroup cogModusCount64("modus_count_uint64", oper_policy::better_not_in_meta_scripting);
 
-	CommonOperGroup cogUniqueCount08("unique_count_uint8");
-	CommonOperGroup cogUniqueCount16("unique_count_uint16");
-	CommonOperGroup cogUniqueCount32("unique_count_uint32");
-	CommonOperGroup cogUniqueCount64("unique_count_uint64");
+	CommonOperGroup cogUniqueCount08("unique_count_uint8", oper_policy::better_not_in_meta_scripting);
+	CommonOperGroup cogUniqueCount16("unique_count_uint16", oper_policy::better_not_in_meta_scripting);
+	CommonOperGroup cogUniqueCount32("unique_count_uint32", oper_policy::better_not_in_meta_scripting);
+	CommonOperGroup cogUniqueCount64("unique_count_uint64", oper_policy::better_not_in_meta_scripting);
 
-	CommonOperGroup cogModus("modus");
-	CommonOperGroup cogModusW("modus_weighted");
+	CommonOperGroup cogModus("modus", oper_policy::better_not_in_meta_scripting);
+	CommonOperGroup cogModusW("modus_weighted", oper_policy::better_not_in_meta_scripting);
 
 	template <typename V, typename AggrFunc>
 	struct AggrFuncInst
