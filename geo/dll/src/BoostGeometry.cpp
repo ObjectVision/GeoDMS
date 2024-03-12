@@ -93,7 +93,7 @@ void MakeLowerBound(P& lb, const boost::geometry::model::multi_polygon<Polygon>&
 
 bool clean(bg_ring_t& ring)
 {
-	assert(ring.front() == ring.back());
+	assert(ring.empty() || ring.front() == ring.back());
 	remove_adjacents_and_spikes(ring);
 	if (ring.size() < 3)
 	{
@@ -107,7 +107,7 @@ bool clean(bg_ring_t& ring)
 
 void move(bg_ring_t& ring, DPoint displacement)
 {
-	dms_assert(ring.front() == ring.back());
+	assert(ring.empty() || ring.front() == ring.back());
 	for (auto& p : ring)
 		boost::geometry::add_point(p, displacement);
 	clean(ring);
@@ -439,13 +439,15 @@ struct SimplifyMultiPolygonOperator : public AbstrSimplifyOperator
 				continue;
 			for (; ri != re; ++ri)
 			{
-				dms_assert((*ri).begin() != (*ri).end());
-				dms_assert((*ri).begin()[0] == (*ri).end()[-1]); // closed ?
+				assert((*ri).begin() != (*ri).end());
+				assert((*ri).begin()[0] == (*ri).end()[-1]); // closed ?
 
 				currRing.assign((*ri).begin(), (*ri).end());
-				dms_assert(currRing.begin() != currRing.end());
-				dms_assert(currRing.begin()[0] == currRing.end()[-1]); // closed ?
+				assert(currRing.begin() != currRing.end());
+				assert(currRing.begin()[0] == currRing.end()[-1]); // closed ?
 				move(currRing, -DPoint(lb));
+				if (empty(currRing))
+					continue;
 
 				boost::geometry::simplify(currRing, resRing, maxError);
 				move(resRing, DPoint(lb));
@@ -453,7 +455,7 @@ struct SimplifyMultiPolygonOperator : public AbstrSimplifyOperator
 				if (empty(resRing))
 					continue;
 
-				dms_assert(resRing.begin()[0] == resRing.end()[-1]); // closed ?
+				assert(resRing.begin()[0] == resRing.end()[-1]); // closed ?
 				resData[i].append(resRing.begin(), resRing.end());
 				ringClosurePoints.emplace_back(resRing.end()[-1]);
 			}
@@ -505,12 +507,13 @@ struct SimplifyPolygonOperator : public AbstrSimplifyOperator
 				continue;
 			for (; ri != re; ++ri)
 			{
-				dms_assert((*ri).begin() != (*ri).end());
+				assert((*ri).begin() != (*ri).end()); // non-empty ring, must be guaranteed by boost::polygon::SA_ConstRingIterator
 //				dms_assert((*ri).begin()[0] == (*ri).end()[-1]); // closed ?
 
 				currRing.assign((*ri).begin(), (*ri).end());
-				assert(currRing.begin() != currRing.end());
-//				assert(currRing.begin()[0] == currRing.end()[-1]); // closed ?
+				if ((*ri).begin()[0] != (*ri).end()[-1])
+					currRing.emplace_back(currRing.front());
+				assert(currRing.begin()[0] == currRing.end()[-1]); // closed !
 				move(currRing, -DPoint(lb));
 
 				boost::geometry::simplify(currRing, resRing, maxError);
