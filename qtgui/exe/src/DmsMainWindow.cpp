@@ -1589,6 +1589,12 @@ void MainWindow::showStatisticsDirectly(const TreeItem* tiContext)
     if (openErrorOnFailedCurrentItem())
         return;
 
+    if (!IsDataItem(tiContext))
+    {
+        reportF(MsgCategory::commands, SeverityTypeID::ST_Warning, "Cannot show statistics window for items that are not of type dataitem: [[%s]]", tiContext->GetFullName());
+        return;
+    }
+
     auto* mdiSubWindow = new QMdiSubWindow(m_mdi_area.get());
     auto* textWidget = new StatisticsBrowser(mdiSubWindow);
     SuspendTrigger::Resume();
@@ -1937,11 +1943,24 @@ void MainWindow::doViewAction(TreeItem* tiContext, CharPtrRange sAction, QWidget
         return;
     }
 
+    // Value info link clicked from value info window
+    tiContext = const_cast<TreeItem*>(tiContext->FindBestItem(sPath).first.get()); // TODO: make result FindBestItem non-const
+    if (origin)
+    {
+        auto value_info_browser = dynamic_cast<ValueInfoBrowser*>(origin);
+        if (value_info_browser)
+        {
+            value_info_browser->addStudyObject(AsDataItem(tiContext), recNo, SharedStr(sSub));
+            return;
+        }
+    }
+
+    // Detail- or new ValueinfoWindow requested
     if (sMenu.size() >= 3 && !strncmp(sMenu.begin(), "dp.", 3))
     {
         sMenu.first += 3;
+
         auto detail_page_type = m_detail_pages->activeDetailPageFromName(sMenu);
-        tiContext = const_cast<TreeItem*>(tiContext->FindBestItem(sPath).first.get()); // TODO: make result FindBestItem non-const
         switch (detail_page_type)
         {
         case ActiveDetailPage::STATISTICS:
@@ -1954,16 +1973,7 @@ void MainWindow::doViewAction(TreeItem* tiContext, CharPtrRange sAction, QWidget
             if (!IsDataItem(tiContext))
                 return;
 
-            if (!origin)
-                return MainWindow::TheOne()->showValueInfo(AsDataItem(tiContext), recNo, SharedStr(sSub));
-
-            auto value_info_browser = dynamic_cast<ValueInfoBrowser*>(origin);
-            if (!value_info_browser)
-                return MainWindow::TheOne()->showValueInfo(AsDataItem(tiContext), recNo, SharedStr(sSub));
-
-            value_info_browser->addStudyObject(AsDataItem(tiContext), recNo, SharedStr(sSub));
-
-            return;
+            return MainWindow::TheOne()->showValueInfo(AsDataItem(tiContext), recNo, SharedStr(sSub));
         }
         default:
         {

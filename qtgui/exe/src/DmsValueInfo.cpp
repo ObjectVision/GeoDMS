@@ -110,7 +110,7 @@ ValueInfoWindow::ValueInfoWindow(SharedDataItemInterestPtr studyObject, SizeT in
     QObject::connect(shortcut_CTRL_W, &QShortcut::activated, this, &QWidget::close);
     QObject::connect(shortcut_CTRL_F4, &QShortcut::activated, this, &QWidget::close);
 
-    m_browser = new ValueInfoBrowser(this, studyObject, index, extraInfo, this);
+    m_browser = new ValueInfoBrowser(this, studyObject, index, extraInfo);
     h_layout->addWidget(m_browser->back_button.get());
     h_layout->addWidget(m_browser->forward_button.get());
     v_layout->addLayout(h_layout);
@@ -126,7 +126,7 @@ ValueInfoWindow::ValueInfoWindow(SharedDataItemInterestPtr studyObject, SizeT in
     m_browser->restart_updating();
 }
 
-ValueInfoBrowser::ValueInfoBrowser(QWidget* parent, SharedDataItemInterestPtr studyObject, SizeT index, SharedStr extraInfo, QWidget* window)
+ValueInfoBrowser::ValueInfoBrowser(QWidget* parent, SharedDataItemInterestPtr studyObject, SizeT index, SharedStr extraInfo)//, QWidget* window)
     : QUpdatableTextBrowser(parent)
 {
     m_history.insert(studyObject, index, extraInfo);
@@ -138,7 +138,7 @@ ValueInfoBrowser::ValueInfoBrowser(QWidget* parent, SharedDataItemInterestPtr st
 
     back_button = std::make_unique<QPushButton>(QIcon(":/res/images/DP_back.bmp"), "");
     forward_button = std::make_unique<QPushButton>(QIcon(":/res/images/DP_forward.bmp"), "");
-    value_info_window = window;
+    //value_info_window = window;
     back_button->setDisabled(true);
     forward_button->setDisabled(true);
 
@@ -176,6 +176,10 @@ void ValueInfoBrowser::updateNavigationButtons()
 void ValueInfoBrowser::updateWindowTitle()
 {
     auto title = mySSPrintF("%s row %d", m_history.currentStudyObject()->GetFullName(), m_history.currentIndex());
+    if (!parent())
+        return;
+    
+    auto* value_info_window = dynamic_cast<ValueInfoWindow*>(parent());
     if (!value_info_window)
         return;
 
