@@ -89,15 +89,15 @@ namespace SuspendTrigger
 	};
 	struct BlockerBase
 	{
-		RTC_CALL BlockerBase ();
+		RTC_CALL BlockerBase (CharPtr blockingAction);
 		RTC_CALL ~BlockerBase();
-
+		RTC_CALL static CharPtr GetCurrBlockingAction();
 		RTC_CALL static bool IsBlocked();
 	};
 
 	struct SilentBlocker : BlockerBase
 	{
-		RTC_CALL SilentBlocker ();
+		RTC_CALL SilentBlocker (CharPtr blockingAction);
 		RTC_CALL ~SilentBlocker();
 	};
 
@@ -107,7 +107,7 @@ namespace SuspendTrigger
 
 struct SilentBlockerGate : SilentBlocker
 {
-	RTC_CALL SilentBlockerGate();
+	RTC_CALL SilentBlockerGate(CharPtr blockingAction);
 	RTC_CALL ~SilentBlockerGate();
 
 
@@ -116,7 +116,7 @@ struct SilentBlockerGate : SilentBlocker
 
 struct FencedBlocker : SilentBlocker
 	{
-		RTC_CALL FencedBlocker ();
+		RTC_CALL FencedBlocker (CharPtr blockingAction);
 		RTC_CALL ~FencedBlocker ();
 
 		OwningPtr<DemandManagement::IncInterestFence> m_InterestFence;
@@ -124,8 +124,8 @@ struct FencedBlocker : SilentBlocker
 
 #else
 
-	typedef SilentBlocker FencedBlocker;
-	typedef SilentBlocker SilentBlockerGate;
+	using FencedBlocker = SilentBlocker ;
+	using SilentBlockerGate = SilentBlocker;
 
 #endif
 

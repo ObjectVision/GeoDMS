@@ -871,7 +871,7 @@ void TreeItem::MakeCalculator() const
 	if (mc_DC || GetIsInstantiated() || mc_Calculator)
 		return;
 
-	TreeItemContextHandle tich(this, "MakeCalculator"); FencedInterestRetainContext irc;
+	TreeItemContextHandle tich(this, "MakeCalculator"); FencedInterestRetainContext irc("MakeCalculator");
 
 	if (m_State.Get(ASF_MakeCalculatorLock))
 		return Fail(
@@ -2428,7 +2428,7 @@ void TreeItem::UpdateMetaInfoImpl2() const
 	}
 //	dms_assert(IsPassor() || !SuspendTrigger::DidSuspend());
 
-	FencedInterestRetainContext retainLocalInterestUntilThisDies;
+	FencedInterestRetainContext retainLocalInterestUntilThisDies("UpdateMetaInfo");
 
 	// DetermineState() -> DoInvalidate() could reset TSF_MetaInfoReady
 	if (IsPassor())
@@ -3155,7 +3155,7 @@ bool TreeItem::PrepareDataUsage(DrlType drlFlags) const
 
 	if ((UInt32(drlFlags) & UInt32(DrlType::Certain)) && !SuspendTrigger::BlockerBase::IsBlocked())
 	{
-		SuspendTrigger::FencedBlocker lockSuspend;
+		SuspendTrigger::FencedBlocker lockSuspend("TreeItem::PrepareDataUsage");
 		auto result = PrepareDataUsageImpl(drlFlags);
 		dms_assert(result || WasFailed());
 		return result;
@@ -3187,7 +3187,7 @@ how_to_proceed PrepareDataCalc(SharedPtr<const TreeItem> self, const TreeItem* r
 	//				auto result = CalcResult(apr, GetDynamicObjClass());
 	if (dc)
 	{
-		SuspendTrigger::SilentBlocker xx;
+		SuspendTrigger::SilentBlocker xx("PrepareDataCalc");
 		auto dc2 = dc->CalcResult();
 		assert(!SuspendTrigger::DidSuspend());
 

@@ -54,8 +54,8 @@ protected:
 	TIC_CALL void GenerateDescription() override;
 
 private:
-	CharPtr         m_Role;
-	const TreeItem* m_Obj;
+	CharPtr         m_Role = nullptr;
+	const TreeItem* m_Obj = nullptr;
 };
 
 TIC_CALL void GenerateSystemInfo(AbstrPropWriter& apw, const TreeItem* curr);

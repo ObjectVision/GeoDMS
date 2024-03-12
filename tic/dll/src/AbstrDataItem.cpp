@@ -331,7 +331,7 @@ bool AbstrDataItem::DoWriteItem(StorageMetaInfoPtr&& smi) const
 	MG_CHECK(sm);
 
 
-	FencedInterestRetainContext irc;
+	FencedInterestRetainContext irc("AbstrDataItem::DoWriteItem");
 	try {
 		SharedPtr<const TreeItem> storageHolder = smi->StorageHolder();
 		sm->ExportMetaInfo(storageHolder, this);
@@ -1106,7 +1106,7 @@ TIC_CALL void DMS_CONV Table_Dump(OutStreamBuff* out, const TableColumnSpec* col
 	DataReadLockContainer readLocks; readLocks.reserve(nrDataItems);
 	for (auto columnSpecIter = columnSpecPtr; columnSpecIter != columnSpecEnd; ++columnSpecIter)
 	{
-		readLocks.push_back(PreparedDataReadLock(columnSpecIter->m_DataItem));
+		readLocks.push_back(PreparedDataReadLock(columnSpecIter->m_DataItem, "Table_Dump"));
 		if (columnSpecIter->m_RelativeDisplay)
 			columnSpecIter->m_ColumnTotal = columnSpecIter->m_DataItem->GetRefObj()->GetSumAsFloat64();
 	}

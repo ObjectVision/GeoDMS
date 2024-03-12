@@ -206,7 +206,7 @@ void SelCaret::UpdateRgn(const Region& updateRgn)
 	DBG_START("SelCaret", "UpdateSelCaret", MG_DEBUG_REGION);
 
 	// =========== Get DataReadLocks
-	PreparedDataReadLock readLock(m_SelAttr);
+	PreparedDataReadLock readLock(m_SelAttr, "SelCaret::UpdateRgn");
 
 	m_GridCoords->UpdateUnscaled();
 	Region clippedUpdateRgn = Region( m_GridCoords->GetClippedRelDeviceRect() );

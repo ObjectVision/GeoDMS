@@ -499,17 +499,17 @@ ActorVisitState Actor::SuspendibleUpdate(ProgressState ps) const // returns fals
 	return AVS_Ready;
 }
 
-void Actor::CertainUpdate(ProgressState ps) const
+void Actor::CertainUpdate(ProgressState ps, CharPtr blockingAction) const
 {
-	SuspendTrigger::FencedBlocker lock;
-	dms_assert(ps >= PS_Validated);
+	SuspendTrigger::FencedBlocker lock(blockingAction);
+	assert(ps >= PS_Validated);
 	ActorVisitState result = SuspendibleUpdate(ps);
-	dms_assert(m_State.GetProgress() >= ps || (result==AVS_SuspendedOrFailed));
+	assert(m_State.GetProgress() >= ps || (result==AVS_SuspendedOrFailed));
 	if (result==AVS_SuspendedOrFailed)
 	{
 		// trigger lock should have prevented the following situation
-		dms_assert(WasFailed(ps <= PS_Validated ? FR_Validate : FR_Committed));
-		dms_assert(m_State.GetTransState() < ps * actor_flag_set::AF_TransientBase);
+		assert(WasFailed(ps <= PS_Validated ? FR_Validate : FR_Committed));
+		assert(m_State.GetTransState() < ps * actor_flag_set::AF_TransientBase);
 		ThrowFail();
 	}
 }
@@ -712,7 +712,7 @@ retry_from_here_after_invalidation:
 	TimeStamp lastSupplierChange = UpdateMarker::tsBereshit;
 	{	
 		DetermineStateLock recursionLock(this);    // doesn't really need stack space other than EH frame, will set m_LastGetStateTS at any exit of this frame.
-		FencedInterestRetainContext irc;
+		FencedInterestRetainContext irc("Actor::DetermineState()");
 		m_LastGetStateTS = UpdateMarker::GetLastTS(); // avoid missing WasFailed(DetermineState) during DetermineLastSupplierChange
 
 		// ===== collect change information from suppliers or a change triggered by specific derivation

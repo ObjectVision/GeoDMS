@@ -65,13 +65,13 @@ struct Actor : PersistentSharedObj
 	RTC_CALL virtual ActorVisitState SuspendibleUpdate(ProgressState ps) const;
 
 	//	Calls UpdateMetaInfo, Locks the MustSuspend() interrupter and then calls Update
-	RTC_CALL void CertainUpdate(ProgressState ps) const;
+	RTC_CALL void CertainUpdate(ProgressState ps, CharPtr blockingAction) const;
 
-	bool Update(ProgressState ps, bool mustUpdate) const
+	bool Update(ProgressState ps, bool mustUpdate, CharPtr blockingAction) const
 	{
 		if (!mustUpdate)
 			return SuspendibleUpdate(ps) != AVS_SuspendedOrFailed;
-		CertainUpdate(ps);
+		CertainUpdate(ps, blockingAction);
 		return true;
 	}
 

@@ -583,7 +583,7 @@ SharedStr AbstrUnit::GetMissingValueLabel() const
 		const AbstrDataItem* di = AsDataItem(si);
 		if (di->GetAbstrDomainUnit()->IsKindOf( Unit<Void>::GetStaticClass() ) )
 		{
-			PreparedDataReadLock drl(di);
+			PreparedDataReadLock drl(di, "AbstrUnit::GetMissingValueLabel()");
 			TileCRef lock;
 			return di->GetRefObj()->AsString(0, lock);
 		}

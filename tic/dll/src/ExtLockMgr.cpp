@@ -161,9 +161,9 @@ void DMS_CONV TreeItem_IncInterestCountImpl(const TreeItem* self)
 
 		SuspendTrigger::Resume();
 
-		TreeItemContextHandle checkPtr(self, 0, "DMS_TreeItem_IncInterestCount");
+		TreeItemContextHandle checkPtr(self, nullptr, "TreeItem_IncInterestCount");
 
-		SilentInterestRetainContext irc;
+		SilentInterestRetainContext irc("TreeItem_IncInterestCount");
 
 		self->IncInterestCount(); // can throw
 
