@@ -57,9 +57,9 @@ static FileDescrSet s_FDS;
 std::mutex cs_FDS;
 
 FileDescr::FileDescr(WeakStr str, FileDateTime fdt, UInt32 loadNumber)
-	:	m_FileName(str)
-	,	m_ReadFdt(fdt)
+	:	m_ReadFdt(fdt)
 	,	m_LoadNumber(loadNumber)
+	,	m_FileName(str)
 {
 	reportF(MsgCategory::other, SeverityTypeID::ST_MinorTrace, "load %s", str);
 

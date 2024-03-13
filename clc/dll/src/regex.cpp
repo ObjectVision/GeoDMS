@@ -109,25 +109,6 @@ struct RegexSearchOperator : CommonOperGroup, TernaryOperator
 	}
 };
 
-#include "VersionComponent.h"
-#include <windows.h>
-
-
-struct RegexVersionComponent : AbstrVersionComponent {
-	void Visit(ClientHandle clientHandle, VersionComponentCallbackFunc callBack, UInt32 componentLevel) const override {
-
-		LCID lc = ::GetUserDefaultLCID();
-		WCHAR localeName_utf16[LOCALE_NAME_MAX_LENGTH];
-		int sz = LCIDToLocaleName(lc, localeName_utf16, LOCALE_NAME_MAX_LENGTH, 0);
-		char localeName_utf8[LOCALE_NAME_MAX_LENGTH * 3];
-		WideCharToMultiByte(utf8CP, 0, localeName_utf16, sz, localeName_utf8, LOCALE_NAME_MAX_LENGTH*3, nullptr, nullptr);
-
-		callBack(clientHandle, componentLevel, mgFormat2string("Regex using Locale Identifier %1%(%2%)", lc, localeName_utf8).c_str());
-	}
-};
-
-static RegexVersionComponent thisComponentWithItsUsedCodePage;
-
 struct RegexMatchOperator : CommonOperGroup, TernaryOperator
 {
 	RegexMatchOperator() 

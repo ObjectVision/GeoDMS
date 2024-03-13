@@ -249,10 +249,15 @@ DebugOutStream::DebugOutStream()
 
 void DebugOutStream::SetSeverity(SeverityTypeID st)
 {
-	assert(this); // go in a recursive loop if DebugStream is already destructed
-	if (!this) 
-		abort();
+	assert(this);
 	g_DebugStreamBuff->SetSeverity(st);
+}
+
+void DebugOutStream::SetSeverity(DebugOutStream* self, SeverityTypeID st) // static
+{
+	if (!self)
+		abort();
+	self->SetSeverity(st);
 }
 
 void DebugOutStream::SetMsgCategory(MsgCategory msgCat)
@@ -296,7 +301,7 @@ DebugOutStream::scoped_lock::scoped_lock(DebugOutStream* str, SeverityTypeID st,
 	: leveled_critical_section::scoped_lock(*str)
 	,	m_Str(str)
 {
-	m_Str->SetSeverity( st );
+	SetSeverity(m_Str, st);
 	m_Str->SetMsgCategory(msgCat);
 	m_Str->PrintSpaces();
 }
@@ -304,7 +309,7 @@ DebugOutStream::scoped_lock::scoped_lock(DebugOutStream* str, SeverityTypeID st,
 DebugOutStream::scoped_lock::~scoped_lock()
 {
 	m_Str->NewLine();
-	MG_DEBUGCODE( m_Str->SetSeverity(SeverityTypeID::ST_Nothing ); )
+	MG_DEBUGCODE( SetSeverity(m_Str, SeverityTypeID::ST_Nothing ); )
 }
 
 // *****************************************************************************

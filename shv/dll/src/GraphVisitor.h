@@ -140,7 +140,7 @@ enum GdMode {
 ,	GD_OnPaint        = 0x20
 };
 
-class GraphDrawer : public GraphVisitor, SuspendTrigger::FencedBlocker
+class GraphDrawer : public GraphVisitor
 {
 	typedef GraphVisitor base_type;
 public:

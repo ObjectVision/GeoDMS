@@ -103,12 +103,12 @@ private:
 	xml_mode          m_XmlMode : (3+1);
 	cpy_mode          m_CpyMode : (2+1);
 	chg_mode          m_ChgMode : (2+1);
-	bool              m_AddImplicitSuppl: 1;
-	bool              m_CanBeIndirect: 1;
+	bool              m_AddImplicitSuppl : 1 = false;
+	bool              m_CanBeIndirect: 1 = false;
 	bool              m_Depreciated : 1 = false;
 
-	AbstrPropDef*     m_PrevPD;
-	AbstrPropDef*     m_PrevCopyablePD;
+	AbstrPropDef*     m_PrevPD = nullptr;
+	AbstrPropDef*     m_PrevCopyablePD = nullptr;
 
 #if defined(MG_DEBUGDATA)
 	SharedStr         md_Name;

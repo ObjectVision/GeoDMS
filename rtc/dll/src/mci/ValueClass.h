@@ -146,7 +146,7 @@ public:
 	bool    IsSubByteElem() const { return GetBitSize() > 0 && GetBitSize() < 8; }
 	bool    IsNumericOrBool() const { return m_IsNumeric || IsSubByteElem(); }
 	bool    IsIntegral()  const { return m_IsIntegral;}
-	bool    IsCountable() const { return m_IsIntegral || m_ScalarClass && m_ScalarClass->m_IsIntegral; }
+	bool    IsCountable() const { return m_IsIntegral || (m_ScalarClass && m_ScalarClass->m_IsIntegral); }
 	bool    IsSigned  () const { return m_IsSigned;  }
 	bool    IsShape   () const { return GetNrDims() == 2 && IsSequence(); }
 	bool    HasUndefined() const { return !IsSubByteElem(); }

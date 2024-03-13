@@ -275,25 +275,22 @@ SharedStr as_item_name(CharPtr first, CharPtr last)
 }
 
 
-
-
 SharedStr AsFilename(WeakStr filenameStr)
 {
-	//SizeT sz = UrlDecodeSize(filenameStr);
-
-	std::string fileName(filenameStr.c_str());
-
 	auto sz = filenameStr.ssize();
+	auto resultPtr = SharedCharArray::Create(sz + 1, false); // size + zero termination
+	auto resultStr = SharedStr(resultPtr);
 
-	std::string illegalChars = "\\/:?<>|*";
-	std::string::iterator it;
-	for (it = fileName.begin(); it < fileName.end(); ++it) {
-		bool found = illegalChars.find(*it) != std::string::npos;
-		if (found)
-		{
-			*it = '_';
-		}
+	auto dstPtr = resultPtr->begin();
+
+	static std::string illegalChars = "\\/:?<>|*";
+	for (auto i = filenameStr.begin(), e = filenameStr.send(); i != e; ++i)
+	{
+		bool isIllegalChar = illegalChars.find(*i) != std::string::npos;
+		*dstPtr  = (isIllegalChar) ? '_' : *i;
+		++dstPtr;
 	}
+	*dstPtr = char(0); // provide zero termination
 
-	return SharedStr(fileName.c_str());
+	return resultStr;
 }

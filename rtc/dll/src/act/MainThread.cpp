@@ -115,7 +115,6 @@ void AddMainThreadOper(std::function<void()>&& func, bool postAlways)
 		return;
 	}
 	leveled_std_section::scoped_lock lock(s_QueueSection);
-	bool wasEmpty = s_OperQueue.empty();
 	s_OperQueue.emplace_back(std::move(func));
 	SuspendTrigger::DoSuspend();
 }
