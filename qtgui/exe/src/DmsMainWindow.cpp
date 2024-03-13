@@ -314,8 +314,6 @@ MainWindow::MainWindow(CmdLineSetttings& cmdLineSettings)
     // set drawing size in pixels for polygons and arcs
     Float32 drawing_size_in_pixels = GetDrawingSizeInPixels(); // from registry
     SetDrawingSizeTresholdValue(drawing_size_in_pixels);
-
-    resizeDocksToNaturalSize();
 }
 
 MainWindow::~MainWindow()
@@ -969,10 +967,17 @@ void MainWindow::updateToolbar()
     DataView* dv = nullptr;
     if (active_dms_view_area)
     {
-        dv = active_dms_view_area->getDataView();
+        //m_tooled_mdi_subwindow->getProperty("ViewType", view_style);
+        //tvsStatistics
+        ViewStyle view_style = static_cast<ViewStyle>(m_tooled_mdi_subwindow->property("viewstyle").value<QVariant>().toInt());
+
+        /*dv = active_dms_view_area->getDataView();
         if (dv)
+        {
             view_style = dv->GetViewType();
+        }*/
     }
+
     if (view_style==m_current_toolbar_style) // Do nothing
         return;
 
@@ -1042,14 +1047,6 @@ bool MainWindow::event(QEvent* event)
                         });
                 }
             });
-    }
-
-    if (event->type() == QEvent::WindowStateChange && windowState() == Qt::WindowState::WindowMaximized)
-    {
-        int default_treeview_treshold = 100;
-        auto curr_treeview_dock_width = m_treeview_dock->width();
-        if (curr_treeview_dock_width < default_treeview_treshold)
-            resizeDocksToNaturalSize();
     }
 
     return QMainWindow::event(event);
@@ -1759,18 +1756,6 @@ void MainWindow::addRecentFilesEntry(std::string_view recent_file)
     // connections
     connect(new_recent_file_entry, &DmsRecentFileEntry::triggered, new_recent_file_entry, &DmsRecentFileEntry::onFileEntryPressed);
     connect(new_recent_file_entry, &DmsRecentFileEntry::toggled, new_recent_file_entry, &DmsRecentFileEntry::onFileEntryPressed);
-}
-
-void MainWindow::resizeDocksToNaturalSize()
-{
-    //int default_treeview_width = 500;
-    //int default_detail_pages_width = 500;
-    //int default_value_info_width = 500;
-    //int default_eventlog_height = 600;
-    //resizeDocks({ m_treeview_dock, m_detailpages_dock, m_value_info_dock }, { default_treeview_width, default_detail_pages_width, default_value_info_width }, Qt::Horizontal);
-    
-    //resizeDocks({ m_treeview_dock}, { default_treeview_width}, Qt::Horizontal);
-    //resizeDocks({ m_eventlog_dock }, { default_eventlog_height }, Qt::Vertical);
 }
 
 auto Realm(const auto& x) -> CharPtrRange

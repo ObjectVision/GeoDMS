@@ -241,7 +241,6 @@ public:
     auto getIconFromViewstyle(ViewStyle vs) -> QIcon;
     void hideDetailPagesRadioButtonWidgets(bool hide_properties_buttons, bool hide_source_descr_buttons);
     void addRecentFilesEntry(std::string_view recent_file);
-    void resizeDocksToNaturalSize();
     void onInternalLinkClick(const QUrl& link, QWidget* origin = nullptr);
     void doViewAction(TreeItem* tiContext, CharPtrRange sAction, QWidget* origin = nullptr);
     bool ShowInDetailPage(SharedStr x);
