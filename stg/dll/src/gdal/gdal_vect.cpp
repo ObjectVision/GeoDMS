@@ -1361,17 +1361,23 @@ void InitializeLayerGeometry(const TreeItem* unit_item, SharedStr layer_name, co
 		}
 	}
 
-	// if geometry field is present but not found add it
-	/*auto found_geometry_dataitem_in_subtree = disi.hasGeometry(GetTokenID_mt(layer_name));
+	auto found_geometry_dataitem_in_subtree = disi.hasGeometry(GetTokenID_mt(layer_name)); // geometry is found, do nothing
+	if (found_geometry_dataitem_in_subtree)
+		return;
+
+	// Add orphan geometry
 	auto geometry_item = GetGeometryItemFromLayerHolder(unit_item);
 	bool driver_has_geometry_write_capability = true;
 	if (!found_geometry_dataitem_in_subtree && geometry_item)
 	{
 		geometry_item->UpdateMetaInfo();
-		disi.SetInterestForDataHolder(GetTokenID_mt(layer_name.c_str()), GetTokenID_mt(geometry_item->GetName().c_str()), AsDataItem(geometry_item)); // write once all dataitems are ready
-		const_cast<TreeItem*>(geometry_item)->SetStorageManager(smi.StorageManager());
+		//disi.SetInterestForDataHolder(GetTokenID_mt(layer_name.c_str()), GetTokenID_mt(geometry_item->GetName().c_str()), AsDataItem(geometry_item)); // write once all dataitems are ready
+		assert(IsDataItem(geometry_item));
+		disi.m_orphan_geometry_items[GetTokenID_mt(layer_name.c_str())] = AsDataItem(geometry_item);
 		geometry_item->PrepareData();
-	}*/
+	}
+
+	
 }
 
 void InitializeLayerFields(const TreeItem* unit_item, SharedStr layer_name, const AbstrUnit* layer_domain, DataItemsWriteStatusInfo& disi)
@@ -1404,8 +1410,8 @@ auto InitializeLayer(const TreeItem* storage_holder, const TreeItem* unit_item, 
 
 	// check if driver supports geometry fields
 	auto driver_metadata = GDALGetMetadata(result.dsh_->GetDriver(), nullptr);
-	if (!CSLFetchBoolean(driver_metadata, GDAL_DCAP_NOTNULL_GEOMFIELDS, false)) // TODO: use ODsCCreateGeomFieldAfterCreateLayer
-		eGType = wkbNone; // this driver does not support writing geometry fields
+	//if (!CSLFetchBoolean(driver_metadata, ODsCCreateGeomFieldAfterCreateLayer, false)) // TODO: use ODsCCreateGeomFieldAfterCreateLayer
+	//	eGType = wkbNone; // this driver does not support writing geometry fields
 
 	error_frame.ThrowUpWhateverCameUp();
 	OGRLayer* layer_handle = result.dsh_->CreateLayer(layer_name.c_str(), ogrSR ? &ogrSR.value() : nullptr, eGType, layerOptionArray); // layer owned by GDALDataset
@@ -1418,6 +1424,8 @@ auto InitializeLayer(const TreeItem* storage_holder, const TreeItem* unit_item, 
 
 void PrepareDataItemsForWriting(const StorageMetaInfo& smi, DataItemsWriteStatusInfo& disi)
 {
+	dms_assert(IsMetaThread());
+
 	const TreeItem* storage_holder = smi.StorageHolder();
 	const TreeItem* unit_item = nullptr;
 	const AbstrUnit* layer_domain = nullptr;
@@ -1436,24 +1444,9 @@ void PrepareDataItemsForWriting(const StorageMetaInfo& smi, DataItemsWriteStatus
 		unit_item = GetLayerHolderFromDataItem(storage_holder, sub_item);
 		layer_domain = AsDynamicUnit(unit_item);
 		layer_name = unit_item->GetName().c_str();
-		//OGRLayer* layer_handle = result.dsh_->GetLayerByName(layer_name.c_str()); error_frame.ThrowUpWhateverCameUp();
 
-		//if (not layer_handle && (DataSourceHasNamelessLayer(datasource_name)))
-		//	layer_handle = result.dsh_->GetLayer(0);
-
-		//if (not layer_handle) // initialize layer
-		//{
-		//	layer_handle = InitializeLayer(storage_holder, unit_item, result, layer_name, layerOptionArray, disi);
-
-		//	if (layer_handle)
-		//		SetFeatureDefnForOGRLayerFromLayerHolder(unit_item, layer_handle, layer_name, disi);
-			
-			InitializeLayerGeometry(unit_item, layer_name, layer_domain, disi);
-			InitializeLayerFields(unit_item, layer_name, layer_domain, disi);
-		//}
-
-		//if (not layer_handle)
-		//	throwErrorF("gdalwrite.vect", "unable to open gdal OGRLayer");
+		InitializeLayerGeometry(unit_item, layer_name, layer_domain, disi);
+		InitializeLayerFields(unit_item, layer_name, layer_domain, disi);
 	}
 }
 
@@ -1504,22 +1497,13 @@ bool GdalVectSM::WriteDataItem(StorageMetaInfoPtr&& smiHolder)
 		layer_handle = this->m_hDS->GetLayer(0);
 
 	if (not layer_handle)
-	{
 		layer_handle = InitializeLayer(storage_holder, unit_item, this->m_hDS, layer_name, layerOptionArray, m_DataItemsStatusInfo);
-
-
-		/*OGRwkbGeometryType eGType = GetGeometryTypeFromLayerHolder(unitItem);
-		auto ogrSR = GetOGRSpatialReferenceFromDataItems(storageHolder); gdal_error_frame.ThrowUpWhateverCameUp();
-		layer = this->m_hDS->CreateLayer(layer_name.c_str(), ogrSR ? &ogrSR.value() : nullptr, eGType, layerOptionArray); 
-		gdal_error_frame.ThrowUpWhateverCameUp();
-		//SetFeatureDefnForOGRLayerFromLayerHolder(unitItem, layer, layer_name, m_DataItemsStatusInfo);*/
-	}
 
 	if (not layer_handle)
 		throwErrorF("gdal.vect", "cannot find layer: %s in GDALDataset for writing.", layer_name);
 
-	//if (not layer->GetLayerDefn()->GetFieldCount()) // geosjon: fields uninitialized at this point
-	//	SetFeatureDefnForOGRLayerFromLayerHolder(unitItem, layer, layer_name, m_DataItemsStatusInfo);
+	if (not layer_handle->GetLayerDefn()->GetFieldCount()) // geosjon: fields uninitialized at this point
+		SetFeatureDefnForOGRLayerFromLayerHolder(unit_item, layer_handle , layer_name, m_DataItemsStatusInfo);
 
 	auto numExistingFeatures = ::ReadUnitRange(layer_handle, this->m_hDS);
 
@@ -1563,6 +1547,7 @@ bool GdalVectSM::WriteDataItem(StorageMetaInfoPtr&& smiHolder)
 		{
 			gdalVectImpl::FeaturePtr curFeature = numExistingFeatures ? layer_handle->GetNextFeature() : OGRFeature::CreateFeature(layer_handle->GetLayerDefn()); gdal_error_frame.ThrowUpWhateverCameUp();
 
+			// write explicitly configured fields
 			for (auto& writableField : fieldIDMapping)
 			{
 				if (not writableField.second.doWrite)
@@ -1577,6 +1562,15 @@ bool GdalVectSM::WriteDataItem(StorageMetaInfoPtr&& smiHolder)
 					WriteFieldElement(adi_n, writableField.second.field_index, curFeature, t, tileFeatureIndex);
 				}
 			}
+
+			// write implicit orphan geometry, if available
+			if (!m_DataItemsStatusInfo.hasGeometry(GetTokenID_mt(layer_name.c_str())))
+			{
+				auto orphan_geometry_adi = m_DataItemsStatusInfo.m_orphan_geometry_items[GetTokenID_mt(layer_name.c_str())];
+				if (orphan_geometry_adi)
+					WriteGeometryElement(orphan_geometry_adi, curFeature, t, tileFeatureIndex);
+			}
+
 			if (not numExistingFeatures)
 				layer_handle->CreateFeature(curFeature);
 			else 

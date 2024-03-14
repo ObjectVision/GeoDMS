@@ -1116,7 +1116,6 @@ auto GetGeometryTypeFromLayerHolder(const TreeItem* subItem) -> OGRwkbGeometryTy
 	// get geometry item
 	auto geometry_item = GetGeometryItemFromLayerHolder(subItem);
 
-	// get geometry item from mapping item
 	if (geometry_item)
 	{
 		auto adi = AsDataItem(geometry_item);

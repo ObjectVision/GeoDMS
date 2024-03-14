@@ -142,6 +142,9 @@ struct affine_transformation
 
 class DataItemsWriteStatusInfo
 {
+	using layer_id = TokenID;
+	using field_id = TokenID;
+
 public:
 #if defined(MG_DEBUG)
 	static UInt32 sd_ObjCounter;
@@ -166,7 +169,8 @@ public:
 	bool LayerIsReadyForWriting(TokenID layerID);
 	bool LayerHasBeenWritten(TokenID layerID);
 
-	std::map<TokenID, std::map<TokenID, FieldInfo>> m_LayerAndFieldIDMapping;
+	std::map<layer_id, std::map<field_id, FieldInfo>> m_LayerAndFieldIDMapping;
+	std::map<layer_id, SharedDataItemInterestPtr> m_orphan_geometry_items;
 	bool m_continueWrite = false;
 	bool m_initialized = false;
 };
