@@ -49,22 +49,32 @@ void FindTextWindow::findInQTextBrowser(bool backwards)
 
 void FindTextWindow::findInQWebEnginePage(bool backwards)
 {
+    auto* updatable_web_browser = dynamic_cast<QUpdatableWebBrowser*>(parent());
+    assert(updatable_web_browser);
+    int backwards_flag = backwards ? QWebEnginePage::FindBackward : 0;
+    int match_case_flag = match_case->isChecked() ? QWebEnginePage::FindCaseSensitively : 0;
+    QWebEnginePage::FindFlags find_flags = static_cast<QWebEnginePage::FindFlags>(backwards_flag | match_case_flag);
 
+    updatable_web_browser->findText(find_text->text(), find_flags);
+    // TODO: implement callback in findText to feed result_info
+    //result_info->setText(found ? "" : "No more matches found");
 }
 
 void FindTextWindow::findInText(bool backwards)
 {
     if (find_text->text().isEmpty())
         return;
-    auto* updatable_text_browser = dynamic_cast<QTextBrowser*>(parent());
+ 
+    auto* current_parent = parent();
+    auto* updatable_text_browser = dynamic_cast<QUpdatableTextBrowser*>(current_parent);
     if (updatable_text_browser)
     {
         findInQTextBrowser(backwards);
         return;
     }
 
-    auto* updatable_web_browser = dynamic_cast<QUpdatableWebBrowser*>(this);
-    if (updatable_text_browser)
+    auto* updatable_web_browser = dynamic_cast<QUpdatableWebBrowser*>(current_parent);
+    if (updatable_web_browser)
         findInQWebEnginePage(backwards);
 
     return;
