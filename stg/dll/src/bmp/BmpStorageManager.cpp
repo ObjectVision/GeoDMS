@@ -361,7 +361,7 @@ bool BmpPalStorageManager::WriteDataItem(StorageMetaInfoPtr&& smiHolder)
 		case 1:
 		{
 			InterestRetainContextBase::Add(adi); // TODO: make this interest dependent on GridData, as in TifStorageManager::VisitSuppliers; maybe even move that to the common base class.
-			PreparedDataReadLock paletteLock(adi);
+			PreparedDataReadLock paletteLock(adi, "@BmpPalStorageManager::WritePaletteData");
 
 			Bmp::PaletteDataHandler().WriteData(this, imp, adi);
 			return true;

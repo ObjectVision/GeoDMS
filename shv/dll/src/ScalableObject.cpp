@@ -75,7 +75,7 @@ CrdRect ScalableObject::GetCurrFullAbsDeviceRect(const GraphVisitor& v) const
 
 CrdRect ScalableObject::CalcWorldClientRect() const
 {
-	dms_assert(IsMainThread());
+	assert(IsMainThread());
 	UpdateView();
 	return m_WorldClientRect;
 }

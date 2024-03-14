@@ -639,7 +639,7 @@ bool ItemUpdateImpl(const TreeItem* self, CharPtr context, SharedTreeItemInteres
 		return true;
 
 	holder = self;
-	if (!self->Update(PS_Committed, false) && SuspendTrigger::DidSuspend())
+	if (!self->Update(PS_Committed, false, context) && SuspendTrigger::DidSuspend())
 		return false;
 
 	return true;
@@ -649,7 +649,7 @@ TIC_CALL void DMS_CONV DMS_TreeItem_Update(const TreeItem* self)
 {
 	DMS_CALL_BEGIN
 
-		SuspendTrigger::FencedBlocker lockSuspend;
+		SuspendTrigger::FencedBlocker lockSuspend("DMS_TreeItem_Update");
 		SharedTreeItemInterestPtr holder;
 		ItemUpdateImpl(self, "DMS_TreeItem_Update", holder);
 
@@ -667,7 +667,7 @@ bool TreeUpdateImpl(const TreeItem* self, CharPtr context, SharedTreeItemInteres
 
 TIC_CALL void Tree_Update(const TreeItem* self, CharPtr context)
 {
-	SuspendTrigger::FencedBlocker lockSuspend;
+	SuspendTrigger::FencedBlocker lockSuspend(context);
 	SharedTreeItemInterestPtr holder;
 	TreeUpdateImpl(self, context, holder);
 }
@@ -679,7 +679,7 @@ UInt32 TreeItem_GetProgressState(const TreeItem* self)
 {
 	DMS_CALL_BEGIN
 
-		SuspendTrigger::FencedBlocker lockSuspend;
+		SuspendTrigger::FencedBlocker lockSuspend("TreeItem_GetProgressState");
 		dms_assert( !SuspendTrigger::DidSuspend() );
 		self->UpdateMetaInfo();
 
@@ -871,7 +871,7 @@ TIC_CALL void DMS_CONV DMS_TreeItem_DoViewAction(const TreeItem* x)
 	CDebugContextHandle dch("DMS_TreeItem_DoViewAction", "", true);
 	DMS_CALL_BEGIN
 		TreeItemContextHandle checkPtr(x, TreeItem::GetStaticClass(), "DMS_TreeItem_DoViewAction");
-		SuspendTrigger::FencedBlocker lockSuspend;
+		SuspendTrigger::FencedBlocker lockSuspend("DMS_TreeItem_DoViewAction");
 
 		SharedStr viewAction = TreeItem_GetViewAction(x);
 		if (viewAction.empty()) return;

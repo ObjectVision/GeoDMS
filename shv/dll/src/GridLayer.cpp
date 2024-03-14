@@ -383,7 +383,7 @@ void GridLayer::AssignSelValues()
 	const AbstrDataItem* selAttr= m_Themes[AN_Selections]->GetThemeAttrSource();
 	assert(selAttr);                // PRECONDITION
 
-	PreparedDataReadLock drl(selAttr);
+	PreparedDataReadLock drl(selAttr, "@GridLayer::AssignSelValues()");
 	AssignValues(composite_cast<const DataArray<Bool>*>(selAttr)->GetDataRead(no_tile));
 }
 
@@ -471,7 +471,7 @@ void GridLayer::SelectDistrict(CrdPoint pnt, EventID eventID)
 	else
 	{
 		dwlt = CompoundWriteType(eventID);
-		PreparedDataReadLock  drl(themeAttr);
+		PreparedDataReadLock  drl(themeAttr, "GridLayer::SelectDistricting");
 		DataWriteLock dwl(selAttr, dwlt);
 
 		District(
@@ -505,7 +505,7 @@ IRect GridLayer::CalcSelectedGeoRect()  const
 		dms_assert(selTheme);
 		const AbstrDataItem* selAttr = selTheme->GetThemeAttr();
 
-		PreparedDataReadLock lock(selAttr);
+		PreparedDataReadLock lock(selAttr, "GridLayer::CalcSelectedGeoRect()");
 
 		auto selData = const_array_cast<SelectionID>(selAttr)->GetDataRead();
 
@@ -1053,7 +1053,7 @@ bool GridLayer::Draw(GraphDrawer& d) const
 	}
 	if (m_Themes[AN_Selections])
 	{
-		SuspendTrigger::FencedBlocker dontSuspendAfterDrawingColors;
+		SuspendTrigger::FencedBlocker dontSuspendAfterDrawingColors("GridLayer::Draw()");
 		CreateSelCaretInfo(); // trigger the creation of the SelCaret
 	}
 

@@ -48,8 +48,7 @@ SharedStr ConvertFileName(WeakStr fileName)
 /********** FileOutStreamBuff Implementation **********/
 
 FileOutStreamBuff::FileOutStreamBuff(WeakStr fileName, SafeFileWriterArray* sfwa, bool isAsciiFile, bool mustAppend)
-	:	m_ByteCount(0)
-	,	m_FileName((GetWritePermission(fileName), fileName))
+	:	m_FileName((GetWritePermission(fileName), fileName))
 	,	m_ofstream(
 			ConvertFileName(GetWorkingFileName(sfwa, fileName, mustAppend ? FCM_OpenRwGrowable : FCM_CreateAlways)).c_str()
 		,	std::ios_base::openmode(std::ios::out | (isAsciiFile ? 0 : std::ios::binary) | (mustAppend ? std::ios::app : 0)

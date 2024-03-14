@@ -210,8 +210,9 @@ void Update(const AbstrDataItem* adi)
 	}
 }
 
-PreparedDataReadLock::PreparedDataReadLock(const AbstrDataItem* adi)
-	:	DataReadLock((Update(adi), adi))
+PreparedDataReadLock::PreparedDataReadLock(const AbstrDataItem* adi, CharPtr blockingAction)
+	: SuspendTrigger::FencedBlocker(blockingAction)
+	, DataReadLock((Update(adi), adi))
 {}
 
 auto CreateFileData(AbstrDataItem* adi, const SharedObj* abstrValuesRangeData, SharedStr filename, bool mustClear) -> std::unique_ptr<AbstrDataObject>

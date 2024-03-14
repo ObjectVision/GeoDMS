@@ -210,7 +210,7 @@ bool StrFilesStorageManager::ReadDataItem(StorageMetaInfoPtr smi, AbstrDataObjec
 
 bool StrFilesStorageManager::WriteDataItem(StorageMetaInfoPtr&& smi)
 {
-	PreparedDataReadLock drl(GetFileNameAttr(smi->StorageHolder(), smi->CurrRD()));
+	PreparedDataReadLock drl(GetFileNameAttr(smi->StorageHolder(), smi->CurrRD()), "@StrFilesStorageManager::WriteDataItem");
 	return base_type::WriteDataItem(std::move(smi));
 }
 

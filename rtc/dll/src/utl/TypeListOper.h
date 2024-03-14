@@ -100,7 +100,7 @@ struct ClassReg {
 	void operator ()(wrap<T>) const // deduce T
 	{
 		T::GetStaticClass();   // Call to register
-		&T::GetDynamicClass; // take address to instantiate
+//		&T::GetDynamicClass; // take address to instantiate
 	}
 };
 

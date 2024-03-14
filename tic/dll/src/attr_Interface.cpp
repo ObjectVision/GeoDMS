@@ -54,7 +54,7 @@ DMS_AnyDataItem_GetValueAsCharArray(
 
 		TreeItemContextHandle checkPtr(self, AbstrDataItem::GetStaticClass(), "DMS_AnyDataItem_GetValueAsCharArray");
 
-		PreparedDataReadLock drl(self);
+		PreparedDataReadLock drl(self, "DMS_AnyDataItem_GetValueAsCharArray");
 		GuiReadLock lockHolder;
 		return self->GetRefObj()->AsCharArray(index, clientBuffer, clientBufferLen, lockHolder, FormattingFlags::None);
 
@@ -70,7 +70,7 @@ DMS_AnyDataItem_GetValueAsCharArraySize(
 	DMS_CALL_BEGIN
 
 		TreeItemContextHandle checkPtr(self, AbstrDataItem::GetStaticClass(), "DMS_AnyDataItem_GetValueAsCharArraySize");
-		PreparedDataReadLock drl(self);
+		PreparedDataReadLock drl(self, "DMS_AnyDataItem_GetValueAsCharArraySize");
 		GuiReadLock lockHolder;
 
 		return self->GetRefObj()->AsCharArraySize(index, -1, lockHolder, FormattingFlags::None);
@@ -156,7 +156,7 @@ TIC_CALL void DMS_CONV DMS_NumericAttr_GetValuesAsFloat64Array(const AbstrDataIt
 	DMS_CALL_BEGIN
 		TreeItemContextHandle checkPtr(self, AbstrDataItem::GetStaticClass(), "DMS_NumericAttr_GetValuesAsFloat64Array");
 
-		PreparedDataReadLock dlr(self);
+		PreparedDataReadLock dlr(self, "DMS_NumericAttr_GetValuesAsFloat64Array");
 		while (len)
 		{
 			auto tl = self->GetAbstrDomainUnit()->GetTiledRangeData()->GetTiledLocation(index);
@@ -177,7 +177,7 @@ TIC_CALL void DMS_CONV DMS_NumericAttr_SetValuesAsFloat64Array(AbstrDataItem* se
 
 		DataWriteLock lock(self, dms_rw_mode::read_write);
 
-		PreparedDataReadLock dlr(self);
+		PreparedDataReadLock dlr(self, "DMS_NumericAttr_SetValuesAsFloat64Array");
 		auto tl = self->GetAbstrDomainUnit()->GetTiledRangeData()->GetTiledLocation(index);
 //		ReadableTileLock tileLck(self->GetRefObj(), tl.first);
 		lock->SetValuesAsFloat64Array(tl, len, data);
@@ -192,7 +192,7 @@ TIC_CALL void DMS_CONV DMS_NumericAttr_GetValuesAsInt32Array  (const AbstrDataIt
 	DMS_CALL_BEGIN
 		TreeItemContextHandle checkPtr(self, AbstrDataItem::GetStaticClass(), "DMS_NumericAttr_GetValuesAsInt32Array");
 
-		PreparedDataReadLock dlr(self);
+		PreparedDataReadLock dlr(self, "DMS_NumericAttr_GetValuesAsInt32Array");
 		while (len)
 		{
 			auto tl = self->GetAbstrDomainUnit()->GetTiledRangeData()->GetTiledLocation(index);
@@ -234,7 +234,7 @@ TIC_CALL Float64 DMS_CONV DMS_NumericAttr_GetValueAsFloat64 (const AbstrDataItem
 
 		TreeItemContextHandle checkPtr(self, (AbstrDataItem::GetStaticClass()), "DMS_NumericAttr_GetValueAsFloat64");
 
-		PreparedDataReadLock dlr(self);
+		PreparedDataReadLock dlr(self, "DMS_NumericAttr_GetValueAsFloat64");
 		return self->GetRefObj()->GetValueAsFloat64(index);
 
 	DMS_CALL_END
@@ -262,7 +262,7 @@ TIC_CALL Int32 DMS_CONV DMS_NumericAttr_GetValueAsInt32 (const AbstrDataItem* se
 
 		TreeItemContextHandle checkPtr(self, (AbstrDataItem::GetStaticClass()), "DMS_NumericAttr_GetValueAsInt32");
 
-		PreparedDataReadLock dlr(self);
+		PreparedDataReadLock dlr(self, "DMS_NumericAttr_GetValueAsInt32");
 		return self->GetRefObj()->GetValueAsInt32(index);
 
 	DMS_CALL_END

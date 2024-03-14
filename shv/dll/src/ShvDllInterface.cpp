@@ -449,7 +449,7 @@ SHV_CALL ViewStyleFlags DMS_CONV SHV_GetViewStyleFlags(const TreeItem* item)
 {
 	DMS_CALL_BEGIN
 
-		SuspendTrigger::FencedBlocker blockSuspension;
+		SuspendTrigger::FencedBlocker blockSuspension("SHV_GetViewStyleFlags");
 
 		dms_assert(item);
 		if (g_LastQueriedItem != item || g_LastAdminMode != HasAdminMode())
@@ -501,7 +501,7 @@ SHV_CALL ViewStyle DMS_CONV SHV_GetDefaultViewStyle (const TreeItem* item)
 
 		ObjectContextHandle hnd(item, "SHV_GetDefaultViewStyle");
 
-		SuspendTrigger::FencedBlocker lock;
+		SuspendTrigger::FencedBlocker lock("SHV_GetDefaultViewStyle");
 
 		ViewStyleFlags vsf = SHV_GetViewStyleFlags(item);
 		if (vsf & vsfMapView           ) return tvsMapView;
@@ -532,7 +532,7 @@ extern "C" SHV_CALL bool SHV_DataView_GetExportInfo(DataView* view, UInt32* nrTi
 {
 	DMS_CALL_BEGIN
 
-		FencedInterestRetainContext resultHolder;
+		FencedInterestRetainContext resultHolder("SHV_DataView_GetExportInfo");
 
 		dms_assert(view);
 		ExportInfo info = view->GetExportInfo();

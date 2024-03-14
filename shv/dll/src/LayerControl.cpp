@@ -442,7 +442,7 @@ ActorVisitState LayerControl::VisitSuppliers(SupplierVisitFlag svf, const ActorV
 		}
 		else
 		{
-			SuspendTrigger::SilentBlockerGate allowLabelInterests;
+			SuspendTrigger::SilentBlockerGate allowLabelInterests("LayerControl::VisitSuppliers");
 
 			if (activeTheme->GetThemeEntityUnit()->VisitLabelAttr(visitor, m_LabelLocks.m_DomainLabel) == AVS_SuspendedOrFailed)
 				return AVS_SuspendedOrFailed;

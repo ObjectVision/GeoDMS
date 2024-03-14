@@ -46,7 +46,7 @@ inline int strnicmp(CharPtr lhs, CharPtr rhs, SizeT maxCount)
 {
 	for (; maxCount; ++lhs, ++rhs, --maxCount)
 	{
-		char lhsCh = tolower(*lhs), rhsCh = tolower(*rhs);
+		auto lhsCh = tolower(*lhs), rhsCh = tolower(*rhs);
 		if (lhsCh < rhsCh)
 			return -1;
 		if (lhsCh > rhsCh)
@@ -60,7 +60,7 @@ inline int stricmp(CharPtr lhs, CharPtr rhs)
 {
 	for (; ; ++lhs, ++rhs)
 	{
-		char lhsCh = tolower(*lhs), rhsCh = tolower(*rhs);
+		auto lhsCh = tolower(*lhs), rhsCh = tolower(*rhs);
 		if (lhsCh < rhsCh)
 			return -1;
 		if (lhsCh > rhsCh)

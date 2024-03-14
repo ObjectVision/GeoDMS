@@ -65,7 +65,7 @@ Float64 Theme::GetMaxValue() const
 		Float64 result = 0;
 		UInt32  n      = paletteAttr->GetAbstrDomainUnit()->GetCount();
 
-		PreparedDataReadLock lock(paletteAttr);
+		PreparedDataReadLock lock(paletteAttr, "Theme::GetMaxValue()");
 		const AbstrDataObject* paletteObj = paletteAttr->GetRefObj();
 
 		for (UInt32 i = 0; i!=n; ++i)

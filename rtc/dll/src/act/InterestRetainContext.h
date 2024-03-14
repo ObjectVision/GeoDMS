@@ -50,8 +50,8 @@ struct InterestRetainContextBase
 	RTC_CALL static bool IsActive();
 };
 
-struct SilentInterestRetainContext : SuspendTrigger::SilentBlocker, InterestRetainContextBase {};
-struct FencedInterestRetainContext : SuspendTrigger::FencedBlocker, InterestRetainContextBase {};
+struct SilentInterestRetainContext : SuspendTrigger::SilentBlocker, InterestRetainContextBase { using SuspendTrigger::SilentBlocker::SilentBlocker; };
+struct FencedInterestRetainContext : SuspendTrigger::FencedBlocker, InterestRetainContextBase { using SuspendTrigger::FencedBlocker::FencedBlocker; };
 
 
 #endif //!defined(__RTC_ACT_INTERESTRETAINCONTEXT_H)

@@ -304,7 +304,7 @@ void TiffSM::WritePalette(TifImp& imp, const TreeItem* storageHolder, const Abst
 	if (! imp.IsPalettedImage())
 		adi->throwItemError("Tiff file was not opened as PalettedImage");
 
-	PreparedDataReadLock lock(adi);
+	PreparedDataReadLock lock(adi, "@TiffSM::WritePalette");
 
 	auto dataHandle = adi->GetRefObj()->GetDataReadBegin();
 	const UInt32* data = reinterpret_cast<const UInt32*> (dataHandle.get_ptr());

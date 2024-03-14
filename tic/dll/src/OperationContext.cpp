@@ -1,3 +1,7 @@
+// Copyright (C) 1998-2024 Object Vision b.v. 
+// License: GNU GPL 3
+/////////////////////////////////////////////////////////////////////////////
+
 #include "TicPCH.h"
 
 #if defined(CC_PRAGMAHDRSTOP)
@@ -609,10 +613,10 @@ bool OperationContext::getUniqueLicenseToRun()
 
 task_status OperationContext::TryActivateTaskInline()
 {
-	dms_assert(m_Suppliers.empty());
-	dms_assert(m_Status < task_status::scheduled);
+	assert(m_Suppliers.empty());
+	assert(m_Status < task_status::scheduled);
 
-	SuspendTrigger::FencedBlocker blockGuiInterruptions;
+	SuspendTrigger::FencedBlocker blockGuiInterruptions("OperationContext::TryActivateTaskInline()");
 //	std::function<void()> func;
 	{
 		leveled_std_section::scoped_lock lock(cs_ThreadMessing);
@@ -996,17 +1000,17 @@ bool OperationContext_CreateResult(OperationContext* oc, const FuncDC* funcDC) /
 	DBG_START("OperationContext", "CreateResult", MG_DEBUG_FUNCCONTEXT);
 	DBG_TRACE(("FuncDC: %s", funcDC->md_sKeyExpr));
 
-	dms_assert(IsMetaThread());
-	dms_assert(funcDC);
+	assert(IsMetaThread());
+	assert(funcDC);
 
 	MG_DEBUGCODE(const TreeItem* oldItem = funcDC->GetOld());
 
-	SuspendTrigger::FencedBlocker lockSuspend;
+	SuspendTrigger::FencedBlocker lockSuspend("OperationContext_CreateResult");
 
 	OperatorContextHandle operContext(oc->m_OperGroup->GetNameID(), false, funcDC);
 
-	dms_assert(!funcDC->WasFailed(FR_MetaInfo));
-	dms_assert(!SuspendTrigger::DidSuspend());
+	assert(!funcDC->WasFailed(FR_MetaInfo));
+	assert(!SuspendTrigger::DidSuspend());
 
 	TreeItemDualRef& resultHolder = *const_cast<FuncDC*>(funcDC);
 	try {
