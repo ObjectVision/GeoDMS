@@ -12,12 +12,13 @@
 
 struct StatisticsBrowser : QUpdatableTextBrowser
 {
-    //using QUpdatableTextBrowser::QUpdatableTextBrowser;
-
     StatisticsBrowser(QWidget* parent = nullptr)
         : QUpdatableTextBrowser(parent)
     {
         setProperty("DmsHelperWindowType", DmsHelperWindowType::HW_STATISTICS);
+        setProperty("viewstyle", ViewStyle::tvsStatistics);
+
+        connect(this, &StatisticsBrowser::anchorClicked, this, &StatisticsBrowser::onAnchorClicked);
     }
 
     bool update() override
@@ -26,6 +27,7 @@ struct StatisticsBrowser : QUpdatableTextBrowser
         SuspendTrigger::Resume();
         bool done = NumericDataItem_GetStatistics(m_Context, textBuffer);
         textBuffer.emplace_back(char(0));
+        
         setHtml(begin_ptr(textBuffer));
         return done;
     }

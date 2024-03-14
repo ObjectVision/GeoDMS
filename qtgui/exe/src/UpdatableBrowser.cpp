@@ -32,13 +32,10 @@ FindTextWindow::FindTextWindow(QWidget* parent)
     setLayout(layout);
 }
 
-void FindTextWindow::findInText(bool backwards)
+void FindTextWindow::findInQTextBrowser(bool backwards)
 {
-    if (find_text->text().isEmpty())
-        return;
     auto* updatable_text_browser = dynamic_cast<QUpdatableTextBrowser*>(parent());
-    if (!updatable_text_browser)
-        return;
+    assert(updatable_text_browser);
 
     // set find flag
     int backwards_flag = backwards ? QTextDocument::FindBackward : 0;
@@ -46,9 +43,31 @@ void FindTextWindow::findInText(bool backwards)
     int match_whole_word_flag = match_whole_word->isChecked() ? QTextDocument::FindWholeWords : 0;
     QTextDocument::FindFlags find_flags = static_cast<QTextDocument::FindFlags>(backwards_flag | match_case_flag | match_whole_word_flag);
 
-    // TODO: implement find
-    //auto found = updatable_text_browser->find(find_text->text(), find_flags);
-    //result_info->setText(found ? "" : "No more matches found");
+    auto found = updatable_text_browser->find(find_text->text(), find_flags);
+    result_info->setText(found ? "" : "No more matches found");
+}
+
+void FindTextWindow::findInQWebEnginePage(bool backwards)
+{
+
+}
+
+void FindTextWindow::findInText(bool backwards)
+{
+    if (find_text->text().isEmpty())
+        return;
+    auto* updatable_text_browser = dynamic_cast<QTextBrowser*>(parent());
+    if (updatable_text_browser)
+    {
+        findInQTextBrowser(backwards);
+        return;
+    }
+
+    auto* updatable_web_browser = dynamic_cast<QUpdatableWebBrowser*>(this);
+    if (updatable_text_browser)
+        findInQWebEnginePage(backwards);
+
+    return;
 }
 
 void FindTextWindow::nextClicked(bool checked)
@@ -75,30 +94,78 @@ bool DmsWebEnginePage::acceptNavigationRequest(const QUrl& url, QWebEnginePage::
         MainWindow::TheOne()->onInternalLinkClick(url, dynamic_cast<QWidget*>(parent()));
         return false;
     }
-    int i = 0;
-
-
     return true;
 }
 
-QUpdatableTextBrowser::QUpdatableTextBrowser(QWidget* parent)
+QUpdatableWebBrowser::QUpdatableWebBrowser(QWidget* parent)
     : QWebEngineView(parent)
 {
-    page = new DmsWebEnginePage(this);
-    setPage(page);
+    current_page = new DmsWebEnginePage(this);
+    setPage(current_page);
 
     connect(pageAction(QWebEnginePage::ViewSource), SIGNAL(triggered(bool)), this, SLOT(slt_openImage_triggered()));
 
-    /*setOpenLinks(false);
-    setOpenExternalLinks(false);*/
+    setProperty("DmsHelperWindowType", DmsHelperWindowType::HW_UNKNOWN);
+
+    find_shortcut = new QShortcut(QKeySequence(tr("Ctrl+F", "Find")), this);
+    connect(find_shortcut, &QShortcut::activated, this, &QUpdatableWebBrowser::openFindWindow);
+}
+
+void QUpdatableWebBrowser::restart_updating()
+{
+    m_Waiter.start(this);
+    QPointer<QUpdatableWebBrowser> self = this;
+    QTimer::singleShot(0, [self]()
+        {
+            if (self)
+            {
+                if (!self->update())
+                    self->restart_updating();
+                else
+                    self->m_Waiter.end();
+            }
+        }
+    );
+}
+
+void QUpdatableWebBrowser::GenerateDescription()
+{
+    auto pw = dynamic_cast<QMdiSubWindow*>(parentWidget());
+    if (!pw)
+        return;
+    SetText(SharedStr(pw->windowTitle().toStdString().c_str()));
+}
+
+void QUpdatableWebBrowser::openFindWindow()
+{
+    if (!find_window)
+    {
+        find_window = new FindTextWindow(this);
+    }
+
+    // update title
+    DmsHelperWindowType helper_window_type = static_cast<DmsHelperWindowType>(property("DmsHelperWindowType").value<QVariant>().toInt());
+
+    switch (helper_window_type)
+    {
+    case DmsHelperWindowType::HW_DETAILPAGES: find_window->setWindowTitle("Find in Detail pages"); break;
+    case DmsHelperWindowType::HW_STATISTICS: find_window->setWindowTitle("Find in Statistics"); break;
+    case DmsHelperWindowType::HW_VALUEINFO: find_window->setWindowTitle("Find in Value info"); break;
+    default: find_window->setWindowTitle("Find in.."); break;
+    }
+
+    find_window->show();
+}
+
+QUpdatableTextBrowser::QUpdatableTextBrowser(QWidget* parent)
+    : QTextBrowser(parent)
+{
+    setOpenLinks(false);
+    setOpenExternalLinks(false);
     setProperty("DmsHelperWindowType", DmsHelperWindowType::HW_UNKNOWN);
 
     find_shortcut = new QShortcut(QKeySequence(tr("Ctrl+F", "Find")), this);
     connect(find_shortcut, &QShortcut::activated, this, &QUpdatableTextBrowser::openFindWindow);
-
-    // process internal clicked links:
-    //void QWebEngineView::triggerPageAction(QWebEnginePage::WebAction action, bool checked = false)
-
 }
 
 void QUpdatableTextBrowser::restart_updating()

@@ -86,7 +86,9 @@ enum DmsHelperWindowType
     HW_EVENTLOG,
     HW_CURRENTITEMBAR,
     HW_TOOLBAR,
-    HW_STATISTICS
+    HW_STATISTICS,
+    HW_CALCULATIONTIMES,
+    HW_FILECHANGED
 };
 
 struct ToolbarButtonData

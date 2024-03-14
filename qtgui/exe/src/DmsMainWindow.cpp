@@ -930,7 +930,6 @@ void MainWindow::clearToolbarUpToDetailPagesTools()
     for (auto action : m_current_dms_view_actions)
         m_toolbar->removeAction(action);
     m_current_dms_view_actions.clear();
-
 }
 
 void MainWindow::updateToolbar()
@@ -967,16 +966,18 @@ void MainWindow::updateToolbar()
     DataView* dv = nullptr;
     if (active_dms_view_area)
     {
-        //m_tooled_mdi_subwindow->getProperty("ViewType", view_style);
-        //tvsStatistics
+        // get viewstyle from dataview
+        dv = active_dms_view_area->getDataView();
+        if (dv)
+            view_style = dv->GetViewType();
+    }
+
+    // get viewstyle from property
+    if (m_tooled_mdi_subwindow && view_style == ViewStyle::tvsUndefined)
         ViewStyle view_style = static_cast<ViewStyle>(m_tooled_mdi_subwindow->property("viewstyle").value<QVariant>().toInt());
 
-        /*dv = active_dms_view_area->getDataView();
-        if (dv)
-        {
-            view_style = dv->GetViewType();
-        }*/
-    }
+    if (view_style == ViewStyle::tvsUndefined) // No tools for undefined viewstyle
+        return;
 
     if (view_style==m_current_toolbar_style) // Do nothing
         return;
@@ -1593,12 +1594,16 @@ void MainWindow::showStatisticsDirectly(const TreeItem* tiContext)
     }
 
     auto* mdiSubWindow = new QMdiSubWindow(m_mdi_area.get());
-    auto* textWidget = new StatisticsBrowser(mdiSubWindow);
+    
+    //mdiSubWindow->setWindowFlag(Qt::Window, true);// type windowType
+    auto* statistics_browser = new StatisticsBrowser(mdiSubWindow);
     SuspendTrigger::Resume();
-    textWidget->m_Context = tiContext;
+    statistics_browser->m_Context = tiContext;
     tiContext->PrepareData();
-    mdiSubWindow->setWidget(textWidget);
-    mdiSubWindow->setProperty("viewstyle", ViewStyle::tvsStatistics);
+
+    /*auto* statistics_browser = new QTextEdit(mdiSubWindow);
+    statistics_browser->setText("Test text for DEBUGGING.");*/
+    mdiSubWindow->setWidget(statistics_browser);
 
     SharedStr title = "Statistics of " + SharedStr(tiContext->GetName());
     mdiSubWindow->setWindowTitle(title.c_str());
@@ -1607,7 +1612,7 @@ void MainWindow::showStatisticsDirectly(const TreeItem* tiContext)
     mdiSubWindow->setAttribute(Qt::WA_DeleteOnClose);
     mdiSubWindow->show();
 
-    textWidget->restart_updating();
+    statistics_browser->restart_updating();
 }
 
 void MainWindow::showValueInfo(const AbstrDataItem* studyObject, SizeT index, SharedStr extraInfo)
@@ -2168,28 +2173,25 @@ void MainWindow::createActions()
     m_defaultview_action = std::make_unique<QAction>(tr("Default"));
     m_defaultview_action->setIcon(QIcon::fromTheme("backward", QIcon(":/res/images/TV_default_view.bmp")));
     m_defaultview_action->setStatusTip(tr("Open current selected TreeItem's default view."));
-    auto defaultview_shortcut = new QShortcut(QKeySequence(tr("Ctrl+Alt+D")), this);
-    connect(defaultview_shortcut, &QShortcut::activated, this, &MainWindow::defaultView);
     connect(m_defaultview_action.get(), &QAction::triggered, this, &MainWindow::defaultView);
     m_view_menu->addAction(m_defaultview_action.get());
+    m_defaultview_action->setShortcut(QKeySequence(tr("Ctrl+Alt+D")));
 
     // table view
     m_tableview_action = std::make_unique<QAction>(tr("&Table"));
     m_tableview_action->setStatusTip(tr("Open current selected TreeItem's in a table view."));
     m_tableview_action->setIcon(QIcon::fromTheme("backward", QIcon(":/res/images/TV_table.bmp")));
-    auto tableview_shortcut = new QShortcut(QKeySequence(tr("Ctrl+D")), this);
-    connect(tableview_shortcut, &QShortcut::activated, this, &MainWindow::tableView);
     connect(m_tableview_action.get(), &QAction::triggered, this, &MainWindow::tableView);
     m_view_menu->addAction(m_tableview_action.get());
+    m_tableview_action->setShortcut(QKeySequence(tr("Ctrl+D")));
 
     // map view
     m_mapview_action = std::make_unique<QAction>(tr("&Map"));
     m_mapview_action->setStatusTip(tr("Open current selected TreeItem's in a map view."));
     m_mapview_action->setIcon(QIcon::fromTheme("backward", QIcon(":/res/images/TV_globe.bmp")));
-    auto mapview_shortcut = new QShortcut(QKeySequence(tr("Ctrl+M")), this);
-    connect(mapview_shortcut, &QShortcut::activated, this, &MainWindow::mapView);
     connect(m_mapview_action.get(), &QAction::triggered, this, &MainWindow::mapView);
     m_view_menu->addAction(m_mapview_action.get());
+    m_mapview_action->setShortcut(QKeySequence(tr("CTRL+M")));
 
     // statistics view
     m_statistics_action = std::make_unique<QAction>(tr("&Statistics"));

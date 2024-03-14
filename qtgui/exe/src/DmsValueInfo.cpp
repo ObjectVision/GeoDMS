@@ -131,14 +131,9 @@ ValueInfoBrowser::ValueInfoBrowser(QWidget* parent, SharedDataItemInterestPtr st
 {
     m_history.insert(studyObject, index, extraInfo);
     setProperty("DmsHelperWindowType", DmsHelperWindowType::HW_VALUEINFO);
-    /*setOpenLinks(false);
-    setOpenExternalLinks(false);
-    setWordWrapMode(QTextOption::NoWrap);
-    connect(this, &QTextBrowser::anchorClicked, this, &ValueInfoBrowser::onAnchorClicked);*/
 
     back_button = std::make_unique<QPushButton>(QIcon(":/res/images/DP_back.bmp"), "");
     forward_button = std::make_unique<QPushButton>(QIcon(":/res/images/DP_forward.bmp"), "");
-    //value_info_window = window;
     back_button->setDisabled(true);
     forward_button->setDisabled(true);
 

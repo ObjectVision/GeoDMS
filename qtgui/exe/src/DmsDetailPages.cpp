@@ -452,13 +452,9 @@ auto DmsDetailPages::activeDetailPageFromName(CharPtrRange sName) -> ActiveDetai
 }
 
 DmsDetailPages::DmsDetailPages(QWidget* parent)
-    : QUpdatableTextBrowser(parent)
+    : QUpdatableWebBrowser(parent)
 {
-    //TODO: replace this behavior to comply to QtWebView
-    //setOpenLinks(false);
-    //setOpenExternalLinks(false);
     setProperty("DmsHelperWindowType", DmsHelperWindowType::HW_DETAILPAGES);
-    //connect(this, &QTextBrowser::anchorClicked, this, &DmsDetailPages::onAnchorClicked);*/
 }
 
 bool DmsDetailPages::update()
