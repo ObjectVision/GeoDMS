@@ -132,7 +132,7 @@ struct f64_accumulator
 
 struct point64_accumulator
 {
-	SizeT d = 0;
+	SizeT nrPoints = 0, nrValues = 0;
 	DPoint
 		s   = DPoint(0, 0),
 		min = MaxValue<DPoint>(),
@@ -140,14 +140,15 @@ struct point64_accumulator
 
 	void operator ()(DPoint xy)
 	{
-		++d;
+		++nrPoints;
 		s += xy;
 		MakeLowerBound(min, xy);
 		MakeUpperBound(max, xy);
 	}
 	void operator +=(const point64_accumulator& rhs)
 	{
-		d += rhs.d;
+		nrPoints += rhs.nrPoints;
+		nrValues += rhs.nrValues;
 		s += rhs.s;
 		MakeLowerBound(min, rhs.min);
 		MakeUpperBound(max, rhs.max);
@@ -249,7 +250,10 @@ void AccumulatePointData(point64_accumulator& accu, const AbstrDataItem* di)
 			{
 				auto tileData = const_array_cast<P>(di)->GetTile(t);
 				for (auto x : tileData) if (IsDefined(x))
+				{
 					accu(Convert<DPoint>(x));
+					accu.nrValues++;
+				}
 			}
 			);
 		}
@@ -262,8 +266,11 @@ void AccumulatePointData(point64_accumulator& accu, const AbstrDataItem* di)
 
 				auto tileData = const_array_cast<SequenceType>(di)->GetTile(t);
 				for (auto seq : tileData) if (IsDefined(seq))
-					for (auto p: seq) if (IsDefined(p))
+				{
+					for (auto p : seq) if (IsDefined(p))
 						accu(Convert<DPoint>(p));
+					accu.nrValues++;
+				}
 			}
 			);
 		}
@@ -281,11 +288,11 @@ void WritePointAccuData(PostLinkedTable& table, const point64_accumulator& accu,
 	table.NameValueRow("Minimum", AsString(accu.min).c_str());
 	table.NameValueRow("Maximum", AsString(accu.max).c_str());
 
-	if (accu.d) // there is actual data?
+	if (accu.nrPoints) // there is actual data?
 	{
 		DPoint mean = accu.s;
-		mean.first  /= accu.d;
-		mean.second /= accu.d;
+		mean.first  /= accu.nrPoints;
+		mean.second /= accu.nrPoints;
 
 		table.NameValueRow("Average", AsString(mean).c_str());
 	}
@@ -405,6 +412,7 @@ CLC_CALL bool NumericDataItem_GetStatistics(const TreeItem* item, vos_buffer_typ
 				return isReady;
 
 			DataReadLock lock(di);
+			SizeT nrPoints = 0;
 			if (!vt->IsNumeric() && vt->GetValueClassID() != ValueClassID::VT_Bool)
 			{
 				if (vt->GetNrDims() == 2)
@@ -412,7 +420,8 @@ CLC_CALL bool NumericDataItem_GetStatistics(const TreeItem* item, vos_buffer_typ
 					point64_accumulator accu;
 					AccumulatePointData(accu, di);
 					WritePointAccuData(table, accu, di);
-					d = accu.d;
+					d = accu.nrValues;
+					nrPoints = accu.nrPoints;
 				}
 				else
 					d = n - di->GetRefObj()->GetNrNulls();
@@ -436,11 +445,13 @@ CLC_CALL bool NumericDataItem_GetStatistics(const TreeItem* item, vos_buffer_typ
 			if (di->GetValueComposition() != ValueComposition::Single)
 			{
 				visit<typelists::sequence_fields>(di->GetAbstrValuesUnit(),
-					[&table, di, &os] <typename V> (const Unit<V>*)
+					[&table, di, &os, nrPoints] <typename V> (const Unit<V>*)
 				{
 					using a_seq = sequence_traits<V>::container_type;
 
 					auto da = const_array_cast<a_seq>(di)->GetDataRead();
+					if (nrPoints)
+						table.NameValueRow("# counted  elements in values", AsString(nrPoints).c_str());
 					table.NameValueRow("# actual   elements in values", AsString(da.get_sa().actual_data_size()).c_str());
 					table.NameValueRow("# reserved elements in values", AsString(da.get_sa().data_size()).c_str());
 				}

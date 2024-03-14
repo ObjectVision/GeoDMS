@@ -430,7 +430,7 @@ GraphVisitState GraphObjLocator::DoMovable(MovableObject* obj)
 
 GraphDrawer::GraphDrawer(HDC hDC, CounterStacks& doneGraphics, DataView* dv, GdMode gdMode, CrdPoint scaleFactors)
 	:	GraphVisitor( doneGraphics.CurrRegion().BoundingBox(), scaleFactors)
-	,	SuspendTrigger::FencedBlocker("@GraphDrawer")
+//	,	SuspendTrigger::FencedBlocker("@GraphDrawer")
 	,	m_hDC(hDC)
 	,	m_AbsClipRegion(doneGraphics.CurrRegion().Clone())
 	,	m_DoneGraphics(&doneGraphics)
@@ -447,7 +447,7 @@ GraphDrawer::GraphDrawer(HDC hDC, CounterStacks& doneGraphics, DataView* dv, GdM
 
 GraphDrawer::GraphDrawer(HDC hDC, const Region&  rgn, DataView* dv, GdMode gdMode, CrdPoint scaleFactors)
 	:	GraphVisitor(rgn.BoundingBox(), scaleFactors)
-	,	SuspendTrigger::FencedBlocker("@GraphDrawer")
+//	,	SuspendTrigger::FencedBlocker("@GraphDrawer")
 	,	m_hDC(hDC)
 	,	m_AbsClipRegion( rgn.Clone() )
 	,	m_DoneGraphics(0)

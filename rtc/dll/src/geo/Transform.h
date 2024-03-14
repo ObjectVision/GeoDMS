@@ -9,7 +9,7 @@
  * A Transformation is used in a draw_context to
  * transform from world to device coords.
  * Multiple Transformation can be combined.
-/****************************************************************************/
+ ****************************************************************************/
 
 #ifndef __RTC_GEO_TRANSFORM_H
 #define __RTC_GEO_TRANSFORM_H
@@ -63,7 +63,7 @@ public:
 	typedef Range<point_type>              rect_type;
 	typedef typename product_type<T>::type area_type;
 // 3 ctors
-  	Transformation() : m_Factor(1, 1), m_Offset(point_type(0, 0)) {}
+  	Transformation() {}
   	Transformation(const point_type& pageBase, const point_type factor)
     	:	m_Factor(factor), m_Offset(pageBase)	
 	{
@@ -194,7 +194,9 @@ private:
 		if (m_Factor.first == 0 || m_Factor.second == 0)
 			IllegalSingularity();
 	}
-	point_type m_Offset, m_Factor;
+
+	point_type m_Factor = point_type(1.0, 1.0);
+	point_type m_Offset = point_type(0.0, 0.0);
 };
 
 

@@ -42,7 +42,7 @@ struct DebugOutStream : FormattedOutStream, leveled_critical_section
 
 	RTC_CALL void NewLine();
 	RTC_CALL void PrintSpaces();
-
+	RTC_CALL static void SetSeverity(DebugOutStream* self, SeverityTypeID st);
 private:
 	void SetSeverity(SeverityTypeID st);
 	void SetMsgCategory(MsgCategory msgCat);

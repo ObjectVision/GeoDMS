@@ -1226,6 +1226,20 @@ namespace PlatformInfo
 	}
 };
 
+#include "VersionComponent.h"
+
+struct WindowsComponent : AbstrVersionComponent {
+	void Visit(ClientHandle clientHandle, VersionComponentCallbackFunc callBack, UInt32 componentLevel) const override {
+		WCHAR localeName_utf16[LOCALE_NAME_MAX_LENGTH];
+		auto sz = GetUserDefaultLocaleName(localeName_utf16, LOCALE_NAME_MAX_LENGTH);
+		char localeName_utf8[LOCALE_NAME_MAX_LENGTH * 3];
+		WideCharToMultiByte(utf8CP, 0, localeName_utf16, sz, localeName_utf8, LOCALE_NAME_MAX_LENGTH * 3, nullptr, nullptr);
+
+		callBack(clientHandle, componentLevel, mgFormat2string("GetUserDefaultLocaleName(Win32) '%1%'", localeName_utf8).c_str());
+		callBack(clientHandle, componentLevel, mgFormat2string("std::locale(\"\"): '%1%'", std::locale("").name().c_str()).c_str());
+	}
+};
+
 #else //defined(_MSC_VER)
 
 // GNU TODO

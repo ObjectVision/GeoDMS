@@ -57,7 +57,7 @@ public:
 private:
 	SharedStr      m_FileName;
 	std::ofstream  m_ofstream;
-	streamsize_t   m_ByteCount;
+	streamsize_t   m_ByteCount = 0;
 };
 
 /********** FileInpStreamBuff Interface **********/
