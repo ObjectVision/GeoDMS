@@ -55,6 +55,7 @@ struct QUpdatableWebBrowser : QWebEngineView, MsgGenerator
     QUpdatableWebBrowser(QWidget* parent);
     void restart_updating();
     void GenerateDescription() override;
+    void contextMenuEvent(QContextMenuEvent* event) override;
 
     QShortcut* find_shortcut = nullptr;
     FindTextWindow* find_window = nullptr;
@@ -68,6 +69,7 @@ protected:
 
 private:
     DmsWebEnginePage* current_page = nullptr;
+    QMenu* context_menu = nullptr;
 };
 
 struct QUpdatableTextBrowser : QTextBrowser, MsgGenerator

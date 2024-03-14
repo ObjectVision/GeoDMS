@@ -1,4 +1,7 @@
 #include "UpdatableBrowser.h"
+#include <QContextMenuEvent>
+#include <QDialog>
+#include <QLayout>
 
 FindTextWindow::FindTextWindow(QWidget* parent)
     : QWidget(parent)
@@ -119,6 +122,8 @@ QUpdatableWebBrowser::QUpdatableWebBrowser(QWidget* parent)
 
     find_shortcut = new QShortcut(QKeySequence(tr("Ctrl+F", "Find")), this);
     connect(find_shortcut, &QShortcut::activated, this, &QUpdatableWebBrowser::openFindWindow);
+
+    
 }
 
 void QUpdatableWebBrowser::restart_updating()
@@ -144,6 +149,49 @@ void QUpdatableWebBrowser::GenerateDescription()
     if (!pw)
         return;
     SetText(SharedStr(pw->windowTitle().toStdString().c_str()));
+}
+
+//const std::function<void(const QString&)>& resultCallback
+
+void test_callback(const QString& string)
+{
+
+}
+
+//resultCallback = 
+
+void QUpdatableWebBrowser::contextMenuEvent(QContextMenuEvent* event)
+{
+    if (!context_menu)
+    {
+		context_menu = new QMenu(this);
+        context_menu->addAction("View page source", [this, event]()
+            {
+                page()->toHtml([this](const QString& result)
+                    {
+                        auto* page_source_dialog = new QDialog(this);
+                        auto* layout = new QVBoxLayout(page_source_dialog);
+                        auto* page_source_widget = new QTextEdit(page_source_dialog);
+                        layout->addWidget(page_source_widget);
+                        page_source_widget->setPlainText(result);
+                        page_source_widget->setWindowModality(Qt::ApplicationModal);
+                        page_source_widget->setAttribute(Qt::WA_DeleteOnClose);
+                        page_source_dialog->show();
+                    });
+
+            }
+                /*auto* page_source_widget = new QTextEdit(this);
+                page_source_widget->setPlainText(
+                {
+                    this.result_info->setText(result);));
+			    }
+        		);*/
+        );
+	}
+
+	//auto* menu = createStandardContextMenu();
+
+	context_menu->exec(event->globalPos());
 }
 
 void QUpdatableWebBrowser::openFindWindow()
