@@ -168,6 +168,7 @@ public:
 
 	std::map<TokenID, std::map<TokenID, FieldInfo>> m_LayerAndFieldIDMapping;
 	bool m_continueWrite = false;
+	bool m_initialized = false;
 };
 
 // *****************************************************************************

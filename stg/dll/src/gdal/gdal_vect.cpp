@@ -336,7 +336,7 @@ void GdalVectSM::DoOpenStorage(const StorageMetaInfo& smi, dms_rw_mode rwMode) c
 			,	smi.StorageManager()->GetClsName().c_str()
 			);
 
-	m_hDS = Gdal_DoOpenStorage(smi, rwMode, GDAL_OF_VECTOR, false);//m_DataItemsStatusInfo.m_continueWrite);
+	m_hDS = Gdal_DoOpenStorage(smi, rwMode, GDAL_OF_VECTOR, m_DataItemsStatusInfo.m_continueWrite);
 }
 
 void GdalVectSM::DoCloseStorage(bool mustCommit) const
@@ -1483,11 +1483,11 @@ bool GdalVectSM::WriteDataItem(StorageMetaInfoPtr&& smiHolder)
 	auto layer_name = SharedStr(unit_item->GetName());
 	auto field_name = SharedStr(adi->GetName());
 
-	if (not m_DataItemsStatusInfo.m_continueWrite) // first time writing
+	if (not m_DataItemsStatusInfo.m_initialized) // first time writing
 	{
 		m_DataItemsStatusInfo.RefreshInterest(storage_holder);
 		PrepareDataItemsForWriting(*smi, m_DataItemsStatusInfo);
-		m_DataItemsStatusInfo.m_continueWrite = true;
+		m_DataItemsStatusInfo.m_initialized = true;
 	}
 
 	m_DataItemsStatusInfo.RefreshInterest(storage_holder); // user may have set other iterests at this point.
@@ -1594,6 +1594,8 @@ bool GdalVectSM::WriteDataItem(StorageMetaInfoPtr&& smiHolder)
 		else
 			this->m_hDS->ExecuteSQL(std::format("CREATE SPATIAL INDEX ON {}", CPLGetBasename(layer_name.c_str())).c_str(), NULL, NULL);
 	}
+
+	m_DataItemsStatusInfo.m_continueWrite = true;
 
 	return true;
 }
