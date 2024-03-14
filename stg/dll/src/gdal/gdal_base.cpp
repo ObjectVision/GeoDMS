@@ -1021,7 +1021,7 @@ auto GetUnitSizeInMeters(const AbstrUnit* projectionBaseUnit) -> Float64
 
 auto GetAffineTransformationFromDataItem(const TreeItem* storageHolder) -> affine_transformation
 {
-	auto affine_transformation = std::vector<double>();
+	affine_transformation affine_transformation;
 
 	if (!IsDataItem(storageHolder))
 		return {};
@@ -1039,18 +1039,6 @@ auto GetAffineTransformationFromDataItem(const TreeItem* storageHolder) -> affin
 	affine_transformation.x_scale = factor.X();
 	affine_transformation.y_scale = factor.Y();
 
-	/*
-	DPoint factor = (unit_projection) ? unit_projection->Factor() : DPoint(1.0, 1.0), f2 = factor;
-	if (factor.X() < 0) { f2.X() = -factor.X(); gridBegin.Col() = gridEnd.Col(); }
-	if (factor.Y() > 0) { f2.Y() = -factor.Y(); gridBegin.Row() = gridEnd.Row(); }
-	DPoint offset = ((unit_projection) ? unit_projection->Offset() : DPoint()) + gridBegin * factor;
-
-	affine_transformation.push_back(offset.X());   // x-coordinate of the upper-left corner of the upper-left pixel.
-	affine_transformation.push_back(f2.X());       // w-e pixel resolution / pixel width.
-	affine_transformation.push_back(Float64(0.0)); // row rotation (typically zero).
-	affine_transformation.push_back(offset.Y());   // y-coordinate of the upper-left corner of the upper-left pixel.
-	affine_transformation.push_back(Float64(0.0)); // column rotation (typically zero).
-	affine_transformation.push_back(f2.Y()); 	   // n-s pixel resolution / pixel height (negative value for a north-up image).*/
 	return affine_transformation;
 }
 
