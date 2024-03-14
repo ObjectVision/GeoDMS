@@ -398,7 +398,7 @@ const TreeItem* GetExprOrSourceDescrAndReturnSourceItem(OutStreamBase& stream, c
 		s_AnnotateExprFunc(stream, AbstrCalculator::GetSearchContext(ti, CalcRole::Calculator), result);
 		if (AbstrCalculator::MustEvaluate(result.begin()))
 		{
-				NewLine(stream);
+			NewLine(stream);
 			if (ti->InTemplate())
 				stream << "which isn't evaluated here since this item is part of a template definition";
 			else
@@ -455,9 +455,17 @@ const TreeItem* GetExprOrSourceDescrAndReturnSourceItem(OutStreamBase& stream, c
 	return nullptr;
 }
 
-void GetExprOrSourceDescr(OutStreamBase& stream, const TreeItem* ti)
+void GetExprOrSourceDescr(OutStreamBase& stream, const TreeItem* self)
 {
-	const TreeItem* si = GetExprOrSourceDescrAndReturnSourceItem(stream, ti);
+	XML_OutElement details(stream, "details");
+
+	auto si = self;
+	{
+		XML_OutElement summary(stream, "summary");
+
+		si = GetExprOrSourceDescrAndReturnSourceItem(stream, self);
+	}
+
 	while (si)
 	{
 		assert(si != ti);
@@ -468,8 +476,36 @@ void GetExprOrSourceDescr(OutStreamBase& stream, const TreeItem* ti)
 			XML_hRef sourceRef(stream, ItemUrl(si).c_str());
 			stream << si->GetFullName().c_str();
 		}
-		ti = si;
+		self = si;
 		si = si->GetSourceItem();
+	}
+
+	if (self->HasCalculator() && !self->WasFailed(FR_MetaInfo))
+	{
+		auto c = self->GetCalculator();
+		if (c)
+		{
+			NewLine(stream);
+			stream << "ParseResult: " << AsFLispSharedStr(c->GetLispExprOrg(), FormattingFlags::ThousandSeparator).c_str();
+		}
+	}
+	if (!self->WasFailed(FR_MetaInfo))
+	{
+		auto metaInfo = self->GetCurrMetaInfo({});
+		auto calcExpr = GetAsLispRef(metaInfo);
+
+		NewLine(stream);
+		stream << "CalcExpr: " << AsFLispSharedStr(calcExpr, FormattingFlags::ThousandSeparator).c_str();
+
+		if (metaInfo.index() == 1 || metaInfo.index() == 0 && std::get<MetaFuncCurry>(metaInfo).fullLispExpr.EndP())
+		{
+			auto keyExpr = self->GetCheckedKeyExpr();
+			if (keyExpr != calcExpr)
+			{
+				NewLine(stream);
+				stream << "CheckedKeyExpr: " << AsFLispSharedStr(keyExpr, FormattingFlags::ThousandSeparator).c_str();
+			}
+		}
 	}
 }
 
@@ -602,38 +638,8 @@ bool TreeItem_XML_DumpGeneralBody(const TreeItem* self, OutStreamBase* xmlOutStr
 
 	// ==================== Calculation rule and/or Storage description
 	xmlTable.LinedRow();
-	{
-		XML_OutElement details(*xmlOutStrPtr, "details");
-		{
-			XML_OutElement summary(*xmlOutStrPtr, "summary");
-			GetExprOrSourceDescrRow(xmlTable, self);
-		}
+	GetExprOrSourceDescrRow(xmlTable, self);
 
-		if (self->HasCalculator() && !self->WasFailed(FR_MetaInfo))
-		{
-			auto c = self->GetCalculator();
-			if (c)
-				GetLispRefRow(xmlTable, c->GetLispExprOrg(), "ParseResult");
-		}
-		if (!self->WasFailed(FR_MetaInfo))
-		{
-			auto metaInfo = self->GetCurrMetaInfo({});
-			auto calcExpr = GetAsLispRef(metaInfo);
-			GetLispRefRow(xmlTable, calcExpr, "CalcExpr");
-			if (metaInfo.index() == 1 || metaInfo.index() == 0 && std::get<MetaFuncCurry>(metaInfo).fullLispExpr.EndP())
-			{
-				auto keyExpr = self->GetCheckedKeyExpr();
-				if (keyExpr != calcExpr)
-					GetLispRefRow(xmlTable, keyExpr, "CheckedKeyExpr");
-			}
-		}
-		else
-		{
-			XML_Table::Row row(xmlTable);
-			row.ValueCell("CheckedKeyExpr");
-			row.ValueCell("Not available due to failure");
-		}
-	}
 	// ==================== Explicit Suppliers
 	if (self->HasSupplCache())
 	{
