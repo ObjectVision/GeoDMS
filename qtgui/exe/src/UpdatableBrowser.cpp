@@ -180,16 +180,8 @@ void QUpdatableWebBrowser::contextMenuEvent(QContextMenuEvent* event)
                     });
 
             }
-                /*auto* page_source_widget = new QTextEdit(this);
-                page_source_widget->setPlainText(
-                {
-                    this.result_info->setText(result);));
-			    }
-        		);*/
         );
 	}
-
-	//auto* menu = createStandardContextMenu();
 
 	context_menu->exec(event->globalPos());
 }
