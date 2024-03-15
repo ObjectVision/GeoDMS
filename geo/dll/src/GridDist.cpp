@@ -63,7 +63,7 @@ constexpr bool operator &(GridDistFlags a, GridDistFlags b) { return int(a) & in
 
 constexpr arg_index NrArguments(GridDistFlags flags)
 {
-	arg_index result = 0;
+	arg_index result = 2;
 	if (flags & GridDistFlags::HasLimitParameter)
 		++result;
 	if (flags & GridDistFlags::HasInitialImpedance)	
