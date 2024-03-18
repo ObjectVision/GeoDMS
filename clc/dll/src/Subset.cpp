@@ -770,7 +770,7 @@ namespace {
 	CollectWithAttrOperator operRM(cog_relate_many, collect_mode::condition);
 	// DEPRECIATED VARIANTS of collect_attr END
 
-	Obsolete<CommonOperGroup> cog_select_data("use collect_by_cond", token::select_data);
+	Obsolete<CommonOperGroup> cog_select_data("use collect_by_cond", token::select_data, oper_policy::depreciated);
 	CommonOperGroup cog_collect_by_cond(token::collect_by_cond);
 	CommonOperGroup cog_recollect_by_cond(token::recollect_by_cond, oper_policy::allow_extra_args);
 

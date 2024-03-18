@@ -417,7 +417,7 @@ const TreeItem* GetExprOrSourceDescrAndReturnSourceItem(OutStreamBase& stream, c
 	if (!ti->HasCalculator())
 	{
 		const TreeItem* storageParent = ti->GetStorageParent(false);
-		if (storageParent)
+		if (storageParent && (IsUnit(ti) || IsDataItem(ti)))
 		{
 			const AbstrStorageManager* sm = storageParent->GetStorageManager();
 			dms_assert(sm); // because of POSTCONDITION of GetStorageParant

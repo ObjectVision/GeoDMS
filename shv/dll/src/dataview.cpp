@@ -1213,12 +1213,13 @@ void ChangeActivation(MovableObject*  oldAct, MovableObject* newAct)
 	if (oldAct) oa = oldAct->shared_from_this();
 	while (oa && !IsAnchestor(debug_cast<MovableObject*>(oa.get()), newAct))
 	{
-		dms_assert(oa->GetOwner().lock());
-		dms_assert(oa->IsActive());
-		oa->SetActive(false);
-		oa = oa->GetOwner().lock();
+		auto pa = oa->GetOwner().lock();
+		assert(pa);
+		if (oa->IsActive())
+			oa->SetActive(false);
+		oa = pa;
 	}
-	Activate(newAct, oldAct);
+	Activate(newAct, debug_cast<MovableObject*>(oa.get()));
 }
 
 void DataView::Activate(MovableObject* src)
