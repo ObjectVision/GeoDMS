@@ -73,6 +73,7 @@ public:
 protected:
 //	override virtuals of Actor
 	ActorVisitState VisitSuppliers(SupplierVisitFlag svf, const ActorVisitor& visitor) const override;
+	void OnLayerVisibilityChanged();
 
 protected:
 	void SetHeaderCaption(CharPtr caption);
