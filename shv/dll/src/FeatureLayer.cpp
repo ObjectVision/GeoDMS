@@ -173,6 +173,18 @@ GraphVisitState FeatureLayer::InviteGraphVistor(class AbstrVisitor& v)
 	return v.DoFeatureLayer(this);
 }
 
+SizeT FeatureLayer::FindFeatureByPoint(const CrdPoint& geoPnt)
+{
+	throwIllegalAbstract(MG_POS, "FindFeatureByPoint");
+}
+
+SizeT FeatureLayer::FindNextFeatureByPoint(const CrdPoint& geoPnt, SizeT featureIndex)
+{
+	if (IsDefined(featureIndex))
+		return UNDEFINED_VALUE(SizeT);
+	return FindFeatureByPoint(geoPnt);
+}
+
 Int32 FeatureLayer::GetMaxLabelStrLen() const
 {
 	if (m_MaxLabelStrLen == -1)
@@ -642,29 +654,42 @@ void FeatureLayer::SelectPoint(CrdPoint worldPnt, EventID eventID)
 	assert(featureItem);
 
 	SizeT featureIndex = UNDEFINED_VALUE(SizeT);
-	if (!SuspendTrigger::DidSuspend() && featureItem->PrepareData())
-	{
-		DataReadLock lck(featureItem);
-		dms_assert(lck.IsLocked());
-		auto geoPoint = GetGeoTransformation().Reverse(worldPnt);
-		featureIndex = FindFeatureByPoint(geoPoint);
-	}
 	if (SuspendTrigger::DidSuspend())
 		return;
+	if (!featureItem->PrepareData())
+		return;
 
-	InvalidationBlock lock(this);
-	auto selectionTheme = CreateSelectionsTheme();
-	MG_CHECK(selectionTheme);
-
-	DataWriteLock writeLock(
-		const_cast<AbstrDataItem*>(selectionTheme->GetThemeAttr()),
-		CompoundWriteType(eventID)
-	);
-
-	if (SelectFeatureIndex(writeLock, featureIndex, eventID))
+	DataReadLock lck(featureItem);
+	assert(lck.IsLocked());
+	auto geoPoint = GetGeoTransformation().Reverse(worldPnt);
+	bool alreadyHadSome = false, didChange = false;
+	while (true)
 	{
-		writeLock.Commit();
-		lock.ProcessChange();
+		featureIndex = FindNextFeatureByPoint(geoPoint, featureIndex);
+		if (alreadyHadSome && !IsDefined(featureIndex))
+			break;
+
+		if (SuspendTrigger::DidSuspend())
+			return;
+
+		InvalidationBlock lock(this);
+		auto selectionTheme = CreateSelectionsTheme();
+		MG_CHECK(selectionTheme);
+
+		DataWriteLock writeLock(
+			const_cast<AbstrDataItem*>(selectionTheme->GetThemeAttr()),
+			CompoundWriteType(eventID)
+		);
+
+		if (SelectFeatureIndex(writeLock, featureIndex, eventID))
+		{
+			writeLock.Commit();
+			lock.ProcessChange();
+		}
+		if (!IsDefined(featureIndex))
+			break;
+
+		alreadyHadSome = true;
 	}
 }
 
@@ -1930,7 +1955,7 @@ IMPL_DYNC_LAYERCLASS(GraphicArcLayer, ASE_Feature|ASE_OrderBy|ASE_Label|ASE_Pen|
 #include "geo/IsInside.h"
 
 template <typename ScalarType>
-row_id FindPolygonByPoint(const GraphicPolygonLayer* layer, Point<ScalarType> pnt)
+row_id FindNextPolygonByPoint(const GraphicPolygonLayer* layer, Point<ScalarType> pnt, SizeT currFeatureIndex)
 {
 	using PointType = Point<ScalarType>;
 	using PointSequenceType = typename sequence_traits<PointType>::container_type;
@@ -1940,53 +1965,82 @@ row_id FindPolygonByPoint(const GraphicPolygonLayer* layer, Point<ScalarType> pn
 
 	auto bbCache = GetSequenceBoundingBoxCache<ScalarType>(layer);
 	auto trd = featureData->GetTiledRangeData();
-	for (tile_id t = trd->GetNrTiles(); t--; )
+
+	tile_loc tiledLocation = (IsDefined(currFeatureIndex))
+		?	trd->GetTiledLocation(currFeatureIndex)
+		:	tile_loc{ trd->GetNrTiles(), 0 };
+
+	tile_id t = tiledLocation.first; 
+	tile_offset i = tiledLocation.second;
+
+	// search backwards so that last drawn object will be first selected
+	while (true)
 	{
-		const auto& rectArray  = bbCache->GetBoxData(t);
+	nextTile:
+		while (!i)
+		{
+			if (!t)
+				return UNDEFINED_VALUE(SizeT);
+
+			// go to previous tile
+			--t;
+
+			i = trd->GetTileSize(t);
+		}
+		const auto& rectArray = bbCache->GetBoxData(t);
 		if (!IsIncluding(rectArray.m_TotalBound, pnt))
-			continue;
+			i = 0;
+
+		if (i % AbstrBoundingBoxCache::c_BlockSize != 0)
+			if (!IsIncluding(rectArray.m_BlockBoundArray[i / AbstrBoundingBoxCache::c_BlockSize], pnt))
+				i &= ~(AbstrBoundingBoxCache::c_BlockSize - 1);
+
+		if (!i)
+			goto nextTile;
+
+		if (i % AbstrBoundingBoxCache::c_BlockSize == 0)
+			while (!IsIncluding(rectArray.m_BlockBoundArray[i / AbstrBoundingBoxCache::c_BlockSize - 1], pnt))
+			{
+				i -= AbstrBoundingBoxCache::c_BlockSize;
+				if (!i)
+					goto nextTile;
+			}
 
 		auto data = da->GetTile(t);
 		auto b = data.begin();
-		SizeT i = data.size();
 
-		if (i % AbstrBoundingBoxCache::c_BlockSize != 0)
-			if (!IsIncluding(rectArray.m_BlockBoundArray[(i - 1) / AbstrBoundingBoxCache::c_BlockSize], pnt))
-				i &= ~(AbstrBoundingBoxCache::c_BlockSize - 1);
-
-		// search backwards so that last drawn object will be first selected
 		while (i)
 		{
 			if (i % AbstrBoundingBoxCache::c_BlockSize == 0)
-				while (!IsIncluding(rectArray.m_BlockBoundArray[i / AbstrBoundingBoxCache::c_BlockSize-1], pnt))
-					if ((i -= AbstrBoundingBoxCache::c_BlockSize) == 0)
+				while (!IsIncluding(rectArray.m_BlockBoundArray[i / AbstrBoundingBoxCache::c_BlockSize - 1], pnt))
+				{
+					i -= AbstrBoundingBoxCache::c_BlockSize;
+					if (!i)
 						goto nextTile;
-			--i;
+				}
+			--i; // go to previous element
 			auto polygonPtr = b + i;
 			if (IsIncluding(rectArray.m_FeatBoundArray[i], pnt) && IsInside(polygonPtr->begin(), polygonPtr->end(), pnt))
 				return trd->GetRowIndex(t, i);
 		}
-	nextTile:;
 	}
-	return UNDEFINED_VALUE(SizeT);
+	
 }
 
 GraphicPolygonLayer::GraphicPolygonLayer(GraphicObject* owner)
 	:	FeatureLayer(owner, GetStaticClass()) 
 {}
 
-SizeT GraphicPolygonLayer::FindFeatureByPoint(const CrdPoint& geoPnt)
+SizeT GraphicPolygonLayer::FindNextFeatureByPoint(const CrdPoint& geoPnt, SizeT currFeatureIndex)
 {
-	auto result = UNDEFINED_VALUE(SizeT);
-
 	visit<typelists::seq_points>(GetFeatureAttr()->GetAbstrValuesUnit(),
-		[this, &geoPnt, &result] <typename P> (const Unit<P>*)
+		[this, &geoPnt, &currFeatureIndex] <typename P> (const Unit<P>*)
 		{
-			result = FindPolygonByPoint<scalar_of_t<P>>(this, Convert<P>(geoPnt));
+			currFeatureIndex = FindNextPolygonByPoint<scalar_of_t<P>>(this, Convert<P>(geoPnt), currFeatureIndex);
 		}
 	);
 
-	return result;
+	return currFeatureIndex;
 }
 
 void GraphicPolygonLayer::SelectRect  (CrdRect worldRect, EventID eventID)
