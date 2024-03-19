@@ -4,19 +4,33 @@ import sys
 
 sys.path.append('../bin/Debug/x64')
 
-def pause(message:str): 
-    programPause = input("Press the <ENTER> key to continue...")
+def pause_func(message:str="Press the <ENTER> key to continue..."): 
+    programPause = input(message)
 
 try: 
     from geodms import *
+
     engine = Engine()
 
     # load geodms configuration file
     config = engine.loadConfig('basic_data_test.dms')
     
     # get root item of configuration
+    
     root = config.getRoot()
-    current_item = root.find("/reference/IntegerAtt")
+    
+    print(type(root))
+    
+    found_item = root.find("/reference/IntegerAtt")
+
+    found_item.update()
+
+    #pause_func("as const item")
+    #const_root   = mutable_root.asItem()
+
+    pause_func("Done")
+
+    #current_item = const_root.find("/reference/IntegerAtt")
     
     # get integer attribute data as numpy array
     #data item view naar data 
@@ -25,16 +39,23 @@ try:
     #een dataitem moet aangeven hoeveel tiles deze heeft , of geef hele tile
     #data object-> tiles -> future data object generator of future tiles
     
-    pause("tmp")
+    #pause("tmp")
     
-    adi = AsDataItem(current_item)
+    #adi = AsDataItem(current_item) # adu can request number of tiles 
     
-    size = adi.size();
+    #ado = adi.getDataObject()
 
-    adu = adi.getDomainUnit()
+    #ado.getNumberOfTiles()
+    
+    #ado.getTile(-1)
+
+
+    #size = adi.size();
+
+    #adu = adi.getDomainUnit()
 
 except Exception as e:
-    pause(f"Error: {e}")
+    input(f"Error: {e}")
 
 
 

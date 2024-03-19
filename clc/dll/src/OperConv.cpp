@@ -1017,7 +1017,7 @@ public:
 	SharedPtr<const AbstrDataObject> CreateFutureTileCaster(SharedPtr<AbstrDataItem> resultAdi, bool lazy, const AbstrUnit* valuesUnitA, const AbstrDataItem* arg1A, const AbstrUnit* argUnitA MG_DEBUG_ALLOCATOR_SRC_ARG) const override
 	{
 		auto tileRangeData = AsUnit(arg1A->GetAbstrDomainUnit()->GetCurrRangeItem())->GetTiledRangeData();
-		auto valuesUnit = debug_cast<const Unit<field_of_t<TR>>*>(valuesUnitA);
+		auto valuesUnit = debug_cast<const Unit<field_type>*>(valuesUnitA);
 
 		auto arg1 = const_array_cast<TA>(arg1A);
 		auto dstUnit = MakeShared(debug_cast<const Arg2Type*>(argUnitA));

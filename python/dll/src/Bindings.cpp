@@ -18,6 +18,7 @@
 #include "utl/Environment.h"
 #include "utl/scoped_exit.h"
 #include "utl/splitPath.h"
+#include "DataArray.h"
 
 #include "libloaderapi.h"
 
@@ -32,19 +33,21 @@
 #include <iostream>
 
 #include <pybind11/pybind11.h>
+#include <pybind11/cast.h>
+
 namespace py = pybind11;
 
 EXTERN_C IMAGE_DOS_HEADER __ImageBase;
 
 namespace py_geodms
 {
-	struct Item
+	/*struct Item
 	{
 		Item(const TreeItem* item)
 			: m_item(item)
 		{}
 
-		bool IsNull() const { return m_item.is_null(); }
+		//bool IsNull() const { return m_item.is_null(); }
 
 		auto find(CharPtr itemPath) const
 		{
@@ -85,7 +88,7 @@ namespace py_geodms
 		}
 
 		SharedTreeItemInterestPtr m_item;
-	};
+	};*/
 	
 	struct UnitItem
 	{
@@ -96,44 +99,84 @@ namespace py_geodms
 		SharedPtr<const AbstrUnit> m_au;
 	};
 
-	struct DataItem
+	struct FutureTile
+	{
+
+	};
+
+	struct TileFunctor
+	{
+		TileFunctor(const AbstrDataObject* ado)
+			: m_ado(ado)
+		{}
+
+		auto GetTile() -> FutureTile
+		{
+			// get tile
+		}
+
+		void data(tile_id tile)
+		{
+
+		}
+
+		const AbstrDataObject* m_ado = nullptr;
+
+	};
+
+	// etc..
+
+	/*struct DataItem
 	{
 		DataItem(const AbstrDataItem* adi)
 			: m_adi(adi)
 		{}
 
-		UnitItem GetAbstrDomainUnit()
+		auto GetAbstrDomainUnit() -> UnitItem
 		{
 			return UnitItem(m_adi->GetAbstrDomainUnit());
 		}
 
-		size_t size()
+		template <typename T>
+		auto getDataObject() -> FutureData
 		{
-			m_adi->UpdateMetaInfo();
-			auto adu = m_adi->GetAbstrDomainUnit();
-			PreparedDataReadLock lck2(m_adi);
-			auto count = adu->GetCount();
+			using prepare_data = SharedPtr<typename TileFunctor<T>::future_tile>;
 
-			auto range = adu->GetRangeAsIRect();
+			auto tileRange_data = AsUnit(m_adi->GetAbstrDomainUnit()->GetCurrRangeItem())->GetTiledRangeData();
+			auto valuesUnit = debug_cast<const Unit<field_of_t<T>>*>(m_adi->GetAbstrValuesUnit());
+			auto* ado = make_unique_FutureTileFunctor<T, prepare_data, false>(m_adi, false , tileRange_data, get_range_ptr_of_valuesunit(valuesUnit));
+			return FutureData(ado.release());
 
-			return count;
+			// covariant return typing, argumenten contravariant
+			// get abstr tile, get tile
+		}
+
+		auto calculate() -> pybind11::memoryview
+		{
+			PreparedDataReadLock lck2(m_adi, "python::calculate");
+			// data future, implemented as interest counter data item, type future data, tile functor
+			// prepare data - data is scheduled for calculation
+			// get van future data, per tile
+			// interest count future op tile functor, tile functor 
+			//auto count = adu->GetCount();
+			//auto sz = adu->GetTileSizeAsI64Rect(no_tile);
 		}
 
 
 		SharedPtr<const AbstrDataItem> m_adi;
-	};
+	};*/
 
-	DataItem AsDataItem(const Item& item)
+	/*DataItem AsDataItem(const SharedDataItem& item)
 	{
 		MG_USERCHECK(item.is_data_item());
 		return DataItem(::AsDataItem(item.m_item.get_ptr()));
-	}
+	}*/
 
-	UnitItem AsUnitItem(const Item& item)
+	/*UnitItem AsUnitItem(const Item& item)
 	{
 		MG_USERCHECK(item.is_unit_item());
 		return UnitItem(::AsUnit(item.m_item.get_ptr()));
-	}
+	}*/
 
 	struct Engine;
 	static Engine* s_currSingleEngine = nullptr;
@@ -168,7 +211,7 @@ namespace py_geodms
 		{
 			if (m_root)
 			{
-				m_root->EnableAutoDelete();
+				m_root.get()->EnableAutoDelete();
 				MG_CHECK(currSingleConfig == this); // at any point of time, there is only one active Config
 				currSingleConfig = nullptr;
 			}
@@ -185,13 +228,13 @@ namespace py_geodms
 			currSingleConfig = this;
 		}
 
-		Item get_root() const
+		auto get_root() const -> SharedTreeItemInterestPtr
 		{
-			return Item( m_root.get() );
+			return m_root.get_ptr();
 		}
 
 	private:
-		SharedPtr<TreeItem> m_root;
+		SharedMutableTreeItem m_root;
 	};
 
 	Config* Config::currSingleConfig = nullptr;
@@ -228,37 +271,95 @@ namespace py_geodms
 
 } // namespace py_geodms
 
+void treeitem_CheckNonNull(const TreeItem* self)
+{
+	MG_USERCHECK2(self, "invalid dereference of item nullptr");
+}
+
+auto treeitem_find(SharedTreeItemInterestPtr self , CharPtr itemPath) -> SharedTreeItemInterestPtr // const TreeItem* self
+{
+	treeitem_CheckNonNull(self);
+	auto foundItem = self->FindItem(CharPtrRange(itemPath));
+	return foundItem;
+}
+
+auto treeitem_name(const TreeItem* self)
+{
+	treeitem_CheckNonNull(self);
+	return self->GetID().AsStdString();
+}
+
+std::string treeitem_expr(const TreeItem* self)
+{
+	treeitem_CheckNonNull(self);
+	return self->GetExpr().AsStdString();
+}
+
+auto treeitem_GetFirstSubItem(const TreeItem* self) -> SharedTreeItem
+{
+	treeitem_CheckNonNull(self);
+	return self->GetFirstSubItem();
+
+}
+
+auto treeitem_GetNextItem(const TreeItem* self) -> SharedTreeItem
+{
+	treeitem_CheckNonNull(self);
+	return self->GetNextItem();
+}
+
+auto treeitem_AsItem(const SharedMutableTreeItem& self) -> SharedTreeItem
+{
+	return self.get_ptr();
+}
+
 PYBIND11_MODULE(geodms, m) {
-	py::class_<py_geodms::Item>(m, "Item")
-		.def("isNull", &py_geodms::Item::IsNull)
-		.def("find", &py_geodms::Item::find)
-		.def("name", &py_geodms::Item::name)
-		.def("expr", &py_geodms::Item::expr)
-		.def("isDataItem", &py_geodms::Item::is_data_item)
-		.def("isUnitItem", &py_geodms::Item::is_unit_item)
-		.def("firstSubItem", &py_geodms::Item::GetFirstSubItem)
-		.def("nextItem", &py_geodms::Item::GetNextItem)
-		;
-
-	py::class_<py_geodms::DataItem>(m, "DataItem")
-		.def("getDomainUnit", &py_geodms::DataItem::GetAbstrDomainUnit)
-		.def("size", &py_geodms::DataItem::size);
-		;
-
-	py::class_<py_geodms::UnitItem>(m, "UnitItem");
-
-	py::class_<py_geodms::Config>(m, "Config")
-		.def("getRoot", &py_geodms::Config::get_root)
-	;
-
 	py::class_<py_geodms::Engine>(m, "Engine")
 		.def(py::init())
 		.def("loadConfig", &py_geodms::Engine::load_config)
 		.def("createRoot", &py_geodms::Engine::create_config_root)
-	;
+		;
 
 	
+	py::class_<SharedTreeItemInterestPtr>(m, "InterestMutableItem")
+		.def("update", [](SharedTreeItemInterestPtr self) {return DMS_TreeItem_Update(self.get_ptr()); })// &DMS_TreeItem_Update)
+		.def("find", &treeitem_find);
 
-	m.def("AsDataItem", &py_geodms::AsDataItem);
+	py::class_<SharedMutableTreeItem>(m, "MutableItem")
+		.def("asItem", &treeitem_AsItem);
+
+	py::class_<SharedTreeItem>(m, "Item")
+		.def("isNull", &SharedTreeItem::is_null)
+		.def("find", &treeitem_find)
+		.def("name", &treeitem_name)
+		.def("expr", &treeitem_expr)
+		/*.def("isDataItem", [](auto self) { return IsDataItem(self.get()); })
+		.def("asDataItem", [](auto self) { return AsDataItem(self.get()); } )
+		.def("isUnitItem", [](auto self) { return IsUnit(self.get()); } )
+		.def("asUnitItem", [](auto self) { return AsUnit(self.get()); } )*/
+		.def("firstSubItem", &treeitem_GetFirstSubItem)
+		.def("nextItem", &treeitem_GetNextItem)
+		;
+	
+
+
+	py::class_<SharedDataItem>(m, "DataItem")
+		.def("getDomainUnit", [](SharedDataItem self) { return self->GetAbstrDomainUnit(); })
+		//.def("calculate", );
+		;
+
+	/*py::class_<py_geodms::FutureData>(m, "FutureData")
+		.def(GetTile);//<uint32_t>)
+		//.def(GetTile<int32_t>)
+	;*/
+
+	py::class_<SharedUnit>(m, "UnitItem");
+
+	py::class_<py_geodms::Config>(m, "Config")
+		.def("getRoot", &py_geodms::Config::get_root, pybind11::return_value_policy::copy)
+		;
+
+
+
 	m.def("version", DMS_GetVersion);
 }
