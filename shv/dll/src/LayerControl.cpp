@@ -27,6 +27,7 @@
 #include "MouseEventDispatcher.h"
 #include "PaletteControl.h"
 #include "ShvDllInterface.h"
+#include "TableHeaderControl.h"
 #include "Theme.h"
 
 //----------------------------------------------------------------------
@@ -412,7 +413,7 @@ void LayerControl::FillMenu(MouseEventDispatcher& med)
 
 void LayerControl::TogglePaletteIsVisible()
 {
-	dms_assert(NrEntries() == 3);
+	assert(NrEntries() == 3);
 	GetEntry(2)->SetIsVisible(!GetEntry(2)->IsVisible());
 }
 
@@ -519,22 +520,23 @@ ActorVisitState LayerControl::DoUpdate(ProgressState ps)
 	return AVS_Ready;
 }
 
-void LayerControl::SetPaletteControl(std::shared_ptr<PaletteControl> pc)
+void LayerControl::SetPaletteControl()
 {
 	if (NrEntries() == 3)
-	{
-		if (GetEntry(2) == pc.get())
-			return;
-		RemoveEntry(2);
-		m_PaletteControl = nullptr;
-	}
-
-	dms_assert(NrEntries() == 2);
-
-	if (!pc)
 		return;
 
-	InsertEntry(pc.get() );
+	assert(NrEntries() == 2);
+
+	auto paletteContainer = std::make_shared<GraphicVarRows>(this);
+	InsertEntry(paletteContainer.get());
+	paletteContainer->SetRowSepHeight(0);
+
+	auto pc = make_shared_gr<PaletteControl>(paletteContainer.get(), m_Layer.get(), true)();
+	auto paletteHeader = std::make_shared<TableHeaderControl>(paletteContainer.get(), pc.get());
+
+	paletteContainer->InsertEntry(paletteHeader.get());
+	paletteContainer->InsertEntry(pc.get());
+
 	m_PaletteControl = pc;
 }
 
@@ -581,7 +583,7 @@ void LayerControl::DoUpdateView()
 	{
 		if (!activeTheme || PrepareDataOrUpdateViewLater(activeTheme->GetPaletteDomain()))
 		{
-			SetPaletteControl(make_shared_gr<PaletteControl>(this, m_Layer.get(), true)());
+			SetPaletteControl();
 			//	REMOVE	if (m_Layer->DetailsVisible())
 			OnDetailsVisibilityChanged(); // process when m_Layer->DetailsVisible() == false
 			m_PaletteControl->CalcClientSize();

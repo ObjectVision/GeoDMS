@@ -111,7 +111,7 @@ inline void ConnectObject(GraphicObject* g, TreeItem* viewContext)
 template <typename ElemType>
 void GraphicContainer<ElemType>::InsertEntry(ElemType* g)
 {
-	dms_assert(GetEntryPos(g) >= m_Array.size());
+	assert(GetEntryPos(g) >= m_Array.size());
 
 	g->SetOwner(this);
 	m_Array.push_back(g->shared_from_base<ElemType>());
