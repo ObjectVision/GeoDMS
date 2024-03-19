@@ -307,7 +307,7 @@ namespace
 {
 	Obsolete< CommonOperGroup> cog_Point("obsolete function point called.\n"
 		"Use point_yx operation (or point_xy if ColRowOrder was set in Config.ini) to unambiguously define points.\n"
-		, token::point);
+		, token::point, oper_policy::depreciated);
 
 	CommonOperGroup cog_PointRow("pointrow"), cog_PointCol("pointcol");
 
