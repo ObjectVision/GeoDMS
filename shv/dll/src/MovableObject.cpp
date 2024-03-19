@@ -319,7 +319,8 @@ HBITMAP MovableObject::GetAsDDBitmap(DataView* dv, CrdType subPixelFactor, Movab
 
 	Region rgn(intSize);
 
-	SuspendTrigger::FencedBlocker xxx;
+	SuspendTrigger::FencedBlocker xxx("MovableObject::GetAsDDBitmap");
+
 	GraphDrawer drawer(memDC, rgn, dv, GdMode(GD_DrawBackground|GD_UpdateData|GD_DrawData), DPoint(subPixelFactor, subPixelFactor));
 
 	AddClientLogicalOffset useZeroBase(&drawer, -m_RelPos);

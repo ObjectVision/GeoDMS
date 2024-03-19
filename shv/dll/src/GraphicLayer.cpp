@@ -656,7 +656,7 @@ void GraphicLayer::OnFocusElemChanged(SizeT newSelectedID, SizeT oldSelectedID)
 	}
 
 	ThemeReadLocks readLocks;
-	SuspendTrigger::FencedBlocker blockSuspend;
+	SuspendTrigger::FencedBlocker blockSuspend("GraphicLayer::OnFocusElemChanged");
 	if (!readLocks.push_back( GetTheme(AN_Feature).get(), DrlType::Certain))
 	{
 		readLocks.ProcessFailOrSuspend(this);

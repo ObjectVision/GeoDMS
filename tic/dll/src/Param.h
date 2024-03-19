@@ -61,7 +61,7 @@ CreateConstParam(const T& value)
 	SharedPtr<AbstrDataItem> dataItem = CreateCacheParam<T>();
 
 	UpdateMarker::ChangeSourceLock changeStamp( dataItem, "CreateConstParam");
-	SuspendTrigger::FencedBlocker progressLock;
+	SuspendTrigger::FencedBlocker progressLock("CreateConstParam");
 
 	DataWriteLock lock(dataItem);
 	DataObjectType* dataObj = mutable_array_cast<T>(lock);

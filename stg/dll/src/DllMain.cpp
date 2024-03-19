@@ -628,8 +628,6 @@ ViewPortInfoEx<Int32> ViewPortInfoProvider::GetViewportInfoEx(tile_id tc, Storag
 	auto curr_range_unit = AsUnit(m_CurrDomain->GetCurrRangeItem());
 	auto grid_range_unit = AsUnit(m_GridDomain->GetCurrRangeItem());
 
-
-
 	return ViewPortInfoEx<Int32>(m_ADI, curr_range_unit, tc, grid_range_unit, tg, smi, true, false, m_CountColor, m_QueryActualGridDomain);
 }
 

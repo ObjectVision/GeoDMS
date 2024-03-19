@@ -50,7 +50,8 @@ granted by an additional written contract for support, assistance and/or develop
 
 #include "StgBase.h"
 
-#include "SpatialInterface.h"
+//#include "SpatialInterface.h"
+#include "SpatialAnalyzer.h"
 
 #include "AbstrController.h"
 #include "Cmds.h"
@@ -382,7 +383,7 @@ void GridLayer::AssignSelValues()
 	const AbstrDataItem* selAttr= m_Themes[AN_Selections]->GetThemeAttrSource();
 	assert(selAttr);                // PRECONDITION
 
-	PreparedDataReadLock drl(selAttr);
+	PreparedDataReadLock drl(selAttr, "@GridLayer::AssignSelValues()");
 	AssignValues(composite_cast<const DataArray<Bool>*>(selAttr)->GetDataRead(no_tile));
 }
 
@@ -391,66 +392,38 @@ void District(
 	const AbstrDataObject* ado,
 	const UGridPoint& size,
 	sequence_traits<Bool>::seq_t resData,
-	const IPoint&  gridLoc,
-	IRect&  changedRect
-)
+	UPoint  gridLoc,
+	URect&  changedRect)
 {
 	switch (ado->GetValuesType()->GetValueClassID())
 	{
 		case ValueClassID::VT_UInt32:
-			MDL_DistrictUI32(
-				UCUInt32Grid(
-					size,
-					const_array_cast<UInt32>(ado)->GetDataRead().begin()
-				),
-				resData,
-				gridLoc,
-				changedRect
-			);
+			Districter<UInt32, Bool>(UCUInt32Grid(size, const_array_cast<UInt32>(ado)->GetDataRead().begin()))
+				.GetDistrict(resData.begin(), gridLoc, changedRect);
 			return;
 		case ValueClassID::VT_Int32:
-			MDL_DistrictUI32(
-				UCUInt32Grid(
-					size,
-					reinterpret_cast<const UInt32*>(const_array_cast<Int32>(ado)->GetDataRead().begin())
-				),
-				resData,
-				gridLoc,
-				changedRect
-			);
+			Districter<UInt32, Bool>(UCUInt32Grid(size, reinterpret_cast<const UInt32*>(const_array_cast<Int32>(ado)->GetDataRead().begin())))
+				.GetDistrict(resData.begin(), gridLoc, changedRect);
+			return;
+		case ValueClassID::VT_UInt16:
+			Districter<UInt16, Bool>(UCUInt16Grid(size, const_array_cast<UInt16>(ado)->GetDataRead().begin()))
+				.GetDistrict(resData.begin(), gridLoc, changedRect);
+			return;
+		case ValueClassID::VT_Int16:
+			Districter<UInt16, Bool>(UCUInt16Grid(size, reinterpret_cast<const UInt16*>(const_array_cast<Int16>(ado)->GetDataRead().begin())))
+				.GetDistrict(resData.begin(), gridLoc, changedRect);
 			return;
 		case ValueClassID::VT_UInt8:
-			MDL_DistrictUI8(
-				UCUInt8Grid(
-					size,
-					const_array_cast<UInt8>(ado)->GetDataRead().begin()
-				),
-				resData,
-				gridLoc,
-				changedRect
-			);
+			Districter<UInt8, Bool>(UCUInt8Grid(size, const_array_cast<UInt8>(ado)->GetDataRead().begin()))
+				.GetDistrict(resData.begin(), gridLoc, changedRect);
 			return;
 		case ValueClassID::VT_Int8:
-			MDL_DistrictUI8(
-				UCUInt8Grid(
-					size,
-					reinterpret_cast<const UInt8*>(const_array_cast<Int8>(ado)->GetDataRead().begin())
-				),
-				resData,
-				gridLoc,
-				changedRect
-			);
+			Districter<UInt8, Bool>(UCUInt8Grid(size, reinterpret_cast<const UInt8*>(const_array_cast<Int8>(ado)->GetDataRead().begin())))
+				.GetDistrict(resData.begin(), gridLoc, changedRect);
 			return;
 		case ValueClassID::VT_Bool:
-			MDL_DistrictBool(
-				UCBoolGrid(
-					size,
-					const_array_cast<Bool>(ado)->GetDataRead(no_tile).begin()
-				),
-				resData,
-				gridLoc,
-				changedRect
-			);
+			Districter<Bool, Bool>(UCBoolGrid(size, const_array_cast<Bool>(ado)->GetDataRead().begin()))
+				.GetDistrict(resData.begin(), gridLoc, changedRect);
 			return;
 	}
 	adi->throwItemError("Districting operation is not implemented for values of this type");
@@ -476,7 +449,7 @@ void GridLayer::SelectDistrict(CrdPoint pnt, EventID eventID)
 	InvalidationBlock viewChangeLock(this);
 	InvalidationBlock dataChangeLock(GetEditTheme()->GetThemeAttr()); // REMOVE, MOVE TO DataWriteLock as a Generic facility
 
-	IRect changedRect;
+	URect changedRect;
 	auto dwlt = DmsRwChangeType(false);
 	if (HasEditAttr() && IsDefined(GetCurrClassID()))
 	{
@@ -498,7 +471,7 @@ void GridLayer::SelectDistrict(CrdPoint pnt, EventID eventID)
 	else
 	{
 		dwlt = CompoundWriteType(eventID);
-		PreparedDataReadLock  drl(themeAttr);
+		PreparedDataReadLock  drl(themeAttr, "GridLayer::SelectDistricting");
 		DataWriteLock dwl(selAttr, dwlt);
 
 		District(
@@ -510,7 +483,7 @@ void GridLayer::SelectDistrict(CrdPoint pnt, EventID eventID)
 		);
 		dwl.Commit();
 	}
-	changedRect.second += IPoint(1, 1);
+	changedRect.second += UPoint(1, 1);
 
 	dataChangeLock.ProcessChange();
 	viewChangeLock.ProcessChange();
@@ -532,7 +505,7 @@ IRect GridLayer::CalcSelectedGeoRect()  const
 		dms_assert(selTheme);
 		const AbstrDataItem* selAttr = selTheme->GetThemeAttr();
 
-		PreparedDataReadLock lock(selAttr);
+		PreparedDataReadLock lock(selAttr, "GridLayer::CalcSelectedGeoRect()");
 
 		auto selData = const_array_cast<SelectionID>(selAttr)->GetDataRead();
 
@@ -1080,7 +1053,7 @@ bool GridLayer::Draw(GraphDrawer& d) const
 	}
 	if (m_Themes[AN_Selections])
 	{
-		SuspendTrigger::FencedBlocker dontSuspendAfterDrawingColors;
+		SuspendTrigger::FencedBlocker dontSuspendAfterDrawingColors("GridLayer::Draw()");
 		CreateSelCaretInfo(); // trigger the creation of the SelCaret
 	}
 

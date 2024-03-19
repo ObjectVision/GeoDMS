@@ -55,7 +55,7 @@
 	}
 	void CheckPtr(const Object* item, const Class* cls, CharPtr dmsFunc)
 	{
-		dms_assert(g_ObjectRegister);
+		assert(g_ObjectRegister);
 		if (!item)
 			throwErrorF("CheckPtr", "function %s: Invalid NULL pointer supplied", dmsFunc);
 		if (!IsObjectRegistered(item)) 

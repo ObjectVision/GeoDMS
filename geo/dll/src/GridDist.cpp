@@ -43,12 +43,36 @@ DisplacementInfo displacement_info[9] =
 	{ 0,  1, Directions(D_South),        Directions(D_North)       ,0.5},
 	{ 1,  1, Directions(D_South|D_East), Directions(D_North|D_West), 0.5 * 1.4142135623730950488016887242097},
 };
-namespace {
-	static CommonOperGroup cogGD("griddist", oper_policy::better_not_in_meta_scripting);
-	}
+
+enum class GridDistFlags
+{
+	NoFlags = 0,
+	HasLimitParameter = 1,
+	HasInitialImpedance = 2,
+	UseShadowTile = 4,
+
+	HasBothParamters = HasLimitParameter | HasInitialImpedance,
+	HasLimitParameterAndUseShadowTile = HasLimitParameter | UseShadowTile,
+	HasInitialImpedanceAndUseShadowTile = HasInitialImpedance | UseShadowTile,
+	HasAllParameters = HasLimitParameter | HasInitialImpedance | UseShadowTile
+};
+
+constexpr auto operator |(GridDistFlags a, GridDistFlags b) { return GridDistFlags(int(a) | int(b)); }
+constexpr bool operator &(GridDistFlags a, GridDistFlags b) { return int(a) & int(b); }
+
+
+constexpr arg_index NrArguments(GridDistFlags flags)
+{
+	arg_index result = 2;
+	if (flags & GridDistFlags::HasLimitParameter)
+		++result;
+	if (flags & GridDistFlags::HasInitialImpedance)	
+		++result;
+	return result;
+}
 
 template <typename Imp, typename Grid>
-class GridDistOperator : public TernaryOperator
+class GridDistOperator : public Operator
 {
 	typedef Imp    ImpType;
 	typedef Grid   GridType;
@@ -61,7 +85,8 @@ class GridDistOperator : public TernaryOperator
 
 	typedef DataArray<ImpType> Arg1Type;  // Grid->Imp
 	typedef DataArray<GridType> Arg2Type; // S->Grid
-	typedef DataArray<ImpType> Arg3Type;  // S->Imp
+	typedef DataArray<ImpType> Arg3aType;  // {Void}->Imp
+	typedef DataArray<ImpType> Arg3bType;  // S->Imp
 	typedef DataArray<ImpType> ResultType;    // V->ImpType: resulting cost
 	typedef DataArray<LinkType> ResultSubType; // V->E: TraceBack
 
@@ -95,39 +120,77 @@ class GridDistOperator : public TernaryOperator
 		SizeT                m_NumBorderCases;
 	};
 
-	typedef std::vector<intertile_data> intertile_map;
+	using intertile_map = std::vector<intertile_data>;
 
 public:
-	GridDistOperator():
-		TernaryOperator(&cogGD, ResultType::GetStaticClass(),
-			Arg1Type::GetStaticClass(),
-			Arg2Type::GetStaticClass(),
-			Arg3Type::GetStaticClass()
-		) 
-	{}
+	GridDistFlags m_Flags = GridDistFlags::NoFlags;
+
+	ClassCPtr m_ArgClasses[NrArguments(GridDistFlags::HasAllParameters)];
+
+	GridDistOperator(AbstrOperGroup& og, GridDistFlags flags)
+		: Operator(&og, ResultType::GetStaticClass()) 
+		, m_Flags(flags)
+	{
+		arg_index currArg = 0;
+
+		ClassCPtr* argClasses = m_ArgClasses;
+		this->m_ArgClassesBegin = argClasses;
+
+		*argClasses++ = DataArray<ImpType>::GetStaticClass(); // Arg1Type
+		*argClasses++ = DataArray<GridType>::GetStaticClass(); // Arg2Type
+
+		if (m_Flags & GridDistFlags::HasLimitParameter)
+			*argClasses++ = DataArray<ImpType>::GetStaticClass();
+
+		if (m_Flags & GridDistFlags::HasInitialImpedance)
+			*argClasses++ = DataArray<ImpType>::GetStaticClass();
+
+		assert(argClasses == m_ArgClassesBegin + NrArguments(m_Flags));
+		this->m_ArgClassesEnd = argClasses;
+	}
 
 	// Override Operator
 	bool CreateResult(TreeItemDualRef& resultHolder, const ArgSeqType& args, bool mustCalc) const override
 	{
-		dms_assert(args.size() == 3);
+		assert(args.size() == NrArguments(m_Flags));
 
-		const AbstrDataItem* adiGridImp       = AsDataItem(args[0]);
-		const AbstrDataItem* adiStartPointGrid= AsDataItem(args[1]);
-		const AbstrDataItem* adiStartPointImp = AsDataItem(args[2]);
+		arg_index argIndex = 0;
+		const AbstrDataItem* adiGridImp        = AsDataItem(args[argIndex++]);
+		const AbstrDataItem* adiStartPointGrid = AsDataItem(args[argIndex++]);
+		const AbstrDataItem* adiLimitImp       =  nullptr;
+		const AbstrDataItem* adiStartPointImp  = nullptr;
 
-		dms_assert(adiGridImp && adiStartPointGrid && adiStartPointImp);
+		assert(adiGridImp);
+		assert(adiStartPointGrid);
+
+		if (m_Flags & GridDistFlags::HasLimitParameter)
+			adiLimitImp = AsDataItem(args[argIndex++]);
+		if (m_Flags & GridDistFlags::HasInitialImpedance)
+			adiStartPointImp = AsDataItem(args[argIndex++]);
+
+		assert(argIndex == NrArguments(m_Flags));
 
 		const Unit<GridType>* gridSet  = checked_domain<GridType>(adiGridImp, "a1");
 		const Unit<ImpType>*  impUnit  = const_unit_cast<ImpType>(adiGridImp->GetAbstrValuesUnit());
 		const AbstrUnit*      startSet = adiStartPointGrid->GetAbstrDomainUnit();
 
-		dms_assert(gridSet );
-		dms_assert(impUnit );
-		dms_assert(startSet);
+		assert(gridSet );
+		assert(impUnit );
+		assert(startSet);
 
 		gridSet ->UnifyDomain(adiStartPointGrid->GetAbstrValuesUnit(), "e1", "v2", UM_Throw);
-		startSet->UnifyDomain(adiStartPointImp->GetAbstrDomainUnit (), "e2", "e3", UM_Throw);
-		impUnit ->UnifyValues(adiStartPointImp->GetAbstrValuesUnit (), "v1", "v3", UM_Throw);
+
+		if (adiLimitImp)
+		{
+			MG_USERCHECK2(adiLimitImp->HasVoidDomainGuarantee(), "griddist: Limit parameter (3rd argument) must have void domain");
+			impUnit->UnifyValues(adiLimitImp->GetAbstrValuesUnit(), "v1", "v3", UM_Throw);
+		}
+
+		if (adiStartPointImp)
+		{
+			startSet->UnifyDomain(adiStartPointImp->GetAbstrDomainUnit(), "e2", adiLimitImp ? "e4" : "e3", UM_Throw);
+			impUnit ->UnifyValues(adiStartPointImp->GetAbstrValuesUnit(), "v1", adiLimitImp ? "v4" : "v3", UM_Throw);
+		}
 
 		if (!resultHolder)
 			resultHolder = CreateCacheDataItem(gridSet, impUnit);
@@ -144,16 +207,34 @@ public:
 
 			const Arg1Type* diGridImp = const_array_cast<ImpType>(arg1Lock);
 			const Arg2Type* diStartPointGrid = const_array_cast<GridType>(arg2Lock);
-			const Arg3Type* diStartPointImp = const_array_cast<ImpType>(arg3Lock);
+			const Arg3bType* diStartPointImp = adiStartPointImp ? const_array_cast<ImpType>(arg3Lock) : nullptr;
+
+			ImpType maxImp = MAX_VALUE(ImpType);
+
+			if (adiLimitImp)
+			{
+				DataReadLock arg3aLock(adiLimitImp);
+				maxImp = GetTheValue<ImpType>(adiLimitImp);
+			}
 
 			DataWriteLock resLock(res, dms_rw_mode::write_only_mustzero);
 			DataWriteLock tbLock (trBck, dms_rw_mode::write_only_mustzero);
 
 			ResultType* result = mutable_array_cast<ImpType>(resLock);
 			ResultSubType* traceBack = mutable_array_cast<LinkType>(tbLock);
+			
+			auto srcNodes = diStartPointGrid->GetLockedDataRead();
+			typename DataArray<ImpType>::locked_cseq_t startCosts;
+			if (diStartPointImp)
+			{
+				startCosts = diStartPointImp->GetLockedDataRead();
+				assert(srcNodes.size() == startCosts.size());
+			}
 
-			tile_id tn = adiGridImp->GetAbstrDomainUnit()->GetNrTiles();
-			intertile_map itMap(tn);
+			bool useShadowTile = m_Flags & GridDistFlags::UseShadowTile;
+
+			tile_id tn = useShadowTile ? 1 : adiGridImp->GetAbstrDomainUnit()->GetNrTiles();
+			intertile_map itMap(useShadowTile ? 0 : tn);
 			tile_id nrTilesRemaining = tn;
 
 			SizeT nrIterations = 0, nrPrevBorderCases = 0;
@@ -162,27 +243,25 @@ public:
 
 				for (tile_id t = 0; t!=tn; ++t) if (!itMap[t].m_IsDone)
 				{
-					auto costData  = diGridImp->GetLockedDataRead(t);
-					auto srcNodes = diStartPointGrid->GetLockedDataRead();
-					auto startCosts = diStartPointImp->GetLockedDataRead();
+					auto pseudoTile = useShadowTile ? no_tile : t;
+					auto costData  = diGridImp->GetLockedDataRead(pseudoTile);
 
-					auto resultData    = result   ->GetLockedDataWrite(t);
-					auto traceBackData = traceBack->GetLockedDataWrite(t);
+					auto resultData    = result   ->GetLockedDataWrite(pseudoTile);
+					auto traceBackData = traceBack->GetLockedDataWrite(pseudoTile);
 
-					Range<GridType> range = gridSet->GetTileRange(t);
+					Range<GridType> range = gridSet->GetTileRange(pseudoTile);
 					SizeT nrV = Cardinality(range);
 
 					DijkstraHeap<NodeType, LinkType, ZoneType, ImpType> dh(nrV, false);
 
-					UInt32 nrC = Width(range);
+					auto nrC = Width(range);
 					int offsets[9]; for (UInt32 i=1; i!=9; ++i) offsets[i] = displacement_info[i].dx + displacement_info[i].dy * nrC;
 
-					dms_assert(costData.size() == nrV); typename sequence_traits<ImpType>::cseq_t::const_iterator costDataPtr = costData.begin();
-					dms_assert(srcNodes.size() == startCosts.size());
+					assert(costData.size() == nrV); typename sequence_traits<ImpType>::cseq_t::const_iterator costDataPtr = costData.begin();
 
 
-					dms_assert(resultData   .size() == nrV); dh.m_ResultDataPtr    = resultData.begin();
-					dms_assert(traceBackData.size() == nrV); dh.m_TraceBackDataPtr = traceBackData.begin();
+					assert(resultData   .size() == nrV); dh.m_ResultDataPtr    = resultData.begin();
+					assert(traceBackData.size() == nrV); dh.m_TraceBackDataPtr = traceBackData.begin();
 
 					fast_fill(resultData   .begin(), resultData   .end(), dh.m_MaxImp);
 					fast_fill(traceBackData.begin(), traceBackData.end(), LinkType(0) );
@@ -226,6 +305,9 @@ public:
 						ImpType cellDist = costData[currNode];
 						if (!IsDefined(cellDist))
 							continue;
+						if (adiLimitImp && cellDist >= maxImp)
+							continue;
+
 						MakeMax<ImpType>(cellDist, ImpType()); // raise negative values to zero.
 						UInt32 forbiddenDirections = 0;
 						if (currNode < nrC)             forbiddenDirections |= D_North;
@@ -242,13 +324,16 @@ public:
 							MakeMax<ImpType>(deltaCost, ImpType()); // raise negative values to zero.
 							deltaCost += cellDist;
 							deltaCost *= displacement_info[i].f;
-							dms_assert(deltaCost >= 0);
+							assert(deltaCost >= 0);
 							if (deltaCost < dh.m_MaxImp)
 								dh.InsertNode(otherNode, currImp + deltaCost, displacement_info[i].d);
 						}
 					}
 					itMap[t].m_IsDone = true;
 				}
+				if (useShadowTile)
+					break;
+
 				nrTilesRemaining = 0;
 
 				typename Arg1Type::locked_cseq_t costData1, costData2; // be lazy in locking and unlocking tiles
@@ -346,12 +431,27 @@ public:
 #include "RtcTypeLists.h"
 #include "utl/TypeListOper.h"
 
-namespace 
-{
+namespace {
+	static CommonOperGroup cogGD__("griddist", oper_policy::better_not_in_meta_scripting);
+	static CommonOperGroup cogGDM_("griddist_maximp", oper_policy::better_not_in_meta_scripting);
+	static CommonOperGroup cogGD_U("griddist_untiled", oper_policy::better_not_in_meta_scripting);
+	static CommonOperGroup cogGDMU("griddist_maximp_untiled", oper_policy::better_not_in_meta_scripting);
+
 	template <typename Imp>
-	struct GridDistOperSet : tl_oper::inst_tuple<typelists::domain_points, GridDistOperator<Imp, _>>
-	{};
+	struct GridDistOperSet
+	{
+		GridDistOperSet(AbstrOperGroup& og, GridDistFlags flags)
+			: m_OpersWithoutInitialImpedance(og, flags)
+			, m_OpersWithInitialImpedance(og, flags | GridDistFlags::HasInitialImpedance)
+		{}
 
-	tl_oper::inst_tuple_templ<typelists::floats, GridDistOperSet> gridDistOperSets;
+		tl_oper::inst_tuple<typelists::domain_points, GridDistOperator<Imp, _>, AbstrOperGroup&, GridDistFlags>
+			m_OpersWithoutInitialImpedance, m_OpersWithInitialImpedance;
 
+	};
+
+	tl_oper::inst_tuple_templ<typelists::floats, GridDistOperSet, AbstrOperGroup&, GridDistFlags> gridDistOperSets__(cogGD__, GridDistFlags::NoFlags);
+	tl_oper::inst_tuple_templ<typelists::floats, GridDistOperSet, AbstrOperGroup&, GridDistFlags> gridDistOperSetsM_(cogGDM_, GridDistFlags::HasLimitParameter);
+	tl_oper::inst_tuple_templ<typelists::floats, GridDistOperSet, AbstrOperGroup&, GridDistFlags> gridDistOperSets_U(cogGD_U, GridDistFlags::UseShadowTile);
+	tl_oper::inst_tuple_templ<typelists::floats, GridDistOperSet, AbstrOperGroup&, GridDistFlags> gridDistOperSetsMU(cogGDMU, GridDistFlags::HasLimitParameterAndUseShadowTile);
 }

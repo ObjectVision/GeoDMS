@@ -10,7 +10,7 @@
 #include <QMimeData>
 #include <QTimer>
 
-#include <windows.h>
+//#include <windows.h>
 #include <ShellScalingApi.h>
 
 #include "dbg/SeverityType.h"

@@ -301,12 +301,15 @@ std::shared_ptr<GraphicLayer> LayerSet::CreateLayer(const AbstrDataItem* viewIte
 
 		const TreeItem* bdvp = viewItem->GetConstSubTreeItemByID(GetTokenID_mt("BackgroundDefaultVisibility"));
 
-		FencedInterestRetainContext allowInterestIncrease;
 
-		if (bdvp && IsDataItem(bdvp) && AsDataItem(bdvp)->HasVoidDomainGuarantee() && !AsDataItem(bdvp)->LockAndGetValue<Bool>(0))
+		if (bdvp && IsDataItem(bdvp) && AsDataItem(bdvp)->HasVoidDomainGuarantee())
 		{
-			result->SetIsVisible(false);
-			dms_assert(! result->IsVisible());
+			FencedInterestRetainContext allowInterestIncrease("CreateLayer::GetBackgroundDefaultVisibility()");
+			if (!AsDataItem(bdvp)->LockAndGetValue<Bool>(0))
+			{
+				result->SetIsVisible(false);
+				assert(!result->IsVisible());
+			}
 		}
 	}
 	// moved from AddLayerCmd::DoLayerSet

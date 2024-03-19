@@ -231,7 +231,7 @@ public:
 				}
 				else
 				{
-					SuspendTrigger::SilentBlocker xx;
+					SuspendTrigger::SilentBlocker xx("AddLayerCmd::PreparePaletteDomain()");
 					paletteDomain->PrepareData();
 				}
 #if defined(MG_DEBUG)

@@ -476,13 +476,18 @@ namespace SuspendTrigger {
 //  -----------------------------------------------------------------------
 
 	static UInt32 s_SuspendBlockLevel = 0;    // publicly available for setting IncrementalLocks
+	static CharPtr s_CurrBlockingAction = nullptr;  // 
 
-	BlockerBase::BlockerBase() 
+	BlockerBase::BlockerBase(CharPtr blockingAction) 
 	{ 
+		assert(blockingAction);
 		if (IsMetaThread())
 		{
+			if (!s_SuspendBlockLevel)
+				s_CurrBlockingAction = blockingAction;
+
 			++s_SuspendBlockLevel; 
-			dms_assert(s_SuspendBlockLevel); // no overflow
+			assert(s_SuspendBlockLevel); // no overflow
 		}
 	}
 
@@ -490,17 +495,29 @@ namespace SuspendTrigger {
 	{
 		if (IsMetaThread())
 		{
-			dms_assert(s_SuspendBlockLevel); // resource match
+			assert(s_SuspendBlockLevel); // resource match
 			--s_SuspendBlockLevel;
+			if (!s_SuspendBlockLevel)
+				s_CurrBlockingAction = nullptr;
 		}
 	}
+
+	CharPtr BlockerBase::GetCurrBlockingAction()
+	{
+		assert(IsMetaThread());
+		assert(IsBlocked());
+		assert(s_CurrBlockingAction);
+		return s_CurrBlockingAction;
+	}
+
 
 	bool BlockerBase::IsBlocked()
 	{
 		return IsMetaThread() ? s_SuspendBlockLevel : true;
 	}
 
-	SilentBlocker::SilentBlocker() 
+	SilentBlocker::SilentBlocker(CharPtr blockingAction)
+		:	BlockerBase(blockingAction)
 	{ 
 		if (IsMetaThread() && s_SuspendBlockLevel == 1)
 			EnterNotificationBlock();
@@ -519,7 +536,8 @@ namespace SuspendTrigger {
 		return g_RemainingTargetCount;
 	}
 
-	SilentBlockerGate::SilentBlockerGate()
+	SilentBlockerGate::SilentBlockerGate(CharPtr blockingAction)
+		:	SilentBlocker(blockingAction)
 	{
 		if (!IsMultiThreaded2() && IsMetaThread())
 			m_InterestGate.assign(new DemandManagement::IncInterestGate);
@@ -528,7 +546,8 @@ namespace SuspendTrigger {
 	SilentBlockerGate::~SilentBlockerGate()
 	{};
 
-	FencedBlocker::FencedBlocker()
+	FencedBlocker::FencedBlocker(CharPtr blockingAction)
+		: SilentBlocker(blockingAction)
 	{ 
 		if (!InterestRetainContextBase::IsActive() && !IsMultiThreaded2() && IsMetaThread())
 			m_InterestFence.assign(new DemandManagement::IncInterestFence );

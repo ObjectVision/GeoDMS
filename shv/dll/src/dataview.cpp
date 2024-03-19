@@ -698,7 +698,7 @@ bool DataView::DispatchMsg(const MsgStruct& msg)
 
 		case WM_COMMAND:
 		{
-			SuspendTrigger::FencedBlocker suspendLock;
+			SuspendTrigger::FencedBlocker suspendLock("DataView::OnCommand()");
 			if (HIWORD(msg.m_wParam) == 0 && GetContents()->OnCommand(ToolButtonID(LOWORD(msg.m_wParam))))
 				goto completed;
 			goto defaultProcessing;
@@ -1213,12 +1213,13 @@ void ChangeActivation(MovableObject*  oldAct, MovableObject* newAct)
 	if (oldAct) oa = oldAct->shared_from_this();
 	while (oa && !IsAnchestor(debug_cast<MovableObject*>(oa.get()), newAct))
 	{
-		dms_assert(oa->GetOwner().lock());
-		dms_assert(oa->IsActive());
-		oa->SetActive(false);
-		oa = oa->GetOwner().lock();
+		auto pa = oa->GetOwner().lock();
+		assert(pa);
+		if (oa->IsActive())
+			oa->SetActive(false);
+		oa = pa;
 	}
-	Activate(newAct, oldAct);
+	Activate(newAct, debug_cast<MovableObject*>(oa.get()));
 }
 
 void DataView::Activate(MovableObject* src)
@@ -1265,7 +1266,7 @@ bool DataView::DispatchMouseEvent(UInt32 event, WPARAM nFlags, GPoint devicePoin
 	if (eventInfo.m_EventID & EID_RBUTTONUP)
 		m_TextEditController.CloseCurr();
 
-	SuspendTrigger::FencedBlocker blockSuspension;
+	SuspendTrigger::FencedBlocker blockSuspension("DataView::DispatchMouseEvent");
 
 	MouseEventDispatcher med(this, eventInfo);
 	bool result = med.Visit(GetContents().get() );

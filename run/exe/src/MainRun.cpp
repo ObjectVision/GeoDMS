@@ -180,7 +180,7 @@ int main_without_se(int argc, char** argv)
 			DMS_Appl_SetExeDir(splitFullPath(ConvertDosFileName(SharedStr(argv[0])).c_str()).c_str());
 
 		DBG_START("Main", "", true);
-		SuspendTrigger::FencedBlocker lockSuspend;
+		SuspendTrigger::FencedBlocker lockSuspend("@DmsRun main");
 		--argc; ++argv;
 		CharPtr firstParam = argv[0];
 		if ((argc > 0) && firstParam[0] == '/' && firstParam[1] == 'L')

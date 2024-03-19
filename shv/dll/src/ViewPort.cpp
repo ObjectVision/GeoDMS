@@ -43,6 +43,7 @@ granted by an additional written contract for support, assistance and/or develop
 #include "mci/ValueComposition.h"
 #include "set/Token.h"
 #include "utl/mySPrintF.h"
+
 #include "utl/SplitPath.h"
 
 #include "AbstrDataItem.h"
@@ -88,12 +89,18 @@ ViewPoint::ViewPoint(CharPtrRange viewPointStr)
 bool ViewPoint::WriteAsString(char* buffer, SizeT len, FormattingFlags flags)
 {
 	auto streamWrap = SilentMemoOutStreamBuff(ByteRange(buffer, len));
-	FormattedOutStream out(&streamWrap, flags);
-	out << "X=" << center.Col() << "; Y=" << center.Row() << "; ZL=" << zoomLevel;
+	//FormattedOutStream out(&streamWrap, flags);
+
+	static SharedStr format = SharedStr("X= % 10.2f; Y= % 10.2f; ZL= % 10.2f");
+
+	auto nrBytesWritten = myFixedBufferWrite(buffer, len, format.c_str(), center.Col(), center.Row(), zoomLevel);
+	buffer[nrBytesWritten] = char(0); // truncate
+
+	//out << "X=" << center.Col() << "; Y=" << center.Row() << "; ZL=" << zoomLevel;
 
 	if (streamWrap.CurrPos() >= len)
 		return false;
-	out << char(0);
+	//out << char(0);
 	return true;
 }
 
@@ -753,7 +760,7 @@ void ViewPort::Export()
 	auto dv = GetDataView().lock(); if (!dv) return;
 
 	FixedContextHandle context("while Exporting full ViewPort contents");
-	FencedInterestRetainContext resultHolder;
+	FencedInterestRetainContext resultHolder("ViewPort::Export()");
 
 	dms_assert(!SuspendTrigger::DidSuspend()); // DEBUG.
 	dbg_assert(DataViewOK());
@@ -1178,7 +1185,7 @@ Float64 GetSubItemValue(const TreeItem* context, TokenID id, Float64 defaultVal)
 		return defaultVal;
 
 	InterestPtr<const TreeItem*> tii(si);
-	PreparedDataReadLock drl(AsDataItem(si));
+	PreparedDataReadLock drl(AsDataItem(si), "GetSubItemValue");
 	return AsDataItem(si)->GetRefObj()->GetValueAsFloat64(0);
 }
 
@@ -1224,7 +1231,7 @@ void ViewPort::SetROI(const CrdRect& r)
 
 	ChangePoint(m_ROI_TL, rr.first , tlIsNew);
 	ChangePoint(m_ROI_BR, rr.second, brIsNew);
-	CertainUpdate(PS_Committed);
+	CertainUpdate(PS_Committed, "ViewPort::SetROI()");
 	m_ROI = rr;
 
 	DBG_TRACE(("TlChanged: %d", GetContext() ? m_ROI_TL->GetLastChangeTS() : 0 ));
@@ -1289,7 +1296,7 @@ ActorVisitState ViewPort::DoUpdate(ProgressState ps)
 CrdRect ViewPort::GetROI() const
 { 
 	dms_assert(GetContents());
-	CertainUpdate(PS_Committed);
+	CertainUpdate(PS_Committed, "ViewPort::GetROI()");
 // ISSUE 262, WIP
 //	if (m_ROI.empty())
 //		const_cast<ViewPort*>(this)->ZoomAll();

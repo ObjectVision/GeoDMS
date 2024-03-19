@@ -129,7 +129,7 @@ bool AsciiStorageManager::ReadDataItem(StorageMetaInfoPtr smi, AbstrDataObject* 
 	assert( DoesExist(smi->StorageHolder()) );
 	//dms_assert(t == no_tile);
 
-	SuspendTrigger::FencedBlocker suspendingInputStreams_NYI;
+	SuspendTrigger::FencedBlocker suspendingInputStreams_NYI("@");
 	if (SuspendTrigger::MustSuspend())
 		return false;
 

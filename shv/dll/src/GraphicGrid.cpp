@@ -64,8 +64,8 @@ void GraphicGrid::DoUpdateView()
 	dms_assert(m_Source_TL->GetAbstrDomainUnit()->GetCount() == 1);
 	dms_assert(m_Source_BR->GetAbstrDomainUnit()->GetCount() == 1);
 
-	PreparedDataReadLock tlLock(m_Source_TL.get_ptr());
-	PreparedDataReadLock brLock(m_Source_BR.get_ptr());
+	PreparedDataReadLock tlLock(m_Source_TL.get_ptr(), "GraphicGrid::DoUpdateView()");
+	PreparedDataReadLock brLock(m_Source_BR.get_ptr(), "GraphicGrid::DoUpdateView()");
 
 	SetWorldClientRect(
 		CrdRect(

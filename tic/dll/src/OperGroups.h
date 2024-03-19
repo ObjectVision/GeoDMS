@@ -170,7 +170,9 @@ struct Obsolete : OperGroupType {
 	Obsolete(CharPtr obsMsg, OtherArgs&& ...args)
 		: OperGroupType(std::forward<OtherArgs>(args)...)
 		, m_ObsMsg(obsMsg)
-	{}
+	{
+		MG_CHECK(this->IsDepreciated() || this->IsObsolete());
+	}
 	virtual CharPtr GetObsoleteMsg() const override
 	{
 		return m_ObsMsg;

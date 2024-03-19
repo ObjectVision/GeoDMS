@@ -324,7 +324,7 @@ bool AbstrDataItem::DoWriteItem(StorageMetaInfoPtr&& smi) const
 	DataReadLock lockForSave(this);
 
 	auto sm = smi->StorageManager();
-	FencedInterestRetainContext irc;
+	FencedInterestRetainContext irc("AbstrDataItem::DoWriteItem");
 	try {
 		SharedPtr<const TreeItem> storageHolder = smi->StorageHolder();
 		sm->ExportMetaInfo(storageHolder, this);
@@ -373,7 +373,22 @@ const DataItemClass* AbstrDataItem::GetDynamicObjClass() const
 	auto avu = GetAbstrValuesUnit();
 	assert(avu);
 	auto vc = GetValueComposition();
-	auto vt = avu->GetUnitClass()->GetValueType(vc);
+	auto au = avu->GetUnitClass();
+	assert(au);
+
+	auto vt = au->GetValueType(vc);
+
+	if (!vt)
+	{
+		assert(vc != ValueComposition::Single);
+		auto vcStr = GetValueCompositionID(vc).AsSharedStr();
+		auto vtSingle = au->GetValueType(ValueComposition::Single);
+		assert(vtSingle);
+		auto vtSingleStr = vtSingle->GetID().AsSharedStr();
+
+		throwDmsErrF("No ValueType for %s composition of %s values", vcStr.c_str(), vtSingleStr.c_str());
+	}
+	MG_CHECK(vt);
 	auto dic = DataItemClass::FindCertain(vt, this);
 	return dic;
 }
@@ -1088,7 +1103,7 @@ TIC_CALL void DMS_CONV Table_Dump(OutStreamBuff* out, const TableColumnSpec* col
 	DataReadLockContainer readLocks; readLocks.reserve(nrDataItems);
 	for (auto columnSpecIter = columnSpecPtr; columnSpecIter != columnSpecEnd; ++columnSpecIter)
 	{
-		readLocks.push_back(PreparedDataReadLock(columnSpecIter->m_DataItem));
+		readLocks.push_back(PreparedDataReadLock(columnSpecIter->m_DataItem, "Table_Dump"));
 		if (columnSpecIter->m_RelativeDisplay)
 			columnSpecIter->m_ColumnTotal = columnSpecIter->m_DataItem->GetRefObj()->GetSumAsFloat64();
 	}

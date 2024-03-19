@@ -76,8 +76,8 @@ IndexCollector::IndexCollector(index_collector_key key)
 	,	m_GeoRelAttr   ( key.second ) // = featureTheme->GetThemeAttr()      = Entity  -> ExtKey
 {
 	dms_assert(key.first || key.second);
-	PreparedDataReadLock lck1(key.first); 
-	PreparedDataReadLock lck2(key.second); 
+	PreparedDataReadLock lck1(key.first , "IndexCollector::ctor");
+	PreparedDataReadLock lck2(key.second, "IndexCollector::ctor");
 
 	LispRef expr; // Feature -> Entity
 	const AbstrUnit* idValues; // entity_id
@@ -118,7 +118,7 @@ void IndexCollector::Release()
 DataReadLock IndexCollector::GetDataItemReadLock(tile_id t) const
 {
 	auto res = m_DC->CalcResult();
-	PreparedDataReadLock lock(AsDataItem(res->GetOld()));
+	PreparedDataReadLock lock(AsDataItem(res->GetOld()), "IndexCollector::GetDataItemReadLock");
 
 	if (lock.GetRefObj())
 		m_Array = const_array_checkedcast<entity_id>(lock.GetRefObj())->GetDataRead(t);

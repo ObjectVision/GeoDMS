@@ -413,7 +413,7 @@ SharedStr GetPlaceholderValue(const TreeItem* configStore, CharPtr placeHolder)
 
 SharedStr AbstrStorageManager::Expand(const TreeItem* configStore, SharedStr storageName)
 {
-	FencedInterestRetainContext irc;
+	FencedInterestRetainContext irc("AbstrStorageManager::Expand");
 
 	dms_assert(configStore);
 	while (true)
@@ -994,7 +994,7 @@ void GenerateMetaInfo(AbstrPropWriter& apw, const TreeItem* curr, const TreeItem
 			const_cast<TreeItem*>(key)->SetKeepDataState(true);
 			InterestRetainContextBase::Add(key);
 
-			key->CertainUpdate(PS_Committed);
+			key->CertainUpdate(PS_Committed, "GenerateMetaInfo");
 
 			if (!IsDataItem(key))
 				continue;
@@ -1016,7 +1016,7 @@ static TokenID fileTypeID = GetTokenID_st("FileType");
 
 void ExportMetaInfoToFileImpl(const TreeItem* curr)
 {
-	FencedInterestRetainContext holdCalcResultsHere;
+	FencedInterestRetainContext holdCalcResultsHere("ExportMetaInfoToFile");
 
 	const TreeItem* metaInfo = GetExportMetaInfo(curr);
 	if (!metaInfo)

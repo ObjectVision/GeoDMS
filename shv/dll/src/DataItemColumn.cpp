@@ -26,6 +26,7 @@
 #include "DataItemClass.h"
 #include "DataController.h"
 #include "DisplayValue.h"
+#include "LispTreeType.h"
 #include "StateChangeNotification.h"
 #include "TreeItemProps.h"
 #include "Unit.h"
@@ -93,72 +94,158 @@ DataItemColumn::~DataItemColumn()
 
 static TokenID aggrID = GetTokenID_st("Aggr");
 
+AggrMethod DefaultAggrMethod(const AbstrDataItem* adi)
+{
+	const AbstrUnit* avu = adi->GetAbstrValuesUnit();
+	ValueComposition vcm = adi->GetValueComposition();
+	const ValueClass* vc = avu->GetValueType();
+
+	if (vcm != ValueComposition::Single)
+		return AggrMethod::bounding_box;
+
+	if (vc->GetNrDims() ==2)
+		return AggrMethod::bounding_box;
+
+	// AggrMethod::FrequencyTable;
+	if (vc->GetValueClassID() == ValueClassID::VT_Bool)
+		return AggrMethod::all; 
+	if (vc->GetValueClassID() == ValueClassID::VT_UInt2)
+		return AggrMethod::modus;
+	if (vc->GetValueClassID() == ValueClassID::VT_UInt4)
+		return AggrMethod::modus;
+
+	if (vc->IsNumeric())
+	{
+		bool isTheFirstIdColumn = adi->GetID() == token::id;
+		if (!isTheFirstIdColumn)
+			return AggrMethod::sum;
+	}	
+
+	return AggrMethod::count;
+}
+
 bool Allowed(const AbstrDataItem* adi, AggrMethod am)
 {
 	const AbstrUnit* avu = adi->GetAbstrValuesUnit();
 	ValueComposition vcm = adi->GetValueComposition();
 	const ValueClass* vc = avu->GetValueType();
+
 	switch (am) {
+		case AggrMethod::frequency_table:
+		case AggrMethod::diversity:
+			return false;
+
+		case AggrMethod::any:
+		case AggrMethod::all:
+			return vc->GetValueClassID() == ValueClassID::VT_Bool;
+
 		case AggrMethod::first:
 		case AggrMethod::last:
 			return true;
 
 		case AggrMethod::count:
-			return vc->GetValueClassID() == ValueClassID::VT_UInt32 && vcm == ValueComposition::Single; // we dont want to have to change the ValuesUnit type
+			return vcm == ValueComposition::Single && (vc->IsIntegral() || vc->GetNrDims() == 2);
 
 		case AggrMethod::union_polygon:
 			return vc->GetNrDims() == 2 && vcm == ValueComposition::Polygon && vc->IsIntegral();
 
 		case AggrMethod::modus:
-			if (!vc->IsIntegral())
+		case AggrMethod::modus_count:
+		case AggrMethod::unique_count:
+		case AggrMethod::entropy:
+		case AggrMethod::average_entropy:
+			if (!vc->IsCountable())
 				return false;
-			[[fallthrough]];
+			return vcm == ValueComposition::Single;
+
 		case AggrMethod::sum:
-		case AggrMethod::mean:
 		case AggrMethod::sd:
 			if (!vc->IsNumeric())
 				return false;
-			[[fallthrough]];
-		case AggrMethod::min:
-		case AggrMethod::max:
+			return vcm == ValueComposition::Single;
+
 		case AggrMethod::asItemList:
 			return vcm == ValueComposition::Single;
+
+		case AggrMethod::min:
+		case AggrMethod::max:
+		case AggrMethod::bounding_box:
+			return vc->GetValueClassID() != ValueClassID::VT_Bool
+				&& vc->GetValueClassID() != ValueClassID::VT_UInt2
+				&& vc->GetValueClassID() != ValueClassID::VT_UInt4;
+
+		case AggrMethod::mean:
+			return vcm == ValueComposition::Single || vc->GetNrDims() == 2;
 	}
 	return false;
 }
 
-ConstUnitRef ValuesUnit(const AbstrDataItem* adi, AggrMethod am)
+std::pair<ConstUnitRef, ValueComposition> ValuesUnitAndComposition(const AbstrDataItem* adi, const AbstrDataItem* groupByRel, AggrMethod am)
 {
-	dms_assert(Allowed(adi, am));
+	assert(Allowed(adi, am));
 
 	const AbstrUnit* avu = adi->GetAbstrValuesUnit();
 	const ValueClass* vc = avu->GetValueType();
 	switch (am) {
+		case AggrMethod::bounding_box:
+			return {Unit<SharedStr>::GetStaticClass()->CreateDefault(), ValueComposition::String };
+
+		case AggrMethod::entropy:
+		case AggrMethod::average_entropy:
+		case AggrMethod::sum:
+			return { Unit<Float64>::GetStaticClass()->CreateDefault(), ValueComposition::Single };
+
 		case AggrMethod::count:
-			return count_unit_creator(adi);
+			return { count_unit_creator(adi), ValueComposition::Single };
 
 		case AggrMethod::asItemList:
-			return (vc->GetValueClassID() == ValueClassID::VT_String) ? avu : Unit<SharedStr>::GetStaticClass()->CreateDefault();
+			if (vc->GetValueClassID() == ValueClassID::VT_String)
+				return {avu, ValueComposition::String };
+			return { Unit<SharedStr>::GetStaticClass()->CreateDefault(), ValueComposition::String };
 
-		default:
-			return avu;
+		case AggrMethod::first:
+		case AggrMethod::last:
+			return { avu, adi->GetValueComposition() };
+
+		case AggrMethod::modus_count:
+		{
+			return { count_unit_creator(adi), ValueComposition::Single };
+		}
+		case AggrMethod::unique_count:
+		{
+			return { unique_count_unit_creator(adi, groupByRel), ValueComposition::Single };
+		}
+
+		case AggrMethod::frequency_table:
+			return { Unit<SharedStr>::GetStaticClass()->CreateDefault(), ValueComposition::String };
+
 	}
-	return nullptr;
+	return { avu, ValueComposition::Single };
+}
+
+CharPtr SelectCardinality(const AbstrUnit* au, CharPtr oper8, CharPtr oper16, CharPtr oper32, CharPtr oper64)
+{
+	auto vt = au->GetValueType(); assert(vt);
+	auto vtCrd = vt->GetCrdClass(); assert(vtCrd);
+	if (vtCrd->GetBitSize() <= 8)
+		return oper8;
+	if (vtCrd->GetBitSize() <= 16)
+		return oper16;
+	if (vtCrd->GetBitSize() <= 32)
+		return oper32;
+	return oper64;
 }
 
 CharPtr OperName(const AbstrDataItem* adi, AggrMethod am)
 {
-	dms_assert(Allowed(adi, am));
+//	assert(Allowed(adi, am));
 
 	switch(am) {
+		case AggrMethod::any: return "any";
+		case AggrMethod::all: return "all";
 		case AggrMethod::sum: return "sum";
-		case AggrMethod::count: return "count";
 		case AggrMethod::union_polygon: return "partitioned_union_polygon";
-		case AggrMethod::asItemList:
-			if (adi->GetAbstrValuesUnit()->GetValueType()->GetValueClassID() == ValueClassID::VT_String)
-				return "asItemList";
-			else
-				return "asExprList";
+		case AggrMethod::asItemList: return "asItemList";
 		case AggrMethod::min:  return "min";
 		case AggrMethod::max:  return "max";
 		case AggrMethod::first:return "first";
@@ -166,31 +253,69 @@ CharPtr OperName(const AbstrDataItem* adi, AggrMethod am)
 		case AggrMethod::mean: return "mean";
 		case AggrMethod::sd  : return "sd";
 		case AggrMethod::modus: return "modus";
+
+		case AggrMethod::count: return "count";
+		case AggrMethod::modus_count : return "modus_count";
+		case AggrMethod::unique_count: return "unique_count";
+
+		case AggrMethod::entropy: return "entropy";
+		case AggrMethod::average_entropy: return "average_entropy";
+		case AggrMethod::bounding_box: return "bounds";
+
+		case AggrMethod::diversity: return "diversity";
+		case AggrMethod::frequency_table: return "frequency_table";
 	}
 	return "unknown";
 }
 
-CharPtr OperExprFormat(const AbstrDataItem* adi, AggrMethod am)
+// provides a format string for the expression of an aggregation operation
+//	%1% = AggrOperName
+//	%2% = adi->GetFullName()
+//	%3% = groupByItemName
+
+CharPtr OperExprFormat(const AbstrDataItem* adi, const AbstrDataItem* groupBy_rel, AggrMethod am)
 {
 	switch (am)
 	{
 	case AggrMethod::asItemList:
 		if (adi->GetValueComposition() != ValueComposition::Single || adi->GetAbstrValuesUnit()->GetValueType()->GetNrDims() > 1)
-			return "%1%(AsDataString(%2%), %3%)"; // fits for most cases
+			return "%1%(String(%2%), %3%)"; // fits for most cases
 		break;
 	case AggrMethod::first:
 	case AggrMethod::last:
 		if (adi->GetValueComposition() != ValueComposition::Single)
 			return "%2%[%1%(ID(DomainUnit(%3%)), %3%)]";
 		break;
+	case AggrMethod::min:
+		if (adi->GetValueComposition() != ValueComposition::Single)
+			return "min(lower_bound(%2%), %3%)";
+		break;
+	case AggrMethod::max:
+		if (adi->GetValueComposition() != ValueComposition::Single)
+			return "max(upper_bound(%2%), %3%)";
+		break;
+	case AggrMethod::sum:
+		return "sum(float64(%2%), %3%)";
+
+	case AggrMethod::mean:
+		if (adi->GetValueComposition() != ValueComposition::Single)
+			return "mean(centroid(%2%), %3%))";
+		break;
+	case AggrMethod::count: return SelectCardinality(count_unit_creator(adi), "count_uint8(%2%, %3%)", "count_uint16(%2%, %3%)", "count_uint32(%2%, %3%)", "count_uint64(%2%, %3%)");
+	case AggrMethod::modus_count: return SelectCardinality(count_unit_creator(adi), "modus_count_uint8(%2%, %3%)", "modus_count_uint16(%2%, %3%)", "modus_count_uint32(%2%, %3%)", "modus_count_uint64(%2%, %3%)");
+	case AggrMethod::unique_count: return SelectCardinality(unique_count_unit_creator(adi, groupBy_rel), "unique_count_uint8(%2%, %3%)", "unique_count_uint16(%2%, %3%)", "unique_count_uint32(%2%, %3%)", "unique_count_uint64(%2%, %3%)");
+	case AggrMethod::bounding_box:
+		if (adi->GetValueComposition() != ValueComposition::Single)
+			return "'['+String(min(lower_bound(%2%), %3%))+'...'+String(max(upper_bound(%2%), %3%))+']'";
+		return "'['+String(min(%2%, %3%))+'...'+String(max(%2%, %3%))+']'";
 	}
 	return "%1%(%2%, %3%)"; // fits for most cases
 }
 
-SharedStr OperExpr(const AbstrDataItem* adi, AggrMethod am)
+SharedStr OperExpr(const AbstrDataItem* adi, const AbstrDataItem* groupBy_rel, AggrMethod am)
 {
 	CharPtr groupByItemName = "../GroupBy/per_Row";
-	return mgFormat2SharedStr(OperExprFormat(adi, am), OperName(adi, am) , adi->GetFullName(), groupByItemName);
+	return mgFormat2SharedStr(OperExprFormat(adi, groupBy_rel, am), OperName(adi, am) , adi->GetFullName(), groupByItemName);
 }
 
 const AbstrDataItem* DataItemColumn::GetActiveTextAttr() const
@@ -228,20 +353,26 @@ void DataItemColumn::UpdateTheme()
 
 	if (tc->m_GroupByEntity)
 	{
-		auto aggrMethod = IsDefined(m_GroupByIndex) ? AggrMethod::first : m_AggrMethod;
+		auto aggrMethod = m_AggrMethod;
+		if (IsDefined(m_GroupByIndex))
+			aggrMethod = AggrMethod::first;
+		if (aggrMethod == AggrMethod::undefined)
+			aggrMethod = DefaultAggrMethod(attr);
+
 		while (!Allowed(GetSrcAttr(), aggrMethod))
 		{
 			assert(aggrMethod != AggrMethod::first); // must always be allowed.
 			aggrMethod = AggrMethod(int(aggrMethod) + 1);
 			if (aggrMethod == AggrMethod::nr_methods)
-				aggrMethod = AggrMethod::sum;
-			m_AggrMethod = aggrMethod;
+				aggrMethod = AggrMethod::count;
 		}
+		m_AggrMethod = aggrMethod;
 
-		SharedPtr<AbstrDataItem> aggrAttr = CreateDataItem(GetContext(), aggrID, tc->m_GroupByEntity, ValuesUnit(GetSrcAttr(), aggrMethod), GetSrcAttr()->GetValueComposition());
+		auto aggrValuesSpec = ValuesUnitAndComposition(GetSrcAttr(), tc->m_GroupByRel, aggrMethod);
+		SharedPtr<AbstrDataItem> aggrAttr = CreateDataItem(GetContext(), aggrID, tc->m_GroupByEntity, aggrValuesSpec.first, aggrValuesSpec.second);
 		aggrAttr->SetKeepDataState(false);
 		aggrAttr->DisableStorage(true);
-		aggrAttr->SetExpr(OperExpr(GetSrcAttr(), aggrMethod));
+		aggrAttr->SetExpr(OperExpr(GetSrcAttr(), tc->m_GroupByRel, aggrMethod));
 
 		m_FutureAggrAttr = aggrAttr.get_ptr(); m_FutureAggrAttr->PrepareDataUsage(DrlType::Certain); // can throw when Expr is invalid, m_FutureAggrAttr will then not be updated
 		attr = aggrAttr;
@@ -483,7 +614,7 @@ void DataItemColumn::DrawBackground(const GraphDrawer& d) const
 	if (penTheme)
 	{
 		ThemeReadLocks trl;
-		SuspendTrigger::BlockerBase block;
+		SuspendTrigger::BlockerBase block("DataItemColumn::DrawBackground");
 		trl.push_back(penTheme.get(), DrlType::Certain);
 
 		br = GdiHandle<HBRUSH>(CreateSolidBrush(DmsColor2COLORREF(penTheme->GetValueGetter()->GetColorValue(Min<SizeT>(recNo, nrRows-1)))));
@@ -1251,22 +1382,14 @@ void DataItemColumn::FillMenu(MouseEventDispatcher& med)
 	SharedStr caption = GetThemeDisplayName(this);
 
 	auto tc = GetTableControl().lock(); if (!tc) return;
-	{
-		SubMenu subMenu(med.m_MenuData, SharedStr("Activate...")); // SUBMENU
-		InsertSubMenu(med.m_MenuData, "Source Attribute", GetSrcAttr(), this);
-		InsertSubMenu(med.m_MenuData, "Table Domain", tc->GetEntity(), this);
-	}
 	auto sa = GetSrcAttr();
 	if (sa)
 		med.m_MenuData.emplace_back("Show Statistics of " + caption, new RequestClientCmd(sa, CC_ShowStatistics), this);
 
-
 	if (tc->HasSortOptions())
 	{
-		SubMenu subMenu(med.m_MenuData, "Sort on " + GetThemeDisplayName(this)); // SUBMENU
-
-		med.m_MenuData.emplace_back( SharedStr("Ascending" ), make_MembFuncCmd(&DataItemColumn::SortAsc ), this );
-		med.m_MenuData.emplace_back( SharedStr("Descending"), make_MembFuncCmd(&DataItemColumn::SortDesc), this );
+		med.m_MenuData.emplace_back(SharedStr("Sort"), make_MembFuncCmd(&DataItemColumn::SortAsc ), this );
+		med.m_MenuData.emplace_back(SharedStr("Sort reversed"), make_MembFuncCmd(&DataItemColumn::SortDesc), this );
 	}
 	if (tc->m_GroupByEntity && !IsDefined(m_GroupByIndex)) {
 		SubMenu subMenu(med.m_MenuData, SharedStr("Aggregate by ")); // SUBMENU
@@ -1278,6 +1401,12 @@ void DataItemColumn::FillMenu(MouseEventDispatcher& med)
 					this,
 					am == m_AggrMethod ? MF_CHECKED : 0
 				));
+	}
+
+	{
+		SubMenu subMenu(med.m_MenuData, SharedStr("Activate...")); // SUBMENU
+		InsertSubMenu(med.m_MenuData, "Source Attribute", GetSrcAttr(), this);
+		InsertSubMenu(med.m_MenuData, "Table Domain", tc->GetEntity(), this);
 	}
 
 //	Display Relative

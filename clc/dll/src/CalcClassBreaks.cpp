@@ -243,7 +243,7 @@ ValueCountPairContainer GetWallCounts(const AbstrDataItem* adi, tile_id t, tile_
 
 CountsResultType PrepareCounts(const AbstrDataItem* adi, SizeT maxPairCount)
 {
-	PreparedDataReadLock lck(adi);
+	PreparedDataReadLock lck(adi, "PrepareCounts");
 	
 	return GetCounts(adi, maxPairCount);
 }

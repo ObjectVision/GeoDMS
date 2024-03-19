@@ -743,7 +743,7 @@ namespace Explain { // local defs
 
 		void GetDescr(const AbstrDataItem* studyObject) const
 		{
-			SuspendTrigger::FencedBlocker nowProvideValuesWithLabelsWithoutSuspension;
+			SuspendTrigger::FencedBlocker nowProvideValuesWithLabelsWithoutSuspension("@CalcExplanations::GetDescr");
 
 			assert(m_CalcExplImplPtr->m_Expl.size() >= 1);
 

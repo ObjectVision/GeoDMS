@@ -389,7 +389,7 @@ auto DataController::CalcResultWithValuesUnits() const -> FutureData// TODO G8: 
 
 FutureData DataController::CalcCertainResult()  const
 {
-	SuspendTrigger::SilentBlocker lock;
+	SuspendTrigger::SilentBlocker lock("DataController::CalcCertainResult()");
 	return CalcResult();
 }
 
@@ -404,7 +404,7 @@ SharedStr DataController::GetSourceName() const
 
 const Class* DataController::GetResultCls () const
 {
-	SuspendTrigger::FencedBlocker block;
+	SuspendTrigger::FencedBlocker block("DataController::GetResultCls()");
 
 	auto result = MakeResult();
 	if (WasFailed(FR_MetaInfo))

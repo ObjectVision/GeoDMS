@@ -29,19 +29,19 @@
 
 static TokenID s_Districts = GetTokenID_st("Districts");
 
-template <typename T>
+template <typename T, typename R = UInt32>
 struct DistrictOperator : public UnaryOperator
 {
-	typedef UInt32            district_type;
-	typedef DataArray<T>             ArgType;
-	typedef Unit<district_type>      ResultUnitType;
-	typedef DataArray<district_type> ResultSubType;
+	using district_type = R;
+	using ArgType = DataArray<T>;
+	using ResultUnitType = Unit<district_type>;
+	using ResultSubType = DataArray<district_type>;
 			
-	bool m_Rule8;
+	bool m_Use8Neighbours;
 
-	DistrictOperator(AbstrOperGroup& og, bool rule8)
+	DistrictOperator(AbstrOperGroup& og, bool use8Neighbours)
 		:	UnaryOperator(&og, ResultUnitType::GetStaticClass(), ArgType::GetStaticClass()) 
-		, m_Rule8(rule8)
+		, m_Use8Neighbours(use8Neighbours)
 	{}
 
 	// Override Operator
@@ -50,8 +50,7 @@ struct DistrictOperator : public UnaryOperator
 		MG_PRECONDITION(args.size() == 1);
 
 		const AbstrDataItem* inputGridA = debug_cast<const AbstrDataItem*>(args[0]);
-		dms_assert(inputGridA);
-
+		assert(inputGridA);
 
 		const AbstrUnit* domain = inputGridA->GetAbstrDomainUnit();
 
@@ -66,15 +65,15 @@ struct DistrictOperator : public UnaryOperator
 				CreateDataItem(resUnit, s_Districts, 
 					domain, resUnit
 				);
-		dms_assert(resSub);
+		assert(resSub);
 
-		dms_assert(resSub->GetAbstrDomainUnit() == domain);
+		assert(resSub->GetAbstrDomainUnit() == domain);
 
 		if (mustCalc)
 		{
 			DataReadLock arg1Lock(inputGridA);
 			const ArgType* inputGrid = debug_cast<const ArgType*>(inputGridA->GetCurrRefObj());
-			dms_assert(inputGrid);
+			assert(inputGrid);
 
 			auto resLock = CreateHeapTileArrayV<district_type>(inputGrid->GetTiledRangeData(), nullptr, false MG_DEBUG_ALLOCATOR_SRC("OperDistrict: resLock"));
 			
@@ -86,19 +85,19 @@ struct DistrictOperator : public UnaryOperator
 			IRect rect = domain->GetRangeAsIRect();
 			if (!rect.empty())
 			{
-				dms_assert(Left(rect) < Right(rect));
-				dms_assert(Top(rect) < Bottom(rect));
-				dms_assert(inputVec.size() == Cardinality(rect));
-				dms_assert(outputVec.size() == Cardinality(rect));
+				assert(Left(rect) < Right(rect));
+				assert(Top(rect) < Bottom(rect));
+				assert(inputVec.size() == Cardinality(rect));
+				assert(outputVec.size() == Cardinality(rect));
 
 				UGrid<const ArgType::value_type> input(Size(rect), inputVec.begin());
 				UGrid<ResultSubType::value_type> output(input.GetSize(), outputVec.begin());
 
-				Districting(input, output, &nrDistricts, m_Rule8);
+				nrDistricts = Districting(input, output, this->m_Use8Neighbours);
 			}
 			ResultUnitType* resultUnit = debug_cast<ResultUnitType*>(resUnit);
 			dms_assert(resultUnit);
-			resultUnit->SetRange(Range<UInt32>(0, nrDistricts));
+			resultUnit->SetRange(Unit<R>::range_t(0, nrDistricts));
 
 			resLock->InitValueRangeData( resultUnit->m_RangeDataPtr );
 			resSub->m_DataObject = resLock.release();
@@ -198,24 +197,26 @@ public:
 	}
 };
 
-CommonOperGroup cogDistrict("district", oper_policy::better_not_in_meta_scripting);
-CommonOperGroup cogDistrict4("district_4", oper_policy::better_not_in_meta_scripting);
-CommonOperGroup cogDistrict8("district_8", oper_policy::better_not_in_meta_scripting);
+CommonOperGroup cogDistrict("district");
+CommonOperGroup cogDistrict4("district_4");
+CommonOperGroup cogDistrict8("district_8");
 
+CommonOperGroup cogDistrict_uint8("district_uint8");
+CommonOperGroup cogDistrict4_uint8("district_4_uint8");
+CommonOperGroup cogDistrict8_uint8("district_8_uint8");
 
-template <typename ZoneType>
-struct District4Operator : DistrictOperator<ZoneType>
-{
-	District4Operator() : DistrictOperator<ZoneType>(cogDistrict4, false)
-	{}
-};
+CommonOperGroup cogDistrict_uint16("district_uint16");
+CommonOperGroup cogDistrict4_uint16("district_4_uint16");
+CommonOperGroup cogDistrict8_uint16("district_8_uint16");
 
-template <typename  ZoneType>
-struct District8Operator : DistrictOperator<ZoneType>
-{
-	District8Operator() : DistrictOperator<ZoneType>(cogDistrict8, true)
-	{}
-};
+CommonOperGroup cogDistrict_uint32("district_uint32");
+CommonOperGroup cogDistrict4_uint32("district_4_uint32");
+CommonOperGroup cogDistrict8_uint32("district_8_uint32");
+
+CommonOperGroup cogDistrict_uint64("district_uint64");
+CommonOperGroup cogDistrict4_uint64("district_4_uint64");
+CommonOperGroup cogDistrict8_uint64("district_8_uint64");
+
 
 // *****************************************************************************
 //											INSTANTIATION
@@ -223,16 +224,30 @@ struct District8Operator : DistrictOperator<ZoneType>
 
 namespace
 {
-	DistrictOperator <UInt32>  distrUInt32(cogDistrict, false);
-	DistrictOperator <UInt8>   distrUInt8 (cogDistrict, false);
-	DistrictOperator <Bool>    distrBool  (cogDistrict, false);
+	template <typename R>
+	struct DistrictOperators
+	{
+		DistrictOperators(AbstrOperGroup& og, bool use8Neighbours)
+		: distrUInt32(og, use8Neighbours)
+		, distrUInt16(og, use8Neighbours)
+		, distrUInt8 (og, use8Neighbours)
+		, distrBool  (og, use8Neighbours)
+		{
+			og.SetBetterNotInMetaScripting();
+		}
 
-	District4Operator <UInt32>  distr4UInt32;
-	District4Operator <UInt8>   distr4UInt8;
-	District4Operator <Bool>    distr4Bool;
-	District8Operator <UInt32>  distr8UInt32;
-	District8Operator <UInt8>   distr8UInt8;
-	District8Operator <Bool>    distr8Bool;
+		DistrictOperator <UInt32, R>  distrUInt32;
+		DistrictOperator <UInt16, R>  distrUInt16;
+		DistrictOperator <UInt8 , R>  distrUInt8;
+		DistrictOperator <Bool  , R>  distrBool;
+	};
+
+
+	DistrictOperators <UInt32>  distr(cogDistrict, false), distr4(cogDistrict4, false), distr8(cogDistrict8, true);
+	DistrictOperators <UInt8 >  distr_UInt8 (cogDistrict_uint8 , false), distr4_UInt8 (cogDistrict4_uint8 , false), distr8_uint8 (cogDistrict8_uint8 , true);
+	DistrictOperators <UInt16>  distr_UInt16(cogDistrict_uint16, false), distr4_UInt16(cogDistrict4_uint16, false), distr8_uint16(cogDistrict8_uint16, true);
+	DistrictOperators <UInt32>  distr_UInt32(cogDistrict_uint32, false), distr4_UInt32(cogDistrict4_uint32, false), distr8_uint32(cogDistrict8_uint32, true);
+	DistrictOperators <UInt64>  distr_UInt64(cogDistrict_uint64, false), distr4_UInt64(cogDistrict4_uint64, false), distr8_uint64(cogDistrict8_uint64, true);
 
 	DiversityOperator<UInt32>  divUInt32;
 	DiversityOperator<UInt8>   divUInt8;

@@ -234,14 +234,20 @@ bool TiffSM::WriteDataItem(StorageMetaInfoPtr&& smiHolder)
 {
 	auto smi = smiHolder.get();
 	SharedPtr<const TreeItem> storageHolder = smi->StorageHolder();
+	SharedPtr<const AbstrDataItem> pd = GetPaletteData(storageHolder);
+	
+
 	auto current_writable_dataitem = smi->CurrWD();
-	if (current_writable_dataitem->GetAbstrDomainUnit()->GetValueType()->GetNrDims() != 2)
+	auto number_of_dims = current_writable_dataitem->GetAbstrDomainUnit()->GetValueType()->GetNrDims();
+	if (pd.is_null() && number_of_dims != 2)
 	{
 		current_writable_dataitem->throwItemError("Domain should be 2-dimensional.");
 		return true;
 	}
 
-	SharedPtr<const AbstrDataItem> pd = GetPaletteData(storageHolder);
+	if (number_of_dims != 2)
+		return true;
+
 	if (pd)
 	{
 		pd->UpdateMetaInfo();
@@ -298,7 +304,7 @@ void TiffSM::WritePalette(TifImp& imp, const TreeItem* storageHolder, const Abst
 	if (! imp.IsPalettedImage())
 		adi->throwItemError("Tiff file was not opened as PalettedImage");
 
-	PreparedDataReadLock lock(adi);
+	PreparedDataReadLock lock(adi, "@TiffSM::WritePalette");
 
 	auto dataHandle = adi->GetRefObj()->GetDataReadBegin();
 	const UInt32* data = reinterpret_cast<const UInt32*> (dataHandle.get_ptr());

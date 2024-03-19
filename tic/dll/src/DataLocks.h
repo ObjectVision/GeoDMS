@@ -138,7 +138,7 @@ auto const_opt_array_checkedcast(const DataReadHandle& drh) -> const TileFunctor
 
 struct PreparedDataReadLock : SuspendTrigger::FencedBlocker, DataReadLock
 {
-	TIC_CALL PreparedDataReadLock(const AbstrDataItem* item);
+	TIC_CALL PreparedDataReadLock(const AbstrDataItem* item, CharPtr blockingAction);
 };
 
 //----------------------------------------------------------------------
@@ -199,14 +199,14 @@ template <typename V> V AbstrDataItem::LockAndGetValue(SizeT index) const
 {
 	if (!HasInterest())
 		InterestRetainContextBase::Add(this);
-	PreparedDataReadLock lck(this);
+	PreparedDataReadLock lck(this, "AbstrDataItem::LockAndGetValue");
 	return GetValue<V>(index);
 }
 
 template <typename V> SizeT AbstrDataItem::LockAndCountValues(param_type_t<typename sequence_traits<V>::value_type> value) const
 {
 	SharedActorInterestPtr tii(this);
-	PreparedDataReadLock lck(this);
+	PreparedDataReadLock lck(this, "AbstrDataItem::LockAndCountValues");
 	return CountValues<V>(value);
 }
 

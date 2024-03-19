@@ -14,6 +14,7 @@
 #include "mci/ValueClass.h"
 #include "mci/ValueWrap.h"
 #include "utl/TypeListOper.h"
+#include "xct/DmsException.h"
 
 #include "ParallelTiles.h"
 
@@ -93,7 +94,7 @@ void MakeLowerBound(P& lb, const boost::geometry::model::multi_polygon<Polygon>&
 
 bool clean(bg_ring_t& ring)
 {
-	assert(ring.front() == ring.back());
+	assert(ring.empty() || ring.front() == ring.back());
 	remove_adjacents_and_spikes(ring);
 	if (ring.size() < 3)
 	{
@@ -107,7 +108,7 @@ bool clean(bg_ring_t& ring)
 
 void move(bg_ring_t& ring, DPoint displacement)
 {
-	dms_assert(ring.front() == ring.back());
+	assert(ring.empty() || ring.front() == ring.back());
 	for (auto& p : ring)
 		boost::geometry::add_point(p, displacement);
 	clean(ring);
@@ -334,7 +335,7 @@ static CommonOperGroup grBgBuffer_point        ("bg_buffer_point", oper_policy::
 static CommonOperGroup grBgBuffer_multi_point  ("bg_buffer_multi_point", oper_policy::better_not_in_meta_scripting);
 
 #if DMS_VERSION_MAJOR < 15
-static Obsolete<CommonOperGroup> grBgBuffer_polygon("use bg_buffer_single_polygon", "bg_buffer_polygon", oper_policy::better_not_in_meta_scripting);
+static Obsolete<CommonOperGroup> grBgBuffer_polygon("use bg_buffer_single_polygon", "bg_buffer_polygon", oper_policy::better_not_in_meta_scripting|oper_policy::depreciated);
 #endif
 
 static CommonOperGroup grBgBuffer_single_polygon("bg_buffer_single_polygon", oper_policy::better_not_in_meta_scripting);
@@ -342,8 +343,8 @@ static CommonOperGroup grBgBuffer_multi_polygon("bg_buffer_multi_polygon", oper_
 static CommonOperGroup grBgBuffer_linestring   ("bg_buffer_linestring", oper_policy::better_not_in_meta_scripting);
 
 #if DMS_VERSION_MAJOR < 15
-static Obsolete<CommonOperGroup> grOuter_polygon("use bg_outer_single_polygon", "outer_polygon", oper_policy::better_not_in_meta_scripting);
-static Obsolete<CommonOperGroup> grOuter_multi_polygon("use bg_outer_multi_polygon", "outer_multi_polygon", oper_policy::better_not_in_meta_scripting);
+static Obsolete<CommonOperGroup> grOuter_polygon("use bg_outer_single_polygon", "outer_polygon", oper_policy::better_not_in_meta_scripting | oper_policy::depreciated);
+static Obsolete<CommonOperGroup> grOuter_multi_polygon("use bg_outer_multi_polygon", "outer_multi_polygon", oper_policy::better_not_in_meta_scripting | oper_policy::depreciated);
 #endif
 
 static CommonOperGroup grBgOuter_single_polygon("bg_outer_single_polygon", oper_policy::better_not_in_meta_scripting);
@@ -439,13 +440,15 @@ struct SimplifyMultiPolygonOperator : public AbstrSimplifyOperator
 				continue;
 			for (; ri != re; ++ri)
 			{
-				dms_assert((*ri).begin() != (*ri).end());
-				dms_assert((*ri).begin()[0] == (*ri).end()[-1]); // closed ?
+				assert((*ri).begin() != (*ri).end());
+				assert((*ri).begin()[0] == (*ri).end()[-1]); // closed ?
 
 				currRing.assign((*ri).begin(), (*ri).end());
-				dms_assert(currRing.begin() != currRing.end());
-				dms_assert(currRing.begin()[0] == currRing.end()[-1]); // closed ?
+				assert(currRing.begin() != currRing.end());
+				assert(currRing.begin()[0] == currRing.end()[-1]); // closed ?
 				move(currRing, -DPoint(lb));
+				if (empty(currRing))
+					continue;
 
 				boost::geometry::simplify(currRing, resRing, maxError);
 				move(resRing, DPoint(lb));
@@ -453,7 +456,7 @@ struct SimplifyMultiPolygonOperator : public AbstrSimplifyOperator
 				if (empty(resRing))
 					continue;
 
-				dms_assert(resRing.begin()[0] == resRing.end()[-1]); // closed ?
+				assert(resRing.begin()[0] == resRing.end()[-1]); // closed ?
 				resData[i].append(resRing.begin(), resRing.end());
 				ringClosurePoints.emplace_back(resRing.end()[-1]);
 			}
@@ -505,12 +508,13 @@ struct SimplifyPolygonOperator : public AbstrSimplifyOperator
 				continue;
 			for (; ri != re; ++ri)
 			{
-				dms_assert((*ri).begin() != (*ri).end());
-				dms_assert((*ri).begin()[0] == (*ri).end()[-1]); // closed ?
+				assert((*ri).begin() != (*ri).end()); // non-empty ring, must be guaranteed by boost::polygon::SA_ConstRingIterator
+//				dms_assert((*ri).begin()[0] == (*ri).end()[-1]); // closed ?
 
 				currRing.assign((*ri).begin(), (*ri).end());
-				dms_assert(currRing.begin() != currRing.end());
-				dms_assert(currRing.begin()[0] == currRing.end()[-1]); // closed ?
+				if ((*ri).begin()[0] != (*ri).end()[-1])
+					currRing.emplace_back(currRing.front());
+				assert(currRing.begin()[0] == currRing.end()[-1]); // closed !
 				move(currRing, -DPoint(lb));
 
 				boost::geometry::simplify(currRing, resRing, maxError);
@@ -936,43 +940,50 @@ struct BufferSinglePolygonOperator : public AbstrBufferOperator
 
 		while (true)
 		{
-			if (!e2IsVoid)
-				bufferDistance = bufDistData[i];
-			if (!e3IsVoid)
-				pointsPerCircle = ppcData[i];
-			boost::geometry::strategy::buffer::distance_symmetric<Float64> distStrategy(bufferDistance);
-			boost::geometry::strategy::buffer::join_round                  joinStrategy(pointsPerCircle);
-			boost::geometry::strategy::buffer::end_round                   endStrategy(pointsPerCircle);
-			boost::geometry::strategy::buffer::point_circle                circleStrategy(pointsPerCircle);
-			boost::geometry::strategy::buffer::side_straight               sideStrategy;
+			try {
+				if (!e2IsVoid)
+					bufferDistance = bufDistData[i];
+				if (!e3IsVoid)
+					pointsPerCircle = ppcData[i];
+				boost::geometry::strategy::buffer::distance_symmetric<Float64> distStrategy(bufferDistance);
+				boost::geometry::strategy::buffer::join_round                  joinStrategy(pointsPerCircle);
+				boost::geometry::strategy::buffer::end_round                   endStrategy(pointsPerCircle);
+				boost::geometry::strategy::buffer::point_circle                circleStrategy(pointsPerCircle);
+				boost::geometry::strategy::buffer::side_straight               sideStrategy;
 
-			std::vector<DPoint> ringClosurePoints;
-			boost::geometry::model::ring<DPoint> helperRing;
+				std::vector<DPoint> ringClosurePoints;
+				boost::geometry::model::ring<DPoint> helperRing;
 
-			using bg_polygon_t = boost::geometry::model::polygon<DPoint>;
-			bg_polygon_t currPoly;
-			boost::geometry::model::multi_polygon<bg_polygon_t> resMP;
+				using bg_polygon_t = boost::geometry::model::polygon<DPoint>;
+				bg_polygon_t currPoly;
+				boost::geometry::model::multi_polygon<bg_polygon_t> resMP;
 
-		nextPointWithSameResRing:
+			nextPointWithSameResRing:
 
-			assign_polygon(currPoly, polyData[i], true, helperRing);
-			if (!currPoly.outer().empty())
-			{
+				assign_polygon(currPoly, polyData[i], true, helperRing);
+				if (!currPoly.outer().empty())
+				{
 
-				auto lb = MaxValue<DPoint>();
-				MakeLowerBound(lb, currPoly);
-				move(currPoly, -lb);
+					auto lb = MaxValue<DPoint>();
+					MakeLowerBound(lb, currPoly);
+					move(currPoly, -lb);
 
-				boost::geometry::buffer(currPoly, resMP
-					, distStrategy, sideStrategy, joinStrategy, endStrategy, circleStrategy);
-				move(resMP, lb);
+					boost::geometry::buffer(currPoly, resMP
+						, distStrategy, sideStrategy, joinStrategy, endStrategy, circleStrategy);
+					move(resMP, lb);
 
-				store_multi_polygon(resData[i], resMP, ringClosurePoints);
+					store_multi_polygon(resData[i], resMP, ringClosurePoints);
+				}
+				if (++i == n)
+					break;
+				if (e2IsVoid && e3IsVoid)
+					goto nextPointWithSameResRing;
 			}
-			if (++i == n)
-				break;
-			if (e2IsVoid && e3IsVoid)
-				goto nextPointWithSameResRing;
+			catch (DmsException& e)
+			{
+				e.AsErrMsg()->TellExtraF("BufferSinglePolygonOperator::Calculate tile %d, offset %d", t, i);
+				throw;
+			}
 		}
 	}
 };
@@ -1075,10 +1086,18 @@ struct OuterSingePolygonOperator : public AbstrOuterOperator
 
 		for (SizeT i = 0, n = polyData.size(); i != n; ++i)
 		{
-			assign_polygon(currPoly, polyData[i], false, helperRing);
+			try {
+				assign_polygon(currPoly, polyData[i], false, helperRing);
 
-			if (!currPoly.outer().empty())
-				store_ring(resData[i], currPoly.outer());
+				if (!currPoly.outer().empty())
+					store_ring(resData[i], currPoly.outer());
+			}
+			catch (DmsException& e)
+			{
+				e.AsErrMsg()->TellExtraF("OuterSingePolygonOperator::Calculate tile %d, offset %d", t, i);
+				throw;
+			}
+
 		}
 	}
 };

@@ -88,11 +88,20 @@ LayerControlBase::LayerControlBase(MovableObject* owner, ScalableObject* layerSe
 	:	base_type(owner)
 	,	m_LayerElem   (layerSetElem)
 	,	m_connDetailsVisibilityChanged(layerSetElem->m_cmdDetailsVisibilityChanged.connect([this]() { this->OnDetailsVisibilityChanged();}))
-	,	m_connVisibilityChanged(layerSetElem->m_cmdVisibilityChanged.connect([this]() { this->InvalidateDraw();}))
+	,	m_connVisibilityChanged(layerSetElem->m_cmdVisibilityChanged.connect([this]() { this->OnLayerVisibilityChanged();}))
 {
 	SetRowSepHeight(0);
 	SetBorder(true);
 	assert(m_LayerElem);
+}
+
+void LayerControlBase::OnLayerVisibilityChanged()
+{
+	InvalidateDraw();
+	bool layerInvisible = not(m_LayerElem->IsVisible());
+	SetRevBorder(layerInvisible);
+	if (layerInvisible)
+		SetActive(false);
 }
 
 void LayerControlBase::Init()
@@ -313,7 +322,7 @@ void LayerControlBase::SetActive(bool newState)
 
 	base_type::SetActive(newState);
 
-	dms_assert(m_LayerElem);
+	assert(m_LayerElem);
 	m_LayerElem->SetActive(newState);
 
 	m_HeaderControl->SetBkColor(
@@ -327,11 +336,6 @@ void LayerControlBase::SetActive(bool newState)
 			?	GetSysColor(COLOR_HIGHLIGHTTEXT)
 			:	DmsColor2COLORREF( UNDEFINED_VALUE(DmsColor) )
 	);
-	if (newState)
-	{
-		auto dv = GetDataView().lock();
-
-	}
 }
 
 //----------------------------------------------------------------------
@@ -425,7 +429,7 @@ void LayerControl::OnFocusElemChanged(SizeT selectedID, SizeT oldSelectedID)
 
 ActorVisitState LayerControl::VisitSuppliers(SupplierVisitFlag svf, const ActorVisitor& visitor) const
 {
-	dms_assert(!SuspendTrigger::DidSuspend()); // precondition
+	assert(!SuspendTrigger::DidSuspend()); // precondition
 	if (m_Layer && m_Layer->m_FocusElemProvider)
 		if (visitor.Visit(m_Layer->m_FocusElemProvider->GetIndexParam()) == AVS_SuspendedOrFailed)
 			return AVS_SuspendedOrFailed;
@@ -442,7 +446,7 @@ ActorVisitState LayerControl::VisitSuppliers(SupplierVisitFlag svf, const ActorV
 		}
 		else
 		{
-			SuspendTrigger::SilentBlockerGate allowLabelInterests;
+			SuspendTrigger::SilentBlockerGate allowLabelInterests("LayerControl::VisitSuppliers");
 
 			if (activeTheme->GetThemeEntityUnit()->VisitLabelAttr(visitor, m_LabelLocks.m_DomainLabel) == AVS_SuspendedOrFailed)
 				return AVS_SuspendedOrFailed;
@@ -566,7 +570,7 @@ const AbstrUnit* LayerControl::GetPaletteDomain() const
 
 void LayerControl::DoUpdateView()
 {
-	dms_assert(m_Layer);
+	assert(m_Layer);
 
 	SetHeaderCaption(GetThemeDisplayNameInclMetric(m_Layer.get()).c_str());
 
