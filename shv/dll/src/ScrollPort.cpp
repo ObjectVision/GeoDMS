@@ -466,7 +466,7 @@ void ScrollPort::ScrollLogical(CrdPoint delta)
 
 bool ScrollPort::MouseEvent(MouseEventDispatcher& med)
 {
-	if (med.GetEventInfo().m_EventID & EID_MOUSEWHEEL )
+	if (med.GetEventInfo().m_EventID & EventID::MOUSEWHEEL)
 	{
 		bool shift = GetKeyState(VK_SHIFT) & 0x8000;
 		int wheelDelta = GET_WHEEL_DELTA_WPARAM(med.r_EventInfo.m_wParam);

@@ -264,7 +264,7 @@ namespace
 	CurrentDirParamOperator g_CurrentDirParamOperator(&cog_CurrDir);
 	FullPathNameOperator    g_FullPathNameOperator(&sog_FullPath);
 
-	Obsolete<CommonOperGroup> cog_Version ("GeoDmsVersion() is depreciated; use GeoDmsMajorVersionNumber(), GeoDmsMinorVersionNumber(), and/or GeoDmsPatchNumber()", "GeoDmsVersion", oper_policy::is_transient | oper_policy::depreciated);
+	CommonOperGroup cog_Version ("GeoDmsVersion", oper_policy::is_transient);
 	CommonOperGroup cog_MajorVNr("GeoDmsMajorVersionNumber", oper_policy::is_transient);
 	CommonOperGroup cog_MinorVNr("GeoDmsMinorVersionNumber", oper_policy::is_transient);
 	CommonOperGroup cog_PNr     ("GeoDmsPatchNumber", oper_policy::is_transient);

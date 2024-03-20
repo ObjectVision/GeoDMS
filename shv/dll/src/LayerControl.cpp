@@ -27,6 +27,7 @@
 #include "MouseEventDispatcher.h"
 #include "PaletteControl.h"
 #include "ShvDllInterface.h"
+#include "TableHeaderControl.h"
 #include "Theme.h"
 
 //----------------------------------------------------------------------
@@ -39,7 +40,7 @@ LayerHeaderControl::LayerHeaderControl(MovableObject* owner)
 
 bool LayerHeaderControl::MouseEvent(MouseEventDispatcher& med)
 {
-	if (med.GetEventInfo().m_EventID & EID_LBUTTONDOWN)
+	if (med.GetEventInfo().m_EventID & EventID::LBUTTONDOWN)
 		if (auto owner = GetOwner().lock())
 			if (auto lc = dynamic_cast<LayerControl*>(owner.get()))
 				if (auto layer = lc->GetLayer())
@@ -59,7 +60,7 @@ LayerInfoControl::LayerInfoControl(MovableObject* owner)
 
 bool LayerInfoControl::MouseEvent(MouseEventDispatcher& med)
 {
-	if (med.GetEventInfo().m_EventID & EID_LBUTTONDBLCLK)
+	if (med.GetEventInfo().m_EventID & EventID::LBUTTONDBLCLK)
 	{
 		ExplainValue();
 		return GVS_Handled;
@@ -193,7 +194,7 @@ class LayerControlBaseDragger : public DualPointCaretController
 public:
 	LayerControlBaseDragger(DataView* owner, LayerControlBase* target, GPoint origin)
 		:	DualPointCaretController(owner, new RectCaret, target, origin
-			,	EID_MOUSEDRAG|EID_LBUTTONUP, EID_LBUTTONUP, EID_CLOSE_EVENTS, ToolButtonID::TB_Undefined)
+			,	EventID::MOUSEDRAG|EventID::LBUTTONUP, EventID::LBUTTONUP, EventID::CLOSE_EVENTS, ToolButtonID::TB_Undefined)
 		,	m_HooverRect( GRect2CrdRect(owner->ViewDeviceRect()) )
 	{}
 protected:
@@ -279,19 +280,19 @@ private:
 
 bool LayerControlBase::MouseEvent(MouseEventDispatcher& med)
 {
-	if (med.GetEventInfo().m_EventID & EID_LBUTTONDBLCLK)
+	if (med.GetEventInfo().m_EventID & EventID::LBUTTONDBLCLK)
 	{
 		m_LayerElem->ToggleVisibility();
 
 		return true; // cancel further processing of this mouse event.
 	}
-	else if (med.GetEventInfo().m_EventID & EID_LBUTTONDOWN)
+	else if (med.GetEventInfo().m_EventID & EventID::LBUTTONDOWN)
 	{
 		auto medOwner = med.GetOwner().lock();
 		medOwner->InsertController(
 			new DualPointCaretController(medOwner.get(), new BoundaryCaret(this)
 			,	this, med.GetEventInfo().m_Point
-			,	EID_MOUSEDRAG, 0, EID_CLOSE_EVENTS, ToolButtonID::TB_Undefined)
+			,	EventID::MOUSEDRAG, EventID::NONE, EventID::CLOSE_EVENTS, ToolButtonID::TB_Undefined)
 		);
 		medOwner->InsertController(
 			new LayerControlBaseDragger(medOwner.get(), this, med.GetEventInfo().m_Point)
@@ -412,7 +413,7 @@ void LayerControl::FillMenu(MouseEventDispatcher& med)
 
 void LayerControl::TogglePaletteIsVisible()
 {
-	dms_assert(NrEntries() == 3);
+	assert(NrEntries() == 3);
 	GetEntry(2)->SetIsVisible(!GetEntry(2)->IsVisible());
 }
 
@@ -519,22 +520,23 @@ ActorVisitState LayerControl::DoUpdate(ProgressState ps)
 	return AVS_Ready;
 }
 
-void LayerControl::SetPaletteControl(std::shared_ptr<PaletteControl> pc)
+void LayerControl::SetPaletteControl()
 {
 	if (NrEntries() == 3)
-	{
-		if (GetEntry(2) == pc.get())
-			return;
-		RemoveEntry(2);
-		m_PaletteControl = nullptr;
-	}
-
-	dms_assert(NrEntries() == 2);
-
-	if (!pc)
 		return;
 
-	InsertEntry(pc.get() );
+	assert(NrEntries() == 2);
+
+	auto paletteContainer = std::make_shared<GraphicVarRows>(this);
+	InsertEntry(paletteContainer.get());
+	paletteContainer->SetRowSepHeight(0);
+
+	auto pc = make_shared_gr<PaletteControl>(paletteContainer.get(), m_Layer.get(), true)();
+	auto paletteHeader = std::make_shared<TableHeaderControl>(paletteContainer.get(), pc.get());
+
+	paletteContainer->InsertEntry(paletteHeader.get());
+	paletteContainer->InsertEntry(pc.get());
+
 	m_PaletteControl = pc;
 }
 
@@ -581,7 +583,7 @@ void LayerControl::DoUpdateView()
 	{
 		if (!activeTheme || PrepareDataOrUpdateViewLater(activeTheme->GetPaletteDomain()))
 		{
-			SetPaletteControl(make_shared_gr<PaletteControl>(this, m_Layer.get(), true)());
+			SetPaletteControl();
 			//	REMOVE	if (m_Layer->DetailsVisible())
 			OnDetailsVisibilityChanged(); // process when m_Layer->DetailsVisible() == false
 			m_PaletteControl->CalcClientSize();

@@ -1327,11 +1327,16 @@ ActorVisitState TableControl::VisitSuppliers(SupplierVisitFlag svf, const ActorV
 	if (	(visitor.Visit(m_Entity.get_ptr()) == AVS_SuspendedOrFailed)
 		||	(m_Entity && visitor.Visit(m_LabelAttr.get_ptr()) == AVS_SuspendedOrFailed)
 		||	(visitor.Visit(m_SelEntity.get_ptr()) == AVS_SuspendedOrFailed)
+		|| (visitor.Visit(m_GroupByEntity.get_ptr()) == AVS_SuspendedOrFailed)
+		|| (visitor.Visit(m_GroupByRel.get_ptr()) == AVS_SuspendedOrFailed)
 		||	(visitor.Visit(m_IndexAttr.get_ptr()) == AVS_SuspendedOrFailed)
 		||	(visitor.Visit(m_SelIndexAttr.get_ptr()) == AVS_SuspendedOrFailed)
 		||	(visitor.Visit(m_LabelAttr.get_ptr()) == AVS_SuspendedOrFailed)
 		)
 		return AVS_SuspendedOrFailed;
+//	if (m_FocusElemProvider)
+//		if (visitor.Visit(m_FocusElemProvider->GetIndexParam()) == AVS_SuspendedOrFailed)
+//			return AVS_SuspendedOrFailed;
 
 	return base_type::VisitSuppliers(svf, visitor);
 }
@@ -1340,7 +1345,7 @@ ActorVisitState TableControl::VisitSuppliers(SupplierVisitFlag svf, const ActorV
 
 bool TableControl::MouseEvent(MouseEventDispatcher& med)
 {
-	if ((med.GetEventInfo().m_EventID & EID_LBUTTONDOWN)  && med.m_FoundObject.get() ==  this)
+	if ((med.GetEventInfo().m_EventID & EventID::LBUTTONDOWN)  && med.m_FoundObject.get() ==  this)
 	{
 		auto curX = med.GetEventInfo().m_Point.x / med.GetSubPixelFactors().first;
 		// find child that is left of position

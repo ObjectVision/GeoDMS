@@ -222,7 +222,7 @@ TRect GraphicRect::GetBorderLogicalExtents() const
 
 bool GraphicRect::MouseEvent(MouseEventDispatcher& med)
 {
-	if (med.GetEventInfo().m_EventID & EID_LBUTTONDOWN )
+	if (med.GetEventInfo().m_EventID & EventID::LBUTTONDOWN )
 	{
 		auto owner = med.GetOwner().lock();
 		owner->InsertController(

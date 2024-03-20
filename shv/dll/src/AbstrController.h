@@ -61,40 +61,47 @@ class GraphicObject;
 
 // MouseControllerEvents
 
-enum EventID {
-	EID_MOUSEMOVE     = 0x001,
-	EID_MOUSEDRAG     = 0x002,
+using EventIdType = UInt32;
 
-	EID_LBUTTONDOWN   = 0x004,
-	EID_LBUTTONUP     = 0x008,
-	EID_LBUTTONDBLCLK = 0x010,
+enum class EventID : EventIdType  {
+	NONE          = 0x000,
+	MOUSEMOVE     = 0x001,
+	MOUSEDRAG     = 0x002,
 
-	EID_RBUTTONDOWN   = 0x020,
-	EID_RBUTTONUP     = 0x040,
-	EID_RBUTTONDBLCLK = 0x080,
+	LBUTTONDOWN   = 0x004,
+	LBUTTONUP     = 0x008,
+	LBUTTONDBLCLK = 0x010,
 
-	EID_CAPTURECHANGED= 0x100,
-	EID_SCROLLED      = 0x200,
-	EID_PANNED        = 0x200,
-	EID_CTRLKEY       = 0x400,
-	EID_SHIFTKEY      = 0x800,
-	EID_OBJECTFOUND   = 0x1000,
-	EID_ACTIVATE      = 0x2000,
+	RBUTTONDOWN   = 0x020,
+	RBUTTONUP     = 0x040,
+	RBUTTONDBLCLK = 0x080,
 
-	EID_REQUEST_INFO  = 0x4000,
-	EID_REQUEST_SEL   = 0x8000,
+	CAPTURECHANGED= 0x100,
+	SCROLLED      = 0x200,
+	PANNED        = 0x200,
+	CTRLKEY       = 0x400,
+	SHIFTKEY      = 0x800,
+	OBJECTFOUND   = 0x1000,
+	ACTIVATE      = 0x2000,
 
-	EID_CLOSE_EVENTS  = EID_LBUTTONUP|EID_CAPTURECHANGED|EID_MOUSEMOVE|EID_SCROLLED,
+	REQUEST_INFO  = 0x4000,
+	REQUEST_SEL   = 0x8000,
 
-	EID_HANDLED       = 0x00010000,
-	EID_SETCURSOR     = 0x00020000,
-	EID_COPYCOORD     = 0x00040000,
-	EID_MOUSEWHEEL    = 0x00080000,
-	EID_TEXTSENT      = 0x00100000,
+	CLOSE_EVENTS  = LBUTTONUP|CAPTURECHANGED|MOUSEMOVE|SCROLLED,
+
+	HANDLED       = 0x00010000,
+	SETCURSOR     = 0x00020000,
+	COPYCOORD     = 0x00040000,
+	MOUSEWHEEL    = 0x00080000,
+	TEXTSENT      = 0x00100000,
 };
-typedef UInt32 EventIdType;
 
-inline bool IsCreateNewEvent(EventID eid) { return (eid & (EID_SHIFTKEY|EID_CTRLKEY)) ==0 ; }
+inline EventID operator | (EventID a, EventID b) { return EventID(EventIdType(a) | EventIdType(b)); }
+inline bool    operator & (EventID a, EventID b) { return EventIdType(a) & EventIdType(b); }
+inline void operator |= (EventID& a, EventID b) { a = a | b; }
+inline EventID operator - (EventID a, EventID b) { return EventID(EventIdType(a) & ~EventIdType(b)); }
+
+inline bool IsCreateNewEvent(EventID eid) { return not(eid & (EventID::SHIFTKEY| EventID::CTRLKEY)); }
 inline auto CompoundWriteType(EventID eid) { return DmsRwChangeType(IsCreateNewEvent(eid)); }
 
 struct EventInfo
@@ -105,11 +112,11 @@ struct EventInfo
 		,	m_Point(devicePoint)
 	{}
 
-	EventID GetID() const { return EventID(m_EventID); }
+	EventID GetID() const { return m_EventID; }
 
-	EventIdType m_EventID;
-	UINT        m_wParam;
-	GPoint      m_Point;
+	EventID m_EventID;
+	UINT    m_wParam;
+	GPoint  m_Point;
 };
 
 class AbstrController : public SharedObj
@@ -117,8 +124,8 @@ class AbstrController : public SharedObj
 	typedef PersistentSharedObj base_type;
 public:
 	AbstrController(DataView* owner, GraphicObject* target
-	,	EventIdType moveEvents  // = EID_MOUSEMOVE|EID_MOUSEDRAG
-	,	EventIdType execEvents, EventIdType stopEvents
+	,	EventID moveEvents  // = EventID::MOUSEMOVE|EventID::MOUSEDRAG
+	,	EventID execEvents, EventID stopEvents
 	,	ToolButtonID toolID
 	);
 
@@ -146,7 +153,7 @@ protected:
 private:
 	std::weak_ptr<DataView>      m_Owner;
 	std::weak_ptr<GraphicObject> m_TargetObject;
-	UInt32 m_MoveEvents, m_ExecEvents, m_StopEvents;
+	EventID                      m_MoveEvents, m_ExecEvents, m_StopEvents;
 	ToolButtonID                 m_ToolID;
 	mutable std::unique_ptr< UnitLabelScalePair> m_UnitLabelScalePtr;
 };
@@ -164,7 +171,7 @@ struct controller_vector : std::vector<SharedPtr<AbstrController> >
 		{
 			SharedPtr<AbstrController> ctrl = begin()[i];
 			if (ctrl->Event(eventInfo))
-				eventInfo.m_EventID |= EID_HANDLED;
+				eventInfo.m_EventID |= EventID::HANDLED;
 			if (i < size() && ctrl == begin()[i]) // not yet deleted?
 				++i;
 		}
