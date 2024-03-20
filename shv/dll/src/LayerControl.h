@@ -122,7 +122,7 @@ public:
 	const AbstrUnit* GetPaletteDomain() const;
 
 protected:
-	void SetPaletteControl(std::shared_ptr<PaletteControl> pc);
+	void SetPaletteControl();
 	void EditPalette();
 
 private:

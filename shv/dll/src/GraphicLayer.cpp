@@ -503,8 +503,8 @@ void GraphicLayer::SelectDistrict(CrdPoint pnt, EventID eventID)
 bool GraphicLayer::SelectFeatureIndex(AbstrDataObject* selAttrObj, SizeT featureIndex, EventID eventID)
 {
 	SizeT i = Feature2EntityIndex(featureIndex);
-	if (!(eventID & EID_REQUEST_SEL))
-		return SetFocusEntityIndex(i, eventID & EID_LBUTTONDBLCLK);
+	if (!(eventID & EventID::REQUEST_SEL))
+		return SetFocusEntityIndex(i, eventID & EventID::LBUTTONDBLCLK);
 
 	return SelectEntityIndex(selAttrObj, i, eventID);
 }
@@ -566,12 +566,12 @@ SharedStr GraphicLayer::GetCurrClassLabel() const
 
 bool GraphicLayer::SelectEntityIndex(AbstrDataObject* selAttrObj, SizeT selectedIndex, EventID eventID)
 {
-	dms_assert((eventID & EID_REQUEST_SEL) && !(eventID & EID_REQUEST_INFO));
+	dms_assert((eventID & EventID::REQUEST_SEL) && !(eventID & EventID::REQUEST_INFO));
 
 	if (!IsDefined(selectedIndex))
 		return false;
 
-	bool doToggle = (eventID & EID_CTRLKEY );
+	bool doToggle = (eventID & EventID::CTRLKEY );
 
 	ClassID currClassID;
 	bool doSetClassID = HasEditAttr() && IsDefined(currClassID = GetCurrClassID());

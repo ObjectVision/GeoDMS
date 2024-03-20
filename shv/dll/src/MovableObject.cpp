@@ -606,7 +606,7 @@ void MovableObject::CheckState() const
 
 bool MovableObject::MouseEvent(MouseEventDispatcher& med)
 {
-	if (med.GetEventInfo().m_EventID & EID_SETCURSOR)
+	if (med.GetEventInfo().m_EventID & EventID::SETCURSOR)
 		return UpdateCursor();
 
 	return base_type::MouseEvent(med);
