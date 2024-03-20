@@ -40,7 +40,7 @@ LayerHeaderControl::LayerHeaderControl(MovableObject* owner)
 
 bool LayerHeaderControl::MouseEvent(MouseEventDispatcher& med)
 {
-	if (med.GetEventInfo().m_EventID & EID_LBUTTONDOWN)
+	if (med.GetEventInfo().m_EventID & EventID::LBUTTONDOWN)
 		if (auto owner = GetOwner().lock())
 			if (auto lc = dynamic_cast<LayerControl*>(owner.get()))
 				if (auto layer = lc->GetLayer())
@@ -60,7 +60,7 @@ LayerInfoControl::LayerInfoControl(MovableObject* owner)
 
 bool LayerInfoControl::MouseEvent(MouseEventDispatcher& med)
 {
-	if (med.GetEventInfo().m_EventID & EID_LBUTTONDBLCLK)
+	if (med.GetEventInfo().m_EventID & EventID::LBUTTONDBLCLK)
 	{
 		ExplainValue();
 		return GVS_Handled;
@@ -194,7 +194,7 @@ class LayerControlBaseDragger : public DualPointCaretController
 public:
 	LayerControlBaseDragger(DataView* owner, LayerControlBase* target, GPoint origin)
 		:	DualPointCaretController(owner, new RectCaret, target, origin
-			,	EID_MOUSEDRAG|EID_LBUTTONUP, EID_LBUTTONUP, EID_CLOSE_EVENTS, ToolButtonID::TB_Undefined)
+			,	EventID::MOUSEDRAG|EventID::LBUTTONUP, EventID::LBUTTONUP, EventID::CLOSE_EVENTS, ToolButtonID::TB_Undefined)
 		,	m_HooverRect( GRect2CrdRect(owner->ViewDeviceRect()) )
 	{}
 protected:
@@ -280,19 +280,19 @@ private:
 
 bool LayerControlBase::MouseEvent(MouseEventDispatcher& med)
 {
-	if (med.GetEventInfo().m_EventID & EID_LBUTTONDBLCLK)
+	if (med.GetEventInfo().m_EventID & EventID::LBUTTONDBLCLK)
 	{
 		m_LayerElem->ToggleVisibility();
 
 		return true; // cancel further processing of this mouse event.
 	}
-	else if (med.GetEventInfo().m_EventID & EID_LBUTTONDOWN)
+	else if (med.GetEventInfo().m_EventID & EventID::LBUTTONDOWN)
 	{
 		auto medOwner = med.GetOwner().lock();
 		medOwner->InsertController(
 			new DualPointCaretController(medOwner.get(), new BoundaryCaret(this)
 			,	this, med.GetEventInfo().m_Point
-			,	EID_MOUSEDRAG, 0, EID_CLOSE_EVENTS, ToolButtonID::TB_Undefined)
+			,	EventID::MOUSEDRAG, EventID::NONE, EventID::CLOSE_EVENTS, ToolButtonID::TB_Undefined)
 		);
 		medOwner->InsertController(
 			new LayerControlBaseDragger(medOwner.get(), this, med.GetEventInfo().m_Point)
