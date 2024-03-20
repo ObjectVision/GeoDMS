@@ -61,7 +61,7 @@
       <StackReserveSize Condition="'$(Platform)'=='Win32'">16777216</StackReserveSize>
       <StackCommitSize>8192</StackCommitSize>
       <OutputFile Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(OutDir)geodms.pyd</OutputFile>
-      <OutputFile Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(OutDir)$(TargetName).pyd</OutputFile>
+      <OutputFile Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(OutDir)geodms.pyd</OutputFile>
       <AdditionalDependencies Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(USERPROFILE)\AppData\Local\Programs\Python\Python311\libs\*.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <AdditionalDependencies Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(USERPROFILE)\AppData\Local\Programs\Python\Python311\libs\*.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>

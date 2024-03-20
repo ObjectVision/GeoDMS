@@ -322,7 +322,7 @@ PYBIND11_MODULE(geodms, m) {
 
 	
 	py::class_<SharedTreeItemInterestPtr>(m, "InterestMutableItem")
-		.def("update", [](SharedTreeItemInterestPtr self) {return DMS_TreeItem_Update(self.get_ptr()); })// &DMS_TreeItem_Update)
+		.def("update", [](SharedTreeItemInterestPtr self) {return DMS_NumericDataItem_GetStatistics(self.get_ptr(), nullptr); })//DMS_TreeItem_Update(self.get_ptr()); })// &DMS_TreeItem_Update)
 		.def("find", &treeitem_find);
 
 	py::class_<SharedMutableTreeItem>(m, "MutableItem")
