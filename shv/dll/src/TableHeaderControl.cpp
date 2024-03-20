@@ -119,7 +119,7 @@ private:
 
 ColumnHeaderDragger::ColumnHeaderDragger(DataView* owner, ColumnHeaderControl* target, GPoint origin)
 	:	DualPointCaretController(owner, new RectCaret, target, origin
-		,	EID_MOUSEDRAG|EID_LBUTTONUP, EID_LBUTTONUP, EID_CLOSE_EVENTS, ToolButtonID::TB_Undefined)
+		,	EventID::MOUSEDRAG|EventID::LBUTTONUP, EventID::LBUTTONUP, EventID::CLOSE_EVENTS, ToolButtonID::TB_Undefined)
 	,	m_HooverRect( owner->ViewDeviceRect() )
 	,	m_Activated(false)
 {}
@@ -188,7 +188,7 @@ bool ColumnHeaderControl::MouseEvent(MouseEventDispatcher& med)
 {
 	auto medOwner = med.GetOwner().lock(); if (!medOwner) return true;
 
-	if ((med.GetEventInfo().m_EventID & EID_SETCURSOR ))
+	if ((med.GetEventInfo().m_EventID & EventID::SETCURSOR ))
 	{
 		if (GetControlDeviceRegion(med.GetEventInfo().m_Point.x) != RG_MIDDLE )
 		{
@@ -197,7 +197,7 @@ bool ColumnHeaderControl::MouseEvent(MouseEventDispatcher& med)
 		}
 	}
 
-	if ((med.GetEventInfo().m_EventID & EID_LBUTTONDOWN) && m_Dic)
+	if ((med.GetEventInfo().m_EventID & EventID::LBUTTONDOWN) && m_Dic)
 	{
 		GPoint mousePoint = med.GetEventInfo().m_Point;
 		if (GetControlDeviceRegion(mousePoint.x) != RG_MIDDLE)
@@ -209,20 +209,20 @@ bool ColumnHeaderControl::MouseEvent(MouseEventDispatcher& med)
 		medOwner->InsertController(
 			new TieCursorController(medOwner.get(), owner.get()
 			,	CrdRect2GRect( owner->GetCurrClientAbsDeviceRect() )
-			,	EID_MOUSEDRAG, EID_CLOSE_EVENTS
+			,	EventID::MOUSEDRAG, EventID::CLOSE_EVENTS
 			)
 		);
 
 		medOwner->InsertController(
 			new DualPointCaretController(medOwner.get(), new BoundaryCaret(this)
 			,	this, mousePoint
-			,	EID_MOUSEDRAG, 0, EID_CLOSE_EVENTS, ToolButtonID::TB_Undefined
+			,	EventID::MOUSEDRAG, EventID::NONE, EventID::CLOSE_EVENTS, ToolButtonID::TB_Undefined
 			)
 		);
 		medOwner->InsertController(
 			new DualPointCaretController(medOwner.get(), new BoundaryCaret(m_Dic.get())
 			,	this, mousePoint
-			,	EID_MOUSEDRAG, 0, EID_CLOSE_EVENTS, ToolButtonID::TB_Undefined
+			,	EventID::MOUSEDRAG, EventID::NONE, EventID::CLOSE_EVENTS, ToolButtonID::TB_Undefined
 			)
 		);
 		medOwner->InsertController(
@@ -311,7 +311,7 @@ void TableHeaderControl::DoUpdateView()
 
 bool TableHeaderControl::MouseEvent(MouseEventDispatcher& med)
 {
-	if ((med.GetEventInfo().m_EventID & EID_LBUTTONDOWN)  && med.m_FoundObject.get() ==  this)
+	if ((med.GetEventInfo().m_EventID & EventID::LBUTTONDOWN)  && med.m_FoundObject.get() ==  this)
 	{
 		auto sf = med.GetSubPixelFactors();
 		auto curX = med.GetEventInfo().m_Point.x / sf.first;

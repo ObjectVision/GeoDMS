@@ -73,6 +73,7 @@ public:
 protected:
 //	override virtuals of Actor
 	ActorVisitState VisitSuppliers(SupplierVisitFlag svf, const ActorVisitor& visitor) const override;
+	void OnLayerVisibilityChanged();
 
 protected:
 	void SetHeaderCaption(CharPtr caption);
@@ -121,7 +122,7 @@ public:
 	const AbstrUnit* GetPaletteDomain() const;
 
 protected:
-	void SetPaletteControl(std::shared_ptr<PaletteControl> pc);
+	void SetPaletteControl();
 	void EditPalette();
 
 private:

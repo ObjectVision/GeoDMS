@@ -90,7 +90,10 @@ struct EventInfo;
 
 enum AspectNr;
 enum class FontSizeCategory;
-enum EventID;
+
+using EventIdType = UInt32;
+enum class EventID : EventIdType;
+
 enum ShvSyncMode { SM_Load, SM_Save };
 enum ToolButtonID;
 enum ViewStyle;

@@ -49,11 +49,7 @@ class PointCaretController : public AbstrController
 	typedef AbstrController base_type;
   public:
 	PointCaretController(DataView* owner, AbstrCaret* caret, GraphicObject* target
-	,	UInt32                   moveEvents //= EventID(EID_MOUSEMOVE|EID_MOUSEDRAG) 
-	,	UInt32                   execEvents
-	,	UInt32                   stopEvents
-	,	ToolButtonID             toolID
-	);
+	, EventID moveEvents, EventID execEvents, EventID stopEvents, ToolButtonID toolID);
 	~PointCaretController();
 
 protected:
@@ -73,10 +69,10 @@ class DualPointController : public AbstrController
 	typedef AbstrController base_type;
 public:
 	DualPointController(DataView* owner, GraphicObject* target, const GPoint& origin
-	,	UInt32 moveEvents  // = EID_MOUSEDRAG,
-	,	UInt32 execEvents  // = EID_LBNUTTONUP,
-	,	UInt32 stopEvents  // = EID_CLOSE_EVENTS
-	,	ToolButtonID toolID
+	, EventID moveEvents  // = EID_MOUSEDRAG,
+	, EventID execEvents  // = EID_LBNUTTONUP,
+	, EventID stopEvents  // = EID_CLOSE_EVENTS
+	, ToolButtonID toolID
 	);
 
 protected:
@@ -92,11 +88,11 @@ class DualPointCaretController : public DualPointController
 	typedef DualPointController base_type;
 public:
 	DualPointCaretController(DataView* owner, AbstrCaret* caret
-	,	GraphicObject* target, const GPoint& origin
-	,	UInt32 moveEvents  // = EID_MOUSEDRAG,
-	,	UInt32 execEvents  // = EID_LBNUTTONUP,
-	,	UInt32 stopEvents  // = EID_CLOSE_EVENTS
-	,	ToolButtonID toolID
+	, GraphicObject* target, const GPoint& origin
+	, EventID moveEvents  // = EID_MOUSEDRAG,
+	, EventID execEvents  // = EID_LBNUTTONUP,
+	, EventID stopEvents  // = EID_CLOSE_EVENTS
+	, ToolButtonID toolID
 	);
 	~DualPointCaretController();
 
@@ -115,10 +111,9 @@ class TieCursorController : public AbstrController
 {
 	typedef AbstrController base_type;
 public:
-	TieCursorController(DataView* owner, GraphicObject* target
-	,	GRect tieRect
-	,	UInt32 moveEvents  // = EID_MOUSEDRAG,
-	,	UInt32 stopEvents  // = EID_CLOSE_EVENTS
+	TieCursorController(DataView* owner, GraphicObject* target, GRect tieRect
+	, EventID moveEvents  // = EID_MOUSEDRAG,
+	, EventID stopEvents  // = EID_CLOSE_EVENTS
 	);
 
 protected:

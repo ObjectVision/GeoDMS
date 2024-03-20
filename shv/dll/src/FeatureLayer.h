@@ -128,7 +128,8 @@ protected: friend FeatureDrawer; friend struct LabelDrawer;
 
 //	new interface
 	virtual bool DrawImpl(FeatureDrawer& fd) const =0;
-	virtual SizeT FindFeatureByPoint(const CrdPoint& geoPnt) = 0;
+	virtual SizeT FindFeatureByPoint(const CrdPoint& geoPnt);
+	virtual SizeT FindNextFeatureByPoint(const CrdPoint& geoPnt, SizeT featureIndex);
 
 	std::shared_ptr<const AbstrBoundingBoxCache> GetBoundingBoxCache() const;
 
@@ -263,7 +264,7 @@ protected:
 	void SelectCircle (CrdPoint worldPnt, CrdType worldRadius, EventID eventID) override;
 	void SelectPolygon(const CrdPoint* first, const CrdPoint* last, EventID eventID) override;
 
-	SizeT FindFeatureByPoint(const CrdPoint& geoPnt) override;
+	SizeT FindNextFeatureByPoint(const CrdPoint& geoPnt, SizeT currFeatureIndex) override;
 	void  InvalidateFeature(SizeT featureIndex) override;
 
 	DECL_RTTI(SHV_CALL, LayerClass);
