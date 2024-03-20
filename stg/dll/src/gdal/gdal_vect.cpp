@@ -748,7 +748,7 @@ bool GDALFieldCanBeInterpretedAsDouble(gdalVectImpl::FeaturePtr& feat, SizeT& cu
 	if (!feat->IsFieldSet(currFieldIndex))
 		return false;
 
-	if (!feat->IsFieldNull(currFieldIndex))
+	if (feat->IsFieldNull(currFieldIndex))
 		return false;
 
 	if (feat->GetFieldAsDouble(currFieldIndex) != 0) [[likely]] // usually the case, however geodms users may override string values 
