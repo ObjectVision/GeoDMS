@@ -148,7 +148,7 @@ void GridLayer::SelectPoint(CrdPoint pnt, EventID eventID)
 			writeLock.Commit();
 	}
 	else
-		changed = SetFocusEntityIndex( UNDEFINED_VALUE(SizeT), eventID & EID_LBUTTONDBLCLK );
+		changed = SetFocusEntityIndex( UNDEFINED_VALUE(SizeT), eventID & EventID::LBUTTONDBLCLK );
 	if (changed)
 		lock1.ProcessChange();
 }
@@ -236,8 +236,8 @@ void GridLayer::SelectRect(CrdRect worldRect, EventID eventID)
 {
 	ClassID currClassID;
 	if (HasEditAttr() && IsDefined(currClassID = GetCurrClassID()))
-		SelectRegion(worldRect, RectRowProcessor<SetValueOper>(SetValueOper(currClassID)), GetEditAttr(), EID_SHIFTKEY );
-	else if (eventID & EID_CTRLKEY )
+		SelectRegion(worldRect, RectRowProcessor<SetValueOper>(SetValueOper(currClassID)), GetEditAttr(), EventID::SHIFTKEY );
+	else if (eventID & EventID::CTRLKEY )
 		SelectRegion(worldRect, RectRowProcessor<OffOper>(), GetEditAttr(), eventID );
 	else
 		SelectRegion(worldRect, RectRowProcessor<AddOper>(), GetEditAttr(), eventID );
@@ -271,8 +271,8 @@ void GridLayer::SelectCircle(CrdPoint worldPnt, CrdType worldRadius, EventID eve
 
 	ClassID currClassID;
 	if (HasEditAttr() && IsDefined(currClassID = GetCurrClassID()))
-		SelectRegion(worldRect, CircleRowProcessor<SetValueOper>(worldPnt, worldRadius, SetValueOper(currClassID)), GetEditAttr(), EID_SHIFTKEY );
-	else if (eventID & EID_CTRLKEY )
+		SelectRegion(worldRect, CircleRowProcessor<SetValueOper>(worldPnt, worldRadius, SetValueOper(currClassID)), GetEditAttr(), EventID::SHIFTKEY );
+	else if (eventID & EventID::CTRLKEY )
 		SelectRegion(worldRect, CircleRowProcessor<OffOper>(worldPnt, worldRadius), GetEditAttr(), eventID  );
 	else
 		SelectRegion(worldRect, CircleRowProcessor<AddOper>(worldPnt, worldRadius), GetEditAttr(), eventID  );
@@ -306,8 +306,8 @@ void GridLayer::SelectPolygon(const CrdPoint* first, const CrdPoint* last, Event
 	CrdRect rect(first, last, false, true);
 	ClassID currClassID;
 	if (HasEditAttr() && IsDefined(currClassID = GetCurrClassID()))
-		SelectRegion(rect, PolygonRowProcessor<SetValueOper>(first, last, SetValueOper(currClassID)), GetEditAttr(), EID_SHIFTKEY );
-	else if (eventID & EID_CTRLKEY )
+		SelectRegion(rect, PolygonRowProcessor<SetValueOper>(first, last, SetValueOper(currClassID)), GetEditAttr(), EventID::SHIFTKEY );
+	else if (eventID & EventID::CTRLKEY )
 		SelectRegion(rect, PolygonRowProcessor<OffOper>(first, last), GetEditAttr(), eventID );
 	else
 		SelectRegion(rect, PolygonRowProcessor<AddOper>(first, last), GetEditAttr(), eventID );

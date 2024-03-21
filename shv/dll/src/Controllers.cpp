@@ -76,7 +76,7 @@ GraphVisitState AbstrCmd::DoLayerSet(LayerSet* obj)
 
 
 AbstrController::AbstrController(DataView* owner, GraphicObject* target
-	,	UInt32 moveEvents, UInt32 execEvents, UInt32 stopEvents
+	, EventID moveEvents, EventID execEvents, EventID stopEvents
 	, ToolButtonID toolID)
 	:	m_Owner(owner->weak_from_this())
 	,	m_TargetObject(target->weak_from_this())
@@ -220,19 +220,18 @@ void AbstrController::Stop()
 //----------------------------------------------------------------------
 
 PointCaretController::PointCaretController(DataView* owner, AbstrCaret* caret, GraphicObject* target
-	,	UInt32 moveEvents, UInt32 execEvents, UInt32 stopEvents
-	,	ToolButtonID toolID)
+	,	EventID moveEvents, EventID execEvents, EventID stopEvents, ToolButtonID toolID)
 	:	AbstrController(owner, target, moveEvents, execEvents, stopEvents, toolID)
 	,	m_Caret(caret)
 {
-	dms_assert(m_Caret);
-	dms_assert(target);
+	assert(m_Caret);
+	assert(target);
 	owner->InsertCaret(caret);
 }
 
 PointCaretController::~PointCaretController()
 {
-	dms_assert(m_Caret);
+	assert(m_Caret);
 	auto dv = GetOwner().lock();
 	if (dv)
 		dv->RemoveCaret(m_Caret);
@@ -261,7 +260,7 @@ void PointCaretController::Stop()
 //----------------------------------------------------------------------
 
 DualPointController::DualPointController(DataView* owner, GraphicObject* target, const GPoint& origin
-	,	UInt32 moveEvents, UInt32 execEvents, UInt32 stopEvents, ToolButtonID toolID)
+	, EventID moveEvents, EventID execEvents, EventID stopEvents, ToolButtonID toolID)
 	:	AbstrController(owner, target, moveEvents, execEvents, stopEvents, toolID)
 	,	m_Origin(origin)
 {
@@ -274,19 +273,19 @@ DualPointController::DualPointController(DataView* owner, GraphicObject* target,
 
 DualPointCaretController::DualPointCaretController(DataView* owner, AbstrCaret* caret
 	,	GraphicObject* target,  const GPoint& origin
-	,	UInt32 moveEvents, UInt32 execEvents, UInt32 stopEvents
+	, EventID moveEvents, EventID execEvents, EventID stopEvents
 	,	ToolButtonID toolID)
 	:	DualPointController(owner, target, origin, moveEvents, execEvents, stopEvents, toolID)
 	,	m_Caret(caret)
 {
-	dms_assert(m_Caret);
-	dms_assert(owner);
+	assert(m_Caret);
+	assert(owner);
 	owner->InsertCaret(caret);
 }
 
 DualPointCaretController::~DualPointCaretController()
 {
-	dms_assert(m_Caret);
+	assert(m_Caret);
 	auto dv = GetOwner().lock();
 	if (dv)
 		dv->RemoveCaret(m_Caret);
@@ -317,8 +316,8 @@ void DualPointCaretController::Stop()
 
 TieCursorController::TieCursorController(DataView* owner, GraphicObject* target
 	,	GRect tieRect
-	,	UInt32 moveEvents /*EID_MOUSEDRAG*/, UInt32 stopEvents  /*EID_CLOSE_EVENTS*/ )
-	:	AbstrController(owner, target, moveEvents, 0, stopEvents, ToolButtonID::TB_Undefined)
+	, EventID moveEvents /*EventID::MOUSEDRAG*/, EventID stopEvents  /*EventID::CLOSE_EVENTS*/ )
+	:	AbstrController(owner, target, moveEvents, EventID::NONE, stopEvents, ToolButtonID::TB_Undefined)
 	,	m_TieRect(tieRect)
 {
 	if (m_TieRect.top < m_TieRect.bottom) --m_TieRect.bottom;
@@ -348,7 +347,7 @@ bool TieCursorController::Move (EventInfo& eventInfo)
 ZoomInController::ZoomInController(DataView* owner, ViewPort* target
 	,	const CrdTransformation& transformation, const GPoint& origin)
 	:	DualPointCaretController(owner, new RoiCaret, target, origin
-		,	EID_MOUSEDRAG,EID_LBUTTONUP, EID_CLOSE_EVENTS, ToolButtonID::TB_ZoomIn2)
+		, EventID::MOUSEDRAG, EventID::LBUTTONUP, EventID::CLOSE_EVENTS, ToolButtonID::TB_ZoomIn2)
 	,	m_Transformation(transformation)
 {
 }
@@ -383,7 +382,7 @@ bool ZoomInController::Exec(EventInfo& eventInfo)
 //----------------------------------------------------------------------
 
 ZoomOutController::ZoomOutController(DataView* owner, ViewPort* target, const CrdTransformation& transformation)
-	:	AbstrController(owner, target, 0, EID_LBUTTONUP, EID_CLOSE_EVENTS, ToolButtonID::TB_ZoomOut2)
+	:	AbstrController(owner, target, EventID::NONE, EventID::LBUTTONUP, EventID::CLOSE_EVENTS, ToolButtonID::TB_ZoomOut2)
 	,	m_Transformation(transformation)
 {
 }
@@ -413,7 +412,10 @@ PanController::PanController(
 	ViewPort* target, 
 	const GPoint& origin
 )	:	DualPointController(owner, target, origin
-		,	0, EID_LBUTTONUP|EID_MOUSEDRAG, EID_LBUTTONUP|EID_CAPTURECHANGED|EID_MOUSEMOVE,	ToolButtonID::OBSOLETE_TB_Pan)
+		,	EventID::NONE
+		,	EventID::LBUTTONUP|EventID::MOUSEDRAG
+		,	EventID::LBUTTONUP|EventID::CAPTURECHANGED|EventID::MOUSEMOVE
+		,	ToolButtonID::OBSOLETE_TB_Pan)
 	,	m_DidDrag(false)
 {}
 
@@ -443,7 +445,10 @@ bool PanController::Exec(EventInfo& eventInfo)
 RectPanController::RectPanController(DataView* owner, GraphicRect* target
 	,	const CrdTransformation& transformation, const GPoint& origin)
 	:	DualPointController(owner, target, origin
-		, 0, EID_LBUTTONUP|EID_MOUSEDRAG, EID_CLOSE_EVENTS, ToolButtonID::OBSOLETE_TB_Pan)
+		, EventID::NONE
+		, EventID::LBUTTONUP|EventID::MOUSEDRAG
+		, EventID::CLOSE_EVENTS
+		, ToolButtonID::OBSOLETE_TB_Pan)
 	,	m_Transformation(transformation)
 	,	m_OrgWP (transformation.Reverse(g2dms_order<Float64>(origin)) )
 {}
@@ -526,8 +531,8 @@ void InfoController::SelectFocusElem(LayerSet* ls, const CrdPoint& worldPoint, E
 
 	static bool s_LastLBUTTONDBLCLK = false;
 	bool
-		lButtonUp = (eventID & EID_LBUTTONUP) && !s_LastLBUTTONDBLCLK,
-		lButtonDblClk = (eventID & EID_LBUTTONDBLCLK);
+		lButtonUp = (eventID & EventID::LBUTTONUP) && !s_LastLBUTTONDBLCLK,
+		lButtonDblClk = (eventID & EventID::LBUTTONDBLCLK);
 
 	if (lButtonUp || lButtonDblClk)
 	{
@@ -550,7 +555,10 @@ SelectObjectController::SelectObjectController(
 	ViewPort* target, 
 	const CrdTransformation& transformation
 )	:	AbstrController(owner, target
-		,	0, EID_MOUSEDRAG|EID_LBUTTONUP, EID_CLOSE_EVENTS, ToolButtonID::TB_SelectObject)
+		, EventID::NONE
+		, EventID::MOUSEDRAG|EventID::LBUTTONUP
+		, EventID::CLOSE_EVENTS
+		, ToolButtonID::TB_SelectObject)
 	,	m_Transformation(transformation)
 {}
 
@@ -568,8 +576,8 @@ bool SelectObjectController::Exec(EventInfo& eventInfo)
 		return false;
 
 	layer	->	SelectPoint(
-					m_Transformation.Reverse(g2dms_order<Float64>(eventInfo.m_Point)),
-					EventID(eventInfo.m_EventID | UInt32(EID_REQUEST_SEL))
+					m_Transformation.Reverse(g2dms_order<Float64>(eventInfo.m_Point))
+				,	eventInfo.m_EventID | EventID::REQUEST_SEL
 				);
 	return true;
 }
@@ -582,7 +590,7 @@ SelectRectController::SelectRectController(DataView* owner, ViewPort* target
 	,	const CrdTransformation& transformation, const GPoint& origin)
 	:	DualPointCaretController(owner, new RectCaret
 		,	target, origin
-		,	EID_MOUSEDRAG|EID_LBUTTONUP, EID_LBUTTONUP, EID_CLOSE_EVENTS, ToolButtonID::TB_SelectRect)
+		,	EventID::MOUSEDRAG|EventID::LBUTTONUP, EventID::LBUTTONUP, EventID::CLOSE_EVENTS, ToolButtonID::TB_SelectRect)
 	,	m_Transformation(transformation)
 {}
 
@@ -596,7 +604,7 @@ bool SelectRectController::Move(EventInfo& eventInfo)
 	CrdType dst2 = CrdType(deltaPoint.first) * CrdType(deltaPoint.second);
 
 	SendStatusText("Diagonal: % 10.2f[% s]; Area: % 10.2f[% s ^ 2]", dst, dst2);
-	eventInfo.m_EventID |= EID_TEXTSENT;
+	eventInfo.m_EventID |= EventID::TEXTSENT;
 
 	return result;
 }
@@ -614,7 +622,7 @@ bool SelectRectController::Exec(EventInfo& eventInfo)
 
 	auto deviceRect = CrdRect(g2dms_order<Float64>(eventInfo.m_Point), g2dms_order<Float64>(m_Origin));
 	auto worldRect = m_Transformation.Reverse(deviceRect);
-	layer->SelectRect(worldRect, EventID(eventInfo.m_EventID | UInt32(EID_REQUEST_SEL)));
+	layer->SelectRect(worldRect, eventInfo.m_EventID | EventID::REQUEST_SEL);
 
 	return true;
 }
@@ -629,7 +637,7 @@ SelectCircleController::SelectCircleController(
 	const CrdTransformation& transformation, 
 	const GPoint&            origin
 )	:	DualPointCaretController(owner, new CircleCaret, target,  origin
-		,	EID_MOUSEDRAG|EID_LBUTTONUP, EID_LBUTTONUP,EID_CLOSE_EVENTS, ToolButtonID::TB_SelectCircle)
+		,	EventID::MOUSEDRAG|EventID::LBUTTONUP, EventID::LBUTTONUP,EventID::CLOSE_EVENTS, ToolButtonID::TB_SelectCircle)
 	,	m_Transformation(transformation)
 {
 }
@@ -643,7 +651,7 @@ bool SelectCircleController::Move(EventInfo& eventInfo)
 	CrdType dst = sqrt(dst2);
 
 	SendStatusText("Radius: % 10.2f[%s]; Area: % 10.2f[%s^2]", dst, std::numbers::pi_v<Float64> *dst2);
-	eventInfo.m_EventID |= EID_TEXTSENT;
+	eventInfo.m_EventID |= EventID::TEXTSENT;
 
 	return result;
 }
@@ -661,7 +669,7 @@ bool SelectCircleController::Exec(EventInfo& eventInfo)
 	CrdPoint orgPoint = m_Transformation.Reverse(g2dms_order<CrdType>(m_Origin         ) );
 	CrdPoint dstPoint = m_Transformation.Reverse(g2dms_order<CrdType>(eventInfo.m_Point) );
 	auto dist = sqrt(SqrDist<CrdType>(orgPoint, dstPoint));
-	layer	->	SelectCircle(orgPoint, dist, EventID(eventInfo.m_EventID | UInt32(EID_REQUEST_SEL)));
+	layer	->	SelectCircle(orgPoint, dist, eventInfo.m_EventID | EventID::REQUEST_SEL);
 	return true;
 }
 
@@ -674,7 +682,10 @@ SelectDistrictController::SelectDistrictController(
 	ViewPort* target, 
 	const CrdTransformation& transformation
 )	:	AbstrController(owner, target
-		,	0, EID_MOUSEDRAG|EID_LBUTTONUP, EID_CLOSE_EVENTS, ToolButtonID::TB_SelectDistrict)
+		,	EventID::NONE
+		,	EventID::MOUSEDRAG|EventID::LBUTTONUP
+		,	EventID::CLOSE_EVENTS
+		,	ToolButtonID::TB_SelectDistrict)
 	,	m_Transformation(transformation)
 {}
 
@@ -706,9 +717,9 @@ DrawPolygonController::DrawPolygonController(
 		bool                     drawEndLine
 	)
 	:	AbstrController(owner, target
-		,	EID_MOUSEMOVE|EID_MOUSEDRAG|EID_LBUTTONDOWN|EID_LBUTTONUP|EID_LBUTTONDBLCLK
-		,	EID_LBUTTONDBLCLK
-		,	EID_LBUTTONDBLCLK|EID_RBUTTONDOWN|EID_CAPTURECHANGED|EID_SCROLLED
+		,	EventID::MOUSEMOVE|EventID::MOUSEDRAG|EventID::LBUTTONDOWN|EventID::LBUTTONUP|EventID::LBUTTONDBLCLK
+		,	EventID::LBUTTONDBLCLK
+		,	EventID::LBUTTONDBLCLK|EventID::RBUTTONDOWN|EventID::CAPTURECHANGED|EventID::SCROLLED
 		,	ToolButtonID::TB_SelectPolygon
 		)
 	,	m_EndLineCaret(0)
@@ -781,9 +792,9 @@ bool DrawPolygonController::Move(EventInfo& eventInfo)
 		SendStatusText("Perimeter: % 10.2f[%s]; Area: % 10.2f[%s^2]", perimeter, area);
 	}
 
-	eventInfo.m_EventID |= EID_TEXTSENT;
+	eventInfo.m_EventID |= EventID::TEXTSENT;
 
-	if (eventInfo.m_EventID & (EID_LBUTTONDOWN|EID_LBUTTONUP|EID_LBUTTONDBLCLK))
+	if (eventInfo.m_EventID & (EventID::LBUTTONDOWN|EventID::LBUTTONUP|EventID::LBUTTONDBLCLK))
 		AddPoint(eventInfo.m_Point);
 	return true;
 }
@@ -815,7 +826,7 @@ bool DrawPolygonController::Exec(EventInfo& eventInfo)
 	while (i!=e)
 		worldPoints.emplace_back(m_Transformation.Reverse(g2dms_order<CrdType>(*i++) ) );
 
-	layer	->	SelectPolygon(begin_ptr(worldPoints), end_ptr  (worldPoints), EventID(eventInfo.m_EventID | UInt32(EID_REQUEST_SEL)));
+	layer->SelectPolygon(begin_ptr(worldPoints), end_ptr  (worldPoints), eventInfo.m_EventID | EventID::REQUEST_SEL);
 
 	return true;
 }

@@ -214,7 +214,7 @@ public:
 			if (adiLimitImp)
 			{
 				DataReadLock arg3aLock(adiLimitImp);
-				maxImp = GetTheValue<ImpType>(adiLimitImp);
+				maxImp = const_array_cast<ImpType>(adiLimitImp)->GetTile(0)[0];
 			}
 
 			DataWriteLock resLock(res, dms_rw_mode::write_only_mustzero);
@@ -253,6 +253,8 @@ public:
 					SizeT nrV = Cardinality(range);
 
 					DijkstraHeap<NodeType, LinkType, ZoneType, ImpType> dh(nrV, false);
+					if (adiLimitImp)
+						dh.m_MaxImp = maxImp;
 
 					auto nrC = Width(range);
 					int offsets[9]; for (UInt32 i=1; i!=9; ++i) offsets[i] = displacement_info[i].dx + displacement_info[i].dy * nrC;
@@ -270,12 +272,25 @@ public:
 					{
 						const GridType* first = srcNodes.begin();
 						const GridType* last  = srcNodes.end();
-						const ImpType* firstDist = startCosts.begin();
-						for  (; first != last; ++firstDist, ++first)
+						if (diStartPointImp)
 						{
-							SizeT index = Range_GetIndex_checked(range, *first);
-							if (IsDefined(index) && ((!firstDist) || *firstDist >= ImpType()))
-								dh.InsertNode(index, firstDist ? *firstDist : ImpType(), LinkType(0));
+							const ImpType* firstDist = startCosts.begin();
+							MG_CHECK(firstDist);
+							for (; first != last; ++firstDist, ++first)
+							{
+								SizeT index = Range_GetIndex_checked(range, *first);
+								if (IsDefined(index) && ((!firstDist) || *firstDist >= ImpType()))
+									dh.InsertNode(index, *firstDist, LinkType(0));
+							}
+						}
+						else
+						{
+							for (; first != last; ++first)
+							{
+								SizeT index = Range_GetIndex_checked(range, *first);
+								if (IsDefined(index))
+									dh.InsertNode(index, ImpType(), LinkType(0));
+							}
 						}
 					}
 					{
@@ -290,22 +305,20 @@ public:
 						}
 					}
 
-					// iterate through buffer until destination is processed.
+					// iterate through buffer until all destinations in the current tile are processed.
 					while (!dh.Empty())
 					{
-						NodeType currNode = dh.Front().Value(); dms_assert(currNode < nrV);
+						NodeType currNode = dh.Front().Value(); assert(currNode < nrV);
 						ImpType currImp  = dh.Front().Imp();
 
 						dh.PopNode();
-						dms_assert(currImp >= 0);
+						assert(currImp >= 0);
 
 						if (!dh.MarkFinal(currNode, currImp))
 							continue;
 
 						ImpType cellDist = costData[currNode];
 						if (!IsDefined(cellDist))
-							continue;
-						if (adiLimitImp && cellDist >= maxImp)
 							continue;
 
 						MakeMax<ImpType>(cellDist, ImpType()); // raise negative values to zero.
@@ -317,7 +330,7 @@ public:
 
 						for (UInt32 i=1; i!=9; ++i) if (!(displacement_info[i].d & forbiddenDirections))
 						{
-							NodeType otherNode = currNode + offsets[i]; dms_assert(otherNode < nrV);
+							NodeType otherNode = currNode + offsets[i]; assert(otherNode < nrV);
 							ImpType deltaCost = costData[otherNode];
 							if (!IsDefined(deltaCost))
 								continue;
@@ -325,12 +338,19 @@ public:
 							deltaCost += cellDist;
 							deltaCost *= displacement_info[i].f;
 							assert(deltaCost >= 0);
-							if (deltaCost < dh.m_MaxImp)
-								dh.InsertNode(otherNode, currImp + deltaCost, displacement_info[i].d);
+							auto newImp = currImp + deltaCost;
+							dh.InsertNode(otherNode, newImp, displacement_info[i].d);
 						}
 					}
 					itMap[t].m_IsDone = true;
+
+					// set unreachable cells to UNDEFINED_VALUE
+					for (auto& x : resultData)
+						if (x >= dh.m_MaxImp)
+							x = UNDEFINED_VALUE(ImpType);
 				}
+			
+
 				if (useShadowTile)
 					break;
 

@@ -275,7 +275,7 @@ private:
 	void ReverseCarets(HDC dc, bool newVisibleState); // creates a new tmp dc if pdc==0
 	void ReverseCaretsImpl(HDC  dc, bool newVisibleState);
 	void ReverseSelCaretImpl(HDC hdc, const Region& selCaretRgn);
-	bool DispatchMouseEvent(UInt32 event, WPARAM modKeys, GPoint point);
+	bool DispatchMouseEvent(EventID event, WPARAM modKeys, GPoint point);
 
 	// message handlers
 	void OnEraseBkgnd(HDC dc);

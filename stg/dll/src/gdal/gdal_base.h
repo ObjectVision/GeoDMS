@@ -142,6 +142,9 @@ struct affine_transformation
 
 class DataItemsWriteStatusInfo
 {
+	using layer_id = TokenID;
+	using field_id = TokenID;
+
 public:
 #if defined(MG_DEBUG)
 	static UInt32 sd_ObjCounter;
@@ -155,6 +158,7 @@ public:
 
 	int  getNumberOfLayers();
 	bool fieldIsWritten(TokenID layerID, TokenID  fieldID);
+	bool hasGeometry(TokenID layerID);
 	void setFieldIsWritten(TokenID layerID, TokenID  fieldID, bool isWritten);
 	void setIsGeometry(TokenID layerID, TokenID  geometryFieldID, bool isGeometry);
 	void setInterest(TokenID layerID, TokenID  fieldID, bool hasInterest);
@@ -165,8 +169,10 @@ public:
 	bool LayerIsReadyForWriting(TokenID layerID);
 	bool LayerHasBeenWritten(TokenID layerID);
 
-	std::map<TokenID, std::map<TokenID, FieldInfo>> m_LayerAndFieldIDMapping;
+	std::map<layer_id, std::map<field_id, FieldInfo>> m_LayerAndFieldIDMapping;
+	std::map<layer_id, SharedDataItemInterestPtr> m_orphan_geometry_items;
 	bool m_continueWrite = false;
+	bool m_initialized = false;
 };
 
 // *****************************************************************************
@@ -186,7 +192,8 @@ const TreeItem* GetLayerHolderFromDataItem(const TreeItem* storageHolder, const 
 auto GetOptionArray(const TreeItem* optionsItem) -> CPLStringList;
 void SetFeatureDefnForOGRLayerFromLayerHolder(const TreeItem* subItem, OGRLayer* layerHandle);
 STGDLL_CALL auto GetBaseProjectionUnitFromValuesUnit(const AbstrDataItem* adi) -> const AbstrUnit*;
-auto GetGeometryTypeFromGeometryDataItem(const TreeItem* subItem) -> OGRwkbGeometryType;
+auto GetGeometryItemFromLayerHolder(const TreeItem* subItem) -> const TreeItem*;
+auto GetGeometryTypeFromLayerHolder(const TreeItem* subItem) -> OGRwkbGeometryType;
 auto GetAsWkt(const OGRSpatialReference* sr) -> SharedStr;
 auto GetOGRSpatialReferenceFromDataItems(const TreeItem* storageHolder) -> std::optional<OGRSpatialReference>;
 void CheckSpatialReference(std::optional<OGRSpatialReference>& ogrSR, const TreeItem* treeitem, const AbstrUnit* mutBase);

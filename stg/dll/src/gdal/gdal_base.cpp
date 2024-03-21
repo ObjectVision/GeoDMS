@@ -42,6 +42,7 @@
 #include "LispTreeType.h"
 #include "TreeItemContextHandle.h"
 #include "TreeItemProps.h"
+#include "TreeItemUtils.h"
 #include "Unit.h"
 #include "UnitClass.h"
 
@@ -61,13 +62,13 @@
 
 SeverityTypeID gdalSeverity(CPLErr st)
 {
-	switch(st) {
-		case CE_None:    return SeverityTypeID::ST_Nothing;
-		case CE_Debug:   return SeverityTypeID::ST_MinorTrace;
-		case CE_Warning :return SeverityTypeID::ST_Warning;
-		case CE_Failure: return SeverityTypeID::ST_Error;
-		case CE_Fatal:   return SeverityTypeID::ST_FatalError;
-		default: throwIllegalAbstract(MG_POS, "gdalSeverity");
+	switch (st) {
+	case CE_None:    return SeverityTypeID::ST_Nothing;
+	case CE_Debug:   return SeverityTypeID::ST_MinorTrace;
+	case CE_Warning:return SeverityTypeID::ST_Warning;
+	case CE_Failure: return SeverityTypeID::ST_Error;
+	case CE_Fatal:   return SeverityTypeID::ST_FatalError;
+	default: throwIllegalAbstract(MG_POS, "gdalSeverity");
 	}
 }
 
@@ -108,10 +109,10 @@ namespace gdalComponentImpl
 
 			MG_DEBUGCODE(
 				reportF_without_cancellation_check(MsgCategory::other, SeverityTypeID::ST_MajorTrace, "Hook to GDAL file: %s", fullFileName.c_str());
-			
+
 			)
-			if (!IsFileOrDirAccessible(fullFileName))
-				reportF_without_cancellation_check(MsgCategory::other, SeverityTypeID::ST_Warning, "Hook to unknown GDAL file: %s", fullFileName.c_str());
+				if (!IsFileOrDirAccessible(fullFileName))
+					reportF_without_cancellation_check(MsgCategory::other, SeverityTypeID::ST_Warning, "Hook to unknown GDAL file: %s", fullFileName.c_str());
 		}
 		return fullFileName.c_str();
 	}
@@ -130,16 +131,16 @@ namespace gdalComponentImpl
 
 
 	THREAD_LOCAL GDAL_ErrorFrame* s_ErrorFramePtr = nullptr;
- 
-	void ErrorHandlerImpl(CPLErr eErrClass, int err_no, const char *msg)
+
+	void ErrorHandlerImpl(CPLErr eErrClass, int err_no, const char* msg)
 	{
 		if (eErrClass >= CE_Failure)
 			throwErrorF("gdal", "error(%d): %s", err_no, msg);
 	}
 
-	void __stdcall ErrorHandler(CPLErr eErrClass, int err_no, const char *msg)
+	void __stdcall ErrorHandler(CPLErr eErrClass, int err_no, const char* msg)
 	{
-//		AbstrContextHandle* ach = AbstrContextHandle::GetLast();
+		//		AbstrContextHandle* ach = AbstrContextHandle::GetLast();
 		SeverityTypeID st = gdalSeverity(eErrClass);
 		MakeMin(st, SeverityTypeID::ST_Warning); // downplay gdal errors for now.
 
@@ -156,9 +157,9 @@ namespace gdalComponentImpl
 }	// namespace gdalComponentImpl
 
 GDAL_ErrorFrame::GDAL_ErrorFrame()
-	: m_eErrClass(dms_CPLErr(CE_None) )
-	, m_Prev( gdalComponentImpl::s_ErrorFramePtr )
-	, m_prev_proj_err_no( GetProjectionContextErrNo() )
+	: m_eErrClass(dms_CPLErr(CE_None))
+	, m_Prev(gdalComponentImpl::s_ErrorFramePtr)
+	, m_prev_proj_err_no(GetProjectionContextErrNo())
 
 {
 	m_nr_uncaught_exceptions = std::uncaught_exceptions();
@@ -192,7 +193,7 @@ GDAL_ErrorFrame::~GDAL_ErrorFrame()  noexcept(false)
 		ThrowUpWhateverCameUp();
 }
 
-void GDAL_ErrorFrame::RegisterError(dms_CPLErr eErrClass, int err_no, const char *msg)
+void GDAL_ErrorFrame::RegisterError(dms_CPLErr eErrClass, int err_no, const char* msg)
 {
 	if (eErrClass > m_eErrClass)
 	{
@@ -209,24 +210,24 @@ void GDAL_ErrorFrame::RegisterError(dms_CPLErr eErrClass, int err_no, const char
 
 struct pj_ctx* GDAL_ErrorFrame::GetProjectionContext()
 {
-//	return reinterpret_cast<PJ_CONTEXT*>(CPLGetTLS(CTLS_PROJCONTEXTHOLDER));
-//	return OSRGetProjTLSContext();
+	//	return reinterpret_cast<PJ_CONTEXT*>(CPLGetTLS(CTLS_PROJCONTEXTHOLDER));
+	//	return OSRGetProjTLSContext();
 	return nullptr;
 }
 
 int GDAL_ErrorFrame::GetProjectionContextErrNo()
 {
 	auto pjCtx = GetProjectionContext();
-//	if (!pjCtx)
-//		return 0;
+	//	if (!pjCtx)
+	//		return 0;
 	return proj_context_errno(pjCtx);
 }
 
 SharedStr GDAL_ErrorFrame::GetProjectionContextErrorString()
 {
 	auto pjCtx = GetProjectionContext();
-//	if (!pjCtx)
-//		return {};
+	//	if (!pjCtx)
+	//		return {};
 	auto pjErrno = GetProjectionContextErrNo();
 	if (!pjErrno)
 		return {};
@@ -239,7 +240,7 @@ SharedStr GDAL_ErrorFrame::GetProjectionContextErrorString()
 
 void gdalCleanup()
 {
-//	SetCSVFilenameHook(nullptr);
+	//	SetCSVFilenameHook(nullptr);
 	if (gdalComponentImpl::s_HookedFilesPtr != nullptr) {
 		delete gdalComponentImpl::s_HookedFilesPtr;
 		gdalComponentImpl::s_HookedFilesPtr = nullptr;
@@ -254,7 +255,7 @@ void gdalCleanup()
 	OGRCleanupAll();
 	//proj_cleanup();
 	OSRCleanup();
-//	CPLCleanupTLS();
+	//	CPLCleanupTLS();
 }
 
 gdalDynamicLoader::gdalDynamicLoader()
@@ -265,7 +266,7 @@ bool AuthorityCodeIsValidCrs(std::string_view wkt)
 {
 	auto srs = OGRSpatialReference();
 	srs.SetFromUserInput(wkt.data());
-	
+
 	auto is_geographic = srs.IsGeographic();
 	auto is_derived_geographic = srs.IsDerivedGeographic();
 	auto is_projected = srs.IsProjected();
@@ -283,7 +284,7 @@ void ValidateSpatialReferenceFromWkt(OGRSpatialReference* ogrSR, CharPtr wkt_prj
 	ogrSR->Validate();
 	CplString pszEsriwkt;
 	ogrSR->exportToWkt(&pszEsriwkt.m_Text);
-	if (std::strlen(wkt_prj_str)>20 && strcmp(pszEsriwkt.m_Text, wkt_prj_str)) // TODO: replace hardcoded 20 characters to get past strings that are ie. EPSG:XXXX
+	if (std::strlen(wkt_prj_str) > 20 && strcmp(pszEsriwkt.m_Text, wkt_prj_str)) // TODO: replace hardcoded 20 characters to get past strings that are ie. EPSG:XXXX
 		reportF(SeverityTypeID::ST_MinorTrace, "PROJ reinterpreted user input wkt projection definition: %s", wkt_prj_str);
 }
 
@@ -293,23 +294,23 @@ void GDALDatasetHandle::UpdateBaseProjection(const TreeItem* treeitem, const Abs
 	assert(dsh_);
 
 	auto ogrSR_ptr = dsh_->GetSpatialRef();
-	if (!ogrSR_ptr) 
+	if (!ogrSR_ptr)
 		ogrSR_ptr = dsh_->GetGCPSpatialRef();
 
 	if (uBase->GetDescr().empty() && ogrSR_ptr)
 	{
 		CharPtr projName = nullptr;
-		if (ogrSR_ptr) 
+		if (ogrSR_ptr)
 			projName = ogrSR_ptr->GetName();
 		if (projName == nullptr)
 			projName = dsh_->GetProjectionRef();
 
-//		if (!uBase->IsCacheItem() && uBase->GetDescr().empty())
-//			const_cast<AbstrUnit*>(uBase)->SetDescr(SharedStr(projName));
+		//		if (!uBase->IsCacheItem() && uBase->GetDescr().empty())
+		//			const_cast<AbstrUnit*>(uBase)->SetDescr(SharedStr(projName));
 	}
 
 	std::optional<OGRSpatialReference> ogrSR;
-	if (ogrSR_ptr) 
+	if (ogrSR_ptr)
 		ogrSR = *ogrSR_ptr; // make a copy if necessary as UpdateBaseProjection may return another one that must be destructed
 	CheckSpatialReference(ogrSR, treeitem, uBase); // update based on this external ogrSR, but use base's Format-specified EPGS when available
 }
@@ -427,7 +428,25 @@ SharedStr GetWktProjectionFromValuesUnit(const AbstrDataItem* adi)
 	return GetWktProjectionFromBaseProjectionUnit(baseProjectionUnit);
 }
 
-void CheckCompatibility(const TreeItem* treeitem, OGRSpatialReference* fromGDAL, OGRSpatialReference* fromConfig)
+auto GetProjAuthorityCodeFromCompoundCS(OGRSpatialReference* srs) -> SharedStr
+{
+	auto* proj_cs_node = srs->GetAttrNode("PROJCS");
+	if (!proj_cs_node)
+		return {};
+	
+	auto* auth_node = proj_cs_node->GetNode("AUTHORITY");
+	if (!auth_node)
+		return {};
+
+	if (!(auth_node->GetChildCount()==2))
+		return {};
+
+	auto authority_node = auth_node->GetChild(0);
+	auto code_node = auth_node->GetChild(1);
+	return SharedStr(authority_node->GetValue()) + ":" + code_node->GetValue();
+}
+
+void SpatialReferencesAreCompatibile(const TreeItem* treeitem, OGRSpatialReference* fromGDAL, OGRSpatialReference* fromConfig)
 {
 	assert(fromGDAL);
 	assert(fromConfig);
@@ -435,27 +454,36 @@ void CheckCompatibility(const TreeItem* treeitem, OGRSpatialReference* fromGDAL,
 	if (fromGDAL->IsSame(fromConfig))
 		return;
 
-	auto gdal_authority = SharedStr(fromGDAL->GetAuthorityName(NULL));
-	auto vu_authority = SharedStr(fromConfig->GetAuthorityName(NULL));
-	auto gdal_code = SharedStr(fromGDAL->GetAuthorityCode(NULL));
-	auto vu_code = SharedStr(fromConfig->GetAuthorityCode(NULL));
+	SharedStr authority_and_code_from_gdal = SharedStr(fromGDAL->GetAuthorityName(NULL)) + ":" + fromGDAL->GetAuthorityCode(NULL);
+	SharedStr authority_and_code_from_value_unit = SharedStr(fromConfig->GetAuthorityName(NULL)) + ":" + fromConfig->GetAuthorityCode(NULL);
 
-	// for a valid comparison both authority and code must be present from value unit and gdal side
-	if (gdal_authority.empty() or vu_authority.empty() or gdal_code.empty() or vu_code.empty()) 
-		return;
-
-	SharedStr authority_and_code_from_gdal       = gdal_authority + ":" + gdal_code;
-	SharedStr authority_and_code_from_value_unit = vu_authority + ":" + vu_code;
-
+	// AUTHORITY:CODE comparison
 	if (authority_and_code_from_gdal == authority_and_code_from_value_unit)
 		return;
+
+	// Compound srs compatibility check fromGDAL
+	auto from_gdal_is_compound = fromGDAL->IsCompound();
+	if (from_gdal_is_compound)
+	{
+		auto proj_authority_code = GetProjAuthorityCodeFromCompoundCS(fromGDAL);
+		if (proj_authority_code == authority_and_code_from_value_unit)
+			return;
+	}
+
+	// Compound srs compatibility check fromConfig
+	auto from_config_is_compound = fromConfig->IsCompound();
+	if (from_config_is_compound)
+	{
+		auto proj_authority_code = GetProjAuthorityCodeFromCompoundCS(fromConfig);
+		if (proj_authority_code == authority_and_code_from_gdal)
+			return;
+	}
+
 	SharedStr projection_mismatch_error_message = mySSPrintF(
 		"GDAL: item [[%s]] spatial reference (%s) differs from the spatial reference (%s) obtained from the dataset"
 		, treeitem->GetFullName().c_str()
 		, authority_and_code_from_gdal.c_str()
 		, authority_and_code_from_value_unit.c_str());
-
-	//reportF(SeverityTypeID::ST_Error, projection_mismatch_error_message.c_str());
 
 	treeitem->Fail(projection_mismatch_error_message, FailType::FR_MetaInfo);
 }
@@ -474,7 +502,7 @@ void CheckSpatialReference(std::optional<OGRSpatialReference>& ogrSR, const Tree
 	assert(uBase);
 	auto projection = uBase->GetProjectionStr(FormattingFlags::None);
 	SharedStr wktPrjStr(uBase->GetSpatialReference());
-	
+
 	if (wktPrjStr.empty())
 		return;
 
@@ -487,7 +515,7 @@ void CheckSpatialReference(std::optional<OGRSpatialReference>& ogrSR, const Tree
 	if (ogrSR)
 	{
 		ValidateSpatialReferenceFromWkt(&spOrErr.first, wktPrjStr.c_str());
-		CheckCompatibility(treeitem, &*ogrSR, &spOrErr.first);
+		SpatialReferencesAreCompatibile(treeitem, &*ogrSR, &spOrErr.first);
 	}
 	else
 		ogrSR = spOrErr.first;
@@ -500,16 +528,16 @@ gdalThread::gdalThread()
 {
 	if (!gdalComponentImpl::s_TlsCount)
 	{
-//		DMS_SE_CALLBACK_BEGIN
+		//		DMS_SE_CALLBACK_BEGIN
 
-			CPLPushFileFinder(gdalComponentImpl::HookFilesToExeFolder2); // can throw SE
-//			proj_context_set_file_finder(nullptr, gdalComponentImpl::proj_HookFilesToExeFolder, nullptr);
+		CPLPushFileFinder(gdalComponentImpl::HookFilesToExeFolder2); // can throw SE
+		//			proj_context_set_file_finder(nullptr, gdalComponentImpl::proj_HookFilesToExeFolder, nullptr);
 
-			static auto projFolder = DelimitedConcat(GetExeDir(), "proj4data");
-			CharPtr projFolderPtr[] = { projFolder.c_str(), nullptr };
-			OSRSetPROJSearchPaths(projFolderPtr);
+		static auto projFolder = DelimitedConcat(GetExeDir(), "proj4data");
+		CharPtr projFolderPtr[] = { projFolder.c_str(), nullptr };
+		OSRSetPROJSearchPaths(projFolderPtr);
 
-//		DMS_SE_CALLBACK_END // will throw a DmsException in case a SE was raised
+		//		DMS_SE_CALLBACK_END // will throw a DmsException in case a SE was raised
 	}
 	++gdalComponentImpl::s_TlsCount;
 }
@@ -518,8 +546,8 @@ gdalThread::~gdalThread()
 {
 	if (!--gdalComponentImpl::s_TlsCount)
 	{
-	//	proj_context_set_file_finder(nullptr, nullptr, nullptr);
-	//		OSRCleanup();
+		//	proj_context_set_file_finder(nullptr, nullptr, nullptr);
+		//		OSRCleanup();
 		CPLCleanupTLS();
 		CPLPopFileFinder();
 	}
@@ -548,12 +576,12 @@ gdalComponent::gdalComponent()
 			CPLSetThreadLocalConfigOption("OGR_ENABLE_PARTIAL_REPROJECTION_THREADS", "YES");
 			CPLSetThreadLocalConfigOption("PROJ_THREAD_SAFE", "YES");
 
-//			SetCSVFilenameHook(gdalComponentImpl::HookFilesToExeFolder1);
-//			proj_context_set_file_finder(nullptr, gdalComponentImpl::proj_HookFilesToExeFolder, nullptr);
+			//			SetCSVFilenameHook(gdalComponentImpl::HookFilesToExeFolder1);
+			//			proj_context_set_file_finder(nullptr, gdalComponentImpl::proj_HookFilesToExeFolder, nullptr);
 
-			// Note: moved registering of drivers to Gdal_DoOpenStorage
-			//GDALAllRegister(); // can throw
-			//OGRRegisterAll(); // can throw
+						// Note: moved registering of drivers to Gdal_DoOpenStorage
+						//GDALAllRegister(); // can throw
+						//OGRRegisterAll(); // can throw
 		}
 		catch (...)
 		{
@@ -575,15 +603,15 @@ gdalComponent::~gdalComponent()
 	return; // MEMORY LEAK, prevent issue 169
 	if (!--gdalComponentImpl::s_ComponentCount)
 	{
-//		proj_context_set_file_finder(nullptr, nullptr, nullptr);
+		//		proj_context_set_file_finder(nullptr, nullptr, nullptr);
 		gdalCleanup();
 	}
 }
 
 CplString::~CplString()
-{ 
-	if (m_Text) 
-		CPLFree(m_Text); 
+{
+	if (m_Text)
+		CPLFree(m_Text);
 }
 
 typedef DataArray<SharedStr> StringDataItem;
@@ -593,9 +621,9 @@ void gdalRaster_CreateMetaInfo(TreeItem* container, bool mustCalc)
 {
 	AbstrUnit* auTableGroups = Unit<UInt32>::GetStaticClass()->CreateUnit(container, GetTokenID_mt("gdal_grid"));
 	AbstrDataItem* adiShortName = CreateDataItem(auTableGroups, GetTokenID_mt("ShortName"), auTableGroups, Unit<SharedStr>::GetStaticClass()->CreateDefault());
-	AbstrDataItem* adiLongName  = CreateDataItem(auTableGroups, GetTokenID_mt("LongName"),  auTableGroups, Unit<SharedStr>::GetStaticClass()->CreateDefault());
-	AbstrDataItem* adiHelpUrl   = CreateDataItem(auTableGroups, GetTokenID_mt("HelpUrl"),   auTableGroups, Unit<SharedStr>::GetStaticClass()->CreateDefault());
-	AbstrDataItem* adiOptions   = CreateDataItem(auTableGroups, GetTokenID_mt("CreationOptionList"),   auTableGroups, Unit<SharedStr>::GetStaticClass()->CreateDefault());
+	AbstrDataItem* adiLongName = CreateDataItem(auTableGroups, GetTokenID_mt("LongName"), auTableGroups, Unit<SharedStr>::GetStaticClass()->CreateDefault());
+	AbstrDataItem* adiHelpUrl = CreateDataItem(auTableGroups, GetTokenID_mt("HelpUrl"), auTableGroups, Unit<SharedStr>::GetStaticClass()->CreateDefault());
+	AbstrDataItem* adiOptions = CreateDataItem(auTableGroups, GetTokenID_mt("CreationOptionList"), auTableGroups, Unit<SharedStr>::GetStaticClass()->CreateDefault());
 
 	if (mustCalc)
 	{
@@ -613,14 +641,14 @@ void gdalRaster_CreateMetaInfo(TreeItem* container, bool mustCalc)
 		auto helpUrlData = mutable_array_cast<SharedStr>(res3Lock)->GetDataWrite();
 		auto optionsData = mutable_array_cast<SharedStr>(res4Lock)->GetDataWrite();
 
-		for (SizeT i=0; i!=nrDrivers; ++i)
+		for (SizeT i = 0; i != nrDrivers; ++i)
 		{
 			GDALDriverH drH = GDALGetDriver(i);
 
 			Assign(shortNameData[i], GDALGetDriverShortName(drH));
-			Assign(longNameData[i],  GDALGetDriverLongName (drH));
-			Assign(helpUrlData[i],   GDALGetDriverHelpTopic(drH));	
-			Assign(optionsData[i],   GDALGetDriverCreationOptionList(drH));	
+			Assign(longNameData[i], GDALGetDriverLongName(drH));
+			Assign(helpUrlData[i], GDALGetDriverHelpTopic(drH));
+			Assign(optionsData[i], GDALGetDriverCreationOptionList(drH));
 		}
 
 		res1Lock.Commit();
@@ -633,7 +661,7 @@ void gdalRaster_CreateMetaInfo(TreeItem* container, bool mustCalc)
 void gdalVector_CreateMetaInfo(TreeItem* container, bool mustCalc)
 {
 	AbstrUnit* auTableGroups = Unit<UInt32>::GetStaticClass()->CreateUnit(container, GetTokenID_mt("gdal_vect"));
-	AbstrDataItem* adiShortName = CreateDataItem(auTableGroups, GetTokenID_mt("Name"     ), auTableGroups, Unit<SharedStr>::GetStaticClass()->CreateDefault());
+	AbstrDataItem* adiShortName = CreateDataItem(auTableGroups, GetTokenID_mt("Name"), auTableGroups, Unit<SharedStr>::GetStaticClass()->CreateDefault());
 	AbstrDataItem* adiCanCreate = CreateDataItem(auTableGroups, GetTokenID_mt("CanCreate"), auTableGroups, Unit<Bool     >::GetStaticClass()->CreateDefault());
 	AbstrDataItem* adiCanDelete = CreateDataItem(auTableGroups, GetTokenID_mt("CanDelete"), auTableGroups, Unit<Bool     >::GetStaticClass()->CreateDefault());
 
@@ -654,7 +682,7 @@ void gdalVector_CreateMetaInfo(TreeItem* container, bool mustCalc)
 		auto canCreateData = diCanCreate->GetLockedDataWrite();
 		auto canDeleteData = diCanDelete->GetLockedDataWrite();
 
-		for (SizeT i=0; i!=nrDrivers; ++i)
+		for (SizeT i = 0; i != nrDrivers; ++i)
 		{
 			OGRSFDriverH drH = OGRGetDriver(i);
 
@@ -679,8 +707,8 @@ void gdalComponent::CreateMetaInfo(TreeItem* container, bool mustCalc)
 
 SharedStr GDALDriverDescr(GDALDriverH h)
 {
-	auto shortName = SharedStr( GDALGetDriverShortName(h) );
-	auto longName  = SharedStr( GDALGetDriverLongName(h) );
+	auto shortName = SharedStr(GDALGetDriverShortName(h));
+	auto longName = SharedStr(GDALGetDriverLongName(h));
 	if (shortName == longName || longName.empty())
 		return shortName;
 	return mySSPrintF("%s: %s", shortName, longName);
@@ -688,7 +716,7 @@ SharedStr GDALDriverDescr(GDALDriverH h)
 
 #include "VersionComponent.h"
 struct gdalVersionComponent : AbstrVersionComponent
-{	
+{
 	void Visit(ClientHandle clientHandle, VersionComponentCallbackFunc callBack, UInt32 componentLevel) const override
 	{
 		callBack(clientHandle, componentLevel, GDALVersionInfo("--version"));
@@ -696,8 +724,8 @@ struct gdalVersionComponent : AbstrVersionComponent
 		++componentLevel;
 		gdalComponent lockGDALRegister;
 		int dc = GDALGetDriverCount();
-		for (int i=0; i!=dc; ++i)
-			callBack(clientHandle, componentLevel, 
+		for (int i = 0; i != dc; ++i)
+			callBack(clientHandle, componentLevel,
 				GDALDriverDescr(GDALGetDriver(i)).c_str()
 			);
 #endif
@@ -753,7 +781,7 @@ auto GetListOfDriverFileExts(GDALDriver* driver) -> std::vector<std::string>
 	return driver_exts;
 }
 
-auto GetListOfRegsiteredGDALDriverShortNames(std::vector<GDALDriver*> &registered_drivers) -> std::vector<std::string>
+auto GetListOfRegsiteredGDALDriverShortNames(std::vector<GDALDriver*>& registered_drivers) -> std::vector<std::string>
 {
 	std::vector<std::string> registered_drivers_shortnames;
 	for (auto driver : registered_drivers)
@@ -801,6 +829,15 @@ bool DataItemsWriteStatusInfo::fieldIsWritten(TokenID layerID, TokenID fieldID)
 	return m_LayerAndFieldIDMapping[layerID][fieldID].isWritten;
 }
 
+bool DataItemsWriteStatusInfo::hasGeometry(TokenID layerID)
+{
+	for (auto& field : m_LayerAndFieldIDMapping[layerID])
+		if (field.second.isGeometry)
+			return true;
+		
+	return false;
+}
+
 void DataItemsWriteStatusInfo::setFieldIsWritten(TokenID layerID, TokenID fieldID, bool isWritten)
 {
 	m_LayerAndFieldIDMapping[layerID][fieldID].isWritten = isWritten;
@@ -816,7 +853,7 @@ void DataItemsWriteStatusInfo::setInterest(TokenID layerID, TokenID fieldID, boo
 	m_LayerAndFieldIDMapping[layerID][fieldID].doWrite = hasInterest;
 }
 
-void DataItemsWriteStatusInfo::SetInterestForDataHolder(TokenID layerID, TokenID fieldID, const AbstrDataItem *adi)
+void DataItemsWriteStatusInfo::SetInterestForDataHolder(TokenID layerID, TokenID fieldID, const AbstrDataItem* adi)
 {
 	m_LayerAndFieldIDMapping[layerID][fieldID].m_DataHolder = adi;
 	m_LayerAndFieldIDMapping[layerID][fieldID].name = SharedStr(fieldID);
@@ -901,7 +938,7 @@ CPLStringList GetOptionArray(const TreeItem* optionsItem)
 {
 	CPLStringList result;
 	if (optionsItem)
-	{ 
+	{
 		MG_CHECK(IsDataItem(optionsItem));
 		MG_CHECK(AsDataItem(optionsItem)->GetAbstrValuesUnit()->GetValueType()->GetValueClassID() == ValueClassID::VT_String);
 
@@ -985,7 +1022,7 @@ auto GetUnitSizeInMeters(const AbstrUnit* projectionBaseUnit) -> Float64
 auto GetAffineTransformationFromDataItem(const TreeItem* storageHolder) -> affine_transformation
 {
 	affine_transformation affine_transformation;
-	
+
 	if (!IsDataItem(storageHolder))
 		return {};
 
@@ -1002,18 +1039,6 @@ auto GetAffineTransformationFromDataItem(const TreeItem* storageHolder) -> affin
 	affine_transformation.x_scale = factor.X();
 	affine_transformation.y_scale = factor.Y();
 
-	/*
-	DPoint factor = (unit_projection) ? unit_projection->Factor() : DPoint(1.0, 1.0), f2 = factor;
-	if (factor.X() < 0) { f2.X() = -factor.X(); gridBegin.Col() = gridEnd.Col(); }
-	if (factor.Y() > 0) { f2.Y() = -factor.Y(); gridBegin.Row() = gridEnd.Row(); }
-	DPoint offset = ((unit_projection) ? unit_projection->Offset() : DPoint()) + gridBegin * factor;
-
-	affine_transformation.push_back(offset.X());   // x-coordinate of the upper-left corner of the upper-left pixel.
-	affine_transformation.push_back(f2.X());       // w-e pixel resolution / pixel width.
-	affine_transformation.push_back(Float64(0.0)); // row rotation (typically zero).
-	affine_transformation.push_back(offset.Y());   // y-coordinate of the upper-left corner of the upper-left pixel.
-	affine_transformation.push_back(Float64(0.0)); // column rotation (typically zero).
-	affine_transformation.push_back(f2.Y()); 	   // n-s pixel resolution / pixel height (negative value for a north-up image).*/
 	return affine_transformation;
 }
 
@@ -1058,45 +1083,63 @@ auto GetOGRSpatialReferenceFromDataItems(const TreeItem* storageHolder) -> std::
 	return {};
 }
 
-OGRwkbGeometryType GetGeometryTypeFromGeometryDataItem(const TreeItem* subItem)
+auto GetGeometryItemFromLayerHolder(const TreeItem* subItem) -> const TreeItem*
 {
-	auto geot   = OGRwkbGeometryType::wkbNone;
-	auto vcprev = ValueComposition::Single;
-	for (auto subDataItem = subItem; subDataItem; subDataItem = subItem->WalkConstSubTree(subDataItem))
+	// get mapping item from unit subitem
+	const TreeItem* mapping_item = GetMappingItem(subItem);
+
+	if (!mapping_item)
 	{
-		if (not (IsDataItem(subDataItem) and subDataItem->IsStorable()))
-			continue;
-
-		auto subDI = AsDataItem(subDataItem);
-		auto vc    = subDI->GetValueComposition();
-		auto vci   = subDI->GetAbstrValuesUnit()->GetValueType()->GetValueClassID();
-		auto id    = subDataItem->GetID();
-
-		if (id == token::geometry)
-			return DmsType2OGRGeometryType(vc);
-
-		if (vc >= vcprev && vc <= ValueComposition::Sequence && (vci >= ValueClassID::VT_SPoint && vci < ValueClassID::VT_FirstAfterPolygon))
+		if (IsUnit(subItem))
 		{
-			geot = DmsType2OGRGeometryType(vc);
-			vcprev = vc;
+			auto adu = AsUnit(subItem);
+			if (adu)
+				mapping_item = GetMappingItem(adu);
+		}
+		else if (IsDataItem(subItem))
+		{
+			auto adi = AsDataItem(subItem);
+			if (adi)
+			{
+				auto adu = adi->GetAbstrDomainUnit();
+				mapping_item = GetMappingItem(adu);
+			}
 		}
 	}
+	return mapping_item ? GeometrySubItem(mapping_item) : nullptr;
+}
+
+auto GetGeometryTypeFromLayerHolder(const TreeItem* subItem) -> OGRwkbGeometryType
+{
+	auto geot = OGRwkbGeometryType::wkbNone;
+
+	// get geometry item
+	auto geometry_item = GetGeometryItemFromLayerHolder(subItem);
+
+	if (geometry_item)
+	{
+		auto adi = AsDataItem(geometry_item);
+		auto vc = adi->GetValueComposition();
+		auto vci = adi->GetAbstrValuesUnit()->GetValueType()->GetValueClassID();
+		geot = DmsType2OGRGeometryType(vc);
+	}
+
 	return geot;
 }
 
 const TreeItem* GetLayerHolderFromDataItem(const TreeItem* storageHolder, const TreeItem* subItem)
-{ 
+{
 	dms_assert(storageHolder && subItem && storageHolder->DoesContain(subItem)); // PRECONDITION
 
 	const TreeItem* unitItem = subItem;
 	while (unitItem && unitItem != storageHolder && not IsUnit(unitItem))
 	{
 		unitItem = unitItem->GetTreeParent();
-		
+
 		if (unitItem->GetCurrSourceItem() == unitItem->GetTreeParent()) // case of nested unit.
 		{
 			if (unitItem == storageHolder)
-				break; 
+				break;
 			unitItem = unitItem->GetTreeParent();
 		}
 	}
@@ -1184,6 +1227,9 @@ auto TryRegisterVectorDriverFromKnownDriverShortName(std::string_view knownDrive
 
 	else if (knownDriverShortName == "GML")
 		RegisterOGRGML();
+	
+	else if (knownDriverShortName == "MVT")
+		RegisterOGRMVT();
 
 	else if (knownDriverShortName == "OpenFileGDB")
 		RegisterOGROpenFileGDB();
@@ -1219,6 +1265,9 @@ auto TryRegisterRasterDriverFromKnownDriverShortName(std::string_view knownDrive
 
 	else if (knownDriverShortName == "BMP")
 		GDALRegister_BMP();
+
+	else if (knownDriverShortName == "MBTiles")
+		GDALRegister_MBTiles();
 }
 
 auto GDALRegisterTrustedDriverFromKnownDriverShortName(std::string_view knownDriverShortName) -> std::string
@@ -1255,25 +1304,7 @@ bool Gdal_DetermineIfDriverHasVectorOrRasterCapability(UInt32 gdalOpenFlags, GDA
 
 bool dmsAndDriverTypeAreCompatible(std::string_view target_type, std::string_view supported_types_sequence)
 {
-	int word_begin = 0;
-	int word_end = 0;
-	for (char const& c : supported_types_sequence)
-	{
-		if (c == ' ')
-		{
-			auto supported_type = supported_types_sequence.substr(word_begin, word_end-word_begin);
-			if (supported_type.compare(target_type) == 0) // driver supports this value type!
-				return true;
-
-			word_begin = word_end + 1;
-		}
-
-		word_end++;
-
-		if (c == '\n')
-			break;
-	}
-	return false;
+	return supported_types_sequence.contains(target_type);
 }
 
 bool Gdal_DriverSupportsDmsValueType(UInt32 gdalOpenFlags, ValueClassID dms_value_class_id, ValueComposition dms_value_composition, GDALDriver* driver)
@@ -1302,7 +1333,7 @@ GDALDatasetHandle Gdal_DoOpenStorage(const StorageMetaInfo& smi, dms_rw_mode rwM
 	if (rwMode == dms_rw_mode::read_write)
 		rwMode = dms_rw_mode::write_only_all;
 
-	const TreeItem* storageHolder = smi.StorageHolder(); 
+	const TreeItem* storageHolder = smi.StorageHolder();
 
 	SharedStr datasourceName = smi.StorageManager()->GetNameStr();
 
@@ -1348,7 +1379,7 @@ GDALDatasetHandle Gdal_DoOpenStorage(const StorageMetaInfo& smi, dms_rw_mode rwM
 			nXSize = size.Col();
 			nYSize = size.Row();
 			nBands = 1;
-			
+
 			eType = gdalRasterDataType(valuesTypeID);
 			if (valuesTypeID == ValueClassID::VT_Bool) optionArray.AddString("NBITS=1"); // overruling of gdal options
 			if (valuesTypeID == ValueClassID::VT_UInt2) optionArray.AddString("NBITS=2");
@@ -1389,13 +1420,13 @@ GDALDatasetHandle Gdal_DoOpenStorage(const StorageMetaInfo& smi, dms_rw_mode rwM
 
 	if (rwMode == dms_rw_mode::read_only)
 	{
-		GDALDatasetHandle result = GDALDataset::FromHandle( 
-				GDALOpenEx(datasourceName.c_str()
-					, (rwMode > dms_rw_mode::read_only) ? GA_Update : GA_ReadOnly | gdalOpenFlags | GDAL_OF_VERBOSE_ERROR
-					, driverArray
-					, optionArray
-					, nullptr // papszSiblingFiles
-				)
+		GDALDatasetHandle result = GDALDataset::FromHandle(
+			GDALOpenEx(datasourceName.c_str()
+				, (rwMode > dms_rw_mode::read_only) ? GA_Update : GA_ReadOnly | gdalOpenFlags | GDAL_OF_VERBOSE_ERROR
+				, driverArray
+				, optionArray
+				, nullptr // papszSiblingFiles
+			)
 		);
 
 		if (gdal_error_frame.HasError())
@@ -1414,12 +1445,12 @@ GDALDatasetHandle Gdal_DoOpenStorage(const StorageMetaInfo& smi, dms_rw_mode rwM
 		throwErrorF("GDAL", "Unsupported rwMode %d for %s", int(rwMode), datasourceName.c_str());
 
 	auto path = SharedStr(CPLGetPath(datasourceName.c_str())); // some GDAL drivers cannot create when there is no folder present (ie GPKG)
-	if (!std::filesystem::is_directory(path.c_str()) &&	!std::filesystem::create_directories(path.c_str()))
+	if (!std::filesystem::is_directory(path.c_str()) && !std::filesystem::create_directories(path.c_str()))
 		throwErrorF("GDAL", "Unable to create directories: %s", path);
 
-	auto driverShortName = GDALRegisterTrustedDriverFromFileExtension(ext);
-	if (!driverShortName.empty())
-		driverArray.AddString(driverShortName.c_str());
+	auto driverShortName = GDALRegisterTrustedDriverFromFileExtension(ext); // first option, get from filename ext
+	if (driverShortName.empty())
+		driverShortName = driverArray.size() ? driverArray[0] : ""; // secondary option, get from driverArray
 
 	auto driver = GetGDALDriverManager()->GetDriverByName(driverShortName.c_str());
 	if (!driver)
@@ -1427,11 +1458,11 @@ GDALDatasetHandle Gdal_DoOpenStorage(const StorageMetaInfo& smi, dms_rw_mode rwM
 
 	GDALDatasetHandle result = nullptr;
 
- 	if (!continueWrite || driverShortName=="GML" || (gdalOpenFlags & GDAL_OF_RASTER))
+	if (!continueWrite || driverShortName == "GML" || (gdalOpenFlags & GDAL_OF_RASTER))
 	{
 		if (std::filesystem::exists(datasourceName.c_str()))
 			driver->Delete(datasourceName.c_str()); gdal_error_frame.GetMsgAndReleaseError(); // start empty, release error in case of nonexistance.
-		
+
 		// check for values unit support in driver
 		if (!(smi.CurrRI()->GetID() == token::geometry) && !Gdal_DriverSupportsDmsValueType(gdalOpenFlags, valuesTypeID, value_composition, driver))
 		{
@@ -1439,8 +1470,8 @@ GDALDatasetHandle Gdal_DoOpenStorage(const StorageMetaInfo& smi, dms_rw_mode rwM
 			throwErrorF("GDAL", "driver %s does not support writing of values type %s", driverShortName.c_str(), dms_value_type_token_str.c_str());
 		}
 
-		result = driver->Create(datasourceName.c_str(), nXSize, nYSize, nBands, eType, optionArray);		
-		
+		result = driver->Create(datasourceName.c_str(), nXSize, nYSize, nBands, eType, optionArray);
+
 		if (gdalOpenFlags & GDAL_OF_RASTER) // set projection if available
 		{
 			// spatial reference system
@@ -1466,7 +1497,7 @@ GDALDatasetHandle Gdal_DoOpenStorage(const StorageMetaInfo& smi, dms_rw_mode rwM
 
 			if (gdalOpenFlags & GDAL_OF_VECTOR)
 				throwErrorF("GDAL", "driver %s does not have vector capabilities did you use gdalwrite.vect instead of gdalwrite.grid?", driverShortName.c_str());
-			else 
+			else
 				throwErrorF("GDAL", "driver %s does not have raster capabilities did you use gdalwrite.grid instead of gdalwrite.vect?", driverShortName.c_str());
 
 		}
@@ -1474,7 +1505,7 @@ GDALDatasetHandle Gdal_DoOpenStorage(const StorageMetaInfo& smi, dms_rw_mode rwM
 	}
 	else
 	{
-		result = reinterpret_cast<GDALDataset*>(GDALOpenEx(datasourceName.c_str(), GDAL_OF_UPDATE | GDAL_OF_VERBOSE_ERROR, nullptr, nullptr, nullptr));
+		result = reinterpret_cast<GDALDataset*>(GDALOpenEx(datasourceName.c_str(), GDAL_OF_UPDATE | GDAL_OF_VERBOSE_ERROR, driverArray, nullptr, nullptr));
 	}
 
 	if (gdal_error_frame.HasError())
@@ -1500,9 +1531,9 @@ CrdTransformation GetTransformation(gdal_transform gdalTr)
 	MG_CHECK(gdalTr[2] == 0);
 	MG_CHECK(gdalTr[4] == 0);
 	return CrdTransformation(
-			shp2dms_order(gdalTr[0], gdalTr[3]), 
-			shp2dms_order(gdalTr[1], gdalTr[5])
-		);
+		shp2dms_order(gdalTr[0], gdalTr[3]),
+		shp2dms_order(gdalTr[1], gdalTr[5])
+	);
 }
 
 // *****************************************************************************
