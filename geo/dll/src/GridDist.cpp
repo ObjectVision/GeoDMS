@@ -92,15 +92,13 @@ class GridDistOperator : public Operator
 
 	struct intertile_data
 	{
-		intertile_data()
-			:	m_IsDone(false) 
-			,	m_NumBorderCases(0)
-		{}
-
 		bool AddBorderCase(SizeT index, ImpType orgDist, ImpType newDist, LinkType src)
 		{
 			if (orgDist <= newDist)
 				return false;
+			if (!IsDefined(newDist))
+				return false;
+
 			m_DistData .push_back(newDist);
 			if (m_DistData.back() >= orgDist) // prevoius compare could have been done without rouding off 80 bits registers to Float64, this check hopefully doesn't suffer from this false optimization
 			{
@@ -113,11 +111,13 @@ class GridDistOperator : public Operator
 			return true;
 		}
 
+		// TODO OPTIMIZE: use a single container for all data, and use a struct {index, dist, edge} for the data
 		typename sequence_traits<SizeT   >::container_type m_IndexData;
-		typename sequence_traits<ImpType>::container_type m_DistData;
+		typename sequence_traits<ImpType >::container_type m_DistData;
 		typename sequence_traits<LinkType>::container_type m_EdgeData;
-		bool                 m_IsDone;
-		SizeT                m_NumBorderCases;
+
+		bool                 m_IsDone = false;
+		SizeT                m_NumBorderCases = 0;
 	};
 
 	using intertile_map = std::vector<intertile_data>;
@@ -237,11 +237,14 @@ public:
 			intertile_map itMap(useShadowTile ? 0 : tn);
 			tile_id nrTilesRemaining = tn;
 
+			int offsets[9] = {}; // TODO OPTIMIZE: memoize the offsets for the previous used nrC
+			NodeType nrUsedC_for_offsets_memoization = 0;
+
 			SizeT nrIterations = 0, nrPrevBorderCases = 0;
 			while (nrTilesRemaining)
-			{ // iterate through the set of tiles until 
-
-				for (tile_id t = 0; t!=tn; ++t) if (!itMap[t].m_IsDone)
+			{ 
+				// iterate through the set of tiles
+				for (tile_id t = 0; t!=tn; ++t) if (useShadowTile || !itMap[t].m_IsDone)
 				{
 					auto pseudoTile = useShadowTile ? no_tile : t;
 					auto costData  = diGridImp->GetLockedDataRead(pseudoTile);
@@ -256,11 +259,14 @@ public:
 					if (adiLimitImp)
 						dh.m_MaxImp = maxImp;
 
-					auto nrC = Width(range);
-					int offsets[9]; for (UInt32 i=1; i!=9; ++i) offsets[i] = displacement_info[i].dx + displacement_info[i].dy * nrC;
+					NodeType nrC = Width(range);
+					if (nrC != nrUsedC_for_offsets_memoization)
+					{
+						for (UInt32 i = 1; i != 9; ++i) offsets[i] = displacement_info[i].dx + displacement_info[i].dy * nrC;
+						nrUsedC_for_offsets_memoization = nrC;
+					}
 
 					assert(costData.size() == nrV); typename sequence_traits<ImpType>::cseq_t::const_iterator costDataPtr = costData.begin();
-
 
 					assert(resultData   .size() == nrV); dh.m_ResultDataPtr    = resultData.begin();
 					assert(traceBackData.size() == nrV); dh.m_TraceBackDataPtr = traceBackData.begin();
@@ -268,8 +274,8 @@ public:
 					fast_fill(resultData   .begin(), resultData   .end(), dh.m_MaxImp);
 					fast_fill(traceBackData.begin(), traceBackData.end(), LinkType(0) );
 
-		//			SetStartNodes(range, srcNodes.begin(), srcNodes.end(), startCosts.begin());
 					{
+						// SetStartNodes from srcNodes
 						const GridType* first = srcNodes.begin();
 						const GridType* last  = srcNodes.end();
 						if (diStartPointImp)
@@ -294,15 +300,13 @@ public:
 						}
 					}
 					{
-						auto first     = itMap[t].m_IndexData.begin(), last = itMap[t].m_IndexData.end();
-						auto firstEdge = itMap[t].m_EdgeData.begin();
-						auto firstDist = itMap[t].m_DistData.begin();
+						// SetStartNodes from interTileData for the current tile t
+						const auto& currInterTileInfo = itMap[t];
+						auto first     = currInterTileInfo.m_IndexData.begin(), last = currInterTileInfo.m_IndexData.end();
+						auto firstEdge = currInterTileInfo.m_EdgeData.begin();
+						auto firstDist = currInterTileInfo.m_DistData.begin();
 						for  (; first != last; ++firstEdge, ++firstDist, ++first)
-						{
-//							SizeT index = Range_GetIndex_checked(range, *first);
-//							if (IsDefined(index))
 								dh.InsertNode(*first, *firstDist, *firstEdge);
-						}
 					}
 
 					// iterate through buffer until all destinations in the current tile are processed.
@@ -356,14 +360,32 @@ public:
 
 				nrTilesRemaining = 0;
 
+				// Store the border cases to other tiles for next iterations
 				typename Arg1Type::locked_cseq_t costData1, costData2; // be lazy in locking and unlocking tiles
 
 				for (tile_id t1=0; t1!=tn; ++t1)
 				{
 					Range<Grid> range1 = gridSet->GetTileRange(t1);
 					Range<Grid> range1_inflated = Inflate(range1, Grid(1,1));
+
 					for (tile_id t2=t1+1; t2!=tn; ++t2)
 					{
+						if (gridSet->IsCovered()) // regular and default tilings only
+						{
+							// limit the number of candidate tiles that could intersect with range1_inflated
+							// enumerate the 4: t1+1, t1+nrTC - 1 ... t1+nrTC + 1
+							// where nrTC is the number of tiles in a row, i.e.:RegularAdapter<Base>::tiling_extent()
+							// for irregular tilings, the number of tiles in a row is not known, so all tiles have to be enumerated
+							auto nrTilesInRow = gridSet->GetCurrSegmInfo()->GetTilingExtent().Col();
+
+							if (t2 == t1 + 2)
+								MakeMax(t2, t1 + nrTilesInRow - 1); // jump to previous column in the next row, if that is beyond t1+2
+							else if (t2 == t1 + nrTilesInRow + 2)
+								break; // exit processing t2's as they are beyond (+1, +1)
+							if (t2 >= tn)
+								break; // exit processing t2's as they are beyond the last tile
+						}
+
 						Range<Grid> range2 = gridSet->GetTileRange(t2);
 						Range<Grid> intersect = (range1_inflated &  range2);
 						if (intersect.empty()) 
@@ -394,8 +416,9 @@ public:
 									continue;
 								SizeT i1 = Range_GetIndex_naked(range1, q);
 								ImpType oldResData1 = resultData1[i1];
-								if (oldResData1 >= MaxValue<ImpType>() && oldResData2 >= MaxValue<ImpType>())
-									continue;
+								if (!IsDefined(oldResData1) || oldResData1 >= maxImp)
+									if (!IsDefined(oldResData2) || oldResData2 >= maxImp)
+										continue;
 
 								ImpType deltaCost = costData1[i1];
 								if (!IsDefined(deltaCost))
@@ -403,22 +426,24 @@ public:
 								MakeMax<ImpType>(deltaCost, ImpType()); // raise negative values to zero.
 								deltaCost +=  deltaCost2;
 								deltaCost *= displacement_info[i].f;
-								dms_assert(deltaCost >= 0);
-								if (deltaCost >= MaxValue<ImpType>())
+								assert(deltaCost >= 0);
+								if (deltaCost >= maxImp)
 									continue;
 
-								ImpType newResData1 = oldResData2 + deltaCost;
-								ImpType newResData2 = oldResData1 + deltaCost;
-								if (itMap[t1].AddBorderCase(i1, oldResData1, newResData1, displacement_info[i].d))
+								if (IsDefined(oldResData2))
 								{
+									ImpType newResData1 = oldResData2 + deltaCost;
+									if (newResData1 < maxImp && itMap[t1].AddBorderCase(i1, oldResData1, newResData1, displacement_info[i].d))
 									if (itMap[t1].m_IsDone)
 									{
 										itMap[t1].m_IsDone = false;
 										++nrTilesRemaining;
 									}
 								}
-								else if (itMap[t2].AddBorderCase(i2, oldResData2, newResData2, displacement_info[i].r))
+								if (IsDefined(oldResData1))
 								{
+									ImpType newResData2 = oldResData1 + deltaCost;
+									if (newResData2 < maxImp && itMap[t2].AddBorderCase(i2, oldResData2, newResData2, displacement_info[i].r))
 									if (itMap[t2].m_IsDone)
 									{
 										itMap[t2].m_IsDone = false;

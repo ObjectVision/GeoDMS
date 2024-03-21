@@ -86,28 +86,32 @@ struct DijkstraHeap
 		assert(m_ResultDataPtr[v] >= 0);
 		if (m_ResultDataPtr[v] < d)
 			return false;
-		if (d >= m_MaxImp) // maximp could have been reduced when dstlimit was reached.
-			return false;
-		assert(m_ResultDataPtr[v] == d); // was already marked tentatively, which is 
-		return true;
+
+		if (d < m_MaxImp) // maximp could have been reduced when dstlimit was reached.
+		{
+			assert(m_ResultDataPtr[v] == d); // was already marked tentatively, which is 
+			return true;
+		}
+		return false;
 	}
 
 	void InsertNode(NodeType v, ImpType d, LinkType backTrace)
 	{
-		if (d >= m_MaxImp)
-			return;
-		assert(v < m_NrV);
+		if (d < m_MaxImp)
+		{
+			assert(v < m_NrV);
 
-		assert(d >= 0);
-		if (!IsBetter(v, d))
-			return;
+			assert(d >= 0);
+			if (!IsBetter(v, d))
+				return;
 
-		m_NodeHeap.push_back(HeapElemType(v, d));
-		std::push_heap(m_NodeHeap.begin(), m_NodeHeap.end());
+			m_NodeHeap.push_back(HeapElemType(v, d));
+			std::push_heap(m_NodeHeap.begin(), m_NodeHeap.end());
 
-		MarkTentative(v, d);
-		if (m_TraceBackDataPtr)
-			m_TraceBackDataPtr[v] = backTrace;
+			MarkTentative(v, d);
+			if (m_TraceBackDataPtr)
+				m_TraceBackDataPtr[v] = backTrace;
+		}
 	}
 	void PopNode()
 	{
