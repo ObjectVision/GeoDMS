@@ -753,11 +753,10 @@ void TileAdapter<Base>::SetRegularTileRange(const range_t& range, extent_t tileE
 	auto rangeSize = ThrowingConvert<extent_t>(orgRangeSize);
 	MakeLowerBound(tileExtent, rangeSize);
 
-	if (IsLowerBound(tileExtent, default_tile_size<value_t>()))
+	if (tileExtent == default_tile_size<value_t>())
 		newRangeData = std::make_unique < DefaultTileRangeData<value_t>>(range);
 	else
 		newRangeData = std::make_unique < RegularTileRangeData<value_t>>(range, tileExtent);
-//	newRangeData->CalcTilingExtent();
 
 	if (this->m_RangeDataPtr)
 		NotifyRangeDataChange(this, this->m_RangeDataPtr.get_ptr(), newRangeData.get());
