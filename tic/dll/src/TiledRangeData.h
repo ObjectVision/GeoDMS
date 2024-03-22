@@ -28,6 +28,9 @@ using tile_loc = std::pair<tile_id, tile_offset>;
 using hash_code = UInt32;
 
 template <typename V>
+using tile_extent_t = std::conditional_t< is_numeric_v<V>, UInt32, WPoint>;
+
+template <typename V>
 struct SimpleRangeData : SharedObj
 {
 	static_assert(std::is_floating_point_v<scalar_of_t<V>>);
@@ -187,6 +190,7 @@ template <typename V>
 struct TiledRangeData : AbstrTileRangeData
 {
 	using value_type = V;
+	using range_type = Range<value_type>;
 
 	TiledRangeData() = default;
 	TiledRangeData(const Range<V>& range) : m_Range(range) {}
@@ -197,10 +201,11 @@ struct TiledRangeData : AbstrTileRangeData
 
 	virtual tile_type_id GetTileTypeID() const { return tile_type_id::simple; }
 
-	Range<V> GetRange() const { return m_Range;}
+	range_type GetRange() const { return m_Range;}
 	row_id GetRangeSize() const override { return Cardinality(GetRange()); }
 
-	virtual Range<value_type> GetTileRange(tile_id t) const = 0;
+	virtual auto GetTileRange   (tile_id t) const -> range_type = 0;
+	virtual auto GetTilingExtent() const -> tile_extent_t<value_type> = 0;
 
 	row_id GetIndexForValue(V v) const
 	{
@@ -262,7 +267,7 @@ struct TiledRangeData : AbstrTileRangeData
 			return m_Range.first == 0;
 	}
 
-	Range<V> m_Range;
+	range_type m_Range;
 };
 
 //----------------------------------------------------------------------
@@ -359,7 +364,9 @@ struct MaxRangeData : TiledRangeData<V>
 	row_id GetRowIndex(tile_id t, tile_offset localIndex) const override { throwIllegalAbstract(MG_POS, "MaxRangeData::GetRowIndex"); }
 
 	// range_t(dependent on T) specific functions, non virtual
-	Range<V> GetTileRange(tile_id t) const { throwIllegalAbstract(MG_POS, "MaxRangeData::GetTileRange"); }
+	auto GetTileRange(tile_id t) const -> Range<V> override { throwIllegalAbstract(MG_POS, "MaxRangeData::GetTileRange"); }
+	auto GetTilingExtent()       const -> tile_extent_t<V> override { throwIllegalAbstract(MG_POS, "MaxRangeData::GetTilingRange"); }
+
 	row_id GetElemCount() const { throwIllegalAbstract(MG_POS, "MaxRangeData::GetElemCount"); }
 	bool IsFirstValueZero() const { throwIllegalAbstract(MG_POS, "MaxRangeData::IsFirstValueZero"); }
 
@@ -424,9 +431,6 @@ using CountableValueConverter = typename countable_value_converter_provider<T> :
 
 template <typename T>
 using CountablePointConverter = typename countable_point_converter_provider<T> ::template apply<T>::type;
-
-template <typename V>
-using tile_extent_t = std::conditional_t< is_numeric_v<V>, UInt32, WPoint>;
 
 
 #endif // __TIC_TILERANGEDATA_H
