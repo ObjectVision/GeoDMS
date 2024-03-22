@@ -1,31 +1,6 @@
-//<HEADER> 
-/*
-Data & Model Server (DMS) is a server written in C++ for DSS applications. 
-Version: see srv/dms/rtc/dll/src/RtcVersion.h for version info.
-
-Copyright (C) 1998-2004  YUSE GSO Object Vision BV. 
-
-Documentation on using the Data & Model Server software can be found at:
-http://www.ObjectVision.nl/DMS/
-
-See additional guidelines and notes in srv/dms/Readme-srv.txt 
-
-This library is free software; you can use, redistribute, and/or
-modify it under the terms of the GNU General Public License version 2 
-(the License) as published by the Free Software Foundation,
-provided that this entire header notice and readme-srv.txt is preserved.
-
-See LICENSE.TXT for terms of distribution or look at our web site:
-http://www.objectvision.nl/DMS/License.txt
-or alternatively at: http://www.gnu.org/copyleft/gpl.html
-
-This library is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
-General Public License for more details. However, specific warranties might be
-granted by an additional written contract for support, assistance and/or development
-*/
-//</HEADER>
+// Copyright (C) 1998-2024 Object Vision b.v. 
+// License: GNU GPL 3
+/////////////////////////////////////////////////////////////////////////////
 
 #include "ClcPCH.h"
 
@@ -120,27 +95,41 @@ bool IsParam(const AbstrDataItem* adi)
 	return adi && adi->HasVoidDomainGuarantee();
 }
 
-typedef DataArray<SharedStr> SharedStrArray;
+using SharedStrArray = DataArray<SharedStr> ;
 
 // *****************************************************************************
 //									ForEach_CreateRessult
 // *****************************************************************************
 
-const TreeItem* FindName(const TreeItem* context, const DataArray<SharedStr>* nameArray, UInt32 i, CharPtr role)
+auto FindName(const TreeItem* context, const SharedStrArray* nameArray, arg_index i, CharPtr role, bool mustBeUnit) -> const TreeItem*
 {
-	dms_assert(context);
+	assert(context);
 	if (!nameArray) 
 		return context;
 
-	SharedStr templName = nameArray->GetIndexedValue(i);
-	const TreeItem* result = context->FindItem(templName);
-	if (!result)
+	SharedStr itemName = nameArray->GetIndexedValue(i);
+	const TreeItem* result = context->FindItem(itemName);
+	if (!result || mustBeUnit && !IsUnit(result))
+	{
+		auto contextName = SharedStr(context->GetName());
+		if (!result)
+			context->throwItemErrorF(
+				"%d-th %s '%s' cannot be found in container '%s'",
+				i, role, itemName.c_str(), contextName.c_str()
+			);
+
 		context->throwItemErrorF(
-			"%s %s cannot be found in %s container",
-			role, templName.c_str(), role
+			"%d-th %s '%s', found in container '%s', but it is not a unit-item as required",
+			i, role, itemName.c_str(), contextName.c_str()
 		);
+	}
 
 	return result;
+}
+
+auto FindUnitInContainer(const TreeItem* context, const SharedStrArray* optNames, arg_index i, CharPtr role) -> const AbstrUnit*
+{
+	return AsUnit(FindName(context, optNames, i, role, true));
 }
 
 bool ForEach_CreateResult(TreeItemDualRef& resultHolder, const ArgSeqType& args, arg_index argCount, TokenID groupNameID, field_spec fs)
@@ -280,7 +269,7 @@ bool ForEach_CreateResult(TreeItemDualRef& resultHolder, const ArgSeqType& args,
 			dms_assert(!optDuContext);
 			dms_assert(!optVuContext);
 
-			const TreeItem* templ = FindName(optTempl, optTemplNames, i, "template");
+			const TreeItem* templ = FindName(optTempl, optTemplNames, i, "template", false);
 			if (optExprs && !templ->_GetExprStr().empty())
 				reportF(SeverityTypeID::ST_Warning,
 					"%s: this template has calculation rule '%s'\n"
@@ -295,21 +284,21 @@ bool ForEach_CreateResult(TreeItemDualRef& resultHolder, const ArgSeqType& args,
 		}
 		else if (optDuContext)
 		{
-			dms_assert(optVuContext);
-			const AbstrUnit* du = debug_cast<const AbstrUnit*>(FindName(optDuContext, optDuNames, i, "domain unit")->CheckObjCls(AbstrUnit::GetStaticClass()));
-			const AbstrUnit* vu = debug_cast<const AbstrUnit*>(FindName(optVuContext, optVuNames, i, "values unit")->CheckObjCls(AbstrUnit::GetStaticClass()));
+			assert(optVuContext);
+			const AbstrUnit* du = FindUnitInContainer(optDuContext, optDuNames, i, "domain unit");
+			const AbstrUnit* vu = FindUnitInContainer(optVuContext, optVuNames, i, "values unit");
 
 			iter = CreateDataItemFromPath(resultHolder, subItemName.c_str(), du, vu, ValueComposition::Single);
 		}
 		else if (optUnitContext)
 		{
-			const AbstrUnit* unit = debug_cast<const AbstrUnit*>(FindName(optUnitContext, optUnitNames, i, "unit")->CheckObjCls(AbstrUnit::GetStaticClass()));
+			const AbstrUnit* unit = FindUnitInContainer(optUnitContext, optUnitNames, i, "unit");
 
 			iter = unit->GetUnitClass()->CreateUnitFromPath(resultHolder, subItemName.c_str());
 		}
 		else
 		{
-			dms_assert(!optVuContext);
+			assert(!optVuContext);
 			iter = resultHolder.GetNew()->CreateItemFromPath(subItemName.c_str());
 		}
 
