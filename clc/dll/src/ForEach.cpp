@@ -119,7 +119,7 @@ auto FindName(const TreeItem* context, const SharedStrArray* nameArray, arg_inde
 			);
 
 		context->throwItemErrorF(
-			"%d-th %s '%s', found in container '%s', but it is not a unit-item as required",
+			"%d-th %s '%s', found in container '%s', is not a unit-item as required",
 			i, role, itemName.c_str(), contextName.c_str()
 		);
 	}
