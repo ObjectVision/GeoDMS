@@ -468,7 +468,7 @@ void GetExprOrSourceDescr(OutStreamBase& stream, const TreeItem* self)
 
 	while (si)
 	{
-		assert(si != ti);
+		assert(si != self);
 		assert(!si->IsCacheItem());
 		NewLine(stream);
 		stream << "which refers to";
