@@ -506,7 +506,7 @@ BestItemRef AbstrCalculator::GetErrorSource(const TreeItem* context, WeakStr exp
 		return {};
 
 	auto exprPtr = expr.AsRange();
-	UInt32 nrEvals = CountIndirections(exprPtr.first);
+	auto nrEvals = CountIndirections(exprPtr.first);
 	if (!nrEvals)
 		return {};
 
@@ -546,7 +546,7 @@ BestItemRef AbstrCalculator::GetErrorSource(const TreeItem* context, WeakStr exp
 
 			resultStr = GetValue<SharedStr>(resDataItem, 0);
 
-			UInt32 nrNewEvals = CountIndirections(resultStr.c_str());
+			auto nrNewEvals = CountIndirections(resultStr.c_str());
 			if (nrNewEvals)
 				resultStr.erase(0, nrNewEvals);
 			nrEvals += nrNewEvals;
@@ -560,7 +560,7 @@ SharedStr AbstrCalculator::EvaluatePossibleStringExpr(const TreeItem* context, W
 		return SharedStr();
 
 	CharPtr exprPtr = expr.c_str();
-	UInt32 nrEvals = CountIndirections(exprPtr);
+	auto nrEvals = CountIndirections(exprPtr);
 	if (!nrEvals)
 		return expr;
 
@@ -595,7 +595,7 @@ SharedStr AbstrCalculator::EvaluateExpr(const TreeItem* context, CharPtrRange ex
 		irc.Add(resItem);
 
 		const AbstrDataItem* resDataItem = AsDataItem(resItem);
-		dms_assert(resDataItem || res->WasFailed(FR_Data));
+		assert(resDataItem || res->WasFailed(FR_Data));
 
 		if (res->WasFailed(FR_Data))
 			res->ThrowFail();
@@ -605,7 +605,7 @@ SharedStr AbstrCalculator::EvaluateExpr(const TreeItem* context, CharPtrRange ex
 		if (resDataItem->WasFailed()) context->Fail(resDataItem);
 		resultStr = GetValue<SharedStr>(resDataItem, 0);
 
-		UInt32 nrNewEvals = CountIndirections( resultStr.c_str() );
+		auto nrNewEvals = CountIndirections( resultStr.c_str() );
 		if (nrNewEvals)
 			resultStr.erase(0, nrNewEvals);
 		nrEvals += nrNewEvals;
@@ -654,7 +654,7 @@ ActorVisitState AbstrCalculator::VisitImplSuppl(SupplierVisitFlag svf, const Act
 		return AVS_Ready;
 
 	CharPtr exprPtr = expr.c_str();
-	UInt32 nrEvals = CountIndirections(exprPtr);
+	auto nrEvals = CountIndirections(exprPtr);
 	if (!nrEvals)
 		return AVS_Ready;
 
@@ -687,7 +687,7 @@ ActorVisitState AbstrCalculator::VisitImplSuppl(SupplierVisitFlag svf, const Act
 		
 		resultStr = GetValue<SharedStr>(resDataItem, 0);
 
-		UInt32 nrNewEvals = CountIndirections( resultStr.c_str() );
+		auto nrNewEvals = CountIndirections( resultStr.c_str() );
 		if (nrNewEvals)
 			resultStr.erase(0, nrNewEvals);
 		nrEvals += nrNewEvals;

@@ -56,8 +56,6 @@ void AutoSizeContainer::ProcessCollectionChange()
 
 GraphicVarRows::GraphicVarRows(MovableObject* owner)
 	:	base_type(owner)
-	,	m_MaxColWidth(0)
-	,	m_RowSepHeight(2)
 {
 }
 
@@ -165,8 +163,6 @@ void GraphicVarRows::SetRowSepHeight(UInt32 rowSepHeight)
 
 GraphicVarCols::GraphicVarCols(MovableObject* owner)
 	:	base_type(owner)
-	,	m_MaxRowHeight(0)
-	,	m_ColSepWidth(1)
 {
 }
 

@@ -529,20 +529,20 @@ namespace
 
 	Obsolete< CommonOperGroup > whatever[] =
 	{
-		Obsolete< CommonOperGroup >(rewriteObsoleteWarning, "claim_div", oper_policy::better_not_in_meta_scripting),
-//		Obsolete< CommonOperGroup >(rewriteObsoleteWarning, "claim_divF32", oper_policy::better_not_in_meta_scripting),
-		Obsolete< CommonOperGroup >(rewriteObsoleteWarning, "claim_divF64", oper_policy::better_not_in_meta_scripting),
-		Obsolete< CommonOperGroup >(rewriteObsoleteWarning, "claim_divF32D", oper_policy::better_not_in_meta_scripting),
-		Obsolete< CommonOperGroup >(rewriteObsoleteWarning, "claim_corr", oper_policy::better_not_in_meta_scripting),
-//		Obsolete< CommonOperGroup >(rewriteObsoleteWarning, "claim_corrF32", oper_policy::better_not_in_meta_scripting),
-		Obsolete< CommonOperGroup >(rewriteObsoleteWarning, "claim_corrF32D", oper_policy::better_not_in_meta_scripting),
-		Obsolete< CommonOperGroup >(rewriteObsoleteWarning, "claim_corrF32DL", oper_policy::better_not_in_meta_scripting),
+		Obsolete< CommonOperGroup >(rewriteObsoleteWarning, "claim_div", oper_policy::better_not_in_meta_scripting | oper_policy::depreciated),
+//		Obsolete< CommonOperGroup >(rewriteObsoleteWarning, "claim_divF32", oper_policy::better_not_in_meta_scripting | oper_policy::depreciated),
+		Obsolete< CommonOperGroup >(rewriteObsoleteWarning, "claim_divF64", oper_policy::better_not_in_meta_scripting | oper_policy::depreciated),
+		Obsolete< CommonOperGroup >(rewriteObsoleteWarning, "claim_divF32D", oper_policy::better_not_in_meta_scripting | oper_policy::depreciated),
+		Obsolete< CommonOperGroup >(rewriteObsoleteWarning, "claim_corr", oper_policy::better_not_in_meta_scripting | oper_policy::depreciated),
+//		Obsolete< CommonOperGroup >(rewriteObsoleteWarning, "claim_corrF32", oper_policy::better_not_in_meta_scripting | oper_policy::depreciated),
+		Obsolete< CommonOperGroup >(rewriteObsoleteWarning, "claim_corrF32D", oper_policy::better_not_in_meta_scripting | oper_policy::depreciated),
+		Obsolete< CommonOperGroup >(rewriteObsoleteWarning, "claim_corrF32DL", oper_policy::better_not_in_meta_scripting | oper_policy::depreciated),
 
-		Obsolete< CommonOperGroup >(rewriteObsoleteWarning, "claim_minmax_corrF32", oper_policy::better_not_in_meta_scripting),
-		Obsolete< CommonOperGroup >(rewriteObsoleteWarning, "claim_minmax_corrF64", oper_policy::better_not_in_meta_scripting),
+		Obsolete< CommonOperGroup >(rewriteObsoleteWarning, "claim_minmax_corrF32", oper_policy::better_not_in_meta_scripting | oper_policy::depreciated),
+		Obsolete< CommonOperGroup >(rewriteObsoleteWarning, "claim_minmax_corrF64", oper_policy::better_not_in_meta_scripting | oper_policy::depreciated),
 
-		Obsolete< CommonOperGroup >(rewriteObsoleteWarning, "claim_minmax_corrF32D", oper_policy::better_not_in_meta_scripting),
-		Obsolete< CommonOperGroup >(rewriteObsoleteWarning, "claim_minmax_corrF32L", oper_policy::better_not_in_meta_scripting)
+		Obsolete< CommonOperGroup >(rewriteObsoleteWarning, "claim_minmax_corrF32D", oper_policy::better_not_in_meta_scripting | oper_policy::depreciated),
+		Obsolete< CommonOperGroup >(rewriteObsoleteWarning, "claim_minmax_corrF32L", oper_policy::better_not_in_meta_scripting | oper_policy::depreciated)
 	};
 }
 

@@ -131,7 +131,7 @@ public:
 
 	TIC_CALL row_id GetTileFirstIndex(tile_id t) const;
 	TIC_CALL row_id GetTileIndex(tile_id t, tile_offset tileOffset) const;
-	bool IsCovered() const;
+	TIC_CALL bool IsCovered() const;
 
 	Range<row_id>   GetTileIndexRange(tile_id t) const;
 

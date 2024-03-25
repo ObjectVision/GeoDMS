@@ -14,6 +14,7 @@
 #include "mci/ValueClass.h"
 #include "mci/ValueWrap.h"
 #include "utl/TypeListOper.h"
+#include "xct/DmsException.h"
 
 #include "ParallelTiles.h"
 
@@ -334,7 +335,7 @@ static CommonOperGroup grBgBuffer_point        ("bg_buffer_point", oper_policy::
 static CommonOperGroup grBgBuffer_multi_point  ("bg_buffer_multi_point", oper_policy::better_not_in_meta_scripting);
 
 #if DMS_VERSION_MAJOR < 15
-static Obsolete<CommonOperGroup> grBgBuffer_polygon("use bg_buffer_single_polygon", "bg_buffer_polygon", oper_policy::better_not_in_meta_scripting);
+static Obsolete<CommonOperGroup> grBgBuffer_polygon("use bg_buffer_single_polygon", "bg_buffer_polygon", oper_policy::better_not_in_meta_scripting|oper_policy::depreciated);
 #endif
 
 static CommonOperGroup grBgBuffer_single_polygon("bg_buffer_single_polygon", oper_policy::better_not_in_meta_scripting);
@@ -342,8 +343,8 @@ static CommonOperGroup grBgBuffer_multi_polygon("bg_buffer_multi_polygon", oper_
 static CommonOperGroup grBgBuffer_linestring   ("bg_buffer_linestring", oper_policy::better_not_in_meta_scripting);
 
 #if DMS_VERSION_MAJOR < 15
-static Obsolete<CommonOperGroup> grOuter_polygon("use bg_outer_single_polygon", "outer_polygon", oper_policy::better_not_in_meta_scripting);
-static Obsolete<CommonOperGroup> grOuter_multi_polygon("use bg_outer_multi_polygon", "outer_multi_polygon", oper_policy::better_not_in_meta_scripting);
+static Obsolete<CommonOperGroup> grOuter_polygon("use bg_outer_single_polygon", "outer_polygon", oper_policy::better_not_in_meta_scripting | oper_policy::depreciated);
+static Obsolete<CommonOperGroup> grOuter_multi_polygon("use bg_outer_multi_polygon", "outer_multi_polygon", oper_policy::better_not_in_meta_scripting | oper_policy::depreciated);
 #endif
 
 static CommonOperGroup grBgOuter_single_polygon("bg_outer_single_polygon", oper_policy::better_not_in_meta_scripting);
@@ -939,43 +940,50 @@ struct BufferSinglePolygonOperator : public AbstrBufferOperator
 
 		while (true)
 		{
-			if (!e2IsVoid)
-				bufferDistance = bufDistData[i];
-			if (!e3IsVoid)
-				pointsPerCircle = ppcData[i];
-			boost::geometry::strategy::buffer::distance_symmetric<Float64> distStrategy(bufferDistance);
-			boost::geometry::strategy::buffer::join_round                  joinStrategy(pointsPerCircle);
-			boost::geometry::strategy::buffer::end_round                   endStrategy(pointsPerCircle);
-			boost::geometry::strategy::buffer::point_circle                circleStrategy(pointsPerCircle);
-			boost::geometry::strategy::buffer::side_straight               sideStrategy;
+			try {
+				if (!e2IsVoid)
+					bufferDistance = bufDistData[i];
+				if (!e3IsVoid)
+					pointsPerCircle = ppcData[i];
+				boost::geometry::strategy::buffer::distance_symmetric<Float64> distStrategy(bufferDistance);
+				boost::geometry::strategy::buffer::join_round                  joinStrategy(pointsPerCircle);
+				boost::geometry::strategy::buffer::end_round                   endStrategy(pointsPerCircle);
+				boost::geometry::strategy::buffer::point_circle                circleStrategy(pointsPerCircle);
+				boost::geometry::strategy::buffer::side_straight               sideStrategy;
 
-			std::vector<DPoint> ringClosurePoints;
-			boost::geometry::model::ring<DPoint> helperRing;
+				std::vector<DPoint> ringClosurePoints;
+				boost::geometry::model::ring<DPoint> helperRing;
 
-			using bg_polygon_t = boost::geometry::model::polygon<DPoint>;
-			bg_polygon_t currPoly;
-			boost::geometry::model::multi_polygon<bg_polygon_t> resMP;
+				using bg_polygon_t = boost::geometry::model::polygon<DPoint>;
+				bg_polygon_t currPoly;
+				boost::geometry::model::multi_polygon<bg_polygon_t> resMP;
 
-		nextPointWithSameResRing:
+			nextPointWithSameResRing:
 
-			assign_polygon(currPoly, polyData[i], true, helperRing);
-			if (!currPoly.outer().empty())
-			{
+				assign_polygon(currPoly, polyData[i], true, helperRing);
+				if (!currPoly.outer().empty())
+				{
 
-				auto lb = MaxValue<DPoint>();
-				MakeLowerBound(lb, currPoly);
-				move(currPoly, -lb);
+					auto lb = MaxValue<DPoint>();
+					MakeLowerBound(lb, currPoly);
+					move(currPoly, -lb);
 
-				boost::geometry::buffer(currPoly, resMP
-					, distStrategy, sideStrategy, joinStrategy, endStrategy, circleStrategy);
-				move(resMP, lb);
+					boost::geometry::buffer(currPoly, resMP
+						, distStrategy, sideStrategy, joinStrategy, endStrategy, circleStrategy);
+					move(resMP, lb);
 
-				store_multi_polygon(resData[i], resMP, ringClosurePoints);
+					store_multi_polygon(resData[i], resMP, ringClosurePoints);
+				}
+				if (++i == n)
+					break;
+				if (e2IsVoid && e3IsVoid)
+					goto nextPointWithSameResRing;
 			}
-			if (++i == n)
-				break;
-			if (e2IsVoid && e3IsVoid)
-				goto nextPointWithSameResRing;
+			catch (DmsException& e)
+			{
+				e.AsErrMsg()->TellExtraF("BufferSinglePolygonOperator::Calculate tile %d, offset %d", t, i);
+				throw;
+			}
 		}
 	}
 };
@@ -1078,10 +1086,18 @@ struct OuterSingePolygonOperator : public AbstrOuterOperator
 
 		for (SizeT i = 0, n = polyData.size(); i != n; ++i)
 		{
-			assign_polygon(currPoly, polyData[i], false, helperRing);
+			try {
+				assign_polygon(currPoly, polyData[i], false, helperRing);
 
-			if (!currPoly.outer().empty())
-				store_ring(resData[i], currPoly.outer());
+				if (!currPoly.outer().empty())
+					store_ring(resData[i], currPoly.outer());
+			}
+			catch (DmsException& e)
+			{
+				e.AsErrMsg()->TellExtraF("OuterSingePolygonOperator::Calculate tile %d, offset %d", t, i);
+				throw;
+			}
+
 		}
 	}
 };

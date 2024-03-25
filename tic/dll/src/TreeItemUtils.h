@@ -107,4 +107,8 @@ again:
 	return result;
 }
 
+TIC_CALL const AbstrDataItem* GeometrySubItem(const TreeItem* ti);
+TIC_CALL bool IsThisMappable(const TreeItem* ti);
+TIC_CALL auto GetMappingItem(const TreeItem* ti) -> const TreeItem*;
+
 #endif !defined(__TIC_TREEITEMUTILS_H)

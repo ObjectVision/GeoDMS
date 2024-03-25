@@ -26,8 +26,6 @@ AbstrPropDef::AbstrPropDef(CharPtr propName,
 		set_mode setMode, xml_mode xmlMode, cpy_mode cpyMode, chg_mode chgMode, bool isStored, bool canBeIndirect, bool addImplicitSuppl)
 	:	m_PropNameID(GetTokenID_st(propName)), m_ValueClass(vt) ,m_Class(pc)
 	,	m_SetMode(setMode), m_XmlMode(xmlMode), m_CpyMode(cpyMode), m_ChgMode(chgMode)
-	,	m_PrevPD(0)
-	,	m_PrevCopyablePD(0)
 	,	m_CanBeIndirect(canBeIndirect)
 	,	m_AddImplicitSuppl(addImplicitSuppl)
 #if defined(MG_DEBUGDATA)

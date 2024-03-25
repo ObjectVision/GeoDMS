@@ -13,8 +13,13 @@ Supported Configurations: Debug and Release
 Open the VS solution file: all22.sln. This solution refers to projects in the following folders for building specific .dlls and .exes:
 
 Folders which relate to Dynamic Link Libraries (DLLs) of the GeoDMS:
-- rtc: Runtime Core Library
+- rtc: Runtime Core Library, containing facilities for tokenizing, streaming and serialization, runtime-reflection, file system encapsulation, which depends on:
+  - boost-format
+  - boost-locale
+  - boost-spirit
 - sym: Lisp evaluator for processing parsed calculation rules
+  - LispRef, which can be a ListRef with a left and right LispRef, a SymbObj, a NumbObj or a StrnObj. 
+    They use a process-wide register to avoid duplicate values having different addresses to support faster identification, memoization, and limit memory usage.
 - tic: Tree Item Classes, Data Items and Units and related services.
 - stx: configuration syntax parser and producer of an internal representation of a model and its calculation rules.
 - stg: Storage Managers, providing a generic interface to various storage managers, such as LibTIFF and GDAL

@@ -208,7 +208,7 @@ RTC_CALL void    DMS_CONV DMS_IString_Release(IStringHandle ptrString)
 
 BinaryOutStream& operator <<(BinaryOutStream& ar, WeakStr str) 
 {
-	UInt32 len = str.ssize();
+	UInt32 len = ThrowingConvert<UInt32>(str.ssize());
 	ar << len;
 	if (len)
 		ar.Buffer().WriteBytes(str.begin(), len);

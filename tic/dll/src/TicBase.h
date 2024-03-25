@@ -84,6 +84,7 @@ using prop_tables = std::vector<level_propvalue>;
 
 // SharedPtr
 using SharedTreeItem = SharedPtr<const TreeItem>;
+using SharedMutableTreeItem = SharedPtr<TreeItem>;
 using SharedDataItem = SharedPtr<const AbstrDataItem>;
 using SharedUnit     = SharedPtr<const AbstrUnit>;
 

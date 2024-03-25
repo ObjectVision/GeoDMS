@@ -34,8 +34,9 @@ protected:
 
 class AutoSizeContainer : public MovableContainer
 {
-	typedef MovableContainer base_type;
 protected:
+	using base_type = MovableContainer;
+
 	AutoSizeContainer(MovableObject* owner) : base_type(owner) {}
 
 //	override virtual methods of GraphicObject
@@ -48,11 +49,10 @@ protected:
 
 class GraphicVarRows : public AutoSizeContainer
 {
-	typedef AutoSizeContainer base_type;
-protected:
+	using base_type = AutoSizeContainer;
+public:
 	GraphicVarRows(MovableObject* owner);
 
-public:
 //	override virtual methods of GraphicObject
   	GraphVisitState InviteGraphVistor(class AbstrVisitor& gv) override;
 	void ProcessCollectionChange() override;
@@ -68,8 +68,8 @@ public:
 	UInt32 RowSepHeight() const { return m_RowSepHeight; }
 
 private:
-	TType   m_MaxColWidth;
-	UInt32  m_RowSepHeight;
+	TType   m_MaxColWidth  = 0;
+	UInt32  m_RowSepHeight = 2;
 };
 
 //----------------------------------------------------------------------
@@ -79,10 +79,9 @@ private:
 class GraphicVarCols : public AutoSizeContainer
 {
 	using base_type = AutoSizeContainer;
-protected:
+public:
 	GraphicVarCols(MovableObject* owner);
 
-public:
 //	override virtual methods of GraphicObject
   	GraphVisitState InviteGraphVistor(class AbstrVisitor& gv) override;
 	void ProcessCollectionChange() override;
@@ -98,8 +97,8 @@ public:
 	UInt32  ColSepWidth  () const { return m_ColSepWidth;  } // in logical coordinates
 
 private:
-	TType  m_MaxRowHeight;
-	UInt32 m_ColSepWidth;
+	TType  m_MaxRowHeight = 0;
+	UInt32 m_ColSepWidth  = 1;
 };
 
 #endif // __SHV_MOVABLECONTAINER_H

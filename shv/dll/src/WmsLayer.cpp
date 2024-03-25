@@ -359,9 +359,9 @@ namespace wms {
 			if (info.m_Status == image_status::undefined) 
 			{
 				info.m_FileName = m_FileTemplStr
-					.replace("@TM@", AsString(t.first).c_str())
-					.replace("@TR@", AsString(t.second.Row()).c_str())
-					.replace("@TC@", AsString(t.second.Col()).c_str());
+					.replace("@TM@", AsString(t.first, FormattingFlags::None).c_str())
+					.replace("@TR@", AsString(t.second.Row(), FormattingFlags::None).c_str())
+					.replace("@TC@", AsString(t.second.Col(), FormattingFlags::None).c_str());
 
 				if (IsFileOrDirAccessible(info.m_FileName))
 					// maybe it was already loaded by an earlier session or different View
@@ -413,9 +413,9 @@ namespace wms {
 					if ((!maySuspend) || IsIntersecting(layer->m_TMS[key.first].WorldExtents(key.second), layer->GetViewPort()->GetCurrWorldClientRect()))
 					{
 						auto target = m_TargetTemplStr
-							.replace("@TM@", AsString(key.first).c_str())
-							.replace("@TR@", AsString(key.second.Row()).c_str())
-							.replace("@TC@", AsString(key.second.Col()).c_str());
+							.replace("@TM@", AsString(key.first, FormattingFlags::None).c_str())
+							.replace("@TR@", AsString(key.second.Row(), FormattingFlags::None).c_str())
+							.replace("@TC@", AsString(key.second.Col(), FormattingFlags::None).c_str());
 						std::shared_ptr<TileLoader> tileLoader = std::make_shared<TileLoader>(layer, m_Host, target, m_ImageMap.at(key).m_FileName, key, m_ImageFormatType);
 						tileLoader->Run(m_Host);
 						return GVS_Yield;

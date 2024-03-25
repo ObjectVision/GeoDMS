@@ -648,7 +648,7 @@ SizeT ProcessDijkstra(TreeItemDualRef& resultHolder
 					ImpType currImp = dh.Front().Imp();
 
 					dh.PopNode();
-					dms_assert(currImp >= 0);
+					assert(currImp >= 0);
 
 					// If alternative route from heap was faster: accept that when we are certain of it 
 					if (!dh.MarkFinal(currNode, currImp))

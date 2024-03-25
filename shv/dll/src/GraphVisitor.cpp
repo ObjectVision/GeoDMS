@@ -430,7 +430,7 @@ GraphVisitState GraphObjLocator::DoMovable(MovableObject* obj)
 
 GraphDrawer::GraphDrawer(HDC hDC, CounterStacks& doneGraphics, DataView* dv, GdMode gdMode, CrdPoint scaleFactors)
 	:	GraphVisitor( doneGraphics.CurrRegion().BoundingBox(), scaleFactors)
-	,	SuspendTrigger::FencedBlocker("@GraphDrawer")
+//	,	SuspendTrigger::FencedBlocker("@GraphDrawer")
 	,	m_hDC(hDC)
 	,	m_AbsClipRegion(doneGraphics.CurrRegion().Clone())
 	,	m_DoneGraphics(&doneGraphics)
@@ -447,7 +447,7 @@ GraphDrawer::GraphDrawer(HDC hDC, CounterStacks& doneGraphics, DataView* dv, GdM
 
 GraphDrawer::GraphDrawer(HDC hDC, const Region&  rgn, DataView* dv, GdMode gdMode, CrdPoint scaleFactors)
 	:	GraphVisitor(rgn.BoundingBox(), scaleFactors)
-	,	SuspendTrigger::FencedBlocker("@GraphDrawer")
+//	,	SuspendTrigger::FencedBlocker("@GraphDrawer")
 	,	m_hDC(hDC)
 	,	m_AbsClipRegion( rgn.Clone() )
 	,	m_DoneGraphics(0)
@@ -782,35 +782,34 @@ MouseEventDispatcher::MouseEventDispatcher(DataView* owner, EventInfo& eventInfo
 	,	m_Owner(owner->shared_from_this())
 	,	r_EventInfo(eventInfo)
 {
-	assert((eventInfo.m_EventID & EID_OBJECTFOUND) == 0);
+	assert((eventInfo.m_EventID & EventID::OBJECTFOUND) == 0);
 }
-
 
 bool MouseEventDispatcher::IsActivating() const
 {
-	return r_EventInfo.m_EventID & EID_ACTIVATE;
+	return r_EventInfo.m_EventID & EventID::ACTIVATE;
 }
 
 GraphVisitState MouseEventDispatcher::DoObject(GraphicObject* go)
 {
-	if ((r_EventInfo.m_EventID & EID_OBJECTFOUND) == 0)
+	if ((r_EventInfo.m_EventID & EventID::OBJECTFOUND) == 0)
 	{
 		m_WorldCrd    = m_Transformation.Reverse(g2dms_order<CrdType>(r_EventInfo.m_Point));
 		m_FoundObject = go->shared_from_this();
-		r_EventInfo.m_EventID |= EID_OBJECTFOUND;
+		r_EventInfo.m_EventID |= EventID::OBJECTFOUND;
 
 
-		if (r_EventInfo.m_EventID & EID_LBUTTONDOWN && !IsActivating() && ! go->IgnoreActivation())
+		if (r_EventInfo.m_EventID & EventID::LBUTTONDOWN && !IsActivating() && ! go->IgnoreActivation())
 		{
 			auto owner = m_Owner.lock();
 			if (owner->m_ActivationInfo.ActiveChild().get() != go)
-				r_EventInfo.m_EventID |= EID_ACTIVATE;
+				r_EventInfo.m_EventID |= EventID::ACTIVATE;
 		}
 
 	}
-	dms_assert(r_EventInfo.m_EventID & EID_OBJECTFOUND);
+	dms_assert(r_EventInfo.m_EventID & EventID::OBJECTFOUND);
 
-	if (r_EventInfo.m_EventID & EID_RBUTTONUP)
+	if (r_EventInfo.m_EventID & EventID::RBUTTONUP)
 		go->FillMenu(*this);
 
 	return go->MouseEvent(*this) ? GVS_Handled : GVS_UnHandled;
@@ -832,16 +831,16 @@ GraphVisitState MouseEventDispatcher::DoViewPort(ViewPort* vp)
 
 	GraphVisitState result = base_type::DoViewPort(vp);
 
-	assert(r_EventInfo.m_EventID & (EID_OBJECTFOUND| EID_SETCURSOR));
+	assert(r_EventInfo.m_EventID & (EventID::OBJECTFOUND| EventID::SETCURSOR));
 
-	if (r_EventInfo.m_EventID & EID_SETCURSOR)
+	if (r_EventInfo.m_EventID & EventID::SETCURSOR)
 		return result; 
-	if (!(r_EventInfo.m_EventID & EID_OBJECTFOUND))
+	if (!(r_EventInfo.m_EventID & EventID::OBJECTFOUND))
 		return result;
 
 	assert(IsMainThread());
 
-	if (!(r_EventInfo.m_EventID & EID_TEXTSENT))
+	if (!(r_EventInfo.m_EventID & EventID::TEXTSENT))
 	{
 		auto viewPoint = ViewPoint(m_WorldCrd, vp->GetCurrLogicalZoomLevel(), {});
 		char buffer[201];
@@ -852,7 +851,7 @@ GraphVisitState MouseEventDispatcher::DoViewPort(ViewPort* vp)
 				buffer[200] = char(0); // truncate
 				dv->SendStatusText(SeverityTypeID::ST_MinorTrace, buffer);
 		}
-		if (r_EventInfo.m_EventID & EID_COPYCOORD)
+		if (r_EventInfo.m_EventID & EventID::COPYCOORD)
 		{
 			if (viewPoint.WriteAsString(buffer, 200, FormattingFlags::None))
 			{

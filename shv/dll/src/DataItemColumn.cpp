@@ -1190,7 +1190,7 @@ void DataItemColumn::SetTransparentColor(AspectNr a)
 bool DataItemColumn::MouseEvent(MouseEventDispatcher& med)
 {
 	auto tc = GetTableControl().lock(); if (!tc) return false;
-	if (med.GetEventInfo().m_EventID & EID_MOUSEWHEEL )
+	if (med.GetEventInfo().m_EventID & EventID::MOUSEWHEEL )
 	{
 		bool shift = GetKeyState(VK_SHIFT) & 0x8000;
 		int wheelDelta = GET_WHEEL_DELTA_WPARAM(med.r_EventInfo.m_wParam);
@@ -1198,7 +1198,7 @@ bool DataItemColumn::MouseEvent(MouseEventDispatcher& med)
 		if (wheelDelta < 0) tc->GoDn(shift, (((-wheelDelta)-1) / WHEEL_DELTA) + 1);
 		return true;
 	}
-	if (med.GetEventInfo().m_EventID & EID_LBUTTONDOWN)
+	if (med.GetEventInfo().m_EventID & EventID::LBUTTONDOWN)
 	{
 		switch( GetControlDeviceRegion(med.GetEventInfo().m_Point.x) ) 
 		{
@@ -1217,7 +1217,7 @@ bool DataItemColumn::MouseEvent(MouseEventDispatcher& med)
 		}
 	}
 
-	if ((med.GetEventInfo().m_EventID & EID_MOUSEMOVE))
+	if ((med.GetEventInfo().m_EventID & EventID::MOUSEMOVE))
 	{
 		CrdPoint relClientPos = Convert<CrdPoint>(med.GetLogicalSize(med.GetEventInfo().m_Point)) - (med.GetClientLogicalAbsPos() + GetCurrClientRelPos());
 		auto logicalHeight = m_ElemSize.Y() + RowSepHeight();
@@ -1239,7 +1239,7 @@ bool DataItemColumn::MouseEvent(MouseEventDispatcher& med)
 		goto skip;
 	}
 
-	if ((med.GetEventInfo().m_EventID & EID_SETCURSOR ))
+	if ((med.GetEventInfo().m_EventID & EventID::SETCURSOR ))
 	{
 		if (GetControlDeviceRegion(med.GetEventInfo().m_Point.x) != RG_MIDDLE )
 		{
@@ -1254,7 +1254,7 @@ bool DataItemColumn::MouseEvent(MouseEventDispatcher& med)
 		}
 	}
 
-	if ((med.GetEventInfo().m_EventID & (EID_LBUTTONDOWN|EID_LBUTTONDBLCLK) ) && !IgnoreActivation())
+	if ((med.GetEventInfo().m_EventID & (EventID::LBUTTONDOWN|EventID::LBUTTONDBLCLK) ) && !IgnoreActivation())
 	{
 		dms_assert(tc->GetColumn(m_ColumnNr) == this);
 
@@ -1285,7 +1285,7 @@ bool DataItemColumn::MouseEvent(MouseEventDispatcher& med)
 			sci.ProcessChange(true);
 		}
 
-		if(med.GetEventInfo().m_EventID & EID_LBUTTONDBLCLK )
+		if(med.GetEventInfo().m_EventID & EventID::LBUTTONDBLCLK )
 		{
 			if ( auto theme = GetEnabledTheme(AN_LabelBackColor) )
 			{
@@ -1637,7 +1637,9 @@ protected:
 
 ColumnSizerDragger::ColumnSizerDragger(DataView* owner, DataItemColumn* target)
 	:	AbstrController(owner, target
-		,	0, EID_MOUSEDRAG|EID_LBUTTONUP, EID_CLOSE_EVENTS & ~EID_SCROLLED
+		,	EventID::NONE
+		,	EventID::MOUSEDRAG|EventID::LBUTTONUP
+		,	EventID::CLOSE_EVENTS - EventID::SCROLLED
 		,	ToolButtonID::TB_Undefined
 	)
 {}
@@ -1685,7 +1687,7 @@ void DataItemColumn::StartResize(MouseEventDispatcher& med)
 	medOwner->InsertController(
 		new TieCursorController(medOwner.get(), owner.get()
 		,	GRect(currIntRect.Left()+6, mousePoint.y, MaxValue<GType>(), mousePoint.y+1)
-		,	EID_MOUSEDRAG, EID_CLOSE_EVENTS & ~EID_SCROLLED
+		,	EventID::MOUSEDRAG, EventID::CLOSE_EVENTS - EventID::SCROLLED
 		)
 	);
 
@@ -1693,7 +1695,7 @@ void DataItemColumn::StartResize(MouseEventDispatcher& med)
 		new DualPointCaretController(medOwner.get()
 		,	new MovableRectCaret( GRect(currIntRect.Right()-4, currIntRect.Top(), currIntRect.Right()+5, currIntRect.Bottom()) )
 		,	this, mousePoint
-		,	EID_MOUSEDRAG, 0, EID_CLOSE_EVENTS & ~EID_SCROLLED
+		,	EventID::MOUSEDRAG, EventID::NONE, EventID::CLOSE_EVENTS - EventID::SCROLLED
 		,	ToolButtonID::TB_Undefined
 		)
 	);
@@ -1702,7 +1704,7 @@ void DataItemColumn::StartResize(MouseEventDispatcher& med)
 		new DualPointCaretController(medOwner.get()
 		,	new MovableRectCaret( GRect(currIntRect.Right()-2, currIntRect.Top(), currIntRect.Right()+3, currIntRect.Bottom()) )
 		,	this, mousePoint
-		,	EID_MOUSEDRAG, 0, EID_CLOSE_EVENTS & ~EID_SCROLLED
+		,	EventID::MOUSEDRAG, EventID::NONE, EventID::CLOSE_EVENTS - EventID::SCROLLED
 		,	ToolButtonID::TB_Undefined
 		)
 	);

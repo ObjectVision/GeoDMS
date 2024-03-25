@@ -206,7 +206,7 @@ void GraphicObject::ToggleVisibility()
 				entry->ToggleVisibility();				
 		}
 	}
-	dms_assert(AllVisible() == IsVisible());
+	assert(AllVisible() == IsVisible());
 }
 
 void GraphicObject::MakeAllVisible()
@@ -222,7 +222,7 @@ void GraphicObject::MakeAllVisible()
 		if (AllVisible()) 
 			return;
 	}
-	dms_assert(!IsVisible());
+	assert(!IsVisible());
 	
 	if (MustPushVisibility())
 	{
@@ -249,7 +249,7 @@ void GraphicObject::OnSizeChanged()
 	DBG_START("GraphObject", "OnSizeChanged", MG_DEBUG_VIEWINVALIDATE);
 	DBG_TRACE(("%s %x: %x", GetDynamicClass()->GetName().c_str(), this, &*(GetOwner().lock())));
 
-	dms_assert(!m_State.HasInvalidationBlock());
+	assert(!m_State.HasInvalidationBlock());
 
 	auto owner = GetOwner().lock();
 	if (owner)
@@ -774,7 +774,7 @@ void GraphicObject::FillMenu(MouseEventDispatcher& med)
 
 void GraphicObject::SetOwner(GraphicObject* owner)
 {
-	dms_assert(owner);
+	assert(owner);
 	auto sharedOwner = owner->shared_from_this();
 	if (!sharedOwner)
 		return;

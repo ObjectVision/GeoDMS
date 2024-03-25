@@ -224,24 +224,50 @@ QVariant DmsModel::getTreeItemIcon(const QModelIndex& index) const
 	auto ti = GetTreeItemOrRoot(index);
 	if (!ti)
 		return QVariant();
+
 	bool isTemplate = ti->IsTemplate();
-	bool isInTemplate = ti->InTemplate();
-	bool isDataItem = IsDataItem(ti);
+
+	// TODO, CODE CLEAN-UP: All followwing code return a QVariant::fromValue(QPixmap(CharPtr)
+	// so we can factor the postprocessing after resource determination out and/or use a map to store the pixmaps and return the right one.
 
 	if (isTemplate)
 		return QVariant::fromValue(QPixmap(":/res/images/TV_template.bmp")); 
 
+	bool isInTemplate = ti->InTemplate();
 	auto vsflags = SHV_GetViewStyleFlags(ti);
-	if (vsflags & ViewStyleFlags::vsfMapView) { return isInTemplate ? QVariant::fromValue(QPixmap(":/res/images/TV_globe_bw.bmp")) : QVariant::fromValue(QPixmap(":/res/images/TV_globe.bmp")); }
-	else if (vsflags & ViewStyleFlags::vsfTableContainer) { return isInTemplate ? QVariant::fromValue(QPixmap(":/res/images/TV_container_table_bw.bmp")) : QVariant::fromValue(QPixmap(":/res/images/TV_container_table.bmp")); }
-	else if (vsflags & ViewStyleFlags::vsfTableView) { return isInTemplate ? QVariant::fromValue(QPixmap(":/res/images/TV_table_bw.bmp")) : QVariant::fromValue(QPixmap(":/res/images/TV_table.bmp")); }
-	else if (vsflags & ViewStyleFlags::vsfPaletteEdit) { return isInTemplate ? QVariant::fromValue(QPixmap(":/res/images/TV_palette_bw.bmp")) : QVariant::fromValue(QPixmap(":/res/images/TV_palette.bmp")); }
-	else if (vsflags & ViewStyleFlags::vsfContainer) { return isInTemplate ? QVariant::fromValue(QPixmap(":/res/images/TV_container_bw.bmp")) : QVariant::fromValue(QPixmap(":/res/images/TV_container.bmp")); }
-	else 
-	{
-		
-		return isDataItem ? isInTemplate ? QVariant::fromValue(QPixmap(":/res/images/TV_table_bw.bmp")) : QVariant::fromValue(QPixmap(":/res/images/TV_table.bmp")) : QVariant::fromValue(QPixmap(":/res/images/TV_unit_transparant.bmp"));
-	} 
+
+	if (vsflags & ViewStyleFlags::vsfMapView) 
+		return isInTemplate 
+		? QVariant::fromValue(QPixmap(":/res/images/TV_globe_bw.bmp")) 
+		: QVariant::fromValue(QPixmap(":/res/images/TV_globe.bmp"));
+
+	if (vsflags & ViewStyleFlags::vsfTableContainer)
+		return isInTemplate 
+		? QVariant::fromValue(QPixmap(":/res/images/TV_container_table_bw.bmp")) 
+		: QVariant::fromValue(QPixmap(":/res/images/TV_container_table.bmp"));
+
+	if (vsflags & ViewStyleFlags::vsfTableView)
+		return isInTemplate 
+		? QVariant::fromValue(QPixmap(":/res/images/TV_table_bw.bmp")) 
+		: QVariant::fromValue(QPixmap(":/res/images/TV_table.bmp"));
+
+	if (vsflags & ViewStyleFlags::vsfPaletteEdit)
+		return isInTemplate 
+		? QVariant::fromValue(QPixmap(":/res/images/TV_palette_bw.bmp")) 
+		: QVariant::fromValue(QPixmap(":/res/images/TV_palette.bmp"));
+
+	if (vsflags & ViewStyleFlags::vsfContainer) 
+		return isInTemplate 
+		? QVariant::fromValue(QPixmap(":/res/images/TV_container_bw.bmp")) 
+		: QVariant::fromValue(QPixmap(":/res/images/TV_container.bmp"));
+
+	bool isDataItem = IsDataItem(ti);
+	if (isDataItem)
+		return isInTemplate
+		? QVariant::fromValue(QPixmap(":/res/images/TV_table_bw.bmp"))
+		: QVariant::fromValue(QPixmap(":/res/images/TV_table.bmp"));
+
+	return QVariant::fromValue(QPixmap(":/res/images/TV_unit_transparant.bmp"));
 }
 
 color_option getColorOption(const TreeItem* ti)
@@ -391,7 +417,7 @@ void TreeItemDelegate::paint(QPainter* painter, const QStyleOptionViewItem& opti
 
 	auto painter_exit_guard = make_scoped_exit([painter] { painter->restore(); });
 
-	// draw storage icon if needed
+	// last job: draw storage icon if needed or return if not needed
 	TreeItem* ti = nullptr;
 	try
 	{
@@ -399,37 +425,13 @@ void TreeItemDelegate::paint(QPainter* painter, const QStyleOptionViewItem& opti
 		if (!ti)
 			return;
 
-		const TreeItem* storageHolder = nullptr;
-		if (ti->HasStorageManager())
-			storageHolder = ti;
-		else
-		{
-			auto parent = ti->GetTreeParent();
-			if (!parent) // root has no parent
-				return;
-			if (parent->HasStorageManager())
-				storageHolder = parent;
-		}
-
+		const TreeItem* storageHolder = ti->GetStorageParent(true);
 		if (!storageHolder)
 			return;
+		assert(!ti->IsDisabledStorage());
 
 		bool is_read_only = storageHolder->GetStorageManager()->IsReadOnly();
-		if (is_read_only)
-		{
-			if (Waiter::IsWaiting())
-			{
-				if (ti->mc_Calculator)
-					return;
-			}
-			else
-			{
-				if (ti->HasCalculator())
-					return;
-			}
-		}
-
-		if (ti->IsDisabledStorage())
+		if (is_read_only && ti->HasCalculator())
 			return;
 
 		QFontMetrics fm(QApplication::font());
@@ -457,7 +459,7 @@ void TreeItemDelegate::paint(QPainter* painter, const QStyleOptionViewItem& opti
 	}
 	catch (...)
 	{
-		catchException(false);
+//		catchException(false);	// doesn't do anything and return values isn't used; reporting is not desired as this is a paint method
 	}
 
 	return;
