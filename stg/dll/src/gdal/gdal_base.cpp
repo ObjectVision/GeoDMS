@@ -454,8 +454,16 @@ void SpatialReferencesAreCompatibile(const TreeItem* treeitem, OGRSpatialReferen
 	if (fromGDAL->IsSame(fromConfig))
 		return;
 
-	SharedStr authority_and_code_from_gdal = SharedStr(fromGDAL->GetAuthorityName(NULL)) + ":" + fromGDAL->GetAuthorityCode(NULL);
-	SharedStr authority_and_code_from_value_unit = SharedStr(fromConfig->GetAuthorityName(NULL)) + ":" + fromConfig->GetAuthorityCode(NULL);
+	auto gdal_name = SharedStr(fromGDAL->GetAuthorityName(NULL));
+	auto gdal_code = SharedStr(fromGDAL->GetAuthorityCode(NULL));
+	auto config_name = SharedStr(fromConfig->GetAuthorityName(NULL));
+	auto config_code = SharedStr(fromConfig->GetAuthorityCode(NULL));
+
+	if (gdal_name.empty() || gdal_code.empty() || config_name.empty() || config_code.empty()) // no base for comparison
+		return;
+
+	SharedStr authority_and_code_from_gdal = gdal_name + ":" + gdal_code;
+	SharedStr authority_and_code_from_value_unit = config_name + ":" + config_code;
 
 	// AUTHORITY:CODE comparison
 	if (authority_and_code_from_gdal == authority_and_code_from_value_unit)
