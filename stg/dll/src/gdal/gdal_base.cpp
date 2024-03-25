@@ -444,7 +444,7 @@ auto GetProjAuthorityCodeFromCompoundCS(const OGRSpatialReference* srs) -> std::
 	auto authority_node = auth_node->GetChild(0);
 	auto code_node = auth_node->GetChild(1);
 
-	return { authority_node->GetValue(), code_node->GetValue()}; //SharedStr(authority_node->GetValue()) + ":" + code_node->GetValue();
+	return { authority_node->GetValue(), code_node->GetValue()};
 }
 
 void SpatialReferencesAreCompatibile(const TreeItem* treeitem, const OGRSpatialReference* fromGDAL, const OGRSpatialReference* fromConfig)
@@ -460,7 +460,7 @@ void SpatialReferencesAreCompatibile(const TreeItem* treeitem, const OGRSpatialR
 	auto config_name = fromConfig->GetAuthorityName(NULL);
 	auto config_code = fromConfig->GetAuthorityCode(NULL);
 
-	if (!gdal_name || !gdal_code || !config_name || !config_code) // no base for comparison
+	if (!gdal_name || !gdal_code || !config_name || !config_code) // ignore comparison for missing authority and code on either side
 		return;
 
 	// AUTHORITY:CODE comparison
