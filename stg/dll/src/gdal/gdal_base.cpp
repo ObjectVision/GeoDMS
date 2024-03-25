@@ -428,7 +428,7 @@ SharedStr GetWktProjectionFromValuesUnit(const AbstrDataItem* adi)
 	return GetWktProjectionFromBaseProjectionUnit(baseProjectionUnit);
 }
 
-auto GetProjAuthorityCodeFromCompoundCS(OGRSpatialReference* srs) -> SharedStr
+auto GetProjAuthorityCodeFromCompoundCS(const OGRSpatialReference* srs) -> std::pair<const char*, const char*>
 {
 	auto* proj_cs_node = srs->GetAttrNode("PROJCS");
 	if (!proj_cs_node)
@@ -443,10 +443,11 @@ auto GetProjAuthorityCodeFromCompoundCS(OGRSpatialReference* srs) -> SharedStr
 
 	auto authority_node = auth_node->GetChild(0);
 	auto code_node = auth_node->GetChild(1);
-	return SharedStr(authority_node->GetValue()) + ":" + code_node->GetValue();
+
+	return { authority_node->GetValue(), code_node->GetValue()}; //SharedStr(authority_node->GetValue()) + ":" + code_node->GetValue();
 }
 
-void SpatialReferencesAreCompatibile(const TreeItem* treeitem, OGRSpatialReference* fromGDAL, OGRSpatialReference* fromConfig)
+void SpatialReferencesAreCompatibile(const TreeItem* treeitem, const OGRSpatialReference* fromGDAL, const OGRSpatialReference* fromConfig)
 {
 	assert(fromGDAL);
 	assert(fromConfig);
@@ -454,27 +455,24 @@ void SpatialReferencesAreCompatibile(const TreeItem* treeitem, OGRSpatialReferen
 	if (fromGDAL->IsSame(fromConfig))
 		return;
 
-	auto gdal_name = SharedStr(fromGDAL->GetAuthorityName(NULL));
-	auto gdal_code = SharedStr(fromGDAL->GetAuthorityCode(NULL));
-	auto config_name = SharedStr(fromConfig->GetAuthorityName(NULL));
-	auto config_code = SharedStr(fromConfig->GetAuthorityCode(NULL));
+	auto gdal_name = fromGDAL->GetAuthorityName(NULL);
+	auto gdal_code = fromGDAL->GetAuthorityCode(NULL);
+	auto config_name = fromConfig->GetAuthorityName(NULL);
+	auto config_code = fromConfig->GetAuthorityCode(NULL);
 
-	if (gdal_name.empty() || gdal_code.empty() || config_name.empty() || config_code.empty()) // no base for comparison
+	if (!gdal_name || !gdal_code || !config_name || !config_code) // no base for comparison
 		return;
 
-	SharedStr authority_and_code_from_gdal = gdal_name + ":" + gdal_code;
-	SharedStr authority_and_code_from_value_unit = config_name + ":" + config_code;
-
 	// AUTHORITY:CODE comparison
-	if (authority_and_code_from_gdal == authority_and_code_from_value_unit)
+	if (std::strcmp(gdal_name, config_name)==0 && std::strcmp(gdal_code, config_code)==0)
 		return;
 
 	// Compound srs compatibility check fromGDAL
 	auto from_gdal_is_compound = fromGDAL->IsCompound();
 	if (from_gdal_is_compound)
 	{
-		auto proj_authority_code = GetProjAuthorityCodeFromCompoundCS(fromGDAL);
-		if (proj_authority_code == authority_and_code_from_value_unit)
+		auto proj_authority_code_pair = GetProjAuthorityCodeFromCompoundCS(fromGDAL);
+		if (std::strcmp(proj_authority_code_pair.first, config_name) == 0 && std::strcmp(proj_authority_code_pair.second, config_code) == 0) //proj_authority_code == authority_and_code_from_value_unit)
 			return;
 	}
 
@@ -482,16 +480,16 @@ void SpatialReferencesAreCompatibile(const TreeItem* treeitem, OGRSpatialReferen
 	auto from_config_is_compound = fromConfig->IsCompound();
 	if (from_config_is_compound)
 	{
-		auto proj_authority_code = GetProjAuthorityCodeFromCompoundCS(fromConfig);
-		if (proj_authority_code == authority_and_code_from_gdal)
+		auto proj_authority_code_pair = GetProjAuthorityCodeFromCompoundCS(fromConfig);
+		if (std::strcmp(proj_authority_code_pair.first, gdal_name) == 0 && std::strcmp(proj_authority_code_pair.second, gdal_code)==0) // proj_authority_code == authority_and_code_from_gdal)
 			return;
 	}
 
 	SharedStr projection_mismatch_error_message = mySSPrintF(
-		"GDAL: item [[%s]] spatial reference (%s) differs from the spatial reference (%s) obtained from the dataset"
+		"GDAL: item [[%s]] spatial reference (%s:%s) differs from the spatial reference (%s:%s) obtained from the dataset"
 		, treeitem->GetFullName().c_str()
-		, authority_and_code_from_gdal.c_str()
-		, authority_and_code_from_value_unit.c_str());
+		, gdal_name, gdal_code
+		, config_name, config_code);
 
 	treeitem->Fail(projection_mismatch_error_message, FailType::FR_MetaInfo);
 }
