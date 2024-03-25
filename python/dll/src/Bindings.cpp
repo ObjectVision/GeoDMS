@@ -329,8 +329,8 @@ PYBIND11_MODULE(geodms, m) {
 		.def("update", [](SharedTreeItemInterestPtr self) 
 			{
 				DMS_TreeItem_Update(self.get_ptr());
-				return DMS_NumericDataItem_GetStatistics(self.get_ptr(), nullptr);
-			})//DMS_TreeItem_Update(self.get_ptr()); })// &DMS_TreeItem_Update)
+				return;
+			})
 		.def("find", &treeitem_find)
 		.def("set_expr", [](SharedTreeItemInterestPtr self, const std::string& str) {return (const_cast<TreeItem*>(self.get_ptr())->SetExpr(SharedStr(str))); });
 

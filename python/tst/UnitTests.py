@@ -25,16 +25,11 @@ try:
     
     root = config.getRoot()
     
-    print(type(root))
-    
     param_item = root.find("/parameters/test_param")
     param_item.set_expr("3b")
 
     result_item = root.find("/export/IntegerAtt")
     result_item.update()
-
-    #pause_func("as const item")
-    #const_root   = mutable_root.asItem()
 
     pause_func("Done")
 
