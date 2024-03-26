@@ -40,6 +40,9 @@ namespace {
 }
 
 static TokenID s_PartNr = GetTokenID_st("PartNr");
+static TokenID s_PartLink = GetTokenID_st("PartLink");
+static TokenID s_PartFromRel = GetTokenID_st("from_rel");
+static TokenID s_PartToRel = GetTokenID_st("to_rel");
 
 class ConnectedPartsOperator : public BinaryOperator
 {
@@ -112,17 +115,17 @@ public:
 			assert(resultData   .size() == nrV); 
 
 			std::vector<LinkType>
-				link1    (nrV, UNDEFINED_VALUE(UInt32)),
-				link2    (nrV, UNDEFINED_VALUE(UInt32)),
-				nextLink1(nrE, UNDEFINED_VALUE(UInt32)), 
-				nextLink2(nrE, UNDEFINED_VALUE(UInt32));
+				link1    (nrV, UNDEFINED_VALUE(LinkType)),
+				link2    (nrV, UNDEFINED_VALUE(LinkType)),
+				nextLink1(nrE, UNDEFINED_VALUE(LinkType)),
+				nextLink2(nrE, UNDEFINED_VALUE(LinkType));
 
 			InvertIntoLinkedList<NodeType, LinkType>(node1Data.begin(), link1.begin(), nextLink1.begin(), nrE, nrV);
 			InvertIntoLinkedList<NodeType, LinkType>(node2Data.begin(), link2.begin(), nextLink2.begin(), nrE, nrV);
 
 			NodeStackType nodeStack;
 			
-			UInt32 nrParts = 0;
+			PartType nrParts = 0;
 
 			for (auto rb = resultData.begin(), ri = resultData.begin(), re = resultData.end(); ri != re; ++ri)
 			{
@@ -169,7 +172,7 @@ public:
 
 			DataWriteLock resLock(resSub, dms_rw_mode::write_only_all);
 			auto resultSub = mutable_array_cast<PartType>(resLock);
-			auto realResultData = resultSub->GetDataWrite();
+			auto realResultData = resultSub->GetDataWrite(no_tile, dms_rw_mode::write_only_all);
 			assert(realResultData.size() == nrV);
 			assert(nrParts <= nrV);
 			fast_copy(begin_ptr(resultData), end_ptr(resultData), realResultData.begin());
@@ -232,6 +235,10 @@ public:
 		AbstrDataItem* resSub = CreateDataItem(res, s_PartNr, arg1A->GetAbstrValuesUnit(), res);
 		MG_CHECK(resSub);
 
+		AbstrUnit* resSub2 = ResultSub2Type::GetStaticClass()->CreateUnit(res, s_PartLink); // PartLinks
+		AbstrDataItem* resPartFrom = CreateDataItem(resSub2, s_PartFromRel, resSub2, res);
+		AbstrDataItem* resPartTo   = CreateDataItem(resSub2, s_PartToRel, resSub2, res);
+
 		if (!mustCalc)
 			return true;
 
@@ -256,73 +263,121 @@ public:
 		assert(node1Data.size() == nrE);
 		assert(node2Data.size() == nrE);
 
-		// TODO G8: doe dit zoals in OperDistrict.cpp
-
 		std::vector<PartType> resultData(nrV, UNDEFINED_VALUE(PartType));
+		std::vector<Couple<NodeType>> indices(nrV, Couple<NodeType>(Undefined()));
 		assert(resultData.size() == nrV);
+		assert(indices.size() == nrV);
 
 		std::vector<LinkType>
-			link1(nrV, UNDEFINED_VALUE(UInt32)),
-			link2(nrV, UNDEFINED_VALUE(UInt32)),
-			nextLink1(nrE, UNDEFINED_VALUE(UInt32)),
-			nextLink2(nrE, UNDEFINED_VALUE(UInt32));
+			link1(nrV, UNDEFINED_VALUE(LinkType)),
+			nextLink1(nrE, UNDEFINED_VALUE(LinkType));
+
+		sequence_traits<Bool>::container_type onStackFlag(nrV, false);
 
 		InvertIntoLinkedList<NodeType, LinkType>(node1Data.begin(), link1.begin(), nextLink1.begin(), nrE, nrV);
-		InvertIntoLinkedList<NodeType, LinkType>(node2Data.begin(), link2.begin(), nextLink2.begin(), nrE, nrV);
 
 		NodeStackType nodeStack;
+		std::vector<Couple<PartType>> partLinks;
 
-		UInt32 nrParts = 0;
+		PartType nrParts = 0;
+		PartLinkType nrPartLinks = 0;
+		NodeType currIndex = 0;
 
-		for (auto rb = resultData.begin(), ri = resultData.begin(), re = resultData.end(); ri != re; ++ri)
-		{
-			if (!IsDefined(*ri))
+		auto resSubLock = CreateHeapTileArrayV<PartType>(v, nullptr, false MG_DEBUG_ALLOCATOR_SRC("StronglyConnectedComponentsOperator: resLock"));
+		auto resSubData = resSubLock->GetDataWrite(no_tile, dms_rw_mode::write_only_all);
+		fast_undefine(resSubData.begin(), resSubData.end());
+
+		// TODO, OPTIMIZE: factor out in separate struct to avoid type erasure
+		std::function<void(NodeType)> strongconnect;
+		strongconnect = [&indices, &currIndex, &onStackFlag, &nodeStack, &node1Data, &node2Data, &link1, &nextLink1, &strongconnect, &resSubData, &nrParts, &partLinks](NodeType v) 
 			{
-				nodeStack.push_back(ri - rb);
-				do
+				// Set the depth index for v to the smallest unused index
+				indices[v] = {currIndex, currIndex};
+				++currIndex;
+				nodeStack.emplace_back(v);
+				assert(!onStackFlag[v]);
+				onStackFlag[v] = true;
+
+				// Consider successors of v
+				for (LinkType e = link1[v]; IsDefined(e); e = nextLink1[e])
 				{
-					NodeType currNode = nodeStack.back(); assert(currNode < nrV);
-					nodeStack.pop_back();
-
-					PartType currPart = rb[currNode];
-					assert(currPart == nrParts || !IsDefined(currPart));
-					if (!IsDefined(currPart))
+					assert(node1Data[e] == v);
+					NodeType w = node2Data[e];
+					if (!IsDefined(indices[w].first))
 					{
-						rb[currNode] = nrParts;
-
-						LinkType currLink = link1[currNode];
-						while (currLink < nrE)
-						{
-							NodeType otherNode = node2Data[currLink];
-							if (otherNode < nrV)
-								nodeStack.push_back(otherNode);
-							currLink = nextLink1[currLink];
-						}
-						currLink = link2[currNode];
-						while (currLink < nrE)
-						{
-							NodeType otherNode = node1Data[currLink];
-							if (otherNode < nrV)
-								nodeStack.push_back(otherNode);
-							currLink = nextLink2[currLink];
-						}
+						// Successor w has not yet been visited; recurse on it
+						strongconnect(w);
+						MakeMin(indices[v].second, indices[w].second);
 					}
-				} while (!nodeStack.empty());
-				++nrParts;
-			}
+					else if (onStackFlag[w].value())
+						// Successor w is in stack S and hence in the current SCC
+						// If w is not on stack, then (v, w) is an edge pointing to an SCC already found and must be ignored
+						// The next line may look odd - but is correct.
+						// It says w.index not w.lowlink; that is deliberate and from the original paper
+						MakeMin(indices[v].second, indices[w].first);
+
+				}
+				// If v is a root node, pop the stack and generate an SCC
+				if (indices[v].first == indices[v].second)
+				{
+					// start a new strongly connected component
+					std::set<PartType> currPartLinks; // TODO, OPTIMIZE: replace by a timestamped by nrParts linked list of parts that are reachable from current part
+					NodeType w;
+					do {
+						w = nodeStack.back(); nodeStack.pop_back();
+						onStackFlag[w] = false;
+						resSubData[w] = nrParts; // add w to current strongly connected component
+
+						for (LinkType e = link1[w]; IsDefined(e); e = nextLink1[e])
+						{
+							NodeType ww = node2Data[e];
+							PartType pp = resSubData[ww];
+							if (IsDefined(pp))
+							{
+								assert(pp <= nrParts);
+								if (pp < nrParts)
+									currPartLinks.insert(pp);
+							}
+						}
+					} while (w != v);
+					for (auto pp: currPartLinks)
+						partLinks.emplace_back(Couple<PartType>(nrParts, pp));
+					++nrParts;
+				}
+			};
+
+		for (NodeType v=0; v != nrV; ++v)
+		{
+			if (!IsDefined(indices[v].first))
+				strongconnect(v);
 		}
+
 
 		ResultUnitType* resultUnit = debug_cast<ResultUnitType*>(res);
 		assert(resultUnit);
-		resultUnit->SetRange(Range<UInt32>(0, nrParts));
+		resultUnit->SetRange(Range<PartType>(0, nrParts));
 
-		DataWriteLock resLock(resSub, dms_rw_mode::write_only_all);
-		auto resultSub = mutable_array_cast<PartType>(resLock);
-		auto realResultData = resultSub->GetDataWrite();
-		assert(realResultData.size() == nrV);
-		assert(nrParts <= nrV);
-		fast_copy(begin_ptr(resultData), end_ptr(resultData), realResultData.begin());
-		resLock.Commit();
+		resSubLock->InitValueRangeData(resultUnit->m_RangeDataPtr);
+		resSub->m_DataObject = resSubLock.release();
+		ResultSub2Type* partLinkUnit = debug_cast<ResultSub2Type*>(resSub2);
+		partLinkUnit->SetRange(Range<PartLinkType>(0, partLinks.size()));
+
+		DataWriteLock partFromLock(resPartFrom, dms_rw_mode::write_only_all);
+		DataWriteLock partToLock(resPartTo, dms_rw_mode::write_only_all);
+		auto partFrom = mutable_array_cast<PartType>(partFromLock);
+		auto partTo = mutable_array_cast<PartType>(partToLock);
+		auto partFromData = partFrom->GetDataWrite(no_tile, dms_rw_mode::write_only_all);
+		auto partToData = partTo->GetDataWrite(no_tile, dms_rw_mode::write_only_all);
+		PartLinkType partLinkIndex = 0;
+		for (const auto& partLink : partLinks)
+		{
+			partFromData[partLinkIndex] = partLink.first;
+			partToData[partLinkIndex] = partLink.second;
+			++partLinkIndex;
+		}
+
+		partFromLock.Commit();
+		partToLock.Commit();
 
 		return true;
 	}
@@ -335,7 +390,8 @@ public:
 
 namespace 
 {	
-	ConnectedPartsOperator connParts;
+	ConnectedPartsOperator connPartsOper;
+	StronglyConnectedComponentsOperator sccOper;
 }
 
 /******************************************************************************/
