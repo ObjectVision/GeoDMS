@@ -207,6 +207,7 @@ void AdjustGridNrs(grid_coord_array& gridCoords, grid_coord_array& linedCoords, 
 	assert(linedCoords.size() == (showLines ? gridCoords.size() : 0));
 	if (deltaBegin > 0) 
 	{
+		MakeMin(deltaBegin, gridCoords.size());
 		gridCoords.erase (gridCoords.begin(),  gridCoords.begin() + deltaBegin);
 		if (showLines)
 			linedCoords.erase (linedCoords.begin(),  linedCoords.begin() + deltaBegin);

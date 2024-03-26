@@ -18,6 +18,7 @@
 #include "CheckedDomain.h"
 #include "geo/RangeIndex.h"
 #include "geo/PointOrder.h"
+#include "utl/scoped_exit.h"
 
 #include "Projection.h"
 
@@ -36,19 +37,34 @@ struct DisplacementInfo // { Start, NW, N, NE, W, E, SW, S, SE }
 {
 	int dx, dy;
 	Directions d, r;
-	Float64    f;
+	Float64    factor;
+
+	Float64 getFactor(bool useLatFactor, const std::vector<Couple<Float64>>& latFactors, UInt32 row) const
+	{
+		if (useLatFactor)
+		{
+			MG_CHECK(row < latFactors.size());
+			if (dx)
+				if (dy)
+					return latFactors[row].second;
+				else
+					return latFactors[row].first;
+		}
+		return factor;
+	}
 };
+
 DisplacementInfo displacement_info[9] = 
 {
 	{ 0,  0, Directions(),               Directions(),               0.0 },
-	{-1, -1, Directions(D_North|D_West), Directions(D_South|D_East), 0.5 * 1.4142135623730950488016887242097},
+	{-1, -1, Directions(D_North|D_West), Directions(D_South|D_East), 0.5 * std::numbers::sqrt2_v<Float64>},
 	{ 0, -1, Directions(D_North),        Directions(D_South)       , 0.5},
-	{ 1, -1, Directions(D_North|D_East), Directions(D_South|D_West), 0.5 * 1.4142135623730950488016887242097},
+	{ 1, -1, Directions(D_North|D_East), Directions(D_South|D_West), 0.5 * std::numbers::sqrt2_v<Float64>},
 	{-1,  0, Directions(D_West),         Directions(D_East)       ,0.5},
 	{ 1,  0, Directions(D_East),         Directions(D_West)       ,0.5},
-	{-1,  1, Directions(D_South|D_West), Directions(D_North|D_East), 0.5 * 1.4142135623730950488016887242097},
+	{-1,  1, Directions(D_South|D_West), Directions(D_North|D_East), 0.5 * std::numbers::sqrt2_v<Float64>},
 	{ 0,  1, Directions(D_South),        Directions(D_North)       ,0.5},
-	{ 1,  1, Directions(D_South|D_East), Directions(D_North|D_West), 0.5 * 1.4142135623730950488016887242097},
+	{ 1,  1, Directions(D_South|D_East), Directions(D_North|D_West), 0.5 * std::numbers::sqrt2_v<Float64>},
 };
 
 enum class GridDistFlags
@@ -79,6 +95,21 @@ constexpr arg_index NrArguments(GridDistFlags flags)
 		++result;
 	return result;
 }
+
+struct ProjContextDeleter {
+	void operator()(PJ_CONTEXT* ctx) const {
+		if (ctx != nullptr) {
+			proj_context_destroy(ctx);
+		}
+	}
+};
+struct ProjDeleter {
+	void operator()(PJ* p) const {
+		if (p != nullptr) {
+			proj_destroy(p);
+		}
+	}
+};
 
 template <typename Imp, typename Grid>
 class GridDistOperator : public Operator
@@ -235,12 +266,14 @@ public:
 			maxImp = const_array_cast<ImpType>(adiLimitImp)->GetTile(0)[0];
 		}
 
-		std::vector<ImpType> latFactors;
+		std::vector<Couple<Float64>> latFactors;
+		Range<GridType> domainRange = gridSet->GetRange();
+		auto yRange = Range<scalar_of_t<GridType>>(domainRange.first.Y(), domainRange.second.Y());
 
 		if (m_Flags & GridDistFlags::HasLatitudeFactor)
 		{
 			const AbstrUnit* baseUnit = gridSet;
-			auto gridSetProjection = gridSet->GetProjection();
+			auto gridSetProjection = gridSet->GetCurrProjection();
 			if (gridSetProjection)
 				baseUnit = gridSetProjection->GetBaseUnit();
 			MG_CHECK(baseUnit);
@@ -258,53 +291,30 @@ public:
 /*
 			// Step 2: Export to PROJ String
 			char* projString;
-			spatialRef->exportToProjString(&projString);
+			sr.exportToProj4(&projString);
 			scoped_exit se([&projString] { CPLFree(projString); }); // Free the PROJ string memory when leaving the scope
 
 			// Step 3: Create a PJ object
-			auto C = std::unique_ptr<PJ_CONTEXT>(proj_context_create(), proj_context_destroy); // Create a PJ_CONTEXT object
-			auto P = std::unique_ptr<PJ>        (proj_create(C, projString), proj_destroy); // Create a PJ object from the PROJ string
+			auto ctx  = std::unique_ptr<PJ_CONTEXT, ProjContextDeleter>(proj_context_create()); // Create a PJ_CONTEXT object
+			auto proj = std::unique_ptr<PJ, ProjDeleter>               (proj_create(ctx.get(), projString)); // Create a PJ object from the PROJ string
 
-			if (P == nullptr) {
-				// Handle error...
-			}
+			if (!proj)
+				throwErrorD(SharedStr(GetGroup()->GetNameID()).c_str(), "A projection for the domain of the first argument could not be created");
 */
+			auto gridSet2BaseTr = UnitProjection::GetCompositeTransform(gridSetProjection);
 
-			auto base2gridSetTr = UnitProjection::GetCompositeTransform(gridSetProjection);
-			auto gridSet2BaseTr = base2gridSetTr.Inverse();
-
-			Range<GridType> range = gridSet->GetRange();
-			auto yRange = Range<scalar_of_t<GridType>>(range.first.Y(), range.second.Y());
-
-			for (auto y = range.first.Y(); y < range.second.Y()-0.5; ++y)
+			latFactors.reserve(yRange.second - yRange.first);
+			for (auto y = yRange.first; y < yRange.second; ++y)
 			{
 				auto latitude = gridSet2BaseTr.Apply(shp2dms_order<Float64>(0, y)).Y();
 				auto factor   = std::cos(latitude * (std::numbers::pi_v<Float64> / 180.0));
 /*
-* 
-* 
-
+				// Call proj_factors for specific locations
 				PJ_COORD crd = {0, latitude, 0, 0};
-				PJ_FACTORS factors = proj_factors(sr.GetProjParm(), &crd);
-				auto factor = factors.meridional_scale
-
-
-
-				// Step 4: Call proj_factors for specific locations
-				double latitude = 45.0; // Example latitude
-				double longitude = -75.0; // Example longitude
-				PJ_COORD coord = proj_coord(longitude, latitude, 0, 0); // Note the order is lon, lat
-				PJ_FACTORS factors = proj_factors(P, coord);
-
-				// Use factors...
-				std::cout << "Meridian scale factor: " << factors.meridional_scale << std::endl;
-
-
-
-
+				PJ_FACTORS factors = proj_factors(proj.get(), crd);
+				auto factor = factors.meridional_scale;
 				*/
-
-				latFactors.push_back(factor);
+				latFactors.emplace_back(0.5 * factor, 0.5 * sqrt(1+factor*factor));
 			}
 		}
 
@@ -323,6 +333,7 @@ public:
 		}
 
 		bool useShadowTile = m_Flags & GridDistFlags::UseShadowTile;
+		bool useLatFactor  = m_Flags & GridDistFlags::HasLatitudeFactor;
 
 		tile_id tn = useShadowTile ? 1 : adiGridImp->GetAbstrDomainUnit()->GetNrTiles();
 		intertile_map itMap(useShadowTile ? 0 : tn);
@@ -417,6 +428,9 @@ public:
 					ImpType cellDist = costData[currNode];
 					if (!IsDefined(cellDist))
 						continue;
+					UInt32 latFactorRow = 0;
+					if (useLatFactor)
+						latFactorRow = Range_GetIndex_checked(yRange, Range_GetValue_naked(range, currNode).Y());
 
 					MakeMax<ImpType>(cellDist, ImpType()); // raise negative values to zero.
 					UInt32 forbiddenDirections = 0;
@@ -433,7 +447,7 @@ public:
 							continue;
 						MakeMax<ImpType>(deltaCost, ImpType()); // raise negative values to zero.
 						deltaCost += cellDist;
-						deltaCost *= displacement_info[i].f;
+						deltaCost *= displacement_info[i].getFactor(useLatFactor, latFactors, latFactorRow);
 						assert(deltaCost >= 0);
 						auto newImp = currImp + deltaCost;
 						dh.InsertNode(otherNode, newImp, displacement_info[i].d);
@@ -503,7 +517,9 @@ public:
 						if (!IsDefined(deltaCost2))
 							continue;
 						MakeMax<ImpType>(deltaCost2, ImpType()); // raise negative values to zero.
-
+						UInt32 row = 0;
+						if (useLatFactor)
+							row = Range_GetIndex_checked(yRange, p.Y());
 						for (UInt32 i=1; i!=9; ++i) 
 						{
 							Grid q = p + shp2dms_order(Grid(displacement_info[i].dx, displacement_info[i].dy));
@@ -520,7 +536,7 @@ public:
 								continue;
 							MakeMax<ImpType>(deltaCost, ImpType()); // raise negative values to zero.
 							deltaCost +=  deltaCost2;
-							deltaCost *= displacement_info[i].f;
+							deltaCost *= displacement_info[i].getFactor(useLatFactor, latFactors, row);
 							assert(deltaCost >= 0);
 							if (deltaCost >= maxImp)
 								continue;
@@ -576,10 +592,10 @@ namespace {
 	static CommonOperGroup cogGDM_  ("griddist_maximp", oper_policy::better_not_in_meta_scripting);
 	static CommonOperGroup cogGD_U  ("griddist_untiled", oper_policy::better_not_in_meta_scripting);
 	static CommonOperGroup cogGDMU  ("griddist_maximp_untiled", oper_policy::better_not_in_meta_scripting);
-	static CommonOperGroup cogGD__LF("griddist_latfactor", oper_policy::better_not_in_meta_scripting);
-	static CommonOperGroup cogGDM_LF("griddist_maximp_latfactor", oper_policy::better_not_in_meta_scripting);
-	static CommonOperGroup cogGD_ULF("griddist_untiled_latfactor", oper_policy::better_not_in_meta_scripting);
-	static CommonOperGroup cogGDMULF("griddist_maximp_untiled_latfactor", oper_policy::better_not_in_meta_scripting);
+	static CommonOperGroup cogGD__LF("griddist_latitude_specific", oper_policy::better_not_in_meta_scripting);
+	static CommonOperGroup cogGDM_LF("griddist_maximp_latitude_specific", oper_policy::better_not_in_meta_scripting);
+	static CommonOperGroup cogGD_ULF("griddist_untiled_latitude_specific", oper_policy::better_not_in_meta_scripting);
+	static CommonOperGroup cogGDMULF("griddist_maximp_untiled_latitude_specific", oper_policy::better_not_in_meta_scripting);
 
 	template <typename Imp>
 	struct GridDistOperSet
