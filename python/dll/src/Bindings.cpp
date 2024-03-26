@@ -1,7 +1,7 @@
 // Copyright (C) 1998-2023 Object Vision b.v. 
 // License: GNU GPL 3
 /////////////////////////////////////////////////////////////////////////////
-
+#define PYBIND11_DETAILED_ERROR_MESSAGES
 //#include "ShvDllInterface.h"
 #include "TicInterface.h"
 #include "ClcInterface.h"
@@ -34,6 +34,8 @@
 
 #include <pybind11/pybind11.h>
 #include <pybind11/cast.h>
+
+
 
 namespace py = pybind11;
 
@@ -228,13 +230,13 @@ namespace py_geodms
 			currSingleConfig = this;
 		}
 
-		auto get_root() const -> SharedTreeItemInterestPtr
+		auto get_root() -> SharedTreeItemInterestPtr
 		{
-			return m_root.get_ptr();
+			return m_root.get();
 		}
 
 	private:
-		SharedMutableTreeItem m_root;
+		SharedMutableTreeItem m_root = nullptr;
 	};
 
 	Config* Config::currSingleConfig = nullptr;
@@ -325,18 +327,6 @@ PYBIND11_MODULE(geodms, m) {
 	py::class_<py_geodms::Config>(m, "Config")
 		.def("getRoot", &py_geodms::Config::get_root);
 	
-	py::class_<SharedTreeItemInterestPtr>(m, "InterestItem")
-		.def("update", [](SharedTreeItemInterestPtr self) 
-			{
-				DMS_TreeItem_Update(self.get_ptr());
-				return;
-			})
-		.def("find", &treeitem_find)
-		.def("set_expr", [](SharedTreeItemInterestPtr self, const std::string& str) {return (const_cast<TreeItem*>(self.get_ptr())->SetExpr(SharedStr(str))); });
-
-	py::class_<SharedMutableTreeItem>(m, "MutableItem")
-		.def("asItem", &treeitem_AsItem);
-
 	py::class_<SharedTreeItem>(m, "Item")
 		.def("isNull", &SharedTreeItem::is_null)
 		.def("find", &treeitem_find)
@@ -349,8 +339,22 @@ PYBIND11_MODULE(geodms, m) {
 		.def("firstSubItem", &treeitem_GetFirstSubItem)
 		.def("nextItem", &treeitem_GetNextItem)
 		;
-	
 
+	py::class_<SharedTreeItemInterestPtr>(m, "SharedInterestItem")
+		.def("update", [](SharedTreeItemInterestPtr self) {
+				DMS_TreeItem_Update(self.get_ptr());
+				return;
+			})
+		.def("find", &treeitem_find)
+				//.def("set_expr", [](SharedTreeItemInterestPtr self, const std::string& str) {return (const_cast<TreeItem*>(self.get_ptr())->SetExpr(SharedStr(str))); });
+				.def("asMutableItem", [](SharedTreeItemInterestPtr self)
+					{
+
+
+			});
+
+	py::class_<SharedMutableTreeItem>(m, "SharedMutableItem")
+		.def("asItem", &treeitem_AsItem);
 
 	py::class_<SharedDataItem>(m, "DataItem")
 		.def("getDomainUnit", [](SharedDataItem self) { return self->GetAbstrDomainUnit(); })
@@ -363,10 +367,6 @@ PYBIND11_MODULE(geodms, m) {
 	;*/
 
 	py::class_<SharedUnit>(m, "UnitItem");
-
-
-
-
 
 	m.def("version", DMS_GetVersion);
 }

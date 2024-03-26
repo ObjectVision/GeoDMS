@@ -26,6 +26,10 @@ try:
     root = config.getRoot()
     
     param_item = root.find("/parameters/test_param")
+
+    test_invalid_item = root.find("/askjvfhakjfghsdkjghsdjkg/asfiuhsdigjuhsduig")
+    test_validity:bool = test_invalid_item.isNull()
+
     param_item.set_expr("3b")
 
     result_item = root.find("/export/IntegerAtt")
