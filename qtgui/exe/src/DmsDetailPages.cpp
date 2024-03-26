@@ -313,11 +313,8 @@ void DmsDetailPages::drawPageImpl()
     if (!current_item)
         return;
 
-    // Disable or enable dataset information radio button
-    auto has_storage_manager = CurrOrParentHasStorageManager(current_item);
-    main_window->m_detail_page_source_description_buttons->sd_dataset_information->setDisabled(!has_storage_manager);
-    if (m_SDM == SourceDescrMode::DatasetInfo && !has_storage_manager) // Switch to configured mode if dataset info mode is selected but no storage manager is available
-        main_window->m_detail_page_source_description_buttons->sd_configured->setChecked(true);
+
+
 
     bool ready = true;
     SuspendTrigger::Resume();
@@ -352,9 +349,13 @@ void DmsDetailPages::drawPageImpl()
 
         if (m_SDM == SourceDescrMode::DatasetInfo)
         {
+            // Disable or enable dataset information radio button
             auto has_storage_manager = DumpSourceDescriptionDatasetInfo(current_item, xmlOut.get());
             if (!has_storage_manager)
+            {
+                main_window->m_detail_page_source_description_buttons->sd_dataset_information->setDisabled(!has_storage_manager);
                 main_window->m_detail_page_source_description_buttons->sd_configured->setChecked(true);
+            }
         }
         else
             TreeItem_XML_DumpSourceDescription(current_item, m_SDM, xmlOut.get());
