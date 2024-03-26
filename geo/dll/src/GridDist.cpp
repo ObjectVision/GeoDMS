@@ -74,10 +74,13 @@ enum class GridDistFlags
 	HasInitialImpedance = 2,
 	UseShadowTile = 4,
 	HasLatitudeFactor = 8,
+	HasZonalBoundaryImpedance = 16,
+
 	HasBothParamters = HasLimitParameter | HasInitialImpedance,
 	HasLimitParameterAndUseShadowTile = HasLimitParameter | UseShadowTile,
 	HasInitialImpedanceAndUseShadowTile = HasInitialImpedance | UseShadowTile,
-	HasAllParameters = HasLimitParameter | HasLatitudeFactor | HasInitialImpedance | UseShadowTile
+
+	HasAllParameters = HasLimitParameter | HasLatitudeFactor | HasInitialImpedance | UseShadowTile | HasZonalBoundaryImpedance
 };
 
 constexpr auto operator |(GridDistFlags a, GridDistFlags b) { return GridDistFlags(int(a) | int(b)); }
@@ -87,10 +90,10 @@ constexpr bool operator &(GridDistFlags a, GridDistFlags b) { return int(a) & in
 constexpr arg_index NrArguments(GridDistFlags flags)
 {
 	arg_index result = 2;
+	if (flags & GridDistFlags::HasZonalBoundaryImpedance)
+		result += 2;
 	if (flags & GridDistFlags::HasLimitParameter)
 		++result;
-//	if (flags & GridDistFlags::HasLatitudeFactor)
-//		++result;
 	if (flags & GridDistFlags::HasInitialImpedance)
 		++result;
 	return result;
@@ -111,7 +114,7 @@ struct ProjDeleter {
 	}
 };
 
-template <typename Imp, typename Grid>
+template <typename Imp, typename Grid, typename ZoneID = UInt16>
 class GridDistOperator : public Operator
 {
 	typedef Imp    ImpType;
@@ -179,11 +182,14 @@ public:
 		*argClasses++ = DataArray<ImpType>::GetStaticClass(); // Arg1Type
 		*argClasses++ = DataArray<GridType>::GetStaticClass(); // Arg2Type
 
+		if (m_Flags & GridDistFlags::HasZonalBoundaryImpedance)
+		{
+			*argClasses++ = DataArray<ZoneID>::GetStaticClass();
+			*argClasses++ = DataArray<ImpType>::GetStaticClass();
+		}
+
 		if (m_Flags & GridDistFlags::HasLimitParameter)
 			*argClasses++ = DataArray<ImpType>::GetStaticClass();
-
-//		if (m_Flags & GridDistFlags::HasLatitudeFactor)
-//			*argClasses++ = DataArray<ImpType>::GetStaticClass();
 
 		if (m_Flags & GridDistFlags::HasInitialImpedance)
 			*argClasses++ = DataArray<ImpType>::GetStaticClass();
@@ -200,17 +206,21 @@ public:
 		arg_index argIndex = 0;
 		const AbstrDataItem* adiGridImp        = AsDataItem(args[argIndex++]);
 		const AbstrDataItem* adiStartPointGrid = AsDataItem(args[argIndex++]);
+		const AbstrDataItem* adiZonalID        = nullptr;
+		const AbstrDataItem* adiBoundaryImp    = nullptr;
 		const AbstrDataItem* adiLimitImp       = nullptr;
-//		const AbstrDataItem* adiLatFactor      = nullptr;
 		const AbstrDataItem* adiStartPointImp  = nullptr;
 
 		assert(adiGridImp);
 		assert(adiStartPointGrid);
 
+		if (m_Flags & GridDistFlags::HasZonalBoundaryImpedance)
+		{
+			adiZonalID	   = AsDataItem(args[argIndex++]);
+			adiBoundaryImp = AsDataItem(args[argIndex++]);
+		}
 		if (m_Flags & GridDistFlags::HasLimitParameter)
 			adiLimitImp = AsDataItem(args[argIndex++]);
-//		if (m_Flags & GridDistFlags::HasLatitudeFactor)
-//			adiLatFactor = AsDataItem(args[argIndex++]);
 		if (m_Flags & GridDistFlags::HasInitialImpedance)
 			adiStartPointImp = AsDataItem(args[argIndex++]);
 
@@ -226,16 +236,23 @@ public:
 
 		gridSet ->UnifyDomain(adiStartPointGrid->GetAbstrValuesUnit(), "e1", "v2", UM_Throw);
 
+		if (adiZonalID)
+		{
+			gridSet->UnifyDomain(adiZonalID->GetAbstrDomainUnit(), "domain of grid impedances", "domain of zonal id's", UM_Throw);
+			MG_CHECK(const_unit_cast<ZoneID>(adiZonalID->GetAbstrValuesUnit()));
+			MG_USERCHECK2(adiBoundaryImp->HasVoidDomainGuarantee(), "griddist: Boundary impedance parameter (4th argument) must have void domain");
+			impUnit->UnifyValues(adiBoundaryImp->GetAbstrValuesUnit(), "values of grid impedances", "zonal boundary impedance", UM_Throw);
+		}
 		if (adiLimitImp)
 		{
-			MG_USERCHECK2(adiLimitImp->HasVoidDomainGuarantee(), "griddist: Limit parameter (3rd argument) must have void domain");
-			impUnit->UnifyValues(adiLimitImp->GetAbstrValuesUnit(), "v1", "v3", UM_Throw);
+			MG_USERCHECK2(adiLimitImp->HasVoidDomainGuarantee(), "griddist: maximum impedance parameter (3rd argument) must have void domain");
+			impUnit->UnifyValues(adiLimitImp->GetAbstrValuesUnit(), "values of grid impedances", "maximum impedance", UM_Throw);
 		}
 
 		if (adiStartPointImp)
 		{
-			startSet->UnifyDomain(adiStartPointImp->GetAbstrDomainUnit(), "e2", adiLimitImp ? "e4" : "e3", UM_Throw);
-			impUnit ->UnifyValues(adiStartPointImp->GetAbstrValuesUnit(), "v1", adiLimitImp ? "v4" : "v3", UM_Throw);
+			startSet->UnifyDomain(adiStartPointImp->GetAbstrDomainUnit(), "domain of startpoint locations", "domain of startpoint impedances", UM_Throw);
+			impUnit ->UnifyValues(adiStartPointImp->GetAbstrValuesUnit(), "values of grid impedances", "values of startpoint impedances", UM_Throw);
 		}
 
 		if (!resultHolder)
@@ -253,10 +270,12 @@ public:
 		DataReadLock arg1Lock(adiGridImp);
 		DataReadLock arg2Lock(adiStartPointGrid);
 		DataReadLock arg3Lock(adiStartPointImp);
+		DataReadLock argZIDLock(adiZonalID);
 
-		const Arg1Type* diGridImp = const_array_cast<ImpType>(arg1Lock);
-		const Arg2Type* diStartPointGrid = const_array_cast<GridType>(arg2Lock);
-		const Arg3bType* diStartPointImp = adiStartPointImp ? const_array_cast<ImpType>(arg3Lock) : nullptr;
+		auto diGridImp = const_array_cast<ImpType>(arg1Lock);
+		auto diStartPointGrid = const_array_cast<GridType>(arg2Lock);
+		auto diStartPointImp = adiStartPointImp ? const_array_cast<ImpType>(arg3Lock) : nullptr;
+		auto diZonalGrid = adiZonalID ? const_array_cast<ZoneID>(argZIDLock) : nullptr;
 
 		ImpType maxImp = MAX_VALUE(ImpType);
 
@@ -269,6 +288,13 @@ public:
 		std::vector<Couple<Float64>> latFactors;
 		Range<GridType> domainRange = gridSet->GetRange();
 		auto yRange = Range<scalar_of_t<GridType>>(domainRange.first.Y(), domainRange.second.Y());
+		ImpType boundaryFactor = 0.0;
+		if (adiBoundaryImp)
+		{
+			DataReadLock argBILock(adiBoundaryImp);
+			boundaryFactor = const_array_cast<ImpType>(adiBoundaryImp)->GetTile(0)[0];
+		}
+
 
 		if (m_Flags & GridDistFlags::HasLatitudeFactor)
 		{
@@ -331,7 +357,6 @@ public:
 			startCosts = diStartPointImp->GetLockedDataRead();
 			assert(srcNodes.size() == startCosts.size());
 		}
-
 		bool useShadowTile = m_Flags & GridDistFlags::UseShadowTile;
 		bool useLatFactor  = m_Flags & GridDistFlags::HasLatitudeFactor;
 
@@ -341,6 +366,7 @@ public:
 
 		int offsets[9] = {}; // TODO OPTIMIZE: memoize the offsets for the previous used nrC
 		NodeType nrUsedC_for_offsets_memoization = 0;
+		ZoneID zonalID = 0;
 
 		SizeT nrIterations = 0, nrPrevBorderCases = 0;
 		while (nrTilesRemaining)
@@ -350,7 +376,7 @@ public:
 			{
 				auto pseudoTile = useShadowTile ? no_tile : t;
 				auto costData  = diGridImp->GetLockedDataRead(pseudoTile);
-
+				auto zonalData = diZonalGrid ? diZonalGrid->GetLockedDataRead(pseudoTile) : typename DataArray<ZoneID>::locked_cseq_t();
 				auto resultData    = result   ->GetLockedDataWrite(pseudoTile);
 				auto traceBackData = traceBack->GetLockedDataWrite(pseudoTile);
 
@@ -367,7 +393,6 @@ public:
 					for (UInt32 i = 1; i != 9; ++i) offsets[i] = displacement_info[i].dx + displacement_info[i].dy * nrC;
 					nrUsedC_for_offsets_memoization = nrC;
 				}
-
 				assert(costData.size() == nrV); typename sequence_traits<ImpType>::cseq_t::const_iterator costDataPtr = costData.begin();
 
 				assert(resultData   .size() == nrV); dh.m_ResultDataPtr    = resultData.begin();
@@ -432,6 +457,9 @@ public:
 					if (useLatFactor)
 						latFactorRow = Range_GetIndex_checked(yRange, Range_GetValue_naked(range, currNode).Y());
 
+					if (diZonalGrid)
+						zonalID = zonalData[currNode];
+
 					MakeMax<ImpType>(cellDist, ImpType()); // raise negative values to zero.
 					UInt32 forbiddenDirections = 0;
 					if (currNode < nrC)             forbiddenDirections |= D_North;
@@ -448,6 +476,10 @@ public:
 						MakeMax<ImpType>(deltaCost, ImpType()); // raise negative values to zero.
 						deltaCost += cellDist;
 						deltaCost *= displacement_info[i].getFactor(useLatFactor, latFactors, latFactorRow);
+
+						if (diZonalGrid && zonalID != zonalData[otherNode])
+							deltaCost += boundaryFactor;
+
 						assert(deltaCost >= 0);
 						auto newImp = currImp + deltaCost;
 						dh.InsertNode(otherNode, newImp, displacement_info[i].d);
@@ -471,6 +503,7 @@ public:
 
 			// Store the border cases to other tiles for next iterations
 			typename Arg1Type::locked_cseq_t costData1, costData2; // be lazy in locking and unlocking tiles
+			typename DataArray<ZoneID>::locked_cseq_t zonalData1, zonalData2;
 
 			for (tile_id t1=0; t1!=tn; ++t1)
 			{
@@ -503,6 +536,12 @@ public:
 					costData1 = diGridImp->GetLockedDataRead(t1);
 					costData2 = diGridImp->GetLockedDataRead(t2);
 
+					if (diZonalGrid)
+					{
+						zonalData1 = diZonalGrid->GetLockedDataRead(t1);
+						zonalData2 = diZonalGrid->GetLockedDataRead(t2);
+					}
+
 					auto resultData1 = result->GetLockedDataWrite(t1);
 					auto resultData2 = result->GetLockedDataWrite(t2);
 
@@ -517,10 +556,15 @@ public:
 						if (!IsDefined(deltaCost2))
 							continue;
 						MakeMax<ImpType>(deltaCost2, ImpType()); // raise negative values to zero.
+
+						ZoneID zoneID = 0;
+						if (diZonalGrid)
+							zoneID = zonalData2[i2];
+
 						UInt32 row = 0;
 						if (useLatFactor)
 							row = Range_GetIndex_checked(yRange, p.Y());
-						for (UInt32 i=1; i!=9; ++i) 
+						for (UInt32 i=1; i!=9; ++i)
 						{
 							Grid q = p + shp2dms_order(Grid(displacement_info[i].dx, displacement_info[i].dy));
 							if (!IsIncluding(range1, q))
@@ -537,6 +581,10 @@ public:
 							MakeMax<ImpType>(deltaCost, ImpType()); // raise negative values to zero.
 							deltaCost +=  deltaCost2;
 							deltaCost *= displacement_info[i].getFactor(useLatFactor, latFactors, row);
+
+							if (diZonalGrid && zoneID != zonalData1[i1])
+								deltaCost += boundaryFactor;
+
 							assert(deltaCost >= 0);
 							if (deltaCost >= maxImp)
 								continue;
@@ -597,6 +645,15 @@ namespace {
 	static CommonOperGroup cogGD_ULF("griddist_untiled_latitude_specific", oper_policy::better_not_in_meta_scripting);
 	static CommonOperGroup cogGDMULF("griddist_maximp_untiled_latitude_specific", oper_policy::better_not_in_meta_scripting);
 
+	static CommonOperGroup cogGD__Z("griddist_zonal", oper_policy::better_not_in_meta_scripting);
+	static CommonOperGroup cogGDM_Z("griddist_zonal_maximp", oper_policy::better_not_in_meta_scripting);
+	static CommonOperGroup cogGD_UZ("griddist_zonal_untiled", oper_policy::better_not_in_meta_scripting);
+	static CommonOperGroup cogGDMUZ("griddist_zonal_maximp_untiled", oper_policy::better_not_in_meta_scripting);
+	static CommonOperGroup cogGD__LFZ("griddist_zonal_latitude_specific", oper_policy::better_not_in_meta_scripting);
+	static CommonOperGroup cogGDM_LFZ("griddist_zonal_maximp_latitude_specific", oper_policy::better_not_in_meta_scripting);
+	static CommonOperGroup cogGD_ULFZ("griddist_zonal_untiled_latitude_specific", oper_policy::better_not_in_meta_scripting);
+	static CommonOperGroup cogGDMULFZ("griddist_zonal_maximp_untiled_latitude_specific", oper_policy::better_not_in_meta_scripting);
+
 	template <typename Imp>
 	struct GridDistOperSet
 	{
@@ -619,4 +676,15 @@ namespace {
 	tl_oper::inst_tuple_templ<typelists::floats, GridDistOperSet, AbstrOperGroup&, GridDistFlags> gridDistOperSetsM_LF(cogGDM_LF, GridDistFlags::HasLimitParameter| GridDistFlags::HasLatitudeFactor);
 	tl_oper::inst_tuple_templ<typelists::floats, GridDistOperSet, AbstrOperGroup&, GridDistFlags> gridDistOperSets_ULF(cogGD_ULF, GridDistFlags::UseShadowTile| GridDistFlags::HasLatitudeFactor);
 	tl_oper::inst_tuple_templ<typelists::floats, GridDistOperSet, AbstrOperGroup&, GridDistFlags> gridDistOperSetsMULF(cogGDMULF, GridDistFlags::HasLimitParameterAndUseShadowTile| GridDistFlags::HasLatitudeFactor);
+
+	tl_oper::inst_tuple_templ<typelists::floats, GridDistOperSet, AbstrOperGroup&, GridDistFlags> gridDistOperSets__Z(cogGD__Z, GridDistFlags::HasZonalBoundaryImpedance);
+	tl_oper::inst_tuple_templ<typelists::floats, GridDistOperSet, AbstrOperGroup&, GridDistFlags> gridDistOperSetsM_Z(cogGDM_Z, GridDistFlags::HasLimitParameter| GridDistFlags::HasZonalBoundaryImpedance);
+	tl_oper::inst_tuple_templ<typelists::floats, GridDistOperSet, AbstrOperGroup&, GridDistFlags> gridDistOperSets_UZ(cogGD_UZ, GridDistFlags::UseShadowTile| GridDistFlags::HasZonalBoundaryImpedance);
+	tl_oper::inst_tuple_templ<typelists::floats, GridDistOperSet, AbstrOperGroup&, GridDistFlags> gridDistOperSetsMUZ(cogGDMUZ, GridDistFlags::HasLimitParameterAndUseShadowTile| GridDistFlags::HasZonalBoundaryImpedance);
+
+	tl_oper::inst_tuple_templ<typelists::floats, GridDistOperSet, AbstrOperGroup&, GridDistFlags> gridDistOperSets__LFZ(cogGD__LFZ, GridDistFlags::HasLatitudeFactor| GridDistFlags::HasZonalBoundaryImpedance);
+	tl_oper::inst_tuple_templ<typelists::floats, GridDistOperSet, AbstrOperGroup&, GridDistFlags> gridDistOperSetsM_LFZ(cogGDM_LFZ, GridDistFlags::HasLimitParameter | GridDistFlags::HasLatitudeFactor| GridDistFlags::HasZonalBoundaryImpedance);
+	tl_oper::inst_tuple_templ<typelists::floats, GridDistOperSet, AbstrOperGroup&, GridDistFlags> gridDistOperSets_ULFZ(cogGD_ULFZ, GridDistFlags::UseShadowTile | GridDistFlags::HasLatitudeFactor| GridDistFlags::HasZonalBoundaryImpedance);
+	tl_oper::inst_tuple_templ<typelists::floats, GridDistOperSet, AbstrOperGroup&, GridDistFlags> gridDistOperSetsMULFZ(cogGDMULFZ, GridDistFlags::HasLimitParameterAndUseShadowTile | GridDistFlags::HasLatitudeFactor| GridDistFlags::HasZonalBoundaryImpedance);
+
 }
