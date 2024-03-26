@@ -125,14 +125,15 @@ void SaveDetailPage(CharPtr fileName)
     auto dmsFileName = ConvertDosFileName(SharedStr(fileName));
     auto expandedFilename = AbstrStorageManager::Expand(currItem, dmsFileName);
 
-    auto htmlSource = MainWindow::TheOne()->m_detail_pages->toHtml();
+    // TODO: implement SaveDetailPage for QWebEngineView
+    /*auto htmlSource = MainWindow::TheOne()->m_detail_pages->toHtml();
     auto htmlsourceAsUtf8 = htmlSource.toUtf8();
 
     reportF(MsgCategory::commands, SeverityTypeID::ST_MajorTrace, "SaveDetailPage %s", DoubleQuote(expandedFilename.c_str()));
 
     FileOutStreamBuff buff(SharedStr(expandedFilename), nullptr, true, false);
    
-    buff.WriteBytes(htmlsourceAsUtf8.data(), htmlsourceAsUtf8.size());
+    buff.WriteBytes(htmlsourceAsUtf8.data(), htmlsourceAsUtf8.size());*/
 }
 
 UInt32 Get4Bytes(const COPYDATASTRUCT* pcds, UInt32 i)

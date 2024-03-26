@@ -23,7 +23,7 @@ enum ActiveDetailPage
 
 //auto dp_FromName(CharPtrRange sName) -> ActiveDetailPage;
 
-class DmsDetailPages : public QUpdatableTextBrowser
+class DmsDetailPages : public QUpdatableWebBrowser
 {
 
 public:
