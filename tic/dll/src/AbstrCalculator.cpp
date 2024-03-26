@@ -1369,7 +1369,7 @@ MetaInfo AbstrCalculator::SubstituteExpr(SubstitutionBuffer& substBuff, LispPtr 
 				return {};
 
 			if (!templateItem)
-				throwErrorF("ExprParser", "'%s': unknown operator  and no template or function was found with this name"
+				throwErrorF("ExprParser", "'%s': unknown operator and no template or function was found with this name"
 					, head.GetSymbStr().c_str()
 				);
 

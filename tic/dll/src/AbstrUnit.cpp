@@ -781,7 +781,8 @@ I64Rect AbstrUnit::GetTileSizeAsI64Rect(tile_id t) const // asssume 1D; GeoUnitA
 
 row_id  AbstrUnit::GetTileFirstIndex(tile_id t) const 
 { 
-	auto si = AsUnit(this->GetCurrRangeItem())->GetTiledRangeData();
+	auto range_item = this->GetCurrRangeItem();
+	auto si = AsUnit(range_item)->GetTiledRangeData();
 	MG_CHECK(si);
 	return si->GetFirstRowIndex(t);
 }
@@ -803,8 +804,10 @@ tile_id AbstrUnit::GetNrTiles() const
 
 tile_offset AbstrUnit::GetTileCount(tile_id t) const
 {
-	dms_assert(t != no_tile);
-	auto si = this->GetTiledRangeData();
+	assert(t != no_tile);
+
+	auto range_item = this->GetCurrRangeItem();
+	auto si = AsUnit(range_item)->GetTiledRangeData();
 	MG_CHECK(si);
 	return si->GetTileSize(t);
 }
@@ -816,7 +819,10 @@ bool AbstrUnit::ContainsUndefined(tile_id t) const
 
 bool AbstrUnit::IsCovered() const
 {
-	return GetTiledRangeData()->IsCovered();
+	auto range_item = this->GetCurrRangeItem();
+	auto si = AsUnit(range_item)->GetTiledRangeData();
+	MG_CHECK(si);
+	return si->IsCovered();
 }
 
 Range<row_id> AbstrUnit::GetTileIndexRange(tile_id t) const

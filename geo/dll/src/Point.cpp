@@ -312,7 +312,9 @@ namespace
 	CommonOperGroup cog_PointRow("pointrow"), cog_PointCol("pointcol");
 
 	CommonOperGroup
-		cog_PointXY("point_xy"), cog_PointYX("point_yx"), cog_GetX("get_x"), cog_GetY("get_y");
+		cog_PointXY("point_xy"), cog_PointYX("point_yx")
+//		, cog_GetX("get_x"), cog_GetY("get_y")
+		;
 
 	template <typename P>
 	struct PointOpers
@@ -328,16 +330,16 @@ namespace
 			, ca3PointYX(&cog_PointYX, 3, convert_order_type::yx_order)
 			, ca2Row(&cog_PointRow)
 			, ca2Col(&cog_PointCol)
-			, ca2X(&cog_GetX)
-			, ca2Y(&cog_GetY)
+//			, ca2X(&cog_GetX)
+//			, ca2Y(&cog_GetY)
 		{}
 
 		ConvertAttrToPointOperator<S> ca2Point, ca3Point;
 		ConvertAttrToPointOperator<S> ca2PointXY, ca3PointXY;
 		ConvertAttrToPointOperator<S> ca2PointYX, ca3PointYX;
 
-		UnaryAttrSpecialFuncOperator<point2rowFunc<S> > ca2Row, ca2Y;
-		UnaryAttrSpecialFuncOperator<point2colFunc<S> > ca2Col, ca2X;
+		UnaryAttrSpecialFuncOperator<point2rowFunc<S> > ca2Row; // , ca2Y;
+		UnaryAttrSpecialFuncOperator<point2colFunc<S> > ca2Col; // , ca2X;
 	};
 	//	oper_arg_policy oap_point[3] = { oper_arg_policy::calc_as_result, oper_arg_policy::calc_as_result, oper_arg_policy::calc_never };
 	tl_oper::inst_tuple_templ<typelists::points, PointOpers > pointOpers;

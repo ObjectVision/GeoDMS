@@ -280,7 +280,8 @@ Point<V> TileStart(const Range<Point<V>>& range, tile_extent_t<Point<V>> tileExt
 template <typename Base>
 auto RegularAdapter<Base>::GetTileRange(tile_id t) const -> Range<value_type>
 { 
-	dms_assert(t != no_tile);
+	MG_CHECK(t < this->GetNrTiles());
+
 	value_type tileTL = TileStart(this->m_Range, this->tile_extent(), this->tiling_extent(), t);
 	value_type tile_extent = value_type(this->tile_extent());
 	value_type rangeEnd = this->m_Range.second;
@@ -1009,7 +1010,7 @@ auto CountableUnitBase<V>::GetTiledRangeData() const -> SharedPtr <const AbstrTi
 template <typename V>
 V OrderedUnit<V>::GetTileFirstValue (tile_id t) const
 {
-	dms_assert(t != no_tile);
+	assert(t != no_tile);
 	auto si = this->GetCurrSegmInfo();
 	MG_CHECK(si);
 	return si->GetTileRange(t).first;
@@ -1018,7 +1019,7 @@ V OrderedUnit<V>::GetTileFirstValue (tile_id t) const
 template <typename V>
 V OrderedUnit<V>::GetTileValue (tile_id t, tile_offset localIndex) const
 {
-	dms_assert(t != no_tile);
+	assert(t != no_tile);
 	auto si = this->GetCurrSegmInfo();
 	MG_CHECK(si);
 	return Range_GetValue_checked(si->GetTileRange(t), localIndex);
@@ -1027,7 +1028,7 @@ V OrderedUnit<V>::GetTileValue (tile_id t, tile_offset localIndex) const
 template <typename V> typename
 auto CountableUnitBase<V>::GetTileRange(tile_id t) const -> range_t
 {
-	dms_assert(t != no_tile);
+	assert(t != no_tile);
 	auto si = this->GetCurrSegmInfo();
 	MG_CHECK(si);
 	return si->GetTileRange(t);
