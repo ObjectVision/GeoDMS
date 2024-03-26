@@ -1234,6 +1234,9 @@ auto TryRegisterVectorDriverFromKnownDriverShortName(std::string_view knownDrive
 	else if (knownDriverShortName == "GML")
 		RegisterOGRGML();
 	
+	else if (knownDriverShortName == "OSM")
+		RegisterOGROSM();
+
 	else if (knownDriverShortName == "MVT")
 		RegisterOGRMVT();
 
@@ -1323,7 +1326,11 @@ bool Gdal_DriverSupportsDmsValueType(UInt32 gdalOpenFlags, ValueClassID dms_valu
 	}
 	else if (gdalOpenFlags & GDAL_OF_VECTOR)
 	{
-		auto vector_driver_supported_field_data_types = std::string(driver->GetMetadataItem(GDAL_DMD_CREATIONFIELDDATATYPES));// DmsType2OGRFieldType(dms_value_class_id);
+		auto driver_creation_field_data_types =  driver->GetMetadataItem(GDAL_DMD_CREATIONFIELDDATATYPES);
+		if (!driver_creation_field_data_types)
+			return false;
+
+		auto vector_driver_supported_field_data_types = std::string(driver_creation_field_data_types);
 		auto vector_driver_supported_field_data_subtypes = driver->GetMetadataItem(GDAL_DMD_CREATIONFIELDDATASUBTYPES) ? std::string(driver->GetMetadataItem(GDAL_DMD_CREATIONFIELDDATASUBTYPES)) : ""; //DmsType2OGRSubFieldType(dms_value_class_id);
 		auto target_gdal_vector_type = DmsType2OGRFieldType(dms_value_class_id);
 		auto target_gdal_vector_subtype = DmsType2OGRSubFieldType(dms_value_class_id);
