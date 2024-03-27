@@ -288,68 +288,90 @@ public:
 		fast_undefine(resSubData.begin(), resSubData.end());
 
 		// TODO, OPTIMIZE: factor out in separate struct to avoid type erasure
-		std::function<void(NodeType)> strongconnect;
-		strongconnect = [&indices, &currIndex, &onStackFlag, &nodeStack, &node1Data, &node2Data, &link1, &nextLink1, &strongconnect, &resSubData, &nrParts, &partLinks](NodeType v) 
+		auto strongconnectIterative =
+			[&indices, &currIndex, &onStackFlag, &nodeStack, &node1Data, &node2Data, &link1, &nextLink1, &resSubData, &nrParts, &partLinks]
+			(NodeType v) 
 			{
-				// Set the depth index for v to the smallest unused index
-				indices[v] = {currIndex, currIndex};
-				++currIndex;
-				nodeStack.emplace_back(v);
-				assert(!onStackFlag[v]);
-				onStackFlag[v] = true;
-
-				// Consider successors of v
-				for (LinkType e = link1[v]; IsDefined(e); e = nextLink1[e])
-				{
-					assert(node1Data[e] == v);
-					NodeType w = node2Data[e];
-					if (!IsDefined(indices[w].first))
-					{
-						// Successor w has not yet been visited; recurse on it
-						strongconnect(w);
-						MakeMin(indices[v].second, indices[w].second);
+				std::vector<std::tuple<NodeType, LinkType, bool, bool>> stack; // Node, CurrentLink, IsFirstVisit
+				stack.emplace_back(v, UNDEFINED_VALUE(LinkType), true, false); // Start with first visit of v
+				while (!stack.empty()) {
+					auto& [v, currentLink, isFirstVisit, didVisitLink] = stack.back();
+					if (isFirstVisit) {
+						// Initial visit actions (similar to the start of the recursive function)
+						indices[v] = { currIndex, currIndex }; // Set the depth index for v to the smallest unused index
+						++currIndex;
+						nodeStack.emplace_back(v);
+						assert(!onStackFlag[v]);
+						onStackFlag[v] = true;
+						isFirstVisit = false; // Mark as visited
+						currentLink = link1[v]; // Initialize current link for this node
 					}
-					else if (onStackFlag[w].value())
-						// Successor w is in stack S and hence in the current SCC
-						// If w is not on stack, then (v, w) is an edge pointing to an SCC already found and must be ignored
-						// The next line may look odd - but is correct.
-						// It says w.index not w.lowlink; that is deliberate and from the original paper
-						MakeMin(indices[v].second, indices[w].first);
+					// Processing neighbors or finishing up
+				retry:
+					if (IsDefined(currentLink)) {
+						NodeType w = node2Data[currentLink];
 
-				}
-				// If v is a root node, pop the stack and generate an SCC
-				if (indices[v].first == indices[v].second)
-				{
-					// start a new strongly connected component
-					std::set<PartType> currPartLinks; // TODO, OPTIMIZE: replace by a timestamped by nrParts linked list of parts that are reachable from current part
-					NodeType w;
-					do {
-						w = nodeStack.back(); nodeStack.pop_back();
-						onStackFlag[w] = false;
-						resSubData[w] = nrParts; // add w to current strongly connected component
-
-						for (LinkType e = link1[w]; IsDefined(e); e = nextLink1[e])
-						{
-							NodeType ww = node2Data[e];
-							PartType pp = resSubData[ww];
-							if (IsDefined(pp))
-							{
-								assert(pp <= nrParts);
-								if (pp < nrParts)
-									currPartLinks.insert(pp);
-							}
+						if (didVisitLink)
+						{ 
+							MakeMin(indices[v].second, indices[w].second);
+							didVisitLink = false;
 						}
-					} while (w != v);
-					for (auto pp: currPartLinks)
-						partLinks.emplace_back(Couple<PartType>(nrParts, pp));
-					++nrParts;
+						else
+						{
+							if (!IsDefined(indices[w].first)) {
+								// Neighbor w has not yet been visited, push to stack for processing
+								didVisitLink = true;
+								stack.emplace_back(w, UNDEFINED_VALUE(LinkType), true, false);
+								continue; // recurse by iteration
+							}
+							else if (onStackFlag[w].value()) {
+								// Successor w is in stack S and hence in the current SCC
+								// If w is not on stack, then (v, w) is an edge pointing to an SCC already found and must be ignored
+								// The next line may look odd - but is correct.
+								// It says w.index not w.lowlink; that is deliberate and from the original paper
+								MakeMin(indices[v].second, indices[w].first);
+							}
+							// Move to the next link
+						}
+						currentLink = nextLink1[currentLink];
+						goto retry; // continue processing neighbors, no do while loop to allow continue to jump to processing next or previous stack frame
+					}
+					// Final actions (similar to the end of the recursive function)
+					// If v is a root node, pop the stack and generate an SCC
+					if (indices[v].first == indices[v].second)
+					{
+						// start a new strongly connected component
+						std::set<PartType> currPartLinks; // TODO, OPTIMIZE: replace by a timestamped by nrParts linked list of parts that are reachable from current part
+						NodeType w;
+						do {
+							w = nodeStack.back(); nodeStack.pop_back();
+							onStackFlag[w] = false;
+							resSubData[w] = nrParts; // add w to current strongly connected component
+
+							for (LinkType e = link1[w]; IsDefined(e); e = nextLink1[e])
+							{
+								NodeType ww = node2Data[e];
+								PartType pp = resSubData[ww];
+								if (IsDefined(pp))
+								{
+									assert(pp <= nrParts);
+									if (pp < nrParts)
+										currPartLinks.insert(pp);
+								}
+							}
+						} while (w != v);
+						for (auto pp : currPartLinks)
+							partLinks.emplace_back(Couple<PartType>(nrParts, pp));
+						++nrParts;
+					}
+					stack.pop_back(); 
 				}
 			};
 
 		for (NodeType v=0; v != nrV; ++v)
 		{
 			if (!IsDefined(indices[v].first))
-				strongconnect(v);
+				strongconnectIterative(v);
 		}
 
 
