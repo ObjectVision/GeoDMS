@@ -189,6 +189,7 @@ public:
 // Input: F1: E->V, F2: E->V
 // Output: P { Part_rel: V->P; F { F1: F->P; F2: F->P } }
 
+#include "ptr/OwningPtrSizedArray.h"
 
 class StronglyConnectedComponentsOperator : public BinaryOperator
 {
@@ -288,6 +289,7 @@ public:
 		fast_undefine(resSubData.begin(), resSubData.end());
 
 		std::vector<std::tuple<NodeType, LinkType, bool>> stack; // Node, CurrentLink, didVisitLink
+		OwningPtrSizedArray< std::pair < PartType, PartType>> timedParLinkLinkedList; // avoid using a std::set for the partLinks from currentPart
 
 		for (NodeType v = 0; v != nrV; ++v)
 		{
@@ -345,7 +347,19 @@ public:
 				if (indices[v].first == indices[v].second)
 				{
 					// start a new strongly connected component
-					std::set<PartType> currPartLinks; // TODO, OPTIMIZE: replace by a timestamped by nrParts linked list of parts that are reachable from current part
+					// use nrParts (initially zero) as chrono-number for accessing timedParLinkLinkedList
+					if (nrParts >= timedParLinkLinkedList.size())
+					{
+						timedParLinkLinkedList = OwningPtrSizedArray< std::pair < PartType, PartType>>(nrParts * 2, dont_initialize MG_DEBUG_ALLOCATOR_SRC("timedParLinkLinkedList"));
+						for (PartType i = 0; i != nrParts; ++i)
+							timedParLinkLinkedList[i].first = UNDEFINED_VALUE(NodeType);
+					}
+					else
+					{
+						timedParLinkLinkedList[nrParts-1].first = UNDEFINED_VALUE(NodeType);
+					}
+					PartType lastSubPart = UNDEFINED_VALUE(PartType);
+
 					NodeType w;
 					do {
 						w = nodeStack.back(); nodeStack.pop_back();
@@ -361,12 +375,25 @@ public:
 							{
 								assert(pp <= nrParts);
 								if (pp < nrParts)
-									currPartLinks.insert(pp);
+								{
+									// set the chronos of pp to the current part to avoid adding pp to the partLinks of the current part more than once
+									// aka Lazy Initialization
+									if (timedParLinkLinkedList[pp].first != nrParts)
+									{
+										timedParLinkLinkedList[pp].second = lastSubPart;
+										lastSubPart = pp;
+										timedParLinkLinkedList[pp].first= nrParts; 
+									}
+								}
 							}
 						}
 					} while (w != v);
-					for (auto pp : currPartLinks)
-						partLinks.emplace_back(Couple<PartType>(nrParts, pp));
+					while (IsDefined(lastSubPart))
+					{
+						partLinks.emplace_back(Couple<PartType>(nrParts, lastSubPart));
+						assert(timedParLinkLinkedList[lastSubPart].first == nrParts);
+						lastSubPart = timedParLinkLinkedList[lastSubPart].second;
+					}
 					++nrParts;
 				}
 				stack.pop_back(); 
