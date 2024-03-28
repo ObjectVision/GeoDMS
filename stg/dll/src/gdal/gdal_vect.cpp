@@ -1765,15 +1765,7 @@ void GdalVectSM::DoUpdateTable(const TreeItem* storageHolder, AbstrUnit* layerDo
 void GdalVectSM::DoUpdateTree(const TreeItem* storageHolder, TreeItem* curr, SyncMode sm) const
 {
 	if (dynamic_cast<const GdalWritableVectSM*>(this))
-	{
-		if (storageHolder == curr)
-		{
-			auto geometry_item = GetGeometryItemFromLayerHolder(curr);
-			int i = 0;
-			//OLCCreateGeomField
-		}
 		return;
-	}
 
 	if (curr->IsDisabledStorage())
 		return;
