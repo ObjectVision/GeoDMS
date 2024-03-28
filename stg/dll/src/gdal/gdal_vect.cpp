@@ -1824,8 +1824,6 @@ void GdalVectSM::DoUpdateTree(const TreeItem* storageHolder, TreeItem* curr, Syn
 	}
 }
 
-
-
 prop_tables GdalVectSM::GetPropTables(const TreeItem* storageHolder, TreeItem* curr) const
 {
 	prop_tables vector_dataset_properties;
