@@ -3127,7 +3127,7 @@ bool TreeItem::PrepareDataUsage(DrlType drlFlags) const
 
 	if ((UInt32(drlFlags) & UInt32(DrlType::Certain)) && !SuspendTrigger::BlockerBase::IsBlocked())
 	{
-		SuspendTrigger::FencedBlocker lockSuspend("TreeItem::PrepareDataUsage");
+		SuspendTrigger::FencedBlocker lockSuspend("@TreeItem::PrepareDataUsage");
 		auto result = PrepareDataUsageImpl(drlFlags);
 		dms_assert(result || WasFailed());
 		return result;
