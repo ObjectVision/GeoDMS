@@ -930,6 +930,16 @@ bool DataItemsWriteStatusInfo::LayerIsReadyForWriting(TokenID layerID)
 	return true;
 }
 
+bool DataItemsWriteStatusInfo::DatasetIsReadyForWriting()
+{
+	for (auto& layer : m_LayerAndFieldIDMapping)
+	{
+		if (!LayerIsReadyForWriting(layer.first))
+			return false;
+	}
+	return true;
+}
+
 bool DataItemsWriteStatusInfo::LayerHasBeenWritten(TokenID layerID)
 {
 	for (auto& fieldInfo : m_LayerAndFieldIDMapping[layerID])
@@ -1162,65 +1172,65 @@ const TreeItem* GetLayerHolderFromDataItem(const TreeItem* storageHolder, const 
 
 #include <boost/algorithm/string.hpp>
 
-auto FileExtensionToKnownGDALDriverShortName(std::string_view ext) -> std::string
+auto FileExtensionToKnownGDALDriverShortName(const SharedStr ext) -> SharedStr
 {
-	if (ext.size() == 3) // reduce the number of actually evaluated iffs.
+	if (ext.ssize() == 3) // reduce the number of actually evaluated iffs.
 	{
 		if (boost::iequals(ext, "shp") || boost::iequals(ext, "dbf") || boost::iequals(ext, "shx"))
-			return "ESRI Shapefile";
+			return SharedStr("ESRI Shapefile");
 
 		else if (boost::iequals(ext, "csv"))
-			return "CSV";
+			return SharedStr("CSV");
 
 		else if (boost::iequals(ext, "gml") || boost::iequals(ext, "xml"))
-			return "GML";
+			return SharedStr("GML");
 
 		else if (boost::iequals(ext, "gdb"))
-			return "OpenFileGDB";
+			return SharedStr("OpenFileGDB");
 
 		else if (boost::iequals(ext, "tif"))
-			return "GTiff";
+			return SharedStr("GTiff");
 
 		else if (boost::iequals(ext, "hdf") || boost::iequals(ext, "he2") || boost::iequals(ext, "he5"))
-			return "HDF5";
+			return SharedStr("HDF5");
 
 		else if (boost::iequals(ext, "png"))
-			return "PNG";
+			return SharedStr("PNG");
 
 		else if (boost::iequals(ext, "jpg") || boost::iequals(ext, "jfi") || boost::iequals(ext, "jif"))
-			return "JPEG";
+			return SharedStr("JPEG");
 
 		else if (boost::iequals(ext, "bmp"))
-			return "BMP";
+			return SharedStr("BMP");
 	}
 	else
 	{
 		if (boost::iequals(ext, "gpkg"))
-			return "GPKG";
+			return SharedStr("GPKG");
 
 		else if (boost::iequals(ext, "json") || boost::iequals(ext, "geojson"))
-			return "GeoJSON";
+			return SharedStr("GeoJSON");
 
 		else if (boost::iequals(ext, "tiff"))
-			return "GTiff";
+			return SharedStr("GTiff");
 
 		else if (boost::iequals(ext, "nc"))
-			return "netCDF";
+			return SharedStr("netCDF");
 
 		else if (boost::iequals(ext, "h4") || boost::iequals(ext, "hdf4") || boost::iequals(ext, "h5") || boost::iequals(ext, "hdf5"))
-			return "HDF5";
+			return SharedStr("HDF5");
 
 		else if (boost::iequals(ext, "png"))
-			return "PNG";
+			return SharedStr("PNG");
 
 		else if (boost::iequals(ext, "jpeg") || boost::iequals(ext, "jfif"))
-			return "JPEG";
+			return SharedStr("JPEG");
 
 	}
 	return {};
 }
 
-auto TryRegisterVectorDriverFromKnownDriverShortName(std::string_view knownDriverShortName) -> void
+void TryRegisterVectorDriverFromKnownDriverShortName(const SharedStr knownDriverShortName)
 {
 	if (knownDriverShortName == "ESRI Shapefile")
 		RegisterOGRShape();
@@ -1252,45 +1262,45 @@ auto TryRegisterVectorDriverFromKnownDriverShortName(std::string_view knownDrive
 	}
 }
 
-auto TryRegisterRasterDriverFromKnownDriverShortName(std::string_view knownDriverShortName) -> void
+void TryRegisterRasterDriverFromKnownDriverShortName(const SharedStr known_driver_short_name)
 {
-	if (knownDriverShortName == "GTiff")
+	if (known_driver_short_name == "GTiff")
 		GDALRegister_GTiff();
 
-	else if (knownDriverShortName == "netCDF")
+	else if (known_driver_short_name == "netCDF")
 		GDALRegister_netCDF();
 
-	else if (knownDriverShortName == "HDF5")
+	else if (known_driver_short_name == "HDF5")
 	{
 		GDALRegister_BAG();
 		GDALRegister_HDF5();
 		GDALRegister_HDF5Image();
 	}
-	else if (knownDriverShortName == "PNG")
+	else if (known_driver_short_name == "PNG")
 		GDALRegister_PNG();
 
-	else if (knownDriverShortName == "JPEG")
+	else if (known_driver_short_name == "JPEG")
 		GDALRegister_JPEG();
 
-	else if (knownDriverShortName == "BMP")
+	else if (known_driver_short_name == "BMP")
 		GDALRegister_BMP();
 
-	else if (knownDriverShortName == "MBTiles")
+	else if (known_driver_short_name == "MBTiles")
 		GDALRegister_MBTiles();
 }
 
-auto GDALRegisterTrustedDriverFromKnownDriverShortName(std::string_view knownDriverShortName) -> std::string
+auto GDALRegisterTrustedDriverFromKnownDriverShortName(const SharedStr known_driver_short_name) -> SharedStr
 {
-	if (knownDriverShortName.empty())
+	if (known_driver_short_name.empty())
 		return {};
 
-	TryRegisterVectorDriverFromKnownDriverShortName(knownDriverShortName);
-	TryRegisterRasterDriverFromKnownDriverShortName(knownDriverShortName);
+	TryRegisterVectorDriverFromKnownDriverShortName(known_driver_short_name);
+	TryRegisterRasterDriverFromKnownDriverShortName(known_driver_short_name);
 
-	return GetGDALDriverManager()->GetDriverByName(&knownDriverShortName.front()) ? std::string(knownDriverShortName) : "";
+	return GetGDALDriverManager()->GetDriverByName(known_driver_short_name.c_str()) ? known_driver_short_name : SharedStr();
 }
 
-auto GDALRegisterTrustedDriverFromFileExtension(std::string_view ext) -> std::string
+auto GDALRegisterTrustedDriverFromFileExtension(const SharedStr ext) -> SharedStr
 {
 	auto knownDriverShortName = FileExtensionToKnownGDALDriverShortName(ext);
 	return GDALRegisterTrustedDriverFromKnownDriverShortName(knownDriverShortName);
@@ -1340,6 +1350,25 @@ bool Gdal_DriverSupportsDmsValueType(UInt32 gdalOpenFlags, ValueClassID dms_valu
 	return true;
 }
 
+auto GetDriverShortNameFromDataSourceNameOrDriverArray(const SharedStr data_source_name, const CPLStringList &driver_array) -> SharedStr
+{
+	auto ext = SharedStr(CPLGetExtension(data_source_name.c_str()));
+	auto driver_short_name = GDALRegisterTrustedDriverFromFileExtension(ext); // first option, get from filename ext
+	if (driver_short_name.empty())
+		driver_short_name = driver_array.size() ? driver_array[0] : ""; // secondary option, get from driverArray
+
+	return driver_short_name;
+}
+
+bool DriverSupportsUpdate(const SharedStr dataset_file_name, const CPLStringList driver_array)
+{
+	auto driver_short_name = GetDriverShortNameFromDataSourceNameOrDriverArray(dataset_file_name, driver_array);
+	if (driver_short_name == "MVT")
+		return false;
+
+	return true;
+}
+
 GDALDatasetHandle Gdal_DoOpenStorage(const StorageMetaInfo& smi, dms_rw_mode rwMode, UInt32 gdalOpenFlags, bool continueWrite)
 {
 	dms_assert(rwMode != dms_rw_mode::unspecified);
@@ -1348,19 +1377,21 @@ GDALDatasetHandle Gdal_DoOpenStorage(const StorageMetaInfo& smi, dms_rw_mode rwM
 
 	const TreeItem* storageHolder = smi.StorageHolder();
 
-	SharedStr datasourceName = smi.StorageManager()->GetNameStr();
+	SharedStr data_source_name = smi.StorageManager()->GetNameStr();
 
 	auto& gmi = dynamic_cast<const GdalMetaInfo&>(smi);
+	assert(gmi);
+
 	int nXSize = 0, nYSize = 0, nBands = 0;
 	GDALDataType eType = GDT_Unknown;
-	auto optionArray = GetOptionArray(gmi.m_OptionsItem);
-	auto driverArray = GetOptionArray(gmi.m_DriverItem);
+	auto option_array = GetOptionArray(gmi.m_OptionsItem);
+	auto driver_array = GetOptionArray(gmi.m_DriverItem);
 
 	if (!gmi.m_Options.empty())
-		optionArray.AddString(gmi.m_Options.c_str());
+		option_array.AddString(gmi.m_Options.c_str());
 
 	if (!gmi.m_Driver.empty())
-		driverArray.AddString(gmi.m_Driver.c_str());
+		driver_array.AddString(gmi.m_Driver.c_str());
 
 	GDAL_ErrorFrame gdal_error_frame; // catches errors and properly throws
 	GDAL_ConfigurationOptionsFrame config_frame(GetOptionArray(dynamic_cast<const GdalMetaInfo&>(smi).m_ConfigurationOptions));
@@ -1372,9 +1403,9 @@ GDALDatasetHandle Gdal_DoOpenStorage(const StorageMetaInfo& smi, dms_rw_mode rwM
 		valuesTypeID = smi.CurrRD()->GetAbstrValuesUnit()->GetValueType()->GetValueClassID();
 		value_composition = smi.CurrRD()->GetValueComposition();
 	}
+
 	if (rwMode != dms_rw_mode::read_only && (gdalOpenFlags & GDAL_OF_RASTER) && IsDataItem(smi.CurrRI())) // not a container without a domain
 	{
-
 		auto domainUnit = AsDynamicUnit(smi.StorageHolder());
 		if (domainUnit == nullptr)
 		{
@@ -1383,7 +1414,7 @@ GDALDatasetHandle Gdal_DoOpenStorage(const StorageMetaInfo& smi, dms_rw_mode rwM
 				domainUnit = gridData->GetAbstrDomainUnit();
 		}
 		if (!domainUnit || !domainUnit->UnifyDomain(smi.CurrRD()->GetAbstrDomainUnit()))
-			throwErrorF("GDAL", "Cannot determine domain %s", datasourceName.c_str());
+			throwErrorF("GDAL", "Cannot determine domain %s", data_source_name.c_str());
 
 		if (domainUnit->GetNrDimensions() == 2)
 		{
@@ -1394,37 +1425,37 @@ GDALDatasetHandle Gdal_DoOpenStorage(const StorageMetaInfo& smi, dms_rw_mode rwM
 			nBands = 1;
 
 			eType = gdalRasterDataType(valuesTypeID);
-			if (valuesTypeID == ValueClassID::VT_Bool) optionArray.AddString("NBITS=1"); // overruling of gdal options
-			if (valuesTypeID == ValueClassID::VT_UInt2) optionArray.AddString("NBITS=2");
-			if (valuesTypeID == ValueClassID::VT_UInt4) optionArray.AddString("NBITS=3");
-			optionArray.AddString("COMPRESS=LZW");
-			optionArray.AddString("BIGTIFF=IF_SAFER");
-			optionArray.AddString("TFW=YES");
-			optionArray.AddString("TILED=YES");
-			optionArray.AddString("BLOCKXSIZE=256");
-			optionArray.AddString("BLOCKYSIZE=256");
+			if (valuesTypeID == ValueClassID::VT_Bool) option_array.AddString("NBITS=1"); // overruling of gdal options
+			if (valuesTypeID == ValueClassID::VT_UInt2) option_array.AddString("NBITS=2");
+			if (valuesTypeID == ValueClassID::VT_UInt4) option_array.AddString("NBITS=3");
+			option_array.AddString("COMPRESS=LZW");
+			option_array.AddString("BIGTIFF=IF_SAFER");
+			option_array.AddString("TFW=YES");
+			option_array.AddString("TILED=YES");
+			option_array.AddString("BLOCKXSIZE=256");
+			option_array.AddString("BLOCKYSIZE=256");
 		}
 	}
 
-	std::string ext = CPLGetExtension(datasourceName.c_str()); // TLS !
-	if (!driverArray.empty()) // user specified list of drivers
+	auto ext = SharedStr(CPLGetExtension(data_source_name.c_str())); // TLS !
+	if (!driver_array.empty()) // user specified list of drivers
 	{
-		auto n = driverArray.size();
+		auto n = driver_array.size();
 
-		std::string driverShortName = {};
+		auto driver_short_name = SharedStr();
 		for (auto i = 0; i != n; ++i)
 		{
-			driverShortName = GDALRegisterTrustedDriverFromKnownDriverShortName(driverArray[i]);
-			if (driverShortName.empty())
-				throwErrorF("GDAL", "cannot register user specified gdal driver from GDAL_Driver array: %s", driverArray[i]);
+			driver_short_name = GDALRegisterTrustedDriverFromKnownDriverShortName(SharedStr(driver_array[i]));
+			if (driver_short_name.empty())
+				throwErrorF("GDAL", "cannot register user specified gdal driver from GDAL_Driver array: %s", driver_array[i]);
 		}
 
 	}
 	else // try to register driver based on file extension and known file formats
 	{
-		std::string driverShortName = GDALRegisterTrustedDriverFromFileExtension(ext);
-		if (!driverShortName.empty())
-			driverArray.AddString(driverShortName.c_str());
+		auto driver_short_name= GDALRegisterTrustedDriverFromFileExtension(ext);
+		if (!driver_short_name.empty())
+			driver_array.AddString(driver_short_name.c_str());
 		else
 		{
 			GDALAllRegister(); // cannot open file based on trusted drivers
@@ -1434,10 +1465,10 @@ GDALDatasetHandle Gdal_DoOpenStorage(const StorageMetaInfo& smi, dms_rw_mode rwM
 	if (rwMode == dms_rw_mode::read_only)
 	{
 		GDALDatasetHandle result = GDALDataset::FromHandle(
-			GDALOpenEx(datasourceName.c_str()
+			GDALOpenEx(data_source_name.c_str()
 				, (rwMode > dms_rw_mode::read_only) ? GA_Update : GA_ReadOnly | gdalOpenFlags | GDAL_OF_VERBOSE_ERROR
-				, driverArray
-				, optionArray
+				, driver_array
+				, option_array
 				, nullptr // papszSiblingFiles
 			)
 		);
@@ -1445,45 +1476,42 @@ GDALDatasetHandle Gdal_DoOpenStorage(const StorageMetaInfo& smi, dms_rw_mode rwM
 		if (gdal_error_frame.HasError())
 		{
 			throwErrorF("GDAL", "cannot open dataset %s \n\t%s"
-				, datasourceName.c_str()
+				, data_source_name.c_str()
 				, gdal_error_frame.GetMsgAndReleaseError().c_str()
 			);
 		}
 		if (result == nullptr)
-			throwErrorF("GDAL", "Failed to open %s for reading", datasourceName.c_str());
+			throwErrorF("GDAL", "Failed to open %s for reading", data_source_name.c_str());
 		return result;
 	}
 
 	if (rwMode <= dms_rw_mode::read_write || rwMode == dms_rw_mode::unspecified)
-		throwErrorF("GDAL", "Unsupported rwMode %d for %s", int(rwMode), datasourceName.c_str());
+		throwErrorF("GDAL", "Unsupported rwMode %d for %s", int(rwMode), data_source_name.c_str());
 
-	auto path = SharedStr(CPLGetPath(datasourceName.c_str())); // some GDAL drivers cannot create when there is no folder present (ie GPKG)
+	auto path = SharedStr(CPLGetPath(data_source_name.c_str())); // some GDAL drivers cannot create when there is no folder present (ie GPKG)
 	if (!std::filesystem::is_directory(path.c_str()) && !std::filesystem::create_directories(path.c_str()))
 		throwErrorF("GDAL", "Unable to create directories: %s", path);
 
-	auto driverShortName = GDALRegisterTrustedDriverFromFileExtension(ext); // first option, get from filename ext
-	if (driverShortName.empty())
-		driverShortName = driverArray.size() ? driverArray[0] : ""; // secondary option, get from driverArray
-
-	auto driver = GetGDALDriverManager()->GetDriverByName(driverShortName.c_str());
+	auto driver_short_name = GetDriverShortNameFromDataSourceNameOrDriverArray(data_source_name, driver_array);
+	auto driver = GetGDALDriverManager()->GetDriverByName(driver_short_name.c_str());
 	if (!driver)
-		throwErrorF("GDAL", "Cannot find driver for %s", datasourceName);
+		throwErrorF("GDAL", "Cannot find driver for %s", data_source_name);
 
 	GDALDatasetHandle result = nullptr;
 
-	if (!continueWrite || driverShortName == "GML" || (gdalOpenFlags & GDAL_OF_RASTER))
+	if (!continueWrite || driver_short_name == "GML" || (gdalOpenFlags & GDAL_OF_RASTER))
 	{
-		if (std::filesystem::exists(datasourceName.c_str()))
-			driver->Delete(datasourceName.c_str()); gdal_error_frame.GetMsgAndReleaseError(); // start empty, release error in case of nonexistance.
+		if (std::filesystem::exists(data_source_name.c_str()))
+			driver->Delete(data_source_name.c_str()); gdal_error_frame.GetMsgAndReleaseError(); // start empty, release error in case of nonexistance.
 
 		// check for values unit support in driver
 		if (!(smi.CurrRI()->GetID() == token::geometry) && !Gdal_DriverSupportsDmsValueType(gdalOpenFlags, valuesTypeID, value_composition, driver))
 		{
 			auto dms_value_type_token_str = smi.CurrRD()->GetAbstrValuesUnit()->GetValueType()->GetID().GetStr();
-			throwErrorF("GDAL", "driver %s does not support writing of values type %s", driverShortName.c_str(), dms_value_type_token_str.c_str());
+			throwErrorF("GDAL", "driver %s does not support writing of values type %s", driver_short_name.c_str(), dms_value_type_token_str.c_str());
 		}
 
-		result = driver->Create(datasourceName.c_str(), nXSize, nYSize, nBands, eType, optionArray);
+		result = driver->Create(data_source_name.c_str(), nXSize, nYSize, nBands, eType, option_array);
 
 		if (gdalOpenFlags & GDAL_OF_RASTER) // set projection if available
 		{
@@ -1509,27 +1537,27 @@ GDALDatasetHandle Gdal_DoOpenStorage(const StorageMetaInfo& smi, dms_rw_mode rwM
 			}
 
 			if (gdalOpenFlags & GDAL_OF_VECTOR)
-				throwErrorF("GDAL", "driver %s does not have vector capabilities did you use gdalwrite.vect instead of gdalwrite.grid?", driverShortName.c_str());
+				throwErrorF("GDAL", "driver %s does not have vector capabilities did you use gdalwrite.vect instead of gdalwrite.grid?", driver_short_name.c_str());
 			else
-				throwErrorF("GDAL", "driver %s does not have raster capabilities did you use gdalwrite.grid instead of gdalwrite.vect?", driverShortName.c_str());
+				throwErrorF("GDAL", "driver %s does not have raster capabilities did you use gdalwrite.grid instead of gdalwrite.vect?", driver_short_name.c_str());
 
 		}
 
 	}
 	else
 	{
-		result = reinterpret_cast<GDALDataset*>(GDALOpenEx(datasourceName.c_str(), GDAL_OF_UPDATE | GDAL_OF_VERBOSE_ERROR, driverArray, nullptr, nullptr));
+		result = reinterpret_cast<GDALDataset*>(GDALOpenEx(data_source_name.c_str(), GDAL_OF_UPDATE | GDAL_OF_VERBOSE_ERROR | GDAL_OF_SHARED, driver_array, nullptr, nullptr));
 	}
 
 	if (gdal_error_frame.HasError())
 	{
 		throwErrorF("GDAL", "cannot open dataset %s\n %s"
-			, datasourceName.c_str()
+			, data_source_name.c_str()
 			, gdal_error_frame.GetMsgAndReleaseError().c_str()
 		);
 	}
 	if (result == nullptr)
-		throwErrorF("GDAL", "Failed to open %s for writing", datasourceName.c_str());
+		throwErrorF("GDAL", "Failed to open %s for writing", data_source_name.c_str());
 
 	return result;
 }
@@ -1555,8 +1583,8 @@ CrdTransformation GetTransformation(gdal_transform gdalTr)
 
 GDAL_SimpleReader::GDAL_SimpleReader()
 {
-	GDALRegisterTrustedDriverFromKnownDriverShortName("JPEG");
-	GDALRegisterTrustedDriverFromKnownDriverShortName("PNG");
-	GDALRegisterTrustedDriverFromKnownDriverShortName("GTiff");
-	GDALRegisterTrustedDriverFromKnownDriverShortName("BMP");
+	GDALRegisterTrustedDriverFromKnownDriverShortName(SharedStr("JPEG"));
+	GDALRegisterTrustedDriverFromKnownDriverShortName(SharedStr("PNG"));
+	GDALRegisterTrustedDriverFromKnownDriverShortName(SharedStr("GTiff"));
+	GDALRegisterTrustedDriverFromKnownDriverShortName(SharedStr("BMP"));
 }

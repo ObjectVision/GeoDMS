@@ -343,8 +343,8 @@ void GdalVectSM::DoCloseStorage(bool mustCommit) const
 {
 	DBG_START("GdalVectSM", "DoCloseStorage", false);
 	dms_assert(m_hDS);
-
-	m_hDS = nullptr; // calls GDALClose
+	
+	m_hDS = nullptr; // calls GDALClose through GDALDatasetHandle::deleter
 }
 
 template <typename PolygonType>
@@ -1450,6 +1450,11 @@ void PrepareDataItemsForWriting(const StorageMetaInfo& smi, DataItemsWriteStatus
 	}
 }
 
+bool GdalVectSM::WriteLayer() const
+{
+
+}
+
 bool GdalVectSM::WriteDataItem(StorageMetaInfoPtr&& smiHolder)
 {
 	DBG_START("gdalwrite.vect", "WriteDataItem", false);
@@ -1458,11 +1463,17 @@ bool GdalVectSM::WriteDataItem(StorageMetaInfoPtr&& smiHolder)
 	SharedStr datasourceName = smi->StorageManager()->GetNameStr();
 
 	GDAL_ErrorFrame gdal_error_frame;
-	GDAL_ConfigurationOptionsFrame config_frame(GetOptionArray(dynamic_cast<const GdalMetaInfo&>(*smi).m_ConfigurationOptions));
-	auto layerOptionArray = GetOptionArray(dynamic_cast<const GdalMetaInfo&>(*smi).m_LayerCreationOptions);
+	
+	const auto& gmi = dynamic_cast<const GdalMetaInfo&>(*smi);
+
+	GDAL_ConfigurationOptionsFrame config_frame(GetOptionArray(gmi.m_ConfigurationOptions));
+	auto layer_option_array = GetOptionArray(gmi.m_LayerCreationOptions);
+	auto driver_array = GetOptionArray(gmi.m_DriverItem);
+	SharedStr data_source_name = smi->StorageManager()->GetNameStr();
 
 	const TreeItem*	storage_holder	= smi->StorageHolder();
 	const AbstrDataItem*   adi		= smi->CurrRD();
+
 	if (not adi->IsStorable())
 		return true;
 
@@ -1489,15 +1500,19 @@ bool GdalVectSM::WriteDataItem(StorageMetaInfoPtr&& smiHolder)
 	if (not m_DataItemsStatusInfo.LayerIsReadyForWriting(GetTokenID_mt(layer_name.c_str())))
 		return true;
 
-	auto dataReadLocks = ReadableDataHandles(layer_name, m_DataItemsStatusInfo);
+	if (not DriverSupportsUpdate(data_source_name, driver_array) and not m_DataItemsStatusInfo.DatasetIsReadyForWriting())
+		return true;
 
 	StorageWriteHandle storageHandle(std::move(smiHolder)); // open dataset
+
+	// write layer
+	auto dataReadLocks = ReadableDataHandles(layer_name, m_DataItemsStatusInfo);
 	auto layer_handle = this->m_hDS->GetLayerByName(layer_name.c_str()); gdal_error_frame.ThrowUpWhateverCameUp();
 	if (not layer_handle && DataSourceHasNamelessLayer(datasourceName)) // Some drivers such as ESRI Shapefile use files as layers in contrast to GeoPackage that store the layer names internally.
 		layer_handle = this->m_hDS->GetLayer(0);
 
 	if (not layer_handle)
-		layer_handle = InitializeLayer(storage_holder, unit_item, this->m_hDS, layer_name, layerOptionArray, m_DataItemsStatusInfo);
+		layer_handle = InitializeLayer(storage_holder, unit_item, this->m_hDS, layer_name, layer_option_array, m_DataItemsStatusInfo);
 
 	if (not layer_handle)
 		throwErrorF("gdal.vect", "cannot find layer: %s in GDALDataset for writing.", layer_name);
@@ -1581,7 +1596,7 @@ bool GdalVectSM::WriteDataItem(StorageMetaInfoPtr&& smiHolder)
 
 
 	//Spatial index explicitly for shapefile 
-	if (CPLFetchBool(layerOptionArray, "SPATIAL_INDEX", false) && std::string(this->m_hDS->GetDriverName()).compare("ESRI Shapefile")==0) // spatial index file
+	if (CPLFetchBool(layer_option_array, "SPATIAL_INDEX", false) && std::string(this->m_hDS->GetDriverName()).compare("ESRI Shapefile")==0) // spatial index file
 	{
 		if (DataSourceHasNamelessLayer(datasourceName))
 			this->m_hDS->ExecuteSQL(std::format("CREATE SPATIAL INDEX ON {}", CPLGetBasename(datasourceName.c_str())).c_str(), NULL, NULL);
