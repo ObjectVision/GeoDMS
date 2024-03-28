@@ -950,6 +950,14 @@ bool DataItemsWriteStatusInfo::LayerHasBeenWritten(TokenID layerID)
 	return true;
 }
 
+auto DataItemsWriteStatusInfo::GetExampleAdiFromLayerID(TokenID layerID) -> const AbstrDataItem*
+{
+	for (auto& fieldInfo : m_LayerAndFieldIDMapping[layerID])
+		return fieldInfo.second.m_DataHolder;
+
+	return nullptr;
+}
+
 CPLStringList GetOptionArray(const TreeItem* optionsItem)
 {
 	CPLStringList result;
