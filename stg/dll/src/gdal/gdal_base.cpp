@@ -1180,88 +1180,88 @@ const TreeItem* GetLayerHolderFromDataItem(const TreeItem* storageHolder, const 
 
 #include <boost/algorithm/string.hpp>
 
-auto FileExtensionToKnownGDALDriverShortName(const SharedStr ext) -> SharedStr
+auto FileExtensionToKnownGDALDriverShortName(std::string_view ext) -> const char*
 {
-	if (ext.ssize() == 3) // reduce the number of actually evaluated iffs.
+	if (ext.size() == 3) // reduce the number of actually evaluated iffs.
 	{
 		if (boost::iequals(ext, "shp") || boost::iequals(ext, "dbf") || boost::iequals(ext, "shx"))
-			return SharedStr("ESRI Shapefile");
+			return "ESRI Shapefile";
 
 		else if (boost::iequals(ext, "csv"))
-			return SharedStr("CSV");
+			return "CSV";
 
 		else if (boost::iequals(ext, "gml") || boost::iequals(ext, "xml"))
-			return SharedStr("GML");
+			return "GML";
 
 		else if (boost::iequals(ext, "gdb"))
-			return SharedStr("OpenFileGDB");
+			return "OpenFileGDB";
 
 		else if (boost::iequals(ext, "tif"))
-			return SharedStr("GTiff");
+			return "GTiff";
 
 		else if (boost::iequals(ext, "hdf") || boost::iequals(ext, "he2") || boost::iequals(ext, "he5"))
-			return SharedStr("HDF5");
+			return "HDF5";
 
 		else if (boost::iequals(ext, "png"))
-			return SharedStr("PNG");
+			return "PNG";
 
 		else if (boost::iequals(ext, "jpg") || boost::iequals(ext, "jfi") || boost::iequals(ext, "jif"))
-			return SharedStr("JPEG");
+			return "JPEG";
 
 		else if (boost::iequals(ext, "bmp"))
-			return SharedStr("BMP");
+			return "BMP";
 	}
 	else
 	{
 		if (boost::iequals(ext, "gpkg"))
-			return SharedStr("GPKG");
+			return "GPKG";
 
 		else if (boost::iequals(ext, "json") || boost::iequals(ext, "geojson"))
-			return SharedStr("GeoJSON");
+			return "GeoJSON";
 
 		else if (boost::iequals(ext, "tiff"))
-			return SharedStr("GTiff");
+			return "GTiff";
 
 		else if (boost::iequals(ext, "nc"))
-			return SharedStr("netCDF");
+			return "netCDF";
 
 		else if (boost::iequals(ext, "h4") || boost::iequals(ext, "hdf4") || boost::iequals(ext, "h5") || boost::iequals(ext, "hdf5"))
-			return SharedStr("HDF5");
+			return "HDF5";
 
 		else if (boost::iequals(ext, "png"))
-			return SharedStr("PNG");
+			return "PNG";
 
 		else if (boost::iequals(ext, "jpeg") || boost::iequals(ext, "jfif"))
-			return SharedStr("JPEG");
+			return "JPEG";
 
 	}
 	return {};
 }
 
-void TryRegisterVectorDriverFromKnownDriverShortName(const SharedStr knownDriverShortName)
+void TryRegisterVectorDriverFromKnownDriverShortName(std::string_view known_driver_shortname)
 {
-	if (knownDriverShortName == "ESRI Shapefile")
+	if (known_driver_shortname == "ESRI Shapefile")
 		RegisterOGRShape();
 
-	else if (knownDriverShortName == "GPKG")
+	else if (known_driver_shortname == "GPKG")
 		RegisterOGRGeoPackage();
 
-	else if (knownDriverShortName == "CSV")
+	else if (known_driver_shortname == "CSV")
 		RegisterOGRCSV();
 
-	else if (knownDriverShortName == "GML")
+	else if (known_driver_shortname == "GML")
 		RegisterOGRGML();
 	
-	else if (knownDriverShortName == "OSM")
+	else if (known_driver_shortname == "OSM")
 		RegisterOGROSM();
 
-	else if (knownDriverShortName == "MVT")
+	else if (known_driver_shortname == "MVT")
 		RegisterOGRMVT();
 
-	else if (knownDriverShortName == "OpenFileGDB")
+	else if (known_driver_shortname == "OpenFileGDB")
 		RegisterOGROpenFileGDB();
 
-	else if (knownDriverShortName == "GeoJSON")
+	else if (known_driver_shortname == "GeoJSON")
 	{
 		RegisterOGRGeoJSON();
 		RegisterOGRGeoJSONSeq();
@@ -1270,7 +1270,7 @@ void TryRegisterVectorDriverFromKnownDriverShortName(const SharedStr knownDriver
 	}
 }
 
-void TryRegisterRasterDriverFromKnownDriverShortName(const SharedStr known_driver_short_name)
+void TryRegisterRasterDriverFromKnownDriverShortName(std::string_view known_driver_short_name)
 {
 	if (known_driver_short_name == "GTiff")
 		GDALRegister_GTiff();
@@ -1297,21 +1297,21 @@ void TryRegisterRasterDriverFromKnownDriverShortName(const SharedStr known_drive
 		GDALRegister_MBTiles();
 }
 
-auto GDALRegisterTrustedDriverFromKnownDriverShortName(const SharedStr known_driver_short_name) -> SharedStr
+auto GDALRegisterTrustedDriverFromKnownDriverShortName(std::string_view known_driver_short_name) -> const char*
 {
 	if (known_driver_short_name.empty())
-		return {};
+		return "";
 
 	TryRegisterVectorDriverFromKnownDriverShortName(known_driver_short_name);
 	TryRegisterRasterDriverFromKnownDriverShortName(known_driver_short_name);
 
-	return GetGDALDriverManager()->GetDriverByName(known_driver_short_name.c_str()) ? known_driver_short_name : SharedStr();
+	return GetGDALDriverManager()->GetDriverByName(known_driver_short_name.data()) ? known_driver_short_name.data() : "";
 }
 
-auto GDALRegisterTrustedDriverFromFileExtension(const SharedStr ext) -> SharedStr
+auto GDALRegisterTrustedDriverFromFileExtension(std::string_view ext) -> const char*
 {
-	auto knownDriverShortName = FileExtensionToKnownGDALDriverShortName(ext);
-	return GDALRegisterTrustedDriverFromKnownDriverShortName(knownDriverShortName);
+	auto known_driver_shortName = FileExtensionToKnownGDALDriverShortName(ext);
+	return GDALRegisterTrustedDriverFromKnownDriverShortName(known_driver_shortName);
 }
 
 bool Gdal_DetermineIfDriverHasVectorOrRasterCapability(UInt32 gdalOpenFlags, GDALDriver* driver)
@@ -1358,17 +1358,17 @@ bool Gdal_DriverSupportsDmsValueType(UInt32 gdalOpenFlags, ValueClassID dms_valu
 	return true;
 }
 
-auto GetDriverShortNameFromDataSourceNameOrDriverArray(const SharedStr data_source_name, const CPLStringList &driver_array) -> SharedStr
+auto GetDriverShortNameFromDataSourceNameOrDriverArray(std::string_view data_source_name, const CPLStringList &driver_array) -> const char*
 {
-	auto ext = SharedStr(CPLGetExtension(data_source_name.c_str()));
-	auto driver_short_name = GDALRegisterTrustedDriverFromFileExtension(ext); // first option, get from filename ext
-	if (driver_short_name.empty())
+	auto ext = SharedStr(CPLGetExtension(data_source_name.data()));
+	auto driver_short_name = GDALRegisterTrustedDriverFromFileExtension(ext.begin()); // first option, get from filename ext
+	if (!driver_short_name)
 		driver_short_name = driver_array.size() ? driver_array[0] : ""; // secondary option, get from driverArray
 
 	return driver_short_name;
 }
 
-bool DriverSupportsUpdate(const SharedStr dataset_file_name, const CPLStringList driver_array)
+bool DriverSupportsUpdate(std::string_view dataset_file_name, const CPLStringList driver_array)
 {
 	auto driver_short_name = GetDriverShortNameFromDataSourceNameOrDriverArray(dataset_file_name, driver_array);
 	if (driver_short_name == "MVT")
@@ -1453,7 +1453,7 @@ GDALDatasetHandle Gdal_DoOpenStorage(const StorageMetaInfo& smi, dms_rw_mode rwM
 		auto driver_short_name = SharedStr();
 		for (auto i = 0; i != n; ++i)
 		{
-			driver_short_name = GDALRegisterTrustedDriverFromKnownDriverShortName(SharedStr(driver_array[i]));
+			driver_short_name = GDALRegisterTrustedDriverFromKnownDriverShortName(driver_array[i]);
 			if (driver_short_name.empty())
 				throwErrorF("GDAL", "cannot register user specified gdal driver from GDAL_Driver array: %s", driver_array[i]);
 		}
@@ -1461,9 +1461,9 @@ GDALDatasetHandle Gdal_DoOpenStorage(const StorageMetaInfo& smi, dms_rw_mode rwM
 	}
 	else // try to register driver based on file extension and known file formats
 	{
-		auto driver_short_name= GDALRegisterTrustedDriverFromFileExtension(ext);
-		if (!driver_short_name.empty())
-			driver_array.AddString(driver_short_name.c_str());
+		auto driver_short_name= GDALRegisterTrustedDriverFromFileExtension(ext.begin());
+		if (!driver_short_name)
+			driver_array.AddString(driver_short_name);
 		else
 		{
 			GDALAllRegister(); // cannot open file based on trusted drivers
@@ -1500,7 +1500,7 @@ GDALDatasetHandle Gdal_DoOpenStorage(const StorageMetaInfo& smi, dms_rw_mode rwM
 	if (!std::filesystem::is_directory(path.c_str()) && !std::filesystem::create_directories(path.c_str()))
 		throwErrorF("GDAL", "Unable to create directories: %s", path);
 
-	auto driver_short_name = GetDriverShortNameFromDataSourceNameOrDriverArray(data_source_name, driver_array);
+	auto driver_short_name = SharedStr(GetDriverShortNameFromDataSourceNameOrDriverArray(data_source_name.c_str(), driver_array));
 	auto driver = GetGDALDriverManager()->GetDriverByName(driver_short_name.c_str());
 	if (!driver)
 		throwErrorF("GDAL", "Cannot find driver for %s", data_source_name);
@@ -1516,7 +1516,7 @@ GDALDatasetHandle Gdal_DoOpenStorage(const StorageMetaInfo& smi, dms_rw_mode rwM
 		if (!(smi.CurrRI()->GetID() == token::geometry) && !Gdal_DriverSupportsDmsValueType(gdalOpenFlags, valuesTypeID, value_composition, driver))
 		{
 			auto dms_value_type_token_str = smi.CurrRD()->GetAbstrValuesUnit()->GetValueType()->GetID().GetStr();
-			throwErrorF("GDAL", "driver %s does not support writing of values type %s", driver_short_name.c_str(), dms_value_type_token_str.c_str());
+			throwErrorF("GDAL", "driver %s does not support writing of values type %s", driver_short_name, dms_value_type_token_str.c_str());
 		}
 
 		result = driver->Create(data_source_name.c_str(), nXSize, nYSize, nBands, eType, option_array);
@@ -1545,9 +1545,9 @@ GDALDatasetHandle Gdal_DoOpenStorage(const StorageMetaInfo& smi, dms_rw_mode rwM
 			}
 
 			if (gdalOpenFlags & GDAL_OF_VECTOR)
-				throwErrorF("GDAL", "driver %s does not have vector capabilities did you use gdalwrite.vect instead of gdalwrite.grid?", driver_short_name.c_str());
+				throwErrorF("GDAL", "driver %s does not have vector capabilities did you use gdalwrite.vect instead of gdalwrite.grid?", driver_short_name);
 			else
-				throwErrorF("GDAL", "driver %s does not have raster capabilities did you use gdalwrite.grid instead of gdalwrite.vect?", driver_short_name.c_str());
+				throwErrorF("GDAL", "driver %s does not have raster capabilities did you use gdalwrite.grid instead of gdalwrite.vect?", driver_short_name);
 
 		}
 
@@ -1591,8 +1591,8 @@ CrdTransformation GetTransformation(gdal_transform gdalTr)
 
 GDAL_SimpleReader::GDAL_SimpleReader()
 {
-	GDALRegisterTrustedDriverFromKnownDriverShortName(SharedStr("JPEG"));
-	GDALRegisterTrustedDriverFromKnownDriverShortName(SharedStr("PNG"));
-	GDALRegisterTrustedDriverFromKnownDriverShortName(SharedStr("GTiff"));
-	GDALRegisterTrustedDriverFromKnownDriverShortName(SharedStr("BMP"));
+	GDALRegisterTrustedDriverFromKnownDriverShortName("JPEG");
+	GDALRegisterTrustedDriverFromKnownDriverShortName("PNG");
+	GDALRegisterTrustedDriverFromKnownDriverShortName("GTiff");
+	GDALRegisterTrustedDriverFromKnownDriverShortName("BMP");
 }
