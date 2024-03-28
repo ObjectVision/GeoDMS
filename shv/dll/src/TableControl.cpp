@@ -212,14 +212,14 @@ gr_elem_index TableControl::FindColumn(const AbstrDataItem* adi)
 
 void TableControl::InsertColumn(DataItemColumn* dic)
 {
-	ProcessDIC(dic);
 	InsertEntry(dic);
+	ProcessDIC(dic);
 }
 
 void TableControl::InsertColumnAt(DataItemColumn* dic, SizeT pos)
 {
-	ProcessDIC(dic);
 	InsertEntryAt(dic, pos);
+	ProcessDIC(dic);
 }
 
 void TableControl::ProcessDIC(DataItemColumn* dic)
