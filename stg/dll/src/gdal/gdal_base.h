@@ -201,7 +201,7 @@ auto GetOGRSpatialReferenceFromDataItems(const TreeItem* storageHolder) -> std::
 void CheckSpatialReference(std::optional<OGRSpatialReference>& ogrSR, const TreeItem* treeitem, const AbstrUnit* mutBase);
 STGDLL_CALL auto GetUnitSizeInMeters(const AbstrUnit* projectionBaseUnit) -> Float64;
 STGDLL_CALL void ValidateSpatialReferenceFromWkt(OGRSpatialReference* ogrSR, CharPtr wkt_prj_str);
-bool DriverSupportsUpdate(const SharedStr dataset_file_name, const CPLStringList driver_array);
+bool DriverSupportsUpdate(std::string_view dataset_file_name, const CPLStringList driver_array);
 
 struct GDALDatasetHandle
 {

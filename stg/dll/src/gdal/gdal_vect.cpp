@@ -1605,7 +1605,7 @@ bool GdalVectSM::WriteDataItem(StorageMetaInfoPtr&& smiHolder)
 		return true;
 
 	bool dataset_is_ready_for_writing = m_DataItemsStatusInfo.DatasetIsReadyForWriting();
-	bool driver_supports_update = DriverSupportsUpdate(data_source_name, driver_array);
+	bool driver_supports_update = DriverSupportsUpdate(data_source_name.begin(), driver_array);
 	if (not driver_supports_update and not dataset_is_ready_for_writing)
 		return true;
 
