@@ -74,6 +74,8 @@ struct gdalComponent : gdalDynamicLoader
 	std::vector<std::pair<SharedStr, SharedStr>> m_test;
 };
 
+struct pj_ctx;
+
 struct GDAL_ErrorFrame : gdalThread
 {
 	STGDLL_CALL GDAL_ErrorFrame();
@@ -100,9 +102,10 @@ struct GDAL_ErrorFrame : gdalThread
 	SharedStr m_msg;
 
 	GDAL_ErrorFrame* m_Prev;
+	pj_ctx* m_ctx = nullptr;
 
-	STGDLL_CALL static struct pj_ctx* GetProjectionContext();
-	STGDLL_CALL static int GetProjectionContextErrNo();
+	STGDLL_CALL pj_ctx* GetProjectionContext();
+	STGDLL_CALL int GetProjectionContextErrNo();
 	STGDLL_CALL static SharedStr GetProjectionContextErrorString();
 };
 
