@@ -97,8 +97,6 @@ bool ScaleBarBase::Draw(HDC dc, CrdRect devAbsRect) const
 				left = right;
 			}
 		}
-
-		;
 	}
 	return false;
 }
