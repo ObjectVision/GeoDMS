@@ -14,15 +14,13 @@
 #include "UnitClass.h"
 
 template <typename NodeType, typename LinkType>
-void InvertIntoLinkedList(
-	const NodeType* nodeIdArray,
-	typename std::vector<LinkType>::iterator backPtr,
-	typename std::vector<LinkType>::iterator nextPtr,
-	LinkType edgeCount, NodeType nodeCount)
+void InvertIntoLinkedList(LinkType edgeCount, NodeType nodeCount,
+	auto nodeIdArray,
+	LinkType* backPtr, LinkType* nextPtr)
 {
-	for (LinkType edgeNr = 0; edgeNr != edgeCount; ++edgeNr)
+	for (LinkType edgeNr = 0; edgeNr != edgeCount; ++edgeNr, ++nodeIdArray)
 	{
-		NodeType nodeId = *nodeIdArray++;
+		NodeType nodeId = *nodeIdArray;
 		if (nodeId < nodeCount)
 		{
 			nextPtr[edgeNr] = backPtr[nodeId];
@@ -121,8 +119,8 @@ public:
 				nextLink1(nrE, UNDEFINED_VALUE(LinkType)),
 				nextLink2(nrE, UNDEFINED_VALUE(LinkType));
 
-			InvertIntoLinkedList<NodeType, LinkType>(node1Data.begin(), link1.begin(), nextLink1.begin(), nrE, nrV);
-			InvertIntoLinkedList<NodeType, LinkType>(node2Data.begin(), link2.begin(), nextLink2.begin(), nrE, nrV);
+			InvertIntoLinkedList<NodeType, LinkType>(nrE, nrV, node1Data.begin(), begin_ptr(link1), begin_ptr(nextLink1));
+			InvertIntoLinkedList<NodeType, LinkType>(nrE, nrV, node2Data.begin(), begin_ptr(link2), begin_ptr(nextLink2));
 
 			NodeStackType nodeStack;
 			
@@ -197,7 +195,7 @@ auto stronglyConnectedComponentsIterativeWithInvertedLinks(NodeType nrV, LinkTyp
 	std::vector<Couple<PartType>> partLinks;
 
 	std::vector<std::tuple<NodeType, LinkType, bool>> stack; // Node, CurrentLink, didVisitLink
-	OwningPtrSizedArray< Couple < PartType >> timedParLinkLinkedList; // avoid using a std::set for the partLinks from currentPart
+	OwningPtrSizedArray< Couple < PartType >> timedPartLinkLinkedList; // avoid using a std::set for the partLinks from currentPart
 	OwningPtrSizedArray<Couple<NodeType>> indices(nrV, dont_initialize MG_DEBUG_ALLOCATOR_SRC("stronglyConnectedComponents: indices"));
 	for (auto& index : indices)
 		index.first = UNDEFINED_VALUE(NodeType);
@@ -258,16 +256,16 @@ auto stronglyConnectedComponentsIterativeWithInvertedLinks(NodeType nrV, LinkTyp
 			if (indices[v].first == indices[v].second)
 			{
 				// start a new strongly connected component
-				// use nrParts (initially zero) as chrono-number for accessing timedParLinkLinkedList
-				if (nrParts >= timedParLinkLinkedList.size())
+				// use nrParts (initially zero) as chrono-number for accessing timedPartLinkLinkedList
+				if (nrParts >= timedPartLinkLinkedList.size())
 				{
-					timedParLinkLinkedList = OwningPtrSizedArray< Couple < PartType> >(nrParts * 2, dont_initialize MG_DEBUG_ALLOCATOR_SRC("timedParLinkLinkedList"));
+					timedPartLinkLinkedList = OwningPtrSizedArray< Couple < PartType> >(nrParts * 2, dont_initialize MG_DEBUG_ALLOCATOR_SRC("timedPartLinkLinkedList"));
 					for (PartType i = 0; i != nrParts; ++i)
-						timedParLinkLinkedList[i].first = UNDEFINED_VALUE(NodeType);
+						timedPartLinkLinkedList[i].first = UNDEFINED_VALUE(NodeType);
 				}
 				else
 				{
-					timedParLinkLinkedList[nrParts - 1].first = UNDEFINED_VALUE(NodeType);
+					timedPartLinkLinkedList[nrParts - 1].first = UNDEFINED_VALUE(NodeType);
 				}
 				PartType lastSubPart = UNDEFINED_VALUE(PartType);
 
@@ -289,11 +287,11 @@ auto stronglyConnectedComponentsIterativeWithInvertedLinks(NodeType nrV, LinkTyp
 							{
 								// set the chronos of pp to the current part to avoid adding pp to the partLinks of the current part more than once
 								// aka Lazy Initialization
-								if (timedParLinkLinkedList[pp].first != nrParts)
+								if (timedPartLinkLinkedList[pp].first != nrParts)
 								{
-									timedParLinkLinkedList[pp].second = lastSubPart;
+									timedPartLinkLinkedList[pp].second = lastSubPart;
 									lastSubPart = pp;
-									timedParLinkLinkedList[pp].first = nrParts;
+									timedPartLinkLinkedList[pp].first = nrParts;
 								}
 							}
 						}
@@ -302,8 +300,8 @@ auto stronglyConnectedComponentsIterativeWithInvertedLinks(NodeType nrV, LinkTyp
 				while (IsDefined(lastSubPart))
 				{
 					partLinks.emplace_back(Couple<PartType>(nrParts, lastSubPart));
-					assert(timedParLinkLinkedList[lastSubPart].first == nrParts);
-					lastSubPart = timedParLinkLinkedList[lastSubPart].second;
+					assert(timedPartLinkLinkedList[lastSubPart].first == nrParts);
+					lastSubPart = timedPartLinkLinkedList[lastSubPart].second;
 				}
 				++nrParts;
 			}
@@ -320,9 +318,9 @@ auto stronglyConnectedComponentsIterative(NodeType nrV, LinkType nrE, const Data
 		link1(nrV, UNDEFINED_VALUE(LinkType)),
 		nextLink1(nrE, UNDEFINED_VALUE(LinkType));
 	{
-		auto node1Data = arg1->GetDataRead();
-		assert(node1Data.size() == nrE);
-		InvertIntoLinkedList<NodeType, LinkType>(node1Data.begin(), link1.begin(), nextLink1.begin(), nrE, nrV);
+//		auto node1Data = arg1->GetDataRead();
+//		assert(node1Data.size() == nrE);
+		InvertIntoLinkedList<NodeType, LinkType>(nrE, nrV, tile_read_channel(arg1), begin_ptr(link1), begin_ptr(nextLink1));
 	}
 	return stronglyConnectedComponentsIterativeWithInvertedLinks<NodeType, LinkType, PartType, PartLinkType>(nrV, nrE, begin_ptr(link1), begin_ptr(nextLink1), node2Data, resSubData);
 }
