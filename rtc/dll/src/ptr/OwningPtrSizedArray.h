@@ -62,14 +62,7 @@ struct OwningPtrSizedArray : private ref_base<T, movable>
 	{
 		fast_undefine(begin(), begin() + sz);
 	}
-/*
-	OwningPtrSizedArray(const_pointer first, const_pointer last MG_DEBUG_ALLOCATOR_SRC_ARG)
-		: OwningPtrSizedArray(last - first MG_DEBUG_ALLOCATOR_SRC_PARAM)
-	{
-//		m_Size = last - first;
-		fast_copy(first, last, begin());
-	}
-*/
+
 	OwningPtrSizedArray(OwningPtrSizedArray&& oth) noexcept
 	{
 		swap(oth);
@@ -78,7 +71,16 @@ struct OwningPtrSizedArray : private ref_base<T, movable>
 	{
 		reset();
 	}
-	void reset(pointer ptr = pointer()) noexcept
+	void reset() noexcept
+	{
+		if (this->m_Ptr)
+			array_traits<T>::Destroy(this->m_Ptr, m_Size);
+		else
+			assert(!m_Size);
+		this->m_Ptr = pointer();
+		m_Size = 0;
+	}
+	void reset(pointer ptr, SizeT newSize) noexcept
 	{
 		dms_assert(this->m_Ptr != ptr || !ptr);
 		if (this->m_Ptr)
@@ -86,6 +88,7 @@ struct OwningPtrSizedArray : private ref_base<T, movable>
 		else
 			assert(!m_Size);
 		this->m_Ptr = ptr;
+		m_Size = newSize;
 	}
 
 	SizeT size() const { return m_Size; }

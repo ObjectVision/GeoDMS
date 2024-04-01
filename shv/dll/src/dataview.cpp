@@ -467,6 +467,8 @@ void DataView::ReverseCarets(HDC hdc, bool newVisibleState)
 
 	if (hdc)
 	{
+		DcBkModeSelector bkMode(hdc, TRANSPARENT);
+		GdiObjectSelector smallFont(hdc, GetDefaultFont(FontSizeCategory::CARET));
 		DcMixModeSelector xorMode(hdc);
 		ReverseCaretsImpl(hdc, newVisibleState);
 	}
@@ -1368,7 +1370,7 @@ void DataView::OnPaint()
 
 	m_DoneGraphics.AddDrawRegion( std::move(rgn) );
 
-	DBG_TRACE(("PaintDc musterase %d", paintDC.MustEraseBkgnd()));
+	DBG_TRACE(("PaintDc must erase %d", paintDC.MustEraseBkgnd()));
 
 	if (m_State.Get(DVF_CaretsVisible))
 		ReverseCarets(paintDC, true); // draw carets also in new areas; PaintDcHandle validates updateRect

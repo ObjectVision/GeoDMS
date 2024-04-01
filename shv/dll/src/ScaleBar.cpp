@@ -14,6 +14,8 @@
 #include "AbstrUnit.h"
 #include "Metric.h"
 
+#include "gdal/gdal_base.h"
+
 #include "DataView.h"
 #include "GraphVisitor.h"
 #include "ShvUtils.h"
@@ -31,8 +33,8 @@ ScaleBarBase::ScaleBarBase(const ViewPort* vp)
 ScaleBarBase::~ScaleBarBase()
 {}
 
-const UInt32 MIN_MEASURE_SIZE = 16;
-const UInt32 MAX_TEXT_HEIGHT = 12;
+const UInt32 MIN_MEASURE_SIZE = 24;
+const UInt32 MAX_TEXT_HEIGHT = 16;
 
 bool ScaleBarBase::Draw(HDC dc, CrdRect devAbsRect) const
 {
@@ -97,8 +99,6 @@ bool ScaleBarBase::Draw(HDC dc, CrdRect devAbsRect) const
 				left = right;
 			}
 		}
-
-		;
 	}
 	return false;
 }
@@ -123,34 +123,45 @@ bool ScaleBarBase::DoUpdateViewImpl(CrdPoint scaleFactor)
 	m_Factor  = currFactor;  assert(IsDefined(m_Factor));
 	m_CrdUnit = currCrdUnit; assert(m_CrdUnit);
 
-	m_MeasureSize = m_Factor;
-
-	const UnitMetric* metric = m_CrdUnit->GetMetric();
-	if (metric)
+	if (m_BaseLabel.empty()) // only do once
 	{
-		m_MeasureSize *= metric->m_Factor;
-		switch (metric->m_BaseUnits.size())
+		m_BaseFactor = 1.0;
+		const UnitMetric* metric = m_CrdUnit->GetMetric();
+		if (metric)
 		{
+			m_BaseFactor = metric->m_Factor;
+			switch (metric->m_BaseUnits.size())
+			{
 			case 0:
-				m_UnitLabel = "m";
+				m_BaseLabel = "m";
 				break;
 			case 1:
-				m_UnitLabel = metric->m_BaseUnits.begin()->first;
-				dms_assert(metric->m_BaseUnits.begin()->second == 1);
+				MG_CHECK(metric->m_BaseUnits.begin()->second == 1);
+				m_BaseLabel = metric->m_BaseUnits.begin()->first;
 				break;
 			default:
 				UnitMetric tmp = *metric; tmp.m_Factor = 1;
-				m_UnitLabel = tmp.AsString(FormattingFlags::ThousandSeparator);
+				m_BaseLabel = tmp.AsString(FormattingFlags::ThousandSeparator); // baseUnits without factor
 				break;
+			}
+		}
+		if (m_BaseLabel.empty())
+		{
+			m_BaseFactor = GetUnitSizeInMeters(m_CrdUnit);
+			m_BaseLabel = "m";
+		}
+		else if (m_BaseLabel != "m")
+		{
+			if (m_BaseLabel == "mm") { m_BaseLabel = "m"; m_BaseFactor *= 0.001; }
+			else if (m_BaseLabel == "cm") { m_BaseLabel = "m"; m_BaseFactor *= 0.01; }
+			else if (m_BaseLabel == "dm") { m_BaseLabel = "m"; m_BaseFactor *= 0.1; }
+			else if (m_BaseLabel == "km") { m_BaseLabel = "m"; m_BaseFactor *= 1000.0; }
 		}
 	}
-	if (m_UnitLabel != "m")
-	{
-		if (m_UnitLabel == "mm") { m_UnitLabel = "m"; m_MeasureSize *= 0.001;  }
-		if (m_UnitLabel == "cm") { m_UnitLabel = "m"; m_MeasureSize *= 0.01;   }
-		if (m_UnitLabel == "dm") { m_UnitLabel = "m"; m_MeasureSize *= 0.1;    }
-		if (m_UnitLabel == "km") { m_UnitLabel = "m"; m_MeasureSize *= 1000.0; }
-	}
+
+	m_UnitLabel   = m_BaseLabel;
+	m_MeasureSize = m_Factor * m_BaseFactor;
+
 
 	UInt32 measureMantissa   = 1;
 	Int32  measureExponent   = 0;
@@ -163,8 +174,8 @@ bool ScaleBarBase::DoUpdateViewImpl(CrdPoint scaleFactor)
 	if    (m_MeasureSize <= minMeasureSize) { m_MeasureSize *= 2.0; measureMantissa = 2; }
 	if    (m_MeasureSize <= minMeasureSize) { m_MeasureSize *= 2.5; measureMantissa = 5; }
 
-	dms_assert(m_MeasureSize > minMeasureSize);
-	dms_assert(m_MeasureSize * m_MeasureGroupCount <= 12.5*minMeasureSize);
+	assert(m_MeasureSize > minMeasureSize);
+	assert(m_MeasureSize * m_MeasureGroupCount <= 12.5*minMeasureSize);
 
 	if (m_UnitLabel == "m")
 	{
@@ -178,7 +189,7 @@ bool ScaleBarBase::DoUpdateViewImpl(CrdPoint scaleFactor)
 	while (measureExponent > 0) { m_MeasureValue *= 10;    --measureExponent;  }
 	while (measureExponent <-2) { m_MeasureValue *= 0.001; measureExponent+=3; }
 	while (measureExponent < 0) { m_MeasureValue *= 0.1;    ++measureExponent; }
-	dms_assert(measureExponent == 0);
+	assert(measureExponent == 0);
 
 	return true;
 }
@@ -254,7 +265,7 @@ CrdRect ScaleBarCaret::GetCurrDeviceExtents() const
 
 CrdPoint ScaleBarBase::GetLogicalSize() const
 {
-	return shp2dms_order<CrdType>(250, 48);
+	return shp2dms_order<CrdType>((MIN_MEASURE_SIZE * 5 * 5) / 2, 48);
 }
 
 CrdRect ScaleBarBase::DetermineBoundingBox(const MovableObject* owner, CrdPoint subPixelFactors) const

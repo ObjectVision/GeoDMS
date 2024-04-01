@@ -89,7 +89,7 @@ struct PasteHandler
 	{
 		GlobalLockHandle selValuesLock(selValuesData);
 		UInt32 size = reinterpret_cast<SelValuesData*>(selValuesLock.GetDataPtr())->m_Size;
-		m_SelValuesData.reset( new BYTE[size] );
+		m_SelValuesData.reset( new BYTE[size], size );
 		const BYTE* dataPtr = reinterpret_cast<BYTE*>(selValuesLock.GetDataPtr());
 		fast_copy(dataPtr, dataPtr + size, m_SelValuesData.begin());
 

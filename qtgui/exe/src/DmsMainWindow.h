@@ -93,7 +93,7 @@ enum DmsHelperWindowType
 
 struct ToolbarButtonData
 {
-    ToolButtonID id;
+    ToolButtonID id = TB_Undefined;
     std::vector<QString> text;
     std::vector<ToolButtonID> ids;
     std::vector<QString> icons;
@@ -146,7 +146,6 @@ public:
     DmsRecentFileEntry(size_t index, std::string_view dms_file_full_path, QObject* parent = nullptr);
     std::string m_cfg_file_path;
     size_t m_index = 0;
-    DmsConfigTextButton* m_config_text;
     std::unique_ptr<QMenu> m_context_menu;
     bool eventFilter(QObject* obj, QEvent* ev) override;
     bool event(QEvent* e) override;
