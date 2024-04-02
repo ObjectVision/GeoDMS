@@ -169,8 +169,10 @@ public:
 	void SetLaunderedName(TokenID layerID, TokenID fieldID, SharedStr launderedName);
 	void ReleaseAllLayerInterestPtrs(TokenID layerID);
 	void RefreshInterest(const TreeItem* storageHolder);
+	bool DatasetIsReadyForWriting();
 	bool LayerIsReadyForWriting(TokenID layerID);
 	bool LayerHasBeenWritten(TokenID layerID);
+	auto GetExampleAdiFromLayerID(TokenID layerID) -> const AbstrDataItem*;
 
 	std::map<layer_id, std::map<field_id, FieldInfo>> m_LayerAndFieldIDMapping;
 	std::map<layer_id, SharedDataItemInterestPtr> m_orphan_geometry_items;
@@ -202,6 +204,7 @@ auto GetOGRSpatialReferenceFromDataItems(const TreeItem* storageHolder) -> std::
 void CheckSpatialReference(std::optional<OGRSpatialReference>& ogrSR, const TreeItem* treeitem, const AbstrUnit* mutBase);
 STGDLL_CALL auto GetUnitSizeInMeters(const AbstrUnit* projectionBaseUnit) -> Float64;
 STGDLL_CALL void ValidateSpatialReferenceFromWkt(OGRSpatialReference* ogrSR, CharPtr wkt_prj_str);
+bool DriverSupportsUpdate(std::string_view dataset_file_name, const CPLStringList driver_array);
 
 struct GDALDatasetHandle
 {

@@ -419,6 +419,7 @@ namespace poly2grid
 			IFP_resouces ifpResources;
 
 			auto res = mutable_array_cast<E>(m_ResObj)->GetDataWrite(m_RasterTileId, dms_rw_mode::write_only_all);
+			MG_CHECK(res.size() == Cardinality(size)); // or at least at least
 			OwningPtr<AbstrRasterizeInfo> rasterInfoPtr;
 			rasterInfoPtr.assign( new RasterizeInfo<E>(Convert<RasterSizeType>(size), res.begin()) );
 
