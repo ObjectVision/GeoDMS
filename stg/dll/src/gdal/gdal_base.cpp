@@ -713,10 +713,10 @@ void gdalComponent::CreateMetaInfo(TreeItem* container, bool mustCalc)
 
 SharedStr GDALDriverDescr(GDALDriverH h)
 {
-	auto shortName = SharedStr(GDALGetDriverShortName(h));
-	auto longName = SharedStr(GDALGetDriverLongName(h));
-	if (shortName == longName || longName.empty())
-		return shortName;
+	auto shortName = GDALGetDriverShortName(h);
+	auto longName = GDALGetDriverLongName(h);
+	if (!longName || !*longName || (strcmp(shortName, longName) == 0))
+		return SharedStr(shortName);
 	return mySSPrintF("%s: %s", shortName, longName);
 }
 
@@ -808,9 +808,10 @@ auto GetListOfRegisteredGDALDrivers() -> std::vector<GDALDriver*>
 	return registered_drivers;
 }
 
-auto FileExtensionToRegisteredGDALDriverShortName(std::string_view ext) -> std::string
+/* REMOVE
+auto FileExtensionToRegisteredGDALDriverShortName(std::string_view ext) -> CharPtr
 {
-	std::string driver_short_name = {};
+	CharPtr result = nullptr;
 	auto registered_drivers = GetListOfRegisteredGDALDrivers();
 	for (auto driver : registered_drivers)
 	{
@@ -818,12 +819,13 @@ auto FileExtensionToRegisteredGDALDriverShortName(std::string_view ext) -> std::
 		for (auto driver_ext : driver_exts)
 		{
 			if (driver_ext == ext)
-				driver_short_name = GDALGetDriverShortName(driver); // found
+				result = GDALGetDriverShortName(driver); // found
 		}
 	}
 
-	return driver_short_name;
+	return result;
 }
+*/
 
 int DataItemsWriteStatusInfo::getNumberOfLayers()
 {
@@ -1365,7 +1367,7 @@ auto GetDriverShortNameFromDataSourceNameOrDriverArray(std::string_view data_sou
 	auto driver_short_name = FileExtensionToKnownGDALDriverShortName(ext);
 	GDALRegisterTrustedDriverFromFileExtension(ext);
 	if (!driver_short_name || !*driver_short_name)
-		driver_short_name = driver_array.size() ? driver_array[0] : ""; // secondary option, get from driverArray
+		driver_short_name = driver_array.size() ? driver_array[0] : {}; // secondary option, get from driverArray
 
 	return driver_short_name;
 }
@@ -1499,8 +1501,8 @@ GDALDatasetHandle Gdal_DoOpenStorage(const StorageMetaInfo& smi, dms_rw_mode rwM
 	if (!std::filesystem::is_directory(path.c_str()) && !std::filesystem::create_directories(path.c_str()))
 		throwErrorF("GDAL", "Unable to create directories: %s", path);
 
-	auto driver_short_name = SharedStr(GetDriverShortNameFromDataSourceNameOrDriverArray(data_source_name.c_str(), driver_array));
-	auto driver = GetGDALDriverManager()->GetDriverByName(driver_short_name.c_str());
+	auto driver_short_name = GetDriverShortNameFromDataSourceNameOrDriverArray(data_source_name.c_str(), driver_array);
+	auto driver = GetGDALDriverManager()->GetDriverByName(driver_short_name);
 	if (!driver)
 		throwErrorF("GDAL", "Cannot find driver for %s", data_source_name);
 
