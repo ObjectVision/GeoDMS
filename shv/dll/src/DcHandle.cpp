@@ -85,7 +85,7 @@ CaretDcHandle::CaretDcHandle(HWND hWnd, HFONT defaultFont)
 PaintDcHandle::PaintDcHandle(HWND hWnd, HFONT defaultFont)
 	: m_hWnd(hWnd)
 {
-	dms_assert(hWnd);
+	assert(hWnd);
 	BeginPaint(hWnd, &m_PaintInfo);
 	CustomizeDC(GetHDC(), defaultFont);
 }

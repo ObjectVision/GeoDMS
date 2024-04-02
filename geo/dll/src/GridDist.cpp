@@ -22,6 +22,8 @@
 
 #include "Projection.h"
 
+#include "gdal/gdal_base.h"
+
 // *****************************************************************************
 //									GridDist
 // *****************************************************************************
@@ -306,40 +308,49 @@ public:
 
 			auto srToken = baseUnit->GetSpatialReference();
 
+			GDAL_ErrorFrame errorFrame;
 
 			OGRSpatialReference sr;
 			auto errCode = sr.SetFromUserInput(SharedStr(srToken).c_str());
+			errorFrame.ThrowUpWhateverCameUp();
 			if (errCode != OGRERR_NONE)
-				throwErrorD(SharedStr(GetGroup()->GetNameID()).c_str(), "The spatial reference of the domain of the first argument cannot be interpreted");
+				throwErrorF(SharedStr(GetGroup()->GetNameID()).c_str(), "The spatial reference of the domain of the first argument cannot be interpreted; ErrorCode=%d", errCode);
 
 			if (not(sr.IsGeographic()))
 				throwErrorD(SharedStr(GetGroup()->GetNameID()).c_str(), "The spatial reference of the domain of the first argument must be geographic");
-/*
-			// Step 2: Export to PROJ String
-			char* projString;
+
+			// Export to PROJ String
+			char* projString = nullptr;
 			sr.exportToProj4(&projString);
 			scoped_exit se([&projString] { CPLFree(projString); }); // Free the PROJ string memory when leaving the scope
 
 			// Step 3: Create a PJ object
 			auto ctx  = std::unique_ptr<PJ_CONTEXT, ProjContextDeleter>(proj_context_create()); // Create a PJ_CONTEXT object
+			errorFrame.m_ctx = ctx.get();
+
 			auto proj = std::unique_ptr<PJ, ProjDeleter>               (proj_create(ctx.get(), projString)); // Create a PJ object from the PROJ string
+			errorFrame.ThrowUpWhateverCameUp();
 
 			if (!proj)
 				throwErrorD(SharedStr(GetGroup()->GetNameID()).c_str(), "A projection for the domain of the first argument could not be created");
-*/
+
 			auto gridSet2BaseTr = UnitProjection::GetCompositeTransform(gridSetProjection);
 
 			latFactors.reserve(yRange.second - yRange.first);
 			for (auto y = yRange.first; y < yRange.second; ++y)
 			{
 				auto latitude = gridSet2BaseTr.Apply(shp2dms_order<Float64>(0, y)).Y();
-				auto factor   = std::cos(latitude * (std::numbers::pi_v<Float64> / 180.0));
-/*
+				//auto factor   = std::cos(latitude * (std::numbers::pi_v<Float64> / 180.0));
+
 				// Call proj_factors for specific locations
-				PJ_COORD crd = {0, latitude, 0, 0};
+				auto latitudeInRadians = latitude; // *(std::numbers::pi_v<Float64> / 180.0);
+				PJ_COORD crd = {0, latitudeInRadians, 0, 0};
 				PJ_FACTORS factors = proj_factors(proj.get(), crd);
-				auto factor = factors.meridional_scale;
-				*/
+
+				errorFrame.ThrowUpWhateverCameUp();
+
+				auto factor = 1.0 / factors.parallel_scale;
+
 				latFactors.emplace_back(0.5 * factor, 0.5 * sqrt(1+factor*factor));
 			}
 		}

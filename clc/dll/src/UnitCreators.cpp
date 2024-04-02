@@ -146,6 +146,13 @@ ConstUnitRef compatible_values_unit_creator_func(arg_index nrSkippedArgs, const 
 
 	const AbstrUnit* arg1_ValuesUnit = AsDataItem(args[nrSkippedArgs])->GetAbstrValuesUnit(); // the first considered argument
 	assert(arg1_ValuesUnit);
+	for (arg_index i = nrSkippedArgs + 1; i < nrArgs; ++i)
+	{
+		if (!arg1_ValuesUnit->IsDefaultUnit())
+			break;
+		arg1_ValuesUnit = AsDataItem(args[i])->GetAbstrValuesUnit(); // the first considered argument
+	}
+
 	const UnitMetric* a1MetricPtr = arg1_ValuesUnit->GetMetric();
 	const UnitProjection* a1ProjectionPtr = arg1_ValuesUnit->GetProjection();
 	assert(IsEmpty(a1MetricPtr) || !a1ProjectionPtr); // this code assumes units never have both a metric and a projection

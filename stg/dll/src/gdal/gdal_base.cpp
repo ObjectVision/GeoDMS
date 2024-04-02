@@ -159,7 +159,7 @@ namespace gdalComponentImpl
 GDAL_ErrorFrame::GDAL_ErrorFrame()
 	: m_eErrClass(dms_CPLErr(CE_None))
 	, m_Prev(gdalComponentImpl::s_ErrorFramePtr)
-	, m_prev_proj_err_no(GetProjectionContextErrNo())
+	, m_prev_proj_err_no(proj_context_errno(gdalComponentImpl::s_ErrorFramePtr ? gdalComponentImpl::s_ErrorFramePtr->m_ctx : nullptr))
 
 {
 	m_nr_uncaught_exceptions = std::uncaught_exceptions();
@@ -208,11 +208,12 @@ void GDAL_ErrorFrame::RegisterError(dms_CPLErr eErrClass, int err_no, const char
 	m_msg += mySSPrintF("\n%s", projErrStr.c_str());
 }
 
-struct pj_ctx* GDAL_ErrorFrame::GetProjectionContext()
+pj_ctx* GDAL_ErrorFrame::GetProjectionContext()
 {
+
 	//	return reinterpret_cast<PJ_CONTEXT*>(CPLGetTLS(CTLS_PROJCONTEXTHOLDER));
 	//	return OSRGetProjTLSContext();
-	return nullptr;
+	return m_ctx;
 }
 
 int GDAL_ErrorFrame::GetProjectionContextErrNo()
@@ -225,10 +226,8 @@ int GDAL_ErrorFrame::GetProjectionContextErrNo()
 
 SharedStr GDAL_ErrorFrame::GetProjectionContextErrorString()
 {
-	auto pjCtx = GetProjectionContext();
-	//	if (!pjCtx)
-	//		return {};
-	auto pjErrno = GetProjectionContextErrNo();
+	auto pjCtx = (gdalComponentImpl::s_ErrorFramePtr) ? gdalComponentImpl::s_ErrorFramePtr->GetProjectionContext() : nullptr;
+	auto pjErrno = proj_context_errno(pjCtx);
 	if (!pjErrno)
 		return {};
 
@@ -1391,8 +1390,7 @@ GDALDatasetHandle Gdal_DoOpenStorage(const StorageMetaInfo& smi, dms_rw_mode rwM
 
 	SharedStr data_source_name = smi.StorageManager()->GetNameStr();
 
-	auto& gmi = dynamic_cast<const GdalMetaInfo&>(smi);
-	assert(gmi);
+	const auto& gmi = dynamic_cast<const GdalMetaInfo&>(smi);
 
 	int nXSize = 0, nYSize = 0, nBands = 0;
 	GDALDataType eType = GDT_Unknown;

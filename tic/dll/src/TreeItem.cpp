@@ -3127,7 +3127,7 @@ bool TreeItem::PrepareDataUsage(DrlType drlFlags) const
 
 	if ((UInt32(drlFlags) & UInt32(DrlType::Certain)) && !SuspendTrigger::BlockerBase::IsBlocked())
 	{
-		SuspendTrigger::FencedBlocker lockSuspend("TreeItem::PrepareDataUsage");
+		SuspendTrigger::FencedBlocker lockSuspend("@TreeItem::PrepareDataUsage");
 		auto result = PrepareDataUsageImpl(drlFlags);
 		dms_assert(result || WasFailed());
 		return result;
@@ -3159,7 +3159,7 @@ how_to_proceed PrepareDataCalc(SharedPtr<const TreeItem> self, const TreeItem* r
 	//				auto result = CalcResult(apr, GetDynamicObjClass());
 	if (dc)
 	{
-		SuspendTrigger::SilentBlocker xx("PrepareDataCalc");
+		SuspendTrigger::SilentBlocker xx("@PrepareDataCalc");
 		auto dc2 = dc->CalcResult();
 		assert(!SuspendTrigger::DidSuspend());
 

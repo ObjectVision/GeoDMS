@@ -2,7 +2,9 @@
 // License: GNU GPL 3
 /////////////////////////////////////////////////////////////////////////////
 
+#if defined(_MSC_VER)
 #pragma once
+#endif
 
 #if !defined(__OPERUNIT_H)
 #define __OPERUNIT_H
@@ -76,15 +78,22 @@ public:
 		const AbstrUnit* arg1A = AsUnit(args[0]);
 		const AbstrUnit* arg2A = AsUnit(args[1]);
 
-		dms_assert(arg1A);
-		dms_assert(arg2A);
+		assert(arg1A);
+		assert(arg2A);
 
-		AbstrUnit* res = debug_cast<const UnitClass*>(GetResultClass())->CreateTmpUnit(resultHolder);
-		resultHolder = res;
+		auto resultUnitClass = debug_cast<const UnitClass*>(GetResultClass());
+		if (arg1A->IsDefaultUnit() && arg2A->IsDefaultUnit())
+			resultHolder = resultUnitClass->CreateDefault();
+		else
+		{
 
-		dms_assert(res);
+			AbstrUnit* res = resultUnitClass->CreateTmpUnit(resultHolder);
+			resultHolder = res;
 
-		res->SetMetric(MetricOperation(arg1A->GetCurrMetric(), arg2A->GetCurrMetric()) );
+			dms_assert(res);
+
+			res->SetMetric(MetricOperation(arg1A->GetCurrMetric(), arg2A->GetCurrMetric()) );
+		}
 
 		return true;
 	}
@@ -172,14 +181,16 @@ public:
 };
 
 struct MulMetricFunctor {
-	SharedPtr<const UnitMetric> operator()(const UnitMetric* arg1, const UnitMetric* arg2, Float64 factor = 1.0) const
+	auto operator()(const UnitMetric* arg1, const UnitMetric* arg2, Float64 factor = 1.0) const -> SharedPtr<const UnitMetric>
 	{
 		if (factor == 1.0)
 		{
 			if (IsEmpty(arg2))
-				return IsEmpty(arg1)
-					? 0
-					: arg1;
+			{
+				if (IsEmpty(arg1))
+					return nullptr;
+				return arg1;
+			}
 
 			if (IsEmpty(arg1))
 				return arg2;
@@ -192,12 +203,17 @@ struct MulMetricFunctor {
 };
 
 struct DivMetricFunctor {
-	SharedPtr<const UnitMetric> operator()(const UnitMetric* arg1, const UnitMetric* arg2, Float64 factor = 1.0) const
+	auto operator()(const UnitMetric* arg1, const UnitMetric* arg2, Float64 factor = 1.0) const -> SharedPtr<const UnitMetric>
 	{
-		if (factor == 1.0 && IsEmpty(arg2))
-			return IsEmpty(arg1)
-				? 0
-				: arg1;
+		if (factor == 1.0)
+		{
+			if (IsEmpty(arg2))
+			{
+				if (IsEmpty(arg1))
+					return nullptr;
+				return arg1;
+			}
+		}
 
 		SharedPtr<UnitMetric> m = new UnitMetric();
 		m->m_Factor = factor;
@@ -290,34 +306,38 @@ public:
 	// Override Operator
 	bool CreateResult(TreeItemDualRef& resultHolder, const ArgSeqType& args, bool mustCalc) const override
 	{
-		dms_assert(args.size() >= 1);
+		assert(args.size() >= 1);
 
-		const Arg1Type *arg1 = debug_cast<const Arg1Type*>(args[0]);
+		const Arg1Type* arg1 = debug_cast<const Arg1Type*>(args[0]);
+		assert(arg1);
 
-		dms_assert(arg1);
-
-		AbstrUnit* result = ResultType::GetStaticClass()->CreateTmpUnit(resultHolder.GetNew());
-		resultHolder = result;
-
-		const UnitMetric* arg1SI = arg1->GetMetric();
-		if (IsEmpty(arg1SI))
-			result->SetMetric(nullptr);
+		if (arg1->IsDefaultUnit())
+			resultHolder = ResultType::GetStaticClass()->CreateDefault();
 		else
 		{
-			auto metric = std::make_unique<UnitMetric>(*arg1SI);
+			AbstrUnit* result = ResultType::GetStaticClass()->CreateTmpUnit(resultHolder.GetNew());
+			resultHolder = result;
 
-			metric->m_Factor = sqrt(metric->m_Factor);
-
-			UnitMetric::BaseUnitsIterator 
-				b1 = metric->m_BaseUnits.begin(), 
-				e1 = metric->m_BaseUnits.end();
-			while (b1 != e1)
+			const UnitMetric* arg1SI = arg1->GetMetric();
+			if (IsEmpty(arg1SI))
+				result->SetMetric(nullptr);
+			else
 			{
-				if ((*b1).second % 2 != 0)
-					GetGroup()->throwOperErrorF("argument %s has a non-square metric", arg1->GetFullName().c_str());
-				(*b1++).second /= 2;
+				auto metric = std::make_unique<UnitMetric>(*arg1SI);
+
+				metric->m_Factor = sqrt(metric->m_Factor);
+
+				UnitMetric::BaseUnitsIterator
+					b1 = metric->m_BaseUnits.begin(),
+					e1 = metric->m_BaseUnits.end();
+				while (b1 != e1)
+				{
+					if ((*b1).second % 2 != 0)
+						GetGroup()->throwOperErrorF("argument %s has a non-square metric", arg1->GetFullName().c_str());
+					(*b1++).second /= 2;
+				}
+				result->SetMetric(metric.release());
 			}
-			result->SetMetric(metric.release());
 		}
 		return true;
 	}

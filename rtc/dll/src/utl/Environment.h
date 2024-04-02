@@ -130,7 +130,6 @@ enum RegStatusFlags
 };
 
 RTC_CALL UInt32 GetRegStatusFlags();
-RTC_CALL UInt32 GetRegFlags(std::string key, bool &exists);
 RTC_CALL void SetCachedStatusFlag(UInt32 newSF, bool newVal = true);
 RTC_CALL bool HasDynamicROI();
 RTC_CALL bool ShowThousandSeparator();
