@@ -1367,7 +1367,7 @@ auto GetDriverShortNameFromDataSourceNameOrDriverArray(std::string_view data_sou
 	auto driver_short_name = FileExtensionToKnownGDALDriverShortName(ext);
 	GDALRegisterTrustedDriverFromFileExtension(ext);
 	if (!driver_short_name || !*driver_short_name)
-		driver_short_name = driver_array.size() ? driver_array[0] : {}; // secondary option, get from driverArray
+		driver_short_name = driver_array.size() ? driver_array[0] : ""; // secondary option, get from driverArray
 
 	return driver_short_name;
 }
