@@ -1390,8 +1390,7 @@ GDALDatasetHandle Gdal_DoOpenStorage(const StorageMetaInfo& smi, dms_rw_mode rwM
 
 	SharedStr data_source_name = smi.StorageManager()->GetNameStr();
 
-	auto& gmi = dynamic_cast<const GdalMetaInfo&>(smi);
-	assert(gmi);
+	const auto& gmi = dynamic_cast<const GdalMetaInfo&>(smi);
 
 	int nXSize = 0, nYSize = 0, nBands = 0;
 	GDALDataType eType = GDT_Unknown;
