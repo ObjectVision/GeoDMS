@@ -1297,21 +1297,22 @@ void TryRegisterRasterDriverFromKnownDriverShortName(std::string_view known_driv
 		GDALRegister_MBTiles();
 }
 
-auto GDALRegisterTrustedDriverFromKnownDriverShortName(std::string_view known_driver_short_name) -> const char*
+void GDALRegisterTrustedDriverFromKnownDriverShortName(std::string_view known_driver_short_name)
 {
 	if (known_driver_short_name.empty())
-		return "";
+		return;
 
 	TryRegisterVectorDriverFromKnownDriverShortName(known_driver_short_name);
 	TryRegisterRasterDriverFromKnownDriverShortName(known_driver_short_name);
-
-	return GetGDALDriverManager()->GetDriverByName(known_driver_short_name.data()) ? known_driver_short_name.data() : "";
 }
 
-auto GDALRegisterTrustedDriverFromFileExtension(std::string_view ext) -> const char*
+void GDALRegisterTrustedDriverFromFileExtension(std::string_view ext)
 {
 	auto known_driver_shortName = FileExtensionToKnownGDALDriverShortName(ext);
-	return GDALRegisterTrustedDriverFromKnownDriverShortName(known_driver_shortName);
+	if (!known_driver_shortName || !*known_driver_shortName)
+		return;
+
+	GDALRegisterTrustedDriverFromKnownDriverShortName(known_driver_shortName);
 }
 
 bool Gdal_DetermineIfDriverHasVectorOrRasterCapability(UInt32 gdalOpenFlags, GDALDriver* driver)
@@ -1360,9 +1361,10 @@ bool Gdal_DriverSupportsDmsValueType(UInt32 gdalOpenFlags, ValueClassID dms_valu
 
 auto GetDriverShortNameFromDataSourceNameOrDriverArray(std::string_view data_source_name, const CPLStringList &driver_array) -> const char*
 {
-	auto ext = SharedStr(CPLGetExtension(data_source_name.data()));
-	auto driver_short_name = GDALRegisterTrustedDriverFromFileExtension(ext.begin()); // first option, get from filename ext
-	if (!driver_short_name)
+	auto ext = CPLGetExtension(data_source_name.data());
+	auto driver_short_name = FileExtensionToKnownGDALDriverShortName(ext);
+	GDALRegisterTrustedDriverFromFileExtension(ext);
+	if (!driver_short_name || !*driver_short_name)
 		driver_short_name = driver_array.size() ? driver_array[0] : ""; // secondary option, get from driverArray
 
 	return driver_short_name;
@@ -1445,29 +1447,26 @@ GDALDatasetHandle Gdal_DoOpenStorage(const StorageMetaInfo& smi, dms_rw_mode rwM
 		}
 	}
 
-	auto ext = SharedStr(CPLGetExtension(data_source_name.c_str())); // TLS !
+	auto ext = CPLGetExtension(data_source_name.c_str());
 	if (!driver_array.empty()) // user specified list of drivers
 	{
 		auto n = driver_array.size();
-
-		auto driver_short_name = SharedStr();
 		for (auto i = 0; i != n; ++i)
 		{
-			driver_short_name = GDALRegisterTrustedDriverFromKnownDriverShortName(driver_array[i]);
-			if (driver_short_name.empty())
+			auto driver_short_name = driver_array[i];
+			if (!driver_short_name || !*driver_short_name)
 				throwErrorF("GDAL", "cannot register user specified gdal driver from GDAL_Driver array: %s", driver_array[i]);
 		}
 
 	}
 	else // try to register driver based on file extension and known file formats
 	{
-		auto driver_short_name= GDALRegisterTrustedDriverFromFileExtension(ext.begin());
-		if (!driver_short_name)
+		GDALRegisterTrustedDriverFromFileExtension(ext);
+		auto driver_short_name = FileExtensionToKnownGDALDriverShortName(ext);
+		if (driver_short_name && *driver_short_name)
 			driver_array.AddString(driver_short_name);
 		else
-		{
 			GDALAllRegister(); // cannot open file based on trusted drivers
-		}
 	}
 
 	if (rwMode == dms_rw_mode::read_only)
