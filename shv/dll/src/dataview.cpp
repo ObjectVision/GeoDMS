@@ -235,7 +235,6 @@ DataView::DataView(TreeItem* viewContext)
 	InsertCaret(m_FocusCaret);
 	m_State.Set(DVF_CaretsVisible); // Paint will draw them.if true; we assume application and view has focus.
 
-	IdleTimer::Subscribe(this);
 #if defined(MG_DEBUG_DATAVIEWSET)
 	auto lock = std::unique_lock(g_csActiveDataViewSet);
 	g_ActiveDataViews.insert(this);
@@ -244,7 +243,6 @@ DataView::DataView(TreeItem* viewContext)
 
 DataView::~DataView()
 {
-	IdleTimer::Unsubscribe(this);
 	dbg_assert(md_IsDrawingCount == 0);
 	// avoid destructor of m_ControllerVector that triggers RemoveCaret to Reverse any remaining carets
 	m_State.Clear(DVF_CaretsVisible); 
@@ -562,11 +560,19 @@ bool DataView::DispatchMsg(const MsgStruct& msg)
 		{
 			if (msg.m_wParam == UPDATE_TIMER_ID)
 			{
-				auto status = UpdateView();
-				if (status != GraphVisitState::GVS_Break)
+				KillTimer(m_hWnd, UPDATE_TIMER_ID);
+				if (IdleTimer::IsInIdleMode())
 				{
-					KillTimer(m_hWnd, UPDATE_TIMER_ID);
+					IdleTimer::Subscribe(shared_from_this());
 					m_Waiter.end();
+				}
+				else
+				{
+					auto status = UpdateView();
+					if (status != GraphVisitState::GVS_Break)
+						m_Waiter.end();
+					else
+						SetUpdateTimer();
 				}
 				goto completed;
 			}
@@ -1380,7 +1386,7 @@ void DataView::OnPaint()
 void DataView::SetUpdateTimer()
 {
 	m_Waiter.start(this);
-	SetTimer(m_hWnd, UPDATE_TIMER_ID, 0, nullptr);
+	SetTimer(m_hWnd, UPDATE_TIMER_ID, 100, nullptr);
 }
 // ============   Mouse Handling
 

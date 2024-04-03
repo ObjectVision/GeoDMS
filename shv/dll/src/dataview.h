@@ -2,7 +2,9 @@
 // License: GNU GPL 3
 /////////////////////////////////////////////////////////////////////////////
 
+#if defined(_MSC_VER)
 #pragma once
+#endif
 
 #if !defined(__SHV_DATAVIEW_H)
 #define __SHV_DATAVIEW_H
@@ -280,7 +282,7 @@ private:
 	// message handlers
 	void OnEraseBkgnd(HDC dc);
 	void OnPaint();
-	void SetUpdateTimer();
+	void SetUpdateTimer(); friend struct IdleTimer;
 
 	void OnMouseMove(WPARAM nFlags, GPoint devicePoint);
 	void OnSize     (WPARAM nType,  GPoint deviceSize);

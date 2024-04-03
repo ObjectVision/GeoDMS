@@ -45,7 +45,6 @@ granted by an additional written contract for support, assistance and/or develop
 #include "AbstrCmd.h"
 #include "DataView.h"
 #include "GraphVisitor.h"
-#include "IdleTimer.h"
 #include "KeyFlags.h"
 #include "MouseEventDispatcher.h"
 
@@ -345,8 +344,6 @@ GType CalcNewPosBase(HWND scrollBarCtl, UInt16 scrollCmd)
 	si.cbSize = sizeof(SCROLLINFO);
 	si.fMask = SIF_TRACKPOS|SIF_POS|SIF_PAGE|SIF_RANGE;
 	GetScrollInfo(scrollBarCtl, SB_CTL, &si);
-
-//	IdleTimer::OnStartLoop();
 
 	switch (scrollCmd) {
 		case SB_LEFT:      return 0;
