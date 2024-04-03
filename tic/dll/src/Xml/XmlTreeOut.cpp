@@ -226,12 +226,24 @@ bool WriteUnitProps(XML_Table& xmlTable, const AbstrUnit* unit, bool allTileInfo
 	}
 	else if (allTileInfo)
 	{
-		xmlTable.NameValueRow("DataSize", AsString(trd->GetDataSize()).c_str());
+		XML_Table::Row row(xmlTable);
+		row.ValueCell("Tile Sizes");
+		XML_Table::Row::Cell cell(row);
+
+		XML_OutElement details(xmlTable.OutStream(), "details");
+		{
+			XML_OutElement summary(xmlTable.OutStream(), "summary");
+			xmlTable.OutStream() << "DataSize " << AsString(trd->GetDataSize()).c_str();
+		}
 		for (tile_id t = 0, tn = trd->GetNrTiles(); t != tn; ++t)
 		{
-			XML_Table::Row row(xmlTable);
-			row.ValueCell(mySSPrintF("Tile %d", t).c_str());
-			row.ValueCell((GetTileStrRange(currRangeUnit.get_ptr(), t) + " = " + GetTileStrCount(currRangeUnit.get_ptr(), t) + " elements.").c_str());
+			NewLine(xmlTable.OutStream());
+			xmlTable.OutStream() 
+				<< mySSPrintF("Tile %d", t).c_str()
+				<< GetTileStrRange(currRangeUnit.get_ptr(), t).c_str()
+				<< " = "
+				<< GetTileStrCount(currRangeUnit.get_ptr(), t).c_str()
+				<< " elements.";
 		}
 	}
 	return true;
