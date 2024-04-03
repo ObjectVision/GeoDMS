@@ -7,8 +7,6 @@
 
 #include <QObject>
 #include <QDockWidget>
-//#include <QTextBrowser>
-//#include <QWebEngine>
 #include <QWebEngineView>
 #include <QWebEnginePage>
 #include <QTimer>

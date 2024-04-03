@@ -643,23 +643,38 @@ bool TreeItem_XML_DumpGeneralBody(const TreeItem* self, OutStreamBase* xmlOutStr
 	// ==================== Explicit Suppliers
 	if (self->HasSupplCache())
 	{
+		XML_Table::Row exprRow(xmlTable);
+		exprRow.OutStream().WriteAttr("bgcolor", CLR_HROW);
+		exprRow.ValueCell("ExplicitSuppliers");
+		XML_Table::Row::Cell xmlElemTD(exprRow);
+
+		auto& out  = xmlTable.OutStream();
+		XML_OutElement details(out, "details");
 		{
-			XML_Table::Row exprRow(xmlTable);
-			exprRow.OutStream().WriteAttr("bgcolor", CLR_HROW);
-			exprRow.ValueCell("ExplicitSuppliers");
-			exprRow.ValueCell(explicitSupplPropDefPtr->GetValueAsSharedStr(self).c_str());
+			XML_OutElement summary(out, "summary");
+			out << explicitSupplPropDefPtr->GetValueAsSharedStr(self).c_str();
 		}
+
 		try {
-			UInt32 n = self->GetSupplCache()->GetNrConfigured(self); // only ConfigSuppliers, Implied suppliers come after this, Calculator & StorageManager have added them
-			for (UInt32 i = 0; i < n; ++i)
+			auto n = self->GetSupplCache()->GetNrConfigured(self); // only ConfigSuppliers, Implied suppliers come after this, Calculator & StorageManager have added them
+			for (decltype(n) i = 0; i < n; ++i)
 			{
 				const Actor* supplier = self->GetSupplCache()->begin(self)[i];
 				auto supplTI = debug_cast<const TreeItem*>(supplier);
 				if (supplTI)
-					xmlTable.NamedItemRow(AsString(i).c_str(), supplTI);
+				{
+					NewLine(out);
+					out << AsString(i).c_str();
+					hRefWithText(out, supplTI->GetFullName().c_str(), ItemUrl(supplTI).c_str());
+				}
 			}
 		}
-		catch (...) {}
+		catch (...)
+		{
+			auto err = catchException(true);
+			if (err)
+				xmlTable.NameErrRow("ExplicitSuppliers", *err, self);
+		}
 	}
 
 	const TreeItem* sp = self->GetStorageParent(false);
