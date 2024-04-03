@@ -14,6 +14,7 @@
 #include "mci/ValueClassID.h"
 #include "utl/mySPrintF.h"
 
+#include "LispTreeType.h"
 #include "Metric.h"
 #include "Projection.h"
 #include "Unit.h"
@@ -24,17 +25,17 @@
 // *****************************************************************************
 
 CommonOperGroup
-	cog_mul("mul"), 
-	cog_div("div"),
-	cog_add("add"), // used for addition and string concatenation
-	cog_sub("sub"),
-	cog_bitand("bitand"),
-	cog_bitor ("bitor"),
-	cog_bitxor("bitxor"),
-	cog_pow("pow"),
-	cog_eq("eq"),
-	cog_ne("ne"),
-	cog_substr("substr");
+cog_mul(token::mul),
+cog_div(token::div),
+cog_add(token::add), // used for addition and string concatenation
+cog_sub(token::sub),
+cog_bitand("bitand"),
+cog_bitor("bitor"),
+cog_bitxor("bitxor"),
+cog_pow("pow"),
+cog_eq(token::eq),
+cog_ne(token::ne),
+cog_substr("substr");
 
 // *****************************************************************************
 
