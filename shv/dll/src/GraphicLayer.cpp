@@ -320,28 +320,28 @@ void GraphicLayer::FillLcMenu(MenuData& menuData)
 				this
 		);
 
-	std::vector<AspectNr> classifialbeAspects;
+	std::vector<AspectNr> classifiableAspects;
 
 	const AbstrDataItem* themeAttr = nullptr;
 	if (GetActiveTheme())
 		themeAttr = GetActiveTheme()->GetThemeAttr();
 
 	if (themeAttr)
-		classifialbeAspects.push_back( GetActiveTheme().get()->GetAspectNr() );
+		classifiableAspects.push_back( GetActiveTheme().get()->GetAspectNr() );
 
 	for (AspectNr a = AN_OrderBy; a != AN_AspectCount; ++reinterpret_cast<int&>(a))
 		if (m_Themes[a] && m_Themes[a] != GetActiveTheme())
-			classifialbeAspects.push_back(a);
+			classifiableAspects.push_back(a);
 
 	auto aspectSet = GetLayerClass()->GetPossibleAspects();
 	for (AspectNr a = AN_OrderBy; a != AN_AspectCount; ++reinterpret_cast<int&>(a))
 		if (!m_Themes[a] && ((1 <<a) & aspectSet))
-			classifialbeAspects.push_back(a);
+			classifiableAspects.push_back(a);
 
-	if (classifialbeAspects.size())
+	if (classifiableAspects.size())
 	{
 		SubMenu subMenu(menuData, SharedStr("Classify ..."));  // SUBMENU
-		for (AspectNr a: classifialbeAspects)
+		for (AspectNr a: classifiableAspects)
 		{
 			SubMenu aspectSubMenu(menuData, SharedStr(AspectArray[a].name));
 			AddClassificationMenu(menuData, a, m_Themes[a].get(), themeAttr, this);

@@ -1186,7 +1186,7 @@ void DataView::ShowPopupMenu(GPoint point, const MenuData& menuData) const
 	if (result)
 	{
 		--result;
-		dms_assert(result < menuData.size());
+		assert(result < menuData.size());
 		menuData[result].Execute();
 	}
 }
