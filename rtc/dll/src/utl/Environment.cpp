@@ -163,7 +163,7 @@ std::atomic<UInt32> g_DispatchLockCount = 0;
 
 bool HasWaitingMessages()
 {
-	return IsMultiThreaded0() && GetQueueStatus(QS_ALLEVENTS & ~QS_TIMER);
+	return IsMultiThreaded0() && GetQueueStatus(QS_ALLEVENTS);
 }
 
 extern "C" RTC_CALL bool DMS_CONV DMS_HasWaitingMessages()

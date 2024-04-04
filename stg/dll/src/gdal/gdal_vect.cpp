@@ -1450,7 +1450,7 @@ void PrepareDataItemsForWriting(const StorageMetaInfo& smi, DataItemsWriteStatus
 	}
 }
 
-bool GdalVectSM::WriteLayer(std::string_view layer_name, const GdalMetaInfo& gmi)
+void GdalVectSM::WriteLayer(std::string_view layer_name, const GdalMetaInfo& gmi)
 {
 	GDAL_ConfigurationOptionsFrame config_frame(GetOptionArray(gmi.m_ConfigurationOptions));
 	auto layer_option_array = GetOptionArray(gmi.m_LayerCreationOptions);
