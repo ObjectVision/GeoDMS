@@ -220,7 +220,7 @@ private:
 	virtual bool   IsUI64()     const { return true; }
 	virtual UInt64 GetUI64Val() const { return m_Value; }
 
-	virtual void Print(FormattedOutStream& out, UInt32 level)   const { out << m_Value << ' '; }
+	virtual void Print(FormattedOutStream& out, UInt32 level)   const { out << m_Value << "u64 "; }
 	static LispObj* ReloadObj(PolymorphInpStream& ar);
 	virtual void WriteObj(PolymorphOutStream& ar) const;
 

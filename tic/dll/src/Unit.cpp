@@ -457,6 +457,36 @@ void RangedUnit<V>::LoadRangeImpl(BinaryInpStream& pis)
 */
 }
 
+// Recognize Default and Regular tilings and construct them if possible.
+
+template <typename V>
+bool IsRegular(const auto& range, const auto& tileRanges)
+{
+	if (tileRanges.size() < 2)
+		return false; // caught by earlier checks or range != tileRanges[0]
+
+	auto firstTileExtents = Size(tileRanges[0]);
+	RegularTileRangeData<V> exemplar(range, firstTileExtents);
+	if (exemplar.GetNrTiles() != tileRanges.size())
+		return false;
+
+	tile_id t = 0;
+	for (const auto& tr : tileRanges)
+		if (tr != exemplar.GetTileRange(t++))
+			return false;
+
+	return true;
+}
+
+template<typename V>
+auto CreateRegularTileRangeData(const auto& range, const auto& tileRange) -> SharedPtr<TiledRangeData<V>>
+{
+	auto tileRangeAsWPoint = Convert<tile_extent_t<V>>(tileRange);
+	if (tileRangeAsWPoint == default_tile_size<V>())
+		return new DefaultTileRangeData<V>(range);
+	return new RegularTileRangeData<V>(range, tileRangeAsWPoint);
+}
+
 template <typename V>
 void CountableUnitBase<V>::LoadRangeImpl(BinaryInpStream& pis)
 {
@@ -470,28 +500,36 @@ void CountableUnitBase<V>::LoadRangeImpl(BinaryInpStream& pis)
 		{
 			MG_CHECK(tn == no_tile);
 			if (range.empty())
-				this->m_RangeDataPtr.reset();
+				this->m_RangeDataPtr = nullptr;
 			else
-				this->m_RangeDataPtr.reset(new SmallRangeData<V>(range));
+				this->m_RangeDataPtr = new SmallRangeData<V>(range);
 		}
 		else
 		{
 			if (tn == 0)
-				this->m_RangeDataPtr.reset(new DefaultTileRangeData<V>(range));
+				this->m_RangeDataPtr = new DefaultTileRangeData<V>(range);
 			else if (tn == no_tile) // assume one big old tile (as in 7.xxx)
-				this->m_RangeDataPtr.reset(new RegularTileRangeData<V>(range, Size(range)));
+			{
+				auto tileExtents = Size(range);
+				this->m_RangeDataPtr = CreateRegularTileRangeData<V>(range, tileExtents);
+			}
 			else
 			{
 				std::vector<Range<V>> tileRanges(tn);
 				tile_id ti = tn; while (ti) // WARNING: REVERSE ORDER
 					pis >> tileRanges[--ti];
-				if (tn == 1)
-					this->m_RangeDataPtr.reset(new RegularTileRangeData<V>(tileRanges[0], Size(tileRanges[0])));
-				// TODO G8: recognize Default and Regular tilings and construct them if possible.
-				this->m_RangeDataPtr.reset(new IrregularTileRangeData<V>(std::move(tileRanges)));
-				for (tile_id t = 0; t != tn; ++t)
+				if ((tn == 1 && range == tileRanges[0]) || IsRegular<V>(range, tileRanges))
 				{
-					MG_CHECK(IsIncluding(range, this->m_RangeDataPtr->GetTileRange(t)));
+					auto firstTileExtents = Size(tileRanges[0]);
+					this->m_RangeDataPtr = CreateRegularTileRangeData<V>(range, firstTileExtents);
+				}
+				else
+				{
+					this->m_RangeDataPtr = new IrregularTileRangeData<V>(std::move(tileRanges));
+					for (tile_id t = 0; t != tn; ++t)
+					{
+						MG_CHECK(IsIncluding(range, this->m_RangeDataPtr->GetTileRange(t)));
+					}
 				}
 			}
 /* REMOVE
