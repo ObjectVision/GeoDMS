@@ -229,7 +229,9 @@ void MovableObject::InvalidateClientRect(CrdRect rect) const
 		return;
 
 	auto dv = GetDataView().lock(); if (!dv) return;
-	dv->InvalidateDeviceRect( CrdRect2GRect( crdRect ) );
+
+	Range<IPoint> tmp = RoundEnclosing<4>(crdRect);
+	dv->InvalidateDeviceRect( GRect(tmp.first.X(), tmp.first.Y(), tmp.second.X(), tmp.second.Y() ) );
 }
 
 CrdPoint MovableObject::CalcClientSize() const
