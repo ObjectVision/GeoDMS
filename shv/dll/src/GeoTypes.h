@@ -368,7 +368,7 @@ struct TRect : Range<TPoint>
 };
 
 inline GType  TType2GType  (TType   src) { return src < MinValue<GType>() ? MinValue<GType>() : (src > MaxValue<GType>() ? MaxValue<GType>() : src); }
-inline GType  CrdType2GType(CrdType src) { return src < MinValue<GType>() ? MinValue<GType>() : (src > MaxValue<GType>() ? MaxValue<GType>() : src); }
+inline GType  CrdType2GType(CrdType src) { return src < MinValue<GType>() ? MinValue<GType>() : (src > MaxValue<GType>() ? MaxValue<GType>() : RoundDown<sizeof(GType)> (src)); }
 inline GPoint CrdPoint2GPoint(CrdPoint src) { return GPoint(CrdType2GType(src.X()), CrdType2GType(src.Y())); }
 
 inline CrdPoint TPoint2CrdPoint(TPoint src, CrdPoint sf) { return shp2dms_order<CrdType>(src.X() * sf.first, src.Y() * sf.second); }
