@@ -360,6 +360,12 @@ void AddLinePoint(typename DataArray<PolygonType>::reference dataElemRef, OGRLin
 }
 
 template <typename PolygonType>
+void AddSeparator(typename DataArray<PolygonType>::reference dataElemRef)
+{
+	dataElemRef.emplace_back(Undefined());
+}
+
+template <typename PolygonType>
 void AddLineString(typename DataArray<PolygonType>::reference dataElemRef, OGRLineString* lineString)
 {
 	SizeT numPoints = lineString->getNumPoints();
@@ -380,19 +386,6 @@ void AddLinearRing(typename DataArray<PolygonType>::reference dataElemRef, OGRLi
 	MG_CHECK(ring->getY(0) == ring->getY(numPoints-1));
 	for (SizeT p = 0; p != numPoints; ++p)
 		AddLinePoint<PolygonType>(dataElemRef, ring, isExterior ? p : (numPoints - p - 1));
-}
-
-template <typename PolygonType>
-void AddLineStringAsRing(typename DataArray<PolygonType>::reference dataElemRef, OGRLineString* lineString)
-{
-	SizeT numPoints = lineString->getNumPoints();
-	dms_assert(numPoints);
-	for (SizeT p = 0; p != numPoints; ++p)
-		AddLinePoint<PolygonType>(dataElemRef, lineString, p);
-	// go back to start in reverse direction
-	--numPoints;
-	while (numPoints--)
-		AddLinePoint<PolygonType>(dataElemRef, lineString, numPoints);
 }
 
 template <typename PolygonType>
@@ -431,17 +424,16 @@ void AddMultiPolygon(typename DataArray<PolygonType>::reference dataElemRef, OGR
 			AddLineBegin<PolygonType>(dataElemRef, debug_cast<OGRPolygon*>(geoMultiPolygon->getGeometryRef(numPolygons))->getExteriorRing());
 	}
 }
+
 template <typename PolygonType>
 void AddMultiLineString(typename DataArray<PolygonType>::reference dataElemRef, OGRMultiLineString* geoMultiLineString)
 {
 	SizeT numLineStrings = geoMultiLineString->getNumGeometries();
-	if (numLineStrings)
+	for (SizeT i=0; i!=numLineStrings; ++i)
 	{
-		for (SizeT i=0; i!=numLineStrings; ++i)
-			AddLineStringAsRing<PolygonType>(dataElemRef, debug_cast<OGRLineString*>(geoMultiLineString->getGeometryRef(i)));
-		--numLineStrings;
-		while (numLineStrings--)
-			AddLineBegin<PolygonType>(dataElemRef, debug_cast<OGRLineString*>(geoMultiLineString->getGeometryRef(numLineStrings)));
+		if (i)
+			AddSeparator<PolygonType>(dataElemRef);
+		AddLineString<PolygonType>(dataElemRef, debug_cast<OGRLineString*>(geoMultiLineString->getGeometryRef(i)));
 	}
 }
 
@@ -557,11 +549,7 @@ void ReadPolyData(typename sequence_traits<PolygonType>::seq_t dataArray, OGRLay
 			else if (dynamic_cast<OGRMultiPoint*>(geo))
 				AddMultiPoint<PolygonType>(dataElemRef, static_cast<OGRMultiPoint*>(geo));
 			else if (dynamic_cast<OGRMultiLineString*>(geo))
-			{
-				if (!i && !firstIndex) // only report once
-					reportD(MsgCategory::storage_read, SeverityTypeID::ST_MajorTrace, "gdal.vect: wicked conversion of MultiLineStrings to skinny MultiPolygons");
 				AddMultiLineString<PolygonType>(dataElemRef, static_cast<OGRMultiLineString*>(geo));
-			}
 		}
 		else
 			Assign( dataElemRef, Undefined() );
