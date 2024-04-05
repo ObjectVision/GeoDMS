@@ -782,7 +782,8 @@ public:
 			, e1 = arg1Data.end()
 			, i1 = b1
 			, b2 = arg2Data.begin()
-			, i2 = b2;
+			, i2 = b2
+			, last_i2 = {};
 
 		Float64 dist = const_array_cast<DistType>(arg3A)->GetDataRead()[0];
 		
@@ -797,12 +798,12 @@ public:
 		for (; i1 != e1; ++i2, ++i1)
 		{
 			if (!IsDefined(*i1))
-				throwErrorF(GetGroup()->GetNameStr(), "illegal undefined point detected in row %d of the first argument (aka point)", i1 - b1);
+				continue;
 			if (!IsDefined(*i2))
-				throwErrorF(GetGroup()->GetNameStr(), "illegal undefined point detected in row %d of the second argument (aka next_point)", i1 - b1);
+				continue;
 
 			if (!isFirstPoint)
-				if (i2[-1] != *i1)
+				if (*last_i2 != *i1)
 					isFirstPoint = true;
 			PointType segment = *i2 - *i1;
 			Float64 segmLength = sqrt(Norm<Float64>(segment));
@@ -812,9 +813,9 @@ public:
 					nrPoints++;
 			}
 			SizeT nrPointsHere = (segmLength+carry) / dist;
-			dms_assert((segmLength+carry) >= dist * nrPointsHere); // assume division and float->int conversion round off towards zero.
+			assert((segmLength+carry) >= dist * nrPointsHere); // assume division and float->int conversion round off towards zero.
 			carry += (segmLength - dist * nrPointsHere);
-			dms_assert(carry >= 0);
+			assert(carry >= 0);
 
 			if (withEnds && carry)
 			{
@@ -823,6 +824,7 @@ public:
 			}
 			nrPoints += nrPointsHere;
 			isFirstPoint = false;
+			last_i2 = i2;
 		}
 		resDomain->SetCount(nrPoints);
 
@@ -842,9 +844,14 @@ public:
 		DPoint prevLoc;
 		for (i1 = b1, i2 = b2; i1 != e1; ++nrOrgEntity, ++i2, ++i1)
 		{
+			if (!IsDefined(*i1))
+				continue;
+			if (!IsDefined(*i2))
+				continue;
+
 			UInt32 ordinalID = 0;
 			if (!isFirstPoint)
-				if (i2[-1] != *i1)
+				if (*last_i2 != *i1)
 					isFirstPoint = true;
 			DPoint segment = *i2 - *i1;
 			Float64 segmLengthOrg = sqrt(Norm<Float64>(segment));
@@ -920,6 +927,7 @@ public:
 			}
 			currPointIndex += nrPointsHere;
 			isFirstPoint = false;
+			last_i2 = i2;
 		}
 		dms_assert(currPointIndex == nrPoints);
 		if (resSub1) { dms_assert(ri1.IsEndOfChannel());  ri1.Commit(); }
