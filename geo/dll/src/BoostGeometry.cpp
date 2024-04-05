@@ -301,6 +301,68 @@ auto sqr(Numeric x)
 	return x * x;
 }
 
+template <typename P>
+void load_multi_linestring(bg_multi_linestring_t& mls, SA_ConstReference<P> multiLineStringRef, bg_linestring_t& helperLineString)
+{
+	mls.clear();
+
+	auto lineStringBegin = begin_ptr(multiLineStringRef)
+		, sequenceEnd = end_ptr(multiLineStringRef);
+
+	while (lineStringBegin != sequenceEnd)
+	{
+		while (!IsDefined(*lineStringBegin))
+			if (++lineStringBegin == sequenceEnd)
+				return;
+
+		auto lineStringEnd = lineStringBegin + 1;
+		while (lineStringEnd != sequenceEnd && IsDefined(*lineStringEnd))
+			++lineStringEnd;
+
+		helperLineString.assign(lineStringBegin, lineStringEnd);
+		if (!helperLineString.empty())
+			mls.emplace_back(std::move(helperLineString));
+
+		lineStringBegin = lineStringEnd;
+	}
+}
+
+
+template <typename P>
+void write_linestring(SA_Reference<P> resDataRef, const bg_linestring_t& ls)
+{
+	for (const auto& p : ls)
+		resDataRef.emplace_back(p);
+}
+
+template <typename P>
+void store_multi_linestring(SA_Reference<P> resDataRef, const bg_multi_linestring_t& mls)
+{
+	SizeT nrPoints = 0;
+	if (!mls.empty())
+	{
+		for (const auto& ls : mls)
+			nrPoints += ls.size();
+		nrPoints += mls.size() - 1; // add space for the separators
+	}
+
+	resDataRef.clear();
+	if (nrPoints == 0)
+		return;
+
+	resDataRef.reserve(nrPoints);
+
+	assert(!mls.empty());
+	write_linestring(resDataRef, mls.front());
+
+	SizeT nrWrittenLineStrings = 1, nrLineStrings = mls.size();
+	while (nrWrittenLineStrings != nrLineStrings)
+	{
+		resDataRef.emplace_back(Undefined()); // write a separator
+		write_linestring(resDataRef, mls[nrWrittenLineStrings++]);
+	}
+}
+
 template <typename DmsPointType>
 void store_ring(SA_Reference<DmsPointType> resDataElem, const bg_ring_t& ring)
 {
@@ -571,31 +633,30 @@ struct SimplifyLinestringOperator : public AbstrSimplifyOperator
 
 	void Calculate(AbstrDataObject* resItem, const AbstrDataItem* polyItem, Float64 maxError, tile_id t) const override
 	{
-		auto polyData = const_array_cast<PolygonType>(polyItem)->GetTile(t);
+		auto lineStringData = const_array_cast<PolygonType>(polyItem)->GetTile(t);
 		auto resData = mutable_array_cast<PolygonType>(resItem)->GetWritableTile(t);
-		assert(polyData.size() == resData.size());
+		assert(lineStringData.size() == resData.size());
 
 		assert(polyItem->GetValueComposition() == ValueComposition::Sequence);
 
-		bg_linestring_t currGeometry, resGeometry;
+		bg_multi_linestring_t currGeometry, resGeometry;
+		bg_linestring_t helperLineString;
 
-		for (SizeT i = 0, n = polyData.size(); i != n; ++i)
+		for (SizeT i = 0, n = lineStringData.size(); i != n; ++i)
 		{
-			auto lb = MaxValue<PointType>();
-			for (auto p : polyData[i])
-				MakeLowerBound(lb, p);
-
-			currGeometry.assign(begin_ptr(polyData[i]), end_ptr(polyData[i]));
-			move(currGeometry, -DPoint(lb));
-
+			load_multi_linestring(currGeometry, lineStringData[i], helperLineString);
 			resGeometry.resize(0);
-			boost::geometry::simplify(currGeometry, resGeometry, maxError);
-			move(resGeometry, DPoint(lb));
+			if (!currGeometry.empty())
+			{
+				auto lb = MaxValue<DPoint>();
+				MakeLowerBound(lb, currGeometry);
+				move(currGeometry, -lb);
 
-			auto resDataElem = resData[i];
-			resDataElem.reserve(resGeometry.size());
-			for (auto p : resGeometry)
-				resDataElem.emplace_back(p);
+				boost::geometry::simplify(currGeometry, resGeometry, maxError);
+				move(resGeometry, DPoint(lb));
+
+			}
+			store_multi_linestring(resData[i], resGeometry);
 		}
 	}
 };
@@ -838,32 +899,15 @@ struct BufferLineStringOperator : public AbstrBufferOperator
 
 			std::vector<DPoint> ringClosurePoints;
 
-			bg_linestring_t currTmp;
+			bg_linestring_t helperLineString;
 			bg_multi_linestring_t currGeometry;
 			bg_multi_polygon_t resMP;
 
 	nextPointWithSameResRing:
 
 			resMP.clear();
-			auto lineStringBegin = begin_ptr(lineStringData[i])
-				, sequenceEnd = end_ptr(lineStringData[i]);
-			while (lineStringBegin != sequenceEnd)
-			{
-				while (!IsDefined(*lineStringBegin))
-					if (++lineStringBegin == sequenceEnd)
-						goto sequenceCompleted;
-			
-				auto lineStringEnd = lineStringBegin + 1;
-				while (lineStringEnd != sequenceEnd && IsDefined(*lineStringEnd))
-					++lineStringEnd;
+			load_multi_linestring(currGeometry, lineStringData[i], helperLineString);
 
-				currTmp.assign(lineStringBegin, lineStringEnd);
-				if (!currTmp.empty())
-					currGeometry.emplace_back(std::move(currTmp));
-
-				lineStringBegin = lineStringEnd;
-			}
-		sequenceCompleted:
 			if (!currGeometry.empty())
 			{
 				auto p = MaxValue<DPoint>();
