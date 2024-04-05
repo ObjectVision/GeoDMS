@@ -16,33 +16,36 @@
 //----------------------------------------------------------------------
 
 template <typename ReturnType, typename ConstPointPtr>
-ReturnType ArcLength(ConstPointPtr arcBegin, ConstPointPtr arcEnd)
+ReturnType ArcLength(ConstPointPtr arcPtr, ConstPointPtr arcEnd)
 {
-	ReturnType length = 0;
-
-restart:
-	if (arcBegin != arcEnd)
+	while (true)
 	{
-		if (!IsDefined(*arcBegin))
+		if (arcPtr == arcEnd) 
+			return 0;
+		if (IsDefined(*arcPtr))
+			break;
+		++arcPtr;
+	}	
+
+	ReturnType length = 0;
+	assert(arcPtr != arcEnd);
+	assert(IsDefined(*arcPtr));
+
+	for (ConstPointPtr nextPtr = arcPtr; ++nextPtr != arcEnd; arcPtr = nextPtr)
+	{
+		assert(IsDefined(*arcPtr));
+		if (!IsDefined(*nextPtr))
 		{
-			++arcBegin;
-			goto restart;
+			do {
+				++nextPtr; // past the undefined point
+				if (nextPtr == arcEnd)
+					goto exit;
+			} while (!IsDefined(*nextPtr));
 		}
-		for (ConstPointPtr j = arcBegin, i = j; ++j != arcEnd; i = j)
-		{
-			assert(IsDefined(*i));
-			if (!IsDefined(*j))
-			{
-				do {
-					i = ++j; // past the undefined point
-					if (i == arcEnd)
-						goto exit;
-				} while (!IsDefined(*i));
-			}
-			else
-				length += std::sqrt(SqrDist<ReturnType>(*i, *j));
-		}
+		else
+			length += std::sqrt(SqrDist<ReturnType>(*arcPtr, *nextPtr));
 	}
+
 exit:
 	return length;
 }

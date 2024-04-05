@@ -86,15 +86,16 @@ void make_subset_container(ResContainer* resultSub, const DataArray<Bool>* boolA
 		SizeT count = 0;
 		for (; di != de; ++di)
 		{
-			if (*di)
+			if (*di) // process the bit-block
 			{
 				for (ArgType::const_iterator i(di, SizeT(0)), e(di, SizeT(ArgType::const_iterator::nr_elem_per_block)); i!=e; ++count, ++i)
 					if (Bool(*i))
 						resDataChannel.Write(Range_GetValue_naked(resValuesRange, count) );
 			}
 			else
-				count += ArgType::const_iterator::nr_elem_per_block;
+				count += ArgType::const_iterator::nr_elem_per_block; // jump over the bit-block
 		}
+		// process the remaining bits
 		for (ArgType::const_iterator i(di, SizeT(0)), e=boolData.end(); i!=e; ++count, ++i)
 			if (Bool(*i))
 				resDataChannel.Write(Range_GetValue_naked(resValuesRange, count) );

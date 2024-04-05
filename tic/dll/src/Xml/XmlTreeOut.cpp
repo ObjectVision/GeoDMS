@@ -411,6 +411,7 @@ const TreeItem* GetExprOrSourceDescrAndReturnSourceItem(OutStreamBase& stream, c
 		if (AbstrCalculator::MustEvaluate(result.begin()))
 		{
 			NewLine(stream);
+			NewLine(stream);
 			if (ti->InTemplate())
 				stream << "which isn't evaluated here since this item is part of a template definition";
 			else

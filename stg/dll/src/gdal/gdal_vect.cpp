@@ -1649,6 +1649,7 @@ void GdalVectSM::DoUpdateTable(const TreeItem* storageHolder, AbstrUnit* layerDo
 	dms_assert(layer);
 	GDAL_ErrorFrame gdal_error_frame;
 	auto layer_geometry_type = layer->GetGeomType();
+
 	ValueComposition gdal_vc = gdalVectImpl::OGR2ValueComposition(layer_geometry_type);
 	bool create_vu_from_datasource = false;
 
