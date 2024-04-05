@@ -796,6 +796,11 @@ public:
 		bool isFirstPoint = true;
 		for (; i1 != e1; ++i2, ++i1)
 		{
+			if (!IsDefined(*i1))
+				throwErrorF(GetGroup()->GetNameStr(), "illegal undefined point detected in row %d of the first argument (aka point)", i1 - b1);
+			if (!IsDefined(*i2))
+				throwErrorF(GetGroup()->GetNameStr(), "illegal undefined point detected in row %d of the second argument (aka next_point)", i1 - b1);
+
 			if (!isFirstPoint)
 				if (i2[-1] != *i1)
 					isFirstPoint = true;
