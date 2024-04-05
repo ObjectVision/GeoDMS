@@ -851,17 +851,19 @@ struct BufferLineStringOperator : public AbstrBufferOperator
 			{
 				while (!IsDefined(*lineStringBegin))
 					if (++lineStringBegin == sequenceEnd)
-						break;
+						goto sequenceCompleted;
 			
 				auto lineStringEnd = lineStringBegin + 1;
 				while (lineStringEnd != sequenceEnd && IsDefined(*lineStringEnd))
 					++lineStringEnd;
 
 				currTmp.assign(lineStringBegin, lineStringEnd);
-				if (!currGeometry.empty())
+				if (!currTmp.empty())
 					currGeometry.emplace_back(std::move(currTmp));
-			}
 
+				lineStringBegin = lineStringEnd;
+			}
+		sequenceCompleted:
 			if (!currGeometry.empty())
 			{
 				auto p = MaxValue<DPoint>();
