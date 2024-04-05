@@ -23,6 +23,7 @@
 
 #include <boost/geometry.hpp>
 #include <boost/geometry/algorithms/within.hpp>
+#include <boost/geometry/multi/geometries/multi_linestring.hpp>
 
 #include "ipolygon/polygon.hpp"
 #include "geo/BoostPolygon.h"
@@ -33,6 +34,7 @@ static VersionComponent s_BoostGeometry("boost::geometry " BOOST_STRINGIZE(BOOST
 
 using bg_multi_point_t = boost::geometry::model::multi_point<DPoint>;
 using bg_linestring_t = boost::geometry::model::linestring<DPoint>;
+using bg_multi_linestring_t = boost::geometry::model::multi_linestring<bg_linestring_t>;
 using bg_ring_t = boost::geometry::model::ring<DPoint>;
 using bg_polygon_t = boost::geometry::model::polygon<DPoint>;
 using bg_multi_polygon_t = boost::geometry::model::multi_polygon<bg_polygon_t>;
@@ -69,6 +71,13 @@ void MakeLowerBound(P& lb, const boost::geometry::model::linestring<P>& ls)
 {
 	for (const auto& p : ls)
 		MakeLowerBound(lb, p);
+}
+
+template<typename P>
+void MakeLowerBound(P& lb, const boost::geometry::model::multi_linestring<boost::geometry::model::linestring<P>>& mls)
+{
+	for (const auto& ls : mls)
+		MakeLowerBound(lb, ls);
 }
 
 template<typename P>
@@ -121,13 +130,19 @@ void move(bg_linestring_t& ls, DPoint displacement)
 	if (ls.size() < 2)
 		return;
 	remove_adjacents(ls);
-	dms_assert(!ls.empty());
+	assert(!ls.empty());
 }
 
 void move(bg_multi_point_t& ms, DPoint displacement)
 {
 	for (auto& p : ms)
 		boost::geometry::add_point(p, displacement);
+}
+
+void move(bg_multi_linestring_t& mls, DPoint displacement)
+{
+	for (auto& ls : mls)
+		move(ls, displacement);
 }
 
 void move(bg_polygon_t& polygon, DPoint displacement)
@@ -792,21 +807,21 @@ struct BufferLineStringOperator : public AbstrBufferOperator
 		: AbstrBufferOperator(grBgBuffer_linestring, Arg1Type::GetStaticClass())
 	{}
 
-	void Calculate(AbstrDataObject* resItem, const AbstrDataItem* polyItem
+	void Calculate(AbstrDataObject* resItem, const AbstrDataItem* lineStringItem
 		, bool e2IsVoid, const AbstrDataItem* bufDistItem, Float64 bufferDistance
 		, bool e3IsVoid, const AbstrDataItem* ppcItem, UInt8 pointsPerCircle
 		, tile_id t) const override
 	{
-		dms_assert(polyItem->GetValueComposition() == ValueComposition::Sequence);
+		assert(lineStringItem->GetValueComposition() == ValueComposition::Sequence);
 
-		auto polyData = const_array_cast<PolygonType>(polyItem)->GetTile(t);
+		auto lineStringData = const_array_cast<PolygonType>(lineStringItem)->GetTile(t);
 		auto bufDistData = e2IsVoid ? DataArray<Float64>::locked_cseq_t{} : const_array_cast<Float64>(bufDistItem)->GetTile(t);
 		auto ppcData = e3IsVoid ? DataArray<UInt8  >::locked_cseq_t{} : const_array_cast<UInt8>  (ppcItem)->GetTile(t);
 
 		auto resData = mutable_array_cast<PolygonType>(resItem)->GetWritableTile(t);
-		assert(polyData.size() == resData.size());
+		assert(lineStringData.size() == resData.size());
 
-		SizeT i = 0, n = polyData.size(); if (!n) return;
+		SizeT i = 0, n = lineStringData.size(); if (!n) return;
 
 		while (true)
 		{
@@ -823,13 +838,30 @@ struct BufferLineStringOperator : public AbstrBufferOperator
 
 			std::vector<DPoint> ringClosurePoints;
 
-			bg_linestring_t currGeometry;
+			bg_linestring_t currTmp;
+			bg_multi_linestring_t currGeometry;
 			bg_multi_polygon_t resMP;
 
 	nextPointWithSameResRing:
 
 			resMP.clear();
-			currGeometry.assign(begin_ptr(polyData[i]), end_ptr(polyData[i]));
+			auto lineStringBegin = begin_ptr(lineStringData[i])
+				, sequenceEnd = end_ptr(lineStringData[i]);
+			while (lineStringBegin != sequenceEnd)
+			{
+				while (!IsDefined(*lineStringBegin))
+					if (++lineStringBegin == sequenceEnd)
+						break;
+			
+				auto lineStringEnd = lineStringBegin + 1;
+				while (lineStringEnd != sequenceEnd && IsDefined(*lineStringEnd))
+					++lineStringEnd;
+
+				currTmp.assign(lineStringBegin, lineStringEnd);
+				if (!currGeometry.empty())
+					currGeometry.emplace_back(std::move(currTmp));
+			}
+
 			if (!currGeometry.empty())
 			{
 				auto p = MaxValue<DPoint>();
@@ -839,8 +871,8 @@ struct BufferLineStringOperator : public AbstrBufferOperator
 				boost::geometry::buffer(currGeometry, resMP, distStrategy, sideStrategy, joinStrategy, endStrategy, circleStrategy);
 				move(resMP, p);
 
-				store_multi_polygon(resData[i], resMP, ringClosurePoints);
 			}
+			store_multi_polygon(resData[i], resMP, ringClosurePoints);
 			if (++i == n)
 				break;
 			if (e2IsVoid && e3IsVoid)
