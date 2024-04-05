@@ -129,7 +129,10 @@ struct AbstrConstOperator : public BinaryOperator
 
 			DataReadLock arg1Lock(arg1A);
 
-			auto tn = arg2U->GetTiledRangeData()->GetNrTiles();
+			auto trd = arg2U->GetTiledRangeData();
+			MG_CHECK(trd);
+
+			auto tn = trd->GetNrTiles();
 			if (tn > 1 || tn == 1 && arg2U->GetTiledRangeData()->GetTileSize(0) >= 256)
 				res->m_DataObject = CreateConstFunctor(arg1A, arg2U MG_DEBUG_ALLOCATOR_SRC("ConstFunctor()"));
 			else
