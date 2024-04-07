@@ -12,6 +12,7 @@
 #include "ser/StringStream.h"
 
 #include "CheckedDomain.h"
+#include "LispTreeType.h"
 #include "OperGroups.h"
 #include "ParallelTiles.h"
 #include "TreeItemClass.h"
@@ -366,18 +367,120 @@ struct ReadLinesOperator: public TernaryOperator
 	}
 };
 
+template<typename SequenceValueType, typename ElementPredicate, typename ResultDomainType = UInt32>
+struct SplitSequenceOperator : public UnaryOperator
+{
+	using ResultType = Unit<ResultDomainType>;
+	using ResultSubType = DataArray<SequenceValueType>;
+
+	using Arg1Type = DataArray<SequenceValueType> ; // Sequence array to read from
+
+	ElementPredicate m_ElementPredicate;
+
+	SplitSequenceOperator(AbstrOperGroup* og, ElementPredicate&& pred)
+		: UnaryOperator(og, ResultType::GetStaticClass() , Arg1Type::GetStaticClass())
+		, m_ElementPredicate(std::move(pred))
+	{}
+
+	bool CreateResult(TreeItemDualRef& resultHolder, const ArgSeqType& args, bool mustCalc) const override
+	{
+		assert(args.size() == 1);
+		auto arg1 = AsDataItem(args[0]);
+		assert(arg1);
+
+		auto res = ResultType::GetStaticClass()-> CreateResultUnit(resultHolder);
+		assert(res->IsPassor());
+
+		auto adu = arg1->GetAbstrDomainUnit();
+		auto avu = arg1->GetAbstrValuesUnit();
+		auto resSequenceItem = CreateDataItem(res, token::org_rel, res, avu, ValueComposition::Sequence);
+
+		AbstrDataItem* resOrgRelItem = nullptr;
+		if (!arg1->HasVoidDomainGuarantee())
+			resOrgRelItem = CreateDataItem(res, token::org_rel, res, adu);
+
+		if (!mustCalc)
+			return true;
+
+		DataReadLock lock(arg1);
+		auto sequences = const_array_cast<SequenceValueType>(args[0])->GetDataRead();
+
+		SizeT nrBreaks = 0;
+		for (auto seqRef : sequences)
+		{
+			for (const auto& elem : seqRef)
+				if (m_ElementPredicate(elem))
+					++nrBreaks;
+		}
+		
+		SizeT nrSubSequences = sequences.size() + nrBreaks;
+		res->SetCount(nrSubSequences);
+
+		DataWriteLock dwlSequences(resSequenceItem, dms_rw_mode::write_only_all);
+		DataWriteLock dwlOrgRel   (resOrgRelItem  , dms_rw_mode::write_only_all);
+
+		auto resSequences = mutable_array_cast<SequenceValueType>(dwlSequences)->GetDataWrite(no_tile, dms_rw_mode::write_only_all);
+		
+		resSequences.get_sa().data_reserve(sequences.get_sa().data_size() - nrBreaks MG_DEBUG_ALLOCATOR_SRC("SplitSequenceOperator: resSequences.data_reserve"));
+		auto resSequenceIter = resSequences.begin();
+		SizeT orgRelIndex = 0;
+		for (auto seqRef : sequences)
+		{
+			auto seqStartPtr = seqRef.begin(), seqEndPtr = seqRef.end();
+			auto seqPtr = seqStartPtr;
+			while (seqPtr != seqEndPtr)
+			{
+				if (m_ElementPredicate(*seqPtr))
+				{
+					resSequenceIter->assign(seqStartPtr, seqPtr);
+					++resSequenceIter;
+					seqStartPtr = ++seqPtr;
+					if (dwlOrgRel)
+						visit<typelists::domain_elements>(adu, [&]<typename D>(const Unit<D>* du)
+						{
+							auto resOrgRelItem = mutable_array_cast<D>(dwlOrgRel);
+							auto resIndex = resSequenceIter - resSequences.begin();
+							auto orgIndex = du->GetValueAtIndex(orgRelIndex);
+							resOrgRelItem->SetIndexedValue(resIndex, orgIndex);
+						});
+				}
+				else
+					++seqPtr;
+			}
+			++orgRelIndex;
+		}
+		MG_CHECK(resSequenceIter == resSequences.end());
+
+		dwlSequences.Commit();
+		dwlOrgRel.Commit();
+		return true;
+	}
+};
+
+
 //==================================================================================
 
 namespace {
 	CommonOperGroup cog_ReadArray("ReadArray", oper_policy::dynamic_result_class); // REMOVE, Make result class static DataArry with values based on Arg3Type
 	CommonOperGroup cog_ReadElems("ReadElems", oper_policy::dynamic_result_class); // REMOVE, Make result class static DataArry with values based on Arg2Type
 	CommonOperGroup cog_ReadLines("ReadLines");
+	CommonOperGroup cog_SplitPipedString("split_piped_string", oper_policy::dynamic_result_class);
+	CommonOperGroup cog_SplitMultiLineString("split_multi_linestring", oper_policy::dynamic_result_class);
 
 
 	//==================================================================================
 	ReadArrayOperator readArray(&cog_ReadArray);
 	ReadElemsOperator readElems(&cog_ReadElems);
 	ReadLinesOperator readLinesOperator(&cog_ReadLines);
+
+	auto isEOL = [](char ch) { return eolch(ch); };
+	SplitSequenceOperator<SharedStr, decltype(isEOL)> splitLines(&cog_ReadLines, std::move(isEOL));
+
+	auto isPipe = [](char ch) { return ch == '|'; };
+	SplitSequenceOperator<SharedStr, decltype(isPipe)> splitPipedString(&cog_SplitPipedString, std::move(isPipe));
+
+	auto isSeparator = [](const auto& p) { return !IsDefined(p); };
+	SplitSequenceOperator<DPolygon, decltype(isSeparator)> splitLinestrings(&cog_SplitMultiLineString, std::move(isSeparator));
 }
 
 

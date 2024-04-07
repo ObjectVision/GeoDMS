@@ -1274,10 +1274,12 @@ bool DataView::DispatchMouseEvent(EventID event, WPARAM nFlags, GPoint devicePoi
 	if (eventInfo.m_EventID & EventID::RBUTTONUP)
 		m_TextEditController.CloseCurr();
 
-	SuspendTrigger::FencedBlocker blockSuspension("DataView::DispatchMouseEvent");
-
+	bool result = false;
 	MouseEventDispatcher med(this, eventInfo);
-	bool result = med.Visit(GetContents().get() );
+	{
+		SuspendTrigger::FencedBlocker blockSuspension("DataView::DispatchMouseEvent");
+		result = med.Visit(GetContents().get());
+	}
 
 	if ( ! med.GetMenuData().empty() )
 	{

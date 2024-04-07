@@ -1760,26 +1760,6 @@ bool DrawArcs(const GraphicArcLayer* layer, const FeatureDrawer& fd, const PenIn
 						auto arcCPtr = b + itemCounter;
 						if (IsIntersecting(geoRect, rectArray.m_FeatBoundArray[itemCounter]))
 						{
-
-							UInt32 nrPoints = arcCPtr->size();
-							pointBuffer.resize(nrPoints);
-							auto bi = pointBuffer.begin();
-
-							for (auto pnt : *arcCPtr)
-							{
-								auto deviceDPoint = transformer.Apply(pnt);
-								*bi++ = GPoint(deviceDPoint.X(), deviceDPoint.Y());
-							}
-
-							// remove duplicates
-							pointBuffer.erase(
-								std::unique(pointBuffer.begin(), pointBuffer.end(), [](auto a, auto b) { return a.x == b.x && a.y == b.y;  })
-								, pointBuffer.end()
-							);
-
-							if (pointBuffer.size() < 2)
-								goto nextArc;
-
 							entity_id entityIndex = trd->GetRowIndex(tileCounter, itemCounter);
 							if (indexCollector)
 							{
@@ -1795,42 +1775,72 @@ bool DrawArcs(const GraphicArcLayer* layer, const FeatureDrawer& fd, const PenIn
 								isSelected = false;
 							}
 
-							if (entityIndex == fe || isSelected)
+							UInt32 nrPoints = arcCPtr->size();
+							pointBuffer.reserve(nrPoints);
+//							auto bi = pointBuffer.begin();
+					
+							auto pntPtr = arcCPtr->begin();
+							while (pntPtr != arcCPtr->end())
 							{
-								int width = 4 * d.GetSubPixelFactor();
-								assert(width > 0);
-								if (penIndices)
+								pointBuffer.clear();
+								while (pntPtr != arcCPtr->end())
 								{
-									width += penIndices->GetWidth(entityIndex);
-									assert(width > 0);
+									if (!IsDefined(*pntPtr))
+									{
+										++pntPtr;
+										break;
+									}
+									auto deviceDPoint = transformer.Apply(*pntPtr);
+									pointBuffer.emplace_back(deviceDPoint.X(), deviceDPoint.Y());
+									++pntPtr;
 								}
-								width += width / 2;
-								assert(width > 0);
 
-								COLORREF brushColor = (entityIndex == fe)
-									? ::GetSysColor(COLOR_HIGHLIGHT)
-									: GetSelectedClr(selectionsArray[entityIndex]);
+								// remove duplicates
+								pointBuffer.erase(
+									std::unique(pointBuffer.begin(), pointBuffer.end(), [](auto a, auto b) { return a.x == b.x && a.y == b.y;  })
+									, pointBuffer.end()
+								);
 
-								specialPenHolder = CreatePen(PS_SOLID, width, brushColor);
-								pa.SetSpecificPen(specialPenHolder);
+								if (pointBuffer.size() < 2)
+									continue;
+
+								if (entityIndex == fe || isSelected)
+								{
+									int width = 4 * d.GetSubPixelFactor();
+									assert(width > 0);
+									if (penIndices)
+									{
+										width += penIndices->GetWidth(entityIndex);
+										assert(width > 0);
+									}
+									width += width / 2;
+									assert(width > 0);
+
+									COLORREF brushColor = (entityIndex == fe)
+										? ::GetSysColor(COLOR_HIGHLIGHT)
+										: GetSelectedClr(selectionsArray[entityIndex]);
+
+									specialPenHolder = CreatePen(PS_SOLID, width, brushColor);
+									pa.SetSpecificPen(specialPenHolder);
+								}
+								else if (penIndices)
+								{
+									if (!pa.SelectPen(penIndices->GetKeyIndex(entityIndex)))
+										goto nextArc;
+								}
+								else
+									pa.ResetPen();
+
+
+								CheckedGdiCall(
+									Polyline(
+										d.GetDC(),
+										begin_ptr(pointBuffer),
+										pointBuffer.size()
+									)
+									, "DrawArc"
+								);
 							}
-							else if (penIndices)
-							{
-								if (!pa.SelectPen(penIndices->GetKeyIndex(entityIndex)))
-									goto nextArc;
-							}
-							else
-								pa.ResetPen();
-
-
-							CheckedGdiCall(
-								Polyline(
-									d.GetDC(),
-									begin_ptr(pointBuffer),
-									pointBuffer.size()
-								)
-								, "DrawArc"
-							);
 						}
 					nextArc:
 						++itemCounter;
