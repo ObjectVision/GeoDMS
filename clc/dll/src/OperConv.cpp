@@ -265,8 +265,10 @@ struct ConvertFunc : unary_func<TR, TA>
 {
 	TR operator() (const TA& p) const
 	{
+		if (!IsDefined(p))
+			return UNDEFINED_VALUE(TR);
 		DPoint res = CF(DPoint(p.Col(), p.Row()));
-		return shp2dms_order( TR(res.first, res.second) );
+		return shp2dms_order<scalar_of_t<TR>>( res.first, res.second);
 	}
 };
 
@@ -477,7 +479,10 @@ struct Type1DConversion  : unary_func<TR,TA>
 
 	TR ApplyScaled(typename sequence_traits<TA>::container_type::const_reference v) const
 	{
-		assert(m_Factor != 1.0 );
+		assert(m_Factor != 1.0);
+		if constexpr (has_undefines_v<TA>)
+			if (!IsDefined(v))
+				return UNDEFINED_OR_ZERO(TR);
 		return checked_multiply<TR>(v, m_Factor);
 	}
 
@@ -589,11 +594,11 @@ struct Type2DConversion: unary_func<TR, TA> // http://www.gdal.org/ogr/osr_tutor
 		assert(m_PostRescaler.IsIdentity());
 
 		if (!IsDefined(p))
-			return UNDEFINED_OR_ZERO(TR);
+			return UNDEFINED_VALUE(TR);
 
 		DPoint res = prj2dms_order(p.first, p.second, m_Source_is_expected_to_be_col_first);
 		if (!m_OgrComponentHolder->m_Transformer->Transform(1, &res.first, &res.second, nullptr))
-			return UNDEFINED_OR_ZERO(TR);
+			return UNDEFINED_VALUE(TR);
 		res = prj2dms_order(res.first, res.second, m_Projection_is_col_first);
 		return Convert<TR>(res);
 	}
@@ -604,7 +609,7 @@ struct Type2DConversion: unary_func<TR, TA> // http://www.gdal.org/ogr/osr_tutor
 		assert(m_PostRescaler.IsIdentity());
 
 		if (!IsDefined(p))
-			return UNDEFINED_OR_ZERO(TR);
+			return UNDEFINED_VALUE(TR);
 
 		return Convert<TR>( m_PreRescaler.Apply(DPoint(p)) );
 	}
@@ -614,12 +619,12 @@ struct Type2DConversion: unary_func<TR, TA> // http://www.gdal.org/ogr/osr_tutor
 		assert(!m_PreRescaler.IsIdentity() || !m_PostRescaler.IsIdentity());
 
 		if (!IsDefined(p))
-			return UNDEFINED_OR_ZERO(TR);
+			return UNDEFINED_VALUE(TR);
 
 		DPoint res = m_PreRescaler.Apply(DPoint(p));
 		res = prj2dms_order(res.first, res.second, m_Source_is_expected_to_be_col_first);
 		if (!m_OgrComponentHolder->m_Transformer->Transform(1, &res.first, &res.second, nullptr))
-			return UNDEFINED_OR_ZERO(TR);
+			return UNDEFINED_VALUE(TR);
 		res = prj2dms_order(res.first, res.second, m_Projection_is_col_first);
 		return Convert<TR>( m_PostRescaler.Apply( res ) );
 	}
@@ -634,7 +639,7 @@ struct Type2DConversion: unary_func<TR, TA> // http://www.gdal.org/ogr/osr_tutor
 		bool source_is_expected_to_be_col_first = this->m_Source_is_expected_to_be_col_first;
 		bool projection_is_col_first = this->m_Projection_is_col_first;
 
-		for (int i = 0; i != s; ++i)
+		for (UInt32 i = 0; i != s; ++i)
 		{
 			DPoint rescaledA = m_PreRescaler.Apply(DPoint(ai[i]));
 			rescaledA = prj2dms_order(rescaledA, source_is_expected_to_be_col_first);
@@ -653,7 +658,7 @@ struct Type2DConversion: unary_func<TR, TA> // http://www.gdal.org/ogr/osr_tutor
 				Assign(*ri, Undefined());
 			return;
 		}
-		for (int i = 0; i != s; ++ri, ++i)
+		for (UInt32 i = 0; i != s; ++ri, ++i)
 		{
 			if (!successFlags[i])
 			{
@@ -686,10 +691,17 @@ struct Type2DConversion: unary_func<TR, TA> // http://www.gdal.org/ogr/osr_tutor
 			{
 				auto s = n;
 				MakeMin(s, PROJ_BLOCK_SIZE);
-				DispatchTransformation_impl(ri, ai, resX, resY, successFlags, s);
-				n -= s;
-				ai += s;
-				ri += s;
+				auto ss = std::find_if_not(ai, ai + s, [](auto p) { return IsDefined(p); }) - ai;
+				assert(ss == s || (ss < s && !IsDefined(ai[ss])));
+				DispatchTransformation_impl(ri, ai, resX, resY, successFlags, ss);
+				ri += ss;
+				if (ss < s)
+				{
+					*ri++ = Undefined();
+					ss++;
+				}
+				n -= ss;
+				ai += ss;
 			}
 		}
 		else 
