@@ -393,7 +393,7 @@ struct SplitSequenceOperator : public UnaryOperator
 
 		auto adu = arg1->GetAbstrDomainUnit();
 		auto avu = arg1->GetAbstrValuesUnit();
-		auto resSequenceItem = CreateDataItem(res, token::org_rel, res, avu, ValueComposition::Sequence);
+		auto resSequenceItem = CreateDataItem(res, token::org_rel, res, avu, composition_of_v< SequenceValueType>);
 
 		AbstrDataItem* resOrgRelItem = nullptr;
 		if (!arg1->HasVoidDomainGuarantee())
