@@ -1446,8 +1446,9 @@ void GdalVectSM::WriteLayer(std::string_view layer_name, const GdalMetaInfo& gmi
 	SharedStr data_source_name = gmi.StorageManager()->GetNameStr();
 	const TreeItem* storage_holder = gmi.StorageHolder();
 
-	auto adi = m_DataItemsStatusInfo.GetExampleAdiFromLayerID(GetTokenID_mt(layer_name.data()));
-	assert(adi);
+	auto layerID = GetTokenID_mt(layer_name.data());
+	auto adi = m_DataItemsStatusInfo.GetExampleAdiFromLayerID(layerID);
+	MG_CHECK(adi);  // should be guaranteed by an earlier call to DoWriteDataItem
 	auto adu = adi->GetAbstrDomainUnit();
 
 	auto unit_item = GetLayerHolderFromDataItem(storage_holder, adi);
