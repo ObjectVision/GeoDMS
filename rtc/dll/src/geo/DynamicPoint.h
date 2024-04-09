@@ -32,8 +32,6 @@ ReturnType ArcLength(ConstPointPtr arcPtr, ConstPointPtr arcEnd)
 			return UNDEFINED_VALUE(ReturnType);
 		length += std::sqrt(SqrDist<ReturnType>(*arcPtr, *nextPtr));
 	}
-
-exit:
 	return length;
 }
 
