@@ -1325,7 +1325,7 @@ bool DataSourceHasNamelessLayer(SharedStr datasourceName)
 	return false;
 }
 
-void InitializeLayerGeometry(const TreeItem* unit_item, SharedStr layer_name, const AbstrUnit* layer_domain, DataItemsWriteStatusInfo& disi)
+void InitializeLayerGeometry(const TreeItem* unit_item, TokenID layerID, const AbstrUnit* layer_domain, DataItemsWriteStatusInfo& disi)
 {
 	SharedStr field_name = {};
 	for (auto sub_item = unit_item->WalkConstSubTree(nullptr); sub_item; sub_item = unit_item->WalkConstSubTree(sub_item))
@@ -1334,7 +1334,7 @@ void InitializeLayerGeometry(const TreeItem* unit_item, SharedStr layer_name, co
 			continue;
 
 		auto adi = AsDataItem(sub_item);
-		field_name = sub_item->GetName().c_str();
+		auto fieldID = sub_item->GetID();
 
 		if (layer_domain)
 			adi->GetAbstrDomainUnit()->UnifyDomain(layer_domain, "Domain of attribute", "layerDomain", UnifyMode::UM_Throw); // Check that domain of subItem is DomainUnifyable with layerItem
@@ -1344,12 +1344,12 @@ void InitializeLayerGeometry(const TreeItem* unit_item, SharedStr layer_name, co
 
 		if (CheckVCAndVCIForGeometry(vc, vci)) // geometry
 		{
-			disi.setFieldIsWritten(GetTokenID_mt(layer_name), GetTokenID_mt(field_name), false);
-			disi.setIsGeometry(GetTokenID_mt(layer_name), GetTokenID_mt(field_name), true);
+			disi.setFieldIsWritten(layerID, fieldID, false);
+			disi.setIsGeometry(layerID, fieldID, true);
 		}
 	}
 
-	auto found_geometry_dataitem_in_subtree = disi.hasGeometry(GetTokenID_mt(layer_name)); // geometry is found, do nothing
+	auto found_geometry_dataitem_in_subtree = disi.hasGeometry(layerID); // geometry is found, do nothing
 	if (found_geometry_dataitem_in_subtree)
 		return;
 
@@ -1361,23 +1361,20 @@ void InitializeLayerGeometry(const TreeItem* unit_item, SharedStr layer_name, co
 		geometry_item->UpdateMetaInfo();
 		//disi.SetInterestForDataHolder(GetTokenID_mt(layer_name.c_str()), GetTokenID_mt(geometry_item->GetName().c_str()), AsDataItem(geometry_item)); // write once all dataitems are ready
 		assert(IsDataItem(geometry_item));
-		disi.m_orphan_geometry_items[GetTokenID_mt(layer_name.c_str())] = AsDataItem(geometry_item);
+		disi.m_orphan_geometry_items[layerID] = AsDataItem(geometry_item);
 		geometry_item->PrepareData();
-	}
-
-	
+	}	
 }
 
-void InitializeLayerFields(const TreeItem* unit_item, SharedStr layer_name, const AbstrUnit* layer_domain, DataItemsWriteStatusInfo& disi)
+void InitializeLayerFields(const TreeItem* unit_item, TokenID layerID, const AbstrUnit* layer_domain, DataItemsWriteStatusInfo& disi)
 {
-	SharedStr field_name = {};
 	for (auto sub_item = unit_item->WalkConstSubTree(nullptr); sub_item; sub_item = unit_item->WalkConstSubTree(sub_item))
 	{
 		if (not (IsDataItem(sub_item) and sub_item->IsStorable()))
 			continue;
 
 		auto adi = AsDataItem(sub_item);
-		field_name = sub_item->GetName().c_str();
+		auto fieldID = sub_item->GetID();
 
 		if (layer_domain)
 			adi->GetAbstrDomainUnit()->UnifyDomain(layer_domain, "Domain of attribute", "layerDomain", UnifyMode::UM_Throw); // Check that domain of subItem is DomainUnifyable with layerItem
@@ -1386,7 +1383,7 @@ void InitializeLayerFields(const TreeItem* unit_item, SharedStr layer_name, cons
 		auto vc = adi->GetValueComposition();
 
 		if (!CheckVCAndVCIForGeometry(vc, vci)) // field
-			disi.setFieldIsWritten(GetTokenID_mt(layer_name), GetTokenID_mt(field_name), false);
+			disi.setFieldIsWritten(layerID, fieldID, false);
 	}
 }
 
@@ -1412,29 +1409,35 @@ auto InitializeLayer(const TreeItem* storage_holder, const TreeItem* unit_item, 
 
 void PrepareDataItemsForWriting(const StorageMetaInfo& smi, DataItemsWriteStatusInfo& disi)
 {
-	dms_assert(IsMetaThread());
+	assert(IsMetaThread());
 
 	const TreeItem* storage_holder = smi.StorageHolder();
-	const TreeItem* unit_item = nullptr;
-	const AbstrUnit* layer_domain = nullptr;
-	SharedStr layer_name = {};
-	SharedStr field_name = {};
-	SharedStr datasource_name = smi.StorageManager()->GetNameStr();
+//	const TreeItem* unit_item = nullptr;
+//	const AbstrUnit* layer_domain = nullptr;
+//	SharedStr layer_name = {};
+//	SharedStr field_name = {};
+//	SharedStr datasource_name = smi.StorageManager()->GetNameStr();
 
 	GDAL_ErrorFrame error_frame;
 	GDAL_ConfigurationOptionsFrame config_frame(GetOptionArray(dynamic_cast<const GdalMetaInfo&>(smi).m_ConfigurationOptions));
 
 	for (auto sub_item = storage_holder->WalkConstSubTree(nullptr); sub_item; sub_item = storage_holder->WalkConstSubTree(sub_item))
 	{
-		if (not (IsDataItem(sub_item) and sub_item->IsStorable()))
+		if (not sub_item->IsStorable())
+			continue;
+		if (not IsDataItem(sub_item))
 			continue;
 
-		unit_item = GetLayerHolderFromDataItem(storage_holder, sub_item);
-		layer_domain = AsDynamicUnit(unit_item);
-		layer_name = unit_item->GetName().c_str();
+		auto adi = AsDataItem(sub_item);
 
-		InitializeLayerGeometry(unit_item, layer_name, layer_domain, disi);
-		InitializeLayerFields(unit_item, layer_name, layer_domain, disi);
+		auto layer_container = sub_item->GetTreeParent();
+		auto layer_domain = adi->GetAbstrDomainUnit();
+		auto layer_name = layer_container->GetRelativeName(storage_holder);
+		auto layerID = GetTokenID_mt(layer_name.begin(), layer_name.send());
+//			unit_item->GetName().c_str();
+
+		InitializeLayerGeometry(layer_container, layerID, layer_domain, disi);
+		InitializeLayerFields(layer_container, layerID, layer_domain, disi);
 	}
 }
 
