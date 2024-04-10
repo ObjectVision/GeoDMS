@@ -1,8 +1,9 @@
 print('Geodms python test module')
+from distutils.util import change_root
 import os
 import sys
 
-sys.path.append('../bin/Debug/x64')
+#sys.path.append('../bin/Debug/x64')
 
 def pause_func(message:str="Press the <ENTER> key to continue..."): 
     programPause = input(message)
@@ -15,18 +16,24 @@ try:
     # load geodms configuration file
     config = engine.loadConfig('basic_data_test.dms')
     
+    #endogene expressies ter gevolgen van template expressie
+    #items last change state -> opgevraagde data is alleen geldig zolang last change < change_roo
+    #range blijft bestaan bij opvragen (ie tile), zelfs bij expr aanpassen, dan komt er een nieuwe range
+    
+
     # get root item of configuration
     
     root = config.getRoot()
     
-    print(type(root))
-    
-    found_item = root.find("/reference/IntegerAtt")
+    param_item = root.find("/parameters/test_param")
 
-    found_item.update()
+    test_invalid_item = root.find("/askjvfhakjfghsdkjghsdjkg/asfiuhsdigjuhsduig")
+    test_validity:bool = test_invalid_item.isNull()
 
-    #pause_func("as const item")
-    #const_root   = mutable_root.asItem()
+    param_item.set_expr("3b")
+
+    result_item = root.find("/export/IntegerAtt")
+    result_item.update()
 
     pause_func("Done")
 
