@@ -52,7 +52,7 @@
   </PropertyGroup>
   <ItemDefinitionGroup>
     <ClCompile>
-      <AdditionalIncludeDirectories>C:\Users\Cicada\dev\python_installations\3_12\include;./src;../../sym/dll/src;../../tic/dll/src;../../rtc/dll/src;../../geo/dll/src;../../clc/dll/include;../../stx/dll/src;../../shv/dll/src;../../stg/dll/src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>C:\dev\vcpkg\buildtrees\python3\x64-windows-rel\Include;C:\dev\vcpkg\buildtrees\python3\x64-windows-rel\PC;./src;../../sym/dll/src;../../tic/dll/src;../../rtc/dll/src;../../geo/dll/src;../../clc/dll/include;../../stx/dll/src;../../shv/dll/src;../../stg/dll/src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ClCompile>
     <Link>
@@ -63,7 +63,7 @@
       <OutputFile Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(OutDir)geodms.pyd</OutputFile>
       <OutputFile Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(OutDir)geodms.pyd</OutputFile>
       <AdditionalDependencies Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(USERPROFILE)\AppData\Local\Programs\Python\Python311\libs\*.lib;%(AdditionalDependencies)</AdditionalDependencies>
-      <AdditionalDependencies Condition="'$(Configuration)|$(Platform)'=='Release|x64'">C:\Users\Cicada\dev\python_installations\3_12\libs\*.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(USERPROFILE)\AppData\Local\Programs\Python\Python311\libs\*.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Platform)'=='Win32'">
