@@ -954,7 +954,8 @@ bool DataItemsWriteStatusInfo::LayerHasBeenWritten(TokenID layerID)
 auto DataItemsWriteStatusInfo::GetExampleAdiFromLayerID(TokenID layerID) -> const AbstrDataItem*
 {
 	for (auto& fieldInfo : m_LayerAndFieldIDMapping[layerID])
-		return fieldInfo.second.m_DataHolder;
+		if (auto dh = fieldInfo.second.m_DataHolder)
+			return dh;
 
 	return nullptr;
 }
