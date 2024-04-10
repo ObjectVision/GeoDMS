@@ -884,18 +884,17 @@ void DataItemsWriteStatusInfo::SetLaunderedName(TokenID layerID, TokenID fieldID
 
 void DataItemsWriteStatusInfo::RefreshInterest(const TreeItem* storageHolder)
 {
-	for (auto subItem = storageHolder->WalkConstSubTree(nullptr); subItem; subItem = storageHolder->WalkConstSubTree(subItem))
+	for (auto sub_item = storageHolder->WalkConstSubTree(nullptr); sub_item; sub_item = storageHolder->WalkConstSubTree(sub_item))
 	{
-		if (not (IsDataItem(subItem) and subItem->IsStorable()))
+		if (not (IsDataItem(sub_item) and sub_item->IsStorable()))
 			continue;
 
-		auto unitItem = GetLayerHolderFromDataItem(storageHolder, subItem);
-		SharedStr layerName(unitItem->GetName().c_str());
-		SharedStr fieldName(subItem->GetName().c_str());
-		if (subItem->GetInterestCount() && !m_LayerAndFieldIDMapping[GetTokenID_mt(layerName)][GetTokenID_mt(fieldName)].isWritten)
-			setInterest(GetTokenID_mt(layerName), GetTokenID_mt(fieldName), true);
-		else
-			setInterest(GetTokenID_mt(layerName), GetTokenID_mt(fieldName), false);
+		auto unit_item = GetLayerHolderFromDataItem(storageHolder, sub_item);
+
+		auto layer_id = unit_item->GetID();
+		auto field_id = sub_item->GetID();
+		bool sub_item_has_interest = sub_item->GetInterestCount(); // && m_LayerAndFieldIDMapping.contains(layer_id) && !m_LayerAndFieldIDMapping[layer_id][field_id].isWritten;
+		setInterest(layer_id, field_id, sub_item_has_interest);
 	}
 }
 
