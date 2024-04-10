@@ -1582,7 +1582,7 @@ bool GdalVectSM::WriteDataItem(StorageMetaInfoPtr&& smiHolder)
 
 	auto unit_item = GetLayerHolderFromDataItem(storage_holder, adi);
 	auto layer_id = unit_item->GetID();
-	auto field_name = SharedStr(adi->GetName());
+	auto fieldID = adi->GetID();
 
 	if (not m_DataItemsStatusInfo.m_initialized) // first time writing
 	{
@@ -1592,7 +1592,7 @@ bool GdalVectSM::WriteDataItem(StorageMetaInfoPtr&& smiHolder)
 	}
 
 	m_DataItemsStatusInfo.RefreshInterest(storage_holder); // user may have set other iterests at this point.
-	m_DataItemsStatusInfo.SetInterestForDataHolder(layer_id, GetTokenID_mt(field_name), adi); // write once all dataitems are ready
+	m_DataItemsStatusInfo.SetInterestForDataHolder(layer_id, fieldID, adi); // write once all dataitems are ready
 	
 	if (not m_DataItemsStatusInfo.LayerIsReadyForWriting(layer_id))
 		return true;
