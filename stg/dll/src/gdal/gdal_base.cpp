@@ -862,9 +862,10 @@ void DataItemsWriteStatusInfo::setInterest(TokenID layerID, TokenID fieldID, boo
 
 void DataItemsWriteStatusInfo::SetInterestForDataHolder(TokenID layerID, TokenID fieldID, const AbstrDataItem* adi)
 {
-	m_LayerAndFieldIDMapping[layerID][fieldID].m_DataHolder = adi;
-	m_LayerAndFieldIDMapping[layerID][fieldID].name = SharedStr(fieldID);
-	m_LayerAndFieldIDMapping[layerID][fieldID].doWrite = true;
+	auto& layerAndFieldInfo = m_LayerAndFieldIDMapping[layerID][fieldID];
+	layerAndFieldInfo.m_DataHolder = adi;
+	layerAndFieldInfo.name = SharedStr(fieldID);
+	layerAndFieldInfo.doWrite = true;
 }
 
 void DataItemsWriteStatusInfo::ReleaseAllLayerInterestPtrs(TokenID layerID)
