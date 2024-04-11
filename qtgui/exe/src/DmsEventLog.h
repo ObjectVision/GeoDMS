@@ -58,7 +58,7 @@ public:
 private:
 
 	bool has_queued_update = false;
-	size_t last_updated_message_index = 0;
+	size_t m_last_updated_message_count = 0;
 	QDateTime time_since_last_direct_update = QDateTime::currentDateTime();
 	size_t direct_update_interval = 5;
 };

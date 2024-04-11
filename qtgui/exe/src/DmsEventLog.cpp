@@ -47,7 +47,8 @@ void EventLogModel::clear()
 	m_filtered_indices.clear();
 	m_MsgLines.clear();
 	refilter();
-	last_updated_message_index = 0;
+	MG_CHECK(m_last_updated_message_count == 0); // postcondition of refilder when no messages are present
+
 	MainWindow::TheOne()->m_eventlog->m_clear->setDisabled(true);
 }
 
@@ -210,7 +211,8 @@ void EventLogModel::scanFilter(msg_line_index_t index)
 			}
 
 			do {
-				m_filtered_indices.emplace_back(index);
+				if (m_filtered_indices.empty() || m_filtered_indices.back() < index) // better safe than sorry
+					m_filtered_indices.emplace_back(index);
 				++index;
 				MG_CHECK(index > 0);
 			} while (index < msgLineCount && m_MsgLines.at(index).m_IsFollowup);
@@ -221,7 +223,7 @@ void EventLogModel::scanFilter(msg_line_index_t index)
 			MG_CHECK(index > 0);
 		}
 	}
-	last_updated_message_index = msgLineCount;
+	m_last_updated_message_count = msgLineCount;
 }
 
 void EventLogModel::refilter()
@@ -277,12 +279,11 @@ void EventLogModel::updateOnNewMessages()
 	has_queued_update = false;
 	time_since_last_direct_update = QDateTime::currentDateTime();
 	
-	auto number_of_new_messages = m_MsgLines.size() - last_updated_message_index;
-	if (!number_of_new_messages) // no new messages
-		return;
+	if (m_MsgLines.size() == m_last_updated_message_count) 
+		return; // no new messages
 
 	msg_line_index_t nrFiltered = m_filtered_indices.size();
-	scanFilter(last_updated_message_index);
+	scanFilter(m_last_updated_message_count);
 
 	auto number_of_added_filtered_indices = m_filtered_indices.size() - nrFiltered;
 	if (!number_of_added_filtered_indices)
@@ -293,7 +294,7 @@ void EventLogModel::updateOnNewMessages()
 	beginInsertRows(QModelIndex(), rowCount_, rowCount_+number_of_added_filtered_indices-1);
 	endInsertRows();
 
-	last_updated_message_index = m_MsgLines.size();
+	m_last_updated_message_count = m_MsgLines.size();
 
 	// update view
 	auto main_window = MainWindow::TheOne();
