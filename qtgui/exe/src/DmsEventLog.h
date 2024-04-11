@@ -20,19 +20,19 @@ class EventLogModel : public QAbstractListModel
 {
 	Q_OBJECT
 
-public:
+	using msg_line_index_t = int;
 
-	using item_t = MsgData;
+public:
 
 	int rowCount(const QModelIndex & /*parent*/ = QModelIndex()) const override
 	{
-		return m_filtered_indices.empty() ? m_Items.size() : m_filtered_indices.size();
+		return m_filtered_indices.size();
 	}
 
 	QVariant data(const QModelIndex& index, int role = Qt::DisplayRole) const override;
 
 	void addText(MsgData&& msgData);
-	auto dataFiltered(int row) const -> const EventLogModel::item_t&;
+	auto dataFiltered(int row) const -> const MsgData&;
 
 	QByteArray m_TextFilterAsByteArray;
 	UInt32 cached_reg_flags = GetRegStatusFlags();
@@ -45,14 +45,15 @@ public slots:
 	void updateOnNewMessages();
 
 private:
-	bool itemPassesTypeFilter(item_t& item);
-	bool itemPassesCategoryFilter(item_t& item);
-	bool itemPassesTextFilter(item_t& item);
-	bool itemPassesFilter(item_t& item);
+	bool itemPassesTypeFilter(const MsgData& item) const;
+	bool itemPassesCategoryFilter(const MsgData& item) const;
+	bool itemPassesTextFilter(const MsgData& item) const;
+	bool itemPassesFilter(const MsgData& item) const;
+	void scanFilter(msg_line_index_t index);
 
 public:
-	std::vector<size_t> m_filtered_indices;
-	std::vector<item_t> m_Items;
+	std::vector<msg_line_index_t> m_filtered_indices;
+	std::vector<MsgData> m_MsgLines;
 
 private:
 
