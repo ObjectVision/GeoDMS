@@ -294,8 +294,6 @@ void EventLogModel::updateOnNewMessages()
 	beginInsertRows(QModelIndex(), rowCount_, rowCount_+number_of_added_filtered_indices-1);
 	endInsertRows();
 
-	m_last_updated_message_count = m_MsgLines.size();
-
 	// update view
 	auto main_window = MainWindow::TheOne();
 	if (IsProcessingMainThreadOpers())
@@ -308,8 +306,12 @@ void EventLogModel::updateOnNewMessages()
 	}
 }
 
-void EventLogModel::addText(MsgData&& msgData)
+void EventLogModel::addText(MsgData&& msgData, bool moreToCome)
 {
+#if defined(MG_DEBUG)
+	MG_CHECK(not(msgData.m_IsFollowup && md_AddTextCompleted)); // previous msg must have had the cha
+#endif
+
 	auto mainWindow = MainWindow::TheOne();
 	if (!mainWindow)
 		return;
@@ -318,6 +320,13 @@ void EventLogModel::addText(MsgData&& msgData)
 
 	eventlog->m_clear->setEnabled(true);
 	m_MsgLines.emplace_back(std::move(msgData));
+
+#if defined(MG_DEBUG)
+	md_AddTextCompleted = not(moreToCome);
+#endif
+
+	if (moreToCome)
+		return; // don't update on partial messages
 
 	// direct update
 	auto current_time = QDateTime::currentDateTime();
@@ -629,7 +638,7 @@ QSize DmsEventLog::sizeHint() const
 	return QSize(0, default_height);
 }
 
-void geoDMSMessage(ClientHandle /*clientHandle*/, const MsgData* msgData)
+void geoDMSMessage(ClientHandle /*clientHandle*/, const MsgData* msgData, bool moreToCome)
 {
 	assert(msgData);
 	SeverityTypeID st = msgData->m_SeverityType;
@@ -649,7 +658,7 @@ void geoDMSMessage(ClientHandle /*clientHandle*/, const MsgData* msgData)
 		return;
 
 	auto* eventlog_model = mainWindow->m_eventlog_model.get(); assert(eventlog_model);
-	eventlog_model->addText(MsgData(*msgData));
+	eventlog_model->addText(MsgData(*msgData), moreToCome);
 }
 
 auto createEventLog(MainWindow* dms_main_window) -> std::unique_ptr<DmsEventLog>
