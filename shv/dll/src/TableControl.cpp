@@ -1171,14 +1171,15 @@ auto TableControl::CreateIndex(const AbstrDataItem* attr) -> FutureData
 	indexAttr->DisableStorage(true);
 	indexAttr->SetDC( ExprList(GetTokenID("direct_index"), attr->GetAsLispRef() ) );
 	*/
-//	dms_assert(attr->mc_DC);
+//	assert(attr->mc_DC);
+
 	auto dc = GetOrCreateDataController(ExprList(GetTokenID("direct_index"), attr->GetCheckedKeyExpr() ));
 	return dc->CalcResult();
 }
 
 void TableControl::CreateTableIndex(DataItemColumn* dic, SortOrder so)
 {
-	dms_assert(m_Entity);
+	assert(m_Entity);
 
 	m_IndexColumn = dic->shared_from_base<const DataItemColumn>();
 	m_State.Set(TCF_FlipSortOrder, so == SO_Descending);
