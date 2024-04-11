@@ -243,13 +243,13 @@ void SharedStr::resize(SizeT sz)
 	}
 }
 
-bool SharedStr::contains(CharPtrRange subStr)
+bool SharedStr::contains(CharPtrRange subStr) const
 {
 	assert(!subStr.empty());
 	return std::search(begin(), end(), subStr.first, subStr.second) != end();
 }
 
-bool SharedStr::contains_case_insensitive(CharPtrRange subStr)
+bool SharedStr::contains_case_insensitive(CharPtrRange subStr) const
 {
 	bool str_contains_substr = std::search(begin(), end(), subStr.first, subStr.second
 		, [](unsigned char a, unsigned char b) { 

@@ -74,7 +74,7 @@ private:
 	SharedDataItemInterestPtr  m_ThemeAttr;
 	SharedDataItemInterestPtr  m_BreakAttr;
 	SharedDataItemInterestPtr  m_PaletteAttr;
-	SharedDataItemInterestPtr  m_CountAttr;
+	SharedDataItemInterestPtr  m_CountAttr, m_SelCountAttr;
 	SharedPtr<const AbstrUnit> m_PaletteDomain;
 	SharedUnitInterestPtr      m_ThemeUnit;
 

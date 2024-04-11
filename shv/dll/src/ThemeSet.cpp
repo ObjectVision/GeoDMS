@@ -336,7 +336,7 @@ std::shared_ptr<Theme> ThemeSet::CreateSelectionsTheme()
 		auto dv = m_DataView.lock(); if (!dv) return nullptr;
 		SelThemeCreator::CreateSelectionsThemeInDesktop(dv.get(), GetActiveEntity()); // assignes m_Themes[AN_Selections]
 	}
-	dms_assert(m_Themes[AN_Selections]);
+	assert(m_Themes[AN_Selections]);
 	return m_Themes[AN_Selections];
 }
 
