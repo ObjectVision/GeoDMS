@@ -234,7 +234,7 @@ void EventLogModel::refilter()
 	auto text_filter_string = eventlog->m_eventlog_filter->m_text_filter->text();
 	m_TextFilterAsByteArray = text_filter_string.toUtf8();
 
-	assert(msgLineCount == 0 || not(m_MsgLines.front().m_IsFollowup));
+	assert(m_MsgLines.size() == 0 || not(m_MsgLines.front().m_IsFollowup));
 	scanFilter(0);
 
 	endResetModel();
