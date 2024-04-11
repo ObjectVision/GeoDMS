@@ -31,7 +31,7 @@ public:
 
 	QVariant data(const QModelIndex& index, int role = Qt::DisplayRole) const override;
 
-	void addText(MsgData&& msgData);
+	void addText(MsgData&& msgData, bool moreToCome);
 	auto dataFiltered(int row) const -> const MsgData&;
 
 	QByteArray m_TextFilterAsByteArray;
@@ -54,6 +54,10 @@ private:
 public:
 	std::vector<msg_line_index_t> m_filtered_indices;
 	std::vector<MsgData> m_MsgLines;
+
+#if defined(MG_DEBUG)
+	bool md_AddTextCompleted = true;
+#endif
 
 private:
 
@@ -103,5 +107,5 @@ private:
 };
 
 
-void geoDMSMessage(ClientHandle clientHandle, const MsgData* msgData);
+void geoDMSMessage(ClientHandle clientHandle, const MsgData* msgData, bool moreToCome);
 auto createEventLog(MainWindow* dms_main_window) -> std::unique_ptr<DmsEventLog>;
