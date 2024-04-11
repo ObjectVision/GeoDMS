@@ -364,17 +364,37 @@ void PaletteControl::CreateColumnsImpl()
 		if (m_BreakAttr) 
 			container = CreateContainer(container, GetUltimateSourceItem(m_BreakAttr.get_ptr()) );
 
-		SharedPtr<AbstrDataItem> countAttr = CreateDataItem(
-			container
-		,	GetTokenID_mt("Count")
-		,	m_PaletteDomain
-		,	UnitClass::Find(m_ThemeAttr->GetAbstrDomainUnit()->GetValueType()->GetCrdClass())->CreateDefault()
-		);
+		auto countingUnitClass = UnitClass::Find(m_ThemeAttr->GetAbstrDomainUnit()->GetValueType()->GetCrdClass());
+		auto countingUnit = countingUnitClass->CreateDefault();
+
+		SharedPtr<AbstrDataItem> countAttr = CreateDataItem(container, GetTokenID_mt("Count"), m_PaletteDomain, countingUnit);
 		countAttr->SetKeepDataState(true);
 		countAttr->DisableStorage(true);
 		countAttr->SetExpr( mySSPrintF("pcount(%s)", exprStr.c_str() ) );
 		m_CountAttr = countAttr.get_ptr();
 		InsertColumn(make_shared_gr<DataItemColumn>(this, m_CountAttr)().get());
+
+		if (m_Layer)
+		{
+			if (auto st = m_Layer->CreateSelectionsTheme())
+			{
+				if (auto sa = st->GetThemeAttr())
+				{
+					SharedPtr<AbstrDataItem> selCountAttr = CreateDataItem(container, GetTokenID_mt("SelCount"), m_PaletteDomain, countingUnit);
+					selCountAttr->SetKeepDataState(true);
+					selCountAttr->DisableStorage(true);
+					auto clsName = SharedStr(countingUnitClass->GetValueType()->GetID());
+					selCountAttr->SetExpr(mySSPrintF("sum_%s(%s, %s)"
+						, clsName
+						, sa->GetFullName()
+						, exprStr.c_str())
+					);
+					m_SelCountAttr = selCountAttr.get_ptr();
+					InsertColumn(make_shared_gr<DataItemColumn>(this, m_SelCountAttr)().get());
+				}
+			}
+		}
+
 	}
 	else
 		m_CountAttr = nullptr;
