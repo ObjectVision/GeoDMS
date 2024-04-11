@@ -1374,7 +1374,7 @@ auto GetDriverShortNameFromDataSourceNameOrDriverArray(std::string_view data_sou
 bool DriverSupportsUpdate(std::string_view dataset_file_name, const CPLStringList driver_array)
 {
 	auto driver_short_name = GetDriverShortNameFromDataSourceNameOrDriverArray(dataset_file_name, driver_array);
-	if (driver_short_name == "MVT")
+	if (std::strcmp(driver_short_name, "MVT")==0)
 		return false;
 
 	return true;
@@ -1500,6 +1500,7 @@ GDALDatasetHandle Gdal_DoOpenStorage(const StorageMetaInfo& smi, dms_rw_mode rwM
 		throwErrorF("GDAL", "Unable to create directories: %s", path);
 
 	auto driver_short_name = GetDriverShortNameFromDataSourceNameOrDriverArray(data_source_name.c_str(), driver_array);
+	GDALRegisterTrustedDriverFromKnownDriverShortName(driver_short_name);
 	auto driver = GetGDALDriverManager()->GetDriverByName(driver_short_name);
 	if (!driver)
 		throwErrorF("GDAL", "Cannot find driver for %s", data_source_name);
