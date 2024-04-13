@@ -108,7 +108,8 @@ void SelThemeCreator::CreateSelectionsThemeInDesktop(DataView* dv, const AbstrUn
 
 	AbstrDataItem* newSelData = CreateDataItem(selectionParent, GetAspectNameID(AN_Selections), entity, userValuesUnit);
 	SharedDataItemInterestPtr newSelDataManager = newSelData;
-
+	SharedUnitInterestPtr newDomain = entity;
+	entity->GetCount();
 	DataWriteLock(newSelData, dms_rw_mode::write_only_mustzero).Commit();
 
 	auto result = Theme::Create(AN_Selections, newSelData, 0, CreateSystemColorPalette(dv, userValuesUnit, AN_BrushColor, false, false, false, nullptr, nullptr));
