@@ -8,6 +8,8 @@
 #pragma hdrstop
 #endif //defined(CC_PRAGMAHDRSTOP)
 
+#include <stack>
+
 #include "LispRef.h"
 
 #include "act/MainThread.h"
@@ -702,7 +704,31 @@ LispRef::LispRef(LispPtr head, LispPtr tail)
 	: SharedPtrWrap<LispPtr>(GetLispCaches()->ListObjCache.apply(ListType(tail, head)))
 {}
 
-ListObj::~ListObj() { GetLispCaches()->ListObjCache.remove(ListType(m_Right, m_Left)); }
+ListObj::~ListObj() 
+{ 
+	GetLispCaches()->ListObjCache.remove(ListType(m_Right, m_Left)); 
+
+	std::stack<SharedPtrWrap<ListObj*>> nodes;
+	nodes.push(this);
+
+	while (!nodes.empty()) {
+		auto current = nodes.top();
+		nodes.pop();
+
+		// Release children and push them onto the stack
+		if (current->m_Left.IsRealList() && current->m_Left->GetRefCount() == 1) {
+			nodes.push(static_cast<LispObj*>(current->m_Left.release())); // Detach and push
+		}
+		if (current->m_Right) {
+			nodes.push(static_cast<LispObj*>(current->m_Right.release())); // Detach and push
+		}
+
+		// No need to reset since release already nullifies the unique_ptrs
+		if (current != this) {
+			delete current; // Delete node manually only if it's not the root
+		}
+	}
+}
 
 /****************** ListObj Serialization and rtti *******************/
 

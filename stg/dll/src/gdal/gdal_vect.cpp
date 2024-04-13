@@ -1562,38 +1562,37 @@ void GdalVectSM::WriteLayer(TokenID layer_id, const GdalMetaInfo& gmi)
 bool GdalVectSM::WriteDataItem(StorageMetaInfoPtr&& smiHolder)
 {
 	DBG_START("gdalwrite.vect", "WriteDataItem", false);
-	
+
 	auto        smi = smiHolder.get();
 	const auto& gmi = dynamic_cast<const GdalMetaInfo&>(*smi);
 	auto driver_array = GetOptionArray(gmi.m_DriverItem);
 	SharedStr data_source_name = smi->StorageManager()->GetNameStr();
 
-	const TreeItem*	storage_holder	= smi->StorageHolder();
-	const AbstrDataItem*   adi		= smi->CurrRD();
+	const TreeItem* storage_holder = smi->StorageHolder();
+	const AbstrDataItem* adi = smi->CurrRD();
 
 	if (not adi->IsStorable())
 		return true;
 
-	const AbstrDataObject* ado		= adi->GetRefObj();
-	auto				   adu      = adi->GetAbstrDomainUnit();
-	auto				   avu		= adi->GetAbstrValuesUnit();
-	const ValueClass*	   vc		= ado->GetValuesType();
-	ValueClassID           vcID		= vc->GetValueClassID();
+	const AbstrDataObject* ado = adi->GetRefObj();
+	auto				   adu = adi->GetAbstrDomainUnit();
+	auto				   avu = adi->GetAbstrValuesUnit();
+	const ValueClass* vc = ado->GetValuesType();
+	ValueClassID           vcID = vc->GetValueClassID();
 
 	auto unit_item = GetLayerHolderFromDataItem(storage_holder, adi);
 	auto layer_id = unit_item->GetID();
-	auto field_name = SharedStr(adi->GetName());
+	auto fieldID = adi->GetID();
 
-	if (not m_DataItemsStatusInfo.m_initialized) // first time writing
-	{
-		m_DataItemsStatusInfo.RefreshInterest(storage_holder);
+
+	if (not m_DataItemsStatusInfo.m_initialized) { // first time writing
 		PrepareDataItemsForWriting(*smi, m_DataItemsStatusInfo);
 		m_DataItemsStatusInfo.m_initialized = true;
 	}
 
 	m_DataItemsStatusInfo.RefreshInterest(storage_holder); // user may have set other iterests at this point.
-	m_DataItemsStatusInfo.SetInterestForDataHolder(layer_id, GetTokenID_mt(field_name), adi); // write once all dataitems are ready
-	
+	m_DataItemsStatusInfo.SetInterestForDataHolder(layer_id, fieldID, adi); // write once all dataitems are ready
+
 	if (not m_DataItemsStatusInfo.LayerIsReadyForWriting(layer_id))
 		return true;
 
@@ -1606,8 +1605,7 @@ bool GdalVectSM::WriteDataItem(StorageMetaInfoPtr&& smiHolder)
 
 	if (driver_supports_update) // write layers incrementally
 		WriteLayer(layer_id, gmi);
-	else // write whole dataset in one go
-	{
+	else { // write whole dataset in one go
 		for (auto& layer : m_DataItemsStatusInfo.m_LayerAndFieldIDMapping)
 			WriteLayer(layer.first, gmi);
 	}
