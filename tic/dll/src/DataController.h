@@ -78,7 +78,6 @@ TIC_CALL DataControllerRef GetExistingDataController(LispPtr keyExpr);
 
 struct DcRefListElem
 {
-#if defined(MG_DEBUG)
 	~DcRefListElem()
 	{
 		// mitigate stack overflow issues
@@ -89,7 +88,6 @@ struct DcRefListElem
 			// next will be deleted by its destructor
 		}
 	}
-#endif
 
 	DataControllerRef        m_DC;
 	OwningPtr<DcRefListElem> m_Next;
