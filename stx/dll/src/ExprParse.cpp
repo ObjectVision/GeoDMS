@@ -147,8 +147,9 @@ namespace {
 
 struct ParseExprFunctor
 {
-	typedef SharedStr argument_type;
-	typedef LispRef   result_type;
+	using argument_type  = SharedStr;
+	using result_type    = LispRef;
+	using result_reftype = result_type;
 
 	LispRef operator ()(WeakStr exprStr)
 	{

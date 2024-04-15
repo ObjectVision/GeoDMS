@@ -97,7 +97,7 @@ RTC_CALL void DMS_CONV DMS_ReleaseMsgCallback(MsgCallbackFunc fcb, ClientHandle 
 	DMS_CALL_END
 }
 
-void MsgDispatch(MsgData* msgData)
+void MsgDispatch(MsgData* msgData, bool moreToCome)
 {
 	assert(msgData);
 	assert((msgData->m_SeverityType == SeverityTypeID::ST_Nothing) || IsMainThread());
@@ -116,7 +116,7 @@ void MsgDispatch(MsgData* msgData)
 		if (callBackFunc) // not blocked?
 		{
 			tmp_swapper<MsgCallbackFunc> blockDefectiveReentrance(b->first, nullptr);
-			callBackFunc(b->second, msgData);
+			callBackFunc(b->second, msgData, moreToCome);
 		}
 	}
 }
@@ -206,7 +206,7 @@ namespace { // DebugOutStreamBuff is local
 						,	msgData->m_DateTime
 						,	std::move(skipMsg)
 						};
-						MsgDispatch(&summaryData);
+						MsgDispatch(&summaryData, false);
 						minorSkipCount = majorSkipCount = 0;
 					}
 					while (true)
@@ -216,7 +216,7 @@ namespace { // DebugOutStreamBuff is local
 						{
 							auto eosPtr = eolPtr; if (eosPtr[-1] == char(0)) --eosPtr;
 							msgData->m_Txt = SharedStr(i, eosPtr); // TODO: can we avoid this extra string copy by forwarding a CharPtrRange ?
-							MsgDispatch(msgData);
+							MsgDispatch(msgData, eolPtr != e);
 							msgData->m_IsFollowup = true;
 						}
 						if (eolPtr == e)
@@ -338,7 +338,7 @@ DebugOutStream::scoped_lock::~scoped_lock()
 			}
 
 		private:
-			static void DMS_CONV CrtMsgCallback(ClientHandle clientHandle, const MsgData* msgData)
+			static void DMS_CONV CrtMsgCallback(ClientHandle clientHandle, const MsgData* msgData, bool moreToCome)
 			{
 				auto st = msgData->m_SeverityType; 
 				auto msgCat = msgData->m_MsgCategory;
@@ -593,7 +593,7 @@ CDebugLog::~CDebugLog()
 	DMS_ReleaseMsgCallback(DebugMsgCallback, typesafe_cast<ClientHandle>(this));
 }
 
-void DMS_CONV CDebugLog::DebugMsgCallback(ClientHandle clientHandle, const MsgData* msgData)
+void DMS_CONV CDebugLog::DebugMsgCallback(ClientHandle clientHandle, const MsgData* msgData, bool moreToCome)
 {
 	CDebugLog* dl = reinterpret_cast<CDebugLog*>(clientHandle);
 	dl->m_Stream << '\n' << msgData->m_DateTime << "[" << msgData->m_ThreadID << "]" << msgData->m_Txt;

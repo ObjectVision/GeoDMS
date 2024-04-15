@@ -146,7 +146,7 @@ int main2(int argc, char** argv)
 }
 
 
-void DMS_CONV logMsg(ClientHandle clientHandle, const MsgData* msgData)
+void DMS_CONV logMsg(ClientHandle clientHandle, const MsgData* msgData, bool moreToCome)
 {
 	assert(msgData);
 	assert(clientHandle == nullptr);

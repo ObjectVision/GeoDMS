@@ -150,9 +150,18 @@ struct Sequence2ScalarFunc
 template <class P>
 struct ArcLengthFunc : Sequence2ScalarFunc<P>
 {
-	typename ArcLengthFunc::res_type operator() (typename ArcLengthFunc::arg1_cref arg1) const
+	auto operator() (typename ArcLengthFunc::arg1_cref arg1) const -> typename ArcLengthFunc::res_type
 	{
 		return Convert<typename ArcLengthFunc::res_type>( ArcLength<Float64>(arg1) );
+	}
+};
+
+template <class P>
+struct MlsLengthFunc : Sequence2ScalarFunc<P>
+{
+	auto operator() (typename MlsLengthFunc::arg1_cref arg1) const -> typename MlsLengthFunc::res_type
+	{
+		return Convert<typename MlsLengthFunc::res_type>(MlsLength<Float64>(arg1));
 	}
 };
 
@@ -1828,6 +1837,7 @@ namespace
 
 	CommonOperGroup cogAL("arc_length", oper_policy::better_not_in_meta_scripting);
 	CommonOperGroup cogAREA("area", oper_policy::better_not_in_meta_scripting);
+	CommonOperGroup cogMLSL("mls_length", oper_policy::better_not_in_meta_scripting);
 
 	CommonOperGroup cogP2S    ("points2sequence", oper_policy::better_not_in_meta_scripting);
 	CommonOperGroup cogP2S_p  ("points2sequence_p", oper_policy::better_not_in_meta_scripting);
@@ -1921,6 +1931,7 @@ namespace
 	//Casted functions that result in scalars
 		// Functors that return 0 for both empty and null sequences
 		CastedUnaryAttrSpecialFuncOperator<ArcLengthFunc<P> > arcLength;
+		CastedUnaryAttrSpecialFuncOperator<MlsLengthFunc<P> > mlsLength;
 		CastedUnaryAttrSpecialFuncOperator<AreaFunc     <P> > area;
 
 		PointInPolygonOperator<P> pip;
@@ -1940,6 +1951,7 @@ namespace
 			,	centroidOrMid(&cogCentroidOrMid)
 
 			,	arcLength(&cogAL)
+			,	mlsLength(&cogMLSL)
 			,	area(&cogAREA)
 			,	dynaPoint1(&cogDynaPoint,           DoCreateNrOrgEntity | DoCreateOrdinal)
 			,	dynaPoint2(&cogDynaPointWithEnds,   DoCreateNrOrgEntity | DoCreateOrdinal | DoIncludeEndPoints)

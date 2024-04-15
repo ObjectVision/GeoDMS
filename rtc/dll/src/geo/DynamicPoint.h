@@ -18,14 +18,40 @@
 template <typename ReturnType, typename ConstPointPtr>
 ReturnType ArcLength(ConstPointPtr arcPtr, ConstPointPtr arcEnd)
 {
+	if (arcPtr == arcEnd)
+		return 0;
+
+	ReturnType length = 0;
+	assert(arcPtr != arcEnd);
+	if (!IsDefined(*arcPtr))
+		return UNDEFINED_VALUE(ReturnType);
+
+	for (ConstPointPtr nextPtr = arcPtr; ++nextPtr != arcEnd; arcPtr = nextPtr)
+	{
+		if (!IsDefined(*nextPtr))
+			return UNDEFINED_VALUE(ReturnType);
+		length += std::sqrt(SqrDist<ReturnType>(*arcPtr, *nextPtr));
+	}
+	return length;
+}
+
+template <typename ReturnType, typename PointType>
+ReturnType ArcLength(SA_ConstReference<PointType> arc)
+{
+	return ArcLength<ReturnType>(arc.begin(), arc.end());
+}
+
+template <typename ReturnType, typename ConstPointPtr>
+ReturnType MlsLength(ConstPointPtr arcPtr, ConstPointPtr arcEnd)
+{
 	while (true)
 	{
-		if (arcPtr == arcEnd) 
+		if (arcPtr == arcEnd)
 			return 0;
 		if (IsDefined(*arcPtr))
 			break;
 		++arcPtr;
-	}	
+	}
 
 	ReturnType length = 0;
 	assert(arcPtr != arcEnd);
@@ -51,9 +77,9 @@ exit:
 }
 
 template <typename ReturnType, typename PointType>
-ReturnType ArcLength(SA_ConstReference<PointType> arc)
+ReturnType MlsLength(SA_ConstReference<PointType> arc)
 {
-	return ArcLength<ReturnType>(arc.begin(), arc.end());
+	return MlsLength<ReturnType>(arc.begin(), arc.end());
 }
 
 template <typename PointType, typename ConstPointPtr>

@@ -2,7 +2,9 @@
 // License: GNU GPL 3
 /////////////////////////////////////////////////////////////////////////////
 
+#if defined(_MSC_VER)
 #pragma once
+#endif
 
 /*
  *  Name        : mci/Object.h
