@@ -278,8 +278,8 @@ public:
 	SharedCharArray* GetAsMutableCharArray()   { MakeUnique(); return const_cast<SharedCharArray*>(get_ptr()); }
 
 	RTC_CALL void resize(SizeT sz);
-	RTC_CALL bool contains(CharPtrRange subStr);
-	RTC_CALL bool contains_case_insensitive(CharPtrRange subStr);
+	RTC_CALL bool contains(CharPtrRange subStr) const;
+	RTC_CALL bool contains_case_insensitive(CharPtrRange subStr) const;
 
 private:
 	RTC_CALL void MakeUnique();

@@ -1,4 +1,10 @@
+// Copyright (C) 1998-2023 Object Vision b.v. 
+// License: GNU GPL 3
+/////////////////////////////////////////////////////////////////////////////
+
+#if defined(_MSC_VER)
 #pragma once
+#endif
 
 //  -----------------------------------------------------------------------
 //  Name        : SharedBase.h
@@ -57,6 +63,21 @@ struct SharedBase
 #endif
 		++m_RefCount;
 		assert(m_RefCount); // POST CONDITION
+	}
+	bool DuplRef() const noexcept
+	{
+		while (true)
+		{
+			ref_count_t refCount = m_RefCount;
+#if defined(MG_DEBUG_REFCOUNT)
+			if (refCount == dangling_object_indicator)
+				return false;
+#endif
+			if (!refCount)
+				return false;
+			if (m_RefCount.compare_exchange_weak(refCount, refCount + 1))
+				return true;
+		}
 	}
 
 	bool DecRef() const noexcept

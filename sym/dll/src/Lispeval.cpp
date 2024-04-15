@@ -390,8 +390,9 @@ LispRef MakeVarsOfUnderscores(LispPtr expr)
 
 struct ApplyStepFunc
 {
-	typedef cache_key_t argument_type;
-	typedef LispRef     result_type;
+	using argument_type = cache_key_t;
+	using result_type = LispRef;
+	using result_reftype = result_type;
 
 	LispRef operator ()(const cache_key_t& exprEnvPair) const
 	{
@@ -486,8 +487,9 @@ LispRef AssocList_RepApplyTopEnv(AssocListPtr unifier, LispPtr templExpr)
 
 struct ApplyTopEnvFunc
 {
-	typedef LispRef argument_type;
-	typedef LispRef result_type;
+	using argument_type = LispRef;
+	using result_type = LispRef;
+	using result_reftype = result_type;
 
 	LispRef operator ()(LispPtr expr) const
 	{

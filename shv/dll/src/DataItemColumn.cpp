@@ -1384,12 +1384,13 @@ void DataItemColumn::FillMenu(MouseEventDispatcher& med)
 	auto tc = GetTableControl().lock(); if (!tc) return;
 	auto sa = GetSrcAttr();
 	if (sa)
-		med.m_MenuData.emplace_back("Show Statistics of " + caption, new RequestClientCmd(sa, CC_ShowStatistics), this);
-
-	if (tc->HasSortOptions())
 	{
-		med.m_MenuData.emplace_back(SharedStr("Sort"), make_MembFuncCmd(&DataItemColumn::SortAsc ), this );
-		med.m_MenuData.emplace_back(SharedStr("Sort reversed"), make_MembFuncCmd(&DataItemColumn::SortDesc), this );
+		med.m_MenuData.emplace_back("Show Statistics of " + caption, new RequestClientCmd(sa, CC_ShowStatistics), this);
+		if (tc->HasSortOptions() && sa->GetValueComposition() == ValueComposition::Single)
+		{
+			med.m_MenuData.emplace_back(SharedStr("Sort"), make_MembFuncCmd(&DataItemColumn::SortAsc), this);
+			med.m_MenuData.emplace_back(SharedStr("Sort reversed"), make_MembFuncCmd(&DataItemColumn::SortDesc), this);
+		}
 	}
 	if (tc->m_GroupByEntity && !IsDefined(m_GroupByIndex)) {
 		SubMenu subMenu(med.m_MenuData, SharedStr("Aggregate by ")); // SUBMENU
