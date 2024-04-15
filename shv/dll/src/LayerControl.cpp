@@ -164,7 +164,7 @@ void LayerControlBase::FillMenu(MouseEventDispatcher& med)
 	med.m_MenuData.AddSeparator();
 
 	med.m_MenuData.push_back(
-		MenuItem(SharedStr("Show / hide layer"), make_MembFuncCmd(&ScalableObject::ToggleVisibility), m_LayerElem)
+		MenuItem(SharedStr("Show / hide layer"), make_MembFuncCmd(&LayerControlBase::ToggleVisibilityAndMakeActiveIfNeeded), this)// make_MembFuncCmd(&ScalableObject::ToggleVisibility), m_LayerElem)
 	);
 
 	med.m_MenuData.push_back(
@@ -181,6 +181,14 @@ void LayerControlBase::FillMenu(MouseEventDispatcher& med)
 	FillFontMenu(med.m_MenuData, this);
 
 	m_LayerElem->FillLcMenu(med.m_MenuData);
+}
+
+void LayerControlBase::ToggleVisibilityAndMakeActiveIfNeeded()
+{
+	m_LayerElem->ToggleVisibility();
+	bool is_visible = m_LayerElem->IsVisible();
+	if (is_visible) // layer toggled to visible state, make it active
+		SetActiveEntry(this);
 }
 
 #include "Carets.h"
@@ -282,10 +290,7 @@ bool LayerControlBase::MouseEvent(MouseEventDispatcher& med)
 {
 	if (med.GetEventInfo().m_EventID & EventID::LBUTTONDBLCLK)
 	{
-		m_LayerElem->ToggleVisibility();
-		bool is_visible = m_LayerElem->IsVisible();
-		if (is_visible) // layer toggled to visible state, make it active
-			SetActiveEntry(this);
+		ToggleVisibilityAndMakeActiveIfNeeded();
 
 		return true; // cancel further processing of this mouse event.
 	}

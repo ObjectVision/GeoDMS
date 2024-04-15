@@ -66,6 +66,7 @@ public:
 
 //	override virtuals of GraphicObject
   	void SetActive(bool newState) override;
+	void ToggleVisibilityAndMakeActiveIfNeeded();
 
 	void FillMenu(MouseEventDispatcher& med) override;
 	bool MouseEvent(MouseEventDispatcher& med) override;
