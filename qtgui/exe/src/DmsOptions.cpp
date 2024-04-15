@@ -350,7 +350,7 @@ struct string_option_attr {
 const string_option_attr sStringOptionsData[string_option::Count] = {
     {"LocalDataDir", "C:\\LocalData"},
     {"SourceDataDir", "C:\\SourceData"},
-    {"DmsEditor", """%env:ProgramFiles%\\Notepad++\\Notepad++.exe"" ""%F"" -n%L"},
+    {"DmsEditor", "\"%env:ProgramFiles%\\Notepad++\\Notepad++.exe\" \"%F\" -n%L"},
 };
 
 void setInitialStringValue(string_option so, QLineEdit* widget)
