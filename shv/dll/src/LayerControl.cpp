@@ -283,6 +283,9 @@ bool LayerControlBase::MouseEvent(MouseEventDispatcher& med)
 	if (med.GetEventInfo().m_EventID & EventID::LBUTTONDBLCLK)
 	{
 		m_LayerElem->ToggleVisibility();
+		bool is_visible = m_LayerElem->IsVisible();
+		if (is_visible) // layer toggled to visible state, make it active
+			SetActiveEntry(this);
 
 		return true; // cancel further processing of this mouse event.
 	}
