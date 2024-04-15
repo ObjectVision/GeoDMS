@@ -216,8 +216,14 @@ void DMS_Appl_SetExeDir(CharPtr exeDir)
 {
 	dms_assert(g_ExeDir.empty()); // should only called once, exeDirs don't just change during a session
 	g_ExeDir = ConvertDosFileName(SharedStr(exeDir));
-	AddFontResourceExA_checked(DelimitedConcat(g_ExeDir.c_str(), "misc/fonts/dms.ttf").c_str(), FR_PRIVATE, 0);
+	
 	SetMainThreadID();
+}
+
+RTC_CALL void DMS_CONV DMS_Appl_SetFont()
+{
+	MG_CHECK(!g_ExeDir.empty());
+	AddFontResourceExA_checked(DelimitedConcat(g_ExeDir.c_str(), "misc/fonts/dms.ttf").c_str(), FR_PRIVATE, 0);
 }
 
 RTC_CALL SharedStr GetExeDir()     // contains DmsClient.exe (+dlls?) and dms.ini; does NOT end with '/' 
