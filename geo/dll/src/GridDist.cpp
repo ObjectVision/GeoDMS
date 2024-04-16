@@ -337,15 +337,16 @@ public:
 			auto gridSet2BaseTr = UnitProjection::GetCompositeTransform(gridSetProjection);
 
 			latFactors.reserve(yRange.second - yRange.first);
+
 			for (auto y = yRange.first; y < yRange.second; ++y)
 			{
 				auto latitude = gridSet2BaseTr.Apply(shp2dms_order<Float64>(0, y)).Y();
-				//auto factor   = std::cos(latitude * (std::numbers::pi_v<Float64> / 180.0));
+				auto latitudeInRadians = latitude * (std::numbers::pi_v<Float64> / 180.0);
+				//auto factor   = std::cos(latitudeInRadians);
 
-				// Call proj_factors for specific locations
-				auto latitudeInRadians = latitude; // *(std::numbers::pi_v<Float64> / 180.0);
-				PJ_COORD crd = {0, latitudeInRadians, 0, 0};
-				PJ_FACTORS factors = proj_factors(proj.get(), crd);
+					// Call proj_factors for specific locations
+					PJ_COORD crd = {0, latitudeInRadians, 0, 0};
+					PJ_FACTORS factors = proj_factors(proj.get(), crd);
 
 				errorFrame.ThrowUpWhateverCameUp();
 
