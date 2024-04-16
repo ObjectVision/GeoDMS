@@ -66,11 +66,13 @@ protected:
 	void PasteNow();
 	void ClearPaste();
 
+public:
+	template <typename T> void SelectRegion(CrdRect worldRect, const AbstrRowProcessor<T>& rowProcessor, AbstrDataItem* selAttr, EventID eventID);
+
 private:
 	void InvalidatePasteArea(); friend class PasteGridController;
 
 	CrdRect GetWorldExtents(feature_id featureIndex) const;
-	template <typename T> void SelectRegion(CrdRect worldRect, const AbstrRowProcessor<T>& rowProcessor, AbstrDataItem* selAttr, EventID eventID);
 	bool DrawAllRects(GraphDrawer& d, const GridColorPalette& colorPalette) const;
 	void DrawPaste   (GraphDrawer& d, const GridColorPalette& colorPalette) const;
 
