@@ -317,8 +317,8 @@ void GridDrawer::FillClassIds(const Unit<ClassIdType>* classIdUnit) const
 		Range<SizeT> themeRange;
 		if (m_EntityIndex)
 		{
-			SizeT tileFirstIndex = themeDomain->GetTileFirstIndex(no_tile);
-			themeRange = Range<SizeT>(tileFirstIndex, tileFirstIndex+ themeDomain->GetTileCount(no_tile));
+			SizeT tileFirstIndex = themeDomain->GetTileFirstIndex(0);
+			themeRange = Range<SizeT>(tileFirstIndex, tileFirstIndex+ themeDomain->GetTileCount(0));
 		}
 		GridFill<ClassIdType, PixelType>(this
 		,	avg->GetClassIndexArray(), avg->GetCount()

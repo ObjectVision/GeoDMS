@@ -374,7 +374,7 @@ void PaletteControl::CreateColumnsImpl()
 		m_CountAttr = countAttr.get_ptr();
 		InsertColumn(make_shared_gr<DataItemColumn>(this, m_CountAttr)().get());
 
-/* TODO BEGIN: issue https://github.com/ObjectVision/GeoDMS/issues/708
+//* TODO BEGIN: issue https://github.com/ObjectVision/GeoDMS/issues/708
 		if (m_Layer)
 		{
 			if (auto st = m_Layer->CreateSelectionsTheme())
@@ -385,7 +385,7 @@ void PaletteControl::CreateColumnsImpl()
 					selCountAttr->SetKeepDataState(true);
 					selCountAttr->DisableStorage(true);
 					auto clsName = SharedStr(countingUnitClass->GetValueType()->GetID());
-					selCountAttr->SetExpr(mySSPrintF("sum_%s(%s, %s)"
+					selCountAttr->SetExpr(mySSPrintF("sum_%s(subitem(%s, ''), %s)"
 						, clsName
 						, sa->GetFullName()
 						, exprStr.c_str())
