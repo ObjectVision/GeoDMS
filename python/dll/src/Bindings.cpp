@@ -323,7 +323,7 @@ PYBIND11_MODULE(geodms, m) {
 	// mutable treeitem
 	py::class_<py_geodms::MutableTreeItem>(m, "MutableTreeItem")
 		.def("is_null", [](py_geodms::MutableTreeItem self) {return self.item.is_null(); })
-		.def("find", treeitem_find_mutable)
+		.def("find", &treeitem_find_mutable)
 		.def("name", &treeitem_name_mutable)
 		.def("expr", &treeitem_expr_mutable)
 		//.def("first_subitem", &treeitem_GetFirstSubItem)
