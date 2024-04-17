@@ -717,8 +717,11 @@ ActorVisitState FuncDC::VisitSuppliers(SupplierVisitFlag svf, const ActorVisitor
 	SharedStr firstArgValue;
 	for (arg_index argNr = 0; dcRefElem; dcRefElem = dcRefElem->m_Next, ++argNr)
 	{
+		auto firstArgValueCPtr = firstArgValue.cbegin();
 		dms_assert(m_OperatorGroup);
-		if (!Test(svf, SupplierVisitFlag::ReadyDcsToo) && !MustCalcArg(argNr, true, firstArgValue.begin()) && !m_OperatorGroup->MustSupplyTree(argNr, firstArgValue.begin()))
+		if (!Test(svf, SupplierVisitFlag::ReadyDcsToo)
+			&& !MustCalcArg(argNr, true, firstArgValueCPtr)
+			&& !m_OperatorGroup->MustSupplyTree(argNr, firstArgValueCPtr))
 			continue;
 
 		const DataController* dc = dcRefElem->m_DC; // borrow shared owned dc;
@@ -733,7 +736,7 @@ ActorVisitState FuncDC::VisitSuppliers(SupplierVisitFlag svf, const ActorVisitor
 		if (visitor(dcResult) == AVS_SuspendedOrFailed) // TODO, REMOVE, WHY, FIND OUT IF dc DOESN'T ALREADY COVER THIS.
 			return AVS_SuspendedOrFailed;
 
-		if (m_OperatorGroup->MustSupplyTree(argNr, firstArgValue.begin())) // TODO: zoveel mogelijk wegwerken dmv substitutie van argumenten
+		if (m_OperatorGroup->MustSupplyTree(argNr, firstArgValueCPtr)) // TODO: zoveel mogelijk wegwerken dmv substitutie van argumenten
 		{
 			if (dcResult->VisitConstVisibleSubTree(visitor) == AVS_SuspendedOrFailed)
 				return AVS_SuspendedOrFailed;

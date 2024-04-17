@@ -129,7 +129,6 @@ public:
 	bool HasEditAttr() const;
 	bool HasClassIdAttr() const;
 
-protected:
 	const IndexCollector*  GetIndexCollector() const;
 //	const IndexCollector*  GetFeatureIndexCollector() const;
 

@@ -524,9 +524,11 @@ const AbstrDataItem* GetCurrLabelAttr(const AbstrUnit* au)
 
 SharedStr AbstrUnit::GetLabelAtIndex(SizeT index, SharedDataItemInterestPtr& ipHolder, streamsize_t maxLen, GuiReadLock& lock) const
 {
-	assert(IsMainThread());
 	if (!ipHolder)
+	{
+		assert(IsMainThread());
 		ipHolder = GetLabelAttr();
+	}
 	assert(ipHolder == GetCurrLabelAttr(this));
 	if (!ipHolder)
 		return SharedStr();
@@ -542,7 +544,7 @@ SharedStr AbstrUnit::GetLabelAtIndex(SizeT index, SharedDataItemInterestPtr& ipH
 	}
 	else
 	{
-		if (!IsDataReady(ipHolder.get_ptr()))
+		if (!IsDataReady(ipHolder->GetCurrRangeItem()))
 			return SharedStr();
 	}
 
@@ -741,7 +743,12 @@ row_id AbstrUnit::GetEstimatedCount() const
 
 void AbstrUnit::ValidateCount(SizeT supposedCount) const
 {
-	row_id count = GetCount();
+	auto sm = AsUnit(this->GetCurrRangeItem())->GetTiledRangeData();
+	if (!sm)
+		throwItemErrorF("ValidateCount(%d) failed because this unit has no segment info", supposedCount);
+
+	row_id count = sm->GetDataSize();
+
 	if (supposedCount != count)
 		throwItemErrorF("ValidateCount(%d) failed because this unit has count %d"
 			, supposedCount, count

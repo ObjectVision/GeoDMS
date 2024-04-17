@@ -453,8 +453,8 @@ SizeT GraphicLayer::Feature2EntityIndex(SizeT featureIndex) const
 	if (HasEntityIndex() && IsDefined(featureIndex))
 	{
 		const IndexCollector* ic = GetIndexCollector();
-		dms_assert(ic);
-		dms_assert(ic->HasExtKey() || ic->HasGeoRel());
+		assert(ic);
+		assert(ic->HasExtKey() || ic->HasGeoRel());
 
 		auto featureLoc = ic->GetTiledLocation(featureIndex);
 		LockedIndexCollectorPtr lockedPtr(ic, featureLoc.first); // can change featureIndex

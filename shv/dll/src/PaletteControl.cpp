@@ -374,6 +374,7 @@ void PaletteControl::CreateColumnsImpl()
 		m_CountAttr = countAttr.get_ptr();
 		InsertColumn(make_shared_gr<DataItemColumn>(this, m_CountAttr)().get());
 
+/* TODO BEGIN: issue https://github.com/ObjectVision/GeoDMS/issues/708
 		if (m_Layer)
 		{
 			if (auto st = m_Layer->CreateSelectionsTheme())
@@ -394,10 +395,14 @@ void PaletteControl::CreateColumnsImpl()
 				}
 			}
 		}
+//TODO END */
 
 	}
 	else
+	{
 		m_CountAttr = nullptr;
+		m_SelCountAttr = nullptr;
+	}
 	if (!GetEntity())
 		SetEntity( Unit<Void>::GetStaticClass()->CreateDefault() ); 
 }
