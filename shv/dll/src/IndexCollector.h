@@ -76,6 +76,7 @@ private:
 	// cache identification and results
 	SharedDataItem                              m_ExtKeyAttr, m_GeoRelAttr;
 	SharedDcInterestPtr                         m_DC;
+	SharedPtr<const AbstrTileRangeData>         m_TileData;
 	mutable DataArray<entity_id>::locked_cseq_t m_Array;
 };
 

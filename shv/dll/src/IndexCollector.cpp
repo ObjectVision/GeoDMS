@@ -102,6 +102,16 @@ IndexCollector::IndexCollector(index_collector_key key)
 		expr = AbstrCalculator::RewriteExprTop(List2<LispRef>(LispRef(ValueWrap<entity_id>::GetStaticClass()->GetID()), expr)); //, idValues->GetAsLispRef()));
 	
 	m_DC = GetOrCreateDataController(expr);
+
+	const AbstrDataItem* adi;
+	if (HasGeoRel())
+		adi = AsDataItem(m_DC->MakeResult().get_ptr());
+	else
+		adi = m_ExtKeyAttr;
+	assert(adi);
+
+	m_TileData = AsUnit(adi->GetAbstrDomainUnit()->GetCurrRangeItem())->GetTiledRangeData();
+	MG_CHECK(m_TileData);
 }
 
 IndexCollector::~IndexCollector()
@@ -129,15 +139,8 @@ DataReadLock IndexCollector::GetDataItemReadLock(tile_id t) const
 }
 
 tile_loc IndexCollector::GetTiledLocation(SizeT index) const
-{
-	const AbstrDataItem* adi;
-	if (HasGeoRel())
-		adi = AsDataItem(m_DC->MakeResult().get_ptr());
-	else
-		adi = m_ExtKeyAttr;
-	dms_assert(adi);
-	
-	return AsUnit(adi->GetAbstrDomainUnit()->GetCurrRangeItem())->GetTiledRangeData()->GetTiledLocation(index);
+{	
+	return m_TileData->GetTiledLocation(index);
 }
 
 tile_id IndexCollector::GetNrTiles() const
