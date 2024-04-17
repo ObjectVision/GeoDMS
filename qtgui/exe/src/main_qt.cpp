@@ -30,7 +30,7 @@
 #include "DmsDetailPages.h"
 #include "TestScript.h"
 
-int RunTestScript(SharedStr testScriptName, HWND hwDispatch);
+int RunTestScript(SharedStr testScriptName);
 
 
 struct CmdLineException : SharedStr, std::exception
@@ -286,6 +286,7 @@ bool CustomEventFilter::nativeEventFilter(const QByteArray& /*eventType*/, void*
         ProcessMainThreadOpers();
         return true;
 
+    case WM_APP + 4:
     case WM_COPYDATA:
         if (msg->hwnd == (HWND)MainWindow::TheOne()->winId())
         {
@@ -410,19 +411,17 @@ int main_without_SE_handler(int argc, char *argv[])
         MainWindow main_window(settingsFrame);
         dms_app_on_heap->setWindowIcon(QIcon(":/res/images/GeoDmsGuiQt.png"));
         dms_app_on_heap->installEventFilter(mouse_forward_backward_event_filter_on_heap.get());
-        
-        auto tsn = settingsFrame.m_TestScriptName;
-        std::future<int> testResult;
-        if (!tsn.empty())
-        {
-            HWND hwDispatch = (HWND)(MainWindow::TheOne()->winId());
-            assert(hwDispatch);
-            testResult = std::async([tsn, hwDispatch] { return RunTestScript(tsn, hwDispatch);  });
-        }
         splash->finish(&main_window);
         splash.reset();
 
         main_window.showMaximized();
+
+        auto tsn = settingsFrame.m_TestScriptName;
+        std::future<int> testResult;
+        if (!tsn.empty())
+        {
+            testResult = std::async([tsn] { return RunTestScript(tsn); });
+        }
         auto result = dms_app_on_heap->exec();
 
         if (!tsn.empty() && !result)

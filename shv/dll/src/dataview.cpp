@@ -742,6 +742,7 @@ bool DataView::DispatchMsg(const MsgStruct& msg)
 			ProcessGuiOpers();
 			goto completed;
 
+		case WM_APP + 4:
 		case WM_COPYDATA:
 			PCOPYDATASTRUCT pCopyData = PCOPYDATASTRUCT(msg.m_lParam);
 			const UInt32* dataBegin = PUINT32(pCopyData->lpData);
