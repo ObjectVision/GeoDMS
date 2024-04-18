@@ -151,10 +151,6 @@ private:
 	mutable SharedPtr<IndexCollector> m_EntityIndexCollector;
 	mutable SharedDataItemInterestPtr m_ActiveThemeValuesUnitLabelLock;
 
-protected:
-	SharedPtr<const AbstrUnit>   m_SelEntity;
-	SharedDataItemInterestPtr    m_SelIndexAttr;
-	
 	DECL_ABSTR(SHV_CALL, Class);
 };
 

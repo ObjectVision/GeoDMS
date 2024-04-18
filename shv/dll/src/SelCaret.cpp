@@ -154,11 +154,11 @@ Region SelCaret::UpdateRectImpl(const GRect& updateRect)
 			++nextViewRow;
 		} while (nextViewRow != viewRowEnd && currGridRow == *currGridRowPtr);
 
-		dms_assert(IsDefined(currGridRow));
+		assert(IsDefined(currGridRow));
 		if (IsDefined(currGridRow)) // REMOVE if Previous assert holds
 		{
-			dms_assert(allCols.Empty());
-			dms_assert(currGridRow < UInt32(gridSize.Row()) );
+			assert(allCols.Empty());
+			assert(currGridRow < UInt32(gridSize.Row()) );
 
 			UInt32 currGridRowBegin =  currGridRow * gridSize.Col();
 

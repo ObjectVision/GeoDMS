@@ -566,7 +566,7 @@ SharedStr GraphicLayer::GetCurrClassLabel() const
 
 bool GraphicLayer::SelectEntityIndex(AbstrDataObject* selAttrObj, SizeT selectedIndex, EventID eventID)
 {
-	dms_assert((eventID & EventID::REQUEST_SEL) && !(eventID & EventID::REQUEST_INFO));
+	assert((eventID & EventID::REQUEST_SEL) && !(eventID & EventID::REQUEST_INFO));
 
 	if (!IsDefined(selectedIndex))
 		return false;

@@ -401,14 +401,6 @@ void FeatureLayer::UpdateShowSelOnly()
 			(!ShowSelectedOnly()) 
 		||	m_Themes[AN_Selections]
 	);
-
-/*	TODO, NYI use AN_OrderBy
-	UpdateShowSelOnlyImpl( this, 
-		GetActiveEntity(), GetTheme(AN_OrderBy)->GetThemeAttr(), // XXX is dit wel een index of een sort?
-		m_SelEntity, m_SelIndexAttr,
-		m_Themes[AN_Selections]
-	);
-*/
 }
 
 bool FeatureLayer::Draw(GraphDrawer& d) const
