@@ -51,7 +51,8 @@ granted by an additional written contract for support, assistance and/or develop
 
 SelCaret::SelCaret(ViewPort* owner,	const sel_caret_key& key, GridCoordPtr gridCoord)
 	:	m_Owner(owner->shared_from_base<ViewPort>())
-	,	m_EntityIndexCollector(key.second, no_tile)
+	,	m_EntityIndexCollectorPtr(key.second)
+	,	m_EntityIndexCollectorArray(key.second, no_tile)
 	,	m_SelAttr(key.first)
 	,	m_GridCoords(gridCoord)
 	,	m_Ready(false)
@@ -62,7 +63,7 @@ SelCaret::~SelCaret()
 	auto owner = m_Owner.lock(); if (!owner) return;
 
 	ForwardDiff(m_SelCaretRgn);
-	owner->m_SelCaretMap.erase(sel_caret_key(m_SelAttr, m_EntityIndexCollector));
+	owner->m_SelCaretMap.erase(sel_caret_key(m_SelAttr, m_EntityIndexCollectorPtr));
 }
 
 std::weak_ptr<ViewPort> SelCaret::GetOwner() const
@@ -123,9 +124,11 @@ Region SelCaret::UpdateRectImpl(const GRect& updateRect)
 {
 	dms_assert(m_SelAttr->GetDataRefLockCount() > 0);
 
+	MG_CHECK(IsMetaThread()); // licensed to use statics ?
 	static RegionTower allRows, allCols;
-	dms_assert(allRows.Empty());
-	dms_assert(allCols.Empty());
+
+	assert(allRows.Empty());
+	assert(allCols.Empty());
 
 	// TODO: MT1 support and merge resulting Regions from worker-threads.
 	auto selData = const_array_cast<Bool>( m_SelAttr )->GetDataRead(); 
@@ -154,13 +157,13 @@ Region SelCaret::UpdateRectImpl(const GRect& updateRect)
 			++nextViewRow;
 		} while (nextViewRow != viewRowEnd && currGridRow == *currGridRowPtr);
 
-		dms_assert(IsDefined(currGridRow));
+		assert(IsDefined(currGridRow));
 		if (IsDefined(currGridRow)) // REMOVE if Previous assert holds
 		{
-			dms_assert(allCols.Empty());
-			dms_assert(currGridRow < UInt32(gridSize.Row()) );
+			assert(allCols.Empty());
+			assert(currGridRow < UInt32(gridSize.Row()) );
 
-			UInt32 currGridRowBegin =  currGridRow * gridSize.Col();
+			SizeT currGridRowBegin =  SizeT(currGridRow) * gridSize.Col();
 
 			Int32 currViewCol = viewColBegin;
 			const UInt32* currGridColPtr = gridColBeginPtr;
@@ -179,13 +182,11 @@ Region SelCaret::UpdateRectImpl(const GRect& updateRect)
 				if (IsDefined(currGridCol)) // REMOVE if Previous assert holds
 				{
 					dms_assert( currGridCol < UInt32( gridSize.Col() ) );
-					UInt32 currGridNr = currGridRowBegin+currGridCol;
-					if (m_EntityIndexCollector)
-					{
-						currGridNr = m_EntityIndexCollector->GetEntityIndex(currGridNr);
-						if (!IsDefined(currGridNr))
-							goto afterSelData;
-					}
+					SizeT currGridNr = currGridRowBegin+currGridCol;
+					currGridNr = m_EntityIndexCollectorArray.GetEntityIndex(currGridNr);
+					if (!IsDefined(currGridNr))
+						goto afterSelData;
+
 					if (Bool(selData[currGridNr]))
 						allCols.Add( Region( GRect(currViewCol, currViewRow, nextViewCol, nextViewRow) ) );
 				}

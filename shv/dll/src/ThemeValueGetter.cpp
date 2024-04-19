@@ -388,7 +388,6 @@ struct LazyClassifyGetter : public LazyGetter<V>
 	{
 		using PixelType = pixel_type_t<ClassIdType>;
 		auto themeData = const_array_cast<V>(this->GetThemeAttr())->GetLockedDataRead(t);
-		dms_assert(themeData.size() == Cardinality(themeArrayIndexRange) || drawer->m_EntityIndex.is_null());
 		GridFill<V, PixelType>(drawer
 		,	themeData.begin(), themeData.size()
 		,	m_ClassifyFunc

@@ -14,6 +14,7 @@
 
 #include "BoundingBoxCache.h"
 #include "CounterStacks.h"
+#include "FeatureLayer.h"
 #include "GeoTypes.h"
 #include "GraphVisitor.h"
 #include "IndexCollector.h"
@@ -66,7 +67,7 @@ bool DrawPolygonInterior(
 	,	const SequenceBoundingBoxCache<ScalarType>* boundingBoxCache
 	,	const AbstrTileRangeData* trd, tile_id t
 	,	typename polygon_traits<ScalarType>::CPolySeqType featureData
-	,	WeakPtr<const IndexCollector> indexCollector
+	,	const FeatureDrawer& fd
 	,	pointBuffer_t& pointBuffer
 	,	bool selectedOnly, SelectionIdCPtr selectionsArray
 	,	SizeT fe
@@ -134,12 +135,9 @@ bool DrawPolygonInterior(
 			Int32    hatchStyle = -1;
 
 			entity_id entityIndex = trd->GetRowIndex(t, i - b);
-			if (indexCollector)
-			{
-				entityIndex = indexCollector->GetEntityIndex(entityIndex);
-				if (!IsDefined(entityIndex))
-					goto nextFill;
-			}
+			entityIndex = fd.m_IndexCollector.GetEntityIndex(entityIndex);
+			if (!IsDefined(entityIndex))
+				goto nextFill;
 
 			bool isSelected = selectionsArray && SelectionID( selectionsArray[entityIndex] );
 			if (selectedOnly)
@@ -271,7 +269,6 @@ bool DrawPolygons(const GraphicPolygonLayer* layer, const FeatureDrawer& fd, con
 
 	typename p_traits::RangeType clipRect = Convert<typename p_traits::RangeType>( layer->GetWorldClipRect(d) );
 
-	WeakPtr<const IndexCollector> indexCollector = fd.GetIndexCollector();
 	SelectionIdCPtr selectionsArray; assert(!selectionsArray);
 	if (fd.m_SelValues)
 	{
@@ -308,7 +305,7 @@ bool DrawPolygons(const GraphicPolygonLayer* layer, const FeatureDrawer& fd, con
 					, d, boundingBoxCache.get()
 					, trd, t
 					, data
-					,	indexCollector
+					,	fd
 					,	pointBuffer
 					,	selectedOnly, selectionsArray
 					,	fe
@@ -360,8 +357,7 @@ bool DrawPolygons(const GraphicPolygonLayer* layer, const FeatureDrawer& fd, con
 						if (penIndices || selectedOnly)
 						{
 							SizeT entityIndex = trd->GetRowIndex(t, itemCounter);
-							if (indexCollector)
-								entityIndex = indexCollector->GetEntityIndex(entityIndex);
+							entityIndex = fd.m_IndexCollector.GetEntityIndex(entityIndex);
 							if (!IsDefined(entityIndex))
 								goto nextBorder;
 							if (penIndices && ! pa.SelectPen(penIndices->GetKeyIndex(entityIndex) ) )
@@ -458,12 +454,11 @@ bool DrawPolygons(const GraphicPolygonLayer* layer, const FeatureDrawer& fd, con
 	//				dms_assert(IsIncluding(*ri, centroid));
 
 					auto entityIndex = trd->GetRowIndex(t, i - b);
-					if (indexCollector)
-					{
-						entityIndex = indexCollector->GetEntityIndex(entityIndex);
-						if (!IsDefined(entityIndex))
-							goto nextLabel;
-					}
+					entityIndex = fd.m_IndexCollector.GetEntityIndex(entityIndex);
+					if (!IsDefined(entityIndex))
+						goto nextLabel;
+
+
 					if (selectedOnly && !(selectionsArray && SelectionID(selectionsArray[entityIndex])))
 						goto nextLabel;
 					auto dp = d.GetTransformation().Apply(centroid);

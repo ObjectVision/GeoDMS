@@ -555,13 +555,14 @@ IRect GridLayer::CalcSelectedGeoRect()  const
 		Int32 cRight = Right(gridRect);
 		if (indexCollectorPtr)
 		{
+			OptionalIndexCollectorAray indexCollectorRange(indexCollectorPtr, no_tile);
 			SizeT i = 0;
 			for (Int32 r = Top(gridRect), re = Bottom(gridRect); r != re; ++r)
 			{
 				while (c < cRight)
 				{
 					assert(i == Range_GetIndex_naked(gridRect, shp2dms_order(IPoint(c, r))));
-					SizeT sdIndex = indexCollectorPtr->GetEntityIndex(i);
+					SizeT sdIndex = indexCollectorRange.GetEntityIndex(i);
 					if (SelectionID(sdb[sdIndex]))
 						selectRect |= shp2dms_order(IPoint(c, r));
 					++c;
@@ -1124,14 +1125,14 @@ bool GridLayer::Draw(GraphDrawer& d) const
 				if (!IsIntersecting(tileAsDeviceExtents, clipRect))
 					continue;
 
-				LockedIndexCollectorPtr indexCollector(GetIndexCollector(), t);
+				OptionalIndexCollectorAray indexCollector(GetIndexCollector(), t);
 
 				for (tile_offset minFE = 0, maxFE = geoCrdUnit->GetTileCount(t); minFE!=maxFE; ++minFE)
-					if (indexCollector->GetEntityIndex(minFE) == fe)
+					if (indexCollector.GetEntityIndex(minFE) == fe)
 					{
 						CrdRect focusWorldRect = ::GetWorldExtents(tileRect, proj, minFE);
 
-						while (minFE+1!=maxFE && indexCollector->GetEntityIndex(minFE+1) == fe)
+						while (minFE+1!=maxFE && indexCollector.GetEntityIndex(minFE + 1) == fe)
 						{
 							CrdRect nextWorldRect = ::GetWorldExtents(tileRect, proj, minFE+1);
 							if	(	nextWorldRect.first .Row() != focusWorldRect.first .Row() 

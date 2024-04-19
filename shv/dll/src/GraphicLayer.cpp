@@ -106,7 +106,7 @@ void GraphicLayer::DoInvalidate() const
 	m_EntityIndexCollector = nullptr;
 	m_State.Clear(GLF_EntityIndexReady|GLF_FeatureIndexReady);
 
-	dms_assert(DoesHaveSupplInterest() || !GetInterestCount());
+	assert(DoesHaveSupplInterest() || !GetInterestCount());
 }
 
 void GraphicLayer::FillMenu(MouseEventDispatcher& med)
@@ -425,10 +425,10 @@ bool GraphicLayer::VisibleLevel(Float64 currNrPixelsPerUnit) const
 const IndexCollector* GraphicLayer::GetIndexCollector() const
 {
 	GetLastChangeTS(); // checks suppliers for changes and calls DoInvalidate if any supplier changed
-	dms_assert(m_State.Get(GLF_EntityIndexReady) || !m_EntityIndexCollector);
+	assert(m_State.Get(GLF_EntityIndexReady) || !m_EntityIndexCollector);
 	if (!m_State.Get(GLF_EntityIndexReady))
 	{
-		dms_assert(!m_EntityIndexCollector);
+		assert(!m_EntityIndexCollector);
 		if (GetActiveTheme())
 			m_EntityIndexCollector = IndexCollector::Create( m_Themes[AN_Feature].get() );
 		m_State.Set(GLF_EntityIndexReady);
@@ -457,8 +457,8 @@ SizeT GraphicLayer::Feature2EntityIndex(SizeT featureIndex) const
 		assert(ic->HasExtKey() || ic->HasGeoRel());
 
 		auto featureLoc = ic->GetTiledLocation(featureIndex);
-		LockedIndexCollectorPtr lockedPtr(ic, featureLoc.first); // can change featureIndex
-		return Convert<SizeT>(lockedPtr->GetEntityIndex(featureLoc.second));
+		OptionalIndexCollectorAray lockedPtr(ic, featureLoc.first); // can change featureIndex
+		return Convert<SizeT>(lockedPtr.GetEntityIndex(featureLoc.second));
 	}
 	return featureIndex;
 }
@@ -467,7 +467,11 @@ SizeT GraphicLayer::Entity2FeatureIndex(SizeT entityIndex) const
 {
 	dms_assert(!HasEntityAggr());
 	if (IsDefined(entityIndex) && HasEntityIndex())
-		return LockedIndexCollectorPtr(GetIndexCollector(), no_tile)->GetFeatureIndex(entityIndex);
+	{
+		const IndexCollector* ic = GetIndexCollector();
+		DataReadLock lock(ic->GetGeoRel());
+		return ic->GetFeatureIndex(entityIndex);
+	}
 	return entityIndex;
 }
 
@@ -566,7 +570,7 @@ SharedStr GraphicLayer::GetCurrClassLabel() const
 
 bool GraphicLayer::SelectEntityIndex(AbstrDataObject* selAttrObj, SizeT selectedIndex, EventID eventID)
 {
-	dms_assert((eventID & EventID::REQUEST_SEL) && !(eventID & EventID::REQUEST_INFO));
+	assert((eventID & EventID::REQUEST_SEL) && !(eventID & EventID::REQUEST_INFO));
 
 	if (!IsDefined(selectedIndex))
 		return false;
