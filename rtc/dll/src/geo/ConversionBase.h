@@ -60,11 +60,19 @@ struct throw_func
 };
 
 template<typename Dst> struct DefaultConvertFunc;
+template <typename U> struct DnConvertFunc;
 
 template<typename Dst, typename Src> inline
 Dst Convert(const Src& src)
 {
-	typedef DefaultConvertFunc<Dst> ConvertFunc;
+	using ConvertFunc = DefaultConvertFunc<Dst> ;
+	return Convert4(src, TYPEID(Dst), TYPEID(undefined_or_zero_func), TYPEID(ConvertFunc));
+}
+
+template<typename Dst, typename Src> inline
+Dst SignedIntGridConvert(const Src& src)
+{
+	using ConvertFunc = DnConvertFunc<Dst> ;
 	return Convert4(src, TYPEID(Dst), TYPEID(undefined_or_zero_func), TYPEID(ConvertFunc));
 }
 
