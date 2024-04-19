@@ -75,7 +75,7 @@ IndexCollector::IndexCollector(index_collector_key key)
 	:	m_ExtKeyAttr   ( key.first  ) // = featureTheme->GetClassification() = Feature -> ExtKey
 	,	m_GeoRelAttr   ( key.second ) // = featureTheme->GetThemeAttr()      = Entity  -> ExtKey
 {
-	dms_assert(key.first || key.second);
+	assert(key.first || key.second);
 	PreparedDataReadLock lck1(key.first , "IndexCollector::ctor");
 	PreparedDataReadLock lck2(key.second, "IndexCollector::ctor");
 
@@ -125,17 +125,21 @@ void IndexCollector::Release()
 		delete this;
 }
 
-DataReadLock IndexCollector::GetDataItemReadLock(tile_id t) const
+DataReadLock IndexCollector::GetDataItemReadLock() const
 {
 	auto res = m_DC->CalcResult();
 	PreparedDataReadLock lock(AsDataItem(res->GetOld()), "IndexCollector::GetDataItemReadLock");
 
-	if (lock.GetRefObj())
-		m_Array = const_array_checkedcast<entity_id>(lock.GetRefObj())->GetDataRead(t);
-	else
-		throwErrorF("IndexCollector", "Cannot create data for %s", AsString(m_DC->GetLispRef()).c_str());
-
 	return lock;
+}
+
+auto IndexCollector::GetDataRead(tile_id t) const -> DataArray<entity_id>::locked_cseq_t
+{
+	auto lock = GetDataItemReadLock();
+
+	if (!lock.GetRefObj())
+		throwErrorF("IndexCollector", "Cannot create data for %s", AsString(m_DC->GetLispRef()).c_str());
+	return const_array_checkedcast<entity_id>(lock.GetRefObj())->GetDataRead(t);
 }
 
 tile_loc IndexCollector::GetTiledLocation(SizeT index) const
@@ -149,20 +153,22 @@ tile_id IndexCollector::GetNrTiles() const
 	return m_ExtKeyAttr->GetAbstrDomainUnit()->GetNrTiles();
 }
 
+/*
 entity_id IndexCollector::GetEntityIndex(feature_id featureIndex) const
 {
-	dms_assert(HasExtKey() || HasGeoRel());
+	assert(HasExtKey() || HasGeoRel());
 
 	if (featureIndex >= m_Array.size())
 		return UNDEFINED_VALUE(entity_id);
 	return m_Array[featureIndex];
 }
+*/
 
 feature_id IndexCollector::GetFeatureIndex(entity_id entityIndex) const
 {
-	dms_assert(!HasExtKey());
-	dms_assert( HasGeoRel());
-	dms_assert(m_GeoRelAttr->GetDataRefLockCount() > 0);
+	assert(!HasExtKey());
+	assert( HasGeoRel());
+	assert(m_GeoRelAttr->GetDataRefLockCount() > 0);
 
 	return m_GeoRelAttr->GetRefObj()->GetValueAsSizeT(entityIndex);
 }
@@ -180,13 +186,15 @@ const AbstrUnit* IndexCollector::GetFeatureDomain() const
 
 #include "LockedIndexCollectorPtr.h"
 
-LockedIndexCollectorPtr::LockedIndexCollectorPtr(const IndexCollector* ptr, tile_id t)
-	:	WeakPtr<const IndexCollector>(ptr)
+LockedIndexCollectorPtr::LockedIndexCollectorPtr(const IndexCollector* ptr)
 {
 	if (ptr)
-		m_Lock = ptr->GetDataItemReadLock(t);
+		m_Lock = ptr->GetDataItemReadLock();
 }
 
-LockedIndexCollectorPtr::~LockedIndexCollectorPtr()
-{}
+OptionalIndexCollectorAray::OptionalIndexCollectorAray(const IndexCollector* ptr, tile_id t)
+{
+	if (ptr)
+		this->emplace( ptr->GetDataRead(t) );
+}
 

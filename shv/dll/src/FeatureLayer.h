@@ -37,7 +37,6 @@ struct FeatureDrawer
 {
 	FeatureDrawer(const FeatureLayer* layer, GraphDrawer&  drawer);
 
-	WeakPtr<const IndexCollector> GetIndexCollector() const { return m_IndexCollector; }
 	bool                          HasLabelText     () const;
 	const FontIndexCache*         GetUpdatedLabelFontIndexCache() const;
 
@@ -45,7 +44,7 @@ struct FeatureDrawer
 	GraphDrawer&                m_Drawer;
 	const Float64               m_WorldZoomLevel;
 
-	LockedIndexCollectorPtr    m_IndexCollector;
+	OptionalIndexCollectorAray  m_IndexCollector;
 
 	std::optional<DataArray<SelectionID>::locked_cseq_t> m_SelValues;
 };
