@@ -110,6 +110,12 @@ struct SharedPtr : SharedPtrWrap<ptr_base<T, copyable> >
 	SharedPtr(U* rhs) noexcept
 		:	base_type(rhs)
 	{}
+
+	template <typename U>
+	SharedPtr(U* rhs, no_zombies nz) noexcept
+		: base_type(rhs, nz)
+	{}
+
 	template <typename SrcPtr>
 	SharedPtr(SharedPtr<SrcPtr>&& rhs) noexcept
 		: base_type(rhs.get_ptr())

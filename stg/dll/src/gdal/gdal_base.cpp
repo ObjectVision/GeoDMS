@@ -864,8 +864,10 @@ void DataItemsWriteStatusInfo::SetInterestForDataHolder(TokenID layerID, TokenID
 {
 	auto& layerAndFieldInfo = m_LayerAndFieldIDMapping[layerID][fieldID];
 	layerAndFieldInfo.m_DataHolder = adi;
-	layerAndFieldInfo.name = SharedStr(fieldID);
+	layerAndFieldInfo.nameID = fieldID;
 	layerAndFieldInfo.doWrite = true;
+	if (adi)
+		adi->m_StatusFlags.Set(DSF_CachedByStorageManager);
 }
 
 void DataItemsWriteStatusInfo::ReleaseAllLayerInterestPtrs(TokenID layerID)
@@ -877,9 +879,9 @@ void DataItemsWriteStatusInfo::ReleaseAllLayerInterestPtrs(TokenID layerID)
 	}
 }
 
-void DataItemsWriteStatusInfo::SetLaunderedName(TokenID layerID, TokenID fieldID, SharedStr launderedName)
+void DataItemsWriteStatusInfo::SetLaunderedName(TokenID layerID, TokenID fieldID, TokenID launderedNameID)
 {
-	m_LayerAndFieldIDMapping[layerID][fieldID].launderedName = launderedName;
+	m_LayerAndFieldIDMapping[layerID][fieldID].launderedNameID = launderedNameID;
 }
 
 void DataItemsWriteStatusInfo::RefreshInterest(const TreeItem* storageHolder)
@@ -924,7 +926,6 @@ bool DataItemsWriteStatusInfo::LayerIsReadyForWriting(TokenID layerID)
 		if (not writableField.second.doWrite)
 			continue;
 
-		auto fieldname_n = writableField.second.name;
 		if (not writableField.second.m_DataHolder) // field is not on the writables list.
 			return false;
 	}

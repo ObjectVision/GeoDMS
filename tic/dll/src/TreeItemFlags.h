@@ -2,7 +2,9 @@
 // License: GNU GPL 3
 /////////////////////////////////////////////////////////////////////////////
 
+#if defined(_MSC_VER)
 #pragma once
+#endif
 
 #if !defined(__TIC_TREEITEMFLAGS_H)
 #define __TIC_TREEITEMFLAGS_H
@@ -79,8 +81,9 @@ const int DCM_MASK = 0x03U;
 const DataItemStatusFlags DSF_HasUndefinedValues     = 0x02000000;
 const DataItemStatusFlags DSF_HasOutOfRangeValues    = 0x04000000;
 const DataItemStatusFlags DSF_ValuesChecked          = 0x08000000;
+const DataItemStatusFlags DSF_CachedByStorageManager = 0x10000000;
 
-const int VC2DSF_SHIFT = DCM2DSF_SHIFT + 3;
+const int VC2DSF_SHIFT = DCM2DSF_SHIFT + 4;
 const int VC_MASK = 0x03U;
 
 struct treeitem_flag_set : flag_set
