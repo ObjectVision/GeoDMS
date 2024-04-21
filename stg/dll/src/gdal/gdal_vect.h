@@ -83,6 +83,8 @@ struct GdalVectSM : NonmappableStorageManager, gdalVectComponent
 	prop_tables GetPropTables(const TreeItem* storageHolder = nullptr, TreeItem* curr = nullptr) const override;
 
 	mutable DataItemsWriteStatusInfo m_DataItemsStatusInfo;
+	mutable std::recursive_mutex m_xSectionDataItemsStatusInfo;
+
 private:
 	bool ReadLayerData(const GdalVectlMetaInfo* br, AbstrDataObject* ado, tile_id t);
 	bool ReadGeometry (const GdalVectlMetaInfo* br, AbstrDataObject* ado, tile_id t, SizeT firstIndex, SizeT size);

@@ -1169,7 +1169,7 @@ std::vector<DataReadLock> ReadableDataHandles(TokenID layer_id, DataItemsWriteSt
 		if (not writableField.second.doWrite)
 			continue;
 
-		auto& adi_n = writableField.second.m_DataHolder;
+		auto adi_n = SharedDataItem(writableField.second.m_DataHolder.get_ptr(), no_zombies{});
 		dataReadLocks.emplace_back(adi_n);
 	}
 	return dataReadLocks;
@@ -1529,7 +1529,7 @@ void GdalVectSM::WriteLayer(TokenID layer_id, const GdalMetaInfo& gmi)
 				if (not writableField.second.doWrite)
 					continue;
 
-				const AbstrDataItem* adi_n = writableField.second.m_DataHolder;
+				auto adi_n = SharedDataItem(writableField.second.m_DataHolder.get_ptr(), no_zombies{});
 				if (writableField.second.isGeometry)
 					WriteGeometryElement(adi_n, curFeature, t, tileFeatureIndex);
 				else
@@ -1571,6 +1571,8 @@ void GdalVectSM::WriteLayer(TokenID layer_id, const GdalMetaInfo& gmi)
 bool GdalVectSM::WriteDataItem(StorageMetaInfoPtr&& smiHolder)
 {
 	DBG_START("gdalwrite.vect", "WriteDataItem", false);
+
+	auto exclusiveAcccess = std::scoped_lock(m_xSectionDataItemsStatusInfo);
 
 	auto        smi = smiHolder.get();
 	const auto& gmi = dynamic_cast<const GdalMetaInfo&>(*smi);
@@ -1765,6 +1767,8 @@ void GdalVectSM::DoUpdateTable(const TreeItem* storageHolder, AbstrUnit* layerDo
 
 void GdalVectSM::OnTerminalDataItem(const AbstrDataItem* adi) const
 {
+	auto exclusiveAcccess = std::scoped_lock(m_xSectionDataItemsStatusInfo);
+
 	for (auto& fieldIDMapping : m_DataItemsStatusInfo.m_LayerAndFieldIDMapping)
 	{
 		for (auto& writableField : fieldIDMapping.second)
