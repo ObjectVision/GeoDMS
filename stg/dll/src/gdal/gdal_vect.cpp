@@ -553,6 +553,7 @@ void ReadPolyData(typename sequence_traits<PolygonType>::seq_t dataArray, OGRLay
 		case OGRwkbGeometryType::wkbMultiPolygon: { AddMultiPolygon<PolygonType>(dataElemRef, geo->toMultiPolygon()); break; }
 		case OGRwkbGeometryType::wkbMultiLineString: { AddMultiLineString<PolygonType>(dataElemRef, geo->toMultiLineString()); break; }
 		case OGRwkbGeometryType::wkbMultiSurface: { AddMultiPolygon<PolygonType>(dataElemRef, geo->getLinearGeometry()->toMultiPolygon()); break; }
+		default: { reportF(SeverityTypeID::ST_Warning, "Cannot interpret geometry type %s to geodms Polygon.", OGRGeometryTypeToName(geometry_type)); Assign(dataElemRef, Undefined()); break; }
 		}
 
 		dms_assert(data.data_size() == data.actual_data_size()); // no holes
