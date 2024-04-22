@@ -952,7 +952,7 @@ bool DataItemsWriteStatusInfo::LayerHasBeenWritten(TokenID layerID)
 	return true;
 }
 
-auto DataItemsWriteStatusInfo::GetExampleAdiFromLayerID(TokenID layerID) -> const AbstrDataItem*
+auto DataItemsWriteStatusInfo::GetExampleAdiFromLayerID(TokenID layerID) -> SharedDataItem
 {
 	for (auto& fieldInfo : m_LayerAndFieldIDMapping[layerID])
 		if (auto dh = SharedDataItem(fieldInfo.second.m_DataHolder.get_ptr(), no_zombies{}))

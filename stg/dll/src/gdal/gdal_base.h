@@ -152,7 +152,7 @@ public:
 	bool DatasetIsReadyForWriting();
 	bool LayerIsReadyForWriting(TokenID layerID);
 	bool LayerHasBeenWritten(TokenID layerID);
-	auto GetExampleAdiFromLayerID(TokenID layerID) -> const AbstrDataItem*;
+	auto GetExampleAdiFromLayerID(TokenID layerID) -> SharedDataItem;
 
 	std::map<layer_id, std::map<field_id, FieldInfo>> m_LayerAndFieldIDMapping;
 	std::map<layer_id, SharedDataItemInterestPtr> m_orphan_geometry_items;
