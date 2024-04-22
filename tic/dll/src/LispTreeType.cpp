@@ -155,6 +155,7 @@ namespace token {
 	TIC_CALL TokenID union_data = GetTokenID_st("union_data");
 	TIC_CALL TokenID sourceDescr = GetTokenID_st("SourceDescr");
 	TIC_CALL TokenID container = GetTokenID_st("container");
+	TIC_CALL TokenID classify = GetTokenID_st("classify");
 
 //	SELECT section BEGIN
 	TIC_CALL TokenID select = GetTokenID_st("select");

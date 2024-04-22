@@ -56,17 +56,19 @@ struct IndexCollector : public SharedBase
 	static SharedPtr<IndexCollector> Create(const Theme* featureTheme);
 	~IndexCollector();
 
-	entity_id  GetEntityIndex (feature_id featureIndex) const;
+//	entity_id  GetEntityIndex (feature_id featureIndex) const;
 	feature_id GetFeatureIndex(entity_id  entityIndex ) const;
 
 	const AbstrUnit* GetFeatureDomain() const;
 
-	DataReadLock GetDataItemReadLock(tile_id t) const;
+	DataReadLock GetDataItemReadLock() const;
+	auto GetDataRead(tile_id t) const->DataArray<entity_id>::locked_cseq_t;
 	tile_id GetNrTiles() const;
 	tile_loc GetTiledLocation(SizeT index) const;
 
 	bool HasExtKey() const { return m_ExtKeyAttr; }
 	bool HasGeoRel() const { return m_GeoRelAttr; }
+	auto GetGeoRel() const { return m_GeoRelAttr; }
 
 	void Release();
 
@@ -76,7 +78,8 @@ private:
 	// cache identification and results
 	SharedDataItem                              m_ExtKeyAttr, m_GeoRelAttr;
 	SharedDcInterestPtr                         m_DC;
-	mutable DataArray<entity_id>::locked_cseq_t m_Array;
+	SharedPtr<const AbstrTileRangeData>         m_TileData;
+//	mutable DataArray<entity_id>::locked_cseq_t m_Array;
 };
 
 #endif // !defined(__SHV_INDEXCOLLECTOR_H)

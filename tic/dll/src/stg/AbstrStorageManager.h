@@ -206,6 +206,7 @@ public:
 	TIC_CALL virtual bool DoCheck50PercentExtentOverlap(StorageMetaInfoPtr smi) const { return true; }
 
 	TIC_CALL virtual prop_tables GetPropTables(const TreeItem* storageHolder=nullptr, TreeItem* curr=nullptr) const { return {}; }
+	TIC_CALL virtual void OnTerminalDataItem(const AbstrDataItem* adi) const { };
 
 	TIC_CALL virtual FileDateTime GetLastChangeDateTime(const TreeItem* storageHolder, CharPtr relativePath) const;
 	TIC_CALL FileDateTime GetCachedChangeDateTime(const TreeItem* storageHolder, CharPtr relativePath) const;

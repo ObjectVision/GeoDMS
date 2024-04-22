@@ -94,7 +94,7 @@ struct GridDrawer: UnitProcessor
 	bool empty() const;
 
 	const GridCoord*        m_GridCoords;
-	LockedIndexCollectorPtr m_EntityIndex;
+	OptionalIndexCollectorAray m_EntityIndex;
 	const GridColorPalette* m_ColorPalette;
 	const SelValuesData*    m_SelValues;
 
