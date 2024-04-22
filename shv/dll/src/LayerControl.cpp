@@ -598,6 +598,11 @@ void LayerControl::DoUpdateView()
 			MG_DEBUGCODE(m_PaletteControl->CheckState(); )
 		}
 	}
+	if (m_PaletteControl)
+	{
+		if (!m_PaletteControl->m_HasTriedToAddSelCountColumn && m_Layer->GetTheme(AN_Selections))
+			m_PaletteControl->InvalidateView();
+	}
 
 	base_type::DoUpdateView();
 }

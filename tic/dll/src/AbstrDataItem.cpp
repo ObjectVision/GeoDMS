@@ -67,6 +67,12 @@ AbstrDataItem::~AbstrDataItem() noexcept
 {
 	assert(!GetInterestCount());
 	assert(!IsOwned());
+
+	if (m_StatusFlags.Get(DSF_CachedByStorageManager))
+		if (auto sp = GetStorageParent(false))
+			if (auto sm = sp->GetStorageManager())
+				sm->OnTerminalDataItem(this);
+
 	SetKeepDataState(false);
 	if (m_DataObject)
 		CleanupMem(true, 0);

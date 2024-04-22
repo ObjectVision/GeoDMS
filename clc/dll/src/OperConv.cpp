@@ -584,7 +584,7 @@ struct Type2DConversion: unary_func<TR, TA> // http://www.gdal.org/ogr/osr_tutor
 		assert(m_PreRescaler.IsIdentity());
 		assert(m_PostRescaler.IsIdentity());
 
-		return Convert<TR>(p);
+		return SignedIntGridConvert<TR>(p);
 	}
 
 	TR ApplyProjection(const TA& p) const
@@ -600,7 +600,7 @@ struct Type2DConversion: unary_func<TR, TA> // http://www.gdal.org/ogr/osr_tutor
 		if (!m_OgrComponentHolder->m_Transformer->Transform(1, &res.first, &res.second, nullptr))
 			return UNDEFINED_VALUE(TR);
 		res = prj2dms_order(res.first, res.second, m_Projection_is_col_first);
-		return Convert<TR>(res);
+		return SignedIntGridConvert<TR>(res);
 	}
 	TR ApplyScaled(const TA& p) const
 	{
@@ -611,7 +611,7 @@ struct Type2DConversion: unary_func<TR, TA> // http://www.gdal.org/ogr/osr_tutor
 		if (!IsDefined(p))
 			return UNDEFINED_VALUE(TR);
 
-		return Convert<TR>( m_PreRescaler.Apply(DPoint(p)) );
+		return SignedIntGridConvert<TR>( m_PreRescaler.Apply(DPoint(p)) );
 	}
 	TR ApplyScaledProjection(const TA& p) const
 	{
@@ -626,7 +626,7 @@ struct Type2DConversion: unary_func<TR, TA> // http://www.gdal.org/ogr/osr_tutor
 		if (!m_OgrComponentHolder->m_Transformer->Transform(1, &res.first, &res.second, nullptr))
 			return UNDEFINED_VALUE(TR);
 		res = prj2dms_order(res.first, res.second, m_Projection_is_col_first);
-		return Convert<TR>( m_PostRescaler.Apply( res ) );
+		return SignedIntGridConvert<TR>( m_PostRescaler.Apply( res ) );
 	}
 
 	using iterator = typename DataArrayBase<TR>::iterator;
@@ -674,7 +674,7 @@ struct Type2DConversion: unary_func<TR, TA> // http://www.gdal.org/ogr/osr_tutor
 			}
 			auto reprojectedPoint = prj2dms_order(resX[i], resY[i], projection_is_col_first);
 			auto rescaledPoint = m_PostRescaler.Apply(reprojectedPoint);
-			Assign(*ri, Convert<TR>(rescaledPoint));
+			Assign(*ri, SignedIntGridConvert<TR>(rescaledPoint));
 		}
 	}
 
@@ -767,7 +767,7 @@ void DispatchMapping(Type2DConversion<TR,TA>& functor, typename Type2DConversion
 				{
 					auto reprojectedPoint = prj2dms_order(resX[i], resY[i], projection_is_col_first);
 					auto rescaledPoint = functor.m_PostRescaler.Apply(reprojectedPoint);
-					Assign(*ri, Convert<TR>(rescaledPoint));
+					Assign(*ri, SignedIntGridConvert<TR>(rescaledPoint));
 				}
 				else
 					Assign(*ri, Undefined());
