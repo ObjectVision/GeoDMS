@@ -533,26 +533,27 @@ void ReadPolyData(typename sequence_traits<PolygonType>::seq_t dataArray, OGRLay
 
 		gdalVectImpl::FeaturePtr feat = m_hDS->TestCapability(ODsCRandomLayerRead) ? GetNextFeatureInterleaved(layer, m_hDS) : layer->GetNextFeature();
 		OGRGeometry* geo = feat ? feat ->GetGeometryRef() : 0;
-		if (geo) {
-			if (dynamic_cast<OGRLineString*>(geo))
-				AddLineString<PolygonType>(dataElemRef, static_cast<OGRLineString*>(geo)); 
-			else if (dynamic_cast<OGRCircularString*>(geo))
-				AddLineString<PolygonType>(dataElemRef, static_cast<OGRLineString*>(geo->getLinearGeometry()));
-			else if (dynamic_cast<OGRCompoundCurve*>(geo))
-				AddLineString<PolygonType>(dataElemRef, static_cast<OGRLineString*>(geo->getLinearGeometry()));
-			else if (dynamic_cast<OGRPolygon*>(geo))
-				AddPolygon<PolygonType>(dataElemRef, static_cast<OGRPolygon*>(geo));
-			else if (dynamic_cast<OGRMultiPolygon*>(geo))
-				AddMultiPolygon<PolygonType>(dataElemRef, static_cast<OGRMultiPolygon*>(geo));
-			else if (dynamic_cast<OGRCurvePolygon*>(geo))
-				AddPolygon<PolygonType>(dataElemRef, static_cast<OGRPolygon*>(geo->getLinearGeometry()));
-			else if (dynamic_cast<OGRMultiPoint*>(geo))
-				AddMultiPoint<PolygonType>(dataElemRef, static_cast<OGRMultiPoint*>(geo));
-			else if (dynamic_cast<OGRMultiLineString*>(geo))
-				AddMultiLineString<PolygonType>(dataElemRef, static_cast<OGRMultiLineString*>(geo));
-		}
-		else
+
+		if (!geo) {
 			Assign( dataElemRef, Undefined() );
+			continue;
+		}
+
+		auto geometry_type = geo->getGeometryType();
+
+		switch (geometry_type) {
+		case OGRwkbGeometryType::wkbPoint: { AddPoint<PolygonType>(dataElemRef, geo->toPoint()); break; }
+		case OGRwkbGeometryType::wkbMultiPoint: { AddMultiPoint<PolygonType>(dataElemRef, geo->toMultiPoint()); break; }
+		case OGRwkbGeometryType::wkbLineString: { AddLineString<PolygonType>(dataElemRef, geo->toLineString()); break; }
+		case OGRwkbGeometryType::wkbCircularString: { AddLineString<PolygonType>(dataElemRef, geo->getLinearGeometry()->toLineString()); break; }
+		case OGRwkbGeometryType::wkbCompoundCurve: { AddLineString<PolygonType>(dataElemRef, geo->getLinearGeometry()->toLineString()); break; }
+		case OGRwkbGeometryType::wkbPolygon: { AddPolygon<PolygonType>(dataElemRef, geo->toPolygon()); break; }
+		case OGRwkbGeometryType::wkbCurvePolygon: { AddPolygon<PolygonType>(dataElemRef, geo->getLinearGeometry()->toPolygon()); break; }
+		case OGRwkbGeometryType::wkbSurface: { AddPolygon<PolygonType>(dataElemRef, geo->getLinearGeometry()->toPolygon()); break; }
+		case OGRwkbGeometryType::wkbMultiPolygon: { AddMultiPolygon<PolygonType>(dataElemRef, geo->toMultiPolygon()); break; }
+		case OGRwkbGeometryType::wkbMultiLineString: { AddMultiLineString<PolygonType>(dataElemRef, geo->toMultiLineString()); break; }
+		case OGRwkbGeometryType::wkbMultiSurface: { AddMultiPolygon<PolygonType>(dataElemRef, geo->getLinearGeometry()->toMultiPolygon()); break; }
+		}
 
 		dms_assert(data.data_size() == data.actual_data_size()); // no holes
 	}
