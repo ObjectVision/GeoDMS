@@ -459,8 +459,8 @@ TPoint Convert4(const Point<T>& pnt, const TPoint*, const ExceptFunc* ef, const 
 template <typename T, typename ExceptFunc, typename ConvertFunc>
 TRect Convert4(const Range<T>& rect, const TRect*, const ExceptFunc* ef, const ConvertFunc*)
 {
-	using round_dn_type = typename ConvertFunc::template RoundDnFunc<TPoint>::type;
-	using round_up_type = typename ConvertFunc::template RoundUpFunc<TPoint>::type;
+	using round_dn_type = IntRoundDnFunc<TPoint>;
+	using round_up_type = IntRoundUpFunc<TPoint>;
 	return TRect(
 		Convert4(rect.first , TYPEID(TPoint), ef, TYPEID(round_dn_type))
 	,	Convert4(rect.second, TYPEID(TPoint), ef, TYPEID(round_up_type))
