@@ -743,7 +743,12 @@ row_id AbstrUnit::GetEstimatedCount() const
 
 void AbstrUnit::ValidateCount(SizeT supposedCount) const
 {
-	row_id count = GetCount();
+	auto sm = AsUnit(this->GetCurrRangeItem())->GetTiledRangeData();
+	if (!sm)
+		throwItemErrorF("ValidateCount(%d) failed because this unit has no segment info", supposedCount);
+
+	row_id count = sm->GetDataSize();
+
 	if (supposedCount != count)
 		throwItemErrorF("ValidateCount(%d) failed because this unit has count %d"
 			, supposedCount, count

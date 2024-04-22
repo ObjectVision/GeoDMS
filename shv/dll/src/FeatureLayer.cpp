@@ -401,14 +401,6 @@ void FeatureLayer::UpdateShowSelOnly()
 			(!ShowSelectedOnly()) 
 		||	m_Themes[AN_Selections]
 	);
-
-/*	TODO, NYI use AN_OrderBy
-	UpdateShowSelOnlyImpl( this, 
-		GetActiveEntity(), GetTheme(AN_OrderBy)->GetThemeAttr(), // XXX is dit wel een index of een sort?
-		m_SelEntity, m_SelIndexAttr,
-		m_Themes[AN_Selections]
-	);
-*/
 }
 
 bool FeatureLayer::Draw(GraphDrawer& d) const
@@ -1159,7 +1151,6 @@ bool DrawPoints(
 	bool selectedOnly = layer->ShowSelectedOnly();
 	dms_assert(selectionsArray || !selectedOnly);
 
-	WeakPtr<const IndexCollector> indexCollector = fd.GetIndexCollector();
 	if (mainCount == 0)
 	{
 		if (!layer->IsDisabledAspectGroup(AG_Symbol))
@@ -1209,13 +1200,9 @@ bool DrawPoints(
 					{
 						entity_id entityIndex = trd->GetRowIndex(t, itemCounter);
 
-						if (indexCollector)
-						{
-							auto ei = indexCollector->GetEntityIndex(entityIndex);
-							if (!IsDefined(ei))
-								goto nextSymbol;
-							entityIndex = ei;
-						}
+						entityIndex = fd.m_IndexCollector.GetEntityIndex(entityIndex);
+						if (!IsDefined(entityIndex))
+							goto nextSymbol;
 				
 						if (fontIndices)
 							if (!fontStock.SelectFontHandle(fontIndices->GetKeyIndex(entityIndex))) // returns false if fontSize == 0;
@@ -1289,12 +1276,9 @@ bool DrawPoints(
 					GPoint viewPoint(viewDPoint.X(), viewDPoint.Y());
 
 					SizeT entityIndex = trd->GetRowIndex(t, itemCounter);
-					if (indexCollector)
-					{
-						entityIndex = indexCollector->GetEntityIndex(entityIndex);
-						if (!IsDefined(entityIndex))
-							goto nextLabel;
-					}
+					entityIndex = fd.m_IndexCollector.GetEntityIndex(entityIndex);
+					if (!IsDefined(entityIndex))
+						goto nextLabel;
 
 					if (selectedOnly && !(selectionsArray && SelectionID( selectionsArray[entityIndex] ) ))
 						goto nextLabel;
@@ -1415,8 +1399,6 @@ bool DrawNetwork(
 
 	ResumableCounter mainCount(d.GetCounterStacks(), false);
 
-	WeakPtr<const IndexCollector> indexCollector = fd.GetIndexCollector();
-
 	if (mainCount == 0)
 	{
 		if (!layer->IsDisabledAspectGroup(AG_Pen))
@@ -1445,12 +1427,10 @@ bool DrawNetwork(
 					if (penIndices)
 					{
 						auto entityIndex = i;
-						if (indexCollector)
-						{
-							entityIndex = indexCollector->GetEntityIndex(entityIndex);
-							if (!IsDefined(entityIndex))
-								goto nextLink;
-						}
+						entityIndex = fd.m_IndexCollector.GetEntityIndex(entityIndex);
+						if (!IsDefined(entityIndex))
+							goto nextLink;
+
 						if (! pa.SelectPen(penIndices->GetKeyIndex(entityIndex)) )
 							goto nextLink;
 					}
@@ -1717,7 +1697,6 @@ bool DrawArcs(const GraphicArcLayer* layer, const FeatureDrawer& fd, const PenIn
 		assert(selectionsArray);
 	}
 
-	WeakPtr<const IndexCollector> indexCollector = fd.GetIndexCollector();
 	PenArray::SafePenHandle specialPenHolder;
 
 	SizeT fe = UNDEFINED_VALUE(SizeT);
@@ -1761,13 +1740,10 @@ bool DrawArcs(const GraphicArcLayer* layer, const FeatureDrawer& fd, const PenIn
 						if (IsIntersecting(geoRect, rectArray.m_FeatBoundArray[itemCounter]))
 						{
 							entity_id entityIndex = trd->GetRowIndex(tileCounter, itemCounter);
-							if (indexCollector)
-							{
-								entityIndex = indexCollector->GetEntityIndex(entityIndex);
-								if (!IsDefined(entityIndex))
-									goto nextArc;
-							}
-
+							entityIndex = fd.m_IndexCollector.GetEntityIndex(entityIndex);
+							if (!IsDefined(entityIndex))
+								goto nextArc;
+	
 							bool isSelected = selectionsArray && SelectionID(selectionsArray[entityIndex]);
 							if (selectedOnly)
 							{
@@ -1878,12 +1854,9 @@ bool DrawArcs(const GraphicArcLayer* layer, const FeatureDrawer& fd, const PenIn
 				if (itemCounter.MustBreakOrSuspend100())
 					return true;
 				SizeT entityIndex = trd->GetRowIndex(t, itemCounter);
-				if (indexCollector)
-				{
-					entityIndex = indexCollector->GetEntityIndex(entityIndex);
-					if (!IsDefined(entityIndex))
-						continue;
-				}
+				entityIndex = fd.m_IndexCollector.GetEntityIndex(entityIndex);
+				if (!IsDefined(entityIndex))
+					continue;
 
 				if (IsIntersecting(geoRect, rectArray.m_FeatBoundArray[itemCounter]))
 				{

@@ -299,7 +299,6 @@ void GridDrawer::FillClassIds(const Unit<ClassIdType>* classIdUnit) const
 	{
 		if (m_EntityIndex)
 		{
-			dms_assert(m_EntityIndex->HasExtKey() || m_EntityIndex->HasGeoRel());
 			for (tile_id t=0, tn=themeDomain->GetNrTiles(); t!=tn; ++t)
 			{
 				SizeT tileFirstIndex= themeDomain->GetTileFirstIndex(t);
@@ -317,8 +316,8 @@ void GridDrawer::FillClassIds(const Unit<ClassIdType>* classIdUnit) const
 		Range<SizeT> themeRange;
 		if (m_EntityIndex)
 		{
-			SizeT tileFirstIndex = themeDomain->GetTileFirstIndex(no_tile);
-			themeRange = Range<SizeT>(tileFirstIndex, tileFirstIndex+ themeDomain->GetTileCount(no_tile));
+			SizeT tileFirstIndex = themeDomain->GetTileFirstIndex(0);
+			themeRange = Range<SizeT>(tileFirstIndex, tileFirstIndex+ themeDomain->GetTileCount(0));
 		}
 		GridFill<ClassIdType, PixelType>(this
 		,	avg->GetClassIndexArray(), avg->GetCount()
@@ -344,7 +343,6 @@ void GridDrawer::_VisitImpl(const Unit<ClassIdType>* classIdUnit) const
 		auto colorThemeTileFunctor = const_array_cast<ClassIdType>(colorTheme->GetThemeAttr());
 		if (m_EntityIndex)
 		{
-			dms_assert(m_EntityIndex->HasExtKey() || m_EntityIndex->HasGeoRel());
 			auto tileRanges = colorThemeTileFunctor->GetTiledRangeData();
 			for (tile_id t=0, tn= tileRanges->GetNrTiles(); t!=tn; ++t)
 			{

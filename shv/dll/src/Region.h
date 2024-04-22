@@ -130,7 +130,7 @@ inline Region operator ^(const Region& a, const Region& b)
 
 inline Region operator -(const Region& a, const Region& b)
 {
-	if (a.Empty() || b.Empty())
+	if (a.Empty())
 		return Region();
 	if (b.Empty() )
 		return a.Clone();

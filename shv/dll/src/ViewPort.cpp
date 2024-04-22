@@ -236,14 +236,18 @@ void ViewPort::DoUpdateView()
 		gc.second.lock()->Init(CrdPoint2GPoint(deviceSize), w2dTr);
 
 	for (auto& sc: m_SelCaretMap)
-		sc.second.lock()->OnZoom();
+	{
+		if (auto selCaret = sc.second.lock())
+			selCaret->OnZoom();
+	}
 }
 
 bool ViewPort::Draw(GraphDrawer& d) const
 {
 	if (!d.IsInOnPaint())	// when drawing from OnPaint, ReverseCarets undoes this
 		for (const auto& sc: m_SelCaretMap)
-			sc.second.lock()->UpdateRgn(d.GetAbsClipRegion());
+			if (auto selCaret = sc.second.lock())
+				selCaret->UpdateRgn(d.GetAbsClipRegion());
 
 	return false;
 }

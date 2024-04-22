@@ -92,6 +92,7 @@ namespace token {
 	extern TIC_CALL TokenID union_data;
 	extern TIC_CALL TokenID sourceDescr;
 	extern TIC_CALL TokenID container;
+	extern TIC_CALL TokenID classify;
 
 //	SELECT section BEGIN
 	extern TIC_CALL TokenID select;
@@ -178,7 +179,7 @@ namespace token {
 }
 
 //LispRef CreateLispSubTree(const TreeItem* self, bool inclSubTree);
-LispRef CreateLispTree(const TreeItem* self, bool inclSubTree);
+TIC_CALL LispRef CreateLispTree(const TreeItem* self, bool inclSubTree);
 //LispRef CreateLispSign(const TreeItem* self, LispRef tail);
 
 template <typename T, typename Enabled = std::enable_if_t<is_numeric_v<T>>>
