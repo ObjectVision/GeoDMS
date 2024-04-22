@@ -1,4 +1,4 @@
-// Copyright (C) 1998-2023 Object Vision b.v. 
+// Copyright (C) 1998-2024 Object Vision b.v. 
 // License: GNU GPL 3
 /////////////////////////////////////////////////////////////////////////////
 
@@ -56,4 +56,5 @@ enum class SourceDescrMode {
 
 TIC_CALL SharedStr TreeItem_GetSourceDescr(const TreeItem* studyObject, SourceDescrMode sdm, bool bShowHidden); // defined in SourceDescr.cpp
 TIC_CALL void TreeItem_DumpSourceCalculator(const TreeItem* studyObject, SourceDescrMode sdm, bool bShowHidden, OutStreamBase* xmlOutStrPtr);
+
 #endif // __TIC_TREEITEMPROPS_H

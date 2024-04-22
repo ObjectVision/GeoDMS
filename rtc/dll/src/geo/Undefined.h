@@ -107,6 +107,9 @@ inline std::string_view UndefinedValue(const std::string_view*) { return { UNDEF
 template <typename T> constexpr bool has_undefines_v = !is_bitvalue_v<T>;
 template <typename T> constexpr bool has_min_as_null_v = has_min_as_null<T>::value;
 template <typename T> using has_undefines = std::bool_constant<has_undefines_v<T>>;
+template <typename T> concept NullableValue = has_undefines_v<T> && std::regular<T>;
+
+template <typename T> concept NonNullableValue = (!has_undefines_v<T>) && std::regular<T>;
 
 //----------------------------------------------------------------------
 // Section      : UndefinedOrZero
