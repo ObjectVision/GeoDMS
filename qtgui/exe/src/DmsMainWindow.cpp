@@ -315,7 +315,6 @@ MainWindow::MainWindow(CmdLineSetttings& cmdLineSettings)
     Float32 drawing_size_in_pixels = GetDrawingSizeInPixels(); // from registry
     SetDrawingSizeTresholdValue(drawing_size_in_pixels);
 
-    resizeDocksToNaturalSize();
     setStyleSheet("QMainWindow::separator{ width: 5px; height: 5px; }");
 }
 
