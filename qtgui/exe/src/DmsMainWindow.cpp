@@ -314,6 +314,9 @@ MainWindow::MainWindow(CmdLineSetttings& cmdLineSettings)
     // set drawing size in pixels for polygons and arcs
     Float32 drawing_size_in_pixels = GetDrawingSizeInPixels(); // from registry
     SetDrawingSizeTresholdValue(drawing_size_in_pixels);
+
+    resizeDocksToNaturalSize();
+    setStyleSheet("QMainWindow::separator{ width: 5px; height: 5px; }");
 }
 
 MainWindow::~MainWindow()
@@ -2343,6 +2346,11 @@ void MainWindow::createActions()
     m_win_close_action = std::make_unique<QAction>(tr("&Close"), m_window_menu.get());
     m_win_close_action->setShortcut(QKeySequence(tr("Ctrl+W")));
     connect(m_win_close_action.get(), &QAction::triggered, m_mdi_area.get(), &QDmsMdiArea::closeActiveSubWindow);
+    m_mdi_area->getTabBar()->addAction(MainWindow::TheOne()->m_win_close_action.get());
+    //connect(m_win_close_action.get(), &QAction::triggered, m_mdi_area.get(), &QDmsMdiArea::testCloseSubWindow);
+
+    
+    //connect(m_win_close_action.get(), &QAction::triggered, m_mdi_area, &QDmsMdiArea::testCloseSubWindow);
 
     m_win_close_all_action = std::make_unique<QAction>(tr("Close &All"), m_window_menu.get());
     m_win_close_all_action->setShortcut(QKeySequence(tr("Ctrl+L")));

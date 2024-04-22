@@ -1,8 +1,10 @@
-// Copyright (C) 1998-2023 Object Vision b.v. 
+// Copyright (C) 1998-2024 Object Vision b.v. 
 // License: GNU GPL 3
 /////////////////////////////////////////////////////////////////////////////
 
-//#pragma once
+#if defined(_MSC_VER)
+#pragma once
+#endif
 
 #ifndef __RTC_GEO_CONVERSIONS_H
 
@@ -161,9 +163,6 @@ struct DefaultConvertFunc
 	{
 		typedef DefaultConvertFunc<T> type;
 	};
-
-	template <typename P> struct RoundDnFunc : std::conditional<is_integral<typename scalar_of<P>::type>::value, DnConvertFunc<P>, DefaultConvertFunc<P> > {};
-	template <typename P> struct RoundUpFunc : std::conditional<is_integral<typename scalar_of<P>::type>::value, UpConvertFunc<P>, DefaultConvertFunc<P> > {};
 };
 
 template <typename T, typename U, typename CheckDefFunc, typename CheckMinFunc, typename CheckMaxFunc, typename ExceptFunc, typename ConvertFunc>

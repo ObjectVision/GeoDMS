@@ -20,9 +20,11 @@ public:
     void closeAllButActiveSubWindow();
     void setTabbedViewModeStyle();
     QSize sizeHint() const override;
+    auto getTabBar() -> QTabBar*;
 
 
 public slots:
+    void testCloseSubWindow();
     void onCascadeSubWindows();
     void onTileSubWindows();
 };

@@ -193,6 +193,7 @@ RTC_CALL bool   DMS_CONV HasWaitingMessages();
 
 RTC_CALL void   DMS_CONV SetCurrentDir(CharPtr dir);
 RTC_CALL void   DMS_CONV DMS_Appl_SetExeDir(CharPtr exeDir);
+RTC_CALL void   DMS_CONV DMS_Appl_SetFont();
 RTC_CALL void   DMS_CONV DMS_Appl_SetRegStatusFlags(UInt32 sf);
 RTC_CALL UInt32 DMS_CONV DMS_Appl_GetRegStatusFlags();
 }	// extern "C"

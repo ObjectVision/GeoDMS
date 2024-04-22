@@ -189,20 +189,14 @@ namespace py_geodms
 			currSingleConfig = this;
 		}
 
-		auto get_root() -> ConstTreeItem
+		auto get_root() -> MutableTreeItem
 		{
-			return ConstTreeItem(m_root.get());
+			return MutableTreeItem(m_root.get());
 		}
 
 		auto get_root_non_mutable() -> ConstTreeItem
 		{
 			return ConstTreeItem(m_root.get());
-		}
-
-		auto get_root_mutable() -> MutableTreeItem
-		{
-			return MutableTreeItem(m_root.get());
-			//return m_root;
 		}
 
 	private:
@@ -245,14 +239,25 @@ namespace py_geodms
 
 
 
-void treeitem_CheckNonNull(py_geodms::ConstTreeItem self) {
+void treeitem_CheckNonNull_const(py_geodms::ConstTreeItem self) {
 	MG_USERCHECK2(self.item, "invalid dereference of item nullptr");
 }
 
-auto treeitem_find(py_geodms::ConstTreeItem self, CharPtr itemPath) -> py_geodms::ConstTreeItem { // const TreeItem* self
-	treeitem_CheckNonNull(self);
+void treeitem_CheckNonNull_mutable(py_geodms::MutableTreeItem self) {
+	MG_USERCHECK2(self.item, "invalid dereference of item nullptr");
+}
+
+auto treeitem_find_const(py_geodms::ConstTreeItem self, CharPtr itemPath) -> py_geodms::ConstTreeItem { // const TreeItem* self
+	treeitem_CheckNonNull_const(self);
 	auto foundItem = self.item->FindItem(CharPtrRange(itemPath));
 	return py_geodms::ConstTreeItem(foundItem);
+}
+
+auto treeitem_find_mutable(py_geodms::MutableTreeItem self, CharPtr itemPath) -> py_geodms::MutableTreeItem { // const TreeItem* self
+	treeitem_CheckNonNull_mutable(self);
+	auto foundItem = self.item->FindItem(CharPtrRange(itemPath));
+
+	return py_geodms::MutableTreeItem(const_cast<TreeItem*>(foundItem.get_ptr())); // TODO: future improvement: use GetItem to stay non-const.
 }
 
 /*auto treeitem_find_non_mutable() -> SharedTreeItem
@@ -260,29 +265,34 @@ auto treeitem_find(py_geodms::ConstTreeItem self, CharPtr itemPath) -> py_geodms
 	return nullptr;
 }*/
 
-auto treeitem_name(py_geodms::ConstTreeItem self) -> std::string {
-	treeitem_CheckNonNull(self);
+auto treeitem_name_const(py_geodms::ConstTreeItem self) -> std::string {
+	treeitem_CheckNonNull_const(self);
 	return self.item->GetID().AsStdString();
 }
 
-auto treeitem_expr(py_geodms::ConstTreeItem self) -> std::string {
-	treeitem_CheckNonNull(self);
+auto treeitem_expr_const(py_geodms::ConstTreeItem self) -> std::string {
+	treeitem_CheckNonNull_const(self);
+	return self.item->GetExpr().AsStdString();
+}
+
+auto treeitem_name_mutable(py_geodms::MutableTreeItem self) -> std::string {
+	treeitem_CheckNonNull_mutable(self);
+	return self.item->GetID().AsStdString();
+}
+
+auto treeitem_expr_mutable(py_geodms::MutableTreeItem self) -> std::string {
+	treeitem_CheckNonNull_mutable(self);
 	return self.item->GetExpr().AsStdString();
 }
 
 auto treeitem_GetFirstSubItem(py_geodms::ConstTreeItem self) -> py_geodms::ConstTreeItem {
-	treeitem_CheckNonNull(self);
+	treeitem_CheckNonNull_const(self);
 	return py_geodms::ConstTreeItem(self.item->GetFirstSubItem());
-
 }
 
 auto treeitem_GetNextItem(py_geodms::ConstTreeItem self) -> SharedTreeItem {
-	treeitem_CheckNonNull(self);
+	treeitem_CheckNonNull_const(self);
 	return self.item->GetNextItem();
-}
-
-auto treeitem_AsMutableItem(py_geodms::ConstTreeItem self) -> py_geodms::MutableTreeItem {
-	return py_geodms::MutableTreeItem(const_cast<TreeItem*>(self.item.get_ptr()));
 }
 
 PYBIND11_MODULE(geodms, m) {
@@ -303,16 +313,22 @@ PYBIND11_MODULE(geodms, m) {
 	// non-mutable treeitem
 	py::class_<py_geodms::ConstTreeItem>(m, "ConstTreeItem")
 		.def("is_null", [](py_geodms::ConstTreeItem self) {return self.item.is_null(); })
-		.def("find", &treeitem_find)
-		.def("name", &treeitem_name)
-		.def("expr", &treeitem_expr)
+		.def("find", &treeitem_find_const)
+		.def("name", &treeitem_name_const)
+		.def("expr", &treeitem_expr_const)
 		.def("first_subitem", &treeitem_GetFirstSubItem)
 		.def("next", &treeitem_GetNextItem)
-		.def("as_mutable", &treeitem_AsMutableItem)
 		.def("update", [](py_geodms::ConstTreeItem self) { DMS_TreeItem_Update(self.item); return; });
 
 	// mutable treeitem
 	py::class_<py_geodms::MutableTreeItem>(m, "MutableTreeItem")
+		.def("is_null", [](py_geodms::MutableTreeItem self) {return self.item.is_null(); })
+		.def("find", &treeitem_find_mutable)
+		.def("name", &treeitem_name_mutable)
+		.def("expr", &treeitem_expr_mutable)
+		//.def("first_subitem", &treeitem_GetFirstSubItem)
+		//.def("next", &treeitem_GetNextItem)
+		.def("update", [](py_geodms::MutableTreeItem self) { DMS_TreeItem_Update(self.item); return; })
 		.def("set_expr", [](py_geodms::MutableTreeItem self, const std::string& str) { return (self.item->SetExpr(SharedStr(str))); });
 
 
