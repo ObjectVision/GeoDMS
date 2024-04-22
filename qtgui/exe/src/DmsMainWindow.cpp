@@ -314,6 +314,7 @@ MainWindow::MainWindow(CmdLineSetttings& cmdLineSettings)
     SetDrawingSizeTresholdValue(drawing_size_in_pixels);
 
     resizeDocksToNaturalSize();
+    setStyleSheet("QMainWindow::separator{ width: 5px; height: 5px; }");
 }
 
 MainWindow::~MainWindow()
