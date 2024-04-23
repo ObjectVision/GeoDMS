@@ -67,6 +67,12 @@ AbstrDataItem::~AbstrDataItem() noexcept
 {
 	assert(!GetInterestCount());
 	assert(!IsOwned());
+
+	if (m_StatusFlags.Get(DSF_CachedByStorageManager))
+		if (auto sp = GetStorageParent(false))
+			if (auto sm = sp->GetStorageManager())
+				sm->OnTerminalDataItem(this);
+
 	SetKeepDataState(false);
 	if (m_DataObject)
 		CleanupMem(true, 0);
@@ -322,6 +328,7 @@ bool AbstrDataItem::DoReadItem(StorageMetaInfoPtr smi)
 bool AbstrDataItem::DoWriteItem(StorageMetaInfoPtr&& smi) const
 {
 	assert(CheckDataReady(GetCurrUltimateItem()));
+	dms_assert(IsMetaThread());
 
 	DataReadLock lockForSave(this);
 

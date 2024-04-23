@@ -524,9 +524,11 @@ const AbstrDataItem* GetCurrLabelAttr(const AbstrUnit* au)
 
 SharedStr AbstrUnit::GetLabelAtIndex(SizeT index, SharedDataItemInterestPtr& ipHolder, streamsize_t maxLen, GuiReadLock& lock) const
 {
-	assert(IsMainThread());
 	if (!ipHolder)
+	{
+		assert(IsMainThread());
 		ipHolder = GetLabelAttr();
+	}
 	assert(ipHolder == GetCurrLabelAttr(this));
 	if (!ipHolder)
 		return SharedStr();
@@ -542,7 +544,7 @@ SharedStr AbstrUnit::GetLabelAtIndex(SizeT index, SharedDataItemInterestPtr& ipH
 	}
 	else
 	{
-		if (!IsDataReady(ipHolder.get_ptr()))
+		if (!IsDataReady(ipHolder->GetCurrRangeItem()))
 			return SharedStr();
 	}
 
@@ -741,7 +743,12 @@ row_id AbstrUnit::GetEstimatedCount() const
 
 void AbstrUnit::ValidateCount(SizeT supposedCount) const
 {
-	row_id count = GetCount();
+	auto sm = AsUnit(this->GetCurrRangeItem())->GetTiledRangeData();
+	if (!sm)
+		throwItemErrorF("ValidateCount(%d) failed because this unit has no segment info", supposedCount);
+
+	row_id count = sm->GetDataSize();
+
 	if (supposedCount != count)
 		throwItemErrorF("ValidateCount(%d) failed because this unit has count %d"
 			, supposedCount, count
@@ -781,7 +788,8 @@ I64Rect AbstrUnit::GetTileSizeAsI64Rect(tile_id t) const // asssume 1D; GeoUnitA
 
 row_id  AbstrUnit::GetTileFirstIndex(tile_id t) const 
 { 
-	auto si = AsUnit(this->GetCurrRangeItem())->GetTiledRangeData();
+	auto range_item = this->GetCurrRangeItem();
+	auto si = AsUnit(range_item)->GetTiledRangeData();
 	MG_CHECK(si);
 	return si->GetFirstRowIndex(t);
 }
@@ -803,8 +811,10 @@ tile_id AbstrUnit::GetNrTiles() const
 
 tile_offset AbstrUnit::GetTileCount(tile_id t) const
 {
-	dms_assert(t != no_tile);
-	auto si = this->GetTiledRangeData();
+	assert(t != no_tile);
+
+	auto range_item = this->GetCurrRangeItem();
+	auto si = AsUnit(range_item)->GetTiledRangeData();
 	MG_CHECK(si);
 	return si->GetTileSize(t);
 }
@@ -816,7 +826,10 @@ bool AbstrUnit::ContainsUndefined(tile_id t) const
 
 bool AbstrUnit::IsCovered() const
 {
-	return GetTiledRangeData()->IsCovered();
+	auto range_item = this->GetCurrRangeItem();
+	auto si = AsUnit(range_item)->GetTiledRangeData();
+	MG_CHECK(si);
+	return si->IsCovered();
 }
 
 Range<row_id> AbstrUnit::GetTileIndexRange(tile_id t) const

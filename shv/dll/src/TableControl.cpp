@@ -212,14 +212,14 @@ gr_elem_index TableControl::FindColumn(const AbstrDataItem* adi)
 
 void TableControl::InsertColumn(DataItemColumn* dic)
 {
-	ProcessDIC(dic);
 	InsertEntry(dic);
+	ProcessDIC(dic);
 }
 
 void TableControl::InsertColumnAt(DataItemColumn* dic, SizeT pos)
 {
-	ProcessDIC(dic);
 	InsertEntryAt(dic, pos);
+	ProcessDIC(dic);
 }
 
 void TableControl::ProcessDIC(DataItemColumn* dic)
@@ -1171,14 +1171,15 @@ auto TableControl::CreateIndex(const AbstrDataItem* attr) -> FutureData
 	indexAttr->DisableStorage(true);
 	indexAttr->SetDC( ExprList(GetTokenID("direct_index"), attr->GetAsLispRef() ) );
 	*/
-//	dms_assert(attr->mc_DC);
+//	assert(attr->mc_DC);
+
 	auto dc = GetOrCreateDataController(ExprList(GetTokenID("direct_index"), attr->GetCheckedKeyExpr() ));
 	return dc->CalcResult();
 }
 
 void TableControl::CreateTableIndex(DataItemColumn* dic, SortOrder so)
 {
-	dms_assert(m_Entity);
+	assert(m_Entity);
 
 	m_IndexColumn = dic->shared_from_base<const DataItemColumn>();
 	m_State.Set(TCF_FlipSortOrder, so == SO_Descending);
@@ -1327,11 +1328,16 @@ ActorVisitState TableControl::VisitSuppliers(SupplierVisitFlag svf, const ActorV
 	if (	(visitor.Visit(m_Entity.get_ptr()) == AVS_SuspendedOrFailed)
 		||	(m_Entity && visitor.Visit(m_LabelAttr.get_ptr()) == AVS_SuspendedOrFailed)
 		||	(visitor.Visit(m_SelEntity.get_ptr()) == AVS_SuspendedOrFailed)
+		|| (visitor.Visit(m_GroupByEntity.get_ptr()) == AVS_SuspendedOrFailed)
+		|| (visitor.Visit(m_GroupByRel.get_ptr()) == AVS_SuspendedOrFailed)
 		||	(visitor.Visit(m_IndexAttr.get_ptr()) == AVS_SuspendedOrFailed)
 		||	(visitor.Visit(m_SelIndexAttr.get_ptr()) == AVS_SuspendedOrFailed)
 		||	(visitor.Visit(m_LabelAttr.get_ptr()) == AVS_SuspendedOrFailed)
 		)
 		return AVS_SuspendedOrFailed;
+//	if (m_FocusElemProvider)
+//		if (visitor.Visit(m_FocusElemProvider->GetIndexParam()) == AVS_SuspendedOrFailed)
+//			return AVS_SuspendedOrFailed;
 
 	return base_type::VisitSuppliers(svf, visitor);
 }
@@ -1340,7 +1346,7 @@ ActorVisitState TableControl::VisitSuppliers(SupplierVisitFlag svf, const ActorV
 
 bool TableControl::MouseEvent(MouseEventDispatcher& med)
 {
-	if ((med.GetEventInfo().m_EventID & EID_LBUTTONDOWN)  && med.m_FoundObject.get() ==  this)
+	if ((med.GetEventInfo().m_EventID & EventID::LBUTTONDOWN)  && med.m_FoundObject.get() ==  this)
 	{
 		auto curX = med.GetEventInfo().m_Point.x / med.GetSubPixelFactors().first;
 		// find child that is left of position

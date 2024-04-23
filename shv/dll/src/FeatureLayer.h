@@ -1,32 +1,10 @@
-//<HEADER> 
-/*
-Data & Model Server (DMS) is a server written in C++ for DSS applications. 
-Version: see srv/dms/rtc/dll/src/RtcVersion.h for version info.
+// Copyright (C) 1998-2024 Object Vision b.v. 
+// License: GNU GPL 3
+/////////////////////////////////////////////////////////////////////////////
 
-Copyright (C) 1998-2004  YUSE GSO Object Vision BV. 
-
-Documentation on using the Data & Model Server software can be found at:
-http://www.ObjectVision.nl/DMS/
-
-See additional guidelines and notes in srv/dms/Readme-srv.txt 
-
-This library is free software; you can use, redistribute, and/or
-modify it under the terms of the GNU General Public License version 2 
-(the License) as published by the Free Software Foundation,
-provided that this entire header notice and readme-srv.txt is preserved.
-
-See LICENSE.TXT for terms of distribution or look at our web site:
-http://www.objectvision.nl/DMS/License.txt
-or alternatively at: http://www.gnu.org/copyleft/gpl.html
-
-This library is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
-General Public License for more details. However, specific warranties might be
-granted by an additional written contract for support, assistance and/or development
-*/
-//</HEADER>
+#if defined(_MSC_VER)
 #pragma once
+#endif
 
 #ifndef __SHV_FEATURELAYER_H
 #define __SHV_FEATURELAYER_H
@@ -59,7 +37,6 @@ struct FeatureDrawer
 {
 	FeatureDrawer(const FeatureLayer* layer, GraphDrawer&  drawer);
 
-	WeakPtr<const IndexCollector> GetIndexCollector() const { return m_IndexCollector; }
 	bool                          HasLabelText     () const;
 	const FontIndexCache*         GetUpdatedLabelFontIndexCache() const;
 
@@ -67,7 +44,7 @@ struct FeatureDrawer
 	GraphDrawer&                m_Drawer;
 	const Float64               m_WorldZoomLevel;
 
-	LockedIndexCollectorPtr    m_IndexCollector;
+	OptionalIndexCollectorAray  m_IndexCollector;
 
 	std::optional<DataArray<SelectionID>::locked_cseq_t> m_SelValues;
 };
@@ -128,7 +105,8 @@ protected: friend FeatureDrawer; friend struct LabelDrawer;
 
 //	new interface
 	virtual bool DrawImpl(FeatureDrawer& fd) const =0;
-	virtual SizeT FindFeatureByPoint(const CrdPoint& geoPnt) = 0;
+	virtual SizeT FindFeatureByPoint(const CrdPoint& geoPnt);
+	virtual SizeT FindNextFeatureByPoint(const CrdPoint& geoPnt, SizeT featureIndex);
 
 	std::shared_ptr<const AbstrBoundingBoxCache> GetBoundingBoxCache() const;
 
@@ -263,7 +241,7 @@ protected:
 	void SelectCircle (CrdPoint worldPnt, CrdType worldRadius, EventID eventID) override;
 	void SelectPolygon(const CrdPoint* first, const CrdPoint* last, EventID eventID) override;
 
-	SizeT FindFeatureByPoint(const CrdPoint& geoPnt) override;
+	SizeT FindNextFeatureByPoint(const CrdPoint& geoPnt, SizeT currFeatureIndex) override;
 	void  InvalidateFeature(SizeT featureIndex) override;
 
 	DECL_RTTI(SHV_CALL, LayerClass);

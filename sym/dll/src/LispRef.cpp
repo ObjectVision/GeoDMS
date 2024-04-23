@@ -8,6 +8,8 @@
 #pragma hdrstop
 #endif //defined(CC_PRAGMAHDRSTOP)
 
+#include <stack>
+
 #include "LispRef.h"
 
 #include "act/MainThread.h"
@@ -135,7 +137,7 @@ Object* LispCls::CreateObj(PolymorphInpStream* istr) const
 		assert(IsMetaThread());
 	}
 
-	dms_assert(obj);
+	assert(obj);
 	istr->m_ObjReg[n] = obj;
 	return obj;
 }
@@ -191,9 +193,10 @@ private:
 struct MakeNumbFunc
 {
 	using argument_type = Number_t;
-	using result_type = LispObj*;
+	using result_reftype = NumbObj*;
+	using result_type = LispRef;
 
-	LispObj* operator()(Number_t v) const
+	auto operator()(Number_t v) const -> result_reftype
 	{
 		return new NumbObj(Number(v));
 	}
@@ -220,7 +223,7 @@ private:
 	virtual bool   IsUI64()     const { return true; }
 	virtual UInt64 GetUI64Val() const { return m_Value; }
 
-	virtual void Print(FormattedOutStream& out, UInt32 level)   const { out << m_Value << ' '; }
+	virtual void Print(FormattedOutStream& out, UInt32 level)   const { out << m_Value << "u64 "; }
 	static LispObj* ReloadObj(PolymorphInpStream& ar);
 	virtual void WriteObj(PolymorphOutStream& ar) const;
 
@@ -232,9 +235,10 @@ private:
 struct MakeUI64Func
 {
 	using argument_type = UInt64;
-	using result_type = LispObj*;
+	using result_type = LispRef;
+	using result_reftype = UI64Obj*;
 
-	LispObj* operator()(UInt64 v) const
+	auto operator()(UInt64 v) const -> result_reftype
 	{
 		return new UI64Obj(v);
 	}
@@ -250,7 +254,7 @@ IMPL_STATIC_LISPCLS(UI64Obj)
 class SymbObj : public LispObj
 {
 	friend struct MakeSymbFunc;
-	friend SymbObj* GetOrCreateSymbObj(LispCaches* self, TokenID t, ChroID c);
+	friend auto GetOrCreateSymbObj(LispCaches* self, TokenID t, ChroID c) -> LispRef;
 
 	SymbObj()              : m_TokenID(TokenID::GetUndefinedID()) { NeverLinkThis(); }
 	SymbObj(const SymbObj&): m_TokenID(TokenID::GetUndefinedID()) { NeverLinkThis(); }
@@ -281,10 +285,11 @@ using SymbType = std::pair<TokenID,  ChroID>;
 
 struct MakeSymbFunc
 {	
-	typedef SymbType argument_type;
-	typedef SymbObj* result_type;
+	using argument_type = SymbType;
+	using result_type = LispRef;
+	using result_reftype = SymbObj*;
 
-	SymbObj* operator()(const SymbType& v) const
+	auto operator()(const SymbType& v) const -> result_reftype
 	{ 
 		return new SymbObj(v.first, v.second); 
 	} 
@@ -345,12 +350,13 @@ private:
 struct MakeStrnFunc
 {
 	using argument_type = StrnType;
-	using result_type = StrnObj*;
+	using result_type = LispRef;
+	using result_reftype = StrnObj*;
 
-	StrnObj* operator()(const StrnType& v) const
+	auto operator()(const StrnType& v) const -> result_reftype
 	{
 		auto len = v.size();
-		dms_assert(len); // zero-sized strings are separately provided by StrnObj::Empty()
+		assert(len); // zero-sized strings are separately provided by StrnObj::Empty()
 		char* b = new char[len + 1],
 			* e = b + len;
 		strncpy(b, v.first, len);
@@ -403,12 +409,12 @@ typedef std::pair<LispPtr, LispPtr> ListType;
 
 struct MakeListFunc
 {	
-	typedef ListType argument_type;
-	typedef LispObj* result_type;
-
-	LispObj* operator()(const ListType& v) const
+	using argument_type = ListType ;
+	using result_type = LispRef;
+	using result_reftype = ListObj*;
+	auto operator()(const ListType& v) const -> result_reftype
 	{ 
-		return new ListObj(v.second, v.first); 
+		return new ListObj(v.second, v.first);
 	} 
 };
 
@@ -449,10 +455,14 @@ struct LispCaches {
 	}
 };
 
-SymbObj* GetOrCreateSymbObj(LispCaches* self, TokenID t, ChroID c)
+std::mutex sx_TimelessSymbolArrayLock;
+auto GetOrCreateSymbObj(LispCaches* self, TokenID t, ChroID c) -> LispRef
 {
 	if (c)
-		return self->SymbObjCache.apply(SymbType(t, c));
+		return self->SymbObjCache.apply(SymbType(t, c)); // has its own guard
+
+	auto cacheLock = std::lock_guard(sx_TimelessSymbolArrayLock);
+
 	UInt32 tnr = t.GetNr(TokenID::TokenKey());
 	UInt32 reqSize = tnr + 1;
 
@@ -464,12 +474,15 @@ SymbObj* GetOrCreateSymbObj(LispCaches* self, TokenID t, ChroID c)
 		self->ZeroSymbObjCache.resize(s, 0);
 	}
 	SymbObj*& cacheEntry = self->ZeroSymbObjCache[tnr];
-	if (!cacheEntry)
+	if (cacheEntry)
 	{
-		cacheEntry = new SymbObj(t, 0);
-		self->nrActiveZeroSymbObj++;
+		auto result = LispRef(LispPtr(cacheEntry), no_zombies{});
+		if (result)
+			return result;
 	}
-	return cacheEntry;
+	cacheEntry = new SymbObj(t, 0);
+	self->nrActiveZeroSymbObj++;
+	return LispRef(LispPtr(cacheEntry));
 }
 
 
@@ -579,8 +592,13 @@ SymbObj::~SymbObj()
 		x->SymbObjCache.remove(SymbType(m_TokenID, m_ChroID));
 	else
 	{
-		assert(x->ZeroSymbObjCache.size() > m_TokenID.GetNr(TokenID::TokenKey()) && (x->ZeroSymbObjCache)[m_TokenID.GetNr(TokenID::TokenKey())] == this);
-		x->ZeroSymbObjCache[m_TokenID.GetNr(TokenID::TokenKey())] = nullptr;
+		auto cacheLock = std::lock_guard(sx_TimelessSymbolArrayLock);
+		auto tokenNr = m_TokenID.GetNr(TokenID::TokenKey());
+		assert(x->ZeroSymbObjCache.size() > tokenNr);
+		auto& symbObjPtrRef = x->ZeroSymbObjCache[tokenNr];
+
+		if (symbObjPtrRef == this)
+			symbObjPtrRef = nullptr;
 		x->nrActiveZeroSymbObj--;
 	}
 }
@@ -702,7 +720,46 @@ LispRef::LispRef(LispPtr head, LispPtr tail)
 	: SharedPtrWrap<LispPtr>(GetLispCaches()->ListObjCache.apply(ListType(tail, head)))
 {}
 
-ListObj::~ListObj() { GetLispCaches()->ListObjCache.remove(ListType(m_Right, m_Left)); }
+using zombie_destroyer_stack = std::stack<zombie_destroyer>;
+
+void ref_mover(zombie_destroyer_stack& nodes, LispRef& current)
+{
+	// Release children and push them onto the stack
+	if (!current.IsRealList())
+		return;
+	auto resetHandle = current.delayed_reset();
+	if (resetHandle)
+		nodes.push(std::move(resetHandle)); // Detach and push
+}
+
+thread_local bool s_LispObjStackActive = false;
+
+ListObj::~ListObj() 
+{ 
+	if (s_LispObjStackActive)
+		return;
+
+	s_LispObjStackActive = true;
+	std::stack<zombie_destroyer> nodes;
+
+	// No need to reset since release already nullifies the unique_ptrs
+	GetLispCaches()->ListObjCache.remove(ListType(m_Right, m_Left));
+	ref_mover(nodes, m_Left);
+	ref_mover(nodes, m_Right);
+
+	while (!nodes.empty()) {
+		auto current = std::move(nodes.top());
+		nodes.pop();
+
+		auto currentLispObj = static_cast<ListObj*>(current.get());
+		assert(currentLispObj);
+		GetLispCaches()->ListObjCache.remove(ListType(currentLispObj->m_Right, currentLispObj->m_Left));
+		ref_mover(nodes,currentLispObj->m_Left);
+		ref_mover(nodes,currentLispObj->m_Right);
+		// delete current
+	}
+	s_LispObjStackActive = false;
+}
 
 /****************** ListObj Serialization and rtti *******************/
 

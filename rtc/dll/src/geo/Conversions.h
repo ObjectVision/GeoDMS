@@ -1,8 +1,10 @@
-// Copyright (C) 1998-2023 Object Vision b.v. 
+// Copyright (C) 1998-2024 Object Vision b.v. 
 // License: GNU GPL 3
 /////////////////////////////////////////////////////////////////////////////
 
-//#pragma once
+#if defined(_MSC_VER)
+#pragma once
+#endif
 
 #ifndef __RTC_GEO_CONVERSIONS_H
 
@@ -38,33 +40,21 @@ template <typename T>             struct has_equivalent_null<T, T> : std::true_t
 // Bool conversions
 //----------------------------------------------------------------------
 
-template <typename T> inline
-typename std::enable_if<has_undefines<T>::value, Bool >::type
-Convert2Bool(const T& val) 
-{ 
-	return IsDefined(val) 
-		?	Bool(val != T())
-		:	UNDEFINED_OR_ZERO(Bool); 
-}
-
-template <typename T> inline
-typename std::enable_if<!has_undefines<T>::value, Bool >::type
-Convert2Bool(const T& val) 
-{ 
-	return Bool(val != T()); 
-}
-
 // numeric -> Bool conversion
-template <typename Src, typename ExceptFunc, typename ConvertFunc>
-inline typename std::enable_if<is_numeric_v<Src>, Bool >::type
-Convert4(const Src& val, const Bool* dummy2, const ExceptFunc* dummy3, const ConvertFunc* dummy4) 
+template <NumericValue Src, typename ExceptFunc, typename ConvertFunc>
+Bool Convert4(const Src& val, const Bool* dummy2, const ExceptFunc* dummy3, const ConvertFunc* dummy4) 
 {
-	return Convert2Bool(val);
+	if constexpr (has_undefines_v<Src>)
+	{
+		if (!IsDefined(val))
+			return UNDEFINED_OR_ZERO(Bool);
+	}
+	return Bool(val != Src());
 }
 
 // Bool to anything conversion (including Bool itself)
 template <typename Dst, typename ExceptFunc, typename ConvertFunc>
-inline Dst Convert4(const Bool& val, const Dst* dummy, const ExceptFunc* dummyFunc, const ConvertFunc* dummy4) 
+inline Dst Convert4(Bool val, const Dst* dummy, const ExceptFunc* dummyFunc, const ConvertFunc* dummy4) 
 {
 	return Dst(val);
 }
@@ -173,9 +163,6 @@ struct DefaultConvertFunc
 	{
 		typedef DefaultConvertFunc<T> type;
 	};
-
-	template <typename P> struct RoundDnFunc : std::conditional<is_integral<typename scalar_of<P>::type>::value, DnConvertFunc<P>, DefaultConvertFunc<P> > {};
-	template <typename P> struct RoundUpFunc : std::conditional<is_integral<typename scalar_of<P>::type>::value, UpConvertFunc<P>, DefaultConvertFunc<P> > {};
 };
 
 template <typename T, typename U, typename CheckDefFunc, typename CheckMinFunc, typename CheckMaxFunc, typename ExceptFunc, typename ConvertFunc>

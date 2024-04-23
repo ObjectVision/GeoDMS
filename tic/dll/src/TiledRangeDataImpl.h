@@ -1,32 +1,10 @@
-//<HEADER> 
-/*
-Data & Model Server (DMS) is a server written in C++ for DSS applications. 
-Version: see srv/dms/rtc/dll/src/RtcVersion.h for version info.
+// Copyright (C) 1998-2023 Object Vision b.v. 
+// License: GNU GPL 3
+/////////////////////////////////////////////////////////////////////////////
 
-Copyright (C) 1998-2004  YUSE GSO Object Vision BV. 
-
-Documentation on using the Data & Model Server software can be found at:
-http://www.ObjectVision.nl/DMS/
-
-See additional guidelines and notes in srv/dms/Readme-srv.txt 
-
-This library is free software; you can use, redistribute, and/or
-modify it under the terms of the GNU General Public License version 2 
-(the License) as published by the Free Software Foundation,
-provided that this entire header notice and readme-srv.txt is preserved.
-
-See LICENSE.TXT for terms of distribution or look at our web site:
-http://www.objectvision.nl/DMS/License.txt
-or alternatively at: http://www.gnu.org/copyleft/gpl.html
-
-This library is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
-General Public License for more details. However, specific warranties might be
-granted by an additional written contract for support, assistance and/or development
-*/
-//</HEADER>
+#if defined(_MSC_VER)
 #pragma once
+#endif
 
 #if !defined(__TIC_SEGMENTATIONINFO_H)
 #define __TIC_SEGMENTATIONINFO_H
@@ -116,7 +94,8 @@ struct RegularAdapter: Base
 
 	auto tiling_extent() const { return m_TilingExtent;  };
 
-	auto GetTileRange(tile_id t) const->Range<value_type> override;
+	auto GetTileRange(tile_id t) const -> Range<value_type> override;
+	auto GetTilingExtent() const -> tile_extent_t<value_type> override { return tiling_extent(); }
 	tile_loc GetTiledLocationForValue(value_type v) const;
 
 	tile_loc GetTiledLocation(row_id index) const override;
@@ -131,7 +110,9 @@ struct RegularAdapter: Base
 	{
 		assert(t <= GetNrTiles());
 		// TODO OPTIMIZE for edge and corner tiles 
-		return NrMemPages(GetMaxTileSize() << log2BytesPerElem) * t;
+		auto maxTileSizeInBytes = SizeT(this->GetMaxTileSize()) << log2BytesPerElem;
+		auto nrMemPagesPertile = NrMemPages(maxTileSizeInBytes);
+		return nrMemPagesPertile * t;
 	}
 
 	void CalcTilingExtent() override;
@@ -143,7 +124,6 @@ struct RegularAdapter: Base
 		MakeLowerBound(maxExtent, Convert<tile_extent_t<value_type>>( rangeSize ));
 		return Cardinality(maxExtent);
 	}
-
 
 private:
 	tile_extent_t<value_type> m_TilingExtent;
@@ -167,6 +147,7 @@ struct IrregularTileRangeData : TiledRangeData<V>
 		assert(t < m_Ranges.size());
 		return m_Ranges[t];
 	}
+	auto GetTilingExtent() const -> tile_extent_t<V> override { throwIllegalAbstract(MG_POS, "IrregularTileRangeData::GetTilingRange"); }
 
 	tile_type_id GetTileTypeID() const override { return tile_type_id::irregular; }
 
@@ -241,7 +222,10 @@ struct IrregularTileRangeData : TiledRangeData<V>
 		assert(t <= GetNrTiles());
 		SizeT result = 0;
 		while (t--)
-			result += NrMemPages(this->GetTileSize(t) << log2BytesPerElem);
+		{
+			auto tileSizeInBytes = SizeT(this->GetTileSize(t)) << log2BytesPerElem;
+			result += NrMemPages(tileSizeInBytes);
+		}
 
 		return result;
 	}

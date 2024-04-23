@@ -45,7 +45,6 @@ granted by an additional written contract for support, assistance and/or develop
 #include "AbstrCmd.h"
 #include "DataView.h"
 #include "GraphVisitor.h"
-#include "IdleTimer.h"
 #include "KeyFlags.h"
 #include "MouseEventDispatcher.h"
 
@@ -346,8 +345,6 @@ GType CalcNewPosBase(HWND scrollBarCtl, UInt16 scrollCmd)
 	si.fMask = SIF_TRACKPOS|SIF_POS|SIF_PAGE|SIF_RANGE;
 	GetScrollInfo(scrollBarCtl, SB_CTL, &si);
 
-//	IdleTimer::OnStartLoop();
-
 	switch (scrollCmd) {
 		case SB_LEFT:      return 0;
 		case SB_RIGHT:     return si.nMax;
@@ -466,7 +463,7 @@ void ScrollPort::ScrollLogical(CrdPoint delta)
 
 bool ScrollPort::MouseEvent(MouseEventDispatcher& med)
 {
-	if (med.GetEventInfo().m_EventID & EID_MOUSEWHEEL )
+	if (med.GetEventInfo().m_EventID & EventID::MOUSEWHEEL)
 	{
 		bool shift = GetKeyState(VK_SHIFT) & 0x8000;
 		int wheelDelta = GET_WHEEL_DELTA_WPARAM(med.r_EventInfo.m_wParam);

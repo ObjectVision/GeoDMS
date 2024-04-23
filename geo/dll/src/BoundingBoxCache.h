@@ -174,7 +174,7 @@ SequenceBoundingBoxCache<F>::SequenceBoundingBoxCache(const AbstrDataObject* fea
 		featBoundArray.resize(data.size());
 		auto ri = featBoundArray.begin();
 		for (auto i = data.begin(), e = data.end(); i != e; ++ri, ++i)
-			*ri = RangeFromSequence(i->begin(), i->end());
+			*ri = RangeFromSequence_SkipUndefined(i->begin(), i->end());
 
 		resultBoxes.m_TotalBound = MakeBlockBoundArray(resultBoxes.m_BlockBoundArray, featBoundArray);
 

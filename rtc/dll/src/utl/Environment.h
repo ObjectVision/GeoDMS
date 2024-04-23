@@ -108,7 +108,6 @@ enum RegStatusFlags
 };
 
 RTC_CALL UInt32 GetRegStatusFlags();
-RTC_CALL UInt32 GetRegFlags(std::string key, bool &exists);
 RTC_CALL void SetCachedStatusFlag(UInt32 newSF, bool newVal = true);
 RTC_CALL bool HasDynamicROI();
 RTC_CALL bool ShowThousandSeparator();
@@ -194,6 +193,7 @@ RTC_CALL bool   DMS_CONV HasWaitingMessages();
 
 RTC_CALL void   DMS_CONV SetCurrentDir(CharPtr dir);
 RTC_CALL void   DMS_CONV DMS_Appl_SetExeDir(CharPtr exeDir);
+RTC_CALL void   DMS_CONV DMS_Appl_SetFont();
 RTC_CALL void   DMS_CONV DMS_Appl_SetRegStatusFlags(UInt32 sf);
 RTC_CALL UInt32 DMS_CONV DMS_Appl_GetRegStatusFlags();
 }	// extern "C"

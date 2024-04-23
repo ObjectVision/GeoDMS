@@ -1,31 +1,10 @@
-//<HEADER> 
-/*
-Data & Model Server (DMS) is a server written in C++ for DSS applications. 
-Version: see srv/dms/rtc/dll/src/RtcVersion.h for version info.
+// Copyright (C) 1998-2023 Object Vision b.v. 
+// License: GNU GPL 3
+/////////////////////////////////////////////////////////////////////////////
 
-Copyright (C) 1998-2004  YUSE GSO Object Vision BV. 
-
-Documentation on using the Data & Model Server software can be found at:
-http://www.ObjectVision.nl/DMS/
-
-See additional guidelines and notes in srv/dms/Readme-srv.txt 
-
-This library is free software; you can use, redistribute, and/or
-modify it under the terms of the GNU General Public License version 2 
-(the License) as published by the Free Software Foundation,
-provided that this entire header notice and readme-srv.txt is preserved.
-
-See LICENSE.TXT for terms of distribution or look at our web site:
-http://www.objectvision.nl/DMS/License.txt
-or alternatively at: http://www.gnu.org/copyleft/gpl.html
-
-This library is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
-General Public License for more details. However, specific warranties might be
-granted by an additional written contract for support, assistance and/or development
-*/
-//</HEADER>
+#if defined(_MSC_VER)
+#pragma once
+#endif
 
 #if !defined(__SET_CACHE_H)
 #define __SET_CACHE_H
@@ -42,35 +21,53 @@ struct duplicate_arg {
 	const Arg& operator()(const Arg& arg, const Res&) const { return arg; }
 };
 
+struct duplicate_ref {
+	const auto & operator()(const auto& ref) const { return ref; }
+};
+
+struct duplicate_nozombies {
+	LispRef operator()(LispObj* ptr) const 
+	{
+		return LispRef(LispPtr(ptr), no_zombies{});
+	}
+};
+
 template<
-	typename Func, 
+	typename Func,
 	typename ArgOrder = std::less<typename Func::argument_type>,
-	typename argument_reftype = typename param_type < typename Func::argument_type>::type,
-	typename result_reftype = typename param_type < typename Func::result_type>::type,
-	typename DuplFunc = duplicate_arg<typename Func::argument_type, typename Func::result_type> 
+	typename argument_reftype = param_type_t < typename Func::argument_type>,
+	typename result_reftype = typename Func::result_reftype,
+	typename KeyDuplFunc = duplicate_arg<typename Func::argument_type, typename Func::result_reftype>, 
+	typename Ref2ResFunc = std::conditional_t<std::is_same_v<typename Func::result_type, result_reftype>, duplicate_ref, duplicate_nozombies>
 >
 struct Cache
 {
 	using function = Func;
 	using argument_type = typename function::argument_type;
 	using result_type = typename function::result_type;
-
-	using map_type = std::map<argument_type, result_type, ArgOrder>;
+	
+	using map_type = std::map<argument_type, result_reftype, ArgOrder>;
 
 	Cache() { MG_DEBUGCODE( md_NrCalls = md_NrMisses = 0; ) }
 
-	result_reftype apply(argument_reftype arg)
+	result_type apply(argument_reftype arg)
 	{
+		auto cacheLock = std::lock_guard(mx_MapLock);
+
 		MG_DEBUGCODE(md_NrCalls++; )
 		dms_check_not_debugonly; 
 		auto i = m_Map.lower_bound(arg);
-		if (i == m_Map.end() || m_Comp(arg, i->first))
+		while (i != m_Map.end() && !m_Comp(arg, i->first))
 		{
-			result_type res = m_Func(arg);
-			i = m_Map.insert(i, typename map_type::value_type(m_Dupl(arg, res), res));
-			MG_DEBUGCODE(md_NrMisses++; )
+			auto sharedRef = m_Ref2ResFunc(i->second);
+			if (sharedRef)
+				return sharedRef;
+			++i;
 		}
-		return i->second;
+		result_reftype res = m_Func(arg);
+		i = m_Map.insert(i, typename map_type::value_type(m_KeyDupl(arg, res), res));
+		MG_DEBUGCODE(md_NrMisses++; )
+		return res;
 	}
 
 	SizeT size () const { return m_Map.size (); }
@@ -78,18 +75,27 @@ struct Cache
 
 	void remove(argument_reftype arg)
 	{
-		m_Map.erase(arg);
+		auto cacheLock = std::lock_guard(mx_MapLock);
+		auto i = m_Map.lower_bound(arg);
+		assert(i != m_Map.end());
+		while (i->second->IsOwned())
+		{
+			++i;
+			assert(i != m_Map.end());
+		}
+		m_Map.erase(i);
 	}
-	void clear() { m_Map.clear(); }
 
 private:
 	MG_DEBUGCODE(SizeT md_NrCalls; )
 	MG_DEBUGCODE(SizeT md_NrMisses; )
 
-	Func      m_Func;
-	ArgOrder  m_Comp;
-	DuplFunc  m_Dupl;
-	map_type  m_Map;
+	Func         m_Func;
+	ArgOrder     m_Comp;
+	KeyDuplFunc  m_KeyDupl;
+	Ref2ResFunc  m_Ref2ResFunc;
+	map_type     m_Map;
+	std::recursive_mutex   mx_MapLock;
 };
 
 

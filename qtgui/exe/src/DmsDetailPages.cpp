@@ -7,7 +7,8 @@
 
 #include <QObject>
 #include <QDockWidget>
-#include <QTextBrowser>
+#include <QWebEngineView>
+#include <QWebEnginePage>
 #include <QTimer>
 #include <Qclipboard.h>
 
@@ -40,6 +41,30 @@
 #ifdef _DEBUG
 #define new MYDEBUG_NEW 
 #endif
+
+// =================================================================================================
+// code from ChatGPT
+// =================================================================================================
+
+class CustomWebEnginePage : public QWebEnginePage {
+public:
+    using QWebEnginePage::QWebEnginePage; // Inherit constructors from QWebEnginePage
+
+protected:
+    bool acceptNavigationRequest(const QUrl& url, NavigationType type, bool isMainFrame) override {
+        if (type == NavigationType::NavigationTypeLinkClicked) {
+            // Handle the link click, for example, by emitting a custom signal
+            emit linkClicked(url);
+            return false; // Prevent the navigation within the QWebEngineView
+        }
+        return true; // Allow other navigation requests
+    }
+
+signals:
+    void linkClicked(const QUrl& url); // Define a custom signal
+};
+
+// =================================================================================================
 
 void DmsDetailPages::setActiveDetailPage(ActiveDetailPage new_active_detail_page)
 {
@@ -313,11 +338,8 @@ void DmsDetailPages::drawPageImpl()
     if (!current_item)
         return;
 
-    // Disable or enable dataset information radio button
-    auto has_storage_manager = CurrOrParentHasStorageManager(current_item);
-    main_window->m_detail_page_source_description_buttons->sd_dataset_information->setDisabled(!has_storage_manager);
-    if (m_SDM == SourceDescrMode::DatasetInfo && !has_storage_manager) // Switch to configured mode if dataset info mode is selected but no storage manager is available
-        main_window->m_detail_page_source_description_buttons->sd_configured->setChecked(true);
+
+
 
     bool ready = true;
     SuspendTrigger::Resume();
@@ -352,9 +374,13 @@ void DmsDetailPages::drawPageImpl()
 
         if (m_SDM == SourceDescrMode::DatasetInfo)
         {
+            // Disable or enable dataset information radio button
             auto has_storage_manager = DumpSourceDescriptionDatasetInfo(current_item, xmlOut.get());
             if (!has_storage_manager)
+            {
+                main_window->m_detail_page_source_description_buttons->sd_dataset_information->setDisabled(!has_storage_manager);
                 main_window->m_detail_page_source_description_buttons->sd_configured->setChecked(true);
+            }
         }
         else
             TreeItem_XML_DumpSourceDescription(current_item, m_SDM, xmlOut.get());
@@ -425,12 +451,9 @@ auto DmsDetailPages::activeDetailPageFromName(CharPtrRange sName) -> ActiveDetai
 }
 
 DmsDetailPages::DmsDetailPages(QWidget* parent)
-    : QUpdatableTextBrowser(parent)
+    : QUpdatableWebBrowser(parent)
 {
-    setOpenLinks(false);
-    setOpenExternalLinks(false);
     setProperty("DmsHelperWindowType", DmsHelperWindowType::HW_DETAILPAGES);
-    connect(this, &QTextBrowser::anchorClicked, this, &DmsDetailPages::onAnchorClicked);
 }
 
 bool DmsDetailPages::update()
@@ -451,7 +474,8 @@ QSize DmsDetailPages::minimumSizeHint() const
 void DmsDetailPages::resizeEvent(QResizeEvent* event)
 {
     m_current_width = width();
-    QTextBrowser::resizeEvent(event);
+    //TODO: reimplement this behavior to comply to QtWebView
+    //QTextBrowser::resizeEvent(event);
 }
 
 #include <QDesktopServices>

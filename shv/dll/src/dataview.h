@@ -2,7 +2,9 @@
 // License: GNU GPL 3
 /////////////////////////////////////////////////////////////////////////////
 
+#if defined(_MSC_VER)
 #pragma once
+#endif
 
 #if !defined(__SHV_DATAVIEW_H)
 #define __SHV_DATAVIEW_H
@@ -275,12 +277,12 @@ private:
 	void ReverseCarets(HDC dc, bool newVisibleState); // creates a new tmp dc if pdc==0
 	void ReverseCaretsImpl(HDC  dc, bool newVisibleState);
 	void ReverseSelCaretImpl(HDC hdc, const Region& selCaretRgn);
-	bool DispatchMouseEvent(UInt32 event, WPARAM modKeys, GPoint point);
+	bool DispatchMouseEvent(EventID event, WPARAM modKeys, GPoint point);
 
 	// message handlers
 	void OnEraseBkgnd(HDC dc);
 	void OnPaint();
-	void SetUpdateTimer();
+	void SetUpdateTimer(); friend struct IdleTimer;
 
 	void OnMouseMove(WPARAM nFlags, GPoint devicePoint);
 	void OnSize     (WPARAM nType,  GPoint deviceSize);

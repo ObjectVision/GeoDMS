@@ -774,7 +774,7 @@ void GraphicObject::FillMenu(MouseEventDispatcher& med)
 
 void GraphicObject::SetOwner(GraphicObject* owner)
 {
-	dms_assert(owner);
+	assert(owner);
 	auto sharedOwner = owner->shared_from_this();
 	if (!sharedOwner)
 		return;

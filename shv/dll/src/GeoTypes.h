@@ -368,7 +368,7 @@ struct TRect : Range<TPoint>
 };
 
 inline GType  TType2GType  (TType   src) { return src < MinValue<GType>() ? MinValue<GType>() : (src > MaxValue<GType>() ? MaxValue<GType>() : src); }
-inline GType  CrdType2GType(CrdType src) { return src < MinValue<GType>() ? MinValue<GType>() : (src > MaxValue<GType>() ? MaxValue<GType>() : src); }
+inline GType  CrdType2GType(CrdType src) { return src < MinValue<GType>() ? MinValue<GType>() : (src > MaxValue<GType>() ? MaxValue<GType>() : RoundDown<sizeof(GType)> (src)); }
 inline GPoint CrdPoint2GPoint(CrdPoint src) { return GPoint(CrdType2GType(src.X()), CrdType2GType(src.Y())); }
 
 inline CrdPoint TPoint2CrdPoint(TPoint src, CrdPoint sf) { return shp2dms_order<CrdType>(src.X() * sf.first, src.Y() * sf.second); }
@@ -459,8 +459,8 @@ TPoint Convert4(const Point<T>& pnt, const TPoint*, const ExceptFunc* ef, const 
 template <typename T, typename ExceptFunc, typename ConvertFunc>
 TRect Convert4(const Range<T>& rect, const TRect*, const ExceptFunc* ef, const ConvertFunc*)
 {
-	using round_dn_type = typename ConvertFunc::template RoundDnFunc<TPoint>::type;
-	using round_up_type = typename ConvertFunc::template RoundUpFunc<TPoint>::type;
+	using round_dn_type = IntRoundDnFunc<TPoint>;
+	using round_up_type = IntRoundUpFunc<TPoint>;
 	return TRect(
 		Convert4(rect.first , TYPEID(TPoint), ef, TYPEID(round_dn_type))
 	,	Convert4(rect.second, TYPEID(TPoint), ef, TYPEID(round_up_type))

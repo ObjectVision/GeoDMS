@@ -150,9 +150,18 @@ struct Sequence2ScalarFunc
 template <class P>
 struct ArcLengthFunc : Sequence2ScalarFunc<P>
 {
-	typename ArcLengthFunc::res_type operator() (typename ArcLengthFunc::arg1_cref arg1) const
+	auto operator() (typename ArcLengthFunc::arg1_cref arg1) const -> typename ArcLengthFunc::res_type
 	{
 		return Convert<typename ArcLengthFunc::res_type>( ArcLength<Float64>(arg1) );
+	}
+};
+
+template <class P>
+struct MlsLengthFunc : Sequence2ScalarFunc<P>
+{
+	auto operator() (typename MlsLengthFunc::arg1_cref arg1) const -> typename MlsLengthFunc::res_type
+	{
+		return Convert<typename MlsLengthFunc::res_type>(MlsLength<Float64>(arg1));
 	}
 };
 
@@ -782,7 +791,8 @@ public:
 			, e1 = arg1Data.end()
 			, i1 = b1
 			, b2 = arg2Data.begin()
-			, i2 = b2;
+			, i2 = b2
+			, last_i2 = {};
 
 		Float64 dist = const_array_cast<DistType>(arg3A)->GetDataRead()[0];
 		
@@ -796,8 +806,13 @@ public:
 		bool isFirstPoint = true;
 		for (; i1 != e1; ++i2, ++i1)
 		{
+			if (!IsDefined(*i1))
+				continue;
+			if (!IsDefined(*i2))
+				continue;
+
 			if (!isFirstPoint)
-				if (i2[-1] != *i1)
+				if (*last_i2 != *i1)
 					isFirstPoint = true;
 			PointType segment = *i2 - *i1;
 			Float64 segmLength = sqrt(Norm<Float64>(segment));
@@ -807,9 +822,9 @@ public:
 					nrPoints++;
 			}
 			SizeT nrPointsHere = (segmLength+carry) / dist;
-			dms_assert((segmLength+carry) >= dist * nrPointsHere); // assume division and float->int conversion round off towards zero.
+			assert((segmLength+carry) >= dist * nrPointsHere); // assume division and float->int conversion round off towards zero.
 			carry += (segmLength - dist * nrPointsHere);
-			dms_assert(carry >= 0);
+			assert(carry >= 0);
 
 			if (withEnds && carry)
 			{
@@ -818,6 +833,7 @@ public:
 			}
 			nrPoints += nrPointsHere;
 			isFirstPoint = false;
+			last_i2 = i2;
 		}
 		resDomain->SetCount(nrPoints);
 
@@ -837,9 +853,14 @@ public:
 		DPoint prevLoc;
 		for (i1 = b1, i2 = b2; i1 != e1; ++nrOrgEntity, ++i2, ++i1)
 		{
+			if (!IsDefined(*i1))
+				continue;
+			if (!IsDefined(*i2))
+				continue;
+
 			UInt32 ordinalID = 0;
 			if (!isFirstPoint)
-				if (i2[-1] != *i1)
+				if (*last_i2 != *i1)
 					isFirstPoint = true;
 			DPoint segment = *i2 - *i1;
 			Float64 segmLengthOrg = sqrt(Norm<Float64>(segment));
@@ -915,6 +936,7 @@ public:
 			}
 			currPointIndex += nrPointsHere;
 			isFirstPoint = false;
+			last_i2 = i2;
 		}
 		dms_assert(currPointIndex == nrPoints);
 		if (resSub1) { dms_assert(ri1.IsEndOfChannel());  ri1.Commit(); }
@@ -1815,6 +1837,7 @@ namespace
 
 	CommonOperGroup cogAL("arc_length", oper_policy::better_not_in_meta_scripting);
 	CommonOperGroup cogAREA("area", oper_policy::better_not_in_meta_scripting);
+	CommonOperGroup cogMLSL("mls_length", oper_policy::better_not_in_meta_scripting);
 
 	CommonOperGroup cogP2S    ("points2sequence", oper_policy::better_not_in_meta_scripting);
 	CommonOperGroup cogP2S_p  ("points2sequence_p", oper_policy::better_not_in_meta_scripting);
@@ -1908,6 +1931,7 @@ namespace
 	//Casted functions that result in scalars
 		// Functors that return 0 for both empty and null sequences
 		CastedUnaryAttrSpecialFuncOperator<ArcLengthFunc<P> > arcLength;
+		CastedUnaryAttrSpecialFuncOperator<MlsLengthFunc<P> > mlsLength;
 		CastedUnaryAttrSpecialFuncOperator<AreaFunc     <P> > area;
 
 		PointInPolygonOperator<P> pip;
@@ -1927,6 +1951,7 @@ namespace
 			,	centroidOrMid(&cogCentroidOrMid)
 
 			,	arcLength(&cogAL)
+			,	mlsLength(&cogMLSL)
 			,	area(&cogAREA)
 			,	dynaPoint1(&cogDynaPoint,           DoCreateNrOrgEntity | DoCreateOrdinal)
 			,	dynaPoint2(&cogDynaPointWithEnds,   DoCreateNrOrgEntity | DoCreateOrdinal | DoIncludeEndPoints)

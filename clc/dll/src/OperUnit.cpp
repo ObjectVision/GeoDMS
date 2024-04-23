@@ -555,59 +555,39 @@ CutTileSpec(const TiledRangeData<T>* arg1, const Range<T>& bounds)
 	return tileRanges;
 }
 
-
-template <class T> // = spoint, ipoint, fpoint, dpoint, float32/64, (u)int32/16/8
-class UnitRangeOperator : public TernaryOperator
+template <typename T>
+bool CreateRangeUnit(TreeItemDualRef& resultHolder, const AbstrUnit* arg1, const TreeItem* lbItem, const TreeItem* ubItem, bool isCategorical, bool mustCalc)
 {
-	typedef Unit<T>              ResultType;
-	typedef AbstrUnit            Arg1Type;
-	typedef DataArray<T>         Arg2Type; // LowerBound 
-	typedef DataArray<T>         Arg3Type; // UpperBound
-
-	static_assert(has_var_range_field_v<T>);
-	bool m_IsCatRangeFunc;
-
-public:
-	UnitRangeOperator(AbstrOperGroup* gr, bool isCatRangeFunc)
-		:	TernaryOperator(gr, ResultType::GetStaticClass(), Arg1Type::GetStaticClass(), Arg2Type::GetStaticClass(), Arg3Type::GetStaticClass())
-		,	m_IsCatRangeFunc(isCatRangeFunc)
-	{}
-
-	// Override Operator
-	bool CreateResult(TreeItemDualRef& resultHolder, const ArgSeqType& args, bool mustCalc) const override
+	if (!resultHolder)
 	{
-		dms_assert(args.size() == 3);
+		checked_domain<Void>(lbItem, "LowerBound");
+		checked_domain<Void>(ubItem, "UpperBound");
 
-		const AbstrUnit* arg1 = debug_cast<const AbstrUnit*>(args[0]);
-
-		dms_assert(arg1);
-		checked_domain<Void>(args[1], "a2");
-		checked_domain<Void>(args[2], "a3");
-
-		if (!resultHolder)
-		{
-			dms_assert(!mustCalc);
-			ResultType* result = mutable_unit_cast<T>(Unit<T>::GetStaticClass()->CreateResultUnit(resultHolder));
-			dms_assert(result);
-			resultHolder = result;
+		assert(!mustCalc);
+		auto result = mutable_unit_cast<T>(Unit<T>::GetStaticClass()->CreateResultUnit(resultHolder));
+		assert(result);
+		resultHolder = result;
+		if (arg1)
 			result->DuplFrom(arg1);
-			if (m_IsCatRangeFunc)
-				result->SetTSF(TSF_Categorical);
-		}
+		if (isCategorical)
+			result->SetTSF(TSF_Categorical);
+	}
 
-		if (mustCalc)
+	if (mustCalc)
+	{
+		auto result = debug_cast<Unit<T>*>(resultHolder.GetNew());
+		assert(result);
+
+		T lb = GetTheCurrValue<T>(lbItem);
+		T ub = GetTheCurrValue<T>(ubItem);
+
+		MG_USERCHECK2(IsDefined(lb), "lowerBound (arg2) in call to range(orgUnit, lowerBound, upperBound) is UNDEFINED");
+		MG_USERCHECK2(IsDefined(ub), "upperBound (arg3) in call to range(orgUnit, lowerBound, upperBound) is UNDEFINED");
+
+		Range<T> bounds(lb, ub);
+		MG_USERCHECK(IsLowerBound(bounds.first, bounds.second));
+		if (arg1)
 		{
-			ResultType* result = debug_cast<Unit<T>*>(resultHolder.GetNew());
-			dms_assert(result);
-
-			T lb = GetTheCurrValue<T>(args[1]);
-			T ub = GetTheCurrValue<T>(args[2]);
-
-			MG_USERCHECK2(IsDefined(lb), "lowerBound (arg2) in call to range(orgUnit, lowerBound, upperBound) is UNDEFINED");
-			MG_USERCHECK2(IsDefined(ub), "upperBound (arg3) in call to range(orgUnit, lowerBound, upperBound) is UNDEFINED");
-
-			Range<T> bounds(lb, ub);
-			assert(IsLowerBound(bounds.first, bounds.second));
 			auto arg1Unit = dynamic_cast<const Unit<T>*>(arg1);
 
 			if (!bounds.empty() && arg1Unit)
@@ -632,9 +612,57 @@ public:
 					}
 				}
 			}
-			result->SetRange(bounds);
 		}
-		return true;
+		result->SetRange(bounds);
+	}
+	return true;
+}
+
+template <class T> // = spoint, ipoint, fpoint, dpoint, float32/64, (u)int32/16/8
+class UnitRange2Operator : public BinaryOperator
+{
+	using ResultType = Unit<T>;
+	using BoundType = DataArray<T>; // LowerBound, UpperBound
+
+	static_assert(has_var_range_field_v<T>);
+	bool m_IsCatRangeFunc;
+
+public:
+	UnitRange2Operator(AbstrOperGroup* gr, bool isCatRangeFunc)
+		:	BinaryOperator(gr, ResultType::GetStaticClass(), BoundType::GetStaticClass(), BoundType::GetStaticClass())
+		,	m_IsCatRangeFunc(isCatRangeFunc)
+	{}
+
+	// Override Operator
+	bool CreateResult(TreeItemDualRef& resultHolder, const ArgSeqType& args, bool mustCalc) const override
+	{
+		assert(args.size() == 2);
+		return CreateRangeUnit<T>(resultHolder, nullptr, args[0], args[1], m_IsCatRangeFunc, mustCalc);
+	}
+};
+
+template <class T> // = spoint, ipoint, fpoint, dpoint, float32/64, (u)int32/16/8
+class UnitRange3Operator : public TernaryOperator
+{
+	using ResultType = Unit<T>;
+	using Arg1Type = AbstrUnit;
+	using BoundType = DataArray<T>; // LowerBound, UpperBound
+
+	static_assert(has_var_range_field_v<T>);
+	bool m_IsCatRangeFunc;
+
+public:
+	UnitRange3Operator(AbstrOperGroup* gr, bool isCatRangeFunc)
+		: TernaryOperator(gr, ResultType::GetStaticClass(), Arg1Type::GetStaticClass(), BoundType::GetStaticClass(), BoundType::GetStaticClass())
+		, m_IsCatRangeFunc(isCatRangeFunc)
+	{}
+
+	// Override Operator
+	bool CreateResult(TreeItemDualRef& resultHolder, const ArgSeqType& args, bool mustCalc) const override
+	{
+		assert(args.size() == 3);
+		auto arg1 = AsUnit(args[0]); assert(arg1);
+		return CreateRangeUnit<T>(resultHolder, arg1, args[1], args[2], m_IsCatRangeFunc, mustCalc);
 	}
 };
 
@@ -1144,15 +1172,16 @@ namespace
 	struct UnitRangeOperators
 	{
 		UnitRangeOperators()
-			: ur(&cog_Range, false)
-			, cr(&cog_CatRange, true)
+			: ur2(&cog_Range, false)
+			, ur3(&cog_Range, false)
 			, lb(&cog_LowerBound)
 			, ub(&cog_UpperBound)
 			, rb(&cog_BoundRange)
 			, cb(&cog_BoundCenter)
 		{}
 
-		UnitRangeOperator  <RU> ur, cr;
+		UnitRange2Operator  <RU> ur2;
+		UnitRange3Operator  <RU> ur3;
 		LowerBoundOperator <RU> lb;
 		UpperBoundOperator <RU> ub;
 		BoundRangeOperator <RU> rb;
@@ -1190,7 +1219,8 @@ namespace
 	tl_oper::inst_tuple_templ<typelists::ranged_unit_objects, UnitRangeOperators > unitRangeOpers;
 	tl_oper::inst_tuple_templ<typelists::bints, UnitFixedRangeOperators > unitFixedRangeOpers;
 
-	tl_oper::inst_tuple_templ<typelists::domain_objects, UnitRangeOperator, AbstrOperGroup*, bool> unitCatRangeOpers(&cog_CatRange, true);
+	tl_oper::inst_tuple_templ<typelists::domain_objects, UnitRange2Operator, AbstrOperGroup*, bool> unitCatRange2Opers(&cog_CatRange, true);
+	tl_oper::inst_tuple_templ<typelists::domain_objects, UnitRange3Operator, AbstrOperGroup*, bool> unitCatRange3Opers(&cog_CatRange, true);
 
 	CommonOperGroup cog_combine("combine", oper_policy::allow_extra_args);
 	CommonOperGroup cog_combine08("combine_uint8", oper_policy::allow_extra_args);

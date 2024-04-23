@@ -280,7 +280,8 @@ Point<V> TileStart(const Range<Point<V>>& range, tile_extent_t<Point<V>> tileExt
 template <typename Base>
 auto RegularAdapter<Base>::GetTileRange(tile_id t) const -> Range<value_type>
 { 
-	dms_assert(t != no_tile);
+	MG_CHECK(t < this->GetNrTiles());
+
 	value_type tileTL = TileStart(this->m_Range, this->tile_extent(), this->tiling_extent(), t);
 	value_type tile_extent = value_type(this->tile_extent());
 	value_type rangeEnd = this->m_Range.second;
@@ -456,6 +457,36 @@ void RangedUnit<V>::LoadRangeImpl(BinaryInpStream& pis)
 */
 }
 
+// Recognize Default and Regular tilings and construct them if possible.
+
+template <typename V>
+bool IsRegular(const auto& range, const auto& tileRanges)
+{
+	if (tileRanges.size() < 2)
+		return false; // caught by earlier checks or range != tileRanges[0]
+
+	auto firstTileExtents = Size(tileRanges[0]);
+	RegularTileRangeData<V> exemplar(range, firstTileExtents);
+	if (exemplar.GetNrTiles() != tileRanges.size())
+		return false;
+
+	tile_id t = 0;
+	for (const auto& tr : tileRanges)
+		if (tr != exemplar.GetTileRange(t++))
+			return false;
+
+	return true;
+}
+
+template<typename V>
+auto CreateRegularTileRangeData(const auto& range, const auto& tileRange) -> SharedPtr<TiledRangeData<V>>
+{
+	auto tileRangeAsWPoint = Convert<tile_extent_t<V>>(tileRange);
+	if (tileRangeAsWPoint == default_tile_size<V>())
+		return new DefaultTileRangeData<V>(range);
+	return new RegularTileRangeData<V>(range, tileRangeAsWPoint);
+}
+
 template <typename V>
 void CountableUnitBase<V>::LoadRangeImpl(BinaryInpStream& pis)
 {
@@ -469,28 +500,36 @@ void CountableUnitBase<V>::LoadRangeImpl(BinaryInpStream& pis)
 		{
 			MG_CHECK(tn == no_tile);
 			if (range.empty())
-				this->m_RangeDataPtr.reset();
+				this->m_RangeDataPtr = nullptr;
 			else
-				this->m_RangeDataPtr.reset(new SmallRangeData<V>(range));
+				this->m_RangeDataPtr = new SmallRangeData<V>(range);
 		}
 		else
 		{
 			if (tn == 0)
-				this->m_RangeDataPtr.reset(new DefaultTileRangeData<V>(range));
+				this->m_RangeDataPtr = new DefaultTileRangeData<V>(range);
 			else if (tn == no_tile) // assume one big old tile (as in 7.xxx)
-				this->m_RangeDataPtr.reset(new RegularTileRangeData<V>(range, Size(range)));
+			{
+				auto tileExtents = Size(range);
+				this->m_RangeDataPtr = CreateRegularTileRangeData<V>(range, tileExtents);
+			}
 			else
 			{
 				std::vector<Range<V>> tileRanges(tn);
 				tile_id ti = tn; while (ti) // WARNING: REVERSE ORDER
 					pis >> tileRanges[--ti];
-				if (tn == 1)
-					this->m_RangeDataPtr.reset(new RegularTileRangeData<V>(tileRanges[0], Size(tileRanges[0])));
-				// TODO G8: recognize Default and Regular tilings and construct them if possible.
-				this->m_RangeDataPtr.reset(new IrregularTileRangeData<V>(std::move(tileRanges)));
-				for (tile_id t = 0; t != tn; ++t)
+				if ((tn == 1 && range == tileRanges[0]) || IsRegular<V>(range, tileRanges))
 				{
-					MG_CHECK(IsIncluding(range, this->m_RangeDataPtr->GetTileRange(t)));
+					auto firstTileExtents = Size(tileRanges[0]);
+					this->m_RangeDataPtr = CreateRegularTileRangeData<V>(range, firstTileExtents);
+				}
+				else
+				{
+					this->m_RangeDataPtr = new IrregularTileRangeData<V>(std::move(tileRanges));
+					for (tile_id t = 0; t != tn; ++t)
+					{
+						MG_CHECK(IsIncluding(range, this->m_RangeDataPtr->GetTileRange(t)));
+					}
 				}
 			}
 /* REMOVE
@@ -753,11 +792,10 @@ void TileAdapter<Base>::SetRegularTileRange(const range_t& range, extent_t tileE
 	auto rangeSize = ThrowingConvert<extent_t>(orgRangeSize);
 	MakeLowerBound(tileExtent, rangeSize);
 
-	if (IsLowerBound(tileExtent, default_tile_size<value_t>()))
+	if (tileExtent == default_tile_size<value_t>())
 		newRangeData = std::make_unique < DefaultTileRangeData<value_t>>(range);
 	else
 		newRangeData = std::make_unique < RegularTileRangeData<value_t>>(range, tileExtent);
-//	newRangeData->CalcTilingExtent();
 
 	if (this->m_RangeDataPtr)
 		NotifyRangeDataChange(this, this->m_RangeDataPtr.get_ptr(), newRangeData.get());
@@ -1010,7 +1048,7 @@ auto CountableUnitBase<V>::GetTiledRangeData() const -> SharedPtr <const AbstrTi
 template <typename V>
 V OrderedUnit<V>::GetTileFirstValue (tile_id t) const
 {
-	dms_assert(t != no_tile);
+	assert(t != no_tile);
 	auto si = this->GetCurrSegmInfo();
 	MG_CHECK(si);
 	return si->GetTileRange(t).first;
@@ -1019,7 +1057,7 @@ V OrderedUnit<V>::GetTileFirstValue (tile_id t) const
 template <typename V>
 V OrderedUnit<V>::GetTileValue (tile_id t, tile_offset localIndex) const
 {
-	dms_assert(t != no_tile);
+	assert(t != no_tile);
 	auto si = this->GetCurrSegmInfo();
 	MG_CHECK(si);
 	return Range_GetValue_checked(si->GetTileRange(t), localIndex);
@@ -1028,7 +1066,7 @@ V OrderedUnit<V>::GetTileValue (tile_id t, tile_offset localIndex) const
 template <typename V> typename
 auto CountableUnitBase<V>::GetTileRange(tile_id t) const -> range_t
 {
-	dms_assert(t != no_tile);
+	assert(t != no_tile);
 	auto si = this->GetCurrSegmInfo();
 	MG_CHECK(si);
 	return si->GetTileRange(t);

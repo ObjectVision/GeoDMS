@@ -89,7 +89,7 @@ struct PasteHandler
 	{
 		GlobalLockHandle selValuesLock(selValuesData);
 		UInt32 size = reinterpret_cast<SelValuesData*>(selValuesLock.GetDataPtr())->m_Size;
-		m_SelValuesData.reset( new BYTE[size] );
+		m_SelValuesData.reset( new BYTE[size], size );
 		const BYTE* dataPtr = reinterpret_cast<BYTE*>(selValuesLock.GetDataPtr());
 		fast_copy(dataPtr, dataPtr + size, m_SelValuesData.begin());
 
@@ -100,7 +100,6 @@ struct PasteHandler
 	bool           IsHidden    () const { return m_SelValues->IsHidden(); }
 
 private:
-//	GlobalLockHandle m_SelValuesData;
 	OwningPtrSizedArray<BYTE>  m_SelValuesData;
 	SelValuesData*             m_SelValues;
 };
@@ -148,7 +147,7 @@ void GridLayer::SelectPoint(CrdPoint pnt, EventID eventID)
 			writeLock.Commit();
 	}
 	else
-		changed = SetFocusEntityIndex( UNDEFINED_VALUE(SizeT), eventID & EID_LBUTTONDBLCLK );
+		changed = SetFocusEntityIndex( UNDEFINED_VALUE(SizeT), eventID & EventID::LBUTTONDBLCLK );
 	if (changed)
 		lock1.ProcessChange();
 }
@@ -156,15 +155,12 @@ void GridLayer::SelectPoint(CrdPoint pnt, EventID eventID)
 template <typename T>
 struct AbstrRowProcessor {
 	using iterator = typename DataArray<T>::iterator;
-	virtual void operator ()(Int32 r, Int32 c1, Int32 c2, iterator i, const CrdTransformation& tr) const =0;
+	virtual void operator ()(iterator selBegin, SizeT selCount, Int32 r, Int32 c1, Int32 c2, iterator i, const CrdTransformation& tr) const =0;
 };
 
 template <typename T>
 void GridLayer::SelectRegion(CrdRect worldRect, const AbstrRowProcessor<T>& rowProcessor, AbstrDataItem* selAttr, EventID eventID)
 {
-	if (HasEntityIndex())
-		throwErrorD("SelectRegion", "Cannot make a region selection on an indirect grid");
-
 	CrdTransformation tr = GetGeoTransformation(); // grid to world transformer
 	IRect gridRect = GetGeoCrdUnit()->GetRangeAsIRect();
 	if (! IsIntersecting(tr.Apply( Convert<CrdRect>(gridRect) ), worldRect) )
@@ -184,7 +180,9 @@ void GridLayer::SelectRegion(CrdRect worldRect, const AbstrRowProcessor<T>& rowP
 			auto i = selData.begin() + Range_GetIndex_naked(gridRect, shp2dms_order(IPoint(Left(selectRect), Top(selectRect))));
 			UInt32 gridWidth = Width(gridRect);
 			for (Int32 r = Top(selectRect); r != Bottom(selectRect); ++r, i += gridWidth)
-				rowProcessor(r, Left(selectRect), Right(selectRect), i, tr);
+			{
+				rowProcessor(selData.begin(), selData.size(), r, Left(selectRect), Right(selectRect), i, tr);
+			}
 		}
 		lock.Commit();
 	}
@@ -197,50 +195,101 @@ void GridLayer::SelectRegion(CrdRect worldRect, const AbstrRowProcessor<T>& rowP
 	}
 }
 
+template <typename V>
+struct SetDirectValueOper 
+{
+	using elem_t = V;
 
-template <bool V> struct SetConstOper { typedef SelectionID elem_t; void operator () (sequence_traits<elem_t>::reference selElem) const { selElem = V; } };
-typedef SetConstOper< true> AddOper;
-typedef SetConstOper<false> OffOper;
+	elem_t m_Value;
 
-//struct OffOper { typedef SelectionID elem_t; void operator () (sequence_traits<elem_t>::reference selElem) const { selElem = false; } };
-
-struct SetValueOper {
-	typedef ClassID elem_t;
-
-	SetValueOper(elem_t v) : m_Value(v) {}
-	void operator () (sequence_traits<elem_t>::reference selElem) const 
+	void operator () (sequence_traits<elem_t>::pointer selArrayBegin, SizeT selArraySize, SizeT featureIndex) const
 	{
-		selElem = m_Value; 
+		selArrayBegin[featureIndex] = m_Value;
 	}
 
-private:
-	elem_t m_Value;
 };
 
-template <typename Oper> 
+template <typename V>
+struct SetCompactValueOper 
+{
+	using elem_t = V;
+
+	elem_t m_Value;
+	GridLayer* m_Layer = nullptr;
+
+	void operator () (sequence_traits<elem_t>::pointer selArrayBegin, SizeT selArraySize, SizeT featureIndex) const
+	{
+		assert(m_Layer);
+		SizeT entityIndex = m_Layer->Feature2EntityIndex(featureIndex);
+		if (IsDefined(entityIndex))
+		{
+			MG_CHECK(entityIndex < selArraySize);
+			selArrayBegin[entityIndex] = m_Value;
+		}
+	}
+};
+
+template <typename Oper>
 struct RectRowProcessor : AbstrRowProcessor<typename Oper::elem_t>
 {
 	RectRowProcessor(Oper oper = Oper()) : m_Oper(oper)  {}
 
 	using iterator = typename DataArray<typename Oper::elem_t>::iterator;
-	void operator () (Int32 r, Int32 cb, Int32 ce, iterator i, const CrdTransformation& tr) const override
+	void operator () (iterator selBegin, SizeT selCount, Int32 r, Int32 cb, Int32 ce, iterator i, const CrdTransformation& tr) const override
 	{
 		for (; cb != ce; ++cb, ++i)
-			m_Oper(*i);
+			m_Oper(selBegin, selCount, i - selBegin);
 	}
-private:
+
 	Oper m_Oper;
 };
 
+template <template <typename Oper> typename RowProcessor, typename ...Args>
+void SelectRegionWithShape(GridLayer* self, CrdRect worldRect, EventID eventID, Args&& ...rowProcessorArgs)
+{
+	if (self->HasEditAttr())
+	{
+		ClassID currClassID = self->GetCurrClassID();
+		if (IsDefined(currClassID))
+		{
+			if (self->HasEntityIndex())
+				self->SelectRegion(worldRect
+					, RowProcessor<SetCompactValueOper<ClassID>>(std::forward<Args>(rowProcessorArgs)...
+						, SetCompactValueOper<ClassID>{ currClassID, self }
+					  )
+					, self->GetEditAttr(), EventID::SHIFTKEY
+				);
+			else
+				self->SelectRegion(worldRect
+					, RowProcessor<SetDirectValueOper<ClassID>>(std::forward<Args>(rowProcessorArgs)...
+						, SetDirectValueOper<ClassID>(currClassID))
+					, self->GetEditAttr(), EventID::SHIFTKEY
+				);
+			return;
+		}
+	}
+
+	bool isAdd = !(eventID & EventID::CTRLKEY);
+	if (self->HasEntityIndex())
+		self->SelectRegion(worldRect
+			, RowProcessor < SetCompactValueOper<Bool> >(std::forward<Args>(rowProcessorArgs)...
+				, SetCompactValueOper<Bool>{isAdd, self}
+			  )
+			, self->GetEditAttr(), eventID
+		);
+	else
+		self->SelectRegion(worldRect
+			, RowProcessor<SetDirectValueOper<Bool>>(std::forward<Args>(rowProcessorArgs)...
+				, SetDirectValueOper<Bool>{isAdd}
+			  )
+			, self->GetEditAttr(), eventID
+		);
+}
+
+
 void GridLayer::SelectRect(CrdRect worldRect, EventID eventID)
 {
-	ClassID currClassID;
-	if (HasEditAttr() && IsDefined(currClassID = GetCurrClassID()))
-		SelectRegion(worldRect, RectRowProcessor<SetValueOper>(SetValueOper(currClassID)), GetEditAttr(), EID_SHIFTKEY );
-	else if (eventID & EID_CTRLKEY )
-		SelectRegion(worldRect, RectRowProcessor<OffOper>(), GetEditAttr(), eventID );
-	else
-		SelectRegion(worldRect, RectRowProcessor<AddOper>(), GetEditAttr(), eventID );
+	SelectRegionWithShape<RectRowProcessor>(this, worldRect, eventID);
 }
 
 template <typename Oper> 
@@ -249,14 +298,14 @@ struct CircleRowProcessor : AbstrRowProcessor<typename Oper::elem_t>
 	CircleRowProcessor(const CrdPoint& pnt, CrdType radius, Oper oper = Oper()): m_Oper(oper), m_Pnt(pnt), m_Radius(radius) {}
 
 	using iterator = typename DataArray<typename Oper::elem_t>::iterator;
-	void operator ()(Int32 r, Int32 cb, Int32 ce, iterator i, const CrdTransformation& tr) const override
+	void operator ()(iterator selBegin, SizeT selCount, Int32 r, Int32 cb, Int32 ce, iterator i, const CrdTransformation& tr) const override
 	{
 		CrdType  radius2 = Sqr(m_Radius);
 		CrdPoint pnt     = m_Pnt;
 	
 		for (; cb != ce; ++cb, ++i)
 			if (SqrDist<CrdType>(tr.Apply(shp2dms_order(CrdPoint(cb+0.5, r+0.5))), pnt) < radius2)
-				m_Oper(*i);
+				m_Oper(selBegin, selCount, i - selBegin);
 	}
 
 private:
@@ -269,14 +318,7 @@ void GridLayer::SelectCircle(CrdPoint worldPnt, CrdType worldRadius, EventID eve
 {
 	CrdRect worldRect = Inflate(worldPnt, CrdPoint(worldRadius, worldRadius));
 
-	ClassID currClassID;
-	if (HasEditAttr() && IsDefined(currClassID = GetCurrClassID()))
-		SelectRegion(worldRect, CircleRowProcessor<SetValueOper>(worldPnt, worldRadius, SetValueOper(currClassID)), GetEditAttr(), EID_SHIFTKEY );
-	else if (eventID & EID_CTRLKEY )
-		SelectRegion(worldRect, CircleRowProcessor<OffOper>(worldPnt, worldRadius), GetEditAttr(), eventID  );
-	else
-		SelectRegion(worldRect, CircleRowProcessor<AddOper>(worldPnt, worldRadius), GetEditAttr(), eventID  );
-
+	SelectRegionWithShape<CircleRowProcessor>(this, worldRect, eventID, worldPnt, worldRadius);
 }
 
 template <typename Oper> 
@@ -285,14 +327,14 @@ struct PolygonRowProcessor : AbstrRowProcessor<typename Oper::elem_t>
 	PolygonRowProcessor(const CrdPoint* first, const CrdPoint* last, Oper oper = Oper()): m_Oper(oper), m_First(first), m_Last(last) {}
 
 	using iterator = typename DataArray<typename Oper::elem_t>::iterator;
-	void operator () (Int32 r, Int32 cb, Int32 ce, iterator i, const CrdTransformation& tr) const override
+	void operator () (iterator selBegin, SizeT selCount, Int32 r, Int32 cb, Int32 ce, iterator i, const CrdTransformation& tr) const override
 	{
 		const CrdPoint* first = m_First;
 		const CrdPoint* last  = m_Last;
 	
 		for (; cb != ce; ++cb, ++i)
 			if (IsInside(first, last, tr.Apply(shp2dms_order(CrdPoint(cb+0.5, r+0.5)))))
-				m_Oper(*i);
+				m_Oper(selBegin, selCount, i - selBegin);
 	}
 
 private:
@@ -303,14 +345,9 @@ private:
 
 void GridLayer::SelectPolygon(const CrdPoint* first, const CrdPoint* last, EventID eventID)
 {
-	CrdRect rect(first, last, false, true);
-	ClassID currClassID;
-	if (HasEditAttr() && IsDefined(currClassID = GetCurrClassID()))
-		SelectRegion(rect, PolygonRowProcessor<SetValueOper>(first, last, SetValueOper(currClassID)), GetEditAttr(), EID_SHIFTKEY );
-	else if (eventID & EID_CTRLKEY )
-		SelectRegion(rect, PolygonRowProcessor<OffOper>(first, last), GetEditAttr(), eventID );
-	else
-		SelectRegion(rect, PolygonRowProcessor<AddOper>(first, last), GetEditAttr(), eventID );
+	CrdRect worldRect = CrdRect(first, last, false, true);
+
+	SelectRegionWithShape<PolygonRowProcessor>(this, worldRect, eventID, first, last);
 }
 
 typedef sequence_traits<Bool>::const_pointer CBoolIter;
@@ -518,13 +555,14 @@ IRect GridLayer::CalcSelectedGeoRect()  const
 		Int32 cRight = Right(gridRect);
 		if (indexCollectorPtr)
 		{
+			OptionalIndexCollectorAray indexCollectorRange(indexCollectorPtr, no_tile);
 			SizeT i = 0;
 			for (Int32 r = Top(gridRect), re = Bottom(gridRect); r != re; ++r)
 			{
 				while (c < cRight)
 				{
 					assert(i == Range_GetIndex_naked(gridRect, shp2dms_order(IPoint(c, r))));
-					SizeT sdIndex = indexCollectorPtr->GetEntityIndex(i);
+					SizeT sdIndex = indexCollectorRange.GetEntityIndex(i);
 					if (SelectionID(sdb[sdIndex]))
 						selectRect |= shp2dms_order(IPoint(c, r));
 					++c;
@@ -1087,14 +1125,14 @@ bool GridLayer::Draw(GraphDrawer& d) const
 				if (!IsIntersecting(tileAsDeviceExtents, clipRect))
 					continue;
 
-				LockedIndexCollectorPtr indexCollector(GetIndexCollector(), t);
+				OptionalIndexCollectorAray indexCollector(GetIndexCollector(), t);
 
 				for (tile_offset minFE = 0, maxFE = geoCrdUnit->GetTileCount(t); minFE!=maxFE; ++minFE)
-					if (indexCollector->GetEntityIndex(minFE) == fe)
+					if (indexCollector.GetEntityIndex(minFE) == fe)
 					{
 						CrdRect focusWorldRect = ::GetWorldExtents(tileRect, proj, minFE);
 
-						while (minFE+1!=maxFE && indexCollector->GetEntityIndex(minFE+1) == fe)
+						while (minFE+1!=maxFE && indexCollector.GetEntityIndex(minFE + 1) == fe)
 						{
 							CrdRect nextWorldRect = ::GetWorldExtents(tileRect, proj, minFE+1);
 							if	(	nextWorldRect.first .Row() != focusWorldRect.first .Row() 

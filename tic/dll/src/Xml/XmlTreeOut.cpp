@@ -226,12 +226,24 @@ bool WriteUnitProps(XML_Table& xmlTable, const AbstrUnit* unit, bool allTileInfo
 	}
 	else if (allTileInfo)
 	{
-		xmlTable.NameValueRow("DataSize", AsString(trd->GetDataSize()).c_str());
+		XML_Table::Row row(xmlTable);
+		row.ValueCell("Tile Sizes");
+		XML_Table::Row::Cell cell(row);
+
+		XML_OutElement details(xmlTable.OutStream(), "details");
+		{
+			XML_OutElement summary(xmlTable.OutStream(), "summary");
+			xmlTable.OutStream() << "DataSize " << AsString(trd->GetDataSize()).c_str();
+		}
 		for (tile_id t = 0, tn = trd->GetNrTiles(); t != tn; ++t)
 		{
-			XML_Table::Row row(xmlTable);
-			row.ValueCell(mySSPrintF("Tile %d", t).c_str());
-			row.ValueCell((GetTileStrRange(currRangeUnit.get_ptr(), t) + " = " + GetTileStrCount(currRangeUnit.get_ptr(), t) + " elements.").c_str());
+			NewLine(xmlTable.OutStream());
+			xmlTable.OutStream() 
+				<< mySSPrintF("Tile %d", t).c_str()
+				<< GetTileStrRange(currRangeUnit.get_ptr(), t).c_str()
+				<< " = "
+				<< GetTileStrCount(currRangeUnit.get_ptr(), t).c_str()
+				<< " elements.";
 		}
 	}
 	return true;
@@ -394,10 +406,11 @@ const TreeItem* GetExprOrSourceDescrAndReturnSourceItem(OutStreamBase& stream, c
 	SharedStr result = ti->GetExpr();
 	if (!result.empty())
 	{
-		dms_assert(s_AnnotateExprFunc);
+		assert(s_AnnotateExprFunc);
 		s_AnnotateExprFunc(stream, AbstrCalculator::GetSearchContext(ti, CalcRole::Calculator), result);
 		if (AbstrCalculator::MustEvaluate(result.begin()))
 		{
+			NewLine(stream);
 			NewLine(stream);
 			if (ti->InTemplate())
 				stream << "which isn't evaluated here since this item is part of a template definition";
@@ -420,7 +433,7 @@ const TreeItem* GetExprOrSourceDescrAndReturnSourceItem(OutStreamBase& stream, c
 		if (storageParent && (IsUnit(ti) || IsDataItem(ti)))
 		{
 			const AbstrStorageManager* sm = storageParent->GetStorageManager();
-			dms_assert(sm); // because of POSTCONDITION of GetStorageParant
+			assert(sm); // because of POSTCONDITION of GetStorageParant
 			stream << "Read from " << sm->GetNameStr().c_str();
 		}
 		else
@@ -430,8 +443,8 @@ const TreeItem* GetExprOrSourceDescrAndReturnSourceItem(OutStreamBase& stream, c
 	const TreeItem* si = ti->GetSourceItem();
 	if (si)
 	{
-		dms_assert(si != ti);
-		dms_assert(!si->IsCacheItem());
+		assert(si != ti);
+		assert(!si->IsCacheItem());
 		stream << "assigned by ";
 		{
 			XML_hRef parentRef(stream, ItemUrl(ti->GetTreeParent()).c_str());
@@ -455,12 +468,20 @@ const TreeItem* GetExprOrSourceDescrAndReturnSourceItem(OutStreamBase& stream, c
 	return nullptr;
 }
 
-void GetExprOrSourceDescr(OutStreamBase& stream, const TreeItem* ti)
+void GetExprOrSourceDescr(OutStreamBase& stream, const TreeItem* self)
 {
-	const TreeItem* si = GetExprOrSourceDescrAndReturnSourceItem(stream, ti);
+	XML_OutElement details(stream, "details");
+
+	auto si = self;
+	{
+		XML_OutElement summary(stream, "summary");
+
+		si = GetExprOrSourceDescrAndReturnSourceItem(stream, self);
+	}
+
 	while (si)
 	{
-		assert(si != ti);
+		assert(si != self);
 		assert(!si->IsCacheItem());
 		NewLine(stream);
 		stream << "which refers to";
@@ -468,20 +489,48 @@ void GetExprOrSourceDescr(OutStreamBase& stream, const TreeItem* ti)
 			XML_hRef sourceRef(stream, ItemUrl(si).c_str());
 			stream << si->GetFullName().c_str();
 		}
-		ti = si;
+		self = si;
 		si = si->GetSourceItem();
+	}
+
+	if (self->HasCalculator() && !self->WasFailed(FR_MetaInfo))
+	{
+		auto c = self->GetCalculator();
+		if (c)
+		{
+			NewLine(stream);
+			stream << "ParseResult: " << AsFLispSharedStr(c->GetLispExprOrg(), FormattingFlags::ThousandSeparator).c_str();
+		}
+	}
+	if (!self->WasFailed(FR_MetaInfo))
+	{
+		auto metaInfo = self->GetCurrMetaInfo({});
+		auto calcExpr = GetAsLispRef(metaInfo);
+
+		NewLine(stream);
+		stream << "CalcExpr: " << AsFLispSharedStr(calcExpr, FormattingFlags::ThousandSeparator).c_str();
+
+		if (metaInfo.index() == 1 || metaInfo.index() == 0 && std::get<MetaFuncCurry>(metaInfo).fullLispExpr.EndP())
+		{
+			auto keyExpr = self->GetCheckedKeyExpr();
+			if (keyExpr != calcExpr)
+			{
+				NewLine(stream);
+				stream << "CheckedKeyExpr: " << AsFLispSharedStr(keyExpr, FormattingFlags::ThousandSeparator).c_str();
+			}
+		}
 	}
 }
 
 void GetExprOrSourceDescrRow(XML_Table& xmlTable, const TreeItem* ti)
 {
 	XML_Table::Row exprRow(xmlTable);
-		exprRow.OutStream().WriteAttr("bgcolor", CLR_HROW);
-		XML_Table::Row::Cell xmlElemTD(exprRow);
-		exprRow.OutStream().WriteTrimmed("CalculationRule");
-		//exprRow.ClickableCell("CalculationRule", "dms:Edit Definition");
-		XML_Table::Row::Cell xmlElemTD1(exprRow);
-			GetExprOrSourceDescr(xmlTable.OutStream(), ti);
+	exprRow.OutStream().WriteAttr("bgcolor", CLR_HROW);
+	XML_Table::Row::Cell xmlElemTD(exprRow);
+	exprRow.OutStream().WriteTrimmed("CalculationRule");
+	//exprRow.ClickableCell("CalculationRule", "dms:Edit Definition");
+	XML_Table::Row::Cell xmlElemTD1(exprRow);
+	GetExprOrSourceDescr(xmlTable.OutStream(), ti);
 }
 
 void GetLispRefRow(XML_Table& xmlTable, LispPtr lispExpr, CharPtr title)
@@ -604,48 +653,41 @@ bool TreeItem_XML_DumpGeneralBody(const TreeItem* self, OutStreamBase* xmlOutStr
 	xmlTable.LinedRow();
 	GetExprOrSourceDescrRow(xmlTable, self);
 
-	if (GetRegStatusFlags() & RSF_AdminMode)
-	{
-		if (self->HasCalculator() && !self->WasFailed(FR_MetaInfo))
-		{
-			auto c = self->GetCalculator();
-			if (c)
-				GetLispRefRow(xmlTable, c->GetLispExprOrg(), "ParseResult");
-		}
-		if (!self->WasFailed(FR_MetaInfo))
-		{
-			auto metaInfo = self->GetCurrMetaInfo({});
-			auto calcExpr = GetAsLispRef(metaInfo);
-			GetLispRefRow(xmlTable, calcExpr, "CalcExpr");
-			if (metaInfo.index() == 1 || metaInfo.index() == 0 && std::get<MetaFuncCurry>(metaInfo).fullLispExpr.EndP())
-			{
-				auto keyExpr = self->GetCheckedKeyExpr();
-				if (keyExpr != calcExpr)
-					GetLispRefRow(xmlTable, keyExpr, "CheckedKeyExpr");
-			}
-		}
-	}
-
 	// ==================== Explicit Suppliers
 	if (self->HasSupplCache())
 	{
+		XML_Table::Row exprRow(xmlTable);
+		exprRow.OutStream().WriteAttr("bgcolor", CLR_HROW);
+		exprRow.ValueCell("ExplicitSuppliers");
+		XML_Table::Row::Cell xmlElemTD(exprRow);
+
+		auto& out  = xmlTable.OutStream();
+		XML_OutElement details(out, "details");
 		{
-			XML_Table::Row exprRow(xmlTable);
-			exprRow.OutStream().WriteAttr("bgcolor", CLR_HROW);
-			exprRow.ValueCell("ExplicitSuppliers");
-			exprRow.ValueCell(explicitSupplPropDefPtr->GetValueAsSharedStr(self).c_str());
+			XML_OutElement summary(out, "summary");
+			out << explicitSupplPropDefPtr->GetValueAsSharedStr(self).c_str();
 		}
+
 		try {
-			UInt32 n = self->GetSupplCache()->GetNrConfigured(self); // only ConfigSuppliers, Implied suppliers come after this, Calculator & StorageManager have added them
-			for (UInt32 i = 0; i < n; ++i)
+			auto n = self->GetSupplCache()->GetNrConfigured(self); // only ConfigSuppliers, Implied suppliers come after this, Calculator & StorageManager have added them
+			for (decltype(n) i = 0; i < n; ++i)
 			{
 				const Actor* supplier = self->GetSupplCache()->begin(self)[i];
 				auto supplTI = debug_cast<const TreeItem*>(supplier);
 				if (supplTI)
-					xmlTable.NamedItemRow(AsString(i).c_str(), supplTI);
+				{
+					NewLine(out);
+					out << AsString(i).c_str();
+					hRefWithText(out, supplTI->GetFullName().c_str(), ItemUrl(supplTI).c_str());
+				}
 			}
 		}
-		catch (...) {}
+		catch (...)
+		{
+			auto err = catchException(true);
+			if (err)
+				xmlTable.NameErrRow("ExplicitSuppliers", *err, self);
+		}
 	}
 
 	const TreeItem* sp = self->GetStorageParent(false);

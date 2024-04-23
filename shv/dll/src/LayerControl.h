@@ -66,6 +66,7 @@ public:
 
 //	override virtuals of GraphicObject
   	void SetActive(bool newState) override;
+	void ToggleVisibilityAndMakeActiveIfNeeded();
 
 	void FillMenu(MouseEventDispatcher& med) override;
 	bool MouseEvent(MouseEventDispatcher& med) override;
@@ -122,7 +123,7 @@ public:
 	const AbstrUnit* GetPaletteDomain() const;
 
 protected:
-	void SetPaletteControl(std::shared_ptr<PaletteControl> pc);
+	void SetPaletteControl();
 	void EditPalette();
 
 private:

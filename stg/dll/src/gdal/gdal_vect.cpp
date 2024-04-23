@@ -343,8 +343,8 @@ void GdalVectSM::DoCloseStorage(bool mustCommit) const
 {
 	DBG_START("GdalVectSM", "DoCloseStorage", false);
 	dms_assert(m_hDS);
-
-	m_hDS = nullptr; // calls GDALClose
+	
+	m_hDS = nullptr; // calls GDALClose through GDALDatasetHandle::deleter
 }
 
 template <typename PolygonType>
@@ -357,6 +357,12 @@ template <typename PolygonType>
 void AddLinePoint(typename DataArray<PolygonType>::reference dataElemRef, OGRLineString* lineString, SizeT p)
 {
 	dataElemRef.push_back(shp2dms_order(lineString->getX(p), lineString->getY(p)));
+}
+
+template <typename PolygonType>
+void AddSeparator(typename DataArray<PolygonType>::reference dataElemRef)
+{
+	dataElemRef.emplace_back(Undefined());
 }
 
 template <typename PolygonType>
@@ -380,19 +386,6 @@ void AddLinearRing(typename DataArray<PolygonType>::reference dataElemRef, OGRLi
 	MG_CHECK(ring->getY(0) == ring->getY(numPoints-1));
 	for (SizeT p = 0; p != numPoints; ++p)
 		AddLinePoint<PolygonType>(dataElemRef, ring, isExterior ? p : (numPoints - p - 1));
-}
-
-template <typename PolygonType>
-void AddLineStringAsRing(typename DataArray<PolygonType>::reference dataElemRef, OGRLineString* lineString)
-{
-	SizeT numPoints = lineString->getNumPoints();
-	dms_assert(numPoints);
-	for (SizeT p = 0; p != numPoints; ++p)
-		AddLinePoint<PolygonType>(dataElemRef, lineString, p);
-	// go back to start in reverse direction
-	--numPoints;
-	while (numPoints--)
-		AddLinePoint<PolygonType>(dataElemRef, lineString, numPoints);
 }
 
 template <typename PolygonType>
@@ -431,17 +424,16 @@ void AddMultiPolygon(typename DataArray<PolygonType>::reference dataElemRef, OGR
 			AddLineBegin<PolygonType>(dataElemRef, debug_cast<OGRPolygon*>(geoMultiPolygon->getGeometryRef(numPolygons))->getExteriorRing());
 	}
 }
+
 template <typename PolygonType>
 void AddMultiLineString(typename DataArray<PolygonType>::reference dataElemRef, OGRMultiLineString* geoMultiLineString)
 {
 	SizeT numLineStrings = geoMultiLineString->getNumGeometries();
-	if (numLineStrings)
+	for (SizeT i=0; i!=numLineStrings; ++i)
 	{
-		for (SizeT i=0; i!=numLineStrings; ++i)
-			AddLineStringAsRing<PolygonType>(dataElemRef, debug_cast<OGRLineString*>(geoMultiLineString->getGeometryRef(i)));
-		--numLineStrings;
-		while (numLineStrings--)
-			AddLineBegin<PolygonType>(dataElemRef, debug_cast<OGRLineString*>(geoMultiLineString->getGeometryRef(numLineStrings)));
+		if (i)
+			AddSeparator<PolygonType>(dataElemRef);
+		AddLineString<PolygonType>(dataElemRef, debug_cast<OGRLineString*>(geoMultiLineString->getGeometryRef(i)));
 	}
 }
 
@@ -541,30 +533,28 @@ void ReadPolyData(typename sequence_traits<PolygonType>::seq_t dataArray, OGRLay
 
 		gdalVectImpl::FeaturePtr feat = m_hDS->TestCapability(ODsCRandomLayerRead) ? GetNextFeatureInterleaved(layer, m_hDS) : layer->GetNextFeature();
 		OGRGeometry* geo = feat ? feat ->GetGeometryRef() : 0;
-		if (geo) {
-			if (dynamic_cast<OGRLineString*>(geo))
-				AddLineString<PolygonType>(dataElemRef, static_cast<OGRLineString*>(geo)); 
-			else if (dynamic_cast<OGRCircularString*>(geo))
-				AddLineString<PolygonType>(dataElemRef, static_cast<OGRLineString*>(geo->getLinearGeometry()));
-			else if (dynamic_cast<OGRCompoundCurve*>(geo))
-				AddLineString<PolygonType>(dataElemRef, static_cast<OGRLineString*>(geo->getLinearGeometry()));
-			else if (dynamic_cast<OGRPolygon*>(geo))
-				AddPolygon<PolygonType>(dataElemRef, static_cast<OGRPolygon*>(geo));
-			else if (dynamic_cast<OGRMultiPolygon*>(geo))
-				AddMultiPolygon<PolygonType>(dataElemRef, static_cast<OGRMultiPolygon*>(geo));
-			else if (dynamic_cast<OGRCurvePolygon*>(geo))
-				AddPolygon<PolygonType>(dataElemRef, static_cast<OGRPolygon*>(geo->getLinearGeometry()));
-			else if (dynamic_cast<OGRMultiPoint*>(geo))
-				AddMultiPoint<PolygonType>(dataElemRef, static_cast<OGRMultiPoint*>(geo));
-			else if (dynamic_cast<OGRMultiLineString*>(geo))
-			{
-				if (!i && !firstIndex) // only report once
-					reportD(MsgCategory::storage_read, SeverityTypeID::ST_MajorTrace, "gdal.vect: wicked conversion of MultiLineStrings to skinny MultiPolygons");
-				AddMultiLineString<PolygonType>(dataElemRef, static_cast<OGRMultiLineString*>(geo));
-			}
-		}
-		else
+
+		if (!geo) {
 			Assign( dataElemRef, Undefined() );
+			continue;
+		}
+
+		auto geometry_type = geo->getGeometryType();
+
+		switch (geometry_type) {
+		case OGRwkbGeometryType::wkbPoint: { AddPoint<PolygonType>(dataElemRef, geo->toPoint()); break; }
+		case OGRwkbGeometryType::wkbMultiPoint: { AddMultiPoint<PolygonType>(dataElemRef, geo->toMultiPoint()); break; }
+		case OGRwkbGeometryType::wkbLineString: { AddLineString<PolygonType>(dataElemRef, geo->toLineString()); break; }
+		case OGRwkbGeometryType::wkbCircularString: { AddLineString<PolygonType>(dataElemRef, geo->getLinearGeometry()->toLineString()); break; }
+		case OGRwkbGeometryType::wkbCompoundCurve: { AddLineString<PolygonType>(dataElemRef, geo->getLinearGeometry()->toLineString()); break; }
+		case OGRwkbGeometryType::wkbPolygon: { AddPolygon<PolygonType>(dataElemRef, geo->toPolygon()); break; }
+		case OGRwkbGeometryType::wkbCurvePolygon: { AddPolygon<PolygonType>(dataElemRef, geo->getLinearGeometry()->toPolygon()); break; }
+		case OGRwkbGeometryType::wkbSurface: { AddPolygon<PolygonType>(dataElemRef, geo->getLinearGeometry()->toPolygon()); break; }
+		case OGRwkbGeometryType::wkbMultiPolygon: { AddMultiPolygon<PolygonType>(dataElemRef, geo->toMultiPolygon()); break; }
+		case OGRwkbGeometryType::wkbMultiLineString: { AddMultiLineString<PolygonType>(dataElemRef, geo->toMultiLineString()); break; }
+		case OGRwkbGeometryType::wkbMultiSurface: { AddMultiPolygon<PolygonType>(dataElemRef, geo->getLinearGeometry()->toMultiPolygon()); break; }
+		default: { reportF(SeverityTypeID::ST_Warning, "Cannot interpret geometry type %s to geodms Polygon.", OGRGeometryTypeToName(geometry_type)); Assign(dataElemRef, Undefined()); break; }
+		}
 
 		dms_assert(data.data_size() == data.actual_data_size()); // no holes
 	}
@@ -1172,16 +1162,16 @@ bool GdalVectSM::WriteFieldElement(const AbstrDataItem* adi, int field_index, OG
 	return true;
 }
 
-std::vector<DataReadLock> ReadableDataHandles(SharedStr layername, DataItemsWriteStatusInfo& dataItemsStatusInfo)
+std::vector<DataReadLock> ReadableDataHandles(TokenID layer_id, DataItemsWriteStatusInfo& dataItemsStatusInfo)
 {
 	std::vector<DataReadLock> dataReadLocks;
 
-	for (auto& writableField : dataItemsStatusInfo.m_LayerAndFieldIDMapping[GetTokenID_mt(layername.c_str())])
+	for (auto& writableField : dataItemsStatusInfo.m_LayerAndFieldIDMapping[layer_id])
 	{
 		if (not writableField.second.doWrite)
 			continue;
 
-		auto& adi_n = writableField.second.m_DataHolder;
+		auto adi_n = SharedDataItem(writableField.second.m_DataHolder.get_ptr(), no_zombies{});
 		dataReadLocks.emplace_back(adi_n);
 	}
 	return dataReadLocks;
@@ -1284,7 +1274,14 @@ OGRwkbGeometryType DmsType2OGRGeometryType(ValueComposition vc)
 	return wkbUnknown;
 }
 
-void SetFeatureDefnForOGRLayerFromLayerHolder(const TreeItem* subItem, OGRLayer* layerHandle, SharedStr layerName, DataItemsWriteStatusInfo& disi)
+bool CheckVCAndVCIForGeometry(ValueComposition vc, ValueClassID vci)
+{
+	if (vc <= ValueComposition::Sequence && (vci >= ValueClassID::VT_SPoint && vci < ValueClassID::VT_FirstAfterPolygon))
+		return true;
+	return false;
+}
+
+void SetFeatureDefnForOGRLayerFromLayerHolder(const TreeItem* subItem, OGRLayer* layerHandle, TokenID layerID, DataItemsWriteStatusInfo& disi)
 {
 	GDAL_ErrorFrame error_frame;
 	int geometryFieldCount = 0;
@@ -1296,177 +1293,204 @@ void SetFeatureDefnForOGRLayerFromLayerHolder(const TreeItem* subItem, OGRLayer*
 		auto subDI = AsDataItem(fieldCandidate);
 		auto vci = subDI->GetAbstrValuesUnit()->GetValueType()->GetValueClassID();
 		auto vc = subDI->GetValueComposition();
-
-		if (subItem->GetID() == token::geometry || vc <= ValueComposition::Sequence && (vci >= ValueClassID::VT_SPoint && vci < ValueClassID::VT_FirstAfterPolygon))
+		
+		if (subItem->GetID() == token::geometry || CheckVCAndVCIForGeometry(vc, vci))
 		{
 			if (geometryFieldCount++)
 				throwErrorF("gdalwrite.vect", "error, multiple geometry fields are unsupported in GeoDMS.");
 		}
 		else
 		{
-			SharedStr       fieldName = SharedStr(fieldCandidate->GetID());
-			int             bApproxOK = TRUE;
+			TokenID         fieldNameID = fieldCandidate->GetID();
+			int             bApproxOK   = TRUE;
 
 			OGRFieldType    type    = DmsType2OGRFieldType(vci);
 			OGRFieldSubType subtype = DmsType2OGRSubFieldType(vci);
-			OGRFieldDefn    fieldDefn(fieldName.c_str(), type);         error_frame.ThrowUpWhateverCameUp();
-			fieldDefn.SetSubType(subtype);                   error_frame.ThrowUpWhateverCameUp();
-			layerHandle->CreateField(&fieldDefn, bApproxOK); error_frame.ThrowUpWhateverCameUp();
-
+			{
+				TokenStr fieldName = fieldNameID.GetStr();
+				OGRFieldDefn    fieldDefn(fieldName.c_str(), type);     error_frame.ThrowUpWhateverCameUp();
+				fieldDefn.SetSubType(subtype);                 error_frame.ThrowUpWhateverCameUp();
+				layerHandle->CreateField(&fieldDefn, bApproxOK); error_frame.ThrowUpWhateverCameUp();
+				// destructor of TokenStr gives up lock on tokenlist to allow for GetTokenID_mt to be called
+			}
 			// check for laundered fieldname
 			gdalVectImpl::FeaturePtr feat = OGRFeature::CreateFeature(layerHandle->GetLayerDefn());
-			auto currentFieldName = std::string(feat->GetFieldDefnRef(feat->GetFieldCount() - 1)->GetNameRef());
-			if (std::string(fieldName.c_str()).compare(currentFieldName) != 0) // fieldname is laundered
-				disi.SetLaunderedName(GetTokenID_mt(layerName), GetTokenID_mt(fieldName), SharedStr(currentFieldName.c_str()));
+
+			auto currentFieldNameID = GetTokenID_mt(feat->GetFieldDefnRef(feat->GetFieldCount() - 1)->GetNameRef());
+			if (fieldNameID != currentFieldNameID) // fieldname is laundered
+				disi.SetLaunderedName(layerID, fieldNameID, currentFieldNameID);
 		}
 	}
-	return;
+}
+
+bool equalCZString(CharPtr a, CharPtr b)
+{
+	return strcmp(a, b) == 0;
 }
 
 bool DataSourceHasNamelessLayer(SharedStr datasourceName)
 {
-	if (std::string(CPLGetExtension(datasourceName.c_str())) == "shp" || std::string(CPLGetExtension(datasourceName.c_str())) == "dbf" || std::string(CPLGetExtension(datasourceName.c_str())) == "csv")
+	auto extension = CPLGetExtension(datasourceName.c_str());
+	if (equalCZString(extension, "shp") || equalCZString(extension, "dbf") || equalCZString(extension, "csv"))
 		return true;
 	return false;
 }
 
-void InitializeLayersFieldsAndDataitemsStatus(const StorageMetaInfo& smi, DataItemsWriteStatusInfo& disi, GDALDatasetHandle& result, CPLStringList& layerOptionArray)
+void InitializeLayerGeometryAndFields(const TreeItem* unit_item, TokenID layerID, const AbstrUnit* layer_domain, DataItemsWriteStatusInfo& disi)
 {
-	const TreeItem* storageHolder = smi.StorageHolder();
-	const TreeItem* unitItem = nullptr;
-	const AbstrUnit* layerDomain = nullptr;
-	SharedStr layerName;
-	SharedStr fieldName;
-	TokenID layerID;
-	int geometryFieldCount = 0;
-	SharedStr datasourceName = smi.StorageManager()->GetNameStr();
+	SharedStr field_name = {};
+	for (auto sub_item = unit_item->WalkConstSubTree(nullptr); sub_item; sub_item = unit_item->WalkConstSubTree(sub_item))
+	{
+		if (not (IsDataItem(sub_item) and sub_item->IsStorable()))
+			continue;
+
+		auto adi = AsDataItem(sub_item);
+		auto fieldID = sub_item->GetID();
+
+		if (layer_domain)
+			adi->GetAbstrDomainUnit()->UnifyDomain(layer_domain, "Domain of attribute", "layerDomain", UnifyMode::UM_Throw); // Check that domain of subItem is DomainUnifyable with layerItem
+
+		auto vci = adi->GetAbstrValuesUnit()->GetValueType()->GetValueClassID();
+		auto vc = adi->GetValueComposition();
+
+		disi.setFieldIsWritten(layerID, fieldID, false);
+		if (CheckVCAndVCIForGeometry(vc, vci)) // geometry
+			disi.setIsGeometry(layerID, fieldID, true);
+	}
+
+	bool found_geometry_dataitem_in_subtree = disi.hasGeometry(layerID); // geometry is found, do nothing
+	if (found_geometry_dataitem_in_subtree)
+		return;
+
+	// Add orphan geometry if available
+	auto geometry_item = GetGeometryItemFromLayerHolder(unit_item);
+	bool driver_has_geometry_write_capability = true;
+	if (!found_geometry_dataitem_in_subtree && geometry_item)
+	{
+		geometry_item->UpdateMetaInfo();
+		//disi.SetInterestForDataHolder(GetTokenID_mt(layer_name.c_str()), GetTokenID_mt(geometry_item->GetName().c_str()), AsDataItem(geometry_item)); // write once all dataitems are ready
+		assert(IsDataItem(geometry_item));
+		disi.m_orphan_geometry_items[layerID] = AsDataItem(geometry_item);
+		geometry_item->PrepareData();
+	}	
+}
+
+/*void InitializeLayerFields(const TreeItem* unit_item, TokenID layerID, const AbstrUnit* layer_domain, DataItemsWriteStatusInfo& disi)
+{
+	for (auto sub_item = unit_item->WalkConstSubTree(nullptr); sub_item; sub_item = unit_item->WalkConstSubTree(sub_item))
+	{
+		if (not (IsDataItem(sub_item) and sub_item->IsStorable()))
+			continue;
+
+		auto adi = AsDataItem(sub_item);
+		auto fieldID = sub_item->GetID();
+
+		if (layer_domain)
+			adi->GetAbstrDomainUnit()->UnifyDomain(layer_domain, "Domain of attribute", "layerDomain", UnifyMode::UM_Throw); // Check that domain of subItem is DomainUnifyable with layerItem
+
+		auto vci = adi->GetAbstrValuesUnit()->GetValueType()->GetValueClassID();
+		auto vc = adi->GetValueComposition();
+
+		if (!CheckVCAndVCIForGeometry(vc, vci)) // field
+			disi.setFieldIsWritten(layerID, fieldID, false);
+	}
+}*/
+
+auto InitializeLayer(const TreeItem* storage_holder, const TreeItem* unit_item, GDALDatasetHandle& result, TokenID layerID, CPLStringList& layerOptionArray, DataItemsWriteStatusInfo& disi) -> OGRLayer*
+{
+	GDAL_ErrorFrame error_frame;
+	OGRwkbGeometryType eGType = GetGeometryTypeFromLayerHolder(unit_item);
+	auto ogrSR = GetOGRSpatialReferenceFromDataItems(storage_holder);
+
+	// check if driver supports geometry fields
+	auto driver_metadata = GDALGetMetadata(result.dsh_->GetDriver(), nullptr);
+	//if (!CSLFetchBoolean(driver_metadata, ODsCCreateGeomFieldAfterCreateLayer, false)) // TODO: use ODsCCreateGeomFieldAfterCreateLayer
+	//	eGType = wkbNone; // this driver does not support writing geometry fields
+
+	error_frame.ThrowUpWhateverCameUp();
+	OGRLayer* layer_handle = result.dsh_->CreateLayer(layerID.GetStr().c_str(), ogrSR ? &ogrSR.value() : nullptr, eGType, layerOptionArray); // layer owned by GDALDataset
+	error_frame.ThrowUpWhateverCameUp();
+	if (layer_handle) 
+		SetFeatureDefnForOGRLayerFromLayerHolder(unit_item, layer_handle, layerID, disi);
+
+	return layer_handle;
+}
+
+void PrepareDataItemsForWriting(const StorageMetaInfo& smi, DataItemsWriteStatusInfo& disi)
+{
+	assert(IsMetaThread());
+
+	const TreeItem* storage_holder = smi.StorageHolder();
+//	const TreeItem* unit_item = nullptr;
+//	const AbstrUnit* layer_domain = nullptr;
+//	SharedStr layer_name = {};
+//	SharedStr field_name = {};
+//	SharedStr datasource_name = smi.StorageManager()->GetNameStr();
 
 	GDAL_ErrorFrame error_frame;
 	GDAL_ConfigurationOptionsFrame config_frame(GetOptionArray(dynamic_cast<const GdalMetaInfo&>(smi).m_ConfigurationOptions));
 
-	for (auto subItem = storageHolder->WalkConstSubTree(nullptr); subItem; subItem = storageHolder->WalkConstSubTree(subItem))
+	for (auto sub_item = storage_holder->WalkConstSubTree(nullptr); sub_item; sub_item = storage_holder->WalkConstSubTree(sub_item))
 	{
-		if (not (IsDataItem(subItem) and subItem->IsStorable()))
+		if (not sub_item->IsStorable())
+			continue;
+		if (not IsDataItem(sub_item))
 			continue;
 
-		unitItem = GetLayerHolderFromDataItem(storageHolder, subItem);
-		layerDomain = AsDynamicUnit(unitItem);
-		layerName = unitItem->GetName().c_str();
-		OGRLayer* layerHandle = result.dsh_->GetLayerByName(layerName.c_str()); error_frame.ThrowUpWhateverCameUp();
+		auto adi = AsDataItem(sub_item);
 
-		if (not layerHandle && (DataSourceHasNamelessLayer(datasourceName)))
-			layerHandle = result.dsh_->GetLayer(0);
+		auto layer_container = GetLayerHolderFromDataItem(storage_holder, sub_item);//sub_item->GetTreeParent();
+		auto layer_domain = adi->GetAbstrDomainUnit();
+		//auto layer_name = layer_container->GetRelativeName(storage_holder);
+		auto layerID = layer_container->GetID();// GetTokenID_mt(layer_name.begin(), layer_name.send());
+//			unit_item->GetName().c_str();
 
-		if (not layerHandle)
-		{
-			OGRwkbGeometryType eGType = GetGeometryTypeFromGeometryDataItem(unitItem);
-			auto ogrSR = GetOGRSpatialReferenceFromDataItems(storageHolder);
-			
-			error_frame.ThrowUpWhateverCameUp();
-			layerHandle = result.dsh_->CreateLayer(layerName.c_str(), ogrSR ? &ogrSR.value() : nullptr, eGType, layerOptionArray); 
-			error_frame.ThrowUpWhateverCameUp();
-			SetFeatureDefnForOGRLayerFromLayerHolder(unitItem, layerHandle, layerName, disi);
-		}
+		if (disi.m_LayerAndFieldIDMapping.contains(layerID)) // layer already initialized
+			continue;
 
-		if (not layerHandle)
-			throwErrorF("gdalwrite.vect", "unable to open gdal OGRLayer");
-
-		auto subDI = AsDataItem(subItem);
-		fieldName = subItem->GetName().c_str();
-
-		if (layerDomain)
-			subDI->GetAbstrDomainUnit()->UnifyDomain(layerDomain, "Domain of attribute", "layerDomain", UnifyMode::UM_Throw); // Check that domain of subItem is DomainUnifyable with layerItem
-		auto adu = subDI->GetAbstrDomainUnit();
-		auto unittype = subDI->GetAbstrValuesUnit()->GetValueType()->GetValueClassID();
-		auto vci = subDI->GetAbstrValuesUnit()->GetValueType()->GetValueClassID();
-		auto vc = subDI->GetValueComposition();
-
-		if (vc <= ValueComposition::Sequence && (vci >= ValueClassID::VT_SPoint && vci < ValueClassID::VT_FirstAfterPolygon))
-		{
-			disi.setFieldIsWritten(GetTokenID_mt(layerName), GetTokenID_mt(fieldName), false);
-			disi.setIsGeometry(GetTokenID_mt(layerName), GetTokenID_mt(fieldName), true);
-		}
-		else
-		{
-			disi.setFieldIsWritten(GetTokenID_mt(layerName), GetTokenID_mt(fieldName), false);
-		}
+		InitializeLayerGeometryAndFields(layer_container, layerID, layer_domain, disi);
+		//InitializeLayerGeometry(layer_container, layerID, layer_domain, disi);
+		//InitializeLayerFields(layer_container, layerID, layer_domain, disi);
 	}
 }
 
-bool GdalVectSM::WriteDataItem(StorageMetaInfoPtr&& smiHolder)
+void GdalVectSM::WriteLayer(TokenID layer_id, const GdalMetaInfo& gmi)
 {
-	DBG_START("gdalwrite.vect", "WriteDataItem", false);
-	
-	auto smi = smiHolder.get();
-	SharedStr datasourceName = smi->StorageManager()->GetNameStr();
-
+	GDAL_ConfigurationOptionsFrame config_frame(GetOptionArray(gmi.m_ConfigurationOptions));
+	auto layer_option_array = GetOptionArray(gmi.m_LayerCreationOptions);
 	GDAL_ErrorFrame gdal_error_frame;
-	GDAL_ConfigurationOptionsFrame config_frame(GetOptionArray(dynamic_cast<const GdalMetaInfo&>(*smi).m_ConfigurationOptions));
-	auto layerOptionArray = GetOptionArray(dynamic_cast<const GdalMetaInfo&>(*smi).m_LayerCreationOptions);
+	SharedStr data_source_name = gmi.StorageManager()->GetNameStr();
+	const TreeItem* storage_holder = gmi.StorageHolder();
 
-	const TreeItem*	storageHolder	= smi->StorageHolder();
-	const AbstrDataItem*   adi		= smi->CurrRD();
-	const AbstrDataObject* ado		= adi->GetRefObj();
-	auto				   adu      = adi->GetAbstrDomainUnit();
-	auto				   avu		= adi->GetAbstrValuesUnit();
-	const ValueClass*	   vc		= ado->GetValuesType();
-	ValueClassID           vcID		= vc->GetValueClassID();
+	auto adi = m_DataItemsStatusInfo.GetExampleAdiFromLayerID(layer_id);
+	MG_CHECK(adi);  // should be guaranteed by an earlier call to DoWriteDataItem
+	auto adu = adi->GetAbstrDomainUnit();
 
-	auto unitItem = GetLayerHolderFromDataItem(storageHolder, adi);
+	auto unit_item = GetLayerHolderFromDataItem(storage_holder, adi);
+	assert(unit_item);
 
-	SharedStr layername(unitItem->GetName());
+	auto dataReadLocks = ReadableDataHandles(layer_id, m_DataItemsStatusInfo);
+	auto layer_handle = this->m_hDS->GetLayerByName(layer_id.AsStdString().c_str()); gdal_error_frame.ThrowUpWhateverCameUp();
+	if (not layer_handle && DataSourceHasNamelessLayer(data_source_name)) // Some drivers such as ESRI Shapefile use files as layers in contrast to GeoPackage that store the layer names internally.
+		layer_handle = this->m_hDS->GetLayer(0);
 
-	if (not adi->IsStorable())
-		return true;
+	if (not layer_handle)
+		layer_handle = InitializeLayer(storage_holder, unit_item, this->m_hDS, layer_id, layer_option_array, m_DataItemsStatusInfo);
 
-//	auto data_object = adi->GetDataObj();
-	SharedStr fieldname(adi->GetName());
-	auto layerTokenT = GetTokenID_mt(layername.c_str());
+	if (not layer_handle)
+		throwErrorF("gdal.vect", "cannot find layer: %s in GDALDataset for writing.", layer_id.AsStdString());
 
-	StorageWriteHandle storageHandle(std::move(smiHolder)); // open dataset
-	if (not m_DataItemsStatusInfo.m_continueWrite)
-	{
-		// disable spatial index in case of GPKG, SQLite
-		//if (!strcmpi(this->m_hDS->GetDriverName(), "GPKG") || !strcmpi(this->m_hDS->GetDriverName(), "SQLite"))
-		//	layerOptionArray.AddString("SPATIAL_INDEX=NO");
+	if (not layer_handle->GetLayerDefn()->GetFieldCount()) // geosjon: fields uninitialized at this point
+		SetFeatureDefnForOGRLayerFromLayerHolder(unit_item, layer_handle, layer_id, m_DataItemsStatusInfo);
 
-		InitializeLayersFieldsAndDataitemsStatus(*smi, m_DataItemsStatusInfo, this->m_hDS, layerOptionArray); gdal_error_frame.ThrowUpWhateverCameUp();
-		m_DataItemsStatusInfo.m_continueWrite = true;
-	}
-
-	m_DataItemsStatusInfo.RefreshInterest(storageHolder); // user may have set other iterests at this point.
-	m_DataItemsStatusInfo.SetInterestForDataHolder(layerTokenT, GetTokenID_mt(fieldname), adi); // write once all dataitems are ready
-	
-	if (not m_DataItemsStatusInfo.LayerIsReadyForWriting(layerTokenT))
-		return true;
-
-	auto dataReadLocks = ReadableDataHandles(layername, m_DataItemsStatusInfo);
-	auto layer = this->m_hDS->GetLayerByName(layername.c_str()); gdal_error_frame.ThrowUpWhateverCameUp();
-	if (not layer && DataSourceHasNamelessLayer(datasourceName)) // Some drivers such as ESRI Shapefile use files as layers in contrast to GeoPackage that store the layer names internally.
-		layer = this->m_hDS->GetLayer(0);
-
-	if (not layer)
-	{
-		OGRwkbGeometryType eGType = GetGeometryTypeFromGeometryDataItem(unitItem);
-		auto ogrSR = GetOGRSpatialReferenceFromDataItems(storageHolder); gdal_error_frame.ThrowUpWhateverCameUp();
-		layer = this->m_hDS->CreateLayer(layername.c_str(), ogrSR ? &ogrSR.value() : nullptr, eGType, layerOptionArray); gdal_error_frame.ThrowUpWhateverCameUp();
-		SetFeatureDefnForOGRLayerFromLayerHolder(unitItem, layer, layername, m_DataItemsStatusInfo);
-	}
-
-	if (not layer)
-		throwErrorF("gdal.vect", "cannot find layer: %s in GDALDataset for writing.", layername);
-
-	if (not layer->GetLayerDefn()->GetFieldCount()) // geosjon: fields uninitialized at this point
-		SetFeatureDefnForOGRLayerFromLayerHolder(unitItem, layer, layername, m_DataItemsStatusInfo);
-
-	auto numExistingFeatures = ::ReadUnitRange(layer, this->m_hDS);
+	auto numExistingFeatures = ::ReadUnitRange(layer_handle, this->m_hDS);
 
 	SizeT featureIndex = 0, tileFeatureIndex = 0;
 	for (tile_id t = 0, te = adu->GetNrTiles(); t != te; ++t)
 	{
-		if (t+1 == te)
+		if (t + 1 == te)
 			reportF(MsgCategory::storage_write, SeverityTypeID::ST_MajorTrace, "gdalwrite.vect, written %u tiles of layer %s",
-				adu->GetNrTiles(), layername);
+				adu->GetNrTiles(), layer_id.AsStdString());
 
 		GDAL_TransactionFrame transaction_frame(this->m_hDS);
 		auto tileReadLocks = ReadableTileHandles(dataReadLocks, t);
@@ -1474,10 +1498,10 @@ bool GdalVectSM::WriteDataItem(StorageMetaInfoPtr&& smiHolder)
 		SizeT numExistingFeaturesInTile = adu->GetTileCount(t);
 		tileFeatureIndex = 0;
 
-		auto& fieldIDMapping = m_DataItemsStatusInfo.m_LayerAndFieldIDMapping[layerTokenT]; // log(#layers) loopup outside row-loop
+		auto& fieldIDMapping = m_DataItemsStatusInfo.m_LayerAndFieldIDMapping[layer_id]; // log(#layers) loopup outside row-loop
 		// Preparation of writableFields to reduce inner-loop work
 		{
-			gdalVectImpl::FeaturePtr protoFeature = OGRFeature::CreateFeature(layer->GetLayerDefn()); gdal_error_frame.ThrowUpWhateverCameUp();
+			gdalVectImpl::FeaturePtr protoFeature = OGRFeature::CreateFeature(layer_handle->GetLayerDefn()); gdal_error_frame.ThrowUpWhateverCameUp();
 			for (auto& writableField : fieldIDMapping)
 			{
 				if (not writableField.second.doWrite)
@@ -1485,52 +1509,118 @@ bool GdalVectSM::WriteDataItem(StorageMetaInfoPtr&& smiHolder)
 
 				if (not writableField.second.isGeometry)
 				{
-					if (not writableField.second.launderedName.empty())
+					if (not writableField.second.launderedNameID.empty())
 					{
-						writableField.second.name = writableField.second.launderedName;
+						writableField.second.nameID = writableField.second.launderedNameID;
 					}
-						
-					auto& fieldname_n = writableField.second.name;
-					writableField.second.field_index = protoFeature->GetFieldIndex(fieldname_n.c_str());
-					dms_assert(writableField.second.field_index >= 0);
+
+					auto fieldname_n = writableField.second.nameID;
+					writableField.second.field_index = protoFeature->GetFieldIndex(fieldname_n.GetStr().c_str());
+					assert(writableField.second.field_index >= 0);
 				}
-				// destroy protoFeature
 			}
+			// destroy protoFeature
 		}
 		for (; tileFeatureIndex < numExistingFeaturesInTile; ++tileFeatureIndex, ++featureIndex)
 		{
-			gdalVectImpl::FeaturePtr curFeature = numExistingFeatures ? layer->GetNextFeature() : OGRFeature::CreateFeature(layer->GetLayerDefn()); gdal_error_frame.ThrowUpWhateverCameUp();
+			gdalVectImpl::FeaturePtr curFeature = numExistingFeatures ? layer_handle->GetNextFeature() : OGRFeature::CreateFeature(layer_handle->GetLayerDefn()); gdal_error_frame.ThrowUpWhateverCameUp();
 
+			// write explicitly configured fields
 			for (auto& writableField : fieldIDMapping)
 			{
 				if (not writableField.second.doWrite)
 					continue;
 
-				const AbstrDataItem* adi_n = writableField.second.m_DataHolder;
+				auto adi_n = SharedDataItem(writableField.second.m_DataHolder.get_ptr(), no_zombies{});
 				if (writableField.second.isGeometry)
 					WriteGeometryElement(adi_n, curFeature, t, tileFeatureIndex);
 				else
 				{
-					dbg_assert( writableField.second.field_index == curFeature->GetFieldIndex(writableField.second.name.c_str()) );
+					dbg_assert(writableField.second.field_index == curFeature->GetFieldIndex(writableField.second.nameID.GetStr().c_str()));
 					WriteFieldElement(adi_n, writableField.second.field_index, curFeature, t, tileFeatureIndex);
 				}
 			}
+
+			// write implicit orphan geometry, if available
+			if (!m_DataItemsStatusInfo.hasGeometry(layer_id))
+			{
+				auto orphan_geometry_adi = m_DataItemsStatusInfo.m_orphan_geometry_items[layer_id];
+				if (orphan_geometry_adi)
+					WriteGeometryElement(orphan_geometry_adi, curFeature, t, tileFeatureIndex);
+			}
+
 			if (not numExistingFeatures)
-				layer->CreateFeature(curFeature);
-			else 
-				layer->SetFeature(curFeature);
+				layer_handle->CreateFeature(curFeature);
+			else
+				layer_handle->SetFeature(curFeature);
 		}
 	}
-	m_DataItemsStatusInfo.ReleaseAllLayerInterestPtrs(layerTokenT);
+	m_DataItemsStatusInfo.ReleaseAllLayerInterestPtrs(layer_id);
 
 
 	//Spatial index explicitly for shapefile 
-	if (CPLFetchBool(layerOptionArray, "SPATIAL_INDEX", false) && std::string(this->m_hDS->GetDriverName()).compare("ESRI Shapefile")==0) // spatial index file
+	if (CPLFetchBool(layer_option_array, "SPATIAL_INDEX", false) && std::string(this->m_hDS->GetDriverName()).compare("ESRI Shapefile") == 0) // spatial index file
 	{
-		if (DataSourceHasNamelessLayer(datasourceName))
-			this->m_hDS->ExecuteSQL(std::format("CREATE SPATIAL INDEX ON {}", CPLGetBasename(datasourceName.c_str())).c_str(), NULL, NULL);
+		if (DataSourceHasNamelessLayer(data_source_name))
+			this->m_hDS->ExecuteSQL(std::format("CREATE SPATIAL INDEX ON {}", CPLGetBasename(data_source_name.c_str())).c_str(), NULL, NULL);
 		else
-			this->m_hDS->ExecuteSQL(std::format("CREATE SPATIAL INDEX ON {}", CPLGetBasename(layername.c_str())).c_str(), NULL, NULL);
+			this->m_hDS->ExecuteSQL(std::format("CREATE SPATIAL INDEX ON {}", CPLGetBasename(layer_id.AsSharedStr().c_str())).c_str(), NULL, NULL);
+	}
+
+	m_DataItemsStatusInfo.m_continueWrite = true;
+}
+
+bool GdalVectSM::WriteDataItem(StorageMetaInfoPtr&& smiHolder)
+{
+	DBG_START("gdalwrite.vect", "WriteDataItem", false);
+
+	auto exclusiveAcccess = std::scoped_lock(m_xSectionDataItemsStatusInfo);
+
+	auto        smi = smiHolder.get();
+	const auto& gmi = dynamic_cast<const GdalMetaInfo&>(*smi);
+	auto driver_array = GetOptionArray(gmi.m_DriverItem);
+	SharedStr data_source_name = smi->StorageManager()->GetNameStr();
+
+	const TreeItem* storage_holder = smi->StorageHolder();
+	const AbstrDataItem* adi = smi->CurrRD();
+
+	if (not adi->IsStorable())
+		return true;
+
+	const AbstrDataObject* ado = adi->GetRefObj();
+	auto				   adu = adi->GetAbstrDomainUnit();
+	auto				   avu = adi->GetAbstrValuesUnit();
+	const ValueClass* vc = ado->GetValuesType();
+	ValueClassID           vcID = vc->GetValueClassID();
+
+	auto unit_item = GetLayerHolderFromDataItem(storage_holder, adi);
+	auto layer_id = unit_item->GetID();
+	auto fieldID = adi->GetID();
+
+
+	if (not m_DataItemsStatusInfo.m_initialized) { // first time writing
+		PrepareDataItemsForWriting(*smi, m_DataItemsStatusInfo);
+		m_DataItemsStatusInfo.m_initialized = true;
+	}
+
+	m_DataItemsStatusInfo.RefreshInterest(storage_holder); // user may have set other iterests at this point.
+	m_DataItemsStatusInfo.SetInterestForDataHolder(layer_id, fieldID, adi); // write once all dataitems are ready
+
+	if (not m_DataItemsStatusInfo.LayerIsReadyForWriting(layer_id))
+		return true;
+
+	bool dataset_is_ready_for_writing = m_DataItemsStatusInfo.DatasetIsReadyForWriting();
+	bool driver_supports_update = DriverSupportsUpdate(data_source_name.begin(), driver_array);
+	if (not driver_supports_update and not dataset_is_ready_for_writing)
+		return true;
+
+	StorageWriteHandle storageHandle(std::move(smiHolder)); // open dataset
+
+	if (driver_supports_update) // write layers incrementally
+		WriteLayer(layer_id, gmi);
+	else { // write whole dataset in one go
+		for (auto& layer : m_DataItemsStatusInfo.m_LayerAndFieldIDMapping)
+			WriteLayer(layer.first, gmi);
 	}
 
 	return true;
@@ -1575,6 +1665,7 @@ void GdalVectSM::DoUpdateTable(const TreeItem* storageHolder, AbstrUnit* layerDo
 	dms_assert(layer);
 	GDAL_ErrorFrame gdal_error_frame;
 	auto layer_geometry_type = layer->GetGeomType();
+
 	ValueComposition gdal_vc = gdalVectImpl::OGR2ValueComposition(layer_geometry_type);
 	bool create_vu_from_datasource = false;
 
@@ -1676,6 +1767,18 @@ void GdalVectSM::DoUpdateTable(const TreeItem* storageHolder, AbstrUnit* layerDo
 	}
 }
 
+void GdalVectSM::OnTerminalDataItem(const AbstrDataItem* adi) const
+{
+	auto exclusiveAcccess = std::scoped_lock(m_xSectionDataItemsStatusInfo);
+
+	for (auto& fieldIDMapping : m_DataItemsStatusInfo.m_LayerAndFieldIDMapping)
+	{
+		for (auto& writableField : fieldIDMapping.second)
+			if (writableField.second.m_DataHolder == adi)
+				writableField.second.m_DataHolder = nullptr;
+	}
+}
+
 void GdalVectSM::DoUpdateTree(const TreeItem* storageHolder, TreeItem* curr, SyncMode sm) const
 {
 	if (dynamic_cast<const GdalWritableVectSM*>(this))
@@ -1737,8 +1840,6 @@ void GdalVectSM::DoUpdateTree(const TreeItem* storageHolder, TreeItem* curr, Syn
 		}
 	}
 }
-
-
 
 prop_tables GdalVectSM::GetPropTables(const TreeItem* storageHolder, TreeItem* curr) const
 {

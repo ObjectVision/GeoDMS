@@ -163,7 +163,7 @@ std::atomic<UInt32> g_DispatchLockCount = 0;
 
 bool HasWaitingMessages()
 {
-	return IsMultiThreaded0() && GetQueueStatus(QS_ALLEVENTS & ~QS_TIMER);
+	return IsMultiThreaded0() && GetQueueStatus(QS_ALLEVENTS);
 }
 
 extern "C" RTC_CALL bool DMS_CONV DMS_HasWaitingMessages()
@@ -216,8 +216,14 @@ void DMS_Appl_SetExeDir(CharPtr exeDir)
 {
 	dms_assert(g_ExeDir.empty()); // should only called once, exeDirs don't just change during a session
 	g_ExeDir = ConvertDosFileName(SharedStr(exeDir));
-	AddFontResourceExA_checked(DelimitedConcat(g_ExeDir.c_str(), "misc/fonts/dms.ttf").c_str(), FR_PRIVATE, 0);
+	
 	SetMainThreadID();
+}
+
+RTC_CALL void DMS_CONV DMS_Appl_SetFont()
+{
+	MG_CHECK(!g_ExeDir.empty());
+	AddFontResourceExA_checked(DelimitedConcat(g_ExeDir.c_str(), "misc/fonts/dms.ttf").c_str(), FR_PRIVATE, 0);
 }
 
 RTC_CALL SharedStr GetExeDir()     // contains DmsClient.exe (+dlls?) and dms.ini; does NOT end with '/' 
@@ -375,68 +381,44 @@ RTC_CALL void DMS_Appl_SetRegStatusFlags(UInt32 newSF)
 	g_RegStatusFlags = (newSF | RSF_WasRead);
 }
 
-RTC_CALL UInt32 GetRegStatusFlags()
+UInt32 ReadOnceRegisteredStatusFlags()
 {
+	if (g_RegStatusFlags & RSF_WasRead)
+		return g_RegStatusFlags;
+
 	leveled_critical_section::scoped_lock lock(s_RegAccess);
 
-	if (!(g_RegStatusFlags & RSF_WasRead))
-	{
-		g_RegStatusFlags |= RSF_WasRead;	
-		try {
-			RegistryHandleLocalMachineRO reg;
-			if (reg.ValueExists("StatusFlags"))
-			{
-				g_RegStatusFlags |= reg.ReadDWORD("StatusFlags");
-				goto exit;
-			}
-		}
-		catch (...) {}
-		try {
-			RegistryHandleCurrentUserRO reg;
-			if (reg.ValueExists("StatusFlags"))
-			{
-				g_RegStatusFlags |= reg.ReadDWORD("StatusFlags");
-				goto exit;
-			}
-		}
-		catch(...) {}
+	if (g_RegStatusFlags & RSF_WasRead)
+		return g_RegStatusFlags;
 
-		g_RegStatusFlags |= RSF_Default;
-	}
-exit:
-	return (g_RegStatusFlags & ~(g_OvrStatusMask | RSF_WasRead)) | (g_OvrStatusFlags & g_OvrStatusMask);
-}
-
-RTC_CALL UInt32 GetRegFlags(std::string key, bool& exists)
-{
-	UInt32 flags = 0;
+	g_RegStatusFlags |= RSF_WasRead;
 	try {
 		RegistryHandleLocalMachineRO reg;
-		if (reg.ValueExists(key.c_str()))
+		if (reg.ValueExists("StatusFlags"))
 		{
-			flags = reg.ReadDWORD(key.c_str());
-			exists = true;
-			return flags;
+			g_RegStatusFlags |= reg.ReadDWORD("StatusFlags");
+			return g_RegStatusFlags;
 		}
-		else
-			exists = false;
-
 	}
 	catch (...) {}
 	try {
 		RegistryHandleCurrentUserRO reg;
-		if (reg.ValueExists(key.c_str()))
+		if (reg.ValueExists("StatusFlags"))
 		{
-			flags = reg.ReadDWORD(key.c_str());
-			exists = true;
-			return flags;
+			g_RegStatusFlags |= reg.ReadDWORD("StatusFlags");
+			return g_RegStatusFlags;
 		}
-		else
-			exists = false;
 	}
 	catch (...) {}
 
-	return flags;
+	g_RegStatusFlags |= RSF_Default;
+	return g_RegStatusFlags;
+}
+
+RTC_CALL UInt32 GetRegStatusFlags()
+{
+	auto registeredFlags = ReadOnceRegisteredStatusFlags();
+	return (registeredFlags & ~(g_OvrStatusMask | RSF_WasRead)) | (g_OvrStatusFlags & g_OvrStatusMask);
 }
 
 RTC_CALL UInt32 DMS_Appl_GetRegStatusFlags()

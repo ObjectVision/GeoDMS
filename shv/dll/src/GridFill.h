@@ -165,8 +165,6 @@ void GridFill(
 	dms_assert(IsAligned4(resultingClassIds) );
 	dms_assert(!gridDrawer->m_SelValues || IsDefined( gridDrawer->m_SelValues->m_Rect.first.Row() ) );
 
-	const IndexCollector* entityIndex = gridDrawer->m_EntityIndex;
-	assert(!tileIndexRange.inverted() || !entityIndex);
 	SizeT tileIndexRangeSize = Cardinality(tileIndexRange);
 
 //	Prepare loop
@@ -235,9 +233,9 @@ void GridFill(
 						if (currGridCol < grid_rowcol_id(gridSize.Col()))
 						{
 							SizeT currGridNr = currGridRowBegin + currGridCol;
-							if (entityIndex)
+							if (gridDrawer->m_EntityIndex)
 							{
-								entity_id e = entityIndex->GetEntityIndex(currGridNr);
+								entity_id e = gridDrawer->m_EntityIndex.GetEntityIndex(currGridNr);
 								if (!IsDefined(e))
 									goto assignUndefined;
 								currGridNr = e - tileIndexRange.first;

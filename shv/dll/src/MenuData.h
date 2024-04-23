@@ -141,7 +141,7 @@ struct RequestClientCmd : public AbstrCmd
 {
 	RequestClientCmd(SharedPtr<const TreeItem> ti, NotificationCode nc) : m_TI(std::move(ti)), m_NC(nc) {}
 
-	GraphVisitState DoObject(GraphicObject* go) override;
+	GraphVisitState Visit(GraphicObject* go) override;
 
 private:
 	SharedPtr<const TreeItem>  m_TI;

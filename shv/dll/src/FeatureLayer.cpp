@@ -173,6 +173,18 @@ GraphVisitState FeatureLayer::InviteGraphVistor(class AbstrVisitor& v)
 	return v.DoFeatureLayer(this);
 }
 
+SizeT FeatureLayer::FindFeatureByPoint(const CrdPoint& geoPnt)
+{
+	throwIllegalAbstract(MG_POS, "FindFeatureByPoint");
+}
+
+SizeT FeatureLayer::FindNextFeatureByPoint(const CrdPoint& geoPnt, SizeT featureIndex)
+{
+	if (IsDefined(featureIndex))
+		return UNDEFINED_VALUE(SizeT);
+	return FindFeatureByPoint(geoPnt);
+}
+
 Int32 FeatureLayer::GetMaxLabelStrLen() const
 {
 	if (m_MaxLabelStrLen == -1)
@@ -389,14 +401,6 @@ void FeatureLayer::UpdateShowSelOnly()
 			(!ShowSelectedOnly()) 
 		||	m_Themes[AN_Selections]
 	);
-
-/*	TODO, NYI use AN_OrderBy
-	UpdateShowSelOnlyImpl( this, 
-		GetActiveEntity(), GetTheme(AN_OrderBy)->GetThemeAttr(), // XXX is dit wel een index of een sort?
-		m_SelEntity, m_SelIndexAttr,
-		m_Themes[AN_Selections]
-	);
-*/
 }
 
 bool FeatureLayer::Draw(GraphDrawer& d) const
@@ -642,29 +646,47 @@ void FeatureLayer::SelectPoint(CrdPoint worldPnt, EventID eventID)
 	assert(featureItem);
 
 	SizeT featureIndex = UNDEFINED_VALUE(SizeT);
-	if (!SuspendTrigger::DidSuspend() && featureItem->PrepareData())
-	{
-		DataReadLock lck(featureItem);
-		dms_assert(lck.IsLocked());
-		auto geoPoint = GetGeoTransformation().Reverse(worldPnt);
-		featureIndex = FindFeatureByPoint(geoPoint);
-	}
 	if (SuspendTrigger::DidSuspend())
 		return;
+	if (!featureItem->PrepareData())
+		return;
 
-	InvalidationBlock lock(this);
-	auto selectionTheme = CreateSelectionsTheme();
-	MG_CHECK(selectionTheme);
-
-	DataWriteLock writeLock(
-		const_cast<AbstrDataItem*>(selectionTheme->GetThemeAttr()),
-		CompoundWriteType(eventID)
-	);
-
-	if (SelectFeatureIndex(writeLock, featureIndex, eventID))
+	DataReadLock lck(featureItem);
+	assert(lck.IsLocked());
+	auto geoPoint = GetGeoTransformation().Reverse(worldPnt);
+	bool alreadyHadSome = false, didChange = false;
+	while (true)
 	{
-		writeLock.Commit();
-		lock.ProcessChange();
+		featureIndex = FindNextFeatureByPoint(geoPoint, featureIndex);
+		if (alreadyHadSome && !IsDefined(featureIndex))
+			break;
+
+		if (SuspendTrigger::DidSuspend())
+			return;
+
+		InvalidationBlock lock(this);
+		auto selectionTheme = CreateSelectionsTheme();
+		MG_CHECK(selectionTheme);
+
+		DataWriteLock writeLock(
+			const_cast<AbstrDataItem*>(selectionTheme->GetThemeAttr()),
+			CompoundWriteType(eventID)
+		);
+
+		if (SelectFeatureIndex(writeLock, featureIndex, eventID))
+		{
+			writeLock.Commit();
+			lock.ProcessChange();
+		}
+		if (!IsDefined(featureIndex))
+			break;
+
+		alreadyHadSome = true;
+		if (not(eventID & EventID::REQUEST_SEL))
+			break;
+
+		if (IsCreateNewEvent(eventID))
+			eventID |= EventID::SHIFTKEY; // add following features to current selection 
 	}
 }
 
@@ -934,8 +956,8 @@ void GraphicPointLayer::SelectRect(CrdRect worldRect, EventID eventID)
 
 	InvalidationBlock lock1(this);
 
-	dms_assert(  eventID & EID_REQUEST_SEL  );
-	dms_assert(!(eventID & EID_REQUEST_INFO));
+	dms_assert(  eventID & EventID::REQUEST_SEL  );
+	dms_assert(!(eventID & EventID::REQUEST_INFO));
 
 	bool result = false;
 
@@ -968,8 +990,8 @@ void GraphicPointLayer::SelectCircle(CrdPoint worldPnt, CrdType worldRadius, Eve
 
 	InvalidationBlock lock1(this);
 
-	dms_assert(  eventID & EID_REQUEST_SEL  );
-	dms_assert(!(eventID & EID_REQUEST_INFO));
+	dms_assert(  eventID & EventID::REQUEST_SEL  );
+	dms_assert(!(eventID & EventID::REQUEST_INFO));
 
 	bool result = false;
 
@@ -1005,8 +1027,8 @@ void GraphicPointLayer::SelectPolygon(const CrdPoint* first, const CrdPoint* las
 
 	InvalidationBlock lock1(this);
 
-	dms_assert(  eventID & EID_REQUEST_SEL  );
-	dms_assert(!(eventID & EID_REQUEST_INFO));
+	dms_assert(  eventID & EventID::REQUEST_SEL  );
+	dms_assert(!(eventID & EventID::REQUEST_INFO));
 
 	bool result = false;
 
@@ -1129,7 +1151,6 @@ bool DrawPoints(
 	bool selectedOnly = layer->ShowSelectedOnly();
 	dms_assert(selectionsArray || !selectedOnly);
 
-	WeakPtr<const IndexCollector> indexCollector = fd.GetIndexCollector();
 	if (mainCount == 0)
 	{
 		if (!layer->IsDisabledAspectGroup(AG_Symbol))
@@ -1179,13 +1200,9 @@ bool DrawPoints(
 					{
 						entity_id entityIndex = trd->GetRowIndex(t, itemCounter);
 
-						if (indexCollector)
-						{
-							auto ei = indexCollector->GetEntityIndex(entityIndex);
-							if (!IsDefined(ei))
-								goto nextSymbol;
-							entityIndex = ei;
-						}
+						entityIndex = fd.m_IndexCollector.GetEntityIndex(entityIndex);
+						if (!IsDefined(entityIndex))
+							goto nextSymbol;
 				
 						if (fontIndices)
 							if (!fontStock.SelectFontHandle(fontIndices->GetKeyIndex(entityIndex))) // returns false if fontSize == 0;
@@ -1259,12 +1276,9 @@ bool DrawPoints(
 					GPoint viewPoint(viewDPoint.X(), viewDPoint.Y());
 
 					SizeT entityIndex = trd->GetRowIndex(t, itemCounter);
-					if (indexCollector)
-					{
-						entityIndex = indexCollector->GetEntityIndex(entityIndex);
-						if (!IsDefined(entityIndex))
-							goto nextLabel;
-					}
+					entityIndex = fd.m_IndexCollector.GetEntityIndex(entityIndex);
+					if (!IsDefined(entityIndex))
+						goto nextLabel;
 
 					if (selectedOnly && !(selectionsArray && SelectionID( selectionsArray[entityIndex] ) ))
 						goto nextLabel;
@@ -1385,8 +1399,6 @@ bool DrawNetwork(
 
 	ResumableCounter mainCount(d.GetCounterStacks(), false);
 
-	WeakPtr<const IndexCollector> indexCollector = fd.GetIndexCollector();
-
 	if (mainCount == 0)
 	{
 		if (!layer->IsDisabledAspectGroup(AG_Pen))
@@ -1415,12 +1427,10 @@ bool DrawNetwork(
 					if (penIndices)
 					{
 						auto entityIndex = i;
-						if (indexCollector)
-						{
-							entityIndex = indexCollector->GetEntityIndex(entityIndex);
-							if (!IsDefined(entityIndex))
-								goto nextLink;
-						}
+						entityIndex = fd.m_IndexCollector.GetEntityIndex(entityIndex);
+						if (!IsDefined(entityIndex))
+							goto nextLink;
+
 						if (! pa.SelectPen(penIndices->GetKeyIndex(entityIndex)) )
 							goto nextLink;
 					}
@@ -1576,8 +1586,8 @@ void GraphicArcLayer::SelectRect  (CrdRect worldRect, EventID eventID)
 
 	InvalidationBlock lock1(this);
 
-	dms_assert(eventID & EID_REQUEST_SEL);
-	dms_assert(!(eventID & EID_REQUEST_INFO));
+	dms_assert(eventID & EventID::REQUEST_SEL);
+	dms_assert(!(eventID & EventID::REQUEST_INFO));
 
 	bool result = false;
 
@@ -1609,8 +1619,8 @@ void GraphicArcLayer::SelectCircle(CrdPoint worldPnt, CrdType worldRadius, Event
 
 	InvalidationBlock lock1(this);
 
-	dms_assert(eventID & EID_REQUEST_SEL);
-	dms_assert(!(eventID & EID_REQUEST_INFO));
+	dms_assert(eventID & EventID::REQUEST_SEL);
+	dms_assert(!(eventID & EventID::REQUEST_INFO));
 
 	bool result = false;
 
@@ -1687,7 +1697,6 @@ bool DrawArcs(const GraphicArcLayer* layer, const FeatureDrawer& fd, const PenIn
 		assert(selectionsArray);
 	}
 
-	WeakPtr<const IndexCollector> indexCollector = fd.GetIndexCollector();
 	PenArray::SafePenHandle specialPenHolder;
 
 	SizeT fe = UNDEFINED_VALUE(SizeT);
@@ -1730,34 +1739,11 @@ bool DrawArcs(const GraphicArcLayer* layer, const FeatureDrawer& fd, const PenIn
 						auto arcCPtr = b + itemCounter;
 						if (IsIntersecting(geoRect, rectArray.m_FeatBoundArray[itemCounter]))
 						{
-
-							UInt32 nrPoints = arcCPtr->size();
-							pointBuffer.resize(nrPoints);
-							auto bi = pointBuffer.begin();
-
-							for (auto pnt : *arcCPtr)
-							{
-								auto deviceDPoint = transformer.Apply(pnt);
-								*bi++ = GPoint(deviceDPoint.X(), deviceDPoint.Y());
-							}
-
-							// remove duplicates
-							pointBuffer.erase(
-								std::unique(pointBuffer.begin(), pointBuffer.end(), [](auto a, auto b) { return a.x == b.x && a.y == b.y;  })
-								, pointBuffer.end()
-							);
-
-							if (pointBuffer.size() < 2)
-								goto nextArc;
-
 							entity_id entityIndex = trd->GetRowIndex(tileCounter, itemCounter);
-							if (indexCollector)
-							{
-								entityIndex = indexCollector->GetEntityIndex(entityIndex);
-								if (!IsDefined(entityIndex))
-									goto nextArc;
-							}
-
+							entityIndex = fd.m_IndexCollector.GetEntityIndex(entityIndex);
+							if (!IsDefined(entityIndex))
+								goto nextArc;
+	
 							bool isSelected = selectionsArray && SelectionID(selectionsArray[entityIndex]);
 							if (selectedOnly)
 							{
@@ -1765,42 +1751,72 @@ bool DrawArcs(const GraphicArcLayer* layer, const FeatureDrawer& fd, const PenIn
 								isSelected = false;
 							}
 
-							if (entityIndex == fe || isSelected)
+							UInt32 nrPoints = arcCPtr->size();
+							pointBuffer.reserve(nrPoints);
+//							auto bi = pointBuffer.begin();
+					
+							auto pntPtr = arcCPtr->begin();
+							while (pntPtr != arcCPtr->end())
 							{
-								int width = 4 * d.GetSubPixelFactor();
-								assert(width > 0);
-								if (penIndices)
+								pointBuffer.clear();
+								while (pntPtr != arcCPtr->end())
 								{
-									width += penIndices->GetWidth(entityIndex);
-									assert(width > 0);
+									if (!IsDefined(*pntPtr))
+									{
+										++pntPtr;
+										break;
+									}
+									auto deviceDPoint = transformer.Apply(*pntPtr);
+									pointBuffer.emplace_back(deviceDPoint.X(), deviceDPoint.Y());
+									++pntPtr;
 								}
-								width += width / 2;
-								assert(width > 0);
 
-								COLORREF brushColor = (entityIndex == fe)
-									? ::GetSysColor(COLOR_HIGHLIGHT)
-									: GetSelectedClr(selectionsArray[entityIndex]);
+								// remove duplicates
+								pointBuffer.erase(
+									std::unique(pointBuffer.begin(), pointBuffer.end(), [](auto a, auto b) { return a.x == b.x && a.y == b.y;  })
+									, pointBuffer.end()
+								);
 
-								specialPenHolder = CreatePen(PS_SOLID, width, brushColor);
-								pa.SetSpecificPen(specialPenHolder);
+								if (pointBuffer.size() < 2)
+									continue;
+
+								if (entityIndex == fe || isSelected)
+								{
+									int width = 4 * d.GetSubPixelFactor();
+									assert(width > 0);
+									if (penIndices)
+									{
+										width += penIndices->GetWidth(entityIndex);
+										assert(width > 0);
+									}
+									width += width / 2;
+									assert(width > 0);
+
+									COLORREF brushColor = (entityIndex == fe)
+										? ::GetSysColor(COLOR_HIGHLIGHT)
+										: GetSelectedClr(selectionsArray[entityIndex]);
+
+									specialPenHolder = CreatePen(PS_SOLID, width, brushColor);
+									pa.SetSpecificPen(specialPenHolder);
+								}
+								else if (penIndices)
+								{
+									if (!pa.SelectPen(penIndices->GetKeyIndex(entityIndex)))
+										goto nextArc;
+								}
+								else
+									pa.ResetPen();
+
+
+								CheckedGdiCall(
+									Polyline(
+										d.GetDC(),
+										begin_ptr(pointBuffer),
+										pointBuffer.size()
+									)
+									, "DrawArc"
+								);
 							}
-							else if (penIndices)
-							{
-								if (!pa.SelectPen(penIndices->GetKeyIndex(entityIndex)))
-									goto nextArc;
-							}
-							else
-								pa.ResetPen();
-
-
-							CheckedGdiCall(
-								Polyline(
-									d.GetDC(),
-									begin_ptr(pointBuffer),
-									pointBuffer.size()
-								)
-								, "DrawArc"
-							);
 						}
 					nextArc:
 						++itemCounter;
@@ -1838,12 +1854,9 @@ bool DrawArcs(const GraphicArcLayer* layer, const FeatureDrawer& fd, const PenIn
 				if (itemCounter.MustBreakOrSuspend100())
 					return true;
 				SizeT entityIndex = trd->GetRowIndex(t, itemCounter);
-				if (indexCollector)
-				{
-					entityIndex = indexCollector->GetEntityIndex(entityIndex);
-					if (!IsDefined(entityIndex))
-						continue;
-				}
+				entityIndex = fd.m_IndexCollector.GetEntityIndex(entityIndex);
+				if (!IsDefined(entityIndex))
+					continue;
 
 				if (IsIntersecting(geoRect, rectArray.m_FeatBoundArray[itemCounter]))
 				{
@@ -1930,7 +1943,7 @@ IMPL_DYNC_LAYERCLASS(GraphicArcLayer, ASE_Feature|ASE_OrderBy|ASE_Label|ASE_Pen|
 #include "geo/IsInside.h"
 
 template <typename ScalarType>
-row_id FindPolygonByPoint(const GraphicPolygonLayer* layer, Point<ScalarType> pnt)
+row_id FindNextPolygonByPoint(const GraphicPolygonLayer* layer, Point<ScalarType> pnt, SizeT currFeatureIndex)
 {
 	using PointType = Point<ScalarType>;
 	using PointSequenceType = typename sequence_traits<PointType>::container_type;
@@ -1940,53 +1953,82 @@ row_id FindPolygonByPoint(const GraphicPolygonLayer* layer, Point<ScalarType> pn
 
 	auto bbCache = GetSequenceBoundingBoxCache<ScalarType>(layer);
 	auto trd = featureData->GetTiledRangeData();
-	for (tile_id t = trd->GetNrTiles(); t--; )
+
+	tile_loc tiledLocation = (IsDefined(currFeatureIndex))
+		?	trd->GetTiledLocation(currFeatureIndex)
+		:	tile_loc{ trd->GetNrTiles(), 0 };
+
+	tile_id t = tiledLocation.first; 
+	tile_offset i = tiledLocation.second;
+
+	// search backwards so that last drawn object will be first selected
+	while (true)
 	{
-		const auto& rectArray  = bbCache->GetBoxData(t);
+	nextTile:
+		while (!i)
+		{
+			if (!t)
+				return UNDEFINED_VALUE(SizeT);
+
+			// go to previous tile
+			--t;
+
+			i = trd->GetTileSize(t);
+		}
+		const auto& rectArray = bbCache->GetBoxData(t);
 		if (!IsIncluding(rectArray.m_TotalBound, pnt))
-			continue;
+			i = 0;
+
+		if (i % AbstrBoundingBoxCache::c_BlockSize != 0)
+			if (!IsIncluding(rectArray.m_BlockBoundArray[i / AbstrBoundingBoxCache::c_BlockSize], pnt))
+				i &= ~(AbstrBoundingBoxCache::c_BlockSize - 1);
+
+		if (!i)
+			goto nextTile;
+
+		if (i % AbstrBoundingBoxCache::c_BlockSize == 0)
+			while (!IsIncluding(rectArray.m_BlockBoundArray[i / AbstrBoundingBoxCache::c_BlockSize - 1], pnt))
+			{
+				i -= AbstrBoundingBoxCache::c_BlockSize;
+				if (!i)
+					goto nextTile;
+			}
 
 		auto data = da->GetTile(t);
 		auto b = data.begin();
-		SizeT i = data.size();
 
-		if (i % AbstrBoundingBoxCache::c_BlockSize != 0)
-			if (!IsIncluding(rectArray.m_BlockBoundArray[(i - 1) / AbstrBoundingBoxCache::c_BlockSize], pnt))
-				i &= ~(AbstrBoundingBoxCache::c_BlockSize - 1);
-
-		// search backwards so that last drawn object will be first selected
 		while (i)
 		{
 			if (i % AbstrBoundingBoxCache::c_BlockSize == 0)
-				while (!IsIncluding(rectArray.m_BlockBoundArray[i / AbstrBoundingBoxCache::c_BlockSize-1], pnt))
-					if ((i -= AbstrBoundingBoxCache::c_BlockSize) == 0)
+				while (!IsIncluding(rectArray.m_BlockBoundArray[i / AbstrBoundingBoxCache::c_BlockSize - 1], pnt))
+				{
+					i -= AbstrBoundingBoxCache::c_BlockSize;
+					if (!i)
 						goto nextTile;
-			--i;
+				}
+			--i; // go to previous element
 			auto polygonPtr = b + i;
 			if (IsIncluding(rectArray.m_FeatBoundArray[i], pnt) && IsInside(polygonPtr->begin(), polygonPtr->end(), pnt))
 				return trd->GetRowIndex(t, i);
 		}
-	nextTile:;
 	}
-	return UNDEFINED_VALUE(SizeT);
+	
 }
 
 GraphicPolygonLayer::GraphicPolygonLayer(GraphicObject* owner)
 	:	FeatureLayer(owner, GetStaticClass()) 
 {}
 
-SizeT GraphicPolygonLayer::FindFeatureByPoint(const CrdPoint& geoPnt)
+SizeT GraphicPolygonLayer::FindNextFeatureByPoint(const CrdPoint& geoPnt, SizeT currFeatureIndex)
 {
-	auto result = UNDEFINED_VALUE(SizeT);
-
 	visit<typelists::seq_points>(GetFeatureAttr()->GetAbstrValuesUnit(),
-		[this, &geoPnt, &result] <typename P> (const Unit<P>*)
+		[this, &geoPnt, &currFeatureIndex] <typename P> (const Unit<P>*)
 		{
-			result = FindPolygonByPoint<scalar_of_t<P>>(this, Convert<P>(geoPnt));
+			currFeatureIndex = FindNextPolygonByPoint<scalar_of_t<P>>(this, Convert<P>(geoPnt), currFeatureIndex);
 		}
 	);
 
-	return result;
+	return currFeatureIndex;
 }
 
 void GraphicPolygonLayer::SelectRect  (CrdRect worldRect, EventID eventID)
@@ -1996,8 +2038,8 @@ void GraphicPolygonLayer::SelectRect  (CrdRect worldRect, EventID eventID)
 
 	InvalidationBlock lock1(this);
 
-	dms_assert(eventID & EID_REQUEST_SEL);
-	dms_assert(!(eventID & EID_REQUEST_INFO));
+	dms_assert(eventID & EventID::REQUEST_SEL);
+	dms_assert(!(eventID & EventID::REQUEST_INFO));
 
 	bool result = false;
 
@@ -2029,8 +2071,8 @@ void GraphicPolygonLayer::SelectCircle(CrdPoint worldPnt, CrdType worldRadius, E
 
 	InvalidationBlock lock1(this);
 
-	dms_assert(eventID & EID_REQUEST_SEL);
-	dms_assert(!(eventID & EID_REQUEST_INFO));
+	dms_assert(eventID & EventID::REQUEST_SEL);
+	dms_assert(!(eventID & EventID::REQUEST_INFO));
 
 	bool result = false;
 

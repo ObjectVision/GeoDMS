@@ -1,8 +1,10 @@
-// Copyright (C) 1998-2023 Object Vision b.v. 
+// Copyright (C) 1998-2024 Object Vision b.v. 
 // License: GNU GPL 3
 /////////////////////////////////////////////////////////////////////////////
 
+#if defined(_MSC_VER)
 #pragma once
+#endif
 
 #if !defined(__RTC_GEO_RANGE_H)
 #define __RTC_GEO_RANGE_H
@@ -107,12 +109,12 @@ Range<Dst> Convert4(Range<Src> src, const Range<Dst>*, const ExceptFunc* ef, con
 	if (src.inverted())
 		return Range<Dst>();
 
-	using RoundDn = typename ConvertFunc::template RoundDnFunc<Dst>::type;
-	using RoundUp = typename ConvertFunc::template RoundUpFunc<Dst>::type;
+	using RoundDnFunc = IntRoundDnFunc<Dst>;
+	using RoundUpFunc = IntRoundUpFunc<Dst>;
 	return
 		Range<Dst>(
-			Convert4(src.first,  TYPEID(Dst), ef, TYPEID(RoundDn))
-		,	Convert4(src.second, TYPEID(Dst), ef, TYPEID(RoundUp))
+			Convert4(src.first,  TYPEID(Dst), ef, TYPEID(RoundDnFunc))
+		,	Convert4(src.second, TYPEID(Dst), ef, TYPEID(RoundUpFunc))
 		);
 }
 

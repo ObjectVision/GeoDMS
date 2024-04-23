@@ -192,16 +192,17 @@ void TiffSM::ReadGridData(const StgViewPortInfo& vpi, AbstrDataItem* adi, AbstrD
 		adi->throwItemErrorF("Uknown tiff pixel value type");
 	if (vc_ado->GetBitSize() != vc_tiff->GetBitSize())
 		adi->throwItemErrorF("Mismatch in number of bits between user specified value type: '%s' and tiff pixel value type: '%s'."
-			, AsString(vc_ado->GetID())
-			, AsString(vc_tiff->GetID())
+		, AsString(vc_ado->GetID())
+		, AsString(vc_tiff->GetID())
 		);
 
 	if (vcid_ado != vcid_tiff)
-		reportF(MsgCategory::storage_read, SeverityTypeID::ST_Warning, "Mismatch between user specified value type: '%s' and tiff pixel value type: '%s' for item %s."
-			, AsString(vc_ado->GetID())
-			, AsString(vc_tiff->GetID())
-			, adi->GetFullName()
-		);
+		if (t == 0 || t == no_tile) // don't repeat this message for each tile
+			reportF(MsgCategory::storage_read, SeverityTypeID::ST_Warning, "Mismatch between user specified value type: '%s' and tiff pixel value type: '%s' for item %s."
+				, AsString(vc_ado->GetID())
+				, AsString(vc_tiff->GetID())
+				, adi->GetFullName()
+			);
 
 
 	Grid::ReadGridData(*m_pImp, vpi, ado, t, GetNameStr().c_str());

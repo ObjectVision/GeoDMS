@@ -130,11 +130,9 @@ SubMenu::~SubMenu()
 #include "StateChangeNotification.h"
 #include "IdleTimer.h"
 
-GraphVisitState RequestClientCmd::DoObject(GraphicObject* go)
+GraphVisitState RequestClientCmd::Visit(GraphicObject* go)
 {
-	dms_assert(m_TI);
-//	if (CC_ShowStatistics)
-	IdleTimer provideUpdates;
+	assert(m_TI);
 	NotifyStateChange(m_TI, m_NC);
 	return GVS_Handled;
 }

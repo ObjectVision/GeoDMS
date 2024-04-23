@@ -235,7 +235,6 @@ DataView::DataView(TreeItem* viewContext)
 	InsertCaret(m_FocusCaret);
 	m_State.Set(DVF_CaretsVisible); // Paint will draw them.if true; we assume application and view has focus.
 
-	IdleTimer::Subscribe(this);
 #if defined(MG_DEBUG_DATAVIEWSET)
 	auto lock = std::unique_lock(g_csActiveDataViewSet);
 	g_ActiveDataViews.insert(this);
@@ -244,7 +243,6 @@ DataView::DataView(TreeItem* viewContext)
 
 DataView::~DataView()
 {
-	IdleTimer::Unsubscribe(this);
 	dbg_assert(md_IsDrawingCount == 0);
 	// avoid destructor of m_ControllerVector that triggers RemoveCaret to Reverse any remaining carets
 	m_State.Clear(DVF_CaretsVisible); 
@@ -467,6 +465,8 @@ void DataView::ReverseCarets(HDC hdc, bool newVisibleState)
 
 	if (hdc)
 	{
+		DcBkModeSelector bkMode(hdc, TRANSPARENT);
+		GdiObjectSelector smallFont(hdc, GetDefaultFont(FontSizeCategory::CARET));
 		DcMixModeSelector xorMode(hdc);
 		ReverseCaretsImpl(hdc, newVisibleState);
 	}
@@ -560,11 +560,19 @@ bool DataView::DispatchMsg(const MsgStruct& msg)
 		{
 			if (msg.m_wParam == UPDATE_TIMER_ID)
 			{
-				auto status = UpdateView();
-				if (status != GraphVisitState::GVS_Break)
+				KillTimer(m_hWnd, UPDATE_TIMER_ID);
+				if (IdleTimer::IsInIdleMode())
 				{
-					KillTimer(m_hWnd, UPDATE_TIMER_ID);
+					IdleTimer::Subscribe(shared_from_this());
 					m_Waiter.end();
+				}
+				else
+				{
+					auto status = UpdateView();
+					if (status != GraphVisitState::GVS_Break)
+						m_Waiter.end();
+					else
+						SetUpdateTimer();
 				}
 				goto completed;
 			}
@@ -589,7 +597,7 @@ bool DataView::DispatchMsg(const MsgStruct& msg)
 			goto completed;
 
 		case WM_MOUSEWHEEL:
-			DispatchMouseEvent(EID_MOUSEWHEEL, msg.m_wParam, LParam2Point(msg.m_lParam).ScreenToClient(m_hWnd));
+			DispatchMouseEvent(EventID::MOUSEWHEEL, msg.m_wParam, LParam2Point(msg.m_lParam).ScreenToClient(m_hWnd));
 			goto completed;
 
 		case WM_SETCURSOR:
@@ -606,7 +614,7 @@ bool DataView::DispatchMsg(const MsgStruct& msg)
 					GetCursorPos(&cursorPos),
 					"GetCursorPos"
 				);
-				if (!DispatchMouseEvent(EID_SETCURSOR, 0, cursorPos.ScreenToClient(m_hWnd)) )
+				if (!DispatchMouseEvent(EventID::SETCURSOR, 0, cursorPos.ScreenToClient(m_hWnd)) )
 					SetCursor( LoadCursor(NULL, IDC_ARROW) );
 			}
 			return true;
@@ -617,29 +625,29 @@ bool DataView::DispatchMsg(const MsgStruct& msg)
 
 		case WM_LBUTTONDOWN:
 			SetCapture(m_hWnd);
- 			DispatchMouseEvent(EID_LBUTTONDOWN,   msg.m_wParam, LParam2Point(msg.m_lParam) );
+ 			DispatchMouseEvent(EventID::LBUTTONDOWN,   msg.m_wParam, LParam2Point(msg.m_lParam) );
 			goto completed;
 
 		case WM_RBUTTONDOWN:
-			DispatchMouseEvent(EID_RBUTTONDOWN,   msg.m_wParam, LParam2Point(msg.m_lParam) );
+			DispatchMouseEvent(EventID::RBUTTONDOWN,   msg.m_wParam, LParam2Point(msg.m_lParam) );
 			*msg.m_ResultPtr = 0;
 			return true;
 
 		case WM_LBUTTONUP:
-		 	DispatchMouseEvent(EID_LBUTTONUP,     msg.m_wParam, LParam2Point(msg.m_lParam) );
+		 	DispatchMouseEvent(EventID::LBUTTONUP,     msg.m_wParam, LParam2Point(msg.m_lParam) );
 			ReleaseCapture();
 			goto completed;
 
 		case WM_RBUTTONUP:
-			DispatchMouseEvent(EID_RBUTTONUP,     msg.m_wParam, LParam2Point(msg.m_lParam) );
+			DispatchMouseEvent(EventID::RBUTTONUP,     msg.m_wParam, LParam2Point(msg.m_lParam) );
 			goto completed;
 
 		case WM_LBUTTONDBLCLK:
-			DispatchMouseEvent(EID_LBUTTONDBLCLK, msg.m_wParam, LParam2Point(msg.m_lParam) );
+			DispatchMouseEvent(EventID::LBUTTONDBLCLK, msg.m_wParam, LParam2Point(msg.m_lParam) );
 			goto completed;
 
 		case WM_RBUTTONDBLCLK:
-			DispatchMouseEvent(EID_RBUTTONDBLCLK, msg.m_wParam, LParam2Point(msg.m_lParam) );
+			DispatchMouseEvent(EventID::RBUTTONDBLCLK, msg.m_wParam, LParam2Point(msg.m_lParam) );
 			goto completed;
 
 
@@ -734,6 +742,7 @@ bool DataView::DispatchMsg(const MsgStruct& msg)
 			ProcessGuiOpers();
 			goto completed;
 
+		case WM_APP + 4:
 		case WM_COPYDATA:
 			PCOPYDATASTRUCT pCopyData = PCOPYDATASTRUCT(msg.m_lParam);
 			const UInt32* dataBegin = PUINT32(pCopyData->lpData);
@@ -1087,7 +1096,7 @@ void DataView::ScrollDevice(GPoint delta, GRect rcScroll, GRect rcClip, const Mo
 	}
 	// Remove active carets after they reappeared to erase them in full.
 	// Removing them before reappearande would avoid flicker, but we have only partially removed active carets)
-	DispatchMouseEvent(EID_SCROLLED, 0, UNDEFINED_VALUE(GPoint) ); 
+	DispatchMouseEvent(EventID::SCROLLED, 0, UNDEFINED_VALUE(GPoint) ); 
 }
 
 typedef GdiHandle<HMENU>             SafeMenuHandle;
@@ -1178,7 +1187,7 @@ void DataView::ShowPopupMenu(GPoint point, const MenuData& menuData) const
 	if (result)
 	{
 		--result;
-		dms_assert(result < menuData.size());
+		assert(result < menuData.size());
 		menuData[result].Execute();
 	}
 }
@@ -1249,27 +1258,29 @@ void DataView::SetCursorPos(GPoint clientPoint)
 // MK_RBUTTON	Set if the right mouse button is down.
 // MK_SHIFT	  Set if the SHIFT key is down.
 
-bool DataView::DispatchMouseEvent(UInt32 event, WPARAM nFlags, GPoint devicePoint)
+bool DataView::DispatchMouseEvent(EventID event, WPARAM nFlags, GPoint devicePoint)
 {
-	if (nFlags & MK_CONTROL) event |= EID_CTRLKEY;
-	if (nFlags & MK_SHIFT  ) event |= EID_SHIFTKEY;
+	if (nFlags & MK_CONTROL) event |= EventID::CTRLKEY;
+	if (nFlags & MK_SHIFT  ) event |= EventID::SHIFTKEY;
 
-	EventInfo eventInfo(EventID(event), nFlags, devicePoint);
+	EventInfo eventInfo(event, nFlags, devicePoint);
 
 	m_ControllerVector(eventInfo);
 
-	if (eventInfo.m_EventID & EID_HANDLED)
+	if (eventInfo.m_EventID & EventID::HANDLED)
 		return true;
 
 	if (!IsDefined(devicePoint))
 		return false;
-	if (eventInfo.m_EventID & EID_RBUTTONUP)
+	if (eventInfo.m_EventID & EventID::RBUTTONUP)
 		m_TextEditController.CloseCurr();
 
-	SuspendTrigger::FencedBlocker blockSuspension("DataView::DispatchMouseEvent");
-
+	bool result = false;
 	MouseEventDispatcher med(this, eventInfo);
-	bool result = med.Visit(GetContents().get() );
+	{
+		SuspendTrigger::FencedBlocker blockSuspension("DataView::DispatchMouseEvent");
+		result = med.Visit(GetContents().get());
+	}
 
 	if ( ! med.GetMenuData().empty() )
 	{
@@ -1368,7 +1379,7 @@ void DataView::OnPaint()
 
 	m_DoneGraphics.AddDrawRegion( std::move(rgn) );
 
-	DBG_TRACE(("PaintDc musterase %d", paintDC.MustEraseBkgnd()));
+	DBG_TRACE(("PaintDc must erase %d", paintDC.MustEraseBkgnd()));
 
 	if (m_State.Get(DVF_CaretsVisible))
 		ReverseCarets(paintDC, true); // draw carets also in new areas; PaintDcHandle validates updateRect
@@ -1378,7 +1389,7 @@ void DataView::OnPaint()
 void DataView::SetUpdateTimer()
 {
 	m_Waiter.start(this);
-	SetTimer(m_hWnd, UPDATE_TIMER_ID, 0, nullptr);
+	SetTimer(m_hWnd, UPDATE_TIMER_ID, 100, nullptr);
 }
 // ============   Mouse Handling
 
@@ -1395,16 +1406,16 @@ void DataView::OnMouseMove(WPARAM nFlags, GPoint devicePoint)
 			throwLastSystemError("TrackMouseEvent");
 	}
 	if (nFlags & MK_LBUTTON) // && (::GetCapture == HWindow)
-		DispatchMouseEvent(EID_MOUSEDRAG, nFlags, devicePoint);
+		DispatchMouseEvent(EventID::MOUSEDRAG, nFlags, devicePoint);
 	else if ((nFlags & (MK_LBUTTON|MK_MBUTTON|MK_RBUTTON)) == 0)
-		DispatchMouseEvent(EID_MOUSEMOVE, nFlags, devicePoint);
+		DispatchMouseEvent(EventID::MOUSEMOVE, nFlags, devicePoint);
 }
 
 void DataView::OnCaptureChanged(HWND hWnd) 
 {
 //	SetCaretsVisible(false, 0);
 	if (hWnd && hWnd != m_hWnd)
-		DispatchMouseEvent(EID_CAPTURECHANGED, 0, UNDEFINED_VALUE(GPoint) );
+		DispatchMouseEvent(EventID::CAPTURECHANGED, 0, UNDEFINED_VALUE(GPoint) );
 }
 
 void DataView::OnActivate(bool becomeActive) 
@@ -1683,7 +1694,7 @@ void FillAllMenu(sharedPtrMovableObject mo, MouseEventDispatcher& med)
 
 void OnPopupMenuActivate(DataView* self, const UInt32* first, const UInt32* last)
 {
-	EventInfo eventInfo(EID_RBUTTONDOWN, 0);
+	EventInfo eventInfo(EventID::RBUTTONDOWN, 0);
 	MouseEventDispatcher med(self, eventInfo);
 	FillAllMenu(self->m_ActivationInfo ? self->m_ActivationInfo : self->GetContents()->shared_from_this(), med);
 

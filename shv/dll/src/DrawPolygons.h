@@ -1,33 +1,10 @@
-//<HEADER> 
-/*
-Data & Model Server (DMS) is a server written in C++ for DSS applications. 
-Version: see srv/dms/rtc/dll/src/RtcVersion.h for version info.
+// Copyright (C) 1998-2024 Object Vision b.v. 
+// License: GNU GPL 3
+/////////////////////////////////////////////////////////////////////////////
 
-Copyright (C) 1998-2004  YUSE GSO Object Vision BV. 
-
-Documentation on using the Data & Model Server software can be found at:
-http://www.ObjectVision.nl/DMS/
-
-See additional guidelines and notes in srv/dms/Readme-srv.txt 
-
-This library is free software; you can use, redistribute, and/or
-modify it under the terms of the GNU General Public License version 2 
-(the License) as published by the Free Software Foundation,
-provided that this entire header notice and readme-srv.txt is preserved.
-
-See LICENSE.TXT for terms of distribution or look at our web site:
-http://www.objectvision.nl/DMS/License.txt
-or alternatively at: http://www.gnu.org/copyleft/gpl.html
-
-This library is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
-General Public License for more details. However, specific warranties might be
-granted by an additional written contract for support, assistance and/or development
-*/
-//</HEADER>
-
+#if defined(_MSC_VER)
 #pragma once
+#endif
 
 #if !defined(__SHV_DRAWPOLYGONS_H)
 #define __SHV_DRAWPOLYGONS_H
@@ -37,6 +14,7 @@ granted by an additional written contract for support, assistance and/or develop
 
 #include "BoundingBoxCache.h"
 #include "CounterStacks.h"
+#include "FeatureLayer.h"
 #include "GeoTypes.h"
 #include "GraphVisitor.h"
 #include "IndexCollector.h"
@@ -89,7 +67,7 @@ bool DrawPolygonInterior(
 	,	const SequenceBoundingBoxCache<ScalarType>* boundingBoxCache
 	,	const AbstrTileRangeData* trd, tile_id t
 	,	typename polygon_traits<ScalarType>::CPolySeqType featureData
-	,	WeakPtr<const IndexCollector> indexCollector
+	,	const FeatureDrawer& fd
 	,	pointBuffer_t& pointBuffer
 	,	bool selectedOnly, SelectionIdCPtr selectionsArray
 	,	SizeT fe
@@ -157,12 +135,9 @@ bool DrawPolygonInterior(
 			Int32    hatchStyle = -1;
 
 			entity_id entityIndex = trd->GetRowIndex(t, i - b);
-			if (indexCollector)
-			{
-				entityIndex = indexCollector->GetEntityIndex(entityIndex);
-				if (!IsDefined(entityIndex))
-					goto nextFill;
-			}
+			entityIndex = fd.m_IndexCollector.GetEntityIndex(entityIndex);
+			if (!IsDefined(entityIndex))
+				goto nextFill;
 
 			bool isSelected = selectionsArray && SelectionID( selectionsArray[entityIndex] );
 			if (selectedOnly)
@@ -294,7 +269,6 @@ bool DrawPolygons(const GraphicPolygonLayer* layer, const FeatureDrawer& fd, con
 
 	typename p_traits::RangeType clipRect = Convert<typename p_traits::RangeType>( layer->GetWorldClipRect(d) );
 
-	WeakPtr<const IndexCollector> indexCollector = fd.GetIndexCollector();
 	SelectionIdCPtr selectionsArray; assert(!selectionsArray);
 	if (fd.m_SelValues)
 	{
@@ -331,7 +305,7 @@ bool DrawPolygons(const GraphicPolygonLayer* layer, const FeatureDrawer& fd, con
 					, d, boundingBoxCache.get()
 					, trd, t
 					, data
-					,	indexCollector
+					,	fd
 					,	pointBuffer
 					,	selectedOnly, selectionsArray
 					,	fe
@@ -383,8 +357,7 @@ bool DrawPolygons(const GraphicPolygonLayer* layer, const FeatureDrawer& fd, con
 						if (penIndices || selectedOnly)
 						{
 							SizeT entityIndex = trd->GetRowIndex(t, itemCounter);
-							if (indexCollector)
-								entityIndex = indexCollector->GetEntityIndex(entityIndex);
+							entityIndex = fd.m_IndexCollector.GetEntityIndex(entityIndex);
 							if (!IsDefined(entityIndex))
 								goto nextBorder;
 							if (penIndices && ! pa.SelectPen(penIndices->GetKeyIndex(entityIndex) ) )
@@ -481,12 +454,11 @@ bool DrawPolygons(const GraphicPolygonLayer* layer, const FeatureDrawer& fd, con
 	//				dms_assert(IsIncluding(*ri, centroid));
 
 					auto entityIndex = trd->GetRowIndex(t, i - b);
-					if (indexCollector)
-					{
-						entityIndex = indexCollector->GetEntityIndex(entityIndex);
-						if (!IsDefined(entityIndex))
-							goto nextLabel;
-					}
+					entityIndex = fd.m_IndexCollector.GetEntityIndex(entityIndex);
+					if (!IsDefined(entityIndex))
+						goto nextLabel;
+
+
 					if (selectedOnly && !(selectionsArray && SelectionID(selectionsArray[entityIndex])))
 						goto nextLabel;
 					auto dp = d.GetTransformation().Apply(centroid);

@@ -86,12 +86,14 @@ enum DmsHelperWindowType
     HW_EVENTLOG,
     HW_CURRENTITEMBAR,
     HW_TOOLBAR,
-    HW_STATISTICS
+    HW_STATISTICS,
+    HW_CALCULATIONTIMES,
+    HW_FILECHANGED
 };
 
 struct ToolbarButtonData
 {
-    ToolButtonID id;
+    ToolButtonID id = TB_Undefined;
     std::vector<QString> text;
     std::vector<ToolButtonID> ids;
     std::vector<QString> icons;
@@ -144,7 +146,6 @@ public:
     DmsRecentFileEntry(size_t index, std::string_view dms_file_full_path, QObject* parent = nullptr);
     std::string m_cfg_file_path;
     size_t m_index = 0;
-    DmsConfigTextButton* m_config_text;
     std::unique_ptr<QMenu> m_context_menu;
     bool eventFilter(QObject* obj, QEvent* ev) override;
     bool event(QEvent* e) override;
@@ -241,7 +242,6 @@ public:
     auto getIconFromViewstyle(ViewStyle vs) -> QIcon;
     void hideDetailPagesRadioButtonWidgets(bool hide_properties_buttons, bool hide_source_descr_buttons);
     void addRecentFilesEntry(std::string_view recent_file);
-    void resizeDocksToNaturalSize();
     void onInternalLinkClick(const QUrl& link, QWidget* origin = nullptr);
     void doViewAction(TreeItem* tiContext, CharPtrRange sAction, QWidget* origin = nullptr);
     bool ShowInDetailPage(SharedStr x);

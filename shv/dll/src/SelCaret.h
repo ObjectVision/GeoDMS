@@ -42,7 +42,8 @@ private:
 	void ForwardDiff(const Region& diff);
 
 	std::weak_ptr<ViewPort>        m_Owner;	
-	LockedIndexCollectorPtr        m_EntityIndexCollector;
+	WeakPtr<const IndexCollector>  m_EntityIndexCollectorPtr;
+	OptionalIndexCollectorAray     m_EntityIndexCollectorArray;
 	SharedPtr<const AbstrDataItem> m_SelAttr;
 	GridCoordPtr                   m_GridCoords;
 	Region                         m_SelCaretRgn;

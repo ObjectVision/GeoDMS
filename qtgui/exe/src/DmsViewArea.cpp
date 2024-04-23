@@ -100,18 +100,16 @@ QDmsMdiArea::QDmsMdiArea(QWidget* parent)
     setTabsClosable(true);
     setAcceptDrops(true);
 
-    auto mdi_children = this->children();
-    for (QObjectList::Iterator i = mdi_children.begin(); i != mdi_children.end(); ++i)
-    {
-        if (QString((*i)->metaObject()->className()) == "QTabBar")
-        {
-            auto mdi_area_tabbar = dynamic_cast<QTabBar*>(*i);
-            mdi_area_tabbar->setElideMode(Qt::ElideMiddle);
-            mdi_area_tabbar->setSelectionBehaviorOnRemove(QTabBar::SelectionBehavior::SelectPreviousTab);
-            break;
-        }
-    }
+    this->addAction(MainWindow::TheOne()->m_win_close_action.get());
+    connect(MainWindow::TheOne()->m_win_close_action.get(), &QAction::triggered, this, &QDmsMdiArea::testCloseSubWindow);
 
+    // set tabbar properties: elide mode, selection behavior on remove
+    QTabBar* mdi_tabbar = getTabBar();
+    if (!mdi_tabbar)
+        return;
+
+    mdi_tabbar->setElideMode(Qt::ElideMiddle);
+    mdi_tabbar->setSelectionBehaviorOnRemove(QTabBar::SelectionBehavior::SelectLeftTab);
 }
 
 void QDmsMdiArea::dragEnterEvent(QDragEnterEvent* event)
@@ -165,7 +163,7 @@ void QDmsMdiArea::closeAllButActiveSubWindow()
 void QDmsMdiArea::setTabbedViewModeStyle()
 {
     setViewMode(QMdiArea::ViewMode::TabbedView);
-    QTabBar* mdi_tabbar = findChild<QTabBar*>();
+    QTabBar* mdi_tabbar = getTabBar();
     if (mdi_tabbar)
     {
         mdi_tabbar->setExpanding(false);
@@ -175,9 +173,18 @@ void QDmsMdiArea::setTabbedViewModeStyle()
     }
 }
 
+auto QDmsMdiArea::getTabBar() -> QTabBar*
+{
+	return findChild<QTabBar*>();
+}
+
 QSize QDmsMdiArea::sizeHint() const
 {
     return QSize(500, 0);
+}
+
+void QDmsMdiArea::testCloseSubWindow()
+{
 }
 
 void QDmsMdiArea::onCascadeSubWindows()

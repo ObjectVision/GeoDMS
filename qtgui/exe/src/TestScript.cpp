@@ -31,7 +31,7 @@ UINT32 str2int(CharPtr str)
 	throw stx_error(mgFormat2string("numeric value expected at %1%", str).c_str());
 }
 
-int PassMsg(int argc, char* argv[], HWND hwDispatch)
+int PassMsg(int argc, char* argv[])
 {
 	assert(argc > 0);
 
@@ -41,7 +41,6 @@ int PassMsg(int argc, char* argv[], HWND hwDispatch)
 		if (argc <= ++i)
 			throw stx_error("#seconds expected after WAIT");
 
-		int waitSec = 0, steps = 0;
 		int waitMilliSec = str2int(argv[i++]);
 		Sleep(waitMilliSec);
 		return 0;
@@ -165,12 +164,14 @@ int PassMsg(int argc, char* argv[], HWND hwDispatch)
 		else
 			reportErr(mgFormat2string("Unrecognized keyword: %1%", argv[i]).c_str());
 
+		auto mainWindow  = MainWindow::TheOne(); assert(mainWindow);
+		auto hwDispatch = (HWND)(mainWindow->winId());
 		SendMessage(hwDispatch, WM_COPYDATA, WPARAM(NULL), LPARAM(&myCDS));
 	}
 	return 0;
 }
 
-int RunTestLine(SharedStr line, HWND hwDispatch)
+int RunTestLine(SharedStr line)
 {
 	const int MAX_ARG_COUNT = 20;
 	char* argv[MAX_ARG_COUNT];
@@ -205,7 +206,7 @@ int RunTestLine(SharedStr line, HWND hwDispatch)
 	if (argc < MAX_ARG_COUNT)
 		argv[argc] = 0;
 
-	return PassMsg(argc, argv, hwDispatch);
+	return PassMsg(argc, argv);
 }
 
 SharedStr ReadLine(FormattedInpStream& fis)
@@ -231,7 +232,7 @@ SharedStr ReadLine(FormattedInpStream& fis)
 	return result;
 }
 
-int RunTestScript(SharedStr testScriptName, HWND hwDispatch)
+int RunTestScript(SharedStr testScriptName)
 {
 	Sleep(1000);
 	auto fileBuff = FileInpStreamBuff(testScriptName, nullptr, true);
@@ -239,7 +240,7 @@ int RunTestScript(SharedStr testScriptName, HWND hwDispatch)
 	while (!fis.AtEnd() && fis.NextChar() != EOF)
 	{
 		auto line = ReadLine(fis);
-		auto result = RunTestLine(line, hwDispatch);
+		auto result = RunTestLine(line);
 		if (result)
 			return result;
 	}

@@ -36,17 +36,19 @@ static QColor html_darkorange = QColor(255, 140, 0); // EventLog: warning
 static QColor html_red = QColor(255, 0, 0); // EventLog: error
 static QColor html_brown = QColor(165, 42, 42); // EventLog: memory
 
-auto EventLogModel::dataFiltered(int row) const -> const EventLogModel::item_t&
+auto EventLogModel::dataFiltered(int row) const -> const MsgData&
 {
-	return m_Items.at(m_filtered_indices.at(row));
+	msg_line_index_t line_index = m_filtered_indices.at(row);
+	return m_MsgLines.at(line_index);
 }
 
 void EventLogModel::clear()
 {
 	m_filtered_indices.clear();
-	m_Items.clear();
+	m_MsgLines.clear();
 	refilter();
-	last_updated_message_index = 0;
+	MG_CHECK(m_last_updated_message_count == 0); // postcondition of refilder when no messages are present
+
 	MainWindow::TheOne()->m_eventlog->m_clear->setDisabled(true);
 }
 
@@ -59,7 +61,7 @@ QVariant EventLogModel::data(const QModelIndex& index, int role) const
 		return QVariant();
 
 	auto row = index.row();
-	const item_t& item_data = dataFiltered(row);
+	const MsgData& item_data = dataFiltered(row);
 
 	switch (role)
 	{
@@ -128,9 +130,9 @@ QVariant EventLogModel::data(const QModelIndex& index, int role) const
 	return QVariant();
 }
 
-bool itemIsError(EventLogModel::item_t& item)
+bool itemIsError(MsgData& msgLine)
 {
-	switch (item.m_SeverityType)
+	switch (msgLine.m_SeverityType)
 	{
 	case SeverityTypeID::ST_Warning:
 	case SeverityTypeID::ST_Error:
@@ -139,10 +141,10 @@ bool itemIsError(EventLogModel::item_t& item)
 	return false;
 }
 
-bool EventLogModel::itemPassesTypeFilter(item_t& item)
+bool EventLogModel::itemPassesTypeFilter(const MsgData& msgLine) const
 {
 	auto eventlog = MainWindow::TheOne()->m_eventlog.get();
-	switch (item.m_SeverityType)
+	switch (msgLine.m_SeverityType)
 	{
 	case SeverityTypeID::ST_MinorTrace: {return eventlog->m_eventlog_filter->m_minor_trace_filter->isChecked(); };
 	case SeverityTypeID::ST_MajorTrace: {return eventlog->m_eventlog_filter->m_major_trace_filter->isChecked(); };
@@ -152,10 +154,10 @@ bool EventLogModel::itemPassesTypeFilter(item_t& item)
 	}
 }
 
-bool EventLogModel::itemPassesCategoryFilter(item_t& item)
+bool EventLogModel::itemPassesCategoryFilter(const MsgData& msgLine) const
 {
 	auto eventlog = MainWindow::TheOne()->m_eventlog.get();
-	switch (item.m_MsgCategory)
+	switch (msgLine.m_MsgCategory)
 	{
 	case MsgCategory::storage_read: {return eventlog->m_eventlog_filter->m_read_filter->isChecked(); }
 	case MsgCategory::storage_write: {return eventlog->m_eventlog_filter->m_write_filter->isChecked(); }
@@ -168,26 +170,60 @@ bool EventLogModel::itemPassesCategoryFilter(item_t& item)
 	return false;
 }
 
-bool EventLogModel::itemPassesTextFilter(item_t& item)
+bool EventLogModel::itemPassesTextFilter(const MsgData& msgLine) const
 {
 	if (m_TextFilterAsByteArray.isEmpty())
 		return true;
 
 	CharPtr textBegin = m_TextFilterAsByteArray.constData();
 	auto searchText = CharPtrRange(textBegin, m_TextFilterAsByteArray.size());
-	return item.m_Txt.contains_case_insensitive(searchText);
+	return msgLine.m_Txt.contains_case_insensitive(searchText);
 }
 
-bool EventLogModel::itemPassesFilter(item_t& item)
+bool EventLogModel::itemPassesFilter(const MsgData& msgLine) const
 {
-	auto item_passes_type_filter = itemPassesTypeFilter(item);
-	auto item_passes_category_filter = itemPassesCategoryFilter(item);
-	auto item_passes_text_filter = itemPassesTextFilter(item);
-	auto item_is_warning_or_error = (item.m_SeverityType == SeverityTypeID::ST_Warning || item.m_SeverityType == SeverityTypeID::ST_Error);
-	if (item.m_MsgCategory == MsgCategory::progress || item_is_warning_or_error)
+	auto item_passes_type_filter = itemPassesTypeFilter(msgLine);
+	auto item_passes_category_filter = itemPassesCategoryFilter(msgLine);
+	auto item_passes_text_filter = itemPassesTextFilter(msgLine);
+	auto item_is_warning_or_error = (msgLine.m_SeverityType == SeverityTypeID::ST_Warning || msgLine.m_SeverityType == SeverityTypeID::ST_Error);
+	if (msgLine.m_MsgCategory == MsgCategory::progress || item_is_warning_or_error)
 		return item_passes_type_filter && item_passes_text_filter;
 
 	return item_passes_category_filter && item_passes_text_filter;
+}
+
+void EventLogModel::scanFilter(msg_line_index_t index)
+{
+	msg_line_index_t msgLineCount = m_MsgLines.size();
+	MG_CHECK(index <= msgLineCount);
+	MG_CHECK(index == msgLineCount || not(m_MsgLines.at(index).m_IsFollowup));
+
+	while (index != msgLineCount)
+	{
+		const auto& item = m_MsgLines.at(index);
+		if (itemPassesFilter(item))
+		{
+			// insert all related messages
+			while (m_MsgLines.at(index).m_IsFollowup)
+			{
+				assert(index > 0);
+				--index;
+			}
+
+			do {
+				if (m_filtered_indices.empty() || m_filtered_indices.back() < index) // better safe than sorry
+					m_filtered_indices.emplace_back(index);
+				++index;
+				MG_CHECK(index > 0);
+			} while (index < msgLineCount && m_MsgLines.at(index).m_IsFollowup);
+		}
+		else
+		{
+			index++;
+			MG_CHECK(index > 0);
+		}
+	}
+	m_last_updated_message_count = msgLineCount;
 }
 
 void EventLogModel::refilter()
@@ -197,18 +233,12 @@ void EventLogModel::refilter()
 
 	auto eventlog = MainWindow::TheOne()->m_eventlog.get();
 
-	UInt64 index = 0;
-
 	auto text_filter_string = eventlog->m_eventlog_filter->m_text_filter->text();
 	m_TextFilterAsByteArray = text_filter_string.toUtf8();
-	
-	for (auto& item : m_Items)
-	{
-		if (itemPassesFilter(item))
-			m_filtered_indices.push_back(index);
 
-		index++;
-	}
+	assert(m_MsgLines.size() == 0 || not(m_MsgLines.front().m_IsFollowup));
+	scanFilter(0);
+
 	endResetModel();
 
 	MainWindow::TheOne()->m_eventlog->toggleScrollToBottomDirectly();
@@ -249,21 +279,13 @@ void EventLogModel::updateOnNewMessages()
 	has_queued_update = false;
 	time_since_last_direct_update = QDateTime::currentDateTime();
 	
-	auto number_of_new_messages = m_Items.size() - last_updated_message_index;
-	if (!number_of_new_messages) // no new messages
-		return;
+	if (m_MsgLines.size() == m_last_updated_message_count) 
+		return; // no new messages
 
-	size_t number_of_added_filtered_indices = 0;
-	for (int i = last_updated_message_index; i < m_Items.size(); i++)
-	{
-		auto& item = m_Items.at(i);
-		bool new_item_passes_filter = itemPassesFilter(item);
-		if (!new_item_passes_filter)
-			continue;
+	msg_line_index_t nrFiltered = m_filtered_indices.size();
+	scanFilter(m_last_updated_message_count);
 
-		m_filtered_indices.push_back(i);
-		number_of_added_filtered_indices++;
-	}
+	auto number_of_added_filtered_indices = m_filtered_indices.size() - nrFiltered;
 	if (!number_of_added_filtered_indices)
 		return;
 
@@ -271,8 +293,6 @@ void EventLogModel::updateOnNewMessages()
 
 	beginInsertRows(QModelIndex(), rowCount_, rowCount_+number_of_added_filtered_indices-1);
 	endInsertRows();
-
-	last_updated_message_index = m_Items.size();
 
 	// update view
 	auto main_window = MainWindow::TheOne();
@@ -286,8 +306,12 @@ void EventLogModel::updateOnNewMessages()
 	}
 }
 
-void EventLogModel::addText(MsgData&& msgData)
+void EventLogModel::addText(MsgData&& msgData, bool moreToCome)
 {
+#if defined(MG_DEBUG)
+	MG_CHECK(not(msgData.m_IsFollowup && md_AddTextCompleted)); // previous msg must have had the cha
+#endif
+
 	auto mainWindow = MainWindow::TheOne();
 	if (!mainWindow)
 		return;
@@ -295,11 +319,18 @@ void EventLogModel::addText(MsgData&& msgData)
 	auto eventlog = mainWindow->m_eventlog.get();
 
 	eventlog->m_clear->setEnabled(true);
-	m_Items.emplace_back(std::move(msgData));
+	m_MsgLines.emplace_back(std::move(msgData));
+
+#if defined(MG_DEBUG)
+	md_AddTextCompleted = not(moreToCome);
+#endif
+
+	if (moreToCome)
+		return; // don't update on partial messages
 
 	// direct update
 	auto current_time = QDateTime::currentDateTime();
-	auto do_direct_update = time_since_last_direct_update.secsTo(current_time) > direct_update_interval;
+	auto do_direct_update = size_t(time_since_last_direct_update.secsTo(current_time)) > direct_update_interval;
 	if (do_direct_update)
 	{
 		updateOnNewMessages();
@@ -590,11 +621,11 @@ void DmsEventLog::onItemClicked(const QModelIndex& index)
 	const MsgData& item_data = MainWindow::TheOne()->m_eventlog_model->dataFiltered(row);
 
 	auto log_item_message_view = std::string_view(item_data.m_Txt);
-	auto link_start_index = log_item_message_view.find_first_of('[[', 0);
+	auto link_start_index = log_item_message_view.find_first_of("[[");
 	if (link_start_index == std::string::npos)
 		return;
 	
-	auto link_end_index = log_item_message_view.find_first_of(']]', link_start_index);
+	auto link_end_index = log_item_message_view.find_first_of("]]", link_start_index+2);
 	if (link_end_index == std::string::npos)
 		return;
 
@@ -607,7 +638,7 @@ QSize DmsEventLog::sizeHint() const
 	return QSize(0, default_height);
 }
 
-void geoDMSMessage(ClientHandle /*clientHandle*/, const MsgData* msgData)
+void geoDMSMessage(ClientHandle /*clientHandle*/, const MsgData* msgData, bool moreToCome)
 {
 	assert(msgData);
 	SeverityTypeID st = msgData->m_SeverityType;
@@ -627,7 +658,7 @@ void geoDMSMessage(ClientHandle /*clientHandle*/, const MsgData* msgData)
 		return;
 
 	auto* eventlog_model = mainWindow->m_eventlog_model.get(); assert(eventlog_model);
-	eventlog_model->addText(MsgData(*msgData));
+	eventlog_model->addText(MsgData(*msgData), moreToCome);
 }
 
 auto createEventLog(MainWindow* dms_main_window) -> std::unique_ptr<DmsEventLog>

@@ -42,6 +42,7 @@
 
 using dms_thread_id = UInt32;
 
+#include <memory>
 #include <vector>
 
 //----------------------------------------------------------------------
@@ -163,6 +164,7 @@ class  Class;
 class  ValueClass;
 class  SharedObj;
 class  PersistentSharedObj;
+using zombie_destroyer = std::unique_ptr<SharedObj>;
 
 struct IString;
 struct Undefined;
@@ -303,7 +305,6 @@ namespace std {
 
 //======================================= pointer destillation
 
-struct TileBase;
 using TileRef = SharedPtr < SharedObj >;
 using TileCRef = SharedPtr < const SharedObj >;
 

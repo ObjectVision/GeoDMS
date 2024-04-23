@@ -1,32 +1,10 @@
-//<HEADER> 
-/*
-Data & Model Server (DMS) is a server written in C++ for DSS applications. 
-Version: see srv/dms/rtc/dll/src/RtcVersion.h for version info.
+// Copyright (C) 1998-2024 Object Vision b.v. 
+// License: GNU GPL 3
+/////////////////////////////////////////////////////////////////////////////
 
-Copyright (C) 1998-2004  YUSE GSO Object Vision BV. 
-
-Documentation on using the Data & Model Server software can be found at:
-http://www.ObjectVision.nl/DMS/
-
-See additional guidelines and notes in srv/dms/Readme-srv.txt 
-
-This library is free software; you can use, redistribute, and/or
-modify it under the terms of the GNU General Public License version 2 
-(the License) as published by the Free Software Foundation,
-provided that this entire header notice and readme-srv.txt is preserved.
-
-See LICENSE.TXT for terms of distribution or look at our web site:
-http://www.objectvision.nl/DMS/License.txt
-or alternatively at: http://www.gnu.org/copyleft/gpl.html
-
-This library is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
-General Public License for more details. However, specific warranties might be
-granted by an additional written contract for support, assistance and/or development
-*/
-//</HEADER>
+#if defined(_MSC_VER)
 #pragma once
+#endif
 
 #if !defined(__STG_GDAL_BASE_H)
 #define __STG_GDAL_BASE_H
@@ -74,6 +52,8 @@ struct gdalComponent : gdalDynamicLoader
 	std::vector<std::pair<SharedStr, SharedStr>> m_test;
 };
 
+struct pj_ctx;
+
 struct GDAL_ErrorFrame : gdalThread
 {
 	STGDLL_CALL GDAL_ErrorFrame();
@@ -100,9 +80,10 @@ struct GDAL_ErrorFrame : gdalThread
 	SharedStr m_msg;
 
 	GDAL_ErrorFrame* m_Prev;
+	pj_ctx* m_ctx = nullptr;
 
-	STGDLL_CALL static struct pj_ctx* GetProjectionContext();
-	STGDLL_CALL static int GetProjectionContextErrNo();
+	STGDLL_CALL pj_ctx* GetProjectionContext();
+	STGDLL_CALL int GetProjectionContextErrNo();
 	STGDLL_CALL static SharedStr GetProjectionContextErrorString();
 };
 
@@ -116,16 +97,18 @@ struct CplString
 	char* m_Text;
 };
 
+using WeakDataItemInterestPtr = InterestPtr<WeakPtr<const AbstrDataItem>>;
+
 struct FieldInfo
 {
 	int         field_index   = -1; // cache for usage in inner-loop
 	bool	    isWritten :1  = false;   // don't write DataItems twice
 	bool	    isGeometry:1  = false;  // DataItem is geometry field
 	bool        doWrite   :1  = false;     // user issued interest for writing this Dataitem
-	SharedStr   name;        // name of DataItem
-	SharedStr launderedName; // gdal could launder the name of DataItem
+	TokenID     nameID;      // name of DataItem
+	TokenID     launderedNameID; // gdal could launder the name of DataItem
 
-	SharedDataItemInterestPtr m_DataHolder; // Ptr to keep data alive until all data for layer items of interest is present.
+	WeakDataItemInterestPtr m_DataHolder; // Ptr to keep data alive until all data for layer items of interest is present.
 };
 
 struct affine_transformation
@@ -142,6 +125,9 @@ struct affine_transformation
 
 class DataItemsWriteStatusInfo
 {
+	using layer_id = TokenID;
+	using field_id = TokenID;
+
 public:
 #if defined(MG_DEBUG)
 	static UInt32 sd_ObjCounter;
@@ -155,18 +141,23 @@ public:
 
 	int  getNumberOfLayers();
 	bool fieldIsWritten(TokenID layerID, TokenID  fieldID);
+	bool hasGeometry(TokenID layerID);
 	void setFieldIsWritten(TokenID layerID, TokenID  fieldID, bool isWritten);
 	void setIsGeometry(TokenID layerID, TokenID  geometryFieldID, bool isGeometry);
 	void setInterest(TokenID layerID, TokenID  fieldID, bool hasInterest);
 	void SetInterestForDataHolder(TokenID layerID, TokenID fieldID, const AbstrDataItem*);
-	void SetLaunderedName(TokenID layerID, TokenID fieldID, SharedStr launderedName);
+	void SetLaunderedName(TokenID layerID, TokenID fieldID, TokenID launderedNameID);
 	void ReleaseAllLayerInterestPtrs(TokenID layerID);
 	void RefreshInterest(const TreeItem* storageHolder);
+	bool DatasetIsReadyForWriting();
 	bool LayerIsReadyForWriting(TokenID layerID);
 	bool LayerHasBeenWritten(TokenID layerID);
+	auto GetExampleAdiFromLayerID(TokenID layerID) -> SharedDataItem;
 
-	std::map<TokenID, std::map<TokenID, FieldInfo>> m_LayerAndFieldIDMapping;
+	std::map<layer_id, std::map<field_id, FieldInfo>> m_LayerAndFieldIDMapping;
+	std::map<layer_id, SharedDataItemInterestPtr> m_orphan_geometry_items;
 	bool m_continueWrite = false;
+	bool m_initialized = false;
 };
 
 // *****************************************************************************
@@ -186,12 +177,14 @@ const TreeItem* GetLayerHolderFromDataItem(const TreeItem* storageHolder, const 
 auto GetOptionArray(const TreeItem* optionsItem) -> CPLStringList;
 void SetFeatureDefnForOGRLayerFromLayerHolder(const TreeItem* subItem, OGRLayer* layerHandle);
 STGDLL_CALL auto GetBaseProjectionUnitFromValuesUnit(const AbstrDataItem* adi) -> const AbstrUnit*;
-auto GetGeometryTypeFromGeometryDataItem(const TreeItem* subItem) -> OGRwkbGeometryType;
+auto GetGeometryItemFromLayerHolder(const TreeItem* subItem) -> const TreeItem*;
+auto GetGeometryTypeFromLayerHolder(const TreeItem* subItem) -> OGRwkbGeometryType;
 auto GetAsWkt(const OGRSpatialReference* sr) -> SharedStr;
 auto GetOGRSpatialReferenceFromDataItems(const TreeItem* storageHolder) -> std::optional<OGRSpatialReference>;
 void CheckSpatialReference(std::optional<OGRSpatialReference>& ogrSR, const TreeItem* treeitem, const AbstrUnit* mutBase);
 STGDLL_CALL auto GetUnitSizeInMeters(const AbstrUnit* projectionBaseUnit) -> Float64;
 STGDLL_CALL void ValidateSpatialReferenceFromWkt(OGRSpatialReference* ogrSR, CharPtr wkt_prj_str);
+bool DriverSupportsUpdate(std::string_view dataset_file_name, const CPLStringList driver_array);
 
 struct GDALDatasetHandle
 {

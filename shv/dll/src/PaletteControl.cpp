@@ -10,6 +10,7 @@
 #include "utl/mySPrintF.h"
 
 #include "DataItemClass.h"
+#include "LispTreeType.h"
 #include "Unit.h"
 #include "UnitClass.h"
 
@@ -338,9 +339,9 @@ void PaletteControl::CreateColumnsImpl()
 	//	=========================================	add Class boundaries
 	if (m_BreakAttr && (!classIds || classIds->UnifyValues(m_BreakAttr->GetAbstrValuesUnit(), "", "", UM_AllowDefaultRight)))
 	{
-		dms_assert(m_BreakAttr->GetAbstrDomainUnit() == m_PaletteDomain);
+		assert(m_BreakAttr->GetAbstrDomainUnit() == m_PaletteDomain);
 		if (m_ThemeAttr)
-			exprStr = mySSPrintF("classify(%s, %s)", exprStr.c_str(), m_BreakAttr->GetFullName().c_str() );
+			exprStr = mySSPrintF("classify(%s, %s)", exprStr.c_str(), m_BreakAttr->GetFullName().c_str());
 
 		auto column = make_shared_gr<DataItemColumn>(this, m_BreakAttr)();
 		InsertColumn(column.get());
@@ -349,7 +350,7 @@ void PaletteControl::CreateColumnsImpl()
 
 	//	=========================================	add Count
 	// DEBUG, TMP, OPTIMIZE, GEEN COUNT VOOR LANDS DEMO
-	dms_assert(classIds || ! m_ThemeAttr); // Follows from definitioin, assumed in next if.
+	assert(classIds || ! m_ThemeAttr); // Follows from definitioin, assumed in next if.
 
 	if	(	m_ThemeAttr 
 		&&	classIds->UnifyDomain(m_PaletteDomain)
@@ -364,22 +365,85 @@ void PaletteControl::CreateColumnsImpl()
 		if (m_BreakAttr) 
 			container = CreateContainer(container, GetUltimateSourceItem(m_BreakAttr.get_ptr()) );
 
-		SharedPtr<AbstrDataItem> countAttr = CreateDataItem(
-			container
-		,	GetTokenID_mt("Count")
-		,	m_PaletteDomain
-		,	UnitClass::Find(m_ThemeAttr->GetAbstrDomainUnit()->GetValueType()->GetCrdClass())->CreateDefault()
-		);
+		auto countingUnitClass = UnitClass::Find(m_ThemeAttr->GetAbstrDomainUnit()->GetValueType()->GetCrdClass());
+		auto countingUnit = countingUnitClass->CreateDefault();
+
+		SharedPtr<AbstrDataItem> countAttr = CreateDataItem(container, GetTokenID_mt("Count"), m_PaletteDomain, countingUnit);
 		countAttr->SetKeepDataState(true);
 		countAttr->DisableStorage(true);
 		countAttr->SetExpr( mySSPrintF("pcount(%s)", exprStr.c_str() ) );
 		m_CountAttr = countAttr.get_ptr();
-		InsertColumn(make_shared_gr<DataItemColumn>(this, m_CountAttr)().get());
+		auto countColumn = make_shared_gr<DataItemColumn>(this, m_CountAttr)();
+		InsertColumn(countColumn.get());
 	}
 	else
+	{
 		m_CountAttr = nullptr;
+		m_SelCountAttr = nullptr;
+	}
 	if (!GetEntity())
 		SetEntity( Unit<Void>::GetStaticClass()->CreateDefault() ); 
+}
+
+void PaletteControl::CreateSelCountColumn()
+{
+	if (m_HasTriedToAddSelCountColumn)
+		return;
+
+	m_HasTriedToAddSelCountColumn = true;
+
+	if (m_SelCountAttr)
+		return;
+
+	//* TODO BEGIN: issue https://github.com/ObjectVision/GeoDMS/issues/708
+	if (!m_Layer)
+		return;
+	if (!m_ThemeAttr)
+		return;
+
+	auto dv = GetDataView().lock(); if (!dv) return;
+
+	TreeItem* container = CreateDesktopContainer(dv->GetDesktopContext(), GetUltimateSourceItem(m_ThemeAttr.get_ptr()));
+	auto countingUnitClass = UnitClass::Find(m_ThemeAttr->GetAbstrDomainUnit()->GetValueType()->GetCrdClass());
+	LispRef keyExpr = m_ThemeAttr->GetCheckedKeyExpr();
+	auto provisionalPaletteDomain = m_ThemeAttr->GetAbstrValuesUnit();
+	SharedPtr<const AbstrUnit> classIds = GetRealAbstrValuesUnit(m_ThemeAttr);
+
+	//	=========================================	add Class boundaries
+	if (m_BreakAttr && (!classIds || classIds->UnifyValues(m_BreakAttr->GetAbstrValuesUnit(), "", "", UM_AllowDefaultRight)))
+	{
+		assert(m_BreakAttr->GetAbstrDomainUnit() == m_PaletteDomain);
+		assert(m_BreakAttr->GetAbstrValuesUnit() == provisionalPaletteDomain);
+		provisionalPaletteDomain = m_BreakAttr->GetAbstrDomainUnit();
+		if (m_ThemeAttr)
+			keyExpr = ExprList(token::classify, keyExpr, m_BreakAttr->GetCheckedKeyExpr());
+	}
+
+	if (!m_PaletteDomain->UnifyDomain(provisionalPaletteDomain))
+		return;
+
+	if (auto selectionTheme = m_Layer->CreateSelectionsTheme())
+	{
+		if (auto selectionAttr = selectionTheme->GetThemeAttr())
+		{
+			auto countingUnitClass = UnitClass::Find(m_ThemeAttr->GetAbstrDomainUnit()->GetValueType()->GetCrdClass());
+			auto countingUnit = countingUnitClass->CreateDefault();
+
+			SharedPtr<AbstrDataItem> selCountAttr = CreateDataItem(container, GetTokenID_mt("SelCount"), m_PaletteDomain, countingUnit);
+			selCountAttr->SetKeepDataState(true);
+			selCountAttr->DisableStorage(true);
+
+			auto clsName = SharedStr(countingUnitClass->GetValueType()->GetID());
+			auto aggrMethodName = mySSPrintF("sum_%s", clsName);
+			auto selAttrRef = CreateLispTree(selectionAttr, false);
+			keyExpr = ExprList(GetTokenID_mt(aggrMethodName.c_str()), selAttrRef, keyExpr);
+			selCountAttr->SetCalculator(AbstrCalculator::ConstructFromLispRef(selCountAttr, keyExpr, CalcRole::Calculator));
+
+			m_SelCountAttr = selCountAttr.get_ptr();
+			auto selCountColumn = make_shared_gr<DataItemColumn>(this, m_SelCountAttr)();
+			InsertColumn(selCountColumn.get());
+		}
+	}
 }
 
 void PaletteControl::DoUpdateView()
@@ -388,6 +452,11 @@ void PaletteControl::DoUpdateView()
 	if (!dv)
 		return;
 
+	if (m_Layer)
+	{
+		if (m_Layer->GetTheme(AN_Selections))
+			CreateSelCountColumn();
+	}
 	SetRowHeight(GetDefaultFontHeightDIP( GetFontSizeCategory() ));
 	base_type::DoUpdateView();
 }

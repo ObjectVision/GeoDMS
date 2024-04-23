@@ -86,15 +86,16 @@ void make_subset_container(ResContainer* resultSub, const DataArray<Bool>* boolA
 		SizeT count = 0;
 		for (; di != de; ++di)
 		{
-			if (*di)
+			if (*di) // process the bit-block
 			{
 				for (ArgType::const_iterator i(di, SizeT(0)), e(di, SizeT(ArgType::const_iterator::nr_elem_per_block)); i!=e; ++count, ++i)
 					if (Bool(*i))
 						resDataChannel.Write(Range_GetValue_naked(resValuesRange, count) );
 			}
 			else
-				count += ArgType::const_iterator::nr_elem_per_block;
+				count += ArgType::const_iterator::nr_elem_per_block; // jump over the bit-block
 		}
+		// process the remaining bits
 		for (ArgType::const_iterator i(di, SizeT(0)), e=boolData.end(); i!=e; ++count, ++i)
 			if (Bool(*i))
 				resDataChannel.Write(Range_GetValue_naked(resValuesRange, count) );
@@ -761,16 +762,16 @@ namespace {
 	CollectWithAttrOperator operCM(sog_collect_attr_by_cond, collect_mode::condition);
 
 	// DEPRECIATED VARIANTS of collect_attr BEGIN
-	Obsolete<SpecialOperGroup> cog_relate_afew("use collect_attr_by_org_rel", "relate_afew", 3, oap_Relate, oper_policy::dont_cache_result | oper_policy::depreciated | oper_policy::obsolete);
-	Obsolete<SpecialOperGroup> cog_relate_attr("use collect_attr_by_org_rel", "relate_attr", 3, oap_Relate, oper_policy::dont_cache_result | oper_policy::depreciated);
-	Obsolete<SpecialOperGroup> cog_relate_many("use collect_attr_by_cond", "relate_many", 3, oap_Relate, oper_policy::dont_cache_result | oper_policy::depreciated);
+	Obsolete<SpecialOperGroup> cog_relate_afew("use collect_attr_by_org_rel", "relate_afew", 3, oap_Relate, oper_policy::dont_cache_result | oper_policy::obsolete);
+	Obsolete<SpecialOperGroup> cog_relate_attr("use collect_attr_by_org_rel", "relate_attr", 3, oap_Relate, oper_policy::dont_cache_result | oper_policy::obsolete);
+	Obsolete<SpecialOperGroup> cog_relate_many("use collect_attr_by_cond", "relate_many", 3, oap_Relate, oper_policy::dont_cache_result | oper_policy::obsolete);
 
 	CollectWithAttrOperator operRF(cog_relate_afew, collect_mode::org_rel);
 	CollectWithAttrOperator operRA(cog_relate_attr, collect_mode::org_rel);
 	CollectWithAttrOperator operRM(cog_relate_many, collect_mode::condition);
 	// DEPRECIATED VARIANTS of collect_attr END
 
-	Obsolete<CommonOperGroup> cog_select_data("use collect_by_cond", token::select_data, oper_policy::depreciated);
+	Obsolete<CommonOperGroup> cog_select_data("use collect_by_cond", "select_data", oper_policy::obsolete);
 	CommonOperGroup cog_collect_by_cond(token::collect_by_cond);
 	CommonOperGroup cog_recollect_by_cond(token::recollect_by_cond, oper_policy::allow_extra_args);
 

@@ -2629,13 +2629,18 @@ ActorVisitState TreeItem::DoUpdate(ProgressState ps)
 
 		if (SuspendTrigger::DidSuspend())
 			return AVS_SuspendedOrFailed;
-		dms_assert(result || WasFailed(FR_Committed));
+
+		assert(result || WasFailed(FR_Committed));
 
 		SetProgress(PS_Committed);
 
+		const TreeItem* uti = _GetHistoricUltimateItem(this);
+		actor_section_lock_map::ScopedLock specificSectionLock(MG_SOURCE_INFO_CODE("TreeItem::CommitDataChanges") sg_ActorLockMap, uti);
+		uti->TryCleanupMem();
+
 		if (!result) 
 		{
-			dms_assert(WasFailed(FR_Committed));
+			assert(WasFailed(FR_Committed));
 			return AVS_SuspendedOrFailed;
 		}
 	}
@@ -3155,7 +3160,7 @@ bool TreeItem::PrepareDataUsage(DrlType drlFlags) const
 
 	if ((UInt32(drlFlags) & UInt32(DrlType::Certain)) && !SuspendTrigger::BlockerBase::IsBlocked())
 	{
-		SuspendTrigger::FencedBlocker lockSuspend("TreeItem::PrepareDataUsage");
+		SuspendTrigger::FencedBlocker lockSuspend("@TreeItem::PrepareDataUsage");
 		auto result = PrepareDataUsageImpl(drlFlags);
 		dms_assert(result || WasFailed());
 		return result;
@@ -3187,7 +3192,7 @@ how_to_proceed PrepareDataCalc(SharedPtr<const TreeItem> self, const TreeItem* r
 	//				auto result = CalcResult(apr, GetDynamicObjClass());
 	if (dc)
 	{
-		SuspendTrigger::SilentBlocker xx("PrepareDataCalc");
+		SuspendTrigger::SilentBlocker xx("@PrepareDataCalc");
 		auto dc2 = dc->CalcResult();
 		assert(!SuspendTrigger::DidSuspend());
 
@@ -3641,66 +3646,77 @@ bool TreeItem::HasCurrConfigData() const
 	return false;
 }
 
+template <typename FailReasonFunc>
+bool FinalizeFailure(const TreeItem* self, FailReasonFunc&& func)
+{
+	if (SuspendTrigger::DidSuspend())
+	{
+		if (self->GetInterestCount() < 2)
+			ReportSuspension();
+	}
+	else
+	{
+		if (self->GetCurrRangeItem()->WasFailed(FR_Committed))
+			self->Fail(self->GetCurrRangeItem());
+
+		if (!self->WasFailed(FR_Committed))
+			self->Fail(func(), FR_Committed);
+		assert(SuspendTrigger::DidSuspend() || self->WasFailed(FR_Committed));
+	}
+	return false; // suspended or failed, try again later
+}
+
 bool TreeItem::CommitDataChanges() const
 {
 	assert(m_State.GetProgress() >= PS_MetaInfo);
-	if	(	(m_State.GetProgress() < PS_Committed)
-		&&  IsStorable()
-		&&	!IsDataReadable()
-		&&	!IsFailed()
-	)
+	if (m_State.GetProgress() >= PS_Committed)
+		return true;
+	if (!IsStorable())
+		return true;
+	if (IsDataReadable())
+		return true;
+	if (IsFailed())
+		return false;
+
+	MG_DEBUGCODE( assert(! Actor::m_State.Get(ASF_WasLoaded) ); )
+
+	const TreeItem* storageHolder = GetStorageParent(true);
+	bool            hasCalculator = HasCalculator();
+	assert(storageHolder); // guaranteed by IsStorable();
+	auto sm = storageHolder->GetStorageManager();
+	assert(sm); // guaranteed by IsStorable();
+
+	auto nmsm = dynamic_cast<NonmappableStorageManager*>(sm);
+	if (!nmsm)
+		return true;
+
+	if (!hasCalculator && !IsDataReady(this))
+		return true;
+
+	if (GetCurrRangeItem()->WasFailed(FR_Committed))
 	{
-		MG_DEBUGCODE( dms_assert(! Actor::m_State.Get(ASF_WasLoaded) ); )
-
-		const TreeItem* storageHolder = GetStorageParent(true);
-		bool            hasCalculator = HasCalculator();
-		assert(storageHolder); // guaranteed by IsStorable();
-		auto sm = storageHolder->GetStorageManager();
-		assert(sm); // guaranteed by IsStorable();
-
-		if (auto nmsm = dynamic_cast<NonmappableStorageManager*>(sm))
-			if (hasCalculator || IsDataReady(GetCurrRangeItem()) && !GetCurrRangeItem()->WasFailed(FR_Committed))
-			{
-				DBG_START("TreeItem", "CommitDataChanges", false);
-				DBG_TRACE(("self = %s", GetSourceName().c_str()));
-
-				auto interestHolder = GetInterestPtrOrNull();
-				dms_assert(interestHolder); // Commit is Called from DoUpdate
-				if (	(IsCalculatingOrReady(GetCurrRangeItem()) || PrepareDataUsage(DrlType::Suspendible))
-					&&	WaitForReadyOrSuspendTrigger(GetCurrRangeItem()) 
-					&& !GetCurrRangeItem()->WasFailed(FR_Committed)
-					&&	DoWriteItem(nmsm->GetMetaInfo(storageHolder, const_cast<TreeItem*>(this), StorageAction::write))
-				)
-				// DoReadDataItem also for calling CreateResultingTreeItem(true, false) for TreeItems without storage ??
-						SetProgress(PS_Committed);
-				else
-				{
-					// can have failed just because PrepareDataUsage suspended or failed; 
-	//				dms_assert(!TriggerOperator::GetLastResult() || GetInterestCount() > 1); // suspension only possible when not called from DecInterestCount
-					// must check suspend trigger to find out
-					if (SuspendTrigger::DidSuspend())
-					{
-						if (GetInterestCount() < 2)
-							ReportSuspension();
-					}
-					else if (!WasFailed(FR_Committed))
-						Fail(
-							mySSPrintF("Unable to commit data to storage %s", 
-								DMS_TreeItem_GetAssociatedFilename(this)
-							)
-						,	FR_Committed
-						);
-					dms_assert(SuspendTrigger::DidSuspend() || WasFailed(FR_Committed));
-					if (SuspendTrigger::DidSuspend())
-						return false; // suspended or failed, try again later
-				}
-			}
+		Fail(GetCurrRangeItem());
+		return false;
 	}
 
-	const TreeItem* uti = _GetHistoricUltimateItem(this);
-	actor_section_lock_map::ScopedLock specificSectionLock(MG_SOURCE_INFO_CODE("TreeItem::CommitDataChanges") sg_ActorLockMap, uti);
-	uti->TryCleanupMem();
-	return true;
+	DBG_START("TreeItem", "CommitDataChanges", false);
+	DBG_TRACE(("self = %s", GetSourceName().c_str()));
+
+	auto interestHolder = GetInterestPtrOrNull();
+	assert(interestHolder); // Commit is Called from DoUpdate
+
+	if (!IsCalculatingOrReady(GetCurrRangeItem()) && !PrepareDataUsage(DrlType::Suspendible) || GetCurrRangeItem()->WasFailed(FR_Committed))
+		// can have failed just because PrepareDataUsage suspended or failed; 
+		return FinalizeFailure(this, [this]() { return mySSPrintF("Unable to start calculating data when trying to store it in %s", DMS_TreeItem_GetAssociatedFilename(this)); });
+
+	if (!WaitForReadyOrSuspendTrigger(GetCurrRangeItem()) || GetCurrRangeItem()->WasFailed(FR_Committed))
+		return FinalizeFailure(this, [this]() { return mySSPrintF("Unable to complete calculating data when trying to store it in %s", DMS_TreeItem_GetAssociatedFilename(this)); });
+	if (!DoWriteItem(nmsm->GetMetaInfo(storageHolder, const_cast<TreeItem*>(this), StorageAction::write)) || GetCurrRangeItem()->WasFailed(FR_Committed))
+		return FinalizeFailure(this, [this]() { return mySSPrintF("Unable to write data to storage %s", DMS_TreeItem_GetAssociatedFilename(this)); });
+
+	assert(!SuspendTrigger::DidSuspend());
+
+	return !WasFailed(FR_Committed);
 }
 
 bool PartOfInterestImpl(const TreeItem* self)

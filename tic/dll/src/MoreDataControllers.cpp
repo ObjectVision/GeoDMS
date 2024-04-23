@@ -135,13 +135,13 @@ FuncDC::FuncDC(LispPtr keyExpr,	const AbstrOperGroup* og)
 		);
 
 	if (og->IsObsolete())
-		reportF(SeverityTypeID::ST_Error, "obsolete operator %s used: %s."
+		throwErrorF("FuncDC", "obsolete operator %s used: %s."
 			, og->GetName()
 			, og->GetObsoleteMsg()
 		);
 
-	dms_assert(GetLispRef().IsRealList());    // no EndP allowed
-	dms_assert(GetLispRef().Left().IsSymb()); // operator or calculation scheme call
+	assert(GetLispRef().IsRealList());    // no EndP allowed
+	assert(GetLispRef().Left().IsSymb()); // operator or calculation scheme call
 
 	if (og->IsTransient())
 		m_State.Set(DCF_CanChange);
@@ -310,13 +310,14 @@ SharedTreeItem FuncDC::MakeResult() const // produce signature
 			CancelOperContext();
 			return nullptr;
 		}
-		dms_assert(m_Data);
+		MG_CHECK(m_Data);
 		DBG_TRACE(("MakeResult completed well"));
 	}
 	
+	assert(m_Data);
 	assert(!IsNew() || m_Data->IsCacheRoot());
 
-	if (m_Data->WasFailed(FR_MetaInfo))
+	if (m_Data && m_Data->WasFailed(FR_MetaInfo))
 		Fail(m_Data);
 
 	if (WasFailed(FR_MetaInfo))
@@ -599,7 +600,7 @@ bool FuncDC::MakeResultImpl() const
 		{
 			dms_assert(SuspendTrigger::DidSuspend() || WasFailed(FR_MetaInfo));  // if we asked for MetaInfo and only DataProcesing failed, we should at least get a result
 		}
-		dms_assert(m_OperContext); // Still in MainThread, no other access to m_Oper
+		assert(m_OperContext); // Still in MainThread, no other access to m_Oper
 	}
 	catch (...)
 	{
@@ -608,7 +609,7 @@ bool FuncDC::MakeResultImpl() const
 	}
 	if (! result)
 	{
-		dms_assert(SuspendTrigger::DidSuspend() || WasFailed(FR_MetaInfo));  // if we asked for MetaInfo and only DataProcesing failed, we should at least get a result
+		assert(SuspendTrigger::DidSuspend() || WasFailed(FR_MetaInfo));  // if we asked for MetaInfo and only DataProcesing failed, we should at least get a result
 		return false;
 	}
 
@@ -717,8 +718,11 @@ ActorVisitState FuncDC::VisitSuppliers(SupplierVisitFlag svf, const ActorVisitor
 	SharedStr firstArgValue;
 	for (arg_index argNr = 0; dcRefElem; dcRefElem = dcRefElem->m_Next, ++argNr)
 	{
+		auto firstArgValueCPtr = firstArgValue.cbegin();
 		dms_assert(m_OperatorGroup);
-		if (!Test(svf, SupplierVisitFlag::ReadyDcsToo) && !MustCalcArg(argNr, true, firstArgValue.begin()) && !m_OperatorGroup->MustSupplyTree(argNr, firstArgValue.begin()))
+		if (!Test(svf, SupplierVisitFlag::ReadyDcsToo)
+			&& !MustCalcArg(argNr, true, firstArgValueCPtr)
+			&& !m_OperatorGroup->MustSupplyTree(argNr, firstArgValueCPtr))
 			continue;
 
 		const DataController* dc = dcRefElem->m_DC; // borrow shared owned dc;
@@ -733,7 +737,7 @@ ActorVisitState FuncDC::VisitSuppliers(SupplierVisitFlag svf, const ActorVisitor
 		if (visitor(dcResult) == AVS_SuspendedOrFailed) // TODO, REMOVE, WHY, FIND OUT IF dc DOESN'T ALREADY COVER THIS.
 			return AVS_SuspendedOrFailed;
 
-		if (m_OperatorGroup->MustSupplyTree(argNr, firstArgValue.begin())) // TODO: zoveel mogelijk wegwerken dmv substitutie van argumenten
+		if (m_OperatorGroup->MustSupplyTree(argNr, firstArgValueCPtr)) // TODO: zoveel mogelijk wegwerken dmv substitutie van argumenten
 		{
 			if (dcResult->VisitConstVisibleSubTree(visitor) == AVS_SuspendedOrFailed)
 				return AVS_SuspendedOrFailed;

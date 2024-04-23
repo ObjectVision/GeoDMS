@@ -236,14 +236,18 @@ void ViewPort::DoUpdateView()
 		gc.second.lock()->Init(CrdPoint2GPoint(deviceSize), w2dTr);
 
 	for (auto& sc: m_SelCaretMap)
-		sc.second.lock()->OnZoom();
+	{
+		if (auto selCaret = sc.second.lock())
+			selCaret->OnZoom();
+	}
 }
 
 bool ViewPort::Draw(GraphDrawer& d) const
 {
 	if (!d.IsInOnPaint())	// when drawing from OnPaint, ReverseCarets undoes this
 		for (const auto& sc: m_SelCaretMap)
-			sc.second.lock()->UpdateRgn(d.GetAbsClipRegion());
+			if (auto selCaret = sc.second.lock())
+				selCaret->UpdateRgn(d.GetAbsClipRegion());
 
 	return false;
 }
@@ -613,7 +617,7 @@ bool ViewPort::MouseEvent(MouseEventDispatcher& med)
 	auto medOwner = med.GetOwner().lock(); if (!medOwner) return true;
 	const EventInfo& eventInfo = med.GetEventInfo();
 	EventID          eventID = eventInfo.GetID();
-	if (eventID & EID_MOUSEWHEEL )
+	if (eventID & EventID::MOUSEWHEEL )
 	{
 		int wheelDelta = GET_WHEEL_DELTA_WPARAM(eventInfo.m_wParam);
 		wheelDelta /= WHEEL_DELTA;
@@ -638,7 +642,7 @@ bool ViewPort::MouseEvent(MouseEventDispatcher& med)
 			return true;
 		}
 	}
-	if (eventID & (EID_LBUTTONDOWN | EID_LBUTTONUP | EID_LBUTTONDBLCLK) )
+	if (eventID & (EventID::LBUTTONDOWN | EventID::LBUTTONUP | EventID::LBUTTONDBLCLK) )
 	{
 		AddClientLogicalOffset  viewportOffset(&med, GetCurrClientRelPos());
 		auto w2dTr = CalcWorldToClientTransformation() + Convert<CrdPoint>(med.GetClientLogicalAbsPos());
@@ -647,7 +651,7 @@ bool ViewPort::MouseEvent(MouseEventDispatcher& med)
 		if (MustQuery(medOwner->m_ControllerID))
 			InfoController::SelectFocusElem(GetLayerSet(), w2dTr.Reverse(g2dms_order<CrdType>(eventInfo.m_Point)), eventID);
 
-		if (eventID & EID_LBUTTONDOWN) switch (medOwner->m_ControllerID)
+		if (eventID & EventID::LBUTTONDOWN) switch (medOwner->m_ControllerID)
 		{
 			case TB_ZoomIn2:
 			{
@@ -693,11 +697,11 @@ bool ViewPort::MouseEvent(MouseEventDispatcher& med)
 				return true;
 
 			case TB_Neutral:
-				if (med.GetEventInfo().m_EventID & EID_CTRLKEY)
+				if (med.GetEventInfo().m_EventID & EventID::CTRLKEY)
 				{
-					if (med.GetEventInfo().m_EventID & EID_SHIFTKEY)
+					if (med.GetEventInfo().m_EventID & EventID::SHIFTKEY)
 						ClipBoard::ClearBuff();
-					med.GetEventInfo().m_EventID |= EID_COPYCOORD;
+					med.GetEventInfo().m_EventID |= EventID::COPYCOORD;
 				}
 				else
 					medOwner->InsertController(
@@ -1045,9 +1049,9 @@ public:
 		GridCoordPtr    gridCoords,
 		SelValuesData* selValues
 	)	:	AbstrController(owner, target 
-			,	EID_LBUTTONDOWN|EID_MOUSEMOVE|EID_MOUSEDRAG
-			,	EID_LBUTTONUP
-			,	EID_LBUTTONUP|EID_RBUTTONDOWN|EID_RBUTTONUP|EID_CAPTURECHANGED|EID_SCROLLED
+			,	EventID::LBUTTONDOWN|EventID::MOUSEMOVE|EventID::MOUSEDRAG
+			,	EventID::LBUTTONUP
+			,	EventID::LBUTTONUP|EventID::RBUTTONDOWN|EventID::RBUTTONUP|EventID::CAPTURECHANGED|EventID::SCROLLED
 			,	ToolButtonID::TB_PasteSel
 			)
 		,	m_ViewPort(vp)

@@ -174,7 +174,7 @@ bool ArcProjectionHandle<R, T>::Project2Arc(ConstPointPtr arcBegin, ConstPointPt
 		assert(nearestSegm == arcBegin);
 		assert(arcBegin + 1 == arcEnd);
 		assert(m_InArc == false);
-		assert(m_CutPoint == *nearestSegm);
+		m_CutPoint = *nearestSegm;
 	}
 	else
 	{

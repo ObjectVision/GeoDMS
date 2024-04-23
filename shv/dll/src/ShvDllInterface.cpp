@@ -39,11 +39,11 @@ granted by an additional written contract for support, assistance and/or develop
 #include "ser/AsString.h"
 #include "utl/IncrementalLock.h"
 
-#include "IdleTimer.h"
 #include "TreeItem.h"
 #include "TreeItemClass.h"
 #include "TreeItemContextHandle.h"
 #include "TreeItemProps.h"
+#include "TreeItemUtils.h"
 
 #include "DataView.h"
 
@@ -288,28 +288,6 @@ void OnDestroyDataView(DataView* self)
 		g_MsgQueue.end()
 	);
 }
-
-/*
-ActorVisitState DataView_Update(DataView* self)
-{
-	DMS_CALL_BEGIN
-
-		TreeItemContextHandle checkPtr(self->GetViewContext(), TreeItem::GetStaticClass(), "SHV_DataView_Update");
-
-		StaticMtIncrementalLock<g_DispatchLockCount> dispatchLock;
-
-		IdleTimer::OnFinishLoop();
-		SuspendTrigger::Resume();
-		dms_assert( !SuspendTrigger::DidSuspend() );
-
-		ActorVisitState avs = self->UpdateViews();
-
-		return avs;
-	DMS_CALL_END
-
-	return AVS_Ready; // assume fail, so we are done since we don't want to repeat failure
-}
-*/
 
 ActorVisitState DataView_Update(DataView* self)
 {

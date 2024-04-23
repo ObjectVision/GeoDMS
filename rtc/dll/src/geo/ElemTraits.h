@@ -1,8 +1,10 @@
-// Copyright (C) 1998-2023 Object Vision b.v. 
+// Copyright (C) 1998-2024 Object Vision b.v. 
 // License: GNU GPL 3
 /////////////////////////////////////////////////////////////////////////////
 
+#if defined(_MSC_VER)
 #pragma once
+#endif
 
 #if !defined(__RTC_GEO_ELEMTRAITS_H)
 #define __RTC_GEO_ELEMTRAITS_H
@@ -321,6 +323,18 @@ template <typename T> struct elem_traits<Point<T> >
 		crd_point_type_tag, 
 		inf_point_type_tag
 	> {};
+
+//=======================================
+// common Conversion Functor Types
+//=======================================
+
+template<typename Dst> struct DefaultConvertFunc;
+template <typename U> struct DnConvertFunc;
+template <typename U> struct UpConvertFunc;
+
+template <typename V> constexpr bool is_signed_integral_v = is_signed_v<V> && is_integral_v<V>;
+template <typename P> using IntRoundDnFunc = std::conditional_t<is_signed_integral_v<scalar_of_t<P>>, DnConvertFunc<P>, DefaultConvertFunc<P> >;
+template <typename P> using IntRoundUpFunc = std::conditional_t<is_integral_v       <scalar_of_t<P>>, UpConvertFunc<P>, DefaultConvertFunc<P> >;
 
 //----------------------------------------------------------------------
 // some assumptions

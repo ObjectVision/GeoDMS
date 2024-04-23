@@ -197,8 +197,8 @@ struct CountableUnitBase : RangedUnit<V> // all integral objects and integral po
 	tile_offset GetPreparedTileCount(tile_id t) const override;
 	tile_offset GetTileCount(tile_id t) const override;
 
-	value_t GetValueAtIndex(row_id i) const;
-	row_id  GetIndexForValue(const value_t&) const;
+	TIC_CALL value_t GetValueAtIndex(row_id i) const;
+	TIC_CALL row_id  GetIndexForValue(const value_t&) const;
 
 protected:
 	void LoadRangeImpl (BinaryInpStream& pis) override;
@@ -226,8 +226,8 @@ struct IndexableUnitAdapter : U
 	row_id GetDimSize(DimType dimNr) const override;
 
 	// use U::GetValueAtIndex and U:GetIndexForValue
-	AbstrValue* CreateAbstrValueAtIndex(SizeT i) const override;
-	SizeT GetIndexForAbstrValue(const AbstrValue&) const override;
+	TIC_CALL AbstrValue* CreateAbstrValueAtIndex(SizeT i) const override;
+	TIC_CALL SizeT GetIndexForAbstrValue(const AbstrValue&) const override;
 };
 
 
@@ -282,8 +282,8 @@ struct BitUnitBase : UnitBase<bit_value<N>>
 	SharedStr GetRangeAsStr() const override { return AsString(GetRange()); }
 
 //	Support for Numerics; TODO merge this func with the NumericUnitAdapter version
-	value_t GetValueAtIndex (SizeT   i) const { return i; }
-	SizeT  GetIndexForValue(value_t v) const { return v; }
+	TIC_CALL value_t GetValueAtIndex (SizeT   i) const { return i; }
+	TIC_CALL SizeT  GetIndexForValue(value_t v) const { return v; }
 
 	auto GetCurrSegmInfo() const -> SharedPtr<const range_data_t> {
 		static SharedPtr<const range_data_t> s_RangeData = new range_data_t;
@@ -309,8 +309,8 @@ struct VoidUnitBase : UnitBase<Void>
 	range_t GetTileRange(tile_id t) const { assert(t==0); return range_t(0, 1); }
 
 // Support for Numerics
-	value_t GetValueAtIndex (row_id i) const { assert(!i); return Void(); }
-	row_id  GetIndexForValue(value_t ) const { return 0; }
+	TIC_CALL value_t GetValueAtIndex (row_id i) const { assert(!i); return Void(); }
+	TIC_CALL row_id  GetIndexForValue(value_t ) const { return 0; }
 };
 
 template <bit_size_t N>

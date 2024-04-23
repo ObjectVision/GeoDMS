@@ -163,7 +163,7 @@ namespace Grid {
 			stripBuff = rawBuffer.begin();
 		}
 		
-		assert(tyr.t_min>=-1);
+//		assert(tyr.t_min>=-1);
 
 		MG_DEBUGCODE(auto bufCopy = buf); // DEBUG
 		for (UInt32 ty = 0; ty<tyr.t_cnt; ++ty) // loop through all tiles/strips that intersect with [y, y+dy)
@@ -254,16 +254,40 @@ namespace Grid {
 
 				std::call_once(viewPort2Grid.m_smi->m_compare_tile_size_flag, [&imp, &viewPort2Grid, dataSourceName]()
 					{
-						UPoint tileSize = imp.GetTileSize();
-						auto tile_size_x = tileSize.X();
-						auto tile_size_y = tileSize.Y();
-						if (X_GRANULARITY != tile_size_x || Y_GRANULARITY != tile_size_y)
+						auto adu = viewPort2Grid.m_smi->CurrRD()->GetAbstrDomainUnit();
+						if (!adu)
+							return;
+						adu = AsUnit(adu->GetCurrRangeItem());
+						MG_CHECK(adu);
+						if (!adu->GetTiledRangeData()->IsCovered())
+							return;
+						auto trd = adu->GetTiledRangeData();
+						MG_CHECK(trd);
+						if (trd->GetNrTiles() <= 1)
+							return;
+
+						auto tileSize = Size(trd->GetTileRangeAsI64Rect(0));
+
+						UPoint fileTileSize = imp.GetTileSize();
+						if (tileSize.X() % fileTileSize.X() || tileSize.Y() % fileTileSize.Y())
 						{
 							reportF(SeverityTypeID::ST_Warning
-							, "GridStorageManager: Tilesize mismatch between data source %s of item %s: %d,%d and GeoDMS default tiling: %d,%d"
-							, dataSourceName
-							, viewPort2Grid.m_smi->CurrRI()->GetFullName(), tile_size_x, tile_size_y
-							, X_GRANULARITY, Y_GRANULARITY);
+								, "GridStorageManager: Tilesize mismatch between data source %s of item %s: %d,%d and GeoDMS tiling: %d,%d"
+								, dataSourceName
+								, viewPort2Grid.m_smi->CurrRI()->GetFullName()
+								, fileTileSize.X(), fileTileSize.Y()
+								, tileSize.X(), tileSize.Y()
+							);
+						}
+						if (Int64(viewPort2Grid.Offset().X()) % fileTileSize.X() || Int64(viewPort2Grid.Offset().Y()) % fileTileSize.Y())
+						{
+							reportF(SeverityTypeID::ST_Warning
+								, "GridStorageManager: Offset mismatch between data source %s of item %s: %d,%d and GeoDMS offset: %d,%d"
+								, dataSourceName
+								, viewPort2Grid.m_smi->CurrRI()->GetFullName()
+								, fileTileSize.X(), fileTileSize.Y()
+								, viewPort2Grid.Offset().X(), viewPort2Grid.Offset().Y()
+							);
 						}
 					});
 			}

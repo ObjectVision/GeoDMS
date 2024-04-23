@@ -20,9 +20,11 @@ public:
     void closeAllButActiveSubWindow();
     void setTabbedViewModeStyle();
     QSize sizeHint() const override;
+    auto getTabBar() -> QTabBar*;
 
 
 public slots:
+    void testCloseSubWindow();
     void onCascadeSubWindows();
     void onTileSubWindows();
 };
@@ -55,7 +57,6 @@ private:
     void resizeEvent(QResizeEvent* event) override;
     void paintEvent(QPaintEvent* event) override;
     auto contentsRectInPixelUnits() -> QRect;
-    //bool eventFilter(QObject* object, QEvent* event) override;
     void keyPressEvent(QKeyEvent* keyEvent) override;
 
     DataView* m_DataView = nullptr;
