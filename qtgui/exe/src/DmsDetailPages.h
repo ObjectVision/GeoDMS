@@ -35,7 +35,7 @@ public:
 
 	ActiveDetailPage m_active_detail_page = ActiveDetailPage::GENERAL;
 	ActiveDetailPage m_last_active_detail_page = ActiveDetailPage::GENERAL;
-	int m_default_width = 500;
+	int m_default_width = 0;
 
 public slots:
 	void show(ActiveDetailPage new_active_detail_page);
