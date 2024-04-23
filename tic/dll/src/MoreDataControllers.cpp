@@ -310,13 +310,14 @@ SharedTreeItem FuncDC::MakeResult() const // produce signature
 			CancelOperContext();
 			return nullptr;
 		}
-		dms_assert(m_Data);
+		MG_CHECK(m_Data);
 		DBG_TRACE(("MakeResult completed well"));
 	}
 	
+	assert(m_Data);
 	assert(!IsNew() || m_Data->IsCacheRoot());
 
-	if (m_Data->WasFailed(FR_MetaInfo))
+	if (m_Data && m_Data->WasFailed(FR_MetaInfo))
 		Fail(m_Data);
 
 	if (WasFailed(FR_MetaInfo))
@@ -599,7 +600,7 @@ bool FuncDC::MakeResultImpl() const
 		{
 			dms_assert(SuspendTrigger::DidSuspend() || WasFailed(FR_MetaInfo));  // if we asked for MetaInfo and only DataProcesing failed, we should at least get a result
 		}
-		dms_assert(m_OperContext); // Still in MainThread, no other access to m_Oper
+		assert(m_OperContext); // Still in MainThread, no other access to m_Oper
 	}
 	catch (...)
 	{
@@ -608,7 +609,7 @@ bool FuncDC::MakeResultImpl() const
 	}
 	if (! result)
 	{
-		dms_assert(SuspendTrigger::DidSuspend() || WasFailed(FR_MetaInfo));  // if we asked for MetaInfo and only DataProcesing failed, we should at least get a result
+		assert(SuspendTrigger::DidSuspend() || WasFailed(FR_MetaInfo));  // if we asked for MetaInfo and only DataProcesing failed, we should at least get a result
 		return false;
 	}
 
