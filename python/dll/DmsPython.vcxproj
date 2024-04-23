@@ -44,15 +44,12 @@
   <PropertyGroup>
     <_ProjectFileVersion>10.0.21006.1</_ProjectFileVersion>
   </PropertyGroup>
-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
-    <TargetExt>.pyd</TargetExt>
-  </PropertyGroup>
-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+  <PropertyGroup>
     <TargetExt>.pyd</TargetExt>
   </PropertyGroup>
   <ItemDefinitionGroup>
     <ClCompile>
-      <AdditionalIncludeDirectories>C:\dev\vcpkg\buildtrees\python3\x64-windows-rel\Include;C:\dev\vcpkg\buildtrees\python3\x64-windows-rel\PC;./src;../../sym/dll/src;../../tic/dll/src;../../rtc/dll/src;../../geo/dll/src;../../clc/dll/include;../../stx/dll/src;../../shv/dll/src;../../stg/dll/src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>../../../python_installations/3_9/include;./src;../../sym/dll/src;../../tic/dll/src;../../rtc/dll/src;../../geo/dll/src;../../clc/dll/include;../../stx/dll/src;../../shv/dll/src;../../stg/dll/src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ClCompile>
     <Link>
@@ -60,17 +57,14 @@
       <StackReserveSize Condition="'$(Platform)'=='x64'">67108864</StackReserveSize>
       <StackReserveSize Condition="'$(Platform)'=='Win32'">16777216</StackReserveSize>
       <StackCommitSize>8192</StackCommitSize>
-      <OutputFile Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(OutDir)geodms.pyd</OutputFile>
-      <OutputFile Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(OutDir)geodms.pyd</OutputFile>
-      <AdditionalDependencies Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(USERPROFILE)\AppData\Local\Programs\Python\Python311\libs\*.lib;%(AdditionalDependencies)</AdditionalDependencies>
-      <AdditionalDependencies Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(USERPROFILE)\AppData\Local\Programs\Python\Python311\libs\*.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <OutputFile>$(OutDir)geodms.pyd</OutputFile>
+      <AdditionalDependencies>../../../python_installations/3_9/libs/*.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Platform)'=='Win32'">
     <Link>
       <TargetMachine>MachineX86</TargetMachine>
-      <OutputFile Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">$(OutDir)$(TargetName).pyd</OutputFile>
-      <OutputFile Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">$(OutDir)$(TargetName).pyd</OutputFile>
+      <OutputFile>$(OutDir)$(TargetName).pyd</OutputFile>
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>

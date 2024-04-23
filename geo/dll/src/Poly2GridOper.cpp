@@ -1,4 +1,4 @@
-// Copyright (C) 1998-2023 Object Vision b.v. 
+// Copyright (C) 1998-2024 Object Vision b.v. 
 // License: GNU GPL 3
 /////////////////////////////////////////////////////////////////////////////
 
@@ -13,6 +13,7 @@
 #include "geo/Conversions.h"
 #include "geo/RangeIndex.h"
 #include "mth/Mathlib.h"
+#include "xct/DmsException.h"
 
 #include "AbstrUnit.h"
 #include "DataArray.h"
@@ -438,28 +439,36 @@ namespace poly2grid
 
 				for (tile_offset i = 0, e = abstrPolyDomain->GetTileCount(t); i != e; ++i)
 				{
-					if (!(i % AbstrBoundingBoxCache::c_BlockSize))
-						while (!IsIntersecting(clipRect, m_BoxesArrays->GetBlockBounds(t, i / AbstrBoundingBoxCache::c_BlockSize)))
-						{
-							i += AbstrBoundingBoxCache::c_BlockSize;
-							if (!(i < e))
-								goto end_of_tile_loop;
-						}
+					try
+					{
+						if (!(i % AbstrBoundingBoxCache::c_BlockSize))
+							while (!IsIntersecting(clipRect, m_BoxesArrays->GetBlockBounds(t, i / AbstrBoundingBoxCache::c_BlockSize)))
+							{
+								i += AbstrBoundingBoxCache::c_BlockSize;
+								if (!(i < e))
+									goto end_of_tile_loop;
+							}
 
-					if (!IsIntersecting(clipRect, m_BoxesArrays->GetBounds(t, i)))
-						continue;
-					sg->GetValue(i, dPoints);
+						if (!IsIntersecting(clipRect, m_BoxesArrays->GetBounds(t, i)))
+							continue;
+						sg->GetValue(i, dPoints);
 
-					remove_adjacents_and_spikes(dPoints);
-					if (dPoints.size() < 3)
-						continue;
+						remove_adjacents_and_spikes(dPoints);
+						if (dPoints.size() < 3)
+							continue;
 
-					for (auto pi = dPoints.begin(), pe = dPoints.end(); pi != pe; ++pi)
-						transForm.InplApply(*pi);
+						for (auto pi = dPoints.begin(), pe = dPoints.end(); pi != pe; ++pi)
+							transForm.InplApply(*pi);
 
-					E eBurnValueSource = Range_GetValue_naked(tileIndexRange, i);
+						E eBurnValueSource = Range_GetValue_naked(tileIndexRange, i);
 
-					rasterize_one_shape(rasterInfoPtr, dPoints,eBurnValueSource, ifpResources);
+						rasterize_one_shape(rasterInfoPtr, dPoints, eBurnValueSource, ifpResources);
+					}
+					catch (DmsException& x)
+					{
+						x.AsErrMsg()->TellExtraF("\nin poly2grid at tile %d and index %d", t, i);
+						throw;
+					}
 				}
 			end_of_tile_loop:;
 			}
