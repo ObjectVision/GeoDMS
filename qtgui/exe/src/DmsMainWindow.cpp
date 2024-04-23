@@ -2686,8 +2686,6 @@ void MainWindow::createDetailPagesDock()
     m_detail_page_source_description_buttons->setupUi(this);
 
     m_detail_pages = new DmsDetailPages(m_detailpages_dock);
-    m_detail_pages->setSizePolicy(QSizePolicy::MinimumExpanding, QSizePolicy::Expanding);
-
     
     vertical_layout->addWidget(m_detail_page_properties_buttons->gridLayoutWidget);
     vertical_layout->addWidget(m_detail_page_source_description_buttons->gridLayoutWidget);
@@ -2703,7 +2701,7 @@ void MainWindow::createDetailPagesDock()
     m_detailpages_dock->setWidget(detail_pages_holder);
 
     addDockWidget(Qt::RightDockWidgetArea, m_detailpages_dock);
-    resizeDocks({ m_treeview_dock, m_detailpages_dock }, { 600, 300 }, Qt::Horizontal);
+    //resizeDocks({ m_treeview_dock, m_detailpages_dock }, { 600, 300 }, Qt::Horizontal);
 }
 
 void MainWindow::createDmsHelperWindowDocks()
@@ -2712,6 +2710,10 @@ void MainWindow::createDmsHelperWindowDocks()
 
     m_treeview = createTreeview(this);
     m_eventlog = createEventLog(this);
+
+    // resize docks
+    resizeDocks({ m_treeview_dock, m_detailpages_dock }, { 300, 300 }, Qt::Horizontal);
+    resizeDocks({ m_eventlog_dock }, { 150 }, Qt::Vertical);
 }
 
 void MainWindow::back()

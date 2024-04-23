@@ -629,8 +629,11 @@ void DmsEventLog::onItemClicked(const QModelIndex& index)
 	MainWindow::TheOne()->m_current_item_bar->setPath(link.data());
 }
 
-QSize DmsEventLog::sizeHint() const
-{
+QSize DmsEventLog::sizeHint() const {
+	return QSize(0, default_height);
+}
+
+QSize DmsEventLog::minimumSizeHint() const {
 	return QSize(0, default_height);
 }
 

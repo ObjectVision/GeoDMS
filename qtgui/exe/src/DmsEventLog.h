@@ -86,6 +86,7 @@ public:
 	bool m_scroll_to_bottom = true;
 	bool m_text_filter_active = false;
 	QSize sizeHint() const override;
+	QSize minimumSizeHint() const override;
 
 
 public slots:
@@ -103,7 +104,7 @@ public slots:
 
 private:
 	bool isScrolledToBottom();
-	int default_height = 200;
+	int default_height = 0;
 };
 
 
