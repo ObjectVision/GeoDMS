@@ -99,7 +99,19 @@ struct RegularAdapter: Base
 	tile_loc GetTiledLocationForValue(value_type v) const;
 
 	tile_loc GetTiledLocation(row_id index) const override;
-	tile_id GetNrTiles() const  override;
+	tile_id GetNrTiles() const override;
+
+	SizeT GetNrMemPages(UInt8 log2BytesPerElem) const override
+	{
+		// TODO OPTIMIZE for edge and corner tiles 
+		return GetMemPageIndex(log2BytesPerElem, GetNrTiles());
+	}
+	SizeT GetMemPageIndex(UInt8 log2BytesPerElem, tile_id t) const override
+	{
+		assert(t <= GetNrTiles());
+		// TODO OPTIMIZE for edge and corner tiles 
+		return NrMemPages(GetMaxTileSize() << log2BytesPerElem) * t;
+	}
 
 	void CalcTilingExtent() override;
 
@@ -130,7 +142,7 @@ struct IrregularTileRangeData : TiledRangeData<V>
 
 	Range<V> GetTileRange(tile_id t) const override
 	{
-		dms_assert(t < m_Ranges.size());
+		assert(t < m_Ranges.size());
 		return m_Ranges[t];
 	}
 	auto GetTilingExtent() const -> tile_extent_t<V> override { throwIllegalAbstract(MG_POS, "IrregularTileRangeData::GetTilingRange"); }
@@ -162,7 +174,7 @@ struct IrregularTileRangeData : TiledRangeData<V>
 
 	tile_loc GetTiledLocationForValue(V v) const
 	{
-		dms_assert(IsIncluding(this->m_Range, v));
+		assert(IsIncluding(this->m_Range, v));
 		for (const auto& tileRange: m_Ranges)
 		{
 			if (IsIncluding(tileRange, v))
@@ -175,7 +187,7 @@ struct IrregularTileRangeData : TiledRangeData<V>
 
 	tile_loc GetTiledLocation(row_id index) const override
 	{
-		dms_assert(index < Cardinality(this->m_Range));
+		assert(index < Cardinality(this->m_Range));
 
 		V v = Range_GetValue_naked(this->m_Range, index);
 		return GetTiledLocationForValue(v);
@@ -198,6 +210,21 @@ struct IrregularTileRangeData : TiledRangeData<V>
 	{
 		return m_Ranges.size();
 	}
+
+	SizeT GetNrMemPages(UInt8 log2BytesPerElem) const override
+	{
+		return GetMemPageIndex(log2BytesPerElem, GetNrTiles());
+	}
+	SizeT GetMemPageIndex(UInt8 log2BytesPerElem, tile_id t) const override
+	{
+		assert(t <= GetNrTiles());
+		SizeT result = 0;
+		while (t--)
+			result += NrMemPages(this->GetTileSize(t) << log2BytesPerElem);
+
+		return result;
+	}
+
 	bool IsCovered() const override
 	{
 		return false; // pessimistic base impl

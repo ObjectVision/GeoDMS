@@ -40,6 +40,6 @@ granted by an additional written contract for support, assistance and/or develop
 #endif
 
 // functions called from within the stx module
-TreeItem* AppendTreeFromConfiguration(CharPtr p_pSourcefile, TreeItem* p_pRoot);
+TreeItem* AppendTreeFromConfiguration(CharPtr p_pSourcefile, TreeItem* p_pRoot, bool rootIsFirstItem);
 
 #endif // __STX_BASE_H

@@ -71,7 +71,7 @@ public:
 	void free    (alloc_t& seq) override  { clear(seq); }
 	
 	bool CanWrite() const override { return true; }
-	bool IsOpen()   const override { return true; }
+//	bool IsOpen()   const override { return true; }
 	bool IsHeapAllocated() const override   { return true; }
 
 	abstr_sequence_provider<IndexRange<SizeT> >* CloneForSeqs() const override;

@@ -407,6 +407,9 @@ static CommonOperGroup grBgSimplify_polygon      ("bg_simplify_polygon", oper_po
 static CommonOperGroup grBgSimplify_linestring   ("bg_simplify_linestring", oper_policy::better_not_in_meta_scripting);
 
 static CommonOperGroup grBgIntersect("bg_intersect", oper_policy::better_not_in_meta_scripting);
+static CommonOperGroup grBgUnion    ("bg_union", oper_policy::better_not_in_meta_scripting);
+static CommonOperGroup grBgXOR      ("bg_xor", oper_policy::better_not_in_meta_scripting);
+static CommonOperGroup grBgSubtr     ("bg_subtr", oper_policy::better_not_in_meta_scripting);
 
 static CommonOperGroup grBgBuffer_point        ("bg_buffer_point", oper_policy::better_not_in_meta_scripting);
 static CommonOperGroup grBgBuffer_multi_point  ("bg_buffer_multi_point", oper_policy::better_not_in_meta_scripting);

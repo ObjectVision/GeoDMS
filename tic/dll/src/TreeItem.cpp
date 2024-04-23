@@ -1255,15 +1255,43 @@ SharedTreeItem TreeItem::GetCurrStorageParent(bool alsoForWrite) const
 
 bool TreeItem::IsLoadable() const
 {
-	return (IsDataItem(this) || IsUnit(this)) 
-		&&	GetStorageParent(false);
+	if (!IsDataItem(this) && !IsUnit(this)) 
+		return false;
+	auto sp = GetStorageParent(false);
+	if (!sp)
+		return false;
+	return true;
 }
+
+/*
+bool TreeItem::IsLoadableAndExists() const
+{
+	if (!IsDataItem(this) && !IsUnit(this))
+		return false;
+	auto sp = GetStorageParent(false);
+	if (!sp)
+		return false;
+
+	auto sm = sp->GetStorageManager();
+	assert(sm);
+
+	return sm->DoCheckExistence(sp, this);
+}
+*/
 
 bool TreeItem::IsCurrLoadable() const
 {
 	assert(!m_Parent || m_Parent->Was(PS_MetaInfo) || m_Parent->WasFailed());
-	return (IsDataItem(this) || IsUnit(this))
-		&& GetCurrStorageParent(false);
+	if (!IsDataItem(this) & !IsUnit(this))
+		return false;
+
+	auto sp = GetCurrStorageParent(false);
+	if (!sp)
+		return false;
+	auto sm = sp->GetCurrStorageManager();
+	assert(sm);
+
+	return sm->DoCheckExistence(sp, this);
 }
 
 bool TreeItem::IsStorable() const
@@ -1382,9 +1410,13 @@ const TreeItem* TreeItem::GetNamespaceUsage(UInt32 i) const
 bool TreeItem::IsDataReadable() const
 {
 	bool isLoadable = IsLoadable();
+	if (!isLoadable)
+		return false;
 	bool hasCalculator = HasCalculatorImpl();
+	if (hasCalculator)
+		return false;
 	bool hasConfigData = HasConfigData();
-	return isLoadable && !hasCalculator && !hasConfigData;
+	return !hasConfigData;
 }
 
 //----------------------------------------------------------------------
@@ -2408,7 +2440,9 @@ void TreeItem::UpdateMetaInfoImpl2() const
 
 	if (GetTreeParent())
 		GetTreeParent()->UpdateMetaInfo();
-
+	if (HasStorageManager())
+		GetStorageManager();
+	
 	try {
 		DetermineState();
 		if ((m_State.GetProgress()>=PS_MetaInfo) || WasFailed(FR_MetaInfo)) // reset by DetermineState when supplier was invalidated
@@ -2441,8 +2475,7 @@ void TreeItem::UpdateMetaInfoImpl2() const
 		if (storageParent)
 		{
 			auto sm = storageParent->GetStorageManager();
-			if (auto nmsm = dynamic_cast<NonmappableStorageManager*>(sm))
-				nmsm->UpdateTree(storageParent, const_cast<TreeItem*>(this));
+			sm->UpdateTree(storageParent, const_cast<TreeItem*>(this));
 		}
 		// validate units with refObject if it wasn't copied by the parent
 
@@ -3369,27 +3402,49 @@ bool TreeItem::PrepareDataUsageImpl(DrlType drlFlags) const
 		}
 		if (!IsCacheItem())
 		{
-			if (auto sp = GetCurrStorageParent(true))
+			if (auto sp = GetCurrStorageParent(false))
 			{
 				auto sm = sp->GetStorageManager();
 				assert(sm);
 				if (auto mmd = dynamic_cast<MmdStorageManager*>(sm))
 				{
-					auto fsn = sm->GetNameStr();
-					auto rn = GetRelativeName(sp);
-
-					auto fn = DelimitedConcat(fsn, rn);
-					auto fh = OpenFileData(AsDataItem(this), fn, mmd->GetSFWA());
-					if (fh)
+					bool mustWrite = HasCalculator();
+					bool mustSkip = mustWrite && GetCalculator()->IsDataBlock();
+					if (!mustSkip && !mmd->IsOpen() || mustWrite && !mmd->IsOpenForWrite())
 					{
-						AsDataItem(GetCurrUltimateItem())->m_DataObject.reset(fh.release()); // , !adi->IsPersistent(), true); // calls OpenFileData
-						return true;
+						auto parent = GetStorageParent(mustWrite);
+						if (!parent)
+							mustSkip = true;
+						else
+						{
+							auto smi = StorageMetaInfo(parent, this);
+							if (mustWrite)
+								mmd->OpenForWrite(smi);
+							else
+								mmd->OpenForRead(smi);
+						}
+					}
+					if (!mustSkip)
+					{
+						auto fsn = sm->GetNameStr();
+						auto rn = GetRelativeName(sp);
+
+						auto fn = DelimitedConcat(fsn, rn);
+						if (IsFileOrDirAccessible(fn))
+						{
+							auto fh = OpenFileData(AsDataItem(this), avu ? avu->GetTiledRangeData() : nullptr, fn, mmd->GetSFWA());
+							if (fh)
+							{
+								AsDataItem(GetCurrUltimateItem())->m_DataObject.reset(fh.release()); // , !adi->IsPersistent(), true); // calls OpenFileData
+								return true;
+							}
+						}
 					}
 				}
 			}
 		}
 	}
-	dms_assert(!SuspendTrigger::DidSuspend());
+	assert(!SuspendTrigger::DidSuspend());
 
 	try {
 		while (true)
@@ -3730,10 +3785,10 @@ void TreeItem::ClearData(garbage_t&) const
 #include <time.h>
 
 
-void TreeItem::XML_Dump(OutStreamBase* xmlOutStr) const
+void TreeItem::XML_Dump(OutStreamBase* xmlOutStr, bool dumpSubTags) const
 { 
 	// write #include <filename> if configStore defined
-	if (xmlOutStr->GetLevel() > 0)
+	if (xmlOutStr->GetLevel() > 0 && dumpSubTags)
 	{
 		SharedStr dirName = SharedStr( configStorePropDefPtr->GetValue(this) );
 		if (!dirName.empty())
@@ -3759,7 +3814,9 @@ void TreeItem::XML_Dump(OutStreamBase* xmlOutStr) const
 	XML_OutElement xmlElem(*xmlOutStr, tagName.c_str(), GetName().c_str());
 
 	xmlOutStr->DumpPropList(this);
-	xmlOutStr->DumpSubTags(this);
+
+	if (dumpSubTags)
+		xmlOutStr->DumpSubTags(this);
 	// end of Copy
 
 	if (IsDataItem(this))
@@ -3775,6 +3832,17 @@ void TreeItem::XML_Dump(OutStreamBase* xmlOutStr) const
 				TreeItemInterestPtr holder(this);
 				XML_DumpData(xmlOutStr);
 			}
+		}
+	}
+	else if (IsUnit(this) && !dumpSubTags)
+	{
+		auto au = AsUnit(this);
+		if (au->HasVarRange())
+		{
+			TreeItemInterestPtr xholder(this);
+			this->PrepareDataUsage(DrlType::Certain);
+
+			xmlOutStr->DumpSubTag("Range", au->GetRangeAsStr().c_str(), false);
 		}
 	}
 
@@ -3797,7 +3865,7 @@ void TreeItem::XML_Dump(OutStreamBase* xmlOutStr) const
 	while (subItem)
 	{
 		if (!subItem->IsEndogenous())
-			subItem->XML_Dump(xmlOutStr);
+			subItem->XML_Dump(xmlOutStr, dumpSubTags);
 		subItem = subItem->GetNextItem();
 	}
 	xmlOutStr->EndSubItems();

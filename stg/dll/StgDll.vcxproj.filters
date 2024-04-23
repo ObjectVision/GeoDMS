@@ -1,9 +1,6 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
-    <Filter Include="Ascii Grid">
-      <UniqueIdentifier>{8bab4ee0-c7df-420a-85ac-cdc4460ca4e4}</UniqueIdentifier>
-    </Filter>
     <Filter Include="Ascii Table">
       <UniqueIdentifier>{c6b55bed-23ee-41d8-8ab4-21bbc9c87237}</UniqueIdentifier>
     </Filter>
@@ -36,9 +33,6 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="src\asc\AscStorageManager.cpp">
-      <Filter>Ascii Grid</Filter>
-    </ClCompile>
     <ClCompile Include="src\bmp\BmpStorageManager.cpp">
       <Filter>Bmp</Filter>
     </ClCompile>
@@ -78,9 +72,6 @@
     </ClCompile>
     <ClCompile Include="src\GridStoragemanager.cpp" />
     <ClCompile Include="src\ImplMain.cpp" />
-    <ClCompile Include="src\asc\AsciiImp.cpp">
-      <Filter>Ascii Grid</Filter>
-    </ClCompile>
     <ClCompile Include="src\bmp\BmpImp.cpp">
       <Filter>Bmp</Filter>
     </ClCompile>
@@ -101,9 +92,6 @@
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="src\asc\AscStorageManager.h">
-      <Filter>Ascii Grid</Filter>
-    </ClInclude>
     <ClInclude Include="src\bmp\BmpStorageManager.h">
       <Filter>Bmp</Filter>
     </ClInclude>
@@ -149,9 +137,6 @@
     <ClInclude Include="src\viewportinfo.h" />
     <ClInclude Include="src\FilePtrHandle.h" />
     <ClInclude Include="src\ImplMain.h" />
-    <ClInclude Include="src\asc\AsciiImp.h">
-      <Filter>Ascii Grid</Filter>
-    </ClInclude>
     <ClInclude Include="src\bmp\BmpImp.h">
       <Filter>Bmp</Filter>
     </ClInclude>

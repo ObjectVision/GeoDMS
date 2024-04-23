@@ -218,12 +218,18 @@ void GetUniqueValues(AbstrUnit* res, AbstrDataItem* resSub, const AbstrDataItem*
 		auto indexEnd = make_strict_monotonous(index.begin(), index.end(), IndexCompareOper<ConstDataIter, index_type>(allValues.begin()));
 		index.erase(indexEnd, index.end());
 
-		res->SetCount(index.size());
+		SizeT nrUndefined = 0;
+		for (auto i : index)
+			if (!IsDefined(allValues[i]))
+				++nrUndefined;
+
+		res->SetCount(index.size() - nrUndefined);
 
 		locked_tile_write_channel<V> resWriter(resSub);
 		for (auto i : index)
-			resWriter.Write(allValues[i]);
-		dms_assert(resWriter.IsEndOfChannel());
+			if (IsDefined(allValues[i]))	
+				resWriter.Write(allValues[i]);
+		assert(resWriter.IsEndOfChannel());
 		resWriter.Commit();
 	});
 }

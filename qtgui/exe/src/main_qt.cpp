@@ -30,7 +30,7 @@
 #include "DmsDetailPages.h"
 #include "TestScript.h"
 
-int RunTestScript(SharedStr testScriptName, HWND hwDispatch);
+int RunTestScript(SharedStr testScriptName);
 
 
 struct CmdLineException : SharedStr, std::exception
@@ -126,14 +126,15 @@ void SaveDetailPage(CharPtr fileName)
     auto dmsFileName = ConvertDosFileName(SharedStr(fileName));
     auto expandedFilename = AbstrStorageManager::Expand(currItem, dmsFileName);
 
-    auto htmlSource = MainWindow::TheOne()->m_detail_pages->toHtml();
+    // TODO: implement SaveDetailPage for QWebEngineView
+    /*auto htmlSource = MainWindow::TheOne()->m_detail_pages->toHtml();
     auto htmlsourceAsUtf8 = htmlSource.toUtf8();
 
     reportF(MsgCategory::commands, SeverityTypeID::ST_MajorTrace, "SaveDetailPage %s", DoubleQuote(expandedFilename.c_str()));
 
     FileOutStreamBuff buff(SharedStr(expandedFilename), nullptr, true, false);
    
-    buff.WriteBytes(htmlsourceAsUtf8.data(), htmlsourceAsUtf8.size());
+    buff.WriteBytes(htmlsourceAsUtf8.data(), htmlsourceAsUtf8.size());*/
 }
 
 UInt32 Get4Bytes(const COPYDATASTRUCT* pcds, UInt32 i)
@@ -286,6 +287,7 @@ bool CustomEventFilter::nativeEventFilter(const QByteArray& /*eventType*/, void*
         ProcessMainThreadOpers();
         return true;
 
+    case WM_APP + 4:
     case WM_COPYDATA:
         if (msg->hwnd == (HWND)MainWindow::TheOne()->winId())
         {
@@ -410,19 +412,17 @@ int main_without_SE_handler(int argc, char *argv[])
         MainWindow main_window(settingsFrame);
         dms_app_on_heap->setWindowIcon(QIcon(":/res/images/GeoDmsGuiQt.png"));
         dms_app_on_heap->installEventFilter(mouse_forward_backward_event_filter_on_heap.get());
-        
-        auto tsn = settingsFrame.m_TestScriptName;
-        std::future<int> testResult;
-        if (!tsn.empty())
-        {
-            HWND hwDispatch = (HWND)(MainWindow::TheOne()->winId());
-            assert(hwDispatch);
-            testResult = std::async([tsn, hwDispatch] { return RunTestScript(tsn, hwDispatch);  });
-        }
         splash->finish(&main_window);
         splash.reset();
 
         main_window.showMaximized();
+
+        auto tsn = settingsFrame.m_TestScriptName;
+        std::future<int> testResult;
+        if (!tsn.empty())
+        {
+            testResult = std::async([tsn] { return RunTestScript(tsn); });
+        }
         auto result = dms_app_on_heap->exec();
 
         if (!tsn.empty() && !result)

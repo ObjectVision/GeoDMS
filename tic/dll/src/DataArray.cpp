@@ -873,13 +873,16 @@ TIC_CALL auto CreateHeapTileArrayV(const AbstrTileRangeData* tdr, const range_or
 	return newTileFunctor;
 }
 
-auto CreateAbstrHeapTileFunctor(const AbstrDataItem* adi, SharedPtr<const SharedObj> abstrValuesRangeData, const bool mustClear MG_DEBUG_ALLOCATOR_SRC_ARG) -> std::unique_ptr<AbstrDataObject>
+auto CreateAbstrHeapTileFunctor(const AbstrDataItem* adi, SharedPtr<const SharedObj> abstrValuesRangeData, const bool mustClear) -> std::unique_ptr<AbstrDataObject>
 {
 	MG_CHECK(adi->GetAbstrDomainUnit());
 	MG_CHECK(adi->GetAbstrValuesUnit());
 	dbg_assert(adi->GetAbstrDomainUnit()->CheckMetaInfoReadyOrPassor());
 	dbg_assert(adi->GetAbstrValuesUnit()->CheckMetaInfoReadyOrPassor());
-	SharedPtr<const AbstrTileRangeData> currTRD = AsUnit(adi->GetAbstrDomainUnit()->GetCurrRangeItem())->GetTiledRangeData();
+
+	auto adu = adi->GetAbstrDomainUnit();
+	assert(adu);
+	SharedPtr<const AbstrTileRangeData> currTRD = AsUnit(adu->GetCurrRangeItem())->GetTiledRangeData();
 	MG_CHECK(currTRD);
 	SharedPtr<const AbstrUnit> valuesUnit = AsUnit(adi->GetAbstrValuesUnit()->GetCurrRangeItem());
 
@@ -895,7 +898,7 @@ auto CreateAbstrHeapTileFunctor(const AbstrDataItem* adi, SharedPtr<const Shared
 	{
 	case ValueComposition::Single:
 		visit<typelists::fields>(valuesUnit, 
-			[&resultHolder, adi, currTRD, abstrValuesRangeData, mustClear MG_DEBUG_ALLOCATOR_SRC_PARAM] <typename value_type> (const Unit<value_type>* valuesUnitPtr)
+			[&resultHolder, adi, currTRD, abstrValuesRangeData, mustClear] <typename value_type> (const Unit<value_type>* valuesUnitPtr)
 			{
 				resultHolder.reset(CreateHeapTileArrayV<value_type>(currTRD, dynamic_cast<const range_or_void_data<value_type>*>(abstrValuesRangeData.get()), mustClear MG_DEBUG_ALLOCATOR_SRC_PARAM).release());
 			}
@@ -904,7 +907,7 @@ auto CreateAbstrHeapTileFunctor(const AbstrDataItem* adi, SharedPtr<const Shared
 	case ValueComposition::Sequence:
 	case ValueComposition::Polygon:
 		visit<typelists::sequence_fields>(valuesUnit, 
-			[&resultHolder, adi, currTRD, abstrValuesRangeData, mustClear MG_DEBUG_ALLOCATOR_SRC_PARAM] <typename value_type> (const Unit<value_type>*valuesUnitPtr)
+			[&resultHolder, adi, currTRD, abstrValuesRangeData, mustClear] <typename value_type> (const Unit<value_type>*valuesUnitPtr)
 			{
 				using element_type = typename sequence_traits<value_type>::container_type;
 
@@ -917,41 +920,34 @@ auto CreateAbstrHeapTileFunctor(const AbstrDataItem* adi, SharedPtr<const Shared
 	return resultHolder;
 }
 
-auto CreateFileTileArray(const AbstrDataItem* adi, dms_rw_mode rwMode, SharedStr filenameBase, bool isTmp, SafeFileWriterArray* sfwa) -> std::unique_ptr<AbstrDataObject>
+auto CreateFileTileArray(const AbstrDataItem* adi, const SharedObj* abstrValuesRangeData, dms_rw_mode rwMode, SharedStr filenameBase, bool isTmp, SafeFileWriterArray* sfwa) -> std::unique_ptr<AbstrDataObject>
 {
 	MG_CHECK(adi->GetAbstrDomainUnit());
 	MG_CHECK(adi->GetAbstrValuesUnit());
 
-	SharedPtr<const AbstrTileRangeData> currTRD = adi->GetAbstrDomainUnit()->GetTiledRangeData();
-	dms_assert(currTRD);
+	auto adu = adi->GetAbstrDomainUnit();
+	assert(adu);
+	assert(adu->HasInterest());
+
+	SharedPtr<const AbstrTileRangeData> currTRD = AsUnit(adu->GetCurrRangeItem())->GetTiledRangeData();
+	assert(currTRD);
 
 	std::unique_ptr<AbstrDataObject> resultHolder;
-	switch (adi->GetValueComposition())
-	{
-	case ValueComposition::Single:
-		visit<typelists::fields>(adi->GetAbstrValuesUnit(), 
-			[&resultHolder, adi, currTRD, rwMode, filenameBase, isTmp, sfwa] <typename value_type> (const Unit<value_type>* valuesUnitPtr)
-			{
-				auto newTileFunctor = std::make_unique<FileTileArray<value_type>>(currTRD, filenameBase, rwMode, isTmp, sfwa);
-				newTileFunctor->InitValueRangeData(get_range_ptr_of_valuesunit(valuesUnitPtr));
-				resultHolder.reset(newTileFunctor.release());
-			}
-		);
-		break;
-	case ValueComposition::Sequence:
-	case ValueComposition::Polygon:
-		visit<typelists::sequence_fields>(adi->GetAbstrValuesUnit(), 
-			[&resultHolder, adi, currTRD, rwMode, filenameBase, isTmp, sfwa] <typename value_type> (const Unit<value_type>* valuesUnitPtr)
-			{
-				using element_type = typename sequence_traits<value_type>::container_type;
-				auto newTileFunctor = std::make_unique<FileTileArray<element_type> >(currTRD, filenameBase, rwMode, isTmp, sfwa);
-				newTileFunctor->InitValueRangeData(get_range_ptr_of_valuesunit(valuesUnitPtr));
-				resultHolder.reset(newTileFunctor.release());
-			}
-		);
-		break;
+	if (adi->GetValueComposition() != ValueComposition::Single 
+		|| adi->GetAbstrValuesUnit()->GetDynamicClass() == Unit<SharedStr>::GetStaticClass()
+		|| adi->GetAbstrValuesUnit()->GetValueType()->IsSubByteElem()
+		)
+		return CreateAbstrHeapTileFunctor(adi, abstrValuesRangeData, rwMode == dms_rw_mode::write_only_mustzero);
 
-	}
+	auto avu = AsUnit(adi->GetAbstrValuesUnit()->GetCurrRangeItem());
+	visit<typelists::sequence_fields>(avu,
+			[&resultHolder, adi, currTRD, rwMode, filenameBase, isTmp, sfwa] <typename value_type> (const Unit<value_type>*valuesUnitPtr)
+		{
+			auto newTileFunctor = std::make_unique<FileTileArray<value_type>>(currTRD, filenameBase, rwMode, isTmp, sfwa);
+			newTileFunctor->InitValueRangeData(get_range_ptr_of_valuesunit(valuesUnitPtr));
+			resultHolder.reset(newTileFunctor.release());
+		}
+		);
 	return resultHolder;
 }
 

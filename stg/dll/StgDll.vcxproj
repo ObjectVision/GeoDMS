@@ -54,12 +54,10 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="src\cfs\CompoundStorageManager.cpp" />
-    <ClCompile Include="src\asc\AscStorageManager.cpp" />
     <ClCompile Include="src\bmp\BmpStorageManager.cpp" />
     <ClCompile Include="src\gdal\gdal_base.cpp" />
     <ClCompile Include="src\gdal\gdal_grid.cpp" />
     <ClCompile Include="src\gdal\gdal_vect.cpp" />
-    <ClCompile Include="src\asc\AsciiImp.cpp" />
     <ClCompile Include="src\bmp\BmpImp.cpp" />
     <ClCompile Include="src\odbc\OdbcImp.cpp" />
     <ClCompile Include="src\xdb\XdbImp.cpp" />
@@ -78,7 +76,6 @@
     <ClCompile Include="src\DllMain.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="src\asc\AsciiImp.h" />
     <ClInclude Include="src\bmp\BmpImp.h" />
     <ClInclude Include="src\odbc\OdbcImp.h" />
     <ClInclude Include="src\viewportinfo.h" />
@@ -89,7 +86,6 @@
     <ClInclude Include="src\FilePtrHandle.h" />
     <ClInclude Include="src\ImplMain.h" />
     <ClInclude Include="src\cfs\CompoundStorageManager.h" />
-    <ClInclude Include="src\asc\AscStorageManager.h" />
     <ClInclude Include="src\bmp\BmpStorageManager.h" />
     <ClInclude Include="src\gdal\gdal_base.h" />
     <ClInclude Include="src\gdal\gdal_grid.h" />

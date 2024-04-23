@@ -696,6 +696,7 @@ void DmsTreeView::showTreeviewContextMenu(const QPoint& pos)
 	auto ti = GetTreeItem(index);
 	MainWindow::TheOne()->setCurrentTreeItem(ti); // we assume Popupmenu act on current item, so accomodate now.
 	auto ti_is_or_is_in_template = ti->InTemplate() && ti->IsTemplate();
+	auto ti_is_dataitem = IsDataItem(ti);
 
 	auto item_can_be_exported = !ti->WasFailed() && !ti_is_or_is_in_template && (currentItemCanBeExportedToVector(ti) || currentItemCanBeExportedToRaster(ti));
 	export_primary_data_action->setEnabled(item_can_be_exported);
@@ -706,7 +707,7 @@ void DmsTreeView::showTreeviewContextMenu(const QPoint& pos)
 	default_view_action->setDisabled(ti_is_or_is_in_template);
 	table_view_action->setDisabled(ti_is_or_is_in_template);
 	map_view_action->setDisabled(ti_is_or_is_in_template);
-	statistics_view_action->setDisabled(ti_is_or_is_in_template);
+	statistics_view_action->setDisabled(!ti_is_dataitem || ti_is_or_is_in_template);
 
 	m_context_menu->popup(viewport()->mapToGlobal(pos));
 	MainWindow::TheOne()->updateToolsMenu();

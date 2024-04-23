@@ -81,6 +81,7 @@ namespace token {
 	extern TIC_CALL TokenID cat_range;
 	extern TIC_CALL TokenID TiledUnit;
 	extern TIC_CALL TokenID point;
+	extern TIC_CALL TokenID point_xy;
 
 	extern TIC_CALL TokenID BaseUnit;
 	extern TIC_CALL TokenID UInt32;
@@ -196,7 +197,7 @@ inline LispRef AsLispRef(double v)
 template <typename T>
 auto AsLispRef(Point<T> p) -> LispRef
 {
-	return ExprList(token::point, AsLispRef(p.first), AsLispRef(p.second));
+	return ExprList(token::point_xy	, AsLispRef(p.X()), AsLispRef(p.Y()));
 }
 
 template <typename T, typename Enabled = std::enable_if_t<is_numeric_v<T>>>
@@ -238,7 +239,6 @@ inline auto AsLispRef(SharedStr s, LispPtr valuesUnitKeyExpr) -> LispRef
 template <typename T>
 auto AsLispRef(const Range<T>& range, LispRef&& base, bool asCategorical) -> LispRef
 {
-	assert(!(base.IsRealList() && base.Left().IsSymb() && base.Left().GetSymbID() == token::range));
 	return ExprList(asCategorical ? token::cat_range : token::range, base
 		, AsLispRef(range.first)
 		, AsLispRef(range.second)

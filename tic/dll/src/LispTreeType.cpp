@@ -152,6 +152,7 @@ namespace token {
 	TIC_CALL TokenID TiledUnit = GetTokenID_st("TiledUnit");
 
 	TIC_CALL TokenID point = GetTokenID_st("point");
+	TIC_CALL TokenID point_xy = GetTokenID_st("point_xy");
 	TIC_CALL TokenID union_data = GetTokenID_st("union_data");
 	TIC_CALL TokenID sourceDescr = GetTokenID_st("SourceDescr");
 	TIC_CALL TokenID container = GetTokenID_st("container");

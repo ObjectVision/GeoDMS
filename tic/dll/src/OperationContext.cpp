@@ -324,7 +324,7 @@ garbage_t runOperationContexts()
 
 		for (; s_NrRunningOperations < s_nrVCPUs && currContext != scheduledContexts.end(); ++currContext)
 		{
-			if (s_NrRunningOperations >= 2 && !isLowOnFreeRamTested) // HEURISTIC: only allow more than 2 operations when RAM isn't being exausted
+			if (s_NrRunningOperations >= 1 && !isLowOnFreeRamTested) // HEURISTIC: only allow more than 1 operations when RAM isn't being exausted
 			{
 				if (IsLowOnFreeRAM())
 					break;

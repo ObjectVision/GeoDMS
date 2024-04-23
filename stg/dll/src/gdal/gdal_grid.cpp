@@ -873,18 +873,6 @@ WPoint GDAL_SimpleReader::ReadGridData(CharPtr fileName, buffer_type& buffer)
 IMPL_DYNC_STORAGECLASS(GdalGridSM, "gdal.grid")
 IMPL_DYNC_STORAGECLASS(GdalWritableGridSM, "gdalwrite.grid")
 
-struct GdalGridSM2 : GdalGridSM
-{
-	GdalGridSM2()
-	{
-		reportD(SeverityTypeID::ST_Warning, "StorageManager gdal2.grid is depreciated and will be removed in GeoDms version 15.0.0");
-		static_assert(DMS_VERSION_MAJOR != 15);
-	}
-	DECL_RTTI(STGDLL_CALL, StorageClass)
-};
-
-IMPL_DYNC_STORAGECLASS(GdalGridSM2, "gdal2.grid")
-
 // type aliasses
 namespace {
 	StorageClass ilwisStorageManagers(CreateFunc<GdalGridSM>, GetTokenID_st("ilwis"));

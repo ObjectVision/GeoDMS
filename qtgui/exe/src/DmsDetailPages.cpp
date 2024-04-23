@@ -7,7 +7,8 @@
 
 #include <QObject>
 #include <QDockWidget>
-#include <QTextBrowser>
+#include <QWebEngineView>
+#include <QWebEnginePage>
 #include <QTimer>
 #include <Qclipboard.h>
 
@@ -40,6 +41,30 @@
 #ifdef _DEBUG
 #define new MYDEBUG_NEW 
 #endif
+
+// =================================================================================================
+// code from ChatGPT
+// =================================================================================================
+
+class CustomWebEnginePage : public QWebEnginePage {
+public:
+    using QWebEnginePage::QWebEnginePage; // Inherit constructors from QWebEnginePage
+
+protected:
+    bool acceptNavigationRequest(const QUrl& url, NavigationType type, bool isMainFrame) override {
+        if (type == NavigationType::NavigationTypeLinkClicked) {
+            // Handle the link click, for example, by emitting a custom signal
+            emit linkClicked(url);
+            return false; // Prevent the navigation within the QWebEngineView
+        }
+        return true; // Allow other navigation requests
+    }
+
+signals:
+    void linkClicked(const QUrl& url); // Define a custom signal
+};
+
+// =================================================================================================
 
 void DmsDetailPages::setActiveDetailPage(ActiveDetailPage new_active_detail_page)
 {
@@ -426,12 +451,9 @@ auto DmsDetailPages::activeDetailPageFromName(CharPtrRange sName) -> ActiveDetai
 }
 
 DmsDetailPages::DmsDetailPages(QWidget* parent)
-    : QUpdatableTextBrowser(parent)
+    : QUpdatableWebBrowser(parent)
 {
-    setOpenLinks(false);
-    setOpenExternalLinks(false);
     setProperty("DmsHelperWindowType", DmsHelperWindowType::HW_DETAILPAGES);
-    connect(this, &QTextBrowser::anchorClicked, this, &DmsDetailPages::onAnchorClicked);
     setSizePolicy(QSizePolicy::MinimumExpanding, QSizePolicy::Expanding);
 }
 
@@ -453,7 +475,8 @@ QSize DmsDetailPages::minimumSizeHint() const
 void DmsDetailPages::resizeEvent(QResizeEvent* event)
 {
     m_current_width = width();
-    QTextBrowser::resizeEvent(event);
+    //TODO: reimplement this behavior to comply to QtWebView
+    //QTextBrowser::resizeEvent(event);
 }
 
 #include <QDesktopServices>

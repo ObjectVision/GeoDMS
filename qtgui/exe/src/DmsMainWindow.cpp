@@ -77,7 +77,7 @@ bool MainWindow::ShowInDetailPage(SharedStr x)
     auto realm = Realm(x);
     if (realm.size() == 3 && !strncmp(realm.begin(), "dms", 3))
         return true;
-    if (!realm.empty())
+    if (!realm.empty() && realm.size() > 1)
         return false;
     CharPtrRange knownSuffix(".adms");
     return std::search(x.begin(), x.end(), knownSuffix.begin(), knownSuffix.end()) != x.end();
@@ -94,9 +94,10 @@ void MainWindow::SaveValueInfoImpl(CharPtr filename)
         if (!value_info_window_candidate)
             continue;
 
-        auto htmlSource = value_info_window_candidate->m_browser->toHtml();
-        auto htmlsourceAsUtf8 = htmlSource.toUtf8();
-        buff.WriteBytes(htmlsourceAsUtf8.data(), htmlsourceAsUtf8.size());
+        // TODO: implement this for qwebengineview
+        //auto htmlSource = value_info_window_candidate->m_browser->toHtml();
+        //auto htmlsourceAsUtf8 = htmlSource.toUtf8();
+        //buff.WriteBytes(htmlsourceAsUtf8.data(), htmlsourceAsUtf8.size());
     }
 }
 
@@ -256,6 +257,7 @@ MainWindow::MainWindow(CmdLineSetttings& cmdLineSettings)
     QString family = QFontDatabase::applicationFontFamilies(id).at(0);
     QFont dms_text_font(family, 10);
     QApplication::setFont(dms_text_font);
+    //QApplication::setAttribute(Qt::AA_UseSoftwareOpenGL); // force software rendering 
     QFontDatabase::addApplicationFont(":/res/fonts/remixicon.ttf");
 
     // helper dialogues
@@ -313,7 +315,6 @@ MainWindow::MainWindow(CmdLineSetttings& cmdLineSettings)
     Float32 drawing_size_in_pixels = GetDrawingSizeInPixels(); // from registry
     SetDrawingSizeTresholdValue(drawing_size_in_pixels);
 
-    resizeDocksToNaturalSize();
     setStyleSheet("QMainWindow::separator{ width: 5px; height: 5px; }");
 }
 
@@ -394,7 +395,7 @@ auto MainWindow::CreateCodeAnalysisSubMenu(QMenu* menu) -> std::unique_ptr<QMenu
 
 MainWindow* MainWindow::TheOne()
 {
-    assert(IsMainThread()); // or use a mutex to guard access to TheOne.
+//    assert(IsMainThread()); // or use a mutex to guard access to TheOne.
 //    assert(s_CurrMainWindow);// main window destructor might already be in session, such as when called from the destructor of ValueInfoPanel
     return s_CurrMainWindow;
 }
@@ -931,7 +932,6 @@ void MainWindow::clearToolbarUpToDetailPagesTools()
     for (auto action : m_current_dms_view_actions)
         m_toolbar->removeAction(action);
     m_current_dms_view_actions.clear();
-
 }
 
 void MainWindow::updateToolbar()
@@ -968,10 +968,19 @@ void MainWindow::updateToolbar()
     DataView* dv = nullptr;
     if (active_dms_view_area)
     {
+        // get viewstyle from dataview
         dv = active_dms_view_area->getDataView();
         if (dv)
             view_style = dv->GetViewType();
     }
+
+    // get viewstyle from property
+    if (m_tooled_mdi_subwindow && view_style == ViewStyle::tvsUndefined)
+        ViewStyle view_style = static_cast<ViewStyle>(m_tooled_mdi_subwindow->property("viewstyle").value<QVariant>().toInt());
+
+    if (view_style == ViewStyle::tvsUndefined) // No tools for undefined viewstyle
+        return;
+
     if (view_style==m_current_toolbar_style) // Do nothing
         return;
 
@@ -1035,20 +1044,15 @@ bool MainWindow::event(QEvent* event)
                 {
                     auto changed_files = std::string(vos.GetData(), vos.GetDataEnd());
                     m_file_changed_window->setFileChangedMessage(changed_files);
+
+                    // now allow MsgQueue to process GUI events, such TreeView item activation, 
+                    // that initiated the WindowActivate, before showing the FileChangedWindow
                     QTimer::singleShot(0, this, [=]()
                         {
                             m_file_changed_window->show();
                         });
                 }
             });
-    }
-
-    if (event->type() == QEvent::WindowStateChange && windowState() == Qt::WindowState::WindowMaximized)
-    {
-        int default_treeview_treshold = 100;
-        auto curr_treeview_dock_width = m_treeview_dock->width();
-        if (curr_treeview_dock_width < default_treeview_treshold)
-            resizeDocksToNaturalSize();
     }
 
     return QMainWindow::event(event);
@@ -1231,6 +1235,7 @@ void MainWindow::code_analysis_set_source()
    catch (...)
    {
        auto errMsg = catchException(false);
+       MainWindow::TheOne()->reportErrorAndTryReload(errMsg);
    }
 }
 
@@ -1243,6 +1248,7 @@ void MainWindow::code_analysis_set_target()
     catch (...)
     {
         auto errMsg = catchException(false);
+        reportErrorAndTryReload(errMsg);
     }
 }
 
@@ -1255,6 +1261,7 @@ void MainWindow::code_analysis_add_target()
     catch (...)
     {
         auto errMsg = catchException(false);
+        reportErrorAndTryReload(errMsg);
     }
 }
 
@@ -1588,13 +1595,23 @@ void MainWindow::showStatisticsDirectly(const TreeItem* tiContext)
     if (openErrorOnFailedCurrentItem())
         return;
 
+    if (!IsDataItem(tiContext))
+    {
+        reportF(MsgCategory::commands, SeverityTypeID::ST_Warning, "Cannot show statistics window for items that are not of type dataitem: [[%s]]", tiContext->GetFullName());
+        return;
+    }
+
     auto* mdiSubWindow = new QMdiSubWindow(m_mdi_area.get());
-    auto* textWidget = new StatisticsBrowser(mdiSubWindow);
+    
+    //mdiSubWindow->setWindowFlag(Qt::Window, true);// type windowType
+    auto* statistics_browser = new StatisticsBrowser(mdiSubWindow);
     SuspendTrigger::Resume();
-    textWidget->m_Context = tiContext;
+    statistics_browser->m_Context = tiContext;
     tiContext->PrepareData();
-    mdiSubWindow->setWidget(textWidget);
-    mdiSubWindow->setProperty("viewstyle", ViewStyle::tvsStatistics);
+
+    /*auto* statistics_browser = new QTextEdit(mdiSubWindow);
+    statistics_browser->setText("Test text for DEBUGGING.");*/
+    mdiSubWindow->setWidget(statistics_browser);
 
     SharedStr title = "Statistics of " + SharedStr(tiContext->GetName());
     mdiSubWindow->setWindowTitle(title.c_str());
@@ -1603,7 +1620,7 @@ void MainWindow::showStatisticsDirectly(const TreeItem* tiContext)
     mdiSubWindow->setAttribute(Qt::WA_DeleteOnClose);
     mdiSubWindow->show();
 
-    textWidget->restart_updating();
+    statistics_browser->restart_updating();
 }
 
 void MainWindow::showValueInfo(const AbstrDataItem* studyObject, SizeT index, SharedStr extraInfo)
@@ -1752,18 +1769,6 @@ void MainWindow::addRecentFilesEntry(std::string_view recent_file)
     // connections
     connect(new_recent_file_entry, &DmsRecentFileEntry::triggered, new_recent_file_entry, &DmsRecentFileEntry::onFileEntryPressed);
     connect(new_recent_file_entry, &DmsRecentFileEntry::toggled, new_recent_file_entry, &DmsRecentFileEntry::onFileEntryPressed);
-}
-
-void MainWindow::resizeDocksToNaturalSize()
-{
-    //int default_treeview_width = 500;
-    //int default_detail_pages_width = 500;
-    //int default_value_info_width = 500;
-    //int default_eventlog_height = 600;
-    //resizeDocks({ m_treeview_dock, m_detailpages_dock, m_value_info_dock }, { default_treeview_width, default_detail_pages_width, default_value_info_width }, Qt::Horizontal);
-    
-    //resizeDocks({ m_treeview_dock}, { default_treeview_width}, Qt::Horizontal);
-    //resizeDocks({ m_eventlog_dock }, { default_eventlog_height }, Qt::Vertical);
 }
 
 auto Realm(const auto& x) -> CharPtrRange
@@ -1936,11 +1941,24 @@ void MainWindow::doViewAction(TreeItem* tiContext, CharPtrRange sAction, QWidget
         return;
     }
 
+    // Value info link clicked from value info window
+    tiContext = const_cast<TreeItem*>(tiContext->FindBestItem(sPath).first.get()); // TODO: make result FindBestItem non-const
+    if (origin)
+    {
+        auto value_info_browser = dynamic_cast<ValueInfoBrowser*>(origin);
+        if (value_info_browser)
+        {
+            value_info_browser->addStudyObject(AsDataItem(tiContext), recNo, SharedStr(sSub));
+            return;
+        }
+    }
+
+    // Detail- or new ValueinfoWindow requested
     if (sMenu.size() >= 3 && !strncmp(sMenu.begin(), "dp.", 3))
     {
         sMenu.first += 3;
+
         auto detail_page_type = m_detail_pages->activeDetailPageFromName(sMenu);
-        tiContext = const_cast<TreeItem*>(tiContext->FindBestItem(sPath).first.get()); // TODO: make result FindBestItem non-const
         switch (detail_page_type)
         {
         case ActiveDetailPage::STATISTICS:
@@ -1953,16 +1971,7 @@ void MainWindow::doViewAction(TreeItem* tiContext, CharPtrRange sAction, QWidget
             if (!IsDataItem(tiContext))
                 return;
 
-            if (!origin)
-                return MainWindow::TheOne()->showValueInfo(AsDataItem(tiContext), recNo, SharedStr(sSub));
-
-            auto value_info_browser = dynamic_cast<ValueInfoBrowser*>(origin);
-            if (!value_info_browser)
-                return MainWindow::TheOne()->showValueInfo(AsDataItem(tiContext), recNo, SharedStr(sSub));
-
-            value_info_browser->addStudyObject(AsDataItem(tiContext), recNo, SharedStr(sSub));
-
-            return;
+            return MainWindow::TheOne()->showValueInfo(AsDataItem(tiContext), recNo, SharedStr(sSub));
         }
         default:
         {
@@ -2172,28 +2181,25 @@ void MainWindow::createActions()
     m_defaultview_action = std::make_unique<QAction>(tr("Default"));
     m_defaultview_action->setIcon(QIcon::fromTheme("backward", QIcon(":/res/images/TV_default_view.bmp")));
     m_defaultview_action->setStatusTip(tr("Open current selected TreeItem's default view."));
-    auto defaultview_shortcut = new QShortcut(QKeySequence(tr("Ctrl+Alt+D")), this);
-    connect(defaultview_shortcut, &QShortcut::activated, this, &MainWindow::defaultView);
     connect(m_defaultview_action.get(), &QAction::triggered, this, &MainWindow::defaultView);
     m_view_menu->addAction(m_defaultview_action.get());
+    m_defaultview_action->setShortcut(QKeySequence(tr("Ctrl+Alt+D")));
 
     // table view
     m_tableview_action = std::make_unique<QAction>(tr("&Table"));
     m_tableview_action->setStatusTip(tr("Open current selected TreeItem's in a table view."));
     m_tableview_action->setIcon(QIcon::fromTheme("backward", QIcon(":/res/images/TV_table.bmp")));
-    auto tableview_shortcut = new QShortcut(QKeySequence(tr("Ctrl+D")), this);
-    connect(tableview_shortcut, &QShortcut::activated, this, &MainWindow::tableView);
     connect(m_tableview_action.get(), &QAction::triggered, this, &MainWindow::tableView);
     m_view_menu->addAction(m_tableview_action.get());
+    m_tableview_action->setShortcut(QKeySequence(tr("Ctrl+D")));
 
     // map view
     m_mapview_action = std::make_unique<QAction>(tr("&Map"));
     m_mapview_action->setStatusTip(tr("Open current selected TreeItem's in a map view."));
     m_mapview_action->setIcon(QIcon::fromTheme("backward", QIcon(":/res/images/TV_globe.bmp")));
-    auto mapview_shortcut = new QShortcut(QKeySequence(tr("Ctrl+M")), this);
-    connect(mapview_shortcut, &QShortcut::activated, this, &MainWindow::mapView);
     connect(m_mapview_action.get(), &QAction::triggered, this, &MainWindow::mapView);
     m_view_menu->addAction(m_mapview_action.get());
+    m_mapview_action->setShortcut(QKeySequence(tr("CTRL+M")));
 
     // statistics view
     m_statistics_action = std::make_unique<QAction>(tr("&Statistics"));

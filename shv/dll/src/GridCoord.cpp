@@ -8,6 +8,7 @@
 #include "geo/Conversions.h"
 #include "geo/PointOrder.h"
 #include "ser/PairStream.h"
+#include "ser/PointStream.h"
 #include "ser/RangeStream.h"
 
 #include "AbstrUnit.h"

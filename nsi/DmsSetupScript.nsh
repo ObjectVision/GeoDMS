@@ -32,6 +32,7 @@ Section "" ;No components page, name is not important
   
   CreateDirectory $INSTDIR
   File ..\bin\Release\${GeoDmsPlatform}\GeoDmsRun.exe
+  File ..\bin\Release\${GeoDmsPlatform}\QtWebEngineProcess.exe
   File ..\bin\Release\${GeoDmsPlatform}\GeoDmsGuiQt.exe
   File ..\bin\Release\${GeoDmsPlatform}\RewriteExpr.lsp
   File ..\bin\Release\${GeoDmsPlatform}\*.dll
@@ -40,6 +41,9 @@ Section "" ;No components page, name is not important
   File ..\res\NotePadPlusPlus\GeoDMS_npp_def.xml
   
   WriteUninstaller $INSTDIR\uninstaller.exe
+
+  SetOutPath $INSTDIR\resources
+  File ..\bin\Release\${GeoDmsPlatform}\resources\*.*
 
   SetOutPath $INSTDIR\gdaldata
   File ..\bin\Release\${GeoDmsPlatform}\gdaldata\*.*

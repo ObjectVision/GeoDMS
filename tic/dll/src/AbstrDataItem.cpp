@@ -249,8 +249,10 @@ bool AbstrDataItem::DoReadItem(StorageMetaInfoPtr smi)
 {
 	assert(CheckCalculatingOrReady(GetAbstrDomainUnit()->GetCurrRangeItem()));
 
-	auto* sm = smi->StorageManager();
-	assert(sm);
+	auto* sm_ = smi->StorageManager();
+	assert(sm_);
+	auto* sm = dynamic_cast<NonmappableStorageManager*>(sm_);
+	MG_CHECK(sm);
 
 	if (!sm->DoesExist(smi->StorageHolder()))
 		throwItemErrorF( "Storage %s does not exist", sm->GetNameStr().c_str() );
@@ -330,21 +332,22 @@ bool AbstrDataItem::DoWriteItem(StorageMetaInfoPtr&& smi) const
 
 	DataReadLock lockForSave(this);
 
-	auto sm = smi->StorageManager();
+	auto* sm_ = smi->StorageManager();
+	assert(sm_);
+	auto* sm = dynamic_cast<NonmappableStorageManager*>(sm_);
+	MG_CHECK(sm);
+
+
 	FencedInterestRetainContext irc("AbstrDataItem::DoWriteItem");
 	try {
 		SharedPtr<const TreeItem> storageHolder = smi->StorageHolder();
 		sm->ExportMetaInfo(storageHolder, this);
-		if (sm->WriteDataItem(std::move(smi)))
-		{
-			reportF(MsgCategory::storage_write, SeverityTypeID::ST_MajorTrace, "%s IS STORED IN %s",
-				GetSourceName().c_str()
-				, sm->GetNameStr().c_str()
-			);
-		}
-		else
+		if (!sm->WriteDataItem(std::move(smi)))
 			throwItemError("Failure during Writing");
-		
+		reportF(MsgCategory::storage_write, SeverityTypeID::ST_MajorTrace, "%s IS STORED IN %s",
+			GetSourceName().c_str()
+			, sm->GetNameStr().c_str()
+		);
 	}
 	catch (const DmsException& x)
 	{

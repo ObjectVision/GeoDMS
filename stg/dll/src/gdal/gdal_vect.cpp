@@ -1635,7 +1635,7 @@ bool GdalVectSM::ReadUnitRange(const StorageMetaInfo& smi) const
 	return true;
 }
 
-bool GdalVectSM::DoCheckExistence(const TreeItem* storageHolder) const
+bool GdalVectSM::DoCheckExistence(const TreeItem* storageHolder, const TreeItem* storageItem) const
 {
 	return true;
 /*	TODO: factor out DoOpenStorage and DoCloseStorage stuff to a RAII handle and use it to check for existence and report to stream reason for non existence 
@@ -1895,20 +1895,6 @@ prop_tables GdalVectSM::GetPropTables(const TreeItem* storageHolder, TreeItem* c
 // Register
 IMPL_DYNC_STORAGECLASS(GdalVectSM, "gdal.vect")
 IMPL_DYNC_STORAGECLASS(GdalWritableVectSM, "gdalwrite.vect")
-
-struct GdalVectSM2 : GdalVectSM
-{
-	GdalVectSM2()
-	{
-		reportD(SeverityTypeID::ST_Warning, "StorageManager gdal2.vect is depreciated and will be removed in GeoDms version 15.0.0");
-		static_assert(DMS_VERSION_MAJOR != 15);
-	}
-
-
-	DECL_RTTI(STGDLL_CALL, StorageClass)
-};
-
-IMPL_DYNC_STORAGECLASS(GdalVectSM2, "gdal2.vect")
 
 // type aliasses
 namespace {

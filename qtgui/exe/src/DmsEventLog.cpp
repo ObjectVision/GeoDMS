@@ -312,7 +312,11 @@ void EventLogModel::addText(MsgData&& msgData, bool moreToCome)
 	MG_CHECK(not(msgData.m_IsFollowup && md_AddTextCompleted)); // previous msg must have had the cha
 #endif
 
-	auto eventlog = MainWindow::TheOne()->m_eventlog.get();
+	auto mainWindow = MainWindow::TheOne();
+	if (!mainWindow)
+		return;
+
+	auto eventlog = mainWindow->m_eventlog.get();
 
 	eventlog->m_clear->setEnabled(true);
 	m_MsgLines.emplace_back(std::move(msgData));
@@ -649,7 +653,14 @@ void geoDMSMessage(ClientHandle /*clientHandle*/, const MsgData* msgData, bool m
 	}
 
 	assert(IsMainThread());
-	auto* eventlog_model = MainWindow::TheOne()->m_eventlog_model.get(); assert(eventlog_model);
+	if (g_IsTerminating)
+		return;
+
+	auto mainWindow = MainWindow::TheOne();
+	if (!mainWindow)
+		return;
+
+	auto* eventlog_model = mainWindow->m_eventlog_model.get(); assert(eventlog_model);
 	eventlog_model->addText(MsgData(*msgData), moreToCome);
 }
 

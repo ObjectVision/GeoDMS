@@ -394,6 +394,7 @@ void sequence_array<T>::clear()
 
 // sequence_array access control
 
+/*
 template <typename T>
 void sequence_array<T>::Open (seq_size_type nrElem, dms_rw_mode rwMode, bool isTmp, SafeFileWriterArray* sfwa MG_DEBUG_ALLOCATOR_SRC_ARG)
 {
@@ -410,13 +411,14 @@ void sequence_array<T>::Open (seq_size_type nrElem, dms_rw_mode rwMode, bool isT
 	}
 	m_ActualDataSize = 0; // init when first lock is set
 }
+*/
 
 template <typename T>
-void sequence_array<T>::Lock(dms_rw_mode rwMode)   // thread safe operation
+void sequence_array<T>::Lock(dms_rw_mode rwMode) const  // thread safe operation
 { 
 	assert(rwMode >= dms_rw_mode::read_only); // no undefined nor check_only
 
-	SeqLock<seq_vector_t> lock(m_Indices, dms_must_keep(rwMode) ? rwMode : dms_rw_mode::write_only_mustzero); // may throw without any rolbackhere
+	SeqLock<const seq_vector_t> lock(m_Indices, dms_must_keep(rwMode) ? rwMode : dms_rw_mode::write_only_mustzero); // may throw without any rolbackhere
 	m_Values.Lock(dms_must_keep(rwMode) ? rwMode : dms_rw_mode::write_only_all);                            // may throw with rollback managed by lock
 	if (dms_must_keep(rwMode))
 	{
@@ -429,7 +431,7 @@ void sequence_array<T>::Lock(dms_rw_mode rwMode)   // thread safe operation
 	else
 	{
 		m_ActualDataSize = 0;
-		m_Values.clear();
+//		m_Values.clear();
 	}
 	lock.release();
 
@@ -440,13 +442,19 @@ void sequence_array<T>::Lock(dms_rw_mode rwMode)   // thread safe operation
 }
 
 template <typename T>
-void sequence_array<T>::Reset (abstr_sequence_provider<T>* pr) 
+void sequence_array<T>::ResetAllocator(abstr_sequence_provider<T>* pr) 
 { 
+	ResetAllocators(pr ? pr->CloneForSeqs() : nullptr, pr);
+}
+
+template <typename T>
+void sequence_array<T>::ResetAllocators(abstr_sequence_provider<IndexRange<SizeT>>* prIndex, abstr_sequence_provider<T>* prSeqs)
+{
 	MGD_CHECKDATA(!m_Indices.IsLocked());
 	MGD_CHECKDATA(!m_Values.IsLocked());
 
-	m_Indices.Reset(pr ? pr->CloneForSeqs() : 0); 
-	m_Values.Reset(pr); 
+	m_Indices.ResetAllocator(prIndex);
+	m_Values.ResetAllocator(prSeqs);
 	m_ActualDataSize = 0;
 
 	MGD_CHECKDATA(!m_Indices.IsLocked());
@@ -462,7 +470,7 @@ void sequence_array<T>::Reset(size_type nrSeqs, typename data_vector_t::size_typ
 	{
 		assert(!m_Values.IsAssigned());
 
-		Reset(heap_sequence_provider<T>::CreateProvider());
+		ResetAllocator(heap_sequence_provider<T>::CreateProvider());
 
 		assert(m_Indices.IsAssigned());
 		assert(m_Values.IsAssigned());
@@ -500,7 +508,7 @@ void sequence_array<T>::Resize(typename data_vector_t::size_type expectedDataSiz
 	assert(nrSeqs <= expectedSeqsSize); // PRECONDITION
 
 	if (!m_Indices.IsAssigned())
-		Reset(heap_sequence_provider<T>::CreateProvider());
+		ResetAllocator(heap_sequence_provider<T>::CreateProvider());
 
 	SeqLock<sequence_array> selfLock(*this, dms_rw_mode::read_write);
 
@@ -881,6 +889,7 @@ template struct sequence_array<FPoint>;
 //template struct sequence_array<TokenID>;
 template void sequence_array<TokenID>::allocateSequenceRange(typename base_type::seq_iterator seqPtr, const_data_iterator first, const_data_iterator last );
 template void sequence_array<TokenID>::Reset(size_type nrSeqs, data_vector_t::size_type expectedDataSize MG_DEBUG_ALLOCATOR_SRC_ARG);
+template void sequence_array<TokenID>::Lock(enum dms_rw_mode) const;
 
 template struct SA_Reference<char>;
 template struct SA_Reference<DPoint>;

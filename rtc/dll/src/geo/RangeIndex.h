@@ -2,7 +2,9 @@
 // License: GNU GPL 3
 /////////////////////////////////////////////////////////////////////////////
 
+#if defined(_MSC_VER)
 #pragma once
+#endif
 
 #if !defined(__RTC_GEO_RANGEINDEX_H)
 #define __RTC_GEO_RANGEINDEX_H
@@ -19,8 +21,8 @@ inline SizeT Range_GetIndex_naked(const Range<V>& range, V loc)
 {
 	static_assert(is_integral_v<V>);
 
-	dms_assert(IsDefined(range));           // caller must provide a definedrange
-	dms_assert(IsIncluding(range, loc));    // caller must shield out-of-range
+	assert(IsDefined(range));           // caller must provide a definedrange
+	assert(IsIncluding(range, loc));    // caller must shield out-of-range
 
 	assert(loc >= range.first);
 	unsigned_type_t<V> offset = loc - range.first;
@@ -34,8 +36,8 @@ inline SizeT Range_GetIndex_naked_zbase(V upperBound, V loc)
 {
 	static_assert(is_integral_v<V>);
 
-	dms_assert(IsDefined(upperBound));           // caller must provide a definedrange
-	dms_assert(loc < upperBound);    // caller must shield out-of-range
+	assert(IsDefined(upperBound));           // caller must provide a definedrange
+	assert(loc < upperBound);    // caller must shield out-of-range
 
 	SizeT index = loc;
 	return index;
@@ -44,8 +46,8 @@ inline SizeT Range_GetIndex_naked_zbase(V upperBound, V loc)
 template <typename V>
 inline auto Range_GetValue_naked_zbase(V upperBound, SizeT index) -> V
 {
-	dms_assert(index < upperBound);
-	dms_assert(index >= 0);
+	assert(index < upperBound);
+	assert(index >= 0);
 	return index;
 }
 
@@ -54,8 +56,8 @@ inline V Range_GetValue_naked(const Range<V>& range, SizeT index)
 {
 	static_assert(is_integral_v<V>);
 
-	dms_assert(IsDefined(range));        // caller must provide a definedrange
-	dms_assert(index < Cardinality(range)); // caller must shield out of range
+	assert(IsDefined(range));        // caller must provide a definedrange
+	assert(index < Cardinality(range)); // caller must shield out of range
 
 	return range.first + index;
 }
@@ -70,7 +72,7 @@ inline SizeT Range_GetIndex_naked<Void>(const Range<Void>&, Void)
 template <>
 inline Void Range_GetValue_naked(const Range<Void>&, SizeT i)
 {
-	dms_assert(i==0);
+	assert(i==0);
 	return Void();
 }
 
@@ -133,11 +135,11 @@ inline auto Range_GetValue_naked_zbase(Point<T> upperBound, SizeT index) -> Poin
 {
 	SizeT rowSize = upperBound.Col();
 	auto loc = shp2dms_order(index % rowSize, index / rowSize);
-	dms_assert(IsDefined(loc));
-	dms_assert(loc.Col() >= 0);
-	dms_assert(loc.Col() < upperBound.Col());
-	dms_assert(loc.Row() >= 0);
-	dms_assert(loc.Row() < upperBound.Row());
+	assert(IsDefined(loc));
+	assert(loc.Col() >= 0);
+	assert(loc.Col() < upperBound.Col());
+	assert(loc.Row() >= 0);
+	assert(loc.Row() < upperBound.Row());
 
 	return loc;
 }
@@ -145,13 +147,13 @@ inline auto Range_GetValue_naked_zbase(Point<T> upperBound, SizeT index) -> Poin
 template <typename T>
 inline Point<T> Range_GetValue_naked(const Range<Point<T> >& range, SizeT index)
 {
-	dms_assert(IsDefined(range));        // callers must shield undefined values
-	dms_assert(index < Cardinality(range)); // caller must shield out of range
+	assert(IsDefined(range));        // callers must shield undefined values
+	assert(index < Cardinality(range)); // caller must shield out of range
 
 	UInt32 rowSize = Width(range);
-	dms_assert(rowSize != 0);
+	assert(rowSize != 0);
 
-	return Point<T>(Top (range) + index / rowSize, Left(range) + index % rowSize);
+	return rowcol2dms_order<T>(Top (range) + index / rowSize, Left(range) + index % rowSize);
 }
 
 template <typename R, typename V>
@@ -231,7 +233,7 @@ namespace range_impl
 	template <int N, typename B>
 	inline void Range_Index2Value_Inplace_naked(const Range<UInt32>& range, bit_iterator<N, B> first, bit_iterator<N, B> last, const bool_type_tag*)
 	{
-		dms_assert(range.first == 0);
+		assert(range.first == 0);
 		//	NOP
 	}
 
@@ -264,7 +266,7 @@ namespace range_impl
 	template <int N, typename B>
 	inline void Range_Index2Value_Inplace_checked(const Range<UInt32>& range, bit_iterator<N, B> first, bit_iterator<N, B> last, const bool_type_tag*)
 	{
-		dms_assert(range.first == 0);
+		assert(range.first == 0);
 		//	NOP
 	}
 
@@ -283,7 +285,7 @@ namespace range_impl
 	template <typename InIter, int N, typename B>
 	inline void Range_Index2Value_naked(const Range<UInt32>& range,InIter first, InIter last, bit_iterator<N, B> outIter, const bool_type_tag*)
 	{
-		dms_assert(range.first == 0);
+		assert(range.first == 0);
 		fast_copy(first, last, outIter);
 	}
 
@@ -299,7 +301,7 @@ namespace range_impl
 	template <typename InIter, typename OutIter, typename T>
 	inline void Range_Index2Value_checked(const Range<T>& range, InIter first, InIter last, OutIter outIter, const ord_type_tag*)
 	{
-		dms_assert(range.first <= range.second);
+		assert(range.first <= range.second);
 		T                      inc = range.first;
 		typename unsigned_type<T>::type sz = range.second - inc;
 
@@ -343,7 +345,7 @@ namespace range_impl
 	template <int N, typename B>
 	inline void Range_Value2Index_Inplace_naked(const Range<UInt32>& range, bit_iterator<N, B> first, bit_iterator<N, B> last, const bool_type_tag*)
 	{
-		dms_assert(range.first == 0);
+		assert(range.first == 0);
 		// NOP
 	}
 
@@ -361,7 +363,7 @@ namespace range_impl
 	template <int N, typename C, typename OutIter>
 	inline void Range_Value2Index_naked(const Range<UInt32>& range, bit_iterator<N, C> first, bit_iterator<N, C> last, OutIter outIter, const bool_type_tag*)
 	{
-		dms_assert(range.first == 0);
+		assert(range.first == 0);
 		fast_copy(first, last, outIter);
 	}
 

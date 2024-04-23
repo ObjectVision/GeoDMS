@@ -99,17 +99,17 @@ FormPoint TForm::Translate(const FormPoint& p1, TOctant o)
 { 
 	switch (o)
 	{
-		case o_1_1:	return	rowcol2dms_order<FormType>(p1.Row(), p1.Col());
-		case o_1_2:	return	rowcol2dms_order<FormType>(p1.Col(), p1.Row());
+		case o_1_1:	return	rowcol2dms_order<FormType>( p1.Row(),  p1.Col());
+		case o_1_2:	return	rowcol2dms_order<FormType>( p1.Col(),  p1.Row());
 
-		case o_2_1:	return	rowcol2dms_order<FormType>(p1.Row(), -p1.Col());
-		case o_2_2:	return	rowcol2dms_order<FormType>(-p1.Col(), p1.Row());
+		case o_2_1:	return	rowcol2dms_order<FormType>( p1.Row(), -p1.Col());
+		case o_2_2:	return	rowcol2dms_order<FormType>(-p1.Col(),  p1.Row());
 
 		case o_3_1:	return	rowcol2dms_order<FormType>(-p1.Row(), -p1.Col());
 		case o_3_2:	return	rowcol2dms_order<FormType>(-p1.Col(), -p1.Row());
 
-		case o_4_1:	return	rowcol2dms_order<FormType>(-p1.Row(), p1.Col());
-		case o_4_2:	return	rowcol2dms_order<FormType>(p1.Col(), -p1.Row());
+		case o_4_1:	return	rowcol2dms_order<FormType>(-p1.Row(),  p1.Col());
+		case o_4_2:	return	rowcol2dms_order<FormType>( p1.Col(), -p1.Row());
 	}
 	return FormPoint();
 }

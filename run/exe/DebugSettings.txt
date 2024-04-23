@@ -4,5 +4,5 @@
 D:\SourceData\RegressionTests\prj_snapshots\100m_DynaPop\cfg\StatusQuo.dms @Statistics /t810_ValLuisa_Czech_LU_POP/result
 /L"C:\LocalData\regression\log2\VestaIssue.txt"  /S1 /S2 /S3 D:\SourceData\RegressionTests\prj_snapshots\VestaProductie\Runs\regression_test.dms t510_indicator_results_test/result
 
-
-
+/TC:\dev\tst\dmsscript\RSLight_2020_expand_C1C2.dmsscript D:\SourceData\RegressionTests\prj_snapshots\RSLight_2020\cfg\Regression_test.dms /C1 /C2 /S3
+/noconfig
