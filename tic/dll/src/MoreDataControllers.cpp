@@ -135,13 +135,13 @@ FuncDC::FuncDC(LispPtr keyExpr,	const AbstrOperGroup* og)
 		);
 
 	if (og->IsObsolete())
-		reportF(SeverityTypeID::ST_Error, "obsolete operator %s used: %s."
+		throwErrorF("FuncDC", "obsolete operator %s used: %s."
 			, og->GetName()
 			, og->GetObsoleteMsg()
 		);
 
-	dms_assert(GetLispRef().IsRealList());    // no EndP allowed
-	dms_assert(GetLispRef().Left().IsSymb()); // operator or calculation scheme call
+	assert(GetLispRef().IsRealList());    // no EndP allowed
+	assert(GetLispRef().Left().IsSymb()); // operator or calculation scheme call
 
 	if (og->IsTransient())
 		m_State.Set(DCF_CanChange);

@@ -215,7 +215,7 @@ namespace token {
 
 	TIC_CALL TokenID select_data = GetTokenID_st("select_data");
 
-	TIC_CALL TokenID collect_by_cond = GetTokenID_st("collect_by_cond"); // synonymous with select_data
+	TIC_CALL TokenID collect_by_cond = GetTokenID_st("collect_by_cond");
 	TIC_CALL TokenID collect_by_org_rel = GetTokenID_st("collect_by_org_rel"); // synonimous with lookup, arrow-operator, and (reversed) array-index operator
 
 	TIC_CALL TokenID collect_attr_by_cond = GetTokenID_st("collect_attr_by_cond");
