@@ -98,8 +98,6 @@ GraphVisitState AbstrVisitor::DoLayerSet(LayerSet* obj)
 	return DoScalable(obj);
 }
 
-GraphVisitState AbstrVisitor::DoVarRows   (GraphicVarRows*   goc) { return DoMovableContainer(goc); }
-GraphVisitState AbstrVisitor::DoVarCols   (GraphicVarCols*   goc) { return DoMovableContainer(goc); }
 GraphVisitState AbstrVisitor::DoScalable  (ScalableObject*   obj) { return DoObject(obj); }
 
 GraphVisitState AbstrVisitor::DoDataItemColumn(DataItemColumn* dic)  { return DoMovable(dic); }
@@ -121,9 +119,9 @@ GraphVisitState AbstrVisitor::DoGridLayer   (GridLayer*    gl) { return DoLayer 
 GraphVisitState AbstrVisitor::DoFeatureLayer(FeatureLayer* fl) { return DoLayer  (fl); }
 GraphVisitState AbstrVisitor::DoMapControl  (MapControl*   mc) { return DoMovableContainer(mc); }
 
-GraphVisitState AbstrVisitor::DoLayerControlBase (LayerControlBase*  lcb) { return DoVarRows(lcb); }
+GraphVisitState AbstrVisitor::DoLayerControlBase (LayerControlBase*  lcb) { return DoMovableContainer(lcb); }
 GraphVisitState AbstrVisitor::DoLayerControl     (LayerControl* lc)       { return DoLayerControlBase(lc); }
-GraphVisitState AbstrVisitor::DoLayerControlSet  (LayerControlSet*   lcs) { return DoVarRows(lcs); }
+GraphVisitState AbstrVisitor::DoLayerControlSet  (LayerControlSet*   lcs) { return DoMovableContainer(lcs); }
 GraphVisitState AbstrVisitor::DoLayerControlGroup(LayerControlGroup* lcg) { return DoLayerControlBase(lcg); }
 
 WeakPtr<CounterStacks> AbstrVisitor::GetCounterStacks() const

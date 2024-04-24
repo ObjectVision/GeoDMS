@@ -411,7 +411,7 @@ void DataItemColumn::SetElemWidth(UInt16 width)
 	if (width == m_ElemSize.X())
 		return;
 
-	TType colWidth = width; if (HasElemBorder()) colWidth += (2*BORDERSIZE);
+	TType colWidth = width; if (HasElemBorder()) colWidth += DOUBLE_BORDERSIZE;
 
 	if (GetEnabledTheme(AN_SymbolIndex))
 		InvalidateDraw();
@@ -457,7 +457,7 @@ void DataItemColumn::MakeVisibleRow()
 	auto tc = GetTableControl().lock(); if (!tc) return;
 
 	auto elemRect = GetElemFullRelLogicalRect(GetActiveRow());
-	TPoint border  = shp2dms_order<TType>(tc->ColSepWidth(), RowSepHeight());
+	TPoint border  = prj2dms_order<TType>(tc->m_SepSize, RowSepHeight(), tc->IsColOriented());
 	std::shared_ptr<MovableObject> obj = shared_from_this();
 	do
 	{
@@ -585,14 +585,17 @@ void DataItemColumn::DrawBackground(const GraphDrawer& d) const
 	if (!rowSep)
 		return;
 
-	auto deviceRowSep = rowSep * scaleFactors.second;
+	auto tc = GetTableControl().lock(); if (!tc) return;
+	bool isColOriented = tc->IsColOriented();
+	auto scaleFactor = isColOriented ? scaleFactors.second : scaleFactors.first;
+	auto deviceRowSep = rowSep * scaleFactor;
 
-	auto logicalRowHeight = m_ElemSize.Y() + rowSep;
+	auto logicalRowHeight = m_ElemSize.FlippableY(isColOriented) + rowSep;
 	if (HasElemBorder())
-		logicalRowHeight += (2 * BORDERSIZE);
+		logicalRowHeight += DOUBLE_BORDERSIZE;
 	auto deviceRowHeight = logicalRowHeight * scaleFactors.second;
 
-	auto tc = GetTableControl().lock(); if (!tc) return;
+
 	SizeT nrRows = tc->NrRows(); if (!IsDefined(nrRows)) nrRows = 8;
 
 	auto penTheme = GetEnabledTheme(AN_PenColor);
@@ -601,9 +604,9 @@ void DataItemColumn::DrawBackground(const GraphDrawer& d) const
 
 	auto absFullDeviceRect = GetClippedCurrFullAbsDeviceRect(d); 
 
-	TType clientLogicalAbsPosRow = d.GetClientLogicalAbsPos().Y();
-	CrdType clientDeviceAbsPosRow = clientLogicalAbsPosRow * scaleFactors.second;
-	CrdType pageClipRectRow = d.GetAbsClipDeviceRect().Top();
+	TType clientLogicalAbsPosRow = d.GetClientLogicalAbsPos().FlippableY(isColOriented);
+	CrdType clientDeviceAbsPosRow = clientLogicalAbsPosRow * scaleFactor;
+	CrdType pageClipRectRow = isColOriented ? d.GetAbsClipDeviceRect().Top() : d.GetAbsClipDeviceRect().Left();
 	SizeT recNo = (pageClipRectRow > clientDeviceAbsPosRow)
 		?	(pageClipRectRow - clientDeviceAbsPosRow) / deviceRowHeight
 		:	0;
@@ -621,12 +624,12 @@ void DataItemColumn::DrawBackground(const GraphDrawer& d) const
 	}
 //	TType currRowLogicalY = clientLogicalAbsPosRow + recNo * logicalRowHeight;
 	auto currRowDeviceY = clientDeviceAbsPosRow + recNo * deviceRowHeight;
-	auto clipEndRow = d.GetAbsClipDeviceRect().Bottom();
+	auto clipEndRow = isColOriented ? d.GetAbsClipDeviceRect().Bottom() : d.GetAbsClipDeviceRect().Right();
 
-	auto drawHorizontalBorder = [&absFullDeviceRect, &d, deviceRowSep, &br, &currRowDeviceY]()
+	auto drawHorizontalBorder = [&absFullDeviceRect, &d, deviceRowSep, isColOriented, &br, &currRowDeviceY]()
 	{
-		absFullDeviceRect.first.Y() = currRowDeviceY;
-		absFullDeviceRect.second.Y() = currRowDeviceY + deviceRowSep;
+		absFullDeviceRect.first.FlippableY(isColOriented) = currRowDeviceY;
+		absFullDeviceRect.second.FlippableY(isColOriented) = currRowDeviceY + deviceRowSep;
 		auto intFullDeviceRect = CrdRect2GRect(absFullDeviceRect);
 		FillRect(d.GetDC(), &intFullDeviceRect, br);
 	};
@@ -652,19 +655,22 @@ CrdRect DataItemColumn::GetElemFullRelLogicalRect( SizeT rowNr) const
 {
 	if (!IsDefined(rowNr))
 		return {};
+	auto tc = GetTableControl().lock();
+	if (!tc)
+		return {};
 
 	auto size = Convert<TPoint>(m_ElemSize);
 	if (HasElemBorder())
 	{
-		size.X() += 2*BORDERSIZE;
-		size.Y() += 2*BORDERSIZE;
+		size.X() += DOUBLE_BORDERSIZE;
+		size.Y() += DOUBLE_BORDERSIZE;
 	}
 
 	UInt32 rowSepHeight = RowSepHeight();
-
-	TType startRow = (size.Y() + rowSepHeight) * rowNr + rowSepHeight;
-
-	return CrdRect(shp2dms_order<CrdType>(0, startRow), shp2dms_order<CrdType>(size.X(), startRow + size.Y()));
+	TType startRow = tc->IsColOriented() ? size.Y() : size.X();
+	startRow = (startRow + rowSepHeight) * rowNr + rowSepHeight;
+	TPoint startPos = prj2dms_order<TType>(0, startRow, tc->IsColOriented());
+	return CrdRect(startPos, startPos + size);
 }
 
 void DataItemColumn::InvalidateRelRect(CrdRect rect)
@@ -985,7 +991,7 @@ GraphVisitState DataItemColumn::InviteGraphVistor(class AbstrVisitor& gv)
 UInt32 DataItemColumn::RowSepHeight() const
 {
 	auto tc = GetTableControl().lock(); if (!tc) return 0;
-	return tc->ColSepWidth();
+	return tc->m_SepSize;
 }
 
 std::weak_ptr<TableControl> DataItemColumn::GetTableControl()

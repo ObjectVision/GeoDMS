@@ -1,4 +1,4 @@
-// Copyright (C) 1998-2023 Object Vision b.v. 
+// Copyright (C) 1998-2024 Object Vision b.v. 
 // License: GNU GPL 3
 /////////////////////////////////////////////////////////////////////////////
 
@@ -170,8 +170,7 @@ void SelChangeInvalidator::ProcessChange(bool mustSetFocusElemIndex)
 //----------------------------------------------------------------------
 
 TableControl::TableControl(MovableObject* owner)
-	:	base_type(owner)
-	,	m_TableView(0)
+	:	base_type(owner, MC_Orientation::Cols)
 {
 	assert(owner);
 	auto dv = owner->GetDataView().lock();
@@ -828,7 +827,7 @@ auto TableControl::OnCommandEnable(ToolButtonID id) const -> CommandStatus
 	case TB_TableGroupBy:
 		return NrRows() > 1 ? CommandStatus::ENABLED : CommandStatus::DISABLED;
 	}
-	return GraphicVarCols::OnCommandEnable(id);
+	return base_type::OnCommandEnable(id);
 }
 
 void TableControl::RemoveEntry(MovableObject* g)
@@ -1348,16 +1347,29 @@ bool TableControl::MouseEvent(MouseEventDispatcher& med)
 {
 	if ((med.GetEventInfo().m_EventID & EventID::LBUTTONDOWN)  && med.m_FoundObject.get() ==  this)
 	{
-		auto curX = med.GetEventInfo().m_Point.x / med.GetSubPixelFactors().first;
 		// find child that is left of position
 		for (SizeT i=0, n=NrEntries(); i!=n; ++i)
 		{
 			MovableObject* chc = GetEntry(i);
-			auto x = chc->GetCurrFullAbsLogicalRect().second.Y();
-			if ((x <= curX) && (curX < x + ColSepWidth()))
+			if (IsColOriented())
 			{
-				debug_cast<DataItemColumn*>(chc)->StartResize(med);
-				break;
+				auto curX = med.GetEventInfo().m_Point.x / med.GetSubPixelFactors().first;
+				auto x = chc->GetCurrFullAbsLogicalRect().second.X();
+				if ((x <= curX) && (curX < x + m_SepSize))
+				{
+					debug_cast<DataItemColumn*>(chc)->StartResize(med);
+					break;
+				}
+			}
+			else
+			{
+				auto curY = med.GetEventInfo().m_Point.y / med.GetSubPixelFactors().second;
+				auto y = chc->GetCurrFullAbsLogicalRect().second.Y();
+				if ((y <= curY) && (curY < y + m_SepSize))
+				{
+					debug_cast<DataItemColumn*>(chc)->StartResize(med);
+					break;
+				}
 			}
 		}
 	}

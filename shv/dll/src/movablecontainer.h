@@ -31,16 +31,38 @@ protected:
 //----------------------------------------------------------------------
 // class  : AutoSizeContainer
 //----------------------------------------------------------------------
+enum class MC_Orientation { Cols, Rows };
 
 class AutoSizeContainer : public MovableContainer
 {
-protected:
 	using base_type = MovableContainer;
 
-	AutoSizeContainer(MovableObject* owner) : base_type(owner) {}
+public:
+	AutoSizeContainer(MovableObject* owner, MC_Orientation orientation) 
+		: base_type(owner) 
+		, m_Orientation(orientation)
+	{}
 
+	void SetMaxSize(TType  maxSize);
+	void SetSepSize(UInt32 sepSize);
+
+	void ToggleOrientation();
+	bool IsColOriented() const { return m_Orientation == MC_Orientation::Cols; }
+
+protected:
 //	override virtual methods of GraphicObject
 	void ProcessCollectionChange() override; // calculates Size
+
+	void DrawBackground(const GraphDrawer& d) const override;
+
+	void GrowHor(CrdType xDelta, CrdType xRelPos, const MovableObject* sourceItem) override;
+	void GrowVer(CrdType xDelta, CrdType xRelPos, const MovableObject* sourceItem) override;
+
+
+	MC_Orientation m_Orientation;
+
+	TType   m_MaxSize = 0;
+	UInt32  m_SepSize = 2;
 };
 
 //----------------------------------------------------------------------
@@ -51,25 +73,15 @@ class GraphicVarRows : public AutoSizeContainer
 {
 	using base_type = AutoSizeContainer;
 public:
-	GraphicVarRows(MovableObject* owner);
+	GraphicVarRows(MovableObject* owner) : AutoSizeContainer(owner, MC_Orientation::Rows) {}
 
 //	override virtual methods of GraphicObject
-  	GraphVisitState InviteGraphVistor(class AbstrVisitor& gv) override;
-	void ProcessCollectionChange() override;
-	void DrawBackground(const GraphDrawer& d) const override;
 
-	void GrowHor(CrdType xDelta, CrdType xRelPos, const MovableObject* sourceItem) override;
-	void GrowVer(CrdType xDelta, CrdType xRelPos, const MovableObject* sourceItem) override;
+	void SetMaxColWidth(TType  maxColWidth)   { SetMaxSize(maxColWidth); }
+	void SetRowSepHeight(UInt32 rowSepHeight) { SetSepSize(rowSepHeight); }
 
-	void SetMaxColWidth (TType  maxColWidth);
-	void SetRowSepHeight(UInt32 rowSepHeight);
-
-	TType  MaxElemWidth() const { return m_MaxColWidth;  }
-	UInt32 RowSepHeight() const { return m_RowSepHeight; }
-
-private:
-	TType   m_MaxColWidth  = 0;
-	UInt32  m_RowSepHeight = 2;
+	TType  MaxElemWidth() const { return m_MaxSize;  }
+	UInt32 RowSepHeight() const { return m_SepSize; }
 };
 
 //----------------------------------------------------------------------
@@ -80,25 +92,14 @@ class GraphicVarCols : public AutoSizeContainer
 {
 	using base_type = AutoSizeContainer;
 public:
-	GraphicVarCols(MovableObject* owner);
-
-//	override virtual methods of GraphicObject
-  	GraphVisitState InviteGraphVistor(class AbstrVisitor& gv) override;
-	void ProcessCollectionChange() override;
-	void DrawBackground(const GraphDrawer& d) const override;
-
-	void GrowHor(CrdType xDelta, CrdType xRelPos, const MovableObject* sourceItem) override;
-	void GrowVer(CrdType xDelta, CrdType xRelPos, const MovableObject* sourceItem) override;
+	GraphicVarCols(MovableObject* owner) 
+		: AutoSizeContainer(owner, MC_Orientation::Cols) {}
 
 	void SetMaxRowHeight(TType  maxRowHeight);
 	void SetColSepWidth (UInt32 colSepWidth);
 
-	TType   MaxElemHeight() const { return m_MaxRowHeight; } // in logical coordinates
-	UInt32  ColSepWidth  () const { return m_ColSepWidth;  } // in logical coordinates
-
-private:
-	TType  m_MaxRowHeight = 0;
-	UInt32 m_ColSepWidth  = 1;
+	TType   MaxElemHeight() const { return m_MaxSize; } // in logical coordinates
+	UInt32  ColSepWidth  () const { return m_SepSize;  } // in logical coordinates
 };
 
 #endif // __SHV_MOVABLECONTAINER_H

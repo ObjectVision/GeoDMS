@@ -106,8 +106,7 @@ public:
 	void CheckState() const override;
 #endif
 
-	friend class GraphicVarCols;
-	friend class GraphicVarRows;
+	friend class AutoSizeContainer;
 
 protected:
 	HCURSOR SetViewPortCursor(HCURSOR hCursor); friend class PasteGridController;

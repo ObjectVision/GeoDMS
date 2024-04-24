@@ -67,6 +67,10 @@ struct Point: Couple<T>
 	T& X()       { return first;  }
 	T& Y()       { return second; }
 #endif
+	T FlippableX(bool colFirst) const { return colFirst ? X() : Y(); }
+	T FlippableY(bool colFirst) const { return colFirst ? Y() : X(); }
+	T& FlippableX(bool colFirst) { return colFirst ? X() : Y(); }
+	T& FlippableY(bool colFirst) { return colFirst ? Y() : X(); }
 };
 
 template<class T> inline auto get_x(Point<T>&& p) noexcept -> T { return p.X(); }
