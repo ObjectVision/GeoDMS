@@ -471,6 +471,9 @@ void MainWindow::setCurrentTreeItem(TreeItem* target_item, bool update_history)
     if (m_current_item == target_item)
         return;
 
+    if (!target_item)
+        return;
+
     MG_CHECK(!m_root || !target_item || isAncestor(m_root, target_item));
     if (target_item && !m_dms_model->show_hidden_items)
     {
