@@ -412,8 +412,8 @@ int main_without_SE_handler(int argc, char *argv[])
         MainWindow main_window(settingsFrame);
         dms_app_on_heap->setWindowIcon(QIcon(":/res/images/GeoDmsGuiQt.png"));
         dms_app_on_heap->installEventFilter(mouse_forward_backward_event_filter_on_heap.get());
-        splash->finish(&main_window);
-        splash.reset();
+
+        QTimer::singleShot(10, [splashHandle = std::move(splash)]() { splashHandle->close(); });
 
         main_window.showMaximized();
 

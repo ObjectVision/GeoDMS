@@ -292,8 +292,9 @@ SizeT MinimalFileSize(const AbstrTileRangeData* trd)
 	SizeT rawSize = 0;
 	if (tn > 1)
 	{
-		auto log2BytesPerElem = mpf::log2_v<sizeof(V)>;
-		rawSize = MinimalNrMemPages<V>(trd) - NrMemPages(trd->GetTileSize(tn - 1) << log2BytesPerElem);
+		constexpr auto log2BytesPerElem = mpf::log2_v<sizeof(V)>;
+		auto tileSizeInBytes = SizeT(trd->GetTileSize(tn - 1)) << log2BytesPerElem;
+		rawSize = MinimalNrMemPages<V>(trd) - NrMemPages(tileSizeInBytes);
 		rawSize <<= GetLog2AllocationGrannularity();
 	}
 	if (tn > 0)

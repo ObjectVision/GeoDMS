@@ -332,8 +332,9 @@ template<typename Dst> struct DefaultConvertFunc;
 template <typename U> struct DnConvertFunc;
 template <typename U> struct UpConvertFunc;
 
-template <typename P> using IntRoundDnFunc = std::conditional_t<is_integral_v<scalar_of_t<P>>, DnConvertFunc<P>, DefaultConvertFunc<P> >;
-template <typename P> using IntRoundUpFunc = std::conditional_t<is_integral_v<scalar_of_t<P>>, UpConvertFunc<P>, DefaultConvertFunc<P> >;
+template <typename V> constexpr bool is_signed_integral_v = is_signed_v<V> && is_integral_v<V>;
+template <typename P> using IntRoundDnFunc = std::conditional_t<is_signed_integral_v<scalar_of_t<P>>, DnConvertFunc<P>, DefaultConvertFunc<P> >;
+template <typename P> using IntRoundUpFunc = std::conditional_t<is_integral_v       <scalar_of_t<P>>, UpConvertFunc<P>, DefaultConvertFunc<P> >;
 
 //----------------------------------------------------------------------
 // some assumptions

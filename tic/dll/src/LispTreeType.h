@@ -140,7 +140,7 @@ namespace token {
 
 	extern TIC_CALL TokenID select_data;
 
-	extern TIC_CALL TokenID collect_by_cond;  // synonymous with select_data
+	extern TIC_CALL TokenID collect_by_cond;
 	extern TIC_CALL TokenID collect_by_org_rel; // synonimous with lookup, arrow-operator, and (reversed) array-index operator
 
 	extern TIC_CALL TokenID collect_attr_by_cond;

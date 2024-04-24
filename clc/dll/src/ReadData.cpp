@@ -388,12 +388,15 @@ struct SplitSequenceOperator : public UnaryOperator
 		auto arg1 = AsDataItem(args[0]);
 		assert(arg1);
 
-		auto res = ResultType::GetStaticClass()-> CreateResultUnit(resultHolder);
+		if (!resultHolder)
+			resultHolder = ResultType::GetStaticClass()->CreateResultUnit(resultHolder);
+
+		auto res = AsUnit(resultHolder.GetNew());
 		assert(res->IsPassor());
 
 		auto adu = arg1->GetAbstrDomainUnit();
 		auto avu = arg1->GetAbstrValuesUnit();
-		auto resSequenceItem = CreateDataItem(res, token::org_rel, res, avu, composition_of_v< SequenceValueType>);
+		auto resSequenceItem = CreateDataItem(res, token::geometry, res, avu, composition_of_v< SequenceValueType>);
 
 		AbstrDataItem* resOrgRelItem = nullptr;
 		if (!arg1->HasVoidDomainGuarantee())
@@ -424,6 +427,18 @@ struct SplitSequenceOperator : public UnaryOperator
 		resSequences.get_sa().data_reserve(sequences.get_sa().data_size() - nrBreaks MG_DEBUG_ALLOCATOR_SRC("SplitSequenceOperator: resSequences.data_reserve"));
 		auto resSequenceIter = resSequences.begin();
 		SizeT orgRelIndex = 0;
+
+		auto updateOrgRelIndexOperation = [&]()
+			{
+				visit<typelists::domain_elements>(adu,[&]<typename D>(const Unit<D>*du)
+				{
+					auto resOrgRelItem = mutable_array_cast<D>(dwlOrgRel);
+					auto resIndex = resSequenceIter - resSequences.begin();
+					auto orgIndex = du->GetValueAtIndex(orgRelIndex);
+					resOrgRelItem->SetIndexedValue(resIndex, orgIndex);
+				});
+			};
+
 		for (auto seqRef : sequences)
 		{
 			auto seqStartPtr = seqRef.begin(), seqEndPtr = seqRef.end();
@@ -432,21 +447,19 @@ struct SplitSequenceOperator : public UnaryOperator
 			{
 				if (m_ElementPredicate(*seqPtr))
 				{
+					if (dwlOrgRel)
+						updateOrgRelIndexOperation();
 					resSequenceIter->assign(seqStartPtr, seqPtr);
 					++resSequenceIter;
 					seqStartPtr = ++seqPtr;
-					if (dwlOrgRel)
-						visit<typelists::domain_elements>(adu, [&]<typename D>(const Unit<D>* du)
-						{
-							auto resOrgRelItem = mutable_array_cast<D>(dwlOrgRel);
-							auto resIndex = resSequenceIter - resSequences.begin();
-							auto orgIndex = du->GetValueAtIndex(orgRelIndex);
-							resOrgRelItem->SetIndexedValue(resIndex, orgIndex);
-						});
 				}
 				else
 					++seqPtr;
 			}
+			if (dwlOrgRel)
+				updateOrgRelIndexOperation();
+			resSequenceIter->assign(seqStartPtr, seqPtr);
+			++resSequenceIter;
 			++orgRelIndex;
 		}
 		MG_CHECK(resSequenceIter == resSequences.end());

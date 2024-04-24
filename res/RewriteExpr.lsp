@@ -26,26 +26,6 @@
 
 /*********** selection Functions *********/
 
-[(select_data (select        _Cond) _Data) (select_data (select        _Cond) _Cond _Data)]
-[(select_data (select_uint8  _Cond) _Data) (select_data (select_uint8  _Cond) _Cond _Data)]
-[(select_data (select_uint16 _Cond) _Data) (select_data (select_uint16 _Cond) _Cond _Data)]
-[(select_data (select_uint32 _Cond) _Data) (select_data (select_uint32 _Cond) _Cond _Data)]
-
-[(select_data (select_with_org_rel        _Cond) _Data) (select_data (select_with_org_rel        _Cond) _Cond _Data)]
-[(select_data (select_uint8_with_org_rel  _Cond) _Data) (select_data (select_uint8_with_org_rel  _Cond) _Cond _Data)]
-[(select_data (select_uint16_with_org_rel _Cond) _Data) (select_data (select_uint16_with_org_rel _Cond) _Cond _Data)]
-[(select_data (select_uint32_with_org_rel _Cond) _Data) (select_data (select_uint32_with_org_rel _Cond) _Cond _Data)]
-
-[(select_data (select_unit        _Cond) _Data) (select_data (select_unit        _Cond) _Cond _Data)]
-[(select_data (select_unit_uint8  _Cond) _Data) (select_data (select_unit_uint8  _Cond) _Cond _Data)]
-[(select_data (select_unit_uint16 _Cond) _Data) (select_data (select_unit_uint16 _Cond) _Cond _Data)]
-[(select_data (select_unit_uint32 _Cond) _Data) (select_data (select_unit_uint32 _Cond) _Cond _Data)]
-
-[(select_data (select_orgrel        _Cond) _Data) (select_data (select_orgrel        _Cond) _Cond _Data)]
-[(select_data (select_orgrel_uint8  _Cond) _Data) (select_data (select_orgrel_uint8  _Cond) _Cond _Data)]
-[(select_data (select_orgrel_uint16 _Cond) _Data) (select_data (select_orgrel_uint16 _Cond) _Cond _Data)]
-[(select_data (select_orgrel_uint32 _Cond) _Data) (select_data (select_orgrel_uint32 _Cond) _Cond _Data)]
-
 [(collect_by_cond (select        _Cond) _Data) (collect_by_cond (select        _Cond) _Cond _Data)]
 [(collect_by_cond (select_uint8  _Cond) _Data) (collect_by_cond (select_uint8  _Cond) _Cond _Data)]
 [(collect_by_cond (select_uint16 _Cond) _Data) (collect_by_cond (select_uint16 _Cond) _Cond _Data)]

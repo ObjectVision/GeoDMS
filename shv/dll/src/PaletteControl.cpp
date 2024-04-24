@@ -406,15 +406,21 @@ void PaletteControl::CreateSelCountColumn()
 	TreeItem* container = CreateDesktopContainer(dv->GetDesktopContext(), GetUltimateSourceItem(m_ThemeAttr.get_ptr()));
 	auto countingUnitClass = UnitClass::Find(m_ThemeAttr->GetAbstrDomainUnit()->GetValueType()->GetCrdClass());
 	LispRef keyExpr = m_ThemeAttr->GetCheckedKeyExpr();
+	auto provisionalPaletteDomain = m_ThemeAttr->GetAbstrValuesUnit();
 	SharedPtr<const AbstrUnit> classIds = GetRealAbstrValuesUnit(m_ThemeAttr);
 
 	//	=========================================	add Class boundaries
 	if (m_BreakAttr && (!classIds || classIds->UnifyValues(m_BreakAttr->GetAbstrValuesUnit(), "", "", UM_AllowDefaultRight)))
 	{
 		assert(m_BreakAttr->GetAbstrDomainUnit() == m_PaletteDomain);
+		assert(m_BreakAttr->GetAbstrValuesUnit() == provisionalPaletteDomain);
+		provisionalPaletteDomain = m_BreakAttr->GetAbstrDomainUnit();
 		if (m_ThemeAttr)
 			keyExpr = ExprList(token::classify, keyExpr, m_BreakAttr->GetCheckedKeyExpr());
 	}
+
+	if (!m_PaletteDomain->UnifyDomain(provisionalPaletteDomain))
+		return;
 
 	if (auto selectionTheme = m_Layer->CreateSelectionsTheme())
 	{
