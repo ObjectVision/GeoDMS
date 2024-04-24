@@ -544,6 +544,7 @@ void DataItemColumn::DoUpdateView()
 	dbg_assert(!SuspendTrigger::DidSuspend());
 
 	auto tc = GetTableControl().lock(); if (!tc) return;
+	bool isColOriented = tc->IsColOriented();
 
 	SizeT n = tc->NrRows();
 	if (!IsDefined(n))
@@ -560,12 +561,12 @@ void DataItemColumn::DoUpdateView()
 		size.Y() += DOUBLE_BORDERSIZE;
 	}
 	UInt32 rowSepHeight = RowSepHeight();
-	size.Y() += rowSepHeight;
+	size.FlippableY(isColOriented) += rowSepHeight;
 
-	MakeMin<SizeT>(n, MaxValue<TType>() / size.Y());
-	size.Y() *= n;
-	MakeMin<TType>(size.Y(), MaxValue<TType>() - rowSepHeight);
-	size.Y() += rowSepHeight;
+	MakeMin<SizeT>(n, MaxValue<TType>() / size.FlippableY(isColOriented));
+	size.FlippableY(isColOriented) *= n;
+	MakeMin<TType>(size.FlippableY(isColOriented), MaxValue<TType>() - rowSepHeight);
+	size.FlippableY(isColOriented) += rowSepHeight;
 
 	SetClientSize(size);
 

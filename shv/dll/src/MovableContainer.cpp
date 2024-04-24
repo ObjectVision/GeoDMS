@@ -53,7 +53,7 @@ void AutoSizeContainer::ProcessCollectionChange()
 			entry->MoveTo(shp2dms_order<CrdType>(0, entryTop) - TopLeft(extents));
 		}
 
-		SetClientSize(resSize);
+		SetClientRect(CrdRect(m_RelPos, m_RelPos + resSize));
 	}
 	else
 	{
@@ -81,11 +81,10 @@ void AutoSizeContainer::ProcessCollectionChange()
 			entry->MoveTo(shp2dms_order<CrdType>(entryLeft, 0) - TopLeft(extents));
 		}
 
-		SetClientSize(resSize);
+		SetClientRect(CrdRect(m_RelPos, m_RelPos + resSize));
 	}
 	auto clientSize = Point<CrdType>(0, 0);
 
-/* REMOVE
 	// calculate Size
 	auto n = NrEntries();
 	while (n)
@@ -103,7 +102,6 @@ void AutoSizeContainer::ProcessCollectionChange()
 	}
 	SetClientSize(clientSize);
 	base_type::ProcessCollectionChange();
-REMOVE */
 }
 
 void AutoSizeContainer::SetMaxSize(TType maxSize)
@@ -130,6 +128,14 @@ void AutoSizeContainer::ToggleOrientation()
 		m_Orientation = MC_Orientation::Cols;
 	else
 		m_Orientation = MC_Orientation::Rows;
+
+	gr_elem_index n = NrEntries();
+	for (gr_elem_index i = 0; i != n; ++i)
+	{
+		MovableObject* entry = GetEntry(i);
+		if (entry)
+			entry->InvalidateView();
+	}
 
 	ProcessCollectionChange();
 }

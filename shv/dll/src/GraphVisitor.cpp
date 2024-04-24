@@ -269,6 +269,7 @@ GraphVisitState GraphVisitor::DoDataItemColumn(DataItemColumn* dic)
 {
 	assert(!SuspendTrigger::DidSuspend());
 	auto tc = dic->GetTableControl().lock(); if (!tc) return GVS_Continue;
+	bool isColOriented = tc->IsColOriented();
 	SizeT n = tc->NrRows();
 	if (!n)
 		return GVS_Continue;
@@ -279,16 +280,19 @@ GraphVisitState GraphVisitor::DoDataItemColumn(DataItemColumn* dic)
 		TPoint elemSize = Convert<TPoint>(dic->ElemSize());
 		if (dic->HasElemBorder())
 		{
-			elemSize.X() += 2*BORDERSIZE;
-			elemSize.Y() += 2*BORDERSIZE;
+			elemSize.X() += DOUBLE_BORDERSIZE;
+			elemSize.Y() += DOUBLE_BORDERSIZE;
 		}
 
-		TType rowLogicalDelta = (elemSize.Y() + dic->RowSepHeight());
-		CrdType rowDeviceDelta = rowLogicalDelta * sf.second;
-		CrdType clientDeviceRow = m_ClientLogicalAbsPos.Y() * sf.second;
+		auto scaleFactor = isColOriented ? sf.second : sf.first;
+		TType rowLogicalDelta = (elemSize.FlippableY(isColOriented) + dic->RowSepHeight());
+		CrdType rowDeviceDelta = rowLogicalDelta * scaleFactor;
+		CrdType clientDeviceRow = m_ClientLogicalAbsPos.FlippableY(isColOriented) * scaleFactor;
 
-		SizeT firstRecNo = (m_ClipDeviceRect.Top() > clientDeviceRow)
-			?	(m_ClipDeviceRect.Top() - clientDeviceRow) / rowDeviceDelta
+		auto clipDeviceStart = isColOriented ? m_ClipDeviceRect.Top()    : m_ClipDeviceRect.Left();
+		auto clipDeviceEnd   = isColOriented ? m_ClipDeviceRect.Bottom() : m_ClipDeviceRect.Right();
+		SizeT firstRecNo = (clipDeviceStart > clientDeviceRow)
+			?	(clipDeviceStart - clientDeviceRow) / rowDeviceDelta
 			:	0;
 
 		dms_assert(!SuspendTrigger::DidSuspend());
@@ -296,12 +300,12 @@ GraphVisitState GraphVisitor::DoDataItemColumn(DataItemColumn* dic)
 		SizeT recNo = counter.Value() + firstRecNo;
 		TType
 			currRow = recNo * rowLogicalDelta + dic->RowSepHeight(),
-			clipEndRow = m_ClipDeviceRect.Bottom() / sf.second - m_ClientLogicalAbsPos.Y(); // in device pixel units
+			clipEndRow = clipDeviceEnd / scaleFactor - m_ClientLogicalAbsPos.FlippableY(isColOriented); // in device pixel units
 		if (currRow < clipEndRow)
 		{
 			auto clientLogicalAbsPos = m_ClientLogicalAbsPos;
-			auto clientLogicalEnd = clientLogicalAbsPos.Y() + clipEndRow;
-			clientLogicalAbsPos.Y() += currRow;
+			auto clientLogicalEnd = clientLogicalAbsPos.FlippableY(isColOriented) + clipEndRow;
+			clientLogicalAbsPos.FlippableY(isColOriented) += currRow;
 			MakeMin(n, recNo + (clipEndRow - currRow)/ rowLogicalDelta + 1);
 			while (recNo < n)
 			{
@@ -319,7 +323,7 @@ GraphVisitState GraphVisitor::DoDataItemColumn(DataItemColumn* dic)
 				++recNo;
 				++counter;
 
-				clientLogicalAbsPos.Y() += rowLogicalDelta;
+				clientLogicalAbsPos.FlippableY(isColOriented) += rowLogicalDelta;
 			}
 		}
 		counter.Close();
