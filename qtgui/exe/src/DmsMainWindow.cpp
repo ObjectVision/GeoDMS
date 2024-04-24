@@ -428,11 +428,12 @@ void MainWindow::clearActionsForEmptyCurrentItem()
 
 void MainWindow::updateActionsForNewCurrentItem()
 {
-    auto viewstyle_flags = SHV_GetViewStyleFlags(m_current_item.get());
+    auto ci = m_current_item.get();
+    auto viewstyle_flags = ci ? SHV_GetViewStyleFlags(ci) : ViewStyleFlags::vsfNone;
     m_defaultview_action->setEnabled(viewstyle_flags & (ViewStyleFlags::vsfDefault | ViewStyleFlags::vsfTableView | ViewStyleFlags::vsfTableContainer | ViewStyleFlags::vsfMapView)); // TODO: vsfDefault appears to never be set
     m_tableview_action->setEnabled(viewstyle_flags & (ViewStyleFlags::vsfTableView | ViewStyleFlags::vsfTableContainer));
     m_mapview_action->setEnabled(viewstyle_flags & ViewStyleFlags::vsfMapView);
-    m_statistics_action->setEnabled(IsDataItem(m_current_item.get()));
+    m_statistics_action->setEnabled(ci ? IsDataItem(ci) : false);
     m_process_schemes_action->setEnabled(true);
     m_update_treeitem_action->setEnabled(true);
     m_invalidate_action->setEnabled(true);
@@ -441,7 +442,7 @@ void MainWindow::updateActionsForNewCurrentItem()
     
     try 
     {
-        if (!FindURL(m_current_item.get()).empty())
+        if (ci && !FindURL(ci).empty())
             m_metainfo_page_action->setEnabled(true);
         else
             m_metainfo_page_action->setDisabled(true);
