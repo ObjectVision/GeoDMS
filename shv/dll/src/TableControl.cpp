@@ -760,16 +760,16 @@ bool TableControl::OnKeyDown(UInt32 virtKey)
 	{
 		bool shift = GetKeyState(VK_SHIFT) & 0x8000;
 		switch (KeyInfo::CharOf(virtKey)) {
-			case VK_RIGHT:  GoRight(shift);                                return true;
-			case VK_LEFT:   GoLeft(shift);                                 return true;
+			case VK_RIGHT:  if (IsColOriented()) GoRight(shift); else GoDn(shift, 1); return true;
+			case VK_LEFT:   if (IsColOriented()) GoLeft(shift);  else GoUp(shift, 1); return true;
 			case VK_TAB:    if (shift) GoLeft(false); else GoRight(false); return true;
 
-			case VK_UP:     GoUp(shift, 1);                                return true;
-			case VK_DOWN:   GoDn(shift, 1);                                return true;
+			case VK_UP:     if (IsColOriented()) GoUp(shift, 1); else GoLeft (shift);  return true;
+			case VK_DOWN:   if (IsColOriented()) GoDn(shift, 1); else GoRight(shift); return true;
 			case VK_HOME:   GoHome(shift, true);                           return true;
 			case VK_END:    GoEnd(shift);                                  return true;
-			case VK_PRIOR:  GoUp(shift, PAGE_SIZE);                        return true;
-			case VK_NEXT:   GoDn(shift, PAGE_SIZE);                        return true;
+			case VK_PRIOR:  if (IsColOriented()) GoUp(shift, PAGE_SIZE); else GoLeft (shift); return true;
+			case VK_NEXT:   if (IsColOriented()) GoDn(shift, PAGE_SIZE); else GoRight(shift); return true;
 			case VK_ESCAPE: GoRow(UNDEFINED_VALUE(SizeT), true);           return true; // non-virtual key: Escape
 		}
 	} else if (KeyInfo::IsCtrl(virtKey))

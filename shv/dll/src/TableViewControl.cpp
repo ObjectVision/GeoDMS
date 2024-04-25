@@ -1,4 +1,4 @@
-// Copyright (C) 1998-2023 Object Vision b.v. 
+// Copyright (C) 1998-2024 Object Vision b.v. 
 // License: GNU GPL 3
 /////////////////////////////////////////////////////////////////////////////
 
@@ -68,7 +68,7 @@ void TableViewControl::ProcessSize(CrdPoint newSize)
 {
 	bool isColOriented = (m_TableControl) ? m_TableControl->IsColOriented(): true;
 	TType  headerHeight = (m_TableHeaderPort) ? m_TableHeaderPort->GetCurrClientSize().FlippableY(isColOriented) : 0; 
-		MakeMax(headerHeight, isColOriented ? TType(DEF_TEXT_PIX_HEIGHT + 2*BORDERSIZE): DEF_TEXT_PIX_HEIGHT);
+		MakeMax(headerHeight, TType(isColOriented ? DEF_TEXT_PIX_HEIGHT : DEF_TEXT_PIX_WIDTH) + DOUBLE_BORDERSIZE);
 		MakeMin(headerHeight, newSize.FlippableY(isColOriented));
 
 	m_TableHeaderPort->SetClientRect( CrdRect( Point<CrdType>(0, 0), prj2dms_order<CrdType>(newSize.FlippableX(isColOriented), headerHeight, isColOriented)) );
@@ -115,6 +115,8 @@ void TableViewControl::ToggleTableOrientation()
 {
 	m_TableControl->ToggleOrientation();
 	m_TableHeader->ToggleOrientation();
+	m_TableHeader->SetMaxSize((m_TableHeader->IsColOriented() ? DEF_TEXT_PIX_HEIGHT : DEF_TEXT_PIX_WIDTH) + DOUBLE_BORDERSIZE);
+
 	ProcessSize(GetCurrClientSize());
 }
 

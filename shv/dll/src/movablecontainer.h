@@ -38,10 +38,7 @@ class AutoSizeContainer : public MovableContainer
 	using base_type = MovableContainer;
 
 public:
-	AutoSizeContainer(MovableObject* owner, MC_Orientation orientation) 
-		: base_type(owner) 
-		, m_Orientation(orientation)
-	{}
+	AutoSizeContainer(MovableObject* owner, MC_Orientation orientation);
 
 	void SetMaxSize(TType  maxSize);
 	void SetSepSize(UInt32 sepSize);

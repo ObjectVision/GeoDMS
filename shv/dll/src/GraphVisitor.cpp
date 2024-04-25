@@ -1,3 +1,7 @@
+// Copyright (C) 1998-2024 Object Vision b.v. 
+// License: GNU GPL 3
+/////////////////////////////////////////////////////////////////////////////
+
 #include "ShvDllPch.h"
 
 #include "GraphVisitor.h"
@@ -295,7 +299,7 @@ GraphVisitState GraphVisitor::DoDataItemColumn(DataItemColumn* dic)
 			?	(clipDeviceStart - clientDeviceRow) / rowDeviceDelta
 			:	0;
 
-		dms_assert(!SuspendTrigger::DidSuspend());
+		assert(!SuspendTrigger::DidSuspend());
 		ResumableCounter counter(GetCounterStacks(), true);
 		SizeT recNo = counter.Value() + firstRecNo;
 		TType
@@ -641,7 +645,7 @@ GraphVisitState GraphDrawer::DoDataItemColumn(DataItemColumn* dic)
 	if (! trl.push_back(dic, DrlType::Suspendible))
 		if (trl.ProcessFailOrSuspend(dic))
 			return GVS_Handled; // suspend processing, thus: retry =  true
-	dms_assert(!SuspendTrigger::DidSuspend());
+	assert(!SuspendTrigger::DidSuspend());
 	if (!DoDrawData())
 		return GVS_Continue;
 	if (tryLater)
@@ -651,7 +655,7 @@ GraphVisitState GraphDrawer::DoDataItemColumn(DataItemColumn* dic)
 
 void GraphDrawer::DoElement(DataItemColumn* dic, SizeT i, const GRect& absElemDeviceRect)
 {
-	dms_assert(DoDrawData());
+	assert(DoDrawData());
 	dic->DrawElement(*this, i, absElemDeviceRect, m_TileLocks);
 }
 

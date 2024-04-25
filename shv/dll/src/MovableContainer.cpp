@@ -1,3 +1,7 @@
+// Copyright (C) 1998-2024 Object Vision b.v. 
+// License: GNU GPL 3
+/////////////////////////////////////////////////////////////////////////////
+
 #include "ShvDllPch.h"
 
 #include "MovableContainer.h"
@@ -27,66 +31,37 @@ GraphVisitState MovableContainer::InviteGraphVistor(AbstrVisitor& v)
 // class  : AutoSizeContainer
 //----------------------------------------------------------------------
 
+AutoSizeContainer::AutoSizeContainer(MovableObject* owner, MC_Orientation orientation)
+	: base_type(owner)
+	, m_Orientation(orientation)
+{
+	if (IsColOriented())
+		m_SepSize = 1; // default for tables
+}
+
 void AutoSizeContainer::ProcessCollectionChange()
 {
-	if (m_Orientation == MC_Orientation::Rows)
+	auto resSize = prj2dms_order<CrdType>(m_SepSize, m_MaxSize, IsColOriented());
+	auto n = NrEntries();
+	for (decltype(n) i = 0; i != n; ++i)
 	{
-		auto n = NrEntries();
-		auto resSize = shp2dms_order<CrdType>(m_MaxSize, m_SepSize);
-		for (decltype(n) i = 0; i != n; ++i)
+		MovableObject* entry = GetEntry(i);
+		auto extents = entry->GetBorderLogicalExtents();
+		auto entryPos = resSize.FlippableX(IsColOriented());
+		auto entrySize = entry->GetCurrClientSize() + Size(extents);
+		if (entry->IsVisible())
 		{
-			MovableObject* entry = GetEntry(i);
-
-			auto extents = entry->GetBorderLogicalExtents();
-			auto entryTop = resSize.Y();
-
-			if (entry->IsVisible())
-			{
-				auto entrySize = entry->GetCurrClientSize() + Size(extents);
-				resSize.Y() += entrySize.Y();
-				resSize.Y() += m_SepSize;
-
-				if (!m_MaxSize)
-					MakeMax(resSize.X(), entrySize.X());
-				SetClientSize(UpperBound(GetCurrClientSize(), resSize));
-			}
-			entry->MoveTo(shp2dms_order<CrdType>(0, entryTop) - TopLeft(extents));
+			resSize.FlippableX(IsColOriented()) += entrySize.FlippableX(IsColOriented()) + m_SepSize;
+			if (!m_MaxSize)
+				MakeMax(resSize.FlippableY(IsColOriented()), entrySize.FlippableY(IsColOriented()));
+			SetClientSize(UpperBound(GetCurrClientSize(), resSize));
 		}
-
-		SetClientRect(CrdRect(m_RelPos, m_RelPos + resSize));
+		entry->MoveTo(prj2dms_order<CrdType>(entryPos, 0, IsColOriented()) - TopLeft(extents));
 	}
-	else
-	{
-		gr_elem_index n = NrEntries();
-		auto resSize = shp2dms_order<CrdType>(m_SepSize, m_MaxSize);
-		for (gr_elem_index i = 0; i != n; ++i)
-		{
-			MovableObject* entry = GetEntry(i);
-
-			auto extents = entry->GetBorderLogicalExtents();
-			auto entryLeft = resSize.X();
-
-			if (entry->IsVisible())
-			{
-				auto entrySize = entry->GetCurrClientSize() + Size(extents);
-
-				resSize.X() += entrySize.X();
-				resSize.X() += m_SepSize;
-
-				if (!m_MaxSize)
-					MakeMax(resSize.Y(), entrySize.Y());
-
-				SetClientSize(UpperBound(GetCurrClientSize(), resSize));
-			}
-			entry->MoveTo(shp2dms_order<CrdType>(entryLeft, 0) - TopLeft(extents));
-		}
-
-		SetClientRect(CrdRect(m_RelPos, m_RelPos + resSize));
-	}
+	SetClientSize(resSize);
 	auto clientSize = Point<CrdType>(0, 0);
 
 	// calculate Size
-	auto n = NrEntries();
 	while (n)
 	{
 		MovableObject* entry = GetEntry(--n);
@@ -124,6 +99,8 @@ void AutoSizeContainer::SetSepSize(UInt32 sepSize)
 
 void AutoSizeContainer::ToggleOrientation()
 {
+	InvalidateDraw();
+
 	if (m_Orientation == MC_Orientation::Rows)
 		m_Orientation = MC_Orientation::Cols;
 	else

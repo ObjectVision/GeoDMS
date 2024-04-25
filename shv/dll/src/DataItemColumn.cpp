@@ -1,4 +1,4 @@
-// Copyright (C) 1998-2023 Object Vision b.v. 
+// Copyright (C) 1998-2024 Object Vision b.v. 
 // License: GNU GPL 3
 /////////////////////////////////////////////////////////////////////////////
 
@@ -1205,7 +1205,8 @@ bool DataItemColumn::MouseEvent(MouseEventDispatcher& med)
 		if (wheelDelta < 0) tc->GoDn(shift, (((-wheelDelta)-1) / WHEEL_DELTA) + 1);
 		return true;
 	}
-	if (med.GetEventInfo().m_EventID & EventID::LBUTTONDOWN)
+	bool isColOriented = tc->IsColOriented();
+	if (med.GetEventInfo().m_EventID & EventID::LBUTTONDOWN && isColOriented)
 	{
 		switch( GetControlDeviceRegion(med.GetEventInfo().m_Point.x) ) 
 		{
@@ -1266,14 +1267,14 @@ bool DataItemColumn::MouseEvent(MouseEventDispatcher& med)
 		dms_assert(tc->GetColumn(m_ColumnNr) == this);
 
 		CrdPoint relClientPos = Convert<CrdPoint>(med.GetLogicalSize(med.GetEventInfo().m_Point)) - (med.GetClientLogicalAbsPos() + GetCurrClientRelPos());
-		auto logicalHeight = m_ElemSize.Y() + RowSepHeight();
+		auto logicalHeight = m_ElemSize.FlippableY(isColOriented) + RowSepHeight();
 		if (HasElemBorder()) 
-			logicalHeight += (2*BORDERSIZE);
-		SizeT rowNr = relClientPos.Y() / logicalHeight;
+			logicalHeight += DOUBLE_BORDERSIZE;
+		SizeT rowNr = relClientPos.FlippableY(isColOriented) / logicalHeight;
 		if (rowNr >= tc->NrRows()) goto skip;
 
-		auto row = TType( relClientPos.Y() / logicalHeight );
-		relClientPos.Y() -= row * logicalHeight;
+		auto row = TType( relClientPos.FlippableY(isColOriented) / logicalHeight );
+		relClientPos.FlippableY(isColOriented) -= row * logicalHeight;
 		if (HasElemBorder())
 		{
 			if (relClientPos.X() < BORDERSIZE) goto skip;

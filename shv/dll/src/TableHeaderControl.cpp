@@ -222,14 +222,14 @@ void ColumnHeaderControl::FillMenu(MouseEventDispatcher& med)
 //----------------------------------------------------------------------
 
 TableHeaderControl::TableHeaderControl(MovableObject* owner, TableControl* tableControl)
-	:	base_type(owner, tableControl ? tableControl->m_Orientation : MC_Orientation::Cols)
+	:	base_type(owner, tableControl->m_Orientation)
 	,	m_TableControl(tableControl)
-	, m_connElemSetChanged(tableControl->m_cmdElemSetChanged.connect([this]() { this->InvalidateView(); } ))
+	,	m_connElemSetChanged(tableControl->m_cmdElemSetChanged.connect([this]() { this->InvalidateView(); } ))
 {
 	assert(tableControl);
 	assert(owner);
 	auto dv = owner->GetDataView().lock(); assert(dv);
-	SetMaxSize((DEF_TEXT_PIX_HEIGHT  + 2* BORDERSIZE));
+	SetMaxSize((IsColOriented() ? DEF_TEXT_PIX_HEIGHT : DEF_TEXT_PIX_WIDTH) + DOUBLE_BORDERSIZE);
 }
 
 void TableHeaderControl::DoUpdateView()
@@ -247,6 +247,8 @@ void TableHeaderControl::DoUpdateView()
 	MovableObject* activeDic = nullptr;
 	if (IsActive())
 		activeDic = m_TableControl->GetActiveDIC();
+
+	bool isColOriented = m_TableControl->IsColOriented();
 
 	for (gr_elem_index i=0; i!=n; ++i)
 	{
@@ -270,8 +272,10 @@ void TableHeaderControl::DoUpdateView()
 			columnHeader->SetDic( dic->shared_from_base<DataItemColumn>() );
 		}
 		columnHeader->SetText(dic->Caption());
-		auto headerWidth = dic->CalcClientSize().X() + Width(dic->GetBorderLogicalExtents()) - Width(columnHeader->GetBorderLogicalExtents());
-		auto headerSize = shp2dms_order<TType>(headerWidth, DEF_TEXT_PIX_HEIGHT);
+		auto headerWidth = dic->CalcClientSize().FlippableX(isColOriented) 
+			+ Size(dic->GetBorderLogicalExtents()).FlippableX(isColOriented) 
+			- Size(columnHeader->GetBorderLogicalExtents()).FlippableX(isColOriented);
+		auto headerSize = prj2dms_order<TType>(headerWidth, isColOriented ? DEF_TEXT_PIX_HEIGHT : DEF_TEXT_PIX_WIDTH, isColOriented);
 		columnHeader->SetClientSize(headerSize);
 		columnHeader->SetIsInverted(m_TableControl->m_Cols.IsInRange(i));
 		if (activeDic == dic)
