@@ -42,6 +42,8 @@ AutoSizeContainer::AutoSizeContainer(MovableObject* owner, MC_Orientation orient
 void AutoSizeContainer::ProcessCollectionChange()
 {
 	auto resSize = prj2dms_order<CrdType>(m_SepSize, m_MaxSize, IsColOriented());
+	SetClientSize(UpperBound(GetCurrClientSize(), resSize));
+
 	auto n = NrEntries();
 	for (decltype(n) i = 0; i != n; ++i)
 	{
@@ -59,23 +61,6 @@ void AutoSizeContainer::ProcessCollectionChange()
 		entry->MoveTo(prj2dms_order<CrdType>(entryPos, 0, IsColOriented()) - TopLeft(extents));
 	}
 	SetClientSize(resSize);
-	auto clientSize = Point<CrdType>(0, 0);
-
-	// calculate Size
-	while (n)
-	{
-		MovableObject* entry = GetEntry(--n);
-		if (entry && entry->IsVisible())
-		{
-			auto entrySize = entry->GetCurrClientSize();
-			assert(entry->GetCurrClientRelPos().X() + Left(entry->GetBorderLogicalExtents()) >= 0);
-			assert(entry->GetCurrClientRelPos().Y() + Top (entry->GetBorderLogicalExtents()) >= 0);
-
-			entrySize += entry->GetCurrClientRelPos() + BottomRight(entry->GetBorderLogicalExtents());
-			MakeUpperBound( clientSize,	entrySize);
-		}
-	}
-	SetClientSize(clientSize);
 	base_type::ProcessCollectionChange();
 }
 
