@@ -67,9 +67,8 @@ TableViewControl::~TableViewControl()
 void TableViewControl::ProcessSize(CrdPoint newSize) 
 {
 	bool isColOriented = (m_TableControl) ? m_TableControl->IsColOriented(): true;
-	TType  headerHeight = (m_TableHeaderPort) ? m_TableHeaderPort->GetCurrClientSize().FlippableY(isColOriented) : 0; 
-		MakeMax(headerHeight, TType(isColOriented ? DEF_TEXT_PIX_HEIGHT : DEF_TEXT_PIX_WIDTH) + DOUBLE_BORDERSIZE);
-		MakeMin(headerHeight, newSize.FlippableY(isColOriented));
+	TType  headerHeight = TType(isColOriented ? DEF_TEXT_PIX_HEIGHT : DEF_TEXT_PIX_WIDTH) + DOUBLE_BORDERSIZE;
+	MakeMin(headerHeight, newSize.FlippableY(isColOriented));
 
 	m_TableHeaderPort->SetClientRect( CrdRect( Point<CrdType>(0, 0), prj2dms_order<CrdType>(newSize.FlippableX(isColOriented), headerHeight, isColOriented)) );
 	m_TableScrollPort->SetClientRect(CrdRect( prj2dms_order<CrdType>(0, headerHeight, isColOriented), newSize) );

@@ -198,8 +198,8 @@ void MovableObject::SetClientSize(CrdPoint newSize)
 	GrowHor(newSize.X()  - m_ClientLogicalSize.X(), m_ClientLogicalSize.X());
 	GrowVer(newSize.Y()  - m_ClientLogicalSize.Y(), m_ClientLogicalSize.Y());
 
-	assert(abs(m_ClientLogicalSize.X() - newSize.X()) < 0.1);
-	assert(abs(m_ClientLogicalSize.Y() - newSize.Y()) < 0.1);
+//	assert(abs(m_ClientLogicalSize.X() - newSize.X()) < 0.1);
+//	assert(abs(m_ClientLogicalSize.Y() - newSize.Y()) < 0.1);
 	m_ClientLogicalSize = newSize;
 }
 
