@@ -1999,17 +1999,6 @@ void AnyTreeItemStateHasChanged(ClientHandle clientHandle, const TreeItem* self,
         // TODO: remove self from any representation to avoid accessing it's dangling pointer
         break;
     case NC_Creating:
-        assert(IsMainThread());
-        if (!s_TreeViewRefreshPending)
-        {
-			s_TreeViewRefreshPending = true;
-			QTimer::singleShot(0, mainWindow->m_treeview, [mainWindow]() 
-                { 
-                    s_TreeViewRefreshPending = false;
-                    mainWindow->m_treeview->update(); 
-                }
-            );
-        }
         break;
     case CC_CreateMdiChild:
     {
@@ -2028,17 +2017,27 @@ void AnyTreeItemStateHasChanged(ClientHandle clientHandle, const TreeItem* self,
         assert(IsMainThread());
         mainWindow->showStatisticsDirectly(self);
     }
-    // MainWindow could have been destroyed
-    if (s_CurrMainWindow)
+
+    // this actually only invalidates any drawn area and causes repaint later, but time anyway to avoid too many repaints
+    if (!s_TreeViewRefreshPending)
     {
-        assert(s_CurrMainWindow == mainWindow);
-        auto tv = mainWindow->m_treeview;
-        if (IsMainThread())
-            tv->update(); // this actually only invalidates any drawn area and causes repaint later
-        else
-            QTimer::singleShot(0, tv, [tv]() { tv->update(); });
-        mainWindow->m_detail_pages->onTreeItemStateChange();
+        s_TreeViewRefreshPending = true;
+        QTimer::singleShot(1000, []() 
+            { 
+                // MainWindow could have been destroyed
+                if (!s_CurrMainWindow)
+                    return;
+
+                s_TreeViewRefreshPending = false;
+                auto tv = s_CurrMainWindow->m_treeview;
+                if (tv)
+                    tv->update();
+            }
+        );
     }
+
+    if (s_CurrMainWindow && self == s_CurrMainWindow->getCurrentTreeItem())
+        s_CurrMainWindow->m_detail_pages->onTreeItemStateChange();
 }
 
 #include "waiter.h"
