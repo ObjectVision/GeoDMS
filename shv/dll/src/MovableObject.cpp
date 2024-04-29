@@ -422,6 +422,8 @@ void MovableObject::GrowHor(CrdType deltaX, CrdType relPosX, const MovableObject
 
 	assert(relPosX >= 0 );
 	assert(relPosX + GetCurrClientRelPos().X() <= oldFullRelRight);
+	if (owner && IsVisible())
+		MakeMin(oldFullRelRight, owner->m_ClientLogicalSize.X());
 
 	CheckDrawnRect(this);
 
@@ -519,6 +521,8 @@ void MovableObject::GrowVer(CrdType deltaY, CrdType relPosY, const MovableObject
 
 	assert(relPosY >= 0 );
 	assert(relPosY + GetCurrClientRelPos().Y() <= oldFullRelBottom);
+	if (owner && IsVisible())
+		MakeMin(oldFullRelBottom, owner->m_ClientLogicalSize.Y());
 
 	CheckDrawnRect(this);
 
