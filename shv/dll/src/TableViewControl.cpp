@@ -1,4 +1,4 @@
-// Copyright (C) 1998-2023 Object Vision b.v. 
+// Copyright (C) 1998-2024 Object Vision b.v. 
 // License: GNU GPL 3
 /////////////////////////////////////////////////////////////////////////////
 
@@ -13,7 +13,10 @@
 
 #include "AbstrUnit.h"
 
+#include "AbstrCmd.h"
 #include "DataView.h"
+#include "MenuData.h"
+#include "MouseEventDispatcher.h"
 #include "ScrollPort.h"
 #include "TableHeaderControl.h"
 
@@ -48,7 +51,7 @@ void TableViewControl::SetTableControl(TableControl* tableControl)
 	{
 		m_TableControl->m_TableView = this;
 		m_TableScrollPort->SetContents(m_TableControl);
-		m_TableControl->SetColSepWidth(1);
+		m_TableControl->SetSepSize(1);
 		m_TableHeader = std::make_shared<TableHeaderControl>(m_TableHeaderPort.get(), m_TableControl.get());
 		m_TableHeaderPort->SetContents(m_TableHeader);
 
@@ -63,17 +66,30 @@ TableViewControl::~TableViewControl()
 
 void TableViewControl::ProcessSize(CrdPoint newSize) 
 {
-	TType  headerHeight = (m_TableHeaderPort) ? m_TableHeaderPort->GetCurrClientSize().Y() : 0; 
-		MakeMax(headerHeight, TType(DEF_TEXT_PIX_HEIGHT + 2*BORDERSIZE)); 
-		MakeMin(headerHeight, newSize.Y());
+	bool isColOriented = (m_TableControl) ? m_TableControl->IsColOriented(): true;
+	TType  headerHeight = TType(isColOriented ? DEF_TEXT_PIX_HEIGHT : DEF_TEXT_PIX_WIDTH) + DOUBLE_BORDERSIZE;
+	MakeMin(headerHeight, newSize.FlippableY(isColOriented));
 
-	m_TableHeaderPort->SetClientRect( CrdRect( Point<CrdType>(0, 0), shp2dms_order<CrdType>(newSize.X(), headerHeight)) );
-	m_TableScrollPort->SetClientRect(CrdRect( shp2dms_order<CrdType>(0, headerHeight), newSize) );
+	m_TableHeaderPort->SetClientRect( CrdRect( Point<CrdType>(0, 0), prj2dms_order<CrdType>(newSize.FlippableX(isColOriented), headerHeight, isColOriented)) );
+	m_TableScrollPort->SetClientRect(CrdRect( prj2dms_order<CrdType>(0, headerHeight, isColOriented), newSize) );
 	assert(IsIncluding(GetCurrFullAbsLogicalRect(),  m_TableHeaderPort->GetCurrFullAbsLogicalRect()));
 	assert(IsIncluding(GetCurrFullAbsLogicalRect(),  m_TableScrollPort->GetCurrFullAbsLogicalRect()));
 
 	if (m_TableControl)
 		m_TableControl->ShowActiveCell();
+}
+
+void TableViewControl::FillMenu(MouseEventDispatcher& med)
+{
+	med.m_MenuData.push_back(
+		MenuItem(
+			SharedStr("Toggle Rows and Cols of TableView")
+			, make_MembFuncCmd(&TableViewControl::ToggleTableOrientation)
+			, this
+		)
+	);
+
+	base_type::FillMenu(med);
 }
 
 void TableViewControl::Sync(TreeItem* context, ShvSyncMode sm)
@@ -86,7 +102,21 @@ void TableViewControl::Sync(TreeItem* context, ShvSyncMode sm)
 
 bool TableViewControl::OnCommand(ToolButtonID id)
 {
+	if (id == ToolButtonID::TB_ToggleTableOrientation)
+	{
+		ToggleTableOrientation();
+		return true;
+	}
 	return base_type::OnCommand(id) || m_TableControl->OnCommand(id);
+}
+
+void TableViewControl::ToggleTableOrientation()
+{
+	m_TableControl->ToggleOrientation();
+	m_TableHeader->ToggleOrientation();
+	m_TableHeader->SetMaxSize((m_TableHeader->IsColOriented() ? DEF_TEXT_PIX_HEIGHT : DEF_TEXT_PIX_WIDTH) + DOUBLE_BORDERSIZE);
+
+	ProcessSize(GetCurrClientSize());
 }
 
 CommandStatus TableViewControl::OnCommandEnable(ToolButtonID id) const

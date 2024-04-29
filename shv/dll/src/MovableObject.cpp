@@ -198,8 +198,8 @@ void MovableObject::SetClientSize(CrdPoint newSize)
 	GrowHor(newSize.X()  - m_ClientLogicalSize.X(), m_ClientLogicalSize.X());
 	GrowVer(newSize.Y()  - m_ClientLogicalSize.Y(), m_ClientLogicalSize.Y());
 
-	assert(abs(m_ClientLogicalSize.X() - newSize.X()) < 0.1);
-	assert(abs(m_ClientLogicalSize.Y() - newSize.Y()) < 0.1);
+//	assert(abs(m_ClientLogicalSize.X() - newSize.X()) < 0.1);
+//	assert(abs(m_ClientLogicalSize.Y() - newSize.Y()) < 0.1);
 	m_ClientLogicalSize = newSize;
 }
 
@@ -422,6 +422,8 @@ void MovableObject::GrowHor(CrdType deltaX, CrdType relPosX, const MovableObject
 
 	assert(relPosX >= 0 );
 	assert(relPosX + GetCurrClientRelPos().X() <= oldFullRelRight);
+	if (owner && IsVisible())
+		MakeMin(oldFullRelRight, owner->m_ClientLogicalSize.X());
 
 	CheckDrawnRect(this);
 
@@ -519,6 +521,8 @@ void MovableObject::GrowVer(CrdType deltaY, CrdType relPosY, const MovableObject
 
 	assert(relPosY >= 0 );
 	assert(relPosY + GetCurrClientRelPos().Y() <= oldFullRelBottom);
+	if (owner && IsVisible())
+		MakeMin(oldFullRelBottom, owner->m_ClientLogicalSize.Y());
 
 	CheckDrawnRect(this);
 

@@ -20,7 +20,7 @@ class TableDataView;
 
 class TableViewControl : public ViewControl
 {
-	typedef ViewControl base_type;
+	using base_type = ViewControl;
 public:
 	TableViewControl(DataView* dv);
 	~TableViewControl(); // hide destruction of SharedPtr
@@ -30,6 +30,7 @@ public:
 
 protected: // override GraphicObject virtuals
 	void ProcessSize(CrdPoint newSize) override;
+	void FillMenu(MouseEventDispatcher& med) override;
 
 public:
 	void Sync(TreeItem* context, ShvSyncMode sm) override;
@@ -38,6 +39,7 @@ public:
 	CrdPoint CalcMaxSize() const override;
 	bool OnCommand(ToolButtonID id) override;
 	CommandStatus OnCommandEnable(ToolButtonID id) const override;
+	void ToggleTableOrientation();
 
 	      TableControl* GetTableControl()       { return m_TableControl.get(); }
 	const TableControl* GetTableControl() const { return m_TableControl.get(); }

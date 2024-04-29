@@ -569,10 +569,10 @@ bool DataView::DispatchMsg(const MsgStruct& msg)
 				else
 				{
 					auto status = UpdateView();
-					if (status != GraphVisitState::GVS_Break)
-						m_Waiter.end();
-					else
+					if (status == GraphVisitState::GVS_Break)
 						SetUpdateTimer();
+					else
+						m_Waiter.end();
 				}
 				goto completed;
 			}
