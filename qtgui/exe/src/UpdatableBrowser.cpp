@@ -2,6 +2,7 @@
 #include <QContextMenuEvent>
 #include <QDialog>
 #include <QLayout>
+#include <QWebEngineSettings>
 
 FindTextWindow::FindTextWindow(QWidget* parent)
     : QWidget(parent)
@@ -118,6 +119,13 @@ QUpdatableWebBrowser::QUpdatableWebBrowser(QWidget* parent)
     current_page = new DmsWebEnginePage(this);
     //current_page-> setFocusPolicy(Qt::FocusPolicy::ClickFocus);
     setPage(current_page);
+
+    // settings
+    auto settings = page()->settings();
+    settings->setAttribute(QWebEngineSettings::JavascriptEnabled, false);
+    settings->setAttribute(QWebEngineSettings::JavascriptCanOpenWindows, false);
+    settings->setAttribute(QWebEngineSettings::JavascriptCanAccessClipboard, false);
+    settings->setAttribute(QWebEngineSettings::LinksIncludedInFocusChain, false);
 
     connect(pageAction(QWebEnginePage::ViewSource), SIGNAL(triggered(bool)), this, SLOT(slt_openImage_triggered()));
 
