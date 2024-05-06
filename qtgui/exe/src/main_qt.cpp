@@ -180,7 +180,7 @@ bool WmCopyData(MSG* copyMsgPtr)
         return true;
 
     case CommandCode::ActivateItem:
-        MainWindow::TheOne()->m_current_item_bar->setPath(CharPtr(pcds->lpData));
+        MainWindow::TheOne()->m_address_bar->setPath(CharPtr(pcds->lpData));
         return true;
         
     case CommandCode::miExportViewPorts:

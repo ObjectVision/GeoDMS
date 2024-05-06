@@ -116,6 +116,7 @@ QUpdatableWebBrowser::QUpdatableWebBrowser(QWidget* parent)
     setFocusPolicy(Qt::FocusPolicy::ClickFocus);
 
     current_page = new DmsWebEnginePage(this);
+    //current_page-> setFocusPolicy(Qt::FocusPolicy::ClickFocus);
     setPage(current_page);
 
     connect(pageAction(QWebEnginePage::ViewSource), SIGNAL(triggered(bool)), this, SLOT(slt_openImage_triggered()));

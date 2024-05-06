@@ -53,11 +53,11 @@ class DmsExportWindow;
 class EventLogModel;
 struct ValueInfoBrowser;
 
-class DmsCurrentItemBar : public QLineEdit
+class DmsAddressBar : public QLineEdit
 {
 Q_OBJECT
 public:
-    DmsCurrentItemBar(QWidget* parent = nullptr);
+    DmsAddressBar(QWidget* parent = nullptr);
     void setDmsCompleter();
     void setPath(CharPtr itemPath);
 
@@ -382,7 +382,7 @@ public:
     std::unique_ptr<QTextBrowser> m_calculation_times_browser;
     std::unique_ptr<DmsModel> m_dms_model;
     std::unique_ptr<EventLogModel> m_eventlog_model;
-    std::unique_ptr<DmsCurrentItemBar> m_current_item_bar;
+    std::unique_ptr<DmsAddressBar> m_address_bar;
     std::unique_ptr<QComboBox> m_treeitem_visit_history;
 
     // helper windows; TODO: destroy these before the above model objects
@@ -393,7 +393,7 @@ public:
     QPointer<DmsDetailPages> m_detail_pages;
     std::unique_ptr<DmsEventLog> m_eventlog;
     DmsTreeView* m_treeview;
-    QPointer<QToolBar> m_toolbar, m_current_item_bar_container;
+    QPointer<QToolBar> m_toolbar, m_address_bar_container;
     ViewStyle m_current_toolbar_style = ViewStyle::tvsUndefined;
     std::unique_ptr<QAction> m_dms_toolbar_spacer_action;
     std::vector<QAction*> m_current_dms_view_actions;

@@ -318,6 +318,8 @@ MainWindow::MainWindow(CmdLineSetttings& cmdLineSettings)
     setFont(QApplication::font());
     auto menu_bar = menuBar();
     menu_bar->setFont(QApplication::font());
+
+    setTabOrder({ m_address_bar.get(), m_treeview, m_eventlog.get() });
 }
 
 MainWindow::~MainWindow()
@@ -330,7 +332,7 @@ MainWindow::~MainWindow()
     cleanupDmsCallbacks();
 }
 
-DmsCurrentItemBar::DmsCurrentItemBar(QWidget* parent)
+DmsAddressBar::DmsAddressBar(QWidget* parent)
     : QLineEdit(parent)
 {
     setFont(QApplication::font());
@@ -340,7 +342,7 @@ DmsCurrentItemBar::DmsCurrentItemBar(QWidget* parent)
     setDmsCompleter();
 }
 
-void DmsCurrentItemBar::setDmsCompleter()
+void DmsAddressBar::setDmsCompleter()
 {
     auto dms_model = MainWindow::TheOne()->m_dms_model.get();
     TreeModelCompleter* completer = new TreeModelCompleter(this);
@@ -350,13 +352,13 @@ void DmsCurrentItemBar::setDmsCompleter()
     setCompleter(completer);
 }
 
-void DmsCurrentItemBar::setPath(CharPtr itemPath)
+void DmsAddressBar::setPath(CharPtr itemPath)
 {
     setText(itemPath);
     onEditingFinished();
 }
 
-void DmsCurrentItemBar::findItem(const TreeItem * context, QString path, bool updateHistory)
+void DmsAddressBar::findItem(const TreeItem * context, QString path, bool updateHistory)
 {
     if (!context)
         return;
@@ -368,13 +370,13 @@ void DmsCurrentItemBar::findItem(const TreeItem * context, QString path, bool up
     MainWindow::TheOne()->setCurrentTreeItem(const_cast<TreeItem*>(found_treeitem), updateHistory);
 }
 
-void DmsCurrentItemBar::setPathDirectly(QString path)
+void DmsAddressBar::setPathDirectly(QString path)
 {
     setText(path);
     findItem(MainWindow::TheOne()->getRootTreeItem(), path, false);
 }
 
-void DmsCurrentItemBar::onEditingFinished()
+void DmsAddressBar::onEditingFinished()
 {
     findItem(MainWindow::TheOne()->getCurrentTreeItemOrRoot(), text().toUtf8(), true);
 }
@@ -500,12 +502,12 @@ void MainWindow::setCurrentTreeItem(TreeItem* target_item, bool update_history)
     // update actions based on new current item
     updateActionsForNewCurrentItem();
 
-    if (m_current_item_bar)
+    if (m_address_bar)
     {
         if (m_current_item)
-            m_current_item_bar->setText(m_current_item->GetFullName().c_str());
+            m_address_bar->setText(m_current_item->GetFullName().c_str());
         else
-            m_current_item_bar->setText("");
+            m_address_bar->setText("");
     }
 
     if (update_history)
@@ -547,7 +549,7 @@ void MainWindow::fileOpen()
 
 void MainWindow::reopen()
 {
-    auto cip = m_current_item_bar->text();
+    auto cip = m_address_bar->text();
     
     reportF(MsgCategory::commands, SeverityTypeID::ST_MajorTrace, "Reopen configuration");
 
@@ -948,6 +950,7 @@ void MainWindow::updateToolbar()
     {
         addToolBarBreak();
         m_toolbar = addToolBar(tr("dmstoolbar"));
+        m_toolbar->setFocusPolicy(Qt::FocusPolicy::ClickFocus);
         m_toolbar->setStyleSheet("QToolBar { background: rgb(117, 117, 138);\n padding : 0px; }\n"
                                  "QToolButton {padding: 0px;}\n"
                                  "QToolButton:checked {background-color: rgba(255, 255, 255, 150);}\n"
@@ -1135,8 +1138,8 @@ TIC_CALL BestItemRef TreeItem_GetErrorSourceCaller(const TreeItem* src);
 
 void MainWindow::focusAddressBar()
 {
-	m_current_item_bar->setFocus();
-    m_current_item_bar->selectAll();
+    m_address_bar->setFocus();
+    m_address_bar->selectAll();
 }
 
 void MainWindow::stepToFailReason()
@@ -1159,8 +1162,8 @@ void MainWindow::stepToFailReason()
 
     if (!result.second.empty())
     {
-        auto textWithUnfoundPart = m_current_item_bar->text() + " " + result.second.c_str();
-        m_current_item_bar->setText(textWithUnfoundPart);
+        auto textWithUnfoundPart = m_address_bar->text() + " " + result.second.c_str();
+        m_address_bar->setText(textWithUnfoundPart);
     }
 }
 
@@ -1215,8 +1218,8 @@ void MainWindow::toggle_toolbar()
 
 void MainWindow::toggle_currentitembar()
 {
-    bool isVisible = m_current_item_bar_container->isVisible();
-    m_current_item_bar_container->setVisible(!isVisible);
+    bool isVisible = m_address_bar_container->isVisible();
+    m_address_bar_container->setVisible(!isVisible);
 }
 
 void MainWindow::gui_options()
@@ -1538,7 +1541,7 @@ void MainWindow::LoadConfig(CharPtr configFilePath, CharPtr currentItemPath)
             if (LoadConfigImpl(configFilePathStr.c_str()))
                 QTimer::singleShot(0, this, [=]()
                     {
-                        m_current_item_bar->setPath(currentItemPathStr.c_str());
+                        m_address_bar->setPath(currentItemPathStr.c_str());
                     }
                 );
         }
@@ -2090,7 +2093,7 @@ void MainWindow::createActions()
 {
     m_file_menu = std::make_unique<QMenu>(tr("&File"));
     menuBar()->addMenu(m_file_menu.get());
-    m_current_item_bar_container = addToolBar(tr("Current item bar"));
+    m_address_bar_container = addToolBar(tr("Current item bar"));
 
     m_treeitem_visit_history = std::make_unique<QComboBox>();
     m_treeitem_visit_history->setFixedWidth(18);
@@ -2107,14 +2110,16 @@ void MainWindow::createActions()
                                             "}\n");
    
 
-    m_current_item_bar_container->addWidget(m_treeitem_visit_history.get());
-    m_current_item_bar = std::make_unique<DmsCurrentItemBar>(this);
-    m_current_item_bar_container->addWidget(m_current_item_bar.get());
-    m_current_item_bar_container->addAction(m_back_action.get());
-    m_current_item_bar_container->addAction(m_forward_action.get());
+    m_address_bar_container->addWidget(m_treeitem_visit_history.get());
+    m_address_bar = std::make_unique<DmsAddressBar>(this);
+    m_address_bar_container->addWidget(m_address_bar.get());
+    m_address_bar_container->addAction(m_back_action.get());
+    m_address_bar_container->addAction(m_forward_action.get());
+    m_treeitem_visit_history->setFocusPolicy(Qt::FocusPolicy::ClickFocus);
 
-    connect(m_current_item_bar.get(), &DmsCurrentItemBar::editingFinished, m_current_item_bar.get(), &DmsCurrentItemBar::onEditingFinished);
-    connect(m_treeitem_visit_history.get(), &QComboBox::currentTextChanged, m_current_item_bar.get(), &DmsCurrentItemBar::setPathDirectly);
+
+    connect(m_address_bar.get(), &DmsAddressBar::editingFinished, m_address_bar.get(), &DmsAddressBar::onEditingFinished);
+    connect(m_treeitem_visit_history.get(), &QComboBox::currentTextChanged, m_address_bar.get(), &DmsAddressBar::setPathDirectly);
 
     addToolBarBreak();
 
@@ -2442,7 +2447,7 @@ void MainWindow::updateViewMenu()
     m_toggle_toolbar_action->setEnabled(hasToolbar);
     if (hasToolbar)
         m_toggle_toolbar_action->setChecked(m_toolbar->isVisible());
-    m_toggle_currentitembar_action->setChecked(m_current_item_bar_container->isVisible());
+    m_toggle_currentitembar_action->setChecked(m_address_bar_container->isVisible());
 
     m_processing_records.empty() ? m_view_calculation_times_action->setDisabled(true) : m_view_calculation_times_action->setEnabled(true);
 }
