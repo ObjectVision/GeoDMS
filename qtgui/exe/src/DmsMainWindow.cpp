@@ -257,7 +257,6 @@ MainWindow::MainWindow(CmdLineSetttings& cmdLineSettings)
     QString family = QFontDatabase::applicationFontFamilies(id).at(0);
     QFont dms_text_font(family, 10);
     QApplication::setFont(dms_text_font);
-    //QApplication::setAttribute(Qt::AA_UseSoftwareOpenGL); // force software rendering 
     QFontDatabase::addApplicationFont(":/res/fonts/remixicon.ttf");
 
     // helper dialogues
@@ -316,6 +315,9 @@ MainWindow::MainWindow(CmdLineSetttings& cmdLineSettings)
     SetDrawingSizeTresholdValue(drawing_size_in_pixels);
 
     setStyleSheet("QMainWindow::separator{ width: 5px; height: 5px; }");
+    setFont(QApplication::font());
+    auto menu_bar = menuBar();
+    menu_bar->setFont(QApplication::font());
 }
 
 MainWindow::~MainWindow()
@@ -331,6 +333,7 @@ MainWindow::~MainWindow()
 DmsCurrentItemBar::DmsCurrentItemBar(QWidget* parent)
     : QLineEdit(parent)
 {
+    setFont(QApplication::font());
     QRegularExpression rx("^[^0-9=+\\-|&!?><,.{}();\\]\\[][^=+\\-|&!?><,.{}();\\]\\[]+$");
     auto rx_validator = new QRegularExpressionValidator(rx, this);
     setValidator(rx_validator);

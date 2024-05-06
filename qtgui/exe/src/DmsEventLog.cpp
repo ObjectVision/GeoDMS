@@ -363,6 +363,8 @@ QSize DmsTypeFilter::sizeHint() const
 DmsEventLog::DmsEventLog(QWidget* parent)
 	: QWidget(parent)
 {
+	setFont(QApplication::font());
+
 	const QIcon copy_icon = QIcon(":/res/images/TB_copy.bmp");
 	m_copy_selected_to_clipboard = std::make_unique<QPushButton>(copy_icon, "");
 	m_copy_selected_to_clipboard->setToolTip(tr("Copy selected eventlog lines to clipboard"));
@@ -464,7 +466,6 @@ DmsEventLog::DmsEventLog(QWidget* parent)
 
 	// click events
 	connect(m_log.get(), &QListView::clicked, this, &DmsEventLog::onItemClicked);
-	//clicked(const QModelIndex& index)
 }
 
 void DmsEventLog::copySelectedEventlogLinesToClipboard()

@@ -113,6 +113,8 @@ bool DmsWebEnginePage::acceptNavigationRequest(const QUrl& url, QWebEnginePage::
 QUpdatableWebBrowser::QUpdatableWebBrowser(QWidget* parent)
     : QWebEngineView(parent)
 {
+    setFocusPolicy(Qt::FocusPolicy::ClickFocus);
+
     current_page = new DmsWebEnginePage(this);
     setPage(current_page);
 

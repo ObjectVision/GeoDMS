@@ -455,6 +455,7 @@ DmsDetailPages::DmsDetailPages(QWidget* parent)
 {
     setProperty("DmsHelperWindowType", DmsHelperWindowType::HW_DETAILPAGES);
     setSizePolicy(QSizePolicy::MinimumExpanding, QSizePolicy::Expanding);
+    setFocusPolicy(Qt::FocusPolicy::ClickFocus);
 }
 
 bool DmsDetailPages::update()
