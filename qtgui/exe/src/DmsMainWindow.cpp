@@ -2149,32 +2149,35 @@ void MainWindow::createActions()
     auto step_to_failreason_shortcut = new QShortcut(QKeySequence(tr("F2")), this);
     connect(step_to_failreason_shortcut, &QShortcut::activated, this, &MainWindow::stepToFailReason);
     connect(m_step_to_failreason_action.get(), &QAction::triggered, this, &MainWindow::stepToFailReason);
+    m_step_to_failreason_action->setShortcut(QKeySequence(tr("F2")));
 
     // go to causa prima
     m_go_to_causa_prima_action = std::make_unique<QAction>(tr("&Run up to Causa Prima (i.e. repeated Step up)"));
     auto go_to_causa_prima_shortcut = new QShortcut(QKeySequence(tr("Shift+F2")), this);
     connect(go_to_causa_prima_shortcut, &QShortcut::activated, this, &MainWindow::runToFailReason);
     connect(m_go_to_causa_prima_action.get(), &QAction::triggered, this, &MainWindow::runToFailReason);
-    
+    m_go_to_causa_prima_action->setShortcut(QKeySequence(tr("Shift+F2")));
+
     // open config source
     m_edit_config_source_action = std::make_unique<QAction>(tr("&Open in Editor"));
-    auto edit_config_source_shortcut = new QShortcut(QKeySequence(tr("Ctrl+E")), this);
-    connect(edit_config_source_shortcut, &QShortcut::activated, this, &MainWindow::openConfigSource);
     connect(m_edit_config_source_action.get(), &QAction::triggered, this, &MainWindow::openConfigSource);
     m_edit_menu->addAction(m_edit_config_source_action.get());
+    m_edit_config_source_action->setShortcut(QKeySequence(tr("Ctrl+E")));
 
     // update treeitem
     m_update_treeitem_action = std::make_unique<QAction>(tr("&Update TreeItem"));
     auto update_treeitem_shortcut = new QShortcut(QKeySequence(tr("Ctrl+U")), this);
     connect(update_treeitem_shortcut, &QShortcut::activated, this, &MainWindow::visual_update_treeitem);
     connect(m_update_treeitem_action.get(), &QAction::triggered, this, &MainWindow::visual_update_treeitem);
+    m_update_treeitem_action->setShortcut(QKeySequence(tr("Ctrl+U")));
 
     // update subtree
     m_update_subtree_action = std::make_unique<QAction>(tr("&Update Subtree"));
     auto update_subtree_shortcut = new QShortcut(QKeySequence(tr("Ctrl+T")), this);
     connect(update_subtree_shortcut, &QShortcut::activated, this, &MainWindow::visual_update_subtree);
     connect(m_update_subtree_action.get(), &QAction::triggered, this, &MainWindow::visual_update_subtree);
-    
+    m_update_subtree_action->setShortcut(QKeySequence(tr("Ctrl+T")));
+
     // invalidate action
     m_invalidate_action = std::make_unique<QAction>(tr("&Invalidate"));
     m_invalidate_action->setShortcut(QKeySequence(tr("Ctrl+I")));
