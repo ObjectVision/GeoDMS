@@ -1133,6 +1133,12 @@ void MainWindow::openConfigRootSource()
 
 TIC_CALL BestItemRef TreeItem_GetErrorSourceCaller(const TreeItem* src);
 
+void MainWindow::focusAddressBar()
+{
+	m_current_item_bar->setFocus();
+    m_current_item_bar->selectAll();
+}
+
 void MainWindow::stepToFailReason()
 {
     auto ti = getCurrentTreeItem();
@@ -2139,6 +2145,10 @@ void MainWindow::createActions()
 
     m_edit_menu = std::make_unique<QMenu>(tr("&Edit"));
     menuBar()->addMenu(m_edit_menu.get());
+
+    // focus address bar
+    auto focus_address_bar_shortcut = new QShortcut(QKeySequence(tr("Alt+D")), this);
+    connect(focus_address_bar_shortcut, &QShortcut::activated, this, &MainWindow::focusAddressBar);
 
     // export primary data
     m_export_primary_data_action = std::make_unique<QAction>(tr("&Export Primary Data"));

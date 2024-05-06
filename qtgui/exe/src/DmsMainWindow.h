@@ -274,6 +274,7 @@ public slots:
     static bool reportErrorAndAskToReload(ErrMsgPtr error_message_ptr);
     static void reportErrorAndTryReload(ErrMsgPtr error_message_ptr);
     void stepToFailReason();
+    void focusAddressBar();
     void runToFailReason();
 
     void toggle_treeview();
