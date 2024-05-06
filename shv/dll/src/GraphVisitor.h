@@ -26,8 +26,6 @@ public:
 	virtual GraphVisitState DoObject    (GraphicObject*    go);
   	virtual GraphVisitState DoMovable(MovableObject*   obj);
   	virtual GraphVisitState DoMovableContainer(MovableContainer* obj);
-  	virtual GraphVisitState DoVarRows   (GraphicVarRows*   goc);
-  	virtual GraphVisitState DoVarCols   (GraphicVarCols*   goc);
   	virtual GraphVisitState DoDataItemColumn(DataItemColumn* dic);
 
 	virtual GraphVisitState DoWrapper   (Wrapper*    wr);

@@ -1,12 +1,14 @@
-// Copyright (C) 1998-2023 Object Vision b.v. 
+// Copyright (C) 1998-2024 Object Vision b.v. 
 // License: GNU GPL 3
 /////////////////////////////////////////////////////////////////////////////
 
+#if defined(_MSC_VER)
 #pragma once
+#endif
+
 
 #if !defined(_SHV_UTLS_H)
 #define _SHV_UTLS_H
-
 
 #include "ShvBase.h"
 #include "GeoTypes.h"
@@ -153,7 +155,6 @@ void FillRectWithBrush(HDC dc, const GRect& rect, HBRUSH br);
 
 enum ToolButtonID // GeoDmsGui.exe: keep this list in sync with type ToolButtonID in fmDmsControl.pas
 {
-
 	TB_ZoomAllLayers,               // Button Command
 	TB_ZoomActiveLayer,             // Button Command
 	TB_ZoomSelectedObj,             // Button Command
@@ -202,7 +203,9 @@ enum ToolButtonID // GeoDmsGui.exe: keep this list in sync with type ToolButtonI
 	TB_GotoClipboardZoomlevel,
 	TB_GotoClipboardLocationAndZoomlevel,
 	TB_CopyLocationAndZoomlevelToClipboard,
-	//	TB_SetData,
+	//	===========
+	TB_ToggleTableOrientation,
+//	TB_SetData,
 	TB_Undefined,
 	OBSOLETE_TB_Pan,                // DualPoint   Tool
 };

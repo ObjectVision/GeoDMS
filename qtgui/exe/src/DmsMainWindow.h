@@ -121,7 +121,7 @@ public slots:
     void onToolbuttonPressed();
 
 private:
-    auto getNumberOfStates() -> UInt8 { return m_data.ids.size(); } ;
+    auto getNumberOfStates() const -> UInt8 { return m_data.ids.size(); } ;
 
     ToolbarButtonData m_data;
     UInt8 m_state = 0;
