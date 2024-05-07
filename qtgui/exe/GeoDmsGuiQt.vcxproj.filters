@@ -48,6 +48,12 @@
     <ClCompile Include="src\UpdatableBrowser.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="src\DmsFileChangedWindow.cpp">
+      <Filter>Header Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\DmsGuiParameters.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <QtMoc Include="src\DmsMainWindow.h">
@@ -66,6 +72,9 @@
       <Filter>Header Files</Filter>
     </QtMoc>
     <QtMoc Include="src\DmsExport.h">
+      <Filter>Header Files</Filter>
+    </QtMoc>
+    <QtMoc Include="src\DmsFileChangedWindow.h">
       <Filter>Header Files</Filter>
     </QtMoc>
   </ItemGroup>
