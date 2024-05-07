@@ -33,6 +33,7 @@ namespace dms_params {
 	// stylesheets
 	extern const char* stylesheet_main_window;
 	extern const char* stylesheet_treeitem_visit_history;
+	extern const char* stylesheet_toolbar;
 }
 
 #endif // DMSGUIPARAMETERS_H

@@ -769,11 +769,7 @@ void MainWindow::updateToolbar() {
         addToolBarBreak();
         m_toolbar = addToolBar(tr("dmstoolbar"));
         m_toolbar->setFocusPolicy(Qt::FocusPolicy::ClickFocus);
-        m_toolbar->setStyleSheet("QToolBar { background: rgb(117, 117, 138);\n padding : 0px; }\n"
-                                 "QToolButton {padding: 0px;}\n"
-                                 "QToolButton:checked {background-color: rgba(255, 255, 255, 150);}\n"
-                                 "QToolButton:checked {selection-color: rgba(255, 255, 255, 150);}\n"
-                                 "QToolButton:checked {selection-background-color: rgba(255, 255, 255, 150);}\n");
+        m_toolbar->setStyleSheet(dms_params::stylesheet_toolbar);
         
         m_toolbar->setIconSize(QSize(32, 32));
         m_toolbar->setMinimumSize(QSize(38, 38));

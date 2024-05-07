@@ -38,3 +38,9 @@ const char* dms_params::stylesheet_treeitem_visit_history = "QComboBox QAbstract
 "QComboBox::down-arrow {\n"
 "image: url(:/res/images/arrow_down.png);\n"
 "}\n";
+
+const char* dms_params::stylesheet_toolbar =	"QToolBar { background: rgb(117, 117, 138);\n padding : 0px; }\n"
+												"QToolButton {padding: 0px;}\n"
+												"QToolButton:checked {background-color: rgba(255, 255, 255, 150);}\n"
+												"QToolButton:checked {selection-color: rgba(255, 255, 255, 150);}\n"
+												"QToolButton:checked {selection-background-color: rgba(255, 255, 255, 150);}\n";
