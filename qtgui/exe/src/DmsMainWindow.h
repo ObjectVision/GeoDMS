@@ -308,6 +308,7 @@ public:
     void updateWindowMenu();
     void updateViewMenu();
     void updateSettingsMenu();
+    void updateDetailPagesToolbar();
 
 private:
     void openConfigSourceFor(const TreeItem* context);
@@ -322,7 +323,6 @@ private:
     void createDmsHelperWindowDocks();
     void updateCaption();
     void updateTreeItemVisitHistory();
-    void updateDetailPagesToolbar();
     void on_status_msg_changed(const QString& msg);
     void updateStatusMessage();
 

@@ -143,6 +143,7 @@
     <ClCompile Include="src\DmsGuiParameters.cpp" />
     <ClCompile Include="src\DmsMainWindow.cpp" />
     <ClCompile Include="src\DmsOptions.cpp" />
+    <ClCompile Include="src\DmsToolbar.cpp" />
     <ClCompile Include="src\DmsTreeView.cpp" />
     <ClCompile Include="src\DmsValueInfo.cpp" />
     <ClCompile Include="src\DmsViewArea.cpp" />
@@ -161,6 +162,7 @@
     <ClInclude Include="src\DmsDetailPages.h" />
     <QtMoc Include="src\DmsFileChangedWindow.h" />
     <ClInclude Include="src\DmsGuiParameters.h" />
+    <ClInclude Include="src\DmsToolbar.h" />
     <ClInclude Include="src\dms_memory_leak_debugging.h" />
     <ClInclude Include="src\StatisticsBrowser.h" />
     <ClInclude Include="src\TestScript.h" />
