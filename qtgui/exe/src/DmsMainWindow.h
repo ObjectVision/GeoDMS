@@ -322,7 +322,6 @@ private:
     void createDmsHelperWindowDocks();
     void updateCaption();
     void updateTreeItemVisitHistory();
-    void createDetailPagesActions();
     void updateDetailPagesToolbar();
     void on_status_msg_changed(const QString& msg);
     void updateStatusMessage();

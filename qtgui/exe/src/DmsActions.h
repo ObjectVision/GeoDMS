@@ -1,1 +1,2 @@
 void createDmsActions();
+void createDetailPagesActions();

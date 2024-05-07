@@ -10,6 +10,7 @@
 #include <QShortCut>
 
 #include "DmsEventLog.h"
+#include "DmsDetailPages.h"
 #include "DmsViewArea.h"
 
 void createDmsActions() {
@@ -298,4 +299,57 @@ void createDmsActions() {
     wiki_action->setStatusTip(QObject::tr("Open the GeoDms wiki in a browser"));
     main_window->connect(wiki_action, &QAction::triggered, main_window, &MainWindow::wiki);
     main_window->m_help_menu->addAction(wiki_action);
+}
+
+void createDetailPagesActions() {
+    auto main_window = MainWindow::TheOne();
+
+    const QIcon backward_icon = QIcon::fromTheme("backward", QIcon(":/res/images/DP_back.bmp"));
+    main_window->m_back_action = std::make_unique<QAction>(backward_icon, QObject::tr("&Back"));
+    //m_back_action->setShortcut(QKeySequence(tr("Shift+Ctrl+W")));
+    //m_back_action->setShortcutContext(Qt::ApplicationShortcut);
+    main_window->connect(main_window->m_back_action.get(), &QAction::triggered, main_window, &MainWindow::back);
+
+    const QIcon forward_icon = QIcon::fromTheme("detailpages-general", QIcon(":/res/images/DP_forward.bmp"));
+    main_window->m_forward_action = std::make_unique<QAction>(forward_icon, QObject::tr("&Forward"));
+    //m_forward_action->setShortcut(QKeySequence(tr("Shift+Ctrl+W")));
+    //m_forward_action->setShortcutContext(Qt::ApplicationShortcut);
+    main_window->connect(main_window->m_forward_action.get(), &QAction::triggered, main_window, &MainWindow::forward);
+
+    const QIcon general_icon = QIcon::fromTheme("detailpages-general", QIcon(":/res/images/DP_properties_general.bmp"));
+    main_window->m_general_page_action = std::make_unique<QAction>(general_icon, QObject::tr("&General"));
+    main_window->m_general_page_action->setCheckable(true);
+    main_window->m_general_page_action->setChecked(true);
+    main_window->m_general_page_action->setStatusTip("Show property overview of the active item, including domain and value characteristics of attributes");
+    main_window->connect(main_window->m_general_page_action.get(), &QAction::triggered, main_window->m_detail_pages, &DmsDetailPages::toggleGeneral);
+
+    const QIcon explore_icon = QIcon::fromTheme("detailpages-explore", QIcon(":res/images/DP_explore.bmp"));
+    main_window->m_explore_page_action = std::make_unique<QAction>(explore_icon, QObject::tr("&Explore"));
+    main_window->m_explore_page_action->setCheckable(true);
+    main_window->m_explore_page_action->setStatusTip("Show all item-names that can be found from the context of the active item in namespace search order, which are: 1. referred contexts, 2. template definition context and/or using contexts, and 3. parent context.");
+    main_window->connect(main_window->m_explore_page_action.get(), &QAction::triggered, main_window->m_detail_pages, &DmsDetailPages::toggleExplorer);
+
+    const QIcon properties_icon = QIcon::fromTheme("detailpages-properties", QIcon(":/res/images/DP_properties_properties.bmp"));
+    main_window->m_properties_page_action = std::make_unique<QAction>(properties_icon, QObject::tr("&Properties"));
+    main_window->m_properties_page_action->setCheckable(true);
+    main_window->m_properties_page_action->setStatusTip("Show all properties of the active item; some properties are itemtype-specific and the most specific properties are reported first");
+    main_window->connect(main_window->m_properties_page_action.get(), &QAction::triggered, main_window->m_detail_pages, &DmsDetailPages::toggleProperties);
+
+    const QIcon configuration_icon = QIcon::fromTheme("detailpages-configuration", QIcon(":res/images/DP_configuration.bmp"));
+    main_window->m_configuration_page_action = std::make_unique<QAction>(configuration_icon, QObject::tr("&Configuration"));
+    main_window->m_configuration_page_action->setCheckable(true);
+    main_window->m_configuration_page_action->setStatusTip("Show item configuration script of the active item in the detail-page; the script is generated from the internal representation of the item in the syntax of the read .dms file and is therefore similar to how it was defined there.");
+    main_window->connect(main_window->m_configuration_page_action.get(), &QAction::triggered, main_window->m_detail_pages, &DmsDetailPages::toggleConfiguration);
+
+    const QIcon sourcedescr_icon = QIcon::fromTheme("detailpages-sourcedescr", QIcon(":res/images/DP_SourceData.png"));
+    main_window->m_sourcedescr_page_action = std::make_unique<QAction>(sourcedescr_icon, QObject::tr("&Source description"));
+    main_window->m_sourcedescr_page_action->setCheckable(true);
+    main_window->m_sourcedescr_page_action->setStatusTip("Show the first or next  of the 4 source descriptions of the items used to calculate the active item: 1. configured source descriptions; 2. read data specs; 3. to be written data specs; 4. both");
+    main_window->connect(main_window->m_sourcedescr_page_action.get(), &QAction::triggered, main_window->m_detail_pages, &DmsDetailPages::toggleSourceDescr);
+
+    const QIcon metainfo_icon = QIcon::fromTheme("detailpages-metainfo", QIcon(":/res/images/DP_MetaData.bmp"));
+    main_window->m_metainfo_page_action = std::make_unique<QAction>(metainfo_icon, QObject::tr("&Meta information"));
+    main_window->m_metainfo_page_action->setCheckable(true);
+    main_window->m_metainfo_page_action->setStatusTip("Show the availability of meta-information, based on the URL property of the active item or it's anchestor");
+    main_window->connect(main_window->m_metainfo_page_action.get(), &QAction::triggered, main_window->m_detail_pages, &DmsDetailPages::toggleMetaInfo);
 }
