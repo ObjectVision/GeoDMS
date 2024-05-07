@@ -36,6 +36,7 @@
 #include "DmsMainWindow.h"
 #include "TestScript.h"
 
+#include "DmsGuiParameters.h"
 #include "DmsEventLog.h"
 #include "DmsViewArea.h"
 #include "DmsTreeView.h"
@@ -102,7 +103,7 @@ void MainWindow::saveValueInfo() {
 DmsFileChangedWindow::DmsFileChangedWindow(QWidget* parent)
     : QDialog(parent) {
     setWindowTitle(QString("Source changed.."));
-    setMinimumSize(600, 200);
+    setMinimumSize(dms_params::file_changed_window_size);
 
     auto grid_layout = new QGridLayout(this);
     m_message = new QTextBrowser(this);
@@ -114,14 +115,14 @@ DmsFileChangedWindow::DmsFileChangedWindow(QWidget* parent)
     // ok/apply/cancel buttons
     auto box_layout = new QHBoxLayout(this);
     m_ignore = new QPushButton(tr("&Ignore"), this);
-    m_ignore->setMaximumSize(75, 30);
+    m_ignore->setMaximumSize(dms_params::default_push_button_maximum_size);
 
     m_reopen = new QPushButton(tr("&Reopen"), this);
     connect(m_ignore, &QPushButton::released, this, &DmsFileChangedWindow::ignore);
     connect(m_reopen, &QPushButton::released, this, &DmsFileChangedWindow::reopen);
     m_reopen->setAutoDefault(true);
     m_reopen->setDefault(true);
-    m_reopen->setMaximumSize(75, 30);
+    m_reopen->setMaximumSize(dms_params::default_push_button_maximum_size);
     box_layout->addWidget(m_reopen);
     box_layout->addWidget(m_ignore);
     grid_layout->addLayout(box_layout, 14, 0, 1, 3);
@@ -164,7 +165,7 @@ void DmsErrorWindow::onAnchorClicked(const QUrl& link) {
 DmsErrorWindow::DmsErrorWindow(QWidget* parent)
     : QDialog(parent) {
     setWindowTitle(QString("Error"));
-    setMinimumSize(800, 400);
+    setMinimumSize(dms_params::error_window_size);
 
     auto grid_layout = new QGridLayout(this);
     m_message = new QTextBrowser(this);
@@ -176,9 +177,9 @@ DmsErrorWindow::DmsErrorWindow(QWidget* parent)
     // ok/apply/cancel buttons
     auto box_layout = new QHBoxLayout(this);
     m_ignore = new QPushButton(tr("&Ignore"), this);
-    m_ignore->setMaximumSize(75, 30);
+    m_ignore->setMaximumSize(dms_params::default_push_button_maximum_size);
     m_terminate = new QPushButton(tr("&Terminate"), this);
-    m_terminate->setMaximumSize(75, 30);
+    m_terminate->setMaximumSize(dms_params::default_push_button_maximum_size);
 
     m_reopen = new QPushButton(tr("&Reopen"), this);
     m_reopen->setAutoDefault(true);
@@ -187,7 +188,7 @@ DmsErrorWindow::DmsErrorWindow(QWidget* parent)
     connect(m_ignore, &QPushButton::released, this, &DmsErrorWindow::ignore);
     connect(m_terminate, &QPushButton::released, this, &DmsErrorWindow::terminate);
     connect(m_reopen, &QPushButton::released, this, &DmsErrorWindow::reopen);
-    m_reopen->setMaximumSize(75, 30);
+    m_reopen->setMaximumSize(dms_params::default_push_button_maximum_size);
     box_layout->addWidget(m_reopen);
     box_layout->addWidget(m_terminate);
     box_layout->addWidget(m_ignore);
@@ -228,11 +229,11 @@ MainWindow::MainWindow(CmdLineSetttings& cmdLineSettings) {
     connect(qApp, &QApplication::focusChanged, this, &MainWindow::onFocusChanged);
 
     // fonts
-    int id = QFontDatabase::addApplicationFont(":/res/fonts/dmstext.ttf");
+    int id = QFontDatabase::addApplicationFont(dms_params::dms_font_resource);
     QString family = QFontDatabase::applicationFontFamilies(id).at(0);
-    QFont dms_text_font(family, 10);
+    QFont dms_text_font(family, dms_params::default_font_size);
     QApplication::setFont(dms_text_font);
-    QFontDatabase::addApplicationFont(":/res/fonts/remixicon.ttf");
+    QFontDatabase::addApplicationFont(dms_params::remix_icon_font_resource);
 
     // helper dialogues
     m_file_changed_window = new DmsFileChangedWindow(this);
