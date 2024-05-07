@@ -55,25 +55,21 @@
 static MainWindow* s_CurrMainWindow = nullptr;
 UInt32 s_errorWindowActivationCount = 0;
 
-void DmsFileChangedWindow::ignore()
-{
+void DmsFileChangedWindow::ignore() {
     done(QDialog::Rejected);
 }
 
-void DmsFileChangedWindow::reopen()
-{
+void DmsFileChangedWindow::reopen() {
     done(QDialog::Accepted);
     MainWindow::TheOne()->reopen();
 }
 
-void DmsFileChangedWindow::onAnchorClicked(const QUrl& link)
-{
+void DmsFileChangedWindow::onAnchorClicked(const QUrl& link) {
     auto clicked_file_link = link.toString().toStdString();
     MainWindow::TheOne()->openConfigSourceDirectly(clicked_file_link, "0");
 }
 
-bool MainWindow::ShowInDetailPage(SharedStr x)
-{
+bool MainWindow::ShowInDetailPage(SharedStr x) {
     auto realm = Realm(x);
     if (realm.size() == 3 && !strncmp(realm.begin(), "dms", 3))
         return true;
@@ -83,13 +79,11 @@ bool MainWindow::ShowInDetailPage(SharedStr x)
     return std::search(x.begin(), x.end(), knownSuffix.begin(), knownSuffix.end()) != x.end();
 }
 
-void MainWindow::SaveValueInfoImpl(CharPtr filename)
-{
+void MainWindow::SaveValueInfoImpl(CharPtr filename) {
     auto dmsFileName = ConvertDosFileName(SharedStr(filename));
     auto expandedFilename = AbstrStorageManager::Expand(m_current_item, dmsFileName);
     FileOutStreamBuff buff(SharedStr(expandedFilename), nullptr, true, false);
-    for (auto& child_object : children())
-    {
+    for (auto& child_object : children()) {
         auto value_info_window_candidate = dynamic_cast<ValueInfoWindow*>(child_object);
         if (!value_info_window_candidate)
             continue;
@@ -101,14 +95,12 @@ void MainWindow::SaveValueInfoImpl(CharPtr filename)
     }
 }
 
-void MainWindow::saveValueInfo()
-{
+void MainWindow::saveValueInfo() {
     SaveValueInfoImpl("C:/LocalData/test/test_value_info.txt");
 }
 
 DmsFileChangedWindow::DmsFileChangedWindow(QWidget* parent)
-    : QDialog(parent)
-{
+    : QDialog(parent) {
     setWindowTitle(QString("Source changed.."));
     setMinimumSize(600, 200);
 
@@ -137,12 +129,10 @@ DmsFileChangedWindow::DmsFileChangedWindow(QWidget* parent)
     setWindowModality(Qt::ApplicationModal);
 }
 
-void DmsFileChangedWindow::setFileChangedMessage(std::string_view changed_files)
-{
+void DmsFileChangedWindow::setFileChangedMessage(std::string_view changed_files) {
     std::string file_changed_message_markdown = "The following files have been changed:\n\n";
     size_t curr_pos = 0;
-    while (curr_pos < changed_files.size())
-    {
+    while (curr_pos < changed_files.size()) {
         auto curr_line_end = changed_files.find_first_of('\n', curr_pos);
         auto link = std::string(changed_files.substr(curr_pos, curr_line_end - curr_pos));
         file_changed_message_markdown += "[" + link + "](" + link + ")\n\n";
@@ -152,32 +142,27 @@ void DmsFileChangedWindow::setFileChangedMessage(std::string_view changed_files)
     m_message->setMarkdown(file_changed_message_markdown.c_str());
 }
 
-void DmsErrorWindow::ignore()
-{
+void DmsErrorWindow::ignore() {
     done(QDialog::Rejected);
 }
 
-void DmsErrorWindow::terminate()
-{    
+void DmsErrorWindow::terminate() {    
     done(QDialog::Rejected);
     std::terminate();
 }
 
-void DmsErrorWindow::reopen()
-{
+void DmsErrorWindow::reopen() {
     done(QDialog::Accepted);
     // don't call now: MainWindow::TheOne()->reOpen();
     // but let the execution caller call it, after modal message pumping ended
 }
 
-void DmsErrorWindow::onAnchorClicked(const QUrl& link)
-{
+void DmsErrorWindow::onAnchorClicked(const QUrl& link) {
     MainWindow::TheOne()->m_detail_pages->onAnchorClicked(link);
 }
 
 DmsErrorWindow::DmsErrorWindow(QWidget* parent)
-    : QDialog(parent)
-{
+    : QDialog(parent) {
     setWindowTitle(QString("Error"));
     setMinimumSize(800, 400);
 
@@ -207,50 +192,40 @@ DmsErrorWindow::DmsErrorWindow(QWidget* parent)
     box_layout->addWidget(m_terminate);
     box_layout->addWidget(m_ignore);
     grid_layout->addLayout(box_layout, 14, 0, 1, 3);
-
-
     setWindowModality(Qt::ApplicationModal);
 }
 
 CalculationTimesWindow::CalculationTimesWindow()
-:   QMdiSubWindow::QMdiSubWindow()
-{
+:   QMdiSubWindow::QMdiSubWindow() {
     setAttribute(Qt::WA_DeleteOnClose, false);
     setProperty("viewstyle", ViewStyle::tvsCalculationTimes);
     installEventFilter(this);
 }
 
-CalculationTimesWindow::~CalculationTimesWindow()
-{
+CalculationTimesWindow::~CalculationTimesWindow() { }
 
-}
-
-bool CalculationTimesWindow::eventFilter(QObject* obj, QEvent* e)
-{
-    switch (e->type())
-    {
-    case QEvent::Close:
-    {
+bool CalculationTimesWindow::eventFilter(QObject* obj, QEvent* e) {
+    switch (e->type()) {
+    case QEvent::Close: {
         MainWindow::TheOne()->m_mdi_area->removeSubWindow(MainWindow::TheOne()->m_calculation_times_window.get());
         auto dms_mdi_subwindow_list = MainWindow::TheOne()->m_mdi_area->subWindowList();
-        if (!dms_mdi_subwindow_list.empty())
-        {
+        if (!dms_mdi_subwindow_list.empty()) {
             MainWindow::TheOne()->m_mdi_area->setActiveSubWindow(dms_mdi_subwindow_list[0]);
             dms_mdi_subwindow_list[0]->showMaximized();
         }
-        
         break;
     }
     }
     return QObject::eventFilter(obj, e);
 }
 
-MainWindow::MainWindow(CmdLineSetttings& cmdLineSettings)
-{ 
+MainWindow::MainWindow(CmdLineSetttings& cmdLineSettings) { 
     assert(s_CurrMainWindow == nullptr);
     s_CurrMainWindow = this;
 
     m_mdi_area = new QDmsMdiArea(this);
+    m_mdi_area->setFocusPolicy(Qt::FocusPolicy::ClickFocus);
+    connect(qApp, &QApplication::focusChanged, this, &MainWindow::onFocusChanged);
 
     // fonts
     int id = QFontDatabase::addApplicationFont(":/res/fonts/dmstext.ttf");
@@ -289,13 +264,11 @@ MainWindow::MainWindow(CmdLineSetttings& cmdLineSettings)
     createActions();
 
     // read initial last config file
-    if (!cmdLineSettings.m_NoConfig)
-    {
+    if (!cmdLineSettings.m_NoConfig) {
         CharPtr currentItemPath = "";
         if (cmdLineSettings.m_ConfigFileName.empty())
             cmdLineSettings.m_ConfigFileName = GetGeoDmsRegKey("LastConfigFile");
-        else
-        {
+        else {
             if (cmdLineSettings.m_CurrItemFullNames.size())
                 currentItemPath = cmdLineSettings.m_CurrItemFullNames.back().c_str();
         }
@@ -322,8 +295,7 @@ MainWindow::MainWindow(CmdLineSetttings& cmdLineSettings)
     setTabOrder({ m_address_bar.get(), m_treeview, m_eventlog.get() });
 }
 
-MainWindow::~MainWindow()
-{
+MainWindow::~MainWindow() {
     g_IsTerminating = true;
 
     assert(s_CurrMainWindow == this);
@@ -333,8 +305,7 @@ MainWindow::~MainWindow()
 }
 
 DmsAddressBar::DmsAddressBar(QWidget* parent)
-    : QLineEdit(parent)
-{
+    : QLineEdit(parent) {
     setFont(QApplication::font());
     QRegularExpression rx("^[^0-9=+\\-|&!?><,.{}();\\]\\[][^=+\\-|&!?><,.{}();\\]\\[]+$");
     auto rx_validator = new QRegularExpressionValidator(rx, this);
@@ -342,8 +313,7 @@ DmsAddressBar::DmsAddressBar(QWidget* parent)
     setDmsCompleter();
 }
 
-void DmsAddressBar::setDmsCompleter()
-{
+void DmsAddressBar::setDmsCompleter() {
     auto dms_model = MainWindow::TheOne()->m_dms_model.get();
     TreeModelCompleter* completer = new TreeModelCompleter(this);
     completer->setModel(dms_model);
@@ -352,14 +322,12 @@ void DmsAddressBar::setDmsCompleter()
     setCompleter(completer);
 }
 
-void DmsAddressBar::setPath(CharPtr itemPath)
-{
+void DmsAddressBar::setPath(CharPtr itemPath) {
     setText(itemPath);
     onEditingFinished();
 }
 
-void DmsAddressBar::findItem(const TreeItem * context, QString path, bool updateHistory)
-{
+void DmsAddressBar::findItem(const TreeItem * context, QString path, bool updateHistory) {
     if (!context)
         return;
 
@@ -370,24 +338,20 @@ void DmsAddressBar::findItem(const TreeItem * context, QString path, bool update
     MainWindow::TheOne()->setCurrentTreeItem(const_cast<TreeItem*>(found_treeitem), updateHistory);
 }
 
-void DmsAddressBar::setPathDirectly(QString path)
-{
+void DmsAddressBar::setPathDirectly(QString path) {
     setText(path);
     findItem(MainWindow::TheOne()->getRootTreeItem(), path, false);
 }
 
-void DmsAddressBar::onEditingFinished()
-{
+void DmsAddressBar::onEditingFinished() {
     findItem(MainWindow::TheOne()->getCurrentTreeItemOrRoot(), text().toUtf8(), true);
 }
 
-bool MainWindow::IsExisting()
-{
+bool MainWindow::IsExisting() {
     return s_CurrMainWindow;
 }
 
-auto MainWindow::CreateCodeAnalysisSubMenu(QMenu* menu) -> std::unique_ptr<QMenu>
-{
+auto MainWindow::CreateCodeAnalysisSubMenu(QMenu* menu) -> std::unique_ptr<QMenu> {
     auto code_analysis_submenu = std::make_unique<QMenu>("&Code analysis...");
     menu->addMenu(code_analysis_submenu.get());
 
@@ -398,18 +362,13 @@ auto MainWindow::CreateCodeAnalysisSubMenu(QMenu* menu) -> std::unique_ptr<QMenu
     return code_analysis_submenu;
 }
 
-MainWindow* MainWindow::TheOne()
-{
-//    assert(IsMainThread()); // or use a mutex to guard access to TheOne.
-//    assert(s_CurrMainWindow);// main window destructor might already be in session, such as when called from the destructor of ValueInfoPanel
+MainWindow* MainWindow::TheOne() {
     return s_CurrMainWindow;
 }
 
-bool MainWindow::openErrorOnFailedCurrentItem()
-{
+bool MainWindow::openErrorOnFailedCurrentItem() {
     auto currItem = getCurrentTreeItem();
-    if (currItem->WasFailed() || currItem->IsFailed())
-    {
+    if (currItem->WasFailed() || currItem->IsFailed()) {
         auto fail_reason = currItem->GetFailReason();
         reportErrorAndTryReload(fail_reason);
         return true;
@@ -417,8 +376,7 @@ bool MainWindow::openErrorOnFailedCurrentItem()
     return false;
 }
 
-void MainWindow::clearActionsForEmptyCurrentItem()
-{
+void MainWindow::clearActionsForEmptyCurrentItem() {
     m_defaultview_action->setDisabled(true);
     m_tableview_action->setDisabled(true);
     m_mapview_action->setDisabled(true);
@@ -431,8 +389,7 @@ void MainWindow::clearActionsForEmptyCurrentItem()
     m_metainfo_page_action->setDisabled(true);
 }
 
-void MainWindow::updateActionsForNewCurrentItem()
-{
+void MainWindow::updateActionsForNewCurrentItem() {
     auto ci = m_current_item.get();
     auto viewstyle_flags = ci ? SHV_GetViewStyleFlags(ci) : ViewStyleFlags::vsfNone;
     m_defaultview_action->setEnabled(viewstyle_flags & (ViewStyleFlags::vsfDefault | ViewStyleFlags::vsfTableView | ViewStyleFlags::vsfTableContainer | ViewStyleFlags::vsfMapView)); // TODO: vsfDefault appears to never be set
@@ -445,24 +402,20 @@ void MainWindow::updateActionsForNewCurrentItem()
     m_update_subtree_action->setEnabled(true);
     m_edit_config_source_action->setEnabled(true);
     
-    try 
-    {
+    try {
         if (ci && !FindURL(ci).empty())
             m_metainfo_page_action->setEnabled(true);
         else
             m_metainfo_page_action->setDisabled(true);
     }
-    catch (...)
-    {
+    catch (...) {
         m_metainfo_page_action->setEnabled(true); 
     }
 }
 
-void MainWindow::updateTreeItemVisitHistory()
-{
+void MainWindow::updateTreeItemVisitHistory() {
     auto current_index = m_treeitem_visit_history->currentIndex();
-    if (current_index < m_treeitem_visit_history->count()-1) // current index is not at the end, remove all forward items
-    {
+    if (current_index < m_treeitem_visit_history->count()-1) { // current index is not at the end, remove all forward items 
         for (int i=m_treeitem_visit_history->count() - 1; i > current_index; i--)
             m_treeitem_visit_history->removeItem(i);
     }
@@ -471,8 +424,7 @@ void MainWindow::updateTreeItemVisitHistory()
     m_treeitem_visit_history->setCurrentIndex(m_treeitem_visit_history->count()-1);
 }
 
-void MainWindow::setCurrentTreeItem(TreeItem* target_item, bool update_history)
-{
+void MainWindow::setCurrentTreeItem(TreeItem* target_item, bool update_history) {
     if (m_current_item == target_item)
         return;
 
@@ -480,10 +432,8 @@ void MainWindow::setCurrentTreeItem(TreeItem* target_item, bool update_history)
         return;
 
     MG_CHECK(!m_root || !target_item || isAncestor(m_root, target_item));
-    if (target_item && !m_dms_model->show_hidden_items)
-    {
-        if (target_item->GetTSF(TSF_InHidden))
-        {
+    if (target_item && !m_dms_model->show_hidden_items) {
+        if (target_item->GetTSF(TSF_InHidden)) {
             const TreeItem* visible_parent = target_item;
             while (visible_parent && visible_parent->GetTSF(TSF_InHidden))
                 visible_parent = visible_parent->GetTreeParent();
@@ -496,14 +446,12 @@ void MainWindow::setCurrentTreeItem(TreeItem* target_item, bool update_history)
         }
     }
 
-
     m_current_item = target_item;
 
     // update actions based on new current item
     updateActionsForNewCurrentItem();
 
-    if (m_address_bar)
-    {
+    if (m_address_bar) {
         if (m_current_item)
             m_address_bar->setText(m_current_item->GetFullName().c_str());
         else
@@ -521,16 +469,13 @@ void MainWindow::setCurrentTreeItem(TreeItem* target_item, bool update_history)
 
 #include <QFileDialog>
 
-void MainWindow::fileOpen() 
-{
+void MainWindow::fileOpen() {
     //m_recent_files_actions
     auto proj_dir = SharedStr("");
     if (m_root)
         proj_dir = AbstrStorageManager::Expand(m_root.get(), SharedStr("%projDir%"));
-    else
-    {
-        if (!m_recent_file_entries.empty())
-        {
+    else {
+        if (!m_recent_file_entries.empty()) {
             auto recent_file_widget = dynamic_cast<DmsRecentFileEntry*>(m_recent_file_entries.at(0));
             proj_dir = recent_file_widget->m_cfg_file_path.c_str();
         }
@@ -547,8 +492,7 @@ void MainWindow::fileOpen()
     LoadConfig(configFileName.toUtf8().data());
 }
 
-void MainWindow::reopen()
-{
+void MainWindow::reopen() {
     auto cip = m_address_bar->text();
     
     reportF(MsgCategory::commands, SeverityTypeID::ST_MajorTrace, "Reopen configuration");
@@ -559,8 +503,7 @@ void MainWindow::reopen()
     LoadConfig(m_currConfigFileName.c_str(), cip.toUtf8());
 }
 
-void OnVersionComponentVisit(ClientHandle clientHandle, UInt32 componentLevel, CharPtr componentName)
-{
+void OnVersionComponentVisit(ClientHandle clientHandle, UInt32 componentLevel, CharPtr componentName) {
     auto& stream = *reinterpret_cast<FormattedOutStream*>(clientHandle);
     while (componentLevel)
     {
@@ -575,8 +518,7 @@ void OnVersionComponentVisit(ClientHandle clientHandle, UInt32 componentLevel, C
     stream << '\n';
 }
 
-auto getGeoDMSAboutText() -> std::string
-{
+auto getGeoDMSAboutText() -> std::string {
     VectorOutStreamBuff buff;
     FormattedOutStream stream(&buff, FormattingFlags::None);
 
@@ -586,27 +528,21 @@ auto getGeoDMSAboutText() -> std::string
     return { buff.GetData(), buff.GetDataEnd() };
 }
 
-void MainWindow::aboutGeoDms() 
-{
+void MainWindow::aboutGeoDms() {
     auto dms_about_text = getGeoDMSAboutText();
     dms_about_text += "- GeoDms icon obtained from: World icons created by turkkub-Flaticon https://www.flaticon.com/free-icons/world";
     QMessageBox::about(this, tr("About GeoDms"),
             tr(dms_about_text.c_str()));
 }
 
-void MainWindow::wiki()
-{
+void MainWindow::wiki() {
     QDesktopServices::openUrl(QUrl("https://github.com/ObjectVision/GeoDMS/wiki", QUrl::TolerantMode));
 }
 
 DmsConfigTextButton::DmsConfigTextButton(const QString& text, QWidget* parent)
-    : QPushButton(text, parent)
-{
+    : QPushButton(text, parent) {}
 
-}
-
-void DmsConfigTextButton::paintEvent(QPaintEvent* event)
-{
+void DmsConfigTextButton::paintEvent(QPaintEvent* event) {
     QStylePainter p(this);
     QStyleOptionButton option;
     initStyleOption(&option);
@@ -615,8 +551,7 @@ void DmsConfigTextButton::paintEvent(QPaintEvent* event)
 }
 
 DmsRecentFileEntry::DmsRecentFileEntry(size_t index, std::string_view dms_file_full_path, QObject* parent)
-    : QAction(parent)
-{
+    : QAction(parent) {
     m_cfg_file_path = dms_file_full_path;
     m_index = index;
 
@@ -625,8 +560,7 @@ DmsRecentFileEntry::DmsRecentFileEntry(size_t index, std::string_view dms_file_f
     setText(menu_text.c_str());
 }
 
-void DmsRecentFileEntry::showRecentFileContextMenu(QPoint pos)
-{
+void DmsRecentFileEntry::showRecentFileContextMenu(QPoint pos) {
     auto main_window = MainWindow::TheOne();
     
     std::unique_ptr<QMenu> recent_file_context_menu = std::make_unique<QMenu>();
@@ -646,15 +580,18 @@ void DmsRecentFileEntry::showRecentFileContextMenu(QPoint pos)
     recent_file_context_menu->exec(pos);
 }
 
-bool DmsRecentFileEntry::eventFilter(QObject* obj, QEvent* event)
-{
-    if (event->type() == QEvent::MouseButtonPress) 
-    {
+bool DmsRecentFileEntry::eventFilter(QObject* obj, QEvent* event) {
+    if (event->type() == QEvent::MouseButtonPress) {
         auto mouse_event = dynamic_cast<QMouseEvent*>(event);
-        if (mouse_event && mouse_event->button()==Qt::MouseButton::RightButton)
-        {
+        if (mouse_event && mouse_event->button()==Qt::MouseButton::RightButton) {
             showRecentFileContextMenu(mouse_event->globalPos());
             return true;
+        }
+    } else if (event->type() == QEvent::KeyPress) {
+        auto key_event = dynamic_cast<QKeyEvent*>(event);
+        if (key_event->key() == Qt::Key_Tab) // handle tab event in case treeview is currently active
+        {
+
         }
     }
 
@@ -820,6 +757,33 @@ auto getToolbarButtonData(ToolButtonID button_id) -> ToolbarButtonData
     return {};
 }
 
+void MainWindow::onFocusChanged(QWidget* old, QWidget* now)
+{
+    if (dynamic_cast<DmsAddressBar*>(now)) {
+        int i = 0;
+        return;
+    }
+    if (dynamic_cast<DmsDetailPages*>(now)) {
+        int i = 0;
+        return;
+    }
+    if (dynamic_cast<DmsTreeView*>(now)) {
+        int i = 0;
+        return;
+    }
+    if (dynamic_cast<DmsEventLog*>(now)) {
+        int i = 0;
+        return;
+    }
+
+    if (dynamic_cast<QTabBar*>(now)) {
+		int i = 0;
+		return;
+	}
+
+    int i = 0;
+}
+
 void MainWindow::scheduleUpdateToolbar()
 {
     //ViewStyle current_toolbar_style = ViewStyle::tvsUndefined, requested_toolbar_viewstyle = ViewStyle::tvsUndefined;
@@ -922,6 +886,7 @@ void MainWindow::updateDetailPagesToolbar()
     m_toolbar->addAction(m_metainfo_page_action.get());
     // detail pages buttons
     QWidget* spacer = new QWidget(this);
+    spacer->setFocusPolicy(Qt::FocusPolicy::NoFocus);
     spacer->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
     //m_toolbar->addWidget(spacer);
     m_dms_toolbar_spacer_action.reset(m_toolbar->insertWidget(m_general_page_action.get(), spacer));
@@ -1024,6 +989,7 @@ void MainWindow::updateToolbar()
             QWidget* spacer = new QWidget(this);
             spacer->setMinimumSize(30,0);
             m_current_dms_view_actions.push_back(m_toolbar->insertWidget(first_toolbar_detail_pages_action, spacer));
+            spacer->setFocusPolicy(Qt::FocusPolicy::NoFocus);
             continue;
         }
 
@@ -1036,7 +1002,6 @@ void MainWindow::updateToolbar()
             action->setDisabled(true);
         
         m_toolbar->insertAction(first_toolbar_detail_pages_action, action);
-        //m_toolbar->addAction(action); // TODO: Possible memory leak, ownership of action not transferred to m_toolbar
 
         // connections
         connect(action, &DmsToolbuttonAction::triggered, action, &DmsToolbuttonAction::onToolbuttonPressed);
@@ -1344,6 +1309,7 @@ void MainWindow::createView(ViewStyle viewStyle)
         SuspendTrigger::Resume();
 
         auto dms_mdi_subwindow = std::make_unique<QDmsViewArea>(m_mdi_area.get(), viewContextItem, currItem, viewStyle);
+        dms_mdi_subwindow->setFocusPolicy(Qt::FocusPolicy::ClickFocus);
         connect(dms_mdi_subwindow.get(), &QDmsViewArea::windowStateChanged, dms_mdi_subwindow.get(), &QDmsViewArea::onWindowStateChanged);
 
         auto dms_view_window_icon = getIconFromViewstyle(viewStyle);
@@ -1744,7 +1710,6 @@ void MainWindow::updateStatusMessage()
     DynamicIncrementalLock<> incremental_lock(s_ReentrancyCount);
     
     statusBar()->showMessage(fullMsg.c_str());
-    //statusBar()->repaint();
 }
 
 auto MainWindow::getIconFromViewstyle(ViewStyle viewstyle) -> QIcon
@@ -2109,14 +2074,12 @@ void MainWindow::createActions()
                                                 "image: url(:/res/images/arrow_down.png);\n"
                                             "}\n");
    
-
     m_address_bar_container->addWidget(m_treeitem_visit_history.get());
     m_address_bar = std::make_unique<DmsAddressBar>(this);
     m_address_bar_container->addWidget(m_address_bar.get());
     m_address_bar_container->addAction(m_back_action.get());
     m_address_bar_container->addAction(m_forward_action.get());
     m_treeitem_visit_history->setFocusPolicy(Qt::FocusPolicy::ClickFocus);
-
 
     connect(m_address_bar.get(), &DmsAddressBar::editingFinished, m_address_bar.get(), &DmsAddressBar::onEditingFinished);
     connect(m_treeitem_visit_history.get(), &QComboBox::currentTextChanged, m_address_bar.get(), &DmsAddressBar::setPathDirectly);
@@ -2570,13 +2533,17 @@ void MainWindow::updateTracelogHandle()
 
 void MainWindow::createStatusBar()
 {
-    statusBar()->showMessage(tr("Ready"));
+    auto status_bar = statusBar();
+    status_bar->showMessage(tr("Ready"));
+    status_bar->setFocusPolicy(Qt::FocusPolicy::ClickFocus);
     
     connect(statusBar(), &QStatusBar::messageChanged, this, &MainWindow::on_status_msg_changed);
     m_statusbar_coordinates = new QLineEdit(this);
     m_statusbar_coordinates->setReadOnly(true);
     m_statusbar_coordinates->setFixedWidth(300);
     m_statusbar_coordinates->setAlignment(Qt::AlignmentFlag::AlignLeft);
+    m_statusbar_coordinates->setFocusPolicy(Qt::FocusPolicy::ClickFocus);
+
     statusBar()->insertPermanentWidget(0, m_statusbar_coordinates);
     m_statusbar_coordinates->setVisible(false);
 }

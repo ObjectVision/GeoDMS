@@ -58,6 +58,13 @@ public slots:
 
 protected:
 	void resizeEvent(QResizeEvent* event) override;
+	void focusInEvent(QFocusEvent* event) override {
+		event->ignore();
+	}
+
+	void focusOutEvent(QFocusEvent* event) override {
+		event->ignore();
+	}
 
 public slots:
 	void onAnchorClicked(const QUrl& link);

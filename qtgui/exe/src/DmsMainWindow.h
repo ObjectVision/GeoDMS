@@ -304,6 +304,7 @@ public slots:
     void back();
     void forward();
 
+    void onFocusChanged(QWidget* old, QWidget* now);
     void scheduleUpdateToolbar();
     void showStatisticsDirectly(const TreeItem* tiContext);
     void showValueInfo(const AbstrDataItem* studyObject, SizeT index, SharedStr extraInfo);

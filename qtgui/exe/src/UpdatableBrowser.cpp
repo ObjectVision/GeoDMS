@@ -18,6 +18,7 @@ FindTextWindow::FindTextWindow(QWidget* parent)
     next = new QPushButton("Next", this);
     QWidget* spacer = new QWidget(this);
     spacer->setSizePolicy(QSizePolicy::Minimum, QSizePolicy::Expanding);
+    spacer->setFocusPolicy(Qt::FocusPolicy::NoFocus);
     result_info = new QLabel("", this);
 
     // connections
@@ -98,7 +99,6 @@ void FindTextWindow::previousClicked(bool checked)
 DmsWebEnginePage::DmsWebEnginePage(QObject* parent)
 	: QWebEnginePage(parent)
 {
-
 }
 
 bool DmsWebEnginePage::acceptNavigationRequest(const QUrl& url, QWebEnginePage::NavigationType type, bool isMainFrame)
@@ -114,7 +114,7 @@ bool DmsWebEnginePage::acceptNavigationRequest(const QUrl& url, QWebEnginePage::
 QUpdatableWebBrowser::QUpdatableWebBrowser(QWidget* parent)
     : QWebEngineView(parent)
 {
-    setFocusPolicy(Qt::FocusPolicy::ClickFocus);
+
 
     current_page = new DmsWebEnginePage(this);
     //current_page-> setFocusPolicy(Qt::FocusPolicy::ClickFocus);
@@ -126,6 +126,8 @@ QUpdatableWebBrowser::QUpdatableWebBrowser(QWidget* parent)
     settings->setAttribute(QWebEngineSettings::JavascriptCanOpenWindows, false);
     settings->setAttribute(QWebEngineSettings::JavascriptCanAccessClipboard, false);
     settings->setAttribute(QWebEngineSettings::LinksIncludedInFocusChain, false);
+    settings->setAttribute(QWebEngineSettings::JavascriptCanPaste, false);
+    //QWebEngineSettings::Accelerated2dCanvasEnabled: could this be useful?
 
     connect(pageAction(QWebEnginePage::ViewSource), SIGNAL(triggered(bool)), this, SLOT(slt_openImage_triggered()));
 
@@ -134,7 +136,7 @@ QUpdatableWebBrowser::QUpdatableWebBrowser(QWidget* parent)
     find_shortcut = new QShortcut(QKeySequence(tr("Ctrl+F", "Find")), this);
     connect(find_shortcut, &QShortcut::activated, this, &QUpdatableWebBrowser::openFindWindow);
 
-    
+    setFocusPolicy(Qt::FocusPolicy::ClickFocus);
 }
 
 void QUpdatableWebBrowser::restart_updating()

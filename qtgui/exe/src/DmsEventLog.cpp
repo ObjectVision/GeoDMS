@@ -370,6 +370,7 @@ DmsEventLog::DmsEventLog(QWidget* parent)
 	m_copy_selected_to_clipboard->setToolTip(tr("Copy selected eventlog lines to clipboard"));
 	m_copy_selected_to_clipboard->setStatusTip(tr("Copy selected eventlog lines to clipboard"));
 	m_copy_selected_to_clipboard->setStyleSheet("QPushButton { icon-size: 32px; padding: 0px}\n");
+	m_copy_selected_to_clipboard->setFocusPolicy(Qt::NoFocus);
 	connect(m_copy_selected_to_clipboard.get(), &QPushButton::pressed, this, &DmsEventLog::copySelectedEventlogLinesToClipboard);
 
 	const QIcon event_filter_icon = QIcon(":/res/images/EL_selection.bmp");
@@ -378,6 +379,7 @@ DmsEventLog::DmsEventLog(QWidget* parent)
 	m_event_filter_toggle->setStatusTip("Turn eventlog filter dialog on or off");
 	m_event_filter_toggle->setCheckable(true);
 	m_event_filter_toggle->setStyleSheet("QPushButton { icon-size: 32px; padding: 0px}\n");
+	m_event_filter_toggle->setFocusPolicy(Qt::NoFocus);
 	connect(m_event_filter_toggle.get(), &QPushButton::toggled, this, &DmsEventLog::toggleFilter);
 
 	auto eventlog_model_ptr = MainWindow::TheOne()->m_eventlog_model.get();
@@ -388,6 +390,7 @@ DmsEventLog::DmsEventLog(QWidget* parent)
 	m_clear->setStatusTip("Clear all eventlog messages");
 	m_clear->setDisabled(true);
 	m_clear->setStyleSheet("QPushButton { icon-size: 32px; padding: 0px}\n");
+	m_clear->setFocusPolicy(Qt::NoFocus);
 	connect(m_clear.get(), &QPushButton::pressed, eventlog_model_ptr, &EventLogModel::clear);
 
 	const QIcon eventlog_scroll_to_bottom_icon = QIcon::fromTheme("detailpages-metainfo", QIcon(":/res/images/EL_scroll_down.bmp"));
@@ -396,11 +399,13 @@ DmsEventLog::DmsEventLog(QWidget* parent)
 	m_scroll_to_bottom_toggle->setStatusTip("Scroll content of eventlog to bottom and keep up with new log messages");
 	m_scroll_to_bottom_toggle->setDisabled(true);
 	m_scroll_to_bottom_toggle->setStyleSheet("QPushButton { icon-size: 32px; padding: 0px}\n");
+	m_scroll_to_bottom_toggle->setFocusPolicy(Qt::NoFocus);
 	connect(m_scroll_to_bottom_toggle.get(), &QPushButton::pressed, this, &DmsEventLog::toggleScrollToBottomDirectly);
 
 	// filters
 	//m_text_filter = std::make_unique<QLineEdit>();
 	m_eventlog_filter = std::make_unique<DmsTypeFilter>();
+	m_eventlog_filter->setFocusPolicy(Qt::ClickFocus);
 	auto dms_reg_status_flags = GetRegStatusFlags();
 
 	m_eventlog_filter->m_date_time->setChecked(dms_reg_status_flags & RSF_EventLog_ShowDateTime);
@@ -448,11 +453,13 @@ DmsEventLog::DmsEventLog(QWidget* parent)
 	auto vertical_layout = new QVBoxLayout(this);
 	auto grid_layout = new QGridLayout(this);
 	auto eventlog_toolbar = new QVBoxLayout(this);
+
 	eventlog_toolbar->addWidget(m_copy_selected_to_clipboard.get());
 	eventlog_toolbar->addWidget(m_event_filter_toggle.get());
 	eventlog_toolbar->addWidget(m_clear.get());
 	eventlog_toolbar->addWidget(m_scroll_to_bottom_toggle.get());
 	QWidget* spacer = new QWidget(this);
+	spacer->setFocusPolicy(Qt::NoFocus);
 	spacer->setSizePolicy(QSizePolicy::Minimum, QSizePolicy::Expanding);
 	eventlog_toolbar->addWidget(spacer);
 	vertical_layout->addWidget(m_eventlog_filter.get(), 0);
