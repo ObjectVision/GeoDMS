@@ -304,6 +304,10 @@ public:
     void updateToolsMenu();
     void updateTracelogHandle();
     bool CloseConfig(); // returns true when mdiSubWindows were closed
+    void updateFileMenu();
+    void updateWindowMenu();
+    void updateViewMenu();
+    void updateSettingsMenu();
 
 private:
     void openConfigSourceFor(const TreeItem* context);
@@ -313,14 +317,9 @@ private:
     void updateActionsForNewCurrentItem();
     void setupDmsCallbacks();
     void cleanupDmsCallbacks();
-    void createActions();
     void createStatusBar();
     void createDetailPagesDock();
     void createDmsHelperWindowDocks();
-    void updateFileMenu();
-    void updateViewMenu();
-    void updateSettingsMenu();
-    void updateWindowMenu();
     void updateCaption();
     void updateTreeItemVisitHistory();
     void createDetailPagesActions();

@@ -1,7 +1,6 @@
 // Copyright (C) 1998-2023 Object Vision b.v. 
 // License: GNU GPL 3
 /////////////////////////////////////////////////////////////////////////////
-
 #include "RtcInterface.h"
 #include "StxInterface.h"
 #include "TicInterface.h"
@@ -32,10 +31,8 @@
 #include <QWidgetAction>
 #include <QObject>
 
-
 #include "DmsMainWindow.h"
 #include "TestScript.h"
-
 #include "DmsEventLog.h"
 #include "DmsViewArea.h"
 #include "DmsTreeView.h"
@@ -44,6 +41,7 @@
 #include "DmsExport.h"
 #include "DmsValueInfo.h"
 #include "DmsFileChangedWindow.h"
+#include "DmsActions.h"
 #include "StatisticsBrowser.h"
 
 #include "DataView.h"
@@ -205,7 +203,31 @@ MainWindow::MainWindow(CmdLineSetttings& cmdLineSettings) {
 
     m_treeview->setModel(m_dms_model.get());
 
-    createActions();
+    // file menu
+    m_file_menu = std::make_unique<QMenu>(tr("&File"));
+    menuBar()->addMenu(m_file_menu.get());
+    m_address_bar_container = addToolBar(tr("Current item bar"));
+    m_treeitem_visit_history = std::make_unique<QComboBox>();
+    m_treeitem_visit_history->setFixedSize(dms_params::treeitem_visit_history_fixed_size);
+    m_treeitem_visit_history->setFrame(false);
+    m_treeitem_visit_history->setStyleSheet(dms_params::stylesheet_treeitem_visit_history);
+    m_treeitem_visit_history->setFocusPolicy(Qt::FocusPolicy::ClickFocus);
+    connect(m_treeitem_visit_history.get(), &QComboBox::currentTextChanged, m_address_bar.get(), &DmsAddressBar::setPathDirectly);
+
+    // address bar
+    m_address_bar_container->addWidget(m_treeitem_visit_history.get());
+    m_address_bar = std::make_unique<DmsAddressBar>(this);
+    m_address_bar_container->addWidget(m_address_bar.get());
+    m_address_bar_container->addAction(m_back_action.get());
+    m_address_bar_container->addAction(m_forward_action.get());
+    connect(m_address_bar.get(), &DmsAddressBar::editingFinished, m_address_bar.get(), &DmsAddressBar::onEditingFinished);
+    addToolBarBreak();
+
+    // schedule update toolbar
+    connect(m_mdi_area.get(), &QDmsMdiArea::subWindowActivated, this, &MainWindow::scheduleUpdateToolbar);
+    
+    // actions
+    createDmsActions();
 
     // read initial last config file
     if (!cmdLineSettings.m_NoConfig) {
@@ -1789,312 +1811,6 @@ void MainWindow::cleanupDmsCallbacks() {
     DMS_ReleaseMsgCallback(&geoDMSMessage, this);
 }
 
-void MainWindow::createActions() {
-    m_file_menu = std::make_unique<QMenu>(tr("&File"));
-    menuBar()->addMenu(m_file_menu.get());
-    m_address_bar_container = addToolBar(tr("Current item bar"));
-    m_treeitem_visit_history = std::make_unique<QComboBox>();
-    m_treeitem_visit_history->setFixedSize(dms_params::treeitem_visit_history_fixed_size);
-    m_treeitem_visit_history->setFrame(false);
-    m_treeitem_visit_history->setStyleSheet(dms_params::stylesheet_treeitem_visit_history);
-   
-    m_address_bar_container->addWidget(m_treeitem_visit_history.get());
-    m_address_bar = std::make_unique<DmsAddressBar>(this);
-    m_address_bar_container->addWidget(m_address_bar.get());
-    m_address_bar_container->addAction(m_back_action.get());
-    m_address_bar_container->addAction(m_forward_action.get());
-    m_treeitem_visit_history->setFocusPolicy(Qt::FocusPolicy::ClickFocus);
-
-    connect(m_address_bar.get(), &DmsAddressBar::editingFinished, m_address_bar.get(), &DmsAddressBar::onEditingFinished);
-    connect(m_treeitem_visit_history.get(), &QComboBox::currentTextChanged, m_address_bar.get(), &DmsAddressBar::setPathDirectly);
-
-    addToolBarBreak();
-
-    connect(m_mdi_area.get(), &QDmsMdiArea::subWindowActivated, this, &MainWindow::scheduleUpdateToolbar);
-    auto fileOpenAct = new QAction(tr("&Open Configuration"), this);
-    fileOpenAct->setShortcuts(QKeySequence::Open);
-    fileOpenAct->setStatusTip(tr("Open an existing configuration file"));
-    connect(fileOpenAct, &QAction::triggered, this, &MainWindow::fileOpen);
-    m_file_menu->addAction(fileOpenAct);
-
-    auto reOpenAct = new QAction(tr("&Reopen current Configuration"), this);
-    reOpenAct->setShortcut(QKeySequence(tr("Alt+R")));
-    reOpenAct->setStatusTip(tr("Reopen the current configuration and reactivate the current active item"));
-    connect(reOpenAct, &QAction::triggered, this, &MainWindow::reopen);
-    m_file_menu->addAction(reOpenAct);
-
-    m_quit_action = std::make_unique<QAction>(tr("&Quit"));
-    connect(m_quit_action.get(), &QAction::triggered, qApp, &QCoreApplication::quit);
-    m_file_menu->addAction(m_quit_action.get());
-    m_quit_action->setShortcuts(QKeySequence::Quit);
-    m_quit_action->setStatusTip(tr("Quit the application"));
-
-    m_file_menu->addSeparator();
-
-    connect(m_file_menu.get(), &QMenu::aboutToShow, this, &MainWindow::updateFileMenu);
-    updateFileMenu(); //this will be done again when the it's about showtime, but we already need the list of recent_file_actions fn case we insert or refresh one
-
-    m_edit_menu = std::make_unique<QMenu>(tr("&Edit"));
-    menuBar()->addMenu(m_edit_menu.get());
-
-    // focus address bar
-    auto focus_address_bar_shortcut = new QShortcut(QKeySequence(tr("Alt+D")), this);
-    connect(focus_address_bar_shortcut, &QShortcut::activated, this, &MainWindow::focusAddressBar);
-
-    // export primary data
-    m_export_primary_data_action = std::make_unique<QAction>(tr("&Export Primary Data"));
-    connect(m_export_primary_data_action.get(), &QAction::triggered, this, &MainWindow::exportPrimaryData);
-
-    // step to failreason
-    m_step_to_failreason_action = std::make_unique<QAction>(tr("&Step up to FailReason"));
-    auto step_to_failreason_shortcut = new QShortcut(QKeySequence(tr("F2")), this);
-    connect(step_to_failreason_shortcut, &QShortcut::activated, this, &MainWindow::stepToFailReason);
-    connect(m_step_to_failreason_action.get(), &QAction::triggered, this, &MainWindow::stepToFailReason);
-    m_step_to_failreason_action->setShortcut(QKeySequence(tr("F2")));
-
-    // go to causa prima
-    m_go_to_causa_prima_action = std::make_unique<QAction>(tr("&Run up to Causa Prima (i.e. repeated Step up)"));
-    auto go_to_causa_prima_shortcut = new QShortcut(QKeySequence(tr("Shift+F2")), this);
-    connect(go_to_causa_prima_shortcut, &QShortcut::activated, this, &MainWindow::runToFailReason);
-    connect(m_go_to_causa_prima_action.get(), &QAction::triggered, this, &MainWindow::runToFailReason);
-    m_go_to_causa_prima_action->setShortcut(QKeySequence(tr("Shift+F2")));
-
-    // open config source
-    m_edit_config_source_action = std::make_unique<QAction>(tr("&Open in Editor"));
-    connect(m_edit_config_source_action.get(), &QAction::triggered, this, &MainWindow::openConfigSource);
-    m_edit_menu->addAction(m_edit_config_source_action.get());
-    m_edit_config_source_action->setShortcut(QKeySequence(tr("Ctrl+E")));
-
-    // update treeitem
-    m_update_treeitem_action = std::make_unique<QAction>(tr("&Update TreeItem"));
-    auto update_treeitem_shortcut = new QShortcut(QKeySequence(tr("Ctrl+U")), this);
-    connect(update_treeitem_shortcut, &QShortcut::activated, this, &MainWindow::visual_update_treeitem);
-    connect(m_update_treeitem_action.get(), &QAction::triggered, this, &MainWindow::visual_update_treeitem);
-    m_update_treeitem_action->setShortcut(QKeySequence(tr("Ctrl+U")));
-
-    // update subtree
-    m_update_subtree_action = std::make_unique<QAction>(tr("&Update Subtree"));
-    auto update_subtree_shortcut = new QShortcut(QKeySequence(tr("Ctrl+T")), this);
-    connect(update_subtree_shortcut, &QShortcut::activated, this, &MainWindow::visual_update_subtree);
-    connect(m_update_subtree_action.get(), &QAction::triggered, this, &MainWindow::visual_update_subtree);
-    m_update_subtree_action->setShortcut(QKeySequence(tr("Ctrl+T")));
-
-    // invalidate action
-    m_invalidate_action = std::make_unique<QAction>(tr("&Invalidate"));
-    m_invalidate_action->setShortcut(QKeySequence(tr("Ctrl+I")));
-    m_invalidate_action->setShortcutContext(Qt::ApplicationShortcut);
-    //connect(m_invalidate_action.get(), &QAction::triggered, this, & #TODO);
-
-    m_view_menu = std::make_unique<QMenu>(tr("&View"));
-    menuBar()->addMenu(m_view_menu.get());
-
-    m_defaultview_action = std::make_unique<QAction>(tr("Default"));
-    m_defaultview_action->setIcon(QIcon::fromTheme("backward", QIcon(dms_params::default_view_icon)));
-    m_defaultview_action->setStatusTip(tr("Open current selected TreeItem's default view."));
-    connect(m_defaultview_action.get(), &QAction::triggered, this, &MainWindow::defaultView);
-    m_view_menu->addAction(m_defaultview_action.get());
-    m_defaultview_action->setShortcut(QKeySequence(tr("Ctrl+Alt+D")));
-
-    // table view
-    m_tableview_action = std::make_unique<QAction>(tr("&Table"));
-    m_tableview_action->setStatusTip(tr("Open current selected TreeItem's in a table view."));
-    m_tableview_action->setIcon(QIcon::fromTheme("backward", QIcon(dms_params::table_view_icon)));
-    connect(m_tableview_action.get(), &QAction::triggered, this, &MainWindow::tableView);
-    m_view_menu->addAction(m_tableview_action.get());
-    m_tableview_action->setShortcut(QKeySequence(tr("Ctrl+D")));
-
-    // map view
-    m_mapview_action = std::make_unique<QAction>(tr("&Map"));
-    m_mapview_action->setStatusTip(tr("Open current selected TreeItem's in a map view."));
-    m_mapview_action->setIcon(QIcon::fromTheme("backward", QIcon(dms_params::map_view_icon)));
-    connect(m_mapview_action.get(), &QAction::triggered, this, &MainWindow::mapView);
-    m_view_menu->addAction(m_mapview_action.get());
-    m_mapview_action->setShortcut(QKeySequence(tr("CTRL+M")));
-
-    // statistics view
-    m_statistics_action = std::make_unique<QAction>(tr("&Statistics"));
-    m_statistics_action->setIcon(QIcon::fromTheme("backward", QIcon(dms_params::statistics_view_icon)));
-    connect(m_statistics_action.get(), &QAction::triggered, this, &MainWindow::showStatistics);
-    m_view_menu->addAction(m_statistics_action.get());
-
-    // histogram view
-//    m_histogramview_action = std::make_unique<QAction>(tr("&Histogram View"));
-//    m_histogramview_action->setShortcut(QKeySequence(tr("Ctrl+H")));
-    //connect(m_histogramview_action.get(), &QAction::triggered, this, & #TODO);
-    
-    // process schemes
-    m_process_schemes_action = std::make_unique<QAction>(tr("&Process Schemes"));
-    //connect(m_process_schemes_action.get(), &QAction::triggered, this, & #TODO);
-    //m_view_menu->addAction(m_process_schemes_action.get()); // TODO: to be implemented or not..
-
-    m_view_calculation_times_action = std::make_unique<QAction>(tr("Calculation times"));
-    m_view_calculation_times_action->setIcon(getIconFromViewstyle(ViewStyle::tvsCalculationTimes));
-    connect(m_view_calculation_times_action.get(), &QAction::triggered, this, &MainWindow::view_calculation_times);
-    m_view_menu->addAction(m_view_calculation_times_action.get());
-
-    m_view_current_config_filelist = std::make_unique<QAction>(tr("List of loaded Configuration Files"));
-    m_view_current_config_filelist->setIcon(getIconFromViewstyle(ViewStyle::tvsCurrentConfigFileList));// QPixmap(":/res/images/IconCalculationTimeOverview.png"));
-    connect(m_view_current_config_filelist.get(), &QAction::triggered, this, &MainWindow::view_current_config_filelist);
-    m_view_menu->addAction(m_view_current_config_filelist.get());
-
-    m_view_menu->addSeparator();
-    m_toggle_treeview_action       = std::make_unique<QAction>(tr("Toggle TreeView"));
-    m_toggle_detailpage_action     = std::make_unique<QAction>(tr("Toggle DetailPages area"));
-    m_toggle_eventlog_action       = std::make_unique<QAction>(tr("Toggle EventLog"));
-    m_toggle_toolbar_action        = std::make_unique<QAction>(tr("Toggle Toolbar"));
-    m_toggle_currentitembar_action = std::make_unique<QAction>(tr("Toggle CurrentItemBar"));
-
-    m_toggle_treeview_action->setCheckable(true);
-    m_toggle_detailpage_action->setCheckable(true);
-    m_toggle_eventlog_action->setCheckable(true);
-    m_toggle_toolbar_action->setCheckable(true);
-    m_toggle_currentitembar_action->setCheckable(true);
-
-    connect(m_toggle_treeview_action.get(), &QAction::triggered, this, &MainWindow::toggle_treeview);
-    connect(m_toggle_detailpage_action.get(), &QAction::triggered, this, &MainWindow::toggle_detailpages);
-    connect(m_toggle_eventlog_action.get(), &QAction::triggered, this, &MainWindow::toggle_eventlog);
-    connect(m_toggle_toolbar_action.get(), &QAction::triggered, this, &MainWindow::toggle_toolbar);
-    connect(m_toggle_currentitembar_action.get(), &QAction::triggered, this, &MainWindow::toggle_currentitembar);
-    m_toggle_treeview_action->setShortcut(QKeySequence(tr("Alt+0")));
-    m_toggle_treeview_action->setShortcutContext(Qt::ApplicationShortcut);
-    m_toggle_detailpage_action->setShortcut(QKeySequence(tr("Alt+1")));
-    m_toggle_detailpage_action->setShortcutContext(Qt::ApplicationShortcut);
-    m_toggle_eventlog_action->setShortcut(QKeySequence(tr("Alt+2")));
-    m_toggle_eventlog_action->setShortcutContext(Qt::ApplicationShortcut);
-    m_toggle_toolbar_action->setShortcut(QKeySequence(tr("Alt+3")));
-    m_toggle_toolbar_action->setShortcutContext(Qt::ApplicationShortcut);
-    m_toggle_currentitembar_action->setShortcut(QKeySequence(tr("Alt+4")));
-    m_toggle_currentitembar_action->setShortcutContext(Qt::ApplicationShortcut);
-
-    m_view_menu->addAction(m_toggle_treeview_action.get());
-    m_view_menu->addAction(m_toggle_detailpage_action.get());
-    m_view_menu->addAction(m_toggle_eventlog_action.get());
-    m_view_menu->addAction(m_toggle_toolbar_action.get());
-    m_view_menu->addAction(m_toggle_currentitembar_action.get());
-    connect(m_view_menu.get(), &QMenu::aboutToShow, this, &MainWindow::updateViewMenu);
-
-    // tools menu
-    m_tools_menu = std::make_unique<QMenu>("&Tools");
-    menuBar()->addMenu(m_tools_menu.get());
-    connect(m_tools_menu.get(), &QMenu::aboutToShow, this, &MainWindow::updateToolsMenu);
-
-    m_code_analysis_set_source_action = std::make_unique<QAction>(tr("set source"));
-    connect(m_code_analysis_set_source_action.get(), &QAction::triggered, this, &MainWindow::code_analysis_set_source);
-    m_code_analysis_set_source_action->setShortcut(QKeySequence(tr("Alt+K")));
-    m_code_analysis_set_source_action->setShortcutContext(Qt::ApplicationShortcut);
-//    this->addAction(m_code_analysis_set_source_action.get());
-
-    m_code_analysis_set_target_action = std::make_unique<QAction>(tr("set target"));
-    connect(m_code_analysis_set_target_action.get(), &QAction::triggered, this, &MainWindow::code_analysis_set_target);
-    m_code_analysis_set_target_action->setShortcut(QKeySequence(tr("Alt+B")));
-    m_code_analysis_set_target_action->setShortcutContext(Qt::ApplicationShortcut);
-
-    m_code_analysis_add_target_action = std::make_unique<QAction>(tr("add target"));
-    connect(m_code_analysis_add_target_action.get(), &QAction::triggered, this, &MainWindow::code_analysis_add_target);
-    m_code_analysis_add_target_action->setShortcut(QKeySequence(tr("Alt+N")));
-    m_code_analysis_add_target_action->setShortcutContext(Qt::ApplicationShortcut);
-
-    m_code_analysis_clr_targets_action = std::make_unique<QAction>(tr("clear target")); 
-    connect(m_code_analysis_clr_targets_action.get(), &QAction::triggered, this, &MainWindow::code_analysis_clr_targets);
-    m_code_analysis_submenu = CreateCodeAnalysisSubMenu(m_tools_menu.get());
-
-    m_eventlog_filter_toggle = std::make_unique<QAction>(tr("Eventlog filter"));
-    connect(m_eventlog_filter_toggle.get(), &QAction::triggered, m_eventlog->m_event_filter_toggle.get(), &QCheckBox::click);
-    m_tools_menu->addAction(m_eventlog_filter_toggle.get());
-
-    m_open_root_config_file_action = std::make_unique<QAction>(tr("Open the root configuration file"));
-    connect(m_open_root_config_file_action.get(), &QAction::triggered, this, &MainWindow::openConfigRootSource);
-    m_tools_menu->addAction(m_open_root_config_file_action.get());
-
-    m_expand_all_action = std::make_unique<QAction>(tr("Expand all items in the TreeView"));
-    connect(m_expand_all_action.get(), &QAction::triggered, this, &MainWindow::expandAll);
-    m_tools_menu->addAction(m_expand_all_action.get());
-
-    // debug tools
-#ifdef MG_DEBUG
-    m_save_value_info_pages = std::make_unique<QAction>(tr("Debug: save value info page(s)"));
-    connect(m_save_value_info_pages.get(), &QAction::triggered, this, &MainWindow::saveValueInfo);
-    m_tools_menu->addAction(m_save_value_info_pages.get());
-
-    m_debug_reports = std::make_unique<QAction>(tr("Debug: produce internal report(s)"));
-    connect(m_debug_reports.get(), &QAction::triggered, this, &MainWindow::debugReports);
-    m_tools_menu->addAction(m_debug_reports.get());
-#endif
-
-    // settings menu
-    m_settings_menu = std::make_unique<QMenu>(tr("&Settings"));
-    menuBar()->addMenu(m_settings_menu.get());
-    connect(m_tools_menu.get(), &QMenu::aboutToShow, this, &MainWindow::updateSettingsMenu);
-
-    m_gui_options_action = std::make_unique<QAction>(tr("&Gui Options"));
-    connect(m_gui_options_action.get(), &QAction::triggered, this, &MainWindow::gui_options);
-    m_settings_menu->addAction(m_gui_options_action.get());
-
-    m_advanced_options_action = std::make_unique<QAction>(tr("&Local machine Options"));
-    connect(m_advanced_options_action.get(), &QAction::triggered, this, &MainWindow::advanced_options); //TODO: change advanced options refs in local machine options
-    m_settings_menu->addAction(m_advanced_options_action.get());
-
-    m_config_options_action = std::make_unique<QAction>(tr("&Config Options"));
-    connect(m_config_options_action.get(), &QAction::triggered, this, &MainWindow::config_options);
-    m_settings_menu->addAction(m_config_options_action.get());
-
-    // window menu
-    m_window_menu = std::make_unique<QMenu>(tr("&Window"));
-    menuBar()->addMenu(m_window_menu.get());
-
-    m_win_tile_action = std::make_unique<QAction>(tr("&Tile Windows"), m_window_menu.get());
-    m_win_tile_action->setShortcut(QKeySequence(tr("Ctrl+Alt+W")));
-    m_win_tile_action->setShortcutContext(Qt::ApplicationShortcut);
-    connect(m_win_tile_action.get(), &QAction::triggered, m_mdi_area.get(), &QDmsMdiArea::onTileSubWindows);
-
-    m_win_cascade_action = std::make_unique<QAction>(tr("Ca&scade"), m_window_menu.get());
-    m_win_cascade_action->setShortcut(QKeySequence(tr("Shift+Ctrl+W")));
-    m_win_cascade_action->setShortcutContext(Qt::ApplicationShortcut);
-    connect(m_win_cascade_action.get(), &QAction::triggered, m_mdi_area.get(), &QDmsMdiArea::onCascadeSubWindows);
-
-    m_win_close_action = std::make_unique<QAction>(tr("&Close"), m_window_menu.get());
-    m_win_close_action->setShortcut(QKeySequence(tr("Ctrl+W")));
-    connect(m_win_close_action.get(), &QAction::triggered, m_mdi_area.get(), &QDmsMdiArea::closeActiveSubWindow);
-    m_mdi_area->getTabBar()->addAction(MainWindow::TheOne()->m_win_close_action.get());
-    //connect(m_win_close_action.get(), &QAction::triggered, m_mdi_area.get(), &QDmsMdiArea::testCloseSubWindow);
-
-    
-    //connect(m_win_close_action.get(), &QAction::triggered, m_mdi_area, &QDmsMdiArea::testCloseSubWindow);
-
-    m_win_close_all_action = std::make_unique<QAction>(tr("Close &All"), m_window_menu.get());
-    m_win_close_all_action->setShortcut(QKeySequence(tr("Ctrl+L")));
-    m_win_close_all_action->setShortcutContext(Qt::ApplicationShortcut);
-    connect(m_win_close_all_action.get(), &QAction::triggered, m_mdi_area.get(), &QDmsMdiArea::closeAllSubWindows);
-
-    m_win_close_but_this_action = std::make_unique<QAction>(tr("Close All &But This"), m_window_menu.get());
-    m_win_close_but_this_action->setShortcut(QKeySequence(tr("Ctrl+B")));
-    m_win_close_but_this_action->setShortcutContext(Qt::ApplicationShortcut);
-    connect(m_win_close_but_this_action.get(), &QAction::triggered, m_mdi_area.get(), &QDmsMdiArea::closeAllButActiveSubWindow);
-    m_window_menu->addAction(m_win_tile_action.get());
-    m_window_menu->addAction(m_win_cascade_action.get());
-    m_window_menu->addAction(m_win_close_action.get());
-    m_window_menu->addAction(m_win_close_all_action.get());
-    m_window_menu->addAction(m_win_close_but_this_action.get());
-    connect(m_window_menu.get(), &QMenu::aboutToShow, this, &MainWindow::updateWindowMenu);
-    // help menu
-    m_help_menu = std::make_unique<QMenu>(tr("&Help"));
-    menuBar()->addMenu(m_help_menu.get());
-    auto about_action = new QAction(tr("&About GeoDms"), m_help_menu.get());
-    about_action->setStatusTip(tr("Show the application's About box"));
-    connect(about_action, &QAction::triggered, this, &MainWindow::aboutGeoDms);
-    m_help_menu->addAction(about_action);
-    
-    auto aboutQt_action = new QAction(tr("About &Qt"), m_help_menu.get());
-    aboutQt_action->setStatusTip(tr("Show the Qt library's About box"));
-    connect(aboutQt_action, &QAction::triggered, qApp, &QApplication::aboutQt);
-    m_help_menu->addAction(aboutQt_action);
-
-    auto wiki_action = new QAction(tr("&Wiki"), m_help_menu.get());
-    wiki_action->setStatusTip(tr("Open the GeoDms wiki in a browser"));
-    connect(wiki_action, &QAction::triggered, this, &MainWindow::wiki);
-    m_help_menu->addAction(wiki_action);
-}
-
 void MainWindow::updateFileMenu() {
     for (auto recent_file_entry : m_recent_file_entries) {
         m_file_menu->removeAction(recent_file_entry);
@@ -2104,10 +1820,8 @@ void MainWindow::updateFileMenu() {
     cleanRecentFilesThatDoNotExist();
     auto recent_files_from_registry = GetGeoDmsRegKeyMultiString("RecentFiles"); 
 
-    for (std::string_view recent_file : recent_files_from_registry) {
+    for (std::string_view recent_file : recent_files_from_registry)
         addRecentFilesEntry(recent_file);
-
-    }
 }
 
 void MainWindow::updateViewMenu() {

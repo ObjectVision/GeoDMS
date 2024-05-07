@@ -125,6 +125,7 @@
     </Manifest>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="src\DmsActions.cpp" />
     <ClCompile Include="src\DmsDetailPages.cpp" />
     <ClCompile Include="src\DmsEventLog.cpp">
       <DynamicSource Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">input</DynamicSource>
@@ -156,6 +157,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="resource.h" />
+    <ClInclude Include="src\DmsActions.h" />
     <ClInclude Include="src\DmsDetailPages.h" />
     <QtMoc Include="src\DmsFileChangedWindow.h" />
     <ClInclude Include="src\DmsGuiParameters.h" />
