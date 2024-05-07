@@ -268,7 +268,7 @@ MainWindow::MainWindow(CmdLineSetttings& cmdLineSettings) {
     if (!cmdLineSettings.m_NoConfig) {
         CharPtr currentItemPath = "";
         if (cmdLineSettings.m_ConfigFileName.empty())
-            cmdLineSettings.m_ConfigFileName = GetGeoDmsRegKey("LastConfigFile");
+            cmdLineSettings.m_ConfigFileName = GetGeoDmsRegKey(dms_params::reg_key_LastConfigFile);
         else {
             if (cmdLineSettings.m_CurrItemFullNames.size())
                 currentItemPath = cmdLineSettings.m_CurrItemFullNames.back().c_str();
@@ -288,7 +288,7 @@ MainWindow::MainWindow(CmdLineSetttings& cmdLineSettings) {
     Float32 drawing_size_in_pixels = GetDrawingSizeInPixels(); // from registry
     SetDrawingSizeTresholdValue(drawing_size_in_pixels);
 
-    setStyleSheet("QMainWindow::separator{ width: 5px; height: 5px; }");
+    setStyleSheet(dms_params::stylesheet_main_window);
     setFont(QApplication::font());
     auto menu_bar = menuBar();
     menu_bar->setFont(QApplication::font());
@@ -590,8 +590,7 @@ bool DmsRecentFileEntry::eventFilter(QObject* obj, QEvent* event) {
         }
     } else if (event->type() == QEvent::KeyPress) {
         auto key_event = dynamic_cast<QKeyEvent*>(event);
-        if (key_event->key() == Qt::Key_Tab) // handle tab event in case treeview is currently active
-        {
+        if (key_event->key() == Qt::Key_Tab) {// handle tab event in case treeview is currently active
 
         }
     }
@@ -604,15 +603,13 @@ bool DmsRecentFileEntry::event(QEvent* e)
     return QAction::event(e);
 }
 
-void DmsRecentFileEntry::onDeleteRecentFileEntry()
-{
+void DmsRecentFileEntry::onDeleteRecentFileEntry() {
     auto main_window = MainWindow::TheOne();
     main_window->m_file_menu->close();
     main_window->removeRecentFileAtIndex(m_index);
 }
 
-void DmsRecentFileEntry::onFileEntryPressed()
-{
+void DmsRecentFileEntry::onFileEntryPressed() {
     auto main_window = MainWindow::TheOne();
 
     if (GetRegStatusFlags() & RSF_EventLog_ClearOnLoad)
@@ -623,8 +620,7 @@ void DmsRecentFileEntry::onFileEntryPressed()
 }
 
 DmsToolbuttonAction::DmsToolbuttonAction(const ToolButtonID id, const QIcon& icon, const QString& text, QObject* parent, ToolbarButtonData button_data, const ViewStyle vs)
-    : QAction(icon, text, parent)
-{
+    : QAction(icon, text, parent) {
     assert(button_data.text.size()==2);
     assert(parent);
 
@@ -642,8 +638,7 @@ DmsToolbuttonAction::DmsToolbuttonAction(const ToolButtonID id, const QIcon& ico
     m_data = std::move(button_data);
 }
 
-void DmsToolbuttonAction::onToolbuttonPressed()
-{
+void DmsToolbuttonAction::onToolbuttonPressed() {
     auto mdi_area = MainWindow::TheOne()->m_mdi_area.get();
     if (!mdi_area)
         return;
@@ -669,11 +664,9 @@ void DmsToolbuttonAction::onToolbuttonPressed()
     else
         m_state++;
 
-    if (m_data.is_global) // ie. zoom-in and zoom-out are mutually exclusive
-    {
+    if (m_data.is_global) { // ie. zoom-in and zoom-out are mutually exclusive
         auto was_checked = !isChecked();
-        if (was_checked && m_data.id == TB_Pan)
-        {
+        if (was_checked && m_data.id == TB_Pan) {
             setChecked(true);
             return;
         }
@@ -681,8 +674,7 @@ void DmsToolbuttonAction::onToolbuttonPressed()
         bool activate_pan_tool = was_checked ? true : false;
 
         dms_view_area->getDataView()->GetContents()->OnCommand(ToolButtonID::TB_Neutral);
-        for (auto action : MainWindow::TheOne()->m_toolbar->actions())
-        {
+        for (auto action : MainWindow::TheOne()->m_toolbar->actions()) {
             auto dms_toolbar_action = dynamic_cast<DmsToolbuttonAction*>(action);
             if (!dms_toolbar_action)
                 continue;
@@ -701,8 +693,7 @@ void DmsToolbuttonAction::onToolbuttonPressed()
         }
     }
 
-    if (m_data.ids[0] == ToolButtonID::TB_Export)
-    {
+    if (m_data.ids[0] == ToolButtonID::TB_Export) {
         auto dv = dms_view_area->getDataView();
         auto export_info = dv->GetExportInfo();
         if (dv->GetViewType() == tvsMapView)
@@ -710,24 +701,20 @@ void DmsToolbuttonAction::onToolbuttonPressed()
         else
             reportF(SeverityTypeID::ST_MajorTrace, "Exporting current table to csv in %s", export_info.m_FullFileNameBase);
     }
-    try
-    {
+    try {
         SuspendTrigger::Resume();
         dms_view_area->getDataView()->GetContents()->OnCommand(m_data.ids[m_state]);
         if (m_state < m_data.icons.size())
             setIcon(QIcon(m_data.icons[m_state]));
     }
-    catch (...)
-    {
+    catch (...) {
         auto errMsg = catchException(false);
         MainWindow::TheOne()->reportErrorAndTryReload(errMsg);
     }    
 }
 
-auto getToolbarButtonData(ToolButtonID button_id) -> ToolbarButtonData
-{
-    switch (button_id)
-    {
+auto getToolbarButtonData(ToolButtonID button_id) -> ToolbarButtonData {
+    switch (button_id) {
     case TB_Export: return { TB_Export, {"Save to file as semicolon delimited text", "Export the viewport data to bitmaps file(s) using the export settings and the current ROI"}, {TB_Export}, {":/res/images/TB_save.bmp"}};
     case TB_TableCopy: return { TB_TableCopy, {"Copy as semicolon delimited text to Clipboard",""}, {TB_TableCopy}, {":/res/images/TB_copy.bmp"}};
     case TB_Copy: return { TB_Copy, {"Copy the visible contents as image to Clipboard","Copy the visible contents of the viewport to the Clipboard"}, {TB_Copy}, {":/res/images/TB_vcopy.bmp"}};
@@ -758,45 +745,12 @@ auto getToolbarButtonData(ToolButtonID button_id) -> ToolbarButtonData
     return {};
 }
 
-void MainWindow::onFocusChanged(QWidget* old, QWidget* now)
-{
-    if (dynamic_cast<DmsAddressBar*>(now)) {
-        int i = 0;
-        return;
-    }
-    if (dynamic_cast<DmsDetailPages*>(now)) {
-        int i = 0;
-        return;
-    }
-    if (dynamic_cast<DmsTreeView*>(now)) {
-        int i = 0;
-        return;
-    }
-    if (dynamic_cast<DmsEventLog*>(now)) {
-        int i = 0;
-        return;
-    }
+void MainWindow::onFocusChanged(QWidget* old, QWidget* now) { }
 
-    if (dynamic_cast<QTabBar*>(now)) {
-		int i = 0;
-		return;
-	}
-
-    int i = 0;
-}
-
-void MainWindow::scheduleUpdateToolbar()
-{
+void MainWindow::scheduleUpdateToolbar() {
     //ViewStyle current_toolbar_style = ViewStyle::tvsUndefined, requested_toolbar_viewstyle = ViewStyle::tvsUndefined;
     if (m_UpdateToolbarRequestPending || g_IsTerminating)
         return;
-/*
-    // update requested toolbar style
-    QMdiSubWindow* active_mdi_subwindow = m_mdi_area->activeSubWindow();
-    QDmsViewArea* dms_active_mdi_subwindow = dynamic_cast<QDmsViewArea*>(active_mdi_subwindow);
-    if (!dms_active_mdi_subwindow)
-        m_current_toolbar_style = ViewStyle::tvsUndefined;
-*/
 
     m_UpdateToolbarRequestPending = true;
     QTimer::singleShot(0, [this]()
@@ -807,8 +761,7 @@ void MainWindow::scheduleUpdateToolbar()
     );
 }
 
-void MainWindow::createDetailPagesActions()
-{
+void MainWindow::createDetailPagesActions() {
     const QIcon backward_icon = QIcon::fromTheme("backward", QIcon(":/res/images/DP_back.bmp"));
     m_back_action = std::make_unique<QAction>(backward_icon, tr("&Back"));
     //m_back_action->setShortcut(QKeySequence(tr("Shift+Ctrl+W")));
@@ -859,23 +812,20 @@ void MainWindow::createDetailPagesActions()
     connect(m_metainfo_page_action.get(), &QAction::triggered, m_detail_pages, &DmsDetailPages::toggleMetaInfo);
 }
 
-auto getAvailableTableviewButtonIds() -> std::vector<ToolButtonID>
-{
+auto getAvailableTableviewButtonIds() -> std::vector<ToolButtonID> {
     return { TB_Export, TB_TableCopy, TB_Copy, TB_Undefined,
              TB_ShowFirstSelectedRow, TB_SelectRows, TB_SelectAll, TB_SelectNone, TB_ShowSelOnlyOn, TB_Undefined,
              TB_TableGroupBy };
 }
 
-auto getAvailableMapviewButtonIds() -> std::vector<ToolButtonID>
-{
+auto getAvailableMapviewButtonIds() -> std::vector<ToolButtonID> {
     return { TB_Export , TB_CopyLC, TB_Copy, TB_Undefined,
              TB_ZoomAllLayers, TB_ZoomActiveLayer, TB_Pan, TB_ZoomIn2, TB_ZoomOut2, TB_Undefined,
              TB_ZoomSelectedObj,TB_SelectObject,TB_SelectRect,TB_SelectCircle,TB_SelectPolygon,TB_SelectDistrict,TB_SelectAll,TB_SelectNone,TB_ShowSelOnlyOn, TB_Undefined,
              TB_Show_VP,TB_SP_All,TB_NeedleOn,TB_ScaleBarOn };
 }
 
-void MainWindow::updateDetailPagesToolbar()
-{
+void MainWindow::updateDetailPagesToolbar() {
     if (m_detail_pages->isHidden())
         return;
     
@@ -893,27 +843,15 @@ void MainWindow::updateDetailPagesToolbar()
     m_dms_toolbar_spacer_action.reset(m_toolbar->insertWidget(m_general_page_action.get(), spacer));
 }
 
-/*auto MainWindow::createRecentFilesWidgetAction(int index, std::string_view cfg, QWidget* parent) -> QWidgetAction*
-{
-    auto new_recent_file_action_widget = new QWidgetAction(parent);
-    auto new_recent_file_widget = new DmsRecentFileEntry(index, cfg, parent);
-    connect(new_recent_file_action_widget, &QWidgetAction::hovered, new_recent_file_widget, &DmsRecentFileEntry::onHoover);
-    new_recent_file_action_widget->setDefaultWidget(new_recent_file_widget);
-    return new_recent_file_action_widget;
-}*/
-
-void MainWindow::clearToolbarUpToDetailPagesTools()
-{
+void MainWindow::clearToolbarUpToDetailPagesTools() {
     for (auto action : m_current_dms_view_actions)
         m_toolbar->removeAction(action);
     m_current_dms_view_actions.clear();
 }
 
-void MainWindow::updateToolbar()
-{
+void MainWindow::updateToolbar() {
     // TODO: #387 separate variable for wanted toolbar state: mapview, tableview
-    if (!m_toolbar)
-    {
+    if (!m_toolbar) {
         addToolBarBreak();
         m_toolbar = addToolBar(tr("dmstoolbar"));
         m_toolbar->setFocusPolicy(Qt::FocusPolicy::ClickFocus);
@@ -942,8 +880,7 @@ void MainWindow::updateToolbar()
     auto active_dms_view_area = dynamic_cast<QDmsViewArea*>(active_mdi_subwindow);
 
     DataView* dv = nullptr;
-    if (active_dms_view_area)
-    {
+    if (active_dms_view_area) {
         // get viewstyle from dataview
         dv = active_dms_view_area->getDataView();
         if (dv)
@@ -973,8 +910,7 @@ void MainWindow::updateToolbar()
 
     std::vector < ToolButtonID>* buttons_array_ptr = nullptr;
 
-    switch(view_style)
-    {
+    switch(view_style) {
     case ViewStyle::tvsTableView: buttons_array_ptr = &available_table_buttons; break;
     case ViewStyle::tvsMapView:   buttons_array_ptr = &available_map_buttons; break;
     }
@@ -983,12 +919,10 @@ void MainWindow::updateToolbar()
 
     assert(dv);
     auto first_toolbar_detail_pages_action = m_dms_toolbar_spacer_action.get();
-    for (auto button_id : *buttons_array_ptr)
-    {
-        if (button_id == TB_Undefined)
-        {
+    for (auto button_id : *buttons_array_ptr) {
+        if (button_id == TB_Undefined) {
             QWidget* spacer = new QWidget(this);
-            spacer->setMinimumSize(30,0);
+            spacer->setMinimumSize(dms_params::toolbar_button_spacing);
             m_current_dms_view_actions.push_back(m_toolbar->insertWidget(first_toolbar_detail_pages_action, spacer));
             spacer->setFocusPolicy(Qt::FocusPolicy::NoFocus);
             continue;
@@ -1009,8 +943,7 @@ void MainWindow::updateToolbar()
     }
 }
 
-bool MainWindow::event(QEvent* event)
-{
+bool MainWindow::event(QEvent* event) {
     if (event->type() == QEvent::WindowActivate && !s_errorWindowActivationCount)
     {
         QTimer::singleShot(0, this, [=]() 
@@ -1034,8 +967,7 @@ bool MainWindow::event(QEvent* event)
     return QMainWindow::event(event);
 }
 
-std::string fillOpenConfigSourceCommand(const std::string command, const std::string filename, const std::string line)
-{
+std::string fillOpenConfigSourceCommand(const std::string command, const std::string filename, const std::string line) {
     //tested for "%env:ProgramFiles%\Notepad++\Notepad++.exe" "%F" -n%L and "%ProgramFiles32%\Crimson Editor\cedt.exe" /L:%L "%F"
     std::string result = command;
     auto fnp_pos = result.find("%F");
@@ -1052,14 +984,12 @@ std::string fillOpenConfigSourceCommand(const std::string command, const std::st
     return result;
 }
 
-void MainWindow::openConfigSourceDirectly(std::string_view filename, std::string_view line)
-{
+void MainWindow::openConfigSourceDirectly(std::string_view filename, std::string_view line) {
     std::string filename_dos_style = ConvertDmsFileNameAlways(SharedStr(filename.data())).c_str();
     std::string command = GetGeoDmsRegKey("DmsEditor").c_str();
     std::string unexpanded_open_config_source_command = "";
     std::string open_config_source_command = "";
-    if (!filename.empty() && !line.empty() && !command.empty())
-    {
+    if (!filename.empty() && !line.empty() && !command.empty()) {
         unexpanded_open_config_source_command = fillOpenConfigSourceCommand(command, std::string(filename), std::string(line));
         const TreeItem* ti = getCurrentTreeItemOrRoot();
 
@@ -1081,8 +1011,7 @@ void MainWindow::openConfigSourceDirectly(std::string_view filename, std::string
     }
 }
 
-void MainWindow::openConfigSourceFor(const TreeItem* context)
-{
+void MainWindow::openConfigSourceFor(const TreeItem* context) {
     if (!context)
         return;
     auto filename = ConvertDmsFileNameAlways(context->GetConfigFileName());
@@ -1090,26 +1019,22 @@ void MainWindow::openConfigSourceFor(const TreeItem* context)
     openConfigSourceDirectly(filename.c_str(), line);
 }
 
-void MainWindow::openConfigSource()
-{
+void MainWindow::openConfigSource() {
     openConfigSourceFor( getCurrentTreeItemOrRoot() );
 }
 
-void MainWindow::openConfigRootSource()
-{
+void MainWindow::openConfigRootSource() {
     openConfigSourceFor( getRootTreeItem() );
 }
 
 TIC_CALL BestItemRef TreeItem_GetErrorSourceCaller(const TreeItem* src);
 
-void MainWindow::focusAddressBar()
-{
+void MainWindow::focusAddressBar() {
     m_address_bar->setFocus();
     m_address_bar->selectAll();
 }
 
-void MainWindow::stepToFailReason()
-{
+void MainWindow::stepToFailReason() {
     auto ti = getCurrentTreeItem();
     if (!ti)
         return;
@@ -1118,26 +1043,22 @@ void MainWindow::stepToFailReason()
         return;
 
     BestItemRef result = TreeItem_GetErrorSourceCaller(ti);
-    if (result.first)
-    {
+    if (result.first) {
         if (result.first->IsCacheItem())
             return;
 
         setCurrentTreeItem(const_cast<TreeItem*>(result.first.get()));
     }
 
-    if (!result.second.empty())
-    {
+    if (!result.second.empty()) {
         auto textWithUnfoundPart = m_address_bar->text() + " " + result.second.c_str();
         m_address_bar->setText(textWithUnfoundPart);
     }
 }
 
-void MainWindow::runToFailReason()
-{
+void MainWindow::runToFailReason() {
     auto current_ti = getCurrentTreeItem();
-    while (current_ti->WasFailed())
-    {
+    while (current_ti->WasFailed()) {
         stepToFailReason();
         auto new_ti = getCurrentTreeItem();
         if (current_ti == new_ti)
@@ -1146,35 +1067,29 @@ void MainWindow::runToFailReason()
     }   
 }
 
-void MainWindow::visual_update_treeitem()
-{
+void MainWindow::visual_update_treeitem() {
     createView(ViewStyle::tvsUpdateItem);
 }
 
-void MainWindow::visual_update_subtree()
-{
+void MainWindow::visual_update_subtree() {
     createView(ViewStyle::tvsUpdateTree);
 }
 
-void MainWindow::toggle_treeview()
-{
+void MainWindow::toggle_treeview() {
     bool isVisible = m_treeview_dock->isVisible();
     m_treeview_dock->setVisible(!isVisible);
 }
 
-void MainWindow::toggle_detailpages()
-{
+void MainWindow::toggle_detailpages() {
     m_detail_pages->toggle(m_detail_pages->m_last_active_detail_page);
 }
 
-void MainWindow::toggle_eventlog()
-{
+void MainWindow::toggle_eventlog() {
     bool isVisible = m_eventlog_dock->isVisible();
     m_eventlog_dock->setVisible(!isVisible);
 }
 
-void MainWindow::toggle_toolbar()
-{
+void MainWindow::toggle_toolbar() {
     if (!m_toolbar)
         return; // when there is no DataView opened, there is also no (in)visible toolbar
 
@@ -1182,79 +1097,63 @@ void MainWindow::toggle_toolbar()
     m_toolbar->setVisible(!isVisible);
 }
 
-void MainWindow::toggle_currentitembar()
-{
+void MainWindow::toggle_currentitembar() {
     bool isVisible = m_address_bar_container->isVisible();
     m_address_bar_container->setVisible(!isVisible);
 }
 
-void MainWindow::gui_options()
-{
+void MainWindow::gui_options() {
     // Modal
     auto optionsWindow = new DmsGuiOptionsWindow(this);
     optionsWindow->show();
 }
 
-void MainWindow::advanced_options()
-{
+void MainWindow::advanced_options() {
     // Modal
     auto optionsWindow = new DmsLocalMachineOptionsWindow(this);
     optionsWindow->show();
 }
 
-void MainWindow::config_options()
-{
+void MainWindow::config_options() {
     auto optionsWindow = new DmsConfigOptionsWindow(this);
     optionsWindow->show();
 }
 
-void MainWindow::code_analysis_set_source()
-{
-   try 
-   {
+void MainWindow::code_analysis_set_source() {
+   try {
        TreeItem_SetAnalysisSource(getCurrentTreeItem());
    }
-   catch (...)
-   {
+   catch (...) {
        auto errMsg = catchException(false);
        MainWindow::TheOne()->reportErrorAndTryReload(errMsg);
    }
 }
 
-void MainWindow::code_analysis_set_target()
-{
-    try
-    {
+void MainWindow::code_analysis_set_target() {
+    try {
         TreeItem_SetAnalysisTarget(getCurrentTreeItem(), true);
     }
-    catch (...)
-    {
+    catch (...) {
         auto errMsg = catchException(false);
         reportErrorAndTryReload(errMsg);
     }
 }
 
-void MainWindow::code_analysis_add_target()
-{
-    try
-    {
+void MainWindow::code_analysis_add_target() {
+    try {
         TreeItem_SetAnalysisTarget(getCurrentTreeItem(), false);
     }
-    catch (...)
-    {
+    catch (...) {
         auto errMsg = catchException(false);
         reportErrorAndTryReload(errMsg);
     }
 }
 
-void MainWindow::code_analysis_clr_targets()
-{
+void MainWindow::code_analysis_clr_targets() {
     TreeItem_SetAnalysisSource(nullptr);
-//    TreeItem_SetAnalysisTarget(nullptr, true);  // REMOVE, al gedaan door SetAnalysisSource
 }
 
-bool MainWindow::reportErrorAndAskToReload(ErrMsgPtr error_message_ptr)
-{
+bool MainWindow::reportErrorAndAskToReload(ErrMsgPtr error_message_ptr) {
     VectorOutStreamBuff buffer;
     auto streamType = OutStreamBase::ST_HTM;
     auto msgOut = std::unique_ptr<OutStreamBase>(XML_OutStream_Create(&buffer, streamType, "", calcRulePropDefPtr));
@@ -1276,15 +1175,13 @@ bool MainWindow::reportErrorAndAskToReload(ErrMsgPtr error_message_ptr)
     return true;
 }
 
-void MainWindow::reportErrorAndTryReload(ErrMsgPtr error_message_ptr)
-{
+void MainWindow::reportErrorAndTryReload(ErrMsgPtr error_message_ptr) {
     bool doReload = reportErrorAndAskToReload(std::move(error_message_ptr));
     if (doReload)
         TheOne()->reopen();
 }
 
-void MainWindow::exportPrimaryData()
-{
+void MainWindow::exportPrimaryData() {
     if (!m_export_window)
         m_export_window = new DmsExportWindow(this);
 
@@ -1292,13 +1189,11 @@ void MainWindow::exportPrimaryData()
     m_export_window->show();
 }
 
-void MainWindow::createView(ViewStyle viewStyle)
-{
+void MainWindow::createView(ViewStyle viewStyle) {
     if (openErrorOnFailedCurrentItem())
         return;
 
-    try
-    {
+    try {
         auto currItem = getCurrentTreeItem();
         static UInt32 s_ViewCounter = 0;
         if (!currItem)
@@ -1318,18 +1213,15 @@ void MainWindow::createView(ViewStyle viewStyle)
         m_mdi_area->addSubWindow(dms_mdi_subwindow.get());
         dms_mdi_subwindow.release();
     }
-    catch (...)
-    {
+    catch (...) {
         auto errMsg = catchException(false);
         reportErrorAndTryReload(errMsg);
     }
 }
 
-void MainWindow::defaultViewOrAddItemToCurrentView()
-{
+void MainWindow::defaultViewOrAddItemToCurrentView() {
     auto active_mdi_subwindow = dynamic_cast<QDmsViewArea*>(m_mdi_area->activeSubWindow());
-    if (!active_mdi_subwindow || !active_mdi_subwindow->getDataView()->CanContain(m_current_item))
-    {
+    if (!active_mdi_subwindow || !active_mdi_subwindow->getDataView()->CanContain(m_current_item)) {
         defaultView();
         return;
     }
@@ -1337,55 +1229,47 @@ void MainWindow::defaultViewOrAddItemToCurrentView()
     SHV_DataView_AddItem(active_mdi_subwindow->getDataView(), m_current_item, false);
 }
 
-void MainWindow::defaultView()
-{
+void MainWindow::defaultView() {
     reportF(MsgCategory::commands, SeverityTypeID::ST_MajorTrace, "defaultView // for item %s", m_current_item->GetFullName());
     auto default_view_style = SHV_GetDefaultViewStyle(m_current_item);
     if (default_view_style == ViewStyle::tvsPaletteEdit)
         default_view_style = ViewStyle::tvsTableView;
-    if (default_view_style == ViewStyle::tvsDefault)
-    {
+    if (default_view_style == ViewStyle::tvsDefault) {
         reportF(MsgCategory::other, SeverityTypeID::ST_Error, "Unable to deduce viewstyle for item %s, no view created.", m_current_item->GetFullName());
         return;
     }
     createView(default_view_style);
 }
 
-void MainWindow::mapView()
-{
+void MainWindow::mapView() {
     reportF(MsgCategory::commands, SeverityTypeID::ST_MajorTrace, "mapview // for item %s", m_current_item->GetFullName());
     createView(ViewStyle::tvsMapView);
 }
 
-void MainWindow::tableView()
-{
+void MainWindow::tableView() {
     reportF(MsgCategory::commands, SeverityTypeID::ST_MajorTrace, "tableView // for item %s", m_current_item->GetFullName());
     createView(ViewStyle::tvsTableView);
 }
 
-void geoDMSContextMessage(ClientHandle clientHandle, CharPtr msg)
-{
+void geoDMSContextMessage(ClientHandle clientHandle, CharPtr msg) {
     assert(IsMainThread());
     auto dms_main_window = reinterpret_cast<MainWindow*>(clientHandle);
     dms_main_window->setStatusMessage(msg);
     return;
 }
 
-bool MainWindow::CloseConfig()
-{
+bool MainWindow::CloseConfig() {
     TreeItem_SetAnalysisSource(nullptr); // clears all code-analysis coding
 
     // close all dms views
     bool has_active_dms_views = false;
-    if (m_mdi_area)
-    {
+    if (m_mdi_area) {
         has_active_dms_views = m_mdi_area->subWindowList().size();
         m_mdi_area->closeAllSubWindows();
     }
 
     // reset all dms tree data
-    if (m_root)
-    {
+    if (m_root) {
         m_detail_pages->leaveThisConfig(); // reset ValueInfo cached results
         m_dms_model->reset();
         m_treeview->reset();
@@ -1399,49 +1283,34 @@ bool MainWindow::CloseConfig()
 
     // close all active value info windows
     QList<QWidget*> value_info_windows = this->findChildren<QWidget*>(Qt::FindDirectChildrenOnly);
-    for (auto* widget : value_info_windows)
-    {
+    for (auto* widget : value_info_windows) {
         if (dynamic_cast<ValueInfoWindow*>(widget))
             widget->close();
     }
-
     SessionData::ReleaseCurr();
-
     scheduleUpdateToolbar();
     return has_active_dms_views;
 }
 
-auto configIsInRecentFiles(std::string_view cfg, const std::vector<std::string>& files) -> Int32
-{
+auto configIsInRecentFiles(std::string_view cfg, const std::vector<std::string>& files) -> Int32 {
     std::string cfg_name = cfg.data();
-    //auto pos = std::find(files.begin(), files.end(), cfg_name) - files.begin();
     UInt32 pos = 0;
-    for (auto& recent_file : files)
-    {
-        if (recent_file.compare(cfg_name) == 0)
-        {
+    for (auto& recent_file : files) {
+        if (recent_file.compare(cfg_name) == 0) {
             return pos;
         }
         pos++;
     }
     
     return -1;
-    //if (pos >= files.size())
-    //    return -1;
-    //return pos;
 }
 
-void MainWindow::cleanRecentFilesThatDoNotExist()
-{
-    auto recent_files_from_registry = GetGeoDmsRegKeyMultiString("RecentFiles");
-
-    for (auto it_rf = recent_files_from_registry.begin(); it_rf != recent_files_from_registry.end();)
-    {
-        if ((strnicmp(it_rf->c_str(), "file:", 5) != 0))
-        {
+void MainWindow::cleanRecentFilesThatDoNotExist() {
+    auto recent_files_from_registry = GetGeoDmsRegKeyMultiString(dms_params::reg_key_RecentFiles);
+    for (auto it_rf = recent_files_from_registry.begin(); it_rf != recent_files_from_registry.end();) {
+        if ((strnicmp(it_rf->c_str(), "file:", 5) != 0)) {
             auto dosFileName = ConvertDmsFileName(SharedStr(it_rf->c_str()));
-            if (!std::filesystem::exists(dosFileName.c_str()) || it_rf->empty())
-            {
+            if (!std::filesystem::exists(dosFileName.c_str()) || it_rf->empty()) {
                 it_rf = recent_files_from_registry.erase(it_rf);
                 continue;
             }
@@ -1451,8 +1320,7 @@ void MainWindow::cleanRecentFilesThatDoNotExist()
     SetGeoDmsRegKeyMultiString("RecentFiles", recent_files_from_registry);
 }
 
-void MainWindow::removeRecentFileAtIndex(size_t index)
-{
+void MainWindow::removeRecentFileAtIndex(size_t index) {
     if (m_recent_file_entries.size() <= index)
         return;
 
@@ -1462,19 +1330,16 @@ void MainWindow::removeRecentFileAtIndex(size_t index)
         return;
 
     auto msgTxt = mySSPrintF("Remove %s from the list of recent files ?", rf_action->m_cfg_file_path);
-    if (MessageBoxA((HWND)winId(), msgTxt.c_str(), "Confirmation Request", MB_YESNO | MB_ICONQUESTION) == IDYES)
-    {
+    if (MessageBoxA((HWND)winId(), msgTxt.c_str(), "Confirmation Request", MB_YESNO | MB_ICONQUESTION) == IDYES) {
         m_file_menu->removeAction(menu_to_be_removed);
         m_recent_file_entries.removeAt(index);
         saveRecentFileActionToRegistry();
     }
 }
 
-void MainWindow::saveRecentFileActionToRegistry()
-{
+void MainWindow::saveRecentFileActionToRegistry() {
     std::vector<std::string> recent_files_as_std_strings;
-    for (auto* recent_file_entry_candidate : m_recent_file_entries)
-    {
+    for (auto* recent_file_entry_candidate : m_recent_file_entries) {
         auto recent_file_entry = dynamic_cast<DmsRecentFileEntry*>(recent_file_entry_candidate);
         if (!recent_file_entry)
             continue;
@@ -1485,8 +1350,7 @@ void MainWindow::saveRecentFileActionToRegistry()
     SetGeoDmsRegKeyMultiString("RecentFiles", recent_files_as_std_strings);
 }
 
-void MainWindow::insertCurrentConfigInRecentFiles(std::string_view cfg)
-{
+void MainWindow::insertCurrentConfigInRecentFiles(std::string_view cfg) {
     auto cfg_index_in_recent_files = configIsInRecentFiles(cfg, GetGeoDmsRegKeyMultiString("RecentFiles"));
     if (cfg_index_in_recent_files == -1)
         addRecentFilesEntry(cfg);
@@ -1497,8 +1361,7 @@ void MainWindow::insertCurrentConfigInRecentFiles(std::string_view cfg)
     updateFileMenu();
 }
 
-void MainWindow::LoadConfig(CharPtr configFilePath, CharPtr currentItemPath)
-{
+void MainWindow::LoadConfig(CharPtr configFilePath, CharPtr currentItemPath) {
     bool hadSubWindows = CloseConfig();
     SharedStr configFilePathStr(configFilePath);
     SharedStr currentItemPathStr(currentItemPath);
@@ -1515,8 +1378,7 @@ void MainWindow::LoadConfig(CharPtr configFilePath, CharPtr currentItemPath)
     );
 }
 
-bool MainWindow::LoadConfigImpl(CharPtr configFilePath)
-{
+bool MainWindow::LoadConfigImpl(CharPtr configFilePath) {
   retry:
     try {
         auto orgConfigFilePath = SharedStr(configFilePath);
@@ -1529,8 +1391,7 @@ bool MainWindow::LoadConfigImpl(CharPtr configFilePath)
         auto newRoot = CreateTreeFromConfiguration(m_currConfigFileName.c_str());
 
         m_root = newRoot;
-        if (m_root)
-        {
+        if (m_root) {
             SharedStr configFilePathStr = DelimitedConcat(ConvertDosFileName(GetCurrentDir()), ConvertDosFileName(m_currConfigFileName));
             for (auto& ch : configFilePathStr)
                 ch = std::tolower(ch);
@@ -1546,8 +1407,7 @@ bool MainWindow::LoadConfigImpl(CharPtr configFilePath)
         else
             SessionData::ReleaseCurr();
     }
-    catch (...)
-    {
+    catch (...) {
         m_dms_model->setRoot(nullptr);
         setCurrentTreeItem(nullptr);
         auto x = catchException(false);
@@ -1573,27 +1433,20 @@ void MainWindow::OnViewAction(const TreeItem* tiContext, CharPtr sAction, Int32 
     MainWindow::TheOne()->doViewAction(const_cast<TreeItem*>(tiContext), sAction);
 }
 
-void MainWindow::showStatisticsDirectly(const TreeItem* tiContext)
-{
+void MainWindow::showStatisticsDirectly(const TreeItem* tiContext) {
     if (openErrorOnFailedCurrentItem())
         return;
 
-    if (!IsDataItem(tiContext))
-    {
+    if (!IsDataItem(tiContext)) {
         reportF(MsgCategory::commands, SeverityTypeID::ST_Warning, "Cannot show statistics window for items that are not of type dataitem: [[%s]]", tiContext->GetFullName());
         return;
     }
 
     auto* mdiSubWindow = new QMdiSubWindow(m_mdi_area.get());
-    
-    //mdiSubWindow->setWindowFlag(Qt::Window, true);// type windowType
     auto* statistics_browser = new StatisticsBrowser(mdiSubWindow);
     SuspendTrigger::Resume();
     statistics_browser->m_Context = tiContext;
     tiContext->PrepareData();
-
-    /*auto* statistics_browser = new QTextEdit(mdiSubWindow);
-    statistics_browser->setText("Test text for DEBUGGING.");*/
     mdiSubWindow->setWidget(statistics_browser);
 
     SharedStr title = "Statistics of " + SharedStr(tiContext->GetName());
@@ -1606,16 +1459,13 @@ void MainWindow::showStatisticsDirectly(const TreeItem* tiContext)
     statistics_browser->restart_updating();
 }
 
-void MainWindow::showValueInfo(const AbstrDataItem* studyObject, SizeT index, SharedStr extraInfo)
-{
+void MainWindow::showValueInfo(const AbstrDataItem* studyObject, SizeT index, SharedStr extraInfo) {
     assert(studyObject);
-
     auto* value_info_window = new ValueInfoWindow(studyObject, index, extraInfo, this);
     return;
 }
 
-void MainWindow::setStatusMessage(CharPtr msg)
-{
+void MainWindow::setStatusMessage(CharPtr msg) {
     m_StatusMsg = msg;
     updateStatusMessage();
 }
@@ -1623,41 +1473,39 @@ void MainWindow::setStatusMessage(CharPtr msg)
 static bool s_IsTiming = false;
 static std::time_t s_BeginTime = 0;
 
-void MainWindow::begin_timing(AbstrMsgGenerator* /*ach*/)
-{
+void MainWindow::begin_timing(AbstrMsgGenerator* /*ach*/) {
     if (s_IsTiming)
         return;
-
     s_IsTiming = true;
     s_BeginTime = std::time(nullptr);
 }
 
-std::time_t passed_time(const MainWindow::processing_record& pr)
-{
+std::time_t passed_time(const MainWindow::processing_record& pr) {
     return std::get<1>(pr) - std::get<0>(pr);
 }
 
-SharedStr passed_time_str(CharPtr preFix, time_t passedTime)
-{
+SharedStr passed_time_str(CharPtr preFix, time_t passedTime) {
     SharedStr result;
-    if (passedTime >= 24 * 3600)
-    {
-        result = AsString(passedTime / (24 * 3600)) + " days and ";
-        passedTime %= 24 * 3600;
+    time_t seconds_in_minute = 60;
+    time_t seconds_in_hour = seconds_in_minute * 60;
+    time_t hours_in_day = 24;
+    time_t seconds_in_a_day = hours_in_day * seconds_in_hour;
+    if (passedTime >= seconds_in_a_day) {
+        result = AsString(passedTime / (seconds_in_a_day)) + " days and ";
+        passedTime %= seconds_in_a_day;
     }
-    assert(passedTime <= (24 * 3600));
+    assert(passedTime <= (seconds_in_a_day));
     result = mySSPrintF("%s%s%02d:%02d:%02d "
         , preFix
         , result.c_str()
-        , passedTime / 3600, (passedTime / 60) % 60, passedTime % 60
+        , passedTime / seconds_in_hour, (passedTime / seconds_in_hour) % seconds_in_hour, passedTime % seconds_in_minute
     );
     return result;
 }
 
 RTC_CALL auto GetMemoryStatus() -> SharedStr;
 
-void MainWindow::end_timing(AbstrMsgGenerator* ach)
-{
+void MainWindow::end_timing(AbstrMsgGenerator* ach) {
     if (!s_IsTiming)
         return;
 
@@ -1701,22 +1549,17 @@ void MainWindow::end_timing(AbstrMsgGenerator* ach)
 RTC_CALL auto GetMemoryStatus() -> SharedStr;
 
 static UInt32 s_ReentrancyCount = 0;
-void MainWindow::updateStatusMessage()
-{
+void MainWindow::updateStatusMessage() {
     if (s_ReentrancyCount)
         return;
 
     auto fullMsg = m_StatusMsg + m_LongestProcessingRecordTxt + " - " + GetMemoryStatus();
-
     DynamicIncrementalLock<> incremental_lock(s_ReentrancyCount);
-    
     statusBar()->showMessage(fullMsg.c_str());
 }
 
-auto MainWindow::getIconFromViewstyle(ViewStyle viewstyle) -> QIcon
-{
-    switch (viewstyle)
-    {
+auto MainWindow::getIconFromViewstyle(ViewStyle viewstyle) -> QIcon {
+    switch (viewstyle) {
     case ViewStyle::tvsMapView: { return QPixmap(":/res/images/TV_globe.bmp"); }
     case ViewStyle::tvsStatistics: { return QPixmap(":/res/images/DP_statistics.bmp"); }
     case ViewStyle::tvsCalculationTimes: { return QPixmap(":/res/images/IconCalculationTimeOverview.png"); }
@@ -1726,14 +1569,12 @@ auto MainWindow::getIconFromViewstyle(ViewStyle viewstyle) -> QIcon
     }
 }
 
-void MainWindow::hideDetailPagesRadioButtonWidgets(bool hide_properties_buttons, bool hide_source_descr_buttons)
-{
+void MainWindow::hideDetailPagesRadioButtonWidgets(bool hide_properties_buttons, bool hide_source_descr_buttons) {
     m_detail_page_properties_buttons->gridLayoutWidget->setHidden(hide_properties_buttons);
     m_detail_page_source_description_buttons->gridLayoutWidget->setHidden(hide_source_descr_buttons);
 }
 
-void MainWindow::addRecentFilesEntry(std::string_view recent_file)
-{
+void MainWindow::addRecentFilesEntry(std::string_view recent_file) {
     auto index = m_recent_file_entries.size();
     std::string preprending_spaces = index < 9 ? "   &" : "  ";
     std::string pushbutton_text = preprending_spaces + std::to_string(index + 1) + ". " + std::string(ConvertDosFileName(SharedStr(recent_file.data())).c_str());
@@ -1741,11 +1582,9 @@ void MainWindow::addRecentFilesEntry(std::string_view recent_file)
 
     m_file_menu->addAction(new_recent_file_entry);
 
-    for (auto action_object_pointer : new_recent_file_entry->associatedObjects())
-    {
+    for (auto action_object_pointer : new_recent_file_entry->associatedObjects()) {
        action_object_pointer->installEventFilter(new_recent_file_entry);
     }
-
     m_recent_file_entries.push_back(new_recent_file_entry);
 
     // connections
@@ -1753,8 +1592,7 @@ void MainWindow::addRecentFilesEntry(std::string_view recent_file)
     connect(new_recent_file_entry, &DmsRecentFileEntry::toggled, new_recent_file_entry, &DmsRecentFileEntry::onFileEntryPressed);
 }
 
-auto Realm(const auto& x) -> CharPtrRange
-{
+auto Realm(const auto& x) -> CharPtrRange {
     auto b = begin_ptr(x);
     auto e = end_ptr(x);
     auto colonPos = std::find(b, e, ':');
@@ -1763,14 +1601,12 @@ auto Realm(const auto& x) -> CharPtrRange
     return { b, colonPos };
 }
 
-auto getLinkFromErrorMessage(std::string_view error_message, unsigned int lineNumber) -> link_info
-{
+auto getLinkFromErrorMessage(std::string_view error_message, unsigned int lineNumber) -> link_info {
     std::string html_error_message = "";
     //auto error_message_text = std::string(error_message->Why().c_str());
     std::size_t currPos = 0, currLineNumber = 0;
     link_info lastFoundLink;
-    while (currPos < error_message.size())
-    {
+    while (currPos < error_message.size()) {
         auto currLineEnd = error_message.find_first_of('\n', currPos);
         if (currLineEnd == std::string::npos)
             currLineEnd = error_message.size();
@@ -1780,8 +1616,7 @@ auto getLinkFromErrorMessage(std::string_view error_message, unsigned int lineNu
         auto comma_pos = lineView.find_first_of(',');
         auto round_bracked_close_pos = lineView.find_first_of(')');
 
-        if (round_bracked_open_pos < comma_pos && comma_pos < round_bracked_close_pos && round_bracked_close_pos != std::string::npos)
-        {
+        if (round_bracked_open_pos < comma_pos && comma_pos < round_bracked_close_pos && round_bracked_close_pos != std::string::npos) {
             auto filename = lineView.substr(0, round_bracked_open_pos);
             auto line_number = lineView.substr(round_bracked_open_pos + 1, comma_pos - (round_bracked_open_pos + 1));
             auto col_number = lineView.substr(comma_pos + 1, round_bracked_close_pos - (comma_pos + 1));
@@ -1794,17 +1629,14 @@ auto getLinkFromErrorMessage(std::string_view error_message, unsigned int lineNu
         currPos = currLineEnd + 1;
         currLineNumber++;
     }
-
     return lastFoundLink;
 }
 
-bool IsPostRequest(const QUrl& /*link*/)
-{
+bool IsPostRequest(const QUrl& /*link*/) {
     return false;
 }
 
-void MainWindow::onInternalLinkClick(const QUrl& link, QWidget* origin)
-{
+void MainWindow::onInternalLinkClick(const QUrl& link, QWidget* origin) {
     try {
         auto linkStr = link.toString().toStdString();
 
@@ -1817,15 +1649,13 @@ void MainWindow::onInternalLinkClick(const QUrl& link, QWidget* origin)
         auto* current_item = MainWindow::TheOne()->getCurrentTreeItem();
 
         auto realm = Realm(linkStr);
-        if (realm.size() == 16 && !strnicmp(realm.begin(), "editConfigSource", 16))
-        {
+        if (realm.size() == 16 && !strnicmp(realm.begin(), "editConfigSource", 16)) {
             auto clicked_error_link = linkStr.substr(17);
             auto parsed_clicked_error_link = getLinkFromErrorMessage(clicked_error_link);
             MainWindow::TheOne()->openConfigSourceDirectly(parsed_clicked_error_link.filename, parsed_clicked_error_link.line);
             return;
         }
-        if (realm.size() == 9 && !strnicmp(realm.begin(), "clipboard", 9))
-        {
+        if (realm.size() == 9 && !strnicmp(realm.begin(), "clipboard", 9)) {
             auto dataStr = linkStr.substr(10);
             auto decodedStr = UrlDecode(SharedStr(dataStr.c_str()));
             auto qStr = QString(decodedStr.c_str());
@@ -1834,14 +1664,12 @@ void MainWindow::onInternalLinkClick(const QUrl& link, QWidget* origin)
             return;
         }
 
-        if (IsPostRequest(link))
-        {
+        if (IsPostRequest(link)) {
             auto queryStr = link.query().toUtf8();
             DMS_ProcessPostData(const_cast<TreeItem*>(current_item), queryStr.data(), queryStr.size());
             return;
         }
-        if (!ShowInDetailPage(SharedStr(linkStr.c_str())))
-        {
+        if (!ShowInDetailPage(SharedStr(linkStr.c_str()))) {
             auto raw_string = SharedStr(begin_ptr(linkStr), end_ptr(linkStr));
             ReplaceSpecificDelimiters(raw_string.GetAsMutableRange(), '\\');
             auto linkCStr = ConvertDosFileName(raw_string); // obtain zero-termination and non-const access
@@ -1849,38 +1677,26 @@ void MainWindow::onInternalLinkClick(const QUrl& link, QWidget* origin)
             return;
         }
 
-        if (linkStr.contains(".adms"))
-        {
+        if (linkStr.contains(".adms")) {
             auto queryResult = ProcessADMS(current_item, linkStr.data());
             m_detail_pages->setHtml(queryResult.c_str());
             return;
         }
         auto sPrefix = Realm(linkStr);
-        if (!strncmp(sPrefix.begin(), "dms", sPrefix.size()))
-        {
+        if (!strncmp(sPrefix.begin(), "dms", sPrefix.size())) {
             auto sAction = CharPtrRange(begin_ptr(linkStr) + 4, end_ptr(linkStr));
             doViewAction(m_current_item, sAction, origin ? origin : nullptr);
             return;
         }
     }
-    catch (...)
-    {
+    catch (...) {
         auto errMsg = catchAndReportException();
     }
 }
 
-void EditPropValue(TreeItem* /*tiContext*/, CharPtrRange /*url*/, SizeT /*recNo*/)
-{
-
-}
-
-void PopupTable(SizeT /*recNo*/)
-{
-
-}
-
-void MainWindow::doViewAction(TreeItem* tiContext, CharPtrRange sAction, QWidget* origin)
-{
+void EditPropValue(TreeItem* /*tiContext*/, CharPtrRange /*url*/, SizeT /*recNo*/) {}
+void PopupTable(SizeT /*recNo*/) {}
+void MainWindow::doViewAction(TreeItem* tiContext, CharPtrRange sAction, QWidget* origin) {
     assert(tiContext);
     SuspendTrigger::Resume();
 
@@ -1903,20 +1719,17 @@ void MainWindow::doViewAction(TreeItem* tiContext, CharPtrRange sAction, QWidget
     if (!sRecNr.empty())
         AssignValueFromCharPtrs(recNo, sRecNr.begin(), sRecNr.end());
 
-    if (!strncmp(sMenu.begin(), "popuptable", sMenu.size()))
-    {
+    if (!strncmp(sMenu.begin(), "popuptable", sMenu.size())) {
         PopupTable(recNo);
         return;
     }
 
-    if (!strncmp(sMenu.begin(), "edit", sMenu.size()))
-    {
+    if (!strncmp(sMenu.begin(), "edit", sMenu.size())) {
         EditPropValue(tiContext, sPathWithSub, recNo);
         return;
     }
 
-    if (!strncmp(sMenu.begin(), "goto", sMenu.size()))
-    {
+    if (!strncmp(sMenu.begin(), "goto", sMenu.size())) {
         tiContext = const_cast<TreeItem*>(tiContext->FindBestItem(sPath).first.get()); // TODO: make result FindBestItem non-const
         if (tiContext)
             MainWindow::TheOne()->setCurrentTreeItem(tiContext);
@@ -1925,38 +1738,31 @@ void MainWindow::doViewAction(TreeItem* tiContext, CharPtrRange sAction, QWidget
 
     // Value info link clicked from value info window
     tiContext = const_cast<TreeItem*>(tiContext->FindBestItem(sPath).first.get()); // TODO: make result FindBestItem non-const
-    if (origin)
-    {
+    if (origin) {
         auto value_info_browser = dynamic_cast<ValueInfoBrowser*>(origin);
-        if (value_info_browser)
-        {
+        if (value_info_browser) {
             value_info_browser->addStudyObject(AsDataItem(tiContext), recNo, SharedStr(sSub));
             return;
         }
     }
 
     // Detail- or new ValueinfoWindow requested
-    if (sMenu.size() >= 3 && !strncmp(sMenu.begin(), "dp.", 3))
-    {
+    if (sMenu.size() >= 3 && !strncmp(sMenu.begin(), "dp.", 3)) {
         sMenu.first += 3;
 
         auto detail_page_type = m_detail_pages->activeDetailPageFromName(sMenu);
-        switch (detail_page_type)
-        {
-        case ActiveDetailPage::STATISTICS:
-        {
+        switch (detail_page_type) {
+        case ActiveDetailPage::STATISTICS: {
             MainWindow::TheOne()->showStatisticsDirectly(tiContext);
             return;
         }
-        case ActiveDetailPage::VALUE_INFO:
-        {
+        case ActiveDetailPage::VALUE_INFO: {
             if (!IsDataItem(tiContext))
                 return;
 
             return MainWindow::TheOne()->showValueInfo(AsDataItem(tiContext), recNo, SharedStr(sSub));
         }
-        default:
-        {
+        default: {
             m_detail_pages->m_active_detail_page = detail_page_type;
             if (tiContext)
                 MainWindow::TheOne()->setCurrentTreeItem(tiContext);
@@ -1968,18 +1774,12 @@ void MainWindow::doViewAction(TreeItem* tiContext, CharPtrRange sAction, QWidget
 }
 
 static bool s_TreeViewRefreshPending = false;
-
-void AnyTreeItemStateHasChanged(ClientHandle clientHandle, const TreeItem* self, NotificationCode notificationCode)
-{
+void AnyTreeItemStateHasChanged(ClientHandle clientHandle, const TreeItem* self, NotificationCode notificationCode) {
     auto mainWindow = reinterpret_cast<MainWindow*>(clientHandle);
     switch (notificationCode) {
-    case NC_Deleting:
-        // TODO: remove self from any representation to avoid accessing it's dangling pointer
-        break;
-    case NC_Creating:
-        break;
-    case CC_CreateMdiChild:
-    {
+    case NC_Deleting: break; // TODO: remove self from any representation to avoid accessing it's dangling pointer
+    case NC_Creating: break;
+    case CC_CreateMdiChild: {
         assert(IsMainThread());
         auto* createStruct = const_cast<MdiCreateStruct*>(reinterpret_cast<const MdiCreateStruct*>(self));
         assert(createStruct);
@@ -1997,8 +1797,7 @@ void AnyTreeItemStateHasChanged(ClientHandle clientHandle, const TreeItem* self,
     }
 
     // this actually only invalidates any drawn area and causes repaint later, but time anyway to avoid too many repaints
-    if (!s_TreeViewRefreshPending)
-    {
+    if (!s_TreeViewRefreshPending) {
         s_TreeViewRefreshPending = true;
         QTimer::singleShot(1000, []() 
             { 
@@ -2020,60 +1819,41 @@ void AnyTreeItemStateHasChanged(ClientHandle clientHandle, const TreeItem* self,
 
 #include "waiter.h"
 
-void OnStartWaiting(void* clientHandle, AbstrMsgGenerator* ach)
-{
+void OnStartWaiting(void* clientHandle, AbstrMsgGenerator* ach) {
     assert(IsMainThread());
     QGuiApplication::setOverrideCursor(QCursor(Qt::WaitCursor));
     reinterpret_cast<MainWindow*>(clientHandle)->begin_timing(ach);
 }
 
-void OnEndWaiting(void* clientHandle, AbstrMsgGenerator* ach)
-{
+void OnEndWaiting(void* clientHandle, AbstrMsgGenerator* ach) {
     QGuiApplication::restoreOverrideCursor();
     reinterpret_cast<MainWindow*>(clientHandle)->end_timing(ach);
 }
 
-void MainWindow::setupDmsCallbacks()
-{
+void MainWindow::setupDmsCallbacks() {
     DMS_RegisterMsgCallback(&geoDMSMessage, this);
-
     DMS_SetContextNotification(&geoDMSContextMessage, this);
     SHV_SetCreateViewActionFunc(&OnViewAction);
-
     DMS_RegisterStateChangeNotification(AnyTreeItemStateHasChanged, this);
     register_overlapping_periods_callback(OnStartWaiting, OnEndWaiting, this);
 }
 
-void MainWindow::cleanupDmsCallbacks()
-{
+void MainWindow::cleanupDmsCallbacks() {
     unregister_overlapping_periods_callback(OnStartWaiting, OnEndWaiting, this);
     DMS_ReleaseStateChangeNotification(AnyTreeItemStateHasChanged, this);
-
     DMS_SetContextNotification(nullptr, nullptr);
     SHV_SetCreateViewActionFunc(nullptr);
-
     DMS_ReleaseMsgCallback(&geoDMSMessage, this);
 }
 
-void MainWindow::createActions()
-{
+void MainWindow::createActions() {
     m_file_menu = std::make_unique<QMenu>(tr("&File"));
     menuBar()->addMenu(m_file_menu.get());
     m_address_bar_container = addToolBar(tr("Current item bar"));
-
     m_treeitem_visit_history = std::make_unique<QComboBox>();
-    m_treeitem_visit_history->setFixedWidth(18);
-    m_treeitem_visit_history->setFixedHeight(18);
+    m_treeitem_visit_history->setFixedSize(dms_params::treeitem_visit_history_fixed_size);
     m_treeitem_visit_history->setFrame(false);
-    m_treeitem_visit_history->setStyleSheet("QComboBox QAbstractItemView {\n"
-                                                "min-width:400px;"
-                                            "}\n"
-                                            "QComboBox::drop-down:button{\n"
-                                                "background-color: transparant;\n"
-                                            "}\n"
-                                            "QComboBox::down-arrow {\n"
-                                                "image: url(:/res/images/arrow_down.png);\n"
-                                            "}\n");
+    m_treeitem_visit_history->setStyleSheet(dms_params::stylesheet_treeitem_visit_history);
    
     m_address_bar_container->addWidget(m_treeitem_visit_history.get());
     m_address_bar = std::make_unique<DmsAddressBar>(this);
@@ -2088,7 +1868,6 @@ void MainWindow::createActions()
     addToolBarBreak();
 
     connect(m_mdi_area.get(), &QDmsMdiArea::subWindowActivated, this, &MainWindow::scheduleUpdateToolbar);
-    //auto openIcon = QIcon::fromTheme("document-open", QIcon(":res/images/open.png"));
     auto fileOpenAct = new QAction(tr("&Open Configuration"), this);
     fileOpenAct->setShortcuts(QKeySequence::Open);
     fileOpenAct->setStatusTip(tr("Open an existing configuration file"));
@@ -2167,7 +1946,7 @@ void MainWindow::createActions()
     menuBar()->addMenu(m_view_menu.get());
 
     m_defaultview_action = std::make_unique<QAction>(tr("Default"));
-    m_defaultview_action->setIcon(QIcon::fromTheme("backward", QIcon(":/res/images/TV_default_view.bmp")));
+    m_defaultview_action->setIcon(QIcon::fromTheme("backward", QIcon(dms_params::default_view_icon)));
     m_defaultview_action->setStatusTip(tr("Open current selected TreeItem's default view."));
     connect(m_defaultview_action.get(), &QAction::triggered, this, &MainWindow::defaultView);
     m_view_menu->addAction(m_defaultview_action.get());
@@ -2176,7 +1955,7 @@ void MainWindow::createActions()
     // table view
     m_tableview_action = std::make_unique<QAction>(tr("&Table"));
     m_tableview_action->setStatusTip(tr("Open current selected TreeItem's in a table view."));
-    m_tableview_action->setIcon(QIcon::fromTheme("backward", QIcon(":/res/images/TV_table.bmp")));
+    m_tableview_action->setIcon(QIcon::fromTheme("backward", QIcon(dms_params::table_view_icon)));
     connect(m_tableview_action.get(), &QAction::triggered, this, &MainWindow::tableView);
     m_view_menu->addAction(m_tableview_action.get());
     m_tableview_action->setShortcut(QKeySequence(tr("Ctrl+D")));
@@ -2184,14 +1963,14 @@ void MainWindow::createActions()
     // map view
     m_mapview_action = std::make_unique<QAction>(tr("&Map"));
     m_mapview_action->setStatusTip(tr("Open current selected TreeItem's in a map view."));
-    m_mapview_action->setIcon(QIcon::fromTheme("backward", QIcon(":/res/images/TV_globe.bmp")));
+    m_mapview_action->setIcon(QIcon::fromTheme("backward", QIcon(dms_params::map_view_icon)));
     connect(m_mapview_action.get(), &QAction::triggered, this, &MainWindow::mapView);
     m_view_menu->addAction(m_mapview_action.get());
     m_mapview_action->setShortcut(QKeySequence(tr("CTRL+M")));
 
     // statistics view
     m_statistics_action = std::make_unique<QAction>(tr("&Statistics"));
-    m_statistics_action->setIcon(QIcon::fromTheme("backward", QIcon(":/res/images/DP_statistics.bmp")));
+    m_statistics_action->setIcon(QIcon::fromTheme("backward", QIcon(dms_params::statistics_view_icon)));
     connect(m_statistics_action.get(), &QAction::triggered, this, &MainWindow::showStatistics);
     m_view_menu->addAction(m_statistics_action.get());
 
@@ -2373,25 +2152,22 @@ void MainWindow::createActions()
     m_help_menu->addAction(wiki_action);
 }
 
-void MainWindow::updateFileMenu()
-{
-    for (auto recent_file_entry : m_recent_file_entries)
-    {
+void MainWindow::updateFileMenu() {
+    for (auto recent_file_entry : m_recent_file_entries) {
         m_file_menu->removeAction(recent_file_entry);
         delete recent_file_entry;
     }
     m_recent_file_entries.clear();
     cleanRecentFilesThatDoNotExist();
-    auto recent_files_from_registry = GetGeoDmsRegKeyMultiString("RecentFiles");
-    for (std::string_view recent_file : recent_files_from_registry)
-    {
+    auto recent_files_from_registry = GetGeoDmsRegKeyMultiString("RecentFiles"); 
+
+    for (std::string_view recent_file : recent_files_from_registry) {
         addRecentFilesEntry(recent_file);
 
     }
 }
 
-void MainWindow::updateViewMenu()
-{
+void MainWindow::updateViewMenu() {
     // disable actions not applicable to current item
     auto ti_is_or_is_in_template = !m_current_item || (m_current_item->InTemplate() && m_current_item->IsTemplate());
     m_update_treeitem_action->setDisabled(ti_is_or_is_in_template);
@@ -2412,25 +2188,21 @@ void MainWindow::updateViewMenu()
     if (hasToolbar)
         m_toggle_toolbar_action->setChecked(m_toolbar->isVisible());
     m_toggle_currentitembar_action->setChecked(m_address_bar_container->isVisible());
-
     m_processing_records.empty() ? m_view_calculation_times_action->setDisabled(true) : m_view_calculation_times_action->setEnabled(true);
 }
 
-void MainWindow::updateToolsMenu()
-{
+void MainWindow::updateToolsMenu() {
     m_code_analysis_add_target_action->setEnabled(m_current_item);
     m_code_analysis_clr_targets_action->setEnabled(m_current_item);
     m_code_analysis_set_source_action->setEnabled(m_current_item);
     m_code_analysis_set_target_action->setEnabled(m_current_item);
 }
 
-void MainWindow::updateSettingsMenu()
-{
+void MainWindow::updateSettingsMenu() {
     m_config_options_action->setEnabled(DmsConfigOptionsWindow::hasOverridableConfigOptions());
 }
 
-void MainWindow::updateWindowMenu()
-{
+void MainWindow::updateWindowMenu() {
     // clear non persistent actions from window menu
     auto actions_to_remove = QList<QAction*>();
     int number_of_persistent_actions = 5;
@@ -2445,15 +2217,13 @@ void MainWindow::updateWindowMenu()
     // reinsert window actions
     int subWindowCount = 0;
     auto asw = m_mdi_area->currentSubWindow();
-    for (auto* sw : m_mdi_area->subWindowList())
-    {
+    for (auto* sw : m_mdi_area->subWindowList()) {
         auto qa = new QAction(sw->windowTitle(), m_window_menu.get());
         ViewStyle viewstyle = static_cast<ViewStyle>(sw->property("viewstyle").value<QVariant>().toInt());
         qa->setIcon(getIconFromViewstyle(viewstyle));               
         connect(qa, &QAction::triggered, sw, [this, sw] { this->m_mdi_area->setActiveSubWindow(sw); });
         subWindowCount++;
-        if (sw == asw)
-        {
+        if (sw == asw) {
             qa->setCheckable(true);
             qa->setChecked(true);
         }
@@ -2467,8 +2237,7 @@ void MainWindow::updateWindowMenu()
     m_win_close_but_this_action->setEnabled(subWindowCount > 1);
 }
 
-bool is_filenameBase_eq_rootname(CharPtrRange fileName, CharPtrRange rootName)
-{
+bool is_filenameBase_eq_rootname(CharPtrRange fileName, CharPtrRange rootName) {
     if (fileName.size() < 4)
         return false;
     if (fileName.size() != rootName.size() + 4)
@@ -2480,20 +2249,16 @@ bool is_filenameBase_eq_rootname(CharPtrRange fileName, CharPtrRange rootName)
     return true;
 }
 
-void MainWindow::updateCaption()
-{
+void MainWindow::updateCaption() {
     VectorOutStreamBuff buff;
     FormattedOutStream out(&buff, FormattingFlags());
-    if (!m_currConfigFileName.empty())
-    {
+    if (!m_currConfigFileName.empty()) {
         auto fileName = getFileName(m_currConfigFileName.c_str());
         out << fileName;
-        if (m_root)
-        {
+        if (m_root) {
             auto rootName = m_root->GetName();
             CharPtr rootNameCStr = rootName.c_str();
-            if (rootNameCStr && *rootNameCStr)
-            {
+            if (rootNameCStr && *rootNameCStr) {
                 if (!is_filenameBase_eq_rootname(fileName, rootNameCStr))
                     out << " (aka " << rootNameCStr << ")";
             }
@@ -2519,10 +2284,8 @@ void MainWindow::updateCaption()
     setWindowTitle(buff.GetData());
 }
 
-void MainWindow::updateTracelogHandle()
-{
-    if (GetRegStatusFlags() & RSF_TraceLogFile)
-    {
+void MainWindow::updateTracelogHandle() {
+    if (GetRegStatusFlags() & RSF_TraceLogFile) {
         if (m_TraceLogHandle)
             return;
         auto fileName = AbstrStorageManager::Expand("", "%LocalDataDir%/trace.log");
@@ -2532,8 +2295,7 @@ void MainWindow::updateTracelogHandle()
         m_TraceLogHandle.reset();
 }
 
-void MainWindow::createStatusBar()
-{
+void MainWindow::createStatusBar() {
     auto status_bar = statusBar();
     status_bar->showMessage(tr("Ready"));
     status_bar->setFocusPolicy(Qt::FocusPolicy::ClickFocus);
@@ -2549,14 +2311,12 @@ void MainWindow::createStatusBar()
     m_statusbar_coordinates->setVisible(false);
 }
 
-void MainWindow::on_status_msg_changed(const QString& msg)
-{
+void MainWindow::on_status_msg_changed(const QString& msg) {
     if (msg.isEmpty())
         updateStatusMessage();
 }
 
-CharPtrRange myAscTime(const struct tm* timeptr)
-{
+CharPtrRange myAscTime(const struct tm* timeptr) {
     static char wday_name[7][4] = {
         "Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"
     };
@@ -2575,13 +2335,11 @@ CharPtrRange myAscTime(const struct tm* timeptr)
         1900 + timeptr->tm_year);
 }
 
-void MainWindow::update_calculation_times_report()
-{
+void MainWindow::update_calculation_times_report() {
     VectorOutStreamBuff vosb;
     FormattedOutStream os(&vosb, FormattingFlags());
     os << "Top " << m_processing_records.size() << " calculation times:\n";
-    for (const auto& pr : m_processing_records)
-    {
+    for (const auto& pr : m_processing_records) {
         os << passed_time_str("", passed_time(pr));
         os << " from " << myAscTime(std::localtime(& std::get<0>(pr)));
         os << " till " << myAscTime(std::localtime(& std::get<1>(pr)));
@@ -2595,8 +2353,7 @@ void MainWindow::update_calculation_times_report()
     m_calculation_times_browser->setText(vosb.GetData());
 }
 
-void MainWindow::view_calculation_times()
-{
+void MainWindow::view_calculation_times() {
     update_calculation_times_report();
     //m_calculation_times_window->setAttribute(Qt::WA_DeleteOnClose);
 
@@ -2606,9 +2363,8 @@ void MainWindow::view_calculation_times()
     m_calculation_times_window->show();
 }
 
-void MainWindow::view_current_config_filelist()
-{
-    VectorOutStreamBuff vosb;
+void MainWindow::view_current_config_filelist() {
+    VectorOutStreamBuff vosb; 
     {
         auto xmlOut = OutStream_HTM(&vosb, "html", nullptr);
         //    outStreamBuff << "List of currently loaded configuration (*.dms) files\n";
@@ -2630,8 +2386,7 @@ void MainWindow::view_current_config_filelist()
     mdiSubWindow->show();
 }
 
-void MainWindow::expandAll()
-{
+void MainWindow::expandAll() {
     FixedContextHandle context("expandAll");
     Waiter waitReporter(&context);
     reportF(MsgCategory::commands, SeverityTypeID::ST_MinorTrace, "expandAll");
@@ -2641,8 +2396,7 @@ void MainWindow::expandAll()
 
 #include "dbg/DebugReporter.h"
 
-void MainWindow::debugReports()
-{
+void MainWindow::debugReports() {
 
 #if defined(MG_DEBUGREPORTER)
     DebugReporter::ReportAll();
@@ -2650,10 +2404,7 @@ void MainWindow::debugReports()
 
 }
 
-
-
-void MainWindow::expandActiveNode(bool doExpand)
-{
+void MainWindow::expandActiveNode(bool doExpand) {
     FixedContextHandle context("expandActiveNode");
     Waiter waitReporter(&context);
     reportF(MsgCategory::commands, SeverityTypeID::ST_MinorTrace, "expand");
@@ -2661,8 +2412,7 @@ void MainWindow::expandActiveNode(bool doExpand)
     m_treeview->expandActiveNode(doExpand);
 }
 
-void MainWindow::expandRecursiveFromCurrentItem()
-{
+void MainWindow::expandRecursiveFromCurrentItem() {
     FixedContextHandle context("expandRecursiveFromCurrentItem");
     Waiter waitReporter(&context);
     reportF(MsgCategory::commands, SeverityTypeID::ST_MinorTrace, "expandRecursiveFromCurrentItem");
@@ -2670,9 +2420,7 @@ void MainWindow::expandRecursiveFromCurrentItem()
     m_treeview->expandRecursiveFromCurrentItem();
 }
 
-
-void MainWindow::createDetailPagesDock()
-{
+void MainWindow::createDetailPagesDock() {
     m_detailpages_dock = new QDockWidget(QObject::tr("DetailPages"), this);
     m_detailpages_dock->setTitleBarWidget(new QWidget(m_detailpages_dock));
 
@@ -2699,11 +2447,9 @@ void MainWindow::createDetailPagesDock()
     m_detailpages_dock->setWidget(detail_pages_holder);
 
     addDockWidget(Qt::RightDockWidgetArea, m_detailpages_dock);
-    //resizeDocks({ m_treeview_dock, m_detailpages_dock }, { 600, 300 }, Qt::Horizontal);
 }
 
-void MainWindow::createDmsHelperWindowDocks()
-{
+void MainWindow::createDmsHelperWindowDocks() {
     createDetailPagesDock();
 
     m_treeview = createTreeview(this);
@@ -2714,8 +2460,7 @@ void MainWindow::createDmsHelperWindowDocks()
     resizeDocks({ m_eventlog_dock }, { 150 }, Qt::Vertical);
 }
 
-void MainWindow::back()
-{
+void MainWindow::back() {
     if (!m_root)
         return;
 
@@ -2740,8 +2485,7 @@ void MainWindow::back()
     MainWindow::TheOne()->setCurrentTreeItem(const_cast<TreeItem*>(found_treeitem), false);
 }
 
-void MainWindow::forward()
-{
+void MainWindow::forward() {
     if (!m_root)
         return;
 
