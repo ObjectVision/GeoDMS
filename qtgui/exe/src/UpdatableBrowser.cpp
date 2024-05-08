@@ -3,6 +3,7 @@
 #include <QDialog>
 #include <QLayout>
 #include <QWebEngineSettings>
+#include <qfontdatabase.h>
 
 FindTextWindow::FindTextWindow(QWidget* parent)
     : QWidget(parent)
@@ -114,19 +115,21 @@ bool DmsWebEnginePage::acceptNavigationRequest(const QUrl& url, QWebEnginePage::
 QUpdatableWebBrowser::QUpdatableWebBrowser(QWidget* parent)
     : QWebEngineView(parent)
 {
-
-
     current_page = new DmsWebEnginePage(this);
-    //current_page-> setFocusPolicy(Qt::FocusPolicy::ClickFocus);
     setPage(current_page);
 
     // settings
     auto settings = page()->settings();
+    QString family = QFontDatabase::applicationFontFamilies(1).at(0);
     settings->setAttribute(QWebEngineSettings::JavascriptEnabled, false);
     settings->setAttribute(QWebEngineSettings::JavascriptCanOpenWindows, false);
     settings->setAttribute(QWebEngineSettings::JavascriptCanAccessClipboard, false);
     settings->setAttribute(QWebEngineSettings::LinksIncludedInFocusChain, false);
     settings->setAttribute(QWebEngineSettings::JavascriptCanPaste, false);
+    settings->setFontFamily(QWebEngineSettings::StandardFont, family);
+    settings->setFontSize(QWebEngineSettings::DefaultFontSize, 13);
+
+    
     //QWebEngineSettings::Accelerated2dCanvasEnabled: could this be useful?
 
     connect(pageAction(QWebEnginePage::ViewSource), SIGNAL(triggered(bool)), this, SLOT(slt_openImage_triggered()));
