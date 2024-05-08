@@ -21,6 +21,9 @@ namespace dms_params {
 	extern const char* map_view_icon;
 	extern const char* statistics_view_icon;
 
+	// coordinates bar
+	extern int coordinates_bar_width;
+
 	// font
 	extern const char* dms_font_resource;
 	extern const char* remix_icon_font_resource;

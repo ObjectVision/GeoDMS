@@ -18,6 +18,9 @@ const char* dms_params::table_view_icon = ":/res/images/TV_table.bmp";
 const char* dms_params::map_view_icon = ":/res/images/TV_globe.bmp";
 const char* dms_params::statistics_view_icon = ":/res/images/DP_statistics.bmp";
 
+// coordinates bar
+int dms_params::coordinates_bar_width = 300;
+
 // font
 const char* dms_params::dms_font_resource = ":/res/fonts/dmstext.ttf";
 const char* dms_params::remix_icon_font_resource = ":/res/fonts/remixicon.ttf";
