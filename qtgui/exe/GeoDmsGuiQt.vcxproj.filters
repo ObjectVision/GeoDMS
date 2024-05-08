@@ -60,6 +60,9 @@
     <ClCompile Include="src\DmsToolbar.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="src\DmsErrorWindow.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <QtMoc Include="src\DmsMainWindow.h">
@@ -81,6 +84,9 @@
       <Filter>Header Files</Filter>
     </QtMoc>
     <QtMoc Include="src\DmsFileChangedWindow.h">
+      <Filter>Header Files</Filter>
+    </QtMoc>
+    <QtMoc Include="src\DmsErrorWindow.h">
       <Filter>Header Files</Filter>
     </QtMoc>
   </ItemGroup>

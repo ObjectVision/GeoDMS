@@ -127,6 +127,7 @@
   <ItemGroup>
     <ClCompile Include="src\DmsActions.cpp" />
     <ClCompile Include="src\DmsDetailPages.cpp" />
+    <ClCompile Include="src\DmsErrorWindow.cpp" />
     <ClCompile Include="src\DmsEventLog.cpp">
       <DynamicSource Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">input</DynamicSource>
       <QtMocFileName Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">%(Filename).moc</QtMocFileName>
@@ -161,6 +162,7 @@
     <ClInclude Include="src\DmsActions.h" />
     <ClInclude Include="src\DmsDetailPages.h" />
     <QtMoc Include="src\DmsFileChangedWindow.h" />
+    <QtMoc Include="src\DmsErrorWindow.h" />
     <ClInclude Include="src\DmsGuiParameters.h" />
     <ClInclude Include="src\DmsToolbar.h" />
     <ClInclude Include="src\dms_memory_leak_debugging.h" />

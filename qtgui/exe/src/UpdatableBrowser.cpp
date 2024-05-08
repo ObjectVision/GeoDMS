@@ -129,9 +129,6 @@ QUpdatableWebBrowser::QUpdatableWebBrowser(QWidget* parent)
     settings->setFontFamily(QWebEngineSettings::StandardFont, family);
     settings->setFontSize(QWebEngineSettings::DefaultFontSize, 13);
 
-    
-    //QWebEngineSettings::Accelerated2dCanvasEnabled: could this be useful?
-
     connect(pageAction(QWebEnginePage::ViewSource), SIGNAL(triggered(bool)), this, SLOT(slt_openImage_triggered()));
 
     setProperty("DmsHelperWindowType", DmsHelperWindowType::HW_UNKNOWN);
