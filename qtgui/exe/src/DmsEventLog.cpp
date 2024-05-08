@@ -21,6 +21,7 @@
 #include "DmsTreeView.h"
 #include "DmsOptions.h"
 #include "DmsMainWindow.h"
+#include "DmsAddressBar.h"
 #include <QMainWindow>
 #include "dbg/SeverityType.h"
 

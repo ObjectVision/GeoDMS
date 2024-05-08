@@ -126,6 +126,7 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="src\DmsActions.cpp" />
+    <ClCompile Include="src\DmsAddressBar.cpp" />
     <ClCompile Include="src\DmsDetailPages.cpp" />
     <ClCompile Include="src\DmsErrorWindow.cpp" />
     <ClCompile Include="src\DmsEventLog.cpp">
@@ -160,6 +161,7 @@
   <ItemGroup>
     <ClInclude Include="resource.h" />
     <ClInclude Include="src\DmsActions.h" />
+    <QtMoc Include="src\DmsAddressBar.h" />
     <ClInclude Include="src\DmsDetailPages.h" />
     <QtMoc Include="src\DmsFileChangedWindow.h" />
     <QtMoc Include="src\DmsErrorWindow.h" />

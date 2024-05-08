@@ -54,35 +54,20 @@ class DmsModel;
 class DmsExportWindow;
 class DmsFileChangedWindow;
 class DmsErrorWindow;
+class DmsAddressBar;
 class EventLogModel;
 struct ValueInfoBrowser;
 
-class DmsAddressBar : public QLineEdit
-{
-Q_OBJECT
-public:
-    DmsAddressBar(QWidget* parent = nullptr);
-    void setDmsCompleter();
-    void setPath(CharPtr itemPath);
 
-public slots:
-    void setPathDirectly(QString path);
-    void onEditingFinished();
 
-private:
-    void findItem(const TreeItem* context, QString path, bool updateHistory);
-};
-
-enum class ButtonType
-{
+enum class ButtonType {
     SINGLE,
     SINGLE_EXCLUSIVE,
     MULTISTATE,
     MODAL
 };
 
-enum DmsHelperWindowType 
-{
+enum DmsHelperWindowType {
     HW_UNKNOWN,
     HW_VALUEINFO,
     HW_DETAILPAGES,
@@ -95,8 +80,7 @@ enum DmsHelperWindowType
     HW_FILECHANGED
 };
 
-struct ToolbarButtonData
-{
+struct ToolbarButtonData {
     ToolButtonID id = TB_Undefined;
     std::vector<QString> text;
     std::vector<ToolButtonID> ids;
@@ -104,8 +88,7 @@ struct ToolbarButtonData
     bool is_global = false;
 };
 
-struct link_info
-{
+struct link_info {
     bool is_valid = false;
     size_t start = 0;
     size_t stop = 0;
@@ -115,8 +98,7 @@ struct link_info
     std::string col = "";
 };
 
-class DmsToolbuttonAction : public QAction
-{
+class DmsToolbuttonAction : public QAction {
     Q_OBJECT
 public:
     DmsToolbuttonAction(const ToolButtonID id, const QIcon& icon, const QString& text, QObject* parent = nullptr, ToolbarButtonData button_data = {}, ViewStyle vs=ViewStyle::tvsUndefined);
@@ -131,8 +113,7 @@ private:
     UInt8 m_state = 0;
 };
 
-class DmsConfigTextButton : public QPushButton
-{
+class DmsConfigTextButton : public QPushButton {
     Q_OBJECT
 
 public:
@@ -142,8 +123,7 @@ protected:
     void paintEvent(QPaintEvent* event);
 };
 
-class DmsRecentFileEntry : public QAction
-{
+class DmsRecentFileEntry : public QAction {
     Q_OBJECT
 
 public:
@@ -169,8 +149,7 @@ struct CmdLineSetttings {
     SharedStr m_TestScriptName;
 };
 
-class CalculationTimesWindow : public QMdiSubWindow
-{
+class CalculationTimesWindow : public QMdiSubWindow {
 public:
     CalculationTimesWindow();
     ~CalculationTimesWindow();
@@ -181,8 +160,7 @@ bool IsPostRequest(const QUrl& /*link*/);
 auto Realm(const auto& x) -> CharPtrRange;
 auto getLinkFromErrorMessage(std::string_view error_message, unsigned int lineNumber = 0) -> link_info;
 
-class MainWindow : public QMainWindow
-{
+class MainWindow : public QMainWindow {
     Q_OBJECT
 
 public:

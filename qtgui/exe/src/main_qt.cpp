@@ -26,6 +26,7 @@
 #include "ShvUtils.h"
 
 #include "DmsMainWindow.h"
+#include "DmsAddressBar.h"
 #include "DmsTreeView.h"
 #include "DmsDetailPages.h"
 #include "TestScript.h"
