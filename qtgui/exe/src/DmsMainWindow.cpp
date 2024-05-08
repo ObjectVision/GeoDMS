@@ -409,7 +409,7 @@ void MainWindow::aboutGeoDms() {
 }
 
 void MainWindow::wiki() {
-    QDesktopServices::openUrl(QUrl("https://github.com/ObjectVision/GeoDMS/wiki", QUrl::TolerantMode));
+    QDesktopServices::openUrl(QUrl("https://geodms.nl", QUrl::TolerantMode));
 }
 
 DmsConfigTextButton::DmsConfigTextButton(const QString& text, QWidget* parent)
@@ -1674,7 +1674,7 @@ void MainWindow::createStatusBar() {
     connect(statusBar(), &QStatusBar::messageChanged, this, &MainWindow::on_status_msg_changed);
     m_statusbar_coordinates = new QLineEdit(this);
     m_statusbar_coordinates->setReadOnly(true);
-    m_statusbar_coordinates->setFixedWidth(300);
+    m_statusbar_coordinates->setFixedWidth(dms_params::coordinates_bar_width);
     m_statusbar_coordinates->setAlignment(Qt::AlignmentFlag::AlignLeft);
     m_statusbar_coordinates->setFocusPolicy(Qt::FocusPolicy::ClickFocus);
 
@@ -1761,18 +1761,15 @@ void MainWindow::expandAll() {
     FixedContextHandle context("expandAll");
     Waiter waitReporter(&context);
     reportF(MsgCategory::commands, SeverityTypeID::ST_MinorTrace, "expandAll");
-
     m_treeview->expandAll();
 }
 
 #include "dbg/DebugReporter.h"
-
 void MainWindow::debugReports() {
 
 #if defined(MG_DEBUGREPORTER)
     DebugReporter::ReportAll();
 #endif defined(MG_DEBUGREPORTER)
-
 }
 
 void MainWindow::expandActiveNode(bool doExpand) {
@@ -1879,5 +1876,4 @@ void MainWindow::forward() {
 }
 
 #include "VersionComponent.h"
-
 static VersionComponent notoSansFont("application font: (derived from) NotoSans-Medium.ttf (c) Noto project");
