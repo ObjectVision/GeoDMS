@@ -32,10 +32,7 @@
 #include "TestScript.h"
 
 int RunTestScript(SharedStr testScriptName);
-
-
-struct CmdLineException : SharedStr, std::exception
-{
+struct CmdLineException : SharedStr, std::exception {
     CmdLineException(SharedStr x)
     :   SharedStr(x + 
             "\nexpected syntax:"
@@ -46,8 +43,7 @@ struct CmdLineException : SharedStr, std::exception
     CmdLineException(CharPtr x) : CmdLineException(SharedStr(x)) {}
 };
 
-std::any interpret_command_line_parameters(CmdLineSetttings& settingsFrame)
-{
+std::any interpret_command_line_parameters(CmdLineSetttings& settingsFrame) {
     int    argc = __argc;
     --argc;
     char** argv = __argv;
@@ -55,35 +51,28 @@ std::any interpret_command_line_parameters(CmdLineSetttings& settingsFrame)
 
     std::any result;
 
-    if ((argc > 0) && (*argv)[0] == '/' && (*argv)[1] == 'L')
-    {
+    if ((argc > 0) && (*argv)[0] == '/' && (*argv)[1] == 'L') {
         SharedStr dmsLogFileName = ConvertDosFileName(SharedStr((*argv) + 2));
 
         auto log_file_handle = std::make_unique<CDebugLog>(MakeAbsolutePath(dmsLogFileName.c_str()));
         result = make_noncopyable_any<decltype(log_file_handle)>(std::move(log_file_handle));
-
         argc--; argv++;
     }
 
-    if ((argc > 0) && (*argv)[0] == '/' && (*argv)[1] == 'T')
-    {
+    if ((argc > 0) && (*argv)[0] == '/' && (*argv)[1] == 'T') {
         settingsFrame.m_TestScriptName = ConvertDosFileName(SharedStr((*argv) + 2));
         argc--; argv++;
     }
 
     ParseRegStatusFlags(argc, argv);
-
-    if (argc && (*argv)[0] == '/')
-    {
+    if (argc && (*argv)[0] == '/') {
         CharPtr cmd = (*argv) + 1;
-        if (!stricmp(cmd, "noconfig"))
-        {
+        if (!stricmp(cmd, "noconfig")) {
             settingsFrame.m_NoConfig = true;
             argc--; argv++;
         }
     }
-    if (argc)
-    {
+    if (argc) {
         if ((*argv)[0] == '/')
             throw CmdLineException("configuration name expected ");
 
@@ -96,8 +85,7 @@ std::any interpret_command_line_parameters(CmdLineSetttings& settingsFrame)
     return result;
 }
 
-std::any init_geodms(QApplication& dms_app, CmdLineSetttings& settingsFrame) // TODO: move this logic to GeoDmsEngine class, ie separate gui logic from geodms engine logic.
-{
+std::any init_geodms(QApplication& dms_app, CmdLineSetttings& settingsFrame) { // TODO: GeoDMS engine
     DMS_Shv_Load();
     SHV_SetAdminMode(true);
     auto exe_path = dms_app.applicationDirPath().toUtf8();
@@ -110,8 +98,7 @@ std::any init_geodms(QApplication& dms_app, CmdLineSetttings& settingsFrame) // 
 #include "DmsViewArea.h"
 #include <qmdiarea.h>
 
-class CustomEventFilter : public QAbstractNativeEventFilter
-{
+class CustomEventFilter : public QAbstractNativeEventFilter {
     //    Q_OBJECT
 public:
     CustomEventFilter();
@@ -120,8 +107,7 @@ public:
     bool nativeEventFilter(const QByteArray& eventType, void* message, qintptr* result) override;
 };
 
-void SaveDetailPage(CharPtr fileName)
-{
+void SaveDetailPage(CharPtr fileName) {
     auto currItem = MainWindow::TheOne()->getCurrentTreeItem();
 
     auto dmsFileName = ConvertDosFileName(SharedStr(fileName));
@@ -138,8 +124,7 @@ void SaveDetailPage(CharPtr fileName)
     buff.WriteBytes(htmlsourceAsUtf8.data(), htmlsourceAsUtf8.size());*/
 }
 
-UInt32 Get4Bytes(const COPYDATASTRUCT* pcds, UInt32 i)
-{
+UInt32 Get4Bytes(const COPYDATASTRUCT* pcds, UInt32 i) {
     if (pcds->cbData < (i + 1) * 4)
         return 0;
     auto uint32_ptr = reinterpret_cast<UInt32*>(pcds->lpData);
@@ -147,22 +132,19 @@ UInt32 Get4Bytes(const COPYDATASTRUCT* pcds, UInt32 i)
 }
 
 
-bool WmCopyData(MSG* copyMsgPtr)
-{
+bool WmCopyData(MSG* copyMsgPtr) {
     auto pcds = reinterpret_cast<const COPYDATASTRUCT*>(copyMsgPtr->lParam);
     if (!pcds)
         return false;
     HWND hWindow = nullptr;
     DataView* dv = nullptr;
     auto commandCode = (CommandCode)pcds->dwData;
-    switch (commandCode)
-    {
+    switch (commandCode) {
     case CommandCode::SendApp: break; // send msg without HWND
     case CommandCode::SendMain: hWindow = (HWND)(MainWindow::TheOne()->winId()); break;
     case CommandCode::SendFocus: hWindow = GetFocus(); break;
     case CommandCode::SendActiveDmsControl:
-    case CommandCode::WmCopyActiveDmsControl:
-    {
+    case CommandCode::WmCopyActiveDmsControl: {
         auto aw = MainWindow::TheOne()->m_mdi_area->activeSubWindow();
         if (!aw)
             return false;
@@ -235,8 +217,7 @@ bool WmCopyData(MSG* copyMsgPtr)
     assert(commandCode <= CommandCode::WmCopyActiveDmsControl);
     MSG msg;
     COPYDATASTRUCT cds2;
-    if (commandCode < CommandCode::WmCopyActiveDmsControl)
-    {
+    if (commandCode < CommandCode::WmCopyActiveDmsControl) {
         msg.message = UINT(Get4Bytes(pcds, 0));
         msg.wParam  = WPARAM(Get4Bytes(pcds, 1));
         msg.lParam  = LPARAM(Get4Bytes(pcds, 2));
@@ -252,32 +233,23 @@ bool WmCopyData(MSG* copyMsgPtr)
     return SendMessage(hWindow, msg.message, msg.wParam, msg.lParam);
 }
 
-CustomEventFilter::CustomEventFilter()
-{
-     reportD(MsgCategory::other, SeverityTypeID::ST_MinorTrace, "Createt CustomEventFilter");
+CustomEventFilter::CustomEventFilter() {
+     reportD(MsgCategory::other, SeverityTypeID::ST_MinorTrace, "Created CustomEventFilter");
 }
 
-CustomEventFilter::~CustomEventFilter()
-{
+CustomEventFilter::~CustomEventFilter() {
     reportD(MsgCategory::other, SeverityTypeID::ST_MinorTrace, "Destroy CustomEventFilter");
 }
 
-
-
-bool CustomEventFilter::nativeEventFilter(const QByteArray& /*eventType*/, void* message, qintptr* /*result*/ )
-{
+bool CustomEventFilter::nativeEventFilter(const QByteArray& /*eventType*/, void* message, qintptr* /*result*/ ) {
     MSG* msg = static_cast<MSG*>(message);
 
-    switch (msg->message)
-    {
+    switch (msg->message) {
     case WM_APP + 2:  // RegisterScaleChangeNotifications called in DmsViewArea.cpp, but this message is never received here
-        if (auto mw = MainWindow::TheOne())
-        {
-            for (auto* sw : mw->m_mdi_area->subWindowList())
-            {
+        if (auto mw = MainWindow::TheOne()) {
+            for (auto* sw : mw->m_mdi_area->subWindowList()) {
                 auto dms_sw = dynamic_cast<QDmsViewArea*>(sw);
-                if (dms_sw)
-                {
+                if (dms_sw) {
                     dms_sw->on_rescale();
                 }
             }
@@ -290,42 +262,28 @@ bool CustomEventFilter::nativeEventFilter(const QByteArray& /*eventType*/, void*
 
     case WM_APP + 4:
     case WM_COPYDATA:
-        if (msg->hwnd == (HWND)MainWindow::TheOne()->winId())
-        {
+        if (msg->hwnd == (HWND)MainWindow::TheOne()->winId()) {
             try {
                 return WmCopyData(msg);
             }
-            catch (...)
-            {
+            catch (...) {
                 auto msg = catchException(false);
                 auto userResult = MessageBoxA(nullptr, msg->GetAsText().c_str(), "exception in handling of WM_COPYDATA", MB_OKCANCEL | MB_ICONERROR | MB_SYSTEMMODAL);
                 if (userResult == IDCANCEL)
                     terminate();
             }
         }
-    /*case WM_PAINT:
-    {
-        RECT test_rect;
-        auto main_window = (HWND)MainWindow::TheOne()->winId();
-        GetUpdateRect(main_window, &test_rect, false);
-    }*/
     }
 
-
     return false;
-    //    return QAbstractNativeEventFilter::nativeEventFilter(eventType, message, result);
 }
 
-class DmsMouseForwardBackwardEventFilter : public QObject
-{
+class DmsMouseForwardBackwardEventFilter : public QObject {
 protected:
-    bool eventFilter(QObject* obj, QEvent* event) override
-    {
-        if (event->type() == QEvent::MouseButtonPress)
-        {
+    bool eventFilter(QObject* obj, QEvent* event) override {
+        if (event->type() == QEvent::MouseButtonPress) {
             QMouseEvent* mouse_event = static_cast<QMouseEvent*>(event);
-            switch (mouse_event->button())
-            {
+            switch (mouse_event->button()) {
             case Qt::BackButton: { MainWindow::TheOne()->back(); return true; }
             case Qt::ForwardButton: { MainWindow::TheOne()->forward(); return true; }
             default: break;
@@ -336,33 +294,25 @@ protected:
 };
 
 #include <future>
-
 class DmsSplashScreen : public QSplashScreen {
 public:
-
     DmsSplashScreen(const QPixmap& pixmap)
-        : QSplashScreen(pixmap)
-    {
-    }
-
+        : QSplashScreen(pixmap) {}
     ~DmsSplashScreen() {}
 
-    virtual void drawContents(QPainter* painter)
-    {
+    virtual void drawContents(QPainter* painter) {
         QPixmap textPix = QSplashScreen::pixmap();
         painter->setPen(this->m_color);
         painter->drawText(this->m_rect, this->m_alignment, this->m_message);
     }
 
-    void showStatusMessage(const QString& message, const QColor& color = Qt::black)
-    {
+    void showStatusMessage(const QString& message, const QColor& color = Qt::black) {
         this->m_message = message;
         this->m_color = color;
         this->showMessage(this->m_message, this->m_alignment, this->m_color);
     }
 
-    void setMessageRect(QRect rect, int alignment = Qt::AlignLeft)
-    {
+    void setMessageRect(QRect rect, int alignment = Qt::AlignLeft) {
         this->m_rect = rect;
         this->m_alignment = alignment;
     }
@@ -373,13 +323,12 @@ public:
     QRect   m_rect;
 };
 
-int main_without_SE_handler(int argc, char *argv[])
-{
+int main_without_SE_handler(int argc, char *argv[]) {
     try {
         CmdLineSetttings settingsFrame;
         garbage_t geoDmsResources; // destruct resources after app completion
 
-        auto navive_event_filter_on_heap = std::make_unique<CustomEventFilter>();
+        auto native_event_filter_on_heap = std::make_unique<CustomEventFilter>();
         auto mouse_forward_backward_event_filter_on_heap = std::make_unique<DmsMouseForwardBackwardEventFilter>();
 
         auto dms_app_on_heap = std::make_unique<QApplication>(argc, argv);
@@ -406,7 +355,7 @@ int main_without_SE_handler(int argc, char *argv[])
 
         splash->showMessage("Initialize GeoDMS");
         geoDmsResources |= init_geodms(*dms_app_on_heap.get(), settingsFrame); // destruct resources after app completion
-        dms_app_on_heap->installNativeEventFilter(navive_event_filter_on_heap.get());
+        dms_app_on_heap->installNativeEventFilter(native_event_filter_on_heap.get());
 
         Q_INIT_RESOURCE(GeoDmsGuiQt);
         splash->showMessage("Initialize GeoDMS Gui");
@@ -420,21 +369,16 @@ int main_without_SE_handler(int argc, char *argv[])
 
         auto tsn = settingsFrame.m_TestScriptName;
         std::future<int> testResult;
-        if (!tsn.empty())
-        {
+        if (!tsn.empty()) {
             testResult = std::async([tsn] { return RunTestScript(tsn); });
         }
         auto result = dms_app_on_heap->exec();
 
-        if (!tsn.empty() && !result)
-        {
-            try
-            {
+        if (!tsn.empty() && !result) {
+            try {
                 result = testResult.get();
-
             }
-            catch (...)
-            {
+            catch (...) {
                 auto msg = catchException(false);
                 msg->TellExtra("while getting results from testscript");
                 throw DmsException(msg);
@@ -443,8 +387,7 @@ int main_without_SE_handler(int argc, char *argv[])
         main_window.CloseConfig();
         return result;
     }
-    catch (...)
-    {
+    catch (...) {
         auto msg = catchException(false);
         std::cout << "error          : " << msg->Why() << std::endl;
         std::cout << "context        : " << msg->Why() << std::endl;
@@ -453,23 +396,18 @@ int main_without_SE_handler(int argc, char *argv[])
     return 9;
 }
 
-void ProcessRequestedCmdLineFeedback(char* argMsg)
-{
+void ProcessRequestedCmdLineFeedback(char* argMsg) {
     auto exceptionText = DoubleUnQuoteMiddle(argMsg);
     MessageBoxA(nullptr, exceptionText.c_str(), "GeoDmsQt teminates due to a fatal OS Structured Exception", MB_OK | MB_ICONERROR | MB_SYSTEMMODAL | MB_TASKMODAL);
 }
 
-int main(int argc, char* argv[])
-{
-    if ((argc > 1) && (argv[1][0] == '/') && (argv[1][1] == 'F'))
-    {
+int main(int argc, char* argv[]) {
+    if ((argc > 1) && (argv[1][0] == '/') && (argv[1][1] == 'F')) {
         ProcessRequestedCmdLineFeedback(argv[1] + 2 );
         return 0;
     }
 
     DMS_SE_CALL_BEGIN
-
         return main_without_SE_handler(argc, argv);
-
     DMS_SE_CALL_END
 }
