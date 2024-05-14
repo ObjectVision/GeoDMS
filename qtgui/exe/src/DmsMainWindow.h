@@ -58,8 +58,6 @@ class DmsAddressBar;
 class EventLogModel;
 struct ValueInfoBrowser;
 
-
-
 enum class ButtonType {
     SINGLE,
     SINGLE_EXCLUSIVE,
@@ -80,14 +78,6 @@ enum DmsHelperWindowType {
     HW_FILECHANGED
 };
 
-struct ToolbarButtonData {
-    ToolButtonID id = TB_Undefined;
-    std::vector<QString> text;
-    std::vector<ToolButtonID> ids;
-    std::vector<QString> icons;
-    bool is_global = false;
-};
-
 struct link_info {
     bool is_valid = false;
     size_t start = 0;
@@ -96,21 +86,6 @@ struct link_info {
     std::string filename = "";
     std::string line = "";
     std::string col = "";
-};
-
-class DmsToolbuttonAction : public QAction {
-    Q_OBJECT
-public:
-    DmsToolbuttonAction(const ToolButtonID id, const QIcon& icon, const QString& text, QObject* parent = nullptr, ToolbarButtonData button_data = {}, ViewStyle vs=ViewStyle::tvsUndefined);
-
-public slots:
-    void onToolbuttonPressed();
-
-private:
-    auto getNumberOfStates() const -> UInt8 { return m_data.ids.size(); } ;
-
-    ToolbarButtonData m_data;
-    UInt8 m_state = 0;
 };
 
 class DmsConfigTextButton : public QPushButton {

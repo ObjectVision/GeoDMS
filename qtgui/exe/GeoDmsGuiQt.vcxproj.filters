@@ -57,13 +57,13 @@
     <ClCompile Include="src\DmsActions.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="src\DmsToolbar.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="src\DmsErrorWindow.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="src\DmsAddressBar.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\DmsToolbar.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
@@ -93,6 +93,9 @@
       <Filter>Header Files</Filter>
     </QtMoc>
     <QtMoc Include="src\DmsAddressBar.h">
+      <Filter>Header Files</Filter>
+    </QtMoc>
+    <QtMoc Include="src\DmsToolbar.h">
       <Filter>Header Files</Filter>
     </QtMoc>
   </ItemGroup>
@@ -125,9 +128,6 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="src\DmsActions.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="src\DmsToolbar.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
