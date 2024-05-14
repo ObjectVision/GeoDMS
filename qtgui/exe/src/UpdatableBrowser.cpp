@@ -2,6 +2,8 @@
 #include <QContextMenuEvent>
 #include <QDialog>
 #include <QLayout>
+#include <QWebEngineSettings>
+#include <qfontdatabase.h>
 
 FindTextWindow::FindTextWindow(QWidget* parent)
     : QWidget(parent)
@@ -17,6 +19,7 @@ FindTextWindow::FindTextWindow(QWidget* parent)
     next = new QPushButton("Next", this);
     QWidget* spacer = new QWidget(this);
     spacer->setSizePolicy(QSizePolicy::Minimum, QSizePolicy::Expanding);
+    spacer->setFocusPolicy(Qt::FocusPolicy::NoFocus);
     result_info = new QLabel("", this);
 
     // connections
@@ -97,7 +100,6 @@ void FindTextWindow::previousClicked(bool checked)
 DmsWebEnginePage::DmsWebEnginePage(QObject* parent)
 	: QWebEnginePage(parent)
 {
-
 }
 
 bool DmsWebEnginePage::acceptNavigationRequest(const QUrl& url, QWebEnginePage::NavigationType type, bool isMainFrame)
@@ -116,6 +118,17 @@ QUpdatableWebBrowser::QUpdatableWebBrowser(QWidget* parent)
     current_page = new DmsWebEnginePage(this);
     setPage(current_page);
 
+    // settings
+    auto settings = page()->settings();
+    QString family = QFontDatabase::applicationFontFamilies(1).at(0);
+    settings->setAttribute(QWebEngineSettings::JavascriptEnabled, false);
+    settings->setAttribute(QWebEngineSettings::JavascriptCanOpenWindows, false);
+    settings->setAttribute(QWebEngineSettings::JavascriptCanAccessClipboard, false);
+    settings->setAttribute(QWebEngineSettings::LinksIncludedInFocusChain, false);
+    settings->setAttribute(QWebEngineSettings::JavascriptCanPaste, false);
+    settings->setFontFamily(QWebEngineSettings::StandardFont, family);
+    settings->setFontSize(QWebEngineSettings::DefaultFontSize, 13);
+
     connect(pageAction(QWebEnginePage::ViewSource), SIGNAL(triggered(bool)), this, SLOT(slt_openImage_triggered()));
 
     setProperty("DmsHelperWindowType", DmsHelperWindowType::HW_UNKNOWN);
@@ -123,7 +136,7 @@ QUpdatableWebBrowser::QUpdatableWebBrowser(QWidget* parent)
     find_shortcut = new QShortcut(QKeySequence(tr("Ctrl+F", "Find")), this);
     connect(find_shortcut, &QShortcut::activated, this, &QUpdatableWebBrowser::openFindWindow);
 
-    
+    setFocusPolicy(Qt::FocusPolicy::ClickFocus);
 }
 
 void QUpdatableWebBrowser::restart_updating()

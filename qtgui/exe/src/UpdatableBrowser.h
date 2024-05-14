@@ -17,6 +17,7 @@
 #include <QVBoxLayout>
 #include <QLineEdit>
 #include <QLabel>
+#include <QFocusEvent>
 #include "qtextdocument.h"
 
 #include "DmsMainWindow.h"
@@ -56,7 +57,6 @@ struct QUpdatableWebBrowser : QWebEngineView, MsgGenerator
     void restart_updating();
     void GenerateDescription() override;
     void contextMenuEvent(QContextMenuEvent* event) override;
-
     QShortcut* find_shortcut = nullptr;
     FindTextWindow* find_window = nullptr;
 
@@ -64,6 +64,19 @@ public slots:
     void openFindWindow();
 
 protected:
+    void focusInEvent(QFocusEvent* event) override {
+        event->ignore();
+    }
+
+    void focusOutEvent(QFocusEvent* event) override {
+        event->ignore();
+    }
+
+    void keyPressEvent(QKeyEvent* e) override {
+        if (e->key() == Qt::Key_Tab)
+            e->ignore();
+    }
+
     Waiter m_Waiter;
     virtual bool update() = 0;
 

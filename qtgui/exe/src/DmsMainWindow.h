@@ -23,6 +23,8 @@
 #include <QWidgetAction>
 #include <QMdiSubWindow>
 
+#include "DmsGuiParameters.h"
+
 #include "ptr/SharedPtr.h"
 #include "ShvUtils.h"
 #include "dataview.h"
@@ -50,35 +52,20 @@ class DmsTreeView;
 class DmsEventLog;
 class DmsModel;
 class DmsExportWindow;
+class DmsFileChangedWindow;
+class DmsErrorWindow;
+class DmsAddressBar;
 class EventLogModel;
 struct ValueInfoBrowser;
 
-class DmsCurrentItemBar : public QLineEdit
-{
-Q_OBJECT
-public:
-    DmsCurrentItemBar(QWidget* parent = nullptr);
-    void setDmsCompleter();
-    void setPath(CharPtr itemPath);
-
-public slots:
-    void setPathDirectly(QString path);
-    void onEditingFinished();
-
-private:
-    void findItem(const TreeItem* context, QString path, bool updateHistory);
-};
-
-enum class ButtonType
-{
+enum class ButtonType {
     SINGLE,
     SINGLE_EXCLUSIVE,
     MULTISTATE,
     MODAL
 };
 
-enum DmsHelperWindowType 
-{
+enum DmsHelperWindowType {
     HW_UNKNOWN,
     HW_VALUEINFO,
     HW_DETAILPAGES,
@@ -91,17 +78,7 @@ enum DmsHelperWindowType
     HW_FILECHANGED
 };
 
-struct ToolbarButtonData
-{
-    ToolButtonID id = TB_Undefined;
-    std::vector<QString> text;
-    std::vector<ToolButtonID> ids;
-    std::vector<QString> icons;
-    bool is_global = false;
-};
-
-struct link_info
-{
+struct link_info {
     bool is_valid = false;
     size_t start = 0;
     size_t stop = 0;
@@ -111,24 +88,7 @@ struct link_info
     std::string col = "";
 };
 
-class DmsToolbuttonAction : public QAction
-{
-    Q_OBJECT
-public:
-    DmsToolbuttonAction(const ToolButtonID id, const QIcon& icon, const QString& text, QObject* parent = nullptr, ToolbarButtonData button_data = {}, ViewStyle vs=ViewStyle::tvsUndefined);
-
-public slots:
-    void onToolbuttonPressed();
-
-private:
-    auto getNumberOfStates() const -> UInt8 { return m_data.ids.size(); } ;
-
-    ToolbarButtonData m_data;
-    UInt8 m_state = 0;
-};
-
-class DmsConfigTextButton : public QPushButton
-{
+class DmsConfigTextButton : public QPushButton {
     Q_OBJECT
 
 public:
@@ -138,8 +98,7 @@ protected:
     void paintEvent(QPaintEvent* event);
 };
 
-class DmsRecentFileEntry : public QAction
-{
+class DmsRecentFileEntry : public QAction {
     Q_OBJECT
 
 public:
@@ -165,49 +124,7 @@ struct CmdLineSetttings {
     SharedStr m_TestScriptName;
 };
 
-class DmsFileChangedWindow : public QDialog
-{
-    Q_OBJECT
-
-public:
-    DmsFileChangedWindow(QWidget* parent = nullptr);
-    void setFileChangedMessage(std::string_view changed_files);
-
-private slots:
-    void ignore();
-    void reopen();
-    void onAnchorClicked(const QUrl& link);
-
-private:
-    QPointer<QPushButton> m_ignore;
-    QPointer<QPushButton> m_reopen;
-    QPointer<QTextBrowser> m_message;
-};
-
-
-class DmsErrorWindow : public QDialog
-{
-    Q_OBJECT
-
-public:
-    DmsErrorWindow(QWidget* parent = nullptr);
-    void setErrorMessageHtml(QString message) { m_message->setHtml(message); };
-
-private slots:
-    void ignore();
-    void terminate();
-    void reopen();
-    void onAnchorClicked(const QUrl& link);
-
-private:
-    QPointer<QPushButton> m_ignore;
-    QPointer<QPushButton> m_terminate;
-    QPointer<QPushButton> m_reopen;
-    QPointer<QTextBrowser> m_message;
-};
-
-class CalculationTimesWindow : public QMdiSubWindow
-{
+class CalculationTimesWindow : public QMdiSubWindow {
 public:
     CalculationTimesWindow();
     ~CalculationTimesWindow();
@@ -218,8 +135,7 @@ bool IsPostRequest(const QUrl& /*link*/);
 auto Realm(const auto& x) -> CharPtrRange;
 auto getLinkFromErrorMessage(std::string_view error_message, unsigned int lineNumber = 0) -> link_info;
 
-class MainWindow : public QMainWindow
-{
+class MainWindow : public QMainWindow {
     Q_OBJECT
 
 public:
@@ -274,6 +190,7 @@ public slots:
     static bool reportErrorAndAskToReload(ErrMsgPtr error_message_ptr);
     static void reportErrorAndTryReload(ErrMsgPtr error_message_ptr);
     void stepToFailReason();
+    void focusAddressBar();
     void runToFailReason();
 
     void toggle_treeview();
@@ -303,6 +220,7 @@ public slots:
     void back();
     void forward();
 
+    void onFocusChanged(QWidget* old, QWidget* now);
     void scheduleUpdateToolbar();
     void showStatisticsDirectly(const TreeItem* tiContext);
     void showValueInfo(const AbstrDataItem* studyObject, SizeT index, SharedStr extraInfo);
@@ -319,27 +237,24 @@ public:
     void updateToolsMenu();
     void updateTracelogHandle();
     bool CloseConfig(); // returns true when mdiSubWindows were closed
+    void updateFileMenu();
+    void updateWindowMenu();
+    void updateViewMenu();
+    void updateSettingsMenu();
+    void updateDetailPagesToolbar();
 
 private:
     void openConfigSourceFor(const TreeItem* context);
-    void clearToolbarUpToDetailPagesTools();
     bool openErrorOnFailedCurrentItem();
     void clearActionsForEmptyCurrentItem();
     void updateActionsForNewCurrentItem();
     void setupDmsCallbacks();
     void cleanupDmsCallbacks();
-    void createActions();
     void createStatusBar();
     void createDetailPagesDock();
     void createDmsHelperWindowDocks();
-    void updateFileMenu();
-    void updateViewMenu();
-    void updateSettingsMenu();
-    void updateWindowMenu();
     void updateCaption();
     void updateTreeItemVisitHistory();
-    void createDetailPagesActions();
-    void updateDetailPagesToolbar();
     void on_status_msg_changed(const QString& msg);
     void updateStatusMessage();
 
@@ -381,7 +296,7 @@ public:
     std::unique_ptr<QTextBrowser> m_calculation_times_browser;
     std::unique_ptr<DmsModel> m_dms_model;
     std::unique_ptr<EventLogModel> m_eventlog_model;
-    std::unique_ptr<DmsCurrentItemBar> m_current_item_bar;
+    std::unique_ptr<DmsAddressBar> m_address_bar;
     std::unique_ptr<QComboBox> m_treeitem_visit_history;
 
     // helper windows; TODO: destroy these before the above model objects
@@ -392,7 +307,7 @@ public:
     QPointer<DmsDetailPages> m_detail_pages;
     std::unique_ptr<DmsEventLog> m_eventlog;
     DmsTreeView* m_treeview;
-    QPointer<QToolBar> m_toolbar, m_current_item_bar_container;
+    QPointer<QToolBar> m_toolbar, m_address_bar_container;
     ViewStyle m_current_toolbar_style = ViewStyle::tvsUndefined;
     std::unique_ptr<QAction> m_dms_toolbar_spacer_action;
     std::vector<QAction*> m_current_dms_view_actions;

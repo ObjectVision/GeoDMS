@@ -637,6 +637,8 @@ DmsTreeView::DmsTreeView(QWidget* parent)
 	header()->setSectionResizeMode(QHeaderView::ResizeToContents);
 
 	setDmsStyleSheet();
+
+	setSizePolicy(QSizePolicy::MinimumExpanding, QSizePolicy::Expanding);
 }
 
 void DmsTreeView::showTreeviewContextMenu(const QPoint& pos)

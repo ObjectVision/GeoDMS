@@ -35,7 +35,7 @@ public:
 
 	ActiveDetailPage m_active_detail_page = ActiveDetailPage::GENERAL;
 	ActiveDetailPage m_last_active_detail_page = ActiveDetailPage::GENERAL;
-	int m_default_width = 500;
+	int m_default_width = 0;
 
 public slots:
 	void show(ActiveDetailPage new_active_detail_page);
@@ -58,6 +58,13 @@ public slots:
 
 protected:
 	void resizeEvent(QResizeEvent* event) override;
+	void focusInEvent(QFocusEvent* event) override {
+		event->ignore();
+	}
+
+	void focusOutEvent(QFocusEvent* event) override {
+		event->ignore();
+	}
 
 public slots:
 	void onAnchorClicked(const QUrl& link);
