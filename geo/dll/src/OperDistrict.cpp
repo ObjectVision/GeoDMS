@@ -53,6 +53,9 @@ struct DistrictOperator : public UnaryOperator
 		assert(inputGridA);
 
 		const AbstrUnit* domain = inputGridA->GetAbstrDomainUnit();
+		MG_CHECK(domain);
+		if (domain->GetValueType()->GetNrDims() != 2)
+			throwErrorD("district", "domain of input grid-data is not a raster");
 
 		auto resUnit = ResultUnitType::GetStaticClass()->CreateResultUnit(resultHolder);
 		resUnit->SetTSF(TSF_Categorical);
