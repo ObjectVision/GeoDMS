@@ -837,7 +837,7 @@ GraphVisitState MouseEventDispatcher::DoViewPort(ViewPort* vp)
 
 	GraphVisitState result = base_type::DoViewPort(vp);
 
-	assert(r_EventInfo.m_EventID & (EventID::OBJECTFOUND| EventID::SETCURSOR));
+	assert(r_EventInfo.m_EventID & (EventID::OBJECTFOUND | EventID::SETCURSOR | EventID::MOUSEDRAG));
 
 	if (r_EventInfo.m_EventID & EventID::SETCURSOR)
 		return result; 
