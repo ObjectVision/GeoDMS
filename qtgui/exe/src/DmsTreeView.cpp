@@ -715,6 +715,8 @@ void DmsTreeView::showTreeviewContextMenu(const QPoint& pos)
 
 void DmsTreeView::setNewCurrentItem(TreeItem* target_item)
 {
+	assert(target_item != nullptr);
+
 	auto current_node_index = currentIndex();
 	auto root_node_index = rootIndex();
 	auto root_ti = GetTreeItem(root_node_index);

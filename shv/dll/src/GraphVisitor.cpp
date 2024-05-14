@@ -655,8 +655,16 @@ GraphVisitState GraphDrawer::DoDataItemColumn(DataItemColumn* dic)
 
 void GraphDrawer::DoElement(DataItemColumn* dic, SizeT i, const GRect& absElemDeviceRect)
 {
+	assert(dic);
 	assert(DoDrawData());
-	dic->DrawElement(*this, i, absElemDeviceRect, m_TileLocks);
+
+	if (!dic->GetTableControl().lock()->IsColOriented())
+	{
+		DcClipRegionSelector clipRegionSelector(GetDC(), m_AbsClipRegion, absElemDeviceRect);
+		dic->DrawElement(*this, i, absElemDeviceRect, m_TileLocks);
+	}
+	else
+		dic->DrawElement(*this, i, absElemDeviceRect, m_TileLocks);
 }
 
 GraphVisitState GraphDrawer::DoViewPort(ViewPort* vp)
