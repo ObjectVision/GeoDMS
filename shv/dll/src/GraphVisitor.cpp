@@ -658,12 +658,8 @@ void GraphDrawer::DoElement(DataItemColumn* dic, SizeT i, const GRect& absElemDe
 	assert(dic);
 	assert(DoDrawData());
 
-	if (!dic->GetTableControl().lock()->IsColOriented())
-	{
-		DcClipRegionSelector clipRegionSelector(GetDC(), m_AbsClipRegion, absElemDeviceRect);
-		dic->DrawElement(*this, i, absElemDeviceRect, m_TileLocks);
-	}
-	else
+	DcClipRegionSelector clipRegionSelector(GetDC(), m_AbsClipRegion, absElemDeviceRect);
+	if (!clipRegionSelector.empty())
 		dic->DrawElement(*this, i, absElemDeviceRect, m_TileLocks);
 }
 
