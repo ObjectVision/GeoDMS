@@ -501,12 +501,18 @@ GraphVisitState GraphDrawer::Visit(GraphicObject* go)
 	assert(suspendible || go->IsUpdated() || (m_GdMode & GD_OnPaint));
 
 	bool hasDefinedExtent = go->HasDefinedExtent();
-	if (absFullRect.empty() && hasDefinedExtent)
-		return GVS_Continue;
 
-	VisitorDeviceRectSelector clipper(this, CrdRect2GRect(absFullRect));
-	if (clipper.empty() && hasDefinedExtent)
-		return GVS_Continue;
+	if (hasDefinedExtent)
+	{
+		if (absFullRect.empty())
+			return GVS_Continue;
+		if (!IsIntersecting(m_ClipDeviceRect, CrdRect2GRect(absFullRect)))
+			return GVS_Continue;
+	}
+
+	std::optional<VisitorDeviceRectSelector> clipper;
+	if (dynamic_cast<MovableObject*>(go))
+		clipper.emplace(this, CrdRect2GRect(absFullRect));
 
 	if (DoStoreRect())
 	{
@@ -526,7 +532,7 @@ GraphVisitState GraphDrawer::Visit(GraphicObject* go)
 	if ( (DoDrawData() && go->MustClip()) || (DoDrawBackground() && go->MustFill()))
 	{
 		assert(hasDefinedExtent); // implied by go->MustClip() ?
-		if (clipper.empty())
+		if (clipper && clipper->empty())
 			return GVS_Continue;
 
 		DcClipRegionSelector clipRegionSelector(GetDC(), m_AbsClipRegion, m_ClipDeviceRect);
