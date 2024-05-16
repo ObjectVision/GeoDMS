@@ -970,7 +970,7 @@ public:
 		{}
 
 	// Override Operator
-	SharedPtr<const AbstrDataObject> CreateFutureTileCaster(SharedPtr<AbstrDataItem> resultAdi, bool lazy, const AbstrUnit* valuesUnitA, const AbstrDataItem* arg1A, const AbstrUnit* argUnitA MG_DEBUG_ALLOCATOR_SRC_ARG) const override
+	auto CreateFutureTileCaster(SharedPtr<AbstrDataItem> resultAdi, bool lazy, const AbstrUnit* valuesUnitA, const AbstrDataItem* arg1A, const AbstrUnit* argUnitA MG_DEBUG_ALLOCATOR_SRC_ARG) const -> SharedPtr<const AbstrDataObject> override
 	{
 		auto tileRangeData = AsUnit(arg1A->GetAbstrDomainUnit()->GetCurrRangeItem())->GetTiledRangeData();
 		auto valuesUnit = debug_cast<const Unit<field_of_t<TR>>*>(valuesUnitA);
@@ -1026,7 +1026,7 @@ public:
 		{}
 
 	// Override Operator
-	SharedPtr<const AbstrDataObject> CreateFutureTileCaster(SharedPtr<AbstrDataItem> resultAdi, bool lazy, const AbstrUnit* valuesUnitA, const AbstrDataItem* arg1A, const AbstrUnit* argUnitA MG_DEBUG_ALLOCATOR_SRC_ARG) const override
+	auto CreateFutureTileCaster(SharedPtr<AbstrDataItem> resultAdi, bool lazy, const AbstrUnit* valuesUnitA, const AbstrDataItem* arg1A, const AbstrUnit* argUnitA MG_DEBUG_ALLOCATOR_SRC_ARG) const -> SharedPtr<const AbstrDataObject> override
 	{
 		auto tileRangeData = AsUnit(arg1A->GetAbstrDomainUnit()->GetCurrRangeItem())->GetTiledRangeData();
 		auto valuesUnit = debug_cast<const Unit<field_of_t<TR>>*>(valuesUnitA);

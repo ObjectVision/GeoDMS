@@ -599,26 +599,6 @@ const AbstrDataObject* AbstrDataItem::GetDataObj() const
 {
 	auto dataObj = m_DataObject;
 	assert(dataObj);
-
-//	if (!dataObj)
-//		throwItemError("No DataObj");
-//	assert(m_DataLockCount > 0);
-//	assert(m_DataObject);
-/* REMOVE
-	if (!m_DataObject)
-	{
-		assert((GetTreeParent() == nullptr) or GetTreeParent()->Was(PS_MetaInfo) or GetTreeParent()->WasFailed(FR_MetaInfo));
-
-		MG_CHECK2(false, "TODO G8");
-
-		if (GetTSF(TSF_DSM_SdKnown))
-			m_DataObject = DataStoreManager::Curr()->LoadBlob(this, false);
-		if (IsFnKnown())
-			m_DataObject = DataStoreManager::Curr()->CreateFileData(const_cast<AbstrDataItem*>(this), dms_rw_mode::read_only); // , !item->IsPersistent(), true); // calls OpenFileData -> FileTileArray
-
-		MG_CHECK(m_DataObject);
-	}
-*/
 	return dataObj;
 }
 

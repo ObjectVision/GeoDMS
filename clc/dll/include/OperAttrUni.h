@@ -132,7 +132,7 @@ public:
 		: AbstrUnaryAttrOperator(gr, ResultType::GetStaticClass(), Arg1Type::GetStaticClass(), possibleArgFlags, ucp, vc)
 	{}
 
-	SharedPtr<const AbstrDataObject> CreateFutureTileFunctor(SharedPtr<AbstrDataItem> resultAdi, bool lazy, const AbstrUnit* valuesUnitA, const AbstrDataItem* arg1A, ArgFlags af MG_DEBUG_ALLOCATOR_SRC_ARG) const override
+	auto CreateFutureTileFunctor(SharedPtr<AbstrDataItem> resultAdi, bool lazy, const AbstrUnit* valuesUnitA, const AbstrDataItem* arg1A, ArgFlags af MG_DEBUG_ALLOCATOR_SRC_ARG) const -> SharedPtr<const AbstrDataObject> override
 	{
 		auto tileRangeData = AsUnit(arg1A->GetAbstrDomainUnit()->GetCurrRangeItem())->GetTiledRangeData();
 		auto valuesUnit = debug_cast<const Unit<field_of_t<ResultValueType>>*>(valuesUnitA);
