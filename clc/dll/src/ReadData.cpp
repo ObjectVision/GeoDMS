@@ -479,6 +479,7 @@ namespace {
 	CommonOperGroup cog_ReadLines("ReadLines");
 	CommonOperGroup cog_SplitPipedString("split_piped_string", oper_policy::dynamic_result_class);
 	CommonOperGroup cog_SplitMultiLineString("split_multi_linestring", oper_policy::dynamic_result_class);
+	CommonOperGroup cog_SplitMultiNumberString("split_multi_numberstring", oper_policy::dynamic_result_class);
 
 
 	//==================================================================================
@@ -493,8 +494,16 @@ namespace {
 	SplitSequenceOperator<SharedStr, decltype(isPipe)> splitPipedString(&cog_SplitPipedString, std::move(isPipe));
 
 	auto isSeparator = [](const auto& p) { return !IsDefined(p); };
-	SplitSequenceOperator<DPolygon, decltype(isSeparator)> splitLinestrings(&cog_SplitMultiLineString, std::move(isSeparator));
+
+	template <typename Sequence>
+	struct SPSO {
+		SplitSequenceOperator<Sequence, decltype(isSeparator)> splitLinestring = { &cog_SplitMultiLineString, std::move(isSeparator) };
+	};
+	template <typename Sequence>
+	struct SNSO {
+		SplitSequenceOperator<Sequence, decltype(isSeparator)> splitLinestring = { &cog_SplitMultiNumberString, std::move(isSeparator) };
+	};
+
+	tl_oper::inst_tuple_templ<typelists::point_sequences, SPSO> splitMultiLineStrings;
+	tl_oper::inst_tuple_templ<typelists::numeric_sequences, SNSO> splitMultiNumberStrings;
 }
-
-
-
