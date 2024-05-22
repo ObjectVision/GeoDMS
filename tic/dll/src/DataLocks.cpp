@@ -272,7 +272,7 @@ DataWriteLock::DataWriteLock(AbstrDataItem* adi, dms_rw_mode rwm, const SharedOb
 				auto rn = configItem->GetRelativeName(sp);
 
 				auto fn = DelimitedConcat(fsn, rn);
-				reset(CreateFileData(adi, abstrValuesRangeData, fn, mmd->GetSFWA(), mustClear).release()); // , !adi->IsPersistent(), true); // calls OpenFileData
+				reset(CreateFileData(adi, abstrValuesRangeData, fn, mmd->GetSFWA().get(), mustClear).release()); // , !adi->IsPersistent(), true); // calls OpenFileData
 				goto afterReset;
 			}
 		}

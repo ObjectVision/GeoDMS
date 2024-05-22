@@ -49,20 +49,22 @@ SharedStr MmdStorageManager::GetFullFileName(CharPtr name) const
 	return DelimitedConcat(GetNameStr().c_str(), MakeFileName(name).c_str());
 }
 
-auto MmdStorageManager::GetSFWA() const->SafeFileWriterArray*
+std::mutex sc_SFWAPtrAccess;
+
+auto MmdStorageManager::GetSFWA() const->std::shared_ptr<SafeFileWriterArray>
 {
-	assert(IsMainThread());
+	auto lock = std::lock_guard(sc_SFWAPtrAccess);
 	if (!m_SFWA)
-		m_SFWA = std::make_unique<SafeFileWriterArray>();
-	return m_SFWA.get();
+		m_SFWA = DSM::GetSafeFileWriterArray();
+	return m_SFWA;
 }
 
 FileDateTime MmdStorageManager::GetLastChangeDateTime(const TreeItem* storageHolder, CharPtr path) const
 {
 	if (DoesExist(storageHolder)) // TODO: lock deze file vanaf hier.
 	{
-		auto sfwa = DSM::GetSafeFileWriterArray(); MG_CHECK(sfwa);
-		m_FileTime = GetFileOrDirDateTime(sfwa.get()->GetWorkingFileName(GetFullFileName(path), FCM_OpenReadOnly));
+		auto sfwa = GetSFWA(); MG_CHECK(sfwa);
+		m_FileTime = GetFileOrDirDateTime(sfwa->GetWorkingFileName(GetFullFileName(path), FCM_OpenReadOnly));
 	}
 	return m_FileTime; 
 }

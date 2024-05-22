@@ -3432,14 +3432,25 @@ bool TreeItem::PrepareDataUsageImpl(DrlType drlFlags) const
 						auto fn = DelimitedConcat(fsn, rn);
 						if (!IsFileOrDirAccessible(fn))
 						{
-							DoFail(std::make_shared<ErrMsg>("Data not found in .MMD storage folder"), FR_Data);
-							goto failed;
+							if (!HasCalculator())
+							{
+								DoFail(std::make_shared<ErrMsg>("Data not found in .MMD storage folder"), FR_Data);
+								goto failed;
+							}
 						}
-						auto fh = OpenFileData(AsDataItem(this), avu ? avu->GetTiledRangeData() : nullptr, fn, mmd->GetSFWA());
-						if (fh)
+						else
 						{
-							AsDataItem(GetCurrUltimateItem())->m_DataObject.reset(fh.release()); // , !adi->IsPersistent(), true); // calls OpenFileData
-							return true;
+							auto fh = OpenFileData(AsDataItem(this), avu ? avu->GetTiledRangeData() : nullptr, fn, mmd->GetSFWA().get());
+							if (fh)
+							{
+								AsDataItem(GetCurrUltimateItem())->m_DataObject.reset(fh.release()); // , !adi->IsPersistent(), true); // calls OpenFileData
+								return true;
+							}
+							if (!HasCalculator())
+							{
+								DoFail(std::make_shared<ErrMsg>("Cannot open data in .MMD storage folder"), FR_Data);
+								goto failed;
+							}
 						}
 					}
 				}
