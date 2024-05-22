@@ -736,8 +736,13 @@ void DmsTreeView::setNewCurrentItem(TreeItem* target_item)
 		if (target_item->GetTSF(TSF_InHidden) )
 		{
 			const TreeItem* visible_parent = target_item;
-			while (visible_parent && visible_parent->GetTSF(TSF_InHidden))
+			while (visible_parent->GetTSF(TSF_InHidden))
+			{
 				visible_parent = visible_parent->GetTreeParent();
+				if (!visible_parent)
+					break;
+			}
+
 			reportF(MsgCategory::other, SeverityTypeID::ST_Warning, "cannnot activate '%1%' in TreeView as it seems to be a hidden sub-item of '%2%'"
 				"\nHint: you can make hidden items visible in the Settings->GUI Options Dialog"
 				, target_item->GetFullName().c_str()
