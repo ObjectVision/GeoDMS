@@ -40,14 +40,6 @@ Iter remove_adjacents_and_spikes(Iter first, Iter last)
 		--last, ++first;
 		assert(last - first < 3 || last[-1] != *first);
 	}
-#if defined(MG_DEBUG)
-	if (last - first > 2) {
-		assert(first[0] != last[-1]);
-		assert(first[0] != first[1]);
-		assert(first[1] != last[-1]);
-		assert(first[0] != last[-2]);
-	}
-#endif
 */
 
 //	Replace [x)(a-b-a] by ->(x-a]. Note that subsequent (x a x] spikes will be removed too.

@@ -673,7 +673,7 @@ TRecordSet* ODBCStorageManager::GetRecordSet(const TreeItem* storageHolder, Tree
 	return rsRef;
 }
 
-bool ODBCStorageManager::DoCheckExistence(const TreeItem* storageHolder) const
+bool ODBCStorageManager::DoCheckExistence(const TreeItem* storageHolder, const TreeItem* storageItem) const
 {
 	TDatabase* db = DatabaseInstance(storageHolder);
 	if (! db )

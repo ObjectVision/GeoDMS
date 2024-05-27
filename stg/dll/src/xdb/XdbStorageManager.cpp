@@ -75,7 +75,7 @@ bool XdbStorageManager::ReadDataItem(StorageMetaInfoPtr smi, AbstrDataObject* bo
 	auto sfwa = DSM::GetSafeFileWriterArray();
 	if (!sfwa)
 		return false;
-	bool result = imp.OpenForRead(GetNameStr(), sfwa.get(), m_DatExtension, m_SaveColInfo);
+	bool result = imp.OpenForRead(GetNameStr(), sfwa.get(), m_DatExtension, false);
 
 	MG_CHECK2(result, "Cannot open Xdb for reading");
 
@@ -104,9 +104,9 @@ bool XdbStorageManager::WriteDataItem(StorageMetaInfoPtr&& smiHolder)
 	auto sfwa = DSM::GetSafeFileWriterArray();
 	if (!sfwa)
 		return false;
-	bool result = imp.Open  (GetNameStr(), sfwa.get(), FCM_OpenRwFixed, m_DatExtension, m_SaveColInfo);
+	bool result = imp.Open  (GetNameStr(), sfwa.get(), FCM_OpenRwFixed, m_DatExtension, false);
 	if (!result)
-		result  = imp.Create(GetNameStr(), sfwa.get(), m_DatExtension, m_SaveColInfo);
+		result  = imp.Create(GetNameStr(), sfwa.get(), m_DatExtension, false);
 	MG_CHECK2(result, "Cannot open Xdb");
 
 	const AbstrDataItem* adi = smi->CurrRD();
@@ -126,16 +126,9 @@ bool XdbStorageManager::WriteDataItem(StorageMetaInfoPtr&& smiHolder)
 }
 
 // Constructor for this implementation of the abstact storagemanager interface
-XdbStorageManager::XdbStorageManager(CharPtr datExtension, bool saveColInfo)
+XdbStorageManager::XdbStorageManager(CharPtr datExtension)
 	:	m_DatExtension(datExtension)
-	,	m_SaveColInfo(saveColInfo)
 {
-	if (saveColInfo)
-	{
-		// generic .xdb will no longer be supported; specific .xyz might still be 
-		reportD(SeverityTypeID::ST_Warning, "XdbStorageManager is depreciated for .xyz files and will be removed in GeoDms version 15.0.0");
-		static_assert(DMS_VERSION_MAJOR < 15);
-	}
 }
 
 
@@ -148,7 +141,7 @@ bool XdbStorageManager::ReadUnitRange(const StorageMetaInfo& smi) const
 	if (!sfwa)
 		return false;
 
-	if (!imp.OpenForRead(GetNameStr(), sfwa.get(), m_DatExtension, m_SaveColInfo))
+	if (!imp.OpenForRead(GetNameStr(), sfwa.get(), m_DatExtension, false))
 		return false;
 
 	smi.CurrWU()->SetCount(imp.NrOfRows());
@@ -172,8 +165,6 @@ void XdbStorageManager::DoUpdateTree(const TreeItem* storageHolder, TreeItem* cu
 
 	auto sfwa = DSM::GetSafeFileWriterArray(); MG_CHECK(sfwa);
 	// Pick up the content of the file
-	if (m_SaveColInfo && !imp.OpenForRead(GetNameStr(), sfwa.get(), m_DatExtension, true))
-		return;
 
 	const AbstrUnit* u_row = StorageHolder_GetTableDomain(storageHolder);
 
@@ -248,33 +239,15 @@ void SyncItem(XdbStorageManager* self, XdbImp& imp, bool saveColInfo, const Tree
 	MG_CHECK(result);
 }
 
-void XdbStorageManager::DoWriteTree(const TreeItem* storageHolder)
-{
-	if (!m_SaveColInfo)
-		return;
-
-	// inspect the tree and append the corresponding columns
-	// if the column exists nothing is changed	
-
-	auto sfwa = DSM::GetSafeFileWriterArray(); MG_CHECK(sfwa);
-	XdbImp imp;
-	auto result = imp.OpenForRead(GetNameStr(), sfwa.get(), m_DatExtension, m_SaveColInfo); // to pass the storage name and lookup column name
-	MG_CHECK(result);
-
-	SyncItem(this, imp, m_SaveColInfo, storageHolder);
-	for (const TreeItem* subItem = storageHolder->GetFirstSubItem(); subItem; subItem = subItem->GetNextItem())
-		SyncItem(this, imp, m_SaveColInfo, subItem);
-}
-
 void XdbStorageManager::UpdateColInfo(XdbImp& imp) const
 {}
 
-IMPL_DYNC_STORAGECLASS(XdbStorageManager, "xdb");
+//IMPL_DYNC_STORAGECLASS(XdbStorageManager, "xdb");
 
 class XyzStorageManager : public XdbStorageManager
 {
 public:
-	XyzStorageManager() : XdbStorageManager("xyz", false) 
+	XyzStorageManager() : XdbStorageManager("xyz") 
 	{}
 
 	void UpdateColInfo(XdbImp& imp) const override

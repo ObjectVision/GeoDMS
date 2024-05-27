@@ -39,28 +39,28 @@ granted by an additional written contract for support, assistance and/or develop
 //----------------------------------------------------------------------
 
 template <class T1, class T2> inline
-BinaryOutStream& operator <<(BinaryOutStream& ar, const Pair<T1, T2>& t)
+BinaryOutStream& operator <<(BinaryOutStream& ar, const std::pair<T1, T2>& t)
 {
 	ar << t.first << t.second;
 	return ar;
 }
 
 template <class T1, class T2> inline
-BinaryInpStream& operator >>(BinaryInpStream& ar,       Pair<T1, T2>& t)
+BinaryInpStream& operator >>(BinaryInpStream& ar, std::pair<T1, T2>& t)
 {
 	ar >> t.first >> t.second;
 	return ar;
 }
 
 template <class T1, class T2> inline
-FormattedOutStream& operator << (FormattedOutStream& os, const Pair<T1, T2>& p)
+FormattedOutStream& operator << (FormattedOutStream& os, const std::pair<T1, T2>& p)
 {
 	os << "{" << p.first << ", " << p.second << "}";
 	return os;
 }
 
 template <class T1, class T2> inline
-FormattedInpStream& operator >> (FormattedInpStream& is, Pair<T1, T2>& p)
+FormattedInpStream& operator >> (FormattedInpStream& is, std::pair<T1, T2>& p)
 {
 	is >> "{" >> p.first >> ", " >> p.second >> "}";
 	return is;

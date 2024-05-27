@@ -35,7 +35,7 @@ public:
 
 	TIC_CALL SharedStr GetFullFileName(CharPtr name) const;
 
-	auto GetSFWA() const->SafeFileWriterArray*;
+	auto GetSFWA() const-> std::shared_ptr<SafeFileWriterArray>;
 
 protected:
 //	implement AbstrStorageManager interface
@@ -46,20 +46,27 @@ protected:
 	bool EasyRereadTiles() const override { return true; }
 	TIC_CALL virtual bool CanWriteTiles() const { return true; }
 
+	bool DoCheckExistence(const TreeItem* storageHolder, const TreeItem* storageItem) const override; // Default implementation now checks existence of m_Name as a file
 
 //	std::unique_ptr<OutStreamBuff> DoOpenOutStream(const StorageMetaInfo& smi, CharPtr path, tile_id t) override;
 //	std::unique_ptr<InpStreamBuff> DoOpenInpStream(const StorageMetaInfo& smi, CharPtr path) const override;
 
 //	void DoOpenStorage  (const StorageMetaInfo& smi, dms_rw_mode rwMode) const override;
 //	void DoCloseStorage (bool mustCommit) const override;
+	void DoUpdateTree(const TreeItem* storageHolder, TreeItem* curr, SyncMode sm) const override;
+	void DoWriteTree(const TreeItem* storageHolder) override;
 
 	mutable FileHandle m_MmdLockFile;
-	mutable std::unique_ptr<SafeFileWriterArray> m_SFWA;
+	mutable std::shared_ptr<SafeFileWriterArray> m_SFWA;
 
 	friend class FileSystemStorageOutStreamBuff;
 	friend class FileSystemStorageInpStreamBuff;
 
 	DECL_RTTI(TIC_CALL, StorageClass)
 };
+
+using AppendTreeFromConfigurationFuncPtr = auto (*) (const char* fileName, TreeItem* treeItem)->TreeItem*;
+extern TIC_CALL AppendTreeFromConfigurationFuncPtr s_AppendTreeFromConfigurationPtr;
+
 
 #endif // !defined(__STG_MMD_STORAGEMANAGER_H)

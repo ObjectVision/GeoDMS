@@ -2,7 +2,9 @@
 // License: GNU GPL 3
 /////////////////////////////////////////////////////////////////////////////
 
+#if defined(_MSC_VER)
 #pragma once
+#endif
 
 #if !defined(__TIC_TILERANGEDATA_H)
 #define __TIC_TILERANGEDATA_H
@@ -16,6 +18,7 @@
 #include "geo/Point.h"
 #include "geo/Range.h"
 #include "geo/RangeIndex.h"
+#include "ser/FileMapHandle.h"
 
 //----------------------------------------------------------------------
 
@@ -62,6 +65,9 @@ struct SimpleRangeData : SharedObj
 struct AbstrTileRangeData : SharedObj
 {
 	virtual tile_id GetNrTiles() const = 0;
+	virtual SizeT GetNrMemPages(UInt8 log2BytesPerElem) const = 0;
+	virtual SizeT GetMemPageIndex(UInt8 log2BytesPerElem, tile_id t) const = 0;
+
 	virtual tile_offset GetTileSize(tile_id t) const = 0;
 	virtual tile_offset GetMaxTileSize() const = 0;
 	virtual bool IsCovered() const { return true; }
@@ -103,6 +109,15 @@ struct SmallRangeData : AbstrTileRangeData
 	}
 	row_id GetRangeSize() const override { return Cardinality(GetRange()); }
 
+	SizeT GetNrMemPages(UInt8 log2BytesPerElem) const override
+	{
+		return NrMemPages(GetElemCount() << log2BytesPerElem);
+	}
+	SizeT GetMemPageIndex(UInt8 log2BytesPerElem, tile_id t) const override
+	{
+		return 0;
+	}
+
 	tile_id GetNrTiles() const override { return 1; }
 	tile_offset GetTileSize(tile_id t) const override { assert(t == 0); return GetRangeSize(); }
 	tile_offset GetMaxTileSize() const override { return GetRangeSize(); }
@@ -140,6 +155,16 @@ struct FixedRange : AbstrTileRangeData
 	tile_offset GetMaxTileSize() const override { return GetRangeSize(); }
 	tile_loc GetTiledLocation(row_id index) const override { assert(index < (1 << N)); return { 0, index }; }
 	row_id GetRangeSize() const override { return 1 << N; }
+
+	SizeT GetNrMemPages(UInt8 log2BytesPerElem) const override
+	{
+		return NrMemPages(GetElemCount() << log2BytesPerElem);
+	}
+	SizeT GetMemPageIndex(UInt8 log2BytesPerElem, tile_id t) const override
+	{
+		return 0;
+	}
+
 
 	I64Rect GetRangeAsI64Rect() const override { return { {0, 0}, shp2dms_order(1 << N, 1) }; }
 	I64Rect GetTileRangeAsI64Rect(tile_id t) const { assert(t == 0 || t==no_tile); return GetRangeAsI64Rect(); }
@@ -330,6 +355,8 @@ struct MaxRangeData : TiledRangeData<V>
 	tile_offset GetTileSize(tile_id t) const override { throwIllegalAbstract(MG_POS, "MaxRangeData::GetTileSize"); }
 	tile_offset GetMaxTileSize() const override { throwIllegalAbstract(MG_POS, "MaxRangeData::GetMaxTileSize"); }
 	tile_loc GetTiledLocation(row_id index) const override { throwIllegalAbstract(MG_POS, "MaxRangeData::GetTileLocation"); }
+	SizeT GetNrMemPages(UInt8 log2BytesPerElem) const override { throwIllegalAbstract(MG_POS, "MaxRangeData::GetNrMemPages"); }
+	SizeT GetMemPageIndex(UInt8 log2BytesPerElem, tile_id t) const override { throwIllegalAbstract(MG_POS, "MaxRangeData::GetMemPageIndex"); }
 
 //	I64Rect GetRangeAsI64Rect() const override { return { {0, 0}, shp2dms_order(this->GetRangeSize(), row_id(1)) }; }
 	I64Rect GetTileRangeAsI64Rect(tile_id t) const { throwIllegalAbstract(MG_POS, "MaxRangeData::GetTileRangeAsI64Rect"); }

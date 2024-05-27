@@ -67,20 +67,6 @@ bool operator != (const Couple<T>& lhs, const Couple<T>& rhs)
 }
 
 //----------------------------------------------------------------------
-// Section      :	ordering
-//----------------------------------------------------------------------
-
-template <typename T>
-bool operator < (const Couple<T>& lhs, const Couple<T>& rhs)
-{
-	return
-		lhs.first < rhs.first ||
-		(!(rhs.first  < lhs.first)
-			&& lhs.second < rhs.second
-			);
-}
-
-//----------------------------------------------------------------------
 // Section      : Undefined
 //----------------------------------------------------------------------
 

@@ -1,31 +1,6 @@
-//<HEADER> 
-/*
-Data & Model Server (DMS) is a server written in C++ for DSS applications. 
-Version: see srv/dms/rtc/dll/src/RtcVersion.h for version info.
-
-Copyright (C) 1998-2004  YUSE GSO Object Vision BV. 
-
-Documentation on using the Data & Model Server software can be found at:
-http://www.ObjectVision.nl/DMS/
-
-See additional guidelines and notes in srv/dms/Readme-srv.txt 
-
-This library is free software; you can use, redistribute, and/or
-modify it under the terms of the GNU General Public License version 2 
-(the License) as published by the Free Software Foundation,
-provided that this entire header notice and readme-srv.txt is preserved.
-
-See LICENSE.TXT for terms of distribution or look at our web site:
-http://www.objectvision.nl/DMS/License.txt
-or alternatively at: http://www.gnu.org/copyleft/gpl.html
-
-This library is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
-General Public License for more details. However, specific warranties might be
-granted by an additional written contract for support, assistance and/or development
-*/
-//</HEADER>
+// Copyright (C) 1998-2023 Object Vision b.v. 
+// License: GNU GPL 3
+/////////////////////////////////////////////////////////////////////////////
 
 #include "SafeFileWriter.h"
 
@@ -126,23 +101,23 @@ SharedStr SafeFileWriter::KillOldFile()
 
 void SafeFileWriter::PostCommit()
 {
-	dms_assert(!m_IsOpen);
+	assert(!m_IsOpen);
 	if (m_IsRenamedOld)
 	{
-		dms_assert(m_UseCopy);
+		assert(m_UseCopy);
 		KillOldFile(); // clean-up the old mess
 	}
 }
 
 void SafeFileWriter::Commit()
 {
-	dms_assert(m_IsOpen);
+	assert(m_IsOpen);
 	if (m_UseCopy) // implies WorkingFileName != fileName and implies that IsFileOrDirAccessible(m_FileName)) did return true earlier
 	{
 		SafeFileWriterContextHandle ch(&m_FileName);
 
 		SharedStr oldName = KillOldFile();
-		dms_assert(IsFileOrDirAccessible(m_FileName));
+		assert(IsFileOrDirAccessible(m_FileName));
 		m_IsRenamedOld = MoveFileOrDir(m_FileName.c_str(), oldName .c_str(), true); // It did exist.
 		try {
 			SharedStr workingFileName = GetWorkingFileName();
@@ -166,7 +141,7 @@ void SafeFileWriter::UnCommit()
 	SafeFileWriterContextHandle ch(&m_FileName);
 	if (m_UseCopy) // implies WorkingFileName != fileName
 {
-		dms_assert(!m_IsOpen);
+		assert(!m_IsOpen);
 		if (m_IsRenamed && IsFileOrDirAccessible(m_FileName))
 			MoveFileOrDir(m_FileName.c_str(), GetWorkingFileName().c_str(), true);
 		m_IsRenamed = false;
@@ -179,11 +154,11 @@ void SafeFileWriter::UnCommit()
 
 void SafeFileWriter::UnCommitOld()
 {
-	dms_assert(m_UseCopy); // PRECONDITION
-	dms_assert(m_IsOpen);
+	assert(m_UseCopy); // PRECONDITION
+	assert(m_IsOpen);
 	if (m_IsRenamedOld)
 	{
-		dms_assert(m_UseCopy); // DEBUG
+		assert(m_UseCopy); // DEBUG
 		MoveFileOrDir(GetOldFileName().c_str(), m_FileName.c_str(), true); // It did exist.
 		m_IsRenamedOld = false;
 	}
@@ -251,14 +226,14 @@ SafeFileWriter* SafeFileWriterArray::FindOrCreate(CharPtr fileName, FileCreation
 		sfw = new SafeFileWriter(fileName);
 		m_Index.insert(i, index_type::value_type(sfw->GetFileName().c_str(), sfw)); // use SharedStr filename of sfw; destroys sfw if insert throws, or moves it
 	}
-	dms_assert(sfw);
+	assert(sfw);
 	return sfw;
 }
 
 SafeFileWriter* SafeFileWriterArray::OpenOrCreate(CharPtr fileName, FileCreationMode fcm)
 {
 	SafeFileWriter* sfw = FindOrCreate(fileName, fcm);
-	dms_assert(sfw);
+	assert(sfw);
 	sfw->Open(fcm);
 	return sfw;
 }
@@ -274,12 +249,12 @@ void SafeFileWriterArray::Commit()
 		}
 		catch (...)
 		{
-			dms_assert(  (*i).second->m_IsOpen ); // commit failed
+			assert(  (*i).second->m_IsOpen ); // commit failed
 			while (i != m_Index.begin()) {
 				--i;
-				dms_assert(!((*i).second->m_IsOpen)); // this i was already committed;
+				assert(!((*i).second->m_IsOpen)); // this i was already committed;
 				(*i).second->UnCommit();
-				dms_assert(  (*i).second->m_IsOpen ); // postcondition of UnCommit();
+				assert(  (*i).second->m_IsOpen ); // postcondition of UnCommit();
 			}
 			throw; // all SFW are open again, ready for Rollback().
 		}

@@ -2,7 +2,9 @@
 // License: GNU GPL 3
 /////////////////////////////////////////////////////////////////////////////
 
+#if defined(_MSC_VER)
 #pragma once
+#endif
 
 #if !defined(__RTC_SET_FILEVIEW_H)
 #define __RTC_SET_FILEVIEW_H
@@ -16,30 +18,38 @@
 // Section      : file_view_base
 //----------------------------------------------------------------------
 
-template <typename T>
-struct file_view_base : FileMapHandle
+template <typename T, typename FVH>
+struct file_view_base : FVH
 {
-	typedef typename sequence_traits<T>::pointer         iterator;
-	typedef typename sequence_traits<T>::const_pointer   const_iterator;
-	typedef typename sequence_traits<T>::reference       reference;
-	typedef typename sequence_traits<T>::const_reference const_reference;
+	using const_iterator = typename sequence_traits<T>::const_pointer;
+	using const_reference = typename sequence_traits<T>::const_reference;
+	using mapped_file_type = typename FVH::mapped_file_type;
 
-	const_iterator begin() const { return iter_creator<T>()( DataBegin(), 0 ); }
-	const_iterator end()   const { return iter_creator<T>()( DataBegin(), m_NrElems); }
+	file_view_base(std::shared_ptr<mapped_file_type> mfh, SizeT nrElem, dms::filesize_t fileOffset = -1, dms::filesize_t fileViewSize = -1)
+		: FVH(std::move(mfh), fileOffset, fileViewSize == -1 ? sizeof(T) * nrElem : fileViewSize)
+		, m_NrElems(nrElem)
+	{}
+
+	file_view_base(file_view_base&&) = default;
+	file_view_base& operator = (file_view_base&&) = default;
+
+	const_iterator begin() const { return iter_creator<T>()(this->DataBegin(), 0 ); }
+	const_iterator end()   const { return iter_creator<T>()(this->DataBegin(), m_NrElems); }
 
 	SizeT filed_size() const
 	{
-		dms_assert(!IsUsable() || begin() + m_NrElems == end());
+		assert(!this->IsUsable() || begin() + m_NrElems == end());
 		return m_NrElems;
 	}
 	SizeT filed_capacity() const
 	{
-		SizeT cap = capacity_calculator<T>().Byte2Size(GetFileSize());
-		dms_assert(filed_size() <= cap);
+		SizeT cap = capacity_calculator<T>().Byte2Size(this->GetViewSize());
+		assert(m_NrElems <= cap);
 		return cap;
 	}
 	SizeT max_size() const { return SizeT(-1) / sizeof(T); }
 
+	/*
 	void CloseFVB()
 	{
 		FileMapHandle::CloseFMH();
@@ -51,10 +61,11 @@ struct file_view_base : FileMapHandle
 		FileMapHandle::Drop(fileName);
 		m_NrElems = 0;
 	}
+	*/
 
 protected:
-	file_view_base() : m_NrElems( 0 ) {}
-	SizeT m_NrElems;
+	file_view_base() {}
+	SizeT m_NrElems = 0;
 };
 
 //----------------------------------------------------------------------
@@ -64,34 +75,35 @@ protected:
 const SizeT useExistingSize = UNDEFINED_VALUE(SizeT);
 
 template <typename T>
-struct const_file_view : file_view_base<T>
+struct const_file_view : file_view_base<T, ConstFileViewHandle>
 {
-	using base_type = file_view_base<T>;
+	using base_type = file_view_base<T, ConstFileViewHandle>;
+	using typename base_type::const_iterator;
+	using typename base_type::const_reference;
+	using file_view_base<T, ConstFileViewHandle>::file_view_base; // inherit ctors
 
-	const_file_view() {}
-	const_file_view(WeakStr fileName, SafeFileWriterArray* sfwa, SizeT nrElems = useExistingSize, bool throwOnError = true )
-	{
-		Open(fileName, sfwa, nrElems, throwOnError);
-	}
-
-	void Open(WeakStr fileName, SafeFileWriterArray* sfwa, SizeT nrElems, bool throwOnError = true )
+	void Open(WeakStr fileName, SafeFileWriterArray* sfwa, tile_id nrElems, bool throwOnError = true )
 	{
 		this->OpenForRead(fileName, sfwa, throwOnError, true);
-		if (this->IsOpen())
+		if (!this->IsOpen())
+			return;
+
+		if (!IsDefined(nrElems))
 		{
-			if (!IsDefined(nrElems))
-			{
-				dms::filesize_t fileSize = this->GetFileSize();
-				nrElems = IsDefined(fileSize) ? size_calculator<T>().max_elems(fileSize) : 0;
-			}
-			if (this->GetFileSize() != size_calculator<T>().nr_bytes(nrElems))
-				throwErrorF("const_file_view", "FileSize of %u expected but file %s has a size of %u bytes"
-				,	size_calculator<T>().nr_bytes(nrElems)
-				,	fileName.c_str()
-				, this->GetFileSize()
-				);
-			this->m_NrElems = nrElems;
+			dms::filesize_t fileSize = this->GetFileSize();
+			nrElems = IsDefined(fileSize) ? size_calculator<T>().max_elems(fileSize) : 0;
 		}
+		if (this->GetFileSize() != size_calculator<T>().nr_bytes(nrElems))
+			throwErrorF("const_file_view", "FileSize of %u expected but file %s has a size of %u bytes"
+			,	size_calculator<T>().nr_bytes(nrElems)
+			,	fileName.c_str()
+			, this->GetFileSize()
+			);
+		this->m_NrElems = nrElems;
+	}
+	const mempage_file_view* SequenceMemPageAllocTable() const
+	{
+		return this->m_MappedFile->m_MemPageAllocTable.get();
 	}
 };
 
@@ -100,18 +112,23 @@ struct const_file_view : file_view_base<T>
 //----------------------------------------------------------------------
 
 template <typename T>
-struct rw_file_view : file_view_base<T>
+struct rw_file_view : file_view_base<T, FileViewHandle>
 {
-	using base_type = file_view_base<T>;
+	using base_type = file_view_base<T, FileViewHandle>;
 
 	//	somehow the following is neccesary for ProdConfig.cpp to avoid confusion with std:iterator
 	//	maybe somewhere there is a using std:: ??
-	using typename base_type::iterator;
 	using typename base_type::const_iterator;
-	using typename base_type::reference;
 	using typename base_type::const_reference;
+
+	using iterator = typename sequence_traits<T>::pointer;
+	using reference = typename sequence_traits<T>::reference;
+
 	using base_type::DataBegin;
 	using base_type::m_NrElems;
+
+	using file_view_base<T, FileViewHandle>::file_view_base; // inherit ctors
+	using file_view_base<T, FileViewHandle>::operator =;
 
 	void Open(WeakStr fileName, SafeFileWriterArray* sfwa, SizeT nrElems, dms_rw_mode rwMode, bool isTmp)
 	{
@@ -150,17 +167,17 @@ struct rw_file_view : file_view_base<T>
 		file_view_base<T>::CloseFVB();
 	}
 
-	void reserve(SizeT nrElem, WeakStr handleName, SafeFileWriterArray* sfwa)
+	void reserve(SizeT nrElem)
 	{
-		dms_assert(nrElem <= this->max_size());
-		this->realloc(nrElem * sizeof(T), handleName, sfwa );
+		assert(nrElem <= this->max_size());
+		MG_CHECK(nrElem < SizeT(-1) / sizeof(T));
+		this->realloc(nrElem * sizeof(T));
 	}
 
 	void resize(SizeT newNrElems)
 	{
 		if (newNrElems > this->filed_capacity())
 			throwErrorD("rw_file_view", "cannot grow a FileMapping");
-//		m_FileSize = size_calculator<T>().nr_bytes(newNrElems);
 		m_NrElems = newNrElems;
 	}
 
@@ -177,5 +194,9 @@ struct rw_file_view : file_view_base<T>
 	const_iterator end()   const { return iter_creator<T>()( DataBegin(), m_NrElems); }
 };
 
+struct mempage_file_view : rw_file_view < IndexRange<SizeT> >
+{
+	using rw_file_view < IndexRange<SizeT> >::rw_file_view; // inherit ctors
+};
 
 #endif //!defined(__RTC_SET_FILEVIEW_H)

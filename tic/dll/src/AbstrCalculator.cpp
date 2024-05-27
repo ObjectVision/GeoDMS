@@ -849,7 +849,7 @@ LispRef AbstrCalculator::slSupplierExprImpl(SubstitutionBuffer& substBuff, const
 	dms_assert(supplier); // PRECONDITION
 	if (m_Holder->DoesContain(supplier))
 	{
-		if (m_CalcRole == CalcRole::Calculator)
+		if (m_CalcRole == CalcRole::Calculator || supplier != m_Holder)
 			m_Holder->ThrowFail("Calulation rule would create a circular dependency", FR_MetaInfo);
 	}
 	else

@@ -1,31 +1,6 @@
-//<HEADER> 
-/*
-Data & Model Server (DMS) is a server written in C++ for DSS applications. 
-Version: see srv/dms/rtc/dll/src/RtcVersion.h for version info.
-
-Copyright (C) 1998-2004  YUSE GSO Object Vision BV. 
-
-Documentation on using the Data & Model Server software can be found at:
-http://www.ObjectVision.nl/DMS/
-
-See additional guidelines and notes in srv/dms/Readme-srv.txt 
-
-This library is free software; you can use, redistribute, and/or
-modify it under the terms of the GNU General Public License version 2 
-(the License) as published by the Free Software Foundation,
-provided that this entire header notice and readme-srv.txt is preserved.
-
-See LICENSE.TXT for terms of distribution or look at our web site:
-http://www.objectvision.nl/DMS/License.txt
-or alternatively at: http://www.gnu.org/copyleft/gpl.html
-
-This library is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
-General Public License for more details. However, specific warranties might be
-granted by an additional written contract for support, assistance and/or development
-*/
-//</HEADER>
+// Copyright (C) 1998-2024 Object Vision b.v. 
+// License: GNU GPL 3
+/////////////////////////////////////////////////////////////////////////////
 
 #include "ShvDllPch.h"
 
@@ -247,21 +222,21 @@ void ColumnHeaderControl::FillMenu(MouseEventDispatcher& med)
 //----------------------------------------------------------------------
 
 TableHeaderControl::TableHeaderControl(MovableObject* owner, TableControl* tableControl)
-	:	base_type(owner)
+	:	base_type(owner, tableControl->m_Orientation)
 	,	m_TableControl(tableControl)
-	, m_connElemSetChanged(tableControl->m_cmdElemSetChanged.connect([this]() { this->InvalidateView(); } ))
+	,	m_connElemSetChanged(tableControl->m_cmdElemSetChanged.connect([this]() { this->InvalidateView(); } ))
 {
 	assert(tableControl);
 	assert(owner);
 	auto dv = owner->GetDataView().lock(); assert(dv);
-	SetMaxRowHeight((DEF_TEXT_PIX_HEIGHT  + 2* BORDERSIZE));
+	SetMaxSize((IsColOriented() ? DEF_TEXT_PIX_HEIGHT : DEF_TEXT_PIX_WIDTH) + DOUBLE_BORDERSIZE);
 }
 
 void TableHeaderControl::DoUpdateView()
 {
 	auto dv = GetDataView().lock(); if (!dv) return;
 
-	SetColSepWidth(m_TableControl->ColSepWidth());
+	SetSepSize(m_TableControl->m_SepSize);
 
 	bool isGroupedBy = m_TableControl->m_GroupByEntity.get_ptr();
 
@@ -272,6 +247,8 @@ void TableHeaderControl::DoUpdateView()
 	MovableObject* activeDic = nullptr;
 	if (IsActive())
 		activeDic = m_TableControl->GetActiveDIC();
+
+	bool isColOriented = m_TableControl->IsColOriented();
 
 	for (gr_elem_index i=0; i!=n; ++i)
 	{
@@ -295,8 +272,10 @@ void TableHeaderControl::DoUpdateView()
 			columnHeader->SetDic( dic->shared_from_base<DataItemColumn>() );
 		}
 		columnHeader->SetText(dic->Caption());
-		auto headerWidth = dic->CalcClientSize().X() + Width(dic->GetBorderLogicalExtents()) - Width(columnHeader->GetBorderLogicalExtents());
-		auto headerSize = shp2dms_order<TType>(headerWidth, DEF_TEXT_PIX_HEIGHT);
+		auto headerWidth = dic->CalcClientSize().FlippableX(isColOriented) 
+			+ Size(dic->GetBorderLogicalExtents()).FlippableX(isColOriented) 
+			- Size(columnHeader->GetBorderLogicalExtents()).FlippableX(isColOriented);
+		auto headerSize = prj2dms_order<TType>(headerWidth, isColOriented ? DEF_TEXT_PIX_HEIGHT : DEF_TEXT_PIX_WIDTH, isColOriented);
 		columnHeader->SetClientSize(headerSize);
 		columnHeader->SetIsInverted(m_TableControl->m_Cols.IsInRange(i));
 		if (activeDic == dic)
@@ -314,18 +293,33 @@ bool TableHeaderControl::MouseEvent(MouseEventDispatcher& med)
 	if ((med.GetEventInfo().m_EventID & EventID::LBUTTONDOWN)  && med.m_FoundObject.get() ==  this)
 	{
 		auto sf = med.GetSubPixelFactors();
-		auto curX = med.GetEventInfo().m_Point.x / sf.first;
 		// find child that is left of position
 		for (UInt32 i=0, n=NrEntries(); i!=n; ++i)
 		{
 			MovableObject* chc = GetEntry(i);
-			auto x = chc->GetCurrFullAbsLogicalRect().second.X();
-			if ((x <= curX) && (curX < x + CrdType(ColSepWidth())))
+			if (IsColOriented())
 			{
-				auto dic = debug_cast<ColumnHeaderControl*>(chc)->GetDic();
-				if (dic) 
-					dic->StartResize(med);
-				return true;
+				auto curX = med.GetEventInfo().m_Point.x / sf.first;
+				auto x = chc->GetCurrFullAbsLogicalRect().second.X();
+				if ((x <= curX) && (curX < x + CrdType(m_SepSize)))
+				{
+					auto dic = debug_cast<ColumnHeaderControl*>(chc)->GetDic();
+					if (dic)
+						dic->StartResize(med);
+					return true;
+				}
+			}
+			else
+			{
+				auto curY = med.GetEventInfo().m_Point.y / sf.second;
+				auto y = chc->GetCurrFullAbsLogicalRect().second.Y();
+				if ((y <= curY) && (curY < y + CrdType(m_SepSize)))
+				{
+					auto dic = debug_cast<ColumnHeaderControl*>(chc)->GetDic();
+					if (dic)
+						dic->StartResize(med);
+					return true;
+				}
 			}
 		}
 

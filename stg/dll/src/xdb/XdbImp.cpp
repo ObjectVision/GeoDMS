@@ -71,8 +71,8 @@ void XdbImp::Clear()
 	DBG_START("XdbImp", "Clear", MG_DEBUG_XDB);
 
 	// Refresh, files are assumed closed
-	dms_assert(!IsOpen());
-	dms_assert(!m_FHD.IsOpen());
+	assert(!IsOpen());
+	assert(!m_FHD.IsUsable());
 
 	m_FileName.clear();
 	m_DatFileName.clear();
@@ -109,7 +109,7 @@ bool XdbImp::Open(WeakStr name, SafeFileWriterArray* sfwa, FileCreationMode file
 {
 	DBG_START("XdbImp", "Open", MG_DEBUG_XDB);
 	
-	dms_assert(!m_FHD.IsOpen());
+	assert(!m_FHD.IsUsable());
 	// Retain name and corresponding dat-file name
 	SetFileName(name, datExtension, saveColInfo);
 
@@ -120,11 +120,9 @@ bool XdbImp::Open(WeakStr name, SafeFileWriterArray* sfwa, FileCreationMode file
 		return false;
 
 	bool alsoWrite = (fileMode != FCM_OpenReadOnly);
-	if (!alsoWrite)
-		m_FHD.OpenForRead( m_DatFileName, sfwa, true, false );
-	else
-		m_FHD.OpenRw( m_DatFileName, sfwa, UNDEFINED_VALUE(std::size_t), dms_rw_mode::read_write, false);
-	m_FHD.Map( alsoWrite ? dms_rw_mode::read_write : dms_rw_mode::read_only, m_DatFileName, sfwa );
+	MG_USERCHECK2(!alsoWrite, "writing to .xdb is no longer supported");
+	m_FHD = ConstFileViewHandle(std::make_shared<ConstMappedFileHandle>(m_DatFileName, sfwa, true, false));
+	m_FHD.Map();
 
 	// Read header info
 	return (!saveColInfo) || ReadHeader();
@@ -176,7 +174,7 @@ bool XdbImp::ReadColumn(void * buf, recno_t cnt, column_index col_index)
 	DBG_TRACE(("nRecPos   : %ld", nRecPos));
 
 	// Must be open
-	if (! m_FHD.IsOpen() ) 
+	if (! m_FHD.IsUsable() ) 
 		return false;
 
 	// Valid column?
@@ -243,7 +241,7 @@ bool XdbImp::WriteColumn(const void * buf, recno_t cnt, column_index col_index)
 	throwErrorD("Xdb", "XdbWriteColumn::Temporary Disabled Due To Maintenance");
 	// Must be open
 
-	if (! m_FHD.IsOpen() || UInt32(col_index) >= ColDescriptions.size())
+	if (UInt32(col_index) >= ColDescriptions.size())
 		return false;
 
 	// Get column offset and total width in bytes of record
@@ -359,12 +357,7 @@ void XdbImp::Close()
 	nRecPos = 0;
 
 	// close all
-	if (m_FHD.IsMapped())
-		m_FHD.Unmap();
-	if (m_FHD.IsOpen())
-		m_FHD.CloseFMH();
-
-	CloseFH();
+	m_FHD = ConstFileViewHandle();
 }
 
 
@@ -403,7 +396,7 @@ CharPtr XdbImp::ColName(column_index i) const
 XdbImp::recno_t XdbImp::NrOfRows() const
 {
 	if (nrows == -1)
-		const_cast<XdbImp*>(this)->nrows = ThrowingConvert<XdbImp::recno_t>((m_FHD.GetFileSize() -headersize) / RecSize());
+		const_cast<XdbImp*>(this)->nrows = ThrowingConvert<XdbImp::recno_t>((m_FHD.GetViewSize() -headersize) / RecSize());
 	return nrows;
 };
 
@@ -462,7 +455,7 @@ bool XdbImp::AppendColumn
 	if (ColIndex(fldName) != -1) return false;
 	if (size < 1) return false;
 
-	dms_assert(m_FHD.IsOpen()|| NrOfCols() == 0);
+	assert(m_FHD.IsUsable()|| NrOfCols() == 0);
 	// Close open files
 	Close();
 

@@ -437,12 +437,10 @@ template <typename C, typename geometry_type_2>
 typename std::enable_if<gtl::is_any_polygon_set_type<geometry_type_2>::type::value>::type
 dms_insert(gtl::polygon_set_data<C>& lvalue, const geometry_type_2& rvalue, typename gtl::polygon_set_data<C>::clean_resources& r)
 {
-//REMOVE, DEBUG	gtl::polygon_set_traits<geometry_type_2>::clean(rvalue, r);
 	lvalue.insert(
 		gtl::polygon_set_traits<geometry_type_2>::begin(rvalue), 
 		gtl::polygon_set_traits<geometry_type_2>::end  (rvalue)
 	);
-//	lvalue.clean(r); // DEBUG
 }
 
 #endif //!defined(DMS_GEO_BOOSTPOLYGON_H)

@@ -1,31 +1,10 @@
-//<HEADER> 
-/*
-Data & Model Server (DMS) is a server written in C++ for DSS applications. 
-Version: see srv/dms/rtc/dll/src/RtcVersion.h for version info.
+// Copyright (C) 1998-2023 Object Vision b.v. 
+// License: GNU GPL 3
+/////////////////////////////////////////////////////////////////////////////
 
-Copyright (C) 1998-2004  YUSE GSO Object Vision BV. 
-
-Documentation on using the Data & Model Server software can be found at:
-http://www.ObjectVision.nl/DMS/
-
-See additional guidelines and notes in srv/dms/Readme-srv.txt 
-
-This library is free software; you can use, redistribute, and/or
-modify it under the terms of the GNU General Public License version 2 
-(the License) as published by the Free Software Foundation,
-provided that this entire header notice and readme-srv.txt is preserved.
-
-See LICENSE.TXT for terms of distribution or look at our web site:
-http://www.objectvision.nl/DMS/License.txt
-or alternatively at: http://www.gnu.org/copyleft/gpl.html
-
-This library is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
-General Public License for more details. However, specific warranties might be
-granted by an additional written contract for support, assistance and/or development
-*/
-//</HEADER>
+#if defined(_MSC_VER)
+#pragma once
+#endif
 
 #if !defined(__RTC_MEM_SEQUENCEOBJ_H)
 #define __RTC_MEM_SEQUENCEOBJ_H
@@ -94,11 +73,11 @@ public:
 	~sequence_obj() 
 	{
 		MGD_CHECKDATA(!IsLocked());
-		Reset();
+		ResetAllocator();
 	}
 	void operator = (sequence_obj&& rhs)  noexcept
 	{
-		Reset();
+		ResetAllocator();
 
 		m_Data = std::move(rhs.m_Data); rhs.m_Data = {};
 		m_Provider.swap( rhs.m_Provider );
@@ -170,21 +149,20 @@ public:
 	void cut(SizeT newNrElems)         { MGD_CHECKDATA(IsLocked()); MGD_CHECKDATA(m_Provider); m_Provider->cut(m_Data, newNrElems); }
 	void clear ()                      { MGD_CHECKDATA(IsLocked()); MGD_CHECKDATA(m_Provider); m_Provider->clear(m_Data); dms_assert(empty()); }
 
-	void Reset (provider_t* provider) { Reset(); m_Provider = provider; }
-	void Reset()
+	void ResetAllocator(provider_t* provider = nullptr)
 	{
 		MGD_CHECKDATA(!IsLocked());
 
-		if (!m_Provider)
-			return;
+		if (m_Provider)
+		{
 
-		m_Provider->free(m_Data);
-		dms_assert(m_Data.empty());
-		dms_assert(IsHeapAllocated() || !IsOpen());
-		m_Provider = nullptr;
+			m_Provider->free(m_Data);
+			assert(m_Data.empty());
+		}
+		m_Provider = provider;
 	}
 
-	bool IsOpen    () const { return m_Provider && m_Provider->IsOpen  (); }
+//	bool IsOpen    () const { return m_Provider && m_Provider->IsOpen  (); }
 	bool CanWrite  () const { return m_Provider && m_Provider->CanWrite(); }
 	bool IsAssigned() const { return m_Provider; }
 	bool IsHeapAllocated() const { return m_Provider && m_Provider->IsHeapAllocated(); }
@@ -192,19 +170,19 @@ public:
 	abstr_sequence_provider<IndexRange<SizeT> >* CloneForSeqs() const { return m_Provider->CloneForSeqs(); }
 
 	void Open (SizeT nrElem, dms_rw_mode rwMode, bool isTmp, SafeFileWriterArray* sfwa MG_DEBUG_ALLOCATOR_SRC_ARG) { MGD_CHECKDATA(!md_IsLocked); m_Provider->Open(m_Data, nrElem, rwMode, isTmp, sfwa MG_DEBUG_ALLOCATOR_SRC_PARAM); }
-	void Close () { MGD_CHECKDATA(!IsLocked()); m_Provider->Close( m_Data); dms_assert(Empty()); }
-	void Lock  (dms_rw_mode rwMode) { MGD_CHECKDATA(!IsLocked()); if (m_Provider) m_Provider->Lock(m_Data, rwMode); MG_DEBUG_DATA_CODE(md_IsLocked = true ); }
-	void UnLock() { MGD_CHECKDATA( IsLocked() || !m_Provider); if (m_Provider) m_Provider->UnLock(m_Data); MG_DEBUG_DATA_CODE(md_IsLocked = false); }
-	void Drop  () { MGD_CHECKDATA(!IsLocked() && m_Provider); m_Provider->Drop  (m_Data); dms_assert(Empty()); }
+//	void Close () { MGD_CHECKDATA(!IsLocked()); m_Provider->Close( m_Data); dms_assert(Empty()); }
+	void Lock  (dms_rw_mode rwMode) const { MGD_CHECKDATA(!IsLocked()); if (m_Provider) m_Provider->Lock(m_Data, rwMode); MG_DEBUG_DATA_CODE(md_IsLocked = true ); }
+	void UnLock() const { MGD_CHECKDATA( IsLocked() || !m_Provider); if (m_Provider) m_Provider->UnLock(m_Data); MG_DEBUG_DATA_CODE(md_IsLocked = false); }
+//	void Drop  () { MGD_CHECKDATA(!IsLocked() && m_Provider); m_Provider->Drop  (m_Data); dms_assert(Empty()); }
 	WeakStr GetFileName() const { return m_Provider->GetFileName(); }
 
 private:
 	sequence_obj(const sequence_obj<V>&);
 
-	alloc_data<V>                m_Data;
 	DestroyablePtr< provider_t > m_Provider;
+	mutable alloc_data<V>        m_Data;
 #if defined(MG_DEBUG_DATA)
-	bool md_IsLocked = false;
+	mutable bool md_IsLocked = false;
 public:
 	bool IsLocked() const { return md_IsLocked; }
 #endif

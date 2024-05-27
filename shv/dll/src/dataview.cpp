@@ -544,7 +544,7 @@ void DataView::XOrSelCaret(const Region& newSelCaret)
 /////////////////////////////////////////////////////////////////////////////
 // DataView event handlers
 
-
+#define WM_QT_ACTIVATENOTIFIERS WM_USER+2
 bool DataView::DispatchMsg(const MsgStruct& msg)
 {
 	DBG_START("DataView", "DispatchMsg", MG_DEBUG_WNDPROC);
@@ -569,10 +569,10 @@ bool DataView::DispatchMsg(const MsgStruct& msg)
 				else
 				{
 					auto status = UpdateView();
-					if (status != GraphVisitState::GVS_Break)
-						m_Waiter.end();
-					else
+					if (status == GraphVisitState::GVS_Break)
 						SetUpdateTimer();
+					else
+						m_Waiter.end();
 				}
 				goto completed;
 			}
@@ -624,10 +624,14 @@ bool DataView::DispatchMsg(const MsgStruct& msg)
 			goto completed;
 
 		case WM_LBUTTONDOWN:
+		{
 			SetCapture(m_hWnd);
- 			DispatchMouseEvent(EventID::LBUTTONDOWN,   msg.m_wParam, LParam2Point(msg.m_lParam) );
+			// notify Qt parent that we are active
+			auto parent = GetAncestor(m_hWnd, GA_PARENT);
+			SendMessage(parent, WM_USER+17, 0, 0);
+			DispatchMouseEvent(EventID::LBUTTONDOWN, msg.m_wParam, LParam2Point(msg.m_lParam));
 			goto completed;
-
+		}
 		case WM_RBUTTONDOWN:
 			DispatchMouseEvent(EventID::RBUTTONDOWN,   msg.m_wParam, LParam2Point(msg.m_lParam) );
 			*msg.m_ResultPtr = 0;
@@ -742,6 +746,7 @@ bool DataView::DispatchMsg(const MsgStruct& msg)
 			ProcessGuiOpers();
 			goto completed;
 
+		case WM_APP + 4:
 		case WM_COPYDATA:
 			PCOPYDATASTRUCT pCopyData = PCOPYDATASTRUCT(msg.m_lParam);
 			const UInt32* dataBegin = PUINT32(pCopyData->lpData);

@@ -5,6 +5,7 @@
 
 #include <QMdiArea.h>
 #include <QMdiSubWindow.h>
+#include <QAbstractNativeEventFilter>
 
 struct TreeItem;
 class DataView;
@@ -39,6 +40,7 @@ public:
     QDmsViewArea(QMdiArea* parent, MdiCreateStruct* createStruct);
     ~QDmsViewArea();
 
+    bool nativeEvent(const QByteArray& eventType, void* message, qintptr* result) override;
     void dragEnterEvent(QDragEnterEvent* event) override;
     void closeEvent(QCloseEvent* event) override;
     void dropEvent(QDropEvent* event) override;
@@ -57,7 +59,6 @@ private:
     void resizeEvent(QResizeEvent* event) override;
     void paintEvent(QPaintEvent* event) override;
     auto contentsRectInPixelUnits() -> QRect;
-    //bool eventFilter(QObject* object, QEvent* event) override;
     void keyPressEvent(QKeyEvent* keyEvent) override;
 
     DataView* m_DataView = nullptr;

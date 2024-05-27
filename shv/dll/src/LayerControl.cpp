@@ -535,6 +535,9 @@ void LayerControl::SetPaletteControl()
 
 	assert(NrEntries() == 2);
 
+//	m_TableView = make_shared_gr<TableViewControl>(dv)(dv, "PaletteData");
+//	m_PaletteControl = make_shared_gr<PaletteControl>(m_TableView->GetTableScrollPort(), layer, false)();
+
 	auto paletteContainer = std::make_shared<GraphicVarRows>(this);
 	InsertEntry(paletteContainer.get());
 	paletteContainer->SetRowSepHeight(0);

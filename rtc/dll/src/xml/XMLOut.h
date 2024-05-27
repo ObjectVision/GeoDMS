@@ -89,11 +89,10 @@ struct OutStreamBase {
 	FormattingFlags GetFormattingFlags() const { return m_OutStream.GetFormattingFlags();  }
 
 	void NewLine();
+	virtual void DumpSubTag(CharPtr tagName, CharPtr tagValue, bool isPrimaryTag) = 0;
 
 private:
 	friend struct XML_OutElement;
-
-	virtual void DumpSubTag(CharPtr tagName, CharPtr tagValue, bool isPrimaryTag) =0;
 
 	void DumpSubTag(const AbstrPropDef* propDef, CharPtr tagValue, bool isPrimaryTag);
 

@@ -54,7 +54,7 @@ public:
 	ODBCStorageManager();
 
 	//	implement AbstrStorageManager interface
-	bool DoCheckExistence(const TreeItem* storageHolder) const override;
+	bool DoCheckExistence(const TreeItem* storageHolder, const TreeItem* storageItem) const override;
 	bool DoCheckWritability() const override;
 	
 	void DoUpdateTree (const TreeItem* storageHolder, TreeItem* curr, SyncMode sm) const override;

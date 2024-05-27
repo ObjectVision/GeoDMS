@@ -89,7 +89,6 @@
 #	define CC_STL_1300
 #	define CC_ITERATOR_CHECKED
 #	define CC_HAS_OVERRIDE
-//REMOVE#	define CC_FIX_ASSERT
 #	pragma warning( disable : 4244) // conversion, possible loss of data
 #	pragma warning( disable : 4267) // conversion, possible loss of data
 #	pragma warning( disable : 4646) // function declared with __declspec(noreturn) has non-void return type
@@ -206,6 +205,10 @@
 //----------------------------------------------------------------------
 // End STL capabilities, now use these settings
 //----------------------------------------------------------------------
+
+#if defined(CC_STL_1300) && defined(MG_DEBUG)
+#	define CC_FIX_TRANSFORM_CHECK
+#endif
 
 //----------------------------------------------------------------------
 // assert

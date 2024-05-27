@@ -279,8 +279,9 @@ TreeItem* ConfigProd::ParseFile(CharPtr fileName)
 	AuthErrorDisplayLock recursionLock;
 
 	m_CurrFileName = SharedStr(fileName);
-	MappedConstFileMapHandle fv(m_CurrFileName, nullptr, true, false); // SFWA
 
+	auto fv = ConstFileViewHandle(std::make_shared<ConstMappedFileHandle>(m_CurrFileName, nullptr, true, false)); // SFWA
+	fv.Map();
 	try {
 
 		parse_info_t info
@@ -299,7 +300,7 @@ TreeItem* ConfigProd::ParseFile(CharPtr fileName)
 
 		SharedStr strAtProblemLoc = problemlocAsString(fv.DataBegin(), fv.DataEnd(), &*problem.where);
 
-		fv.CloseMCFMH(); // enable user to change and save the file from error display and the press Reload
+//		fv.CloseMCFMH(); // enable user to change and save the file from error display and the press Reload
 
 		position_t  problemLoc = problem.where.get_position();
 		auto fullDescr = mySSPrintF("%s\n%s(%d,%d) at\n%s"

@@ -75,9 +75,9 @@ struct AbstrPthElementTot: BinaryOperator
 
 
 template <typename WeightType>
-struct AbstrPthElementWeightedTot: TernaryOperator
+struct AbstrNthElementWeightedTot: TernaryOperator
 {
-	AbstrPthElementWeightedTot(AbstrOperGroup* gr, ClassCPtr argVCls)
+	AbstrNthElementWeightedTot(AbstrOperGroup* gr, ClassCPtr argVCls)
 		: TernaryOperator(gr, argVCls, argVCls, DataArray<WeightType>::GetStaticClass(), DataArray<WeightType>::GetStaticClass())
 	{}
 
@@ -100,6 +100,8 @@ struct AbstrPthElementWeightedTot: TernaryOperator
 
 			const AbstrDataItem* weightA = AsDataItem(args[2]);
 			assert(weightA);
+			weightA->GetAbstrDomainUnit()->UnifyDomain(argVA->GetAbstrDomainUnit(), "e3", "e1", UM_Throw);
+			weightA->GetAbstrValuesUnit()->UnifyValues(arg2A->GetAbstrValuesUnit(), "v3", "v2", UM_Throw);
 
 			DataReadLock argVLock  (argVA);
 			DataReadLock weightLock(weightA);
@@ -172,9 +174,9 @@ struct AbstrPthElementPart: TernaryOperator
 	virtual void Calculate(DataWriteHandle& res, const AbstrDataItem* argVA, const DataArray<PosType>* arg2, bool e2Void, const AbstrDataItem* arg3a) const =0;
 };
 
-struct AbstrPthElementWeightedPart: QuaternaryOperator
+struct AbstrNthElementWeightedPart: QuaternaryOperator
 {
-	AbstrPthElementWeightedPart(AbstrOperGroup* gr, ClassCPtr argVCls, ClassCPtr weightCls, ClassCPtr arg3Cls)
+	AbstrNthElementWeightedPart(AbstrOperGroup* gr, ClassCPtr argVCls, ClassCPtr weightCls, ClassCPtr arg3Cls)
 		: QuaternaryOperator(gr, argVCls, argVCls, weightCls, weightCls, arg3Cls)
 	{}
 
@@ -205,6 +207,7 @@ struct AbstrPthElementWeightedPart: QuaternaryOperator
 		const AbstrDataItem* weightA = AsDataItem(args[2]);
 		assert(weightA);
 		weightA->GetAbstrDomainUnit()->UnifyDomain(argVA->GetAbstrDomainUnit(), "e3", "e1", UM_Throw);
+		weightA->GetAbstrValuesUnit()->UnifyValues(arg2A->GetAbstrValuesUnit(), "v4", "v2", UM_Throw);
 
 		if (mustCalc)
 		{
@@ -431,14 +434,14 @@ namespace nth {
 } // namespace nth
 
 template <typename V, typename W> 
-struct NthElementWeightedTot: AbstrPthElementWeightedTot<W>
+struct NthElementWeightedTot: AbstrNthElementWeightedTot<W>
 {
 	typedef DataArray<V> ArgVType;
 	typedef DataArray<W> ArgWType;
 	typedef ArgVType     ResultType;
 	
 	NthElementWeightedTot() 
-		:	AbstrPthElementWeightedTot<W>(&cogNthElemWeighted, ArgVType::GetStaticClass())
+		:	AbstrNthElementWeightedTot<W>(&cogNthElemWeighted, ArgVType::GetStaticClass())
 	{}
 
 	// Override Operator
@@ -484,7 +487,7 @@ struct NthElementWeightedTot: AbstrPthElementWeightedTot<W>
 #include "TileIter.h"
 
 template <typename V, typename W> 
-struct NthElementWeightedPart: AbstrPthElementWeightedPart
+struct NthElementWeightedPart: AbstrNthElementWeightedPart
 {
 	typedef DataArray<V>  ArgVType;
 	typedef DataArray<W>  Arg2Type; // nth
@@ -493,7 +496,7 @@ struct NthElementWeightedPart: AbstrPthElementWeightedPart
 	typedef DataArray<V>  ResultType;
 
 	NthElementWeightedPart() 
-		: AbstrPthElementWeightedPart(&cogNthElemWeighted, ArgVType::GetStaticClass(), ArgWType::GetStaticClass(), Arg3Type::GetStaticClass())
+		: AbstrNthElementWeightedPart(&cogNthElemWeighted, ArgVType::GetStaticClass(), ArgWType::GetStaticClass(), Arg3Type::GetStaticClass())
 	{}
 
 	// Override Operator

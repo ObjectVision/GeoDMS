@@ -72,15 +72,12 @@ bool IsFileableSize(const AbstrDataItem* adi, SizeT nrBytes)
 
 bool MustStorePersistent(const TreeItem* ti)
 {
-	MG_CHECK2(false, "NYI");
-	/*
-		if (ti->GetFreeDataState())
+	if (ti->GetFreeDataState())
 		return false;
 	if (ti->IsPassor())
-		return ti->IsDcKnown();
+		return ti->m_BackRef != nullptr;
 	else
-		return !ti->HasConfigSource();
-	*/
+		return !ti->HasConfigData();
 }
 
 

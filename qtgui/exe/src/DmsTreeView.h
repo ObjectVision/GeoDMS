@@ -90,7 +90,7 @@ public:
 	QSize minimumSizeHint() const override;
 	void setDmsStyleSheet(bool connecting_lines = true);
 
-	int m_default_size = 200;
+	int m_default_size = 0;
 
 public slots:
 	void onDoubleClick(const QModelIndex& index);

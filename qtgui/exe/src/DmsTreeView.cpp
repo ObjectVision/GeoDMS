@@ -580,6 +580,8 @@ DmsTreeView::DmsTreeView(QWidget* parent)
 	header()->setSectionResizeMode(QHeaderView::ResizeToContents);
 
 	setDmsStyleSheet();
+
+	setSizePolicy(QSizePolicy::MinimumExpanding, QSizePolicy::Expanding);
 }
 
 void DmsTreeView::showTreeviewContextMenu(const QPoint& pos) {
@@ -635,6 +637,7 @@ void DmsTreeView::showTreeviewContextMenu(const QPoint& pos) {
 	auto ti = GetTreeItem(index);
 	MainWindow::TheOne()->setCurrentTreeItem(ti); // we assume Popupmenu act on current item, so accomodate now.
 	auto ti_is_or_is_in_template = ti->InTemplate() && ti->IsTemplate();
+	auto ti_is_dataitem = IsDataItem(ti);
 
 	auto item_can_be_exported = !ti->WasFailed() && !ti_is_or_is_in_template && (currentItemCanBeExportedToVector(ti) || currentItemCanBeExportedToRaster(ti));
 	export_primary_data_action->setEnabled(item_can_be_exported);
@@ -645,13 +648,14 @@ void DmsTreeView::showTreeviewContextMenu(const QPoint& pos) {
 	default_view_action->setDisabled(ti_is_or_is_in_template);
 	table_view_action->setDisabled(ti_is_or_is_in_template);
 	map_view_action->setDisabled(ti_is_or_is_in_template);
-	statistics_view_action->setDisabled(ti_is_or_is_in_template);
+	statistics_view_action->setDisabled(!ti_is_dataitem || ti_is_or_is_in_template);
 
 	m_context_menu->popup(viewport()->mapToGlobal(pos));
 	MainWindow::TheOne()->updateToolsMenu();
 }
 
 void DmsTreeView::setNewCurrentItem(TreeItem* target_item) {
+	assert(target_item != nullptr);
 	auto current_node_index = currentIndex();
 	auto root_node_index = rootIndex();
 	auto root_ti = GetTreeItem(root_node_index);
@@ -668,8 +672,13 @@ void DmsTreeView::setNewCurrentItem(TreeItem* target_item) {
 	if (!MainWindow::TheOne()->m_dms_model->show_hidden_items) {
 		if (target_item->GetTSF(TSF_InHidden) ) {
 			const TreeItem* visible_parent = target_item;
-			while (visible_parent && visible_parent->GetTSF(TSF_InHidden))
+			while (visible_parent->GetTSF(TSF_InHidden))
+			{
 				visible_parent = visible_parent->GetTreeParent();
+				if (!visible_parent)
+					break;
+			}
+
 			reportF(MsgCategory::other, SeverityTypeID::ST_Warning, "cannnot activate '%1%' in TreeView as it seems to be a hidden sub-item of '%2%'"
 				"\nHint: you can make hidden items visible in the Settings->GUI Options Dialog"
 				, target_item->GetFullName().c_str()

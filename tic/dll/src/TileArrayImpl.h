@@ -1,32 +1,10 @@
-//<HEADER> 
-/*
-Data & Model Server (DMS) is a server written in C++ for DSS applications. 
-Version: see srv/dms/rtc/dll/src/RtcVersion.h for version info.
+// Copyright (C) 1998-2023 Object Vision b.v. 
+// License: GNU GPL 3
+/////////////////////////////////////////////////////////////////////////////
 
-Copyright (C) 1998-2004  YUSE GSO Object Vision BV. 
-
-Documentation on using the Data & Model Server software can be found at:
-http://www.ObjectVision.nl/DMS/
-
-See additional guidelines and notes in srv/dms/Readme-srv.txt 
-
-This library is free software; you can use, redistribute, and/or
-modify it under the terms of the GNU General Public License version 2 
-(the License) as published by the Free Software Foundation,
-provided that this entire header notice and readme-srv.txt is preserved.
-
-See LICENSE.TXT for terms of distribution or look at our web site:
-http://www.objectvision.nl/DMS/License.txt
-or alternatively at: http://www.gnu.org/copyleft/gpl.html
-
-This library is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
-General Public License for more details. However, specific warranties might be
-granted by an additional written contract for support, assistance and/or development
-*/
-//</HEADER>
+#if defined(_MSC_VER)
 #pragma once
+#endif
 
 #if !defined(__TIC_TILEARRAYIMPL_H)
 #define __TIC_TILEARRAYIMPL_H
@@ -106,7 +84,7 @@ struct FileTileArray : GeneratedTileFunctor<V>
 	using typename TileFunctor<V>::locked_cseq_t;
 	using typename TileFunctor<V>::locked_seq_t;
 
-	using files_t = OwningPtrSizedArray<SharedPtr<file<V>>>;
+	using files_t = OwningPtrSizedArray<file_tile<V>>;
 
 	FileTileArray(const AbstrTileRangeData* domain, SharedStr filenameBase, dms_rw_mode rwMode, bool isTmp, SafeFileWriterArray* sfwa);
 
@@ -273,6 +251,7 @@ auto HeapSingleValue<V>::GetTile(tile_id t) const -> locked_cseq_t
 //----------------------------------------------------------------------
 
 #include "mem/MappedSequenceProvider.h"
+#include "geo/mpf.h"
 #include "utl/splitPath.h"
 #include "utl/mySPrintF.h"
 
@@ -288,6 +267,43 @@ SharedStr TileSuffix(tile_id t)
 	return result;
 }
 
+template <typename V> SizeT MinimalNrMemPages(const AbstrTileRangeData* trd);
+
+template <fixed_elem V>
+SizeT MinimalNrMemPages(const AbstrTileRangeData* trd)
+{
+	assert(trd);
+	return trd->GetNrMemPages(mpf::log2_v<sizeof(V)>);
+}
+
+template <sequence_or_string V>
+SizeT MinimalNrMemPages(const AbstrTileRangeData* trd)
+{
+	assert(trd);
+	using seq_t = typename sequence_traits<V>::polymorph_vec_t::seq_t;
+	auto log2BytesPerElem = mpf::log2_v<sizeof IndexRange<SizeT>>;
+	return trd->GetNrMemPages(mpf::log2_v<sizeof seq_t>) + NrMemPages(trd->GetNrTiles() << log2BytesPerElem);
+}
+
+template <fixed_elem V>
+SizeT MinimalFileSize(const AbstrTileRangeData* trd)
+{
+	tile_id tn = trd->GetNrTiles();
+	SizeT rawSize = 0;
+	if (tn > 1)
+	{
+		constexpr auto log2BytesPerElem = mpf::log2_v<sizeof(V)>;
+		auto tileSizeInBytes = SizeT(trd->GetTileSize(tn - 1)) << log2BytesPerElem;
+		rawSize = MinimalNrMemPages<V>(trd) - NrMemPages(tileSizeInBytes);
+		rawSize <<= GetLog2AllocationGrannularity();
+	}
+	if (tn > 0)
+	{
+		rawSize += trd->GetTileSize(tn - 1) * sizeof(V);
+	}
+	return rawSize;
+}
+
 template <typename V>
 FileTileArray<V>::FileTileArray(const AbstrTileRangeData* trd, SharedStr filenameBase, dms_rw_mode rwMode, bool isTmp, SafeFileWriterArray* sfwa)
 	: m_CacheFileName(filenameBase)
@@ -295,60 +311,93 @@ FileTileArray<V>::FileTileArray(const AbstrTileRangeData* trd, SharedStr filenam
 	, m_IsTmp(isTmp)
 {
 	this->m_TileRangeData = trd;
-	dms_assert(!m_CacheFileName.empty());
+	assert(!m_CacheFileName.empty());
 
-	dms_assert(rwMode <= dms_rw_mode::write_only_all);
+	assert(rwMode <= dms_rw_mode::write_only_all);
 
-	dms_assert(trd);
+	assert(trd);
 	tile_id tn = trd->GetNrTiles();
 
 	files_t seqs(tn, value_construct MG_DEBUG_ALLOCATOR_SRC_EMPTY);
 
-	for (tile_id t = 0; t != tn; ++t)
+	assert(!this->m_CacheFileName.empty());
+	SharedStr fullFileName = m_CacheFileName; // +getFileNameExtension(fullFileName.c_str());
+
+	if (rwMode <= dms_rw_mode::read_only)
 	{
-		dms_assert(!this->m_CacheFileName.empty());
-		SharedStr fullFileName = m_CacheFileName;
-		if (tn > 1)
-
-			fullFileName = getFileNameBase(fullFileName.c_str()) + TileSuffix(t) + getFileNameExtension(fullFileName.c_str());
-
-		MGD_CHECKDATA(!seqs[t]->IsLocked());
-
-		if (rwMode <= dms_rw_mode::read_only)
-			seqs[t]->Reset(new mappable_const_sequence<typename elem_of<V>::type>(fullFileName));
-		else
-			seqs[t]->Reset(new mappable_sequence<typename elem_of<V>::type>(fullFileName));
-
-		seqs[t]->Open(trd->GetTileSize(t), rwMode, isTmp, sfwa MG_DEBUG_ALLOCATOR_SRC_EMPTY);
-
-
-		MGD_CHECKDATA(!seqs[t]->IsLocked());
+		std::shared_ptr<ConstMappedFileHandle> 
+			cmfh = std::make_shared<ConstMappedFileHandle>(fullFileName, sfwa, true, false)
+		,	cmfh_sequences;
+		if constexpr (!has_fixed_elem_size_v<V>)
+		{
+			cmfh->m_MemPageAllocTable.reset( new mempage_file_view(cmfh, trd->GetNrTiles(), 0, trd->GetNrTiles() * sizeof(IndexRange<SizeT>)) );
+			cmfh_sequences = std::make_shared<ConstMappedFileHandle>(fullFileName + ".seq", sfwa);
+		}
+		for (tile_id t = 0; t != tn; ++t)
+		{
+			if constexpr (has_fixed_elem_size_v<V>)
+				seqs[t].ResetAllocator(new mappable_const_sequence<elem_of_t<V>>(cmfh, t, trd->GetTileSize(t)));
+			else
+			{
+				auto ms_index = std::make_unique<mappable_const_sequence<IndexRange<SizeT>>>(cmfh_sequences, t, trd->GetTileSize(t));
+				auto ms_values = std::make_unique<mappable_const_sequence<elem_of_t<V>> >(cmfh, t, trd->GetTileSize(t));
+				seqs[t].ResetAllocators(ms_index.release(), ms_values.release());
+			}
+			MGD_CHECKDATA(!seqs[t].IsLocked());
+		}
 	}
+	else
+	{
+		std::shared_ptr<MappedFileHandle> 
+			mfh = std::make_shared<MappedFileHandle>()
+		,	mfh_sequences;
 
+		mfh->OpenRw(fullFileName, sfwa, MinimalFileSize<V>(trd), rwMode, isTmp);
+
+		if constexpr (!has_fixed_elem_size_v<V>)
+		{
+			mfh_sequences = std::make_shared<MappedFileHandle>();
+			mfh_sequences->OpenRw(fullFileName+".seq", sfwa, MinimalNrMemPages<V>(trd) << GetLog2AllocationGrannularity(), rwMode, isTmp);
+			mfh->m_MemPageAllocTable.reset( new mempage_file_view(mfh, trd->GetNrTiles(), 0, trd->GetNrTiles() * sizeof(IndexRange<SizeT>) ) );
+		}
+		for (tile_id t = 0; t != tn; ++t)
+		{
+			if constexpr (has_fixed_elem_size_v<V>)
+				seqs[t].ResetAllocator(new mappable_sequence<elem_of_t<V>>(mfh, t, trd->GetTileSize(t)));
+			else
+			{
+				auto ms_index  = std::make_unique<mappable_sequence<IndexRange<SizeT>>>(mfh_sequences, t, trd->GetTileSize(t));
+				auto ms_values = std::make_unique<mappable_sequence<elem_of_t<V>>>(mfh, t, trd->GetTileSize(t));
+				seqs[t].ResetAllocators(ms_index.release(), ms_values.release());
+			}
+
+			MGD_CHECKDATA(!seqs[t].IsLocked());
+		}
+	}
 	m_Files = std::move(seqs);
 }
 
 template <typename V>
 auto FileTileArray<V>::GetWritableTile(tile_id t, dms_rw_mode rwMode) -> locked_seq_t
 {
-	dms_assert(t < this->GetTiledRangeData()->GetNrTiles());
+	assert(t < this->GetTiledRangeData()->GetNrTiles());
 
-	auto filePtr = m_Files[t];
-	auto fileMapHandle = filePtr->get(rwMode);
+	auto& file = m_Files[t];
+	auto fileMapHandle = file.get(rwMode);
 	//		fileRef->resizeSO(tileSize, rwMode == dms_rw_mode::write_only_mustzero);
-	dms_assert(filePtr->size() == this->GetTiledRangeData()->GetTileSize(t));
-	return locked_seq_t(make_SharedThing(std::move(fileMapHandle)), GetSeq(*filePtr));
+	assert(file.size() == this->GetTiledRangeData()->GetTileSize(t));
+	return locked_seq_t(make_SharedThing(std::move(fileMapHandle)), GetSeq(file));
 }
 
 template <typename V>
 auto FileTileArray<V>::GetTile(tile_id t) const -> locked_cseq_t
 {
-	dms_assert(t < this->GetTiledRangeData()->GetNrTiles());
+	assert(t < this->GetTiledRangeData()->GetNrTiles());
 
-	auto filePtr = m_Files[t];
-	auto fileMapHandle = filePtr->get(dms_rw_mode::read_only);
-	dms_assert(filePtr->size() == this->GetTiledRangeData()->GetTileSize(t));
-	return locked_cseq_t(TileCRef(make_SharedThing( std::move(fileMapHandle) )), GetConstSeq(*filePtr));
+	const auto& file = m_Files[t];
+	auto fileMapHandle = file.get(dms_rw_mode::read_only);
+	assert(file.size() == this->GetTiledRangeData()->GetTileSize(t));
+	return locked_cseq_t(TileCRef(make_SharedThing( std::move(fileMapHandle) )), GetConstSeq(file));
 }
 
 #endif //!defined(__TIC_TILEARRAYIMPL_H)

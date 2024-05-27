@@ -32,15 +32,21 @@
 
 // ============================= CLASS: ConfigProd
 
-ConfigProd::ConfigProd(TreeItem* context)
+ConfigProd::ConfigProd(TreeItem* context, bool rootIsFirstItem)
 :	m_pCurrent(nullptr)
 ,	m_ResultCommitted(false)
 #if defined(MG_DEBUG)
 ,	md_IsIncludedFile(context)
 #endif
 {
+	m_MergeIntoExisting = rootIsFirstItem;
 	if (context)
-		m_stackContexts.push_back(context);
+	{
+		if (rootIsFirstItem)
+			m_pCurrent = context;
+		else
+			m_stackContexts.push_back(context);
+	}
 
 	MG_DEBUGCODE( ClearSignature(); )
 }
@@ -89,10 +95,11 @@ void ConfigProd::DoInclude()
 	SharedStr fileName = SharedStr(m_strIdentifierID);
 	m_pCurrent =
 		AppendTreeFromConfiguration(
-			fileName.c_str(), 
-			CurrentIsRoot() 
+			fileName.c_str()
+		,	CurrentIsRoot() 
 				? m_pCurrent.get_ptr()
 				: GetContextItem()
+		,	false
 		);
 	if (!m_pCurrent)
 		throwSemanticError(mgFormat2string("Parse error in included config file %s", GetTokenStr(m_strIdentifierID)).c_str());
@@ -203,7 +210,14 @@ void ConfigProd::CreateItem(TokenID nameID, const iterator_t& loc)
 		{
 			if (m_pCurrent->GetID() == nameID)
 				return;
-			throwDmsErrD("Illegal 2nd item after root of configuration tree.");
+			if (!m_MergeIntoExisting)
+				throwDmsErrD("Illegal 2nd item after root of configuration tree.");
+			reportF(MsgCategory::storage_read, SeverityTypeID::ST_Warning
+				, "Configuration file %s: root item '%s' was already provided with name '%s'"
+				, ConfigurationFilenameLock::GetCurrentFileDescrFromConfigLoadDir()->GetFileName().c_str()
+				, AsString(m_pCurrent->GetID()).c_str()
+				, AsString(nameID).c_str()
+			);
 		}
 		else
 			m_pCurrent = TreeItem::CreateConfigRoot(nameID);
@@ -211,8 +225,9 @@ void ConfigProd::CreateItem(TokenID nameID, const iterator_t& loc)
 	else // stackContexts not empty
 	{
 		assert(GetContextItem()); // only non-nulls in stackContexts
-			
-		CheckIsNew(GetContextItem(), nameID);
+		
+		if (!m_MergeIntoExisting)
+			CheckIsNew(GetContextItem(), nameID);
 
 		switch (m_eSignatureType) {
 			case SignatureType::TreeItem: CreateContainer(nameID); break;
