@@ -50,6 +50,12 @@
       <PreprocessorDefinitions>DMCLC_EXPORTS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ClCompile>
     <Link />
+    <Link>
+      <DelayLoadDLLs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">gdald.dll; proj_d.dll</DelayLoadDLLs>
+    </Link>
+    <Link>
+      <DelayLoadDLLs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">gdal.dll; proj.dll</DelayLoadDLLs>
+    </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="src\AnyAll.cpp" />

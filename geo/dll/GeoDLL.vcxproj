@@ -57,7 +57,8 @@
   <ItemDefinitionGroup Condition="'$(Platform)'=='x64'">
     <Link>
       <AdditionalLibraryDirectories>C:\Program Files (x86)\Intel\oneAPI\ipp\latest\lib\intel64;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
-      <DelayLoadDLLs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" />
+      <DelayLoadDLLs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">gdald.dll; proj_d.dll</DelayLoadDLLs>
+      <DelayLoadDLLs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">gdal.dll; proj.dll</DelayLoadDLLs>
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
