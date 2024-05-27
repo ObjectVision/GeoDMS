@@ -8,6 +8,8 @@
 #pragma hdrstop
 #endif //defined(CC_PRAGMAHDRSTOP)
 
+#if !defined(GEODMS_STG_WIHTOUT_GDAL)
+
 // *****************************************************************************
 //
 // Implementations of GdalGridSM
@@ -877,3 +879,5 @@ IMPL_DYNC_STORAGECLASS(GdalWritableGridSM, "gdalwrite.grid")
 namespace {
 	StorageClass ilwisStorageManagers(CreateFunc<GdalGridSM>, GetTokenID_st("ilwis"));
 }
+
+#endif //!defined(GEODMS_STG_WIHTOUT_GDAL)

@@ -297,8 +297,14 @@ public:
 	}
 };
 
+
+#include "StgBase.h"
+
+
 #include "stg/StorageClass.h"
+#if !defined(GEODMS_STG_WIHTOUT_GDAL)
 #include "gdal/gdal_base.h"
+#endif //!defined(GEODMS_STG_WIHTOUT_GDAL)
 
 class DocStorageManagersOperator : public Operator
 {
@@ -353,8 +359,10 @@ public:
 			}
 		}
 
+#if !defined(GEODMS_STG_WIHTOUT_GDAL)
 		//gdalComponent test;
 		gdalComponent::CreateMetaInfo(result, mustCalc);
+#endif //!defined(GEODMS_STG_WIHTOUT_GDAL)
 
 		resultHolder->SetIsInstantiated();
 		return true;

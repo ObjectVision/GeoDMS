@@ -8,6 +8,23 @@
 #pragma hdrstop
 #endif //defined(CC_PRAGMAHDRSTOP)
 
+#include "AbstrDataItem.h"
+#include "Projection.h"
+#include "Unit.h"
+
+auto GetBaseProjectionUnitFromValuesUnit(const AbstrDataItem* adi) -> const AbstrUnit*
+{
+	const AbstrUnit* valuesUnit = adi->GetAbstrValuesUnit();
+	auto curr_proj = valuesUnit->GetProjection();
+	if (!curr_proj)
+		return valuesUnit;
+	auto result = curr_proj->GetCompositeBase();
+	assert(result);
+	return result;
+}
+
+#if !defined(GEODMS_STG_WIHTOUT_GDAL)
+
 #include <numbers>
 
 // *****************************************************************************
@@ -35,7 +52,6 @@
 
 #include "LockLevels.h"
 
-#include "AbstrDataItem.h"
 #include "DataArray.h"
 #include "DataItemClass.h"
 #include "DataLocks.h"
@@ -43,12 +59,10 @@
 #include "TreeItemContextHandle.h"
 #include "TreeItemProps.h"
 #include "TreeItemUtils.h"
-#include "Unit.h"
 #include "UnitClass.h"
 
 #include "stg/StorageClass.h"
 #include <filesystem>
-#include "Projection.h"
 
 // include windows for LoadLibrary
 #include <windows.h>
@@ -408,17 +422,6 @@ SharedStr GetWktProjectionFromBaseProjectionUnit(const AbstrUnit* base)
 		return {};
 
 	return GetWkt(&srOrErr.first);
-}
-
-auto GetBaseProjectionUnitFromValuesUnit(const AbstrDataItem* adi) -> const AbstrUnit*
-{
-	const AbstrUnit* valuesUnit = adi->GetAbstrValuesUnit();
-	auto curr_proj = valuesUnit->GetProjection();
-	if (!curr_proj)
-		return valuesUnit;
-	auto result = curr_proj->GetCompositeBase();
-	assert(result);
-	return result;
 }
 
 SharedStr GetWktProjectionFromValuesUnit(const AbstrDataItem* adi)
@@ -1598,3 +1601,5 @@ GDAL_SimpleReader::GDAL_SimpleReader()
 	GDALRegisterTrustedDriverFromKnownDriverShortName("GTiff");
 	GDALRegisterTrustedDriverFromKnownDriverShortName("BMP");
 }
+
+#endif //!defined(GEODMS_STG_WIHTOUT_GDAL)

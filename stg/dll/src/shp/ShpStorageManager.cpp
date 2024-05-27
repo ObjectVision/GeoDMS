@@ -33,10 +33,16 @@
 #include "stg/StorageClass.h"
 #include "utl/mySPrintF.h"
 
+#include "StgBase.h"
+
+#if !defined(GEODMS_STG_WIHTOUT_GDAL)
+
 #include "GDAL/gdal_base.h" // CplString
 #include "Projection.h"
 #include "ogr_spatialref.h"
 #include "gdal_priv.h"
+
+#endif //!defined(GEODMS_STG_WIHTOUT_GDAL)
 
 #include "Unit.h"
 #include "AbstrDataItem.h"
@@ -326,7 +332,11 @@ void WriteSequences(const AbstrDataObject* ado, ShpImp* pImp, WeakStr nameStr, c
 	}
 	dms_assert(pImp->m_Polygons.size() == nrRecs);
 
+#if !defined(GEODMS_STG_WIHTOUT_GDAL)
 	auto wktPrjStr = GetWktProjectionFromValuesUnit(adi);
+#else
+	SharedStr wktPrjStr;
+#endif //defined(GEODMS_STG_WIHTOUT_GDAL)
 
 	auto sfwa = DSM::GetSafeFileWriterArray(); MG_CHECK(sfwa);
 	if (!pImp->Write( nameStr, sfwa.get(), wktPrjStr) )
@@ -351,7 +361,11 @@ void WriteArray(const AbstrDataObject* ado, ShpImp* pImp, WeakStr nameStr, const
 		func_iter(pointData.end  ())
 	);
 
+#if !defined(GEODMS_STG_WIHTOUT_GDAL)
 	auto wktPrjStr = GetWktProjectionFromValuesUnit(adi);
+#else
+	SharedStr wktPrjStr;
+#endif //defined(GEODMS_STG_WIHTOUT_GDAL)
 
 	auto sfwa = DSM::GetSafeFileWriterArray();
 

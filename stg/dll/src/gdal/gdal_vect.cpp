@@ -8,6 +8,8 @@
 #pragma hdrstop
 #endif //defined(CC_PRAGMAHDRSTOP)
 
+#if !defined(GEODMS_STG_WIHTOUT_GDAL)
+
 #include "RtcGeneratedVersion.h"
 
 #include "gdal_base.h"
@@ -1900,3 +1902,4 @@ IMPL_DYNC_STORAGECLASS(GdalWritableVectSM, "gdalwrite.vect")
 namespace {
 	StorageClass fgdbStorageManagers(CreateFunc<GdalVectSM>, GetTokenID_st("fgdb"));
 }
+#endif //!defined(GEODMS_STG_WIHTOUT_GDAL)

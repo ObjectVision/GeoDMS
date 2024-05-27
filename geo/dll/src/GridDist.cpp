@@ -8,9 +8,15 @@
 #pragma hdrstop
 #endif //defined(CC_PRAGMAHDRSTOP)
 
+#include "StgBase.h"
+
+#include <numbers>
+
+#if !defined(GEODMS_STG_WIHTOUT_GDAL)
 #include <numbers> // std::numbers
 #include <proj.h>
 #include <ogr_spatialref.h>
+#endif //!defined(GEODMS_STG_WIHTOUT_GDAL)
 
 #include "Dijkstra.h"
 
@@ -22,7 +28,9 @@
 
 #include "Projection.h"
 
+#if !defined(GEODMS_STG_WIHTOUT_GDAL)
 #include "gdal/gdal_base.h"
+#endif //!defined(GEODMS_STG_WIHTOUT_GDAL)
 
 // *****************************************************************************
 //									GridDist
@@ -101,6 +109,8 @@ constexpr arg_index NrArguments(GridDistFlags flags)
 	return result;
 }
 
+#if !defined(GEODMS_STG_WIHTOUT_GDAL)
+
 struct ProjContextDeleter {
 	void operator()(PJ_CONTEXT* ctx) const {
 		if (ctx != nullptr) {
@@ -115,6 +125,8 @@ struct ProjDeleter {
 		}
 	}
 };
+
+#endif //!defined(GEODMS_STG_WIHTOUT_GDAL)
 
 template <typename Imp, typename Grid, typename ZoneID = UInt16>
 class GridDistOperator : public Operator
@@ -297,6 +309,7 @@ public:
 			boundaryFactor = const_array_cast<ImpType>(adiBoundaryImp)->GetTile(0)[0];
 		}
 
+#if !defined(GEODMS_STG_WIHTOUT_GDAL)
 
 		if (m_Flags & GridDistFlags::HasLatitudeFactor)
 		{
@@ -355,6 +368,7 @@ public:
 				latFactors.emplace_back(0.5 * factor, 0.5 * sqrt(1+factor*factor));
 			}
 		}
+#endif //!defined(GEODMS_STG_WIHTOUT_GDAL)
 
 		DataWriteLock resLock(res, dms_rw_mode::write_only_mustzero);
 		DataWriteLock tbLock (trBck, dms_rw_mode::write_only_mustzero);

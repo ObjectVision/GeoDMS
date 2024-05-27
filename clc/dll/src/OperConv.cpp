@@ -31,7 +31,10 @@
 #include "TreeItemClass.h"
 #include "LispTreeType.h"
 
+#include "StgBase.h"
+#if !defined(GEODMS_STG_WIHTOUT_GDAL)
 #include "gdal/gdal_base.h"
+#endif //!defined(GEODMS_STG_WIHTOUT_GDAL)
 
 #include "ConstOper.h"
 #include "Lookup.h"
@@ -282,6 +285,8 @@ template<typename TR, typename TA> struct LatLongWgs842RD: ConvertFunc<TR, TA, l
 //			Generic COORDINATE CONVERSION FUNCTOR
 // *****************************************************************************
 
+#if !defined(GEODMS_STG_WIHTOUT_GDAL)
+
 //#include "ogr_api.h"
 #include "ogr_spatialref.h"
 #include "geo/Transform.h"
@@ -379,6 +384,8 @@ struct SpatialRefBlock: SharedBase, gdalComponent
 
 	void Release() const { if (!DecRef()) delete this; }
 };
+
+#endif //defined(GEODMS_STG_WIHTOUT_GDAL)
 
 // *****************************************************************************
 //			Type Conversion Functor
@@ -530,6 +537,10 @@ void DispatchMapping(Type1DConversion<TR, TA>& functor, typename Type1DConversio
 		for (SizeT i=0; i!=n; ++ri, ++i)
 			Assign(*ri, functor.ApplyDirect(Range_GetValue_naked(tileRange, i)));
 }
+
+template<typename TR, typename TA> struct Type2DConversion;
+
+#if !defined(GEODMS_STG_WIHTOUT_GDAL)
 
 template<typename TR, typename TA>
 struct Type2DConversion: unary_func<TR, TA> // http://www.gdal.org/ogr/osr_tutorial.html
@@ -819,6 +830,9 @@ void DispatchMappingCount(Type2DConversion<TR, TA>& functor, RI ri, typename Uni
 					ri[j]++;
 			}
 }
+
+
+#endif //!defined(GEODMS_STG_WIHTOUT_GDAL)
 
 
 // *****************************************************************************
@@ -1315,16 +1329,25 @@ namespace
 
 	tl_oper::inst_tuple<typelists::scalars, convertAndCastOpers<_, typelists::numerics> > numericConvertAndCastOpers;
 
-	tl_oper::inst_tuple<typelists::points, convertAndCastOpers<_, typelists::points   > > pointConvertAndCastOpers;
 	tl_oper::inst_tuple<typelists::numeric_sequences, convertAndCastOpers<_, typelists::numeric_sequences> > numericSequenceConvertAndCastOpers;
+
+#if !defined(GEODMS_STG_WIHTOUT_GDAL)
+	tl_oper::inst_tuple<typelists::points, convertAndCastOpers<_, typelists::points   > > pointConvertAndCastOpers;
 	tl_oper::inst_tuple<typelists::point_sequences, convertAndCastOpers<_, typelists::point_sequences> > pointSequenceConvertAndCastOpers;
+#endif //!defined(GEODMS_STG_WIHTOUT_GDAL)
 
 	tl_oper::inst_tuple<typelists::points, convertAndCastOpers<_, typelists::strings> > points2stringConvertAndCastOpers;
 	tl_oper::inst_tuple<typelists::sequences, convertAndCastOpers<_, typelists::strings> > seq2stringConvertAndCastOpers;
 
 	tl_oper::inst_tuple<typelists::ints, mappingOpers<_, typelists::num_objects> > numericMappingOpers;
+
+#if !defined(GEODMS_STG_WIHTOUT_GDAL)
+
 	tl_oper::inst_tuple<typelists::domain_points, mappingOpers<_, typelists::points   > > pointMappingOpers;
 	tl_oper::inst_tuple<typelists::domain_points, mappingCountOpers<_, typelists::domain_points   > > pointMappingCountOpers;
+
+#endif //!defined(GEODMS_STG_WIHTOUT_GDAL)
+
 	tl_oper::inst_tuple<typelists::sequences, NamedCastAttrOper  <_, SharedStr> > castSequenceOpers;
 //		convertAndCastOpers< SharedStr, typelists::points>    points2stringConvertAndCastOpers;
 //		convertAndCastOpers< SharedStr, typelists::sequences> seq2stringConvertAndCastOpers;
