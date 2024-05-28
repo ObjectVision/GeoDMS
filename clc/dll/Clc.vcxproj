@@ -51,10 +51,10 @@
     </ClCompile>
     <Link />
     <Link>
-      <DelayLoadDLLs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">gdald.dll; proj_d.dll</DelayLoadDLLs>
+      <DelayLoadDLLs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">gdald.dll;proj_d.dll</DelayLoadDLLs>
     </Link>
     <Link>
-      <DelayLoadDLLs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">gdal.dll; proj.dll</DelayLoadDLLs>
+      <DelayLoadDLLs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">gdal.dll;proj.dll</DelayLoadDLLs>
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
