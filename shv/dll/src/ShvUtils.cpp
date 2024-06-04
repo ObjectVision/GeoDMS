@@ -707,27 +707,32 @@ TreeItem* GetViewDataContainer(TreeItem* desktopItem)
 
 TreeItem* CreateContainer_impl(TreeItem* container, const TreeItem* item)
 {
-	dms_assert(item);
-	if (item->IsCacheItem())
+	assert(item);
+	if (!item->IsCacheItem())
 	{
-		item = item->GetUltimateItem();
-		dms_assert(item);
-		auto name = std::format("I{:x}", std::size_t(item));
-		return container->CreateItem(GetTokenID(name.c_str()));
+		if (IsUnit(item) && AsUnit(item)->IsDefaultUnit())
+		{
+			auto result = SafeCreateItem(container, AsUnit(item)->GetValueType()->GetID());
+			assert(result);
+			return result;
+		}
+
+		if (container->DoesContain(item))
+			return const_cast<TreeItem*>(item);
+		auto configRoot = SessionData::Curr()->GetConfigRoot();
+		if (configRoot->DoesContain(item))
+		{
+			auto result = SafeCreateItemFromPath(container, item->GetRelativeName(configRoot).c_str());
+			assert(result);
+			return result;
+		}
 	}
 
-	if (IsUnit(item) && AsUnit(item)->IsDefaultUnit())
-	{
-		TreeItem* result = SafeCreateItem(container, AsUnit(item)->GetValueType()->GetID());
-		dms_assert(result);
-		return result;
-	}
-
-	if (container->DoesContain(item))
-		return const_cast<TreeItem*>(item);
-	TreeItem* result = SafeCreateItemFromPath(container, item->GetRelativeName(SessionData::Curr()->GetConfigRoot()).c_str());
-	dms_assert(result);
-	return result;
+createItemByAddress:
+	item = item->GetUltimateItem();
+	assert(item);
+	auto name = std::format("I{:x}", std::size_t(item));
+	return container->CreateItem(GetTokenID(name.c_str()));
 }
 
 TreeItem* CreateContainer(TreeItem* container, const TreeItem* item)
