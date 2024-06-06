@@ -70,7 +70,7 @@ SharedStr DisplayValue(const AbstrDataItem* adi, SizeT index, bool useMetric, Sh
 			result = SharedArray<char>::Create(valueLen + 1, false);
 			drl->AsCharArray(index, result.begin(), valueLen, locks.first, FormattingFlags::ThousandSeparator);
 			result.begin()[valueLen] = char(0);
-			if (valueLen < maxLen)
+			if (valueLen < maxLen && adi->GetValueComposition() == ValueComposition::Single)
 			{
 				maxLen -= valueLen;
 
