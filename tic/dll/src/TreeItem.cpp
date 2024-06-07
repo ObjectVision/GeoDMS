@@ -3430,13 +3430,26 @@ bool TreeItem::PrepareDataUsageImpl(DrlType drlFlags) const
 						auto rn = GetRelativeName(sp);
 
 						auto fn = DelimitedConcat(fsn, rn);
-						if (IsFileOrDirAccessible(fn))
+						if (!IsFileOrDirAccessible(fn))
 						{
-							auto fh = OpenFileData(AsDataItem(this), avu ? avu->GetTiledRangeData() : nullptr, fn, mmd->GetSFWA());
+							if (!HasCalculator())
+							{
+								DoFail(std::make_shared<ErrMsg>("Data not found in .MMD storage folder"), FR_Data);
+								goto failed;
+							}
+						}
+						else
+						{
+							auto fh = OpenFileData(AsDataItem(this), avu ? avu->GetTiledRangeData() : nullptr, fn, mmd->GetSFWA().get());
 							if (fh)
 							{
 								AsDataItem(GetCurrUltimateItem())->m_DataObject.reset(fh.release()); // , !adi->IsPersistent(), true); // calls OpenFileData
 								return true;
+							}
+							if (!HasCalculator())
+							{
+								DoFail(std::make_shared<ErrMsg>("Cannot open data in .MMD storage folder"), FR_Data);
+								goto failed;
 							}
 						}
 					}
@@ -3533,8 +3546,8 @@ bool TreeItem::PrepareDataUsageImpl(DrlType drlFlags) const
 	}
 
 data_ready:
-	dms_assert(!SuspendTrigger::DidSuspend());
-	dms_assert(!IsDataItem(this) || HasConfigData() || CheckCalculatingOrReady(refItem) || WasFailed(FR_Data));
+	assert(!SuspendTrigger::DidSuspend());
+	assert(!IsDataItem(this) || HasConfigData() || CheckCalculatingOrReady(refItem) || WasFailed(FR_Data));
 	return SuspendTrigger::BlockerBase::IsBlocked() 
 		|| IsPassor() 
 		|| (m_State.GetTransState() >= actor_flag_set::AF_Committing) 
@@ -3542,18 +3555,19 @@ data_ready:
 		|| !SuspendTrigger::DidSuspend();
 
 suspended_or_failed:
-	dms_assert(drlType != DrlType::Certain || !SuspendTrigger::DidSuspend());
-	dms_assert(SuspendTrigger::DidSuspend() || WasFailed()); // PRECONDITION THAT each suspend has been acted upon or we're on Certain mode
+	assert(drlType != DrlType::Certain || !SuspendTrigger::DidSuspend());
+	assert(SuspendTrigger::DidSuspend() || WasFailed()); // PRECONDITION THAT each suspend has been acted upon or we're on Certain mode
 	if (SuspendTrigger::DidSuspend())
 		goto suspended;
 
 failed:
-	dms_assert(WasFailed());
-	dms_assert(!SuspendTrigger::DidSuspend());
+	assert(WasFailed());
+	assert(!SuspendTrigger::DidSuspend());
 	if (IsCalculatingOrReady(refItem))
 		return true;
+
 failed_norefitem:
-	dms_assert(WasFailed());
+	assert(WasFailed());
 	if (throwOnFail)
 		ThrowFail();
 	return false;

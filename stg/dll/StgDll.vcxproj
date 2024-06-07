@@ -46,10 +46,11 @@
       <AdditionalDependencies>odbc32.lib;odbccp32.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
     <Link Condition="'$(Configuration)'=='Release'">
-      <DelayLoadDLLs>gdal.dll</DelayLoadDLLs>
+      <DelayLoadDLLs>gdal.dll;proj.dll</DelayLoadDLLs>
     </Link>
     <Link Condition="'$(Configuration)'=='Debug'">
-      <DelayLoadDLLs>gdald.dll</DelayLoadDLLs>
+      <DelayLoadDLLs>gdald.dll;proj_d.dll</DelayLoadDLLs>
+      <AdditionalLibraryDirectories Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">C:\Users\Cicada\dev\geodms\branches\geodms_gdal\bin\Debug\x64\</AdditionalLibraryDirectories>
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>

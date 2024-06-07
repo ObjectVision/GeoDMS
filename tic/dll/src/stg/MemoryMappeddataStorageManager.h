@@ -35,7 +35,7 @@ public:
 
 	TIC_CALL SharedStr GetFullFileName(CharPtr name) const;
 
-	auto GetSFWA() const->SafeFileWriterArray*;
+	auto GetSFWA() const-> std::shared_ptr<SafeFileWriterArray>;
 
 protected:
 //	implement AbstrStorageManager interface
@@ -57,7 +57,7 @@ protected:
 	void DoWriteTree(const TreeItem* storageHolder) override;
 
 	mutable FileHandle m_MmdLockFile;
-	mutable std::unique_ptr<SafeFileWriterArray> m_SFWA;
+	mutable std::shared_ptr<SafeFileWriterArray> m_SFWA;
 
 	friend class FileSystemStorageOutStreamBuff;
 	friend class FileSystemStorageInpStreamBuff;

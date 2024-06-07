@@ -53,6 +53,9 @@ struct DistrictOperator : public UnaryOperator
 		assert(inputGridA);
 
 		const AbstrUnit* domain = inputGridA->GetAbstrDomainUnit();
+		MG_CHECK(domain);
+		if (domain->GetValueType()->GetNrDims() != 2)
+			throwErrorD("district", "domain of input grid-data is not a raster");
 
 		auto resUnit = ResultUnitType::GetStaticClass()->CreateResultUnit(resultHolder);
 		resUnit->SetTSF(TSF_Categorical);
@@ -75,8 +78,9 @@ struct DistrictOperator : public UnaryOperator
 			const ArgType* inputGrid = debug_cast<const ArgType*>(inputGridA->GetCurrRefObj());
 			assert(inputGrid);
 
-			auto resLock = CreateHeapTileArrayV<district_type>(inputGrid->GetTiledRangeData(), nullptr, false MG_DEBUG_ALLOCATOR_SRC("OperDistrict: resLock"));
-			
+			auto resLockUnique = CreateHeapTileArrayV<district_type>(inputGrid->GetTiledRangeData(), nullptr, false MG_DEBUG_ALLOCATOR_SRC("OperDistrict: resLock"));
+			auto resLock = MakeShared(resLockUnique.release());
+
 			district_type nrDistricts = 0;
 
 			auto inputVec  = inputGrid->GetDataRead();
@@ -100,7 +104,7 @@ struct DistrictOperator : public UnaryOperator
 			resultUnit->SetRange(Unit<R>::range_t(0, nrDistricts));
 
 			resLock->InitValueRangeData( resultUnit->m_RangeDataPtr );
-			resSub->m_DataObject = resLock.release();
+			resSub->m_DataObject = resLock.get();
 		}
 		return true;
 	}

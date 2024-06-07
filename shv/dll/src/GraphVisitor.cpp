@@ -501,12 +501,18 @@ GraphVisitState GraphDrawer::Visit(GraphicObject* go)
 	assert(suspendible || go->IsUpdated() || (m_GdMode & GD_OnPaint));
 
 	bool hasDefinedExtent = go->HasDefinedExtent();
-	if (absFullRect.empty() && hasDefinedExtent)
-		return GVS_Continue;
 
-	VisitorDeviceRectSelector clipper(this, CrdRect2GRect(absFullRect));
-	if (clipper.empty() && hasDefinedExtent)
-		return GVS_Continue;
+	if (hasDefinedExtent)
+	{
+		if (absFullRect.empty())
+			return GVS_Continue;
+		if (!IsIntersecting(m_ClipDeviceRect, CrdRect2GRect(absFullRect)))
+			return GVS_Continue;
+	}
+
+	std::optional<VisitorDeviceRectSelector> clipper;
+	if (dynamic_cast<MovableObject*>(go))
+		clipper.emplace(this, CrdRect2GRect(absFullRect));
 
 	if (DoStoreRect())
 	{
@@ -526,7 +532,7 @@ GraphVisitState GraphDrawer::Visit(GraphicObject* go)
 	if ( (DoDrawData() && go->MustClip()) || (DoDrawBackground() && go->MustFill()))
 	{
 		assert(hasDefinedExtent); // implied by go->MustClip() ?
-		if (clipper.empty())
+		if (clipper && clipper->empty())
 			return GVS_Continue;
 
 		DcClipRegionSelector clipRegionSelector(GetDC(), m_AbsClipRegion, m_ClipDeviceRect);
@@ -655,8 +661,12 @@ GraphVisitState GraphDrawer::DoDataItemColumn(DataItemColumn* dic)
 
 void GraphDrawer::DoElement(DataItemColumn* dic, SizeT i, const GRect& absElemDeviceRect)
 {
+	assert(dic);
 	assert(DoDrawData());
-	dic->DrawElement(*this, i, absElemDeviceRect, m_TileLocks);
+
+	DcClipRegionSelector clipRegionSelector(GetDC(), m_AbsClipRegion, absElemDeviceRect);
+	if (!clipRegionSelector.empty())
+		dic->DrawElement(*this, i, absElemDeviceRect, m_TileLocks);
 }
 
 GraphVisitState GraphDrawer::DoViewPort(ViewPort* vp)
@@ -837,7 +847,7 @@ GraphVisitState MouseEventDispatcher::DoViewPort(ViewPort* vp)
 
 	GraphVisitState result = base_type::DoViewPort(vp);
 
-	assert(r_EventInfo.m_EventID & (EventID::OBJECTFOUND| EventID::SETCURSOR));
+	assert(r_EventInfo.m_EventID & (EventID::OBJECTFOUND | EventID::SETCURSOR | EventID::MOUSEDRAG));
 
 	if (r_EventInfo.m_EventID & EventID::SETCURSOR)
 		return result; 

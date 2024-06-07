@@ -79,9 +79,16 @@ redo_b:
 	assert(a->m_State.GetProgress() >= PS_MetaInfo);
 	assert(b->m_State.GetProgress() >= PS_MetaInfo);
 
-	return a == b
-		|| a->IsCacheItem() && b->GetUltimateItem() == a
-		|| b->IsCacheItem() && a->GetUltimateItem() == b;
+	if (a == b)
+		return true;
+
+	if (!a->IsCacheItem())
+		a = AsUnit(a->GetUltimateItem());
+
+	if (!b->IsCacheItem())
+		b = AsUnit(b->GetUltimateItem());
+
+	return a == b;
 }
 
 // resolve invisible covariant return type issue in header

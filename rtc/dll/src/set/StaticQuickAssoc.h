@@ -96,12 +96,14 @@ struct static_quick_assoc : private static_ptr<std::map<K, V, Pred> >
 
 	const V& GetExistingOrDefault(key_param_type key, const V& defaultValue) const
 	{
-		dms_assert(this->has_ptr());
-		auto mapPtr = this->get_ptr();
-		auto i = mapPtr->find(key);
-		if (i == mapPtr->end() || i->first != key)
-			return defaultValue;
-		return i->second;
+		if (this->has_ptr())
+		{
+			auto mapPtr = this->get_ptr();
+			auto i = mapPtr->find(key);
+			if (i != mapPtr->end() && i->first == key)
+				return i->second;
+		}
+		return defaultValue;
 	}
 
 private:

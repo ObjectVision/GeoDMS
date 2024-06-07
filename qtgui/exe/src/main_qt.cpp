@@ -140,7 +140,7 @@ bool WmCopyData(MSG* copyMsgPtr) {
     DataView* dv = nullptr;
     auto commandCode = (CommandCode)pcds->dwData;
     switch (commandCode) {
-    case CommandCode::SendApp: break; // send msg without HWND
+    case CommandCode::SendApp: //break; // send msg without HWND
     case CommandCode::SendMain: hWindow = (HWND)(MainWindow::TheOne()->winId()); break;
     case CommandCode::SendFocus: hWindow = GetFocus(); break;
     case CommandCode::SendActiveDmsControl:

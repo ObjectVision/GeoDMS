@@ -38,13 +38,11 @@
 
 
 namespace {
-	auto GetTreeItem(const QModelIndex& mi) -> TreeItem* //std::variant<TreeItem*, InvisibleRootTreeItem*>
-	{
+	auto GetTreeItem(const QModelIndex& mi) -> TreeItem* { //std::variant<TreeItem*, InvisibleRootTreeItem*> 
 		return reinterpret_cast<TreeItem*>(mi.internalPointer());
 	}
 
-	int GetRow(const TreeItem* ti)
-	{
+	int GetRow(const TreeItem* ti) {
 		assert(ti);
 		auto p = ti->GetTreeParent();
 		if (!p)
@@ -60,8 +58,7 @@ namespace {
 
 		auto si = isWaiting ? p->_GetFirstSubItem() : p->GetFirstSubItem(); // update metainfo
 		int row = 1;
-		while (si != ti)
-		{
+		while (si != ti) {
 			assert(si);
 			si = si->GetNextItem();
 			++row;
@@ -71,34 +68,26 @@ namespace {
 }
 
 TreeModelCompleter::TreeModelCompleter(QObject* parent)
-	: QCompleter(parent)
-{
-}
+	: QCompleter(parent) {}
 
 TreeModelCompleter::TreeModelCompleter(QAbstractItemModel* model, QObject* parent)
-	: QCompleter(model, parent)
-{
-}
+	: QCompleter(model, parent) {}
 
-void TreeModelCompleter::setSeparator(const QString& separator)
-{
+void TreeModelCompleter::setSeparator(const QString& separator) {
 	sep = separator;
 }
 
-QString TreeModelCompleter::separator() const
-{
+QString TreeModelCompleter::separator() const {
 	return sep;
 }
 
-QStringList TreeModelCompleter::splitPath(const QString& path) const
-{
+QStringList TreeModelCompleter::splitPath(const QString& path) const {
 	QStringList split_path = (sep.isNull() ? QCompleter::splitPath(path) : path.split(sep));
 	split_path.remove(0);
 	return split_path;
 }
 
-QString TreeModelCompleter::pathFromIndex(const QModelIndex& index) const
-{
+QString TreeModelCompleter::pathFromIndex(const QModelIndex& index) const {
 	if (sep.isNull())
 		return QCompleter::pathFromIndex(index);
 
@@ -113,32 +102,26 @@ QString TreeModelCompleter::pathFromIndex(const QModelIndex& index) const
 	return rval;
 }
 
-const TreeItem* DmsModel::GetTreeItemOrRoot(const QModelIndex& index) const
-{
+const TreeItem* DmsModel::GetTreeItemOrRoot(const QModelIndex& index) const {
 	auto ti = GetTreeItem(index);
 	if (!ti)
 		return m_root;
 	return ti;
 }
 
-void DmsModel::reset()
-{
+void DmsModel::reset() {
 	beginResetModel();
 	endResetModel();
 }
 
-QVariant DmsModel::headerData(int /*section*/, Qt::Orientation orientation, int role) const
-{
-	//if (orientation == Qt::Horizontal && role == Qt::DisplayRole)
-	//	return data({}, role);
+QVariant DmsModel::headerData(int /*section*/, Qt::Orientation orientation, int role) const {
 	if (role == Qt::DisplayRole)
 		return QString("test");
 
 	return QVariant();
 }
 
-QModelIndex DmsModel::index(int row, int column, const QModelIndex& parent) const
-{
+QModelIndex DmsModel::index(int row, int column, const QModelIndex& parent) const {
 	if (!hasIndex(row, column, parent))
 		return QModelIndex();
 
@@ -146,10 +129,8 @@ QModelIndex DmsModel::index(int row, int column, const QModelIndex& parent) cons
 	assert(ti);
 
 	int currRow = 0;
-	for (ti = ti->_GetFirstSubItem(); ti; ti = ti->GetNextItem())
-	{
-		if (show_hidden_items || !ti->GetTSF(TSF_IsHidden))
-		{
+	for (ti = ti->_GetFirstSubItem(); ti; ti = ti->GetNextItem()) {
+		if (show_hidden_items || !ti->GetTSF(TSF_IsHidden)) {
 			if (currRow == row)
 				return createIndex(row, column, ti);
 			++currRow;
@@ -160,8 +141,7 @@ QModelIndex DmsModel::index(int row, int column, const QModelIndex& parent) cons
 	return QModelIndex();
 }
 
-QModelIndex DmsModel::parent(const QModelIndex& child) const
-{
+QModelIndex DmsModel::parent(const QModelIndex& child) const {
 	if (!child.isValid())
 		return QModelIndex();
 
@@ -174,44 +154,37 @@ QModelIndex DmsModel::parent(const QModelIndex& child) const
 	return createIndex(GetRow(parent), 0, parent);
 }
 
-int DmsModel::rowCount(const QModelIndex& parent) const
-{
+int DmsModel::rowCount(const QModelIndex& parent) const {
 	int number_of_rows = 0;
 	try {
 		auto ti = GetTreeItemOrRoot(parent);
 		if (ti)
-			for (auto si = ti->GetFirstSubItem(); si; si = si->GetNextItem())
-			{
+			for (auto si = ti->GetFirstSubItem(); si; si = si->GetNextItem()) {
 				if (show_hidden_items || !si->GetTSF(TSF_IsHidden))
 					number_of_rows++;
 			}
 	}
-	catch (...)
-	{}
+	catch (...) {}
 
 	return number_of_rows;
 }
 
-int DmsModel::columnCount(const QModelIndex& /*parent*/) const
-{
+int DmsModel::columnCount(const QModelIndex& /*parent*/) const {
 	return 1;
 }
 
-bool DmsModel::updateChachedDisplayFlags()
-{
+bool DmsModel::updateChachedDisplayFlags() {
 	bool was_updated = false;
 	auto dms_reg_status_flags = GetRegStatusFlags();
 
 	bool reg_show_hidden_items = (dms_reg_status_flags & RSF_AdminMode);
-	if (!show_hidden_items == reg_show_hidden_items)
-	{
+	if (!show_hidden_items == reg_show_hidden_items) {
 		was_updated = true;
 		show_hidden_items = reg_show_hidden_items;
 	}
 
 	bool reg_show_state_colors = (dms_reg_status_flags & RSF_ShowStateColors);
-	if (!show_state_colors == reg_show_state_colors)
-	{
+	if (!show_state_colors == reg_show_state_colors) {
 		was_updated = true;
 		show_state_colors = reg_show_state_colors;
 	}
@@ -219,8 +192,7 @@ bool DmsModel::updateChachedDisplayFlags()
 	return was_updated;
 }
 
-QVariant DmsModel::getTreeItemIcon(const QModelIndex& index) const
-{
+QVariant DmsModel::getTreeItemIcon(const QModelIndex& index) const {
 	auto ti = GetTreeItemOrRoot(index);
 	if (!ti)
 		return QVariant();
@@ -270,16 +242,14 @@ QVariant DmsModel::getTreeItemIcon(const QModelIndex& index) const
 	return QVariant::fromValue(QPixmap(":/res/images/TV_unit_transparant.bmp"));
 }
 
-color_option getColorOption(const TreeItem* ti)
-{
+color_option getColorOption(const TreeItem* ti) {
 	assert(ti);
 	bool isInTemplate = ti->InTemplate();
 
 	if (isInTemplate)
 		return color_option::tv_template;
 
-	if (ti->Was(PS_MetaInfo))
-	{
+	if (ti->Was(PS_MetaInfo)) {
 		if (IsDataCurrReady(ti->GetCurrRangeItem()))
 			return color_option::tv_valid;
 		if (ti->m_State.GetProgress() >= PS_Validated)
@@ -289,8 +259,7 @@ color_option getColorOption(const TreeItem* ti)
 	return color_option::tv_not_calculated;
 }
 
-QVariant DmsModel::getTreeItemColor(const QModelIndex& index) const
-{
+QVariant DmsModel::getTreeItemColor(const QModelIndex& index) const {
 	auto ti = GetTreeItemOrRoot(index);
 	assert(ti);
 	
@@ -304,8 +273,7 @@ QVariant DmsModel::getTreeItemColor(const QModelIndex& index) const
 	return GetUserQColor(co);
 }
 
-QVariant DmsModel::data(const QModelIndex& index, int role) const
-{
+QVariant DmsModel::data(const QModelIndex& index, int role) const {
 	try {
 		if (!index.isValid())
 			return QVariant();
@@ -316,21 +284,18 @@ QVariant DmsModel::data(const QModelIndex& index, int role) const
 			return QVariant();
 
 		SuspendTrigger::Resume();
-		if (!ti->Was(PS_MetaInfo) && !ti->WasFailed(FR_MetaInfo))
-		{
+		if (!ti->Was(PS_MetaInfo) && !ti->WasFailed(FR_MetaInfo)) {
 			ObjectMsgGenerator thisMsgGenerator(ti, "UpdateMetaInfo");
 			Waiter showWaitingStatus(&thisMsgGenerator);
 
 			try {
 				ti->UpdateMetaInfo();
 			}
-			catch (...)
-			{
+			catch (...) {
 				ti->CatchFail(FR_MetaInfo);
 			}
 		}
-		switch (role)
-		{
+		switch (role) {
 		case Qt::DecorationRole:
 			return getTreeItemIcon(index);
 
@@ -343,16 +308,14 @@ QVariant DmsModel::data(const QModelIndex& index, int role) const
 
 		case Qt::BackgroundRole:
 			if (ti->WasFailed() && !MainWindow::TheOne()->m_treeview->selectionModel()->selectedIndexes().empty()
-				&& MainWindow::TheOne()->m_treeview->selectionModel()->selectedIndexes().at(0) == index)
-			{
+				&& MainWindow::TheOne()->m_treeview->selectionModel()->selectedIndexes().at(0) == index) {
 				return QColor(150, 0, 0);
 			}
 
 			if (ti->WasFailed())
 				return QColor(255, 0, 0);
 
-			switch (TreeItem_GetSupplierLevel(ti))
-			{
+			switch (TreeItem_GetSupplierLevel(ti)) {
 			case supplier_level::calc: return QColor(158, 201, 226); // clSkyBlue;
 			case supplier_level::meta: return QColor(192, 220, 192); // $C0DCC0 clMoneyGreen;
 			case supplier_level::calc_source: return QColor(000, 000, 255); // clBlue;
@@ -360,8 +323,7 @@ QVariant DmsModel::data(const QModelIndex& index, int role) const
 			}
 			break; // default background color
 
-		case Qt::SizeHintRole:
-		{
+		case Qt::SizeHintRole: {
 			auto font = QApplication::font();
 			auto font_metrics = QFontMetrics(font);
 			int pixels_wide = font_metrics.horizontalAdvance(ti->GetName().c_str()) + 50;
@@ -374,15 +336,13 @@ QVariant DmsModel::data(const QModelIndex& index, int role) const
 
 		}
 	}
-	catch (...)
-	{
+	catch (...) {
 		catchException(false);
 	}
 	return QVariant();
 }
 
-bool DmsModel::hasChildren(const QModelIndex& parent) const
-{
+bool DmsModel::hasChildren(const QModelIndex& parent) const {
 	try {
 		auto ti = GetTreeItemOrRoot(parent);
 		if (!ti)
@@ -395,23 +355,20 @@ bool DmsModel::hasChildren(const QModelIndex& parent) const
 		Waiter monitor(&context);
 		return ti->HasSubItems();
 	}
-	catch (...)
-	{
+	catch (...) {
 		catchException(false);
 	}
 	return false;
 }
 
-auto DmsModel::flags(const QModelIndex& index) const -> Qt::ItemFlags
-{
+auto DmsModel::flags(const QModelIndex& index) const -> Qt::ItemFlags {
 	if (!index.isValid())
 		return Qt::NoItemFlags;
 
 	return Qt::ItemIsSelectable | Qt::ItemIsEnabled | Qt::ItemIsDragEnabled |  QAbstractItemModel::flags(index);
 }
 
-void TreeItemDelegate::paint(QPainter* painter, const QStyleOptionViewItem& option, const QModelIndex& index) const
-{
+void TreeItemDelegate::paint(QPainter* painter, const QStyleOptionViewItem& option, const QModelIndex& index) const {
 	QStyledItemDelegate::paint(painter, option, index);
 	painter->save();
 
@@ -419,8 +376,7 @@ void TreeItemDelegate::paint(QPainter* painter, const QStyleOptionViewItem& opti
 
 	// last job: draw storage icon if needed or return if not needed
 	TreeItem* ti = nullptr;
-	try
-	{
+	try {
 		ti = GetTreeItem(index);
 		if (!ti)
 			return;
@@ -453,20 +409,19 @@ void TreeItemDelegate::paint(QPainter* painter, const QStyleOptionViewItem& opti
 			painter->setOpacity(0.5);
 
 	
+		// draw storage icon
 		if (ti->IsDataFailed())
 			painter->setPen(QColor(255,0,0,255));
 		painter->drawText(QPoint(offset, rect.center().y() + 5), is_read_only ? "\uEC15":"\uF0B0");
 	}
-	catch (...)
-	{
+	catch (...) {
 //		catchException(false);	// doesn't do anything and return values isn't used; reporting is not desired as this is a paint method
 	}
 
 	return;
 }
 
-void DmsTreeView::currentChanged(const QModelIndex& current, const QModelIndex& previous)
-{
+void DmsTreeView::currentChanged(const QModelIndex& current, const QModelIndex& previous) {
 	if (current == previous)
 		return;
 
@@ -475,8 +430,7 @@ void DmsTreeView::currentChanged(const QModelIndex& current, const QModelIndex& 
 	main_window->setCurrentTreeItem(ti);
 }
 
-bool isAncestor(const TreeItem* ancestorTarget, const TreeItem* descendant)
-{
+bool isAncestor(const TreeItem* ancestorTarget, const TreeItem* descendant) {
 	for (auto ancestorCandidate = descendant; ancestorCandidate; ancestorCandidate = ancestorCandidate->GetTreeParent())
 		if (ancestorCandidate == ancestorTarget)
 			return true;
@@ -484,8 +438,7 @@ bool isAncestor(const TreeItem* ancestorTarget, const TreeItem* descendant)
 	return false;
 }
 
-auto DmsTreeView::expandToItem(TreeItem* target_item) -> QModelIndex
-{
+auto DmsTreeView::expandToItem(TreeItem* target_item) -> QModelIndex {
 	auto root_node_index = rootIndex();
 	auto currItem = MainWindow::TheOne()->getRootTreeItem();
 	if (target_item == currItem)
@@ -502,18 +455,15 @@ auto DmsTreeView::expandToItem(TreeItem* target_item) -> QModelIndex
 
 search_at_parent_index:
 	auto child_count = model()->rowCount(parent_index);
-	for (int i = 0; i < child_count; i++)
-	{
+	for (int i = 0; i < child_count; i++) {
 		auto child_index = model()->index(i, 0, parent_index);
 		auto childItem = GetTreeItem(child_index);
-		if (childItem == target_item)
-		{
+		if (childItem == target_item) {
 			setCurrentIndex(child_index);
 			return child_index;
 		}
 
-		if (isAncestor(childItem, target_item))
-		{
+		if (isAncestor(childItem, target_item)) {
 			if (!isExpanded(child_index))
 				expand(child_index);
 			currItem = childItem;
@@ -533,8 +483,7 @@ search_at_parent_index:
 	return parent_index;
 }
 
-bool DmsTreeView::expandActiveNode(bool doExpand)
-{
+bool DmsTreeView::expandActiveNode(bool doExpand) {
 	auto index = currentIndex();
 	if (!index.isValid())
 		return false;
@@ -546,8 +495,7 @@ bool DmsTreeView::expandActiveNode(bool doExpand)
 	return true;
 }
 
-bool DmsTreeView::expandRecursiveFromCurrentItem()
-{
+bool DmsTreeView::expandRecursiveFromCurrentItem() {
 	auto index = currentIndex();
 	if (!index.isValid())
 		return false;
@@ -556,20 +504,16 @@ bool DmsTreeView::expandRecursiveFromCurrentItem()
 	return true;
 }
 
-QSize DmsTreeView::sizeHint() const
-{
+QSize DmsTreeView::sizeHint() const {
 	return QSize(m_default_size, 0);
 }
 
-QSize DmsTreeView::minimumSizeHint() const
-{
+QSize DmsTreeView::minimumSizeHint() const {
 	return QSize(m_default_size, 0);
 }
 
-void DmsTreeView::setDmsStyleSheet(bool connecting_lines)
-{
-	if (GetRegStatusFlags() & RSF_TreeView_FollowOSLayout)
-	{
+void DmsTreeView::setDmsStyleSheet(bool connecting_lines) {
+	if (GetRegStatusFlags() & RSF_TreeView_FollowOSLayout) {
 		setStyleSheet(
 			"QTreeView {"
 			"           padding-top: 5px;"
@@ -613,9 +557,8 @@ void DmsTreeView::setDmsStyleSheet(bool connecting_lines)
 		"}");
 }
 
-DmsTreeView::DmsTreeView(QWidget* parent)
-	: QTreeView(parent)
-{
+DmsTreeView::DmsTreeView(QWidget* parent) 
+	: QTreeView(parent) {
 	setRootIsDecorated(true);
 	setUniformRowHeights(true);
 	setItemsExpandable(true);
@@ -641,8 +584,7 @@ DmsTreeView::DmsTreeView(QWidget* parent)
 	setSizePolicy(QSizePolicy::MinimumExpanding, QSizePolicy::Expanding);
 }
 
-void DmsTreeView::showTreeviewContextMenu(const QPoint& pos)
-{
+void DmsTreeView::showTreeviewContextMenu(const QPoint& pos) {
 	QModelIndex index = indexAt(pos);
 	if (!index.isValid())
 		return;
@@ -658,8 +600,7 @@ void DmsTreeView::showTreeviewContextMenu(const QPoint& pos)
 	auto map_view_action = MainWindow::TheOne()->m_mapview_action.get();
 	auto statistics_view_action = MainWindow::TheOne()->m_statistics_action.get();
 
-	if (!m_context_menu)
-	{
+	if (!m_context_menu) {
 		m_context_menu = std::make_unique<QMenu>(MainWindow::TheOne());
 
 		m_context_menu->addAction(export_primary_data_action);
@@ -713,29 +654,31 @@ void DmsTreeView::showTreeviewContextMenu(const QPoint& pos)
 	MainWindow::TheOne()->updateToolsMenu();
 }
 
-void DmsTreeView::setNewCurrentItem(TreeItem* target_item)
-{
+void DmsTreeView::setNewCurrentItem(TreeItem* target_item) {
+	assert(target_item != nullptr);
 	auto current_node_index = currentIndex();
 	auto root_node_index = rootIndex();
 	auto root_ti = GetTreeItem(root_node_index);
 	if (root_ti == target_item)
 		return;
 
-	if (current_node_index.isValid())
-	{
+	if (current_node_index.isValid()) {
 		auto ti = GetTreeItem(current_node_index);
 		if (target_item == ti) // treeview already has current item
 			return;
 	}
 
 	MG_CHECK(!root_ti || isAncestor(root_ti, target_item));
-	if (!MainWindow::TheOne()->m_dms_model->show_hidden_items)
-	{
-		if (target_item->GetTSF(TSF_InHidden) )
-		{
+	if (!MainWindow::TheOne()->m_dms_model->show_hidden_items) {
+		if (target_item->GetTSF(TSF_InHidden) ) {
 			const TreeItem* visible_parent = target_item;
-			while (visible_parent && visible_parent->GetTSF(TSF_InHidden))
+			while (visible_parent->GetTSF(TSF_InHidden))
+			{
 				visible_parent = visible_parent->GetTreeParent();
+				if (!visible_parent)
+					break;
+			}
+
 			reportF(MsgCategory::other, SeverityTypeID::ST_Warning, "cannnot activate '%1%' in TreeView as it seems to be a hidden sub-item of '%2%'"
 				"\nHint: you can make hidden items visible in the Settings->GUI Options Dialog"
 				, target_item->GetFullName().c_str()
@@ -744,31 +687,25 @@ void DmsTreeView::setNewCurrentItem(TreeItem* target_item)
 		}
 	}
 
-	try
-	{
+	try {
 		expandToItem(target_item);
 	}
-	catch (...)
-	{
+	catch (...) {
 		catchException(false);
 	}
 	
 }
 
-void DmsTreeView::onDoubleClick(const QModelIndex& index)
-{
+void DmsTreeView::onDoubleClick(const QModelIndex& index) {
 	if (!index.isValid())
 		return;
 
 	MainWindow::TheOne()->defaultViewOrAddItemToCurrentView();
 }
 
-void  DmsTreeView::onHeaderSectionClicked(int index)
-{
-}
+void  DmsTreeView::onHeaderSectionClicked(int index) {}
 
-auto createTreeview(MainWindow* dms_main_window) -> QPointer<DmsTreeView>
-{
+auto createTreeview(MainWindow* dms_main_window) -> QPointer<DmsTreeView> {
 	auto main_window = MainWindow::TheOne();
 
 	main_window->m_treeview_dock = new QDockWidget(QObject::tr("TreeView"), dms_main_window);

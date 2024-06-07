@@ -80,8 +80,11 @@ struct mutable_shadow_tile : tile<V>
 
 	~mutable_shadow_tile()
 	{
-		if (m_SourceTileArray)
-			CloseMutableShadow<V>(m_SourceTileArray, GetConstSeq(*this));
+		if (!m_SourceTileArray)
+			return;
+		if (std::uncaught_exceptions())
+			return;
+		CloseMutableShadow<V>(m_SourceTileArray, GetConstSeq(*this));
 	}
 
 	SharedPtr< DataArrayBase<V> > m_SourceTileArray;

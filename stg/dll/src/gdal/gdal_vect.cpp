@@ -549,7 +549,6 @@ void ReadPolyData(typename sequence_traits<PolygonType>::seq_t dataArray, OGRLay
 		case OGRwkbGeometryType::wkbCompoundCurve: { AddLineString<PolygonType>(dataElemRef, geo->getLinearGeometry()->toLineString()); break; }
 		case OGRwkbGeometryType::wkbPolygon: { AddPolygon<PolygonType>(dataElemRef, geo->toPolygon()); break; }
 		case OGRwkbGeometryType::wkbCurvePolygon: { AddPolygon<PolygonType>(dataElemRef, geo->getLinearGeometry()->toPolygon()); break; }
-		case OGRwkbGeometryType::wkbSurface: { AddPolygon<PolygonType>(dataElemRef, geo->getLinearGeometry()->toPolygon()); break; }
 		case OGRwkbGeometryType::wkbMultiPolygon: { AddMultiPolygon<PolygonType>(dataElemRef, geo->toMultiPolygon()); break; }
 		case OGRwkbGeometryType::wkbMultiLineString: { AddMultiLineString<PolygonType>(dataElemRef, geo->toMultiLineString()); break; }
 		case OGRwkbGeometryType::wkbMultiSurface: { AddMultiPolygon<PolygonType>(dataElemRef, geo->getLinearGeometry()->toMultiPolygon()); break; }
