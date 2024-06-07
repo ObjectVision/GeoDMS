@@ -2056,11 +2056,7 @@ const bool MG_DEBUG_UPDATEMETAINFO = true;
 
 void TreeItem::UpdateMetaInfoImpl() const
 {
-	dms_assert(!WasFailed(FR_MetaInfo));
-
-	// begin of recursion protected area
-	dms_check_not_debugonly;
-	UpdateLock lock2(this, actor_flag_set::AF_UpdatingMetaInfo);
+	assert(!WasFailed(FR_MetaInfo));
 
 	UpdateSupplMetaInfo(); // Update Suppliers, calls MakeCalculator() -> mc_DC
 	VisitSupplBoolImpl(this, SupplierVisitFlag::NamedSuppliers,
@@ -2461,11 +2457,17 @@ void TreeItem::UpdateMetaInfoImpl2() const
 		UpdateMarker::ChangeSourceLock lock(this, "TreeItem::UpdateMetaInfoImpl");
 
 		assert(!WasFailed(FR_MetaInfo));
-		UpdateMetaInfoImpl(); // recursion protected part of UpdateMetaInfo
 
-		if (m_UsingCache)
-			m_UsingCache->GetNrUsings();
+		// begin of recursion protected area
+		{
+			dms_check_not_debugonly;
+			UpdateLock lock2(this, actor_flag_set::AF_UpdatingMetaInfo);
 
+			UpdateMetaInfoImpl(); // recursion protected part of UpdateMetaInfo
+
+			if (m_UsingCache)
+				m_UsingCache->GetNrUsings();
+		}
 		SetMetaInfoReady();
 		if (WasFailed(FR_MetaInfo))
 			return;
