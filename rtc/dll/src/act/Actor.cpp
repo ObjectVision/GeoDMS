@@ -106,16 +106,16 @@ namespace UpdateLockFuncs
 {
 	void Set(actor_flag_set* afsPtr, actor_flag_set::TransState& ts)
 	{
-		dms_assert(afsPtr);
-		dms_assert((ts <= actor_flag_set::AF_DeterminingState) || ! afsPtr->IsFailed(TransState_FailType(ts)));  // no fallback allowed without going through reset by Invalidation
-		dms_assert(! afsPtr->IsPassor() || (ts <= actor_flag_set::AF_ChangingInterest));
+		assert(afsPtr);
+		assert((ts <= actor_flag_set::AF_DeterminingState) || ! afsPtr->IsFailed(TransState_FailType(ts)));  // no fallback allowed without going through reset by Invalidation
+		assert(! afsPtr->IsPassor() || (ts <= actor_flag_set::AF_ChangingInterest));
 		actor_flag_set::TransState oldTransState = afsPtr->GetTransState();
 		if (!(ts > oldTransState)) // requirement of strict monotounous increasing progress 
 			throwDmsErrF("Cannot start %s while doing %s; check for recursive dependencies"
 			,	GetActorFlagName(ts)
 			,	GetActorFlagName(oldTransState)
 			);
-                                                                                             		afsPtr->SetTransState(ts);
+		afsPtr->SetTransState(ts);
 		ts = oldTransState;
 	}
 
@@ -132,10 +132,10 @@ Actor::UpdateLock::UpdateLock(const Actor* act, actor_flag_set::TransState ts)
 	:	m_Actor(act)
 	,	m_TransState(ts)
 {
-	dms_assert(IsMetaThread());
+	assert(IsMetaThread());
 	if (act && ts > actor_flag_set::AF_DeterminingState && act->WasFailed(TransState_FailType(ts)))
 		act->ThrowFail();
-	dms_assert(!act || ts <= actor_flag_set::AF_DeterminingState || !act->WasFailed(TransState_FailType(ts)) ); //|| ps == PS_DetermineState || ps == PS_ChangeInterest); // no fallback allowed without going through reset by Invalidation
+	assert(!act || ts <= actor_flag_set::AF_DeterminingState || !act->WasFailed(TransState_FailType(ts)) ); //|| ps == PS_DetermineState || ps == PS_ChangeInterest); // no fallback allowed without going through reset by Invalidation
 	if (m_Actor)
 		UpdateLockFuncs::Set  (&(m_Actor->m_State), m_TransState);
 }

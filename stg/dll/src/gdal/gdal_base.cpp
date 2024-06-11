@@ -558,6 +558,16 @@ gdalThread::~gdalThread()
 	}
 }
 
+void initializeGDAL()
+{
+	DMS_SE_CALLBACK_BEGIN
+
+		gdalComponentImpl::s_OldErrorHandler = CPLSetErrorHandler(gdalComponentImpl::ErrorHandler); // can throw
+
+	DMS_SE_CALLBACK_END
+
+}
+
 gdalComponent::gdalComponent()
 {
 	leveled_critical_section::scoped_lock lock(gdalComponentImpl::gdalSection);
@@ -570,11 +580,10 @@ gdalComponent::gdalComponent()
 	{
 		try {
 			assert(gdalComponentImpl::s_OldErrorHandler == nullptr);
-			gdalComponentImpl::s_OldErrorHandler = CPLSetErrorHandler(gdalComponentImpl::ErrorHandler); // can throw
+			initializeGDAL();
 
 			assert(gdalComponentImpl::s_HookedFilesPtr == nullptr);
 			gdalComponentImpl::s_HookedFilesPtr = new std::map<SharedStr, SharedStr>; // can throw
-
 
 			// Set the Proj context on the GDAL/OGR library
 			CPLSetThreadLocalConfigOption("OGR_ENABLE_PARTIAL_REPROJECTION", "YES");
@@ -587,6 +596,8 @@ gdalComponent::gdalComponent()
 						// Note: moved registering of drivers to Gdal_DoOpenStorage
 						//GDALAllRegister(); // can throw
 						//OGRRegisterAll(); // can throw
+
+
 		}
 		catch (...)
 		{
