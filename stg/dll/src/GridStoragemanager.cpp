@@ -238,8 +238,8 @@ bool AbstrGridStorageManager::DoCheck50PercentExtentOverlap(StorageMetaInfoPtr s
 
 	// affine transformed curr extent
 	auto curr_extent = vpi.GetViewPortExtents();
-	auto curr_factor = grid_projection->Factor();
-	auto curr_offset = grid_projection->Offset();
+	auto curr_factor = curr_projection->Factor();
+	auto curr_offset = curr_projection->Offset();
 	auto curr_extent_in_world_coordinates = DRect(DPoint(curr_extent.first) * curr_factor + curr_offset, DPoint(curr_extent.second) * curr_factor + curr_offset);
 
 	// actual extent check
