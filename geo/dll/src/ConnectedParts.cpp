@@ -214,11 +214,12 @@ auto stronglyConnectedComponentsIterativeWithInvertedLinks(NodeType nrV, LinkTyp
 			onStackFlag[v] = true;
 			stack.emplace_back(v, link1[v], false); // Start with first visit of v
 		};
-	for (NodeType v = 0; v != nrV; ++v)
+
+	for (NodeType newV = 0; newV != nrV; ++newV)
 	{
-		if (IsDefined(indices[v].first))
+		if (IsDefined(indices[newV].first))
 			continue;
-		pushNode(v);
+		pushNode(newV);
 		while (!stack.empty()) {
 			auto& [v, currentLink, didVisitLink] = stack.back();
 			// Processing neighbors or finishing up
