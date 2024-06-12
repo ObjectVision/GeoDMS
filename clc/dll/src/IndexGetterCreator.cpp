@@ -247,7 +247,7 @@ void IndexGetterCreatorBase::VisitImpl(const Unit<bit_value<N>>* inviter) const
 {
 	static_assert( ! has_undefines_v<bit_value<N>>);
 
-	m_Result = new ValueGetter<SizeT, bit_value<N>>(const_array_cast<bit_value<N>>(m_Adi), m_TileID);
+	m_Result = new ValueGetter<SizeT, bit_value<N>>(const_array_checkedcast<bit_value<N>>(m_Adi), m_TileID);
 }
 
 
