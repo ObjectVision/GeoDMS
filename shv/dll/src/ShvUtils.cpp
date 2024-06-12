@@ -728,7 +728,6 @@ TreeItem* CreateContainer_impl(TreeItem* container, const TreeItem* item)
 		}
 	}
 
-createItemByAddress:
 	item = item->GetUltimateItem();
 	assert(item);
 	auto name = std::format("I{:x}", std::size_t(item));
@@ -896,7 +895,7 @@ SharedDataItemInterestPtr CreateSystemLabelPalette(DataView* dv, const AbstrUnit
 		DataWriteLock lock(newResult);
 		auto resultData = mutable_array_cast<SharedStr>(lock)->GetDataWrite();
 
-		visit<typelists::domain_elements>(paletteDomain, [n, &resultData]<typename V>(const Unit<V>* pd)
+		visit<typelists::domain_types>(paletteDomain, [n, &resultData]<typename V>(const Unit<V>* pd)
 			{
 				auto domainRange = pd->GetRange();
 				for (SizeT i = 0; i != n; ++i)
