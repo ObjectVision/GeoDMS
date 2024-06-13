@@ -105,9 +105,10 @@ struct RegTileCounterBase : UnitProcessor
 	template <typename CounterType>
 	void VisitImpl(const Unit<CounterType>* inviter) const
 	{
-		dms_assert(regionInfoArrayPtr);
+		assert(regionInfoArrayPtr);
 		ActorTypeIndex n = regionInfoArrayPtr->size();
-		std::vector<DataArray<CounterType>::locked_seq_t> countsArray;
+		using counts_tile_t = typename DataArray<CounterType>::locked_seq_t;
+		std::vector<counts_tile_t> countsArray;
 		countsArray.reserve(n);
 		for (auto i=regionInfoArrayPtr->begin(), e=regionInfoArrayPtr->end(); i!=e; ++i)
 			countsArray.push_back(mutable_array_cast<CounterType>(i->m_WriteLock)->GetDataWrite(no_tile, dms_rw_mode::write_only_mustzero));

@@ -398,11 +398,11 @@ auto FuncDC::CalcResult(Explain::Context* context) const -> FutureData
 	{
 		if (m_OperatorGroup->IsBetterNotInMetaScripting())
 		{
-			auto context = SuspendTrigger::BlockerBase::GetCurrBlockingAction();
-			if (context && *context != '@')
+			auto blockingActionContext = SuspendTrigger::BlockerBase::GetCurrBlockingAction();
+			if (blockingActionContext && *blockingActionContext != '@')
 				reportF(SeverityTypeID::ST_Warning, "operator %s is not suitable for processing %s"
 					, m_OperatorGroup->GetName()
-					, context
+					, blockingActionContext
 				);
 		}
 	}
