@@ -507,16 +507,16 @@ void ReadPointData(typename sequence_traits<PointType>::seq_t data, OGRLayer* la
 template <typename PolygonType>
 void ReadPolyData(typename sequence_traits<PolygonType>::seq_t dataArray, OGRLayer* layer, SizeT firstIndex, SizeT size, ResourceHandle& readBuffer, GDALDataset* m_hDS)
 {
-	dms_assert(layer);
+	assert(layer);
 
 	DBG_START("ReadPolyData", typeid(PolygonType).name(), true);
 
 	DBG_TRACE(("firstIndex %d, size %d", firstIndex, size));
 
-	typedef sequence_traits<PolygonType>::container_type dataBufType;
+	using dataBufType = typename sequence_traits<PolygonType>::container_type;
 	if (!readBuffer)
 	{
-		dms_assert(!firstIndex || !size);
+		assert(!firstIndex || !size);
 		readBuffer = makeResource<dataBufType>();
 	}
 	dataBufType& data = GetAs<dataBufType>(readBuffer);
