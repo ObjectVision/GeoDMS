@@ -77,8 +77,8 @@ Section "" ;No components page, name is not important
   
 ;  SetOutPath $INSTDIR\translations
 ;  File ..\bin\Release\${GeoDmsPlatform}\translations\*.*
-  
-  MessageBox MB_YESNO 'Install startmenu shortcuts for all users?' IDNO skip_set_all
+  IfSilent skip_set_all
+    MessageBox MB_YESNO 'Install startmenu shortcuts for all users?' IDNO skip_set_all
     SetShellVarContext all
   skip_set_all:
 
