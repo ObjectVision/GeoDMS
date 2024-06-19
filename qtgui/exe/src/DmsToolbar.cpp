@@ -28,69 +28,89 @@ DmsToolbuttonAction::DmsToolbuttonAction(const ToolButtonID id, const QIcon& ico
     m_data = std::move(button_data);
 }
 
-void DmsToolbuttonAction::onToolbuttonPressed() {
-    auto mdi_area = MainWindow::TheOne()->m_mdi_area.get();
-    if (!mdi_area)
-        return;
-
-    auto subwindow_list = mdi_area->subWindowList(QMdiArea::WindowOrder::StackingOrder);
-    if (!subwindow_list.size())
-        return;
-
-    auto subwindow_highest_in_z_order = subwindow_list.back();
-    if (!subwindow_highest_in_z_order)
-        return;
-
-    auto dms_view_area = dynamic_cast<QDmsViewArea*>(subwindow_highest_in_z_order);
-    if (!dms_view_area)
-        return;
-
+void DmsToolbuttonAction::updateState() {
     auto number_of_button_states = getNumberOfStates();
-    bool button_is_toggle_type = number_of_button_states == 2;
-    bool global_toggle_button_is_currently_active = button_is_toggle_type and m_state and m_data.is_global;
-
-    if (number_of_button_states - 1 == m_state) // state roll over
+    if (number_of_button_states - 1 == m_state) // roll-over
         m_state = 0;
     else
         m_state++;
-
-    if (m_data.is_global) { // ie. zoom-in and zoom-out are mutually exclusive
-        auto was_checked = !isChecked();
-        if (was_checked && m_data.id == TB_Pan) {
-            setChecked(true);
-            return;
-        }
-
-        bool activate_pan_tool = was_checked ? true : false;
-
-        dms_view_area->getDataView()->GetContents()->OnCommand(ToolButtonID::TB_Neutral);
-        for (auto action : MainWindow::TheOne()->m_toolbar->actions()) {
-            auto dms_toolbar_action = dynamic_cast<DmsToolbuttonAction*>(action);
-            if (!dms_toolbar_action)
-                continue;
-
-            if (dms_toolbar_action == this)
-                continue;
-
-            if (!dms_toolbar_action->m_data.is_global)
-                continue;
-
-            if (activate_pan_tool && dms_toolbar_action->m_data.id == TB_Pan)
-                dms_toolbar_action->setChecked(true);
-            else
-                dms_toolbar_action->setChecked(false);
-            dms_toolbar_action->m_state = 0;
-        }
+}
+void DmsToolbuttonAction::onGlobalButtonPressed(QDmsViewArea* dms_view_area) {
+    auto was_checked = !isChecked();
+    if (was_checked && m_data.id == TB_Pan) {
+        setChecked(true);
+        return;
     }
 
-    if (m_data.ids[0] == ToolButtonID::TB_Export) {
-        auto dv = dms_view_area->getDataView();
-        auto export_info = dv->GetExportInfo();
-        if (dv->GetViewType() == tvsMapView)
-            reportF(SeverityTypeID::ST_MajorTrace, "Exporting current viewport to bitmap in %s", export_info.m_FullFileNameBase);
+    bool activate_pan_tool = was_checked;
+
+    dms_view_area->getDataView()->GetContents()->OnCommand(ToolButtonID::TB_Neutral);
+
+    // loop over all actions and uncheck if global, unless it is the pan tool and no button is checked
+    for (auto action : MainWindow::TheOne()->m_toolbar->actions()) {
+        auto other_action = dynamic_cast<DmsToolbuttonAction*>(action);
+        if (!other_action)
+            continue;
+
+        if (other_action == this)
+            continue;
+
+        if (!other_action->m_data.is_global)
+            continue;
+
+        bool other_is_pan_action = other_action->m_data.id == TB_Pan;
+        if (activate_pan_tool && other_is_pan_action)
+            other_action->setChecked(true);
         else
-            reportF(SeverityTypeID::ST_MajorTrace, "Exporting current table to csv in %s", export_info.m_FullFileNameBase);
+            other_action->setChecked(false);
+        other_action->m_state = 0;
     }
+}
+
+void DmsToolbuttonAction::onExportButtonPressed(QDmsViewArea* dms_view_area) {
+    auto dv = dms_view_area->getDataView();
+    auto export_info = dv->GetExportInfo();
+    dv->GetViewType() == tvsMapView ? reportF(SeverityTypeID::ST_MajorTrace, "Exporting current viewport to bitmap in %s", export_info.m_FullFileNameBase)
+                                    : reportF(SeverityTypeID::ST_MajorTrace, "Exporting current table to csv in %s", export_info.m_FullFileNameBase);
+}
+
+auto getActiveDmsViewArea() -> QDmsViewArea* {
+    // dms mdi area not (yet) available
+    auto mdi_area = MainWindow::TheOne()->m_mdi_area.get();
+    if (!mdi_area)
+        return nullptr;
+
+    // no subwindows
+    auto subwindow_list = mdi_area->subWindowList(QMdiArea::WindowOrder::StackingOrder);
+    if (!subwindow_list.size())
+        return nullptr;
+
+    // no subwindow has highest z-order
+    auto subwindow_highest_in_z_order = subwindow_list.back();
+    if (!subwindow_highest_in_z_order)
+        return nullptr;
+
+    // subWindow not of type QDmsViewArea
+    auto dms_view_area = dynamic_cast<QDmsViewArea*>(subwindow_highest_in_z_order);
+    if (!dms_view_area)
+        return nullptr;
+
+    return dms_view_area;
+}
+
+void DmsToolbuttonAction::onToolbuttonPressed() {
+    auto dms_view_area = getActiveDmsViewArea();
+    if (!dms_view_area)
+		return;
+
+    updateState();
+
+    if (m_data.is_global) // ie. zoom-in and zoom-out are mutually exclusive
+        onGlobalButtonPressed(dms_view_area);
+
+    if (m_data.ids[0] == ToolButtonID::TB_Export)
+        onExportButtonPressed(dms_view_area);
+
     try {
         SuspendTrigger::Resume();
         dms_view_area->getDataView()->GetContents()->OnCommand(m_data.ids[m_state]);
@@ -169,6 +189,27 @@ auto getToolbarButtonData(ToolButtonID button_id) -> ToolbarButtonData {
     return {};
 }
 
+void updateDmsToolbarButtonVisualStates() {
+    /*auto dms_view_area = getActiveDmsViewArea();
+    auto dv = dms_view_area->getDataView();
+    auto is_command_enabled = dv->OnCommandEnable(button_id) == CommandStatus::ENABLED;
+    if (!is_command_enabled)
+        action->setDisabled(true);
+
+    for (auto action : MainWindow::TheOne()->m_toolbar->actions()) {
+        auto other_action = dynamic_cast<DmsToolbuttonAction*>(action);
+        if (!other_action)
+            continue;
+
+        bool other_is_pan_action = other_action->m_data.id == TB_Pan;
+        if (activate_pan_tool && other_is_pan_action)
+            other_action->setChecked(true);
+        else
+            other_action->setChecked(false);
+        other_action->m_state = 0;
+    }*/
+}
+
 void updateDmsToolbar() {
     auto main_window = MainWindow::TheOne();
 
@@ -180,8 +221,10 @@ void updateDmsToolbar() {
     if (!active_mdi_subwindow)
         clearToolbarUpToDetailPagesTools();
 
-    if (main_window->m_tooled_mdi_subwindow == active_mdi_subwindow) // Do nothing
+    if (main_window->m_tooled_mdi_subwindow == active_mdi_subwindow) { // Update button state
+        updateDmsToolbarButtonVisualStates();
         return;
+    }
 
     auto view_style = ViewStyle::tvsUndefined;
 
@@ -217,7 +260,7 @@ void updateDmsToolbar() {
     static std::vector<ToolButtonID> available_table_buttons = getAvailableTableviewButtonIds();
     static std::vector<ToolButtonID> available_map_buttons = getAvailableMapviewButtonIds();
 
-    std::vector < ToolButtonID>* buttons_array_ptr = nullptr;
+    std::vector<ToolButtonID>* buttons_array_ptr = nullptr;
 
     switch (view_style) {
     case ViewStyle::tvsTableView: buttons_array_ptr = &available_table_buttons; break;
