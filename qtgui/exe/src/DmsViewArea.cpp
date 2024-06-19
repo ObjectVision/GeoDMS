@@ -73,7 +73,7 @@ LPCWSTR RegisterViewAreaWindowClass(HINSTANCE instance) {
     return className;
 }
 
-void DMS_CONV OnStatusText(void* clientHandle, SeverityTypeID st, CharPtr msg) {
+void DMS_CONV OnStatusText(ClientHandle clientHandle, SeverityTypeID st, CharPtr msg) {
     auto* dva = reinterpret_cast<QDmsViewArea*>(clientHandle);
     assert(dva);
     if (st == SeverityTypeID::ST_MajorTrace) {

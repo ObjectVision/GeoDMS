@@ -258,8 +258,8 @@ private:
     void on_status_msg_changed(const QString& msg);
     void updateStatusMessage();
 
-    void begin_timing(AbstrMsgGenerator* ach); friend void OnStartWaiting(void* clientHandle, AbstrMsgGenerator* ach);
-    void end_timing(AbstrMsgGenerator* ach);   friend void OnEndWaiting  (void* clientHandle, AbstrMsgGenerator* ach);
+    void begin_timing(AbstrMsgGenerator* ach); friend void OnStartWaiting(ClientHandle clientHandle, AbstrMsgGenerator* ach);
+    void end_timing(AbstrMsgGenerator* ach);   friend void OnEndWaiting  (ClientHandle clientHandle, AbstrMsgGenerator* ach);
 
 
     static void OnViewAction(const TreeItem* tiContext, CharPtr sAction, Int32 nCode, Int32 x, Int32 y, bool doAddHistory, bool isUrl, bool mustOpenDetailsPage);

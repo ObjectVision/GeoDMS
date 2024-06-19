@@ -48,8 +48,13 @@ void Waiter::end()
 		return;
 
 	for (const auto& we : s_WaitingCallbacks)
-		if (std::get<1>(we))
-			std::get<1>(we)(std::get<2>(we), m_ContextGenerator);
+	{
+		auto onEndWaitingFunc = std::get<1>(we);
+		if (!onEndWaitingFunc)
+			continue;
+		auto clientHandle = std::get<2>(we);
+		onEndWaitingFunc(clientHandle, m_ContextGenerator);
+	}
 	SetBusy(false);
 }
 

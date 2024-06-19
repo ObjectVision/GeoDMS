@@ -354,6 +354,7 @@ public:
 
 				latFactors.emplace_back(0.5 * factor, 0.5 * sqrt(1+factor*factor));
 			}
+			errorFrame.m_ctx = nullptr;
 		}
 
 		DataWriteLock resLock(res, dms_rw_mode::write_only_mustzero);
