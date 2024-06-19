@@ -1577,6 +1577,8 @@ SharedTreeItem TreeItem::FindItem(CharPtrRange subItemNames) const
 	if (!parent)
 		return nullptr;
 	parent->UpdateMetaInfo();
+	if (parent->WasFailed(FR_MetaInfo))
+		parent->ThrowFail();
 	return parent->GetConstSubTreeItemByID(GetExistingTokenID(ids.second));
 }
 
