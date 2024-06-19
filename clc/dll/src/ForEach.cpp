@@ -2,11 +2,11 @@
 // License: GNU GPL 3
 /////////////////////////////////////////////////////////////////////////////
 
-#include "ClcPCH.h"
+#include "ClcPch.h"
 
 #if defined(CC_PRAGMAHDRSTOP)
 #pragma hdrstop
-#endif //defined(CC_PRAGMAHDRSTOP)
+#endif
 
 #include "act/MainThread.h"
 #include "dbg/SeverityType.h"

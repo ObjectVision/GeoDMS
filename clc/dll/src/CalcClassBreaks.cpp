@@ -1,34 +1,12 @@
-//<HEADER> 
-/*
-Data & Model Server (DMS) is a server written in C++ for DSS applications. 
-Version: see srv/dms/rtc/dll/src/RtcVersion.h for version info.
+// Copyright (C) 1998-2024 Object Vision b.v. 
+// License: GNU GPL 3
+/////////////////////////////////////////////////////////////////////////////
 
-Copyright (C) 1998-2004  YUSE GSO Object Vision BV. 
-
-Documentation on using the Data & Model Server software can be found at:
-http://www.ObjectVision.nl/DMS/
-
-See additional guidelines and notes in srv/dms/Readme-srv.txt 
-
-This library is free software; you can use, redistribute, and/or
-modify it under the terms of the GNU General Public License version 2 
-(the License) as published by the Free Software Foundation,
-provided that this entire header notice and readme-srv.txt is preserved.
-
-See LICENSE.TXT for terms of distribution or look at our web site:
-http://www.objectvision.nl/DMS/License.txt
-or alternatively at: http://www.gnu.org/copyleft/gpl.html
-
-This library is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
-General Public License for more details. However, specific warranties might be
-granted by an additional written contract for support, assistance and/or development
-*/
-//</HEADER>
-// SheetVisualTestView.cpp : implementation of the DataView class
-//
 #include "ClcPch.h"
+
+#if defined(CC_PRAGMAHDRSTOP)
+#pragma hdrstop
+#endif
 
 #include "dbg/debug.h"
 #include "dbg/SeverityType.h"
@@ -40,6 +18,7 @@ granted by an additional written contract for support, assistance and/or develop
 
 #include "AbstrUnit.h"
 #include "DataArray.h"
+#include "UnitProcessor.h"
 
 
 //#define MG_COMPARE_OLD_JENKSFISHER
@@ -68,7 +47,8 @@ void ValueCountPairContainer::Check()
 
 const UInt32 BUFFER_SIZE = 1024;
 
-ValueCountPairContainer GetCountsDirect(const AbstrDataItem* adi, tile_id t, tile_offset index, UInt32 size)
+template <typename V>
+ValueCountPairContainer GetCountsDirect(typename sequence_traits<V>::cseq_t data, typename DataArray<V>::value_range_ptr_t valuesRangePtr, tile_offset index, UInt32 size)
 {
 	assert(size <= BUFFER_SIZE);
 	assert(size > 0);
@@ -77,7 +57,18 @@ ValueCountPairContainer GetCountsDirect(const AbstrDataItem* adi, tile_id t, til
 
 	Float64 buffer[BUFFER_SIZE];
 
-	adi->GetCurrRefObj()->GetValuesAsFloat64Array(tile_loc(t, index), size, buffer);
+	assert(index < data.size());
+	assert(size <= data.size());
+	assert(index + size <= data.size());
+
+	CountablePointConverter<V> conv(valuesRangePtr);
+
+	auto
+		pi = data.begin() + index,
+		pe = pi + size;
+	auto bufferPtr = buffer;
+	for (; pi != pe; ++pi, ++bufferPtr)
+		*bufferPtr = conv.GetScalar<Float64>(*pi);
 
 	DataCompare<Float64> comp;
 	std::sort(buffer, buffer+size, comp);
@@ -206,16 +197,17 @@ ValueCountPairContainer MergeToLeft(const ValueCountPairContainer& left, const V
 
 #include <future>
 
-ValueCountPairContainer GetTileCounts(const AbstrDataItem* adi, tile_id t, SizeT index, SizeT size, SizeT maxPairCount)
+template <typename V>
+ValueCountPairContainer GetTileCounts(typename sequence_traits<V>::cseq_t data, typename DataArray<V>::value_range_ptr_t valuesRangePtr, SizeT index, SizeT size, SizeT maxPairCount)
 {
 	if (size <= BUFFER_SIZE)
-		return GetCountsDirect(adi, t, index, size);
+		return GetCountsDirect<V>(data, valuesRangePtr, index, size);
 
 	ValueCountPairContainer result;
 	SizeT m = size/2;
 
-	auto firstHalf =GetTileCounts(adi, t, index, m, maxPairCount);
-	auto secondHalf = GetTileCounts(adi, t, index + m, size - m, maxPairCount);
+	auto firstHalf =GetTileCounts<V>(data, valuesRangePtr, index, m, maxPairCount);
+	auto secondHalf = GetTileCounts<V>(data, valuesRangePtr, index + m, size - m, maxPairCount);
 	return MergeToLeft(firstHalf, secondHalf, maxPairCount);
 }
 
@@ -224,9 +216,12 @@ ValueCountPairContainer GetWallCounts(const AbstrDataItem* adi, tile_id t, tile_
 	assert(nrTiles >= 1); // PRECONDITION
 	if (nrTiles==1)
 	{
-		ReadableTileLock tileLock(adi->GetCurrRefObj(), t);
-		SizeT tileSize = adi->GetAbstrDomainUnit()->GetTileCount(t);
-		return GetTileCounts(adi, t, 0, tileSize, maxPairCount);
+		return visit_and_return_result<typelists::numerics, ValueCountPairContainer>(adi->GetAbstrValuesUnit()
+			, [adi, t, maxPairCount]<typename V>(const Unit<V>* valuesUnit) {
+			auto dataArray = const_array_cast<V>(adi);
+			auto tileData = dataArray->GetTile(t);
+			return GetTileCounts<V>(tileData, dataArray->m_ValueRangeDataPtr, 0, tileData.size(), maxPairCount);
+		});
 	}
 
 	tile_id m = nrTiles/2;
@@ -263,6 +258,11 @@ auto GetCounts_Impl(const AbstrDataItem* adi, SizeT maxPairCount) -> ValueCountP
 CountsResultType GetCounts(const AbstrDataItem* adi, SizeT maxPairCount)
 {
 	assert(adi && adi->GetInterestCount());
+
+	MG_CHECK(BUFFER_SIZE <= maxPairCount);
+
+	MG_CHECK(adi->GetAbstrValuesUnit()->GetValueType()->IsNumeric());
+	MG_CHECK(adi->GetValueComposition() == ValueComposition::Single);
 
 	DataReadLock lck(adi);
 
