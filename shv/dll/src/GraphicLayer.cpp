@@ -457,6 +457,9 @@ SizeT GraphicLayer::Feature2EntityIndex(SizeT featureIndex) const
 		assert(ic->HasExtKey() || ic->HasGeoRel());
 
 		auto featureLoc = ic->GetTiledLocation(featureIndex);
+		if (!IsDefined(featureLoc.first))
+			return UNDEFINED_VALUE(SizeT);
+
 		OptionalIndexCollectorAray lockedPtr(ic, featureLoc.first); // can change featureIndex
 		return Convert<SizeT>(lockedPtr.GetEntityIndex(featureLoc.second));
 	}
