@@ -170,7 +170,7 @@ class GridDistOperator : public Operator
 public:
 	GridDistFlags m_Flags = GridDistFlags::NoFlags;
 
-	ClassCPtr m_ArgClasses[NrArguments(GridDistFlags::HasAllParameters)];
+	ClassCPtr m_ArgClasses[NrArguments(GridDistFlags::HasAllParameters)] = {};
 
 	GridDistOperator(AbstrOperGroup& og, GridDistFlags flags)
 		: Operator(&og, ResultType::GetStaticClass()) 

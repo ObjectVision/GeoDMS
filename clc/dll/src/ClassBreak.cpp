@@ -52,7 +52,7 @@ struct ClassifyFixedOperator: public BinaryOperator
 
 //			timerContext.LogTime("LocksReady");
 
-			auto vcpc = GetCounts(arg1A, MAX_VALUE(CountType));
+			auto vcpc = GetCounts<Float64>(arg1A, MAX_VALUE(CountType));
 
 //			timerContext.LogTime("Counting Done");
 

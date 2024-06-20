@@ -34,6 +34,9 @@
 
 #define SHV_SUPPORT_OLDNAMES
 
+const int WM_PROCESS_QUEUE        = 0x402;
+const int WM_QT_ACTIVATENOTIFIERS = 0x411;
+
 //----------------------------------------------------------------------
 // forward class references
 //----------------------------------------------------------------------

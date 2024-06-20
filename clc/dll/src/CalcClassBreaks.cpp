@@ -47,15 +47,15 @@ void ValueCountPairContainer::Check()
 
 const UInt32 BUFFER_SIZE = 1024;
 
-template <typename V>
-ValueCountPairContainer GetCountsDirect(typename sequence_traits<V>::cseq_t data, typename DataArray<V>::value_range_ptr_t valuesRangePtr, tile_offset index, UInt32 size)
+template <typename V, typename R>
+ValueCountPairContainerT<R> GetCountsDirect(typename sequence_traits<V>::cseq_t data, typename DataArray<V>::value_range_ptr_t valuesRangePtr, tile_offset index, UInt32 size)
 {
 	assert(size <= BUFFER_SIZE);
 	assert(size > 0);
 
-	ValueCountPairContainer result;
+	ValueCountPairContainerT<R> result;
 
-	Float64 buffer[BUFFER_SIZE];
+	R buffer[BUFFER_SIZE];
 
 	assert(index < data.size());
 	assert(size <= data.size());
@@ -70,7 +70,7 @@ ValueCountPairContainer GetCountsDirect(typename sequence_traits<V>::cseq_t data
 	for (; pi != pe; ++pi, ++bufferPtr)
 		*bufferPtr = conv.GetScalar<Float64>(*pi);
 
-	DataCompare<Float64> comp;
+	DataCompare<R> comp;
 	std::sort(buffer, buffer+size, comp);
 
 	UInt32 nrNulls = 0; 
@@ -86,7 +86,7 @@ ValueCountPairContainer GetCountsDirect(typename sequence_traits<V>::cseq_t data
 	result.reserve(size - nrNulls);
 
 	UInt32 i=nrNulls;
-	Float64 currValue = buffer[i++];
+	R currValue = buffer[i++];
 	UInt32 currCount = 1;
 	for (; i != size; ++i)
 	{
@@ -107,7 +107,8 @@ ValueCountPairContainer GetCountsDirect(typename sequence_traits<V>::cseq_t data
 
 struct CompareFirst
 {
-	bool operator () (const ValueCountPair& lhs, const ValueCountPair& rhs)
+	template<typename V>
+	bool operator () (const ValueCountPair<V>& lhs, const ValueCountPair<V>& rhs)
 	{
 		assert(IsDefined(lhs.first));
 		assert(IsDefined(rhs.first));
@@ -149,30 +150,32 @@ void WeedOutOddPairs(ValueCountPairContainer& vcpc, SizeT maxPairCount)
 	MG_DEBUGCODE(vcpc.Check());
 }
 
-ValueCountPairContainer MergeToLeft(const ValueCountPairContainer& left, const ValueCountPairContainer& right, SizeT maxNrPairs)
+template <typename R>
+ValueCountPairContainerT<R> MergeToLeft(const ValueCountPairContainerT<R>& left, const ValueCountPairContainerT<R>& right, SizeT maxNrPairs)
 {
 	MG_DEBUGCODE( CountType leftCount  = GetTotalCount(left ); )
 	MG_DEBUGCODE( CountType rightCount = GetTotalCount(right); )
 
-	ValueCountPairContainer result;
+	ValueCountPairContainerT<R> result;
 	result.resize(left.size() + right.size());
 
 	if (!result.empty())
 	{
 		std::merge(right.begin(), right.end(), left.begin(), left.end(), result.begin(), CompareFirst());
 
-		ValueCountPairContainer::iterator
+		typename ValueCountPairContainerT<R>::iterator
 			currPair = result.begin(),
-			lastPair = result.end();
-		ValueCountPairContainer::iterator index = currPair + 1;
+			lastPair = result.end(),
+			index = currPair + 1;
+
 		while (index != lastPair && currPair->first < index->first)
 		{
 			currPair = index;
 			++index;
 		}
 
-		ClassBreakValueType currValue = currPair->first;
-		CountType           currCount = currPair->second;
+		R         currValue = currPair->first;
+		CountType currCount = currPair->second;
 		for (; index != lastPair;++index)
 		{
 			if (currValue < index->first)
@@ -197,52 +200,47 @@ ValueCountPairContainer MergeToLeft(const ValueCountPairContainer& left, const V
 
 #include <future>
 
-template <typename V>
-ValueCountPairContainer GetTileCounts(typename sequence_traits<V>::cseq_t data, typename DataArray<V>::value_range_ptr_t valuesRangePtr, SizeT index, SizeT size, SizeT maxPairCount)
+template <typename V, typename R>
+ValueCountPairContainerT<R> GetTileCounts(typename sequence_traits<V>::cseq_t data, typename DataArray<V>::value_range_ptr_t valuesRangePtr, SizeT index, SizeT size, SizeT maxPairCount)
 {
 	if (size <= BUFFER_SIZE)
-		return GetCountsDirect<V>(data, valuesRangePtr, index, size);
+		return GetCountsDirect<V, R>(data, valuesRangePtr, index, size);
 
-	ValueCountPairContainer result;
+	ValueCountPairContainerT<R> result;
 	SizeT m = size/2;
 
-	auto firstHalf =GetTileCounts<V>(data, valuesRangePtr, index, m, maxPairCount);
-	auto secondHalf = GetTileCounts<V>(data, valuesRangePtr, index + m, size - m, maxPairCount);
-	return MergeToLeft(firstHalf, secondHalf, maxPairCount);
+	auto firstHalf =GetTileCounts<V, R>(data, valuesRangePtr, index, m, maxPairCount);
+	auto secondHalf = GetTileCounts<V, R>(data, valuesRangePtr, index + m, size - m, maxPairCount);
+	return MergeToLeft<R>(firstHalf, secondHalf, maxPairCount);
 }
 
-ValueCountPairContainer GetWallCounts(const AbstrDataItem* adi, tile_id t, tile_id nrTiles, SizeT maxPairCount)
+template <typename R>
+ValueCountPairContainerT<R> GetWallCounts(const AbstrDataItem* adi, tile_id t, tile_id nrTiles, SizeT maxPairCount)
 {
 	assert(nrTiles >= 1); // PRECONDITION
 	if (nrTiles==1)
 	{
-		return visit_and_return_result<typelists::numerics, ValueCountPairContainer>(adi->GetAbstrValuesUnit()
+		return visit_and_return_result<typelists::numerics, ValueCountPairContainerT<R> >(adi->GetAbstrValuesUnit()
 			, [adi, t, maxPairCount]<typename V>(const Unit<V>* valuesUnit) {
 			auto dataArray = const_array_cast<V>(adi);
 			auto tileData = dataArray->GetTile(t);
-			return GetTileCounts<V>(tileData, dataArray->m_ValueRangeDataPtr, 0, tileData.size(), maxPairCount);
+			return GetTileCounts<V, R>(tileData, dataArray->m_ValueRangeDataPtr, 0, tileData.size(), maxPairCount);
 		});
 	}
 
 	tile_id m = nrTiles/2;
 	assert(m >= 1);
 
-	std::future<ValueCountPairContainer> firstHalf = throttled_async([adi, t, m, maxPairCount]() {
-		return GetWallCounts(adi, t, m, maxPairCount);
+	std::future<ValueCountPairContainerT<R>> firstHalf = throttled_async([adi, t, m, maxPairCount]() {
+		return GetWallCounts<R>(adi, t, m, maxPairCount);
 	});
 
-	ValueCountPairContainer secondHalf = GetWallCounts(adi, t + m, nrTiles - m, maxPairCount); 
+	ValueCountPairContainerT<R> secondHalf = GetWallCounts<R>(adi, t + m, nrTiles - m, maxPairCount);
 
 	return MergeToLeft(firstHalf.get(), secondHalf, maxPairCount);
 }
 
-CountsResultType PrepareCounts(const AbstrDataItem* adi, SizeT maxPairCount)
-{
-	PreparedDataReadLock lck(adi, "PrepareCounts");
-	
-	return GetCounts(adi, maxPairCount);
-}
-
+template <typename R>
 auto GetCounts_Impl(const AbstrDataItem* adi, SizeT maxPairCount) -> ValueCountPairContainer
 {
 	SizeT count = adi->GetAbstrDomainUnit()->GetCount();
@@ -250,12 +248,13 @@ auto GetCounts_Impl(const AbstrDataItem* adi, SizeT maxPairCount) -> ValueCountP
 	{
 		tile_id tn = adi->GetAbstrDomainUnit()->GetNrTiles();
 		if (tn)
-			return GetWallCounts(adi, 0, tn, maxPairCount);
+			return GetWallCounts<R>(adi, 0, tn, maxPairCount);
 	}
 	return ValueCountPairContainer();
 }
 
-CountsResultType GetCounts(const AbstrDataItem* adi, SizeT maxPairCount)
+template <typename R>
+CountsResultTypeT<R> CLC_CALL GetCounts(const AbstrDataItem* adi, SizeT maxPairCount)
 {
 	assert(adi && adi->GetInterestCount());
 
@@ -266,7 +265,14 @@ CountsResultType GetCounts(const AbstrDataItem* adi, SizeT maxPairCount)
 
 	DataReadLock lck(adi);
 
-	return { GetCounts_Impl(adi, maxPairCount), adi->GetCurrRefObj()->GetAbstrValuesRangeData() }; // from lock
+	return { GetCounts_Impl<R>(adi, maxPairCount), adi->GetCurrRefObj()->GetAbstrValuesRangeData() }; // from lock
+}
+
+CountsResultType PrepareCounts(const AbstrDataItem* adi, SizeT maxPairCount)
+{
+	PreparedDataReadLock lck(adi, "PrepareCounts");
+
+	return GetCounts<ClassBreakValueType>(adi, maxPairCount);
 }
 
 //----------------------------------------------------------------------
@@ -697,8 +703,8 @@ struct JenksFisher
 	{
 		DBG_START("JenksFisher", "JenksFisher", MG_DEBUG_CLASSBREAKS);
 		m_CumulValues.reserve(vcpc.size());
-		ClassBreakValueType cwv=0;
-		CountType           cw =0, w;
+		Float64    cwv=0;
+		CountType  cw =0, w;
 
 		for(SizeT i=0; i!=m_M; ++i)
 		{
@@ -710,7 +716,7 @@ struct JenksFisher
 
 			assert(!i || vcpc[i-1].first < vcpc[i].first);
 			cwv+= w * vcpc[i].first;
-			m_CumulValues.push_back(ValueCountPair(cwv, cw));
+			m_CumulValues.push_back(ValueCountPair<Float64>(cwv, cw));
 
 			if (i < m_BufSize)
 				m_PrevSSM[i] = cwv * cwv / cw; // prepare SSM for first class, last m_K values can be omitted since they never belong to the first class
@@ -752,7 +758,7 @@ struct JenksFisher
 		Float64 res = GetWV(b,e);
 		return res * res / GetW(b,e);
 	}
-	auto FindMaxBreakIndex(SizeT i, SizeT bp, SizeT ep) -> std::pair<SizeT, ClassBreakValueType>
+	auto FindMaxBreakIndex(SizeT i, SizeT bp, SizeT ep) -> std::pair<SizeT, Float64>
 	{
 		DBG_START("JenksFisher", "FindMinBreakIndex", MG_DEBUG_CLASSBREAKS);
 		DBG_TRACE(("i=%d bp=%d ep-%d", i, bp, ep));
@@ -762,7 +768,7 @@ struct JenksFisher
 		assert(i  <  m_BufSize);
 		assert(ep <= m_BufSize);
 
-		ClassBreakValueType minSSM = m_PrevSSM[bp] + GetSSM(bp+m_NrCompletedRows, i+m_NrCompletedRows);
+		Float64 minSSM = m_PrevSSM[bp] + GetSSM(bp+m_NrCompletedRows, i+m_NrCompletedRows);
 		DBG_TRACE(("%f = prevSSM[%d] + GetSSM(%d) = %f + %f", Float32(minSSM), bp, i-bp, Float32(m_PrevSSM[bp]), Float32(minSSM-m_PrevSSM[bp])));
 
 #if defined(MG_ASSUME_CB_INC)
@@ -778,7 +784,7 @@ struct JenksFisher
 		SizeT foundP = bp;
 		while (++bp < ep)
 		{
-			ClassBreakValueType currSSM = m_PrevSSM[bp] + GetSSM(bp+m_NrCompletedRows, i+m_NrCompletedRows);
+			Float64 currSSM = m_PrevSSM[bp] + GetSSM(bp+m_NrCompletedRows, i+m_NrCompletedRows);
 			DBG_TRACE(("%f = prevSSM[%d] + GetSSM(%d) = %f + %f", Float32(currSSM), bp, i-bp, Float32(m_PrevSSM[bp]), Float32(currSSM-m_PrevSSM[bp])));
 			if (currSSM > minSSM)
 			{

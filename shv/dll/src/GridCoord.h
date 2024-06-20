@@ -61,15 +61,15 @@ private:
 
 	GPoint                     m_DeviceSize;
 	CrdTransformation          m_World2DeviceTr; // m_w2vTr;
-	bool                       m_IsDirty;
+	bool                       m_IsDirty = true;
 
 	// ========== calculated results
 
 	GRect                      m_ClippedRelDeviceRect; // m_ViewExtents;
 	CrdPoint                   m_GridOrigin;
 	CrdPoint                   m_GridCellSize;
-	OrientationType            m_Orientation;
-	CrdPoint                   m_SubPixelFactors;
+	OrientationType            m_Orientation = OrientationType::Default;
+	CrdPoint                   m_SubPixelFactors = {-1.0, -1.0};
 	grid_coord_array           m_GridRows,  m_GridCols;
 	grid_coord_array           m_LinedRows, m_LinedCols;
 

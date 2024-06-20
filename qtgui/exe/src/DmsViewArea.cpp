@@ -300,16 +300,16 @@ QDmsViewArea::~QDmsViewArea()
 bool QDmsViewArea::nativeEvent(const QByteArray& eventType, void* message, qintptr* result) {
     auto main_window = MainWindow::TheOne();
     auto mdi_area = main_window->m_mdi_area.get();
-    auto current_active_subwindow = mdi_area->activeSubWindow();
 
     MSG* msg = static_cast<MSG*>(message);
     UInt32 received_message_type = msg->message;
-    if (received_message_type == WM_USER + 17) {
+    if (received_message_type == WM_QT_ACTIVATENOTIFIERS) {
         while(true) {
-            if (!mdi_area->activeSubWindow())
+            auto current_active_subwindow = mdi_area->activeSubWindow();
+            if (!current_active_subwindow)
                 break;
 
-            if (this == mdi_area->activeSubWindow())
+            if (this == current_active_subwindow)
 				break;
 
             mdi_area->activateNextSubWindow();

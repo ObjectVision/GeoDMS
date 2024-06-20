@@ -1,8 +1,12 @@
-// Copyright (C) 1998-2023 Object Vision b.v. 
+// Copyright (C) 1998-2024 Object Vision b.v. 
 // License: GNU GPL 3
 /////////////////////////////////////////////////////////////////////////////
 
 #include "ShvDllPch.h"
+
+#if defined(CC_PRAGMAHDRSTOP)
+#pragma hdrstop
+#endif
 
 #include "DataView.h"
 
@@ -544,7 +548,6 @@ void DataView::XOrSelCaret(const Region& newSelCaret)
 /////////////////////////////////////////////////////////////////////////////
 // DataView event handlers
 
-#define WM_QT_ACTIVATENOTIFIERS WM_USER+2
 bool DataView::DispatchMsg(const MsgStruct& msg)
 {
 	DBG_START("DataView", "DispatchMsg", MG_DEBUG_WNDPROC);
@@ -628,7 +631,7 @@ bool DataView::DispatchMsg(const MsgStruct& msg)
 			SetCapture(m_hWnd);
 			// notify Qt parent that we are active
 			auto parent = GetAncestor(m_hWnd, GA_PARENT);
-			SendMessage(parent, WM_USER+17, 0, 0);
+			SendMessage(parent, WM_QT_ACTIVATENOTIFIERS, 0, 0);
 			DispatchMouseEvent(EventID::LBUTTONDOWN, msg.m_wParam, LParam2Point(msg.m_lParam));
 			goto completed;
 		}

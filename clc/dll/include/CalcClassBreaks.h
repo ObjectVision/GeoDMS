@@ -21,35 +21,37 @@
 //----------------------------------------------------------------------
 
 using ClassBreakValueType = Float64;
-using break_array = std::vector<ClassBreakValueType>;
+template<typename CB> using break_array_t = std::vector<CB>;
+using break_array = break_array_t<ClassBreakValueType>;
 
 using CountType = SizeT;
-using ValueCountPair = std::pair<ClassBreakValueType, CountType>;
-using LimitsContainer = std::vector<ClassBreakValueType>;
-using ValueCountPairContainerBase = std::vector < ValueCountPair, my_allocator < ValueCountPair> >;
+template<typename CB> using ValueCountPair = std::pair<CB, CountType>;
+template<typename CB> using LimitsContainer = std::vector<CB>;
+template<typename CB> using ValueCountPairContainerBase = std::vector < ValueCountPair<CB>, my_allocator < ValueCountPair<CB>> >;
 
-struct ValueCountPairContainer : ValueCountPairContainerBase
+template<typename CB>
+struct ValueCountPairContainerT : ValueCountPairContainerBase<CB>
 {
-	ValueCountPairContainer() : m_Total(0) {}
+	ValueCountPairContainerT() : m_Total(0) {}
 
-	ValueCountPairContainer(ValueCountPairContainer&& rhs) noexcept
-		: ValueCountPairContainerBase(std::move(rhs))
+	ValueCountPairContainerT(ValueCountPairContainerT&& rhs) noexcept
+		: ValueCountPairContainerBase<CB>(std::move(rhs))
 		, m_Total(rhs.m_Total)
 	{
-		dms_assert(rhs.empty());
+		assert(rhs.empty());
 		rhs.m_Total = 0;
 	}
 	template<typename Iter>
-	ValueCountPairContainer(Iter first, Iter last)
-		: ValueCountPairContainerBase(first, last)
+	ValueCountPairContainerT(Iter first, Iter last)
+		: ValueCountPairContainerBase<CB>(first, last)
 	{
 		for (const auto& vcp : *this)
 			m_Total += vcp.second;
 	}
 
-	void operator = (ValueCountPairContainer&& rhs)  noexcept
+	void operator = (ValueCountPairContainerT&& rhs)  noexcept
 	{
-		ValueCountPairContainerBase::operator =((ValueCountPairContainerBase&&)rhs);
+		ValueCountPairContainerBase<CB>::operator =((ValueCountPairContainerBase<CB>&&)rhs);
 		std::swap(m_Total, rhs.m_Total);
 	}
 
@@ -58,17 +60,19 @@ struct ValueCountPairContainer : ValueCountPairContainerBase
 	MG_DEBUGCODE( void Check(); )
 
 private:
-	ValueCountPairContainer(const ValueCountPairContainer&) = delete;
-	void operator = (const ValueCountPairContainer&) = delete;
+	ValueCountPairContainerT(const ValueCountPairContainerT&) = delete;
+	void operator = (const ValueCountPairContainerT&) = delete;
 };
 
-using AbstrValuesRangeDataPtrType = SharedPtr<const SharedObj>;
-using CountsResultType = std::pair<ValueCountPairContainer, AbstrValuesRangeDataPtrType>;
+using ValueCountPairContainer = ValueCountPairContainerT<ClassBreakValueType>;
 
+using AbstrValuesRangeDataPtrType = SharedPtr<const SharedObj>;
+template<typename CB> using CountsResultTypeT = std::pair<ValueCountPairContainerT<CB>, AbstrValuesRangeDataPtrType>;
+using CountsResultType = CountsResultTypeT<ClassBreakValueType>;
 const UInt32 MAX_PAIR_COUNT = 4096;
 
+template <typename CB> CLC_CALL CountsResultTypeT<CB> GetCounts(const AbstrDataItem* adi, SizeT maxPairCount);
 CLC_CALL CountsResultType PrepareCounts(const AbstrDataItem* adi, SizeT maxPairCount);
-CLC_CALL CountsResultType GetCounts    (const AbstrDataItem* adi, SizeT maxPairCount);
 
 //----------------------------------------------------------------------
 // class break functions
