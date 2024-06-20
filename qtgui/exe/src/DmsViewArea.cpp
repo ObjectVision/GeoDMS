@@ -203,7 +203,7 @@ QDmsViewArea::QDmsViewArea(QMdiArea* parent, TreeItem* viewContext, const TreeIt
 
     CreateDmsView(parent, viewStyle);
     // SHV_DataView_AddItem can call ClassifyJenksFisher, which requires DataView with a m_hWnd, so this must be after CreateWindowEx
-    // or PostMessage(WM_PROCESS_QUEUE, ...) directly here to trigger DataView::ProcessGuiOpers()
+    // or PostMessage(UM_PROCESS_QUEUE, ...) directly here to trigger DataView::ProcessGuiOpers()
     try {
         auto current_item = MainWindow::TheOne()->getCurrentTreeItem();
         m_DataView->AddLayer(currItem, false);
@@ -274,7 +274,7 @@ void QDmsViewArea::CreateDmsView(QMdiArea* parent, ViewStyle viewStyle)
     setMinimumSize(200, 150);
     show();
 
-    RegisterScaleChangeNotifications(DEVICE_PRIMARY, parent_hwnd, WM_APP + 2, &m_cookie);
+    RegisterScaleChangeNotifications(DEVICE_PRIMARY, parent_hwnd, UM_SCALECHANGE, &m_cookie);
     setProperty("viewstyle", viewStyle);
 
     QTimer::singleShot(0, this, [dv_hWnd] { SetFocus(dv_hWnd); });

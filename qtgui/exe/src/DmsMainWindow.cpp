@@ -57,6 +57,7 @@
 static MainWindow* s_CurrMainWindow = nullptr;
 UInt32 s_errorWindowActivationCount = 0;
 
+
 bool MainWindow::ShowInDetailPage(SharedStr x) {
     auto realm = Realm(x);
     if (realm.size() == 3 && !strncmp(realm.begin(), "dms", 3))

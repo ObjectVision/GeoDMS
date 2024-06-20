@@ -290,12 +290,12 @@ void WriteSequences(const AbstrDataObject* ado, ShpImp* pImp, WeakStr nameStr, c
 	SeqLock<sequence_array<ShpPoint>     > lockPoints (pImp->m_SeqPoints, dms_rw_mode::write_only_all);
 
 	typename PolygonArray::const_iterator
-		polygonIter = polyData.begin(),
-		polygonEnd  = polyData.end();
+		polyDataIter = polyData.begin(),
+		polyDataEnd  = polyData.end();
 
-	for (; polygonIter != polygonEnd; ++polygonIter)
+	for (; polyDataIter != polyDataEnd; ++polyDataIter)
 	{
-		typename DataArrayBase<PolygonType>::const_reference polygon = *polygonIter;
+		typename DataArrayBase<PolygonType>::const_reference polygon = *polyDataIter;
 
 		using func_iter = FuncIter<
 			typename PolygonArray::const_reference::const_iterator, 
@@ -321,16 +321,16 @@ void WriteSequences(const AbstrDataObject* ado, ShpImp* pImp, WeakStr nameStr, c
 		else
 		{
 			auto linestringIter = polygon.begin();
-			auto polygonEnd = polygon.end();
+			auto sequenceEnd = polygon.end();
 			while (true)
 			{
-				auto linestringEnd = std::find(linestringIter, polygonEnd, UNDEFINED_VALUE(PointType));
+				auto linestringEnd = std::find(linestringIter, sequenceEnd, UNDEFINED_VALUE(PointType));
 
 				feature.AddPoints(
 					func_iter(linestringIter),
 					func_iter(linestringEnd)
 				);
-				if (linestringEnd == polygonEnd)
+				if (linestringEnd == sequenceEnd)
 					break;
 				linestringIter = ++linestringEnd;
 			}

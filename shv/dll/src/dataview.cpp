@@ -62,8 +62,6 @@ ActorVisitState UpdateChildViews(DataViewTree* dvl);
 ////////////////////////////////////////////////////////////////////////////
 // const
 
-const int CN_BASE = 0x0000BC00;
-const int UM_COMMAND_STATUS = WM_APP;
 const int UPDATE_TIMER_ID = 3;
 
 GPoint LParam2Point(LPARAM lParam)
@@ -718,9 +716,6 @@ bool DataView::DispatchMsg(const MsgStruct& msg)
 				goto completed;
 			goto defaultProcessing;
 		}
-		case UM_COMMAND_STATUS:
-			*msg.m_ResultPtr = static_cast<LRESULT>(GetContents()->OnCommandEnable(ToolButtonID(LOWORD(msg.m_wParam))));
-			return true;
 
 		case WM_KEYDOWN:
 			if (OnKeyDown(msg.m_wParam))
@@ -745,11 +740,11 @@ bool DataView::DispatchMsg(const MsgStruct& msg)
 				goto completed;
 			goto defaultProcessing;
 
-		case WM_PROCESS_QUEUE:
+		case UM_PROCESS_QUEUE:
 			ProcessGuiOpers();
 			goto completed;
 
-		case WM_APP + 4:
+		case UM_COPYDATA:
 		case WM_COPYDATA:
 			PCOPYDATASTRUCT pCopyData = PCOPYDATASTRUCT(msg.m_lParam);
 			const UInt32* dataBegin = PUINT32(pCopyData->lpData);
@@ -883,7 +878,6 @@ GraphVisitState DataView::UpdateView()
 				DBG_TRACE(("drawRegion = %s", drawRegion.AsString().c_str()));
 				DBG_TRACE(("dc  Region = %s", dcRegion.AsString().c_str()));
 				DBG_TRACE(("combRegion = %s", combRegion.AsString().c_str()));
-				ProcessMainThreadOpers();
 			}
 #endif
 			if	( ExtSelectClipRgn(dc, drawRegion.GetHandle(), RGN_AND) == NULLREGION )
@@ -895,7 +889,6 @@ GraphVisitState DataView::UpdateView()
 					if (!dcRegion2.Empty())
 					{
 						DBG_TRACE(("dc2 Region = %s", dcRegion2.AsString().c_str()));
-						ProcessMainThreadOpers();
 					}
 				}
 #endif
@@ -1623,7 +1616,7 @@ void DataView::AddGuiOper(std::function<void()>&& func)
 	bool wasEmpty = m_GuiOperQueue.empty();
 	m_GuiOperQueue.emplace_back(std::move(func));
 	if (wasEmpty && m_hWnd)
-		PostMessage(m_hWnd, WM_PROCESS_QUEUE, 0, 0);
+		PostMessage(m_hWnd, UM_PROCESS_QUEUE, 0, 0);
 }
 
 
@@ -1638,7 +1631,7 @@ void DataView::ProcessGuiOpers()
 				return;
 			if (SuspendTrigger::MustSuspend())
 			{
-				PostMessage(m_hWnd, WM_PROCESS_QUEUE, 0, 0);
+				PostMessage(m_hWnd, UM_PROCESS_QUEUE, 0, 0);
 				return;
 			}
 			nextOperation = std::move(m_GuiOperQueue.front());

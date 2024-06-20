@@ -219,7 +219,7 @@ bool DMS_CONV SHV_DataView_DispatchMessage(DataView* dv, HWND hWnd, UINT msg, WP
 					|| msg == WM_VSCROLL
 					|| msg == WM_HSCROLL
 					|| msg == WM_KILLFOCUS
-					|| msg == WM_PROCESS_QUEUE
+					|| msg == UM_PROCESS_QUEUE
 					)
 				{
 					bool incSuspendIfPushBackSucceeds = g_MsgQueue.empty();
@@ -292,8 +292,6 @@ void OnDestroyDataView(DataView* self)
 ActorVisitState DataView_Update(DataView* self)
 {
 	DMS_CALL_BEGIN
-
-		ProcessMainThreadOpers();
 
 		if (self->UpdateView() != GVS_Continue)
 			return AVS_SuspendedOrFailed;  // come back if suspended and not failed

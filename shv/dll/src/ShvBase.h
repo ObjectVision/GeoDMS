@@ -1,4 +1,4 @@
-// Copyright (C) 1998-2023 Object Vision b.v. 
+// Copyright (C) 1998-2024 Object Vision b.v. 
 // License: GNU GPL 3
 /////////////////////////////////////////////////////////////////////////////
 
@@ -33,9 +33,6 @@
 #endif
 
 #define SHV_SUPPORT_OLDNAMES
-
-const int WM_PROCESS_QUEUE        = 0x402;
-const int WM_QT_ACTIVATENOTIFIERS = 0x411;
 
 //----------------------------------------------------------------------
 // forward class references

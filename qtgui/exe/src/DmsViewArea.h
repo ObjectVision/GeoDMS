@@ -1,3 +1,11 @@
+// Copyright (C) 1998-2024 Object Vision b.v. 
+// License: GNU GPL 3
+/////////////////////////////////////////////////////////////////////////////
+
+#if defined(_MSC_VER)
+#pragma once
+#endif
+
 #ifndef DMSVIEWAREA_H
 #define DMSVIEWAREA_H
 

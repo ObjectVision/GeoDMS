@@ -40,7 +40,7 @@ extern "C" RTC_CALL void DMS_CONV DMS_SetContextNotification(TContextNotificatio
 
 void ProgressMsg(CharPtr msg)
 {
-	dms_assert(IsMainThread());
+	assert(IsMainThread());
 	if (s_clientFunc)
 		(*s_clientFunc)(s_cientHandle, msg);
 }
