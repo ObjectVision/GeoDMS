@@ -97,7 +97,7 @@ bool IsMainThread()
 
 bool IsMetaThread()
 {
-	dms_assert(sMetaThreadID); // must be set prior.
+	assert(sMetaThreadID); // must be set prior.
 	return GetThreadID() == sMetaThreadID;
 }
 
@@ -165,7 +165,7 @@ MainThreadBlocker::~MainThreadBlocker()
 
 void ProcessMainThreadOpers()
 {
-	assert(IsMainThread());
+	assert(IsMetaThread());
 	ConfirmMainThreadOperProcessing();
 
 	if (s_ProcessMainThreadOperLevel)

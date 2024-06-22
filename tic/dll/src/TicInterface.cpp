@@ -645,13 +645,20 @@ bool ItemUpdateImpl(const TreeItem* self, CharPtr context, SharedTreeItemInteres
 	return true;
 }
 
+void BlockedItemUpdate(const TreeItem* self)
+{
+	SuspendTrigger::FencedBlocker lockSuspend("DMS_TreeItem_Update");
+	SharedTreeItemInterestPtr holder;
+	ItemUpdateImpl(self, "DMS_TreeItem_Update", holder);
+}
+
 TIC_CALL void DMS_CONV DMS_TreeItem_Update(const TreeItem* self)
 {
 	DMS_CALL_BEGIN
 
-		SuspendTrigger::FencedBlocker lockSuspend("DMS_TreeItem_Update");
-		SharedTreeItemInterestPtr holder;
-		ItemUpdateImpl(self, "DMS_TreeItem_Update", holder);
+		BlockedItemUpdate(self);
+		if (IsMetaThread())
+			ProcessMainThreadOpers();
 
 	DMS_CALL_END
 }
