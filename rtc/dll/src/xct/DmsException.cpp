@@ -614,6 +614,7 @@ int signalHandling(unsigned int u, _EXCEPTION_POINTERS* pExp, bool passBorlandEx
 	if (mustTerminate)
 	{
 		DMS_Terminate();
+		_CrtDbgBreak(); // try to get the debugger's attention
 
 		MG_CHECK(exceptionText.ssize() < 1000);
 		char msgBuffer[1500];
@@ -661,7 +662,6 @@ CppTranslatorContext::~CppTranslatorContext()
 	if (IsMainThread() && !m_PrevCppTranslator)
 	{
 		dms_assert(g_DebugStream);
-//		ProcessMainThreadOpers();
 	}
 	SetCppTranslator(m_PrevCppTranslator);
 }

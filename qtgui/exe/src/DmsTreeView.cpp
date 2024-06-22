@@ -381,7 +381,7 @@ void TreeItemDelegate::paint(QPainter* painter, const QStyleOptionViewItem& opti
 		if (!ti)
 			return;
 
-		const TreeItem* storageHolder = ti->GetStorageParent(true);
+		const TreeItem* storageHolder = ti->GetStorageParent(false);
 		if (!storageHolder)
 			return;
 		assert(!ti->IsDisabledStorage());

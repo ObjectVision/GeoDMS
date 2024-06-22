@@ -107,6 +107,5 @@ private:
 	int default_height = 0;
 };
 
-
 void geoDMSMessage(ClientHandle clientHandle, const MsgData* msgData, bool moreToCome);
 auto createEventLog(MainWindow* dms_main_window) -> std::unique_ptr<DmsEventLog>;

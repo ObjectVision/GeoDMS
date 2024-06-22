@@ -1,4 +1,4 @@
-// Copyright (C) 1998-2023 Object Vision b.v. 
+// Copyright (C) 1998-2024 Object Vision b.v. 
 // License: GNU GPL 3
 /////////////////////////////////////////////////////////////////////////////
 
@@ -6,7 +6,7 @@
 
 #if defined(CC_PRAGMAHDRSTOP)
 #pragma hdrstop
-#endif //defined(CC_PRAGMAHDRSTOP)
+#endif
 
 #include <numbers> // std::numbers
 #include <proj.h>
@@ -170,7 +170,7 @@ class GridDistOperator : public Operator
 public:
 	GridDistFlags m_Flags = GridDistFlags::NoFlags;
 
-	ClassCPtr m_ArgClasses[NrArguments(GridDistFlags::HasAllParameters)];
+	ClassCPtr m_ArgClasses[NrArguments(GridDistFlags::HasAllParameters)] = {};
 
 	GridDistOperator(AbstrOperGroup& og, GridDistFlags flags)
 		: Operator(&og, ResultType::GetStaticClass()) 
@@ -354,6 +354,7 @@ public:
 
 				latFactors.emplace_back(0.5 * factor, 0.5 * sqrt(1+factor*factor));
 			}
+			errorFrame.m_ctx = nullptr;
 		}
 
 		DataWriteLock resLock(res, dms_rw_mode::write_only_mustzero);

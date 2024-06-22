@@ -204,10 +204,10 @@ namespace wms {
 
 		static void PostPendingTasks()
 		{
-			AddMainThreadOper([]() 
+			PostMainThreadOper([]
 				{ 
 					static dms_task runTask;
-					runTask = dms_task([]() { ProcessPendingTasks(); });
+					runTask = dms_task([] { ProcessPendingTasks(); });
 				}
 			);
 		}

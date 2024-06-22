@@ -29,10 +29,6 @@ class GDALDataset;
 class OGRLayer;
 
 // *****************************************************************************
-struct gdalDynamicLoader
-{
-	STGDLL_CALL gdalDynamicLoader();
-};
 
 struct gdalThread
 {
@@ -40,7 +36,7 @@ struct gdalThread
 	STGDLL_CALL ~gdalThread();
 };
 
-struct gdalComponent : gdalDynamicLoader
+struct gdalComponent
 {
 	STGDLL_CALL gdalComponent();
 	STGDLL_CALL ~gdalComponent();

@@ -257,10 +257,6 @@ void gdalCleanup()
 	//	CPLCleanupTLS();
 }
 
-gdalDynamicLoader::gdalDynamicLoader()
-{
-}
-
 bool AuthorityCodeIsValidCrs(std::string_view wkt)
 {
 	auto srs = OGRSpatialReference();

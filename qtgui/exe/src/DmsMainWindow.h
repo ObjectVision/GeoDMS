@@ -1,6 +1,10 @@
-// Copyright (C) 1998-2023 Object Vision b.v. 
+// Copyright (C) 1998-2024 Object Vision b.v. 
 // License: GNU GPL 3
 /////////////////////////////////////////////////////////////////////////////
+
+#if defined(_MSC_VER)
+#pragma once
+#endif
 
 #ifndef MAINWINDOW_H
 #define MAINWINDOW_H
@@ -31,6 +35,7 @@
 
 #include "ui_DmsDetailPageProperties.h"
 #include "ui_DmsDetailPageSourceDescription.h"
+
 
 QT_BEGIN_NAMESPACE
 class QAction;
@@ -258,8 +263,8 @@ private:
     void on_status_msg_changed(const QString& msg);
     void updateStatusMessage();
 
-    void begin_timing(AbstrMsgGenerator* ach); friend void OnStartWaiting(void* clientHandle, AbstrMsgGenerator* ach);
-    void end_timing(AbstrMsgGenerator* ach);   friend void OnEndWaiting  (void* clientHandle, AbstrMsgGenerator* ach);
+    void begin_timing(AbstrMsgGenerator* ach); friend void OnStartWaiting(ClientHandle clientHandle, AbstrMsgGenerator* ach);
+    void end_timing(AbstrMsgGenerator* ach);   friend void OnEndWaiting  (ClientHandle clientHandle, AbstrMsgGenerator* ach);
 
 
     static void OnViewAction(const TreeItem* tiContext, CharPtr sAction, Int32 nCode, Int32 x, Int32 y, bool doAddHistory, bool isUrl, bool mustOpenDetailsPage);

@@ -53,8 +53,16 @@ granted by an additional written contract for support, assistance and/or develop
 typedef char           Byte;
 typedef signed char    Int8;
 typedef unsigned char  UInt8;
-//typedef void         Void;    // useful as a domain of non-indexed data-items 
-struct                 Void {}; // fix problem with const Void& in some instantiations
+
+// Void: each Void value is equivalent to any other Void value;
+// useful as a domain of non-indexed data-items 
+// can be the CountType of a ValueCountPair when the Counts are not needed, such as for UniqueValue 
+
+struct Void 
+{
+	void operator ++() {}
+	void operator +=(const Void&) {}
+}; 
 
 //----------------------------------------------------------------------
 // Basic types with fixed size.

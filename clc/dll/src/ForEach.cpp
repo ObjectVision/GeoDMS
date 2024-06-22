@@ -2,11 +2,11 @@
 // License: GNU GPL 3
 /////////////////////////////////////////////////////////////////////////////
 
-#include "ClcPCH.h"
+#include "ClcPch.h"
 
 #if defined(CC_PRAGMAHDRSTOP)
 #pragma hdrstop
-#endif //defined(CC_PRAGMAHDRSTOP)
+#endif
 
 #include "act/MainThread.h"
 #include "dbg/SeverityType.h"
@@ -34,6 +34,7 @@ enum field_spec {
 	FS_VALUES_AS_SUBITEM  = 0x10,
 	FS_TEMPLATE           = 8,
 	FS_TEMPL_AS_SUBITEM   = 0x10,
+
 	FS_LABEL              = 0x20,
 	FS_DESCR              = 0x40,
 	FS_STORAGENAME        = 0x80,
@@ -44,6 +45,9 @@ enum field_spec {
 	FS_URL                = 0x800,
 	FS_UNIT               = 0x1000,
 	FS_UNIT_AS_SUBITEM    = 0x2000,
+	FS_VC_SEQUENCE        = 0x8000,
+	FS_VC_POLYGON         = 0x10000,
+//	FS_VC_SPEC            = 0x20000,
 };
 
 inline field_spec operator |(field_spec a, field_spec b) { return field_spec(int(a)|int(b)); }
@@ -254,6 +258,9 @@ bool ForEach_CreateResult(TreeItemDualRef& resultHolder, const ArgSeqType& args,
 
 	if (!resultHolder)
 		resultHolder = TreeItem::CreateCacheRoot();
+	auto valueComposition = ValueComposition::Single;
+	if (fs & FS_VC_SEQUENCE)  valueComposition = ValueComposition::Sequence;		
+	if (fs & FS_VC_POLYGON) valueComposition = ValueComposition::Polygon;
 
 	for (arg_index i=0; i!= maxNrIter; ++i)
 	{
@@ -288,7 +295,7 @@ bool ForEach_CreateResult(TreeItemDualRef& resultHolder, const ArgSeqType& args,
 			const AbstrUnit* du = FindUnitInContainer(optDuContext, optDuNames, i, "domain unit");
 			const AbstrUnit* vu = FindUnitInContainer(optVuContext, optVuNames, i, "values unit");
 
-			iter = CreateDataItemFromPath(resultHolder, subItemName.c_str(), du, vu, ValueComposition::Single);
+			iter = CreateDataItemFromPath(resultHolder, subItemName.c_str(), du, vu, valueComposition);
 		}
 		else if (optUnitContext)
 		{
@@ -359,6 +366,14 @@ static field_spec ScanFirstArg(const AbstrOperGroup* og, CharPtr argSpecPtr)
 		if (*argSpecPtr == 'n') { fs |= FS_DOMAIN_AS_SUBITEM; ++argSpecPtr; }
 		if (*argSpecPtr != 'v') goto parseEnd; ++argSpecPtr;
 		if (*argSpecPtr == 'n') { fs |= FS_VALUES_AS_SUBITEM; ++argSpecPtr; }
+		if (*argSpecPtr == 'v' && *++argSpecPtr == 'c') 
+		{ 
+			++argSpecPtr;
+			if (*argSpecPtr == 's') { fs |= FS_VC_SEQUENCE; }
+			else if (*argSpecPtr == 'p') { fs |= FS_VC_POLYGON; }
+			else goto parseEnd;
+			++argSpecPtr;
+		}
 	}
 	if (*argSpecPtr == 'x') { fs |= FS_UNIT;               ++argSpecPtr; }
 	if (*argSpecPtr == 'l') { fs |= FS_LABEL;              ++argSpecPtr; }
@@ -520,10 +535,10 @@ struct ForEachIndOperGroup : AbstrOperGroup
 
 	oper_arg_policy GetArgPolicy(arg_index argNr, CharPtr firstArgValue) const override
 	{
-		dms_assert(firstArgValue || !argNr);
+		assert(firstArgValue || !argNr);
 		if (!argNr)
 			return oper_arg_policy::calc_always;
-		dms_assert(firstArgValue);
+		assert(firstArgValue);
 		auto fs = ScanFirstArg(this, firstArgValue);
 
 		return CalcArgPolicy(argNr-1, fs);
@@ -586,7 +601,11 @@ namespace
 			NameComponent(bufPtr, TemplMode (fs), 't');
 			NameComponent(bufPtr, DomainMode(fs), 'd');
 			NameComponent(bufPtr, ValuesMode(fs), 'v');
-			NameComponent(bufPtr, UnitMode  (fs), 'x');
+
+			if (fs & FS_VC_SEQUENCE) { *bufPtr++ = 'v'; *bufPtr++ = 'c'; *bufPtr++ = 's'; }
+			if (fs & FS_VC_POLYGON ) { *bufPtr++ = 'v'; *bufPtr++ = 'c'; *bufPtr++ = 'p'; }
+
+			NameComponent(bufPtr, UnitMode(fs), 'x');
 
 			if (fs & FS_LABEL      ) *bufPtr++ = 'l';
 			if (fs & FS_DESCR      ) *bufPtr++ = 'd';
@@ -660,6 +679,14 @@ namespace
 			,	m_FE_dnv (fs|FS_HASDOMAINVALUESPEC|FS_DOMAIN_AS_SUBITEM)
 			,	m_FE_dvn (fs|FS_HASDOMAINVALUESPEC|FS_VALUES_AS_SUBITEM)
 			,	m_FE_dnvn(fs|FS_HASDOMAINVALUESPEC|FS_DOMAIN_AS_SUBITEM|FS_VALUES_AS_SUBITEM)
+			,	m_FE_dvA(fs | FS_HASDOMAINVALUESPEC | FS_VC_SEQUENCE)
+			,	m_FE_dnvA(fs | FS_HASDOMAINVALUESPEC | FS_DOMAIN_AS_SUBITEM | FS_VC_SEQUENCE)
+			,	m_FE_dvnA(fs | FS_HASDOMAINVALUESPEC | FS_VALUES_AS_SUBITEM | FS_VC_SEQUENCE)
+			,	m_FE_dnvnA(fs | FS_HASDOMAINVALUESPEC | FS_DOMAIN_AS_SUBITEM | FS_VALUES_AS_SUBITEM | FS_VC_SEQUENCE)
+			,	m_FE_dvP(fs | FS_HASDOMAINVALUESPEC | FS_VC_POLYGON)
+			,	m_FE_dnvP(fs | FS_HASDOMAINVALUESPEC | FS_DOMAIN_AS_SUBITEM | FS_VC_POLYGON)
+			,	m_FE_dvnP(fs | FS_HASDOMAINVALUESPEC | FS_VALUES_AS_SUBITEM | FS_VC_POLYGON)
+			,	m_FE_dnvnP(fs | FS_HASDOMAINVALUESPEC | FS_DOMAIN_AS_SUBITEM | FS_VALUES_AS_SUBITEM | FS_VC_POLYGON)
 		{}
 
 		FE_at
@@ -668,10 +695,10 @@ namespace
 			m_FE_tn,
 			m_FE_u,
 			m_FE_un,
-			m_FE_dv,
-			m_FE_dnv,
-			m_FE_dvn,
-			m_FE_dnvn;
+			m_FE_dv, m_FE_dnv, m_FE_dvn, m_FE_dnvn,
+			m_FE_dvA, m_FE_dnvA, m_FE_dvnA, m_FE_dnvnA,
+			m_FE_dvP, m_FE_dnvP, m_FE_dvnP, m_FE_dnvnP
+			;
 	};
 
 	struct FE_s

@@ -26,12 +26,12 @@
 #include "ShvUtils.h"
 
 #include "DmsMainWindow.h"
+#include "DmsEventLog.h"
 #include "DmsAddressBar.h"
 #include "DmsTreeView.h"
 #include "DmsDetailPages.h"
 #include "TestScript.h"
 
-int RunTestScript(SharedStr testScriptName);
 struct CmdLineException : SharedStr, std::exception {
     CmdLineException(SharedStr x)
     :   SharedStr(x + 
@@ -245,7 +245,7 @@ bool CustomEventFilter::nativeEventFilter(const QByteArray& /*eventType*/, void*
     MSG* msg = static_cast<MSG*>(message);
 
     switch (msg->message) {
-    case WM_APP + 2:  // RegisterScaleChangeNotifications called in DmsViewArea.cpp, but this message is never received here
+    case UM_SCALECHANGE:  // RegisterScaleChangeNotifications called in DmsViewArea.cpp, but this message is never received here
         if (auto mw = MainWindow::TheOne()) {
             for (auto* sw : mw->m_mdi_area->subWindowList()) {
                 auto dms_sw = dynamic_cast<QDmsViewArea*>(sw);
@@ -256,11 +256,11 @@ bool CustomEventFilter::nativeEventFilter(const QByteArray& /*eventType*/, void*
         }
         return true; // Stop further processing of the message
 
-    case WM_APP + 3:
+    case UM_PROCESS_MAINTHREAD_OPERS:
         ProcessMainThreadOpers();
         return true;
 
-    case WM_APP + 4:
+    case UM_COPYDATA:
     case WM_COPYDATA:
         if (msg->hwnd == (HWND)MainWindow::TheOne()->winId()) {
             try {
@@ -366,12 +366,23 @@ int main_without_SE_handler(int argc, char *argv[]) {
         QTimer::singleShot(10, [splashHandle = std::move(splash)]() { splashHandle->close(); });
 
         main_window.showMaximized();
+        ConfirmMainThreadOperProcessing();
 
-        auto tsn = settingsFrame.m_TestScriptName;
+        SharedStr tsn = settingsFrame.m_TestScriptName;
         std::future<int> testResult;
-        if (!tsn.empty()) {
-            testResult = std::async([tsn] { return RunTestScript(tsn); });
+        if (!tsn.empty())
+        {
+            PostMainThreadOper([tsn, &testResult]
+                {
+                    testResult = std::async([tsn]
+                        { 
+                            return RunTestScript(tsn); 
+                        }
+                    );
+                }
+            );
         }
+
         auto result = dms_app_on_heap->exec();
 
         if (!tsn.empty() && !result) {
@@ -398,7 +409,7 @@ int main_without_SE_handler(int argc, char *argv[]) {
 
 void ProcessRequestedCmdLineFeedback(char* argMsg) {
     auto exceptionText = DoubleUnQuoteMiddle(argMsg);
-    MessageBoxA(nullptr, exceptionText.c_str(), "GeoDmsQt teminates due to a fatal OS Structured Exception", MB_OK | MB_ICONERROR | MB_SYSTEMMODAL | MB_TASKMODAL);
+    MessageBoxA(nullptr, exceptionText.c_str(), "GeoDmsQt teminated due to a fatal OS Structured Exception", MB_OK | MB_ICONERROR | MB_SYSTEMMODAL | MB_TASKMODAL);
 }
 
 int main(int argc, char* argv[]) {

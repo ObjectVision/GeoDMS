@@ -1,4 +1,4 @@
-// Copyright (C) 1998-2023 Object Vision b.v. 
+// Copyright (C) 1998-2024 Object Vision b.v. 
 // License: GNU GPL 3
 /////////////////////////////////////////////////////////////////////////////
 
@@ -336,7 +336,7 @@ template <typename P> struct raw_ptr { using type = typename pointer_traits<P>::
 //=======================================
 // common std declarations
 //=======================================
-
+/* REMOVE
 namespace std
 { 
 //	template <typename V> class allocator;
@@ -344,7 +344,7 @@ namespace std
 	template<class T> struct less;
 	template <typename F> class function;
 }
-
+*/
 
 extern bool RTC_CALL g_IsTerminating;
 

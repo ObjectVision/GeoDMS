@@ -69,12 +69,17 @@ bool IsElevatedThread()
 
 #endif //defined(WIN32)
 
+DWORD sMainThreadHnd = 0;
+
 void SetMainThreadID()
 {
 	assert(sMainThreadID == sThreadID); // must be set from this thread or not set/called at all.
 	sMainThreadID = GetThreadID();
 	sMetaThreadID = GetThreadID();
 	assert(sMainThreadID == 1);
+	sMainThreadHnd = GetCurrentThreadId();
+	assert(sMainThreadHnd);
+
 	SetPriority();
 }
 
@@ -86,7 +91,7 @@ void SetMetaThreadID()
 
 bool IsMainThread()
 {
-	dms_assert(sMainThreadID); // must be set prior.
+	assert(sMainThreadID); // must be set prior.
 	return GetThreadID() == sMainThreadID;
 }
 
@@ -106,17 +111,39 @@ std::vector < std::function<void()>>  s_OperQueue;
 leveled_std_section s_QueueSection(item_level_type(0), ord_level_type::OperationQueue, "OperationQueue");
 
 
-void AddMainThreadOper(std::function<void()>&& func, bool postAlways)
+std::atomic<bool> s_MainThreadOperProcessRequestPending = false;
+
+void RequestMainThreadOperProcessing()
 {
-	if (IsMainThread() && !postAlways)
-	{
-		ProcessMainThreadOpers();
-		func();
-		return;
-	}
+	if (!sMainThreadHnd)
+		return; // not yet initialized.
+
+	if (!s_MainThreadOperProcessRequestPending.exchange(true))
+		PostThreadMessage(sMainThreadHnd, UM_PROCESS_MAINTHREAD_OPERS, 0, 0);
+}
+
+RTC_CALL void ConfirmMainThreadOperProcessing()
+{
+	assert(IsMainThread());
+	s_MainThreadOperProcessRequestPending = false;
+
+//	MSG msg;
+//	auto peekResult = PeekMessage(&msg, NULL, WM_USER, WM_USER, PM_NOREMOVE); // create a message queue for the main thread.
+}
+
+void PostMainThreadOper(std::function<void()>&& func)
+{
 	leveled_std_section::scoped_lock lock(s_QueueSection);
 	s_OperQueue.emplace_back(std::move(func));
-	SuspendTrigger::DoSuspend();
+	RequestMainThreadOperProcessing();
+}
+
+void SendMainThreadOper(std::function<void()>&& func)
+{
+	if (IsMainThread())
+		func();
+	else
+		PostMainThreadOper(std::move(func));
 }
 
 static UInt32 s_ProcessMainThreadOperLevel = 0;
@@ -139,6 +166,7 @@ MainThreadBlocker::~MainThreadBlocker()
 void ProcessMainThreadOpers()
 {
 	assert(IsMainThread());
+	ConfirmMainThreadOperProcessing();
 
 	if (s_ProcessMainThreadOperLevel)
 		return;

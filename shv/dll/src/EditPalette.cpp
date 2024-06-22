@@ -345,8 +345,8 @@ UInt32 EditPaletteControl::GetNrRequestedClasses() const
 
 SizeT EditPaletteControl::GetNrElements() const
 {
-	dms_assert(m_State.Get(PCF_CountsUpdated));
-	return m_SortedUniqueValueCache.first.m_Total;
+	assert(m_State.Get(PCF_CountsUpdated));
+	return GetTotalCount(m_SortedUniqueValueCache.first);
 }
 
 void EditPaletteControl::ClassifyUniqueValues ()

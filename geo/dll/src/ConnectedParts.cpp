@@ -1,4 +1,4 @@
-// Copyright (C) 1998-2023 Object Vision b.v. 
+// Copyright (C) 1998-2024 Object Vision b.v. 
 // License: GNU GPL 3
 /////////////////////////////////////////////////////////////////////////////
 
@@ -6,7 +6,7 @@
 
 #if defined(CC_PRAGMAHDRSTOP)
 #pragma hdrstop
-#endif //defined(CC_PRAGMAHDRSTOP)
+#endif
 
 #include "CheckedDomain.h"
 #include "TileChannel.h"
@@ -214,11 +214,12 @@ auto stronglyConnectedComponentsIterativeWithInvertedLinks(NodeType nrV, LinkTyp
 			onStackFlag[v] = true;
 			stack.emplace_back(v, link1[v], false); // Start with first visit of v
 		};
-	for (NodeType v = 0; v != nrV; ++v)
+
+	for (NodeType newV = 0; newV != nrV; ++newV)
 	{
-		if (IsDefined(indices[v].first))
+		if (IsDefined(indices[newV].first))
 			continue;
-		pushNode(v);
+		pushNode(newV);
 		while (!stack.empty()) {
 			auto& [v, currentLink, didVisitLink] = stack.back();
 			// Processing neighbors or finishing up

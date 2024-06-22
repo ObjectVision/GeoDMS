@@ -1,34 +1,12 @@
-//<HEADER> 
-/*
-Data & Model Server (DMS) is a server written in C++ for DSS applications. 
-Version: see srv/dms/rtc/dll/src/RtcVersion.h for version info.
+// Copyright (C) 1998-2024 Object Vision b.v. 
+// License: GNU GPL 3
+/////////////////////////////////////////////////////////////////////////////
 
-Copyright (C) 1998-2004  YUSE GSO Object Vision BV. 
-
-Documentation on using the Data & Model Server software can be found at:
-http://www.ObjectVision.nl/DMS/
-
-See additional guidelines and notes in srv/dms/Readme-srv.txt 
-
-This library is free software; you can use, redistribute, and/or
-modify it under the terms of the GNU General Public License version 2 
-(the License) as published by the Free Software Foundation,
-provided that this entire header notice and readme-srv.txt is preserved.
-
-See LICENSE.TXT for terms of distribution or look at our web site:
-http://www.objectvision.nl/DMS/License.txt
-or alternatively at: http://www.gnu.org/copyleft/gpl.html
-
-This library is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
-General Public License for more details. However, specific warranties might be
-granted by an additional written contract for support, assistance and/or development
-*/
-//</HEADER>
-// SheetVisualTestView.cpp : implementation of the DataView class
-//
 #include "ClcPch.h"
+
+#if defined(CC_PRAGMAHDRSTOP)
+#pragma hdrstop
+#endif
 
 #include "dbg/debug.h"
 #include "dbg/SeverityType.h"
@@ -40,234 +18,8 @@ granted by an additional written contract for support, assistance and/or develop
 
 #include "AbstrUnit.h"
 #include "DataArray.h"
+#include "UnitProcessor.h"
 
-
-//#define MG_COMPARE_OLD_JENKSFISHER
-//#define MG_ASSUME_CB_INC
-//#define MG_REPORT_SSM_COUNT
-
-//----------------------------------------------------------------------
-// funcs: GetCounts
-//----------------------------------------------------------------------
-#if defined(MG_DEBUG)
-
-SizeT GetTotalCount(const ValueCountPairContainer& vcpc)
-{
-	SizeT sum = 0;
-	for (const auto& vcp: vcpc)
-		sum += vcp.second;
-	return sum;
-}
-
-void ValueCountPairContainer::Check()
-{
-	dbg_assert(GetTotalCount(*this) == m_Total);
-}
-
-#endif
-
-const UInt32 BUFFER_SIZE = 1024;
-
-ValueCountPairContainer GetCountsDirect(const AbstrDataItem* adi, tile_id t, tile_offset index, UInt32 size)
-{
-	assert(size <= BUFFER_SIZE);
-	assert(size > 0);
-
-	ValueCountPairContainer result;
-
-	Float64 buffer[BUFFER_SIZE];
-
-	adi->GetCurrRefObj()->GetValuesAsFloat64Array(tile_loc(t, index), size, buffer);
-
-	DataCompare<Float64> comp;
-	std::sort(buffer, buffer+size, comp);
-
-	UInt32 nrNulls = 0; 
-
-	while (true)
-	{
-		if (nrNulls == size)
-			return ValueCountPairContainer();
-		if (IsDefined(buffer[nrNulls]))
-			break;
-		++nrNulls;
-	}
-	result.reserve(size - nrNulls);
-
-	UInt32 i=nrNulls;
-	Float64 currValue = buffer[i++];
-	UInt32 currCount = 1;
-	for (; i != size; ++i)
-	{
-		if (comp(currValue, buffer[i]))
-		{
-			result.push_back(ValueCountPair(currValue, currCount));
-			currValue = buffer[i];
-			currCount = 1;
-		}
-		else
-			++currCount;
-	}
-	result.push_back(ValueCountPair(currValue, currCount));
-	result.m_Total = size - nrNulls;
-	MG_DEBUGCODE(result.Check());
-	return result;
-}
-
-struct CompareFirst
-{
-	bool operator () (const ValueCountPair& lhs, const ValueCountPair& rhs)
-	{
-		assert(IsDefined(lhs.first));
-		assert(IsDefined(rhs.first));
-
-		return lhs.first < rhs.first;
-	}
-};
-
-// reduce the number of (value, count) pairs by 50% by aggregating couples of pairs 
-// DEBUG: check that only the first pair can be undefined and skip that one.
-void WeedOutOddPairs(ValueCountPairContainer& vcpc, SizeT maxPairCount)
-{
-	if (vcpc.size() <= maxPairCount)
-		return;
-
-	ValueCountPairContainer::iterator 
-		currPair = vcpc.begin(),
-		lastPair = vcpc.end();
-
-	assert(currPair == lastPair || IsDefined(currPair->first));
-
-	ValueCountPairContainer::iterator 
-		donePair = currPair;
-
-	if ((lastPair - currPair) % 2)
-		--lastPair;
-	while (currPair != lastPair)
-	{
-		assert(IsDefined(currPair->first) );
-		*donePair = *currPair;
-		++currPair;
-		assert(currPair != lastPair && IsDefined(currPair->first));
-
-		donePair->second += currPair->second;
-		++donePair;
-		++currPair;
-	}
-	vcpc.erase(donePair, lastPair);
-	MG_DEBUGCODE(vcpc.Check());
-}
-
-ValueCountPairContainer MergeToLeft(const ValueCountPairContainer& left, const ValueCountPairContainer& right, SizeT maxNrPairs)
-{
-	MG_DEBUGCODE( CountType leftCount  = GetTotalCount(left ); )
-	MG_DEBUGCODE( CountType rightCount = GetTotalCount(right); )
-
-	ValueCountPairContainer result;
-	result.resize(left.size() + right.size());
-
-	if (!result.empty())
-	{
-		std::merge(right.begin(), right.end(), left.begin(), left.end(), result.begin(), CompareFirst());
-
-		ValueCountPairContainer::iterator
-			currPair = result.begin(),
-			lastPair = result.end();
-		ValueCountPairContainer::iterator index = currPair + 1;
-		while (index != lastPair && currPair->first < index->first)
-		{
-			currPair = index;
-			++index;
-		}
-
-		ClassBreakValueType currValue = currPair->first;
-		CountType           currCount = currPair->second;
-		for (; index != lastPair;++index)
-		{
-			if (currValue < index->first)
-			{
-				*currPair++ = ValueCountPair(currValue, currCount);
-				currValue = index->first;
-				currCount = index->second;
-			}
-			else
-				currCount += index->second;
-		}
-		*currPair++ = ValueCountPair(currValue, currCount);
-		result.erase(currPair, lastPair);
-		result.m_Total += left.m_Total + right.m_Total;
-
-		WeedOutOddPairs(result, maxNrPairs);
-	}
-	dbg_assert(GetTotalCount(result) == leftCount + rightCount);
-	MG_DEBUGCODE(result.Check());
-	return result;
-}
-
-#include <future>
-
-ValueCountPairContainer GetTileCounts(const AbstrDataItem* adi, tile_id t, SizeT index, SizeT size, SizeT maxPairCount)
-{
-	if (size <= BUFFER_SIZE)
-		return GetCountsDirect(adi, t, index, size);
-
-	ValueCountPairContainer result;
-	SizeT m = size/2;
-
-	auto firstHalf =GetTileCounts(adi, t, index, m, maxPairCount);
-	auto secondHalf = GetTileCounts(adi, t, index + m, size - m, maxPairCount);
-	return MergeToLeft(firstHalf, secondHalf, maxPairCount);
-}
-
-ValueCountPairContainer GetWallCounts(const AbstrDataItem* adi, tile_id t, tile_id nrTiles, SizeT maxPairCount)
-{
-	assert(nrTiles >= 1); // PRECONDITION
-	if (nrTiles==1)
-	{
-		ReadableTileLock tileLock(adi->GetCurrRefObj(), t);
-		SizeT tileSize = adi->GetAbstrDomainUnit()->GetTileCount(t);
-		return GetTileCounts(adi, t, 0, tileSize, maxPairCount);
-	}
-
-	tile_id m = nrTiles/2;
-	assert(m >= 1);
-
-	std::future<ValueCountPairContainer> firstHalf = throttled_async([adi, t, m, maxPairCount]() {
-		return GetWallCounts(adi, t, m, maxPairCount);
-	});
-
-	ValueCountPairContainer secondHalf = GetWallCounts(adi, t + m, nrTiles - m, maxPairCount); 
-
-	return MergeToLeft(firstHalf.get(), secondHalf, maxPairCount);
-}
-
-CountsResultType PrepareCounts(const AbstrDataItem* adi, SizeT maxPairCount)
-{
-	PreparedDataReadLock lck(adi, "PrepareCounts");
-	
-	return GetCounts(adi, maxPairCount);
-}
-
-auto GetCounts_Impl(const AbstrDataItem* adi, SizeT maxPairCount) -> ValueCountPairContainer
-{
-	SizeT count = adi->GetAbstrDomainUnit()->GetCount();
-	if (count)
-	{
-		tile_id tn = adi->GetAbstrDomainUnit()->GetNrTiles();
-		if (tn)
-			return GetWallCounts(adi, 0, tn, maxPairCount);
-	}
-	return ValueCountPairContainer();
-}
-
-CountsResultType GetCounts(const AbstrDataItem* adi, SizeT maxPairCount)
-{
-	assert(adi && adi->GetInterestCount());
-
-	DataReadLock lck(adi);
-
-	return { GetCounts_Impl(adi, maxPairCount), adi->GetCurrRefObj()->GetAbstrValuesRangeData() }; // from lock
-}
 
 //----------------------------------------------------------------------
 // class break functions
@@ -390,7 +142,7 @@ void FillBreakAttrFromArray(AbstrDataItem* breakAttr, const break_array& data, c
 break_array ClassifyUniqueValues(const ValueCountPairContainer& vcpc, SizeT k)
 {
 	SizeT m = vcpc.size();
-	assert(m <= vcpc.m_Total);
+	assert(m <= GetTotalCount(vcpc));
 
 	break_array result; result.reserve(k);
 
@@ -432,7 +184,7 @@ break_array ClassifyEqualInterval(AbstrDataItem* breakAttr, const ValueCountPair
 		SizeT m = vcpc.size();
 		if (m)
 		{
-			assert(m <= vcpc.m_Total);
+			assert(m <= GetTotalCount(vcpc));
 
 			Float64 minValue = vcpc[0].first;
 			Float64 maxValue = vcpc[m - 1].first;
@@ -473,7 +225,7 @@ break_array ClassifyNZEqualInterval(AbstrDataItem* breakAttr, const ValueCountPa
 	SizeT m = vcpc.size();
 	assert(m);
 
-	assert(m <= vcpc.m_Total);
+	assert(m <= GetTotalCount(vcpc));
 	auto mz = 0; while (mz < m && vcpc[mz].first < 0.0) ++mz; 
 	bool hasNegative = (mz > 0);
 
@@ -560,7 +312,7 @@ break_array ClassifyLogInterval(AbstrDataItem* breakAttr, const ValueCountPairCo
 	UInt32 k = breakAttr->GetAbstrDomainUnit()->GetCount();
 	UInt32 m = vcpc.size();
 
-	assert(m<= vcpc.m_Total);
+	assert(m <= GetTotalCount(vcpc));
 
 	break_array faLimits;
 	if (m)
@@ -593,13 +345,13 @@ break_array ClassifyEqualCount(AbstrDataItem* breakAttr, const ValueCountPairCon
 
 	SizeT k = breakAttr->GetAbstrDomainUnit()->GetCount();
 
-	SizeT  m = vcpc.size();
+	SizeT  m = vcpc.size(), n = GetTotalCount(vcpc);
 
 	UInt32 kk = Min<UInt32>(k,m);
 //	assert(kk>=1); // follows from previous asserts + assignemnt
 	assert(kk<=m); // follows from assignment
-	assert(m<= vcpc.m_Total); // #(PRECONDITION: vcpc == unique value(themeAttr)) <= #themekAttr
-	assert(kk<= vcpc.m_Total); // follows from previous asserts
+	assert(m  <= n); // #(PRECONDITION: vcpc == unique value(themeAttr)) <= #themekAttr
+	assert(kk <= n); // follows from previous asserts
 
 	UInt32 c = 0, cc=0;
 	UInt32 i =0;
@@ -625,7 +377,7 @@ break_array ClassifyEqualCount(AbstrDataItem* breakAttr, const ValueCountPairCon
 
 		ba.emplace_back(breakValue);
 		breakObj->SetValueAsFloat64(j, breakValue );
-		cc = c + (vcpc.m_Total -c)/(kk-j);
+		cc = c + (n -c)/(kk-j);
 	}
 	for (; j != k; ++j)
 		breakObj->SetValueAsFloat64(j, breakValue);
@@ -640,13 +392,13 @@ break_array ClassifyNZEqualCount(AbstrDataItem* breakAttr, const ValueCountPairC
 
 	SizeT k = breakAttr->GetAbstrDomainUnit()->GetCount();
 
-	SizeT  m = vcpc.size();
+	SizeT m = vcpc.size(), n = GetTotalCount(vcpc);
 
 	UInt32 kk = Min<UInt32>(k, m);
 	//	assert(kk>=1); // follows from previous asserts + assignemnt
 	assert(kk <= m); // follows from assignment
-	assert(m <= vcpc.m_Total); // #(PRECONDITION: vcpc == unique value(themeAttr)) <= #themekAttr
-	assert(kk <= vcpc.m_Total); // follows from previous asserts
+	assert(m <= n); // #(PRECONDITION: vcpc == unique value(themeAttr)) <= #themekAttr
+	assert(kk <= n); // follows from previous asserts
 
 	UInt32 c = 0, cc = 0;
 	UInt32 i = 0;
@@ -672,7 +424,7 @@ break_array ClassifyNZEqualCount(AbstrDataItem* breakAttr, const ValueCountPairC
 
 		ba.emplace_back(breakValue);
 		breakObj->SetValueAsFloat64(j, breakValue);
-		cc = c + (vcpc.m_Total - c) / (kk - j);
+		cc = c + (n - c) / (kk - j);
 	}
 	for (; j != k; ++j)
 		breakObj->SetValueAsFloat64(j, breakValue);
@@ -697,8 +449,8 @@ struct JenksFisher
 	{
 		DBG_START("JenksFisher", "JenksFisher", MG_DEBUG_CLASSBREAKS);
 		m_CumulValues.reserve(vcpc.size());
-		ClassBreakValueType cwv=0;
-		CountType           cw =0, w;
+		Float64    cwv=0;
+		CountType  cw =0, w;
 
 		for(SizeT i=0; i!=m_M; ++i)
 		{
@@ -710,7 +462,7 @@ struct JenksFisher
 
 			assert(!i || vcpc[i-1].first < vcpc[i].first);
 			cwv+= w * vcpc[i].first;
-			m_CumulValues.push_back(ValueCountPair(cwv, cw));
+			m_CumulValues.push_back(ValueCountPair<Float64>(cwv, cw));
 
 			if (i < m_BufSize)
 				m_PrevSSM[i] = cwv * cwv / cw; // prepare SSM for first class, last m_K values can be omitted since they never belong to the first class
@@ -752,7 +504,7 @@ struct JenksFisher
 		Float64 res = GetWV(b,e);
 		return res * res / GetW(b,e);
 	}
-	auto FindMaxBreakIndex(SizeT i, SizeT bp, SizeT ep) -> std::pair<SizeT, ClassBreakValueType>
+	auto FindMaxBreakIndex(SizeT i, SizeT bp, SizeT ep) -> std::pair<SizeT, Float64>
 	{
 		DBG_START("JenksFisher", "FindMinBreakIndex", MG_DEBUG_CLASSBREAKS);
 		DBG_TRACE(("i=%d bp=%d ep-%d", i, bp, ep));
@@ -762,7 +514,7 @@ struct JenksFisher
 		assert(i  <  m_BufSize);
 		assert(ep <= m_BufSize);
 
-		ClassBreakValueType minSSM = m_PrevSSM[bp] + GetSSM(bp+m_NrCompletedRows, i+m_NrCompletedRows);
+		Float64 minSSM = m_PrevSSM[bp] + GetSSM(bp+m_NrCompletedRows, i+m_NrCompletedRows);
 		DBG_TRACE(("%f = prevSSM[%d] + GetSSM(%d) = %f + %f", Float32(minSSM), bp, i-bp, Float32(m_PrevSSM[bp]), Float32(minSSM-m_PrevSSM[bp])));
 
 #if defined(MG_ASSUME_CB_INC)
@@ -778,7 +530,7 @@ struct JenksFisher
 		SizeT foundP = bp;
 		while (++bp < ep)
 		{
-			ClassBreakValueType currSSM = m_PrevSSM[bp] + GetSSM(bp+m_NrCompletedRows, i+m_NrCompletedRows);
+			Float64 currSSM = m_PrevSSM[bp] + GetSSM(bp+m_NrCompletedRows, i+m_NrCompletedRows);
 			DBG_TRACE(("%f = prevSSM[%d] + GetSSM(%d) = %f + %f", Float32(currSSM), bp, i-bp, Float32(m_PrevSSM[bp]), Float32(currSSM-m_PrevSSM[bp])));
 			if (currSSM > minSSM)
 			{

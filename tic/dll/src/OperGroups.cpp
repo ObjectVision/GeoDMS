@@ -63,7 +63,7 @@ granted by an additional written contract for support, assistance and/or develop
 
 namespace AbstrOperGroupRegImpl {
 
-	const UInt32 REG_SIZE = 3000;
+	const UInt32 REG_SIZE = 4000;
 
 	typedef std::vector<AbstrOperGroup*> RegType;
 	typedef RegType::const_iterator     const_iterator;

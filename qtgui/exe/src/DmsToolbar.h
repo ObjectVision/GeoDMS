@@ -3,6 +3,8 @@
 #include "ShvUtils.h"
 #include "dataview.h"
 
+class QDmsViewArea;
+
 void createDmsToolbar();
 void updateDmsToolbar();
 
@@ -24,6 +26,9 @@ public slots:
 
 private:
     auto getNumberOfStates() const -> UInt8 { return m_data.ids.size(); };
+    void updateState();
+    void onGlobalButtonPressed(QDmsViewArea* dms_view_area);
+    void onExportButtonPressed(QDmsViewArea* dms_view_area);
 
     ToolbarButtonData m_data;
     UInt8 m_state = 0;

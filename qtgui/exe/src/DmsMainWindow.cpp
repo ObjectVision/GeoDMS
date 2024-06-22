@@ -57,6 +57,7 @@
 static MainWindow* s_CurrMainWindow = nullptr;
 UInt32 s_errorWindowActivationCount = 0;
 
+
 bool MainWindow::ShowInDetailPage(SharedStr x) {
     auto realm = Realm(x);
     if (realm.size() == 3 && !strncmp(realm.begin(), "dms", 3))
@@ -838,8 +839,9 @@ void MainWindow::tableView() {
 
 void geoDMSContextMessage(ClientHandle clientHandle, CharPtr msg) {
     assert(IsMainThread());
-    auto dms_main_window = reinterpret_cast<MainWindow*>(clientHandle);
-    dms_main_window->setStatusMessage(msg);
+    auto mw = MainWindow::TheOne();
+    if (mw)
+        mw->setStatusMessage(msg);
     return;
 }
 
@@ -1083,7 +1085,9 @@ SharedStr passed_time_str(CharPtr preFix, time_t passedTime) {
     result = mySSPrintF("%s%s%02d:%02d:%02d "
         , preFix
         , result.c_str()
-        , passedTime / seconds_in_hour, (passedTime / seconds_in_hour) % seconds_in_hour, passedTime % seconds_in_minute
+        , passedTime / seconds_in_hour
+        , (passedTime / seconds_in_minute) % seconds_in_minute
+        , passedTime % seconds_in_minute
     );
     return result;
 }
@@ -1118,14 +1122,14 @@ void MainWindow::end_timing(AbstrMsgGenerator* ach) {
     if (m_processing_records.size() > 10)
         m_processing_records.erase(m_processing_records.begin());
 
-    if (!top_of_records_is_changing)
-        return;
-
     if (m_calculation_times_window->isVisible())
         update_calculation_times_report();
 
+    assert(passedTime <= passed_time(m_processing_records.back()));
+    if (!top_of_records_is_changing)
+        return;
+
     assert(passedTime == passed_time(m_processing_records.back()));
- 
     m_LongestProcessingRecordTxt = passed_time_str(" - max processing time: ", passedTime);
 
     updateStatusMessage();
@@ -1359,8 +1363,10 @@ void MainWindow::doViewAction(TreeItem* tiContext, CharPtrRange sAction, QWidget
 }
 
 static bool s_TreeViewRefreshPending = false;
-void AnyTreeItemStateHasChanged(ClientHandle clientHandle, const TreeItem* self, NotificationCode notificationCode) {
-    auto mainWindow = reinterpret_cast<MainWindow*>(clientHandle);
+void AnyTreeItemStateHasChanged(ClientHandle /*clientHandle*/, const TreeItem* self, NotificationCode notificationCode) {
+    auto mainWindow = MainWindow::TheOne();
+    if (!mainWindow)
+        return;
     switch (notificationCode) {
     case NC_Deleting: break; // TODO: remove self from any representation to avoid accessing it's dangling pointer
     case NC_Creating: break;
@@ -1404,15 +1410,19 @@ void AnyTreeItemStateHasChanged(ClientHandle clientHandle, const TreeItem* self,
 
 #include "waiter.h"
 
-void OnStartWaiting(void* clientHandle, AbstrMsgGenerator* ach) {
+void OnStartWaiting(ClientHandle /*clientHandle*/, AbstrMsgGenerator* ach) {
     assert(IsMainThread());
     QGuiApplication::setOverrideCursor(QCursor(Qt::WaitCursor));
-    reinterpret_cast<MainWindow*>(clientHandle)->begin_timing(ach);
+    auto mw = MainWindow::TheOne();
+    if (mw)
+        mw->begin_timing(ach);
 }
 
-void OnEndWaiting(void* clientHandle, AbstrMsgGenerator* ach) {
+void OnEndWaiting(ClientHandle /*clientHandle*/, AbstrMsgGenerator* ach) {
     QGuiApplication::restoreOverrideCursor();
-    reinterpret_cast<MainWindow*>(clientHandle)->end_timing(ach);
+    auto mw = MainWindow::TheOne();
+    if (mw)
+        mw->end_timing(ach);
 }
 
 void MainWindow::setupDmsCallbacks() {

@@ -1,4 +1,4 @@
-// Copyright (C) 1998-2023 Object Vision b.v. 
+// Copyright (C) 1998-2024 Object Vision b.v. 
 // License: GNU GPL 3
 /////////////////////////////////////////////////////////////////////////////
 
@@ -6,7 +6,7 @@
 
 #if defined(CC_PRAGMAHDRSTOP)
 #pragma hdrstop
-#endif //defined(CC_PRAGMAHDRSTOP)
+#endif
 
 #include "Dijkstra.h"
 
@@ -443,7 +443,9 @@ void UpdateALW(const NetworkInfo<NodeType, ZoneType, ImpType>& ni, const OwningD
 		nodeALW[node] = 0;
 
 		auto currNodePtr = &tr.m_TreeNodes[node];
-		assert(!currNodePtr->GetParent());
+		if (currNodePtr->GetParent())
+			continue;
+
 		while (currNodePtr = tr.WalkDepthFirst_TopDown(currNodePtr))
 		{
 			assert(currNodePtr && currNodePtr->GetParent());

@@ -1,8 +1,10 @@
-// Copyright (C) 1998-2023 Object Vision b.v. 
+// Copyright (C) 1998-2024 Object Vision b.v. 
 // License: GNU GPL 3
 /////////////////////////////////////////////////////////////////////////////
 
+#if defined(_MSC_VER)
 #pragma once
+#endif
 
 #if !defined(__RTC_GEO_BITVALUE_H)
 #define __RTC_GEO_BITVALUE_H
@@ -87,9 +89,12 @@ constexpr bit_value<N> UndefinedOrZero(const bit_value<N>* ) { return 0; }
 template <bit_size_t N>
 constexpr bit_value<N> UndefinedOrMax(const bit_value<N>* ) { return bit_value<N>::mask; }
 
+void dont_link_this();
+
 template <bit_size_t N> inline bool IsDefined(bit_value<N>) 
 {
-	struct dont_instantiate_this; return dont_instantiate_this(); 
+	dont_link_this();
+//	struct dont_instantiate_this; return dont_instantiate_this(); 
 }
 
 template <typename T>

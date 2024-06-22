@@ -219,12 +219,10 @@ auto htmlEncodeTextDoc(CharPtr str) -> SharedStr
 
 void DmsDetailPages::scheduleDrawPageImpl(int milliseconds)
 {
-    bool oldValue = false;
-    if (m_DrawPageRequestPending.compare_exchange_strong(oldValue, true))
+    if (!m_DrawPageRequestPending.exchange(true))
     {
         assert(m_DrawPageRequestPending);
-        AddMainThreadOper(
-            [this, milliseconds]()
+        SendMainThreadOper([this, milliseconds]
             {
                 assert(IsMainThread());
                 static std::time_t pendingDeadline = 0;
@@ -232,13 +230,12 @@ void DmsDetailPages::scheduleDrawPageImpl(int milliseconds)
                 if (!pendingDeadline || deadline < pendingDeadline)
                 {
                     pendingDeadline = deadline;
-                    QTimer::singleShot(milliseconds, [this]()
+                    QTimer::singleShot(milliseconds, [this]
                         {
                             assert(IsMainThread());
                             pendingDeadline = 0;
 
-                            bool oldValue = true;
-                            if (m_DrawPageRequestPending.compare_exchange_strong(oldValue, false))
+                            if (m_DrawPageRequestPending.exchange(false))
                             {
                                 this->drawPage();
                             }

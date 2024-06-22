@@ -824,11 +824,11 @@ ElemAllocComponent::~ElemAllocComponent()
 void PostReporting()
 {
 	s_ReportingRequestPending = true;
-	AddMainThreadOper([] {
-		if (s_ReportingRequestPending)
-			ReportFixedAllocStatus();
+	SendMainThreadOper([] 
+		{
+			if (s_ReportingRequestPending)
+				ReportFixedAllocStatus();
 		}
-	,	true
 	);
 }
 

@@ -52,11 +52,24 @@ namespace py_geodms
 		SharedPtr<const AbstrUnit> m_au;
 	};
 
+	struct MutableUnitItem
+	{
+		MutableUnitItem(AbstrUnit* au)
+			: m_au(au)
+		{}
+
+		SharedPtr<AbstrUnit> m_au;
+	};
+
+	/*
+	template <typename T>
 	struct FutureTile
 	{
 
 	};
 
+
+	template <typename T>
 	struct TileFunctor
 	{
 		TileFunctor(const AbstrDataObject* ado)
@@ -74,10 +87,9 @@ namespace py_geodms
 		}
 
 		const AbstrDataObject* m_ado = nullptr;
-
 	};
-
-	/*struct DataItem
+*/
+	struct DataItem
 	{
 		DataItem(const AbstrDataItem* adi)
 			: m_adi(adi)
@@ -88,10 +100,15 @@ namespace py_geodms
 			return UnitItem(m_adi->GetAbstrDomainUnit());
 		}
 
+		auto LockAndGetStringValue(SizeT i) -> std::string
+		{
+			return m_adi->LockAndGetValue<SharedStr>(i).c_str();
+		}
+/*
 		template <typename T>
 		auto getDataObject() -> FutureData
 		{
-			using prepare_data = SharedPtr<typename TileFunctor<T>::future_tile>;
+			using prepare_data = SharedPtr<FutureTile>;
 
 			auto tileRange_data = AsUnit(m_adi->GetAbstrDomainUnit()->GetCurrRangeItem())->GetTiledRangeData();
 			auto valuesUnit = debug_cast<const Unit<field_of_t<T>>*>(m_adi->GetAbstrValuesUnit());
@@ -112,10 +129,24 @@ namespace py_geodms
 			//auto count = adu->GetCount();
 			//auto sz = adu->GetTileSizeAsI64Rect(no_tile);
 		}
-
+		*/
 
 		SharedPtr<const AbstrDataItem> m_adi;
-	};*/
+	};
+
+	struct MutableDataItem
+	{
+		MutableDataItem(AbstrDataItem* adi)
+			: m_adi(adi)
+		{}
+
+		DataItem asDataItem()
+		{
+			return DataItem(m_adi.get_ptr());
+		}
+
+		SharedPtr<AbstrDataItem> m_adi;
+	};
 
 	/*DataItem AsDataItem(const SharedDataItem& item)
 	{
@@ -318,7 +349,12 @@ PYBIND11_MODULE(geodms, m) {
 		.def("expr", &treeitem_expr_const)
 		.def("first_subitem", &treeitem_GetFirstSubItem)
 		.def("next", &treeitem_GetNextItem)
-		.def("update", [](py_geodms::ConstTreeItem self) { DMS_TreeItem_Update(self.item); return; });
+		.def("update", [](py_geodms::ConstTreeItem self) { DMS_TreeItem_Update(self.item); return; })
+		.def("isDataItem", [](py_geodms::ConstTreeItem self) -> bool { return IsDataItem(self.item.get()); })
+		.def("asDataItem", [](py_geodms::ConstTreeItem self) -> py_geodms::DataItem { return AsDataItem(self.item.get()); })
+		.def("isUnitItem", [](py_geodms::ConstTreeItem self) -> bool { return IsUnit(self.item.get()); })
+		.def("asUnitItem", [](py_geodms::ConstTreeItem self) -> py_geodms::UnitItem{ return AsUnit(self.item.get()); })
+		;
 
 	// mutable treeitem
 	py::class_<py_geodms::MutableTreeItem>(m, "MutableTreeItem")
@@ -326,12 +362,22 @@ PYBIND11_MODULE(geodms, m) {
 		.def("find", &treeitem_find_mutable)
 		.def("name", &treeitem_name_mutable)
 		.def("expr", &treeitem_expr_mutable)
+		.def("asConst", [](py_geodms::MutableTreeItem self) -> py_geodms::ConstTreeItem { return { self.item.get() }; })
 		//.def("first_subitem", &treeitem_GetFirstSubItem)
 		//.def("next", &treeitem_GetNextItem)
 		.def("update", [](py_geodms::MutableTreeItem self) { DMS_TreeItem_Update(self.item); return; })
-		.def("set_expr", [](py_geodms::MutableTreeItem self, const std::string& str) { return (self.item->SetExpr(SharedStr(str))); });
+		.def("set_expr", [](py_geodms::MutableTreeItem self, const std::string& str) { return (self.item->SetExpr(SharedStr(str))); })
+		.def("isDataItem", [](py_geodms::MutableTreeItem self) -> bool { return IsDataItem(self.item.get()); })
+		.def("asDataItem", [](py_geodms::MutableTreeItem self) -> py_geodms::MutableDataItem { return AsDataItem(self.item.get()); })
+		.def("isUnitItem", [](py_geodms::MutableTreeItem self) -> bool { return IsUnit(self.item.get()); })
+		.def("asUnitItem", [](py_geodms::MutableTreeItem self) -> py_geodms::MutableUnitItem { return AsUnit(self.item.get()); })
+		;
 
-
+	// mutable treeitem
+	py::class_<py_geodms::DataItem>(m, "DataItem")
+		.def("is_null", [](py_geodms::DataItem self) {return self.m_adi.is_null(); })
+		.def("LockAndGetStringValue", &py_geodms::DataItem::LockAndGetStringValue)
+		;
 
 
 
@@ -348,10 +394,6 @@ PYBIND11_MODULE(geodms, m) {
 		.def("find", &treeitem_find)
 		.def("name", &treeitem_name)
 		.def("expr", &treeitem_expr)
-		//.def("isDataItem", [](auto self) { return IsDataItem(self.get()); })
-		//.def("asDataItem", [](auto self) { return AsDataItem(self.get()); } )
-		//.def("isUnitItem", [](auto self) { return IsUnit(self.get()); } )
-		//.def("asUnitItem", [](auto self) { return AsUnit(self.get()); } )
 		.def("firstSubItem", &treeitem_GetFirstSubItem)
 		.def("nextItem", &treeitem_GetNextItem)
 		;

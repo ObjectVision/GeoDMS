@@ -728,7 +728,6 @@ TreeItem* CreateContainer_impl(TreeItem* container, const TreeItem* item)
 		}
 	}
 
-createItemByAddress:
 	item = item->GetUltimateItem();
 	assert(item);
 	auto name = std::format("I{:x}", std::size_t(item));
@@ -896,7 +895,7 @@ SharedDataItemInterestPtr CreateSystemLabelPalette(DataView* dv, const AbstrUnit
 		DataWriteLock lock(newResult);
 		auto resultData = mutable_array_cast<SharedStr>(lock)->GetDataWrite();
 
-		visit<typelists::domain_elements>(paletteDomain, [n, &resultData]<typename V>(const Unit<V>* pd)
+		visit<typelists::domain_types>(paletteDomain, [n, &resultData]<typename V>(const Unit<V>* pd)
 			{
 				auto domainRange = pd->GetRange();
 				for (SizeT i = 0; i != n; ++i)
@@ -935,9 +934,8 @@ SharedDataItemInterestPtr CreateEqualIntervalBreakAttr(std::weak_ptr<DataView> d
 	MakeRange(range.first, range.second);
 	ValueCountPairContainer sortedUniqueValueCache;
 	sortedUniqueValueCache.reserve(2);
-	sortedUniqueValueCache.push_back(ValueCountPair(range.first,  1) );
-	sortedUniqueValueCache.push_back(ValueCountPair(range.second, 1) );
-	sortedUniqueValueCache.m_Total = 2;
+	sortedUniqueValueCache.push_back(ValueCountPair<Float64>(range.first,  1) );
+	sortedUniqueValueCache.push_back(ValueCountPair<Float64>(range.second, 1) );
 
 	ClassifyEqualInterval(breakAttr, sortedUniqueValueCache, themeUnit->GetTiledRangeData());
 
@@ -955,7 +953,7 @@ SharedDataItemInterestPtr CreateEqualCountBreakAttr(DataView* dv, const AbstrDat
 	auto [paletteDomain, breakAttr] = CreateBreakAttr(dv, thematicAttr->GetAbstrValuesUnit(), thematicAttr, Min<SizeT>(sortedUniqueValueCache.first.size(), DEFAULT_MAX_NR_BREAKS));
 
 
-	if (sortedUniqueValueCache.first.m_Total)
+	if (!sortedUniqueValueCache.first.empty())
 		ClassifyEqualCount(breakAttr, sortedUniqueValueCache.first, sortedUniqueValueCache.second);
 
 	return breakAttr.get_ptr();
@@ -972,7 +970,7 @@ void CreateNonzeroJenksFisherBreakAttr(std::weak_ptr<DataView> dv_wptr, const Ab
 	{
 		ItemReadLock readLock(thematicAttr->GetCurrRangeItem());
 		DataReadLock lck(thematicAttr);
-		sortedUniqueValueCache = GetCounts(thematicAttr, MAX_PAIR_COUNT);
+		sortedUniqueValueCache = GetCounts<ClassBreakValueType, CountType>(thematicAttr, MAX_PAIR_COUNT);
 		thematicValuesRangeData = sortedUniqueValueCache.second;
 	}
 

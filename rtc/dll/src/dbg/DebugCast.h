@@ -58,8 +58,8 @@ inline DerivedPtr checked_cast(Base* basePtr)
 	DerivedPtr result = dynamic_cast<DerivedPtr>(basePtr);
 	if (result != basePtr )  // detect logic error and compile time check suspected cross-casts or inpossible casts
 	{
-		dms_assert(basePtr);
-		dms_assert(!result);
+		assert(basePtr);
+		assert(!result);
 		throwErrorF("checked_cast", "cannot be casted to type %s", typeid(DerivedPtr).name());
 	}
     return result;
