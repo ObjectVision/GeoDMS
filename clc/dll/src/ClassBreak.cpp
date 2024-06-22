@@ -27,16 +27,16 @@ struct ClassifyFixedOperator: public BinaryOperator
 
 	bool CreateResult(TreeItemDualRef& resultHolder, const ArgSeqType& args, bool mustCalc) const override
 	{
-		dms_assert(args.size() == 2);
+		assert(args.size() == 2);
 
 		const AbstrDataItem* arg1A = debug_cast<const AbstrDataItem*>(args[0]);
-		dms_assert(arg1A);
-		dms_assert(arg1A->GetDynamicObjClass() == GetResultClass());
+		assert(arg1A);
+		assert(arg1A->GetDynamicObjClass() == GetResultClass());
 
 		const AbstrUnit* arg1Domain = arg1A->GetAbstrDomainUnit();
-		dms_assert(arg1Domain);
+		assert(arg1Domain);
 		const AbstrUnit* valuesUnit= arg1A->GetAbstrValuesUnit();
-		dms_assert(valuesUnit);
+		assert(valuesUnit);
 
 		const AbstrUnit* classUnit = AsUnit(args[1]);
 
@@ -45,16 +45,10 @@ struct ClassifyFixedOperator: public BinaryOperator
 
 		if (mustCalc)
 		{
-//			CDebugContextHandle timerContext("ClassifyFixedOperator", GetGroup()->GetName(), MG_DEBUG_CLASSBREAKS);
-
 			AbstrDataItem* res = AsDataItem(resultHolder.GetNew());
 			DataReadLock  arg1Lock(arg1A);
 
-//			timerContext.LogTime("LocksReady");
-
-			auto vcpc = GetCounts<Float64>(arg1A, MAX_VALUE(CountType));
-
-//			timerContext.LogTime("Counting Done");
+			auto vcpc = GetCounts<Float64, CountType>(arg1A, MAX_VALUE(CountType));
 
 			m_ClassBreakFunc(res, vcpc.first, vcpc.second);
 		}

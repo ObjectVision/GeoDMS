@@ -21,260 +21,6 @@
 #include "UnitProcessor.h"
 
 
-//#define MG_COMPARE_OLD_JENKSFISHER
-//#define MG_ASSUME_CB_INC
-//#define MG_REPORT_SSM_COUNT
-
-//----------------------------------------------------------------------
-// funcs: GetCounts
-//----------------------------------------------------------------------
-#if defined(MG_DEBUG)
-
-SizeT GetTotalCount(const ValueCountPairContainer& vcpc)
-{
-	SizeT sum = 0;
-	for (const auto& vcp: vcpc)
-		sum += vcp.second;
-	return sum;
-}
-
-void ValueCountPairContainer::Check()
-{
-	dbg_assert(GetTotalCount(*this) == m_Total);
-}
-
-#endif
-
-const UInt32 BUFFER_SIZE = 1024;
-
-template <typename V, typename R>
-ValueCountPairContainerT<R> GetCountsDirect(typename sequence_traits<V>::cseq_t data, typename DataArray<V>::value_range_ptr_t valuesRangePtr, tile_offset index, UInt32 size)
-{
-	assert(size <= BUFFER_SIZE);
-	assert(size > 0);
-
-	ValueCountPairContainerT<R> result;
-
-	R buffer[BUFFER_SIZE];
-
-	assert(index < data.size());
-	assert(size <= data.size());
-	assert(index + size <= data.size());
-
-	CountablePointConverter<V> conv(valuesRangePtr);
-
-	auto
-		pi = data.begin() + index,
-		pe = pi + size;
-	auto bufferPtr = buffer;
-	for (; pi != pe; ++pi, ++bufferPtr)
-		*bufferPtr = conv.GetScalar<Float64>(*pi);
-
-	DataCompare<R> comp;
-	std::sort(buffer, buffer+size, comp);
-
-	UInt32 nrNulls = 0; 
-
-	while (true)
-	{
-		if (nrNulls == size)
-			return ValueCountPairContainer();
-		if (IsDefined(buffer[nrNulls]))
-			break;
-		++nrNulls;
-	}
-	result.reserve(size - nrNulls);
-
-	UInt32 i=nrNulls;
-	R currValue = buffer[i++];
-	UInt32 currCount = 1;
-	for (; i != size; ++i)
-	{
-		if (comp(currValue, buffer[i]))
-		{
-			result.push_back(ValueCountPair(currValue, currCount));
-			currValue = buffer[i];
-			currCount = 1;
-		}
-		else
-			++currCount;
-	}
-	result.push_back(ValueCountPair(currValue, currCount));
-	result.m_Total = size - nrNulls;
-	MG_DEBUGCODE(result.Check());
-	return result;
-}
-
-struct CompareFirst
-{
-	template<typename V>
-	bool operator () (const ValueCountPair<V>& lhs, const ValueCountPair<V>& rhs)
-	{
-		assert(IsDefined(lhs.first));
-		assert(IsDefined(rhs.first));
-
-		return lhs.first < rhs.first;
-	}
-};
-
-// reduce the number of (value, count) pairs by 50% by aggregating couples of pairs 
-// DEBUG: check that only the first pair can be undefined and skip that one.
-void WeedOutOddPairs(ValueCountPairContainer& vcpc, SizeT maxPairCount)
-{
-	if (vcpc.size() <= maxPairCount)
-		return;
-
-	ValueCountPairContainer::iterator 
-		currPair = vcpc.begin(),
-		lastPair = vcpc.end();
-
-	assert(currPair == lastPair || IsDefined(currPair->first));
-
-	ValueCountPairContainer::iterator 
-		donePair = currPair;
-
-	if ((lastPair - currPair) % 2)
-		--lastPair;
-	while (currPair != lastPair)
-	{
-		assert(IsDefined(currPair->first) );
-		*donePair = *currPair;
-		++currPair;
-		assert(currPair != lastPair && IsDefined(currPair->first));
-
-		donePair->second += currPair->second;
-		++donePair;
-		++currPair;
-	}
-	vcpc.erase(donePair, lastPair);
-	MG_DEBUGCODE(vcpc.Check());
-}
-
-template <typename R>
-ValueCountPairContainerT<R> MergeToLeft(const ValueCountPairContainerT<R>& left, const ValueCountPairContainerT<R>& right, SizeT maxNrPairs)
-{
-	MG_DEBUGCODE( CountType leftCount  = GetTotalCount(left ); )
-	MG_DEBUGCODE( CountType rightCount = GetTotalCount(right); )
-
-	ValueCountPairContainerT<R> result;
-	result.resize(left.size() + right.size());
-
-	if (!result.empty())
-	{
-		std::merge(right.begin(), right.end(), left.begin(), left.end(), result.begin(), CompareFirst());
-
-		typename ValueCountPairContainerT<R>::iterator
-			currPair = result.begin(),
-			lastPair = result.end(),
-			index = currPair + 1;
-
-		while (index != lastPair && currPair->first < index->first)
-		{
-			currPair = index;
-			++index;
-		}
-
-		R         currValue = currPair->first;
-		CountType currCount = currPair->second;
-		for (; index != lastPair;++index)
-		{
-			if (currValue < index->first)
-			{
-				*currPair++ = ValueCountPair(currValue, currCount);
-				currValue = index->first;
-				currCount = index->second;
-			}
-			else
-				currCount += index->second;
-		}
-		*currPair++ = ValueCountPair(currValue, currCount);
-		result.erase(currPair, lastPair);
-		result.m_Total += left.m_Total + right.m_Total;
-
-		WeedOutOddPairs(result, maxNrPairs);
-	}
-	dbg_assert(GetTotalCount(result) == leftCount + rightCount);
-	MG_DEBUGCODE(result.Check());
-	return result;
-}
-
-#include <future>
-
-template <typename V, typename R>
-ValueCountPairContainerT<R> GetTileCounts(typename sequence_traits<V>::cseq_t data, typename DataArray<V>::value_range_ptr_t valuesRangePtr, SizeT index, SizeT size, SizeT maxPairCount)
-{
-	if (size <= BUFFER_SIZE)
-		return GetCountsDirect<V, R>(data, valuesRangePtr, index, size);
-
-	ValueCountPairContainerT<R> result;
-	SizeT m = size/2;
-
-	auto firstHalf =GetTileCounts<V, R>(data, valuesRangePtr, index, m, maxPairCount);
-	auto secondHalf = GetTileCounts<V, R>(data, valuesRangePtr, index + m, size - m, maxPairCount);
-	return MergeToLeft<R>(firstHalf, secondHalf, maxPairCount);
-}
-
-template <typename R>
-ValueCountPairContainerT<R> GetWallCounts(const AbstrDataItem* adi, tile_id t, tile_id nrTiles, SizeT maxPairCount)
-{
-	assert(nrTiles >= 1); // PRECONDITION
-	if (nrTiles==1)
-	{
-		return visit_and_return_result<typelists::numerics, ValueCountPairContainerT<R> >(adi->GetAbstrValuesUnit()
-			, [adi, t, maxPairCount]<typename V>(const Unit<V>* valuesUnit) {
-			auto dataArray = const_array_cast<V>(adi);
-			auto tileData = dataArray->GetTile(t);
-			return GetTileCounts<V, R>(tileData, dataArray->m_ValueRangeDataPtr, 0, tileData.size(), maxPairCount);
-		});
-	}
-
-	tile_id m = nrTiles/2;
-	assert(m >= 1);
-
-	std::future<ValueCountPairContainerT<R>> firstHalf = throttled_async([adi, t, m, maxPairCount]() {
-		return GetWallCounts<R>(adi, t, m, maxPairCount);
-	});
-
-	ValueCountPairContainerT<R> secondHalf = GetWallCounts<R>(adi, t + m, nrTiles - m, maxPairCount);
-
-	return MergeToLeft(firstHalf.get(), secondHalf, maxPairCount);
-}
-
-template <typename R>
-auto GetCounts_Impl(const AbstrDataItem* adi, SizeT maxPairCount) -> ValueCountPairContainer
-{
-	SizeT count = adi->GetAbstrDomainUnit()->GetCount();
-	if (count)
-	{
-		tile_id tn = adi->GetAbstrDomainUnit()->GetNrTiles();
-		if (tn)
-			return GetWallCounts<R>(adi, 0, tn, maxPairCount);
-	}
-	return ValueCountPairContainer();
-}
-
-template <typename R>
-CountsResultTypeT<R> CLC_CALL GetCounts(const AbstrDataItem* adi, SizeT maxPairCount)
-{
-	assert(adi && adi->GetInterestCount());
-
-	MG_CHECK(BUFFER_SIZE <= maxPairCount);
-
-	MG_CHECK(adi->GetAbstrValuesUnit()->GetValueType()->IsNumeric());
-	MG_CHECK(adi->GetValueComposition() == ValueComposition::Single);
-
-	DataReadLock lck(adi);
-
-	return { GetCounts_Impl<R>(adi, maxPairCount), adi->GetCurrRefObj()->GetAbstrValuesRangeData() }; // from lock
-}
-
-CountsResultType PrepareCounts(const AbstrDataItem* adi, SizeT maxPairCount)
-{
-	PreparedDataReadLock lck(adi, "PrepareCounts");
-
-	return GetCounts<ClassBreakValueType>(adi, maxPairCount);
-}
-
 //----------------------------------------------------------------------
 // class break functions
 //----------------------------------------------------------------------
@@ -396,7 +142,7 @@ void FillBreakAttrFromArray(AbstrDataItem* breakAttr, const break_array& data, c
 break_array ClassifyUniqueValues(const ValueCountPairContainer& vcpc, SizeT k)
 {
 	SizeT m = vcpc.size();
-	assert(m <= vcpc.m_Total);
+	assert(m <= GetTotalCount(vcpc));
 
 	break_array result; result.reserve(k);
 
@@ -438,7 +184,7 @@ break_array ClassifyEqualInterval(AbstrDataItem* breakAttr, const ValueCountPair
 		SizeT m = vcpc.size();
 		if (m)
 		{
-			assert(m <= vcpc.m_Total);
+			assert(m <= GetTotalCount(vcpc));
 
 			Float64 minValue = vcpc[0].first;
 			Float64 maxValue = vcpc[m - 1].first;
@@ -479,7 +225,7 @@ break_array ClassifyNZEqualInterval(AbstrDataItem* breakAttr, const ValueCountPa
 	SizeT m = vcpc.size();
 	assert(m);
 
-	assert(m <= vcpc.m_Total);
+	assert(m <= GetTotalCount(vcpc));
 	auto mz = 0; while (mz < m && vcpc[mz].first < 0.0) ++mz; 
 	bool hasNegative = (mz > 0);
 
@@ -566,7 +312,7 @@ break_array ClassifyLogInterval(AbstrDataItem* breakAttr, const ValueCountPairCo
 	UInt32 k = breakAttr->GetAbstrDomainUnit()->GetCount();
 	UInt32 m = vcpc.size();
 
-	assert(m<= vcpc.m_Total);
+	assert(m <= GetTotalCount(vcpc));
 
 	break_array faLimits;
 	if (m)
@@ -599,13 +345,13 @@ break_array ClassifyEqualCount(AbstrDataItem* breakAttr, const ValueCountPairCon
 
 	SizeT k = breakAttr->GetAbstrDomainUnit()->GetCount();
 
-	SizeT  m = vcpc.size();
+	SizeT  m = vcpc.size(), n = GetTotalCount(vcpc);
 
 	UInt32 kk = Min<UInt32>(k,m);
 //	assert(kk>=1); // follows from previous asserts + assignemnt
 	assert(kk<=m); // follows from assignment
-	assert(m<= vcpc.m_Total); // #(PRECONDITION: vcpc == unique value(themeAttr)) <= #themekAttr
-	assert(kk<= vcpc.m_Total); // follows from previous asserts
+	assert(m  <= n); // #(PRECONDITION: vcpc == unique value(themeAttr)) <= #themekAttr
+	assert(kk <= n); // follows from previous asserts
 
 	UInt32 c = 0, cc=0;
 	UInt32 i =0;
@@ -631,7 +377,7 @@ break_array ClassifyEqualCount(AbstrDataItem* breakAttr, const ValueCountPairCon
 
 		ba.emplace_back(breakValue);
 		breakObj->SetValueAsFloat64(j, breakValue );
-		cc = c + (vcpc.m_Total -c)/(kk-j);
+		cc = c + (n -c)/(kk-j);
 	}
 	for (; j != k; ++j)
 		breakObj->SetValueAsFloat64(j, breakValue);
@@ -646,13 +392,13 @@ break_array ClassifyNZEqualCount(AbstrDataItem* breakAttr, const ValueCountPairC
 
 	SizeT k = breakAttr->GetAbstrDomainUnit()->GetCount();
 
-	SizeT  m = vcpc.size();
+	SizeT m = vcpc.size(), n = GetTotalCount(vcpc);
 
 	UInt32 kk = Min<UInt32>(k, m);
 	//	assert(kk>=1); // follows from previous asserts + assignemnt
 	assert(kk <= m); // follows from assignment
-	assert(m <= vcpc.m_Total); // #(PRECONDITION: vcpc == unique value(themeAttr)) <= #themekAttr
-	assert(kk <= vcpc.m_Total); // follows from previous asserts
+	assert(m <= n); // #(PRECONDITION: vcpc == unique value(themeAttr)) <= #themekAttr
+	assert(kk <= n); // follows from previous asserts
 
 	UInt32 c = 0, cc = 0;
 	UInt32 i = 0;
@@ -678,7 +424,7 @@ break_array ClassifyNZEqualCount(AbstrDataItem* breakAttr, const ValueCountPairC
 
 		ba.emplace_back(breakValue);
 		breakObj->SetValueAsFloat64(j, breakValue);
-		cc = c + (vcpc.m_Total - c) / (kk - j);
+		cc = c + (n - c) / (kk - j);
 	}
 	for (; j != k; ++j)
 		breakObj->SetValueAsFloat64(j, breakValue);

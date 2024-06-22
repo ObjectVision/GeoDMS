@@ -78,20 +78,21 @@ template <class Key, class Data, class Compare = std::less<Key> >
 class vector_multimap
 {
   public:
-	typedef Key                             key_type;
-	typedef Data                            data_type;
-	typedef Pair<Key, Data>                 value_type;
-	typedef std::vector<value_type>         ContainerType;
-	typedef ContainerType::iterator         iterator;
-	typedef ContainerType::const_iterator   const_iterator;
-	typedef std::allocator<Data>::reference reference;
-	typedef Compare                         key_compare;
+	  using key_type = Key;
+	  using data_type = Data;
+	  using value_type = Pair<Key, Data>;
+	  using ContainerType = std::vector<value_type>;
+	  using size_type = typename ContainerType::size_type;
+	  using iterator = typename ContainerType::iterator;
+	  using const_iterator = typename ContainerType::const_iterator;
+	  using reference = Data&;
+	  using key_compare = Compare;
+
 	typedef Point<iterator>                 iterator_pair;
 	typedef Point<const_iterator>           const_iterator_pair;
-//	typedef std::pair<iterator, bool>       insert_pair;
 
-	typedef comp_first<key_type, value_type, key_compare> value_compare;
-
+	using value_compare = comp_first<key_type, value_type, key_compare>;
+	
 	vector_multimap(const key_compare& compare = key_compare())
 		: m_Compare(compare) {}
 

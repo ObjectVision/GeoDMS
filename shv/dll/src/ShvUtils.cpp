@@ -936,7 +936,6 @@ SharedDataItemInterestPtr CreateEqualIntervalBreakAttr(std::weak_ptr<DataView> d
 	sortedUniqueValueCache.reserve(2);
 	sortedUniqueValueCache.push_back(ValueCountPair<Float64>(range.first,  1) );
 	sortedUniqueValueCache.push_back(ValueCountPair<Float64>(range.second, 1) );
-	sortedUniqueValueCache.m_Total = 2;
 
 	ClassifyEqualInterval(breakAttr, sortedUniqueValueCache, themeUnit->GetTiledRangeData());
 
@@ -954,7 +953,7 @@ SharedDataItemInterestPtr CreateEqualCountBreakAttr(DataView* dv, const AbstrDat
 	auto [paletteDomain, breakAttr] = CreateBreakAttr(dv, thematicAttr->GetAbstrValuesUnit(), thematicAttr, Min<SizeT>(sortedUniqueValueCache.first.size(), DEFAULT_MAX_NR_BREAKS));
 
 
-	if (sortedUniqueValueCache.first.m_Total)
+	if (!sortedUniqueValueCache.first.empty())
 		ClassifyEqualCount(breakAttr, sortedUniqueValueCache.first, sortedUniqueValueCache.second);
 
 	return breakAttr.get_ptr();
@@ -971,7 +970,7 @@ void CreateNonzeroJenksFisherBreakAttr(std::weak_ptr<DataView> dv_wptr, const Ab
 	{
 		ItemReadLock readLock(thematicAttr->GetCurrRangeItem());
 		DataReadLock lck(thematicAttr);
-		sortedUniqueValueCache = GetCounts<ClassBreakValueType>(thematicAttr, MAX_PAIR_COUNT);
+		sortedUniqueValueCache = GetCounts<ClassBreakValueType, CountType>(thematicAttr, MAX_PAIR_COUNT);
 		thematicValuesRangeData = sortedUniqueValueCache.second;
 	}
 

@@ -1,11 +1,9 @@
-#define _ITERATOR_DEBUG_LEVEL 0
-
 #include <assert.h>
 #include <vector>
 #include <algorithm>
-#include "set/DataCompare.h"
 
-using break_array = std::vector<Float64>;
+using ClassBreakValueType = double;
+using break_array = std::vector<ClassBreakValueType>;
 typedef std::size_t                  SizeT;
 typedef SizeT                        CountType;
 typedef std::pair<double, CountType> ValueCountPair;
@@ -192,7 +190,9 @@ void GetCountsDirect(ValueCountPairContainer& vcpc, const double* values, SizeT 
 	double buffer[BUFFER_SIZE];
 
 	std::copy(values, values+size, buffer);
-	std::sort(buffer, buffer+size, DataCompare<double>());
+	size = std::remove(buffer, buffer+size, std::numeric_limits<double>::quiet_NaN()) - buffer;
+
+	std::sort(buffer, buffer+size);
 
 	double currValue = buffer[0];
 	SizeT     currCount = 1;
@@ -278,7 +278,7 @@ struct ValueCountPairContainerArray : std::vector<ValueCountPairContainer>
 		{
 			resize(nrUsedContainers+2);
 
-			unsigned int m = size/2;
+			unsigned int m = size / 2;
 
 			GetValueCountPairs(vcpc, values, m, nrUsedContainers);
 			GetValueCountPairs(begin()[nrUsedContainers], values + m, size - m, nrUsedContainers+1);
@@ -305,7 +305,9 @@ void GetValueCountPairs(ValueCountPairContainer& vcpc, const double* values, Siz
 	}
 }
 
-void ClassifyJenksFisherFromValueCountPairs(LimitsContainer& breaksArray, SizeT k, const ValueCountPairContainer& vcpc)
+template<typename CB> using LimitsContainer = std::vector<CB>;
+
+void ClassifyJenksFisherFromValueCountPairs(LimitsContainer<ClassBreakValueType>& breaksArray, SizeT k, const ValueCountPairContainer& vcpc)
 {
 	breaksArray.resize(k);
 	SizeT m  = vcpc.size();
@@ -377,7 +379,7 @@ int main(int c, char** argv)
 	GetValueCountPairs(sortedUniqueValueCounts, &values[0], n);
 
 	std::cout << "Finding Jenks ClassBreaks..." << std::endl;
-	LimitsContainer resultingbreaksArray;
+	LimitsContainer< ClassBreakValueType> resultingbreaksArray;
 	ClassifyJenksFisherFromValueCountPairs(resultingbreaksArray, k, sortedUniqueValueCounts);
 
 	std::cout << "Reporting results..." << std::endl;

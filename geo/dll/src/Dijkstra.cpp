@@ -443,7 +443,9 @@ void UpdateALW(const NetworkInfo<NodeType, ZoneType, ImpType>& ni, const OwningD
 		nodeALW[node] = 0;
 
 		auto currNodePtr = &tr.m_TreeNodes[node];
-		assert(!currNodePtr->GetParent());
+		if (currNodePtr->GetParent())
+			continue;
+
 		while (currNodePtr = tr.WalkDepthFirst_TopDown(currNodePtr))
 		{
 			assert(currNodePtr && currNodePtr->GetParent());
