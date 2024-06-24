@@ -10,6 +10,7 @@
 
 #include "dbg/debug.h"
 #include "dbg/DebugContext.h"
+#include "dbg/DmsCatch.h"
 #include "geo/BaseBounds.h"
 #include "geo/Conversions.h"
 #include "geo/Pair.h"
@@ -68,6 +69,41 @@ void StatusTextCaller::operator() (SeverityTypeID st, CharPtr msg) const
 HINSTANCE GetInstance(HWND hWnd)
 {
 	return reinterpret_cast<HINSTANCE>( GetWindowLongPtr(hWnd, GWLP_HINSTANCE) );
+}
+
+//----------------------------------------------------------------------
+// section : Operation Queues
+//----------------------------------------------------------------------
+
+std::mutex s_MainQueueSection;
+
+bool operation_queue::Post(operation_type&& func)
+{
+	auto lock = std::scoped_lock(s_MainQueueSection);
+	bool result = m_Operations.empty();
+	m_Operations.emplace_back(std::move(func));
+	return result;
+}
+
+void operation_queue::Process()
+{
+	assert(IsMainThread());
+	decltype(m_Operations) operQueue;
+	{
+		auto lock = std::scoped_lock(s_MainQueueSection);
+		operQueue = std::move(m_Operations);
+		assert(m_Operations.empty());
+	}
+	for (auto& oper : operQueue)
+	{
+		try {
+			oper();
+		}
+		catch (...)
+		{
+			catchAndReportException();
+		}
+	}
 }
 
 //----------------------------------------------------------------------

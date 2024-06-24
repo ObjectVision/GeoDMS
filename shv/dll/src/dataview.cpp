@@ -1598,14 +1598,9 @@ bool DataView::CreateMdiChild(ViewStyle ct, CharPtr caption)
 	return false;
 }
 
-leveled_critical_section s_QueueSection(item_level_type(0), ord_level_type::DataViewQueue, "DataViewQueue");
-
 void DataView::PostGuiOper(std::function<void()>&& func)
 {
-	leveled_critical_section::scoped_lock lock(s_QueueSection);
-
-	bool wasEmpty = m_GuiOperQueue.empty();
-	m_GuiOperQueue.emplace_back(std::move(func));
+	bool wasEmpty = m_GuiOperQueue.Post(std::move(func));
 	if (wasEmpty && m_hWnd)
 		PostMessage(m_hWnd, UM_PROCESS_QUEUE, 0, 0);
 }
@@ -1614,22 +1609,7 @@ void DataView::PostGuiOper(std::function<void()>&& func)
 void DataView::ProcessGuiOpers()
 {
 	assert(IsMainThread());
-	decltype(m_GuiOperQueue) operQueue;
-	{
-		auto lock = std::scoped_lock(s_QueueSection);
-		operQueue = std::move(m_GuiOperQueue);
-		m_GuiOperQueue.clear();
-	}
-	for (auto& oper : operQueue)
-	{
-		try {
-			oper();
-		}
-		catch (...) 
-		{
-			catchAndReportException();		
-		}
-	}
+	m_GuiOperQueue.Process();
 }
 
 void OnControlActivate(DataView* self, const UInt32* first, const UInt32* last)

@@ -84,36 +84,17 @@ void MainWindow::SaveValueInfoImpl(CharPtr filename) {
     }
 }
 
-std::mutex s_MainQueueSection;
-
 void MainWindow::PostAppOper(std::function<void()>&& func)
 {
-    auto lock = std::scoped_lock(s_MainQueueSection);
-
-    m_AppOperQueue.emplace_back(std::move(func));
+    m_AppOperQueue.Post(std::move(func));
     RequestMainThreadOperProcessing();
 }
 
 void MainWindow::ProcessAppOpers()
 {
     assert(IsMainThread());
-    decltype(m_AppOperQueue) operQueue;
-    {
-        auto lock = std::scoped_lock(s_MainQueueSection);
-        operQueue = std::move(m_AppOperQueue);
-        m_AppOperQueue.clear();
-        ConfirmMainThreadOperProcessing();
-    }
-    for (auto& oper : operQueue)
-    {
-        try {
-            oper();
-        }
-        catch (...) 
-        {
-            catchAndReportException();
-        }
-    }
+    ConfirmMainThreadOperProcessing();
+    m_AppOperQueue.Process();
 }
 
 void MainWindow::saveValueInfo() {

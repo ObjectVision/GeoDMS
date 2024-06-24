@@ -333,7 +333,7 @@ private:
     SharedStr m_StatusMsg, m_LongestProcessingRecordTxt;
     bool m_UpdateToolbarRequestPending = false;
     std::unique_ptr<CDebugLog> m_TraceLogHandle;
-    mutable std::vector< std::function<void()>>  m_AppOperQueue;
+    operation_queue m_AppOperQueue;
 };
 
 #endif
