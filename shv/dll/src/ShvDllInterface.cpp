@@ -147,7 +147,7 @@ void DMS_CONV SHV_DataView_StoreDesktopData(DataView* dv)
 	DMS_CALL_END
 }
 
-bool      DMS_CONV SHV_DataView_CanContain(DataView* dv, const TreeItem* viewCandidate)
+bool DMS_CONV SHV_DataView_CanContain(DataView* dv, const TreeItem* viewCandidate)
 {
 	DMS_CALL_BEGIN
 
@@ -260,7 +260,6 @@ bool DMS_CONV SHV_DataView_DispatchMessage(DataView* dv, HWND hWnd, UINT msg, WP
 							first.Send();
 						}
 					}
-//				dms_assert(g_DispatchLockCount > 1 || !SuspendTrigger::DidSuspend());
 				SuspendTrigger::Resume();
 			}
 			bool result = MsgStruct(dv, msg, wParam, lParam, resultPtr).Send();

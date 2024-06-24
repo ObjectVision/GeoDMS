@@ -76,7 +76,6 @@ namespace {
 void ProcessLastMsg()
 {
 	assert(IsMetaThread());
-	//	ProcessMainThreadOpers();
 	if (!g_LastMsg)
 		return;
 	if (g_DispatchLockCount)

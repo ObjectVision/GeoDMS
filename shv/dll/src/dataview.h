@@ -261,7 +261,7 @@ public:
 	virtual SharedStr GetCaption() const;
 
 	bool IsInActiveDataViewSet();
-	void AddGuiOper(std::function<void()>&& func);
+	void PostGuiOper(std::function<void()>&& func);
 
 protected: // override virtuals of Actor 
 	ActorVisitState VisitSuppliers(SupplierVisitFlag svf, const ActorVisitor& visitor) const override;
@@ -323,7 +323,7 @@ private:
 	DataViewTree*                 m_ParentView;  friend DataViewTree;
 	ScrollPort*                   m_ScrollEventsReceiver;
 
-	std::list < std::function<void()>>  m_GuiOperQueue;
+	std::vector<std::function<void()>>  m_GuiOperQueue;
 	Waiter                        m_Waiter;
 
 public:

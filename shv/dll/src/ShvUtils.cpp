@@ -984,7 +984,7 @@ void CreateNonzeroJenksFisherBreakAttr(std::weak_ptr<DataView> dv_wptr, const Ab
 
 	auto siwlPaletteDomain = std::make_shared<ItemWriteLock>(std::move(iwlPaletteDomain));
 	auto siwlBreakAttr = std::make_shared<ItemWriteLock>(std::move(iwlBreakAttr)); // TODO G8: Can this be moved into a functor's data field directly? Requires no functor copy!
-	dv->AddGuiOper([paletteDomain
+	dv->PostGuiOper([paletteDomain
 			, siwlMovedPaletteDomain = std::move(siwlPaletteDomain)
 			, breakAttrPtr, siwlBreakAttr, nrBreaks
 			, resultCopy = std::move(result)

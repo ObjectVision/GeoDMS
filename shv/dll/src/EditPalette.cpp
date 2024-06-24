@@ -700,7 +700,7 @@ void CreateEditPaletteMdiChild(GraphicLayer* layer, const AbstrDataItem* themeAt
 	auto dv = layer->GetDataView().lock(); if (!dv) return;
 	std::weak_ptr<GraphicLayer> layer_wp = layer->shared_from_base<GraphicLayer>();
 	SharedPtr< const AbstrDataItem> themeAttrSPtr = themeAttr;
-	dv->AddGuiOper([layer_wp, themeAttrSPtr]() {
+	dv->PostGuiOper([layer_wp, themeAttrSPtr]() {
 		std::shared_ptr<GraphicLayer> layer = layer_wp.lock(); if (!layer) return;
 		auto dv = layer->GetDataView().lock(); if (!dv) return;
 		TreeItem* desktopItem = dv->GetDesktopContext();

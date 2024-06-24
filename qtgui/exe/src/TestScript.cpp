@@ -243,7 +243,10 @@ int RunTestScript(SharedStr testScriptName)
 
 		std::promise<int> p;
 		std::future<int> mainThreadResult = p.get_future();
-		PostMainThreadOper([line, &p]
+		auto mw = MainWindow::TheOne();
+		if (!mw)
+			return 0;
+		mw->PostAppOper([line, &p]
 			{
 				auto waitMilliSec = RunTestLine(line);
 				p.set_value(waitMilliSec);

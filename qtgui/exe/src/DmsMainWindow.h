@@ -167,6 +167,8 @@ public:
     void doViewAction(TreeItem* tiContext, CharPtrRange sAction, QWidget* origin = nullptr);
     bool ShowInDetailPage(SharedStr x);
     void SaveValueInfoImpl(CharPtr filename);
+    void PostAppOper(std::function<void()>&& func);
+    void ProcessAppOpers();
 
     static auto TheOne() -> MainWindow*;
     static bool IsExisting();
@@ -331,6 +333,7 @@ private:
     SharedStr m_StatusMsg, m_LongestProcessingRecordTxt;
     bool m_UpdateToolbarRequestPending = false;
     std::unique_ptr<CDebugLog> m_TraceLogHandle;
+    mutable std::vector< std::function<void()>>  m_AppOperQueue;
 };
 
 #endif

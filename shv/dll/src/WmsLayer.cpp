@@ -202,9 +202,11 @@ namespace wms {
 				PostPendingTasks();
 		}
 
-		static void PostPendingTasks()
+		void PostPendingTasks()
 		{
-			PostMainThreadOper([]
+			auto wmsLayer = m_Owner.lock(); if (!wmsLayer) return;
+			auto dv = wmsLayer->GetDataView().lock(); if (!dv) return;
+			dv->PostGuiOper([]
 				{ 
 					static dms_task runTask;
 					runTask = dms_task([] { ProcessPendingTasks(); });
@@ -284,22 +286,12 @@ namespace wms {
 	void ProcessPendingTasks()
 	{
 		UInt32 retryCounter = 256;
-		//MG_DEBUGCODE(reportD(MsgCategory::wms, SeverityTypeID::ST_MinorTrace, "STARTED: GetIOC()"));
 		while (TileLoader::s_InstanceCount) // destructor of last TileLoader, presumably called outside the run-loop, can queue new TileLoaders with new events
 		{
 			GetIOC()->run();
 			if (!TileLoader::s_InstanceCount)
 				break;
-/*
-			if (!--retryCounter)
-			{
-				TileLoader::PostPendingTasks();
-				break;
-			}
-*/
-			//MG_DEBUGCODE(reportD(MsgCategory::wms, SeverityTypeID::ST_MinorTrace, "SUSPENDED: GetIOC()"); )
 		} 
-		//MG_DEBUGCODE(reportD(MsgCategory::wms, SeverityTypeID::ST_MinorTrace, "STOPPED: GetIOC()"));
 	}
 
 	struct TileCache
@@ -478,10 +470,6 @@ namespace wms {
 	{
 		m_Timer.cancel();
 		
-		auto response_body = m_Response.body();// DEBUG
-		
-
-		
 		if (!ec) 
 			if (m_ImageFormatType == image_format_type::png)
 				if (strncmp(m_Response.body().c_str(), "\x89PNG", 4)!=0)
@@ -513,7 +501,7 @@ namespace wms {
 		//	if (owner->GetScale() == m_Scale)
 		auto dv = owner->GetDataView().lock(); 
 		if (dv)
-			dv->AddGuiOper([key = m_Key, owner_wptr = m_Owner]() {
+			dv->PostGuiOper([key = m_Key, owner_wptr = m_Owner]() {
 				auto owner = owner_wptr.lock();
 				if (owner && owner->m_ZoomLevel == key.first)
 					owner->InvalidateWorldRect(owner->WorldExtents(key), nullptr);

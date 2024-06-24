@@ -438,7 +438,7 @@ RTC_CALL ErrMsgPtr catchException(bool rethrowCancelation)
 RTC_CALL ErrMsgPtr catchAndReportException()
 {
 	auto result = catchException(false);
-	reportD(SeverityTypeID::ST_Warning, "\n", result->GetAsText().c_str());
+	reportD(SeverityTypeID::ST_Error, "\n", result->GetAsText().c_str());
 	return result;
 }
 

@@ -106,20 +106,20 @@ bool NoOtherThreadsStarted()
 	return IsMainThread() && (sThreadID == 1);
 }
 
-std::vector < std::function<void()>>  s_OperQueue;
+std::vector<std::function<void()>>  s_OperQueue;
 
 leveled_std_section s_QueueSection(item_level_type(0), ord_level_type::OperationQueue, "OperationQueue");
 
 
 std::atomic<bool> s_MainThreadOperProcessRequestPending = false;
 
-void RequestMainThreadOperProcessing()
+RTC_CALL void RequestMainThreadOperProcessing()
 {
 	if (!sMainThreadHnd)
 		return; // not yet initialized.
 
 	if (!s_MainThreadOperProcessRequestPending.exchange(true))
-		PostThreadMessage(sMainThreadHnd, UM_PROCESS_MAINTHREAD_OPERS, 0, 0);
+		PostThreadMessage(sMainThreadHnd, UM_PROCESS_MAINTHREAD_OPERS, 0, 0); // only effective when MainThread has MessageQueue, ie in GeoDmsGui, and not in GeoDmsRun or python process
 }
 
 RTC_CALL void ConfirmMainThreadOperProcessing()
@@ -166,7 +166,6 @@ MainThreadBlocker::~MainThreadBlocker()
 void ProcessMainThreadOpers()
 {
 	assert(IsMetaThread());
-	ConfirmMainThreadOperProcessing();
 
 	if (s_ProcessMainThreadOperLevel)
 		return;

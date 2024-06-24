@@ -260,7 +260,7 @@ public:
 
 							SizeT count = paletteDomain->GetCount();
 							auto sDv = wDv.lock(); if (!sDv) return;
-							sDv->AddGuiOper([count, wResLayer, wLayerSet]() {
+							sDv->PostGuiOper([count, wResLayer, wLayerSet]() {
 								auto sResLayer = wResLayer.lock();
 								if (!sResLayer)
 									return;

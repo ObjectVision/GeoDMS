@@ -1378,6 +1378,8 @@ task_status OperationContext::Join()
 			prioritize(prioritizedContexts, this->shared_from_this());
 		}
 		cv_TaskCompleted.wait_for(lock.m_BaseLock, std::chrono::milliseconds(200), [this]() { return m_Status > task_status::running; });
+		if (IsMetaThread())
+			ProcessMainThreadOpers();
 		isFirstTime = false;
 	}
 

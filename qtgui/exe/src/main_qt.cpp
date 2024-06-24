@@ -258,6 +258,8 @@ bool CustomEventFilter::nativeEventFilter(const QByteArray& /*eventType*/, void*
 
     case UM_PROCESS_MAINTHREAD_OPERS:
         ProcessMainThreadOpers();
+        if (auto mw = MainWindow::TheOne())
+            mw->ProcessAppOpers();
         return true;
 
     case UM_COPYDATA:
@@ -372,7 +374,7 @@ int main_without_SE_handler(int argc, char *argv[]) {
         std::future<int> testResult;
         if (!tsn.empty())
         {
-            PostMainThreadOper([tsn, &testResult]
+            main_window.PostAppOper([tsn, &testResult]
                 {
                     testResult = std::async([tsn]
                         { 

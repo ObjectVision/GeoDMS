@@ -754,8 +754,11 @@ void ReportFixedAllocStatus()
 	if (++reportThrottler > 17) // only report to log every 17th time
 	{
 		reportThrottler = 0;
-		auto reportStr = GetFixedAllocStatus(cumulBytes);
-		reportD(MsgCategory::memory, SeverityTypeID::ST_MajorTrace, reportStr.c_str());
+		PostMainThreadOper([reportStr = GetFixedAllocStatus(cumulBytes)]
+			{
+				reportD(MsgCategory::memory, SeverityTypeID::ST_MajorTrace, reportStr.c_str());
+			}
+		);
 	}
 }
 

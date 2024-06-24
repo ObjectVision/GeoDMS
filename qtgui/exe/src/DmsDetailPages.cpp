@@ -222,7 +222,7 @@ void DmsDetailPages::scheduleDrawPageImpl(int milliseconds)
     if (!m_DrawPageRequestPending.exchange(true))
     {
         assert(m_DrawPageRequestPending);
-        SendMainThreadOper([this, milliseconds]
+        MainWindow::TheOne()->PostAppOper([this, milliseconds]
             {
                 assert(IsMainThread());
                 static std::time_t pendingDeadline = 0;

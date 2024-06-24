@@ -33,6 +33,7 @@ RTC_CALL void PostMainThreadOper(std::function<void()>&& func);
 RTC_CALL void SendMainThreadOper(std::function<void()>&& func);
 RTC_CALL void ProcessMainThreadOpers();
 RTC_CALL bool IsProcessingMainThreadOpers();
+RTC_CALL void RequestMainThreadOperProcessing();
 RTC_CALL void ConfirmMainThreadOperProcessing();
 
 struct MainThreadBlocker

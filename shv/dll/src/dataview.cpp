@@ -1006,15 +1006,6 @@ ActorVisitState UpdateChildViews(DataViewTree* dvl)
 	return AVS_Ready;
 }
 
-/* REMOVE
-ActorVisitState DataView::UpdateViews()
-{
-	if (g_DispatchLockCount > 1) // any other locks than the one from SHV_DataView_Update?
-		return AVS_SuspendedOrFailed;
-	return UpdateChildViews(&g_DataViewRoots);
-}
-*/
-
 void DataView::ScrollDevice(GPoint delta, GRect rcScroll, GRect rcClip, const MovableObject* src)
 {
 	DBG_START("DataView", "Scroll", MG_DEBUG_SCROLL);
@@ -1609,7 +1600,7 @@ bool DataView::CreateMdiChild(ViewStyle ct, CharPtr caption)
 
 leveled_critical_section s_QueueSection(item_level_type(0), ord_level_type::DataViewQueue, "DataViewQueue");
 
-void DataView::AddGuiOper(std::function<void()>&& func)
+void DataView::PostGuiOper(std::function<void()>&& func)
 {
 	leveled_critical_section::scoped_lock lock(s_QueueSection);
 
@@ -1623,26 +1614,21 @@ void DataView::AddGuiOper(std::function<void()>&& func)
 void DataView::ProcessGuiOpers()
 {
 	assert(IsMainThread());
-	while (true) {
-		std::function<void()> nextOperation;
-		{
-			leveled_critical_section::scoped_lock lock(s_QueueSection);
-			if (m_GuiOperQueue.empty())
-				return;
-			if (SuspendTrigger::MustSuspend())
-			{
-				PostMessage(m_hWnd, UM_PROCESS_QUEUE, 0, 0);
-				return;
-			}
-			nextOperation = std::move(m_GuiOperQueue.front());
-			m_GuiOperQueue.pop_front();
-		}
-		StaticMtDecrementalLock<decltype(g_DispatchLockCount), g_DispatchLockCount> dispatchLock;
+	decltype(m_GuiOperQueue) operQueue;
+	{
+		auto lock = std::scoped_lock(s_QueueSection);
+		operQueue = std::move(m_GuiOperQueue);
+		m_GuiOperQueue.clear();
+	}
+	for (auto& oper : operQueue)
+	{
 		try {
-			nextOperation();
+			oper();
 		}
-		catch (...) {} // let it go, it's just GUI.
-		SuspendTrigger::MarkProgress();
+		catch (...) 
+		{
+			catchAndReportException();		
+		}
 	}
 }
 
