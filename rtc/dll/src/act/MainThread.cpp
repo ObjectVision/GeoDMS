@@ -19,6 +19,7 @@
 #include "Parallel.h"
 
 #include "dbg/Check.h"
+#include "dbg/DmsCatch.h"
 #include "act/MainThread.h"
 #include "act/TriggerOperator.h"
 
@@ -106,11 +107,6 @@ bool NoOtherThreadsStarted()
 	return IsMainThread() && (sThreadID == 1);
 }
 
-std::vector<std::function<void()>>  s_OperQueue;
-
-leveled_std_section s_QueueSection(item_level_type(0), ord_level_type::OperationQueue, "OperationQueue");
-
-
 std::atomic<bool> s_MainThreadOperProcessRequestPending = false;
 
 RTC_CALL void RequestMainThreadOperProcessing()
@@ -131,19 +127,60 @@ RTC_CALL void ConfirmMainThreadOperProcessing()
 //	auto peekResult = PeekMessage(&msg, NULL, WM_USER, WM_USER, PM_NOREMOVE); // create a message queue for the main thread.
 }
 
+//----------------------------------------------------------------------
+// section : Operation Queues
+//----------------------------------------------------------------------
+
+std::mutex s_MainQueueSection;
+
+bool operation_queue::Post(operation_type&& func)
+{
+	auto lock = std::scoped_lock(s_MainQueueSection);
+	bool result = m_Operations.empty();
+	m_Operations.emplace_back(std::move(func));
+	return result;
+}
+
+void operation_queue::Send(operation_type&& func)
+{
+	if (IsMetaThread())
+		func();
+	else
+		PostMainThreadOper(std::move(func));
+}
+
+void operation_queue::Process()
+{
+	assert(IsMainThread());
+	decltype(m_Operations) operQueue;
+	{
+		auto lock = std::scoped_lock(s_MainQueueSection);
+		operQueue = std::move(m_Operations);
+		assert(m_Operations.empty());
+	}
+	for (auto& oper : operQueue)
+	{
+		try {
+			oper();
+		}
+		catch (...)
+		{
+			catchAndReportException();
+		}
+	}
+}
+
+operation_queue s_OperQueue;
+
 void PostMainThreadOper(std::function<void()>&& func)
 {
-	leveled_std_section::scoped_lock lock(s_QueueSection);
-	s_OperQueue.emplace_back(std::move(func));
-	RequestMainThreadOperProcessing();
+	if (s_OperQueue.Post(std::move(func)))
+		RequestMainThreadOperProcessing();
 }
 
 void SendMainThreadOper(std::function<void()>&& func)
 {
-	if (IsMainThread())
-		func();
-	else
-		PostMainThreadOper(std::move(func));
+	s_OperQueue.Send(std::move(func));
 }
 
 static UInt32 s_ProcessMainThreadOperLevel = 0;
@@ -169,16 +206,10 @@ void ProcessMainThreadOpers()
 
 	if (s_ProcessMainThreadOperLevel)
 		return;
+
 	StaticStIncrementalLock<s_ProcessMainThreadOperLevel> avoidReenty;
 
-	decltype(s_OperQueue) operQueue;
-	{
-		auto lock = leveled_std_section::scoped_lock(s_QueueSection);
-		operQueue = std::move(s_OperQueue);
-		s_OperQueue.clear();
-	}
-	for (auto& oper : operQueue)
-		oper();
+	s_OperQueue.Process();
 }
 
 #include "ASync.h"

@@ -19,6 +19,22 @@ enum {
 	UM_COPYDATA = 0x8004,
 };
 
+//----------------------------------------------------------------------
+// section : Operation Queues
+//----------------------------------------------------------------------
+
+using operation_type = std::function<void()>;
+struct operation_queue
+{
+	RTC_CALL bool Post(operation_type&& func); // returns true if the queue was empty before posting
+	RTC_CALL void Send(operation_type&& func);
+
+	RTC_CALL void Process();
+
+private:
+	std::vector<operation_type> m_Operations;
+};
+
 /********** helper funcs  **********/
 
 RTC_CALL void   SetMainThreadID();
@@ -29,8 +45,8 @@ RTC_CALL bool   NoOtherThreadsStarted();
 RTC_CALL bool   IsElevatedThread();
 RTC_CALL UInt32 GetCallCount();
 RTC_CALL UInt32 GetThreadID();
-RTC_CALL void PostMainThreadOper(std::function<void()>&& func);
-RTC_CALL void SendMainThreadOper(std::function<void()>&& func);
+RTC_CALL void PostMainThreadOper(operation_type&& func);
+RTC_CALL void SendMainThreadOper(operation_type&& func);
 RTC_CALL void ProcessMainThreadOpers();
 RTC_CALL bool IsProcessingMainThreadOpers();
 RTC_CALL void RequestMainThreadOperProcessing();

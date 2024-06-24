@@ -22,20 +22,6 @@
 class GraphicObject;
 
 //----------------------------------------------------------------------
-// section : Operation Queues
-//----------------------------------------------------------------------
-
-using operation_type = std::function<void()>;
-struct operation_queue
-{
-	bool Post(operation_type&& func); // returns true if the queue was empty before posting
-	void Process();
-
-private:
-	std::vector<operation_type> m_Operations;
-};
-
-//----------------------------------------------------------------------
 // section : Tic extensions, TODO: move to TIC
 //----------------------------------------------------------------------
 
