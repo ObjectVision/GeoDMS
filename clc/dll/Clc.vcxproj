@@ -181,6 +181,8 @@
     <ClInclude Include="include\UnitGroup.h" />
     <ClInclude Include="include\CalcClassBreaks.h" />
     <ClInclude Include="include\ValueGetter.h" />
+    <ClInclude Include="include\ValuesTable.h" />
+    <ClInclude Include="include\ValuesTableTypes.h" />
     <ClInclude Include="src\RLookup.ipp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

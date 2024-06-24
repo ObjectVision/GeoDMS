@@ -17,6 +17,8 @@
 
 #include "StgBase.h"
 
+#include "ValuesTable.h"
+
 #include "DataView.h"
 #include "DataItemColumn.h"
 #include "KeyFlags.h"

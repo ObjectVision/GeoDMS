@@ -294,6 +294,12 @@
     <ClInclude Include="include\RemoveAdjacentsAndSpikes.h">
       <Filter>Clc Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="include\ValuesTable.h">
+      <Filter>Clc Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ValuesTableTypes.h">
+      <Filter>Clc Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <Filter Include="Source Files">

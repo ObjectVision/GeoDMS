@@ -17,6 +17,7 @@
 #include "UnitClass.h"
 
 #include "CalcClassBreaks.h"
+#include "ValuesTable.h"
 
 struct ClassifyFixedOperator: public BinaryOperator
 {

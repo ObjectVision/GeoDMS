@@ -39,10 +39,13 @@
 
 #include "StgBase.h"
 
+#include "CalcClassBreaks.h"
+#include "ValuesTable.h"
+
 #include "GeoTypes.h"
 
 #include "Aspect.h"
-#include "CalcClassBreaks.h"
+
 #include "DataView.h"
 #include "DcHandle.h"
 #include "GraphicObject.h"
