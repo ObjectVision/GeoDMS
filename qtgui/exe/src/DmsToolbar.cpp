@@ -151,7 +151,7 @@ auto getAvailableTableviewButtonIds() -> std::vector<ToolButtonID> {
 }
 
 auto getAvailableMapviewButtonIds() -> std::vector<ToolButtonID> {
-    return { TB_Export , TB_CopyLC, TB_Copy, TB_Undefined,
+    return { TB_CopyLC, TB_Copy, TB_Undefined,
              TB_ZoomAllLayers, TB_ZoomActiveLayer, TB_Pan, TB_ZoomIn2, TB_ZoomOut2, TB_Undefined,
              TB_ZoomSelectedObj,TB_SelectObject,TB_SelectRect,TB_SelectCircle,TB_SelectPolygon,TB_SelectDistrict,TB_SelectAll,TB_SelectNone,TB_ShowSelOnlyOn, TB_Undefined,
              TB_Show_VP,TB_SP_All,TB_NeedleOn,TB_ScaleBarOn };
