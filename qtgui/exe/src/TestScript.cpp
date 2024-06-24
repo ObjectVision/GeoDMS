@@ -233,7 +233,7 @@ SharedStr ReadLine(FormattedInpStream& fis)
 
 #include <future>
 
-int RunTestScript(SharedStr testScriptName)
+int RunTestScript(SharedStr testScriptName, bool* mustTerminateToken)
 {
 	auto fileBuff = FileInpStreamBuff(testScriptName, nullptr, true);
     auto fis = FormattedInpStream(&fileBuff);
@@ -243,9 +243,14 @@ int RunTestScript(SharedStr testScriptName)
 
 		std::promise<int> p;
 		std::future<int> mainThreadResult = p.get_future();
+
+		if (*mustTerminateToken)
+			return 0;
+
 		auto mw = MainWindow::TheOne();
 		if (!mw)
 			return 0;
+
 		mw->PostAppOper([line, &p]
 			{
 				auto waitMilliSec = RunTestLine(line);

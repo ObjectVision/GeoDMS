@@ -372,13 +372,14 @@ int main_without_SE_handler(int argc, char *argv[]) {
 
         SharedStr tsn = settingsFrame.m_TestScriptName;
         std::future<int> testResult;
+        bool mustTerminateToken = false;
         if (!tsn.empty())
         {
-            main_window.PostAppOper([tsn, &testResult]
+            main_window.PostAppOper([tsn, &testResult, &mustTerminateToken]
                 {
-                    testResult = std::async([tsn]
+                    testResult = std::async([tsn, &mustTerminateToken]
                         { 
-                            return RunTestScript(tsn); 
+                            return RunTestScript(tsn, &mustTerminateToken);
                         }
                     );
                 }
@@ -386,9 +387,11 @@ int main_without_SE_handler(int argc, char *argv[]) {
         }
 
         auto result = dms_app_on_heap->exec();
+        mustTerminateToken = true;
 
         if (!tsn.empty() && !result) {
             try {
+                main_window.ProcessAppOpers(); // flush remaining operation(s)
                 result = testResult.get();
             }
             catch (...) {

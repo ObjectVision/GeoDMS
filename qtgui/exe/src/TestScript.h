@@ -37,6 +37,6 @@ enum class CommandCode {
 };
 
 
-int RunTestScript(SharedStr testScriptName);
+int RunTestScript(SharedStr testScriptName, bool* mustTerminateToken);
 
 #endif // __TESTSCRIPT_H
