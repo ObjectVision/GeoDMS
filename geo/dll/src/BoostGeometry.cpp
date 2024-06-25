@@ -23,7 +23,7 @@
 
 #include <boost/geometry.hpp>
 #include <boost/geometry/algorithms/within.hpp>
-#include <boost/geometry/multi/geometries/multi_linestring.hpp>
+#include <boost/geometry/geometries/multi_linestring.hpp>
 
 #include "ipolygon/polygon.hpp"
 #include "geo/BoostPolygon.h"
