@@ -17,6 +17,7 @@
 #include "UnitClass.h"
 
 #include "CalcClassBreaks.h"
+#include "ValueGetter.h"
 #include "ValuesTable.h"
 
 struct ClassifyFixedOperator: public BinaryOperator
@@ -49,7 +50,7 @@ struct ClassifyFixedOperator: public BinaryOperator
 			AbstrDataItem* res = AsDataItem(resultHolder.GetNew());
 			DataReadLock  arg1Lock(arg1A);
 
-			auto vcpc = GetCounts<Float64, CountType>(arg1A, MAX_VALUE(CountType));
+			auto vcpc = GetCounts<Float64, typelists::num_objects, CountType>(arg1A);
 
 			m_ClassBreakFunc(res, vcpc.first, vcpc.second);
 		}

@@ -951,7 +951,7 @@ SharedDataItemInterestPtr CreateEqualCountBreakAttr(DataView* dv, const AbstrDat
 
 	CountsResultType sortedUniqueValueCache;
 	if (count)
-		sortedUniqueValueCache = PrepareCounts(thematicAttr, MAX_PAIR_COUNT);
+		sortedUniqueValueCache = PrepareWeededCounts(thematicAttr, MAX_PAIR_COUNT);
 
 	auto [paletteDomain, breakAttr] = CreateBreakAttr(dv, thematicAttr->GetAbstrValuesUnit(), thematicAttr, Min<SizeT>(sortedUniqueValueCache.first.size(), DEFAULT_MAX_NR_BREAKS));
 
@@ -973,7 +973,7 @@ void CreateNonzeroJenksFisherBreakAttr(std::weak_ptr<DataView> dv_wptr, const Ab
 	{
 		ItemReadLock readLock(thematicAttr->GetCurrRangeItem());
 		DataReadLock lck(thematicAttr);
-		sortedUniqueValueCache = GetCounts<ClassBreakValueType, CountType>(thematicAttr, MAX_PAIR_COUNT);
+		sortedUniqueValueCache = GetWeededCounts<ClassBreakValueType, typelists::num_objects, CountType>(thematicAttr, MAX_PAIR_COUNT);
 		thematicValuesRangeData = sortedUniqueValueCache.second;
 	}
 

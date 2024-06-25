@@ -12,6 +12,8 @@
 #include "mci/ValueClass.h"
 #include "mci/ValueWrap.h"
 #include "ser/AsString.h"
+#include "utl/mySPrintF.h"
+#include "ser/StringStream.h"
 
 // *****************************************************************************
 //						ELEMENTARY BINARY FUNCTORS
@@ -194,7 +196,7 @@ inline UInt64 CheckedMul<UInt64>(UInt64 a, UInt64 b, bool suggestAlternative)
 {
 	UInt64 res = a * b; 
 	if ((a && (res / a != b)) || (b && (res / b != a)))
-		throwDmsErrD("Overflow in multiplication");
+		throwOverflow("multiplying", a, "and", b, suggestAlternative, "mul_or_null", nullptr);
 	return res;
 }
 
@@ -203,7 +205,7 @@ inline Int64 CheckedMul<Int64>(Int64 a, Int64 b, bool suggestAlternative)
 {
 	Int64 res = a * b; 
 	if ((a && (res / a != b)) || (b && (res / b != a)))
-		throwDmsErrD("Overflow in multiplication");
+		throwOverflow("multiplying", a, "and", b, suggestAlternative, "mul_or_null", nullptr);
 	return res;
 }
 

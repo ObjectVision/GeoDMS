@@ -14,6 +14,10 @@
 
 #include "ClcBase.h"
 
+#include "geo/Pair.h"
+
+#include "AggrFuncNum.h"
+
 //#include "set/CompareFirst.h"
 //#include "ASync.h"
 
@@ -40,7 +44,8 @@ template<typename C>
 concept count_type = requires(C a, C b)
 {
 	++a;
-	a += b;
+	SafeAccumulate(a, b);
+//	a += b;
 };
 
 using CountType = SizeT;
@@ -48,7 +53,11 @@ using CountType = SizeT;
 template <typename V> using my_vector = std::vector<V, my_allocator<V>>;
 
 template<ordered_value_type V, count_type C = CountType> using ValueCountPair = std::pair<V, C>;
-template<ordered_value_type V, count_type C = CountType> using ValueCountPairContainerT= my_vector< ValueCountPair<V, C> >;
+template<ordered_value_type V, count_type C = CountType> using ValueCountPairContainerT = my_vector< ValueCountPair<V, C> >;
+template<ordered_value_type V, count_type C = CountType> using PartionedValueCountPairContainerT = ValueCountPairContainerT<Pair<SizeT, V>, C>;
+
+// template<count_type C> using CountArray = my_vector< C >;
+// template<ordered_value_type V, count_type C = CountType> using FreqTable = std::variant<ValueCountPairContainerT<V, C>, CountArray<C>>;
 
 template<ordered_value_type V, count_type C>
 auto GetTotalCount(const ValueCountPairContainerT<V, C>& vcpc) -> SizeT 

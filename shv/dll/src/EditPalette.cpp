@@ -272,7 +272,7 @@ void EditPaletteControl::UpdateCounts()
 
 	const AbstrDataItem* adi = m_ThemeAttr;
 	if (adi && adi->GetAbstrValuesUnit()->GetValueType()->IsNumeric() && adi->GetValueComposition() == ValueComposition::Single)
-		m_SortedUniqueValueCache = PrepareCounts(adi, MAX_PAIR_COUNT);
+		m_SortedUniqueValueCache = PrepareWeededCounts(adi, MAX_PAIR_COUNT);
 	else
 		m_SortedUniqueValueCache = {};
 	m_State.Set(PCF_CountsUpdated);

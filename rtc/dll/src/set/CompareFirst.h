@@ -16,8 +16,11 @@ struct CompareFirst
 	template <typename KeyValueType>
 	bool operator () (const KeyValueType& lhs, const KeyValueType& rhs)
 	{
-		assert(IsDefined(lhs.first));
-		assert(IsDefined(rhs.first));
+		if constexpr (has_undefines_v<typename KeyValueType::first_type>)
+		{
+			assert(IsDefined(lhs.first));
+			assert(IsDefined(rhs.first));
+		}
 
 		return lhs.first < rhs.first;
 	}

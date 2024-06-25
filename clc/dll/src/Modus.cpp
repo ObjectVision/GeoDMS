@@ -20,11 +20,12 @@
 #include "DataItemClass.h"
 #include "Param.h"
 #include "TreeItemClass.h"
+#include "UnitCreators.h"
 
 #include "OperAccUni.h"
 #include "OperAccBin.h"
 #include "OperRelUni.h"
-#include "UnitCreators.h"
+#include "ValuesTable.h"
 #include "IndexGetterCreator.h"
 
 
@@ -181,22 +182,10 @@ GetRange(const AbstrDataItem* adi)
 template<typename V, typename R, typename AggrFunc>
 void ModusTotBySet(const AbstrDataItem* valuesItem, typename sequence_traits<R>::reference resData, AggrFunc aggrFunc)
 {
-	std::map<V, SizeT> counters;
-
-	auto values_fta = (DataReadLock(valuesItem), GetFutureTileArray(const_array_cast<V>(valuesItem)));
-	for (tile_id t =0, tn = valuesItem->GetAbstrDomainUnit()->GetNrTiles(); t!=tn; ++t)
-	{
-		auto valuesLock = values_fta[t]->GetTile(); values_fta[t] = nullptr;
-		auto valuesIter = valuesLock.begin(),
-		     valuesEnd  = valuesLock.end();
-
-		for (; valuesIter != valuesEnd; ++valuesIter)
-		{
-			if (!IsDefined(*valuesIter))
-				continue;
-			SafeIncrementCounter(counters[*valuesIter]);
-		}
-	}
+	auto tileFunctor = const_array_cast<V>(valuesItem);
+	auto values_fta = GetFutureTileArray(tileFunctor);
+	tile_id tn = valuesItem->GetAbstrDomainUnit()->GetNrTiles();
+	auto counters = GetWallCounts<V, SizeT>(values_fta, 0, tn);
 
 	resData = aggrFunc(counters.begin(), counters.end()
 	,	[](auto i) { return i->second; }
@@ -336,31 +325,19 @@ void ModusTotDispatcher(const AbstrDataItem* valuesItem, typename sequence_trait
 
 // assume v >> n; time complexity: n*log(min(v, n))
 template<typename V, typename OIV, typename AggrFunc>
-void ModusPartBySet(const AbstrDataItem* indicesItem, future_tile_array<V> values_fta, abstr_future_tile_array part_fta, OIV resBegin, SizeT pCount, AggrFunc aggrFunc)  // countable dommain unit of result; P can be Void.
+void ModusPartBySet(const AbstrDataItem* indicesItem, abstr_future_tile_array part_fta
+	, future_tile_array<V> values_fta
+	, OIV resBegin, SizeT pCount, AggrFunc aggrFunc)  // countable dommain unit of result; P can be Void.
 {
 	assert(values_fta.size() == part_fta.size());
 
 	using value_type = std::pair<SizeT, V>;
-	std::map<value_type, SizeT> counters;
+	auto tn = values_fta.size();
 
-	for (tile_id t=0, tn= values_fta.size(); t!=tn; ++t)
-	{
-		auto valuesLock = values_fta[t]->GetTile(); values_fta[t] = nullptr;
-		OwningPtr<IndexGetter> indexGetter = IndexGetterCreator::Create(indicesItem, part_fta[t]); part_fta[t] = nullptr;
-		auto valuesIter  = valuesLock.begin(),
-			 valuesEnd   = valuesLock.end();
-		SizeT i=0;
-		for (; valuesIter != valuesEnd; ++i, ++valuesIter)
-			if (IsDefined(*valuesIter))
-			{
-				SizeT pi = indexGetter->Get(i);
-				if (IsDefined(pi))
-				{
-					assert(pi < pCount);
-					++counters[value_type(pi, *valuesIter)];
-				}
-			}
-	}
+	auto counters = GetIndexedWallCounts<V, SizeT>(values_fta
+		, indicesItem, part_fta
+		, 0, tn, pCount);
+
 	auto i = counters.begin(), e = counters.end();
 	auto ri = 0;
 	auto getCount = [](auto counterPtr) { return counterPtr->second; };
@@ -1065,7 +1042,7 @@ struct ModusPart : OperAccPartUniWithCFTA<V, typename AggrFunc::result_type>
 				) // memory condition v*p<=n, thus TableTime <= 2n.
 				ModusPartByTable<V>(pdi.arg2A, std::move(pdi.values_fta), std::move(pdi.part_fta), resBegin, pdi.valuesRangeData->GetRange(), pdi.resCount, m_AggrFunc);
 			else
-				ModusPartBySet<V>(pdi.arg2A, std::move(pdi.values_fta), std::move(pdi.part_fta), resBegin, pdi.resCount, m_AggrFunc);
+				ModusPartBySet<V>(pdi.arg2A, std::move(pdi.part_fta), std::move(pdi.values_fta), resBegin, pdi.resCount, m_AggrFunc);
 		}
 	}
 

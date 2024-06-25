@@ -32,7 +32,7 @@ constexpr bool has_block_func_v = has_block_func<T>::value;
 
 class OutStreamBuff;
 template <typename T> struct AbstrValueGetter;
-typedef AbstrValueGetter<SizeT> IndexGetter;
+using IndexGetter = AbstrValueGetter<SizeT> ;
 
 
 // *****************************************************************************
