@@ -76,7 +76,7 @@ if ErrorLevel 2 goto afterNSIS
 
 if exist "C:\Program Files\ObjectVision\GeoDms%GeoDmsVersion%" CHOICE /M "Removed "C:\Program Files\ObjectVision\GeoDms%GeoDmsVersion%" or accept testing with an overwritten folder ?"
 
-"distr\GeoDms%GeoDmsVersion%-Setup-x64.exe"
+"distr\GeoDms%GeoDmsVersion%-Setup-x64.exe" /S
 
 del filelist%GeoDmsVersion%.txt
 FORFILES /P "C:\Program Files\ObjectVision\GeoDms%GeoDmsVersion%" /S /C "cmd /c echo @relpath" >> filelist%GeoDmsVersion%.txt
