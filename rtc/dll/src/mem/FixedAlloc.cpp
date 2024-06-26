@@ -561,6 +561,8 @@ bool IsIntegralPowerOf2OrZero(SizeT sz)
 
 bool SpecialSize(SizeT sz)
 {
+	return true;
+
 	return sz >= (1 << log2_default_segment_size) / 8 && IsIntegralPowerOf2OrZero(sz) && sz <= (1 << log2_default_segment_size) * sizeof(Float64) * 2;
 }
 
