@@ -202,14 +202,15 @@ struct unary_assign_once : unary_assign<OR, T>
 	template <typename R>
 	static ConstUnitRef unit_creator(const AbstrOperGroup* gr, const ArgSeqType& args) { return cast_unit_creator<R>(args); }
 
-	void operator()(vref_t<OR> assignee, cref_t<T> arg) const
+	template <typename Arg>
+	void operator()(vref_t<OR> assignee, Arg&& arg) const
 	{ 
 		if (IsDefined(assignee))
 			return;
-		if constexpr (has_undefines_v<T>)
+		if constexpr (has_undefines_v<Arg>)
 			if (!IsDefined(arg))
 				return;
-		Assign(assignee, arg);
+		Assign(assignee, std::move(arg));
 	}
 };
 
@@ -219,12 +220,13 @@ struct unary_assign_overwrite: unary_assign<T, T>
 	template <typename R>
 	static ConstUnitRef unit_creator(const AbstrOperGroup* gr, const ArgSeqType& args) { return CastUnit<R>(arg1_values_unit(args)); }
 
-	void operator()(vref_t<T>  assignee, cref_t<T>  arg) const
-	{ 
-		if constexpr (has_undefines_v<T>)
+	template <typename Arg>
+	void operator()(vref_t<T> assignee, Arg&& arg) const
+	{
+		if constexpr (has_undefines_v<Arg>)
 			if (!IsDefined(arg))
 				return;
-		Assign(assignee, arg);
+		Assign(assignee, std::move(arg));
 	}
 };
 

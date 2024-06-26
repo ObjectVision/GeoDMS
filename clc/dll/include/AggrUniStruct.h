@@ -197,6 +197,12 @@ struct unary_assign_partial_accumulation
 		aggr_fw_partial<TUniAssign>(outputs.begin(), input.begin(), input.end(), indices, m_AssignFunc);
 	}
 
+	template<typename T>
+	void SafeAccumulate(T& accumulator, const T& rhs) const
+	{
+		m_AssignFunc(accumulator, rhs);
+	}
+
 	TUniAssign     m_AssignFunc;
 	TNullaryAssign m_Initializer;
 };

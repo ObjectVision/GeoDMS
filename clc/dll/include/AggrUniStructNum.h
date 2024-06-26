@@ -57,7 +57,7 @@ struct null_wrap : private std::pair<T, bool>
 
 	void operator =(const null_wrap<T>& rhs)
 	{
-		Assign(this->first, rhs);
+		Assign(this->first, rhs.first);
 		this->second = rhs.second;
 	}
 
@@ -134,8 +134,14 @@ void Assign(null_wrap<T>& output, const null_wrap<T>& rhs)
 	output = rhs;
 }
 
+template<typename T>
+void Assign(null_wrap<T>& output, null_wrap<T>&& rhs)
+{
+	output = std::move(rhs);
+}
+
 template<typename T, typename U>
-void Assign(null_wrap<T>& output, U&& rhs)
+void Assign(null_wrap<T>& output, U&& rhs) requires (!is_null_wrap_v<std::remove_cvref_t<U>>)
 {
 	if constexpr (can_be_undefined_v<std::remove_cvref_t<U>>)
 	{
@@ -374,6 +380,12 @@ struct unary_assign_exp: unary_assign<expectation_accumulation_type<typename TUn
 		++a.n;
 		SafeAccumulate(a.total, m_Func(x));
 	}
+	using accu_type = expectation_accumulation_type<typename TUniFunc::res_type>;
+	void operator () (accu_type& a, const accu_type& rhs) const
+	{
+		SafeAccumulate(a.n, rhs.n);
+		SafeAccumulate(a.total, rhs.total);
+	}
 
 private:
 	TUniFunc m_Func;
@@ -454,6 +466,12 @@ struct unary_assign_var: unary_assign<var_accumulation_type<T>, T>
 			a.xx += m_SqrFunc(x);
 		}
 	}
+	void operator () (typename unary_assign_var::assignee_ref a, const var_accumulation_type<T>& rhs) const
+	{
+		SafeAccumulate(a.n, rhs.n);
+		SafeAccumulate(a.x, rhs.x);
+		SafeAccumulate(a.xx, rhs.xx);
+	}
 
 private:
 	sqrx_func<T> m_SqrFunc;
@@ -522,7 +540,6 @@ struct all_total
 
 struct any_partial: unary_assign_partial_accumulation<unary_assign_any, nullary_set_false > 
 {
-//	typedef Bool dms_result_type;
 };
 
 struct all_partial: unary_assign_partial_accumulation<unary_assign_all, nullary_set_true > 

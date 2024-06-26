@@ -9,6 +9,8 @@
 
 #include "UnitClass.h"
 
+#include <future>
+
 #include "AggrUniStruct.h"
 #include "AggrUniStructString.h"
 #include "FutureTileArray.h"
@@ -16,6 +18,7 @@
 #include "OperAcc.h"
 #include "TreeItemClass.h"
 #include "IndexGetterCreator.h"
+
 
 // *****************************************************************************
 //											AbstrOperAccTotUni
@@ -238,6 +241,7 @@ struct OperAccPartUni: AbstrOperAccPartUni
 //template <typename TAcc1Func, typename ResultValueType = typename dms_result_type_of<TAcc1Func>::type> 
 template <typename V, typename R>
 struct OperAccPartUniWithCFTA : OperAccPartUni<V, R> // with consumable tile array
+	// CFTA = Consumable Future Tile Array
 {
 	using OperAccPartUni<V, R>::OperAccPartUni;
 	using ValueType = V;
@@ -290,6 +294,8 @@ protected:
 	TAcc1Func m_Acc1Func;
 };
 
+
+
 template <class TAcc1Func>
 struct OperAccPartUniBuffered : FuncOperAccPartUni<TAcc1Func, OperAccPartUniWithCFTA<typename TAcc1Func::value_type1, typename TAcc1Func::dms_result_type> >
 {
@@ -300,25 +306,58 @@ struct OperAccPartUniBuffered : FuncOperAccPartUni<TAcc1Func, OperAccPartUniWith
 	using ProcessDataInfo = base_type::ProcessDataInfo;
 	using AccumulationSeq = typename TAcc1Func::accumulation_seq;
 
+	using res_buffer_type = typename sequence_traits<typename TAcc1Func::accumulation_type>::container_type;
+
 	OperAccPartUniBuffered(AbstrOperGroup* gr, TAcc1Func&& acc1Func = TAcc1Func())
 		:	base_type(gr, std::move(acc1Func))
 	{}
 
-	void ProcessData(ResultType* result, ProcessDataInfo& pdi) const override
+	auto AggregateTiles(ProcessDataInfo& pdi, tile_id t, tile_id te, SizeT availableThreads) const
+		-> res_buffer_type
 	{
-		using res_buffer_type = typename sequence_traits<typename TAcc1Func::accumulation_type>::container_type;
+		if ((availableThreads > 1) && (te - t > 1))
+		{
+			auto m = t + (te - t) / 2;
+			auto mt = availableThreads / 2;
+			auto futureFirstHalfBuffer = std::async(std::launch::async, [this, &pdi, t, m, mt]()
+				{
+					return AggregateTiles(pdi, t, m, mt);
+				});
+			t = m;
+			availableThreads -= mt;
+			auto secondHalfBuffer = AggregateTiles(pdi, t, te, availableThreads);
+			auto secondHalfBufferIterator = secondHalfBuffer.begin();
+			auto firstHalfBuffer = futureFirstHalfBuffer.get();
+			for (auto& v : firstHalfBuffer)
+			{
+				this->m_Acc1Func.SafeAccumulate(v, *secondHalfBufferIterator);
+				++secondHalfBufferIterator;
+			}
+			return firstHalfBuffer;
+		}
+
 		res_buffer_type resBuffer(pdi.resCount);
-
-		this->m_Acc1Func.Init(AccumulationSeq( &resBuffer ) );
-
-		for (tile_id t = 0, tn = pdi.nrTiles; t!= tn; ++t)
+		this->m_Acc1Func.Init(AccumulationSeq(&resBuffer));
+		for (; t != te; ++t)
 		{
 			auto arg1Data = pdi.values_fta[t]->GetTile(); pdi.values_fta[t] = nullptr;
 			OwningPtr<IndexGetter> indexGetter = IndexGetterCreator::Create(pdi.arg2A, pdi.part_fta[t]); pdi.part_fta[t] = nullptr;
 
-			this->m_Acc1Func( AccumulationSeq( &resBuffer ),	arg1Data, indexGetter );
+			this->m_Acc1Func(AccumulationSeq(&resBuffer), arg1Data, indexGetter);
 		}
+		return resBuffer;
+	}
 
+	void ProcessData(ResultType* result, ProcessDataInfo& pdi) const override
+	{
+		res_buffer_type resBuffer;
+		if (pdi.resCount)
+		{
+			SizeT maxNrThreads = pdi.n / pdi.resCount; MakeMin(maxNrThreads, MaxConcurrentTreads());
+			MakeMax(maxNrThreads, 1);
+
+			resBuffer = AggregateTiles(pdi, 0, pdi.nrTiles, maxNrThreads);
+		}
 		this->m_Acc1Func.AssignOutput(result->GetDataWrite(no_tile, dms_rw_mode::write_only_all), resBuffer);
 	}
 };
