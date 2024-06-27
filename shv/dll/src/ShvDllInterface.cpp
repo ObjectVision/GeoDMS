@@ -237,8 +237,9 @@ bool DMS_CONV SHV_DataView_DispatchMessage(DataView* dv, HWND hWnd, UINT msg, WP
 					return false; // lets try defaultWindowProc
 			}
 			CheckPtr(dv, DataView::GetStaticClass(), "SHV_DataView_DispatchMessage");
-			TreeItemContextHandle checkPtr(dv->GetViewContext(), TreeItem::GetStaticClass(), "SHV_DataView_DispatchMessage");
-			Waiter handleMessage(&checkPtr);
+
+//			TreeItemContextHandle checkPtr(dv->GetViewContext(), TreeItem::GetStaticClass(), "SHV_DataView_DispatchMessage");
+//			Waiter handleMessage(&checkPtr);
 
 			StaticMtIncrementalLock<g_DispatchLockCount> dispatchLock;
 			dv->ResetHWnd(hWnd);
