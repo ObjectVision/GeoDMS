@@ -158,14 +158,6 @@ bool OnlyDefinedCheckRequired(const AbstrDataItem* adi)
 	return !(dcm & DCM_CheckDefined);
 }
 
-/* 
-template <typename V>
-typename Unit<V>::range_t 
-GetRange(const DataArray<V>* da)
-{
-	return da->GetValueRangeData()->GetRange();
-}
-*/
 
 template <typename V>
 typename Unit<V>::range_t
@@ -192,57 +184,6 @@ void ModusTotBySet(const AbstrDataItem* valuesItem, typename sequence_traits<R>:
 	,	[](auto i) { return i->first; }
 	);
 }
-
-/* REMOVE
-// assume v >> n; time complexity: n*log(min(v, n))
-template<typename V>
-void ModusTotByIndex(const AbstrDataItem* valuesItem, typename sequence_traits<V>::reference resData)
-{
-	DataReadLock lock(valuesItem);
-	auto valuesLock  = const_array_cast<V>(valuesItem)->GetLockedDataRead();
-	auto valuesBegin = valuesLock.begin(),
-	     valuesEnd   = valuesLock.end();
-
-	SizeT n = valuesEnd - valuesBegin;
-	OwningPtrSizedArray<SizeT> index(n, dont_initialize MG_DEBUG_ALLOCATOR_SRC("ModusTotByIndex: index"));
-	auto i = index.begin(), e = index.end(); assert(e - i == n);
-	make_index_in_existing_span(i, e, valuesBegin);
-
-	SizeT maxC = 0;
-	resData = UNDEFINED_VALUE(V);
-	while (i != e)
-	{
-		decltype(valuesBegin) vPtr = valuesBegin + *i; V v = *vPtr;
-		if (IsDefined(v))
-		{
-			SizeT c = 1;
-			while (++i != e && valuesBegin[*i] == v)
-				++c;
-			dms_assert(c > 0);
-			if (c > maxC)
-			{
-				maxC = c;
-				resData = v;
-			}
-		}
-		else
-			while (++i != e && valuesBegin[*i] == v)
-				;
-	};
-}
-
-template<typename V>
-void ModusTotByIndexOrSet(
-	const AbstrDataItem* valuesItem,
-	typename sequence_traits<V>::reference resData)
-{
-	if (valuesItem->GetAbstrDomainUnit()->IsCurrTiled())
-		ModusTotBySet  <V, R>(valuesItem, resData);
-	else
-		ModusTotByIndex<V>(valuesItem, resData);
-}
-
-REMOVE */
 
 template<typename V, typename R, typename AggrFunc>
 void ModusTotByTable(const AbstrDataItem* valuesItem, typename sequence_traits<R>::reference resData,  typename Unit<V>::range_t valuesRange, AggrFunc aggrFunc)
@@ -357,75 +298,6 @@ void ModusPartBySet(const AbstrDataItem* indicesItem, abstr_future_tile_array pa
 	while (ri < pCount)
 		resBegin[ri++] = aggrFunc(e, e, getCount, getValue);
 }
-
-/* REMOVE
-// assume v >> n; time complexity: n*log(min(v, n))
-template<typename V, typename OIV>
-void ModusPartByIndex(const AbstrDataItem* indicesItem, typename DataArray<V>::locked_cseq_t values, abstr_future_tile* part_ft, OIV resBegin, SizeT pCount)
-{
-	auto valuesBegin = values.begin();
-	auto valuesEnd   = values.end();
-
-	OwningPtr<IndexGetter> indexGetter = IndexGetterCreator::Create(indicesItem, part_ft);
-
-	SizeT n = valuesEnd - valuesBegin;
-
-	OwningPtrSizedArray<SizeT> index(n, dont_initialize MG_DEBUG_ALLOCATOR_SRC("ModusPartByIndex: index"));
-	auto i = index.begin(), e = index.end(); assert(e - i == n);
-	make_indexP_in_existing_span(i, e, indexGetter, valuesBegin);
-
-	while (i != e)
-	{
-		SizeT p = indexGetter->Get(*i);
-		if (!IsDefined(p))
-		{
-			++i;
-			continue;
-		}
-		else
-		{
-			dms_assert(p < pCount);
-			SizeT maxC = 0;
-			do 
-			{
-				decltype(valuesBegin) vPtr = valuesBegin + *i; V v = *vPtr;
-				if (IsDefined(v))
-				{
-					SizeT c = 1;
-					while (	++i != e &&	valuesBegin[*i] == v && indexGetter->Get(*i) == p )
-						++c;
-					dms_assert(c>0);
-					if ( c > maxC)
-					{
-						maxC = c;
-						resBegin[p] = v;
-					}
-				}
-				else
-				{
-					while	(	++i != e 
-							&&	valuesBegin[*i]   == v
-							&&	indexGetter->Get(*i) == p 
-							)
-						;
-				}
-			}	while (i != e && indexGetter->Get(*i) == p);
-		}
-	}
-}
-
-template<typename V, typename OIV>
-void ModusPartByIndexOrSet(const AbstrDataItem* indicesItem, future_tile_array<V> values_fta, abstr_future_tile_array part_fta, OIV resBegin, SizeT nrP)  // countable dommain unit of result; P can be Void.
-{
-	fast_fill(resBegin, resBegin+nrP, UNDEFINED_OR_ZERO(V));
-
-	assert(values_fta.size() == part_fta.size());
-	if (values_fta.size() != 1)
-		ModusPartBySet  <V, OIV>(indicesItem, std::move(values_fta), std::move(part_fta), resBegin, nrP);
-	else
-		ModusPartByIndex<V, OIV>(indicesItem, values_fta[0]->GetTile(), part_fta[0], resBegin, nrP);
-}
-*/
 
 template<typename V, typename OIV, typename AggrFunc>
 void ModusPartByTable(const AbstrDataItem* indicesItem, future_tile_array<V> values_fta, abstr_future_tile_array part_afta
