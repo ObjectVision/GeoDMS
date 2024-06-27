@@ -178,6 +178,14 @@ struct count_total_best
 	{ 
 		count_best_total(output, input.begin(), input.end());
 	}
+	void CombineValues(I& a, I rhs) const
+	{
+		::SafeAccumulate(a, rhs);
+	}
+	void CombineRefs(sequence_traits<I>::reference a, sequence_traits<I>::const_reference rhs) const
+	{
+		::SafeAccumulate(a, rhs);
+	}
 };
 
 template <typename T, typename I> 
@@ -284,6 +292,14 @@ struct first_total_best
 			}
 		}	
 	}
+	void CombineValues(nullable_t<T>& accumulator, const nullable_t<T>& rhs) const
+	{
+		if (IsDefined(accumulator))
+			return;
+		if (!IsDefined(rhs))
+			return;
+		Assign(accumulator, rhs);
+	}
 };
 
 template <typename OR,  typename T>
@@ -334,6 +350,14 @@ struct last_total_best
 			}
 		}
 	}
+	template <typename T>
+	void CombineValues(T& accumulator, T rhs) const
+	{
+		if constexpr (has_undefines_v<T>)
+			if (!IsDefined(rhs))
+				return;
+		accumulator = rhs;
+	}
 };
 
 template <typename T>
@@ -381,10 +405,14 @@ struct unary_assign_exp: unary_assign<expectation_accumulation_type<typename TUn
 		SafeAccumulate(a.total, m_Func(x));
 	}
 	using accu_type = expectation_accumulation_type<typename TUniFunc::res_type>;
-	void operator () (accu_type& a, const accu_type& rhs) const
+	void CombineValues(accu_type& a, const accu_type& rhs) const
 	{
 		SafeAccumulate(a.n, rhs.n);
 		SafeAccumulate(a.total, rhs.total);
+	}
+	void CombineRefs(accu_type& a, const accu_type& rhs) const
+	{
+		CombineValues(a, rhs);
 	}
 
 private:
@@ -466,11 +494,15 @@ struct unary_assign_var: unary_assign<var_accumulation_type<T>, T>
 			a.xx += m_SqrFunc(x);
 		}
 	}
-	void operator () (typename unary_assign_var::assignee_ref a, const var_accumulation_type<T>& rhs) const
+	void CombineValues(var_accumulation_type<T>& a, const var_accumulation_type<T>& rhs) const
 	{
 		SafeAccumulate(a.n, rhs.n);
 		SafeAccumulate(a.x, rhs.x);
 		SafeAccumulate(a.xx, rhs.xx);
+	}
+	void CombineRefs(var_accumulation_type<T>& a, const var_accumulation_type<T>& rhs) const
+	{
+		CombineValues(a, rhs);
 	}
 
 private:

@@ -154,9 +154,18 @@ struct unary_assign_total_accumulation
 		,	m_Initializer(init) 
 	{}
 
-	void operator()(typename unary_assign_total_accumulation::assignee_ref output, typename unary_assign_total_accumulation::value_cseq1 input) const
+	void operator()(typename unary_assign_total_accumulation::assignee_ref accumulator, typename unary_assign_total_accumulation::value_cseq1 input) const
 	{ 
-		aggr1_total<TUniAssign>(output, input.begin(), input.end(), m_AssignFunc);
+		aggr1_total<TUniAssign>(accumulator, input.begin(), input.end(), m_AssignFunc);
+	}
+
+	void CombineValues(typename TUniAssign::assignee_type& a, const typename TUniAssign::assignee_type& rhs) const
+	{
+		m_AssignFunc.CombineValues(a, rhs);
+	}
+	void CombineRefs(typename TUniAssign::assignee_ref a, cref_t<typename TUniAssign::assignee_type> rhs) const
+	{
+		m_AssignFunc.CombineRefs(a, rhs);
 	}
 
 private:
@@ -197,10 +206,9 @@ struct unary_assign_partial_accumulation
 		aggr_fw_partial<TUniAssign>(outputs.begin(), input.begin(), input.end(), indices, m_AssignFunc);
 	}
 
-	template<typename T>
-	void SafeAccumulate(T& accumulator, const T& rhs) const
+	void CombineRefs(typename TUniAssign::assignee_ref accumulator, cref_t<typename TUniAssign::assignee_type> rhs) const
 	{
-		m_AssignFunc(accumulator, rhs);
+		m_AssignFunc.CombineRefs(accumulator, rhs);
 	}
 
 	TUniAssign     m_AssignFunc;

@@ -163,6 +163,14 @@ struct unary_assign_add : unary_assign<R, T>
 	{ 	
 		SafeAccumulate(assignee, arg);
 	}
+	void CombineValues(R& a, R rhs) const
+	{
+		::SafeAccumulate(a, rhs);
+	}
+	void CombineRefs(typename unary_assign_add::assignee_ref a, cref_t<typename unary_assign_add::assignee_type> rhs) const
+	{
+		::SafeAccumulate(a, rhs);
+	}
 };
 
 template <typename T>
@@ -173,6 +181,17 @@ struct unary_assign_min : unary_assign<T, T>
 
 	void operator()(typename unary_assign_min::assignee_ref assignee, typename unary_assign_min::arg1_cref arg) const
 	{ 
+		if constexpr (has_undefines_v<T>)
+			if (!IsDefined(arg))
+				return;
+		MakeLowerBound(assignee, arg);
+	}
+	void CombineRefs(typename unary_assign_min::assignee_ref assignee, typename unary_assign_min::arg1_cref rhs) const
+	{
+		(*this)(assignee, rhs);
+	}
+	void CombineValues(T& assignee, T arg) const
+	{
 		if constexpr (has_undefines_v<T>)
 			if (!IsDefined(arg))
 				return;
@@ -194,6 +213,17 @@ struct unary_assign_max : unary_assign<T, U>
 				return;
 		MakeUpperBound(assignee, arg);
 	}
+	void CombineRefs(typename unary_assign_max::assignee_ref assignee, typename unary_assign_max::arg1_cref rhs) const
+	{
+		(*this)(assignee, rhs);
+	}
+	void CombineValues(T& assignee, T arg) const
+	{
+		if constexpr (has_undefines_v<T>)
+			if (!IsDefined(arg))
+				return;
+		MakeUpperBound(assignee, arg);
+	}
 };
 
 template <typename OR, typename T>
@@ -202,15 +232,31 @@ struct unary_assign_once : unary_assign<OR, T>
 	template <typename R>
 	static ConstUnitRef unit_creator(const AbstrOperGroup* gr, const ArgSeqType& args) { return cast_unit_creator<R>(args); }
 
-	template <typename Arg>
-	void operator()(vref_t<OR> assignee, Arg&& arg) const
+	void operator()(vref_t<OR> assignee, cref_t<T> arg) const
 	{ 
 		if (IsDefined(assignee))
 			return;
-		if constexpr (has_undefines_v<Arg>)
+		if constexpr (has_undefines_v<T>)
 			if (!IsDefined(arg))
 				return;
-		Assign(assignee, std::move(arg));
+		Assign(assignee, arg);
+	}
+
+	void CombineRefs(vref_t<OR> assignee, cref_t<OR> rhs) const
+	{
+		if (IsDefined(assignee))
+			return;
+		if (!IsDefined(rhs))
+			return;
+		Assign(assignee, rhs);
+	}
+	void CombineValues(OR& assignee, OR rhs) const
+	{
+		if (IsDefined(assignee))
+			return;
+		if (!IsDefined(rhs))
+			return;
+		Assign(assignee, rhs);
 	}
 };
 
@@ -220,13 +266,26 @@ struct unary_assign_overwrite: unary_assign<T, T>
 	template <typename R>
 	static ConstUnitRef unit_creator(const AbstrOperGroup* gr, const ArgSeqType& args) { return CastUnit<R>(arg1_values_unit(args)); }
 
-	template <typename Arg>
-	void operator()(vref_t<T> assignee, Arg&& arg) const
+	void operator()(vref_t<T> assignee, cref_t<T> arg) const
 	{
-		if constexpr (has_undefines_v<Arg>)
+		if constexpr (has_undefines_v<T>)
 			if (!IsDefined(arg))
 				return;
-		Assign(assignee, std::move(arg));
+		Assign(assignee, arg);
+	}
+	void CombineRefs(vref_t<T> assignee, cref_t<T> rhs) const
+	{
+		if constexpr (has_undefines_v<T>)
+			if (!IsDefined(rhs))
+				return;
+		Assign(assignee, rhs);
+	}
+	void CombineValues(T& assignee, T rhs) const
+	{
+		if constexpr (has_undefines_v<T>)
+			if (!IsDefined(rhs))
+				return;
+		Assign(assignee, rhs);
 	}
 };
 
@@ -256,6 +315,16 @@ struct unary_assign_any : unary_assign<Bool, Bool>
 		if (arg)
 			assignee = true;
 	}
+	void CombineValues(Bool& assignee, Bool rhs) const
+	{
+		if (rhs)
+			assignee = true;
+	}
+	void CombineRefs(typename unary_assign_any::assignee_ref assignee, typename unary_assign_any::arg1_cref rhs) const
+	{
+		if (rhs)
+			assignee = true;
+	}
 };
 
 struct unary_assign_all : unary_assign<Bool, Bool>
@@ -266,6 +335,16 @@ struct unary_assign_all : unary_assign<Bool, Bool>
 	void operator()(typename unary_assign_all::assignee_ref assignee, typename unary_assign_all::arg1_cref arg) const
 	{ 
 		if (!arg)
+			assignee = false;
+	}
+	void CombineValues(Bool& assignee, Bool rhs) const
+	{
+		if (!rhs)
+			assignee = false;
+	}
+	void CombineRefs(typename unary_assign_all::assignee_ref assignee, typename unary_assign_all::arg1_cref rhs) const
+	{
+		if (!rhs)
 			assignee = false;
 	}
 };

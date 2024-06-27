@@ -328,10 +328,10 @@ struct OperAccPartUniBuffered : FuncOperAccPartUni<TAcc1Func, OperAccPartUniWith
 			auto secondHalfBuffer = AggregateTiles(pdi, t, te, availableThreads);
 			auto secondHalfBufferIterator = secondHalfBuffer.begin();
 			auto firstHalfBuffer = futureFirstHalfBuffer.get();
-			for (auto& v : firstHalfBuffer)
+			auto firstHalfBufferEnd = firstHalfBuffer.end();
+			for (auto firstHalfBufferIterator = firstHalfBuffer.begin(); firstHalfBufferIterator != firstHalfBufferEnd; ++secondHalfBufferIterator, ++firstHalfBufferIterator)
 			{
-				this->m_Acc1Func.SafeAccumulate(v, *secondHalfBufferIterator);
-				++secondHalfBufferIterator;
+				this->m_Acc1Func.CombineRefs(*firstHalfBufferIterator, *secondHalfBufferIterator);
 			}
 			return firstHalfBuffer;
 		}
