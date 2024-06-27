@@ -140,6 +140,8 @@ ValueInfoBrowser::ValueInfoBrowser(QWidget* parent, SharedDataItemInterestPtr st
     connect(back_button.get(), &QPushButton::pressed, this, &ValueInfoBrowser::previousStudyObject);
     connect(forward_button.get(), &QPushButton::pressed, this, &ValueInfoBrowser::nextStudyObject);
 
+    connect(this, &ValueInfoBrowser::anchorClicked, this, &ValueInfoBrowser::onAnchorClicked);
+
     updateWindowTitle();
 }
 
