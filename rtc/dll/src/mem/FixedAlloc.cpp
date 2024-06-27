@@ -1,4 +1,4 @@
-// Copyright (C) 1998-2023 Object Vision b.v. 
+// Copyright (C) 1998-2024 Object Vision b.v. 
 // License: GNU GPL 3
 /////////////////////////////////////////////////////////////////////////////
 
@@ -783,6 +783,7 @@ void ReportFixedAllocFinalSummary()
 
 	reportD(MsgCategory::memory, SeverityTypeID::ST_MajorTrace, msgStr.c_str());
 
+	ProcessMainThreadOpers(); // pump it out
 }
 
 #endif //defined(MG_CACHE_ALLOC)
