@@ -1,33 +1,10 @@
-//<HEADER> 
-/*
-Data & Model Server (DMS) is a server written in H++ for DSS applications. 
-Version: see srv/dms/rtc/dll/src/RtcVersion.h for version info.
+// Copyright (C) 1998-2024 Object Vision b.v. 
+// License: GNU GPL 3
+/////////////////////////////////////////////////////////////////////////////
 
-Copyright (C) 1998-2004  YUSE GSO Object Vision BV. 
-
-Documentation on using the Data & Model Server software can be found at:
-http://www.ObjectVision.nl/DMS/
-
-See additional guidelines and notes in srv/dms/Readme-srv.txt 
-
-This library is free software; you can use, redistribute, and/or
-modify it under the terms of the GNU General Public License version 2 
-(the License) as published by the Free Software Foundation,
-provided that this entire header notice and readme-srv.txt is preserved.
-
-See LICENSE.TXT for terms of distribution or look at our web site:
-http://www.objectvision.nl/DMS/License.txt
-or alternatively at: http://www.gnu.org/copyleft/gpl.html
-
-This library is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
-General Public License for more details. However, specific warranties might be
-granted by an additional written contract for support, assistance and/or development
-*/
-//</HEADER>
-
+#if defined(_MSC_VER)
 #pragma once
+#endif
 
 #if !defined(DMS_GEO_POLYOPER_H)
 #define DMS_GEO_POLYOPER_H
@@ -124,7 +101,7 @@ void do_binary_poly_assign(
 
 	if (e1IsVoid)
 	{
-		dms_assert(arg1Data.size() == 1);
+		assert(arg1Data.size() == 1);
 
 		if (!IsDefined(arg1Data[0]))
 			fast_undefine(resData.begin(), resData.end());
@@ -148,11 +125,11 @@ void do_binary_poly_assign(
 		return;
 	}
 
-	dms_assert(arg1Data.size() == resData.size());
+	assert(arg1Data.size() == resData.size());
 
 	if (e2IsVoid)
 	{
-		dms_assert(arg2Data.size() == 1);
+		assert(arg2Data.size() == 1);
 
 		if (!IsDefined(arg2Data[0]))
 			fast_undefine(resData.begin(), resData.end());
@@ -204,7 +181,7 @@ struct BinaryPolyAttrAssignOper : BinaryAttrOper< typename PolyAttrOper::assigne
 {
 	BinaryPolyAttrAssignOper(AbstrOperGroup* gr) 
 		: BinaryAttrOper<typename PolyAttrOper::assignee_type, typename PolyAttrOper::arg1_type, typename PolyAttrOper::arg2_type>(gr
-			,	&PolyAttrOper::unit_creator, composition_of_v<typename PolyAttrOper::assignee_type>, ArgFlags()
+			,	&PolyAttrOper::unit_creator, composition_of_v<typename PolyAttrOper::assignee_type>
 			)
 	{}
 

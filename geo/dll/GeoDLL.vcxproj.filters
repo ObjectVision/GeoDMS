@@ -67,6 +67,9 @@
     <ClInclude Include="src\BoundingBoxCache.h">
       <Filter>Geo Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="src\BoostGeometry.h">
+      <Filter>Geo Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\Canyon.cpp">
