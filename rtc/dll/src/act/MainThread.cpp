@@ -114,8 +114,15 @@ RTC_CALL void RequestMainThreadOperProcessing()
 	if (!sMainThreadHnd)
 		return; // not yet initialized.
 
-	if (!s_MainThreadOperProcessRequestPending.exchange(true))
-		PostThreadMessage(sMainThreadHnd, UM_PROCESS_MAINTHREAD_OPERS, 0, 0); // only effective when MainThread has MessageQueue, ie in GeoDmsGui, and not in GeoDmsRun or python process
+	if (s_MainThreadOperProcessRequestPending.exchange(true)) // a request was alredy posted?
+	{
+		static std::time_t lastPostTime = 0;
+		auto currTime = std::time(nullptr);
+		if (lastPostTime + 5 > currTime)
+			return;
+		lastPostTime = currTime;
+	}
+	PostThreadMessage(sMainThreadHnd, UM_PROCESS_MAINTHREAD_OPERS, 0, 0); // only effective when MainThread has MessageQueue, ie in GeoDmsGui, and not in GeoDmsRun or python process
 }
 
 RTC_CALL void ConfirmMainThreadOperProcessing()
@@ -174,8 +181,8 @@ operation_queue s_OperQueue;
 
 void PostMainThreadOper(std::function<void()>&& func)
 {
-	if (s_OperQueue.Post(std::move(func)))
-		RequestMainThreadOperProcessing();
+	s_OperQueue.Post(std::move(func));
+	RequestMainThreadOperProcessing();
 }
 
 void SendMainThreadOper(std::function<void()>&& func)
