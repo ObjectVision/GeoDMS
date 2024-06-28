@@ -93,8 +93,7 @@ struct AbstrBinaryAttrOper : BinaryOperator
 	}
 
 	virtual SharedPtr<const AbstrDataObject> CreateFutureTileFunctor(SharedPtr<AbstrDataItem>, bool lazy, const AbstrUnit* valuesUnitA, const AbstrDataItem* arg1A, const AbstrDataItem* arg2A, ArgFlags af MG_DEBUG_ALLOCATOR_SRC_ARG) const = 0;
-	virtual void Calculate(AbstrDataObject* borrowedDataHandle, const AbstrDataItem* arg1A, const AbstrDataItem* arg2A,	ArgFlags af, tile_id t
-	) const=0;
+	virtual void Calculate(AbstrDataObject* borrowedDataHandle, const AbstrDataItem* arg1A, const AbstrDataItem* arg2A,	ArgFlags af, tile_id t) const=0;
 
 private:
 	UnitCreatorPtr   m_UnitCreatorPtr;
@@ -110,7 +109,7 @@ struct BinaryAttrOper : AbstrBinaryAttrOper
 	using ResultType = DataArray<ResultValueType>;
 
 public:
-	BinaryAttrOper(AbstrOperGroup* gr, UnitCreatorPtr ucp, ValueComposition vc, ArgFlags possibleArgFlags)
+	BinaryAttrOper(AbstrOperGroup* gr, UnitCreatorPtr ucp, ValueComposition vc)
 		: AbstrBinaryAttrOper(gr
 			, ResultType::GetStaticClass(), Arg1Type::GetStaticClass(), Arg2Type::GetStaticClass()
 			, ucp, vc, ArgFlags(AF1_HASUNDEFINED | AF2_HASUNDEFINED)

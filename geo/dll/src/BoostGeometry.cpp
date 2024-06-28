@@ -10,6 +10,7 @@
 
 #include "RtcTypeLists.h"
 #include "RtcGeneratedVersion.h"
+#include "VersionComponent.h"
 
 #include "mci/ValueClass.h"
 #include "mci/ValueWrap.h"
@@ -17,9 +18,11 @@
 #include "xct/DmsException.h"
 
 #include "ParallelTiles.h"
-
 #include "Unit.h"
 #include "UnitClass.h"
+
+#include "OperAttrBin.h"
+#include "RemoveAdjacentsAndSpikes.h"
 
 #include <boost/geometry.hpp>
 #include <boost/geometry/algorithms/within.hpp>
@@ -27,9 +30,7 @@
 
 #include "ipolygon/polygon.hpp"
 #include "geo/BoostPolygon.h"
-#include "RemoveAdjacentsAndSpikes.h"
 
-#include "VersionComponent.h"
 static VersionComponent s_BoostGeometry("boost::geometry " BOOST_STRINGIZE(BOOST_GEOMETRY_VERSION));
 
 using bg_multi_point_t = boost::geometry::model::multi_point<DPoint>;
@@ -398,7 +399,7 @@ void store_multi_polygon(SA_Reference<DmsPointType> resDataElem, bg_multi_polygo
 }
 
 // *****************************************************************************
-//	simplify
+//	operation groups
 // *****************************************************************************
 
 
@@ -429,6 +430,66 @@ static Obsolete<CommonOperGroup> grOuter_multi_polygon("use bg_outer_multi_polyg
 
 static CommonOperGroup grBgOuter_single_polygon("bg_outer_single_polygon", oper_policy::better_not_in_meta_scripting);
 static CommonOperGroup grBgOuter_multi_polygon("bg_outer_multi_polygon", oper_policy::better_not_in_meta_scripting);
+
+// *****************************************************************************
+//	map algebraic operations
+// *****************************************************************************
+
+template <typename P> using sequence_t = std::vector<P>;
+template <typename P> using BinaryMapAlgebraicOperator = BinaryAttrOper<sequence_t<P>, sequence_t<P>, sequence_t<P>>;
+
+template <typename P>
+struct BgIntersectMultiPolygonOperator : BinaryMapAlgebraicOperator<P>
+{
+	using PointType = P;
+	using PolygonType = std::vector<PointType>;
+	using ArgType = DataArray<PolygonType>;
+
+	BgIntersectMultiPolygonOperator()
+		: BinaryMapAlgebraicOperator<P>(&grBgIntersect, compatible_simple_values_unit_creator, ValueComposition::Polygon)
+	{}
+	using st = sequence_traits<PolygonType>;
+	using seq_t = typename st::seq_t;
+	using cseq_t = typename st::cseq_t;
+
+	void CalcTile(seq_t resData, cseq_t arg1Data, cseq_t arg2Data, ArgFlags af MG_DEBUG_ALLOCATOR_SRC_ARG) const override
+	{
+		tile_offset n1 = arg1Data.size();
+		tile_offset n2 = arg2Data.size();
+		tile_offset n = std::max(n1, n2);
+		assert(n1 == n || (af & AF1_ISPARAM));
+		assert(n2 == n || (af & AF2_ISPARAM));
+		assert(resData.size() == n);
+
+
+		bg_ring_t helperRing;
+		bg_polygon_t helperPolygon;
+		bg_multi_polygon_t currMP1, currMP2, resMP;
+		std::vector<DPoint> helperPointArray;
+
+		bool domain1IsVoid = (af & AF1_ISPARAM);
+		bool domain2IsVoid = (af & AF2_ISPARAM);
+		if (domain1IsVoid)
+			assign_multi_polygon(currMP1, arg1Data[0], true, helperPolygon, helperRing);
+		if (domain2IsVoid)
+			assign_multi_polygon(currMP2, arg2Data[0], true, helperPolygon, helperRing);
+
+		for (SizeT i = 0; i != n; ++i)
+		{
+			if (!domain1IsVoid)
+				assign_multi_polygon(currMP1, arg1Data[i], true, helperPolygon, helperRing);
+			if (!domain2IsVoid)
+				assign_multi_polygon(currMP2, arg2Data[i], true, helperPolygon, helperRing);
+			resMP.clear();
+			boost::geometry::intersection(currMP1, currMP2, resMP);
+			store_multi_polygon(resData[i], resMP, helperPointArray);
+		}
+	}
+};
+
+// *****************************************************************************
+//	simplify
+// *****************************************************************************
 
 class AbstrSimplifyOperator : public BinaryOperator
 {
@@ -663,6 +724,10 @@ struct SimplifyLinestringOperator : public AbstrSimplifyOperator
 		}
 	}
 };
+
+// *****************************************************************************
+//	buffer
+// *****************************************************************************
 
 class AbstrBufferOperator : public TernaryOperator
 {
@@ -1069,6 +1134,10 @@ struct BufferSinglePolygonOperator : public AbstrBufferOperator
 	}
 };
 
+// *****************************************************************************
+//	outer
+// *****************************************************************************
+
 class AbstrOuterOperator : public UnaryOperator
 {
 protected:
@@ -1195,6 +1264,7 @@ namespace
 	tl_oper::inst_tuple_templ<typelists::points, BufferPointOperator> bufferPointOperators;
 	tl_oper::inst_tuple_templ<typelists::points, BufferMultiPointOperator> bufferMultiPointOperators;
 	tl_oper::inst_tuple_templ<typelists::points, BufferLineStringOperator> bufferLineStringOperators;
+	tl_oper::inst_tuple_templ<typelists::points, BgIntersectMultiPolygonOperator> bgIntersectMultiPolygonOperators;
 
 #if DMS_VERSION_MAJOR < 15
 	tl_oper::inst_tuple_templ<typelists::points, BufferSinglePolygonOperator, AbstrOperGroup&> bg_bufferPolygonOperators(grBgBuffer_polygon);
