@@ -30,6 +30,11 @@
 
 #include <ipolygon/polygon.hpp>
 
+#include "BoostGeometry.h"
+
+enum class geometry_library { boost_polygon, boost_geometry };
+
+
 const Int32 MAX_COORD = (1 << 26);
 
 #include "VersionComponent.h"
@@ -169,7 +174,7 @@ protected:
 	virtual void StoreRes(AbstrUnit* res, AbstrDataItem* resG, AbstrDataItem* res1, AbstrDataItem* res2, ResourceHandle& resData) const=0;
 };
 
-template <typename P>
+template <typename P, geometry_library GL>
 class PolygonOverlayOperator : public AbstrPolygonOverlayOperator
 {
 	typedef P                      PointType;
@@ -277,23 +282,62 @@ public:
 			if (!::IsIntersecting(spIndexPtr->GetBoundingBox(), bbox))
 				return;
 
-			typename polygon_set_type::clean_resources cleanResources;
-			box_iter_type iter;
-			for (iter = spIndexPtr->begin(bbox); iter; ++iter)
+			if constexpr (GL == geometry_library::boost_polygon)
 			{
+				typename polygon_set_type::clean_resources cleanResources;
 				polygon_set_type geometry;
-				gtl::assign(geometry, *((*iter)->get_ptr()) & *polyPtr, cleanResources);
+				for (box_iter_type iter = spIndexPtr->begin(bbox); iter; ++iter)
+				{
+					gtl::assign(geometry, *((*iter)->get_ptr()) & *polyPtr, cleanResources);
 
-				if (!geometry.size(cleanResources))
-					continue;
+					if (!geometry.size(cleanResources))
+						continue;
 
-				res_data_elem_type back;
-				dms_assign(back.m_Geometry, geometry, cleanResources);
-				back.m_OrgRel.first = p1_rel;
-				back.m_OrgRel.second = p2Offset + (((*iter)->get_ptr()) - poly2Array.begin());
+					res_data_elem_type back;
+					dms_assign(back.m_Geometry, geometry, cleanResources);
 
-				leveled_critical_section::scoped_lock resLock(resLocalAdditionSection);
-				resTileData->push_back(std::move(back));
+
+					back.m_OrgRel.first = p1_rel;
+					back.m_OrgRel.second = p2Offset + (((*iter)->get_ptr()) - poly2Array.begin());
+
+					leveled_critical_section::scoped_lock resLock(resLocalAdditionSection);
+					resTileData->push_back(std::move(back));
+				}
+			}
+			else
+			{
+				box_iter_type iter = spIndexPtr->begin(bbox); if (!iter) return;
+
+				bg_ring_t helperRing;
+				bg_polygon_t helperPolygon;
+				bg_multi_polygon_t currMP1, currMP2, resMP;
+				std::vector<DPoint> helperPointArray;
+
+				do 
+				{
+					assign_multi_polygon(currMP1, *polyPtr, true, helperPolygon, helperRing);
+
+					if (!currMP1.empty())
+					{
+						assign_multi_polygon(currMP2, *((*iter)->get_ptr()), true, helperPolygon, helperRing);
+
+						resMP.clear();
+						boost::geometry::intersection(currMP1, currMP2, resMP);
+						if (!resMP.empty())
+						{
+							res_data_elem_type back;
+							store_multi_polygon(back.m_Geometry, resMP, helperPointArray);
+
+							back.m_OrgRel.first = p1_rel;
+							back.m_OrgRel.second = p2Offset + (((*iter)->get_ptr()) - poly2Array.begin());
+
+							leveled_critical_section::scoped_lock resLock(resLocalAdditionSection);
+							resTileData->push_back(std::move(back));
+						}
+					}
+					++iter;
+				} while (iter);
+
 			}
 		});
 	}
@@ -1125,8 +1169,11 @@ namespace
 			, ff(("_dXD" + s2).c_str(), PolygonFlags(f | PolygonFlags::F_DXD1))
 		{}
 	};
+	template <typename P> using BoostPolygonOverlayOperator = PolygonOverlayOperator<P, geometry_library::boost_polygon>;
+	template <typename P> using BoostGeometryOverlayOperator = PolygonOverlayOperator<P, geometry_library::boost_geometry>;
+	tl_oper::inst_tuple_templ<typelists::sint_points, BoostPolygonOverlayOperator     > boostPolygonOverlayOperators;
+	tl_oper::inst_tuple_templ<typelists::float_points, BoostGeometryOverlayOperator   > boostGeometryOverlayOperators;
 
-	tl_oper::inst_tuple_templ<typelists::sint_points, PolygonOverlayOperator     > polygonOverlayOperators;
 	tl_oper::inst_tuple_templ<typelists::sint_points, PolygonConnectivityOperator>	polygonConnectivityOperators;
 
 	PolyOperatorGroupss simple("", PolygonFlags());
