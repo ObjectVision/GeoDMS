@@ -99,6 +99,15 @@ struct unary_assign_inc : unary_assign<I, T>
 		}
 		SafeIncrement<I>(assignee);
 	}
+	void CombineRefs(vref_t<I> assignee, cref_t<I> rhs) const
+	{
+		if constexpr (has_undefines_v<T>)
+		{
+			assert(IsDefined(assignee));
+			assert(IsDefined(rhs));
+		}
+		SafeAccumulate<I>(assignee, rhs);
+	}
 };
 
 template<typename R, typename T> void SafeAccumulate(R& assignee, T arg) // see the similarity with safe_plus

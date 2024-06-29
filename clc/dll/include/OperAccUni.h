@@ -1,4 +1,4 @@
-// Copyright (C) 1998-2023 Object Vision b.v. 
+// Copyright (C) 1998-2024 Object Vision b.v. 
 // License: GNU GPL 3
 /////////////////////////////////////////////////////////////////////////////
 
@@ -167,8 +167,6 @@ struct AbstrOperAccPartUni: BinaryOperator
 		dms_assert(context || doRecalc);
 		if (doRecalc)
 		{
-//			DataReadLock arg1Lock(arg1A);
-
 			DataWriteLock resLock(res);
 
 			Calculate(resLock, arg1A, arg2A, std::move(args), std::move(readLocks));
@@ -375,12 +373,37 @@ struct OperAccPartUniDirect : FuncOperAccPartUni<TAcc1Func, OperAccPartUniWithCF
 		: base_type(gr, std::move(acc1Func))
 	{}
 
-	void ProcessData(ResultType* result, ProcessDataInfo& pdi) const override
+	using result_seq_t = typename sequence_traits<ResultValueType>::seq_t;
+	using result_container_t = typename sequence_traits<ResultValueType>::container_type;
+	void AggregateTiles(result_seq_t resData, ProcessDataInfo& pdi, tile_id t, tile_id te, SizeT availableThreads) const
 	{
-		auto resData = result->GetDataWrite(no_tile, dms_rw_mode::write_only_all); // check what Init does
-		m_Acc1Func.Init(resData);
+		if ((availableThreads > 1) && (te - t > 1))
+		{
+			auto m = t + (te - t) / 2;
+			auto mt = availableThreads / 2;
+			auto futureFirstHalf = std::async(std::launch::async, [this, resData, &pdi, t, m, mt]()
+				{
+					AggregateTiles(resData, pdi, t, m, mt);
+				});
+			t = m;
+			availableThreads -= mt;
 
-		for (tile_id t = 0, tn = pdi.nrTiles; t!=tn; ++t)
+			result_container_t secondHalf;
+			auto secondHalfRef = result_seq_t(&secondHalf);
+			m_Acc1Func.Init(secondHalfRef);
+			AggregateTiles(secondHalfRef, pdi, t, te, availableThreads);
+			auto secondHalfBufferIterator = secondHalf.begin();
+
+			futureFirstHalf.wait();
+			auto firstHalfBufferEnd = resData.end();
+			for (auto firstHalfBufferIterator = resData.begin(); firstHalfBufferIterator != firstHalfBufferEnd; ++secondHalfBufferIterator, ++firstHalfBufferIterator)
+			{
+				this->m_Acc1Func.CombineRefs(*firstHalfBufferIterator, *secondHalfBufferIterator);
+			}
+			return;
+		}
+
+		for (; t != te; ++t)
 		{
 			auto arg1Data = pdi.values_fta[t]->GetTile(); pdi.values_fta[t] = nullptr;
 			OwningPtr<IndexGetter> indexGetter = IndexGetterCreator::Create(pdi.arg2A, pdi.part_fta[t]); pdi.part_fta[t] = nullptr;
@@ -388,6 +411,17 @@ struct OperAccPartUniDirect : FuncOperAccPartUni<TAcc1Func, OperAccPartUniWithCF
 			m_Acc1Func(resData, arg1Data, indexGetter);
 		}
 	}
+
+	void ProcessData(ResultType* result, ProcessDataInfo& pdi) const override
+	{
+		SizeT maxNrThreads = pdi.resCount ? pdi.n / pdi.resCount : 1; MakeMin(maxNrThreads, MaxConcurrentTreads());
+		MakeMax(maxNrThreads, 1);
+
+		auto resData = result->GetDataWrite(no_tile, dms_rw_mode::write_only_all);
+		m_Acc1Func.Init(resData);
+		AggregateTiles(resData, pdi, 0, pdi.nrTiles, maxNrThreads);
+	}
+
 private:
 	TAcc1Func m_Acc1Func;
 };
