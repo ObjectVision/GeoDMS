@@ -528,8 +528,8 @@ struct var_partial_best
 template <typename T>
 struct assign_output_convert_std
 {
-	typedef T dms_result_type;
-	typedef typename var_accumulation_type<T>::var_type var_type;
+	using dms_result_type = T;
+	using var_type = var_accumulation_type<T>::var_type;
 
 	void AssignOutput(T& res, const var_accumulation_type<T>& buf) const
 	{

@@ -2,7 +2,9 @@
 // License: GNU GPL 3
 /////////////////////////////////////////////////////////////////////////////
 
+#if defined(_MSC_VER)
 #pragma once
+#endif
 
 #if !defined(__CLC_OPERACCUNI_H)
 #define __CLC_OPERACCUNI_H
@@ -88,12 +90,14 @@ private:
 	ValueComposition m_ValueComposition;
 };
 
+
 template <class TAcc1Func> 
 struct OperAccTotUni : AbstrOperAccTotUni
 {
 	typedef typename TAcc1Func::value_type1     ValueType;
 	typedef typename TAcc1Func::assignee_type   AccumulationType;
-	typedef typename TAcc1Func::dms_result_type ResultValueType;
+	using ResultValueType = dms_result_type_t<TAcc1Func>;
+
 	typedef DataArray<ResultValueType>          ResultType;
 	typedef DataArray<ValueType>                ArgType;
 			
@@ -203,19 +207,6 @@ private:
 // *****************************************************************************
 //											OperAccPartUni
 // *****************************************************************************
-
-namespace impl {
-	namespace has_dms_result_type_details {
-		template< typename U> static char test(typename U::dms_result_type* v);
-		template< typename U> static int  test(...);
-	}
-
-	template< typename T>
-	struct has_dms_result_type
-	{
-		static const bool value = sizeof(has_dms_result_type_details::test<T>(nullptr)) == sizeof(char);
-	};
-}
 
 template <typename V, typename R> 
 struct OperAccPartUni: AbstrOperAccPartUni
@@ -426,11 +417,23 @@ private:
 	TAcc1Func m_Acc1Func;
 };
 
-template <class TAcc1Func> struct make_direct   { using type = OperAccPartUniDirect  <TAcc1Func>; };
-template <class TAcc1Func> struct make_buffered { using type = OperAccPartUniBuffered<TAcc1Func>; };
+struct make_direct   
+{ 
+	template <class TAcc1Func> struct apply {
+		using type = OperAccPartUniDirect<TAcc1Func>;
+	};
+};
 
-template <class TAcc1Func> using base_of = std::conditional_t< impl::has_dms_result_type<TAcc1Func>::value,	make_buffered<TAcc1Func>, make_direct<TAcc1Func> >;
-template <class TAcc1Func> using OperAccPartUniBest = typename base_of<TAcc1Func>::type;
+struct make_buffered
+{
+	template <class TAcc1Func> struct apply {
+		using type = OperAccPartUniBuffered<TAcc1Func>;
+	};
+};
+
+template <class TAcc1Func> const bool must_buffer_result = !std::is_same<dms_result_type_t<TAcc1Func>, typename TAcc1Func::assignee_type>::value;
+template <class TAcc1Func> using base_of_functor = std::conditional_t<must_buffer_result<TAcc1Func>, make_buffered, make_direct>;
+template <class TAcc1Func> using OperAccPartUniBest = typename base_of_functor<TAcc1Func>::template apply<TAcc1Func>::type;
 
 template <typename TAcc1Func>
 void CalcOperAccPartUniSer(DataWriteLock& res, const AbstrDataItem* arg1A, const AbstrDataItem* arg2A, TAcc1Func acc1Func = TAcc1Func())

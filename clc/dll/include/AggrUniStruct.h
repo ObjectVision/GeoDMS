@@ -113,8 +113,8 @@ struct assign_output_convert
 template <typename ElemAssigner>
 struct assign_partial_output_from_buffer
 {
-	typedef typename ElemAssigner::dms_result_type           dms_result_type;
-	typedef typename sequence_traits<dms_result_type>::seq_t dms_seq;
+	using dms_result_type = typename ElemAssigner::dms_result_type;
+	using dms_seq = typename sequence_traits<dms_result_type>::seq_t;
 
 	template<typename Container>
 	void AssignOutput(dms_seq res, const Container& outputs) const

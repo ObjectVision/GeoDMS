@@ -1,8 +1,11 @@
-// Copyright (C) 1998-2023 Object Vision b.v. 
+// Copyright (C) 1998-2024 Object Vision b.v. 
 // License: GNU GPL 3
 /////////////////////////////////////////////////////////////////////////////
 
+#if defined(_MSC_VER)
 #pragma once
+#endif
+
 #if !defined(__CLC_PROTOTYPES_H)
 #define __CLC_PROTOTYPES_H
 
@@ -342,6 +345,39 @@ struct binary_partial_accumulation
 	static_assert(std::is_same<TValueType1, value_type1>::value);
 	static_assert(std::is_same<TValueType2, value_type2>::value);
 };
+
+// *****************************************************************************
+//							ELEMENTARY UNARY FUNCTORS
+// *****************************************************************************
+
+namespace impl {
+	struct dms_result_type_getter_functor
+	{
+		template <typename Oper> using apply = Oper::dms_result_type;
+	};
+
+	struct assignee_type_getter_functor
+	{
+		template <typename Oper> using apply = Oper::assignee_type;
+	};
+
+	namespace has_dms_result_type_details {
+		template< typename U> static char test(typename U::dms_result_type* v);
+		template< typename U> static int  test(...);
+	}
+
+	template< typename T>
+	struct has_dms_result_type
+	{
+		static const bool value = sizeof(has_dms_result_type_details::test<T>(nullptr)) == sizeof(char);
+	};
+}
+
+template <typename TAcc1Func>
+using dms_result_type_t = std::conditional_t<impl::has_dms_result_type<TAcc1Func>::value
+	, impl::dms_result_type_getter_functor
+	, impl::assignee_type_getter_functor>::template apply<TAcc1Func>;
+
 
 
 #endif //  !defined(__CLC_PROTOTYPES_H)
