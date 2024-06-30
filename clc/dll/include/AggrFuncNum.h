@@ -101,7 +101,7 @@ struct unary_assign_inc : unary_assign<I, T>
 	}
 	void CombineRefs(vref_t<I> assignee, cref_t<I> rhs) const
 	{
-		if constexpr (has_undefines_v<T>)
+		if constexpr (has_undefines_v<I>)
 		{
 			assert(IsDefined(assignee));
 			assert(IsDefined(rhs));
@@ -176,9 +176,14 @@ struct unary_assign_add : unary_assign<R, T>
 	{
 		::SafeAccumulate(a, rhs);
 	}
-	void CombineRefs(typename unary_assign_add::assignee_ref a, cref_t<typename unary_assign_add::assignee_type> rhs) const
+	void CombineRefs(typename unary_assign_add::assignee_ref assignee, cref_t<typename unary_assign_add::assignee_type> rhs) const
 	{
-		::SafeAccumulate(a, rhs);
+		if constexpr (has_undefines_v<R>)
+		{
+			assert(IsDefined(assignee));
+			assert(IsDefined(rhs));
+		}
+		::SafeAccumulate(assignee, rhs);
 	}
 };
 

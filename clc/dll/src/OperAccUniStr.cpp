@@ -153,7 +153,6 @@ public:
 				auto arg1Data = arg1->GetLockedDataRead(t);
 				aggr1_total<unary_ser_aslist>(outStr, arg1Data.begin(), arg1Data.end(), m_SerFunc);
 			}
-/////////////////////////////////////////////////////////////////////
 			resLock.Commit();
 		}
 		return true;

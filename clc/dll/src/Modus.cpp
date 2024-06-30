@@ -185,30 +185,72 @@ void ModusTotBySet(const AbstrDataItem* valuesItem, typename sequence_traits<R>:
 	);
 }
 
-template<typename V, typename R, typename AggrFunc>
-void ModusTotByTable(const AbstrDataItem* valuesItem, typename sequence_traits<R>::reference resData,  typename Unit<V>::range_t valuesRange, AggrFunc aggrFunc)
+template<typename V>
+struct WallCountsAsArrayInfo
 {
-	SizeT vCount = Cardinality(valuesRange);
-	std::vector<SizeT> buffer(vCount, 0);
-	auto bufferB = buffer.begin();
+	typename Unit<V>::range_t valuesRange;
+	SizeT vCount;
+	future_tile_ptr<V>* values_fta;
+};
 
-	auto values_fta = (DataReadLock(valuesItem), GetFutureTileArray(const_array_cast<V>(valuesItem)));
-
-	for (tile_id t =0, tn = valuesItem->GetAbstrDomainUnit()->GetNrTiles(); t!=tn; ++t)
+template<typename V>
+auto GetWallCountsAsArray(WallCountsAsArrayInfo<V>& info, tile_id t, tile_id te, SizeT availableThreads) -> std::vector<SizeT>
+{
+	if ((availableThreads > 1) && (te - t > 1))
 	{
-		auto valuesLock = values_fta[t]->GetTile(); values_fta[t] = nullptr;
-		auto valuesIter  = valuesLock.begin(),
-		     valuesEnd   = valuesLock.end();
+		auto m = t + (te - t) / 2;
+		auto mt = availableThreads / 2;
+		auto futureFirstHalfValue = std::async(std::launch::async, [t, m, mt, &info]()
+			{
+				return GetWallCountsAsArray<V>(info, t, m, mt);
+			});
+		t = m;
+		availableThreads -= mt;
+		auto secondHalfValue = GetWallCountsAsArray<V>(info, t, te, availableThreads);
+		auto firstHalfValue = futureFirstHalfValue.get();
+
+		for (SizeT i = 0, e = info.vCount; i < e; ++i)
+			firstHalfValue[i] += secondHalfValue[i];
+		return firstHalfValue;
+	}
+
+	auto localInfo = info;
+	std::vector<SizeT> buffer(localInfo.vCount, 0);
+	auto bufferB = buffer.begin();
+	for (; t != te; ++t)
+	{
+		auto valuesLock = localInfo.values_fta[t]->GetTile(); localInfo.values_fta[t] = nullptr;
+		auto valuesIter = valuesLock.begin(),
+			valuesEnd = valuesLock.end();
 		for (; valuesIter != valuesEnd; ++valuesIter)
 		{
 			if (IsDefined(*valuesIter))
 			{
-				auto i = Range_GetIndex_naked(valuesRange, *valuesIter);
-				assert(i < vCount);
+				auto i = Range_GetIndex_naked(localInfo.valuesRange, *valuesIter);
+				assert(i < localInfo.vCount);
 				SafeIncrementCounter(bufferB[i]);
 			}
 		}
 	}
+	return buffer;
+}
+
+template<typename V, typename R, typename AggrFunc>
+void ModusTotByTable(const AbstrDataItem* valuesItem, typename sequence_traits<R>::reference resData,  typename Unit<V>::range_t valuesRange, AggrFunc aggrFunc)
+{
+	SizeT vCount = Cardinality(valuesRange);
+
+	auto valuesDataArray = const_array_cast<V>(valuesItem);
+	SizeT maxNrThreads = MaxConcurrentTreads();
+	if (vCount)
+		MakeMin(maxNrThreads, valuesDataArray->GetNrFeaturesNow() / vCount);
+	MakeMax(maxNrThreads, 1);
+	tile_id tn = valuesItem->GetAbstrDomainUnit()->GetNrTiles();
+	auto values_fta = GetFutureTileArray(valuesDataArray);
+	WallCountsAsArrayInfo<V> info = { valuesRange, vCount, values_fta.begin() };
+	auto buffer = GetWallCountsAsArray<V>(info, 0, tn, maxNrThreads);
+	values_fta.reset();
+
 	resData = aggrFunc(buffer.begin(), buffer.end()
 	, [ ](auto i) { return *i; }
 	, [&](auto i) { return Range_GetValue_naked(valuesRange, i - buffer.begin()); }

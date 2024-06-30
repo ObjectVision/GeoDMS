@@ -283,8 +283,6 @@ protected:
 	TAcc1Func m_Acc1Func;
 };
 
-
-
 template <class TAcc1Func>
 struct OperAccPartUniBuffered : FuncOperAccPartUni<TAcc1Func, OperAccPartUniWithCFTA<typename TAcc1Func::value_type1, typename TAcc1Func::dms_result_type> >
 {
@@ -405,7 +403,9 @@ struct OperAccPartUniDirect : FuncOperAccPartUni<TAcc1Func, OperAccPartUniWithCF
 
 	void ProcessData(ResultType* result, ProcessDataInfo& pdi) const override
 	{
-		SizeT maxNrThreads = pdi.resCount ? pdi.n / pdi.resCount : 1; MakeMin(maxNrThreads, MaxConcurrentTreads());
+		SizeT maxNrThreads = MaxConcurrentTreads();
+		if (pdi.resCount)
+			MakeMin(maxNrThreads, pdi.n / pdi.resCount);
 		MakeMax(maxNrThreads, 1);
 
 		auto resData = result->GetDataWrite(no_tile, dms_rw_mode::write_only_all);
