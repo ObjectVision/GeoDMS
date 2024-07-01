@@ -236,7 +236,8 @@ bool TiffSM::WriteDataItem(StorageMetaInfoPtr&& smiHolder)
 	auto smi = smiHolder.get();
 	SharedPtr<const TreeItem> storageHolder = smi->StorageHolder();
 	SharedPtr<const AbstrDataItem> pd = GetPaletteData(storageHolder);
-	
+
+	InterestRetainContextBase irc;
 
 	auto current_writable_dataitem = smi->CurrWD();
 	auto number_of_dims = current_writable_dataitem->GetAbstrDomainUnit()->GetValueType()->GetNrDims();
@@ -258,7 +259,7 @@ bool TiffSM::WriteDataItem(StorageMetaInfoPtr&& smiHolder)
 			&& m_pImp->GetNrBitsPerPixel() <= MAX_BITS_PAL
 			)
 		{
-			InterestRetainContextBase::Add(pd);
+			irc.Add(pd);
 			pd->PrepareDataUsage(DrlType::CertainOrThrow);
 		}
 		else

@@ -156,11 +156,21 @@ namespace gdalComponentImpl
 
 }	// namespace gdalComponentImpl
 
+int safe_proj_context_errno()
+{
+	pj_ctx* ctx = gdalComponentImpl::s_ErrorFramePtr ? gdalComponentImpl::s_ErrorFramePtr->m_ctx : nullptr;
+	DMS_SE_CALLBACK_BEGIN
+
+		auto result = proj_context_errno(ctx);
+		return result;
+
+	DMS_SE_CALLBACK_END
+}
+
 GDAL_ErrorFrame::GDAL_ErrorFrame()
 	: m_eErrClass(dms_CPLErr(CE_None))
 	, m_Prev(gdalComponentImpl::s_ErrorFramePtr)
-	, m_prev_proj_err_no(proj_context_errno(gdalComponentImpl::s_ErrorFramePtr ? gdalComponentImpl::s_ErrorFramePtr->m_ctx : nullptr))
-
+	, m_prev_proj_err_no(safe_proj_context_errno())
 {
 	m_nr_uncaught_exceptions = std::uncaught_exceptions();
 	gdalComponentImpl::s_ErrorFramePtr = this;
@@ -525,20 +535,26 @@ void CheckSpatialReference(std::optional<OGRSpatialReference>& ogrSR, const Tree
 
 #include "proj.h"
 
+void proj_setup(const char* const* projFolderPtr)
+{
+	DMS_SE_CALLBACK_BEGIN
+
+	OSRSetPROJSearchPaths(projFolderPtr);
+
+	DMS_SE_CALLBACK_END // will throw a DmsException in case a SE was raised, such as "cannot load dll"
+}
+
 gdalThread::gdalThread()
 {
 	if (!gdalComponentImpl::s_TlsCount)
 	{
-		//		DMS_SE_CALLBACK_BEGIN
 
 		CPLPushFileFinder(gdalComponentImpl::HookFilesToExeFolder2); // can throw SE
 		//			proj_context_set_file_finder(nullptr, gdalComponentImpl::proj_HookFilesToExeFolder, nullptr);
 
 		static auto projFolder = DelimitedConcat(GetExeDir(), "proj4data");
 		CharPtr projFolderPtr[] = { projFolder.c_str(), nullptr };
-		OSRSetPROJSearchPaths(projFolderPtr);
-
-		//		DMS_SE_CALLBACK_END // will throw a DmsException in case a SE was raised
+		proj_setup(projFolderPtr);
 	}
 	++gdalComponentImpl::s_TlsCount;
 }
@@ -574,9 +590,9 @@ gdalComponent::gdalComponent()
 
 	if (!gdalComponentImpl::s_ComponentCount)
 	{
+		initializeGDAL();
 		try {
 			assert(gdalComponentImpl::s_OldErrorHandler == nullptr);
-			initializeGDAL();
 
 			assert(gdalComponentImpl::s_HookedFilesPtr == nullptr);
 			gdalComponentImpl::s_HookedFilesPtr = new std::map<SharedStr, SharedStr>; // can throw

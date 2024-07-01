@@ -346,6 +346,8 @@ bool BmpPalStorageManager::WriteDataItem(StorageMetaInfoPtr&& smiHolder)
 	auto smi = smiHolder.get();
 	StorageWriteHandle hnd(std::move(smiHolder));
 
+	InterestRetainContextBase irc;
+
 	BmpImp imp;
 	const AbstrDataItem* adi = smi->CurrRD();
 	switch (adi->GetAbstrDomainUnit()->GetValueType()->GetNrDims())
@@ -360,7 +362,7 @@ bool BmpPalStorageManager::WriteDataItem(StorageMetaInfoPtr&& smiHolder)
 		[[fallthrough]];
 		case 1:
 		{
-			InterestRetainContextBase::Add(adi); // TODO: make this interest dependent on GridData, as in TifStorageManager::VisitSuppliers; maybe even move that to the common base class.
+			irc.Add(adi); // TODO: make this interest dependent on GridData, as in TifStorageManager::VisitSuppliers; maybe even move that to the common base class.
 			PreparedDataReadLock paletteLock(adi, "@BmpPalStorageManager::WritePaletteData");
 
 			Bmp::PaletteDataHandler().WriteData(this, imp, adi);
