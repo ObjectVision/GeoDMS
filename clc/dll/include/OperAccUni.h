@@ -379,7 +379,7 @@ struct OperAccPartUniDirect : FuncOperAccPartUni<TAcc1Func, OperAccPartUniWithCF
 			t = m;
 			availableThreads -= mt;
 
-			result_container_t secondHalf(resData.size(), 0);
+			result_container_t secondHalf(resData.size());
 			auto secondHalfRef = result_seq_t(&secondHalf);
 			m_Acc1Func.Init(secondHalfRef);
 			AggregateTiles(secondHalfRef, pdi, t, te, availableThreads);
