@@ -62,7 +62,7 @@ template<typename R> void SafeIncrement(R& assignee) // see the similarity with 
 		if constexpr (is_signed_v<R>)
 		{
 			if (assignee == MAX_VALUE(R))
-				throwErrorD("SafeIncrement", "non-representable numerical overflow");
+				throwErrorF("SafeIncrement", "non-representable numerical overflow when incrementing %s", assignee);
 		}
 	}
 
@@ -73,12 +73,12 @@ template<typename R> void SafeIncrement(R& assignee) // see the similarity with 
 		if constexpr (!has_undefines_v<R>)
 		{
 			if (assignee == R())
-				throwErrorD("SafeIncrement", "non-representable numerical overflow of sub-byte value");
+				throwErrorF("SafeIncrement", "non-representable numerical overflow of sub-byte value", assignee);
 		}
 		else
 		{
 			if (!IsDefined(assignee))
-				throwErrorD("SafeIncrement", "non-representable numerical overflow");
+				throwErrorF("SafeIncrement", "non-representable numerical overflow", assignee);
 		}
 	}
 }
@@ -112,48 +112,59 @@ struct unary_assign_inc : unary_assign<I, T>
 
 template<typename R, typename T> void SafeAccumulate(R& assignee, T arg) // see the similarity with safe_plus
 {
-	R orgAssignee = assignee; // may-be used in check
 	if constexpr (has_undefines_v<R>)
-	{
-		if constexpr (is_signed_v<R> && !std::is_floating_point_v<R>)
-			if (!IsDefined(assignee))
-				return;
-	}
+		if (!IsDefined(assignee))
+			return;
 	if constexpr (has_undefines_v<T>)
 		if (!IsDefined(arg))
 			return;
 
-	assignee += arg;
-
-	if constexpr (!std::is_floating_point_v<R>)
+	if constexpr (is_signed_v<R> && !std::is_floating_point_v<R>)
 	{
-		if constexpr (!is_signed_v<R>)
+		if constexpr (is_signed_v<T>)
 		{
-			bool hasOverflow = false;
-			if constexpr (is_signed_v<T>)
-				hasOverflow = (arg >= 0 ? assignee < orgAssignee : assignee >= orgAssignee);
+			R convertedArg = ThrowingConvert<R>(arg);
+			if (convertedArg >= 0)
+			{
+				if (assignee > std::numeric_limits<R>::max() - convertedArg)
+					throwDmsErrF("non-representable numerical overflow in accumulation of %s with %s", assignee, arg);
+			}
 			else
 			{
-				std::conditional_t<is_bitvalue_v<T>, UInt8, T> argCopy = arg;
-				hasOverflow = (assignee < argCopy);
+				if (assignee <= std::numeric_limits<R>::min() - convertedArg)
+					throwDmsErrF("non-representable numerical overflow in accumulation of %s with %s", assignee, arg);
 			}
 
-			if (hasOverflow)
-				throwDmsErrD("non-representable numerical overflow in accumulation");
 		}
 		else
 		{
-			bool aNonnegative = (orgAssignee >= 0);
-			bool bNonnegative = (Convert<R>(arg) >= 0);
-
-			if (aNonnegative == bNonnegative)
-			{
-				auto resultNonnegative = (assignee>= 0);
-				if (aNonnegative != resultNonnegative)
-					throwDmsErrD("non-representable numerical overflow in accumulation");
-			}
+			R convertedArg = ThrowingConvert<R>(arg);
+			if (assignee > std::numeric_limits<R>::max() - convertedArg)
+				throwDmsErrF("non-representable numerical overflow in accumulation of %s with %s", assignee, arg);
 		}
 	}
+
+	std::conditional_t<is_bitvalue_v<T>, UInt8, T> argCopy = arg;
+	R result = assignee + argCopy;
+
+	if constexpr (!is_signed_v<R>)
+	{
+		static_assert(!std::is_floating_point_v<R>);
+		bool hasOverflow = false;
+		if constexpr (is_signed_v<T>)
+			hasOverflow = (arg >= 0 ? result < assignee : result >= assignee);
+		else
+		{
+			if constexpr (UNDEFINED_VALUE(R) == std::numeric_limits<R>::max())
+				hasOverflow = (result+1 <= argCopy);
+			else
+				hasOverflow = (result < argCopy) || !IsDefined(result);
+		}
+
+		if (hasOverflow)
+			throwDmsErrF("non-representable numerical overflow in accumulation of %s with %s", assignee, arg);
+	}
+	assignee = result;
 }
 
 template<typename R, typename T> void SafeAccumulate(Point<R>& assignee, const Point<T>& arg)
