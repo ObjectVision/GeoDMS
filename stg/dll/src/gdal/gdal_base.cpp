@@ -590,11 +590,11 @@ gdalComponent::gdalComponent()
 
 	if (!gdalComponentImpl::s_ComponentCount)
 	{
+		assert(gdalComponentImpl::s_OldErrorHandler == nullptr);
+		assert(gdalComponentImpl::s_HookedFilesPtr == nullptr);
 		initializeGDAL();
 		try {
-			assert(gdalComponentImpl::s_OldErrorHandler == nullptr);
 
-			assert(gdalComponentImpl::s_HookedFilesPtr == nullptr);
 			gdalComponentImpl::s_HookedFilesPtr = new std::map<SharedStr, SharedStr>; // can throw
 
 			// Set the Proj context on the GDAL/OGR library
