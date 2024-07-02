@@ -78,8 +78,6 @@ coords_using_more_than_25_bits(const Rect& rect)
 // *****************************************************************************
 
 
-static CommonOperGroup gr("overlay_polygon", oper_policy::dynamic_result_class | oper_policy::better_not_in_meta_scripting);
-
 static TokenID 
 	s_tGM = token::geometry,
 	s_tFR = token::first_rel,
@@ -88,7 +86,7 @@ static TokenID
 class AbstrPolygonOverlayOperator : public BinaryOperator
 {
 protected:
-	AbstrPolygonOverlayOperator(const DataItemClass* polyAttrClass)
+	AbstrPolygonOverlayOperator(AbstrOperGroup& gr, const DataItemClass* polyAttrClass)
 		:	BinaryOperator(&gr, Unit<UInt32>::GetStaticClass()
 			,	polyAttrClass
 			,	polyAttrClass
@@ -201,8 +199,8 @@ class PolygonOverlayOperator : public AbstrPolygonOverlayOperator
 	typedef std::vector<SpatialIndexType> SpatialIndexArrayType;
 
 public:
-	PolygonOverlayOperator()
-		:	AbstrPolygonOverlayOperator(Arg1Type::GetStaticClass())
+	PolygonOverlayOperator(AbstrOperGroup& gr)
+		:	AbstrPolygonOverlayOperator(gr, Arg1Type::GetStaticClass())
 	{}
 
 	// Override Operator
@@ -1169,10 +1167,18 @@ namespace
 			, ff(("_dXD" + s2).c_str(), PolygonFlags(f | PolygonFlags::F_DXD1))
 		{}
 	};
-	template <typename P> using BoostPolygonOverlayOperator = PolygonOverlayOperator<P, geometry_library::boost_polygon>;
+
+	static CommonOperGroup grOverlayPolygon("overlay_polygon", oper_policy::dynamic_result_class | oper_policy::better_not_in_meta_scripting);
+	static CommonOperGroup grBgOverlayPolygon("bg_overlay_polygon", oper_policy::dynamic_result_class | oper_policy::better_not_in_meta_scripting);
+	static CommonOperGroup grBpOverlayPolygon("bp_overlay_polygon", oper_policy::dynamic_result_class | oper_policy::better_not_in_meta_scripting);
+
+
+	template <typename P> using BoostPolygonOverlayOperator  = PolygonOverlayOperator<P, geometry_library::boost_polygon>;
 	template <typename P> using BoostGeometryOverlayOperator = PolygonOverlayOperator<P, geometry_library::boost_geometry>;
-	tl_oper::inst_tuple_templ<typelists::sint_points, BoostPolygonOverlayOperator     > boostPolygonOverlayOperators;
-	tl_oper::inst_tuple_templ<typelists::float_points, BoostGeometryOverlayOperator   > boostGeometryOverlayOperators;
+	tl_oper::inst_tuple_templ<typelists::sint_points , BoostPolygonOverlayOperator , AbstrOperGroup&> boostPolygonOverlayOperators   (grOverlayPolygon);
+	tl_oper::inst_tuple_templ<typelists::sint_points , BoostPolygonOverlayOperator , AbstrOperGroup&> boostPolygonBpOverlayOperators (grBpOverlayPolygon);
+	tl_oper::inst_tuple_templ<typelists::float_points, BoostGeometryOverlayOperator, AbstrOperGroup&> boostGeometryOverlayOperators  (grOverlayPolygon);
+	tl_oper::inst_tuple_templ<typelists::points      , BoostGeometryOverlayOperator, AbstrOperGroup&> boostGeometryBgOverlayOperators(grBgOverlayPolygon);
 
 	tl_oper::inst_tuple_templ<typelists::sint_points, PolygonConnectivityOperator>	polygonConnectivityOperators;
 
