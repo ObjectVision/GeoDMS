@@ -196,11 +196,11 @@ struct WallCountsAsArrayInfo
 template<typename V>
 auto GetWallCountsAsArray(WallCountsAsArrayInfo<V>& info, tile_id t, tile_id te, SizeT availableThreads) -> std::vector<SizeT>
 {
-	if ((availableThreads > 1) && (te - t > 1))
+	if (te - t > 1)
 	{
 		auto m = t + (te - t) / 2;
 		auto mt = availableThreads / 2;
-		auto futureFirstHalfValue = std::async(std::launch::async, [t, m, mt, &info]()
+		auto futureFirstHalfValue = std::async(mt ? std::launch::async : std::launch::deferred, [t, m, mt, &info]()
 			{
 				return GetWallCountsAsArray<V>(info, t, m, mt);
 			});
@@ -217,7 +217,7 @@ auto GetWallCountsAsArray(WallCountsAsArrayInfo<V>& info, tile_id t, tile_id te,
 	auto localInfo = info;
 	std::vector<SizeT> buffer(localInfo.vCount, 0);
 	auto bufferB = buffer.begin();
-	for (; t != te; ++t)
+	if (t != te)
 	{
 		auto valuesLock = localInfo.values_fta[t]->GetTile(); localInfo.values_fta[t] = nullptr;
 		auto valuesIter = valuesLock.begin(),
@@ -245,6 +245,7 @@ void ModusTotByTable(const AbstrDataItem* valuesItem, typename sequence_traits<R
 	if (vCount)
 		MakeMin(maxNrThreads, valuesDataArray->GetNrFeaturesNow() / vCount);
 	MakeMax(maxNrThreads, 1);
+
 	tile_id tn = valuesItem->GetAbstrDomainUnit()->GetNrTiles();
 	auto values_fta = GetFutureTileArray(valuesDataArray);
 	WallCountsAsArrayInfo<V> info = { valuesRange, vCount, values_fta.begin() };

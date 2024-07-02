@@ -37,6 +37,7 @@ enum class AggrMethod {
 	mean,
 	sd,
 	count,
+	nr_undefined_values,
 	modus,
 	modus_count,
 	unique_count,
@@ -47,7 +48,7 @@ enum class AggrMethod {
 	any,
 	all,
 	frequency_table,
-	nr_methods = 18
+	nr_methods
 };
 
 //----------------------------------------------------------------------

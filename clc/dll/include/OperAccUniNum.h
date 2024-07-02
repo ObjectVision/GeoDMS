@@ -36,11 +36,12 @@ struct OperAccTotUniNum : OperAccTotUni<TAcc1Func>
 
 	auto AggregateTiles(ftptr* values_fta, tile_id t, tile_id te, SizeT availableThreads) const -> decltype(this->m_Acc1Func.InitialValue())
 	{
-		if ((availableThreads > 1) && (te - t > 1))
+		assert(te > t);
+		if (te - t > 1)
 		{
 			auto m = t + (te - t) / 2;
 			auto mt = availableThreads / 2;
-			auto futureFirstHalfValue = std::async(std::launch::async, [this, values_fta, t, m, mt]()
+			auto futureFirstHalfValue = std::async(mt ? std::launch::async : std::launch::deferred, [this, values_fta, t, m, mt]()
 				{
 					return AggregateTiles(values_fta, t, m, mt);
 				});
@@ -54,11 +55,8 @@ struct OperAccTotUniNum : OperAccTotUni<TAcc1Func>
 		}
 
 		auto value = this->m_Acc1Func.InitialValue(); // set value to MIN_VALUE, MAX_VALUE, or NULL depending on the TAcc1Func type
-		for (; t != te; ++t)
-		{
-			auto arg1Data = values_fta[t]->GetTile(); values_fta[t] = nullptr;
-			this->m_Acc1Func(value, arg1Data.get_view());
-		}
+		auto arg1Data = values_fta[t]->GetTile(); values_fta[t] = nullptr;
+		this->m_Acc1Func(value, arg1Data.get_view());
 
 		return value;
 	}
@@ -77,9 +75,7 @@ struct OperAccTotUniNum : OperAccTotUni<TAcc1Func>
 		// TODO G8: OPTIMIZE, use parallel_for and ThreadLocal container and aggregate afterwards.
 		auto values_fta = GetFutureTileArray(arg1);
 
-		SizeT maxNrThreads = MaxConcurrentTreads();
-		MakeMax(maxNrThreads, 1);
-		auto value = AggregateTiles(values_fta.begin(), 0, e->GetNrTiles(), maxNrThreads);
+		auto value = AggregateTiles(values_fta.begin(), 0, e->GetNrTiles(), MaxConcurrentTreads());
 
 		auto resData = result->GetDataWrite();
 		assert(resData.size() == 1);

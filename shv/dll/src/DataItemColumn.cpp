@@ -146,6 +146,9 @@ bool Allowed(const AbstrDataItem* adi, AggrMethod am)
 		case AggrMethod::count:
 			return vcm == ValueComposition::Single && (vc->IsIntegral() || vc->GetNrDims() == 2);
 
+		case AggrMethod::nr_undefined_values:
+			return vcm == ValueComposition::Single;
+
 		case AggrMethod::union_polygon:
 			return vc->GetNrDims() == 2 && vcm == ValueComposition::Polygon && vc->IsIntegral();
 
@@ -196,6 +199,7 @@ std::pair<ConstUnitRef, ValueComposition> ValuesUnitAndComposition(const AbstrDa
 			return { Unit<Float64>::GetStaticClass()->CreateDefault(), ValueComposition::Single };
 
 		case AggrMethod::count:
+		case AggrMethod::nr_undefined_values:
 			return { count_unit_creator(adi), ValueComposition::Single };
 
 		case AggrMethod::asItemList:
@@ -255,6 +259,7 @@ CharPtr OperName(const AbstrDataItem* adi, AggrMethod am)
 		case AggrMethod::modus: return "modus";
 
 		case AggrMethod::count: return "count";
+		case AggrMethod::nr_undefined_values: return "nr_undefined_values";
 		case AggrMethod::modus_count : return "modus_count";
 		case AggrMethod::unique_count: return "unique_count";
 
@@ -302,6 +307,7 @@ CharPtr OperExprFormat(const AbstrDataItem* adi, const AbstrDataItem* groupBy_re
 			return "mean(centroid(%2%), %3%))";
 		break;
 	case AggrMethod::count: return SelectCardinality(count_unit_creator(adi), "count_uint8(%2%, %3%)", "count_uint16(%2%, %3%)", "count_uint32(%2%, %3%)", "count_uint64(%2%, %3%)");
+	case AggrMethod::nr_undefined_values: return SelectCardinality(count_unit_creator(adi), "sum_uint8(not(IsDefined(%2%)), %3%)", "sum_uint16(not(IsDefined(%2%)), %3%)", "sum_uint32(not(IsDefined(%2%)), %3%)", "sum_uint64(not(IsDefined(%2%)), %3%)");
 	case AggrMethod::modus_count: return SelectCardinality(count_unit_creator(adi), "modus_count_uint8(%2%, %3%)", "modus_count_uint16(%2%, %3%)", "modus_count_uint32(%2%, %3%)", "modus_count_uint64(%2%, %3%)");
 	case AggrMethod::unique_count: return SelectCardinality(unique_count_unit_creator(adi, groupBy_rel), "unique_count_uint8(%2%, %3%)", "unique_count_uint16(%2%, %3%)", "unique_count_uint32(%2%, %3%)", "unique_count_uint64(%2%, %3%)");
 	case AggrMethod::bounding_box:

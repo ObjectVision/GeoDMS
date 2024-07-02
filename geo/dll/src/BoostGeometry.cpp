@@ -10,31 +10,6 @@
 
 #include "BoostGeometry.h"
 
-/*
-#include "RtcTypeLists.h"
-#include "RtcGeneratedVersion.h"
-#include "VersionComponent.h"
-
-#include "mci/ValueClass.h"
-#include "mci/ValueWrap.h"
-#include "utl/TypeListOper.h"
-#include "xct/DmsException.h"
-
-#include "ParallelTiles.h"
-#include "Unit.h"
-#include "UnitClass.h"
-
-#include "OperAttrBin.h"
-#include "RemoveAdjacentsAndSpikes.h"
-
-#include <boost/geometry.hpp>
-#include <boost/geometry/algorithms/within.hpp>
-#include <boost/geometry/geometries/multi_linestring.hpp>
-
-#include "ipolygon/polygon.hpp"
-#include "geo/BoostPolygon.h"
-*/
-
 static VersionComponent s_BoostGeometry("boost::geometry " BOOST_STRINGIZE(BOOST_GEOMETRY_VERSION));
 
 // *****************************************************************************
@@ -46,10 +21,10 @@ static CommonOperGroup grBgSimplify_multi_polygon("bg_simplify_multi_polygon", o
 static CommonOperGroup grBgSimplify_polygon      ("bg_simplify_polygon", oper_policy::better_not_in_meta_scripting);
 static CommonOperGroup grBgSimplify_linestring   ("bg_simplify_linestring", oper_policy::better_not_in_meta_scripting);
 
-static CommonOperGroup grBgIntersect("bg_intersect", oper_policy::better_not_in_meta_scripting);
-static CommonOperGroup grBgUnion    ("bg_union", oper_policy::better_not_in_meta_scripting);
-static CommonOperGroup grBgXOR      ("bg_xor", oper_policy::better_not_in_meta_scripting);
-static CommonOperGroup grBgSubtr     ("bg_subtr", oper_policy::better_not_in_meta_scripting);
+static CommonOperGroup grBgIntersect ("bg_intersect" , oper_policy::better_not_in_meta_scripting);
+static CommonOperGroup grBgUnion     ("bg_union"     , oper_policy::better_not_in_meta_scripting);
+static CommonOperGroup grBgXOR       ("bg_xor"       , oper_policy::better_not_in_meta_scripting);
+static CommonOperGroup grBgDifference("bg_difference", oper_policy::better_not_in_meta_scripting);
 
 static CommonOperGroup grBgBuffer_point        ("bg_buffer_point", oper_policy::better_not_in_meta_scripting);
 static CommonOperGroup grBgBuffer_multi_point  ("bg_buffer_multi_point", oper_policy::better_not_in_meta_scripting);
@@ -84,8 +59,8 @@ struct BgIntersectMultiPolygonOperator : BinaryMapAlgebraicOperator<P>
 	using PolygonType = std::vector<PointType>;
 	using ArgType = DataArray<PolygonType>;
 
-	BgIntersectMultiPolygonOperator()
-		: BinaryMapAlgebraicOperator<P>(&grBgIntersect, compatible_simple_values_unit_creator, ValueComposition::Polygon)
+	BgIntersectMultiPolygonOperator(AbstrOperGroup& gr)
+		: BinaryMapAlgebraicOperator<P>(&gr, compatible_simple_values_unit_creator, ValueComposition::Polygon)
 	{}
 	using st = sequence_traits<PolygonType>;
 	using seq_t = typename st::seq_t;
@@ -121,6 +96,153 @@ struct BgIntersectMultiPolygonOperator : BinaryMapAlgebraicOperator<P>
 				assign_multi_polygon(currMP2, arg2Data[i], true, helperPolygon, helperRing);
 			resMP.clear();
 			boost::geometry::intersection(currMP1, currMP2, resMP);
+			store_multi_polygon(resData[i], resMP, helperPointArray);
+		}
+	}
+};
+
+template <typename P>
+struct BgUnionMultiPolygonOperator : BinaryMapAlgebraicOperator<P>
+{
+	using PointType = P;
+	using PolygonType = std::vector<PointType>;
+	using ArgType = DataArray<PolygonType>;
+
+	BgUnionMultiPolygonOperator(AbstrOperGroup& gr)
+		: BinaryMapAlgebraicOperator<P>(&gr, compatible_simple_values_unit_creator, ValueComposition::Polygon)
+	{}
+	using st = sequence_traits<PolygonType>;
+	using seq_t = typename st::seq_t;
+	using cseq_t = typename st::cseq_t;
+
+	void CalcTile(seq_t resData, cseq_t arg1Data, cseq_t arg2Data, ArgFlags af MG_DEBUG_ALLOCATOR_SRC_ARG) const override
+	{
+		tile_offset n1 = arg1Data.size();
+		tile_offset n2 = arg2Data.size();
+		tile_offset n = std::max(n1, n2);
+		assert(n1 == n || (af & AF1_ISPARAM));
+		assert(n2 == n || (af & AF2_ISPARAM));
+		assert(resData.size() == n);
+
+
+		bg_ring_t helperRing;
+		bg_polygon_t helperPolygon;
+		bg_multi_polygon_t currMP1, currMP2, resMP;
+		std::vector<DPoint> helperPointArray;
+
+		bool domain1IsVoid = (af & AF1_ISPARAM);
+		bool domain2IsVoid = (af & AF2_ISPARAM);
+		if (domain1IsVoid)
+			assign_multi_polygon(currMP1, arg1Data[0], true, helperPolygon, helperRing);
+		if (domain2IsVoid)
+			assign_multi_polygon(currMP2, arg2Data[0], true, helperPolygon, helperRing);
+
+		for (SizeT i = 0; i != n; ++i)
+		{
+			if (!domain1IsVoid)
+				assign_multi_polygon(currMP1, arg1Data[i], true, helperPolygon, helperRing);
+			if (!domain2IsVoid)
+				assign_multi_polygon(currMP2, arg2Data[i], true, helperPolygon, helperRing);
+			resMP.clear();
+			boost::geometry::union_(currMP1, currMP2, resMP);
+			store_multi_polygon(resData[i], resMP, helperPointArray);
+		}
+	}
+};
+
+template <typename P>
+struct BgDifferenceMultiPolygonOperator : BinaryMapAlgebraicOperator<P>
+{
+	using PointType = P;
+	using PolygonType = std::vector<PointType>;
+	using ArgType = DataArray<PolygonType>;
+
+	BgDifferenceMultiPolygonOperator(AbstrOperGroup& gr)
+		: BinaryMapAlgebraicOperator<P>(&gr, compatible_simple_values_unit_creator, ValueComposition::Polygon)
+	{}
+	using st = sequence_traits<PolygonType>;
+	using seq_t = typename st::seq_t;
+	using cseq_t = typename st::cseq_t;
+
+	void CalcTile(seq_t resData, cseq_t arg1Data, cseq_t arg2Data, ArgFlags af MG_DEBUG_ALLOCATOR_SRC_ARG) const override
+	{
+		tile_offset n1 = arg1Data.size();
+		tile_offset n2 = arg2Data.size();
+		tile_offset n = std::max(n1, n2);
+		assert(n1 == n || (af & AF1_ISPARAM));
+		assert(n2 == n || (af & AF2_ISPARAM));
+		assert(resData.size() == n);
+
+
+		bg_ring_t helperRing;
+		bg_polygon_t helperPolygon;
+		bg_multi_polygon_t currMP1, currMP2, resMP;
+		std::vector<DPoint> helperPointArray;
+
+		bool domain1IsVoid = (af & AF1_ISPARAM);
+		bool domain2IsVoid = (af & AF2_ISPARAM);
+		if (domain1IsVoid)
+			assign_multi_polygon(currMP1, arg1Data[0], true, helperPolygon, helperRing);
+		if (domain2IsVoid)
+			assign_multi_polygon(currMP2, arg2Data[0], true, helperPolygon, helperRing);
+
+		for (SizeT i = 0; i != n; ++i)
+		{
+			if (!domain1IsVoid)
+				assign_multi_polygon(currMP1, arg1Data[i], true, helperPolygon, helperRing);
+			if (!domain2IsVoid)
+				assign_multi_polygon(currMP2, arg2Data[i], true, helperPolygon, helperRing);
+			resMP.clear();
+			boost::geometry::difference(currMP1, currMP2, resMP);
+			store_multi_polygon(resData[i], resMP, helperPointArray);
+		}
+	}
+};
+
+template <typename P>
+struct BgSymmetricDifferenceMultiPolygonOperator : BinaryMapAlgebraicOperator<P>
+{
+	using PointType = P;
+	using PolygonType = std::vector<PointType>;
+	using ArgType = DataArray<PolygonType>;
+
+	BgSymmetricDifferenceMultiPolygonOperator(AbstrOperGroup& gr)
+		: BinaryMapAlgebraicOperator<P>(&gr, compatible_simple_values_unit_creator, ValueComposition::Polygon)
+	{}
+	using st = sequence_traits<PolygonType>;
+	using seq_t = typename st::seq_t;
+	using cseq_t = typename st::cseq_t;
+
+	void CalcTile(seq_t resData, cseq_t arg1Data, cseq_t arg2Data, ArgFlags af MG_DEBUG_ALLOCATOR_SRC_ARG) const override
+	{
+		tile_offset n1 = arg1Data.size();
+		tile_offset n2 = arg2Data.size();
+		tile_offset n = std::max(n1, n2);
+		assert(n1 == n || (af & AF1_ISPARAM));
+		assert(n2 == n || (af & AF2_ISPARAM));
+		assert(resData.size() == n);
+
+
+		bg_ring_t helperRing;
+		bg_polygon_t helperPolygon;
+		bg_multi_polygon_t currMP1, currMP2, resMP;
+		std::vector<DPoint> helperPointArray;
+
+		bool domain1IsVoid = (af & AF1_ISPARAM);
+		bool domain2IsVoid = (af & AF2_ISPARAM);
+		if (domain1IsVoid)
+			assign_multi_polygon(currMP1, arg1Data[0], true, helperPolygon, helperRing);
+		if (domain2IsVoid)
+			assign_multi_polygon(currMP2, arg2Data[0], true, helperPolygon, helperRing);
+
+		for (SizeT i = 0; i != n; ++i)
+		{
+			if (!domain1IsVoid)
+				assign_multi_polygon(currMP1, arg1Data[i], true, helperPolygon, helperRing);
+			if (!domain2IsVoid)
+				assign_multi_polygon(currMP2, arg2Data[i], true, helperPolygon, helperRing);
+			resMP.clear();
+			boost::geometry::sym_difference(currMP1, currMP2, resMP);
 			store_multi_polygon(resData[i], resMP, helperPointArray);
 		}
 	}
@@ -903,18 +1025,24 @@ namespace
 	tl_oper::inst_tuple_templ<typelists::points, BufferPointOperator> bufferPointOperators;
 	tl_oper::inst_tuple_templ<typelists::points, BufferMultiPointOperator> bufferMultiPointOperators;
 	tl_oper::inst_tuple_templ<typelists::points, BufferLineStringOperator> bufferLineStringOperators;
-	tl_oper::inst_tuple_templ<typelists::points, BgIntersectMultiPolygonOperator> bgIntersectMultiPolygonOperators;
 
-#if DMS_VERSION_MAJOR < 15
-	tl_oper::inst_tuple_templ<typelists::points, BufferSinglePolygonOperator, AbstrOperGroup&> bg_bufferPolygonOperators(grBgBuffer_polygon);
-#endif
+	tl_oper::inst_tuple_templ<typelists::points, BgIntersectMultiPolygonOperator, AbstrOperGroup&> bgIntersectMultiPolygonOperatorsNamed(grBgIntersect);
+	tl_oper::inst_tuple_templ<typelists::float_points, BgIntersectMultiPolygonOperator, AbstrOperGroup&> bgIntersectMultiPolygonOperatorsMul(cog_mul);
+	tl_oper::inst_tuple_templ<typelists::float_points, BgIntersectMultiPolygonOperator, AbstrOperGroup&> bgIntersectMultiPolygonOperatorsBitAnd(cog_bitand);
+
+	tl_oper::inst_tuple_templ<typelists::points, BgUnionMultiPolygonOperator, AbstrOperGroup&> bgUnionMultiPolygonOperatorsNamed(grBgUnion);
+	tl_oper::inst_tuple_templ<typelists::float_points, BgUnionMultiPolygonOperator, AbstrOperGroup&> bgUnionMultiPolygonOperatorsAdd(cog_add);
+	tl_oper::inst_tuple_templ<typelists::float_points, BgUnionMultiPolygonOperator, AbstrOperGroup&> bgUnionMultiPolygonOperatorsBitOr(cog_bitor);
+
+	tl_oper::inst_tuple_templ<typelists::points, BgDifferenceMultiPolygonOperator, AbstrOperGroup&> bgDifferenceMultiPolygonOperatorsNamed(grBgDifference);
+	tl_oper::inst_tuple_templ<typelists::float_points, BgDifferenceMultiPolygonOperator, AbstrOperGroup&> bgDifferenceMultiPolygonOperatorsSub(cog_sub);
+
+	tl_oper::inst_tuple_templ<typelists::points, BgSymmetricDifferenceMultiPolygonOperator, AbstrOperGroup&> bgSymmetricDifferenceMultiPolygonOperatorsNamed(grBgXOR);
+	tl_oper::inst_tuple_templ<typelists::float_points, BgSymmetricDifferenceMultiPolygonOperator, AbstrOperGroup&> bgSymmetricDifferenceMultiPolygonOperatorsBitXOR(cog_bitxor);
+
 	tl_oper::inst_tuple_templ<typelists::points, BufferSinglePolygonOperator, AbstrOperGroup&> bg_buffersinglePolygonOperators(grBgBuffer_single_polygon);
 	tl_oper::inst_tuple_templ<typelists::points, BufferMultiPolygonOperator, AbstrOperGroup&> bg_bufferMultiPolygonOperators(grBgBuffer_multi_polygon);
 
-#if DMS_VERSION_MAJOR < 15
-	tl_oper::inst_tuple_templ<typelists::points, OuterSingePolygonOperator, AbstrOperGroup&> outerPolygonOperators(grOuter_polygon);
-	tl_oper::inst_tuple_templ<typelists::points, OuterMultiPolygonOperator, AbstrOperGroup&> outerMultiPolygonOperators(grOuter_multi_polygon);
-#endif
 	tl_oper::inst_tuple_templ<typelists::points, OuterSingePolygonOperator, AbstrOperGroup&> bg_outerSinglePolygonOperators(grBgOuter_single_polygon);
 	tl_oper::inst_tuple_templ<typelists::points, OuterMultiPolygonOperator, AbstrOperGroup&> bg_outerMultiPolygonOperators(grBgOuter_multi_polygon);
 }
