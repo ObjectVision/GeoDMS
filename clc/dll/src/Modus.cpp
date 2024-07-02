@@ -192,7 +192,7 @@ void ModusTotByTable(const AbstrDataItem* valuesItem, typename sequence_traits<R
 	std::vector<SizeT> buffer(vCount, 0);
 	auto bufferB = buffer.begin();
 
-	auto values_fta = (DataReadLock(valuesItem), GetFutureTileArray(const_array_cast<V>(valuesItem)));
+	auto values_fta = GetFutureTileArray(const_array_cast<V>(valuesItem));
 
 	for (tile_id t =0, tn = valuesItem->GetAbstrDomainUnit()->GetNrTiles(); t!=tn; ++t)
 	{
