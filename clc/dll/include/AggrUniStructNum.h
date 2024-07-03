@@ -154,9 +154,6 @@ void Assign(null_wrap<T>& output, U&& rhs) requires (!is_null_wrap_v<std::remove
 	output.AssignValue(rhs);
 }
 
-template <typename T>
-using nullable_t = std::conditional_t<has_undefines_v<T> && is_fixed_size_element_v<T>, T, null_wrap<T>>;
-
 // END MOVE
 
 /*****************************************************************************/

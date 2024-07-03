@@ -362,29 +362,31 @@ struct OperAccPartUniDirect : FuncOperAccPartUni<TAcc1Func, OperAccPartUniWithCF
 	OperAccPartUniDirect(AbstrOperGroup* gr, TAcc1Func&& acc1Func = TAcc1Func())
 		: base_type(gr, std::move(acc1Func))
 	{}
-
-	using result_seq_t = typename sequence_traits<ResultValueType>::seq_t;
-	using result_container_t = typename sequence_traits<ResultValueType>::container_type;
+	using ResultBufferType = nullable_t<ResultValueType>;
+	using result_container_t = typename sequence_traits<ResultBufferType>::container_type;
+	using result_seq_t = typename sequence_traits<ResultBufferType>::seq_t;
 	void AggregateTiles(result_seq_t resData, ProcessDataInfo& pdi, tile_id t, tile_id te, SizeT availableThreads) const
 	{
 		if (te - t > 1)
 		{
 			auto m = t + (te - t) / 2;
 			auto mt = availableThreads / 2;
-			auto futureFirstHalf = std::async(mt ? std::launch::async : std::launch::deferred, [this, resData, &pdi, t, m, mt]()
+			auto futureSecondHalf = std::async(mt ? std::launch::async : std::launch::deferred, [this, resData, &pdi, m, te, mt]()
+				-> result_container_t
 				{
-					AggregateTiles(resData, pdi, t, m, mt);
+					result_container_t secondHalf(resData.size());
+					auto secondHalfRef = result_seq_t(&secondHalf);
+					m_Acc1Func.Init(secondHalfRef);
+					AggregateTiles(secondHalfRef, pdi, m, te, mt);
+					return secondHalf;
 				});
 			t = m;
 			availableThreads -= mt;
 
-			result_container_t secondHalf(resData.size());
-			auto secondHalfRef = result_seq_t(&secondHalf);
-			m_Acc1Func.Init(secondHalfRef);
-			AggregateTiles(secondHalfRef, pdi, t, te, availableThreads);
+			AggregateTiles(resData, pdi, t, m, availableThreads);
+			auto secondHalf = futureSecondHalf.get();
 			auto secondHalfBufferIterator = secondHalf.begin();
 
-			futureFirstHalf.wait();
 			auto firstHalfBufferEnd = resData.end();
 			for (auto firstHalfBufferIterator = resData.begin(); firstHalfBufferIterator != firstHalfBufferEnd; ++secondHalfBufferIterator, ++firstHalfBufferIterator)
 			{

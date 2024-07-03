@@ -9,6 +9,35 @@
 #if !defined(__CLC_PROTOTYPES_H)
 #define __CLC_PROTOTYPES_H
 
+template <typename T> struct null_wrap;
+
+template <typename T>
+struct is_seq_ref : std::false_type {};
+
+template <typename T>
+struct is_seq_ref<SA_Reference<T>> : std::true_type {};
+
+template <typename T>
+struct is_seq_ref<SA_ConstReference<T>> : std::true_type {};
+
+template <typename T>
+constexpr bool is_seq_ref_v = is_seq_ref<T>::value;
+
+template <typename T>
+struct is_null_wrap_t : std::false_type {};
+
+template <typename T>
+struct is_null_wrap_t<null_wrap<T>> : std::true_type {};
+
+template <typename T>
+constexpr bool is_null_wrap_v = is_null_wrap_t<T>::value;
+
+template <typename T>
+constexpr bool can_be_undefined_v = !is_bitvalue_v<T> && (is_fixed_size_element_v<T> || is_seq_ref_v<T> || is_null_wrap_v<T>);
+
+template <typename T>
+using nullable_t = std::conditional_t<has_undefines_v<T>&& is_fixed_size_element_v<T>, T, null_wrap<T>>;
+
 // *****************************************************************************
 //								Function predicates
 // *****************************************************************************
