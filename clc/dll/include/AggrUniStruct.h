@@ -48,7 +48,9 @@ struct null_or_zero_value : public nullary_func<T>
 };
 
 template <typename T> struct assign_default   : nullary_assign_from_func< default_value<T> > {};
-template <typename T> struct assign_null_value : nullary_assign<T>
+
+template <typename T>
+struct assign_null_value : nullary_assign<T>
 {
 	void operator()(typename nullary_assign<T>::assignee_ref res) const
 	{
@@ -56,7 +58,19 @@ template <typename T> struct assign_null_value : nullary_assign<T>
 	}
 };
 
-template <typename T> struct assign_null_or_zero: nullary_assign_from_func< null_or_zero_value<T> > {};
+template <typename T> struct assign_null_or_zero: nullary_assign<T>
+{
+	void operator()(typename nullary_assign<T>::assignee_ref res) const
+	{
+		MakeUndefinedOrZero(res);
+	}
+	void operator()(nullable_t<typename nullary_assign<T>::assignee_type>& res) const
+		requires !can_be_undefined_v<T>
+	{
+		MakeUndefined(res);
+	}
+};
+
 template <typename T> struct assign_min_value : nullary_assign_from_func< min_value <T> > {};
 template <typename T> struct assign_max_value : nullary_assign_from_func< max_value <T> > {};
 

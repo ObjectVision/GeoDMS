@@ -256,32 +256,29 @@ struct unary_assign_once : unary_assign<OR, T>
 	}
 };
 
-template <typename T>
-struct unary_assign_overwrite: unary_assign<T, T>
+template <typename OR, typename T>
+struct unary_assign_overwrite: unary_assign<OR, T>
 {
 	template <typename R>
 	static ConstUnitRef unit_creator(const AbstrOperGroup* gr, const ArgSeqType& args) { return CastUnit<R>(arg1_values_unit(args)); }
 
-	void operator()(vref_t<T> assignee, cref_t<T> arg) const
+	void operator()(vref_t<OR> assignee, cref_t<T> arg) const
 	{
 		if constexpr (has_undefines_v<T>)
 			if (!IsDefined(arg))
 				return;
 		Assign(assignee, arg);
 	}
-	using result_buffer_type = nullable_t<T>;
-	void CombineRefs(vref_t<T> assignee, cref_t<result_buffer_type> rhs) const
+	void CombineRefs(vref_t<OR> assignee, cref_t<OR> rhs) const
 	{
-		if constexpr (has_undefines_v<T>)
-			if (!IsDefined(rhs))
-				return;
+		if (!IsDefined(rhs))
+			return;
 		Assign(assignee, rhs);
 	}
-	void CombineValues(T& assignee, T rhs) const
+	void CombineValues(OR& assignee, OR rhs) const
 	{
-		if constexpr (has_undefines_v<T>)
-			if (!IsDefined(rhs))
-				return;
+		if (!IsDefined(rhs))
+			return;
 		Assign(assignee, rhs);
 	}
 };

@@ -303,30 +303,6 @@ SA_Reference<T>::SA_Reference(SequenceArrayType* container, seq_iterator seqPtr)
 
 // sequence_array constructors
 
-/* REMOVE ???*
-template <typename T>
-sequence_vector<T>::sequence_vector(const_iterator i, const_iterator e)
-{
-	this->Lock(true);
-	auto srcDataSize = calcActualDataSize(i, e);
-
-	this->Reset(e-i, srcDataSize);
-
-	auto ri = this->m_Indices.begin();
-
-	while (i != e)
-	{
-		if (i->IsDefined())
-			allocateSequenceRange(ri, i->begin(), i->end());
-		++ri;
-		++i;
-	}
-	assert(this->calcActualDataSize() == this->actual_data_size());
-	assert(srcDataSize == this->actual_data_size());
-	assert(!this->IsDirty());
-}
-*/
-
 template <typename T>
 sequence_array<T>::sequence_array(const sequence_array<T>& src, data_size_type expectedGrowth)
 {

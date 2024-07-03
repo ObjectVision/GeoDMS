@@ -655,6 +655,8 @@ public:
 	sequence_array(sequence_array<T>&& rhs) noexcept { swap(rhs); }
 
 	void operator =(const sequence_array<T>& src) { assign(src, 0); }
+	void operator =(sequence_array<T>&& src) { swap(src); }
+
 	RTC_CALL void assign(const sequence_array<T>& src, data_size_type expectedGrowth);
 	RTC_CALL void swap(sequence_array<T>& rhs) noexcept;
 
@@ -903,6 +905,14 @@ struct sequence_vector : sequence_array<T>
 	{
 		if (this->IsAssigned())
 			this->UnLock();
+	}
+	void operator = (const sequence_vector& rhs) 
+	{
+		sequence_array<T>::operator = (rhs);
+	}
+	void operator = (sequence_vector&& rhs) noexcept
+	{
+		sequence_array<T>::operator = (std::move(rhs));
 	}
 };
 

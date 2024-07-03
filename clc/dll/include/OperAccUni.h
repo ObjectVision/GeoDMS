@@ -306,17 +306,20 @@ struct OperAccPartUniBuffered : FuncOperAccPartUni<TAcc1Func, OperAccPartUniWith
 		{
 			auto m = t + (te - t) / 2;
 			auto mt = availableThreads / 2;
-			auto futureFirstHalfBuffer = std::async(mt ? std::launch::async : std::launch::deferred, [this, &pdi, t, m, mt]()
+			auto futureSecondHalfBuffer = std::async(mt ? std::launch::async : std::launch::deferred, [this, &pdi, m, te, mt]()
 				{
-					return AggregateTiles(pdi, t, m, mt);
+					return AggregateTiles(pdi, m, te, mt);
 				});
-			t = m;
+			te = m;
 			availableThreads -= mt;
-			auto secondHalfBuffer = AggregateTiles(pdi, t, te, availableThreads);
+			auto firstHalfBuffer = AggregateTiles(pdi, t, te, availableThreads);
+
+			auto secondHalfBuffer = futureSecondHalfBuffer.get();
 			auto secondHalfBufferIterator = secondHalfBuffer.begin();
-			auto firstHalfBuffer = futureFirstHalfBuffer.get();
-			auto firstHalfBufferEnd = firstHalfBuffer.end();
-			for (auto firstHalfBufferIterator = firstHalfBuffer.begin(); firstHalfBufferIterator != firstHalfBufferEnd; ++secondHalfBufferIterator, ++firstHalfBufferIterator)
+
+			for (auto firstHalfBufferIterator = firstHalfBuffer.begin(), firstHalfBufferEnd = firstHalfBuffer.end(); 
+				firstHalfBufferIterator != firstHalfBufferEnd; 
+				++secondHalfBufferIterator, ++firstHalfBufferIterator)
 			{
 				this->m_Acc1Func.CombineRefs(*firstHalfBufferIterator, *secondHalfBufferIterator);
 			}
@@ -362,9 +365,9 @@ struct OperAccPartUniDirect : FuncOperAccPartUni<TAcc1Func, OperAccPartUniWithCF
 	OperAccPartUniDirect(AbstrOperGroup* gr, TAcc1Func&& acc1Func = TAcc1Func())
 		: base_type(gr, std::move(acc1Func))
 	{}
-	using ResultBufferType = nullable_t<ResultValueType>;
-	using result_container_t = typename sequence_traits<ResultBufferType>::container_type;
-	using result_seq_t = typename sequence_traits<ResultBufferType>::seq_t;
+
+	using result_container_t = typename sequence_traits<ResultValueType>::container_type;
+	using result_seq_t = typename sequence_traits<ResultValueType>::seq_t;
 	void AggregateTiles(result_seq_t resData, ProcessDataInfo& pdi, tile_id t, tile_id te, SizeT availableThreads) const
 	{
 		if (te - t > 1)
@@ -380,10 +383,10 @@ struct OperAccPartUniDirect : FuncOperAccPartUni<TAcc1Func, OperAccPartUniWithCF
 					AggregateTiles(secondHalfRef, pdi, m, te, mt);
 					return secondHalf;
 				});
-			t = m;
+			te = m;
 			availableThreads -= mt;
 
-			AggregateTiles(resData, pdi, t, m, availableThreads);
+			AggregateTiles(resData, pdi, t, te, availableThreads);
 			auto secondHalf = futureSecondHalf.get();
 			auto secondHalfBufferIterator = secondHalf.begin();
 

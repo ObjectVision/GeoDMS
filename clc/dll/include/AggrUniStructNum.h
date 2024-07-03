@@ -299,20 +299,6 @@ struct first_total_best
 	}
 };
 
-template <typename OR,  typename T>
-struct first_partial_best_direct_base : unary_assign_partial_accumulation<unary_assign_once<OR, T>, assign_null_value<OR> >
-{};
-
-template <typename T>
-struct first_partial_best_buffered_base 
-	: first_partial_best_direct_base<null_wrap<T>, T>
-	, assign_partial_output_from_buffer< assign_output_direct<T> >
-{};
-
-template <typename T>
-struct first_partial_best : std::conditional_t<has_undefines_v<T>, first_partial_best_direct_base<T, T>, first_partial_best_buffered_base<T> >
-{};
-
 /*****************************************************************************/
 //									LAST
 /*****************************************************************************/
@@ -357,9 +343,33 @@ struct last_total_best
 	}
 };
 
+template <typename OR, typename T>
+struct first_partial_best_direct_base : unary_assign_partial_accumulation<unary_assign_once<OR, T>, assign_null_value<OR> >
+{};
+
 template <typename T>
-struct last_partial_best
-	:	unary_assign_partial_accumulation<unary_assign_overwrite<T>, assign_null_or_zero<T> >
+struct first_partial_best_buffered_base
+	: first_partial_best_direct_base<null_wrap<T>, T>
+	, assign_partial_output_from_buffer< assign_output_direct<T> >
+{};
+
+template <typename T>
+struct first_partial_best : std::conditional_t<has_undefines_v<T>, first_partial_best_direct_base<T, T>, first_partial_best_buffered_base<T> >
+{};
+
+
+template <typename OR, typename T>
+struct last_partial_best_direct_base : unary_assign_partial_accumulation<unary_assign_overwrite<OR, T>, assign_null_value<OR> >
+{};
+
+template <typename T>
+struct last_partial_best_buffered_base
+	: last_partial_best_direct_base<null_wrap<T>, T>
+	, assign_partial_output_from_buffer< assign_output_direct<T> >
+{};
+
+template <typename T>
+struct last_partial_best : std::conditional_t<has_undefines_v<T>, last_partial_best_direct_base<T, T>, last_partial_best_buffered_base<T> >
 {};
 
 /*****************************************************************************/
