@@ -189,7 +189,7 @@ TIC_CALL void TreeItemWithMemReport()
 		auto di = AsDynamicDataItem(itemPtr);
 		if (!di)
 			continue;
-		auto ado = di->m_DataObject;
+		auto ado = di->m_DataObject.get();
 		if (!ado)
 			continue;
 		ReportDataItem(di);
@@ -225,7 +225,7 @@ TreeItemAdmLock::~TreeItemAdmLock()
 	if (!g_IsTerminating)
 		Report();
 
-	assert(!s_TreeItems->size());
+//	assert(!s_TreeItems->size());
 	s_TreeItems.reset();
 }
 

@@ -36,7 +36,6 @@ struct OperAccTotUniNum : OperAccTotUni<TAcc1Func>
 
 	auto AggregateTiles(ftptr* values_fta, tile_id t, tile_id te, SizeT availableThreads) const -> decltype(this->m_Acc1Func.InitialValue())
 	{
-		assert(te > t);
 		if (te - t > 1)
 		{
 			auto m = t + (te - t) / 2;
@@ -55,8 +54,11 @@ struct OperAccTotUniNum : OperAccTotUni<TAcc1Func>
 		}
 
 		auto value = this->m_Acc1Func.InitialValue(); // set value to MIN_VALUE, MAX_VALUE, or NULL depending on the TAcc1Func type
-		auto arg1Data = values_fta[t]->GetTile(); values_fta[t] = nullptr;
-		this->m_Acc1Func(value, arg1Data.get_view());
+		if (t<te)
+		{
+			auto arg1Data = values_fta[t]->GetTile(); values_fta[t] = nullptr;
+			this->m_Acc1Func(value, arg1Data.get_view());
+		}
 
 		return value;
 	}
