@@ -1273,11 +1273,11 @@ struct InterestReporter : DebugReporter
 			ReportTree(done, ti->mc_DC, level, "CALC");
 	
 
-			if (IsDataItem(focusItem))
+			if (IsDataItem(ti))
 			{
-				SharedStr name( focusItem->GetFullName().c_str());
+				SharedStr name( ti->GetFullName().c_str());
 				CDebugContextHandle debugContext2("ReportTreeUnits", name.c_str(), true);
-				const AbstrDataItem* adi = AsDataItem(focusItem);
+				const AbstrDataItem* adi = AsDataItem(ti);
 				if (adi->HasDataObj())
 				{
 					ReportTree(done, adi->GetAbstrDomainUnit(), level, "DOMAIN");
