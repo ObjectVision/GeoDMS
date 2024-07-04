@@ -37,6 +37,8 @@ auto StudyObjectHistory::currentExtraInfo() -> SharedStr const
 
 auto StudyObjectHistory::nrPreviousStudyObjects() -> SizeT const
 {
+    if (current_index == -1)
+        return 0;
     return current_index;
 }
 

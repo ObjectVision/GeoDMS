@@ -597,7 +597,7 @@ void AbstrDataItem::InitDataItem(const AbstrUnit* du, const AbstrUnit* vu, const
 
 const AbstrDataObject* AbstrDataItem::GetDataObj() const
 {
-	auto dataObj = m_DataObject;
+	auto dataObj = m_DataObject.get();
 	assert(dataObj);
 	return dataObj;
 }
