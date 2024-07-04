@@ -565,7 +565,9 @@ ViewPortInfoEx<Int>::ViewPortInfoEx(const TreeItem* context, const AbstrUnit* cu
 		{
 			auto err = catchException(true)->Why();
 			err = GetFirstLine(err);
-			auto msg = mySSPrintF("ViewPortInfo failure: %s", err);
+			auto msg = mySSPrintF("ViewPortInfo failure of tile %d: %s\nCheck the definition of the target domain"
+				, tc, err
+			);
 			currDomain->throwItemError(msg);
 		}
 	}
