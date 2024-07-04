@@ -242,3 +242,10 @@ RTC_CALL UInt32 MaxConcurrentTreads()
 		return 1;
 	return GetNrVCPUs();
 }
+
+// make it constant to avoid rounding off errors to depend on architecture or settings.
+RTC_CALL UInt32 MaxAllowedConcurrentTreads()
+{
+	return 32;
+}
+

@@ -196,18 +196,16 @@ struct WallCountsAsArrayInfo
 template<typename V>
 auto GetWallCountsAsArray(WallCountsAsArrayInfo<V>& info, tile_id t, tile_id te, SizeT availableThreads) -> std::vector<SizeT>
 {
-	if (te - t > 1)
+	if (availableThreads > 1)
 	{
-		auto m = t + (te - t) / 2;
-		auto mt = availableThreads / 2;
-		auto futureFirstHalfValue = std::async(mt ? std::launch::async : std::launch::deferred, [t, m, mt, &info]()
+		auto m = te - (te - t) / 2;
+		auto rt = availableThreads / 2;
+		auto futureSecondHalfValue = std::async(std::launch::async, [m, te, rt, &info]()
 			{
-				return GetWallCountsAsArray<V>(info, t, m, mt);
+				return GetWallCountsAsArray<V>(info, m, te, rt);
 			});
-		t = m;
-		availableThreads -= mt;
-		auto secondHalfValue = GetWallCountsAsArray<V>(info, t, te, availableThreads);
-		auto firstHalfValue = futureFirstHalfValue.get();
+		auto firstHalfValue = GetWallCountsAsArray<V>(info, t, m, availableThreads - rt);
+		auto secondHalfValue = futureSecondHalfValue.get();
 
 		for (SizeT i = 0, e = info.vCount; i < e; ++i)
 			firstHalfValue[i] += secondHalfValue[i];
@@ -217,7 +215,7 @@ auto GetWallCountsAsArray(WallCountsAsArrayInfo<V>& info, tile_id t, tile_id te,
 	auto localInfo = info;
 	std::vector<SizeT> buffer(localInfo.vCount, 0);
 	auto bufferB = buffer.begin();
-	if (t != te)
+	for (; t != te; ++t)
 	{
 		auto valuesLock = localInfo.values_fta[t]->GetTile(); localInfo.values_fta[t] = nullptr;
 		auto valuesIter = valuesLock.begin(),
@@ -241,7 +239,7 @@ void ModusTotByTable(const AbstrDataItem* valuesItem, typename sequence_traits<R
 	SizeT vCount = Cardinality(valuesRange);
 
 	auto valuesDataArray = const_array_cast<V>(valuesItem);
-	SizeT maxNrThreads = MaxConcurrentTreads();
+	SizeT maxNrThreads = MaxAllowedConcurrentTreads();
 	if (vCount)
 		MakeMin(maxNrThreads, valuesDataArray->GetNrFeaturesNow() / vCount);
 	MakeMax(maxNrThreads, 1);

@@ -302,33 +302,29 @@ struct OperAccPartUniBuffered : FuncOperAccPartUni<TAcc1Func, OperAccPartUniWith
 	auto AggregateTiles(ProcessDataInfo& pdi, tile_id t, tile_id te, SizeT availableThreads) const
 		-> res_buffer_type
 	{
-		if (te - t > 1)
+		if (availableThreads > 1)
 		{
-			auto m = t + (te - t) / 2;
-			auto mt = availableThreads / 2;
-			auto futureSecondHalfBuffer = std::async(mt ? std::launch::async : std::launch::deferred, [this, &pdi, m, te, mt]()
+			auto m = te - (te - t) / 2;
+			auto rt = availableThreads / 2;
+			auto futureSecondHalfBuffer = std::async(std::launch::async, [this, &pdi, m, te, rt]()
 				{
-					return AggregateTiles(pdi, m, te, mt);
+					return AggregateTiles(pdi, m, te, rt);
 				});
-			te = m;
-			availableThreads -= mt;
-			auto firstHalfBuffer = AggregateTiles(pdi, t, te, availableThreads);
+			auto firstHalfBuffer = AggregateTiles(pdi, t, m, availableThreads - rt);
 
 			auto secondHalfBuffer = futureSecondHalfBuffer.get();
 			auto secondHalfBufferIterator = secondHalfBuffer.begin();
 
-			for (auto firstHalfBufferIterator = firstHalfBuffer.begin(), firstHalfBufferEnd = firstHalfBuffer.end(); 
-				firstHalfBufferIterator != firstHalfBufferEnd; 
-				++secondHalfBufferIterator, ++firstHalfBufferIterator)
-			{
+			auto firstHalfBufferIterator = firstHalfBuffer.begin(), firstHalfBufferEnd = firstHalfBuffer.end();
+			for (; firstHalfBufferIterator != firstHalfBufferEnd; ++secondHalfBufferIterator, ++firstHalfBufferIterator)
 				this->m_Acc1Func.CombineRefs(*firstHalfBufferIterator, *secondHalfBufferIterator);
-			}
+
 			return firstHalfBuffer;
 		}
 
 		res_buffer_type resBuffer(pdi.resCount);
 		this->m_Acc1Func.Init(AccumulationSeq(&resBuffer));
-		if (t < te)
+		for (; t < te; ++t)
 		{
 			auto arg1Data = pdi.values_fta[t]->GetTile(); pdi.values_fta[t] = nullptr;
 			OwningPtr<IndexGetter> indexGetter = IndexGetterCreator::Create(pdi.arg2A, pdi.part_fta[t]); pdi.part_fta[t] = nullptr;
@@ -343,7 +339,7 @@ struct OperAccPartUniBuffered : FuncOperAccPartUni<TAcc1Func, OperAccPartUniWith
 		res_buffer_type resBuffer;
 		if (pdi.resCount)
 		{
-			SizeT maxNrThreads = MaxConcurrentTreads();
+			SizeT maxNrThreads =  MaxAllowedConcurrentTreads();
 			MakeMin(maxNrThreads, pdi.n / pdi.resCount);
 			MakeMax(maxNrThreads, 1);
 
@@ -370,35 +366,32 @@ struct OperAccPartUniDirect : FuncOperAccPartUni<TAcc1Func, OperAccPartUniWithCF
 	using result_seq_t = typename sequence_traits<ResultValueType>::seq_t;
 	void AggregateTiles(result_seq_t resData, ProcessDataInfo& pdi, tile_id t, tile_id te, SizeT availableThreads) const
 	{
-		if (te - t > 1)
+		if (availableThreads > 1)
 		{
-			auto m = t + (te - t) / 2;
-			auto mt = availableThreads / 2;
-			auto futureSecondHalf = std::async(mt ? std::launch::async : std::launch::deferred, [this, resData, &pdi, m, te, mt]()
+			auto m = te - (te - t) / 2;
+			auto rt = availableThreads / 2;
+			auto futureSecondHalf = std::async(std::launch::async, [this, resData, &pdi, m, te, rt]()
 				-> result_container_t
 				{
 					result_container_t secondHalf(resData.size());
 					auto secondHalfRef = result_seq_t(&secondHalf);
 					m_Acc1Func.Init(secondHalfRef);
-					AggregateTiles(secondHalfRef, pdi, m, te, mt);
+					AggregateTiles(secondHalfRef, pdi, m, te, rt);
 					return secondHalf;
 				});
-			te = m;
-			availableThreads -= mt;
 
-			AggregateTiles(resData, pdi, t, te, availableThreads);
+			AggregateTiles(resData, pdi, t, m, availableThreads - rt);
 			auto secondHalf = futureSecondHalf.get();
 			auto secondHalfBufferIterator = secondHalf.begin();
 
-			auto firstHalfBufferEnd = resData.end();
-			for (auto firstHalfBufferIterator = resData.begin(); firstHalfBufferIterator != firstHalfBufferEnd; ++secondHalfBufferIterator, ++firstHalfBufferIterator)
-			{
+			auto firstHalfBufferIterator = resData.begin(), firstHalfBufferEnd = resData.end();
+			for (; firstHalfBufferIterator != firstHalfBufferEnd; ++secondHalfBufferIterator, ++firstHalfBufferIterator)
 				this->m_Acc1Func.CombineRefs(*firstHalfBufferIterator, *secondHalfBufferIterator);
-			}
+
 			return;
 		}
 
-		if (t < te)
+		for (; t < te; ++t)
 		{
 			auto arg1Data = pdi.values_fta[t]->GetTile(); pdi.values_fta[t] = nullptr;
 			OwningPtr<IndexGetter> indexGetter = IndexGetterCreator::Create(pdi.arg2A, pdi.part_fta[t]); pdi.part_fta[t] = nullptr;
@@ -409,7 +402,7 @@ struct OperAccPartUniDirect : FuncOperAccPartUni<TAcc1Func, OperAccPartUniWithCF
 
 	void ProcessData(ResultType* result, ProcessDataInfo& pdi) const override
 	{
-		SizeT maxNrThreads = MaxConcurrentTreads();
+		SizeT maxNrThreads = MaxAllowedConcurrentTreads();
 		if (pdi.resCount)
 			MakeMin(maxNrThreads, pdi.n / pdi.resCount);
 		MakeMax(maxNrThreads, 1);
