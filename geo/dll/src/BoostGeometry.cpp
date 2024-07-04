@@ -52,14 +52,14 @@ static CommonOperGroup grBgOuter_multi_polygon("bg_outer_multi_polygon", oper_po
 template <typename P> using sequence_t = std::vector<P>;
 template <typename P> using BinaryMapAlgebraicOperator = BinaryAttrOper<sequence_t<P>, sequence_t<P>, sequence_t<P>>;
 
-template <typename P>
-struct BgIntersectMultiPolygonOperator : BinaryMapAlgebraicOperator<P>
+template <typename P, typename BinaryBgMpOper>
+struct BgMultiPolygonOperator : BinaryMapAlgebraicOperator<P>
 {
 	using PointType = P;
 	using PolygonType = std::vector<PointType>;
 	using ArgType = DataArray<PolygonType>;
 
-	BgIntersectMultiPolygonOperator(AbstrOperGroup& gr)
+	BgMultiPolygonOperator(AbstrOperGroup& gr, BinaryBgMpOper&& oper = BinaryBgMpOper())
 		: BinaryMapAlgebraicOperator<P>(&gr, compatible_simple_values_unit_creator, ValueComposition::Polygon)
 	{}
 	using st = sequence_traits<PolygonType>;
@@ -95,157 +95,11 @@ struct BgIntersectMultiPolygonOperator : BinaryMapAlgebraicOperator<P>
 			if (!domain2IsVoid)
 				assign_multi_polygon(currMP2, arg2Data[i], true, helperPolygon, helperRing);
 			resMP.clear();
-			boost::geometry::intersection(currMP1, currMP2, resMP);
+			m_Oper(currMP1, currMP2, resMP);
 			store_multi_polygon(resData[i], resMP, helperPointArray);
 		}
 	}
-};
-
-template <typename P>
-struct BgUnionMultiPolygonOperator : BinaryMapAlgebraicOperator<P>
-{
-	using PointType = P;
-	using PolygonType = std::vector<PointType>;
-	using ArgType = DataArray<PolygonType>;
-
-	BgUnionMultiPolygonOperator(AbstrOperGroup& gr)
-		: BinaryMapAlgebraicOperator<P>(&gr, compatible_simple_values_unit_creator, ValueComposition::Polygon)
-	{}
-	using st = sequence_traits<PolygonType>;
-	using seq_t = typename st::seq_t;
-	using cseq_t = typename st::cseq_t;
-
-	void CalcTile(seq_t resData, cseq_t arg1Data, cseq_t arg2Data, ArgFlags af MG_DEBUG_ALLOCATOR_SRC_ARG) const override
-	{
-		tile_offset n1 = arg1Data.size();
-		tile_offset n2 = arg2Data.size();
-		tile_offset n = std::max(n1, n2);
-		assert(n1 == n || (af & AF1_ISPARAM));
-		assert(n2 == n || (af & AF2_ISPARAM));
-		assert(resData.size() == n);
-
-
-		bg_ring_t helperRing;
-		bg_polygon_t helperPolygon;
-		bg_multi_polygon_t currMP1, currMP2, resMP;
-		std::vector<DPoint> helperPointArray;
-
-		bool domain1IsVoid = (af & AF1_ISPARAM);
-		bool domain2IsVoid = (af & AF2_ISPARAM);
-		if (domain1IsVoid)
-			assign_multi_polygon(currMP1, arg1Data[0], true, helperPolygon, helperRing);
-		if (domain2IsVoid)
-			assign_multi_polygon(currMP2, arg2Data[0], true, helperPolygon, helperRing);
-
-		for (SizeT i = 0; i != n; ++i)
-		{
-			if (!domain1IsVoid)
-				assign_multi_polygon(currMP1, arg1Data[i], true, helperPolygon, helperRing);
-			if (!domain2IsVoid)
-				assign_multi_polygon(currMP2, arg2Data[i], true, helperPolygon, helperRing);
-			resMP.clear();
-			boost::geometry::union_(currMP1, currMP2, resMP);
-			store_multi_polygon(resData[i], resMP, helperPointArray);
-		}
-	}
-};
-
-template <typename P>
-struct BgDifferenceMultiPolygonOperator : BinaryMapAlgebraicOperator<P>
-{
-	using PointType = P;
-	using PolygonType = std::vector<PointType>;
-	using ArgType = DataArray<PolygonType>;
-
-	BgDifferenceMultiPolygonOperator(AbstrOperGroup& gr)
-		: BinaryMapAlgebraicOperator<P>(&gr, compatible_simple_values_unit_creator, ValueComposition::Polygon)
-	{}
-	using st = sequence_traits<PolygonType>;
-	using seq_t = typename st::seq_t;
-	using cseq_t = typename st::cseq_t;
-
-	void CalcTile(seq_t resData, cseq_t arg1Data, cseq_t arg2Data, ArgFlags af MG_DEBUG_ALLOCATOR_SRC_ARG) const override
-	{
-		tile_offset n1 = arg1Data.size();
-		tile_offset n2 = arg2Data.size();
-		tile_offset n = std::max(n1, n2);
-		assert(n1 == n || (af & AF1_ISPARAM));
-		assert(n2 == n || (af & AF2_ISPARAM));
-		assert(resData.size() == n);
-
-
-		bg_ring_t helperRing;
-		bg_polygon_t helperPolygon;
-		bg_multi_polygon_t currMP1, currMP2, resMP;
-		std::vector<DPoint> helperPointArray;
-
-		bool domain1IsVoid = (af & AF1_ISPARAM);
-		bool domain2IsVoid = (af & AF2_ISPARAM);
-		if (domain1IsVoid)
-			assign_multi_polygon(currMP1, arg1Data[0], true, helperPolygon, helperRing);
-		if (domain2IsVoid)
-			assign_multi_polygon(currMP2, arg2Data[0], true, helperPolygon, helperRing);
-
-		for (SizeT i = 0; i != n; ++i)
-		{
-			if (!domain1IsVoid)
-				assign_multi_polygon(currMP1, arg1Data[i], true, helperPolygon, helperRing);
-			if (!domain2IsVoid)
-				assign_multi_polygon(currMP2, arg2Data[i], true, helperPolygon, helperRing);
-			resMP.clear();
-			boost::geometry::difference(currMP1, currMP2, resMP);
-			store_multi_polygon(resData[i], resMP, helperPointArray);
-		}
-	}
-};
-
-template <typename P>
-struct BgSymmetricDifferenceMultiPolygonOperator : BinaryMapAlgebraicOperator<P>
-{
-	using PointType = P;
-	using PolygonType = std::vector<PointType>;
-	using ArgType = DataArray<PolygonType>;
-
-	BgSymmetricDifferenceMultiPolygonOperator(AbstrOperGroup& gr)
-		: BinaryMapAlgebraicOperator<P>(&gr, compatible_simple_values_unit_creator, ValueComposition::Polygon)
-	{}
-	using st = sequence_traits<PolygonType>;
-	using seq_t = typename st::seq_t;
-	using cseq_t = typename st::cseq_t;
-
-	void CalcTile(seq_t resData, cseq_t arg1Data, cseq_t arg2Data, ArgFlags af MG_DEBUG_ALLOCATOR_SRC_ARG) const override
-	{
-		tile_offset n1 = arg1Data.size();
-		tile_offset n2 = arg2Data.size();
-		tile_offset n = std::max(n1, n2);
-		assert(n1 == n || (af & AF1_ISPARAM));
-		assert(n2 == n || (af & AF2_ISPARAM));
-		assert(resData.size() == n);
-
-
-		bg_ring_t helperRing;
-		bg_polygon_t helperPolygon;
-		bg_multi_polygon_t currMP1, currMP2, resMP;
-		std::vector<DPoint> helperPointArray;
-
-		bool domain1IsVoid = (af & AF1_ISPARAM);
-		bool domain2IsVoid = (af & AF2_ISPARAM);
-		if (domain1IsVoid)
-			assign_multi_polygon(currMP1, arg1Data[0], true, helperPolygon, helperRing);
-		if (domain2IsVoid)
-			assign_multi_polygon(currMP2, arg2Data[0], true, helperPolygon, helperRing);
-
-		for (SizeT i = 0; i != n; ++i)
-		{
-			if (!domain1IsVoid)
-				assign_multi_polygon(currMP1, arg1Data[i], true, helperPolygon, helperRing);
-			if (!domain2IsVoid)
-				assign_multi_polygon(currMP2, arg2Data[i], true, helperPolygon, helperRing);
-			resMP.clear();
-			boost::geometry::sym_difference(currMP1, currMP2, resMP);
-			store_multi_polygon(resData[i], resMP, helperPointArray);
-		}
-	}
+	BinaryBgMpOper m_Oper;
 };
 
 // *****************************************************************************
@@ -1019,6 +873,22 @@ struct OuterSingePolygonOperator : public AbstrOuterOperator
 
 namespace 
 {
+	struct bg_intersection {
+		void operator ()(const auto& a, const auto& b, auto& r) const { boost::geometry::intersection(a, b, r); }
+	};
+
+	struct bg_union {
+		void operator ()(const auto& a, const auto& b, auto& r) const { boost::geometry::union_(a, b, r); }
+	};
+
+	struct bg_difference {
+		void operator ()(const auto& a, const auto& b, auto& r) const { boost::geometry::difference(a, b, r); }
+	};
+
+	struct bg_sym_difference {
+		void operator ()(const auto& a, const auto& b, auto& r) const { boost::geometry::sym_difference(a, b, r); }
+	};
+
 	tl_oper::inst_tuple_templ<typelists::points, SimplifyLinestringOperator> simplifyLineStringOperators;
 	tl_oper::inst_tuple_templ<typelists::points, SimplifyMultiPolygonOperator> simplifyMultiPolygonOperators;
 	tl_oper::inst_tuple_templ<typelists::points, SimplifyPolygonOperator> simplifyPolygonOperators;
@@ -1026,17 +896,21 @@ namespace
 	tl_oper::inst_tuple_templ<typelists::points, BufferMultiPointOperator> bufferMultiPointOperators;
 	tl_oper::inst_tuple_templ<typelists::points, BufferLineStringOperator> bufferLineStringOperators;
 
+	template <typename P> using BgIntersectMultiPolygonOperator = BgMultiPolygonOperator < P, bg_intersection> ;
 	tl_oper::inst_tuple_templ<typelists::points, BgIntersectMultiPolygonOperator, AbstrOperGroup&> bgIntersectMultiPolygonOperatorsNamed(grBgIntersect);
 	tl_oper::inst_tuple_templ<typelists::float_points, BgIntersectMultiPolygonOperator, AbstrOperGroup&> bgIntersectMultiPolygonOperatorsMul(cog_mul);
 	tl_oper::inst_tuple_templ<typelists::float_points, BgIntersectMultiPolygonOperator, AbstrOperGroup&> bgIntersectMultiPolygonOperatorsBitAnd(cog_bitand);
 
+	template <typename P> using BgUnionMultiPolygonOperator = BgMultiPolygonOperator<P, bg_union>;
 	tl_oper::inst_tuple_templ<typelists::points, BgUnionMultiPolygonOperator, AbstrOperGroup&> bgUnionMultiPolygonOperatorsNamed(grBgUnion);
 	tl_oper::inst_tuple_templ<typelists::float_points, BgUnionMultiPolygonOperator, AbstrOperGroup&> bgUnionMultiPolygonOperatorsAdd(cog_add);
 	tl_oper::inst_tuple_templ<typelists::float_points, BgUnionMultiPolygonOperator, AbstrOperGroup&> bgUnionMultiPolygonOperatorsBitOr(cog_bitor);
 
+	template <typename P> using BgDifferenceMultiPolygonOperator = BgMultiPolygonOperator<P, bg_difference>;
 	tl_oper::inst_tuple_templ<typelists::points, BgDifferenceMultiPolygonOperator, AbstrOperGroup&> bgDifferenceMultiPolygonOperatorsNamed(grBgDifference);
 	tl_oper::inst_tuple_templ<typelists::float_points, BgDifferenceMultiPolygonOperator, AbstrOperGroup&> bgDifferenceMultiPolygonOperatorsSub(cog_sub);
 
+	template <typename P> using BgSymmetricDifferenceMultiPolygonOperator = BgMultiPolygonOperator<P, bg_sym_difference>;
 	tl_oper::inst_tuple_templ<typelists::points, BgSymmetricDifferenceMultiPolygonOperator, AbstrOperGroup&> bgSymmetricDifferenceMultiPolygonOperatorsNamed(grBgXOR);
 	tl_oper::inst_tuple_templ<typelists::float_points, BgSymmetricDifferenceMultiPolygonOperator, AbstrOperGroup&> bgSymmetricDifferenceMultiPolygonOperatorsBitXOR(cog_bitxor);
 
