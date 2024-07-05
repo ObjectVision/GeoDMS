@@ -241,7 +241,7 @@ void updateDmsToolbar() {
 
     // get viewstyle from property
     if (main_window->m_tooled_mdi_subwindow && view_style == ViewStyle::tvsUndefined)
-        ViewStyle view_style = static_cast<ViewStyle>(main_window->m_tooled_mdi_subwindow->property("viewstyle").value<QVariant>().toInt());
+        view_style = static_cast<ViewStyle>(main_window->m_tooled_mdi_subwindow->property("viewstyle").value<QVariant>().toInt());
 
     if (view_style == ViewStyle::tvsUndefined) // No tools for undefined viewstyle
         return;
