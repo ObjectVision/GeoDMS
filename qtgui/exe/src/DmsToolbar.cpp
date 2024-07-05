@@ -113,7 +113,8 @@ void DmsToolbuttonAction::onToolbuttonPressed() {
 
     try {
         SuspendTrigger::Resume();
-        dms_view_area->getDataView()->GetContents()->OnCommand(m_data.ids[m_state]);
+        if (auto dv = dms_view_area->getDataView())
+            dv->GetContents()->OnCommand(m_data.ids[m_state]);
         if (m_state < m_data.icons.size())
             setIcon(QIcon(m_data.icons[m_state]));
     }
@@ -189,27 +190,6 @@ auto getToolbarButtonData(ToolButtonID button_id) -> ToolbarButtonData {
     return {};
 }
 
-void updateDmsToolbarButtonVisualStates() {
-    /*auto dms_view_area = getActiveDmsViewArea();
-    auto dv = dms_view_area->getDataView();
-    auto is_command_enabled = dv->OnCommandEnable(button_id) == CommandStatus::ENABLED;
-    if (!is_command_enabled)
-        action->setDisabled(true);
-
-    for (auto action : MainWindow::TheOne()->m_toolbar->actions()) {
-        auto other_action = dynamic_cast<DmsToolbuttonAction*>(action);
-        if (!other_action)
-            continue;
-
-        bool other_is_pan_action = other_action->m_data.id == TB_Pan;
-        if (activate_pan_tool && other_is_pan_action)
-            other_action->setChecked(true);
-        else
-            other_action->setChecked(false);
-        other_action->m_state = 0;
-    }*/
-}
-
 void updateDmsToolbar() {
     auto main_window = MainWindow::TheOne();
 
@@ -220,11 +200,6 @@ void updateDmsToolbar() {
     QMdiSubWindow* active_mdi_subwindow = main_window->m_mdi_area->activeSubWindow();
     if (!active_mdi_subwindow)
         clearToolbarUpToDetailPagesTools();
-
-    if (main_window->m_tooled_mdi_subwindow == active_mdi_subwindow) { // Update button state
-        updateDmsToolbarButtonVisualStates();
-        return;
-    }
 
     auto view_style = ViewStyle::tvsUndefined;
 
@@ -239,58 +214,64 @@ void updateDmsToolbar() {
             view_style = dv->GetViewType();
     }
 
-    // get viewstyle from property
-    if (main_window->m_tooled_mdi_subwindow && view_style == ViewStyle::tvsUndefined)
-        view_style = static_cast<ViewStyle>(main_window->m_tooled_mdi_subwindow->property("viewstyle").value<QVariant>().toInt());
+    if (view_style != main_window->m_current_toolbar_style) // Update collection of buttons only if viewstyle has changed
+    {
+        main_window->m_current_toolbar_style = view_style;
 
-    if (view_style == ViewStyle::tvsUndefined) // No tools for undefined viewstyle
-        return;
+        // disable/enable coordinate tool
+        auto is_mapview = view_style == ViewStyle::tvsMapView;
+        auto is_tableview = view_style == ViewStyle::tvsTableView;
+        main_window->m_statusbar_coordinates->setVisible(is_mapview || is_tableview);
+        clearToolbarUpToDetailPagesTools();
 
-    if (view_style == main_window->m_current_toolbar_style) // Do nothing
-        return;
+        if (view_style == ViewStyle::tvsUndefined) // No tools for undefined viewstyle
+            return;
 
-    main_window->m_current_toolbar_style = view_style;
+        static std::vector<ToolButtonID> available_table_buttons = getAvailableTableviewButtonIds();
+        static std::vector<ToolButtonID> available_map_buttons = getAvailableMapviewButtonIds();
 
-    // disable/enable coordinate tool
-    auto is_mapview = view_style == ViewStyle::tvsMapView;
-    auto is_tableview = view_style == ViewStyle::tvsTableView;
-    main_window->m_statusbar_coordinates->setVisible(is_mapview || is_tableview);
-    clearToolbarUpToDetailPagesTools();
+        std::vector<ToolButtonID>* buttons_array_ptr = nullptr;
 
-    static std::vector<ToolButtonID> available_table_buttons = getAvailableTableviewButtonIds();
-    static std::vector<ToolButtonID> available_map_buttons = getAvailableMapviewButtonIds();
-
-    std::vector<ToolButtonID>* buttons_array_ptr = nullptr;
-
-    switch (view_style) {
-    case ViewStyle::tvsTableView: buttons_array_ptr = &available_table_buttons; break;
-    case ViewStyle::tvsMapView:   buttons_array_ptr = &available_map_buttons; break;
-    }
-    if (buttons_array_ptr == nullptr)
-        return;
-
-    assert(dv);
-    auto first_toolbar_detail_pages_action = main_window->m_dms_toolbar_spacer_action.get();
-    for (auto button_id : *buttons_array_ptr) {
-        if (button_id == TB_Undefined) {
-            QWidget* spacer = new QWidget(main_window);
-            spacer->setMinimumSize(dms_params::toolbar_button_spacing);
-            main_window->m_current_dms_view_actions.push_back(main_window->m_toolbar->insertWidget(first_toolbar_detail_pages_action, spacer));
-            spacer->setFocusPolicy(Qt::FocusPolicy::NoFocus);
-            continue;
+        switch (view_style) {
+        case ViewStyle::tvsTableView: buttons_array_ptr = &available_table_buttons; break;
+        case ViewStyle::tvsMapView:   buttons_array_ptr = &available_map_buttons; break;
         }
+        if (buttons_array_ptr == nullptr)
+            return;
 
-        auto button_data = getToolbarButtonData(button_id);
-        auto button_icon = QIcon(button_data.icons[0]);
-        auto action = new DmsToolbuttonAction(button_id, button_icon, view_style == ViewStyle::tvsTableView ? button_data.text[0] : button_data.text[1], main_window->m_toolbar, button_data, view_style);
-        main_window->m_current_dms_view_actions.push_back(action);
-        auto is_command_enabled = dv->OnCommandEnable(button_id) == CommandStatus::ENABLED;
-        if (!is_command_enabled)
-            action->setDisabled(true);
+        auto first_toolbar_detail_pages_action = main_window->m_dms_toolbar_spacer_action.get();
+        for (auto button_id : *buttons_array_ptr) {
+            if (button_id == TB_Undefined) {
+                QWidget* spacer = new QWidget(main_window);
+                spacer->setMinimumSize(dms_params::toolbar_button_spacing);
+                main_window->m_current_dms_view_actions.push_back(main_window->m_toolbar->insertWidget(first_toolbar_detail_pages_action, spacer));
+                spacer->setFocusPolicy(Qt::FocusPolicy::NoFocus);
+                continue;
+            }
 
-        main_window->m_toolbar->insertAction(first_toolbar_detail_pages_action, action);
+            auto button_data = getToolbarButtonData(button_id);
+            auto button_icon = QIcon(button_data.icons[0]);
+            auto action = new DmsToolbuttonAction(button_id, button_icon, view_style == ViewStyle::tvsTableView ? button_data.text[0] : button_data.text[1], main_window->m_toolbar, button_data, view_style);
+            main_window->m_current_dms_view_actions.push_back(action);
 
-        // connections
-        main_window->connect(action, &DmsToolbuttonAction::triggered, action, &DmsToolbuttonAction::onToolbuttonPressed);
+            main_window->m_toolbar->insertAction(first_toolbar_detail_pages_action, action);
+
+            // connections
+            main_window->connect(action, &DmsToolbuttonAction::triggered, action, &DmsToolbuttonAction::onToolbuttonPressed);
+        }
+    }
+
+    if (!dv)
+        return;
+
+    for (auto action : main_window->m_current_dms_view_actions) {
+        auto dmsAction = dynamic_cast<DmsToolbuttonAction*>(action);
+        if (!dmsAction)
+            continue;
+
+        auto commandStatus = dv->OnCommandEnable(dmsAction->getButtonId());
+        action->setVisible (commandStatus != CommandStatus::HIDDEN  );
+        action->setDisabled(commandStatus == CommandStatus::DISABLED);
+        action->setChecked (commandStatus == CommandStatus::DOWN    );
     }
 }
