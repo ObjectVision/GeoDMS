@@ -246,23 +246,23 @@ bool AbstrGridStorageManager::DoCheck50PercentExtentOverlap(StorageMetaInfoPtr s
 	auto intersect = grid_extent_in_world_coordinates & curr_extent_in_world_coordinates;
 	if (intersect.empty())
 	{
-		reportF(MsgCategory::storage_read, SeverityTypeID::ST_Warning, "Extent of domain of item %s and storage %s overlap less than 50 percent",
+		reportF(MsgCategory::storage_read, SeverityTypeID::ST_Warning, "Extent of domain of item %s and storage %s don't overlap",
 			GetSourceName().c_str()
 			, GetNameStr().c_str()
 		);
 		return false;
 	}
 
-	auto read_area         = (curr_extent_in_world_coordinates.second - curr_extent_in_world_coordinates.first).X() * (curr_extent_in_world_coordinates.second - curr_extent_in_world_coordinates.first).Y();
-	auto intersection_area = (intersect.second-intersect.first).X() * (intersect.second - intersect.first).Y();
+	auto read_area         = Cardinality(curr_extent_in_world_coordinates);
+	auto intersection_area = Cardinality(intersect);
 	
 	auto intersection_faction = intersection_area / read_area;
 	if (intersection_faction < 0.5)
 	{
-		reportF(MsgCategory::storage_read, SeverityTypeID::ST_Warning, "Extent of domain of item %s and storage %s overlap less than 50 percent: %d",
+		reportF(MsgCategory::storage_read, SeverityTypeID::ST_Warning, "Extent of domain of item %s and storage %s overlap for only %d percent",
 			GetSourceName().c_str()
 			, GetNameStr().c_str()
-			, intersection_faction
+			, intersection_faction * 100
 		);
 		result = false;
 	}

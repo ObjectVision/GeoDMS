@@ -828,9 +828,9 @@ Boolean BmpImp::GetRow(row_t rowNumber, UByte *in_buf) const
 
 			for (UInt32 cnt = 0, width = m_InfoHeader->biWidth; cnt < width; cnt++)
 			{
-				UInt32 bit_cnt = cnt >> 3;
-				UInt32 shift_cnt = 7 - (cnt && 7);
-				in_buf[cnt] = (buf[bit_cnt] >> shift_cnt) & 0x1;
+				UInt32 byte_cnt = cnt >> 3;
+				UInt32 shift_cnt = 7 - (cnt & 7);
+				in_buf[cnt] = (buf[byte_cnt] >> shift_cnt) & 0x1;
 			}
 			break;
 		}
@@ -843,11 +843,11 @@ Boolean BmpImp::GetRow(row_t rowNumber, UByte *in_buf) const
 
 			for (UInt32 cnt = 0, width = m_InfoHeader->biWidth; cnt < width; cnt++)
 			{
-				UInt32 bit_cnt = cnt >> 1;
+				UInt32 byte_cnt = cnt >> 1;
 				if (0 == (cnt & 0x01))
-					in_buf[cnt] = (buf[bit_cnt] >> 4) & 0x0F;
+					in_buf[cnt] = (buf[byte_cnt] >> 4) & 0x0F;
 				else
-					in_buf[cnt] = buf[bit_cnt] & 0x0F;
+					in_buf[cnt] = buf[byte_cnt] & 0x0F;
 			}
 			break;
 		}
