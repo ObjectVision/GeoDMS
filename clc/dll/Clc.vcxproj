@@ -71,7 +71,6 @@
     <ClCompile Include="src\GetStatistics.cpp" />
     <ClCompile Include="src\ID.cpp" />
     <ClCompile Include="src\Index.cpp" />
-    <ClCompile Include="src\IndexGetterCreator.cpp" />
     <ClCompile Include="src\Invert.cpp" />
     <ClCompile Include="src\JoinEqualValues.cpp" />
     <ClCompile Include="src\lookup.cpp" />
@@ -88,7 +87,6 @@
     <ClCompile Include="src\Subset.cpp" />
     <ClCompile Include="src\Union.cpp" />
     <ClCompile Include="src\Unique.cpp" />
-    <ClCompile Include="src\UnitCreators.cpp" />
     <ClCompile Include="src\OperAttrVar.cpp" />
     <ClCompile Include="src\BoostBlas.cpp" />
     <ClCompile Include="src\BoostXML.cpp" />
@@ -158,7 +156,6 @@
     <ClInclude Include="include\ExprCalculator.h" />
     <ClInclude Include="include\funclist.h" />
     <ClInclude Include="include\IndexAssigner.h" />
-    <ClInclude Include="include\IndexGetterCreator.h" />
     <ClInclude Include="include\Invert.h" />
     <ClInclude Include="include\InvertedRel.h" />
     <ClInclude Include="include\lookup.h" />
@@ -177,10 +174,8 @@
     <ClInclude Include="include\Prototypes.h" />
     <ClInclude Include="include\RemoveAdjacentsAndSpikes.h" />
     <ClInclude Include="include\rlookup.h" />
-    <ClInclude Include="include\UnitCreators.h" />
     <ClInclude Include="include\UnitGroup.h" />
     <ClInclude Include="include\CalcClassBreaks.h" />
-    <ClInclude Include="include\ValueGetter.h" />
     <ClInclude Include="include\ValuesTable.h" />
     <ClInclude Include="include\ValuesTableTypes.h" />
     <ClInclude Include="src\RLookup.ipp" />

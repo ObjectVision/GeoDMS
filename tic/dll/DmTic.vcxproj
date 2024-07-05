@@ -58,6 +58,7 @@
     <ClCompile Include="src\Aspect.cpp" />
     <ClCompile Include="src\DedicatedAttrs.cpp" />
     <ClCompile Include="src\ExprRewrite.cpp" />
+    <ClCompile Include="src\IndexGetterCreator.cpp" />
     <ClCompile Include="src\ItemLocks.cpp" />
     <ClCompile Include="src\LispContextHandle.cpp" />
     <ClCompile Include="src\OperationContext.cpp" />
@@ -105,6 +106,7 @@
     <ClCompile Include="src\TreeItemUtils.cpp" />
     <ClCompile Include="src\Unit.cpp" />
     <ClCompile Include="src\UnitClass.cpp" />
+    <ClCompile Include="src\UnitCreators.cpp" />
     <ClCompile Include="src\UsingCache.cpp" />
     <ClCompile Include="src\Xml\XmlTreeOut.cpp" />
     <ClCompile Include="src\Xml\XmlTreeParser.cpp" />
@@ -115,6 +117,7 @@
     <ClInclude Include="src\Explain.h" />
     <ClInclude Include="src\ExprRewrite.h" />
     <ClInclude Include="src\FutureTileArray.h" />
+    <ClInclude Include="src\IndexGetterCreator.h" />
     <ClInclude Include="src\ItemLocks.h" />
     <ClInclude Include="src\LispContextHandle.h" />
     <ClInclude Include="src\MetaInfo.h" />
@@ -182,9 +185,11 @@
     <ClInclude Include="src\Unit.h" />
     <ClInclude Include="src\UnitClass.h" />
     <ClInclude Include="src\UnitClassReg.h" />
+    <ClInclude Include="src\UnitCreators.h" />
     <ClInclude Include="src\UnitProcessor.h" />
     <ClInclude Include="src\UsingCache.h" />
     <ClInclude Include="src\valuefiller.h" />
+    <ClInclude Include="src\ValueGetter.h" />
     <ClInclude Include="src\Xml\XmlTreeOut.h" />
     <ClInclude Include="src\Xml\XmlTreeParser.h" />
     <ClInclude Include="src\TileLock.h" />

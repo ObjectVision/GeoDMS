@@ -1,4 +1,4 @@
-// Copyright (C) 1998-2023 Object Vision b.v. 
+// Copyright (C) 1998-2024 Object Vision b.v. 
 // License: GNU GPL 3
 /////////////////////////////////////////////////////////////////////////////
 
@@ -139,6 +139,27 @@ struct CommonOperGroup: AbstrOperGroup
 
 	TIC_CALL oper_arg_policy GetArgPolicy(arg_index argNr, CharPtr firstArgValue) const override;
 };
+
+// *****************************************************************************
+// oper groups that are used in multiple untis
+// *****************************************************************************
+
+extern TIC_CALL CommonOperGroup cog_mul;
+extern TIC_CALL CommonOperGroup cog_div;
+extern TIC_CALL CommonOperGroup cog_add;
+extern TIC_CALL CommonOperGroup cog_sub;
+extern TIC_CALL CommonOperGroup cog_bitand;
+extern TIC_CALL CommonOperGroup cog_bitor;
+extern TIC_CALL CommonOperGroup cog_bitxor;
+extern TIC_CALL CommonOperGroup cog_pow;
+extern TIC_CALL CommonOperGroup cog_eq;
+extern TIC_CALL CommonOperGroup cog_ne;
+extern TIC_CALL CommonOperGroup cog_substr;
+
+
+// *****************************************************************************
+// SpecialOperGroup
+// *****************************************************************************
 
 struct SpecialOperGroup: AbstrOperGroup
 {

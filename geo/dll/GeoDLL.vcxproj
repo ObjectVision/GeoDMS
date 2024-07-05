@@ -62,9 +62,6 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ProjectReference Include="..\..\clc\dll\Clc.vcxproj">
-      <Project>{41dd88b1-2f24-45aa-9cbb-4318f97bbc22}</Project>
-    </ProjectReference>
     <ProjectReference Include="..\..\rtc\dll\DmRtc.vcxproj">
       <Project>{f1f7b558-ce16-4452-a876-eadb679a4463}</Project>
     </ProjectReference>

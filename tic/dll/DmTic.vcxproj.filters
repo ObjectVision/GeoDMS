@@ -168,6 +168,12 @@
     <ClCompile Include="src\stg\MemoryMappedDataStorageManager.cpp">
       <Filter>Storage Handling</Filter>
     </ClCompile>
+    <ClCompile Include="src\IndexGetterCreator.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\UnitCreators.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\AbstrCalculator.h">
@@ -401,6 +407,15 @@
     <ClInclude Include="src\FutureTileArray.h" />
     <ClInclude Include="src\stg\MemoryMappeddataStorageManager.h">
       <Filter>Storage Handling</Filter>
+    </ClInclude>
+    <ClInclude Include="src\IndexGetterCreator.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\UnitCreators.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\ValueGetter.h">
+      <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

@@ -2,7 +2,7 @@
 // License: GNU GPL 3
 /////////////////////////////////////////////////////////////////////////////
 
-#include "ClcPch.h"
+#include "TicPch.h"
 
 #if defined(CC_PRAGMAHDRSTOP)
 #pragma hdrstop
@@ -10,6 +10,8 @@
 
 #include "IndexGetterCreator.h"
 
+#include "AbstrDataItem.h"
+#include "DataArray.h"
 #include "DataCheckMode.h"
 
 //=================================== IndexGetter
