@@ -253,8 +253,8 @@ bool AbstrGridStorageManager::DoCheck50PercentExtentOverlap(StorageMetaInfoPtr s
 		return false;
 	}
 
-	auto read_area         = Cardinality(curr_extent_in_world_coordinates);
-	auto intersection_area = Cardinality(intersect);
+	auto read_area         = Area(curr_extent_in_world_coordinates);
+	auto intersection_area = Area(intersect);
 	
 	auto intersection_faction = intersection_area / read_area;
 	if (intersection_faction < 0.5)
