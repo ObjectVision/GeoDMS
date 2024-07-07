@@ -9,6 +9,9 @@
 #endif
 
 #include <numbers> // std::numbers
+
+#include "gdal/gdal_base.h" 
+
 #include <proj.h>
 #include <ogr_spatialref.h>
 

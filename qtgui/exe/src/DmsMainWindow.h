@@ -115,8 +115,8 @@ public:
     bool event(QEvent* e) override;
 
 public slots:
-    void onDeleteRecentFileEntry();
-    void onFileEntryPressed();
+    void onDeleteRecentFileEntry() const;
+    void onFileEntryPressed() const;
 
 private:
     void showRecentFileContextMenu(QPoint pos);
@@ -159,9 +159,9 @@ public:
     void insertCurrentConfigInRecentFiles(std::string_view cfg);
     void removeRecentFileAtIndex(size_t index);
     void saveRecentFileActionToRegistry();
-    auto CreateCodeAnalysisSubMenu(QMenu* menu) -> std::unique_ptr<QMenu>;
-    auto getIconFromViewstyle(ViewStyle vs) -> QIcon;
-    void hideDetailPagesRadioButtonWidgets(bool hide_properties_buttons, bool hide_source_descr_buttons);
+    auto CreateCodeAnalysisSubMenu(QMenu* menu) const -> std::unique_ptr<QMenu>;
+    auto getIconFromViewstyle(ViewStyle vs) const -> QIcon;
+    void hideDetailPagesRadioButtonWidgets(bool hide_properties_buttons, bool hide_source_descr_buttons) const;
     void addRecentFilesEntry(std::string_view recent_file);
     void onInternalLinkClick(const QUrl& link, QWidget* origin = nullptr);
     void doViewAction(TreeItem* tiContext, CharPtrRange sAction, QWidget* origin = nullptr);
@@ -197,17 +197,17 @@ public slots:
     static bool reportErrorAndAskToReload(ErrMsgPtr error_message_ptr);
     static void reportErrorAndTryReload(ErrMsgPtr error_message_ptr);
     void stepToFailReason();
-    void focusAddressBar();
+    void focusAddressBar() const;
     void runToFailReason();
 
-    void toggle_treeview();
-    void toggle_detailpages();
-    void toggle_eventlog();
-    void toggle_toolbar();
-    void toggle_currentitembar();
+    void toggle_treeview() const;
+    void toggle_detailpages() const;
+    void toggle_eventlog() const;
+    void toggle_toolbar() const;
+    void toggle_currentitembar() const;
 
     void view_calculation_times();
-    void view_current_config_filelist();
+    void view_current_config_filelist() const;
     void update_calculation_times_report();
 
     void expandAll();
@@ -241,19 +241,19 @@ protected:
     bool event(QEvent* event) override;
 
 public:
-    void updateToolsMenu();
+    void updateToolsMenu() const;
     void updateTracelogHandle();
     bool CloseConfig(); // returns true when mdiSubWindows were closed
     void updateFileMenu();
-    void updateWindowMenu();
-    void updateViewMenu();
-    void updateSettingsMenu();
+    void updateWindowMenu() const;
+    void updateViewMenu() const;
+    void updateSettingsMenu() const;
     void updateDetailPagesToolbar();
 
 private:
     void openConfigSourceFor(const TreeItem* context);
     bool openErrorOnFailedCurrentItem();
-    void clearActionsForEmptyCurrentItem();
+    void clearActionsForEmptyCurrentItem() const;
     void updateActionsForNewCurrentItem();
     void setupDmsCallbacks();
     void cleanupDmsCallbacks();
@@ -261,7 +261,7 @@ private:
     void createDetailPagesDock();
     void createDmsHelperWindowDocks();
     void updateCaption();
-    void updateTreeItemVisitHistory();
+    void updateTreeItemVisitHistory() const;
     void on_status_msg_changed(const QString& msg);
     void updateStatusMessage();
 

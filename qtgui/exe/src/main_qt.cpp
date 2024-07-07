@@ -215,22 +215,22 @@ bool WmCopyData(MSG* copyMsgPtr) {
     }
 
     assert(commandCode <= CommandCode::WmCopyActiveDmsControl);
-    MSG msg;
+    UINT message; WPARAM wParam; LPARAM lParam;
     COPYDATASTRUCT cds2;
     if (commandCode < CommandCode::WmCopyActiveDmsControl) {
-        msg.message = UINT(Get4Bytes(pcds, 0));
-        msg.wParam  = WPARAM(Get4Bytes(pcds, 1));
-        msg.lParam  = LPARAM(Get4Bytes(pcds, 2));
+        message = UINT(Get4Bytes(pcds, 0));
+        wParam  = WPARAM(Get4Bytes(pcds, 1));
+        lParam  = LPARAM(Get4Bytes(pcds, 2));
     }
     else { // code >= 4
         cds2.dwData = UINT(Get4Bytes(pcds, 0));
         cds2.cbData = (pcds->cbData >= 4) ?  pcds->cbData - 4 :0;
         cds2.lpData = (pcds->cbData >= 4) ? reinterpret_cast<UInt32*>(pcds->lpData) + 1 : nullptr;
-        msg.message = WM_COPYDATA;
-        msg.wParam  = WPARAM(MainWindow::TheOne()->winId());
-        msg.lParam  = LPARAM(&cds2);
+        message = WM_COPYDATA;
+        wParam  = WPARAM(MainWindow::TheOne()->winId());
+        lParam  = LPARAM(&cds2);
     }
-    return SendMessage(hWindow, msg.message, msg.wParam, msg.lParam);
+    return SendMessage(hWindow, message, wParam, lParam);
 }
 
 CustomEventFilter::CustomEventFilter() {
@@ -269,8 +269,8 @@ bool CustomEventFilter::nativeEventFilter(const QByteArray& /*eventType*/, void*
                 return WmCopyData(msg);
             }
             catch (...) {
-                auto msg = catchException(false);
-                auto userResult = MessageBoxA(nullptr, msg->GetAsText().c_str(), "exception in handling of WM_COPYDATA", MB_OKCANCEL | MB_ICONERROR | MB_SYSTEMMODAL);
+                auto msgTxt = catchException(false);
+                auto userResult = MessageBoxA(nullptr, msgTxt->GetAsText().c_str(), "exception in handling of WM_COPYDATA", MB_OKCANCEL | MB_ICONERROR | MB_SYSTEMMODAL);
                 if (userResult == IDCANCEL)
                     terminate();
             }

@@ -68,8 +68,8 @@ bool StudyObjectHistory::next()
 
 void StudyObjectHistory::deleteAfterCurrentIndex()
 {
-    assert(current_index < study_objects.size() || current_index == -1);
-    while (study_objects.size() > current_index+1)
+    assert(SizeT(current_index) < study_objects.size() || current_index == -1);
+    while (study_objects.size() > SizeT(current_index)+1)
     {
         garbage.emplace_back(std::move(study_objects.back().explain_context));
         study_objects.pop_back();

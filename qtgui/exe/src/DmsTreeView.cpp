@@ -368,6 +368,13 @@ auto DmsModel::flags(const QModelIndex& index) const -> Qt::ItemFlags {
 	return Qt::ItemIsSelectable | Qt::ItemIsEnabled | Qt::ItemIsDragEnabled |  QAbstractItemModel::flags(index);
 }
 
+QFont CreateRemixFont()
+{
+	QFont font;
+	font.setFamily("remixicon");
+	return font;
+}
+
 void TreeItemDelegate::paint(QPainter* painter, const QStyleOptionViewItem& option, const QModelIndex& index) const {
 	QStyledItemDelegate::paint(painter, option, index);
 	painter->save();
@@ -396,11 +403,10 @@ void TreeItemDelegate::paint(QPainter* painter, const QStyleOptionViewItem& opti
 		auto item_icon = MainWindow::TheOne()->m_dms_model->getTreeItemIcon(index).value<QImage>();
 		int offset_icon = item_icon.width();
 		auto rect = option.rect;
-		auto cur_brush = painter->brush();
+//		auto cur_brush = painter->brush(); NOT USED, REMOVE, if used, prefer a const auto&
 		auto offset = rect.topLeft().x() + offset_icon + offset_item_text + 15;
 
-		QFont font;
-		font.setFamily("remixicon");
+		static QFont font = CreateRemixFont();
 		painter->setFont(font);
 
 		// set transparancy if not committed yet
@@ -408,7 +414,6 @@ void TreeItemDelegate::paint(QPainter* painter, const QStyleOptionViewItem& opti
 		if (ti_state < NotificationCode::NC2_DataReady)
 			painter->setOpacity(0.5);
 
-	
 		// draw storage icon
 		if (ti->IsDataFailed())
 			painter->setPen(QColor(255,0,0,255));

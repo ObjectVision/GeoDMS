@@ -33,7 +33,7 @@
 #include "stg/StorageClass.h"
 #include "utl/mySPrintF.h"
 
-#include "GDAL/gdal_base.h" // CplString
+#include "gdal/gdal_base.h" // CplString
 #include "Projection.h"
 #include "ogr_spatialref.h"
 #include "gdal_priv.h"
