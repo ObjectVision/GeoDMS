@@ -14,12 +14,6 @@
 #include "ptr/OwningPtr.h"
 
 //----------------------------------------------------------------------
-// RemainingTargetCount
-//----------------------------------------------------------------------
-
-extern "C" RTC_CALL void DMS_CONV DMS_NotifyCurrentTargetCount();
-
-//----------------------------------------------------------------------
 // DemandManagement:: IncInterestDetector and LiftInterest; detect late expression of demand and promises
 //----------------------------------------------------------------------
 

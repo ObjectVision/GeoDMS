@@ -23,21 +23,5 @@
 
 #include "OperGroups.h"
 
-// *****************************************************************************
-// oper groups that are used in multiple untis
-// *****************************************************************************
-
-// defined in UnitCreators.cpp
-extern CLC_CALL CommonOperGroup cog_mul;
-extern CLC_CALL CommonOperGroup cog_div;
-extern CLC_CALL CommonOperGroup cog_add;
-extern CLC_CALL CommonOperGroup cog_sub;
-extern CLC_CALL CommonOperGroup cog_bitand;
-extern CLC_CALL CommonOperGroup cog_bitor;
-extern CLC_CALL CommonOperGroup cog_bitxor;
-extern CLC_CALL CommonOperGroup cog_pow;
-extern CLC_CALL CommonOperGroup cog_eq;
-extern CLC_CALL CommonOperGroup cog_ne;
-extern CLC_CALL CommonOperGroup cog_substr;
 
 #endif

@@ -29,14 +29,14 @@ template<typename ...Args>
 	throwErrorF("WindowsSystem", "%s:\nErrorCode %d: %s%s"
 	,	mgFormat2string<Args...>(format, std::forward<Args>(args)...).c_str()
 	,	lastErr
-	,	platform::GetSystemErrorText(lastErr).c_str()
+	,	::platform::GetSystemErrorText(lastErr).c_str()
 	,	(... || isCharPtrAndExceeds_MAX_PATH(args)) ? "\nNote that filenames cannot be longer than 260 characters" : ""
 	);
 }
 
 template<typename ...Args>
 [[noreturn]] void throwLastSystemError(CharPtr format, Args&&... args) {
-	throwSystemError<Args...>(platform::GetLastError(), format, std::forward<Args>(args)...);
+	throwSystemError<Args...>(::platform::GetLastError(), format, std::forward<Args>(args)...);
 }
 
 bool ManageSystemError(UInt32& retryCounter, CharPtr format, CharPtr fileName, bool throwOnError, bool doRetry);

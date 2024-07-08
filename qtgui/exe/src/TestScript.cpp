@@ -42,8 +42,7 @@ int PassMsg(int argc, char* argv[])
 			throw stx_error("#seconds expected after WAIT");
 
 		int waitMilliSec = str2int(argv[i++]);
-		Sleep(waitMilliSec);
-		return 0;
+		return waitMilliSec;
 	}
 
 	for (; i < argc; ++i)
@@ -164,9 +163,9 @@ int PassMsg(int argc, char* argv[])
 		else
 			reportErr(mgFormat2string("Unrecognized keyword: %1%", argv[i]).c_str());
 
-		auto mainWindow  = MainWindow::TheOne(); assert(mainWindow);
-		auto hwDispatch = (HWND)(mainWindow->winId());
-		SendMessage(hwDispatch, WM_COPYDATA, WPARAM(NULL), LPARAM(&myCDS));
+			auto mainWindow = MainWindow::TheOne(); assert(mainWindow);
+			auto hwDispatch = (HWND)(mainWindow->winId());
+			SendMessage(hwDispatch, WM_COPYDATA, WPARAM(NULL), LPARAM(&myCDS));
 	}
 	return 0;
 }
@@ -232,17 +231,36 @@ SharedStr ReadLine(FormattedInpStream& fis)
 	return result;
 }
 
-int RunTestScript(SharedStr testScriptName)
+#include <future>
+
+int RunTestScript(SharedStr testScriptName, bool* mustTerminateToken)
 {
-	Sleep(1000);
 	auto fileBuff = FileInpStreamBuff(testScriptName, nullptr, true);
     auto fis = FormattedInpStream(&fileBuff);
 	while (!fis.AtEnd() && fis.NextChar() != EOF)
 	{
 		auto line = ReadLine(fis);
-		auto result = RunTestLine(line);
-		if (result)
-			return result;
+
+		std::promise<int> p;
+		std::future<int> mainThreadResult = p.get_future();
+
+		if (*mustTerminateToken)
+			return 0;
+
+		auto mw = MainWindow::TheOne();
+		if (!mw)
+			return 0;
+
+		mw->PostAppOper([line, &p]
+			{
+				auto waitMilliSec = RunTestLine(line);
+				p.set_value(waitMilliSec);
+			}
+		);
+
+		auto waitMilliSec = mainThreadResult.get();
+		if (waitMilliSec)
+			Sleep(waitMilliSec);
 	}
     return 0;
 }

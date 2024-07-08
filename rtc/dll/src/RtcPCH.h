@@ -1,8 +1,10 @@
-// Copyright (C) 1998-2023 Object Vision b.v. 
+// Copyright (C) 1998-2024 Object Vision b.v. 
 // License: GNU GPL 3
 /////////////////////////////////////////////////////////////////////////////
 
+#if defined(_MSC_VER)
 #pragma once
+#endif
 
 #if !defined(__RTC_PCH)
 #define __RTC_PCH
@@ -15,6 +17,7 @@
 #include "RtcBase.h"
 #include "dbg/Check.h"
 #include "dbg/debug.h"
+#include "set/Token.h"
 
 //----------------------------------------------------------------------
 // RtcLock
@@ -50,6 +53,12 @@ struct RtcReportLock : RtcStreamLock, TokenComponent
    ~RtcReportLock();
 };
 
+struct StaticTokenID : TokenComponent, TokenID
+{
+	StaticTokenID(CharPtr tokenStr) : TokenID(tokenStr, single_threading_tag_v) {}
+	StaticTokenID(CharPtr first, CharPtr last) : TokenID(first, last, single_threading_tag_v) {}
+};
+
 //----------------------------------------------------------------------
 // Section      : IString, used for returning string-handles to ClientAppl
 //----------------------------------------------------------------------
@@ -63,9 +72,9 @@ struct IStringComponentLock : RtcStreamLock
 };
 
 
+
 #endif
 
 //----------------------------------------------------------------------
-
 
 #endif // __RTC_PCH

@@ -621,7 +621,7 @@ void ExportTab::showEvent(QShowEvent* event)
     if (!model)
         return;
 
-    auto vsflags = SHV_GetViewStyleFlags(current_item);
+//    auto vsflags = SHV_GetViewStyleFlags(current_item);
     auto is_mappable = isCurrentItemOrItsSubItemsMappable();
 
     if (!m_is_raster && is_mappable)

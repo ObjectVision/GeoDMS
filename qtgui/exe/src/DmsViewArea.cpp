@@ -73,7 +73,7 @@ LPCWSTR RegisterViewAreaWindowClass(HINSTANCE instance) {
     return className;
 }
 
-void DMS_CONV OnStatusText(void* clientHandle, SeverityTypeID st, CharPtr msg) {
+void DMS_CONV OnStatusText(ClientHandle clientHandle, SeverityTypeID st, CharPtr msg) {
     auto* dva = reinterpret_cast<QDmsViewArea*>(clientHandle);
     assert(dva);
     if (st == SeverityTypeID::ST_MajorTrace) {
@@ -203,7 +203,7 @@ QDmsViewArea::QDmsViewArea(QMdiArea* parent, TreeItem* viewContext, const TreeIt
 
     CreateDmsView(parent, viewStyle);
     // SHV_DataView_AddItem can call ClassifyJenksFisher, which requires DataView with a m_hWnd, so this must be after CreateWindowEx
-    // or PostMessage(WM_PROCESS_QUEUE, ...) directly here to trigger DataView::ProcessGuiOpers()
+    // or PostMessage(UM_PROCESS_QUEUE, ...) directly here to trigger DataView::ProcessGuiOpers()
     try {
         auto current_item = MainWindow::TheOne()->getCurrentTreeItem();
         m_DataView->AddLayer(currItem, false);
@@ -274,7 +274,7 @@ void QDmsViewArea::CreateDmsView(QMdiArea* parent, ViewStyle viewStyle)
     setMinimumSize(200, 150);
     show();
 
-    RegisterScaleChangeNotifications(DEVICE_PRIMARY, parent_hwnd, WM_APP + 2, &m_cookie);
+    RegisterScaleChangeNotifications(DEVICE_PRIMARY, parent_hwnd, UM_SCALECHANGE, &m_cookie);
     setProperty("viewstyle", viewStyle);
 
     QTimer::singleShot(0, this, [dv_hWnd] { SetFocus(dv_hWnd); });
@@ -300,16 +300,16 @@ QDmsViewArea::~QDmsViewArea()
 bool QDmsViewArea::nativeEvent(const QByteArray& eventType, void* message, qintptr* result) {
     auto main_window = MainWindow::TheOne();
     auto mdi_area = main_window->m_mdi_area.get();
-    auto current_active_subwindow = mdi_area->activeSubWindow();
 
     MSG* msg = static_cast<MSG*>(message);
     UInt32 received_message_type = msg->message;
-    if (received_message_type == WM_USER + 17) {
+    if (received_message_type == WM_QT_ACTIVATENOTIFIERS) {
         while(true) {
-            if (!mdi_area->activeSubWindow())
+            auto current_active_subwindow = mdi_area->activeSubWindow();
+            if (!current_active_subwindow)
                 break;
 
-            if (this == mdi_area->activeSubWindow())
+            if (this == current_active_subwindow)
 				break;
 
             mdi_area->activateNextSubWindow();

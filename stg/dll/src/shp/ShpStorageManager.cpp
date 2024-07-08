@@ -33,7 +33,7 @@
 #include "stg/StorageClass.h"
 #include "utl/mySPrintF.h"
 
-#include "GDAL/gdal_base.h" // CplString
+#include "gdal/gdal_base.h" // CplString
 #include "Projection.h"
 #include "ogr_spatialref.h"
 #include "gdal_priv.h"
@@ -124,7 +124,7 @@ void ReadSequences(AbstrDataObject* ado, UInt32 shpImpFeatureCount, ShpImp* pImp
 
 	auto polyData = debug_valcast<DataArray<PolygonType>*>(ado)->GetDataWrite();
 
-	dms_assert(polyData.size() == shpImpFeatureCount);
+	assert(polyData.size() == shpImpFeatureCount);
 	MG_CHECK(pImp->GetShapeType() != ShapeTypes::ST_Point);
 
 	bool mustCloseRings = (pImp->GetShapeType() == ShapeTypes::ST_Polygon);
@@ -135,14 +135,14 @@ void ReadSequences(AbstrDataObject* ado, UInt32 shpImpFeatureCount, ShpImp* pImp
 	typename DataArray<PolygonType>::iterator polygonPtr = polyData.begin();
 	for (UInt32 p=0, n=polyData.size(); p!=n; ++p, ++polygonPtr)
 	{
-		UInt32 polygonSize = pImp->ShapeSet_NrPoints(p);
+		auto polygonSize = pImp->ShapeSet_NrPoints(p);
 		if (!polygonSize)
 		{
 			vector_resize_uninitialized(*polygonPtr, 0);
 			continue;
 		}
 		UInt32 nrExtraParts = pImp->ShapeSet_NrParts(p) - 1;
-		dms_assert(nrExtraParts < polygonSize); // since there are points, there is at least one part, and parts are not allowed to have less that three or at least one points
+		assert(nrExtraParts < polygonSize); // since there are points, there is at least one part, and parts are not allowed to have less that three or at least one points
 
 		UInt32 nrUnclosedRings = 0;
 		if	(mustCloseRings)
@@ -154,34 +154,34 @@ void ReadSequences(AbstrDataObject* ado, UInt32 shpImpFeatureCount, ShpImp* pImp
 
 		typename sequence_traits<PointType>::pointer
 			pointData = (*polygonPtr).begin();
-		if (!nrUnclosedRings)
-		{
-			ConstPointIterRange pointRange = pImp->ShapeSet_GetPoints(p);
-			dms_assert(pointRange.size() == polygonSize);
+		ConvertResultFunctor<PointType, DPoint, shp_reorder_functor> converter;
 
-			pointData = convert_copy(pointRange.begin(), pointRange.end(), pointData, shp_reorder_functor() );
-		}
-		else
+		for (UInt32 partI = 0; partI <= nrExtraParts; ++partI)
 		{
-			ConvertResultFunctor<PointType, DPoint, shp_reorder_functor> converter;
-
-			for (UInt32 partI=0; partI<=nrExtraParts; ++partI)
+			ConstPointIterRange pointRange = pImp->ShapeSet_GetPoints(p, partI);
+			pointData = convert_copy(pointRange.begin(), pointRange.end(), pointData, shp_reorder_functor());
+			if (mustCloseRings)
 			{
-				ConstPointIterRange pointRange = pImp->ShapeSet_GetPoints(p, partI);
-				pointData = convert_copy(pointRange.begin(), pointRange.end(), pointData, shp_reorder_functor() );
 				if (!IsRingClosed(pointRange))
-					*pointData++ = converter( *pointRange.begin() ); 
+					*pointData++ = converter(*pointRange.begin());
 			}
+			else
+			{	
+				if (partI < nrExtraParts) // include a multi-linstring separator if another linestring follows
+					*pointData++ = UNDEFINED_VALUE(PointType);
+			}
+			
 		}
 
 		// connect extra parts in possible reverse order to origins of previous parts
-		ConvertResultFunctor<PointType, DPoint, shp_reorder_functor> converter;
-
-		for (UInt32 i=0; i<nrExtraParts; ++pointData)
-			*pointData = converter(
-				pImp->ShapeSet_GetPoint(p, nrExtraParts - ++i, 0) // i increments here
-			);
-		dms_assert(pointData == (*polygonPtr).end());
+		if (mustCloseRings)
+		{
+			for (UInt32 i = 0; i < nrExtraParts; ++pointData)
+				*pointData = converter(
+					pImp->ShapeSet_GetPoint(p, nrExtraParts - ++i, 0) // i increments here
+				);
+			assert(pointData == (*polygonPtr).end());
+		}
 	}
 }
 			
@@ -208,7 +208,7 @@ bool ShpStorageManager::ReadDataItem(StorageMetaInfoPtr smi, AbstrDataObject* bo
 	const TreeItem* storageHolder = smi->StorageHolder();
 	AbstrDataItem*   adi = smi->CurrWD();
 
-	dms_assert(adi->GetDataObjLockCount() < 0); // Write lock is already set.
+	assert(adi->GetDataObjLockCount() < 0); // Write lock is already set.
 
 	ShpImp impl;
 
@@ -243,7 +243,7 @@ bool ShpStorageManager::ReadDataItem(StorageMetaInfoPtr smi, AbstrDataObject* bo
 			}
 		);
 	}
-	dms_assert(borrowedReadResultHolder->GetNrFeaturesNow() == shpImpFeatureCount);
+	assert(borrowedReadResultHolder->GetNrFeaturesNow() == shpImpFeatureCount);
 	return true;
 }
 
@@ -290,17 +290,17 @@ void WriteSequences(const AbstrDataObject* ado, ShpImp* pImp, WeakStr nameStr, c
 	SeqLock<sequence_array<ShpPoint>     > lockPoints (pImp->m_SeqPoints, dms_rw_mode::write_only_all);
 
 	typename PolygonArray::const_iterator
-		polygonIter = polyData.begin(),
-		polygonEnd  = polyData.end();
+		polyDataIter = polyData.begin(),
+		polyDataEnd  = polyData.end();
 
-	for (; polygonIter != polygonEnd; ++polygonIter)
+	for (; polyDataIter != polyDataEnd; ++polyDataIter)
 	{
-		typename DataArrayBase<PolygonType>::const_reference polygon = *polygonIter;
+		typename DataArrayBase<PolygonType>::const_reference polygon = *polyDataIter;
 
-		typedef FuncIter<
+		using func_iter = FuncIter<
 			typename PolygonArray::const_reference::const_iterator, 
 			ConvertResultFunctor<DPoint, PointType, shp_reorder_functor> 
-		> func_iter;
+		>;
 
 		auto feature = pImp->ShapeSet_PushBackPolygon();
 		if (pImp->GetShapeType() == ShapeTypes::ST_Polygon)
@@ -319,12 +319,24 @@ void WriteSequences(const AbstrDataObject* ado, ShpImp* pImp, WeakStr nameStr, c
 			}
 		}
 		else
-			feature.AddPoints(
-				func_iter(polygon.begin()),
-				func_iter(polygon.end  ())
-			);
+		{
+			auto linestringIter = polygon.begin();
+			auto sequenceEnd = polygon.end();
+			while (true)
+			{
+				auto linestringEnd = std::find(linestringIter, sequenceEnd, UNDEFINED_VALUE(PointType));
+
+				feature.AddPoints(
+					func_iter(linestringIter),
+					func_iter(linestringEnd)
+				);
+				if (linestringEnd == sequenceEnd)
+					break;
+				linestringIter = ++linestringEnd;
+			}
+		}
 	}
-	dms_assert(pImp->m_Polygons.size() == nrRecs);
+	assert(pImp->m_Polygons.size() == nrRecs);
 
 	auto wktPrjStr = GetWktProjectionFromValuesUnit(adi);
 

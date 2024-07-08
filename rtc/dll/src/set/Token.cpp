@@ -36,16 +36,16 @@ TokenComponent::TokenComponent()
 {
 	if (!s_nrTokenComponents++)
 	{
-		dms_assert(!s_TokenListPtr);
+		assert(!s_TokenListPtr);
 		s_TokenListPtr.assign( new token_list_with_emptyzero );
 	}
-	dms_assert(s_TokenListPtr);
+	assert(s_TokenListPtr);
 }
 
 TokenComponent::~TokenComponent()
 {
-	dms_assert(s_TokenListPtr);
-	dms_assert(s_nrTokenComponents);
+	assert(s_TokenListPtr);
+	assert(s_nrTokenComponents);
 
 	if (!--s_nrTokenComponents)
 		s_TokenListPtr.reset();
@@ -76,20 +76,6 @@ TokenID::TokenID(CharPtr tokenStr, mt_tag*)
 	m_ID = (tokenStr && *tokenStr) ? s_TokenListPtr->GetOrCreateID_mt(tokenStr) : 0;
 	dms_assert(m_ID < s_TokenListPtr->size());
 	dbg_assert(gd_TokenCreationBlockCount == 0 || s_TokenListPtr->size() == c);
-}
-
-TokenID::TokenID(CharPtr tokenStr, st_tag*, existing_tag*)
-{
-	dms_assert(NoOtherThreadsStarted());
-#if defined(MG_DEBUG)
-	SizeT c = s_TokenListPtr->size();
-#endif
-	dms_assert(tokenStr);
-	m_ID = (tokenStr && *tokenStr) ? s_TokenListPtr->GetExisting_st(tokenStr) : 0;
-	if (!IsDefined(m_ID))
-		throwErrorF("TOKEN", "%s is not registered as token");
-	dms_assert(m_ID < s_TokenListPtr->size());
-	dbg_assert(s_TokenListPtr->size() == c);
 }
 
 TokenID::TokenID(CharPtr tokenStr, mt_tag*, existing_tag*)
@@ -140,21 +126,6 @@ TokenID::TokenID(CharPtr first, CharPtr last, mt_tag*, existing_tag*)
 	m_ID = (first != last)
 		?	s_TokenListPtr->GetExisting_mt(first, last)
 		:	0;
-	if (!IsDefined(m_ID))
-		throwErrorF("TOKEN", "%s is not registered as token");
-	dms_assert(m_ID < s_TokenListPtr->size());
-	dbg_assert(s_TokenListPtr->size() == c);
-}
-
-TokenID::TokenID(CharPtr first, CharPtr last, st_tag*, existing_tag*)
-{
-	dms_assert(IsMainThread());
-#if defined(MG_DEBUG)
-	SizeT c = s_TokenListPtr->size();
-#endif
-	m_ID = (first != last)
-		? s_TokenListPtr->GetExisting_st(first, last)
-		: 0;
 	if (!IsDefined(m_ID))
 		throwErrorF("TOKEN", "%s is not registered as token");
 	dms_assert(m_ID < s_TokenListPtr->size());
@@ -267,3 +238,17 @@ RTC_CALL TokenID GetTrimmedTokenID(CharPtr first, CharPtr last)
 	Trim(range);
 	return GetTokenID_mt(range.first, range.second);
 }
+
+
+TokenID GetTokenID_st(CharPtr tokenStr) 
+{ 
+	static TokenComponent s_TokenService;
+	return TokenID(tokenStr, single_threading_tag_v); 
+}
+
+TokenID GetTokenID_st(CharPtr first, CharPtr last)
+{ 
+	static TokenComponent s_TokenService;
+	return TokenID(first, last, single_threading_tag_v);
+}
+

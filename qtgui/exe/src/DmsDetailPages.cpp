@@ -43,28 +43,6 @@
 #endif
 
 // =================================================================================================
-// code from ChatGPT
-// =================================================================================================
-
-class CustomWebEnginePage : public QWebEnginePage {
-public:
-    using QWebEnginePage::QWebEnginePage; // Inherit constructors from QWebEnginePage
-
-protected:
-    bool acceptNavigationRequest(const QUrl& url, NavigationType type, bool isMainFrame) override {
-        if (type == NavigationType::NavigationTypeLinkClicked) {
-            // Handle the link click, for example, by emitting a custom signal
-            emit linkClicked(url);
-            return false; // Prevent the navigation within the QWebEngineView
-        }
-        return true; // Allow other navigation requests
-    }
-
-signals:
-    void linkClicked(const QUrl& url); // Define a custom signal
-};
-
-// =================================================================================================
 
 void DmsDetailPages::setActiveDetailPage(ActiveDetailPage new_active_detail_page)
 {
@@ -219,12 +197,10 @@ auto htmlEncodeTextDoc(CharPtr str) -> SharedStr
 
 void DmsDetailPages::scheduleDrawPageImpl(int milliseconds)
 {
-    bool oldValue = false;
-    if (m_DrawPageRequestPending.compare_exchange_strong(oldValue, true))
+    if (!m_DrawPageRequestPending.exchange(true))
     {
         assert(m_DrawPageRequestPending);
-        AddMainThreadOper(
-            [this, milliseconds]()
+        MainWindow::TheOne()->PostAppOper([this, milliseconds]
             {
                 assert(IsMainThread());
                 static std::time_t pendingDeadline = 0;
@@ -232,13 +208,12 @@ void DmsDetailPages::scheduleDrawPageImpl(int milliseconds)
                 if (!pendingDeadline || deadline < pendingDeadline)
                 {
                     pendingDeadline = deadline;
-                    QTimer::singleShot(milliseconds, [this]()
+                    QTimer::singleShot(milliseconds, [this]
                         {
                             assert(IsMainThread());
                             pendingDeadline = 0;
 
-                            bool oldValue = true;
-                            if (m_DrawPageRequestPending.compare_exchange_strong(oldValue, false))
+                            if (m_DrawPageRequestPending.exchange(false))
                             {
                                 this->drawPage();
                             }
@@ -478,10 +453,4 @@ void DmsDetailPages::resizeEvent(QResizeEvent* event)
     m_current_width = width();
     //TODO: reimplement this behavior to comply to QtWebView
     //QTextBrowser::resizeEvent(event);
-}
-
-#include <QDesktopServices>
-void DmsDetailPages::onAnchorClicked(const QUrl& link)
-{
-    MainWindow::TheOne()->onInternalLinkClick(link);
 }

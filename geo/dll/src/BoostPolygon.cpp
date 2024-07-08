@@ -1,4 +1,4 @@
-// Copyright (C) 1998-2023 Object Vision b.v. 
+// Copyright (C) 1998-2024 Object Vision b.v. 
 // License: GNU GPL 3
 /////////////////////////////////////////////////////////////////////////////
 
@@ -6,7 +6,7 @@
 
 #if defined(CC_PRAGMAHDRSTOP)
 #pragma hdrstop
-#endif //defined(CC_PRAGMAHDRSTOP)
+#endif
 
 #include "dbg/SeverityType.h"
 #include "geo/BoostPolygon.h"
@@ -29,6 +29,11 @@
 //#define MG_DEBUG_POLYGON
 
 #include <ipolygon/polygon.hpp>
+
+#include "BoostGeometry.h"
+
+enum class geometry_library { boost_polygon, boost_geometry };
+
 
 const Int32 MAX_COORD = (1 << 26);
 
@@ -73,8 +78,6 @@ coords_using_more_than_25_bits(const Rect& rect)
 // *****************************************************************************
 
 
-static CommonOperGroup gr("overlay_polygon", oper_policy::dynamic_result_class | oper_policy::better_not_in_meta_scripting);
-
 static TokenID 
 	s_tGM = token::geometry,
 	s_tFR = token::first_rel,
@@ -83,7 +86,7 @@ static TokenID
 class AbstrPolygonOverlayOperator : public BinaryOperator
 {
 protected:
-	AbstrPolygonOverlayOperator(const DataItemClass* polyAttrClass)
+	AbstrPolygonOverlayOperator(AbstrOperGroup& gr, const DataItemClass* polyAttrClass)
 		:	BinaryOperator(&gr, Unit<UInt32>::GetStaticClass()
 			,	polyAttrClass
 			,	polyAttrClass
@@ -151,9 +154,10 @@ protected:
 						}
 					}
 				);
-				reportF(SeverityTypeID::ST_MajorTrace, "overlay_polygon at %d tiles of first argument x %d tiles of second argument resulted in %d matches"
+				reportF(SeverityTypeID::ST_MajorTrace, "%s at %d tiles of first argument x %d/%d tiles of second argument resulted in %d matches"
+					, GetGroup()->GetNameStr()
 					, domain1Unit->GetNrTiles()
-					, ue
+					, u, ue
 					, intersectCount
 				);
 			}
@@ -169,7 +173,7 @@ protected:
 	virtual void StoreRes(AbstrUnit* res, AbstrDataItem* resG, AbstrDataItem* res1, AbstrDataItem* res2, ResourceHandle& resData) const=0;
 };
 
-template <typename P>
+template <typename P, geometry_library GL>
 class PolygonOverlayOperator : public AbstrPolygonOverlayOperator
 {
 	typedef P                      PointType;
@@ -196,8 +200,8 @@ class PolygonOverlayOperator : public AbstrPolygonOverlayOperator
 	typedef std::vector<SpatialIndexType> SpatialIndexArrayType;
 
 public:
-	PolygonOverlayOperator()
-		:	AbstrPolygonOverlayOperator(Arg1Type::GetStaticClass())
+	PolygonOverlayOperator(AbstrOperGroup& gr)
+		:	AbstrPolygonOverlayOperator(gr, Arg1Type::GetStaticClass())
 	{}
 
 	// Override Operator
@@ -277,23 +281,62 @@ public:
 			if (!::IsIntersecting(spIndexPtr->GetBoundingBox(), bbox))
 				return;
 
-			typename polygon_set_type::clean_resources cleanResources;
-			box_iter_type iter;
-			for (iter = spIndexPtr->begin(bbox); iter; ++iter)
+			if constexpr (GL == geometry_library::boost_polygon)
 			{
+				typename polygon_set_type::clean_resources cleanResources;
 				polygon_set_type geometry;
-				gtl::assign(geometry, *((*iter)->get_ptr()) & *polyPtr, cleanResources);
+				for (box_iter_type iter = spIndexPtr->begin(bbox); iter; ++iter)
+				{
+					gtl::assign(geometry, *((*iter)->get_ptr()) & *polyPtr, cleanResources);
 
-				if (!geometry.size(cleanResources))
-					continue;
+					if (!geometry.size(cleanResources))
+						continue;
 
-				res_data_elem_type back;
-				dms_assign(back.m_Geometry, geometry, cleanResources);
-				back.m_OrgRel.first = p1_rel;
-				back.m_OrgRel.second = p2Offset + (((*iter)->get_ptr()) - poly2Array.begin());
+					res_data_elem_type back;
+					dms_assign(back.m_Geometry, geometry, cleanResources);
 
-				leveled_critical_section::scoped_lock resLock(resLocalAdditionSection);
-				resTileData->push_back(std::move(back));
+
+					back.m_OrgRel.first = p1_rel;
+					back.m_OrgRel.second = p2Offset + (((*iter)->get_ptr()) - poly2Array.begin());
+
+					leveled_critical_section::scoped_lock resLock(resLocalAdditionSection);
+					resTileData->push_back(std::move(back));
+				}
+			}
+			else
+			{
+				box_iter_type iter = spIndexPtr->begin(bbox); if (!iter) return;
+
+				bg_ring_t helperRing;
+				bg_polygon_t helperPolygon;
+				bg_multi_polygon_t currMP1, currMP2, resMP;
+				std::vector<DPoint> helperPointArray;
+
+				do 
+				{
+					assign_multi_polygon(currMP1, *polyPtr, true, helperPolygon, helperRing);
+
+					if (!currMP1.empty())
+					{
+						assign_multi_polygon(currMP2, *((*iter)->get_ptr()), true, helperPolygon, helperRing);
+
+						resMP.clear();
+						boost::geometry::intersection(currMP1, currMP2, resMP);
+						if (!resMP.empty())
+						{
+							res_data_elem_type back;
+							store_multi_polygon(back.m_Geometry, resMP, helperPointArray);
+
+							back.m_OrgRel.first = p1_rel;
+							back.m_OrgRel.second = p2Offset + (((*iter)->get_ptr()) - poly2Array.begin());
+
+							leveled_critical_section::scoped_lock resLock(resLocalAdditionSection);
+							resTileData->push_back(std::move(back));
+						}
+					}
+					++iter;
+				} while (iter);
+
 			}
 		});
 	}
@@ -1126,7 +1169,18 @@ namespace
 		{}
 	};
 
-	tl_oper::inst_tuple_templ<typelists::sint_points, PolygonOverlayOperator     > polygonOverlayOperators;
+	static CommonOperGroup grOverlayPolygon("overlay_polygon", oper_policy::dynamic_result_class | oper_policy::better_not_in_meta_scripting);
+	static CommonOperGroup grBgOverlayPolygon("bg_overlay_polygon", oper_policy::dynamic_result_class | oper_policy::better_not_in_meta_scripting);
+	static CommonOperGroup grBpOverlayPolygon("bp_overlay_polygon", oper_policy::dynamic_result_class | oper_policy::better_not_in_meta_scripting);
+
+
+	template <typename P> using BoostPolygonOverlayOperator  = PolygonOverlayOperator<P, geometry_library::boost_polygon>;
+	template <typename P> using BoostGeometryOverlayOperator = PolygonOverlayOperator<P, geometry_library::boost_geometry>;
+	tl_oper::inst_tuple_templ<typelists::sint_points , BoostPolygonOverlayOperator , AbstrOperGroup&> boostPolygonOverlayOperators   (grOverlayPolygon);
+	tl_oper::inst_tuple_templ<typelists::sint_points , BoostPolygonOverlayOperator , AbstrOperGroup&> boostPolygonBpOverlayOperators (grBpOverlayPolygon);
+	tl_oper::inst_tuple_templ<typelists::float_points, BoostGeometryOverlayOperator, AbstrOperGroup&> boostGeometryOverlayOperators  (grOverlayPolygon);
+	tl_oper::inst_tuple_templ<typelists::points      , BoostGeometryOverlayOperator, AbstrOperGroup&> boostGeometryBgOverlayOperators(grBgOverlayPolygon);
+
 	tl_oper::inst_tuple_templ<typelists::sint_points, PolygonConnectivityOperator>	polygonConnectivityOperators;
 
 	PolyOperatorGroupss simple("", PolygonFlags());

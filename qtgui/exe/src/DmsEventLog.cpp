@@ -656,10 +656,7 @@ void geoDMSMessage(ClientHandle /*clientHandle*/, const MsgData* msgData, bool m
 	SeverityTypeID st = msgData->m_SeverityType;
 
 	if (st == SeverityTypeID::ST_Nothing)
-	{
-		PostMessage(nullptr, WM_APP + 3, 0, 0);
 		return;
-	}
 
 	assert(IsMainThread());
 	if (g_IsTerminating)

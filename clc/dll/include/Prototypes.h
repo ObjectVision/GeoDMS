@@ -1,10 +1,42 @@
-// Copyright (C) 1998-2023 Object Vision b.v. 
+// Copyright (C) 1998-2024 Object Vision b.v. 
 // License: GNU GPL 3
 /////////////////////////////////////////////////////////////////////////////
 
+#if defined(_MSC_VER)
 #pragma once
+#endif
+
 #if !defined(__CLC_PROTOTYPES_H)
 #define __CLC_PROTOTYPES_H
+
+template <typename T> struct null_wrap;
+
+template <typename T>
+struct is_seq_ref : std::false_type {};
+
+template <typename T>
+struct is_seq_ref<SA_Reference<T>> : std::true_type {};
+
+template <typename T>
+struct is_seq_ref<SA_ConstReference<T>> : std::true_type {};
+
+template <typename T>
+constexpr bool is_seq_ref_v = is_seq_ref<T>::value;
+
+template <typename T>
+struct is_null_wrap_t : std::false_type {};
+
+template <typename T>
+struct is_null_wrap_t<null_wrap<T>> : std::true_type {};
+
+template <typename T>
+constexpr bool is_null_wrap_v = is_null_wrap_t<T>::value;
+
+template <typename T>
+constexpr bool can_be_undefined_v = !is_bitvalue_v<T> && (is_fixed_size_element_v<T> || is_seq_ref_v<T> || is_null_wrap_v<T>);
+
+template <typename T>
+using nullable_t = std::conditional_t<has_undefines_v<T>&& is_fixed_size_element_v<T>, T, null_wrap<T>>;
 
 // *****************************************************************************
 //								Function predicates
@@ -32,7 +64,7 @@ constexpr bool has_block_func_v = has_block_func<T>::value;
 
 class OutStreamBuff;
 template <typename T> struct AbstrValueGetter;
-typedef AbstrValueGetter<SizeT> IndexGetter;
+using IndexGetter = AbstrValueGetter<SizeT> ;
 
 
 // *****************************************************************************
@@ -342,6 +374,39 @@ struct binary_partial_accumulation
 	static_assert(std::is_same<TValueType1, value_type1>::value);
 	static_assert(std::is_same<TValueType2, value_type2>::value);
 };
+
+// *****************************************************************************
+//							ELEMENTARY UNARY FUNCTORS
+// *****************************************************************************
+
+namespace impl {
+	struct dms_result_type_getter_functor
+	{
+		template <typename Oper> using apply = Oper::dms_result_type;
+	};
+
+	struct assignee_type_getter_functor
+	{
+		template <typename Oper> using apply = Oper::assignee_type;
+	};
+
+	namespace has_dms_result_type_details {
+		template< typename U> static char test(typename U::dms_result_type* v);
+		template< typename U> static int  test(...);
+	}
+
+	template< typename T>
+	struct has_dms_result_type
+	{
+		static const bool value = sizeof(has_dms_result_type_details::test<T>(nullptr)) == sizeof(char);
+	};
+}
+
+template <typename TAcc1Func>
+using dms_result_type_t = std::conditional_t<impl::has_dms_result_type<TAcc1Func>::value
+	, impl::dms_result_type_getter_functor
+	, impl::assignee_type_getter_functor>::template apply<TAcc1Func>;
+
 
 
 #endif //  !defined(__CLC_PROTOTYPES_H)

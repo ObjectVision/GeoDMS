@@ -1,3 +1,14 @@
+// Copyright (C) 1998-2024 Object Vision b.v. 
+// License: GNU GPL 3
+/////////////////////////////////////////////////////////////////////////////
+
+#if defined(_MSC_VER)
+#pragma once
+#endif
+
+#if !defined(__TESTSCRIPT_H)
+#define __TESTSCRIPT_H
+
 #include "DmsMainWindow.h"
 
 using stx_error = std::exception;
@@ -26,4 +37,6 @@ enum class CommandCode {
 };
 
 
-int RunTestScript(SharedStr testScriptName, HWND hwDispatch);
+int RunTestScript(SharedStr testScriptName, bool* mustTerminateToken);
+
+#endif // __TESTSCRIPT_H

@@ -55,9 +55,6 @@
     <ClCompile Include="src\Index.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="src\IndexGetterCreator.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="src\Invert.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -148,9 +145,6 @@
     <ClCompile Include="src\Unique.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="src\UnitCreators.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="include\AggrBinStructNum.h">
@@ -225,9 +219,6 @@
     <ClInclude Include="include\IndexAssigner.h">
       <Filter>Clc Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="include\IndexGetterCreator.h">
-      <Filter>Clc Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="include\makeCululative.h">
       <Filter>Clc Header Files</Filter>
     </ClInclude>
@@ -267,13 +258,7 @@
     <ClInclude Include="include\OperUnit.h">
       <Filter>Clc Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="include\ValueGetter.h">
-      <Filter>Clc Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="include\UnitGroup.h">
-      <Filter>Clc Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="include\UnitCreators.h">
       <Filter>Clc Header Files</Filter>
     </ClInclude>
     <ClInclude Include="include\rlookup.h">
@@ -292,6 +277,12 @@
       <Filter>Clc Header Files</Filter>
     </ClInclude>
     <ClInclude Include="include\RemoveAdjacentsAndSpikes.h">
+      <Filter>Clc Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ValuesTable.h">
+      <Filter>Clc Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ValuesTableTypes.h">
       <Filter>Clc Header Files</Filter>
     </ClInclude>
   </ItemGroup>

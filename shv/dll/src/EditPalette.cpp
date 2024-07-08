@@ -17,6 +17,8 @@
 
 #include "StgBase.h"
 
+#include "ValuesTable.h"
+
 #include "DataView.h"
 #include "DataItemColumn.h"
 #include "KeyFlags.h"
@@ -270,7 +272,7 @@ void EditPaletteControl::UpdateCounts()
 
 	const AbstrDataItem* adi = m_ThemeAttr;
 	if (adi && adi->GetAbstrValuesUnit()->GetValueType()->IsNumeric() && adi->GetValueComposition() == ValueComposition::Single)
-		m_SortedUniqueValueCache = PrepareCounts(adi, MAX_PAIR_COUNT);
+		m_SortedUniqueValueCache = PrepareWeededCounts(adi, MAX_PAIR_COUNT);
 	else
 		m_SortedUniqueValueCache = {};
 	m_State.Set(PCF_CountsUpdated);
@@ -345,8 +347,8 @@ UInt32 EditPaletteControl::GetNrRequestedClasses() const
 
 SizeT EditPaletteControl::GetNrElements() const
 {
-	dms_assert(m_State.Get(PCF_CountsUpdated));
-	return m_SortedUniqueValueCache.first.m_Total;
+	assert(m_State.Get(PCF_CountsUpdated));
+	return GetTotalCount(m_SortedUniqueValueCache.first);
 }
 
 void EditPaletteControl::ClassifyUniqueValues ()
@@ -700,7 +702,7 @@ void CreateEditPaletteMdiChild(GraphicLayer* layer, const AbstrDataItem* themeAt
 	auto dv = layer->GetDataView().lock(); if (!dv) return;
 	std::weak_ptr<GraphicLayer> layer_wp = layer->shared_from_base<GraphicLayer>();
 	SharedPtr< const AbstrDataItem> themeAttrSPtr = themeAttr;
-	dv->AddGuiOper([layer_wp, themeAttrSPtr]() {
+	dv->PostGuiOper([layer_wp, themeAttrSPtr]() {
 		std::shared_ptr<GraphicLayer> layer = layer_wp.lock(); if (!layer) return;
 		auto dv = layer->GetDataView().lock(); if (!dv) return;
 		TreeItem* desktopItem = dv->GetDesktopContext();

@@ -73,13 +73,34 @@ namespace {
 #include <time.h>
 
 
+void ProcessLastMsg()
+{
+	assert(IsMetaThread());
+	if (!g_LastMsg)
+		return;
+	if (g_DispatchLockCount)
+		return;
+
+	leveled_critical_section::scoped_lock notifyLock(sc_NotifyTargetCount);
+	auto lastMsg = g_LastMsg.exchange(nullptr);
+	if (lastMsg)
+		ProgressMsg(lastMsg);
+}
+
 void ProgressNotifyMsg(CharPtr msg)
 {
 	dms_assert(sc_NotifyTargetCount.isLocked());
 	if (IsMainThread())
+	{
+		g_LastMsg = nullptr;
 		ProgressMsg(msg);
+	}
 	else
-		g_LastMsg = msg;
+	{
+		auto prevMsg = g_LastMsg.exchange( msg );
+		if (!prevMsg)
+			PostMainThreadOper(ProcessLastMsg);
+	}
 }
 
 static const UInt32 s_specialBreak[10] = {
@@ -132,23 +153,6 @@ void NotifyRemainingTargetCount(UInt32 nrCount, UInt32 maxCount)
 	s_LastMsgTime = currTime;
 }
 
-extern "C" RTC_CALL void DMS_CONV DMS_NotifyCurrentTargetCount()
-{
-	dms_assert(IsMetaThread());
-	ProcessMainThreadOpers();
-	if (!g_LastMsg)
-		return;
-	if (g_DispatchLockCount)
-		return;
-
-	leveled_critical_section::scoped_lock notifyLock(sc_NotifyTargetCount);
-	if (g_LastMsg)
-	{
-		ProgressMsg(g_LastMsg);
-		g_LastMsg = nullptr;
-	}
-}
-
 RTC_CALL void NotifyCurrentTargetCount()
 {
 	leveled_critical_section::scoped_lock notifyLock(sc_NotifyTargetCount);
@@ -185,7 +189,7 @@ void DecRemainingTargetCount()
 	if (false) // g_RemainingTargetCount == 340000 || g_RemainingTargetCount == 325000 || g_RemainingTargetCount == 290000)
 	{
 		sd_ReportedDone = true;
-		AddMainThreadOper(DBG_DebugReport, true);
+		SendMainThreadOper(DBG_DebugReport);
 	}
 
 #endif defined(MG_DEBUGREPORTER)
@@ -426,9 +430,6 @@ namespace SuspendTrigger {
 		}
 
 		MGD_CHECKDATA(gd_TriggerApplyLockCount == 0); // find who pulls the trigger
-
-		if (IsMetaThread())
-			ProcessMainThreadOpers();
 
 		if (s_SuspendLevel || HasWaitingMessages()) // HasWaitingMessages() can send WM_SIZE ... that sets s_SuspendLevel
 		{

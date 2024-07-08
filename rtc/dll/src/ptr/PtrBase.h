@@ -85,7 +85,7 @@ struct ptr_wrap : CTorBase
 
 	pointer   get_ptr() const { return m_Ptr; } // TODO G8: REMOVE and replace by get()
 	pointer   get() const { return m_Ptr; }
-	reference get_ref() const { dms_assert(m_Ptr != nullptr); return *m_Ptr; }
+	reference get_ref() const { MG_CHECK(m_Ptr != nullptr); return *m_Ptr; }
 
 protected:
 	pointer m_Ptr = nullptr;

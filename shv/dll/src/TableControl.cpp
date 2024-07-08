@@ -404,7 +404,7 @@ void TableControl::UpdateShowSelOnly()
 			auto dvSPtr = thisSPtr->GetDataView().lock();
 			if (!dvSPtr)
 				return;
-			dvSPtr->AddGuiOper([thisWPtr, index]() {
+			dvSPtr->PostGuiOper([thisWPtr, index]() {
 				auto thisSPtr = thisWPtr.lock();
 				if (!thisSPtr)
 					return;

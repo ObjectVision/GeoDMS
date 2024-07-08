@@ -1020,13 +1020,20 @@ bool isSelectionTool(ToolButtonID id)
 
 CommandStatus ViewPort::OnCommandEnable(ToolButtonID id) const
 {
+	switch (id) {
+		case TB_NeedleOn: return IsNeedleVisible() ? CommandStatus::DOWN : CommandStatus::ENABLED;
+		case TB_ScaleBarOn: return m_ScaleBarCaret ? CommandStatus::DOWN : CommandStatus::ENABLED;
+	}
+
 	if (isSelectionTool(id))
 	{
 		const GraphicLayer* al = GetActiveLayer();
-		if (!al)
+		if (!al || al->OnCommandEnable(id) == CommandStatus::DISABLED)
 			return CommandStatus::DISABLED;
-		return al->OnCommandEnable(id);
 	}
+
+	if (GetDataView().lock()->m_ControllerID == id)
+		return CommandStatus::DOWN;
 
 	return base_type::OnCommandEnable(id);
 }

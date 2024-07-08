@@ -1,4 +1,4 @@
-// Copyright (C) 1998-2023 Object Vision b.v. 
+// Copyright (C) 1998-2024 Object Vision b.v. 
 // License: GNU GPL 3
 /////////////////////////////////////////////////////////////////////////////
 
@@ -6,14 +6,16 @@
 #pragma once
 #endif
 
-#if !defined(__CLC_UNITCREATORS_H)
-#define __CLC_UNITCREATORS_H
+#if !defined(__TIC_UNITCREATORS_H)
+#define __TIC_UNITCREATORS_H
+
+#include "TicBase.h"
 
 #include "RtcGeneratedVersion.h"
 #include "utl/mySPrintF.h"
-#include "ClcBase.h"
 
 #include "AbstrDataItem.h"
+#include "OperGroups.h"
 #include "Unit.h"
 #include "UnitClass.h"
 
@@ -91,7 +93,7 @@ inline ConstUnitRef div_unit_creator(const AbstrOperGroup* gr, const ArgSeqType&
 	return operated_unit_creator(&cog_div, args);
 }
 
-CLC_CALL ConstUnitRef inv_unit_creator(const AbstrOperGroup* gr, const ArgSeqType& args);
+TIC_CALL ConstUnitRef inv_unit_creator(const AbstrOperGroup* gr, const ArgSeqType& args);
 
 
 inline ConstUnitRef square_unit_creator(const AbstrOperGroup* gr, const ArgSeqType& args)
@@ -116,7 +118,7 @@ inline ConstUnitRef arg1_values_unit(const AbstrOperGroup* gr, const ArgSeqType&
 	return arg1_values_unit(args);
 }
 
-CLC_CALL ConstUnitRef compatible_values_unit_creator_func(UInt32 nrSkippedArgs, const AbstrOperGroup* gr, const ArgSeqType& args, bool mustCheckCategories);
+TIC_CALL ConstUnitRef compatible_values_unit_creator_func(UInt32 nrSkippedArgs, const AbstrOperGroup* gr, const ArgSeqType& args, bool mustCheckCategories);
 
 inline ConstUnitRef compatible_values_or_categories_unit_creator(const AbstrOperGroup* gr, const ArgSeqType& args)
 {
@@ -145,8 +147,8 @@ inline ConstUnitRef domain_unit_creator(const AbstrOperGroup* gr, const ArgSeqTy
 	return AsDataItem(args[0])->GetAbstrDomainUnit();
 }
 
-CLC_CALL ConstUnitRef count_unit_creator(const AbstrDataItem* adi);
-CLC_CALL ConstUnitRef unique_count_unit_creator(const AbstrDataItem* adi, const AbstrDataItem* groupBy_rel);
+TIC_CALL ConstUnitRef count_unit_creator(const AbstrDataItem* adi);
+TIC_CALL ConstUnitRef unique_count_unit_creator(const AbstrDataItem* adi, const AbstrDataItem* groupBy_rel);
 
 inline ConstUnitRef count_unit_creator(const ArgSeqType& args)
 {
@@ -160,8 +162,8 @@ inline ConstUnitRef count_unit_creator(const AbstrOperGroup* gr, const ArgSeqTyp
 }
 
 
-CLC_CALL ConstUnitRef CastUnit(const UnitClass* uc, ConstUnitRef v);
-CLC_CALL ConstUnitRef CastUnit(const UnitClass* uc, const ArgSeqType& args);
+TIC_CALL ConstUnitRef CastUnit(const UnitClass* uc, ConstUnitRef v);
+TIC_CALL ConstUnitRef CastUnit(const UnitClass* uc, const ArgSeqType& args);
 
 template <typename Field>
 inline ConstUnitRef cast_unit_creator(const ArgSeqType& args)
@@ -176,4 +178,4 @@ ConstUnitRef CastUnit(ConstUnitRef v)
 }
 
 
-#endif // !defined(__CLC_UNITCREATORS_H)
+#endif // !defined(__TIC_UNITCREATORS_H)

@@ -1,12 +1,12 @@
-// Copyright (C) 1998-2023 Object Vision b.v. 
+// Copyright (C) 1998-2024 Object Vision b.v. 
 // License: GNU GPL 3
 /////////////////////////////////////////////////////////////////////////////
 
-#include "ClcPCH.h"
+#include "ClcPch.h"
 
 #if defined(CC_PRAGMAHDRSTOP)
 #pragma hdrstop
-#endif //defined(CC_PRAGMAHDRSTOP)
+#endif
 
 #include <numbers>
 #include <cmath>
@@ -20,11 +20,12 @@
 #include "DataItemClass.h"
 #include "Param.h"
 #include "TreeItemClass.h"
+#include "UnitCreators.h"
 
 #include "OperAccUni.h"
 #include "OperAccBin.h"
 #include "OperRelUni.h"
-#include "UnitCreators.h"
+#include "ValuesTable.h"
 #include "IndexGetterCreator.h"
 
 
@@ -157,14 +158,6 @@ bool OnlyDefinedCheckRequired(const AbstrDataItem* adi)
 	return !(dcm & DCM_CheckDefined);
 }
 
-/* 
-template <typename V>
-typename Unit<V>::range_t 
-GetRange(const DataArray<V>* da)
-{
-	return da->GetValueRangeData()->GetRange();
-}
-*/
 
 template <typename V>
 typename Unit<V>::range_t
@@ -181,22 +174,10 @@ GetRange(const AbstrDataItem* adi)
 template<typename V, typename R, typename AggrFunc>
 void ModusTotBySet(const AbstrDataItem* valuesItem, typename sequence_traits<R>::reference resData, AggrFunc aggrFunc)
 {
-	std::map<V, SizeT> counters;
-
-	auto values_fta = (DataReadLock(valuesItem), GetFutureTileArray(const_array_cast<V>(valuesItem)));
-	for (tile_id t =0, tn = valuesItem->GetAbstrDomainUnit()->GetNrTiles(); t!=tn; ++t)
-	{
-		auto valuesLock = values_fta[t]->GetTile(); values_fta[t] = nullptr;
-		auto valuesIter = valuesLock.begin(),
-		     valuesEnd  = valuesLock.end();
-
-		for (; valuesIter != valuesEnd; ++valuesIter)
-		{
-			if (!IsDefined(*valuesIter))
-				continue;
-			SafeIncrementCounter(counters[*valuesIter]);
-		}
-	}
+	auto tileFunctor = const_array_cast<V>(valuesItem);
+	auto values_fta = GetFutureTileArray(tileFunctor);
+	tile_id tn = valuesItem->GetAbstrDomainUnit()->GetNrTiles();
+	auto counters = GetWallCounts<V, SizeT>(values_fta, 0, tn);
 
 	resData = aggrFunc(counters.begin(), counters.end()
 	,	[](auto i) { return i->second; }
@@ -204,81 +185,71 @@ void ModusTotBySet(const AbstrDataItem* valuesItem, typename sequence_traits<R>:
 	);
 }
 
-/* REMOVE
-// assume v >> n; time complexity: n*log(min(v, n))
 template<typename V>
-void ModusTotByIndex(const AbstrDataItem* valuesItem, typename sequence_traits<V>::reference resData)
+struct WallCountsAsArrayInfo
 {
-	DataReadLock lock(valuesItem);
-	auto valuesLock  = const_array_cast<V>(valuesItem)->GetLockedDataRead();
-	auto valuesBegin = valuesLock.begin(),
-	     valuesEnd   = valuesLock.end();
+	typename Unit<V>::range_t valuesRange;
+	SizeT vCount;
+	future_tile_ptr<V>* values_fta;
+};
 
-	SizeT n = valuesEnd - valuesBegin;
-	OwningPtrSizedArray<SizeT> index(n, dont_initialize MG_DEBUG_ALLOCATOR_SRC("ModusTotByIndex: index"));
-	auto i = index.begin(), e = index.end(); assert(e - i == n);
-	make_index_in_existing_span(i, e, valuesBegin);
-
-	SizeT maxC = 0;
-	resData = UNDEFINED_VALUE(V);
-	while (i != e)
+template<typename V>
+auto GetWallCountsAsArray(WallCountsAsArrayInfo<V>& info, tile_id t, tile_id te, SizeT availableThreads) -> std::vector<SizeT>
+{
+	if (availableThreads > 1)
 	{
-		decltype(valuesBegin) vPtr = valuesBegin + *i; V v = *vPtr;
-		if (IsDefined(v))
-		{
-			SizeT c = 1;
-			while (++i != e && valuesBegin[*i] == v)
-				++c;
-			dms_assert(c > 0);
-			if (c > maxC)
+		auto m = te - (te - t) / 2;
+		auto rt = availableThreads / 2;
+		auto futureSecondHalfValue = std::async(std::launch::async, [m, te, rt, &info]()
 			{
-				maxC = c;
-				resData = v;
+				return GetWallCountsAsArray<V>(info, m, te, rt);
+			});
+		auto firstHalfValue = GetWallCountsAsArray<V>(info, t, m, availableThreads - rt);
+		auto secondHalfValue = futureSecondHalfValue.get();
+
+		for (SizeT i = 0, e = info.vCount; i < e; ++i)
+			firstHalfValue[i] += secondHalfValue[i];
+		return firstHalfValue;
+	}
+
+	auto localInfo = info;
+	std::vector<SizeT> buffer(localInfo.vCount, 0);
+	auto bufferB = buffer.begin();
+	for (; t != te; ++t)
+	{
+		auto valuesLock = localInfo.values_fta[t]->GetTile(); localInfo.values_fta[t] = nullptr;
+		auto valuesIter = valuesLock.begin(),
+			valuesEnd = valuesLock.end();
+		for (; valuesIter != valuesEnd; ++valuesIter)
+		{
+			if (IsDefined(*valuesIter))
+			{
+				auto i = Range_GetIndex_naked(localInfo.valuesRange, *valuesIter);
+				assert(i < localInfo.vCount);
+				SafeIncrementCounter(bufferB[i]);
 			}
 		}
-		else
-			while (++i != e && valuesBegin[*i] == v)
-				;
-	};
+	}
+	return buffer;
 }
-
-template<typename V>
-void ModusTotByIndexOrSet(
-	const AbstrDataItem* valuesItem,
-	typename sequence_traits<V>::reference resData)
-{
-	if (valuesItem->GetAbstrDomainUnit()->IsCurrTiled())
-		ModusTotBySet  <V, R>(valuesItem, resData);
-	else
-		ModusTotByIndex<V>(valuesItem, resData);
-}
-
-REMOVE */
 
 template<typename V, typename R, typename AggrFunc>
 void ModusTotByTable(const AbstrDataItem* valuesItem, typename sequence_traits<R>::reference resData,  typename Unit<V>::range_t valuesRange, AggrFunc aggrFunc)
 {
 	SizeT vCount = Cardinality(valuesRange);
-	std::vector<SizeT> buffer(vCount, 0);
-	auto bufferB = buffer.begin();
 
-	auto values_fta = (DataReadLock(valuesItem), GetFutureTileArray(const_array_cast<V>(valuesItem)));
+	auto valuesDataArray = const_array_cast<V>(valuesItem);
+	SizeT maxNrThreads = MaxAllowedConcurrentTreads();
+	if (vCount)
+		MakeMin(maxNrThreads, valuesDataArray->GetNrFeaturesNow() / vCount);
+	MakeMax(maxNrThreads, 1);
 
-	for (tile_id t =0, tn = valuesItem->GetAbstrDomainUnit()->GetNrTiles(); t!=tn; ++t)
-	{
-		auto valuesLock = values_fta[t]->GetTile(); values_fta[t] = nullptr;
-		auto valuesIter  = valuesLock.begin(),
-		     valuesEnd   = valuesLock.end();
-		for (; valuesIter != valuesEnd; ++valuesIter)
-		{
-			if (IsDefined(*valuesIter))
-			{
-				auto i = Range_GetIndex_naked(valuesRange, *valuesIter);
-				assert(i < vCount);
-				SafeIncrementCounter(bufferB[i]);
-			}
-		}
-	}
+	tile_id tn = valuesItem->GetAbstrDomainUnit()->GetNrTiles();
+	auto values_fta = GetFutureTileArray(valuesDataArray);
+	WallCountsAsArrayInfo<V> info = { valuesRange, vCount, values_fta.begin() };
+	auto buffer = GetWallCountsAsArray<V>(info, 0, tn, maxNrThreads);
+	values_fta.reset();
+
 	resData = aggrFunc(buffer.begin(), buffer.end()
 	, [ ](auto i) { return *i; }
 	, [&](auto i) { return Range_GetValue_naked(valuesRange, i - buffer.begin()); }
@@ -336,31 +307,19 @@ void ModusTotDispatcher(const AbstrDataItem* valuesItem, typename sequence_trait
 
 // assume v >> n; time complexity: n*log(min(v, n))
 template<typename V, typename OIV, typename AggrFunc>
-void ModusPartBySet(const AbstrDataItem* indicesItem, future_tile_array<V> values_fta, abstr_future_tile_array part_fta, OIV resBegin, SizeT pCount, AggrFunc aggrFunc)  // countable dommain unit of result; P can be Void.
+void ModusPartBySet(const AbstrDataItem* indicesItem, abstr_future_tile_array part_fta
+	, future_tile_array<V> values_fta
+	, OIV resBegin, SizeT pCount, AggrFunc aggrFunc)  // countable dommain unit of result; P can be Void.
 {
 	assert(values_fta.size() == part_fta.size());
 
 	using value_type = std::pair<SizeT, V>;
-	std::map<value_type, SizeT> counters;
+	auto tn = values_fta.size();
 
-	for (tile_id t=0, tn= values_fta.size(); t!=tn; ++t)
-	{
-		auto valuesLock = values_fta[t]->GetTile(); values_fta[t] = nullptr;
-		OwningPtr<IndexGetter> indexGetter = IndexGetterCreator::Create(indicesItem, part_fta[t]); part_fta[t] = nullptr;
-		auto valuesIter  = valuesLock.begin(),
-			 valuesEnd   = valuesLock.end();
-		SizeT i=0;
-		for (; valuesIter != valuesEnd; ++i, ++valuesIter)
-			if (IsDefined(*valuesIter))
-			{
-				SizeT pi = indexGetter->Get(i);
-				if (IsDefined(pi))
-				{
-					assert(pi < pCount);
-					++counters[value_type(pi, *valuesIter)];
-				}
-			}
-	}
+	auto counters = GetIndexedWallCounts<V, SizeT>(values_fta
+		, indicesItem, part_fta
+		, 0, tn, pCount);
+
 	auto i = counters.begin(), e = counters.end();
 	auto ri = 0;
 	auto getCount = [](auto counterPtr) { return counterPtr->second; };
@@ -380,75 +339,6 @@ void ModusPartBySet(const AbstrDataItem* indicesItem, future_tile_array<V> value
 	while (ri < pCount)
 		resBegin[ri++] = aggrFunc(e, e, getCount, getValue);
 }
-
-/* REMOVE
-// assume v >> n; time complexity: n*log(min(v, n))
-template<typename V, typename OIV>
-void ModusPartByIndex(const AbstrDataItem* indicesItem, typename DataArray<V>::locked_cseq_t values, abstr_future_tile* part_ft, OIV resBegin, SizeT pCount)
-{
-	auto valuesBegin = values.begin();
-	auto valuesEnd   = values.end();
-
-	OwningPtr<IndexGetter> indexGetter = IndexGetterCreator::Create(indicesItem, part_ft);
-
-	SizeT n = valuesEnd - valuesBegin;
-
-	OwningPtrSizedArray<SizeT> index(n, dont_initialize MG_DEBUG_ALLOCATOR_SRC("ModusPartByIndex: index"));
-	auto i = index.begin(), e = index.end(); assert(e - i == n);
-	make_indexP_in_existing_span(i, e, indexGetter, valuesBegin);
-
-	while (i != e)
-	{
-		SizeT p = indexGetter->Get(*i);
-		if (!IsDefined(p))
-		{
-			++i;
-			continue;
-		}
-		else
-		{
-			dms_assert(p < pCount);
-			SizeT maxC = 0;
-			do 
-			{
-				decltype(valuesBegin) vPtr = valuesBegin + *i; V v = *vPtr;
-				if (IsDefined(v))
-				{
-					SizeT c = 1;
-					while (	++i != e &&	valuesBegin[*i] == v && indexGetter->Get(*i) == p )
-						++c;
-					dms_assert(c>0);
-					if ( c > maxC)
-					{
-						maxC = c;
-						resBegin[p] = v;
-					}
-				}
-				else
-				{
-					while	(	++i != e 
-							&&	valuesBegin[*i]   == v
-							&&	indexGetter->Get(*i) == p 
-							)
-						;
-				}
-			}	while (i != e && indexGetter->Get(*i) == p);
-		}
-	}
-}
-
-template<typename V, typename OIV>
-void ModusPartByIndexOrSet(const AbstrDataItem* indicesItem, future_tile_array<V> values_fta, abstr_future_tile_array part_fta, OIV resBegin, SizeT nrP)  // countable dommain unit of result; P can be Void.
-{
-	fast_fill(resBegin, resBegin+nrP, UNDEFINED_OR_ZERO(V));
-
-	assert(values_fta.size() == part_fta.size());
-	if (values_fta.size() != 1)
-		ModusPartBySet  <V, OIV>(indicesItem, std::move(values_fta), std::move(part_fta), resBegin, nrP);
-	else
-		ModusPartByIndex<V, OIV>(indicesItem, values_fta[0]->GetTile(), part_fta[0], resBegin, nrP);
-}
-*/
 
 template<typename V, typename OIV, typename AggrFunc>
 void ModusPartByTable(const AbstrDataItem* indicesItem, future_tile_array<V> values_fta, abstr_future_tile_array part_afta
@@ -1065,7 +955,7 @@ struct ModusPart : OperAccPartUniWithCFTA<V, typename AggrFunc::result_type>
 				) // memory condition v*p<=n, thus TableTime <= 2n.
 				ModusPartByTable<V>(pdi.arg2A, std::move(pdi.values_fta), std::move(pdi.part_fta), resBegin, pdi.valuesRangeData->GetRange(), pdi.resCount, m_AggrFunc);
 			else
-				ModusPartBySet<V>(pdi.arg2A, std::move(pdi.values_fta), std::move(pdi.part_fta), resBegin, pdi.resCount, m_AggrFunc);
+				ModusPartBySet<V>(pdi.arg2A, std::move(pdi.part_fta), std::move(pdi.values_fta), resBegin, pdi.resCount, m_AggrFunc);
 		}
 	}
 

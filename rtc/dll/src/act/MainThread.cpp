@@ -19,6 +19,7 @@
 #include "Parallel.h"
 
 #include "dbg/Check.h"
+#include "dbg/DmsCatch.h"
 #include "act/MainThread.h"
 #include "act/TriggerOperator.h"
 
@@ -69,12 +70,17 @@ bool IsElevatedThread()
 
 #endif //defined(WIN32)
 
+DWORD sMainThreadHnd = 0;
+
 void SetMainThreadID()
 {
 	assert(sMainThreadID == sThreadID); // must be set from this thread or not set/called at all.
 	sMainThreadID = GetThreadID();
 	sMetaThreadID = GetThreadID();
 	assert(sMainThreadID == 1);
+	sMainThreadHnd = GetCurrentThreadId();
+	assert(sMainThreadHnd);
+
 	SetPriority();
 }
 
@@ -86,13 +92,13 @@ void SetMetaThreadID()
 
 bool IsMainThread()
 {
-	dms_assert(sMainThreadID); // must be set prior.
+	assert(sMainThreadID); // must be set prior.
 	return GetThreadID() == sMainThreadID;
 }
 
 bool IsMetaThread()
 {
-	dms_assert(sMetaThreadID); // must be set prior.
+	assert(sMetaThreadID); // must be set prior.
 	return GetThreadID() == sMetaThreadID;
 }
 
@@ -101,22 +107,87 @@ bool NoOtherThreadsStarted()
 	return IsMainThread() && (sThreadID == 1);
 }
 
-std::vector < std::function<void()>>  s_OperQueue;
+std::atomic<bool> s_MainThreadOperProcessRequestPending = false;
 
-leveled_std_section s_QueueSection(item_level_type(0), ord_level_type::OperationQueue, "OperationQueue");
-
-
-void AddMainThreadOper(std::function<void()>&& func, bool postAlways)
+RTC_CALL void RequestMainThreadOperProcessing()
 {
-	if (IsMainThread() && !postAlways)
+	if (!sMainThreadHnd)
+		return; // not yet initialized.
+
+	if (s_MainThreadOperProcessRequestPending.exchange(true)) // a request was alredy posted?
 	{
-		ProcessMainThreadOpers();
-		func();
-		return;
+		static std::time_t lastPostTime = 0;
+		auto currTime = std::time(nullptr);
+		if (lastPostTime + 5 > currTime)
+			return;
+		lastPostTime = currTime;
 	}
-	leveled_std_section::scoped_lock lock(s_QueueSection);
-	s_OperQueue.emplace_back(std::move(func));
-	SuspendTrigger::DoSuspend();
+	PostThreadMessage(sMainThreadHnd, UM_PROCESS_MAINTHREAD_OPERS, 0, 0); // only effective when MainThread has MessageQueue, ie in GeoDmsGui, and not in GeoDmsRun or python process
+}
+
+RTC_CALL void ConfirmMainThreadOperProcessing()
+{
+	assert(IsMainThread());
+	s_MainThreadOperProcessRequestPending = false;
+
+//	MSG msg;
+//	auto peekResult = PeekMessage(&msg, NULL, WM_USER, WM_USER, PM_NOREMOVE); // create a message queue for the main thread.
+}
+
+//----------------------------------------------------------------------
+// section : Operation Queues
+//----------------------------------------------------------------------
+
+std::mutex s_MainQueueSection;
+
+bool operation_queue::Post(operation_type&& func)
+{
+	auto lock = std::scoped_lock(s_MainQueueSection);
+	bool result = m_Operations.empty();
+	m_Operations.emplace_back(std::move(func));
+	return result;
+}
+
+void operation_queue::Send(operation_type&& func)
+{
+	if (IsMetaThread())
+		func();
+	else
+		PostMainThreadOper(std::move(func));
+}
+
+void operation_queue::Process()
+{
+	assert(IsMainThread());
+	decltype(m_Operations) operQueue;
+	{
+		auto lock = std::scoped_lock(s_MainQueueSection);
+		operQueue = std::move(m_Operations);
+		assert(m_Operations.empty());
+	}
+	for (auto& oper : operQueue)
+	{
+		try {
+			oper();
+		}
+		catch (...)
+		{
+			catchAndReportException();
+		}
+	}
+}
+
+operation_queue s_OperQueue;
+
+void PostMainThreadOper(std::function<void()>&& func)
+{
+	s_OperQueue.Post(std::move(func));
+	RequestMainThreadOperProcessing();
+}
+
+void SendMainThreadOper(std::function<void()>&& func)
+{
+	s_OperQueue.Send(std::move(func));
 }
 
 static UInt32 s_ProcessMainThreadOperLevel = 0;
@@ -138,20 +209,14 @@ MainThreadBlocker::~MainThreadBlocker()
 
 void ProcessMainThreadOpers()
 {
-	assert(IsMainThread());
+	assert(IsMetaThread());
 
 	if (s_ProcessMainThreadOperLevel)
 		return;
+
 	StaticStIncrementalLock<s_ProcessMainThreadOperLevel> avoidReenty;
 
-	decltype(s_OperQueue) operQueue;
-	{
-		auto lock = leveled_std_section::scoped_lock(s_QueueSection);
-		operQueue = std::move(s_OperQueue);
-		s_OperQueue.clear();
-	}
-	for (auto& oper : operQueue)
-		oper();
+	s_OperQueue.Process();
 }
 
 #include "ASync.h"
@@ -177,3 +242,10 @@ RTC_CALL UInt32 MaxConcurrentTreads()
 		return 1;
 	return GetNrVCPUs();
 }
+
+// make it constant to avoid rounding off errors to depend on architecture or settings.
+RTC_CALL UInt32 MaxAllowedConcurrentTreads()
+{
+	return 32;
+}
+

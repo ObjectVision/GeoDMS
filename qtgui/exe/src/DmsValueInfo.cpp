@@ -37,6 +37,8 @@ auto StudyObjectHistory::currentExtraInfo() -> SharedStr const
 
 auto StudyObjectHistory::nrPreviousStudyObjects() -> SizeT const
 {
+    if (current_index == -1)
+        return 0;
     return current_index;
 }
 
@@ -66,8 +68,8 @@ bool StudyObjectHistory::next()
 
 void StudyObjectHistory::deleteAfterCurrentIndex()
 {
-    assert(current_index < study_objects.size() || current_index == -1);
-    while (study_objects.size() > current_index+1)
+    assert(SizeT(current_index) < study_objects.size() || current_index == -1);
+    while (study_objects.size() > SizeT(current_index)+1)
     {
         garbage.emplace_back(std::move(study_objects.back().explain_context));
         study_objects.pop_back();
@@ -139,6 +141,8 @@ ValueInfoBrowser::ValueInfoBrowser(QWidget* parent, SharedDataItemInterestPtr st
 
     connect(back_button.get(), &QPushButton::pressed, this, &ValueInfoBrowser::previousStudyObject);
     connect(forward_button.get(), &QPushButton::pressed, this, &ValueInfoBrowser::nextStudyObject);
+
+    connect(this, &ValueInfoBrowser::anchorClicked, this, &ValueInfoBrowser::onAnchorClicked);
 
     updateWindowTitle();
 }

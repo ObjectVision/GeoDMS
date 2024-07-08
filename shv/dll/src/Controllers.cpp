@@ -536,6 +536,8 @@ void InfoController::SelectFocusElem(LayerSet* ls, const CrdPoint& worldPoint, E
 
 	if (lButtonUp || lButtonDblClk)
 	{
+		ObjectMsgGenerator thisMsgGenerator(nullptr, "SelectPoint");
+		Waiter waiter(&thisMsgGenerator);
 		GraphicLayer* layer = ls->GetActiveLayer();
 		if (layer)
 			SelectPoint(layer, worldPoint, eventID);

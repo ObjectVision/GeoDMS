@@ -57,7 +57,7 @@ struct null_wrap : private std::pair<T, bool>
 
 	void operator =(const null_wrap<T>& rhs)
 	{
-		Assign(this->first, rhs);
+		Assign(this->first, rhs.first);
 		this->second = rhs.second;
 	}
 
@@ -134,8 +134,14 @@ void Assign(null_wrap<T>& output, const null_wrap<T>& rhs)
 	output = rhs;
 }
 
+template<typename T>
+void Assign(null_wrap<T>& output, null_wrap<T>&& rhs)
+{
+	output = std::move(rhs);
+}
+
 template<typename T, typename U>
-void Assign(null_wrap<T>& output, U&& rhs)
+void Assign(null_wrap<T>& output, U&& rhs) requires (!is_null_wrap_v<std::remove_cvref_t<U>>)
 {
 	if constexpr (can_be_undefined_v<std::remove_cvref_t<U>>)
 	{
@@ -147,9 +153,6 @@ void Assign(null_wrap<T>& output, U&& rhs)
 	}
 	output.AssignValue(rhs);
 }
-
-template <typename T>
-using nullable_t = std::conditional_t<has_undefines_v<T> && is_fixed_size_element_v<T>, T, null_wrap<T>>;
 
 // END MOVE
 
@@ -171,6 +174,14 @@ struct count_total_best
 	void operator()(typename count_total_best::assignee_ref output, typename count_total_best::value_cseq1 input) const
 	{ 
 		count_best_total(output, input.begin(), input.end());
+	}
+	void CombineValues(I& a, I rhs) const
+	{
+		::SafeAccumulate(a, rhs);
+	}
+	void CombineRefs(sequence_traits<I>::reference a, sequence_traits<I>::const_reference rhs) const
+	{
+		::SafeAccumulate(a, rhs);
 	}
 };
 
@@ -278,21 +289,15 @@ struct first_total_best
 			}
 		}	
 	}
+	void CombineValues(nullable_t<T>& accumulator, const nullable_t<T>& rhs) const
+	{
+		if (IsDefined(accumulator))
+			return;
+		if (!IsDefined(rhs))
+			return;
+		Assign(accumulator, rhs);
+	}
 };
-
-template <typename OR,  typename T>
-struct first_partial_best_direct_base : unary_assign_partial_accumulation<unary_assign_once<OR, T>, assign_null_value<OR> >
-{};
-
-template <typename T>
-struct first_partial_best_buffered_base 
-	: first_partial_best_direct_base<null_wrap<T>, T>
-	, assign_partial_output_from_buffer< assign_output_direct<T> >
-{};
-
-template <typename T>
-struct first_partial_best : std::conditional_t<has_undefines_v<T>, first_partial_best_direct_base<T, T>, first_partial_best_buffered_base<T> >
-{};
 
 /*****************************************************************************/
 //									LAST
@@ -328,11 +333,43 @@ struct last_total_best
 			}
 		}
 	}
+	template <typename T>
+	void CombineValues(T& accumulator, T rhs) const
+	{
+		if constexpr (has_undefines_v<T>)
+			if (!IsDefined(rhs))
+				return;
+		accumulator = rhs;
+	}
 };
 
+template <typename OR, typename T>
+struct first_partial_best_direct_base : unary_assign_partial_accumulation<unary_assign_once<OR, T>, assign_null_value<OR> >
+{};
+
 template <typename T>
-struct last_partial_best
-	:	unary_assign_partial_accumulation<unary_assign_overwrite<T>, assign_null_or_zero<T> >
+struct first_partial_best_buffered_base
+	: first_partial_best_direct_base<null_wrap<T>, T>
+	, assign_partial_output_from_buffer< assign_output_direct<T> >
+{};
+
+template <typename T>
+struct first_partial_best : std::conditional_t<has_undefines_v<T>, first_partial_best_direct_base<T, T>, first_partial_best_buffered_base<T> >
+{};
+
+
+template <typename OR, typename T>
+struct last_partial_best_direct_base : unary_assign_partial_accumulation<unary_assign_overwrite<OR, T>, assign_null_value<OR> >
+{};
+
+template <typename T>
+struct last_partial_best_buffered_base
+	: last_partial_best_direct_base<null_wrap<T>, T>
+	, assign_partial_output_from_buffer< assign_output_direct<T> >
+{};
+
+template <typename T>
+struct last_partial_best : std::conditional_t<has_undefines_v<T>, last_partial_best_direct_base<T, T>, last_partial_best_buffered_base<T> >
 {};
 
 /*****************************************************************************/
@@ -373,6 +410,16 @@ struct unary_assign_exp: unary_assign<expectation_accumulation_type<typename TUn
 
 		++a.n;
 		SafeAccumulate(a.total, m_Func(x));
+	}
+	using accu_type = expectation_accumulation_type<typename TUniFunc::res_type>;
+	void CombineValues(accu_type& a, const accu_type& rhs) const
+	{
+		SafeAccumulate(a.n, rhs.n);
+		SafeAccumulate(a.total, rhs.total);
+	}
+	void CombineRefs(accu_type& a, const accu_type& rhs) const
+	{
+		CombineValues(a, rhs);
 	}
 
 private:
@@ -454,6 +501,16 @@ struct unary_assign_var: unary_assign<var_accumulation_type<T>, T>
 			a.xx += m_SqrFunc(x);
 		}
 	}
+	void CombineValues(var_accumulation_type<T>& a, const var_accumulation_type<T>& rhs) const
+	{
+		SafeAccumulate(a.n, rhs.n);
+		SafeAccumulate(a.x, rhs.x);
+		SafeAccumulate(a.xx, rhs.xx);
+	}
+	void CombineRefs(var_accumulation_type<T>& a, const var_accumulation_type<T>& rhs) const
+	{
+		CombineValues(a, rhs);
+	}
 
 private:
 	sqrx_func<T> m_SqrFunc;
@@ -478,8 +535,8 @@ struct var_partial_best
 template <typename T>
 struct assign_output_convert_std
 {
-	typedef T dms_result_type;
-	typedef typename var_accumulation_type<T>::var_type var_type;
+	using dms_result_type = T;
+	using var_type = var_accumulation_type<T>::var_type;
 
 	void AssignOutput(T& res, const var_accumulation_type<T>& buf) const
 	{
@@ -522,7 +579,6 @@ struct all_total
 
 struct any_partial: unary_assign_partial_accumulation<unary_assign_any, nullary_set_false > 
 {
-//	typedef Bool dms_result_type;
 };
 
 struct all_partial: unary_assign_partial_accumulation<unary_assign_all, nullary_set_true > 

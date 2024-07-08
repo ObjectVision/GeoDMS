@@ -37,19 +37,14 @@ void parallel_for_impl(IndexType first, IndexType last, const Func& func)
 	StaticMtIncrementalLock<gd_nrActiveLoops> lockLoops;
 #endif // defined(MG_DEBUG)
 
-	if (first != last)
-	{
-		if (first + 1 == last)
-			func(first);
-		else if (IsMultiThreaded1() )
-		{
-			Concurrency::parallel_for<IndexType>(first, last, func);
-			if (IsMainThread())
-				ProcessMainThreadOpers();
-		}
-		else
-			serial_for<IndexType>(first, last, func);
-	}
+	if (first == last)
+		return;
+	if (first + 1 == last)
+		func(first);
+	else if (IsMultiThreaded1() )
+		Concurrency::parallel_for<IndexType>(first, last, func);
+	else
+		serial_for<IndexType>(first, last, func);
 }
 
 template <typename ...Args, typename Func>

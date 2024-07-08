@@ -57,6 +57,7 @@
 static MainWindow* s_CurrMainWindow = nullptr;
 UInt32 s_errorWindowActivationCount = 0;
 
+
 bool MainWindow::ShowInDetailPage(SharedStr x) {
     auto realm = Realm(x);
     if (realm.size() == 3 && !strncmp(realm.begin(), "dms", 3))
@@ -81,6 +82,19 @@ void MainWindow::SaveValueInfoImpl(CharPtr filename) {
         //auto htmlsourceAsUtf8 = htmlSource.toUtf8();
         //buff.WriteBytes(htmlsourceAsUtf8.data(), htmlsourceAsUtf8.size());
     }
+}
+
+void MainWindow::PostAppOper(std::function<void()>&& func)
+{
+    m_AppOperQueue.Post(std::move(func));
+    RequestMainThreadOperProcessing();
+}
+
+void MainWindow::ProcessAppOpers()
+{
+    assert(IsMainThread());
+    ConfirmMainThreadOperProcessing();
+    m_AppOperQueue.Process();
 }
 
 void MainWindow::saveValueInfo() {
@@ -224,7 +238,7 @@ bool MainWindow::IsExisting() {
     return s_CurrMainWindow;
 }
 
-auto MainWindow::CreateCodeAnalysisSubMenu(QMenu* menu) -> std::unique_ptr<QMenu> {
+auto MainWindow::CreateCodeAnalysisSubMenu(QMenu* menu) const -> std::unique_ptr<QMenu> {
     auto code_analysis_submenu = std::make_unique<QMenu>("&Code analysis...");
     menu->addMenu(code_analysis_submenu.get());
 
@@ -249,7 +263,7 @@ bool MainWindow::openErrorOnFailedCurrentItem() {
     return false;
 }
 
-void MainWindow::clearActionsForEmptyCurrentItem() {
+void MainWindow::clearActionsForEmptyCurrentItem() const {
     m_defaultview_action->setDisabled(true);
     m_tableview_action->setDisabled(true);
     m_mapview_action->setDisabled(true);
@@ -286,7 +300,7 @@ void MainWindow::updateActionsForNewCurrentItem() {
     }
 }
 
-void MainWindow::updateTreeItemVisitHistory() {
+void MainWindow::updateTreeItemVisitHistory() const {
     auto current_index = m_treeitem_visit_history->currentIndex();
     if (current_index < m_treeitem_visit_history->count()-1) { // current index is not at the end, remove all forward items 
         for (int i=m_treeitem_visit_history->count() - 1; i > current_index; i--)
@@ -474,13 +488,13 @@ bool DmsRecentFileEntry::event(QEvent* e) {
     return QAction::event(e);
 }
 
-void DmsRecentFileEntry::onDeleteRecentFileEntry() {
+void DmsRecentFileEntry::onDeleteRecentFileEntry() const {
     auto main_window = MainWindow::TheOne();
     main_window->m_file_menu->close();
     main_window->removeRecentFileAtIndex(m_index);
 }
 
-void DmsRecentFileEntry::onFileEntryPressed() {
+void DmsRecentFileEntry::onFileEntryPressed() const {
     auto main_window = MainWindow::TheOne();
 
     if (GetRegStatusFlags() & RSF_EventLog_ClearOnLoad)
@@ -521,7 +535,7 @@ void MainWindow::updateDetailPagesToolbar() {
     spacer->setFocusPolicy(Qt::FocusPolicy::NoFocus);
     spacer->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
     //m_toolbar->addWidget(spacer);
-    m_dms_toolbar_spacer_action.reset(m_toolbar->insertWidget(m_general_page_action.get(), spacer));
+    m_dms_toolbar_spacer_action.reset( m_toolbar->insertWidget(m_general_page_action.get(), spacer) );
 }
 
 void MainWindow::updateToolbar() {
@@ -614,7 +628,7 @@ void MainWindow::openConfigRootSource() {
 
 TIC_CALL BestItemRef TreeItem_GetErrorSourceCaller(const TreeItem* src);
 
-void MainWindow::focusAddressBar() {
+void MainWindow::focusAddressBar() const {
     m_address_bar->setFocus();
     m_address_bar->selectAll();
 }
@@ -660,21 +674,21 @@ void MainWindow::visual_update_subtree() {
     createView(ViewStyle::tvsUpdateTree);
 }
 
-void MainWindow::toggle_treeview() {
+void MainWindow::toggle_treeview() const {
     bool isVisible = m_treeview_dock->isVisible();
     m_treeview_dock->setVisible(!isVisible);
 }
 
-void MainWindow::toggle_detailpages() {
+void MainWindow::toggle_detailpages() const {
     m_detail_pages->toggle(m_detail_pages->m_last_active_detail_page);
 }
 
-void MainWindow::toggle_eventlog() {
+void MainWindow::toggle_eventlog() const {
     bool isVisible = m_eventlog_dock->isVisible();
     m_eventlog_dock->setVisible(!isVisible);
 }
 
-void MainWindow::toggle_toolbar() {
+void MainWindow::toggle_toolbar() const {
     if (!m_toolbar)
         return; // when there is no DataView opened, there is also no (in)visible toolbar
 
@@ -682,7 +696,7 @@ void MainWindow::toggle_toolbar() {
     m_toolbar->setVisible(!isVisible);
 }
 
-void MainWindow::toggle_currentitembar() {
+void MainWindow::toggle_currentitembar() const {
     bool isVisible = m_address_bar_container->isVisible();
     m_address_bar_container->setVisible(!isVisible);
 }
@@ -838,8 +852,9 @@ void MainWindow::tableView() {
 
 void geoDMSContextMessage(ClientHandle clientHandle, CharPtr msg) {
     assert(IsMainThread());
-    auto dms_main_window = reinterpret_cast<MainWindow*>(clientHandle);
-    dms_main_window->setStatusMessage(msg);
+    auto mw = MainWindow::TheOne();
+    if (mw)
+        mw->setStatusMessage(msg);
     return;
 }
 
@@ -906,7 +921,8 @@ void MainWindow::cleanRecentFilesThatDoNotExist() {
 }
 
 void MainWindow::removeRecentFileAtIndex(size_t index) {
-    if (m_recent_file_entries.size() <= index)
+    assert(m_recent_file_entries.size() >= 0);
+    if (size_t(m_recent_file_entries.size()) <= index)
         return;
 
     auto menu_to_be_removed = m_recent_file_entries.at(index);
@@ -928,9 +944,7 @@ void MainWindow::saveRecentFileActionToRegistry() {
         auto recent_file_entry = dynamic_cast<DmsRecentFileEntry*>(recent_file_entry_candidate);
         if (!recent_file_entry)
             continue;
-        auto dms_string = recent_file_entry->m_cfg_file_path;
-
-        recent_files_as_std_strings.push_back(dms_string);
+        recent_files_as_std_strings.emplace_back(recent_file_entry->m_cfg_file_path);
     }
     SetGeoDmsRegKeyMultiString("RecentFiles", recent_files_as_std_strings);
 }
@@ -1046,8 +1060,7 @@ void MainWindow::showStatisticsDirectly(const TreeItem* tiContext) {
 
 void MainWindow::showValueInfo(const AbstrDataItem* studyObject, SizeT index, SharedStr extraInfo) {
     assert(studyObject);
-    auto* value_info_window = new ValueInfoWindow(studyObject, index, extraInfo, this);
-    return;
+    new ValueInfoWindow(studyObject, index, extraInfo, this);
 }
 
 void MainWindow::setStatusMessage(CharPtr msg) {
@@ -1083,7 +1096,9 @@ SharedStr passed_time_str(CharPtr preFix, time_t passedTime) {
     result = mySSPrintF("%s%s%02d:%02d:%02d "
         , preFix
         , result.c_str()
-        , passedTime / seconds_in_hour, (passedTime / seconds_in_hour) % seconds_in_hour, passedTime % seconds_in_minute
+        , passedTime / seconds_in_hour
+        , (passedTime / seconds_in_minute) % seconds_in_minute
+        , passedTime % seconds_in_minute
     );
     return result;
 }
@@ -1118,14 +1133,14 @@ void MainWindow::end_timing(AbstrMsgGenerator* ach) {
     if (m_processing_records.size() > 10)
         m_processing_records.erase(m_processing_records.begin());
 
-    if (!top_of_records_is_changing)
-        return;
-
     if (m_calculation_times_window->isVisible())
         update_calculation_times_report();
 
+    assert(passedTime <= passed_time(m_processing_records.back()));
+    if (!top_of_records_is_changing)
+        return;
+
     assert(passedTime == passed_time(m_processing_records.back()));
- 
     m_LongestProcessingRecordTxt = passed_time_str(" - max processing time: ", passedTime);
 
     updateStatusMessage();
@@ -1143,7 +1158,7 @@ void MainWindow::updateStatusMessage() {
     statusBar()->showMessage(fullMsg.c_str());
 }
 
-auto MainWindow::getIconFromViewstyle(ViewStyle viewstyle) -> QIcon {
+auto MainWindow::getIconFromViewstyle(ViewStyle viewstyle) const -> QIcon {
     switch (viewstyle) {
     case ViewStyle::tvsMapView: { return QPixmap(":/res/images/TV_globe.bmp"); }
     case ViewStyle::tvsStatistics: { return QPixmap(":/res/images/DP_statistics.bmp"); }
@@ -1154,7 +1169,7 @@ auto MainWindow::getIconFromViewstyle(ViewStyle viewstyle) -> QIcon {
     }
 }
 
-void MainWindow::hideDetailPagesRadioButtonWidgets(bool hide_properties_buttons, bool hide_source_descr_buttons) {
+void MainWindow::hideDetailPagesRadioButtonWidgets(bool hide_properties_buttons, bool hide_source_descr_buttons) const {
     m_detail_page_properties_buttons->gridLayoutWidget->setHidden(hide_properties_buttons);
     m_detail_page_source_description_buttons->gridLayoutWidget->setHidden(hide_source_descr_buttons);
 }
@@ -1359,8 +1374,10 @@ void MainWindow::doViewAction(TreeItem* tiContext, CharPtrRange sAction, QWidget
 }
 
 static bool s_TreeViewRefreshPending = false;
-void AnyTreeItemStateHasChanged(ClientHandle clientHandle, const TreeItem* self, NotificationCode notificationCode) {
-    auto mainWindow = reinterpret_cast<MainWindow*>(clientHandle);
+void AnyTreeItemStateHasChanged(ClientHandle /*clientHandle*/, const TreeItem* self, NotificationCode notificationCode) {
+    auto mainWindow = MainWindow::TheOne();
+    if (!mainWindow)
+        return;
     switch (notificationCode) {
     case NC_Deleting: break; // TODO: remove self from any representation to avoid accessing it's dangling pointer
     case NC_Creating: break;
@@ -1404,15 +1421,19 @@ void AnyTreeItemStateHasChanged(ClientHandle clientHandle, const TreeItem* self,
 
 #include "waiter.h"
 
-void OnStartWaiting(void* clientHandle, AbstrMsgGenerator* ach) {
+void OnStartWaiting(ClientHandle /*clientHandle*/, AbstrMsgGenerator* ach) {
     assert(IsMainThread());
     QGuiApplication::setOverrideCursor(QCursor(Qt::WaitCursor));
-    reinterpret_cast<MainWindow*>(clientHandle)->begin_timing(ach);
+    auto mw = MainWindow::TheOne();
+    if (mw)
+        mw->begin_timing(ach);
 }
 
-void OnEndWaiting(void* clientHandle, AbstrMsgGenerator* ach) {
+void OnEndWaiting(ClientHandle /*clientHandle*/, AbstrMsgGenerator* ach) {
     QGuiApplication::restoreOverrideCursor();
-    reinterpret_cast<MainWindow*>(clientHandle)->end_timing(ach);
+    auto mw = MainWindow::TheOne();
+    if (mw)
+        mw->end_timing(ach);
 }
 
 void MainWindow::setupDmsCallbacks() {
@@ -1444,7 +1465,7 @@ void MainWindow::updateFileMenu() {
         addRecentFilesEntry(recent_file);
 }
 
-void MainWindow::updateViewMenu() {
+void MainWindow::updateViewMenu() const {
     // disable actions not applicable to current item
     auto ti_is_or_is_in_template = !m_current_item || (m_current_item->InTemplate() && m_current_item->IsTemplate());
     m_update_treeitem_action->setDisabled(ti_is_or_is_in_template);
@@ -1468,18 +1489,18 @@ void MainWindow::updateViewMenu() {
     m_processing_records.empty() ? m_view_calculation_times_action->setDisabled(true) : m_view_calculation_times_action->setEnabled(true);
 }
 
-void MainWindow::updateToolsMenu() {
+void MainWindow::updateToolsMenu() const {
     m_code_analysis_add_target_action->setEnabled(m_current_item);
     m_code_analysis_clr_targets_action->setEnabled(m_current_item);
     m_code_analysis_set_source_action->setEnabled(m_current_item);
     m_code_analysis_set_target_action->setEnabled(m_current_item);
 }
 
-void MainWindow::updateSettingsMenu() {
+void MainWindow::updateSettingsMenu() const {
     m_config_options_action->setEnabled(DmsConfigOptionsWindow::hasOverridableConfigOptions());
 }
 
-void MainWindow::updateWindowMenu() {
+void MainWindow::updateWindowMenu() const {
     // clear non persistent actions from window menu
     auto actions_to_remove = QList<QAction*>();
     int number_of_persistent_actions = 5;
@@ -1640,7 +1661,7 @@ void MainWindow::view_calculation_times() {
     m_calculation_times_window->show();
 }
 
-void MainWindow::view_current_config_filelist() {
+void MainWindow::view_current_config_filelist() const {
     VectorOutStreamBuff vosb; 
     {
         auto xmlOut = OutStream_HTM(&vosb, "html", nullptr);

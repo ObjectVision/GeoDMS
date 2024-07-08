@@ -1,12 +1,12 @@
-// Copyright (C) 1998-2023 Object Vision b.v. 
+// Copyright (C) 1998-2024 Object Vision b.v. 
 // License: GNU GPL 3
 /////////////////////////////////////////////////////////////////////////////
 
-#include "ClcPCH.h"
+#include "ClcPch.h"
 
 #if defined(CC_PRAGMAHDRSTOP)
 #pragma hdrstop
-#endif //defined(CC_PRAGMAHDRSTOP)
+#endif
 
 #include "mci/CompositeCast.h"
 #include "geo/CheckedCalc.h"
@@ -27,7 +27,7 @@ using tile_future = std::function<TileCRef>;
 struct StrConcatOperator : BinaryAttrOper<SharedStr, SharedStr, SharedStr>
 {
 	StrConcatOperator(AbstrOperGroup* gr) 
-		: BinaryAttrOper(gr, compatible_simple_values_unit_creator, COMPOSITION(SharedStr), ArgFlags())
+		: BinaryAttrOper(gr, compatible_simple_values_unit_creator, COMPOSITION(SharedStr))
 	{}
 
 	// Override BinaryAttrOper
@@ -89,7 +89,7 @@ template <typename SubTerFunc>
 struct Str2Operator : BinaryAttrOper<SharedStr, SharedStr, strpos_t>
 {
 	Str2Operator(AbstrOperGroup& aog, SubTerFunc&& sf)
-		: BinaryAttrOper(&aog, arg1_values_unit, COMPOSITION(SharedStr), ArgFlags())
+		: BinaryAttrOper(&aog, arg1_values_unit, COMPOSITION(SharedStr))
 		,	m_SubFunc(std::move(sf))
 	{}
 
@@ -152,7 +152,7 @@ struct String2Operator : BinaryAttrOper<SharedStr, TA, decpos_t>
 {
 
 	String2Operator() 
-		: BinaryAttrOper<SharedStr, TA, decpos_t>(GetUnitGroup<SharedStr>(), default_unit_creator<SharedStr>, ValueComposition::Single, ArgFlags())
+		: BinaryAttrOper<SharedStr, TA, decpos_t>(GetUnitGroup<SharedStr>(), default_unit_creator<SharedStr>, ValueComposition::Single)
 	{}
 
 	// Override BinaryAttrOper
@@ -203,7 +203,7 @@ void Repeat(StringRef& res, const StringCRef& arg, strpos_t count)
 struct RepeatOperator : BinaryAttrOper<SharedStr, SharedStr, strpos_t>
 {
 	RepeatOperator() 
-		: BinaryAttrOper(&cog_repeat, default_unit_creator<SharedStr>, ValueComposition::Single, ArgFlags())
+		: BinaryAttrOper(&cog_repeat, default_unit_creator<SharedStr>, ValueComposition::Single)
 	{}
 
 	// Override BinaryAttrOper
@@ -390,7 +390,7 @@ template <typename BinOper>
 struct BinaryAttrFuncOper : BinaryAttrOper<typename BinOper::res_type, typename BinOper::arg1_type, typename BinOper::arg2_type>
 {
 	BinaryAttrFuncOper(AbstrOperGroup* gr) 
-		: BinaryAttrOper<typename BinOper::res_type, typename BinOper::arg1_type, typename BinOper::arg2_type>(gr, BinOper::unit_creator, composition_of<typename BinOper::res_type>::value, ArgFlags(AF1_HASUNDEFINED | AF2_HASUNDEFINED))
+		: BinaryAttrOper<typename BinOper::res_type, typename BinOper::arg1_type, typename BinOper::arg2_type>(gr, BinOper::unit_creator, composition_of<typename BinOper::res_type>::value)
 	{}
 
 	void CalcTile(sequence_traits<typename BinOper::res_type>::seq_t resData, sequence_traits<typename BinOper::arg1_type>::cseq_t arg1Data, sequence_traits<typename BinOper::arg2_type>::cseq_t arg2Data, ArgFlags af MG_DEBUG_ALLOCATOR_SRC_ARG) const override

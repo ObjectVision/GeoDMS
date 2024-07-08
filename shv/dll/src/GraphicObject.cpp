@@ -342,7 +342,7 @@ bool GraphicObject::PrepareDataOrUpdateViewLater(const TreeItem* item)
 			auto dReadLock = std::make_shared<DataReadLock>(AsDynamicDataItem(itemHolder.get_ptr()));
 			auto dv_sptr = objSPtr->GetDataView().lock();
 			if (dv_sptr)
-				dv_sptr->AddGuiOper([objWPtr, itemHolder, iReadLock, dReadLock, pairRemover, vpZoom]() {
+				dv_sptr->PostGuiOper([objWPtr, itemHolder, iReadLock, dReadLock, pairRemover, vpZoom]() {
 					auto objSPtr = objWPtr.lock();
 					if (objSPtr) {
 						objSPtr->InvalidateView();

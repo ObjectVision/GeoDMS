@@ -1000,17 +1000,19 @@ void GenerateMetaInfo(AbstrPropWriter& apw, const TreeItem* curr, const TreeItem
 
 	GenerateSystemInfo(apw, curr);
 
+	InterestRetainContextBase irc;
+
 	for (const TreeItem* section = contents->GetFirstVisibleSubItem(); section; section = section->GetNextVisibleItem())
 	{
 		const_cast<TreeItem*>(section)->SetKeepDataState(true);
-		InterestRetainContextBase::Add(section);
+		irc.Add(section);
 
 		SharedStr sectionName( section->GetID().AsStrRange() );
 		apw.OpenSection(sectionName.c_str());
 		for (const TreeItem* key = section->GetFirstVisibleSubItem(); key; key = key->GetNextVisibleItem())
 		{
 			const_cast<TreeItem*>(key)->SetKeepDataState(true);
-			InterestRetainContextBase::Add(key);
+			irc.Add(key);
 
 			key->CertainUpdate(PS_Committed, "GenerateMetaInfo");
 

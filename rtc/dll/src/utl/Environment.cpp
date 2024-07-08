@@ -158,8 +158,6 @@ void Wait(UInt32 nrMillisecs)
 }
 
 std::atomic<UInt32> g_DispatchLockCount = 0;
-//UInt32 g_IE_MsgCount = 0;
-//UInt32 g_VS_MsgCount = 0;
 
 bool HasWaitingMessages()
 {

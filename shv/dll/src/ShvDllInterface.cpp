@@ -147,7 +147,7 @@ void DMS_CONV SHV_DataView_StoreDesktopData(DataView* dv)
 	DMS_CALL_END
 }
 
-bool      DMS_CONV SHV_DataView_CanContain(DataView* dv, const TreeItem* viewCandidate)
+bool DMS_CONV SHV_DataView_CanContain(DataView* dv, const TreeItem* viewCandidate)
 {
 	DMS_CALL_BEGIN
 
@@ -219,7 +219,7 @@ bool DMS_CONV SHV_DataView_DispatchMessage(DataView* dv, HWND hWnd, UINT msg, WP
 					|| msg == WM_VSCROLL
 					|| msg == WM_HSCROLL
 					|| msg == WM_KILLFOCUS
-					|| msg == WM_PROCESS_QUEUE
+					|| msg == UM_PROCESS_QUEUE
 					)
 				{
 					bool incSuspendIfPushBackSucceeds = g_MsgQueue.empty();
@@ -237,8 +237,9 @@ bool DMS_CONV SHV_DataView_DispatchMessage(DataView* dv, HWND hWnd, UINT msg, WP
 					return false; // lets try defaultWindowProc
 			}
 			CheckPtr(dv, DataView::GetStaticClass(), "SHV_DataView_DispatchMessage");
-			TreeItemContextHandle checkPtr(dv->GetViewContext(), TreeItem::GetStaticClass(), "SHV_DataView_DispatchMessage");
-			Waiter handleMessage(&checkPtr);
+
+//			TreeItemContextHandle checkPtr(dv->GetViewContext(), TreeItem::GetStaticClass(), "SHV_DataView_DispatchMessage");
+//			Waiter handleMessage(&checkPtr);
 
 			StaticMtIncrementalLock<g_DispatchLockCount> dispatchLock;
 			dv->ResetHWnd(hWnd);
@@ -260,7 +261,6 @@ bool DMS_CONV SHV_DataView_DispatchMessage(DataView* dv, HWND hWnd, UINT msg, WP
 							first.Send();
 						}
 					}
-//				dms_assert(g_DispatchLockCount > 1 || !SuspendTrigger::DidSuspend());
 				SuspendTrigger::Resume();
 			}
 			bool result = MsgStruct(dv, msg, wParam, lParam, resultPtr).Send();
@@ -292,8 +292,6 @@ void OnDestroyDataView(DataView* self)
 ActorVisitState DataView_Update(DataView* self)
 {
 	DMS_CALL_BEGIN
-
-		ProcessMainThreadOpers();
 
 		if (self->UpdateView() != GVS_Continue)
 			return AVS_SuspendedOrFailed;  // come back if suspended and not failed

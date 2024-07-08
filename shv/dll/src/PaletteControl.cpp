@@ -404,7 +404,6 @@ void PaletteControl::CreateSelCountColumn()
 	auto dv = GetDataView().lock(); if (!dv) return;
 
 	TreeItem* container = CreateDesktopContainer(dv->GetDesktopContext(), GetUltimateSourceItem(m_ThemeAttr.get_ptr()));
-	auto countingUnitClass = UnitClass::Find(m_ThemeAttr->GetAbstrDomainUnit()->GetValueType()->GetCrdClass());
 	LispRef keyExpr = m_ThemeAttr->GetCheckedKeyExpr();
 	auto provisionalPaletteDomain = m_ThemeAttr->GetAbstrValuesUnit();
 	SharedPtr<const AbstrUnit> classIds = GetRealAbstrValuesUnit(m_ThemeAttr);

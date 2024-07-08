@@ -238,31 +238,31 @@ bool AbstrGridStorageManager::DoCheck50PercentExtentOverlap(StorageMetaInfoPtr s
 
 	// affine transformed curr extent
 	auto curr_extent = vpi.GetViewPortExtents();
-	auto curr_factor = grid_projection->Factor();
-	auto curr_offset = grid_projection->Offset();
+	auto curr_factor = curr_projection->Factor();
+	auto curr_offset = curr_projection->Offset();
 	auto curr_extent_in_world_coordinates = DRect(DPoint(curr_extent.first) * curr_factor + curr_offset, DPoint(curr_extent.second) * curr_factor + curr_offset);
 
 	// actual extent check
 	auto intersect = grid_extent_in_world_coordinates & curr_extent_in_world_coordinates;
 	if (intersect.empty())
 	{
-		reportF(MsgCategory::storage_read, SeverityTypeID::ST_Warning, "Extent of domain of item %s and storage %s overlap less than 50 percent",
+		reportF(MsgCategory::storage_read, SeverityTypeID::ST_Warning, "Extent of domain of item %s and storage %s don't overlap",
 			GetSourceName().c_str()
 			, GetNameStr().c_str()
 		);
 		return false;
 	}
 
-	auto read_area         = (curr_extent_in_world_coordinates.second - curr_extent_in_world_coordinates.first).X() * (curr_extent_in_world_coordinates.second - curr_extent_in_world_coordinates.first).Y();
-	auto intersection_area = (intersect.second-intersect.first).X() * (intersect.second - intersect.first).Y();
+	auto read_area         = Area(curr_extent_in_world_coordinates);
+	auto intersection_area = Area(intersect);
 	
 	auto intersection_faction = intersection_area / read_area;
 	if (intersection_faction < 0.5)
 	{
-		reportF(MsgCategory::storage_read, SeverityTypeID::ST_Warning, "Extent of domain of item %s and storage %s overlap less than 50 percent: %d",
+		reportF(MsgCategory::storage_read, SeverityTypeID::ST_Warning, "Extent of domain of item %s and storage %s overlap for only %d percent",
 			GetSourceName().c_str()
 			, GetNameStr().c_str()
-			, intersection_faction
+			, intersection_faction * 100
 		);
 		result = false;
 	}

@@ -91,12 +91,12 @@ void ConsiderMakingFreeSpace(SizeT sz)
 			// To ensure correct resolution of symbols, add Psapi.lib to the TARGETLIBS macro and compile the program with -DPSAPI_VERSION=1. To use run-time dynamic linking, load Psapi.dll.
 
 			K32EmptyWorkingSet(GetCurrentProcess());
-			AddMainThreadOper([] 
+			SendMainThreadOper([] 
 				{
 					reportD(SeverityTypeID::ST_MajorTrace, "Calling EmptyWorkingSet to release used pages to the standby status.");
 //					DBG_DebugReport();
 				}
-			, true);
+			);
 		}
 	}
 #else //defined(WIN32)

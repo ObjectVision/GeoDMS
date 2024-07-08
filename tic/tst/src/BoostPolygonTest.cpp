@@ -1,5 +1,3 @@
-#	define _ITERATOR_DEBUG_LEVEL 0
-
 #include <boost/polygon/polygon.hpp>
 
 template <typename PointType>
@@ -24,20 +22,20 @@ template <typename CT, typename itrT1, typename itrT2>
 void convolve_two_point_sequences(boost::polygon::polygon_set_data<CT>& result, itrT1 ab, itrT1 ae, itrT2 bb, itrT2 be)
 {
 	using namespace boost::polygon;
-	typedef point_data<CT> point;
-	typedef boost::polygon::polygon_with_holes_data<CT> polygon;
+	using point = point_data<CT>;
+	using polygon = boost::polygon::polygon_with_holes_data<CT>;
 
 	if (ab == ae || bb == be)
 		return;
 
-	std::iterator_traits<itrT1>::value_type prev_a = *ab++;
+	typename std::iterator_traits<itrT1>::value_type prev_a = *ab++;
 	std::vector<point> vec;
 	polygon poly;
 
 	for (; ab != ae; ++ab)
 	{
 		itrT2 tmpb = bb;
-		std::iterator_traits<itrT2>::value_type prev_b = *tmpb++;
+		typename std::iterator_traits<itrT2>::value_type prev_b = *tmpb++;
 
 		for (; tmpb != be; ++tmpb)
 		{

@@ -93,7 +93,7 @@ enum class ord_level_type : UInt32
 	MoveSupplInterest = FailSection + 1,
 
 	// level c+3 == MOST_INNER_LOCK + 1
-	GDALComponent = IndexedString + 1,
+	GDALComponent = IndexedString -1,
 	FLispUsageCache = IndexedString - 1,
 //	SymbObjSection = IndexedString + 1, // can be used while IndexedString is locked
 	NotifyTargetCount = MoveSupplInterest + 1,

@@ -1,8 +1,12 @@
-// Copyright (C) 1998-2023 Object Vision b.v. 
+// Copyright (C) 1998-2024 Object Vision b.v. 
 // License: GNU GPL 3
 /////////////////////////////////////////////////////////////////////////////
 
 #include "ShvDllPch.h"
+
+#if defined(CC_PRAGMAHDRSTOP)
+#pragma hdrstop
+#endif
 
 #include "DataView.h"
 
@@ -58,8 +62,6 @@ ActorVisitState UpdateChildViews(DataViewTree* dvl);
 ////////////////////////////////////////////////////////////////////////////
 // const
 
-const int CN_BASE = 0x0000BC00;
-const int UM_COMMAND_STATUS = WM_APP;
 const int UPDATE_TIMER_ID = 3;
 
 GPoint LParam2Point(LPARAM lParam)
@@ -544,7 +546,6 @@ void DataView::XOrSelCaret(const Region& newSelCaret)
 /////////////////////////////////////////////////////////////////////////////
 // DataView event handlers
 
-#define WM_QT_ACTIVATENOTIFIERS WM_USER+2
 bool DataView::DispatchMsg(const MsgStruct& msg)
 {
 	DBG_START("DataView", "DispatchMsg", MG_DEBUG_WNDPROC);
@@ -628,7 +629,7 @@ bool DataView::DispatchMsg(const MsgStruct& msg)
 			SetCapture(m_hWnd);
 			// notify Qt parent that we are active
 			auto parent = GetAncestor(m_hWnd, GA_PARENT);
-			SendMessage(parent, WM_USER+17, 0, 0);
+			SendMessage(parent, WM_QT_ACTIVATENOTIFIERS, 0, 0);
 			DispatchMouseEvent(EventID::LBUTTONDOWN, msg.m_wParam, LParam2Point(msg.m_lParam));
 			goto completed;
 		}
@@ -715,9 +716,6 @@ bool DataView::DispatchMsg(const MsgStruct& msg)
 				goto completed;
 			goto defaultProcessing;
 		}
-		case UM_COMMAND_STATUS:
-			*msg.m_ResultPtr = static_cast<LRESULT>(GetContents()->OnCommandEnable(ToolButtonID(LOWORD(msg.m_wParam))));
-			return true;
 
 		case WM_KEYDOWN:
 			if (OnKeyDown(msg.m_wParam))
@@ -742,11 +740,11 @@ bool DataView::DispatchMsg(const MsgStruct& msg)
 				goto completed;
 			goto defaultProcessing;
 
-		case WM_PROCESS_QUEUE:
+		case UM_PROCESS_QUEUE:
 			ProcessGuiOpers();
 			goto completed;
 
-		case WM_APP + 4:
+		case UM_COPYDATA:
 		case WM_COPYDATA:
 			PCOPYDATASTRUCT pCopyData = PCOPYDATASTRUCT(msg.m_lParam);
 			const UInt32* dataBegin = PUINT32(pCopyData->lpData);
@@ -880,7 +878,6 @@ GraphVisitState DataView::UpdateView()
 				DBG_TRACE(("drawRegion = %s", drawRegion.AsString().c_str()));
 				DBG_TRACE(("dc  Region = %s", dcRegion.AsString().c_str()));
 				DBG_TRACE(("combRegion = %s", combRegion.AsString().c_str()));
-				ProcessMainThreadOpers();
 			}
 #endif
 			if	( ExtSelectClipRgn(dc, drawRegion.GetHandle(), RGN_AND) == NULLREGION )
@@ -892,7 +889,6 @@ GraphVisitState DataView::UpdateView()
 					if (!dcRegion2.Empty())
 					{
 						DBG_TRACE(("dc2 Region = %s", dcRegion2.AsString().c_str()));
-						ProcessMainThreadOpers();
 					}
 				}
 #endif
@@ -1009,15 +1005,6 @@ ActorVisitState UpdateChildViews(DataViewTree* dvl)
 	}
 	return AVS_Ready;
 }
-
-/* REMOVE
-ActorVisitState DataView::UpdateViews()
-{
-	if (g_DispatchLockCount > 1) // any other locks than the one from SHV_DataView_Update?
-		return AVS_SuspendedOrFailed;
-	return UpdateChildViews(&g_DataViewRoots);
-}
-*/
 
 void DataView::ScrollDevice(GPoint delta, GRect rcScroll, GRect rcClip, const MovableObject* src)
 {
@@ -1611,43 +1598,18 @@ bool DataView::CreateMdiChild(ViewStyle ct, CharPtr caption)
 	return false;
 }
 
-leveled_critical_section s_QueueSection(item_level_type(0), ord_level_type::DataViewQueue, "DataViewQueue");
-
-void DataView::AddGuiOper(std::function<void()>&& func)
+void DataView::PostGuiOper(std::function<void()>&& func)
 {
-	leveled_critical_section::scoped_lock lock(s_QueueSection);
-
-	bool wasEmpty = m_GuiOperQueue.empty();
-	m_GuiOperQueue.emplace_back(std::move(func));
+	bool wasEmpty = m_GuiOperQueue.Post(std::move(func));
 	if (wasEmpty && m_hWnd)
-		PostMessage(m_hWnd, WM_PROCESS_QUEUE, 0, 0);
+		PostMessage(m_hWnd, UM_PROCESS_QUEUE, 0, 0);
 }
 
 
 void DataView::ProcessGuiOpers()
 {
 	assert(IsMainThread());
-	while (true) {
-		std::function<void()> nextOperation;
-		{
-			leveled_critical_section::scoped_lock lock(s_QueueSection);
-			if (m_GuiOperQueue.empty())
-				return;
-			if (SuspendTrigger::MustSuspend())
-			{
-				PostMessage(m_hWnd, WM_PROCESS_QUEUE, 0, 0);
-				return;
-			}
-			nextOperation = std::move(m_GuiOperQueue.front());
-			m_GuiOperQueue.pop_front();
-		}
-		StaticMtDecrementalLock<decltype(g_DispatchLockCount), g_DispatchLockCount> dispatchLock;
-		try {
-			nextOperation();
-		}
-		catch (...) {} // let it go, it's just GUI.
-		SuspendTrigger::MarkProgress();
-	}
+	m_GuiOperQueue.Process();
 }
 
 void OnControlActivate(DataView* self, const UInt32* first, const UInt32* last)

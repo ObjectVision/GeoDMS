@@ -18,7 +18,7 @@ void DmsErrorWindow::reopen() {
 }
 
 void DmsErrorWindow::onAnchorClicked(const QUrl& link) {
-    MainWindow::TheOne()->m_detail_pages->onAnchorClicked(link);
+    MainWindow::TheOne()->onInternalLinkClick(link);
 }
 
 DmsErrorWindow::DmsErrorWindow(QWidget* parent)

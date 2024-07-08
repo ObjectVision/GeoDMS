@@ -111,11 +111,11 @@ struct TokenID
 	RTC_CALL explicit TokenID(CharPtr tokenStr, mt_tag*);
 	RTC_CALL explicit TokenID(CharPtr tokenStr, st_tag*);
 	RTC_CALL explicit TokenID(CharPtr tokenStr, mt_tag*, existing_tag*);
-	RTC_CALL explicit TokenID(CharPtr tokenStr, st_tag*, existing_tag*);
+//	RTC_CALL explicit TokenID(CharPtr tokenStr, st_tag*, existing_tag*);
 	RTC_CALL explicit TokenID(CharPtr first, CharPtr last, mt_tag*);
 	RTC_CALL explicit TokenID(CharPtr first, CharPtr last, st_tag*);
 	RTC_CALL explicit TokenID(CharPtr first, CharPtr last, mt_tag*, existing_tag*);
-	RTC_CALL explicit TokenID(CharPtr first, CharPtr last, st_tag*, existing_tag*);
+//	RTC_CALL explicit TokenID(CharPtr first, CharPtr last, st_tag*, existing_tag*);
 	RTC_CALL explicit TokenID(WeakStr str);
 	         explicit TokenID(Undefined) : m_ID(UNDEFINED_VALUE(TokenT)) {}
 //	get id or -1 if not found
@@ -180,12 +180,14 @@ inline TokenID UndefinedValue(const TokenID*) { return TokenID(Undefined()); }
 RTC_CALL void Trim(CharPtrRange& range);
 
 // get or create id
-inline TokenID GetTokenID_st(CharPtr tokenStr) { return TokenID(tokenStr, single_threading_tag_v); }
+RTC_CALL TokenID GetTokenID_st(CharPtr tokenStr);
+RTC_CALL TokenID GetTokenID_st(CharPtr first, CharPtr last);
+inline TokenID GetTokenID_st(CharPtrRange range) { return GetTokenID_st(range.first, range.second); }
+
+
 inline TokenID GetTokenID_mt(CharPtr tokenStr) { return TokenID(tokenStr, multi_threading_tag_v); }
-inline TokenID GetTokenID_st(CharPtr first, CharPtr last) { return TokenID(first, last, single_threading_tag_v); }
 inline TokenID GetTokenID_mt(CharPtr first, CharPtr last) { return TokenID(first, last, multi_threading_tag_v); }
 RTC_CALL TokenID GetTrimmedTokenID(CharPtr first, CharPtr last);
-inline TokenID GetTokenID_st(CharPtrRange range) { return GetTokenID_st(range.first, range.second); }
 inline TokenID GetTokenID_mt(CharPtrRange range) { return GetTokenID_mt(range.first, range.second); }
 
 template<typename TAG = mt_tag>

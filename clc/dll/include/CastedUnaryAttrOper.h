@@ -239,7 +239,7 @@ public:
 			, [](sequence_traits<ResultValueType>::seq_t resData, prepare_data arg1FutureData)
 			{
 				auto arg1Data = arg1FutureData->GetTile();
-				TUniOper oper;
+				auto oper = TUniOper();
 				std::transform(arg1Data.begin(), arg1Data.end(), resData.begin(), oper);
 			}
 			MG_DEBUG_ALLOCATOR_SRC_PARAM
@@ -258,10 +258,10 @@ public:
 		auto arg1Data = arg1->GetTile(t);
 		auto resData = result->GetWritableTile(t);
 
-		MG_DEBUGCODE( dms_assert(arg1Data.size() == arg1A->GetAbstrDomainUnit()->GetTileCount(t)); )
-		MG_DEBUGCODE( dms_assert(resData.size()  == arg1A->GetAbstrDomainUnit()->GetTileCount(t)); )
+		MG_DEBUGCODE(dms_assert(arg1Data.size() == arg1A->GetAbstrDomainUnit()->GetTileCount(t)); )
+		MG_DEBUGCODE(dms_assert(resData.size() == arg1A->GetAbstrDomainUnit()->GetTileCount(t)); )
 
-		TUniOper oper; 
+		auto oper = TUniOper();
 		std::transform(arg1Data.begin(), arg1Data.end(), resData.begin(), oper);
 	}
 };

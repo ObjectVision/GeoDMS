@@ -105,7 +105,7 @@ class vector_map
 	using key_compare    = Compare;
 	using insert_pair    = std::pair<iterator, bool>;
 
-	typedef comp_first<key_type, value_type, key_compare> value_compare;
+	using value_compare = comp_first<key_type, value_type, key_compare>;
 
 	vector_map(const key_compare& compare = key_compare())
 		:	m_Compare(compare) 

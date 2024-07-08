@@ -1,74 +1,22 @@
-// Copyright (C) 1998-2023 Object Vision b.v. 
+// Copyright (C) 1998-2024 Object Vision b.v. 
 // License: GNU GPL 3
 
+#if defined(_MSC_VER)
 #pragma once
+#endif
 
-#if !defined(__SHV_CLASSBREAKS_H)
-#define __SHV_CLASSBREAKS_H
+#if !defined(__CLC_CLASSBREAKS_H)
+#define __CLC_CLASSBREAKS_H
 
 //----------------------------------------------------------------------
 // used modules and forward class references
 //----------------------------------------------------------------------
-#define MG_DEBUG_CLASSBREAKS false
 
-#include "cpc/types.h"
 #include "ClcBase.h"
 
-#include <vector>
+#include "ValuesTableTypes.h"
 
-//----------------------------------------------------------------------
-// typedefs
-//----------------------------------------------------------------------
-
-using ClassBreakValueType = Float64;
-using break_array = std::vector<ClassBreakValueType>;
-
-using CountType = SizeT;
-using ValueCountPair = std::pair<ClassBreakValueType, CountType>;
-using LimitsContainer = std::vector<ClassBreakValueType>;
-using ValueCountPairContainerBase = std::vector < ValueCountPair, my_allocator < ValueCountPair> >;
-
-struct ValueCountPairContainer : ValueCountPairContainerBase
-{
-	ValueCountPairContainer() : m_Total(0) {}
-
-	ValueCountPairContainer(ValueCountPairContainer&& rhs) noexcept
-		: ValueCountPairContainerBase(std::move(rhs))
-		, m_Total(rhs.m_Total)
-	{
-		dms_assert(rhs.empty());
-		rhs.m_Total = 0;
-	}
-	template<typename Iter>
-	ValueCountPairContainer(Iter first, Iter last)
-		: ValueCountPairContainerBase(first, last)
-	{
-		for (const auto& vcp : *this)
-			m_Total += vcp.second;
-	}
-
-	void operator = (ValueCountPairContainer&& rhs)  noexcept
-	{
-		ValueCountPairContainerBase::operator =((ValueCountPairContainerBase&&)rhs);
-		std::swap(m_Total, rhs.m_Total);
-	}
-
-
-	SizeT m_Total = 0;
-	MG_DEBUGCODE( void Check(); )
-
-private:
-	ValueCountPairContainer(const ValueCountPairContainer&) = delete;
-	void operator = (const ValueCountPairContainer&) = delete;
-};
-
-using AbstrValuesRangeDataPtrType = SharedPtr<const SharedObj>;
-using CountsResultType = std::pair<ValueCountPairContainer, AbstrValuesRangeDataPtrType>;
-
-const UInt32 MAX_PAIR_COUNT = 4096;
-
-CLC_CALL CountsResultType PrepareCounts(const AbstrDataItem* adi, SizeT maxPairCount);
-CLC_CALL CountsResultType GetCounts    (const AbstrDataItem* adi, SizeT maxPairCount);
+#define MG_DEBUG_CLASSBREAKS false
 
 //----------------------------------------------------------------------
 // class break functions
@@ -96,4 +44,4 @@ inline break_array ClassifyCRJenksFisher(AbstrDataItem* breakAttr, const ValueCo
 
 using ClassBreakFunc = break_array (*)(AbstrDataItem* breakAttr, const ValueCountPairContainer& vcpc, const SharedObj* abstrValuesRangeData);
 
-#endif // !defined(__SHV_CLASSBREAKS_H)
+#endif // !defined(__CLC_CLASSBREAKS_H)

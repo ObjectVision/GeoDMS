@@ -48,7 +48,9 @@ struct null_or_zero_value : public nullary_func<T>
 };
 
 template <typename T> struct assign_default   : nullary_assign_from_func< default_value<T> > {};
-template <typename T> struct assign_null_value : nullary_assign<T>
+
+template <typename T>
+struct assign_null_value : nullary_assign<T>
 {
 	void operator()(typename nullary_assign<T>::assignee_ref res) const
 	{
@@ -56,7 +58,19 @@ template <typename T> struct assign_null_value : nullary_assign<T>
 	}
 };
 
-template <typename T> struct assign_null_or_zero: nullary_assign_from_func< null_or_zero_value<T> > {};
+template <typename T> struct assign_null_or_zero: nullary_assign<T>
+{
+	void operator()(typename nullary_assign<T>::assignee_ref res) const
+	{
+		MakeUndefinedOrZero(res);
+	}
+	void operator()(nullable_t<typename nullary_assign<T>::assignee_type>& res) const
+		requires !can_be_undefined_v<T>
+	{
+		MakeUndefined(res);
+	}
+};
+
 template <typename T> struct assign_min_value : nullary_assign_from_func< min_value <T> > {};
 template <typename T> struct assign_max_value : nullary_assign_from_func< max_value <T> > {};
 
@@ -113,8 +127,8 @@ struct assign_output_convert
 template <typename ElemAssigner>
 struct assign_partial_output_from_buffer
 {
-	typedef typename ElemAssigner::dms_result_type           dms_result_type;
-	typedef typename sequence_traits<dms_result_type>::seq_t dms_seq;
+	using dms_result_type = typename ElemAssigner::dms_result_type;
+	using dms_seq = typename sequence_traits<dms_result_type>::seq_t;
 
 	template<typename Container>
 	void AssignOutput(dms_seq res, const Container& outputs) const
@@ -154,9 +168,18 @@ struct unary_assign_total_accumulation
 		,	m_Initializer(init) 
 	{}
 
-	void operator()(typename unary_assign_total_accumulation::assignee_ref output, typename unary_assign_total_accumulation::value_cseq1 input) const
+	void operator()(typename unary_assign_total_accumulation::assignee_ref accumulator, typename unary_assign_total_accumulation::value_cseq1 input) const
 	{ 
-		aggr1_total<TUniAssign>(output, input.begin(), input.end(), m_AssignFunc);
+		aggr1_total<TUniAssign>(accumulator, input.begin(), input.end(), m_AssignFunc);
+	}
+
+	void CombineValues(typename TUniAssign::assignee_type& a, const typename TUniAssign::assignee_type& rhs) const
+	{
+		m_AssignFunc.CombineValues(a, rhs);
+	}
+	void CombineRefs(typename TUniAssign::assignee_ref a, cref_t<typename TUniAssign::assignee_type> rhs) const
+	{
+		m_AssignFunc.CombineRefs(a, rhs);
 	}
 
 private:
@@ -195,6 +218,11 @@ struct unary_assign_partial_accumulation
 	void operator()(typename unary_assign_partial_accumulation::accumulation_seq outputs, typename unary_assign_partial_accumulation::value_cseq1 input, const IndexGetter* indices) const
 	{ 
 		aggr_fw_partial<TUniAssign>(outputs.begin(), input.begin(), input.end(), indices, m_AssignFunc);
+	}
+
+	void CombineRefs(typename TUniAssign::assignee_ref accumulator, cref_t<typename TUniAssign::assignee_type> rhs) const
+	{
+		m_AssignFunc.CombineRefs(accumulator, rhs);
 	}
 
 	TUniAssign     m_AssignFunc;

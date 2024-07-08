@@ -67,7 +67,6 @@ protected:
 	}
 
 public slots:
-	void onAnchorClicked(const QUrl& link);
 	void toggle(ActiveDetailPage new_active_detail_page);
 
 private:

@@ -87,8 +87,13 @@ PolymorphInpStream::PolymorphInpStream(InpStreamBuff* inp)
 		(*this) >> versionMajorBW >> versionMinorBW;
 	}
 	tooNew = (versionMajorBW > DMS_VERSION_MAJOR)  || (versionMajorBW == DMS_VERSION_MAJOR && versionMinorBW > DMS_VERSION_MINOR) || (m_FormatID > DMS_CURR_POLYSTREAM_FORMAT);
-	constexpr bool hasBackwardReadSupport  = (DMS_VERSION_MAJOR_COMPATIBLE< DMS_VERSION_MAJOR) || (DMS_VERSION_MINOR_COMPATIBLE < DMS_VERSION_MINOR);
-	constexpr bool hasBackwardWriteSupport = (DMS_VERSION_MAJOR_BACKWARD  < DMS_VERSION_MAJOR) || (DMS_VERSION_MINOR_BACKWARD   < DMS_VERSION_MINOR);
+	constexpr bool majorBackwardReadSupport = (DMS_VERSION_MAJOR_COMPATIBLE < DMS_VERSION_MAJOR);
+	constexpr bool minorBackwardReadSupport = (DMS_VERSION_MINOR_COMPATIBLE < DMS_VERSION_MINOR);
+	constexpr bool hasBackwardReadSupport  = majorBackwardReadSupport || minorBackwardReadSupport;
+
+	constexpr bool majorBackwardWriteSupport = (DMS_VERSION_MAJOR_BACKWARD < DMS_VERSION_MAJOR);
+	constexpr bool minorBackwardWriteSupport = (DMS_VERSION_MINOR_BACKWARD < DMS_VERSION_MINOR);
+	constexpr bool hasBackwardWriteSupport = majorBackwardWriteSupport || minorBackwardWriteSupport;
 
 	if (tooOld || tooNew)
 	{

@@ -28,6 +28,7 @@ RTC_CALL bool IsMultiThreaded1();
 RTC_CALL bool IsMultiThreaded2();
 RTC_CALL bool IsMultiThreaded3();
 RTC_CALL UInt32 MaxConcurrentTreads();
+RTC_CALL UInt32 MaxAllowedConcurrentTreads(); // make it constant to avoid rounding off errors to depend on architecture or settings.
 
 //#define MG_ITEMLEVEL
 enum class item_level_type : UInt32 {};

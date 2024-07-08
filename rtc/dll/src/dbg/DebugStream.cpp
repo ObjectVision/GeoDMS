@@ -165,13 +165,13 @@ namespace { // DebugOutStreamBuff is local
 
 			assert(m_Data.end()[-1] == char(0));
 			MsgData msgData(m_Severity, m_MsgCat, false, GetThreadID(), StreamableDateTime(), SharedStr(begin_ptr(m_Data), end_ptr(m_Data)));
-			AddMainThreadOper([msg = std::move(msgData)]() mutable {
+			PostMainThreadOper([msg = std::move(msgData)] () mutable 
+				{
 					if (!s_nrRtcStreamLocks)
 						return;
 					leveled_critical_section::scoped_lock lock(*g_DebugStream);
 					DebugOutStreamBuff::Flush(&msg);
 				}
-			, true
 			);
 			m_Data.clear();
 		}
@@ -293,8 +293,6 @@ RTC_CALL static_ptr<DebugOutStream> g_DebugStream;
 
 DebugOutStream::flush_after::~flush_after()
 {
-	if (IsMainThread())
-		ProcessMainThreadOpers();
 }
 
 DebugOutStream::scoped_lock::scoped_lock(DebugOutStream* str, SeverityTypeID st, MsgCategory msgCat)

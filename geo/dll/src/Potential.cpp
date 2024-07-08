@@ -1,4 +1,4 @@
-// Copyright (C) 1998-2023 Object Vision b.v. 
+// Copyright (C) 1998-2024 Object Vision b.v. 
 // License: GNU GPL 3
 /////////////////////////////////////////////////////////////////////////////
 
@@ -6,7 +6,7 @@
 
 #if defined(CC_PRAGMAHDRSTOP)
 #pragma hdrstop
-#endif //defined(CC_PRAGMAHDRSTOP)
+#endif
 
 #include "Potential.h"
 
@@ -607,35 +607,33 @@ bool Potential(AnalysisType at, potential_contexts& context, const kernel_info& 
 {
 	DBG_START("Potential", "Float32", MG_DEBUG_POTENTIAL);
 
-	using namespace potential;
-
-	dms_assert(!dataOrg.empty());
+	assert(!dataOrg.empty());
 
 	switch (at) {
 		case AnalysisType::PotentialSlow:
 		case AnalysisType::Proximity:
-			return impl::CalculateClassic<Float32>(at, 
+			return potential::impl::CalculateClassic<Float32>(at, 
 				dataOrg, std::any_cast<UGrid<const Float32>>(kernelInfo.orgWeightGrid),
 				kernelInfo, context.F32.overlappingOutput
 			);
 
 #if defined(DMS_USE_INTEL_IPPI)
 		case AnalysisType::PotentialIppi:
-			return impl::PotentialIppi32f(data, output, weight);
+			return potential::impl::PotentialIppi32f(data, output, weight);
 #endif //defined(DMS_USE_INTEL_IPPI)
 
 #if defined(DMS_USE_INTEL_IPPS)
 		case AnalysisType::PotentialRawIppsPacked:
-			return impl::PotentialIppsRaw   <Float32>(context.F32, context.zeroInfo, kernelInfo, dataOrg);
+			return potential::impl::PotentialIppsRaw   <Float32>(context.F32, context.zeroInfo, kernelInfo, dataOrg);
 
 		case AnalysisType::PotentialIppsPacked:
-			return impl::PotentialIppsSmooth<Float32>(context.F32, context.zeroInfo, kernelInfo, dataOrg);
+			return potential::impl::PotentialIppsSmooth<Float32>(context.F32, context.zeroInfo, kernelInfo, dataOrg);
 
 		case AnalysisType::PotentialRawIpps64:
-			return impl::PotentialIppsRaw   <Float64>(context.F64, context.zeroInfo, kernelInfo, dataOrg);
+			return potential::impl::PotentialIppsRaw   <Float64>(context.F64, context.zeroInfo, kernelInfo, dataOrg);
 
 		case AnalysisType::PotentialIpps64:
-			return impl::PotentialIppsSmooth<Float64>(context.F64, context.zeroInfo, kernelInfo, dataOrg);
+			return potential::impl::PotentialIppsSmooth<Float64>(context.F64, context.zeroInfo, kernelInfo, dataOrg);
 #endif //defined(DMS_USE_INTEL_IPPS)
 
 		default:
@@ -649,25 +647,23 @@ bool Potential(AnalysisType at, potential_contexts& context, const kernel_info& 
 {
 	DBG_START("Potential", "Float64", MG_DEBUG_POTENTIAL);
 
-	using namespace potential;
-
 	if (at == AnalysisType::PotentialIppsPacked   ) at = AnalysisType::PotentialIpps64;
 	if (at == AnalysisType::PotentialRawIppsPacked) at = AnalysisType::PotentialRawIpps64;
 
 	switch (at) {
 		case AnalysisType::PotentialSlow:
 		case AnalysisType::Proximity:
-			return impl::CalculateClassic<Float64>(at,
+			return potential::impl::CalculateClassic<Float64>(at,
 				dataOrg, std::any_cast<UGrid<const Float64>>(kernelInfo.orgWeightGrid),
 				kernelInfo, context.F64.overlappingOutput
 			);
 
 #if defined(DMS_USE_INTEL_IPPS)
 		case AnalysisType::PotentialRawIpps64:
-			return impl::PotentialIppsRaw   <Float64>(context.F64, context.zeroInfo, kernelInfo, dataOrg);
+			return potential::impl::PotentialIppsRaw   <Float64>(context.F64, context.zeroInfo, kernelInfo, dataOrg);
 
 		case AnalysisType::PotentialIpps64:
-			return impl::PotentialIppsSmooth<Float64>(context.F64, context.zeroInfo, kernelInfo, dataOrg);
+			return potential::impl::PotentialIppsSmooth<Float64>(context.F64, context.zeroInfo, kernelInfo, dataOrg);
 #endif //defined(DMS_USE_INTEL_IPPS)
 		default:
 			throwIllegalAbstract(MG_POS, "Potential");

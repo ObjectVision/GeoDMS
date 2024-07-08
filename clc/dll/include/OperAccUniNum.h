@@ -30,6 +30,37 @@ struct OperAccTotUniNum : OperAccTotUni<TAcc1Func>
 		: OperAccTotUni<TAcc1Func>(gr, std::move(acc1Func))
 	{}
 
+//	using accumulator_type = typename decltype TAcc1Func::accumulator_type;
+	using value_type = typename TAcc1Func::value_type1;
+	using ftptr = future_tile_ptr<value_type>;
+
+	auto AggregateTiles(ftptr* values_fta, tile_id t, tile_id te, SizeT availableThreads) const -> decltype(this->m_Acc1Func.InitialValue())
+	{
+		if (availableThreads > 1)
+		{
+			auto m = te - (te - t) / 2;
+			auto rt = availableThreads / 2;
+			auto futureSecondHalfValue = std::async(std::launch::async, [this, values_fta, m, te, rt]()
+				{
+					return AggregateTiles(values_fta, m, te, rt);
+				});
+			auto firstHalfValue = AggregateTiles(values_fta, t, m, availableThreads - rt);
+			auto secondHalfValue  = futureSecondHalfValue.get();
+
+			this->m_Acc1Func.CombineValues(firstHalfValue, secondHalfValue);
+			return firstHalfValue;
+		}
+
+		auto value = this->m_Acc1Func.InitialValue(); // set value to MIN_VALUE, MAX_VALUE, or NULL depending on the TAcc1Func type
+		for (; t<te; ++t)
+		{
+			auto arg1Data = values_fta[t]->GetTile(); values_fta[t] = nullptr;
+			this->m_Acc1Func(value, arg1Data.get_view());
+		}
+
+		return value;
+	}
+
 	// Override Operator
 	void Calculate(DataWriteLock& res, const AbstrDataItem* arg1A, ArgRefs args, std::vector<ItemReadLock> readLocks) const override
 	{
@@ -39,17 +70,12 @@ struct OperAccTotUniNum : OperAccTotUni<TAcc1Func>
 		auto result = mutable_array_cast<typename OperAccTotUniNum::ResultValueType>(res);
 		assert(result);
 
-		auto value = this->m_Acc1Func.InitialValue(); // set value to MIN_VALUE, MAX_VALUE, or NULL depending on the TAcc1Func type
-
 		const AbstrUnit* e = arg1A->GetAbstrDomainUnit();
 
 		// TODO G8: OPTIMIZE, use parallel_for and ThreadLocal container and aggregate afterwards.
-		auto values_fta = (DataReadLock(arg1A), GetFutureTileArray(arg1));
-		for (tile_id t = 0, te = e->GetNrTiles(); t!=te; ++t)
-		{
-			auto arg1Data = values_fta[t]->GetTile(); values_fta[t] = nullptr;
-			this->m_Acc1Func(value, arg1Data.get_view());
-		}
+		auto values_fta = GetFutureTileArray(arg1);
+
+		auto value = AggregateTiles(values_fta.begin(), 0, e->GetNrTiles(), MaxAllowedConcurrentTreads());
 
 		auto resData = result->GetDataWrite();
 		assert(resData.size() == 1);

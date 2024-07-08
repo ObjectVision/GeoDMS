@@ -157,21 +157,21 @@ struct unary_ser_asexprlist : unary_assign<OutStreamBuff, T>
 		WriteDataString(os, arg);
 	}
 
-	typedef SharedStr dms_result_type;
+	using dms_result_type = SharedStr;
 };
 
 // total: 
 template <typename T> 
 struct asexprlist_total : unary_assign_string_total_accumulation<unary_ser_asexprlist<T> >
 {
-	typedef SharedStr dms_result_type;
+	using dms_result_type = SharedStr;
 };
 
 // partial: generates Strings based on index_container<PartId>
 template <typename T> 
 struct asexprlist_partial : unary_assign_string_partial_accumulation< unary_ser_asexprlist<T> >
 {
-	typedef SharedStr dms_result_type;
+	using dms_result_type = SharedStr;
 };
 
 /*****************************************************************************/
@@ -182,7 +182,7 @@ struct unary_ser_aslist: unary_assign<OutStreamBuff, SharedStr>
 {
 	template <typename R> static ConstUnitRef unit_creator(const AbstrOperGroup* gr, const ArgSeqType& args) { return default_unit_creator<R>(); }
 
-	typedef SharedStr dms_result_type;
+	using dms_result_type = SharedStr;
 
 	unary_ser_aslist(cref<SharedStr>::type separator) : m_Separator(separator) {}
 
@@ -203,7 +203,7 @@ private:
 // total: 
 struct aslist_total : unary_assign_string_total_accumulation<unary_ser_aslist > 
 {
-	typedef SharedStr dms_result_type;
+	using dms_result_type = SharedStr;
 
 	aslist_total(unary_ser_aslist::arg1_cref separator)
 		:	unary_assign_string_total_accumulation<unary_ser_aslist >(
@@ -215,7 +215,7 @@ struct aslist_total : unary_assign_string_total_accumulation<unary_ser_aslist >
 // partial: generates Strings based on index_container<PartId>
 struct aslist_partial : unary_assign_string_partial_accumulation< unary_ser_aslist>
 {
-	typedef SharedStr dms_result_type;
+	using dms_result_type = SharedStr;
 
 	aslist_partial(unary_ser_aslist::arg1_cref separator)
 		:	unary_assign_string_partial_accumulation<unary_ser_aslist>(
@@ -234,7 +234,7 @@ struct unary_ser_asitemlist
 {
 	template<typename R> static ConstUnitRef unit_creator(const AbstrOperGroup* gr, const ArgSeqType& args) { return default_unit_creator<R>(); }
 
-	typedef SharedStr dms_result_type;
+	using dms_result_type = SharedStr;
 
 	void operator()(assignee_ref assignee, arg1_cref arg) const	
 	{ 

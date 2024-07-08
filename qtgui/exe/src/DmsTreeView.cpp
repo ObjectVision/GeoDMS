@@ -368,6 +368,13 @@ auto DmsModel::flags(const QModelIndex& index) const -> Qt::ItemFlags {
 	return Qt::ItemIsSelectable | Qt::ItemIsEnabled | Qt::ItemIsDragEnabled |  QAbstractItemModel::flags(index);
 }
 
+QFont CreateRemixFont()
+{
+	QFont font;
+	font.setFamily("remixicon");
+	return font;
+}
+
 void TreeItemDelegate::paint(QPainter* painter, const QStyleOptionViewItem& option, const QModelIndex& index) const {
 	QStyledItemDelegate::paint(painter, option, index);
 	painter->save();
@@ -396,11 +403,10 @@ void TreeItemDelegate::paint(QPainter* painter, const QStyleOptionViewItem& opti
 		auto item_icon = MainWindow::TheOne()->m_dms_model->getTreeItemIcon(index).value<QImage>();
 		int offset_icon = item_icon.width();
 		auto rect = option.rect;
-		auto cur_brush = painter->brush();
+//		auto cur_brush = painter->brush(); NOT USED, REMOVE, if used, prefer a const auto&
 		auto offset = rect.topLeft().x() + offset_icon + offset_item_text + 15;
 
-		QFont font;
-		font.setFamily("remixicon");
+		static QFont font = CreateRemixFont();
 		painter->setFont(font);
 
 		// set transparancy if not committed yet
@@ -408,7 +414,6 @@ void TreeItemDelegate::paint(QPainter* painter, const QStyleOptionViewItem& opti
 		if (ti_state < NotificationCode::NC2_DataReady)
 			painter->setOpacity(0.5);
 
-	
 		// draw storage icon
 		if (ti->IsDataFailed())
 			painter->setPen(QColor(255,0,0,255));
@@ -672,12 +677,13 @@ void DmsTreeView::setNewCurrentItem(TreeItem* target_item) {
 	if (!MainWindow::TheOne()->m_dms_model->show_hidden_items) {
 		if (target_item->GetTSF(TSF_InHidden) ) {
 			const TreeItem* visible_parent = target_item;
-			while (visible_parent->GetTSF(TSF_InHidden))
-			{
+			do {
+				if (!visible_parent->GetTSF(TSF_InHidden))
+					break;
 				visible_parent = visible_parent->GetTreeParent();
 				if (!visible_parent)
 					break;
-			}
+			} while (visible_parent != nullptr);
 
 			reportF(MsgCategory::other, SeverityTypeID::ST_Warning, "cannnot activate '%1%' in TreeView as it seems to be a hidden sub-item of '%2%'"
 				"\nHint: you can make hidden items visible in the Settings->GUI Options Dialog"

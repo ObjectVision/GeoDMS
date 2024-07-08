@@ -1,31 +1,10 @@
-//<HEADER> 
-/*
-Data & Model Server (DMS) is a server written in C++ for DSS applications. 
-Version: see srv/dms/rtc/dll/src/RtcVersion.h for version info.
+// Copyright (C) 1998-2024 Object Vision b.v. 
+// License: GNU GPL 3
 
-Copyright (C) 1998-2004  YUSE GSO Object Vision BV. 
+#if defined(_MSC_VER)
+#pragma once
+#endif
 
-Documentation on using the Data & Model Server software can be found at:
-http://www.ObjectVision.nl/DMS/
-
-See additional guidelines and notes in srv/dms/Readme-srv.txt 
-
-This library is free software; you can use, redistribute, and/or
-modify it under the terms of the GNU General Public License version 2 
-(the License) as published by the Free Software Foundation,
-provided that this entire header notice and readme-srv.txt is preserved.
-
-See LICENSE.TXT for terms of distribution or look at our web site:
-http://www.objectvision.nl/DMS/License.txt
-or alternatively at: http://www.gnu.org/copyleft/gpl.html
-
-This library is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
-General Public License for more details. However, specific warranties might be
-granted by an additional written contract for support, assistance and/or development
-*/
-//</HEADER>
 #if !defined(__SET_VECTORMULTIMAP_H)
 #define __SET_VECTORMULTIMAP_H
 
@@ -78,20 +57,21 @@ template <class Key, class Data, class Compare = std::less<Key> >
 class vector_multimap
 {
   public:
-	typedef Key                             key_type;
-	typedef Data                            data_type;
-	typedef Pair<Key, Data>                 value_type;
-	typedef std::vector<value_type>         ContainerType;
-	typedef ContainerType::iterator         iterator;
-	typedef ContainerType::const_iterator   const_iterator;
-	typedef std::allocator<Data>::reference reference;
-	typedef Compare                         key_compare;
+	  using key_type = Key;
+	  using data_type = Data;
+	  using value_type = Pair<Key, Data>;
+	  using ContainerType = std::vector<value_type>;
+	  using size_type = typename ContainerType::size_type;
+	  using iterator = typename ContainerType::iterator;
+	  using const_iterator = typename ContainerType::const_iterator;
+	  using reference = Data&;
+	  using key_compare = Compare;
+
 	typedef Point<iterator>                 iterator_pair;
 	typedef Point<const_iterator>           const_iterator_pair;
-//	typedef std::pair<iterator, bool>       insert_pair;
 
-	typedef comp_first<key_type, value_type, key_compare> value_compare;
-
+	using value_compare = comp_first<key_type, value_type, key_compare>;
+	
 	vector_multimap(const key_compare& compare = key_compare())
 		: m_Compare(compare) {}
 

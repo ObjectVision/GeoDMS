@@ -30,9 +30,6 @@ class MmdStorageManager : public AbstrStorageManager
 public:
 	using base_type = AbstrStorageManager;
 
-//	TIC_CALL MmdStorageManager();
-//	TIC_CALL ~MmdStorageManager();
-
 	TIC_CALL SharedStr GetFullFileName(CharPtr name) const;
 
 	auto GetSFWA() const-> std::shared_ptr<SafeFileWriterArray>;
@@ -48,11 +45,6 @@ protected:
 
 	bool DoCheckExistence(const TreeItem* storageHolder, const TreeItem* storageItem) const override; // Default implementation now checks existence of m_Name as a file
 
-//	std::unique_ptr<OutStreamBuff> DoOpenOutStream(const StorageMetaInfo& smi, CharPtr path, tile_id t) override;
-//	std::unique_ptr<InpStreamBuff> DoOpenInpStream(const StorageMetaInfo& smi, CharPtr path) const override;
-
-//	void DoOpenStorage  (const StorageMetaInfo& smi, dms_rw_mode rwMode) const override;
-//	void DoCloseStorage (bool mustCommit) const override;
 	void DoUpdateTree(const TreeItem* storageHolder, TreeItem* curr, SyncMode sm) const override;
 	void DoWriteTree(const TreeItem* storageHolder) override;
 

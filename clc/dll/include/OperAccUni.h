@@ -1,13 +1,17 @@
-// Copyright (C) 1998-2023 Object Vision b.v. 
+// Copyright (C) 1998-2024 Object Vision b.v. 
 // License: GNU GPL 3
 /////////////////////////////////////////////////////////////////////////////
 
+#if defined(_MSC_VER)
 #pragma once
+#endif
 
 #if !defined(__CLC_OPERACCUNI_H)
 #define __CLC_OPERACCUNI_H
 
 #include "UnitClass.h"
+
+#include <future>
 
 #include "AggrUniStruct.h"
 #include "AggrUniStructString.h"
@@ -16,6 +20,7 @@
 #include "OperAcc.h"
 #include "TreeItemClass.h"
 #include "IndexGetterCreator.h"
+
 
 // *****************************************************************************
 //											AbstrOperAccTotUni
@@ -85,12 +90,14 @@ private:
 	ValueComposition m_ValueComposition;
 };
 
+
 template <class TAcc1Func> 
 struct OperAccTotUni : AbstrOperAccTotUni
 {
 	typedef typename TAcc1Func::value_type1     ValueType;
 	typedef typename TAcc1Func::assignee_type   AccumulationType;
-	typedef typename TAcc1Func::dms_result_type ResultValueType;
+	using ResultValueType = dms_result_type_t<TAcc1Func>;
+
 	typedef DataArray<ResultValueType>          ResultType;
 	typedef DataArray<ValueType>                ArgType;
 			
@@ -164,8 +171,6 @@ struct AbstrOperAccPartUni: BinaryOperator
 		dms_assert(context || doRecalc);
 		if (doRecalc)
 		{
-//			DataReadLock arg1Lock(arg1A);
-
 			DataWriteLock resLock(res);
 
 			Calculate(resLock, arg1A, arg2A, std::move(args), std::move(readLocks));
@@ -203,19 +208,6 @@ private:
 //											OperAccPartUni
 // *****************************************************************************
 
-namespace impl {
-	namespace has_dms_result_type_details {
-		template< typename U> static char test(typename U::dms_result_type* v);
-		template< typename U> static int  test(...);
-	}
-
-	template< typename T>
-	struct has_dms_result_type
-	{
-		static const bool value = sizeof(has_dms_result_type_details::test<T>(nullptr)) == sizeof(char);
-	};
-}
-
 template <typename V, typename R> 
 struct OperAccPartUni: AbstrOperAccPartUni
 {
@@ -238,6 +230,7 @@ struct OperAccPartUni: AbstrOperAccPartUni
 //template <typename TAcc1Func, typename ResultValueType = typename dms_result_type_of<TAcc1Func>::type> 
 template <typename V, typename R>
 struct OperAccPartUniWithCFTA : OperAccPartUni<V, R> // with consumable tile array
+	// CFTA = Consumable Future Tile Array
 {
 	using OperAccPartUni<V, R>::OperAccPartUni;
 	using ValueType = V;
@@ -300,25 +293,58 @@ struct OperAccPartUniBuffered : FuncOperAccPartUni<TAcc1Func, OperAccPartUniWith
 	using ProcessDataInfo = base_type::ProcessDataInfo;
 	using AccumulationSeq = typename TAcc1Func::accumulation_seq;
 
+	using res_buffer_type = typename sequence_traits<typename TAcc1Func::accumulation_type>::container_type;
+
 	OperAccPartUniBuffered(AbstrOperGroup* gr, TAcc1Func&& acc1Func = TAcc1Func())
 		:	base_type(gr, std::move(acc1Func))
 	{}
 
-	void ProcessData(ResultType* result, ProcessDataInfo& pdi) const override
+	auto AggregateTiles(ProcessDataInfo& pdi, tile_id t, tile_id te, SizeT availableThreads) const
+		-> res_buffer_type
 	{
-		using res_buffer_type = typename sequence_traits<typename TAcc1Func::accumulation_type>::container_type;
+		if (availableThreads > 1)
+		{
+			auto m = te - (te - t) / 2;
+			auto rt = availableThreads / 2;
+			auto futureSecondHalfBuffer = std::async(std::launch::async, [this, &pdi, m, te, rt]()
+				{
+					return AggregateTiles(pdi, m, te, rt);
+				});
+			auto firstHalfBuffer = AggregateTiles(pdi, t, m, availableThreads - rt);
+
+			auto secondHalfBuffer = futureSecondHalfBuffer.get();
+			auto secondHalfBufferIterator = secondHalfBuffer.begin();
+
+			auto firstHalfBufferIterator = firstHalfBuffer.begin(), firstHalfBufferEnd = firstHalfBuffer.end();
+			for (; firstHalfBufferIterator != firstHalfBufferEnd; ++secondHalfBufferIterator, ++firstHalfBufferIterator)
+				this->m_Acc1Func.CombineRefs(*firstHalfBufferIterator, *secondHalfBufferIterator);
+
+			return firstHalfBuffer;
+		}
+
 		res_buffer_type resBuffer(pdi.resCount);
-
-		this->m_Acc1Func.Init(AccumulationSeq( &resBuffer ) );
-
-		for (tile_id t = 0, tn = pdi.nrTiles; t!= tn; ++t)
+		this->m_Acc1Func.Init(AccumulationSeq(&resBuffer));
+		for (; t < te; ++t)
 		{
 			auto arg1Data = pdi.values_fta[t]->GetTile(); pdi.values_fta[t] = nullptr;
 			OwningPtr<IndexGetter> indexGetter = IndexGetterCreator::Create(pdi.arg2A, pdi.part_fta[t]); pdi.part_fta[t] = nullptr;
 
-			this->m_Acc1Func( AccumulationSeq( &resBuffer ),	arg1Data, indexGetter );
+			this->m_Acc1Func(AccumulationSeq(&resBuffer), arg1Data, indexGetter);
 		}
+		return resBuffer;
+	}
 
+	void ProcessData(ResultType* result, ProcessDataInfo& pdi) const override
+	{
+		res_buffer_type resBuffer;
+		if (pdi.resCount)
+		{
+			SizeT maxNrThreads =  MaxAllowedConcurrentTreads();
+			MakeMin(maxNrThreads, pdi.n / pdi.resCount);
+			MakeMax(maxNrThreads, 1);
+
+			resBuffer = AggregateTiles(pdi, 0, pdi.nrTiles, maxNrThreads);
+		}
 		this->m_Acc1Func.AssignOutput(result->GetDataWrite(no_tile, dms_rw_mode::write_only_all), resBuffer);
 	}
 };
@@ -336,12 +362,36 @@ struct OperAccPartUniDirect : FuncOperAccPartUni<TAcc1Func, OperAccPartUniWithCF
 		: base_type(gr, std::move(acc1Func))
 	{}
 
-	void ProcessData(ResultType* result, ProcessDataInfo& pdi) const override
+	using result_container_t = typename sequence_traits<ResultValueType>::container_type;
+	using result_seq_t = typename sequence_traits<ResultValueType>::seq_t;
+	void AggregateTiles(result_seq_t resData, ProcessDataInfo& pdi, tile_id t, tile_id te, SizeT availableThreads) const
 	{
-		auto resData = result->GetDataWrite(no_tile, dms_rw_mode::write_only_all); // check what Init does
-		m_Acc1Func.Init(resData);
+		if (availableThreads > 1)
+		{
+			auto m = te - (te - t) / 2;
+			auto rt = availableThreads / 2;
+			auto futureSecondHalf = std::async(std::launch::async, [this, resData, &pdi, m, te, rt]()
+				-> result_container_t
+				{
+					result_container_t secondHalf(resData.size());
+					auto secondHalfRef = result_seq_t(&secondHalf);
+					m_Acc1Func.Init(secondHalfRef);
+					AggregateTiles(secondHalfRef, pdi, m, te, rt);
+					return secondHalf;
+				});
 
-		for (tile_id t = 0, tn = pdi.nrTiles; t!=tn; ++t)
+			AggregateTiles(resData, pdi, t, m, availableThreads - rt);
+			auto secondHalf = futureSecondHalf.get();
+			auto secondHalfBufferIterator = secondHalf.begin();
+
+			auto firstHalfBufferIterator = resData.begin(), firstHalfBufferEnd = resData.end();
+			for (; firstHalfBufferIterator != firstHalfBufferEnd; ++secondHalfBufferIterator, ++firstHalfBufferIterator)
+				this->m_Acc1Func.CombineRefs(*firstHalfBufferIterator, *secondHalfBufferIterator);
+
+			return;
+		}
+
+		for (; t < te; ++t)
 		{
 			auto arg1Data = pdi.values_fta[t]->GetTile(); pdi.values_fta[t] = nullptr;
 			OwningPtr<IndexGetter> indexGetter = IndexGetterCreator::Create(pdi.arg2A, pdi.part_fta[t]); pdi.part_fta[t] = nullptr;
@@ -349,15 +399,40 @@ struct OperAccPartUniDirect : FuncOperAccPartUni<TAcc1Func, OperAccPartUniWithCF
 			m_Acc1Func(resData, arg1Data, indexGetter);
 		}
 	}
+
+	void ProcessData(ResultType* result, ProcessDataInfo& pdi) const override
+	{
+		SizeT maxNrThreads = MaxAllowedConcurrentTreads();
+		if (pdi.resCount)
+			MakeMin(maxNrThreads, pdi.n / pdi.resCount);
+		MakeMax(maxNrThreads, 1);
+
+		auto resData = result->GetDataWrite(no_tile, dms_rw_mode::write_only_all);
+		m_Acc1Func.Init(resData);
+		AggregateTiles(resData, pdi, 0, pdi.nrTiles, maxNrThreads);
+	}
+
 private:
 	TAcc1Func m_Acc1Func;
 };
 
-template <class TAcc1Func> struct make_direct   { using type = OperAccPartUniDirect  <TAcc1Func>; };
-template <class TAcc1Func> struct make_buffered { using type = OperAccPartUniBuffered<TAcc1Func>; };
+struct make_direct   
+{ 
+	template <class TAcc1Func> struct apply {
+		using type = OperAccPartUniDirect<TAcc1Func>;
+	};
+};
 
-template <class TAcc1Func> using base_of = std::conditional_t< impl::has_dms_result_type<TAcc1Func>::value,	make_buffered<TAcc1Func>, make_direct<TAcc1Func> >;
-template <class TAcc1Func> using OperAccPartUniBest = typename base_of<TAcc1Func>::type;
+struct make_buffered
+{
+	template <class TAcc1Func> struct apply {
+		using type = OperAccPartUniBuffered<TAcc1Func>;
+	};
+};
+
+template <class TAcc1Func> const bool must_buffer_result = !std::is_same<dms_result_type_t<TAcc1Func>, typename TAcc1Func::assignee_type>::value;
+template <class TAcc1Func> using base_of_functor = std::conditional_t<must_buffer_result<TAcc1Func>, make_buffered, make_direct>;
+template <class TAcc1Func> using OperAccPartUniBest = typename base_of_functor<TAcc1Func>::template apply<TAcc1Func>::type;
 
 template <typename TAcc1Func>
 void CalcOperAccPartUniSer(DataWriteLock& res, const AbstrDataItem* arg1A, const AbstrDataItem* arg2A, TAcc1Func acc1Func = TAcc1Func())

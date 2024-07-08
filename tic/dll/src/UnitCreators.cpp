@@ -1,12 +1,12 @@
-// Copyright (C) 1998-2023 Object Vision b.v. 
+// Copyright (C) 1998-2024 Object Vision b.v. 
 // License: GNU GPL 3
 /////////////////////////////////////////////////////////////////////////////
 
-#include "ClcPCH.h"
+#include "TicPch.h"
 
 #if defined(CC_PRAGMAHDRSTOP)
 #pragma hdrstop
-#endif //defined(CC_PRAGMAHDRSTOP)
+#endif
 
 #include "UnitCreators.h"
 
@@ -19,23 +19,6 @@
 #include "Projection.h"
 #include "Unit.h"
 #include "UnitClass.h"
-
-// *****************************************************************************
-// shared OperGroups
-// *****************************************************************************
-
-CommonOperGroup
-cog_mul(token::mul),
-cog_div(token::div),
-cog_add(token::add), // used for addition and string concatenation
-cog_sub(token::sub),
-cog_bitand("bitand"),
-cog_bitor("bitor"),
-cog_bitxor("bitxor"),
-cog_pow("pow"),
-cog_eq(token::eq),
-cog_ne(token::ne),
-cog_substr("substr");
 
 // *****************************************************************************
 

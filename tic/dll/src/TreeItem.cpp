@@ -189,7 +189,7 @@ TIC_CALL void TreeItemWithMemReport()
 		auto di = AsDynamicDataItem(itemPtr);
 		if (!di)
 			continue;
-		auto ado = di->m_DataObject;
+		auto ado = di->m_DataObject.get();
 		if (!ado)
 			continue;
 		ReportDataItem(di);
@@ -225,7 +225,7 @@ TreeItemAdmLock::~TreeItemAdmLock()
 	if (!g_IsTerminating)
 		Report();
 
-	assert(!s_TreeItems->size());
+//	assert(!s_TreeItems->size());
 	s_TreeItems.reset();
 }
 
@@ -1577,6 +1577,8 @@ SharedTreeItem TreeItem::FindItem(CharPtrRange subItemNames) const
 	if (!parent)
 		return nullptr;
 	parent->UpdateMetaInfo();
+	if (parent->WasFailed(FR_MetaInfo))
+		parent->ThrowFail();
 	return parent->GetConstSubTreeItemByID(GetExistingTokenID(ids.second));
 }
 
@@ -2469,21 +2471,19 @@ void TreeItem::UpdateMetaInfoImpl2() const
 				m_UsingCache->GetNrUsings();
 		}
 		SetMetaInfoReady();
-		if (WasFailed(FR_MetaInfo))
-			return;
-
-		// Update Meta Info according to storage manager
-		const TreeItem* storageParent = GetStorageParent(false);
-		if (storageParent)
+		if (!WasFailed(FR_MetaInfo))
 		{
-			auto sm = storageParent->GetStorageManager();
-			sm->UpdateTree(storageParent, const_cast<TreeItem*>(this));
-		}
-		// validate units with refObject if it wasn't copied by the parent
 
-//		if	(mc_RefItem && !GetTSF(TSF_InheritedRef) && !mc_Expr.empty())
-//			Unify(mc_RefItem);
-//		NotifyStateChange(this, NC2_MetaReady);
+			// Update Meta Info according to storage manager
+			const TreeItem* storageParent = GetStorageParent(false);
+			if (storageParent)
+			{
+				auto sm = storageParent->GetStorageManager();
+				sm->UpdateTree(storageParent, const_cast<TreeItem*>(this));
+			}
+			// validate units with refObject if it wasn't copied by the parent
+		}
+		ProcessMainThreadOpers();
 	}
 	catch (...)
 	{
@@ -2499,8 +2499,6 @@ RTC_CALL bool IsProcessingMainThreadOpers();
 
 void TreeItem::UpdateMetaInfo() const
 {
-	MG_CHECK(!IsProcessingMainThreadOpers());
-
 	auto contextForReportingPurposes = TreeItemContextHandle(this, "UpdateMetaInfo");
 
 	assert(IsMetaThread());

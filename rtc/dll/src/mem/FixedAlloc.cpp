@@ -1,4 +1,4 @@
-// Copyright (C) 1998-2023 Object Vision b.v. 
+// Copyright (C) 1998-2024 Object Vision b.v. 
 // License: GNU GPL 3
 /////////////////////////////////////////////////////////////////////////////
 
@@ -754,8 +754,11 @@ void ReportFixedAllocStatus()
 	if (++reportThrottler > 17) // only report to log every 17th time
 	{
 		reportThrottler = 0;
-		auto reportStr = GetFixedAllocStatus(cumulBytes);
-		reportD(MsgCategory::memory, SeverityTypeID::ST_MajorTrace, reportStr.c_str());
+		PostMainThreadOper([reportStr = GetFixedAllocStatus(cumulBytes)]
+			{
+				reportD(MsgCategory::memory, SeverityTypeID::ST_MajorTrace, reportStr.c_str());
+			}
+		);
 	}
 }
 
@@ -778,6 +781,7 @@ void ReportFixedAllocFinalSummary()
 
 	reportD(MsgCategory::memory, SeverityTypeID::ST_MajorTrace, msgStr.c_str());
 
+	ProcessMainThreadOpers(); // pump it out
 }
 
 #endif //defined(MG_CACHE_ALLOC)
@@ -824,11 +828,11 @@ ElemAllocComponent::~ElemAllocComponent()
 void PostReporting()
 {
 	s_ReportingRequestPending = true;
-	AddMainThreadOper([] {
-		if (s_ReportingRequestPending)
-			ReportFixedAllocStatus();
+	SendMainThreadOper([] 
+		{
+			if (s_ReportingRequestPending)
+				ReportFixedAllocStatus();
 		}
-	,	true
 	);
 }
 

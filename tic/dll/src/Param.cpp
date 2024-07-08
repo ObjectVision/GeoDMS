@@ -111,7 +111,7 @@ TIC_CALL void DMS_CONV DMS_NumericParam_SetValueAsFloat64(AbstrParam* self, Floa
 Int32 NumericParam_GetValueAsInt32(const AbstrParam* self)
 {
 	FencedInterestRetainContext irc("NumericParam_GetValueAsInt32");
-	InterestRetainContextBase::Add(self);
+	irc.Add(self);
 	PreparedDataReadLock dlr(self, "NumericParam_GetValueAsInt32");
 
 	dms_assert(self->GetAbstrDomainUnit()->GetCount() == 1);
