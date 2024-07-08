@@ -154,9 +154,10 @@ protected:
 						}
 					}
 				);
-				reportF(SeverityTypeID::ST_MajorTrace, "overlay_polygon at %d tiles of first argument x %d tiles of second argument resulted in %d matches"
+				reportF(SeverityTypeID::ST_MajorTrace, "%s at %d tiles of first argument x %d/%d tiles of second argument resulted in %d matches"
+					, GetGroup()->GetNameStr()
 					, domain1Unit->GetNrTiles()
-					, ue
+					, u, ue
 					, intersectCount
 				);
 			}
