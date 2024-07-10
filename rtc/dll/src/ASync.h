@@ -23,7 +23,7 @@ auto throttled_async(Functor f) -> std::future<decltype(f())>
 			return f();
 		});
 	throttle_counter()--;
-	return std::async(std::launch::deferred, f);
+	return std::async(std::launch::deferred, [result = f()] { return result; }); // don't be lazy and don't trash.
 }
 
 #endif // __RTC_ASYNC_H

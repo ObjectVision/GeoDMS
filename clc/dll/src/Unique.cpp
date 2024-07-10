@@ -134,7 +134,7 @@ std::vector<V> GetUniqueWallValues(const DataArray<V>* ado, tile_id t, tile_id n
 		});
 
 	auto secondHalf = GetUniqueWallValues<V>(ado, t + m, nrTiles - m);
-	return MergeToLeft<V>(firstHalf.get(), secondHalf);
+	return MergeToLeft<V>(firstHalf.get(), std::move(secondHalf));
 }
 
 
