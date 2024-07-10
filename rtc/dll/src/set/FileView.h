@@ -188,15 +188,24 @@ struct rw_file_view : file_view_base<T, FileViewHandle>
 //		m_FileSize = size_calculator<T>().nr_bytes(newNrElems);
 		m_NrElems += newNrElems;
 	}
+
 	iterator       begin()       { return iter_creator<T>()( DataBegin(), 0 ); }
 	iterator       end()         { return iter_creator<T>()( DataBegin(), m_NrElems); }
 	const_iterator begin() const { return iter_creator<T>()( DataBegin(), 0 ); }
 	const_iterator end()   const { return iter_creator<T>()( DataBegin(), m_NrElems); }
+
+	      T& operator[](SizeT i)       { return *(begin() + i); }
+	const T& operator[](SizeT i) const { return *(begin() + i); }
 };
 
-struct mempage_file_view : rw_file_view < IndexRange<SizeT> >
+struct mempage_file_view : rw_file_view < FileChunckSpec >
 {
 	using rw_file_view < IndexRange<SizeT> >::rw_file_view; // inherit ctors
+};
+
+struct const_mempage_file_view : const_file_view < FileChunckSpec >
+{
+	using const_file_view < IndexRange<SizeT> >::const_file_view; // inherit ctors
 };
 
 #endif //!defined(__RTC_SET_FILEVIEW_H)

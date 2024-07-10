@@ -281,8 +281,14 @@ SizeT MinimalNrMemPages(const AbstrTileRangeData* trd)
 {
 	assert(trd);
 	using seq_t = typename sequence_traits<V>::polymorph_vec_t::seq_t;
-	auto log2BytesPerElem = mpf::log2_v<sizeof IndexRange<SizeT>>;
-	return trd->GetNrMemPages(mpf::log2_v<sizeof seq_t>) + NrMemPages(trd->GetNrTiles() << log2BytesPerElem);
+	return trd->GetNrMemPages(mpf::log2_v<sizeof seq_t>);
+}
+
+SizeT NrAllocTableMemPages(const AbstrTileRangeData* trd)
+{
+	auto nrTiles = trd->GetNrTiles();
+	auto tileFileChuncSize = SizeT(nrTiles) * sizeof FileChunckSpec;
+	return NrMemPages(tileFileChuncSize);
 }
 
 template <fixed_elem V>
@@ -302,6 +308,13 @@ SizeT MinimalFileSize(const AbstrTileRangeData* trd)
 		rawSize += trd->GetTileSize(tn - 1) * sizeof(V);
 	}
 	return rawSize;
+}
+
+template <sequence_or_string V>
+SizeT MinimalFileSize(const AbstrTileRangeData* trd)
+{
+	using seq_t = IndexRange<SizeT>; // typename sequence_traits<V>::polymorph_vec_t::seq_t;
+	return MinimalFileSize<seq_t>(trd);
 }
 
 template <typename V>
@@ -339,8 +352,8 @@ FileTileArray<V>::FileTileArray(const AbstrTileRangeData* trd, SharedStr filenam
 				seqs[t].ResetAllocator(new mappable_const_sequence<elem_of_t<V>>(cmfh, t, trd->GetTileSize(t)));
 			else
 			{
-				auto ms_index = std::make_unique<mappable_const_sequence<IndexRange<SizeT>>>(cmfh_sequences, t, trd->GetTileSize(t));
-				auto ms_values = std::make_unique<mappable_const_sequence<elem_of_t<V>> >(cmfh, t, trd->GetTileSize(t));
+				auto ms_index = std::make_unique<mappable_const_sequence<IndexRange<SizeT>>>(cmfh, t, trd->GetTileSize(t));
+				auto ms_values = std::make_unique<mappable_const_sequence<elem_of_t<V>> >(cmfh_sequences, t, trd->GetTileSize(t));
 				seqs[t].ResetAllocators(ms_index.release(), ms_values.release());
 			}
 			MGD_CHECKDATA(!seqs[t].IsLocked());
@@ -348,17 +361,16 @@ FileTileArray<V>::FileTileArray(const AbstrTileRangeData* trd, SharedStr filenam
 	}
 	else
 	{
-		std::shared_ptr<MappedFileHandle> 
-			mfh = std::make_shared<MappedFileHandle>()
-		,	mfh_sequences;
-
+		std::shared_ptr<MappedFileHandle> mfh = std::make_shared<MappedFileHandle>();
+		std::shared_ptr<MappedFileHandle> mfh_sequences;
 		mfh->OpenRw(fullFileName, sfwa, MinimalFileSize<V>(trd), rwMode, isTmp);
 
 		if constexpr (!has_fixed_elem_size_v<V>)
 		{
 			mfh_sequences = std::make_shared<MappedFileHandle>();
+
 			mfh_sequences->OpenRw(fullFileName+".seq", sfwa, MinimalNrMemPages<V>(trd) << GetLog2AllocationGrannularity(), rwMode, isTmp);
-			mfh->m_MemPageAllocTable.reset( new mempage_file_view(mfh, trd->GetNrTiles(), 0, trd->GetNrTiles() * sizeof(IndexRange<SizeT>) ) );
+			mfh_sequences->m_MemPageAllocTable.reset( new mempage_file_view(mfh_sequences, trd->GetNrTiles()) );
 		}
 		for (tile_id t = 0; t != tn; ++t)
 		{
@@ -366,8 +378,8 @@ FileTileArray<V>::FileTileArray(const AbstrTileRangeData* trd, SharedStr filenam
 				seqs[t].ResetAllocator(new mappable_sequence<elem_of_t<V>>(mfh, t, trd->GetTileSize(t)));
 			else
 			{
-				auto ms_index  = std::make_unique<mappable_sequence<IndexRange<SizeT>>>(mfh_sequences, t, trd->GetTileSize(t));
-				auto ms_values = std::make_unique<mappable_sequence<elem_of_t<V>>>(mfh, t, trd->GetTileSize(t));
+				auto ms_index  = std::make_unique<mappable_sequence<IndexRange<SizeT>>>(mfh, t, trd->GetTileSize(t));
+				auto ms_values = std::make_unique<mappable_sequence<elem_of_t<V>>>(mfh_sequences, t, trd->GetTileSize(t));
 				seqs[t].ResetAllocators(ms_index.release(), ms_values.release());
 			}
 

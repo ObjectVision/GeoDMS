@@ -36,10 +36,18 @@ public:
 
 	void reserve(alloc_t& seq, SizeT newSize MG_DEBUG_ALLOCATOR_SRC_ARG) override
 	{ 
+		// TODO: look in memPageAllocTable for sufficiently large holes.
 		Check(seq); 
 		m_FileView.reserve(newSize); 
 		GetSeq(seq); 
 		Check(seq); 
+		if (auto mappedFile = m_FileView.GetMappedFile())
+			if (auto memPageAllocTable = mappedFile->m_MemPageAllocTable.get())
+			{
+				tile_id t = this->m_TileId;
+				assert(t < memPageAllocTable->filed_size());
+				(*memPageAllocTable)[t] = m_FileView.GetViewSpec();
+			}
 	}
 	void resizeSP(alloc_t& seq, SizeT newSize, bool mustClear MG_DEBUG_ALLOCATOR_SRC_ARG) override
 	{ 

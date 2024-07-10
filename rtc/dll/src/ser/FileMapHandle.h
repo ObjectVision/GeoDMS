@@ -1,4 +1,4 @@
-// Copyright (C) 1998-2023 Object Vision b.v. 
+// Copyright (C) 1998-2024 Object Vision b.v. 
 // License: GNU GPL 3
 /////////////////////////////////////////////////////////////////////////////
 
@@ -10,7 +10,9 @@
 #define __RTC_SER_FILEMAPHANDLE_H
 
 #include "cpc/Types.h"
+#include "geo/IndexRange.h"
 #include "ser/FileCreationMode.h"
+
 struct SafeFileWriterArray;
 
 // the following define should clean-up resources of Closed FileMap Handles by Closing the file
@@ -60,7 +62,7 @@ private:
 
 //  -----------------------------------------------------------------------
 
-using FileChunckSpec = std::pair<dms::filesize_t, dms::filesize_t>;
+using FileChunckSpec = IndexRange<dms::filesize_t>;
 
 struct FileHandle
 {
@@ -161,6 +163,7 @@ struct FileViewHandle
 	CharPtr DataBegin() const { assert(IsUsable()); return reinterpret_cast<CharPtr>(m_ViewData); }
 	CharPtr DataEnd() const { return DataBegin() + GetViewSize(); }
 
+	auto            GetViewSpec() const { return m_ViewSpec; }
 	dms::filesize_t GetViewOffset() const { return m_ViewSpec.first; }
 	dms::filesize_t GetViewSize() const { return m_ViewSpec.second; }
 
