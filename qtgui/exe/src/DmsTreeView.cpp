@@ -397,6 +397,8 @@ void TreeItemDelegate::paint(QPainter* painter, const QStyleOptionViewItem& opti
 		if (is_read_only && ti->HasCalculator())
 			return;
 
+		// from here on we have to draw the storage icon, but which color and opacity ?
+
 		QFontMetrics fm(QApplication::font());
 		int offset_item_text = fm.horizontalAdvance(index.data(Qt::DisplayRole).toString());
 
@@ -417,7 +419,11 @@ void TreeItemDelegate::paint(QPainter* painter, const QStyleOptionViewItem& opti
 		// draw storage icon
 		if (ti->IsDataFailed())
 			painter->setPen(QColor(255,0,0,255));
-		painter->drawText(QPoint(offset, rect.center().y() + 5), is_read_only ? "\uEC15":"\uF0B0");
+
+		static auto dbIcon = QString("\uEC15");
+		static auto disketteIcon = QString("\uF0B0");
+
+		painter->drawText(QPoint(offset, rect.center().y() + 5), is_read_only ?  dbIcon : disketteIcon);
 	}
 	catch (...) {
 //		catchException(false);	// doesn't do anything and return values isn't used; reporting is not desired as this is a paint method
