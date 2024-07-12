@@ -287,34 +287,48 @@ SizeT MinimalNrMemPages(const AbstrTileRangeData* trd)
 SizeT NrAllocTableMemPages(const AbstrTileRangeData* trd)
 {
 	auto nrTiles = trd->GetNrTiles();
-	auto tileFileChuncSize = SizeT(nrTiles) * sizeof FileChunckSpec;
+	auto tileFileChuncSize = safe_size_n<sizeof FileChunckSpec>(nrTiles);
 	return NrMemPages(tileFileChuncSize);
 }
 
+// the .dat file size (not the sequence file) has mappable tile data, 
+// thus each tile starts at a new mapping boundary, but the last tile can end directly after the last byte of its last element.
+
 template <fixed_elem V>
-SizeT MinimalFileSize(const AbstrTileRangeData* trd)
+SizeT MinimalDatFileSize(const AbstrTileRangeData* trd)
 {
 	tile_id tn = trd->GetNrTiles();
 	SizeT rawSize = 0;
 	if (tn > 1)
 	{
-		constexpr auto log2BytesPerElem = mpf::log2_v<sizeof(V)>;
-		auto tileSizeInBytes = SizeT(trd->GetTileSize(tn - 1)) << log2BytesPerElem;
-		rawSize = MinimalNrMemPages<V>(trd) - NrMemPages(tileSizeInBytes);
-		rawSize <<= GetLog2AllocationGrannularity();
+		// first deternmine pagesize * no of pages for the mapped tile fixed size elements for tiles 0..tn-2
+		auto lastTileSizeInBytes = safe_size_n<sizeof(V)>(trd->GetTileSize(tn - 1));
+		rawSize = MinimalNrMemPages<V>(trd) - NrMemPages(lastTileSizeInBytes);
+		rawSize <<= GetLog2AllocationGrannularity(); 
 	}
 	if (tn > 0)
 	{
-		rawSize += trd->GetTileSize(tn - 1) * sizeof(V);
+		// now add the size of last tile (= tn-1) can be smaller than page size
+		rawSize += safe_size_n<sizeof(V)>(trd->GetTileSize(tn - 1)); 
 	}
 	return rawSize;
 }
 
 template <sequence_or_string V>
-SizeT MinimalFileSize(const AbstrTileRangeData* trd)
+SizeT MinimalDatFileSize(const AbstrTileRangeData* trd)
 {
 	using seq_t = IndexRange<SizeT>; // typename sequence_traits<V>::polymorph_vec_t::seq_t;
-	return MinimalFileSize<seq_t>(trd);
+	return MinimalDatFileSize<seq_t>(trd);
+}
+
+template <sequence_or_string V>
+SizeT MinimalSeqFileSize(const AbstrTileRangeData* trd)
+{
+	tile_id tn = trd->GetNrTiles();
+	if (tn <= 1)
+		return 0;
+	auto memPageAllocTableSize = safe_size_n<sizeof(FileChunckSpec)>(tn);
+	return NrMemPages(memPageAllocTableSize) << GetLog2AllocationGrannularity();
 }
 
 template <typename V>
@@ -343,8 +357,13 @@ FileTileArray<V>::FileTileArray(const AbstrTileRangeData* trd, SharedStr filenam
 		,	cmfh_sequences;
 		if constexpr (!has_fixed_elem_size_v<V>)
 		{
-			cmfh->m_MemPageAllocTable.reset( new mempage_file_view(cmfh, trd->GetNrTiles(), 0, trd->GetNrTiles() * sizeof(IndexRange<SizeT>)) );
 			cmfh_sequences = std::make_shared<ConstMappedFileHandle>(fullFileName + ".seq", sfwa);
+			if (trd->GetNrTiles() > 1)
+			{
+				cmfh_sequences->m_MemPageAllocTable.reset(
+					new mempage_file_view(cmfh_sequences, trd->GetNrTiles(), 0)
+				);
+			}
 		}
 		for (tile_id t = 0; t != tn; ++t)
 		{
@@ -363,14 +382,19 @@ FileTileArray<V>::FileTileArray(const AbstrTileRangeData* trd, SharedStr filenam
 	{
 		std::shared_ptr<MappedFileHandle> mfh = std::make_shared<MappedFileHandle>();
 		std::shared_ptr<MappedFileHandle> mfh_sequences;
-		mfh->OpenRw(fullFileName, sfwa, MinimalFileSize<V>(trd), rwMode, isTmp);
+		mfh->OpenRw(fullFileName, sfwa, MinimalDatFileSize<V>(trd), rwMode, isTmp);
 
 		if constexpr (!has_fixed_elem_size_v<V>)
 		{
 			mfh_sequences = std::make_shared<MappedFileHandle>();
 
-			mfh_sequences->OpenRw(fullFileName+".seq", sfwa, MinimalNrMemPages<V>(trd) << GetLog2AllocationGrannularity(), rwMode, isTmp);
-			mfh_sequences->m_MemPageAllocTable.reset( new mempage_file_view(mfh_sequences, trd->GetNrTiles()) );
+			mfh_sequences->OpenRw(fullFileName+".seq", sfwa, MinimalSeqFileSize<V>(trd), rwMode, isTmp);
+			if (trd->GetNrTiles() > 1)
+			{
+				mfh_sequences->m_MemPageAllocTable.reset(
+					new mempage_file_view(mfh_sequences, trd->GetNrTiles(), 0)
+				);
+			}
 		}
 		for (tile_id t = 0; t != tn; ++t)
 		{

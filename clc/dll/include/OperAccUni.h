@@ -9,9 +9,9 @@
 #if !defined(__CLC_OPERACCUNI_H)
 #define __CLC_OPERACCUNI_H
 
-#include "UnitClass.h"
+#include "ASync.h"
 
-#include <future>
+#include "UnitClass.h"
 
 #include "AggrUniStruct.h"
 #include "AggrUniStructString.h"
@@ -20,7 +20,6 @@
 #include "OperAcc.h"
 #include "TreeItemClass.h"
 #include "IndexGetterCreator.h"
-
 
 // *****************************************************************************
 //											AbstrOperAccTotUni
@@ -306,7 +305,7 @@ struct OperAccPartUniBuffered : FuncOperAccPartUni<TAcc1Func, OperAccPartUniWith
 		{
 			auto m = te - (te - t) / 2;
 			auto rt = availableThreads / 2;
-			auto futureSecondHalfBuffer = std::async(std::launch::async, [this, &pdi, m, te, rt]()
+			auto futureSecondHalfBuffer = throttled_async([this, &pdi, m, te, rt]()
 				{
 					return AggregateTiles(pdi, m, te, rt);
 				});
@@ -370,7 +369,7 @@ struct OperAccPartUniDirect : FuncOperAccPartUni<TAcc1Func, OperAccPartUniWithCF
 		{
 			auto m = te - (te - t) / 2;
 			auto rt = availableThreads / 2;
-			auto futureSecondHalf = std::async(std::launch::async, [this, resData, &pdi, m, te, rt]()
+			auto futureSecondHalf = throttled_async([this, resData, &pdi, m, te, rt]()
 				-> result_container_t
 				{
 					result_container_t secondHalf(resData.size());

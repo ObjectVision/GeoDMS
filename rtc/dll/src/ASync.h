@@ -1,4 +1,10 @@
+// Copyright (C) 1998-2024 Object Vision b.v. 
+// License: GNU GPL 3
+/////////////////////////////////////////////////////////////////////////////
+
+#if defined(_MSC_VER)
 #pragma once
+#endif
 
 #if !defined(__RTC_ASYNC_H)
 #define __RTC_ASYNC_H
@@ -23,7 +29,10 @@ auto throttled_async(Functor f) -> std::future<decltype(f())>
 			return f();
 		});
 	throttle_counter()--;
-	return std::async(std::launch::deferred, [result = f()] { return result; }); // don't be lazy and don't trash.
+
+	std::promise<decltype(f())> p;
+	p.set_value(f()); // don't be lazy and don't trash.
+	return p.get_future();
 }
 
 #endif // __RTC_ASYNC_H

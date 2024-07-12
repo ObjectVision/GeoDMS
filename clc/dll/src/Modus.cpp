@@ -200,7 +200,7 @@ auto GetWallCountsAsArray(WallCountsAsArrayInfo<V>& info, tile_id t, tile_id te,
 	{
 		auto m = te - (te - t) / 2;
 		auto rt = availableThreads / 2;
-		auto futureSecondHalfValue = std::async(std::launch::async, [m, te, rt, &info]()
+		auto futureSecondHalfValue = throttled_async([m, te, rt, &info]()
 			{
 				return GetWallCountsAsArray<V>(info, m, te, rt);
 			});
