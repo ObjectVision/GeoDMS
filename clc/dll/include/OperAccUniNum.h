@@ -40,7 +40,7 @@ struct OperAccTotUniNum : OperAccTotUni<TAcc1Func>
 		{
 			auto m = te - (te - t) / 2;
 			auto rt = availableThreads / 2;
-			auto futureSecondHalfValue = std::async(std::launch::async, [this, values_fta, m, te, rt]()
+			auto futureSecondHalfValue = throttled_async([this, values_fta, m, te, rt]()
 				{
 					return AggregateTiles(values_fta, m, te, rt);
 				});

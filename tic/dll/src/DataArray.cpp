@@ -935,21 +935,47 @@ auto CreateFileTileArray(const AbstrDataItem* adi, const SharedObj* abstrValuesR
 	SharedPtr<const AbstrTileRangeData> currTRD = AsUnit(adu->GetCurrRangeItem())->GetTiledRangeData();
 	assert(currTRD);
 
-	std::unique_ptr<AbstrDataObject> resultHolder;
-	if (adi->GetValueComposition() != ValueComposition::Single 
-		|| adi->GetAbstrValuesUnit()->GetDynamicClass() == Unit<SharedStr>::GetStaticClass()
-		|| adi->GetAbstrValuesUnit()->GetValueType()->IsSubByteElem()
-		)
-		return CreateAbstrHeapTileFunctor(adi, abstrValuesRangeData, rwMode == dms_rw_mode::write_only_mustzero);
-
 	auto avu = AsUnit(adi->GetAbstrValuesUnit()->GetCurrRangeItem());
-	visit<typelists::sequence_fields>(avu,
+	std::unique_ptr<AbstrDataObject> resultHolder;
+	if (adi->GetValueComposition() != ValueComposition::Single)
+		visit<typelists::sequence_fields>(avu,
 			[&resultHolder, adi, currTRD, rwMode, filenameBase, isTmp, sfwa] <typename value_type> (const Unit<value_type>*valuesUnitPtr)
-		{
-			auto newTileFunctor = std::make_unique<FileTileArray<value_type>>(currTRD, filenameBase, rwMode, isTmp, sfwa);
-			newTileFunctor->InitValueRangeData(get_range_ptr_of_valuesunit(valuesUnitPtr));
-			resultHolder.reset(newTileFunctor.release());
-		}
+			{
+				using sequence_t = sequence_traits<value_type>::container_type;
+
+				auto newTileFunctor = std::make_unique<FileTileArray<sequence_t>>(currTRD, filenameBase, rwMode, isTmp, sfwa);
+				newTileFunctor->InitValueRangeData(get_range_ptr_of_valuesunit(valuesUnitPtr));
+				resultHolder.reset(newTileFunctor.release());
+			}
+		);
+
+	else if (avu->GetDynamicClass() == Unit<SharedStr>::GetStaticClass())
+		visit<typelists::strings>(avu,
+			[&resultHolder, adi, currTRD, rwMode, filenameBase, isTmp, sfwa] <typename value_type> (const Unit<value_type>*valuesUnitPtr)
+			{
+				auto newTileFunctor = std::make_unique<FileTileArray<value_type>>(currTRD, filenameBase, rwMode, isTmp, sfwa);
+				newTileFunctor->InitValueRangeData(get_range_ptr_of_valuesunit(valuesUnitPtr));
+				resultHolder.reset(newTileFunctor.release());
+			}
+		);
+
+	else if (avu->GetValueType()->IsSubByteElem())
+		visit<typelists::bints>(avu,
+			[&resultHolder, adi, currTRD, rwMode, filenameBase, isTmp, sfwa] <typename value_type> (const Unit<value_type>*valuesUnitPtr)
+			{
+				auto newTileFunctor = std::make_unique<FileTileArray<value_type>>(currTRD, filenameBase, rwMode, isTmp, sfwa);
+				newTileFunctor->InitValueRangeData(get_range_ptr_of_valuesunit(valuesUnitPtr));
+				resultHolder.reset(newTileFunctor.release());
+			}
+		);
+	else
+		visit<typelists::sequence_fields>(avu,
+			[&resultHolder, adi, currTRD, rwMode, filenameBase, isTmp, sfwa] <typename value_type> (const Unit<value_type>*valuesUnitPtr)
+			{
+				auto newTileFunctor = std::make_unique<FileTileArray<value_type>>(currTRD, filenameBase, rwMode, isTmp, sfwa);
+				newTileFunctor->InitValueRangeData(get_range_ptr_of_valuesunit(valuesUnitPtr));
+				resultHolder.reset(newTileFunctor.release());
+			}
 		);
 	return resultHolder;
 }

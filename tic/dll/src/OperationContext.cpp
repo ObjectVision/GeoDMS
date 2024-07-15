@@ -303,6 +303,7 @@ garbage_t OperationContext::disconnect()
 }
 
 UInt32 s_RunOperationContextsCount = 0;
+UInt32 s_CurrOperContextGroupNumber = 0;
 
 garbage_t runOperationContexts()
 {
@@ -316,10 +317,18 @@ garbage_t runOperationContexts()
 
 	while (!s_ScheduledContextsMap.empty())
 	{
+		auto nextOperContextGroupNumber = s_ScheduledContextsMap.begin()->first;
+		if (nextOperContextGroupNumber > s_CurrOperContextGroupNumber)
+		{
+			if (s_NrRunningOperations)
+				break; // try again next time
+			s_CurrOperContextGroupNumber = nextOperContextGroupNumber;
+			NotifyCurrentTargetCount();
+		}
+
 		auto& scheduledContexts = s_ScheduledContextsMap.begin()->second;
 
-		auto lastProcessedContext = scheduledContexts.begin();
-		auto currContext = lastProcessedContext;
+		auto currContext = scheduledContexts.begin();
 		bool isLowOnFreeRamTested = false;
 
 		for (; s_NrRunningOperations < s_nrVCPUs && currContext != scheduledContexts.end(); ++currContext)
@@ -361,16 +370,12 @@ garbage_t runOperationContexts()
 				}
 			}
 		}
-		scheduledContexts.erase(lastProcessedContext, currContext);
+		scheduledContexts.erase(scheduledContexts.begin(), currContext);
 		if (!scheduledContexts.empty())
 			break;
 
 		s_ScheduledContextsMap.erase(s_ScheduledContextsMap.begin());
 
-		if (s_NrRunningOperations)
-			break;
-
-		NotifyCurrentTargetCount();
 	}
 
 	if (!s_NrRunningOperations)
