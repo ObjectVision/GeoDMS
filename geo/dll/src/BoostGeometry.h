@@ -259,7 +259,7 @@ void assign_multi_polygon(bg_multi_polygon_t& resMP, SA_ConstReference<DmsPointT
 			if (ri != rb && !helperPolygon.outer().empty())
 				resMP.emplace_back(helperPolygon);
 			helperPolygon.clear(); assert(helperPolygon.outer().empty() && helperPolygon.inners().empty());
-			helperPolygon.outer() = bg_ring_t(helperRing.begin(), helperRing.end());
+			helperPolygon.outer().swap(helperRing);
 			outerOrientation = currOrientation;
 
 			// skip outer rings that intersect with a previous outer ring if innerRings are skipped

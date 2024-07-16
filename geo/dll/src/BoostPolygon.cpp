@@ -273,7 +273,8 @@ public:
 
 		leveled_critical_section resLocalAdditionSection(item_level_type(0), ord_level_type::SpecificOperator, "Polygon.LocalAdditionSection");
 
-		parallel_for(SizeT(0), poly1Array.size(), [p1Offset, p2Offset, &poly1Array, &poly2Array, spIndexPtr, resTileData, &resLocalAdditionSection](SizeT i)->void
+		// avoid overhead of parallel_for context switch admin 
+		serial_for(SizeT(0), poly1Array.size(), [p1Offset, p2Offset, &poly1Array, &poly2Array, spIndexPtr, resTileData, &resLocalAdditionSection](SizeT i)->void
 		{
 			auto polyPtr = poly1Array.begin()+i;
 			SizeT p1_rel = p1Offset + i;
