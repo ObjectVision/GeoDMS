@@ -12,6 +12,7 @@
 #include "RtcTypeLists.h"
 #include "RtcGeneratedVersion.h"
 #include "VersionComponent.h"
+#include "ser/SequenceArrayStream.h"
 
 #include "mci/ValueClass.h"
 #include "mci/ValueWrap.h"
@@ -259,7 +260,7 @@ void assign_multi_polygon(bg_multi_polygon_t& resMP, SA_ConstReference<DmsPointT
 			if (ri != rb && !helperPolygon.outer().empty())
 				resMP.emplace_back(helperPolygon);
 			helperPolygon.clear(); assert(helperPolygon.outer().empty() && helperPolygon.inners().empty());
-			helperPolygon.outer().swap(helperRing);
+			helperPolygon.outer() = bg_ring_t(helperRing.begin(), helperRing.end());
 			outerOrientation = currOrientation;
 
 			// skip outer rings that intersect with a previous outer ring if innerRings are skipped
@@ -277,10 +278,17 @@ void assign_multi_polygon(bg_multi_polygon_t& resMP, SA_ConstReference<DmsPointT
 							resMP.erase(currPolygon);
 							continue;
 						}
-						MG_CHECK(boost::geometry::within(helperPolygon.outer(), currPolygon->outer()));
-						helperPolygon.clear();
-						assert(helperPolygon.outer().empty() && helperPolygon.inners().empty());
-						break;
+						if (boost::geometry::within(helperPolygon.outer(), currPolygon->outer()))
+						{
+							helperPolygon.clear();
+							assert(helperPolygon.outer().empty() && helperPolygon.inners().empty());
+							break;
+						}
+						else
+						{
+//							// TOTO: Check dat er helemaal geen overlap is.
+//							throwDmsErrF("OuterPolygon: unexpected overlap of two rings in %s", AsString(polyRef).c_str());
+						}
 					}
 					polygonIndex++;
 				}
