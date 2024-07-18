@@ -25,6 +25,11 @@ struct is_dms_sequence<SA_Reference<P>> : std::true_type {};
 template <typename P>
 struct is_dms_sequence<std::vector<P>> : std::true_type {};
 
+template <typename P>
+constexpr bool is_dms_sequence_v = is_dms_sequence<P>::value;
+
+template <typename P>
+concept dms_sequence = is_dms_sequence_v<P>;
 
 template <typename T> struct sequence_obj;
 template <typename T> struct OwningPtrSizedArray;

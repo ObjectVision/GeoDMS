@@ -8,6 +8,8 @@
 #pragma hdrstop
 #endif
 
+#include <numbers>
+
 #include "dbg/SeverityType.h"
 #include "geo/BoostPolygon.h"
 #include "geo/SpatialIndex.h"
@@ -31,6 +33,7 @@
 #include <ipolygon/polygon.hpp>
 
 #include "BoostGeometry.h"
+
 
 enum class geometry_library { boost_polygon, boost_geometry };
 
@@ -294,7 +297,7 @@ public:
 						continue;
 
 					res_data_elem_type back;
-					dms_assign(back.m_Geometry, geometry, cleanResources);
+					dms_assign(back.m_Geometry, geometry);
 
 
 					back.m_OrgRel.first = p1_rel;
@@ -436,16 +439,39 @@ bool operator & (PolygonFlags a, PolygonFlags b)
 	return static_cast<int>(a) & static_cast<int>(b);
 }
 
-template <typename PolygonType, typename polygon_set_data_type>
+
+template <typename C, PolygonSet GT2>
+void dms_insert(gtl::polygon_set_data<C>& lvalue, const GT2& rvalue)
+{
+	lvalue.insert(
+		gtl::polygon_set_traits<GT2>::begin(rvalue),
+		gtl::polygon_set_traits<GT2>::end(rvalue)
+	);
+}
+
+template <PolygonSet GT2>
+void dms_insert(bg_multi_polygon_t& lvalue, GT2&& rvalue)
+{
+	bg_polygon_t helperPolygon;
+	bg_ring_t helperRing;
+	bg_multi_polygon_t resMP;
+
+	assign_multi_polygon(resMP, rvalue, true, helperPolygon, helperRing);
+	boost::geometry::union_(lvalue, resMP, lvalue);
+}
+
+
+template <typename P, typename MP>
 void UnionPolygon(ResourceArrayHandle& r, SizeT n, const AbstrDataItem* polyDataA, const AbstrDataItem* permDataA, tile_id t)
 {
 #if defined(MG_DEBUG_POLYGON)
 	DBG_START("UnionPolygon", "", true);
 	DBG_TRACE(("UnionPolygonTotal %d/%d", t,  polyDataA->GetAbstrDomainUnit()->GetNrTiles()));
 #endif
+	using SequenceType = typename sequence_traits<P>::container_type;
 
-	const DataArray<PolygonType>* polyData = const_array_cast<PolygonType>(polyDataA);
-	dms_assert(polyData); 
+	auto polyData = const_array_cast<SequenceType>(polyDataA);
+	assert(polyData);
 
 	OwningPtr<IndexGetter> vg;
 
@@ -455,19 +481,20 @@ void UnionPolygon(ResourceArrayHandle& r, SizeT n, const AbstrDataItem* polyData
 	auto polyArray = polyData->GetTile(t);
 
 	if (!r)
-		r.reset( ResourceArray<polygon_set_data_type>::Create(n) );
-	ResourceArray<polygon_set_data_type>* geometriesPtr = debug_cast<ResourceArray<polygon_set_data_type>*>(r.get_ptr());
+		r.reset( ResourceArray<MP>::Create(n) );
+	ResourceArray<MP>* geometriesPtr = debug_cast<ResourceArray<MP>*>(r.get_ptr());
 	dms_assert(geometriesPtr->Size() == n);
 
 	PolygonFlags unionPermState =
 		(permDataA) ? PolygonFlags::F_DoPartUnion :
 		(n==1)      ? PolygonFlags::F_DoUnion     : PolygonFlags::none;
 	
-	typename polygon_set_data_type::clean_resources cleanResources;
+//	typename polygon_set_data_type::clean_resources cleanResources;
 
+	// insert each multi-polygon in polyArray in geometryPtr[part_rel] 
 	for (auto p1=polyArray.begin(), pb=p1, e1=polyArray.end(); p1!=e1; ++p1)
 	{
-		polygon_set_data_type* geometryPtr = geometriesPtr->m_Data;
+		MP* geometryPtr = geometriesPtr->m_Data;
 		if (unionPermState != PolygonFlags::F_DoUnion)
 		{
 			SizeT i = p1-pb;
@@ -489,9 +516,10 @@ void UnionPolygon(ResourceArrayHandle& r, SizeT n, const AbstrDataItem* polyData
 #if defined(MG_DEBUG_POLYGON)
 		DBG_TRACE(("index %d", p1 - pb));
 #endif
-		dms_insert(*geometryPtr, *p1, cleanResources);
+		dms_insert(*geometryPtr, *p1);
 	}
 }
+
 namespace std {
     inline UInt32 abs(UInt32 _X)
     {
@@ -705,122 +733,128 @@ protected:
 	}
 	virtual void Calculate(ResourceArrayHandle& r, SizeT domainCount, const AbstrDataItem* polyDataA, const AbstrDataItem* partitionDataA, tile_id t) const=0;
 	virtual void StoreImpl(AbstrUnit* resUnit, AbstrDataItem* resGeometry, DataWriteHandle& resLock, AbstrDataItem* resNrOrgEntity, tile_id t, ResourceArrayHandle& r) const=0;
-	virtual void ProcessNumOperImpl (ResourceArrayHandle& r, const AbstrDataItem* argNum, tile_id numT, PolygonFlags f) const = 0;
+	virtual void ProcessNumOperImpl(ResourceArrayHandle& r, const AbstrDataItem* argNum, tile_id numT, PolygonFlags f) const {}
 };
 
 template <typename P>
-class PolygonOperator : public AbstrPolygonOperator
+void SetKernel(typename bp_union_poly_traits<P>::ring_type& kernel, Float64 value, PolygonFlags f)
 {
-	typedef union_poly_traits<P> traits_t;
+	using traits_t = bp_union_poly_traits<P>;
 
-	typedef typename traits_t::coordinate_type ScalarType;
-	typedef typename traits_t::PointType       PointType;
-	typedef typename traits_t::PolygonType     PolygonType;
-	typedef typename Float64                   NumType;
+	if (f <= PolygonFlags::F_Filter1)
+		return;
 
-	typedef DataArray<PolygonType>    ArgPolyType;
-	typedef DataArray<NumType>        ArgNumType;
+	kernel.clear();
+	const Float64 c0 = 0;
+	const Float64 csqrtHalf = std::numbers::sqrt2 / 2.0;
+
+	switch (f) {
+	case PolygonFlags::F_I4HV1:
+	case PolygonFlags::F_D4HV1:
+		kernel.reserve(5);
+		kernel.push_back(traits_t::point_type(value, value));
+		kernel.push_back(traits_t::point_type(value, -value));
+		kernel.push_back(traits_t::point_type(-value, -value));
+		kernel.push_back(traits_t::point_type(-value, value));
+		kernel.push_back(kernel.front());
+		break;
+	case PolygonFlags::F_I4D1:
+	case PolygonFlags::F_D4D1:
+		kernel.reserve(5);
+		kernel.push_back(traits_t::point_type(c0, value));
+		kernel.push_back(traits_t::point_type(value, c0));
+		kernel.push_back(traits_t::point_type(c0, -value));
+		kernel.push_back(traits_t::point_type(-value, c0));
+		kernel.push_back(kernel.front());
+		break;
+	case PolygonFlags::F_I8D1:
+	case PolygonFlags::F_D8D1:
+		kernel.reserve(9);
+		kernel.push_back(traits_t::point_type(c0, value));
+		kernel.push_back(traits_t::point_type(csqrtHalf * value, csqrtHalf * value));
+		kernel.push_back(traits_t::point_type(value, c0));
+		kernel.push_back(traits_t::point_type(csqrtHalf * value, -csqrtHalf * value));
+		kernel.push_back(traits_t::point_type(c0, -value));
+		kernel.push_back(traits_t::point_type(-csqrtHalf * value, -csqrtHalf * value));
+		kernel.push_back(traits_t::point_type(-value, c0));
+		kernel.push_back(traits_t::point_type(-csqrtHalf * value, csqrtHalf * value));
+		kernel.push_back(kernel.front());
+		break;
+
+	case PolygonFlags::F_I16D1:
+	case PolygonFlags::F_D16D1:
+		kernel.reserve(17);
+		kernel.push_back(traits_t::point_type(c0, value));
+		kernel.push_back(traits_t::point_type(0.3826834 * value, 0.9238795 * value));
+		kernel.push_back(traits_t::point_type(csqrtHalf * value, csqrtHalf * value));
+		kernel.push_back(traits_t::point_type(0.9238795 * value, 0.3826834 * value));
+		kernel.push_back(traits_t::point_type(value, c0));
+		kernel.push_back(traits_t::point_type(0.9238795 * value, -0.3826834 * value));
+		kernel.push_back(traits_t::point_type(csqrtHalf * value, -csqrtHalf * value));
+		kernel.push_back(traits_t::point_type(0.3826834 * value, -0.9238795 * value));
+		kernel.push_back(traits_t::point_type(c0, -value));
+		kernel.push_back(traits_t::point_type(-0.3826834 * value, -0.9238795 * value));
+		kernel.push_back(traits_t::point_type(-csqrtHalf * value, -csqrtHalf * value));
+		kernel.push_back(traits_t::point_type(-0.9238795 * value, -0.3826834 * value));
+		kernel.push_back(traits_t::point_type(-value, c0));
+		kernel.push_back(traits_t::point_type(-0.9238795 * value, 0.3826834 * value));
+		kernel.push_back(traits_t::point_type(-csqrtHalf * value, csqrtHalf * value));
+		kernel.push_back(traits_t::point_type(-0.3826834 * value, 0.9238795 * value));
+		kernel.push_back(kernel.front());
+		break;
+
+	case PolygonFlags::F_IXHV1:
+	case PolygonFlags::F_DXHV1:
+		kernel.reserve(9);
+		kernel.push_back(traits_t::point_type(0.1 * value, 0.1 * value));
+		kernel.push_back(traits_t::point_type(+value, c0));
+		kernel.push_back(traits_t::point_type(0.1 * value, -0.1 * value));
+		kernel.push_back(traits_t::point_type(c0, -value));
+		kernel.push_back(traits_t::point_type(-0.1 * value, -0.1 * value));
+		kernel.push_back(traits_t::point_type(-value, c0));
+		kernel.push_back(traits_t::point_type(-0.1 * value, 0.1 * value));
+		kernel.push_back(traits_t::point_type(c0, +value));
+		kernel.push_back(kernel.front());
+		break;
+
+	case PolygonFlags::F_IXD1:
+	case PolygonFlags::F_DXD1:
+		kernel.reserve(9);
+		kernel.push_back(traits_t::point_type(value, value));
+		kernel.push_back(traits_t::point_type(0.1 * value, c0));
+		kernel.push_back(traits_t::point_type(value, -value));
+		kernel.push_back(traits_t::point_type(c0, -0.1 * value));
+		kernel.push_back(traits_t::point_type(-value, -value));
+		kernel.push_back(traits_t::point_type(-0.1 * value, c0));
+		kernel.push_back(traits_t::point_type(-value, value));
+		kernel.push_back(traits_t::point_type(c0, 0.1 * value));
+		kernel.push_back(kernel.front());
+		break;
+	}
+}
+
+template <typename P>
+class BpPolygonOperator : public AbstrPolygonOperator
+{
+	using traits_t = bp_union_poly_traits<P>;
+
+	using ScalarType = typename traits_t::coordinate_type;
+	using PointType = typename traits_t::point_type;
+	using RingType = typename traits_t::ring_type;
+	using MultiPolygonType = typename traits_t::multi_polygon_type;
+	using NumType = Float64;
+
+	typedef DataArray<RingType> ArgPolyType;
+	typedef DataArray<NumType>  ArgNumType;
 
 public:
-	PolygonOperator(const std::pair<AbstrOperGroup*, PolygonFlags>& params)
+	BpPolygonOperator(const std::pair<AbstrOperGroup*, PolygonFlags>& params)
 		:	AbstrPolygonOperator(params.first, ArgPolyType::GetStaticClass(), ArgNumType::GetStaticClass(), params.second)
 	{}
 
 	void Calculate(ResourceArrayHandle& r, SizeT domainCount, const AbstrDataItem* polyDataA, const AbstrDataItem* partitionDataA, tile_id t) const override
 	{
-		UnionPolygon<PolygonType, traits_t::polygon_set_data_type>(r, domainCount, polyDataA, partitionDataA, t);
-	}
-
-	static void SetKernel(typename traits_t::point_seq_type& kernel, NumType value, PolygonFlags f)
-	{
-		if (f <= PolygonFlags::F_Filter1)
-			return;
-		kernel.clear();
-		const NumType c0 = 0;
-
-		const NumType csqrtHalf = sqrt(0.5);
-		switch (f) {
-			case PolygonFlags::F_I4HV1:
-			case PolygonFlags::F_D4HV1:
-				kernel.reserve(5);
-				kernel.push_back(traits_t::point_type( value,  value));
-				kernel.push_back(traits_t::point_type( value, -value));
-				kernel.push_back(traits_t::point_type(-value, -value));
-				kernel.push_back(traits_t::point_type(-value,  value));
-				kernel.push_back(kernel.front());
-				break;
-			case PolygonFlags::F_I4D1:
-			case PolygonFlags::F_D4D1:
-				kernel.reserve(5);
-				kernel.push_back(traits_t::point_type(    c0,  value));
-				kernel.push_back(traits_t::point_type( value,     c0));
-				kernel.push_back(traits_t::point_type(    c0, -value));
-				kernel.push_back(traits_t::point_type(-value,     c0));
-				kernel.push_back(kernel.front());
-				break;
-			case PolygonFlags::F_I8D1:
-			case PolygonFlags::F_D8D1:
-				kernel.reserve(9);
-				kernel.push_back(traits_t::point_type(        c0        ,              value));
-				kernel.push_back(traits_t::point_type( csqrtHalf * value,  csqrtHalf * value));
-				kernel.push_back(traits_t::point_type(             value,         c0        ));
-				kernel.push_back(traits_t::point_type( csqrtHalf * value, -csqrtHalf * value));
-				kernel.push_back(traits_t::point_type(        c0        ,            - value));
-				kernel.push_back(traits_t::point_type(-csqrtHalf * value, -csqrtHalf * value));
-				kernel.push_back(traits_t::point_type(           - value,         c0        ));
-				kernel.push_back(traits_t::point_type(-csqrtHalf * value,  csqrtHalf * value));
-				kernel.push_back(kernel.front());
-				break;
-			case PolygonFlags::F_I16D1:
-			case PolygonFlags::F_D16D1:
-				kernel.reserve(17);
-				kernel.push_back(traits_t::point_type(        c0        ,              value));
-				kernel.push_back(traits_t::point_type( 0.3826834 * value,  0.9238795 * value));
-				kernel.push_back(traits_t::point_type( csqrtHalf * value,  csqrtHalf * value));
-				kernel.push_back(traits_t::point_type( 0.9238795 * value,  0.3826834 * value));
-				kernel.push_back(traits_t::point_type(             value,         c0        ));
-				kernel.push_back(traits_t::point_type( 0.9238795 * value, -0.3826834 * value));
-				kernel.push_back(traits_t::point_type( csqrtHalf * value, -csqrtHalf * value));
-				kernel.push_back(traits_t::point_type( 0.3826834 * value, -0.9238795 * value));
-				kernel.push_back(traits_t::point_type(        c0        ,            - value));
-				kernel.push_back(traits_t::point_type(-0.3826834 * value, -0.9238795 * value));
-				kernel.push_back(traits_t::point_type(-csqrtHalf * value, -csqrtHalf * value));
-				kernel.push_back(traits_t::point_type(-0.9238795 * value, -0.3826834 * value));
-				kernel.push_back(traits_t::point_type(           - value,         c0        ));
-				kernel.push_back(traits_t::point_type(-0.9238795 * value,  0.3826834 * value));
-				kernel.push_back(traits_t::point_type(-csqrtHalf * value,  csqrtHalf * value));
-				kernel.push_back(traits_t::point_type(-0.3826834 * value,  0.9238795 * value));
-				kernel.push_back(kernel.front());
-				break;
-
-			case PolygonFlags::F_IXHV1:
-			case PolygonFlags::F_DXHV1:
-				kernel.reserve(9);
-				kernel.push_back(traits_t::point_type( 0.1 * value,  0.1 * value));
-				kernel.push_back(traits_t::point_type(     + value,  c0         ));
-				kernel.push_back(traits_t::point_type( 0.1 * value, -0.1 * value));
-				kernel.push_back(traits_t::point_type( c0         ,      - value));
-				kernel.push_back(traits_t::point_type(-0.1 * value, -0.1 * value));
-				kernel.push_back(traits_t::point_type(     - value,  c0         ));
-				kernel.push_back(traits_t::point_type(-0.1 * value,  0.1 * value));
-				kernel.push_back(traits_t::point_type( c0         ,      + value));
-				kernel.push_back(kernel.front());
-				break;
-
-			case PolygonFlags::F_IXD1:
-			case PolygonFlags::F_DXD1:
-				kernel.reserve(9);
-				kernel.push_back(traits_t::point_type(       value,        value));
-				kernel.push_back(traits_t::point_type( 0.1 * value,  c0         ));
-				kernel.push_back(traits_t::point_type(       value, -      value));
-				kernel.push_back(traits_t::point_type( c0         , -0.1 * value));
-				kernel.push_back(traits_t::point_type(     - value,      - value));
-				kernel.push_back(traits_t::point_type(-0.1 * value,  c0         ));
-				kernel.push_back(traits_t::point_type(     - value,        value));
-				kernel.push_back(traits_t::point_type( c0         ,  0.1 * value));
-				kernel.push_back(kernel.front());
-				break;
-		}
+		UnionPolygon<RingType, MultiPolygonType>(r, domainCount, polyDataA, partitionDataA, t);
 	}
 
 	void ProcessNumOperImpl(ResourceArrayHandle& r, const AbstrDataItem* argNum, tile_id numT, PolygonFlags flag) const override
@@ -833,18 +867,18 @@ public:
 		auto argNumData = const_array_cast<NumType>(argNum)->GetTile(numT);
 
 		bool isParam = argNumData.size() == 1;
-		SizeT domainCount = r->Size();
+		SizeT domainCount = r->size();
 		dms_assert(isParam || argNumData.size() == domainCount);
 
-		typename traits_t::point_seq_type          kernel;
-		typename traits_t::polygon_result_type     geometry;
+		typename traits_t::ring_type               kernel;
+		typename traits_t::multi_polygon_type      geometry;
 		typename traits_t::polygon_with_holes_type polygon;
 
 		NumType value;
 		if (isParam)
 		{
 			value = argNumData[0];
-			SetKernel(kernel, value, flag);
+			SetKernel<P>(kernel, value, flag);
 		}
 
 		typename traits_t::polygon_set_data_type::convolve_resources convolveResources;
@@ -860,7 +894,7 @@ public:
 			if (!isParam)
 			{
 				value = argNumData[i];
-				SetKernel(kernel, value, flag);
+				SetKernel<P>(kernel, value, flag);
 			}
 
 			typename traits_t::rect_type rectangle;
@@ -911,14 +945,14 @@ public:
 	void StoreImpl (AbstrUnit* resUnit, AbstrDataItem* resGeometry, DataWriteHandle& resGeometryLock, AbstrDataItem* resNrOrgEntity, tile_id t, ResourceArrayHandle& r) const override
 	{
 		SizeT domainCount = 0;
-		OwningPtrSizedArray<typename traits_t::polygon_result_type> geometryPtr;
+		OwningPtrSizedArray<typename traits_t::multi_polygon_type> geometryPtr;
 		if (r)
 		{
 			ResourceArray<typename traits_t::polygon_set_data_type>* geometryDataPtr = debug_cast<ResourceArray<typename traits_t::polygon_set_data_type>*>(r.get_ptr());
 			dms_assert(geometryDataPtr);
 
-			domainCount = geometryDataPtr->Size();
-			geometryPtr = OwningPtrSizedArray<typename traits_t::polygon_result_type>(domainCount, value_construct MG_DEBUG_ALLOCATOR_SRC("BoostPolygon: geometryPtr"));
+			domainCount = geometryDataPtr->size();
+			geometryPtr = OwningPtrSizedArray<typename traits_t::multi_polygon_type>(domainCount, value_construct MG_DEBUG_ALLOCATOR_SRC("BoostPolygon: geometryPtr"));
 
 			typename traits_t::polygon_set_data_type::clean_resources cleanResources;
 			for (SizeT i = 0; i != domainCount; ++i) // TODO G8: parallel_for and cleanResources in a threadLocal thing
@@ -958,7 +992,7 @@ public:
 		}
 		dms_assert(resGeometryLock);
 
-		auto resArray = mutable_array_cast<PolygonType>(resGeometryLock)->GetLockedDataWrite(t, dms_rw_mode::write_only_all); // t may be no_tile
+		auto resArray = mutable_array_cast<RingType>(resGeometryLock)->GetLockedDataWrite(t, dms_rw_mode::write_only_all); // t may be no_tile
 		auto resIter = resArray.begin();
 
 		for (SizeT i = 0; i!=domainCount; ++i)
@@ -975,7 +1009,96 @@ public:
 			}
 			geometryPtr[i].clear();
 		}
-		dms_assert(resIter == resArray.end() || domainCount == 0);
+		assert(resIter == resArray.end() || domainCount == 0);
+	}
+};
+
+// *****************************************************************************
+//	Boost Geometry PolygonOverlay
+// *****************************************************************************
+
+template <typename P>
+class BgPolygonOperator : public AbstrPolygonOperator
+{
+	using SequenceType = std::vector<P>;
+
+	using traits_t = bg_union_poly_traits<P>;
+
+	using ScalarType  = traits_t::coordinate_type;
+	using PointType   = traits_t::point_type;
+	using RingType    = traits_t::ring_type;
+	using PolygonType = traits_t::polygon_with_holes_type;
+	using MultiPolygonType = traits_t::multi_polygon_type;
+	using NumType     = Float64;
+
+	typedef DataArray<PolygonType>    ArgPolyType;
+	typedef DataArray<NumType>        ArgNumType;
+
+public:
+	BgPolygonOperator(const std::pair<AbstrOperGroup*, PolygonFlags>& params)
+		: AbstrPolygonOperator(params.first, ArgPolyType::GetStaticClass(), ArgNumType::GetStaticClass(), params.second)
+	{}
+
+	void Calculate(ResourceArrayHandle& r, SizeT domainCount, const AbstrDataItem* polyDataA, const AbstrDataItem* partitionDataA, tile_id t) const override
+	{
+		UnionPolygon<P, MultiPolygonType>(r, domainCount, polyDataA, partitionDataA, t);
+	}
+
+	void StoreImpl(AbstrUnit* resUnit, AbstrDataItem* resGeometry, DataWriteHandle& resGeometryLock, AbstrDataItem* resNrOrgEntity, tile_id t, ResourceArrayHandle& r) const override
+	{
+		ResourceArray<MultiPolygonType>* geometryPtr = debug_cast<ResourceArray<MultiPolygonType>*>(r.get_ptr());
+		SizeT domainCount = 0;
+
+		// split into separate polygons if requested
+		if (m_Flags & PolygonFlags::F_DoSplit)
+		{
+			assert(resUnit);
+			SizeT splitCount = 0;
+			for (SizeT i = 0; i != domainCount; ++i)
+				splitCount += geometryPtr->m_Data[i].size();
+			resUnit->SetCount(splitCount); // we must be in delayed store now
+
+			if (resNrOrgEntity)
+			{
+				DataWriteLock resRelLock(resNrOrgEntity);
+				SizeT splitCount2 = 0;
+				for (SizeT i = 0; i != domainCount; ++i)
+				{
+					SizeT nrSplits = geometryPtr->m_Data[i].size();
+					SizeT nextCount = splitCount2 + nrSplits;
+					while (splitCount2 != nextCount)
+						resRelLock->SetValueAsSizeT(splitCount2++, i);
+				}
+				resRelLock.Commit();
+			}
+		}
+/*
+		if (DoDelayStore())
+		{
+			dms_assert(resGeometry);
+			resGeometryLock = DataWriteHandle(resGeometry, dms_rw_mode::write_only_all);
+		}
+*/
+		assert(resGeometryLock);
+
+		auto resArray = mutable_array_cast<SequenceType>(resGeometryLock)->GetLockedDataWrite(t, dms_rw_mode::write_only_all); // t may be no_tile
+		auto resIter = resArray.begin();
+
+		for (SizeT i = 0; i != domainCount; ++i)
+		{
+			if (m_Flags & PolygonFlags::F_DoSplit)
+			{
+				dms_split_assign(resIter, geometryPtr->m_Data[i]);
+				resIter += geometryPtr->m_Data[i].size();
+			}
+			else
+			{
+				dms_assign(*resIter, geometryPtr->m_Data[i]);
+				++resIter;
+			}
+//			geometryPtr[i] = MultiPolygonType();
+		}
+		assert(resIter == resArray.end() || domainCount == 0);
 	}
 };
 
@@ -1114,22 +1237,35 @@ public:
 
 namespace 
 {
-	struct PolyOperatorGroup : CommonOperGroup
+	struct BpPolyOperatorGroup : CommonOperGroup
 	{
-		PolyOperatorGroup(CharPtr name, PolygonFlags flags)
+		BpPolyOperatorGroup(CharPtr name, PolygonFlags flags)
 			: CommonOperGroup(name)
 			, m_Instances(std::pair<AbstrOperGroup*, PolygonFlags>(this, flags))
 		{
 			SetBetterNotInMetaScripting();
 		}
 
-		tl_oper::inst_tuple_templ<typelists::sint_points, PolygonOperator, std::pair<AbstrOperGroup*, PolygonFlags>>
+		tl_oper::inst_tuple_templ<typelists::sint_points, BpPolygonOperator, std::pair<AbstrOperGroup*, PolygonFlags>>
+			m_Instances;
+	};
+
+	struct BgPolyOperatorGroup : CommonOperGroup
+	{
+		BgPolyOperatorGroup(CharPtr name, PolygonFlags flags)
+			: CommonOperGroup(name)
+			, m_Instances(std::pair<AbstrOperGroup*, PolygonFlags>(this, flags))
+		{
+			SetBetterNotInMetaScripting();
+		}
+
+		tl_oper::inst_tuple_templ<typelists::seq_points, BgPolygonOperator, std::pair<AbstrOperGroup*, PolygonFlags>>
 			m_Instances;
 	};
 
 	struct PolyOperatorGroups
 	{
-		PolyOperatorGroup simplePO, unionPO, partitionedPO;
+		BgPolyOperatorGroup simplePO, unionPO, partitionedPO;
 
 		PolyOperatorGroups(WeakStr nameTempl, PolygonFlags flags)
 			: simplePO(mySSPrintF(nameTempl.c_str(), "").c_str(), flags)

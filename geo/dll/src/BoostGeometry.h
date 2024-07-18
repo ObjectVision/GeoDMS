@@ -58,6 +58,27 @@ namespace boost::geometry::traits
 
 } //  namespace boost::geometry::traits
 
+template <typename P>
+struct bg_union_poly_traits
+{
+	using coordinate_type = scalar_of_t<P>;
+	using point_type = P;
+	using ring_type = std::vector<point_type>;
+
+	using polygon_with_holes_type = boost::geometry::model::polygon<point_type>;
+
+//	typedef gtl::point_data<coordinate_type>       point_type;
+//	typedef gtl::rectangle_data<coordinate_type>   rect_type;
+//	typedef std::vector< point_type >              point_seq_type;
+	using multi_polygon_type  = boost::geometry::model::multi_polygon<polygon_with_holes_type>;
+	using polygon_result_type = multi_polygon_type; //  std::vector<polygon_with_holes_type>;
+
+//	using area_type = Float64;
+//	using unsigned_area_type = Float64;
+};
+
+
+
 // TODO: return_lower_bound obv concepts overloaden
 
 template<typename P>
@@ -258,9 +279,10 @@ void assign_multi_polygon(bg_multi_polygon_t& resMP, SA_ConstReference<DmsPointT
 		if (ri == rb || currOrientation == outerOrientation)
 		{
 			if (ri != rb && !helperPolygon.outer().empty())
-				resMP.emplace_back(helperPolygon);
+				resMP.emplace_back(std::move(helperPolygon));
 			helperPolygon.clear(); assert(helperPolygon.outer().empty() && helperPolygon.inners().empty());
-			helperPolygon.outer() = bg_ring_t(helperRing.begin(), helperRing.end());
+
+			helperPolygon.outer().swap(helperRing);	// swap is faster than assign
 			outerOrientation = currOrientation;
 
 			// skip outer rings that intersect with a previous outer ring if innerRings are skipped
@@ -272,7 +294,9 @@ void assign_multi_polygon(bg_multi_polygon_t& resMP, SA_ConstReference<DmsPointT
 					auto currPolygon = resMP.begin() + polygonIndex;
 					if (boost::geometry::intersects(currPolygon->outer(), helperPolygon.outer()))
 					{
-						MG_CHECK(!boost::geometry::overlaps(currPolygon->outer(), helperPolygon.outer()));
+						if (boost::geometry::overlaps(currPolygon->outer(), helperPolygon.outer()))
+							throwDmsErrF("OuterPolygon: unexpected overlap of two outer rings in %s", AsString(polyRef).c_str());
+
 						if (boost::geometry::within(currPolygon->outer(), helperPolygon.outer()))
 						{
 							resMP.erase(currPolygon);
@@ -284,11 +308,7 @@ void assign_multi_polygon(bg_multi_polygon_t& resMP, SA_ConstReference<DmsPointT
 							assert(helperPolygon.outer().empty() && helperPolygon.inners().empty());
 							break;
 						}
-						else
-						{
-//							// TOTO: Check dat er helemaal geen overlap is.
-//							throwDmsErrF("OuterPolygon: unexpected overlap of two rings in %s", AsString(polyRef).c_str());
-						}
+						// a combination of touching outer rings such as in an 8 shape is 
 					}
 					polygonIndex++;
 				}
@@ -385,7 +405,7 @@ void store_ring(std::vector<DmsPointType>& resDataElem, const bg_ring_t& ring)
 	resDataElem.append_range(ring);
 }
 
-void store_multi_polygon(auto&& resDataElem, bg_multi_polygon_t& resMP, std::vector<DPoint>& ringClosurePoints)
+void store_multi_polygon(auto&& resDataElem, const bg_multi_polygon_t& resMP, std::vector<DPoint>& ringClosurePoints)
 {
 	ringClosurePoints.clear();
 	for (const auto& resPoly : resMP)
@@ -410,5 +430,43 @@ void store_multi_polygon(auto&& resDataElem, bg_multi_polygon_t& resMP, std::vec
 		}
 	}
 }
+
+template <typename RI, typename ...Args>
+void dms_split_assign(RI resIter, const std::vector<boost::geometry::model::polygon<Args...>>& mp)
+{
+	if (!mp.size())
+		return;
+
+	for (auto i = mp.begin(), e = mp.end(); i != e; ++resIter, ++i)
+	{
+		resIter->clear();
+
+		const auto& outerRing = i->outer();
+		SizeT count = outerRing.size();
+		assert(count);
+		for (auto hi = i->inners().begin(), he = i->inners.end(); hi != he; ++hi)
+			count += hi->size() + 1;
+
+		resIter->reserve(count);
+
+		assert(outerRing.begin() != outerRing.end());
+		assert(outerRing.begin()[0] == outerRing.end()[-1]);
+
+		store_ring(*resIter, outerRing);
+		if (!i->inners.empty())
+		{
+			for (const auto& resLake : i->inners())
+				store_ring(*resIter, resLake);
+			auto currInner = i->inners().end() - 1;
+			do {
+				resIter->push_back(currInner->end()[-1]);
+
+			} while (currInner != i->inners().begin());
+			resIter->push_back(outerRing.end()[-1]);
+		}
+		assert(resIter->size() == count);
+	}
+}
+
 
 #endif //!defined(MG_GEO_BOOST_GEOMETRY_H)

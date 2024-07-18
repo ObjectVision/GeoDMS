@@ -1,32 +1,10 @@
-//<HEADER> 
-/*
-Data & Model Server (DMS) is a server written in C++ for DSS applications. 
-Version: see srv/dms/rtc/dll/src/RtcVersion.h for version info.
+// Copyright (C) 1998-2024 Object Vision b.v. 
+// License: GNU GPL 3
+/////////////////////////////////////////////////////////////////////////////
 
-Copyright (C) 1998-2004  YUSE GSO Object Vision BV. 
-
-Documentation on using the Data & Model Server software can be found at:
-http://www.ObjectVision.nl/DMS/
-
-See additional guidelines and notes in srv/dms/Readme-srv.txt 
-
-This library is free software; you can use, redistribute, and/or
-modify it under the terms of the GNU General Public License version 2 
-(the License) as published by the Free Software Foundation,
-provided that this entire header notice and readme-srv.txt is preserved.
-
-See LICENSE.TXT for terms of distribution or look at our web site:
-http://www.objectvision.nl/DMS/License.txt
-or alternatively at: http://www.gnu.org/copyleft/gpl.html
-
-This library is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
-General Public License for more details. However, specific warranties might be
-granted by an additional written contract for support, assistance and/or development
-*/
-//</HEADER>
+#if defined(_MSC_VER)
 #pragma once
+#endif
 
 #if !defined(__RTC_PTR_RESOURCEARRAY_H)
 #define __RTC_PTR_RESOURCEARRAY_H
@@ -39,9 +17,9 @@ struct ResourceArrayBase
 		:	m_N(0)
 	{}
 
-	virtual void Destroy() = 0;
+	virtual void destroy() = 0;
 
-	SizeT Size() const { return m_N; }
+	SizeT size() const { return m_N; }
 
 protected:
 	static char* allocate(SizeT sz)
@@ -69,12 +47,12 @@ struct ResourceArrayHandle : ptr_base<ResourceArrayBase, movable>
 	~ResourceArrayHandle () 
 	{ 
 		if (has_ptr())
-			get_ptr()->Destroy(); 
+			get_ptr()->destroy(); 
 	}
 
-	void    init   (pointer ptr)       { dms_assert(is_null()); m_Ptr = ptr; }
+	void    init   (pointer ptr)       { assert(is_null()); m_Ptr = ptr; }
 	pointer release()                  { pointer tmp_ptr = m_Ptr; m_Ptr = nullptr; return tmp_ptr; }
-	void    reset  (pointer ptr = nullptr)  { dms_assert(ptr != get_ptr() || !ptr); ResourceArrayHandle tmp(ptr); tmp.swap(*this); }
+	void    reset  (pointer ptr = nullptr)  { assert(ptr != get_ptr() || !ptr); ResourceArrayHandle tmp(ptr); tmp.swap(*this); }
 	void    swap   (ResourceArrayHandle& oth) { std::swap(m_Ptr, oth.m_Ptr); }
 
 	void operator = (ResourceArrayHandle&& rhs) noexcept 
@@ -90,14 +68,14 @@ struct ResourceArray : ResourceArrayBase
 {
 	R     m_Data[0] = {};
 
-	void Destroy() override
+	void destroy() override
 	{
 		SizeT n = m_N;
 		this->~ResourceArray();
 		deallocate(reinterpret_cast<char*>(this), ByteSize(n));
 	}
 
-	static ResourceArray* Create(SizeT n)
+	static ResourceArray* create(SizeT n)
 	{
 		char* resultMemPtr = allocate(ByteSize(n));
 		ResourceArray* result = new (resultMemPtr) ResourceArray;
@@ -106,6 +84,10 @@ struct ResourceArray : ResourceArrayBase
 		resHandle.release();
 		return result;
 	}
+	R* begin() { return m_Data; }
+	R* end()   { return m_Data + m_N; }
+	const R* begin() const { return m_Data; }
+	const R* end()   const { return m_Data + m_N; }
 
 private:
 	static SizeT ByteSize(SizeT n)
@@ -113,7 +95,7 @@ private:
 		return n*sizeof(R)+sizeof(ResourceArray);
 	}
 
-	void Construct(SizeT n)
+	void construct(SizeT n)
 	{
 		while (m_N<n)
 			new (m_Data + m_N++) R;

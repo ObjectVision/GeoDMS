@@ -16,6 +16,7 @@
 
 #include "geo/PointIndexBuffer.h"
 #include "geo/PointOrder.h"
+#include "geo/SequenceTraits.h"
 
 namespace gtl = boost::polygon;
 using namespace gtl::operators;
@@ -31,10 +32,28 @@ Point<V> ConvertPoint(const gtl::point_data<V>& p)
 	return shp2dms_order<V>(x(p), y(p));
 }
 
+template <typename R, typename P>
+concept Ring = requires (const R& ring)
+{
+	{ ring.size() } -> std::same_as<SizeT>;
+	{ ring.begin() } -> std::same_as<P*>;
+	{ ring.end() } -> std::same_as<P*>;
+};
 
-template <typename E, typename V>
-typename std::enable_if<is_dms_sequence<E>::value>::type
-dms_assign (E& ref,  const std::vector<gtl::polygon_with_holes_data<V> >& poly)
+template <typename PWH, typename R>
+concept PolygonWithHoles = requires (const PWH& poly)
+{
+	{ outer_ring(poly) } -> std::same_as<R>;
+	{ inner_rings(poly) } -> std::same_as<std::vector<R>>;
+};
+
+template <typename MP, typename PolygonWithHoles>
+concept MultiPolygon = std::same_as<MP, std::vector<PolygonWithHoles>>;
+
+
+
+template <dms_sequence E, typename MP>
+void dms_assign (E ref,  MP&& poly)
 {
 	ref.clear();
 
@@ -44,11 +63,11 @@ dms_assign (E& ref,  const std::vector<gtl::polygon_with_holes_data<V> >& poly)
 	SizeT count = poly.size() -1;
 
 	auto b=poly.begin(), i=b, e=poly.end();
-	dms_assert(b!=e); // follows from poly.size()
+	assert(b!=e); // follows from poly.size()
 
 	for (; i!=e; ++i)
 	{
-		dms_assert(i->size());
+		assert(i->size());
 		count += i->size();
 		for (auto hi=i->begin_holes(), he=i->end_holes(); hi!=he; ++hi)
 			count += hi->size() + 1;
@@ -98,17 +117,19 @@ dms_assign (E& ref,  const std::vector<gtl::polygon_with_holes_data<V> >& poly)
 	dms_assert(ref.size() == count);
 }
 
-template <typename E, typename V>
-typename std::enable_if<is_dms_sequence<E>::value>::type
-dms_assign (E& ref, gtl::polygon_set_data<V>& polyData, typename gtl::polygon_set_data<V>::clean_resources& cleanResources)
+template <dms_sequence E, typename V>
+void dms_assign (E ref, gtl::polygon_set_data<V>& polyData)
 {
+	typename gtl::polygon_set_data<V>::clean_resources cleanResources;
+
 	std::vector<gtl::polygon_with_holes_data<V> > polyVect;
 	polyData.get(polyVect, cleanResources);
+
 	dms_assign(ref, polyVect);
 }
 
-template <typename RI, typename V>
-void dms_split_assign (RI resIter,  std::vector<gtl::polygon_with_holes_data<V> >& poly)
+template <typename RI, typename MP >
+void dms_split_assign (RI resIter, MP& poly)
 {
 	if (!poly.size())
 		return;
@@ -117,15 +138,15 @@ void dms_split_assign (RI resIter,  std::vector<gtl::polygon_with_holes_data<V> 
 	{
 		resIter->clear();
 
-		dms_assert(i->size());
+		assert(i->size());
 		SizeT count = i->size();
 		for (auto hi=i->begin_holes(), he=i->end_holes(); hi!=he; ++hi)
 			count += hi->size() + 1;
 
 		resIter->reserve(count);
 	
-		dms_assert(i->begin() != i->end ());
-		dms_assert(i->begin()[0] == i->end()[-1]);
+		assert(i->begin() != i->end ());
+		assert(i->begin()[0] == i->end()[-1]);
 
 		//for (auto pi=i->begin(), pe=i->end(); pi!=pe; ++pi)
 		for (auto pi=i->end(), pe=i->begin(); pi!=pe; ) // REVERSE ORDER
@@ -135,16 +156,16 @@ void dms_split_assign (RI resIter,  std::vector<gtl::polygon_with_holes_data<V> 
 		if (hi!=he)
 		{
 			do {
-				dms_assert(hi->begin() != hi->end());
-				dms_assert(hi->begin()[0] == hi->end()[-1]);
+				assert(hi->begin() != hi->end());
+				assert(hi->begin()[0] == hi->end()[-1]);
 
 //				for (auto phi=hi->begin(), phe=hi->end(); phi!=phe; ++phi)
 				for (auto phi=hi->end(), phe=hi->begin(); phi!=phe;) // REVERSE ORDER
 					resIter->push_back(ConvertPoint(*--phi));
 
 			} while (++hi != he);
-			dms_assert(hi==he);
-			dms_assert(hi!=hb);
+			assert(hi==he);
+			assert(hi!=hb);
 			--hi;
 			while (hi != hb)
 			{
@@ -153,7 +174,7 @@ void dms_split_assign (RI resIter,  std::vector<gtl::polygon_with_holes_data<V> 
 			}
 			resIter->push_back(ConvertPoint(i->end()[-1]));
 		}
-		dms_assert(resIter->size() == count);
+		assert(resIter->size() == count);
 	}
 }
 
@@ -394,32 +415,28 @@ template <> struct polygon_set_traits<SA_Reference<WPoint> > : poly_sequence_tra
 
 
 template <typename P>
-struct union_poly_traits
+struct bp_union_poly_traits
 {
-	typedef P                       PointType;
-	typedef std::vector<PointType>  PolygonType;
+//	using PointType = P;
+//	using ring_type = std::vector<PointType>;
 
-	typedef typename scalar_of<P>::type                   coordinate_type;
-	typedef gtl::polygon_with_holes_data<coordinate_type> polygon_with_holes_type;
+	using coordinate_type = scalar_of_t<P>;
 
-	typedef gtl::point_data<coordinate_type>       point_type;
-	typedef gtl::rectangle_data<coordinate_type>   rect_type;
-	typedef std::vector< point_type >              point_seq_type;
-	typedef std::vector< polygon_with_holes_type > polygon_result_type;
-	typedef gtl::polygon_set_data<coordinate_type> polygon_set_data_type;
+	using polygon_with_holes_type = gtl::polygon_with_holes_data<coordinate_type>;
 
-	typedef typename gtl::coordinate_traits<coordinate_type>::area_type          area_type;
-	typedef typename gtl::coordinate_traits<coordinate_type>::unsigned_area_type unsigned_area_type;
+	using point_type = gtl::point_data<coordinate_type>;
+	using rect_type = gtl::rectangle_data<coordinate_type>;
+	using ring_type = std::vector< point_type >;
+	using multi_polygon_type = std::vector< polygon_with_holes_type >;
+	using polygon_set_data_type = gtl::polygon_set_data<coordinate_type>;
+
+	using area_type = gtl::coordinate_traits<coordinate_type>::area_type;
+	using unsigned_area_type = gtl::coordinate_traits<coordinate_type>::unsigned_area_type;
 };
 
-template <typename C, typename geometry_type_2>
-typename std::enable_if<gtl::is_any_polygon_set_type<geometry_type_2>::type::value>::type
-dms_insert(gtl::polygon_set_data<C>& lvalue, const geometry_type_2& rvalue, typename gtl::polygon_set_data<C>::clean_resources& r)
-{
-	lvalue.insert(
-		gtl::polygon_set_traits<geometry_type_2>::begin(rvalue), 
-		gtl::polygon_set_traits<geometry_type_2>::end  (rvalue)
-	);
-}
+template <typename P> constexpr bool is_any_polygon_set_v = gtl::is_any_polygon_set_type<P>::type::value;
+template <typename P> concept PolygonSet = is_any_polygon_set_v<P>;
+
+
 
 #endif //!defined(DMS_GEO_BOOSTPOLYGON_H)
