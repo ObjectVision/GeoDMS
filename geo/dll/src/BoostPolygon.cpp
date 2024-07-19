@@ -297,7 +297,7 @@ public:
 						continue;
 
 					res_data_elem_type back;
-					dms_assign(back.m_Geometry, geometry);
+					bp_assign(back.m_Geometry, geometry);
 
 
 					back.m_OrgRel.first = p1_rel;
@@ -440,7 +440,7 @@ bool operator & (PolygonFlags a, PolygonFlags b)
 }
 
 
-template <typename C, PolygonSet GT2>
+template <typename C, typename GT2>
 void dms_insert(gtl::polygon_set_data<C>& lvalue, const GT2& rvalue)
 {
 	lvalue.insert(
@@ -449,8 +449,7 @@ void dms_insert(gtl::polygon_set_data<C>& lvalue, const GT2& rvalue)
 	);
 }
 
-template <PolygonSet GT2>
-void dms_insert(bg_multi_polygon_t& lvalue, GT2&& rvalue)
+void dms_insert(bg_multi_polygon_t& lvalue, const auto& rvalue)
 {
 	bg_polygon_t helperPolygon;
 	bg_ring_t helperRing;
@@ -461,15 +460,13 @@ void dms_insert(bg_multi_polygon_t& lvalue, GT2&& rvalue)
 }
 
 
-template <typename P, typename MP>
+template <typename P, typename SequenceType, typename MP>
 void UnionPolygon(ResourceArrayHandle& r, SizeT n, const AbstrDataItem* polyDataA, const AbstrDataItem* permDataA, tile_id t)
 {
 #if defined(MG_DEBUG_POLYGON)
 	DBG_START("UnionPolygon", "", true);
 	DBG_TRACE(("UnionPolygonTotal %d/%d", t,  polyDataA->GetAbstrDomainUnit()->GetNrTiles()));
 #endif
-	using SequenceType = typename sequence_traits<P>::container_type;
-
 	auto polyData = const_array_cast<SequenceType>(polyDataA);
 	assert(polyData);
 
@@ -481,9 +478,9 @@ void UnionPolygon(ResourceArrayHandle& r, SizeT n, const AbstrDataItem* polyData
 	auto polyArray = polyData->GetTile(t);
 
 	if (!r)
-		r.reset( ResourceArray<MP>::Create(n) );
+		r.reset( ResourceArray<MP>::create(n) );
 	ResourceArray<MP>* geometriesPtr = debug_cast<ResourceArray<MP>*>(r.get_ptr());
-	dms_assert(geometriesPtr->Size() == n);
+	dms_assert(geometriesPtr->size() == n);
 
 	PolygonFlags unionPermState =
 		(permDataA) ? PolygonFlags::F_DoPartUnion :
@@ -836,15 +833,17 @@ void SetKernel(typename bp_union_poly_traits<P>::ring_type& kernel, Float64 valu
 template <typename P>
 class BpPolygonOperator : public AbstrPolygonOperator
 {
+	using SequenceType = typename sequence_traits<P>::container_type;
 	using traits_t = bp_union_poly_traits<P>;
 
 	using ScalarType = typename traits_t::coordinate_type;
 	using PointType = typename traits_t::point_type;
 	using RingType = typename traits_t::ring_type;
 	using MultiPolygonType = typename traits_t::multi_polygon_type;
+	using PolygonSetDataType = typename traits_t::polygon_set_data_type;
 	using NumType = Float64;
 
-	typedef DataArray<RingType> ArgPolyType;
+	typedef DataArray<SequenceType> ArgPolyType;
 	typedef DataArray<NumType>  ArgNumType;
 
 public:
@@ -854,7 +853,7 @@ public:
 
 	void Calculate(ResourceArrayHandle& r, SizeT domainCount, const AbstrDataItem* polyDataA, const AbstrDataItem* partitionDataA, tile_id t) const override
 	{
-		UnionPolygon<RingType, MultiPolygonType>(r, domainCount, polyDataA, partitionDataA, t);
+		UnionPolygon<P, SequenceType, PolygonSetDataType>(r, domainCount, polyDataA, partitionDataA, t);
 	}
 
 	void ProcessNumOperImpl(ResourceArrayHandle& r, const AbstrDataItem* argNum, tile_id numT, PolygonFlags flag) const override
@@ -863,7 +862,7 @@ public:
 		dms_assert(argNum);
 		dms_assert(flag != PolygonFlags::none);
 
-		ResourceArray<typename traits_t::polygon_set_data_type>* geometryDataPtr = debug_cast<ResourceArray<typename traits_t::polygon_set_data_type>*>(r.get_ptr());
+		ResourceArray<PolygonSetDataType>* geometryDataPtr = debug_cast<ResourceArray<PolygonSetDataType>*>(r.get_ptr());
 		auto argNumData = const_array_cast<NumType>(argNum)->GetTile(numT);
 
 		bool isParam = argNumData.size() == 1;
@@ -992,19 +991,19 @@ public:
 		}
 		dms_assert(resGeometryLock);
 
-		auto resArray = mutable_array_cast<RingType>(resGeometryLock)->GetLockedDataWrite(t, dms_rw_mode::write_only_all); // t may be no_tile
+		auto resArray = mutable_array_cast<SequenceType>(resGeometryLock)->GetLockedDataWrite(t, dms_rw_mode::write_only_all); // t may be no_tile
 		auto resIter = resArray.begin();
 
 		for (SizeT i = 0; i!=domainCount; ++i)
 		{
 			if (m_Flags & PolygonFlags::F_DoSplit)
 			{
-				dms_split_assign(resIter, geometryPtr[i]);
+				bp_split_assign(resIter, geometryPtr[i]);
 				resIter += geometryPtr[i].size();
 			}
 			else
 			{
-				dms_assign(*resIter, geometryPtr[i]);
+				bp_assign(*resIter, geometryPtr[i]);
 				++resIter;
 			}
 			geometryPtr[i].clear();
@@ -1031,7 +1030,7 @@ class BgPolygonOperator : public AbstrPolygonOperator
 	using MultiPolygonType = traits_t::multi_polygon_type;
 	using NumType     = Float64;
 
-	typedef DataArray<PolygonType>    ArgPolyType;
+	typedef DataArray<SequenceType>   ArgPolyType;
 	typedef DataArray<NumType>        ArgNumType;
 
 public:
@@ -1041,7 +1040,7 @@ public:
 
 	void Calculate(ResourceArrayHandle& r, SizeT domainCount, const AbstrDataItem* polyDataA, const AbstrDataItem* partitionDataA, tile_id t) const override
 	{
-		UnionPolygon<P, MultiPolygonType>(r, domainCount, polyDataA, partitionDataA, t);
+		UnionPolygon<P, SequenceType, MultiPolygonType>(r, domainCount, polyDataA, partitionDataA, t);
 	}
 
 	void StoreImpl(AbstrUnit* resUnit, AbstrDataItem* resGeometry, DataWriteHandle& resGeometryLock, AbstrDataItem* resNrOrgEntity, tile_id t, ResourceArrayHandle& r) const override
@@ -1072,13 +1071,13 @@ public:
 				resRelLock.Commit();
 			}
 		}
-/*
+
 		if (DoDelayStore())
 		{
 			dms_assert(resGeometry);
 			resGeometryLock = DataWriteHandle(resGeometry, dms_rw_mode::write_only_all);
 		}
-*/
+
 		assert(resGeometryLock);
 
 		auto resArray = mutable_array_cast<SequenceType>(resGeometryLock)->GetLockedDataWrite(t, dms_rw_mode::write_only_all); // t may be no_tile
@@ -1088,12 +1087,12 @@ public:
 		{
 			if (m_Flags & PolygonFlags::F_DoSplit)
 			{
-				dms_split_assign(resIter, geometryPtr->m_Data[i]);
+				bg_split_assign(resIter, geometryPtr->m_Data[i]);
 				resIter += geometryPtr->m_Data[i].size();
 			}
 			else
 			{
-				dms_assign(*resIter, geometryPtr->m_Data[i]);
+				bg_assign(*resIter, geometryPtr->m_Data[i]);
 				++resIter;
 			}
 //			geometryPtr[i] = MultiPolygonType();
@@ -1265,7 +1264,7 @@ namespace
 
 	struct PolyOperatorGroups
 	{
-		BgPolyOperatorGroup simplePO, unionPO, partitionedPO;
+		BpPolyOperatorGroup simplePO, unionPO, partitionedPO;
 
 		PolyOperatorGroups(WeakStr nameTempl, PolygonFlags flags)
 			: simplePO(mySSPrintF(nameTempl.c_str(), "").c_str(), flags)

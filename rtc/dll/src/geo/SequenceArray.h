@@ -1,6 +1,10 @@
-// Copyright (C) 1998-2023 Object Vision b.v. 
+// Copyright (C) 1998-2024 Object Vision b.v. 
 // License: GNU GPL 3
 /////////////////////////////////////////////////////////////////////////////
+
+#if defined(_MSC_VER)
+#pragma once
+#endif
 
 /***************************************************************************
 
@@ -93,10 +97,6 @@ when the last sequence often grows, but adds a constant cost to the re-allocatio
 - generalization to sequece_array arrays (3 levels deep) or higher dimensions.
 
 */
-
-#if defined(_MSC_VER)
-#pragma once
-#endif
 
 #if !defined(__GEO_SEQUENCE_ARRAY_H)
 #define __GEO_SEQUENCE_ARRAY_H

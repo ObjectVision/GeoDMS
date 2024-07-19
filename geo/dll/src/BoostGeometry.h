@@ -61,8 +61,9 @@ namespace boost::geometry::traits
 template <typename P>
 struct bg_union_poly_traits
 {
-	using coordinate_type = scalar_of_t<P>;
-	using point_type = P;
+//	using coordinate_type = scalar_of_t<P>;
+	using coordinate_type = Float64;
+	using point_type = Point<coordinate_type>;
 	using ring_type = std::vector<point_type>;
 
 	using polygon_with_holes_type = boost::geometry::model::polygon<point_type>;
@@ -392,14 +393,14 @@ void store_multi_linestring(SA_Reference<P> resDataRef, const bg_multi_linestrin
 }
 
 template <typename DmsPointType>
-void store_ring(SA_Reference<DmsPointType> resDataElem, const bg_ring_t& ring)
+void store_ring(SA_Reference<DmsPointType> resDataElem, const auto& ring)
 {
 	assert(ring.begin()[0] == ring.end()[-1]); // closed ?
 	resDataElem.append(ring.begin(), ring.end());
 }
 
 template <typename DmsPointType>
-void store_ring(std::vector<DmsPointType>& resDataElem, const bg_ring_t& ring)
+void store_ring(std::vector<DmsPointType>& resDataElem, const auto& ring)
 {
 	assert(ring.begin()[0] == ring.end()[-1]); // closed ?
 	resDataElem.append_range(ring);
@@ -431,9 +432,18 @@ void store_multi_polygon(auto&& resDataElem, const bg_multi_polygon_t& resMP, st
 	}
 }
 
-template <typename RI, typename ...Args>
-void dms_split_assign(RI resIter, const std::vector<boost::geometry::model::polygon<Args...>>& mp)
+template <dms_sequence E, typename BG_MP>
+void bg_assign(E&& ref, BG_MP&& resMP)
 {
+	std::vector<DPoint> ringClosurePoints;
+	store_multi_polygon(std::forward<E>(ref), std::forward<BG_MP>(resMP), ringClosurePoints);
+}
+
+template <typename RI, typename BG_MP>
+void bg_split_assign(RI resIter, const BG_MP& mp)
+{
+	using value_type = scalar_of_t<typename RI::value_type>;
+
 	if (!mp.size())
 		return;
 
@@ -441,10 +451,10 @@ void dms_split_assign(RI resIter, const std::vector<boost::geometry::model::poly
 	{
 		resIter->clear();
 
-		const auto& outerRing = i->outer();
+		auto& outerRing = i->outer();
 		SizeT count = outerRing.size();
 		assert(count);
-		for (auto hi = i->inners().begin(), he = i->inners.end(); hi != he; ++hi)
+		for (auto hi = i->inners().begin(), he = i->inners().end(); hi != he; ++hi)
 			count += hi->size() + 1;
 
 		resIter->reserve(count);
@@ -453,7 +463,7 @@ void dms_split_assign(RI resIter, const std::vector<boost::geometry::model::poly
 		assert(outerRing.begin()[0] == outerRing.end()[-1]);
 
 		store_ring(*resIter, outerRing);
-		if (!i->inners.empty())
+		if (!i->inners().empty())
 		{
 			for (const auto& resLake : i->inners())
 				store_ring(*resIter, resLake);

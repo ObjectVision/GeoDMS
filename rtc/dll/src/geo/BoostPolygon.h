@@ -23,7 +23,7 @@ using namespace gtl::operators;
 
 
 // *****************************************************************************
-//	dms_assign from polygon_with_holes_data_set
+//	bp_assign from polygon_with_holes_data_set
 // *****************************************************************************
 
 template <typename V>
@@ -53,7 +53,7 @@ concept MultiPolygon = std::same_as<MP, std::vector<PolygonWithHoles>>;
 
 
 template <dms_sequence E, typename MP>
-void dms_assign (E ref,  MP&& poly)
+void bp_assign (E ref,  MP&& poly)
 {
 	ref.clear();
 
@@ -118,18 +118,18 @@ void dms_assign (E ref,  MP&& poly)
 }
 
 template <dms_sequence E, typename V>
-void dms_assign (E ref, gtl::polygon_set_data<V>& polyData)
+void bp_assign (E ref, gtl::polygon_set_data<V>& polyData)
 {
 	typename gtl::polygon_set_data<V>::clean_resources cleanResources;
 
-	std::vector<gtl::polygon_with_holes_data<V> > polyVect;
+	std::vector<gtl::polygon_with_holes_data<Float64> > polyVect;
 	polyData.get(polyVect, cleanResources);
 
-	dms_assign(ref, polyVect);
+	bp_assign(ref, polyVect);
 }
 
 template <typename RI, typename MP >
-void dms_split_assign (RI resIter, MP& poly)
+void bp_split_assign (RI resIter, MP& poly)
 {
 	if (!poly.size())
 		return;

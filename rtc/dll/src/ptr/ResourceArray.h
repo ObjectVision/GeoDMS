@@ -80,7 +80,7 @@ struct ResourceArray : ResourceArrayBase
 		char* resultMemPtr = allocate(ByteSize(n));
 		ResourceArray* result = new (resultMemPtr) ResourceArray;
 		ResourceArrayHandle resHandle(result);
-		result->Construct(n);
+		result->construct(n);
 		resHandle.release();
 		return result;
 	}

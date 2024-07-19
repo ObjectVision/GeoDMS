@@ -42,7 +42,7 @@ struct poly_and: poly_oper_base<PointType>
 	void Apply(typename poly_and::assignee_ref res, const typename poly_and::polygon_set_data_type& pa, const typename poly_and::polygon_set_data_type& pb) const
 	{
 		gtl::assign(this->tmp_ps, pa & pb, this->cleanResources);
-		dms_assign(res, this->tmp_ps, this->cleanResources);
+		bp_assign(res, this->tmp_ps, this->cleanResources);
 	}
 };
 
@@ -52,7 +52,7 @@ struct poly_or: poly_oper_base<PointType>
 	void Apply(typename poly_or::assignee_ref res, const typename poly_or::polygon_set_data_type& pa, const typename poly_or::polygon_set_data_type& pb) const
 	{
 		gtl::assign(this->tmp_ps, pa | pb, this->cleanResources);
-		dms_assign(res, this->tmp_ps, this->cleanResources);
+		bp_assign(res, this->tmp_ps, this->cleanResources);
 	}
 };
 
@@ -62,7 +62,7 @@ struct poly_xor: poly_oper_base<PointType>
 	void Apply(typename typename poly_xor::assignee_ref res, const typename poly_xor::polygon_set_data_type& pa, const typename poly_xor::polygon_set_data_type& pb) const
 	{
 		gtl::assign(this->tmp_ps, pa ^ pb, this->cleanResources);
-		dms_assign(res, this->tmp_ps, this->cleanResources);
+		bp_assign(res, this->tmp_ps, this->cleanResources);
 	}
 };
 
@@ -74,7 +74,7 @@ struct poly_sub: poly_oper_base<PointType>
 		const typename poly_sub::polygon_set_data_type& pb) const
 	{
 		gtl::assign(this->tmp_ps, pa - pb, this->cleanResources);
-		dms_assign(res, this->tmp_ps, this->cleanResources);
+		bp_assign(res, this->tmp_ps, this->cleanResources);
 	}
 };
 

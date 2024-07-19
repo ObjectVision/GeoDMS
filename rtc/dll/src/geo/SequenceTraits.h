@@ -25,6 +25,9 @@ struct is_dms_sequence<SA_Reference<P>> : std::true_type {};
 template <typename P>
 struct is_dms_sequence<std::vector<P>> : std::true_type {};
 
+template <typename R>
+struct is_dms_sequence<R&> : is_dms_sequence<R> {};
+
 template <typename P>
 constexpr bool is_dms_sequence_v = is_dms_sequence<P>::value;
 
