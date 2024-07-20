@@ -297,7 +297,7 @@ public:
 						continue;
 
 					res_data_elem_type back;
-					bp_assign(back.m_Geometry, geometry);
+					bp_assign(back.m_Geometry, geometry, cleanResources);
 
 
 					back.m_OrgRel.first = p1_rel;
@@ -994,6 +994,7 @@ public:
 		auto resArray = mutable_array_cast<SequenceType>(resGeometryLock)->GetLockedDataWrite(t, dms_rw_mode::write_only_all); // t may be no_tile
 		auto resIter = resArray.begin();
 
+//REMOVE		typename gtl::polygon_set_data<field_of_t<P>>::clean_resources cleanResources;
 		for (SizeT i = 0; i!=domainCount; ++i)
 		{
 			if (m_Flags & PolygonFlags::F_DoSplit)
@@ -1003,7 +1004,7 @@ public:
 			}
 			else
 			{
-				bp_assign(*resIter, geometryPtr[i]);
+				bp_assign_mp(*resIter, geometryPtr[i]);
 				++resIter;
 			}
 			geometryPtr[i].clear();

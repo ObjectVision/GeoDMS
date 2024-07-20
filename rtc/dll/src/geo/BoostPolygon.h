@@ -53,7 +53,7 @@ concept MultiPolygon = std::same_as<MP, std::vector<PolygonWithHoles>>;
 
 
 template <dms_sequence E, typename MP>
-void bp_assign (E ref,  MP&& poly)
+void bp_assign_mp (E ref,  MP&& poly)
 {
 	ref.clear();
 
@@ -118,14 +118,12 @@ void bp_assign (E ref,  MP&& poly)
 }
 
 template <dms_sequence E, typename V>
-void bp_assign (E ref, gtl::polygon_set_data<V>& polyData)
+void bp_assign (E ref, gtl::polygon_set_data<V>& polyData, typename gtl::polygon_set_data<V>::clean_resources& cleanResources)
 {
-	typename gtl::polygon_set_data<V>::clean_resources cleanResources;
-
 	std::vector<gtl::polygon_with_holes_data<Float64> > polyVect;
 	polyData.get(polyVect, cleanResources);
 
-	bp_assign(ref, polyVect);
+	bp_assign_mp(ref, polyVect);
 }
 
 template <typename RI, typename MP >

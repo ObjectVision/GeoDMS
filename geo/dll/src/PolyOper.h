@@ -22,22 +22,24 @@ template <typename G>
 struct binary_assign_groupoid: binary_assign<G, G, G> {};
 
 template <typename PointType> 
-struct poly_oper_base: binary_assign_groupoid<typename sequence_traits<PointType>::container_type> 
+struct bp_poly_oper_base: binary_assign_groupoid<typename sequence_traits<PointType>::container_type> 
 {
 	static ConstUnitRef unit_creator(const AbstrOperGroup* gr, const ArgSeqType& args) { return arg1_values_unit(args); }
-
-	typedef typename union_poly_traits<PointType>::polygon_set_data_type polygon_set_data_type;
+	using traits = bp_union_poly_traits<PointType>;
+	using polygon_set_data_type = typename traits::polygon_set_data_type;
 	mutable typename polygon_set_data_type::clean_resources cleanResources;
 	mutable polygon_set_data_type tmp_ps;
-	static void PrepareTile(typename sequence_traits<typename poly_oper_base::assignee_type>::seq_t res, typename sequence_traits<typename poly_oper_base::arg1_type>::cseq_t a1)
+
+/* REMOVE
+	static void PrepareTile(typename sequence_traits<typename bp_poly_oper_base::assignee_type>::seq_t res, typename sequence_traits<typename bp_poly_oper_base::arg1_type>::cseq_t a1)
 	{
 		// XXX
 	}
-
+	*/
 };
 
 template <typename PointType> 
-struct poly_and: poly_oper_base<PointType> 
+struct poly_and: bp_poly_oper_base<PointType> 
 {
 	void Apply(typename poly_and::assignee_ref res, const typename poly_and::polygon_set_data_type& pa, const typename poly_and::polygon_set_data_type& pb) const
 	{
@@ -47,7 +49,7 @@ struct poly_and: poly_oper_base<PointType>
 };
 
 template <typename PointType> 
-struct poly_or: poly_oper_base<PointType> 
+struct poly_or: bp_poly_oper_base<PointType>
 {
 	void Apply(typename poly_or::assignee_ref res, const typename poly_or::polygon_set_data_type& pa, const typename poly_or::polygon_set_data_type& pb) const
 	{
@@ -57,7 +59,7 @@ struct poly_or: poly_oper_base<PointType>
 };
 
 template <typename PointType> 
-struct poly_xor: poly_oper_base<PointType> 
+struct poly_xor: bp_poly_oper_base<PointType>
 {
 	void Apply(typename typename poly_xor::assignee_ref res, const typename poly_xor::polygon_set_data_type& pa, const typename poly_xor::polygon_set_data_type& pb) const
 	{
@@ -67,7 +69,7 @@ struct poly_xor: poly_oper_base<PointType>
 };
 
 template <typename PointType> 
-struct poly_sub: poly_oper_base<PointType> 
+struct poly_sub: bp_poly_oper_base<PointType>
 {
 	void Apply(typename poly_sub::assignee_ref res,
 		const typename poly_sub::polygon_set_data_type& pa,
@@ -97,7 +99,8 @@ void do_binary_poly_assign(
 
 	using PointType = field_of_t<Poly> ;
 	using CrdType = scalar_of_t<Poly>;
-	using polygon_set_data_type = typename union_poly_traits<PointType>::polygon_set_data_type ;
+	using traits = typename AttrOper::traits;
+	using polygon_set_data_type = typename traits::polygon_set_data_type;
 
 	if (e1IsVoid)
 	{
