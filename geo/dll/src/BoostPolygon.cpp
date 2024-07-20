@@ -453,10 +453,11 @@ void dms_insert(bg_multi_polygon_t& lvalue, const auto& rvalue)
 {
 	bg_polygon_t helperPolygon;
 	bg_ring_t helperRing;
-	bg_multi_polygon_t resMP;
+	bg_multi_polygon_t tmpMP, resMP;
 
-	assign_multi_polygon(resMP, rvalue, true, helperPolygon, helperRing);
-	boost::geometry::union_(lvalue, resMP, lvalue);
+	assign_multi_polygon(tmpMP, rvalue, true, helperPolygon, helperRing);
+	boost::geometry::union_(lvalue, tmpMP, resMP);
+	lvalue.swap(resMP);
 }
 
 
@@ -1046,18 +1047,18 @@ public:
 
 	void StoreImpl(AbstrUnit* resUnit, AbstrDataItem* resGeometry, DataWriteHandle& resGeometryLock, AbstrDataItem* resNrOrgEntity, tile_id t, ResourceArrayHandle& r) const override
 	{
+		SizeT domainCount = 0, splitCount = 0;
 		ResourceArray<MultiPolygonType>* geometryPtr = debug_cast<ResourceArray<MultiPolygonType>*>(r.get_ptr());
-		SizeT domainCount = 0;
+		if (geometryPtr)
+			domainCount = geometryPtr->size();
 
-		// split into separate polygons if requested
 		if (m_Flags & PolygonFlags::F_DoSplit)
 		{
 			assert(resUnit);
 			SizeT splitCount = 0;
 			for (SizeT i = 0; i != domainCount; ++i)
-				splitCount += geometryPtr->m_Data[i].size();
+				splitCount += geometryPtr->m_Data[i].size(); // geometryPtr 
 			resUnit->SetCount(splitCount); // we must be in delayed store now
-
 			if (resNrOrgEntity)
 			{
 				DataWriteLock resRelLock(resNrOrgEntity);
@@ -1073,12 +1074,8 @@ public:
 			}
 		}
 
-		if (DoDelayStore())
-		{
-			dms_assert(resGeometry);
-			resGeometryLock = DataWriteHandle(resGeometry, dms_rw_mode::write_only_all);
-		}
-
+		dms_assert(resGeometry);
+		resGeometryLock = DataWriteHandle(resGeometry, dms_rw_mode::write_only_all);
 		assert(resGeometryLock);
 
 		auto resArray = mutable_array_cast<SequenceType>(resGeometryLock)->GetLockedDataWrite(t, dms_rw_mode::write_only_all); // t may be no_tile
@@ -1263,24 +1260,47 @@ namespace
 			m_Instances;
 	};
 
-	struct PolyOperatorGroups
+	struct BpPolyOperatorGroups
 	{
 		BpPolyOperatorGroup simplePO, unionPO, partitionedPO;
 
-		PolyOperatorGroups(WeakStr nameTempl, PolygonFlags flags)
+		BpPolyOperatorGroups(WeakStr nameTempl, PolygonFlags flags)
 			: simplePO(mySSPrintF(nameTempl.c_str(), "").c_str(), flags)
 			, unionPO(mySSPrintF(nameTempl.c_str(), "union_").c_str(), PolygonFlags(flags | PolygonFlags::F_DoUnion))
 			, partitionedPO(mySSPrintF(nameTempl.c_str(), "partitioned_union_").c_str(), PolygonFlags(flags | PolygonFlags::F_DoPartUnion))
 		{}
 	};
+	struct BgPolyOperatorGroups
+	{
+		BgPolyOperatorGroup simplePO, unionPO, partitionedPO;
 
+		BgPolyOperatorGroups(WeakStr nameTempl, PolygonFlags flags)
+			: simplePO(mySSPrintF(nameTempl.c_str(), "").c_str(), flags)
+			, unionPO(mySSPrintF(nameTempl.c_str(), "union_").c_str(), PolygonFlags(flags | PolygonFlags::F_DoUnion))
+			, partitionedPO(mySSPrintF(nameTempl.c_str(), "partitioned_union_").c_str(), PolygonFlags(flags | PolygonFlags::F_DoPartUnion))
+		{}
+	};
 	struct PolyOperatorGroupss
 	{
-		PolyOperatorGroups simple, split;
+		BpPolyOperatorGroups simple, split;
 		PolyOperatorGroupss(CharPtr suffix, PolygonFlags flags)
 			: simple(SharedStr("%spolygon") + suffix, flags)
 			, split(SharedStr("split_%spolygon") + suffix, PolygonFlags(flags | PolygonFlags::F_DoSplit))
 		{}
+	};
+	struct BpPolyOperatorGroupss
+	{
+		BpPolyOperatorGroups 
+			simple = BpPolyOperatorGroups(SharedStr("bp_%spolygon"), PolygonFlags())
+		,   split = BpPolyOperatorGroups(SharedStr("bp_split_%spolygon"), PolygonFlags::F_DoSplit)
+		;
+	};
+	struct BgPolyOperatorGroupss
+	{
+		BgPolyOperatorGroups
+			simple = BgPolyOperatorGroups(SharedStr("bg_%spolygon"), PolygonFlags())
+		,	split = BgPolyOperatorGroups(SharedStr("bg_split_%spolygon"), PolygonFlags::F_DoSplit)
+		;
 	};
 
 	struct PolyOperatorGroupsss
@@ -1321,6 +1341,9 @@ namespace
 	tl_oper::inst_tuple_templ<typelists::sint_points, PolygonConnectivityOperator>	polygonConnectivityOperators;
 
 	PolyOperatorGroupss simple("", PolygonFlags());
+	BpPolyOperatorGroupss bp_simple;
+	BgPolyOperatorGroupss bg_simple;
+
 	PolyOperatorGroupsss f2 (SharedStr(""),          PolygonFlags());
 	PolyOperatorGroupsss f21(SharedStr("_filtered"), PolygonFlags::F_Filter2);
 	PolyOperatorGroupsss f22(SharedStr("_inflated"), PolygonFlags::F_Inflate2);
