@@ -848,8 +848,8 @@ class BpPolygonOperator : public AbstrPolygonOperator
 	typedef DataArray<NumType>  ArgNumType;
 
 public:
-	BpPolygonOperator(const std::pair<AbstrOperGroup*, PolygonFlags>& params)
-		:	AbstrPolygonOperator(params.first, ArgPolyType::GetStaticClass(), ArgNumType::GetStaticClass(), params.second)
+	BpPolygonOperator(AbstrOperGroup* aog, PolygonFlags flags)
+		:	AbstrPolygonOperator(aog, ArgPolyType::GetStaticClass(), ArgNumType::GetStaticClass(), flags)
 	{}
 
 	void Calculate(ResourceArrayHandle& r, SizeT domainCount, const AbstrDataItem* polyDataA, const AbstrDataItem* partitionDataA, tile_id t) const override
@@ -1036,8 +1036,8 @@ class BgPolygonOperator : public AbstrPolygonOperator
 	typedef DataArray<NumType>        ArgNumType;
 
 public:
-	BgPolygonOperator(const std::pair<AbstrOperGroup*, PolygonFlags>& params)
-		: AbstrPolygonOperator(params.first, ArgPolyType::GetStaticClass(), ArgNumType::GetStaticClass(), params.second)
+	BgPolygonOperator(AbstrOperGroup* aog, PolygonFlags flags)
+		: AbstrPolygonOperator(aog, ArgPolyType::GetStaticClass(), ArgNumType::GetStaticClass(), flags)
 	{}
 
 	void Calculate(ResourceArrayHandle& r, SizeT domainCount, const AbstrDataItem* polyDataA, const AbstrDataItem* partitionDataA, tile_id t) const override
@@ -1238,12 +1238,22 @@ namespace
 	{
 		BpPolyOperatorGroup(CharPtr name, PolygonFlags flags)
 			: CommonOperGroup(name)
-			, m_Instances(std::pair<AbstrOperGroup*, PolygonFlags>(this, flags))
+			, m_Instances(this, flags)
 		{
 			SetBetterNotInMetaScripting();
 		}
 
-		tl_oper::inst_tuple_templ<typelists::sint_points, BpPolygonOperator, std::pair<AbstrOperGroup*, PolygonFlags>>
+		tl_oper::inst_tuple_templ<typelists::sint_points, BpPolygonOperator, AbstrOperGroup*, PolygonFlags>
+			m_Instances;
+	};
+
+	struct BpPartionedAlternatives
+	{
+		BpPartionedAlternatives(AbstrOperGroup* cog, PolygonFlags flags)
+			: m_Instances(cog, flags)
+		{}
+
+		tl_oper::inst_tuple_templ<typelists::sint_points, BpPolygonOperator, AbstrOperGroup*, PolygonFlags>
 			m_Instances;
 	};
 
@@ -1251,38 +1261,60 @@ namespace
 	{
 		BgPolyOperatorGroup(CharPtr name, PolygonFlags flags)
 			: CommonOperGroup(name)
-			, m_Instances(std::pair<AbstrOperGroup*, PolygonFlags>(this, flags))
+			, m_Instances(this, flags)
 		{
 			SetBetterNotInMetaScripting();
 		}
 
-		tl_oper::inst_tuple_templ<typelists::seq_points, BgPolygonOperator, std::pair<AbstrOperGroup*, PolygonFlags>>
+		tl_oper::inst_tuple_templ<typelists::seq_points, BgPolygonOperator, AbstrOperGroup*, PolygonFlags>
 			m_Instances;
 	};
 
-	struct BpPolyOperatorGroups
+	struct BgPartitionedAlternatives
+	{
+		BgPartitionedAlternatives(AbstrOperGroup* cog, PolygonFlags flags)
+			: m_Instances(cog, flags)
+		{}
+
+		tl_oper::inst_tuple_templ<typelists::seq_points, BgPolygonOperator, AbstrOperGroup*, PolygonFlags>
+			m_Instances;
+	};
+
+	struct PolyOperatorGroups
 	{
 		BpPolyOperatorGroup simplePO, unionPO, partitionedPO;
+
+		PolyOperatorGroups(WeakStr nameTempl, PolygonFlags flags)
+			: simplePO(mySSPrintF(nameTempl.c_str(), "").c_str(), flags)
+			, unionPO(mySSPrintF(nameTempl.c_str(), "union_").c_str(), PolygonFlags(flags | PolygonFlags::F_DoUnion))
+			, partitionedPO(mySSPrintF(nameTempl.c_str(), "partitioned_union_").c_str(), PolygonFlags(flags | PolygonFlags::F_DoPartUnion))
+		{}
+	};
+	struct BpPolyOperatorGroups
+	{
+		BpPolyOperatorGroup simplePO, unionPO;
+		BpPartionedAlternatives partitionedPO;
 
 		BpPolyOperatorGroups(WeakStr nameTempl, PolygonFlags flags)
 			: simplePO(mySSPrintF(nameTempl.c_str(), "").c_str(), flags)
 			, unionPO(mySSPrintF(nameTempl.c_str(), "union_").c_str(), PolygonFlags(flags | PolygonFlags::F_DoUnion))
-			, partitionedPO(mySSPrintF(nameTempl.c_str(), "partitioned_union_").c_str(), PolygonFlags(flags | PolygonFlags::F_DoPartUnion))
+			, partitionedPO(&unionPO, PolygonFlags(flags | PolygonFlags::F_DoPartUnion))
 		{}
 	};
 	struct BgPolyOperatorGroups
 	{
-		BgPolyOperatorGroup simplePO, unionPO, partitionedPO;
+		BgPolyOperatorGroup simplePO, unionPO;
+		BgPartitionedAlternatives partitionedPO;
 
 		BgPolyOperatorGroups(WeakStr nameTempl, PolygonFlags flags)
 			: simplePO(mySSPrintF(nameTempl.c_str(), "").c_str(), flags)
 			, unionPO(mySSPrintF(nameTempl.c_str(), "union_").c_str(), PolygonFlags(flags | PolygonFlags::F_DoUnion))
-			, partitionedPO(mySSPrintF(nameTempl.c_str(), "partitioned_union_").c_str(), PolygonFlags(flags | PolygonFlags::F_DoPartUnion))
+			, partitionedPO(&unionPO, PolygonFlags(flags | PolygonFlags::F_DoPartUnion))
 		{}
 	};
 	struct PolyOperatorGroupss
 	{
-		BpPolyOperatorGroups simple, split;
+		PolyOperatorGroups simple, split;
 		PolyOperatorGroupss(CharPtr suffix, PolygonFlags flags)
 			: simple(SharedStr("%spolygon") + suffix, flags)
 			, split(SharedStr("split_%spolygon") + suffix, PolygonFlags(flags | PolygonFlags::F_DoSplit))
