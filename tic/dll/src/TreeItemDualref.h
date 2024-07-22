@@ -75,6 +75,9 @@ struct TreeItemDualRef : Actor
 	TIC_CALL void SetOld(const TreeItem* oldTI);
 	TIC_CALL void SetTmp(      TreeItem* tmpTI);
 
+	bool HasBackRef() const { return m_Data && m_Data->m_BackRef; }
+	SharedStr GetBackRefStr() const { return m_Data->m_BackRef->GetSourceName(); }
+
 protected:
 	void Set(const TreeItem* newTI, bool isNew);
 

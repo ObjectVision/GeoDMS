@@ -2402,6 +2402,7 @@ bool TreeItem::CheckMetaInfoReadyOrPassor() const
 }
 
 #endif
+
 const TreeItem* TreeItem::GetBackRef() const 
 {
 //	dms_assert(IsMainThread());

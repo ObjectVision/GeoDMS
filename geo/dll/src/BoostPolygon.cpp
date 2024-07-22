@@ -75,6 +75,30 @@ bool coords_using_more_than_25_bits(const Rect& rect)
 }
 
 // *****************************************************************************
+//	boost::polygon serialization
+// *****************************************************************************
+
+template <class C>
+FormattedOutStream& operator << (FormattedOutStream& os, const boost::polygon::point_data<C>& p)
+{
+	using namespace boost::polygon;
+
+	os << "(" << x(p) << ", " << y(p) << ")";
+
+	return os;
+}
+
+template <class C>
+FormattedOutStream& operator << (FormattedOutStream& os, const boost::polygon::rectangle_data<C>& r)
+{
+	using namespace boost::polygon;
+
+	os << "[" << ll(r) << ", " << ur(r) << "]";
+
+	return os;
+}
+
+// *****************************************************************************
 //	PolygonOverlay
 // *****************************************************************************
 
@@ -472,7 +496,11 @@ void dms_insert(gtl::polygon_set_data<C>& lvalue, const GT2& rvalue)
 		gtl::center(p, bpr1);
 		typename traits_t::point_type mp(-x(p), -y(p));
 		gtl::convolve(bpr1, mp);
-		MG_CHECK(!coords_using_more_than_25_bits(bpr1)); // throw exception if this remains an issue
+		if (coords_using_more_than_25_bits(bpr1))
+			throwErrorF("boost::polygon::insert", "extent of objects is %s after moving it with %s, which requires more than 25 bits for coordinates"
+				, AsString(bpr1) 
+				, AsString(mp)
+			);
 		lvalue.move(mp);
 
 		using point_vector = std::vector < Point<C> >;
@@ -942,7 +970,12 @@ public:
 				gtl::center(p, rectangle);
 				typename traits_t::point_type mp(-x(p), -y(p));
 				gtl::convolve(rectangle, mp);
-				MG_CHECK(!coords_using_more_than_25_bits(rectangle)); // throw exception if this remains an issue
+				if (coords_using_more_than_25_bits(rectangle))
+					throwErrorF("boost::polygon::ProcessSuffix", "extent of object is %s after moving it with %s, which requires  than 25 bits for coordinates"
+						, AsString(rectangle)
+						, AsString(mp)
+					);
+
 				geometryData.move(mp);
 			}
 			geometryData.clean(cleanResources);
