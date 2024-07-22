@@ -793,8 +793,8 @@ namespace boost { namespace polygon {
     //functions
 
     template <typename output_container>
-    void get_dispatch(output_container& output, polygon_concept tag) const {
-      get_fracture(output, true, tag);
+    void get_dispatch(output_container& output, clean_resources& r, polygon_concept tag) const {
+      get_fracture(output, true, r, tag);
     }
     template <typename output_container>
     void get_dispatch(output_container& output, clean_resources& r, polygon_with_holes_concept tag) const {
