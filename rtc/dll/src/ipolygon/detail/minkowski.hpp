@@ -138,7 +138,7 @@ struct minkowski_offset {
     if(empty()) return *this;
     if(num_circle_segments < 3) num_circle_segments = 4;
     rectangle_data<coordinate_type> rect;
-    extents(rect, resources.cleanResources);
+    extents(rect);
     if(resizing < 0) {
       ::boost::polygon::bloat(rect, 10);
       operator_is(rect - (*this), resources.cleanResources); //invert

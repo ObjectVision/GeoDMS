@@ -350,8 +350,7 @@ namespace boost { namespace polygon {
     }
 
     template <typename rectangle_type>
-    bool extents(rectangle_type& rect, clean_resources& r) {
-      clean(r);
+    bool extents(rectangle_type& rect) {
       if(empty()) return false;
 	  assert(begin() != end()); 
       bool first_iteration = true; // TODO: rewrite without first_iteration

@@ -46,8 +46,8 @@ static VersionComponent s_BoostPolygon("boost::polygon " BOOST_STRINGIZE(BOOST_P
 
 
 template <typename T>
-typename boost::enable_if_c<is_numeric_v<T> && (sizeof(T) < 4), bool>::type
-	coords_using_more_than_25_bits(T coord)
+bool coords_using_more_than_25_bits(T coord)
+	requires ( is_numeric_v<T> && (sizeof(T) < 4) )
 {
 	return false;
 }
@@ -62,18 +62,16 @@ bool coords_using_more_than_25_bits(UInt32 v)
 	return v >= MAX_COORD;
 }
 
-template <typename Point>
-typename boost::enable_if<typename gtl::is_point_concept<typename gtl::geometry_concept<Point>::type>::type, bool>::type
-coords_using_more_than_25_bits(Point p)
+template <gtl_point Point>
+bool coords_using_more_than_25_bits(Point p)
 {
-	return coords_using_more_than_25_bits(x(p)) || coords_using_more_than_25_bits(y(p));
+	return coords_using_more_than_25_bits(boost::polygon::x(p)) || coords_using_more_than_25_bits(boost::polygon::y(p));
 }
 
-template <typename Rect>
-typename boost::enable_if<typename gtl::is_rectangle_concept<typename gtl::geometry_concept<Rect>::type>::type, bool>::type
-coords_using_more_than_25_bits(const Rect& rect)
+template <gtl_rect Rect>
+bool coords_using_more_than_25_bits(const Rect& rect)
 {
-	return coords_using_more_than_25_bits(ll(rect)) || coords_using_more_than_25_bits(ur(rect));
+	return coords_using_more_than_25_bits(boost::polygon::ll(rect)) || coords_using_more_than_25_bits(boost::polygon::ur(rect));
 }
 
 // *****************************************************************************
@@ -439,14 +437,58 @@ bool operator & (PolygonFlags a, PolygonFlags b)
 	return static_cast<int>(a) & static_cast<int>(b);
 }
 
+template <typename C>
+boost::polygon::rectangle_data<C> get_enclosing_rectangle(const boost::polygon::rectangle_data<C>& a, const boost::polygon::rectangle_data<C>& b) {
+	using namespace boost::polygon;
+	C min_x = std::min(a.get(HORIZONTAL).get(LOW ), b.get(HORIZONTAL).get(LOW ));
+	C min_y = std::min(a.get(VERTICAL  ).get(LOW ), b.get(VERTICAL  ).get(LOW ));
+	C max_x = std::max(a.get(HORIZONTAL).get(HIGH), b.get(HORIZONTAL).get(HIGH));
+	C max_y = std::max(a.get(VERTICAL  ).get(HIGH), b.get(VERTICAL  ).get(HIGH));
+
+	return { boost::polygon::interval_data<C>(min_x, max_x), boost::polygon::interval_data<C>(min_y, max_y) };
+}
 
 template <typename C, typename GT2>
 void dms_insert(gtl::polygon_set_data<C>& lvalue, const GT2& rvalue)
 {
-	lvalue.insert(
-		gtl::polygon_set_traits<GT2>::begin(rvalue),
-		gtl::polygon_set_traits<GT2>::end(rvalue)
+	using traits_t = bp_union_poly_traits<C>;
+
+	typename traits_t::rect_type bpr1;
+	lvalue.extents(bpr1);
+
+	auto r2 = Range<Point<C>>(rvalue.begin(), rvalue.end(), false, false); 
+	auto bpr2 = boost::polygon::rectangle_data<C>(
+		boost::polygon::interval_data<C>(r2.first.X(), r2.second.X())
+	,	boost::polygon::interval_data<C>(r2.first.Y(), r2.second.Y())
 	);
+
+	bpr1 = get_enclosing_rectangle(bpr1, bpr2);
+
+	bool mustTranslate = coords_using_more_than_25_bits(bpr1);
+	if (mustTranslate)
+	{
+		typename traits_t::point_type p;
+		// translate to zero to avoid numerical round-off errors
+		gtl::center(p, bpr1);
+		typename traits_t::point_type mp(-x(p), -y(p));
+		gtl::convolve(bpr1, mp);
+		MG_CHECK(!coords_using_more_than_25_bits(bpr1)); // throw exception if this remains an issue
+		lvalue.move(mp);
+
+		using point_vector = std::vector < Point<C> >;
+		point_vector rvalueCopy(rvalue.begin(), rvalue.end());
+		for (auto& rvcp : rvalueCopy)
+			boost::polygon::convolve(rvcp, mp);
+
+		using vector_traits = gtl::polygon_set_traits<point_vector>;
+		lvalue.insert(vector_traits::begin( rvalueCopy ), vector_traits::end( rvalueCopy ));
+
+		lvalue.move(p);
+		return;
+	}
+
+	using GT2_traits = gtl::polygon_set_traits<GT2>;
+	lvalue.insert(GT2_traits::begin(rvalue), GT2_traits::end(rvalue));
 }
 
 void dms_insert(bg_multi_polygon_t& lvalue, const auto& rvalue)
@@ -626,14 +668,6 @@ protected:
 			{
 				resNrOrgEntity = CreateDataItem(resUnit, argPart ? token::part_rel : token::polygon_rel, resUnit, resDomain, ValueComposition::Single);
 				resNrOrgEntity->SetTSF(TSF_Categorical);
-
-				if (!mustCalc)
-				{
-					auto depreciatedRes = CreateDataItem(resUnit, token::nr_OrgEntity, resUnit, resDomain, ValueComposition::Single);
-					depreciatedRes->SetTSF(TSF_Categorical);
-					depreciatedRes->SetTSF(TSF_Depreciated);
-					depreciatedRes->SetReferredItem(resNrOrgEntity);
-				}
 			}
 		}
 		else
@@ -734,10 +768,10 @@ protected:
 	virtual void ProcessNumOperImpl(ResourceArrayHandle& r, const AbstrDataItem* argNum, tile_id numT, PolygonFlags f) const {}
 };
 
-template <typename P>
-void SetKernel(typename bp_union_poly_traits<P>::ring_type& kernel, Float64 value, PolygonFlags f)
+template <typename C>
+void SetKernel(typename bp_union_poly_traits<C>::ring_type& kernel, Float64 value, PolygonFlags f)
 {
-	using traits_t = bp_union_poly_traits<P>;
+	using traits_t = bp_union_poly_traits<C>;
 
 	if (f <= PolygonFlags::F_Filter1)
 		return;
@@ -835,7 +869,7 @@ template <typename P>
 class BpPolygonOperator : public AbstrPolygonOperator
 {
 	using SequenceType = typename sequence_traits<P>::container_type;
-	using traits_t = bp_union_poly_traits<P>;
+	using traits_t = bp_union_poly_traits<scalar_of_t<P>>;
 
 	using ScalarType = typename traits_t::coordinate_type;
 	using PointType = typename traits_t::point_type;
@@ -878,7 +912,7 @@ public:
 		if (isParam)
 		{
 			value = argNumData[0];
-			SetKernel<P>(kernel, value, flag);
+			SetKernel<scalar_of_t<P>>(kernel, value, flag);
 		}
 
 		typename traits_t::polygon_set_data_type::convolve_resources convolveResources;
@@ -894,12 +928,12 @@ public:
 			if (!isParam)
 			{
 				value = argNumData[i];
-				SetKernel<P>(kernel, value, flag);
+				SetKernel<scalar_of_t<P>>(kernel, value, flag);
 			}
 
 			typename traits_t::rect_type rectangle;
 			typename traits_t::point_type p;
-			geometryData.extents(rectangle, cleanResources);
+			geometryData.extents(rectangle); // , cleanResources);
 
 			bool mustTranslate = coords_using_more_than_25_bits(rectangle);
 			if (mustTranslate)
@@ -995,7 +1029,6 @@ public:
 		auto resArray = mutable_array_cast<SequenceType>(resGeometryLock)->GetLockedDataWrite(t, dms_rw_mode::write_only_all); // t may be no_tile
 		auto resIter = resArray.begin();
 
-//REMOVE		typename gtl::polygon_set_data<field_of_t<P>>::clean_resources cleanResources;
 		for (SizeT i = 0; i!=domainCount; ++i)
 		{
 			if (m_Flags & PolygonFlags::F_DoSplit)
@@ -1047,7 +1080,7 @@ public:
 
 	void StoreImpl(AbstrUnit* resUnit, AbstrDataItem* resGeometry, DataWriteHandle& resGeometryLock, AbstrDataItem* resNrOrgEntity, tile_id t, ResourceArrayHandle& r) const override
 	{
-		SizeT domainCount = 0, splitCount = 0;
+		SizeT domainCount = 0;
 		ResourceArray<MultiPolygonType>* geometryPtr = debug_cast<ResourceArray<MultiPolygonType>*>(r.get_ptr());
 		if (geometryPtr)
 			domainCount = geometryPtr->size();

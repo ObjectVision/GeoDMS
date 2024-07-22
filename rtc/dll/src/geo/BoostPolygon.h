@@ -32,6 +32,7 @@ Point<V> ConvertPoint(const gtl::point_data<V>& p)
 	return shp2dms_order<V>(x(p), y(p));
 }
 
+/* REMOVE, WIP
 template <typename R, typename P>
 concept Ring = requires (const R& ring)
 {
@@ -49,7 +50,7 @@ concept PolygonWithHoles = requires (const PWH& poly)
 
 template <typename MP, typename PolygonWithHoles>
 concept MultiPolygon = std::same_as<MP, std::vector<PolygonWithHoles>>;
-
+*/
 
 
 template <dms_sequence E, typename MP>
@@ -77,8 +78,8 @@ void bp_assign_mp (E ref,  MP&& poly)
 	
 	for (i=b; i!=e; ++i)
 	{
-		dms_assert(i->begin() != i->end ());
-		dms_assert(i->begin()[0] == i->end()[-1]);
+		assert(i->begin() != i->end ());
+		assert(i->begin()[0] == i->end()[-1]);
 		//for (auto pi=i->begin(), pe=i->end(); pi!=pe; ++pi)
 		for (auto pi=i->end(), pe=i->begin(); pi!=pe; ) // REVERSE ORDER
 			ref.push_back(ConvertPoint(*--pi));
@@ -87,16 +88,16 @@ void bp_assign_mp (E ref,  MP&& poly)
 		if (hi!=he)
 		{
 			do {
-				dms_assert(hi->begin() != hi->end());
-				dms_assert(hi->begin()[0] == hi->end()[-1]);
+				assert(hi->begin() != hi->end());
+				assert(hi->begin()[0] == hi->end()[-1]);
 
 //				for (auto phi=hi->begin(), phe=hi->end(); phi!=phe; ++phi)
 				for (auto phi=hi->end(), phe=hi->begin(); phi!=phe;)
 					ref.push_back(ConvertPoint(*--phi));
 
 			} while (++hi != he);
-			dms_assert(hi==he);
-			dms_assert(hi!=hb);
+			assert(hi==he);
+			assert(hi!=hb);
 			--hi;
 			while (hi != hb)
 			{
@@ -106,15 +107,15 @@ void bp_assign_mp (E ref,  MP&& poly)
 			ref.push_back(ConvertPoint(i->end()[-1]));
 		}
 	}
-	dms_assert(i==e);
-	dms_assert(b<i);
+	assert(i==e);
+	assert(b<i);
 	--i;
 	while (i!=b)
 	{
 		--i;
 		ref.push_back(ConvertPoint(i->end()[-1]));
 	}
-	dms_assert(ref.size() == count);
+	assert(ref.size() == count);
 }
 
 template <dms_sequence E, typename V>
@@ -182,9 +183,9 @@ void bp_split_assign (RI resIter, MP& poly)
 
 namespace boost { namespace polygon {
 
-template <> struct geometry_concept<UInt32> { typedef coordinate_concept type; };
-template <> struct geometry_concept<UInt16> { typedef coordinate_concept type; };
-template <> struct geometry_concept< Int16> { typedef coordinate_concept type; };
+template <> struct geometry_concept<UInt32> { using type = coordinate_concept; };
+template <> struct geometry_concept<UInt16> { using type = coordinate_concept; };
+template <> struct geometry_concept< Int16> { using type = coordinate_concept; };
 
 template <typename V, typename SP, typename UP>
 struct coordinate_traits_base
@@ -203,23 +204,44 @@ template <> struct coordinate_traits<UInt32> : coordinate_traits_base<UInt32, In
 template <> struct coordinate_traits<UInt16> : coordinate_traits_base<UInt16, Int32, UInt32> {};
 template <> struct coordinate_traits< Int16> : coordinate_traits_base< Int16, Int32, UInt32> {};
 
-template <> struct geometry_concept<IPoint> { typedef point_concept type; };
-template <> struct geometry_concept<UPoint> { typedef point_concept type; };
-template <> struct geometry_concept<SPoint> { typedef point_concept type; };
-template <> struct geometry_concept<WPoint> { typedef point_concept type; };
+template <> struct geometry_concept<IPoint> { using type = point_concept; };
+template <> struct geometry_concept<UPoint> { using type = point_concept; };
+template <> struct geometry_concept<SPoint> { using type = point_concept; };
+template <> struct geometry_concept<WPoint> { using type = point_concept; };
 
 
 template <typename CoordType>
 struct point_traits<Point<CoordType> > 
 {
-  typedef Point<CoordType> point_type;
-  typedef CoordType        coordinate_type;
+  using point_type = Point<CoordType>;
+  using coordinate_type = CoordType;
 
   static coordinate_type get(
       const point_type& point, orientation_2d orient) {
     return orient == HORIZONTAL ? point.X() : point.Y();
   }
 };
+
+template <typename CoordType>
+struct point_mutable_traits<Point<CoordType> > 
+{
+	using point_type = Point<CoordType>;
+	using coordinate_type = CoordType;
+
+	static void set(point_type& point, orientation_2d orient, coordinate_type value) {
+		if (orient == HORIZONTAL)
+			point.X() = value;
+		else
+			point.Y() = value;
+	}
+
+	static point_type construct(coordinate_type x, coordinate_type y) {
+		return shp2dms_order<coordinate_type>(x, y);
+	}
+};
+
+
+
 
 template <typename P> struct SA_ConstRing; //fwrd decl
 
@@ -306,21 +328,22 @@ struct SA_ConstRingIterator
 	SA_ConstRingIterator() {}
 
 	SA_ConstRingIterator(SA_ConstRingIterator&& src) 
-		:	m_SequenceIter(src.m_SequenceIter)
+		:	m_SequenceBase(src.m_SequenceBase)
 		,	m_IndexBuffer (std::move(src.m_IndexBuffer))
 		,	m_RingIndex   (src.m_RingIndex)
 	{
 	}
 
 	SA_ConstRingIterator(const SA_ConstRingIterator& src) 
-		:	m_SequenceIter(src.m_SequenceIter)
+		:	m_SequenceBase(src.m_SequenceBase)
 		,	m_IndexBuffer (src.m_IndexBuffer)
 		,	m_RingIndex   (src.m_RingIndex)
 	{
 	}
 
-	SA_ConstRingIterator(const SA_ConstReference<P>& scr, SizeT index)
-		:	m_SequenceIter(scr.makePtr())
+	template <typename PointRange>
+	SA_ConstRingIterator(const PointRange& scr, SizeT index)
+		:	m_SequenceBase(begin_ptr(scr))
 		,	m_RingIndex(index)
 	{
 		if (index != -1)
@@ -329,22 +352,23 @@ struct SA_ConstRingIterator
 			if (m_IndexBuffer.empty())
 				m_RingIndex = -1;
 			else
-				dms_assert(m_RingIndex < m_IndexBuffer.size());
+				assert(m_RingIndex < m_IndexBuffer.size());
 		}
 	}
+
 	SA_ConstRingIterator& operator =(const SA_ConstRingIterator& rhs) = default;
-	bool operator ==(const SA_ConstRingIterator& rhs) const { dms_assert(m_SequenceIter == rhs.m_SequenceIter); return m_RingIndex == rhs.m_RingIndex; }
-	bool operator !=(const SA_ConstRingIterator& rhs) const { dms_assert(m_SequenceIter == rhs.m_SequenceIter); return m_RingIndex != rhs.m_RingIndex; }
+	bool operator ==(const SA_ConstRingIterator& rhs) const { assert(m_SequenceBase == rhs.m_SequenceBase); return m_RingIndex == rhs.m_RingIndex; }
+	bool operator !=(const SA_ConstRingIterator& rhs) const { assert(m_SequenceBase == rhs.m_SequenceBase); return m_RingIndex != rhs.m_RingIndex; }
 
 	void operator ++()
 	{ 
-		dms_assert(m_RingIndex != -1);
+		assert(m_RingIndex != -1);
 		if (++m_RingIndex == m_IndexBuffer.size())
 			m_RingIndex = -1;
 	}
 	void operator --()
 	{
-		dms_assert(m_RingIndex != 0);
+		assert(m_RingIndex != 0);
 		if (m_RingIndex == -1)
 			m_RingIndex = m_IndexBuffer.size() - 1;
 		else
@@ -352,11 +376,11 @@ struct SA_ConstRingIterator
 	}
 	SA_ConstRing<P> operator *() const
 	{
-		dms_assert(m_RingIndex != -1);
-		dms_assert(m_RingIndex < m_IndexBuffer.size());
+		assert(m_RingIndex != -1);
+		assert(m_RingIndex < m_IndexBuffer.size());
 		return SA_ConstRing<P>(
-			m_SequenceIter->begin() + m_IndexBuffer[m_RingIndex].first 
-		,	m_SequenceIter->begin() + m_IndexBuffer[m_RingIndex].second
+			m_SequenceBase + m_IndexBuffer[m_RingIndex].first 
+		,	m_SequenceBase + m_IndexBuffer[m_RingIndex].second
 		);
 	}
 	difference_type operator -(const SA_ConstRingIterator& oth) const
@@ -372,7 +396,7 @@ struct SA_ConstRingIterator
 		return index - othIndex;
 	}
 
-	SA_ConstIterator<P> m_SequenceIter;
+	const P*            m_SequenceBase = nullptr;
 	pointIndexBuffer_t  m_IndexBuffer;
 	SizeT               m_RingIndex = -1;
 };
@@ -409,16 +433,18 @@ template <> struct polygon_set_traits<SA_Reference<UPoint> > : poly_sequence_tra
 template <> struct polygon_set_traits<SA_Reference<SPoint> > : poly_sequence_traits<SA_Reference<SPoint> > {};
 template <> struct polygon_set_traits<SA_Reference<WPoint> > : poly_sequence_traits<SA_Reference<WPoint> > {};
 
+template <> struct polygon_set_traits<IPolygon> : poly_sequence_traits<IPolygon> {};
+template <> struct polygon_set_traits<UPolygon> : poly_sequence_traits<UPolygon> {};
+template <> struct polygon_set_traits<SPolygon> : poly_sequence_traits<SPolygon> {};
+template <> struct polygon_set_traits<WPolygon> : poly_sequence_traits<WPolygon> {};
+
 }} // namespace boost { namespace polygon {
 
 
-template <typename P>
+template <typename C>
 struct bp_union_poly_traits
 {
-//	using PointType = P;
-//	using ring_type = std::vector<PointType>;
-
-	using coordinate_type = scalar_of_t<P>;
+	using coordinate_type = C;
 
 	using polygon_with_holes_type = gtl::polygon_with_holes_data<coordinate_type>;
 
@@ -432,8 +458,10 @@ struct bp_union_poly_traits
 	using unsigned_area_type = gtl::coordinate_traits<coordinate_type>::unsigned_area_type;
 };
 
-template <typename P> constexpr bool is_any_polygon_set_v = gtl::is_any_polygon_set_type<P>::type::value;
-template <typename P> concept PolygonSet = is_any_polygon_set_v<P>;
+template<typename P> concept gtl_point = gtl::is_point_concept    <typename gtl::geometry_concept<P>::type>::type::value;
+template<typename R> concept gtl_rect = gtl::is_rectangle_concept<typename gtl::geometry_concept<R>::type>::type::value;
+template<typename P> concept gtl_PolygonSet = gtl::is_any_polygon_set_type<P>::type::value;
+
 
 
 

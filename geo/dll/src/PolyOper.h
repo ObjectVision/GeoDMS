@@ -25,7 +25,7 @@ template <typename PointType>
 struct bp_poly_oper_base: binary_assign_groupoid<typename sequence_traits<PointType>::container_type> 
 {
 	static ConstUnitRef unit_creator(const AbstrOperGroup* gr, const ArgSeqType& args) { return arg1_values_unit(args); }
-	using traits = bp_union_poly_traits<PointType>;
+	using traits = bp_union_poly_traits<scalar_of_t<PointType>>;
 	using polygon_set_data_type = typename traits::polygon_set_data_type;
 	mutable typename polygon_set_data_type::clean_resources cleanResources;
 	mutable polygon_set_data_type tmp_ps;
