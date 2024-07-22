@@ -24,6 +24,7 @@
 #include "utl/mySPrintF.h"
 #include "utl/scoped_exit.h"
 #include "utl/IncrementalLock.h"
+#include "xct/DmsException.h"
 
 #include "LockLevels.h"
 #include "LispTreeType.h"
@@ -1412,9 +1413,9 @@ void OperationContext::RunOperator(Explain::Context* context, ArgRefs argRefs, s
 	if (!CancelIfNoInterestOrForced(false))
 	{
 		bool newResult = false;
+		if (funcDC->WasFailed(FR_MetaInfo))
+			return;
 		try {
-			if (funcDC->WasFailed(FR_MetaInfo))
-				return;
 
 			actualResult = m_Oper->CalcResult(resultHolder, std::move(argRefs), std::move(readLocks), this, context); // ============== payload
 
@@ -1433,6 +1434,10 @@ void OperationContext::RunOperator(Explain::Context* context, ArgRefs argRefs, s
 		catch (...)
 		{
 			resultHolder.CatchFail(FR_Data); // Now done by TreeItemDualRef::DoFail
+			auto errPtr = resultHolder.GetFailReason();
+			errPtr->TellExtraF("in function %s", m_Oper->GetGroup()->GetNameStr());
+			if (resultHolder.HasBackRef())
+				errPtr->TellExtraF("while calculating %s", resultHolder.GetBackRefStr());
 			HandleFail(resultHolder);
 		}
 		dms_assert(!resultHolder.IsNew() || resultHolder->m_LastChangeTS == resultHolder.m_LastChangeTS); // further changes in the resulting data must have caused resultHolder to invalidate, as IsNew results are passive
