@@ -476,29 +476,31 @@ template <typename C, typename GT2>
 void dms_insert(gtl::polygon_set_data<C>& lvalue, const GT2& rvalue)
 {
 	using traits_t = bp_union_poly_traits<C>;
+	if (rvalue.size() == 0)
+		return;
 
-	typename traits_t::rect_type bpr1;
-	lvalue.extents(bpr1);
 
-	auto r2 = Range<Point<C>>(rvalue.begin(), rvalue.end(), false, false); 
-	auto bpr2 = boost::polygon::rectangle_data<C>(
-		boost::polygon::interval_data<C>(r2.first.X(), r2.second.X())
-	,	boost::polygon::interval_data<C>(r2.first.Y(), r2.second.Y())
+	auto rRange = Range<Point<C>>(rvalue.begin(), rvalue.end(), false, false); 
+	auto bpRect = boost::polygon::rectangle_data<C>(
+		boost::polygon::interval_data<C>(rRange.first.X(), rRange.second.X())
+	,	boost::polygon::interval_data<C>(rRange.first.Y(), rRange.second.Y())
 	);
 
-	bpr1 = get_enclosing_rectangle(bpr1, bpr2);
+	typename traits_t::rect_type bpLeftRect;
+	if (lvalue.extents(bpLeftRect))
+		bpRect = get_enclosing_rectangle(bpRect, bpLeftRect);
 
-	bool mustTranslate = coords_using_more_than_25_bits(bpr1);
+	bool mustTranslate = coords_using_more_than_25_bits(bpRect);
 	if (mustTranslate)
 	{
 		typename traits_t::point_type p;
 		// translate to zero to avoid numerical round-off errors
-		gtl::center(p, bpr1);
+		gtl::center(p, bpRect);
 		typename traits_t::point_type mp(-x(p), -y(p));
-		gtl::convolve(bpr1, mp);
-		if (coords_using_more_than_25_bits(bpr1))
+		gtl::convolve(bpRect, mp);
+		if (coords_using_more_than_25_bits(bpRect))
 			throwErrorF("boost::polygon::insert", "extent of objects is %s after moving it with %s, which requires more than 25 bits for coordinates"
-				, AsString(bpr1) 
+				, AsString(bpRect)
 				, AsString(mp)
 			);
 		lvalue.move(mp);
