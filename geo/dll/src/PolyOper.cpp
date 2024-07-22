@@ -35,11 +35,18 @@ struct BinaryPolyOperInstantiation
 
 using namespace typelists;
 
+
 namespace {
-	BinaryPolyOperInstantiation<typelists::sint_points, poly_and>  sAndPoly(&cog_bitand), sMulPoly(&cog_mul);
-	BinaryPolyOperInstantiation<typelists::sint_points, poly_or >  sOrPoly(&cog_bitor), sAddPoly(&cog_add);
-	BinaryPolyOperInstantiation<typelists::sint_points, poly_xor>  sXOrPoly(&cog_pow);
-	BinaryPolyOperInstantiation<typelists::sint_points, poly_sub>  sSubPoly(&cog_sub);
+	CommonOperGroup
+		cogBpIntersect("bp_intersect"),
+		cogBpUnion    ("bp_union"),
+		cogBpSymmetricDifference("bp_xor"),
+		cogBpDifference("bp_difference"),
+
+	BinaryPolyOperInstantiation<typelists::sint_points, poly_and>  sAndPoly(&cog_bitand), sMulPoly(&cog_mul), sIntersectPoly(&cogBpIntersect);
+	BinaryPolyOperInstantiation<typelists::sint_points, poly_or >  sOrPoly(&cog_bitor), sAddPoly(&cog_add), sUnionPoly(&cogBpUnion);
+	BinaryPolyOperInstantiation<typelists::sint_points, poly_xor>  sXOrPoly(&cog_pow), sBpSymmetricDifference(&cogBpSymmetricDifference);
+	BinaryPolyOperInstantiation<typelists::sint_points, poly_sub>  sSubPoly(&cog_sub), sBpDifference(&cogBpDifference);
 //	BinaryPolyOperInstantiation<typelists::sint_points, poly_eq>   sEqPoly (&cog_eq);
 //	BinaryPolyOperInstantiation<typelists::sint_points, poly_ne>   sEqPoly (&cog_ne);
 } // namespace
