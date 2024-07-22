@@ -39,9 +39,9 @@ using namespace typelists;
 namespace {
 	CommonOperGroup
 		cogBpIntersect("bp_intersect"),
-		cogBpUnion    ("bp_union"),
+		cogBpUnion("bp_union"),
 		cogBpSymmetricDifference("bp_xor"),
-		cogBpDifference("bp_difference"),
+		cogBpDifference("bp_difference");
 
 	BinaryPolyOperInstantiation<typelists::sint_points, poly_and>  sAndPoly(&cog_bitand), sMulPoly(&cog_mul), sIntersectPoly(&cogBpIntersect);
 	BinaryPolyOperInstantiation<typelists::sint_points, poly_or >  sOrPoly(&cog_bitor), sAddPoly(&cog_add), sUnionPoly(&cogBpUnion);
