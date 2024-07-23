@@ -470,7 +470,7 @@ void bg_split_assign(RI resIter, const BG_MP& mp)
 			auto currInner = i->inners().end() - 1;
 			do {
 				resIter->push_back(currInner->end()[-1]);
-
+				--currInner;
 			} while (currInner != i->inners().begin());
 			resIter->push_back(outerRing.end()[-1]);
 		}
