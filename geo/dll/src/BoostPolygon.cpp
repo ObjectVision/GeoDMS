@@ -157,6 +157,8 @@ protected:
 				CreatePointHandle(arg1A, t, pointBoxDataHandle);
 			}
 
+			std::atomic<tile_id> intersectCount = 0;
+
 			for (tile_id u=0, ue = domain2Unit->GetNrTiles(); u != ue; ++u)
 			{
 				ReadableTileLock readPolyLock (arg2A->GetCurrRefObj(), u);
@@ -166,8 +168,6 @@ protected:
 // 				for (tile_id t=0, te = domainUnit->GetNrTiles(); t != te; ++t)
 				leveled_critical_section resInsertSection(item_level_type(0), ord_level_type::SpecificOperatorGroup, "PolygonOverlay.InsertSection");
 
-				std::atomic<tile_id> intersectCount = 0; // DEBUG
-
 				parallel_tileloop(domain1Unit->GetNrTiles(), [this, &resInsertSection, arg1A, arg2A, u, &pointBoxDataHandle, &polyInfoHandle, &resData, &intersectCount](tile_id t)->void
 					{
 						if (this->IsIntersecting(t, u, pointBoxDataHandle, polyInfoHandle))
@@ -176,7 +176,7 @@ protected:
 
 							Calculate(resData, resInsertSection, arg1A, arg2A, t, u, polyInfoHandle);
 
-							++intersectCount; // DEBUG
+							++intersectCount;
 						}
 					}
 				);
@@ -537,7 +537,7 @@ Timer s_ProcessTimer;
 
 
 template <typename P, typename SequenceType, typename MP>
-void UnionPolygon(ResourceArrayHandle& r, SizeT n, const AbstrDataItem* polyDataA, const AbstrDataItem* permDataA, tile_id t)
+void UnionPolygon(ResourceArrayHandle& r, SizeT n, const AbstrDataItem* polyDataA, const AbstrDataItem* permDataA, tile_id t, const AbstrOperGroup* whosCalling)
 {
 #if defined(MG_DEBUG_POLYGON)
 	DBG_START("UnionPolygon", "", true);
@@ -545,6 +545,7 @@ void UnionPolygon(ResourceArrayHandle& r, SizeT n, const AbstrDataItem* polyData
 #endif
 	auto polyData = const_array_cast<SequenceType>(polyDataA);
 	assert(polyData);
+	assert(whosCalling);
 
 	OwningPtr<IndexGetter> vg;
 
@@ -593,9 +594,11 @@ void UnionPolygon(ResourceArrayHandle& r, SizeT n, const AbstrDataItem* polyData
 
 		if (s_ProcessTimer.PassedSecs(5))
 		{
-			reportF(SeverityTypeID::ST_MajorTrace, "UnionPolygon: processed %d sequences of tile %d"
+			reportF(SeverityTypeID::ST_MajorTrace, "%s: processed %d sequences of tile %d/%d"
+				, whosCalling->GetNameStr()
 				, pi - pb
 				, t
+				, polyDataA->GetAbstrDomainUnit()->GetNrTiles()
 			);
 		}
 	}
@@ -772,22 +775,21 @@ protected:
 		assert(argNum);
 
 		ReadableTileLock readNum1Lock (argNum ? argNum->GetCurrRefObj() : nullptr, argNum->HasVoidDomainGuarantee() ? 0 : t);
-#if defined(MG_DEBUG_POLYGON)
+
 		switch (f) {
-			case F_Inflate1:
-				reportF(ST_MajorTrace, "UnionPolygon.Inflate %d", t); // DEBUG
+			case PolygonFlags::F_Inflate1:
+				reportF(SeverityTypeID::ST_MajorTrace, "%s.Inflate tile %d", GetGroup()->GetNameStr(), t);
 				break;
-			case F_Deflate1:
-				reportF(ST_MajorTrace, "UnionPolygon.Deflate %d", t); // DEBUG
+			case PolygonFlags::F_Deflate1:
+				reportF(SeverityTypeID::ST_MajorTrace, "%s.Deflate tile %d", GetGroup()->GetNameStr(), t);
 				break;
-			case F_Filter1:
-				reportF(ST_MajorTrace, "UnionPolygon.Filter %d", t); // DEBUG
+			case PolygonFlags::F_Filter1:
+				reportF(SeverityTypeID::ST_MajorTrace, "%s.Filter tile %d", GetGroup()->GetNameStr(), t);
 				break;
 			default:
-				reportF(ST_MajorTrace, "UnionPolygon.Oper %d %d", f / F_Inflate1, t); // DEBUG
+				reportF(SeverityTypeID::ST_MajorTrace, "%s.Operation %d tile %d", GetGroup()->GetNameStr(), int(f) / int(PolygonFlags::F_Inflate1), t); // DEBUG
 				break;
 		}
-#endif //defined(MG_DEBUG_POLYGON)
 
 		ProcessNumOperImpl(r, argNum, t, f);
 	}
@@ -929,7 +931,7 @@ public:
 
 	void Calculate(ResourceArrayHandle& r, SizeT domainCount, const AbstrDataItem* polyDataA, const AbstrDataItem* partitionDataA, tile_id t) const override
 	{
-		UnionPolygon<P, SequenceType, PolygonSetDataType>(r, domainCount, polyDataA, partitionDataA, t);
+		UnionPolygon<P, SequenceType, PolygonSetDataType>(r, domainCount, polyDataA, partitionDataA, t, GetGroup());
 	}
 
 	void ProcessNumOperImpl(ResourceArrayHandle& r, const AbstrDataItem* argNum, tile_id t, PolygonFlags flag) const override
@@ -1129,7 +1131,7 @@ public:
 
 	void Calculate(ResourceArrayHandle& r, SizeT domainCount, const AbstrDataItem* polyDataA, const AbstrDataItem* partitionDataA, tile_id t) const override
 	{
-		UnionPolygon<P, SequenceType, MultiPolygonType>(r, domainCount, polyDataA, partitionDataA, t);
+		UnionPolygon<P, SequenceType, MultiPolygonType>(r, domainCount, polyDataA, partitionDataA, t, GetGroup());
 	}
 
 	void StoreImpl(AbstrUnit* resUnit, AbstrDataItem* resGeometry, DataWriteHandle& resGeometryLock, AbstrDataItem* resNrOrgEntity, tile_id t, ResourceArrayHandle& r) const override
