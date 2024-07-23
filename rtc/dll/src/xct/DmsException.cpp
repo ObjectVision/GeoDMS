@@ -262,7 +262,7 @@ extern "C" RTC_CALL void DMS_CONV DMS_DisplayError(CharPtr msg)
 
 auto getContext(SeverityTypeID st) -> SharedStr
 {
-	if (st >= SeverityTypeID::ST_Warning)
+	if (st >= SeverityTypeID::ST_MajorTrace)
 		for (auto ch = ContextHandle::GetLast(); ch; ch = ch->GetPrev())
 			if (ch->HasItemContext())
 				return ch->ItemAsStr();

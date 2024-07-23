@@ -98,4 +98,24 @@ protected:
 
 // *****************************************************************************
 
+#include "dbg/DebugContext.h"
+
+struct TreeItemDualRefContextHandle : ObjectContextHandle
+{
+	TIC_CALL TreeItemDualRefContextHandle(const TreeItemDualRef* currRef);
+	TIC_CALL ~TreeItemDualRefContextHandle();
+
+	TIC_CALL static bool HasBackRef();
+	TIC_CALL static SharedStr GetBackRefStr();
+
+	TIC_CALL bool HasItemContext() const override { return HasBackRef(); }
+	TIC_CALL auto ItemAsStr() const->SharedStr override { return GetBackRefStr(); }
+
+
+private:
+	const TreeItemDualRef* m_PrevRef;
+};
+
+// *****************************************************************************
+
 #endif // __TIC_TREEITEMDUALREF_H

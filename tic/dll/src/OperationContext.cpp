@@ -1416,6 +1416,7 @@ void OperationContext::RunOperator(Explain::Context* context, ArgRefs argRefs, s
 		if (funcDC->WasFailed(FR_MetaInfo))
 			return;
 		try {
+			TreeItemDualRefContextHandle reportProgressAndErr(&resultHolder);
 
 			actualResult = m_Oper->CalcResult(resultHolder, std::move(argRefs), std::move(readLocks), this, context); // ============== payload
 

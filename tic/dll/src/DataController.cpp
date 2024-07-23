@@ -188,6 +188,33 @@ garbage_t TreeItemDualRef::StopInterest() const noexcept
 	return garbage;
 }
 
+// *****************************************************************************
+
+static thread_local const TreeItemDualRef* s_CurrTreeItemDualRef = nullptr;
+
+TreeItemDualRefContextHandle::TreeItemDualRefContextHandle(const TreeItemDualRef * currRef)
+	: ObjectContextHandle(currRef)
+	, m_PrevRef(s_CurrTreeItemDualRef)
+{
+	s_CurrTreeItemDualRef = currRef;
+}
+
+TreeItemDualRefContextHandle::~TreeItemDualRefContextHandle()
+{
+	s_CurrTreeItemDualRef = m_PrevRef;
+}
+
+bool TreeItemDualRefContextHandle::HasBackRef()\
+{
+	return s_CurrTreeItemDualRef && s_CurrTreeItemDualRef->HasBackRef();
+}
+
+auto TreeItemDualRefContextHandle::GetBackRefStr() ->SharedStr
+{
+	assert(s_CurrTreeItemDualRef);
+	return s_CurrTreeItemDualRef->GetBackRefStr();
+}
+
 /********** DataControllerContextHandle **********/
 
 void DataControllerContextHandle::GenerateDescription()
