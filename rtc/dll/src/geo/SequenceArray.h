@@ -282,7 +282,7 @@ struct SA_Reference : private SequenceArray_Base<T>
 	operator SA_ConstReference<T>() const { return SA_ConstReference<T>(m_Container, m_SeqPtr); }
 
 	// sequence properties
-	size_type      size() const { dms_assert(!is_null()); return m_SeqPtr->size(); }
+	size_type       size() const { dms_assert(!is_null()); return m_SeqPtr->size(); }
 	bool           empty() const { dms_assert(!is_null()); return m_SeqPtr->empty(); }
 	bool       IsDefined() const { dms_assert(!is_null()); return ::IsDefined(*m_SeqPtr); }
 
