@@ -11,6 +11,7 @@
 #include <numbers>
 
 #include "dbg/SeverityType.h"
+#include "dbg/Timer.h"
 #include "geo/BoostPolygon.h"
 #include "geo/SpatialIndex.h"
 #include "mci/ValueWrap.h"
@@ -179,10 +180,10 @@ protected:
 						}
 					}
 				);
-				reportF(SeverityTypeID::ST_MajorTrace, "%s at %d tiles of first argument x %d/%d tiles of second argument resulted in %d matches"
+				reportF(SeverityTypeID::ST_MajorTrace, "%s with %d tiles of first argument and after matching %d/%d tiles of second argument, %d intersecting tiles were processed."
 					, GetGroup()->GetNameStr()
 					, domain1Unit->GetNrTiles()
-					, u, ue
+					, u+1, ue
 					, intersectCount
 				);
 			}
@@ -532,6 +533,8 @@ void dms_insert(bg_multi_polygon_t& lvalue, const auto& rvalue)
 	lvalue.swap(resMP);
 }
 
+Timer s_ProcessTimer;
+
 
 template <typename P, typename SequenceType, typename MP>
 void UnionPolygon(ResourceArrayHandle& r, SizeT n, const AbstrDataItem* polyDataA, const AbstrDataItem* permDataA, tile_id t)
@@ -562,12 +565,12 @@ void UnionPolygon(ResourceArrayHandle& r, SizeT n, const AbstrDataItem* polyData
 //	typename polygon_set_data_type::clean_resources cleanResources;
 
 	// insert each multi-polygon in polyArray in geometryPtr[part_rel] 
-	for (auto p1=polyArray.begin(), pb=p1, e1=polyArray.end(); p1!=e1; ++p1)
+	for (auto pb=polyArray.begin(), pi=pb, pe=polyArray.end(); pi!=pe; ++pi)
 	{
 		MP* geometryPtr = geometriesPtr->m_Data;
 		if (unionPermState != PolygonFlags::F_DoUnion)
 		{
-			SizeT i = p1-pb;
+			SizeT i = pi-pb;
 			if (unionPermState != PolygonFlags::none)
 			{
 				assert(unionPermState == PolygonFlags::F_DoPartUnion);
@@ -586,7 +589,15 @@ void UnionPolygon(ResourceArrayHandle& r, SizeT n, const AbstrDataItem* polyData
 #if defined(MG_DEBUG_POLYGON)
 		DBG_TRACE(("index %d", p1 - pb));
 #endif
-		dms_insert(*geometryPtr, *p1);
+		dms_insert(*geometryPtr, *pi);
+
+		if (s_ProcessTimer.PassedSecs(5))
+		{
+			reportF(SeverityTypeID::ST_MajorTrace, "UnionPolygon: processed %d sequences of tile %d"
+				, pi - pb
+				, t
+			);
+		}
 	}
 }
 
@@ -757,11 +768,10 @@ protected:
 		if (f == PolygonFlags::none)
 			return;
 
-		dms_assert(r);
-		dms_assert(argNum);
+		assert(r);
+		assert(argNum);
 
-		tile_id numT = argNum->HasVoidDomainGuarantee() ? 0 : t;
-		ReadableTileLock readNum1Lock (argNum ? argNum->GetCurrRefObj() : nullptr, numT);
+		ReadableTileLock readNum1Lock (argNum ? argNum->GetCurrRefObj() : nullptr, argNum->HasVoidDomainGuarantee() ? 0 : t);
 #if defined(MG_DEBUG_POLYGON)
 		switch (f) {
 			case F_Inflate1:
@@ -779,14 +789,15 @@ protected:
 		}
 #endif //defined(MG_DEBUG_POLYGON)
 
-		ProcessNumOperImpl(r, argNum, numT, f);
+		ProcessNumOperImpl(r, argNum, t, f);
 	}
 	void Store (AbstrUnit* resUnit, AbstrDataItem* resGeometry, DataWriteHandle& resGeometryHandle, AbstrDataItem* resNrOrgEntity, tile_id t, ResourceArrayHandle& r, const AbstrDataItem* argNum1, const AbstrDataItem* argNum2) const
 	{
 		if (r)
 		{
-			ProcessNumOper(r, argNum1, t, PolygonFlags(int(m_Flags) & int(PolygonFlags::F_Mask1)));
-			ProcessNumOper(r, argNum2, t, PolygonFlags((int(m_Flags) & int(PolygonFlags::F_Mask2)) / (int(PolygonFlags::F_Mask2) / int(PolygonFlags::F_Mask1))));
+			constexpr int mask_ratio = int(PolygonFlags::F_Mask2) / int(PolygonFlags::F_Mask1);
+			ProcessNumOper(r, argNum1, t, PolygonFlags( int(m_Flags) & int(PolygonFlags::F_Mask1)));
+			ProcessNumOper(r, argNum2, t, PolygonFlags((int(m_Flags) & int(PolygonFlags::F_Mask2)) / mask_ratio));
 		}
 #if defined(MG_DEBUG_POLYGON)
 		reportF(ST_MajorTrace, "UnionPolygon.Store %d", t);
@@ -921,14 +932,14 @@ public:
 		UnionPolygon<P, SequenceType, PolygonSetDataType>(r, domainCount, polyDataA, partitionDataA, t);
 	}
 
-	void ProcessNumOperImpl(ResourceArrayHandle& r, const AbstrDataItem* argNum, tile_id numT, PolygonFlags flag) const override
+	void ProcessNumOperImpl(ResourceArrayHandle& r, const AbstrDataItem* argNum, tile_id t, PolygonFlags flag) const override
 	{
 		dms_assert(r);
 		dms_assert(argNum);
 		dms_assert(flag != PolygonFlags::none);
 
 		ResourceArray<PolygonSetDataType>* geometryDataPtr = debug_cast<ResourceArray<PolygonSetDataType>*>(r.get_ptr());
-		auto argNumData = const_array_cast<NumType>(argNum)->GetTile(numT);
+		auto argNumData = const_array_cast<NumType>(argNum)->GetTile(argNum->HasVoidDomainGuarantee() ? 0 : t);
 
 		bool isParam = argNumData.size() == 1;
 		SizeT domainCount = r->size();
@@ -1008,6 +1019,14 @@ public:
 			geometryData.clean(cleanResources); // remove internal edges
 			if (mustTranslate)
 				geometryData.move(p);
+
+			if (s_ProcessTimer.PassedSecs(5))
+			{
+				reportF(SeverityTypeID::ST_MajorTrace, "ProcessPolygon: processed %d sequences of tile %d"
+					, domainCount
+					, t
+				);
+			}
 		}
 	}
 
