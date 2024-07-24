@@ -31,8 +31,6 @@
 ThemeSet::ThemeSet(AspectNrSet possibleAspects, AspectNr activeTheme)
 	:	m_ActiveTheme(activeTheme)
 	,	m_PossibleAspects(possibleAspects)
-	,	m_PossibleAspectGroups(0)
-	,	m_DisabledAspectGroups(0)
 {
 	// Initialize m_PossibleAspectGroups
 	for (AspectGroup ag=AG_First; ag != AG_Count; ++reinterpret_cast<UInt32&>(ag))

@@ -814,9 +814,13 @@ bool DataItemColumn::IsEditable(AspectNr a) const
 	auto tc = GetTableControl().lock(); if (!tc) return false;
 	if (tc->m_GroupByEntity) return false;
 
-	auto theme = GetEnabledTheme(AN_LabelText);
+	auto theme = GetEnabledTheme(a);
+	if (!theme)
+		theme = GetEnabledTheme(AN_LabelText);
 	if (!theme)
 		theme =  GetEnabledTheme(AN_LabelTextColor);
+	if (!theme)
+		theme = GetEnabledTheme(AN_LabelBackColor);
 	if (!theme)
 		return false;
 
@@ -1486,7 +1490,7 @@ void DataItemColumn::FillMenu(MouseEventDispatcher& med)
 
 	if ( GetEnabledTheme(AN_LabelBackColor) && IsEditable(AN_LabelBackColor) )
 	{
-		SubMenu subMenu(med.m_MenuData, SharedStr("Change Brush Color"));
+		SubMenu subMenu(med.m_MenuData, SharedStr("Change Color"));
 
 		med.m_MenuData.push_back(
 			MenuItem(

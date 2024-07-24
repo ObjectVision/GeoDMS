@@ -95,8 +95,8 @@ protected:
 private: friend struct ThemeReadLocks; friend struct SelThemeCreator; friend class LayerControl;
 	SharedStr                    m_Name;
 	SharedPtr<FocusElemProvider> m_FocusElemProvider;
-	UInt32                       m_PossibleAspectGroups;
-	UInt32                       m_DisabledAspectGroups;
+	UInt32                       m_PossibleAspectGroups = 0;
+	UInt32                       m_DisabledAspectGroups = 0;
 	std::weak_ptr<DataView>      m_DataView;
 };
 
