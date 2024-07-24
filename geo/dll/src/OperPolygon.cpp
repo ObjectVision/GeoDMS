@@ -1594,6 +1594,8 @@ protected:
 				CreatePointHandle(arg1A, t, pointBoxDataHandle);
 			}
 
+			std::atomic<tile_id> intersectCount = 0;
+
 			for (tile_id u = 0, ue = domain2Unit->GetNrTiles(); u != ue; ++u)
 			{
 				ReadableTileLock readPolyLock(arg2A->GetCurrRefObj(), u);
@@ -1603,7 +1605,6 @@ protected:
 				// 				for (tile_id t=0, te = domainUnit->GetNrTiles(); t != te; ++t)
 				leveled_critical_section resInsertSection(item_level_type(0), ord_level_type::SpecificOperatorGroup, "PointInAllPolygons.InsertSection");
 
-				std::atomic<tile_id> intersectCount = 0; // DEBUG
 
 				parallel_tileloop(domain1Unit->GetNrTiles(), [this, &resInsertSection, arg1A, arg2A, u, &pointBoxDataHandle, &polyInfoHandle, &resData, &intersectCount](tile_id t)->void
 					{
@@ -1613,14 +1614,14 @@ protected:
 
 							Calculate(resData, resInsertSection, arg1A, arg2A, t, u, polyInfoHandle);
 
-							++intersectCount; // DEBUG
+							++intersectCount;
 						}
 					}
 				);
 
-				reportF(SeverityTypeID::ST_MajorTrace, "point_in_all_polygons at %d point tiles x %d polygon tiles resulted in %d matches"
+				reportF(SeverityTypeID::ST_MajorTrace, "point_in_all_polygons with %d point tiles after processing %d/%d polygon tiles resulted in %d matches"
 					, domain1Unit->GetNrTiles()
-					, ue
+					, u+1, ue
 					, intersectCount
 				);
 			}
