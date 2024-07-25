@@ -40,9 +40,11 @@ enum ArgFlags
 
 struct PerformanceEstimationData
 {
-	calc_time_t expectedTime;
-	SizeT resultingMemory;
-	SizeT workingMemory = 0;
+	calc_time_t expectedCalcTime = 0;
+	SizeT inputSize, inputSizePerChore = 0;
+	SizeT workingMemorySize = 0, workingMemorySizePerChore = 0;
+	SizeT resultingMemory = 0;
+
 	UInt16 extraTasks = 0;
 };
 

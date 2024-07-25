@@ -62,7 +62,7 @@ struct AbstrUnaryAttrOperator: UnaryOperator
 	auto EstimatePerformance(TreeItemDualRef& resultHolder, const ArgRefs& args) -> PerformanceEstimationData override
 	{
 		auto result = UnaryOperator::EstimatePerformance(resultHolder, args);
-		result.expectedTime *= GetGroup()->GetCalcFactor();
+		result.expectedCalcTime *= GetGroup()->GetCalcFactor();
 		return result;
 	}
 
@@ -71,10 +71,10 @@ struct AbstrUnaryAttrOperator: UnaryOperator
 		MG_PRECONDITION(args.size() == 1);
 
 		const AbstrDataItem* arg1A = debug_cast<const AbstrDataItem*>(args[0]);
-		dms_assert(arg1A);
+		assert(arg1A);
 
 		const AbstrUnit* e = arg1A->GetAbstrDomainUnit();
-		dms_assert(e);
+		assert(e);
 
 		if (!resultHolder)
 			resultHolder = CreateCacheDataItem(e, (*m_UnitCreatorPtr)(GetGroup(), args), m_VC);
@@ -82,7 +82,7 @@ struct AbstrUnaryAttrOperator: UnaryOperator
 		if (mustCalc)
 		{
 			auto res = AsDataItem(resultHolder.GetNew());
-			dms_assert(res);
+			assert(res);
 
 			DataReadLock arg1Lock(arg1A);
 
@@ -177,7 +177,7 @@ struct UnaryAttrAssignOperator : UnaryAttrOperator<typename TUniAssign::assignee
 
 	void CalcTile(sequence_traits<typename TUniAssign::assignee_type>::seq_t resData, sequence_traits<typename TUniAssign::arg1_type>::cseq_t arg1Data, ArgFlags af MG_DEBUG_ALLOCATOR_SRC_ARG) const override
 	{
-		dms_assert(arg1Data.size() == resData.size());
+		assert(arg1Data.size() == resData.size());
 
 		do_unary_assign(resData, arg1Data, TUniAssign(), af & AF1_HASUNDEFINED, TYPEID(TUniAssign));
 	}
@@ -195,7 +195,7 @@ struct UnaryAttrFuncOperator: UnaryAttrOperator<typename TUniOper::res_type, typ
 
 	void CalcTile(sequence_traits<typename TUniOper::res_type>::seq_t resData, sequence_traits<typename TUniOper::arg1_type>::cseq_t arg1Data, ArgFlags af MG_DEBUG_ALLOCATOR_SRC_ARG) const override
 	{
-		dms_assert(arg1Data.size() == resData.size());
+		assert(arg1Data.size() == resData.size());
 
 		do_unary_func(resData, arg1Data, m_AttrOper, af & AF1_HASUNDEFINED);
 	}
@@ -215,7 +215,7 @@ struct UnaryAttrSpecialFuncOperator: UnaryAttrOperator<typename TUniOper::res_ty
 
 	void CalcTile(sequence_traits<typename TUniOper::res_type>::seq_t resData, sequence_traits<typename TUniOper::arg1_type>::cseq_t arg1Data, ArgFlags af MG_DEBUG_ALLOCATOR_SRC_ARG) const override
 	{
-		dms_assert(arg1Data.size() == resData.size());
+		assert(arg1Data.size() == resData.size());
 
 		dms_transform(arg1Data.begin(), arg1Data.end(), resData.begin(), m_AttrOper);
 	}

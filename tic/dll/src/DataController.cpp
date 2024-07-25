@@ -376,7 +376,7 @@ DataControllerRef GetExistingDataController(LispPtr keyExpr)
 
 #include "DataLocks.h"
 
-auto DataController::CalcResult(Explain::Context* context) const -> FutureData
+auto DataController::CallCalcResult(Explain::Context* context) const -> FutureData
 {
 	FutureData resultHolder(this);
 	dms_assert(GetInterestCount());
@@ -393,7 +393,7 @@ auto DataController::CalcResultWithValuesUnits() const -> FutureData// TODO G8: 
 	if (WasFailed(FR_Data))
 		return nullptr;
 
-	auto result = CalcResult();
+	auto result = CallCalcResult();
 	if (!result)
 	{
 		dms_assert(WasFailed(FR_Data) || SuspendTrigger::DidSuspend());
@@ -417,7 +417,7 @@ auto DataController::CalcResultWithValuesUnits() const -> FutureData// TODO G8: 
 FutureData DataController::CalcCertainResult()  const
 {
 	SuspendTrigger::SilentBlocker lock("DataController::CalcCertainResult()");
-	return CalcResult();
+	return CallCalcResult();
 }
 
 SharedStr DataController::GetSourceName() const

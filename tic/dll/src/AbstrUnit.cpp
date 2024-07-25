@@ -736,9 +736,35 @@ bool AbstrUnit::IsOrdinalAndZeroBased() const
 	return GetNrDimensions() == 1 && GetBase() == 0;
 }
 
+const row_id ASSUMED_SIZE = 1000000;
+
 row_id AbstrUnit::GetEstimatedCount() const
 {
-	return GetCount();
+	if (IsDataReady(this))
+		return GetCount();
+	if (HasSizeEstimator())
+	{
+		auto se = GetSizeEstimator();
+		assert(se);
+		auto dc = CalledCalcHandle(se.get(), AbstrDataItem::GetStaticClass());
+		auto fd = dc->CalcCertainResult();
+		auto ri = fd->MakeResult();
+
+		if (!ri || !IsDataItem(ri))
+			throwDmsErrF("SizeEstimator must define a numeric result, but is defined as %s"
+				, se->GetExpr()
+				);
+		auto ari = AsDataItem(ri);
+		if (!ari->HasVoidDomainGuarantee())
+			throwDmsErrF("SizeEstimator must define a single result, but is defined as %s"
+				, se->GetExpr()
+			);
+		DataReadLock drl(ari);
+		auto ado = ari->GetRefObj();
+		assert(ado);
+		return ado->GetValueAsSizeT(0);
+	}
+	return ASSUMED_SIZE;
 }
 
 void AbstrUnit::ValidateCount(SizeT supposedCount) const

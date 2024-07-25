@@ -55,7 +55,7 @@ struct ConstTileFunctor : GeneratedTileFunctor<V>
 	//	auto GetWritableTile(tile_id t, dms_rw_mode rwMode) ->locked_seq_t override;
 	auto GetTile(tile_id t) const->locked_cseq_t override
 	{
-		dms_assert(t < this->GetTiledRangeData()->GetNrTiles());
+		assert(t < this->GetTiledRangeData()->GetNrTiles());
 
 		std::lock_guard lock(cs_Handle);
 
@@ -70,7 +70,7 @@ struct ConstTileFunctor : GeneratedTileFunctor<V>
 		}
 		
 		tile_offset currTileSize = this->GetTiledRangeData()->GetTileSize(t);
-		dms_assert(tileSPtr->size() >= currTileSize);
+		assert(tileSPtr->size() >= currTileSize);
 
 		return locked_cseq_t(make_SharedThing(std::move(tileSPtr)), sequence_traits<V>::cseq_t(tileSPtr->begin(), tileSPtr->begin()+currTileSize));
 	}
@@ -105,16 +105,16 @@ struct AbstrConstOperator : public BinaryOperator
 	// Override Operator
 	bool CreateResult(TreeItemDualRef& resultHolder, const ArgSeqType& args, bool mustCalc) const override
 	{
-		dms_assert(args.size() == 2);
+		assert(args.size() == 2);
 
 		const AbstrDataItem* arg1A = AsDataItem(args[0]);
-		dms_assert(arg1A);
+		assert(arg1A);
 
 		if (!arg1A->HasVoidDomainGuarantee())
 			arg1A->throwItemError("Should have a void domain");
 
 		const AbstrUnit* arg2U = AsUnit(args[1]);
-		dms_assert(arg2U);
+		assert(arg2U);
 
 		if (!resultHolder)
 		{
@@ -170,7 +170,7 @@ struct AbstrConstParamOperator : public Operator
 	// Override Operator
 	bool CreateResult(TreeItemDualRef& resultHolder, const ArgSeqType& args, bool mustCalc) const override
 	{
-		dms_assert(args.size() == 0);
+		assert(args.size() == 0);
 
 		if (!resultHolder)
 		{

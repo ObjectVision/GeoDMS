@@ -173,7 +173,7 @@ namespace Explain { // local defs
 		ArgRef GetCalcDataItem(Context* context) const override
 		{
 			ExplainResult(m_CalcPtr, context);
-			return CalcResult(m_CalcPtr, AbstrDataItem::GetStaticClass());
+			return CalledCalcHandle(m_CalcPtr, AbstrDataItem::GetStaticClass());
 		}
 
 		void GetDescrImpl(CalcExplImpl* self, OutStreamBase& stream, bool isFirst, bool showHidden) const override;

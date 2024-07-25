@@ -127,12 +127,18 @@ void bp_assign (E ref, gtl::polygon_set_data<V>& polyData, typename gtl::polygon
 	bp_assign_mp(ref, polyVect);
 }
 
-template <typename RI, typename MP >
-void bp_split_assign (RI resIter, MP& poly)
+template <typename RI, typename CPI >
+void bp_assign_ring(RI resIter, CPI ringBegin, CPI ringEnd)
 {
-	if (!poly.size())
-		return;
+	// REVERSE ORDER
+	for (; ringBegin != ringEnd; ) 
+		resIter->emplace_back(ConvertPoint(*--ringEnd));
+}
 
+
+template <typename RI, typename MP >
+auto bp_split_assign (RI resIter, MP& poly) -> RI
+{
 	for (auto i=poly.begin(), e=poly.end(); i!=e; ++resIter, ++i)
 	{
 		resIter->clear();
@@ -147,9 +153,7 @@ void bp_split_assign (RI resIter, MP& poly)
 		assert(i->begin() != i->end ());
 		assert(i->begin()[0] == i->end()[-1]);
 
-		//for (auto pi=i->begin(), pe=i->end(); pi!=pe; ++pi)
-		for (auto pi=i->end(), pe=i->begin(); pi!=pe; ) // REVERSE ORDER
-			resIter->push_back(ConvertPoint(*--pi));
+		bp_assign_ring(resIter, i->begin(), i->end());
 
 		auto hb=i->begin_holes(), hi=hb, he=i->end_holes(); 
 		if (hi!=he)
@@ -158,10 +162,7 @@ void bp_split_assign (RI resIter, MP& poly)
 				assert(hi->begin() != hi->end());
 				assert(hi->begin()[0] == hi->end()[-1]);
 
-//				for (auto phi=hi->begin(), phe=hi->end(); phi!=phe; ++phi)
-				for (auto phi=hi->end(), phe=hi->begin(); phi!=phe;) // REVERSE ORDER
-					resIter->push_back(ConvertPoint(*--phi));
-
+				bp_assign_ring(resIter, hi->begin(), hi->end());
 			} while (++hi != he);
 			assert(hi==he);
 			assert(hi!=hb);
@@ -175,6 +176,7 @@ void bp_split_assign (RI resIter, MP& poly)
 		}
 		assert(resIter->size() == count);
 	}
+	return resIter;
 }
 
 // *****************************************************************************

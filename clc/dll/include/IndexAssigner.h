@@ -79,9 +79,9 @@ struct IndexAssignerBase : UnitProcessor
 		auto resData = composite_cast<DataArray<E>*>(m_Res)->GetDataWrite(m_TileID);
 		SizeT sz = resData.size();
 
-		dms_assert(m_Start         <= sz);
-		dms_assert(m_Start + m_Len <= sz);
-		dms_assert(m_Len           <= sz);
+		assert(m_Start         <= sz);
+		assert(m_Start + m_Len <= sz);
+		assert(m_Len           <= sz);
 
 		Range_Index2Value_checked(inviter->GetRange(), m_Indices, m_Indices + m_Len, resData.begin()+m_Start);
 	}
@@ -122,9 +122,9 @@ struct IdAssigner : UnitProcessor
 		auto resData = composite_cast<DataArray<E>*>(m_Res)->GetDataWrite(m_TileID, dms_rw_mode::read_write);
 		SizeT sz = resData.size();
 
-		dms_assert(m_Start         <= sz);
-		dms_assert(m_Start + m_Len <= sz);
-		dms_assert(m_Len           <= sz);
+		assert(m_Start         <= sz);
+		assert(m_Start + m_Len <= sz);
+		assert(m_Len           <= sz);
 
 		auto target = resData.begin() + m_Start;
 		SizeT i = m_Base, e = m_Base + m_Len;
@@ -163,9 +163,9 @@ struct NullAssignerBase : UnitProcessor
 		auto resData = composite_cast<DataArray<E>*>(m_Res)->GetDataWrite(m_TileID, dms_rw_mode::read_write);
 		SizeT sz = resData.size();
 
-		dms_assert(m_Start         <= sz);
-		dms_assert(m_Start + m_Len <= sz);
-		dms_assert(m_Len           <= sz);
+		assert(m_Start         <= sz);
+		assert(m_Start + m_Len <= sz);
+		assert(m_Len           <= sz);
 
 		auto first = resData.begin() + m_Start;
 		fast_fill(first, first+ m_Len, UNDEFINED_OR_ZERO(E) );

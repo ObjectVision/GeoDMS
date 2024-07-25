@@ -69,9 +69,9 @@ struct AbstrTernaryAttrOper : TernaryOperator
 		const AbstrDataItem* arg2A = debug_cast<const AbstrDataItem*>(args[1]);
 		const AbstrDataItem* arg3A = debug_cast<const AbstrDataItem*>(args[2]);
 
-		dms_assert(arg1A);
-		dms_assert(arg2A);
-		dms_assert(arg3A);
+		assert(arg1A);
+		assert(arg2A);
+		assert(arg3A);
 
 		const AbstrUnit* e1 = arg1A->GetAbstrDomainUnit(); bool e1Void = e1->GetValueType() == ValueWrap<Void>::GetStaticClass();
 		const AbstrUnit* e2 = arg2A->GetAbstrDomainUnit(); bool e2Void = e2->GetValueType() == ValueWrap<Void>::GetStaticClass();

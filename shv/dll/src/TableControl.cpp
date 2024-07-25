@@ -1173,7 +1173,7 @@ auto TableControl::CreateIndex(const AbstrDataItem* attr) -> FutureData
 //	assert(attr->mc_DC);
 
 	auto dc = GetOrCreateDataController(ExprList(GetTokenID("direct_index"), attr->GetCheckedKeyExpr() ));
-	return dc->CalcResult();
+	return dc->CallCalcResult();
 }
 
 void TableControl::CreateTableIndex(DataItemColumn* dic, SortOrder so)

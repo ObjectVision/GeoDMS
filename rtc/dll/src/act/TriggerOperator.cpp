@@ -462,7 +462,7 @@ namespace SuspendTrigger {
 	{
 		if (BlockerBase::IsBlocked()) 
 			return false;
-		dms_assert(IsMetaThread());
+		assert(IsMetaThread());
 		return s_bLastResult;
 	}
 

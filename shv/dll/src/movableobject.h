@@ -85,7 +85,7 @@ public:
 	void CopyToClipboard(DataView* dv);
 	HBITMAP GetAsDDBitmap(DataView* dv, CrdType subPixelFactor = 1.0, MovableObject* extraObj= nullptr);
 
-	ControlRegion GetControlDeviceRegion(GType absX) const;
+	ControlRegion GetControlDeviceRegion(GType absX, bool isColOriented) const;
 
 //	non-virtual override of GetOwner
 	std::weak_ptr<MovableObject> GetOwner()             { return std::static_pointer_cast<MovableObject>(base_type::GetOwner().lock());	}

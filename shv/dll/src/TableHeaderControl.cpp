@@ -162,10 +162,13 @@ bool ColumnHeaderDragger::Exec(EventInfo& eventInfo)
 bool ColumnHeaderControl::MouseEvent(MouseEventDispatcher& med)
 {
 	auto medOwner = med.GetOwner().lock(); if (!medOwner) return true;
+	if (!m_Dic) return false;
+	auto tc = m_Dic->GetTableControl().lock(); if (!tc) return false;
+	bool isColOriented = tc->IsColOriented();
 
 	if ((med.GetEventInfo().m_EventID & EventID::SETCURSOR ))
 	{
-		if (GetControlDeviceRegion(med.GetEventInfo().m_Point.x) != RG_MIDDLE )
+		if (GetControlDeviceRegion(med.GetEventInfo().m_Point.x, isColOriented) != RG_MIDDLE )
 		{
 			SetCursor(LoadCursor(NULL, IDC_SIZEWE));
 			return true;
@@ -175,7 +178,9 @@ bool ColumnHeaderControl::MouseEvent(MouseEventDispatcher& med)
 	if ((med.GetEventInfo().m_EventID & EventID::LBUTTONDOWN) && m_Dic)
 	{
 		GPoint mousePoint = med.GetEventInfo().m_Point;
-		if (GetControlDeviceRegion(mousePoint.x) != RG_MIDDLE)
+		auto tc = m_Dic->GetTableControl().lock(); if (!tc) return false;
+
+		if (GetControlDeviceRegion(mousePoint.x, isColOriented) != RG_MIDDLE)
 			return m_Dic->MouseEvent(med);
 
 		//	Controls for columnn ordering

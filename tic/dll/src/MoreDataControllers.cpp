@@ -337,16 +337,16 @@ SharedTreeItem FuncDC::MakeResult() const // produce signature
 	return m_Data;
 }
 
-auto FuncDC::CalcResult(Explain::Context* context) const -> FutureData
+auto FuncDC::CallCalcResult(Explain::Context* context) const -> FutureData
 {
 #if defined(MG_DEBUG_DCDATA)
-	DBG_START("FuncDc::CalcResult", md_sKeyExpr.c_str(), MG_DEBUG_FUNCDC);
+	DBG_START("FuncDc::CallCalcResult", md_sKeyExpr.c_str(), MG_DEBUG_FUNCDC);
 
 //	auto_flag_recursion_lock<DCFD_IsCalculating> reentryLock(Actor::m_State);
 	const TreeItem* dContext = m_Data;
 
-	dms_assert(IsMetaThread());
-	dms_assert(!SuspendTrigger::DidSuspend());
+	assert(IsMetaThread());
+	assert(!SuspendTrigger::DidSuspend());
 #endif
 
 	DetermineState(); // may trigger DoInvalidate -> reset m_Data, only MainThread may re-MakeResult
@@ -406,8 +406,8 @@ auto FuncDC::CalcResult(Explain::Context* context) const -> FutureData
 				);
 		}
 	}
-	dms_assert(GetInterestCount());
-	dms_assert(m_Data->IsPassor() || m_OperatorGroup->CanResultToConfigItem() );
+	assert(GetInterestCount());
+	assert(m_Data->IsPassor() || m_OperatorGroup->CanResultToConfigItem() );
 	if (context && !m_OperatorGroup->CanExplainValue())
 		context = nullptr;
 
@@ -415,23 +415,23 @@ auto FuncDC::CalcResult(Explain::Context* context) const -> FutureData
 		SupplInclusionTester guaranteeThatCompleteSupplRelIsTransitive(this);
 	#endif
 
-	DBG_TRACE(("CalcResult"));
+	DBG_TRACE(("CallCalcResult"));
 
-	dms_assert(GetInterestCount()); 
+	assert(GetInterestCount()); 
 
 	if (!IsAllDataReady(m_Data->GetCurrUltimateItem()) || context)
 	{
-		dms_assert(m_Data->GetInterestCount());
-		dms_assert(m_State.Get(actor_flag_set::AF_SupplInterest) || context);
+		assert(m_Data->GetInterestCount());
+		assert(m_State.Get(actor_flag_set::AF_SupplInterest) || context);
 
-		CalcResultImpl(context);
+		CallCalcResultImpl(context);
 		if (!m_Data || SuspendTrigger::DidSuspend())
 		{
 			dms_assert(SuspendTrigger::DidSuspend() || WasFailed());
 			return {}; // maybe suspended or failed
 		}
-		dms_assert(!SuspendTrigger::DidSuspend());
-		dms_assert(m_OperContext || IsDataReady(m_Data->GetCurrRangeItem()) || m_Data->WasFailed(FR_Data) || SuspendTrigger::DidSuspend());
+		assert(!SuspendTrigger::DidSuspend());
+		assert(m_OperContext || IsDataReady(m_Data->GetCurrRangeItem()) || m_Data->WasFailed(FR_Data) || SuspendTrigger::DidSuspend());
 	}
 	m_State.Set(DCF_CalcStarted);
 	return thisFutureResult;
@@ -439,7 +439,7 @@ auto FuncDC::CalcResult(Explain::Context* context) const -> FutureData
 
 /********** Interface **********/
 
-typedef std::vector<const Class*> ArgClsSeqType;
+using ArgClsSeqType = std::vector<const Class*>;
 
 
 bool FuncDC::MustCalcArg(oper_arg_policy ap, bool doCalc)
@@ -620,12 +620,12 @@ bool FuncDC::MakeResultImpl() const
 	return true;
 }
 
-// =========================================  CalcResult
+// =========================================  CallCalcResult
 
-void FuncDC::CalcResultImpl(Explain::Context* context) const
+void FuncDC::CallCalcResultImpl(Explain::Context* context) const
 {
 #if defined(MG_DEBUG_DCDATA)
-	DBG_START("FuncDc::CalcResult", md_sKeyExpr.c_str(), MG_DEBUG_FUNCDC);
+	DBG_START("FuncDc::CallCalcResult", md_sKeyExpr.c_str(), MG_DEBUG_FUNCDC);
 #endif
 
 	assert(IsMetaThread());
@@ -868,7 +868,7 @@ SharedTreeItem SymbDC::MakeResult() const
 	return m_Data;
 }
 
-auto SymbDC::CalcResult(Explain::Context* context) const -> FutureData
+auto SymbDC::CallCalcResult(Explain::Context* context) const -> FutureData
 {
 	dms_check(GetInterestCount());
 	dms_assert(!SuspendTrigger::DidSuspend());
@@ -882,7 +882,7 @@ auto SymbDC::CalcResult(Explain::Context* context) const -> FutureData
 	dms_assert(IsOld());
 	dms_assert(!IsTmp());
 
-	UpdateMarker::ChangeSourceLock changeStamp(this, "SymbDC::CalcResult");
+	UpdateMarker::ChangeSourceLock changeStamp(this, "SymbDC::CallCalcResult");
 
 	FutureData resultHolder( this );
 	dms_assert(!SuspendTrigger::DidSuspend());

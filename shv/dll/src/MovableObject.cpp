@@ -374,14 +374,14 @@ void MovableObject::CopyToClipboard(DataView* dv)
 	clipBoard.SetBitmap(hBmp);
 }
 
-ControlRegion MovableObject::GetControlDeviceRegion(GType absX) const
+ControlRegion MovableObject::GetControlDeviceRegion(GType absX, bool isColOriented) const
 {
 	auto currAbsRect = GetCurrClientAbsLogicalRect();
-	TType logicalX = absX / GetScaleFactors().first;
+	TType logicalX = absX / GetScaleFactors().FlippableX(isColOriented);
 	auto margin = 4;
-	if (logicalX >= currAbsRect.second.X() - margin)
+	if (logicalX >= currAbsRect.second.FlippableX(isColOriented) - margin)
 		return RG_RIGHT;
-	else if (logicalX <= currAbsRect.first.X() + margin)
+	else if (logicalX <= currAbsRect.first.FlippableX(isColOriented) + margin)
 		return RG_LEFT;
 	return RG_MIDDLE;
 

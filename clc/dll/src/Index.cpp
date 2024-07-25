@@ -49,7 +49,7 @@ public:
 
 	bool CreateResult(TreeItemDualRef& resultHolder, const ArgSeqType& args, bool mustCalc) const override
 	{
-		dms_assert(args.size() == 1);
+		assert(args.size() == 1);
 
 		const AbstrDataItem* adi = AsDataItem(args[0]);
 
@@ -111,7 +111,7 @@ public:
 
 	bool CreateResult(TreeItemDualRef& resultHolder, const ArgSeqType& args, bool mustCalc) const override
 	{
-		dms_assert(args.size() == 1);
+		assert(args.size() == 1);
 
 		const AbstrDataItem* adi = AsDataItem(args[0]);
 
@@ -155,7 +155,7 @@ public:
 	void Calculate(ResultType* result, const AbstrDataItem* adi) const override
 	{
 		const ArgType* di = const_array_cast<V>(adi);
-		dms_assert(di);
+		assert(di);
 
 		auto resData = result->GetDataWrite(no_tile, dms_rw_mode::write_only_all);
 
@@ -185,10 +185,10 @@ public:
 
 	bool CreateResult(TreeItemDualRef& resultHolder, const ArgSeqType& args, bool mustCalc) const override
 	{
-		dms_assert(args.size() == 1);
+		assert(args.size() == 1);
 
 		const AbstrDataItem* adi = AsDataItem(args[0]);
-		dms_assert(adi);
+		assert(adi);
 
 		const AbstrUnit*  e = adi->GetAbstrDomainUnit(); 
 
@@ -249,14 +249,14 @@ public:
 
 	bool CreateResult(TreeItemDualRef& resultHolder, const ArgSeqType& args, bool mustCalc) const override
 	{
-		dms_assert(args.size() == 3);
+		assert(args.size() == 3);
 
 		const AbstrDataItem* adi1 = AsDataItem(args[0]);
 		const AbstrDataItem* adi2 = AsDataItem(args[1]);
 		const AbstrDataItem* adi3 = AsDataItem(args[2]);
-		dms_assert(adi1);
-		dms_assert(adi2);
-		dms_assert(adi3);
+		assert(adi1);
+		assert(adi2);
+		assert(adi3);
 
 		const AbstrUnit*  e = adi1->GetAbstrDomainUnit();
 		e->UnifyDomain(adi2->GetAbstrDomainUnit(), "e1", "e2", UM_Throw);
@@ -269,7 +269,7 @@ public:
 		if (mustCalc)
 		{
 			const Arg3Type* di = const_array_cast<V>(adi3);
-			dms_assert(di);
+			assert(di);
 
 			DataReadLock arg1Lock(adi1);
 			DataReadLock arg2Lock(adi2);

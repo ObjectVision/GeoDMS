@@ -1,8 +1,13 @@
+// Copyright (C) 1998-2024 Object Vision b.v. 
+// License: GNU GPL 3
+/////////////////////////////////////////////////////////////////////////////
+
 #include "TicPCH.h"
 
 #if defined(CC_PRAGMAHDRSTOP)
 #pragma hdrstop
 #endif //defined(CC_PRAGMAHDRSTOP)
+
 
 //----------------------------------------------------------------------
 // used modules and forward class references
@@ -794,15 +799,31 @@ bool TreeItem::HasIntegrityChecker() const
 	return !InTemplate() && integrityCheckPropDefPtr->HasNonDefaultValue(this);
 }
 
-AbstrCalculatorRef TreeItem::GetIntegrityChecker() const
+auto TreeItem::GetIntegrityChecker() const -> AbstrCalculatorRef
 {
-	dms_assert(HasIntegrityChecker()); // Precondition
+	assert(HasIntegrityChecker()); // Precondition
 	if (!mc_IntegrityChecker)
 	{
 		SharedStr iCheckStr = integrityCheckPropDefPtr->GetValue(this);
 		mc_IntegrityChecker = AbstrCalculator::ConstructFromStr(this, iCheckStr, CalcRole::Checker);
 	}
 	return mc_IntegrityChecker;
+}
+
+bool TreeItem::HasSizeEstimator() const
+{
+	return mc_SizeEstimator || sizeEstimatorPropDefPtr->HasNonDefaultValue(this);
+}
+
+auto TreeItem::GetSizeEstimator() const -> AbstrCalculatorRef
+{
+	assert(HasSizeEstimator()); // Precondition
+	if (!mc_SizeEstimator)
+	{
+		SharedStr iCheckStr = sizeEstimatorPropDefPtr->GetValue(this);
+		mc_SizeEstimator = AbstrCalculator::ConstructFromStr(this, iCheckStr, CalcRole::Checker);
+	}
+	return mc_SizeEstimator;
 }
 
 void TreeItem::AssertPropChangeRights(CharPtr changeWhat) const
@@ -2577,13 +2598,13 @@ ActorVisitState TreeItem::DoUpdate(ProgressState ps)
 				TreeItemContextHandle tich2(this, "IntegrityCheck Evaluation");
 
 				auto iCheckerPtr = GetIntegrityChecker();
-				dms_assert(iCheckerPtr);
+				assert(iCheckerPtr);
 
 				//InterestPtr<SharedPtr<const AbstrCalculator>> iChecker = iCheckerPtr;
 				if (WasFailed(FR_Validate))
 					return AVS_SuspendedOrFailed;
 
-				auto iCheckerDC = CalcResult(iCheckerPtr, DataArray<Bool>::GetStaticClass()); // @@@SCHEDULE
+				auto iCheckerDC = CalledCalcHandle(iCheckerPtr, DataArray<Bool>::GetStaticClass()); // @@@SCHEDULE
 
 				if (SuspendTrigger::DidSuspend())
 					return AVS_SuspendedOrFailed;
@@ -3124,7 +3145,7 @@ bool TreeItem::DoWriteItem(StorageMetaInfoPtr&&) const
 			dms_assert(IsUnit(this));
 			return true;
 		}
-		auto result = CalcResult(apr,GetDynamicObjClass());
+		auto result = CalledCalcHandle(apr,GetDynamicObjClass());
 		if (result->IsFailed())
 		{
 			Fail(result.get_ptr());
@@ -3194,7 +3215,7 @@ how_to_proceed PrepareDataCalc(SharedPtr<const TreeItem> self, const TreeItem* r
 	if (dc)
 	{
 		SuspendTrigger::SilentBlocker xx("@PrepareDataCalc");
-		auto dc2 = dc->CalcResult();
+		auto dc2 = dc->CallCalcResult();
 		assert(!SuspendTrigger::DidSuspend());
 
 		dms_assert(dc2 || SuspendTrigger::DidSuspend() || dc->WasFailed(FR_Data));

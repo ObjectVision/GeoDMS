@@ -1166,7 +1166,7 @@ void OperationContext::safe_run_caller() noexcept
 
 bool OperationContext::ScheduleCalcResult(Explain::Context* context, ArgRefs&& argRefs)
 {
-	DBG_START("OperationContext", "CalcResult", MG_DEBUG_FUNCCONTEXT);
+	DBG_START("OperationContext", "ScheduleCalcResult", MG_DEBUG_FUNCCONTEXT);
 	DBG_TRACE(("FuncDC: %s", m_FuncDC->md_sKeyExpr));
 
 	assert(m_Oper);
@@ -1215,7 +1215,7 @@ bool OperationContext::ScheduleCalcResult(Explain::Context* context, ArgRefs&& a
 		}
 	for (const DataController* dcPtr : m_OtherSuppliers)
 	{
-		auto otherSupplier = dcPtr->CalcResult();
+		auto otherSupplier = dcPtr->CallCalcResult();
 		if (!otherSupplier)
 		{
 			if (dcPtr->WasFailed(FR_Data))
@@ -1275,7 +1275,7 @@ bool OperationContext::ScheduleCalcResult(Explain::Context* context, ArgRefs&& a
 		};
 		auto func = Func{ this, std::move(argRefs), allInterests };
 
-		resultStatus = ScheduleItemWriter(MG_SOURCE_INFO_CODE("OperationContext::CalcResult") m_FuncDC->IsNew() ? m_FuncDC->GetNew() : nullptr
+		resultStatus = ScheduleItemWriter(MG_SOURCE_INFO_CODE("OperationContext::SheduleCalcResult") m_FuncDC->IsNew() ? m_FuncDC->GetNew() : nullptr
 			,	func
 			,	allInterests
 			,	!doASync, context

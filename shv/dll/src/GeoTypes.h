@@ -39,6 +39,8 @@ struct GPoint : POINT
 	bool operator ==(POINT rhs) const { return x == rhs.x && y == rhs.y; }
 	bool operator !=(POINT rhs) const { return x != rhs.x || y != rhs.y; }
 	bool IsSingular() const { return !x || !y; }
+	auto FlippableX(bool isColOridented) const { return isColOridented ? x : y; }
+	auto FlippableY(bool isColOridented) const { return isColOridented ? y : x; }
 };
 
 inline GType& get_x(GPoint& p) noexcept { return p.x; }

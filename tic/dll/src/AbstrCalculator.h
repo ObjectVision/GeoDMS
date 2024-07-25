@@ -70,7 +70,7 @@ using calc_result_t = FutureData; // std::pair<DataControllerRef, SharedTreeItem
 
 TIC_CALL auto GetDC(const AbstrCalculator* calculator)->DataControllerRef;
 auto MakeResult(const AbstrCalculator* calculator)->make_result_t;
-auto CalcResult(const AbstrCalculator* calculator, const Class* cls)->calc_result_t;
+auto CalledCalcHandle(const AbstrCalculator* calculator, const Class* cls)->calc_result_t;
 void ExplainResult(const AbstrCalculator* calculator, Explain::Context* context);
 
 void CheckResultingTreeItem(const TreeItem* refItem, const Class* desiredResultingClass);

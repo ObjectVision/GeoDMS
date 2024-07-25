@@ -55,16 +55,16 @@ struct AbstrInvertOperator : public UnaryOperator
 	// Override Operator
 	bool CreateResult(TreeItemDualRef& resultHolder, const ArgSeqType& args, bool mustCalc) const override
 	{
-		dms_assert(args.size() == 1);
+		assert(args.size() == 1);
 
 		const AbstrDataItem* arg1A= debug_cast<const AbstrDataItem*>(args[0]);
-		dms_assert(arg1A);
+		assert(arg1A);
 
 		const AbstrUnit* entity    = arg1A->GetAbstrDomainUnit();
 		const AbstrUnit* newDomain = arg1A->GetAbstrValuesUnit();
 
-		dms_assert(entity);
-		dms_assert(newDomain);
+		assert(entity);
+		assert(newDomain);
 
 		if (!resultHolder)
 		{
@@ -113,7 +113,7 @@ public:
 	void  Calculate(const AbstrDataItem* arg1A, DataWriteLock& res, DataWriteLock& resSub) const override
 	{
 		const Arg1Type* arg1 = const_array_cast<T>(arg1A);
-		dms_assert(arg1);
+		assert(arg1);
 
 		DataCheckMode dcm = (res->GetTiledRangeData()->GetNrTiles() > 1) ? DCM_CheckRange : arg1A->GetCheckMode();
 		visit<typelists::domain_elements>(arg1A->GetAbstrDomainUnit(), 

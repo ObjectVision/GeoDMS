@@ -269,6 +269,9 @@ public:
 	TIC_CALL bool HasIntegrityChecker() const;
 	TIC_CALL auto GetIntegrityChecker() const -> AbstrCalculatorRef;
 
+	TIC_CALL bool HasSizeEstimator() const;
+	TIC_CALL auto GetSizeEstimator() const->AbstrCalculatorRef;
+
 	TIC_CALL const TreeItem* GetCurrUltimateItem() const;
 	TIC_CALL const TreeItem* GetCurrRangeItem() const;
 	TIC_CALL const TreeItem* GetUltimateItem() const;
@@ -452,7 +455,7 @@ public: // TODO G8: encapsulate and move config attr (aka mc_ ) into a separate 
 
 	mutable treeitem_flag_set      m_StatusFlags;
 
-	mutable AbstrCalculatorRef     mc_Calculator, mc_IntegrityChecker;
+	mutable AbstrCalculatorRef     mc_Calculator, mc_IntegrityChecker, mc_SizeEstimator;
 	mutable DataControllerRef      mc_DC;
 	mutable SharedPtr<const TreeItem> mc_RefItem, mc_OrgItem;
 

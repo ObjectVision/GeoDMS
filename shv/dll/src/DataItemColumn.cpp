@@ -1216,22 +1216,22 @@ bool DataItemColumn::MouseEvent(MouseEventDispatcher& med)
 		return true;
 	}
 	bool isColOriented = tc->IsColOriented();
-	if (med.GetEventInfo().m_EventID & EventID::LBUTTONDOWN && isColOriented)
+	if (med.GetEventInfo().m_EventID & EventID::LBUTTONDOWN)
 	{
-		switch( GetControlDeviceRegion(med.GetEventInfo().m_Point.x) ) 
+		switch (GetControlDeviceRegion(med.GetEventInfo().m_Point.FlippableX(isColOriented), isColOriented))
 		{
 			case RG_LEFT:
-				{
-					DataItemColumn* prevHeader = GetPrevControl();
-					if (prevHeader)
-						prevHeader->StartResize(med);
-					return true;
-				}
-			case RG_RIGHT: 
-				{
-					StartResize(med);
-					return true;
-				}
+			{
+				DataItemColumn* prevHeader = GetPrevControl();
+				if (prevHeader)
+					prevHeader->StartResize(med);
+				return true;
+			}
+			case RG_RIGHT:
+			{
+				StartResize(med);
+				return true;
+			}
 		}
 	}
 
@@ -1259,7 +1259,7 @@ bool DataItemColumn::MouseEvent(MouseEventDispatcher& med)
 
 	if ((med.GetEventInfo().m_EventID & EventID::SETCURSOR ))
 	{
-		if (GetControlDeviceRegion(med.GetEventInfo().m_Point.x) != RG_MIDDLE )
+		if (GetControlDeviceRegion(med.GetEventInfo().m_Point.x, isColOriented) != RG_MIDDLE )
 		{
 			SetCursor(LoadCursor(NULL, IDC_SIZEWE));
 			return true;

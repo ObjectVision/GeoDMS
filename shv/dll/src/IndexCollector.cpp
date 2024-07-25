@@ -127,7 +127,7 @@ void IndexCollector::Release()
 
 DataReadLock IndexCollector::GetDataItemReadLock() const
 {
-	auto res = m_DC->CalcResult();
+	auto res = m_DC->CallCalcResult();
 	PreparedDataReadLock lock(AsDataItem(res->GetOld()), "IndexCollector::GetDataItemReadLock");
 
 	return lock;

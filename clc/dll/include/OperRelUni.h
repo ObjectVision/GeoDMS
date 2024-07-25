@@ -57,7 +57,7 @@ struct IndexPCompareOper
 		:	m_IndexData(unsortedPartitionData) 
 		,	m_Data2Begin(data2Begin) 
 	{
-		dms_assert(unsortedPartitionData);
+		assert(unsortedPartitionData);
 	}
 	bool operator ()(SizeT left, SizeT right)
 	{ 
@@ -187,9 +187,9 @@ void make_subindex(
 		prevOrderRangeBegin = std::adjacent_find(prevOrderRangeBegin, prevOrderEnd); // skip ordering elements of singletons
 		if (prevOrderRangeBegin == prevOrderEnd)
 			return;
-		dms_assert(prevOrderRangeBegin+1 != prevOrderEnd); // 
+		assert(prevOrderRangeBegin+1 != prevOrderEnd); // 
 		typename std::iterator_traits<ConstOrderIter>::value_type v = *prevOrderRangeBegin;
-		dms_assert(v == prevOrderRangeBegin[1]); // we found an adjacent pair
+		assert(v == prevOrderRangeBegin[1]); // we found an adjacent pair
 		ConstOrderIter prevOrderRangeEnd = prevOrderRangeBegin+2;
 		while (prevOrderRangeEnd != prevOrderEnd && *prevOrderRangeEnd == v)
 			++prevOrderRangeEnd;
@@ -266,9 +266,9 @@ void make_subindex_container(
 	const Range<E>&  domain,
 	const ord_type_tag*)
 {
-	dms_assert(resData.size() == prevIndexData.size());
-	dms_assert(resData.size() == prevOrderData.size());
-	dms_assert(resData.size() == argData.size());
+	assert(resData.size() == prevIndexData.size());
+	assert(resData.size() == prevOrderData.size());
+	assert(resData.size() == argData.size());
 
 	auto
 		resDataBegin = resData.begin(),
@@ -309,15 +309,15 @@ void make_subindex_container(
 	const Range<UInt32>& domain,
 	const bool_type_tag*)
 {
-	dms_assert(resData.size() == prevIndexData.size());
-	dms_assert(resData.size() == prevOrderData.size());
-	dms_assert(resData.size() == argData.size());
+	assert(resData.size() == prevIndexData.size());
+	assert(resData.size() == prevOrderData.size());
+	assert(resData.size() == argData.size());
 
 	auto
 		resDataBegin = resData.begin(),
 		resDataEnd   = resData.end();
 
-	dms_assert(!domain.first);
+	assert(!domain.first);
 	make_subindex(
 		resDataBegin
 	,	resDataEnd
@@ -336,9 +336,9 @@ void make_subindex_container(
 	const Range<E>&   domain,
 	const crd_point_type_tag*)
 {
-	dms_assert(resData.size() == prevIndexData.size());
-	dms_assert(resData.size() == prevOrderData.size());
-	dms_assert(resData.size() == argData.size());
+	assert(resData.size() == prevIndexData.size());
+	assert(resData.size() == prevOrderData.size());
+	assert(resData.size() == argData.size());
 
 	std::vector<UInt32> prevIndexTemp(prevIndexData.size()); 
 	Range_Value2Index_checked(domain, begin_ptr(prevIndexData), end_ptr(prevIndexData), begin_ptr(prevIndexTemp));

@@ -154,12 +154,12 @@ auto MakeResult(const AbstrCalculator* calculator)->make_result_t
 {
 	auto dc = GetDC(calculator);
 	dc->MakeResult();
-	//	auto resFuture = dc->CalcResult();
+	//	auto resFuture = dc->CallCalcResult();
 
 	return dc; // return owner of potential future.
 }
 
-auto CalcResult(const AbstrCalculator* calculator, const Class* cls)->calc_result_t
+auto CalledCalcHandle(const AbstrCalculator* calculator, const Class* cls)->calc_result_t
 {
 	auto dc = MakeResult(calculator);
 	dms_assert(dc);
@@ -167,7 +167,7 @@ auto CalcResult(const AbstrCalculator* calculator, const Class* cls)->calc_resul
 	if (dc->WasFailed(FR_MetaInfo))
 		return dc;
 	CheckResultingTreeItem(dc->GetOld(), cls);
-	auto result = dc->CalcResult(nullptr);
+	auto result = dc->CallCalcResult(nullptr);
 	if (SuspendTrigger::DidSuspend())
 		return {};
 	if (!result)
@@ -193,7 +193,7 @@ void ExplainResult(const AbstrCalculator* calculator, Explain::Context* context)
 	if (!funcDC->m_OperatorGroup->CanExplainValue())
 		return;
 
-	auto result = dc->CalcResult(context);
+	auto result = dc->CallCalcResult(context);
 }
 
 void CheckResultingTreeItem(const TreeItem* refItem, const Class* desiredResultingClass)
@@ -525,7 +525,7 @@ BestItemRef AbstrCalculator::GetErrorSource(const TreeItem* context, WeakStr exp
 		{
 			AbstrCalculatorRef calculator = ConstructFromDirectStr(context, resultStr, CalcRole::Other);
 			assert(calculator);
-			auto res = CalcResult(calculator, DataArray<SharedStr>::GetStaticClass());
+			auto res = CalledCalcHandle(calculator, DataArray<SharedStr>::GetStaticClass());
 			assert(res);
 			if (res->WasFailed())
 				return calculator->FindErrorneousItem();
@@ -584,7 +584,7 @@ SharedStr AbstrCalculator::EvaluateExpr(const TreeItem* context, CharPtrRange ex
 		auto dc = MakeResult(calculator);
 		irc.Add(dc);
 		
-		auto res = CalcResult(calculator, DataArray<SharedStr>::GetStaticClass());
+		auto res = CalledCalcHandle(calculator, DataArray<SharedStr>::GetStaticClass());
 		assert(res);
 		if (res->WasFailed(FR_Data))
 			res->ThrowFail();
@@ -671,7 +671,7 @@ ActorVisitState AbstrCalculator::VisitImplSuppl(SupplierVisitFlag svf, const Act
 		auto dc = MakeResult(calculator);
 		irc.Add(dc);
 
-		auto res = CalcResult(calculator, DataArray<SharedStr>::GetStaticClass());
+		auto res = CalledCalcHandle(calculator, DataArray<SharedStr>::GetStaticClass());
 		irc.Add(res.get_ptr());
 		irc.Add(res->GetOld());
 
@@ -1161,7 +1161,7 @@ auto DeriveSubItem(const AbstrCalculator* ac, SubstitutionBuffer& substBuff, Lis
 
 	auto subItemNameExpr = subItemExprTail.Right().Left();
 	AbstrCalculatorRef calculator = AbstrCalculator::ConstructFromLispRef(ac->GetHolder(), subItemNameExpr, CalcRole::Other);
-	auto res = CalcResult(calculator, DataArray<SharedStr>::GetStaticClass());
+	auto res = CalledCalcHandle(calculator, DataArray<SharedStr>::GetStaticClass());
 	auto subItemPath = GetCurrValue<SharedStr>(AsDataItem(res), 0);
 	auto subItem = FindSubItem(container, subItemPath);
 	assert(subItem);

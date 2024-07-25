@@ -885,7 +885,7 @@ TIC_CALL void DMS_CONV DMS_TreeItem_DoViewAction(const TreeItem* x)
 		AbstrCalculatorRef apr = AbstrCalculator::ConstructFromStr(x, viewAction, CalcRole::Other);
 		if (!apr)
 			return;
-		auto res = CalcResult(apr.get_ptr(), nullptr);
+		auto res = CalledCalcHandle(apr.get_ptr(), nullptr);
 
 	DMS_CALL_END
 }

@@ -48,14 +48,14 @@ protected:
 
 	bool CreateResult(TreeItemDualRef& resultHolder, const ArgSeqType& args, bool mustCalc) const override
 	{
-		dms_assert(args.size() == 3);
+		assert(args.size() == 3);
 
 		const AbstrDataItem* arg1A = AsDataItem(args[0]);
 		const AbstrDataItem* arg2A = AsDataItem(args[1]);
 		const AbstrUnit* resDomainUnit = AsUnit(args[2]);
-		dms_assert(arg1A); 
-		dms_assert(arg2A); 
-		dms_assert(resDomainUnit);
+		assert(arg1A); 
+		assert(arg2A); 
+		assert(resDomainUnit);
 
 		const AbstrUnit* domain1Unit = arg1A->GetAbstrDomainUnit(); bool e1IsVoid = domain1Unit->GetValueType() == ValueWrap<Void>::GetStaticClass();
 		const AbstrUnit* values1Unit = arg1A->GetAbstrValuesUnit();
@@ -113,17 +113,17 @@ public:
 		const ArgType* matr2 = const_array_cast<T>(arg2A);
 		      ArgType* matrR = mutable_array_cast<T>(res);
 
-		dms_assert(matr1); 
-		dms_assert(matr2);
-		dms_assert(matrR);
+		assert(matr1); 
+		assert(matr2);
+		assert(matrR);
 
 		auto data1Array = matr1->GetDataRead();
 		auto data2Array = matr2->GetDataRead();
 		auto dataRArray = matrR->GetDataWrite();
 
-		dms_assert(data1Array.size() == resRowCount * collapsedIndexCount);
-		dms_assert(data2Array.size() == resColCount * collapsedIndexCount);
-		dms_assert(dataRArray.size() == resRowCount * resColCount);
+		assert(data1Array.size() == resRowCount * collapsedIndexCount);
+		assert(data2Array.size() == resColCount * collapsedIndexCount);
+		assert(dataRArray.size() == resRowCount * resColCount);
 
 		using namespace boost::numeric::ublas;
 
@@ -155,12 +155,12 @@ protected:
 
 	bool CreateResult(TreeItemDualRef& resultHolder, const ArgSeqType& args, bool mustCalc) const override
 	{
-		dms_assert(args.size() == 2);
+		assert(args.size() == 2);
 
 		const AbstrDataItem* arg1A = AsDataItem(args[0]);
 		const AbstrUnit* resDomainUnit = AsUnit(args[1]);
-		dms_assert(arg1A); 
-		dms_assert(resDomainUnit);
+		assert(arg1A); 
+		assert(resDomainUnit);
 
 		const AbstrUnit* domain1Unit = arg1A->GetAbstrDomainUnit(); bool e1IsVoid = domain1Unit->GetValueType() == ValueWrap<Void>::GetStaticClass();
 		const AbstrUnit* values1Unit = arg1A->GetAbstrValuesUnit();
@@ -215,14 +215,14 @@ public:
 		const ArgType* matr1 = const_array_cast<T>(arg1A);
 		      ArgType* matrR = mutable_array_cast<T>(res);
 
-		dms_assert(matr1);
-		dms_assert(matrR);
+		assert(matr1);
+		assert(matrR);
 
 		auto data1Array = matr1->GetDataRead();
 		auto  dataRArray = matrR->GetDataWrite();
 
-		dms_assert(data1Array.size() == argWidth * argHeight);
-		dms_assert(dataRArray.size() == argWidth * argWidth);
+		assert(data1Array.size() == argWidth * argHeight);
+		assert(dataRArray.size() == argWidth * argWidth);
 
 		using namespace boost::numeric::ublas;
 
@@ -251,10 +251,10 @@ protected:
 
 	bool CreateResult(TreeItemDualRef& resultHolder, const ArgSeqType& args, bool mustCalc) const override
 	{
-		dms_assert(args.size() == 1);
+		assert(args.size() == 1);
 
 		const AbstrDataItem* arg1A = AsDataItem(args[0]);
-		dms_assert(arg1A); 
+		assert(arg1A); 
 
 		const AbstrUnit* domain1Unit = arg1A->GetAbstrDomainUnit(); bool e1IsVoid = domain1Unit->GetValueType() == ValueWrap<Void>::GetStaticClass();
 		const AbstrUnit* values1Unit = arg1A->GetAbstrValuesUnit();
@@ -328,14 +328,14 @@ public:
 		const ArgType* matr1 = const_array_cast<T>(arg1A);
 		      ArgType* matrR = mutable_array_cast<T>(res);
 
-		dms_assert(matr1);
-		dms_assert(matrR);
+		assert(matr1);
+		assert(matrR);
 
 		auto data1Array = matr1->GetDataRead();
 		auto dataRArray = matrR->GetDataWrite();
 
-		dms_assert(data1Array.size() == n * n);
-		dms_assert(dataRArray.size() == n * n);
+		assert(data1Array.size() == n * n);
+		assert(dataRArray.size() == n * n);
 
 		using namespace boost::numeric::ublas;
 

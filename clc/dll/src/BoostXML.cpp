@@ -117,15 +117,15 @@ struct Attribute : Element
 		SizeT currCount = m_Data.size();
 		SizeT entityCount = m_Parent->GetCount();
 
-		dms_assert(parentID.first == m_Parent->m_EntityIndex);
-		dms_assert(parentID.second == entityCount - 1);
+		assert(parentID.first == m_Parent->m_EntityIndex);
+		assert(parentID.second == entityCount - 1);
 
 		if (currCount >= entityCount)
 			m_Attr->throwItemErrorF("Too many occurences of attribute %s in entity %s #%I64u", GetName(), m_Parent->GetName(), UInt64(entityCount));
 		for (SizeT i= entityCount - currCount - 1; i;--i)
 			m_Data.push_back(Undefined());
 		m_Data.push_back_seq(begin, end);
-		dms_assert(m_Data.size() == entityCount);
+		assert(m_Data.size() == entityCount);
 	}
 
 	SharedPtr<AbstrDataItem>  m_Attr;
@@ -194,7 +194,7 @@ struct ParseContext
 				m_KnownEntities.insert(std::make_pair(iter->second->m_DmsFullName, iter->second.get_ptr()));
 		}
 		Element* element = iter->second;
-		dms_assert(element);
+		assert(element);
 		CharPtr value = basePtr->value(), valueEnd = value + basePtr->value_size();
 		element->AddValue(parentID, value, valueEnd);
 		return dynamic_cast<Entity*>(element);
@@ -302,14 +302,14 @@ struct RapidXmlOperator : public BinaryOperator
 
 	void CreateResultCaller(TreeItemDualRef& resultHolder, const ArgRefs& argRegs, OperationContext*, LispPtr metaCallArgs) const override
 	{
-		dms_assert(!CanExplainValue()); // or this method should be overridden.
+		assert(!CanExplainValue()); // or this method should be overridden.
 		auto args = GetItems(argRegs);
-		dms_assert(args.size() >= 2);
+		assert(args.size() >= 2);
 
 		if (!resultHolder)
 			resultHolder = TreeItem::CreateCacheRoot();
 
-		dms_assert(metaCallArgs);
+		assert(metaCallArgs);
 		InstantiateTemplate(resultHolder.GetNew(), args[1], metaCallArgs.Right().Right()); // GetArgList()->m_Next->m_//Next); // but why?
 //		TemplDC::Instantiate(resultHolder, args[1], debug_cast<FuncDC*>(&resultHolder)->GetArgList()->m_Next->m_Next);
 
@@ -327,8 +327,8 @@ struct RapidXmlOperator : public BinaryOperator
 			AbstrUnit* entityDomain = AsDynamicUnit(walker);
 			if (entityDomain)
 			{
-				dms_assert(entityDomain->GetID() != GetTokens().valuesTableID);
-				dms_assert(entityDomain->GetID() != GetTokens().entityTableID);
+				assert(entityDomain->GetID() != GetTokens().valuesTableID);
+				assert(entityDomain->GetID() != GetTokens().entityTableID);
 				if (entityDomain->GetTreeParent() == resultHolder.GetNew())
 					CreateDataItem(entityDomain, GetTokens().parentEntityTableRelID, entityDomain, entityTable);
 				CreateDataItem(entityDomain, GetTokens().parentRelID, entityDomain, Unit<entity_index>::GetStaticClass()->CreateDefault());
@@ -338,15 +338,15 @@ struct RapidXmlOperator : public BinaryOperator
 				CreateDataItem(entityDomain, GetTokens().valueRelID, entityDomain, valueSet);
 			}
 		}
-		dms_assert(resultHolder);
+		assert(resultHolder);
 	}
 
 	bool CalcResult(TreeItemDualRef& resultHolder, ArgRefs argRefs, std::vector<ItemReadLock> readLocks, OperationContext*, Explain::Context* context = nullptr) const override
 	{
-		dms_assert(resultHolder);
-		dms_assert(!CanExplainValue()); // or this method should be overridden.
+		assert(resultHolder);
+		assert(!CanExplainValue()); // or this method should be overridden.
 		auto args = GetItems(argRefs);
-		dms_assert(args.size() >= 2);
+		assert(args.size() >= 2);
 
 		DataReadLock stringLock(AsDataItem(args[0]));
 		auto stringArray = const_array_cast<SharedStr>(args[0])->GetDataRead();
@@ -383,10 +383,10 @@ struct RapidXmlOperator : public BinaryOperator
 			if (IsUnit(walker) && !walker->HasCalculator())
 			{
 				AbstrUnit* entityDomain = AsUnit(walker);
-				dms_assert(entityDomain->GetID() != GetTokens().valuesTableID);
-				dms_assert(entityDomain->GetID() != GetTokens().entityTableID);
+				assert(entityDomain->GetID() != GetTokens().valuesTableID);
+				assert(entityDomain->GetID() != GetTokens().entityTableID);
 
-//				dms_assert(!entityDomain->GetTreeParent() || entityDomain->GetTreeParent()->DataInMem());
+//				assert(!entityDomain->GetTreeParent() || entityDomain->GetTreeParent()->DataInMem());
 				SharedStr relativeName = entityDomain->GetFullName();
 				const Entity* entity = dynamic_cast<const Entity*>(pc.m_KnownEntities[TokenID(relativeName)]);
 				if (!entity)

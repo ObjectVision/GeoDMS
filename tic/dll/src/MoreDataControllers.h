@@ -58,7 +58,7 @@ struct SymbDC : DataController
 	SymbDC(LispPtr keyExpr, const TokenID fullNameID);
 
 	SharedTreeItem MakeResult() const override;
-	FutureData CalcResult(Explain::Context* context) const override;
+	FutureData CallCalcResult(Explain::Context* context) const override;
 
 	ActorVisitState VisitSuppliers(SupplierVisitFlag svf, const ActorVisitor& visitor) const override;
 	bool CanResultToConfigItem() const override { return true; }
@@ -82,7 +82,7 @@ struct FuncDC : DataController
 	~FuncDC();
 
 	SharedTreeItem MakeResult() const override;
-	FutureData CalcResult(Explain::Context* context) const override;
+	FutureData CallCalcResult(Explain::Context* context) const override;
 	bool                      CanResultToConfigItem() const override
 	{ 
 		dms_assert(m_OperatorGroup);
@@ -128,7 +128,7 @@ struct FuncDC : DataController
 //protected: 
 	
 	virtual bool MakeResultImpl() const;
-	void CalcResultImpl(Explain::Context* context) const;
+	void CallCalcResultImpl(Explain::Context* context) const;
 	const Class* GetResultCls () const override;
 	OArgRefs GetArgs(bool doUpdateMetaInfo, bool doUpdateData) const;
 

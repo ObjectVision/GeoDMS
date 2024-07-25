@@ -56,6 +56,7 @@ granted by an additional written contract for support, assistance and/or develop
 #define CALCRULE_NAME           "CalcRule"
 #define DESCR_NAME              "Descr"
 #define ICHECK_NAME             "IntegrityCheck"
+#define SIZE_ESTIMATOR_NAME     "SizeEstimator"
 #define LABEL_NAME              "Label"
 
 

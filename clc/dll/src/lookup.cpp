@@ -45,17 +45,17 @@ public:
 
 	bool CreateResult(TreeItemDualRef& resultHolder, const ArgSeqType& args, bool mustCalc) const override
 	{
-		dms_assert(args.size() == 2);
+		assert(args.size() == 2);
 
 		const AbstrDataItem* arg1A= AsDataItem(args[0]);
 		const AbstrDataItem* arg2A= AsDataItem(args[1]);
 
-		dms_assert(arg1A);
-		dms_assert(arg2A);
+		assert(arg1A);
+		assert(arg2A);
 
 		const AbstrUnit* arg1ValuesA = arg1A->GetAbstrValuesUnit();
 		const AbstrUnit* arg2DomainA = arg2A->GetAbstrDomainUnit();
-		dms_assert(arg1ValuesA && arg2DomainA);
+		assert(arg1ValuesA && arg2DomainA);
 
 
 		const AbstrUnit* domainA = arg1A->GetAbstrDomainUnit();
@@ -67,8 +67,8 @@ public:
 		{
 			arg1ValuesA->UnifyDomain(arg2DomainA, "v1", "e2", UnifyMode(UM_Throw|UM_AllowDefaultLeft));
 
-			dms_assert(domainA);
-			dms_assert(valuesA);
+			assert(domainA);
+			assert(valuesA);
 
 			resultHolder = CreateCacheDataItem(domainA, valuesA, vc );
 			if (valuesA->GetTSF(TSF_Categorical) || arg2A->GetTSF(TSF_Categorical))
@@ -78,7 +78,7 @@ public:
 		if (mustCalc)
 		{
 			AbstrDataItem* res = AsDataItem(resultHolder.GetNew());
-			dms_assert(res);
+			assert(res);
 			DataReadLock arg1Lock(arg1A);
 			DataReadLock arg2Lock(arg2A);
 
@@ -159,12 +159,12 @@ public:
 		auto arg1 = MakeShared(const_array_cast<T>(arg1A)); assert(arg1);
 
 		auto arg2_DomainUnit = debug_cast<const Unit<T>*>(arg2DomainA->GetCurrRangeItem());
-		dms_assert(arg2_DomainUnit);
-		dms_assert(arg2_DomainUnit->GetInterestCount());
+		assert(arg2_DomainUnit);
+		assert(arg2_DomainUnit->GetInterestCount());
 		Arg1RangeType actualIndexRange = arg2_DomainUnit->GetRange();
 
 		auto valuesData = std::any_cast<typename DataArrayBase<V>::locked_cseq_t>(wrappedValuesArray);
-		dms_assert(valuesData);
+		assert(valuesData);
 
 		using prepare_data = SharedPtr<typename Arg1Type::future_tile>;
 		auto futureTileFunctor = make_unique_FutureTileFunctor<V, prepare_data, false>(resultAdi, lazy, tileRangeData, get_range_ptr_of_valuesunit(valuesUnit)
@@ -182,29 +182,29 @@ public:
 	void Calculate(AbstrDataObject* res, const AbstrDataItem* arg1A, DataCheckMode dcmArg1, const AbstrUnit* arg2DomainA, const std::any& wrappedValuesArray, tile_id t) const override
 	{
 		const Arg1Type* arg1 = const_array_cast<T>(arg1A);
-		dms_assert(arg1);
+		assert(arg1);
 		auto indexData = arg1->GetTile(t);
 
 		auto resultData = mutable_array_cast<V>(res)->GetWritableTile(t);
 
 		auto arg2_DomainUnit = debug_cast<const Unit<T>*>(arg2DomainA);
-		dms_assert(arg2_DomainUnit);
-		dms_assert(arg2_DomainUnit->GetInterestCount());
+		assert(arg2_DomainUnit);
+		assert(arg2_DomainUnit->GetInterestCount());
 		Arg1RangeType actualIndexRange = arg2_DomainUnit->GetRange();
 
 		auto valuesData = std::any_cast<typename DataArrayBase<V>::locked_cseq_t>(wrappedValuesArray);
-		dms_assert(valuesData);
+		assert(valuesData);
 
 		CalcTile(resultData, indexData, dcmArg1, actualIndexRange, valuesData  MG_DEBUG_ALLOCATOR_SRC("res->md_SrcStr"));
 	}
 
 	void CalcTile(sequence_traits<V>::seq_t resultData, sequence_traits<T>::cseq_t indexData, DataCheckMode dcmArg1, Arg1RangeType actualIndexRange, sequence_traits<V>::cseq_t valuesData MG_DEBUG_ALLOCATOR_SRC_ARG) const
 	{
-		dms_assert(resultData.size() == indexData.size());
+		assert(resultData.size() == indexData.size());
 		if (!indexData.size())
 			return;
 
-		dms_assert(valuesData.size() == Cardinality(actualIndexRange));// <= domain of valid indexData
+		assert(valuesData.size() == Cardinality(actualIndexRange));// <= domain of valid indexData
 
 		lookup_best(resultData.begin(), resultData.end(), indexData.begin(), valuesData.begin(), actualIndexRange, dcmArg1);
 	}

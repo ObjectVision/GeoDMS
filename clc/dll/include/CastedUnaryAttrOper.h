@@ -1,6 +1,11 @@
-// Copyright (C) 1998-2023 Object Vision b.v. 
+// Copyright (C) 1998-2024 Object Vision b.v. 
 // License: GNU GPL 3
 /////////////////////////////////////////////////////////////////////////////
+
+#if defined(_MSC_VER)
+#pragma once
+#endif
+
 
 #if !defined(__CLC_CASTEDUNARYATTROPER_H)
 #define __CLC_CASTEDUNARYATTROPER_H
@@ -30,10 +35,10 @@ public:
 	// Override Operator
 	bool CreateResult(TreeItemDualRef& resultHolder, const ArgSeqType& args, bool mustCalc) const override
 	{
-		dms_assert(args.size() == 2);
+		assert(args.size() == 2);
 
 		const AbstrDataItem* argDataA = AsDataItem(args[m_ReverseArgs ? 1 : 0]);
-		dms_assert(argDataA);
+		assert(argDataA);
 
 		const AbstrUnit* argUnitA= AsUnit(args[m_ReverseArgs ? 0 : 1]);
 
@@ -99,12 +104,12 @@ public:
 	// Override Operator
 	bool CreateResult(TreeItemDualRef& resultHolder, const ArgSeqType& args, bool mustCalc) const override
 	{
-		dms_assert(args.size() == 2);
+		assert(args.size() == 2);
 
 		const AbstrUnit* argDomainUnit = AsUnit(args[0]);
 		const AbstrUnit* argValuesUnit = AsUnit(args[1]);
-		dms_assert(argDomainUnit);
-		dms_assert(argValuesUnit);
+		assert(argDomainUnit);
+		assert(argValuesUnit);
 
 		if (!resultHolder)
 			resultHolder = CreateCacheDataItem(argDomainUnit, argValuesUnit);
@@ -170,14 +175,14 @@ public:
 	// Override Operator
 	bool CreateResult(TreeItemDualRef& resultHolder, const ArgSeqType& args, bool mustCalc) const override
 	{
-		dms_assert(args.size() == 3);
+		assert(args.size() == 3);
 
 		const AbstrUnit* argDomainUnit = AsUnit(args[0]);
 		const AbstrUnit* argValuesUnit = AsUnit(args[1]);
 		const AbstrUnit* resValuesUnit = AsUnit(args[2]);
-		dms_assert(argDomainUnit);
-		dms_assert(argValuesUnit);
-		dms_assert(resValuesUnit);
+		assert(argDomainUnit);
+		assert(argValuesUnit);
+		assert(resValuesUnit);
 
 		if (!resultHolder)
 			resultHolder = CreateCacheDataItem(argValuesUnit, resValuesUnit);
@@ -249,11 +254,11 @@ public:
 	}
 	void Calculate(AbstrDataObject* res, const AbstrDataItem* arg1A, const AbstrUnit* argUnit, tile_id t) const override
 	{
-		dms_assert(arg1A);
+		assert(arg1A);
 		const Arg1Type* arg1 = const_array_cast<Arg1Values>(arg1A);
 
 		ResultType* result = mutable_array_cast<ResultValueType>(res);
-		dms_assert(result);
+		assert(result);
 
 		auto arg1Data = arg1->GetTile(t);
 		auto resData = result->GetWritableTile(t);

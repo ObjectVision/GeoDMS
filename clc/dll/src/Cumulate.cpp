@@ -37,10 +37,10 @@ namespace Cumulate
 
 		bool CreateResult(TreeItemDualRef& resultHolder, const ArgSeqType& args, bool mustCalc) const override
 		{
-			dms_assert(args.size() == 1);
+			assert(args.size() == 1);
 
 			const AbstrDataItem* arg1A = debug_cast<const AbstrDataItem*>(args[0]);
-			dms_assert(arg1A);
+			assert(arg1A);
 
 			if (!resultHolder)
 				resultHolder = CreateCacheDataItem(
@@ -53,7 +53,7 @@ namespace Cumulate
 			{
 				DataReadLock arg1Lock(arg1A);
 				AbstrDataItem* res = AsDataItem(resultHolder.GetNew());
-				dms_assert(res);
+				assert(res);
 
 				DataWriteLock resLock(res);
 
@@ -91,10 +91,10 @@ namespace Cumulate
 		void Calculate(DataWriteLock& res, const AbstrDataItem* arg1A) const override
 		{
 			const ArgType* arg1 = const_array_cast<ValueType>(arg1A);
-			dms_assert(arg1);
+			assert(arg1);
 
 			ResType* result = mutable_array_cast<ValueType>(res);
-			dms_assert(result);
+			assert(result);
 
 			ResultValueType value;
 			TInitAssigner init;
@@ -106,7 +106,7 @@ namespace Cumulate
 			{
 				auto arg1Data = arg1->GetTile(t);
 				auto resData  = result->GetWritableTile(t, dms_rw_mode::write_only_all);
-				dms_assert(arg1Data.size() == resData.size());
+				assert(arg1Data.size() == resData.size());
 					
 				auto resPtr = resData.begin();
 				if (arg1HasUndefinedValues)
@@ -140,12 +140,12 @@ namespace Cumulate
 
 		bool CreateResult(TreeItemDualRef& resultHolder, const ArgSeqType& args, bool mustCalc) const override
 		{
-			dms_assert(args.size() == 2);
+			assert(args.size() == 2);
 
 			const AbstrDataItem* arg1A = debug_cast<const AbstrDataItem*>(args[0]);
-			dms_assert(arg1A);
+			assert(arg1A);
 			const AbstrDataItem* arg2A = debug_cast<const AbstrDataItem*>(args[1]);
-			dms_assert(arg2A);
+			assert(arg2A);
 
 			const AbstrUnit* e1 = arg1A->GetAbstrDomainUnit();
 			const AbstrUnit* e2 = arg2A->GetAbstrDomainUnit();
@@ -164,7 +164,7 @@ namespace Cumulate
 				DataReadLock arg2Lock(arg2A);
 
 				AbstrDataItem* res = AsDataItem(resultHolder.GetNew());
-				dms_assert(res);
+				assert(res);
 
 				DataWriteLock resLock(res);
 
@@ -203,12 +203,12 @@ namespace Cumulate
 		void Calculate(DataWriteLock& res, const AbstrDataItem* arg1A, const AbstrDataItem* arg2A) const override
 		{
 			const Arg1Type* arg1 = const_array_cast<ValueType>(arg1A);
-			dms_assert(arg1);
+			assert(arg1);
 			const Arg2Type* arg2 = const_array_cast<PartType >(arg2A);
-			dms_assert(arg2);
+			assert(arg2);
 
 			ResType* result = mutable_array_cast<ValueType>(res);
-			dms_assert(result);
+			assert(result);
 
 			bool arg1HasUndefinedValues = arg1A->HasUndefinedValues();
 			const AbstrUnit* e = arg1A->GetAbstrDomainUnit();
@@ -228,8 +228,8 @@ namespace Cumulate
 					auto arg1Data = arg1->GetTile(t);
 					auto arg2Data = arg2->GetTile(t);
 					auto resData  = result->GetWritableTile(t);
-					dms_assert(arg1Data.size() == resData.size());
-					dms_assert(arg2Data.size() == resData.size());
+					assert(arg1Data.size() == resData.size());
+					assert(arg2Data.size() == resData.size());
 					
 					auto arg1Ptr = arg1Data.begin(), arg1End = arg1Data.end();
 					auto arg2Ptr = arg2Data.begin();
@@ -241,7 +241,7 @@ namespace Cumulate
 							SizeT ppos = Range_GetIndex_checked(partRange, *arg2Ptr);
 							if (IsDefined(ppos))
 							{
-								dms_assert(ppos < partRangeSize);
+								assert(ppos < partRangeSize);
 								auto valuePtr = valueArray.begin() + ppos;
 								if (IsDefined(*arg1Ptr))
 								{
@@ -258,7 +258,7 @@ namespace Cumulate
 							SizeT ppos = Range_GetIndex_checked(partRange, *arg2Ptr);
 							if (IsDefined(ppos))
 							{
-								dms_assert(ppos < partRangeSize);
+								assert(ppos < partRangeSize);
 								auto valuePtr = valueArray.begin() + ppos;
 								m_UniAssigner(*valuePtr, *arg1Ptr);
 								*resPtr = *valuePtr;

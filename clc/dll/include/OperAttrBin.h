@@ -42,13 +42,13 @@ struct AbstrBinaryAttrOper : BinaryOperator
 	// Override Operator
 	bool CreateResult(TreeItemDualRef& resultHolder, const ArgSeqType& args, bool mustCalc) const override
 	{
-		dms_assert(args.size() == 2);
+		assert(args.size() == 2);
 
 		const AbstrDataItem* arg1A = debug_cast<const AbstrDataItem*>(args[0]);
 		const AbstrDataItem* arg2A = debug_cast<const AbstrDataItem*>(args[1]);
 
-		dms_assert(arg1A);
-		dms_assert(arg2A);
+		assert(arg1A);
+		assert(arg2A);
 
 		const AbstrUnit* e1 = arg1A->GetAbstrDomainUnit(); bool e1Void = e1->GetValueType() == ValueWrap<Void>::GetStaticClass();
 		const AbstrUnit* e2 = arg2A->GetAbstrDomainUnit(); bool e2Void = e2->GetValueType() == ValueWrap<Void>::GetStaticClass();
@@ -59,7 +59,7 @@ struct AbstrBinaryAttrOper : BinaryOperator
 
 		if (!resultHolder)
 		{
-			dms_assert(!mustCalc);
+			assert(!mustCalc);
 			resultHolder = CreateCacheDataItem(e, (*m_UnitCreatorPtr)(GetGroup(), args), m_ValueComposition);
 		}
 		if (mustCalc)

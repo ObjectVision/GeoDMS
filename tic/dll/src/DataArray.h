@@ -345,7 +345,8 @@ struct GeneratedTileFunctor : TileFunctor<V>
 #include "DataLocks.h"
 
 template <typename V>
-auto GetValue(const AbstrDataItem* adi, SizeT idx) -> DataArrayBase<V>::value_type
+auto GetValue(const AbstrDataItem* adi, SizeT idx) 
+	->	DataArrayBase<V>::value_type
 {
 	dms_assert(adi);
 	dms_assert(adi->GetInterestCount());
@@ -355,39 +356,45 @@ auto GetValue(const AbstrDataItem* adi, SizeT idx) -> DataArrayBase<V>::value_ty
 }
 
 template <typename V>
-auto GetReference(const AbstrDataItem* adi, SizeT idx) -> DataArrayBase<V>::const_reference
+auto GetReference(const AbstrDataItem* adi, SizeT idx) 
+	-> DataArrayBase<V>::const_reference
 {
 	PreparedDataReadLock lck(adi);
 	return const_array_cast<V>(adi)->GetIndexedValue(idx);
 }
 
 template <typename V>
-typename DataArrayBase<V>::value_type GetCurrValue(const AbstrDataItem* adi, SizeT idx)
+auto GetCurrValue(const AbstrDataItem* adi, SizeT idx)
+	-> typename DataArrayBase<V>::value_type
 {
 	DataReadLock lck(adi);
 	return const_array_cast<V>(adi)->GetIndexedValue(idx);
 }
 
 template <typename V>
-typename DataArrayBase<V>::value_type GetValue(const TreeItem* ti, SizeT idx)
+auto GetValue(const TreeItem* ti, SizeT idx)
+	-> typename DataArrayBase<V>::value_type
 {
 	return GetValue<V>(checked_valcast<const AbstrDataItem*>(ti), idx);
 }
 
 template <typename V>
-typename DataArrayBase<V>::value_type GetCurrValue(const TreeItem* ti, SizeT idx)
+auto GetCurrValue(const TreeItem* ti, SizeT idx)
+	-> typename DataArrayBase<V>::value_type
 {
 	return GetCurrValue<V>(checked_valcast<const AbstrDataItem*>(ti), idx);
 }
 
 template <typename V, typename TI>
-typename DataArrayBase<V>::value_type GetTheValue(const TI* item)
+auto GetTheValue(const TI* item)
+	-> typename DataArrayBase<V>::value_type
 {
 	return GetValue<V>(item, 0);
 }
 
 template <typename V, typename TI>
-typename DataArrayBase<V>::value_type GetTheCurrValue(const TI* item)
+auto GetTheCurrValue(const TI* item)
+	-> typename DataArrayBase<V>::value_type
 {
 	return GetCurrValue<V>(item, 0);
 }
@@ -401,7 +408,7 @@ template <typename V>
 void SetValue(AbstrDataItem* adi, row_id index, typename DataArrayBase<V>::param_t value)
 {
 	DataWriteLock dataHolder(adi, dms_rw_mode::read_write);
-	dms_assert(adi->m_DataLockCount < 0);
+	assert(adi->m_DataLockCount < 0);
 
 	dataHolder->SetValue<V>(index, value);
 	adi->m_DataObject.assign(dataHolder);
@@ -412,7 +419,7 @@ void SetTheValue(AbstrDataItem* adi, typename DataArrayBase<V>::param_t value)
 {
 	DataWriteLock dataHolder(adi);
 	MG_CHECK(dataHolder->GetTiledRangeData()->GetRangeSize() == 1);
-	dms_assert(adi->m_DataLockCount < 0);
+	assert(adi->m_DataLockCount < 0);
 
 	dataHolder->SetValue<V>(0, value);
 	dataHolder.Commit();

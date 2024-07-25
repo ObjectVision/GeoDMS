@@ -55,16 +55,16 @@ struct AbstrOperAccTotUni: UnaryOperator
 
 	bool CalcResult(TreeItemDualRef& resultHolder, ArgRefs args, std::vector<ItemReadLock> readLocks, OperationContext*, Explain::Context* context) const override
 	{
-		dms_assert(resultHolder);
+		assert(resultHolder);
 		AbstrDataItem* res = AsDataItem(resultHolder.GetNew());
-		dms_assert(res);
+		assert(res);
 
-		dms_assert(args.size() == 1);
+		assert(args.size() == 1);
 		const AbstrDataItem* arg1A = AsDataItem(args[0]);
-		dms_assert(arg1A);
+		assert(arg1A);
 
 		bool dontRecalc = res->m_DataObject;
-//		dms_assert(dontRecalc || !context);
+//		assert(dontRecalc || !context);
 		if (!dontRecalc)
 		{
 //			DataReadLock arg1Lock(arg1A);
@@ -140,8 +140,8 @@ struct AbstrOperAccPartUni: BinaryOperator
 
 		const AbstrDataItem* arg1A = AsDataItem(args[0]);
 		const AbstrDataItem* arg2A = AsDataItem(args[1]);
-		dms_assert(arg1A);
-		dms_assert(arg2A);
+		assert(arg1A);
+		assert(arg2A);
 
 		const AbstrUnit* e1 = arg1A->GetAbstrDomainUnit();
 		const AbstrUnit* e2 = arg2A->GetAbstrDomainUnit();
@@ -158,16 +158,16 @@ struct AbstrOperAccPartUni: BinaryOperator
 	{
 		const AbstrDataItem* arg1A = AsDataItem(args[0]);
 		const AbstrDataItem* arg2A = AsDataItem(args[1]);
-		dms_assert(arg1A);
-		dms_assert(arg2A);
+		assert(arg1A);
+		assert(arg2A);
 		const AbstrUnit* e2 = arg2A->GetAbstrDomainUnit();
 
-		dms_assert(resultHolder);
+		assert(resultHolder);
 
 		AbstrDataItem* res = AsDataItem(resultHolder.GetNew());
-		dms_assert(res);
+		assert(res);
 		bool doRecalc = !res->m_DataObject;
-		dms_assert(context || doRecalc);
+		assert(context || doRecalc);
 		if (doRecalc)
 		{
 			DataWriteLock resLock(res);
