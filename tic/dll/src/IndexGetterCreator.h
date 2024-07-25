@@ -13,6 +13,8 @@
 #include "AbstrDataObject.h"
 #include "ValueGetter.h"
 
+#include "FutureTileArray.h"
+
 //=================================== IndexGetter
 
 using IndexGetter = AbstrValueGetter<SizeT> ;
@@ -25,20 +27,20 @@ struct IndexGetterCreatorBase : UnitProcessor
 	template <int N>
 	TIC_CALL void VisitImpl(const Unit<bit_value<N>>* inviter) const;
 
-	WeakPtr<const AbstrDataItem> m_Adi;
-	tile_id                      m_TileID = no_tile;
-	abstr_future_tile* m_Aft = nullptr;
-	mutable WeakPtr<IndexGetter> m_Result;
+	SharedPtr<const AbstrDataItem> m_Adi;
+	tile_id                        m_TileID = no_tile;
+	abstr_future_tile_ptr          m_Aft;
+	mutable WeakPtr<IndexGetter>   m_Result;
 };
 
 struct IndexGetterCreator :  boost::mpl::fold<typelists::domain_elements, IndexGetterCreatorBase, VisitorImpl<Unit<_2>, _1> >::type
 {
 	static TIC_CALL IndexGetter* Create(const AbstrDataItem* adi, tile_id t);
-	static TIC_CALL IndexGetter* Create(const AbstrDataItem* adi, abstr_future_tile* aft);
+	static TIC_CALL IndexGetter* Create(const AbstrDataItem* adi, abstr_future_tile_ptr aft);
 
 private:
 	IndexGetterCreator(const AbstrDataItem* adi, tile_id t);
-	IndexGetterCreator(const AbstrDataItem* adi, abstr_future_tile* aft);
+	IndexGetterCreator(const AbstrDataItem* adi, abstr_future_tile_ptr aft);
 	IndexGetter* Create();
 };
 

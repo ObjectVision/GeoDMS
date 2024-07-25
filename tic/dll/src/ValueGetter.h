@@ -27,6 +27,9 @@ struct ValueGetter : AbstrValueGetter<T>
 	ValueGetter(const DataArray<V>* ado, tile_id t)
 		:	m_Data(ado->GetDataRead(t) )
 	{}
+	ValueGetter(typename DataArray<V>::locked_cseq_t&& data)
+		: m_Data(std::move(data))
+	{}
 
 	T Get(SizeT t) const override
 	{

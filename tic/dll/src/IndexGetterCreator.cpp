@@ -175,13 +175,16 @@ void IndexGetterCreatorBase::VisitImpl(const Unit<E>* inviter) const
 	if (m_Aft)
 	{
 		using future_tile = typename DataArray<E>::future_tile;
-		auto ft = debug_cast<future_tile*>(m_Aft);
+		auto ft = debug_cast<future_tile*>(m_Aft.get());
 		tileData = ft->GetTile();
 	}
 	else
 	{
-		const DataArray<E>* di = const_array_cast<E>(m_Adi);
+		assert(m_Adi.get());
+		assert(m_Adi->GetDataObjLockCount() > 0);
 		dcmIndices = m_Adi->GetCheckMode();
+		const DataArray<E>* di = const_array_cast<E>(m_Adi->GetRefObj());
+		assert(di);
 		tileData = di->GetLockedDataRead(m_TileID);
 	}
 	bool hasOutOfRangeIndices = dcmIndices & DCM_CheckRange;
@@ -224,9 +227,24 @@ void IndexGetterCreatorBase::VisitImpl(const Unit<bit_value<N>>* inviter) const
 {
 	static_assert( ! has_undefines_v<bit_value<N>>);
 
-	m_Result = new ValueGetter<SizeT, bit_value<N>>(const_array_checked_valcast<bit_value<N>>(m_Adi.get()), m_TileID);
-}
+	typename DataArray<bit_value<N>>::locked_cseq_t tileData;
+	if (m_Aft)
+	{
+		using future_tile = typename DataArray<bit_value<N>>::future_tile;
+		auto ft = debug_cast<future_tile*>(m_Aft.get());
+		tileData = ft->GetTile();
+	}
+	else
+	{
+		assert(m_Adi.get());
+		assert(m_Adi->GetDataObjLockCount() > 0);
+		const DataArray<bit_value<N>>* di = const_array_cast<bit_value<N>>(m_Adi->GetRefObj());
+		assert(di);
+		tileData = di->GetLockedDataRead(m_TileID);
+	}
 
+	m_Result = new ValueGetter<SizeT, bit_value<N>>(std::move(tileData));
+}
 
 IndexGetterCreator::IndexGetterCreator(const AbstrDataItem* adi, tile_id t)
 {
@@ -234,7 +252,7 @@ IndexGetterCreator::IndexGetterCreator(const AbstrDataItem* adi, tile_id t)
 	m_TileID    = t;
 }
 
-IndexGetterCreator::IndexGetterCreator(const AbstrDataItem* adi, abstr_future_tile* aft)
+IndexGetterCreator::IndexGetterCreator(const AbstrDataItem* adi, abstr_future_tile_ptr aft)
 {
 	m_Adi = adi;
 	m_Aft = aft;
@@ -251,7 +269,7 @@ IndexGetter* IndexGetterCreator::Create(const AbstrDataItem* adi, tile_id t)
 	return IndexGetterCreator(adi, t).Create();
 }
 
-IndexGetter* IndexGetterCreator::Create(const AbstrDataItem* adi, abstr_future_tile* aft)
+IndexGetter* IndexGetterCreator::Create(const AbstrDataItem* adi, abstr_future_tile_ptr aft)
 {
 	return IndexGetterCreator(adi, aft).Create();
 }
