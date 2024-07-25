@@ -904,14 +904,48 @@ void SetKernel(typename bp_union_poly_traits<C>::ring_type& kernel, Float64 valu
 	}
 }
 
+template<typename C>
 struct union_bp_polygonsets
 {
-	template <typename PSDT>
-	void operator()(PSDT& lvalue, PSDT&& rvalue) const
+	using traits_t = bp_union_poly_traits<C>;
+	using polygon_set_data = typename traits_t::polygon_set_data_type;
+	void operator()(polygon_set_data& lvalue, polygon_set_data&& rvalue) const
 	{
+		typename traits_t::rect_type bpRightRect;
+		if (!rvalue.extents(bpRightRect))
+			return; // nothing to merge
+
+		typename traits_t::rect_type bpRect;
+		if (lvalue.extents(bpRect))
+		{
+			bpRect = get_enclosing_rectangle(bpRect, bpRightRect);
+
+			bool mustTranslate = coords_using_more_than_25_bits(bpRect);
+			if (mustTranslate)
+			{
+				typename traits_t::point_type p;
+				// translate to zero to avoid numerical round-off errors
+				gtl::center(p, bpRect);
+				typename traits_t::point_type mp(-x(p), -y(p));
+				gtl::convolve(bpRect, mp);
+				if (coords_using_more_than_25_bits(bpRect))
+					throwErrorF("boost::polygon::insert", "extent of objects is %s after moving it with %s, which requires more than 25 bits for coordinates"
+						, AsString(bpRect)
+						, AsString(mp)
+					);
+				lvalue.move(mp);
+				rvalue.move(mp);
+
+				lvalue.insert(std::move(rvalue));
+
+				lvalue.move(p);
+				return;
+			}
+
+
+		}
 		lvalue.insert(std::move(rvalue));
 	}
-	
 };
 
 struct union_bg_multi_polygon
@@ -935,7 +969,7 @@ class BpPolygonOperator : public AbstrPolygonOperator
 	using RingType = typename traits_t::ring_type;
 	using MultiPolygonType = typename traits_t::multi_polygon_type;
 	using PolygonSetDataType = typename traits_t::polygon_set_data_type;
-	using PolygonSetTower = assoc_tower<PolygonSetDataType, union_bp_polygonsets>;
+	using PolygonSetTower = assoc_tower<PolygonSetDataType, union_bp_polygonsets<ScalarType> >;
 	using NumType = Float64;
 
 	typedef DataArray<SequenceType> ArgPolyType;
