@@ -243,11 +243,8 @@ SharedStr ThemeSet::GetThemeDisplayNameWithinContext(const GraphicObject* owner,
 	dms_assert(owner);
 	const AbstrDataItem* themeDisplayItem = GetThemeDisplayItem();
 	if (!themeDisplayItem)
-	{
-		if (!m_Name.empty())
-			return m_Name;
-		return SharedStr("{EMPTY-THEMESET}");
-	}
+		return m_Name;
+
 	gr_elem_index si = owner->NrEntries();
 	return GetDisplayNameWithinContext(themeDisplayItem, inclMetric, [si, owner]() mutable ->const AbstrDataItem* {
 		while (si)

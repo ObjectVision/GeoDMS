@@ -141,7 +141,7 @@ GridColorPalette::GridColorPalette(const Theme* colorTheme)
 		DataReadLock paletteLock(paletteAttr);
 		dms_assert(paletteLock.IsLocked());
 
-		auto paletteData = const_array_checkedcast<UInt32>(paletteAttr)->GetDataRead();
+		auto paletteData = const_array_checked_cast<UInt32>(paletteAttr)->GetDataRead();
 		dms_assert(paletteData.size() <= m_Count);
 		const UInt32* palettePtr = paletteData.begin();
 		const UInt32* paletteEnd = paletteData.end();

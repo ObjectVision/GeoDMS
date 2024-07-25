@@ -139,7 +139,7 @@ auto IndexCollector::GetDataRead(tile_id t) const -> DataArray<entity_id>::locke
 
 	if (!lock.GetRefObj())
 		throwErrorF("IndexCollector", "Cannot create data for %s", AsString(m_DC->GetLispRef()).c_str());
-	return const_array_checkedcast<entity_id>(lock.GetRefObj())->GetDataRead(t);
+	return const_array_checked_cast<entity_id>(lock.GetRefObj())->GetDataRead(t);
 }
 
 tile_loc IndexCollector::GetTiledLocation(SizeT index) const
