@@ -655,7 +655,7 @@ public:
 	sequence_array(sequence_array<T>&& rhs) noexcept { swap(rhs); }
 
 	void operator =(const sequence_array<T>& src) { assign(src, 0); }
-	void operator =(sequence_array<T>&& src) { swap(src); }
+	void operator =(sequence_array<T>&& src) noexcept { swap(src); }
 
 	RTC_CALL void assign(const sequence_array<T>& src, data_size_type expectedGrowth);
 	RTC_CALL void swap(sequence_array<T>& rhs) noexcept;

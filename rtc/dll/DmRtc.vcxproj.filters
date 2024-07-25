@@ -856,6 +856,7 @@
     <ClInclude Include="src\geo\CharPtrRange.h" />
     <ClInclude Include="src\geo\IterTraits.h" />
     <ClInclude Include="src\ser\FormattingFlags.h" />
+    <ClInclude Include="src\geo\AssocTower.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\act\Actor.cpp">

@@ -12,6 +12,7 @@
 
 #include "dbg/SeverityType.h"
 #include "dbg/Timer.h"
+#include "geo/AssocTower.h"
 #include "geo/BoostPolygon.h"
 #include "geo/SpatialIndex.h"
 #include "mci/ValueWrap.h"
@@ -536,13 +537,9 @@ void dms_insert(bg_multi_polygon_t& lvalue, const auto& rvalue)
 Timer s_ProcessTimer;
 
 
-template <typename P, typename SequenceType, typename MP>
+template <typename P, typename SequenceType, typename MPT>
 void UnionPolygon(ResourceArrayHandle& r, SizeT n, const AbstrDataItem* polyDataA, const AbstrDataItem* permDataA, tile_id t, const AbstrOperGroup* whosCalling)
 {
-#if defined(MG_DEBUG_POLYGON)
-	DBG_START("UnionPolygon", "", true);
-	DBG_TRACE(("UnionPolygonTotal %d/%d", t,  polyDataA->GetAbstrDomainUnit()->GetNrTiles()));
-#endif
 	auto polyData = const_array_cast<SequenceType>(polyDataA);
 	assert(polyData);
 	assert(whosCalling);
@@ -555,9 +552,9 @@ void UnionPolygon(ResourceArrayHandle& r, SizeT n, const AbstrDataItem* polyData
 	auto polyArray = polyData->GetTile(t);
 
 	if (!r)
-		r.reset( ResourceArray<MP>::create(n) );
-	ResourceArray<MP>* geometriesPtr = debug_cast<ResourceArray<MP>*>(r.get_ptr());
-	dms_assert(geometriesPtr->size() == n);
+		r.reset( ResourceArray<MPT>::create(n) );
+	auto geometryTowerResoucePtr = debug_cast<ResourceArray<MPT>*>(r.get_ptr());
+	assert(geometryTowerReourcePtr->size() == n);
 
 	PolygonFlags unionPermState =
 		(permDataA) ? PolygonFlags::F_DoPartUnion :
@@ -568,7 +565,7 @@ void UnionPolygon(ResourceArrayHandle& r, SizeT n, const AbstrDataItem* polyData
 	// insert each multi-polygon in polyArray in geometryPtr[part_rel] 
 	for (auto pb=polyArray.begin(), pi=pb, pe=polyArray.end(); pi!=pe; ++pi)
 	{
-		MP* geometryPtr = geometriesPtr->m_Data;
+		auto geometryTowerPtr = geometryTowerResoucePtr->begin();
 		if (unionPermState != PolygonFlags::F_DoUnion)
 		{
 			SizeT i = pi-pb;
@@ -585,12 +582,11 @@ void UnionPolygon(ResourceArrayHandle& r, SizeT n, const AbstrDataItem* polyData
 				i = ri;
 			}
 			assert( i < n);
-			geometryPtr += i;
+			geometryTowerPtr += i;
 		}
-#if defined(MG_DEBUG_POLYGON)
-		DBG_TRACE(("index %d", p1 - pb));
-#endif
-		dms_insert(*geometryPtr, *pi);
+		typename MPT::semi_group geometry;
+		dms_insert(geometry, *pi);
+		geometryTowerPtr->add(std::move(geometry));
 
 		if (s_ProcessTimer.PassedSecs(5))
 		{
@@ -908,6 +904,26 @@ void SetKernel(typename bp_union_poly_traits<C>::ring_type& kernel, Float64 valu
 	}
 }
 
+struct union_bp_polygonsets
+{
+	template <typename PSDT>
+	void operator()(PSDT& lvalue, PSDT&& rvalue) const
+	{
+		lvalue.insert(std::move(rvalue));
+	}
+	
+};
+
+struct union_bg_multi_polygon
+{
+	void operator()(bg_multi_polygon_t& lvalue, bg_multi_polygon_t&& rvalue) const
+	{
+		bg_multi_polygon_t result;
+		boost::geometry::union_(lvalue, rvalue, result);
+		result.swap(lvalue);
+	}
+};
+
 template <typename P>
 class BpPolygonOperator : public AbstrPolygonOperator
 {
@@ -919,6 +935,7 @@ class BpPolygonOperator : public AbstrPolygonOperator
 	using RingType = typename traits_t::ring_type;
 	using MultiPolygonType = typename traits_t::multi_polygon_type;
 	using PolygonSetDataType = typename traits_t::polygon_set_data_type;
+	using PolygonSetTower = assoc_tower<PolygonSetDataType, union_bp_polygonsets>;
 	using NumType = Float64;
 
 	typedef DataArray<SequenceType> ArgPolyType;
@@ -931,7 +948,7 @@ public:
 
 	void Calculate(ResourceArrayHandle& r, SizeT domainCount, const AbstrDataItem* polyDataA, const AbstrDataItem* partitionDataA, tile_id t) const override
 	{
-		UnionPolygon<P, SequenceType, PolygonSetDataType>(r, domainCount, polyDataA, partitionDataA, t, GetGroup());
+		UnionPolygon<P, SequenceType, PolygonSetTower>(r, domainCount, polyDataA, partitionDataA, t, GetGroup());
 	}
 
 	void ProcessNumOperImpl(ResourceArrayHandle& r, const AbstrDataItem* argNum, tile_id t, PolygonFlags flag) const override
@@ -940,7 +957,9 @@ public:
 		dms_assert(argNum);
 		dms_assert(flag != PolygonFlags::none);
 
-		ResourceArray<PolygonSetDataType>* geometryDataPtr = debug_cast<ResourceArray<PolygonSetDataType>*>(r.get_ptr());
+		auto geometryDataTowerResourcePtr = debug_cast<ResourceArray<PolygonSetTower>*>(r.get_ptr());
+		auto geometryDataTowerPtr = geometryDataTowerResourcePtr->begin();
+
 		auto argNumData = const_array_cast<NumType>(argNum)->GetTile(argNum->HasVoidDomainGuarantee() ? 0 : t);
 
 		bool isParam = argNumData.size() == 1;
@@ -961,9 +980,9 @@ public:
 		typename traits_t::polygon_set_data_type::convolve_resources convolveResources;
 		typename traits_t::polygon_set_data_type::clean_resources& cleanResources = convolveResources.cleanResources;
 
-		for (SizeT i = 0; i!=domainCount; ++i)
+		for (SizeT i = 0; i!=domainCount; ++i, ++geometryDataTowerPtr)
 		{
-			typename traits_t::polygon_set_data_type& geometryData = geometryDataPtr->m_Data[ i ];
+			typename traits_t::polygon_set_data_type geometryData = geometryDataTowerPtr->get_result();
 
 			if (empty(geometryData, cleanResources))
 				continue;
@@ -1029,6 +1048,7 @@ public:
 					, t
 				);
 			}
+			geometryDataTowerPtr->add(std::move(geometryData));
 		}
 	}
 
@@ -1038,18 +1058,21 @@ public:
 		OwningPtrSizedArray<typename traits_t::multi_polygon_type> geometryPtr;
 		if (r)
 		{
-			ResourceArray<typename traits_t::polygon_set_data_type>* geometryDataPtr = debug_cast<ResourceArray<typename traits_t::polygon_set_data_type>*>(r.get_ptr());
-			dms_assert(geometryDataPtr);
+			auto geometryDataTowerResourcePtr = debug_cast<ResourceArray<PolygonSetTower>*>(r.get_ptr());
+			domainCount = geometryDataTowerResourcePtr->size();
+			auto geometryDataTowerPtr = geometryDataTowerResourcePtr->begin();
 
-			domainCount = geometryDataPtr->size();
+			assert(geometryDataTowerPtr);
+
 			geometryPtr = OwningPtrSizedArray<typename traits_t::multi_polygon_type>(domainCount, value_construct MG_DEBUG_ALLOCATOR_SRC("BoostPolygon: geometryPtr"));
 
 			typename traits_t::polygon_set_data_type::clean_resources cleanResources;
-			for (SizeT i = 0; i != domainCount; ++i) // TODO G8: parallel_for and cleanResources in a threadLocal thing
+			for (SizeT i = 0; i != domainCount; ++i, ++geometryDataTowerPtr) // TODO G8: parallel_for and cleanResources in a threadLocal thing
 			{
-				typename traits_t::polygon_set_data_type& geometryData = geometryDataPtr->m_Data[i];
+				typename traits_t::polygon_set_data_type geometryData = geometryDataTowerPtr->get_result();
 				geometryData.get(geometryPtr[i], cleanResources);
 				geometryData = typename traits_t::polygon_set_data_type(); // free no longer required resources
+
 			}
 			r.reset();
 		}
@@ -1077,10 +1100,10 @@ public:
 		}
 		if (DoDelayStore())
 		{
-			dms_assert(resGeometry);
+			assert(resGeometry);
 			resGeometryLock = DataWriteHandle(resGeometry, dms_rw_mode::write_only_all);
 		}
-		dms_assert(resGeometryLock);
+		assert(resGeometryLock);
 
 		auto resArray = mutable_array_cast<SequenceType>(resGeometryLock)->GetLockedDataWrite(t, dms_rw_mode::write_only_all); // t may be no_tile
 		auto resIter = resArray.begin();
@@ -1118,6 +1141,7 @@ class BgPolygonOperator : public AbstrPolygonOperator
 	using RingType    = traits_t::ring_type;
 	using PolygonType = traits_t::polygon_with_holes_type;
 	using MultiPolygonType = traits_t::multi_polygon_type;
+	using MultiPolygonTower = assoc_tower<MultiPolygonType, union_bg_multi_polygon>;
 	using NumType     = Float64;
 
 	typedef DataArray<SequenceType>   ArgPolyType;
@@ -1130,33 +1154,47 @@ public:
 
 	void Calculate(ResourceArrayHandle& r, SizeT domainCount, const AbstrDataItem* polyDataA, const AbstrDataItem* partitionDataA, tile_id t) const override
 	{
-		UnionPolygon<P, SequenceType, MultiPolygonType>(r, domainCount, polyDataA, partitionDataA, t, GetGroup());
+		UnionPolygon<P, SequenceType, MultiPolygonTower>(r, domainCount, polyDataA, partitionDataA, t, GetGroup());
 	}
 
 	void StoreImpl(AbstrUnit* resUnit, AbstrDataItem* resGeometry, DataWriteHandle& resGeometryLock, AbstrDataItem* resNrOrgEntity, tile_id t, ResourceArrayHandle& r) const override
 	{
 		SizeT domainCount = 0;
-		ResourceArray<MultiPolygonType>* geometryPtr = debug_cast<ResourceArray<MultiPolygonType>*>(r.get_ptr());
-		if (geometryPtr)
-			domainCount = geometryPtr->size();
+		auto geometryTowerResourcePtr = debug_cast<ResourceArray<MultiPolygonTower>*>(r.get_ptr());
+		MultiPolygonTower* geometryTowerPtr = nullptr;
+		if (geometryTowerResourcePtr)
+		{
+			domainCount = geometryTowerResourcePtr->size();
+			geometryTowerPtr = geometryTowerResourcePtr->begin();
+		}
 
 		if (m_Flags & PolygonFlags::F_DoSplit)
 		{
 			assert(resUnit);
 			SizeT splitCount = 0;
-			for (SizeT i = 0; i != domainCount; ++i)
-				splitCount += geometryPtr->m_Data[i].size(); // geometryPtr 
+			auto geometryTowerIter = geometryTowerPtr;
+			for (SizeT i = 0; i != domainCount; ++i, ++geometryTowerIter)
+			{
+				if (!geometryTowerIter->empty())
+				{
+					splitCount += geometryTowerIter->front().size(); // geometryPtr 
+				}
+			}
 			resUnit->SetCount(splitCount); // we must be in delayed store now
 			if (resNrOrgEntity)
 			{
 				DataWriteLock resRelLock(resNrOrgEntity);
 				SizeT splitCount2 = 0;
-				for (SizeT i = 0; i != domainCount; ++i)
+				geometryTowerIter = geometryTowerPtr;
+				for (SizeT i = 0; i != domainCount; ++i, ++geometryTowerIter)
 				{
-					SizeT nrSplits = geometryPtr->m_Data[i].size();
-					SizeT nextCount = splitCount2 + nrSplits;
-					while (splitCount2 != nextCount)
-						resRelLock->SetValueAsSizeT(splitCount2++, i);
+					if (!geometryTowerIter->empty())
+					{
+						SizeT nrSplits = geometryTowerIter->front().size();
+						SizeT nextCount = splitCount2 + nrSplits;
+						while (splitCount2 != nextCount)
+							resRelLock->SetValueAsSizeT(splitCount2++, i);
+					}
 				}
 				resRelLock.Commit();
 			}
@@ -1169,18 +1207,17 @@ public:
 		auto resArray = mutable_array_cast<SequenceType>(resGeometryLock)->GetLockedDataWrite(t, dms_rw_mode::write_only_all); // t may be no_tile
 		auto resIter = resArray.begin();
 
-		for (SizeT i = 0; i != domainCount; ++i)
+		for (SizeT i = 0; i != domainCount; ++i, ++geometryTowerPtr)
 		{
 			if (m_Flags & PolygonFlags::F_DoSplit)
 			{
-				resIter = bg_split_assign(resIter, geometryPtr->m_Data[i]);
+				resIter = bg_split_assign(resIter, geometryTowerPtr->get_result());
 			}
 			else
 			{
-				bg_assign(*resIter, geometryPtr->m_Data[i]);
+				bg_assign(*resIter, geometryTowerPtr->get_result());
 				++resIter;
 			}
-//			geometryPtr[i] = MultiPolygonType();
 		}
 		assert(resIter == resArray.end() || domainCount == 0);
 	}

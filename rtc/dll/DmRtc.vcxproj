@@ -72,6 +72,7 @@
     <ClInclude Include="src\dbg\DmsCatch.h" />
     <ClInclude Include="src\dbg\Timer.h" />
     <ClInclude Include="src\dbg\UnitTesting.h" />
+    <ClInclude Include="src\geo\AssocTower.h" />
     <ClInclude Include="src\geo\BoostPolygon.h" />
     <ClInclude Include="src\geo\CharPtrRange.h" />
     <ClInclude Include="src\geo\CheckedCalc.h" />
