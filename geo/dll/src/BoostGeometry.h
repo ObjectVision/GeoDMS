@@ -440,12 +440,9 @@ void bg_assign(E&& ref, BG_MP&& resMP)
 }
 
 template <typename RI, typename BG_MP>
-void bg_split_assign(RI resIter, const BG_MP& mp)
+auto bg_split_assign(RI resIter, const BG_MP& mp) -> RI
 {
 	using value_type = scalar_of_t<typename RI::value_type>;
-
-	if (!mp.size())
-		return;
 
 	for (auto i = mp.begin(), e = mp.end(); i != e; ++resIter, ++i)
 	{
@@ -468,14 +465,16 @@ void bg_split_assign(RI resIter, const BG_MP& mp)
 			for (const auto& resLake : i->inners())
 				store_ring(*resIter, resLake);
 			auto currInner = i->inners().end() - 1;
-			do {
+			while (currInner != i->inners().begin()) {
 				resIter->push_back(currInner->end()[-1]);
 				--currInner;
-			} while (currInner != i->inners().begin());
+			}
 			resIter->push_back(outerRing.end()[-1]);
 		}
 		assert(resIter->size() == count);
 	}
+	return resIter;
+
 }
 
 

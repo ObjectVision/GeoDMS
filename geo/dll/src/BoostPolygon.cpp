@@ -1089,8 +1089,7 @@ public:
 		{
 			if (m_Flags & PolygonFlags::F_DoSplit)
 			{
-				bp_split_assign(resIter, geometryPtr[i]);
-				resIter += geometryPtr[i].size();
+				resIter = bp_split_assign(resIter, geometryPtr[i]);
 			}
 			else
 			{
@@ -1163,7 +1162,7 @@ public:
 			}
 		}
 
-		dms_assert(resGeometry);
+		assert(resGeometry);
 		resGeometryLock = DataWriteHandle(resGeometry, dms_rw_mode::write_only_all);
 		assert(resGeometryLock);
 
@@ -1174,8 +1173,7 @@ public:
 		{
 			if (m_Flags & PolygonFlags::F_DoSplit)
 			{
-				bg_split_assign(resIter, geometryPtr->m_Data[i]);
-				resIter += geometryPtr->m_Data[i].size();
+				resIter = bg_split_assign(resIter, geometryPtr->m_Data[i]);
 			}
 			else
 			{
