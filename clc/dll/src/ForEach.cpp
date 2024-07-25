@@ -181,21 +181,21 @@ bool ForEach_CreateResult(TreeItemDualRef& resultHolder, const ArgSeqType& args,
 	DataReadLock lock11(optCdfA);
 	DataReadLock lock12(optUrlA);
 
-	const SharedStrArray* nameArrayItem  =                  const_array_checkedcast<SharedStr>(lock1 );
-	const SharedStrArray* optExprs       = optExprsA      ? const_array_checkedcast<SharedStr>(lock2 ) : nullptr;
-	const SharedStrArray* optChecks      = optChecksA     ? const_array_checkedcast<SharedStr>(lock2a) : nullptr;
-	const SharedStrArray* optTemplNames  = optTemplNamesA ? const_array_checkedcast<SharedStr>(lock4 ) : nullptr;
-	const SharedStrArray* optUnitNames   = optUnitNamesA  ? const_array_checkedcast<SharedStr>(lock4c) : nullptr;
-	const SharedStrArray* optDuNames     = optDuNamesA    ? const_array_checkedcast<SharedStr>(lock4a) : nullptr;
-	const SharedStrArray* optVuNames     = optVuNamesA    ? const_array_checkedcast<SharedStr>(lock4b) : nullptr;
-	const SharedStrArray* optLabels      = optLabelsA     ? const_array_checkedcast<SharedStr>(lock5 ) : nullptr;
-	const SharedStrArray* optDescrs      = optDescrsA     ? const_array_checkedcast<SharedStr>(lock6 ) : nullptr;
-	const SharedStrArray* optStorageName = optStorageNameA? const_array_checkedcast<SharedStr>(lock7 ) : nullptr;
-	const SharedStrArray* optStorageType = optStorageTypeA? const_array_checkedcast<SharedStr>(lock8 ) : nullptr;
-	const DataArray<Bool>* optStorageRo   = optStorageRoA  ? const_array_checkedcast<Bool     >(lock9) : nullptr;
-	const SharedStrArray* optSqlStrings  = optSqlStringsA ? const_array_checkedcast<SharedStr>(lock10) : nullptr;
-	const SharedStrArray* optCdf         = optCdfA        ? const_array_checkedcast<SharedStr>(lock11) : nullptr;
-	const SharedStrArray* optUrl         = optUrlA        ? const_array_checkedcast<SharedStr>(lock12) : nullptr;
+	const SharedStrArray* nameArrayItem  =                  const_array_checked_cast<SharedStr>(lock1 );
+	const SharedStrArray* optExprs       = optExprsA      ? const_array_checked_cast<SharedStr>(lock2 ) : nullptr;
+	const SharedStrArray* optChecks      = optChecksA     ? const_array_checked_cast<SharedStr>(lock2a) : nullptr;
+	const SharedStrArray* optTemplNames  = optTemplNamesA ? const_array_checked_cast<SharedStr>(lock4 ) : nullptr;
+	const SharedStrArray* optUnitNames   = optUnitNamesA  ? const_array_checked_cast<SharedStr>(lock4c) : nullptr;
+	const SharedStrArray* optDuNames     = optDuNamesA    ? const_array_checked_cast<SharedStr>(lock4a) : nullptr;
+	const SharedStrArray* optVuNames     = optVuNamesA    ? const_array_checked_cast<SharedStr>(lock4b) : nullptr;
+	const SharedStrArray* optLabels      = optLabelsA     ? const_array_checked_cast<SharedStr>(lock5 ) : nullptr;
+	const SharedStrArray* optDescrs      = optDescrsA     ? const_array_checked_cast<SharedStr>(lock6 ) : nullptr;
+	const SharedStrArray* optStorageName = optStorageNameA? const_array_checked_cast<SharedStr>(lock7 ) : nullptr;
+	const SharedStrArray* optStorageType = optStorageTypeA? const_array_checked_cast<SharedStr>(lock8 ) : nullptr;
+	const DataArray<Bool>* optStorageRo   = optStorageRoA  ? const_array_checked_cast<Bool     >(lock9) : nullptr;
+	const SharedStrArray* optSqlStrings  = optSqlStringsA ? const_array_checked_cast<SharedStr>(lock10) : nullptr;
+	const SharedStrArray* optCdf         = optCdfA        ? const_array_checked_cast<SharedStr>(lock11) : nullptr;
+	const SharedStrArray* optUrl         = optUrlA        ? const_array_checked_cast<SharedStr>(lock12) : nullptr;
 
 	dms_assert(nameArrayItem);
 

@@ -681,9 +681,9 @@ protected:
 		const AbstrDataItem* argNum1 = (m_Flags & PolygonFlags::F_Mask1       ) ? AsDataItem(args[argCount++]) : nullptr;
 		const AbstrDataItem* argNum2 = (m_Flags & PolygonFlags::F_Mask2       ) ? AsDataItem(args[argCount++]) : nullptr;
 
-		dms_assert(args.size() == argCount);
+		assert(args.size() == argCount);
 
-		dms_assert(argPoly); 
+		assert(argPoly); 
 
 		const AbstrUnit* domain1Unit = argPoly->GetAbstrDomainUnit();
 		const AbstrUnit* values1Unit = argPoly->GetAbstrValuesUnit();
@@ -774,7 +774,7 @@ protected:
 		assert(r);
 		assert(argNum);
 
-		ReadableTileLock readNum1Lock (argNum ? argNum->GetCurrRefObj() : nullptr, argNum->HasVoidDomainGuarantee() ? 0 : t);
+		ReadableTileLock readNum1Lock (argNum ? argNum->GetCurrRefObj() : nullptr, !argNum || argNum->HasVoidDomainGuarantee() ? 0 : t);
 
 		switch (f) {
 			case PolygonFlags::F_Inflate1:

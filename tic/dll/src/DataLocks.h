@@ -94,9 +94,15 @@ auto const_array_dynacast(const DataReadHandle& drh) -> const TileFunctor<V>*
 }
 
 template<typename V>
-auto const_array_checkedcast(const DataReadHandle& drh) -> const TileFunctor<V>*
+auto const_array_checked_cast(const DataReadHandle& drh) -> const TileFunctor<V>*
 {
 	return checked_cast<const TileFunctor<V>*>(drh.get());
+}
+
+template<typename V>
+auto const_array_checked_valcast(const DataReadHandle& drh) -> const TileFunctor<V>*
+{
+	return checked_valcast<const TileFunctor<V>*>(drh.get());
 }
 
 template<typename V>

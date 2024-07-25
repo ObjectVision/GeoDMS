@@ -112,7 +112,7 @@ auto const_array_dynacast(P const& ptr) -> const TileFunctor<V>*
 }
 
 template<typename V, typename P>
-auto const_array_checkedcast(P const& ptr) -> const TileFunctor<V>*
+auto const_array_checked_cast(P const& ptr) -> const TileFunctor<V>*
 {
 	return checked_cast<const TileFunctor<V>*>(
 		checked_valcast<const AbstrDataItem*>(AsPtr(ptr))->GetCurrRefObj()
@@ -124,7 +124,7 @@ auto const_opt_array_checkedcast(P const& ptr) -> const TileFunctor<V>*
 {
 	return (ptr == nullptr)
 		?	nullptr
-		:	const_array_checkedcast<V, P>(ptr);
+		:	const_array_checked_cast<V, P>(ptr);
 }
 
 template<typename V, typename P>

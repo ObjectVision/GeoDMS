@@ -168,8 +168,10 @@ struct AbstrOperAccPartUni: BinaryOperator
 		assert(res);
 		bool doRecalc = !res->m_DataObject;
 		assert(context || doRecalc);
+
 		if (doRecalc)
 		{
+			DataReadLock arg2Lock(arg2A);
 			DataWriteLock resLock(res);
 
 			Calculate(resLock, arg1A, arg2A, std::move(args), std::move(readLocks));
@@ -248,11 +250,11 @@ struct OperAccPartUniWithCFTA : OperAccPartUni<V, R> // with consumable tile arr
 	void Calculate(DataWriteLock& res, const AbstrDataItem* arg1A, const AbstrDataItem* arg2A, ArgRefs args, std::vector<ItemReadLock> readLocks) const override
 	{
 		assert(arg2A);
-		auto arg1 = (DataReadLock(arg1A), const_array_cast<V>(arg1A));
+		auto arg1 = (DataReadLock(arg1A), MakeShared< const DataArray<V> >(const_array_cast<V>(arg1A)));
 		assert(arg1);
 		auto pdi = ProcessDataInfo{
 			.arg2A = arg2A,
-			.values_fta = GetFutureTileArray(arg1),
+			.values_fta = GetFutureTileArray(arg1.get()),
 			.part_fta = (DataReadLock(arg2A), GetAbstrFutureTileArray(arg2A->GetCurrRefObj())),
 			.n = arg1A->GetAbstrDomainUnit()->GetCount(),
 			.nrTiles = arg1A->GetAbstrDomainUnit()->GetNrTiles(),

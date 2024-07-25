@@ -197,7 +197,7 @@ public:
 	template <typename V> V GetValue(row_id index) const
 	{
 //		dms_assert(m_DataLockCount > 0);
-		return const_array_checkedcast<V>(this)->GetIndexedValue(index);
+		return const_array_checked_cast<V>(this)->GetIndexedValue(index);
 	}
 
   private:
@@ -241,15 +241,21 @@ auto const_array_dynacast(const AbstrDataObject* ptr) -> const TileFunctor<V>*
 }
 
 template<typename V>
-auto const_array_checkedcast(const AbstrDataObject* ptr) -> const TileFunctor<V>*
+auto const_array_checked_cast(const AbstrDataObject* ptr) -> const TileFunctor<V>*
 {
 	return checked_cast<const TileFunctor<V>*>(ptr);
 }
 
 template<typename V>
+auto const_array_checked_valcast(const AbstrDataObject* ptr) -> const TileFunctor<V>*
+{
+	return checked_valcast<const TileFunctor<V>*>(ptr);
+}
+
+template<typename V>
 auto const_opt_array_checkedcast(const AbstrDataObject* ptr) -> const TileFunctor<V>*
 {
-	return (ptr != nullptr) ? const_array_checkedcast<V>(ptr) : nullptr;
+	return (ptr != nullptr) ? const_array_checked_cast<V>(ptr) : nullptr;
 }
 
 template<typename V>

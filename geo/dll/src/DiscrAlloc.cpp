@@ -1285,7 +1285,7 @@ void PrepareTileLock(htp_info_t<S, AR, AT>& htpInfo)
 	for (UInt32 j=0; j!=K; ++j)
 	{
 		ggType_info_t<S>& gg = htpInfo.m_ggTypes[j];
-		gg.m_Suitabilities = const_array_checkedcast<S>(gg.m_diSuitabilityMap)->GetDataRead();
+		gg.m_Suitabilities = const_array_checked_cast<S>(gg.m_diSuitabilityMap)->GetDataRead();
 	}
 
 	auto 

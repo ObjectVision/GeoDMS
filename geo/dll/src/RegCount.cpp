@@ -116,7 +116,7 @@ struct RegTileCounterBase : UnitProcessor
 		DataReadLock arg1Lock(arg1A);
 
 		const AbstrUnit* gridDomain = arg1A->GetAbstrDomainUnit();
-		typename Unit<ActorType>::range_t actorTypeRange = const_array_checkedcast<ActorType>(arg1A)->GetValueRangeData()->GetRange();
+		typename Unit<ActorType>::range_t actorTypeRange = const_array_checked_cast<ActorType>(arg1A)->GetValueRangeData()->GetRange();
 
 		tile_id te = gridDomain->GetNrTiles();
 		for (tile_id t=0; t!=te; ++t)
