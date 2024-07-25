@@ -464,12 +464,16 @@ auto bg_split_assign(RI resIter, const BG_MP& mp) -> RI
 		{
 			for (const auto& resLake : i->inners())
 				store_ring(*resIter, resLake);
-			auto currInner = i->inners().end() - 1;
-			while (currInner != i->inners().begin()) {
-				resIter->push_back(currInner->end()[-1]);
+			auto currInner = i->inners().end(), firstInner = i->inners().begin();
+			assert(currInner != firstInner);
+			--currInner;
+			while (currInner != firstInner) {
 				--currInner;
-			}
-			resIter->push_back(outerRing.end()[-1]);
+				assert(currInner->size());
+				resIter->emplace_back(currInner->end()[-1]);
+			} ;
+
+			resIter->emplace_back(outerRing.end()[-1]);
 		}
 		assert(resIter->size() == count);
 	}

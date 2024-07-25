@@ -1403,7 +1403,7 @@ void DataItemColumn::FillMenu(MouseEventDispatcher& med)
 	auto sa = GetSrcAttr();
 	if (sa)
 	{
-		med.m_MenuData.emplace_back(mySSPrintF("Show Statistics of '%1'", caption.c_str()), new RequestClientCmd(sa, CC_ShowStatistics), this);
+		med.m_MenuData.emplace_back(mySSPrintF("Show Statistics of '%s'", caption.c_str()), new RequestClientCmd(sa, CC_ShowStatistics), this);
 		if (tc->HasSortOptions() && sa->GetValueComposition() == ValueComposition::Single)
 		{
 			med.m_MenuData.emplace_back(SharedStr("Sort"), make_MembFuncCmd(&DataItemColumn::SortAsc), this);
