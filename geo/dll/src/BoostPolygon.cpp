@@ -553,8 +553,8 @@ void UnionPolygon(ResourceArrayHandle& r, SizeT n, const AbstrDataItem* polyData
 
 	if (!r)
 		r.reset( ResourceArray<MPT>::create(n) );
-	auto geometryTowerResoucePtr = debug_cast<ResourceArray<MPT>*>(r.get_ptr());
-	assert(geometryTowerReourcePtr->size() == n);
+	auto geometryTowerResourcePtr = debug_cast<ResourceArray<MPT>*>(r.get_ptr());
+	assert(geometryTowerResourcePtr->size() == n);
 
 	PolygonFlags unionPermState =
 		(permDataA) ? PolygonFlags::F_DoPartUnion :
@@ -565,7 +565,7 @@ void UnionPolygon(ResourceArrayHandle& r, SizeT n, const AbstrDataItem* polyData
 	// insert each multi-polygon in polyArray in geometryPtr[part_rel] 
 	for (auto pb=polyArray.begin(), pi=pb, pe=polyArray.end(); pi!=pe; ++pi)
 	{
-		auto geometryTowerPtr = geometryTowerResoucePtr->begin();
+		auto geometryTowerPtr = geometryTowerResourcePtr->begin();
 		if (unionPermState != PolygonFlags::F_DoUnion)
 		{
 			SizeT i = pi-pb;
@@ -929,7 +929,7 @@ struct union_bp_polygonsets
 				typename traits_t::point_type mp(-x(p), -y(p));
 				gtl::convolve(bpRect, mp);
 				if (coords_using_more_than_25_bits(bpRect))
-					throwErrorF("boost::polygon::insert", "extent of objects is %s after moving it with %s, which requires more than 25 bits for coordinates"
+					throwErrorF("union_bp_polygonsets", "extent of objects is %s after moving it with %s, which requires more than 25 bits for coordinates"
 						, AsString(bpRect)
 						, AsString(mp)
 					);
@@ -1039,7 +1039,7 @@ public:
 				typename traits_t::point_type mp(-x(p), -y(p));
 				gtl::convolve(rectangle, mp);
 				if (coords_using_more_than_25_bits(rectangle))
-					throwErrorF("boost::polygon::ProcessSuffix", "extent of object is %s after moving it with %s, which requires  than 25 bits for coordinates"
+					throwErrorF("boost::polygon::ProcessSuffix", "extent of object is %s after moving it with %s, which requires more than 25 bits for coordinates"
 						, AsString(rectangle)
 						, AsString(mp)
 					);

@@ -26,7 +26,7 @@ struct assoc_tower
 
 	void add(SemiGroup&& sg)
 	{
-		assert(std::popcount(currIndex) == data_tower.size()); // pre-condition
+		assert(std::popcount(m_Index) == m_DataTower.size()); // pre-condition
 		m_DataTower.emplace_back(std::move(sg));
 		auto currIndex = ++m_Index;
 		MG_CHECK(currIndex); // no overflow on uint64_t
@@ -36,7 +36,7 @@ struct assoc_tower
 			ReduceTop();
 			currIndex >>= 1;
 		}
-		assert(std::popcount(currIndex) == data_tower.size()); // post-condition
+		assert(std::popcount(currIndex) == m_DataTower.size()); // post-condition
 	}
 
 	void assemble()
