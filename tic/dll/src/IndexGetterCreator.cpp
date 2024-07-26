@@ -165,28 +165,15 @@ struct CheckedIndexGetter : IndexGetter
 	typename Unit<V>::range_t            m_Range;
 };
 
-template <typename E> 
-void IndexGetterCreatorBase::VisitImpl(const Unit<E>* inviter) const
+template <typename TileCreationData>
+template <typename E>
+void IndexGetterCreatorBase<TileCreationData>::VisitImpl(const Unit<E>* inviter) const
 {
 	static_assert(has_undefines_v<E>);
 	auto range = inviter->GetRange();
-	typename DataArray<E>::locked_cseq_t tileData;
-	DataCheckMode dcmIndices = DCM_CheckBoth;
-	if (m_Aft)
-	{
-		using future_tile = typename DataArray<E>::future_tile;
-		auto ft = debug_cast<future_tile*>(m_Aft.get());
-		tileData = ft->GetTile();
-	}
-	else
-	{
-		assert(m_Adi.get());
-		assert(m_Adi->GetDataObjLockCount() > 0);
-		dcmIndices = m_Adi->GetCheckMode();
-		const DataArray<E>* di = const_array_cast<E>(m_Adi->GetRefObj());
-		assert(di);
-		tileData = di->GetLockedDataRead(m_TileID);
-	}
+	typename DataArray<E>::locked_cseq_t tileData = m_TileCreationData.template get_tile<E>();
+	DataCheckMode dcmIndices = m_TileCreationData.get_checkmode();
+
 	bool hasOutOfRangeIndices = dcmIndices & DCM_CheckRange;
 	if (hasOutOfRangeIndices && !IsIncluding(range, UNDEFINED_VALUE(E)))
 		reinterpret_cast<UInt32&>(dcmIndices) &= ~DCM_CheckDefined;
@@ -222,56 +209,40 @@ void IndexGetterCreatorBase::VisitImpl(const Unit<E>* inviter) const
 		}
 }
 
+template <typename TileCreationData>
 template <int N>
-void IndexGetterCreatorBase::VisitImpl(const Unit<bit_value<N>>* inviter) const
+void IndexGetterCreatorBase<TileCreationData>::VisitImpl(const Unit<bit_value<N>>* inviter) const
 {
 	static_assert( ! has_undefines_v<bit_value<N>>);
 
-	typename DataArray<bit_value<N>>::locked_cseq_t tileData;
-	if (m_Aft)
-	{
-		using future_tile = typename DataArray<bit_value<N>>::future_tile;
-		auto ft = debug_cast<future_tile*>(m_Aft.get());
-		tileData = ft->GetTile();
-	}
-	else
-	{
-		assert(m_Adi.get());
-		assert(m_Adi->GetDataObjLockCount() > 0);
-		const DataArray<bit_value<N>>* di = const_array_cast<bit_value<N>>(m_Adi->GetRefObj());
-		assert(di);
-		tileData = di->GetLockedDataRead(m_TileID);
-	}
-
+	auto tileData = m_TileCreationData.template get_tile<bit_value<N>>();
 	m_Result = new ValueGetter<SizeT, bit_value<N>>(std::move(tileData));
 }
 
-IndexGetterCreator::IndexGetterCreator(const AbstrDataItem* adi, tile_id t)
+IndexGetterCreator1::IndexGetterCreator1(const AbstrDataItem* adi, tile_id t)
 {
-	m_Adi       = adi;
-	m_TileID    = t;
+	m_TileCreationData.m_Adi       = adi;
+	m_TileCreationData.m_TileID    = t;
 }
 
-IndexGetterCreator::IndexGetterCreator(const AbstrDataItem* adi, abstr_future_tile_ptr aft)
+IndexGetterCreator2::IndexGetterCreator2(const AbstrDataItem* adi, abstr_future_tile_ptr aft)
 {
-	m_Adi = adi;
-	m_Aft = aft;
-}
-
-IndexGetter* IndexGetterCreator::Create()
-{
-	m_Adi->GetAbstrValuesUnit()->InviteUnitProcessor(*this);
-	return m_Result.get_ptr();
+	m_TileCreationData.m_Aft = aft;
+	m_TileCreationData.m_CheckMode = adi->GetCheckMode();
 }
 
 IndexGetter* IndexGetterCreator::Create(const AbstrDataItem* adi, tile_id t)
 {
-	return IndexGetterCreator(adi, t).Create();
+	auto igc = IndexGetterCreator1(adi, t);
+	adi->GetAbstrValuesUnit()->InviteUnitProcessor(igc);
+	return igc.m_Result.get_ptr();
 }
 
 IndexGetter* IndexGetterCreator::Create(const AbstrDataItem* adi, abstr_future_tile_ptr aft)
 {
-	return IndexGetterCreator(adi, aft).Create();
+	auto igc = IndexGetterCreator2(adi, aft);
+	adi->GetAbstrValuesUnit()->InviteUnitProcessor(igc);
+	return igc.m_Result.get_ptr();
 }
 
 
