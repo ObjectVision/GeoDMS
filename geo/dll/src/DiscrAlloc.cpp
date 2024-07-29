@@ -966,9 +966,9 @@ bool FeasibilityTest(const htp_info_t<S, AR, AT>& htpInfo, SharedStr& strStatus)
 //									CreateResultingItems
 // *****************************************************************************
 
-#include <gsl/gsl>
+//#include <gsl/gsl>
 
-auto GetClaimAttr(const TreeItem* claimSet, TokenID nameID) -> gsl::not_null<const AbstrDataItem*>
+auto GetClaimAttr(const TreeItem* claimSet, TokenID nameID) -> const AbstrDataItem*
 {
 	assert(claimSet);
 	auto result = AsDynamicDataItem(claimSet->GetConstSubTreeItemByID(nameID));

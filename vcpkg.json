@@ -8,8 +8,6 @@
         "rtree"
       ]
     },
-    "gdal",
-    "ms-gsl",
-    "cgal"
+    "gdal"
   ]
 }
