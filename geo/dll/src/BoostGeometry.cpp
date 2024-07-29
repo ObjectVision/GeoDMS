@@ -10,6 +10,8 @@
 
 #include "BoostGeometry.h"
 
+#include <CGAL/Boolean_set_operations_2.h>
+
 static VersionComponent s_BoostGeometry("boost::geometry " BOOST_STRINGIZE(BOOST_GEOMETRY_VERSION));
 
 // *****************************************************************************
@@ -25,6 +27,11 @@ static CommonOperGroup grBgIntersect ("bg_intersect" , oper_policy::better_not_i
 static CommonOperGroup grBgUnion     ("bg_union"     , oper_policy::better_not_in_meta_scripting);
 static CommonOperGroup grBgXOR       ("bg_xor"       , oper_policy::better_not_in_meta_scripting);
 static CommonOperGroup grBgDifference("bg_difference", oper_policy::better_not_in_meta_scripting);
+
+static CommonOperGroup grcgalIntersect("cgal_intersect", oper_policy::better_not_in_meta_scripting);
+static CommonOperGroup grcgalUnion("cgal_union", oper_policy::better_not_in_meta_scripting);
+static CommonOperGroup grcgalXOR("cgal_xor", oper_policy::better_not_in_meta_scripting);
+static CommonOperGroup grcgalDifference("cgal_difference", oper_policy::better_not_in_meta_scripting);
 
 static CommonOperGroup grBgBuffer_point        ("bg_buffer_point", oper_policy::better_not_in_meta_scripting);
 static CommonOperGroup grBgBuffer_multi_point  ("bg_buffer_multi_point", oper_policy::better_not_in_meta_scripting);
@@ -46,7 +53,7 @@ static CommonOperGroup grBgOuter_single_polygon("bg_outer_single_polygon", oper_
 static CommonOperGroup grBgOuter_multi_polygon("bg_outer_multi_polygon", oper_policy::better_not_in_meta_scripting);
 
 // *****************************************************************************
-//	map algebraic operations
+//	map algebraic operations on boost geometry polygons
 // *****************************************************************************
 
 template <typename P> using sequence_t = std::vector<P>;
@@ -97,6 +104,59 @@ struct BgMultiPolygonOperator : BinaryMapAlgebraicOperator<P>
 			resMP.clear();
 			m_Oper(currMP1, currMP2, resMP);
 			store_multi_polygon(resData[i], resMP, helperPointArray);
+		}
+	}
+	BinaryBgMpOper m_Oper;
+};
+
+// *****************************************************************************
+//	map algebraic operations on CGAL polygons
+// *****************************************************************************
+
+template <typename P, typename BinaryBgMpOper>
+struct CGAL_MultiPolygonOperator : BinaryMapAlgebraicOperator<P>
+{
+	using PointType = P;
+	using PolygonType = std::vector<PointType>;
+	using ArgType = DataArray<PolygonType>;
+
+	CGAL_MultiPolygonOperator(AbstrOperGroup& gr, BinaryBgMpOper&& oper = BinaryBgMpOper())
+		: BinaryMapAlgebraicOperator<P>(&gr, compatible_simple_values_unit_creator, ValueComposition::Polygon)
+	{}
+	using st = sequence_traits<PolygonType>;
+	using seq_t = typename st::seq_t;
+	using cseq_t = typename st::cseq_t;
+
+	void CalcTile(seq_t resData, cseq_t arg1Data, cseq_t arg2Data, ArgFlags af MG_DEBUG_ALLOCATOR_SRC_ARG) const override
+	{
+		tile_offset n1 = arg1Data.size();
+		tile_offset n2 = arg2Data.size();
+		tile_offset n = std::max(n1, n2);
+		assert(n1 == n || (af & AF1_ISPARAM));
+		assert(n2 == n || (af & AF2_ISPARAM));
+		assert(resData.size() == n);
+
+		CGAL_Traits::Ring helperRing;
+		CGAL_Traits::Polygon_with_holes helperPolygon;
+		CGAL_Traits::Polygon_set currMP1, currMP2, resMP;
+		std::vector<DPoint> helperPointArray;
+
+		bool domain1IsVoid = (af & AF1_ISPARAM);
+		bool domain2IsVoid = (af & AF2_ISPARAM);
+		if (domain1IsVoid)
+			assign_multi_polygon(currMP1, arg1Data[0], true, std::move(helperPolygon), std::move(helperRing));
+		if (domain2IsVoid)
+			assign_multi_polygon(currMP2, arg2Data[0], true, std::move(helperPolygon), std::move(helperRing));
+
+		for (SizeT i = 0; i != n; ++i)
+		{
+			if (!domain1IsVoid)
+				assign_multi_polygon(currMP1, arg1Data[i], true, std::move(helperPolygon), std::move(helperRing));
+			if (!domain2IsVoid)
+				assign_multi_polygon(currMP2, arg2Data[i], true, std::move(helperPolygon), std::move(helperRing));
+			resMP.clear();
+			m_Oper(currMP1, currMP2, resMP);
+			cgal_assign(resData[i], resMP);
 		}
 	}
 	BinaryBgMpOper m_Oper;
@@ -889,6 +949,22 @@ namespace
 		void operator ()(const auto& a, const auto& b, auto& r) const { boost::geometry::sym_difference(a, b, r); }
 	};
 
+	struct cgal_intersection {
+		void operator ()(const auto& a, const auto& b, auto& r) const { r.intersection(a, b); }
+	};
+
+	struct cgal_union {
+		void operator ()(const auto& a, const auto& b, auto& r) const { r.join(a, b); }
+	};
+
+	struct cgal_difference {
+		void operator ()(const auto& a, const auto& b, auto& r) const { r.difference(a, b); }
+	};
+
+	struct cgal_sym_difference {
+		void operator ()(const auto& a, const auto& b, auto& r) const { r.symmetric_difference(a, b); }
+	};
+
 	tl_oper::inst_tuple_templ<typelists::points, SimplifyLinestringOperator> simplifyLineStringOperators;
 	tl_oper::inst_tuple_templ<typelists::points, SimplifyMultiPolygonOperator> simplifyMultiPolygonOperators;
 	tl_oper::inst_tuple_templ<typelists::points, SimplifyPolygonOperator> simplifyPolygonOperators;
@@ -919,5 +995,19 @@ namespace
 
 	tl_oper::inst_tuple_templ<typelists::points, OuterSingePolygonOperator, AbstrOperGroup&> bg_outerSinglePolygonOperators(grBgOuter_single_polygon);
 	tl_oper::inst_tuple_templ<typelists::points, OuterMultiPolygonOperator, AbstrOperGroup&> bg_outerMultiPolygonOperators(grBgOuter_multi_polygon);
+
+	template <typename P> using CGAL_IntersectMultiPolygonOperator = CGAL_MultiPolygonOperator < P, cgal_intersection>;
+	tl_oper::inst_tuple_templ<typelists::points, CGAL_IntersectMultiPolygonOperator, AbstrOperGroup&> cgalIntersectMultiPolygonOperatorsNamed(grcgalIntersect);
+
+	template <typename P> using CGAL_UnionMultiPolygonOperator = CGAL_MultiPolygonOperator<P, cgal_union>;
+	tl_oper::inst_tuple_templ<typelists::points, CGAL_UnionMultiPolygonOperator, AbstrOperGroup&> cgalUnionMultiPolygonOperatorsNamed(grcgalUnion);
+
+	template <typename P> using CGAL_DifferenceMultiPolygonOperator = CGAL_MultiPolygonOperator<P, cgal_difference>;
+	tl_oper::inst_tuple_templ<typelists::points, CGAL_DifferenceMultiPolygonOperator, AbstrOperGroup&> cgalDifferenceMultiPolygonOperatorsNamed(grcgalDifference);
+
+	template <typename P> using CGAL_SymmetricDifferenceMultiPolygonOperator = CGAL_MultiPolygonOperator<P, cgal_sym_difference>;
+	tl_oper::inst_tuple_templ<typelists::points, CGAL_SymmetricDifferenceMultiPolygonOperator, AbstrOperGroup&> cgalSymmetricDifferenceMultiPolygonOperatorsNamed(grcgalXOR);
+
+
 }
 

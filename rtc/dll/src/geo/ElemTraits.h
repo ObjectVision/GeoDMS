@@ -205,11 +205,13 @@ template <>           struct elem_of<SharedStr>        { typedef CharType type; 
 
 template <typename T> using elem_of_t = typename elem_of<T>::type;
 
-template <typename T> struct scalar_of                 { typedef T type; };
-template <typename T> struct scalar_of<Range<T> >      { typedef typename scalar_of<T>::type type; };
-template <typename T> struct scalar_of<std::vector<T> >{ typedef typename scalar_of<T>::type type; };
-template <typename T> struct scalar_of<Point<T> >      { typedef typename scalar_of<T>::type type; };
-template <typename T> struct scalar_of<const T>        {}; // illegal use of scalar_of
+template <typename T> struct scalar_of                        { using type = T; };
+template <typename T> struct scalar_of<Range<T> >             { using type = typename scalar_of<T>::type; };
+template <typename T> struct scalar_of<std::vector<T> >       { using type = typename scalar_of<T>::type; };
+template <typename T> struct scalar_of<Point<T> >             { using type = typename scalar_of<T>::type; };
+template <typename T> struct scalar_of<const T>               {}; // illegal use of scalar_of
+template <typename T> struct scalar_of<SA_Reference<T> >      { using type = typename scalar_of<T>::type; };
+template <typename T> struct scalar_of<SA_ConstReference<T> > { using type = typename scalar_of<T>::type; };
 template <typename T> using scalar_of_t = typename scalar_of<T>::type;
 
 template <typename T> struct signed_type            { typedef T     type; };
