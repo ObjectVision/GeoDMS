@@ -8,6 +8,7 @@
         "rtree"
       ]
     },
-    "gdal"
+    "gdal",
+    "cgal"
   ]
 }
