@@ -52,9 +52,6 @@
     <QtModules>core;gui;widgets;printsupport;webenginewidgets</QtModules>
     <QtDeploy>true</QtDeploy>
   </PropertyGroup>
-  <PropertyGroup Label="Vcpkg">
-    <VcpkgEnableManifest>true</VcpkgEnableManifest>
-  </PropertyGroup>
   <ImportGroup Condition="Exists('$(QtMsBuild)\qt.props')">
     <Import Project="$(QtMsBuild)\qt.props" />
   </ImportGroup>

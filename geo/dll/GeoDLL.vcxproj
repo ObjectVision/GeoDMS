@@ -44,9 +44,6 @@
   <PropertyGroup>
     <_ProjectFileVersion>10.0.21006.1</_ProjectFileVersion>
   </PropertyGroup>
-  <PropertyGroup Label="Vcpkg">
-    <VcpkgEnableManifest>true</VcpkgEnableManifest>
-  </PropertyGroup>
   <ItemDefinitionGroup>
     <ClCompile>
       <AdditionalIncludeDirectories>C:\Program Files (x86)\Intel\oneAPI\ipp\latest\include;../../clc/dll/include;../../rtc/dll/src;../../stx/dll/src;../../tic/dll/src;../../stg/dll/src;../../sym/dll/src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
