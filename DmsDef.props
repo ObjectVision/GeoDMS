@@ -15,6 +15,9 @@
     <EnableUnitySupport>true</EnableUnitySupport>
     <CharacterSet>Unicode</CharacterSet>
   </PropertyGroup>
+  <PropertyGroup Label="Vcpkg">
+    <VcpkgEnableManifest>true</VcpkgEnableManifest>
+  </PropertyGroup>
   <ItemDefinitionGroup>
     <Bscmake>
       <SuppressStartupBanner>true</SuppressStartupBanner>
