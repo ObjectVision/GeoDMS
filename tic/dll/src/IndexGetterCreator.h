@@ -11,6 +11,7 @@
 #include "TicBase.h"
 
 #include "AbstrDataObject.h"
+#include "DataCheckMode.h"
 #include "ValueGetter.h"
 
 #include "FutureTileArray.h"
@@ -41,7 +42,7 @@ struct adi_tile_getter
 struct aft_tile_getter
 {
 	abstr_future_tile_ptr m_Aft;
-	DataCheckMode         m_CheckMode;
+	DataCheckMode         m_CheckMode = DCM_CheckBoth;
 
 	template <typename E>
 	auto get_tile() const -> typename DataArray<E>::locked_cseq_t
