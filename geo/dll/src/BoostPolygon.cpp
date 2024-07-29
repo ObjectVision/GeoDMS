@@ -1233,9 +1233,11 @@ public:
 				resRelLock.Commit();
 			}
 		}
-
-		assert(resGeometry);
-		resGeometryLock = DataWriteHandle(resGeometry, dms_rw_mode::write_only_all);
+		if (DoDelayStore())
+		{
+			assert(resGeometry);
+			resGeometryLock = DataWriteHandle(resGeometry, dms_rw_mode::write_only_all);
+		}
 		assert(resGeometryLock);
 
 		auto resArray = mutable_array_cast<SequenceType>(resGeometryLock)->GetLockedDataWrite(t, dms_rw_mode::write_only_all); // t may be no_tile
