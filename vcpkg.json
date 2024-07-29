@@ -1,0 +1,15 @@
+{
+  "dependencies": [
+    "boost",
+    "openssl",
+    {
+      "name": "sqlite3",
+      "features": [
+        "rtree"
+      ]
+    },
+    "gdal",
+    "ms-gsl",
+    "cgal"
+  ]
+}
