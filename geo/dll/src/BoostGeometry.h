@@ -295,9 +295,6 @@ void assign_multi_polygon(bg_multi_polygon_t& resMP, SA_ConstReference<DmsPointT
 					auto currPolygon = resMP.begin() + polygonIndex;
 					if (boost::geometry::intersects(currPolygon->outer(), helperPolygon.outer()))
 					{
-						if (boost::geometry::overlaps(currPolygon->outer(), helperPolygon.outer()))
-							throwDmsErrF("OuterPolygon: unexpected overlap of two outer rings in %s", AsString(polyRef).c_str());
-
 						if (boost::geometry::within(currPolygon->outer(), helperPolygon.outer()))
 						{
 							resMP.erase(currPolygon);
@@ -309,6 +306,10 @@ void assign_multi_polygon(bg_multi_polygon_t& resMP, SA_ConstReference<DmsPointT
 							assert(helperPolygon.outer().empty() && helperPolygon.inners().empty());
 							break;
 						}
+
+						if (boost::geometry::overlaps(currPolygon->outer(), helperPolygon.outer()))
+							throwDmsErrF("OuterPolygon: unexpected overlap of two outer rings in %s", AsString(polyRef).c_str());
+
 						// a combination of touching outer rings such as in an 8 shape is 
 					}
 					polygonIndex++;

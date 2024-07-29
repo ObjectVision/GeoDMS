@@ -36,9 +36,155 @@
 
 #include "BoostGeometry.h"
 
+#include <CGAL/Polygon_set_2.h>
+#include <CGAL/intersections.h>
+#include <CGAL/Exact_predicates_inexact_constructions_kernel.h>
+#include <CGAL/Polygon_2.h>
+#include <CGAL/Polygon_with_holes_2.h>
 
-enum class geometry_library { boost_polygon, boost_geometry };
+//#include <CGAL/draw_polygon_set_2.h>
 
+struct CGAL_Traits
+{
+	using Kernel = CGAL::Exact_predicates_inexact_constructions_kernel;
+	using Point = CGAL::Point_2< Kernel >;
+	using Ring = CGAL::Polygon_2<Kernel>;
+	using Polygon_with_holes= CGAL::Polygon_with_holes_2<Kernel>;
+	using Polygon_set = CGAL::Polygon_set_2<Kernel>;
+};
+
+template <typename DmsPointType>
+void assign_multi_polygon(CGAL_Traits::Polygon_set& resMP, SA_ConstReference<DmsPointType> polyRef, bool mustInsertInnerRings
+	, CGAL_Traits::Ring&& helperRing = CGAL_Traits::Ring()
+	, CGAL_Traits::Polygon_with_holes&& helperPolygon = CGAL_Traits::Polygon_with_holes()
+)
+{
+	resMP.clear();
+
+	boost::polygon::SA_ConstRingIterator<DmsPointType>
+		rb(polyRef, 0),
+		re(polyRef, -1);
+	auto ri = rb;
+	//			dbg_assert(ri != re);
+	if (ri == re)
+		return;
+	CGAL::Orientation outerOrientation = CGAL::Orientation::COUNTERCLOCKWISE;
+	for (; ri != re; ++ri)
+	{
+		assert((*ri).begin() != (*ri).end());
+		assert((*ri).begin()[0] == (*ri).end()[-1]); // closed ?
+
+		helperRing.clear();
+		for (auto p = (*ri).begin(); p != (*ri).end(); ++p)
+			helperRing.push_back(CGAL_Traits::Point(p->X(), p->Y()));
+//		helperRing.insert(helperRing.end(), (*ri).begin(), (*ri).end());
+		if (helperRing.is_empty())
+			continue;
+
+		assert(helperRing.begin() != helperRing.end());
+		assert(helperRing.begin()[0] == helperRing.end()[-1]); // closed ?
+
+		CGAL::Orientation currOrientation = helperRing.orientation();
+		if (ri == rb || currOrientation == outerOrientation)
+		{
+			if (ri != rb && !helperPolygon.outer_boundary().is_empty())
+				resMP.insert(std::move(helperPolygon));
+			helperPolygon.clear(); assert(helperPolygon.outer_boundary().is_empty() && helperPolygon.holes().empty());
+
+			helperPolygon.outer_boundary() = std::move(helperRing);	// swap is faster than assign
+			assert(helperRing.is_empty());
+			outerOrientation = currOrientation;
+
+			// skip outer rings that intersect with a previous outer ring if innerRings are skipped
+			MG_CHECK(mustInsertInnerRings);
+/* TODO
+			if (!mustInsertInnerRings)
+			{
+				SizeT polygonIndex = 0;
+				while (polygonIndex < resMP.size())
+				{
+					auto currPolygon = resMP.begin() + polygonIndex;
+					if (CGAL::do_intersect(currPolygon->outer_boundary(), helperPolygon.outer_boundary()))
+					{
+						if (CGAL::within(currPolygon->outer_boundary(), helperPolygon.outer_boundary()))
+						{
+							resMP.erase(currPolygon);
+							continue;
+						}
+						if (CGAL::within(helperPolygon.outer_boundary(), currPolygon->outer_boundary()))
+						{
+							helperPolygon.clear();
+							assert(helperPolygon.outer_boundary().is_empty() && helperPolygon.holes().is_empty());
+							break;
+						}
+
+						if (CGAL::overlaps(currPolygon->outer_boundary(), helperPolygon.outer_boundary()))
+							throwDmsErrF("OuterPolygon: unexpected overlap of two outer rings in %s", AsString(polyRef).c_str());
+
+						// a combination of touching outer rings such as in an 8 shape is 
+					}
+					polygonIndex++;
+				}
+			}
+		*/
+		}
+		else if (mustInsertInnerRings)
+		{
+			helperPolygon.holes().emplace_back(helperRing);
+		}
+	}
+	if (!helperPolygon.outer_boundary().is_empty())
+		resMP.insert(helperPolygon);
+}
+
+
+template <dms_sequence E>
+void cgal_assign_ring(E& ref, const CGAL_Traits::Ring& polyData)
+{
+	using coordinate_type = scalar_of_t<E>;
+	for (const auto& p : polyData)
+		ref.push_back(shp2dms_order<coordinate_type>(p.x(), p.y()));
+}
+
+template <dms_sequence E>
+void cgal_assign(E& ref, std::vector<CGAL_Traits::Polygon_with_holes>&& polyVec)
+{
+	using coordinate_type = scalar_of_t<E>;
+	
+	std::vector<CGAL_Traits::Point> closurePoints;
+
+	for (const auto& poly : polyVec)
+	{
+//		E::value_type polyVec;
+		cgal_assign_ring(ref, poly.outer_boundary());
+		closurePoints.emplace_back(poly.outer_boundary().end()[-1]);
+		for (const auto& hole : poly.holes())
+		{
+			cgal_assign_ring(ref, hole);
+			closurePoints.emplace_back(hole.end()[-1]);
+		}
+	}
+	if (closurePoints.size() > 1)
+	{
+		closurePoints.pop_back();
+		while (closurePoints.size())
+		{
+			ref.push_back(shp2dms_order<coordinate_type>(closurePoints.back().x(), closurePoints.back().y()));
+			closurePoints.pop_back();
+		}
+	}
+}
+
+template <dms_sequence E>
+void cgal_assign(E& ref, const CGAL_Traits::Polygon_set& polyData)
+{
+	std::vector<CGAL_Traits::Polygon_with_holes> polyVec;
+
+	polyData.polygons_with_holes(std::back_inserter(polyVec));
+	cgal_assign(ref, std::move(polyVec));
+}
+
+enum class geometry_library { boost_polygon, boost_geometry, cgal };
 
 const Int32 MAX_COORD = (1 << 26);
 
@@ -315,14 +461,13 @@ public:
 				polygon_set_type geometry;
 				for (box_iter_type iter = spIndexPtr->begin(bbox); iter; ++iter)
 				{
-					gtl::assign(geometry, *((*iter)->get_ptr()) & *polyPtr, cleanResources);
+					gtl::assign(geometry, *((*iter)->get_ptr()) & *polyPtr, cleanResources); // intersection
 
 					if (!geometry.size(cleanResources))
 						continue;
 
 					res_data_elem_type back;
 					bp_assign(back.m_Geometry, geometry, cleanResources);
-
 
 					back.m_OrgRel.first = p1_rel;
 					back.m_OrgRel.second = p2Offset + (((*iter)->get_ptr()) - poly2Array.begin());
@@ -331,7 +476,7 @@ public:
 					resTileData->push_back(std::move(back));
 				}
 			}
-			else
+			else if constexpr (GL == geometry_library::boost_geometry)
 			{
 				box_iter_type iter = spIndexPtr->begin(bbox); if (!iter) return;
 
@@ -340,31 +485,55 @@ public:
 				bg_multi_polygon_t currMP1, currMP2, resMP;
 				std::vector<DPoint> helperPointArray;
 
-				do 
+				assign_multi_polygon(currMP1, *polyPtr, true, helperPolygon, helperRing);
+				if (currMP1.empty())
+					return;
+				do
 				{
-					assign_multi_polygon(currMP1, *polyPtr, true, helperPolygon, helperRing);
+					assign_multi_polygon(currMP2, *((*iter)->get_ptr()), true, helperPolygon, helperRing);
 
-					if (!currMP1.empty())
+					resMP.clear();
+					boost::geometry::intersection(currMP1, currMP2, resMP);
+					if (!resMP.empty())
 					{
-						assign_multi_polygon(currMP2, *((*iter)->get_ptr()), true, helperPolygon, helperRing);
+						res_data_elem_type back;
+						store_multi_polygon(back.m_Geometry, resMP, helperPointArray);
 
-						resMP.clear();
-						boost::geometry::intersection(currMP1, currMP2, resMP);
-						if (!resMP.empty())
-						{
-							res_data_elem_type back;
-							store_multi_polygon(back.m_Geometry, resMP, helperPointArray);
+						back.m_OrgRel.first = p1_rel;
+						back.m_OrgRel.second = p2Offset + (((*iter)->get_ptr()) - poly2Array.begin());
 
-							back.m_OrgRel.first = p1_rel;
-							back.m_OrgRel.second = p2Offset + (((*iter)->get_ptr()) - poly2Array.begin());
-
-							leveled_critical_section::scoped_lock resLock(resLocalAdditionSection);
-							resTileData->push_back(std::move(back));
-						}
+						leveled_critical_section::scoped_lock resLock(resLocalAdditionSection);
+						resTileData->push_back(std::move(back));
 					}
 					++iter;
 				} while (iter);
 
+			}
+			else if constexpr (GL == geometry_library::cgal)
+			{
+				CGAL_Traits::Polygon_set poly1;
+				assign_multi_polygon(poly1, *polyPtr, true);
+
+				for (box_iter_type iter = spIndexPtr->begin(bbox); iter; ++iter)
+				{
+					CGAL_Traits::Polygon_set poly2;
+					assign_multi_polygon(poly2, *((*iter)->get_ptr()), true);
+
+					CGAL_Traits::Polygon_set res;
+					res.intersection(poly1, poly2);
+
+					if (res.is_empty())
+						continue;
+
+					res_data_elem_type back;
+					cgal_assign(back.m_Geometry, res);
+
+					back.m_OrgRel.first = p1_rel;
+					back.m_OrgRel.second = p2Offset + (((*iter)->get_ptr()) - poly2Array.begin());
+
+					leveled_critical_section::scoped_lock resLock(resLocalAdditionSection);
+					resTileData->push_back(std::move(back));
+				}
 			}
 		});
 	}
@@ -1521,14 +1690,17 @@ namespace
 	static CommonOperGroup grOverlayPolygon("overlay_polygon", oper_policy::dynamic_result_class | oper_policy::better_not_in_meta_scripting);
 	static CommonOperGroup grBgOverlayPolygon("bg_overlay_polygon", oper_policy::dynamic_result_class | oper_policy::better_not_in_meta_scripting);
 	static CommonOperGroup grBpOverlayPolygon("bp_overlay_polygon", oper_policy::dynamic_result_class | oper_policy::better_not_in_meta_scripting);
+	static CommonOperGroup grCGALOverlayPolygon("cgal_overlay_polygon", oper_policy::dynamic_result_class | oper_policy::better_not_in_meta_scripting);
 
 
 	template <typename P> using BoostPolygonOverlayOperator  = PolygonOverlayOperator<P, geometry_library::boost_polygon>;
 	template <typename P> using BoostGeometryOverlayOperator = PolygonOverlayOperator<P, geometry_library::boost_geometry>;
+	template <typename P> using CGAL_OverlayOperator = PolygonOverlayOperator<P, geometry_library::cgal>;
 	tl_oper::inst_tuple_templ<typelists::sint_points , BoostPolygonOverlayOperator , AbstrOperGroup&> boostPolygonOverlayOperators   (grOverlayPolygon);
 	tl_oper::inst_tuple_templ<typelists::sint_points , BoostPolygonOverlayOperator , AbstrOperGroup&> boostPolygonBpOverlayOperators (grBpOverlayPolygon);
 	tl_oper::inst_tuple_templ<typelists::float_points, BoostGeometryOverlayOperator, AbstrOperGroup&> boostGeometryOverlayOperators  (grOverlayPolygon);
 	tl_oper::inst_tuple_templ<typelists::points      , BoostGeometryOverlayOperator, AbstrOperGroup&> boostGeometryBgOverlayOperators(grBgOverlayPolygon);
+	tl_oper::inst_tuple_templ<typelists::points,       CGAL_OverlayOperator, AbstrOperGroup&> cgalOverlayOperators(grCGALOverlayPolygon);
 
 	tl_oper::inst_tuple_templ<typelists::sint_points, PolygonConnectivityOperator>	polygonConnectivityOperators;
 
