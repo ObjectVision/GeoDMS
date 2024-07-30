@@ -36,7 +36,7 @@
 
 //============================  CGAL  ============================
 
-#define CGAL_SS_VERBOSE
+// #define CGAL_SS_VERBOSE
 
 #include <CGAL/Polygon_set_2.h>
 #include <CGAL/intersections.h>
@@ -121,7 +121,7 @@ void assign_multi_polygon(CGAL_Traits::Polygon_set& resMP, SA_ConstReference<Dms
 		if (ri == rb || currOrientation == outerOrientation)
 		{
 			if (ri != rb && !helperPolygon.outer_boundary().is_empty())
-				resMP.insert(std::move(helperPolygon));
+				resMP.join(std::move(helperPolygon));
 			helperPolygon.clear(); assert(helperPolygon.outer_boundary().is_empty() && helperPolygon.holes().empty());
 
 			helperPolygon.outer_boundary() = std::move(helperRing);	// swap is faster than assign
@@ -167,7 +167,7 @@ void assign_multi_polygon(CGAL_Traits::Polygon_set& resMP, SA_ConstReference<Dms
 		}
 	}
 	if (!helperPolygon.outer_boundary().is_empty())
-		resMP.join(helperPolygon);
+		resMP.join(std::move(helperPolygon));
 }
 
 
