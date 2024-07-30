@@ -14,6 +14,7 @@
 #include "VersionComponent.h"
 #include "ser/SequenceArrayStream.h"
 
+#include "dbg/Check.h"
 #include "mci/ValueClass.h"
 #include "mci/ValueWrap.h"
 #include "utl/TypeListOper.h"
@@ -35,6 +36,8 @@
 
 //============================  CGAL  ============================
 
+#define CGAL_SS_VERBOSE
+
 #include <CGAL/Polygon_set_2.h>
 #include <CGAL/intersections.h>
 #include <CGAL/Exact_predicates_inexact_constructions_kernel.h>
@@ -45,12 +48,20 @@
 
 struct CGAL_Traits
 {
-	using Kernel = CGAL::Exact_predicates_inexact_constructions_kernel;
+	using Kernel = CGAL::Exact_predicates_exact_constructions_kernel;
+//	using Kernel = CGAL::Exact_predicates_inexact_constructions_kernel;
 	using Point = CGAL::Point_2< Kernel >;
 	using Ring = CGAL::Polygon_2<Kernel>;
 	using Polygon_with_holes = CGAL::Polygon_with_holes_2<Kernel>;
 	using Polygon_set = CGAL::Polygon_set_2<Kernel>;
 };
+
+template <typename DmsPointType>
+void append_point(CGAL_Traits::Ring& ring, DmsPointType p)
+{
+	ring.push_back(CGAL_Traits::Point(p.X(), p.Y()));
+}
+
 
 template <typename DmsPointType>
 void assign_multi_polygon(CGAL_Traits::Polygon_set& resMP, SA_ConstReference<DmsPointType> polyRef, bool mustInsertInnerRings
@@ -68,20 +79,43 @@ void assign_multi_polygon(CGAL_Traits::Polygon_set& resMP, SA_ConstReference<Dms
 	if (ri == re)
 		return;
 	CGAL::Orientation outerOrientation = CGAL::Orientation::COUNTERCLOCKWISE;
+
+	std::vector<DmsPointType> ringPoints;
 	for (; ri != re; ++ri)
 	{
-		assert((*ri).begin() != (*ri).end());
-		assert((*ri).begin()[0] == (*ri).end()[-1]); // closed ?
-
-		helperRing.clear();
-		for (auto p = (*ri).begin(); p != (*ri).end(); ++p)
-			helperRing.push_back(CGAL_Traits::Point(p->X(), p->Y()));
-		//		helperRing.insert(helperRing.end(), (*ri).begin(), (*ri).end());
-		if (helperRing.is_empty())
+		auto pb = (*ri).begin(), pe = (*ri).end();
+		if (pb == pe)
 			continue;
 
+		if (pb[0] == pe[-1]) // closed ?
+			--pe; // remove closing point
+
+		helperRing.clear();
+		ringPoints.clear();
+		for (auto p = pe; p != pb; ) // reverse order
+			ringPoints.push_back(*--p);
+
+		remove_adjacents_and_spikes(ringPoints);
+
+		for (const auto& rp : ringPoints)
+			append_point(helperRing, rp);
+/*
+		for (auto p = pb; p != pe; ++p) // forward order
+			append_point(helperRing, *p);
+//	*/
+
+		if (helperRing.is_empty())
+			continue;
+/*
+		if (!helperRing.is_simple())
+		{
+			throwErrorF("assign_multi_polygon", "ring from point %d up to point %d is not simple in %s"
+				, pb - polyRef.begin(), pe - polyRef.begin() - 1
+				, AsString(polyRef).c_str());
+		}
+*/
 		assert(helperRing.begin() != helperRing.end());
-		assert(helperRing.begin()[0] == helperRing.end()[-1]); // closed ?
+		assert(helperRing.begin()[0] != helperRing.end()[-1]); // open ?
 
 		CGAL::Orientation currOrientation = helperRing.orientation();
 		if (ri == rb || currOrientation == outerOrientation)
@@ -133,16 +167,36 @@ void assign_multi_polygon(CGAL_Traits::Polygon_set& resMP, SA_ConstReference<Dms
 		}
 	}
 	if (!helperPolygon.outer_boundary().is_empty())
-		resMP.insert(helperPolygon);
+		resMP.join(helperPolygon);
 }
 
+
+template <dms_sequence E>
+void cgal_assign_point(E&& ref, const CGAL_Traits::Point& p)
+{
+	using coordinate_type = scalar_of_t<std::remove_reference_t<E>>;
+	ref.push_back( shp2dms_order<coordinate_type>(CGAL::to_double( p.x() ), CGAL::to_double( p.y())) );
+}
 
 template <dms_sequence E>
 void cgal_assign_ring(E&& ref, const CGAL_Traits::Ring& polyData)
 {
 	using coordinate_type = scalar_of_t<std::remove_reference_t<E>>;
-	for (const auto& p : polyData)
-		ref.push_back(shp2dms_order<coordinate_type>(p.x(), p.y()));
+	assert(polyData.size() > 0);
+
+	auto pb = polyData.vertices_begin(), pe = polyData.vertices_end();
+//*
+	// reassign points in reverse order to restore clockwise order
+	for (auto pri=pe; pri!=pb;)
+		cgal_assign_point(ref, *--pri);
+	cgal_assign_point(ref, *--pe); // add last ring point that became the first GeoDms ring point as closing point
+//	*/
+
+/*
+	for (auto pi = pb; pi != pe; ++pi)
+		cgal_assign_point(ref, *pi);
+	cgal_assign_point(ref, *pb); // add first ring point as closing point
+//	*/
 }
 
 template <dms_sequence E>
@@ -156,11 +210,11 @@ void cgal_assign(E&& ref, std::vector<CGAL_Traits::Polygon_with_holes>&& polyVec
 	{
 		//		E::value_type polyVec;
 		cgal_assign_ring(std::forward<E>(ref), poly.outer_boundary());
-		closurePoints.emplace_back(poly.outer_boundary().end()[-1]);
+		closurePoints.emplace_back(poly.outer_boundary().begin()[0]);
 		for (const auto& hole : poly.holes())
 		{
 			cgal_assign_ring(std::forward<E>(ref), hole);
-			closurePoints.emplace_back(hole.end()[-1]);
+			closurePoints.emplace_back(hole.begin()[0]);
 		}
 	}
 	if (closurePoints.size() > 1)
@@ -168,12 +222,7 @@ void cgal_assign(E&& ref, std::vector<CGAL_Traits::Polygon_with_holes>&& polyVec
 		closurePoints.pop_back();
 		while (closurePoints.size())
 		{
-//			ref.push_back(shp2dms_order<coordinate_type>(closurePoints.back().x(), closurePoints.back().y()));
-			coordinate_type x = closurePoints.back().x();
-			coordinate_type y = closurePoints.back().y();
-
-			Point<coordinate_type> p = shp2dms_order<coordinate_type>(x, y);
-			ref.push_back(p);
+			cgal_assign_point(ref, closurePoints.back());
 			closurePoints.pop_back();
 		}
 	}
