@@ -43,6 +43,13 @@
 #include <CGAL/Exact_predicates_inexact_constructions_kernel.h>
 #include <CGAL/Polygon_2.h>
 #include <CGAL/Polygon_with_holes_2.h>
+#include <CGAL/Boolean_set_operations_2.h>
+#include <CGAL/partition_2.h>
+#include <CGAL/Partition_traits_2.h>
+#include <CGAL/Arr_segment_traits_2.h>
+#include <CGAL/Arrangement_2.h>
+
+#include "CGAL_60/Polygon_repair/repair.h"
 
 //#include <CGAL/draw_polygon_set_2.h>
 
@@ -51,9 +58,14 @@ struct CGAL_Traits
 	using Kernel = CGAL::Exact_predicates_exact_constructions_kernel;
 //	using Kernel = CGAL::Exact_predicates_inexact_constructions_kernel;
 	using Point = CGAL::Point_2< Kernel >;
+	using Segment = Kernel::Segment_2;
+
 	using Ring = CGAL::Polygon_2<Kernel>;
 	using Polygon_with_holes = CGAL::Polygon_with_holes_2<Kernel>;
 	using Polygon_set = CGAL::Polygon_set_2<Kernel>;
+
+	using ArrTraits = CGAL::Arr_segment_traits_2<Kernel>;
+	using Arrangement = CGAL::Arrangement_2<ArrTraits>;
 };
 
 template <typename DmsPointType>
@@ -62,6 +74,7 @@ void append_point(CGAL_Traits::Ring& ring, DmsPointType p)
 	ring.push_back(CGAL_Traits::Point(p.X(), p.Y()));
 }
 
+void arrangement_to_polygons(const CGAL_Traits::Arrangement& arr, CGAL_Traits::Polygon_set& polygons);
 
 template <typename DmsPointType>
 void assign_multi_polygon(CGAL_Traits::Polygon_set& resMP, SA_ConstReference<DmsPointType> polyRef, bool mustInsertInnerRings
@@ -70,6 +83,7 @@ void assign_multi_polygon(CGAL_Traits::Polygon_set& resMP, SA_ConstReference<Dms
 )
 {
 	resMP.clear();
+	std::vector<CGAL_Traits::Ring> foundHoles;
 
 	boost::polygon::SA_ConstRingIterator<DmsPointType>
 		rb(polyRef, 0),
@@ -78,7 +92,8 @@ void assign_multi_polygon(CGAL_Traits::Polygon_set& resMP, SA_ConstReference<Dms
 	//			dbg_assert(ri != re);
 	if (ri == re)
 		return;
-	CGAL::Orientation outerOrientation = CGAL::Orientation::COUNTERCLOCKWISE;
+
+//	CGAL::Orientation outerOrientation = CGAL::Orientation::COUNTERCLOCKWISE;
 
 	std::vector<DmsPointType> ringPoints;
 	for (; ri != re; ++ri)
@@ -92,6 +107,8 @@ void assign_multi_polygon(CGAL_Traits::Polygon_set& resMP, SA_ConstReference<Dms
 
 		helperRing.clear();
 		ringPoints.clear();
+
+		ringPoints.reserve(pe - pb);
 		for (auto p = pe; p != pb; ) // reverse order
 			ringPoints.push_back(*--p);
 
@@ -99,75 +116,64 @@ void assign_multi_polygon(CGAL_Traits::Polygon_set& resMP, SA_ConstReference<Dms
 
 		for (const auto& rp : ringPoints)
 			append_point(helperRing, rp);
-/*
-		for (auto p = pb; p != pe; ++p) // forward order
-			append_point(helperRing, *p);
-//	*/
-
+ 
 		if (helperRing.is_empty())
 			continue;
+
+		if (helperRing.is_simple())
+		{
+			if (helperRing.orientation() == CGAL::COUNTERCLOCKWISE)
+				resMP.join(helperRing);
+			else
+				foundHoles.emplace_back(std::move(helperRing));
+		}
+		else
+		{
+			// backtrack and do all at once with repair polygons
+			resMP.clear();
+			helperRing.clear();
+			ringPoints.clear();
+
+			ringPoints.reserve((polyRef.size()));
+			for (auto p = polyRef.end(), pb = polyRef.begin(); p != pb; ) // reverse order
+				ringPoints.push_back(*--p);
+
+			remove_adjacents_and_spikes(ringPoints);
+
+			for (const auto& rp : ringPoints)
+				append_point(helperRing, rp);
+
+			if (helperRing.is_empty())
+				continue;
+
+			// repair the polygon
+			auto resPolygonWithHolesContainer = CGAL::Polygon_repair::repair(helperRing);
+			for (const auto& resPolygonWithHoles : resPolygonWithHolesContainer)
+				resMP.insert(resPolygonWithHoles);
+			foundHoles.clear();
+			break;
+
 /*
-		if (!helperRing.is_simple())
-		{
-			throwErrorF("assign_multi_polygon", "ring from point %d up to point %d is not simple in %s"
-				, pb - polyRef.begin(), pe - polyRef.begin() - 1
-				, AsString(polyRef).c_str());
-		}
+			CGAL_Traits::Arrangement arr;
+
+			std::vector<CGAL_Traits::Segment> segments;
+			for (auto it = helperRing.vertices_begin(); it != helperRing.vertices_end(); ++it) {
+				auto next = std::next(it);
+				if (next == helperRing.vertices_end()) {
+					next = helperRing.vertices_begin();
+				}
+				segments.push_back(CGAL_Traits::Segment(*it, *next));
+			}
+			CGAL::insert_non_intersecting_curves(arr, segments.begin(), segments.end());
+
+			// Decompose the arrangement into polygons
+			arrangement_to_polygons(arr, resMP);
 */
-		assert(helperRing.begin() != helperRing.end());
-		assert(helperRing.begin()[0] != helperRing.end()[-1]); // open ?
-
-		CGAL::Orientation currOrientation = helperRing.orientation();
-		if (ri == rb || currOrientation == outerOrientation)
-		{
-			if (ri != rb && !helperPolygon.outer_boundary().is_empty())
-				resMP.join(std::move(helperPolygon));
-			helperPolygon.clear(); assert(helperPolygon.outer_boundary().is_empty() && helperPolygon.holes().empty());
-
-			helperPolygon.outer_boundary() = std::move(helperRing);	// swap is faster than assign
-			assert(helperRing.is_empty());
-			outerOrientation = currOrientation;
-
-			// skip outer rings that intersect with a previous outer ring if innerRings are skipped
-			MG_CHECK(mustInsertInnerRings);
-			/* TODO
-						if (!mustInsertInnerRings)
-						{
-							SizeT polygonIndex = 0;
-							while (polygonIndex < resMP.size())
-							{
-								auto currPolygon = resMP.begin() + polygonIndex;
-								if (CGAL::do_intersect(currPolygon->outer_boundary(), helperPolygon.outer_boundary()))
-								{
-									if (CGAL::within(currPolygon->outer_boundary(), helperPolygon.outer_boundary()))
-									{
-										resMP.erase(currPolygon);
-										continue;
-									}
-									if (CGAL::within(helperPolygon.outer_boundary(), currPolygon->outer_boundary()))
-									{
-										helperPolygon.clear();
-										assert(helperPolygon.outer_boundary().is_empty() && helperPolygon.holes().is_empty());
-										break;
-									}
-
-									if (CGAL::overlaps(currPolygon->outer_boundary(), helperPolygon.outer_boundary()))
-										throwDmsErrF("OuterPolygon: unexpected overlap of two outer rings in %s", AsString(polyRef).c_str());
-
-									// a combination of touching outer rings such as in an 8 shape is
-								}
-								polygonIndex++;
-							}
-						}
-					*/
-		}
-		else if (mustInsertInnerRings)
-		{
-			helperPolygon.holes().emplace_back(helperRing);
 		}
 	}
-	if (!helperPolygon.outer_boundary().is_empty())
-		resMP.join(std::move(helperPolygon));
+	// remove holes now
+	for (const auto& hole : foundHoles)
+		resMP.difference(hole);
 }
 
 
