@@ -22,7 +22,7 @@
 
 #include "rtcTypeLists.h"
 #include "dbg/debug.h"
-#include "geo/BoostPolygon.h"
+#include "geo/RingIterator.h"
 #include "geo/ConvertFunctor.h"
 #include "geo/GeoSequence.h"  
 #include "geo/PointOrder.h"
@@ -305,7 +305,7 @@ void WriteSequences(const AbstrDataObject* ado, ShpImp* pImp, WeakStr nameStr, c
 		auto feature = pImp->ShapeSet_PushBackPolygon();
 		if (pImp->GetShapeType() == ShapeTypes::ST_Polygon)
 		{
-			boost::polygon::SA_ConstRingIterator<PointType> 
+			SA_ConstRingIterator<PointType> 
 				ri(polygon,  0), 
 				re(polygon, -1);
 

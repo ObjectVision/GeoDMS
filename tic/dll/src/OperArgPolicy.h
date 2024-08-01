@@ -1,4 +1,4 @@
-// Copyright (C) 1998-2023 Object Vision b.v. 
+// Copyright (C) 1998-2024 Object Vision b.v. 
 // License: GNU GPL 3
 /////////////////////////////////////////////////////////////////////////////
 
@@ -30,8 +30,6 @@ enum class metainfo_policy_flags {
 	subst_never    = 4,
 	suppl_tree     = 8,    // takes whole subtree of arg as suppl (f.e. in template instantiation)
 //	templ_suppl_tree = suppl_tree,
-
-//	subst_with_subitems = subst_never | suppl_tree,
 
 	recursive_check= 0x40, // called from integrity check constructor
 	subst_may_fail = 0x80,

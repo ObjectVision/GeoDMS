@@ -43,7 +43,8 @@ struct poly_and: bp_poly_oper_base<PointType>
 {
 	void Apply(typename poly_and::assignee_ref res, const typename poly_and::polygon_set_data_type& pa, const typename poly_and::polygon_set_data_type& pb) const
 	{
-		gtl::assign(this->tmp_ps, pa & pb, this->cleanResources);
+		using namespace bp::operators;
+		bp::assign(this->tmp_ps, pa & pb, this->cleanResources);
 		bp_assign(res, this->tmp_ps, this->cleanResources);
 	}
 };
@@ -53,7 +54,8 @@ struct poly_or: bp_poly_oper_base<PointType>
 {
 	void Apply(typename poly_or::assignee_ref res, const typename poly_or::polygon_set_data_type& pa, const typename poly_or::polygon_set_data_type& pb) const
 	{
-		gtl::assign(this->tmp_ps, pa | pb, this->cleanResources);
+		using namespace bp::operators;
+		bp::assign(this->tmp_ps, pa | pb, this->cleanResources);
 		bp_assign(res, this->tmp_ps, this->cleanResources);
 	}
 };
@@ -63,7 +65,8 @@ struct poly_xor: bp_poly_oper_base<PointType>
 {
 	void Apply(typename typename poly_xor::assignee_ref res, const typename poly_xor::polygon_set_data_type& pa, const typename poly_xor::polygon_set_data_type& pb) const
 	{
-		gtl::assign(this->tmp_ps, pa ^ pb, this->cleanResources);
+		using namespace bp::operators;
+		bp::assign(this->tmp_ps, pa ^ pb, this->cleanResources);
 		bp_assign(res, this->tmp_ps, this->cleanResources);
 	}
 };
@@ -75,7 +78,8 @@ struct poly_sub: bp_poly_oper_base<PointType>
 		const typename poly_sub::polygon_set_data_type& pa,
 		const typename poly_sub::polygon_set_data_type& pb) const
 	{
-		gtl::assign(this->tmp_ps, pa - pb, this->cleanResources);
+		using namespace bp::operators;
+		bp::assign(this->tmp_ps, pa - pb, this->cleanResources);
 		bp_assign(res, this->tmp_ps, this->cleanResources);
 	}
 };
@@ -112,13 +116,13 @@ void do_binary_poly_assign(
 		{
 			arg1_cref arg1Value = arg1Data[0];
 			polygon_set_data_type pa;
-			gtl::assign(pa, arg1Value, oper.cleanResources);
+			bp::assign(pa, arg1Value, oper.cleanResources);
 
 			do_unary_assign(resData, arg2Data
 			,	[pa, &oper](res_ref res, arg2_cref arg2)
 				{
 					polygon_set_data_type pb;
-					gtl::assign(pb, arg2, oper.cleanResources);
+					bp::assign(pb, arg2, oper.cleanResources);
 					oper.Apply(res, pa, pb);
 				}
 			,	true
@@ -140,13 +144,13 @@ void do_binary_poly_assign(
 		{
 			arg2_cref arg2Value = arg2Data[0];
 			polygon_set_data_type pb;
-			gtl::assign(pb, arg2Value, oper.cleanResources);
+			bp::assign(pb, arg2Value, oper.cleanResources);
 			do_unary_assign(
 				resData
 			,	arg1Data
 //			,	composition_2_p_v<AttrOper>(oper, arg2Data[0])
 			,	[pb, &oper](res_ref res, arg1_cref arg1)  {
-					polygon_set_data_type pa; gtl::assign(pa, arg1, oper.cleanResources); 
+					polygon_set_data_type pa; bp::assign(pa, arg1, oper.cleanResources); 
 					oper.Apply(res, pa, pb); }
 			,	true
 			,	TYPEID(AttrOper)
@@ -165,8 +169,8 @@ void do_binary_poly_assign(
 		{
 			if (IsDefined(arg1) && IsDefined(arg2))
 			{
-				polygon_set_data_type pa; gtl::assign(pa, arg1, oper.cleanResources); 
-				polygon_set_data_type pb; gtl::assign(pb, arg2, oper.cleanResources);
+				polygon_set_data_type pa; bp::assign(pa, arg1, oper.cleanResources); 
+				polygon_set_data_type pb; bp::assign(pb, arg2, oper.cleanResources);
 				oper.Apply(res, pa, pb);
 			}
 			else

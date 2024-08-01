@@ -16,11 +16,10 @@
 
 #include "geo/PointIndexBuffer.h"
 #include "geo/PointOrder.h"
-#include "geo/RingIterator.h"
 #include "geo/SequenceTraits.h"
 
-namespace bp = boost::polygon;
-//using namespace bp::operators;
+namespace gtl = boost::polygon;
+using namespace gtl::operators;
 
 
 // *****************************************************************************
@@ -28,7 +27,7 @@ namespace bp = boost::polygon;
 // *****************************************************************************
 
 template <typename V>
-Point<V> ConvertPoint(const bp::point_data<V>& p)
+Point<V> ConvertPoint(const gtl::point_data<V>& p)
 {
 	return shp2dms_order<V>(x(p), y(p));
 }
@@ -120,9 +119,9 @@ void bp_assign_mp (E& ref,  MP&& poly)
 }
 
 template <dms_sequence E, typename V>
-void bp_assign (E& ref, bp::polygon_set_data<V>& polyData, typename bp::polygon_set_data<V>::clean_resources& cleanResources)
+void bp_assign (E& ref, gtl::polygon_set_data<V>& polyData, typename gtl::polygon_set_data<V>::clean_resources& cleanResources)
 {
-	std::vector<bp::polygon_with_holes_data<Float64> > polyVect;
+	std::vector<gtl::polygon_with_holes_data<Float64> > polyVect;
 	polyData.get(polyVect, cleanResources);
 
 	bp_assign_mp(ref, polyVect);
@@ -245,6 +244,9 @@ struct point_mutable_traits<Point<CoordType> >
 
 
 
+
+template <typename P> struct SA_ConstRing; //fwrd decl
+
 typedef polygon_set_concept this_polygon_concept;
 
 template <> struct geometry_concept<IPolygon> { typedef polygon_concept type; };
@@ -303,21 +305,119 @@ struct point_sequence_mutable_traits
 };
 
 
+template <typename P>
+struct SA_ConstRing : IterRange<const P*>
+{
+	typedef P                            point_type;
+	typedef typename scalar_of<P>::type  coordinate_type;
+	typedef typename IterRange<const P*>::iterator iterator_type;
+
+	SA_ConstRing(const P* first, const P* last)
+		:	IterRange<const P*>(first, last)
+	{}
+};
+
+template <typename P>
+struct SA_ConstRingIterator
+{
+//	typedef std::forward_iterator_tag iterator_category;
+	typedef std::random_access_iterator_tag iterator_category;
+	typedef SA_ConstRing<P>                 value_type;
+	typedef DiffT                           difference_type;
+	typedef SA_ConstRing<P>*                pointer;
+	typedef SA_ConstRing<P>&                reference;
+
+	SA_ConstRingIterator() {}
+
+	SA_ConstRingIterator(SA_ConstRingIterator&& src) 
+		:	m_SequenceBase(src.m_SequenceBase)
+		,	m_IndexBuffer (std::move(src.m_IndexBuffer))
+		,	m_RingIndex   (src.m_RingIndex)
+	{
+	}
+
+	SA_ConstRingIterator(const SA_ConstRingIterator& src) 
+		:	m_SequenceBase(src.m_SequenceBase)
+		,	m_IndexBuffer (src.m_IndexBuffer)
+		,	m_RingIndex   (src.m_RingIndex)
+	{
+	}
+
+	template <typename PointRange>
+	SA_ConstRingIterator(const PointRange& scr, SizeT index)
+		:	m_SequenceBase(begin_ptr(scr))
+		,	m_RingIndex(index)
+	{
+		if (index != -1)
+		{
+			fillPointIndexBuffer(m_IndexBuffer, scr.begin(), scr.end());
+			if (m_IndexBuffer.empty())
+				m_RingIndex = -1;
+			else
+				assert(m_RingIndex < m_IndexBuffer.size());
+		}
+	}
+
+	SA_ConstRingIterator& operator =(const SA_ConstRingIterator& rhs) = default;
+	bool operator ==(const SA_ConstRingIterator& rhs) const { assert(m_SequenceBase == rhs.m_SequenceBase); return m_RingIndex == rhs.m_RingIndex; }
+	bool operator !=(const SA_ConstRingIterator& rhs) const { assert(m_SequenceBase == rhs.m_SequenceBase); return m_RingIndex != rhs.m_RingIndex; }
+
+	void operator ++()
+	{ 
+		assert(m_RingIndex != -1);
+		if (++m_RingIndex == m_IndexBuffer.size())
+			m_RingIndex = -1;
+	}
+	void operator --()
+	{
+		assert(m_RingIndex != 0);
+		if (m_RingIndex == -1)
+			m_RingIndex = m_IndexBuffer.size() - 1;
+		else
+			--m_RingIndex;
+	}
+	SA_ConstRing<P> operator *() const
+	{
+		assert(m_RingIndex != -1);
+		assert(m_RingIndex < m_IndexBuffer.size());
+		return SA_ConstRing<P>(
+			m_SequenceBase + m_IndexBuffer[m_RingIndex].first 
+		,	m_SequenceBase + m_IndexBuffer[m_RingIndex].second
+		);
+	}
+	difference_type operator -(const SA_ConstRingIterator& oth) const
+	{
+		SizeT index    = m_RingIndex;
+		SizeT othIndex = oth.m_RingIndex;
+		if (index == othIndex) // same, including both at end
+			return 0;
+		if (othIndex == -1)
+			othIndex = m_IndexBuffer.size(); // oth is at end but not this
+		if (index == -1)
+			index = oth.m_IndexBuffer.size(); // this is at end but not oth
+		return index - othIndex;
+	}
+
+	const P*            m_SequenceBase = nullptr;
+	pointIndexBuffer_t  m_IndexBuffer;
+	SizeT               m_RingIndex = -1;
+};
+
 template <typename E>
 struct poly_sequence_traits
 {
-	using elem_type = E;
-	using value_type = typename elem_type::value_type;
-	using point_type = std::remove_const_t<value_type>;
-	using coordinate_type = scalar_of_t<point_type>;
-	using iterator_type = SA_ConstRingIterator<point_type>;
-	using clean_resources = typename polygon_set_data<coordinate_type>::clean_resources ;
-	using execute_resources = typename arbitrary_boolean_op<coordinate_type>::execute_resources ;
+	typedef E                                            elem_type;
+	typedef typename elem_type::value_type               value_type;
+	typedef typename std::remove_const<value_type>::type point_type;
+	typedef typename scalar_of<point_type>::type         coordinate_type;
+	typedef typename SA_ConstRingIterator<point_type>    iterator_type;
+	typedef typename polygon_set_data<coordinate_type>::clean_resources clean_resources;
+	typedef typename arbitrary_boolean_op<coordinate_type>::execute_resources execute_resources;
 
-	static inline auto begin  (const elem_type& t) -> iterator_type { return iterator_type(t,  0); }
-	static inline auto end    (const elem_type& t) -> iterator_type { return iterator_type(t, -1); }
+	static inline iterator_type     begin  (const elem_type& t) { return iterator_type(t,  0); }
+	static inline iterator_type     end    (const elem_type& t) { return iterator_type(t, -1); }
 	static inline bool clean  (const elem_type& t, clean_resources& r) { return false; }
-	static inline bool sorted (const elem_type& t) { return false; }
+	static inline bool              sorted (const elem_type& t) { return false; }
 };
 
 template <> struct polygon_traits<SA_ConstRing<IPoint> > : point_sequence_traits<SA_ConstRing<IPoint> > {};
@@ -348,21 +448,21 @@ struct bp_union_poly_traits
 {
 	using coordinate_type = C;
 
-	using polygon_with_holes_type = bp::polygon_with_holes_data<coordinate_type>;
+	using polygon_with_holes_type = gtl::polygon_with_holes_data<coordinate_type>;
 
-	using point_type = bp::point_data<coordinate_type>;
-	using rect_type = bp::rectangle_data<coordinate_type>;
+	using point_type = gtl::point_data<coordinate_type>;
+	using rect_type = gtl::rectangle_data<coordinate_type>;
 	using ring_type = std::vector< point_type >;
 	using multi_polygon_type = std::vector< polygon_with_holes_type >;
-	using polygon_set_data_type = bp::polygon_set_data<coordinate_type>;
+	using polygon_set_data_type = gtl::polygon_set_data<coordinate_type>;
 
-	using area_type = bp::coordinate_traits<coordinate_type>::area_type;
-	using unsigned_area_type = bp::coordinate_traits<coordinate_type>::unsigned_area_type;
+	using area_type = gtl::coordinate_traits<coordinate_type>::area_type;
+	using unsigned_area_type = gtl::coordinate_traits<coordinate_type>::unsigned_area_type;
 };
 
-template<typename P> concept gtl_point = bp::is_point_concept    <typename bp::geometry_concept<P>::type>::type::value;
-template<typename R> concept gtl_rect = bp::is_rectangle_concept<typename bp::geometry_concept<R>::type>::type::value;
-template<typename P> concept gtl_PolygonSet = bp::is_any_polygon_set_type<P>::type::value;
+template<typename P> concept gtl_point = gtl::is_point_concept    <typename gtl::geometry_concept<P>::type>::type::value;
+template<typename R> concept gtl_rect = gtl::is_rectangle_concept<typename gtl::geometry_concept<R>::type>::type::value;
+template<typename P> concept gtl_PolygonSet = gtl::is_any_polygon_set_type<P>::type::value;
 
 
 

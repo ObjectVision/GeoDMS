@@ -10,6 +10,7 @@
 
 #include "BoostGeometry.h"
 
+#include "CGAL_Traits.h"
 #include <CGAL/Boolean_set_operations_2.h>
 
 static VersionComponent s_BoostGeometry("boost::geometry " BOOST_STRINGIZE(BOOST_GEOMETRY_VERSION));
@@ -247,9 +248,7 @@ struct SimplifyMultiPolygonOperator : public AbstrSimplifyOperator
 				MakeLowerBound(lb, p);
 
 			ringClosurePoints.clear();
-			boost::polygon::SA_ConstRingIterator<PointType>
-				rb(polyDataElem, 0),
-				re(polyDataElem, -1);
+			SA_ConstRingIterator<PointType> rb(polyDataElem, 0), re(polyDataElem, -1);
 			auto ri = rb;
 			dbg_assert(ri != re);
 			if (ri == re)
@@ -315,9 +314,7 @@ struct SimplifyPolygonOperator : public AbstrSimplifyOperator
 				MakeLowerBound(lb, p);
 
 			ringClosurePoints.clear();
-			boost::polygon::SA_ConstRingIterator<PointType>
-				rb(polyData[i], 0),
-				re(polyData[i], -1);
+			SA_ConstRingIterator<PointType> rb(polyData[i], 0), re(polyData[i], -1);
 			auto ri = rb;
 			dbg_assert(ri != re);
 			if (ri == re)

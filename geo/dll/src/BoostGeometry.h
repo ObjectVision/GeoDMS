@@ -15,6 +15,7 @@
 #include "ser/SequenceArrayStream.h"
 
 #include "dbg/Check.h"
+#include "geo/RingIterator.h"
 #include "mci/ValueClass.h"
 #include "mci/ValueWrap.h"
 #include "utl/TypeListOper.h"
@@ -31,194 +32,8 @@
 #include <boost/geometry/algorithms/within.hpp>
 #include <boost/geometry/geometries/multi_linestring.hpp>
 
-#include "ipolygon/polygon.hpp"
-#include "geo/BoostPolygon.h"
-
-//============================  CGAL  ============================
-
-// #define CGAL_SS_VERBOSE
-
-#include <CGAL/Polygon_set_2.h>
-#include <CGAL/intersections.h>
-#include <CGAL/Exact_predicates_inexact_constructions_kernel.h>
-#include <CGAL/Polygon_2.h>
-#include <CGAL/Polygon_with_holes_2.h>
-#include <CGAL/Boolean_set_operations_2.h>
-#include <CGAL/partition_2.h>
-#include <CGAL/Partition_traits_2.h>
-#include <CGAL/Arr_segment_traits_2.h>
-#include <CGAL/Arrangement_2.h>
-
-#include "CGAL_60/Polygon_repair/repair.h"
-
-struct CGAL_Traits
-{
-//	using Kernel = CGAL::Exact_predicates_exact_constructions_kernel;
-	using Kernel = CGAL::Exact_predicates_inexact_constructions_kernel;
-	using Point = CGAL::Point_2< Kernel >;
-	using Segment = Kernel::Segment_2;
-
-	using Ring = CGAL::Polygon_2<Kernel>;
-	using Polygon_with_holes = CGAL::Polygon_with_holes_2<Kernel>;
-	using Polygon_set = CGAL::Polygon_set_2<Kernel>;
-
-//	using ArrTraits = CGAL::Arr_segment_traits_2<Kernel>;
-//	using Arrangement = CGAL::Arrangement_2<ArrTraits>;
-};
-
-template <typename DmsPointType>
-void append_point(CGAL_Traits::Ring& ring, DmsPointType p)
-{
-	ring.push_back(CGAL_Traits::Point(p.X(), p.Y()));
-}
-
-template <typename DmsPointType>
-void assign_multi_polygon(CGAL_Traits::Polygon_set& resMP, SA_ConstReference<DmsPointType> polyRef, bool mustInsertInnerRings
-	, CGAL_Traits::Polygon_with_holes&& helperPolygon = CGAL_Traits::Polygon_with_holes()
-	, CGAL_Traits::Ring&& helperRing = CGAL_Traits::Ring()
-)
-{
-	resMP.clear();
-	std::vector<CGAL_Traits::Ring> foundHoles;
-
-	boost::polygon::SA_ConstRingIterator<DmsPointType>
-		rb(polyRef, 0),
-		re(polyRef, -1);
-	auto ri = rb;
-
-	if (ri == re)
-		return;
-
-	std::vector<DmsPointType> ringPoints;
-	for (; ri != re; ++ri)
-	{
-		auto pb = (*ri).begin(), pe = (*ri).end();
-		if (pb == pe)
-			continue;
-
-		if (pb[0] == pe[-1]) // closed ?
-			--pe; // remove closing point
-
-		helperRing.clear();
-		ringPoints.clear();
-
-		ringPoints.reserve(pe - pb);
-		for (auto p = pe; p != pb; ) // reverse order
-			ringPoints.push_back(*--p);
-
-		remove_adjacents_and_spikes(ringPoints);
-
-		for (const auto& rp : ringPoints)
-			append_point(helperRing, rp);
- 
-		if (helperRing.is_empty())
-			continue;
-
-		if (helperRing.is_simple())
-		{
-			if (helperRing.orientation() == CGAL::COUNTERCLOCKWISE)
-				resMP.join(helperRing);
-			else
-				foundHoles.emplace_back(std::move(helperRing));
-		}
-		else
-		{
-			// backtrack and do all at once with repair polygons
-			resMP.clear();
-			helperRing.clear();
-			ringPoints.clear();
-
-			ringPoints.reserve((polyRef.size()));
-			for (auto p = polyRef.end(), pb = polyRef.begin(); p != pb; ) // reverse order
-				ringPoints.push_back(*--p);
-
-			remove_adjacents_and_spikes(ringPoints);
-
-			for (const auto& rp : ringPoints)
-				append_point(helperRing, rp);
-
-			if (helperRing.is_empty())
-				continue;
-
-			// repair the polygon
-			auto resPolygonWithHolesContainer = CGAL::Polygon_repair::repair(helperRing);
-			for (const auto& resPolygonWithHoles : resPolygonWithHolesContainer)
-				resMP.insert(resPolygonWithHoles);
-			foundHoles.clear();
-			break;
-		}
-	}
-	// remove holes now
-	for (const auto& hole : foundHoles)
-		resMP.difference(hole);
-}
-
-
-template <dms_sequence E>
-void cgal_assign_point(E&& ref, const CGAL_Traits::Point& p)
-{
-	using coordinate_type = scalar_of_t<std::remove_reference_t<E>>;
-	ref.push_back( shp2dms_order<coordinate_type>(CGAL::to_double( p.x() ), CGAL::to_double( p.y())) );
-}
-
-template <dms_sequence E>
-void cgal_assign_ring(E&& ref, const CGAL_Traits::Ring& polyData)
-{
-	using coordinate_type = scalar_of_t<std::remove_reference_t<E>>;
-	assert(polyData.size() > 0);
-
-	auto pb = polyData.vertices_begin(), pe = polyData.vertices_end();
-//*
-	// reassign points in reverse order to restore clockwise order
-	for (auto pri=pe; pri!=pb;)
-		cgal_assign_point(ref, *--pri);
-	cgal_assign_point(ref, *--pe); // add last ring point that became the first GeoDms ring point as closing point
-//	*/
-
-/*
-	for (auto pi = pb; pi != pe; ++pi)
-		cgal_assign_point(ref, *pi);
-	cgal_assign_point(ref, *pb); // add first ring point as closing point
-//	*/
-}
-
-template <dms_sequence E>
-void cgal_assign(E&& ref, std::vector<CGAL_Traits::Polygon_with_holes>&& polyVec)
-{
-	using coordinate_type = scalar_of_t<std::remove_reference_t<E>>;
-
-	std::vector<CGAL_Traits::Point> closurePoints;
-
-	for (const auto& poly : polyVec)
-	{
-		//		E::value_type polyVec;
-		cgal_assign_ring(std::forward<E>(ref), poly.outer_boundary());
-		closurePoints.emplace_back(poly.outer_boundary().begin()[0]);
-		for (const auto& hole : poly.holes())
-		{
-			cgal_assign_ring(std::forward<E>(ref), hole);
-			closurePoints.emplace_back(hole.begin()[0]);
-		}
-	}
-	if (closurePoints.size() > 1)
-	{
-		closurePoints.pop_back();
-		while (closurePoints.size())
-		{
-			cgal_assign_point(ref, closurePoints.back());
-			closurePoints.pop_back();
-		}
-	}
-}
-
-template <dms_sequence E>
-void cgal_assign(E&& ref, const CGAL_Traits::Polygon_set& polyData)
-{
-	std::vector<CGAL_Traits::Polygon_with_holes> polyVec;
-
-	polyData.polygons_with_holes(std::back_inserter(polyVec));
-	cgal_assign(std::forward<E>(ref), std::move(polyVec));
-}
+//#include "ipolygon/polygon.hpp"
+//#include "geo/BoostPolygon.h"
 
 //============================  boost geometry ============================
 
@@ -259,8 +74,8 @@ struct bg_union_poly_traits
 
 	using polygon_with_holes_type = boost::geometry::model::polygon<point_type>;
 
-//	typedef gtl::point_data<coordinate_type>       point_type;
-//	typedef gtl::rectangle_data<coordinate_type>   rect_type;
+//	typedef bp::point_data<coordinate_type>       point_type;
+//	typedef bp::rectangle_data<coordinate_type>   rect_type;
 //	typedef std::vector< point_type >              point_seq_type;
 	using multi_polygon_type  = boost::geometry::model::multi_polygon<polygon_with_holes_type>;
 	using polygon_result_type = multi_polygon_type; //  std::vector<polygon_with_holes_type>;
@@ -390,141 +205,6 @@ bool empty(boost::geometry::model::ring<P>& ring)
 	return ring[0] == ring[2];
 }
 
-template <typename DmsPointType>
-void assign_polygon(bg_polygon_t& resPoly, SA_ConstReference<DmsPointType> polyRef, bool mustInsertInnerRings, bg_ring_t& helperRing)
-{
-	resPoly.clear(); dms_assert(resPoly.outer().empty() and resPoly.inners().empty());
-
-	boost::polygon::SA_ConstRingIterator<DmsPointType>
-		rb(polyRef, 0),
-		re(polyRef, -1);
-	auto ri = rb;
-	//			dbg_assert(ri != re);
-	if (ri == re)
-		return;
-
-	bool outerOrientation = true;
-	for (; ri != re; ++ri)
-	{
-		dms_assert((*ri).begin() != (*ri).end());
-		dms_assert((*ri).begin()[0] == (*ri).end()[-1]); // closed ?
-
-		helperRing.assign((*ri).begin(), (*ri).end());
-		if (!clean(helperRing))
-		{
-			if (ri == rb)
-				break;
-			else
-				continue;
-		}
-
-		dms_assert(helperRing.begin() != helperRing.end());
-		dms_assert(helperRing.begin()[0] == helperRing.end()[-1]); // closed ?
-
-		bool currOrientation = (boost::geometry::area(helperRing) > 0);
-		if (ri == rb)
-		{
-			resPoly.outer() = helperRing;
-			outerOrientation = currOrientation;
-		}
-		else
-		{
-			if (outerOrientation == currOrientation)
-				// don't start on 2nd polygon
-				throwErrorD("assign_polygon", "second ring with same orientation detected as first ring; "
-					"consider using an operation that supports multi_polygons (bg_buffer_multi_polygon or outer_multi_polygon)"
-				);
-
-			if (mustInsertInnerRings)
-				resPoly.inners().emplace_back(helperRing);
-		}
-	}
-}
-
-template <typename DmsPointType>
-void assign_multi_polygon(bg_multi_polygon_t& resMP, SA_ConstReference<DmsPointType> polyRef, bool mustInsertInnerRings
-	, bg_polygon_t& helperPolygon
-	, bg_ring_t& helperRing
-)
-{
-	resMP.clear();
-	
-	boost::polygon::SA_ConstRingIterator<DmsPointType>
-		rb(polyRef, 0),
-		re(polyRef, -1);
-	auto ri = rb;
-	//			dbg_assert(ri != re);
-	if (ri == re)
-		return;
-	bool outerOrientation = true;
-	for (; ri != re; ++ri)
-	{
-		assert((*ri).begin() != (*ri).end());
-		assert((*ri).begin()[0] == (*ri).end()[-1]); // closed ?
-
-		helperRing.assign((*ri).begin(), (*ri).end());
-		if (!clean(helperRing))
-		{
-			continue;
-		}
-
-		assert(helperRing.begin() != helperRing.end());
-		assert(helperRing.begin()[0] == helperRing.end()[-1]); // closed ?
-		bool currOrientation = (boost::geometry::area(helperRing) > 0);
-		if (ri == rb || currOrientation == outerOrientation)
-		{
-			if (ri != rb && !helperPolygon.outer().empty())
-				resMP.emplace_back(std::move(helperPolygon));
-			helperPolygon.clear(); assert(helperPolygon.outer().empty() && helperPolygon.inners().empty());
-
-			helperPolygon.outer().swap(helperRing);	// swap is faster than assign
-			outerOrientation = currOrientation;
-
-			// skip outer rings that intersect with a previous outer ring if innerRings are skipped
-			if (!mustInsertInnerRings)
-			{ 
-				SizeT polygonIndex = 0;
-				while (polygonIndex < resMP.size())
-				{
-					auto currPolygon = resMP.begin() + polygonIndex;
-					if (boost::geometry::intersects(currPolygon->outer(), helperPolygon.outer()))
-					{
-						if (boost::geometry::within(currPolygon->outer(), helperPolygon.outer()))
-						{
-							resMP.erase(currPolygon);
-							continue;
-						}
-						if (boost::geometry::within(helperPolygon.outer(), currPolygon->outer()))
-						{
-							helperPolygon.clear();
-							assert(helperPolygon.outer().empty() && helperPolygon.inners().empty());
-							break;
-						}
-
-						if (boost::geometry::overlaps(currPolygon->outer(), helperPolygon.outer()))
-							throwDmsErrF("OuterPolygon: unexpected overlap of two outer rings in %s", AsString(polyRef).c_str());
-
-						// a combination of touching outer rings such as in an 8 shape is 
-					}
-					polygonIndex++;
-				}
-			}
-		}
-		else if (mustInsertInnerRings)
-		{
-			helperPolygon.inners().emplace_back(helperRing);
-		}
-	}
-	if (!helperPolygon.outer().empty())
-		resMP.emplace_back(helperPolygon);
-}
-
-template <typename Numeric>
-auto sqr(Numeric x)
-{
-	return x * x;
-}
-
 template <typename P>
 void load_multi_linestring(bg_multi_linestring_t& mls, SA_ConstReference<P> multiLineStringRef, bg_linestring_t& helperLineString)
 {
@@ -591,7 +271,7 @@ template <typename DmsPointType>
 void store_ring(SA_Reference<DmsPointType> resDataElem, const auto& ring)
 {
 	assert(ring.begin()[0] == ring.end()[-1]); // closed ?
-	resDataElem.append(ring.begin(), ring.end());
+	resDataElem.append_range(ring);
 }
 
 template <typename DmsPointType>
@@ -674,6 +354,138 @@ auto bg_split_assign(RI resIter, const BG_MP& mp) -> RI
 	}
 	return resIter;
 
+}
+
+// *****************************************************************************
+//	assign from GeoDSM sequences to boost::geometry objects
+// *****************************************************************************
+
+template <typename DmsPointType>
+void assign_polygon(bg_polygon_t& resPoly, SA_ConstReference<DmsPointType> polyRef, bool mustInsertInnerRings
+	, bg_ring_t& helperRing)
+{
+	resPoly.clear(); dms_assert(resPoly.outer().empty() and resPoly.inners().empty());
+
+	SA_ConstRingIterator<DmsPointType> rb(polyRef, 0), re(polyRef, -1);
+	auto ri = rb;
+	//			dbg_assert(ri != re);
+	if (ri == re)
+		return;
+
+	bool outerOrientation = true;
+	for (; ri != re; ++ri)
+	{
+		dms_assert((*ri).begin() != (*ri).end());
+		dms_assert((*ri).begin()[0] == (*ri).end()[-1]); // closed ?
+
+		helperRing.assign((*ri).begin(), (*ri).end());
+		if (!clean(helperRing))
+		{
+			if (ri == rb)
+				break;
+			else
+				continue;
+		}
+
+		dms_assert(helperRing.begin() != helperRing.end());
+		dms_assert(helperRing.begin()[0] == helperRing.end()[-1]); // closed ?
+
+		bool currOrientation = (boost::geometry::area(helperRing) > 0);
+		if (ri == rb)
+		{
+			resPoly.outer() = helperRing;
+			outerOrientation = currOrientation;
+		}
+		else
+		{
+			if (outerOrientation == currOrientation)
+				// don't start on 2nd polygon
+				throwErrorD("assign_polygon", "second ring with same orientation detected as first ring; "
+					"consider using an operation that supports multi_polygons (bg_buffer_multi_polygon or outer_multi_polygon)"
+				);
+
+			if (mustInsertInnerRings)
+				resPoly.inners().emplace_back(helperRing);
+		}
+	}
+}
+
+template <typename DmsPointType>
+void assign_multi_polygon(bg_multi_polygon_t& resMP, SA_ConstReference<DmsPointType> polyRef, bool mustInsertInnerRings
+	, bg_polygon_t& helperPolygon
+	, bg_ring_t& helperRing
+)
+{
+	resMP.clear();
+
+	SA_ConstRingIterator<DmsPointType>
+		rb(polyRef, 0),
+		re(polyRef, -1);
+	auto ri = rb;
+	//			dbg_assert(ri != re);
+	if (ri == re)
+		return;
+	bool outerOrientation = true;
+	for (; ri != re; ++ri)
+	{
+		assert((*ri).begin() != (*ri).end());
+		assert((*ri).begin()[0] == (*ri).end()[-1]); // closed ?
+
+		helperRing.assign((*ri).begin(), (*ri).end());
+		if (!clean(helperRing))
+		{
+			continue;
+		}
+
+		assert(helperRing.begin() != helperRing.end());
+		assert(helperRing.begin()[0] == helperRing.end()[-1]); // closed ?
+		bool currOrientation = (boost::geometry::area(helperRing) > 0);
+		if (ri == rb || currOrientation == outerOrientation)
+		{
+			if (ri != rb && !helperPolygon.outer().empty())
+				resMP.emplace_back(std::move(helperPolygon));
+			helperPolygon.clear(); assert(helperPolygon.outer().empty() && helperPolygon.inners().empty());
+
+			helperPolygon.outer().swap(helperRing);	// swap is faster than assign
+			outerOrientation = currOrientation;
+
+			// skip outer rings that intersect with a previous outer ring if innerRings are skipped
+			if (!mustInsertInnerRings)
+			{
+				SizeT polygonIndex = 0;
+				while (polygonIndex < resMP.size())
+				{
+					auto currPolygon = resMP.begin() + polygonIndex;
+					if (boost::geometry::intersects(currPolygon->outer(), helperPolygon.outer()))
+					{
+						if (boost::geometry::within(currPolygon->outer(), helperPolygon.outer()))
+						{
+							resMP.erase(currPolygon);
+							continue;
+						}
+						if (boost::geometry::within(helperPolygon.outer(), currPolygon->outer()))
+						{
+							helperPolygon.clear();
+							assert(helperPolygon.outer().empty() && helperPolygon.inners().empty());
+							break;
+						}
+
+						if (boost::geometry::overlaps(currPolygon->outer(), helperPolygon.outer()))
+							throwDmsErrF("OuterPolygon: unexpected overlap of two outer rings in %s", AsString(polyRef).c_str());
+
+						// a combination of touching outer rings such as in an 8 shape is 
+					}
+					polygonIndex++;
+				}
+			}
+		}
+		else if (mustInsertInnerRings)
+		{
+			helperPolygon.inners().emplace_back(helperRing);
+		}
+	}
+	if (!helperPolygon.outer().empty())
+		resMP.emplace_back(helperPolygon);
 }
 
 

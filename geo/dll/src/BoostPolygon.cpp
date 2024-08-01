@@ -35,6 +35,8 @@
 #include <ipolygon/polygon.hpp>
 
 #include "BoostGeometry.h"
+#include "CGAL_Traits.h"
+
 
 enum class geometry_library { boost_polygon, boost_geometry, cgal };
 
@@ -279,8 +281,8 @@ public:
 
 		typedef typename SpatialIndexType::template iterator<BoxType> box_iter_type;
 		typedef typename scalar_of<P>::type coordinate_type;
-		typedef gtl::polygon_with_holes_data<coordinate_type> polygon_with_holes_type;
-		typedef gtl::polygon_set_data< coordinate_type > polygon_set_type;
+		using polygon_with_holes_type = bp::polygon_with_holes_data<coordinate_type>;
+		using polygon_set_type = bp::polygon_set_data< coordinate_type >;
 
 		typedef ResDataElemType res_data_elem_type;
 
@@ -309,17 +311,18 @@ public:
 
 			if constexpr (GL == geometry_library::boost_polygon)
 			{
-				typename polygon_set_type::clean_resources cleanResources;
+				typename polygon_set_type::clean_resources psdCleanResources;
 				polygon_set_type geometry;
 				for (box_iter_type iter = spIndexPtr->begin(bbox); iter; ++iter)
 				{
-					gtl::assign(geometry, *((*iter)->get_ptr()) & *polyPtr, cleanResources); // intersection
+					using namespace bp::operators;
+					bp::assign(geometry, *((*iter)->get_ptr()) & *polyPtr, psdCleanResources); // intersection
 
-					if (!geometry.size(cleanResources))
+					if (!geometry.size(psdCleanResources))
 						continue;
 
 					res_data_elem_type back;
-					bp_assign(back.m_Geometry, geometry, cleanResources);
+					bp_assign(back.m_Geometry, geometry, psdCleanResources);
 
 					back.m_OrgRel.first = p1_rel;
 					back.m_OrgRel.second = p2Offset + (((*iter)->get_ptr()) - poly2Array.begin());
@@ -496,7 +499,7 @@ boost::polygon::rectangle_data<C> get_enclosing_rectangle(const boost::polygon::
 }
 
 template <typename C, typename GT2>
-void dms_insert(gtl::polygon_set_data<C>& lvalue, const GT2& rvalue)
+void dms_insert(bp::polygon_set_data<C>& lvalue, const GT2& rvalue)
 {
 	using traits_t = bp_union_poly_traits<C>;
 	if (rvalue.size() == 0)
@@ -518,9 +521,9 @@ void dms_insert(gtl::polygon_set_data<C>& lvalue, const GT2& rvalue)
 	{
 		typename traits_t::point_type p;
 		// translate to zero to avoid numerical round-off errors
-		gtl::center(p, bpRect);
+		bp::center(p, bpRect);
 		typename traits_t::point_type mp(-x(p), -y(p));
-		gtl::convolve(bpRect, mp);
+		bp::convolve(bpRect, mp);
 		if (coords_using_more_than_25_bits(bpRect))
 			throwErrorF("boost::polygon::insert", "extent of objects is %s after moving it with %s, which requires more than 25 bits for coordinates"
 				, AsString(bpRect)
@@ -533,14 +536,14 @@ void dms_insert(gtl::polygon_set_data<C>& lvalue, const GT2& rvalue)
 		for (auto& rvcp : rvalueCopy)
 			boost::polygon::convolve(rvcp, mp);
 
-		using vector_traits = gtl::polygon_set_traits<point_vector>;
+		using vector_traits = bp::polygon_set_traits<point_vector>;
 		lvalue.insert(vector_traits::begin( rvalueCopy ), vector_traits::end( rvalueCopy ));
 
 		lvalue.move(p);
 		return;
 	}
 
-	using GT2_traits = gtl::polygon_set_traits<GT2>;
+	using GT2_traits = bp::polygon_set_traits<GT2>;
 	lvalue.insert(GT2_traits::begin(rvalue), GT2_traits::end(rvalue));
 }
 
@@ -946,9 +949,9 @@ struct union_bp_polygonsets
 			{
 				typename traits_t::point_type p;
 				// translate to zero to avoid numerical round-off errors
-				gtl::center(p, bpRect);
+				bp::center(p, bpRect);
 				typename traits_t::point_type mp(-x(p), -y(p));
-				gtl::convolve(bpRect, mp);
+				bp::convolve(bpRect, mp);
 				if (coords_using_more_than_25_bits(bpRect))
 					throwErrorF("union_bp_polygonsets", "extent of objects is %s after moving it with %s, which requires more than 25 bits for coordinates"
 						, AsString(bpRect)
@@ -1056,9 +1059,9 @@ public:
 			if (mustTranslate)
 			{
 				/* translate to zero to avoid numerical round-off errors */
-				gtl::center(p, rectangle);
+				bp::center(p, rectangle);
 				typename traits_t::point_type mp(-x(p), -y(p));
-				gtl::convolve(rectangle, mp);
+				bp::convolve(rectangle, mp);
 				if (coords_using_more_than_25_bits(rectangle))
 					throwErrorF("boost::polygon::ProcessSuffix", "extent of object is %s after moving it with %s, which requires more than 25 bits for coordinates"
 						, AsString(rectangle)
@@ -1077,7 +1080,7 @@ public:
 					resize(geometryData, -value, true, 8, convolveResources); //geometryData -= value;
 					break;
 				case PolygonFlags::F_Filter1:
-					gtl::keep(geometryData, 
+					bp::keep(geometryData, 
 						value, MAX_VALUE(traits_t::area_type), 
 						0, MAX_VALUE(traits_t::unsigned_area_type), 
 						0, MAX_VALUE(traits_t::unsigned_area_type)
@@ -1089,7 +1092,7 @@ public:
 					geometry.clear();
 					geometryData.get(geometry, cleanResources);
 
-					gtl::detail::minkowski_offset<ScalarType>::convolve_kernel_with_polygon_set(geometryData, geometry, kernel.begin(), kernel.end(), (flag >= PolygonFlags::F_D4HV1));
+					bp::detail::minkowski_offset<ScalarType>::convolve_kernel_with_polygon_set(geometryData, geometry, kernel.begin(), kernel.end(), (flag >= PolygonFlags::F_D4HV1));
 			}
 			/* translate result back to where it came from */
 			geometryData.clean(cleanResources); // remove internal edges
@@ -1352,17 +1355,17 @@ public:
 
 		if (nrVertices)
 		{
-			gtl::connectivity_extraction<ScalarType> ce;
-			typename gtl::connectivity_extraction<ScalarType>::insert_resources ceResources;
+			bp::connectivity_extraction<ScalarType> ce;
+			typename bp::connectivity_extraction<ScalarType>::insert_resources ceInsertResources;
 
-			gtl::polygon_set_data<ScalarType> polygon;
-			typename gtl::polygon_set_data<ScalarType>::clean_resources claimResources;
+			bp::polygon_set_data<ScalarType> polygon;
+			typename bp::polygon_set_data<ScalarType>::clean_resources psdCleanResources;
 			for (SizeT i=0; i!=nrVertices; ++i)
 			{
 				if (polyData[i].size() > 2)
 				{
-					gtl::assign(polygon, polyData[i], claimResources);
-					int result = ce.insert(polygon, ceResources);
+					bp::assign(polygon, polyData[i], psdCleanResources);
+					int result = ce.insert(polygon, ceInsertResources);
 					dms_assert(result == domain_rel.size());
 					domain_rel.emplace_back(i);
 				}
@@ -1370,9 +1373,9 @@ public:
 
 			if (domain_rel.size())
 			{
-				typename gtl::connectivity_extraction<ScalarType>::extract_resources extractResources;
+				typename bp::connectivity_extraction<ScalarType>::extract_resources ceExtractResources;
 				graph.resize(domain_rel.size());
-				ce.extract(graph, extractResources);
+				ce.extract(graph, ceExtractResources);
 
 				for (auto gi = graph.begin(), ge = graph.end(); gi != ge; ++gi)
 					nrEdges += gi->size();

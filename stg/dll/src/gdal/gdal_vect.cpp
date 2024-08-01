@@ -19,7 +19,9 @@
 #include "dbg/debug.h"
 #include "dbg/SeverityType.h"
 #include "geo/Conversions.h"
+#include "geo/ConvertFunctor.h"
 #include "geo/PointOrder.h"
+#include "geo/RingIterator.h"
 #include "mci/ValueClass.h"
 #include "mci/ValueClassID.h"
 #include "mci/ValueComposition.h"
@@ -44,8 +46,6 @@
 #include "TreeItemProps.h"
 #include "UnitClass.h"
 
-#include "geo/BoostPolygon.h"
-#include "geo/ConvertFunctor.h"
 #include "Projection.h"
 
 #include "stg/StorageClass.h"
@@ -1009,22 +1009,18 @@ void SetArcGeometryForFeature(OGRFeature* feature, SequenceType b, ValueComposit
 }
 
 template<typename PointType>
-void SetPolygonGeometryForFeature(OGRFeature* feature, SA_ConstReference<PointType> polygon, ValueComposition vc)
+void SetPolygonGeometryForFeature(OGRFeature* feature, SA_ConstReference<PointType> pointSequence, ValueComposition vc)
 {
 	dms_assert(vc == ValueComposition::Polygon);
 
 
 	auto OGRMultiPoly = (OGRMultiPolygon*)OGRGeometryFactory::createGeometry(wkbMultiPolygon);
-	auto OGRPoly      = (OGRPolygon*)OGRGeometryFactory::createGeometry(wkbPolygon);
+	auto OGRPoly      = (OGRPolygon*     )OGRGeometryFactory::createGeometry(wkbPolygon);
 
 	typedef typename sequence_traits<PointType  >::container_type PolygonType;
 	typedef typename sequence_traits<PolygonType>::container_type PolygonArray;
 
-	boost::polygon::SA_ConstRingIterator<PointType>
-		ri(polygon, 0),
-		re(polygon, -1);
-
-	for (; ri != re; ++ri) // rings
+	for (SA_ConstRingIterator<PointType> ri(pointSequence, 0), re(pointSequence, -1); ri != re; ++ri) // iterate over all rings in pointSequence
 	{
 		auto ring = *ri;
 		auto OGRRing = (OGRLinearRing*)OGRGeometryFactory::createGeometry(wkbLinearRing);
@@ -1039,9 +1035,10 @@ void SetPolygonGeometryForFeature(OGRFeature* feature, SA_ConstReference<PointTy
 		OGRPoly->addRing(OGRRing);
 	}
 
+	// TODO: As OGRMultiPoly only has a single OGRPoly added, we could use OGRPoly directly
 	OGRMultiPoly->addGeometry(OGRPoly);
 
-	feature->SetGeometry((OGRGeometry*)OGRMultiPoly); // TODO: makes a copy, switch to SetGeometryDirectly
+	feature->SetGeometry(OGRMultiPoly); // TODO: makes a copy, switch to SetGeometryDirectly
 }
 
 bool GdalVectSM::WriteGeometryElement(const AbstrDataItem* adi, OGRFeature* feature, tile_id t, SizeT tileFeatureIndex)

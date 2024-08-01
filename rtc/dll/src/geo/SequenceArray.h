@@ -101,6 +101,8 @@ when the last sequence often grows, but adds a constant cost to the re-allocatio
 #if !defined(__GEO_SEQUENCE_ARRAY_H)
 #define __GEO_SEQUENCE_ARRAY_H
 
+#include <ranges>
+
 #include "dbg/Check.h"
 #include "geo/IndexRange.h"
 #include "geo/SequenceTraits.h"
@@ -359,6 +361,12 @@ struct SA_Reference : private SequenceArray_Base<T>
 		fast_copy(first, last, startPtr);
 	}
 
+	template <std::ranges::range Range>
+	requires std::convertible_to<std::ranges::range_value_t<Range>, T>
+	void append_range(Range&& range)
+	{
+		append(std::begin(range), std::end(range));
+	}
 
 	RTC_CALL void erase(iterator first, iterator last);
 	RTC_CALL void clear();

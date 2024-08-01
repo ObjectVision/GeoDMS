@@ -82,6 +82,7 @@
     <ClInclude Include="src\geo\IterTraits.h" />
     <ClInclude Include="src\geo\neighbouriter.h" />
     <ClInclude Include="src\geo\PointIndexBuffer.h" />
+    <ClInclude Include="src\geo\RingIterator.h" />
     <ClInclude Include="src\geo\Undef_xx.h" />
     <ClInclude Include="src\ipolygon\detail\boolean_op.hpp" />
     <ClInclude Include="src\ipolygon\detail\boolean_op_45.hpp" />
@@ -109,7 +110,6 @@
     <ClInclude Include="src\ipolygon\detail\voronoi_robust_fpt.hpp" />
     <ClInclude Include="src\ipolygon\detail\voronoi_structures.hpp" />
     <ClInclude Include="src\ipolygon\gmp_override.hpp" />
-    <ClInclude Include="src\ipolygon\gtl.hpp" />
     <ClInclude Include="src\ipolygon\interval_concept.hpp" />
     <ClInclude Include="src\ipolygon\interval_data.hpp" />
     <ClInclude Include="src\ipolygon\interval_traits.hpp" />

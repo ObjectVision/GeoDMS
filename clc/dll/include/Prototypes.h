@@ -9,6 +9,8 @@
 #if !defined(__CLC_PROTOTYPES_H)
 #define __CLC_PROTOTYPES_H
 
+#include "RtcBase.h"
+
 template <typename T> struct null_wrap;
 
 template <typename T>

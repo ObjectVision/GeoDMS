@@ -81,6 +81,8 @@
     <ClInclude Include="src\bi_graph.h" />
     <ClInclude Include="src\BoostGeometry.h" />
     <ClInclude Include="src\BoundingBoxCache.h" />
+    <ClInclude Include="src\CGAL_60\Polygon_repair\repair.h" />
+    <ClInclude Include="src\CGAL_Traits.h" />
     <ClInclude Include="src\Dijkstra.h" />
     <ClInclude Include="src\GeoBase.h" />
     <ClInclude Include="src\GeoInterface.h" />
