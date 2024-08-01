@@ -110,44 +110,6 @@ struct BgMultiPolygonOperator : BinaryMapAlgebraicOperator<P>
 };
 
 // *****************************************************************************
-//	CGAL support functions
-// *****************************************************************************
-auto face_to_ring(const CGAL_Traits::Arrangement::Ccb_halfedge_const_circulator ccb)
-{
-	CGAL_Traits::Ring result;
-
-	auto curr = ccb;
-	do {
-		result.push_back(curr->source()->point());
-	} while (++curr != ccb);
-
-	return result;
-}
-
-void arrangement_to_polygons(const CGAL_Traits::Arrangement& arr, CGAL_Traits::Polygon_set& polygons)
-{
-	for (auto fit = arr.faces_begin(); fit != arr.faces_end(); ++fit) 
-	{
-		if (fit->is_unbounded() || fit->number_of_outer_ccbs() != 1)
-			continue;
-
-		CGAL_Traits::Ring outer_boundary = face_to_ring(fit->outer_ccb());
-
-		std::list<CGAL_Traits::Ring> holes;
-		for (auto h = fit->holes_begin(); h != fit->holes_end(); ++h) {
-			CGAL_Traits::Ring hole = face_to_ring(*h);
-			holes.push_back(hole);
-		}
-		std::map<CGAL_Traits::Point, UInt32> vectexCount;
-		for (auto p : outer_boundary)
-			++vectexCount[p];
-
-		CGAL_Traits::Polygon_with_holes poly(outer_boundary, holes.begin(), holes.end());
-		polygons.join(poly);
-	}
-}
-
-// *****************************************************************************
 //	map algebraic operations on CGAL polygons
 // *****************************************************************************
 

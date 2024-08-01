@@ -51,12 +51,10 @@
 
 #include "CGAL_60/Polygon_repair/repair.h"
 
-//#include <CGAL/draw_polygon_set_2.h>
-
 struct CGAL_Traits
 {
-	using Kernel = CGAL::Exact_predicates_exact_constructions_kernel;
-//	using Kernel = CGAL::Exact_predicates_inexact_constructions_kernel;
+//	using Kernel = CGAL::Exact_predicates_exact_constructions_kernel;
+	using Kernel = CGAL::Exact_predicates_inexact_constructions_kernel;
 	using Point = CGAL::Point_2< Kernel >;
 	using Segment = Kernel::Segment_2;
 
@@ -64,8 +62,8 @@ struct CGAL_Traits
 	using Polygon_with_holes = CGAL::Polygon_with_holes_2<Kernel>;
 	using Polygon_set = CGAL::Polygon_set_2<Kernel>;
 
-	using ArrTraits = CGAL::Arr_segment_traits_2<Kernel>;
-	using Arrangement = CGAL::Arrangement_2<ArrTraits>;
+//	using ArrTraits = CGAL::Arr_segment_traits_2<Kernel>;
+//	using Arrangement = CGAL::Arrangement_2<ArrTraits>;
 };
 
 template <typename DmsPointType>
@@ -73,8 +71,6 @@ void append_point(CGAL_Traits::Ring& ring, DmsPointType p)
 {
 	ring.push_back(CGAL_Traits::Point(p.X(), p.Y()));
 }
-
-void arrangement_to_polygons(const CGAL_Traits::Arrangement& arr, CGAL_Traits::Polygon_set& polygons);
 
 template <typename DmsPointType>
 void assign_multi_polygon(CGAL_Traits::Polygon_set& resMP, SA_ConstReference<DmsPointType> polyRef, bool mustInsertInnerRings
@@ -89,11 +85,9 @@ void assign_multi_polygon(CGAL_Traits::Polygon_set& resMP, SA_ConstReference<Dms
 		rb(polyRef, 0),
 		re(polyRef, -1);
 	auto ri = rb;
-	//			dbg_assert(ri != re);
+
 	if (ri == re)
 		return;
-
-//	CGAL::Orientation outerOrientation = CGAL::Orientation::COUNTERCLOCKWISE;
 
 	std::vector<DmsPointType> ringPoints;
 	for (; ri != re; ++ri)
@@ -152,23 +146,6 @@ void assign_multi_polygon(CGAL_Traits::Polygon_set& resMP, SA_ConstReference<Dms
 				resMP.insert(resPolygonWithHoles);
 			foundHoles.clear();
 			break;
-
-/*
-			CGAL_Traits::Arrangement arr;
-
-			std::vector<CGAL_Traits::Segment> segments;
-			for (auto it = helperRing.vertices_begin(); it != helperRing.vertices_end(); ++it) {
-				auto next = std::next(it);
-				if (next == helperRing.vertices_end()) {
-					next = helperRing.vertices_begin();
-				}
-				segments.push_back(CGAL_Traits::Segment(*it, *next));
-			}
-			CGAL::insert_non_intersecting_curves(arr, segments.begin(), segments.end());
-
-			// Decompose the arrangement into polygons
-			arrangement_to_polygons(arr, resMP);
-*/
 		}
 	}
 	// remove holes now
