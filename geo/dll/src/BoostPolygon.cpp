@@ -113,8 +113,10 @@ static TokenID
 class AbstrPolygonOverlayOperator : public BinaryOperator
 {
 protected:
+	using ResultingDomainType = UInt32;
+
 	AbstrPolygonOverlayOperator(AbstrOperGroup& gr, const DataItemClass* polyAttrClass)
-		:	BinaryOperator(&gr, Unit<UInt32>::GetStaticClass()
+		:	BinaryOperator(&gr, Unit<ResultingDomainType>::GetStaticClass()
 			,	polyAttrClass
 			,	polyAttrClass
 			)
@@ -137,7 +139,7 @@ protected:
 
 		values1Unit->UnifyValues(values2Unit, "v1", "v2", UM_Throw);
 
-		AbstrUnit* res = Unit<UInt32>::GetStaticClass()->CreateResultUnit(resultHolder);
+		AbstrUnit* res = Unit<ResultingDomainType>::GetStaticClass()->CreateResultUnit(resultHolder);
 		resultHolder = res;
 
 		AbstrDataItem* resG = CreateDataItem(res, s_tGM, res, values1Unit, ValueComposition::Polygon);
@@ -203,14 +205,13 @@ protected:
 template <typename P, geometry_library GL>
 class PolygonOverlayOperator : public AbstrPolygonOverlayOperator
 {
-	typedef P                      PointType;
+	typedef P                       PointType;
 	typedef std::vector<PointType>  PolygonType;
-	typedef Unit<PointType>        PointUnitType;
-	typedef Range<PointType>       BoxType;
+	typedef Unit<PointType>         PointUnitType;
+	typedef Range<PointType>        BoxType;
 	typedef std::vector<BoxType>    BoxArrayType;
 
-	typedef DataArray<PolygonType> Arg1Type;
-	typedef DataArray<PolygonType> Arg2Type;
+	using ArgType = DataArray<PolygonType>;
 
 	struct ResDataElemType {
 		PolygonType  m_Geometry;
@@ -219,23 +220,23 @@ class PolygonOverlayOperator : public AbstrPolygonOverlayOperator
 		bool operator < (const ResDataElemType& oth) { return m_OrgRel < oth.m_OrgRel;  }
 	};
 
-	typedef std::vector<ResDataElemType> ResTileDataType;
-	typedef std::map<Point<tile_id>, ResTileDataType> ResDataType;
+	using ResTileDataType = std::vector<ResDataElemType>;
+	using ResDataType     = std::map<Point<tile_id>, ResTileDataType>;
 
-	typedef typename scalar_of<PointType>::type  ScalarType;
-	typedef SpatialIndex<ScalarType, typename Arg2Type::const_iterator> SpatialIndexType;
-	typedef std::vector<SpatialIndexType> SpatialIndexArrayType;
+	using ScalarType = scalar_of_t<PointType>;
+	using SpatialIndexType = SpatialIndex<ScalarType, typename ArgType::const_iterator>;
+	using SpatialIndexArrayType = std::vector<SpatialIndexType>;
 
 public:
 	PolygonOverlayOperator(AbstrOperGroup& gr)
-		:	AbstrPolygonOverlayOperator(gr, Arg1Type::GetStaticClass())
+		:	AbstrPolygonOverlayOperator(gr, ArgType::GetStaticClass())
 	{}
 
 	// Override Operator
 	void CreatePolyHandle(const AbstrDataItem* polyDataA, tile_id u, ResourceHandle& polyInfoHandle) const override
 	{
-		const Arg2Type* polyData  = const_array_cast<PolygonType>(polyDataA);
-		dms_assert(polyData); 
+		auto polyData  = const_array_cast<PolygonType>(polyDataA);
+		assert(polyData); 
 
 		auto polyArray = polyData->GetTile(u);
 		polyInfoHandle = makeResource<SpatialIndexType>(polyArray.begin(), polyArray.end(), 0);
@@ -247,11 +248,11 @@ public:
 			pointBoxDataHandle = makeResource<BoxArrayType>(polyDataA->GetAbstrDomainUnit()->GetNrTiles());
 		BoxArrayType& boxArray = GetAs<BoxArrayType>(pointBoxDataHandle);
 
-		const Arg1Type* polyData = const_array_cast<PolygonType>(polyDataA);
-		dms_assert(polyData); 
+		auto polyData = const_array_cast<PolygonType>(polyDataA);
+		assert(polyData); 
 
 		auto polyArray = polyData->GetTile(t);
-		dms_assert(t < boxArray.size());
+		assert(t < boxArray.size());
 		boxArray[t] = RangeFromSequence(polyArray.begin(), polyArray.end());
 	}
 
@@ -265,11 +266,11 @@ public:
 
 	void Calculate(ResourceHandle& resDataHandle, leveled_critical_section& resInsertSection, const AbstrDataItem* poly1DataA, const AbstrDataItem* poly2DataA, tile_id t, tile_id u, const ResourceHandle& polyInfoHandle) const override
 	{
-		const Arg1Type* poly1Data = const_array_cast<PolygonType>(poly1DataA);
-		const Arg2Type* poly2Data = const_array_cast<PolygonType>(poly2DataA);
+		auto poly1Data = const_array_cast<PolygonType>(poly1DataA);
+		auto poly2Data = const_array_cast<PolygonType>(poly2DataA);
 
-		dms_assert(poly1Data); 
-		dms_assert(poly2Data);
+		assert(poly1Data); 
+		assert(poly2Data);
 
 		auto poly1Array = poly1Data->GetTile(t);
 		auto poly2Array = poly2Data->GetTile(u);
@@ -284,7 +285,7 @@ public:
 		using polygon_with_holes_type = bp::polygon_with_holes_data<coordinate_type>;
 		using polygon_set_type = bp::polygon_set_data< coordinate_type >;
 
-		typedef ResDataElemType res_data_elem_type;
+		using res_data_elem_type = ResDataElemType;
 
 		ResTileDataType* resTileData = nullptr;
 		if (!resTileData)
@@ -296,7 +297,7 @@ public:
 			ResDataType& resData = GetAs<ResDataType>(resDataHandle);
 			resTileData = &(resData[Point<tile_id>(t, u)]);
 		}
-		dms_assert(resTileData);
+		assert(resTileData);
 
 		leveled_critical_section resLocalAdditionSection(item_level_type(0), ord_level_type::SpecificOperator, "Polygon.LocalAdditionSection");
 
@@ -401,7 +402,7 @@ public:
 		if (resData)
 			for (auto& resTiles : *resData) // ordered by (t, u)
 				count += resTiles.second.size();
-		res->SetCount(count);
+		res->SetCount(ThrowingConvert<ResultingDomainType>(count));
 
 		locked_tile_write_channel<PolygonType> resGWriter(resG);
 		locked_tile_write_channel<UInt32> res1Writer(res1);
@@ -1295,8 +1296,10 @@ static TokenID tF1 = GetTokenID_st("F1"), tF2 = GetTokenID_st("F2");
 class AbstrPolygonConnectivityOperator : public UnaryOperator
 {
 protected:
+	using ResultingDomainType = UInt32;
+
 	AbstrPolygonConnectivityOperator(const DataItemClass* polyAttrClass)
-		:	UnaryOperator(&cogPC, Unit<UInt32>::GetStaticClass()
+		:	UnaryOperator(&cogPC, Unit<ResultingDomainType>::GetStaticClass()
 			,	polyAttrClass
 			)
 	{}
@@ -1310,7 +1313,7 @@ protected:
 
 		const AbstrUnit* domain1Unit = arg1A->GetAbstrDomainUnit();
 
-		AbstrUnit* res = Unit<UInt32>::GetStaticClass()->CreateResultUnit(resultHolder);
+		AbstrUnit* res = Unit<ResultingDomainType>::GetStaticClass()->CreateResultUnit(resultHolder);
 		res->SetTSF(TSF_Categorical);
 
 		resultHolder = res;
@@ -1332,14 +1335,11 @@ protected:
 template <typename P>
 class PolygonConnectivityOperator : public AbstrPolygonConnectivityOperator
 {
-	typedef P                      PointType;
-	typedef std::vector<PointType>  PolygonType;
+	using PointType = P;
+	using PolygonType = std::vector<PointType>;
 
-	typedef DataArray<PolygonType> Arg1Type;
-
-//	typedef std::vector<ResDataElemType> ResDataType;
-
-	typedef typename scalar_of<PointType>::type  ScalarType;
+	using Arg1Type = DataArray<PolygonType>;
+	using ScalarType = scalar_of_t<PointType>;
 
 public:
 	PolygonConnectivityOperator()
@@ -1380,11 +1380,11 @@ public:
 				for (auto gi = graph.begin(), ge = graph.end(); gi != ge; ++gi)
 					nrEdges += gi->size();
 
-				dms_assert(nrEdges % 2 == 0);
+				assert(nrEdges % 2 == 0);
 				nrEdges /= 2;
 			}
 		}
-		res->SetCount(nrEdges);
+		res->SetCount(ThrowingConvert< ResultingDomainType>(nrEdges));
 		DataWriteLock resF1Lock(resF1);
 		DataWriteLock resF2Lock(resF2);
 
@@ -1397,7 +1397,7 @@ public:
 			for (auto vsi = gi->begin(), vse=gi->end(); vsi!=vse; ++vsi)
 				if (i < *vsi)
 				{
-					dms_assert(*vsi < domain_rel.size());
+					assert(*vsi < domain_rel.size());
 					indexAssigner1.m_Indices[e] = domain_rel[i];
 					indexAssigner2.m_Indices[e] = domain_rel[ * vsi ];
 					++e;
@@ -1406,7 +1406,123 @@ public:
 		indexAssigner1.Store();
 		indexAssigner2.Store();
 
-		dms_assert( e == nrEdges);
+		assert( e == nrEdges);
+		resF2Lock.Commit();
+		resF1Lock.Commit();
+	}
+};
+
+CommonOperGroup cogBC("box_connectivity", oper_policy::better_not_in_meta_scripting);
+
+class AbstrBoxConnectivityOperator : public BinaryOperator
+{
+	using ResultingDomainType = UInt32;
+
+	AbstrBoxConnectivityOperator(const DataItemClass* polyAttrClass)
+		: BinaryOperator(&cogBC, Unit<ResultingDomainType>::GetStaticClass()
+			, polyAttrClass, polyAttrClass
+		)
+	{}
+
+	bool CreateResult(TreeItemDualRef& resultHolder, const ArgSeqType& args, bool mustCalc) const override
+	{
+		assert(args.size() == 2);
+
+		const AbstrDataItem* arg1A = AsDataItem(args[0]); assert(arg1A);
+		const AbstrDataItem* arg2A = AsDataItem(args[1]); assert(arg1A);
+
+		const AbstrUnit* e = arg1A->GetAbstrDomainUnit();
+		if (!mustCalc)
+			e->UnifyDomain(arg2A->GetAbstrDomainUnit(), "e1", "e2", UM_Throw);
+
+
+		AbstrUnit* res = Unit<ResultingDomainType>::GetStaticClass()->CreateResultUnit(resultHolder);
+		res->SetTSF(TSF_Categorical);
+
+		resultHolder = res;
+
+		AbstrDataItem* resF1 = CreateDataItem(res, tF1, res, e);
+		AbstrDataItem* resF2 = CreateDataItem(res, tF2, res, e);
+
+		if (mustCalc)
+		{
+			DataReadLock arg1Lock(arg1A);
+			DataReadLock arg2Lock(arg2A);
+
+			Calculate(res, resF1, resF2, arg1A, arg2A);
+		}
+		return true;
+	}
+	virtual void Calculate(AbstrUnit* res, AbstrDataItem* resF1, AbstrDataItem* resF2, const AbstrDataItem* arg1A, const AbstrDataItem* arg2A) const = 0;
+};
+
+template <typename P>
+class BoxConnectivityOperator : public AbstrBoxConnectivityOperator
+{
+	using PointType = P;
+	using ScalarType = scalar_of_t<P>;
+	using RectType = Range<P>;
+	using RectTypePtr = RectType*;
+	using Arg1Type = DataArray<PointType>;
+
+public:
+	BoxConnectivityOperator()
+		: AbstrBoxConnectivityOperator(Arg1Type::GetStaticClass())
+	{}
+	void Calculate(AbstrUnit* res, AbstrDataItem* resF1, AbstrDataItem* resF2, const AbstrDataItem* arg1A, const AbstrDataItem* arg2A) const override
+	{
+		auto lowerBoundData = const_array_cast<PointType>(arg1A)->GetDataRead();
+		auto upperBoundData = const_array_cast<PointType>(arg2A)->GetDataRead();
+
+		std::vector<RectType> rects; rects.reserve(lowerBoundData.size());
+		for (SizeT i = 0, n= lowerBoundData.size(); i !=n; ++i)
+			rects.emplace_back(lowerBoundData[i], upperBoundData[i]);
+		lowerBoundData = {};
+		upperBoundData = {};
+
+		auto spatialIndex = SpatialIndex<ScalarType, RectTypePtr>(begin_ptr( rects ), end_ptr( rects ));
+		
+		// counting
+		SizeT nrEdges = 0;
+		for (const auto& rect : rects)
+		{
+			SizeT index = &rect - begin_ptr(rects);
+			for (auto iter = spatialIndex.begin(rect); iter; ++iter)
+				if (Intersects(*((*iter)->get_ptr()), rect))
+				{
+					SizeT index2 = (*iter)->get_ptr() - beginPtr(rects);
+					if (index < index2)
+						++nrEdges;
+				}
+		}
+		res->SetCount(ThrowingConvert<ResultingDomainType>(nrEdges));
+		DataWriteLock resF1Lock(resF1);
+		DataWriteLock resF2Lock(resF2);
+
+		IndexAssigner32 indexAssigner1(resF1, resF1Lock.get(), no_tile, 0, nrEdges);
+		IndexAssigner32 indexAssigner2(resF2, resF2Lock.get(), no_tile, 0, nrEdges);
+
+		SizeT e = 0;
+		for (const auto& rect : rects)
+		{
+			SizeT index = &rect - begin_ptr(rects);
+			for (auto iter = spatialIndex.begin(rect); iter; ++iter)
+				if (Intersects(*((*iter)->get_ptr()), rect))
+				{
+					SizeT index2 = (*iter)->get_ptr() - beginPtr(rects);
+					if (index < index2)
+					{
+						assert(*vsi < domain_rel.size());
+						indexAssigner1.m_Indices[e] = index;
+						indexAssigner2.m_Indices[e] = index2;
+						++e;
+					}
+				}
+		}
+		indexAssigner1.Store();
+		indexAssigner2.Store();
+
+		assert(e == nrEdges);
 		resF2Lock.Commit();
 		resF1Lock.Commit();
 	}

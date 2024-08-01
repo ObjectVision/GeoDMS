@@ -1270,8 +1270,8 @@ void point_in_ranked_polygon(
 	typedef ResSequence::value_type     ResValueType;
 
 	SizeT count = resData.size();
-	dms_assert(count == pointData.size());
-	dms_assert(polyData.size() == Cardinality(polyDomain));
+	assert(count == pointData.size());
+	assert(polyData.size() == Cardinality(polyDomain));
 
 	auto rb = resData.begin();
 	auto pb = pointData.begin();
@@ -1294,7 +1294,7 @@ void point_in_ranked_polygon(
 				if (IsInside(*((*iter)->get_ptr()), *pi))
 				{
 					SizeT c = (*iter)->get_ptr() - polyb;
-					dms_assert(c < Cardinality(polyDomain));
+					assert(c < Cardinality(polyDomain));
 					RankType thisRank = rankData[c];
 					if (!IsDefined(foundRank) || thisRank > foundRank)
 					{

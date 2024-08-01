@@ -128,7 +128,7 @@ private:
 template <typename PointType>
 struct PointLeaf: LeafBase<PointType, const PointType*, PointLeaf<PointType> >
 {
-	typedef PointType        extents_type;
+	using extents_type = PointType;
 
 	PointLeaf(const PointType* ptr) : LeafBase<PointType, const PointType*, PointLeaf<PointType> >(ptr) { dms_assert(ptr); }
 	const extents_type& GetExtents() const { return *this->get_ptr(); }
@@ -138,7 +138,7 @@ struct PointLeaf: LeafBase<PointType, const PointType*, PointLeaf<PointType> >
 template <typename PointType, typename ObjectPtr>
 struct PolyLeaf: LeafBase<PointType, ObjectPtr, PolyLeaf<PointType, ObjectPtr>>
 {
-	typedef Range<PointType> extents_type;
+	using extents_type = Range<PointType>;
 
 	PolyLeaf(ObjectPtr ptr) : LeafBase<PointType, ObjectPtr, PolyLeaf<PointType, ObjectPtr>>(ptr), m_Bounds(RangeFromPtr<PointType>(ptr)) { }
 
@@ -155,7 +155,9 @@ template <typename PointType> struct LeafTypeGetter<PointType, const PointType*>
 template <typename PointType> struct LeafTypeGetter<PointType, const std::vector<PointType>*> { typedef PolyLeaf <PointType, const std::vector<PointType>*> type; };
 template <typename PointType> struct LeafTypeGetter<PointType, SA_ConstIterator<PointType> > { typedef PolyLeaf <PointType, SA_ConstIterator<PointType> > type; };
 template <typename PointType> struct LeafTypeGetter<PointType, sequence_array_index<PointType> > { typedef PolyLeaf <PointType, sequence_array_index<PointType> > type; };
- 
+
+template <typename PointType, typename ObjectPtr> using LeafTypeGetter_t = LeafTypeGetter<PointType, ObjectPtr>::type;
+
 
 template <typename PointType, typename LeafType>
 Bool AnyOffCross(PointType center, LeafType lf)
@@ -205,14 +207,15 @@ Bool MustSplit(const LeafType* lf, PointType center)
 template <typename T, typename ObjectPtr>
 struct SpatialIndex
 {
-//	using namespace SpatialIndexImpl;
-	typedef T                          DistType;
-	typedef ObjectPtr                  ObjectPtrType;
-	typedef Point<T>                   PointType;
-	typedef Range<PointType>           RangeType;
+	using ObjectPtrType = ObjectPtr;
+	using DistType	    = T;
 
-	typedef typename SpatialIndexImpl::LeafTypeGetter<PointType, ObjectPtrType>::type LeafType;
-	typedef std::vector<LeafType>       LeafContainer;
+	using PointType     = Point<T>;
+	using RangeType     = Range<PointType>;
+
+
+	using LeafType = SpatialIndexImpl::LeafTypeGetter_t<PointType, ObjectPtrType>;
+	using LeafContainer = std::vector<LeafType>;
 
 	struct Node
 	{

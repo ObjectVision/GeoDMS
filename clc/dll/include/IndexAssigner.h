@@ -80,8 +80,8 @@ struct IndexAssignerBase : UnitProcessor
 	std::unique_ptr<IndexType[]> m_ResBuffer;
 };
 
-typedef IndexAssignerBase<UInt32> IndexAssigner32;
-typedef IndexAssignerBase<SizeT > IndexAssignerSizeT;
+using IndexAssigner32    = IndexAssignerBase<UInt32>;
+using IndexAssignerSizeT = IndexAssignerBase<SizeT>;
 
 /******************************************************************************/
 
