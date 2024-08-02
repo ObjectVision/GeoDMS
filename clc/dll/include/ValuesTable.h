@@ -22,15 +22,29 @@
 #include "FutureTileArray.h"
 #include "UnitProcessor.h"
 
+#include "AggrFuncNum.h"
 #include "AttrBinStruct.h"
 #include "IndexGetterCreator.h"
 #include "ValuesTableTypes.h"
 
+const UInt32 BUFFER_SIZE = 1024;
 const UInt32 MAX_PAIR_COUNT = 4096;
 
 //----------------------------------------------------------------------
 
-const UInt32 BUFFER_SIZE = 1024;
+template<typename R> void SafeIncrementCounter(R& assignee)
+{
+	SafeIncrement(assignee);
+}
+
+inline void SafeIncrementCounter(SizeT& assignee)
+{
+	assignee++;
+	assert(assignee); // SizeT cannot overflow when counting distict addressable elements
+}
+
+//----------------------------------------------------------------------
+
 
 template <ordered_value_type V, count_type C>
 ValueCountPairContainerT<V, C> GetCountsDirect(typename sequence_traits<V>::cseq_t data, tile_offset index, tile_offset size)
@@ -272,7 +286,7 @@ auto GetWeededTileCounts(typename sequence_traits<V>::cseq_t data, SizeT index, 
 	auto secondHalf = GetWeededTileCounts<V, C>(data, index + m, size - m, maxPairCount);
 	return WeededMergeToLeft(firstHalf, secondHalf, maxPairCount);
 }
-
+/* REMOVE
 template <ordered_value_type V, count_type C>
 auto GetWallCounts_ST(future_tile_array<V>& values_fta, tile_id t, tile_id nrTiles)
 -> ValueCountPairContainerT<V, C>
@@ -334,6 +348,7 @@ auto GetWallCounts(future_tile_array<V>& values_fta)
 
 	return GetWallCounts_MT<V, C>(values_fta, 0, nrTiles, maxNrThreads);
 }
+*/
 
 template <ordered_value_type V, count_type C>
 auto GetWeededWallCounts_ST(future_tile_array<V>& values_fta, tile_id t, tile_id nrTiles, SizeT maxPairCount)
@@ -426,36 +441,108 @@ auto GetIndexedWallCounts(future_tile_array<V>& values_fta, const AbstrDataItem*
 inline auto GetDomain(const AbstrDataItem* adi)  { return adi->GetAbstrDomainUnit(); }
 //auto GetDomain(Couple<const AbstrDataItem*> adis) { return adis.first->GetAbstrDomainUnit(); }
 
-template <ordered_value_type R, typename TypeList, count_type C>
-auto GetCounts_Impl(const AbstrDataItem* adi) -> ValueCountPairContainerT<R, C>
+template<typename V>
+struct WallCountsAsArrayInfo
 {
-	auto avu = adi->GetAbstrValuesUnit();
-	return visit_and_return_result<TypeList, ValueCountPairContainerT<R, C> >(avu
-		, [adi]<typename V>(const Unit<V>*valuesUnit)
-			{
-				auto tileFunctor = const_array_cast<V>(adi);
-				auto values_fta = GetFutureTileArray(tileFunctor);
-				auto vcxxx = GetWallCounts<V, C>(values_fta);
-				if constexpr (std::is_same_v<R, V>)
-					return vcxxx;
-				else
-				{
-					auto valueRangePtr = tileFunctor->m_ValueRangeDataPtr;
+	typename Unit<V>::range_t valuesRange;
+	SizeT vCount;
+	future_tile_ptr<V>* values_fta;
+};
 
-					ValueCountPairContainerT<R, C> result; result.reserve(vcxxx.size());
-					CountablePointConverter<V> conv(valueRangePtr);
-					for (const auto& vcp : vcxxx)
-						result.emplace_back(conv.GetScalar<R>(vcp.first), vcp.second);
-					return result;
-				}
+
+template<typename V, typename C>
+auto GetWallCountsAsArray(WallCountsAsArrayInfo<V>& info, tile_id t, tile_id te, SizeT availableThreads) -> std::vector<C>
+{
+	assert(t + availableThreads <= te);
+	if (availableThreads > 1)
+	{
+		auto m = te - (te - t) / 2;
+		auto rt = availableThreads / 2;
+		auto futureSecondHalfValue = throttled_async([m, te, rt, &info]()
+			{
+				return GetWallCountsAsArray<V, C>(info, m, te, rt);
+			});
+		auto firstHalfValue = GetWallCountsAsArray<V, C>(info, t, m, availableThreads - rt);
+		auto secondHalfValue = futureSecondHalfValue.get();
+
+		for (SizeT i = 0, e = info.vCount; i < e; ++i)
+			firstHalfValue[i] += secondHalfValue[i];
+		return firstHalfValue;
+	}
+
+	auto localInfo = info;
+	std::vector<C> buffer(localInfo.vCount, 0);
+	auto bufferB = buffer.begin();
+	for (; t != te; ++t)
+	{
+		auto valuesLock = localInfo.values_fta[t]->GetTile(); localInfo.values_fta[t] = nullptr;
+		auto valuesIter = valuesLock.begin(),
+			valuesEnd = valuesLock.end();
+		for (; valuesIter != valuesEnd; ++valuesIter)
+		{
+			if (IsDefined(*valuesIter))
+			{
+				auto i = Range_GetIndex_naked(localInfo.valuesRange, *valuesIter);
+				assert(i < localInfo.vCount);
+				SafeIncrementCounter(bufferB[i]);
 			}
-	);
+		}
+	}
+	return buffer;
+}
+
+
+template<typename V, typename C>
+auto GetCountsAsArray(const AbstrDataItem* valuesItem, typename Unit<V>::range_t valuesRange) -> std::vector<C>
+{
+	SizeT vCount = Cardinality(valuesRange);
+	auto valuesDataArray = const_array_cast<V>(valuesItem);
+	SizeT maxNrThreads = MaxAllowedConcurrentTreads();
+	if (vCount)
+		MakeMin(maxNrThreads, valuesDataArray->GetNrFeaturesNow() / vCount);
+	MakeMax(maxNrThreads, 1);
+
+	tile_id tn = valuesItem->GetAbstrDomainUnit()->GetNrTiles();
+	if (!tn)
+		return {};
+	MakeMin(maxNrThreads, tn);
+
+	auto values_fta = GetFutureTileArray(valuesDataArray);
+	WallCountsAsArrayInfo<V> info = { valuesRange, vCount, values_fta.begin() };
+	return GetWallCountsAsArray<V, C>(info, 0, tn, maxNrThreads);
 }
 
 template <ordered_value_type R, typename TypeList, count_type C>
 auto GetWeededCounts_Impl(const AbstrDataItem* adi, SizeT maxPairCount) -> ValueCountPairContainerT<R, C>
 {
 	auto avu = adi->GetAbstrValuesUnit();
+
+	if (avu->CanBeDomain())
+	{
+		SizeT v = avu->GetCount();
+		if (IsDefined(v) && v <= maxPairCount)
+		{
+			SizeT n = adi->GetAbstrDomainUnit()->GetCount();
+			if (v <= n)
+			{
+				// Countable values; go for Table if sensible
+				auto freqTable = visit_and_return_result<typelists::aints, std::vector<SizeT>>(avu
+					, [adi]<typename V>(const Unit<V>*valuesUnit)
+				{
+					return GetCountsAsArray<V, C>(adi, valuesUnit->GetRange());
+				}
+				);
+
+				ValueCountPairContainerT<R, C> result;
+				for (SizeT i = 0, n = freqTable.size(); i != n; ++i)
+					if (freqTable[i] > 0)
+						result.insert(result.end(), { i, freqTable[i] });
+				return result;
+			}
+		}
+	}
+
+
 	return visit_and_return_result<TypeList, ValueCountPairContainerT<R, C> >(avu
 		, [adi, maxPairCount]<typename V>(const Unit<V>*valuesUnit) 
 			{
@@ -474,6 +561,12 @@ auto GetWeededCounts_Impl(const AbstrDataItem* adi, SizeT maxPairCount) -> Value
 				}
 			}
 	);
+}
+
+template <ordered_value_type R, typename TypeList, count_type C>
+auto GetCounts_Impl(const AbstrDataItem* adi) -> ValueCountPairContainerT<R, C>
+{
+	return GetWeededCounts_Impl<R, TypeList, C>(adi, SizeT(-1));
 }
 
 template <ordered_value_type R, typename TypeList, count_type C>

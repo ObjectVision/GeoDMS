@@ -30,17 +30,6 @@
 
 
 
-template<typename R> void SafeIncrementCounter(R& assignee)
-{
-	SafeIncrement(assignee);
-}
-
-void SafeIncrementCounter(SizeT& assignee)
-{
-	assignee++;
-	assert(assignee); // SizeT cannot overflow when counting distict addressable elements
-}
-
 // *****************************************************************************
 //											Modus Helper funcs
 // *****************************************************************************
@@ -176,7 +165,7 @@ void ModusTotBySet(const AbstrDataItem* valuesItem, typename sequence_traits<R>:
 {
 	auto tileFunctor = const_array_cast<V>(valuesItem);
 	auto values_fta = GetFutureTileArray(tileFunctor);
-	auto counters = GetWallCounts<V, SizeT>(values_fta);
+	auto counters = GetWeededWallCounts<V, SizeT>(values_fta, SizeT(-1));
 
 	resData = aggrFunc(counters.begin(), counters.end()
 	,	[](auto i) { return i->second; }
@@ -184,70 +173,10 @@ void ModusTotBySet(const AbstrDataItem* valuesItem, typename sequence_traits<R>:
 	);
 }
 
-template<typename V>
-struct WallCountsAsArrayInfo
-{
-	typename Unit<V>::range_t valuesRange;
-	SizeT vCount;
-	future_tile_ptr<V>* values_fta;
-};
-
-template<typename V>
-auto GetWallCountsAsArray(WallCountsAsArrayInfo<V>& info, tile_id t, tile_id te, SizeT availableThreads) -> std::vector<SizeT>
-{
-	if (availableThreads > 1)
-	{
-		auto m = te - (te - t) / 2;
-		auto rt = availableThreads / 2;
-		auto futureSecondHalfValue = throttled_async([m, te, rt, &info]()
-			{
-				return GetWallCountsAsArray<V>(info, m, te, rt);
-			});
-		auto firstHalfValue = GetWallCountsAsArray<V>(info, t, m, availableThreads - rt);
-		auto secondHalfValue = futureSecondHalfValue.get();
-
-		for (SizeT i = 0, e = info.vCount; i < e; ++i)
-			firstHalfValue[i] += secondHalfValue[i];
-		return firstHalfValue;
-	}
-
-	auto localInfo = info;
-	std::vector<SizeT> buffer(localInfo.vCount, 0);
-	auto bufferB = buffer.begin();
-	for (; t != te; ++t)
-	{
-		auto valuesLock = localInfo.values_fta[t]->GetTile(); localInfo.values_fta[t] = nullptr;
-		auto valuesIter = valuesLock.begin(),
-			valuesEnd = valuesLock.end();
-		for (; valuesIter != valuesEnd; ++valuesIter)
-		{
-			if (IsDefined(*valuesIter))
-			{
-				auto i = Range_GetIndex_naked(localInfo.valuesRange, *valuesIter);
-				assert(i < localInfo.vCount);
-				SafeIncrementCounter(bufferB[i]);
-			}
-		}
-	}
-	return buffer;
-}
-
 template<typename V, typename R, typename AggrFunc>
 void ModusTotByTable(const AbstrDataItem* valuesItem, typename sequence_traits<R>::reference resData,  typename Unit<V>::range_t valuesRange, AggrFunc aggrFunc)
 {
-	SizeT vCount = Cardinality(valuesRange);
-
-	auto valuesDataArray = const_array_cast<V>(valuesItem);
-	SizeT maxNrThreads = MaxAllowedConcurrentTreads();
-	if (vCount)
-		MakeMin(maxNrThreads, valuesDataArray->GetNrFeaturesNow() / vCount);
-	MakeMax(maxNrThreads, 1);
-
-	tile_id tn = valuesItem->GetAbstrDomainUnit()->GetNrTiles();
-	auto values_fta = GetFutureTileArray(valuesDataArray);
-	WallCountsAsArrayInfo<V> info = { valuesRange, vCount, values_fta.begin() };
-	auto buffer = GetWallCountsAsArray<V>(info, 0, tn, maxNrThreads);
-	values_fta.reset();
+	auto buffer = GetCountsAsArray<V, SizeT>(valuesItem, valuesRange);
 
 	resData = aggrFunc(buffer.begin(), buffer.end()
 	, [ ](auto i) { return *i; }
