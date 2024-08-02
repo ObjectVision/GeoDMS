@@ -1397,6 +1397,7 @@ public:
 			for (auto vsi = gi->begin(), vse=gi->end(); vsi!=vse; ++vsi)
 				if (i < *vsi)
 				{
+					assert(e < nrEdges);
 					assert(*vsi < domain_rel.size());
 					indexAssigner1.m_Indices[e] = domain_rel[i];
 					indexAssigner2.m_Indices[e] = domain_rel[ * vsi ];
@@ -1406,7 +1407,7 @@ public:
 		indexAssigner1.Store();
 		indexAssigner2.Store();
 
-		assert( e == nrEdges);
+		MG_CHECK(e == nrEdges);
 		resF2Lock.Commit();
 		resF1Lock.Commit();
 	}
@@ -1501,7 +1502,7 @@ public:
 
 		IndexAssigner32 indexAssigner1(resF1, resF1Lock.get(), no_tile, 0, nrEdges);
 		IndexAssigner32 indexAssigner2(resF2, resF2Lock.get(), no_tile, 0, nrEdges);
-
+		
 		SizeT e = 0;
 		for (const auto& rect : rects)
 		{
@@ -1512,7 +1513,7 @@ public:
 					SizeT index2 = (*iter)->get_ptr() - beginPtr(rects);
 					if (index < index2)
 					{
-						assert(*vsi < domain_rel.size());
+						assert(e < nrEdges);
 						indexAssigner1.m_Indices[e] = index;
 						indexAssigner2.m_Indices[e] = index2;
 						++e;
@@ -1522,7 +1523,7 @@ public:
 		indexAssigner1.Store();
 		indexAssigner2.Store();
 
-		assert(e == nrEdges);
+		MG_CHECK(e == nrEdges);
 		resF2Lock.Commit();
 		resF1Lock.Commit();
 	}
