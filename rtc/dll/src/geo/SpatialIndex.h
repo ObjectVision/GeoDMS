@@ -11,6 +11,7 @@
 #define __RTC_GEO_SPATIALINDEX_H
 
 #include "geo/Pair.h"
+#include "geo/SequenceArray.h"
 #include "utl/IncrementalLock.h"
 
 template <typename SpatialIndexType> struct neighbour_iter;
@@ -27,6 +28,13 @@ template <typename T>
 Point<T> _FirstElem(const Point<T>& p) 
 {
 	return p;
+}
+
+template<typename PointType>
+Range<PointType>
+RangeFromPtr(const Range<PointType>* rect)
+{
+	return *rect;
 }
 
 template<typename PointType>
@@ -149,14 +157,25 @@ private:
 	extents_type m_Bounds;
 };
 
-template <typename PointType, typename ObjectPtr> struct LeafTypeGetter;
+template <typename PointType, typename ObjectPtr> struct LeafTypeGetter
+{
+	using type = PolyLeaf<PointType, ObjectPtr>;
+};
 
-template <typename PointType> struct LeafTypeGetter<PointType, const PointType*>             { typedef PointLeaf<PointType> type; };
+template <typename PointType> struct LeafTypeGetter<PointType, const PointType*>
+{ 
+	using type = PointLeaf<PointType>;
+};
+
+
+/*
+template <typename PointType> struct LeafTypeGetter<PointType, const Range<PointType>*>      { typedef PolyLeaf<PointType, const Range<PointType>*> type; };
 template <typename PointType> struct LeafTypeGetter<PointType, const std::vector<PointType>*> { typedef PolyLeaf <PointType, const std::vector<PointType>*> type; };
 template <typename PointType> struct LeafTypeGetter<PointType, SA_ConstIterator<PointType> > { typedef PolyLeaf <PointType, SA_ConstIterator<PointType> > type; };
 template <typename PointType> struct LeafTypeGetter<PointType, sequence_array_index<PointType> > { typedef PolyLeaf <PointType, sequence_array_index<PointType> > type; };
+*/
 
-template <typename PointType, typename ObjectPtr> using LeafTypeGetter_t = LeafTypeGetter<PointType, ObjectPtr>::type;
+template <typename PointType, typename ObjectPtr> using LeafTypeGetter_t = typename LeafTypeGetter<PointType, ObjectPtr>::type;
 
 
 template <typename PointType, typename LeafType>
@@ -362,7 +381,7 @@ struct SpatialIndex
 	friend struct iterator<PointType>;
 	friend struct iterator<RangeType>;
 
-	SpatialIndex(ObjectPtr first, ObjectPtr last, SizeT maxNrFutureInserts)
+	SpatialIndex(ObjectPtr first, ObjectPtr last, SizeT maxNrFutureInserts = 0)
 	{
 		MG_CHECK(first != last || !maxNrFutureInserts); // future inserts must be within the current determinable boundingbox
 		m_Leafs.reserve((last-first) + maxNrFutureInserts);

@@ -1417,6 +1417,7 @@ CommonOperGroup cogBC("box_connectivity", oper_policy::better_not_in_meta_script
 
 class AbstrBoxConnectivityOperator : public BinaryOperator
 {
+protected:
 	using ResultingDomainType = UInt32;
 
 	AbstrBoxConnectivityOperator(const DataItemClass* polyAttrClass)
@@ -1462,9 +1463,10 @@ class BoxConnectivityOperator : public AbstrBoxConnectivityOperator
 {
 	using PointType = P;
 	using ScalarType = scalar_of_t<P>;
-	using RectType = Range<P>;
-	using RectTypePtr = RectType*;
+	using RectType = Range<PointType>;
+	using RectTypeCPtr = const RectType*;
 	using Arg1Type = DataArray<PointType>;
+	using SpatialIndexType = SpatialIndex<ScalarType, RectTypeCPtr>;
 
 public:
 	BoxConnectivityOperator()
@@ -1481,7 +1483,9 @@ public:
 		lowerBoundData = {};
 		upperBoundData = {};
 
-		auto spatialIndex = SpatialIndex<ScalarType, RectTypePtr>(begin_ptr( rects ), end_ptr( rects ));
+		auto rects_begin = begin_ptr(rects);
+		auto rects_beyond = end_ptr(rects);
+		auto spatialIndex = SpatialIndexType(rects_begin, rects_beyond);
 		
 		// counting
 		SizeT nrEdges = 0;
@@ -1489,12 +1493,15 @@ public:
 		{
 			SizeT index = &rect - begin_ptr(rects);
 			for (auto iter = spatialIndex.begin(rect); iter; ++iter)
-				if (Intersects(*((*iter)->get_ptr()), rect))
+			{
+				auto currRectPtr = (*iter)->get_ptr();
+				if (IsIntersecting(*currRectPtr, rect))
 				{
-					SizeT index2 = (*iter)->get_ptr() - beginPtr(rects);
+					SizeT index2 = currRectPtr - rects_begin;
 					if (index < index2)
 						++nrEdges;
 				}
+			}
 		}
 		res->SetCount(ThrowingConvert<ResultingDomainType>(nrEdges));
 		DataWriteLock resF1Lock(resF1);
@@ -1508,9 +1515,11 @@ public:
 		{
 			SizeT index = &rect - begin_ptr(rects);
 			for (auto iter = spatialIndex.begin(rect); iter; ++iter)
-				if (Intersects(*((*iter)->get_ptr()), rect))
+			{
+				auto currRectPtr = (*iter)->get_ptr();
+				if (IsIntersecting(*currRectPtr, rect))
 				{
-					SizeT index2 = (*iter)->get_ptr() - beginPtr(rects);
+					SizeT index2 = currRectPtr - rects_begin;
 					if (index < index2)
 					{
 						assert(e < nrEdges);
@@ -1519,6 +1528,7 @@ public:
 						++e;
 					}
 				}
+			}
 		}
 		indexAssigner1.Store();
 		indexAssigner2.Store();
@@ -1675,6 +1685,7 @@ namespace
 	tl_oper::inst_tuple_templ<typelists::points,       CGAL_OverlayOperator, AbstrOperGroup&> cgalOverlayOperators(grCGALOverlayPolygon);
 
 	tl_oper::inst_tuple_templ<typelists::sint_points, PolygonConnectivityOperator>	polygonConnectivityOperators;
+	tl_oper::inst_tuple_templ<typelists::points,      BoxConnectivityOperator>	    boxConnectivityOperators;
 
 	PolyOperatorGroupss simple("", PolygonFlags());
 	BpPolyOperatorGroupss bp_simple;
