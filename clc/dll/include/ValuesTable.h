@@ -274,12 +274,10 @@ auto GetWeededTileCounts(typename sequence_traits<V>::cseq_t data, SizeT index, 
 }
 
 template <ordered_value_type V, count_type C>
-auto GetWallCounts(future_tile_array<V>& values_fta
-	, tile_id t, tile_id nrTiles)
-	-> ValueCountPairContainerT<V, C>
+auto GetWallCounts_ST(future_tile_array<V>& values_fta, tile_id t, tile_id nrTiles)
+-> ValueCountPairContainerT<V, C>
 {
-	if (!nrTiles)
-		return {};
+	assert(nrTiles);
 
 	if (nrTiles == 1)
 	{
@@ -290,25 +288,57 @@ auto GetWallCounts(future_tile_array<V>& values_fta
 	tile_id m = nrTiles / 2;
 	assert(m >= 1);
 
-	auto firstHalf = throttled_async([&values_fta, t, m]
+	auto firstHalf = GetWallCounts_ST<V, C>(values_fta, t, m);
+	auto secondHalf = GetWallCounts_ST<V, C>(values_fta, t + m, nrTiles - m);
+
+	return MergeToLeft(firstHalf, secondHalf);
+}
+
+template <ordered_value_type V, count_type C>
+auto GetWallCounts_MT(future_tile_array<V>& values_fta, tile_id t, tile_id nrTiles, SizeT availableThreads)
+	-> ValueCountPairContainerT<V, C>
+{
+	assert(nrTiles);
+	assert(availableThreads <= nrTiles);
+	if (availableThreads <= 1)
+	{
+		return GetWallCounts_ST<V, C>(values_fta, t, nrTiles);
+	}
+
+	tile_id m = nrTiles / 2;
+	assert(m >= 1);
+	auto rt = availableThreads / 2;
+
+	auto firstHalf = throttled_async([&values_fta, t, m, rt]
 		{
-			return GetWallCounts<V, C>(values_fta, t, m);
+			return GetWallCounts_MT<V, C>(values_fta, t, m, rt);
 		}
 	);
 
-	auto secondHalf = GetWallCounts<V, C>(values_fta, t + m, nrTiles - m);
+	auto secondHalf = GetWallCounts_MT<V, C>(values_fta, t + m, nrTiles - m, availableThreads - rt);
 
 	return MergeToLeft(firstHalf.get(), secondHalf);
 }
 
 template <ordered_value_type V, count_type C>
-auto GetWeededWallCounts(future_tile_array<V>& values_fta
-	, tile_id t, tile_id nrTiles, SizeT maxPairCount)
-	-> ValueCountPairContainerT<V, C>
+auto GetWallCounts(future_tile_array<V>& values_fta)
+-> ValueCountPairContainerT<V, C>
 {
+	auto nrTiles = values_fta.size();
 	if (!nrTiles)
 		return {};
 
+	SizeT maxNrThreads = MaxAllowedConcurrentTreads();
+	MakeMin(maxNrThreads, nrTiles);
+	MakeMax(maxNrThreads, 1);
+
+	return GetWallCounts_MT<V, C>(values_fta, 0, nrTiles, maxNrThreads);
+}
+
+template <ordered_value_type V, count_type C>
+auto GetWeededWallCounts_ST(future_tile_array<V>& values_fta, tile_id t, tile_id nrTiles, SizeT maxPairCount)
+	-> ValueCountPairContainerT<V, C>
+{
 	if (nrTiles == 1)
 	{
 		auto tileData = values_fta[t]->GetTile(); values_fta[t] = nullptr;
@@ -318,21 +348,55 @@ auto GetWeededWallCounts(future_tile_array<V>& values_fta
 	tile_id m = nrTiles / 2;
 	assert(m >= 1);
 
-	auto firstHalf = throttled_async([&values_fta, t, m, maxPairCount]
+	auto firstHalf  = GetWeededWallCounts_ST<V, C>(values_fta, t, m, maxPairCount);
+	auto secondHalf = GetWeededWallCounts_ST<V, C>(values_fta, t + m, nrTiles - m, maxPairCount);
+
+	return WeededMergeToLeft(firstHalf, secondHalf, maxPairCount);
+}
+
+template <ordered_value_type V, count_type C>
+auto GetWeededWallCounts_MT(future_tile_array<V>& values_fta, tile_id t, tile_id nrTiles, SizeT maxPairCount, SizeT availableThreads)
+-> ValueCountPairContainerT<V, C>
+{
+	assert(nrTiles);
+	assert(availableThreads <= nrTiles);
+
+	if (availableThreads == 1)
+	{
+		return GetWeededWallCounts_ST<V, C>(values_fta, t, nrTiles, maxPairCount);
+	}
+
+	auto m = nrTiles / 2;
+	auto rt = availableThreads / 2;
+
+	auto firstHalf = throttled_async([&values_fta, t, m, maxPairCount, rt]
 		{
-			return GetWeededWallCounts<V, C>(values_fta, t, m, maxPairCount);
+			return GetWeededWallCounts_MT<V, C>(values_fta, t, m, maxPairCount, rt);
 		}
 	);
 
-	auto secondHalf = GetWeededWallCounts<V, C>(values_fta, t + m, nrTiles - m, maxPairCount);
+	auto secondHalf = GetWeededWallCounts_MT<V, C>(values_fta, t + m, nrTiles - m, maxPairCount, availableThreads - rt);
 
 	return WeededMergeToLeft(firstHalf.get(), secondHalf, maxPairCount);
 }
 
 template <ordered_value_type V, count_type C>
-auto GetIndexedWallCounts(future_tile_array<V>& values_fta
-	, const AbstrDataItem* indicesItem, abstr_future_tile_array& part_fta
-	, tile_id t, tile_id nrTiles, SizeT pCount) 
+auto GetWeededWallCounts(future_tile_array<V>& values_fta, SizeT maxPairCount)
+-> ValueCountPairContainerT<V, C>
+{
+	auto nrTiles = values_fta.size();
+	if (!nrTiles)
+		return {};
+
+	SizeT maxNrThreads = MaxAllowedConcurrentTreads();
+	MakeMin(maxNrThreads, nrTiles);
+	MakeMax(maxNrThreads, 1);
+
+	return GetWeededWallCounts_MT<V, C>(values_fta, 0, nrTiles, maxPairCount, maxNrThreads);
+}
+
+template <ordered_value_type V, count_type C>
+auto GetIndexedWallCounts(future_tile_array<V>& values_fta, const AbstrDataItem* indicesItem, abstr_future_tile_array& part_fta, tile_id t, tile_id nrTiles, SizeT pCount) 
 	-> PartionedValueCountPairContainerT<V, C>
 {
 	if (!nrTiles)
@@ -365,20 +429,13 @@ inline auto GetDomain(const AbstrDataItem* adi)  { return adi->GetAbstrDomainUni
 template <ordered_value_type R, typename TypeList, count_type C>
 auto GetCounts_Impl(const AbstrDataItem* adi) -> ValueCountPairContainerT<R, C>
 {
-	auto adu = GetDomain(adi);
-	SizeT count = adu->GetCount();
-	if (count)
-	{
-		tile_id tn = adu->GetNrTiles();
-		if (tn)
-		{
-			auto avu = adi->GetAbstrValuesUnit();
-			return visit_and_return_result<TypeList, ValueCountPairContainerT<R, C> >(avu
-				, [adi, tn]<typename V>(const Unit<V>*valuesUnit)
+	auto avu = adi->GetAbstrValuesUnit();
+	return visit_and_return_result<TypeList, ValueCountPairContainerT<R, C> >(avu
+		, [adi]<typename V>(const Unit<V>*valuesUnit)
 			{
 				auto tileFunctor = const_array_cast<V>(adi);
 				auto values_fta = GetFutureTileArray(tileFunctor);
-				auto vcxxx = GetWallCounts<V, C>(values_fta, 0, tn);
+				auto vcxxx = GetWallCounts<V, C>(values_fta);
 				if constexpr (std::is_same_v<R, V>)
 					return vcxxx;
 				else
@@ -392,44 +449,31 @@ auto GetCounts_Impl(const AbstrDataItem* adi) -> ValueCountPairContainerT<R, C>
 					return result;
 				}
 			}
-			);
-		}
-	}
-	return {};
+	);
 }
 
 template <ordered_value_type R, typename TypeList, count_type C>
 auto GetWeededCounts_Impl(const AbstrDataItem* adi, SizeT maxPairCount) -> ValueCountPairContainerT<R, C>
 {
-	auto adu = GetDomain(adi);
-	SizeT count = adu->GetCount();
-	if (count)
-	{
-		tile_id tn = adu->GetNrTiles();
-		if (tn)
-		{
-			auto avu = adi->GetAbstrValuesUnit();
-			return visit_and_return_result<TypeList, ValueCountPairContainerT<R, C> >(avu
-				, [adi, tn, maxPairCount]<typename V>(const Unit<V>*valuesUnit) 
-					{
-						auto tileFunctor = const_array_cast<V>(adi);
-						auto values_fta = GetFutureTileArray(const_array_cast<V>(adi));
-						auto vcxxx = GetWeededWallCounts<V, C>(values_fta, 0, tn, maxPairCount);
-						if constexpr (std::is_same_v<R, V>)
-							return vcxxx;
-						else
-						{
-							ValueCountPairContainerT<R, C> result; result.reserve(vcxxx.size());
-							CountablePointConverter<V> conv(tileFunctor->m_ValueRangeDataPtr);
-							for (const auto& vcp : vcxxx)
-								result.emplace_back(conv.GetScalar<R>(vcp.first), vcp.second);
-							return result;
-						}
-					}
-			);
-		}
-	}
-	return {};
+	auto avu = adi->GetAbstrValuesUnit();
+	return visit_and_return_result<TypeList, ValueCountPairContainerT<R, C> >(avu
+		, [adi, maxPairCount]<typename V>(const Unit<V>*valuesUnit) 
+			{
+				auto tileFunctor = const_array_cast<V>(adi);
+				auto values_fta = GetFutureTileArray(const_array_cast<V>(adi));
+				auto vcxxx = GetWeededWallCounts<V, C>(values_fta, maxPairCount);
+				if constexpr (std::is_same_v<R, V>)
+					return vcxxx;
+				else
+				{
+					ValueCountPairContainerT<R, C> result; result.reserve(vcxxx.size());
+					CountablePointConverter<V> conv(tileFunctor->m_ValueRangeDataPtr);
+					for (const auto& vcp : vcxxx)
+						result.emplace_back(conv.GetScalar<R>(vcp.first), vcp.second);
+					return result;
+				}
+			}
+	);
 }
 
 template <ordered_value_type R, typename TypeList, count_type C>

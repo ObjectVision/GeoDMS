@@ -176,8 +176,7 @@ void ModusTotBySet(const AbstrDataItem* valuesItem, typename sequence_traits<R>:
 {
 	auto tileFunctor = const_array_cast<V>(valuesItem);
 	auto values_fta = GetFutureTileArray(tileFunctor);
-	tile_id tn = valuesItem->GetAbstrDomainUnit()->GetNrTiles();
-	auto counters = GetWallCounts<V, SizeT>(values_fta, 0, tn);
+	auto counters = GetWallCounts<V, SizeT>(values_fta);
 
 	resData = aggrFunc(counters.begin(), counters.end()
 	,	[](auto i) { return i->second; }

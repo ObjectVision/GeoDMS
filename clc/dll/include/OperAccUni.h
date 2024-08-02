@@ -303,10 +303,13 @@ struct OperAccPartUniBuffered : FuncOperAccPartUni<TAcc1Func, OperAccPartUniWith
 	auto AggregateTiles(ProcessDataInfo& pdi, tile_id t, tile_id te, SizeT availableThreads) const
 		-> res_buffer_type
 	{
+		assert(t + availableThreads <= te);
 		if (availableThreads > 1)
 		{
 			auto m = te - (te - t) / 2;
 			auto rt = availableThreads / 2;
+			assert(m > t);
+			assert(m < te);
 			auto futureSecondHalfBuffer = throttled_async([this, &pdi, m, te, rt]()
 				{
 					return AggregateTiles(pdi, m, te, rt);
@@ -342,6 +345,7 @@ struct OperAccPartUniBuffered : FuncOperAccPartUni<TAcc1Func, OperAccPartUniWith
 		{
 			SizeT maxNrThreads =  MaxAllowedConcurrentTreads();
 			MakeMin(maxNrThreads, pdi.n / pdi.resCount);
+			MakeMin(maxNrThreads, pdi.nrTiles);
 			MakeMax(maxNrThreads, 1);
 
 			resBuffer = AggregateTiles(pdi, 0, pdi.nrTiles, maxNrThreads);
@@ -367,10 +371,14 @@ struct OperAccPartUniDirect : FuncOperAccPartUni<TAcc1Func, OperAccPartUniWithCF
 	using result_seq_t = typename sequence_traits<ResultValueType>::seq_t;
 	void AggregateTiles(result_seq_t resData, ProcessDataInfo& pdi, tile_id t, tile_id te, SizeT availableThreads) const
 	{
+		assert(t + availableThreads <= te);
 		if (availableThreads > 1)
 		{
 			auto m = te - (te - t) / 2;
 			auto rt = availableThreads / 2;
+			assert(m > t);
+			assert(m < te);
+
 			auto futureSecondHalf = throttled_async([this, resData, &pdi, m, te, rt]()
 				-> result_container_t
 				{
@@ -406,6 +414,7 @@ struct OperAccPartUniDirect : FuncOperAccPartUni<TAcc1Func, OperAccPartUniWithCF
 		SizeT maxNrThreads = MaxAllowedConcurrentTreads();
 		if (pdi.resCount)
 			MakeMin(maxNrThreads, pdi.n / pdi.resCount);
+		MakeMin(maxNrThreads, pdi.nrTiles);
 		MakeMax(maxNrThreads, 1);
 
 		auto resData = result->GetDataWrite(no_tile, dms_rw_mode::write_only_all);
