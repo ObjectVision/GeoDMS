@@ -348,7 +348,8 @@ struct OperAccPartUniBuffered : FuncOperAccPartUni<TAcc1Func, OperAccPartUniWith
 			MakeMin(maxNrThreads, pdi.nrTiles);
 			MakeMax(maxNrThreads, 1);
 
-			resBuffer = AggregateTiles(pdi, 0, pdi.nrTiles, maxNrThreads);
+			if (pdi.nrTiles)
+				resBuffer = AggregateTiles(pdi, 0, pdi.nrTiles, maxNrThreads);
 		}
 		this->m_Acc1Func.AssignOutput(result->GetDataWrite(no_tile, dms_rw_mode::write_only_all), resBuffer);
 	}
@@ -419,7 +420,8 @@ struct OperAccPartUniDirect : FuncOperAccPartUni<TAcc1Func, OperAccPartUniWithCF
 
 		auto resData = result->GetDataWrite(no_tile, dms_rw_mode::write_only_all);
 		m_Acc1Func.Init(resData);
-		AggregateTiles(resData, pdi, 0, pdi.nrTiles, maxNrThreads);
+		if (pdi.nrTiles)
+			AggregateTiles(resData, pdi, 0, pdi.nrTiles, maxNrThreads);
 	}
 
 private:

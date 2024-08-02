@@ -36,7 +36,7 @@ struct OperAccTotUniNum : OperAccTotUni<TAcc1Func>
 
 	auto AggregateTiles(ftptr* values_fta, tile_id t, tile_id te, SizeT availableThreads) const -> decltype(this->m_Acc1Func.InitialValue())
 	{
-		if (availableThreads > 1)
+		if ((t < te) && availableThreads > 1)
 		{
 			auto m = te - (te - t) / 2;
 			auto rt = availableThreads / 2;
@@ -75,7 +75,13 @@ struct OperAccTotUniNum : OperAccTotUni<TAcc1Func>
 		// TODO G8: OPTIMIZE, use parallel_for and ThreadLocal container and aggregate afterwards.
 		auto values_fta = GetFutureTileArray(arg1);
 
-		auto value = AggregateTiles(values_fta.begin(), 0, e->GetNrTiles(), MaxAllowedConcurrentTreads());
+
+		tile_id nrTiles = e->GetNrTiles();
+		SizeT maxNrThreads = MaxAllowedConcurrentTreads();
+		MakeMin(maxNrThreads, nrTiles);
+		MakeMax(maxNrThreads, 1);
+
+		auto value = AggregateTiles(values_fta.begin(), 0, nrTiles, maxNrThreads);
 
 		auto resData = result->GetDataWrite();
 		assert(resData.size() == 1);
