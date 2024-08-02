@@ -819,13 +819,21 @@ void MainWindow::createView(ViewStyle viewStyle) {
 }
 
 void MainWindow::defaultViewOrAddItemToCurrentView() {
-    auto active_mdi_subwindow = dynamic_cast<QDmsViewArea*>(m_mdi_area->activeSubWindow());
-    if (!active_mdi_subwindow || !active_mdi_subwindow->getDataView()->CanContain(m_current_item)) {
+    try {
+        if (auto active_mdi_subwindow = dynamic_cast<QDmsViewArea*>(m_mdi_area->activeSubWindow()))
+        {
+            if (active_mdi_subwindow->getDataView()->CanContain(m_current_item))
+            {
+                SHV_DataView_AddItem(active_mdi_subwindow->getDataView(), m_current_item, false);
+                return;
+            }
+        }
         defaultView();
-        return;
     }
-
-    SHV_DataView_AddItem(active_mdi_subwindow->getDataView(), m_current_item, false);
+    catch (...) {
+        auto errMsg = catchException(false);
+        reportErrorAndTryReload(errMsg);
+    }
 }
 
 void MainWindow::defaultView() {

@@ -413,7 +413,11 @@ void QDmsViewArea::paintEvent(QPaintEvent* event) {
 void QDmsViewArea::onWindowStateChanged(Qt::WindowStates oldState, Qt::WindowStates newState) {
     if (!(newState & Qt::WindowState::WindowMaximized))
         return;
-
-    auto mdi_area = MainWindow::TheOne()->m_mdi_area.get();
+    auto mainWindow = MainWindow::TheOne();
+    if (!mainWindow)
+        return;
+    auto mdi_area = mainWindow->m_mdi_area.get();
+    if (!mdi_area)
+        return;
     mdi_area->setTabbedViewModeStyle();
 }
