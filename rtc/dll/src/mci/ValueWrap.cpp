@@ -62,14 +62,19 @@ IMPL_CLASS(AbstrValue, 0)
 
 void Unify(ValueComposition& vc, ValueComposition rhs)
 {
-	MG_CHECK2((vc == ValueComposition::Single) == (rhs == ValueComposition::Single), "Incompatible value compositions");
+	if ((vc == ValueComposition::Single) != (rhs == ValueComposition::Single))
+	{
+		auto vc1Str = SharedStr(GetValueCompositionID(vc));
+		auto vc2Str = SharedStr(GetValueCompositionID(rhs));
+		throwDmsErrF("Value Composition %s incompatible with %s", vc1Str, vc2Str);
+	}
 	if (rhs == ValueComposition::Single)
 	{
-		dms_assert(vc == ValueComposition::Single);
+		assert(vc == ValueComposition::Single);
 		return;
 	}
-	dms_assert(IsAcceptableValuesComposition(vc));
-	dms_assert(IsAcceptableValuesComposition(rhs));
+	assert(IsAcceptableValuesComposition(vc));
+	assert(IsAcceptableValuesComposition(rhs));
 	if (rhs == ValueComposition::Polygon)
 		vc = ValueComposition::Polygon;
 }

@@ -59,25 +59,22 @@ public:
 	// Override Operator
 	bool CreateResult(TreeItemDualRef& resultHolder, const ArgSeqType& args, bool mustCalc) const override
 	{
-		SizeT n = args.size();
-		dms_assert(n>=1);
+		SizeT n = args.size();                              assert(n>=1);
 
-		const AbstrDataItem *arg1A = AsDataItem(args[0]);
-		dms_assert(arg1A);
-		const AbstrUnit* arg1_ValuesUnit = arg1A->GetAbstrValuesUnit();
-		dms_assert(arg1_ValuesUnit);
+		auto arg1A = AsDataItem(args[0]);                   assert(arg1A);
+		auto arg1_ValuesUnit = arg1A->GetAbstrValuesUnit(); assert(arg1_ValuesUnit);
 
 		auto vc = m_VC;
 		Unify(vc, arg1A->GetValueComposition());
 		for (arg_index i=1; i!=n; ++i)
 		{
 			const AbstrDataItem* argA = AsCertainDataItem(args[i]);
-			dms_assert(argA);
+			assert(argA);
 
 			const AbstrUnit* currArg_ValuesUnit = argA->GetAbstrValuesUnit();
 			Unify(vc, argA->GetValueComposition());
 
-			dms_assert(currArg_ValuesUnit);
+			assert(currArg_ValuesUnit);
 			if (arg1_ValuesUnit->IsDefaultUnit())
 				arg1_ValuesUnit = currArg_ValuesUnit;
 			else
@@ -85,7 +82,7 @@ public:
 		}
 
 		AbstrUnit* resultDomain = debug_cast<const UnitClass*>(GetResultClass())->CreateResultUnit(resultHolder);
-		dms_assert(resultDomain);
+		assert(resultDomain);
 		resultHolder = resultDomain;
 
 		AbstrDataItem* resSub = CreateDataItem(resultDomain, s_UnionData, resultDomain, arg1_ValuesUnit, vc );

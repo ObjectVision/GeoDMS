@@ -83,7 +83,8 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution 
 		TestDebugUnit.bat = TestDebugUnit.bat
 		TestReleaseFast.bat = TestReleaseFast.bat
 		TestReleaseUnit.bat = TestReleaseUnit.bat
-		vcpkginstall.bat = vcpkginstall.bat
+		vcpkg-configuration.json = vcpkg-configuration.json
+		vcpkg.json = vcpkg.json
 	EndProjectSection
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "NSIS", "NSIS", "{F6034506-5822-49C4-B88A-ECF5818E44C3}"
