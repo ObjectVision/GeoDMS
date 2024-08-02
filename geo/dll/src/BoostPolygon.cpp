@@ -615,9 +615,9 @@ void UnionPolygon(ResourceArrayHandle& r, SizeT n, const AbstrDataItem* polyData
 
 		if (s_ProcessTimer.PassedSecs(5))
 		{
-			reportF(SeverityTypeID::ST_MajorTrace, "%s: processed %d sequences of tile %d/%d"
+			reportF(SeverityTypeID::ST_MajorTrace, "%s: processed %d/%d sequences of tile %d/%d"
 				, whosCalling->GetNameStr()
-				, pi - pb
+				, pi - pb, pe - pb
 				, t
 				, polyDataA->GetAbstrDomainUnit()->GetNrTiles()
 			);

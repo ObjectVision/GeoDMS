@@ -15,6 +15,7 @@
 #include "ser/SequenceArrayStream.h"
 
 #include "dbg/Check.h"
+#include "dbg/Timer.h"
 #include "geo/RingIterator.h"
 #include "mci/ValueClass.h"
 #include "mci/ValueWrap.h"
@@ -32,11 +33,10 @@
 #include <boost/geometry/algorithms/within.hpp>
 #include <boost/geometry/geometries/multi_linestring.hpp>
 
-//#include "ipolygon/polygon.hpp"
-//#include "geo/BoostPolygon.h"
+
+extern Timer s_ProcessTimer;
 
 //============================  boost geometry ============================
-
 
 
 using bg_multi_point_t = boost::geometry::model::multi_point<DPoint>;
@@ -74,14 +74,9 @@ struct bg_union_poly_traits
 
 	using polygon_with_holes_type = boost::geometry::model::polygon<point_type>;
 
-//	typedef bp::point_data<coordinate_type>       point_type;
-//	typedef bp::rectangle_data<coordinate_type>   rect_type;
-//	typedef std::vector< point_type >              point_seq_type;
 	using multi_polygon_type  = boost::geometry::model::multi_polygon<polygon_with_holes_type>;
 	using polygon_result_type = multi_polygon_type; //  std::vector<polygon_with_holes_type>;
 
-//	using area_type = Float64;
-//	using unsigned_area_type = Float64;
 };
 
 
