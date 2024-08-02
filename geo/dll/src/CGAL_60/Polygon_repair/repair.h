@@ -34,6 +34,7 @@ namespace CGAL {
 } // namespace CGAL
 
 #include <CGAL/Constrained_Delaunay_triangulation_2.h>
+// <MTA/> replaced the following include by its contents
 //#include <CGAL/Polygon_repair/Even_odd_rule.h>
 
 namespace CGAL {
@@ -43,6 +44,7 @@ namespace CGAL {
 } // namespace CGAL
 
 
+// <MTA/> replaced the following include by its contents
 //#include <CGAL/Polygon_repair/internal/Triangulation_face_base_with_repair_info_2.h>
 #include <CGAL/Triangulation_face_base_2.h>
 
@@ -52,8 +54,8 @@ namespace CGAL {
 
             template <typename Kernel, typename FaceBase = Triangulation_face_base_2<Kernel>>
             class Triangulation_face_base_with_repair_info_2 : public FaceBase {
-                int _label;
-                bool _processed;
+                int _label = 0; // <MTA/> always initialize
+                bool _processed = false; // <MTA/> always initialize
             public:
                 using Vertex_handle = typename FaceBase::Vertex_handle;
                 using Face_handle = typename FaceBase::Face_handle;
@@ -85,6 +87,7 @@ namespace CGAL {
 
 
 
+// <MTA/> replaced the following include by its contents
 //#include <CGAL/Polygon_repair/internal/Triangulation_with_even_odd_constraints_2.h>
 
 #include <CGAL/iterator.h>

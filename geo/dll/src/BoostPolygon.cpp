@@ -1495,7 +1495,7 @@ public:
 			for (auto iter = spatialIndex.begin(rect); iter; ++iter)
 			{
 				auto currRectPtr = (*iter)->get_ptr();
-				if (IsIntersecting(*currRectPtr, rect))
+				if (IsTouching(*currRectPtr, rect))
 				{
 					SizeT index2 = currRectPtr - rects_begin;
 					if (index < index2)
@@ -1517,7 +1517,7 @@ public:
 			for (auto iter = spatialIndex.begin(rect); iter; ++iter)
 			{
 				auto currRectPtr = (*iter)->get_ptr();
-				if (IsIntersecting(*currRectPtr, rect))
+				if (IsTouching(*currRectPtr, rect))
 				{
 					SizeT index2 = currRectPtr - rects_begin;
 					if (index < index2)
