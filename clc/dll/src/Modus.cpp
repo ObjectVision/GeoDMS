@@ -141,23 +141,6 @@ struct average_entropyFunc {
 	}
 };
 
-bool OnlyDefinedCheckRequired(const AbstrDataItem* adi)
-{
-	DataCheckMode dcm = adi->GetCheckMode();
-	return !(dcm & DCM_CheckDefined);
-}
-
-
-template <typename V>
-typename Unit<V>::range_t
-GetValuesRange(const DataArray<V>* tileFunctor)
-{
-	assert(tileFunctor);
-	auto vrd = tileFunctor->GetValueRangeData();
-	MG_CHECK(vrd);
-	return vrd->GetRange();
-}
-
 // *****************************************************************************
 //											ModusTot
 // *****************************************************************************
@@ -201,11 +184,11 @@ template<typename V>template <typename V> using map_node_type = std::_Tree_node<
 template <typename V> constexpr UInt32 map_node_type_size = sizeof(map_node_type<V>);
 
 template <typename V, typename R, typename AggrFunc>
-void ModusTotDispatcher(const DataArray<V>* tileFunctor, bool noOutOfRangeValues, typename sequence_traits<R>::reference resData, AggrFunc aggrFunc)
+void ModusTotDispatcher(const DataArray<V>* valuesTF, bool noOutOfRangeValues, typename sequence_traits<R>::reference resData, AggrFunc aggrFunc)
 {
 	if constexpr (is_bitvalue_v<scalar_of_t<V>>)
 	{
-		ModusTotByTable<V, R>(tileFunctor, resData, GetValuesRange<V>(tileFunctor), aggrFunc);
+		ModusTotByTable<V, R>(valuesTF, resData, GetValuesRange<V>(valuesTF), aggrFunc);
 	}
 	else
 	{
@@ -213,19 +196,19 @@ void ModusTotDispatcher(const DataArray<V>* tileFunctor, bool noOutOfRangeValues
 		{
 			if (noOutOfRangeValues)
 			{
-				typename Unit<V>::range_t valuesRange = GetValuesRange<V>(tileFunctor);
+				typename Unit<V>::range_t valuesRange = GetValuesRange<V>(valuesTF);
 				// Countable values; go for Table if sensible
-				auto n = tileFunctor->GetTiledRangeData()->GetDataSize();
+				auto n = valuesTF->GetTiledRangeData()->GetDataSize();
 				auto v = Cardinality(valuesRange);
 
 				if (IsDefined(v) && (v / map_node_type_size<V> <= n / sizeof(V)))  // memory condition v*p<=n, thus TableTime <= 2n.
 				{
-					ModusTotByTable<V, R>(tileFunctor, resData, valuesRange, aggrFunc);
+					ModusTotByTable<V, R>(valuesTF, resData, valuesRange, aggrFunc);
 					return;
 				}
 			}
 		}
-		ModusTotBySet<V, R>(tileFunctor, resData, aggrFunc);
+		ModusTotBySet<V, R>(valuesTF, resData, aggrFunc);
 	}
 }
 

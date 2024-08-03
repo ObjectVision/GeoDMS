@@ -113,8 +113,6 @@ protected:
 	SharedBase& operator =(const SharedBase&) = delete; // DONT COPY m_RefCount
 	SharedBase& operator =(SharedBase&&) = delete;
 
-	ref_count_t GetReferenceCount() const noexcept { return m_RefCount; }
-
 private:
 	mutable std::atomic<ref_count_t> m_RefCount = 0;
 };
