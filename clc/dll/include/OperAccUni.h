@@ -67,7 +67,7 @@ struct AbstrOperAccTotUni: UnaryOperator
 //		assert(dontRecalc || !context);
 		if (!dontRecalc)
 		{
-//			DataReadLock arg1Lock(arg1A);
+			DataReadLock arg1Lock(arg1A);
 			DataWriteLock resLock(res, dms_rw_mode::write_only_mustzero); 
 			Calculate(resLock, arg1A, std::move(args), std::move(readLocks));
 			resLock.Commit();
