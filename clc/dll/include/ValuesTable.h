@@ -493,16 +493,16 @@ auto GetWallCountsAsArray(WallCountsAsArrayInfo<V>& info, tile_id t, tile_id te,
 
 
 template<typename V, typename C>
-auto GetCountsAsArray(const AbstrDataItem* valuesItem, typename Unit<V>::range_t valuesRange) -> std::vector<C>
+auto GetCountsAsArray(const DataArray<V> * valuesDataArray, typename Unit<V>::range_t valuesRange) -> std::vector<C>
 {
 	SizeT vCount = Cardinality(valuesRange);
-	auto valuesDataArray = const_array_cast<V>(valuesItem);
+//	auto valuesDataArray = const_array_cast<V>(valuesItem);
 	SizeT maxNrThreads = MaxAllowedConcurrentTreads();
 	if (vCount)
 		MakeMin(maxNrThreads, valuesDataArray->GetNrFeaturesNow() / vCount);
 	MakeMax(maxNrThreads, 1);
 
-	tile_id tn = valuesItem->GetAbstrDomainUnit()->GetNrTiles();
+	tile_id tn = valuesDataArray->GetTiledRangeData()->GetNrTiles();
 	if (!tn)
 		return {};
 	MakeMin(maxNrThreads, tn);
@@ -512,53 +512,54 @@ auto GetCountsAsArray(const AbstrDataItem* valuesItem, typename Unit<V>::range_t
 	return GetWallCountsAsArray<V, C>(info, 0, tn, maxNrThreads);
 }
 
-template <ordered_value_type R, typename TypeList, count_type C>
-auto GetWeededCounts_Impl(const AbstrDataItem* adi, SizeT maxPairCount) -> ValueCountPairContainerT<R, C>
+template <ordered_value_type R, count_type C>
+auto MakeValueCountContainer(std::vector<C>&& freqTable) -> ValueCountPairContainerT<R, C>
 {
-	auto avu = adi->GetAbstrValuesUnit();
+	ValueCountPairContainerT<R, C> result;
+	for (SizeT i = 0, n = freqTable.size(); i != n; ++i)
+		if (freqTable[i] > 0)
+			result.insert(result.end(), { i, freqTable[i] });
+	return result;
+}
 
-	if (avu->CanBeDomain())
+template <ordered_value_type R, typename V, count_type C>
+auto GetWeededCountsOfV(const DataArray<V>* tileFunctor, const Unit<V>* valuesUnit, SizeT maxPairCount) -> ValueCountPairContainerT<R, C>
+{
+	if constexpr (is_integral_v<scalar_of_t<V>>)
 	{
-		SizeT v = avu->GetCount();
+		SizeT v = valuesUnit->GetCount();
 		if (IsDefined(v) && v <= maxPairCount)
 		{
-			SizeT n = adi->GetAbstrDomainUnit()->GetCount();
-			if (v <= n)
+			SizeT n = tileFunctor->GetTiledRangeData()->GetDataSize();
+			if (v <= n) // Countable values; go for Table if sensible
 			{
-				// Countable values; go for Table if sensible
-				auto freqTable = visit_and_return_result<typelists::aints, std::vector<SizeT>>(avu
-					, [adi]<typename V>(const Unit<V>*valuesUnit)
-				{
-					return GetCountsAsArray<V, C>(adi, valuesUnit->GetRange());
-				}
-				);
-
-				ValueCountPairContainerT<R, C> result;
-				for (SizeT i = 0, n = freqTable.size(); i != n; ++i)
-					if (freqTable[i] > 0)
-						result.insert(result.end(), { i, freqTable[i] });
-				return result;
+				auto freqTable = GetCountsAsArray<V, C>(tileFunctor, valuesUnit->GetRange());
+				return MakeValueCountContainer<R, C>(std::move(freqTable));
 			}
 		}
 	}
+	auto values_fta = GetFutureTileArray(tileFunctor);
+	auto vcxxx = GetWeededWallCounts<V, C>(values_fta, maxPairCount);
+	if constexpr (std::is_same_v<R, V>)
+		return vcxxx;
+	else
+	{
+		ValueCountPairContainerT<R, C> result; result.reserve(vcxxx.size());
+		CountablePointConverter<V> conv(tileFunctor->m_ValueRangeDataPtr);
+		for (const auto& vcp : vcxxx)
+			result.emplace_back(conv.GetScalar<R>(vcp.first), vcp.second);
+		return result;
+	}
+}
 
-
-	return visit_and_return_result<TypeList, ValueCountPairContainerT<R, C> >(avu
+template <ordered_value_type R, typename TypeList, count_type C>
+auto GetWeededCounts_Impl(const AbstrDataItem* adi, SizeT maxPairCount) -> ValueCountPairContainerT<R, C>
+{
+	return visit_and_return_result<TypeList, ValueCountPairContainerT<R, C> >(adi->GetAbstrValuesUnit()
 		, [adi, maxPairCount]<typename V>(const Unit<V>*valuesUnit) 
 			{
 				auto tileFunctor = const_array_cast<V>(adi);
-				auto values_fta = GetFutureTileArray(const_array_cast<V>(adi));
-				auto vcxxx = GetWeededWallCounts<V, C>(values_fta, maxPairCount);
-				if constexpr (std::is_same_v<R, V>)
-					return vcxxx;
-				else
-				{
-					ValueCountPairContainerT<R, C> result; result.reserve(vcxxx.size());
-					CountablePointConverter<V> conv(tileFunctor->m_ValueRangeDataPtr);
-					for (const auto& vcp : vcxxx)
-						result.emplace_back(conv.GetScalar<R>(vcp.first), vcp.second);
-					return result;
-				}
+				return GetWeededCountsOfV<R, V, C>(tileFunctor, valuesUnit, maxPairCount);
 			}
 	);
 }

@@ -1,4 +1,4 @@
-// Copyright (C) 1998-2023 Object Vision b.v. 
+// Copyright (C) 1998-2024 Object Vision b.v. 
 // License: GNU GPL 3
 /////////////////////////////////////////////////////////////////////////////
 
@@ -113,7 +113,7 @@ protected:
 	SharedBase& operator =(const SharedBase&) = delete; // DONT COPY m_RefCount
 	SharedBase& operator =(SharedBase&&) = delete;
 
-	ref_count_t GetCount() const noexcept { return m_RefCount; }
+	ref_count_t GetReferenceCount() const noexcept { return m_RefCount; }
 
 private:
 	mutable std::atomic<ref_count_t> m_RefCount = 0;
