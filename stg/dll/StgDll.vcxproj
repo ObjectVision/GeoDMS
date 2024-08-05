@@ -118,8 +118,8 @@
   </ImportGroup>
   <Target Name="AfterBuild">
     <ItemGroup>
-      <gdaldata Include="C:\dev\vcpkg\installed\$(Platform)-windows\share\gdal\**\*.*" />
-      <projdata Include="C:\dev\vcpkg\installed\$(Platform)-windows\share\proj\**\*.*" />
+      <gdaldata Include="..\..\vcpkg_installed\$(Platform)-windows\$(Platform)-windows\share\gdal\**\*.*" />
+      <projdata Include="..\..\vcpkg_installed\$(Platform)-windows\$(Platform)-windows\share\proj\**\*.*" />
     </ItemGroup>
     <Copy SourceFiles="@(gdaldata)" DestinationFolder="$(TargetDir)gdaldata" />
     <Copy SourceFiles="@(projdata)" DestinationFolder="$(TargetDir)proj4data" />
