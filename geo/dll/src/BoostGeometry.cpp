@@ -1014,7 +1014,5 @@ namespace
 
 	template <typename P> using CGAL_SymmetricDifferenceMultiPolygonOperator = CGAL_MultiPolygonOperator<P, cgal_sym_difference>;
 	tl_oper::inst_tuple_templ<typelists::points, CGAL_SymmetricDifferenceMultiPolygonOperator, AbstrOperGroup&> cgalSymmetricDifferenceMultiPolygonOperatorsNamed(grcgalXOR);
-
-
 }
 

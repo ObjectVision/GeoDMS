@@ -1,6 +1,8 @@
 {
   "dependencies": [
     "boost",
+    "cgal",
+    "gdal",
     "openssl",
     {
       "name": "sqlite3",
@@ -8,7 +10,6 @@
         "rtree"
       ]
     },
-    "gdal",
-    "cgal"
+    "geos"
   ]
 }

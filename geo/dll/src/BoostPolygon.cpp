@@ -36,9 +36,9 @@
 
 #include "BoostGeometry.h"
 #include "CGAL_Traits.h"
+#include "GEOS_Traits.h"
 
-
-enum class geometry_library { boost_polygon, boost_geometry, cgal };
+enum class geometry_library { boost_polygon, boost_geometry, cgal, geos };
 
 const Int32 MAX_COORD = (1 << 26);
 
@@ -383,6 +383,31 @@ public:
 
 					res_data_elem_type back;
 					cgal_assign(back.m_Geometry, res);
+
+					back.m_OrgRel.first = p1_rel;
+					back.m_OrgRel.second = p2Offset + (((*iter)->get_ptr()) - poly2Array.begin());
+
+					leveled_critical_section::scoped_lock resLock(resLocalAdditionSection);
+					resTileData->push_back(std::move(back));
+				}
+			}
+			else if constexpr (GL == geometry_library::geos)
+			{
+				auto mp1 = geos_create_multi_polygon(*polyPtr);
+
+
+				for (box_iter_type iter = spIndexPtr->begin(bbox); iter; ++iter)
+				{
+					CGAL_Traits::Polygon_set poly2;
+					auto mp2 = geos_create_multi_polygon(*((*iter)->get_ptr()));
+
+					auto res = mp1->intersection(mp2.get());
+
+					if (!res || res->isEmpty())
+						continue;
+
+					res_data_elem_type back;
+					geos_assign_mp(back.m_Geometry, *debug_cast<const geos::geom::MultiPolygon*>(res.get()));
 
 					back.m_OrgRel.first = p1_rel;
 					back.m_OrgRel.second = p2Offset + (((*iter)->get_ptr()) - poly2Array.begin());
@@ -1673,16 +1698,19 @@ namespace
 	static CommonOperGroup grBgOverlayPolygon("bg_overlay_polygon", oper_policy::dynamic_result_class | oper_policy::better_not_in_meta_scripting);
 	static CommonOperGroup grBpOverlayPolygon("bp_overlay_polygon", oper_policy::dynamic_result_class | oper_policy::better_not_in_meta_scripting);
 	static CommonOperGroup grCGALOverlayPolygon("cgal_overlay_polygon", oper_policy::dynamic_result_class | oper_policy::better_not_in_meta_scripting);
+	static CommonOperGroup grGEOSOverlayPolygon("geos_overlay_polygon", oper_policy::dynamic_result_class | oper_policy::better_not_in_meta_scripting);
 
 
 	template <typename P> using BoostPolygonOverlayOperator  = PolygonOverlayOperator<P, geometry_library::boost_polygon>;
 	template <typename P> using BoostGeometryOverlayOperator = PolygonOverlayOperator<P, geometry_library::boost_geometry>;
 	template <typename P> using CGAL_OverlayOperator = PolygonOverlayOperator<P, geometry_library::cgal>;
+	template <typename P> using GEOS_OverlayOperator = PolygonOverlayOperator<P, geometry_library::geos>;
 	tl_oper::inst_tuple_templ<typelists::sint_points , BoostPolygonOverlayOperator , AbstrOperGroup&> boostPolygonOverlayOperators   (grOverlayPolygon);
 	tl_oper::inst_tuple_templ<typelists::sint_points , BoostPolygonOverlayOperator , AbstrOperGroup&> boostPolygonBpOverlayOperators (grBpOverlayPolygon);
 	tl_oper::inst_tuple_templ<typelists::float_points, BoostGeometryOverlayOperator, AbstrOperGroup&> boostGeometryOverlayOperators  (grOverlayPolygon);
 	tl_oper::inst_tuple_templ<typelists::points      , BoostGeometryOverlayOperator, AbstrOperGroup&> boostGeometryBgOverlayOperators(grBgOverlayPolygon);
 	tl_oper::inst_tuple_templ<typelists::points,       CGAL_OverlayOperator, AbstrOperGroup&> cgalOverlayOperators(grCGALOverlayPolygon);
+	tl_oper::inst_tuple_templ<typelists::points,       GEOS_OverlayOperator, AbstrOperGroup&> geosOverlayOperators(grGEOSOverlayPolygon);
 
 	tl_oper::inst_tuple_templ<typelists::sint_points, PolygonConnectivityOperator>	polygonConnectivityOperators;
 	tl_oper::inst_tuple_templ<typelists::points,      BoxConnectivityOperator>	    boxConnectivityOperators;

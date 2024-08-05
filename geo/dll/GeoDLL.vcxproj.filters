@@ -76,6 +76,9 @@
     <ClInclude Include="src\CGAL_60\Polygon_repair\repair.h">
       <Filter>Geo Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="src\GEOS_Traits.h">
+      <Filter>Geo Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\Canyon.cpp">

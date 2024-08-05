@@ -36,8 +36,8 @@
 
 struct CGAL_Traits
 {
-	using Kernel = CGAL::Exact_predicates_exact_constructions_kernel;
-//	using Kernel = CGAL::Exact_predicates_inexact_constructions_kernel; 
+//	using Kernel = CGAL::Exact_predicates_exact_constructions_kernel;
+	using Kernel = CGAL::Exact_predicates_inexact_constructions_kernel; 
 //  fails on simple intersections, such as identifying a crossing point 
 // 112894,685301784 403381,743493082
 // 

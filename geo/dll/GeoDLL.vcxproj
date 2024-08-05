@@ -87,6 +87,7 @@
     <ClInclude Include="src\GeoBase.h" />
     <ClInclude Include="src\GeoInterface.h" />
     <ClInclude Include="src\GeoPCH.h" />
+    <ClInclude Include="src\GEOS_Traits.h" />
     <ClInclude Include="src\IppBase.h" />
     <ClInclude Include="src\IppiUtils.h" />
     <ClInclude Include="src\minkowski.h" />

@@ -25,3 +25,4 @@ todo*.txt
 /rtc/dll/obj
 /rtc/dll/obj/x64/Debug
 /vcpkg_installed
+/obj.OLD
