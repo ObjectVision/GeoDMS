@@ -113,13 +113,13 @@ auto GetCountsDirect(typename sequence_traits<V>::cseq_t data, tile_offset index
 }
 
 template <ordered_value_type V, count_type C>
-auto GetIndexedCountsDirect(typename sequence_traits<V>::cseq_t data, const IndexGetter* indexGetter, tile_offset index, tile_offset size, SizeT pCount) -> PartionedValueCountPairContainerT<V, C>
+auto GetPartitionedCountsDirect(typename sequence_traits<V>::cseq_t data, const IndexGetter* indexGetter, tile_offset index, tile_offset size, SizeT pCount) -> PartionedValueCountPairContainerT<V, C>
 {
 	assert(size <= BUFFER_SIZE);
 	assert(size > 0);
 
-	using value_type = Pair<SizeT, V>;
-	value_type buffer[BUFFER_SIZE];
+	using partition_value_pair = Pair<SizeT, V>;
+	partition_value_pair buffer[BUFFER_SIZE];
 
 	assert(index < data.size());
 	assert(size <= data.size());
@@ -138,7 +138,7 @@ auto GetIndexedCountsDirect(typename sequence_traits<V>::cseq_t data, const Inde
 		if (!IsDefined(part_i))
 			continue;
 
-		*bufferPtr++ = value_type(part_i, *valuesIter);
+		*bufferPtr++ = partition_value_pair(part_i, *valuesIter);
 	}
 
 	size = bufferPtr - buffer;
@@ -152,21 +152,21 @@ auto GetIndexedCountsDirect(typename sequence_traits<V>::cseq_t data, const Inde
 	result.reserve(size);
 
 	tile_offset i = 0;
-	value_type currValue = buffer[i++];
+	partition_value_pair currPartitionValuePart = buffer[i++];
 
 	auto currCount = C();
 	++currCount;
 	for (; i != size; ++i)
 	{
-		if (currValue < buffer[i])
+		if (currPartitionValuePart < buffer[i])
 		{
-			result.emplace_back(currValue, currCount);
-			currValue = buffer[i];
+			result.emplace_back(currPartitionValuePart, currCount);
+			currPartitionValuePart = buffer[i];
 			currCount = C();
 		}
 		++currCount;
 	}
-	result.emplace_back(currValue, currCount);
+	result.emplace_back(currPartitionValuePart, currCount);
 	return result;
 }
 
@@ -268,15 +268,15 @@ auto GetTileCounts(typename sequence_traits<V>::cseq_t data, SizeT index, SizeT 
 }
 
 template <ordered_value_type V, count_type C>
-auto GetIndexedTileCounts(typename sequence_traits<V>::cseq_t data, const IndexGetter* indexGetter, SizeT index, SizeT size, SizeT pCount) -> PartionedValueCountPairContainerT<V, C>
+auto GetPartitionedTileCounts(typename sequence_traits<V>::cseq_t data, const IndexGetter* indexGetter, SizeT index, SizeT size, SizeT pCount) -> PartionedValueCountPairContainerT<V, C>
 {
 	if (size <= BUFFER_SIZE)
-		return GetIndexedCountsDirect<V, C>(data, indexGetter, index, size, pCount);
+		return GetPartitionedCountsDirect<V, C>(data, indexGetter, index, size, pCount);
 
 	SizeT m = size / 2;
 
-	auto firstHalf  = GetIndexedTileCounts<V, C>(data, indexGetter, index    ,        m, pCount);
-	auto secondHalf = GetIndexedTileCounts<V, C>(data, indexGetter, index + m, size - m, pCount);
+	auto firstHalf  = GetPartitionedTileCounts<V, C>(data, indexGetter, index    ,        m, pCount);
+	auto secondHalf = GetPartitionedTileCounts<V, C>(data, indexGetter, index + m, size - m, pCount);
 
 	return MergeToLeft(firstHalf, secondHalf);
 }
@@ -415,7 +415,7 @@ auto GetWeededWallCounts(future_tile_array<V>& values_fta, SizeT maxPairCount) -
 }
 
 template <ordered_value_type V, count_type C>
-auto GetIndexedWallCounts(future_tile_array<V>& values_fta, const AbstrDataItem* indicesItem, abstr_future_tile_array& part_fta, tile_id t, tile_id nrTiles, SizeT pCount) -> PartionedValueCountPairContainerT<V, C>
+auto GetPartitionedWallCounts(future_tile_array<V>& values_fta, const AbstrDataItem* indicesItem, abstr_future_tile_array& part_fta, tile_id t, tile_id nrTiles, SizeT pCount) -> PartionedValueCountPairContainerT<V, C>
 {
 	if (!nrTiles)
 		return {};
@@ -424,7 +424,7 @@ auto GetIndexedWallCounts(future_tile_array<V>& values_fta, const AbstrDataItem*
 	{
 		auto tileData = values_fta[t]->GetTile(); values_fta[t] = nullptr;
 		OwningPtr<IndexGetter> indexGetter = IndexGetterCreator::Create(indicesItem, part_fta[t]); part_fta[t] = nullptr;
-		return GetIndexedTileCounts<V, C>(tileData, indexGetter.get(), 0, tileData.size(), pCount);
+		return GetPartitionedTileCounts<V, C>(tileData, indexGetter.get(), 0, tileData.size(), pCount);
 	}
 
 	tile_id m = nrTiles / 2;
@@ -432,11 +432,11 @@ auto GetIndexedWallCounts(future_tile_array<V>& values_fta, const AbstrDataItem*
 
 	auto firstHalf = throttled_async([&values_fta, indicesItem, &part_fta, t, m, pCount]
 		{
-			return GetIndexedWallCounts<V, C>(values_fta, indicesItem, part_fta, t, m, pCount);
+			return GetPartitionedWallCounts<V, C>(values_fta, indicesItem, part_fta, t, m, pCount);
 		}
 	);
 
-	auto secondHalf = GetIndexedWallCounts<V, C>(values_fta, indicesItem, part_fta, t + m, nrTiles - m, pCount);
+	auto secondHalf = GetPartitionedWallCounts<V, C>(values_fta, indicesItem, part_fta, t + m, nrTiles - m, pCount);
 
 	return MergeToLeft(firstHalf.get(), secondHalf);
 }

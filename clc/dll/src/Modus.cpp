@@ -227,7 +227,7 @@ void ModusPartBySet(const AbstrDataItem* indicesItem, abstr_future_tile_array pa
 	using value_type = std::pair<SizeT, V>;
 	auto tn = values_fta.size();
 
-	auto counters = GetIndexedWallCounts<V, SizeT>(values_fta
+	auto counters = GetPartitionedWallCounts<V, SizeT>(values_fta
 		, indicesItem, part_fta
 		, 0, tn, pCount);
 
