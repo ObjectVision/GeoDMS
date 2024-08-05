@@ -280,7 +280,6 @@ XML_ItemBody::XML_ItemBody(OutStreamBase& out, CharPtr caption, CharPtr subText,
 	{
 		XML_OutElement page_title_table(out, "TABLE");
 		out.WriteAttr("width", "100%");
-		//out.WriteAttr("style", "font-size:200%");
 		XML_OutElement table_row(out, "TR");
 		out.WriteAttr("bgcolor", "#89CFF0");
 		XML_OutElement table_col(out, "TD");
@@ -616,13 +615,17 @@ bool TreeItem_XML_DumpGeneralBody(const TreeItem* self, OutStreamBase* xmlOutStr
 	{
 		xmlTable.NamedItemRow("PartOfTemplate", GetTemplRoot(self));
 	}
-	SharedStr result = TreeItemPropertyValue(self, labelPropDefPtr);
+	SharedStr result = self->GetDescr();
+	if (!result.empty()) {
+
+		xmlTable.SingleCellRow(result.c_str(), "#ACE1AF");
+		xmlTable.EmptyRow();
+	}
+		
+
+	result = TreeItemPropertyValue(self, labelPropDefPtr); 
 	if (!result.empty())
 		xmlTable.EditableNameValueRow(LABEL_NAME, result.c_str());
-
-	result = self->GetDescr();
-	if (!result.empty())
-		xmlTable.EditableNameValueRow(DESCR_NAME, result.c_str());
 
 	ValueComposition vc = ValueComposition::Unknown;
 	if (IsDataItem(self))

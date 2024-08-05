@@ -106,18 +106,36 @@ struct XML_Table : XML_OutElement
 					XML_OutElement hr(OutStream(), "HR", "", ClosePolicy::nonPairedElement);
 	}
 
+	void SingleCellRow(CharPtr value, CharPtr color, UInt32 colSpan = 2)
+	{
+		Row row(*this);
+		OutStream().WriteAttr("bgcolor", color);
+		Row::Cell cell(row);
+		OutStream().WriteAttr("COLSPAN", colSpan);
+		OutStream().WriteTrimmed(value);
+	}
+
 	void EditableNameValueRow(CharPtr propName, CharPtr propValue, const TreeItem* context = 0)
 	{
 		Row row(*this);
 			row.EditablePropCell(propName, propName, context);
 			row.ValueCell(propValue);
 	}
+
 	void EditableNameItemRow(CharPtr propName, const TreeItem* item)
 	{
 		Row row(*this);
 		OutStream().WriteAttr("bgcolor", CLR_HROW);
 			row.EditablePropCell(propName);
 			row.ItemCell(item);
+	}
+
+	void NameItemRow(CharPtr propName, const TreeItem* item)
+	{
+		Row row(*this);
+		OutStream().WriteAttr("bgcolor", CLR_HROW);
+		row.EditablePropCell(propName);
+		row.ItemCell(item);
 	}
 };
 
