@@ -407,7 +407,7 @@ public:
 						continue;
 
 					res_data_elem_type back;
-					geos_assign_mp(back.m_Geometry, *debug_cast<const geos::geom::MultiPolygon*>(res.get()));
+					geos_assign_mp(back.m_Geometry, debug_cast<const geos::geom::MultiPolygon*>(res.get()));
 
 					back.m_OrgRel.first = p1_rel;
 					back.m_OrgRel.second = p2Offset + (((*iter)->get_ptr()) - poly2Array.begin());

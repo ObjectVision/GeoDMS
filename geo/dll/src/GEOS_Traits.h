@@ -160,20 +160,21 @@ void geos_assign_polygon(E&& ref, const geos::geom::Polygon* poly)
 
 
 template <dms_sequence E>
-void geos_assign_mp(E&& ref, const geos::geom::MultiPolygon& mpData)
+void geos_assign_mp(E&& ref, const geos::geom::MultiPolygon* mp)
 {
+	assert(mp);
 	ref.clear();
 
-	if (mpData.isEmpty())
+	if (mp->isEmpty())
 		return;
 
-	SizeT i = 0, n = mpData.getNumGeometries();
+	SizeT i = 0, n = mp->getNumGeometries();
 	assert(n != 0); // follows from poly.size()
 	SizeT count = n - 1;
 
 	for (; i != n; ++i)
 	{
-		const auto* poly = mpData.getGeometryN(i);
+		const auto* poly = mp->getGeometryN(i);
 		count += poly->getExteriorRing()->getNumPoints();
 		for (SizeT ir=0, irCount = poly->getNumInteriorRing(); ir != irCount; ++ir)
 			count += poly->getInteriorRingN(ir)->getNumPoints() + 1;
@@ -183,13 +184,13 @@ void geos_assign_mp(E&& ref, const geos::geom::MultiPolygon& mpData)
 
 	for (; i != n; ++i)
 	{
-		const auto* poly = debug_cast<const geos::geom::Polygon*>(mpData.getGeometryN(i));
+		const auto* poly = debug_cast<const geos::geom::Polygon*>(mp->getGeometryN(i));
 		geos_assign_polygon(ref, poly);
 	}
 	while (--n)
 	{ 
 
-		geos_assign_back(ref, debug_cast<const geos::geom::Polygon*>(mpData.getGeometryN(n))->getExteriorRing());
+		geos_assign_back(ref, debug_cast<const geos::geom::Polygon*>(mp->getGeometryN(n))->getExteriorRing());
 	}
 
 	assert(ref.size() == count);
