@@ -2021,6 +2021,8 @@ namespace
 	PolyOperatorGroupss simple("", PolygonFlags());
 	BpPolyOperatorGroupss bp_simple;
 	BgPolyOperatorGroupss bg_simple;
+	CGAL_PolyOperatorGroupss cgal_simple;
+	GEOS_PolyOperatorGroupss geos_simple;
 
 	PolyOperatorGroupsss f2 (SharedStr(""),          PolygonFlags());
 	PolyOperatorGroupsss f21(SharedStr("_filtered"), PolygonFlags::F_Filter2);

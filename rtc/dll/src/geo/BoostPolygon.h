@@ -122,7 +122,7 @@ void bp_assign_mp (E&& ref,  MP&& poly)
 	while (i!=b)
 	{
 		--i;
-		ref.push_back(ConvertPoint(i->begin()[-1]));
+		ref.push_back(ConvertPoint(i->begin()[0]));
 	}
 	assert(ref.size() == count);
 }
