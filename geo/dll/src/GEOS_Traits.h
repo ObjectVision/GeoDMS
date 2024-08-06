@@ -27,28 +27,20 @@ template <typename DmsPointType>
 auto geos_create_multi_polygon(SA_ConstReference<DmsPointType> polyRef, bool mustInsertInnerRings = true)
 -> std::unique_ptr<geos::geom::MultiPolygon>
 {
-//	std::unique_ptr< geos::geom::MultiPolygon>  resMP.clear();
+	assert(mustInsertInnerRings);
 
 	SA_ConstRingIterator<DmsPointType> rb(polyRef, 0), re(polyRef, -1);
 	if (rb == re)
-		return;
-	auto ri = rb;
-
+		return {};
 
 	static auto factory = geos::geom::GeometryFactory::create();
 
-	std::vector< geos::geom::Polygon> resPolygons;
-	geos::geom::LinearRing helperRing, currRing;
-	std::vector< geos::geom::LinearRing> currInnerRings;
+	std::vector< std::unique_ptr<geos::geom::Polygon>> resPolygons;
+	std::unique_ptr<geos::geom::LinearRing> helperRing, currRing;
+	std::vector< std::unique_ptr<geos::geom::LinearRing>> currInnerRings;
 	std::vector<geos::geom::Coordinate> helperRingCoords;
 
-	SA_ConstRingIterator<DmsPointType>
-		rb(polyRef, 0),
-		re(polyRef, -1);
 	auto ri = rb;
-	//			dbg_assert(ri != re);
-	if (ri == re)
-		return;
 
 	bool outerOrientationCW = true;
 	for (; ri != re; ++ri)
@@ -59,22 +51,22 @@ auto geos_create_multi_polygon(SA_ConstReference<DmsPointType> polyRef, bool mus
 		helperRingCoords.clear();
 		for (const auto& p : *ri)
 		{
-			helperRingCoords.emplace_back(geos::geom::Coordinate(p.x, p.y));
+			helperRingCoords.emplace_back(geos::geom::Coordinate(p.X(), p.Y()));
 		}
-		helperRing = geos::geom::LinearRing(std::move(helperRingCoords), factory);
-		MG_CHECK(helperRing.isClosed());
+		helperRing = factory->createLinearRing(std::move(helperRingCoords));
+		MG_CHECK(helperRing->isClosed());
 
-		bool currOrientationCW = !geos::algorithm::Orientation::isCCW(helperRing.getCoordinatesRO());
+		bool currOrientationCW = !geos::algorithm::Orientation::isCCW(helperRing->getCoordinatesRO());
 		MG_CHECK(ri != rb || currOrientationCW);
 
 		if (ri == rb || currOrientationCW == outerOrientationCW)
 		{
-			if (ri != rb && !currRing.isEmpty())
+			if (ri != rb && currRing && !currRing->isEmpty())
 			{
 				resPolygons.emplace_back(factory->createPolygon(std::move(currRing), std::move(currInnerRings)));
 				currInnerRings.clear();
 			}
-			currRing = helperRing;
+			currRing = std::move( helperRing );
 			outerOrientationCW = currOrientationCW;
 
 /* NYI
@@ -111,10 +103,10 @@ auto geos_create_multi_polygon(SA_ConstReference<DmsPointType> polyRef, bool mus
 		}
 		else if (mustInsertInnerRings)
 		{
-			currInnerRings.emplace_back(helperRing);
+			currInnerRings.emplace_back(std::move(helperRing));
 		}
 	}
-	if (!currRing.isEmpty())
+	if (currRing && !currRing->isEmpty())
 	{
 		resPolygons.emplace_back(factory->createPolygon(std::move(currRing), std::move(currInnerRings)));
 	}
@@ -123,34 +115,46 @@ auto geos_create_multi_polygon(SA_ConstReference<DmsPointType> polyRef, bool mus
 
 
 template <dms_sequence E>
-void geos_assign(E&& ref, const geos::geom::Coordinate& c)
+void geos_assign_point(E&& ref, const geos::geom::Coordinate& c)
 {
 	ref.emplace_back(shp2dms_order(c.x, c.y));
 
 }
 
 template <dms_sequence E>
-void geos_assign(E&& ref, const geos::geom::LinearRing& ringData)
+void geos_assign_lr(E&& ref, const geos::geom::LinearRing* lr)
 {
-	for (const auto& c : ringData.getCoordinatesRO())
-		geos_assign(ref, c);
+	assert(lr);
+	const auto* coords = lr->getCoordinatesRO();
+	assert(coords);
+	auto s = coords->getSize();
+	for (SizeT i=0; i!=s; ++i)
+		geos_assign_point(ref, coords->getAt(i));
 }
 
 template <dms_sequence E>
-void geos_assign(E&& ref, const geos::geom::Polygon& poly)
+void geos_assign_back(E&& ref, const geos::geom::LinearRing* lr)
 {
-	geos_assign(ref, poly.getExteriorRing());
-	SizeT irCount = poly.getNumInteriorRing();
+	assert(lr);
+	geos_assign_point(ref, lr->getCoordinatesRO()->back());
+}
+
+template <dms_sequence E>
+void geos_assign_polygon(E&& ref, const geos::geom::Polygon* poly)
+{
+	assert(poly);
+	geos_assign_lr(ref, poly->getExteriorRing());
+	SizeT irCount = poly->getNumInteriorRing();
 	for (SizeT ir = 0; ir != irCount; ++ir)
-		geos_assign(ref, poly.getInteriorRingN(ir));
+		geos_assign_lr(ref, poly->getInteriorRingN(ir));
 
 	if (irCount)
 	{
 		--irCount;
 		while (irCount)
-			geos_assign(ref, poly.getInteriorRingN(--irCount).back());
+			geos_assign_back(ref, poly->getInteriorRingN(--irCount));
 
-		geos_assign(ref, poly.getExteriorRing().back());
+		geos_assign_back(ref, poly->getExteriorRing());
 	}
 }
 
@@ -177,13 +181,15 @@ void geos_assign_mp(E&& ref, const geos::geom::MultiPolygon& mpData)
 
 	ref.reserve(count);
 
-	for (const auto& p : mpData)
+	for (; i != n; ++i)
 	{
-		geos_assign(ref, p);
+		const auto* poly = debug_cast<const geos::geom::Polygon*>(mpData.getGeometryN(i));
+		geos_assign_polygon(ref, poly);
 	}
 	while (--n)
 	{ 
-		geos_assign (ref, mpData.getGeometryN(n).getExteriorRing().back());
+
+		geos_assign_back(ref, debug_cast<const geos::geom::Polygon*>(mpData.getGeometryN(n))->getExteriorRing());
 	}
 
 	assert(ref.size() == count);
