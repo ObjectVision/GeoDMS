@@ -169,41 +169,110 @@ void cgal_assign_ring(E&& ref, const CGAL_Traits::Ring& polyData)
 }
 
 template <dms_sequence E>
-void cgal_assign(E&& ref, std::vector<CGAL_Traits::Polygon_with_holes>&& polyVec)
+void cgal_assign_polygon_with_holes(E&& ref, const CGAL_Traits::Polygon_with_holes& poly)
 {
 	using coordinate_type = scalar_of_t<std::remove_reference_t<E>>;
 
-	std::vector<CGAL_Traits::Point> closurePoints;
+	cgal_assign_ring(std::forward<E>(ref), poly.outer_boundary());
 
-	for (const auto& poly : polyVec)
+	auto nh = poly.holes().size();
+	if (!nh)
+		return;
+	for (SizeT i = 0; i != nh; ++i)
+		cgal_assign_ring(std::forward<E>(ref), poly.holes()[i]);
+	--nh;
+	while (nh)
 	{
-		//		E::value_type polyVec;
-		cgal_assign_ring(std::forward<E>(ref), poly.outer_boundary());
-		closurePoints.emplace_back(poly.outer_boundary().begin()[0]);
-		for (const auto& hole : poly.holes())
-		{
-			cgal_assign_ring(std::forward<E>(ref), hole);
-			closurePoints.emplace_back(hole.begin()[0]);
-		}
+		--nh;
+		cgal_assign_point(std::forward<E>(ref), poly.holes()[nh].begin()[0]);
 	}
-	if (closurePoints.size() > 1)
-	{
-		closurePoints.pop_back();
-		while (closurePoints.size())
-		{
-			cgal_assign_point(ref, closurePoints.back());
-			closurePoints.pop_back();
-		}
-	}
+	cgal_assign_point(ref, poly.outer_boundary().begin()[0]);
 }
 
 template <dms_sequence E>
-void cgal_assign(E&& ref, const CGAL_Traits::Polygon_set& polyData)
+void cgal_assign_polygon_vector(E&& ref, std::vector<CGAL_Traits::Polygon_with_holes>&& polyVec)
+{
+	ref.clear();
+
+	auto np = polyVec.size();
+	if (!np)
+		return;
+
+	SizeT count = np - 1;
+
+	for (const auto& resPoly : polyVec)
+	{
+		assert(resPoly.outer_boundary().size());
+		count += resPoly.outer_boundary().size();
+		for (auto hi = resPoly.holes().begin(), he = resPoly.holes().end(); hi != he; ++hi)
+			count += hi->size() + 1;
+	}
+	ref.reserve(count);
+
+	for (const auto& poly : polyVec)
+		cgal_assign_polygon_with_holes(std::forward<E>(ref), poly);
+
+	--np;
+	while (np)
+	{
+		--np;
+		cgal_assign_point(ref, polyVec[np].outer_boundary().begin()[0]);
+	}
+	assert(ref.size() == count);
+}
+
+template <dms_sequence E>
+void cgal_assign_polygon_set(E&& ref, const CGAL_Traits::Polygon_set& polyData)
 {
 	std::vector<CGAL_Traits::Polygon_with_holes> polyVec;
 
 	polyData.polygons_with_holes(std::back_inserter(polyVec));
-	cgal_assign(std::forward<E>(ref), std::move(polyVec));
+
+	cgal_assign_polygon_vector(std::forward<E>(ref), std::move(polyVec));
+}
+
+template <typename RI>
+auto cgal_split_assign_polygon_set(RI resIter, const CGAL_Traits::Polygon_set& polyData) -> RI
+{
+	std::vector<CGAL_Traits::Polygon_with_holes> polyVec;
+	polyData.polygons_with_holes(std::back_inserter(polyVec));
+	for (const auto& poly : polyVec)
+	{
+		SizeT count = poly.outer_boundary().size();
+		assert(count);
+/* REMOVE
+		for (auto n = poly.holes().size(); n; 
+		{
+			--n;
+			count += poly.holes()[n]->size() + 1;
+		}
+		*/
+
+		for (const auto& hole : poly.holes())
+			count += hole.size() + 1;
+
+
+		resIter->clear();
+		resIter->reserve(count);
+
+		cgal_assign_polygon_with_holes(*resIter, poly);
+
+		assert(resIter->size() == count);
+		++resIter;
+	}
+	return resIter;
+}
+
+template<typename DmsPointType>
+void dms_insert(CGAL_Traits::Polygon_set& lvalue, SA_ConstReference<DmsPointType> rvalue)
+{
+	CGAL_Traits::Polygon_set tmpPS;
+	assign_multi_polygon(tmpPS, rvalue, true);
+
+	CGAL_Traits::Polygon_set resPS;
+	resPS.join(tmpPS);
+
+	lvalue = std::move(resPS);
 }
 
 

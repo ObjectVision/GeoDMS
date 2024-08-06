@@ -21,6 +21,20 @@
 #include <geos/geom/LinearRing.h>
 #include <geos/algorithm/Orientation.h>
 
+template <typename P>
+struct geos_union_poly_traits
+{
+	//	using coordinate_type = scalar_of_t<P>;
+	using coordinate_type = Float64;
+	using point_type = Point<coordinate_type>;
+	using ring_type = std::vector<point_type>;
+
+	using polygon_with_holes_type = geos::geom::Polygon;
+
+	using multi_polygon_type = geos::geom::MultiPolygon;
+	using polygon_result_type = multi_polygon_type;
+};
+
 
 
 template <typename DmsPointType>
@@ -140,7 +154,7 @@ void geos_assign_back(E&& ref, const geos::geom::LinearRing* lr)
 }
 
 template <dms_sequence E>
-void geos_assign_polygon(E&& ref, const geos::geom::Polygon* poly)
+void geos_assign_polygon_with_holes(E&& ref, const geos::geom::Polygon* poly)
 {
 	assert(poly);
 	geos_assign_lr(ref, poly->getExteriorRing());
@@ -148,14 +162,15 @@ void geos_assign_polygon(E&& ref, const geos::geom::Polygon* poly)
 	for (SizeT ir = 0; ir != irCount; ++ir)
 		geos_assign_lr(ref, poly->getInteriorRingN(ir));
 
-	if (irCount)
+	if (!irCount)
+		return;
+	--irCount;
+	while (irCount)
 	{
 		--irCount;
-		while (irCount)
-			geos_assign_back(ref, poly->getInteriorRingN(--irCount));
-
-		geos_assign_back(ref, poly->getExteriorRing());
+		geos_assign_back(ref, poly->getInteriorRingN(irCount));
 	}
+	geos_assign_back(ref, poly->getExteriorRing());
 }
 
 
@@ -185,15 +200,56 @@ void geos_assign_mp(E&& ref, const geos::geom::MultiPolygon* mp)
 	for (; i != n; ++i)
 	{
 		const auto* poly = debug_cast<const geos::geom::Polygon*>(mp->getGeometryN(i));
-		geos_assign_polygon(ref, poly);
+		geos_assign_polygon_with_holes(ref, poly);
 	}
-	while (--n)
+	--n;
+	while (n)
 	{ 
-
+		--n;
 		geos_assign_back(ref, debug_cast<const geos::geom::Polygon*>(mp->getGeometryN(n))->getExteriorRing());
 	}
 
 	assert(ref.size() == count);
+}
+
+template <typename RI>
+auto geos_split_assign_mp(RI resIter, const geos::geom::MultiPolygon* mp) -> RI
+{
+	auto np = mp->getNumGeometries();
+	for (SizeT i = 0; i != np; ++i)
+	{
+		const auto* poly = debug_cast<const geos::geom::Polygon*>(mp->getGeometryN(i));
+		assert(poly);
+		SizeT count = poly->getExteriorRing()->getNumPoints();
+		assert(count);
+		for (auto n = poly->getNumInteriorRing(); n; --n)
+			count += poly->getInteriorRingN(n)->getCoordinatesRO()->getSize() + 1;
+
+		resIter->clear();
+		resIter->reserve(count);
+
+		geos_assign_polygon_with_holes(*resIter, poly);
+		assert(resIter->size() == count);
+		++resIter;
+	}
+	return resIter;
+}
+
+template <typename E>
+void dms_insert(std::unique_ptr<geos::geom::MultiPolygon>& lhs, E&& ref)
+{
+	auto res = geos_create_multi_polygon(std::forward<E>(ref));
+	if (!res)
+		return;
+
+	if (!lhs.get())
+	{
+		lhs = std::move(res);
+		return;
+	}
+	auto join = lhs->Union(res.get());
+	auto joinPtr = debug_cast<geos::geom::MultiPolygon*>(join.get());
+	lhs.reset(joinPtr); join.release();
 }
 
 

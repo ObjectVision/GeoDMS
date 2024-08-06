@@ -235,7 +235,7 @@ void write_linestring(SA_Reference<P> resDataRef, const bg_linestring_t& ls)
 }
 
 template <typename P>
-void store_multi_linestring(SA_Reference<P> resDataRef, const bg_multi_linestring_t& mls)
+void bg_store_multi_linestring(SA_Reference<P> resDataRef, const bg_multi_linestring_t& mls)
 {
 	SizeT nrPoints = 0;
 	if (!mls.empty())
@@ -263,50 +263,75 @@ void store_multi_linestring(SA_Reference<P> resDataRef, const bg_multi_linestrin
 }
 
 template <typename DmsPointType>
-void store_ring(SA_Reference<DmsPointType> resDataElem, const auto& ring)
+void bg_store_ring(SA_Reference<DmsPointType> resDataElem, const auto& ring)
 {
 	assert(ring.begin()[0] == ring.end()[-1]); // closed ?
 	resDataElem.append_range(ring);
 }
 
 template <typename DmsPointType>
-void store_ring(std::vector<DmsPointType>& resDataElem, const auto& ring)
+void bg_store_ring(std::vector<DmsPointType>& resDataElem, const auto& ring)
 {
 	assert(ring.begin()[0] == ring.end()[-1]); // closed ?
 	resDataElem.append_range(ring);
 }
 
-void store_multi_polygon(auto&& resDataElem, const bg_multi_polygon_t& resMP, std::vector<DPoint>& ringClosurePoints)
+template <dms_sequence E>
+void bg_store_polygon(E&& ref, const bg_polygon_t& resPoly)
 {
-	ringClosurePoints.clear();
+	bg_store_ring(std::forward<E>(ref), resPoly.outer());
+
+	for (const auto& resHole : resPoly.inners())
+		bg_store_ring(std::forward<E>(ref), resHole);
+	auto nh = resPoly.inners().size();
+	if (!nh)
+		return;
+	--nh;
+	while (nh)
+	{
+		--nh;
+		ref.emplace_back(resPoly.inners()[nh].end()[-1]);
+	}
+	ref.emplace_back(resPoly.inners()[nh].end()[-1]);
+}
+
+template <dms_sequence E>
+void bg_store_multi_polygon(E&& ref, const bg_multi_polygon_t& resMP)
+{
+	ref.clear();
+
+	auto np = resMP.size();
+	if (!np)
+		return;
+
+	SizeT count = np - 1;
+
 	for (const auto& resPoly : resMP)
 	{
-		const auto& resRing = resPoly.outer();
-		store_ring(resDataElem, resRing);
-		ringClosurePoints.emplace_back(resRing.end()[-1]);
+		assert(resPoly.outer().size());
+		count += resPoly.outer().size();
+		for (auto hi = resPoly.inners().begin(), he = resPoly.inners().end(); hi != he; ++hi)
+			count += hi->size() + 1;
+	}
 
-		for (const auto& resLake : resPoly.inners())
-		{
-			store_ring(resDataElem, resLake);
-			ringClosurePoints.emplace_back(resLake.end()[-1]);
-		}
-	}
-	if (!ringClosurePoints.empty())
+	ref.reserve(count);
+
+	for (const auto& resPoly : resMP)
+		bg_store_polygon(std::forward<E>(ref), resPoly);
+
+	--np;
+	while (np)
 	{
-		ringClosurePoints.pop_back();
-		while (!ringClosurePoints.empty())
-		{
-			resDataElem.emplace_back(ringClosurePoints.back());
-			ringClosurePoints.pop_back();
-		}
+		--np;
+		ref.emplace_back(resMP[np].outer().end()[-1]);
 	}
+	assert(ref.size() == count);
 }
 
 template <dms_sequence E, typename BG_MP>
 void bg_assign(E&& ref, BG_MP&& resMP)
 {
-	std::vector<DPoint> ringClosurePoints;
-	store_multi_polygon(std::forward<E>(ref), std::forward<BG_MP>(resMP), ringClosurePoints);
+	bg_store_multi_polygon(std::forward<E>(ref), std::forward<BG_MP>(resMP));
 }
 
 template <typename RI, typename BG_MP>
@@ -316,39 +341,22 @@ auto bg_split_assign(RI resIter, const BG_MP& mp) -> RI
 
 	for (auto i = mp.begin(), e = mp.end(); i != e; ++resIter, ++i)
 	{
-		resIter->clear();
-
 		auto& outerRing = i->outer();
 		SizeT count = outerRing.size();
 		assert(count);
 		for (auto hi = i->inners().begin(), he = i->inners().end(); hi != he; ++hi)
 			count += hi->size() + 1;
 
+		resIter->clear();
 		resIter->reserve(count);
 
 		assert(outerRing.begin() != outerRing.end());
 		assert(outerRing.begin()[0] == outerRing.end()[-1]);
 
-		store_ring(*resIter, outerRing);
-		if (!i->inners().empty())
-		{
-			for (const auto& resLake : i->inners())
-				store_ring(*resIter, resLake);
-			auto currInner = i->inners().end(), firstInner = i->inners().begin();
-			assert(currInner != firstInner);
-			--currInner;
-			while (currInner != firstInner) {
-				--currInner;
-				assert(currInner->size());
-				resIter->emplace_back(currInner->end()[-1]);
-			} ;
-
-			resIter->emplace_back(outerRing.end()[-1]);
-		}
+		bg_store_polygon(*resIter, *i);
 		assert(resIter->size() == count);
 	}
 	return resIter;
-
 }
 
 // *****************************************************************************
@@ -482,6 +490,20 @@ void assign_multi_polygon(bg_multi_polygon_t& resMP, SA_ConstReference<DmsPointT
 	if (!helperPolygon.outer().empty())
 		resMP.emplace_back(helperPolygon);
 }
+
+
+template<typename DmsPointType>
+void dms_insert(bg_multi_polygon_t& lvalue, SA_ConstReference<DmsPointType> rvalue)
+{
+	bg_polygon_t helperPolygon;
+	bg_ring_t helperRing;
+	bg_multi_polygon_t tmpMP, resMP;
+
+	assign_multi_polygon(tmpMP, rvalue, true, helperPolygon, helperRing);
+	boost::geometry::union_(lvalue, tmpMP, resMP);
+	lvalue.swap(resMP);
+}
+
 
 
 #endif //!defined(MG_GEO_BOOST_GEOMETRY_H)

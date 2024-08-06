@@ -339,7 +339,6 @@ public:
 				bg_ring_t helperRing;
 				bg_polygon_t helperPolygon;
 				bg_multi_polygon_t currMP1, currMP2, resMP;
-				std::vector<DPoint> helperPointArray;
 
 				assign_multi_polygon(currMP1, *polyPtr, true, helperPolygon, helperRing);
 				if (currMP1.empty())
@@ -353,7 +352,7 @@ public:
 					if (!resMP.empty())
 					{
 						res_data_elem_type back;
-						store_multi_polygon(back.m_Geometry, resMP, helperPointArray);
+						bg_store_multi_polygon(back.m_Geometry, resMP);
 
 						back.m_OrgRel.first = p1_rel;
 						back.m_OrgRel.second = p2Offset + (((*iter)->get_ptr()) - poly2Array.begin());
@@ -382,7 +381,7 @@ public:
 						continue;
 
 					res_data_elem_type back;
-					cgal_assign(back.m_Geometry, res);
+					cgal_assign_polygon_set(back.m_Geometry, res);
 
 					back.m_OrgRel.first = p1_rel;
 					back.m_OrgRel.second = p2Offset + (((*iter)->get_ptr()) - poly2Array.begin());
@@ -571,17 +570,6 @@ void dms_insert(bp::polygon_set_data<C>& lvalue, const GT2& rvalue)
 
 	using GT2_traits = bp::polygon_set_traits<GT2>;
 	lvalue.insert(GT2_traits::begin(rvalue), GT2_traits::end(rvalue));
-}
-
-void dms_insert(bg_multi_polygon_t& lvalue, const auto& rvalue)
-{
-	bg_polygon_t helperPolygon;
-	bg_ring_t helperRing;
-	bg_multi_polygon_t tmpMP, resMP;
-
-	assign_multi_polygon(tmpMP, rvalue, true, helperPolygon, helperRing);
-	boost::geometry::union_(lvalue, tmpMP, resMP);
-	lvalue.swap(resMP);
 }
 
 Timer s_ProcessTimer;
@@ -998,16 +986,6 @@ struct union_bp_polygonsets
 	}
 };
 
-struct union_bg_multi_polygon
-{
-	void operator()(bg_multi_polygon_t& lvalue, bg_multi_polygon_t&& rvalue) const
-	{
-		bg_multi_polygon_t result;
-		boost::geometry::union_(lvalue, rvalue, result);
-		result.swap(lvalue);
-	}
-};
-
 template <typename P>
 class BpPolygonOperator : public AbstrPolygonOperator
 {
@@ -1213,6 +1191,16 @@ public:
 //	Boost Geometry PolygonOverlay
 // *****************************************************************************
 
+struct union_bg_multi_polygon
+{
+	void operator()(bg_multi_polygon_t& lvalue, bg_multi_polygon_t&& rvalue) const
+	{
+		bg_multi_polygon_t result;
+		boost::geometry::union_(lvalue, rvalue, result);
+		result.swap(lvalue);
+	}
+};
+
 template <typename P>
 class BgPolygonOperator : public AbstrPolygonOperator
 {
@@ -1302,6 +1290,238 @@ public:
 			else
 			{
 				bg_assign(*resIter, geometryTowerPtr->get_result());
+				++resIter;
+			}
+		}
+		assert(resIter == resArray.end() || domainCount == 0);
+	}
+};
+
+// *****************************************************************************
+//	CGAL PolygonOverlay
+// *****************************************************************************
+
+struct union_cgal_multi_polygon
+{
+	void operator()(CGAL_Traits::Polygon_set& lvalue, const CGAL_Traits::Polygon_set& rvalue) const
+	{
+		lvalue.join(rvalue);
+	}
+};
+
+
+template <typename P>
+class CGAL_PolygonOperator : public AbstrPolygonOperator
+{
+	using SequenceType = std::vector<P>;
+
+	using traits_t = CGAL_Traits;
+
+//	using ScalarType = traits_t::coordinate_type;
+	using PointType = traits_t::Point;
+	using RingType = traits_t::Ring;
+	using PolygonType = traits_t::Polygon_with_holes;
+	using MultiPolygonType = traits_t::Polygon_set;
+	using MultiPolygonTower = assoc_tower<MultiPolygonType, union_cgal_multi_polygon>;
+	using NumType = Float64;
+
+	using ArgPolyType = DataArray<SequenceType>;
+	using ArgNumType = DataArray<NumType>;
+
+public:
+	CGAL_PolygonOperator(AbstrOperGroup* aog, PolygonFlags flags)
+		: AbstrPolygonOperator(aog, ArgPolyType::GetStaticClass(), ArgNumType::GetStaticClass(), flags)
+	{}
+
+	void Calculate(ResourceArrayHandle& r, SizeT domainCount, const AbstrDataItem* polyDataA, const AbstrDataItem* partitionDataA, tile_id t) const override
+	{
+		UnionPolygon<P, SequenceType, MultiPolygonTower>(r, domainCount, polyDataA, partitionDataA, t, GetGroup());
+	}
+
+	void StoreImpl(AbstrUnit* resUnit, AbstrDataItem* resGeometry, DataWriteHandle& resGeometryLock, AbstrDataItem* resNrOrgEntity, tile_id t, ResourceArrayHandle& r) const override
+	{
+		SizeT domainCount = 0;
+		auto geometryTowerResourcePtr = debug_cast<ResourceArray<MultiPolygonTower>*>(r.get_ptr());
+		MultiPolygonTower* geometryTowerPtr = nullptr;
+		if (geometryTowerResourcePtr)
+		{
+			domainCount = geometryTowerResourcePtr->size();
+			geometryTowerPtr = geometryTowerResourcePtr->begin();
+		}
+
+		if (m_Flags & PolygonFlags::F_DoSplit)
+		{
+			assert(resUnit);
+			SizeT splitCount = 0;
+			auto geometryTowerIter = geometryTowerPtr;
+			for (SizeT i = 0; i != domainCount; ++i, ++geometryTowerIter)
+			{
+				if (!geometryTowerIter->empty())
+				{
+					std::vector<traits_t::Polygon_with_holes> geometryList;
+					geometryTowerIter->front().polygons_with_holes(std::back_inserter(geometryList));
+					splitCount += geometryList.size();
+				}
+			}
+			resUnit->SetCount(splitCount); // we must be in delayed store now
+			if (resNrOrgEntity)
+			{
+				DataWriteLock resRelLock(resNrOrgEntity);
+				SizeT splitCount2 = 0;
+				geometryTowerIter = geometryTowerPtr;
+				for (SizeT i = 0; i != domainCount; ++i, ++geometryTowerIter)
+				{
+					if (!geometryTowerIter->empty())
+					{
+						std::vector<traits_t::Polygon_with_holes> geometryList;
+						geometryTowerIter->front().polygons_with_holes(std::back_inserter(geometryList));
+						SizeT nrSplits = geometryList.size();
+						SizeT nextCount = splitCount2 + nrSplits;
+						while (splitCount2 != nextCount)
+							resRelLock->SetValueAsSizeT(splitCount2++, i);
+					}
+				}
+				resRelLock.Commit();
+			}
+		}
+		if (DoDelayStore())
+		{
+			assert(resGeometry);
+			resGeometryLock = DataWriteHandle(resGeometry, dms_rw_mode::write_only_all);
+		}
+		assert(resGeometryLock);
+
+		auto resArray = mutable_array_cast<SequenceType>(resGeometryLock)->GetLockedDataWrite(t, dms_rw_mode::write_only_all); // t may be no_tile
+		auto resIter = resArray.begin();
+
+		for (SizeT i = 0; i != domainCount; ++i, ++geometryTowerPtr)
+		{
+			if (m_Flags & PolygonFlags::F_DoSplit)
+			{
+				resIter = cgal_split_assign_polygon_set(resIter, geometryTowerPtr->get_result());
+			}
+			else
+			{
+				cgal_assign_polygon_set(*resIter, geometryTowerPtr->get_result());
+				++resIter;
+			}
+		}
+		assert(resIter == resArray.end() || domainCount == 0);
+	}
+};
+
+// *****************************************************************************
+//	GEOS PolygonOverlay
+// *****************************************************************************
+
+struct union_geos_multi_polygon
+{
+	using mp_ptr = std::unique_ptr<geos::geom::MultiPolygon>;
+
+	void operator()(mp_ptr& lvalue, mp_ptr&& rvalue) const
+	{
+		if (!rvalue)
+			return;
+		if (!lvalue)
+		{
+			lvalue = std::move(rvalue);
+			return;
+		}
+		auto result = lvalue->Union(rvalue.get());
+		lvalue.reset( debug_cast<geos::geom::MultiPolygon*>(result.get()) ); // debug cast may throw
+		result.release();
+	}
+};
+
+template <typename P>
+class GEOS_PolygonOperator : public AbstrPolygonOperator
+{
+	using SequenceType = std::vector<P>;
+
+	using traits_t = geos_union_poly_traits<P>;
+
+	using ScalarType = traits_t::coordinate_type;
+	using PointType = traits_t::point_type;
+	using RingType = traits_t::ring_type;
+	using PolygonType = traits_t::polygon_with_holes_type;
+	using MultiPolygonType = traits_t::multi_polygon_type;
+	using MultiPolygonTower = assoc_tower<std::unique_ptr<MultiPolygonType>, union_geos_multi_polygon>;
+	using NumType = Float64;
+
+	typedef DataArray<SequenceType>   ArgPolyType;
+	typedef DataArray<NumType>        ArgNumType;
+
+public:
+	GEOS_PolygonOperator(AbstrOperGroup* aog, PolygonFlags flags)
+		: AbstrPolygonOperator(aog, ArgPolyType::GetStaticClass(), ArgNumType::GetStaticClass(), flags)
+	{}
+
+	void Calculate(ResourceArrayHandle& r, SizeT domainCount, const AbstrDataItem* polyDataA, const AbstrDataItem* partitionDataA, tile_id t) const override
+	{
+		UnionPolygon<P, SequenceType, MultiPolygonTower>(r, domainCount, polyDataA, partitionDataA, t, GetGroup());
+	}
+
+	void StoreImpl(AbstrUnit* resUnit, AbstrDataItem* resGeometry, DataWriteHandle& resGeometryLock, AbstrDataItem* resNrOrgEntity, tile_id t, ResourceArrayHandle& r) const override
+	{
+		SizeT domainCount = 0;
+		auto geometryTowerResourcePtr = debug_cast<ResourceArray<MultiPolygonTower>*>(r.get_ptr());
+		MultiPolygonTower* geometryTowerPtr = nullptr;
+		if (geometryTowerResourcePtr)
+		{
+			domainCount = geometryTowerResourcePtr->size();
+			geometryTowerPtr = geometryTowerResourcePtr->begin();
+		}
+
+		if (m_Flags & PolygonFlags::F_DoSplit)
+		{
+			assert(resUnit);
+			SizeT splitCount = 0;
+			auto geometryTowerIter = geometryTowerPtr;
+			for (SizeT i = 0; i != domainCount; ++i, ++geometryTowerIter)
+			{
+				if (!geometryTowerIter->empty())
+				{
+					splitCount += geometryTowerIter->front()->getNumGeometries(); // geometryPtr 
+				}
+			}
+			resUnit->SetCount(splitCount); // we must be in delayed store now
+			if (resNrOrgEntity)
+			{
+				DataWriteLock resRelLock(resNrOrgEntity);
+				SizeT splitCount2 = 0;
+				geometryTowerIter = geometryTowerPtr;
+				for (SizeT i = 0; i != domainCount; ++i, ++geometryTowerIter)
+				{
+					if (!geometryTowerIter->empty())
+					{
+						SizeT nrSplits = geometryTowerIter->front()->getNumGeometries();
+						SizeT nextCount = splitCount2 + nrSplits;
+						while (splitCount2 != nextCount)
+							resRelLock->SetValueAsSizeT(splitCount2++, i);
+					}
+				}
+				resRelLock.Commit();
+			}
+		}
+		if (DoDelayStore())
+		{
+			assert(resGeometry);
+			resGeometryLock = DataWriteHandle(resGeometry, dms_rw_mode::write_only_all);
+		}
+		assert(resGeometryLock);
+
+		auto resArray = mutable_array_cast<SequenceType>(resGeometryLock)->GetLockedDataWrite(t, dms_rw_mode::write_only_all); // t may be no_tile
+		auto resIter = resArray.begin();
+
+		for (SizeT i = 0; i != domainCount; ++i, ++geometryTowerPtr)
+		{
+			if (m_Flags & PolygonFlags::F_DoSplit)
+			{
+				resIter = geos_split_assign_mp(resIter, geometryTowerPtr->get_result().get());
+			}
+			else
+			{
+				geos_assign_mp(*resIter, geometryTowerPtr->get_result().get());
 				++resIter;
 			}
 		}
@@ -1616,6 +1836,52 @@ namespace
 			m_Instances;
 	};
 
+	struct CGAL_PolyOperatorGroup : CommonOperGroup
+	{
+		CGAL_PolyOperatorGroup(CharPtr name, PolygonFlags flags)
+			: CommonOperGroup(name)
+			, m_Instances(this, flags)
+		{
+			SetBetterNotInMetaScripting();
+		}
+
+		tl_oper::inst_tuple_templ<typelists::seq_points, CGAL_PolygonOperator, AbstrOperGroup*, PolygonFlags>
+			m_Instances;
+	};
+
+	struct CGAL_PartitionedAlternatives
+	{
+		CGAL_PartitionedAlternatives(AbstrOperGroup* cog, PolygonFlags flags)
+			: m_Instances(cog, flags)
+		{}
+
+		tl_oper::inst_tuple_templ<typelists::seq_points, CGAL_PolygonOperator, AbstrOperGroup*, PolygonFlags>
+			m_Instances;
+	};
+
+	struct GEOS_PolyOperatorGroup : CommonOperGroup
+	{
+		GEOS_PolyOperatorGroup(CharPtr name, PolygonFlags flags)
+			: CommonOperGroup(name)
+			, m_Instances(this, flags)
+		{
+			SetBetterNotInMetaScripting();
+		}
+
+		tl_oper::inst_tuple_templ<typelists::seq_points, GEOS_PolygonOperator, AbstrOperGroup*, PolygonFlags>
+			m_Instances;
+	};
+
+	struct GEOS_PartitionedAlternatives
+	{
+		GEOS_PartitionedAlternatives(AbstrOperGroup* cog, PolygonFlags flags)
+			: m_Instances(cog, flags)
+		{}
+
+		tl_oper::inst_tuple_templ<typelists::seq_points, GEOS_PolygonOperator, AbstrOperGroup*, PolygonFlags>
+			m_Instances;
+	};
+
 	struct PolyOperatorGroups
 	{
 		BpPolyOperatorGroup simplePO, unionPO, partitionedPO;
@@ -1648,6 +1914,28 @@ namespace
 			, partitionedPO(&unionPO, PolygonFlags(flags | PolygonFlags::F_DoPartUnion))
 		{}
 	};
+	struct CGAL_PolyOperatorGroups
+	{
+		CGAL_PolyOperatorGroup simplePO, unionPO;
+		CGAL_PartitionedAlternatives partitionedPO;
+
+		CGAL_PolyOperatorGroups(WeakStr nameTempl, PolygonFlags flags)
+			: simplePO(mySSPrintF(nameTempl.c_str(), "").c_str(), flags)
+			, unionPO(mySSPrintF(nameTempl.c_str(), "union_").c_str(), PolygonFlags(flags | PolygonFlags::F_DoUnion))
+			, partitionedPO(&unionPO, PolygonFlags(flags | PolygonFlags::F_DoPartUnion))
+		{}
+	};
+	struct GEOS_PolyOperatorGroups
+	{
+		GEOS_PolyOperatorGroup simplePO, unionPO;
+		GEOS_PartitionedAlternatives partitionedPO;
+
+		GEOS_PolyOperatorGroups(WeakStr nameTempl, PolygonFlags flags)
+			: simplePO(mySSPrintF(nameTempl.c_str(), "").c_str(), flags)
+			, unionPO(mySSPrintF(nameTempl.c_str(), "union_").c_str(), PolygonFlags(flags | PolygonFlags::F_DoUnion))
+			, partitionedPO(&unionPO, PolygonFlags(flags | PolygonFlags::F_DoPartUnion))
+		{}
+	};
 	struct PolyOperatorGroupss
 	{
 		PolyOperatorGroups simple, split;
@@ -1670,6 +1958,21 @@ namespace
 		,	split = BgPolyOperatorGroups(SharedStr("bg_split_%spolygon"), PolygonFlags::F_DoSplit)
 		;
 	};
+	struct CGAL_PolyOperatorGroupss
+	{
+		CGAL_PolyOperatorGroups
+			simple = CGAL_PolyOperatorGroups(SharedStr("cgal_%spolygon"), PolygonFlags())
+			, split = CGAL_PolyOperatorGroups(SharedStr("cgal_split_%spolygon"), PolygonFlags::F_DoSplit)
+			;
+	};
+	struct GEOS_PolyOperatorGroupss
+	{
+		GEOS_PolyOperatorGroups
+			simple = GEOS_PolyOperatorGroups(SharedStr("geos_%spolygon"), PolygonFlags())
+			, split = GEOS_PolyOperatorGroups(SharedStr("geos_split_%spolygon"), PolygonFlags::F_DoSplit)
+			;
+	};
+
 
 	struct PolyOperatorGroupsss
 	{

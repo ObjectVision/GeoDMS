@@ -11,6 +11,7 @@
 #include "BoostGeometry.h"
 
 #include "CGAL_Traits.h"
+#include "GEOS_Traits.h"
 #include <CGAL/Boolean_set_operations_2.h>
 
 static VersionComponent s_BoostGeometry("boost::geometry " BOOST_STRINGIZE(BOOST_GEOMETRY_VERSION));
@@ -24,15 +25,20 @@ static CommonOperGroup grBgSimplify_multi_polygon("bg_simplify_multi_polygon", o
 static CommonOperGroup grBgSimplify_polygon      ("bg_simplify_polygon", oper_policy::better_not_in_meta_scripting);
 static CommonOperGroup grBgSimplify_linestring   ("bg_simplify_linestring", oper_policy::better_not_in_meta_scripting);
 
-static CommonOperGroup grBgIntersect ("bg_intersect" , oper_policy::better_not_in_meta_scripting);
-static CommonOperGroup grBgUnion     ("bg_union"     , oper_policy::better_not_in_meta_scripting);
-static CommonOperGroup grBgXOR       ("bg_xor"       , oper_policy::better_not_in_meta_scripting);
-static CommonOperGroup grBgDifference("bg_difference", oper_policy::better_not_in_meta_scripting);
+static CommonOperGroup grBgIntersect   ("bg_intersect" ,   oper_policy::better_not_in_meta_scripting);
+static CommonOperGroup grBgUnion       ("bg_union"     ,   oper_policy::better_not_in_meta_scripting);
+static CommonOperGroup grBgXOR         ("bg_xor"       ,   oper_policy::better_not_in_meta_scripting);
+static CommonOperGroup grBgDifference  ("bg_difference",   oper_policy::better_not_in_meta_scripting);
 
-static CommonOperGroup grcgalIntersect("cgal_intersect", oper_policy::better_not_in_meta_scripting);
-static CommonOperGroup grcgalUnion("cgal_union", oper_policy::better_not_in_meta_scripting);
-static CommonOperGroup grcgalXOR("cgal_xor", oper_policy::better_not_in_meta_scripting);
+static CommonOperGroup grcgalIntersect ("cgal_intersect",  oper_policy::better_not_in_meta_scripting);
+static CommonOperGroup grcgalUnion     ("cgal_union",      oper_policy::better_not_in_meta_scripting);
+static CommonOperGroup grcgalXOR       ("cgal_xor",        oper_policy::better_not_in_meta_scripting);
 static CommonOperGroup grcgalDifference("cgal_difference", oper_policy::better_not_in_meta_scripting);
+
+static CommonOperGroup grgeosIntersect ("geos_intersect",  oper_policy::better_not_in_meta_scripting);
+static CommonOperGroup grgeosUnion     ("geos_union",      oper_policy::better_not_in_meta_scripting);
+static CommonOperGroup grgeosXOR       ("geos_xor",        oper_policy::better_not_in_meta_scripting);
+static CommonOperGroup grgeosDifference("geos_difference", oper_policy::better_not_in_meta_scripting);
 
 static CommonOperGroup grBgBuffer_point        ("bg_buffer_point", oper_policy::better_not_in_meta_scripting);
 static CommonOperGroup grBgBuffer_multi_point  ("bg_buffer_multi_point", oper_policy::better_not_in_meta_scripting);
@@ -87,7 +93,6 @@ struct BgMultiPolygonOperator : BinaryMapAlgebraicOperator<P>
 		bg_ring_t helperRing;
 		bg_polygon_t helperPolygon;
 		bg_multi_polygon_t currMP1, currMP2, resMP;
-		std::vector<DPoint> helperPointArray;
 
 		bool domain1IsVoid = (af & AF1_ISPARAM);
 		bool domain2IsVoid = (af & AF2_ISPARAM);
@@ -104,7 +109,7 @@ struct BgMultiPolygonOperator : BinaryMapAlgebraicOperator<P>
 				assign_multi_polygon(currMP2, arg2Data[i], true, helperPolygon, helperRing);
 			resMP.clear();
 			m_Oper(currMP1, currMP2, resMP);
-			store_multi_polygon(resData[i], resMP, helperPointArray);
+			bg_store_multi_polygon(resData[i], resMP);
 		}
 	}
 	BinaryBgMpOper m_Oper;
@@ -157,7 +162,56 @@ struct CGAL_MultiPolygonOperator : BinaryMapAlgebraicOperator<P>
 				assign_multi_polygon(currMP2, arg2Data[i], true, std::move(helperPolygon), std::move(helperRing));
 			resMP.clear();
 			m_Oper(currMP1, currMP2, resMP);
-			cgal_assign(resData[i], resMP);
+			cgal_assign_polygon_set(resData[i], resMP);
+		}
+	}
+	BinaryBgMpOper m_Oper;
+};
+
+// *****************************************************************************
+//	map algebraic operations on GEOS polygons
+// *****************************************************************************
+
+template <typename P, typename BinaryBgMpOper>
+struct GEOS_MultiPolygonOperator : BinaryMapAlgebraicOperator<P>
+{
+	using PointType = P;
+	using PolygonType = std::vector<PointType>;
+	using ArgType = DataArray<PolygonType>;
+
+	GEOS_MultiPolygonOperator(AbstrOperGroup& gr, BinaryBgMpOper&& oper = BinaryBgMpOper())
+		: BinaryMapAlgebraicOperator<P>(&gr, compatible_simple_values_unit_creator, ValueComposition::Polygon)
+	{}
+	using st = sequence_traits<PolygonType>;
+	using seq_t = typename st::seq_t;
+	using cseq_t = typename st::cseq_t;
+
+	void CalcTile(seq_t resData, cseq_t arg1Data, cseq_t arg2Data, ArgFlags af MG_DEBUG_ALLOCATOR_SRC_ARG) const override
+	{
+		tile_offset n1 = arg1Data.size();
+		tile_offset n2 = arg2Data.size();
+		tile_offset n = std::max(n1, n2);
+		assert(n1 == n || (af & AF1_ISPARAM));
+		assert(n2 == n || (af & AF2_ISPARAM));
+		assert(resData.size() == n);
+
+		std::unique_ptr<geos::geom::MultiPolygon> currMP1, currMP2, resMP;
+
+		bool domain1IsVoid = (af & AF1_ISPARAM);
+		bool domain2IsVoid = (af & AF2_ISPARAM);
+		if (domain1IsVoid)
+			currMP1 = geos_create_multi_polygon(arg1Data[0]);
+		if (domain2IsVoid)
+			currMP2 = geos_create_multi_polygon(arg2Data[0]);
+
+		for (SizeT i = 0; i != n; ++i)
+		{
+			if (!domain1IsVoid)
+				currMP1 = geos_create_multi_polygon(arg1Data[i]);
+			if (!domain2IsVoid)
+				currMP2 = geos_create_multi_polygon(arg2Data[i]);
+			m_Oper(std::move(currMP1), std::move(currMP2), resMP);
+			geos_assign_mp(resData[i], resMP.get());
 		}
 	}
 	BinaryBgMpOper m_Oper;
@@ -392,7 +446,7 @@ struct SimplifyLinestringOperator : public AbstrSimplifyOperator
 				move(resGeometry, DPoint(lb));
 
 			}
-			store_multi_linestring(resData[i], resGeometry);
+			bg_store_multi_linestring(resData[i], resGeometry);
 		}
 	}
 };
@@ -523,7 +577,7 @@ struct BufferPointOperator : public AbstrBufferOperator
 		nextPointWithSameResRing:
 			movedRing = resRing;
 			move(movedRing, DPoint(pointData[i]));
-			store_ring(resData[i], movedRing);
+			bg_store_ring(resData[i], movedRing);
 			if (++i == n)
 				break;
 			if (e2IsVoid && e3IsVoid)
@@ -570,7 +624,6 @@ struct BufferMultiPointOperator : public AbstrBufferOperator
 			boost::geometry::strategy::buffer::point_circle                circleStrategy(pointsPerCircle);
 			boost::geometry::strategy::buffer::side_straight               sideStrategy;
 
-			std::vector<DPoint> ringClosurePoints;
 			assert(polyItem->GetValueComposition() == ValueComposition::Sequence);
 
 			boost::geometry::model::multi_point<DPoint> currGeometry;
@@ -587,7 +640,7 @@ struct BufferMultiPointOperator : public AbstrBufferOperator
 			boost::geometry::buffer(currGeometry, resMP, distStrategy, sideStrategy, joinStrategy, endStrategy, circleStrategy);
 			move(resMP, p);
 
-			store_multi_polygon(resData[i], resMP, ringClosurePoints);
+			bg_store_multi_polygon(resData[i], resMP);
 
 			if (++i == n)
 				break;
@@ -637,7 +690,6 @@ struct BufferLineStringOperator : public AbstrBufferOperator
 			boost::geometry::strategy::buffer::point_circle                circleStrategy(pointsPerCircle);
 			boost::geometry::strategy::buffer::side_straight               sideStrategy;
 
-			std::vector<DPoint> ringClosurePoints;
 
 			bg_linestring_t helperLineString;
 			bg_multi_linestring_t currGeometry;
@@ -658,7 +710,7 @@ struct BufferLineStringOperator : public AbstrBufferOperator
 				move(resMP, p);
 
 			}
-			store_multi_polygon(resData[i], resMP, ringClosurePoints);
+			bg_store_multi_polygon(resData[i], resMP);
 			if (++i == n)
 				break;
 			if (e2IsVoid && e3IsVoid)
@@ -703,7 +755,6 @@ struct BufferMultiPolygonOperator : public AbstrBufferOperator
 			boost::geometry::strategy::buffer::point_circle                circleStrategy(pointsPerCircle);
 			boost::geometry::strategy::buffer::side_straight               sideStrategy;
 
-			std::vector<DPoint> helperPointArray;
 			bg_ring_t helperRing;
 
 			bg_polygon_t helperPolygon;
@@ -722,7 +773,7 @@ struct BufferMultiPolygonOperator : public AbstrBufferOperator
 					, distStrategy, sideStrategy, joinStrategy, endStrategy, circleStrategy);
 				move(resMP, lb);
 
-				store_multi_polygon(resData[i], resMP, helperPointArray);
+				bg_store_multi_polygon(resData[i], resMP);
 			}
 
 			if (s_ProcessTimer.PassedSecs(5))
@@ -779,7 +830,6 @@ struct BufferSinglePolygonOperator : public AbstrBufferOperator
 				boost::geometry::strategy::buffer::point_circle                circleStrategy(pointsPerCircle);
 				boost::geometry::strategy::buffer::side_straight               sideStrategy;
 
-				std::vector<DPoint> ringClosurePoints;
 				boost::geometry::model::ring<DPoint> helperRing;
 
 				using bg_polygon_t = boost::geometry::model::polygon<DPoint>;
@@ -800,7 +850,7 @@ struct BufferSinglePolygonOperator : public AbstrBufferOperator
 						, distStrategy, sideStrategy, joinStrategy, endStrategy, circleStrategy);
 					move(resMP, lb);
 
-					store_multi_polygon(resData[i], resMP, ringClosurePoints);
+					bg_store_multi_polygon(resData[i], resMP);
 				}
 				if (++i == n)
 					break;
@@ -878,7 +928,6 @@ struct OuterMultiPolygonOperator : public AbstrOuterOperator
 		auto resData = mutable_array_cast<PolygonType>(resItem)->GetWritableTile(t);
 		assert(polyData.size() == resData.size());
 
-		std::vector<DPoint> ringClosurePoints;
 		bg_ring_t currRing;
 
 		using bg_polygon_t = boost::geometry::model::polygon<DPoint>;
@@ -890,7 +939,7 @@ struct OuterMultiPolygonOperator : public AbstrOuterOperator
 			assign_multi_polygon(currMP, polyData[i], false, currPoly, currRing);
 
 			if (!currMP.empty())
-				store_multi_polygon(resData[i], currMP, ringClosurePoints);
+				bg_store_multi_polygon(resData[i], currMP);
 		}
 	}
 };
@@ -922,7 +971,10 @@ struct OuterSingePolygonOperator : public AbstrOuterOperator
 				assign_polygon(currPoly, polyData[i], false, helperRing);
 
 				if (!currPoly.outer().empty())
-					store_ring(resData[i], currPoly.outer());
+				{
+					resData[i].reserve(currPoly.outer().size());
+					bg_store_ring(resData[i], currPoly.outer());
+				}
 			}
 			catch (DmsException& e)
 			{
@@ -972,6 +1024,88 @@ namespace
 		void operator ()(const auto& a, const auto& b, auto& r) const { r.symmetric_difference(a, b); }
 	};
 
+	struct geos_intersection {
+		void operator ()(std::unique_ptr<geos::geom::MultiPolygon>&& a, std::unique_ptr<geos::geom::MultiPolygon>&& b, std::unique_ptr<geos::geom::MultiPolygon>& r) const
+		{ 
+			if (!a)
+			{
+				r = std::move(b);
+				return;
+			}
+			if (!b)
+			{
+				r = std::move(a);
+				return;
+			}
+			auto res = a->intersection(b.get());
+			auto castedRes = debug_cast<geos::geom::MultiPolygon*>(res.get());
+			r.reset(castedRes);
+			res.release();
+		}
+	};
+
+	struct geos_union {
+		void operator ()(std::unique_ptr<geos::geom::MultiPolygon>&& a, std::unique_ptr<geos::geom::MultiPolygon>&& b, std::unique_ptr<geos::geom::MultiPolygon>& r) const
+		{
+			if (!a)
+			{
+				r = std::move(b);
+				return;
+			}
+			if (!b)
+			{
+				r = std::move(a);
+				return;
+			}
+			auto res = a->Union(b.get());
+			auto castedRes = debug_cast<geos::geom::MultiPolygon*>(res.get());
+			r.reset(castedRes);
+			res.release();
+		}
+	};
+
+	struct geos_difference {
+		void operator ()(std::unique_ptr<geos::geom::MultiPolygon>&& a, std::unique_ptr<geos::geom::MultiPolygon>&& b, std::unique_ptr<geos::geom::MultiPolygon>& r) const
+		{
+			if (!a)
+			{
+				r = std::move(b);
+				return;
+			}
+			if (!b)
+			{
+				r = std::move(a);
+				return;
+			}
+			auto res = a->difference(b.get());
+			auto castedRes = debug_cast<geos::geom::MultiPolygon*>(res.get());
+			r.reset(castedRes);
+			res.release();
+		}
+
+	};
+
+	struct geos_sym_difference {
+		void operator ()(std::unique_ptr<geos::geom::MultiPolygon>&& a, std::unique_ptr<geos::geom::MultiPolygon>&& b, std::unique_ptr<geos::geom::MultiPolygon>& r) const
+		{
+			if (!a)
+			{
+				r = std::move(b);
+				return;
+			}
+			if (!b)
+			{
+				r = std::move(a);
+				return;
+			}
+			auto res = a->symDifference(b.get());
+			auto castedRes = debug_cast<geos::geom::MultiPolygon*>(res.get());
+			r.reset(castedRes);
+			res.release();
+		}
+
+	};
+
 	tl_oper::inst_tuple_templ<typelists::points, SimplifyLinestringOperator> simplifyLineStringOperators;
 	tl_oper::inst_tuple_templ<typelists::points, SimplifyMultiPolygonOperator> simplifyMultiPolygonOperators;
 	tl_oper::inst_tuple_templ<typelists::points, SimplifyPolygonOperator> simplifyPolygonOperators;
@@ -1014,5 +1148,19 @@ namespace
 
 	template <typename P> using CGAL_SymmetricDifferenceMultiPolygonOperator = CGAL_MultiPolygonOperator<P, cgal_sym_difference>;
 	tl_oper::inst_tuple_templ<typelists::points, CGAL_SymmetricDifferenceMultiPolygonOperator, AbstrOperGroup&> cgalSymmetricDifferenceMultiPolygonOperatorsNamed(grcgalXOR);
+
+
+	template <typename P> using GEOS_IntersectMultiPolygonOperator = GEOS_MultiPolygonOperator < P, geos_intersection>;
+	tl_oper::inst_tuple_templ<typelists::points, GEOS_IntersectMultiPolygonOperator, AbstrOperGroup&> geosIntersectMultiPolygonOperatorsNamed(grgeosIntersect);
+
+	template <typename P> using GEOS_UnionMultiPolygonOperator = GEOS_MultiPolygonOperator<P, geos_union>;
+	tl_oper::inst_tuple_templ<typelists::points, GEOS_UnionMultiPolygonOperator, AbstrOperGroup&> geosUnionMultiPolygonOperatorsNamed(grgeosUnion);
+
+	template <typename P> using GEOS_DifferenceMultiPolygonOperator = GEOS_MultiPolygonOperator<P, geos_difference>;
+	tl_oper::inst_tuple_templ<typelists::points, GEOS_DifferenceMultiPolygonOperator, AbstrOperGroup&> geosDifferenceMultiPolygonOperatorsNamed(grgeosDifference);
+
+	template <typename P> using GEOS_SymmetricDifferenceMultiPolygonOperator = GEOS_MultiPolygonOperator<P, geos_sym_difference>;
+	tl_oper::inst_tuple_templ<typelists::points, GEOS_SymmetricDifferenceMultiPolygonOperator, AbstrOperGroup&> geosSymmetricDifferenceMultiPolygonOperatorsNamed(grgeosXOR);
+
 }
 

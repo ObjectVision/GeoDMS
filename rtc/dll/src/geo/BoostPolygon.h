@@ -53,9 +53,45 @@ template <typename MP, typename PolygonWithHoles>
 concept MultiPolygon = std::same_as<MP, std::vector<PolygonWithHoles>>;
 */
 
+template <typename E, typename CPI >
+void bp_assign_ring(E&& ref, CPI ringBegin, CPI ringEnd)
+{
+	assert(ringBegin != ringEnd);
+	assert(ringBegin[0] == ringEnd[-1]);
+
+	// REVERSE ORDER
+	for (; ringBegin != ringEnd; )
+		ref.emplace_back(ConvertPoint(*--ringEnd));
+}
+
+template <dms_sequence E, typename POLYGON>
+void bp_assign_polygon(E&& ref, POLYGON&& polygonWithHoles)
+{
+	//for (auto pi=i->begin(), pe=i->end(); pi!=pe; ++pi)
+	bp_assign_ring(std::forward<E>(ref), polygonWithHoles.begin(), polygonWithHoles.end());
+
+	auto hb = polygonWithHoles.begin_holes(), he = polygonWithHoles.end_holes();
+	if (hb == he)
+		return;
+
+	auto hi = hb;
+	do {
+		bp_assign_ring(std::forward<E>(ref), hi->begin(), hi->end());
+	} while (++hi != he);
+
+	assert(hi == he);
+	assert(hi != hb);
+	--hi;
+	while (hi != hb)
+	{
+		--hi;
+		ref.push_back(ConvertPoint(hi->begin()[0]));
+	}
+	ref.push_back(ConvertPoint(polygonWithHoles.begin()[0]));
+}
 
 template <dms_sequence E, typename MP>
-void bp_assign_mp (E& ref,  MP&& poly)
+void bp_assign_mp (E&& ref,  MP&& poly)
 {
 	ref.clear();
 
@@ -78,62 +114,26 @@ void bp_assign_mp (E& ref,  MP&& poly)
 	ref.reserve(count);
 	
 	for (i=b; i!=e; ++i)
-	{
-		assert(i->begin() != i->end ());
-		assert(i->begin()[0] == i->end()[-1]);
-		//for (auto pi=i->begin(), pe=i->end(); pi!=pe; ++pi)
-		for (auto pi=i->end(), pe=i->begin(); pi!=pe; ) // REVERSE ORDER
-			ref.push_back(ConvertPoint(*--pi));
+		bp_assign_polygon(std::forward<E>(ref), *i);
 
-		auto hb=i->begin_holes(), hi=hb, he=i->end_holes(); 
-		if (hi!=he)
-		{
-			do {
-				assert(hi->begin() != hi->end());
-				assert(hi->begin()[0] == hi->end()[-1]);
-
-//				for (auto phi=hi->begin(), phe=hi->end(); phi!=phe; ++phi)
-				for (auto phi=hi->end(), phe=hi->begin(); phi!=phe;)
-					ref.push_back(ConvertPoint(*--phi));
-
-			} while (++hi != he);
-			assert(hi==he);
-			assert(hi!=hb);
-			--hi;
-			while (hi != hb)
-			{
-				--hi;
-				ref.push_back(ConvertPoint(hi->end()[-1]));
-			}
-			ref.push_back(ConvertPoint(i->end()[-1]));
-		}
-	}
 	assert(i==e);
 	assert(b<i);
 	--i;
 	while (i!=b)
 	{
 		--i;
-		ref.push_back(ConvertPoint(i->end()[-1]));
+		ref.push_back(ConvertPoint(i->begin()[-1]));
 	}
 	assert(ref.size() == count);
 }
 
 template <dms_sequence E, typename V>
-void bp_assign (E& ref, bp::polygon_set_data<V>& polyData, typename bp::polygon_set_data<V>::clean_resources& cleanResources)
+void bp_assign (E&& ref, bp::polygon_set_data<V>& polyData, typename bp::polygon_set_data<V>::clean_resources& cleanResources)
 {
 	std::vector<bp::polygon_with_holes_data<Float64> > polyVect;
 	polyData.get(polyVect, cleanResources);
 
-	bp_assign_mp(ref, polyVect);
-}
-
-template <typename RI, typename CPI >
-void bp_assign_ring(RI resIter, CPI ringBegin, CPI ringEnd)
-{
-	// REVERSE ORDER
-	for (; ringBegin != ringEnd; ) 
-		resIter->emplace_back(ConvertPoint(*--ringEnd));
+	bp_assign_mp(std::forward<E>(ref), polyVect);
 }
 
 
@@ -151,30 +151,7 @@ auto bp_split_assign (RI resIter, MP& poly) -> RI
 
 		resIter->reserve(count);
 	
-		assert(i->begin() != i->end ());
-		assert(i->begin()[0] == i->end()[-1]);
-
-		bp_assign_ring(resIter, i->begin(), i->end());
-
-		auto hb=i->begin_holes(), hi=hb, he=i->end_holes(); 
-		if (hi!=he)
-		{
-			do {
-				assert(hi->begin() != hi->end());
-				assert(hi->begin()[0] == hi->end()[-1]);
-
-				bp_assign_ring(resIter, hi->begin(), hi->end());
-			} while (++hi != he);
-			assert(hi==he);
-			assert(hi!=hb);
-			--hi;
-			while (hi != hb)
-			{
-				--hi;
-				resIter->push_back(ConvertPoint(hi->end()[-1]));
-			}
-			resIter->push_back(ConvertPoint(i->end()[-1]));
-		}
+		bp_assign_polygon(*resIter, *i);
 		assert(resIter->size() == count);
 	}
 	return resIter;
