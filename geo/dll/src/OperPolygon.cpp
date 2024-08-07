@@ -1107,7 +1107,7 @@ class PointInPolygonOperator : public AbstrPointInPolygonOperator
 	using BoxArrayType = std::vector<BoxType>;
 
 	typedef typename scalar_of<PointType>::type  ScalarType;
-	typedef SpatialIndex<ScalarType, typename Arg2Type::const_iterator> SpatialIndexType;
+	using SpatialIndexType = SpatialIndex<ScalarType, typename Arg2Type::const_iterator>;
 
 	using ResourceType = std::pair<SpatialIndexType, typename Arg2Type::locked_cseq_t>;
 

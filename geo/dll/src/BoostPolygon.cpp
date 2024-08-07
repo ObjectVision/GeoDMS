@@ -115,11 +115,12 @@ class AbstrPolygonOverlayOperator : public BinaryOperator
 protected:
 	using ResultingDomainType = UInt32;
 
-	AbstrPolygonOverlayOperator(AbstrOperGroup& gr, const DataItemClass* polyAttrClass)
+	AbstrPolygonOverlayOperator(AbstrOperGroup& gr, const DataItemClass* polyAttrClass, bool mustCreateGeometries)
 		:	BinaryOperator(&gr, Unit<ResultingDomainType>::GetStaticClass()
 			,	polyAttrClass
 			,	polyAttrClass
 			)
+		,	m_MustCreateGeometries(mustCreateGeometries)
 	{}
 
 	bool CreateResult(TreeItemDualRef& resultHolder, const ArgSeqType& args, bool mustCalc) const override
@@ -142,9 +143,9 @@ protected:
 		AbstrUnit* res = Unit<ResultingDomainType>::GetStaticClass()->CreateResultUnit(resultHolder);
 		resultHolder = res;
 
-		AbstrDataItem* resG = CreateDataItem(res, s_tGM, res, values1Unit, ValueComposition::Polygon);
-		AbstrDataItem* res1 = e1IsVoid ? nullptr : CreateDataItem(res, s_tFR, res, domain1Unit);
-		AbstrDataItem* res2 = e2IsVoid ? nullptr : CreateDataItem(res, s_tSR, res, domain2Unit);
+		AbstrDataItem* resG = m_MustCreateGeometries ? nullptr : CreateDataItem(res, s_tGM, res, values1Unit, ValueComposition::Polygon);
+		AbstrDataItem* res1 = e1IsVoid               ? nullptr : CreateDataItem(res, s_tFR, res, domain1Unit);
+		AbstrDataItem* res2 = e2IsVoid               ? nullptr : CreateDataItem(res, s_tSR, res, domain2Unit);
 
 		if (mustCalc)
 		{
@@ -200,9 +201,11 @@ protected:
 	virtual bool IsIntersecting(tile_id t, tile_id u, ResourceHandle& pointBoxDataHandle, ResourceHandle& polyInfoHandle) const=0;
 	virtual void Calculate(ResourceHandle& resData, leveled_critical_section& resInsertSection, const AbstrDataItem* poly1DataA, const AbstrDataItem* poly2DataA, tile_id t, tile_id u, const ResourceHandle& polyInfoHandle) const=0;
 	virtual void StoreRes(AbstrUnit* res, AbstrDataItem* resG, AbstrDataItem* res1, AbstrDataItem* res2, ResourceHandle& resData) const=0;
+
+	bool m_MustCreateGeometries = true;
 };
 
-template <typename P, geometry_library GL>
+template <typename P, geometry_library GL, bool MustProduceGeometries>
 class PolygonOverlayOperator : public AbstrPolygonOverlayOperator
 {
 	typedef P                       PointType;
@@ -213,8 +216,14 @@ class PolygonOverlayOperator : public AbstrPolygonOverlayOperator
 
 	using ArgType = DataArray<PolygonType>;
 
-	struct ResDataElemType {
-		PolygonType  m_Geometry;
+	struct EmptyBase {};
+	struct GeoBase 
+	{
+		PolygonType m_Geometry;
+	};
+
+	struct ResDataElemType : std::conditional_t<MustProduceGeometries, GeoBase, EmptyBase>
+	{
 		Point<SizeT> m_OrgRel;
 
 		bool operator < (const ResDataElemType& oth) { return m_OrgRel < oth.m_OrgRel;  }
@@ -229,7 +238,7 @@ class PolygonOverlayOperator : public AbstrPolygonOverlayOperator
 
 public:
 	PolygonOverlayOperator(AbstrOperGroup& gr)
-		:	AbstrPolygonOverlayOperator(gr, ArgType::GetStaticClass())
+		:	AbstrPolygonOverlayOperator(gr, ArgType::GetStaticClass(), MustProduceGeometries)
 	{}
 
 	// Override Operator
@@ -280,8 +289,8 @@ public:
 
 		const SpatialIndexType* spIndexPtr = GetOptional<SpatialIndexType>(polyInfoHandle);
 
-		typedef typename SpatialIndexType::template iterator<BoxType> box_iter_type;
-		typedef typename scalar_of<P>::type coordinate_type;
+		using box_iter_type =typename SpatialIndexType::template iterator<BoxType>;
+		using coordinate_type = scalar_of_t<P>;
 		using polygon_with_holes_type = bp::polygon_with_holes_data<coordinate_type>;
 		using polygon_set_type = bp::polygon_set_data< coordinate_type >;
 
@@ -323,7 +332,8 @@ public:
 						continue;
 
 					res_data_elem_type back;
-					bp_assign(back.m_Geometry, geometry, psdCleanResources);
+					if constexpr(MustProduceGeometries)
+						bp_assign(back.m_Geometry, geometry, psdCleanResources);
 
 					back.m_OrgRel.first = p1_rel;
 					back.m_OrgRel.second = p2Offset + (((*iter)->get_ptr()) - poly2Array.begin());
@@ -352,7 +362,8 @@ public:
 					if (!resMP.empty())
 					{
 						res_data_elem_type back;
-						bg_store_multi_polygon(back.m_Geometry, resMP);
+						if constexpr(MustProduceGeometries)
+							bg_store_multi_polygon(back.m_Geometry, resMP);
 
 						back.m_OrgRel.first = p1_rel;
 						back.m_OrgRel.second = p2Offset + (((*iter)->get_ptr()) - poly2Array.begin());
@@ -381,7 +392,8 @@ public:
 						continue;
 
 					res_data_elem_type back;
-					cgal_assign_polygon_set(back.m_Geometry, res);
+					if constexpr (MustProduceGeometries)
+						cgal_assign_polygon_set(back.m_Geometry, res);
 
 					back.m_OrgRel.first = p1_rel;
 					back.m_OrgRel.second = p2Offset + (((*iter)->get_ptr()) - poly2Array.begin());
@@ -392,13 +404,13 @@ public:
 			}
 			else if constexpr (GL == geometry_library::geos)
 			{
-				auto mp1 = geos_create_multi_polygon(*polyPtr);
+				auto mp1 = geos_create_geometry(*polyPtr);
 
 
 				for (box_iter_type iter = spIndexPtr->begin(bbox); iter; ++iter)
 				{
 					CGAL_Traits::Polygon_set poly2;
-					auto mp2 = geos_create_multi_polygon(*((*iter)->get_ptr()));
+					auto mp2 = geos_create_geometry(*((*iter)->get_ptr()));
 
 					auto res = mp1->intersection(mp2.get());
 
@@ -406,7 +418,8 @@ public:
 						continue;
 
 					res_data_elem_type back;
-					geos_assign_mp(back.m_Geometry, debug_cast<const geos::geom::MultiPolygon*>(res.get()));
+					if constexpr (MustProduceGeometries)
+						geos_assign_geometry(back.m_Geometry, debug_cast<const geos::geom::MultiPolygon*>(res.get()));
 
 					back.m_OrgRel.first = p1_rel;
 					back.m_OrgRel.second = p2Offset + (((*iter)->get_ptr()) - poly2Array.begin());
@@ -441,14 +454,16 @@ public:
 
 				for (auto& resElemData: resTileData)
 				{
-					if (resG) resGWriter.Write(std::move(resElemData.m_Geometry));
+					if constexpr (MustProduceGeometries)
+						if (resG) resGWriter.Write(std::move(resElemData.m_Geometry));
 					if (res1) res1Writer.Write(resElemData.m_OrgRel.first);
 					if (res2) res2Writer.Write(resElemData.m_OrgRel.second);
 				}
 			}
 		}
 
-		if (resG) { MG_CHECK(resGWriter.IsEndOfChannel()); resGWriter.Commit(); }
+		if constexpr (MustProduceGeometries)
+			if (resG) { MG_CHECK(resGWriter.IsEndOfChannel()); resGWriter.Commit(); }
 		if (res1) { MG_CHECK(res1Writer.IsEndOfChannel()); res1Writer.Commit(); }
 		if (res2) { MG_CHECK(res2Writer.IsEndOfChannel()); res2Writer.Commit(); }
 	}
@@ -1414,25 +1429,6 @@ public:
 //	GEOS PolygonOverlay
 // *****************************************************************************
 
-struct union_geos_multi_polygon
-{
-	using mp_ptr = std::unique_ptr<geos::geom::MultiPolygon>;
-
-	void operator()(mp_ptr& lvalue, mp_ptr&& rvalue) const
-	{
-		if (!rvalue)
-			return;
-		if (!lvalue)
-		{
-			lvalue = std::move(rvalue);
-			return;
-		}
-		auto result = lvalue->Union(rvalue.get());
-		lvalue.reset( debug_cast<geos::geom::MultiPolygon*>(result.get()) ); // debug cast may throw
-		result.release();
-	}
-};
-
 template <typename P>
 class GEOS_PolygonOperator : public AbstrPolygonOperator
 {
@@ -1445,7 +1441,7 @@ class GEOS_PolygonOperator : public AbstrPolygonOperator
 	using RingType = traits_t::ring_type;
 	using PolygonType = traits_t::polygon_with_holes_type;
 	using MultiPolygonType = traits_t::multi_polygon_type;
-	using MultiPolygonTower = assoc_tower<std::unique_ptr<MultiPolygonType>, union_geos_multi_polygon>;
+	using MultiPolygonTower = assoc_tower<std::unique_ptr<geos::geom::Geometry>, union_geos_multi_polygon>;
 	using NumType = Float64;
 
 	typedef DataArray<SequenceType>   ArgPolyType;
@@ -1517,11 +1513,11 @@ public:
 		{
 			if (m_Flags & PolygonFlags::F_DoSplit)
 			{
-				resIter = geos_split_assign_mp(resIter, geometryTowerPtr->get_result().get());
+				resIter = geos_split_assign_geometry(resIter, geometryTowerPtr->get_result().get());
 			}
 			else
 			{
-				geos_assign_mp(*resIter, geometryTowerPtr->get_result().get());
+				geos_assign_geometry(*resIter, geometryTowerPtr->get_result().get());
 				++resIter;
 			}
 		}
@@ -1536,6 +1532,11 @@ public:
 #include "IndexAssigner.h"
 
 CommonOperGroup cogPC("polygon_connectivity", oper_policy::better_not_in_meta_scripting);
+CommonOperGroup cogBpPC("bp_polygon_connectivity", oper_policy::better_not_in_meta_scripting);
+CommonOperGroup cogBgPC("bg_polygon_connectivity", oper_policy::better_not_in_meta_scripting);
+CommonOperGroup cogCGAL_PC("cgal_polygon_connectivity", oper_policy::better_not_in_meta_scripting);
+CommonOperGroup cogGEOS_PC("geos_polygon_connectivity", oper_policy::better_not_in_meta_scripting);
+
 static TokenID tF1 = GetTokenID_st("F1"), tF2 = GetTokenID_st("F2");
 
 class AbstrPolygonConnectivityOperator : public UnaryOperator
@@ -1543,10 +1544,8 @@ class AbstrPolygonConnectivityOperator : public UnaryOperator
 protected:
 	using ResultingDomainType = UInt32;
 
-	AbstrPolygonConnectivityOperator(const DataItemClass* polyAttrClass)
-		:	UnaryOperator(&cogPC, Unit<ResultingDomainType>::GetStaticClass()
-			,	polyAttrClass
-			)
+	AbstrPolygonConnectivityOperator(AbstrOperGroup* aog, const DataItemClass* polyAttrClass)
+		:	UnaryOperator(aog, Unit<ResultingDomainType>::GetStaticClass(),	polyAttrClass)
 	{}
 
 	bool CreateResult(TreeItemDualRef& resultHolder, const ArgSeqType& args, bool mustCalc) const override
@@ -1588,7 +1587,7 @@ class PolygonConnectivityOperator : public AbstrPolygonConnectivityOperator
 
 public:
 	PolygonConnectivityOperator()
-		:	AbstrPolygonConnectivityOperator(Arg1Type::GetStaticClass())
+		:	AbstrPolygonConnectivityOperator(&cogPC, Arg1Type::GetStaticClass())
 	{}
 	void Calculate(AbstrUnit* res, AbstrDataItem* resF1, AbstrDataItem* resF2, const AbstrDataItem* arg1A) const override
 	{
@@ -1611,7 +1610,7 @@ public:
 				{
 					bp::assign(polygon, polyData[i], psdCleanResources);
 					int result = ce.insert(polygon, ceInsertResources);
-					dms_assert(result == domain_rel.size());
+					assert(result == domain_rel.size());
 					domain_rel.emplace_back(i);
 				}
 			}
@@ -2002,12 +2001,21 @@ namespace
 	static CommonOperGroup grBpOverlayPolygon("bp_overlay_polygon", oper_policy::dynamic_result_class | oper_policy::better_not_in_meta_scripting);
 	static CommonOperGroup grCGALOverlayPolygon("cgal_overlay_polygon", oper_policy::dynamic_result_class | oper_policy::better_not_in_meta_scripting);
 	static CommonOperGroup grGEOSOverlayPolygon("geos_overlay_polygon", oper_policy::dynamic_result_class | oper_policy::better_not_in_meta_scripting);
+	static CommonOperGroup grBgPolygonConnectivity  ("bg_polygon_connectivity", oper_policy::dynamic_result_class | oper_policy::better_not_in_meta_scripting);
+	static CommonOperGroup grBpPolygonConnectivity  ("bp_polygon_connectivity", oper_policy::dynamic_result_class | oper_policy::better_not_in_meta_scripting);
+	static CommonOperGroup grCGALPolygonConnectivity("cgal_polygon_connectivity", oper_policy::dynamic_result_class | oper_policy::better_not_in_meta_scripting);
+	static CommonOperGroup grGEOSPolygonConnectivity("geos_polygon_connectivity", oper_policy::dynamic_result_class | oper_policy::better_not_in_meta_scripting);
 
 
-	template <typename P> using BoostPolygonOverlayOperator  = PolygonOverlayOperator<P, geometry_library::boost_polygon>;
-	template <typename P> using BoostGeometryOverlayOperator = PolygonOverlayOperator<P, geometry_library::boost_geometry>;
-	template <typename P> using CGAL_OverlayOperator = PolygonOverlayOperator<P, geometry_library::cgal>;
-	template <typename P> using GEOS_OverlayOperator = PolygonOverlayOperator<P, geometry_library::geos>;
+	template <typename P> using BoostPolygonOverlayOperator  = PolygonOverlayOperator<P, geometry_library::boost_polygon, true>;
+	template <typename P> using BoostGeometryOverlayOperator = PolygonOverlayOperator<P, geometry_library::boost_geometry, true>;
+	template <typename P> using CGAL_OverlayOperator = PolygonOverlayOperator<P, geometry_library::cgal, true>;
+	template <typename P> using GEOS_OverlayOperator = PolygonOverlayOperator<P, geometry_library::geos, true>;
+	template <typename P> using BoostPolygonConnectivityOperator = PolygonOverlayOperator<P, geometry_library::boost_polygon, false>;
+	template <typename P> using BoostGeometryConnectivityOperator = PolygonOverlayOperator<P, geometry_library::boost_geometry, false>;
+	template <typename P> using CGAL_ConnectivityOperator = PolygonOverlayOperator<P, geometry_library::cgal, false>;
+	template <typename P> using GEOS_ConnectivityOperator = PolygonOverlayOperator<P, geometry_library::geos, false>;
+
 	tl_oper::inst_tuple_templ<typelists::sint_points , BoostPolygonOverlayOperator , AbstrOperGroup&> boostPolygonOverlayOperators   (grOverlayPolygon);
 	tl_oper::inst_tuple_templ<typelists::sint_points , BoostPolygonOverlayOperator , AbstrOperGroup&> boostPolygonBpOverlayOperators (grBpOverlayPolygon);
 	tl_oper::inst_tuple_templ<typelists::float_points, BoostGeometryOverlayOperator, AbstrOperGroup&> boostGeometryOverlayOperators  (grOverlayPolygon);
@@ -2017,6 +2025,11 @@ namespace
 
 	tl_oper::inst_tuple_templ<typelists::sint_points, PolygonConnectivityOperator>	polygonConnectivityOperators;
 	tl_oper::inst_tuple_templ<typelists::points,      BoxConnectivityOperator>	    boxConnectivityOperators;
+
+	tl_oper::inst_tuple_templ<typelists::sint_points, BoostPolygonConnectivityOperator, AbstrOperGroup&> boostPolygonConnectivityOperators(grBpPolygonConnectivity);
+	tl_oper::inst_tuple_templ<typelists::points, BoostGeometryConnectivityOperator, AbstrOperGroup&> boostGeometryConnectivityOperators(grBgPolygonConnectivity);
+	tl_oper::inst_tuple_templ<typelists::points, CGAL_ConnectivityOperator, AbstrOperGroup&> cgalConnectivityOperators(grCGALPolygonConnectivity);
+	tl_oper::inst_tuple_templ<typelists::points, GEOS_ConnectivityOperator, AbstrOperGroup&> geosConnectivityOperators(grGEOSPolygonConnectivity);
 
 	PolyOperatorGroupss simple("", PolygonFlags());
 	BpPolyOperatorGroupss bp_simple;

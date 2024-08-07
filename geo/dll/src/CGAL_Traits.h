@@ -276,5 +276,22 @@ void dms_insert(CGAL_Traits::Polygon_set& lvalue, SA_ConstReference<DmsPointType
 }
 
 
+struct cgal_intersection {
+	void operator ()(const auto& a, const auto& b, auto& r) const { r.intersection(a, b); }
+};
+
+struct cgal_union {
+	void operator ()(const auto& a, const auto& b, auto& r) const { r.join(a, b); }
+};
+
+struct cgal_difference {
+	void operator ()(const auto& a, const auto& b, auto& r) const { r.difference(a, b); }
+};
+
+struct cgal_sym_difference {
+	void operator ()(const auto& a, const auto& b, auto& r) const { r.symmetric_difference(a, b); }
+};
+
+
 
 #endif //!defined(DMS_GEO_CGAL_TRAITS_H)

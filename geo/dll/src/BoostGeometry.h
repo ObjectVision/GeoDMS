@@ -504,6 +504,22 @@ void dms_insert(bg_multi_polygon_t& lvalue, SA_ConstReference<DmsPointType> rval
 	lvalue.swap(resMP);
 }
 
+struct bg_intersection {
+	void operator ()(const auto& a, const auto& b, auto& r) const { boost::geometry::intersection(a, b, r); }
+};
+
+struct bg_union {
+	void operator ()(const auto& a, const auto& b, auto& r) const { boost::geometry::union_(a, b, r); }
+};
+
+struct bg_difference {
+	void operator ()(const auto& a, const auto& b, auto& r) const { boost::geometry::difference(a, b, r); }
+};
+
+struct bg_sym_difference {
+	void operator ()(const auto& a, const auto& b, auto& r) const { boost::geometry::sym_difference(a, b, r); }
+};
+
 
 
 #endif //!defined(MG_GEO_BOOST_GEOMETRY_H)

@@ -195,23 +195,23 @@ struct GEOS_MultiPolygonOperator : BinaryMapAlgebraicOperator<P>
 		assert(n2 == n || (af & AF2_ISPARAM));
 		assert(resData.size() == n);
 
-		std::unique_ptr<geos::geom::MultiPolygon> currMP1, currMP2, resMP;
+		std::unique_ptr<geos::geom::Geometry> currMP1, currMP2, resMP;
 
 		bool domain1IsVoid = (af & AF1_ISPARAM);
 		bool domain2IsVoid = (af & AF2_ISPARAM);
 		if (domain1IsVoid)
-			currMP1 = geos_create_multi_polygon(arg1Data[0]);
+			currMP1 = geos_create_geometry(arg1Data[0]);
 		if (domain2IsVoid)
-			currMP2 = geos_create_multi_polygon(arg2Data[0]);
+			currMP2 = geos_create_geometry(arg2Data[0]);
 
 		for (SizeT i = 0; i != n; ++i)
 		{
 			if (!domain1IsVoid)
-				currMP1 = geos_create_multi_polygon(arg1Data[i]);
+				currMP1 = geos_create_geometry(arg1Data[i]);
 			if (!domain2IsVoid)
-				currMP2 = geos_create_multi_polygon(arg2Data[i]);
+				currMP2 = geos_create_geometry(arg2Data[i]);
 			m_Oper(std::move(currMP1), std::move(currMP2), resMP);
-			geos_assign_mp(resData[i], resMP.get());
+			geos_assign_geometry(resData[i], resMP.get());
 		}
 	}
 	BinaryBgMpOper m_Oper;
@@ -992,120 +992,6 @@ struct OuterSingePolygonOperator : public AbstrOuterOperator
 
 namespace 
 {
-	struct bg_intersection {
-		void operator ()(const auto& a, const auto& b, auto& r) const { boost::geometry::intersection(a, b, r); }
-	};
-
-	struct bg_union {
-		void operator ()(const auto& a, const auto& b, auto& r) const { boost::geometry::union_(a, b, r); }
-	};
-
-	struct bg_difference {
-		void operator ()(const auto& a, const auto& b, auto& r) const { boost::geometry::difference(a, b, r); }
-	};
-
-	struct bg_sym_difference {
-		void operator ()(const auto& a, const auto& b, auto& r) const { boost::geometry::sym_difference(a, b, r); }
-	};
-
-	struct cgal_intersection {
-		void operator ()(const auto& a, const auto& b, auto& r) const { r.intersection(a, b); }
-	};
-
-	struct cgal_union {
-		void operator ()(const auto& a, const auto& b, auto& r) const { r.join(a, b); }
-	};
-
-	struct cgal_difference {
-		void operator ()(const auto& a, const auto& b, auto& r) const { r.difference(a, b); }
-	};
-
-	struct cgal_sym_difference {
-		void operator ()(const auto& a, const auto& b, auto& r) const { r.symmetric_difference(a, b); }
-	};
-
-	struct geos_intersection {
-		void operator ()(std::unique_ptr<geos::geom::MultiPolygon>&& a, std::unique_ptr<geos::geom::MultiPolygon>&& b, std::unique_ptr<geos::geom::MultiPolygon>& r) const
-		{ 
-			if (!a)
-			{
-				r = std::move(b);
-				return;
-			}
-			if (!b)
-			{
-				r = std::move(a);
-				return;
-			}
-			auto res = a->intersection(b.get());
-			auto castedRes = debug_cast<geos::geom::MultiPolygon*>(res.get());
-			r.reset(castedRes);
-			res.release();
-		}
-	};
-
-	struct geos_union {
-		void operator ()(std::unique_ptr<geos::geom::MultiPolygon>&& a, std::unique_ptr<geos::geom::MultiPolygon>&& b, std::unique_ptr<geos::geom::MultiPolygon>& r) const
-		{
-			if (!a)
-			{
-				r = std::move(b);
-				return;
-			}
-			if (!b)
-			{
-				r = std::move(a);
-				return;
-			}
-			auto res = a->Union(b.get());
-			auto castedRes = debug_cast<geos::geom::MultiPolygon*>(res.get());
-			r.reset(castedRes);
-			res.release();
-		}
-	};
-
-	struct geos_difference {
-		void operator ()(std::unique_ptr<geos::geom::MultiPolygon>&& a, std::unique_ptr<geos::geom::MultiPolygon>&& b, std::unique_ptr<geos::geom::MultiPolygon>& r) const
-		{
-			if (!a)
-			{
-				r = std::move(b);
-				return;
-			}
-			if (!b)
-			{
-				r = std::move(a);
-				return;
-			}
-			auto res = a->difference(b.get());
-			auto castedRes = debug_cast<geos::geom::MultiPolygon*>(res.get());
-			r.reset(castedRes);
-			res.release();
-		}
-
-	};
-
-	struct geos_sym_difference {
-		void operator ()(std::unique_ptr<geos::geom::MultiPolygon>&& a, std::unique_ptr<geos::geom::MultiPolygon>&& b, std::unique_ptr<geos::geom::MultiPolygon>& r) const
-		{
-			if (!a)
-			{
-				r = std::move(b);
-				return;
-			}
-			if (!b)
-			{
-				r = std::move(a);
-				return;
-			}
-			auto res = a->symDifference(b.get());
-			auto castedRes = debug_cast<geos::geom::MultiPolygon*>(res.get());
-			r.reset(castedRes);
-			res.release();
-		}
-
-	};
-
 	tl_oper::inst_tuple_templ<typelists::points, SimplifyLinestringOperator> simplifyLineStringOperators;
 	tl_oper::inst_tuple_templ<typelists::points, SimplifyMultiPolygonOperator> simplifyMultiPolygonOperators;
 	tl_oper::inst_tuple_templ<typelists::points, SimplifyPolygonOperator> simplifyPolygonOperators;
