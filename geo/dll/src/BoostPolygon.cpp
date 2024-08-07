@@ -1532,10 +1532,6 @@ public:
 #include "IndexAssigner.h"
 
 CommonOperGroup cogPC("polygon_connectivity", oper_policy::better_not_in_meta_scripting);
-CommonOperGroup cogBpPC("bp_polygon_connectivity", oper_policy::better_not_in_meta_scripting);
-CommonOperGroup cogBgPC("bg_polygon_connectivity", oper_policy::better_not_in_meta_scripting);
-CommonOperGroup cogCGAL_PC("cgal_polygon_connectivity", oper_policy::better_not_in_meta_scripting);
-CommonOperGroup cogGEOS_PC("geos_polygon_connectivity", oper_policy::better_not_in_meta_scripting);
 
 static TokenID tF1 = GetTokenID_st("F1"), tF2 = GetTokenID_st("F2");
 

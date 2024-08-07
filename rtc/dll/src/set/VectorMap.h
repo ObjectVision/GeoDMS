@@ -77,17 +77,18 @@ granted by an additional written contract for support, assistance and/or develop
 
 //#if defined(MG_DEBUG)
 
-template<typename ForwarIter, typename OrderFunc> inline
-bool check_order(ForwarIter curr, ForwarIter last, OrderFunc orderFunc)
+template<typename ForwardIter, typename OrderFunc> inline
+auto check_order(ForwardIter curr, ForwardIter last, OrderFunc orderFunc)
+-> std::pair<bool, ForwardIter>
 {	// find breach in required order with successor
 	if (curr != last)
 	{
-		ForwarIter oldcurr;
+		ForwardIter oldcurr;
 		while ((oldcurr = curr), ++curr != last)
 			if (!orderFunc(*oldcurr, *curr))
-				return false;
+				return { false, oldcurr};
 	}
-	return true;
+	return { true, last };
 }
 
 template <class Key, class Data, class Compare = DataCompare<Key> >
@@ -117,7 +118,9 @@ class vector_map
 		,	m_Compare(compare)
 	{
 		std::sort(begin(), end(), value_compare(m_Compare) );
-		dms_assert(check_order(begin(), end(), value_compare(m_Compare) ) );
+		auto check = check_order(begin(), end(), value_compare(m_Compare));
+		if (!check.first)
+			throw std::runtime_error("vector_map: not ordered");
 	}
 
 	iterator       begin()       { return m_Data.begin(); }

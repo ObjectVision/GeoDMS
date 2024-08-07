@@ -63,20 +63,22 @@ namespace AbstrOperGroupRegImpl {
 	void UpdateOperatorGroupReg()
 	{
 		dms_check_not_debugonly;
-		dms_assert(IsMetaThread());
+		assert(IsMetaThread());
 
 		if (s_OperGroupRegDirty)
 		{
 			if (s_Reg != nullptr)
 			{
-				dms_assert(s_Reg->size() <= REG_SIZE);
-				dms_assert(s_Reg->size() > REG_SIZE - 1000);
+				assert(s_Reg->size() <= REG_SIZE);
+				assert(s_Reg->size() > REG_SIZE - 1000);
 
 				auto b = s_Reg->begin(), e = s_Reg->end();
 				for (auto i = b; i != e; ++i)
 					(*i)->UpdateNameID();
 				std::stable_sort(b, e, OperGroupCompare());
-				dms_assert(check_order(b, e, OperGroupCompare()));			
+				auto check = check_order(b, e, OperGroupCompare());
+				if (!check.first)
+					throwDmsErrF("OperatorGroupReg has unordered elements: %s", (*check.second)->GetNameStr());
 			}
 			s_OperGroupRegDirty = false;
 		}
