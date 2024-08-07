@@ -1346,7 +1346,7 @@ void MainWindow::doViewAction(TreeItem* tiContext, CharPtrRange sAction, QWidget
 
     // Value info link clicked from value info window
     tiContext = const_cast<TreeItem*>(tiContext->FindBestItem(sPath).first.get()); // TODO: make result FindBestItem non-const
-    if (origin) {
+    if (origin && IsDefined(recNo)) {
         auto value_info_browser = dynamic_cast<ValueInfoBrowser*>(origin);
         if (value_info_browser) {
             value_info_browser->addStudyObject(AsDataItem(tiContext), recNo, SharedStr(sSub));

@@ -143,9 +143,9 @@ protected:
 		AbstrUnit* res = Unit<ResultingDomainType>::GetStaticClass()->CreateResultUnit(resultHolder);
 		resultHolder = res;
 
-		AbstrDataItem* resG = m_MustCreateGeometries ? nullptr : CreateDataItem(res, s_tGM, res, values1Unit, ValueComposition::Polygon);
-		AbstrDataItem* res1 = e1IsVoid               ? nullptr : CreateDataItem(res, s_tFR, res, domain1Unit);
-		AbstrDataItem* res2 = e2IsVoid               ? nullptr : CreateDataItem(res, s_tSR, res, domain2Unit);
+		AbstrDataItem* resG = (!m_MustCreateGeometries) ? nullptr : CreateDataItem(res, s_tGM, res, values1Unit, ValueComposition::Polygon);
+		AbstrDataItem* res1 = e1IsVoid                  ? nullptr : CreateDataItem(res, s_tFR, res, domain1Unit);
+		AbstrDataItem* res2 = e2IsVoid                  ? nullptr : CreateDataItem(res, s_tSR, res, domain2Unit);
 
 		if (mustCalc)
 		{
@@ -419,7 +419,7 @@ public:
 
 					res_data_elem_type back;
 					if constexpr (MustProduceGeometries)
-						geos_assign_geometry(back.m_Geometry, debug_cast<const geos::geom::MultiPolygon*>(res.get()));
+						geos_assign_geometry(back.m_Geometry, res.get());
 
 					back.m_OrgRel.first = p1_rel;
 					back.m_OrgRel.second = p2Offset + (((*iter)->get_ptr()) - poly2Array.begin());

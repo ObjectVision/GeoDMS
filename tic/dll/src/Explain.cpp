@@ -1288,7 +1288,7 @@ namespace Explain
 			TreeItemContextHandle hnd(studyObject, AbstrDataItem::GetStaticClass(), "DMS_DataItem_ExplainAttrValue");
 
 			assert(!SuspendTrigger::DidSuspend());
-
+			SuspendTrigger::Resume();
 			assert(IsMainThread());
 
 			Explain::CalcExplanations expl(*xmlOutStrPtr, bShowHidden, context);

@@ -421,7 +421,10 @@ ErrMsgPtr catchExceptionImpl(bool rethrowCancelation)
 	}
 	catch (const std::exception& x)
 	{
-		return std::make_shared<ErrMsg>( SharedStr(x.what()) );
+		CharPtr xWhat = x.what();
+		auto xLength = StrLen(xWhat);
+		MakeMin<SizeT>(xLength, 32767);
+		return std::make_shared<ErrMsg>( SharedStr(xWhat, xWhat+xLength) );
 	}
 	catch (...)
 	{

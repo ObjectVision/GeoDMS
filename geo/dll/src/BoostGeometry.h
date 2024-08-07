@@ -292,7 +292,7 @@ void bg_store_polygon(E&& ref, const bg_polygon_t& resPoly)
 		--nh;
 		ref.emplace_back(resPoly.inners()[nh].end()[-1]);
 	}
-	ref.emplace_back(resPoly.inners()[nh].end()[-1]);
+	ref.emplace_back(resPoly.outer().end()[-1]);
 }
 
 template <dms_sequence E>

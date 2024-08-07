@@ -38,6 +38,12 @@ granted by an additional written contract for support, assistance and/or develop
 
 struct Timer
 {
+	void Reset()
+	{
+		time_t curr_time = time(nullptr);
+		last_time = curr_time;
+	}
+
 	bool PassedSecs(time_t nrSecs)
 	{
 		time_t curr_time = time(nullptr);
@@ -50,7 +56,6 @@ struct Timer
 
 		// avoid double ticketing
 		time_t old_time = last_time.exchange(curr_time);
-
 		return curr_time >= old_time + nrSecs;
 	}
 

@@ -106,6 +106,9 @@ void MsgDispatch(MsgData* msgData, bool moreToCome)
 	if (g_IsTerminating)
 		return;
 
+	if (msgData->m_Txt.ssize() > 256)
+		msgData->m_Txt = SharedStr(msgData->m_Txt.begin(), msgData->m_Txt.begin() + 256) + "...";
+
 	TMsgCallbackSinkContainer::iterator
 		b = g_MsgCallbacks->begin(),
 		e = g_MsgCallbacks->end();

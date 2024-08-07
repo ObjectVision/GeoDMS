@@ -39,6 +39,7 @@ granted by an additional written contract for support, assistance and/or develop
 
 #include "act/UpdateMark.h"
 #include "dbg/DmsCatch.h"
+#include "dbg/Timer.h"
 #include "set/QuickContainers.h"
 #include "set/VectorFunc.h"
 #include "utl/Environment.h"
@@ -377,6 +378,7 @@ namespace SuspendTrigger {
 
 	void IncSuspendLevel() noexcept { ++s_SuspendLevel; }
 	void DecSuspendLevel() noexcept { --s_SuspendLevel; }
+	Timer s_Timer;
 
 	UInt32 s_TryFrameCount = 0; // used by current meta thread
 	TryFrame::TryFrame() noexcept
@@ -431,7 +433,7 @@ namespace SuspendTrigger {
 
 		MGD_CHECKDATA(gd_TriggerApplyLockCount == 0); // find who pulls the trigger
 
-		if (s_SuspendLevel || HasWaitingMessages()) // HasWaitingMessages() can send WM_SIZE ... that sets s_SuspendLevel
+		if (s_SuspendLevel || s_Timer.PassedSecs(3) && HasWaitingMessages()) // HasWaitingMessages() can send WM_SIZE ... that sets s_SuspendLevel
 		{
 			s_bLastResult = true;
 			return true;

@@ -36,8 +36,8 @@
 
 struct CGAL_Traits
 {
-//	using Kernel = CGAL::Exact_predicates_exact_constructions_kernel;
-	using Kernel = CGAL::Exact_predicates_inexact_constructions_kernel; 
+	using Kernel = CGAL::Exact_predicates_exact_constructions_kernel;
+//	using Kernel = CGAL::Exact_predicates_inexact_constructions_kernel; 
 //  fails on simple intersections, such as identifying a crossing point 
 // 112894,685301784 403381,743493082
 // 
@@ -157,8 +157,8 @@ void cgal_assign_ring(E&& ref, const CGAL_Traits::Ring& polyData)
 //*
 	// reassign points in reverse order to restore clockwise order
 	for (auto pri=pe; pri!=pb;)
-		cgal_assign_point(ref, *--pri);
-	cgal_assign_point(ref, *--pe); // add last ring point that became the first GeoDms ring point as closing point
+		cgal_assign_point(std::forward<E>(ref), *--pri);
+	cgal_assign_point(std::forward<E>(ref), *--pe); // add last ring point that became the first GeoDms ring point as closing point
 //	*/
 
 /*
@@ -186,7 +186,7 @@ void cgal_assign_polygon_with_holes(E&& ref, const CGAL_Traits::Polygon_with_hol
 		--nh;
 		cgal_assign_point(std::forward<E>(ref), poly.holes()[nh].begin()[0]);
 	}
-	cgal_assign_point(ref, poly.outer_boundary().begin()[0]);
+	cgal_assign_point(std::forward<E>(ref), poly.outer_boundary().begin()[0]);
 }
 
 template <dms_sequence E>
@@ -203,9 +203,9 @@ void cgal_assign_polygon_vector(E&& ref, std::vector<CGAL_Traits::Polygon_with_h
 	for (const auto& resPoly : polyVec)
 	{
 		assert(resPoly.outer_boundary().size());
-		count += resPoly.outer_boundary().size();
+		count += resPoly.outer_boundary().size() + 1;
 		for (auto hi = resPoly.holes().begin(), he = resPoly.holes().end(); hi != he; ++hi)
-			count += hi->size() + 1;
+			count += hi->size() + 2;
 	}
 	ref.reserve(count);
 
@@ -216,7 +216,7 @@ void cgal_assign_polygon_vector(E&& ref, std::vector<CGAL_Traits::Polygon_with_h
 	while (np)
 	{
 		--np;
-		cgal_assign_point(ref, polyVec[np].outer_boundary().begin()[0]);
+		cgal_assign_point(std::forward<E>(ref), polyVec[np].outer_boundary().begin()[0]);
 	}
 	assert(ref.size() == count);
 }

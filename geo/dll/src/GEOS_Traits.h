@@ -20,6 +20,7 @@
 #include <geos/geom/Polygon.h>
 #include <geos/geom/LinearRing.h>
 #include <geos/algorithm/Orientation.h>
+#include <geos/operation/polygonize/Polygonizer.h>
 
 template <typename P>
 struct geos_union_poly_traits
@@ -35,7 +36,11 @@ struct geos_union_poly_traits
 	using polygon_result_type = multi_polygon_type;
 };
 
-
+template <typename DmsPointType>
+auto geos_Coordinate(const DmsPointType& p)
+{
+	return geos::geom::Coordinate(p.X(), p.Y());
+}
 
 template <typename DmsPointType>
 auto geos_create_geometry(SA_ConstReference<DmsPointType> polyRef, bool mustInsertInnerRings = true)
@@ -52,6 +57,7 @@ auto geos_create_geometry(SA_ConstReference<DmsPointType> polyRef, bool mustInse
 	std::vector< std::unique_ptr<geos::geom::Polygon>> resPolygons;
 	std::unique_ptr<geos::geom::LinearRing> helperRing, currRing;
 	std::vector< std::unique_ptr<geos::geom::LinearRing>> currInnerRings;
+	std::vector<DmsPointType> helperRingPoints;
 	std::vector<geos::geom::Coordinate> helperRingCoords;
 
 	auto ri = rb;
@@ -62,11 +68,20 @@ auto geos_create_geometry(SA_ConstReference<DmsPointType> polyRef, bool mustInse
 		assert((*ri).begin() != (*ri).end());
 		assert((*ri).begin()[0] == (*ri).end()[-1]); // closed ?
 
-		helperRingCoords.clear();
+		helperRingPoints.clear();
+		helperRingPoints.reserve((*ri).size());
 		for (const auto& p : *ri)
-		{
-			helperRingCoords.emplace_back(geos::geom::Coordinate(p.X(), p.Y()));
-		}
+			helperRingPoints.emplace_back(p);
+		remove_adjacents_and_spikes(helperRingPoints);
+		if (helperRingPoints.size() < 3)
+			continue;
+
+		helperRingCoords.clear();
+		helperRingCoords.reserve(helperRingPoints.size()+1);
+		for (const auto& p : helperRingPoints)
+			helperRingCoords.emplace_back(geos_Coordinate(p));
+		helperRingCoords.emplace_back(geos_Coordinate(helperRingPoints[0])); // close ring.
+
 		helperRing = factory->createLinearRing(std::move(helperRingCoords));
 		MG_CHECK(helperRing->isClosed());
 
@@ -134,7 +149,7 @@ auto geos_create_geometry(SA_ConstReference<DmsPointType> polyRef, bool mustInse
 
 
 template <dms_sequence E>
-void geos_assign_point(E&& ref, const geos::geom::Coordinate& c)
+void geos_write_point(E&& ref, const geos::geom::Coordinate& c)
 {
 	ref.emplace_back(shp2dms_order(c.x, c.y));
 
@@ -148,14 +163,14 @@ void geos_assign_lr(E&& ref, const geos::geom::LinearRing* lr)
 	assert(coords);
 	auto s = coords->getSize();
 	for (SizeT i=0; i!=s; ++i)
-		geos_assign_point(ref, coords->getAt(i));
+		geos_write_point(ref, coords->getAt(i));
 }
 
 template <dms_sequence E>
-void geos_assign_back(E&& ref, const geos::geom::LinearRing* lr)
+void geos_write_back(E&& ref, const geos::geom::LinearRing* lr)
 {
 	assert(lr);
-	geos_assign_point(ref, lr->getCoordinatesRO()->back());
+	geos_write_point(ref, lr->getCoordinatesRO()->back());
 }
 
 template <dms_sequence E>
@@ -171,11 +186,9 @@ void geos_write_polygon_with_holes(E&& ref, const geos::geom::Polygon* poly)
 		return;
 	--irCount;
 	while (irCount)
-	{
-		--irCount;
-		geos_assign_back(ref, poly->getInteriorRingN(irCount));
-	}
-	geos_assign_back(ref, poly->getExteriorRing());
+		geos_write_back(ref, poly->getInteriorRingN(--irCount));
+
+	geos_write_back(ref, poly->getExteriorRing());
 }
 
 template <dms_sequence E>
@@ -183,8 +196,8 @@ void geos_assign_polygon_with_holes(E&& ref, const geos::geom::Polygon* poly)
 {
 	SizeT count = poly->getExteriorRing()->getNumPoints();
 	assert(count);
-	for (auto n = poly->getNumInteriorRing(); n; --n)
-		count += poly->getInteriorRingN(n)->getCoordinatesRO()->getSize() + 1;
+	for (auto irCount = poly->getNumInteriorRing(); irCount;)
+		count += poly->getInteriorRingN(--irCount)->getCoordinatesRO()->getSize() + 1;
 
 	ref.clear();
 	ref.reserve(count);
@@ -201,11 +214,11 @@ void geos_assign_mp(E&& ref, const geos::geom::MultiPolygon* mp)
 	if (mp->isEmpty())
 		return;
 
-	SizeT i = 0, n = mp->getNumGeometries();
+	SizeT polygonCount = mp->getNumGeometries();
 	assert(n != 0); // follows from poly.size()
-	SizeT count = n - 1;
+	SizeT count = polygonCount - 1;
 
-	for (; i != n; ++i)
+	for (SizeT i = 0; i != polygonCount; ++i)
 	{
 		const auto* poly = mp->getGeometryN(i);
 		count += poly->getExteriorRing()->getNumPoints();
@@ -215,19 +228,36 @@ void geos_assign_mp(E&& ref, const geos::geom::MultiPolygon* mp)
 
 	ref.reserve(count);
 
-	for (; i != n; ++i)
+	for (SizeT i = 0; i != polygonCount; ++i)
 	{
 		const auto* poly = debug_cast<const geos::geom::Polygon*>(mp->getGeometryN(i));
 		geos_write_polygon_with_holes(ref, poly);
 	}
-	--n;
-	while (n)
-	{ 
-		--n;
-		geos_assign_back(ref, debug_cast<const geos::geom::Polygon*>(mp->getGeometryN(n))->getExteriorRing());
-	}
+	--polygonCount;
+	while (polygonCount)
+		geos_write_back(ref, debug_cast<const geos::geom::Polygon*>(mp->getGeometryN(--polygonCount))->getExteriorRing());
 
 	assert(ref.size() == count);
+}
+
+
+inline auto getPolygonsFromGeometryCollection(const geos::geom::GeometryCollection* gc) -> std::unique_ptr<geos::geom::MultiPolygon>
+{
+	// Use Polygonizer to form polygons from the GeometryCollection
+	geos::operation::polygonize::Polygonizer polygonizer;
+	polygonizer.add(gc);
+
+	auto pwh = polygonizer.getPolygons();
+	// Get the polygons formed by the Polygonizer
+	return geos::geom::GeometryFactory::getDefaultInstance()->createMultiPolygon(std::move(pwh));
+}
+
+inline void cleanupPolygons(std::unique_ptr<geos::geom::Geometry>& r)
+{
+	if (!r)
+		return;
+	if (auto gc = dynamic_cast<geos::geom::GeometryCollection*>(r.get()))
+		r.reset(getPolygonsFromGeometryCollection(gc).release());
 }
 
 template <typename E>
@@ -239,16 +269,21 @@ void geos_assign_geometry(E&& ref, const geos::geom::Geometry* geometry)
 		return;
 	}
 
-	auto mp = dynamic_cast<const geos::geom::MultiPolygon*>(geometry);
-	if (mp)
+	if (auto mp = dynamic_cast<const geos::geom::MultiPolygon*>(geometry))
 	{
 		geos_assign_mp(std::forward<E>(ref), mp);
 		return;
 	}
-	auto poly = dynamic_cast<const geos::geom::Polygon*>(geometry);
-	if (poly)
+	if (auto poly = dynamic_cast<const geos::geom::Polygon*>(geometry))
 	{
+
 		geos_assign_polygon_with_holes(std::forward<E>(ref), poly);
+		return;
+	}
+	if (auto gc = dynamic_cast<const geos::geom::GeometryCollection*>(geometry))
+	{
+		auto mp = getPolygonsFromGeometryCollection(gc);
+		geos_assign_mp(std::forward<E>(ref), mp.get());
 		return;
 	}
 	throwDmsErrF("geos_assign_geometry: unsupported geometry type: %s", geometry->toText().c_str());
@@ -278,15 +313,18 @@ auto geos_split_assign_geometry(RI resIter, const geos::geom::Geometry* geometry
 		return resIter;
 	}
 
-	auto mp = dynamic_cast<const geos::geom::MultiPolygon*>(geometry);
-	if (mp)
+	if (auto mp = dynamic_cast<const geos::geom::MultiPolygon*>(geometry))
 		return geos_split_assign_mp(resIter, mp);
 
-	auto poly = dynamic_cast<const geos::geom::Polygon*>(geometry);
-	if (poly)
+	if (auto poly = dynamic_cast<const geos::geom::Polygon*>(geometry))
 	{
 		geos_assign_polygon_with_holes(*resIter, poly);
 		return ++resIter;
+	}
+	if (auto gc = dynamic_cast<const geos::geom::GeometryCollection*>(geometry))
+	{
+		auto mp = getPolygonsFromGeometryCollection(gc);
+		return geos_split_assign_mp(resIter, mp.get());
 	}
 	throwDmsErrF("geos_split_assign_geometry: unsupported geometry type: %s", geometry->toText().c_str());
 }
@@ -304,7 +342,10 @@ struct geos_intersection {
 			r = std::move(a);
 			return;
 		}
+		a->normalize();
+		b->normalize();
 		r = a->intersection(b.get());
+		cleanupPolygons(r);
 	}
 };
 
@@ -321,7 +362,10 @@ struct geos_union {
 			r = std::move(a);
 			return;
 		}
+		a->normalize();
+		b->normalize();
 		r = a->Union(b.get());
+		cleanupPolygons(r);
 	}
 };
 
@@ -338,9 +382,11 @@ struct geos_difference {
 			r = std::move(a);
 			return;
 		}
+		a->normalize();
+		b->normalize();
 		r = a->difference(b.get());
+		cleanupPolygons(r);
 	}
-
 };
 
 struct geos_sym_difference {
@@ -356,7 +402,10 @@ struct geos_sym_difference {
 			r = std::move(a);
 			return;
 		}
+		a->normalize();
+		b->normalize();
 		r = a->symDifference(b.get());
+		cleanupPolygons(r);
 	}
 };
 
@@ -373,17 +422,11 @@ struct union_geos_multi_polygon
 {
 	using mp_ptr = std::unique_ptr<geos::geom::Geometry>;
 
-	void operator()(mp_ptr& lvalue, mp_ptr&& rvalue) const
+	void operator()(mp_ptr& lhs, mp_ptr&& rhs) const
 	{
-		if (!rvalue)
-			return;
-		if (!lvalue)
-		{
-			lvalue = std::move(rvalue);
-			return;
-		}
-		lvalue = lvalue->Union(rvalue.get());
+		union_(std::move(lhs), std::move(rhs), lhs);
 	}
+	geos_union union_;
 };
 
 
