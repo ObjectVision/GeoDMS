@@ -22,6 +22,12 @@
 #include <geos/algorithm/Orientation.h>
 #include <geos/operation/polygonize/Polygonizer.h>
 
+
+inline auto geos_factory() -> const geos::geom::GeometryFactory*
+{
+	return geos::geom::GeometryFactory::getDefaultInstance();
+}
+
 template <typename P>
 struct geos_union_poly_traits
 {
@@ -43,6 +49,39 @@ auto geos_Coordinate(const DmsPointType& p)
 }
 
 template <typename DmsPointType>
+struct geos_create_linear_ring_helper_data
+{
+	std::vector<DmsPointType> helperRingPoints;
+	std::vector<geos::geom::Coordinate> helperRingCoords;
+};
+
+template <typename DmsPointType>
+auto geos_create_linear_ring(const DmsPointType* begin, const DmsPointType* beyond, geos_create_linear_ring_helper_data<DmsPointType>& tmp)
+-> std::unique_ptr<geos::geom::LinearRing>
+{
+	assert(begin != beyond);
+	assert(begin[0] == beyond[-1]); // closed ?
+
+	tmp.helperRingPoints.clear();
+	tmp.helperRingPoints.reserve(beyond - begin);
+	for (auto ptr = begin; ptr != beyond; ++ptr)
+		tmp.helperRingPoints.emplace_back(*ptr);
+	remove_adjacents_and_spikes(tmp.helperRingPoints);
+	if (tmp.helperRingPoints.size() < 3)
+		return {};
+
+	tmp.helperRingCoords.clear();
+	tmp.helperRingCoords.reserve(tmp.helperRingPoints.size() + 1);
+	for (const auto& p : tmp.helperRingPoints)
+		tmp.helperRingCoords.emplace_back(geos_Coordinate(p));
+	tmp.helperRingCoords.emplace_back(geos_Coordinate(tmp.helperRingPoints[0])); // close ring.
+
+	auto result = geos_factory()->createLinearRing(std::move(tmp.helperRingCoords));
+	MG_CHECK(result->isClosed());
+	return result;
+}
+
+template <typename DmsPointType>
 auto geos_create_polygons(SA_ConstReference<DmsPointType> polyRef, bool mustInsertInnerRings = true)
 -> std::unique_ptr<geos::geom::Geometry>
 {
@@ -52,38 +91,20 @@ auto geos_create_polygons(SA_ConstReference<DmsPointType> polyRef, bool mustInse
 	if (rb == re)
 		return {};
 
-	static auto factory = geos::geom::GeometryFactory::create();
-
 	std::vector< std::unique_ptr<geos::geom::Polygon>> resPolygons;
-	std::unique_ptr<geos::geom::LinearRing> helperRing, currRing;
+	std::unique_ptr<geos::geom::LinearRing> currRing;
 	std::vector< std::unique_ptr<geos::geom::LinearRing>> currInnerRings;
-	std::vector<DmsPointType> helperRingPoints;
-	std::vector<geos::geom::Coordinate> helperRingCoords;
+
+	geos_create_linear_ring_helper_data<DmsPointType> tmpRingData;
 
 	auto ri = rb;
 
 	bool outerOrientationCW = true;
 	for (; ri != re; ++ri)
 	{
-		assert((*ri).begin() != (*ri).end());
-		assert((*ri).begin()[0] == (*ri).end()[-1]); // closed ?
-
-		helperRingPoints.clear();
-		helperRingPoints.reserve((*ri).size());
-		for (const auto& p : *ri)
-			helperRingPoints.emplace_back(p);
-		remove_adjacents_and_spikes(helperRingPoints);
-		if (helperRingPoints.size() < 3)
+		auto helperRing = geos_create_linear_ring((*ri).begin(), (*ri).end(), tmpRingData);
+		if (helperRing.get() == nullptr)
 			continue;
-
-		helperRingCoords.clear();
-		helperRingCoords.reserve(helperRingPoints.size()+1);
-		for (const auto& p : helperRingPoints)
-			helperRingCoords.emplace_back(geos_Coordinate(p));
-		helperRingCoords.emplace_back(geos_Coordinate(helperRingPoints[0])); // close ring.
-
-		helperRing = factory->createLinearRing(std::move(helperRingCoords));
-		MG_CHECK(helperRing->isClosed());
 
 		bool currOrientationCW = !geos::algorithm::Orientation::isCCW(helperRing->getCoordinatesRO());
 		MG_CHECK(ri != rb || currOrientationCW);
@@ -92,7 +113,7 @@ auto geos_create_polygons(SA_ConstReference<DmsPointType> polyRef, bool mustInse
 		{
 			if (ri != rb && currRing && !currRing->isEmpty())
 			{
-				resPolygons.emplace_back(factory->createPolygon(std::move(currRing), std::move(currInnerRings)));
+				resPolygons.emplace_back(geos_factory()->createPolygon(std::move(currRing), std::move(currInnerRings)));
 				currInnerRings.clear();
 			}
 			currRing = std::move( helperRing );
@@ -137,7 +158,7 @@ auto geos_create_polygons(SA_ConstReference<DmsPointType> polyRef, bool mustInse
 	}
 	if (currRing && !currRing->isEmpty())
 	{
-		resPolygons.emplace_back(factory->createPolygon(std::move(currRing), std::move(currInnerRings)));
+		resPolygons.emplace_back(geos_factory()->createPolygon(std::move(currRing), std::move(currInnerRings)));
 	}
 	if (resPolygons.empty())
 		return {};
@@ -150,7 +171,7 @@ auto geos_create_polygons(SA_ConstReference<DmsPointType> polyRef, bool mustInse
 	if (resPolygons.size() == 1)
 		return std::move(resPolygons.front());
 
-	return factory->createMultiPolygon(std::move(resPolygons));
+	return geos_factory()->createMultiPolygon(std::move(resPolygons));
 }
 
 
@@ -255,7 +276,7 @@ inline auto getPolygonsFromGeometryCollection(const geos::geom::GeometryCollecti
 
 	auto pwh = polygonizer.getPolygons();
 	// Get the polygons formed by the Polygonizer
-	return geos::geom::GeometryFactory::getDefaultInstance()->createMultiPolygon(std::move(pwh));
+	return geos_factory()->createMultiPolygon(std::move(pwh));
 }
 
 inline void cleanupPolygons(std::unique_ptr<geos::geom::Geometry>& r)

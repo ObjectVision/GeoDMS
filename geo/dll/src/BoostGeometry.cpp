@@ -15,6 +15,8 @@
 #include "CGAL_Traits.h"
 #include "GEOS_Traits.h"
 
+#include <geos/simplify/DouglasPeuckerSimplifier.h>
+
 static VersionComponent s_BoostGeometry("boost::geometry " BOOST_STRINGIZE(BOOST_GEOMETRY_VERSION));
 
 // *****************************************************************************
@@ -25,6 +27,8 @@ static VersionComponent s_BoostGeometry("boost::geometry " BOOST_STRINGIZE(BOOST
 static CommonOperGroup grBgSimplify_multi_polygon("bg_simplify_multi_polygon", oper_policy::better_not_in_meta_scripting);
 static CommonOperGroup grBgSimplify_polygon      ("bg_simplify_polygon", oper_policy::better_not_in_meta_scripting);
 static CommonOperGroup grBgSimplify_linestring   ("bg_simplify_linestring", oper_policy::better_not_in_meta_scripting);
+
+static CommonOperGroup grGeosSimplify_multi_polygon("geos_simplify_multi_polygon", oper_policy::better_not_in_meta_scripting);
 
 static CommonOperGroup grBgIntersect   ("bg_intersect" ,   oper_policy::better_not_in_meta_scripting);
 static CommonOperGroup grBgUnion       ("bg_union"     ,   oper_policy::better_not_in_meta_scripting);
@@ -277,15 +281,15 @@ protected:
 	virtual void Calculate(AbstrDataObject* resItem, const AbstrDataItem* polyItem, Float64 maxError, tile_id t) const = 0;
 };
 
-template <typename P>
+template <typename P, geometry_library GL>
 struct SimplifyMultiPolygonOperator : public AbstrSimplifyOperator
 {
 	using PointType = P;
 	using PolygonType = std::vector<PointType>;
 	using Arg1Type = DataArray<PolygonType>;
 
-	SimplifyMultiPolygonOperator()
-		: AbstrSimplifyOperator(grBgSimplify_multi_polygon, Arg1Type::GetStaticClass())
+	SimplifyMultiPolygonOperator(AbstrOperGroup& aog)
+		: AbstrSimplifyOperator(aog, Arg1Type::GetStaticClass())
 	{}
 
 	void Calculate(AbstrDataObject* resItem, const AbstrDataItem* polyItem, Float64 maxError, tile_id t) const override
@@ -294,52 +298,71 @@ struct SimplifyMultiPolygonOperator : public AbstrSimplifyOperator
 		auto resData = mutable_array_cast<PolygonType>(resItem)->GetWritableTile(t);
 		dms_assert(polyData.size() == resData.size());
 
-		bg_ring_t  currRing, resRing;
-		std::vector<DPoint> ringClosurePoints;
-
-		for (SizeT i = 0, n = polyData.size(); i != n; ++i)
+		if constexpr (GL == geometry_library::boost_geometry)
 		{
-			auto polyDataElem = polyData[i];
-			P lb = MaxValue<P>();
-			for (auto p: polyDataElem)
-				MakeLowerBound(lb, p);
+			bg_ring_t  currRing, resRing;
+			std::vector<DPoint> ringClosurePoints;
 
-			ringClosurePoints.clear();
-			SA_ConstRingIterator<PointType> rb(polyDataElem, 0), re(polyDataElem, -1);
-			auto ri = rb;
-			dbg_assert(ri != re);
-			if (ri == re)
-				continue;
-			for (; ri != re; ++ri)
+			for (SizeT i = 0, n = polyData.size(); i != n; ++i)
 			{
-				assert((*ri).begin() != (*ri).end());
-				assert((*ri).begin()[0] == (*ri).end()[-1]); // closed ?
+				auto polyDataElem = polyData[i];
+				P lb = MaxValue<P>();
+				for (auto p : polyDataElem)
+					MakeLowerBound(lb, p);
 
-				currRing.assign((*ri).begin(), (*ri).end());
-				assert(currRing.begin() != currRing.end());
-				assert(currRing.begin()[0] == currRing.end()[-1]); // closed ?
-				move(currRing, -DPoint(lb));
-				if (empty(currRing))
+				ringClosurePoints.clear();
+				SA_ConstRingIterator<PointType> rb(polyDataElem, 0), re(polyDataElem, -1);
+				auto ri = rb;
+				dbg_assert(ri != re);
+				if (ri == re)
 					continue;
+				for (; ri != re; ++ri)
+				{
+					assert((*ri).begin() != (*ri).end());
+					assert((*ri).begin()[0] == (*ri).end()[-1]); // closed ?
 
-				boost::geometry::simplify(currRing, resRing, maxError);
-				move(resRing, DPoint(lb));
+					currRing.assign((*ri).begin(), (*ri).end());
+					assert(currRing.begin() != currRing.end());
+					assert(currRing.begin()[0] == currRing.end()[-1]); // closed ?
+					move(currRing, -DPoint(lb));
+					if (empty(currRing))
+						continue;
 
-				if (empty(resRing))
+					boost::geometry::simplify(currRing, resRing, maxError);
+					move(resRing, DPoint(lb));
+
+					if (empty(resRing))
+						continue;
+
+					assert(resRing.begin()[0] == resRing.end()[-1]); // closed ?
+					resData[i].append(resRing.begin(), resRing.end());
+					ringClosurePoints.emplace_back(resRing.end()[-1]);
+				}
+				if (ringClosurePoints.empty())
 					continue;
-
-				assert(resRing.begin()[0] == resRing.end()[-1]); // closed ?
-				resData[i].append(resRing.begin(), resRing.end());
-				ringClosurePoints.emplace_back(resRing.end()[-1]);
-			}
-			if (ringClosurePoints.empty())
-				continue;
-			ringClosurePoints.pop_back();
-			while (!ringClosurePoints.empty())
-			{
-				resData[i].emplace_back(ringClosurePoints.back());
 				ringClosurePoints.pop_back();
+				while (!ringClosurePoints.empty())
+				{
+					resData[i].emplace_back(ringClosurePoints.back());
+					ringClosurePoints.pop_back();
+				}
 			}
+		}
+		else if constexpr (GL == geometry_library::geos)
+		{
+			for (SizeT i = 0, n = polyData.size(); i != n; ++i)
+			{
+				auto polyDataElem = polyData[i];
+				auto currGeom = geos_create_polygons(polyDataElem);
+
+				geos::simplify::DouglasPeuckerSimplifier simplifier(currGeom.get());
+				simplifier.setDistanceTolerance(maxError);
+
+				auto resGeom = simplifier.getResultGeometry();
+
+				geos_assign_geometry(resData[i], resGeom.get());
+			}
+
 		}
 	}
 };
@@ -1011,12 +1034,16 @@ struct OuterSingePolygonOperator : public AbstrOuterOperator
 
 namespace 
 {
+	template <typename P> using BgSimplifyMultiPolygonOperator = SimplifyMultiPolygonOperator<P, geometry_library::boost_geometry>;
+	template <typename P> using GeosSimplifyMultiPolygonOperator = SimplifyMultiPolygonOperator<P, geometry_library::geos>;
 	tl_oper::inst_tuple_templ<typelists::points, SimplifyLinestringOperator> simplifyLineStringOperators;
-	tl_oper::inst_tuple_templ<typelists::points, SimplifyMultiPolygonOperator> simplifyMultiPolygonOperators;
+	tl_oper::inst_tuple_templ<typelists::points, BgSimplifyMultiPolygonOperator, AbstrOperGroup&> bg_simplifyMultiPolygonOperators(grBgSimplify_multi_polygon);
+	tl_oper::inst_tuple_templ<typelists::points, GeosSimplifyMultiPolygonOperator, AbstrOperGroup&> geos_simplifyMultiPolygonOperators(grGeosSimplify_multi_polygon);
 	tl_oper::inst_tuple_templ<typelists::points, SimplifyPolygonOperator> simplifyPolygonOperators;
 	tl_oper::inst_tuple_templ<typelists::points, BufferPointOperator> bufferPointOperators;
 	tl_oper::inst_tuple_templ<typelists::points, BufferMultiPointOperator> bufferMultiPointOperators;
 	tl_oper::inst_tuple_templ<typelists::points, BufferLineStringOperator> bufferLineStringOperators;
+
 
 	template <typename P> using BgIntersectMultiPolygonOperator = BgMultiPolygonOperator < P, bg_intersection> ;
 	tl_oper::inst_tuple_templ<typelists::points, BgIntersectMultiPolygonOperator, AbstrOperGroup&> bgIntersectMultiPolygonOperatorsNamed(grBgIntersect);
