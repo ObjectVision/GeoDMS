@@ -200,16 +200,16 @@ struct GEOS_MultiPolygonOperator : BinaryMapAlgebraicOperator<P>
 		bool domain1IsVoid = (af & AF1_ISPARAM);
 		bool domain2IsVoid = (af & AF2_ISPARAM);
 		if (domain1IsVoid)
-			currMP1 = geos_create_geometry(arg1Data[0]);
+			currMP1 = geos_create_polygons(arg1Data[0]);
 		if (domain2IsVoid)
-			currMP2 = geos_create_geometry(arg2Data[0]);
+			currMP2 = geos_create_polygons(arg2Data[0]);
 
 		for (SizeT i = 0; i != n; ++i)
 		{
 			if (!domain1IsVoid)
-				currMP1 = geos_create_geometry(arg1Data[i]);
+				currMP1 = geos_create_polygons(arg1Data[i]);
 			if (!domain2IsVoid)
-				currMP2 = geos_create_geometry(arg2Data[i]);
+				currMP2 = geos_create_polygons(arg2Data[i]);
 			m_Oper(std::move(currMP1), std::move(currMP2), resMP);
 			geos_assign_geometry(resData[i], resMP.get());
 		}

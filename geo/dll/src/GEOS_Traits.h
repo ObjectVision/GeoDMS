@@ -43,7 +43,7 @@ auto geos_Coordinate(const DmsPointType& p)
 }
 
 template <typename DmsPointType>
-auto geos_create_geometry(SA_ConstReference<DmsPointType> polyRef, bool mustInsertInnerRings = true)
+auto geos_create_polygons(SA_ConstReference<DmsPointType> polyRef, bool mustInsertInnerRings = true)
 -> std::unique_ptr<geos::geom::Geometry>
 {
 	assert(mustInsertInnerRings);
@@ -141,6 +141,12 @@ auto geos_create_geometry(SA_ConstReference<DmsPointType> polyRef, bool mustInse
 	}
 	if (resPolygons.empty())
 		return {};
+
+	geos::operation::polygonize::Polygonizer polygonizer;
+	for (const auto& p : resPolygons)
+		polygonizer.add(p.get());
+	resPolygons = polygonizer.getPolygons();
+
 	if (resPolygons.size() == 1)
 		return std::move(resPolygons.front());
 
@@ -215,7 +221,7 @@ void geos_assign_mp(E&& ref, const geos::geom::MultiPolygon* mp)
 		return;
 
 	SizeT polygonCount = mp->getNumGeometries();
-	assert(n != 0); // follows from poly.size()
+	assert(polygonCount != 0); // follows from poly.size()
 	SizeT count = polygonCount - 1;
 
 	for (SizeT i = 0; i != polygonCount; ++i)
@@ -412,7 +418,7 @@ struct geos_sym_difference {
 template <typename E>
 void dms_insert(std::unique_ptr<geos::geom::Geometry>& lhs, E&& ref)
 {
-	auto res = geos_create_geometry(std::forward<E>(ref));
+	auto res = geos_create_polygons(std::forward<E>(ref));
 
 	geos_union union_;
 	union_(std::move(lhs), std::move(res), lhs);

@@ -110,27 +110,30 @@ static TokenID
 	s_tFR = token::first_rel,
 	s_tSR = token::second_rel;
 
-class AbstrPolygonOverlayOperator : public BinaryOperator
+class AbstrPolygonOverlayOperator : public VariadicOperator
 {
 protected:
 	using ResultingDomainType = UInt32;
 
-	AbstrPolygonOverlayOperator(AbstrOperGroup& gr, const DataItemClass* polyAttrClass, bool mustCreateGeometries)
-		:	BinaryOperator(&gr, Unit<ResultingDomainType>::GetStaticClass()
-			,	polyAttrClass
-			,	polyAttrClass
-			)
+	AbstrPolygonOverlayOperator(AbstrOperGroup& gr, const DataItemClass* polyAttrClass, bool mustCreateGeometries, bool onlyForwardMatches)
+		: VariadicOperator(&gr, Unit<ResultingDomainType>::GetStaticClass(), onlyForwardMatches ? 1 : 2)
 		,	m_MustCreateGeometries(mustCreateGeometries)
-	{}
+		,	m_OnlyForwardMatches(onlyForwardMatches)
+	{
+		m_ArgClasses[0] = polyAttrClass;
+		if (onlyForwardMatches)
+			return;
+		m_ArgClasses[1] = polyAttrClass;
+	}
 
 	bool CreateResult(TreeItemDualRef& resultHolder, const ArgSeqType& args, bool mustCalc) const override
 	{
-		dms_assert(args.size() == 2);
+		dms_assert(args.size() == (m_OnlyForwardMatches ? 1 : 2));
 
 		const AbstrDataItem* arg1A = AsDataItem(args[0]);
-		const AbstrDataItem* arg2A = AsDataItem(args[1]);
-		dms_assert(arg1A); 
-		dms_assert(arg2A); 
+		const AbstrDataItem* arg2A = m_OnlyForwardMatches ? arg1A : AsDataItem(args[1]);
+		assert(arg1A); 
+		assert(arg2A); 
 
 		const AbstrUnit* domain1Unit = arg1A->GetAbstrDomainUnit(); bool e1IsVoid = domain1Unit->GetValueType() == ValueWrap<Void>::GetStaticClass();
 		const AbstrUnit* values1Unit = arg1A->GetAbstrValuesUnit();
@@ -202,7 +205,7 @@ protected:
 	virtual void Calculate(ResourceHandle& resData, leveled_critical_section& resInsertSection, const AbstrDataItem* poly1DataA, const AbstrDataItem* poly2DataA, tile_id t, tile_id u, const ResourceHandle& polyInfoHandle) const=0;
 	virtual void StoreRes(AbstrUnit* res, AbstrDataItem* resG, AbstrDataItem* res1, AbstrDataItem* res2, ResourceHandle& resData) const=0;
 
-	bool m_MustCreateGeometries = true;
+	bool m_MustCreateGeometries = true, m_OnlyForwardMatches = false;
 };
 
 template <typename P, geometry_library GL, bool MustProduceGeometries>
@@ -224,7 +227,7 @@ class PolygonOverlayOperator : public AbstrPolygonOverlayOperator
 
 	struct ResDataElemType : std::conditional_t<MustProduceGeometries, GeoBase, EmptyBase>
 	{
-		Point<SizeT> m_OrgRel;
+		Point<SizeT> m_OrgRel = {SizeT(-1), SizeT(-1)};
 
 		bool operator < (const ResDataElemType& oth) { return m_OrgRel < oth.m_OrgRel;  }
 	};
@@ -237,8 +240,8 @@ class PolygonOverlayOperator : public AbstrPolygonOverlayOperator
 	using SpatialIndexArrayType = std::vector<SpatialIndexType>;
 
 public:
-	PolygonOverlayOperator(AbstrOperGroup& gr)
-		:	AbstrPolygonOverlayOperator(gr, ArgType::GetStaticClass(), MustProduceGeometries)
+	PolygonOverlayOperator(AbstrOperGroup& gr, bool unaryOperation)
+		:	AbstrPolygonOverlayOperator(gr, ArgType::GetStaticClass(), MustProduceGeometries, unaryOperation)
 	{}
 
 	// Override Operator
@@ -311,122 +314,134 @@ public:
 		leveled_critical_section resLocalAdditionSection(item_level_type(0), ord_level_type::SpecificOperator, "Polygon.LocalAdditionSection");
 
 		// avoid overhead of parallel_for context switch admin 
-		serial_for(SizeT(0), poly1Array.size(), [p1Offset, p2Offset, &poly1Array, &poly2Array, spIndexPtr, resTileData, &resLocalAdditionSection](SizeT i)->void
+		bool onlyForwardMatches = this->m_OnlyForwardMatches;
+		serial_for(SizeT(0), poly1Array.size(), [p1Offset, p2Offset, &poly1Array, &poly2Array, spIndexPtr, resTileData, &resLocalAdditionSection, onlyForwardMatches](SizeT i)->void
 		{
-			auto polyPtr = poly1Array.begin()+i;
-			SizeT p1_rel = p1Offset + i;
-			BoxType bbox = RangeFromSequence(polyPtr->begin(), polyPtr->end());
-			if (!::IsIntersecting(spIndexPtr->GetBoundingBox(), bbox))
-				return;
-
-			if constexpr (GL == geometry_library::boost_polygon)
-			{
-				typename polygon_set_type::clean_resources psdCleanResources;
-				polygon_set_type geometry;
-				for (box_iter_type iter = spIndexPtr->begin(bbox); iter; ++iter)
-				{
-					using namespace bp::operators;
-					bp::assign(geometry, *((*iter)->get_ptr()) & *polyPtr, psdCleanResources); // intersection
-
-					if (!geometry.size(psdCleanResources))
-						continue;
-
-					res_data_elem_type back;
-					if constexpr(MustProduceGeometries)
-						bp_assign(back.m_Geometry, geometry, psdCleanResources);
-
-					back.m_OrgRel.first = p1_rel;
-					back.m_OrgRel.second = p2Offset + (((*iter)->get_ptr()) - poly2Array.begin());
-
-					leveled_critical_section::scoped_lock resLock(resLocalAdditionSection);
-					resTileData->push_back(std::move(back));
-				}
-			}
-			else if constexpr (GL == geometry_library::boost_geometry)
-			{
-				box_iter_type iter = spIndexPtr->begin(bbox); if (!iter) return;
-
-				bg_ring_t helperRing;
-				bg_polygon_t helperPolygon;
-				bg_multi_polygon_t currMP1, currMP2, resMP;
-
-				assign_multi_polygon(currMP1, *polyPtr, true, helperPolygon, helperRing);
-				if (currMP1.empty())
+			res_data_elem_type back;
+			try {
+				auto polyPtr = poly1Array.begin() + i;
+				SizeT p1_rel = p1Offset + i;
+				BoxType bbox = RangeFromSequence(polyPtr->begin(), polyPtr->end());
+				if (!::IsIntersecting(spIndexPtr->GetBoundingBox(), bbox))
 					return;
-				do
+
+				if constexpr (GL == geometry_library::boost_polygon)
 				{
-					assign_multi_polygon(currMP2, *((*iter)->get_ptr()), true, helperPolygon, helperRing);
-
-					resMP.clear();
-					boost::geometry::intersection(currMP1, currMP2, resMP);
-					if (!resMP.empty())
+					typename polygon_set_type::clean_resources psdCleanResources;
+					polygon_set_type geometry;
+					for (box_iter_type iter = spIndexPtr->begin(bbox); iter; ++iter)
 					{
-						res_data_elem_type back;
-						if constexpr(MustProduceGeometries)
-							bg_store_multi_polygon(back.m_Geometry, resMP);
-
 						back.m_OrgRel.first = p1_rel;
 						back.m_OrgRel.second = p2Offset + (((*iter)->get_ptr()) - poly2Array.begin());
+						if (onlyForwardMatches && back.m_OrgRel.first >= back.m_OrgRel.second)
+							continue;
+						using namespace bp::operators;
+						bp::assign(geometry, *((*iter)->get_ptr()) & *polyPtr, psdCleanResources); // intersection
+
+						if (!geometry.size(psdCleanResources))
+							continue;
+
+						if constexpr (MustProduceGeometries)
+							bp_assign(back.m_Geometry, geometry, psdCleanResources);
 
 						leveled_critical_section::scoped_lock resLock(resLocalAdditionSection);
 						resTileData->push_back(std::move(back));
 					}
-					++iter;
-				} while (iter);
-
-			}
-			else if constexpr (GL == geometry_library::cgal)
-			{
-				CGAL_Traits::Polygon_set poly1;
-				assign_multi_polygon(poly1, *polyPtr, true);
-
-				for (box_iter_type iter = spIndexPtr->begin(bbox); iter; ++iter)
+				}
+				else if constexpr (GL == geometry_library::boost_geometry)
 				{
-					CGAL_Traits::Polygon_set poly2;
-					assign_multi_polygon(poly2, *((*iter)->get_ptr()), true);
+					box_iter_type iter = spIndexPtr->begin(bbox); if (!iter) return;
 
-					CGAL_Traits::Polygon_set res;
-					res.intersection(poly1, poly2);
+					bg_ring_t helperRing;
+					bg_polygon_t helperPolygon;
+					bg_multi_polygon_t currMP1, currMP2, resMP;
 
-					if (res.is_empty())
-						continue;
+					assign_multi_polygon(currMP1, *polyPtr, true, helperPolygon, helperRing);
+					if (currMP1.empty())
+						return;
 
-					res_data_elem_type back;
-					if constexpr (MustProduceGeometries)
-						cgal_assign_polygon_set(back.m_Geometry, res);
+					for (; iter; ++iter)
+					{
+						back.m_OrgRel.first = p1_rel;
+						back.m_OrgRel.second = p2Offset + (((*iter)->get_ptr()) - poly2Array.begin());
+						if (onlyForwardMatches && back.m_OrgRel.first >= back.m_OrgRel.second)
+							continue;
 
-					back.m_OrgRel.first = p1_rel;
-					back.m_OrgRel.second = p2Offset + (((*iter)->get_ptr()) - poly2Array.begin());
+						assign_multi_polygon(currMP2, *((*iter)->get_ptr()), true, helperPolygon, helperRing);
 
-					leveled_critical_section::scoped_lock resLock(resLocalAdditionSection);
-					resTileData->push_back(std::move(back));
+						resMP.clear();
+						boost::geometry::intersection(currMP1, currMP2, resMP);
+						if (!resMP.empty())
+						{
+							if constexpr (MustProduceGeometries)
+								bg_store_multi_polygon(back.m_Geometry, resMP);
+
+							leveled_critical_section::scoped_lock resLock(resLocalAdditionSection);
+							resTileData->push_back(std::move(back));
+						}
+					};
+
+				}
+				else if constexpr (GL == geometry_library::cgal)
+				{
+					CGAL_Traits::Polygon_set poly1;
+					assign_multi_polygon(poly1, *polyPtr, true);
+
+					for (box_iter_type iter = spIndexPtr->begin(bbox); iter; ++iter)
+					{
+						back.m_OrgRel.first = p1_rel;
+						back.m_OrgRel.second = p2Offset + (((*iter)->get_ptr()) - poly2Array.begin());
+						if (onlyForwardMatches && back.m_OrgRel.first >= back.m_OrgRel.second)
+							continue;
+
+						CGAL_Traits::Polygon_set poly2;
+						assign_multi_polygon(poly2, *((*iter)->get_ptr()), true);
+
+						CGAL_Traits::Polygon_set res;
+						res.intersection(poly1, poly2);
+
+						if (res.is_empty())
+							continue;
+
+						if constexpr (MustProduceGeometries)
+							cgal_assign_polygon_set(back.m_Geometry, res);
+
+						leveled_critical_section::scoped_lock resLock(resLocalAdditionSection);
+						resTileData->push_back(std::move(back));
+					}
+				}
+				else if constexpr (GL == geometry_library::geos)
+				{
+					auto mp1 = geos_create_polygons(*polyPtr);
+
+					for (box_iter_type iter = spIndexPtr->begin(bbox); iter; ++iter)
+					{
+						back.m_OrgRel.first = p1_rel;
+						back.m_OrgRel.second = p2Offset + (((*iter)->get_ptr()) - poly2Array.begin());
+						if (onlyForwardMatches && back.m_OrgRel.first >= back.m_OrgRel.second)
+							continue;
+
+						CGAL_Traits::Polygon_set poly2;
+						auto mp2 = geos_create_polygons(*((*iter)->get_ptr()));
+
+						auto res = mp1->intersection(mp2.get());
+
+						if (!res || res->isEmpty())
+							continue;
+
+						if constexpr (MustProduceGeometries)
+							geos_assign_geometry(back.m_Geometry, res.get());
+
+						leveled_critical_section::scoped_lock resLock(resLocalAdditionSection);
+						resTileData->push_back(std::move(back));
+					}
 				}
 			}
-			else if constexpr (GL == geometry_library::geos)
+			catch (...)
 			{
-				auto mp1 = geos_create_geometry(*polyPtr);
-
-
-				for (box_iter_type iter = spIndexPtr->begin(bbox); iter; ++iter)
-				{
-					CGAL_Traits::Polygon_set poly2;
-					auto mp2 = geos_create_geometry(*((*iter)->get_ptr()));
-
-					auto res = mp1->intersection(mp2.get());
-
-					if (!res || res->isEmpty())
-						continue;
-
-					res_data_elem_type back;
-					if constexpr (MustProduceGeometries)
-						geos_assign_geometry(back.m_Geometry, res.get());
-
-					back.m_OrgRel.first = p1_rel;
-					back.m_OrgRel.second = p2Offset + (((*iter)->get_ptr()) - poly2Array.begin());
-
-					leveled_critical_section::scoped_lock resLock(resLocalAdditionSection);
-					resTileData->push_back(std::move(back));
-				}
+				auto errMsg = catchException(true);
+				errMsg->TellExtraF("while processing intersection of row %d with row %d", back.m_OrgRel.first, back.m_OrgRel.second);
+				throw DmsException(errMsg);
 			}
 		});
 	}
@@ -2012,20 +2027,30 @@ namespace
 	template <typename P> using CGAL_ConnectivityOperator = PolygonOverlayOperator<P, geometry_library::cgal, false>;
 	template <typename P> using GEOS_ConnectivityOperator = PolygonOverlayOperator<P, geometry_library::geos, false>;
 
-	tl_oper::inst_tuple_templ<typelists::sint_points , BoostPolygonOverlayOperator , AbstrOperGroup&> boostPolygonOverlayOperators   (grOverlayPolygon);
-	tl_oper::inst_tuple_templ<typelists::sint_points , BoostPolygonOverlayOperator , AbstrOperGroup&> boostPolygonBpOverlayOperators (grBpOverlayPolygon);
-	tl_oper::inst_tuple_templ<typelists::float_points, BoostGeometryOverlayOperator, AbstrOperGroup&> boostGeometryOverlayOperators  (grOverlayPolygon);
-	tl_oper::inst_tuple_templ<typelists::points      , BoostGeometryOverlayOperator, AbstrOperGroup&> boostGeometryBgOverlayOperators(grBgOverlayPolygon);
-	tl_oper::inst_tuple_templ<typelists::points,       CGAL_OverlayOperator, AbstrOperGroup&> cgalOverlayOperators(grCGALOverlayPolygon);
-	tl_oper::inst_tuple_templ<typelists::points,       GEOS_OverlayOperator, AbstrOperGroup&> geosOverlayOperators(grGEOSOverlayPolygon);
+	tl_oper::inst_tuple_templ<typelists::sint_points , BoostPolygonOverlayOperator , AbstrOperGroup&, bool> boostPolygonOverlayOperators   (grOverlayPolygon, false);
+	tl_oper::inst_tuple_templ<typelists::sint_points , BoostPolygonOverlayOperator , AbstrOperGroup&, bool> boostPolygonBpOverlayOperators (grBpOverlayPolygon, false);
+	tl_oper::inst_tuple_templ<typelists::float_points, BoostGeometryOverlayOperator, AbstrOperGroup&, bool> boostGeometryOverlayOperators  (grOverlayPolygon, false);
+	tl_oper::inst_tuple_templ<typelists::points      , BoostGeometryOverlayOperator, AbstrOperGroup&, bool> boostGeometryBgOverlayOperators(grBgOverlayPolygon, false);
+	tl_oper::inst_tuple_templ<typelists::points,       CGAL_OverlayOperator, AbstrOperGroup&, bool> cgalOverlayOperators(grCGALOverlayPolygon, false);
+	tl_oper::inst_tuple_templ<typelists::points,       GEOS_OverlayOperator, AbstrOperGroup&, bool> geosOverlayOperators(grGEOSOverlayPolygon, false);
 
 	tl_oper::inst_tuple_templ<typelists::sint_points, PolygonConnectivityOperator>	polygonConnectivityOperators;
 	tl_oper::inst_tuple_templ<typelists::points,      BoxConnectivityOperator>	    boxConnectivityOperators;
 
-	tl_oper::inst_tuple_templ<typelists::sint_points, BoostPolygonConnectivityOperator, AbstrOperGroup&> boostPolygonConnectivityOperators(grBpPolygonConnectivity);
-	tl_oper::inst_tuple_templ<typelists::points, BoostGeometryConnectivityOperator, AbstrOperGroup&> boostGeometryConnectivityOperators(grBgPolygonConnectivity);
-	tl_oper::inst_tuple_templ<typelists::points, CGAL_ConnectivityOperator, AbstrOperGroup&> cgalConnectivityOperators(grCGALPolygonConnectivity);
-	tl_oper::inst_tuple_templ<typelists::points, GEOS_ConnectivityOperator, AbstrOperGroup&> geosConnectivityOperators(grGEOSPolygonConnectivity);
+	tl_oper::inst_tuple_templ<typelists::sint_points, BoostPolygonConnectivityOperator, AbstrOperGroup&, bool> boostPolygonConnectivityOperators(grBpPolygonConnectivity, false);
+	tl_oper::inst_tuple_templ<typelists::points, BoostGeometryConnectivityOperator, AbstrOperGroup&, bool> boostGeometryConnectivityOperators(grBgPolygonConnectivity, false);
+	tl_oper::inst_tuple_templ<typelists::points, CGAL_ConnectivityOperator, AbstrOperGroup&, bool> cgalConnectivityOperators(grCGALPolygonConnectivity, false);
+	tl_oper::inst_tuple_templ<typelists::points, GEOS_ConnectivityOperator, AbstrOperGroup&, bool> geosConnectivityOperators(grGEOSPolygonConnectivity, false);
+
+	tl_oper::inst_tuple_templ<typelists::sint_points, BoostPolygonOverlayOperator, AbstrOperGroup&, bool> boostPolygonBpOverlay1Operators(grBpOverlayPolygon, true);
+	tl_oper::inst_tuple_templ<typelists::points, BoostGeometryOverlayOperator, AbstrOperGroup&, bool> boostGeometryBgOverlay1Operators(grBgOverlayPolygon, true);
+	tl_oper::inst_tuple_templ<typelists::points, CGAL_OverlayOperator, AbstrOperGroup&, bool> cgalOverlay1Operators(grCGALOverlayPolygon, true);
+	tl_oper::inst_tuple_templ<typelists::points, GEOS_OverlayOperator, AbstrOperGroup&, bool> geosOverlay1Operators(grGEOSOverlayPolygon, true);
+	tl_oper::inst_tuple_templ<typelists::sint_points, BoostPolygonConnectivityOperator, AbstrOperGroup&, bool> boostPolygonConnectivity1Operators(grBpPolygonConnectivity, true);
+	tl_oper::inst_tuple_templ<typelists::points, BoostGeometryConnectivityOperator, AbstrOperGroup&, bool> boostGeometryConnectivity1Operators(grBgPolygonConnectivity, true);
+	tl_oper::inst_tuple_templ<typelists::points, CGAL_ConnectivityOperator, AbstrOperGroup&, bool> cgalConnectivity1Operators(grCGALPolygonConnectivity, true);
+	tl_oper::inst_tuple_templ<typelists::points, GEOS_ConnectivityOperator, AbstrOperGroup&, bool> geosConnectivity1Operators(grGEOSPolygonConnectivity, true);
+
 
 	PolyOperatorGroupss simple("", PolygonFlags());
 	BpPolyOperatorGroupss bp_simple;
