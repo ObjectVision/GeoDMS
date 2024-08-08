@@ -19,6 +19,9 @@
 #include "geo/RingIterator.h"
 #include "geo/SequenceTraits.h"
 
+
+enum class geometry_library { boost_polygon, boost_geometry, cgal, geos };
+
 namespace bp = boost::polygon;
 //using namespace bp::operators;
 

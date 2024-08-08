@@ -38,8 +38,6 @@
 #include "CGAL_Traits.h"
 #include "GEOS_Traits.h"
 
-enum class geometry_library { boost_polygon, boost_geometry, cgal, geos };
-
 const Int32 MAX_COORD = (1 << 26);
 
 #include "VersionComponent.h"

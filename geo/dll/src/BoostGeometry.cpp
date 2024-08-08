@@ -10,9 +10,10 @@
 
 #include "BoostGeometry.h"
 
+#include "geo/BoostPolygon.h"
+
 #include "CGAL_Traits.h"
 #include "GEOS_Traits.h"
-#include <CGAL/Boolean_set_operations_2.h>
 
 static VersionComponent s_BoostGeometry("boost::geometry " BOOST_STRINGIZE(BOOST_GEOMETRY_VERSION));
 
@@ -50,6 +51,8 @@ static Obsolete<CommonOperGroup> grBgBuffer_polygon("use bg_buffer_single_polygo
 static CommonOperGroup grBgBuffer_single_polygon("bg_buffer_single_polygon", oper_policy::better_not_in_meta_scripting);
 static CommonOperGroup grBgBuffer_multi_polygon("bg_buffer_multi_polygon", oper_policy::better_not_in_meta_scripting);
 static CommonOperGroup grBgBuffer_linestring   ("bg_buffer_linestring", oper_policy::better_not_in_meta_scripting);
+
+static CommonOperGroup grGeosBuffer_multi_polygon("geos_buffer_multi_polygon", oper_policy::better_not_in_meta_scripting);
 
 #if DMS_VERSION_MAJOR < 15
 static Obsolete<CommonOperGroup> grOuter_polygon("use bg_outer_single_polygon", "outer_polygon", oper_policy::better_not_in_meta_scripting | oper_policy::depreciated);
@@ -719,7 +722,7 @@ struct BufferLineStringOperator : public AbstrBufferOperator
 	}
 };
 
-template <typename P>
+template <typename P, geometry_library GL>
 struct BufferMultiPolygonOperator : public AbstrBufferOperator
 {
 	using PointType = P;
@@ -749,46 +752,62 @@ struct BufferMultiPolygonOperator : public AbstrBufferOperator
 				bufferDistance = bufDistData[i];
 			if (!e3IsVoid)
 				pointsPerCircle = ppcData[i];
-			boost::geometry::strategy::buffer::distance_symmetric<Float64> distStrategy(bufferDistance);
-			boost::geometry::strategy::buffer::join_round                  joinStrategy(pointsPerCircle);
-			boost::geometry::strategy::buffer::end_round                   endStrategy(pointsPerCircle);
-			boost::geometry::strategy::buffer::point_circle                circleStrategy(pointsPerCircle);
-			boost::geometry::strategy::buffer::side_straight               sideStrategy;
-
-			bg_ring_t helperRing;
-
-			bg_polygon_t helperPolygon;
-			bg_multi_polygon_t currMP, resMP;
-
-		nextPointWithSameResRing:
-
-			assign_multi_polygon(currMP, polyData[i], true, helperPolygon, helperRing);
-			if (!currMP.empty())
+			if constexpr(GL == geometry_library::boost_geometry)
 			{
-				auto lb = MaxValue<DPoint>();
-				MakeLowerBound(lb, currMP);
-				move(currMP, -lb);
+				boost::geometry::strategy::buffer::distance_symmetric<Float64> distStrategy(bufferDistance);
+				boost::geometry::strategy::buffer::join_round                  joinStrategy(pointsPerCircle);
+				boost::geometry::strategy::buffer::end_round                   endStrategy(pointsPerCircle);
+				boost::geometry::strategy::buffer::point_circle                circleStrategy(pointsPerCircle);
+				boost::geometry::strategy::buffer::side_straight               sideStrategy;
 
-				boost::geometry::buffer(currMP, resMP
-					, distStrategy, sideStrategy, joinStrategy, endStrategy, circleStrategy);
-				move(resMP, lb);
+				bg_ring_t helperRing;
 
-				bg_store_multi_polygon(resData[i], resMP);
+				bg_polygon_t helperPolygon;
+				bg_multi_polygon_t currMP, resMP;
+
+				bool takeSmallLoop = e2IsVoid && e3IsVoid;
+				do
+				{
+
+
+					assign_multi_polygon(currMP, polyData[i], true, helperPolygon, helperRing);
+					if (!currMP.empty())
+					{
+						auto lb = MaxValue<DPoint>();
+						MakeLowerBound(lb, currMP);
+						move(currMP, -lb);
+
+						boost::geometry::buffer(currMP, resMP
+							, distStrategy, sideStrategy, joinStrategy, endStrategy, circleStrategy);
+						move(resMP, lb);
+
+						bg_store_multi_polygon(resData[i], resMP);
+					}
+
+					if (s_ProcessTimer.PassedSecs(5))
+					{
+						reportF(SeverityTypeID::ST_MajorTrace, "%s: processed %d/%d sequences of tile %d/%d"
+							, GetGroup()->GetNameStr()
+							, i, n
+							, t, resItem->GetTiledRangeData()->GetNrTiles()
+						);
+					}
+					++i;
+				} while (i != n && takeSmallLoop);
+				if (i == n)
+					break;
 			}
-
-			if (s_ProcessTimer.PassedSecs(5))
+			else if constexpr (GL == geometry_library::geos)
 			{
-				reportF(SeverityTypeID::ST_MajorTrace, "%s: processed %d/%d sequences of tile %d/%d"
-					, GetGroup()->GetNameStr()
-					, i, n
-					, t, resItem->GetTiledRangeData()->GetNrTiles()
-				);
+				auto mp = geos_create_polygons(polyData[i]);
+				if (mp && !mp->isEmpty())
+				{
+					auto resMP = mp->buffer(bufferDistance, pointsPerCircle);
+					geos_assign_geometry(resData[i], resMP.get());
+				}
+				if (++i == n)
+					break;
 			}
-
-			if (++i == n)
-				break;
-			if (e2IsVoid && e3IsVoid)
-				goto nextPointWithSameResRing;
 		}
 	}
 };
@@ -1017,8 +1036,12 @@ namespace
 	tl_oper::inst_tuple_templ<typelists::points, BgSymmetricDifferenceMultiPolygonOperator, AbstrOperGroup&> bgSymmetricDifferenceMultiPolygonOperatorsNamed(grBgXOR);
 	tl_oper::inst_tuple_templ<typelists::float_points, BgSymmetricDifferenceMultiPolygonOperator, AbstrOperGroup&> bgSymmetricDifferenceMultiPolygonOperatorsBitXOR(cog_bitxor);
 
+
+	template <typename P> using BgBufferMultiPolygonOperator = BufferMultiPolygonOperator<P, geometry_library::boost_geometry>;
+	template <typename P> using GeosBufferMultiPolygonOperator = BufferMultiPolygonOperator<P, geometry_library::geos>;
 	tl_oper::inst_tuple_templ<typelists::points, BufferSinglePolygonOperator, AbstrOperGroup&> bg_buffersinglePolygonOperators(grBgBuffer_single_polygon);
-	tl_oper::inst_tuple_templ<typelists::points, BufferMultiPolygonOperator, AbstrOperGroup&> bg_bufferMultiPolygonOperators(grBgBuffer_multi_polygon);
+	tl_oper::inst_tuple_templ<typelists::points, BgBufferMultiPolygonOperator, AbstrOperGroup&> bg_bufferMultiPolygonOperators(grBgBuffer_multi_polygon);
+	tl_oper::inst_tuple_templ<typelists::points, GeosBufferMultiPolygonOperator, AbstrOperGroup&> geos_bufferMultiPolygonOperators(grGeosBuffer_multi_polygon);
 
 	tl_oper::inst_tuple_templ<typelists::points, OuterSingePolygonOperator, AbstrOperGroup&> bg_outerSinglePolygonOperators(grBgOuter_single_polygon);
 	tl_oper::inst_tuple_templ<typelists::points, OuterMultiPolygonOperator, AbstrOperGroup&> bg_outerMultiPolygonOperators(grBgOuter_multi_polygon);
