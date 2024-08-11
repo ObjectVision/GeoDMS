@@ -936,6 +936,11 @@ bool TreeItem::_CheckResultObjType(const TreeItem* refItem) const
 	if (WasFailed(FR_Determine))
 		return false;
 	try {
+		if (IsDataItem(refItem) && !IsDataItem(this))
+			FailItemType(this, refItem);
+		if (IsUnit(refItem) && !IsUnit(this))
+			FailItemType(this, refItem);
+
 		if (refItem->GetDynamicObjClass()->IsDerivedFrom(GetDynamicObjClass()) )
 			return true;
 		FailItemType(this, refItem);
@@ -1118,7 +1123,7 @@ retry:
 			mc_RefItem->m_BackRef = this;
 	}
 
-	dms_assert(!oldRefItemCounter || oldRefItemCounter->GetInterestCount()); // will retain interest up to destruction, now privately owned.
+	assert(!oldRefItemCounter || oldRefItemCounter->GetInterestCount()); // will retain interest up to destruction, now privately owned.
 
 	if (!mc_RefItem)
 		return;
