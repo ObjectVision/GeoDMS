@@ -332,9 +332,10 @@ struct partitioning_info_t
 	SharedStr GetRegionStr(UInt32 regionID) const
 	{
 		GuiReadLock lock;
+		auto pu = AsUnit(GetPartitioningUnit()->GetCurrRangeItem());
 		return mySSPrintF("%s %s", 
 			GetName().c_str(),
-			DisplayValue(GetPartitioningUnit(), regionID, false, m_ValuesLabelLock, MAX_TEXTOUT_SIZE, lock).c_str()
+			DisplayValue(pu, regionID, false, m_ValuesLabelLock, MAX_TEXTOUT_SIZE, lock).c_str()
 		);
 	}
 };
