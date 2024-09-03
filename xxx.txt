@@ -1,0 +1,24 @@
+cmake_minimum_required(VERSION 3.15)
+project(PyDms)
+
+# Enable C++17 standard
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
+# Add the vcpkg toolchain file
+if(DEFINED ENV{VCPKG_ROOT})
+    set(CMAKE_TOOLCHAIN_FILE "$ENV{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake")
+else()
+    message(FATAL_ERROR "Please set the VCPKG_ROOT environment variable to the root of your vcpkg installation")
+endif()
+
+# Find Python and pybind11
+find_package(Python3 REQUIRED COMPONENTS Development)
+find_package(pybind11 REQUIRED)
+
+# Include directories for Python
+include_directories(${Python3_INCLUDE_DIRS})
+
+# Add your executable or library
+add_executable(PyDms main.cpp)  # Replace main.cpp with your source files
+target_link_libraries(PyDms PRIVATE pybind11::module ${Python3_LIBRARIES})

@@ -3,13 +3,15 @@
     "boost",
     "cgal",
     "gdal",
+    "geos",
     "openssl",
+    "pybind11",
     {
       "name": "sqlite3",
       "features": [
         "rtree"
       ]
     },
-    "geos"
+    "python3"
   ]
 }
