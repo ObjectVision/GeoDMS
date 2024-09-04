@@ -1359,6 +1359,7 @@ namespace
 	CommonOperGroup cog_null_up(token::null_up);
 	CommonOperGroup cog_null_fp(token::null_fp);
 	CommonOperGroup cog_null_dp(token::null_dp);
+	CommonOperGroup cog_null_str(token::null_str);
 
 	ConstParamOperator<Bool>    cpt(&cog_true, true);
 	ConstParamOperator<Bool>    cpf(&cog_false, false);
@@ -1383,6 +1384,7 @@ namespace
 	ConstParamOperator<UPoint> cpp_null_up(&cog_null_up, UNDEFINED_VALUE(UPoint));
 	ConstParamOperator<FPoint> cpp_null_fp(&cog_null_fp, UNDEFINED_VALUE(FPoint));
 	ConstParamOperator<DPoint> cpp_null_dp(&cog_null_dp, UNDEFINED_VALUE(DPoint));
+	ConstParamOperator<SharedStr> cpp_null_str(&cog_null_str, UNDEFINED_VALUE(SharedStr));
 
 	CommonOperGroup cog_asDataString("asDataString");
 	AsDataStringOperator g_AsDataString(&cog_asDataString);

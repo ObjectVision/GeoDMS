@@ -66,6 +66,7 @@ namespace token {
 	extern TIC_CALL TokenID null_up;
 	extern TIC_CALL TokenID null_fp;
 	extern TIC_CALL TokenID null_dp;
+	extern TIC_CALL TokenID null_str;
 
 	TIC_CALL bool isConst(TokenID t);
 
