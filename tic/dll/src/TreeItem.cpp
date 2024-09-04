@@ -2633,9 +2633,13 @@ ActorVisitState TreeItem::DoUpdate(ProgressState ps)
 				{
 					if (SuspendTrigger::DidSuspend())
 						return AVS_SuspendedOrFailed;
-					assert(iCheckerResult->WasFailed(FR_Data));
-					if (iCheckerResult->WasFailed(FR_Data))
+					assert(iCheckerDC->WasFailed(FR_Data) || !iCheckerResult || iCheckerResult->WasFailed(FR_Data));
+					if (iCheckerDC->WasFailed(FR_Data))
+						Fail(iCheckerDC.get_ptr());
+					else if (iCheckerResult && iCheckerResult->WasFailed(FR_Data))
 						Fail(iCheckerResult.get());
+					else
+						Fail("Unknown error in IntegrityCheck: ", FR_MetaInfo);
 					return AVS_SuspendedOrFailed;
 				}
 				SizeT nrFailures = iCheckerResult->CountValues<Bool>(false);
