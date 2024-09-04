@@ -486,7 +486,8 @@ auto GetWallCountsAsArray(WallCountsAsArrayInfo<V>& info, tile_id t, tile_id te,
 			if (IsDefined(*valuesIter))
 			{
 				auto i = Range_GetIndex_naked(localInfo.valuesRange, *valuesIter);
-				assert(i < localInfo.vCount);
+				if (i >= localInfo.vCount)
+					throwErrorF("Range Error", "Value %s not in expected range from %d till %d", i, localInfo.valuesRange.first, localInfo.valuesRange.second);
 				SafeIncrementCounter(bufferB[i]);
 			}
 		}
