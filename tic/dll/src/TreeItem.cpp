@@ -921,6 +921,17 @@ void TreeItem::MakeCalculator() const
 
 }
 
+void ReportItemType(const TreeItem* self, const TreeItem* refItem)
+{
+	auto msg = mySSPrintF("%s: ItemType %s is incompatible with the result of the calculation which is of type %s"
+		, self->GetFullName().c_str()
+		, self->GetDynamicObjClass()->GetName().c_str()
+		, refItem->GetDynamicObjClass()->GetName().c_str()
+	);
+
+	reportF(SeverityTypeID::ST_Warning, msg.c_str());
+}
+
 void FailItemType(const TreeItem* self, const TreeItem* refItem)
 {
 	auto msg = mySSPrintF("ItemType %s is incompatible with the result of the calculation which is of type %s"
@@ -937,9 +948,9 @@ bool TreeItem::_CheckResultObjType(const TreeItem* refItem) const
 		return false;
 	try {
 		if (IsDataItem(refItem) && !IsDataItem(this))
-			FailItemType(this, refItem);
+			ReportItemType(this, refItem);
 		if (IsUnit(refItem) && !IsUnit(this))
-			FailItemType(this, refItem);
+			ReportItemType(this, refItem);
 
 		if (refItem->GetDynamicObjClass()->IsDerivedFrom(GetDynamicObjClass()) )
 			return true;
