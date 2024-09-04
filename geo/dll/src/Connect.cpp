@@ -297,23 +297,26 @@ struct AbstrConnectPointOperator : VariadicOperator
 
 			OwningPtr<WeightGetter> weights1Getter(arg1W ? WeightGetterCreator::Create(arg1W) : nullptr);
 
-			if (spi)
+			parallel_tileloop(point2Entity->GetNrTiles(), [res, resObj = resLock.get(), arg2A, arg2W, &spi, &weights1Getter, this](tile_id t)->void
 			{
-				parallel_tileloop(point2Entity->GetNrTiles(), [res, resObj = resLock.get(), arg2A, arg2W, &spi, &weights1Getter, this](tile_id t)->void
+				SizeT tileSize = resObj->GetTiledRangeData()->GetTileSize(t);
+				if (!tileSize)
+					return;
+
+				IndexAssigner32 indexAssigner(res, resObj, t, 0, tileSize);
+				if (spi.is_null())
 				{
-					SizeT tileSize = resObj->GetTiledRangeData()->GetTileSize(t);
-					if (!tileSize)
-						return;
-
-					IndexAssigner32 indexAssigner(res, resObj, t, 0, tileSize);
-
+					fast_undefine(indexAssigner.m_Indices, indexAssigner.m_Indices + tileSize);
+				}
+				else
+				{
 					OwningPtr<WeightGetter> weights2Getter(arg2W ? WeightGetterCreator::Create(arg2W, t) : nullptr);
-
 					Calculate(spi, indexAssigner.m_Indices, tileSize, weights1Getter, arg2A, t, weights2Getter);
+				}
 
-					indexAssigner.Store();
-				});
-			}
+				indexAssigner.Store();
+			});
+
 			resLock.Commit();
 		}
 		return true;
@@ -353,8 +356,9 @@ struct ConnectPointOperator : AbstrConnectPointOperator
 
 		const ArgType* arg2 = const_array_cast<PointType>(arg2A);
 
-		dms_assert(arg2);
-		dms_assert(resSize);
+		assert(arg2);
+		assert(resSize);
+		assert(!spi.is_null());
 
 		SpatialIndexType& spIndex = GetAs<SpatialIndexType>(spi);
 				
