@@ -2909,13 +2909,6 @@ ActorVisitState TreeItem::VisitSuppliers(SupplierVisitFlag svf, const ActorVisit
 				return AVS_SuspendedOrFailed;
 	}
 
-	if (Test(svf, SupplierVisitFlag::Checker) && HasIntegrityChecker())
-	{
-		auto ic = GetIntegrityChecker();
-		auto dc = MakeResult(ic);
-		if (visitor.Visit(dc) != AVS_Ready)
-			return AVS_SuspendedOrFailed;
-	}
 	// =============== StorageManager of parent
 
 	const TreeItem* storageParent = GetStorageParent(false);
@@ -2930,18 +2923,23 @@ ActorVisitState TreeItem::VisitSuppliers(SupplierVisitFlag svf, const ActorVisit
 				return AVS_SuspendedOrFailed;
 	}
 
-//	dms_assert(m_StorageManager || !HasStorageManager()); // Has -> GetStorageParent(false) returns this -> GetStorageManager was called, which could collect Implied Suppliers
-
 	// =============== IntegrityChecker
 
 	if (Test(svf, SupplierVisitFlag::Checker) && HasIntegrityChecker())
 	{
-		auto icResult = MakeResult(GetIntegrityChecker());
-		if (visitor.Visit(icResult) == AVS_SuspendedOrFailed)
+		auto ic = GetIntegrityChecker();
+		auto dc = MakeResult(ic);
+		if (dc->WasFailed(FR_MetaInfo))
+		{
+			Fail(dc);
 			return AVS_SuspendedOrFailed;
-		if (visitor.Visit(icResult->GetOld()) == AVS_SuspendedOrFailed)
+		}
+		if (visitor.Visit(dc) != AVS_Ready)
+			return AVS_SuspendedOrFailed;
+		if (visitor.Visit(dc->GetOld()) == AVS_SuspendedOrFailed)
 			return AVS_SuspendedOrFailed;
 	}
+
 	return base_type::VisitSuppliers(svf, visitor);
 }
 

@@ -279,7 +279,7 @@ garbage_t OperationContext::disconnect()
 	DBG_TRACE(("this = %s", AsText(this)))
 
 #if defined(MG_DEBUG)
-	dms_assert( sd_ManagedContexts.find(this) != sd_ManagedContexts.end() || !m_FuncDC);
+	assert( sd_ManagedContexts.find(this) != sd_ManagedContexts.end() || !m_FuncDC);
 	sd_ManagedContexts.erase(this);
 #endif
 
