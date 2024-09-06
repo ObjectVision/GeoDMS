@@ -344,6 +344,11 @@ template<typename P> concept gtl_point = bp::is_point_concept    <typename bp::g
 template<typename R> concept gtl_rect = bp::is_rectangle_concept<typename bp::geometry_concept<R>::type>::type::value;
 template<typename P> concept gtl_PolygonSet = bp::is_any_polygon_set_type<P>::type::value;
 
+using bp_point = bp::point_data<int>;
+using bp_linestring = std::vector<bp_point>;
+
+#include <ipolygon/polygon.hpp>
+using bp_convolution = boost::polygon::detail::minkowski_offset<int>;
 
 
 #endif //!defined(DMS_GEO_BOOSTPOLYGON_H)

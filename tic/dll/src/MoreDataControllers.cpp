@@ -291,7 +291,7 @@ SharedTreeItem FuncDC::MakeResult() const // produce signature
 //	auto_flag_recursion_lock<DCFD_IsCalculating> reentryLock(Actor::m_State);
 	const TreeItem* dContext = m_Data;
 
-	assert(IsMetaThread() || m_Data);
+	assert(IsMetaThread());
 #endif
 
 	DetermineState(); // may trigger DoInvalidate -> reset m_Data, only MainThread may re-MakeResult
@@ -315,8 +315,6 @@ SharedTreeItem FuncDC::MakeResult() const // produce signature
 		MG_CHECK(m_Data);
 		DBG_TRACE(("MakeResult completed well"));
 	}
-	assert(m_OperContext);
-
 	assert(m_Data);
 	assert(!IsNew() || m_Data->IsCacheRoot());
 
@@ -331,7 +329,7 @@ SharedTreeItem FuncDC::MakeResult() const // produce signature
 	if (operContext)
 		m_OtherSuppliersCopy = operContext->m_OtherSuppliers;
 
-	if (!GetInterestCount())
+	if (!GetInterestCount() && operContext)
 	{
 		DBG_TRACE(("ResetContext"));
 		dms_assert(!DoesHaveSupplInterest());

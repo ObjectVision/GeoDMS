@@ -201,33 +201,6 @@ bool empty(boost::geometry::model::ring<P>& ring)
 }
 
 template <typename P>
-void load_multi_linestring(bg_multi_linestring_t& mls, SA_ConstReference<P> multiLineStringRef, bg_linestring_t& helperLineString)
-{
-	mls.clear();
-
-	auto lineStringBegin = begin_ptr(multiLineStringRef)
-		, sequenceEnd = end_ptr(multiLineStringRef);
-
-	while (lineStringBegin != sequenceEnd)
-	{
-		while (!IsDefined(*lineStringBegin))
-			if (++lineStringBegin == sequenceEnd)
-				return;
-
-		auto lineStringEnd = lineStringBegin + 1;
-		while (lineStringEnd != sequenceEnd && IsDefined(*lineStringEnd))
-			++lineStringEnd;
-
-		helperLineString.assign(lineStringBegin, lineStringEnd);
-		if (!helperLineString.empty())
-			mls.emplace_back(std::move(helperLineString));
-
-		lineStringBegin = lineStringEnd;
-	}
-}
-
-
-template <typename P>
 void write_linestring(SA_Reference<P> resDataRef, const bg_linestring_t& ls)
 {
 	for (const auto& p : ls)

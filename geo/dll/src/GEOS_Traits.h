@@ -49,6 +49,38 @@ auto geos_Coordinate(const DmsPointType& p)
 }
 
 template <typename DmsPointType>
+auto geos_create_multi_linestring(const DmsPointType* begin, const DmsPointType* beyond)
+-> std::unique_ptr<geos::geom::Geometry>
+{
+	auto curr = begin;
+	std::vector< geos::geom::Coordinate> lineStringCoords;
+	std::vector< std::unique_ptr<geos::geom::LineString>> resLineStrings;
+	while (curr!= beyond)
+	{
+		lineStringCoords.clear();
+		while (curr != beyond && IsDefined(*curr))
+		{
+			lineStringCoords.emplace_back(geos_Coordinate(*curr));
+			++curr;
+		}
+		if (!lineStringCoords.empty())
+		{
+			auto ls = geos_factory()->createLineString(lineStringCoords);
+			resLineStrings.emplace_back(std::move(ls));
+		}
+		if (curr == beyond)
+			break;
+		assert(!IsDefined(*curr));
+		++curr;
+	}
+	if (resLineStrings.empty())
+		return {};
+	if (resLineStrings.size() == 1)
+		return resLineStrings[0].release();
+	return geos_factory()->createGeometryCollection(std::move(resLineStrings)).release();
+}
+
+template <typename DmsPointType>
 struct geos_create_linear_ring_helper_data
 {
 	std::vector<DmsPointType> helperRingPoints;
