@@ -985,6 +985,7 @@ void Actor::IncInterestCount() const // NO UpdateMetaInfo, Just work on existing
 	{
 		DoFail(x.AsErrMsg(), FR_MetaInfo);
 		throw;
+		
 	}
 
 	leveled_std_section::scoped_lock globalSectionLock(sg_CountSection);

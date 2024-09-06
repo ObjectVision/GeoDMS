@@ -427,21 +427,22 @@ const Operator* AbstrOperGroup::FindOper(arg_index nrArgs, const ClassCPtr* argT
 //			nrSpecifiedArgs = nrArgs;
 		}
 
-		const ClassCPtr* requiredTypes = b->m_ArgClassesBegin;
-		const ClassCPtr* givenTypes    = argTypes;
+		const ClassCPtr* requiredTypePtr = b->m_ArgClassesBegin;
+		const ClassCPtr* givenTypePtr    = argTypes;
 
 		arg_index match_count = 0, nrRequiredArgs = nrSpecifiedArgs - b->NrOptionalArgs();
-		for (arg_index i=0, ie = nrSpecifiedArgs; i!= ie; ++i, ++requiredTypes, ++givenTypes, ++match_count)
+		for (arg_index i=0, ie = nrSpecifiedArgs; i!= ie; ++i, ++requiredTypePtr, ++givenTypePtr)
 		{
 			if (i >= nrArgs)
 			{
 				if (i >= nrRequiredArgs)
 					break;
-				goto next;
+				goto nextGroupMember;
 			}
-			else if (!(*givenTypes)->IsDerivedFrom(*requiredTypes))
-				goto next;
+			else if (!(*givenTypePtr)->IsDerivedFrom(*requiredTypePtr))
+				goto nextGroupMember;
 
+			++match_count;
 			if (match_count > best_count)
 			{
 				best_count = match_count;
@@ -453,7 +454,7 @@ const Operator* AbstrOperGroup::FindOper(arg_index nrArgs, const ClassCPtr* argT
 		}
 		if (nrSpecifiedArgs >= nrArgs || AllowExtraArgs())
 			return b;
-	next:;
+	nextGroupMember:;
 	}
 	auto nameStr = SharedStr(GetName());
 	throwErrorF(nameStr.c_str(), "Cannot find operator for these arguments:\n"

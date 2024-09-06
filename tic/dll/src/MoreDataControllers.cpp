@@ -194,8 +194,9 @@ std::shared_ptr<OperationContext> FuncDC::ResetOperContextImpl() const
 	);
 
 	auto operContext = std::move(m_OperContext);
-	if (operContext) operContext->m_FuncDC.reset();
-	dms_assert(!m_OperContext);
+	if (operContext) 
+		operContext->m_FuncDC.reset();
+	assert(!m_OperContext);
 	return operContext;
 }
 
@@ -290,7 +291,7 @@ SharedTreeItem FuncDC::MakeResult() const // produce signature
 //	auto_flag_recursion_lock<DCFD_IsCalculating> reentryLock(Actor::m_State);
 	const TreeItem* dContext = m_Data;
 
-	assert(IsMetaThread() || m_Data);
+	assert(IsMetaThread());
 #endif
 
 	DetermineState(); // may trigger DoInvalidate -> reset m_Data, only MainThread may re-MakeResult
@@ -305,15 +306,15 @@ SharedTreeItem FuncDC::MakeResult() const // produce signature
 		DBG_TRACE(("MakeResult starts"));
 		if (!MakeResultImpl())
 		{
-			dms_assert(WasFailed(FR_MetaInfo)); // MakeResult cannot suspend
-			dms_assert(!DoesHaveSupplInterest());
-			CancelOperContext();
+			assert(WasFailed(FR_MetaInfo)); // MakeResult cannot suspend
+			assert(!DoesHaveSupplInterest());
+			assert(!m_OperContext);
 			return nullptr;
 		}
+		assert(m_OperContext);
 		MG_CHECK(m_Data);
 		DBG_TRACE(("MakeResult completed well"));
 	}
-	
 	assert(m_Data);
 	assert(!IsNew() || m_Data->IsCacheRoot());
 
@@ -328,7 +329,7 @@ SharedTreeItem FuncDC::MakeResult() const // produce signature
 	if (operContext)
 		m_OtherSuppliersCopy = operContext->m_OtherSuppliers;
 
-	if (!GetInterestCount())
+	if (!GetInterestCount() && operContext)
 	{
 		DBG_TRACE(("ResetContext"));
 		dms_assert(!DoesHaveSupplInterest());
@@ -378,11 +379,12 @@ auto FuncDC::CallCalcResult(Explain::Context* context) const -> FutureData
 		DBG_TRACE(("MakeResult starts"));
 		if (!MakeResultImpl())
 		{
-			dms_assert(WasFailed(FR_MetaInfo) ); // MakeResult cannot suspend
+			assert(WasFailed(FR_MetaInfo) ); // MakeResult cannot suspend
+			assert(!m_OperContext);
 			return {};
 		}
 		dms_assert(m_Data);
-		dms_assert(m_OperContext);
+		assert(m_OperContext);
 		DBG_TRACE(("MakeResult completed well"));
 	}
 	m_Data->UpdateMetaInfo();
@@ -464,7 +466,7 @@ const Operator* FuncDC::GetOperator() const
 {
 	if (!m_Operator)
 	{
-		dms_assert(IsMetaThread());
+		assert(IsMetaThread());
 		ArgClsSeqType operandTypeSeq;
 		if (WasFailed(FR_MetaInfo))
 			ThrowFail();
@@ -479,13 +481,13 @@ const Operator* FuncDC::GetOperator() const
 				ThrowFail();
 			}
 			const Class* resCls = argDC->GetResultCls();
-			dms_assert(resCls);
+			assert(resCls);
 			operandTypeSeq.push_back( resCls );
 		}
 
 		dbg_assert( operandTypeSeq.size() == GetNrArgs() );
 		m_Operator = m_OperatorGroup->FindOper(argCount, begin_ptr( operandTypeSeq ));
-		dms_assert(m_Operator);
+		assert(m_Operator);
 	}
 	return m_Operator;
 }
@@ -564,22 +566,25 @@ OArgRefs FuncDC::GetArgs(bool doUpdateMetaInfo, bool doCalcData) const
 
 bool FuncDC::MakeResultImpl() const
 {
-	dms_assert(IsMetaThread());
+	assert(IsMetaThread());
 	dms_check_not_debugonly; 
 
-	dms_assert(!WasFailed(FR_MetaInfo));
-	dms_assert(!SuspendTrigger::DidSuspend());
+	assert(!WasFailed(FR_MetaInfo));
+	assert(!SuspendTrigger::DidSuspend());
 
 	StaticStIncrementalLock<TreeItem::s_MakeEndoLockCount> makeEndoLock;
 	InterestRetainContextBase base;
-	dms_assert(!m_OperContext);
+	assert(!m_OperContext);
 	// ============== Call GetResult for each of the arguments
 
 #if defined(MG_DEBUG_DCDATA)
 	DBG_START("FuncDc::MakeResultImpl", md_sKeyExpr.c_str(), MG_DEBUG_FUNCDC);
 #endif
+	if (WasFailed(FR_MetaInfo))
+		return false;
 
-	bool result;
+	bool result = false;
+	std::shared_ptr< OperationContext> resultContext;
 	try {
 		UpdateMarker::ChangeSourceLock changeStamp(this, "FuncDC::MakeResult");
 		UpdateLock lock(this, actor_flag_set::AF_UpdatingMetaInfo);
@@ -587,35 +592,34 @@ bool FuncDC::MakeResultImpl() const
 		// ============== Call the actual operator
 		// TODO G8.1: CreateResult() Verwijderen uit OperationContext en constructie vermijden/uitstellen
 
-		auto operContext = std::make_shared<OperationContext>(this, m_OperatorGroup);
-		{
-			leveled_critical_section::scoped_lock ocaLock(cs_OperContextAccess);
-
-			dms_assert(!m_OperContext);
-			m_OperContext = operContext;
-			dms_assert( m_OperContext);
-		}
-		result = OperationContext_CreateResult(operContext.get(), this);
+		resultContext = std::make_shared<OperationContext>(this, m_OperatorGroup);
+		result = OperationContext_CreateResult(resultContext.get(), this);
 		if (!result)
 		{
-			dms_assert(SuspendTrigger::DidSuspend() || WasFailed(FR_MetaInfo));  // if we asked for MetaInfo and only DataProcesing failed, we should at least get a result
+			assert(SuspendTrigger::DidSuspend() || WasFailed(FR_MetaInfo));  // if we asked for MetaInfo and only DataProcesing failed, we should at least get a result
 		}
-		assert(m_OperContext); // Still in MainThread, no other access to m_Oper
 	}
 	catch (...)
 	{
+		assert(!result);
 		CatchFail(FR_MetaInfo);
-		return false;
 	}
 	if (! result)
 	{
 		assert(SuspendTrigger::DidSuspend() || WasFailed(FR_MetaInfo));  // if we asked for MetaInfo and only DataProcesing failed, we should at least get a result
+		resultContext->m_FuncDC.reset();
 		return false;
 	}
 
 	assert(m_Data);
 	assert(!SuspendTrigger::DidSuspend() && !WasFailed(FR_MetaInfo) );  // if we asked for MetaInfo and only DataProcesing failed, we should at least get a result
 	assert(m_Data->IsCacheItem() || m_Data->IsPassor() || m_OperatorGroup->CanResultToConfigItem() || IsTmp());
+
+	leveled_critical_section::scoped_lock ocaLock(cs_OperContextAccess);
+
+	assert(!m_OperContext);
+	m_OperContext = resultContext;
+	assert(m_OperContext);
 
 	return true;
 }

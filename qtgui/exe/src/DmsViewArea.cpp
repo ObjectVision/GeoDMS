@@ -210,7 +210,11 @@ QDmsViewArea::QDmsViewArea(QMdiArea* parent, TreeItem* viewContext, const TreeIt
         if (m_DataView->GetViewType()== ViewStyle::tvsMapView)
             reportF(MsgCategory::commands, SeverityTypeID::ST_MinorTrace, "Add layer for item %s in %s", current_item->GetFullName(), m_DataView->GetCaption());
         else
-            reportF(MsgCategory::commands, SeverityTypeID::ST_MinorTrace, "Add column for item %s in %s", current_item->GetFullName(), m_DataView->GetCaption());
+            reportF(MsgCategory::commands, SeverityTypeID::ST_MinorTrace, "Add column for item %s in %s('%s')"
+                , current_item->GetFullName()
+				, GetViewStyleName(viewStyle)
+                , m_DataView->GetCaption()
+            );
     }
     catch (...) {
         CloseWindow((HWND)m_DataViewHWnd); // calls SHV_DataView_Destroy

@@ -8,6 +8,8 @@
 #pragma hdrstop
 #endif
 
+#include <numbers>
+
 #include "BoostGeometry.h"
 
 #include "geo/BoostPolygon.h"
@@ -18,6 +20,62 @@
 #include <geos/simplify/DouglasPeuckerSimplifier.h>
 
 static VersionComponent s_BoostGeometry("boost::geometry " BOOST_STRINGIZE(BOOST_GEOMETRY_VERSION));
+
+// *****************************************************************************
+//	more conversion functions
+// *****************************************************************************
+
+template <typename P>
+void bp_load_multi_linestring(std::vector<bp_linestring>& mls, SA_ConstReference<P> multiLineStringRef, bp_linestring& helperLineString)
+{
+	mls.clear();
+
+	auto lineStringBegin = begin_ptr(multiLineStringRef)
+		, sequenceEnd = end_ptr(multiLineStringRef);
+
+	while (lineStringBegin != sequenceEnd)
+	{
+		while (!IsDefined(*lineStringBegin))
+			if (++lineStringBegin == sequenceEnd)
+				return;
+
+		auto lineStringEnd = lineStringBegin + 1;
+		while (lineStringEnd != sequenceEnd && IsDefined(*lineStringEnd))
+			++lineStringEnd;
+
+		helperLineString.assign(lineStringBegin, lineStringEnd);
+		if (!helperLineString.empty())
+			mls.emplace_back(std::move(helperLineString));
+
+		lineStringBegin = lineStringEnd;
+	}
+}
+
+template <typename P>
+void bg_load_multi_linestring(bg_multi_linestring_t& mls, SA_ConstReference<P> multiLineStringRef, bg_linestring_t& helperLineString)
+{
+	mls.clear();
+
+	auto lineStringBegin = begin_ptr(multiLineStringRef)
+		, sequenceEnd = end_ptr(multiLineStringRef);
+
+	while (lineStringBegin != sequenceEnd)
+	{
+		while (!IsDefined(*lineStringBegin))
+			if (++lineStringBegin == sequenceEnd)
+				return;
+
+		auto lineStringEnd = lineStringBegin + 1;
+		while (lineStringEnd != sequenceEnd && IsDefined(*lineStringEnd))
+			++lineStringEnd;
+
+		helperLineString.assign(lineStringBegin, lineStringEnd);
+		if (!helperLineString.empty())
+			mls.emplace_back(std::move(helperLineString));
+
+		lineStringBegin = lineStringEnd;
+	}
+}
 
 // *****************************************************************************
 //	operation groups
@@ -53,9 +111,14 @@ static Obsolete<CommonOperGroup> grBgBuffer_polygon("use bg_buffer_single_polygo
 #endif
 
 static CommonOperGroup grBgBuffer_single_polygon("bg_buffer_single_polygon", oper_policy::better_not_in_meta_scripting);
-static CommonOperGroup grBgBuffer_multi_polygon("bg_buffer_multi_polygon", oper_policy::better_not_in_meta_scripting);
-static CommonOperGroup grBgBuffer_linestring   ("bg_buffer_linestring", oper_policy::better_not_in_meta_scripting);
 
+static CommonOperGroup grBpBuffer_linestring("bp_buffer_linestring", oper_policy::better_not_in_meta_scripting);
+static CommonOperGroup grBgBuffer_linestring("bg_buffer_linestring", oper_policy::better_not_in_meta_scripting);
+static CommonOperGroup grGeosBuffer_linestring("geos_buffer_linestring", oper_policy::better_not_in_meta_scripting);
+static CommonOperGroup grCgalBuffer_linestring("cgal_buffer_linestring", oper_policy::better_not_in_meta_scripting);
+
+static CommonOperGroup grBpBuffer_multi_polygon("bp_buffer_multi_polygon", oper_policy::better_not_in_meta_scripting);
+static CommonOperGroup grBgBuffer_multi_polygon("bg_buffer_multi_polygon", oper_policy::better_not_in_meta_scripting);
 static CommonOperGroup grGeosBuffer_multi_polygon("geos_buffer_multi_polygon", oper_policy::better_not_in_meta_scripting);
 
 #if DMS_VERSION_MAJOR < 15
@@ -460,7 +523,7 @@ struct SimplifyLinestringOperator : public AbstrSimplifyOperator
 
 		for (SizeT i = 0, n = lineStringData.size(); i != n; ++i)
 		{
-			load_multi_linestring(currGeometry, lineStringData[i], helperLineString);
+			bg_load_multi_linestring(currGeometry, lineStringData[i], helperLineString);
 			resGeometry.resize(0);
 			if (!currGeometry.empty())
 			{
@@ -604,6 +667,8 @@ struct BufferPointOperator : public AbstrBufferOperator
 			movedRing = resRing;
 			move(movedRing, DPoint(pointData[i]));
 			bg_store_ring(resData[i], movedRing);
+
+			// move to nextPoint
 			if (++i == n)
 				break;
 			if (e2IsVoid && e3IsVoid)
@@ -655,36 +720,59 @@ struct BufferMultiPointOperator : public AbstrBufferOperator
 			boost::geometry::model::multi_point<DPoint> currGeometry;
 			bg_multi_polygon_t resMP;
 
-		nextPointWithSameResRing:
-			resMP.clear();
-			currGeometry.assign(begin_ptr(polyData[i]), end_ptr(polyData[i]));
+			do {
+				resMP.clear();
+				currGeometry.assign(begin_ptr(polyData[i]), end_ptr(polyData[i]));
 
-			auto p = MaxValue<DPoint>();
-			MakeLowerBound(p, currGeometry);
-			move(currGeometry, -p);
+				auto p = MaxValue<DPoint>();
+				MakeLowerBound(p, currGeometry);
+				move(currGeometry, -p);
 
-			boost::geometry::buffer(currGeometry, resMP, distStrategy, sideStrategy, joinStrategy, endStrategy, circleStrategy);
-			move(resMP, p);
+				boost::geometry::buffer(currGeometry, resMP, distStrategy, sideStrategy, joinStrategy, endStrategy, circleStrategy);
+				move(resMP, p);
 
-			bg_store_multi_polygon(resData[i], resMP);
+				bg_store_multi_polygon(resData[i], resMP);
 
-			if (++i == n)
-				break;
-			if (e2IsVoid && e3IsVoid)
-				goto nextPointWithSameResRing;
+				// move to next geometry
+						// move to next geometry
+				if (++i == n)
+					return;
+			} while (e2IsVoid && e3IsVoid);
 		}
 	}
 };
 
-template <typename P>
+auto bp_circle(double radius, int pointsPerCircle) -> bp::polygon_data<int>
+{
+	using Point = bp::point_data<int>;
+	bp::polygon_data<int> circle;
+	std::vector<Point> points;
+	for (int i = 0; i < pointsPerCircle; ++i) {
+		double angle = 2.0 * std::numbers::pi_v<double> * i / pointsPerCircle;
+		int x = static_cast<int>(radius * cos(angle));
+		int y = static_cast<int>(radius * sin(angle));
+		points.emplace_back(x, y);
+	}
+	bp::set_points(circle, points.begin(), points.end());
+	return circle;
+}
+
+void bp_bufferLineString(bp::polygon_set_data<int>& result, const bp_linestring& lineString, const bp::polygon_data<int>& circle)
+{
+	using Point = bp::point_data<int>;
+	bp_convolution::convolve_two_point_sequences(result, lineString.begin(), lineString.end(), circle.begin(), circle.end(), false);
+}
+
+
+template <typename P, geometry_library GL>
 struct BufferLineStringOperator : public AbstrBufferOperator
 {
 	using PointType = P;
 	using PolygonType = std::vector<PointType>;
 	using Arg1Type = DataArray<PolygonType>;
 
-	BufferLineStringOperator()
-		: AbstrBufferOperator(grBgBuffer_linestring, Arg1Type::GetStaticClass())
+	BufferLineStringOperator(AbstrOperGroup& gr)
+		: AbstrBufferOperator(gr, Arg1Type::GetStaticClass())
 	{}
 
 	void Calculate(AbstrDataObject* resItem, const AbstrDataItem* lineStringItem
@@ -709,38 +797,73 @@ struct BufferLineStringOperator : public AbstrBufferOperator
 				bufferDistance = bufDistData[i];
 			if (!e3IsVoid)
 				pointsPerCircle = ppcData[i];
-
-			boost::geometry::strategy::buffer::distance_symmetric<Float64> distStrategy(bufferDistance);
-			boost::geometry::strategy::buffer::join_round                  joinStrategy(pointsPerCircle);
-			boost::geometry::strategy::buffer::end_round                   endStrategy(pointsPerCircle);
-			boost::geometry::strategy::buffer::point_circle                circleStrategy(pointsPerCircle);
-			boost::geometry::strategy::buffer::side_straight               sideStrategy;
-
-
-			bg_linestring_t helperLineString;
-			bg_multi_linestring_t currGeometry;
-			bg_multi_polygon_t resMP;
-
-	nextPointWithSameResRing:
-
-			resMP.clear();
-			load_multi_linestring(currGeometry, lineStringData[i], helperLineString);
-
-			if (!currGeometry.empty())
+			if constexpr (GL == geometry_library::boost_geometry)
 			{
-				auto p = MaxValue<DPoint>();
-				MakeLowerBound(p, currGeometry);
-				move(currGeometry, -p);
+				boost::geometry::strategy::buffer::distance_symmetric<Float64> distStrategy(bufferDistance);
+				boost::geometry::strategy::buffer::join_round                  joinStrategy(pointsPerCircle);
+				boost::geometry::strategy::buffer::end_round                   endStrategy(pointsPerCircle);
+				boost::geometry::strategy::buffer::point_circle                circleStrategy(pointsPerCircle);
+				boost::geometry::strategy::buffer::side_straight               sideStrategy;
 
-				boost::geometry::buffer(currGeometry, resMP, distStrategy, sideStrategy, joinStrategy, endStrategy, circleStrategy);
-				move(resMP, p);
 
+				bg_linestring_t helperLineString;
+				bg_multi_linestring_t currGeometry;
+				bg_multi_polygon_t resMP;
+
+				do {
+					resMP.clear();
+					bg_load_multi_linestring(currGeometry, lineStringData[i], helperLineString);
+
+					if (!currGeometry.empty())
+					{
+						auto p = MaxValue<DPoint>();
+						MakeLowerBound(p, currGeometry);
+						move(currGeometry, -p);
+
+						boost::geometry::buffer(currGeometry, resMP, distStrategy, sideStrategy, joinStrategy, endStrategy, circleStrategy);
+						move(resMP, p);
+
+					}
+					bg_store_multi_polygon(resData[i], resMP);
+
+					// move to next geometry
+					if (++i == n)
+						return;
+				} while (e2IsVoid && e3IsVoid);
 			}
-			bg_store_multi_polygon(resData[i], resMP);
-			if (++i == n)
-				break;
-			if (e2IsVoid && e3IsVoid)
-				goto nextPointWithSameResRing;
+			else if constexpr (GL == geometry_library::geos)
+			{
+				auto lineStringRef = lineStringData[i];
+				auto lineString = geos_create_multi_linestring<P>(lineStringRef.begin(), lineStringRef.end());
+				auto bufferedLineString = lineString->buffer(bufferDistance, pointsPerCircle / 4);
+				geos_assign_geometry(resData[i], bufferedLineString);
+			}
+			else if constexpr (GL == geometry_library::boost_polygon)
+			{
+				bp::polygon_data<int> circle = bp_circle(bufferDistance, pointsPerCircle); // memoize 
+
+				do {
+					auto lineStringRef = lineStringData[i];
+					std::vector<bp_linestring> lineStrings;
+					bp_load_multi_linestring<P>(lineStrings, lineStringRef.begin(), lineStringRef.end());
+
+					bp::polygon_set_data<int> resMP;
+					for (const auto& ls : lineStrings)
+					{
+						bp_bufferLineString(resMP, ls, circle);
+					}
+
+					bp_store_multi_polygon(resData[i], resMP);
+
+					// move to next geometry
+					if (++i == n)
+						return;
+				} while (e2IsVoid && e3IsVoid);
+			}
+			else
+			{
+//				thisGlIsNotYetImplemented; 
+			}
 		}
 	}
 };
@@ -894,6 +1017,8 @@ struct BufferSinglePolygonOperator : public AbstrBufferOperator
 
 					bg_store_multi_polygon(resData[i], resMP);
 				}
+
+				// move to nextPoint
 				if (++i == n)
 					break;
 				if (e2IsVoid && e3IsVoid)
@@ -1042,7 +1167,15 @@ namespace
 	tl_oper::inst_tuple_templ<typelists::points, SimplifyPolygonOperator> simplifyPolygonOperators;
 	tl_oper::inst_tuple_templ<typelists::points, BufferPointOperator> bufferPointOperators;
 	tl_oper::inst_tuple_templ<typelists::points, BufferMultiPointOperator> bufferMultiPointOperators;
-	tl_oper::inst_tuple_templ<typelists::points, BufferLineStringOperator> bufferLineStringOperators;
+
+	template <typename P> using BpBufferLineStringOperator = BufferLineStringOperator<P, geometry_library::boost_polygon>;
+	template <typename P> using BgBufferLineStringOperator = BufferLineStringOperator<P, geometry_library::boost_geometry>;
+	template <typename P> using GeosBufferLineStringOperator = BufferLineStringOperator<P, geometry_library::geos>;
+	template <typename P> using CgalBufferLineStringOperator = BufferLineStringOperator<P, geometry_library::cgal>;
+	tl_oper::inst_tuple_templ<typelists::int_points, BpBufferLineStringOperator, AbstrOperGroup&> bpBufferLineStringOperators(grBpBuffer_linestring);
+	tl_oper::inst_tuple_templ<typelists::points, BgBufferLineStringOperator, AbstrOperGroup&> bgBufferLineStringOperators(grBgBuffer_linestring);
+	tl_oper::inst_tuple_templ<typelists::points, GeosBufferLineStringOperator, AbstrOperGroup&> geosBufferLineStringOperators(grGeosBuffer_linestring);
+	tl_oper::inst_tuple_templ<typelists::points, CgalBufferLineStringOperator, AbstrOperGroup&> cgalBufferLineStringOperators(grCgalBuffer_linestring);
 
 
 	template <typename P> using BgIntersectMultiPolygonOperator = BgMultiPolygonOperator < P, bg_intersection> ;

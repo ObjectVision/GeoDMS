@@ -132,11 +132,12 @@ namespace token {
 	TIC_CALL TokenID null_up = GetTokenID_st("null_up");
 	TIC_CALL TokenID null_fp = GetTokenID_st("null_fp");
 	TIC_CALL TokenID null_dp = GetTokenID_st("null_dp");
+	TIC_CALL TokenID null_str = GetTokenID_st("null_str");
 
 	TIC_CALL bool isConst(TokenID t)
 	{ 
-		assert(true_.GetNr(TokenID::TokenKey()) + 18 == null_dp.GetNr(TokenID::TokenKey()));
-		return t >= true_ && t <= null_dp;
+		assert(true_.GetNr(TokenID::TokenKey()) + 19 == null_str.GetNr(TokenID::TokenKey()));
+		return t >= true_ && t <= null_str;
 	}
 
 	TIC_CALL TokenID arrow = GetTokenID_st("arrow");

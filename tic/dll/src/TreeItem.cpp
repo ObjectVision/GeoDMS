@@ -2633,9 +2633,13 @@ ActorVisitState TreeItem::DoUpdate(ProgressState ps)
 				{
 					if (SuspendTrigger::DidSuspend())
 						return AVS_SuspendedOrFailed;
-					assert(iCheckerResult->WasFailed(FR_Data));
-					if (iCheckerResult->WasFailed(FR_Data))
+					assert(iCheckerDC->WasFailed(FR_Data) || !iCheckerResult || iCheckerResult->WasFailed(FR_Data));
+					if (iCheckerDC->WasFailed(FR_Data))
+						Fail(iCheckerDC.get_ptr());
+					else if (iCheckerResult && iCheckerResult->WasFailed(FR_Data))
 						Fail(iCheckerResult.get());
+					else
+						Fail("Unknown error in IntegrityCheck: ", FR_MetaInfo);
 					return AVS_SuspendedOrFailed;
 				}
 				SizeT nrFailures = iCheckerResult->CountValues<Bool>(false);
@@ -2905,13 +2909,6 @@ ActorVisitState TreeItem::VisitSuppliers(SupplierVisitFlag svf, const ActorVisit
 				return AVS_SuspendedOrFailed;
 	}
 
-	if (Test(svf, SupplierVisitFlag::Checker) && HasIntegrityChecker())
-	{
-		auto ic = GetIntegrityChecker();
-		auto dc = MakeResult(ic);
-		if (visitor.Visit(dc) != AVS_Ready)
-			return AVS_SuspendedOrFailed;
-	}
 	// =============== StorageManager of parent
 
 	const TreeItem* storageParent = GetStorageParent(false);
@@ -2926,18 +2923,23 @@ ActorVisitState TreeItem::VisitSuppliers(SupplierVisitFlag svf, const ActorVisit
 				return AVS_SuspendedOrFailed;
 	}
 
-//	dms_assert(m_StorageManager || !HasStorageManager()); // Has -> GetStorageParent(false) returns this -> GetStorageManager was called, which could collect Implied Suppliers
-
 	// =============== IntegrityChecker
 
 	if (Test(svf, SupplierVisitFlag::Checker) && HasIntegrityChecker())
 	{
-		auto icResult = MakeResult(GetIntegrityChecker());
-		if (visitor.Visit(icResult) == AVS_SuspendedOrFailed)
+		auto ic = GetIntegrityChecker();
+		auto dc = MakeResult(ic);
+		if (dc->WasFailed(FR_MetaInfo))
+		{
+			Fail(dc);
 			return AVS_SuspendedOrFailed;
-		if (visitor.Visit(icResult->GetOld()) == AVS_SuspendedOrFailed)
+		}
+		if (visitor.Visit(dc) != AVS_Ready)
+			return AVS_SuspendedOrFailed;
+		if (visitor.Visit(dc->GetOld()) == AVS_SuspendedOrFailed)
 			return AVS_SuspendedOrFailed;
 	}
+
 	return base_type::VisitSuppliers(svf, visitor);
 }
 
