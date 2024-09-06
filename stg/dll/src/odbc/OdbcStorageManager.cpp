@@ -220,7 +220,7 @@ struct OdbcTableContextHandle : public ContextHandle
 		descr += m_TableItem->GetFullName().c_str();
 		descr += ']';
 		const AbstrUnit* domainUnit = 0;
-		if (TreeItemIsQuery(m_TableItem, domainUnit))
+		if (TreeItemHasPropertyValue(m_TableItem, sqlStringPropDefPtr))
 		{
 			descr += "\n" SQLSTRING_NAME " = ";
 			descr += GetOrCreateSqlString(m_TableItem).c_str();
@@ -411,7 +411,12 @@ public:
 	const ValueClass* GetInternalValueClass()
 	{
 		if (!m_InternalValueClass)
-			m_InternalValueClass = m_ColItem->GetDataObj()->GetValuesType();
+		{
+			MG_CHECK(m_ColItem);
+			auto ado = m_ColItem->GetDataObj();
+			MG_CHECK(ado);
+			m_InternalValueClass = ado->GetValuesType();
+		}
 		dms_assert(m_InternalValueClass);
 		return m_InternalValueClass;
 	}
