@@ -65,7 +65,7 @@ auto geos_create_multi_linestring(const DmsPointType* begin, const DmsPointType*
 		}
 		if (!lineStringCoords.empty())
 		{
-			auto ls = geos_factory()->createLineString(lineStringCoords);
+			auto ls = geos_factory()->createLineString(std::move(lineStringCoords));
 			resLineStrings.emplace_back(std::move(ls));
 		}
 		if (curr == beyond)
@@ -76,8 +76,8 @@ auto geos_create_multi_linestring(const DmsPointType* begin, const DmsPointType*
 	if (resLineStrings.empty())
 		return {};
 	if (resLineStrings.size() == 1)
-		return resLineStrings[0].release();
-	return geos_factory()->createGeometryCollection(std::move(resLineStrings)).release();
+		return std::unique_ptr<geos::geom::Geometry>( resLineStrings[0].release() );
+	return std::unique_ptr<geos::geom::Geometry>(geos_factory()->createGeometryCollection(std::move(resLineStrings)).release() );
 }
 
 template <typename DmsPointType>

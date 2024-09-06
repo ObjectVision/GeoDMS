@@ -26,7 +26,7 @@ static VersionComponent s_BoostGeometry("boost::geometry " BOOST_STRINGIZE(BOOST
 // *****************************************************************************
 
 template <typename P>
-void bp_load_multi_linestring(std::vector<bp_linestring>& mls, SA_ConstReference<P> multiLineStringRef, bp_linestring& helperLineString)
+void bp_load_multi_linestring(std::vector<std::vector<bp::point_data<scalar_of_t<P>>>>& mls, SA_ConstReference<P> multiLineStringRef, std::vector<bp::point_data<scalar_of_t<P>>>& helperLineString)
 {
 	mls.clear();
 
@@ -742,24 +742,29 @@ struct BufferMultiPointOperator : public AbstrBufferOperator
 	}
 };
 
-auto bp_circle(double radius, int pointsPerCircle) -> bp::polygon_data<int>
+template <typename CoordType>
+auto bp_circle(double radius, int pointsPerCircle) -> std::vector<bp::point_data<CoordType> >
 {
-	using Point = bp::point_data<int>;
-	bp::polygon_data<int> circle;
+	if (pointsPerCircle < 3)
+		pointsPerCircle = 3;
+	using Point = bp::point_data<CoordType>;
 	std::vector<Point> points;
+	points.reserve(pointsPerCircle + 1);
 	for (int i = 0; i < pointsPerCircle; ++i) {
 		double angle = 2.0 * std::numbers::pi_v<double> * i / pointsPerCircle;
 		int x = static_cast<int>(radius * cos(angle));
 		int y = static_cast<int>(radius * sin(angle));
 		points.emplace_back(x, y);
 	}
-	bp::set_points(circle, points.begin(), points.end());
-	return circle;
+	points.emplace_back(points.front());
+	return points;
 }
 
-void bp_bufferLineString(bp::polygon_set_data<int>& result, const bp_linestring& lineString, const bp::polygon_data<int>& circle)
+template <typename CoordType>
+void bp_bufferLineString(bp::polygon_set_data<CoordType>& result, const std::vector<bp::point_data< CoordType>>& lineString, const std::vector<bp::point_data< CoordType>>& circle)
 {
-	using Point = bp::point_data<int>;
+	using Point = bp::point_data<CoordType>;
+	using bp_convolution = boost::polygon::detail::template minkowski_offset<CoordType>;
 	bp_convolution::convolve_two_point_sequences(result, lineString.begin(), lineString.end(), circle.begin(), circle.end(), false);
 }
 
@@ -836,24 +841,29 @@ struct BufferLineStringOperator : public AbstrBufferOperator
 				auto lineStringRef = lineStringData[i];
 				auto lineString = geos_create_multi_linestring<P>(lineStringRef.begin(), lineStringRef.end());
 				auto bufferedLineString = lineString->buffer(bufferDistance, pointsPerCircle / 4);
-				geos_assign_geometry(resData[i], bufferedLineString);
+				geos_assign_geometry(resData[i], bufferedLineString.get());
 			}
 			else if constexpr (GL == geometry_library::boost_polygon)
 			{
-				bp::polygon_data<int> circle = bp_circle(bufferDistance, pointsPerCircle); // memoize 
+				auto circle = bp_circle< scalar_of_t<P> >(bufferDistance, pointsPerCircle);
+
+				using traits_t = bp_union_poly_traits<scalar_of_t<P>>;
+				using bp_linestring = typename traits_t::ring_type;
+				bp_linestring helperLineString;
+				typename bp::polygon_set_data<scalar_of_t<P>>::clean_resources cleanResources;
+				std::vector<bp_linestring> lineStrings;
 
 				do {
-					auto lineStringRef = lineStringData[i];
-					std::vector<bp_linestring> lineStrings;
-					bp_load_multi_linestring<P>(lineStrings, lineStringRef.begin(), lineStringRef.end());
+					lineStrings.clear();
+					bp_load_multi_linestring<P>(lineStrings, lineStringData[i], helperLineString);
 
-					bp::polygon_set_data<int> resMP;
+					bp::polygon_set_data<scalar_of_t<P>> resMP;
 					for (const auto& ls : lineStrings)
 					{
 						bp_bufferLineString(resMP, ls, circle);
 					}
 
-					bp_store_multi_polygon(resData[i], resMP);
+					bp_assign(resData[i], resMP, cleanResources);
 
 					// move to next geometry
 					if (++i == n)

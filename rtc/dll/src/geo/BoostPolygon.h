@@ -348,7 +348,6 @@ using bp_point = bp::point_data<int>;
 using bp_linestring = std::vector<bp_point>;
 
 #include <ipolygon/polygon.hpp>
-using bp_convolution = boost::polygon::detail::minkowski_offset<int>;
 
 
 #endif //!defined(DMS_GEO_BOOSTPOLYGON_H)
