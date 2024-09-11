@@ -103,8 +103,18 @@ static CommonOperGroup grgeosUnion     ("geos_union",      oper_policy::better_n
 static CommonOperGroup grgeosXOR       ("geos_xor",        oper_policy::better_not_in_meta_scripting);
 static CommonOperGroup grgeosDifference("geos_difference", oper_policy::better_not_in_meta_scripting);
 
-static CommonOperGroup grBgBuffer_point        ("bg_buffer_point", oper_policy::better_not_in_meta_scripting);
-static CommonOperGroup grBgBuffer_multi_point  ("bg_buffer_multi_point", oper_policy::better_not_in_meta_scripting);
+static CommonOperGroup grBpBuffer_point        ("bp_buffer_point",         oper_policy::better_not_in_meta_scripting);
+static CommonOperGroup grBpBuffer_multi_point  ("bp_buffer_multi_point",   oper_policy::better_not_in_meta_scripting);
+
+static CommonOperGroup grBgBuffer_point        ("bg_buffer_point",         oper_policy::better_not_in_meta_scripting);
+static CommonOperGroup grBgBuffer_multi_point  ("bg_buffer_multi_point",   oper_policy::better_not_in_meta_scripting);
+
+static CommonOperGroup grCgalBuffer_point      ("cgal_buffer_point",       oper_policy::better_not_in_meta_scripting);
+static CommonOperGroup grCgalBuffer_multi_point("cgal_buffer_multi_point", oper_policy::better_not_in_meta_scripting);
+
+static CommonOperGroup grGeosBuffer_point      ("geos_buffer_point",       oper_policy::better_not_in_meta_scripting);
+static CommonOperGroup grGeosBuffer_multi_point("geos_buffer_multi_point", oper_policy::better_not_in_meta_scripting);
+
 
 #if DMS_VERSION_MAJOR < 15
 static Obsolete<CommonOperGroup> grBgBuffer_polygon("use bg_buffer_single_polygon", "bg_buffer_polygon", oper_policy::better_not_in_meta_scripting|oper_policy::depreciated);
@@ -613,16 +623,35 @@ protected:
 		, tile_id t) const = 0;
 };
 
-template <typename P>
+template <typename CoordType>
+auto bp_circle(double radius, int pointsPerCircle) -> std::vector<bp::point_data<CoordType> >
+{
+	if (pointsPerCircle < 3)
+		pointsPerCircle = 3;
+	using Point = bp::point_data<CoordType>;
+	std::vector<Point> points;
+	points.reserve(pointsPerCircle + 1);
+	for (int i = 0; i < pointsPerCircle; ++i) {
+		double angle = 2.0 * std::numbers::pi_v<double> *i / pointsPerCircle;
+		int x = static_cast<int>(radius * cos(angle));
+		int y = static_cast<int>(radius * sin(angle));
+		points.emplace_back(x, y);
+	}
+	points.emplace_back(points.front());
+	return points;
+}
+
+template <typename P, geometry_library GL>
 struct BufferPointOperator : public AbstrBufferOperator
 {
 	using PointType = P;
+	using CoordType = scalar_of_t<PointType>;
 	using PolygonType = std::vector<PointType>;
 	using Arg1Type = DataArray<PointType>;
 	using ResultType = DataArray<PolygonType>;
 
-	BufferPointOperator()
-		: AbstrBufferOperator(grBgBuffer_point, ResultType::GetStaticClass(), Arg1Type::GetStaticClass())
+	BufferPointOperator(AbstrOperGroup& gr)
+		: AbstrBufferOperator(gr, ResultType::GetStaticClass(), Arg1Type::GetStaticClass())
 	{}
 
 	void Calculate(AbstrDataObject* resObj, const AbstrDataItem* pointItem
@@ -645,47 +674,75 @@ struct BufferPointOperator : public AbstrBufferOperator
 				bufferDistance = bufDistData[i];
 			if (!e3IsVoid)
 				pointsPerCircle = ppcData[i];
+			if constexpr (GL == geometry_library::boost_geometry)
+			{
+				boost::geometry::strategy::buffer::distance_symmetric<Float64> distStrategy(bufferDistance);
+				boost::geometry::strategy::buffer::join_round                  joinStrategy(pointsPerCircle);
+				boost::geometry::strategy::buffer::end_round                   endStrategy(pointsPerCircle);
+				boost::geometry::strategy::buffer::point_circle                circleStrategy(pointsPerCircle);
+				boost::geometry::strategy::buffer::side_straight               sideStrategy;
 
-			boost::geometry::strategy::buffer::distance_symmetric<Float64> distStrategy(bufferDistance);
-			boost::geometry::strategy::buffer::join_round                  joinStrategy(pointsPerCircle);
-			boost::geometry::strategy::buffer::end_round                   endStrategy(pointsPerCircle);
-			boost::geometry::strategy::buffer::point_circle                circleStrategy(pointsPerCircle);
-			boost::geometry::strategy::buffer::side_straight               sideStrategy;
+				std::vector<PointType> ringClosurePoints;
+				assert(pointItem->GetValueComposition() == ValueComposition::Single);
 
-			std::vector<PointType> ringClosurePoints;
-			assert(pointItem->GetValueComposition() == ValueComposition::Single);
+				using bg_polygon_t = boost::geometry::model::polygon<DPoint>;
 
-			using bg_polygon_t = boost::geometry::model::polygon<DPoint>;
+				boost::geometry::model::multi_polygon<bg_polygon_t> resMP;
+				boost::geometry::buffer(DPoint(0, 0), resMP, distStrategy, sideStrategy, joinStrategy, endStrategy, circleStrategy);
 
-			boost::geometry::model::multi_polygon<bg_polygon_t> resMP;
-			boost::geometry::buffer(DPoint(0, 0), resMP, distStrategy, sideStrategy, joinStrategy, endStrategy, circleStrategy);
+				boost::geometry::model::ring<DPoint> resRing = resMP[0].outer();
+				boost::geometry::model::ring<DPoint> movedRing;
 
-			boost::geometry::model::ring<DPoint> resRing = resMP[0].outer();
-			boost::geometry::model::ring<DPoint> movedRing;
+				do {
+					movedRing = resRing;
+					move(movedRing, DPoint(pointData[i]));
+					bg_store_ring(resData[i], movedRing);
 
-		nextPointWithSameResRing:
-			movedRing = resRing;
-			move(movedRing, DPoint(pointData[i]));
-			bg_store_ring(resData[i], movedRing);
+					// move to nextPoint
+					if (++i == n)
+						return;
+				} while (e2IsVoid && e3IsVoid);
+			}
+			else if constexpr (GL == geometry_library::boost_polygon)
+			{
+				auto resRing = bp_circle<CoordType>(bufferDistance, pointsPerCircle);
+				do {
+					auto movedRing = resRing;
+					move<CoordType>(movedRing, pointData[i]);
 
-			// move to nextPoint
-			if (++i == n)
-				break;
-			if (e2IsVoid && e3IsVoid)
-				goto nextPointWithSameResRing;
+					bp_assign_ring(resData[i], movedRing.begin(), movedRing.end());
+
+					// move to nextPoint
+					if (++i == n)
+						return;
+				} while (e2IsVoid && e3IsVoid);
+			}
+			else if constexpr (GL == geometry_library::geos)
+			{
+				const auto& dmsPoint = pointData[i];
+				auto geosPoint = geos_factory()->createPoint(geos::geom::Coordinate(dmsPoint.X(), dmsPoint.Y()));
+				auto bufferGeometry = geosPoint->buffer(bufferDistance, (pointsPerCircle + 3) / 4);
+
+				geos_assign_geometry(resData[i], bufferGeometry.get());
+
+				// move to nextPoint
+				if (++i == n)
+					return;
+			}
 		}
 	}
 };
 
-template <typename P>
+template <typename P, geometry_library GL>
 struct BufferMultiPointOperator : public AbstrBufferOperator
 {
 	using PointType = P;
+	using CoordType = scalar_of_t<PointType>;
 	using PolygonType = std::vector<PointType>;
 	using Arg1Type = DataArray<PolygonType>;
 
-	BufferMultiPointOperator()
-		: AbstrBufferOperator(grBgBuffer_multi_point, Arg1Type::GetStaticClass())
+	BufferMultiPointOperator(AbstrOperGroup& gr)
+		: AbstrBufferOperator(gr, Arg1Type::GetStaticClass())
 	{}
 
 	void Calculate(AbstrDataObject* resObj, const AbstrDataItem* polyItem
@@ -709,56 +766,81 @@ struct BufferMultiPointOperator : public AbstrBufferOperator
 			if (!e3IsVoid)
 				pointsPerCircle = ppcData[i];
 
-			boost::geometry::strategy::buffer::distance_symmetric<Float64> distStrategy(bufferDistance);
-			boost::geometry::strategy::buffer::join_round                  joinStrategy(pointsPerCircle);
-			boost::geometry::strategy::buffer::end_round                   endStrategy(pointsPerCircle);
-			boost::geometry::strategy::buffer::point_circle                circleStrategy(pointsPerCircle);
-			boost::geometry::strategy::buffer::side_straight               sideStrategy;
+			if constexpr (GL == geometry_library::boost_geometry)
+			{
+				boost::geometry::strategy::buffer::distance_symmetric<Float64> distStrategy(bufferDistance);
+				boost::geometry::strategy::buffer::join_round                  joinStrategy(pointsPerCircle);
+				boost::geometry::strategy::buffer::end_round                   endStrategy(pointsPerCircle);
+				boost::geometry::strategy::buffer::point_circle                circleStrategy(pointsPerCircle);
+				boost::geometry::strategy::buffer::side_straight               sideStrategy;
 
-			assert(polyItem->GetValueComposition() == ValueComposition::Sequence);
+				assert(polyItem->GetValueComposition() == ValueComposition::Sequence);
 
-			boost::geometry::model::multi_point<DPoint> currGeometry;
-			bg_multi_polygon_t resMP;
+				boost::geometry::model::multi_point<DPoint> currGeometry;
+				bg_multi_polygon_t resMP;
 
-			do {
-				resMP.clear();
-				currGeometry.assign(begin_ptr(polyData[i]), end_ptr(polyData[i]));
+				do {
+					resMP.clear();
+					currGeometry.assign(begin_ptr(polyData[i]), end_ptr(polyData[i]));
 
-				auto p = MaxValue<DPoint>();
-				MakeLowerBound(p, currGeometry);
-				move(currGeometry, -p);
+					auto p = MaxValue<DPoint>();
+					MakeLowerBound(p, currGeometry);
+					move(currGeometry, -p);
 
-				boost::geometry::buffer(currGeometry, resMP, distStrategy, sideStrategy, joinStrategy, endStrategy, circleStrategy);
-				move(resMP, p);
+					boost::geometry::buffer(currGeometry, resMP, distStrategy, sideStrategy, joinStrategy, endStrategy, circleStrategy);
+					move(resMP, p);
 
-				bg_store_multi_polygon(resData[i], resMP);
+					bg_store_multi_polygon(resData[i], resMP);
+
+					// move to next geometry
+							// move to next geometry
+					if (++i == n)
+						return;
+				} while (e2IsVoid && e3IsVoid);
+			}
+			else if constexpr(GL == geometry_library::boost_polygon)
+			{
+				typename bp::polygon_set_data<CoordType>::clean_resources cleanResources;
+				auto resRing = bp_circle<CoordType>(bufferDistance, pointsPerCircle);
+				do {
+					typename bp_union_poly_traits<CoordType>::polygon_set_data_type resMP;
+					for (const auto& dmsPoint : polyData[i])
+					{
+						auto movedRing = resRing;
+						move<CoordType>(movedRing, dmsPoint);
+						resMP.insert(movedRing, false);
+					}
+
+					bp_assign(resData[i], resMP, cleanResources);
+					// move to nextPoint
+					if (++i == n)
+						return;
+				} while (e2IsVoid && e3IsVoid);
+
+			}
+			else if constexpr (GL == geometry_library::geos)
+			{
+				std::unique_ptr<geos::geom::Geometry> geosResult;
+				for (const auto& p : polyData[i])
+				{
+					auto point = geos_factory()->createPoint(geos::geom::Coordinate(p.X(), p.Y()));
+					auto bufferGeometry = point->buffer(bufferDistance, (pointsPerCircle + 3) / 4);
+
+					if (!geosResult)
+						geosResult = std::move(bufferGeometry);
+					else
+						geosResult = geosResult->Union(bufferGeometry.get());
+				}
+
+				geos_assign_geometry(resData[i], geosResult.get());
 
 				// move to next geometry
-						// move to next geometry
 				if (++i == n)
 					return;
-			} while (e2IsVoid && e3IsVoid);
+			}
 		}
 	}
 };
-
-template <typename CoordType>
-auto bp_circle(double radius, int pointsPerCircle) -> std::vector<bp::point_data<CoordType> >
-{
-	if (pointsPerCircle < 3)
-		pointsPerCircle = 3;
-	using Point = bp::point_data<CoordType>;
-	std::vector<Point> points;
-	points.reserve(pointsPerCircle + 1);
-	for (int i = 0; i < pointsPerCircle; ++i) {
-		double angle = 2.0 * std::numbers::pi_v<double> * i / pointsPerCircle;
-		int x = static_cast<int>(radius * cos(angle));
-		int y = static_cast<int>(radius * sin(angle));
-		points.emplace_back(x, y);
-	}
-	points.emplace_back(points.front());
-	return points;
-}
 
 template <typename CoordType>
 void bp_bufferLineString(bp::polygon_set_data<CoordType>& result, const std::vector<bp::point_data< CoordType>>& lineString, const std::vector<bp::point_data< CoordType>>& circle)
@@ -773,6 +855,7 @@ template <typename P, geometry_library GL>
 struct BufferLineStringOperator : public AbstrBufferOperator
 {
 	using PointType = P;
+	using CoordType = scalar_of_t<PointType>;
 	using PolygonType = std::vector<PointType>;
 	using Arg1Type = DataArray<PolygonType>;
 
@@ -840,24 +923,24 @@ struct BufferLineStringOperator : public AbstrBufferOperator
 			{
 				auto lineStringRef = lineStringData[i];
 				auto lineString = geos_create_multi_linestring<P>(lineStringRef.begin(), lineStringRef.end());
-				auto bufferedLineString = lineString->buffer(bufferDistance, pointsPerCircle / 4);
+				auto bufferedLineString = lineString->buffer(bufferDistance, (pointsPerCircle + 3) / 4);
 				geos_assign_geometry(resData[i], bufferedLineString.get());
 			}
 			else if constexpr (GL == geometry_library::boost_polygon)
 			{
-				auto circle = bp_circle< scalar_of_t<P> >(bufferDistance, pointsPerCircle);
+				auto circle = bp_circle<CoordType>(bufferDistance, pointsPerCircle);
 
-				using traits_t = bp_union_poly_traits<scalar_of_t<P>>;
+				using traits_t = bp_union_poly_traits<CoordType>;
 				using bp_linestring = typename traits_t::ring_type;
 				bp_linestring helperLineString;
-				typename bp::polygon_set_data<scalar_of_t<P>>::clean_resources cleanResources;
+				typename bp::polygon_set_data<CoordType>::clean_resources cleanResources;
 				std::vector<bp_linestring> lineStrings;
 
 				do {
 					lineStrings.clear();
 					bp_load_multi_linestring<P>(lineStrings, lineStringData[i], helperLineString);
 
-					bp::polygon_set_data<scalar_of_t<P>> resMP;
+					bp::polygon_set_data<CoordType> resMP;
 					for (const auto& ls : lineStrings)
 					{
 						bp_bufferLineString(resMP, ls, circle);
@@ -1175,8 +1258,27 @@ namespace
 	tl_oper::inst_tuple_templ<typelists::points, BgSimplifyMultiPolygonOperator, AbstrOperGroup&> bg_simplifyMultiPolygonOperators(grBgSimplify_multi_polygon);
 	tl_oper::inst_tuple_templ<typelists::points, GeosSimplifyMultiPolygonOperator, AbstrOperGroup&> geos_simplifyMultiPolygonOperators(grGeosSimplify_multi_polygon);
 	tl_oper::inst_tuple_templ<typelists::points, SimplifyPolygonOperator> simplifyPolygonOperators;
-	tl_oper::inst_tuple_templ<typelists::points, BufferPointOperator> bufferPointOperators;
-	tl_oper::inst_tuple_templ<typelists::points, BufferMultiPointOperator> bufferMultiPointOperators;
+
+	template <typename P> using BpBufferPointOperator = BufferPointOperator<P, geometry_library::boost_polygon>;
+	template <typename P> using BgBufferPointOperator = BufferPointOperator<P, geometry_library::boost_geometry>;
+	template <typename P> using CgalBufferPointOperator = BufferPointOperator<P, geometry_library::cgal>;
+	template <typename P> using GeosBufferPointOperator = BufferPointOperator<P, geometry_library::geos>;
+
+	template <typename P> using BpBufferMultiPointOperator = BufferMultiPointOperator<P, geometry_library::boost_polygon>;
+	template <typename P> using BgBufferMultiPointOperator = BufferMultiPointOperator<P, geometry_library::boost_geometry>;
+	template <typename P> using CgalBufferMultiPointOperator = BufferMultiPointOperator<P, geometry_library::cgal>;
+	template <typename P> using GeosBufferMultiPointOperator = BufferMultiPointOperator<P, geometry_library::geos>;
+
+//	tl_oper::inst_tuple_templ<typelists::int_points, BpBufferPointOperator, AbstrOperGroup&> bpBufferPointOperators(grBpBuffer_point);
+//	tl_oper::inst_tuple_templ<typelists::int_points, BpBufferMultiPointOperator, AbstrOperGroup&> bpBufferMultiPointOperators(grBpBuffer_multi_point);
+	tl_oper::inst_tuple_templ<typelists::points, BgBufferPointOperator, AbstrOperGroup&> bgBufferPointOperators(grBgBuffer_point);
+	tl_oper::inst_tuple_templ<typelists::points, BgBufferMultiPointOperator, AbstrOperGroup&> bgBufferMultiPointOperators(grBgBuffer_multi_point);
+	tl_oper::inst_tuple_templ<typelists::points, CgalBufferPointOperator, AbstrOperGroup&> cgalBufferPointOperators(grBgBuffer_point);
+	tl_oper::inst_tuple_templ<typelists::points, CgalBufferMultiPointOperator, AbstrOperGroup&> cgalBufferMultiPointOperators(grCgalBuffer_multi_point);
+	tl_oper::inst_tuple_templ<typelists::points, GeosBufferPointOperator, AbstrOperGroup&> geosBufferPointOperators(grBgBuffer_point);
+	tl_oper::inst_tuple_templ<typelists::points, GeosBufferMultiPointOperator, AbstrOperGroup&> geosBeosBufferMultiPointOperators(grGeosBuffer_multi_point);
+
+
 
 	template <typename P> using BpBufferLineStringOperator = BufferLineStringOperator<P, geometry_library::boost_polygon>;
 	template <typename P> using BgBufferLineStringOperator = BufferLineStringOperator<P, geometry_library::boost_geometry>;

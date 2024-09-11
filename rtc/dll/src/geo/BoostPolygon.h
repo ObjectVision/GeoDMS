@@ -14,6 +14,7 @@
 
 #include "ipolygon/polygon.hpp"
 
+#include "geo/GeoSequence.h"
 #include "geo/PointIndexBuffer.h"
 #include "geo/PointOrder.h"
 #include "geo/RingIterator.h"
@@ -225,27 +226,27 @@ struct point_mutable_traits<Point<CoordType> >
 
 
 
-typedef polygon_set_concept this_polygon_concept;
+template <> struct geometry_concept<IPolygon> { using type = polygon_concept; };
+template <> struct geometry_concept<UPolygon> { using type = polygon_concept; };
+template <> struct geometry_concept<SPolygon> { using type = polygon_concept; };
+template <> struct geometry_concept<WPolygon> { using type = polygon_concept; };
 
-template <> struct geometry_concept<IPolygon> { typedef polygon_concept type; };
-template <> struct geometry_concept<UPolygon> { typedef polygon_concept type; };
-template <> struct geometry_concept<SPolygon> { typedef polygon_concept type; };
-template <> struct geometry_concept<WPolygon> { typedef polygon_concept type; };
+template <> struct geometry_concept<SA_ConstRing<IPoint> > { using type = polygon_concept; };
+template <> struct geometry_concept<SA_ConstRing<UPoint> > { using type = polygon_concept; };;
+template <> struct geometry_concept<SA_ConstRing<SPoint> > { using type = polygon_concept; };
+template <> struct geometry_concept<SA_ConstRing<WPoint> > { using type = polygon_concept; };
 
-template <> struct geometry_concept<SA_ConstRing<IPoint> > { typedef polygon_concept type; };
-template <> struct geometry_concept<SA_ConstRing<UPoint> > { typedef polygon_concept type; };
-template <> struct geometry_concept<SA_ConstRing<SPoint> > { typedef polygon_concept type; };
-template <> struct geometry_concept<SA_ConstRing<WPoint> > { typedef polygon_concept type; };
+template <> struct geometry_concept<SA_ConstReference<IPoint> > { using type = polygon_set_concept; };
+template <> struct geometry_concept<SA_ConstReference<UPoint> > { using type = polygon_set_concept; };
+template <> struct geometry_concept<SA_ConstReference<SPoint> > { using type = polygon_set_concept; };
+template <> struct geometry_concept<SA_ConstReference<WPoint> > { using type = polygon_set_concept; };
 
-template <> struct geometry_concept<SA_ConstReference<IPoint> > { typedef this_polygon_concept type; };
-template <> struct geometry_concept<SA_ConstReference<UPoint> > { typedef this_polygon_concept type; };
-template <> struct geometry_concept<SA_ConstReference<SPoint> > { typedef this_polygon_concept type; };
-template <> struct geometry_concept<SA_ConstReference<WPoint> > { typedef this_polygon_concept type; };
+template <> struct geometry_concept<SA_Reference<IPoint> > { using type = polygon_set_concept; };
+template <> struct geometry_concept<SA_Reference<UPoint> > { using type = polygon_set_concept; };
+template <> struct geometry_concept<SA_Reference<SPoint> > { using type = polygon_set_concept; };
+template <> struct geometry_concept<SA_Reference<WPoint> > { using type = polygon_set_concept; };
 
-template <> struct geometry_concept<SA_Reference<IPoint> > { typedef this_polygon_concept type; };
-template <> struct geometry_concept<SA_Reference<UPoint> > { typedef this_polygon_concept type; };
-template <> struct geometry_concept<SA_Reference<SPoint> > { typedef this_polygon_concept type; };
-template <> struct geometry_concept<SA_Reference<WPoint> > { typedef this_polygon_concept type; };
+template <typename S> struct geometry_concept<std::vector<bp::point_data<S>> > { using type = polygon_concept; };
 
 template <typename E>
 struct point_sequence_traits
@@ -305,6 +306,8 @@ template <> struct polygon_traits<SA_ConstRing<UPoint> > : point_sequence_traits
 template <> struct polygon_traits<SA_ConstRing<SPoint> > : point_sequence_traits<SA_ConstRing<SPoint> > {};
 template <> struct polygon_traits<SA_ConstRing<WPoint> > : point_sequence_traits<SA_ConstRing<WPoint> > {};
 
+template <typename S> struct polygon_traits<std::vector<bp::point_data<S>> > : point_sequence_traits< std::vector<bp::point_data<S>>> {};
+
 template <> struct polygon_set_traits<SA_ConstReference<IPoint> > : poly_sequence_traits<SA_ConstReference<IPoint> > {};
 template <> struct polygon_set_traits<SA_ConstReference<UPoint> > : poly_sequence_traits<SA_ConstReference<UPoint> > {};
 template <> struct polygon_set_traits<SA_ConstReference<SPoint> > : poly_sequence_traits<SA_ConstReference<SPoint> > {};
@@ -321,7 +324,6 @@ template <> struct polygon_set_traits<SPolygon> : poly_sequence_traits<SPolygon>
 template <> struct polygon_set_traits<WPolygon> : poly_sequence_traits<WPolygon> {};
 
 }} // namespace boost { namespace polygon {
-
 
 template <typename C>
 struct bp_union_poly_traits
@@ -348,6 +350,20 @@ using bp_point = bp::point_data<int>;
 using bp_linestring = std::vector<bp_point>;
 
 #include <ipolygon/polygon.hpp>
+
+template <typename C>
+void move(typename bp_union_poly_traits<C>::point_type& point, typename bp_union_poly_traits<C>::point_type delta)
+{
+	point.x(point.x() + delta.x());
+	point.y(point.y() + delta.y());
+}
+
+template <typename C>
+void move(typename bp_union_poly_traits<C>::ring_type& ring, typename bp_union_poly_traits<C>::point_type delta)
+{
+	for (auto& p : ring)
+		move<C>(p, delta);
+}
 
 
 #endif //!defined(DMS_GEO_BOOSTPOLYGON_H)
