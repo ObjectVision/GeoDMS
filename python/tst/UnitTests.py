@@ -3,7 +3,16 @@ print('Geodms python test module')
 import os
 import sys
 
-sys.path.append('../bin/Release/x64')
+print(f"{sys.version}")
+
+geodms_path = '../../bin/Release/x64'
+print(f"{geodms_path}")
+sys.path.append(geodms_path)
+
+# Add the folder with gdal.dll to the PATH
+geodms_path = os.path.abspath(geodms_path)
+print(f"{geodms_path}")
+os.environ['PATH'] += os.pathsep + geodms_path
 
 def pause_func(message:str="Press the <ENTER> key to continue..."):
     programPause = input(message)
@@ -31,6 +40,7 @@ try:
     
     param_item = root.find("/parameters/test_param")
     print(param_item.is_null())
+    input("Press the Any key")
 
     test_find_in_function(root)
 
