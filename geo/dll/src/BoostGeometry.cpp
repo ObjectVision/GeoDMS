@@ -801,9 +801,11 @@ struct BufferMultiPointOperator : public AbstrBufferOperator
 			else if constexpr(GL == geometry_library::boost_polygon)
 			{
 				typename bp::polygon_set_data<CoordType>::clean_resources cleanResources;
+				typename bp_union_poly_traits<CoordType>::polygon_set_data_type resMP;
 				auto resRing = bp_circle<CoordType>(bufferDistance, pointsPerCircle);
+
 				do {
-					typename bp_union_poly_traits<CoordType>::polygon_set_data_type resMP;
+					resMP.clear();
 					for (const auto& dmsPoint : polyData[i])
 					{
 						auto movedRing = resRing;
@@ -1269,8 +1271,8 @@ namespace
 	template <typename P> using CgalBufferMultiPointOperator = BufferMultiPointOperator<P, geometry_library::cgal>;
 	template <typename P> using GeosBufferMultiPointOperator = BufferMultiPointOperator<P, geometry_library::geos>;
 
-//	tl_oper::inst_tuple_templ<typelists::int_points, BpBufferPointOperator, AbstrOperGroup&> bpBufferPointOperators(grBpBuffer_point);
-//	tl_oper::inst_tuple_templ<typelists::int_points, BpBufferMultiPointOperator, AbstrOperGroup&> bpBufferMultiPointOperators(grBpBuffer_multi_point);
+	tl_oper::inst_tuple_templ<typelists::int_points, BpBufferPointOperator, AbstrOperGroup&> bpBufferPointOperators(grBpBuffer_point);
+	tl_oper::inst_tuple_templ<typelists::int_points, BpBufferMultiPointOperator, AbstrOperGroup&> bpBufferMultiPointOperators(grBpBuffer_multi_point);
 	tl_oper::inst_tuple_templ<typelists::points, BgBufferPointOperator, AbstrOperGroup&> bgBufferPointOperators(grBgBuffer_point);
 	tl_oper::inst_tuple_templ<typelists::points, BgBufferMultiPointOperator, AbstrOperGroup&> bgBufferMultiPointOperators(grBgBuffer_multi_point);
 	tl_oper::inst_tuple_templ<typelists::points, CgalBufferPointOperator, AbstrOperGroup&> cgalBufferPointOperators(grBgBuffer_point);
