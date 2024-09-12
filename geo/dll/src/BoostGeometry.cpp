@@ -1064,8 +1064,6 @@ struct BufferMultiPolygonOperator : public AbstrBufferOperator
 				bool takeSmallLoop = e2IsVoid && e3IsVoid;
 				do
 				{
-
-
 					assign_multi_polygon(currMP, polyData[i], true, helperPolygon, helperRing);
 					if (!currMP.empty())
 					{
