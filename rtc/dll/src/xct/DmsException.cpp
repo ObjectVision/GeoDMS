@@ -604,6 +604,7 @@ int signalHandling(unsigned int u, _EXCEPTION_POINTERS* pExp, bool passBorlandEx
 	return EXCEPTION_EXECUTE_HANDLER;
 }
 
+RTC_CALL void (*s_OnTerminationFunc)() = nullptr;
 
 [[noreturn]] void  trans_SE2DMSfunc( unsigned int u, _EXCEPTION_POINTERS* pExp, bool mustTerminate)
 {
@@ -629,6 +630,8 @@ int signalHandling(unsigned int u, _EXCEPTION_POINTERS* pExp, bool passBorlandEx
 		fos << char(0);
 		
 		StartChildProcess(nullptr, msgBuffer);
+		if (s_OnTerminationFunc)
+			s_OnTerminationFunc();
 		ExitProcess(GetLastExceptionCode());
 	}
 	DmsException::throwMsgF( "%s Structured Exception: 0x%X raised:\n%s"

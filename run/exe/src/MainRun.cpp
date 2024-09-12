@@ -197,6 +197,19 @@ int main_without_se(int argc, char** argv)
 	return 2;
 }
 
+int s_argc;
+char** s_argv;
+
+void printCommandLine()
+{
+	if (!s_argc)
+		return;
+	std::cerr << std::endl << "CommandLine> ";
+	while (s_argc--)
+		std::cerr << *s_argv++ << " ";
+	std::cerr << std::endl;
+}
+
 int main(int argc, char** argv)
 {
 	DMS_Geo_Load();
@@ -208,8 +221,13 @@ int main(int argc, char** argv)
 	bool completed = false;
 	DMS_SE_CALL_BEGIN
 
+		s_argc = argc;
+		s_argv = argv;
+		s_OnTerminationFunc = printCommandLine;
+
 		result = main_without_se(argc, argv);
 		completed = true;
+
 	DMS_SE_CALL_END
 
 	if (!completed)
@@ -217,10 +235,7 @@ int main(int argc, char** argv)
 	if (result != 0)
 	{
 		std::cerr << std::endl << "GeoDmsRun failed with code " << result << "." << std::endl;
-		std::cerr << "CommandLine> ";
-		while (argc--)
-			std::cerr << *argv++ << " ";
-		std::cerr << std::endl;
+		printCommandLine();
 	}
 	else 
 		std::cerr << std::endl << "GeoDmsRun completed successfully." << std::endl;
