@@ -631,10 +631,11 @@ auto bp_circle(double radius, int pointsPerCircle) -> std::vector<bp::point_data
 	using Point = bp::point_data<CoordType>;
 	std::vector<Point> points;
 	points.reserve(pointsPerCircle + 1);
+	auto anglePerPoint = 2.0 * std::numbers::pi_v<double> / pointsPerCircle;
 	for (int i = 0; i < pointsPerCircle; ++i) {
-		double angle = 2.0 * std::numbers::pi_v<double> *i / pointsPerCircle;
-		int x = static_cast<int>(radius * cos(angle));
-		int y = static_cast<int>(radius * sin(angle));
+		double angle = i * anglePerPoint;
+		int x = static_cast<int>(radius * std::cos(angle));
+		int y = static_cast<int>(radius * std::sin(angle));
 		points.emplace_back(x, y);
 	}
 	points.emplace_back(points.front());
@@ -711,6 +712,31 @@ struct BufferPointOperator : public AbstrBufferOperator
 					move<CoordType>(movedRing, pointData[i]);
 
 					bp_assign_ring(resData[i], movedRing.begin(), movedRing.end());
+
+					// move to nextPoint
+					if (++i == n)
+						return;
+				} while (e2IsVoid && e3IsVoid);
+			}
+			else if constexpr (GL == geometry_library::cgal)
+			{
+				auto cgalCircle = cgal_circle<CoordType>(bufferDistance, pointsPerCircle);
+				do {
+					// Define the translation vector (dx, dy)
+					CGAL_Traits::Kernel::Vector_2 translation_vector(pointData[i].X(), pointData[i].Y());
+
+					// Define the affine transformation for translation
+					CGAL::Aff_transformation_2<CGAL_Traits::Kernel> translate(CGAL::TRANSLATION, translation_vector);
+
+					// Create a new polygon for the translated version
+					CGAL::Polygon_2<CGAL_Traits::Kernel> translated_polygon;
+
+					// Apply the translation to each vertex of the original polygon
+					for (auto vertex : cgalCircle)
+						translated_polygon.push_back(translate.transform(vertex));
+
+					// Store the translated polygon
+					cgal_assign_ring(resData[i], translated_polygon);
 
 					// move to nextPoint
 					if (++i == n)
@@ -819,6 +845,35 @@ struct BufferMultiPointOperator : public AbstrBufferOperator
 						return;
 				} while (e2IsVoid && e3IsVoid);
 
+			}
+			else if constexpr (GL == geometry_library::cgal)
+			{
+				auto cgalCircle = cgal_circle<CoordType>(bufferDistance, pointsPerCircle);
+				do {
+					CGAL_Traits::Polygon_set result;
+					for (const auto& p : polyData[i])
+					{
+						// Define the translation vector (dx, dy)
+						CGAL_Traits::Kernel::Vector_2 translation_vector(p.X(), p.Y());
+
+						// Define the affine transformation for translation
+						CGAL::Aff_transformation_2<CGAL_Traits::Kernel> translate(CGAL::TRANSLATION, translation_vector);
+
+						// Create a new polygon for the translated version
+						CGAL::Polygon_2<CGAL_Traits::Kernel> translated_polygon;
+
+						// Apply the translation to each vertex of the original polygon
+						for (auto vertex : cgalCircle)
+							translated_polygon.push_back(translate.transform(vertex));
+						result.join( translated_polygon );
+					}
+					// Store the translated polygon
+					cgal_assign_polygon_set(resData[i], result);
+
+					// move to nextPoint
+					if (++i == n)
+						return;
+				} while (e2IsVoid && e3IsVoid);
 			}
 			else if constexpr (GL == geometry_library::geos)
 			{

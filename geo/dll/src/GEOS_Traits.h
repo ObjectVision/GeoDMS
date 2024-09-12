@@ -80,6 +80,26 @@ auto geos_create_multi_linestring(const DmsPointType* begin, const DmsPointType*
 	return std::unique_ptr<geos::geom::Geometry>(geos_factory()->createGeometryCollection(std::move(resLineStrings)).release() );
 }
 
+template <typename CoordType>
+auto geos_circle(double radius, int pointsPerCircle) -> std::unique_ptr<geos::geom::LinearRing>
+{
+	if (pointsPerCircle < 3)
+		pointsPerCircle = 3;
+	auto anglePerPoint = 2.0 * std::numbers::pi_v<double> / pointsPerCircle;
+//	auto points = create_circle_points<CoordType>(radius, pointsPerCircle);
+	std::vector<geos::geom::Coordinate> points;
+	points.reserve(pointsPerCircle+1);
+	for (int i = 0; i < pointsPerCircle; ++i) {
+		double angle = i * anglePerPoint;
+		int x = static_cast<int>(radius * std::cos(angle));
+		int y = static_cast<int>(radius * std::sin(angle));
+		points.emplace_back(x, y);
+	}
+	points.emplace_back(points.front());
+	return geos_factory()->createLinearRing(std::move(points));
+}
+
+
 template <typename DmsPointType>
 struct geos_create_linear_ring_helper_data
 {

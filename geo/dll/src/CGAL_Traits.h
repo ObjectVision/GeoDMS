@@ -139,6 +139,27 @@ void assign_multi_polygon(CGAL_Traits::Polygon_set& resMP, SA_ConstReference<Dms
 		resMP.difference(hole);
 }
 
+template <typename CoordType>
+auto cgal_circle(double radius, int pointsPerCircle) -> CGAL_Traits::Ring
+{
+	if (pointsPerCircle < 3)
+		pointsPerCircle = 3;
+	auto anglePerPoint = 2.0 * std::numbers::pi_v<double> / pointsPerCircle;
+	//	auto points = create_circle_points<CoordType>(radius, pointsPerCircle);
+
+	CGAL_Traits::Ring points;
+	points.resize(pointsPerCircle);
+	for (int i = 0; i < pointsPerCircle; ++i) {
+
+		auto angle = i * anglePerPoint;
+		auto x = radius * std::cos(angle);
+		auto y = radius * std::sin(angle);
+		points.set(points.begin()+i, CGAL_Traits::Point(x, y));
+	}
+	return points;
+}
+
+
 
 template <dms_sequence E>
 void cgal_assign_point(E&& ref, const CGAL_Traits::Point& p)
