@@ -204,11 +204,26 @@ int main(int argc, char** argv)
 
 	DMS_SetGlobalCppExceptionTranslator(reportMsg);
 
+	int result = 0;
+	bool completed = false;
 	DMS_SE_CALL_BEGIN
 
-		return main_without_se(argc, argv);
-
+		result = main_without_se(argc, argv);
+		completed = true;
 	DMS_SE_CALL_END
 
-	return GetLastExceptionCode();
+	if (!completed)
+		result = GetLastExceptionCode();
+	if (result != 0)
+	{
+		std::cerr << std::endl << "GeoDmsRun failed with code " << result << "." << std::endl;
+		std::cerr << "CommandLine> ";
+		while (argc--)
+			std::cerr << *argv++ << " ";
+		std::cerr << std::endl;
+	}
+	else 
+		std::cerr << std::endl << "GeoDmsRun completed successfully." << std::endl;
+
+	return result;
 }
