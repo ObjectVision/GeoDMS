@@ -184,28 +184,28 @@ struct AreaFunc : Sequence2ScalarFunc<P>
 //									Points2SequenceOperator
 // *****************************************************************************
 
+template<typename PolygonIndex>
 class AbstrPoints2SequenceOperator : public VariadicOperator
 {
 public:
-	typedef UInt32 PolygonIndex;
-	typedef UInt32 OrdinalType;
+	using OrdinalType = UInt32;
 
 	typedef DataArray<PolygonIndex> Arg2Type;
 	typedef DataArray<OrdinalType>  Arg3Type;
 
-	bool             m_HasSeqDomainArg : 1; 
-	bool             m_HasSeqOrd       : 1;
-	ValueComposition m_VC              : ValueComposition_BitCount;
+	static const bool hasSeqDomainArg   = !std::is_same_v<PolygonIndex, Void>;
+	bool              m_HasSeqOrd       : 1;
+	ValueComposition  m_VC              : ValueComposition_BitCount;
 
-	AbstrPoints2SequenceOperator(AbstrOperGroup* gr, const Class* resultType, const Class* arg1Type, bool hasSeqDomainArg, bool hasSeqOrd, ValueComposition vc)
+
+	AbstrPoints2SequenceOperator(AbstrOperGroup* gr, const Class* resultType, const Class* arg1Type, bool hasSeqOrd, ValueComposition vc)
 		:	VariadicOperator(gr, resultType, 1 + (hasSeqDomainArg ? 1 : 0) + (hasSeqOrd ? 1 : 0) )
-		,	m_HasSeqDomainArg(hasSeqDomainArg)
 		,	m_HasSeqOrd(hasSeqOrd)
 		,	m_VC(vc)
 	{
 		ClassCPtr* argClasses = m_ArgClasses.get();
 		*argClasses++ = arg1Type;
-		if (hasSeqDomainArg)
+		if constexpr (hasSeqDomainArg)
 			*argClasses++ = Arg2Type::GetStaticClass();
 		if (hasSeqOrd)
 			*argClasses++ = Arg3Type::GetStaticClass();
@@ -220,8 +220,8 @@ public:
 		const AbstrDataItem* arg1A = AsDataItem(args[0]); UInt32 argCount = 0;
 		dms_assert(arg1A);
 
-		const AbstrDataItem* arg2A = nullptr; if (m_HasSeqDomainArg) arg2A = AsDataItem(args[++argCount]);
-		const AbstrDataItem* arg3A = nullptr; if (m_HasSeqOrd      ) arg3A = AsDataItem(args[++argCount]);
+		const AbstrDataItem* arg2A = nullptr; if (hasSeqDomainArg) arg2A = AsDataItem(args[++argCount]);
+		const AbstrDataItem* arg3A = nullptr; if (m_HasSeqOrd    ) arg3A = AsDataItem(args[++argCount]);
 
 		const AbstrUnit* pointEntity = arg1A->GetAbstrDomainUnit();
 		const AbstrUnit* valuesUnit  = arg1A->GetAbstrValuesUnit();
@@ -252,33 +252,32 @@ public:
 	virtual void Calculate(AbstrDataObject* res, const AbstrDataItem* arg1A, const AbstrDataItem* arg2A, const AbstrDataItem* arg3A) const =0;
 };
 
-template <class T>
-class Points2SequenceOperator : public AbstrPoints2SequenceOperator
+template <typename ArgType>
+struct get_locked_cseq_t { using type = typename ArgType::locked_cseq_t; };
+
+template <class T, typename PolygonIndex>
+class Points2SequenceOperator : public AbstrPoints2SequenceOperator<PolygonIndex>
 {
 	typedef T                          PointType;
 	typedef std::vector<PointType>     PolygonType;
 	typedef Unit<PointType>            PointUnitType;
 	typedef DataArray<PolygonType>     ResultType;	
-	typedef DataArray<PointType>       Arg1Type;			
-			
+	typedef DataArray<PointType>       Arg1Type;
+
+	using typename AbstrPoints2SequenceOperator<PolygonIndex>::Arg2Type;
+	using typename AbstrPoints2SequenceOperator<PolygonIndex>::Arg3Type;
+	using typename AbstrPoints2SequenceOperator<PolygonIndex>::OrdinalType;
+
+	using AbstrPoints2SequenceOperator<PolygonIndex>::hasSeqDomainArg;
 public:
-	Points2SequenceOperator(AbstrOperGroup* gr, bool hasSeqDomainArg, bool hasSeqOrd, ValueComposition vc)
-		:	AbstrPoints2SequenceOperator(gr 
-			,	ResultType::GetStaticClass() 
-			,	Arg1Type::GetStaticClass()
-			,	hasSeqDomainArg, hasSeqOrd
-			,	vc
-			)
+	Points2SequenceOperator(AbstrOperGroup* gr, bool hasSeqOrd, ValueComposition vc)
+		: AbstrPoints2SequenceOperator<PolygonIndex>(gr, ResultType::GetStaticClass(), Arg1Type::GetStaticClass(), hasSeqOrd, vc)
 	{}
 
-	void Calculate(AbstrDataObject* res
-	,	const AbstrDataItem* arg1A
-	,	const AbstrDataItem* arg2A
-	,	const AbstrDataItem* arg3A
-	)	const override
+	void Calculate(AbstrDataObject* res, const AbstrDataItem* arg1A, const AbstrDataItem* arg2A, const AbstrDataItem* arg3A) const override
 	{
 		const Arg1Type* arg1 = const_array_cast<PointType>(arg1A); // point array
-		const Arg2Type* arg2 = nullptr; if (arg2A) arg2 = const_array_cast<PolygonIndex>(arg2A); // polygon ordinal; nullptr indicates sequence set has void domain (thus, one sequence)
+		const Arg2Type* arg2 = nullptr; if constexpr (hasSeqDomainArg) arg2 = const_array_cast<PolygonIndex>(arg2A); // polygon ordinal; nullptr indicates sequence set has void domain (thus, one sequence)
 		const Arg3Type* arg3 = nullptr; if (arg3A) arg3 = const_array_cast<OrdinalType> (arg3A); // ordinal within polygon; nullptr indicates ascending order
 		assert(arg1); 
 
@@ -287,24 +286,28 @@ public:
 
 		auto resData = result->GetDataWrite(no_tile, dms_rw_mode::write_only_mustzero);
 
-		Range<PolygonIndex> polyIndexRange = arg2 ? arg2->GetValueRangeData()->GetRange() : Range<PolygonIndex>(0, 1);
+		using PolygonIndexOrUInt32 = std::conditional_t< hasSeqDomainArg, PolygonIndex, UInt32>;
 
-		PolygonIndex nrPolys = Cardinality(polyIndexRange);
+		auto polyIndexRange = Range<PolygonIndexOrUInt32>(0, 1);
+		if constexpr (hasSeqDomainArg)
+			polyIndexRange = arg2->GetValueRangeData()->GetRange();
+
+		PolygonIndexOrUInt32 nrPolys = Cardinality(polyIndexRange);
 		tile_id tn = arg1A->GetAbstrDomainUnit()->GetNrTiles();
 		std::vector<bool> hasPoly(tn);
 
-		Arg2Type::locked_cseq_t arg2Data;
+		typename std::conditional_t < hasSeqDomainArg, get_locked_cseq_t<Arg2Type>, std::type_identity<Void>>::type arg2Data;
 		std::vector<OrdinalType> nrPointsPerSeq (nrPolys, 0);
 
 		// === first count the nrPointsPerSeq
 		for (tile_id ta=0; ta!=tn; ++ta)
 		{
 			bool thisTileHasPoly = false;
-			if (arg2)
+			if constexpr (hasSeqDomainArg)
 			{
 				arg2Data = arg2->GetLockedDataRead(ta);
 
-				Arg2Type::const_iterator i2 = arg2Data.begin(), e2 = arg2Data.end();
+				auto i2 = arg2Data.begin(), e2 = arg2Data.end();
 				for(; i2 != e2; ++i2)
 				{
 					SizeT polyNr = *i2;
@@ -331,7 +334,7 @@ public:
 		resData.get_sa().data_reserve(nrPoints MG_DEBUG_ALLOCATOR_SRC("res->md_SrcStr"));
 
 		// ==== then resize each resulting polygon according to the nr of seen points.
-		for (PolygonIndex i=0; i!=nrPolys; ++i)
+		for (PolygonIndexOrUInt32 i=0; i!=nrPolys; ++i)
 		{
 			SizeT polySize = nrPointsPerSeq[i];
 			resData[i].resize_uninitialized(polySize);
@@ -340,7 +343,7 @@ public:
 		dbg_assert(cumulSize == nrPoints);
 
 
-		dms_assert(resData.get_sa().actual_data_size() == nrPoints); // follows from previous asserts
+		assert(resData.get_sa().actual_data_size() == nrPoints); // follows from previous asserts
 		auto br = resData.begin();
 
 		// ==== then proces all input-tiles again and collect to the resulting polygon tile
@@ -351,22 +354,25 @@ public:
 		for (tile_id ta=0; ta!=tn; ++ta) if (hasPoly[ta])
 		{
 			auto arg1Data = arg1->GetLockedDataRead(ta);
-			Arg3Type::locked_cseq_t arg3Data;
-			if (arg2) arg2Data = arg2->GetLockedDataRead(ta); // continuity of tile lock if tn = 1
-			if (arg3) arg3Data = arg3->GetLockedDataRead(ta);
+			typename Arg3Type::locked_cseq_t arg3Data;
+			if constexpr (hasSeqDomainArg)
+				arg2Data = arg2->GetLockedDataRead(ta); // continuity of tile lock if tn = 1
+			if (arg3) 
+				arg3Data = arg3->GetLockedDataRead(ta);
 
 			auto b1 = arg1Data.begin();
-			auto b2 = arg2Data.begin();
 			auto b3 = arg3Data.begin();
+			SizeT polyNr = 0;
 			for (SizeT i=0, n = arg1Data.size(); i!=n; ++i)
 			{
-				SizeT polyNr = (arg2) ? b2[i] - polyIndexRange.first : 0;
+				if constexpr (hasSeqDomainArg)
+					polyNr = arg2Data[i];
 				if (polyNr < nrPolys)
 				{
 					UInt32 orderNr = (arg3) ? b3[i] : currOrdinals[polyNr]++;
 
 					if (orderNr >= nrPointsPerSeq[polyNr])
-						GetGroup()->throwOperErrorF("unexpected orderNr %d for sequence %d which has %d elements", orderNr, polyNr, nrPointsPerSeq[polyNr]);
+						this->GetGroup()->throwOperErrorF("unexpected orderNr %d for sequence %d which has %d elements", orderNr, polyNr, nrPointsPerSeq[polyNr]);
 					typename ResultType::reference polygon = *(br + polyNr);
 					polygon[orderNr] = b1[i];
 				}
@@ -1881,8 +1887,15 @@ namespace
 		UnaryAttrSpecialFuncOperator<FirstFunc<T> > firstN, firstP;
 		UnaryAttrSpecialFuncOperator<LastFunc <T> > lastN, lastP;
 
-		Points2SequenceOperator<T> p2s1, p2s2, p2s3, p2s_p, p2s_ps, p2s_po, p2s_pso;
-		Points2SequenceOperator<T> p2p1, p2p2, p2p3, p2p_p, p2p_ps, p2p_po, p2p_pso;
+		// points2sequence
+		Points2SequenceOperator<T, Void> p2s1, p2s_p, p2s_po;
+		Points2SequenceOperator<T, UInt32> p2s2_ui32, p2s3_ui32, p2s_ps_ui32, p2s_pso_ui32;
+		Points2SequenceOperator<T, UInt64> p2p2_ui64, p2p3_ui64, p2p_ps_ui64, p2p_pso_ui64;
+
+		// points2polygon
+		Points2SequenceOperator<T, Void> p2p1, p2p_p, p2p_po;
+		Points2SequenceOperator<T, UInt32> p2p2_ui32, p2p3_ui32, p2p_ps_ui32, p2p_pso_ui32;
+		Points2SequenceOperator<T, UInt64> p2s2_ui64, p2s3_ui64, p2s_ps_ui64, p2s_pso_ui64;
 
 		Arcs2SegmentsOperator <T> arc2segm, arc2segm_uint64, seq2point, seq2point_uint64;
 
@@ -1896,21 +1909,35 @@ namespace
 			, firstP(&cogFP)
 			, lastP(&cogLP)
 
-			, p2s1(&cogP2S, false, false, ValueComposition::Sequence)
-			, p2s2(&cogP2S, true, false, ValueComposition::Sequence)
-			, p2s3(&cogP2S, true, true, ValueComposition::Sequence)
-			, p2s_p(&cogP2S_p, false, false, ValueComposition::Sequence)
-			, p2s_ps(&cogP2S_ps, true, false, ValueComposition::Sequence)
-			, p2s_po(&cogP2S_po, false, true, ValueComposition::Sequence)
-			, p2s_pso(&cogP2S_pso, true, true, ValueComposition::Sequence)
+			// points2sequence
+			, p2s1(&cogP2S, false, ValueComposition::Sequence)
+			, p2s2_ui32(&cogP2S, false, ValueComposition::Sequence)
+			, p2s3_ui32(&cogP2S, true, ValueComposition::Sequence)
+			, p2s2_ui64(&cogP2S, false, ValueComposition::Sequence)
+			, p2s3_ui64(&cogP2S, true, ValueComposition::Sequence)
 
-			, p2p1(&cogP2P, false, false, ValueComposition::Polygon)
-			, p2p2(&cogP2P, true, false, ValueComposition::Polygon)
-			, p2p3(&cogP2P, true, true, ValueComposition::Polygon)
-			, p2p_p(&cogP2P_p, false, false, ValueComposition::Polygon)
-			, p2p_ps(&cogP2P_ps, true, false, ValueComposition::Polygon)
-			, p2p_po(&cogP2P_po, false, true, ValueComposition::Polygon)
-			, p2p_pso(&cogP2P_pso, true, true, ValueComposition::Polygon)
+			, p2s_p(&cogP2S_p, false, ValueComposition::Sequence)
+			, p2s_ps_ui32(&cogP2S_ps, false, ValueComposition::Sequence)
+			, p2s_ps_ui64(&cogP2S_ps, false, ValueComposition::Sequence)
+
+			, p2s_po(&cogP2S_po, true, ValueComposition::Sequence)
+			, p2s_pso_ui32(&cogP2S_pso, true, ValueComposition::Sequence)
+			, p2s_pso_ui64(&cogP2S_pso, true, ValueComposition::Sequence)
+
+			// points2polygon
+			, p2p1(&cogP2P, false, ValueComposition::Polygon)
+			, p2p2_ui32(&cogP2P, false, ValueComposition::Polygon)
+			, p2p3_ui32(&cogP2P, true, ValueComposition::Polygon)
+			, p2p2_ui64(&cogP2P, false, ValueComposition::Polygon)
+			, p2p3_ui64(&cogP2P, true, ValueComposition::Polygon)
+
+			, p2p_p(&cogP2P_p, false, ValueComposition::Polygon)
+			, p2p_ps_ui32(&cogP2P_ps, false, ValueComposition::Polygon)
+			, p2p_pso_ui32(&cogP2P_pso, true, ValueComposition::Polygon)
+
+			, p2p_po(&cogP2P_po, true, ValueComposition::Polygon)
+			, p2p_ps_ui64(&cogP2P_ps, false, ValueComposition::Polygon)
+			, p2p_pso_ui64(&cogP2P_pso, true, ValueComposition::Polygon)
 
 			, arc2segm(&cogArc2segm, DoCreateNextPoint | DoCreateNrOrgEntity)
 			, arc2segm_uint64(&cogArc2segm_uint64, DoCreateNextPoint | DoCreateNrOrgEntity| CreateUInt64Domain)
