@@ -384,7 +384,7 @@ namespace { // local defs
 
 extern "C" RTC_CALL void DMS_CONV DMS_SetGlobalCppExceptionTranslator(TCppExceptionTranslator trFunc)
 {
-	dms_assert(IsMainThread());
+	assert(IsMainThread());
 	s_cppTrFunc = trFunc;
 }
 
@@ -447,7 +447,7 @@ RTC_CALL ErrMsgPtr catchAndReportException()
 
 RTC_CALL void catchAndProcessException()
 {
-	dms_assert(IsMainThread());
+	assert(IsMainThread());
 	static ErrMsgPtr msgPtr; // static to avoid the need to destroy when a Structured Exception will be thrown.
 	msgPtr = catchException(false);
 
@@ -604,14 +604,12 @@ int signalHandling(unsigned int u, _EXCEPTION_POINTERS* pExp, bool passBorlandEx
 	return EXCEPTION_EXECUTE_HANDLER;
 }
 
-RTC_CALL void (*s_OnTerminationFunc)() = nullptr;
-
 [[noreturn]] void  trans_SE2DMSfunc( unsigned int u, _EXCEPTION_POINTERS* pExp, bool mustTerminate)
 {
 #if defined(DMS_32)
 	__asm fninit;
 #endif
-	dms_assert(u != DMS_SE_CPP);
+	assert(u != DMS_SE_CPP);
 
 	auto exceptionText = GetExceptionText(u, pExp);
 
@@ -630,8 +628,6 @@ RTC_CALL void (*s_OnTerminationFunc)() = nullptr;
 		fos << char(0);
 		
 		StartChildProcess(nullptr, msgBuffer);
-		if (s_OnTerminationFunc)
-			s_OnTerminationFunc();
 		ExitProcess(GetLastExceptionCode());
 	}
 	DmsException::throwMsgF( "%s Structured Exception: 0x%X raised:\n%s"

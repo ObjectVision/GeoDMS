@@ -32,7 +32,7 @@ enum class itemCmd { commit, statistics, histogram, list, file };
 
 using itemCmdPair = std::pair<itemCmd, SharedTreeItemInterestPtr>;
 
-int main2(int argc, char** argv)
+int main2_without_SE(int argc, char** argv)
 {
 	ParseRegStatusFlags(argc, argv);
 
@@ -145,13 +145,30 @@ int main2(int argc, char** argv)
 	return result;
 }
 
+int main2(int argc, char** argv)
+{
+	DMS_SE_CALLBACK_BEGIN
+
+		return main2_without_SE(argc, argv);
+
+	DMS_SE_CALLBACK_END // throws
+}
+
+
+void printCommandLine(int argc, char**argv)
+{
+	if (!argc)
+		return;
+	std::cerr << std::endl << "CommandLine> ";
+	while (argc--)
+		std::cerr << *argv++ << " ";
+	std::cerr << std::endl;
+}
 
 void DMS_CONV logMsg(ClientHandle clientHandle, const MsgData* msgData, bool moreToCome)
 {
 	assert(msgData);
 	assert(clientHandle == nullptr);
-	if (msgData->m_SeverityType < SeverityTypeID::ST_MajorTrace)
-		return;
 
 	auto msgCat = msgData->m_MsgCategory;
 	if (msgCat != MsgCategory::other)
@@ -164,7 +181,7 @@ void DMS_CONV reportMsg(CharPtr msg)
 	std::cerr << std::endl << "\nCaught at Main:" << msg << std::endl;
 }
 
-int main_without_se(int argc, char** argv)
+int main_with_catch(int argc, char** argv)
 {
 	DMS_CALL_BEGIN
 
@@ -197,19 +214,6 @@ int main_without_se(int argc, char** argv)
 	return 2;
 }
 
-int s_argc;
-char** s_argv;
-
-void printCommandLine()
-{
-	if (!s_argc)
-		return;
-	std::cerr << std::endl << "CommandLine> ";
-	while (s_argc--)
-		std::cerr << *s_argv++ << " ";
-	std::cerr << std::endl;
-}
-
 int main(int argc, char** argv)
 {
 	DMS_Geo_Load();
@@ -219,23 +223,12 @@ int main(int argc, char** argv)
 
 	int result = 0;
 	bool completed = false;
-	DMS_SE_CALL_BEGIN
 
-		s_argc = argc;
-		s_argv = argv;
-		s_OnTerminationFunc = printCommandLine;
-
-		result = main_without_se(argc, argv);
-		completed = true;
-
-	DMS_SE_CALL_END
-
-	if (!completed)
-		result = GetLastExceptionCode();
+	result = main_with_catch(argc, argv);
 	if (result != 0)
 	{
 		std::cerr << std::endl << "GeoDmsRun failed with code " << result << "." << std::endl;
-		printCommandLine();
+		printCommandLine(argc, argv);
 	}
 	else 
 		std::cerr << std::endl << "GeoDmsRun completed successfully." << std::endl;

@@ -19,8 +19,6 @@ enum ExceptionContextState {
 	ECS_SE,
 };
 
-RTC_CALL extern void (*s_OnTerminationFunc)();
-
 struct DmsException : std::exception, private ErrMsgPtr
 {
 	[[noreturn]] static RTC_CALL void throwMsg(ErrMsgPtr msg);
