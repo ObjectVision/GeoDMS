@@ -22,7 +22,7 @@
 
 #include <CGAL/Polygon_set_2.h>
 #include <CGAL/intersections.h>
-//#include <CGAL/Exact_predicates_inexact_constructions_kernel.h>
+#include <CGAL/Exact_predicates_inexact_constructions_kernel.h>
 #include <CGAL/Exact_predicates_exact_constructions_kernel.h>
 #include <CGAL/Polygon_2.h>
 #include <CGAL/Polygon_with_holes_2.h>
@@ -31,6 +31,7 @@
 #include <CGAL/Partition_traits_2.h>
 #include <CGAL/Arr_segment_traits_2.h>
 #include <CGAL/Arrangement_2.h>
+#include <CGAL/create_offset_polygons_2.h>
 
 #include "CGAL_60/Polygon_repair/repair.h"
 
@@ -58,6 +59,18 @@ template <typename DmsPointType>
 void append_point(CGAL_Traits::Ring& ring, DmsPointType p)
 {
 	ring.push_back(CGAL_Traits::Point(p.X(), p.Y()));
+}
+
+template <typename DmsPointType>
+void assign_polyline(CGAL_Traits::Ring& resMP, SA_ConstReference<DmsPointType> polyRef)
+{
+	resMP.clear();
+	auto pb = polyRef.begin(), pe = polyRef.end();
+	if (pb == pe)
+		return;
+
+	for (auto p = pb; p != pe; ++p)
+		append_point(resMP, *p);
 }
 
 template <typename DmsPointType>
@@ -161,15 +174,15 @@ auto cgal_circle(double radius, int pointsPerCircle) -> CGAL_Traits::Ring
 
 
 
-template <dms_sequence E>
-void cgal_assign_point(E&& ref, const CGAL_Traits::Point& p)
+template <dms_sequence E, typename K>
+void cgal_assign_point(E&& ref, const CGAL::Point_2<K>& p)
 {
 	using coordinate_type = scalar_of_t<std::remove_reference_t<E>>;
 	ref.push_back( shp2dms_order<coordinate_type>(CGAL::to_double( p.x() ), CGAL::to_double( p.y())) );
 }
 
-template <dms_sequence E>
-void cgal_assign_ring(E&& ref, const CGAL_Traits::Ring& polyData)
+template <dms_sequence E, typename K>
+void cgal_assign_ring(E&& ref, const CGAL::Polygon_2<K>& polyData)
 {
 	using coordinate_type = scalar_of_t<std::remove_reference_t<E>>;
 	assert(polyData.size() > 0);
@@ -211,7 +224,7 @@ void cgal_assign_polygon_with_holes(E&& ref, const CGAL_Traits::Polygon_with_hol
 }
 
 template <dms_sequence E>
-void cgal_assign_polygon_vector(E&& ref, std::vector<CGAL_Traits::Polygon_with_holes>&& polyVec)
+void cgal_assign_polygon_with_holes_vector(E&& ref, std::vector<CGAL_Traits::Polygon_with_holes>&& polyVec)
 {
 	ref.clear();
 
@@ -242,6 +255,39 @@ void cgal_assign_polygon_vector(E&& ref, std::vector<CGAL_Traits::Polygon_with_h
 	assert(ref.size() == count);
 }
 
+template <dms_sequence E, typename Polygon>
+void cgal_assign_shared_polygon_vector(E&& ref, std::vector<boost::shared_ptr<Polygon>>&& polyVec)
+{
+	ref.clear();
+
+	auto np = polyVec.size();
+	if (!np)
+		return;
+
+	SizeT count = np - 1;
+
+	for (const auto& resPoly : polyVec)
+	{
+		assert(resPoly->size());
+		count += resPoly->size() + 1;
+//		for (auto hi = resPoly.holes().begin(), he = resPoly.holes().end(); hi != he; ++hi)
+//			count += hi->size() + 2;
+	}
+	ref.reserve(count);
+
+	for (const auto& sharedPolyPtr : polyVec)
+		if (auto polyPtr = sharedPolyPtr.get())
+			cgal_assign_ring(std::forward<E>(ref), *polyPtr);
+
+	--np;
+	while (np)
+	{
+		--np;
+		cgal_assign_point(std::forward<E>(ref), polyVec[np]->begin()[0]);
+	}
+	assert(ref.size() == count);
+}
+
 template <dms_sequence E>
 void cgal_assign_polygon_set(E&& ref, const CGAL_Traits::Polygon_set& polyData)
 {
@@ -249,7 +295,7 @@ void cgal_assign_polygon_set(E&& ref, const CGAL_Traits::Polygon_set& polyData)
 
 	polyData.polygons_with_holes(std::back_inserter(polyVec));
 
-	cgal_assign_polygon_vector(std::forward<E>(ref), std::move(polyVec));
+	cgal_assign_polygon_with_holes_vector(std::forward<E>(ref), std::move(polyVec));
 }
 
 template <typename RI>
