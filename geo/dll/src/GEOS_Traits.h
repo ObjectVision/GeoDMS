@@ -221,9 +221,15 @@ auto geos_create_polygons(SA_ConstReference<DmsPointType> polyRef, bool mustInse
 	resPolygons = polygonizer.getPolygons();
 
 	if (resPolygons.size() == 1)
-		return std::move(resPolygons.front());
+	{
+		auto r = std::move(resPolygons.front());
+		r->normalize();
+		return r;
+	}
 
-	return geos_factory()->createMultiPolygon(std::move(resPolygons));
+	auto r = geos_factory()->createMultiPolygon(std::move(resPolygons));
+	r->normalize();
+	return r;
 }
 
 
@@ -335,6 +341,7 @@ inline void cleanupPolygons(std::unique_ptr<geos::geom::Geometry>& r)
 {
 	if (!r)
 		return;
+	r->normalize();
 	if (auto gc = dynamic_cast<geos::geom::GeometryCollection*>(r.get()))
 		r.reset(getPolygonsFromGeometryCollection(gc).release());
 }
@@ -409,93 +416,62 @@ auto geos_split_assign_geometry(RI resIter, const geos::geom::Geometry* geometry
 }
 
 struct geos_intersection {
-	void operator ()(std::unique_ptr<geos::geom::Geometry>&& a, std::unique_ptr<geos::geom::Geometry>&& b, std::unique_ptr<geos::geom::Geometry>& r) const
+	auto operator ()(const geos::geom::Geometry* a, const geos::geom::Geometry* b) const -> std::unique_ptr<geos::geom::Geometry>
 	{
-		if (!a)
-		{
-			r = std::move(b);
-			return;
-		}
-		if (!b)
-		{
-			r = std::move(a);
-			return;
-		}
-		a->normalize();
-		b->normalize();
-		r = a->intersection(b.get());
+		if (!a || !b)
+			return {};
+		auto r = a->intersection(b);
 		cleanupPolygons(r);
+		return r;
 	}
 };
 
 struct geos_union {
-	void operator ()(std::unique_ptr<geos::geom::Geometry>&& a, std::unique_ptr<geos::geom::Geometry>&& b, std::unique_ptr<geos::geom::Geometry>& r) const
+	auto operator ()(const geos::geom::Geometry* a, const geos::geom::Geometry* b) const -> std::unique_ptr<geos::geom::Geometry>
 	{
 		if (!a)
 		{
-			r = std::move(b);
-			return;
+			if (!b)
+				return {};
+			return b->clone();
 		}
 		if (!b)
-		{
-			r = std::move(a);
-			return;
-		}
-		a->normalize();
-		b->normalize();
-		r = a->Union(b.get());
+			return a->clone();
+		auto  r = a->Union(b);
 		cleanupPolygons(r);
+		return r;
 	}
 };
 
 struct geos_difference {
-	void operator ()(std::unique_ptr<geos::geom::Geometry>&& a, std::unique_ptr<geos::geom::Geometry>&& b, std::unique_ptr<geos::geom::Geometry>& r) const
+	auto operator ()(const geos::geom::Geometry* a, const geos::geom::Geometry* b) const -> std::unique_ptr<geos::geom::Geometry>
 	{
 		if (!a)
-		{
-			r = std::move(b);
-			return;
-		}
+			return {};
 		if (!b)
-		{
-			r = std::move(a);
-			return;
-		}
-		a->normalize();
-		b->normalize();
-		r = a->difference(b.get());
+			return a->clone();
+		auto r = a->difference(b);
 		cleanupPolygons(r);
+		return r;
 	}
 };
 
 struct geos_sym_difference {
-	void operator ()(std::unique_ptr<geos::geom::Geometry>&& a, std::unique_ptr<geos::geom::Geometry>&& b, std::unique_ptr<geos::geom::Geometry>& r) const
+	auto operator ()(const geos::geom::Geometry* a, const geos::geom::Geometry* b) const -> std::unique_ptr<geos::geom::Geometry>
 	{
 		if (!a)
 		{
-			r = std::move(b);
-			return;
+			if (!b)
+				return {};
+			return b->clone();
 		}
 		if (!b)
-		{
-			r = std::move(a);
-			return;
-		}
-		a->normalize();
-		b->normalize();
-		r = a->symDifference(b.get());
+			return a->clone();
+		auto r = a->symDifference(b);
 		cleanupPolygons(r);
+		return r;
 	}
 };
-
-template <typename E>
-void dms_insert(std::unique_ptr<geos::geom::Geometry>& lhs, E&& ref)
-{
-	auto res = geos_create_polygons(std::forward<E>(ref));
-
-	geos_union union_;
-	union_(std::move(lhs), std::move(res), lhs);
-}
 
 struct union_geos_multi_polygon
 {
@@ -503,10 +479,22 @@ struct union_geos_multi_polygon
 
 	void operator()(mp_ptr& lhs, mp_ptr&& rhs) const
 	{
-		union_(std::move(lhs), std::move(rhs), lhs);
+		if (!lhs)
+			lhs = std::move(rhs);
+		else if (rhs)
+			lhs = union_(lhs.get(), rhs.get());
 	}
 	geos_union union_;
 };
+
+template <typename E>
+void dms_insert(std::unique_ptr<geos::geom::Geometry>& lhs, E&& ref)
+{
+	auto res = geos_create_polygons(std::forward<E>(ref));
+
+	union_geos_multi_polygon union_;
+	union_(lhs, std::move(res));
+}
 
 
 

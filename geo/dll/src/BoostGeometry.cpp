@@ -290,7 +290,7 @@ struct GEOS_MultiPolygonOperator : BinaryMapAlgebraicOperator<P>
 				currMP1 = geos_create_polygons(arg1Data[i]);
 			if (!domain2IsVoid)
 				currMP2 = geos_create_polygons(arg2Data[i]);
-			m_Oper(std::move(currMP1), std::move(currMP2), resMP);
+			resMP = m_Oper(currMP1.get(), currMP2.get());
 			geos_assign_geometry(resData[i], resMP.get());
 		}
 	}
