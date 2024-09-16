@@ -165,15 +165,40 @@ void printCommandLine(int argc, char**argv)
 	std::cerr << std::endl;
 }
 
+char SeverityAsChar(SeverityTypeID st)
+{
+	switch (st)
+	{
+	case SeverityTypeID::ST_MinorTrace: return '.';
+	case SeverityTypeID::ST_MajorTrace: return '!';
+	case SeverityTypeID::ST_Warning   : return 'W';
+	case SeverityTypeID::ST_Error     : return 'E';
+	case SeverityTypeID::ST_FatalError: return 'F';
+	case SeverityTypeID::ST_DispError : return 'D';
+	case SeverityTypeID::ST_Nothing   : return 'N';
+	default: return '?';
+	}
+}
+
 void DMS_CONV logMsg(ClientHandle clientHandle, const MsgData* msgData, bool moreToCome)
 {
 	assert(msgData);
 	assert(clientHandle == nullptr);
 
-	auto msgCat = msgData->m_MsgCategory;
-	if (msgCat != MsgCategory::other)
+
+	if (!msgData->m_IsFollowup)
+	{
+		std::cout 
+			<< "[" << SeverityAsChar(msgData->m_SeverityType) 
+			<< "][" << AsString(msgData->m_DateTime) 
+			<< "][" << msgData->m_ThreadID << "]";
+		auto msgCat = msgData->m_MsgCategory;
 		std::cout << AsString(msgCat);
+	}
+	else
+		std::cout << "   ";
 	std::cout << msgData->m_Txt << std::endl;
+
 }
 
 void DMS_CONV reportMsg(CharPtr msg)

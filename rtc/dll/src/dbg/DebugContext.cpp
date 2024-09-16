@@ -58,7 +58,7 @@ CharPtr AsString(MsgCategory msgCat)
 	case MsgCategory::memory: {return "[memory]"; }
 	case MsgCategory::commands: { return "[commands]"; }
 	}
-	return "";
+	return "[unknown category]";
 }
 /********** AbstrContextHandle **********/
 
