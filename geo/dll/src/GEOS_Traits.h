@@ -349,11 +349,9 @@ inline void cleanupPolygons(std::unique_ptr<geos::geom::Geometry>& r)
 template <typename E>
 void geos_assign_geometry(E&& ref, const geos::geom::Geometry* geometry)
 {
+	ref.clear();
 	if (!geometry || geometry->isEmpty())
-	{
-		ref.clear();
 		return;
-	}
 
 	if (auto mp = dynamic_cast<const geos::geom::MultiPolygon*>(geometry))
 	{
@@ -362,7 +360,6 @@ void geos_assign_geometry(E&& ref, const geos::geom::Geometry* geometry)
 	}
 	if (auto poly = dynamic_cast<const geos::geom::Polygon*>(geometry))
 	{
-
 		geos_assign_polygon_with_holes(std::forward<E>(ref), poly);
 		return;
 	}
@@ -370,6 +367,10 @@ void geos_assign_geometry(E&& ref, const geos::geom::Geometry* geometry)
 	{
 		auto mp = getPolygonsFromGeometryCollection(gc);
 		geos_assign_mp(std::forward<E>(ref), mp.get());
+		return;
+	}
+	if (auto poly = dynamic_cast<const geos::geom::Point*>(geometry))
+	{
 		return;
 	}
 	throwDmsErrF("geos_assign_geometry: unsupported geometry type: %s", geometry->toText().c_str());
@@ -381,11 +382,12 @@ auto geos_split_assign_mp(RI resIter, const geos::geom::MultiPolygon* mp) -> RI
 	auto np = mp->getNumGeometries();
 	for (SizeT i = 0; i != np; ++i)
 	{
-		const auto* poly = debug_cast<const geos::geom::Polygon*>(mp->getGeometryN(i));
-		assert(poly);
-
-		geos_assign_polygon_with_holes(*resIter, poly);
-		++resIter;
+		const auto* poly = dynamic_cast<const geos::geom::Polygon*>(mp->getGeometryN(i));
+		if (poly)
+		{
+			geos_assign_polygon_with_holes(*resIter, poly);
+			++resIter;
+		}
 	}
 	return resIter;
 }
@@ -393,11 +395,9 @@ auto geos_split_assign_mp(RI resIter, const geos::geom::MultiPolygon* mp) -> RI
 template <typename RI>
 auto geos_split_assign_geometry(RI resIter, const geos::geom::Geometry* geometry) -> RI
 {
+	resIter->clear();
 	if (!geometry || geometry->isEmpty())
-	{
-		resIter->clear();
 		return resIter;
-	}
 
 	if (auto mp = dynamic_cast<const geos::geom::MultiPolygon*>(geometry))
 		return geos_split_assign_mp(resIter, mp);
@@ -412,6 +412,9 @@ auto geos_split_assign_geometry(RI resIter, const geos::geom::Geometry* geometry
 		auto mp = getPolygonsFromGeometryCollection(gc);
 		return geos_split_assign_mp(resIter, mp.get());
 	}
+	if (auto gc = dynamic_cast<const geos::geom::Point*>(geometry))
+		return resIter;
+
 	throwDmsErrF("geos_split_assign_geometry: unsupported geometry type: %s", geometry->toText().c_str());
 }
 
