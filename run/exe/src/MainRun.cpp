@@ -91,10 +91,13 @@ int main2_without_SE(int argc, char** argv)
 			const TreeItem* item = DMS_TreeItem_GetItem(cfg, *argv);
 			if (!item)
 			{
-				std::cout << " Not found";
-				std::cerr << std::endl << "Item " << *argv << " not found";
+				std::cout << " Not found"  << std::endl;
+				std::cerr << std::endl << "Item " << *argv << " not found" << std::endl;
 				result = 1;
 			}
+			else
+				std::cout << std::endl;
+
 			for (const TreeItem* walker = item; walker; walker = item->WalkConstSubTree(walker))
 				items.push_back(itemCmdPair(currCmd, SharedPtr<const TreeItem>(walker)));
 		}
@@ -114,14 +117,14 @@ int main2_without_SE(int argc, char** argv)
 		dms_assert(item);
 		SharedStr itemSourceName = item->GetSourceName();
 		CDebugContextHandle ch("Updating", itemSourceName.c_str(), true);
-		std::cout  << std::endl << "Update " << itemSourceName.c_str();
+		std::cout  << std::endl << "Update " << itemSourceName.c_str() << std::endl;
 		
 		DMS_TreeItem_Update(item);
 		if (item->IsFailed())
 		{
 			auto fr = item->GetFailReason();
 			if (fr)
-				std::cerr << std::endl << "Failure: " << fr->GetAsText();
+				std::cerr << std::endl << "Failure: " << fr->GetAsText() << std::endl;
 			result = 1;
 		}
 
