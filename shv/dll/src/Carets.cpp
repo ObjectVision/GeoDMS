@@ -95,8 +95,18 @@ void NeedleCaret::Move(const AbstrCaretOperator& caret_operator, HDC dc)
 	if (m_StartPoint != prevStartPoint || rectChanged )
 	{
 		RECT clipRect; GetClipBox(dc, &clipRect);
-		      prevRect &= clipRect;
-		GRect viewRect  = m_ViewRect & clipRect;
+		assert(IsDefined(clipRect.left) && IsDefined(clipRect.top) && IsDefined(clipRect.right) && IsDefined(clipRect.bottom));
+		if (wasVisible)
+		{
+			assert(IsDefined(prevRect));
+			prevRect &= clipRect;
+		}
+		GRect viewRect = m_ViewRect;
+		if (nowVisible)
+		{
+			assert(IsDefined(viewRect));
+			viewRect &= clipRect;
+		}
 
 		GType currRow = m_StartPoint.y;
 		GType prevRow   = prevStartPoint.y;

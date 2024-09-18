@@ -30,7 +30,7 @@ struct Point: Couple<T>
 	using Couple<T>::second;
 
 //	Constructors (specified)
-	constexpr Point() {} // default initialisastion results in valid possibly non-zero objects too
+	constexpr Point() {} // default initialisation results in valid possibly non-zero objects too
 	constexpr Point(T first, T second): Couple<T>(first, second) {}
 	constexpr Point(Undefined): Couple<T>(Undefined()) {}
 

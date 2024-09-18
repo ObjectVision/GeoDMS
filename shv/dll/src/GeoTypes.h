@@ -61,7 +61,7 @@ inline GPoint operator - (POINT b) { return GPoint(-b.x, -b.y); }
 
 struct TPoint : Point<TType> //: POINT
 {
-	TPoint() : Point(-1, -1) {}
+	TPoint() : Point(Undefined()) {}
 	TPoint(const Point<TType>& pnt) : Point<TType>(pnt.first, pnt.second) {}
 
 	bool IsSingular() const { return !first || !second; }
@@ -622,8 +622,12 @@ TRect Convert4(const Range<T>& rect, const TRect*, const ExceptFunc* ef, const C
 
 inline GPoint UndefinedValue(const GPoint*)   { return GPoint(); }
 inline TPoint UndefinedValue(const TPoint*)   { return Point<TType>(Undefined()); }
+inline TRect  UndefinedValue(const TRect*)    { return TRect(); }
+inline GRect  UndefinedValue(const GRect*)    { return GRect(); }
 inline bool   IsDefined     (const GPoint& p) { return IsDefined(p.x) || IsDefined(p.y); }
 inline bool   IsDefined     (const TPoint& p) { return IsDefined(p.first) || IsDefined(p.second); }
+inline bool   IsDefined     (const TRect& r)  { return IsDefined(r.TopLeft()) || IsDefined(r.BottomRight()); }
+inline bool   IsDefined     (const GRect& r)  { return IsDefined(r.LeftTop()) && IsDefined(r.RightBottom()); }
 
 template <typename T, typename ExceptFunc, typename ConvertFunc>
 Point<T> Convert4(TPoint pnt, const Point<T>*, const ExceptFunc* ef, const ConvertFunc*)
