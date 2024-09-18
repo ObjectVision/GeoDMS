@@ -143,10 +143,8 @@ struct GRect : RECT
 	}
 	GRect(GPoint topLeft, GPoint bottomRight)
 	{
-		assert(IsDefined(topLeft.x));
-		assert(IsDefined(topLeft.y));
-		assert(IsDefined(bottomRight.x));
-		assert(IsDefined(bottomRight.y));
+		assert(IsDefined(topLeft.x) && IsDefined(topLeft.y) && IsDefined(bottomRight.x) && IsDefined(bottomRight.y) 
+			|| !IsDefined(topLeft) && !IsDefined(bottomRight));
 
 		left   = topLeft.x;
 		top    = topLeft.y;
