@@ -190,9 +190,9 @@ void cgal_assign_ring(E&& ref, const CGAL::Polygon_2<K>& polyData)
 	auto pb = polyData.vertices_begin(), pe = polyData.vertices_end();
 //*
 	// reassign points in reverse order to restore clockwise order
+	cgal_assign_point(std::forward<E>(ref), *pb); // add first ring point that will become also the last GeoDms ring point as closing point
 	for (auto pri=pe; pri!=pb;)
 		cgal_assign_point(std::forward<E>(ref), *--pri);
-	cgal_assign_point(std::forward<E>(ref), *--pe); // add last ring point that became the first GeoDms ring point as closing point
 //	*/
 
 /*
@@ -218,9 +218,9 @@ void cgal_assign_polygon_with_holes(E&& ref, const CGAL_Traits::Polygon_with_hol
 	while (nh)
 	{
 		--nh;
-		cgal_assign_point(std::forward<E>(ref), poly.holes()[nh].begin()[0]);
+		cgal_assign_point(std::forward<E>(ref), poly.holes()[nh].vertices_begin()[0]);
 	}
-	cgal_assign_point(std::forward<E>(ref), poly.outer_boundary().begin()[0]);
+	cgal_assign_point(std::forward<E>(ref), poly.outer_boundary().vertices_begin()[0]);
 }
 
 template <dms_sequence E>
@@ -250,7 +250,7 @@ void cgal_assign_polygon_with_holes_vector(E&& ref, std::vector<CGAL_Traits::Pol
 	while (np)
 	{
 		--np;
-		cgal_assign_point(std::forward<E>(ref), polyVec[np].outer_boundary().begin()[0]);
+		cgal_assign_point(std::forward<E>(ref), polyVec[np].outer_boundary().vertices_begin()[0]);
 	}
 	assert(ref.size() == count);
 }

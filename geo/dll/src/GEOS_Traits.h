@@ -247,8 +247,12 @@ void geos_assign_lr(E&& ref, const geos::geom::LinearRing* lr)
 	const auto* coords = lr->getCoordinatesRO();
 	assert(coords);
 	auto s = coords->getSize();
-	for (SizeT i=0; i!=s; ++i)
-		geos_write_point(ref, coords->getAt(i));
+	if (s)
+	{
+		assert(coords->getAt(0) == coords->getAt(s - 1));
+		for (SizeT i = 0; i != s; ++i)
+			geos_write_point(ref, coords->getAt(i));
+	}
 }
 
 template <dms_sequence E>
