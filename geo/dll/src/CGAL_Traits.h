@@ -118,7 +118,10 @@ void assign_multi_polygon(CGAL_Traits::Polygon_set& resMP, SA_ConstReference<Dms
 			if (helperRing.orientation() == CGAL::COUNTERCLOCKWISE)
 				resMP.join(helperRing);
 			else
+			{
+				helperRing.reverse_orientation();
 				foundHoles.emplace_back(std::move(helperRing));
+			}
 		}
 		else
 		{
