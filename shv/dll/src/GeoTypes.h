@@ -20,7 +20,7 @@ typedef LONG GType;
 
 struct GPoint : POINT
 {
-	GPoint() { x = -1; y = -1; }
+	GPoint() { x = y = UNDEFINED_VALUE(GType); }
 	GPoint(GType _x, GType _y) { x = _x, y = _y; }
 
 	GPoint ScreenToClient(HWND hWnd) const;
@@ -49,9 +49,9 @@ inline GType get_x(const GPoint& p) noexcept { return p.x; }
 inline GType get_y(const GPoint& p) noexcept { return p.y; }
 
 #if defined(DMS_TM_HAS_UINT64_AS_DOMAIN)
-typedef Int64 TType;
+using TType = Int64;
 #else
-typedef Int32 TType;
+using TType = Int32;
 #endif //defined(DMS_TM_HAS_UINT64_AS_DOMAIN)
 
 inline GPoint operator + (GPoint a, POINT b) { a += b; return a; }
@@ -127,10 +127,15 @@ inline CrdPoint ConcatHorizontal(CrdPoint a, CrdPoint b)
 
 struct GRect : RECT
 {
-	GRect() { left = top = right = bottom = -1; }
+	GRect() { left = top = right = bottom = UNDEFINED_VALUE(GType); }
 
 	GRect(GType left_, GType top_, GType right_, GType bottom_)
 	{
+		assert(IsDefined(left_));
+		assert(IsDefined(top_));
+		assert(IsDefined(right_));
+		assert(IsDefined(bottom_));
+
 		left   = left_;
 		top    = top_;
 		right  = right_;
@@ -138,6 +143,11 @@ struct GRect : RECT
 	}
 	GRect(GPoint topLeft, GPoint bottomRight)
 	{
+		assert(IsDefined(topLeft.x));
+		assert(IsDefined(topLeft.y));
+		assert(IsDefined(bottomRight.x));
+		assert(IsDefined(bottomRight.y));
+
 		left   = topLeft.x;
 		top    = topLeft.y;
 		right  = bottomRight.x;
@@ -176,6 +186,16 @@ struct GRect : RECT
 	}
 	void operator &=(const RECT& rhs) 
 	{
+		assert(IsDefined(left));
+		assert(IsDefined(top));
+		assert(IsDefined(right));
+		assert(IsDefined(bottom));
+
+		assert(IsDefined(rhs.left));
+		assert(IsDefined(rhs.top));
+		assert(IsDefined(rhs.right));
+		assert(IsDefined(rhs.bottom));
+
 		MakeMax(left,   rhs.left);
 		MakeMax(top,    rhs.top);
 		MakeMin(right,  rhs.right);
@@ -183,6 +203,16 @@ struct GRect : RECT
 	}
 	void operator |=(const RECT& rhs) 
 	{
+		assert(IsDefined(left));
+		assert(IsDefined(top));
+		assert(IsDefined(right));
+		assert(IsDefined(bottom));
+
+		assert(IsDefined(rhs.left));
+		assert(IsDefined(rhs.top));
+		assert(IsDefined(rhs.right));
+		assert(IsDefined(rhs.bottom));
+
 		MakeMin(left,   rhs.left);
 		MakeMin(top,    rhs.top);
 		MakeMax(right,  rhs.right);
@@ -190,6 +220,14 @@ struct GRect : RECT
 	}
 	void operator +=(const POINT& delta) 
 	{
+		assert(IsDefined(left));
+		assert(IsDefined(top));
+		assert(IsDefined(right));
+		assert(IsDefined(bottom));
+
+		assert(IsDefined(delta.x));
+		assert(IsDefined(delta.y));
+
 		left  += delta.x;
 		right += delta.x;
 		top   += delta.y;
@@ -198,77 +236,192 @@ struct GRect : RECT
 
 	void operator -=(const POINT& delta) 
 	{
+		assert(IsDefined(left));
+		assert(IsDefined(top));
+		assert(IsDefined(right));
+		assert(IsDefined(bottom));
+
+		assert(IsDefined(delta.x));
+		assert(IsDefined(delta.y));
+
 		left  -= delta.x;
 		right -= delta.x;
 		top   -= delta.y;
 		bottom-= delta.y;
+
+		assert(IsDefined(left));
+		assert(IsDefined(top));
+		assert(IsDefined(right));
+		assert(IsDefined(bottom));
 	}
 	void operator +=(const RECT& rhs) 
 	{
+		assert(IsDefined(left));
+		assert(IsDefined(top));
+		assert(IsDefined(right));
+		assert(IsDefined(bottom));
+
+		assert(IsDefined(rhs.left));
+		assert(IsDefined(rhs.top));
+		assert(IsDefined(rhs.right));
+		assert(IsDefined(rhs.bottom));
+
 		left  += rhs.left;
 		right += rhs.right;
 		top   += rhs.top;
 		bottom+= rhs.bottom;
+
+		assert(IsDefined(left));
+		assert(IsDefined(top));
+		assert(IsDefined(right));
+		assert(IsDefined(bottom));
 	}
 
 	void operator -=(const RECT& rhs) 
 	{
+		assert(IsDefined(left));
+		assert(IsDefined(top));
+		assert(IsDefined(right));
+		assert(IsDefined(bottom));
+
+		assert(IsDefined(rhs.left));
+		assert(IsDefined(rhs.top));
+		assert(IsDefined(rhs.right));
+		assert(IsDefined(rhs.bottom));
+
 		left  -= rhs.left;
 		right -= rhs.right;
 		top   -= rhs.top;
 		bottom-= rhs.bottom;
+
+		assert(IsDefined(left));
+		assert(IsDefined(top));
+		assert(IsDefined(right));
+		assert(IsDefined(bottom));
 	}
 	void operator *= (Point<Float64> scaleFactor)
 	{
+		assert(IsDefined(left));
+		assert(IsDefined(top));
+		assert(IsDefined(right));
+		assert(IsDefined(bottom));
+
+		assert(IsDefined(scaleFactor.first));
+		assert(IsDefined(scaleFactor.second));
+
 		left   = Float64(left  ) * scaleFactor.first;
 		right  = Float64(right ) * scaleFactor.first;
 		top    = Float64(top   ) * scaleFactor.second;
 		bottom = Float64(bottom) * scaleFactor.second;
+
+		assert(IsDefined(left));
+		assert(IsDefined(top));
+		assert(IsDefined(right));
+		assert(IsDefined(bottom));
 	}
 	void operator /= (Point<Float64> scaleFactor)
 	{
+		assert(IsDefined(left));
+		assert(IsDefined(top));
+		assert(IsDefined(right));
+		assert(IsDefined(bottom));
+
+		assert(IsDefined(scaleFactor.first));
+		assert(IsDefined(scaleFactor.second));
+
+		assert(scaleFactor.first  != 0.0);
+		assert(scaleFactor.second != 0.0);
+
 		left   = Float64(left  ) / scaleFactor.first;
 		right  = Float64(right ) / scaleFactor.first;
 		top    = Float64(top   ) / scaleFactor.second;
 		bottom = Float64(bottom) / scaleFactor.second;
+
+		assert(IsDefined(left));
+		assert(IsDefined(top));
+		assert(IsDefined(right));
+		assert(IsDefined(bottom));
 	}
 	void Expand(POINT delta)
 	{
-		dms_assert(delta.x >= 0);
-		dms_assert(delta.y >= 0);
+		assert(IsDefined(delta.x));
+		assert(IsDefined(delta.y));
+
+		assert(delta.x >= 0);
+		assert(delta.y >= 0);
+
+		assert(IsDefined(left));
+		assert(IsDefined(top));
+		assert(IsDefined(right));
+		assert(IsDefined(bottom));
 
 		left  -= delta.x;
 		top   -= delta.y;
 		right += delta.x;
 		bottom+= delta.y;
+
+		assert(IsDefined(left));
+		assert(IsDefined(top));
+		assert(IsDefined(right));
+		assert(IsDefined(bottom));
 	}
 	void Expand(GType delta) 
 	{
-		dms_assert(delta >= 0);
+		assert(delta >= 0);
+
+		assert(IsDefined(left));
+		assert(IsDefined(top));
+		assert(IsDefined(right));
+		assert(IsDefined(bottom));
 
 		left  -= delta;
 		top   -= delta;
 		right += delta;
 		bottom+= delta;
+
+		assert(IsDefined(left));
+		assert(IsDefined(top));
+		assert(IsDefined(right));
+		assert(IsDefined(bottom));
 	}
 	void Shrink(POINT delta) 
 	{
-		dms_assert(delta.x >= 0);
-		dms_assert(delta.y >= 0);
+		assert(IsDefined(left));
+		assert(IsDefined(top));
+		assert(IsDefined(right));
+		assert(IsDefined(bottom));
+
+		assert(delta.x >= 0);
+		assert(delta.y >= 0);
 
 		left  += delta.x;
 		top   += delta.y;
 		right -= delta.x;
 		bottom-= delta.y;
+
+		assert(IsDefined(left));
+		assert(IsDefined(top));
+		assert(IsDefined(right));
+		assert(IsDefined(bottom));
 	}
 	void Shrink(GType delta) 
 	{
-		dms_assert(delta >= 0);
+		assert(delta >= 0);
+
+		assert(IsDefined(left));
+		assert(IsDefined(top));
+		assert(IsDefined(right));
+		assert(IsDefined(bottom));
 
 		left  += delta;
 		top   += delta;
 		right -= delta;
 		bottom-= delta;
+
+		assert(IsDefined(left));
+		assert(IsDefined(top));
+		assert(IsDefined(right));
+		assert(IsDefined(bottom));
 	}
 };
 
@@ -469,10 +622,10 @@ TRect Convert4(const Range<T>& rect, const TRect*, const ExceptFunc* ef, const C
 	);
 }
 
-inline GPoint UndefinedValue(const GPoint*)   { return GPoint(-1, -1); }
-inline TPoint UndefinedValue(const TPoint*)   { return Point<TType>(-1, -1); }
-inline bool   IsDefined     (const GPoint& p) { return p.x != -1 || p.y != -1; }
-inline bool   IsDefined     (const TPoint& p) { return p.first != -1 || p.second != -1; }
+inline GPoint UndefinedValue(const GPoint*)   { return GPoint(); }
+inline TPoint UndefinedValue(const TPoint*)   { return Point<TType>(Undefined()); }
+inline bool   IsDefined     (const GPoint& p) { return IsDefined(p.x) || IsDefined(p.y); }
+inline bool   IsDefined     (const TPoint& p) { return IsDefined(p.first) || IsDefined(p.second); }
 
 template <typename T, typename ExceptFunc, typename ConvertFunc>
 Point<T> Convert4(TPoint pnt, const Point<T>*, const ExceptFunc* ef, const ConvertFunc*)
