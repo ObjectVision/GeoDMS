@@ -559,10 +559,10 @@ void dms_insert(bp::polygon_set_data<C>& lvalue, const GT2& rvalue)
 		return;
 
 
-	auto rRange = Range<Point<C>>(rvalue.begin(), rvalue.end(), false, false); 
+	auto rRange = Range<Point<C>>(rvalue.begin(), rvalue.end(), false, false);
 	auto bpRect = boost::polygon::rectangle_data<C>(
 		boost::polygon::interval_data<C>(rRange.first.X(), rRange.second.X())
-	,	boost::polygon::interval_data<C>(rRange.first.Y(), rRange.second.Y())
+		, boost::polygon::interval_data<C>(rRange.first.Y(), rRange.second.Y())
 	);
 
 	typename traits_t::rect_type bpLeftRect;
@@ -590,7 +590,7 @@ void dms_insert(bp::polygon_set_data<C>& lvalue, const GT2& rvalue)
 			boost::polygon::convolve(rvcp, mp);
 
 		using vector_traits = bp::polygon_set_traits<point_vector>;
-		lvalue.insert(vector_traits::begin( rvalueCopy ), vector_traits::end( rvalueCopy ));
+		lvalue.insert(vector_traits::begin(rvalueCopy), vector_traits::end(rvalueCopy));
 
 		lvalue.move(p);
 		return;
@@ -598,6 +598,13 @@ void dms_insert(bp::polygon_set_data<C>& lvalue, const GT2& rvalue)
 
 	using GT2_traits = bp::polygon_set_traits<GT2>;
 	lvalue.insert(GT2_traits::begin(rvalue), GT2_traits::end(rvalue));
+}
+
+template <typename C, typename GT2>
+void dms_assign(bp::polygon_set_data<C>& lvalue, const GT2& rvalue)
+{
+	lvalue.clear();
+	dms_insert(lvalue, rvalue);
 }
 
 Timer s_ProcessTimer;
@@ -651,7 +658,7 @@ void UnionPolygon(ResourceArrayHandle& r, SizeT n, const AbstrDataItem* polyData
 			geometryTowerPtr += i;
 		}
 		typename MPT::semi_group geometry;
-		dms_insert(geometry, *pi);
+		dms_assign(geometry, *pi);
 		geometryTowerPtr->add(std::move(geometry));
 
 		if (s_ProcessTimer.PassedSecs(5))

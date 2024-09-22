@@ -334,15 +334,20 @@ auto cgal_split_assign_polygon_set(RI resIter, const CGAL_Traits::Polygon_set& p
 }
 
 template<typename DmsPointType>
+void dms_assign(CGAL_Traits::Polygon_set& lvalue, SA_ConstReference<DmsPointType> rvalue)
+{
+	lvalue.clear();
+	assign_multi_polygon(lvalue, rvalue, true);
+}
+
+
+template<typename DmsPointType>
 void dms_insert(CGAL_Traits::Polygon_set& lvalue, SA_ConstReference<DmsPointType> rvalue)
 {
 	CGAL_Traits::Polygon_set tmpPS;
-	assign_multi_polygon(tmpPS, rvalue, true);
+	dms_assign(tmpPS, rvalue);
 
-	CGAL_Traits::Polygon_set resPS;
-	resPS.join(tmpPS);
-
-	lvalue = std::move(resPS);
+	lvalue.join(tmpPS);
 }
 
 

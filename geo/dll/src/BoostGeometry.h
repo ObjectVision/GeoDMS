@@ -466,13 +466,22 @@ void assign_multi_polygon(bg_multi_polygon_t& resMP, SA_ConstReference<DmsPointT
 
 
 template<typename DmsPointType>
-void dms_insert(bg_multi_polygon_t& lvalue, SA_ConstReference<DmsPointType> rvalue)
+void dms_assign(bg_multi_polygon_t& lvalue, SA_ConstReference<DmsPointType> rvalue)
 {
 	bg_polygon_t helperPolygon;
 	bg_ring_t helperRing;
+//	bg_multi_polygon_t tmpMP, resMP;
+
+	assign_multi_polygon(lvalue, rvalue, true, helperPolygon, helperRing);
+}
+
+template<typename DmsPointType>
+void dms_insert(bg_multi_polygon_t& lvalue, SA_ConstReference<DmsPointType> rvalue)
+{
 	bg_multi_polygon_t tmpMP, resMP;
 
-	assign_multi_polygon(tmpMP, rvalue, true, helperPolygon, helperRing);
+	dms_assign(tmpMP, rvalue);
+
 	boost::geometry::union_(lvalue, tmpMP, resMP);
 	lvalue.swap(resMP);
 }

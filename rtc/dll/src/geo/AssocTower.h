@@ -74,7 +74,6 @@ private:
 	{
 		m_AssociativeReducer(m_DataTower.end()[-2], std::move(m_DataTower.end()[-1]));
 		m_DataTower.pop_back();
-
 	}
 
 	associative_reducer m_AssociativeReducer;
