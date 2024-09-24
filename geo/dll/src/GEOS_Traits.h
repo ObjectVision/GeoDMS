@@ -206,7 +206,7 @@ auto geos_create_polygons(SA_ConstReference<DmsPointType> polyRef, bool mustInse
 		}
 		else if (mustInsertInnerRings)
 		{
-			currInnerRings.emplace_back(helperRing->reverse());
+			currInnerRings.emplace_back(std::move(helperRing));
 		}
 	}
 	if (currRing && !currRing->isEmpty())
@@ -242,22 +242,19 @@ void geos_write_point(E&& ref, const geos::geom::Coordinate& c)
 }
 
 template <dms_sequence E>
-void geos_assign_lr(E&& ref, const geos::geom::LinearRing* lr, bool isExterior)
+auto geos_write_lr(E&& ref, const geos::geom::LinearRing* lr) -> std::optional<geos::geom::Coordinate>
 {
 	assert(lr);
 	const auto* coords = lr->getCoordinatesRO();
 	assert(coords);
 	auto s = coords->getSize();
-	if (s> 3)
-	{
-		assert(coords->getAt(0) == coords->getAt(s - 1));
-		if (isExterior)
-			for (SizeT i = 0; i != s; ++i)
-				geos_write_point(ref, coords->getAt(i));
-		else // write lake ring in reverse order
-			while (s--)
-				geos_write_point(ref, coords->getAt(s));
-	}
+	if (s <= 3)
+		return {};
+
+	MG_CHECK(coords->getAt(0) == coords->getAt(s - 1));
+	for (SizeT i = 0; i != s; ++i)
+		geos_write_point(ref, coords->getAt(i));
+	return coords->getAt(0);
 }
 
 template <dms_sequence E>
@@ -268,21 +265,33 @@ void geos_write_back(E&& ref, const geos::geom::LinearRing* lr)
 }
 
 template <dms_sequence E>
-void geos_write_polygon_with_holes(E&& ref, const geos::geom::Polygon* poly)
+auto geos_write_polygon_with_holes(E&& ref, const geos::geom::Polygon* poly)  -> std::optional<geos::geom::Coordinate>
 {
 	assert(poly);
-	geos_assign_lr(ref, poly->getExteriorRing(), true);
+	auto outerBackTrackPoint = geos_write_lr(std::forward<E>(ref), poly->getExteriorRing());
+	if (!outerBackTrackPoint)
+		return {};
+
+	std::vector<geos::geom::Coordinate> backTrackPoints;
 	SizeT irCount = poly->getNumInteriorRing();
 	for (SizeT ir = 0; ir != irCount; ++ir)
-		geos_assign_lr(ref, poly->getInteriorRingN(ir), false);
+	{
+		auto backTrackPoint = geos_write_lr(std::forward<E>(ref), poly->getInteriorRingN(ir));
+		if (backTrackPoint)
+			backTrackPoints.emplace_back(*backTrackPoint);
+	}
 
-	if (!irCount)
-		return;
-	--irCount;
-	while (irCount)
-		geos_write_back(ref, poly->getInteriorRingN(--irCount));
-
-	geos_write_back(ref, poly->getExteriorRing());
+	if (!backTrackPoints.empty())
+	{
+		backTrackPoints.pop_back();
+		while (!backTrackPoints.empty())
+		{
+			geos_write_point(std::forward<E>(ref), backTrackPoints.back());
+			backTrackPoints.pop_back();
+		}
+		geos_write_point(std::forward<E>(ref), *outerBackTrackPoint);
+	}
+	return outerBackTrackPoint;
 }
 
 template <dms_sequence E>
@@ -295,8 +304,45 @@ void geos_assign_polygon_with_holes(E&& ref, const geos::geom::Polygon* poly)
 
 	ref.clear();
 	ref.reserve(count);
+
 	geos_write_polygon_with_holes(std::forward<E>(ref), poly);
 	assert(ref.size() == count);
+}
+
+template <dms_sequence E>
+auto geos_write_mp(E&& ref, const geos::geom::MultiPolygon* mp) -> std::optional<geos::geom::Coordinate>
+{
+	assert(mp);
+	if (mp->isEmpty())
+		return {};
+
+	SizeT polygonCount = mp->getNumGeometries();
+	assert(polygonCount != 0); // follows from poly.size()
+
+	std::optional<geos::geom::Coordinate> firstBackTrackPoint;
+	std::vector<geos::geom::Coordinate> backTrackPoints;
+
+	for (SizeT i = 0; i != polygonCount; ++i)
+	{
+		const auto* poly = debug_cast<const geos::geom::Polygon*>(mp->getGeometryN(i));
+		auto backTrackPoint = geos_write_polygon_with_holes(std::forward<E>(ref), poly);
+		if (backTrackPoint)
+		{
+			if (!firstBackTrackPoint)
+				firstBackTrackPoint = *backTrackPoint;
+			backTrackPoints.emplace_back(*backTrackPoint);
+		}
+	}
+	if (!backTrackPoints.empty())
+	{ 
+		backTrackPoints.pop_back();
+		while (!backTrackPoints.empty())
+		{
+			geos_write_point(std::forward<E>(ref), backTrackPoints.back());
+			backTrackPoints.pop_back();
+		}
+	}
+	return firstBackTrackPoint;
 }
 
 template <dms_sequence E>
@@ -315,23 +361,21 @@ void geos_assign_mp(E&& ref, const geos::geom::MultiPolygon* mp)
 	for (SizeT i = 0; i != polygonCount; ++i)
 	{
 		const auto* poly = mp->getGeometryN(i);
-		count += poly->getExteriorRing()->getNumPoints();
-		for (SizeT ir=0, irCount = poly->getNumInteriorRing(); ir != irCount; ++ir)
-			count += poly->getInteriorRingN(ir)->getNumPoints() + 1;
+		auto nrOuterPoints = poly->getExteriorRing()->getNumPoints();
+		if (nrOuterPoints > 3)
+		{
+			count += nrOuterPoints;
+			for (SizeT ir = 0, irCount = poly->getNumInteriorRing(); ir != irCount; ++ir)
+			{
+				auto nrInnerPoints = poly->getInteriorRingN(ir)->getNumPoints();
+				if (nrInnerPoints > 3)
+					count += nrInnerPoints + 1;
+			}
+		}
 	}
 
 	ref.reserve(count);
-
-	for (SizeT i = 0; i != polygonCount; ++i)
-	{
-		const auto* poly = debug_cast<const geos::geom::Polygon*>(mp->getGeometryN(i));
-		geos_write_polygon_with_holes(ref, poly);
-	}
-	--polygonCount;
-	while (polygonCount)
-		geos_write_back(ref, debug_cast<const geos::geom::Polygon*>(mp->getGeometryN(--polygonCount))->getExteriorRing());
-
-	assert(ref.size() == count);
+	geos_write_mp(std::move(ref), mp);
 }
 
 /*
@@ -357,31 +401,53 @@ inline void cleanupPolygons(std::unique_ptr<geos::geom::Geometry>& r)
 }
 
 template <typename E>
-void geos_write_geometry(E&& ref, const geos::geom::Geometry* geometry)
+auto geos_write_geometry(E&& ref, const geos::geom::Geometry* geometry) -> std::optional<geos::geom::Coordinate>
 {
 	if (!geometry || geometry->isEmpty())
-		return;
+		return {};
+
+	if (auto mp = dynamic_cast<const geos::geom::MultiPolygon*>(geometry))
+		return geos_write_mp(std::forward<E>(ref), mp);
 
 	if (auto gc = dynamic_cast<const geos::geom::GeometryCollection*>(geometry))
 	{
+		std::vector<geos::geom::Coordinate> backTrackPoints;
+
+		std::optional<geos::geom::Coordinate> firstBackTrackPoint;
 		for (SizeT i = 0, n = gc->getNumGeometries(); i != n; ++i)
-			geos_write_geometry(ref, gc->getGeometryN(i));
-		return;
+		{
+			auto backTrackPoint = geos_write_geometry(std::forward<E>(ref), gc->getGeometryN(i));
+			if (backTrackPoint)
+			{
+				if (!firstBackTrackPoint)
+					firstBackTrackPoint = *backTrackPoint;
+				backTrackPoints.emplace_back(*backTrackPoint);
+			}
+		}
+		if (!backTrackPoints.empty())
+		{
+			backTrackPoints.pop_back();
+			while (!backTrackPoints.empty())
+			{
+				geos_write_point(std::forward<E>(ref), backTrackPoints.back());
+				backTrackPoints.pop_back();
+			}
+		}
+		return firstBackTrackPoint;
 	}
+
 	if (auto poly = dynamic_cast<const geos::geom::Point*>(geometry))
-	{
-		return;
-	}
-	if (auto mp = dynamic_cast<const geos::geom::MultiPolygon*>(geometry))
-	{
-		geos_write_mp(std::forward<E>(ref), mp);
-		return;
-	}
+		return {};
+
 	if (auto poly = dynamic_cast<const geos::geom::Polygon*>(geometry))
-	{
-		geos_write_polygon_with_holes(std::forward<E>(ref), poly);
-		return;
-	}
+		return geos_write_polygon_with_holes(std::forward<E>(ref), poly);
+
+	if (auto lr = dynamic_cast<const geos::geom::LinearRing*>(geometry))
+		return geos_write_lr(std::forward<E>(ref), lr);
+
+	if (auto lr = dynamic_cast<const geos::geom::LineString*>(geometry))
+		return {};
+
 	throwDmsErrF("geos_write_geometry: unsupported geometry type: %s", geometry->toText().c_str());
 }
 
@@ -406,19 +472,45 @@ void geos_assign_geometry(E&& ref, const geos::geom::Geometry* geometry)
 }
 
 template <typename RI>
-auto geos_split_assign_mp(RI resIter, const geos::geom::MultiPolygon* mp) -> RI
+auto geos_split_write_mp(RI resIter, const geos::geom::MultiPolygon* mp) -> RI
 {
-	auto np = mp->getNumGeometries();
-	for (SizeT i = 0; i != np; ++i)
+	for (SizeT i = 0, np = mp->getNumGeometries(); i != np; ++i)
 	{
-		const auto* poly = dynamic_cast<const geos::geom::Polygon*>(mp->getGeometryN(i));
-		if (poly)
-		{
-			geos_assign_polygon_with_holes(*resIter, poly);
+		auto backTrackPtr = geos_write_polygon_with_holes(*resIter, mp->getGeometryN(i));
+		if (backTrackPtr)
 			++resIter;
-		}
 	}
 	return resIter;
+}
+
+template <typename RI>
+auto geos_split_write_geometry(RI resIter, const geos::geom::Geometry* geometry) -> RI
+{
+	if (auto mp = dynamic_cast<const geos::geom::MultiPolygon*>(geometry))
+		return geos_split_write_mp(resIter, mp);
+
+	if (auto poly = dynamic_cast<const geos::geom::Polygon*>(geometry))
+	{
+		geos_write_polygon_with_holes(*resIter, poly);
+		return ++resIter;
+	}
+	if (auto gc = dynamic_cast<const geos::geom::GeometryCollection*>(geometry))
+	{
+		for (SizeT i = 0, n = gc->getNumGeometries(); i != n; ++i)
+			resIter = geos_split_write_geometry(resIter, gc->getGeometryN(i));
+
+		return resIter;
+	}
+	if (auto poly = dynamic_cast<const geos::geom::LinearRing*>(geometry))
+	{
+		auto backTrackPoint = geos_write_lr(*resIter, poly);
+		if (backTrackPoint)
+			return ++resIter;
+	}
+	if (auto gc = dynamic_cast<const geos::geom::Point*>(geometry))
+		return resIter;
+
+	throwDmsErrF("geos_split_write_geometry: unsupported geometry type: %s", geometry->toText().c_str());
 }
 
 template <typename RI>
@@ -429,22 +521,14 @@ auto geos_split_assign_geometry(RI resIter, const geos::geom::Geometry* geometry
 		return resIter;
 
 	if (auto mp = dynamic_cast<const geos::geom::MultiPolygon*>(geometry))
-		return geos_split_assign_mp(resIter, mp);
+		return geos_split_write_mp(resIter, mp);
 
 	if (auto poly = dynamic_cast<const geos::geom::Polygon*>(geometry))
 	{
 		geos_assign_polygon_with_holes(*resIter, poly);
 		return ++resIter;
 	}
-	if (auto gc = dynamic_cast<const geos::geom::GeometryCollection*>(geometry))
-	{
-		auto mp = getPolygonsFromGeometryCollection(gc);
-		return geos_split_assign_mp(resIter, mp.get());
-	}
-	if (auto gc = dynamic_cast<const geos::geom::Point*>(geometry))
-		return resIter;
-
-	throwDmsErrF("geos_split_assign_geometry: unsupported geometry type: %s", geometry->toText().c_str());
+	return geos_split_write_geometry(resIter, geometry);
 }
 
 struct geos_intersection {
