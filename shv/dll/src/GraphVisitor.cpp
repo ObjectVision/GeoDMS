@@ -46,6 +46,9 @@
 
 inline GRect SelectPoint2Rect(GPoint clipPoint)
 {
+	if (!IsDefined(clipPoint))
+		return GRect();
+
 	return GRect(
 		clipPoint, 
 		clipPoint + GPoint(1,1) 
