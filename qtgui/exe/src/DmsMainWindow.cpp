@@ -641,6 +641,8 @@ void MainWindow::stepToFailReason() {
     if (!WasInFailed(ti))
         return;
 
+    SuspendTrigger::Resume();
+
     BestItemRef result = TreeItem_GetErrorSourceCaller(ti);
     if (result.first) {
         if (result.first->IsCacheItem())

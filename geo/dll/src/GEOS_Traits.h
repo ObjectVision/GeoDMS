@@ -25,6 +25,10 @@
 
 inline auto geos_factory() -> const geos::geom::GeometryFactory*
 {
+	// Create a GeometryFactory with the precision model
+//	static auto pm = std::make_unique<geos::geom::PrecisionModel>(1024.0);
+//	static auto geometryFactory = geos::geom::GeometryFactory::create(pm.get());
+//	return geometryFactory.get();
 	return geos::geom::GeometryFactory::getDefaultInstance();
 }
 
