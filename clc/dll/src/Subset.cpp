@@ -476,7 +476,21 @@ struct CollectWithAttrOperator : public BinaryOperator
 				continue;
 			subDataItem->UpdateMetaInfo();
 			if (!sourceDomain->UnifyDomain(subDataItem->GetAbstrDomainUnit()))
+			{
+				if (m_CollectMode == collect_mode::org_rel)
+					reportF(SeverityTypeID::ST_Warning, "%s: image of org_rel is %s, which is incompatible with the domain of attribute %s, which is %s"
+						, GetGroup()->GetNameStr()
+						, subDataItem->GetFullName().c_str()
+						, subDataItem->GetAbstrDomainUnit()->GetFullName().c_str()
+					);
+				else
+					reportF(SeverityTypeID::ST_Warning, "%s: domain of condition is %s, which is incompatible with the domain of attribute %s, which is %s"
+					,	GetGroup()->GetNameStr()
+					,	subDataItem->GetFullName().c_str()
+					,	subDataItem->GetAbstrDomainUnit()->GetFullName().c_str()
+					);
 				continue;
+			}
 			auto resSub = CreateDataItem(resultHolder, subDataID, domainA, subDataItem->GetAbstrValuesUnit(), subDataItem->GetValueComposition());
 
 			SharedStr collectExpr;
