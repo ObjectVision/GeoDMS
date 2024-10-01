@@ -514,7 +514,10 @@ auto geos_split_write_geometry(RI resIter, const geos::geom::Geometry* geometry)
 	if (auto gc = dynamic_cast<const geos::geom::Point*>(geometry))
 		return resIter;
 
-	throwDmsErrF("geos_split_write_geometry: unsupported geometry type: %s", geometry->toText().c_str());
+	if (geometry)
+		throwDmsErrF("geos_split_write_geometry: unsupported geometry type: %s", geometry->toText().c_str());
+
+	return resIter;
 }
 
 template <typename RI>
