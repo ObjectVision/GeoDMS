@@ -39,6 +39,7 @@ namespace {
 }
 
 static TokenID s_PartNr = GetTokenID_st("PartNr");
+static TokenID s_PartRel = GetTokenID_st("part_rel");
 static TokenID s_PartLink = GetTokenID_st("PartLink");
 static TokenID s_PartFromRel = GetTokenID_st("from_rel");
 static TokenID s_PartToRel = GetTokenID_st("to_rel");
@@ -82,7 +83,14 @@ public:
 		assert(res);
 		resultHolder = res;
 
-		AbstrDataItem* resSub = CreateDataItem(res, s_PartNr, arg1A->GetAbstrValuesUnit(), res);
+		AbstrDataItem* resSub = CreateDataItem(res, s_PartRel, arg1A->GetAbstrValuesUnit(), res);
+		resSub->SetTSF(TSF_Categorical);
+
+		AbstrDataItem* resSub_depreciated = CreateDataItem(res, s_PartNr, arg1A->GetAbstrValuesUnit(), res);
+		resSub_depreciated->SetReferredItem(resSub);
+		resSub_depreciated->SetTSF(TSF_Categorical);
+		resSub_depreciated->SetTSF(TSF_Depreciated);
+
 		MG_CHECK(resSub);
 
 		if (mustCalc)
@@ -366,7 +374,14 @@ public:
 		assert(res);
 		resultHolder = res;
 
-		AbstrDataItem* resSub = CreateDataItem(res, s_PartNr, arg1A->GetAbstrValuesUnit(), res);
+		AbstrDataItem* resSub = CreateDataItem(res, s_PartRel, arg1A->GetAbstrValuesUnit(), res);
+		resSub->SetTSF(TSF_Categorical);
+
+		AbstrDataItem* resSub_depreciated = CreateDataItem(res, s_PartNr, arg1A->GetAbstrValuesUnit(), res);
+		resSub_depreciated->SetReferredItem(resSub);
+		resSub_depreciated->SetTSF(TSF_Categorical);
+		resSub_depreciated->SetTSF(TSF_Depreciated);
+
 		MG_CHECK(resSub);
 
 		AbstrUnit* resSub2 = ResultSub2Type::GetStaticClass()->CreateUnit(res, s_PartLink); // PartLinks
