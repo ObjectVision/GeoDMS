@@ -2,8 +2,8 @@ echo on
 cls
 
 set DMS_VERSION_MAJOR=15
-set DMS_VERSION_MINOR=7
-set DMS_VERSION_PATCH=3
+set DMS_VERSION_MINOR=8
+set DMS_VERSION_PATCH=0
 
 set geodms_rootdir=%cd%
 
@@ -86,9 +86,5 @@ Call unit.bat %GeoDmsVersion% off
 cd %geodms_rootdir%
 echo on
 
-CHOICE /M  "Install test OK ? Ready to copy to OVSRV05?"
-if ErrorLevel 2 exit /B
-
-copy "distr\GeoDms%GeoDmsVersion%-Setup-x64.exe" "\\ovsrv05\SourceData\distr"
 
 pause "Klaar ?"
