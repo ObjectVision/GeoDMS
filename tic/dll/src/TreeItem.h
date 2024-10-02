@@ -433,19 +433,8 @@ public:
 #endif // MG_DEBUG_DATA
 
 
-	TIC_CALL const TreeItem* GetBackRef() const;
-	SharedStr GetFullCfgName() const
-	{
-		auto cfgItem = this;
-		while (cfgItem->IsCacheRoot())
-		{
-			auto backItem = cfgItem->GetBackRef();
-			if (!backItem)
-				break;
-			cfgItem = backItem;
-		}
-		return cfgItem->GetFullName();
-	}
+	TIC_CALL auto GetBackRef() const -> const TreeItem*;
+	TIC_CALL auto GetFullCfgName() const -> SharedStr override;
 //private: // TODO G8: encapsulate
 
 	TokenID                        m_ID;

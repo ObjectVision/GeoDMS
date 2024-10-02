@@ -142,8 +142,9 @@ void ErrMsg::TellWhere(const PersistentSharedObj* ptr)
 
 	if (m_FullName.empty())
 	{
-		m_FullName = ptr->GetFullName();
-		m_HasBeenReported = false;
+		m_FullName = ptr->GetFullCfgName();
+		if (!m_FullName.empty())
+			m_HasBeenReported = false; // we like to see this reported again with m_FullName
 	}
 }
 
@@ -282,7 +283,7 @@ void reportD_without_cancellation_check_impl(MsgCategory msgCat, SeverityTypeID 
 
 	if (contextStr.empty())
 		return;
-	*g_DebugStream << "\n" << contextStr;
+	*g_DebugStream << " " << contextStr;
 }
 
 RTC_CALL void reportD_without_cancellation_check(MsgCategory msgCat, SeverityTypeID st, CharPtr msg)

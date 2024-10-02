@@ -2447,6 +2447,19 @@ const TreeItem* TreeItem::GetBackRef() const
 	return m_BackRef;
 }
 
+auto TreeItem::GetFullCfgName() const -> SharedStr
+{
+	auto cfgItem = this;
+	while (cfgItem->IsCacheRoot())
+	{
+		auto backItem = cfgItem->GetBackRef();
+		if (!backItem)
+			break;
+		cfgItem = backItem;
+	}
+	return cfgItem->GetFullName();
+}
+
 void TreeItem::UpdateMetaInfoImpl2() const
 {
 	dbg_assert(IsMetaThread());

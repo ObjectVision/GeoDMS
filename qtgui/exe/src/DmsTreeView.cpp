@@ -583,7 +583,7 @@ DmsTreeView::DmsTreeView(QWidget* parent)
 	connect(this, &DmsTreeView::doubleClicked, this, &DmsTreeView::onDoubleClick);
 	connect(this, &DmsTreeView::customContextMenuRequested, this, &DmsTreeView::showTreeviewContextMenu);
 	
-	horizontalScrollBar()->setEnabled(true);
+//	horizontalScrollBar()->setEnabled(true); REMOVE, not required with the following policy
 	setHorizontalScrollBarPolicy(Qt::ScrollBarPolicy::ScrollBarAsNeeded);
 	header()->setStretchLastSection(false);
 	connect(header(), &QHeaderView::sectionClicked, this, &DmsTreeView::onHeaderSectionClicked);

@@ -449,6 +449,10 @@ DmsEventLog::DmsEventLog(QWidget* parent)
 	m_log->setSelectionRectVisible(true);
 	m_log->setSelectionMode(QAbstractItemView::ExtendedSelection);
 	m_log->setUniformItemSizes(true);
+//	m_log->horizontalScrollBar()->setEnabled(true);
+	m_log->setHorizontalScrollBarPolicy(Qt::ScrollBarPolicy::ScrollBarAsNeeded);
+	m_log->setHorizontalScrollMode(QListView::ScrollPerPixel);
+
 	connect(m_log->verticalScrollBar(), &QScrollBar::valueChanged, this, &DmsEventLog::onVerticalScrollbarValueChanged);
 
 	auto vertical_layout = new QVBoxLayout(this);

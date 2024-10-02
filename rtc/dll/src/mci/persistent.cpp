@@ -426,9 +426,10 @@ void Object::WriteObj(PolymorphOutStream&) const
 
 SharedStr PersistentSharedObj::GetSourceName() const
 {
-	if (GetParent())
+	auto fullCfgName = GetFullCfgName();
+	if (!fullCfgName.empty())
 		return
-			mySSPrintF("[[%s]]", GetFullName().c_str());
+			mySSPrintF("[[%s]]", fullCfgName.c_str());
 	TokenStr nameID = GetName();
 	return 
 		mySSPrintF("%s: %s"

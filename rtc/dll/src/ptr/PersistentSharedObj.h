@@ -19,9 +19,9 @@ public:
 	RTC_CALL SharedStr GetSourceName() const override;
 
 	// NON VIRTUAL ROUTINES BASED ON THE ABOVE INTERFACE
-	RTC_CALL SharedStr GetFullName() const;
-	RTC_CALL SharedStr GetPrefixedFullName() const;
-
+	RTC_CALL auto GetFullName() const -> SharedStr;
+	RTC_CALL auto GetPrefixedFullName() const->SharedStr;
+	virtual auto GetFullCfgName() const -> SharedStr { return GetFullName(); }
 	RTC_CALL const PersistentSharedObj* GetRoot() const;
 	RTC_CALL bool DoesContain(const PersistentSharedObj* subItemCandidate) const;
 
