@@ -434,7 +434,18 @@ public:
 
 
 	TIC_CALL const TreeItem* GetBackRef() const;
-
+	SharedStr GetFullCfgName() const
+	{
+		auto cfgItem = this;
+		while (cfgItem->IsCacheRoot())
+		{
+			auto backItem = cfgItem->GetBackRef();
+			if (!backItem)
+				break;
+			cfgItem = backItem;
+		}
+		return cfgItem->GetFullName();
+	}
 //private: // TODO G8: encapsulate
 
 	TokenID                        m_ID;
