@@ -374,7 +374,9 @@ struct ConnectPointOperator : AbstrConnectPointOperator
 
 		auto reporter = [&processTimer, point2Begin, point2End, t, tn = arg2A->GetAbstrDomainUnit()->GetNrTiles()](auto i) {
 			if (processTimer.PassedSecs(5))
-				reportF(SeverityTypeID::ST_MajorTrace, "Connect %s/%s points of tile %s/%s done", i, point2End - point2Begin, t, tn);
+				reportF(SeverityTypeID::ST_MajorTrace, "Connect %s/%s points of tile %s/%s done"
+					, AsString(i), AsString(point2End - point2Begin)
+					, AsString(t), AsString(tn));
 		};
 
 		parallel_for_if_separable<SizeT, UInt32>(0, point2End - point2Begin, [point2Begin, weights1, weights2, destBegin, resBuffer, &spIndex, &reporter](auto i)
@@ -811,7 +813,9 @@ public:
 							{
 								nrArg2 += nrUnreportedPoints;
 								nrUnreportedPoints = 0;
-								reportF(SeverityTypeID::ST_MajorTrace, "%s %s/%s points done", this->GetGroup()->GetName(), nrArg2, arg2Count);
+								reportF(SeverityTypeID::ST_MajorTrace, "%s %s/%s points done"
+									, this->GetGroup()->GetName()
+									, AsString(nrArg2), AsString(arg2Count));
 							}
 						}
 						nrArg2 += nrUnreportedPoints;
@@ -1127,7 +1131,9 @@ public:
 					if (hasNonVoidMaxDist)
 						++maxSqrDistPtr;
 					if (processTimer.PassedSecs(5))
-						reportF(SeverityTypeID::ST_MajorTrace, "Connect %s/%s points of tile %s/%s done", pointPtr - pointBegin, pointEnd - pointBegin, t, tn);
+						reportF(SeverityTypeID::ST_MajorTrace, "Connect %s/%s points of tile %s/%s done"
+							, AsString(pointPtr - pointBegin), AsString(pointEnd - pointBegin)
+							, AsString(t), AsString(tn));
 				}
 			}
 			dms_assert(!(resCutBegin < resStreetEnd));

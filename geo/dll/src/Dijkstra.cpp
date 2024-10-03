@@ -1203,7 +1203,9 @@ SizeT ProcessDijkstra(TreeItemDualRef& resultHolder
 				// ===================== report nrOrgZones every 5 seconds
 				zoneCount++;
 				if (processTimer.PassedSecs(5))
-					reportF(SeverityTypeID::ST_MajorTrace, "impedance_matrix %s %d of %d sources: resulted in %u od-pairs", actionMsg, zoneCount, ni.nrOrgZones, resultCount);
+					reportF(SeverityTypeID::ST_MajorTrace, "impedance_matrix %s %s of %s sources: resulted in %s od-pairs"
+						, actionMsg
+						, AsString(zoneCount), AsString(ni.nrOrgZones), AsString(resultCount));
 				&returnTokenOnExit;
 			}
 		));
@@ -1221,7 +1223,9 @@ SizeT ProcessDijkstra(TreeItemDualRef& resultHolder
 	if (OperationContext::CancelableFrame::CurrActiveCanceled())
 		return UNDEFINED_VALUE(SizeT);
 
-	reportF(SeverityTypeID::ST_MajorTrace, "impedance_matrix %s all %d sources: resulted in %u od-pairs", actionMsg, ni.nrOrgZones, resultCount);
+	reportF(SeverityTypeID::ST_MajorTrace, "impedance_matrix %s all %d sources: resulted in %s od-pairs"
+		, actionMsg
+		, AsString(ni.nrOrgZones), AsString(resultCount));
 
 	return resultCount;
 }
