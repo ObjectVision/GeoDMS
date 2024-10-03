@@ -185,7 +185,7 @@ protected:
 						}
 					}
 				);
-				reportF(SeverityTypeID::ST_MajorTrace, "%s with %s tiles of first argument and after matching %s/%s tiles of second argument, %s intersecting tiles were processed."
+				reportF(SeverityTypeID::ST_MajorTrace, "%s with %s tiles of first argument and after matching %s / %s tiles of second argument, %s intersecting tiles were processed."
 					, GetGroup()->GetNameStr()
 					, AsString(domain1Unit->GetNrTiles())
 					, AsString(u+1), AsString(ue)
@@ -663,7 +663,7 @@ void UnionPolygon(ResourceArrayHandle& r, SizeT n, const AbstrDataItem* polyData
 
 		if (s_ProcessTimer.PassedSecs(5))
 		{
-			reportF(SeverityTypeID::ST_MajorTrace, "%s: processed %s/%s sequences of tile %s/%s"
+			reportF(SeverityTypeID::ST_MajorTrace, "%s: processed %s / %s sequences of tile %s / %s"
 				, whosCalling->GetNameStr()
 				, AsString(pi - pb), AsString(pe - pb)
 				, AsString(t), AsString(polyDataA->GetAbstrDomainUnit()->GetNrTiles())
@@ -1141,7 +1141,7 @@ public:
 
 			if (s_ProcessTimer.PassedSecs(5))
 			{
-				reportF(SeverityTypeID::ST_MajorTrace, "%s: processed %s/%s sequences of tile %s/%s"
+				reportF(SeverityTypeID::ST_MajorTrace, "%s: processed %s / %s sequences of tile %s / %s"
 					, GetGroup()->GetName()
 					, AsString(i), AsString(domainCount)
 					, AsString(t), AsString(tn)
