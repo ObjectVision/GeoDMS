@@ -254,6 +254,9 @@
 
 [(combine_data _V _a _b) (value (add (mul (sub (int64 _a) (int64 (LowerBound (valuesUnit _a)))) (int64 (NrOfRows (valuesUnit _b)))) (sub (int64 _b)(int64 (LowerBound (valuesUnit _b))))) _V)]
 
+[[combine_data [_V [_a1 [_a2 [_a3 _T]]]]]  [combine_data [_V [(combine_data (combine_unit (valuesUnit _a) (valuesUnit _b) ) _a1 _a2) [_a3 _T]]]] ]
+
+
 // [(invert _X)              (rlookup (ID (ValuesUnit _X)) _X)]
 
 /*********** Rewrites for pseudo-aggregations ***********/
