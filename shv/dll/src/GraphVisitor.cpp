@@ -640,8 +640,8 @@ GraphVisitState GraphDrawer::DoDataItemColumn(DataItemColumn* dic)
 	if (!DoUpdateData())
 		return DoMovable(dic);
 
-	if (dic->PrepareThemeSetData(dic) == AVS_SuspendedOrFailed && SuspendTrigger::DidSuspend())
-		return GVS_Handled; // suspended: break  or failed: continue with the next layer
+	if (dic->PrepareThemeSetData(dic) == AVS_SuspendedOrFailed)
+		return GVS_Handled; // suspended: break  or failed: continue with the next column
 
 	const AbstrDataItem* indexAttr= dic->GetTableControl().lock().get()->GetIndexAttr();
 
