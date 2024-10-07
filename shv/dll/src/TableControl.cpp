@@ -1106,7 +1106,7 @@ SharedPtr<AbstrDataItem> TableControl::CreateIdAttr(const AbstrUnit* domain, con
 	if (!domain || domain->GetValueType() == ValueWrap<Void>::GetStaticClass())
 		return nullptr;
 
-	domain = GetUltimateSourceItem(domain);
+//	domain = GetUltimateSourceItem(domain);
 
 	auto dv = GetDataView().lock(); if (!dv) return nullptr;
 
