@@ -111,6 +111,14 @@ results in:
 
 const bool DMS_DEBUG_DISCRALLOC = MG_DEBUGCODE( true ||) false;
 
+enum class discr_alloc_version
+{ 
+	no_partition,
+	one_partition,
+	multiple_partitions_without_feasibility_test,
+	multiple_partitions_with_feasibility_test
+};
+
 // *****************************************************************************
 //									Helping structures
 // *****************************************************************************
@@ -457,6 +465,58 @@ struct regions_info_t : regions_info_base
 		}
 		return result;			
 	}
+};
+
+template <>
+struct regions_info_t<Void> : regions_info_base
+{
+	using atomic_region_id = Void;
+/*
+	using atomic_region_data_handle = typename DataArray<atomic_region_id>::locked_cseq_t;
+
+	WeakPtr<const TileFunctor<atomic_region_id> > m_AtomicRegionMapObj;
+	atomic_region_data_handle                     m_AtomicRegionMapData; // 1 per grid-cell           (==  n )
+	std::vector<partitioning_info_t<AR> >         m_Partitionings;       // 1 per Unique partitioning (==  p )
+	atomic_region_id                              m_NrUniqueRegions;     // #ur
+*/
+	UInt32 GetNrAtomicRegions() const { return 1; }
+	UInt32 GetNrPartitionings() const { return 1; }
+	UInt32 GetNrUniqueRegions() const { return 1; }
+
+	UInt32 GetRegionID(atomic_region_id ar, UInt32 p)       const { assert(p == 0);  return 0; }
+	UInt32 GetUniqueRegionID(atomic_region_id ar, UInt32 p) const { assert(p == 0);  return 0; }
+	const AbstrUnit* GetPartitioningUnit(UInt8 p)           const { return nullptr; }
+	const bi_graph& GetAr2UrBiGraph()                      const;
+
+	// ========== ErrorMsg helper funcs
+/*
+	SharedStr UniqueRegionStr(atomic_region_id ur) const
+	{
+		SharedStr result = mySSPrintF("Region %u ", ur);
+		UInt32 p;
+
+		for (p = 0; p != GetNrPartitionings(); ++p)
+		{
+			if (ur < m_Partitionings[p].m_NrRegions)
+				return result + ": " + m_Partitionings[p].GetRegionStr(ur);
+			ur -= m_Partitionings[p].m_NrRegions;
+		}
+		return result;
+	}
+
+	SharedStr AtomicRegionStr(atomic_region_id ar) const
+	{
+		SharedStr result = mySSPrintF("Atomic Region %u", ar);
+
+		for (UInt32 p = 0; p != GetNrPartitionings(); ++p)
+		{
+			result
+				+= SharedStr(p ? ", " : ": ")
+				+ m_Partitionings[p].GetRegionStr(m_Partitionings[p].GetRegionID(ar));
+		}
+		return result;
+	}
+	*/
 };
 
 template <typename S, typename AR, typename AT>
@@ -1156,7 +1216,7 @@ void PrepareClaims(htp_info_t<S, AR, AT>& htpInfo)
 		const AbstrUnit* partitioningUnit = htpInfo.GetPartitioningUnit( gg.m_PartitioningID );
 
 		gg.m_FirstClaimID = nrClaims;
-		gg.m_NrClaims = partitioningUnit->GetCount();
+		gg.m_NrClaims = partitioningUnit ? partitioningUnit->GetCount() : 1;
 		nrClaims += gg.m_NrClaims;
 	}
 
@@ -2528,8 +2588,8 @@ void StoreBidPricesCurrTile(htp_info_t<S, AR, AT>& htpInfo, AbstrDataObject* bid
 //									HitchcockTransportation operator
 // *****************************************************************************
 
-template <typename S, typename AR, typename AT>
-class HitchcockTransportationOperator : public UndenaryOperator
+template <typename S, discr_alloc_version DAV, typename AR, typename AT>
+class HitchcockTransportationOperator : public VariadicOperator
 {
 	typedef DataArray<SharedStr>  Arg1Type;          // ggTypes->name
 	typedef AbstrUnit             Arg2Type;          // domain of cells
@@ -2537,8 +2597,8 @@ class HitchcockTransportationOperator : public UndenaryOperator
 	typedef DataArray<S>          PriceType;         // suitability map type
 	typedef DataArray<UInt8>      Arg4Type;          // ggType -> partitioning
 	typedef DataArray<SharedStr>  Arg5Type;          // partitions->name
-	typedef Unit<AR>              Arg6Type;          // atomic regions to unique regions mapping container
-	typedef DataArray<AR>         Arg7Type;          // atomic regions map
+//	typedef Unit<AR>              Arg6Type;          // atomic regions to unique regions mapping container
+//	typedef DataArray<AR>         Arg7Type;          // atomic regions map
 	typedef DataArray<claim_type> ClaimType;         // Arg8 & 9 are containers with min resp. max claims; 
 	typedef DataArray<S>          Arg10Threshold;    // Cutoff threshold
 	                                              // arg11 is feasibility certificate
@@ -2553,23 +2613,49 @@ class HitchcockTransportationOperator : public UndenaryOperator
 	using htp_info_type = htp_info_t<S, AR, AT>;
 	const bool m_MustAdjust;
 
+	arg_index GetNrArguments() const
+	{
+		if constexpr (DAV == discr_alloc_version::no_partition)
+			return 6;
+		else if constexpr (DAV == discr_alloc_version::one_partition)
+			return 7;
+		else if constexpr (DAV == discr_alloc_version::multiple_partitions_without_feasibility_test)
+			return 10;
+		else
+		{
+			static_assert(DAV == discr_alloc_version::multiple_partitions_with_feasibility_test);
+			return 11;
+		}
+	}
+
 public:
 	HitchcockTransportationOperator(AbstrOperGroup* gr, bool mustAdjust)
-		:	UndenaryOperator(gr, ResultType::GetStaticClass(), 
-				Arg1Type::GetStaticClass(), // ggTypes->name array
-				Arg2Type::GetStaticClass(), // allocUnit
-				TreeItem::GetStaticClass(), // suitability maps
-				Arg4Type::GetStaticClass(), // ggTypes->partitions
-				Arg5Type::GetStaticClass(), // partitions->name
-				Arg6Type::GetStaticClass(), // atomicRegions to unique regions mapping container
-				Arg7Type::GetStaticClass(), // atomicRegions map
-				TreeItem::GetStaticClass(), // minClaim container
-				TreeItem::GetStaticClass(), // maxClaimContainer
-				Arg10Threshold::GetStaticClass(),  // cutoff threshold
-				TreeItem::GetStaticClass() // feasibility certificate
-			) 
+		:	VariadicOperator(gr, ResultType::GetStaticClass(), GetNrArguments()) 
 		,	m_MustAdjust(mustAdjust)
-	{}
+	{
+		ClassCPtr* argClsIter = m_ArgClasses.get();
+		*argClsIter++ = Arg1Type::GetStaticClass(); // ggTypes->name array
+		*argClsIter++ = Arg2Type::GetStaticClass(); // allocUnit
+		*argClsIter++ = TreeItem::GetStaticClass(); // suitability maps
+		if constexpr (DAV >= discr_alloc_version::multiple_partitions_without_feasibility_test)
+		{
+			*argClsIter++ = Arg4Type::GetStaticClass(); // ggTypes->partitions
+			*argClsIter++ = Arg5Type::GetStaticClass(); // partitions->name
+			*argClsIter++ = Unit<AR>::GetStaticClass(); // atomicRegions to unique regions mapping container
+		}
+		if constexpr (DAV >= discr_alloc_version::one_partition)
+		{
+			*argClsIter++ = DataArray<AR>::GetStaticClass(); // atomicRegions map
+		}
+		*argClsIter++ = TreeItem::GetStaticClass(); // minClaim container
+		*argClsIter++ = TreeItem::GetStaticClass(); // maxClaimContainer
+		*argClsIter++ = Arg10Threshold::GetStaticClass();  // cutoff threshold
+		if constexpr (DAV == discr_alloc_version::multiple_partitions_with_feasibility_test)
+		{
+			*argClsIter++ = TreeItem::GetStaticClass(); // feasibility certificate
+		}
+		assert(argClsIter == m_ArgClassesEnd);
+	}
 
 	void CreateResultCaller(TreeItemDualRef& resultHolder, const ArgRefs& args, OperationContext* fc, LispPtr) const override
 	{
@@ -2591,7 +2677,7 @@ public:
 		const AbstrDataItem* regionNamesA = AsDataItem(args[4]);
 		dms_assert(regionNamesA);
 
-		const Unit<AR>* atomicRegionUnit = debug_cast<const Arg6Type*>(GetItem(args[5]));
+		const Unit<AR>* atomicRegionUnit = debug_cast<const Unit<AR>*>(GetItem(args[5]));
 		dms_assert(atomicRegionUnit);
 //		fc->AddDependency(atomicRegionUnit->GetAsLispExpr()); is al implicit dependency as being calculating argument
 
@@ -2652,17 +2738,12 @@ public:
 
 	bool CalcResult(TreeItemDualRef& resultHolder, ArgRefs args, std::vector<ItemReadLock> readLocks, OperationContext* fc, Explain::Context* context) const override
 	{
-		dms_assert(args.size() == 11);
+		assert(args.size() == GetNrArguments());
 		htp_info_type& htpInfo = *noncopyable_any_cast<htp_info_type>(&fc->m_MetaInfo);
-
-		const Unit<AR>* atomicRegionUnit = debug_cast<const Arg6Type*>(GetItem(args[5]));
-//		dms_assert(atomicRegionUnit->GetCurrRangeItem()->DataAllocated());
-
-		const AbstrDataItem* atomicRegionMapA = AsDataItem(args[6]);
 
 //	Recreate result MetaInfo
 		TreeItem* res = resultHolder.GetNew();
-		dms_assert(res);
+		assert(res);
 
 		AbstrDataItem* resLanduse = AsDataItem(res->GetSubTreeItemByID(GetTokenID_mt("landuse")));
 
@@ -2686,7 +2767,12 @@ public:
 			reportD(SeverityTypeID::ST_MajorTrace, "DiscrAlloc.Prepare started");
 
 			PrepareClaims(htpInfo);
-			PreparePartitionings(htpInfo, atomicRegionMapA, atomicRegionUnit);
+			if constexpr (DAV >= discr_alloc_version::one_partition)
+			{
+				auto atomicRegionUnit = debug_cast<const Unit<AR>*>(GetItem(args[5]));
+				const AbstrDataItem* atomicRegionMapA = AsDataItem(args[6]);
+				PreparePartitionings(htpInfo, atomicRegionMapA, atomicRegionUnit);
+			}
 
 			isFeasible = FeasibilityTest(htpInfo, strStatus);
 			if (!isFeasible)
@@ -2827,21 +2913,26 @@ namespace
 	SpecialOperGroup greedyGroup("greedy_alloc", 11, da_oap, oper_policy::better_not_in_meta_scripting);
 	SpecialOperGroup greedyGroup_16("greedy_alloc_16", 11, da_oap, oper_policy::better_not_in_meta_scripting);
 
+	template <typename S, discr_alloc_version DAV, typename AR>
+	struct HitchcockTransportationOperatorSetje
+	{
+		HitchcockTransportationOperator<S, DAV, AR, UInt8> 
+			htpDefault = { &hitchcockGroup, true },
+			htpGreedy = { &greedyGroup, false };
+		HitchcockTransportationOperator<S, DAV, AR, UInt16> 
+			htpDefault16 = { &hitchcockGroup_16, true },
+			htpGreedy16 = {&greedyGroup_16, false};
+	};
+
 	template <typename S, typename AR>
 	struct HitchcockTransportationOperators
 	{
-		HitchcockTransportationOperators()
-			: htpDefault(&hitchcockGroup, true)
-			, htpDefault16(&hitchcockGroup_16, true) // only do untiled for large choice sets, don't expect this to run on Win32 anyway.
-			, htpGreedy(&greedyGroup, false)
-			, htpGreedy16(&greedyGroup_16, false) // only do untiled for large choice sets, don't expect this to run on Win32 anyway.
-		{}
-
-
-		HitchcockTransportationOperator<S, AR, UInt8> htpDefault, htpGreedy;
-		HitchcockTransportationOperator<S, AR, UInt16> htpDefault16, htpGreedy16;
+		HitchcockTransportationOperatorSetje<S, discr_alloc_version::one_partition                          , AR> htpOnePartition;
+		HitchcockTransportationOperatorSetje<S, discr_alloc_version::multiple_partitions_without_feasibility_test, AR> htpManyPartitionsNoFeasibilityTest;
+		HitchcockTransportationOperatorSetje<S, discr_alloc_version::multiple_partitions_with_feasibility_test   , AR> htpManyPartitionsWithFeasibilityTest;
 	};
 
+	HitchcockTransportationOperatorSetje<Int32, discr_alloc_version::no_partition, Void> htpNoPartition;
 	HitchcockTransportationOperators<Int32, UInt32> htp3232;
 	HitchcockTransportationOperators<Int32, UInt16> htp3216;
 	HitchcockTransportationOperators<Int32, UInt8 > htp3208;
