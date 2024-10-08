@@ -400,14 +400,14 @@ void WriteLispRefExpr(OutStreamBase& stream, LispPtr lispExpr)
 
 TIC_CALL void(*s_AnnotateExprFunc)(OutStreamBase& outStream, const TreeItem* searchContext, SharedStr expr);
 
-const TreeItem* GetExprOrSourceDescrAndReturnSourceItem(OutStreamBase& stream, const TreeItem* ti)
+const TreeItem* WriteExprOrSourceDescrAndReturnSourceItem(OutStreamBase& stream, const TreeItem* ti)
 {
-	SharedStr result = ti->GetExpr();
-	if (!result.empty())
+	SharedStr exprStr = ti->GetExpr();
+	if (!exprStr.empty())
 	{
 		assert(s_AnnotateExprFunc);
-		s_AnnotateExprFunc(stream, AbstrCalculator::GetSearchContext(ti, CalcRole::Calculator), result);
-		if (AbstrCalculator::MustEvaluate(result.begin()))
+		s_AnnotateExprFunc(stream, AbstrCalculator::GetSearchContext(ti, CalcRole::Calculator), exprStr);
+		if (AbstrCalculator::MustEvaluate(exprStr.begin()))
 		{
 			NewLine(stream);
 			NewLine(stream);
@@ -467,7 +467,7 @@ const TreeItem* GetExprOrSourceDescrAndReturnSourceItem(OutStreamBase& stream, c
 	return nullptr;
 }
 
-void GetExprOrSourceDescr(OutStreamBase& stream, const TreeItem* self)
+void WriteExprOrSourceDescr(OutStreamBase& stream, const TreeItem* self)
 {
 	XML_OutElement details(stream, "details");
 
@@ -475,7 +475,7 @@ void GetExprOrSourceDescr(OutStreamBase& stream, const TreeItem* self)
 	{
 		XML_OutElement summary(stream, "summary");
 
-		si = GetExprOrSourceDescrAndReturnSourceItem(stream, self);
+		si = WriteExprOrSourceDescrAndReturnSourceItem(stream, self);
 	}
 
 	while (si)
@@ -521,15 +521,37 @@ void GetExprOrSourceDescr(OutStreamBase& stream, const TreeItem* self)
 	}
 }
 
-void GetExprOrSourceDescrRow(XML_Table& xmlTable, const TreeItem* ti)
+void WriteIntegrityCheck(OutStreamBase& stream, AbstrCalculatorRef icCalc)
 {
-	XML_Table::Row exprRow(xmlTable);
-	exprRow.OutStream().WriteAttr("bgcolor", CLR_HROW);
-	XML_Table::Row::Cell xmlElemTD(exprRow);
-	exprRow.OutStream().WriteTrimmed("CalculationRule");
-	//exprRow.ClickableCell("CalculationRule", "dms:Edit Definition");
-	XML_Table::Row::Cell xmlElemTD1(exprRow);
-	GetExprOrSourceDescr(xmlTable.OutStream(), ti);
+	icCalc->WriteHtmlExpr(stream);
+}
+
+void WriteExprOrSourceDescrRow(XML_Table& xmlTable, const TreeItem* ti)
+{
+	assert(ti);
+	{
+		XML_Table::Row exprRow(xmlTable);
+		exprRow.OutStream().WriteAttr("bgcolor", CLR_HROW);
+		XML_Table::Row::Cell xmlExprElemTD(exprRow);
+		exprRow.OutStream().WriteTrimmed("CalculationRule");
+
+		//exprRow.ClickableCell("CalculationRule", "dms:Edit Definition");
+		XML_Table::Row::Cell xmlElemTD1(exprRow);
+		WriteExprOrSourceDescr(xmlTable.OutStream(), ti);
+	}
+	if (ti->HasIntegrityChecker())
+	{
+		auto icCalc = ti->GetIntegrityChecker();
+
+		XML_Table::Row icRow(xmlTable);
+		icRow.OutStream().WriteAttr("bgcolor", CLR_HROW);
+		XML_Table::Row::Cell xmlicElemTD(icRow);
+		icRow.OutStream().WriteTrimmed("IntegrityCheck");
+
+		//exprRow.ClickableCell("CalculationRule", "dms:Edit Definition");
+		XML_Table::Row::Cell xmlElemTD1(icRow);
+		WriteIntegrityCheck(xmlTable.OutStream(), icCalc);
+	}
 }
 
 void GetLispRefRow(XML_Table& xmlTable, LispPtr lispExpr, CharPtr title)
@@ -654,7 +676,7 @@ bool TreeItem_XML_DumpGeneralBody(const TreeItem* self, OutStreamBase* xmlOutStr
 
 	// ==================== Calculation rule and/or Storage description
 	xmlTable.LinedRow();
-	GetExprOrSourceDescrRow(xmlTable, self);
+	WriteExprOrSourceDescrRow(xmlTable, self);
 
 	// ==================== Explicit Suppliers
 	if (self->HasSupplCache())

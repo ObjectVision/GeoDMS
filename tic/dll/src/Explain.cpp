@@ -883,7 +883,7 @@ namespace Explain { // local defs
 						XML_hRef supplRef(stream, ItemUrl(m_DataItem.get_ptr()).c_str());
 						stream << m_DataItem->GetName().c_str();
 					}
-					stream << " := ";  GetExprOrSourceDescr(stream, m_DataItem.get_ptr());
+					stream << " := ";  WriteExprOrSourceDescr(stream, m_DataItem.get_ptr());
 				}
 			}
 

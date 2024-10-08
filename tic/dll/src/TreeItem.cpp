@@ -2323,7 +2323,15 @@ auto TreeItem_CreateCheckedExpr(LispPtr resultExpr, const TreeItem* self) -> Lis
 		self->Fail("Failed to construct IntegryCheck", FR_Validate);
 		return resultExpr;
 	}
+
+	auto contextForReportingPurposes = TreeItemContextHandle(self, "Create IntegrityCheck");
+
 	auto ic = GetAsLispRef(icCalc->GetMetaInfo());
+	if (ic.EndP())
+	{
+		self->Fail("Failed to construct IntegryCheck", FR_Validate);
+		return resultExpr;
+	}
 	return ExprList(token::integrity_check, resultExpr, ic);
 }
 

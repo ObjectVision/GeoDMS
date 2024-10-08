@@ -141,8 +141,8 @@ struct XML_Table : XML_OutElement
 
 /********** helper funcs, implemented in XmlTreeOut.cpp    **********/
 
-void GetExprOrSourceDescr(OutStreamBase& stream, const TreeItem* ti);
-void GetExprOrSourceDescrRow(XML_Table& xmlTable, const TreeItem* ti);
+void WriteExprOrSourceDescr(OutStreamBase& stream, const TreeItem* ti);
+void WriteExprOrSourceDescrRow(XML_Table& xmlTable, const TreeItem* ti);
 void IncludeFileSave(const TreeItem* self, CharPtr fileName, SafeFileWriterArray* sfwa);
 
 extern TIC_CALL void(*s_AnnotateExprFunc)(OutStreamBase& outStream, const TreeItem* searchContext, SharedStr expr);

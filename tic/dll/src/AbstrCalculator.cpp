@@ -697,14 +697,14 @@ ActorVisitState AbstrCalculator::VisitImplSuppl(SupplierVisitFlag svf, const Act
 
 const TreeItem* AbstrCalculator::GetSearchContext(const TreeItem* holder, CalcRole cr)
 {
-	dms_assert(holder);
+	assert(holder);
 	const TreeItem* searchContext = holder->GetTreeParent();
 	if (searchContext && cr == CalcRole::ArgCalc)
 		searchContext = searchContext->GetTreeParent();
 	if (!searchContext)
 		searchContext = SessionData::Curr()->GetConfigRoot();
 
-	dms_assert(searchContext);
+	assert(searchContext);
 	return searchContext;
 }
 
