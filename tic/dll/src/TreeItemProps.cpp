@@ -1,31 +1,7 @@
-//<HEADER> 
-/*
-Data & Model Server (DMS) is a server written in C++ for DSS applications. 
-Version: see srv/dms/rtc/dll/src/RtcVersion.h for version info.
+// Copyright (C) 1998-2024 Object Vision b.v. 
+// License: GNU GPL 3
+/////////////////////////////////////////////////////////////////////////////
 
-Copyright (C) 1998-2004  YUSE GSO Object Vision BV. 
-
-Documentation on using the Data & Model Server software can be found at:
-http://www.ObjectVision.nl/DMS/
-
-See additional guidelines and notes in srv/dms/Readme-srv.txt 
-
-This library is free software; you can use, redistribute, and/or
-modify it under the terms of the GNU General Public License version 2 
-(the License) as published by the Free Software Foundation,
-provided that this entire header notice and readme-srv.txt is preserved.
-
-See LICENSE.TXT for terms of distribution or look at our web site:
-http://www.objectvision.nl/DMS/License.txt
-or alternatively at: http://www.gnu.org/copyleft/gpl.html
-
-This library is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
-General Public License for more details. However, specific warranties might be
-granted by an additional written contract for support, assistance and/or development
-*/
-//</HEADER>
 #include "TicPCH.h"
 
 #if defined(CC_PRAGMAHDRSTOP)
@@ -40,12 +16,31 @@ granted by an additional written contract for support, assistance and/or develop
 #include "TreeItemClass.h"
 #include "AbstrDataItem.h"
 #include "stg/AbstrStorageManager.h"
+#include "utl/mySPrintF.h"
+
 #include "AbstrUnit.h"
 #include "AbstrCalculator.h"
 #include "CopyTreeContext.h"
 #include "SupplCache.h"
 #include "StoredPropDef.h"
 #include "LispTreeType.h"
+
+class PropertyContextHandle : ObjectContextHandle
+{
+	using ObjectContextHandle::ObjectContextHandle;
+	void GenerateDescription() override
+	{
+		assert(m_Role);
+		assert(m_Obj);
+
+		this->SetText(
+			mySSPrintF("while evaluating '%s' for property %s"
+				, m_Role
+				, m_Obj->GetName().c_str()
+			)
+		);
+	}
+};
 
 //----------------------------------------------------------------------
 // Generic property functions
@@ -58,7 +53,11 @@ SharedStr TreeItemPropertyValue(const TreeItem* ti, const AbstrPropDef* pd)
 	{
 		SharedStr result = pd->GetValueAsSharedStr(ti);
 		if (pd->CanBeIndirect() && AbstrCalculator::MustEvaluate( result.c_str() ) )
-			result =  AbstrCalculator::EvaluatePossibleStringExpr(ti, result, CalcRole::Other);
+		{
+			auto contextForReportingPurposes = PropertyContextHandle(pd, result.c_str());
+
+			result = AbstrCalculator::EvaluatePossibleStringExpr(ti, result, CalcRole::Other);
+		}
 		if (!result.empty())
 			return result;
 
