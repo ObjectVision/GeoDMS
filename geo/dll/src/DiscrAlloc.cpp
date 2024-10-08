@@ -2184,9 +2184,9 @@ void DiscrAllocCells(htp_info_t<S, AR, AT>& htpInfo, UInt32 currI, UInt32 nextI)
 		// insert highestBidder into solution and queues
 		if (highestBidder == UNDEFINED_VALUE(UInt32) )
 		{
-			if (++htpInfo.m_NrBelowThreshold <= NR_BELOW_THRESHOLD_NOTIFICATIONS)
-				reportF(SeverityTypeID::ST_MajorTrace,
-					"DiscrAllocCells: all suitabilities of cell %u are below the threshold %d",
+			++htpInfo.m_NrBelowThreshold;
+			if (htpInfo.m_NrBelowThreshold <= NR_BELOW_THRESHOLD_NOTIFICATIONS)
+				reportF(SeverityTypeID::ST_MajorTrace, "DiscrAllocCells: all suitabilities of cell %u are below the threshold %d",
 					htpInfo.m_CurrPI, htpInfo.m_Threshold
 				); 
 			htpInfo.m_ResultArray[htpInfo.m_CurrPI] = UNDEFINED_VALUE(AT);
@@ -2714,10 +2714,10 @@ public:
 
 				if (htpInfo.m_NrBelowThreshold > 0)
 				{
-					reportF(SeverityTypeID::ST_MajorTrace, "%d units%s without land use type suitability above the threshold and therefore unallocated"
+					reportF(SeverityTypeID::ST_MajorTrace, "%d units%s with suitability for all categories below the threshold of %s and therefore unallocated"
 						, htpInfo.m_NrBelowThreshold
 						, htpInfo.m_NrBelowThreshold > NR_BELOW_THRESHOLD_NOTIFICATIONS ? ", of which only the first 5 were reported," : ""
-							
+						, AsString(threshold)
 					);
 				}
 				isFeasible = CheckAllClaims(htpInfo, &strStatus);
