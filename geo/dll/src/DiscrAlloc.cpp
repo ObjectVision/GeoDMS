@@ -358,7 +358,7 @@ struct regions_info_base
 		:	m_N()
 	{}
 
-	void PreparePermutation(SizeT n)
+	void PreparePermutation(land_unit_id n)
 	{
 		MG_CHECK(m_N == 0 || m_N == n);
 		m_N = n;
@@ -406,7 +406,7 @@ struct regions_info_base
 	cursor_type GetCursor() const { return cursor_type(m_CurrPI, m_PrevStep); }
 	void SetCursor(cursor_type c) {m_CurrPI = c.first; m_PrevStep = c.second; }
 
-	SizeT m_N;
+	land_unit_id m_N;
 	mutable SizeT m_StepSize = 1, m_CurrBase = 0, m_PrevStep = 0, m_CurrPI = 0;
 
 	SharedPtr<const AbstrDataItem> m_AtomicRegionMap;
@@ -432,6 +432,7 @@ struct regions_info_t : regions_info_base
 	UInt32 GetNrAtomicRegions() const { return m_AtomicRegionSizes.size(); }
 	UInt32 GetNrPartitionings() const { return m_Partitionings.size(); }
 	UInt32 GetNrUniqueRegions() const { return m_NrUniqueRegions; }
+	UInt32 GetAtomicRegionID(land_unit_id i) const { assert(i < m_N); return m_AtomicRegionMapData[i]; }
 
 	UInt32 GetRegionID(atomic_region_id ar, UInt32 p)       const { return m_Partitionings[p].GetRegionID(ar);      }
 	UInt32 GetUniqueRegionID(atomic_region_id ar, UInt32 p) const { return m_Partitionings[p].GetUniqueRegionID(ar);}
@@ -473,6 +474,7 @@ template <>
 struct regions_info_t<Void> : regions_info_base
 {
 	using atomic_region_id = Void;
+	using atomic_region_proxy = UInt32;
 /*
 	using atomic_region_data_handle = typename DataArray<atomic_region_id>::locked_cseq_t;
 
@@ -484,42 +486,28 @@ struct regions_info_t<Void> : regions_info_base
 	UInt32 GetNrAtomicRegions() const { return 1; }
 	UInt32 GetNrPartitionings() const { return 1; }
 	UInt32 GetNrUniqueRegions() const { return 1; }
+	atomic_region_proxy GetAtomicRegionID(land_unit_id i) const { assert(i < m_N); return 0; }
 
-	UInt32 GetRegionID      (UInt32 ar, UInt32 p) const { assert(ar == 0); assert(p == 0);  return 0; }
-	UInt32 GetUniqueRegionID(UInt32 ar, UInt32 p) const { assert(ar == 0); assert(p == 0);  return 0; }
+	UInt32 GetRegionID      (atomic_region_proxy ar, UInt32 p) const { assert(ar == 0); assert(p == 0);  return 0; }
+	UInt32 GetUniqueRegionID(atomic_region_proxy ar, UInt32 p) const { assert(ar == 0); assert(p == 0);  return 0; }
 	UInt32 GetUniqueRegionOffset(UInt32 p)                  const { assert(p == 0);  return 0; }
 	const AbstrUnit* GetPartitioningUnit(UInt8 p)           const { return nullptr; }
 	const bi_graph& GetAr2UrBiGraph()                      const;
 
 	// ========== ErrorMsg helper funcs
-/*
-	SharedStr UniqueRegionStr(atomic_region_id ur) const
-	{
-		SharedStr result = mySSPrintF("Region %u ", ur);
-		UInt32 p;
 
-		for (p = 0; p != GetNrPartitionings(); ++p)
-		{
-			if (ur < m_Partitionings[p].m_NrRegions)
-				return result + ": " + m_Partitionings[p].GetRegionStr(ur);
-			ur -= m_Partitionings[p].m_NrRegions;
-		}
+	SharedStr UniqueRegionStr(atomic_region_proxy ur) const
+	{
+		assert(ur == 0);
+		static auto result = SharedStr("Set of all land units");
 		return result;
 	}
 
-	SharedStr AtomicRegionStr(atomic_region_id ar) const
+	SharedStr AtomicRegionStr(atomic_region_proxy ar) const
 	{
-		SharedStr result = mySSPrintF("Atomic Region %u", ar);
-
-		for (UInt32 p = 0; p != GetNrPartitionings(); ++p)
-		{
-			result
-				+= SharedStr(p ? ", " : ": ")
-				+ m_Partitionings[p].GetRegionStr(m_Partitionings[p].GetRegionID(ar));
-		}
-		return result;
+		assert(ar == 0);
+		return UniqueRegionStr(0);
 	}
-	*/
 };
 
 template <typename S, typename AR, typename AT>
@@ -576,11 +564,15 @@ struct htp_info_t : regions_info_t<AR>
 	SharedStr GetClaimRangeStr(const claim<S>& cl) const
 	{
 		UInt32 ggTypeID = cl.m_ggTypeID;
+
+		SharedStr regionStr;
+		if constexpr (!std::is_same_v<AR, Void>)
+			regionStr = this->m_Partitionings[m_ggTypes[ggTypeID].m_PartitioningID].GetRegionStr(cl.m_RegionID);
+
 		return
 			mySSPrintF("ClaimRange(type %u (%s), %s) = [min %u, max %u]",
-				ggTypeID,
-				m_ggTypes[ggTypeID].m_strName.c_str(),
-				this->m_Partitionings[ m_ggTypes[ cl.m_ggTypeID ].m_PartitioningID ].GetRegionStr(cl.m_RegionID).c_str(),
+				ggTypeID, m_ggTypes[ggTypeID].m_strName.c_str(),
+				regionStr.c_str(),
 				cl.m_ClaimRange.first, cl.m_ClaimRange.second
 			);
 	}
@@ -1050,75 +1042,89 @@ auto GetClaimAttr(const TreeItem* claimSet, TokenID nameID) -> const AbstrDataIt
 
 template <typename S, typename AR, typename AT>
 void CreateResultingItems(
-	const AbstrDataItem*  ggTypeNamesA,
-	const AbstrUnit*      allocUnit,
-	const TreeItem*       suitabilitiesSet,
-	const TreeItem*       minClaimSet,
-	const TreeItem*       maxClaimSet,
-	const AbstrDataItem*  ggTypes2partitioningsA,
-	const AbstrDataItem*  partitioningNamesA,
-	const AbstrUnit*      atomicRegionUnit,
-	const AbstrDataItem*  atomicRegionMapA,
-	TreeItem*            resShadowPriceContainer,
-	TreeItem*            resTotalAllocatedContainer,
-	htp_info_t<S, AR, AT>&   htpInfo,
+	const AbstrDataItem* ggTypeNamesA,
+	const AbstrUnit* allocUnit,
+	const TreeItem* suitabilitiesSet,
+	const TreeItem* minClaimSet,
+	const TreeItem* maxClaimSet,
+	const AbstrDataItem* ggTypes2partitioningsA,
+	const AbstrDataItem* partitioningNamesA,
+	const AbstrUnit* atomicRegionUnit,
+	const AbstrDataItem* atomicRegionMapA,
+	TreeItem* resShadowPriceContainer,
+	TreeItem* resTotalAllocatedContainer,
+	htp_info_t<S, AR, AT>& htpInfo,
 	bool mustAdjust, OperationContext* fc
 )
 {
 	// init elementary data members
 	htpInfo.m_MapDomain = allocUnit;
-//	dms_assert(atomicRegionUnit);
+	//	dms_assert(atomicRegionUnit);
 	assert(minClaimSet);
 	assert(maxClaimSet);
 	assert(suitabilitiesSet);
 	SharedStr resultMsg;
 
 	// get array of partitionNames
-	DataReadLock partitioningNamesLock(partitioningNamesA);
-	const DataArray<SharedStr>* partitioningNames = const_array_cast<SharedStr>(partitioningNamesA);
-	UInt32 P = partitioningNames->GetDataRead().size();
-
-	htpInfo.m_Partitionings.reserve(P);
-	for (UInt32 p=0; p!=P; ++p)
+	DataReadLock partitioningNamesLock;
+	const DataArray<SharedStr>* partitioningNames = nullptr;
+	UInt32 P = 1;
+	if constexpr (!std::is_same_v<AR, Void>)
 	{
-		SharedStr partitioningName = partitioningNames->GetIndexedValue(p);
-		CDebugContextHandle context("discrete_alloc", partitioningName.c_str(), false);
-
-		const AbstrDataItem* regioRefDI = AsCheckedDataItem(atomicRegionUnit->GetConstSubTreeItemByID(GetTokenID_mt(partitioningName.c_str())));
-		if (!regioRefDI)
-			atomicRegionUnit->throwItemErrorF("SubItem expected with the name %s", partitioningName.c_str());
-		regioRefDI->UpdateMetaInfo();
-		fc->AddDependency(regioRefDI->GetCheckedDC());
-
-		if (!atomicRegionUnit->UnifyDomain(regioRefDI->GetAbstrDomainUnit(), "atomicRegionUnit", "Domain of regional partitioning thereof", UnifyMode(), &resultMsg))
-			throwErrorF("discrete_alloc", "unification of domain of partitoning %d(%s):\n%s\n with atomic region\n%s\n resulted in\n%s"
-				,	p, partitioningName, regioRefDI->GetSourceName()
-				,	atomicRegionUnit->GetSourceName()
-				,	resultMsg
-			);
-
-		htpInfo.m_Partitionings.push_back( partitioning_info_t<AR>(regioRefDI) );
-		if (htpInfo.m_Partitionings.back().m_ValuesLabelLock)
+		partitioningNamesLock = DataReadLock(partitioningNamesA);
+		partitioningNames = const_array_cast<SharedStr>(partitioningNamesA);
+		P = partitioningNames->GetDataRead().size();
+		htpInfo.m_Partitionings.reserve(P);
+		for (UInt32 p = 0; p != P; ++p)
 		{
-			fc->AddDependency(htpInfo.m_Partitionings.back().m_ValuesLabelLock->GetCheckedDC());
+			SharedStr partitioningName = partitioningNames->GetIndexedValue(p);
+			CDebugContextHandle context("discrete_alloc", partitioningName.c_str(), false);
+
+			const AbstrDataItem* regioRefDI = AsCheckedDataItem(atomicRegionUnit->GetConstSubTreeItemByID(GetTokenID_mt(partitioningName.c_str())));
+			if (!regioRefDI)
+				atomicRegionUnit->throwItemErrorF("SubItem expected with the name %s", partitioningName.c_str());
+			regioRefDI->UpdateMetaInfo();
+			fc->AddDependency(regioRefDI->GetCheckedDC());
+
+			if (!atomicRegionUnit->UnifyDomain(regioRefDI->GetAbstrDomainUnit(), "atomicRegionUnit", "Domain of regional partitioning thereof", UnifyMode(), &resultMsg))
+				throwErrorF("discrete_alloc", "unification of domain of partitoning %d(%s):\n%s\n with atomic region\n%s\n resulted in\n%s"
+					, p, partitioningName, regioRefDI->GetSourceName()
+					, atomicRegionUnit->GetSourceName()
+					, resultMsg
+				);
+
+			htpInfo.m_Partitionings.push_back(partitioning_info_t<AR>(regioRefDI));
+			if (htpInfo.m_Partitionings.back().m_ValuesLabelLock)
+			{
+				fc->AddDependency(htpInfo.m_Partitionings.back().m_ValuesLabelLock->GetCheckedDC());
+			}
 		}
+		assert(htpInfo.m_Partitionings.size() == P);
 	}
-	assert(htpInfo.m_Partitionings.size() == P);
+	else // AR == Void
+	{
+//		htpInfo.m_Partitionings.push_back(partitioning_info_t<AR>(nullptr));
+	}
 
 	// get array of ggTypeNames
 	DataReadLock ggTypesNameLock(ggTypeNamesA);
 	const DataArray<SharedStr>* ggTypeNames = const_array_cast<SharedStr>(ggTypeNamesA);
 
-	// get array of ggTypes2partitionings
-	DataReadLock ggTypes2partitioningsLock(ggTypes2partitioningsA);
-	const DataArray<UInt8>* ggTypes2partitionings = const_array_cast<UInt8>(ggTypes2partitioningsA);
+	DataReadLock ggTypes2partitioningsLock;
+	const DataArray<UInt8>* ggTypes2partitionings = nullptr;
 
-	if (!ggTypes2partitioningsA->GetAbstrDomainUnit()->UnifyDomain(ggTypeNamesA      ->GetAbstrDomainUnit(), "Domain of AllocationType partitioning (4th) attribute", "Domain of AllocationType name (1st) attribute", UnifyMode(), &resultMsg))
-		throwErrorF("discrete_alloc", "domains of Type->Name mapping (arg1):\n%s\nand Type->Partitioning mapping (arg4):\n%s\nincompatible: %s", ggTypeNamesA->GetSourceName(), ggTypes2partitioningsA->GetSourceName(), resultMsg);
+	if constexpr (!std::is_same_v<AR, Void>)
+	{
+		// get array of ggTypes2partitionings
+		ggTypes2partitioningsLock = DataReadLock(ggTypes2partitioningsA);
+		ggTypes2partitionings = const_array_cast<UInt8>(ggTypes2partitioningsA);
 
-	if (!ggTypes2partitioningsA->GetAbstrValuesUnit()->UnifyDomain(partitioningNamesA->GetAbstrDomainUnit(), "Values of AllocationType partitioning (4th) attribute", "Domain of Partition names (5th) attribute", UnifyMode(), &resultMsg))
-		throwErrorF("discrete_alloc", "values of Type->Partitioning mapping (arg4):\n%s\nand Partition->Names mapping (arg5):\n%s\nincompatible: %s", ggTypes2partitioningsA->GetSourceName(), partitioningNamesA->GetSourceName(), resultMsg);
+		if (!ggTypes2partitioningsA->GetAbstrDomainUnit()->UnifyDomain(ggTypeNamesA->GetAbstrDomainUnit(), "Domain of AllocationType partitioning (4th) attribute", "Domain of AllocationType name (1st) attribute", UnifyMode(), &resultMsg))
+			throwErrorF("discrete_alloc", "domains of Type->Name mapping (arg1):\n%s\nand Type->Partitioning mapping (arg4):\n%s\nincompatible: %s", ggTypeNamesA->GetSourceName(), ggTypes2partitioningsA->GetSourceName(), resultMsg);
 
+		if (!ggTypes2partitioningsA->GetAbstrValuesUnit()->UnifyDomain(partitioningNamesA->GetAbstrDomainUnit(), "Values of AllocationType partitioning (4th) attribute", "Domain of Partition names (5th) attribute", UnifyMode(), &resultMsg))
+			throwErrorF("discrete_alloc", "values of Type->Partitioning mapping (arg4):\n%s\nand Partition->Names mapping (arg5):\n%s\nincompatible: %s", ggTypes2partitioningsA->GetSourceName(), partitioningNamesA->GetSourceName(), resultMsg);
+	}
 	UInt32 K = ggTypeNames->GetDataRead().size();
 	htpInfo.m_ggTypes.resize(K);
 
@@ -1136,29 +1142,51 @@ void CreateResultingItems(
 		fc->AddDependency(minClaims->GetCheckedDC());
 		fc->AddDependency(maxClaims->GetCheckedDC());
 
-		auto partitioningID = ggTypes2partitionings->GetIndexedValue(j);
-		if (partitioningID >= htpInfo.GetNrPartitionings())
-			throwErrorF("discrete_alloc", "Partitioning reference %d for Type %s is not a valid index in %s", partitioningID, gg->m_NameID, partitioningNamesA->GetSourceName());
-		
-		gg->m_PartitioningID = partitioningID;
-		const AbstrUnit* partitioningUnit = htpInfo.GetPartitioningUnit( gg->m_PartitioningID );
+		const AbstrUnit* partitioningUnit = nullptr;
+		if constexpr (!std::is_same_v<AR, Void>)
+		{
+			auto partitioningID = ggTypes2partitionings->GetIndexedValue(j);
+			if (partitioningID >= htpInfo.GetNrPartitionings())
+				throwErrorF("discrete_alloc", "Partitioning reference %d for Type %s is not a valid index in %s", partitioningID, gg->m_NameID, partitioningNamesA->GetSourceName());
 
-		if (gg->m_diMinClaims && !partitioningUnit->UnifyDomain(gg->m_diMinClaims->GetAbstrDomainUnit(), "Partitioning", "Domain of Minimum Claim attribute", UnifyMode(), &resultMsg))
-			throwErrorF("discrete_alloc", "values of partitioning %s in AtomicRegions (arg6):\n%s\nand domain of minimum claim for %s (arg8):\n%s\nincompatible: %s"
-//				, partitioningID
-				, htpInfo.m_Partitionings[partitioningID].GetName()
-				, htpInfo.m_Partitionings[partitioningID].m_AtomicRegionPartitioningDI->GetSourceName()
-				, gg->m_NameID, gg->m_diMinClaims->GetSourceName()
-				, resultMsg
-			);
-		if (gg->m_diMaxClaims && !partitioningUnit->UnifyDomain(gg->m_diMaxClaims->GetAbstrDomainUnit(), "Partitioning", "Domain of Maximum Claim attribute", UnifyMode(), &resultMsg))
-			throwErrorF("discrete_alloc", "values of partitioning %s in AtomicRegions (arg6):\n%s\nand domain of maximum claim for %s (arg8):\n%s\nincompatible: %s"
-//				, partitioningID
-				, htpInfo.m_Partitionings[partitioningID].GetName()
-				, htpInfo.m_Partitionings[partitioningID].m_AtomicRegionPartitioningDI->GetSourceName()
-				, gg->m_NameID, gg->m_diMaxClaims->GetSourceName()
-				, resultMsg
-			);
+			gg->m_PartitioningID = partitioningID;
+
+			partitioningUnit = htpInfo.GetPartitioningUnit(gg->m_PartitioningID);
+			if (gg->m_diMinClaims && !partitioningUnit->UnifyDomain(gg->m_diMinClaims->GetAbstrDomainUnit(), "Partitioning", "Domain of Minimum Claim attribute", UnifyMode(), &resultMsg))
+				throwErrorF("discrete_alloc", "values of partitioning %s in AtomicRegions (arg6):\n%s\nand domain of minimum claim for %s (arg8):\n%s\nincompatible: %s"
+					//				, partitioningID
+					, htpInfo.m_Partitionings[partitioningID].GetName()
+					, htpInfo.m_Partitionings[partitioningID].m_AtomicRegionPartitioningDI->GetSourceName()
+					, gg->m_NameID, gg->m_diMinClaims->GetSourceName()
+					, resultMsg
+				);
+			if (gg->m_diMaxClaims && !partitioningUnit->UnifyDomain(gg->m_diMaxClaims->GetAbstrDomainUnit(), "Partitioning", "Domain of Maximum Claim attribute", UnifyMode(), &resultMsg))
+				throwErrorF("discrete_alloc", "values of partitioning %s in AtomicRegions (arg6):\n%s\nand domain of maximum claim for %s (arg8):\n%s\nincompatible: %s"
+					//				, partitioningID
+					, htpInfo.m_Partitionings[partitioningID].GetName()
+					, htpInfo.m_Partitionings[partitioningID].m_AtomicRegionPartitioningDI->GetSourceName()
+					, gg->m_NameID, gg->m_diMaxClaims->GetSourceName()
+					, resultMsg
+				);
+
+		}
+		else
+		{
+			partitioningUnit = Unit<Void>::GetStaticClass()->CreateDefault();
+
+			gg->m_PartitioningID = 0;
+
+			if (gg->m_diMinClaims && !gg->m_diMinClaims->HasVoidDomainGuarantee())
+				throwErrorF("discrete_alloc", "domain of minimum claim for %s not allowed for unpartitioned allocation, define claim as parameter and not as attribute.\n%s"
+					, gg->m_NameID
+					, gg->m_diMinClaims->GetSourceName()
+				);
+			if (gg->m_diMaxClaims && !gg->m_diMaxClaims->HasVoidDomainGuarantee())
+				throwErrorF("discrete_alloc", "domain of maximum claim for %s not allowed for unpartitioned allocation, define claim as parameter and not as attribute.\n%s"
+					, gg->m_NameID
+					, gg->m_diMaxClaims->GetSourceName()
+				);
+		}
 
 		gg->m_diSuitabilityMap = AsCertainDataItem(suitabilitiesSet->GetConstSubTreeItemByID(gg->m_NameID));
 		gg->m_diSuitabilityMap->UpdateMetaInfo();
@@ -2493,7 +2521,7 @@ void IncrementAtomicRegionCount(std::vector<UInt32>& atomicRegionCount, const re
 	// count per ar with stepSize
 	for (; i < e; regionInfo.GetNextPermutationValue(), ++i)
 	{
-		dms_assert(regionInfo.m_CurrPI < regionInfo.m_N);
+		assert(regionInfo.m_CurrPI < regionInfo.m_N);
 		UInt32 ar = regionInfo.m_AtomicRegionMapData[regionInfo.m_CurrPI];
 		if (ar >= atomicRegionCount.size())
 			regionInfo.m_AtomicRegionMap->GetAbstrValuesUnit()->throwItemErrorF(
@@ -2503,7 +2531,7 @@ void IncrementAtomicRegionCount(std::vector<UInt32>& atomicRegionCount, const re
 			);
 		++atomicRegionCount[ar];
 	}
-	dms_assert(regionInfo.m_CurrPI >= regionInfo.m_N);
+	assert(regionInfo.m_CurrPI >= regionInfo.m_N);
 }
 
 template <typename S, typename AR, typename AT>
@@ -2616,7 +2644,7 @@ void StoreBidPricesCurrTile(htp_info_t<S, AR, AT>& htpInfo, AbstrDataObject* bid
 		{
 			AT j = htpInfo.m_ResultArray[i];
 			if (IsDefined(j))
-				priceData[i] = htpInfo.m_ggTypes[j].m_Suitabilities[i] + htpInfo.GetClaim( htpInfo.m_AtomicRegionMapData[i], j).m_ShadowPrice.first;
+				priceData[i] = htpInfo.m_ggTypes[j].m_Suitabilities[i] + htpInfo.GetClaim( htpInfo.GetAtomicRegionID(i), j).m_ShadowPrice.first;
 			else
 				priceData[i] = UNDEFINED_VALUE(S);
 		}
