@@ -310,33 +310,6 @@ private:
 	ClassCPtr m_ArgClasses[10];
 };
 
-class UndenaryOperator : public Operator
-{
-public:
-	UndenaryOperator(AbstrOperGroup* gr, ClassCPtr resultCls,
-		ClassCPtr arg1Cls, ClassCPtr arg2Cls, ClassCPtr arg3Cls, 
-		ClassCPtr arg4Cls, ClassCPtr arg5Cls, ClassCPtr arg6Cls, 
-		ClassCPtr arg7Cls, ClassCPtr arg8Cls, ClassCPtr arg9Cls,
-		ClassCPtr arg10Cls, ClassCPtr arg11Cls)
-	:	Operator(gr, resultCls, m_ArgClasses, 11)
-	{
-		m_ArgClasses[0] = arg1Cls;
-		m_ArgClasses[1] = arg2Cls;
-		m_ArgClasses[2] = arg3Cls;
-		m_ArgClasses[3] = arg4Cls;
-		m_ArgClasses[4] = arg5Cls;
-		m_ArgClasses[5] = arg6Cls;
-		m_ArgClasses[6] = arg7Cls;
-		m_ArgClasses[7] = arg8Cls;
-		m_ArgClasses[8] = arg9Cls;
-		m_ArgClasses[9] = arg10Cls;
-		m_ArgClasses[10] = arg11Cls;
-	}
-
-private:
-	ClassCPtr m_ArgClasses[11];
-};
-
 
 class VariadicOperator : public Operator
 {

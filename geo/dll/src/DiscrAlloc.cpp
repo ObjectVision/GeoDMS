@@ -360,6 +360,7 @@ struct regions_info_base
 
 	void PreparePermutation(SizeT n)
 	{
+		MG_CHECK(m_N == 0 || m_N == n);
 		m_N = n;
 	}
 
@@ -434,6 +435,7 @@ struct regions_info_t : regions_info_base
 
 	UInt32 GetRegionID(atomic_region_id ar, UInt32 p)       const { return m_Partitionings[p].GetRegionID(ar);      }
 	UInt32 GetUniqueRegionID(atomic_region_id ar, UInt32 p) const { return m_Partitionings[p].GetUniqueRegionID(ar);}
+	UInt32 GetUniqueRegionOffset(UInt32 p)                  const { return m_Partitionings[p].m_UniqueRegionOffset; }
 	const AbstrUnit* GetPartitioningUnit(UInt8 p)           const { return m_Partitionings[p].GetPartitioningUnit();}
 	const bi_graph&  GetAr2UrBiGraph()                      const;
 
@@ -483,8 +485,9 @@ struct regions_info_t<Void> : regions_info_base
 	UInt32 GetNrPartitionings() const { return 1; }
 	UInt32 GetNrUniqueRegions() const { return 1; }
 
-	UInt32 GetRegionID(atomic_region_id ar, UInt32 p)       const { assert(p == 0);  return 0; }
-	UInt32 GetUniqueRegionID(atomic_region_id ar, UInt32 p) const { assert(p == 0);  return 0; }
+	UInt32 GetRegionID      (UInt32 ar, UInt32 p) const { assert(ar == 0); assert(p == 0);  return 0; }
+	UInt32 GetUniqueRegionID(UInt32 ar, UInt32 p) const { assert(ar == 0); assert(p == 0);  return 0; }
+	UInt32 GetUniqueRegionOffset(UInt32 p)                  const { assert(p == 0);  return 0; }
 	const AbstrUnit* GetPartitioningUnit(UInt8 p)           const { return nullptr; }
 	const bi_graph& GetAr2UrBiGraph()                      const;
 
@@ -545,8 +548,9 @@ struct htp_info_t : regions_info_t<AR>
 	std::vector<facet_id>                m_FacetIds;              // 1 per ggType^2 in each atomic region (== #ar * k *k)
 
 //	DataReadLockContainer               m_Locks;                 // contains locks on suitability maps
-	claim<S>& GetClaim(atomic_region_id ar, AT j)
+	claim<S>& GetClaim(UInt32 ar, AT j)
 	{ 
+		assert(ar < this->GetNrAtomicRegions());
 		ggType_info_t<S>& gg = m_ggTypes[j];
 		return m_Claims[SizeT(gg.m_FirstClaimID) + this->GetRegionID(ar, gg.m_PartitioningID)];
 	}
@@ -965,8 +969,8 @@ bool FeasibilityTest(const htp_info_t<S, AR, AT>& htpInfo, SharedStr& strStatus)
 			claimIter = htpInfo.m_Claims.begin() + ggTypeIter->m_FirstClaimID,
 			claimEnd  = claimIter                + ggTypeIter->m_NrClaims;
 
-		UInt32 uniqueRegionOffset = htpInfo.m_Partitionings[ggTypeIter->m_PartitioningID].m_UniqueRegionOffset;
-		dms_assert(uniqueRegionOffset + ggTypeIter->m_NrClaims <= nrUniqueRegions);
+		UInt32 uniqueRegionOffset = htpInfo.GetUniqueRegionOffset(ggTypeIter->m_PartitioningID);
+		assert(uniqueRegionOffset + ggTypeIter->m_NrClaims <= nrUniqueRegions);
 
 		auto
 			aggrMinClaimIter = aggrMinClaims.begin() + uniqueRegionOffset,
@@ -988,9 +992,9 @@ bool FeasibilityTest(const htp_info_t<S, AR, AT>& htpInfo, SharedStr& strStatus)
 	if (!ok)
 		return false;
 
-	dms_assert(htpInfo.m_AtomicRegionSizes.size() == gr.GetNrSrcNodes(dir_forward_tag()));
-	dms_assert(aggrMinClaims.size()     == gr.GetNrDstNodes(dir_forward_tag()));
-	dms_assert(aggrMaxClaims.size()     == gr.GetNrDstNodes(dir_forward_tag()));
+	assert(htpInfo.m_AtomicRegionSizes.size() == gr.GetNrSrcNodes(dir_forward_tag()));
+	assert(aggrMinClaims.size()     == gr.GetNrDstNodes(dir_forward_tag()));
+	assert(aggrMaxClaims.size()     == gr.GetNrDstNodes(dir_forward_tag()));
 
 	std::vector<UInt32>  srcAllocated(nrAtomicRegions, 0);
 	std::vector<UInt32>& allocatedPerLink = const_cast<htp_info_t<S, AR, AT>&>(htpInfo).m_PossibleAllocationPerAr2UrLink;
@@ -1063,10 +1067,10 @@ void CreateResultingItems(
 {
 	// init elementary data members
 	htpInfo.m_MapDomain = allocUnit;
-	dms_assert(atomicRegionUnit);
-	dms_assert(minClaimSet);
-	dms_assert(maxClaimSet);
-	dms_assert(suitabilitiesSet);
+//	dms_assert(atomicRegionUnit);
+	assert(minClaimSet);
+	assert(maxClaimSet);
+	assert(suitabilitiesSet);
 	SharedStr resultMsg;
 
 	// get array of partitionNames
@@ -1099,7 +1103,7 @@ void CreateResultingItems(
 			fc->AddDependency(htpInfo.m_Partitionings.back().m_ValuesLabelLock->GetCheckedDC());
 		}
 	}
-	dms_assert(htpInfo.m_Partitionings.size() == P);
+	assert(htpInfo.m_Partitionings.size() == P);
 
 	// get array of ggTypeNames
 	DataReadLock ggTypesNameLock(ggTypeNamesA);
@@ -1334,19 +1338,22 @@ void PrepareResultTileLock(htp_info_t<S, AR, AT>& htpInfo, bool initUndefined)
 template <typename S, typename AR, typename AT>
 void PrepareTileLock(htp_info_t<S, AR, AT>& htpInfo)
 {
-	const DataArray<AR>* atomicRegionObj = htpInfo.m_AtomicRegionMapObj;
-	dms_assert(atomicRegionObj);
-	htpInfo.m_AtomicRegionMapData = atomicRegionObj->GetDataRead();
-
-	htpInfo.PreparePermutation(htpInfo.m_AtomicRegionMapData.size());
+	if constexpr (!std::is_same_v<AR, Void>)
+	{
+		const DataArray<AR>* atomicRegionObj = htpInfo.m_AtomicRegionMapObj;
+		assert(atomicRegionObj);
+		htpInfo.m_AtomicRegionMapData = atomicRegionObj->GetDataRead();
+	}
 
 	UInt32 K = htpInfo.GetK();
+	MG_CHECK(K >= 1);
 
 	// suitabilityMaps
 	for (UInt32 j=0; j!=K; ++j)
 	{
 		ggType_info_t<S>& gg = htpInfo.m_ggTypes[j];
 		gg.m_Suitabilities = const_array_checked_cast<S>(gg.m_diSuitabilityMap)->GetDataRead();
+		htpInfo.PreparePermutation(gg.m_Suitabilities.size());
 	}
 
 	auto 
@@ -2045,6 +2052,37 @@ bool UpdateSplitterUp(htp_info_t<S, AR, AT>& htpInfo, claim<S>& root)
 //									DiscrAlloc
 // *****************************************************************************
 
+template <typename AR>
+struct ArOrVoid
+{
+	using type = AR;
+	static void Inc(const AR*& ptr)
+	{
+		assert(ptr);
+		++ptr;
+	}
+	static UInt32 Deref(const AR* ptr)
+	{
+		assert(ptr);
+		return *ptr;
+	}
+};
+
+template <>
+struct ArOrVoid<Void>
+{
+	using type = UInt32;
+	static void Inc(const UInt32* ptr)
+	{
+		assert(!ptr);
+	}
+	static UInt32 Deref(const UInt32* ptr)
+	{
+		assert(!ptr);
+		return 0;
+	}
+};
+
 struct DistFromOpt
 {
 	UInt32 nrLandUnits, nrSubOptimal, nrDueToBelowThreshold;
@@ -2066,15 +2104,17 @@ struct DistFromOpt
 		nrLandUnits += N;
 //			nrOptions   += (K-1)*N;
 
-		const AR* armIter = htpInfo.m_AtomicRegionMapData.begin();
+		const ArOrVoid<AR>::type* armIter = nullptr;
+		if constexpr (!std::is_same<AR, Void>::value)
+			armIter = htpInfo.m_AtomicRegionMapData.begin();
 
-		for(land_unit_id i=0; i < N; ++armIter, ++i) // cell index 0..N 
+		for(land_unit_id i=0; i < N; ArOrVoid<AR>::Inc(armIter), ++i) // cell index 0..N 
 		{
 			AT currBuyer = htpInfo.m_ResultArray[i];
 			if (!IsDefined(currBuyer))
 				continue;
 
-			AR ar = *armIter; 
+			UInt32 ar = ArOrVoid<AR>::Deref(armIter);
 
 			shadow_price<S> currPrice(htpInfo.m_ggTypes[currBuyer].m_Suitabilities[i], i*currBuyer);
 			totalSuit += currPrice;
