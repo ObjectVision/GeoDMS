@@ -568,7 +568,7 @@ ActorVisitState AbstrUnit::VisitLabelAttr(const ActorVisitor& visitor, SharedDat
 {
 	if (!labelLock)
 		labelLock = GetLabelAttr();
-	dms_assert(labelLock == this->GetCurrLabelAttr());
+	assert(labelLock == this->GetCurrLabelAttr());
 	return visitor.Visit(labelLock.get_ptr());
 }
 

@@ -351,6 +351,11 @@ struct partitioning_info_t
 		,	DisplayValue(pu, regionID, false, m_ValuesLabelLock, MAX_TEXTOUT_SIZE, lock).c_str()
 		);
 	}
+	SharedStr GetAtomicRegionStr(atomic_region_id ar) const
+	{
+		auto regionID = GetRegionID(ar);
+		return GetRegionStr(regionID);
+	}
 };
 
 
@@ -470,7 +475,7 @@ struct regions_info_t : regions_info_base
 		{
 			result
 				+=	SharedStr(p ? ", " : ": ")
-					+	m_Partitionings[p].GetRegionStr(m_Partitionings[p].GetRegionID(ar));
+					+	m_Partitionings[p].GetAtomicRegionStr(ar);
 		}
 		return result;			
 	}
@@ -1134,12 +1139,21 @@ void CreateResultingItems(
 		ggTypes2partitioningsLock = DataReadLock(ggTypes2partitioningsA);
 		ggTypes2partitionings = const_array_cast<partitioning_id>(ggTypes2partitioningsA);
 
-		if (!ggTypes2partitioningsA->GetAbstrDomainUnit()->UnifyDomain(ggTypeNamesA->GetAbstrDomainUnit(), "Domain of AllocationType partitioning (4th) attribute", "Domain of AllocationType name (1st) attribute", UnifyMode(), &resultMsg))
-			throwErrorF("discrete_alloc", "domains of Type->Name mapping (arg1):\n%s\nand Type->Partitioning mapping (arg4):\n%s\nincompatible: %s", ggTypeNamesA->GetSourceName(), ggTypes2partitioningsA->GetSourceName(), resultMsg);
+			if (!ggTypes2partitioningsA->GetAbstrDomainUnit()->UnifyDomain(ggTypeNamesA->GetAbstrDomainUnit(), "Domain of AllocationType partitioning (4th) attribute", "Domain of AllocationType name (1st) attribute", UnifyMode(), &resultMsg))
+				throwErrorF("discrete_alloc", "domains of Type->Name mapping (arg1):\n%s\nand Type->Partitioning mapping (arg4):\n%s\nincompatible: %s"
+					, ggTypeNamesA->GetSourceName()
+					, ggTypes2partitioningsA->GetSourceName()
+					, resultMsg
+				);
 
-		if (!ggTypes2partitioningsA->GetAbstrValuesUnit()->UnifyDomain(partitioningNamesA->GetAbstrDomainUnit(), "Values of AllocationType partitioning (4th) attribute", "Domain of Partition names (5th) attribute", UnifyMode(), &resultMsg))
-			throwErrorF("discrete_alloc", "values of Type->Partitioning mapping (arg4):\n%s\nand Partition->Names mapping (arg5):\n%s\nincompatible: %s", ggTypes2partitioningsA->GetSourceName(), partitioningNamesA->GetSourceName(), resultMsg);
-	}
+			if (!ggTypes2partitioningsA->GetAbstrValuesUnit()->UnifyDomain(partitioningNamesA->GetAbstrDomainUnit(), "Values of AllocationType partitioning (4th) attribute", "Domain of Partition names (5th) attribute", UnifyMode(), &resultMsg))
+				throwErrorF("discrete_alloc", "values of Type->Partitioning mapping (arg4):\n%s\nand Partition->Names mapping (arg5):\n%s\nincompatible: %s"
+					, ggTypes2partitioningsA->GetSourceName()
+					, partitioningNamesA->GetSourceName()
+					, resultMsg
+				);
+		}
+//	}
 	UInt32 K = ggTypeNames->GetDataRead().size();
 	htpInfo.m_ggTypes.resize(K);
 
@@ -1164,7 +1178,9 @@ void CreateResultingItems(
 		const AbstrUnit* partitioningUnit = nullptr;
 		if constexpr (!std::is_same_v<AR, Void>)
 		{
-			auto partitioningID = (ggTypes2partitioningsA) ? ggTypes2partitionings->GetIndexedValue(j) : partitioning_id(0);
+			partitioning_id partitioningID = 0;
+			if (ggTypes2partitionings)
+				partitioningID = ggTypes2partitionings->GetIndexedValue(j);
 			if (partitioningID >= htpInfo.GetNrPartitionings())
 			{
 				MG_CHECK(partitioningNamesA);
@@ -2820,6 +2836,8 @@ public:
 			atomicRegionMapA = AsDataItem(*argIter++);
 			MG_CHECK(atomicRegionMapA);
 		}
+		auto minClaimSet = GetItem(*argIter++); // arg 3, 5, or 7
+		auto maxClaimSet = GetItem(*argIter++); // arg 4, 6, or 8
 
 		if (!resultHolder)
 			resultHolder = TreeItem::CreateCacheRoot();
@@ -2859,8 +2877,7 @@ public:
 			ggTypeNamesA,
 			allocUnit,
 			GetItem(args[2]),       // suitability maps container
-			GetItem(argIter[0]),       // minClaimSet
-			GetItem(argIter[1]),       // maxClaimSet
+			minClaimSet, maxClaimSet,
 			ggTypes2partitioningsA, regionNamesA, atomicRegionUnit, atomicRegionMapA, // RegionGrids
 			resShadowPriceContainer,
 			resTotalAllocatedContainer,

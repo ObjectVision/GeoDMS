@@ -99,7 +99,7 @@ public:
 	TIC_CALL SharedStr GetProjectionStr       (FormattingFlags ff) const;
 	TIC_CALL auto GetUnitlabeledScalePair() const->UnitLabelScalePair;
 
-	TIC_CALL auto GetLabelAttr() const->SharedDataItemInterestPtr;
+	TIC_CALL auto GetLabelAttr() const -> SharedDataItemInterestPtr;
 	TIC_CALL auto GetCurrLabelAttr() const -> const AbstrDataItem*;
 	TIC_CALL ActorVisitState VisitLabelAttr(const ActorVisitor& visitor, SharedDataItemInterestPtr& labelLock) const;
 	TIC_CALL SharedStr GetLabelAtIndex(SizeT index, SharedDataItemInterestPtr& ipHolder, streamsize_t maxLen, GuiReadLock& lock) const;
