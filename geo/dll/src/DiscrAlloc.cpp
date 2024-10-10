@@ -1137,6 +1137,10 @@ void CreateResultingItems(
 		auto maxClaims = GetClaimAttr(maxClaimSet, gg->m_NameID);
 		gg->m_diMinClaims = minClaims;
 		gg->m_diMaxClaims = maxClaims;
+
+		if (minClaims->WasFailed(FR_Data)) minClaims->ThrowFail();
+		if (maxClaims->WasFailed(FR_Data)) maxClaims->ThrowFail();
+
 		fc->AddDependency(minClaims->GetCheckedDC());
 		fc->AddDependency(maxClaims->GetCheckedDC());
 

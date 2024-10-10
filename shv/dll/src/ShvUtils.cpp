@@ -722,9 +722,9 @@ TreeItem* CreateContainer_impl(TreeItem* container, const TreeItem* item)
 
 		if (container->DoesContain(item))
 			return const_cast<TreeItem*>(item);
-		auto configRoot = SessionData::Curr()->GetConfigRoot();
-		if (configRoot->DoesContain(item))
+		if (!item->IsCacheItem())
 		{
+			auto configRoot = item->GetRoot();
 			auto result = SafeCreateItemFromPath(container, item->GetRelativeName(configRoot).c_str());
 			assert(result);
 			return result;
