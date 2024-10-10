@@ -129,7 +129,7 @@ SharedStr DisplayValue(const AbstrUnit* au, const AbstrValue* valuePtr, bool use
 		if (!dynamic_cast<const ValueWrap<SharedStr>*>(valuePtr)) // used to indicate error or strings
 		{
 			if (!ipHolder)
-				ipHolder = au->GetLabelAttr();
+				ipHolder = au->GetCurrLabelAttr();
 			if (ipHolder)
 				return AsStrWithLabel(au, valuePtr, useMetric, ipHolder, maxLen, lock, result);
 		}

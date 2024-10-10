@@ -132,6 +132,7 @@ typedef UInt32             facet_code;  // set of #AR * k * k, which is renumber
 
 typedef Int32  perturbation_type; // Simulation of Simplicity, see Edelsbrunner, 1990
 typedef claim_type land_unit_id; // representation of number of units allocated to one class; must correspond with claim_type
+using partitioning_id = UInt8;
 
 const land_unit_id NR_BELOW_THRESHOLD_NOTIFICATIONS = 5;
 
@@ -295,55 +296,59 @@ struct partitioning_info_t
 
 	explicit partitioning_info_t(const AbstrDataItem* atomicRegionPartitioning)
 		:	m_AtomicRegionPartitioningDI (atomicRegionPartitioning)
-#if defined(MG_DEBUG)
-		,	md_NrAtomicRegions(0)
-#endif
+		,	m_PartitioningUnit(atomicRegionPartitioning->GetAbstrValuesUnit())
+	{
+		m_ValuesLabelLock = GetPartitioningUnit()->GetLabelAttr();
+	}
+	explicit partitioning_info_t(const AbstrUnit* atomicRegions)
+		: m_PartitioningUnit(atomicRegions)
 	{
 		m_ValuesLabelLock = GetPartitioningUnit()->GetLabelAttr();
 	}
 
-	partitioning_info_t(partitioning_info_t&& rhs) noexcept
-		:	m_AtomicRegionPartitioningDI  (std::move(rhs.m_AtomicRegionPartitioningDI  ))
-		,	m_AtomicRegionPartitioningData(std::move(rhs.m_AtomicRegionPartitioningData))
-		,	m_NrRegions(rhs.m_NrRegions)
-		,	m_UniqueRegionOffset(rhs.m_UniqueRegionOffset)
-		,	m_ValuesLabelLock(std::move(rhs.m_ValuesLabelLock))
-#if defined(MG_DEBUG)
-		,	md_NrAtomicRegions(rhs.md_NrAtomicRegions)
-#endif
-	{
-	}
-	const AbstrDataItem*              m_AtomicRegionPartitioningDI;
+	partitioning_info_t(partitioning_info_t&& rhs) noexcept = default;
+
+	const AbstrDataItem*              m_AtomicRegionPartitioningDI = nullptr;
+	const AbstrUnit*                  m_PartitioningUnit = nullptr;
 	OwningPtrSizedArray<UInt32>       m_AtomicRegionPartitioningData;
-	UInt32                            m_NrRegions;
-	atomic_region_id                  m_UniqueRegionOffset;
+	UInt32                            m_NrRegions = -1;
+	atomic_region_id                  m_UniqueRegionOffset = -1;
 	mutable SharedDataItemInterestPtr m_ValuesLabelLock;
 #if defined(MG_DEBUG)
-	UInt32                            md_NrAtomicRegions;
+	UInt32                            md_NrAtomicRegions = 0;
 #endif
 
 	void GetData()
 	{
-		DataReadLock lock(m_AtomicRegionPartitioningDI);
-		auto nrAtomicRegions = m_AtomicRegionPartitioningDI->GetCurrRefObj()->GetNrFeaturesNow();
-		MG_DEBUGCODE( md_NrAtomicRegions = nrAtomicRegions);
-		m_AtomicRegionPartitioningData = OwningPtrSizedArray<UInt32>(nrAtomicRegions, dont_initialize MG_DEBUG_ALLOCATOR_SRC("DiscrAlloc: m_AtomicRegionPartitioningData"));
-		m_AtomicRegionPartitioningDI->GetCurrRefObj()->GetValuesAsUInt32Array(tile_loc(0, 0), nrAtomicRegions, m_AtomicRegionPartitioningData.begin());
+		if (m_AtomicRegionPartitioningDI)
+		{
+			DataReadLock lock(m_AtomicRegionPartitioningDI);
+			auto nrAtomicRegions = m_AtomicRegionPartitioningDI->GetCurrRefObj()->GetNrFeaturesNow();
+			MG_DEBUGCODE(md_NrAtomicRegions = nrAtomicRegions);
+			m_AtomicRegionPartitioningData = OwningPtrSizedArray<UInt32>(nrAtomicRegions, dont_initialize MG_DEBUG_ALLOCATOR_SRC("DiscrAlloc: m_AtomicRegionPartitioningData"));
+			m_AtomicRegionPartitioningDI->GetCurrRefObj()->GetValuesAsUInt32Array(tile_loc(0, 0), nrAtomicRegions, m_AtomicRegionPartitioningData.begin());
+		}
+		else 
+		{
+			assert(m_PartitioningUnit);
+			auto nrAtomicRegions = m_PartitioningUnit->GetCount();
+			MG_DEBUGCODE(md_NrAtomicRegions = nrAtomicRegions);
+		}
 	}
 
-	TokenStr GetName()                            const { return m_AtomicRegionPartitioningDI->GetName(); }
-	const AbstrUnit* GetPartitioningUnit()        const { return m_AtomicRegionPartitioningDI->GetAbstrValuesUnit(); }
-	UInt32 GetRegionID(atomic_region_id ar)       const { dbg_assert(m_AtomicRegionPartitioningData && ar < md_NrAtomicRegions);
-	                                                      return m_AtomicRegionPartitioningData[ar]; }
-	UInt32 GetUniqueRegionID(atomic_region_id ar) const { return m_UniqueRegionOffset + GetRegionID(ar);             }
+	TokenStr GetName()                            const { return m_AtomicRegionPartitioningDI ? m_AtomicRegionPartitioningDI->GetName() : m_PartitioningUnit->GetName(); }
+	const AbstrUnit* GetPartitioningUnit()        const { return m_PartitioningUnit; }
+	UInt32 GetRegionID(atomic_region_id ar)       const { dbg_assert(ar < md_NrAtomicRegions);
+	                                                      return m_AtomicRegionPartitioningDI ? m_AtomicRegionPartitioningData[ar] : ar; }
+	UInt32 GetUniqueRegionID(atomic_region_id ar) const { assert(m_UniqueRegionOffset != -1);  return m_UniqueRegionOffset + GetRegionID(ar); }
 
 	SharedStr GetRegionStr(UInt32 regionID) const
 	{
 		GuiReadLock lock;
 		auto pu = AsUnit(GetPartitioningUnit()->GetCurrRangeItem());
 		return mySSPrintF("%s %s", 
-			GetName().c_str(),
-			DisplayValue(pu, regionID, false, m_ValuesLabelLock, MAX_TEXTOUT_SIZE, lock).c_str()
+			GetName().c_str()
+		,	DisplayValue(pu, regionID, false, m_ValuesLabelLock, MAX_TEXTOUT_SIZE, lock).c_str()
 		);
 	}
 };
@@ -436,10 +441,10 @@ struct regions_info_t : regions_info_base
 	UInt32 GetNrUniqueRegions() const { return m_NrUniqueRegions; }
 	UInt32 GetAtomicRegionID(land_unit_id i) const { assert(i < m_N); return m_AtomicRegionMapData[i]; }
 
-	UInt32 GetRegionID(atomic_region_id ar, UInt32 p)       const { return m_Partitionings[p].GetRegionID(ar);      }
-	UInt32 GetUniqueRegionID(atomic_region_id ar, UInt32 p) const { return m_Partitionings[p].GetUniqueRegionID(ar);}
-	UInt32 GetUniqueRegionOffset(UInt32 p)                  const { return m_Partitionings[p].m_UniqueRegionOffset; }
-	const AbstrUnit* GetPartitioningUnit(UInt8 p)           const { return m_Partitionings[p].GetPartitioningUnit();}
+	UInt32 GetRegionID(atomic_region_id ar, partitioning_id p)       const { return m_Partitionings[p].GetRegionID(ar);      }
+	UInt32 GetUniqueRegionID(atomic_region_id ar, partitioning_id p) const { return m_Partitionings[p].GetUniqueRegionID(ar);}
+	UInt32 GetUniqueRegionOffset(partitioning_id p)                  const { return m_Partitionings[p].m_UniqueRegionOffset; }
+	const AbstrUnit* GetPartitioningUnit(partitioning_id p)           const { return m_Partitionings[p].GetPartitioningUnit();}
 
 	// ========== ErrorMsg helper funcs
 
@@ -489,10 +494,10 @@ struct regions_info_t<Void> : regions_info_base
 	UInt32 GetNrUniqueRegions() const { return 1; }
 	atomic_region_proxy GetAtomicRegionID(land_unit_id i) const { assert(i < m_N); return 0; }
 
-	UInt32 GetRegionID      (atomic_region_proxy ar, UInt32 p) const { assert(ar == 0); assert(p == 0);  return 0; }
-	UInt32 GetUniqueRegionID(atomic_region_proxy ar, UInt32 p) const { assert(ar == 0); assert(p == 0);  return 0; }
-	UInt32 GetUniqueRegionOffset(UInt32 p)                  const { assert(p == 0);  return 0; }
-	const AbstrUnit* GetPartitioningUnit(UInt8 p)           const { return nullptr; }
+	UInt32 GetRegionID      (atomic_region_proxy ar, partitioning_id p) const { assert(ar == 0); assert(p == 0);  return 0; }
+	UInt32 GetUniqueRegionID(atomic_region_proxy ar, partitioning_id p) const { assert(ar == 0); assert(p == 0);  return 0; }
+	UInt32 GetUniqueRegionOffset(partitioning_id p)                  const { assert(p == 0);  return 0; }
+	const AbstrUnit* GetPartitioningUnit(partitioning_id p)           const { return nullptr; }
 
 	// ========== ErrorMsg helper funcs
 
@@ -1069,29 +1074,40 @@ void CreateResultingItems(
 	UInt32 P = 1;
 	if constexpr (!std::is_same_v<AR, Void>)
 	{
-		partitioningNamesLock = DataReadLock(partitioningNamesA);
-		partitioningNames = const_array_cast<SharedStr>(partitioningNamesA);
-		P = partitioningNames->GetDataRead().size();
+		if (partitioningNamesA)
+		{
+			partitioningNamesLock = DataReadLock(partitioningNamesA);
+			partitioningNames = const_array_cast<SharedStr>(partitioningNamesA);
+			P = partitioningNames->GetDataRead().size();
+		}
 		htpInfo.m_Partitionings.reserve(P);
 		for (UInt32 p = 0; p != P; ++p)
 		{
-			SharedStr partitioningName = partitioningNames->GetIndexedValue(p);
+			SharedStr partitioningName = partitioningNames ? partitioningNames->GetIndexedValue(p) : SharedStr(atomicRegionUnit->GetID());
 			CDebugContextHandle context("discrete_alloc", partitioningName.c_str(), false);
 
-			const AbstrDataItem* regioRefDI = AsCheckedDataItem(atomicRegionUnit->GetConstSubTreeItemByID(GetTokenID_mt(partitioningName.c_str())));
-			if (!regioRefDI)
-				atomicRegionUnit->throwItemErrorF("SubItem expected with the name %s", partitioningName.c_str());
-			regioRefDI->UpdateMetaInfo();
-			fc->AddDependency(regioRefDI->GetCheckedDC());
+			const AbstrDataItem* regioRefDI = nullptr;
+			if (partitioningNamesA)
+			{
+				regioRefDI = AsCheckedDataItem(atomicRegionUnit->GetConstSubTreeItemByID(GetTokenID_mt(partitioningName.c_str())));
+				if (!regioRefDI)
+					atomicRegionUnit->throwItemErrorF("SubItem expected with the name %s", partitioningName.c_str());
+				regioRefDI->UpdateMetaInfo();
+				fc->AddDependency(regioRefDI->GetCheckedDC());
+			}
 
-			if (!atomicRegionUnit->UnifyDomain(regioRefDI->GetAbstrDomainUnit(), "atomicRegionUnit", "Domain of regional partitioning thereof", UnifyMode(), &resultMsg))
+			if (regioRefDI && !atomicRegionUnit->UnifyDomain(regioRefDI->GetAbstrDomainUnit(), "atomicRegionUnit", "Domain of regional partitioning thereof", UnifyMode(), &resultMsg))
 				throwErrorF("discrete_alloc", "unification of domain of partitoning %d(%s):\n%s\n with atomic region\n%s\n resulted in\n%s"
 					, p, partitioningName, regioRefDI->GetSourceName()
 					, atomicRegionUnit->GetSourceName()
 					, resultMsg
 				);
 
-			htpInfo.m_Partitionings.push_back(partitioning_info_t<AR>(regioRefDI));
+			if (regioRefDI)
+				htpInfo.m_Partitionings.emplace_back(regioRefDI);
+			else
+				htpInfo.m_Partitionings.emplace_back(atomicRegionUnit);
+
 			if (htpInfo.m_Partitionings.back().m_ValuesLabelLock)
 			{
 				fc->AddDependency(htpInfo.m_Partitionings.back().m_ValuesLabelLock->GetCheckedDC());
@@ -1109,13 +1125,14 @@ void CreateResultingItems(
 	const DataArray<SharedStr>* ggTypeNames = const_array_cast<SharedStr>(ggTypeNamesA);
 
 	DataReadLock ggTypes2partitioningsLock;
-	const DataArray<UInt8>* ggTypes2partitionings = nullptr;
+	const DataArray<partitioning_id>* ggTypes2partitionings = nullptr;
 
-	if constexpr (!std::is_same_v<AR, Void>)
+	MG_CHECK((ggTypes2partitioningsA != nullptr) == (partitioningNamesA != nullptr));
+	if (ggTypes2partitioningsA && partitioningNamesA)
 	{
 		// get array of ggTypes2partitionings
 		ggTypes2partitioningsLock = DataReadLock(ggTypes2partitioningsA);
-		ggTypes2partitionings = const_array_cast<UInt8>(ggTypes2partitioningsA);
+		ggTypes2partitionings = const_array_cast<partitioning_id>(ggTypes2partitioningsA);
 
 		if (!ggTypes2partitioningsA->GetAbstrDomainUnit()->UnifyDomain(ggTypeNamesA->GetAbstrDomainUnit(), "Domain of AllocationType partitioning (4th) attribute", "Domain of AllocationType name (1st) attribute", UnifyMode(), &resultMsg))
 			throwErrorF("discrete_alloc", "domains of Type->Name mapping (arg1):\n%s\nand Type->Partitioning mapping (arg4):\n%s\nincompatible: %s", ggTypeNamesA->GetSourceName(), ggTypes2partitioningsA->GetSourceName(), resultMsg);
@@ -1147,29 +1164,49 @@ void CreateResultingItems(
 		const AbstrUnit* partitioningUnit = nullptr;
 		if constexpr (!std::is_same_v<AR, Void>)
 		{
-			auto partitioningID = ggTypes2partitionings->GetIndexedValue(j);
+			auto partitioningID = (ggTypes2partitioningsA) ? ggTypes2partitionings->GetIndexedValue(j) : partitioning_id(0);
 			if (partitioningID >= htpInfo.GetNrPartitionings())
-				throwErrorF("discrete_alloc", "Partitioning reference %d for Type %s is not a valid index in %s", partitioningID, gg->m_NameID, partitioningNamesA->GetSourceName());
+			{
+				MG_CHECK(partitioningNamesA);
+				if (partitioningNamesA)
+					throwErrorF("discrete_alloc", "Partitioning reference %d for Type %s is not a valid index in %s", partitioningID, gg->m_NameID, partitioningNamesA->GetSourceName());
+			}
 
 			gg->m_PartitioningID = partitioningID;
 
 			partitioningUnit = htpInfo.GetPartitioningUnit(gg->m_PartitioningID);
-			if (gg->m_diMinClaims && !partitioningUnit->UnifyDomain(gg->m_diMinClaims->GetAbstrDomainUnit(), "Partitioning", "Domain of Minimum Claim attribute", UnifyMode(), &resultMsg))
-				throwErrorF("discrete_alloc", "values of partitioning %s in AtomicRegions (arg6):\n%s\nand domain of minimum claim for %s (arg8):\n%s\nincompatible: %s"
-					//				, partitioningID
-					, htpInfo.m_Partitionings[partitioningID].GetName()
-					, htpInfo.m_Partitionings[partitioningID].m_AtomicRegionPartitioningDI->GetSourceName()
-					, gg->m_NameID, gg->m_diMinClaims->GetSourceName()
-					, resultMsg
-				);
-			if (gg->m_diMaxClaims && !partitioningUnit->UnifyDomain(gg->m_diMaxClaims->GetAbstrDomainUnit(), "Partitioning", "Domain of Maximum Claim attribute", UnifyMode(), &resultMsg))
-				throwErrorF("discrete_alloc", "values of partitioning %s in AtomicRegions (arg6):\n%s\nand domain of maximum claim for %s (arg8):\n%s\nincompatible: %s"
-					//				, partitioningID
-					, htpInfo.m_Partitionings[partitioningID].GetName()
-					, htpInfo.m_Partitionings[partitioningID].m_AtomicRegionPartitioningDI->GetSourceName()
-					, gg->m_NameID, gg->m_diMaxClaims->GetSourceName()
-					, resultMsg
-				);
+			assert(partitioningUnit);
+
+			if (ggTypes2partitioningsA && partitioningNamesA)
+			{
+				if (gg->m_diMinClaims && !partitioningUnit->UnifyDomain(gg->m_diMinClaims->GetAbstrDomainUnit(), "Partitioning", "Domain of Minimum Claim attribute", UnifyMode(), &resultMsg))
+					throwErrorF("discrete_alloc", "values of partitioning %s in AtomicRegions (6th argument):\n%s\nand domain of minimum claim for %s (8th argument):\n%s\nincompatible: %s"
+						, htpInfo.m_Partitionings[partitioningID].GetName()
+						, htpInfo.m_Partitionings[partitioningID].m_AtomicRegionPartitioningDI->GetSourceName()
+						, gg->m_NameID, gg->m_diMinClaims->GetSourceName()
+						, resultMsg
+					);
+				if (gg->m_diMaxClaims && !partitioningUnit->UnifyDomain(gg->m_diMaxClaims->GetAbstrDomainUnit(), "Partitioning", "Domain of Maximum Claim attribute", UnifyMode(), &resultMsg))
+					throwErrorF("discrete_alloc", "values of partitioning %s in AtomicRegions (6th argument):\n%s\nand domain of maximum claim for %s (9th argument):\n%s\nincompatible: %s"
+						, htpInfo.m_Partitionings[partitioningID].GetName()
+						, htpInfo.m_Partitionings[partitioningID].m_AtomicRegionPartitioningDI->GetSourceName()
+						, gg->m_NameID, gg->m_diMaxClaims->GetSourceName()
+						, resultMsg
+					);
+			}
+			else
+			{
+				if (gg->m_diMinClaims && !partitioningUnit->UnifyDomain(gg->m_diMinClaims->GetAbstrDomainUnit(), "Partitioning", "Domain of Minimum Claim attribute", UnifyMode(), &resultMsg))
+					throwErrorF("discrete_alloc", "Regions (4th argument)\nand domain of minimum claim for %s (6th argument):\n%s\nincompatible: %s"
+						, gg->m_NameID, gg->m_diMinClaims->GetSourceName()
+						, resultMsg
+					);
+				if (gg->m_diMaxClaims && !partitioningUnit->UnifyDomain(gg->m_diMaxClaims->GetAbstrDomainUnit(), "Partitioning", "Domain of Maximum Claim attribute", UnifyMode(), &resultMsg))
+					throwErrorF("discrete_alloc", "Regions (4th argument):\nand domain of maximum claim for %s (7th argument):\n%s\nincompatible: %s"
+						, gg->m_NameID, gg->m_diMaxClaims->GetSourceName()
+						, resultMsg
+					);
+			}
 
 		}
 		else
@@ -1224,12 +1261,15 @@ void CreateResultingItems(
 			,	Unit<land_unit_id>::GetStaticClass()->CreateDefault()
 			);
 	}
-	if (!allocUnit->UnifyDomain(atomicRegionMapA->GetAbstrDomainUnit(), "second argument", "Domain of the AtomicRegions (7th) attribute", UnifyMode(), &resultMsg))
-		throwErrorF("discrete_alloc", "Domain of atomic region map (arg7):\n%s\nand allocUnit (arg2):\n%s incompatible:\n%s"
-			, atomicRegionMapA->GetSourceName()
-			, allocUnit->GetSourceName()
-			, resultMsg
-		);
+	if (atomicRegionMapA)
+	{
+		if (!allocUnit->UnifyDomain(atomicRegionMapA->GetAbstrDomainUnit(), "second argument", "Domain of the AtomicRegions attribute", UnifyMode(), &resultMsg))
+			throwErrorF("discrete_alloc", "Domain of atomic region map:\n%s\nand allocUnit (arg2):\n%s incompatible:\n%s"
+				, atomicRegionMapA->GetSourceName()
+				, allocUnit->GetSourceName()
+				, resultMsg
+			);
+	}
 }
 
 // *****************************************************************************
@@ -2681,7 +2721,7 @@ class HitchcockTransportationOperator : public VariadicOperator
 	typedef AbstrUnit             Arg2Type;          // domain of cells
 //	typedef TreeItem              Arg3Type;          // container with columns with suitability maps
 	typedef DataArray<S>          PriceType;         // suitability map type
-	typedef DataArray<UInt8>      Arg4Type;          // ggType -> partitioning
+	typedef DataArray<partitioning_id> Arg4Type;     // ggType -> partitioning
 	typedef DataArray<SharedStr>  Arg5Type;          // partitions->name
 //	typedef Unit<AR>              Arg6Type;          // atomic regions to unique regions mapping container
 //	typedef DataArray<AR>         Arg7Type;          // atomic regions map
@@ -2746,9 +2786,8 @@ public:
 	void CreateResultCaller(TreeItemDualRef& resultHolder, const ArgRefs& args, OperationContext* fc, LispPtr) const override
 	{
 		assert(args.size() == GetNrArguments());
-		auto argIter = args.begin();
 
-		const AbstrDataItem* ggTypeNamesA = AsDataItem(*argIter);
+		const AbstrDataItem* ggTypeNamesA = AsDataItem(args[0]);
 		dms_assert(ggTypeNamesA);
 
 		const Unit<AT>*  ggTypeSet = checked_domain<AT>(GetItem(args[0]), "a1");
@@ -2758,24 +2797,35 @@ public:
 		UInt32 nrTypes = ggTypeSet->GetCount();
 		MG_CHECK(nrTypes <= MAX_VALUE(AT));
 
-		const AbstrDataItem* ggTypes2partitioningsA = AsDataItem(args[3]);
-		dms_assert(ggTypes2partitioningsA);
+		const AbstrDataItem* ggTypes2partitioningsA = nullptr;
+		const AbstrDataItem* regionNamesA = nullptr;
+		auto argIter = args.begin() + 3;
+		if constexpr (DAV >= discr_alloc_version::multiple_partitions_without_feasibility_test)
+		{
+			ggTypes2partitioningsA = AsDataItem(*argIter++);
+			assert(ggTypes2partitioningsA);
 
-		const AbstrDataItem* regionNamesA = AsDataItem(args[4]);
-		dms_assert(regionNamesA);
+			regionNamesA = AsDataItem(*argIter++);
+			assert(regionNamesA);
+		}
 
-		const Unit<AR>* atomicRegionUnit = debug_cast<const Unit<AR>*>(GetItem(args[5]));
-		dms_assert(atomicRegionUnit);
-//		fc->AddDependency(atomicRegionUnit->GetAsLispExpr()); is al implicit dependency as being calculating argument
+		const Unit<AR>* atomicRegionUnit = nullptr;
+		const AbstrDataItem* atomicRegionMapA = nullptr;
+		if constexpr (DAV >= discr_alloc_version::one_partition)
+		{
+			atomicRegionUnit = debug_cast<const Unit<AR>*>(GetItem(*argIter++));
+			assert(atomicRegionUnit);
+			//		fc->AddDependency(atomicRegionUnit->GetAsLispExpr()); is al implicit dependency as being calculating argument
 
-		const AbstrDataItem* atomicRegionMapA = AsDataItem(args[6]);
-		MG_CHECK(atomicRegionMapA);
+			atomicRegionMapA = AsDataItem(*argIter++);
+			MG_CHECK(atomicRegionMapA);
+		}
 
 		if (!resultHolder)
 			resultHolder = TreeItem::CreateCacheRoot();
 		dbg_assert(resultHolder);
 		TreeItem* res = resultHolder.GetNew();
-		dms_assert(res);
+		assert(res);
 
 		AbstrDataItem* resLanduse = CreateDataItem(res, GetTokenID_mt("landuse"), allocUnit, ggTypeSet);
 		resLanduse->SetTSF(TSF_Categorical);
@@ -2809,8 +2859,8 @@ public:
 			ggTypeNamesA,
 			allocUnit,
 			GetItem(args[2]),       // suitability maps container
-			GetItem(args[7]),       // minClaimSet
-			GetItem(args[8]),       // maxClaimSet
+			GetItem(argIter[0]),       // minClaimSet
+			GetItem(argIter[1]),       // maxClaimSet
 			ggTypes2partitioningsA, regionNamesA, atomicRegionUnit, atomicRegionMapA, // RegionGrids
 			resShadowPriceContainer,
 			resTotalAllocatedContainer,
@@ -2854,10 +2904,13 @@ public:
 			reportD(SeverityTypeID::ST_MajorTrace, "DiscrAlloc.Prepare started");
 
 			PrepareClaims(htpInfo);
+			auto argIter = args.begin() + 3;
 			if constexpr (DAV >= discr_alloc_version::one_partition)
 			{
-				auto atomicRegionUnit = debug_cast<const Unit<AR>*>(GetItem(args[5]));
-				const AbstrDataItem* atomicRegionMapA = AsDataItem(args[6]);
+				if constexpr (DAV > discr_alloc_version::one_partition)
+					argIter += 2;
+				auto atomicRegionUnit = debug_cast<const Unit<AR>*>(GetItem(*argIter++));
+				const AbstrDataItem* atomicRegionMapA = AsDataItem(*argIter++);
 				PreparePartitionings(htpInfo, atomicRegionMapA, atomicRegionUnit);
 			}
 
@@ -2880,7 +2933,7 @@ public:
 			if (isFeasible)
 			{
 				reportD(SeverityTypeID::ST_MajorTrace, "DiscrAlloc.Solve started with suitability container ", GetItem(args[2])->GetFullName().c_str());
-				S threshold = GetTheCurrValue<S>(GetItem(args[9]));
+				S threshold = GetTheCurrValue<S>(GetItem(argIter[2]));
 
 				PrepareTileLock(htpInfo);
 				Solve(htpInfo, threshold, htpInfo.m_ResultPriceDataLock.get());
@@ -2981,45 +3034,98 @@ public:
 
 namespace 
 {
-	oper_arg_policy da_oap[11] = { 
-		    oper_arg_policy::calc_always,                                    // ggTypeNameArray
-		    oper_arg_policy::calc_as_result,                                 // domainUnit
+	oper_arg_policy np_oap[6] = {
+			oper_arg_policy::calc_always,         // ggTypeNameArray
+			oper_arg_policy::calc_as_result,      // domainUnit
 			oper_arg_policy::subst_with_subitems, // suitabilities
-		    oper_arg_policy::calc_always,                                    // ggType -> partitioning relation
-		    oper_arg_policy::calc_always,                                    // partitioningNameArray
-			oper_arg_policy::subst_with_subitems, // atomicRegions met regioRefs
-	        oper_arg_policy::calc_as_result,                                 // atomicRegions map
 			oper_arg_policy::subst_with_subitems, // minClaims
 			oper_arg_policy::subst_with_subitems, // maxClaims
-		    oper_arg_policy::calc_as_result,                                 // cutoff value
-			oper_arg_policy::calc_never,                                    // feasibilityCertificate
+			oper_arg_policy::calc_as_result,      // cutoff value
+	};
+
+	oper_arg_policy sp_oap[8] = {
+		    oper_arg_policy::calc_always,         // ggTypeNameArray
+		    oper_arg_policy::calc_as_result,      // domainUnit
+			oper_arg_policy::subst_with_subitems, // suitabilities
+			oper_arg_policy::subst_with_subitems,	// atomicRegions met regioRefs
+	        oper_arg_policy::calc_as_result,        // atomicRegions map
+			oper_arg_policy::subst_with_subitems, // minClaims
+			oper_arg_policy::subst_with_subitems, // maxClaims
+		    oper_arg_policy::calc_as_result,      // cutoff value
+	};
+
+	oper_arg_policy da_oap[11] = {
+			oper_arg_policy::calc_always,         // ggTypeNameArray
+			oper_arg_policy::calc_as_result,      // domainUnit
+			oper_arg_policy::subst_with_subitems, // suitabilities
+			oper_arg_policy::calc_always,				// ggType -> partitioning relation
+			oper_arg_policy::calc_always,				// partitioningNameArray
+			oper_arg_policy::subst_with_subitems,	// atomicRegions met regioRefs
+			oper_arg_policy::calc_as_result,        // atomicRegions map
+			oper_arg_policy::subst_with_subitems, // minClaims
+			oper_arg_policy::subst_with_subitems, // maxClaims
+			oper_arg_policy::calc_as_result,      // cutoff value
+			oper_arg_policy::calc_never,          // feasibilityCertificate
 	};
 
 	SpecialOperGroup hitchcockGroup   ("discrete_alloc",          11, da_oap, oper_policy::better_not_in_meta_scripting);
 	SpecialOperGroup hitchcockGroup_16("discrete_alloc_16",       11, da_oap, oper_policy::better_not_in_meta_scripting);
-	SpecialOperGroup greedyGroup("greedy_alloc", 11, da_oap, oper_policy::better_not_in_meta_scripting);
+	SpecialOperGroup greedyGroup   ("greedy_alloc", 11, da_oap, oper_policy::better_not_in_meta_scripting);
 	SpecialOperGroup greedyGroup_16("greedy_alloc_16", 11, da_oap, oper_policy::better_not_in_meta_scripting);
+
+	SpecialOperGroup hitchcockGroup_sp   ("discrete_alloc_sp", 8, sp_oap, oper_policy::better_not_in_meta_scripting);
+	SpecialOperGroup hitchcockGroup_sp_16("discrete_alloc_sp_16", 8, sp_oap, oper_policy::better_not_in_meta_scripting);
+	SpecialOperGroup greedyGroup_sp      ("greedy_alloc_sp", 8, sp_oap, oper_policy::better_not_in_meta_scripting);
+	SpecialOperGroup greedyGroup_sp_16   ("greedy_alloc_sp_16", 8, sp_oap, oper_policy::better_not_in_meta_scripting);
+
+	SpecialOperGroup hitchcockGroup_np("discrete_alloc_np", 6, np_oap, oper_policy::better_not_in_meta_scripting);
+	SpecialOperGroup hitchcockGroup_np_16("discrete_alloc_np_16", 6, np_oap, oper_policy::better_not_in_meta_scripting);
+	SpecialOperGroup greedyGroup_np("greedy_alloc_np", 6, np_oap, oper_policy::better_not_in_meta_scripting);
+	SpecialOperGroup greedyGroup_np_16("greedy_alloc_np_16", 6, np_oap, oper_policy::better_not_in_meta_scripting);
+
+
+	template <typename S>
+	struct HitchcockTransportationOperatorSetjeNP
+	{
+		HitchcockTransportationOperator<S, discr_alloc_version::no_partition, Void, UInt8>
+			htpDefault = { &hitchcockGroup_np, true },
+			htpGreedy = { &greedyGroup_np, false };
+		HitchcockTransportationOperator<S, discr_alloc_version::no_partition, Void, UInt16>
+			htpDefault16 = { &hitchcockGroup_np_16, true },
+			htpGreedy16 = {&greedyGroup_np_16, false};
+	};
+
+	template <typename S, typename AR>
+	struct HitchcockTransportationOperatorSetjeSP
+	{
+		HitchcockTransportationOperator<S, discr_alloc_version::one_partition, AR, UInt8>
+			htpDefault = { &hitchcockGroup_sp, true },
+			htpGreedy = { &greedyGroup_sp, false };
+		HitchcockTransportationOperator<S, discr_alloc_version::one_partition, AR, UInt16>
+			htpDefault16 = { &hitchcockGroup_sp_16, true },
+			htpGreedy16 = { &greedyGroup_sp_16, false };
+	};
 
 	template <typename S, discr_alloc_version DAV, typename AR>
 	struct HitchcockTransportationOperatorSetje
 	{
-		HitchcockTransportationOperator<S, DAV, AR, UInt8> 
+		HitchcockTransportationOperator<S, DAV, AR, UInt8>
 			htpDefault = { &hitchcockGroup, true },
 			htpGreedy = { &greedyGroup, false };
-		HitchcockTransportationOperator<S, DAV, AR, UInt16> 
+		HitchcockTransportationOperator<S, DAV, AR, UInt16>
 			htpDefault16 = { &hitchcockGroup_16, true },
-			htpGreedy16 = {&greedyGroup_16, false};
+			htpGreedy16 = { &greedyGroup_16, false };
 	};
 
 	template <typename S, typename AR>
 	struct HitchcockTransportationOperators
 	{
-		HitchcockTransportationOperatorSetje<S, discr_alloc_version::one_partition                               , AR> htpOnePartition;
+		HitchcockTransportationOperatorSetjeSP<S, AR> htpOnePartition;
 		HitchcockTransportationOperatorSetje<S, discr_alloc_version::multiple_partitions_without_feasibility_test, AR> htpManyPartitionsNoFeasibilityTest;
 		HitchcockTransportationOperatorSetje<S, discr_alloc_version::multiple_partitions_with_feasibility_test   , AR> htpManyPartitionsWithFeasibilityTest;
 	};
 
-	HitchcockTransportationOperatorSetje<Int32, discr_alloc_version::no_partition, Void> htpNoPartition;
+	HitchcockTransportationOperatorSetjeNP<Int32> htpNoPartition;
 	HitchcockTransportationOperators<Int32, UInt32> htp3232;
 	HitchcockTransportationOperators<Int32, UInt16> htp3216;
 	HitchcockTransportationOperators<Int32, UInt8 > htp3208;

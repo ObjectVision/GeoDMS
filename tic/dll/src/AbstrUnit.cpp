@@ -479,7 +479,7 @@ const UnitProjection* AbstrUnit::GetCurrProjection() const
 
 static TokenID s_LabelID = GetTokenID_st("Label"), s_LabelTextID = GetTokenID_st("LabelText");
 
-SharedDataItemInterestPtr AbstrUnit::GetLabelAttr() const
+auto AbstrUnit::GetLabelAttr() const -> SharedDataItemInterestPtr
 {
 	assert(this);
 
@@ -501,24 +501,23 @@ SharedDataItemInterestPtr AbstrUnit::GetLabelAttr() const
 	return {};
 }
 
-const AbstrDataItem* GetCurrLabelAttr(const AbstrUnit* au)
+auto AbstrUnit::GetCurrLabelAttr() const -> const AbstrDataItem*
 {
-	assert(au);
-
-	const TreeItem* si = const_cast<AbstrUnit*>(au)->GetSubTreeItemByID(s_LabelID);
+	const TreeItem* si = const_cast<AbstrUnit*>(this)->GetSubTreeItemByID(s_LabelID);
 	if (!si)
-		si = const_cast<AbstrUnit*>(au)->GetSubTreeItemByID(s_LabelTextID); // compatible with newer aspect names
+		si = const_cast<AbstrUnit*>(this)->GetSubTreeItemByID(s_LabelTextID); // compatible with newer aspect names
 	if (IsDataItem(si))
 	{
 		auto di = AsDataItem(si);
-		if (di->GetAbstrDomainUnit()->UnifyDomain(au, "Domain of attribute named Label", "Unit that has that attribute"))
+		auto adu = di->GetAbstrDomainUnit();
+		if (adu && adu->UnifyDomain(this, "Domain of attribute named Label", "Unit that has that attribute"))
 		{
 			return di;
 		}
 	}
-	si = au->GetCurrSourceItem();
+	si = this->GetCurrSourceItem();
 	if (si)
-		return GetCurrLabelAttr(AsUnit(si));
+		return AsUnit(si)->GetCurrLabelAttr();
 	return nullptr;
 }
 
@@ -529,7 +528,7 @@ SharedStr AbstrUnit::GetLabelAtIndex(SizeT index, SharedDataItemInterestPtr& ipH
 		assert(IsMainThread());
 		ipHolder = GetLabelAttr();
 	}
-	assert(ipHolder == GetCurrLabelAttr(this));
+	assert(ipHolder == this->GetCurrLabelAttr());
 	if (!ipHolder)
 		return SharedStr();
 
@@ -569,7 +568,7 @@ ActorVisitState AbstrUnit::VisitLabelAttr(const ActorVisitor& visitor, SharedDat
 {
 	if (!labelLock)
 		labelLock = GetLabelAttr();
-	dms_assert(labelLock == GetCurrLabelAttr(this));
+	dms_assert(labelLock == this->GetCurrLabelAttr());
 	return visitor.Visit(labelLock.get_ptr());
 }
 
