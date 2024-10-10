@@ -607,11 +607,18 @@ GraphVisitState GraphDrawer::DoLayerControlBase(LayerControlBase* lc)
 GraphVisitState GraphDrawer::DoLayer(GraphicLayer* gl)
 {
 	if (!gl->VisibleLevel(*this))
+	{
+		assert(!SuspendTrigger::DidSuspend());
 		return GVS_Continue;
+	}
 
-	if (gl->PrepareThemeSetData(gl) == AVS_SuspendedOrFailed && SuspendTrigger::DidSuspend())
+	gl->PrepareThemeSetData(gl);
+	if (SuspendTrigger::DidSuspend())
 		return GVS_Handled; // suspended: break  or failed: continue with the next layer
-	return base_type::DoLayer(gl);
+
+	auto result = base_type::DoLayer(gl);
+	assert((result == GVS_Handled) == SuspendTrigger::DidSuspend());
+	return result;
 }
 
 bool PrepareData(ThemeReadLocks& trl, DataItemColumn* dic, const AbstrDataItem* adi, bool* tryLater)
@@ -640,26 +647,39 @@ GraphVisitState GraphDrawer::DoDataItemColumn(DataItemColumn* dic)
 	if (!DoUpdateData())
 		return DoMovable(dic);
 
-	if (dic->PrepareThemeSetData(dic) == AVS_SuspendedOrFailed && SuspendTrigger::DidSuspend())
-		return GVS_Handled; // suspended: break  or failed: continue with the next layer
+	dic->PrepareThemeSetData(dic);
+	if (SuspendTrigger::DidSuspend())
+		return GVS_Handled; // suspended: break  or failed: continue with the next column
 
 	const AbstrDataItem* indexAttr= dic->GetTableControl().lock().get()->GetIndexAttr();
 
 	ThemeReadLocks trl; bool tryLater = false;
 	if (!PrepareData(trl, dic, indexAttr, &tryLater))
+	{
+		assert(SuspendTrigger::DidSuspend());
 		return GVS_Break;
+	}
 	if (!PrepareData(trl, dic, dic->GetActiveTextAttr(), &tryLater))
+	{
+		assert(SuspendTrigger::DidSuspend());
 		return GVS_Break;
-	
+	}
+	assert(!SuspendTrigger::DidSuspend());
+
 	if (! trl.push_back(dic, DrlType::Suspendible))
 		if (trl.ProcessFailOrSuspend(dic))
+		{
+			assert(SuspendTrigger::DidSuspend());
 			return GVS_Handled; // suspend processing, thus: retry =  true
+		}
 	assert(!SuspendTrigger::DidSuspend());
-	if (!DoDrawData())
+
+	if (!DoDrawData() || tryLater)
 		return GVS_Continue;
-	if (tryLater)
-		return GVS_Continue;
-	return base_type::DoDataItemColumn(dic);
+	
+	auto result = base_type::DoDataItemColumn(dic);
+	assert((result == GVS_Break) == SuspendTrigger::DidSuspend());
+	return result;
 }
 
 void GraphDrawer::DoElement(DataItemColumn* dic, SizeT i, const GRect& absElemDeviceRect)

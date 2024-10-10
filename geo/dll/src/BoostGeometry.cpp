@@ -1156,7 +1156,7 @@ struct BufferMultiPolygonOperator : public AbstrBufferOperator
 
 					if (s_ProcessTimer.PassedSecs(5))
 					{
-						reportF(SeverityTypeID::ST_MajorTrace, "%s: processed %s/%s sequences of tile %s/%s"
+						reportF(SeverityTypeID::ST_MajorTrace, "%s: processed %s / %s sequences of tile %s / %s"
 							, GetGroup()->GetNameStr()
 							, AsString(i), AsString(n)
 							, AsString(t), AsString(resItem->GetTiledRangeData()->GetNrTiles())

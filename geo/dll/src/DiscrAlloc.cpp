@@ -111,6 +111,14 @@ results in:
 
 const bool DMS_DEBUG_DISCRALLOC = MG_DEBUGCODE( true ||) false;
 
+enum class discr_alloc_version
+{ 
+	no_partition,
+	one_partition,
+	multiple_partitions_without_feasibility_test,
+	multiple_partitions_with_feasibility_test
+};
+
 // *****************************************************************************
 //									Helping structures
 // *****************************************************************************
@@ -350,8 +358,9 @@ struct regions_info_base
 		:	m_N()
 	{}
 
-	void PreparePermutation(SizeT n)
+	void PreparePermutation(land_unit_id n)
 	{
+		MG_CHECK(m_N == 0 || m_N == n);
 		m_N = n;
 	}
 
@@ -397,7 +406,7 @@ struct regions_info_base
 	cursor_type GetCursor() const { return cursor_type(m_CurrPI, m_PrevStep); }
 	void SetCursor(cursor_type c) {m_CurrPI = c.first; m_PrevStep = c.second; }
 
-	SizeT m_N;
+	land_unit_id m_N;
 	mutable SizeT m_StepSize = 1, m_CurrBase = 0, m_PrevStep = 0, m_CurrPI = 0;
 
 	SharedPtr<const AbstrDataItem> m_AtomicRegionMap;
@@ -410,6 +419,8 @@ template <typename AR>
 struct regions_info_t : regions_info_base
 {
 	using atomic_region_id = AR;
+	using atomic_region_proxy = AR;
+
 	using atomic_region_data_handle = typename DataArray<atomic_region_id>::locked_cseq_t;
 	regions_info_t()
 		:	m_NrUniqueRegions()
@@ -423,11 +434,12 @@ struct regions_info_t : regions_info_base
 	UInt32 GetNrAtomicRegions() const { return m_AtomicRegionSizes.size(); }
 	UInt32 GetNrPartitionings() const { return m_Partitionings.size(); }
 	UInt32 GetNrUniqueRegions() const { return m_NrUniqueRegions; }
+	UInt32 GetAtomicRegionID(land_unit_id i) const { assert(i < m_N); return m_AtomicRegionMapData[i]; }
 
 	UInt32 GetRegionID(atomic_region_id ar, UInt32 p)       const { return m_Partitionings[p].GetRegionID(ar);      }
 	UInt32 GetUniqueRegionID(atomic_region_id ar, UInt32 p) const { return m_Partitionings[p].GetUniqueRegionID(ar);}
+	UInt32 GetUniqueRegionOffset(UInt32 p)                  const { return m_Partitionings[p].m_UniqueRegionOffset; }
 	const AbstrUnit* GetPartitioningUnit(UInt8 p)           const { return m_Partitionings[p].GetPartitioningUnit();}
-	const bi_graph&  GetAr2UrBiGraph()                      const;
 
 	// ========== ErrorMsg helper funcs
 
@@ -459,10 +471,50 @@ struct regions_info_t : regions_info_base
 	}
 };
 
+template <>
+struct regions_info_t<Void> : regions_info_base
+{
+	using atomic_region_id = Void;
+	using atomic_region_proxy = UInt32;
+/*
+	using atomic_region_data_handle = typename DataArray<atomic_region_id>::locked_cseq_t;
+
+	WeakPtr<const TileFunctor<atomic_region_id> > m_AtomicRegionMapObj;
+	atomic_region_data_handle                     m_AtomicRegionMapData; // 1 per grid-cell           (==  n )
+	std::vector<partitioning_info_t<AR> >         m_Partitionings;       // 1 per Unique partitioning (==  p )
+	atomic_region_id                              m_NrUniqueRegions;     // #ur
+*/
+	UInt32 GetNrAtomicRegions() const { return 1; }
+	UInt32 GetNrPartitionings() const { return 1; }
+	UInt32 GetNrUniqueRegions() const { return 1; }
+	atomic_region_proxy GetAtomicRegionID(land_unit_id i) const { assert(i < m_N); return 0; }
+
+	UInt32 GetRegionID      (atomic_region_proxy ar, UInt32 p) const { assert(ar == 0); assert(p == 0);  return 0; }
+	UInt32 GetUniqueRegionID(atomic_region_proxy ar, UInt32 p) const { assert(ar == 0); assert(p == 0);  return 0; }
+	UInt32 GetUniqueRegionOffset(UInt32 p)                  const { assert(p == 0);  return 0; }
+	const AbstrUnit* GetPartitioningUnit(UInt8 p)           const { return nullptr; }
+
+	// ========== ErrorMsg helper funcs
+
+	SharedStr UniqueRegionStr(atomic_region_proxy ur) const
+	{
+		assert(ur == 0);
+		static auto result = SharedStr("Set of all land units");
+		return result;
+	}
+
+	SharedStr AtomicRegionStr(atomic_region_proxy ar) const
+	{
+		assert(ar == 0);
+		return UniqueRegionStr(0);
+	}
+};
+
 template <typename S, typename AR, typename AT>
 struct htp_info_t : regions_info_t<AR>
 {
 	using typename regions_info_t<AR>::atomic_region_id;
+	using typename regions_info_t<AR>::atomic_region_proxy;
 
 	htp_info_t() : m_TreeBuilder(*this), m_Threshold() {}
 
@@ -485,38 +537,40 @@ struct htp_info_t : regions_info_t<AR>
 	std::vector<facet_id>                m_FacetIds;              // 1 per ggType^2 in each atomic region (== #ar * k *k)
 
 //	DataReadLockContainer               m_Locks;                 // contains locks on suitability maps
-	claim<S>& GetClaim(atomic_region_id ar, AT j)
+	claim<S>& GetClaim(UInt32 ar, AT j)
 	{ 
+		assert(ar < this->GetNrAtomicRegions());
 		ggType_info_t<S>& gg = m_ggTypes[j];
 		return m_Claims[SizeT(gg.m_FirstClaimID) + this->GetRegionID(ar, gg.m_PartitioningID)];
 	}
-	priority_heap<S>& GetHeap(atomic_region_id ar, AT j, AT jj)
+	priority_heap<S>& GetHeap(atomic_region_proxy ar, AT j, AT jj)
 	{
-		dms_assert(ar < this->GetNrAtomicRegions() );
+		assert(ar < this->GetNrAtomicRegions() );
 		AT k = GetK();
-		dms_assert(j  < k);
-		dms_assert(jj < k);
+		assert(j  < k);
+		assert(jj < k);
 
 		return m_Facets[ m_FacetIds[ (SizeT(ar)*k +j ) *k + jj] ];
 	}
 	UInt32 ClaimID2UniqueRegionID(UInt32 claimID) const
 	{
 		const claim<S>& claim = m_Claims[claimID];
-		return 
-				this->m_Partitionings[
-					m_ggTypes[ claim.m_ggTypeID ].m_PartitioningID
-				].m_UniqueRegionOffset
-			+	claim.m_RegionID;
+		auto p = m_ggTypes[claim.m_ggTypeID].m_PartitioningID;
+		return this->GetUniqueRegionOffset(p) + claim.m_RegionID;
 	}
 
 	SharedStr GetClaimRangeStr(const claim<S>& cl) const
 	{
 		UInt32 ggTypeID = cl.m_ggTypeID;
+
+		SharedStr regionStr;
+		if constexpr (!std::is_same_v<AR, Void>)
+			regionStr = this->m_Partitionings[m_ggTypes[ggTypeID].m_PartitioningID].GetRegionStr(cl.m_RegionID);
+
 		return
 			mySSPrintF("ClaimRange(type %u (%s), %s) = [min %u, max %u]",
-				ggTypeID,
-				m_ggTypes[ggTypeID].m_strName.c_str(),
-				this->m_Partitionings[ m_ggTypes[ cl.m_ggTypeID ].m_PartitioningID ].GetRegionStr(cl.m_RegionID).c_str(),
+				ggTypeID, m_ggTypes[ggTypeID].m_strName.c_str(),
+				regionStr.c_str(),
 				cl.m_ClaimRange.first, cl.m_ClaimRange.second
 			);
 	}
@@ -557,22 +611,22 @@ struct htp_info_t : regions_info_t<AR>
 // *****************************************************************************
 
 template <typename AR>
-const bi_graph& regions_info_t<AR>::GetAr2UrBiGraph() const
+const bi_graph& GetAr2UrBiGraph(const regions_info_t<AR>* self)
 {
-	if (m_Ar2Ur)
-		return *m_Ar2Ur;
+	if (self->m_Ar2Ur)
+		return *(self->m_Ar2Ur);
 
-	UInt32 nrAtomicRegions = GetNrAtomicRegions();
-	UInt32 nrUniqueRegions = GetNrUniqueRegions();
-	UInt32 P = GetNrPartitionings();
+	UInt32 nrAtomicRegions = self->GetNrAtomicRegions();
+	UInt32 nrUniqueRegions = self->GetNrUniqueRegions();
+	UInt32 P = self->GetNrPartitionings();
 
-	m_Ar2Ur.assign( new bi_graph(nrAtomicRegions, nrUniqueRegions, P * nrAtomicRegions) );
-	bi_graph& gr = *m_Ar2Ur;
+	self->m_Ar2Ur.assign( new bi_graph(nrAtomicRegions, nrUniqueRegions, P * nrAtomicRegions) );
+	bi_graph& gr = *(self->m_Ar2Ur);
 
 	// fill graph with links(atomicRegionID, unique region id)
 	for (UInt32 p = 0; p != P; ++p)
 		for (UInt32 ar = 0; ar != nrAtomicRegions; ++ar)
-			gr.AddLink(ar, GetUniqueRegionID(ar, p));
+			gr.AddLink(ar, self->GetUniqueRegionID(ar, p));
 	return gr;
 }
 
@@ -884,7 +938,7 @@ bool FeasibilityTest(const htp_info_t<S, AR, AT>& htpInfo, SharedStr& strStatus)
 	UInt32 nrAtomicRegions = htpInfo.GetNrAtomicRegions();
 	UInt32 nrUniqueRegions = htpInfo.GetNrUniqueRegions();
 
-	const bi_graph& gr = htpInfo.GetAr2UrBiGraph();
+	const bi_graph& gr = GetAr2UrBiGraph(&htpInfo);
 
 	dms_assert(nrAtomicRegions     == gr.GetNrSrcNodes(dir_forward_tag()));
 	dms_assert(nrUniqueRegions     == gr.GetNrDstNodes(dir_forward_tag()));
@@ -905,8 +959,8 @@ bool FeasibilityTest(const htp_info_t<S, AR, AT>& htpInfo, SharedStr& strStatus)
 			claimIter = htpInfo.m_Claims.begin() + ggTypeIter->m_FirstClaimID,
 			claimEnd  = claimIter                + ggTypeIter->m_NrClaims;
 
-		UInt32 uniqueRegionOffset = htpInfo.m_Partitionings[ggTypeIter->m_PartitioningID].m_UniqueRegionOffset;
-		dms_assert(uniqueRegionOffset + ggTypeIter->m_NrClaims <= nrUniqueRegions);
+		UInt32 uniqueRegionOffset = htpInfo.GetUniqueRegionOffset(ggTypeIter->m_PartitioningID);
+		assert(uniqueRegionOffset + ggTypeIter->m_NrClaims <= nrUniqueRegions);
 
 		auto
 			aggrMinClaimIter = aggrMinClaims.begin() + uniqueRegionOffset,
@@ -928,9 +982,9 @@ bool FeasibilityTest(const htp_info_t<S, AR, AT>& htpInfo, SharedStr& strStatus)
 	if (!ok)
 		return false;
 
-	dms_assert(htpInfo.m_AtomicRegionSizes.size() == gr.GetNrSrcNodes(dir_forward_tag()));
-	dms_assert(aggrMinClaims.size()     == gr.GetNrDstNodes(dir_forward_tag()));
-	dms_assert(aggrMaxClaims.size()     == gr.GetNrDstNodes(dir_forward_tag()));
+	assert(htpInfo.m_AtomicRegionSizes.size() == gr.GetNrSrcNodes(dir_forward_tag()));
+	assert(aggrMinClaims.size()     == gr.GetNrDstNodes(dir_forward_tag()));
+	assert(aggrMaxClaims.size()     == gr.GetNrDstNodes(dir_forward_tag()));
 
 	std::vector<UInt32>  srcAllocated(nrAtomicRegions, 0);
 	std::vector<UInt32>& allocatedPerLink = const_cast<htp_info_t<S, AR, AT>&>(htpInfo).m_PossibleAllocationPerAr2UrLink;
@@ -986,75 +1040,89 @@ auto GetClaimAttr(const TreeItem* claimSet, TokenID nameID) -> const AbstrDataIt
 
 template <typename S, typename AR, typename AT>
 void CreateResultingItems(
-	const AbstrDataItem*  ggTypeNamesA,
-	const AbstrUnit*      allocUnit,
-	const TreeItem*       suitabilitiesSet,
-	const TreeItem*       minClaimSet,
-	const TreeItem*       maxClaimSet,
-	const AbstrDataItem*  ggTypes2partitioningsA,
-	const AbstrDataItem*  partitioningNamesA,
-	const AbstrUnit*      atomicRegionUnit,
-	const AbstrDataItem*  atomicRegionMapA,
-	TreeItem*            resShadowPriceContainer,
-	TreeItem*            resTotalAllocatedContainer,
-	htp_info_t<S, AR, AT>&   htpInfo,
+	const AbstrDataItem* ggTypeNamesA,
+	const AbstrUnit* allocUnit,
+	const TreeItem* suitabilitiesSet,
+	const TreeItem* minClaimSet,
+	const TreeItem* maxClaimSet,
+	const AbstrDataItem* ggTypes2partitioningsA,
+	const AbstrDataItem* partitioningNamesA,
+	const AbstrUnit* atomicRegionUnit,
+	const AbstrDataItem* atomicRegionMapA,
+	TreeItem* resShadowPriceContainer,
+	TreeItem* resTotalAllocatedContainer,
+	htp_info_t<S, AR, AT>& htpInfo,
 	bool mustAdjust, OperationContext* fc
 )
 {
 	// init elementary data members
 	htpInfo.m_MapDomain = allocUnit;
-	dms_assert(atomicRegionUnit);
-	dms_assert(minClaimSet);
-	dms_assert(maxClaimSet);
-	dms_assert(suitabilitiesSet);
+	//	dms_assert(atomicRegionUnit);
+	assert(minClaimSet);
+	assert(maxClaimSet);
+	assert(suitabilitiesSet);
 	SharedStr resultMsg;
 
 	// get array of partitionNames
-	DataReadLock partitioningNamesLock(partitioningNamesA);
-	const DataArray<SharedStr>* partitioningNames = const_array_cast<SharedStr>(partitioningNamesA);
-	UInt32 P = partitioningNames->GetDataRead().size();
-
-	htpInfo.m_Partitionings.reserve(P);
-	for (UInt32 p=0; p!=P; ++p)
+	DataReadLock partitioningNamesLock;
+	const DataArray<SharedStr>* partitioningNames = nullptr;
+	UInt32 P = 1;
+	if constexpr (!std::is_same_v<AR, Void>)
 	{
-		SharedStr partitioningName = partitioningNames->GetIndexedValue(p);
-		CDebugContextHandle context("discrete_alloc", partitioningName.c_str(), false);
-
-		const AbstrDataItem* regioRefDI = AsCheckedDataItem(atomicRegionUnit->GetConstSubTreeItemByID(GetTokenID_mt(partitioningName.c_str())));
-		if (!regioRefDI)
-			atomicRegionUnit->throwItemErrorF("SubItem expected with the name %s", partitioningName.c_str());
-		regioRefDI->UpdateMetaInfo();
-		fc->AddDependency(regioRefDI->GetCheckedDC());
-
-		if (!atomicRegionUnit->UnifyDomain(regioRefDI->GetAbstrDomainUnit(), "atomicRegionUnit", "Domain of regional partitioning thereof", UnifyMode(), &resultMsg))
-			throwErrorF("discrete_alloc", "unification of domain of partitoning %d(%s):\n%s\n with atomic region\n%s\n resulted in\n%s"
-				,	p, partitioningName, regioRefDI->GetSourceName()
-				,	atomicRegionUnit->GetSourceName()
-				,	resultMsg
-			);
-
-		htpInfo.m_Partitionings.push_back( partitioning_info_t<AR>(regioRefDI) );
-		if (htpInfo.m_Partitionings.back().m_ValuesLabelLock)
+		partitioningNamesLock = DataReadLock(partitioningNamesA);
+		partitioningNames = const_array_cast<SharedStr>(partitioningNamesA);
+		P = partitioningNames->GetDataRead().size();
+		htpInfo.m_Partitionings.reserve(P);
+		for (UInt32 p = 0; p != P; ++p)
 		{
-			fc->AddDependency(htpInfo.m_Partitionings.back().m_ValuesLabelLock->GetCheckedDC());
+			SharedStr partitioningName = partitioningNames->GetIndexedValue(p);
+			CDebugContextHandle context("discrete_alloc", partitioningName.c_str(), false);
+
+			const AbstrDataItem* regioRefDI = AsCheckedDataItem(atomicRegionUnit->GetConstSubTreeItemByID(GetTokenID_mt(partitioningName.c_str())));
+			if (!regioRefDI)
+				atomicRegionUnit->throwItemErrorF("SubItem expected with the name %s", partitioningName.c_str());
+			regioRefDI->UpdateMetaInfo();
+			fc->AddDependency(regioRefDI->GetCheckedDC());
+
+			if (!atomicRegionUnit->UnifyDomain(regioRefDI->GetAbstrDomainUnit(), "atomicRegionUnit", "Domain of regional partitioning thereof", UnifyMode(), &resultMsg))
+				throwErrorF("discrete_alloc", "unification of domain of partitoning %d(%s):\n%s\n with atomic region\n%s\n resulted in\n%s"
+					, p, partitioningName, regioRefDI->GetSourceName()
+					, atomicRegionUnit->GetSourceName()
+					, resultMsg
+				);
+
+			htpInfo.m_Partitionings.push_back(partitioning_info_t<AR>(regioRefDI));
+			if (htpInfo.m_Partitionings.back().m_ValuesLabelLock)
+			{
+				fc->AddDependency(htpInfo.m_Partitionings.back().m_ValuesLabelLock->GetCheckedDC());
+			}
 		}
+		assert(htpInfo.m_Partitionings.size() == P);
 	}
-	dms_assert(htpInfo.m_Partitionings.size() == P);
+	else // AR == Void
+	{
+//		htpInfo.m_Partitionings.push_back(partitioning_info_t<AR>(nullptr));
+	}
 
 	// get array of ggTypeNames
 	DataReadLock ggTypesNameLock(ggTypeNamesA);
 	const DataArray<SharedStr>* ggTypeNames = const_array_cast<SharedStr>(ggTypeNamesA);
 
-	// get array of ggTypes2partitionings
-	DataReadLock ggTypes2partitioningsLock(ggTypes2partitioningsA);
-	const DataArray<UInt8>* ggTypes2partitionings = const_array_cast<UInt8>(ggTypes2partitioningsA);
+	DataReadLock ggTypes2partitioningsLock;
+	const DataArray<UInt8>* ggTypes2partitionings = nullptr;
 
-	if (!ggTypes2partitioningsA->GetAbstrDomainUnit()->UnifyDomain(ggTypeNamesA      ->GetAbstrDomainUnit(), "Domain of AllocationType partitioning (4th) attribute", "Domain of AllocationType name (1st) attribute", UnifyMode(), &resultMsg))
-		throwErrorF("discrete_alloc", "domains of Type->Name mapping (arg1):\n%s\nand Type->Partitioning mapping (arg4):\n%s\nincompatible: %s", ggTypeNamesA->GetSourceName(), ggTypes2partitioningsA->GetSourceName(), resultMsg);
+	if constexpr (!std::is_same_v<AR, Void>)
+	{
+		// get array of ggTypes2partitionings
+		ggTypes2partitioningsLock = DataReadLock(ggTypes2partitioningsA);
+		ggTypes2partitionings = const_array_cast<UInt8>(ggTypes2partitioningsA);
 
-	if (!ggTypes2partitioningsA->GetAbstrValuesUnit()->UnifyDomain(partitioningNamesA->GetAbstrDomainUnit(), "Values of AllocationType partitioning (4th) attribute", "Domain of Partition names (5th) attribute", UnifyMode(), &resultMsg))
-		throwErrorF("discrete_alloc", "values of Type->Partitioning mapping (arg4):\n%s\nand Partition->Names mapping (arg5):\n%s\nincompatible: %s", ggTypes2partitioningsA->GetSourceName(), partitioningNamesA->GetSourceName(), resultMsg);
+		if (!ggTypes2partitioningsA->GetAbstrDomainUnit()->UnifyDomain(ggTypeNamesA->GetAbstrDomainUnit(), "Domain of AllocationType partitioning (4th) attribute", "Domain of AllocationType name (1st) attribute", UnifyMode(), &resultMsg))
+			throwErrorF("discrete_alloc", "domains of Type->Name mapping (arg1):\n%s\nand Type->Partitioning mapping (arg4):\n%s\nincompatible: %s", ggTypeNamesA->GetSourceName(), ggTypes2partitioningsA->GetSourceName(), resultMsg);
 
+		if (!ggTypes2partitioningsA->GetAbstrValuesUnit()->UnifyDomain(partitioningNamesA->GetAbstrDomainUnit(), "Values of AllocationType partitioning (4th) attribute", "Domain of Partition names (5th) attribute", UnifyMode(), &resultMsg))
+			throwErrorF("discrete_alloc", "values of Type->Partitioning mapping (arg4):\n%s\nand Partition->Names mapping (arg5):\n%s\nincompatible: %s", ggTypes2partitioningsA->GetSourceName(), partitioningNamesA->GetSourceName(), resultMsg);
+	}
 	UInt32 K = ggTypeNames->GetDataRead().size();
 	htpInfo.m_ggTypes.resize(K);
 
@@ -1072,29 +1140,51 @@ void CreateResultingItems(
 		fc->AddDependency(minClaims->GetCheckedDC());
 		fc->AddDependency(maxClaims->GetCheckedDC());
 
-		auto partitioningID = ggTypes2partitionings->GetIndexedValue(j);
-		if (partitioningID >= htpInfo.GetNrPartitionings())
-			throwErrorF("discrete_alloc", "Partitioning reference %d for Type %s is not a valid index in %s", partitioningID, gg->m_NameID, partitioningNamesA->GetSourceName());
-		
-		gg->m_PartitioningID = partitioningID;
-		const AbstrUnit* partitioningUnit = htpInfo.GetPartitioningUnit( gg->m_PartitioningID );
+		const AbstrUnit* partitioningUnit = nullptr;
+		if constexpr (!std::is_same_v<AR, Void>)
+		{
+			auto partitioningID = ggTypes2partitionings->GetIndexedValue(j);
+			if (partitioningID >= htpInfo.GetNrPartitionings())
+				throwErrorF("discrete_alloc", "Partitioning reference %d for Type %s is not a valid index in %s", partitioningID, gg->m_NameID, partitioningNamesA->GetSourceName());
 
-		if (gg->m_diMinClaims && !partitioningUnit->UnifyDomain(gg->m_diMinClaims->GetAbstrDomainUnit(), "Partitioning", "Domain of Minimum Claim attribute", UnifyMode(), &resultMsg))
-			throwErrorF("discrete_alloc", "values of partitioning %s in AtomicRegions (arg6):\n%s\nand domain of minimum claim for %s (arg8):\n%s\nincompatible: %s"
-//				, partitioningID
-				, htpInfo.m_Partitionings[partitioningID].GetName()
-				, htpInfo.m_Partitionings[partitioningID].m_AtomicRegionPartitioningDI->GetSourceName()
-				, gg->m_NameID, gg->m_diMinClaims->GetSourceName()
-				, resultMsg
-			);
-		if (gg->m_diMaxClaims && !partitioningUnit->UnifyDomain(gg->m_diMaxClaims->GetAbstrDomainUnit(), "Partitioning", "Domain of Maximum Claim attribute", UnifyMode(), &resultMsg))
-			throwErrorF("discrete_alloc", "values of partitioning %s in AtomicRegions (arg6):\n%s\nand domain of maximum claim for %s (arg8):\n%s\nincompatible: %s"
-//				, partitioningID
-				, htpInfo.m_Partitionings[partitioningID].GetName()
-				, htpInfo.m_Partitionings[partitioningID].m_AtomicRegionPartitioningDI->GetSourceName()
-				, gg->m_NameID, gg->m_diMaxClaims->GetSourceName()
-				, resultMsg
-			);
+			gg->m_PartitioningID = partitioningID;
+
+			partitioningUnit = htpInfo.GetPartitioningUnit(gg->m_PartitioningID);
+			if (gg->m_diMinClaims && !partitioningUnit->UnifyDomain(gg->m_diMinClaims->GetAbstrDomainUnit(), "Partitioning", "Domain of Minimum Claim attribute", UnifyMode(), &resultMsg))
+				throwErrorF("discrete_alloc", "values of partitioning %s in AtomicRegions (arg6):\n%s\nand domain of minimum claim for %s (arg8):\n%s\nincompatible: %s"
+					//				, partitioningID
+					, htpInfo.m_Partitionings[partitioningID].GetName()
+					, htpInfo.m_Partitionings[partitioningID].m_AtomicRegionPartitioningDI->GetSourceName()
+					, gg->m_NameID, gg->m_diMinClaims->GetSourceName()
+					, resultMsg
+				);
+			if (gg->m_diMaxClaims && !partitioningUnit->UnifyDomain(gg->m_diMaxClaims->GetAbstrDomainUnit(), "Partitioning", "Domain of Maximum Claim attribute", UnifyMode(), &resultMsg))
+				throwErrorF("discrete_alloc", "values of partitioning %s in AtomicRegions (arg6):\n%s\nand domain of maximum claim for %s (arg8):\n%s\nincompatible: %s"
+					//				, partitioningID
+					, htpInfo.m_Partitionings[partitioningID].GetName()
+					, htpInfo.m_Partitionings[partitioningID].m_AtomicRegionPartitioningDI->GetSourceName()
+					, gg->m_NameID, gg->m_diMaxClaims->GetSourceName()
+					, resultMsg
+				);
+
+		}
+		else
+		{
+			partitioningUnit = Unit<Void>::GetStaticClass()->CreateDefault();
+
+			gg->m_PartitioningID = 0;
+
+			if (gg->m_diMinClaims && !gg->m_diMinClaims->HasVoidDomainGuarantee())
+				throwErrorF("discrete_alloc", "domain of minimum claim for %s not allowed for unpartitioned allocation, define claim as parameter and not as attribute.\n%s"
+					, gg->m_NameID
+					, gg->m_diMinClaims->GetSourceName()
+				);
+			if (gg->m_diMaxClaims && !gg->m_diMaxClaims->HasVoidDomainGuarantee())
+				throwErrorF("discrete_alloc", "domain of maximum claim for %s not allowed for unpartitioned allocation, define claim as parameter and not as attribute.\n%s"
+					, gg->m_NameID
+					, gg->m_diMaxClaims->GetSourceName()
+				);
+		}
 
 		gg->m_diSuitabilityMap = AsCertainDataItem(suitabilitiesSet->GetConstSubTreeItemByID(gg->m_NameID));
 		gg->m_diSuitabilityMap->UpdateMetaInfo();
@@ -1156,7 +1246,7 @@ void PrepareClaims(htp_info_t<S, AR, AT>& htpInfo)
 		const AbstrUnit* partitioningUnit = htpInfo.GetPartitioningUnit( gg.m_PartitioningID );
 
 		gg.m_FirstClaimID = nrClaims;
-		gg.m_NrClaims = partitioningUnit->GetCount();
+		gg.m_NrClaims = partitioningUnit ? partitioningUnit->GetCount() : 1;
 		nrClaims += gg.m_NrClaims;
 	}
 
@@ -1274,19 +1364,22 @@ void PrepareResultTileLock(htp_info_t<S, AR, AT>& htpInfo, bool initUndefined)
 template <typename S, typename AR, typename AT>
 void PrepareTileLock(htp_info_t<S, AR, AT>& htpInfo)
 {
-	const DataArray<AR>* atomicRegionObj = htpInfo.m_AtomicRegionMapObj;
-	dms_assert(atomicRegionObj);
-	htpInfo.m_AtomicRegionMapData = atomicRegionObj->GetDataRead();
-
-	htpInfo.PreparePermutation(htpInfo.m_AtomicRegionMapData.size());
+	if constexpr (!std::is_same_v<AR, Void>)
+	{
+		const DataArray<AR>* atomicRegionObj = htpInfo.m_AtomicRegionMapObj;
+		assert(atomicRegionObj);
+		htpInfo.m_AtomicRegionMapData = atomicRegionObj->GetDataRead();
+	}
 
 	UInt32 K = htpInfo.GetK();
+	MG_CHECK(K >= 1);
 
 	// suitabilityMaps
 	for (UInt32 j=0; j!=K; ++j)
 	{
 		ggType_info_t<S>& gg = htpInfo.m_ggTypes[j];
 		gg.m_Suitabilities = const_array_checked_cast<S>(gg.m_diSuitabilityMap)->GetDataRead();
+		htpInfo.PreparePermutation(gg.m_Suitabilities.size());
 	}
 
 	auto 
@@ -1375,7 +1468,10 @@ void PrepareReport(htp_info_t<S, AR, AT>& htpInfo)
 // *****************************************************************************
 
 template <typename S, typename AR, typename AT>
-void RemoveLoserInResultAndCleanupQueues(htp_info_t<S, AR, AT>& htpInfo, AR ar, SizeT i, UInt32 losing_ggTypeID)
+void RemoveLoserInResultAndCleanupQueues(htp_info_t<S, AR, AT>& htpInfo
+	,	typename htp_info_t<S, AR, AT>::atomic_region_proxy ar
+	,	land_unit_id i
+	,	AT losing_ggTypeID)
 {
 	UInt32 K = htpInfo.m_ggTypes.size();
 	for (UInt32 j=0; j!=K; ++j) if (j != losing_ggTypeID)
@@ -1407,7 +1503,11 @@ void RemoveLoserInResultAndCleanupQueues(htp_info_t<S, AR, AT>& htpInfo, AR ar, 
 
 // insert highestBidder into solution and queues
 template <typename S, typename AR, typename AT>
-void InsertWinnerInResultAndReallocQueues(htp_info_t<S, AR, AT>& htpInfo, AR ar, UInt32 i, UInt32 winning_ggTypeID)
+void InsertWinnerInResultAndReallocQueues(
+	htp_info_t<S, AR, AT>& htpInfo
+,	typename htp_info_t<S, AR, AT>::atomic_region_proxy ar
+,	land_unit_id i
+,	AT winning_ggTypeID)
 {
 	htpInfo.m_ResultArray[i] = winning_ggTypeID; // actual allocation
 
@@ -1770,7 +1870,7 @@ bool UpdateSplitterDown(htp_info_t<S, AR, AT>& htpInfo, claim<S>& root)
 	{
 		// remove (c,i) from ph and add in the reverse queues
 		priority_heap<S>& ph = htpInfo.m_Facets[freeLink];
-		UInt32 i = ph.top(); 
+		land_unit_id i = ph.top(); 
 		DBG_TRACE(
 			(	"Relax Facet %u: (%u, %u)->(%u, %u) with cell %u", 
 				freeLink, 
@@ -1807,11 +1907,11 @@ bool UpdateSplitterDown(htp_info_t<S, AR, AT>& htpInfo, claim<S>& root)
 		UInt32 ggTypeIdSrc = ph.m_SourceClaim->m_ggTypeID;
 		UInt32 ggTypeIdDst = ph.m_TargetClaim->m_ggTypeID;
 
-		dms_assert(htpInfo.m_ResultArray[i] == ggTypeIdSrc); ph.m_SourceClaim->m_Count--;
-		AR ar = htpInfo.m_AtomicRegionMapData[i];
-		RemoveLoserInResultAndCleanupQueues (htpInfo, ar, i, ggTypeIdSrc);
-		InsertWinnerInResultAndReallocQueues(htpInfo, ar, i, ggTypeIdDst);
-		dms_assert(htpInfo.m_ResultArray[i] == ggTypeIdDst); ph.m_TargetClaim->m_Count++;
+		assert(htpInfo.m_ResultArray[i] == ggTypeIdSrc); ph.m_SourceClaim->m_Count--;
+		auto ar = htpInfo.GetAtomicRegionID(i);
+		RemoveLoserInResultAndCleanupQueues <S, AR, AT>(htpInfo, ar, i, ggTypeIdSrc);
+		InsertWinnerInResultAndReallocQueues<S, AR, AT>(htpInfo, ar, i, ggTypeIdDst);
+		assert(htpInfo.m_ResultArray[i] == ggTypeIdDst); ph.m_TargetClaim->m_Count++;
 		
 #if defined(MG_DEBUG)
 		if (ph.m_TargetClaim->Overflow())
@@ -1949,19 +2049,19 @@ bool UpdateSplitterUp(htp_info_t<S, AR, AT>& htpInfo, claim<S>& root)
 
 		// curr  forms a path through the adjusted MST indicated by ClaimList
 		// We checked that freeLink is in ClaimList AND that each ClaimList elem guarantees the following
-		dms_assert(htpInfo.GetLinkCost(freeLink) == shadow_price<S>()); 
+		assert(htpInfo.GetLinkCost(freeLink) == shadow_price<S>()); 
 
 
-		dms_assert(htpInfo.m_ResultArray[i] == ph.m_SourceClaim->m_ggTypeID);
+		assert(htpInfo.m_ResultArray[i] == ph.m_SourceClaim->m_ggTypeID);
 
 		UInt32 ggTypeIdSrc = ph.m_SourceClaim->m_ggTypeID;
 		UInt32 ggTypeIdDst = ph.m_TargetClaim->m_ggTypeID;
 
-		dms_assert(htpInfo.m_ResultArray[i] == ggTypeIdSrc); ph.m_SourceClaim->m_Count--;
-		AR ar = htpInfo.m_AtomicRegionMapData[i];
-		RemoveLoserInResultAndCleanupQueues (htpInfo, ar, i, ggTypeIdSrc);
-		InsertWinnerInResultAndReallocQueues(htpInfo, ar, i, ggTypeIdDst);
-		dms_assert(htpInfo.m_ResultArray[i] == ggTypeIdDst); ph.m_TargetClaim->m_Count++;
+		assert(htpInfo.m_ResultArray[i] == ggTypeIdSrc); ph.m_SourceClaim->m_Count--;
+		auto ar = htpInfo.GetAtomicRegionID(i);
+		RemoveLoserInResultAndCleanupQueues <S, AR, AT>(htpInfo, ar, i, ggTypeIdSrc);
+		InsertWinnerInResultAndReallocQueues<S, AR, AT>(htpInfo, ar, i, ggTypeIdDst);
+		assert(htpInfo.m_ResultArray[i] == ggTypeIdDst); ph.m_TargetClaim->m_Count++;
 		
 //		dms_assert(!ph.m_TargetClaim->Overflow()); target will be relaxed in next pull
 #if defined(MG_DEBUG)
@@ -1973,7 +2073,7 @@ bool UpdateSplitterUp(htp_info_t<S, AR, AT>& htpInfo, claim<S>& root)
 		}
 #endif
 
-		dms_assert( ph.empty() || htpInfo.CheckLink(freeLink) ); 
+		assert( ph.empty() || htpInfo.CheckLink(freeLink) ); 
 
 		freeLink = htpInfo.m_TreeBuilder.get_traceback(htpInfo.GetSrcNode(freeLink, dir_backward_tag() )).Link();
 	}
@@ -1984,6 +2084,37 @@ bool UpdateSplitterUp(htp_info_t<S, AR, AT>& htpInfo, claim<S>& root)
 // *****************************************************************************
 //									DiscrAlloc
 // *****************************************************************************
+
+template <typename AR>
+struct ArOrVoid
+{
+	using type = AR;
+	static void Inc(const AR*& ptr)
+	{
+		assert(ptr);
+		++ptr;
+	}
+	static UInt32 Deref(const AR* ptr)
+	{
+		assert(ptr);
+		return *ptr;
+	}
+};
+
+template <>
+struct ArOrVoid<Void>
+{
+	using type = UInt32;
+	static void Inc(const UInt32* ptr)
+	{
+		assert(!ptr);
+	}
+	static UInt32 Deref(const UInt32* ptr)
+	{
+		assert(!ptr);
+		return 0;
+	}
+};
 
 struct DistFromOpt
 {
@@ -2006,15 +2137,17 @@ struct DistFromOpt
 		nrLandUnits += N;
 //			nrOptions   += (K-1)*N;
 
-		const AR* armIter = htpInfo.m_AtomicRegionMapData.begin();
+		const ArOrVoid<AR>::type* armIter = nullptr;
+		if constexpr (!std::is_same<AR, Void>::value)
+			armIter = htpInfo.m_AtomicRegionMapData.begin();
 
-		for(land_unit_id i=0; i < N; ++armIter, ++i) // cell index 0..N 
+		for(land_unit_id i=0; i < N; ArOrVoid<AR>::Inc(armIter), ++i) // cell index 0..N 
 		{
 			AT currBuyer = htpInfo.m_ResultArray[i];
 			if (!IsDefined(currBuyer))
 				continue;
 
-			AR ar = *armIter; 
+			UInt32 ar = ArOrVoid<AR>::Deref(armIter);
 
 			shadow_price<S> currPrice(htpInfo.m_ggTypes[currBuyer].m_Suitabilities[i], i*currBuyer);
 			totalSuit += currPrice;
@@ -2147,19 +2280,20 @@ void DiscrAllocCells(htp_info_t<S, AR, AT>& htpInfo, UInt32 currI, UInt32 nextI)
 	UInt32 K = htpInfo.GetK();
 	UInt32 rapFreq = 1000000, tmpK = K; while (tmpK > 3 && rapFreq > 100)  { rapFreq /= 10; tmpK /= 10; }
 
-	dms_assert(htpInfo.m_AtomicRegionMapData.size() == N);
-	dms_assert(htpInfo.m_ResultArray        .size() == N);
+	if constexpr (!std::is_same_v<AR, Void>)
+	{
+		assert(htpInfo.m_AtomicRegionMapData.size() == N);
+		assert(htpInfo.m_ResultArray.size() == N);
+	}
 
-	const AR* armPtr = htpInfo.m_AtomicRegionMapData.begin();
-	
 	UInt32 d_nrSplits = 0;
 
 	for( ; currI < nextI; htpInfo.GetNextPermutationValue(), ++currI)
 	{
-		dms_assert(htpInfo.m_CurrPI < htpInfo.m_N);
-		AR ar = armPtr[htpInfo.m_CurrPI];
-		dms_assert(ar < htpInfo.GetNrAtomicRegions()); // guaranteed by IncrementAtomicRegionCount
-//		dms_assert(!IsDefined(htpInfo.m_ResultArray[htpInfo.m_CurrPI]));
+		assert(htpInfo.m_CurrPI < htpInfo.m_N);
+		auto ar = htpInfo.GetAtomicRegionID( htpInfo.m_CurrPI );
+		assert(ar < htpInfo.GetNrAtomicRegions()); // guaranteed by IncrementAtomicRegionCount
+//		assert(!IsDefined(htpInfo.m_ResultArray[htpInfo.m_CurrPI]));
 
 		UInt32 highestBidder = UNDEFINED_VALUE(UInt32);
 		shadow_price<S> highestBid = MIN_VALUE(shadow_price<S>);
@@ -2184,15 +2318,16 @@ void DiscrAllocCells(htp_info_t<S, AR, AT>& htpInfo, UInt32 currI, UInt32 nextI)
 		// insert highestBidder into solution and queues
 		if (highestBidder == UNDEFINED_VALUE(UInt32) )
 		{
-			if (++htpInfo.m_NrBelowThreshold <= NR_BELOW_THRESHOLD_NOTIFICATIONS)
-				reportF(SeverityTypeID::ST_MajorTrace,
-					"DiscrAllocCells: all suitabilities of cell %u are below the threshold %d",
+			++htpInfo.m_NrBelowThreshold;
+			if (htpInfo.m_NrBelowThreshold <= NR_BELOW_THRESHOLD_NOTIFICATIONS)
+				reportF(SeverityTypeID::ST_MajorTrace, "DiscrAllocCells: all suitabilities of cell %u are below the threshold %d",
 					htpInfo.m_CurrPI, htpInfo.m_Threshold
 				); 
 			htpInfo.m_ResultArray[htpInfo.m_CurrPI] = UNDEFINED_VALUE(AT);
 			continue;
 		}
-		InsertWinnerInResultAndReallocQueues(htpInfo, ar, htpInfo.m_CurrPI, highestBidder);
+
+		InsertWinnerInResultAndReallocQueues<S, AR, AT>(htpInfo, ar, htpInfo.m_CurrPI, highestBidder);
 
 		// Update total and move if facing claim-restriction
 		claim<S>& claim = htpInfo.GetClaim(ar, highestBidder);
@@ -2388,13 +2523,13 @@ struct ClaimScaler: std::vector<claim_range>
 };
 
 template <typename AR>
-void IncrementAtomicRegionCount(std::vector<UInt32>& atomicRegionCount, const regions_info_t<AR>& regionInfo, SizeT i, SizeT e)
+void IncrementAtomicRegionCount(std::vector<claim_type>& atomicRegionCount, const regions_info_t<AR>& regionInfo, land_unit_id i, land_unit_id e)
 {
 	// count per ar with stepSize
 	for (; i < e; regionInfo.GetNextPermutationValue(), ++i)
 	{
-		dms_assert(regionInfo.m_CurrPI < regionInfo.m_N);
-		UInt32 ar = regionInfo.m_AtomicRegionMapData[regionInfo.m_CurrPI];
+		assert(regionInfo.m_CurrPI < regionInfo.m_N);
+		AR ar = regionInfo.GetAtomicRegionID(regionInfo.m_CurrPI);
 		if (ar >= atomicRegionCount.size())
 			regionInfo.m_AtomicRegionMap->GetAbstrValuesUnit()->throwItemErrorF(
 					"Value %u%s out of range of valid Atomic Regions"
@@ -2403,7 +2538,14 @@ void IncrementAtomicRegionCount(std::vector<UInt32>& atomicRegionCount, const re
 			);
 		++atomicRegionCount[ar];
 	}
-	dms_assert(regionInfo.m_CurrPI >= regionInfo.m_N);
+	assert(regionInfo.m_CurrPI >= regionInfo.m_N);
+}
+
+template <>
+void IncrementAtomicRegionCount<Void>(std::vector<claim_type>& atomicRegionCount, const regions_info_t<Void>& regionInfo, land_unit_id i, land_unit_id e)
+{
+	assert(atomicRegionCount.size() == 1);
+	atomicRegionCount[0] += (e - i);
 }
 
 template <typename S, typename AR, typename AT>
@@ -2516,7 +2658,7 @@ void StoreBidPricesCurrTile(htp_info_t<S, AR, AT>& htpInfo, AbstrDataObject* bid
 		{
 			AT j = htpInfo.m_ResultArray[i];
 			if (IsDefined(j))
-				priceData[i] = htpInfo.m_ggTypes[j].m_Suitabilities[i] + htpInfo.GetClaim( htpInfo.m_AtomicRegionMapData[i], j).m_ShadowPrice.first;
+				priceData[i] = htpInfo.m_ggTypes[j].m_Suitabilities[i] + htpInfo.GetClaim( htpInfo.GetAtomicRegionID(i), j).m_ShadowPrice.first;
 			else
 				priceData[i] = UNDEFINED_VALUE(S);
 		}
@@ -2528,8 +2670,8 @@ void StoreBidPricesCurrTile(htp_info_t<S, AR, AT>& htpInfo, AbstrDataObject* bid
 //									HitchcockTransportation operator
 // *****************************************************************************
 
-template <typename S, typename AR, typename AT>
-class HitchcockTransportationOperator : public UndenaryOperator
+template <typename S, discr_alloc_version DAV, typename AR, typename AT>
+class HitchcockTransportationOperator : public VariadicOperator
 {
 	typedef DataArray<SharedStr>  Arg1Type;          // ggTypes->name
 	typedef AbstrUnit             Arg2Type;          // domain of cells
@@ -2537,8 +2679,8 @@ class HitchcockTransportationOperator : public UndenaryOperator
 	typedef DataArray<S>          PriceType;         // suitability map type
 	typedef DataArray<UInt8>      Arg4Type;          // ggType -> partitioning
 	typedef DataArray<SharedStr>  Arg5Type;          // partitions->name
-	typedef Unit<AR>              Arg6Type;          // atomic regions to unique regions mapping container
-	typedef DataArray<AR>         Arg7Type;          // atomic regions map
+//	typedef Unit<AR>              Arg6Type;          // atomic regions to unique regions mapping container
+//	typedef DataArray<AR>         Arg7Type;          // atomic regions map
 	typedef DataArray<claim_type> ClaimType;         // Arg8 & 9 are containers with min resp. max claims; 
 	typedef DataArray<S>          Arg10Threshold;    // Cutoff threshold
 	                                              // arg11 is feasibility certificate
@@ -2553,29 +2695,56 @@ class HitchcockTransportationOperator : public UndenaryOperator
 	using htp_info_type = htp_info_t<S, AR, AT>;
 	const bool m_MustAdjust;
 
+	arg_index GetNrArguments() const
+	{
+		if constexpr (DAV == discr_alloc_version::no_partition)
+			return 6;
+		else if constexpr (DAV == discr_alloc_version::one_partition)
+			return 8;
+		else if constexpr (DAV == discr_alloc_version::multiple_partitions_without_feasibility_test)
+			return 10;
+		else
+		{
+			static_assert(DAV == discr_alloc_version::multiple_partitions_with_feasibility_test);
+			return 11;
+		}
+	}
+
 public:
 	HitchcockTransportationOperator(AbstrOperGroup* gr, bool mustAdjust)
-		:	UndenaryOperator(gr, ResultType::GetStaticClass(), 
-				Arg1Type::GetStaticClass(), // ggTypes->name array
-				Arg2Type::GetStaticClass(), // allocUnit
-				TreeItem::GetStaticClass(), // suitability maps
-				Arg4Type::GetStaticClass(), // ggTypes->partitions
-				Arg5Type::GetStaticClass(), // partitions->name
-				Arg6Type::GetStaticClass(), // atomicRegions to unique regions mapping container
-				Arg7Type::GetStaticClass(), // atomicRegions map
-				TreeItem::GetStaticClass(), // minClaim container
-				TreeItem::GetStaticClass(), // maxClaimContainer
-				Arg10Threshold::GetStaticClass(),  // cutoff threshold
-				TreeItem::GetStaticClass() // feasibility certificate
-			) 
+		:	VariadicOperator(gr, ResultType::GetStaticClass(), GetNrArguments()) 
 		,	m_MustAdjust(mustAdjust)
-	{}
+	{
+		ClassCPtr* argClsIter = m_ArgClasses.get();
+		*argClsIter++ = Arg1Type::GetStaticClass(); // ggTypes->name array
+		*argClsIter++ = Arg2Type::GetStaticClass(); // allocUnit
+		*argClsIter++ = TreeItem::GetStaticClass(); // suitability maps
+		if constexpr (DAV >= discr_alloc_version::multiple_partitions_without_feasibility_test)
+		{
+			*argClsIter++ = Arg4Type::GetStaticClass(); // ggTypes->partitions
+			*argClsIter++ = Arg5Type::GetStaticClass(); // partitions->name
+		}
+		if constexpr (DAV >= discr_alloc_version::one_partition)
+		{
+			*argClsIter++ = Unit<AR>::GetStaticClass(); // atomicRegions to unique regions mapping container
+			*argClsIter++ = DataArray<AR>::GetStaticClass(); // atomicRegions map
+		}
+		*argClsIter++ = TreeItem::GetStaticClass(); // minClaim container
+		*argClsIter++ = TreeItem::GetStaticClass(); // maxClaimContainer
+		*argClsIter++ = Arg10Threshold::GetStaticClass();  // cutoff threshold
+		if constexpr (DAV == discr_alloc_version::multiple_partitions_with_feasibility_test)
+		{
+			*argClsIter++ = TreeItem::GetStaticClass(); // feasibility certificate
+		}
+		assert(argClsIter == m_ArgClassesEnd);
+	}
 
 	void CreateResultCaller(TreeItemDualRef& resultHolder, const ArgRefs& args, OperationContext* fc, LispPtr) const override
 	{
-		dms_assert(args.size() == 11);
+		assert(args.size() == GetNrArguments());
+		auto argIter = args.begin();
 
-		const AbstrDataItem* ggTypeNamesA = AsDataItem(args[0]);
+		const AbstrDataItem* ggTypeNamesA = AsDataItem(*argIter);
 		dms_assert(ggTypeNamesA);
 
 		const Unit<AT>*  ggTypeSet = checked_domain<AT>(GetItem(args[0]), "a1");
@@ -2591,7 +2760,7 @@ public:
 		const AbstrDataItem* regionNamesA = AsDataItem(args[4]);
 		dms_assert(regionNamesA);
 
-		const Unit<AR>* atomicRegionUnit = debug_cast<const Arg6Type*>(GetItem(args[5]));
+		const Unit<AR>* atomicRegionUnit = debug_cast<const Unit<AR>*>(GetItem(args[5]));
 		dms_assert(atomicRegionUnit);
 //		fc->AddDependency(atomicRegionUnit->GetAsLispExpr()); is al implicit dependency as being calculating argument
 
@@ -2652,17 +2821,12 @@ public:
 
 	bool CalcResult(TreeItemDualRef& resultHolder, ArgRefs args, std::vector<ItemReadLock> readLocks, OperationContext* fc, Explain::Context* context) const override
 	{
-		dms_assert(args.size() == 11);
+		assert(args.size() == GetNrArguments());
 		htp_info_type& htpInfo = *noncopyable_any_cast<htp_info_type>(&fc->m_MetaInfo);
-
-		const Unit<AR>* atomicRegionUnit = debug_cast<const Arg6Type*>(GetItem(args[5]));
-//		dms_assert(atomicRegionUnit->GetCurrRangeItem()->DataAllocated());
-
-		const AbstrDataItem* atomicRegionMapA = AsDataItem(args[6]);
 
 //	Recreate result MetaInfo
 		TreeItem* res = resultHolder.GetNew();
-		dms_assert(res);
+		assert(res);
 
 		AbstrDataItem* resLanduse = AsDataItem(res->GetSubTreeItemByID(GetTokenID_mt("landuse")));
 
@@ -2686,7 +2850,12 @@ public:
 			reportD(SeverityTypeID::ST_MajorTrace, "DiscrAlloc.Prepare started");
 
 			PrepareClaims(htpInfo);
-			PreparePartitionings(htpInfo, atomicRegionMapA, atomicRegionUnit);
+			if constexpr (DAV >= discr_alloc_version::one_partition)
+			{
+				auto atomicRegionUnit = debug_cast<const Unit<AR>*>(GetItem(args[5]));
+				const AbstrDataItem* atomicRegionMapA = AsDataItem(args[6]);
+				PreparePartitionings(htpInfo, atomicRegionMapA, atomicRegionUnit);
+			}
 
 			isFeasible = FeasibilityTest(htpInfo, strStatus);
 			if (!isFeasible)
@@ -2714,10 +2883,10 @@ public:
 
 				if (htpInfo.m_NrBelowThreshold > 0)
 				{
-					reportF(SeverityTypeID::ST_MajorTrace, "%d units%s without land use type suitability above the threshold and therefore unallocated"
+					reportF(SeverityTypeID::ST_MajorTrace, "%d units%s with suitability for all categories below the threshold of %s and therefore unallocated"
 						, htpInfo.m_NrBelowThreshold
 						, htpInfo.m_NrBelowThreshold > NR_BELOW_THRESHOLD_NOTIFICATIONS ? ", of which only the first 5 were reported," : ""
-							
+						, AsString(threshold)
 					);
 				}
 				isFeasible = CheckAllClaims(htpInfo, &strStatus);
@@ -2827,21 +2996,26 @@ namespace
 	SpecialOperGroup greedyGroup("greedy_alloc", 11, da_oap, oper_policy::better_not_in_meta_scripting);
 	SpecialOperGroup greedyGroup_16("greedy_alloc_16", 11, da_oap, oper_policy::better_not_in_meta_scripting);
 
+	template <typename S, discr_alloc_version DAV, typename AR>
+	struct HitchcockTransportationOperatorSetje
+	{
+		HitchcockTransportationOperator<S, DAV, AR, UInt8> 
+			htpDefault = { &hitchcockGroup, true },
+			htpGreedy = { &greedyGroup, false };
+		HitchcockTransportationOperator<S, DAV, AR, UInt16> 
+			htpDefault16 = { &hitchcockGroup_16, true },
+			htpGreedy16 = {&greedyGroup_16, false};
+	};
+
 	template <typename S, typename AR>
 	struct HitchcockTransportationOperators
 	{
-		HitchcockTransportationOperators()
-			: htpDefault(&hitchcockGroup, true)
-			, htpDefault16(&hitchcockGroup_16, true) // only do untiled for large choice sets, don't expect this to run on Win32 anyway.
-			, htpGreedy(&greedyGroup, false)
-			, htpGreedy16(&greedyGroup_16, false) // only do untiled for large choice sets, don't expect this to run on Win32 anyway.
-		{}
-
-
-		HitchcockTransportationOperator<S, AR, UInt8> htpDefault, htpGreedy;
-		HitchcockTransportationOperator<S, AR, UInt16> htpDefault16, htpGreedy16;
+		HitchcockTransportationOperatorSetje<S, discr_alloc_version::one_partition                               , AR> htpOnePartition;
+		HitchcockTransportationOperatorSetje<S, discr_alloc_version::multiple_partitions_without_feasibility_test, AR> htpManyPartitionsNoFeasibilityTest;
+		HitchcockTransportationOperatorSetje<S, discr_alloc_version::multiple_partitions_with_feasibility_test   , AR> htpManyPartitionsWithFeasibilityTest;
 	};
 
+	HitchcockTransportationOperatorSetje<Int32, discr_alloc_version::no_partition, Void> htpNoPartition;
 	HitchcockTransportationOperators<Int32, UInt32> htp3232;
 	HitchcockTransportationOperators<Int32, UInt16> htp3216;
 	HitchcockTransportationOperators<Int32, UInt8 > htp3208;

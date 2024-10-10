@@ -240,13 +240,17 @@ static TokenID oldFontPaletteNameID = GetTokenID_st("FontPalette");
 
 bool IsAspectData(AspectNr aNr, const AbstrDataItem* adi, const LayerClass* layerClass)
 {
-	dms_assert(AspectArray);
-	dms_assert(adi);
+	assert(AspectArray);
+	assert(adi);
 	try {
 		if (!IsCompatibleValueType(adi->GetDynamicObjClass()->GetValuesType(), AspectArray[aNr].aspectType))
 			return false;
 	}
 	catch (...) { return false; }
+
+	if (aNr == AspectNr::AN_LabelText && adi->GetDynamicObjClass()->GetValuesType()->GetValueClassID() == ValueClassID::VT_SharedStr)
+		return true;
+
 	TokenID dialogTypeID = TreeItem_GetDialogType(adi);
 	if (dialogTypeID == GetAspectNameID(aNr) )
 		return true;
