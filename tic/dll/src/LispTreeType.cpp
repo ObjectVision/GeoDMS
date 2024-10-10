@@ -248,6 +248,10 @@ namespace token {
 	TIC_CALL TokenID geometry = GetTokenID_st("geometry");
 	TIC_CALL TokenID FenceContainer = GetTokenID_st("FenceContainer");
 
+	TIC_CALL TokenID SubItems = GetTokenID_st("SubItems");
+	TIC_CALL TokenID Error = GetTokenID_st("Error");
+	TIC_CALL TokenID SigAndSub = GetTokenID_st("SigAndSub");
+
 }
 
 LispRef CreateStorageSpec(const TreeItem* src)
@@ -331,7 +335,7 @@ LispRef CreateLispSign(const TreeItem* self)
 	catch (const DmsException& x)
 	{
 		SharedStr msg = x.AsErrMsg()->Why();
-		return List2<LispRef>(LispRef("Error"), LispRef(msg.begin(), msg.send()));
+		return List2<LispRef>(LispRef(token::Error), LispRef(msg.begin(), msg.send()));
 	}
 }
 
@@ -350,6 +354,9 @@ LispRef CreateLispSubTree(const TreeItem* self, bool inclSubTree)
 {
 	LispRef result;
 	try {
+		if (!self)
+			return {};
+
 		self->DetermineState();
 		if (inclSubTree)
 			for (const TreeItem* subItem = self->GetFirstSubItem(); subItem; subItem = subItem->GetNextItem())
@@ -360,16 +367,16 @@ LispRef CreateLispSubTree(const TreeItem* self, bool inclSubTree)
 		if (self->IsLoadable())
 			result = LispRef(CreateStorageSpec(self), result);
 		else
-			result = LispRef(LispRef(GetTokenID("SubItems")), result);
+			result = LispRef(LispRef(token::SubItems), result);
 	}
 	catch (const DmsException& x)
 	{
 		SharedStr msg = x.AsErrMsg()->Why();
 		result = LispRef(LispRef(msg.begin(), msg.send()), result);
-		result = LispRef(LispRef(GetTokenID("Error")), result); // TOOD G8: move to token::
+		result = LispRef(LispRef(token::Error), result); // TOOD G8: move to token::
 	};
 	result = LispRef(CreateLispSign(self), result);
-	result = LispRef(LispRef(GetTokenID("SigAndSub")), result); // TOOD G8: move to token::
+	result = LispRef(LispRef(token::SigAndSub), result); // TOOD G8: move to token::
 
 #if defined(MG_DEBUG_LISP_TREE)
 	reportF(SeverityTypeID::ST_MinorTrace,"CreateLispSubTree %d %s",  inclSubTree, AsFLispSharedStr(result, FormattingFlags::ThousandSeparator).c_str());

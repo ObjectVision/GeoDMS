@@ -178,6 +178,10 @@ namespace token {
 	extern TIC_CALL TokenID geometry;
 	extern TIC_CALL TokenID FenceContainer;
 
+	extern TIC_CALL TokenID SubItems;
+	extern TIC_CALL TokenID Error;
+	extern TIC_CALL TokenID SigAndSub;
+
 }
 
 //LispRef CreateLispSubTree(const TreeItem* self, bool inclSubTree);
