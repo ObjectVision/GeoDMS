@@ -992,9 +992,9 @@ bool FeasibilityTest(const htp_info_t<S, AR, AT>& htpInfo, SharedStr& strStatus)
 	if (!ok)
 		return false;
 
-	assert(htpInfo.m_AtomicRegionSizes.size() == gr.GetNrSrcNodes(dir_forward_tag()));
-	assert(aggrMinClaims.size()     == gr.GetNrDstNodes(dir_forward_tag()));
-	assert(aggrMaxClaims.size()     == gr.GetNrDstNodes(dir_forward_tag()));
+	assert(htpInfo.GetNrAtomicRegions() == gr.GetNrSrcNodes(dir_forward_tag()));
+	assert(aggrMinClaims.size()         == gr.GetNrDstNodes(dir_forward_tag()));
+	assert(aggrMaxClaims.size()         == gr.GetNrDstNodes(dir_forward_tag()));
 
 	std::vector<UInt32>  srcAllocated(nrAtomicRegions, 0);
 	std::vector<UInt32>& allocatedPerLink = const_cast<htp_info_t<S, AR, AT>&>(htpInfo).m_PossibleAllocationPerAr2UrLink;
@@ -1339,61 +1339,79 @@ void PrepareClaims(htp_info_t<S, AR, AT>& htpInfo)
 }
 
 template <typename S, typename AR, typename AT>
-void PreparePartitionings(htp_info_t<S, AR, AT>& htpInfo, const AbstrDataItem* atomicRegionMapA, const Unit<AR>* atomicRegionUnit)
+void PreparePartitionings(htp_info_t<S, AR, AT>& htpInfo, const AbstrUnit* allocUnit, const AbstrDataItem* atomicRegionMapA, const Unit<AR>* atomicRegionUnit)
 {
-	UInt32 p = htpInfo.GetNrPartitionings();
+	assert(allocUnit);
+	assert((atomicRegionMapA ==nullptr)==(atomicRegionUnit == nullptr));
 
-	dms_assert( htpInfo.m_NrUniqueRegions == 0 );
-	for (UInt32 j = 0; j!=p; ++j)
+	auto p = htpInfo.GetNrPartitionings();
+
+	UInt32 nrAtomicRegions = 1;
+	if constexpr (!std::is_same_v<AR, Void>)
 	{
-		partitioning_info_t<AR>& pInfo = htpInfo.m_Partitionings[j];
+		assert(atomicRegionMapA);
+		assert(atomicRegionUnit);
+		assert(htpInfo.m_NrUniqueRegions == 0);
 
-		UInt32 nrRegions = pInfo.GetPartitioningUnit()->GetCount();
+		for (UInt32 j = 0; j != p; ++j)
+		{
+			partitioning_info_t<AR>& pInfo = htpInfo.m_Partitionings[j];
 
-		pInfo.m_UniqueRegionOffset = htpInfo.m_NrUniqueRegions;
-		pInfo.m_NrRegions          = nrRegions;
+			UInt32 nrRegions = pInfo.GetPartitioningUnit()->GetCount();
 
-		pInfo.GetData();
-//		pInfo.m_DataLock = DataReadLock(pInfo.m_AtomicRegionPartitioningDI);
-//		htpInfo.m_Locks.push_back(DataReadLock(pInfo.m_AtomicRegionPartitioningDI));
-//		dms_assert(pInfo.m_DataLock.IsLocked());
+			pInfo.m_UniqueRegionOffset = htpInfo.m_NrUniqueRegions;
+			pInfo.m_NrRegions = nrRegions;
 
-//		pInfo.m_AtomicRegionPartitioningData = pInfo.m_AtomicRegionPartitioningObj->GetDataRead().begin();
-		htpInfo.m_NrUniqueRegions += nrRegions;
+			pInfo.GetData();
+			htpInfo.m_NrUniqueRegions += nrRegions;
+		}
+		// collect atomicRegionCounts
+		htpInfo.m_AtomicRegionMap = atomicRegionMapA;
+		htpInfo.m_AtomicRegionLock = DataReadLock(atomicRegionMapA);
+		assert(htpInfo.m_AtomicRegionLock.IsLocked());
+		htpInfo.m_AtomicRegionMapObj = const_array_cast<AR>(atomicRegionMapA);
+		nrAtomicRegions = atomicRegionUnit->GetCount();
+	}
+	else
+	{
+		assert(!atomicRegionMapA);
+		assert(!atomicRegionUnit);
 	}
 
-	// collect atomicRegionCounts
-	htpInfo.m_AtomicRegionMap = atomicRegionMapA;
-	htpInfo.m_AtomicRegionLock = DataReadLock(atomicRegionMapA);
-	dms_assert(htpInfo.m_AtomicRegionLock.IsLocked());
-	htpInfo.m_AtomicRegionMapObj = const_array_cast<AR>(atomicRegionMapA);
-
-	UInt32 nrAtomicRegions = atomicRegionUnit->GetCount();
 	vector_zero_n(htpInfo.m_AtomicRegionSizes, nrAtomicRegions);
 
-	SizeT nrLandUnits = 0;
-	tile_id nrLandUnitTiles = atomicRegionMapA->GetAbstrDomainUnit()->GetNrTiles();
-	for (tile_id t=0; t!=nrLandUnitTiles; ++t)
+	land_unit_id n = ThrowingConvert<land_unit_id>(allocUnit->GetCount());
+	if constexpr (!std::is_same_v<AR, Void>)
 	{
-		auto atomicRegionMapData = htpInfo.m_AtomicRegionMapObj->GetLockedDataRead(t);
-		nrLandUnits += atomicRegionMapData.size();
+		MG_CHECK(allocUnit->UnifyDomain(atomicRegionMapA->GetAbstrDomainUnit()));
+		SizeT nrLandUnits = 0;
+		tile_id nrLandUnitTiles = atomicRegionMapA->GetAbstrDomainUnit()->GetNrTiles();
+		for (tile_id t = 0; t != nrLandUnitTiles; ++t)
+		{
+			auto atomicRegionMapData = htpInfo.m_AtomicRegionMapObj->GetLockedDataRead(t);
+			nrLandUnits += atomicRegionMapData.size();
 
-		pcount_container<AR, UInt32>(
-			IterRange<UInt32*>(&htpInfo.m_AtomicRegionSizes)
-		,	atomicRegionMapData
-		,	atomicRegionUnit->GetRange()
-		,	atomicRegionMapA->GetCheckMode()
-		,	false
-		);
+			pcount_container<AR, UInt32>(
+				IterRange<UInt32*>(&htpInfo.m_AtomicRegionSizes)
+				, atomicRegionMapData
+				, atomicRegionUnit->GetRange()
+				, atomicRegionMapA->GetCheckMode()
+				, false
+			);
+		}
+		if (nrLandUnits != n)
+			htpInfo.m_MapDomain->throwItemErrorF(
+				"Land Unit set had %u elements, but total nr of elements in tiles is %u. Use a land unit set with a completely covering tiling",
+				n,
+				nrLandUnits
+			);
 	}
-	land_unit_id n = ThrowingConvert<land_unit_id>( atomicRegionMapA->GetAbstrDomainUnit()->GetCount() );
+	else
+	{
+		assert(htpInfo.m_AtomicRegionSizes.size() == 1);
+		htpInfo.m_AtomicRegionSizes[0] = n;
+	}
 	htpInfo.m_N = n;
-	if (nrLandUnits != n)
-		htpInfo.m_MapDomain->throwItemErrorF(
-			"Land Unit set had %u elements, but total nr of elements in tiles is %u. Use a land unit set with a completely covering tiling",
-			n, 
-			nrLandUnits
-		);
 }
 
 template <typename S, typename AR, typename AT>
@@ -2808,7 +2826,7 @@ public:
 
 		const Unit<AT>*  ggTypeSet = checked_domain<AT>(GetItem(args[0]), "a1");
 
-		const AbstrUnit* allocUnit = debug_cast<const AbstrUnit*>(GetItem(args[1]));
+		const AbstrUnit* allocUnit = AsUnit(GetItem(args[1]));
 
 		UInt32 nrTypes = ggTypeSet->GetCount();
 		MG_CHECK(nrTypes <= MAX_VALUE(AT));
@@ -2920,6 +2938,7 @@ public:
 		{
 			reportD(SeverityTypeID::ST_MajorTrace, "DiscrAlloc.Prepare started");
 
+			auto allocUnit = AsUnit(GetItem(args[1]));
 			PrepareClaims(htpInfo);
 			auto argIter = args.begin() + 3;
 			if constexpr (DAV >= discr_alloc_version::one_partition)
@@ -2928,8 +2947,11 @@ public:
 					argIter += 2;
 				auto atomicRegionUnit = debug_cast<const Unit<AR>*>(GetItem(*argIter++));
 				const AbstrDataItem* atomicRegionMapA = AsDataItem(*argIter++);
-				PreparePartitionings(htpInfo, atomicRegionMapA, atomicRegionUnit);
+				PreparePartitionings<S, AR, AT>(htpInfo, allocUnit, atomicRegionMapA, atomicRegionUnit);
 			}
+			else
+				PreparePartitionings<S, AR, AT>(htpInfo, allocUnit, nullptr, nullptr);
+
 
 			isFeasible = FeasibilityTest(htpInfo, strStatus);
 			if (!isFeasible)
