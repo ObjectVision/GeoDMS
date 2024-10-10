@@ -479,7 +479,7 @@ const UnitProjection* AbstrUnit::GetCurrProjection() const
 
 static TokenID s_LabelID = GetTokenID_st("Label"), s_LabelTextID = GetTokenID_st("LabelText");
 
-SharedDataItemInterestPtr AbstrUnit::GetLabelAttr() const
+auto AbstrUnit::GetLabelAttr() const -> SharedDataItemInterestPtr
 {
 	assert(this);
 
@@ -501,7 +501,7 @@ SharedDataItemInterestPtr AbstrUnit::GetLabelAttr() const
 	return {};
 }
 
-const AbstrDataItem* GetCurrLabelAttr(const AbstrUnit* au)
+auto AbstrUnit::GetCurrLabelAttr() const -> const AbstrDataItem*
 {
 	assert(au);
 
@@ -518,7 +518,7 @@ const AbstrDataItem* GetCurrLabelAttr(const AbstrUnit* au)
 	}
 	si = au->GetCurrSourceItem();
 	if (si)
-		return GetCurrLabelAttr(AsUnit(si));
+		return AsUnit(si)->GetCurrLabelAttr();
 	return nullptr;
 }
 
@@ -529,7 +529,7 @@ SharedStr AbstrUnit::GetLabelAtIndex(SizeT index, SharedDataItemInterestPtr& ipH
 		assert(IsMainThread());
 		ipHolder = GetLabelAttr();
 	}
-	assert(ipHolder == GetCurrLabelAttr(this));
+	assert(ipHolder == GetCurrLabelAttr());
 	if (!ipHolder)
 		return SharedStr();
 
@@ -569,7 +569,7 @@ ActorVisitState AbstrUnit::VisitLabelAttr(const ActorVisitor& visitor, SharedDat
 {
 	if (!labelLock)
 		labelLock = GetLabelAttr();
-	dms_assert(labelLock == GetCurrLabelAttr(this));
+	dms_assert(labelLock == GetCurrLabelAttr());
 	return visitor.Visit(labelLock.get_ptr());
 }
 

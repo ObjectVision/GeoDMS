@@ -346,6 +346,11 @@ struct partitioning_info_t
 			DisplayValue(pu, regionID, false, m_ValuesLabelLock, MAX_TEXTOUT_SIZE, lock).c_str()
 		);
 	}
+	SharedStr GetAtomicRegionStr(atomic_region_id ar) const
+	{
+		auto regionID = GetRegionID(ar);
+		return GetRegionStr(regionID);
+	}
 };
 
 
@@ -465,7 +470,7 @@ struct regions_info_t : regions_info_base
 		{
 			result
 				+=	SharedStr(p ? ", " : ": ")
-					+	m_Partitionings[p].GetRegionStr(m_Partitionings[p].GetRegionID(ar));
+					+	m_Partitionings[p].GetAtomicRegionStr(ar);
 		}
 		return result;			
 	}
@@ -1069,27 +1074,37 @@ void CreateResultingItems(
 	UInt32 P = 1;
 	if constexpr (!std::is_same_v<AR, Void>)
 	{
-		partitioningNamesLock = DataReadLock(partitioningNamesA);
-		partitioningNames = const_array_cast<SharedStr>(partitioningNamesA);
-		P = partitioningNames->GetDataRead().size();
+		if (partitioningNamesA)
+		{
+			partitioningNamesLock = DataReadLock(partitioningNamesA);
+			partitioningNames = const_array_cast<SharedStr>(partitioningNamesA);
+			P = partitioningNames->GetDataRead().size();
+		}
 		htpInfo.m_Partitionings.reserve(P);
 		for (UInt32 p = 0; p != P; ++p)
 		{
-			SharedStr partitioningName = partitioningNames->GetIndexedValue(p);
-			CDebugContextHandle context("discrete_alloc", partitioningName.c_str(), false);
+			const AbstrDataItem* regioRefDI = nullptr;
+			if (partitioningNamesA)
+			{
+				SharedStr partitioningName = partitioningNames->GetIndexedValue(p);
+				CDebugContextHandle context("discrete_alloc", partitioningName.c_str(), false);
 
-			const AbstrDataItem* regioRefDI = AsCheckedDataItem(atomicRegionUnit->GetConstSubTreeItemByID(GetTokenID_mt(partitioningName.c_str())));
-			if (!regioRefDI)
-				atomicRegionUnit->throwItemErrorF("SubItem expected with the name %s", partitioningName.c_str());
-			regioRefDI->UpdateMetaInfo();
-			fc->AddDependency(regioRefDI->GetCheckedDC());
+				regioRefDI = AsCheckedDataItem(atomicRegionUnit->GetConstSubTreeItemByID(GetTokenID_mt(partitioningName.c_str())));
+				if (!regioRefDI)
+					atomicRegionUnit->throwItemErrorF("SubItem expected with the name %s", partitioningName.c_str());
+				regioRefDI->UpdateMetaInfo();
+				fc->AddDependency(regioRefDI->GetCheckedDC());
 
-			if (!atomicRegionUnit->UnifyDomain(regioRefDI->GetAbstrDomainUnit(), "atomicRegionUnit", "Domain of regional partitioning thereof", UnifyMode(), &resultMsg))
-				throwErrorF("discrete_alloc", "unification of domain of partitoning %d(%s):\n%s\n with atomic region\n%s\n resulted in\n%s"
-					, p, partitioningName, regioRefDI->GetSourceName()
-					, atomicRegionUnit->GetSourceName()
-					, resultMsg
-				);
+				if (!atomicRegionUnit->UnifyDomain(regioRefDI->GetAbstrDomainUnit(), "atomicRegionUnit", "Domain of regional partitioning thereof", UnifyMode(), &resultMsg))
+					throwErrorF("discrete_alloc", "unification of domain of partitoning %d(%s):\n%s\n with atomic region\n%s\n resulted in\n%s"
+						, p, partitioningName, regioRefDI->GetSourceName()
+						, atomicRegionUnit->GetSourceName()
+						, resultMsg
+					);
+			}
+			else
+				regioRefDI = atomicRegionMapA;
+			assert(regioRefDI);
 
 			htpInfo.m_Partitionings.push_back(partitioning_info_t<AR>(regioRefDI));
 			if (htpInfo.m_Partitionings.back().m_ValuesLabelLock)
@@ -1111,18 +1126,29 @@ void CreateResultingItems(
 	DataReadLock ggTypes2partitioningsLock;
 	const DataArray<UInt8>* ggTypes2partitionings = nullptr;
 
-	if constexpr (!std::is_same_v<AR, Void>)
-	{
-		// get array of ggTypes2partitionings
-		ggTypes2partitioningsLock = DataReadLock(ggTypes2partitioningsA);
-		ggTypes2partitionings = const_array_cast<UInt8>(ggTypes2partitioningsA);
+//	if constexpr (!std::is_same_v<AR, Void>)
+//	{
+		if (ggTypes2partitioningsA)
+		{
+			// get array of ggTypes2partitionings
+			ggTypes2partitioningsLock = DataReadLock(ggTypes2partitioningsA);
+			ggTypes2partitionings = const_array_cast<UInt8>(ggTypes2partitioningsA);
 
-		if (!ggTypes2partitioningsA->GetAbstrDomainUnit()->UnifyDomain(ggTypeNamesA->GetAbstrDomainUnit(), "Domain of AllocationType partitioning (4th) attribute", "Domain of AllocationType name (1st) attribute", UnifyMode(), &resultMsg))
-			throwErrorF("discrete_alloc", "domains of Type->Name mapping (arg1):\n%s\nand Type->Partitioning mapping (arg4):\n%s\nincompatible: %s", ggTypeNamesA->GetSourceName(), ggTypes2partitioningsA->GetSourceName(), resultMsg);
+			if (!ggTypes2partitioningsA->GetAbstrDomainUnit()->UnifyDomain(ggTypeNamesA->GetAbstrDomainUnit(), "Domain of AllocationType partitioning (4th) attribute", "Domain of AllocationType name (1st) attribute", UnifyMode(), &resultMsg))
+				throwErrorF("discrete_alloc", "domains of Type->Name mapping (arg1):\n%s\nand Type->Partitioning mapping (arg4):\n%s\nincompatible: %s"
+					, ggTypeNamesA->GetSourceName()
+					, ggTypes2partitioningsA->GetSourceName()
+					, resultMsg
+				);
 
-		if (!ggTypes2partitioningsA->GetAbstrValuesUnit()->UnifyDomain(partitioningNamesA->GetAbstrDomainUnit(), "Values of AllocationType partitioning (4th) attribute", "Domain of Partition names (5th) attribute", UnifyMode(), &resultMsg))
-			throwErrorF("discrete_alloc", "values of Type->Partitioning mapping (arg4):\n%s\nand Partition->Names mapping (arg5):\n%s\nincompatible: %s", ggTypes2partitioningsA->GetSourceName(), partitioningNamesA->GetSourceName(), resultMsg);
-	}
+			if (!ggTypes2partitioningsA->GetAbstrValuesUnit()->UnifyDomain(partitioningNamesA->GetAbstrDomainUnit(), "Values of AllocationType partitioning (4th) attribute", "Domain of Partition names (5th) attribute", UnifyMode(), &resultMsg))
+				throwErrorF("discrete_alloc", "values of Type->Partitioning mapping (arg4):\n%s\nand Partition->Names mapping (arg5):\n%s\nincompatible: %s"
+					, ggTypes2partitioningsA->GetSourceName()
+					, partitioningNamesA->GetSourceName()
+					, resultMsg
+				);
+		}
+//	}
 	UInt32 K = ggTypeNames->GetDataRead().size();
 	htpInfo.m_ggTypes.resize(K);
 
@@ -1143,7 +1169,9 @@ void CreateResultingItems(
 		const AbstrUnit* partitioningUnit = nullptr;
 		if constexpr (!std::is_same_v<AR, Void>)
 		{
-			auto partitioningID = ggTypes2partitionings->GetIndexedValue(j);
+			UInt8 partitioningID = 0;
+			if (ggTypes2partitionings)
+				partitioningID = ggTypes2partitionings->GetIndexedValue(j);
 			if (partitioningID >= htpInfo.GetNrPartitionings())
 				throwErrorF("discrete_alloc", "Partitioning reference %d for Type %s is not a valid index in %s", partitioningID, gg->m_NameID, partitioningNamesA->GetSourceName());
 
@@ -2742,9 +2770,8 @@ public:
 	void CreateResultCaller(TreeItemDualRef& resultHolder, const ArgRefs& args, OperationContext* fc, LispPtr) const override
 	{
 		assert(args.size() == GetNrArguments());
-		auto argIter = args.begin();
 
-		const AbstrDataItem* ggTypeNamesA = AsDataItem(*argIter);
+		const AbstrDataItem* ggTypeNamesA = AsDataItem(args[0]);
 		dms_assert(ggTypeNamesA);
 
 		const Unit<AT>*  ggTypeSet = checked_domain<AT>(GetItem(args[0]), "a1");
@@ -2754,18 +2781,34 @@ public:
 		UInt32 nrTypes = ggTypeSet->GetCount();
 		MG_CHECK(nrTypes <= MAX_VALUE(AT));
 
-		const AbstrDataItem* ggTypes2partitioningsA = AsDataItem(args[3]);
-		dms_assert(ggTypes2partitioningsA);
+		auto argIter = args.begin() + 3;
+		const AbstrDataItem* ggTypes2partitioningsA = nullptr;
+		const AbstrDataItem* regionNamesA = nullptr;
+		if constexpr (DAV >= discr_alloc_version::multiple_partitions_without_feasibility_test)
+		{
+			ggTypes2partitioningsA = AsDataItem(*argIter++);
+			assert(ggTypes2partitioningsA);
 
-		const AbstrDataItem* regionNamesA = AsDataItem(args[4]);
-		dms_assert(regionNamesA);
+			regionNamesA = AsDataItem(*argIter++);
+			assert(regionNamesA);
+		}
+		const AbstrUnit* atomicRegionUnitA = nullptr;
+		const AbstrDataItem* atomicRegionMapA = nullptr;
+		if constexpr (DAV >= discr_alloc_version::one_partition)
+		{
+			atomicRegionUnitA = AsUnit(GetItem(*argIter++));
+			atomicRegionMapA = AsDataItem(*argIter++);
+			MG_CHECK(atomicRegionMapA);
+		}
+		else
+			atomicRegionUnitA = Unit<Void>::GetStaticClass()->CreateDefault();
 
-		const Unit<AR>* atomicRegionUnit = debug_cast<const Unit<AR>*>(GetItem(args[5]));
-		dms_assert(atomicRegionUnit);
-//		fc->AddDependency(atomicRegionUnit->GetAsLispExpr()); is al implicit dependency as being calculating argument
+		assert(atomicRegionUnitA);
+		const Unit<AR>* atomicRegionUnit = debug_cast<const Unit<AR>*>(atomicRegionUnitA);
+		assert(atomicRegionUnit);
 
-		const AbstrDataItem* atomicRegionMapA = AsDataItem(args[6]);
-		MG_CHECK(atomicRegionMapA);
+		auto minClaimSet = GetItem(*argIter++); // arg 3, 5, or 7
+		auto maxClaimSet = GetItem(*argIter++); // arg 4, 6, or 8
 
 		if (!resultHolder)
 			resultHolder = TreeItem::CreateCacheRoot();
@@ -2805,8 +2848,7 @@ public:
 			ggTypeNamesA,
 			allocUnit,
 			GetItem(args[2]),       // suitability maps container
-			GetItem(args[7]),       // minClaimSet
-			GetItem(args[8]),       // maxClaimSet
+			minClaimSet, maxClaimSet,
 			ggTypes2partitioningsA, regionNamesA, atomicRegionUnit, atomicRegionMapA, // RegionGrids
 			resShadowPriceContainer,
 			resTotalAllocatedContainer,
@@ -2850,10 +2892,14 @@ public:
 			reportD(SeverityTypeID::ST_MajorTrace, "DiscrAlloc.Prepare started");
 
 			PrepareClaims(htpInfo);
+			auto argIter = args.begin() + 3;
 			if constexpr (DAV >= discr_alloc_version::one_partition)
 			{
-				auto atomicRegionUnit = debug_cast<const Unit<AR>*>(GetItem(args[5]));
-				const AbstrDataItem* atomicRegionMapA = AsDataItem(args[6]);
+				if constexpr (DAV >= discr_alloc_version::multiple_partitions_without_feasibility_test)
+					argIter += 2;
+
+				auto atomicRegionUnit = debug_cast<const Unit<AR>*>(GetItem(*argIter++));
+				const AbstrDataItem* atomicRegionMapA = AsDataItem(*argIter++);
 				PreparePartitionings(htpInfo, atomicRegionMapA, atomicRegionUnit);
 			}
 
@@ -2876,7 +2922,7 @@ public:
 			if (isFeasible)
 			{
 				reportD(SeverityTypeID::ST_MajorTrace, "DiscrAlloc.Solve started with suitability container ", GetItem(args[2])->GetFullName().c_str());
-				S threshold = GetTheCurrValue<S>(GetItem(args[9]));
+				S threshold = GetTheCurrValue<S>(GetItem(argIter[2]));
 
 				PrepareTileLock(htpInfo);
 				Solve(htpInfo, threshold, htpInfo.m_ResultPriceDataLock.get());
