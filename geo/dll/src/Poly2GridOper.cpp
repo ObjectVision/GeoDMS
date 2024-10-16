@@ -711,13 +711,13 @@ struct Poly2AllGridsOperator : public BinaryOperator
 
 		const AbstrUnit* polyDomainUnit = polyAttr->GetAbstrDomainUnit();
 		assert(polyDomainUnit);
-		if (polyDomainUnit->GetValueType() == ValueWrap<Void>::GetStaticClass())
-			polyDomainUnit = Unit<Bool>::GetStaticClass()->CreateDefault();
 
 		resultHolder = Unit< DomainType>::GetStaticClass()->CreateResultUnit(resultHolder);
 		auto resDomain = AsUnit(resultHolder.GetNew()); assert(resDomain);
-		auto resPolyRelAttr = CreateDataItem(resDomain, s_PolygonRelTokenID, resDomain, polyDomainUnit, ValueComposition::Single);
-		auto resGridRelAttr = CreateDataItem(resDomain, s_GridRelTokenID, resDomain, gridDomainUnit, ValueComposition::Single);
+		AbstrDataItem* resPolyRelAttr = nullptr;
+		if (polyDomainUnit->GetValueType() != ValueWrap<Void>::GetStaticClass())
+			resPolyRelAttr = CreateDataItem(resDomain, s_PolygonRelTokenID, resDomain, polyDomainUnit, ValueComposition::Single);
+		AbstrDataItem* resGridRelAttr = CreateDataItem(resDomain, s_GridRelTokenID, resDomain, gridDomainUnit, ValueComposition::Single);
 
 		if (!mustCalc)
 		{
@@ -770,6 +770,7 @@ struct Poly2AllGridsOperator : public BinaryOperator
 				{
 					if constexpr (!std::is_same_v<E, Void>)
 					{
+						assert(resPolyRelAttr);
 						auto resPolyRelLock = DataWriteLock(resPolyRelAttr, dms_rw_mode::write_only_all);
 						auto resPolyRelWriter = tile_write_channel<E>(mutable_array_cast<E>(resPolyRelLock.get()));
 						for (tile_id tp = 0; tp < tpn; tp++)
