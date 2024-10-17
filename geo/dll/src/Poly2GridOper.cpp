@@ -19,6 +19,7 @@
 #include "DataArray.h"
 #include "ParallelTiles.h"
 #include "Param.h"
+#include "tilechannel.h"
 #include "TreeItemClass.h"
 #include "UnitClass.h"
 #include "UnitProcessor.h"
@@ -85,7 +86,17 @@ struct poly_edge_node {
 	poly_edge   edge;
 };
 
-struct AbstrRasterizeInfo 
+template <typename CoordType>
+struct RLE_range
+{
+	CoordType m_Row, m_Start, m_End;
+};
+
+template <typename CoordType> using RLE_polygon = std::vector<RLE_range<CoordType>>;
+template <typename CoordType> using RLE_polygon_tileset = std::vector<RLE_polygon<CoordType>>;
+template <typename CoordType> using RLE_polygon_wall = std::vector<RLE_polygon_tileset<CoordType>>;
+
+struct AbstrRasterizeInfo
 {
 	AbstrRasterizeInfo(RasterSizeType rasterSize)
 		:	m_RasterSize(rasterSize)
@@ -111,10 +122,10 @@ struct RasterizeInfo : AbstrRasterizeInfo
 
 	void BurnLine(SizeT ny, SizeT nxStart, SizeT nxEnd, BurnValueVariant eBurnValue) override
 	{
-		dms_assert(ny < m_RasterSize.Y());
-		dms_assert(nxStart <  m_RasterSize.X());
-		dms_assert(nxEnd   <= m_RasterSize.X());
-		dms_assert(nxStart <= nxEnd);
+		assert(ny < m_RasterSize.Y());
+		assert(nxStart <  m_RasterSize.X());
+		assert(nxEnd   <= m_RasterSize.X());
+		assert(nxStart <= nxEnd);
 
 		pointer_type startLinePtr = m_ChunkBuf + ny * m_RasterSize.X();
 
@@ -123,6 +134,25 @@ struct RasterizeInfo : AbstrRasterizeInfo
 	}
 
 	typename pointer_type m_ChunkBuf;
+};
+
+template <typename TE>
+struct RLE_Info : AbstrRasterizeInfo
+{
+	RLE_Info(RasterSizeType rasterSize)
+		: AbstrRasterizeInfo(rasterSize)
+	{}
+
+	void BurnLine(SizeT ny, SizeT nxStart, SizeT nxEnd, BurnValueVariant eBurnValue) override
+	{
+		assert(ny < m_RasterSize.Y());
+		assert(nxStart < m_RasterSize.X());
+		assert(nxEnd <= m_RasterSize.X());
+		assert(nxStart <= nxEnd);
+
+		result.emplace_back(ny, nxStart, nxEnd);
+	}
+	RLE_polygon<TE> result;
 };
 
 struct IFP_resouces {
@@ -136,8 +166,8 @@ struct IFP_resouces {
 
 void ImageFilledPolygon(AbstrRasterizeInfo* rasterInfo, point_t* padf, part_index_t nPartCount, seq_index_t* panPartSize, BurnValueVariant eBurnValue, IFP_resouces& ifpResources)
 {
-	dms_assert(rasterInfo);
-	dms_assert(padf);
+	assert(rasterInfo);
+	assert(padf);
   
 	// count nr of edges
     seq_index_t n = 0;
@@ -182,7 +212,7 @@ void ImageFilledPolygon(AbstrRasterizeInfo* rasterInfo, point_t* padf, part_inde
 
 	for (seq_index_t i = 0; i < n; i++) {
 		while (i == partend) {
-			dms_assert(part < nPartCount);
+			assert(part < nPartCount);
 			partoffset = partend;
 			partend += panPartSize[part];
 			part++;
@@ -212,15 +242,15 @@ void ImageFilledPolygon(AbstrRasterizeInfo* rasterInfo, point_t* padf, part_inde
 		else
 		{
 			rowcol_t y = Min<rowcol_t>(y1, y2); // row number of the starting point of this edge.
-			dms_assert(y >= miny);
-			dms_assert(y < maxy);
+			assert(y >= miny);
+			assert(y < maxy);
 			auto& edgeListStart = edgeListStarts[y-miny];
 			seq_index_t prevIndex = edgeListStart;
 			edgeListStart = edgeLists.size();
 			edgeLists.emplace_back(poly_edge_node{ prevIndex, (y1 < y2) ? poly_edge{ prev_i, i } : poly_edge{ i, prev_i } });
 		}
 	}
-	dms_assert(part == nPartCount - 1);
+	assert(part == nPartCount - 1);
 
 	auto leftTogglePointsPtr = leftTogglePoints.begin();
 	auto rightTogglePointsPtr = rightTogglePoints.begin();
@@ -257,14 +287,14 @@ void ImageFilledPolygon(AbstrRasterizeInfo* rasterInfo, point_t* padf, part_inde
 			rowcol_t x1 = cols[edge.first], x2 = cols[edge.second];
 			if (x1 != x2) {
 				coord_t dy1 = padf[edge.first].Y(), dy2 = padf[edge.second].Y();
-				dms_assert(dy1 <= dy2);
-				dms_assert(dy1 <= dy); // edge must have been activated
-				dms_assert(dy2 > dy);  // edge cannot have been ended yet
+				assert(dy1 <= dy2);
+				assert(dy1 <= dy); // edge must have been activated
+				assert(dy2 > dy);  // edge cannot have been ended yet
 
 				coord_t dx1 = padf[edge.first].X(), dx2 = padf[edge.second].X();
 
-				dms_assert(dx1 > dminx || dx2 > dminx);
-				dms_assert(dx1 <= dmaxx || dx2 <= dmaxx);
+				assert(dx1 > dminx || dx2 > dminx);
+				assert(dx1 <= dmaxx || dx2 <= dmaxx);
 				coord_t intersect = (dy - dy1) * (dx2 - dx1) / (dy2 - dy1) + dx1;
 				if (intersect <= dminx)
 				{
@@ -285,30 +315,30 @@ void ImageFilledPolygon(AbstrRasterizeInfo* rasterInfo, point_t* padf, part_inde
 			crossingCols.emplace_back(maxx);
 		SizeT i=0, e = crossingCols.size();
 
-		dms_assert(!((e + int(open_left_here)) % 2));
+		assert(!((e + int(open_left_here)) % 2));
 		if ((e + int(open_left_here)) % 2) // avoid crash anyway
 			continue; // by skipping this whole undisiplined row
 
 		if (open_left_here)
 		{
-			dms_assert(e % 2 == 1); // follows from previous assert
-			dms_assert(minx <= crossingCols[0]);
-			dms_assert(crossingCols[0] <= maxx);
+			assert(e % 2 == 1); // follows from previous assert
+			assert(minx <= crossingCols[0]);
+			assert(crossingCols[0] <= maxx);
 			rasterInfo->BurnLine(miny, minx, crossingCols[i++], eBurnValue);
 		}
-		dms_assert(!((e-i) % 2)); // follows from previous asserts
+		assert(!((e-i) % 2)); // follows from previous asserts
 
 		for (; i < e; i += 2)
 		{
-			dms_assert(crossingCols[i] >= minx);
-			dms_assert(crossingCols[i] <= crossingCols[i+1]);
-			dms_assert(crossingCols[i+1] <= maxx);
+			assert(crossingCols[i] >= minx);
+			assert(crossingCols[i] <= crossingCols[i+1]);
+			assert(crossingCols[i+1] <= maxx);
 			rasterInfo->BurnLine(miny, crossingCols[i], crossingCols[i + 1], eBurnValue);
 		}
     }
-	dms_assert(leftTogglePointsPtr == leftTogglePoints.end()-1);
-	dms_assert(rightTogglePointsPtr == rightTogglePoints.end()-1);
-	dms_assert(edgeListStartsPtr == edgeListStarts.end());
+	assert(leftTogglePointsPtr == leftTogglePoints.end()-1);
+	assert(rightTogglePointsPtr == rightTogglePoints.end()-1);
+	assert(edgeListStartsPtr == edgeListStarts.end());
 }
 
 /************************************************************************/
@@ -317,7 +347,7 @@ void ImageFilledPolygon(AbstrRasterizeInfo* rasterInfo, point_t* padf, part_inde
 
 void rasterize_one_shape(AbstrRasterizeInfo* rasterInfo, std::vector<DPoint>& poShape, BurnValueVariant eBurnValue, IFP_resouces& ifpResources)
 {
-	dms_assert(rasterInfo);
+	assert(rasterInfo);
 
     if (poShape.empty())
         return;
@@ -376,19 +406,29 @@ namespace poly2grid
 		locked_cseq_t m_Seq;
 	};
 
-	struct DispatcherTileData
+	auto CreateSequenceGetter(const AbstrUnit* polygonCoordinateUnit)
 	{
-		DispatcherTileData(AbstrDataObject* resObj, const AbstrUnit* resDomain, const AbstrDataItem* polyAttr, WeakPtr<const AbstrBoundingBoxCache> boxesArrays, tile_id tg)
+		return visit_and_return_result<typelists::seq_points, AbstrSequenceGetter*>(
+			polygonCoordinateUnit,
+			[]<typename P >(const Unit<P>*)
+		{
+			return new SequenceGetter<P>;
+		}
+		);
+	}
+
+	struct p2g_DispatcherTileData
+	{
+		p2g_DispatcherTileData(AbstrDataObject* resObj, const AbstrUnit* resDomain, const AbstrDataItem* polyAttr, WeakPtr<const AbstrBoundingBoxCache> boxesArrays, tile_id tg)
 			:	m_ResObj(resObj)
 			,	m_PolyAttr(polyAttr)
 			,	m_BoxesArrays(boxesArrays)
 			,	m_RasterTileId(tg)
 			,	m_ViewPortInfo(polyAttr, resDomain, tg, AsUnit(polyAttr->GetAbstrValuesUnit()->GetCurrRangeItem()), no_tile, nullptr, false, false, countcolor_t(-1), false)
 		{
-			CreateSequenceGetter();
+			m_SequenceGetter = CreateSequenceGetter(m_PolyAttr->GetAbstrValuesUnit());
 		}
 
-		void CreateSequenceGetter();
 
 		// constant for all tiles
 		AbstrDataObject*                     m_ResObj;
@@ -409,7 +449,7 @@ namespace poly2grid
 			const AbstrDataItem* polyAttr = m_PolyAttr;
 			const AbstrDataObject* polyData = polyAttr->GetCurrRefObj();
 			const AbstrUnit* abstrPolyDomain = polyAttr->GetAbstrDomainUnit(); // could be void domain.
-			dms_assert(abstrPolyDomain);
+			assert(abstrPolyDomain);
 			const Unit<E>* polyDomain = dynamic_cast<const Unit<E>*>(abstrPolyDomain); // could be nullptr
 
 			DRect clipRect = m_ViewPortInfo.GetViewPortInGrid();
@@ -421,35 +461,34 @@ namespace poly2grid
 
 			auto res = mutable_array_cast<E>(m_ResObj)->GetDataWrite(m_RasterTileId, dms_rw_mode::write_only_all);
 			MG_CHECK(res.size() == Cardinality(size)); // or at least at least
-			OwningPtr<AbstrRasterizeInfo> rasterInfoPtr;
-			rasterInfoPtr.assign( new RasterizeInfo<E>(Convert<RasterSizeType>(size), res.begin()) );
+			auto rasterInfo = RasterizeInfo<E>(Convert<RasterSizeType>(size), res.begin());
 
-			dms_assert(m_BoxesArrays);
+			assert(m_BoxesArrays);
 
-			for (tile_id t = 0, te = abstrPolyDomain->GetNrTiles(); t!=te; ++t)
+			for (tile_id tp = 0, te = abstrPolyDomain->GetNrTiles(); tp!=te; ++tp)
 			{
-				typename Unit<E>::range_t tileIndexRange = polyDomain ? polyDomain->GetTileRange(t) : indexRange;
+				typename Unit<E>::range_t tileIndexRange = polyDomain ? polyDomain->GetTileRange(tp) : indexRange;
 
-				if (!IsIntersecting(clipRect, m_BoxesArrays->GetTileBounds(t)))
+				if (!IsIntersecting(clipRect, m_BoxesArrays->GetTileBounds(tp)))
 					continue;
 
-				AbstrSequenceGetter* sg = m_SequenceGetter;
-				dms_assert(sg);
-				sg->OpenTile(polyData, t);
+				AbstrSequenceGetter* sg = m_SequenceGetter.get();
+				assert(sg);
+				sg->OpenTile(polyData, tp);
 
-				for (tile_offset i = 0, e = abstrPolyDomain->GetTileCount(t); i != e; ++i)
+				for (tile_offset i = 0, e = abstrPolyDomain->GetTileCount(tp); i != e; ++i)
 				{
 					try
 					{
 						if (!(i % AbstrBoundingBoxCache::c_BlockSize))
-							while (!IsIntersecting(clipRect, m_BoxesArrays->GetBlockBounds(t, i / AbstrBoundingBoxCache::c_BlockSize)))
+							while (!IsIntersecting(clipRect, m_BoxesArrays->GetBlockBounds(tp, i / AbstrBoundingBoxCache::c_BlockSize)))
 							{
 								i += AbstrBoundingBoxCache::c_BlockSize;
 								if (!(i < e))
 									goto end_of_tile_loop;
 							}
 
-						if (!IsIntersecting(clipRect, m_BoxesArrays->GetBounds(t, i)))
+						if (!IsIntersecting(clipRect, m_BoxesArrays->GetBounds(tp, i)))
 							continue;
 						sg->GetValue(i, dPoints);
 
@@ -460,64 +499,103 @@ namespace poly2grid
 						for (auto pi = dPoints.begin(), pe = dPoints.end(); pi != pe; ++pi)
 							transForm.InplApply(*pi);
 
-						E eBurnValueSource = Range_GetValue_naked(tileIndexRange, i);
+						BurnValueVariant eBurnValueSource = Range_GetValue_naked(tileIndexRange, i);
 
-						rasterize_one_shape(rasterInfoPtr, dPoints, eBurnValueSource, ifpResources);
+						rasterize_one_shape(&rasterInfo, dPoints, eBurnValueSource, ifpResources);
 					}
 					catch (DmsException& x)
 					{
-						x.AsErrMsg()->TellExtraF("\nin poly2grid at tile %d and index %d", t, i);
+						x.AsErrMsg()->TellExtraF("\nin poly2grid at tile %d and index %d", tp, i);
 						throw;
 					}
 				}
 			end_of_tile_loop:;
 			}
 		}
+
+		template <>
+		void GetBitmap<Void>(typename Unit<Void>::range_t indexRange)
+		{
+			GetBitmap<Bool>(Unit<Bool>::range_t(1, 2));
+		}
+
 	};
 
-	struct DispatcherBase : UnitProcessor
+	struct p2ag_DispatcherTileData
 	{
-		template <typename E>
-		void VisitImpl(const Unit<E>* inviter) const
+		p2ag_DispatcherTileData(const AbstrUnit* resDomain, const AbstrDataItem* polyAttr)
+			: m_PolyAttr(polyAttr)
+			, m_ViewPortInfo(polyAttr, resDomain, no_tile, AsUnit(polyAttr->GetAbstrValuesUnit()->GetCurrRangeItem()), no_tile, nullptr, false, false, countcolor_t(-1), false)
 		{
-			dms_assert(m_Data);
-			m_Data->GetBitmap<E>(inviter->GetRange()); // corresponding with the indices of m_PolyData
+			m_SequenceGetter = CreateSequenceGetter(m_PolyAttr->GetAbstrValuesUnit());
 		}
-		void VisitImpl(const Unit<Void>* inviter) const
+
+
+		WeakPtr<const AbstrDataItem>   m_PolyAttr;
+		ViewPortInfoEx<Int32>          m_ViewPortInfo;
+		OwningPtr<AbstrSequenceGetter> m_SequenceGetter;
+
+
+		template <typename RT>
+		auto GetTileResults(tile_id tp) -> RLE_polygon_tileset<scalar_of_t<RT>>
 		{
-			dms_assert(m_Data);
-			m_Data->GetBitmap<Bool>(Unit<Bool>::range_t(1, 2)); // corresponding with the indices of m_PolyData
+			RasterSizeType size = m_ViewPortInfo.GetViewPortSize();
+			IPoint base = m_ViewPortInfo.GetViewPortOrigin();
+
+			const AbstrDataItem* polyAttr = m_PolyAttr;
+			const AbstrDataObject* polyData = polyAttr->GetCurrRefObj();
+			const AbstrUnit* abstrPolyDomain = polyAttr->GetAbstrDomainUnit(); // could be void domain.
+			assert(abstrPolyDomain);
+
+		//	const Unit<E>* polyDomain = dynamic_cast<const Unit<E>*>(abstrPolyDomain); // could be nullptr
+
+			DRect clipRect = m_ViewPortInfo.GetViewPortInGrid();
+
+			CrdTransformation transForm = m_ViewPortInfo.Inverse();
+			transForm -= base;
+			std::vector<DPoint> dPoints;
+			IFP_resouces ifpResources;
+
+			auto rleInfo = RLE_Info<scalar_of_t<RT>>(Convert<RasterSizeType>(size));
+
+			AbstrSequenceGetter* sg = m_SequenceGetter.get();
+			assert(sg);
+			sg->OpenTile(polyData, tp);
+
+			tile_offset te = abstrPolyDomain->GetTileCount(tp);
+			auto result = RLE_polygon_tileset<scalar_of_t<RT>>(te);
+
+			for (tile_offset i = 0; i != te; ++i)
+			{
+				try
+				{
+					sg->GetValue(i, dPoints);
+					auto polyBounds = DRect(dPoints.begin(), dPoints.end(), false, false);
+					if (!IsIntersecting(clipRect, polyBounds))
+						continue;
+
+					remove_adjacents_and_spikes(dPoints);
+					if (dPoints.size() < 3)
+						continue;
+					auto& resultRLE = result[i];
+
+					for (auto pi = dPoints.begin(), pe = dPoints.end(); pi != pe; ++pi)
+						transForm.InplApply(*pi);
+
+					MG_CHECK(rleInfo.result.size() == 0);
+					rasterize_one_shape(&rleInfo, dPoints, BurnValueVariant(), ifpResources);
+					result[i] = std::move(rleInfo.result);
+				}
+				catch (DmsException& x)
+				{
+					x.AsErrMsg()->TellExtraF("\nin poly2allgrids at tile %d and index %d", tp, i);
+					throw;
+				}
+			}
+			return result;
 		}
-		WeakPtr<DispatcherTileData> m_Data;
 	};
 
-	struct Dispatcher : boost::mpl::fold<typelists::domain_int_types, DispatcherBase, VisitorImpl<Unit<boost::mpl::_2>, boost::mpl::_1> >::type
-	{};
-
-	struct SequenceGetterGeneratorBase : UnitProcessor
-	{
-		template <typename P>
-		void VisitImpl(const Unit<P>* inviter) const
-		{
-			dms_assert(m_Data);
-			m_Data->m_SequenceGetter = new SequenceGetter<P>;
-		}
-		WeakPtr<DispatcherTileData> m_Data;
-	};
-
-	struct SequenceGetterGenerator : boost::mpl::fold<typelists::seq_points, SequenceGetterGeneratorBase, VisitorImpl<Unit<boost::mpl::_2>, boost::mpl::_1> >::type
-	{};
-
-	void DispatcherTileData::CreateSequenceGetter()
-	{
-		dms_assert(!m_SequenceGetter);
-
-		SequenceGetterGenerator gen;
-		gen.m_Data = this;
-		m_PolyAttr->GetAbstrValuesUnit()->InviteUnitProcessor(gen);
-
-		dms_assert(m_SequenceGetter);
-	}
 }
 
 // *****************************************************************************
@@ -526,6 +604,8 @@ namespace poly2grid
 
 CommonOperGroup cog_poly2grid("poly2grid", oper_policy::dynamic_result_class | oper_policy::better_not_in_meta_scripting);
 CommonOperGroup cog_poly2grid_untiled("poly2grid_untiled", oper_policy::dynamic_result_class | oper_policy::better_not_in_meta_scripting);
+CommonOperGroup cog_poly2grid32("poly2allgrids", oper_policy::better_not_in_meta_scripting);
+CommonOperGroup cog_poly2grid64("poly2allgrids_uint64", oper_policy::better_not_in_meta_scripting);
 
 struct Poly2GridOperator : public BinaryOperator
 {
@@ -541,18 +621,18 @@ struct Poly2GridOperator : public BinaryOperator
 
 	bool CreateResult(TreeItemDualRef& resultHolder, const ArgSeqType& args, bool mustCalc) const override
 	{
-		dms_assert(args.size() >= 2);
+		assert(args.size() >= 2);
 		if (args.size() > 2 && !resultHolder)
 			// throwErrorD("poly2grid", "Obsolete third argument used; replace by poly2grid(polygons, gridDomain)");
 			reportD(SeverityTypeID::ST_Warning, "poly2grid: Obsolete third argument used; replace by poly2grid(polygons, gridDomain)");
 		const AbstrDataItem* polyAttr = AsDataItem(args[0]); // can be segmented
 		const AbstrUnit* gridDomainUnit = AsUnit(args[1]); // can be tiled
 
-		dms_assert(polyAttr);
-		dms_assert(gridDomainUnit);
+		assert(polyAttr);
+		assert(gridDomainUnit);
 
 		const AbstrUnit* polyDomainUnit = polyAttr->GetAbstrDomainUnit();
-		dms_assert(polyDomainUnit);
+		assert(polyDomainUnit);
 		if (polyDomainUnit->GetValueType() == ValueWrap<Void>::GetStaticClass())
 			polyDomainUnit = Unit<Bool>::GetStaticClass()->CreateDefault();
 
@@ -590,18 +670,140 @@ struct Poly2GridOperator : public BinaryOperator
 
 		auto poly2gridFunctor = [resObj, resDomain, polyAttr, boxesArray](tile_id tg)
 		{
-			poly2grid::DispatcherTileData dispatcherTileData(resObj, resDomain, polyAttr, boxesArray, tg);
+			poly2grid::p2g_DispatcherTileData dispatcherTileData(resObj, resDomain, polyAttr, boxesArray, tg);
 
-			poly2grid::Dispatcher disp;
-			disp.m_Data = &dispatcherTileData;
-
-			polyAttr->GetAbstrDomainUnit()->InviteUnitProcessor(disp);
+			visit<typelists::domain_int_types>(polyAttr->GetAbstrDomainUnit(),
+				[&dispatcherTileData]<typename E>(const Unit<E>* polyDomain)
+				{
+					dispatcherTileData.GetBitmap<E>(polyDomain->GetRange());
+				}
+			);
 		};
 
 		if (doUntiled)
 			poly2gridFunctor(no_tile);
 		else
 			parallel_tileloop(resObj->GetTiledRangeData()->GetNrTiles(), poly2gridFunctor);
+	}
+};
+
+static TokenID s_PolygonRelTokenID = GetTokenID_st("polygon_rel");
+static TokenID s_GridRelTokenID    = GetTokenID_st("grid_rel");
+
+template<typename DomainType = UInt32>
+struct Poly2AllGridsOperator : public BinaryOperator
+{
+	Poly2AllGridsOperator(AbstrOperGroup& aog, const DataItemClass* polyAttrClass, const UnitClass* gridSetType)
+		: BinaryOperator(&aog, Unit<DomainType>::GetStaticClass()
+			, polyAttrClass
+			, gridSetType
+		)
+	{}
+
+	bool CreateResult(TreeItemDualRef& resultHolder, const ArgSeqType& args, bool mustCalc) const override
+	{
+		assert(args.size() == 2);
+		const AbstrDataItem* polyAttr = AsDataItem(args[0]); // can be segmented
+		const AbstrUnit* gridDomainUnit = AsUnit(args[1]); // can be tiled
+
+		assert(polyAttr);
+		assert(gridDomainUnit);
+
+		const AbstrUnit* polyDomainUnit = polyAttr->GetAbstrDomainUnit();
+		assert(polyDomainUnit);
+
+		resultHolder = Unit< DomainType>::GetStaticClass()->CreateResultUnit(resultHolder);
+		auto resDomain = AsUnit(resultHolder.GetNew()); assert(resDomain);
+		AbstrDataItem* resPolyRelAttr = nullptr;
+		if (polyDomainUnit->GetValueType() != ValueWrap<Void>::GetStaticClass())
+			resPolyRelAttr = CreateDataItem(resDomain, s_PolygonRelTokenID, resDomain, polyDomainUnit, ValueComposition::Single);
+		AbstrDataItem* resGridRelAttr = CreateDataItem(resDomain, s_GridRelTokenID, resDomain, gridDomainUnit, ValueComposition::Single);
+
+		if (!mustCalc)
+		{
+			ViewPortInfoEx<Int32> viewPortInfoCheck(polyAttr, gridDomainUnit, no_tile, AsUnit(polyAttr->GetAbstrValuesUnit()->GetCurrRangeItem()), no_tile, nullptr, false, true, countcolor_t(-1), false);
+		}
+		else
+		{
+			DataReadLock arg1Lock(polyAttr);
+
+			Calculate(resDomain, resPolyRelAttr, resGridRelAttr, polyAttr, gridDomainUnit);
+
+		}
+		return true;
+	}
+
+	// resObj: has gridDomain and domain of polyAttr as valuesUnit
+	// polyAttr can be segmented
+	void Calculate(AbstrUnit* resDomain, AbstrDataItem* resPolyRelAttr, AbstrDataItem* resGridRelAttr, const AbstrDataItem* polyAttr, const AbstrUnit* rasterDomain) const
+	{
+		bool isAllDefined = polyAttr->HasUndefinedValues();
+
+		// TODO G8: Avoid double work of polygons than intersect with multiple tiles: when going throuh the list, take neighbouring tiles into account such as with an ordered heap
+
+		auto tpn = polyAttr->GetAbstrDomainUnit()->GetTiledRangeData()->GetNrTiles();
+
+		visit<typelists::int_points>(rasterDomain, [resDomain, resPolyRelAttr, resGridRelAttr, polyAttr, tpn]<typename RT >(const Unit<RT>*rasterDomain)
+			{
+				auto resultingWall = RLE_polygon_wall<int>(tpn);
+				auto resultingPointCount = std::vector<SizeT>(tpn);
+
+				auto dispatcherTileData = poly2grid::p2ag_DispatcherTileData(rasterDomain, polyAttr);
+
+				auto poly2allgridsFunctor = [&dispatcherTileData, &resultingWall, &resultingPointCount](tile_id tp)
+				{
+					resultingWall[tp] = dispatcherTileData.GetTileResults<int>(tp);
+					SizeT pointCount = 0;
+					for (const auto& resultingRLE_area : resultingWall[tp])
+						for (const auto& resultingRLE : resultingRLE_area)
+							pointCount += (resultingRLE.m_End - resultingRLE.m_Start);
+					resultingPointCount[tp] = pointCount;
+				};
+
+				parallel_tileloop(tpn, poly2allgridsFunctor);
+
+				SizeT totalPointCount = 0;
+				for (auto pointCount : resultingPointCount)
+					totalPointCount += pointCount;
+				resDomain->SetCount(totalPointCount);
+				visit<typelists::domain_types>(polyAttr->GetAbstrDomainUnit(), [resPolyRelAttr, tpn, &resultingWall]<typename E>(const Unit<E>* domain)
+				{
+					if constexpr (!std::is_same_v<E, Void>)
+					{
+						assert(resPolyRelAttr);
+						auto resPolyRelLock = DataWriteLock(resPolyRelAttr, dms_rw_mode::write_only_all);
+						auto resPolyRelWriter = tile_write_channel<E>(mutable_array_cast<E>(resPolyRelLock.get()));
+						for (tile_id tp = 0; tp < tpn; tp++)
+						{
+							auto tileRange = domain->GetTileRange(tp);
+							tile_offset ti = 0;
+							for (const auto& resultingRLE_area : resultingWall[tp])
+							{
+								auto e = Range_GetValue_naked(tileRange, ti++);
+								for (const auto& resultingRLE : resultingRLE_area)
+									for (auto col = resultingRLE.m_Start; col != resultingRLE.m_End; col++)
+										resPolyRelWriter.Write(e);
+							}
+						}
+						resPolyRelLock.Commit();
+					}
+				});
+				auto resGridRelLock = DataWriteLock(resGridRelAttr, dms_rw_mode::write_only_all);
+				auto resGridRelWriter = tile_write_channel<RT>(mutable_array_cast<RT>(resGridRelLock.get()));
+				auto vpTopLeft = dispatcherTileData.m_ViewPortInfo.GetViewPortOrigin();
+				for (tile_id tp = 0; tp < tpn; tp++)
+					for (const auto& resultingRLE_area : resultingWall[tp])
+						for (const auto& resultingRLE : resultingRLE_area)
+						{
+							auto row = resultingRLE.m_Row + vpTopLeft.Row();
+							auto col = resultingRLE.m_Start + vpTopLeft.Col();
+							auto colEnd = resultingRLE.m_End + vpTopLeft.Col();
+							for (; col != colEnd; ++col)
+								resGridRelWriter.Write(shp2dms_order<scalar_of_t<RT>>(col, row));
+						}
+				resGridRelLock.Commit();
+			}
+		);
 	}
 };
 
@@ -615,18 +817,22 @@ struct Poly2GridOperator : public BinaryOperator
 		using DomainUnitType = Unit<DomPoint>;
 
 		Poly2GridOperator m_TiledOper, m_UntiledOper;
+		Poly2AllGridsOperator<UInt32> m_P2AG32;
+		Poly2AllGridsOperator<UInt64> m_P2AG64;
 
 		DomainInst(const DataItemClass* polygonDataClass)
 			: m_TiledOper  (polygonDataClass, DomainUnitType::GetStaticClass(), false)
 			, m_UntiledOper(polygonDataClass, DomainUnitType::GetStaticClass(), true)
+			, m_P2AG32(cog_poly2grid32, polygonDataClass, DomainUnitType::GetStaticClass())
+			, m_P2AG64(cog_poly2grid64, polygonDataClass, DomainUnitType::GetStaticClass())
 		{}
 	};
 
 	template <typename CrdPoint>
 	struct Poly2gridOperators
 	{
-		typedef std::vector<CrdPoint> PolygonType;
-		typedef DataArray<PolygonType> PolygonDataType;
+		using PolygonType = std::vector<CrdPoint>;
+		using PolygonDataType = DataArray<PolygonType>;
 
 		tl_oper::inst_tuple_templ<typelists::domain_points, DomainInst, const DataItemClass*> m_AllDomainsInst = PolygonDataType::GetStaticClass();
 	};
