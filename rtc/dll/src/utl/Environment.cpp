@@ -221,7 +221,8 @@ void DMS_Appl_SetExeDir(CharPtr exeDir)
 RTC_CALL void DMS_CONV DMS_Appl_SetFont()
 {
 	MG_CHECK(!g_ExeDir.empty());
-	AddFontResourceExA_checked(DelimitedConcat(g_ExeDir.c_str(), "misc/fonts/dms.ttf").c_str(), FR_PRIVATE, 0);
+	AddFontResourceExA_checked(DelimitedConcat(g_ExeDir.c_str(), "misc/fonts/dms.ttf").c_str(), FR_PRIVATE, nullptr);
+	AddFontResourceExA_checked(DelimitedConcat(g_ExeDir.c_str(), "misc/fonts/dmstext.ttf").c_str(), FR_PRIVATE, nullptr);
 }
 
 RTC_CALL SharedStr GetExeDir()     // contains DmsClient.exe (+dlls?) and dms.ini; does NOT end with '/' 

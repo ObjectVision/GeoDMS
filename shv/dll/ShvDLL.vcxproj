@@ -233,6 +233,7 @@
   <Target Name="AfterBuild">
     <ItemGroup>
       <dms_ttf_file Include="..\..\res\fonts\dms.ttf" />
+      <dms_ttf_file Include="..\..\qtgui\exe\res\fonts\dmstext.ttf" />
     </ItemGroup>
     <Copy SourceFiles="@(dms_ttf_file)" DestinationFolder="$(TargetDir)misc\fonts\" SkipUnchangedFiles="true" />
   </Target>
