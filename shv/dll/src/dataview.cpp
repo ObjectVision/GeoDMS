@@ -25,6 +25,7 @@
 #include "LockLevels.h"
 
 #include "AbstrUnit.h"
+#include "SessionData.h"
 #include "StateChangeNotification.h"
 
 #include "ShvUtils.h"
@@ -569,7 +570,10 @@ bool DataView::DispatchMsg(const MsgStruct& msg)
 				}
 				else
 				{
-					auto status = UpdateView();
+					auto status = GVS_Ready;
+					auto curr = SessionData::Curr();
+					if (curr)
+						status = UpdateView();
 					if (status == GraphVisitState::GVS_Break)
 						SetUpdateTimer();
 					else
