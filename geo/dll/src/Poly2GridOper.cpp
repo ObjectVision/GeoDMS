@@ -745,14 +745,14 @@ struct Poly2AllGridsOperator : public BinaryOperator
 
 		visit<typelists::int_points>(rasterDomain, [resDomain, resPolyRelAttr, resGridRelAttr, polyAttr, tpn]<typename RT >(const Unit<RT>*rasterDomain)
 			{
-				auto resultingWall = RLE_polygon_wall<scalar_of_t<RT>>(tpn);
+				auto resultingWall = RLE_polygon_wall<int>(tpn);
 				auto resultingPointCount = std::vector<SizeT>(tpn);
 
 				auto dispatcherTileData = poly2grid::p2ag_DispatcherTileData(rasterDomain, polyAttr);
 
 				auto poly2allgridsFunctor = [&dispatcherTileData, &resultingWall, &resultingPointCount](tile_id tp)
 				{
-					resultingWall[tp] = dispatcherTileData.GetTileResults<RT>(tp);
+					resultingWall[tp] = dispatcherTileData.GetTileResults<int>(tp);
 					SizeT pointCount = 0;
 					for (const auto& resultingRLE_area : resultingWall[tp])
 						for (const auto& resultingRLE : resultingRLE_area)
@@ -790,13 +790,16 @@ struct Poly2AllGridsOperator : public BinaryOperator
 				});
 				auto resGridRelLock = DataWriteLock(resGridRelAttr, dms_rw_mode::write_only_all);
 				auto resGridRelWriter = tile_write_channel<RT>(mutable_array_cast<RT>(resGridRelLock.get()));
+				auto vpTopLeft = dispatcherTileData.m_ViewPortInfo.GetViewPortOrigin();
 				for (tile_id tp = 0; tp < tpn; tp++)
 					for (const auto& resultingRLE_area : resultingWall[tp])
 						for (const auto& resultingRLE : resultingRLE_area)
 						{
-							auto row = resultingRLE.m_Row;
-							for (auto col = resultingRLE.m_Start; col != resultingRLE.m_End; col++)
-								resGridRelWriter.Write(shp2dms_order(col, row));
+							auto row = resultingRLE.m_Row + vpTopLeft.Row();
+							auto col = resultingRLE.m_Start + vpTopLeft.Col();
+							auto colEnd = resultingRLE.m_End + vpTopLeft.Col();
+							for (; col != colEnd; ++col)
+								resGridRelWriter.Write(shp2dms_order<scalar_of_t<RT>>(col, row));
 						}
 				resGridRelLock.Commit();
 			}
