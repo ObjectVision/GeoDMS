@@ -556,7 +556,7 @@ CutTileSpec(const TiledRangeData<T>* arg1, const Range<T>& bounds)
 }
 
 template <typename T>
-bool CreateRangeUnit(TreeItemDualRef& resultHolder, const AbstrUnit* arg1, const TreeItem* lbItem, const TreeItem* ubItem, bool isCategorical, bool mustCalc)
+bool CreateRangeUnit(TreeItemDualRef& resultHolder, const AbstrOperGroup* whoCalled, const AbstrUnit* arg1, const TreeItem* lbItem, const TreeItem* ubItem, bool isCategorical, bool mustCalc)
 {
 	if (!resultHolder)
 	{
@@ -594,7 +594,18 @@ bool CreateRangeUnit(TreeItemDualRef& resultHolder, const AbstrUnit* arg1, const
 			{
 				auto arg1Range = arg1Unit->GetCurrSegmInfo()->GetRange();
 				if (!arg1Range.empty())
+				{
+					auto orgBounds = bounds;
 					bounds &= arg1Range;
+					if (bounds != orgBounds)
+					{
+						reportF(SeverityTypeID::ST_Warning,
+							"%s: The specified range %s is limited by range %s of the given base unit resulting in range %s"
+						,	whoCalled->GetNameStr()
+						,	AsString(orgBounds), AsString(arg1Range), AsString(bounds)
+						);
+					}
+				}
 				if constexpr (!has_simple_range_v<T> && !has_small_range_v<T>)
 				{
 					if (!arg1->GetTiledRangeData()->IsCovered() && !bounds.empty())
@@ -637,7 +648,7 @@ public:
 	bool CreateResult(TreeItemDualRef& resultHolder, const ArgSeqType& args, bool mustCalc) const override
 	{
 		assert(args.size() == 2);
-		return CreateRangeUnit<T>(resultHolder, nullptr, args[0], args[1], m_IsCatRangeFunc, mustCalc);
+		return CreateRangeUnit<T>(resultHolder, GetGroup(), nullptr, args[0], args[1], m_IsCatRangeFunc, mustCalc);
 	}
 };
 
@@ -662,7 +673,7 @@ public:
 	{
 		assert(args.size() == 3);
 		auto arg1 = AsUnit(args[0]); assert(arg1);
-		return CreateRangeUnit<T>(resultHolder, arg1, args[1], args[2], m_IsCatRangeFunc, mustCalc);
+		return CreateRangeUnit<T>(resultHolder, GetGroup(), arg1, args[1], args[2], m_IsCatRangeFunc, mustCalc);
 	}
 };
 
