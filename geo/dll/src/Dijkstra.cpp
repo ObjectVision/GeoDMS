@@ -1202,7 +1202,7 @@ SizeT ProcessDijkstra(TreeItemDualRef& resultHolder
 
 				// ===================== report nrOrgZones every 5 seconds
 				zoneCount++;
-				if (processTimer.PassedSecs(5))
+				if (processTimer.PassedSecs())
 					reportF(SeverityTypeID::ST_MajorTrace, "impedance_matrix %s %s of %s sources: resulted in %s od-pairs"
 						, actionMsg
 						, AsString(zoneCount), AsString(ni.nrOrgZones), AsString(resultCount));

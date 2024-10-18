@@ -661,7 +661,7 @@ void UnionPolygon(ResourceArrayHandle& r, SizeT n, const AbstrDataItem* polyData
 		dms_assign(geometry, *pi);
 		geometryTowerPtr->add(std::move(geometry));
 
-		if (s_ProcessTimer.PassedSecs(5))
+		if (s_ProcessTimer.PassedSecs())
 		{
 			reportF(SeverityTypeID::ST_MajorTrace, "%s: processed %s / %s sequences of tile %s / %s"
 				, whosCalling->GetNameStr()
@@ -1139,7 +1139,7 @@ public:
 			if (mustTranslate)
 				geometryData.move(p);
 
-			if (s_ProcessTimer.PassedSecs(5))
+			if (s_ProcessTimer.PassedSecs())
 			{
 				reportF(SeverityTypeID::ST_MajorTrace, "%s: processed %s / %s sequences of tile %s / %s"
 					, GetGroup()->GetName()
@@ -1609,6 +1609,8 @@ public:
 	{}
 	void Calculate(AbstrUnit* res, AbstrDataItem* resF1, AbstrDataItem* resF2, const AbstrDataItem* arg1A) const override
 	{
+		Timer processTimer;
+
 		auto polyData = const_array_cast<PolygonType>(arg1A)->GetDataRead();
 		SizeT nrVertices = polyData.size();
 		SizeT nrEdges = 0;
@@ -1631,6 +1633,11 @@ public:
 					assert(result == domain_rel.size());
 					domain_rel.emplace_back(i);
 				}
+				if (processTimer.PassedSecs())
+					reportF(SeverityTypeID::ST_MajorTrace, "%s: inserted %s / %s sequences"
+						, GetGroup()->GetNameStr()
+						, AsString(i), AsString(nrVertices)
+					);
 			}
 
 			if (domain_rel.size())
@@ -1665,6 +1672,11 @@ public:
 					indexAssigner2.m_Indices[e] = domain_rel[ * vsi ];
 					++e;
 				}
+			if (processTimer.PassedSecs())
+				reportF(SeverityTypeID::ST_MajorTrace, "%s: extracted %s / %s sequences"
+					, GetGroup()->GetNameStr()
+					, AsString(gi - graph.begin()), AsString(graph.size())
+				);
 		}
 		indexAssigner1.Store();
 		indexAssigner2.Store();

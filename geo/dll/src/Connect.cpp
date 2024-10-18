@@ -373,7 +373,7 @@ struct ConnectPointOperator : AbstrConnectPointOperator
 			destBegin = spIndex.first_leaf();
 
 		auto reporter = [&processTimer, point2Begin, point2End, t, tn = arg2A->GetAbstrDomainUnit()->GetNrTiles()](auto i) {
-			if (processTimer.PassedSecs(5))
+			if (processTimer.PassedSecs())
 				reportF(SeverityTypeID::ST_MajorTrace, "Connect %s / %s points of tile %s / %s done"
 					, AsString(i), AsString(point2End - point2Begin)
 					, AsString(t), AsString(tn));
@@ -809,7 +809,7 @@ public:
 								++r3, ++r4, ++r5, ++r6;
 							}
 							++nrUnreportedPoints;
-							if (processTimer.PassedSecs(5))
+							if (processTimer.PassedSecs())
 							{
 								nrArg2 += nrUnreportedPoints;
 								nrUnreportedPoints = 0;
@@ -1130,7 +1130,7 @@ public:
 						++minSqrDistPtr;
 					if (hasNonVoidMaxDist)
 						++maxSqrDistPtr;
-					if (processTimer.PassedSecs(5))
+					if (processTimer.PassedSecs())
 						reportF(SeverityTypeID::ST_MajorTrace, "Connect %s / %s points of tile %s / %s done"
 							, AsString(pointPtr - pointBegin), AsString(pointEnd - pointBegin)
 							, AsString(t), AsString(tn));

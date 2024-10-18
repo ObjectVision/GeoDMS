@@ -846,7 +846,7 @@ void ConsiderReporting()
 		return;
 
 	StaticMtIncrementalLock<s_ConsiderReportingReentranceCounter> preventReentrance;
-	if (t.PassedSecs(5))
+	if (t.PassedSecs())
 		PostReporting();
 }
 

@@ -433,7 +433,7 @@ namespace SuspendTrigger {
 
 		MGD_CHECKDATA(gd_TriggerApplyLockCount == 0); // find who pulls the trigger
 
-		if (s_SuspendLevel || s_Timer.PassedSecs(3) && HasWaitingMessages()) // HasWaitingMessages() can send WM_SIZE ... that sets s_SuspendLevel
+		if (s_SuspendLevel || s_Timer.PassedSec() && HasWaitingMessages()) // HasWaitingMessages() can send WM_SIZE ... that sets s_SuspendLevel
 		{
 			s_bLastResult = true;
 			return true;

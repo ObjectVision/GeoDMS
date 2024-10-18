@@ -1154,7 +1154,7 @@ struct BufferMultiPolygonOperator : public AbstrBufferOperator
 						bg_store_multi_polygon(resData[i], resMP);
 					}
 
-					if (s_ProcessTimer.PassedSecs(5))
+					if (s_ProcessTimer.PassedSecs())
 					{
 						reportF(SeverityTypeID::ST_MajorTrace, "%s: processed %s / %s sequences of tile %s / %s"
 							, GetGroup()->GetNameStr()
