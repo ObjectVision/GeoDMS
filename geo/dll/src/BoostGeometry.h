@@ -34,8 +34,6 @@
 #include <boost/geometry/geometries/multi_linestring.hpp>
 
 
-extern Timer s_ProcessTimer;
-
 //============================  boost geometry ============================
 
 

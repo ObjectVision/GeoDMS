@@ -607,11 +607,8 @@ void dms_assign(bp::polygon_set_data<C>& lvalue, const GT2& rvalue)
 	dms_insert(lvalue, rvalue);
 }
 
-Timer s_ProcessTimer;
-
-
 template <typename P, typename SequenceType, typename MPT>
-void UnionPolygon(ResourceArrayHandle& r, SizeT n, const AbstrDataItem* polyDataA, const AbstrDataItem* permDataA, tile_id t, const AbstrOperGroup* whosCalling)
+void UnionPolygon(ResourceArrayHandle& r, SizeT n, const AbstrDataItem* polyDataA, const AbstrDataItem* permDataA, tile_id t, const AbstrOperGroup* whosCalling, Timer& processTimer)
 {
 	auto polyData = const_array_cast<SequenceType>(polyDataA);
 	assert(polyData);
@@ -661,7 +658,7 @@ void UnionPolygon(ResourceArrayHandle& r, SizeT n, const AbstrDataItem* polyData
 		dms_assign(geometry, *pi);
 		geometryTowerPtr->add(std::move(geometry));
 
-		if (s_ProcessTimer.PassedSecs())
+		if (processTimer.PassedSecs())
 		{
 			reportF(SeverityTypeID::ST_MajorTrace, "%s: processed %s / %s sequences of tile %s / %s"
 				, whosCalling->GetNameStr()
@@ -797,6 +794,8 @@ protected:
 			DataReadLock arg3Lock(argNum1);
 			DataReadLock arg4Lock(argNum2);
 
+			Timer processTimer;
+
 			if (DoDelayStore())
 			{
 				SizeT domainCount = resDomain->GetCount();
@@ -806,17 +805,17 @@ protected:
 					ReadableTileLock readArg1Lock (argPoly->GetCurrRefObj(), t);
 					ReadableTileLock readArg2Lock (argPart ? argPart->GetCurrRefObj() : nullptr, t);
 
-					Calculate(r, domainCount, argPoly, argPart, t);
+					Calculate(r, domainCount, argPoly, argPart, t, processTimer);
 				}
 				DataWriteLock resGeometryHandle; // will be assigned after establishing the count of resUnit
-				Store(resUnit, resGeometry, resGeometryHandle, resNrOrgEntity, no_tile, 1, r, argNum1, argNum2);
+				Store(resUnit, resGeometry, resGeometryHandle, resNrOrgEntity, no_tile, 1, r, argNum1, argNum2, processTimer);
 				resGeometryHandle.Commit();
 			}
 			else
 			{
 				DataWriteLock resGeometryHandle(resGeometry);
 				auto tn = domain1Unit->GetNrTiles();
-				parallel_tileloop(tn, [this, &resultHolder, resUnit, resDomain, &resGeometryHandle, resNrOrgEntity, argPoly, argPart, argNum1, argNum2, tn](tile_id t) 
+				parallel_tileloop(tn, [this, &resultHolder, resUnit, resDomain, &resGeometryHandle, resNrOrgEntity, argPoly, argPart, argNum1, argNum2, tn, &processTimer](tile_id t) 
 				{
 					if (resultHolder.WasFailed(FR_Data))
 						resultHolder.ThrowFail();
@@ -824,8 +823,8 @@ protected:
 					ReadableTileLock readArg1Lock (argPoly->GetCurrRefObj(), t);
 					ReadableTileLock readArg2Lock (argPart ? argPart->GetCurrRefObj() : nullptr, t);
 
-					Calculate(r, resDomain->GetTileCount(t), argPoly, argPart, t);
-					Store(resUnit, nullptr, resGeometryHandle, resNrOrgEntity, t, tn, r, argNum1, argNum2);
+					Calculate(r, resDomain->GetTileCount(t), argPoly, argPart, t, processTimer);
+					Store(resUnit, nullptr, resGeometryHandle, resNrOrgEntity, t, tn, r, argNum1, argNum2, processTimer);
 				});
 				resGeometryHandle.Commit();
 			}
@@ -836,7 +835,7 @@ protected:
 	{
 		return m_Flags & (PolygonFlags::F_DoSplit | PolygonFlags::F_DoUnion);
 	}
-	void ProcessNumOper( ResourceArrayHandle& r, const AbstrDataItem* argNum, tile_id t, tile_id tn, PolygonFlags f) const
+	void ProcessNumOper( ResourceArrayHandle& r, const AbstrDataItem* argNum, tile_id t, tile_id tn, PolygonFlags f, Timer& processTimer) const
 	{
 		if (f == PolygonFlags::none)
 			return;
@@ -861,24 +860,24 @@ protected:
 				break;
 		}
 
-		ProcessNumOperImpl(r, argNum, t, tn, f);
+		ProcessNumOperImpl(r, argNum, t, tn, f, processTimer);
 	}
-	void Store (AbstrUnit* resUnit, AbstrDataItem* resGeometry, DataWriteHandle& resGeometryHandle, AbstrDataItem* resNrOrgEntity, tile_id t, tile_id tn, ResourceArrayHandle& r, const AbstrDataItem* argNum1, const AbstrDataItem* argNum2) const
+	void Store (AbstrUnit* resUnit, AbstrDataItem* resGeometry, DataWriteHandle& resGeometryHandle, AbstrDataItem* resNrOrgEntity, tile_id t, tile_id tn, ResourceArrayHandle& r, const AbstrDataItem* argNum1, const AbstrDataItem* argNum2, Timer& processTimer) const
 	{
 		if (r)
 		{
 			constexpr int mask_ratio = int(PolygonFlags::F_Mask2) / int(PolygonFlags::F_Mask1);
-			ProcessNumOper(r, argNum1, t, tn, PolygonFlags( int(m_Flags) & int(PolygonFlags::F_Mask1)));
-			ProcessNumOper(r, argNum2, t, tn, PolygonFlags((int(m_Flags) & int(PolygonFlags::F_Mask2)) / mask_ratio));
+			ProcessNumOper(r, argNum1, t, tn, PolygonFlags( int(m_Flags) & int(PolygonFlags::F_Mask1)), processTimer);
+			ProcessNumOper(r, argNum2, t, tn, PolygonFlags((int(m_Flags) & int(PolygonFlags::F_Mask2)) / mask_ratio), processTimer);
 		}
 #if defined(MG_DEBUG_POLYGON)
 		reportF(ST_MajorTrace, "UnionPolygon.Store %d", t);
 #endif //defined(MG_DEBUG_POLYGON)
 		StoreImpl(resUnit, resGeometry, resGeometryHandle, resNrOrgEntity, t, r);
 	}
-	virtual void Calculate(ResourceArrayHandle& r, SizeT domainCount, const AbstrDataItem* polyDataA, const AbstrDataItem* partitionDataA, tile_id t) const=0;
+	virtual void Calculate(ResourceArrayHandle& r, SizeT domainCount, const AbstrDataItem* polyDataA, const AbstrDataItem* partitionDataA, tile_id t, Timer& processTimer) const=0;
 	virtual void StoreImpl(AbstrUnit* resUnit, AbstrDataItem* resGeometry, DataWriteHandle& resLock, AbstrDataItem* resNrOrgEntity, tile_id t, ResourceArrayHandle& r) const=0;
-	virtual void ProcessNumOperImpl(ResourceArrayHandle& r, const AbstrDataItem* argNum, tile_id numT, tile_id tn, PolygonFlags f) const {}
+	virtual void ProcessNumOperImpl(ResourceArrayHandle& r, const AbstrDataItem* argNum, tile_id numT, tile_id tn, PolygonFlags f, Timer& processTimer) const {}
 };
 
 template <typename C>
@@ -1044,12 +1043,12 @@ public:
 		:	AbstrPolygonOperator(aog, ArgPolyType::GetStaticClass(), ArgNumType::GetStaticClass(), flags)
 	{}
 
-	void Calculate(ResourceArrayHandle& r, SizeT domainCount, const AbstrDataItem* polyDataA, const AbstrDataItem* partitionDataA, tile_id t) const override
+	void Calculate(ResourceArrayHandle& r, SizeT domainCount, const AbstrDataItem* polyDataA, const AbstrDataItem* partitionDataA, tile_id t, Timer& processTimer) const override
 	{
-		UnionPolygon<P, SequenceType, PolygonSetTower>(r, domainCount, polyDataA, partitionDataA, t, GetGroup());
+		UnionPolygon<P, SequenceType, PolygonSetTower>(r, domainCount, polyDataA, partitionDataA, t, GetGroup(), processTimer);
 	}
 
-	void ProcessNumOperImpl(ResourceArrayHandle& r, const AbstrDataItem* argNum, tile_id t, tile_id tn, PolygonFlags flag) const override
+	void ProcessNumOperImpl(ResourceArrayHandle& r, const AbstrDataItem* argNum, tile_id t, tile_id tn, PolygonFlags flag, Timer& processTimer) const override
 	{
 		assert(r);
 		assert(argNum);
@@ -1139,7 +1138,7 @@ public:
 			if (mustTranslate)
 				geometryData.move(p);
 
-			if (s_ProcessTimer.PassedSecs())
+			if (processTimer.PassedSecs())
 			{
 				reportF(SeverityTypeID::ST_MajorTrace, "%s: processed %s / %s sequences of tile %s / %s"
 					, GetGroup()->GetName()
@@ -1261,9 +1260,9 @@ public:
 		: AbstrPolygonOperator(aog, ArgPolyType::GetStaticClass(), ArgNumType::GetStaticClass(), flags)
 	{}
 
-	void Calculate(ResourceArrayHandle& r, SizeT domainCount, const AbstrDataItem* polyDataA, const AbstrDataItem* partitionDataA, tile_id t) const override
+	void Calculate(ResourceArrayHandle& r, SizeT domainCount, const AbstrDataItem* polyDataA, const AbstrDataItem* partitionDataA, tile_id t, Timer& processTimer) const override
 	{
-		UnionPolygon<P, SequenceType, MultiPolygonTower>(r, domainCount, polyDataA, partitionDataA, t, GetGroup());
+		UnionPolygon<P, SequenceType, MultiPolygonTower>(r, domainCount, polyDataA, partitionDataA, t, GetGroup(), processTimer);
 	}
 
 	void StoreImpl(AbstrUnit* resUnit, AbstrDataItem* resGeometry, DataWriteHandle& resGeometryLock, AbstrDataItem* resNrOrgEntity, tile_id t, ResourceArrayHandle& r) const override
@@ -1370,9 +1369,9 @@ public:
 		: AbstrPolygonOperator(aog, ArgPolyType::GetStaticClass(), ArgNumType::GetStaticClass(), flags)
 	{}
 
-	void Calculate(ResourceArrayHandle& r, SizeT domainCount, const AbstrDataItem* polyDataA, const AbstrDataItem* partitionDataA, tile_id t) const override
+	void Calculate(ResourceArrayHandle& r, SizeT domainCount, const AbstrDataItem* polyDataA, const AbstrDataItem* partitionDataA, tile_id t, Timer& processTimer) const override
 	{
-		UnionPolygon<P, SequenceType, MultiPolygonTower>(r, domainCount, polyDataA, partitionDataA, t, GetGroup());
+		UnionPolygon<P, SequenceType, MultiPolygonTower>(r, domainCount, polyDataA, partitionDataA, t, GetGroup(), processTimer);
 	}
 
 	void StoreImpl(AbstrUnit* resUnit, AbstrDataItem* resGeometry, DataWriteHandle& resGeometryLock, AbstrDataItem* resNrOrgEntity, tile_id t, ResourceArrayHandle& r) const override
@@ -1474,9 +1473,9 @@ public:
 		: AbstrPolygonOperator(aog, ArgPolyType::GetStaticClass(), ArgNumType::GetStaticClass(), flags)
 	{}
 
-	void Calculate(ResourceArrayHandle& r, SizeT domainCount, const AbstrDataItem* polyDataA, const AbstrDataItem* partitionDataA, tile_id t) const override
+	void Calculate(ResourceArrayHandle& r, SizeT domainCount, const AbstrDataItem* polyDataA, const AbstrDataItem* partitionDataA, tile_id t, Timer& processTimer) const override
 	{
-		UnionPolygon<P, SequenceType, MultiPolygonTower>(r, domainCount, polyDataA, partitionDataA, t, GetGroup());
+		UnionPolygon<P, SequenceType, MultiPolygonTower>(r, domainCount, polyDataA, partitionDataA, t, GetGroup(), processTimer);
 	}
 
 	void StoreImpl(AbstrUnit* resUnit, AbstrDataItem* resGeometry, DataWriteHandle& resGeometryLock, AbstrDataItem* resNrOrgEntity, tile_id t, ResourceArrayHandle& r) const override
