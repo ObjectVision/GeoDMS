@@ -526,14 +526,11 @@ namespace poly2grid
 		p2ag_DispatcherTileData(const AbstrUnit* resDomain, const AbstrDataItem* polyAttr)
 			: m_PolyAttr(polyAttr)
 			, m_ViewPortInfo(polyAttr, resDomain, no_tile, AsUnit(polyAttr->GetAbstrValuesUnit()->GetCurrRangeItem()), no_tile, nullptr, false, false, countcolor_t(-1), false)
-		{
-			m_SequenceGetter = CreateSequenceGetter(m_PolyAttr->GetAbstrValuesUnit());
-		}
+		{}
 
 
 		WeakPtr<const AbstrDataItem>   m_PolyAttr;
 		ViewPortInfoEx<Int32>          m_ViewPortInfo;
-		OwningPtr<AbstrSequenceGetter> m_SequenceGetter;
 
 
 		template <typename RT>
@@ -558,7 +555,7 @@ namespace poly2grid
 
 			auto rleInfo = RLE_Info<scalar_of_t<RT>>(Convert<RasterSizeType>(size));
 
-			AbstrSequenceGetter* sg = m_SequenceGetter.get();
+			OwningPtr<AbstrSequenceGetter> sg = CreateSequenceGetter(m_PolyAttr->GetAbstrValuesUnit());
 			assert(sg);
 			sg->OpenTile(polyData, tp);
 
