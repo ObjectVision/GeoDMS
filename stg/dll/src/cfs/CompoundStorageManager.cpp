@@ -322,9 +322,7 @@ std::unique_ptr<OutStreamBuff> CompoundStorageManager::DoOpenOutStream(const Sto
 
 std::unique_ptr<InpStreamBuff> CompoundStorageManager::DoOpenInpStream(const StorageMetaInfo&, CharPtr path) const
 {
-	reportF(MsgCategory::storage_read, SeverityTypeID::ST_MajorTrace, "Read  cfs(%s,%s)", GetNameStr().c_str(), path);
-
-	dms_assert(IsOpen());
+	assert(IsOpen());
 
 	// create new Compound storage file
 	SharedPtr<cfsptr<IStream> > stream( const_cast<CompoundStorageManager*>(this)->GetStream(path, false) );

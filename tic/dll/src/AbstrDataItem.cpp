@@ -344,10 +344,7 @@ bool AbstrDataItem::DoWriteItem(StorageMetaInfoPtr&& smi) const
 		sm->ExportMetaInfo(storageHolder, this);
 		if (!sm->WriteDataItem(std::move(smi)))
 			throwItemError("Failure during Writing");
-		reportF(MsgCategory::storage_write, SeverityTypeID::ST_MajorTrace, "%s IS STORED IN %s",
-			GetSourceName().c_str()
-			, sm->GetNameStr().c_str()
-		);
+		reportF(MsgCategory::storage_write, SeverityTypeID::ST_MajorTrace, "Writing to %s", sm->GetNameStr().c_str());
 	}
 	catch (const DmsException& x)
 	{
