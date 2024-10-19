@@ -272,7 +272,7 @@ template <dms_sequence E>
 auto geos_write_polygon_with_holes(E&& ref, const geos::geom::Polygon* poly)  -> std::optional<geos::geom::Coordinate>
 {
 	assert(poly);
-	auto outerBackTrackPoint = geos_write_lr(std::forward<E>(ref), poly->getExteriorRing());
+	auto outerBackTrackPoint = geos_write_lr(ref, poly->getExteriorRing());
 	if (!outerBackTrackPoint)
 		return {};
 
@@ -280,7 +280,7 @@ auto geos_write_polygon_with_holes(E&& ref, const geos::geom::Polygon* poly)  ->
 	SizeT irCount = poly->getNumInteriorRing();
 	for (SizeT ir = 0; ir != irCount; ++ir)
 	{
-		auto backTrackPoint = geos_write_lr(std::forward<E>(ref), poly->getInteriorRingN(ir));
+		auto backTrackPoint = geos_write_lr(ref, poly->getInteriorRingN(ir));
 		if (backTrackPoint)
 			backTrackPoints.emplace_back(*backTrackPoint);
 	}
@@ -290,10 +290,10 @@ auto geos_write_polygon_with_holes(E&& ref, const geos::geom::Polygon* poly)  ->
 		backTrackPoints.pop_back();
 		while (!backTrackPoints.empty())
 		{
-			geos_write_point(std::forward<E>(ref), backTrackPoints.back());
+			geos_write_point(ref, backTrackPoints.back());
 			backTrackPoints.pop_back();
 		}
-		geos_write_point(std::forward<E>(ref), *outerBackTrackPoint);
+		geos_write_point(ref, *outerBackTrackPoint);
 	}
 	return outerBackTrackPoint;
 }
@@ -329,7 +329,7 @@ auto geos_write_mp(E&& ref, const geos::geom::MultiPolygon* mp) -> std::optional
 	for (SizeT i = 0; i != polygonCount; ++i)
 	{
 		const auto* poly = debug_cast<const geos::geom::Polygon*>(mp->getGeometryN(i));
-		auto backTrackPoint = geos_write_polygon_with_holes(std::forward<E>(ref), poly);
+		auto backTrackPoint = geos_write_polygon_with_holes(ref, poly);
 		if (backTrackPoint)
 		{
 			if (!firstBackTrackPoint)
@@ -342,7 +342,7 @@ auto geos_write_mp(E&& ref, const geos::geom::MultiPolygon* mp) -> std::optional
 		backTrackPoints.pop_back();
 		while (!backTrackPoints.empty())
 		{
-			geos_write_point(std::forward<E>(ref), backTrackPoints.back());
+			geos_write_point(ref, backTrackPoints.back());
 			backTrackPoints.pop_back();
 		}
 	}

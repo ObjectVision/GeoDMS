@@ -75,9 +75,7 @@ void assign_polyline(CGAL_Traits::Ring& resMP, SA_ConstReference<DmsPointType> p
 
 template <typename DmsPointType>
 void assign_multi_polygon(CGAL_Traits::Polygon_set& resMP, SA_ConstReference<DmsPointType> polyRef, bool mustInsertInnerRings
-	, CGAL_Traits::Polygon_with_holes&& helperPolygon = CGAL_Traits::Polygon_with_holes()
-	, CGAL_Traits::Ring&& helperRing = CGAL_Traits::Ring()
-)
+	, CGAL_Traits::Polygon_with_holes& helperPolygon, CGAL_Traits::Ring& helperRing)
 {
 	resMP.clear();
 	std::vector<CGAL_Traits::Ring> foundHoles;
@@ -195,7 +193,7 @@ void cgal_assign_ring(E&& ref, const CGAL::Polygon_2<K>& polyData)
 	// reassign points in reverse order to restore clockwise order
 	cgal_assign_point(std::forward<E>(ref), *pb); // add first ring point that will become also the last GeoDms ring point as closing point
 	for (auto pri=pe; pri!=pb;)
-		cgal_assign_point(std::forward<E>(ref), *--pri);
+		cgal_assign_point(ref, *--pri);
 //	*/
 
 /*
@@ -247,13 +245,13 @@ void cgal_assign_polygon_with_holes_vector(E&& ref, std::vector<CGAL_Traits::Pol
 	ref.reserve(count);
 
 	for (const auto& poly : polyVec)
-		cgal_assign_polygon_with_holes(std::forward<E>(ref), poly);
+		cgal_assign_polygon_with_holes(ref, poly);
 
 	--np;
 	while (np)
 	{
 		--np;
-		cgal_assign_point(std::forward<E>(ref), polyVec[np].outer_boundary().vertices_begin()[0]);
+		cgal_assign_point(ref, polyVec[np].outer_boundary().vertices_begin()[0]);
 	}
 	assert(ref.size() == count);
 }
@@ -280,13 +278,13 @@ void cgal_assign_shared_polygon_vector(E&& ref, std::vector<boost::shared_ptr<Po
 
 	for (const auto& sharedPolyPtr : polyVec)
 		if (auto polyPtr = sharedPolyPtr.get())
-			cgal_assign_ring(std::forward<E>(ref), *polyPtr);
+			cgal_assign_ring(ref, *polyPtr);
 
 	--np;
 	while (np)
 	{
 		--np;
-		cgal_assign_point(std::forward<E>(ref), polyVec[np]->begin()[0]);
+		cgal_assign_point(ref, polyVec[np]->begin()[0]);
 	}
 	assert(ref.size() == count);
 }
@@ -337,7 +335,10 @@ template<typename DmsPointType>
 void dms_assign(CGAL_Traits::Polygon_set& lvalue, SA_ConstReference<DmsPointType> rvalue)
 {
 	lvalue.clear();
-	assign_multi_polygon(lvalue, rvalue, true);
+	CGAL_Traits::Polygon_with_holes helperPolygon;
+	CGAL_Traits::Ring helperRing;
+
+	assign_multi_polygon(lvalue, rvalue, true, helperPolygon, helperRing);
 }
 
 

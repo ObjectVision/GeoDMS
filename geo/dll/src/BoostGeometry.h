@@ -250,10 +250,10 @@ void bg_store_ring(std::vector<DmsPointType>& resDataElem, const auto& ring)
 template <dms_sequence E>
 void bg_store_polygon(E&& ref, const bg_polygon_t& resPoly)
 {
-	bg_store_ring(std::forward<E>(ref), resPoly.outer());
+	bg_store_ring(ref, resPoly.outer());
 
 	for (const auto& resHole : resPoly.inners())
-		bg_store_ring(std::forward<E>(ref), resHole);
+		bg_store_ring(ref, resHole);
 	auto nh = resPoly.inners().size();
 	if (!nh)
 		return;
@@ -288,7 +288,7 @@ void bg_store_multi_polygon(E&& ref, const bg_multi_polygon_t& resMP)
 	ref.reserve(count);
 
 	for (const auto& resPoly : resMP)
-		bg_store_polygon(std::forward<E>(ref), resPoly);
+		bg_store_polygon(ref, resPoly);
 
 	--np;
 	while (np)

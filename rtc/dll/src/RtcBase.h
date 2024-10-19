@@ -11,8 +11,8 @@
 #pragma once
 #endif
 
-#if !defined(__RTC_CALL_H)
-#define __RTC_CALL_H
+#if !defined(__RTC_BASE_H)
+#define __RTC_BASE_H
 
 //----------------------------------------------------------------------
 // Trigger MG_DEBUG mode
@@ -349,4 +349,4 @@ namespace std
 extern bool RTC_CALL g_IsTerminating;
 
 
-#endif // __RTC_CALL_H
+#endif // __RTC_BASE_H

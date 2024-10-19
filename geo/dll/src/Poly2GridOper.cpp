@@ -559,12 +559,12 @@ namespace poly2grid
 			assert(sg);
 			sg->OpenTile(polyData, tp);
 
-			tile_offset te = abstrPolyDomain->GetTileCount(tp);
+			tile_offset i=0, te = abstrPolyDomain->GetTileCount(tp);
 			auto result = RLE_polygon_tileset<scalar_of_t<RT>>(te);
 
-			for (tile_offset i = 0; i != te; ++i)
+			try
 			{
-				try
+				for (; i != te; ++i)
 				{
 					sg->GetValue(i, dPoints);
 					auto polyBounds = DRect(dPoints.begin(), dPoints.end(), false, false);
@@ -574,20 +574,19 @@ namespace poly2grid
 					remove_adjacents_and_spikes(dPoints);
 					if (dPoints.size() < 3)
 						continue;
-					auto& resultRLE = result[i];
 
 					for (auto pi = dPoints.begin(), pe = dPoints.end(); pi != pe; ++pi)
 						transForm.InplApply(*pi);
 
-					MG_CHECK(rleInfo.result.size() == 0);
 					rasterize_one_shape(&rleInfo, dPoints, BurnValueVariant(), ifpResources);
 					result[i] = std::move(rleInfo.result);
+//					MG_CHECK(rleInfo.result.size() == 0);
 				}
-				catch (DmsException& x)
-				{
-					x.AsErrMsg()->TellExtraF("\nin poly2allgrids at tile %d and index %d", tp, i);
-					throw;
-				}
+			}
+			catch (DmsException& x)
+			{
+				x.AsErrMsg()->TellExtraF("\nin poly2allgrids at tile %d and index %d", tp, i);
+				throw;
 			}
 			return result;
 		}

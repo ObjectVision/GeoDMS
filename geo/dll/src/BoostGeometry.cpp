@@ -230,16 +230,16 @@ struct CGAL_MultiPolygonOperator : BinaryMapAlgebraicOperator<P>
 		bool domain1IsVoid = (af & AF1_ISPARAM);
 		bool domain2IsVoid = (af & AF2_ISPARAM);
 		if (domain1IsVoid)
-			assign_multi_polygon(currMP1, arg1Data[0], true, std::move(helperPolygon), std::move(helperRing));
+			assign_multi_polygon(currMP1, arg1Data[0], true, helperPolygon, helperRing);
 		if (domain2IsVoid)
-			assign_multi_polygon(currMP2, arg2Data[0], true, std::move(helperPolygon), std::move(helperRing));
+			assign_multi_polygon(currMP2, arg2Data[0], true, helperPolygon, helperRing);
 
 		for (SizeT i = 0; i != n; ++i)
 		{
 			if (!domain1IsVoid)
-				assign_multi_polygon(currMP1, arg1Data[i], true, std::move(helperPolygon), std::move(helperRing));
+				assign_multi_polygon(currMP1, arg1Data[i], true, helperPolygon, helperRing);
 			if (!domain2IsVoid)
-				assign_multi_polygon(currMP2, arg2Data[i], true, std::move(helperPolygon), std::move(helperRing));
+				assign_multi_polygon(currMP2, arg2Data[i], true, helperPolygon, helperRing);
 			resMP.clear();
 			m_Oper(currMP1, currMP2, resMP);
 			cgal_assign_polygon_set(resData[i], resMP);
@@ -378,26 +378,25 @@ auto cgal_douglas_peucker(Polyline&& polyline, double sqr_tolerance) -> Polyline
 		}
 	}
 
-	Polyline result;
 
 	// Compare squared distance to squared tolerance to avoid unnecessary square roots
-	if (max_distance_sq > sqr_tolerance) {
-		// Recursively simplify the segments before and after the point with maximum distance
-		Polyline first_segment(polyline.begin(), polyline.begin() + index + 1);
-		Polyline second_segment(polyline.begin() + index, polyline.end());
-
-		auto result = douglas_peucker(first_segment, sqr_tolerance);
-		auto result2 = douglas_peucker(second_segment, sqr_tolerance);
-
-		// Combine the results (avoid duplicating the middle point)
-		result.insert(result.end(), result2.begin()+1, result2.end());
-	}
-	else {
+	if (max_distance_sq <= sqr_tolerance) {
+		Polyline result = {};
 		// The points between start and end are not significant; represent with a straight line
 		result.reserve(2);
 		result.push_back(start);
 		result.push_back(end);
+		return result;
 	}
+	// Recursively simplify the segments before and after the point with maximum distance
+	Polyline first_segment(polyline.begin(), polyline.begin() + index + 1);
+	Polyline second_segment(polyline.begin() + index, polyline.end());
+
+	Polyline result = douglas_peucker(first_segment, sqr_tolerance);
+	Polyline result2 = douglas_peucker(second_segment, sqr_tolerance);
+
+	// Combine the results (avoid duplicating the middle point)
+	result.insert(result.end(), result2.begin()+1, result2.end());
 	return result;
 }
 
@@ -887,7 +886,7 @@ struct BufferMultiPointOperator : public AbstrBufferOperator
 			else if constexpr(GL == geometry_library::boost_polygon)
 			{
 				typename bp::polygon_set_data<CoordType>::clean_resources cleanResources;
-				typename bp_union_poly_traits<CoordType>::polygon_set_data_type resMP;
+				typename bp_union_poly_traits<CoordType>::polygon_set_data_type resMP = {};
 				auto resRing = bp_circle<CoordType>(bufferDistance, pointsPerCircle);
 
 				do {
@@ -1067,7 +1066,7 @@ struct BufferLineStringOperator : public AbstrBufferOperator
 
 				using traits_t = bp_union_poly_traits<CoordType>;
 				using bp_linestring = typename traits_t::ring_type;
-				bp_linestring helperLineString;
+				bp_linestring helperLineString = {};
 				typename bp::polygon_set_data<CoordType>::clean_resources cleanResources;
 				std::vector<bp_linestring> lineStrings;
 

@@ -165,7 +165,7 @@ namespace {
 }	// anonymous namespace
 
 
-void ReportDataItem(const AbstrDataItem* di)
+static void ReportDataItem(const AbstrDataItem* di)
 {
 	assert(di);
 	auto ado = di->GetDataObj();
@@ -304,7 +304,7 @@ TreeItem::~TreeItem ()
 #endif
 }
 
-void ResetAllKeepInterest(TreeItem* item)
+static void ResetAllKeepInterest(TreeItem* item)
 {
 	dms_assert(item);
 	TreeItem* walker = item;
@@ -615,7 +615,7 @@ s8 = GetTokenID_st("lokatie"),
 s9 = GetTokenID_st("grens"),
 s10 = GetTokenID_st("lijn");
 
-bool IsGenericID(TokenID id)
+static bool IsGenericID(TokenID id)
 {
 
 	return id == s1 
@@ -864,7 +864,7 @@ SharedPtr<const AbstrCalculator> TreeItem::GetCalculator() const
 	return mc_Calculator;
 }
 
-void ApplyCalculator(TreeItem* holder, const AbstrCalculator* ac)
+static void ApplyCalculator(TreeItem* holder, const AbstrCalculator* ac)
 {
 	// TODO G8: Re-evaluate types here; going to variant and back looks contrived
 	auto metaInfo = ac->GetMetaInfo();
@@ -921,7 +921,7 @@ void TreeItem::MakeCalculator() const
 
 }
 
-void ReportItemType(const TreeItem* self, const TreeItem* refItem)
+static void ReportItemType(const TreeItem* self, const TreeItem* refItem)
 {
 	auto msg = mySSPrintF("%s: ItemType %s is incompatible with the result of the calculation which is of type %s"
 		, self->GetFullName().c_str()
@@ -932,7 +932,7 @@ void ReportItemType(const TreeItem* self, const TreeItem* refItem)
 	reportF(SeverityTypeID::ST_Warning, msg.c_str());
 }
 
-void FailItemType(const TreeItem* self, const TreeItem* refItem)
+static void FailItemType(const TreeItem* self, const TreeItem* refItem)
 {
 	auto msg = mySSPrintF("ItemType %s is incompatible with the result of the calculation which is of type %s"
 	,	self->GetDynamicObjClass()->GetName().c_str()
@@ -1063,7 +1063,7 @@ struct OldRefDecrementer : SharedPtr<const Actor>
 	using SharedPtr::operator=;
 };
 
-void TreeItem_RemoveInheritedSubItems(TreeItem* self)
+static void TreeItem_RemoveInheritedSubItems(TreeItem* self)
 {
 	dms_assert(IsMetaThread());
 
@@ -1319,7 +1319,7 @@ bool TreeItem::IsLoadableAndExists() const
 bool TreeItem::IsCurrLoadable() const
 {
 	assert(!m_Parent || m_Parent->Was(PS_MetaInfo) || m_Parent->WasFailed());
-	if (!IsDataItem(this) & !IsUnit(this))
+	if (!IsDataItem(this) && !IsUnit(this))
 		return false;
 
 	auto sp = GetCurrStorageParent(false);
@@ -1676,7 +1676,7 @@ auto TreeItem::FindAndVisitItem(CharPtrRange subItemNames, SupplierVisitFlag svf
 	return result;
 }
 
-auto FollowBestDots(const TreeItem* self, CharPtrRange dots) noexcept -> BestItemRef
+static auto FollowBestDots(const TreeItem* self, CharPtrRange dots) noexcept -> BestItemRef
 {
 	dms_assert(self);
 	dms_assert(dots.size());
@@ -1923,7 +1923,7 @@ TreeItem* TreeItem::CreateCacheRoot() // static
 	return result;
 }
 
-bool HasOwnCalculatorNow(TreeItem* result)
+static bool HasOwnCalculatorNow(TreeItem* result)
 {
 	dms_assert(result);
 	return (!result->mc_Expr.empty()) || (result->mc_Calculator && result->mc_Calculator->IsDataBlock());
@@ -2187,12 +2187,12 @@ void TreeItem::UpdateMetaInfoImpl() const
 // ======================================================
 
 namespace diagnostic_tests {
-	bool TreeParenMetaInfoReadyOrFailed(const TreeItem* self)
+	static bool TreeParenMetaInfoReadyOrFailed(const TreeItem* self)
 	{
 		return !self->GetTreeParent() || self->GetTreeParent()->Was(PS_MetaInfo) || self->GetTreeParent()->WasFailed(FR_MetaInfo);
 	}
 
-	bool DetermineStateWasCalled(const TreeItem* self)
+	static bool DetermineStateWasCalled(const TreeItem* self)
 	{
 		return TreeParenMetaInfoReadyOrFailed(self)
 			&& (self->m_LastGetStateTS == UpdateMarker::GetLastTS() || self->HasConfigData() || self->InTemplate() || self->IsPassor());
@@ -2286,7 +2286,7 @@ auto TreeItem::GetOrgDC() const -> std::pair<DataControllerRef, SharedTreeItem>
 	return { GetOrCreateDataController(GetKeyExprImpl()), {} };
 }
 
-auto TreeItem_CreateConvertedExpr(const TreeItem* self, const TreeItem* cacheItem, LispPtr expr) -> LispRef
+static auto TreeItem_CreateConvertedExpr(const TreeItem* self, const TreeItem* cacheItem, LispPtr expr) -> LispRef
 {
 	if (!self->CheckResultItem(cacheItem))
 	{
@@ -2313,7 +2313,7 @@ auto TreeItem_CreateConvertedExpr(const TreeItem* self, const TreeItem* cacheIte
 	return expr;
 }
 
-auto TreeItem_CreateCheckedExpr(LispPtr resultExpr, const TreeItem* self) -> LispRef
+static auto TreeItem_CreateCheckedExpr(LispPtr resultExpr, const TreeItem* self) -> LispRef
 {
 	dms_assert(self->HasIntegrityChecker());
 
@@ -2367,7 +2367,7 @@ void TreeItem::UpdateDC() const
 	SetDC(resultDC, srcItem);
 }
 
-auto TreeItem_GetCheckedDC_impl(const TreeItem* self) ->DataControllerRef
+static auto TreeItem_GetCheckedDC_impl(const TreeItem* self) ->DataControllerRef
 {
 	assert(self);
 	self->UpdateDC();
@@ -3232,7 +3232,7 @@ bool TreeItem::PrepareDataUsage(DrlType drlFlags) const
 
 enum class how_to_proceed { nothing, data_ready, failed, suspended, suspended_or_failed}; // return_suspended_or_failed, return_OK };
 
-how_to_proceed PrepareDataCalc(SharedPtr<const TreeItem> self, const TreeItem* refItem, DrlType drlFlags)
+static how_to_proceed PrepareDataCalc(SharedPtr<const TreeItem> self, const TreeItem* refItem, DrlType drlFlags)
 {
 	dms_assert(!SuspendTrigger::DidSuspend() && !self->WasFailed(FR_Determine)); // Postcondition when CreateResultingTreeItem returns a result
 
@@ -3304,7 +3304,7 @@ how_to_proceed PrepareDataCalc(SharedPtr<const TreeItem> self, const TreeItem* r
 	return how_to_proceed::nothing;
 }
 
-how_to_proceed PrepareDataRead(SharedPtr<const TreeItem> self, const TreeItem* refItem, DrlType drlFlags)
+static how_to_proceed PrepareDataRead(SharedPtr<const TreeItem> self, const TreeItem* refItem, DrlType drlFlags)
 {
 	MG_DEBUGCODE(dms_assert(!refItem->HasCalculatorImpl())); // implied by IsDataReadable
 	dms_assert(!refItem->IsCacheItem());        // how else to derive data
@@ -3671,7 +3671,7 @@ TIC_CALL void TreeItem::DisableStorage(bool disabledStorage) // does not call Up
 	}
 }
 
-bool HasCfsStorage(const TreeItem* obj)
+static bool HasCfsStorage(const TreeItem* obj)
 {
 	const TreeItem* storageHolder = obj->GetStorageParent(false);
 
@@ -3791,7 +3791,7 @@ bool TreeItem::CommitDataChanges() const
 	return !WasFailed(FR_Committed);
 }
 
-bool PartOfInterestImpl(const TreeItem* self)
+static bool PartOfInterestImpl(const TreeItem* self)
 {
 	while (self)
 	{
@@ -4202,7 +4202,7 @@ struct CompareOutputRecord
 	bool  OK  () const { return m_Result && !size(); }
 };
 
-void DMS_CONV CompareOutput(ClientHandle clientHandle, const Byte* data, streamsize_t size)
+static void DMS_CONV CompareOutput(ClientHandle clientHandle, const Byte* data, streamsize_t size)
 {
 	CompareOutputRecord* cr = reinterpret_cast<CompareOutputRecord*>(clientHandle);
 	if (cr->m_Result)

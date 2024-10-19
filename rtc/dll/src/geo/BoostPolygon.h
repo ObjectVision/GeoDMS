@@ -118,7 +118,7 @@ void bp_assign_mp (E&& ref,  MP&& poly)
 	ref.reserve(count);
 	
 	for (i=b; i!=e; ++i)
-		bp_assign_polygon(std::forward<E>(ref), *i);
+		bp_assign_polygon(ref, *i);
 
 	assert(i==e);
 	assert(b<i);

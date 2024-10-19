@@ -31,7 +31,7 @@
 //										DEFINES
 /*****************************************************************************/
 
-#define	BINARY_ELEMENT_SIZE	2
+constexpr SizeT BINARY_ELEMENT_SIZE = 2;
 
 /*****************************************************************************/
 //										FUNCTIONS
@@ -96,7 +96,7 @@ SharedStr TColumn::DiagnosticString() const
 	return mySSPrintF("\nColumn(%s): %s", CTypeName(), Name());
 }
 
-SharedStr DiagnosticString(const TDatabase* db, const TRecordSet* rs, const TColumn* col)
+static SharedStr DiagnosticString(const TDatabase* db, const TRecordSet* rs, const TColumn* col)
 {
 	SharedStr inCol, inRS, inDB;
 	if (col)
@@ -115,7 +115,7 @@ SharedStr DiagnosticString(const TDatabase* db, const TRecordSet* rs, const TCol
 	return mySSPrintF("%s%s%s", inCol.c_str(), inRS.c_str(), inDB.c_str());
 }
 
-void Diagnostics(const SQLRETURN ret, const SQLSMALLINT handletype, const SQLHANDLE handle, TDatabase* db, TRecordSet* rs, TColumn* col)
+static void Diagnostics(const SQLRETURN ret, const SQLSMALLINT handletype, const SQLHANDLE handle, TDatabase* db, TRecordSet* rs, TColumn* col)
 {
 	SQLCHAR     sqlstate[MAXBUFLEN],
 	            message [MAXBUFLEN_EXT];
@@ -317,13 +317,13 @@ CharPtr AttributeValueToString(const SQLINTEGER attribute, const SQLINTEGER attr
 }
 #endif
 
-bool	CTypeHasVarSize(const SQLSMALLINT ctype)
+static bool CTypeHasVarSize(const SQLSMALLINT ctype)
 {
 	return	ctype == SQL_C_CHAR || ctype == SQL_C_BINARY;
 } // CTypeHasVarSize
 
 #if defined(MG_DEBUG)
-const char* SQLRETURNToString(const SQLRETURN res)
+static const char* SQLRETURNToString(const SQLRETURN res)
 {
 	switch (res)
 	{
@@ -341,7 +341,7 @@ const char* SQLRETURNToString(const SQLRETURN res)
 }
 #endif
 
-ULONG GetRecordCount(TDatabase *db, CharPtr sql) 
+static ULONG GetRecordCount(TDatabase *db, CharPtr sql)
 {
 	// XXX, TODO: some SELECT STATEMETNS REQUIRE going through the recordset anyway (such as WHEREm UNION and JOIN clauses) and SELECT COUNT(*) FROM XXX has issues
 	// TODO: try UnbindAllInternal(); and or MoveLast to reduce overhead of the following counting
@@ -696,7 +696,7 @@ bool TColumn::Define(const SQLUSMALLINT colindex, TRecordSet *rs)
 	return true;
 }
 
-bool CompatibleCTypes(SQLSMALLINT cTypeData, SQLSMALLINT cTypeRequested)
+static bool CompatibleCTypes(SQLSMALLINT cTypeData, SQLSMALLINT cTypeRequested)
 {
 	return true;
 }
@@ -742,7 +742,7 @@ bool TColumn::BindNone()
 	return Bind();
 } // TColumn::BindNone
 
-SQLLEN* CreateActualSizeArray(UInt32 nrFrames)
+static SQLLEN* CreateActualSizeArray(UInt32 nrFrames)
 {
 	SQLLEN* result = new SQLLEN[nrFrames];
 	fast_fill(result, result + nrFrames, SQL_NULL_DATA);
@@ -1381,7 +1381,10 @@ UInt32 TRecordSet::RecordCount()
 		minimum	=	0,
 		maximum	=  16; // skips 4 silly seeks when bigger 
 
+#pragma warning(push)
+#pragma warning(disable: 6387)
 	Check(SQLSetStmtAttr(Handle(), SQL_ATTR_RETRIEVE_DATA, SQL_RD_OFF, 0));
+#pragma warning(pop)
 
 	while (maximum != (1 << (8 * sizeof(maximum)-1)) && SQLFetchScroll(Handle(), SQL_FETCH_ABSOLUTE, maximum) != SQL_NO_DATA)
 		maximum *= 2;

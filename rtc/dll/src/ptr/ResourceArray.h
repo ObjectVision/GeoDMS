@@ -13,10 +13,6 @@
 
 struct ResourceArrayBase
 {
-	ResourceArrayBase()
-		:	m_N(0)
-	{}
-
 	virtual void destroy() = 0;
 
 	SizeT size() const { return m_N; }
@@ -32,41 +28,27 @@ protected:
 		std::allocator<char> alloc;
 		alloc.deallocate(ptr, sz);
 	}
-	SizeT m_N;
+	SizeT m_N = 0;
 };
 
-struct ResourceArrayHandle : ptr_base<ResourceArrayBase, movable>
+struct destroyResourceArray
 {
-	ResourceArrayHandle(pointer ptr = nullptr) noexcept
-		:	ptr_base(ptr)
-	{}
-	ResourceArrayHandle(ResourceArrayHandle&& org) noexcept
-		:	ptr_base(org.release()) 
-	{}
-
-	~ResourceArrayHandle () 
-	{ 
-		if (has_ptr())
-			get_ptr()->destroy(); 
+	void operator()(ResourceArrayBase* ptr)
+	{
+		assert(ptr);
+		ptr->destroy();
 	}
-
-	void    init   (pointer ptr)       { assert(is_null()); m_Ptr = ptr; }
-	pointer release()                  { pointer tmp_ptr = m_Ptr; m_Ptr = nullptr; return tmp_ptr; }
-	void    reset  (pointer ptr = nullptr)  { assert(ptr != get_ptr() || !ptr); ResourceArrayHandle tmp(ptr); tmp.swap(*this); }
-	void    swap   (ResourceArrayHandle& oth) { std::swap(m_Ptr, oth.m_Ptr); }
-
-	void operator = (ResourceArrayHandle&& rhs) noexcept 
-	{ 
-		reset(rhs.release()); 
-	}
-
-	friend void swap(ResourceArrayHandle& a, ResourceArrayHandle& b) noexcept { a.swap(b); }
 };
+
+using ResourceArrayHandle = std::unique_ptr<ResourceArrayBase, destroyResourceArray>;
+
+#pragma warning(push)
+#pragma warning(disable: 26495)
 
 template <typename R>
 struct ResourceArray : ResourceArrayBase
 {
-	R     m_Data[0] = {};
+	R m_Data[];
 
 	void destroy() override
 	{
@@ -97,16 +79,20 @@ private:
 
 	void construct(SizeT n)
 	{
-		while (m_N<n)
-			new (m_Data + m_N++) R;
+		for (SizeT i = 0; i < n; ++i)
+			new (m_Data + i) R;
+		m_N = n;
 	}
 
 	~ResourceArray()
 	{
-		while (m_N)
-			m_Data[--m_N].~R();
+		SizeT i = m_N; 
+		while (i > 0)
+			m_Data[--i].~R();
+		m_N = 0;
 	}
 };
 
+#pragma warning(pop)
 
 #endif // __RTC_PTR_RESOURCEARRAY_H

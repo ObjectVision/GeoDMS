@@ -46,30 +46,30 @@ static VersionComponent s_BoostPolygon("boost::polygon " BOOST_STRINGIZE(BOOST_P
 
 
 template <typename T>
-bool coords_using_more_than_25_bits(T coord)
+static bool coords_using_more_than_25_bits(T coord)
 	requires ( is_numeric_v<T> && (sizeof(T) < 4) )
 {
 	return false;
 }
 
-bool coords_using_more_than_25_bits(Int32 v)
+static bool coords_using_more_than_25_bits(Int32 v)
 {
 	return v <= -MAX_COORD || v >= MAX_COORD;
 }
 
-bool coords_using_more_than_25_bits(UInt32 v)
+static bool coords_using_more_than_25_bits(UInt32 v)
 {
 	return v >= MAX_COORD;
 }
 
 template <gtl_point Point>
-bool coords_using_more_than_25_bits(Point p)
+static bool coords_using_more_than_25_bits(Point p)
 {
 	return coords_using_more_than_25_bits(boost::polygon::x(p)) || coords_using_more_than_25_bits(boost::polygon::y(p));
 }
 
 template <gtl_rect Rect>
-bool coords_using_more_than_25_bits(const Rect& rect)
+static bool coords_using_more_than_25_bits(const Rect& rect)
 {
 	return coords_using_more_than_25_bits(boost::polygon::ll(rect)) || coords_using_more_than_25_bits(boost::polygon::ur(rect));
 }
@@ -223,8 +223,12 @@ class PolygonOverlayOperator : public AbstrPolygonOverlayOperator
 		PolygonType m_Geometry;
 	};
 
-	struct ResDataElemType : std::conditional_t<MustProduceGeometries, GeoBase, EmptyBase>
+	using ResGeometryType = std::conditional_t<MustProduceGeometries, GeoBase, EmptyBase>;
+	struct ResDataElemType : ResGeometryType
 	{
+		ResDataElemType(const Point<SizeT>& orgRels)
+			: m_OrgRel(orgRels) {}
+
 		Point<SizeT> m_OrgRel = {SizeT(-1), SizeT(-1)};
 
 		bool operator < (const ResDataElemType& oth) { return m_OrgRel < oth.m_OrgRel;  }
@@ -315,7 +319,8 @@ public:
 		bool onlyForwardMatches = this->m_OnlyForwardMatches;
 		serial_for(SizeT(0), poly1Array.size(), [p1Offset, p2Offset, &poly1Array, &poly2Array, spIndexPtr, resTileData, &resLocalAdditionSection, onlyForwardMatches](SizeT i)->void
 		{
-			res_data_elem_type back;
+			Point<SizeT> orgRels;
+			PolygonType lastResGeometry;
 			try {
 				auto polyPtr = poly1Array.begin() + i;
 				SizeT p1_rel = p1Offset + i;
@@ -329,9 +334,9 @@ public:
 					polygon_set_type geometry;
 					for (box_iter_type iter = spIndexPtr->begin(bbox); iter; ++iter)
 					{
-						back.m_OrgRel.first = p1_rel;
-						back.m_OrgRel.second = p2Offset + (((*iter)->get_ptr()) - poly2Array.begin());
-						if (onlyForwardMatches && back.m_OrgRel.first >= back.m_OrgRel.second)
+						orgRels.first = p1_rel;
+						orgRels.second = p2Offset + (((*iter)->get_ptr()) - poly2Array.begin());
+						if (onlyForwardMatches && orgRels.first >= orgRels.second)
 							continue;
 						using namespace bp::operators;
 						bp::assign(geometry, *((*iter)->get_ptr()) & *polyPtr, psdCleanResources); // intersection
@@ -340,10 +345,12 @@ public:
 							continue;
 
 						if constexpr (MustProduceGeometries)
-							bp_assign(back.m_Geometry, geometry, psdCleanResources);
+							bp_assign(lastResGeometry, geometry, psdCleanResources);
 
 						leveled_critical_section::scoped_lock resLock(resLocalAdditionSection);
-						resTileData->push_back(std::move(back));
+						resTileData->emplace_back(orgRels);
+						if constexpr (MustProduceGeometries)
+							resTileData->back().m_Geometry = std::move(lastResGeometry);
 					}
 				}
 				else if constexpr (GL == geometry_library::boost_geometry)
@@ -360,40 +367,45 @@ public:
 
 					for (; iter; ++iter)
 					{
-						back.m_OrgRel.first = p1_rel;
-						back.m_OrgRel.second = p2Offset + (((*iter)->get_ptr()) - poly2Array.begin());
-						if (onlyForwardMatches && back.m_OrgRel.first >= back.m_OrgRel.second)
+						orgRels.first = p1_rel;
+						orgRels.second = p2Offset + (((*iter)->get_ptr()) - poly2Array.begin());
+						if (onlyForwardMatches && orgRels.first >= orgRels.second)
 							continue;
 
 						assign_multi_polygon(currMP2, *((*iter)->get_ptr()), true, helperPolygon, helperRing);
 
 						resMP.clear();
 						boost::geometry::intersection(currMP1, currMP2, resMP);
-						if (!resMP.empty())
-						{
-							if constexpr (MustProduceGeometries)
-								bg_store_multi_polygon(back.m_Geometry, resMP);
+						if (resMP.empty())
+							continue;
 
-							leveled_critical_section::scoped_lock resLock(resLocalAdditionSection);
-							resTileData->push_back(std::move(back));
-						}
+						if constexpr (MustProduceGeometries)
+							bg_store_multi_polygon(lastResGeometry, resMP);
+
+						leveled_critical_section::scoped_lock resLock(resLocalAdditionSection);
+						resTileData->emplace_back(orgRels);
+						if constexpr (MustProduceGeometries)
+							resTileData->back().m_Geometry = std::move(lastResGeometry);
 					};
 
 				}
 				else if constexpr (GL == geometry_library::cgal)
 				{
 					CGAL_Traits::Polygon_set poly1;
-					assign_multi_polygon(poly1, *polyPtr, true);
+					CGAL_Traits::Polygon_with_holes helperPoly;
+					CGAL_Traits::Ring helperRing;
+
+					assign_multi_polygon(poly1, *polyPtr, true, helperPoly, helperRing);
 
 					for (box_iter_type iter = spIndexPtr->begin(bbox); iter; ++iter)
 					{
-						back.m_OrgRel.first = p1_rel;
-						back.m_OrgRel.second = p2Offset + (((*iter)->get_ptr()) - poly2Array.begin());
-						if (onlyForwardMatches && back.m_OrgRel.first >= back.m_OrgRel.second)
+						orgRels.first = p1_rel;
+						orgRels.second = p2Offset + (((*iter)->get_ptr()) - poly2Array.begin());
+						if (onlyForwardMatches && orgRels.first >= orgRels.second)
 							continue;
 
 						CGAL_Traits::Polygon_set poly2;
-						assign_multi_polygon(poly2, *((*iter)->get_ptr()), true);
+						assign_multi_polygon(poly2, *((*iter)->get_ptr()), true, helperPoly, helperRing);
 
 						CGAL_Traits::Polygon_set res;
 						res.intersection(poly1, poly2);
@@ -402,10 +414,12 @@ public:
 							continue;
 
 						if constexpr (MustProduceGeometries)
-							cgal_assign_polygon_set(back.m_Geometry, res);
+							cgal_assign_polygon_set(lastResGeometry, res);
 
 						leveled_critical_section::scoped_lock resLock(resLocalAdditionSection);
-						resTileData->push_back(std::move(back));
+						resTileData->push_back(orgRels);
+						if constexpr (MustProduceGeometries)
+							resTileData->back().m_Geometry = std::move(lastResGeometry);
 					}
 				}
 				else if constexpr (GL == geometry_library::geos)
@@ -414,9 +428,9 @@ public:
 
 					for (box_iter_type iter = spIndexPtr->begin(bbox); iter; ++iter)
 					{
-						back.m_OrgRel.first = p1_rel;
-						back.m_OrgRel.second = p2Offset + (((*iter)->get_ptr()) - poly2Array.begin());
-						if (onlyForwardMatches && back.m_OrgRel.first >= back.m_OrgRel.second)
+						orgRels.first = p1_rel;
+						orgRels.second = p2Offset + (((*iter)->get_ptr()) - poly2Array.begin());
+						if (onlyForwardMatches && orgRels.first >= orgRels.second)
 							continue;
 
 						CGAL_Traits::Polygon_set poly2;
@@ -428,17 +442,19 @@ public:
 							continue;
 
 						if constexpr (MustProduceGeometries)
-							geos_assign_geometry(back.m_Geometry, res.get());
+							geos_assign_geometry(lastResGeometry, res.get());
 
 						leveled_critical_section::scoped_lock resLock(resLocalAdditionSection);
-						resTileData->push_back(std::move(back));
+						resTileData->push_back(orgRels);
+						if constexpr (MustProduceGeometries)
+							resTileData->back().m_Geometry = std::move(lastResGeometry);
 					}
 				}
 			}
 			catch (...)
 			{
 				auto errMsg = catchException(true);
-				errMsg->TellExtraF("while processing intersection of row %d with row %d", back.m_OrgRel.first, back.m_OrgRel.second);
+				errMsg->TellExtraF("while processing intersection of row %d with row %d", orgRels.first, orgRels.second);
 				throw DmsException(errMsg);
 			}
 		});
@@ -530,12 +546,12 @@ enum class PolygonFlags {
 	F_Mask2 = 0x0F00,
 };
 
-constexpr PolygonFlags operator | (PolygonFlags a, PolygonFlags b)
+static constexpr PolygonFlags operator | (PolygonFlags a, PolygonFlags b)
 {
 	return static_cast<PolygonFlags>(static_cast<int>(a) | static_cast<int>(b));
 }
 
-bool operator & (PolygonFlags a, PolygonFlags b)
+static bool operator & (PolygonFlags a, PolygonFlags b)
 {
 	return static_cast<int>(a) & static_cast<int>(b);
 }
@@ -565,7 +581,7 @@ void dms_insert(bp::polygon_set_data<C>& lvalue, const GT2& rvalue)
 		, boost::polygon::interval_data<C>(rRange.first.Y(), rRange.second.Y())
 	);
 
-	typename traits_t::rect_type bpLeftRect;
+	typename traits_t::rect_type bpLeftRect = {};
 	if (lvalue.extents(bpLeftRect))
 		bpRect = get_enclosing_rectangle(bpRect, bpLeftRect);
 
@@ -623,7 +639,7 @@ void UnionPolygon(ResourceArrayHandle& r, SizeT n, const AbstrDataItem* polyData
 
 	if (!r)
 		r.reset( ResourceArray<MPT>::create(n) );
-	auto geometryTowerResourcePtr = debug_cast<ResourceArray<MPT>*>(r.get_ptr());
+	auto geometryTowerResourcePtr = debug_cast<ResourceArray<MPT>*>(r.get());
 	assert(geometryTowerResourcePtr->size() == n);
 
 	PolygonFlags unionPermState =
@@ -654,7 +670,7 @@ void UnionPolygon(ResourceArrayHandle& r, SizeT n, const AbstrDataItem* polyData
 			assert( i < n);
 			geometryTowerPtr += i;
 		}
-		typename MPT::semi_group geometry;
+		typename MPT::semi_group geometry = {};
 		dms_assign(geometry, *pi);
 		geometryTowerPtr->add(std::move(geometry));
 
@@ -670,7 +686,7 @@ void UnionPolygon(ResourceArrayHandle& r, SizeT n, const AbstrDataItem* polyData
 }
 
 namespace std {
-    inline UInt32 abs(UInt32 _X)
+	static inline UInt32 abs(UInt32 _X)
     {
         return _X;
     }
@@ -996,7 +1012,7 @@ struct union_bp_polygonsets
 			bool mustTranslate = coords_using_more_than_25_bits(bpRect);
 			if (mustTranslate)
 			{
-				typename traits_t::point_type p;
+				typename traits_t::point_type p = {};
 				// translate to zero to avoid numerical round-off errors
 				bp::center(p, bpRect);
 				typename traits_t::point_type mp(-x(p), -y(p));
@@ -1054,7 +1070,7 @@ public:
 		assert(argNum);
 		assert(flag != PolygonFlags::none);
 
-		auto geometryDataTowerResourcePtr = debug_cast<ResourceArray<PolygonSetTower>*>(r.get_ptr());
+		auto geometryDataTowerResourcePtr = debug_cast<ResourceArray<PolygonSetTower>*>(r.get());
 		auto geometryDataTowerPtr = geometryDataTowerResourcePtr->begin();
 
 		auto argNumData = const_array_cast<NumType>(argNum)->GetTile(argNum->HasVoidDomainGuarantee() ? 0 : t);
@@ -1156,7 +1172,7 @@ public:
 		OwningPtrSizedArray<typename traits_t::multi_polygon_type> geometryPtr;
 		if (r)
 		{
-			auto geometryDataTowerResourcePtr = debug_cast<ResourceArray<PolygonSetTower>*>(r.get_ptr());
+			auto geometryDataTowerResourcePtr = debug_cast<ResourceArray<PolygonSetTower>*>(r.get());
 			domainCount = geometryDataTowerResourcePtr->size();
 			auto geometryDataTowerPtr = geometryDataTowerResourcePtr->begin();
 
@@ -1268,7 +1284,7 @@ public:
 	void StoreImpl(AbstrUnit* resUnit, AbstrDataItem* resGeometry, DataWriteHandle& resGeometryLock, AbstrDataItem* resNrOrgEntity, tile_id t, ResourceArrayHandle& r) const override
 	{
 		SizeT domainCount = 0;
-		auto geometryTowerResourcePtr = debug_cast<ResourceArray<MultiPolygonTower>*>(r.get_ptr());
+		auto geometryTowerResourcePtr = debug_cast<ResourceArray<MultiPolygonTower>*>(r.get());
 		MultiPolygonTower* geometryTowerPtr = nullptr;
 		if (geometryTowerResourcePtr)
 		{
@@ -1377,7 +1393,7 @@ public:
 	void StoreImpl(AbstrUnit* resUnit, AbstrDataItem* resGeometry, DataWriteHandle& resGeometryLock, AbstrDataItem* resNrOrgEntity, tile_id t, ResourceArrayHandle& r) const override
 	{
 		SizeT domainCount = 0;
-		auto geometryTowerResourcePtr = debug_cast<ResourceArray<MultiPolygonTower>*>(r.get_ptr());
+		auto geometryTowerResourcePtr = debug_cast<ResourceArray<MultiPolygonTower>*>(r.get());
 		MultiPolygonTower* geometryTowerPtr = nullptr;
 		if (geometryTowerResourcePtr)
 		{
@@ -1481,7 +1497,7 @@ public:
 	void StoreImpl(AbstrUnit* resUnit, AbstrDataItem* resGeometry, DataWriteHandle& resGeometryLock, AbstrDataItem* resNrOrgEntity, tile_id t, ResourceArrayHandle& r) const override
 	{
 		SizeT domainCount = 0;
-		auto geometryTowerResourcePtr = debug_cast<ResourceArray<MultiPolygonTower>*>(r.get_ptr());
+		auto geometryTowerResourcePtr = debug_cast<ResourceArray<MultiPolygonTower>*>(r.get());
 		MultiPolygonTower* geometryTowerPtr = nullptr;
 		if (geometryTowerResourcePtr)
 		{

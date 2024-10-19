@@ -242,7 +242,7 @@ QVariant DmsModel::getTreeItemIcon(const QModelIndex& index) const {
 	return QVariant::fromValue(QPixmap(":/res/images/TV_unit_transparant.bmp"));
 }
 
-color_option getColorOption(const TreeItem* ti) {
+static color_option getColorOption(const TreeItem* ti) {
 	assert(ti);
 	bool isInTemplate = ti->InTemplate();
 
@@ -368,7 +368,7 @@ auto DmsModel::flags(const QModelIndex& index) const -> Qt::ItemFlags {
 	return Qt::ItemIsSelectable | Qt::ItemIsEnabled | Qt::ItemIsDragEnabled |  QAbstractItemModel::flags(index);
 }
 
-QFont CreateRemixFont()
+static QFont CreateRemixFont()
 {
 	QFont font;
 	font.setFamily("remixicon");

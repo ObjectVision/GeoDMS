@@ -1,4 +1,4 @@
-// Copyright (C) 1998-2023 Object Vision b.v. 
+// Copyright (C) 1998-2024 Object Vision b.v. 
 // License: GNU GPL 3
 /////////////////////////////////////////////////////////////////////////////
 
@@ -20,6 +20,8 @@
 // used modules and forward class references
 //----------------------------------------------------------------------
 
+#include "RtcBase.h"
+
 #include "geo/Range.h"
 #include "geo/Point.h"
 #include "ser/FormattedStream.h"
@@ -35,6 +37,7 @@ enum class OrientationType
 	BottomTop  = 2,
 	NegateX    = 1,
 	NegateY    = 2,
+	NegateXY   = NegateX + NegateY
 };
 
 inline bool IsRightLeft(OrientationType orientation) { return int(orientation) & 1; }
@@ -178,13 +181,9 @@ public:
 	Float64         ZoomLevel()   const { return Abs(m_Factor.first); }
 	point_type      V2WFactor()   const { assert(!IsSingular()); return point_type(1.0 / m_Factor.first, 1.0 / m_Factor.second); }
 	point_type      Offset()      const { return m_Offset; }
-	OrientationType Orientation() const 
-	{
-		return OrientationType(
-			int((m_Factor.Y()>=0) ? OrientationType::Default : OrientationType::NegateY)
-		+	int((m_Factor.X()>=0) ? OrientationType::Default : OrientationType::NegateX)
-		); 
-	}
+	OrientationType X_dir() const { return m_Factor.X() >= 0 ? OrientationType::Default : OrientationType::NegateX; }
+	OrientationType Y_dir() const { return m_Factor.Y() >= 0 ? OrientationType::Default : OrientationType::NegateY; }
+	OrientationType Orientation() const { return OrientationType(int(X_dir()) | int(Y_dir())); }
 	bool IsNonScaling() const { return m_Factor.X() == 1 && m_Factor.Y() == 1; }
 	bool IsLinear    () const { return m_Offset.X() == 0 && m_Offset.Y() == 0; }
 	bool IsIdentity  () const { return IsNonScaling() && IsLinear(); }

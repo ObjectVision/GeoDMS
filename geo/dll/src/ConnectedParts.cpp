@@ -86,10 +86,13 @@ public:
 		AbstrDataItem* resSub = CreateDataItem(res, s_PartRel, arg1A->GetAbstrValuesUnit(), res);
 		resSub->SetTSF(TSF_Categorical);
 
-		AbstrDataItem* resSub_depreciated = CreateDataItem(res, s_PartNr, arg1A->GetAbstrValuesUnit(), res);
-		resSub_depreciated->SetReferredItem(resSub);
-		resSub_depreciated->SetTSF(TSF_Categorical);
-		resSub_depreciated->SetTSF(TSF_Depreciated);
+		if (!mustCalc)
+		{
+			AbstrDataItem* resSub_depreciated = CreateDataItem(res, s_PartNr, arg1A->GetAbstrValuesUnit(), res);
+			resSub_depreciated->SetReferredItem(resSub);
+			resSub_depreciated->SetTSF(TSF_Categorical);
+			resSub_depreciated->SetTSF(TSF_Depreciated);
+		}
 
 		MG_CHECK(resSub);
 
@@ -377,10 +380,13 @@ public:
 		AbstrDataItem* resSub = CreateDataItem(res, s_PartRel, arg1A->GetAbstrValuesUnit(), res);
 		resSub->SetTSF(TSF_Categorical);
 
-		AbstrDataItem* resSub_depreciated = CreateDataItem(res, s_PartNr, arg1A->GetAbstrValuesUnit(), res);
-		resSub_depreciated->SetReferredItem(resSub);
-		resSub_depreciated->SetTSF(TSF_Categorical);
-		resSub_depreciated->SetTSF(TSF_Depreciated);
+		if (!mustCalc)
+		{
+			AbstrDataItem* resSub_depreciated = CreateDataItem(res, s_PartNr, arg1A->GetAbstrValuesUnit(), res);
+			resSub_depreciated->SetReferredItem(resSub);
+			resSub_depreciated->SetTSF(TSF_Categorical);
+			resSub_depreciated->SetTSF(TSF_Depreciated);
+		}
 
 		MG_CHECK(resSub);
 

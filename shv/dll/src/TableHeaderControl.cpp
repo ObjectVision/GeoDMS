@@ -178,7 +178,6 @@ bool ColumnHeaderControl::MouseEvent(MouseEventDispatcher& med)
 	if ((med.GetEventInfo().m_EventID & EventID::LBUTTONDOWN) && m_Dic)
 	{
 		GPoint mousePoint = med.GetEventInfo().m_Point;
-		auto tc = m_Dic->GetTableControl().lock(); if (!tc) return false;
 
 		if (GetControlDeviceRegion(mousePoint.x, isColOriented) != RG_MIDDLE)
 			return m_Dic->MouseEvent(med);
@@ -234,7 +233,7 @@ TableHeaderControl::TableHeaderControl(MovableObject* owner, TableControl* table
 	assert(tableControl);
 	assert(owner);
 	auto dv = owner->GetDataView().lock(); assert(dv);
-	SetMaxSize((IsColOriented() ? DEF_TEXT_PIX_HEIGHT : DEF_TEXT_PIX_WIDTH) + DOUBLE_BORDERSIZE);
+	SetMaxSize((IsColOriented() ? DEF_TEXT_PIX_HEIGHT + DOUBLE_BORDERSIZE : DEF_TEXT_PIX_WIDTH + DOUBLE_BORDERSIZE));
 }
 
 void TableHeaderControl::DoUpdateView()
