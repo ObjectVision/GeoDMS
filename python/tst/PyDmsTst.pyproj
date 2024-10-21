@@ -26,8 +26,8 @@
     <EnableUnmanagedDebugging>false</EnableUnmanagedDebugging>
   </PropertyGroup>
   <ItemGroup>
-    <ProjectReference Include="..\python\dll\DmsPython.vcxproj">
-      <Name>GeoDmsPython</Name>
+    <ProjectReference Include="..\dll\DmsPython.vcxproj">
+      <Name>PyDms</Name>
       <Project>{1139cf27-f48d-4b45-992f-0ad8ec1c1adb}</Project>
       <Private>True</Private>
     </ProjectReference>
