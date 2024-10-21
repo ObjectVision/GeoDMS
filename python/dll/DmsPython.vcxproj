@@ -43,9 +43,8 @@
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup>
     <_ProjectFileVersion>10.0.21006.1</_ProjectFileVersion>
-  </PropertyGroup>
-  <PropertyGroup>
     <TargetExt>.pyd</TargetExt>
+    <TargetName>geodms</TargetName>
   </PropertyGroup>
   <ItemDefinitionGroup>
     <ClCompile>
