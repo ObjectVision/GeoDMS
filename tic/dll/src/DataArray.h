@@ -21,6 +21,7 @@
 #include "ptr/LifetimeProtector.h"
 
 #include "AbstrDataObject.h"
+#include "AbstrUnit.h"
 #include "TiledRangeData.h"
 #include "TileLock.h"
 
@@ -348,8 +349,8 @@ template <typename V>
 auto GetValue(const AbstrDataItem* adi, SizeT idx) 
 	->	DataArrayBase<V>::value_type
 {
-	dms_assert(adi);
-	dms_assert(adi->GetInterestCount());
+	assert(adi);
+	assert(adi->GetInterestCount());
 	adi->PrepareDataUsage(DrlType::CertainOrThrow);
 	DataReadLock lck(adi);
 	return const_array_cast<V>(adi)->GetIndexedValue(idx);
@@ -386,10 +387,27 @@ auto GetCurrValue(const TreeItem* ti, SizeT idx)
 }
 
 template <typename V, typename TI>
-auto GetTheValue(const TI* item)
+auto GetTheValue(const AbstrDataItem* adi)
 	-> typename DataArrayBase<V>::value_type
 {
-	return GetValue<V>(item, 0);
+	assert(adi);
+	if (!adi->HasVoidDomainGuarantee())
+	{
+		auto adu = adi->GetAbstrDomainUnit();
+		throwDmsErrF("GetTheValue was called on %s, but it has a domain %s, which is non-void and thus has or could have multiple values"
+			, adi->GetSourceName()
+			, adu ? adu->GetSourceName() : "Undefined"
+		);
+	}
+	return GetValue<V>(adi, 0);
+}
+
+template <typename V>
+auto GetTheValue(const TreeItem* ti)
+	-> typename DataArrayBase<V>::value_type
+{
+	assert(ti);
+	return GetTheValue<V>(checked_valcast<const AbstrDataItem*>(ti));
 }
 
 template <typename V, typename TI>

@@ -603,7 +603,7 @@ SharedStr AbstrCalculator::EvaluateExpr(const TreeItem* context, CharPtrRange ex
 		assert(resDataItem);
 		if (resDataItem->WasFailed(FR_Data)) resDataItem->ThrowFail();
 		if (resDataItem->WasFailed()) context->Fail(resDataItem);
-		resultStr = GetValue<SharedStr>(resDataItem, 0);
+		resultStr = GetTheValue<SharedStr>(resDataItem);
 
 		auto nrNewEvals = CountIndirections( resultStr.c_str() );
 		if (nrNewEvals)
