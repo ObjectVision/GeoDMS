@@ -386,7 +386,7 @@ auto GetCurrValue(const TreeItem* ti, SizeT idx)
 	return GetCurrValue<V>(checked_valcast<const AbstrDataItem*>(ti), idx);
 }
 
-template <typename V, typename TI>
+template <typename V>
 auto GetTheValue(const AbstrDataItem* adi)
 	-> typename DataArrayBase<V>::value_type
 {
@@ -396,7 +396,7 @@ auto GetTheValue(const AbstrDataItem* adi)
 		auto adu = adi->GetAbstrDomainUnit();
 		throwDmsErrF("GetTheValue was called on %s, but it has a domain %s, which is non-void and thus has or could have multiple values"
 			, adi->GetSourceName()
-			, adu ? adu->GetSourceName() : "Undefined"
+			, adu ? adu->GetSourceName() : SharedStr("Undefined")
 		);
 	}
 	return GetValue<V>(adi, 0);
