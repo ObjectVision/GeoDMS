@@ -157,15 +157,36 @@ int main2(int argc, char** argv)
 	DMS_SE_CALLBACK_END // throws
 }
 
+int s_argcOrg = 0;
+char** s_argvOrg = nullptr;
 
-void printCommandLine(int argc, char**argv)
+
+void printCommandLine()
 {
-	if (!argc)
+	if (!s_argcOrg)
 		return;
+	assert(s_argvOrg);
+
+	int argc = s_argcOrg;
+	char** argv = s_argvOrg;
+
 	std::cerr << std::endl << "CommandLine> ";
 	while (argc--)
 		std::cerr << *argv++ << " ";
 	std::cerr << std::endl;
+}
+
+void logCommandLine(const char* msg)
+{
+	if (!s_argcOrg)
+		return;
+	assert(s_argvOrg);
+	char** argv = s_argvOrg;
+
+
+	reportF(SeverityTypeID::ST_MajorTrace, msg);
+	for (auto argc = 0; argc != s_argcOrg; ++argc, ++argv)
+		reportF(SeverityTypeID::ST_MajorTrace, "%d:%s", argc, *argv);
 }
 
 char SeverityAsChar(SeverityTypeID st)
@@ -213,53 +234,64 @@ int main_with_catch(int argc, char** argv)
 {
 	DMS_CALL_BEGIN
 
-		DMS_RegisterMsgCallback(logMsg, nullptr);
-		auto exitGuard = make_scoped_exit([]
-			{ 
-				ReportFixedAllocFinalSummary();
-				DMS_ReleaseMsgCallback(logMsg, nullptr);
-			}
-		);
-
-		if (argc > 0)
-			DMS_Appl_SetExeDir(splitFullPath(ConvertDosFileName(SharedStr(argv[0])).c_str()).c_str());
-
-		DBG_START("Main", "", true);
-		SuspendTrigger::FencedBlocker lockSuspend("@DmsRun main");
-		--argc; ++argv;
-		CharPtr firstParam = argv[0];
-		if ((argc > 0) && firstParam[0] == '/' && firstParam[1] == 'L')
-		{
-			SharedStr dmsLogFileName = ConvertDosFileName(SharedStr(firstParam + 2));
-
-			CDebugLog log(MakeAbsolutePath(dmsLogFileName.c_str()));
-			SetCachedStatusFlag(RSF_TraceLogFile);
-			return main2(argc - 1, argv + 1);
-		}
 		return main2(argc, argv);
 
 	DMS_CALL_END
 	return 2;
 }
 
+int main_with_error_report(int argc, char** argv)
+{
+	logCommandLine("GeoDmsRun.exe STARTED with the folling chopped CommandLine");
+	auto result = main_with_catch(argc, argv);
+	if (result != 0)
+	{
+		reportF(SeverityTypeID::ST_FatalError, "GeoDmsRun failed with code %d", result);
+		assert(s_argvOrg);
+		printCommandLine();
+	}
+	else
+		reportF(SeverityTypeID::ST_MajorTrace, "GeoDmsRun completed successfully.");
+	logCommandLine("GeoDmsRun.exe STOPPED with the folling chopped CommandLine");
+	return result;
+}
+
+int main1(int argc, char** argv)
+{
+	DMS_RegisterMsgCallback(logMsg, nullptr);
+	auto exitGuard = make_scoped_exit([]
+		{
+			ReportFixedAllocFinalSummary();
+			DMS_ReleaseMsgCallback(logMsg, nullptr);
+		}
+	);
+
+	if (argc > 0)
+		DMS_Appl_SetExeDir(splitFullPath(ConvertDosFileName(SharedStr(argv[0])).c_str()).c_str());
+
+	SuspendTrigger::FencedBlocker lockSuspend("@DmsRun main");
+	--argc; ++argv;
+	CharPtr firstParam = argv[0];
+	if ((argc > 0) && firstParam[0] == '/' && firstParam[1] == 'L')
+	{
+		SharedStr dmsLogFileName = ConvertDosFileName(SharedStr(firstParam + 2));
+
+		CDebugLog log(MakeAbsolutePath(dmsLogFileName.c_str()));
+		SetCachedStatusFlag(RSF_TraceLogFile);
+		return main_with_error_report(argc - 1, argv + 1);
+	}
+	return main_with_error_report(argc, argv);
+}
+
 int main(int argc, char** argv)
 {
+	s_argcOrg = argc;
+	s_argvOrg = argv;
+
 	DMS_Geo_Load();
 	DMS_Clc_Load();
 
 	DMS_SetGlobalCppExceptionTranslator(reportMsg);
 
-	int result = 0;
-	bool completed = false;
-
-	result = main_with_catch(argc, argv);
-	if (result != 0)
-	{
-		std::cerr << std::endl << "GeoDmsRun failed with code " << result << "." << std::endl;
-		printCommandLine(argc, argv);
-	}
-	else 
-		std::cerr << std::endl << "GeoDmsRun completed successfully." << std::endl;
-
-	return result;
+	return main1(argc, argv);
 }

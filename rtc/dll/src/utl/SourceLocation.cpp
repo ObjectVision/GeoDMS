@@ -69,7 +69,7 @@ FileDescr::FileDescr(WeakStr str, FileDateTime fdt, UInt32 loadNumber)
 
 FileDescr::~FileDescr()
 {
-	reportF(MsgCategory::other, SeverityTypeID::ST_MinorTrace, "unload %s", GetFileName());
+//	reportF(MsgCategory::other, SeverityTypeID::ST_MinorTrace, "unload %s", GetFileName());
 
 	auto lock = std::scoped_lock(cs_FDS);
 	auto pos = std::find(s_FDS.begin(), s_FDS.end(), this);
