@@ -66,7 +66,7 @@ AssocList::ptr_type GetEnv()
 	{
 		CDebugContextHandle dch("RewriteExpr", "Read RewriteExpr.lsp", false);
 		SharedStr fileName = rewriteExprFileName();
-		FileInpStreamBuff in(fileName, 0, true);
+		FileInpStreamBuff in(fileName, true);
 		if (!in.IsOpen())
 			throwErrorD("RewriteRules", "Cannot open file RewriteExpr.lsp which is required for expression parsing");
 		FormattedInpStream fin(&in);

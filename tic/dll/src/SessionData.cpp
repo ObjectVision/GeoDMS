@@ -51,7 +51,6 @@ void SessionData::release()
 	if (s_CurrSD.get() != this)
 		return;
 
-	m_SFWA.Commit();
 	deactivateThis();
 }
 

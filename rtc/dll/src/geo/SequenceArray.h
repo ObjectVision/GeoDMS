@@ -763,7 +763,6 @@ public:
 	// sequence_array access control
 	//=======================================
 
-//	bool IsOpen()          const { return m_Indices.IsOpen         () && m_Values.IsOpen    (); }
 #if defined(MG_DEBUG_DATA)
 	bool IsLocked()        const { return m_Indices.IsLocked() && m_Values.IsLocked  (); }
 #endif
@@ -771,7 +770,6 @@ public:
 	bool IsAssigned()      const { return m_Indices.IsAssigned     (); }
 	bool IsHeapAllocated() const { return m_Indices.IsHeapAllocated() && m_Values.IsHeapAllocated(); }
 
-//	RTC_CALL void Open (seq_size_type nrElem, dms_rw_mode rwMode, bool isTmp, SafeFileWriterArray* sfwa MG_DEBUG_ALLOCATOR_SRC_ARG);
 	RTC_CALL void Lock  (dms_rw_mode rwMode) const;
 
 //	void Close () { m_Indices.Close(); m_Values.Close(); dms_assert(Empty()); m_ActualDataSize = 0; }

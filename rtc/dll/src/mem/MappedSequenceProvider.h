@@ -10,7 +10,6 @@
 #define __RTC_MEM_MAPPEDSEQUENCEPROVIDER_H
 
 #include "mem/AbstrSequenceProvider.h"
-#include "ser/SafeFileWriter.h"
 #include "set/FileView.h"
 
 //----------------------------------------------------------------------
@@ -81,28 +80,10 @@ public:
 
 	bool CanWrite() const override { return true; }
 
-//	bool IsOpen  () const override { return m_FileView.IsOpen  (); }
-
 	abstr_sequence_provider<IndexRange<SizeT> >* CloneForSeqs() const override
 	{
 		return new mappable_sequence< IndexRange<SizeT> >(m_FileView.GetMappedFile(), this->m_TileId, 0);
 	}
-
-	/*
-
-	void Open(alloc_t& seq, SizeT nrElem, dms_rw_mode rwMode, bool isTmp, SafeFileWriterArray* sfwa MG_DEBUG_ALLOCATOR_SRC_ARG) override
-	{ 
-		assert(!IsOpen()); 
-
-		assert(sfwa);
-		assert(!isTmp || !sfwa->FindExisting(m_FileName.c_str()));
-		m_SFWA  = isTmp ? nullptr : sfwa;
-
-		m_FileView.Open(m_FileName, m_SFWA, nrElem, rwMode, isTmp); 
-		assert( IsOpen());
-		assert(!m_FileView.IsMapped());
-	}
-	*/
 
 	void Lock  (alloc_t& seq, dms_rw_mode rwMode) override { m_FileView.Map(rwMode != dms_rw_mode::read_only); assert(  m_FileView.IsUsable() ); GetSeq(seq);}
 	void UnLock(alloc_t& seq)                     override 
@@ -138,7 +119,6 @@ private:
 private:
 	tile_id              m_TileId = tile_id(-1);
 	rw_file_view<V>      m_FileView;
-	SafeFileWriterArray* m_SFWA = nullptr;
 };
 
 template <typename V> V* mutable_iter(const V* ptr) { return const_cast<V*>(ptr); }
@@ -176,7 +156,6 @@ struct mappable_const_sequence : abstr_sequence_provider<V>
 
 	bool CanWrite() const override { return false; }
 
-//	bool IsOpen  () const override { return m_FileView.IsOpen  (); }
 	abstr_sequence_provider<IndexRange<SizeT> >* CloneForSeqs() const override
 	{
 		const auto& pageRange = m_FileView.SequenceMemPageAllocTable()->begin()[this->m_TileId];
@@ -188,22 +167,6 @@ struct mappable_const_sequence : abstr_sequence_provider<V>
 		);
 		m_FileView = const_file_view<V>(m_FileView.GetMappedFile(), pageRange.first, pageRange.second);
 	}
-/*
-	void Open(alloc_t& seq, SizeT nrElem, dms_rw_mode rwMode, bool isTmp, SafeFileWriterArray* sfwa MG_DEBUG_ALLOCATOR_SRC_ARG) override
-	{ 
-		assert(!IsOpen()); 
-		assert(rwMode == dms_rw_mode::read_only || rwMode == dms_rw_mode::check_only); // const sequence
-		assert(!isTmp || rwMode != dms_rw_mode::check_only);
-
-		assert(sfwa);
-		assert(!isTmp || !sfwa->FindExisting(m_FileName.c_str()));
-		m_SFWA  = isTmp ? nullptr : sfwa;
-
-		m_FileView.Open(m_FileName, m_SFWA, nrElem);
-		assert((!IsDefined(nrElem)) || nrElem == m_FileView.filed_size());
-		assert(!m_FileView.IsMapped());
-	}
-*/
 	void Lock  (alloc_t& seq, dms_rw_mode rwMode) override { assert(rwMode == dms_rw_mode::read_only); m_FileView.Map(); assert( m_FileView.IsUsable()); GetSeq(seq); }
 	void UnLock(alloc_t& seq)                     override { m_FileView.Unmap(); seq = alloc_t(); }
 //	void Close (alloc_t& seq)                     override { m_FileView.CloseFVB();                     assert(!m_FileView.IsOpen());   seq = alloc_t(); }
@@ -219,8 +182,6 @@ private:
 
 	tile_id              m_TileId = tile_id(-1);
 	mutable const_file_view<V>   m_FileView;
-//	SharedStr            m_FileName;
-	SafeFileWriterArray* m_SFWA = nullptr;
 };
 
 

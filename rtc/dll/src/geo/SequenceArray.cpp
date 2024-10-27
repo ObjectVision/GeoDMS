@@ -370,25 +370,6 @@ void sequence_array<T>::clear()
 
 // sequence_array access control
 
-/*
-template <typename T>
-void sequence_array<T>::Open (seq_size_type nrElem, dms_rw_mode rwMode, bool isTmp, SafeFileWriterArray* sfwa MG_DEBUG_ALLOCATOR_SRC_ARG)
-{
-	assert(rwMode != dms_rw_mode::unspecified);
-
-	m_Indices.Open(nrElem, rwMode == dms_rw_mode::write_only_all ? dms_rw_mode::write_only_mustzero : rwMode, isTmp, sfwa MG_DEBUG_ALLOCATOR_SRC_PARAM);
-	try {
-		m_Values.Open(UNDEFINED_VALUE(SizeT), rwMode, isTmp, sfwa MG_DEBUG_ALLOCATOR_SRC_PARAM);
-	}
-	catch (...)
-	{
-		m_Indices.Close(); // rollback m_Indices.Open
-		throw;
-	}
-	m_ActualDataSize = 0; // init when first lock is set
-}
-*/
-
 template <typename T>
 void sequence_array<T>::Lock(dms_rw_mode rwMode) const  // thread safe operation
 { 

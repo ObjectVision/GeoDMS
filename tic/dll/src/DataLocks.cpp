@@ -215,23 +215,23 @@ PreparedDataReadLock::PreparedDataReadLock(const AbstrDataItem* adi, CharPtr blo
 	, DataReadLock((Update(adi), adi))
 {}
 
-auto CreateFileData(AbstrDataItem* adi, const SharedObj* abstrValuesRangeData, SharedStr filename, SafeFileWriterArray* sfwa, bool mustClear) -> std::unique_ptr<AbstrDataObject>
+auto CreateFileData(AbstrDataItem* adi, const SharedObj* abstrValuesRangeData, SharedStr filename, bool mustClear)
+-> std::unique_ptr<AbstrDataObject>
 {
 	bool isPersistent = adi->IsCacheItem() && MustStorePersistent(adi);
 	bool isTmp = !isPersistent;
 
 	assert(!filename.empty());
-	assert(sfwa);
 	return CreateFileTileArray(adi, abstrValuesRangeData
 		,	mustClear ? dms_rw_mode::write_only_mustzero : dms_rw_mode::write_only_all
 		,	filename, isTmp
-		,	sfwa
 	);
 }
 
-auto OpenFileData(const AbstrDataItem* adi, const SharedObj* abstrValuesRangeData, SharedStr filenameBase, SafeFileWriterArray* sfwa) -> std::unique_ptr<const AbstrDataObject>
+auto OpenFileData(const AbstrDataItem* adi, const SharedObj* abstrValuesRangeData, SharedStr filenameBase)
+-> std::unique_ptr<const AbstrDataObject>
 {
-	return CreateFileTileArray(adi, abstrValuesRangeData, dms_rw_mode::read_only, filenameBase, false, sfwa);
+	return CreateFileTileArray(adi, abstrValuesRangeData, dms_rw_mode::read_only, filenameBase, false);
 }
 
 //const AbstrTileRangeData* domain, 
@@ -272,7 +272,7 @@ DataWriteLock::DataWriteLock(AbstrDataItem* adi, dms_rw_mode rwm, const SharedOb
 				auto rn = configItem->GetRelativeName(sp);
 
 				auto fn = DelimitedConcat(fsn, rn);
-				reset(CreateFileData(adi, abstrValuesRangeData, fn, mmd->GetSFWA().get(), mustClear).release()); // , !adi->IsPersistent(), true); // calls OpenFileData
+				reset(CreateFileData(adi, abstrValuesRangeData, fn, mustClear).release()); // , !adi->IsPersistent(), true); // calls OpenFileData
 				goto afterReset;
 			}
 		}

@@ -11,14 +11,12 @@
 
 
 #include "ptr/OlePtr.h"
-#include "ser/SafeFileWriter.h"
 #include "ser/FileMapHandle.h"
 
 #include "mci/Object.h"
 #include "stg/AsmUtil.h"
 #include "stg/AbstrStorageManager.h"
 struct StorageClass;
-struct SafeFileWriterArray;
 
 /*
  *	MmdStorageManager
@@ -31,8 +29,6 @@ public:
 	using base_type = AbstrStorageManager;
 
 	TIC_CALL SharedStr GetFullFileName(CharPtr name) const;
-
-	auto GetSFWA() const-> std::shared_ptr<SafeFileWriterArray>;
 
 protected:
 //	implement AbstrStorageManager interface
@@ -49,7 +45,6 @@ protected:
 	void DoWriteTree(const TreeItem* storageHolder) override;
 
 	mutable FileHandle m_MmdLockFile;
-	mutable std::shared_ptr<SafeFileWriterArray> m_SFWA;
 
 	friend class FileSystemStorageOutStreamBuff;
 	friend class FileSystemStorageInpStreamBuff;

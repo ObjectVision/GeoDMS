@@ -235,7 +235,7 @@ SharedStr ReadLine(FormattedInpStream& fis)
 
 int RunTestScript(SharedStr testScriptName, bool* mustTerminateToken)
 {
-	auto fileBuff = FileInpStreamBuff(testScriptName, nullptr, true);
+	auto fileBuff = FileInpStreamBuff(testScriptName, true);
     auto fis = FormattedInpStream(&fileBuff);
 	while (!fis.AtEnd() && fis.NextChar() != EOF)
 	{

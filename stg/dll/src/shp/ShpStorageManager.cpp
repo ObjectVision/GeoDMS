@@ -212,11 +212,7 @@ bool ShpStorageManager::ReadDataItem(StorageMetaInfoPtr smi, AbstrDataObject* bo
 
 	ShpImp impl;
 
-	auto sfwa = DSM::GetSafeFileWriterArray();
-	if (!sfwa)
-		return false;
-
-	if (!impl.Read( GetNameStr(), sfwa.get()) )
+	if (!impl.Read( GetNameStr()) )
 		return false;
 	
 	const ValueClass* vc = borrowedReadResultHolder->GetValuesType();
@@ -340,8 +336,7 @@ void WriteSequences(const AbstrDataObject* ado, ShpImp* pImp, WeakStr nameStr, c
 
 	auto wktPrjStr = GetWktProjectionFromValuesUnit(adi);
 
-	auto sfwa = DSM::GetSafeFileWriterArray(); MG_CHECK(sfwa);
-	if (!pImp->Write( nameStr, sfwa.get(), wktPrjStr) )
+	if (!pImp->Write( nameStr, wktPrjStr) )
 		adi->throwItemErrorF("ShpStorage error: Cannot write to %s", nameStr.c_str());
 }
 
@@ -365,19 +360,9 @@ void WriteArray(const AbstrDataObject* ado, ShpImp* pImp, WeakStr nameStr, const
 
 	auto wktPrjStr = GetWktProjectionFromValuesUnit(adi);
 
-	auto sfwa = DSM::GetSafeFileWriterArray();
-
-	if (!sfwa || !pImp->Write( nameStr, sfwa.get(), wktPrjStr) )
+	if (!pImp->Write( nameStr, wktPrjStr) )
 		adi->throwItemErrorF("ShpStorage error: Cannot write to %s", nameStr.c_str());
 }
-
-/*const AbstrUnit* CompositeBase(const AbstrUnit* proj)
-{
-	const AbstrUnit* res = proj->GetCurrProjection()->GetCompositeBase();
-	if (!res)
-		return proj;
-	return res;
-}*/
 
 bool ShpStorageManager::WriteDataItem(StorageMetaInfoPtr&& smiHolder)
 {
@@ -442,12 +427,8 @@ void ShpStorageManager::DoUpdateTree(const TreeItem* storageHolder, TreeItem* cu
 
 	StorageReadHandle storageHandle(this, storageHolder, curr, StorageAction::updatetree);
 
-	auto sfwa = DSM::GetSafeFileWriterArray();
-	if (!sfwa)
-		return;
-
 	ShpImp impl;
-	if (!impl.OpenAndReadHeader( GetNameStr(), sfwa.get() ))
+	if (!impl.OpenAndReadHeader( GetNameStr()))
 		return; // nothing read; file does not exist; probably has to write data and not read
 
 	const AbstrDataItem* pData = nullptr;
@@ -479,11 +460,8 @@ void ShpStorageManager::DoUpdateTree(const TreeItem* storageHolder, TreeItem* cu
 
 bool ShpStorageManager::ReadUnitRange(const StorageMetaInfo& smi) const
 {
-	auto sfwa = DSM::GetSafeFileWriterArray();
-	if (!sfwa)
-		return false;
 	ShpImp impl;
-	if (!impl.OpenAndReadHeader( GetNameStr(), sfwa.get()))
+	if (!impl.OpenAndReadHeader( GetNameStr()))
 		return false;
 
 	AbstrUnit* au = smi.CurrWU();

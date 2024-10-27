@@ -51,7 +51,6 @@ const UInt32 MAX_COLORS_PAL  = (1L << MAX_BITS_PAL);
 //  --ENUMERATORS--------------------------------------------------------------
 
 enum class TifFileMode { READ, WRITE, UNDEFINED }; //, TIF_EDITPALETTE };
-struct SafeFileWriterArray;
 
 //  ---------------------------------------------------------------------------
 
@@ -116,8 +115,8 @@ public:
 
 	static void PackStrip(void* stripBuf, Int32 currDataSize, UInt32 nrBitsPerPixel) { return UnpackStrip(stripBuf, currDataSize, nrBitsPerPixel); } // all TIFF transformations are their own inverse
 
-	bool OpenForRead (WeakStr name, SafeFileWriterArray* sfwa);
-	bool OpenForWrite(WeakStr name, SafeFileWriterArray* sfwa, UInt32 bitsPerSample, UInt32 samplesPerPixel, bool hasPalette, SAMPLEFORMAT sampleFormat);
+	bool OpenForRead (WeakStr name);
+	bool OpenForWrite(WeakStr name, UInt32 bitsPerSample, UInt32 samplesPerPixel, bool hasPalette, SAMPLEFORMAT sampleFormat);
 
 	bool IsTiledTiff() const;
 
@@ -126,14 +125,14 @@ public:
 	STGIMPL_CALL TifImp();     // constructor.
 	STGIMPL_CALL ~TifImp();    // destructor.
 
-	STGIMPL_CALL bool Open(WeakStr, TifFileMode, SafeFileWriterArray* sfwa);
+	STGIMPL_CALL bool Open(WeakStr, TifFileMode);
 	STGIMPL_CALL bool IsOpen();
 	STGIMPL_CALL bool Close();
 
 //	========== Support for tiffDirect
 
-	STGIMPL_CALL bool OpenForReadDirect (WeakStr name, SafeFileWriterArray* sfwa);
-	STGIMPL_CALL bool OpenForWriteDirect(WeakStr name, SafeFileWriterArray* sfwa);
+	STGIMPL_CALL bool OpenForReadDirect (WeakStr name);
+	STGIMPL_CALL bool OpenForWriteDirect(WeakStr name);
 	STGIMPL_CALL bool ReadNextDir();
 //	STGIMPL_CALL void ReportFieldInfo();
 	STGIMPL_CALL void WriteStrip(UInt32 row, const void* data, UInt32 size);

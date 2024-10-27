@@ -169,7 +169,7 @@ void DoExportTableToCSV(const TreeItem* tableItem, SharedStr fullFileName)
         }
     }
 
-    auto fout = std::make_unique<FileOutStreamBuff>(ConvertDosFileName(fullFileName), nullptr, true);
+    auto fout = std::make_unique<FileOutStreamBuff>(ConvertDosFileName(fullFileName), true);
 
     Table_Dump(fout.get(), begin_ptr(columnSpecs), end_ptr(columnSpecs), nullptr, nullptr);
 }

@@ -375,14 +375,12 @@ void TreeItem::EnableAutoDeleteRootImpl() // does not call UpdateMetaInfo
 
 	StaticMtIncrementalLock<TreeItem::s_NotifyChangeLockCount> dontNotify;
 
-	SafeFileWriterArray sfwa;
 	EnableAutoDeleteImpl(); // this may be destroyed
 
 	DBG_TRACE(("START SessionData::ReleaseIt(this)"));
 	SessionData::ReleaseIt(this);
 
 	DBG_TRACE(("START sfwa.Commit()"));
-	sfwa.Commit();
 }
 
 void TreeItem::EnableAutoDelete() // does not call UpdateMetaInfo
@@ -3496,7 +3494,7 @@ bool TreeItem::PrepareDataUsageImpl(DrlType drlFlags) const
 						}
 						else
 						{
-							auto fh = OpenFileData(AsDataItem(this), avu ? avu->GetTiledRangeData() : nullptr, fn, mmd->GetSFWA().get());
+							auto fh = OpenFileData(AsDataItem(this), avu ? avu->GetTiledRangeData() : nullptr, fn);
 							if (fh)
 							{
 								AsDataItem(GetCurrUltimateItem())->m_DataObject.reset(fh.release()); // , !adi->IsPersistent(), true); // calls OpenFileData
@@ -3871,9 +3869,8 @@ void TreeItem::XML_Dump(OutStreamBase* xmlOutStr, bool dumpSubTags) const
 					dirName += ".xml";
 			}
 			xmlOutStr->WriteInclude(dirName.c_str());
-			auto sfwa = DSM::GetSafeFileWriterArray(); MG_CHECK(sfwa);
 			if (xmlOutStr->HasFileName())
-				IncludeFileSave(this, dirName.c_str(), sfwa.get());
+				IncludeFileSave(this, dirName.c_str());
 			return;
 		}
 	}

@@ -44,7 +44,6 @@ granted by an additional written contract for support, assistance and/or develop
 #include "mci/PropDef.h"
 #include "ptr/SharedBase.h"
 #include "ptr/SharedPtr.h"
-#include "ser/SafeFileWriter.h" 
 #include "ser/StringStream.h"
 #include "set/vectorFunc.h"
 #include "stg/StorageClass.h"
@@ -271,13 +270,10 @@ void CompoundStorageManager::DoOpenStorage(const StorageMetaInfo& smi, dms_rw_mo
 
 	DWORD dwMode = STGM_DIRECT | STGM_SHARE_EXCLUSIVE | (intentionToWrite ? STGM_READWRITE : STGM_READ);
 			
-	SafeFileWriter* sfw = DSM::GetSafeFileWriterArray()->OpenOrCreate(GetNameStr().c_str(), intentionToWrite ?FCM_OpenRwGrowable : FCM_OpenReadOnly);
-	dms_assert(sfw);
-
 	// try to open the file
 
 	IStorage* tmp = 0;
-	result = StgOpenStorage(Utf8_2_wchar(sfw->GetWorkingFileName().c_str()).get(), NULL, dwMode, NULL, 0, &tmp);
+	result = StgOpenStorage(Utf8_2_wchar(GetNameStr().c_str()).get(), NULL, dwMode, NULL, 0, &tmp);
 	m_Root = tmp;
 
 	// check if this is a cs file
@@ -287,7 +283,7 @@ void CompoundStorageManager::DoOpenStorage(const StorageMetaInfo& smi, dms_rw_mo
 	// if file not found create one
 	if (result == STG_E_FILENOTFOUND)
 	{
-		const_cast<CompoundStorageManager*>(this)->CreateNewFile(sfw->GetWorkingFileName());
+		const_cast<CompoundStorageManager*>(this)->CreateNewFile(GetNameStr());
 		result = 0;
 	}
 	CheckResult(result, "OpenStorage", 0);

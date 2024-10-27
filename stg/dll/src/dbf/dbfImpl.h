@@ -90,13 +90,11 @@ public:
 	STGIMPL_CALL ~DbfImpl();
 
 	// read/write functions
-	STGIMPL_CALL bool Open(WeakStr filename, SafeFileWriterArray* sfwa, FileCreationMode filemode);
-	             bool OpenForRead  (WeakStr filename, SafeFileWriterArray* sfwa) { return Open(filename, sfwa, FCM_OpenReadOnly); }
-	             bool OpenForAppend(WeakStr filename, SafeFileWriterArray* sfwa) { return Open(filename, sfwa, FCM_OpenRwGrowable) && GoEnd(); }
-//REMOVE 	STGIMPL_CALL bool ReadData(void *data, CharPtr columnname, ValueClassID vc);
-//REMOVE	STGIMPL_CALL bool WriteData(WeakStr filename, SafeFileWriterArray* sfwa, const void *data, CharPtr columnname, ValueClassID vc);
+	STGIMPL_CALL bool Open(WeakStr filename, FileCreationMode filemode);
+	             bool OpenForRead  (WeakStr filename) { return Open(filename, FCM_OpenReadOnly); }
+	             bool OpenForAppend(WeakStr filename) { return Open(filename, FCM_OpenRwGrowable) && GoEnd(); }
 	STGIMPL_CALL void Close();
-	STGIMPL_CALL bool CreateFromSource(WeakStr filename, SafeFileWriterArray* sfwa, const DbfImpl& srcDbf);
+	STGIMPL_CALL bool CreateFromSource(WeakStr filename, const DbfImpl& srcDbf);
 	STGIMPL_CALL bool GoBegin();
 	STGIMPL_CALL bool GoEnd();
 	STGIMPL_CALL bool GoTo(UInt32 recNo);
@@ -116,7 +114,7 @@ public:
 	STGIMPL_CALL UInt32       RecordLength();
 	STGIMPL_CALL UInt32       RecordCount() { return m_RecordCount; }
 	
-	STGIMPL_CALL bool         SetRecordCount(UInt32 cnt, WeakStr filename, SafeFileWriterArray* sfwa);
+	STGIMPL_CALL bool         SetRecordCount(UInt32 cnt, WeakStr filename);
 
 private:
 	std::vector<DbfColDescription> m_ColumnDescriptions; // dbf content 
@@ -134,7 +132,7 @@ private:
 
 	// helper functions
 	bool    ReadHeader();                             // read from dbf file
-	bool    Create(WeakStr filename, SafeFileWriterArray* sfwa);
+	bool    Create(WeakStr filename);
 	void    Clear();                                  // reset all
 	UInt32	ColumnOffset(UInt32 columnindex) const;
 	UInt32  ActualPosition(UInt32 recordindex) const;
@@ -156,16 +154,16 @@ public:
 	bool		m_Result;
 
 	STGIMPL_CALL DbfImplStub(DbfImpl* p, VecType vec, CharPtr columnname, ValueClassID vc);
-	STGIMPL_CALL DbfImplStub(DbfImpl* p, WeakStr filename, SafeFileWriterArray* sfwa, CVecType vec, CharPtr columnname, ValueClassID vc);
+	STGIMPL_CALL DbfImplStub(DbfImpl* p, WeakStr filename, CVecType vec, CharPtr columnname, ValueClassID vc);
 
 private:
 	DbfImpl* m_DbfImpl;
 
 	bool	ReadData(VecType vec, CharPtr columnname, ValueClassID vc);
-	bool	WriteData(WeakStr filename, SafeFileWriterArray* sfwa, CVecType vec, CharPtr columnname, ValueClassID vc);
-	bool	WriteDataOverwrite(WeakStr filename, SafeFileWriterArray* sfwa, CVecType vec, UInt32 columnindex, ValueClassID vc);
-	bool	WriteDataAppend(WeakStr filename, SafeFileWriterArray* sfwa, CVecType vec, CharPtr columnname, ValueClassID vc, TDbfType dbftype, UInt8 len, UInt8 deccount);
-	bool	WriteDataReplace(WeakStr filename, SafeFileWriterArray* sfwa, CVecType vec, UInt32 columnindex, ValueClassID vc, TDbfType dbftype, UInt8 len, UInt8 deccount);
+	bool	WriteData(WeakStr filename, CVecType vec, CharPtr columnname, ValueClassID vc);
+	bool	WriteDataOverwrite(WeakStr filename, CVecType vec, UInt32 columnindex, ValueClassID vc);
+	bool	WriteDataAppend(WeakStr filename, CVecType vec, CharPtr columnname, ValueClassID vc, TDbfType dbftype, UInt8 len, UInt8 deccount);
+	bool	WriteDataReplace(WeakStr filename, CVecType vec, UInt32 columnindex, ValueClassID vc, TDbfType dbftype, UInt8 len, UInt8 deccount);
 
 	void	DbfTypeInfo(CVecType vec, ValueClassID vc, TDbfType& dbftype, UInt8& len, UInt8& deccount);
 	bool	TypeResolution(TDbfType dbftype, UInt8 len, UInt8 deccount, UInt32 columnindex);

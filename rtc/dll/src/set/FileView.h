@@ -82,9 +82,9 @@ struct const_file_view : file_view_base<T, ConstFileViewHandle>
 	using typename base_type::const_reference;
 	using file_view_base<T, ConstFileViewHandle>::file_view_base; // inherit ctors
 
-	void Open(WeakStr fileName, SafeFileWriterArray* sfwa, tile_id nrElems, bool throwOnError = true )
+	void Open(WeakStr fileName, tile_id nrElems, bool throwOnError = true )
 	{
-		this->OpenForRead(fileName, sfwa, throwOnError, true);
+		this->OpenForRead(fileName, throwOnError, true);
 		if (!this->IsOpen())
 			return;
 
@@ -130,18 +130,18 @@ struct rw_file_view : file_view_base<T, FileViewHandle>
 	using file_view_base<T, FileViewHandle>::file_view_base; // inherit ctors
 	using file_view_base<T, FileViewHandle>::operator =;
 
-	void Open(WeakStr fileName, SafeFileWriterArray* sfwa, SizeT nrElems, dms_rw_mode rwMode, bool isTmp)
+	void Open(WeakStr fileName, SizeT nrElems, dms_rw_mode rwMode, bool isTmp)
 	{
 		dms_assert(rwMode != dms_rw_mode::unspecified);
 		dms_assert(rwMode != dms_rw_mode::check_only);
 
 		if (rwMode != dms_rw_mode::read_only)
-			this->OpenRw(fileName, sfwa
+			this->OpenRw(fileName
 			, IsDefined(nrElems) ? size_calculator<T>().nr_bytes(nrElems) : UNDEFINED_FILE_SIZE
 			, rwMode, isTmp
 			);
 		else
-			this->OpenForRead(fileName, sfwa, true, true);
+			this->OpenForRead(fileName, true, true);
 
 		if (!IsDefined(nrElems))
 			nrElems = size_calculator<T>().max_elems(this->GetFileSize());

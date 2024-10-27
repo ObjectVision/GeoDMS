@@ -223,10 +223,10 @@ public:
 	STGIMPL_CALL ShpImp();
 
 	// File IO
-	STGIMPL_CALL std::size_t OpenAndReadHeader(WeakStr name, SafeFileWriterArray* sfwa);
+	STGIMPL_CALL std::size_t OpenAndReadHeader(WeakStr name);
 
-	STGIMPL_CALL bool Read (WeakStr name, SafeFileWriterArray* sfwa);  // Reads complete shapefile into memory
-	STGIMPL_CALL bool Write(WeakStr name, SafeFileWriterArray* sfwa, SharedStr pszESRIWkt);  // Writes memory to shapefile(.shp), indexfile(.shx) and projectionfile(.prj)
+	STGIMPL_CALL bool Read (WeakStr name);  // Reads complete shapefile into memory
+	STGIMPL_CALL bool Write(WeakStr name, SharedStr pszESRIWkt);  // Writes memory to shapefile(.shp), indexfile(.shx) and projectionfile(.prj)
 	STGIMPL_CALL void Close();              // Closes open files. Memory is unaffected			
 
 	// Memory to client: all types
@@ -274,7 +274,7 @@ public:
 
 private:
 	// Helper functions
-	bool Open(WeakStr name, SafeFileWriterArray* sfwa, bool alsoWrite, bool writePrj);
+	bool Open(WeakStr name, bool alsoWrite, bool writePrj);
 	void Clear();                                   // reset
 
 	UInt32 CalcNrWordsInShx() const;                // nr of (16 bit) words in index file

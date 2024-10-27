@@ -227,9 +227,7 @@ TreeItem* AppendTreeFromConfiguration(CharPtr sourceFileName, TreeItem* context 
 	// read the actual file contents
 	if (!stricmp(getFileNameExtension(sourcePathName), "xml"))
 	{
-		auto sfwa = DSM::GetSafeFileWriterArray();
-		MG_CHECK(sfwa);
-		FileInpStreamBuff streamBuff(sourcePathNameStrFromCurrent, sfwa.get(), true);
+		FileInpStreamBuff streamBuff(sourcePathNameStrFromCurrent, true);
 		XmlTreeParser xmlParse(&streamBuff);
 		result =  xmlParse.ReadTree(context, rootIsFirstItem);
 	}
@@ -284,7 +282,7 @@ SharedStr ProcessADMS(const TreeItem* context, CharPtr url)
 {
 	SharedStr localUrl = SharedStr(url);
 	SharedStr result;
-	auto cmfh = std::make_shared<ConstMappedFileHandle>(localUrl, DSM::GetSafeFileWriterArray().get(), true, false);
+	auto cmfh = std::make_shared<ConstMappedFileHandle>(localUrl, true, false);
 	auto fileView = ConstFileViewHandle(cmfh);
 	fileView.Map();
 

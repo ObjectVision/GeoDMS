@@ -86,7 +86,7 @@ struct FileTileArray : GeneratedTileFunctor<V>
 
 	using files_t = OwningPtrSizedArray<file_tile<V>>;
 
-	FileTileArray(const AbstrTileRangeData* domain, SharedStr filenameBase, dms_rw_mode rwMode, bool isTmp, SafeFileWriterArray* sfwa);
+	FileTileArray(const AbstrTileRangeData* domain, SharedStr filenameBase, dms_rw_mode rwMode, bool isTmp);
 
 	locked_seq_t GetWritableTile(tile_id t, dms_rw_mode rwMode) override;
 	locked_cseq_t GetTile(tile_id t) const override;
@@ -94,7 +94,6 @@ struct FileTileArray : GeneratedTileFunctor<V>
 	SharedStr m_CacheFileName;
 	files_t m_Files;
 	bool    m_IsTmp;
-	SafeFileWriterArray* m_SFWA;
 };
 
 //----------------------------------------------------------------------
@@ -332,9 +331,8 @@ SizeT MinimalSeqFileSize(const AbstrTileRangeData* trd)
 }
 
 template <typename V>
-FileTileArray<V>::FileTileArray(const AbstrTileRangeData* trd, SharedStr filenameBase, dms_rw_mode rwMode, bool isTmp, SafeFileWriterArray* sfwa)
+FileTileArray<V>::FileTileArray(const AbstrTileRangeData* trd, SharedStr filenameBase, dms_rw_mode rwMode, bool isTmp)
 	: m_CacheFileName(filenameBase)
-	, m_SFWA(sfwa)
 	, m_IsTmp(isTmp)
 {
 	this->m_TileRangeData = trd;
@@ -353,11 +351,11 @@ FileTileArray<V>::FileTileArray(const AbstrTileRangeData* trd, SharedStr filenam
 	if (rwMode <= dms_rw_mode::read_only)
 	{
 		std::shared_ptr<ConstMappedFileHandle> 
-			cmfh = std::make_shared<ConstMappedFileHandle>(fullFileName, sfwa, true, false)
+			cmfh = std::make_shared<ConstMappedFileHandle>(fullFileName, true, false)
 		,	cmfh_sequences;
 		if constexpr (!has_fixed_elem_size_v<V>)
 		{
-			cmfh_sequences = std::make_shared<ConstMappedFileHandle>(fullFileName + ".seq", sfwa);
+			cmfh_sequences = std::make_shared<ConstMappedFileHandle>(fullFileName + ".seq");
 			if (trd->GetNrTiles() > 1)
 			{
 				cmfh_sequences->m_MemPageAllocTable.reset(
@@ -382,13 +380,13 @@ FileTileArray<V>::FileTileArray(const AbstrTileRangeData* trd, SharedStr filenam
 	{
 		std::shared_ptr<MappedFileHandle> mfh = std::make_shared<MappedFileHandle>();
 		std::shared_ptr<MappedFileHandle> mfh_sequences;
-		mfh->OpenRw(fullFileName, sfwa, MinimalDatFileSize<V>(trd), rwMode, isTmp);
+		mfh->OpenRw(fullFileName, MinimalDatFileSize<V>(trd), rwMode, isTmp);
 
 		if constexpr (!has_fixed_elem_size_v<V>)
 		{
 			mfh_sequences = std::make_shared<MappedFileHandle>();
 
-			mfh_sequences->OpenRw(fullFileName+".seq", sfwa, MinimalSeqFileSize<V>(trd), rwMode, isTmp);
+			mfh_sequences->OpenRw(fullFileName+".seq", MinimalSeqFileSize<V>(trd), rwMode, isTmp);
 			if (trd->GetNrTiles() > 1)
 			{
 				mfh_sequences->m_MemPageAllocTable.reset(

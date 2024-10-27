@@ -14,8 +14,6 @@
 #include "ptr/SharedStr.h"
 #include "ser/FileCreationMode.h"
 
-struct SafeFileWriterArray;
-
 //----------------------------------------------------------------------
 // interfaces to abstr_sequence_provider
 //----------------------------------------------------------------------
@@ -43,12 +41,10 @@ public:
 	virtual SizeT Capacity(const alloc_t& seq) const = 0;
 
 	virtual bool CanWrite() const = 0;
-//	virtual bool IsOpen()   const = 0;
 	virtual bool IsHeapAllocated() const { return false; }
 
 	virtual abstr_sequence_provider<IndexRange<SizeT> >* CloneForSeqs() const = 0;
-	virtual void Open(alloc_t& seq, SizeT nrElem, dms_rw_mode rwMode, bool isTmp, SafeFileWriterArray* sfwa MG_DEBUG_ALLOCATOR_SRC_ARG) { throwIllegalAbstract(MG_POS, "Open"); }
-//	virtual void Close(alloc_t& seq) { throwIllegalAbstract(MG_POS, "Close"); }
+	virtual void Open(alloc_t& seq, SizeT nrElem, dms_rw_mode rwMode, bool isTmp MG_DEBUG_ALLOCATOR_SRC_ARG) { throwIllegalAbstract(MG_POS, "Open"); }
 	virtual void Lock(alloc_t& seq, dms_rw_mode rwMode) { }
 	virtual void UnLock(alloc_t& seq) { }
 //	virtual void Drop(alloc_t& seq) { throwIllegalAbstract(MG_POS, "Drop"); }

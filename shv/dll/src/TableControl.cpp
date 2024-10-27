@@ -1038,9 +1038,7 @@ void TableControl::Export()
 	
 	SharedStr fileName = mySSPrintF("%s.csv", info.m_FullFileNameBase.c_str());
 
-	auto sfwa = DSM::GetSafeFileWriterArray();
-	MG_CHECK(sfwa);
-	FileOutStreamBuff buff(fileName, sfwa.get(), true);
+	FileOutStreamBuff buff(fileName, true);
 	SaveTo(&buff);
 }
 

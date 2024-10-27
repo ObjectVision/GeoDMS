@@ -11,7 +11,6 @@
 
 #include "mci/ValueClass.h"
 #include "ptr/SharedStr.h"
-#include "ser/SafeFileWriter.h"
 #include "utl/Environment.h"
 
 #include <share.h>
@@ -55,18 +54,16 @@ FilePtrHandle::~FilePtrHandle()
 		fclose(m_FP);
 }
 
-bool FilePtrHandle::OpenFH(WeakStr name, SafeFileWriterArray* sfwa, FileCreationMode fcm, bool translate, UInt32 nrPagesInBuffer)
+bool FilePtrHandle::OpenFH(WeakStr name, FileCreationMode fcm, bool translate, UInt32 nrPagesInBuffer)
 {
 	bool createNew = MakeNew(fcm);
-	SharedStr workingName = GetWorkingFileName(sfwa, name, fcm);
 	if (createNew)
-		GetWritePermission(workingName);
-//		return CreateFH(name, sfwa, fcm, translate, nrPagesInBuffer);
-	dms_assert(createNew || UseExisting(fcm));
+		GetWritePermission(name);
+	assert(createNew || UseExisting(fcm));
 	CloseFH();
 
 	m_FP = _fsopen( 
-		ConvertDmsFileName(workingName).c_str(), 
+		ConvertDmsFileName(name).c_str(), 
 		createNew
 		?	translate ? "wt" : "wb"
 		:

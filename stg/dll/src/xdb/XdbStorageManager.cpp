@@ -72,10 +72,7 @@ bool XdbStorageManager::ReadDataItem(StorageMetaInfoPtr smi, AbstrDataObject* bo
 	XdbImp imp;
 	UpdateColInfo(imp);
 
-	auto sfwa = DSM::GetSafeFileWriterArray();
-	if (!sfwa)
-		return false;
-	bool result = imp.OpenForRead(GetNameStr(), sfwa.get(), m_DatExtension, false);
+	bool result = imp.OpenForRead(GetNameStr(), m_DatExtension, false);
 
 	MG_CHECK2(result, "Cannot open Xdb for reading");
 
@@ -101,12 +98,9 @@ bool XdbStorageManager::WriteDataItem(StorageMetaInfoPtr&& smiHolder)
 	XdbImp imp;
 	UpdateColInfo(imp);
 
-	auto sfwa = DSM::GetSafeFileWriterArray();
-	if (!sfwa)
-		return false;
-	bool result = imp.Open  (GetNameStr(), sfwa.get(), FCM_OpenRwFixed, m_DatExtension, false);
+	bool result = imp.Open  (GetNameStr(), FCM_OpenRwFixed, m_DatExtension, false);
 	if (!result)
-		result  = imp.Create(GetNameStr(), sfwa.get(), m_DatExtension, false);
+		result  = imp.Create(GetNameStr(), m_DatExtension, false);
 	MG_CHECK2(result, "Cannot open Xdb");
 
 	const AbstrDataItem* adi = smi->CurrRD();
@@ -137,11 +131,7 @@ bool XdbStorageManager::ReadUnitRange(const StorageMetaInfo& smi) const
 	XdbImp imp;
 	UpdateColInfo(imp);
 
-	auto sfwa = DSM::GetSafeFileWriterArray();
-	if (!sfwa)
-		return false;
-
-	if (!imp.OpenForRead(GetNameStr(), sfwa.get(), m_DatExtension, false))
+	if (!imp.OpenForRead(GetNameStr(), m_DatExtension, false))
 		return false;
 
 	smi.CurrWU()->SetCount(imp.NrOfRows());
@@ -163,7 +153,6 @@ void XdbStorageManager::DoUpdateTree(const TreeItem* storageHolder, TreeItem* cu
 	XdbImp imp;
 	UpdateColInfo(imp);
 
-	auto sfwa = DSM::GetSafeFileWriterArray(); MG_CHECK(sfwa);
 	// Pick up the content of the file
 
 	const AbstrUnit* u_row = StorageHolder_GetTableDomain(storageHolder);
@@ -234,8 +223,7 @@ void SyncItem(XdbStorageManager* self, XdbImp& imp, bool saveColInfo, const Tree
 	DBG_TRACE(("col_size = %d", col_size));
 
 	// Write dummy content to disk (if the column doesn't exist yet)
-	auto sfwa = DSM::GetSafeFileWriterArray(); MG_CHECK(sfwa);
-	auto result = imp.AppendColumn(curdi->GetName().c_str(), sfwa.get(), col_size, vid, range, saveColInfo);
+	auto result = imp.AppendColumn(curdi->GetName().c_str(), col_size, vid, range, saveColInfo);
 	MG_CHECK(result);
 }
 

@@ -35,12 +35,9 @@ struct file_tile : sequence_traits<V>::polymorph_vec_t, TileBase // TODO G8: rep
 {
 	using TileBase::TileBase;
 
-	// Open(tile_offset nrElem, dms_rw_mode rwMode, bool isTmp, SafeFileWriterArray* sfwa)
-
 	std::shared_ptr<mapped_file_tile<V>> get(dms_rw_mode rwMode) const
 	{
 		std::lock_guard guard(cs_file);
-//		dms_assert(this->IsOpen());
 		auto result = m_OpenFile.lock();
 		if (!result)
 		{

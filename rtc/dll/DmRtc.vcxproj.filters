@@ -401,9 +401,6 @@
     <ClInclude Include="src\ser\RangeStream.h">
       <Filter>Serialization</Filter>
     </ClInclude>
-    <ClInclude Include="src\ser\SafeFileWriter.h">
-      <Filter>Serialization</Filter>
-    </ClInclude>
     <ClInclude Include="src\ser\SequenceArrayStream.h">
       <Filter>Serialization</Filter>
     </ClInclude>
@@ -933,9 +930,6 @@
       <Filter>Serialization</Filter>
     </ClCompile>
     <ClCompile Include="src\ser\PolyStream.cpp">
-      <Filter>Serialization</Filter>
-    </ClCompile>
-    <ClCompile Include="src\ser\SafeFileWriter.cpp">
       <Filter>Serialization</Filter>
     </ClCompile>
     <ClCompile Include="src\ser\StringStream.cpp">

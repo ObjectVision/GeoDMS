@@ -97,15 +97,15 @@ XdbImp::~XdbImp()
 
 // Opens the indicated Xdb-table for reading. 
 // The header is read.
-bool XdbImp::OpenForRead(WeakStr name, SafeFileWriterArray* sfwa, CharPtr datExtension, bool saveColInfo)
+bool XdbImp::OpenForRead(WeakStr name, CharPtr datExtension, bool saveColInfo)
 {
-	return Open(name, sfwa, FCM_OpenReadOnly, datExtension, saveColInfo);
+	return Open(name, FCM_OpenReadOnly, datExtension, saveColInfo);
 }
 
 
 // Opens the indicated Xdb-table for reading. 
 // The header is read.
-bool XdbImp::Open(WeakStr name, SafeFileWriterArray* sfwa, FileCreationMode fileMode, CharPtr datExtension, bool saveColInfo)
+bool XdbImp::Open(WeakStr name, FileCreationMode fileMode, CharPtr datExtension, bool saveColInfo)
 {
 	DBG_START("XdbImp", "Open", MG_DEBUG_XDB);
 	
@@ -116,12 +116,12 @@ bool XdbImp::Open(WeakStr name, SafeFileWriterArray* sfwa, FileCreationMode file
 	// Open files
 	Close();
 
-	if (saveColInfo && !OpenFH(m_FileName, sfwa, FCM_OpenReadOnly, true, NR_PAGES_HDRFILE))
+	if (saveColInfo && !OpenFH(m_FileName, FCM_OpenReadOnly, true, NR_PAGES_HDRFILE))
 		return false;
 
 	bool alsoWrite = (fileMode != FCM_OpenReadOnly);
 	MG_USERCHECK2(!alsoWrite, "writing to .xdb is no longer supported");
-	m_FHD = ConstFileViewHandle(std::make_shared<ConstMappedFileHandle>(m_DatFileName, sfwa, true, false));
+	m_FHD = ConstFileViewHandle(std::make_shared<ConstMappedFileHandle>(m_DatFileName, true, false));
 	m_FHD.Map();
 
 	// Read header info
@@ -132,7 +132,7 @@ bool XdbImp::Open(WeakStr name, SafeFileWriterArray* sfwa, FileCreationMode file
 
 
 // Creates a new file
-bool XdbImp::Create(WeakStr name, SafeFileWriterArray* sfwa, CharPtr datExtension, bool saveColInfo)
+bool XdbImp::Create(WeakStr name, CharPtr datExtension, bool saveColInfo)
 {
 	DBG_START("XdbImp", "Create", MG_DEBUG_XDB);
 	
@@ -144,10 +144,10 @@ bool XdbImp::Create(WeakStr name, SafeFileWriterArray* sfwa, CharPtr datExtensio
 
 	GetWritePermission(m_FileName);
 
-	if (saveColInfo && ! OpenFH(m_FileName, sfwa, FCM_CreateAlways, true, NR_PAGES_HDRFILE) ) 
+	if (saveColInfo && ! OpenFH(m_FileName, FCM_CreateAlways, true, NR_PAGES_HDRFILE) ) 
 		return false;
 
-	if ( ! FilePtrHandle().OpenFH( m_DatFileName, sfwa, FCM_CreateAlways, false, NR_PAGES_DIRECTIO) )
+	if ( ! FilePtrHandle().OpenFH( m_DatFileName, FCM_CreateAlways, false, NR_PAGES_DIRECTIO) )
 	{
 		Close();
 		return false;
@@ -162,7 +162,7 @@ bool XdbImp::Create(WeakStr name, SafeFileWriterArray* sfwa, CharPtr datExtensio
 	Close();
 	
 	// Regular open
-	return Open(name, sfwa, FCM_OpenRwFixed, datExtension, saveColInfo);
+	return Open(name, FCM_OpenRwFixed, datExtension, saveColInfo);
 }
 
 
@@ -442,7 +442,6 @@ ValueClassID XdbImp::ColType(column_index i) const
 bool XdbImp::AppendColumn
 (
 	CharPtr      fldName
-,	SafeFileWriterArray* sfwa
 ,	width_t      size
 ,	ValueClassID type 
 ,	recno_t      rows
@@ -464,7 +463,7 @@ bool XdbImp::AppendColumn
 	{
 		DBG_TRACE(("new file"));
 		if (rows <= 0) return false;
-		if (!Create(m_FileName, sfwa, m_DatExtension, true))
+		if (!Create(m_FileName, m_DatExtension, true))
 			return false;
 		Close();
 		nrows = rows;
@@ -478,7 +477,7 @@ bool XdbImp::AppendColumn
 	SharedStr tmpDatFile =  m_DatFileName + ".tmp";
 
 	// Open dat-files
-	if (!src.OpenFH( m_DatFileName, sfwa, FCM_OpenReadOnly, true, NR_PAGES_DATFILE))
+	if (!src.OpenFH( m_DatFileName, FCM_OpenReadOnly, true, NR_PAGES_DATFILE))
 		return false;
 
 	DBG_TRACE(("padding data"));
@@ -494,7 +493,7 @@ bool XdbImp::AppendColumn
 	width_t srcfilesize = ftell(src);
 	if (srcfilesize > headersize)
 	{
-		if(!dst.OpenFH(tmpDatFile, sfwa, FCM_CreateAlways, true, NR_PAGES_DATFILE)) 
+		if(!dst.OpenFH(tmpDatFile, FCM_CreateAlways, true, NR_PAGES_DATFILE)) 
 			return false;
 
 		fseek(src, 0, 0);
@@ -550,7 +549,7 @@ bool XdbImp::AppendColumn
 		local.ColDescriptions[local.ColDescriptions.size()-1].m_Type   = type;
 
 		// Write new header
-		local.OpenFH(m_FileName, sfwa, FCM_CreateAlways, true, NR_PAGES_HDRFILE);
+		local.OpenFH(m_FileName, FCM_CreateAlways, true, NR_PAGES_HDRFILE);
 		local.WriteHeader();
 	}
 
@@ -563,5 +562,5 @@ bool XdbImp::AppendColumn
 	}
 
 	// Reopen
-	return Open(m_FileName, sfwa, FCM_OpenRwFixed, m_DatExtension, saveColInfo);
+	return Open(m_FileName, FCM_OpenRwFixed, m_DatExtension, saveColInfo);
 }

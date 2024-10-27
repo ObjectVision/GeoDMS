@@ -51,7 +51,6 @@ granted by an additional written contract for support, assistance and/or develop
 #include "mem/RectCopy.h"
 #include "ptr/OwningPtrArray.h"
 #include "ptr/SharedStr.h"
-#include "ser/SafeFileWriter.h"
 #include "set/BitVector.h"
 #include "utl/Environment.h"
 #include "utl/mySPrintF.h"
@@ -124,7 +123,7 @@ TifImp::~TifImp()
 	Close();
 };
 
-bool TifImp::Open(WeakStr name, TifFileMode mode, SafeFileWriterArray* sfwa)
+bool TifImp::Open(WeakStr name, TifFileMode mode)
 {
 	TifErrorFrame errFrame;
 
@@ -133,8 +132,8 @@ bool TifImp::Open(WeakStr name, TifFileMode mode, SafeFileWriterArray* sfwa)
 	if (!IsOpen())
 	{
 		if ((mode == TifFileMode::READ)
-			? !OpenForRead(name, sfwa)
-			: !OpenForWriteDirect(name, sfwa)
+			? !OpenForRead(name)
+			: !OpenForWriteDirect(name)
 			)
 		{
 			errFrame.ThrowUpWhateverCameUp();
@@ -398,17 +397,15 @@ PALETTE_SIZE TifImp::GetClrImportant() const
 	return 1 << GetNrBitsPerPixel();
 }
 
-bool TifImp::OpenForReadDirect(WeakStr name, SafeFileWriterArray* sfwa)
+bool TifImp::OpenForReadDirect(WeakStr name)
 {
-	SharedStr workingName = GetWorkingFileName(sfwa, name, FCM_OpenReadOnly);
-
-	m_TiffHandle = TIFFOpen(ConvertDmsFileName(workingName).c_str(), "r");
+	m_TiffHandle = TIFFOpen(ConvertDmsFileName(name).c_str(), "r");
 	return m_TiffHandle != nullptr;
 }
 
-bool TifImp::OpenForRead(WeakStr name, SafeFileWriterArray* sfwa)
+bool TifImp::OpenForRead(WeakStr name)
 {
-	if (!OpenForReadDirect(name, sfwa))
+	if (!OpenForReadDirect(name))
 		return false;
 	
 	// 1 byte false color? Tiled image? 
@@ -422,20 +419,19 @@ bool TifImp::OpenForRead(WeakStr name, SafeFileWriterArray* sfwa)
 	return true;
 }
 
-bool TifImp::OpenForWriteDirect(WeakStr name, SafeFileWriterArray* sfwa)
+bool TifImp::OpenForWriteDirect(WeakStr name)
 {
-	SharedStr workingName = GetWorkingFileName(sfwa, name, FCM_CreateAlways);
-	GetWritePermission(workingName);
+	GetWritePermission(name);
 
-	m_TiffHandle = TIFFOpen(ConvertDmsFileName(workingName).c_str(), "a");
+	m_TiffHandle = TIFFOpen(ConvertDmsFileName(name).c_str(), "a");
 	if (m_TiffHandle)
 		TIFFSetField(m_TiffHandle, TIFFTAG_SOFTWARE, "GeoDMS " BOOST_STRINGIZE( DMS_VERSION_MAJOR ) );
 	return m_TiffHandle;
 }
 
-bool TifImp::OpenForWrite(WeakStr name, SafeFileWriterArray* sfwa, UInt32 bitsPerSample, UInt32 samplesPerPixel, bool hasPalette, SAMPLEFORMAT sampleFormat)
+bool TifImp::OpenForWrite(WeakStr name, UInt32 bitsPerSample, UInt32 samplesPerPixel, bool hasPalette, SAMPLEFORMAT sampleFormat)
 {
-	if (!OpenForWriteDirect(name, sfwa))
+	if (!OpenForWriteDirect(name))
 		return false;
 	SetDataMode(bitsPerSample, samplesPerPixel, hasPalette, sampleFormat);
 	return true;

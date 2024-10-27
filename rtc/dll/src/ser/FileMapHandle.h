@@ -13,8 +13,6 @@
 #include "geo/IndexRange.h"
 #include "ser/FileCreationMode.h"
 
-struct SafeFileWriterArray;
-
 // the following define should clean-up resources of Closed FileMap Handles by Closing the file
 #define DMS_CLOSING_UNMAP
 
@@ -70,8 +68,8 @@ struct FileHandle
 
 	RTC_CALL ~FileHandle();
 
-	RTC_CALL void OpenRw (WeakStr fileName, SafeFileWriterArray* sfwa, dms::filesize_t requiredNrBytes, dms_rw_mode rwMode, bool isTmp, bool retry = true, bool deleteOnClose = false);
-	RTC_CALL void OpenForRead(WeakStr fileName, SafeFileWriterArray* sfwa, bool throwOnError, bool doRetry, bool mayBeEmpty = false );
+	RTC_CALL void OpenRw (WeakStr fileName, dms::filesize_t requiredNrBytes, dms_rw_mode rwMode, bool isTmp, bool retry = true, bool deleteOnClose = false);
+	RTC_CALL void OpenForRead(WeakStr fileName, bool throwOnError, bool doRetry, bool mayBeEmpty = false );
 	RTC_CALL void CloseFile();
 	RTC_CALL void DropFile (WeakStr fileName);
 
@@ -100,8 +98,8 @@ struct MappedFileHandle : FileHandle
 	RTC_CALL MappedFileHandle();
 	RTC_CALL ~MappedFileHandle();
 
-	RTC_CALL void OpenRw(WeakStr fileName, SafeFileWriterArray* sfwa, dms::filesize_t requiredNrBytes, dms_rw_mode rwMode, bool isTmp);
-	RTC_CALL void OpenForRead(WeakStr fileName, SafeFileWriterArray* sfwa, bool throwOnError, bool doRetry);
+	RTC_CALL void OpenRw(WeakStr fileName, dms::filesize_t requiredNrBytes, dms_rw_mode rwMode, bool isTmp);
+	RTC_CALL void OpenForRead(WeakStr fileName, bool throwOnError, bool doRetry);
 
 	RTC_CALL FileChunckSpec alloc(dms::filesize_t vs);
 
@@ -124,9 +122,9 @@ public:
 
 struct ConstMappedFileHandle : MappedFileHandle
 {
-	ConstMappedFileHandle(WeakStr fileName, SafeFileWriterArray* sfwa = nullptr, bool throwOnError = true, bool doRetry = false)
+	ConstMappedFileHandle(WeakStr fileName, bool throwOnError = true, bool doRetry = false)
 	{
-		OpenForRead(fileName, sfwa, throwOnError, doRetry);
+		OpenForRead(fileName, throwOnError, doRetry);
 		assert(IsOpen() || !throwOnError);
 	}
 };
@@ -149,14 +147,12 @@ struct FileViewHandle
 
 	RTC_CALL void realloc(dms::filesize_t requiredNrBytes);
 
-//	bool IsMapped() const { return m_hFileMap; }
 	bool IsUsable() const { return m_ViewData != nullptr || GetViewSize() == 0; }
 
 //	RTC_CALL void CloseFMH();
 //	RTC_CALL void Drop (WeakStr fileName);
 	RTC_CALL void Map(bool alsoWrite);
 	void Unmap() { CloseView(); }
-//	RTC_CALL void Map(dms_rw_mode rwMode, WeakStr fileName, SafeFileWriterArray* sfwa);
 
 	char*   DataBegin()       { assert(IsUsable()); return reinterpret_cast<char*  >(m_ViewData); }
 	char*   DataEnd  ()       { return DataBegin() + GetViewSize(); }
@@ -201,7 +197,6 @@ struct ConstFileViewHandle
 	//	RTC_CALL void Drop (WeakStr fileName);
 	RTC_CALL void Map();
 	void Unmap() { CloseView(); }
-	//	RTC_CALL void Map(dms_rw_mode rwMode, WeakStr fileName, SafeFileWriterArray* sfwa);
 
 	CharPtr DataBegin() const { assert(IsUsable()); return reinterpret_cast<CharPtr>(m_ViewData); }
 	CharPtr DataEnd() const { return DataBegin() + GetViewSize(); }

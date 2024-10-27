@@ -371,10 +371,7 @@ void DmsDetailPages::drawPageImpl()
             if (main_window->ShowInDetailPage(url))
             {
                 FilePtrHandle file;
-                auto sfwa = DSM::GetSafeFileWriterArray();
-                if (!sfwa)
-                    return;
-                if (file.OpenFH(url, sfwa.get(), FCM_OpenReadOnly, false, NR_PAGES_DIRECTIO))
+                if (file.OpenFH(url, FCM_OpenReadOnly, false, NR_PAGES_DIRECTIO))
                 {
                     dms::filesize_t fileSize = file.GetFileSize();
                     OwningPtrSizedArray<char> dataBuffer(fileSize + 1, dont_initialize MG_DEBUG_ALLOCATOR_SRC("METADATA"));

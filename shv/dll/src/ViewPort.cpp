@@ -741,7 +741,7 @@ void SaveBitmap(WeakStr filename, HBITMAP hBitmap)
 	GetDIBits(hdc,hBitmap,0,bmpInfo.bmiHeader.biHeight,pBuf.begin(), &bmpInfo, DIB_RGB_COLORS);
 
 	FilePtrHandle fh;
-	if(!fh.OpenFH(filename, 0, FCM_CreateAlways, false, NR_PAGES_DATFILE))
+	if(!fh.OpenFH(filename, FCM_CreateAlways, false, NR_PAGES_DATFILE))
 		throwDmsErrF("Cannot Create %s" , filename.c_str());
 	bmpFileHeader.bfReserved1=0;
 	bmpFileHeader.bfReserved2=0;

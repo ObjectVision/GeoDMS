@@ -1224,7 +1224,7 @@ OutStreamBase::SyntaxType GetSyntaxTypeFromExt(CharPtr fileExt)
 
 static SharedStr s_gDumpFolder;
 
-void ItemSave(const TreeItem* self, CharPtr fileName, SafeFileWriterArray* sfwa, bool copyDir)
+void ItemSave(const TreeItem* self, CharPtr fileName, bool copyDir)
 {
 	CharPtr fileExt = getFileNameExtension(fileName);
 	OutStreamBase::SyntaxType syntax = GetSyntaxTypeFromExt(fileExt);
@@ -1255,7 +1255,7 @@ void ItemSave(const TreeItem* self, CharPtr fileName, SafeFileWriterArray* sfwa,
 	{
 		if (IsFileOrDirAccessible(oldFileNameStr))
 		{
-			FileInpStreamBuff fileInp(oldFileNameStr, sfwa, true);
+			FileInpStreamBuff fileInp(oldFileNameStr, true);
 			VectorOutStreamBuff vectOut;
 			FormattedInpStream fin(&fileInp);
 			FormattedOutStream fout(&vectOut, FormattingFlags::None);
@@ -1266,7 +1266,7 @@ void ItemSave(const TreeItem* self, CharPtr fileName, SafeFileWriterArray* sfwa,
 			commentedHeader = mySSPrintF("// DMS ConfigDataDump version %s\n", DMS_GetVersion());
 	}
 
-	FileOutStreamBuff fileOut(fileNameStr, sfwa, true);
+	FileOutStreamBuff fileOut(fileNameStr, true);
 	FormattedOutStream fout(&fileOut, FormattingFlags::None);
 	fout << commentedHeader;
 
@@ -1274,13 +1274,13 @@ void ItemSave(const TreeItem* self, CharPtr fileName, SafeFileWriterArray* sfwa,
 	DMS_TreeItem_XML_Dump(self, xmlOutStr);
 }
 
-void IncludeFileSave(const TreeItem* self, CharPtr fileName, SafeFileWriterArray* sfwa)
+void IncludeFileSave(const TreeItem* self, CharPtr fileName)
 {
 	dms_assert(self->GetTreeParent());
 
 	TreeItemContextHandle checkPtr(self, TreeItem::GetStaticClass(), "IncludedSave");
 
-	ItemSave(self, fileName, sfwa, false);
+	ItemSave(self, fileName, false);
 }
 
 TIC_CALL bool DMS_CONV DMS_TreeItem_Dump(const TreeItem* self, CharPtr fileName)
@@ -1301,10 +1301,7 @@ TIC_CALL bool DMS_CONV DMS_TreeItem_Dump(const TreeItem* self, CharPtr fileName)
 			dms_assert(s_gDumpFolder.empty() );
 			fileNameStr = MakeAbsolutePath( fileNameStr.c_str() );
 		}
-		auto sfwa = DSM::GetSafeFileWriterArray();
-		if (!sfwa)
-			return false;
-		ItemSave(self, fileNameStr.c_str(), sfwa.get(), isRoot);
+		ItemSave(self, fileNameStr.c_str(), isRoot);
 		return true;
 
 	DMS_CALL_END

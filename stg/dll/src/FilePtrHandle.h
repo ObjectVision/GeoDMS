@@ -35,7 +35,6 @@ granted by an additional written contract for support, assistance and/or develop
 
 #include "ptr/WeakPtr.h"
 #include "ser/FileCreationMode.h"
-struct SafeFileWriterArray;
 
 // ============================= FilePtrHandle (non-polymorphic base class for specific handles
 
@@ -51,7 +50,7 @@ public:
 	STGDLL_CALL FilePtrHandle ();
 	STGDLL_CALL ~FilePtrHandle();
 
-	STGDLL_CALL bool OpenFH  (WeakStr name, SafeFileWriterArray* sfwa, FileCreationMode fm, bool translate, UInt32 nrPagesInBuffer);
+	STGDLL_CALL bool OpenFH  (WeakStr name, FileCreationMode fm, bool translate, UInt32 nrPagesInBuffer);
 	STGIMPL_CALL void CloseFH ();
 
 	STGDLL_CALL SizeT GetFileSize() const;

@@ -48,7 +48,7 @@ enum class dms_rw_mode : Int8
 inline bool dms_must_keep(dms_rw_mode rwMode) { return rwMode == dms_rw_mode::read_only || rwMode == dms_rw_mode::read_write; }
 
 //----------------------------------------------------------------------
-// enumeration type for File Handling as required by SafeFileWriter, FileHandle and FileMapHandle
+// enumeration type for File Handling as required by FileHandle and FileMapHandle
 //----------------------------------------------------------------------
 
 enum FileCreationMode : UInt8

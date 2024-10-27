@@ -1059,8 +1059,6 @@ void ExportMetaInfoToFileImpl(const TreeItem* curr)
 	if (fileNamePattern.empty())
 		return;
 	SharedStr fileName = AbstrStorageManager::Expand(curr, fileNamePattern);
-	auto sfwa = DSM::GetSafeFileWriterArray(); MG_CHECK(sfwa);
-	fileName = sfwa->GetWorkingFileName(fileName, FCM_CreateAlways);
 	if (isXml)
 	{
 		XmlPropWriter writer(fileName);

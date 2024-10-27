@@ -5,8 +5,6 @@
 #if !defined(__TIC_XML_TREE_OUT_H)
 #define __TIC_XML_TREE_OUT_H
 
-struct SafeFileWriterArray;
-
 //----------------------------------------------------------------------
 // used modules and forward class references
 //----------------------------------------------------------------------
@@ -143,7 +141,7 @@ struct XML_Table : XML_OutElement
 
 void WriteExprOrSourceDescr(OutStreamBase& stream, const TreeItem* ti);
 void WriteExprOrSourceDescrRow(XML_Table& xmlTable, const TreeItem* ti);
-void IncludeFileSave(const TreeItem* self, CharPtr fileName, SafeFileWriterArray* sfwa);
+void IncludeFileSave(const TreeItem* self, CharPtr fileName);
 
 extern TIC_CALL void(*s_AnnotateExprFunc)(OutStreamBase& outStream, const TreeItem* searchContext, SharedStr expr);
 

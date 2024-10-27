@@ -14,7 +14,6 @@
 
 #include "StgBase.h"
 #include "ptr/OlePtr.h"
-#include "ser/SafeFileWriter.h"
 #include "ser/FileMapHandle.h"
 
 #include "stg/AsmUtil.h"

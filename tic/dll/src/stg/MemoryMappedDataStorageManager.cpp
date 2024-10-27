@@ -49,22 +49,11 @@ SharedStr MmdStorageManager::GetFullFileName(CharPtr name) const
 	return DelimitedConcat(GetNameStr().c_str(), MakeFileName(name).c_str());
 }
 
-std::mutex sc_SFWAPtrAccess;
-
-auto MmdStorageManager::GetSFWA() const->std::shared_ptr<SafeFileWriterArray>
-{
-	auto lock = std::lock_guard(sc_SFWAPtrAccess);
-	if (!m_SFWA)
-		m_SFWA = DSM::GetSafeFileWriterArray();
-	return m_SFWA;
-}
-
 FileDateTime MmdStorageManager::GetLastChangeDateTime(const TreeItem* storageHolder, CharPtr path) const
 {
 	if (DoesExist(storageHolder)) // TODO: lock deze file vanaf hier.
 	{
-		auto sfwa = GetSFWA(); MG_CHECK(sfwa);
-		m_FileTime = GetFileOrDirDateTime(sfwa->GetWorkingFileName(GetFullFileName(path), FCM_OpenReadOnly));
+		m_FileTime = GetFileOrDirDateTime(GetFullFileName(path));
 	}
 	return m_FileTime; 
 }
@@ -75,24 +64,21 @@ bool MmdStorageManager::DoCheckExistence(const TreeItem* storageHolder, const Tr
 		return AbstrStorageManager::DoCheckExistence(storageHolder, storageItem);
 
 	auto relName = storageItem->GetRelativeName(storageHolder);
-	auto sfwa = DSM::GetSafeFileWriterArray(); MG_CHECK(sfwa);
-	return IsFileOrDirAccessible(sfwa.get()->GetWorkingFileName(GetFullFileName(relName.c_str()), FCM_OpenReadOnly));
+	return IsFileOrDirAccessible(GetFullFileName(relName.c_str()));
 }
 
 void MmdStorageManager::DoUpdateTree(const TreeItem* storageHolder, TreeItem* curr, SyncMode sm) const
 {
 	if (curr != storageHolder)
 		return;
-	auto dirFileName = GetFullFileName("0Dictionary.dms");
-	auto sfwa = DSM::GetSafeFileWriterArray(); MG_CHECK(sfwa);
-	auto workingFileName = sfwa.get()->GetWorkingFileName(dirFileName, FCM_OpenReadOnly);
+	auto dictFileName = GetFullFileName("0Dictionary.dms");
 
-	if (!IsFileOrDirAccessible(workingFileName))
+	if (!IsFileOrDirAccessible(dictFileName))
 		return;
 	if (!s_AppendTreeFromConfigurationPtr)
 		throwErrorD("MmdStorageManager::DoUpdateTree", "s_AppendTreeFromConfigurationPtr is not set");
 
-	s_AppendTreeFromConfigurationPtr(workingFileName.c_str(), curr);
+	s_AppendTreeFromConfigurationPtr(dictFileName.c_str(), curr);
 }
 
 void MmdStorageManager::DoWriteTree(const TreeItem* storageHolder)
@@ -100,35 +86,13 @@ void MmdStorageManager::DoWriteTree(const TreeItem* storageHolder)
 	if (!storageHolder)
 		return;
 
-	auto dirFileName = GetFullFileName("0Dictionary.dms");
-//	auto sfwa = DSM::GetSafeFileWriterArray(); MG_CHECK(sfwa);
-//	auto osb = FileOutStreamBuff(dirFileName, sfwa.get(), true);
+	auto dictFileName = GetFullFileName("0Dictionary.dms");
 
-	auto osb = FileOutStreamBuff(dirFileName, nullptr, true);
+	auto osb = FileOutStreamBuff(dictFileName, true);
 	auto out = OutStream_DMS(&osb, calcRulePropDefPtr);
 
 	storageHolder->XML_Dump(&out, false);
 }
-
-
-/* REMOVE
-void MmdStorageManager::DoOpenStorage(const StorageMetaInfo& smi, dms_rw_mode rwMode) const
-{
-	assert(!IsOpen());
-	assert(rwMode != dms_rw_mode::unspecified);
-
-	SharedStr fileName = DelimitedConcat(GetNameStr().c_str(), "LockFile.fss");
-	if (rwMode > dms_rw_mode::read_only)
-		m_MmdLockFile.OpenRw(fileName, nullptr, 0, rwMode, true, false, true);
-	else
-		m_MmdLockFile.OpenForRead(fileName, nullptr, true, false, true);
-}
-
-void MmdStorageManager::DoCloseStorage (bool mustCommit) const
-{
-	m_MmdLockFile.CloseFile();
-}
-*/
 
 //----------------------------------------------------------------------
 // instantiation and registration

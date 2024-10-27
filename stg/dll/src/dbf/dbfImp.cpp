@@ -24,7 +24,6 @@
 #include "mci/ValueClassID.h"
 #include "ser/FormattedStream.h"
 #include "ser/ReadValue.h"
-#include "ser/SafeFileWriter.h"
 #include "set/BitVector.h"
 #include "utl/Environment.h"
 #include "utl/IncrementalLock.h"
@@ -188,12 +187,12 @@ char* RightTrim(char *s)
 } // RightTrim
 
 
-void CommitFile(WeakStr srcName, SafeFileWriterArray* sfwa, WeakStr tmpFile)
+void CommitFile(WeakStr srcName, WeakStr tmpFile)
 {
-	SharedStr dosFileName = ConvertDmsFileName( sfwa->GetWorkingFileName(srcName, FCM_CreateAlways) );
+	SharedStr dosFileName = ConvertDmsFileName( srcName );
 
 	auto r = remove(dosFileName.c_str());
-	r = rename(ConvertDmsFileName(sfwa->GetWorkingFileName(tmpFile, FCM_CreateAlways)).c_str(), dosFileName.c_str());
+	r = rename(ConvertDmsFileName(tmpFile).c_str(), dosFileName.c_str());
 	if (r)
 		throwErrorF("std", "%d (%s) in CommitFile.rename working filename to intended filename", r, strerror(r));
 }
@@ -228,20 +227,20 @@ void DbfImpl::Clear()
 } // Clear
 
 // Opens the indicated (existing) dbf file for reading; the header is read.
-bool DbfImpl::Open(WeakStr filename, SafeFileWriterArray* sfwa, FileCreationMode filemode)
+bool DbfImpl::Open(WeakStr filename, FileCreationMode filemode)
 {
 	DBG_START("DbfImpl::Open", filename.c_str(), MG_DEBUG_DBF);
 	
 	Close();
 	
 	return 
-		OpenFH(filename, sfwa, filemode, false, NR_PAGES_DATFILE)
+		OpenFH(filename, filemode, false, NR_PAGES_DATFILE)
 	&&	ReadHeader();
 } // Open
 
-bool DbfImpl::CreateFromSource(WeakStr filename, SafeFileWriterArray* sfwa, const DbfImpl& srcDbf)
+bool DbfImpl::CreateFromSource(WeakStr filename, const DbfImpl& srcDbf)
 {
-	if (!Create(filename, sfwa))
+	if (!Create(filename))
 		return false;
 	m_ColumnDescriptions = srcDbf.m_ColumnDescriptions;
 	m_RecordCount = 0;
@@ -290,13 +289,13 @@ bool DbfImpl::AppendRecord(const void* buffer)
 	return true;
 }
 
-bool DbfImpl::Create(WeakStr filename, SafeFileWriterArray* sfwa)
+bool DbfImpl::Create(WeakStr filename)
 {
 	DBG_START("DbfImpl", "Create", MG_DEBUG_DBF);
 	
 	dms_assert(!IsOpen());
 
-	return OpenFH(filename, sfwa, FCM_CreateAlways, false, NR_PAGES_DATFILE);
+	return OpenFH(filename, FCM_CreateAlways, false, NR_PAGES_DATFILE);
 } // Create
 
 
@@ -516,17 +515,17 @@ bool WriteBytes(FILE *fp, char byte, int count)
 	return true;
 } // WriteBytes
 
-bool DbfImpl::SetRecordCount(UInt32 cnt, WeakStr filename, SafeFileWriterArray* sfwa)
+bool DbfImpl::SetRecordCount(UInt32 cnt, WeakStr filename)
 {
 	dms_assert(!IsOpen());
-	if (! OpenForRead(filename, sfwa))
+	if (! OpenForRead(filename))
 		return false;
 
 	if (m_RecordCount == cnt)
 		return true;
 	CloseFH();
 
-	if (! Open(filename, sfwa, FCM_OpenRwFixed))
+	if (! Open(filename, FCM_OpenRwFixed))
 		return false;
 
 	m_RecordCount = cnt;
@@ -749,48 +748,6 @@ INSTANTIATE_NUM_ORG
 INSTANTIATE_OTHER
 #undef INSTANTIATE
 
-/* REMOVE
-#define	READ_DATA_TYPE(type)	\
-{ \
-	DbfImplStub<type>	impstub(this, * (sequence_traits<type>::seq_t*) data, columnName, vc); \
-	return	impstub.m_Result; \
-} 
-
-bool DbfImpl::ReadData(void* data, CharPtr columnName, ValueClassID vc)
-{
-	DBG_START("DbfImpl_ReadData", columnName, MG_DEBUG_DBF);
-
-	switch (vc)
-	{
-#define INSTANTIATE(T) case ValueClassID::VT_##T: READ_DATA_TYPE(T)
-		INSTANTIATE_NUM_ORG
-		INSTANTIATE_OTHER
-#undef INSTANTIATE
-		default			: return false;
-	} // switch
-} // ReadData
-
-#define	WRITE_DATA_TYPE(type)	\
-{ \
-	DbfImplStub<type> impstub(this, filename, sfwa, * (sequence_traits<type>::cseq_t*) data, columnName, vc); \
-	return	impstub.m_Result; \
-} 
-
-bool DbfImpl::WriteData(WeakStr filename, SafeFileWriterArray* sfwa, const void *data, CharPtr columnName, ValueClassID vc)
-{
-	DBG_START("DbfImpl_WriteData", columnName, MG_DEBUG_DBF);
-
-	switch (vc)
-	{
-#define INSTANTIATE(T) case ValueClassID::VT_##T	: WRITE_DATA_TYPE(T)	
-		INSTANTIATE_NUM_ORG
-		INSTANTIATE_OTHER
-#undef INSTANTIATE
-		default			:	return false;
-	} // switch
-} // WriteData
-*/
-
 /*****************************************************************************/
 //										DbfImplStub
 /*****************************************************************************/
@@ -822,12 +779,12 @@ template<class T> bool DbfImplStub<T>::ReadData(VecType vec, CharPtr columnName,
 	return true;
 } // ReadData
 
-template<class T> bool DbfImplStub<T>::WriteDataOverwrite(WeakStr filename, SafeFileWriterArray* sfwa, CVecType vec, UInt32 columnindex, ValueClassID vc)
+template<class T> bool DbfImplStub<T>::WriteDataOverwrite(WeakStr filename, CVecType vec, UInt32 columnindex, ValueClassID vc)
 {
 	DBG_START("DbfImplStub", "WriteDataOverwrite", MG_DEBUG_DBF);
 
 	 // BEGIN TODO, OPT: Move to caller(s)
-	if (! m_DbfImpl->Open(filename, sfwa, FCM_OpenRwFixed))
+	if (! m_DbfImpl->Open(filename, FCM_OpenRwFixed))
 		return false;
 
 	bool res = true;
@@ -856,7 +813,7 @@ template<class T> bool DbfImplStub<T>::WriteDataOverwrite(WeakStr filename, Safe
 	return	res;
 }
 
-template<class T> bool DbfImplStub<T>::WriteDataReplace(WeakStr filename, SafeFileWriterArray* sfwa, CVecType vec, UInt32 columnindex, ValueClassID vc, TDbfType dbftype, UInt8 len, UInt8 deccount)
+template<class T> bool DbfImplStub<T>::WriteDataReplace(WeakStr filename, CVecType vec, UInt32 columnindex, ValueClassID vc, TDbfType dbftype, UInt8 len, UInt8 deccount)
 {
 	DBG_START("DbfImplStub", "WriteDataReplace", MG_DEBUG_DBF);
 
@@ -864,10 +821,10 @@ template<class T> bool DbfImplStub<T>::WriteDataReplace(WeakStr filename, SafeFi
 	DbfImpl	dbftarget;
 	SharedStr	filename_target	= SharedStr(filename) + ".replace";
    
-	if (! dbftarget.Create(filename_target, sfwa))
+	if (! dbftarget.Create(filename_target))
 		return false;
 
-	m_DbfImpl->OpenForRead(filename, sfwa);
+	m_DbfImpl->OpenForRead(filename);
 
 	dms_assert(m_DbfImpl->IsOpen()&& m_DbfImpl->RecordLength() > 0); // we are replacing something, not?
 
@@ -915,12 +872,12 @@ template<class T> bool DbfImplStub<T>::WriteDataReplace(WeakStr filename, SafeFi
 	m_DbfImpl->Close();
 	dbftarget.Close();
 
-	CommitFile(filename, sfwa, filename_target);
+	CommitFile(filename, filename_target);
 
 	return res;
 }
 
-template<class T> bool DbfImplStub<T>::WriteDataAppend(WeakStr filename, SafeFileWriterArray* sfwa, CVecType vec, CharPtr columnName, ValueClassID vc, TDbfType dbftype, UInt8 len, UInt8 deccount)
+template<class T> bool DbfImplStub<T>::WriteDataAppend(WeakStr filename, CVecType vec, CharPtr columnName, ValueClassID vc, TDbfType dbftype, UInt8 len, UInt8 deccount)
 {
 	DBG_START("DbfImplStub", "WriteDataAppend", MG_DEBUG_DBF);
 
@@ -929,10 +886,10 @@ template<class T> bool DbfImplStub<T>::WriteDataAppend(WeakStr filename, SafeFil
 	SharedStr	filename_target	= filename + ".append";
    
 	MakeDirsForFile(filename);
-	if (! dbftarget.Create(filename_target, sfwa))
+	if (! dbftarget.Create(filename_target))
 		return false;
 
-	m_DbfImpl->OpenForRead(filename, sfwa);
+	m_DbfImpl->OpenForRead(filename);
 
 	dbftarget.m_RecordCount         = vec.size();
 	dbftarget.m_ColumnDescriptions	= m_DbfImpl->m_ColumnDescriptions;
@@ -977,7 +934,7 @@ template<class T> bool DbfImplStub<T>::WriteDataAppend(WeakStr filename, SafeFil
 	m_DbfImpl->Close();
 	dbftarget.Close();
 
-	CommitFile(filename, sfwa, filename_target);
+	CommitFile(filename, filename_target);
 
 	return	res;
 }
@@ -999,7 +956,7 @@ template<class T> bool DbfImplStub<T>::TypeResolution(TDbfType dbftype, UInt8 le
 			);
 } // TypeResolution
 
-template<class T> bool DbfImplStub<T>::WriteData(WeakStr filename, SafeFileWriterArray* sfwa, CVecType vec, CharPtr columnName, ValueClassID vc)
+template<class T> bool DbfImplStub<T>::WriteData(WeakStr filename, CVecType vec, CharPtr columnName, ValueClassID vc)
 {
 	DBG_START("DbfImplStub", "WriteData", MG_DEBUG_DBF);
 
@@ -1009,19 +966,19 @@ template<class T> bool DbfImplStub<T>::WriteData(WeakStr filename, SafeFileWrite
 	SharedStr dbfcolumnname = NameToDbfColumnName(columnName);
 	DbfTypeInfo(vec, vc, dbftype, len, deccount);
 
-	if (m_DbfImpl->OpenForRead(filename, sfwa))
+	if (m_DbfImpl->OpenForRead(filename))
 	{
 		UInt32 columnindex = m_DbfImpl->ColumnNameToIndex(dbfcolumnname.c_str());
 
 		if (m_DbfImpl->ColumnIndexDefined(columnindex))
 		{
 			if (TypeResolution(dbftype, len, deccount, columnindex) && vec.size() == m_DbfImpl->RecordCount())
-				return WriteDataOverwrite(filename, sfwa, vec, columnindex, vc);
+				return WriteDataOverwrite(filename, vec, columnindex, vc);
 			else 
-    			return WriteDataReplace  (filename, sfwa, vec, columnindex, vc, dbftype, len, deccount);
+    			return WriteDataReplace  (filename, vec, columnindex, vc, dbftype, len, deccount);
 		}
 	}
-	return WriteDataAppend(filename, sfwa, vec, dbfcolumnname.c_str(), vc, dbftype, len, deccount);
+	return WriteDataAppend(filename, vec, dbfcolumnname.c_str(), vc, dbftype, len, deccount);
 }
 
 template<class T> DbfImplStub<T>::DbfImplStub(
@@ -1036,12 +993,11 @@ template<class T> DbfImplStub<T>::DbfImplStub(
 template<class T> DbfImplStub<T>::DbfImplStub(
 		DbfImpl *p
 	,	WeakStr fileName
-	,	SafeFileWriterArray* sfwa
 	,	typename sequence_traits<T>::cseq_t vec
 	,	CharPtr columnName, ValueClassID vc)
 {
 	m_DbfImpl = p; 
-	m_Result  = WriteData(fileName, sfwa, vec, columnName, vc);
+	m_Result  = WriteData(fileName, vec, columnName, vc);
 }
 
 /*****************************************************************************/

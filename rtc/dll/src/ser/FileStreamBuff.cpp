@@ -1,31 +1,7 @@
-//<HEADER> 
-/*
-Data & Model Server (DMS) is a server written in C++ for DSS applications. 
-Version: see srv/dms/rtc/dll/src/RtcVersion.h for version info.
+// Copyright (C) 1998-2024 Object Vision b.v. 
+// License: GNU GPL 3
+/////////////////////////////////////////////////////////////////////////////
 
-Copyright (C) 1998-2004  YUSE GSO Object Vision BV. 
-
-Documentation on using the Data & Model Server software can be found at:
-http://www.ObjectVision.nl/DMS/
-
-See additional guidelines and notes in srv/dms/Readme-srv.txt 
-
-This library is free software; you can use, redistribute, and/or
-modify it under the terms of the GNU General Public License version 2 
-(the License) as published by the Free Software Foundation,
-provided that this entire header notice and readme-srv.txt is preserved.
-
-See LICENSE.TXT for terms of distribution or look at our web site:
-http://www.objectvision.nl/DMS/License.txt
-or alternatively at: http://www.gnu.org/copyleft/gpl.html
-
-This library is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
-General Public License for more details. However, specific warranties might be
-granted by an additional written contract for support, assistance and/or development
-*/
-//</HEADER>
 #include "RtcPCH.h"
 
 #if defined(CC_PRAGMAHDRSTOP)
@@ -33,7 +9,6 @@ granted by an additional written contract for support, assistance and/or develop
 #endif //defined(CC_PRAGMAHDRSTOP)
 
 #include "ser/FileStreamBuff.h"
-#include "ser/SafeFileWriter.h"
 #include "utl/Environment.h"
 
 // *****************************************************************************
@@ -47,10 +22,10 @@ SharedStr ConvertFileName(WeakStr fileName)
 
 /********** FileOutStreamBuff Implementation **********/
 
-FileOutStreamBuff::FileOutStreamBuff(WeakStr fileName, SafeFileWriterArray* sfwa, bool isAsciiFile, bool mustAppend)
+FileOutStreamBuff::FileOutStreamBuff(WeakStr fileName, bool isAsciiFile, bool mustAppend)
 	:	m_FileName((GetWritePermission(fileName), fileName))
 	,	m_ofstream(
-			ConvertFileName(GetWorkingFileName(sfwa, fileName, mustAppend ? FCM_OpenRwGrowable : FCM_CreateAlways)).c_str()
+			ConvertFileName(fileName).c_str()
 		,	std::ios_base::openmode(std::ios::out | (isAsciiFile ? 0 : std::ios::binary) | (mustAppend ? std::ios::app : 0)
 		))
 {
@@ -84,11 +59,11 @@ bool FileOutStreamBuff::IsOpen() const
 
 /********** FileInpStreamBuff Implementation **********/
 
-FileInpStreamBuff::FileInpStreamBuff(WeakStr fileName, SafeFileWriterArray* sfwa, bool isAsciiFile)
+FileInpStreamBuff::FileInpStreamBuff(WeakStr fileName, bool isAsciiFile)
 	:	m_ByteCount(0)
 	,	m_FileName(fileName)
 	,	m_ifstream(
-			ConvertFileName(GetWorkingFileName(sfwa, fileName, FCM_OpenReadOnly)).c_str(), 
+			ConvertFileName(fileName).c_str(), 
 			(isAsciiFile) 
 				?	(std::ios::in) 
 				:	(std::ios::in | std::ios::binary)
@@ -127,10 +102,10 @@ bool FileInpStreamBuff::IsOpen() const
 
 /********** MappedFileInpStreamBuff Implementation **********/
 
-MappedFileInpStreamBuff::MappedFileInpStreamBuff(WeakStr fileName, SafeFileWriterArray* sfwa, bool throwOnOpenError, bool doRetry)
+MappedFileInpStreamBuff::MappedFileInpStreamBuff(WeakStr fileName, bool throwOnOpenError, bool doRetry)
 	:	m_FileName(fileName)
 {
-	auto cmfh = std::make_shared<ConstMappedFileHandle>(fileName, sfwa, throwOnOpenError, doRetry);
+	auto cmfh = std::make_shared<ConstMappedFileHandle>(fileName, throwOnOpenError, doRetry);
 	m_FileView = ConstFileViewHandle(cmfh);
 	m_FileView.Map();
 	if (IsOpen())
@@ -174,11 +149,11 @@ bool MappedFileInpStreamBuff::IsOpen() const
 
 /********** MappedFileOutStreamBuff Implementation **********/
 
-MappedFileOutStreamBuff::MappedFileOutStreamBuff(WeakStr fileName, SafeFileWriterArray* sfwa, streamsize_t nrBytes)
+MappedFileOutStreamBuff::MappedFileOutStreamBuff(WeakStr fileName, streamsize_t nrBytes)
 	:	m_FileName(fileName)
 {
 	auto mfh = std::make_shared<MappedFileHandle>();
-	mfh->OpenRw(fileName, sfwa, nrBytes, dms_rw_mode::write_only_all, false);
+	mfh->OpenRw(fileName, nrBytes, dms_rw_mode::write_only_all, false);
 	m_FileView = FileViewHandle(mfh, 0, nrBytes);
 	m_FileView.Map(true);
 
@@ -231,7 +206,7 @@ DMS_CONV DMS_FileOutStreamBuff_Create(CharPtr fileName, bool isAsciiFile)
 {
 	DMS_CALL_BEGIN
 
-		return new FileOutStreamBuff(ConvertDosFileName(SharedStr(fileName)), nullptr, isAsciiFile, false);
+		return new FileOutStreamBuff(ConvertDosFileName(SharedStr(fileName)), isAsciiFile, false);
 
 	DMS_CALL_END
 	return nullptr;

@@ -558,7 +558,7 @@ int write_now_str(char* buff, SizeT n)
 }
 
 CDebugLog::CDebugLog(WeakStr name)
-	:	m_FileBuff(name, 0, true, true), m_Stream(&m_FileBuff, FormattingFlags::ThousandSeparator)
+	:	m_FileBuff(name, true, true), m_Stream(&m_FileBuff, FormattingFlags::ThousandSeparator)
 {
 	bool isOpened = m_FileBuff.IsOpen();
 	if (isOpened) 

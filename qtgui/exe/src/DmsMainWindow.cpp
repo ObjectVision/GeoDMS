@@ -71,7 +71,7 @@ bool MainWindow::ShowInDetailPage(SharedStr x) {
 void MainWindow::SaveValueInfoImpl(CharPtr filename) {
     auto dmsFileName = ConvertDosFileName(SharedStr(filename));
     auto expandedFilename = AbstrStorageManager::Expand(m_current_item, dmsFileName);
-    FileOutStreamBuff buff(SharedStr(expandedFilename), nullptr, true, false);
+    FileOutStreamBuff buff(SharedStr(expandedFilename), true, false);
     for (auto& child_object : children()) {
         auto value_info_window_candidate = dynamic_cast<ValueInfoWindow*>(child_object);
         if (!value_info_window_candidate)

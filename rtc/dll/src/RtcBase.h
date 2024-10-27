@@ -174,8 +174,6 @@ enum   class ValueClassID    : UInt8;
 enum   class ValueComposition: UInt8;
 enum   class dms_rw_mode     : Int8; // can have negative values
 
-struct SafeFileWriterArray;
-
 //----------------------------------------------------------------------
 // StreamBuff types
 //----------------------------------------------------------------------

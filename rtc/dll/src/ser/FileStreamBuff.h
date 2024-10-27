@@ -34,7 +34,6 @@ granted by an additional written contract for support, assistance and/or develop
 #include "dbg/Check.h"
 #include "ser/BaseStreamBuff.h"
 #include "ptr/SharedStr.h"
-struct SafeFileWriterArray;
 
 #include <fstream>
 
@@ -44,7 +43,7 @@ struct SafeFileWriterArray;
 class FileOutStreamBuff : public OutStreamBuff
 {
 public:
-	RTC_CALL FileOutStreamBuff(WeakStr fileName, SafeFileWriterArray* sfwa, bool isAsciiFile, bool mustAppend = false);
+	RTC_CALL FileOutStreamBuff(WeakStr fileName, bool isAsciiFile, bool mustAppend = false);
 	RTC_CALL virtual ~FileOutStreamBuff();
 
 	RTC_CALL void WriteBytes(const Byte* data, streamsize_t size) override;
@@ -65,7 +64,7 @@ private:
 class FileInpStreamBuff : public InpStreamBuff
 {
 public:
-	RTC_CALL FileInpStreamBuff(WeakStr fileName, SafeFileWriterArray* sfwa, bool isAsciiFile);
+	RTC_CALL FileInpStreamBuff(WeakStr fileName, bool isAsciiFile);
 	RTC_CALL virtual ~FileInpStreamBuff();
 
 	RTC_CALL void ReadBytes (Byte* data, streamsize_t size) const override;
@@ -89,7 +88,7 @@ private:
 class MappedFileInpStreamBuff : public InpStreamBuff
 {
 public:
-	RTC_CALL MappedFileInpStreamBuff(WeakStr fileName, SafeFileWriterArray* sfwa, bool throwOnError, bool doRetry);
+	RTC_CALL MappedFileInpStreamBuff(WeakStr fileName, bool throwOnError, bool doRetry);
 	RTC_CALL virtual ~MappedFileInpStreamBuff();
 
 	RTC_CALL void ReadBytes (Byte* data, streamsize_t size) const override;
@@ -112,7 +111,7 @@ private:
 class MappedFileOutStreamBuff : public OutStreamBuff
 {
 public:
-	RTC_CALL MappedFileOutStreamBuff(WeakStr fileName, SafeFileWriterArray* sfwa, streamsize_t nrBytes);
+	RTC_CALL MappedFileOutStreamBuff(WeakStr fileName, streamsize_t nrBytes);
 	RTC_CALL virtual ~MappedFileOutStreamBuff();
 
 	RTC_CALL void WriteBytes(const Byte* data, streamsize_t size) override;

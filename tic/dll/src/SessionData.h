@@ -9,7 +9,6 @@
 
 #include "ptr/OwningPtr.h"
 #include "ptr/WeakPtr.h"
-#include "ser/SafeFileWriter.h"
 
 #include "DataController.h"
 struct TreeItem;
@@ -80,8 +79,6 @@ struct SessionData : std::enable_shared_from_this<SessionData>
 	void SetActiveDesktop(const TreeItem* tiActive);
 	const TreeItem* GetActiveDesktop() const;
 
-	std::shared_ptr<SafeFileWriterArray> GetSafeFileWriterArray() { return { shared_from_this(), &m_SFWA }; }
-
 public:
 
 	SessionData(CharPtr configLoadDir, CharPtr configSubDir);
@@ -90,7 +87,6 @@ private:
 	SessionData(const SessionData&) = delete;
 
 	void deactivateThis();
-	SafeFileWriterArray           m_SFWA;
 
 	SharedPtr<const TreeItem>     m_ConfigRoot, m_ConfigSettings, m_ActiveDesktop;
 	SharedStr                     m_ConfigLoadDir;

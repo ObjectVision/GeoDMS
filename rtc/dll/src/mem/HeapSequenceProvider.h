@@ -53,7 +53,7 @@ public:
 //	override abstr_sequence_provider
 	void Destroy() override;
 
-	void Open(alloc_t& seq, SizeT nrElem, dms_rw_mode rwMode, bool isTmp, SafeFileWriterArray* sfwa MG_DEBUG_ALLOCATOR_SRC_ARG) override
+	void Open(alloc_t& seq, SizeT nrElem, dms_rw_mode rwMode, bool isTmp MG_DEBUG_ALLOCATOR_SRC_ARG) override
 	{
 		dms_assert(rwMode != dms_rw_mode::unspecified);
 		if (rwMode == dms_rw_mode::write_only_mustzero)

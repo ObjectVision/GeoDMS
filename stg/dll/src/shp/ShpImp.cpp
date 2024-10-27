@@ -119,16 +119,16 @@ void ShpImp::Close()
 }
 
 
-bool ShpImp::Open(WeakStr name,	SafeFileWriterArray* sfwa, bool alsoWrite, bool writePrj)
+bool ShpImp::Open(WeakStr name, bool alsoWrite, bool writePrj)
 {
 	assert(!m_FH.IsOpen());
 	Close();
 
 	FileCreationMode fcm = alsoWrite ? FCM_CreateAlways : FCM_OpenReadOnly;
-	if (!m_FH.OpenFH(name, sfwa, fcm, false, NR_PAGES_DATFILE))
+	if (!m_FH.OpenFH(name, fcm, false, NR_PAGES_DATFILE))
 		return false;
 
-	if (!m_FHX.OpenFH(CalcShxName(name.c_str()), sfwa, fcm, false, NR_PAGES_HDRFILE) && alsoWrite)
+	if (!m_FHX.OpenFH(CalcShxName(name.c_str()), fcm, false, NR_PAGES_HDRFILE) && alsoWrite)
 	{
 		Close();      // Don't accept not creating FHX if we need to create and write
 		return false;
@@ -136,7 +136,7 @@ bool ShpImp::Open(WeakStr name,	SafeFileWriterArray* sfwa, bool alsoWrite, bool 
 
 	if (writePrj) // Create .prj file for shapefiles only when writing
 	{
-		if (!m_PRJ.OpenFH(CalcPrjName(name.c_str()), sfwa, fcm, true, NR_PAGES_HDRFILE) && alsoWrite)
+		if (!m_PRJ.OpenFH(CalcPrjName(name.c_str()), fcm, true, NR_PAGES_HDRFILE) && alsoWrite)
 		{
 			Close();
 			return false;
@@ -151,7 +151,7 @@ bool ShpImp::Open(WeakStr name,	SafeFileWriterArray* sfwa, bool alsoWrite, bool 
 }
 
 // Read the complete file to memory (only polygons for now)
-std::size_t ShpImp::OpenAndReadHeader(WeakStr name, SafeFileWriterArray* sfwa)
+std::size_t ShpImp::OpenAndReadHeader(WeakStr name)
 {
 	DBG_START("ShpImp", "ReadHeader", false);
 
@@ -161,7 +161,7 @@ std::size_t ShpImp::OpenAndReadHeader(WeakStr name, SafeFileWriterArray* sfwa)
 	Close();
 	Clear();
 
-	if (!Open(name, sfwa, false, false))
+	if (!Open(name, false, false))
 		return 0;
 
 	DBG_TRACE(("Opened: %s", name.c_str()));
@@ -196,11 +196,11 @@ std::size_t ShpImp::OpenAndReadHeader(WeakStr name, SafeFileWriterArray* sfwa)
 }
 
 // Read the complete file to memory (only polygons for now)
-bool ShpImp::Read(WeakStr name, SafeFileWriterArray* sfwa)
+bool ShpImp::Read(WeakStr name)
 {
 	DBG_START("ShpImp", "Read", false);
 
-	std::size_t pos = OpenAndReadHeader(name, sfwa);
+	std::size_t pos = OpenAndReadHeader(name);
 	if (!pos)
 		return false;
 
@@ -284,13 +284,13 @@ void ShpImp::ShapeSet_PrepareDataStore(UInt32 nrRecs, UInt32 nrSeqsToKeep)
 }
 
 // Write memory content to disk (only polygons and arcs for now)
-bool ShpImp::Write(WeakStr name, SafeFileWriterArray* sfwa, SharedStr wktPrjStr)
+bool ShpImp::Write(WeakStr name, SharedStr wktPrjStr)
 {
 	DBG_START("ShpImp", "Write", false);
 
 	// Try to open
 	Close();
-	if (!Open(name, sfwa, true, !wktPrjStr.empty()))
+	if (!Open(name, true, !wktPrjStr.empty()))
 		return false;
 
 	if (!wktPrjStr.empty())

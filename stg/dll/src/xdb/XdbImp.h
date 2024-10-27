@@ -74,13 +74,13 @@ public:
 	STGIMPL_CALL ~XdbImp();
 
 	// read/write functions
-	STGIMPL_CALL [[nodiscard]] bool Open       (WeakStr name, SafeFileWriterArray* sfwa, FileCreationMode mode, CharPtr datExtension, bool saveColInfo);
-	STGIMPL_CALL [[nodiscard]] bool OpenForRead(WeakStr name, SafeFileWriterArray* sfwa, CharPtr datExtension, bool saveColInfo);
-	STGIMPL_CALL [[nodiscard]] bool Create     (WeakStr name, SafeFileWriterArray* sfwa, CharPtr datExtension, bool saveColInfo);
+	STGIMPL_CALL [[nodiscard]] bool Open       (WeakStr name, FileCreationMode mode, CharPtr datExtension, bool saveColInfo);
+	STGIMPL_CALL [[nodiscard]] bool OpenForRead(WeakStr name, CharPtr datExtension, bool saveColInfo);
+	STGIMPL_CALL [[nodiscard]] bool Create     (WeakStr name, CharPtr datExtension, bool saveColInfo);
 
 	STGIMPL_CALL [[nodiscard]] bool ReadColumn (      void* data, recno_t cnt, column_index col_index);
 	STGIMPL_CALL [[nodiscard]] bool WriteColumn(const void* data, recno_t cnt, column_index col_index);
-	STGIMPL_CALL [[nodiscard]] bool AppendColumn(CharPtr name, SafeFileWriterArray* sfwa, width_t size, ValueClassID type, recno_t rows, bool saveColInfo);
+	STGIMPL_CALL [[nodiscard]] bool AppendColumn(CharPtr name, width_t size, ValueClassID type, recno_t rows, bool saveColInfo);
 	STGIMPL_CALL void Close();
 
 	// info functions

@@ -91,7 +91,7 @@ struct XmlPropWriterBase : AbstrPropWriter
 struct XmlPropWriter : FileOutStreamBuff, XmlPropWriterBase
 {
 	XmlPropWriter(WeakStr fileName)
-		: FileOutStreamBuff(fileName, nullptr, true)
+		: FileOutStreamBuff(fileName, true)
 		, XmlPropWriterBase(this)
 	{}
 };

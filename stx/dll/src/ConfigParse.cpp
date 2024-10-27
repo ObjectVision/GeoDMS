@@ -280,7 +280,7 @@ TreeItem* ConfigProd::ParseFile(CharPtr fileName)
 
 	m_CurrFileName = SharedStr(fileName);
 
-	auto fv = ConstFileViewHandle(std::make_shared<ConstMappedFileHandle>(m_CurrFileName, nullptr, true, false)); // SFWA
+	auto fv = ConstFileViewHandle(std::make_shared<ConstMappedFileHandle>(m_CurrFileName, true, false)); // SFWA
 	fv.Map();
 	try {
 

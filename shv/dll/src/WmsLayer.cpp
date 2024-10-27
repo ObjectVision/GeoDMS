@@ -491,7 +491,7 @@ namespace wms {
 				return;
 			if (!IsFileOrDirAccessible(m_FileName))
 			{
-				FileOutStreamBuff file(m_FileName, nullptr, false);
+				FileOutStreamBuff file(m_FileName, false);
 				file.WriteBytes(&*m_Response.body().data(), m_Response.body().size());
 				// close file
 			}

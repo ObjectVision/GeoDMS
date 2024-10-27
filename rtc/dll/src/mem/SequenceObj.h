@@ -169,7 +169,7 @@ public:
 
 	abstr_sequence_provider<IndexRange<SizeT> >* CloneForSeqs() const { return m_Provider->CloneForSeqs(); }
 
-	void Open (SizeT nrElem, dms_rw_mode rwMode, bool isTmp, SafeFileWriterArray* sfwa MG_DEBUG_ALLOCATOR_SRC_ARG) { MGD_CHECKDATA(!md_IsLocked); m_Provider->Open(m_Data, nrElem, rwMode, isTmp, sfwa MG_DEBUG_ALLOCATOR_SRC_PARAM); }
+	void Open (SizeT nrElem, dms_rw_mode rwMode, bool isTmp MG_DEBUG_ALLOCATOR_SRC_ARG) { MGD_CHECKDATA(!md_IsLocked); m_Provider->Open(m_Data, nrElem, rwMode, isTmp MG_DEBUG_ALLOCATOR_SRC_PARAM); }
 //	void Close () { MGD_CHECKDATA(!IsLocked()); m_Provider->Close( m_Data); dms_assert(Empty()); }
 	void Lock  (dms_rw_mode rwMode) const { MGD_CHECKDATA(!IsLocked()); if (m_Provider) m_Provider->Lock(m_Data, rwMode); MG_DEBUG_DATA_CODE(md_IsLocked = true ); }
 	void UnLock() const { MGD_CHECKDATA( IsLocked() || !m_Provider); if (m_Provider) m_Provider->UnLock(m_Data); MG_DEBUG_DATA_CODE(md_IsLocked = false); }

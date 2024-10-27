@@ -46,9 +46,7 @@ void FileSystemStorageManager::DropStream(const TreeItem* item, CharPtr path)
 
 	reportF(SeverityTypeID::ST_MajorTrace, "Drop  fss(%s,%s)", GetNameStr().c_str(), path);
 
-	auto sfwa = DSM::GetSafeFileWriterArray();
-	if (sfwa)
-		sfwa->OpenOrCreate(GetFullFileName(path).c_str(), FCM_Delete);
+	KillFileOrDir(GetFullFileName(path));
 }
 
 SharedStr FileSystemStorageManager::GetFullFileName(CharPtr name) const
@@ -59,10 +57,8 @@ SharedStr FileSystemStorageManager::GetFullFileName(CharPtr name) const
 FileDateTime FileSystemStorageManager::GetLastChangeDateTime(const TreeItem* storageHolder, CharPtr path) const
 {
 	if (DoesExist(storageHolder)) // TODO: lock deze file vanaf hier.
-	{
-		auto sfwa = DSM::GetSafeFileWriterArray(); MG_CHECK(sfwa);
-		m_FileTime = GetFileOrDirDateTime(sfwa.get()->GetWorkingFileName(GetFullFileName(path), FCM_OpenReadOnly));
-	}
+		m_FileTime = GetFileOrDirDateTime(GetFullFileName(path));
+
 	return m_FileTime; 
 }
 
@@ -70,37 +66,29 @@ std::unique_ptr<OutStreamBuff> FileSystemStorageManager::DoOpenOutStream(const S
 {
 	const AbstrDataItem* adi = AsDynamicDataItem(smi.CurrRI());
 
-	dms_assert(!m_IsReadOnly);
+	assert(!m_IsReadOnly);
 
 //	reportF(MsgCategory::storage_write, SeverityTypeID::ST_MajorTrace, "Write fss(%s,%s)", GetNameStr().c_str(), path);
 
 	SharedStr fullName = GetFullFileName(path); 
-	auto sfwa = DSM::GetSafeFileWriterArray();
-	if (!sfwa)
-		return {};
-
 	if (adi)
 	{
 		assert(t != no_tile);
 		const AbstrDataObject* ado = adi->GetRefObj();
 
-		return std::make_unique<MappedFileOutStreamBuff>(fullName, sfwa.get(), ado->GetNrTileBytesNow(t, true));
+		return std::make_unique<MappedFileOutStreamBuff>(fullName, ado->GetNrTileBytesNow(t, true));
 	}
 	assert(t == no_tile);
-	return std::make_unique<FileOutStreamBuff>( fullName, sfwa.get(), false);
+	return std::make_unique<FileOutStreamBuff>( fullName, false);
 }
 
 std::unique_ptr<InpStreamBuff> FileSystemStorageManager::DoOpenInpStream(const StorageMetaInfo& smi, CharPtr path) const
 {
 //	reportF(MsgCategory::storage_read, SeverityTypeID::ST_MajorTrace, "Read  fss(%s,%s)", GetNameStr().c_str(), path);
 
-	dms_assert(IsOpen());
+	assert(IsOpen());
 
-	auto sfwa = DSM::GetSafeFileWriterArray();
-	if (!sfwa)
-		return {};
-
-	auto result = std::make_unique<MappedFileInpStreamBuff>(GetFullFileName(path), sfwa.get(), false, false);
+	auto result = std::make_unique<MappedFileInpStreamBuff>(GetFullFileName(path), false, false);
 
 	if (!result->IsOpen())
 		return {};
@@ -114,9 +102,9 @@ void FileSystemStorageManager::DoOpenStorage(const StorageMetaInfo& smi, dms_rw_
 
 	SharedStr fileName = DelimitedConcat(GetNameStr().c_str(), "LockFile.fss");
 	if (rwMode > dms_rw_mode::read_only)
-		m_FssLockFile.OpenRw(fileName, nullptr, 0, rwMode, true, false, true);
+		m_FssLockFile.OpenRw(fileName, 0, rwMode, true, false, true);
 	else
-		m_FssLockFile.OpenForRead(fileName, nullptr, true, false, true);
+		m_FssLockFile.OpenForRead(fileName, true, false, true);
 }
 
 void FileSystemStorageManager::DoCloseStorage (bool mustCommit) const

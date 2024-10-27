@@ -42,8 +42,7 @@ struct DbfImplRead : DbfImpl
 {
 	DbfImplRead(WeakStr filename, const TreeItem* storageHolder)
 	{
-		auto sfwa = DSM::GetSafeFileWriterArray(); MG_CHECK(sfwa);
-		if (! OpenForRead(filename, sfwa.get()) )
+		if (! OpenForRead(filename) )
 			throwErrorF("DBF", "Cannot open %s for read (%d: %s)", filename.c_str(), errno, strerror(errno) );
 	}
 };
@@ -214,7 +213,7 @@ bool DbfStorageManager::ReadDataItem(StorageMetaInfoPtr smi, AbstrDataObject* bo
 
 	switch (vcID)
 	{
-#define INSTANTIATE(T) case ValueClassID::VT_##T: return DbfImplStub<T>(&dbf, debug_cast<DataArray<T>*>(borrowedReadResultHolder)->GetDataWrite(), fieldName.begin(), vcID).m_Result;
+#define INSTANTIATE(T) case ValueClassID::VT_##T: return DbfImplStub<T>(&dbf, mutable_array_cast<T>(borrowedReadResultHolder)->GetDataWrite(), fieldName.begin(), vcID).m_Result;
 		INSTANTIATE_NUM_ORG
 		INSTANTIATE_OTHER
 #undef INSTANTIATE
@@ -234,10 +233,6 @@ bool DbfStorageManager::WriteDataItem(StorageMetaInfoPtr&& smiHolder)
 {
 	DBG_START("DbfStorageManager", "WriteDataItem", false);
 
-	auto sfwa = DSM::GetSafeFileWriterArray();
-	if (!sfwa)
-		return false;
-
 	auto smi = smiHolder.get();
 	StorageWriteHandle storageHandle(std::move(smiHolder));
 
@@ -255,7 +250,7 @@ bool DbfStorageManager::WriteDataItem(StorageMetaInfoPtr&& smiHolder)
 
 	switch (vcID)
 	{
-#define INSTANTIATE(T) case ValueClassID::VT_##T: return DbfImplStub<T>(&dbf, GetNameStr(), sfwa.get(), debug_cast<const DataArray<T>*>(ado)->GetDataRead(), fieldNameStr, vcID).m_Result;
+#define INSTANTIATE(T) case ValueClassID::VT_##T: return DbfImplStub<T>(&dbf, GetNameStr(), const_array_cast<T>(ado)->GetDataRead(), fieldNameStr, vcID).m_Result;
 		INSTANTIATE_NUM_ORG
 		INSTANTIATE_OTHER
 #undef INSTANTIATE

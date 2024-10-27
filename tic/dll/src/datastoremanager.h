@@ -42,7 +42,6 @@ struct TreeItem;
 #include "mci/PropDef.h"
 #include "mci/ValueClass.h"
 #include "ptr/WeakPtr.h"
-#include "ser/SafeFileWriter.h"
 #include "utl/mySPrintF.h"
 
 #include "AbstrDataItem.h"

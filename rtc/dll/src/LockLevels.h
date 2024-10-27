@@ -64,7 +64,6 @@ enum class ord_level_type : UInt32
 //	FailSection = IndexedString + 1,
 	TileShadow = MOST_INNER_LOCK - 3,
 	Tile = TileShadow + 1,
-	SafeFileWriterArray = MOST_INNER_LOCK,
 
 	SpecificOperator = TileShadow - 1, // MOST_INNER_LOCK - 4
 	SpecificOperatorGroup = SpecificOperator - 1,
