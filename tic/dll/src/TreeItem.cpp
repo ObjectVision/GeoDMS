@@ -3350,13 +3350,12 @@ static how_to_proceed PrepareDataRead(SharedPtr<const TreeItem> self, const Tree
 	}
 	dms_assert(!CheckCalculatingOrReady(refItem)); // was tested before and nothing could have started the calculation
 
-	const TreeItem* storageParent = refItem->GetStorageParent(false); dms_assert(storageParent);
+	const TreeItem* storageParent = refItem->GetStorageParent(false); assert(storageParent);
 	auto sm = storageParent->GetStorageManager(); assert(sm);
 	if (auto nmsm = dynamic_cast<NonmappableStorageManager*>(sm))
 		if (StorageMetaInfoPtr readInfo = nmsm->GetMetaInfo(storageParent, const_cast<TreeItem*>(refItem), StorageAction::read))
 		{
 			auto readInfoPtr = std::make_shared<StorageMetaInfoPtr>(std::move(readInfo));
-			assert(!readInfo);
 			dms_assert(!CheckCalculatingOrReady(refItem));
 			auto rtc = std::make_shared<OperationContext>();
 			self->m_ReadAssets.emplace<decltype(rtc)>(rtc);
@@ -3378,7 +3377,6 @@ static how_to_proceed PrepareDataRead(SharedPtr<const TreeItem> self, const Tree
 					, nullptr
 					);
 			readInfoPtr.reset();
-			assert(!readInfo);
 			assert(CheckCalculatingOrReady(refItem) || refItem->WasFailed(FR_Data) || SuspendTrigger::DidSuspend());
 			assert(self->GetInterestCount());
 		}
