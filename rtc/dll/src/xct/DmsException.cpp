@@ -449,13 +449,16 @@ RTC_CALL ErrMsgPtr catchAndReportException()
 RTC_CALL void catchAndProcessException()
 {
 	assert(IsMainThread());
+	if (!s_cppTrFunc)
+	{
+		catchAndReportException();
+		return;
+	}
 	static ErrMsgPtr msgPtr; // static to avoid the need to destroy when a Structured Exception will be thrown.
 	msgPtr = catchException(false);
 
-	if (s_cppTrFunc)
-		s_cppTrFunc(msgPtr->GetAsText().c_str()); // may throw a Borland Structured Exception
-//	else
-//		throw;
+	assert(s_cppTrFunc);
+	s_cppTrFunc(msgPtr->GetAsText().c_str()); // may throw a Borland Structured Exception
 }
 
 
