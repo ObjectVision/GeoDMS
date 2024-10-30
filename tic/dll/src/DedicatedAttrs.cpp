@@ -140,18 +140,24 @@ TIC_CALL UInt32 DMS_CONV DMS_DataItem_VisitClassBreakCandidates(const AbstrDataI
 				const AbstrUnit* candidateValuesUnit = adi->GetAbstrValuesUnit();
 				if (!candidateValuesUnit)
 					return;
+
 				auto domainValueType = candidateDomainUnit->GetValueType();
 				if (domainValueType->GetNrDims() != 1) // no 2d raster domain
 					return;
-				if (domainValueType->GetBitSize() > 8 && candidateValuesUnit->GetValueType()->IsIntegral()) // no big palettes unless candidate is base grid
+				if (domainValueType->GetBitSize() > 8) // no big palettes
+					return;
+				auto valuesValueType = candidateValuesUnit->GetValueType();
+				if (!valuesValueType->IsNumeric())
 					return;
 
 				candidate->UpdateMetaInfo();
 				valuesUnit->UpdateMetaInfo();
-				if (valuesUnit->UnifyValues(candidateValuesUnit, "ClassBreak values", "Candidate Values", UM_AllowDefaultLeft)) // metric and value-type compatible
-				if (!candidateValuesUnit->GetValueType()->IsIntegral() // base grid ?
-					|| IsClassBreakAttr(candidate) // class breaks ?
-					|| valuesUnit->UnifyDomain(candidateValuesUnit, "ClassBreak values", "Candidate Domain", UnifyMode())) // rlookup possible ?
+				if (!valuesUnit->UnifyValues(candidateValuesUnit, "ClassBreak values", "Candidate Values", UM_AllowDefaultLeft)) // metric and value-type compatible
+					return;
+				if (//!candidateValuesUnit->GetValueType()->IsIntegral() // base grid ?
+					IsClassBreakAttr(candidate) // class breaks ?
+					|| valuesUnit->UnifyDomain(candidateValuesUnit, "ClassBreak values", "Candidate Domain", UnifyMode())
+					) // rlookup or classify possible ?
 					if (callback(clientHandle, candidate))
 						++count;
 			};

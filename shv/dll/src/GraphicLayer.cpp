@@ -272,6 +272,8 @@ private:
 	SharedPtr<const AbstrDataItem> m_ThemeAttr;
 };
 
+constexpr int MAX_NR_CANDIDATES = 64;
+
 void AddClassificationMenu(MenuData& menuData, AspectNr a, Theme* classifiedTheme, const AbstrDataItem* themeAttr, GraphicLayer* layer)
 {
 	const AbstrDataItem* classification = classifiedTheme ? classifiedTheme->GetClassification() : nullptr;
@@ -289,11 +291,20 @@ void AddClassificationMenu(MenuData& menuData, AspectNr a, Theme* classifiedThem
 		)
 	);
 
-		// get all available classifications
-	auto funcWrapper = MakeFuncWrapper( [&menuData, classifiedTheme, classification, layer] (const TreeItem* supplier)->bool
+	// get all available classifications
+	SizeT candidateCounter = 0, tooManyCandidates = false;
+	auto funcWrapper = MakeFuncWrapper( [&menuData, classifiedTheme, classification, layer, &candidateCounter, &tooManyCandidates] (const TreeItem* supplier)->bool
 		{
+			if (candidateCounter++ > MAX_NR_CANDIDATES)
+			{
+				tooManyCandidates = true;
+				return true;
+			}
+			if (tooManyCandidates)
+				return true;
+
 			const AbstrDataItem* adi = AsDataItem(supplier);
-			dms_assert(adi);
+			assert(adi);
 			menuData.push_back(
 				MenuItem(adi->GetFullName()
 				,	MakeOwned<AbstrCmd, ActivateClassificationCmd>(adi, classifiedTheme)
@@ -306,6 +317,13 @@ void AddClassificationMenu(MenuData& menuData, AspectNr a, Theme* classifiedThem
 	);
 
 	DMS_DataItem_VisitClassBreakCandidates(themeAttr, funcWrapper.Callback, funcWrapper.Handle());
+	if (tooManyCandidates)
+		reportF(SeverityTypeID::ST_Warning, "AddClassificationMenu tried to add %d Class-Break-Candidates for %s of %s; only the first %d are shown"
+			, candidateCounter
+			, GetAspectName(a)
+			, themeAttr->GetSourceName()
+			, MAX_NR_CANDIDATES
+		);
 }
 
 void GraphicLayer::FillLcMenu(MenuData& menuData)
