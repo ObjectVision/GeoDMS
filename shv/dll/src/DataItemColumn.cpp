@@ -1355,7 +1355,7 @@ void DataItemColumn::GenerateValueInfo()
 	if (!activeTextAttr)
 	{
 		auto theme = GetEnabledTheme(AN_LabelText);
-		if (!theme->IsFailed())
+		if (theme && !theme->IsFailed())
 			theme->GetValueGetter()->GenerateValueInfo(recNo);
 		return;
 	}
