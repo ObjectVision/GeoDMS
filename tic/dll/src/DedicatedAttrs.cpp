@@ -135,7 +135,11 @@ TIC_CALL UInt32 DMS_CONV DMS_DataItem_VisitClassBreakCandidates(const AbstrDataI
 					return;
 				auto adi = AsDataItem(candidate);
 				auto candidateDomainUnit = adi->GetAbstrDomainUnit();
+				if (!candidateDomainUnit)
+					return;
 				const AbstrUnit* candidateValuesUnit = adi->GetAbstrValuesUnit();
+				if (!candidateValuesUnit)
+					return;
 				auto domainValueType = candidateDomainUnit->GetValueType();
 				if (domainValueType->GetNrDims() != 1) // no 2d raster domain
 					return;
@@ -149,7 +153,7 @@ TIC_CALL UInt32 DMS_CONV DMS_DataItem_VisitClassBreakCandidates(const AbstrDataI
 					|| IsClassBreakAttr(candidate) // class breaks ?
 					|| valuesUnit->UnifyDomain(candidateValuesUnit, "ClassBreak values", "Candidate Domain", UnifyMode())) // rlookup possible ?
 					if (callback(clientHandle, candidate))
-							++count;
+						++count;
 			};
 	
 		TreeItemSetType doneItems;
