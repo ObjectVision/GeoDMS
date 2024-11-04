@@ -1836,11 +1836,13 @@ namespace
 {
 	struct BpPolyOperatorGroup : CommonOperGroup
 	{
-		BpPolyOperatorGroup(CharPtr name, PolygonFlags flags)
+		BpPolyOperatorGroup(CharPtr name, PolygonFlags flags, bool isDepreciated)
 			: CommonOperGroup(name)
 			, m_Instances(this, flags)
 		{
 			SetBetterNotInMetaScripting();
+			if (isDepreciated)
+				m_Policy = oper_policy(m_Policy | oper_policy::depreciated);
 		}
 
 		tl_oper::inst_tuple_templ<typelists::sint_points, BpPolygonOperator, AbstrOperGroup*, PolygonFlags>
@@ -1931,9 +1933,9 @@ namespace
 		BpPolyOperatorGroup simplePO, unionPO, partitionedPO;
 
 		PolyOperatorGroups(WeakStr nameTempl, PolygonFlags flags)
-			: simplePO(mySSPrintF(nameTempl.c_str(), "").c_str(), flags)
-			, unionPO(mySSPrintF(nameTempl.c_str(), "union_").c_str(), PolygonFlags(flags | PolygonFlags::F_DoUnion))
-			, partitionedPO(mySSPrintF(nameTempl.c_str(), "partitioned_union_").c_str(), PolygonFlags(flags | PolygonFlags::F_DoPartUnion))
+			: simplePO(mySSPrintF(nameTempl.c_str(), "").c_str(), flags, true)
+			, unionPO(mySSPrintF(nameTempl.c_str(), "union_").c_str(), PolygonFlags(flags | PolygonFlags::F_DoUnion), true)
+			, partitionedPO(mySSPrintF(nameTempl.c_str(), "partitioned_union_").c_str(), PolygonFlags(flags | PolygonFlags::F_DoPartUnion), true)
 		{}
 	};
 	struct BpPolyOperatorGroups
@@ -1942,8 +1944,8 @@ namespace
 		BpPartionedAlternatives partitionedPO;
 
 		BpPolyOperatorGroups(WeakStr nameTempl, PolygonFlags flags)
-			: simplePO(mySSPrintF(nameTempl.c_str(), "").c_str(), flags)
-			, unionPO(mySSPrintF(nameTempl.c_str(), "union_").c_str(), PolygonFlags(flags | PolygonFlags::F_DoUnion))
+			: simplePO(mySSPrintF(nameTempl.c_str(), "").c_str(), flags, false)
+			, unionPO(mySSPrintF(nameTempl.c_str(), "union_").c_str(), PolygonFlags(flags | PolygonFlags::F_DoUnion), false)
 			, partitionedPO(&unionPO, PolygonFlags(flags | PolygonFlags::F_DoPartUnion))
 		{}
 	};

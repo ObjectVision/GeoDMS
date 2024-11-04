@@ -662,10 +662,10 @@ namespace {
 	CommonOperGroup cog_select_64_with_org_rel(token::select_uint64_with_org_rel);
 
 	// Partly DEPRECIATED VARIANTS of select BEGIN
-	CommonOperGroup cog_subset_xx("subset", oper_policy::dynamic_result_class);
-	Obsolete<CommonOperGroup> cog_subset_08("use select_uint8_with_org_rel", "subset_uint8", oper_policy::depreciated);
-	Obsolete<CommonOperGroup> cog_subset_16("use select_uint16_with_org_rel", "subset_uint16", oper_policy::depreciated);
-	Obsolete<CommonOperGroup> cog_subset_32("use select_uint32_with_org_rel", "subset_uint32", oper_policy::depreciated);
+	Obsolete<CommonOperGroup> cog_subset_xx("use select_with_org_rel or select and use collect_by_cond for collecting selected attribute values", "subset", oper_policy::dynamic_result_class| oper_policy::depreciated);
+	Obsolete<CommonOperGroup> cog_subset_08("use select_uint8_with_org_rel or select_uint8 and use collect_by_cond for collecting selected attribute values", "subset_uint8", oper_policy::depreciated);
+	Obsolete<CommonOperGroup> cog_subset_16("use select_uint16_with_org_rel or select_uint16 and use collect_by_cond for collecting selected attribute values", "subset_uint16", oper_policy::depreciated);
+	Obsolete<CommonOperGroup> cog_subset_32("use select_uint32_with_org_rel or select_uint32 and use collect_by_cond for collecting selected attribute values", "subset_uint32", oper_policy::depreciated);
 
 	Obsolete<CommonOperGroup> cog_subset_Unit_xx("use select", token::select_unit, oper_policy::dynamic_result_class | oper_policy::depreciated);
 	Obsolete<CommonOperGroup> cog_subset_Unit_08("use select_uint8", token::select_unit_uint8, oper_policy::depreciated);
