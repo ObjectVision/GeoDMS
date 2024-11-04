@@ -76,7 +76,8 @@ struct AbstrDirectPotentialOperator : public BinaryOperator
 			IRect         dataRect = resDomainUnit->GetRangeAsIRect();
 			IRect         weightRect = weightDomain->GetRangeAsIRect();
 			SharedStr     strWeightRect = AsString(weightRect);
-			CDebugContextHandle dch1("OperPot", strWeightRect.c_str(), true);
+
+			reportF(SeverityTypeID::ST_MinorTrace, "%s %s", GetGroup()->GetNameStr(), strWeightRect.c_str());
 
 			ArgFlags af = dataGridA->HasUndefinedValues() ? AF1_HASUNDEFINED : ArgFlags();
 
