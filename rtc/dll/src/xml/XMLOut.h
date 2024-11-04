@@ -22,9 +22,10 @@
 #define __XML_XMLOUT_H
 
 #include "dbg/Check.h"
-#include "ser/FormattedStream.h"
 #include "ptr/OwningPtr.h"
 #include "ptr/SharedStr.h"
+#include "ser/FormattedStream.h"
+#include "utl/mySPrintF.h"
 
 struct XML_OutElement;
 class ImpStreamBuff;
@@ -276,6 +277,24 @@ private:
 
 class AbstrPropDef;
 class Class;
+
+// *****************************************************************************
+// ********** XML structs                                             **********
+// *****************************************************************************
+
+inline SharedStr ItemUrl(CharPtr itemName)
+{
+	return mySSPrintF("dms:dp.general:%s", *itemName ? itemName : "/");
+}
+
+
+inline SharedStr ItemUrl(CharPtrRange itemName)
+{
+	if (!itemName.size())
+		return ItemUrl(CharPtr());
+
+	return mySSPrintF("dms:dp.general:%s", itemName);
+}
 
 //----------------------------------------------------------------------
 // C-Style interface 

@@ -22,16 +22,6 @@ TIC_CALL BestItemRef TreeItem_GetErrorSource(const TreeItem* src, bool tryCalcSu
 #define CLR_BODY "#DDD2D0"
 #define CLR_HROW "#FFFFE0"
 
-// *****************************************************************************
-// ********** XML structs                                             **********
-// *****************************************************************************
-
-
-inline SharedStr ItemUrl(CharPtr itemName)
-{
-	return mySSPrintF("dms:dp.general:%s", *itemName ? itemName : "/");
-}
-
 inline SharedStr ItemUrl(const TreeItem* item)
 {
 	return ItemUrl(item->GetFullName().c_str());

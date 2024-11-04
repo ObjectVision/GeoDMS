@@ -204,7 +204,7 @@ TreeItemDualRefContextHandle::~TreeItemDualRefContextHandle()
 	s_CurrTreeItemDualRef = m_PrevRef;
 }
 
-bool TreeItemDualRefContextHandle::HasBackRef()\
+bool TreeItemDualRefContextHandle::HasBackRef()
 {
 	return s_CurrTreeItemDualRef && s_CurrTreeItemDualRef->HasBackRef();
 }

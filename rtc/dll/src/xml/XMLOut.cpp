@@ -259,33 +259,53 @@ void OutStream_XmlBase::WriteValueWithConfigSourceDecorations(CharPtr data)
 		auto currLineEnd = std::find(data+currPos, data+dataSize, '\n')-data;
 
 		auto lineView = std::string_view(data + currPos, data+currLineEnd);
-		auto round_bracked_open_pos = lineView.find_first_of('(');
-		auto comma_pos = lineView.find_first_of(',');
-		auto round_bracked_close_pos = lineView.find_first_of(')');
-		auto illegal_anglebracketopen_pos = lineView.find_first_of('<');
-		auto illegal_anglebracketclose_pos = lineView.find_first_of('>');
-		auto illegal_placeholder_symbol_pos = lineView.find_first_of('%');
-		auto illegal_symbol_pos = Min(illegal_anglebracketopen_pos, Min(illegal_anglebracketclose_pos, illegal_placeholder_symbol_pos));
-		static_assert(std::string::npos > 0);
 
-		if (round_bracked_open_pos < comma_pos 
-			&& comma_pos < round_bracked_close_pos 
-			&& round_bracked_close_pos < illegal_symbol_pos
-			)
+		auto currDoubleOpenBracketPos = lineView.find_first_of("[[", 0, 2);
+		if (currDoubleOpenBracketPos < lineView.size())
 		{
-//			auto filename = lineView.substr(0, round_bracked_open_pos);
-//			auto line_number = lineView.substr(round_bracked_open_pos + 1, comma_pos - (round_bracked_open_pos + 1));
-//			auto col_number = lineView.substr(comma_pos + 1, round_bracked_close_pos - (comma_pos + 1));
+			auto currDoubleCloseBracketPos = lineView.find_first_of("]]", currDoubleOpenBracketPos+2, 2);
+			if (currDoubleCloseBracketPos < lineView.size())
+			{
+				auto itemRef = CharPtrRange(data + currPos + currDoubleOpenBracketPos + 2, data + currPos + currDoubleCloseBracketPos);
+				auto gotoUrl = ItemUrl(itemRef);
+				OutStream_XmlBase_WriteEncoded(this, data + currPos, data + currPos + currDoubleOpenBracketPos);
 
-			auto currEnd = currPos + round_bracked_close_pos + 1;
-			auto ecfRef = CharPtrRange(data + currPos, data + currEnd);
-			auto ecsURL = mySSPrintF("editConfigSource:%s", ecfRef);
+				XML_hRef sourceRef(*this, gotoUrl.AsRange());
+				CloseAttrList();
+				OutStream_XmlBase_WriteEncoded(this, itemRef.first, itemRef.second);
+				currPos = currPos + currDoubleCloseBracketPos + 2;
+			}
+		}
+		else
+		{
+			auto round_bracked_open_pos = lineView.find_first_of('(');
+			auto comma_pos = lineView.find_first_of(',');
+			auto round_bracked_close_pos = lineView.find_first_of(')');
+			auto illegal_anglebracketopen_pos = lineView.find_first_of('<');
+			auto illegal_anglebracketclose_pos = lineView.find_first_of('>');
+			auto illegal_placeholder_symbol_pos = lineView.find_first_of('%');
+			auto illegal_symbol_pos = Min(illegal_anglebracketopen_pos, Min(illegal_anglebracketclose_pos, illegal_placeholder_symbol_pos));
+			static_assert(std::string::npos > 0);
 
-			XML_hRef hRef(*this, ecsURL.AsRange());
-			CloseAttrList();
+			if (round_bracked_open_pos < comma_pos
+				&& comma_pos < round_bracked_close_pos
+				&& round_bracked_close_pos < illegal_symbol_pos
+				)
+			{
+				//			auto filename = lineView.substr(0, round_bracked_open_pos);
+				//			auto line_number = lineView.substr(round_bracked_open_pos + 1, comma_pos - (round_bracked_open_pos + 1));
+				//			auto col_number = lineView.substr(comma_pos + 1, round_bracked_close_pos - (comma_pos + 1));
 
-			OutStream_XmlBase_WriteEncoded(this, ecfRef.first, ecfRef.second);
-			currPos = currEnd;
+				auto currEnd = currPos + round_bracked_close_pos + 1;
+				auto ecfRef = CharPtrRange(data + currPos, data + currEnd);
+				auto ecsURL = mySSPrintF("editConfigSource:%s", ecfRef);
+
+				XML_hRef hRef(*this, ecsURL.AsRange());
+				CloseAttrList();
+
+				OutStream_XmlBase_WriteEncoded(this, ecfRef.first, ecfRef.second);
+				currPos = currEnd;
+			}
 		}
 
 		OutStream_XmlBase_WriteEncoded(this, data+currPos, data + currLineEnd + 1);
