@@ -62,6 +62,12 @@ bool LayerInfoControl::MouseEvent(MouseEventDispatcher& med)
 {
 	if (med.GetEventInfo().m_EventID & EventID::LBUTTONDBLCLK)
 	{
+		if (auto owner = GetOwner().lock())
+			if (auto lc = dynamic_cast<LayerControl*>(owner.get()))
+				if (auto layer = lc->GetLayer())
+					if (!layer->IsVisible())
+						return false; // let layer be activated first
+
 		ExplainValue();
 		return GVS_Handled;
 	}
