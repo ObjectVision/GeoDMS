@@ -260,10 +260,10 @@ void OutStream_XmlBase::WriteValueWithConfigSourceDecorations(CharPtr data)
 
 		auto lineView = std::string_view(data + currPos, data+currLineEnd);
 
-		auto currDoubleOpenBracketPos = lineView.find_first_of("[[", 0, 2);
+		auto currDoubleOpenBracketPos = lineView.find("[[", 0, 2);
 		if (currDoubleOpenBracketPos < lineView.size())
 		{
-			auto currDoubleCloseBracketPos = lineView.find_first_of("]]", currDoubleOpenBracketPos+2, 2);
+			auto currDoubleCloseBracketPos = lineView.find("]]", currDoubleOpenBracketPos+2, 2);
 			if (currDoubleCloseBracketPos < lineView.size())
 			{
 				auto itemRef = CharPtrRange(data + currPos + currDoubleOpenBracketPos + 2, data + currPos + currDoubleCloseBracketPos);
@@ -278,12 +278,12 @@ void OutStream_XmlBase::WriteValueWithConfigSourceDecorations(CharPtr data)
 		}
 		else
 		{
-			auto round_bracked_open_pos = lineView.find_first_of('(');
-			auto comma_pos = lineView.find_first_of(',');
-			auto round_bracked_close_pos = lineView.find_first_of(')');
-			auto illegal_anglebracketopen_pos = lineView.find_first_of('<');
-			auto illegal_anglebracketclose_pos = lineView.find_first_of('>');
-			auto illegal_placeholder_symbol_pos = lineView.find_first_of('%');
+			auto round_bracked_open_pos = lineView.find('(');
+			auto comma_pos = lineView.find(',');
+			auto round_bracked_close_pos = lineView.find(')');
+			auto illegal_anglebracketopen_pos = lineView.find('<');
+			auto illegal_anglebracketclose_pos = lineView.find('>');
+			auto illegal_placeholder_symbol_pos = lineView.find('%');
 			auto illegal_symbol_pos = Min(illegal_anglebracketopen_pos, Min(illegal_anglebracketclose_pos, illegal_placeholder_symbol_pos));
 			static_assert(std::string::npos > 0);
 

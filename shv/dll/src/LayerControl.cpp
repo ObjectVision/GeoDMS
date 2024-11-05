@@ -66,7 +66,7 @@ bool LayerInfoControl::MouseEvent(MouseEventDispatcher& med)
 			if (auto lc = dynamic_cast<LayerControl*>(owner.get()))
 				if (auto layer = lc->GetLayer())
 					if (!layer->IsVisible())
-						return false; // let layer be activated first
+						return false; // let layer be made visible first
 
 		ExplainValue();
 		return GVS_Handled;
@@ -383,8 +383,15 @@ COLORREF LayerControl::GetBkColor() const
 
 	if (m_Layer->ShowSelectedOnly())
 		return DmsColor2COLORREF( STG_Bmp_GetDefaultColor( true ) );
-	return 
-		base_type::GetBkColor();
+	auto bkColor = base_type::GetBkColor();
+	if (m_Layer->IsVisible())
+	{
+		bkColor = bkColor & 0xFF000000
+			| (((bkColor & 0x00FF0000) >> 16) * 7 / 8 << 16)
+			| (((bkColor & 0x0000FF00) >>  8) * 7 / 8 <<  8)
+			| (((bkColor & 0x000000FF) >>  0) * 7 / 8 <<  0);
+	}
+	return bkColor;
 }
 
 void LayerControl::OnDetailsVisibilityChanged()
