@@ -304,7 +304,7 @@ namespace Grid {
 		//	tilestrip height (tiff pixels)
 		UInt32 stripHeight = Min<UInt32>(MAX_STRIP_SIZE, Height(readRectInGrid));
 		UInt32 stripWidth = Width(readRectInGrid);
-		UInt32 stripBufferSize = stripWidth * stripHeight;
+		SizeT stripBufferSize = CheckedMul<SizeT>( stripWidth,  stripHeight, false);
 		//	buffer for reading from m_TiffHandle
 		OwningPtrSizedArray<T> stripBuffer( stripBufferSize, dont_initialize MG_DEBUG_ALLOCATOR_SRC("GridStorageManager.ReadData: stripBuffer"));
 		MG_DEBUGCODE(fast_fill(stripBuffer.begin(), stripBuffer.begin() + stripBufferSize, defaultColor)); // DEBUG
