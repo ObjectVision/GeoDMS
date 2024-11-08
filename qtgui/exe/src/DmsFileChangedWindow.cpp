@@ -37,7 +37,7 @@ void DmsFileChangedWindow::setFileChangedMessage(std::string_view changed_files)
     std::string file_changed_message_markdown = "The following files have been changed:\n\n";
     size_t curr_pos = 0;
     while (curr_pos < changed_files.size()) {
-        auto curr_line_end = changed_files.find_first_of('\n', curr_pos);
+        auto curr_line_end = changed_files.find('\n', curr_pos);
         auto link = std::string(changed_files.substr(curr_pos, curr_line_end - curr_pos));
         file_changed_message_markdown += "[" + link + "](" + link + ")\n\n";
         curr_pos = curr_line_end + 1;

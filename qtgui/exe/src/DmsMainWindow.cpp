@@ -1217,14 +1217,14 @@ auto getLinkFromErrorMessage(std::string_view error_message, unsigned int lineNu
     std::size_t currPos = 0, currLineNumber = 0;
     link_info lastFoundLink;
     while (currPos < error_message.size()) {
-        auto currLineEnd = error_message.find_first_of('\n', currPos);
+        auto currLineEnd = error_message.find('\n', currPos);
         if (currLineEnd == std::string::npos)
             currLineEnd = error_message.size();
 
         auto lineView = std::string_view(&error_message[currPos], currLineEnd - currPos);
-        auto round_bracked_open_pos = lineView.find_first_of('(');
-        auto comma_pos = lineView.find_first_of(',');
-        auto round_bracked_close_pos = lineView.find_first_of(')');
+        auto round_bracked_open_pos = lineView.find('(');
+        auto comma_pos = lineView.find(',');
+        auto round_bracked_close_pos = lineView.find(')');
 
         if (round_bracked_open_pos < comma_pos && comma_pos < round_bracked_close_pos && round_bracked_close_pos != std::string::npos) {
             auto filename = lineView.substr(0, round_bracked_open_pos);
@@ -1307,7 +1307,9 @@ void MainWindow::onInternalLinkClick(const QUrl& link, QWidget* origin) {
 void EditPropValue(TreeItem* /*tiContext*/, CharPtrRange /*url*/, SizeT /*recNo*/) {}
 void PopupTable(SizeT /*recNo*/) {}
 void MainWindow::doViewAction(TreeItem* tiContext, CharPtrRange sAction, QWidget* origin) {
-    assert(tiContext);
+    if (!tiContext)
+        return;
+
     SuspendTrigger::Resume();
 
     auto colonPos = std::find(sAction.begin(), sAction.end(), ':');

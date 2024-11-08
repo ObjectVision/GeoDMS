@@ -634,11 +634,11 @@ void DmsEventLog::onItemClicked(const QModelIndex& index)
 	const MsgData& item_data = MainWindow::TheOne()->m_eventlog_model->dataFiltered(row);
 
 	auto log_item_message_view = std::string_view(item_data.m_Txt);
-	auto link_start_index = log_item_message_view.find_first_of("[[");
+	auto link_start_index = log_item_message_view.find("[[", 0, 2);
 	if (link_start_index == std::string::npos)
 		return;
 	
-	auto link_end_index = log_item_message_view.find_first_of("]]", link_start_index+2);
+	auto link_end_index = log_item_message_view.find("]]", link_start_index+2, 2);
 	if (link_end_index == std::string::npos)
 		return;
 
