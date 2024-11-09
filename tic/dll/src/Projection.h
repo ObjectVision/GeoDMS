@@ -1,4 +1,4 @@
-// Copyright (C) 1998-2023 Object Vision b.v. 
+// Copyright (C) 1998-2024 Object Vision b.v. 
 // License: GNU GPL 3
 /////////////////////////////////////////////////////////////////////////////
 
@@ -40,7 +40,6 @@ public:
 	TIC_CALL const AbstrUnit* GetCompositeBase() const;
 
 	TIC_CALL auto GetUnitlabeledScalePair() const->UnitLabelScalePair;
-
 	
 private:
 	SharedPtr<const AbstrUnit> m_BaseUnit;
@@ -48,5 +47,8 @@ private:
 
 FormattedOutStream& operator <<(FormattedOutStream& str, const UnitProjection& repr);
 
+TIC_CALL const AbstrUnit* GetWorldCrdUnitFromGeoUnit(const AbstrUnit* geoUnit);
+TIC_CALL const AbstrUnit* GetCurrWorldCrdUnitFromGeoUnit(const AbstrUnit* geoUnit);
+TIC_CALL CrdTransformation GetGeoTransformation(const AbstrUnit* geoUnit);
 
 #endif // __TIC_PROJECTION_H

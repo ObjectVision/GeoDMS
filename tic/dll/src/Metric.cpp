@@ -436,3 +436,43 @@ FormattedOutStream& operator <<(FormattedOutStream& str, const UnitProjection& r
 	str << repr.Factor() << "*" << repr.GetBaseUnit()->GetNameOrCurrMetric(str.GetFormattingFlags()) << "+" << repr.Offset();
 	return str;
 }
+
+// =================================================================
+
+const AbstrUnit* GetWorldCrdUnitFromGeoUnit(const AbstrUnit* geoUnit)
+{
+	if (!geoUnit)
+		return nullptr;
+
+	const UnitProjection* proj = geoUnit->GetProjection();
+	if (proj)
+	{
+		geoUnit = proj->GetCompositeBase();
+		assert(geoUnit);                   // projection always has a BaseUnit, guaranteed by constructors of UnitProjection!
+	}
+
+	return AsUnit(geoUnit->GetUltimateSourceItem());
+}
+
+const AbstrUnit* GetCurrWorldCrdUnitFromGeoUnit(const AbstrUnit* geoUnit)
+{
+	if (!geoUnit)
+		return nullptr;
+
+	const UnitProjection* proj = geoUnit->GetCurrProjection();
+	if (proj)
+	{
+		geoUnit = proj->GetCompositeBase();
+		assert(geoUnit);                   // projection always has a BaseUnit, guaranteed by constructors of UnitProjection!
+	}
+
+	return AsUnit(geoUnit->GetCurrUltimateSourceItem());
+}
+
+CrdTransformation GetGeoTransformation(const AbstrUnit* geoUnit)
+{
+	assert(geoUnit);
+	assert(geoUnit->GetNrDimensions() == 2);
+
+	return UnitProjection::GetCompositeTransform(geoUnit->GetProjection()); // grid to world transformer
+}

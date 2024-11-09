@@ -492,7 +492,7 @@ bool CreateTreeItemColumnInfo(TreeItem* tiTable, CharPtr colName, const AbstrUni
 		return res;
 	}
 	const AbstrUnit* valuesUnit = UnitClass::Find(dbValuesClass)->CreateDefault();
-	dms_assert(valuesUnit);
+	assert(valuesUnit);
 	return CreateDataItem(tiTable, GetTokenID_mt(colName),	domainUnit, valuesUnit) != nullptr;
 }
 
@@ -503,12 +503,12 @@ bool CreateTreeItemColumnInfo(TreeItem* tiTable, CharPtr colName, const AbstrUni
 template <typename Int>
 ViewPortInfoEx<Int>::ViewPortInfoEx(const TreeItem* context, const AbstrUnit* currDomain, tile_id tc, const AbstrUnit* gridDomain, tile_id tg, StorageMetaInfoPtr smi, bool correctGridOffset, bool mustCheck, countcolor_t cc, bool queryActualGridDomain)
 {
-	dms_assert(queryActualGridDomain || !IsDefined(tg));
-	dms_assert(!gridDomain || gridDomain == gridDomain->GetCurrRangeItem());
-	dms_assert(!currDomain || currDomain == currDomain->GetCurrRangeItem());
-	dms_assert(queryActualGridDomain || !correctGridOffset);
-	dms_assert(queryActualGridDomain || tg == no_tile);
-	dms_assert(!correctGridOffset || queryActualGridDomain);
+	assert(queryActualGridDomain || !IsDefined(tg));
+	assert(!gridDomain || gridDomain == gridDomain->GetCurrRangeItem());
+	assert(!currDomain || currDomain == currDomain->GetCurrRangeItem());
+	assert(queryActualGridDomain || !correctGridOffset);
+	assert(queryActualGridDomain || tg == no_tile);
+	assert(!correctGridOffset || queryActualGridDomain);
 
 	this->m_smi = smi;
 
@@ -517,25 +517,31 @@ ViewPortInfoEx<Int>::ViewPortInfoEx(const TreeItem* context, const AbstrUnit* cu
 	else
 		m_GridExtents = rect_type(MIN_VALUE(ViewPortInfoEx::point_type), MAX_VALUE(ViewPortInfoEx::point_type));
 
-	const UnitProjection* currProj = currDomain ? currDomain->GetCurrProjection() : nullptr;
-	const UnitProjection* gridProj = gridDomain ? gridDomain->GetCurrProjection() : nullptr;
-	const AbstrUnit* currBase = currProj ? currProj->GetCompositeBase() : currDomain;
-	const AbstrUnit* gridBase = gridProj ? gridProj->GetCompositeBase() : gridDomain;
+	const AbstrUnit* currBase = GetCurrWorldCrdUnitFromGeoUnit(currDomain);
+	const AbstrUnit* gridBase = GetCurrWorldCrdUnitFromGeoUnit(gridDomain);
 
 	if (mustCheck)
 	{
-		if (currBase && gridBase && !currBase->UnifyDomain(gridBase, "", "", UM_AllowAllEqualCount))
-			context->throwItemErrorF("ProjectionBase %s incompatible with ProjectionBase %s of GridDomain", currBase->GetName().c_str(), gridBase->GetName().c_str());
+		if (currBase && gridBase && currBase != gridBase)
+			context->throwItemErrorF("ProjectionBase %s of %s incompatible with ProjectionBase %s of %s."
+				, currBase->GetName().c_str()
+				, currDomain->GetName().c_str()
+				, gridBase->GetName().c_str()
+				, gridDomain->GetName().c_str()
+			);
 		if (tc == no_tile)
 			return;
 	}
 	else
 	{
-		dms_assert(!currBase || currBase->Was(PS_MetaInfo));
-		dms_assert(!gridBase || gridBase->Was(PS_MetaInfo));
+		assert(!currBase || currBase->Was(PS_MetaInfo));
+		assert(!gridBase || gridBase->Was(PS_MetaInfo));
 	}
 
 	//	Projections in world coords
+	const UnitProjection* currProj = currDomain ? currDomain->GetCurrProjection() : nullptr;
+	const UnitProjection* gridProj = gridDomain ? gridDomain->GetCurrProjection() : nullptr;
+
 	CrdTransformation fileRasterProj2World = UnitProjection::GetCompositeTransform(gridProj);
 	CrdTransformation viewPortProj2World   = UnitProjection::GetCompositeTransform(currProj);
 
@@ -584,8 +590,8 @@ ViewPortInfoProvider::ViewPortInfoProvider(const TreeItem * storageHolder, const
 	, m_QueryActualGridDomain(queryActualRange)
 {
 	// PRECONDIDION
-	dms_assert(storageHolder);
-	dms_assert(adi);
+	assert(storageHolder);
+	assert(adi);
 
 	// Domain of column & grid
 	SharedUnitInterestPtr currDomain = CheckedGridDomain(adi); dms_assert(currDomain);
@@ -599,6 +605,16 @@ ViewPortInfoProvider::ViewPortInfoProvider(const TreeItem * storageHolder, const
 
 	m_CurrDomain = currDomain;
 	m_GridDomain = gridDomain;
+
+	const AbstrUnit* currBase = GetWorldCrdUnitFromGeoUnit(currDomain);
+	const AbstrUnit* gridBase = GetWorldCrdUnitFromGeoUnit(gridDomain);
+	if (currBase && gridBase && currBase != gridBase)
+		adi->throwItemErrorF("ProjectionBase %s of %s incompatible with ProjectionBase %s of %s."
+			, currBase->GetName().c_str()
+			, currDomain->GetName().c_str()
+			, gridBase->GetName().c_str()
+			, gridDomain->GetName().c_str()
+		);
 
 	//	extents of the file raster
 	gridDomain->PrepareDataUsage(DrlType::Certain);

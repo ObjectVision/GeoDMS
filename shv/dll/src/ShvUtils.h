@@ -62,8 +62,6 @@ void CreateGotoAction(const TreeItem* tiContext);
 // section : Transform to projection
 //----------------------------------------------------------------------
 
-const AbstrUnit* GetWorldCrdUnitFromGeoUnit(const AbstrUnit* geoUnit);
-CrdTransformation GetGeoTransformation(const AbstrUnit* geoUnit);
 CrdRect AsWorldExtents(const CrdRect& geoExtents, const UnitProjection* proj);
 CrdRect AsWorldExtents(const CrdRect& geoExtents, const AbstrUnit* geoUnit);
 grid_coord_key GetGridCoordKey(const AbstrUnit* geoUnit);

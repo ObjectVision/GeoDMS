@@ -147,29 +147,6 @@ FormattedOutStream& operator <<(FormattedOutStream& os, const TPoint& point)
 // section : Transform to projection
 //----------------------------------------------------------------------
 
-const AbstrUnit* GetWorldCrdUnitFromGeoUnit(const AbstrUnit* geoUnit)
-{
-	if (!geoUnit)
-		return nullptr;
-
-	const UnitProjection* proj = geoUnit->GetProjection();
-	if (proj)
-	{
-		geoUnit = proj->GetCompositeBase();
-		assert(geoUnit);                   // projection always has a BaseUnit, guaranteed by constructors of UnitProjection!
-	}
-
-	return AsUnit(geoUnit->GetUltimateSourceItem());
-}
-
-CrdTransformation GetGeoTransformation(const AbstrUnit* geoUnit)
-{
-	dms_assert(geoUnit);
-	dms_assert(geoUnit->GetNrDimensions() == 2);
-
-	return UnitProjection::GetCompositeTransform(geoUnit->GetProjection()); // grid to world transformer
-}
-
 grid_coord_key GetGridCoordKey(const AbstrUnit* geoUnit) 
 {
 	return grid_coord_key(GetGeoTransformation(geoUnit), geoUnit->GetRangeAsIRect());

@@ -43,9 +43,7 @@ struct gdalComponent
 
 	static bool isActive();
 
-	STGDLL_CALL static void CreateMetaInfo(TreeItem* container, bool mustCalc);
-	
-	std::vector<std::pair<SharedStr, SharedStr>> m_test;
+	STGDLL_CALL static void CreateMetaInfo(TreeItem* container, bool mustCalc);	
 };
 
 struct pj_ctx;
