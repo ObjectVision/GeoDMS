@@ -606,18 +606,21 @@ ViewPortInfoProvider::ViewPortInfoProvider(const TreeItem * storageHolder, const
 	m_CurrDomain = currDomain;
 	m_GridDomain = gridDomain;
 
-/*
+
 	const AbstrUnit* currBase = GetWorldCrdUnitFromGeoUnit(currDomain);
 	const AbstrUnit* gridBase = GetWorldCrdUnitFromGeoUnit(gridDomain);
 
-	if (currBase && gridBase && !currBase->UnifyDomain(gridBase"", "", UM_AllowAllEqualCount)))
-		adi->throwItemErrorF("ProjectionBase %s of %s incompatible with ProjectionBase %s of %s."
-			, currBase->GetName().c_str()
-			, currDomain->GetName().c_str()
-			, gridBase->GetName().c_str()
-			, gridDomain->GetName().c_str()
+	if (currBase && gridBase) 
+	{
+		auto sr1 = currBase->GetSpatialReference();
+		auto sr2 = gridBase->GetSpatialReference();
+		if (!sr1.empty() && !sr2.empty() && sr1 != sr2)
+		adi->throwItemErrorF("SpatialReference %s of %s incompatible with SpatialReference %s of %s."
+		, sr1, currDomain->GetName().c_str()
+		, sr2, gridDomain->GetName().c_str()
 		);
-*/	
+	}
+	
 
 	//	extents of the file raster
 	gridDomain->PrepareDataUsage(DrlType::Certain);
