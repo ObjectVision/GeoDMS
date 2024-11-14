@@ -42,6 +42,7 @@ granted by an additional written contract for support, assistance and/or develop
 
 #include "act/MainThread.h"
 #include "xml/XmlTreeOut.h"
+#include "dbg/DmsCatch.h"
 
 ///////////////////////////////////////////////////////////////////////////////
 //
@@ -117,7 +118,11 @@ SYNTAX_CALL void annotateExpr(OutStreamBase& outStream, const TreeItem* searchCo
 			, comment_skipper()
 		);
 	}
-	catch (...){}
+	catch (...)
+	{
+		auto err = catchException(false);
+		outStream << "Error: " << err->GetAsText().c_str() << "\nwhile annotating " << expr.c_str();
+	}
 }
 
 namespace {
