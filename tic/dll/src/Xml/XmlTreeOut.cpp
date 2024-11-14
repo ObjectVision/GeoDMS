@@ -462,7 +462,10 @@ const TreeItem* WriteExprOrSourceDescrAndReturnSourceItem(OutStreamBase& stream,
 		if (calc->IsDataBlock())
 			stream << "[ ... ]";
 		else
-			stream << calc->GetAsFLispExprOrg(FormattingFlags::ThousandSeparator).c_str();
+		{
+			auto exprStr = calc->GetAsFLispExprOrg(FormattingFlags::ThousandSeparator);
+			s_AnnotateExprFunc(stream, AbstrCalculator::GetSearchContext(ti, CalcRole::Calculator), exprStr);
+		}
 	}
 	return nullptr;
 }

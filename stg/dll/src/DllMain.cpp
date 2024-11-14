@@ -614,11 +614,11 @@ ViewPortInfoProvider::ViewPortInfoProvider(const TreeItem * storageHolder, const
 	{
 		auto sr1 = currBase->GetSpatialReference();
 		auto sr2 = gridBase->GetSpatialReference();
-		if (!sr1.empty() && !sr2.empty() && sr1 != sr2)
-		adi->throwItemErrorF("SpatialReference %s of %s incompatible with SpatialReference %s of %s."
-		, sr1, currDomain->GetName().c_str()
-		, sr2, gridDomain->GetName().c_str()
-		);
+		if (sr1 && sr2 && sr1 != sr2)
+			adi->throwItemErrorF("SpatialReference %s of %s incompatible with SpatialReference %s of %s."
+			, sr1, currDomain->GetName().c_str()
+			, sr2, gridDomain->GetName().c_str()
+			);
 	}
 	
 
