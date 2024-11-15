@@ -49,7 +49,7 @@ enum class SupplierVisitFlag
 	DIALOGDATA  = 0x4000,
 	ImplSuppliers = 0x8000, // implicit suppliers
 
-	CalcErrorSearch   = Update | ImplSuppliers,
+	CalcErrorSearch   = Update | ImplSuppliers | Checker,
 
 	MetaAll     = Signature | TemplateOrg | CDF | DIALOGDATA | ImplSuppliers | NamedSuppliers,
 	All         = CalcAll | MetaAll,

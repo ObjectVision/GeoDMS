@@ -1102,10 +1102,10 @@ TIC_CALL BestItemRef TreeItem_GetErrorSource(const TreeItem* src, bool tryCalcSu
 
 	// try all suppliers
 	const TreeItem* errorneousItem = nullptr;
-	auto errorChecker = [&errorneousItem](const Actor* a)
+	auto errorChecker = [src, &errorneousItem](const Actor* a)
 		{
 			auto ti = dynamic_cast<const TreeItem*>(a);
-			if (ti && !ti->IsCacheItem() && WasInFailed(ti))
+			if (ti && !ti->IsCacheItem() && WasInFailed(ti) && ti != src)
 			{
 				errorneousItem = ti;
 				return  AVS_SuspendedOrFailed;

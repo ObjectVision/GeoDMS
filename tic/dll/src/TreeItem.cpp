@@ -2947,11 +2947,14 @@ ActorVisitState TreeItem::VisitSuppliers(SupplierVisitFlag svf, const ActorVisit
 	if (Test(svf, SupplierVisitFlag::Checker) && HasIntegrityChecker())
 	{
 		auto ic = GetIntegrityChecker();
+		if (ic->VisitSuppliers(svf, visitor) == AVS_SuspendedOrFailed)
+			return AVS_SuspendedOrFailed;
+
 		auto dc = MakeResult(ic);
 		if (dc->WasFailed(FR_MetaInfo))
 		{
 			Fail(dc);
-			return AVS_SuspendedOrFailed;
+//			return AVS_SuspendedOrFailed;
 		}
 		if (visitor.Visit(dc) != AVS_Ready)
 			return AVS_SuspendedOrFailed;
