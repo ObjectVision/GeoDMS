@@ -947,7 +947,7 @@ void AbstrUnit::SetRangeAsDRect(const DRect& rect)
 }
 
 
-SharedStr AbstrUnit::GetRangeAsStr() const
+SharedStr AbstrUnit::GetRangeAsStr(FormattingFlags ff) const
 {
 	throwIllegalAbstract(MG_POS, this, "GetRangeAsStr"); 
 }

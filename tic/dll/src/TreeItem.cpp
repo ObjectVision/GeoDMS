@@ -3912,7 +3912,7 @@ void TreeItem::XML_Dump(OutStreamBase* xmlOutStr, bool dumpSubTags) const
 			TreeItemInterestPtr xholder(this);
 			this->PrepareDataUsage(DrlType::Certain);
 
-			xmlOutStr->DumpSubTag("Range", au->GetRangeAsStr().c_str(), false);
+			xmlOutStr->DumpSubTag("Range", au->GetRangeAsStr(FormattingFlags::None).c_str(), false);
 		}
 	}
 

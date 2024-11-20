@@ -155,7 +155,6 @@ public:
 
 		if (m_Provider)
 		{
-
 			m_Provider->free(m_Data);
 			assert(m_Data.empty());
 		}

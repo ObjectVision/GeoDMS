@@ -179,7 +179,7 @@ public:
 	TIC_CALL void SetRangeAsDRect(const DRect& rect);
 
 //	Generalization
-	virtual SharedStr GetRangeAsStr() const;
+	virtual SharedStr GetRangeAsStr(FormattingFlags ff) const;
 
 	void AddDataItemOut(const AbstrDataItem* item) const;
 	void DelDataItemOut(const AbstrDataItem* item) const;

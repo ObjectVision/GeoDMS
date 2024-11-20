@@ -211,7 +211,7 @@ void WriteNumericAccuData(PostLinkedTable& table, const f64_accumulator& accu, c
 {
 	auto vu = di->GetAbstrValuesUnit();
 	auto metricPtr = vu->GetMetric();
-	table.NameValueRow(mySSPrintF("Formal Range %s",  vu->GetName().c_str()).c_str(), di->GetAbstrValuesUnit()->GetRangeAsStr().c_str());
+	table.NameValueRow(mySSPrintF("Formal Range %s",  vu->GetName().c_str()).c_str(), di->GetAbstrValuesUnit()->GetRangeAsStr(FormattingFlags::ThousandSeparator).c_str());
 	if (metricPtr)
 		table.NameValueRow("Metric Units", metricPtr->AsString(FormattingFlags::ThousandSeparator).c_str());
 

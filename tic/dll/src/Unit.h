@@ -86,7 +86,7 @@ struct RangedUnit : UnitBase<V>
 
 	bool HasVarRange() const override { return true; }
 
-	SharedStr GetRangeAsStr() const override { return AsString(GetRange()); }
+	SharedStr GetRangeAsStr(FormattingFlags ff) const override { return AsString(GetRange(), ff); }
 
 	const UnitMetric* GetMetric() const override;
 	const UnitMetric* GetCurrMetric() const override;
@@ -279,7 +279,7 @@ struct BitUnitBase : UnitBase<bit_value<N>>
 
 	range_t GetTileRange(tile_id t) const { dms_assert(t == 0); return range_t(0, elem_count); }
 
-	SharedStr GetRangeAsStr() const override { return AsString(GetRange()); }
+	SharedStr GetRangeAsStr(FormattingFlags ff) const override { return AsString(GetRange(), ff); }
 
 //	Support for Numerics; TODO merge this func with the NumericUnitAdapter version
 	TIC_CALL value_t GetValueAtIndex (SizeT   i) const { return i; }
