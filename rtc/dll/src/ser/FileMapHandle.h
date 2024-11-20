@@ -173,6 +173,7 @@ protected:
 
 	FileChunckSpec m_ViewSpec = { 0, 0 };
 	void*          m_ViewData = nullptr;
+	bool           m_AlsoWrite = false;
 };
 
 struct ConstFileViewHandle

@@ -16,6 +16,7 @@
 #include "ser/FileCreationMode.h"
 #include "utl/Environment.h"
 #include "utl/MemGuard.h"
+#include "utl/scoped_exit.h"
 
 #if defined(WIN32)
 #include <windows.h>
@@ -227,7 +228,9 @@ FileChunckSpec MappedFileHandle::alloc(dms::filesize_t vs)
 
 	if (m_AllocatedSize > GetFileSize())
 	{
-		auto awaitExclusiveAcces = std::scoped_lock(m_ResizeMutex);
+//		auto awaitExclusiveAcces = std::scoped_lock(m_ResizeMutex);
+		assert(!m_ResizeMutex.try_lock_shared()); // caller must have locked this exclusively.
+
 		SetFileSize(m_AllocatedSize);
 		assert(m_FileSize == m_AllocatedSize);
 		Map(true);
@@ -287,7 +290,11 @@ FileViewHandle::FileViewHandle(std::shared_ptr<MappedFileHandle> mfh, dms::files
 	: m_MappedFile(mfh)
 {
 	if (viewOffset == -1)
+	{
+		assert(mfh);
+		auto lockThis = std::lock_guard(mfh->m_ResizeMutex);
 		m_ViewSpec = mfh->alloc(viewSize);
+	}
 	else
 		m_ViewSpec = { viewOffset, viewSize };
 	assert((m_ViewSpec.first & (GetAllocationGrannularity()-1)) == 0);
@@ -336,7 +343,14 @@ void FileViewHandle::Map(bool alsoWrite)
 	if (m_ViewData || !GetViewSize())
 		return;
 
-	m_MappedFile->m_ResizeMutex.lock_shared();
+	std::unique_lock< std::shared_mutex> uniqueLock;
+	std::shared_lock< std::shared_mutex> sharedLock;
+
+	if (alsoWrite)
+		uniqueLock = std::unique_lock(m_MappedFile->m_ResizeMutex);
+	else
+		sharedLock = std::shared_lock(m_MappedFile->m_ResizeMutex);
+	m_AlsoWrite = alsoWrite;
 
 	assert((m_ViewSpec.first & (GetAllocationGrannularity() - 1)) == 0);
 
@@ -349,14 +363,17 @@ void FileViewHandle::Map(bool alsoWrite)
 				GetViewSize() // NrMemPages(GetViewSize()) << GetLog2AllocationGrannularity()
 			);
 		if (m_ViewData)
+		{
+			if (alsoWrite)
+				uniqueLock.release();
+			else
+				sharedLock.release();
 			break;
+		}
 
 		DWORD lastErr = GetLastError();
 		if (lastErr != ERROR_NOT_ENOUGH_MEMORY || !DMS_CoalesceHeap(GetViewSize()))
-		{
-			m_MappedFile->m_ResizeMutex.unlock_shared();
 			throwSystemError(lastErr, "FileMapHandle('%s').MapViewOfFile(%I64u)", m_MappedFile->GetFileName().c_str(), (UInt64)GetViewSize());
-		}
 	};
 }
 
@@ -366,7 +383,11 @@ void FileViewHandle::CloseView()
 		return;
 	UnmapViewOfFile(m_ViewData); 
 	m_ViewData = nullptr;
-	m_MappedFile->m_ResizeMutex.unlock_shared();
+
+	if (m_AlsoWrite)
+		m_MappedFile->m_ResizeMutex.unlock();
+	else
+		m_MappedFile->m_ResizeMutex.unlock_shared();
 }
 
 void ConstFileViewHandle::Map()
@@ -376,7 +397,7 @@ void ConstFileViewHandle::Map()
 	if (m_ViewData)
 		return;
 
-	m_MappedFile->m_ResizeMutex.lock_shared();
+	auto sharedLock = std::shared_lock(m_MappedFile->m_ResizeMutex);
 
 	while (true) {
 		m_ViewData =
@@ -387,14 +408,14 @@ void ConstFileViewHandle::Map()
 				GetViewSize()
 			);
 		if (m_ViewData)
+		{
+			sharedLock.release();
 			break;
+		}
 
 		DWORD lastErr = GetLastError();
 		if (lastErr != ERROR_NOT_ENOUGH_MEMORY || !DMS_CoalesceHeap(GetViewSize()))
-		{
-			m_MappedFile->m_ResizeMutex.unlock_shared();
 			throwSystemError(lastErr, "FileMapHandle('%s').MapViewOfFile(%I64u)", m_MappedFile->GetFileName().c_str(), (UInt64)GetViewSize());
-		}
 	};
 }
 
