@@ -674,13 +674,14 @@ FileDateTime AbstrStorageManager::GetCachedChangeDateTime(const TreeItem* storag
 
 void AbstrStorageManager::DoCreateStorage(const StorageMetaInfo& smi)
 {
-	dms_assert(!m_IsReadOnly);
+	assert(!m_IsReadOnly);
 	DoOpenStorage(smi, dms_rw_mode::write_only_all);
 }
 
 void AbstrStorageManager::DoOpenStorage(const StorageMetaInfo& smi, dms_rw_mode rwMode) const
 {
-	dms_assert(!IsOpen());
+	assert(!m_CriticalSection.try_lock()); // must already be locked
+	assert(!IsOpen());
 }
 
 void AbstrStorageManager::DoCloseStorage(bool mustCommit) const
@@ -837,6 +838,7 @@ void AbstrStorageManager::OpenForWrite(const StorageMetaInfo& smi) // PRECONDITI
 
 void AbstrStorageManager::CloseStorage() const
 {
+	assert(!m_CriticalSection.try_lock()); // must already be locked by caller
 	if (!m_IsOpen) 
 		return;
 
