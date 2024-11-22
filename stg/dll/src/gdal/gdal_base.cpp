@@ -1546,7 +1546,7 @@ GDALDatasetHandle Gdal_DoOpenStorage(const StorageMetaInfo& smi, dms_rw_mode rwM
 
 		result = driver->Create(data_source_name.c_str(), nXSize, nYSize, nBands, eType, option_array);
 
-		if (gdalOpenFlags & GDAL_OF_RASTER) // set projection if available
+		if (result && (gdalOpenFlags & GDAL_OF_RASTER)) // set projection if available
 		{
 			// spatial reference system
 			auto spatial_reference_system = GetOGRSpatialReferenceFromDataItems(storageHolder);
