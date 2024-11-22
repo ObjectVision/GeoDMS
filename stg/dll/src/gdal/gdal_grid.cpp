@@ -409,8 +409,9 @@ bool GdalGridSM::WriteDataItem(StorageMetaInfoPtr&& smi)
 		return false;
 
 	auto storageHolder = smi->StorageHolder();
+
 	StorageWriteHandle storageHandle(std::move(smi));
-	dms_assert(IsOpen());
+	assert(IsOpen());
 
 	MG_CHECK(m_hDS->GetRasterCount() >= 1);
 

@@ -386,8 +386,9 @@ void TiffSM::DoUpdateTree(const TreeItem* storageHolder, TreeItem* curr, SyncMod
 	auto smi = this->GetMetaInfo(storageHolder, curr, StorageAction::read);
 	if(!smi)
 		return;
+	auto sch = StorageCloseHandle(std::move(smi));
 
-	this->OpenForRead(*smi);
+	this->OpenForRead(*sch.MetaInfo());
 	if (this->m_pImp.is_null())
 		return;
 

@@ -319,14 +319,17 @@ struct StorageCloseHandle
 	TreeItem* FocusItem() const { return const_cast<TreeItem*>(m_FocusItem.get_ptr()); }
 
 private:
-	void Init(const AbstrStorageManager* storageManager, const TreeItem* storageHolder, const TreeItem* focusItem);
+	void Init();
+
+private:
+	AbstrStorageManager::lock_t    m_StorageLock;
 
 protected:
 	StorageMetaInfoPtr                   m_MetaInfo;
 	SharedPtr<const AbstrStorageManager> m_StorageManager;
 	SharedTreeItem                       m_StorageHolder, m_FocusItem;
 private:
-	AbstrStorageManager::lock_t    m_StorageLock;
+//	AbstrStorageManager::lock_t    m_StorageLock;
 	TimeStamp                      m_TimeStampBefore;
 
 	void operator =(const StorageCloseHandle&) = delete;

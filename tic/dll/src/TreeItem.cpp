@@ -3782,7 +3782,9 @@ bool TreeItem::CommitDataChanges() const
 
 	if (!WaitForReadyOrSuspendTrigger(GetCurrRangeItem()) || GetCurrRangeItem()->WasFailed(FR_Committed))
 		return FinalizeFailure(this, [this]() { return mySSPrintF("Unable to complete calculating data when trying to store it in %s", DMS_TreeItem_GetAssociatedFilename(this)); });
-	if (!DoWriteItem(nmsm->GetMetaInfo(storageHolder, const_cast<TreeItem*>(this), StorageAction::write)) || GetCurrRangeItem()->WasFailed(FR_Committed))
+
+	if (!DoWriteItem(nmsm->GetMetaInfo(storageHolder, const_cast<TreeItem*>(this), StorageAction::write)) 
+		|| GetCurrRangeItem()->WasFailed(FR_Committed))
 		return FinalizeFailure(this, [this]() { return mySSPrintF("Unable to write data to storage %s", DMS_TreeItem_GetAssociatedFilename(this)); });
 
 	assert(!SuspendTrigger::DidSuspend());

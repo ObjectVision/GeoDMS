@@ -57,6 +57,7 @@ StorageMetaInfo::~StorageMetaInfo()
 {
 	if (m_StorageManager)
 	{
+//		MG_CHECK(! m_StorageManager->IsOpen());
 		m_StorageManager->CloseStorage();
 		/*
 			if (m_StorageHolder && m_StorageHolder->DoesContain(m_FocusItem) && !m_StorageManager->IsReadOnly())
@@ -838,9 +839,10 @@ void AbstrStorageManager::OpenForWrite(const StorageMetaInfo& smi) // PRECONDITI
 
 void AbstrStorageManager::CloseStorage() const
 {
-	assert(!m_CriticalSection.try_lock()); // must already be locked by caller
-	if (!m_IsOpen) 
+	if (!m_IsOpen)
 		return;
+
+	assert(!m_CriticalSection.try_lock()); // must already be locked by caller
 
 	DoCloseStorage(m_Commit && m_IsOpenedForWrite);
 	m_IsOpen = false;
@@ -890,33 +892,33 @@ GdalMetaInfo::GdalMetaInfo(const TreeItem* storageHolder, const TreeItem* curr)
 // *****************************************************************************
 
 StorageCloseHandle::StorageCloseHandle(const NonmappableStorageManager* storageManager, const TreeItem* storageHolder, const TreeItem* focusItem, StorageAction sa)
-	: m_MetaInfo(storageManager->GetMetaInfo(storageHolder, const_cast<TreeItem*>(focusItem), sa))
+	: m_StorageLock(storageManager->m_CriticalSection)
+	, m_MetaInfo(storageManager->GetMetaInfo(storageHolder, const_cast<TreeItem*>(focusItem), sa))
 	, m_TimeStampBefore()
 	, m_StorageManager(storageManager)
 	, m_StorageHolder(storageHolder)
 	, m_FocusItem(focusItem)
-	, m_StorageLock(storageManager->m_CriticalSection)
 {
-	Init(storageManager, storageHolder, focusItem);
+	Init();
 }
 
 StorageCloseHandle::StorageCloseHandle(StorageMetaInfoPtr&& smi)
-	: m_MetaInfo(std::move(smi))
+	: m_StorageLock(smi->StorageManager()->m_CriticalSection)
+	, m_MetaInfo(std::move(smi))
 	, m_TimeStampBefore()
 	, m_StorageManager(m_MetaInfo->StorageManager())
 	, m_StorageHolder(m_MetaInfo->StorageHolder())
 	, m_FocusItem(m_MetaInfo->CurrRI())
-	, m_StorageLock(m_StorageManager->m_CriticalSection)
 {
-	Init(m_StorageManager, m_StorageHolder, m_FocusItem);
+	Init();
 }
 
-void StorageCloseHandle::Init(const AbstrStorageManager* storageManager, const TreeItem* storageHolder, const TreeItem* focusItem)
+void StorageCloseHandle::Init()
 {
 	assert(m_MetaInfo);
-	if (storageHolder->DoesContain(focusItem))
+	if (m_StorageHolder->DoesContain(m_FocusItem))
 	{
-		assert(focusItem);
+		assert(m_FocusItem);
 		// enable Registration of external DateTime stamp changes during the lifetime of this StorageHandle
 		// Registers LastChange with the latest Filesystem TimeStamp of the storage to prevent data consumers from external 
 		// TODO: Also update FileSystem timestamp for other items with the same storageManager
@@ -931,7 +933,7 @@ void StorageCloseHandle::Init(const AbstrStorageManager* storageManager, const T
 		}
 		else
 	*/
-		m_TimeStampBefore = focusItem->GetLastChangeTS();
+		m_TimeStampBefore = m_FocusItem->GetLastChangeTS();
 	}
 };
 

@@ -316,20 +316,22 @@ void GdalVectlMetaInfo::SetCurrFeatureIndex(SizeT firstFeatureIndex) const
 
 GdalVectSM::GdalVectSM()
 {
-	dms_assert(m_hDS == nullptr);
+	assert(m_hDS == nullptr);
 }
 #endif
 
 GdalVectSM::~GdalVectSM()
 {
-	CloseStorage();
-	dms_assert(m_hDS == nullptr);
+//	CloseStorage();
+	assert(m_hDS == nullptr);
 }
 
 void GdalVectSM::DoOpenStorage(const StorageMetaInfo& smi, dms_rw_mode rwMode) const
 {
 	DBG_START("GdalVectSM", "OpenStorage", false);
+	assert(!m_CriticalSection.try_lock()); // must already be locked by caller
 	assert(m_hDS == nullptr);
+
 	if (rwMode != dms_rw_mode::read_only && !IsWritableGDAL())
 		throwErrorF("gdal.vect", "Cannot use storage manager %s with readonly type %s for writing data"
 			,	smi.StorageManager()->GetFullName().c_str()
@@ -342,8 +344,9 @@ void GdalVectSM::DoOpenStorage(const StorageMetaInfo& smi, dms_rw_mode rwMode) c
 void GdalVectSM::DoCloseStorage(bool mustCommit) const
 {
 	DBG_START("GdalVectSM", "DoCloseStorage", false);
-	dms_assert(m_hDS);
-	
+	assert(!m_CriticalSection.try_lock()); // must already be locked by caller
+	assert(m_hDS);
+
 	m_hDS = nullptr; // calls GDALClose through GDALDatasetHandle::deleter
 }
 

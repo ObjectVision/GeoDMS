@@ -193,7 +193,7 @@ namespace Grid {
 							imp.UnpackStrip(stripBuff, read_result, imp.GetNrBitsPerPixel());
 							Imp::UnpackStrip(strip.begin(), stripBuff, imp.GetNrBitsPerPixel(), read_result, scanlineSize, tileSize.X(), tileSize.Y());
 
-							dms_assert(UInt32(read_result) <= Max<UInt32>(tileByteSizeLocal, tileByteSizeNative));
+							assert(UInt32(read_result) <= Max<UInt32>(tileByteSizeLocal, tileByteSizeNative));
 							// defcolor for area's outside the read (w,h) rectangle as imp.ReadTile may have painted the city read.
 							UInt32 nrReadableCols = w - tile_x;
 							UInt32 nrReadRows = Min<UInt32>(tileSize.Y(), h - tile_y);
