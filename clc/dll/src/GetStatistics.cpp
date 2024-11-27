@@ -402,14 +402,30 @@ CLC_CALL bool NumericDataItem_GetStatistics(const TreeItem* item, vos_buffer_typ
 
 			assert(!SuspendTrigger::DidSuspend()); // PostCondition of PrepareDataUsage?
 
-			SizeT n = di->GetAbstrDomainUnit()->GetCount();;
-			const AbstrUnit* domain = di->GetAbstrDomainUnit(); tile_id tn = domain->GetNrTiles();
+			const AbstrUnit* domain = di->GetAbstrDomainUnit(); 
+			SizeT    n = domain->GetCount();
+			SizeT   irr_n = n;
+			tile_id tn = domain->GetNrTiles();
 			table.NameValueRow("Count", AsString(n).c_str());
 			if (tn != 1)
+			{
 				table.NameValueRow("#Tiles", AsString(tn).c_str());
+			}
+			if (!domain->IsCovered())
+			{
+				auto range_item = domain->GetCurrRangeItem();
+				auto si = AsUnit(range_item)->GetTiledRangeData();
+				irr_n = si->GetDataSize();
+			}
 
 			if (!n)
 				return isReady;
+
+			if (irr_n != n)
+			{
+				table.NameValueRow("Count inside tiles", AsString(irr_n).c_str());
+				table.NameValueRow("Count outside tiles", AsString(n - irr_n).c_str());
+			}
 
 			DataReadLock lock(di);
 			SizeT nrPoints = 0;
@@ -433,7 +449,11 @@ CLC_CALL bool NumericDataItem_GetStatistics(const TreeItem* item, vos_buffer_typ
 				WriteNumericAccuData(table, accu, di);
 				d = accu.d;
 			}
-			table.NameValueRow("#Nulls", AsString(n - d).c_str());
+
+			if (irr_n == n)
+				table.NameValueRow("#Nulls", AsString(irr_n - d).c_str());
+			else
+				table.NameValueRow("#Nulls inside tiles", AsString(irr_n - d).c_str());
 			table.NameValueRow("#Values", AsString(d).c_str());
 
 			if (di->GetAbstrValuesUnit()->GetValueType()->GetValueClassID() == ValueClassID::VT_String)
