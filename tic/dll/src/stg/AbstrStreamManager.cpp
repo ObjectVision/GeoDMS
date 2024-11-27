@@ -83,7 +83,8 @@ bool AbstrStreamManager::ReadDataItem(StorageMetaInfoPtr smi, AbstrDataObject* b
 
 bool AbstrStreamManager::WriteDataItem(StorageMetaInfoPtr&& smi)
 {
-	StorageWriteHandle hnd(std::move(smi));
+	auto sm = smi->StorageManager();
+	StorageWriteHandle hnd(sm, std::move(smi));
 
 	SharedPtr<const AbstrDataItem> adi = hnd.MetaInfo()->CurrRD();
 	MG_CHECK(adi);
@@ -123,7 +124,7 @@ bool AbstrStreamManager::ReadUnitRange(const StorageMetaInfo& smi) const
 
 bool AbstrStreamManager::WriteUnitRange(StorageMetaInfoPtr&& smi)
 {
-	StorageWriteHandle storageHandle(std::move(smi)); 
+	StorageWriteHandle storageHandle(this, std::move(smi)); 
 	if (!IsOpenForWrite())
 		return false; // or throw since there seems to be a problem and not a suspension
 

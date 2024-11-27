@@ -344,7 +344,7 @@ bool BmpPalStorageManager::ReadDataItem(StorageMetaInfoPtr smi, AbstrDataObject*
 bool BmpPalStorageManager::WriteDataItem(StorageMetaInfoPtr&& smiHolder)
 {
 	auto smi = smiHolder.get();
-	StorageWriteHandle hnd(std::move(smiHolder));
+	StorageWriteHandle hnd(const_cast<BmpPalStorageManager*>(this), std::move(smiHolder));
 
 	InterestRetainContextBase irc;
 

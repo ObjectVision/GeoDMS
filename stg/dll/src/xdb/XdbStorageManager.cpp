@@ -93,7 +93,7 @@ bool XdbStorageManager::ReadDataItem(StorageMetaInfoPtr smi, AbstrDataObject* bo
 bool XdbStorageManager::WriteDataItem(StorageMetaInfoPtr&& smiHolder)
 {
 	auto smi = smiHolder.get();
-	StorageWriteHandle storageHandle(std::move(smiHolder));
+	StorageWriteHandle storageHandle(this, std::move(smiHolder));
 
 	XdbImp imp;
 	UpdateColInfo(imp);
@@ -149,7 +149,7 @@ void XdbStorageManager::DoUpdateTree(const TreeItem* storageHolder, TreeItem* cu
 	if (storageHolder != curr)
 		return;
 
-	StorageReadHandle storageHandle(this, storageHolder, curr, StorageAction::updatetree);
+	StorageReadHandle storageHandle(const_cast<XdbStorageManager*>(this), storageHolder, curr, StorageAction::updatetree);
 	XdbImp imp;
 	UpdateColInfo(imp);
 

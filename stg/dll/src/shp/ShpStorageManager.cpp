@@ -367,7 +367,7 @@ void WriteArray(const AbstrDataObject* ado, ShpImp* pImp, WeakStr nameStr, const
 bool ShpStorageManager::WriteDataItem(StorageMetaInfoPtr&& smiHolder)
 {
 	auto smi = smiHolder.get();
-	StorageWriteHandle hnd(std::move(smiHolder));
+	StorageWriteHandle hnd(this, std::move(smiHolder));
 
 	const TreeItem* storageHolder = smi->StorageHolder();
 	const AbstrDataItem* adi = smi->CurrRD();
@@ -425,7 +425,7 @@ void ShpStorageManager::DoUpdateTree(const TreeItem* storageHolder, TreeItem* cu
 	if (curr->IsStorable() && curr->HasCalculator())
 		return;
 
-	StorageReadHandle storageHandle(this, storageHolder, curr, StorageAction::updatetree);
+	StorageReadHandle storageHandle(const_cast<ShpStorageManager*>(this), storageHolder, curr, StorageAction::updatetree);
 
 	ShpImp impl;
 	if (!impl.OpenAndReadHeader( GetNameStr()))

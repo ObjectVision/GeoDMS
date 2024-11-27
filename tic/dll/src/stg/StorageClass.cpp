@@ -55,7 +55,7 @@ TIC_CALL StorageClass::~StorageClass()
 }
 
 
-AbstrStorageManagerRef StorageClass::CreateStorageManager(CharPtr name, TokenID typeID, bool readOnly, bool throwOnFailure, item_level_type itemLevel)
+AbstrStorageManagerRef StorageClass::CreateStorageManager(CharPtr name, TokenID typeID, bool readOnly, bool throwOnFailure)
 {
 	StorageClass* cls = Find(typeID);
 	if (!cls)
@@ -65,8 +65,8 @@ AbstrStorageManagerRef StorageClass::CreateStorageManager(CharPtr name, TokenID 
 		throwStorageError(ASM_E_UNKNOWNSTORAGECLASS, GetTokenStr(typeID).c_str());
 	}
 	AbstrStorageManagerRef result = debug_cast<AbstrStorageManager*>(cls->CreateObj());
-	dms_assert(result);
-	result->InitStorageManager(name, readOnly, itemLevel);
+	assert(result);
+	result->InitStorageManager(name, readOnly);
 	return result;
 }
 

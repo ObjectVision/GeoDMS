@@ -35,21 +35,13 @@ struct gdalVectComponent : gdalComponent
 struct GdalVectlMetaInfo : GdalMetaInfo
 {
 	GdalVectlMetaInfo(const GdalVectSM*, const TreeItem* storageHolder, const TreeItem* adiParent);
-	~GdalVectlMetaInfo();
-	void OnOpen() override;
-	void SetCurrFeatureIndex(SizeT firstFeatureIndex) const;
 
-	OGRLayer* Layer() const;
+	void OnOpenForRead(StorageReadHandle*) override;
+	void OnClose(StorageCloseHandle*) override;
 
 	WeakPtr<const GdalVectSM> m_GdalVectSM;
 	SharedStr                 m_SqlString;
 	TokenID                   m_NameID;
-	WeakPtr<OGRLayer>         m_Layer;
-	bool                      m_IsOwner = false;
-
-	mutable ResourceHandle  m_ReadBuffer;
-	mutable SizeT           m_CurrFeatureIndex = 0;
-	mutable SizeT           m_CurrFieldIndex = -1;
 };
 
 // *****************************************************************************
@@ -86,6 +78,9 @@ struct GdalVectSM : NonmappableStorageManager, gdalVectComponent
 	mutable std::recursive_mutex m_xSectionDataItemsStatusInfo;
 
 private:
+	void SetCurrFeatureIndex(SizeT firstFeatureIndex) const;
+	OGRLayer* Layer(const GdalVectlMetaInfo* br) const;
+
 	bool ReadLayerData(const GdalVectlMetaInfo* br, AbstrDataObject* ado, tile_id t);
 	bool ReadGeometry (const GdalVectlMetaInfo* br, AbstrDataObject* ado, tile_id t, SizeT firstIndex, SizeT size);
 	bool ReadAttrData (const GdalVectlMetaInfo* br, AbstrDataObject* ado, tile_id t, SizeT firstIndex, SizeT size);
@@ -93,6 +88,13 @@ private:
 	bool WriteFieldElement   (const AbstrDataItem* adi, int field_index, OGRFeature* feature, tile_id t, SizeT featureIndex);
 
 	mutable GDALDatasetHandle m_hDS;
+
+	OGRLayer*                 m_Layer = nullptr;
+	bool                      m_IsOwner = false;
+
+	mutable ResourceHandle  m_ReadBuffer;
+	mutable SizeT           m_CurrFeatureIndex = 0;
+	mutable SizeT           m_CurrFieldIndex = -1;
 
 
 	DECL_RTTI(STGDLL_CALL, StorageClass)

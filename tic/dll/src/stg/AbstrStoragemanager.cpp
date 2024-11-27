@@ -59,15 +59,6 @@ StorageMetaInfo::~StorageMetaInfo()
 	{
 //		MG_CHECK(! m_StorageManager->IsOpen());
 		m_StorageManager->CloseStorage();
-		/*
-			if (m_StorageHolder && m_StorageHolder->DoesContain(m_FocusItem) && !m_StorageManager->IsReadOnly())
-			{
-				assert(m_FocusItem);
-				FileDateTime fdt = m_StorageManager->GetLastChangeDateTime(m_StorageHolder, m_FocusItem->GetRelativeName(m_StorageHolder).c_str());
-				if (fdt)
-					DataStoreManager::Curr()->RegisterExternalTS(fdt, m_TimeStampBefore);
-			}
-		*/
 	}
 }
 
@@ -85,7 +76,10 @@ void StorageMetaInfo::OnPreLock()
 	}
 }
 
-void StorageMetaInfo::OnOpen()
+void StorageMetaInfo::OnOpenForRead(StorageReadHandle*)
+{}
+
+void StorageMetaInfo::OnClose(StorageCloseHandle*)
 {}
 
 const TreeItem* GetExportSettings(const TreeItem* curr)
@@ -115,7 +109,7 @@ AbstrStorageManager::AbstrStorageManager()
 	,	m_IsReadOnly(false)
 	,	m_FileTime(0)
 	,	m_LastCheckTS(0)
-	,	m_CriticalSection(item_level_type(0), ord_level_type::AbstrStorage, "AbstrStorageManager")
+	,   m_CriticalSection(1)
 {
 #if MG_DEBUG_ASM
 	std::lock_guard guard(sd_asm);
@@ -123,16 +117,13 @@ AbstrStorageManager::AbstrStorageManager()
 #endif // MG_DEBUG_ASM
 }
 
-void AbstrStorageManager::InitStorageManager(CharPtr name, bool readOnly, item_level_type itemLevel)
+void AbstrStorageManager::InitStorageManager(CharPtr name, bool readOnly)
 {
 	MGD_PRECONDITION(name != nullptr);
 
 	m_ID = TokenID(name, multi_threading_tag_v);
 	m_IsReadOnly = readOnly;
 	m_IsOpenedForWrite = false;
-#if defined(MG_DEBUG_LOCKLEVEL)
-	m_CriticalSection.m_ItemLevel = itemLevel;
-#endif
 }
 
 AbstrStorageManager::~AbstrStorageManager()
@@ -582,16 +573,13 @@ AbstrStorageManager::Construct(const TreeItem* holder, SharedStr relStorageName,
 	if (AbstrCalculator::MustEvaluate(relStorageName.c_str()))
 		relStorageName = AbstrCalculator::EvaluatePossibleStringExpr(holder, relStorageName, CalcRole::Calculator);
 
-	return Construct(AbstrStorageManager::GetFullStorageName(holder, relStorageName).c_str(), typeID
-		, readOnly, throwOnFail
-		, GetItemLevel(holder)
-	);
+	return Construct(AbstrStorageManager::GetFullStorageName(holder, relStorageName).c_str(), typeID, readOnly, throwOnFail);
 }
 
 static TokenID s_mdbToken = GetTokenID_st("mdb");
 static TokenID s_odbcToken = GetTokenID_st("odbc");
 
-AbstrStorageManagerRef AbstrStorageManager::Construct(CharPtr storageName, TokenID typeID, bool readOnly, bool throwOnFailure, item_level_type itemLevel)
+AbstrStorageManagerRef AbstrStorageManager::Construct(CharPtr storageName, TokenID typeID, bool readOnly, bool throwOnFailure)
 {
 	CDebugContextHandle dc("AbstractStorageManager::Construct", storageName, false);
 
@@ -608,7 +596,7 @@ AbstrStorageManagerRef AbstrStorageManager::Construct(CharPtr storageName, Token
 	if (typeID == s_odbcToken) // at this moment we can only read from ODBC
 		readOnly = true;
 
-	auto sm = StorageClass::CreateStorageManager(storageName, typeID, readOnly, throwOnFailure, itemLevel);
+	auto sm = StorageClass::CreateStorageManager(storageName, typeID, readOnly, throwOnFailure);
 
 #if MG_DEBUG_ASM
 #endif
@@ -681,7 +669,7 @@ void AbstrStorageManager::DoCreateStorage(const StorageMetaInfo& smi)
 
 void AbstrStorageManager::DoOpenStorage(const StorageMetaInfo& smi, dms_rw_mode rwMode) const
 {
-	assert(!m_CriticalSection.try_lock()); // must already be locked
+	assert(!m_CriticalSection.try_acquire()); // must already be locked
 	assert(!IsOpen());
 }
 
@@ -712,20 +700,15 @@ NonmappableStorageManager::NonmappableStorageManager()
 NonmappableStorageManager::~NonmappableStorageManager()
 {}
 
-NonmappableStorageManagerRef NonmappableStorageManager::ReaderClone(const StorageMetaInfo& smi) const
+auto NonmappableStorageManager::ReaderClone(StorageMetaInfoPtr smi) const -> std::unique_ptr<StorageReadHandle>
 {
 	auto cls = dynamic_cast<const StorageClass*>(GetDynamicClass());
 	MG_CHECK(cls);
 	NonmappableStorageManagerRef result = debug_cast<NonmappableStorageManager*>(cls->CreateObj());
 	assert(result);
 
-	auto itemLevel = item_level_type(0);
-#if defined(MG_DEBUG_LOCKLEVEL)
-	itemLevel = item_level_type(UInt32( m_CriticalSection.m_ItemLevel) + 1 );
-#endif
-	result->InitStorageManager(GetNameStr().c_str(), true, itemLevel);
-	result->OpenForRead(smi);
-	return result;
+	result->InitStorageManager(GetNameStr().c_str(), true);
+	return std::make_unique<StorageReadHandle>(result, std::move(smi));
 }
 
 StorageMetaInfoPtr NonmappableStorageManager::GetMetaInfo(const TreeItem* storageHolder, TreeItem* focusItem, StorageAction) const
@@ -800,6 +783,8 @@ bool AbstrStorageManager::OpenForRead(const StorageMetaInfo& smi) const
 	assert(smi.StorageHolder());
 
 	const TreeItem* storageHolder = smi.StorageHolder();
+	assert(!m_IsOpen);
+	assert(!m_CriticalSection.try_acquire());
 	if (m_IsOpen) 
 		return true;
 	try {
@@ -820,7 +805,9 @@ void AbstrStorageManager::OpenForWrite(const StorageMetaInfo& smi) // PRECONDITI
 {
 	if (m_IsReadOnly)
 		throwItemError("Storage is read only - write request is denied");
-	if (m_IsOpen && m_IsOpenedForWrite) 
+	assert(!m_IsOpen);
+	assert(!m_CriticalSection.try_acquire());
+	if (m_IsOpen && m_IsOpenedForWrite)
 		return;
 	if (m_IsOpen) // dus niet m_IsOpenedForWrite
 	{
@@ -842,7 +829,7 @@ void AbstrStorageManager::CloseStorage() const
 	if (!m_IsOpen)
 		return;
 
-	assert(!m_CriticalSection.try_lock()); // must already be locked by caller
+	assert(!m_CriticalSection.try_acquire()); // must already be locked by caller
 
 	DoCloseStorage(m_Commit && m_IsOpenedForWrite);
 	m_IsOpen = false;
@@ -891,102 +878,69 @@ GdalMetaInfo::GdalMetaInfo(const TreeItem* storageHolder, const TreeItem* curr)
 //
 // *****************************************************************************
 
-StorageCloseHandle::StorageCloseHandle(const NonmappableStorageManager* storageManager, const TreeItem* storageHolder, const TreeItem* focusItem, StorageAction sa)
+StorageCloseHandle::StorageCloseHandle(NonmappableStorageManager* storageManager, const TreeItem* storageHolder, const TreeItem* focusItem, StorageAction sa)
 	: m_StorageLock(storageManager->m_CriticalSection)
 	, m_MetaInfo(storageManager->GetMetaInfo(storageHolder, const_cast<TreeItem*>(focusItem), sa))
-	, m_TimeStampBefore()
 	, m_StorageManager(storageManager)
-	, m_StorageHolder(storageHolder)
-	, m_FocusItem(focusItem)
-{
-	Init();
-}
+{}
 
-StorageCloseHandle::StorageCloseHandle(StorageMetaInfoPtr&& smi)
-	: m_StorageLock(smi->StorageManager()->m_CriticalSection)
+StorageCloseHandle::StorageCloseHandle(NonmappableStorageManager* storageManager, StorageMetaInfoPtr&& smi)
+	: m_StorageLock(storageManager->m_CriticalSection)
 	, m_MetaInfo(std::move(smi))
-	, m_TimeStampBefore()
-	, m_StorageManager(m_MetaInfo->StorageManager())
-	, m_StorageHolder(m_MetaInfo->StorageHolder())
-	, m_FocusItem(m_MetaInfo->CurrRI())
-{
-	Init();
-}
-
-void StorageCloseHandle::Init()
-{
-	assert(m_MetaInfo);
-	if (m_StorageHolder->DoesContain(m_FocusItem))
-	{
-		assert(m_FocusItem);
-		// enable Registration of external DateTime stamp changes during the lifetime of this StorageHandle
-		// Registers LastChange with the latest Filesystem TimeStamp of the storage to prevent data consumers from external 
-		// TODO: Also update FileSystem timestamp for other items with the same storageManager
-		// ISSUE: mapping between item hierarchy and hierarchy of external TimeStamps and external change detection
-		// ISSUE: different sources with the same external Filesystem Timestamp may be registered at different internal times
-/*
-		FileDateTime fdt = storageManager->GetCachedChangeDateTime(storageHolder, m_MetaInfo->m_RelativeName.c_str());
-		if (fdt)
-		{
-			m_TimeStampBefore = DataStoreManager::Curr()->DetermineExternalChange(fdt);
-			assert(m_TimeStampBefore); // POSTCONDITION
-		}
-		else
-	*/
-		m_TimeStampBefore = m_FocusItem->GetLastChangeTS();
-	}
-};
+	, m_StorageManager(storageManager)
+{}
 
 StorageCloseHandle::~StorageCloseHandle()
 {
-	assert(m_StorageManager);
-	m_MetaInfo.reset(); // Does m_StorageManager->CloseStorage();
+	assert(StorageManager());
+	if (StorageManager()->IsOpen())
+		MetaInfo()->OnClose(this);
+	StorageManager()->CloseStorage();
+	m_MetaInfo.reset();
 }
 
-StorageReadHandle::StorageReadHandle(StorageMetaInfoPtr&& smi)
-	: StorageCloseHandle(std::move(smi))
-{
-	Init();
-}
-
-StorageReadHandle::StorageReadHandle(const NonmappableStorageManager* sm, const TreeItem* storageHolder, TreeItem* focusItem, StorageAction sa, bool mustRememberFailure)
+StorageReadHandle::StorageReadHandle(NonmappableStorageManager* sm, const TreeItem* storageHolder, TreeItem* focusItem, StorageAction sa, bool mustRememberFailure)
 	: StorageCloseHandle(sm, storageHolder, focusItem, sa)
 {
 	m_MetaInfo->m_MustRememberFailure = mustRememberFailure;
 	Init();
 }
 
+StorageReadHandle::StorageReadHandle(NonmappableStorageManager* storageManager, StorageMetaInfoPtr&& smi)
+: StorageCloseHandle(storageManager, std::move(smi))
+{
+	Init();
+}
+
 void StorageReadHandle::Init()
 {
-	assert(m_StorageManager);
-	assert(m_StorageHolder);
+	assert(StorageManager());
+	assert(StorageHolder ());
 	assert(MetaInfo());
-	m_StorageManager->OpenForRead(*MetaInfo());
-	if (m_StorageManager->IsOpen())
-	{
-		MetaInfo()->OnOpen();
-	}
+	StorageManager()->OpenForRead(*MetaInfo());
+	if (StorageManager()->IsOpen())
+		MetaInfo()->OnOpenForRead(this);
 }
 
 bool StorageReadHandle::Read() const
 {
-	assert(m_FocusItem); // note that storageHolder may be nullptr
-	assert(m_StorageManager);
-	if (!m_StorageManager->IsOpen())
+	assert(FocusItem     ()); // note that storageHolder may be nullptr
+	assert(StorageManager());
+	if (!StorageManager()->IsOpen())
 		return false;
 
 	return FocusItem()->DoReadItem(MetaInfo());
 }
 
 
-StorageWriteHandle::StorageWriteHandle(StorageMetaInfoPtr&& smi)
-	: StorageCloseHandle(std::move(smi))
+StorageWriteHandle::StorageWriteHandle(NonmappableStorageManager* storageManager, StorageMetaInfoPtr&& smi)
+	:	StorageCloseHandle(storageManager, std::move(smi))
 {
-	dms_assert(MetaInfo());
-	dms_assert(!MetaInfo()->StorageManager()->IsOpen());
+	assert(MetaInfo());
+	assert(!StorageManager()->IsOpen());
 
 	//	dms_assert(storageHolder);
-	MetaInfo()->StorageManager()->OpenForWrite(*MetaInfo());
+	StorageManager()->OpenForWrite(*MetaInfo());
 }
 
 // *****************************************************************************

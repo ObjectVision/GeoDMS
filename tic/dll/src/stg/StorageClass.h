@@ -26,7 +26,7 @@ public:
 	TIC_CALL StorageClass(Constructor cFunc, TokenID id);
 	TIC_CALL ~StorageClass();
 
-	static AbstrStorageManagerRef CreateStorageManager(CharPtr name, TokenID typeID, bool readOnly, bool throwOnFailure, item_level_type itemLevel);
+	static AbstrStorageManagerRef CreateStorageManager(CharPtr name, TokenID typeID, bool readOnly, bool throwOnFailure);
 
 	TIC_CALL static UInt32        GetNrClasses();
 	TIC_CALL static StorageClass* Get(UInt32 classNr);

@@ -3352,8 +3352,8 @@ static how_to_proceed PrepareDataRead(SharedPtr<const TreeItem> self, const Tree
 	dms_assert(!CheckCalculatingOrReady(refItem)); // was tested before and nothing could have started the calculation
 
 	const TreeItem* storageParent = refItem->GetStorageParent(false); assert(storageParent);
-	auto sm = storageParent->GetStorageManager(); assert(sm);
-	if (auto nmsm = dynamic_cast<NonmappableStorageManager*>(sm))
+	SharedPtr<AbstrStorageManager> sm = storageParent->GetStorageManager(); assert(sm);
+	if (auto nmsm = MakeShared(dynamic_cast<NonmappableStorageManager*>(sm.get())))
 		if (StorageMetaInfoPtr readInfo = nmsm->GetMetaInfo(storageParent, const_cast<TreeItem*>(refItem), StorageAction::read))
 		{
 			auto readInfoPtr = std::make_shared<StorageMetaInfoPtr>(std::move(readInfo));
@@ -3363,13 +3363,13 @@ static how_to_proceed PrepareDataRead(SharedPtr<const TreeItem> self, const Tree
 
 			FutureSuppliers emptyFutureSupplierSet; // TODO G8: Let readInfoPtr provide required suppliers, such as GridStorageMetaInfo->m_VIP->m_GridDomain (as its range is required in further processing
 			rtc->ScheduleItemWriter(MG_SOURCE_INFO_CODE("TreeItem::PrepareDataUsageImpl for Readable data") const_cast<TreeItem*>(refItem),
-				[storageParent, self, readInfoPtr](Explain::Context* context)
+				[storageParent, self, readInfoPtr, nmsm](Explain::Context* context)
 				{
 					auto onExit = make_scoped_exit([self]() { self->m_ReadAssets.Clear(); });
 					assert(readInfoPtr);
 					assert(*readInfoPtr);
 					(*readInfoPtr)->OnPreLock();
-					StorageReadHandle sHandle(std::move(*readInfoPtr)); // locks storage manager
+					StorageReadHandle sHandle(nmsm, std::move(*readInfoPtr)); // locks storage manager
 					assert(!*readInfoPtr);
 					sHandle.FocusItem()->ReadItem(std::move(sHandle)); // Read Item
 				}

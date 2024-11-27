@@ -120,7 +120,7 @@ void DbfStorageManager::DoUpdateTree(const TreeItem* storageHolder, TreeItem* cu
 	SharedPtr<TNameSet> nameset = BuildNameSet(storageHolder);
 	dms_assert(nameset);
 
-	StorageReadHandle storageHandle(this, storageHolder, curr, StorageAction::updatetree);
+	StorageReadHandle storageHandle(const_cast<DbfStorageManager*>(this), storageHolder, curr, StorageAction::updatetree);
 	dms_assert( IsOpen() );
 
 	DbfImplRead dbf(GetNameStr(), storageHolder);
@@ -234,7 +234,7 @@ bool DbfStorageManager::WriteDataItem(StorageMetaInfoPtr&& smiHolder)
 	DBG_START("DbfStorageManager", "WriteDataItem", false);
 
 	auto smi = smiHolder.get();
-	StorageWriteHandle storageHandle(std::move(smiHolder));
+	StorageWriteHandle storageHandle(this, std::move(smiHolder));
 
 	const TreeItem* storageHolder = smi->StorageHolder();
 	const AbstrDataItem*   adi     = smi->CurrRD();

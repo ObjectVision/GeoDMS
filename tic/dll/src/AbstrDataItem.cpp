@@ -213,7 +213,7 @@ using semaphore_t = std::counting_semaphore<>;
 struct reader_clone_farm
 {
 	semaphore_t m_Countdown;
-	std::vector<NonmappableStorageManagerRef> m_ClonePtrs;
+	std::vector<std::unique_ptr<StorageReadHandle>> m_ClonePtrs;
 	std::mutex m_CloneCS;
 	std::vector<UInt32> m_Tokens;
 
@@ -251,8 +251,10 @@ bool AbstrDataItem::DoReadItem(StorageMetaInfoPtr smi)
 
 	auto* sm_ = smi->StorageManager();
 	assert(sm_);
-	auto* sm = dynamic_cast<NonmappableStorageManager*>(sm_);
+	auto sm = MakeShared( dynamic_cast<NonmappableStorageManager*>(sm_) );
 	MG_CHECK(sm);
+	assert(sm->IsOpen());
+	assert(!sm->m_CriticalSection.try_acquire());
 
 	if (!sm->DoesExist(smi->StorageHolder()))
 		throwItemErrorF( "Storage %s does not exist", sm->GetNameStr().c_str() );
@@ -275,16 +277,15 @@ bool AbstrDataItem::DoReadItem(StorageMetaInfoPtr smi)
 		{
 			auto readerFarm = std::make_shared<reader_clone_farm>();
 
-			auto sharedSm = MakeShared(sm);
-			auto tileGenerator = [this, sharedSm, smi, readerFarm](AbstrDataObject* self, tile_id t)
+			auto tileGenerator = [this, sm, smi, readerFarm](AbstrDataObject* self, tile_id t)
 			{
 				auto token = readerFarm->acquire();
 				auto returnTokenOnExit = make_scoped_exit([&readerFarm, token]() { readerFarm->release(token); });
 
 				auto& readerClonePtr = readerFarm->m_ClonePtrs[token];
 				if (!readerClonePtr)
-					readerClonePtr = sharedSm->ReaderClone(*smi);
-				if (!readerClonePtr->ReadDataItem(smi, self, t))
+					readerClonePtr = sm->ReaderClone(smi);
+				if (!readerClonePtr->StorageManager()->ReadDataItem(smi, self, t))
 					this->throwItemError("Failure during Reading from storage");
 			};
 			auto rangeDomainUnit = AsUnit(GetAbstrDomainUnit()->GetCurrRangeItem()); assert(rangeDomainUnit);
@@ -304,7 +305,6 @@ bool AbstrDataItem::DoReadItem(StorageMetaInfoPtr smi)
 		{
 			DataWriteLock readResultHolder(this);
 			assert(readResultHolder.get_ptr());
-
 			serial_for<tile_id>(0, GetAbstrDomainUnit()->GetNrTiles(),
 				[sm, smi, this, &readResultHolder](tile_id t)->void
 				{

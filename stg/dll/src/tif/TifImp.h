@@ -93,14 +93,16 @@ public:
 	STGIMPL_CALL SizeT  GetTileByteSize()  const; // the # bytes in a row - aligned tile.
 
 	static STGIMPL_CALL void UnpackCheck(UInt32 nrDmsBitsPerPixel, UInt32 nrRasterBitsPerPixel, CharPtr functionName, CharPtr direction, CharPtr dataSourceName);
-	static STGIMPL_CALL void UnpackStrip(void* stripBuf, Int32 currDataSize, UInt32 nrBitsPerPixel);
-	static STGIMPL_CALL void UnpackStrip(UInt32* pixelData, void* stripBuff, UInt32 nrBitsPerPixel, Int32& currNrProcesedBytes, UInt32 nrBytesPerRow, UInt32 tw, UInt32 th);
-	static void UnpackStrip(UInt16* pixelData, void* stripBuff, UInt32 nrBitsPerPixel, Int32& currNrProcesedBytes, UInt32 nrBytesPerRow, UInt32 tw, UInt32 th) {}
-	static void UnpackStrip(Float64* pixelData, void* stripBuff, UInt32 nrBitsPerPixel, Int32& currNrProcesedBytes, UInt32 nrBytesPerRow, UInt32 tw, UInt32 th) {}
-	static STGIMPL_CALL void UnpackStrip(UInt8* pixelData, void* stripBuff, UInt32 nrBitsPerPixel, Int32& currNrProcesedBytes, UInt32 nrBytesPerRow, UInt32 tw, UInt32 th);
+
+	STGIMPL_CALL void UnpackStrip(void* stripBuf, Int32 currDataSize, UInt32 nrBitsPerPixel) const;
+
+	STGIMPL_CALL void UnpackStrip(UInt32* pixelData, void* stripBuff, UInt32 nrBitsPerPixel, Int32& currNrProcesedBytes, UInt32 nrBytesPerRow, UInt32 tw, UInt32 th, UInt32 defaultColor)  const;
+	STGIMPL_CALL void UnpackStrip(UInt8* pixelData, void* stripBuff, UInt32 nrBitsPerPixel, Int32& currNrProcesedBytes, UInt32 nrBytesPerRow, UInt32 tw, UInt32 th, UInt8 defaultColor)  const;
+	void UnpackStrip(UInt16* pixelData, void* stripBuff, UInt32 nrBitsPerPixel, Int32& currNrProcesedBytes, UInt32 nrBytesPerRow, UInt32 tw, UInt32 th, UInt16 defaultColor)  const {}
+	void UnpackStrip(Float64* pixelData, void* stripBuff, UInt32 nrBitsPerPixel, Int32& currNrProcesedBytes, UInt32 nrBytesPerRow, UInt32 tw, UInt32 th, Float64 defaultColor)  const {}
 
 	template <int N>
-	static void UnpackStrip(bit_iterator<N, bit_block_t> pixelData, void* stripBuff, UInt32 nrBitsPerPixel, Int32& currNrProcesedBytes, UInt32 nrBytesPerRow, UInt32 tw, UInt32 th)
+	void UnpackStrip(bit_iterator<N, bit_block_t> pixelData, void* stripBuff, UInt32 nrBitsPerPixel, Int32& currNrProcesedBytes, UInt32 nrBytesPerRow, UInt32 tw, UInt32 th, bit_value<N> defaultColor)  const
 	{
 		if (nrBitsPerPixel == 8)
 		{
@@ -113,7 +115,7 @@ public:
 		}
 	}
 
-	static void PackStrip(void* stripBuf, Int32 currDataSize, UInt32 nrBitsPerPixel) { return UnpackStrip(stripBuf, currDataSize, nrBitsPerPixel); } // all TIFF transformations are their own inverse
+	void PackStrip(void* stripBuf, Int32 currDataSize, UInt32 nrBitsPerPixel) { return UnpackStrip(stripBuf, currDataSize, nrBitsPerPixel); } // all TIFF transformations are their own inverse
 
 	bool OpenForRead (WeakStr name);
 	bool OpenForWrite(WeakStr name, UInt32 bitsPerSample, UInt32 samplesPerPixel, bool hasPalette, SAMPLEFORMAT sampleFormat);

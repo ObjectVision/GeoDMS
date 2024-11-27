@@ -80,12 +80,16 @@ public:
 	Int32 WriteTile(void* stripBuff, UInt32 tile_x, UInt32 tile_y);
 	void UnpackCheck(UInt32 nrDmsBitsPerPixel, UInt32 nrRasterBitsPerPixel, CharPtr functionName, CharPtr direction, CharPtr dataSourceName) const;
 	
-	template <typename ...Args> static void UnpackStrip(Args...)  {};
-	void PackStrip(void* stripBuf, Int32 currDataSize, UInt32 nrBitsPerPixel) const;
-	void UnpackStrip(void* stripBuff, Int32 currDataSize, UInt32 nrBitsPerPixel) const;
+	void UnpackStrip(void* stripBuff, Int32 currDataSize, UInt32 nrBitsPerPixel) const {};
 
 	template <int N>
-	static void UnpackStrip(bit_iterator<N, bit_block_t> pixelData, void* stripBuff, UInt32 nrBitsPerPixel, Int32& currNrProcesedBytes, UInt32 nrBytesPerRow, UInt32 tw, UInt32 th);
+	STGDLL_CALL void UnpackStrip(bit_iterator<N, bit_block_t> pixelData, void* stripBuff, UInt32 nrBitsPerPixel, Int32& currNrProcesedBytes, UInt32 nrBytesPerRow, UInt32 tw, UInt32 th, bit_value<N> defaultColor) const;
+	STGDLL_CALL void UnpackStrip(UInt32* pixelData, void* stripBuff, UInt32 nrBitsPerPixel, Int32& currNrProcesedBytes, UInt32 nrBytesPerRow, UInt32 tw, UInt32 th, UInt32 defaultColor)  const;
+	void UnpackStrip(UInt8* pixelData, void* stripBuff, UInt32 nrBitsPerPixel, Int32& currNrProcesedBytes, UInt32 nrBytesPerRow, UInt32 tw, UInt32 th, UInt8 defaultColor)  const {};
+	void UnpackStrip(UInt16* pixelData, void* stripBuff, UInt32 nrBitsPerPixel, Int32& currNrProcesedBytes, UInt32 nrBytesPerRow, UInt32 tw, UInt32 th, UInt16 defaultColor)  const {};
+	void UnpackStrip(Float64* pixelData, void* stripBuff, UInt32 nrBitsPerPixel, Int32& currNrProcesedBytes, UInt32 nrBytesPerRow, UInt32 tw, UInt32 th, Float64 defaultColor) const {};
+
+	void PackStrip(void* stripBuf, Int32 currDataSize, UInt32 nrBitsPerPixel) const {};
 
 	UInt32 GetWidth() const;
 	UInt32 GetHeight() const;

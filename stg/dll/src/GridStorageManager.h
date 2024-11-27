@@ -130,7 +130,7 @@ namespace Grid {
 
 	template <typename T, typename Imp>
 	void ReadTiles(const Imp& imp, IPoint bufStart, UPoint bufSize,
-		T defcolor, // value for reading beyond imageboundary
+		T defaultColor, // value for reading beyond imageboundary
 		typename sequence_traits<T>::pointer buf // output buffer (preallocated)
 	)
 	{
@@ -191,23 +191,22 @@ namespace Grid {
 						if (read_result > 0)
 						{
 							imp.UnpackStrip(stripBuff, read_result, imp.GetNrBitsPerPixel());
-							Imp::UnpackStrip(strip.begin(), stripBuff, imp.GetNrBitsPerPixel(), read_result, scanlineSize, tileSize.X(), tileSize.Y());
-
+							imp.UnpackStrip(strip.begin(), stripBuff, imp.GetNrBitsPerPixel(), read_result, scanlineSize, tileSize.X(), tileSize.Y(), defaultColor);
 							assert(UInt32(read_result) <= Max<UInt32>(tileByteSizeLocal, tileByteSizeNative));
-							// defcolor for area's outside the read (w,h) rectangle as imp.ReadTile may have painted the city read.
+							// defaultColor for area's outside the read (w,h) rectangle as imp.ReadTile may have painted the city read.
 							UInt32 nrReadableCols = w - tile_x;
 							UInt32 nrReadRows = Min<UInt32>(tileSize.Y(), h - tile_y);
 							if (nrReadableCols < tw_aligned)
 							{
 								typename sequence_traits<T>::pointer stripPtr = strip.begin() ;
 								for (UInt32 row = 0; row != nrReadRows; ++row, stripPtr += tw_aligned)
-									fast_fill(stripPtr + nrReadableCols, stripPtr + tw_aligned, defcolor);
+									fast_fill(stripPtr + nrReadableCols, stripPtr + tw_aligned, defaultColor);
 							}
 							assert(nrReadRows <= tileSize.Y());
 							assert(tw_aligned * nrReadRows <= tile_wh);
 							UInt32 rowStartIndex = tw_aligned * nrReadRows;
 							assert(rowStartIndex <= tile_wh);
-							fast_fill(strip.begin() + rowStartIndex, strip.begin() + tile_wh, defcolor);
+							fast_fill(strip.begin() + rowStartIndex, strip.begin() + tile_wh, defaultColor);
 							//REMOVE							CheckValueCount("After fill completion", strip.begin(), tile_wh); // DEBUG
 						}
 						else
@@ -216,7 +215,7 @@ namespace Grid {
 				}
 				UInt32 read_elems = array_traits<T>::NrElemsIn(read_result);
 				if (read_elems < tile_wh)
-					fast_fill(strip.begin() + read_elems, strip.begin() + tile_wh, defcolor); // dummy result for reading invalid or incomplete tile 
+					fast_fill(strip.begin() + read_elems, strip.begin() + tile_wh, defaultColor); // dummy result for reading invalid or incomplete tile 
 
 																							  // move pixels to ouput buffer
 				UInt32 c = 0;            if (tx == 0)           c = txr.mod_begin;

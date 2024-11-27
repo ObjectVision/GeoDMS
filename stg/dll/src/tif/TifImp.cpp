@@ -575,12 +575,13 @@ void TifImp::UnpackCheck(UInt32 nrDmsBitsPerPixel, UInt32 nrRasterBitsPerPixel, 
 		return;
 	if (nrRasterBitsPerPixel == 24 && nrDmsBitsPerPixel == 32) // UnpackStrip(UInt32* ...) can process this
 		return;
+
 	throwErrorF(functionName, "TifImp cannot convert %d bits raster data of %s %s %d bits DMS data"
 		, nrRasterBitsPerPixel, dataSourceName, direction, nrDmsBitsPerPixel
 	);
 }
 
-void TifImp::UnpackStrip(void* stripBuff, Int32 currDataSize, UInt32 nrBitsPerPixel)
+void TifImp::UnpackStrip(void* stripBuff, Int32 currDataSize, UInt32 nrBitsPerPixel)  const
 {
 	if (nrBitsPerPixel >= 8)
 		return;
@@ -589,20 +590,21 @@ void TifImp::UnpackStrip(void* stripBuff, Int32 currDataSize, UInt32 nrBitsPerPi
 	bit_block_t* stripBitsEnd   = stripBitsBegin  + ((currDataSize + sizeof(bit_block_t) - 1) / sizeof(bit_block_t));
 
 	switch (nrBitsPerPixel) {
-	case 1: BitSwap(stripBitsBegin, stripBitsEnd); break;
-	case 2: TwipSwap(stripBitsBegin, stripBitsEnd); break;
-	case 4: NibbleSwap(stripBitsBegin, stripBitsEnd); break;
+		case 1: BitSwap(stripBitsBegin, stripBitsEnd); break;
+		case 2: TwipSwap(stripBitsBegin, stripBitsEnd); break;
+		case 4: NibbleSwap(stripBitsBegin, stripBitsEnd); break;
 	}
 }
+
 //  --FUNCS ------------------------------------------------------------------
-void TifImp::UnpackStrip(UInt32* pixelData, void* stripBuff, UInt32 nrBitsPerPixel, Int32& currNrProcesedBytes, UInt32 nrBytesPerRow, UInt32 tw, UInt32 th)
+void TifImp::UnpackStrip(UInt32* pixelData, void* stripBuff, UInt32 nrBitsPerPixel, Int32& currNrProcesedBytes, UInt32 nrBytesPerRow, UInt32 tw, UInt32 th, UInt32 defaultColor)  const
 {
 	if (nrBitsPerPixel == 24) // expand to 32 bit values
 	{
-		dms_assert(stripBuff == (void*)pixelData); // expand to 4 byte values
+		assert(stripBuff == (void*)pixelData); // expand to 4 byte values
 		UInt32 tw3 = tw * 3, tw4 = tw * 4;
-		dms_assert(nrBytesPerRow >= tw3);
-		dms_assert(nrBytesPerRow <= tw4);
+		assert(nrBytesPerRow >= tw3);
+		assert(nrBytesPerRow <= tw4);
 
 		currNrProcesedBytes = 4 * ((currNrProcesedBytes + 2) / 3);
 
@@ -614,21 +616,52 @@ void TifImp::UnpackStrip(UInt32* pixelData, void* stripBuff, UInt32 nrBitsPerPix
 			UInt8*    pixelDataEnd = pixelDataBegin + tw3;
 			DmsColor* colorDataEnd = colorDataBegin; colorDataBegin -= tw;
 
-			dms_assert(reinterpret_cast<UInt8*>(colorDataBegin) >= pixelDataBegin);
+			assert(reinterpret_cast<UInt8*>(colorDataBegin) >= pixelDataBegin);
 
 			while (colorDataEnd != colorDataBegin)
 			{
 				pixelDataEnd -= 3;
 				*--colorDataEnd = CombineRGB(pixelDataEnd[0], pixelDataEnd[1], pixelDataEnd[2]);
 			}
-			dms_assert(pixelDataEnd == pixelDataBegin);
+			assert(pixelDataEnd == pixelDataBegin);
 		}
-		dms_assert(reinterpret_cast<UInt8*>(colorDataBegin) == pixelDataBegin);
-		return;
+		assert(reinterpret_cast<UInt8*>(colorDataBegin) == pixelDataBegin);
+	}
+	else if (nrBitsPerPixel == 32)
+	{
+		uint16 sampleFormat;
+		if (!TIFFGetField(m_TiffHandle, TIFFTAG_SAMPLEFORMAT, &sampleFormat))
+			return;
+		if (sampleFormat == SAMPLEFORMAT_UINT)
+		{
+			if (defaultColor != UNDEFINED_VALUE(UInt32))
+			{
+				auto nrValues = currNrProcesedBytes / 4;
+				while (nrValues--)
+				{
+					if (*pixelData == UNDEFINED_VALUE(UInt32))
+						*pixelData = defaultColor;
+						++pixelData;
+				}
+			}
+		}
+		if (sampleFormat == SAMPLEFORMAT_INT)
+		{
+			if (defaultColor != UNDEFINED_VALUE(Int32))
+			{
+				auto nrValues = currNrProcesedBytes / 4;
+				while (nrValues--)
+				{
+					if (*pixelData == UNDEFINED_VALUE(Int32))
+						*pixelData = defaultColor;
+					++pixelData;
+				}
+			}
+		}
 	}
 }
 
-void TifImp::UnpackStrip(UInt8* pixelData, void* stripBuff, UInt32 nrBitsPerPixel, Int32& currNrProcesedBytes, UInt32 nrBytesPerRow, UInt32 tw, UInt32 th)
+void TifImp::UnpackStrip(UInt8* pixelData, void* stripBuff, UInt32 nrBitsPerPixel, Int32& currNrProcesedBytes, UInt32 nrBytesPerRow, UInt32 tw, UInt32 th, UInt8 defaultColor)  const
 {
 	if (nrBitsPerPixel == 4)
 	{
@@ -660,7 +693,6 @@ void TifImp::UnpackStrip(UInt8* pixelData, void* stripBuff, UInt32 nrBitsPerPixe
 			}
 			dms_assert(pixelDataEnd == pixelDataBegin);
 		}
-		return;
 	}
 }
 

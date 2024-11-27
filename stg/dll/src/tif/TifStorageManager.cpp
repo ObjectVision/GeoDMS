@@ -240,7 +240,7 @@ bool TiffSM::WriteDataItem(StorageMetaInfoPtr&& smiHolder)
 			pd = nullptr;
 	}
 
-	StorageWriteHandle storageHandle(std::move(smiHolder));
+	StorageWriteHandle storageHandle(this, std::move(smiHolder));
 	{
 		dms_assert(m_pImp.has_ptr());
 
@@ -386,7 +386,8 @@ void TiffSM::DoUpdateTree(const TreeItem* storageHolder, TreeItem* curr, SyncMod
 	auto smi = this->GetMetaInfo(storageHolder, curr, StorageAction::read);
 	if(!smi)
 		return;
-	auto sch = StorageCloseHandle(std::move(smi));
+
+	auto sch = StorageCloseHandle(const_cast<TiffSM*>(this), std::move(smi));
 
 	this->OpenForRead(*sch.MetaInfo());
 	if (this->m_pImp.is_null())

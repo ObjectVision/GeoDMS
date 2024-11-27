@@ -96,7 +96,7 @@ bool GdalGridSM::ReadPalette(AbstrDataObject* ado)
 
 bool GdalGridSM::ReadDataItem(StorageMetaInfoPtr smi, AbstrDataObject* borrowedReadResultHolder, tile_id t)
 {
-	dms_assert(IsOpen());
+	assert(IsOpen());
 
 	AbstrDataItem* adi = smi->CurrWD();
 
@@ -132,6 +132,14 @@ GDalGridImp::GDalGridImp(GDALDataset* hDS, const AbstrDataObject* ado, UPoint vi
 	, m_ViewPortSize(viewPortSize)
 {
 	MG_CHECK(m_RasterBand);
+	auto rasterDataType = m_RasterBand->GetRasterDataType();
+	auto valueClass = ado->GetValueClass();
+	auto geoDmsDataType = gdalRasterDataType(valueClass->GetValueClassID(), false);
+	if (rasterDataType != geoDmsDataType)
+		reportF(SeverityTypeID::ST_Warning, "gdal.grid: different value types. Storage contains %s values while GeoDms expects %s values"
+			, GDALGetDataTypeName(rasterDataType)
+			, valueClass->GetName()
+		);
 }
 
 std::vector<int> GDalGridImp::UnpackBandIndicesFromValue(std::string value)
@@ -334,9 +342,8 @@ void GDalGridImp::UnpackCheck(UInt32 nrDmsBitsPerPixel, UInt32 nrRasterBitsPerPi
 }
 
 template <int N>
-static void GDalGridImp::UnpackStrip(bit_iterator<N, bit_block_t> pixelData, void* stripBuff, UInt32 nrBitsPerPixel, Int32& currNrProcesedBytes, UInt32 nrBytesPerRow, UInt32 tw, UInt32 th)
+void GDalGridImp::UnpackStrip(bit_iterator<N, bit_block_t> pixelData, void* stripBuff, UInt32 nrBitsPerPixel, Int32& currNrProcesedBytes, UInt32 nrBytesPerRow, UInt32 tw, UInt32 th, bit_value<N> defaultColor) const
 {
-
 	if (nrBitsPerPixel == 8)
 	{
 		char* byteBuff = reinterpret_cast<char*>(stripBuff);
@@ -348,8 +355,24 @@ static void GDalGridImp::UnpackStrip(bit_iterator<N, bit_block_t> pixelData, voi
 	}
 }
 
-void GDalGridImp::PackStrip(void* stripBuf, Int32 currDataSize, UInt32 nrBitsPerPixel) const {}
-void GDalGridImp::UnpackStrip(void* stripBuff, Int32 currDataSize, UInt32 nrBitsPerPixel) const {}
+void GDalGridImp::UnpackStrip(UInt32* pixelData, void* stripBuff, UInt32 nrBitsPerPixel, Int32& currNrProcesedBytes, UInt32 nrBytesPerRow, UInt32 tw, UInt32 th, UInt32 defaultColor)  const
+{
+/*
+	if (m_RasterBand->GetRasterDataType() == GDT_UInt32)
+	{
+		if (defaultColor != UNDEFINED_VALUE(UInt32))
+		{
+			auto nrValues = currNrProcesedBytes / 4;
+			while (nrValues--)
+			{
+				if (*pixelData == UNDEFINED_VALUE(UInt32))
+					*pixelData = defaultColor;
+				++pixelData;
+			}
+		}
+	}
+*/
+}
 
 void GDalGridImp::SetDataMode(UInt32 bitsPerSample, UInt32 samplesPerPixel, bool hasPalette, SAMPLEFORMAT sampleFormat)
 {
@@ -410,7 +433,7 @@ bool GdalGridSM::WriteDataItem(StorageMetaInfoPtr&& smi)
 
 	auto storageHolder = smi->StorageHolder();
 
-	StorageWriteHandle storageHandle(std::move(smi));
+	StorageWriteHandle storageHandle(this, std::move(smi));
 	assert(IsOpen());
 
 	MG_CHECK(m_hDS->GetRasterCount() >= 1);
@@ -420,6 +443,7 @@ bool GdalGridSM::WriteDataItem(StorageMetaInfoPtr&& smi)
 
 	GDalGridImp imp(m_hDS, adi->GetCurrRefObj(), shp2dms_order(x, y), SharedStr(""));
 	ViewPortInfoProvider vpip(storageHolder, adi, false, true);
+
 	Grid::WriteGridData(imp, vpip.GetViewportInfoEx(no_tile, storageHandle.MetaInfo()), storageHolder, adi, adi->GetCurrRefObj()->GetValuesType(), GetNameStr().c_str());
 	return true;
 }
@@ -567,7 +591,7 @@ void GdalGridSM::DoUpdateTree(const TreeItem* storageHolder, TreeItem* curr, Syn
 	curr->SetFreeDataState(true);
 
 	AbstrUnit* gridDataDomain = GetGridDataDomainRW(curr);
-	StorageReadHandle storageHandle(this, storageHolder, curr, StorageAction::updatetree);
+	StorageReadHandle storageHandle(const_cast<GdalGridSM*>(this), storageHolder, curr, StorageAction::updatetree);
 	
 	if (storageHolder == curr && !GetGridData(curr)) // Construct GridData if unavailable
 	{

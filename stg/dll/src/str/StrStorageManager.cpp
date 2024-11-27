@@ -81,7 +81,7 @@ bool StrStorageManager::ReadDataItem (StorageMetaInfoPtr smi, AbstrDataObject* b
 bool StrStorageManager::WriteDataItem(StorageMetaInfoPtr&& smiHolder)
 {
 	auto smi = smiHolder.get();
-	StorageWriteHandle hnd(std::move(smiHolder));
+	StorageWriteHandle hnd(this, std::move(smiHolder));
 
 	const AbstrDataItem  * adi = smi->CurrRD();
 	const AbstrDataObject* ado = adi->GetRefObj();

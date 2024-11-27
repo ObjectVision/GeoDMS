@@ -61,6 +61,7 @@ Issues
 */
 
 #include <map>
+#include <semaphore>
 
 #include "TicBase.h"
 #include "act/ActorEnums.h"
@@ -72,6 +73,9 @@ struct ActorVisitor;
 
 class NonmappableStorageManager;
 enum SyncMode { SM_AllTables, SM_AttrsOfConfiguredTables, SM_None };
+
+struct StorageCloseHandle;
+struct StorageReadHandle;
 
 // *****************************************************************************
 // 
@@ -125,14 +129,15 @@ struct StorageMetaInfo : std::enable_shared_from_this<StorageMetaInfo>
 	{}
 
 	StorageMetaInfo(const TreeItem* storageHolder, const TreeItem* curr)
-		: m_StorageManager(storageHolder->GetStorageManager())
+		: m_StorageManager(checked_cast<NonmappableStorageManager*>(storageHolder->GetStorageManager()))
 		, m_StorageHolder(storageHolder)
 		, m_Curr(curr)
 		, m_RelativeName(storageHolder->DoesContain(curr) ? curr->GetRelativeName(storageHolder).c_str() : curr->GetFullName().c_str())
 	{}
 	TIC_CALL virtual ~StorageMetaInfo();
 	TIC_CALL virtual void OnPreLock();
-	TIC_CALL virtual void OnOpen();
+	TIC_CALL virtual void OnOpenForRead(StorageReadHandle*);
+	TIC_CALL virtual void OnClose(StorageCloseHandle*);
 
 	TIC_CALL const TreeItem*      CurrRI() const { return m_Curr;  }
 	TIC_CALL const AbstrDataItem* CurrRD() const;
@@ -141,11 +146,11 @@ struct StorageMetaInfo : std::enable_shared_from_this<StorageMetaInfo>
 	AbstrUnit*     CurrWU() const { return const_cast<AbstrUnit*>(CurrRU()); }
 	TreeItem*      CurrWI() const { return const_cast<TreeItem*>(CurrRI()); }
 
-	AbstrStorageManager* StorageManager() const { return m_StorageManager; }
+	NonmappableStorageManager* StorageManager() const { return m_StorageManager; }
 	const TreeItem* StorageHolder() const { return m_StorageHolder; }
 
 protected:
-	SharedPtr<AbstrStorageManager> m_StorageManager;
+	SharedPtr<NonmappableStorageManager> m_StorageManager;
 	SharedPtr<const TreeItem> m_StorageHolder, m_Curr;
 public:
 	SharedStr m_RelativeName;
@@ -172,7 +177,7 @@ class AbstrStorageManager : public PersistentSharedObj
 
 public:
 	//	Static interface functions
-	TIC_CALL static AbstrStorageManagerRef Construct(CharPtr fullStorageName, TokenID typeID, bool readOnly, bool throwOnFailure, item_level_type itemLevel);
+	TIC_CALL static AbstrStorageManagerRef Construct(CharPtr fullStorageName, TokenID typeID, bool readOnly, bool throwOnFailure);
 	TIC_CALL static AbstrStorageManagerRef Construct(const TreeItem* holder, SharedStr relStorageName, TokenID typeID, bool readOnly, bool throwOnFailure = true);
 	TIC_CALL static bool                 DoesExistEx(CharPtr name, TokenID typeID, const TreeItem* storageHolder); // XXX TODO, REPLACE CharPtr by SharedCharArray*
 	TIC_CALL static SharedStr            Expand(const TreeItem* configStore, SharedStr storageName);
@@ -190,7 +195,7 @@ protected:
 	TIC_CALL virtual ~AbstrStorageManager();
 
 public:
-	TIC_CALL void InitStorageManager(CharPtr storageName, bool readOnly, item_level_type itemLevel);
+	TIC_CALL void InitStorageManager(CharPtr storageName, bool readOnly);
 	TIC_CALL void DoNotCommitOnClose() { m_Commit = false; }
 	TIC_CALL bool DoesExist(const TreeItem* storageHolder)  const; // returns IsOpen() || DoCheckExistence()
 	TIC_CALL bool IsWritable() const;
@@ -241,8 +246,14 @@ protected:
 	TIC_CALL virtual void DoWriteTree(const TreeItem* storageHolder);
 
 public:
-	using mutex_t = leveled_critical_section;
-	using lock_t = mutex_t::scoped_lock;
+	using mutex_t = std::binary_semaphore;
+
+	struct lock_t {
+		lock_t(mutex_t& m) : m_Mutex(m) { m_Mutex.acquire(); }
+		~lock_t() { m_Mutex.release(); }
+		mutex_t& m_Mutex;
+	};
+
 	mutable mutex_t m_CriticalSection;
 
 protected:
@@ -275,7 +286,7 @@ protected:
 
 public:
 
-	TIC_CALL NonmappableStorageManagerRef ReaderClone(const StorageMetaInfo& smi) const;
+	TIC_CALL auto ReaderClone(StorageMetaInfoPtr smi) const ->std::unique_ptr<StorageReadHandle>;
 
 //	Abstact interface
 	TIC_CALL virtual StorageMetaInfoPtr GetMetaInfo(const TreeItem* storageHolder, TreeItem* curr, StorageAction sa) const;
@@ -309,27 +320,28 @@ private:
 
 struct StorageCloseHandle
 {
-	TIC_CALL StorageCloseHandle(const NonmappableStorageManager* sm, const TreeItem* storageHolder, const TreeItem* focusItem, StorageAction sa);
-	TIC_CALL StorageCloseHandle(StorageMetaInfoPtr&& smi);
+	TIC_CALL StorageCloseHandle(NonmappableStorageManager* storageManager, const TreeItem* storageHolder, const TreeItem* focusItem, StorageAction sa);
+	TIC_CALL StorageCloseHandle(NonmappableStorageManager* storageManager, StorageMetaInfoPtr&& smi);
+
 	TIC_CALL virtual ~StorageCloseHandle();
 
-	explicit operator bool() const { return m_StorageManager; }
+//	explicit operator bool() const { return m_StorageManager; }
 
 	StorageMetaInfoPtr MetaInfo() const { return m_MetaInfo; }
-	TreeItem* FocusItem() const { return const_cast<TreeItem*>(m_FocusItem.get_ptr()); }
+	const TreeItem* StorageHolder() const { return MetaInfo()->StorageHolder(); }
 
-private:
-	void Init();
+	NonmappableStorageManager* StorageManager() const { return m_StorageManager; }
+
+	TreeItem* FocusItem() const { return const_cast<TreeItem*>(MetaInfo()->CurrRI()); }
 
 private:
 	AbstrStorageManager::lock_t    m_StorageLock;
 
 protected:
-	StorageMetaInfoPtr                   m_MetaInfo;
-	SharedPtr<const AbstrStorageManager> m_StorageManager;
-	SharedTreeItem                       m_StorageHolder, m_FocusItem;
+	StorageMetaInfoPtr             m_MetaInfo;
+	SharedPtr<NonmappableStorageManager> m_StorageManager;
+
 private:
-//	AbstrStorageManager::lock_t    m_StorageLock;
 	TimeStamp                      m_TimeStampBefore;
 
 	void operator =(const StorageCloseHandle&) = delete;
@@ -340,8 +352,8 @@ private:
 
 struct StorageReadHandle : StorageCloseHandle
 {
-	TIC_CALL StorageReadHandle(const NonmappableStorageManager* sm, const TreeItem* storageHolder, TreeItem* focusItem, StorageAction sa, bool mustRegisterFailure = true);
-	TIC_CALL StorageReadHandle(StorageMetaInfoPtr&& info);
+	TIC_CALL StorageReadHandle(NonmappableStorageManager* storageManager, const TreeItem* storageHolder, TreeItem* focusItem, StorageAction sa, bool mustRegisterFailure = true);
+	TIC_CALL StorageReadHandle(NonmappableStorageManager* storageManager, StorageMetaInfoPtr&& smi);
 
 	bool Read() const;
 
@@ -355,7 +367,7 @@ private:
 
 struct StorageWriteHandle : StorageCloseHandle
 {
-	TIC_CALL StorageWriteHandle(StorageMetaInfoPtr&&);
+	TIC_CALL StorageWriteHandle(NonmappableStorageManager* storageManager, StorageMetaInfoPtr&&);
 };
 
 // *****************************************************************************
