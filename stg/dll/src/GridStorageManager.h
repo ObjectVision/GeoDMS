@@ -545,7 +545,7 @@ namespace Grid {
 			UInt32 rMin = 0;            if (ty == 0)         rMin = tyr.mod_begin;
 			UInt32 rMax = tileSize.Y(); if (ty + 1 == tyr.t_cnt) rMax = tyr.mod_end + 1;
 			UInt32 rSize = rMax - rMin;
-			dms_assert(rSize);
+			assert(rSize);
 
 			TGridBase<T, UInt32> stripGrid(UPoint(shp2dms_order(tw_aligned, tileSize.Y())), strip.begin());
 
@@ -556,7 +556,7 @@ namespace Grid {
 				UInt32 c = 0;            if (tx == 0)           c = txr.mod_begin;
 				UInt32 ce = tileSize.X(); if (tx + 1 == txr.t_cnt) ce = txr.mod_end + 1;
 				UInt32 cSize = ce - c;
-				dms_assert(cSize);
+				assert(cSize);
 
 				// zero all pixels outside entireRect for every fresh tile
 				fast_zero(strip.begin(), strip.end());

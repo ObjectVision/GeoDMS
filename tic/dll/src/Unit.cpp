@@ -1081,7 +1081,11 @@ SizeT CountableUnitBase<V>::GetPreparedCount(bool throwOnUndefined) const
 template <typename V> 
 SizeT CountableUnitBase<V>::GetCount() const
 {
-	return Cardinality(this->GetRange());
+	auto sm = this->GetCurrSegmInfo();
+	MG_CHECK(sm || this->IsPassor());
+	if (!sm)
+		return Cardinality(this->GetRange());
+	return sm->GetDataSize();
 }
 
 
