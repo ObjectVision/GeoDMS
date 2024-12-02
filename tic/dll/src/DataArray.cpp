@@ -573,7 +573,7 @@ void DataArrayBase<V>::SetAbstrValue   (SizeT index, const AbstrValue& valueHold
 }
 
 template <class V>
-void DataArrayBase<V>::SetNull(SizeT index)
+void DataArrayBase<V>::SetNull(row_id index)
 {
 	tile_loc tl = GetTiledLocation(index);
 	auto data = GetWritableTile(tl.first);
@@ -581,7 +581,7 @@ void DataArrayBase<V>::SetNull(SizeT index)
 }
 
 template <class V>
-bool DataArrayBase<V>::IsNull(SizeT index) const
+bool DataArrayBase<V>::IsNull(row_id index) const
 {
 	tile_loc tl = GetTiledLocation(index);
 	if (!IsDefined(tl.first))
@@ -591,18 +591,62 @@ bool DataArrayBase<V>::IsNull(SizeT index) const
 }
 
 template <class V>
+bool DataArrayBase<V>::IsDataRowNull(datarow_id index) const
+{
+	tile_loc tl = GetTileDataLocation(index);
+	if (!IsDefined(tl.first))
+		return true;
+	auto data = GetTile(tl.first);
+	return tl.second >= data.size() || !IsDefined(data[tl.second]);
+}
+
+template <class V>
 SizeT DataArrayBase<V>::GetNrNulls() const
 {
-	SizeT count = 0;
-	for (tile_id t=0, tn=GetTiledRangeData()->GetNrTiles(); t!=tn; ++t)
+	if constexpr (!has_undefines_v<V>)
+		return 0;
+	else
 	{
-//		ReadableTileLock lock(this, t);
-		auto data = GetDataRead(t);
-		for (auto i=data.begin(), e=data.end(); i!=e; ++i)
-			if (!IsDefined(*i))
+		auto trd = GetTiledRangeData();
+		MG_CHECK(trd);
+		if (trd->IsCovered())
+			return GetNrDataRowNulls();
+		tile_id currTile = no_tile;
+		locked_cseq_t tileData;
+		SizeT count = 0;
+		for (row_id i = 0, n = trd->GetRangeSize(); i != n; ++i)
+		{
+			tile_loc tl = trd->GetTiledLocation(i, currTile);
+			if (tl.first != currTile)
+			{
+				currTile = tl.first;
+				tileData = GetTile(tl.first);
+			}
+			if (currTile == no_tile || !IsDefined(tileData[tl.second]))
 				++count;
+		}
+		return count;
 	}
-	return count;
+}
+
+template <class V>
+SizeT DataArrayBase<V>::GetNrDataRowNulls() const
+{
+	if constexpr (!has_undefines_v<V>)
+		return 0;
+	else
+	{
+		SizeT count = 0;
+		auto trd = GetTiledRangeData();
+		for (tile_id t = 0, tn = trd->GetNrTiles(); t != tn; ++t)
+		{
+			auto data = GetTile(t);
+			for (auto i = data.begin(), e = data.end(); i != e; ++i)
+				if (!IsDefined(*i))
+					++count;
+		}
+		return count;
+	}
 }
 
 template <class V>

@@ -720,6 +720,11 @@ SizeT AbstrUnit::GetCount() const  // Returns 0 if non-countable unit
 	return 0;
 }
 
+SizeT AbstrUnit::GetDataCount() const  // Returns 0 if non-countable unit
+{
+	return GetCount();
+}
+
 tile_offset AbstrUnit::GetPreparedTileCount(tile_id t) const  // Returns 0 if non-countable unit
 {
 	return GetTileCount(t);

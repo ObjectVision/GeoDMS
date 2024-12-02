@@ -1,0 +1,9 @@
+// Hint files help the Visual Studio IDE interpret Visual C++ identifiers
+// such as names of functions and macros.
+// For more information see https://go.microsoft.com/fwlink/?linkid=865984
+#define IMPL_CLASS(cls, CreateFunc) const Class* cls::GetStaticClass() { static Class s_Cls(CreateFunc, cls::base_type::GetStaticClass(), GetTokenID_st(#cls) ); return &s_Cls; }
+// Hint files help the Visual Studio IDE interpret Visual C++ identifiers
+// such as names of functions and macros.
+// For more information see https://go.microsoft.com/fwlink/?linkid=865984
+#define TIC_CALL __declspec(dllexport)
+#define RTC_CALL __declspec(dllimport)

@@ -80,7 +80,8 @@ public:
 	TIC_CALL const ValueClass*  GetValuesType() const;
 
 //	Tiling
-	TIC_CALL tile_loc GetTiledLocation(row_id idx) const;
+	TIC_CALL tile_loc GetTiledLocation   (row_id idx) const;
+	TIC_CALL tile_loc GetTileDataLocation(datarow_id idx) const;
 
 // Abstr Tile retention
 	virtual auto GetFutureAbstrTile(tile_id t) const-> SharedPtr<abstr_future_tile> = 0;
@@ -111,6 +112,7 @@ public:
 	TIC_CALL virtual void SetAbstrValue   (SizeT index, const AbstrValue& valueHolder)=0;
 	TIC_CALL virtual void SetNull         (SizeT index) = 0;
 	TIC_CALL virtual bool IsNull          (SizeT index) const = 0;
+	TIC_CALL virtual bool IsDataRowNull   (SizeT index) const = 0;
 	TIC_CALL virtual bool   AsCharArray(SizeT index, char* sink, streamsize_t buflen, GuiReadLock& lockHolder, FormattingFlags ff) const=0;
 	TIC_CALL virtual SizeT  AsCharArraySize(SizeT index, streamsize_t maxLen, GuiReadLock& lockHolder, FormattingFlags ff) const=0;
 	TIC_CALL virtual SharedStr AsString (SizeT index, GuiReadLock& lockHolder) const=0;
@@ -132,6 +134,7 @@ public:
 	TIC_CALL virtual SizeT   FindPosOfSizeT(SizeT val, SizeT startPos = 0) const;
 	TIC_CALL virtual Float64 GetSumAsFloat64() const;
 	TIC_CALL virtual SizeT   GetNrNulls() const =0;
+	TIC_CALL virtual SizeT   GetNrDataRowNulls() const = 0;
 
 	TIC_CALL virtual SizeT GetValuesAsFloat64Array(tile_loc tl, SizeT len, Float64* data) const;
 	TIC_CALL virtual SizeT GetValuesAsUInt32Array (tile_loc tl, SizeT len, UInt32*  data) const;

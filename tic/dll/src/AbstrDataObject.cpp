@@ -133,6 +133,11 @@ tile_loc AbstrDataObject::GetTiledLocation(row_id idx) const
 	return GetTiledRangeData()->GetTiledLocation(idx);
 }
 
+tile_loc AbstrDataObject::GetTileDataLocation(datarow_id idx) const
+{
+	return GetTiledRangeData()->GetTileDataLocation(idx);
+}
+
 //----------------------------------------------------------------------
 // Illegal Abstracts
 //----------------------------------------------------------------------
@@ -194,7 +199,7 @@ void AbstrDataObject::GetValueAsDPoints(SizeT index, std::vector<DPoint>& dpoint
 //----------------------------------------------------------------------
 
 
-IMPL_CLASS(AbstrDataObject, 0)
+IMPL_CLASS(AbstrDataObject, nullptr)
 
 
 //----------------------------------------------------------------------

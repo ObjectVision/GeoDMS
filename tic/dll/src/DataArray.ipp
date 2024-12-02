@@ -92,7 +92,7 @@ template <class V>
 typename DataArrayBase<V>::value_type
 DataArrayBase<V>::GetIndexedValue(SizeT index) const
 {
-	tile_loc tl = GetTiledLocation(index);
+	tile_loc tl = GetTileDataLocation(index);
 	if (!IsDefined(tl.first))
 		return UNDEFINED_OR_ZERO(V);
 
@@ -106,7 +106,7 @@ template <class V>
 typename DataArrayBase<V>::const_iterator
 DataArrayBase<V>::GetIndexedIterator(SizeT index, GuiReadLock& lockHolder) const
 {
-	tile_loc loc = GetTiledRangeData()->GetTiledLocation(index);
+	tile_loc loc = GetTiledRangeData()->GetTileDataLocation(index);
 	if (!IsDefined(loc.first))
 		return const_iterator();
 

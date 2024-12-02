@@ -93,11 +93,13 @@ struct DataArrayBase : AbstrDataObject
 
 	TICTOC_CALL const ValueClass* GetValueClass() const override;
 	TICTOC_CALL AbstrValue* CreateAbstrValue()                                     const override;
-	TICTOC_CALL void GetAbstrValue(SizeT index, AbstrValue& valueHolder)    const override;
-	TICTOC_CALL void SetAbstrValue(SizeT index, const AbstrValue& valueHolder)   override;
-	TICTOC_CALL void        SetNull      (SizeT index)                                  override;
-	TICTOC_CALL bool        IsNull       (SizeT index) const                            override;
+	TICTOC_CALL void GetAbstrValue(row_id index, AbstrValue& valueHolder)    const override;
+	TICTOC_CALL void SetAbstrValue(row_id index, const AbstrValue& valueHolder)   override;
+	TICTOC_CALL void        SetNull      (row_id index)                                 override;
+	TICTOC_CALL bool        IsNull       (row_id index) const                           override;
+	TICTOC_CALL bool        IsDataRowNull(datarow_id index) const                       override;
 	TICTOC_CALL SizeT       GetNrNulls   () const                                       override;
+	TICTOC_CALL SizeT       GetNrDataRowNulls() const                                   override;
 
 	TICTOC_CALL bool        AsCharArray(SizeT index, char* sink, streamsize_t buflen, GuiReadLock& lockHolder, FormattingFlags ff) const override;
 	TICTOC_CALL SizeT       AsCharArraySize(SizeT index, streamsize_t maxLen, GuiReadLock& lockHolder, FormattingFlags ff)     const override;

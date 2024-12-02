@@ -194,6 +194,7 @@ struct CountableUnitBase : RangedUnit<V> // all integral objects and integral po
 
 	row_id GetPreparedCount(bool throwOnUndefined = true) const override;
 	row_id GetCount() const override;
+	row_id GetDataCount() const override;
 	tile_offset GetPreparedTileCount(tile_id t) const override;
 	tile_offset GetTileCount(tile_id t) const override;
 

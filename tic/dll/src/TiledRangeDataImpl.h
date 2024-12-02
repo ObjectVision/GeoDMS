@@ -99,6 +99,7 @@ struct RegularAdapter: Base
 	tile_loc GetTiledLocationForValue(value_type v) const;
 
 	tile_loc GetTiledLocation(row_id index) const override;
+	tile_loc GetTileDataLocation(row_id index) const override;
 	tile_id GetNrTiles() const override;
 
 	SizeT GetNrMemPages(UInt8 log2BytesPerElem) const override
@@ -193,6 +194,20 @@ struct IrregularTileRangeData : TiledRangeData<V>
 
 		V v = Range_GetValue_naked(this->m_Range, index);
 		return GetTiledLocationForValue(v);
+	}
+	tile_loc GetTileDataLocation(datarow_id dataIndex) const override
+	{
+		assert(dataIndex < GetDataSize());
+		for (const auto& tileRange : m_Ranges)
+		{
+			auto tileSize = Cardinality(tileRange);
+			if (dataIndex < tileSize)
+			{
+				return tile_loc(&tileRange - begin_ptr(m_Ranges), dataIndex);
+			}
+			dataIndex -= tileSize;
+		}
+		return tile_loc(no_tile, UNDEFINED_VALUE(tile_offset));
 	}
 	tile_loc GetTiledLocation(row_id index, tile_id prevT) const override
 	{

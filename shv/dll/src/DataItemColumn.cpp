@@ -54,7 +54,7 @@
 // class  : DataItemColumn
 //----------------------------------------------------------------------
 
-UInt32 GetDefaultColumnWidth(const AbstrDataItem* adi)
+static UInt32 GetDefaultColumnWidth(const AbstrDataItem* adi)
 {
 //	if (adi && adi->GetAbstrValuesUnit()->GetValueType()->IsNumeric())
 //	{
@@ -94,7 +94,7 @@ DataItemColumn::~DataItemColumn()
 
 static TokenID aggrID = GetTokenID_st("Aggr");
 
-AggrMethod DefaultAggrMethod(const AbstrDataItem* adi)
+static AggrMethod DefaultAggrMethod(const AbstrDataItem* adi)
 {
 	const AbstrUnit* avu = adi->GetAbstrValuesUnit();
 	ValueComposition vcm = adi->GetValueComposition();
@@ -124,7 +124,7 @@ AggrMethod DefaultAggrMethod(const AbstrDataItem* adi)
 	return AggrMethod::count;
 }
 
-bool Allowed(const AbstrDataItem* adi, AggrMethod am)
+static bool Allowed(const AbstrDataItem* adi, AggrMethod am)
 {
 	const AbstrUnit* avu = adi->GetAbstrValuesUnit();
 	ValueComposition vcm = adi->GetValueComposition();
@@ -183,7 +183,7 @@ bool Allowed(const AbstrDataItem* adi, AggrMethod am)
 	return false;
 }
 
-std::pair<ConstUnitRef, ValueComposition> ValuesUnitAndComposition(const AbstrDataItem* adi, const AbstrDataItem* groupByRel, AggrMethod am)
+static std::pair<ConstUnitRef, ValueComposition> ValuesUnitAndComposition(const AbstrDataItem* adi, const AbstrDataItem* groupByRel, AggrMethod am)
 {
 	assert(Allowed(adi, am));
 
@@ -227,7 +227,7 @@ std::pair<ConstUnitRef, ValueComposition> ValuesUnitAndComposition(const AbstrDa
 	return { avu, ValueComposition::Single };
 }
 
-CharPtr SelectCardinality(const AbstrUnit* au, CharPtr oper8, CharPtr oper16, CharPtr oper32, CharPtr oper64)
+static CharPtr SelectCardinality(const AbstrUnit* au, CharPtr oper8, CharPtr oper16, CharPtr oper32, CharPtr oper64)
 {
 	auto vt = au->GetValueType(); assert(vt);
 	auto vtCrd = vt->GetCrdClass(); assert(vtCrd);
@@ -240,7 +240,7 @@ CharPtr SelectCardinality(const AbstrUnit* au, CharPtr oper8, CharPtr oper16, Ch
 	return oper64;
 }
 
-CharPtr OperName(const AbstrDataItem* adi, AggrMethod am)
+static CharPtr OperName(const AbstrDataItem* adi, AggrMethod am)
 {
 //	assert(Allowed(adi, am));
 
@@ -278,7 +278,7 @@ CharPtr OperName(const AbstrDataItem* adi, AggrMethod am)
 //	%2% = adi->GetFullName()
 //	%3% = groupByItemName
 
-CharPtr OperExprFormat(const AbstrDataItem* adi, const AbstrDataItem* groupBy_rel, AggrMethod am)
+static CharPtr OperExprFormat(const AbstrDataItem* adi, const AbstrDataItem* groupBy_rel, AggrMethod am)
 {
 	switch (am)
 	{
@@ -318,7 +318,7 @@ CharPtr OperExprFormat(const AbstrDataItem* adi, const AbstrDataItem* groupBy_re
 	return "%1%(%2%, %3%)"; // fits for most cases
 }
 
-SharedStr OperExpr(const AbstrDataItem* adi, const AbstrDataItem* groupBy_rel, AggrMethod am)
+static SharedStr OperExpr(const AbstrDataItem* adi, const AbstrDataItem* groupBy_rel, AggrMethod am)
 {
 	CharPtr groupByItemName = "../GroupBy/per_Row";
 	return mgFormat2SharedStr(OperExprFormat(adi, groupBy_rel, am), OperName(adi, am) , adi->GetFullName(), groupByItemName);
@@ -885,7 +885,7 @@ TextInfo DataItemColumn::GetText(SizeT recNo, SizeT maxLen, GuiReadLockPair& loc
 	if (!activeTextAttr)
 	{
 		auto theme = GetEnabledTheme(AN_LabelText);
-		dms_assert(theme);
+		assert(theme);
 		if (theme->IsFailed())
 		{
 			auto fr = theme->GetFailReason(); if (!fr) return TextInfo({}, true);
@@ -898,14 +898,14 @@ TextInfo DataItemColumn::GetText(SizeT recNo, SizeT maxLen, GuiReadLockPair& loc
 		return TextInfo{ activeTextAttr->GetFailReason()->Why(), true };
 
 	auto  refObj = activeTextAttr->GetRefObj();
-	if (refObj->IsNull(recNo))
+	if (refObj->IsDataRowNull(recNo))
 	{
 		static SharedStr undefinedStr(UNDEFINED_VALUE_STRING);
 		return TextInfo(undefinedStr, true);
 	}
 	if (m_State.Get(DIC_RelativeDisplay))
 	{
-		dms_assert(IsNumeric());
+		assert(IsNumeric());
 		Float64 total = GetColumnTotal();
 		if (total != 0)
 		{
@@ -1017,7 +1017,7 @@ std::weak_ptr<const TableControl> DataItemColumn::GetTableControl() const
 
 std::atomic<UInt32> s_ChooseColorDialogCount = 0;
 
-bool ChooseColorDialog(DmsColor& rgb, DataView* dv)
+static bool ChooseColorDialog(DmsColor& rgb, DataView* dv)
 {
 	dms_assert(dv);
 

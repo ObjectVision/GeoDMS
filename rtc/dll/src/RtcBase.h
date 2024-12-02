@@ -270,6 +270,7 @@ typedef SA_Reference     <char> StringRef;
 using tile_id = UInt32;
 using tile_offset = UInt32;
 using row_id = UInt64;
+using datarow_id = UInt64;
 using tile_loc = std::pair<tile_id, tile_offset>;
 
 const tile_id no_tile   = -1;

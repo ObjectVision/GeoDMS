@@ -95,7 +95,7 @@ auto GetRangeDataAsLispRef(const RD& rd, bool asCategorical, LispPtr base) -> Li
 	return rd->GetAsLispRef(base, asCategorical);
 }
 
-auto GetRangeDataAsLispRef(Void rd, bool asCategorical, LispPtr base) -> LispRef
+static auto GetRangeDataAsLispRef(Void rd, bool asCategorical, LispPtr base) -> LispRef
 {
 	return base;
 }
@@ -264,15 +264,14 @@ row_id AbstrTileRangeData::GetElemCount() const
 
 //-------------------------------
 
-template <typename V>
-std::enable_if_t<is_numeric_v<V>, V>
-TileStart(const Range<V>& range, tile_offset size, tile_offset nr_tiles, tile_id t)
+template <NumericValue V>
+auto TileStart(const Range<V>& range, tile_offset size, tile_offset nr_tiles, tile_id t) -> V
 {
 	return range.first + row_id(size) * t;
 }
 
-template <typename V>
-Point<V> TileStart(const Range<Point<V>>& range, tile_extent_t<Point<V>> tileExtent, tile_extent_t<Point<V>> tilingExtent, tile_id t)
+template <NumericValue V>
+auto TileStart(const Range<Point<V>>& range, tile_extent_t<Point<V>> tileExtent, tile_extent_t<Point<V>> tilingExtent, tile_id t) -> Point<V>
 {
 	return range.first + Point<V>(Range_GetValue_naked_zbase(tilingExtent, t)) * Point<V>(tileExtent);
 }
@@ -311,7 +310,7 @@ void RegularAdapter<Base>::CalcTilingExtent()
 template <typename Base>
 tile_loc RegularAdapter<Base>::GetTiledLocationForValue(value_type v) const
 {
-	dms_assert(IsIncluding(this->m_Range, v));
+	assert(IsIncluding(this->m_Range, v));
 
 	tile_id t = Range_GetIndex_naked_zbase(this->tiling_extent(), tile_extent_t<value_type>((v - this->m_Range.first) / this->tile_extent()));
 	return tile_loc(t, Range_GetIndex_naked(GetTileRange(t), v));
@@ -326,6 +325,29 @@ tile_loc RegularAdapter<Base>::GetTiledLocation(row_id index) const
 
 	auto v = Range_GetValue_naked(this->m_Range, index);
 	return GetTiledLocationForValue(v);
+}
+
+template <typename Base>
+tile_loc RegularAdapter<Base>::GetTileDataLocation(row_id dataIndex) const
+{
+	if constexpr (is_numeric_v<value_type>)
+		return GetTiledLocation(dataIndex);
+	else
+	{
+		assert(dataIndex < Cardinality(this->m_Range));
+
+		auto tileSize = this->GetTileSize(0);
+		auto tilingExtent = this->GetTilingExtent();
+
+		assert(tilingExtent.Row() >= 1);
+		assert(tilingExtent.Col() >= 1);
+		auto lastCol = tilingExtent.Col() - 1;
+		auto stripSize = tileSize * lastCol + this->GetTileSize(lastCol);
+		auto s = dataIndex / stripSize;
+		auto r = dataIndex % stripSize;
+		assert(s < tilingExtent.Row());
+		return tile_loc(s * tilingExtent.Col() + r / tileSize, r % tileSize);
+	}
 }
 
 template <typename Base>
@@ -682,7 +704,7 @@ void RangedUnit<V>::SetMetric(SharedPtr<const UnitMetric> m)
 	m_Metric = m;
 }
 
-void MarkUnitChange(AbstrUnit* au) {
+static void MarkUnitChange(AbstrUnit* au) {
 	auto ts = UpdateMarker::GetActiveTS(MG_DEBUG_TS_SOURCE_CODE("SetRange"));
 	au->MarkTS(ts);
 	au->SetDC(nullptr);
@@ -1081,10 +1103,16 @@ SizeT CountableUnitBase<V>::GetPreparedCount(bool throwOnUndefined) const
 template <typename V> 
 SizeT CountableUnitBase<V>::GetCount() const
 {
+	return Cardinality(this->GetRange());
+}
+
+template <typename V>
+SizeT CountableUnitBase<V>::GetDataCount() const
+{
 	auto sm = this->GetCurrSegmInfo();
 	MG_CHECK(sm || this->IsPassor());
 	if (!sm)
-		return Cardinality(this->GetRange());
+		return GetCount();
 	return sm->GetDataSize();
 }
 

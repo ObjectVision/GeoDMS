@@ -147,6 +147,7 @@ public:
 	TIC_CALL void ValidateCount(row_id) const;
 
 	virtual row_id  GetCount() const;
+	virtual row_id  GetDataCount() const;
 	virtual tile_offset GetTileCount(tile_id t) const;
 	virtual row_id GetBase () const;
 	TIC_CALL bool IsOrdinalAndZeroBased() const;

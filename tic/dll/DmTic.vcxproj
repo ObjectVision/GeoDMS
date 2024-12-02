@@ -195,6 +195,7 @@
     <ClInclude Include="src\TileLock.h" />
   </ItemGroup>
   <ItemGroup>
+    <None Include="cpp.hint" />
     <None Include="src\DataArray.ipp" />
   </ItemGroup>
   <ItemGroup>
