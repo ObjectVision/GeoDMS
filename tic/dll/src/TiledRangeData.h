@@ -1,4 +1,4 @@
-// Copyright (C) 1998-2023 Object Vision b.v. 
+// Copyright (C) 1998-2024 Object Vision b.v. 
 // License: GNU GPL 3
 /////////////////////////////////////////////////////////////////////////////
 
@@ -47,8 +47,7 @@ struct SimpleRangeData : SharedObj
 		return m_Range;
 	}
 	row_id GetRangeSize() const { return Cardinality(GetRange()); }
-	row_id GetDataSize() const { return GetRangeSize(); }
-
+	row_id GetElemCount() const { return GetRangeSize(); }
 	bool IsFirstValueZero() const
 	{
 		if constexpr (dimension_of_v<V> == 2)
@@ -75,7 +74,7 @@ struct AbstrTileRangeData : SharedObj
 	virtual tile_loc GetTiledLocation(row_id index, tile_id /*prevT*/) const { return GetTiledLocation(index); }
 	virtual tile_loc GetTileDataLocation(datarow_id dataIndex) const { return GetTiledLocation(dataIndex); }
 	virtual row_id GetRangeSize() const = 0;
-	virtual row_id GetDataSize() const { return GetRangeSize(); }
+//REMOVE	virtual row_id GetDataSize() const { return GetRangeSize(); }
 
 	virtual I64Rect GetRangeAsI64Rect() const = 0;
 	virtual I64Rect GetTileRangeAsI64Rect(tile_id t) const = 0;

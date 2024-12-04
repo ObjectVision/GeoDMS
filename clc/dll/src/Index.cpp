@@ -14,13 +14,15 @@
 #include "ser/AsString.h"
 #include "set/VectorFunc.h"
 
+#include "CheckedDomain.h"
 #include "DataArray.h"
 #include "DataItemClass.h"
+#include "Metric.h"
 #include "TreeItemClass.h"
 #include "Unit.h"
 #include "UnitClass.h"
-#include "Metric.h"
-#include "CheckedDomain.h"
+#include "UnitProcessor.h"
+#include "TileChannel.h"
 
 #include "OperRelUni.h"
 #include "UnitProcessor.h"
@@ -119,6 +121,8 @@ public:
 
 		const UnitClass* eCls = e->GetUnitClass();
 		const UnitClass* vCls = Unit<UInt32>::GetStaticClass();
+		if (eCls->GetValueType()->GetBitSize() > 32)
+			vCls = Unit<UInt64>::GetStaticClass();
 
 		const AbstrUnit*  v = ((eCls == vCls) ? e : vCls->CreateDefault());
 
@@ -132,13 +136,13 @@ public:
 			AbstrDataItem* res = AsDataItem(resultHolder.GetNew());
 			DataWriteLock resLock(res);
 
-			Calculate(mutable_array_cast<UInt32>(resLock), adi);
+			Calculate(v, resLock, adi);
 
 			resLock.Commit();
 		}
 		return true;
 	}
-	virtual void Calculate(ResultType* result, const AbstrDataItem* adi) const =0;
+	virtual void Calculate(const AbstrUnit* resultValuesUnit, AbstrDataObject* result, const AbstrDataItem* adi) const =0;
 };
 
 template <class V>
@@ -152,14 +156,33 @@ public:
 		:	AbstrDirectIndexOperator(ArgType::GetStaticClass())
 	{}
 
-	void Calculate(ResultType* result, const AbstrDataItem* adi) const override
+	void Calculate(const AbstrUnit* resultValuesUnit, AbstrDataObject* result, const AbstrDataItem* adi) const override
 	{
+
 		const ArgType* di = const_array_cast<V>(adi);
 		assert(di);
 
-		auto resData = result->GetDataWrite(no_tile, dms_rw_mode::write_only_all);
+		// TODO: Optimize for sequence-arrays, similar to GetDataRead(no_tile);
+		auto trd = di->GetTiledRangeData();
+		std::vector<V> argData; argData.reserve(trd->GetElemCount());
+		for (tile_id t = 0, te = trd->GetNrTiles(); t != te; ++t)
+			for (const auto& v : di->GetTile(t))
+					argData.emplace_back(v);
 
-		make_index_in_existing_span(resData.begin(), resData.end(), di->GetDataRead().begin());
+		visit<typelists::ulongs>(resultValuesUnit, [result, &argData]<typename I>(const Unit<I>* values)
+		{
+			auto resObj = mutable_array_cast<I>(result);
+//			auto resData = resObj->GetDataWrite(no_tile, dms_rw_mode::write_only_all);
+
+			// TODO, OPTIMIZE: try to avoid zero-initialisation of resData
+			std::vector<I> resData(resObj->GetTiledRangeData()->GetElemCount());
+			make_index_in_existing_span(resData.begin(), resData.end(), argData.begin());
+			
+			tile_write_channel<I> resultWriter(resObj);
+			resultWriter.Write(resData.begin(), resData.size());
+
+		});
+
 	}
 };
 

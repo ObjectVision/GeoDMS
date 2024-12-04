@@ -198,7 +198,7 @@ void ModusTotDispatcher(const DataArray<V>* valuesTF, bool noOutOfRangeValues, t
 			{
 				typename Unit<V>::range_t valuesRange = GetValuesRange<V>(valuesTF);
 				// Countable values; go for Table if sensible
-				auto n = valuesTF->GetTiledRangeData()->GetDataSize();
+				auto n = valuesTF->GetTiledRangeData()->GetElemCount();
 				auto v = Cardinality(valuesRange);
 
 				if (IsDefined(v) && (v / map_node_type_size<V> <= n / sizeof(V)))  // memory condition v*p<=n, thus TableTime <= 2n.
@@ -383,7 +383,7 @@ void WeightedModusTotDispatcher(const DataArray<V>* valuesTF, bool noOutOfRangeV
 				auto valuesRange = GetValuesRange<V>(valuesTF);
 
 				// Countable values; go for Table if sensible
-				auto n = valuesTF->GetTiledRangeData()->GetDataSize();
+				auto n = valuesTF->GetTiledRangeData()->GetElemCount();
 				auto v = Cardinality(valuesRange);
 
 				if (IsDefined(v) && (v / map_node_type_size<V> <= n / sizeof(V))) // memory condition v*p<=n, thus TableTime <= 2n.
@@ -535,7 +535,7 @@ void WeightedModusPartDispatcher(const DataArray<V>* valuesTF, bool noOutOfRange
 				assert(!valuesRange.empty());   //we already made result with p as domainUnit, thus count must be known and managable.
 
 				// Countable values; go for Table if sensible
-				auto n = valuesTF->GetTiledRangeData()->GetDataSize();
+				auto n = valuesTF->GetTiledRangeData()->GetElemCount();
 				auto v = valuesRange.empty() ? MAX_VALUE(row_id) : Cardinality(valuesRange);
 
 				assert(IsNotUndef(nrP)); //consequence of the checks on indexRange: values Unit of index has been used as domain of the result

@@ -197,7 +197,7 @@ struct IrregularTileRangeData : TiledRangeData<V>
 	}
 	tile_loc GetTileDataLocation(datarow_id dataIndex) const override
 	{
-		assert(dataIndex < GetDataSize());
+		assert(dataIndex < this->GetElemCount());
 		for (const auto& tileRange : m_Ranges)
 		{
 			auto tileSize = Cardinality(tileRange);
@@ -255,13 +255,6 @@ struct IrregularTileRangeData : TiledRangeData<V>
 		for (auto& tileRange : m_Ranges)
 			MakeMax<tile_offset>(result, Cardinality(tileRange));
 		return result;
-	}
-	row_id GetDataSize() const override
-	{
-		row_id nrRows = 0;
-		for (tile_id t = 0, tn = GetNrTiles(); t != tn; ++t)
-			nrRows += this->GetTileSize(t);
-		return nrRows;
 	}
 
 	std::vector<Range<V>> m_Ranges;

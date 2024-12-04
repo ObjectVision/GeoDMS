@@ -415,7 +415,7 @@ CLC_CALL bool NumericDataItem_GetStatistics(const TreeItem* item, vos_buffer_typ
 			{
 				auto range_item = domain->GetCurrRangeItem();
 				auto si = AsUnit(range_item)->GetTiledRangeData();
-				irr_n = si->GetDataSize();
+				irr_n = si->GetElemCount();
 			}
 
 			if (!n)

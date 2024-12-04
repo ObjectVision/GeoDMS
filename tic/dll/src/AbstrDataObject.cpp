@@ -99,8 +99,8 @@ const ValueClass* AbstrDataObject::GetValuesType() const
 
 void CopyData(const AbstrDataObject* oldDataO, AbstrDataObject* newDataO, const DomainChangeInfo* info)
 {
-	auto oldDataSize = oldDataO->GetTiledRangeData()->GetDataSize();
-	auto newDataSize = newDataO->GetTiledRangeData()->GetDataSize();
+	auto oldDataSize = oldDataO->GetTiledRangeData()->GetElemCount();
+	auto newDataSize = newDataO->GetTiledRangeData()->GetElemCount();
 	auto copySize = std::min(oldDataSize, newDataSize);
 	visit<typelists::value_elements>(oldDataO->GetValueClass(),
 		[oldDataO, newDataO, info, newDataSize, copySize]<typename V>(const V*)

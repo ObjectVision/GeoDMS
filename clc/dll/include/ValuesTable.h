@@ -542,7 +542,7 @@ auto GetWeededCountsOfV(const DataArray<V>* valuesTF, bool noOutOfRangeValues,  
 				SizeT v = valuesUnit->GetDataCount();
 				if (IsDefined(v) && v <= maxPairCount)
 				{
-					SizeT n = valuesTF->GetTiledRangeData()->GetDataSize();
+					SizeT n = valuesTF->GetTiledRangeData()->GetElemCount();
 					if (v <= n) // Countable values; go for Table if sensible
 					{
 						auto freqTable = GetCountsAsArray<V, C>(valuesTF, valuesUnit->GetRange());

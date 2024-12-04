@@ -777,7 +777,7 @@ void AbstrUnit::ValidateCount(SizeT supposedCount) const
 	if (!sm)
 		throwItemErrorF("ValidateCount(%d) failed because this unit has no segment info", supposedCount);
 
-	row_id count = sm->GetDataSize();
+	row_id count = sm->GetElemCount();
 
 	if (supposedCount != count)
 		throwItemErrorF("ValidateCount(%d) failed because this unit has count %d"

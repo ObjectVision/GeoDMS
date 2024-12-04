@@ -718,8 +718,8 @@ static void MarkUnitChange(AbstrUnit* au) {
 template <class V> typename std::enable_if_t<!std::is_floating_point_v< scalar_of_t<V> > >
 NotifyRangeDataChange(RangedUnit<V>* self, const typename RangedUnit<V>::range_data_t* oldRangeData, const typename RangedUnit<V>::range_data_t* newRangeData)
 {
-	auto oldSize = oldRangeData->GetDataSize();
-	auto newSize = newRangeData->GetDataSize();
+	auto oldSize = oldRangeData->GetElemCount();
+	auto newSize = newRangeData->GetElemCount();
 
 	DomainChangeInfo info{
 		oldRangeData, newRangeData
@@ -1113,7 +1113,7 @@ SizeT CountableUnitBase<V>::GetDataCount() const
 	MG_CHECK(sm || this->IsPassor());
 	if (!sm)
 		return GetCount();
-	return sm->GetDataSize();
+	return sm->GetElemCount();
 }
 
 

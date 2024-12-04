@@ -233,7 +233,7 @@ bool WriteUnitProps(XML_Table& xmlTable, const AbstrUnit* unit, bool allTileInfo
 		XML_OutElement details(xmlTable.OutStream(), "details");
 		{
 			XML_OutElement summary(xmlTable.OutStream(), "summary");
-			xmlTable.OutStream() << "DataSize " << AsString(trd->GetDataSize()).c_str();
+			xmlTable.OutStream() << "DataSize " << AsString(trd->GetElemCount()).c_str();
 		}
 		for (tile_id t = 0, tn = trd->GetNrTiles(); t != tn; ++t)
 		{
