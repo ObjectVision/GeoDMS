@@ -257,7 +257,7 @@ SizeT TableControl::NrRows() const
 		return 8;
 
 	dbg_assert(!SuspendTrigger::DidSuspend());
-	return const_cast<TableControl*>(this)->PrepareDataOrUpdateViewLater(rowEntity) ? rowEntity->GetCount() : UNDEFINED_VALUE(SizeT);
+	return const_cast<TableControl*>(this)->PrepareDataOrUpdateViewLater(rowEntity) ? rowEntity->GetDataCount() : UNDEFINED_VALUE(SizeT);
 }
 
 SizeT TableControl::GetRecNo(SizeT rowNr) const
@@ -273,7 +273,7 @@ SizeT TableControl::GetRecNo(SizeT rowNr) const
 	if (!const_cast<TableControl*>(this)->PrepareDataOrUpdateViewLater(m_SelIndexAttr.get_ptr()))
 		return UNDEFINED_VALUE(SizeT);
 	PreparedDataReadLock lck(m_SelIndexAttr, "TableControl::GetRecNo");
-	return m_SelIndexAttr->GetRefObj()->GetValueAsUInt32(rowNr);
+	return m_SelIndexAttr->GetRefObj()->GetValueAsSizeT(rowNr);
 }
 
 SizeT TableControl::nrRows() const
@@ -296,7 +296,7 @@ SizeT TableControl::getRecNo(SizeT rowNr) const
 	if (!m_SelIndexAttr)
 		return rowNr;
 	assert(m_SelIndexAttr->m_DataLockCount > 0);
-	return m_SelIndexAttr->GetRefObj()->GetValueAsUInt32(rowNr);
+	return m_SelIndexAttr->GetRefObj()->GetValueAsSizeT(rowNr);
 }
 
 SizeT TableControl::GetRowNr(SizeT recNo) const
@@ -477,7 +477,7 @@ SharedStr TableControl::GetCaption() const
 		return SharedStr("<UNDEFINED DOMAIN>");
 
 	SizeT nrRows = NrRows();
-	SizeT nrRecs = const_cast<TableControl*>(this)->PrepareDataOrUpdateViewLater(domain) ? domain->GetCount() : UNDEFINED_VALUE(SizeT);
+	SizeT nrRecs = const_cast<TableControl*>(this)->PrepareDataOrUpdateViewLater(domain) ? domain->GetDataCount() : UNDEFINED_VALUE(SizeT);
 	
 	if (m_GroupByEntity)
 		return mgFormat2SharedStr("#%s = %s, grouped to %d rows by %s", domain->GetName(), AsString(nrRecs), nrRows, m_GroupByEntity->GetExpr());

@@ -75,7 +75,7 @@ struct AbstrOperAccTotUni: UnaryOperator
 		if (context)
 		{
 			const AbstrUnit* adu = arg1A->GetAbstrDomainUnit();
-			SizeT n = adu->GetCount();
+			SizeT n = adu->GetDataCount();
 			MakeMin<SizeT>(n, Explain::MaxNrEntries);
 			for (SizeT i=0; i!=n; ++i)
 				Explain::AddQueueEntry(context->m_CalcExpl, adu, i);
@@ -256,7 +256,7 @@ struct OperAccPartUniWithCFTA : OperAccPartUni<V, R> // with consumable tile arr
 			.arg2A = arg2A,
 			.values_fta = GetFutureTileArray(arg1.get()),
 			.part_fta = (DataReadLock(arg2A), GetAbstrFutureTileArray(arg2A->GetCurrRefObj())),
-			.n = arg1A->GetAbstrDomainUnit()->GetCount(),
+			.n = arg1A->GetAbstrDomainUnit()->GetDataCount(),
 			.nrTiles = arg1A->GetAbstrDomainUnit()->GetNrTiles(),
 			.valuesRangeData = arg1->GetValueRangeData(),
 			.resCount = arg2A->GetAbstrValuesUnit()->GetCount()

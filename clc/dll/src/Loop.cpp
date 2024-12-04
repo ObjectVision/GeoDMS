@@ -140,7 +140,7 @@ public:
 
 		DataReadLock lock(iterNames);
 
-		UInt32 nrIter = iterNames->GetAbstrDomainUnit()->GetCount();
+		row_id nrIter = iterNames->GetAbstrDomainUnit()->GetCount();
 
 		if (!resultHolder)
 			resultHolder = TreeItem::CreateCacheRoot();
@@ -148,7 +148,7 @@ public:
 		TreeItem* result = resultHolder;
 		dms_assert(result);
 
-		for (UInt32 i=0; i!= nrIter; ++i)
+		for (row_id i=0; i!= nrIter; ++i)
 		{
 			SharedStr iterName = iterNames->GetValue<SharedStr>(i);
 			CopyTreeContext ctc(

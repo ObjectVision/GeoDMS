@@ -539,7 +539,7 @@ auto GetWeededCountsOfV(const DataArray<V>* valuesTF, bool noOutOfRangeValues,  
 		{
 			if (noOutOfRangeValues)
 			{
-				SizeT v = valuesUnit->GetCount();
+				SizeT v = valuesUnit->GetDataCount();
 				if (IsDefined(v) && v <= maxPairCount)
 				{
 					SizeT n = valuesTF->GetTiledRangeData()->GetDataSize();

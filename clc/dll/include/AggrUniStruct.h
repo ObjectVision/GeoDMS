@@ -133,7 +133,7 @@ struct assign_partial_output_from_buffer
 	template<typename Container>
 	void AssignOutput(dms_seq res, const Container& outputs) const
 	{
-		assert(res.size() == outputs.size());
+		MG_CHECK(res.size() == outputs.size());
 		auto ri = res.begin();
 		auto
 			oi = outputs.begin(),

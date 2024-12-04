@@ -387,7 +387,7 @@ void NumericArray<V>::SetValuesAsFloat64Array(tile_loc tl, SizeT len, const Floa
 
 	auto data = this->GetDataWrite(tl.first, dms_rw_mode::read_write);
 
-	dms_assert( tl.second <= tl.second + len && tl.second + len <= data.size() );
+	assert( tl.second <= tl.second + len && tl.second + len <= data.size() );
 
 	auto pi = data.begin() + tl.second;
 	auto pe = pi + len;

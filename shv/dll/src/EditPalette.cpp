@@ -546,7 +546,7 @@ void EditPaletteControl::ApplyLimits(Float64* first, Float64* last)
 
 	DataWriteLock breakLock(breakAttr);
 	AbstrDataObject* breakObj = breakLock.get();
-	breakObj->SetValuesAsFloat64Array(tile_loc(0, 0), k, first);
+	breakObj->SetValuesAsFloat64Array(tile_loc(no_tile, 0), k, first);
 	breakLock.Commit();
 
 	FillRampColors(first, last);

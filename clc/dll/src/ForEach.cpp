@@ -254,7 +254,7 @@ bool ForEach_CreateResult(TreeItemDualRef& resultHolder, const ArgSeqType& args,
 		"for_each operator: nameArray and UrlArray don't have the same domain");
 	bool optUrlIsParam  = IsParam(optUrlA);
 
-	UInt32 maxNrIter = domainUnit->GetCount();
+	auto maxNrIter = domainUnit->GetDataCount();
 
 	if (!resultHolder)
 		resultHolder = TreeItem::CreateCacheRoot();
@@ -262,7 +262,7 @@ bool ForEach_CreateResult(TreeItemDualRef& resultHolder, const ArgSeqType& args,
 	if (fs & FS_VC_SEQUENCE)  valueComposition = ValueComposition::Sequence;		
 	if (fs & FS_VC_POLYGON) valueComposition = ValueComposition::Polygon;
 
-	for (arg_index i=0; i!= maxNrIter; ++i)
+	for (datarow_id i=0; i!= maxNrIter; ++i)
 	{
 		SharedStr subItemName = nameArrayItem->GetIndexedValue(i);
 		if (!subItemName.IsDefined())
@@ -309,7 +309,7 @@ bool ForEach_CreateResult(TreeItemDualRef& resultHolder, const ArgSeqType& args,
 			iter = resultHolder.GetNew()->CreateItemFromPath(subItemName.c_str());
 		}
 
-		dms_assert(iter);
+		assert(iter);
 
 		if (optExprs)       iter->SetExpr (                          SharedStr(optExprs      ->GetIndexedValue(optExprsIsParam       ? 0 : i)));
 		if (optDescrs)      iter->SetDescr(                          SharedStr(optDescrs     ->GetIndexedValue(optDescrsIsParam      ? 0 : i)));
