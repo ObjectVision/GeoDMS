@@ -143,6 +143,16 @@ void DataBlockProd::DoArrayAssignment()
 
 void DataBlockProd::Commit() 
 { 
+	if (m_nIndexValue < m_ElemCount)
+	{
+		auto errMsg = mySSPrintF("DoArrayAssignment: Only %d values were provided, but domain %s has %d values. Auto completion is now diagnosed as error. Provide %d values to fix this or consider adjusting the domain"
+			, m_nIndexValue
+			, CurrDI()->GetAbstrDomainUnit()->GetName().c_str()
+			, m_ElemCount
+			, m_ElemCount - m_nIndexValue);
+
+		CurrDI()->throwItemError(errMsg);
+	}
 	while (m_nIndexValue < m_ElemCount)
 		m_Lock->SetNull(m_nIndexValue++); // padding with zero values
 
