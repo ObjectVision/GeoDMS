@@ -46,9 +46,6 @@ protected:
 
 	mutable FileHandle m_MmdLockFile;
 
-	friend class FileSystemStorageOutStreamBuff;
-	friend class FileSystemStorageInpStreamBuff;
-
 	DECL_RTTI(TIC_CALL, StorageClass)
 };
 

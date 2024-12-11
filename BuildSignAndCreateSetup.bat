@@ -24,7 +24,7 @@ echo #define DMS_VERSION_PATCH %DMS_VERSION_PATCH% >> rtc/dll/src/RtcGeneratedVe
 
 
 :startBuild
-CHOICE /M "Build GeoDms?"
+CHOICE /M "Build GeoDms %GeoDmsVersion%?"
 if ErrorLevel 2 goto :afterBuild
 
 set MS_VERB=rebuild
@@ -59,7 +59,7 @@ cd %geodms_rootdir%
 echo on
 
 :setupCreation
-CHOICE /M  "Run setup creation?"
+CHOICE /M  "Run setup creation %GeoDmsVersion%?"
 if ErrorLevel 2 goto :afterNSIS
 
 cd nsi

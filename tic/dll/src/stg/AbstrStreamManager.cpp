@@ -84,7 +84,7 @@ bool AbstrStreamManager::ReadDataItem(StorageMetaInfoPtr smi, AbstrDataObject* b
 bool AbstrStreamManager::WriteDataItem(StorageMetaInfoPtr&& smi)
 {
 	auto sm = smi->StorageManager();
-	StorageWriteHandle hnd(sm, std::move(smi));
+	StorageWriteHandle hnd(checked_cast<NonmappableStorageManager*>(sm), std::move(smi));
 
 	SharedPtr<const AbstrDataItem> adi = hnd.MetaInfo()->CurrRD();
 	MG_CHECK(adi);

@@ -356,11 +356,12 @@ FileTileArray<V>::FileTileArray(const AbstrTileRangeData* trd, SharedStr filenam
 		if constexpr (!has_fixed_elem_size_v<V>)
 		{
 			cmfh_sequences = std::make_shared<ConstMappedFileHandle>(fullFileName + ".seq");
-			if (trd->GetNrTiles() > 1)
+			if (tn > 1)
 			{
 				cmfh_sequences->m_MemPageAllocTable.reset(
 					new mempage_file_view(cmfh_sequences, trd->GetNrTiles(), 0)
 				);
+				cmfh_sequences->m_MemPageAllocTable->Map(false);
 			}
 		}
 		for (tile_id t = 0; t != tn; ++t)
@@ -387,11 +388,12 @@ FileTileArray<V>::FileTileArray(const AbstrTileRangeData* trd, SharedStr filenam
 			mfh_sequences = std::make_shared<MappedFileHandle>();
 
 			mfh_sequences->OpenRw(fullFileName+".seq", MinimalSeqFileSize<V>(trd), rwMode, isTmp);
-			if (trd->GetNrTiles() > 1)
+			if (tn > 1)
 			{
 				mfh_sequences->m_MemPageAllocTable.reset(
 					new mempage_file_view(mfh_sequences, trd->GetNrTiles(), 0)
 				);
+				mfh_sequences->m_MemPageAllocTable->Map(true);
 			}
 		}
 		for (tile_id t = 0; t != tn; ++t)

@@ -129,7 +129,7 @@ struct StorageMetaInfo : std::enable_shared_from_this<StorageMetaInfo>
 	{}
 
 	StorageMetaInfo(const TreeItem* storageHolder, const TreeItem* curr)
-		: m_StorageManager(checked_cast<NonmappableStorageManager*>(storageHolder->GetStorageManager()))
+		: m_StorageManager(storageHolder->GetStorageManager())
 		, m_StorageHolder(storageHolder)
 		, m_Curr(curr)
 		, m_RelativeName(storageHolder->DoesContain(curr) ? curr->GetRelativeName(storageHolder).c_str() : curr->GetFullName().c_str())
@@ -146,11 +146,11 @@ struct StorageMetaInfo : std::enable_shared_from_this<StorageMetaInfo>
 	AbstrUnit*     CurrWU() const { return const_cast<AbstrUnit*>(CurrRU()); }
 	TreeItem*      CurrWI() const { return const_cast<TreeItem*>(CurrRI()); }
 
-	NonmappableStorageManager* StorageManager() const { return m_StorageManager; }
+	AbstrStorageManager* StorageManager() const { return m_StorageManager; }
 	const TreeItem* StorageHolder() const { return m_StorageHolder; }
 
 protected:
-	SharedPtr<NonmappableStorageManager> m_StorageManager;
+	SharedPtr<AbstrStorageManager> m_StorageManager;
 	SharedPtr<const TreeItem> m_StorageHolder, m_Curr;
 public:
 	SharedStr m_RelativeName;

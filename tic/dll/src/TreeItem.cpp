@@ -3466,7 +3466,7 @@ bool TreeItem::PrepareDataUsageImpl(DrlType drlFlags) const
 				if (auto mmd = dynamic_cast<MmdStorageManager*>(sm))
 				{
 					bool mustWrite = HasCalculator();
-					bool mustSkip = mustWrite && GetCalculator()->IsDataBlock();
+					bool mustSkip = mustWrite || GetCalculator()->IsDataBlock();
 					if (!mustSkip && !mmd->IsOpen() || mustWrite && !mmd->IsOpenForWrite())
 					{
 						auto parent = GetStorageParent(mustWrite);
@@ -3474,6 +3474,7 @@ bool TreeItem::PrepareDataUsageImpl(DrlType drlFlags) const
 							mustSkip = true;
 						else
 						{
+							auto lock = AbstrStorageManager::lock_t(mmd->m_CriticalSection);
 							auto smi = StorageMetaInfo(parent, this);
 							if (mustWrite)
 								mmd->OpenForWrite(smi);

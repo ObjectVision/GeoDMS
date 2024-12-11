@@ -171,6 +171,7 @@ struct rw_file_view : file_view_base<T, FileViewHandle>
 	{
 		assert(nrElem <= this->max_size());
 		MG_CHECK(nrElem < SizeT(-1) / sizeof(T));
+
 		this->realloc(nrElem * sizeof(T));
 	}
 
