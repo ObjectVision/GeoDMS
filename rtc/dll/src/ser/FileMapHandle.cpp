@@ -400,8 +400,6 @@ void FileViewHandle::CloseView()
 	if (!m_ViewData)
 		return;
 
-	auto lock = std::scoped_lock(m_MappedFile->m_ResizeMutex);
-
 	UnmapViewOfFile(m_ViewData);
 	m_ViewData = nullptr;
 }
