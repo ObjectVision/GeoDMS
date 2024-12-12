@@ -65,9 +65,9 @@ void CloseMutableShadow(DataArrayBase<V>* sourceTileArray, typename sequence_tra
 	parallel_tileloop(trd->GetNrTiles(), [=, &shadowGrid, &range](tile_id t)
 		{
 			I64Rect tileRange = trd->GetTileRangeAsI64Rect(t);
-			dms_assert(IsIncluding(range, tileRange));
+			assert(IsIncluding(range, tileRange));
 			auto tileData = sourceTileArray->GetWritableTile(t);
-			dms_assert(Cardinality(tileRange) == tileData.size());
+			assert(Cardinality(tileRange) == tileData.size());
 			RectCopy(U64Grid<V>(Size(tileRange), tileData.begin()), shadowGrid, tileRange.first - range.first);
 		}
 	);

@@ -1,8 +1,10 @@
-// Copyright (C) 1998-2023 Object Vision b.v. 
+// Copyright (C) 1998-2024 Object Vision b.v. 
 // License: GNU GPL 3
 /////////////////////////////////////////////////////////////////////////////
 
+#if defined(_MSC_VER)
 #pragma once
+#endif
 
 #if !defined(__RTC_SET_RANGEFUNCS_H)
 #define __RTC_SET_RANGEFUNCS_H
@@ -10,7 +12,6 @@
 #include "dbg/DebugCast.h"
 #include "geo/ElemTraits.h"
 #include "geo/IterTraits.h"
-//REMOVE #include "geo/SequenceTraits.h"
 #include "utl/swap.h"
 
 #define MG_DEBUG_RANGEFUNCS

@@ -1,32 +1,10 @@
-//<HEADER> 
-/*
-Data & Model Server (DMS) is a server written in C++ for DSS applications. 
-Version: see srv/dms/rtc/dll/src/RtcVersion.h for version info.
+// Copyright (C) 1998-2024 Object Vision b.v. 
+// License: GNU GPL 3
+/////////////////////////////////////////////////////////////////////////////
 
-Copyright (C) 1998-2004  YUSE GSO Object Vision BV. 
-
-Documentation on using the Data & Model Server software can be found at:
-http://www.ObjectVision.nl/DMS/
-
-See additional guidelines and notes in srv/dms/Readme-srv.txt 
-
-This library is free software; you can use, redistribute, and/or
-modify it under the terms of the GNU General Public License version 2 
-(the License) as published by the Free Software Foundation,
-provided that this entire header notice and readme-srv.txt is preserved.
-
-See LICENSE.TXT for terms of distribution or look at our web site:
-http://www.objectvision.nl/DMS/License.txt
-or alternatively at: http://www.gnu.org/copyleft/gpl.html
-
-This library is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
-General Public License for more details. However, specific warranties might be
-granted by an additional written contract for support, assistance and/or development
-*/
-//</HEADER>
+#if defined(_MSC_VER)
 #pragma once
+#endif
 
 #if !defined(__PTR_PTR_BASE_H)
 #define __PTR_PTR_BASE_H
@@ -68,10 +46,10 @@ private:   // emphasize that the following members should not be default generat
 template <typename T, typename CTorBase>
 struct ptr_wrap : CTorBase
 {
-	typedef typename sequence_traits<T>::pointer pointer;
-	typedef typename sequence_traits<T>::reference reference;
-	typedef typename sequence_traits<T>::const_pointer const_pointer;
-	typedef typename sequence_traits<T>::const_reference const_reference;
+	using pointer = typename sequence_traits<T>::pointer;
+//	typedef typename sequence_traits<T>::reference reference;
+	using const_pointer = typename sequence_traits<T>::const_pointer;
+//	typedef typename sequence_traits<T>::const_reference const_reference;
 	using value_type = T;
 
 	ptr_wrap(pointer ptr = pointer() ): m_Ptr(ptr) {}
@@ -85,7 +63,7 @@ struct ptr_wrap : CTorBase
 
 	pointer   get_ptr() const { return m_Ptr; } // TODO G8: REMOVE and replace by get()
 	pointer   get() const { return m_Ptr; }
-	reference get_ref() const { MG_CHECK(m_Ptr != nullptr); return *m_Ptr; }
+	pointer   get_nonnull() const { MG_CHECK(m_Ptr != nullptr); return m_Ptr; }
 
 protected:
 	pointer m_Ptr = nullptr;
@@ -106,14 +84,13 @@ struct ptr_base : ptr_wrap<T, CTorBase>
 	using base_type = ptr_wrap<T, CTorBase>;
 
 	using typename base_type::pointer;
-	using typename base_type::reference;
 
 	ptr_base(pointer ptr = pointer() ): base_type(ptr) {}
 
 	operator pointer () const { return this->m_Ptr; }
 
-	pointer   operator ->() const { return &this->get_ref(); }
-	reference operator * () const { return  this->get_ref(); }
+	pointer   operator ->() const { return this->get_nonnull(); }
+	auto&     operator * () const { return *(this->get_nonnull()); }
 
 	void swap(ptr_base& oth) { std::swap(this->m_Ptr, oth.m_Ptr); }
 };
@@ -130,9 +107,10 @@ template <class T, typename CTorBase>
 struct ref_base : ptr_wrap<T, CTorBase>
 {
 	using typename ptr_wrap<T, CTorBase>::pointer;
-	using typename ptr_wrap<T, CTorBase>::reference;
 	using typename ptr_wrap<T, CTorBase>::const_pointer;
-	using typename ptr_wrap<T, CTorBase>::const_reference;
+
+	using reference = typename sequence_traits<T>::reference;
+	using const_reference = typename sequence_traits<T>::const_reference;
 
 	ref_base(pointer ptr = pointer() ): ptr_wrap<T, CTorBase>(ptr) {}
 

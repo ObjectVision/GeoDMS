@@ -1,8 +1,10 @@
-// Copyright (C) 1998-2023 Object Vision b.v. 
+// Copyright (C) 1998-2024 Object Vision b.v. 
 // License: GNU GPL 3
 /////////////////////////////////////////////////////////////////////////////
 
+#if defined(_MSC_VER)
 #pragma once
+#endif
 
 #if !defined(__RTC_GEO_SEQUENCE_TRAITS_H)
 #define __RTC_GEO_SEQUENCE_TRAITS_H
@@ -72,6 +74,17 @@ struct sequence_traits
  	typedef IterRange<const_pointer> cseq_t;
 
 	typedef sequence_obj<T>          polymorph_vec_t;
+};
+
+template <>
+struct sequence_traits<void>
+{
+	using value_type = void;
+	using block_type = void;
+
+	using pointer = void*;
+	using const_pointer = const void*;
+
 };
 
 

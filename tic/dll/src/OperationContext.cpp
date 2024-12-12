@@ -1175,8 +1175,8 @@ bool OperationContext::ScheduleCalcResult(Explain::Context* context, ArgRefs&& a
 
 	OperatorContextHandle operContext(m_OperGroup->GetNameID(), true, m_FuncDC);
 
-	TreeItemDualRef& resultHolder = const_cast<FuncDC&>(m_FuncDC.get_ref());
-	dms_assert(resultHolder);
+	TreeItemDualRef& resultHolder = *const_cast<FuncDC*>(m_FuncDC.get_nonnull());
+	assert(resultHolder);
 
 	MG_DEBUGCODE(const TreeItem* oldItem = resultHolder.GetOld() );
 	MG_DEBUGCODE(auto oper = m_Oper);
@@ -1407,7 +1407,7 @@ void OperationContext::RunOperator(Explain::Context* context, ArgRefs argRefs, s
 		funcDC->Fail(m_Result.get_ptr());
 		return;
 	}
-	TreeItemDualRef& resultHolder = const_cast<FuncDC&>(funcDC.get_ref());
+	TreeItemDualRef& resultHolder = *const_cast<FuncDC*>(funcDC.get_nonnull());
 	dms_assert(resultHolder);
 	bool actualResult = false;
 	if (!CancelIfNoInterestOrForced(false))

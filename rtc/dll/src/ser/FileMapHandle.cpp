@@ -1,4 +1,4 @@
-// Copyright (C) 1998-2023 Object Vision b.v. 
+// Copyright (C) 1998-2024 Object Vision b.v. 
 // License: GNU GPL 3
 /////////////////////////////////////////////////////////////////////////////
 
@@ -287,6 +287,33 @@ void MappedFileHandle::OpenForRead(WeakStr fileName, bool throwOnError, bool doR
 
 //  -----------------------------------------------------------------------
 
+ViewData::ViewData(MappedFileHandle* mappedFile, DWORD desiredAccess, dms::filesize_t viewOffset, dms::filesize_t viewCapacity)
+{
+	while (true) {
+		m_Ptr =
+			MapViewOfFile(mappedFile->m_hFileMapping, // Handle to mapping object. 
+				FILE_MAP_READ,
+				HiDWORD(viewOffset),
+				LoDWORD(viewOffset),
+				viewCapacity
+			);
+		if (m_Ptr)
+			break;
+
+		DWORD lastErr = GetLastError();
+		if (lastErr != ERROR_NOT_ENOUGH_MEMORY || !DMS_CoalesceHeap(viewCapacity))
+			throwSystemError(lastErr, "FileMapHandle('%s').MapViewOfFile(%I64u)", mappedFile->GetFileName().c_str(), (UInt64)viewCapacity);
+	};
+}
+
+ViewData::~ViewData()
+{
+	if (has_ptr())
+		UnmapViewOfFile(get_ptr());
+}
+
+//  -----------------------------------------------------------------------
+
 FileViewHandle::FileViewHandle(std::shared_ptr<MappedFileHandle> mfh, dms::filesize_t viewOffset, dms::filesize_t viewSize, dms::filesize_t viewCapacity)
 	: m_MappedFile(mfh)
 {
@@ -298,6 +325,8 @@ FileViewHandle::FileViewHandle(std::shared_ptr<MappedFileHandle> mfh, dms::files
 	}
 	else
 		m_ViewSpec = { viewOffset, viewSize, viewCapacity };
+	assert(m_ViewSpec.size <= m_ViewSpec.capacity);
+
 	assert((m_ViewSpec.offset & (GetAllocationGrannularity()-1)) == 0);
 //	MapFile(false);
 }
@@ -309,6 +338,8 @@ ConstFileViewHandle::ConstFileViewHandle(std::shared_ptr<ConstMappedFileHandle> 
 		m_ViewSpec = cmfh->allocAtEnd(viewSize, viewCapacity);
 	else
 		m_ViewSpec = { viewOffset, viewSize, viewCapacity };
+
+	assert(m_ViewSpec.size <= m_ViewSpec.capacity);
 	assert((m_ViewSpec.offset & (GetAllocationGrannularity() - 1)) == 0);
 
 	MakeMin(m_ViewSpec.offset  , cmfh->GetFileSize() & ~(GetAllocationGrannularity() - 1));
@@ -328,8 +359,14 @@ void FileViewHandle::operator =(FileViewHandle&& rhs) noexcept
 {
 	m_MappedFile = std::move(rhs.m_MappedFile); assert(!rhs.m_MappedFile);
 	std::swap(m_ViewSpec, rhs.m_ViewSpec);
-	std::swap(m_ViewData, rhs.m_ViewData);
+	m_ViewData = std::move(rhs.m_ViewData);
 
+	assert(rhs.m_ViewData.is_null());
+	assert(rhs.m_ViewSpec.size == 0);
+	assert(rhs.m_ViewSpec.capacity == 0);
+	assert(rhs.m_ViewSpec.offset == 0);
+
+	assert(m_ViewSpec.size <= m_ViewSpec.capacity);
 	assert((m_ViewSpec.offset & (GetAllocationGrannularity() - 1)) == 0);
 }
 
@@ -337,8 +374,14 @@ void ConstFileViewHandle::operator =(ConstFileViewHandle&& rhs) noexcept
 {
 	m_MappedFile = std::move(rhs.m_MappedFile); assert(!rhs.m_MappedFile);
 	std::swap(m_ViewSpec, rhs.m_ViewSpec);
-	std::swap(m_ViewData, rhs.m_ViewData);
+	m_ViewData = std::move(rhs.m_ViewData);
 
+	assert(rhs.m_ViewData.is_null());
+	assert(rhs.m_ViewSpec.size == 0);
+	assert(rhs.m_ViewSpec.capacity == 0);
+	assert(rhs.m_ViewSpec.offset == 0);
+
+	assert(m_ViewSpec.size <= m_ViewSpec.capacity);
 	assert((m_ViewSpec.offset & (GetAllocationGrannularity() - 1)) == 0);
 }
 
@@ -348,96 +391,31 @@ void FileViewHandle::MapView(bool alsoWrite)
 
 	auto lock = std::scoped_lock(m_MappedFile->m_ResizeMutex);
 
-	if (m_ViewData)
-	{
-		UnmapViewOfFile(m_ViewData);
-		m_ViewData = nullptr;
-	}
+	m_ViewData = ViewData();
 
-	if (!GetViewCapacity())
+	if (!m_ViewSpec.capacity)
 		return;
 
-/*
-	std::unique_lock< std::shared_mutex> uniqueLock;
-	std::shared_lock< std::shared_mutex> sharedLock;
-
-	if (alsoWrite)
-		uniqueLock = std::unique_lock(m_MappedFile->m_ResizeMutex);
-	else
-		sharedLock = std::shared_lock(m_MappedFile->m_ResizeMutex);
-*/
 	m_AlsoWrite = alsoWrite;
 
 	assert((m_ViewSpec.offset & (GetAllocationGrannularity() - 1)) == 0);
 
-	while (true) {
-		m_ViewData =
-			MapViewOfFile(m_MappedFile->m_hFileMapping, // Handle to mapping object. 
-				alsoWrite ? FILE_MAP_WRITE : FILE_MAP_READ,
-				HiDWORD(GetViewOffset()),
-				LoDWORD(GetViewOffset()),
-				GetViewCapacity() // NrMemPages(GetViewSize()) << GetLog2AllocationGrannularity()
-			);
-		if (m_ViewData)
-		{
-/*
-			if (alsoWrite)
-				uniqueLock.release();
-			else
-				sharedLock.release();
-*/
-			break;
-		}
-
-		DWORD lastErr = GetLastError();
-		if (lastErr != ERROR_NOT_ENOUGH_MEMORY || !DMS_CoalesceHeap(GetViewCapacity()))
-			throwSystemError(lastErr, "FileMapHandle('%s').MapViewOfFile(%I64u)", m_MappedFile->GetFileName().c_str(), (UInt64)GetViewCapacity());
-	};
-}
-
-void FileViewHandle::CloseView()
-{
-	if (!m_ViewData)
-		return;
-
-	UnmapViewOfFile(m_ViewData);
-	m_ViewData = nullptr;
+	m_ViewData = ViewData(m_MappedFile.get(), alsoWrite ? FILE_MAP_WRITE : FILE_MAP_READ, m_ViewSpec.offset, m_ViewSpec.capacity);
 }
 
 void ConstFileViewHandle::MapView()
 {
 	MG_CHECK(m_MappedFile); // precondition
 
-	if (m_ViewData)
-		return;
-
 	auto lock = std::scoped_lock(m_MappedFile->m_ResizeMutex);
 
-	while (true) {
-		m_ViewData =
-			MapViewOfFile(m_MappedFile->m_hFileMapping, // Handle to mapping object. 
-				FILE_MAP_READ,
-				HiDWORD(GetViewOffset()),
-				LoDWORD(GetViewOffset()),
-				GetViewCapacity()
-			);
-		if (m_ViewData)
-		{
-			break;
-		}
+	assert(!m_ViewData);
 
-		DWORD lastErr = GetLastError();
-		if (lastErr != ERROR_NOT_ENOUGH_MEMORY || !DMS_CoalesceHeap(GetViewCapacity()))
-			throwSystemError(lastErr, "FileMapHandle('%s').MapViewOfFile(%I64u)", m_MappedFile->GetFileName().c_str(), (UInt64)GetViewCapacity());
-	};
-}
-
-void ConstFileViewHandle::CloseView()
-{
-	if (!m_ViewData)
+	m_ViewData = ViewData();
+	if (!m_ViewSpec.capacity)
 		return;
-	UnmapViewOfFile(m_ViewData);
-	m_ViewData = nullptr;
+
+	m_ViewData = ViewData(m_MappedFile.get(), FILE_MAP_READ, m_ViewSpec.offset, m_ViewSpec.capacity);
 }
 
 void FileViewHandle::realloc(dms::filesize_t capacity)

@@ -1,4 +1,4 @@
-// Copyright (C) 1998-2023 Object Vision b.v. 
+// Copyright (C) 1998-2024 Object Vision b.v. 
 // License: GNU GPL 3
 /////////////////////////////////////////////////////////////////////////////
 
@@ -48,20 +48,6 @@ struct file_view_base : FVH
 		return cap;
 	}
 	SizeT max_size() const { return SizeT(-1) / sizeof(T); }
-
-	/*
-	void CloseFVB()
-	{
-		FileMapHandle::CloseFMH();
-		m_NrElems = 0;
-	}
-
-	void Drop(WeakStr fileName)
-	{
-		FileMapHandle::Drop(fileName);
-		m_NrElems = 0;
-	}
-	*/
 
 protected:
 	file_view_base() {}

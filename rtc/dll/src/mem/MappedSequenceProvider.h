@@ -1,4 +1,4 @@
-// Copyright (C) 1998-2023 Object Vision b.v. 
+// Copyright (C) 1998-2024 Object Vision b.v. 
 // License: GNU GPL 3
 /////////////////////////////////////////////////////////////////////////////
 
@@ -53,6 +53,7 @@ public:
 			tile_id t = this->m_TileId;
 			assert(t < memPageAllocTable->filed_size());
 			(*memPageAllocTable)[t] = m_FileView.GetViewSpec();
+			assert((*memPageAllocTable)[t].size <= (*memPageAllocTable)[t].capacity);
 		}
 	}
 	void resizeSP(alloc_t& seq, SizeT newSize, bool mustClear MG_DEBUG_ALLOCATOR_SRC_ARG) override
