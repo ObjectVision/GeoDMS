@@ -82,7 +82,9 @@ void DataBlockProd::DoArrayAssignment()
 	SizeT i = m_nIndexValue++;
 	if (i >= m_ElemCount)
 	{
-		auto errMsg = mySSPrintF("DoArrayAssignment: Index %d out of range of domain %s", i, domain->GetName().c_str());
+		auto errMsg = mySSPrintF("DoArrayAssignment: Index %d out of range of domain %s.\n"
+			"Remove values from the array or consider adjusting the domain"
+			, i, domain->GetName().c_str());
 		adi->throwItemError(errMsg);
 	}
 	SizeT tileLocalIndex = i;
@@ -145,7 +147,8 @@ void DataBlockProd::Commit()
 { 
 	if (m_nIndexValue < m_ElemCount)
 	{
-		auto errMsg = mySSPrintF("DoArrayAssignment: Only %d values were provided, but domain %s has %d values. Auto completion is now diagnosed as error. Provide %d values to fix this or consider adjusting the domain"
+		auto errMsg = mySSPrintF("DoArrayAssignment: Only %d values were provided, but domain %s has %d values. Auto completion is now diagnosed as error.\n"
+			"Provide %d values to fix this or consider adjusting the domain"
 			, m_nIndexValue
 			, CurrDI()->GetAbstrDomainUnit()->GetName().c_str()
 			, m_ElemCount
