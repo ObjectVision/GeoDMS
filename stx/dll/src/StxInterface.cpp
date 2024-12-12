@@ -283,8 +283,8 @@ SharedStr ProcessADMS(const TreeItem* context, CharPtr url)
 	SharedStr localUrl = SharedStr(url);
 	SharedStr result;
 	auto cmfh = std::make_shared<ConstMappedFileHandle>(localUrl, true, false);
-	auto fileView = ConstFileViewHandle(cmfh);
-	fileView.Map();
+	auto fileView = ConstFileViewHandle(cmfh, 0, -1, -1);
+	fileView.MapView();
 
 	CharPtr fileCurr = fileView.DataBegin(), fileEnd = fileView.DataEnd();
 	while (true) {

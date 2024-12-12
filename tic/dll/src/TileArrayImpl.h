@@ -361,17 +361,28 @@ FileTileArray<V>::FileTileArray(const AbstrTileRangeData* trd, SharedStr filenam
 				cmfh_sequences->m_MemPageAllocTable.reset(
 					new mempage_file_view(cmfh_sequences, trd->GetNrTiles(), 0)
 				);
-				cmfh_sequences->m_MemPageAllocTable->Map(false);
+				cmfh_sequences->m_MemPageAllocTable->MapView(false);
+				cmfh_sequences->m_MemPageAllocTable->m_MappedFile.reset();
 			}
 		}
 		for (tile_id t = 0; t != tn; ++t)
 		{
 			if constexpr (has_fixed_elem_size_v<V>)
-				seqs[t].ResetAllocator(new mappable_const_sequence<elem_of_t<V>>(cmfh, t, trd->GetTileSize(t)));
+				seqs[t].ResetAllocator(new mappable_const_sequence<V>(cmfh, t, trd->GetTileSize(t)));
 			else
 			{
 				auto ms_index = std::make_unique<mappable_const_sequence<IndexRange<SizeT>>>(cmfh, t, trd->GetTileSize(t));
-				auto ms_values = std::make_unique<mappable_const_sequence<elem_of_t<V>> >(cmfh_sequences, t, trd->GetTileSize(t));
+				FileChunckSpec pageRange = { 0, dms::filesize_t(-1), dms::filesize_t (-1) };
+				if (cmfh_sequences->m_MemPageAllocTable)
+				{
+					pageRange = cmfh_sequences->m_MemPageAllocTable->begin()[t];
+				}
+				using elem_type = elem_of_t<V>;
+				auto ms_values = std::make_unique<mappable_const_sequence<elem_type> >(cmfh_sequences, t
+					, pageRange.size == dms::filesize_t(-1) ? pageRange.size :capacity_calculator<elem_type>().Byte2Size(pageRange.size)
+					, pageRange.offset
+					, pageRange.capacity
+				);
 				seqs[t].ResetAllocators(ms_index.release(), ms_values.release());
 			}
 			MGD_CHECKDATA(!seqs[t].IsLocked());
@@ -393,7 +404,8 @@ FileTileArray<V>::FileTileArray(const AbstrTileRangeData* trd, SharedStr filenam
 				mfh_sequences->m_MemPageAllocTable.reset(
 					new mempage_file_view(mfh_sequences, trd->GetNrTiles(), 0)
 				);
-				mfh_sequences->m_MemPageAllocTable->Map(true);
+				mfh_sequences->m_MemPageAllocTable->MapView(true);
+				mfh_sequences->m_MemPageAllocTable->m_MappedFile.reset();
 			}
 		}
 		for (tile_id t = 0; t != tn; ++t)
@@ -403,7 +415,15 @@ FileTileArray<V>::FileTileArray(const AbstrTileRangeData* trd, SharedStr filenam
 			else
 			{
 				auto ms_index  = std::make_unique<mappable_sequence<IndexRange<SizeT>>>(mfh, t, trd->GetTileSize(t));
-				auto ms_values = std::make_unique<mappable_sequence<elem_of_t<V>>>(mfh_sequences, t, trd->GetTileSize(t));
+				FileChunckSpec pageRange = { 0, dms::filesize_t(-1), dms::filesize_t(-1) };
+				if (mfh_sequences->m_MemPageAllocTable)
+				{
+					pageRange = mfh_sequences->m_MemPageAllocTable->begin()[t];
+				}
+				auto ms_values = std::make_unique<mappable_sequence<elem_of_t<V>>>(mfh_sequences, t
+					, pageRange.size == dms::filesize_t(-1)? pageRange.size : capacity_calculator<V>().Byte2Size(pageRange.size)
+					, pageRange.offset, pageRange.capacity
+				);
 				seqs[t].ResetAllocators(ms_index.release(), ms_values.release());
 			}
 

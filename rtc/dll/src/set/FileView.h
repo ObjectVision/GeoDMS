@@ -25,8 +25,8 @@ struct file_view_base : FVH
 	using const_reference = typename sequence_traits<T>::const_reference;
 	using mapped_file_type = typename FVH::mapped_file_type;
 
-	file_view_base(std::shared_ptr<mapped_file_type> mfh, SizeT nrElem, dms::filesize_t fileOffset = -1, dms::filesize_t fileViewSize = -1)
-		: FVH(std::move(mfh), fileOffset, fileViewSize == -1 ? sizeof(T) * nrElem : fileViewSize)
+	file_view_base(std::shared_ptr<mapped_file_type> mfh, SizeT nrElem, dms::filesize_t fileOffset = -1, dms::filesize_t fileViewCapacity = -1)
+		: FVH(std::move(mfh), fileOffset, size_calculator<T>().nr_bytes(nrElem), fileViewCapacity == -1 ? size_calculator<T>().nr_bytes(nrElem) : fileViewCapacity)
 		, m_NrElems(nrElem)
 	{}
 
@@ -43,7 +43,7 @@ struct file_view_base : FVH
 	}
 	SizeT filed_capacity() const
 	{
-		SizeT cap = capacity_calculator<T>().Byte2Size(this->GetViewSize());
+		SizeT cap = capacity_calculator<T>().Byte2Size(this->GetViewCapacity());
 		assert(m_NrElems <= cap);
 		return cap;
 	}
@@ -161,18 +161,20 @@ struct rw_file_view : file_view_base<T, FileViewHandle>
 			);
 		}
 	}
+
+/* REMOVE
 	void CloseWFV()
 	{
 		this->SetFileSize( size_calculator<T>().nr_bytes(m_NrElems) );
 		file_view_base<T>::CloseFVB();
 	}
-
-	void reserve(SizeT nrElem)
+*/
+	void reserve(SizeT nrReservedElem)
 	{
-		assert(nrElem <= this->max_size());
-		MG_CHECK(nrElem < SizeT(-1) / sizeof(T));
-
-		this->realloc(nrElem * sizeof(T));
+		assert(nrReservedElem <= this->max_size());
+		MG_CHECK(nrReservedElem < SizeT(-1) / sizeof(T));
+		MG_CHECK(size_calculator<T>().nr_bytes(m_NrElems) == this->m_ViewSpec.size);
+		this->realloc(size_calculator<T>().nr_bytes(nrReservedElem));
 	}
 
 	void resize(SizeT newNrElems)
@@ -180,6 +182,7 @@ struct rw_file_view : file_view_base<T, FileViewHandle>
 		if (newNrElems > this->filed_capacity())
 			throwErrorD("rw_file_view", "cannot grow a FileMapping");
 		m_NrElems = newNrElems;
+		this->m_ViewSpec.size = size_calculator<T>().nr_bytes(newNrElems);
 	}
 
 	void grow(SizeT newNrElems)
@@ -201,12 +204,12 @@ struct rw_file_view : file_view_base<T, FileViewHandle>
 
 struct mempage_file_view : rw_file_view < FileChunckSpec >
 {
-	using rw_file_view < IndexRange<SizeT> >::rw_file_view; // inherit ctors
+	using rw_file_view < FileChunckSpec >::rw_file_view; // inherit ctors
 };
 
 struct const_mempage_file_view : const_file_view < FileChunckSpec >
 {
-	using const_file_view < IndexRange<SizeT> >::const_file_view; // inherit ctors
+	using const_file_view < FileChunckSpec >::const_file_view; // inherit ctors
 };
 
 #endif //!defined(__RTC_SET_FILEVIEW_H)

@@ -3465,8 +3465,8 @@ bool TreeItem::PrepareDataUsageImpl(DrlType drlFlags) const
 				assert(sm);
 				if (auto mmd = dynamic_cast<MmdStorageManager*>(sm))
 				{
-					bool mustWrite = HasCalculator();
-					bool mustSkip = mustWrite || GetCalculator()->IsDataBlock();
+					bool mustWrite = HasCalculator() && !GetCalculator()->IsDataBlock();
+					bool mustSkip = HasCalculator() && GetCalculator()->IsDataBlock();
 					if (!mustSkip && !mmd->IsOpen() || mustWrite && !mmd->IsOpenForWrite())
 					{
 						auto parent = GetStorageParent(mustWrite);
@@ -3482,7 +3482,7 @@ bool TreeItem::PrepareDataUsageImpl(DrlType drlFlags) const
 								mmd->OpenForRead(smi);
 						}
 					}
-					if (!mustSkip)
+					if (!mustSkip && !mustWrite)
 					{
 						auto fsn = sm->GetNameStr();
 						auto rn = GetRelativeName(sp);
@@ -3490,25 +3490,19 @@ bool TreeItem::PrepareDataUsageImpl(DrlType drlFlags) const
 						auto fn = DelimitedConcat(fsn, rn);
 						if (!IsFileOrDirAccessible(fn))
 						{
-							if (!HasCalculator())
-							{
-								DoFail(std::make_shared<ErrMsg>("Data not found in .MMD storage folder"), FR_Data);
-								goto failed;
-							}
+							DoFail(std::make_shared<ErrMsg>("Data not found in .MMD storage folder"), FR_Data);
+							goto failed;
 						}
 						else
 						{
 							auto fh = OpenFileData(AsDataItem(this), avu ? avu->GetTiledRangeData() : nullptr, fn);
-							if (fh)
-							{
-								AsDataItem(GetCurrUltimateItem())->m_DataObject.reset(fh.release()); // , !adi->IsPersistent(), true); // calls OpenFileData
-								return true;
-							}
-							if (!HasCalculator())
+							if (!fh)
 							{
 								DoFail(std::make_shared<ErrMsg>("Cannot open data in .MMD storage folder"), FR_Data);
 								goto failed;
 							}
+							AsDataItem(GetCurrUltimateItem())->m_DataObject.reset(fh.release()); // , !adi->IsPersistent(), true); // calls OpenFileData
+							return true;
 						}
 					}
 				}

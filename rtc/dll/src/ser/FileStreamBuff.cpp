@@ -106,8 +106,8 @@ MappedFileInpStreamBuff::MappedFileInpStreamBuff(WeakStr fileName, bool throwOnO
 	:	m_FileName(fileName)
 {
 	auto cmfh = std::make_shared<ConstMappedFileHandle>(fileName, throwOnOpenError, doRetry);
-	m_FileView = ConstFileViewHandle(cmfh);
-	m_FileView.Map();
+	m_FileView = ConstFileViewHandle(cmfh, 0, -1, -1);
+	m_FileView.MapView();
 	if (IsOpen())
 		m_Curr = m_FileView.DataBegin();
 }
@@ -116,7 +116,7 @@ MappedFileInpStreamBuff::MappedFileInpStreamBuff(WeakStr fileName, bool throwOnO
 
 MappedFileInpStreamBuff::~MappedFileInpStreamBuff()
 {
-	m_FileView.Unmap();
+	m_FileView.UnmapView();
 }
 
 void MappedFileInpStreamBuff::ReadBytes(Byte* data, streamsize_t size) const
@@ -154,8 +154,8 @@ MappedFileOutStreamBuff::MappedFileOutStreamBuff(WeakStr fileName, streamsize_t 
 {
 	auto mfh = std::make_shared<MappedFileHandle>();
 	mfh->OpenRw(fileName, nrBytes, dms_rw_mode::write_only_all, false);
-	m_FileView = FileViewHandle(mfh, 0, nrBytes);
-	m_FileView.Map(true);
+	m_FileView = FileViewHandle(mfh, 0, nrBytes, nrBytes);
+	m_FileView.MapView(true);
 
 	dms_assert(nrBytes);
 	m_Curr = m_FileView.DataBegin();
@@ -173,7 +173,7 @@ void MappedFileOutStreamBuff::WriteBytes(const Byte* data, streamsize_t size)
 		throwErrorF("MappedFileOutStream", "Cannot write %s bytes to %s after pos %s since it has size %s",
 			AsString(size).c_str(), m_FileName.c_str(), 
 			AsString(m_Curr - m_FileView.DataBegin()).c_str(), 
-			AsString(m_FileView.GetViewSize()).c_str()
+			AsString(m_FileView.GetViewCapacity()).c_str()
 		);
 	memcpy(m_Curr, data, size);
 	m_Curr += size;

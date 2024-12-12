@@ -121,8 +121,8 @@ bool XdbImp::Open(WeakStr name, FileCreationMode fileMode, CharPtr datExtension,
 
 	bool alsoWrite = (fileMode != FCM_OpenReadOnly);
 	MG_USERCHECK2(!alsoWrite, "writing to .xdb is no longer supported");
-	m_FHD = ConstFileViewHandle(std::make_shared<ConstMappedFileHandle>(m_DatFileName, true, false));
-	m_FHD.Map();
+	m_FHD = ConstFileViewHandle(std::make_shared<ConstMappedFileHandle>(m_DatFileName, true, false), 0, -1, -1);
+	m_FHD.MapView();
 
 	// Read header info
 	return (!saveColInfo) || ReadHeader();

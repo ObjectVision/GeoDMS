@@ -20,8 +20,8 @@ template <typename V>
 class mappable_sequence : public abstr_sequence_provider<V>
 {
 public:
-	mappable_sequence(std::shared_ptr<MappedFileHandle> mfh, tile_id t, tile_offset nrElem)
-		: m_FileView(mfh, nrElem)
+	mappable_sequence(std::shared_ptr<MappedFileHandle> mfh, tile_id t, SizeT nrElem, dms::filesize_t offset = -1, dms::filesize_t capacity = -1)
+		: m_FileView(mfh, nrElem, offset, capacity)
 	{
 		this->m_TileId = t;
 	}
@@ -33,20 +33,27 @@ public:
 	SizeT Size    (const alloc_t& seq) const override { return m_FileView.filed_size(); }
 	SizeT Capacity(const alloc_t& seq) const override { return m_FileView.filed_capacity(); }
 
-	void reserve(alloc_t& seq, SizeT newSize MG_DEBUG_ALLOCATOR_SRC_ARG) override
+	void reserve(alloc_t& seq, SizeT newCapacity MG_DEBUG_ALLOCATOR_SRC_ARG) override
 	{ 
 		// TODO: look in memPageAllocTable for sufficiently large holes.
-		Check(seq); 
-		m_FileView.reserve(newSize); 
+ 		Check(seq); 
+		auto mappedFile = m_FileView.GetMappedFile();
+		MG_CHECK(mappedFile);
+
+		auto oldView = std::move(m_FileView);
+		m_FileView = rw_file_view<V>(mappedFile, m_FileView.filed_size(), -1, newCapacity);
+		m_FileView.MapView(true);
+		fast_copy(oldView.begin(), oldView.end(), m_FileView.begin());
+
 		GetSeq(seq); 
 		Check(seq); 
-		if (auto mappedFile = m_FileView.GetMappedFile())
-			if (auto memPageAllocTable = mappedFile->m_MemPageAllocTable.get())
-			{
-				tile_id t = this->m_TileId;
-				assert(t < memPageAllocTable->filed_size());
-				(*memPageAllocTable)[t] = m_FileView.GetViewSpec();
-			}
+
+		if (auto memPageAllocTable = mappedFile->m_MemPageAllocTable.get())
+		{
+			tile_id t = this->m_TileId;
+			assert(t < memPageAllocTable->filed_size());
+			(*memPageAllocTable)[t] = m_FileView.GetViewSpec();
+		}
 	}
 	void resizeSP(alloc_t& seq, SizeT newSize, bool mustClear MG_DEBUG_ALLOCATOR_SRC_ARG) override
 	{ 
@@ -82,14 +89,17 @@ public:
 
 	abstr_sequence_provider<IndexRange<SizeT> >* CloneForSeqs() const override
 	{
+		throwIllegalAbstract(MG_POS, "mappable_sequence.CloneForSeqs");
+		/*
 		return new mappable_sequence< IndexRange<SizeT> >(m_FileView.GetMappedFile(), this->m_TileId, 0);
+		*/
 	}
 
-	void Lock  (alloc_t& seq, dms_rw_mode rwMode) override { m_FileView.Map(rwMode != dms_rw_mode::read_only); assert(  m_FileView.IsUsable() ); GetSeq(seq);}
+	void Lock  (alloc_t& seq, dms_rw_mode rwMode) override { m_FileView.MapView(rwMode != dms_rw_mode::read_only); assert(  m_FileView.IsUsable() ); GetSeq(seq);}
 	void UnLock(alloc_t& seq)                     override 
 	{ 
 		m_FileView.resize(seq.size()); 
-		m_FileView.Unmap();
+		m_FileView.UnmapView();
 		seq = alloc_t();
 	}
 //	void Close (alloc_t& seq)                     override { m_FileView.CloseWFV();                      assert( !m_FileView.IsOpen  () ); seq = alloc_t();}
@@ -132,8 +142,8 @@ struct mappable_const_sequence : abstr_sequence_provider<V>
 {
 	using alloc_t = typename abstr_sequence_provider<V>::alloc_t;
 
-	mappable_const_sequence(std::shared_ptr<ConstMappedFileHandle> cmfh, tile_id t, tile_offset nrElem, dms::filesize_t fileOffset = -1, dms::filesize_t viewSize = -1)
-		: m_FileView(cmfh, nrElem, fileOffset, viewSize)
+	mappable_const_sequence(std::shared_ptr<ConstMappedFileHandle> cmfh, tile_id t, SizeT nrElem, dms::filesize_t fileOffset = -1, dms::filesize_t viewCapacity = -1)
+		: m_FileView(cmfh, nrElem, fileOffset, viewCapacity)
 	{
 		this->m_TileId = t;
 	}
@@ -158,17 +168,17 @@ struct mappable_const_sequence : abstr_sequence_provider<V>
 
 	abstr_sequence_provider<IndexRange<SizeT> >* CloneForSeqs() const override
 	{
+		throwIllegalAbstract(MG_POS, "mappable_const_sequence.CloneForSeqs");
+/*
 		const auto& pageRange = m_FileView.SequenceMemPageAllocTable()->begin()[this->m_TileId];
 		return new mappable_const_sequence<IndexRange<SizeT> >(m_FileView.GetMappedFile()
-			, this->m_TileId
-			, m_FileView.filed_size()
-			, m_FileView.GetViewOffset()
-			, m_FileView.GetViewSize()
+			, this->m_TileId, m_FileView.filed_size(), -1, -1
 		);
-		m_FileView = const_file_view<V>(m_FileView.GetMappedFile(), pageRange.first, pageRange.second);
+//		m_FileView = const_file_view<V>(m_FileView.GetMappedFile(), capacity_calculator<V>().Byte2Size(pageRange.size), pageRange.offset, pageRange.capacity);
+*/
 	}
-	void Lock  (alloc_t& seq, dms_rw_mode rwMode) override { assert(rwMode == dms_rw_mode::read_only); m_FileView.Map(); assert( m_FileView.IsUsable()); GetSeq(seq); }
-	void UnLock(alloc_t& seq)                     override { m_FileView.Unmap(); seq = alloc_t(); }
+	void Lock  (alloc_t& seq, dms_rw_mode rwMode) override { assert(rwMode == dms_rw_mode::read_only); m_FileView.MapView(); assert( m_FileView.IsUsable()); GetSeq(seq); }
+	void UnLock(alloc_t& seq)                     override { m_FileView.UnmapView(); seq = alloc_t(); }
 //	void Close (alloc_t& seq)                     override { m_FileView.CloseFVB();                     assert(!m_FileView.IsOpen());   seq = alloc_t(); }
 //	void Drop  (alloc_t& seq)                     override { m_FileView.Drop (m_FileName);              assert(!m_FileView.IsOpen());   seq = alloc_t(); }
 
