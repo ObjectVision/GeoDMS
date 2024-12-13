@@ -361,11 +361,6 @@ void FileViewHandle::operator =(FileViewHandle&& rhs) noexcept
 	std::swap(m_ViewSpec, rhs.m_ViewSpec);
 	m_ViewData = std::move(rhs.m_ViewData);
 
-	assert(rhs.m_ViewData.is_null());
-	assert(rhs.m_ViewSpec.size == 0);
-	assert(rhs.m_ViewSpec.capacity == 0);
-	assert(rhs.m_ViewSpec.offset == 0);
-
 	assert(m_ViewSpec.size <= m_ViewSpec.capacity);
 	assert((m_ViewSpec.offset & (GetAllocationGrannularity() - 1)) == 0);
 }
@@ -375,11 +370,6 @@ void ConstFileViewHandle::operator =(ConstFileViewHandle&& rhs) noexcept
 	m_MappedFile = std::move(rhs.m_MappedFile); assert(!rhs.m_MappedFile);
 	std::swap(m_ViewSpec, rhs.m_ViewSpec);
 	m_ViewData = std::move(rhs.m_ViewData);
-
-	assert(rhs.m_ViewData.is_null());
-	assert(rhs.m_ViewSpec.size == 0);
-	assert(rhs.m_ViewSpec.capacity == 0);
-	assert(rhs.m_ViewSpec.offset == 0);
 
 	assert(m_ViewSpec.size <= m_ViewSpec.capacity);
 	assert((m_ViewSpec.offset & (GetAllocationGrannularity() - 1)) == 0);

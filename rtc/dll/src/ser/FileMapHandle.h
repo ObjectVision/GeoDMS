@@ -157,6 +157,9 @@ struct FileViewHandle
 	{ 
 		operator =(std::move(rhs));
 		assert(rhs.m_ViewData.is_null());
+		assert(rhs.m_ViewSpec.size == 0);
+		assert(rhs.m_ViewSpec.capacity == 0);
+		assert(rhs.m_ViewSpec.offset == 0);
 	}
 
 	RTC_CALL FileViewHandle(std::shared_ptr<mapped_file_type> mfh, dms::filesize_t viewOffset, dms::filesize_t viewSize, dms::filesize_t viewCapacity);
@@ -197,7 +200,10 @@ struct ConstFileViewHandle
 	ConstFileViewHandle(ConstFileViewHandle&& rhs) noexcept 
 	{ 
 		operator =(std::move(rhs));
-		assert(!rhs.m_ViewData.is_null());
+		assert(rhs.m_ViewData.is_null());
+		assert(rhs.m_ViewSpec.size == 0);
+		assert(rhs.m_ViewSpec.capacity == 0);
+		assert(rhs.m_ViewSpec.offset == 0);
 	}
 
 	RTC_CALL ConstFileViewHandle(std::shared_ptr<ConstMappedFileHandle> cmfh, dms::filesize_t viewOffset, dms::filesize_t viewSize, dms::filesize_t viewCapacity);
