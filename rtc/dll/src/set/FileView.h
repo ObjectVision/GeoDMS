@@ -50,8 +50,33 @@ struct file_view_base : FVH
 	SizeT max_size() const { return SizeT(-1) / sizeof(T); }
 
 protected:
+	void SetNrElems(SizeT newNrElems)
+	{
+		m_NrElems = newNrElems;
+		this->m_ViewSpec.size = size_calculator<T>().nr_bytes(newNrElems);
+		assert(m_MappedFile);
+		if (m_MappedFile->m_MemPageAllocTable)
+		{
+			if m_TileID == no_tile)
+			{
+				auto b = m_MappedFile->m_MemPageAllocTable->begin();
+				auto e = m_MappedFile->m_MemPageAllocTable->end();
+				for (auto mpEntry = b; mpEntry != e; ++mpEntry)
+				{
+					if (mpEntry->m_ViewSpec.offset == this->m_ViewSpec.offset)
+					{
+						m_TileID = mpEntry - b
+						break;
+					}
+				}
+			}
+			m_MappedFile->m_MemPageAllocTable[m_TileID].m_ViewSpec.size = this->m_ViewSpec.size;
+		}
+	}
+
 	file_view_base() {}
 	SizeT m_NrElems = 0;
+	tile_id m_TileID = no_tile;
 };
 
 //----------------------------------------------------------------------
@@ -167,8 +192,7 @@ struct rw_file_view : file_view_base<T, FileViewHandle>
 	{
 		if (newNrElems > this->filed_capacity())
 			throwErrorD("rw_file_view", "cannot grow a FileMapping");
-		m_NrElems = newNrElems;
-		this->m_ViewSpec.size = size_calculator<T>().nr_bytes(newNrElems);
+		SetNrElms(newNrElems);
 	}
 
 	void grow(SizeT newNrElems)
@@ -176,7 +200,7 @@ struct rw_file_view : file_view_base<T, FileViewHandle>
 		if (this->filed_size() + newNrElems > this->filed_capacity())
 			throwErrorD("rw_file_view", "cannot grow a FileMapping");
 //		m_FileSize = size_calculator<T>().nr_bytes(newNrElems);
-		m_NrElems += newNrElems;
+		SetNrElems(m_NrElems + newNrElems);
 	}
 
 	iterator       begin()       { return iter_creator<T>()( DataBegin(), 0 ); }

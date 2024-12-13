@@ -185,7 +185,7 @@ struct FileViewHandle
 //	auto GetFileName() const -> SharedStr { return m_MappedFile->GetFileName(); }
 	auto GetMappedFile() const { return m_MappedFile; }
 
-	std::shared_ptr< mapped_file_type> m_MappedFile;
+	std::shared_ptr<mapped_file_type> m_MappedFile;
 
 	FileChunckSpec m_ViewSpec = { 0, 0, 0 };
 	ViewData       m_ViewData;
