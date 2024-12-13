@@ -292,7 +292,7 @@ ViewData::ViewData(MappedFileHandle* mappedFile, DWORD desiredAccess, dms::files
 	while (true) {
 		m_Ptr =
 			MapViewOfFile(mappedFile->m_hFileMapping, // Handle to mapping object. 
-				FILE_MAP_READ,
+				desiredAccess,
 				HiDWORD(viewOffset),
 				LoDWORD(viewOffset),
 				viewCapacity
