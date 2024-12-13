@@ -59,7 +59,7 @@ public:
 			DataWriteLock resLock(res);
 
 			ResultType* result = mutable_array_cast<V>(resLock);
-			auto resData = result->GetDataWrite();
+			auto resData = result->GetDataWrite(no_tile, dms_rw_mode::write_only_all);
 			dms_assert(resData.size() == unsortedData.size());
 			fast_copy(unsortedData.begin(), unsortedData.end(), resData.begin());
 

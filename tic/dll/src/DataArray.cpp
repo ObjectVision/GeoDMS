@@ -102,26 +102,27 @@ void InitMutableShadow(DataArrayBase<V>* tileFunctor, tile<V>* shadowTilePtr, co
 {
 	SizeT nrElem = trd->GetRangeSize();
 	auto range = trd->GetRangeAsI64Rect();
-	dms_assert(Cardinality(range) == nrElem);
+	assert(Cardinality(range) == nrElem);
 
-	resizeSO(*shadowTilePtr, nrElem, (!trd->IsCovered() || rwMode == dms_rw_mode::write_only_mustzero) MG_DEBUG_ALLOCATOR_SRC_PARAM);
+	bool mustDefaultInitialize = (rwMode != dms_rw_mode::write_only_all) && (rwMode == dms_rw_mode::write_only_mustzero || !trd->IsCovered());
+	resizeSO(*shadowTilePtr, nrElem, mustDefaultInitialize MG_DEBUG_ALLOCATOR_SRC_PARAM);
 
-	if (rwMode <= dms_rw_mode::read_write)
-	{
-		tile_id tn = trd->GetNrTiles();
+	if (rwMode > dms_rw_mode::read_write)
+		return;
 
-		U64Grid<V> shadowData(Size(range), shadowTilePtr->begin());
+	tile_id tn = trd->GetNrTiles();
 
-		parallel_tileloop_if_separable<V>(tn, [tileFunctor, trd, &shadowTilePtr, &shadowData, shadowRangeBase = range.first](tile_id t)
+	U64Grid<V> shadowData(Size(range), shadowTilePtr->begin());
+
+	parallel_tileloop_if_separable<V>(tn, [tileFunctor, trd, &shadowTilePtr, &shadowData, shadowRangeBase = range.first](tile_id t)
 		{
 			I64Rect tileRange = trd->GetTileRangeAsI64Rect(t);
-			auto tileData = tileFunctor->GetWritableTile(t);
-			dms_assert(Cardinality(tileRange) == tileData.size());
+			auto tileData = tileFunctor->GetTile(t);
+			assert(Cardinality(tileRange) == tileData.size());
 
 			RectCopy(shadowData, U64Grid<const V>(Size(tileRange), tileData.begin()), shadowRangeBase - tileRange.first);
 		}
-		);
-	}
+	);
 }
 
 template <typename V>
@@ -129,7 +130,7 @@ void InitConstShadow(const DataArrayBase<V>* tileFunctor, tile<V>* shadowTilePtr
 {
 	SizeT nrElem = trd->GetRangeSize();
 	auto range = trd->GetRangeAsI64Rect();
-	dms_assert(Cardinality(range) == nrElem);
+	assert(Cardinality(range) == nrElem);
 
 	resizeSO(*shadowTilePtr, nrElem, !trd->IsCovered() MG_DEBUG_ALLOCATOR_SRC_PARAM);
 
@@ -152,7 +153,7 @@ template <typename V>
 auto MutableShadowTile(DataArrayBase<V>* tileFunctor, dms_rw_mode rwMode MG_DEBUG_ALLOCATOR_SRC_ARG) -> DataArrayBase<V>::locked_seq_t
 {
 	auto trd = tileFunctor->GetTiledRangeData();
-	dms_assert(trd->GetNrTiles() != 1);
+	assert(trd->GetNrTiles() != 1);
 
 	SharedPtr<mutable_shadow_tile<V>> shadowTilePtr = new mutable_shadow_tile<V>;
 
