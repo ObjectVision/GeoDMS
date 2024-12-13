@@ -138,11 +138,11 @@ struct ViewData : ptr_base<void, movable>
 	RTC_CALL ~ViewData();
 
 	ViewData() {}
-	ViewData(ViewData&& rhs)
+	ViewData(ViewData&& rhs) noexcept
 	{
 		operator =(std::move(rhs));
 	}
-	void operator=(ViewData&& rhs)
+	void operator=(ViewData&& rhs) noexcept
 	{
 		ptr_base<void, movable >::swap(rhs);
 	}
