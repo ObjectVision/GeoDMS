@@ -300,10 +300,8 @@ SizeT MinimalDatFileSize(const AbstrTileRangeData* trd)
 	SizeT rawSize = 0;
 	if (tn > 1)
 	{
-		// first deternmine pagesize * no of pages for the mapped tile fixed size elements for tiles 0..tn-2
-		auto lastTileSizeInBytes = safe_size_n<sizeof(V)>(trd->GetTileSize(tn - 1));
-		rawSize = MinimalNrMemPages<V>(trd) - NrMemPages(lastTileSizeInBytes);
-		rawSize <<= GetLog2AllocationGrannularity(); 
+		rawSize = trd->GetMemPageIndex(mpf::log2_v<sizeof(V)>, tn-1);
+		rawSize <<= GetLog2AllocationGrannularity();
 	}
 	if (tn > 0)
 	{
