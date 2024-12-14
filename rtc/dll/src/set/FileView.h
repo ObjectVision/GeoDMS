@@ -49,29 +49,23 @@ struct file_view_base : FVH
 	}
 	SizeT max_size() const { return SizeT(-1) / sizeof(T); }
 
-protected:
-	void SetNrElems(SizeT newNrElems)
+	void SetNrElemsWithoutUpdatingMemPageAllocTable(SizeT newNrElems)
 	{
 		m_NrElems = newNrElems;
 		this->m_ViewSpec.size = size_calculator<T>().nr_bytes(newNrElems);
-		assert(this->m_MappedFile);
-		if (auto memPageAllocTable = this->m_MappedFile->m_MemPageAllocTable.get())
-		{
-			if (m_TileID == no_tile)
-			{
-				auto b = memPageAllocTable->begin();
-				auto e = memPageAllocTable->end();
-				for (auto mpEntry = b; mpEntry != e; ++mpEntry)
-				{
-					if (mpEntry->offset == this->m_ViewSpec.offset)
-					{
-						m_TileID = mpEntry - b;
-						break;
-					}
-				}
-			}
-			(*memPageAllocTable)[m_TileID].size = this->m_ViewSpec.size;
-		}
+		auto mappedFile = this->m_MappedFile.get();
+	}
+	void SetNrElems(SizeT newNrElems)
+	{
+		assert(m_TileID != no_tile);
+
+		SetNrElemsWithoutUpdatingMemPageAllocTable(newNrElems);
+
+		auto mappedFile = this->m_MappedFile.get();
+		assert(mappedFile);
+		auto memPageAllocTable = this->m_MappedFile->m_MemPageAllocTable.get();
+		assert(memPageAllocTable);
+		(*memPageAllocTable)[m_TileID].size = this->m_ViewSpec.size;
 	}
 
 	file_view_base() {}
@@ -112,10 +106,6 @@ struct const_file_view : file_view_base<T, ConstFileViewHandle>
 			);
 		this->m_NrElems = nrElems;
 	}
-	const mempage_file_view* SequenceMemPageAllocTable() const
-	{
-		return this->m_MappedFile->m_MemPageAllocTable.get();
-	}
 };
 
 //----------------------------------------------------------------------
@@ -143,8 +133,8 @@ struct rw_file_view : file_view_base<T, FileViewHandle>
 
 	void Open(WeakStr fileName, SizeT nrElems, dms_rw_mode rwMode, bool isTmp)
 	{
-		dms_assert(rwMode != dms_rw_mode::unspecified);
-		dms_assert(rwMode != dms_rw_mode::check_only);
+		assert(rwMode != dms_rw_mode::unspecified);
+		assert(rwMode != dms_rw_mode::check_only);
 
 		if (rwMode != dms_rw_mode::read_only)
 			this->OpenRw(fileName
@@ -180,12 +170,12 @@ struct rw_file_view : file_view_base<T, FileViewHandle>
 		file_view_base<T>::CloseFVB();
 	}
 */
-	void reserve(SizeT nrReservedElem)
+	bool reserveChunk(SizeT nrReservedElem)
 	{
 		assert(nrReservedElem <= this->max_size());
 		MG_CHECK(nrReservedElem < SizeT(-1) / sizeof(T));
 		MG_CHECK(size_calculator<T>().nr_bytes(m_NrElems) == this->m_ViewSpec.size);
-		this->realloc(size_calculator<T>().nr_bytes(nrReservedElem));
+		return this->reallocChunk(size_calculator<T>().nr_bytes(nrReservedElem));
 	}
 
 	void resize(SizeT newNrElems)

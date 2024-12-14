@@ -408,11 +408,49 @@ void ConstFileViewHandle::MapView()
 	m_ViewData = ViewData(m_MappedFile.get(), FILE_MAP_READ, m_ViewSpec.offset, m_ViewSpec.capacity);
 }
 
-void FileViewHandle::realloc(dms::filesize_t capacity)
+bool FileViewHandle::reallocChunk(dms::filesize_t capacity)
 {
 	assert(IsUsable());
+	assert(m_MappedFile);
+	assert(capacity > m_ViewSpec.capacity); // precondition
+
+	auto offset = m_ViewSpec.offset;
+
+	/*
+	if (m_TileID != no_tile)
+	{
+		auto m = m_MappedFile->m_MemPageAllocTable;
+		assert(m);
+		if (m_ViewSpec.offset + m_ViewSpec.capacity == m_MappedFile->m_AllocatedSize)
+			m_MappedFile->m_AllocatedSize -= m_ViewSpec.capacity;
+		else
+		{
+			x
+			m_ViewSpec = m_MappedFile->allocAtEnd(m_ViewSpec.size, capacity - m_ViewSpec.capacity);
+
+			auto& entry = (*m)[m_TileID];
+			entry.size = capacity;
+			m_ViewSpec.capacity = capacity;
+			return;
+		}
+		// maintain for each chunk the size of the folloing hole
+		// maintain a sequential hole list
+		- allocate(b, e)
+		- free(b, e)
+		- enlarge(b, e, new_b)
+		- find_at_least(size)
+
+		check for space after current m_ViewSpec.offset + m_ViewSpec.size
+
+		m->FindHole(capacity);
+		}
+	}
+*/
 	m_ViewSpec = m_MappedFile->allocAtEnd(m_ViewSpec.size, capacity);
+
+applyViewSpec:
 	MapView(true);
+	return offset != m_ViewSpec.offset;
 }
 
 

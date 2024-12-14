@@ -165,7 +165,7 @@ struct FileViewHandle
 	RTC_CALL FileViewHandle(std::shared_ptr<mapped_file_type> mfh, dms::filesize_t viewOffset, dms::filesize_t viewSize, dms::filesize_t viewCapacity);
 	RTC_CALL void operator = (FileViewHandle&& rhs) noexcept;
 
-	RTC_CALL void realloc(dms::filesize_t capacity);
+	RTC_CALL bool reallocChunk(dms::filesize_t capacity);
 
 	bool IsUsable() const { return m_ViewData != nullptr || GetViewCapacity() == 0; }
 
