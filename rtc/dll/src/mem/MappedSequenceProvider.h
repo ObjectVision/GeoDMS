@@ -45,12 +45,21 @@ public:
 		auto oldViewSpec = m_FileView.m_ViewSpec;
 		assert(oldViewSpec.capacity < newCapacity);
 
+		auto allocGranny = (GetAllocationGrannularity() - 1);
+		assert((oldViewSpec.offset  & allocGranny) == 0);
+		assert((oldViewSpec.capacity & allocGranny) == 0);
+
+		newCapacity = (newCapacity + allocGranny) & allocGranny;
+
 		auto currBegin = m_FileView.begin();
 		auto currEnd   = m_FileView.end();
 
 		auto oldView = std::move(m_FileView.m_ViewData);
 		m_FileView.m_ViewSpec = mappedFile->AllocChunk(oldViewSpec, newCapacity);
 		m_FileView.MapView(true);
+		assert((m_FileView.m_ViewSpec.offset & allocGranny) == 0);
+		assert((m_FileView.m_ViewSpec.capacity & allocGranny) == 0);
+
 		if (m_FileView.m_ViewSpec.offset != oldViewSpec.offset)
 			fast_copy(currBegin, currEnd, m_FileView.begin());
 		else
@@ -58,6 +67,8 @@ public:
 
 		GetSeq(seq); 
 		Check(seq); 
+//		assert((reinterpret_cast<UInt64>(seq.begin()) & allocGranny) == 0);
+//		assert(((seq.m_Capacity * sizeof(V)) & allocGranny) == 0);
 
 		if (auto memPageAllocTable = mappedFile->m_MemPageAllocTable.get())
 		{

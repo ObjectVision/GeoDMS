@@ -501,6 +501,9 @@ void mempage_table::InitFreeSetsFromChunkSpecs(tile_id tn, dms::filesize_t fileS
 
 void mempage_table::FreeAllocatedChunk(FreeChunk currChunk)
 {
+	if (!currChunk.size())
+		return;
+
 	//search in lexi before and after it
 	auto it = m_FreeListByLexi.lower_bound(currChunk);
 	if (it != m_FreeListByLexi.begin() && (--it)->second == currChunk.first)
