@@ -33,10 +33,9 @@ struct SizeLess {
 
 inline SizeT MinimalSeqFileSize(tile_id tn)
 {
-	if (tn <= 1)
+	if (tn < 1)
 		return 0;
-	auto memPageAllocTableSize = safe_size_n<sizeof(FileChunkSpec)>(tn);
-	return NrMemPages(memPageAllocTableSize) << GetLog2AllocationGrannularity();
+	return tn * sizeof(FileChunkSpec);
 }
 
 //----------------------------------------------------------------------

@@ -103,7 +103,8 @@ struct MappedFileHandle : FileHandle
 	RTC_CALL void OpenRw(WeakStr fileName, dms::filesize_t requiredNrBytes, dms_rw_mode rwMode, bool isTmp);
 	RTC_CALL void OpenForRead(WeakStr fileName, bool throwOnError, bool doRetry);
 
-	RTC_CALL FileChunkSpec AllocChunk(FileChunkSpec& viewSpec, dms::filesize_t viewCapacity);
+	RTC_CALL FileChunkSpec AllocFile (FileChunkSpec& viewSpec, dms::filesize_t viewCapacity);
+	RTC_CALL FileChunkSpec AllocChunk(FileChunkSpec& viewSpec, dms::filesize_t viewCapacity, tile_id t);
 	RTC_CALL FileChunkSpec allocAtEnd(dms::filesize_t viewSize, dms::filesize_t viewCapacity);
 
 	RTC_CALL void MapFile(bool alsoWrite);
@@ -166,9 +167,10 @@ struct FileViewHandle
 	RTC_CALL FileViewHandle(std::shared_ptr<mapped_file_type> mfh, dms::filesize_t viewOffset, dms::filesize_t viewSize, dms::filesize_t viewCapacity);
 	RTC_CALL void operator = (FileViewHandle&& rhs) noexcept;
 
-	RTC_CALL void AllocAndMapChunk(dms::filesize_t capacity);
+	RTC_CALL void AllocAndMapFile (dms::filesize_t capacity);
+	RTC_CALL void AllocAndMapChunk(dms::filesize_t capacity, tile_id t);
 
-	bool IsUsable() const { return m_ViewData != nullptr || GetViewCapacity() == 0; }
+	bool IsUsable() const { return m_ViewData.has_ptr() || GetViewCapacity() == 0; }
 
 	RTC_CALL void MapView(bool alsoWrite);
 	void UnmapView() { m_ViewData = ViewData(); }
@@ -210,7 +212,7 @@ struct ConstFileViewHandle
 	RTC_CALL ConstFileViewHandle(std::shared_ptr<ConstMappedFileHandle> cmfh, dms::filesize_t viewOffset, dms::filesize_t viewSize, dms::filesize_t viewCapacity);
 	RTC_CALL void operator = (ConstFileViewHandle&& rhs) noexcept;
 
-	bool IsUsable() const { return m_ViewData != nullptr || GetViewCapacity() == 0; }
+	bool IsUsable() const { return m_ViewData.has_ptr() || GetViewCapacity() == 0; }
 
 	RTC_CALL void MapView();
 	void UnmapView() { m_ViewData = ViewData(); }

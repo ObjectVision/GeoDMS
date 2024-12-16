@@ -42,23 +42,16 @@ public:
 		auto mappedFile = m_FileView.GetMappedFile();
 		MG_CHECK(mappedFile);
 //		if (m_FileView.m_TileID != no_tile)
+		auto lock = std::scoped_lock(mappedFile->m_ResizeMutex);
+
 		auto oldViewSpec = m_FileView.m_ViewSpec;
 		assert(oldViewSpec.capacity < newCapacity);
-
-		auto allocGranny = (GetAllocationGrannularity() - 1);
-		assert((oldViewSpec.offset  & allocGranny) == 0);
-		assert((oldViewSpec.capacity & allocGranny) == 0);
-
-		newCapacity = (newCapacity + allocGranny) & allocGranny;
 
 		auto currBegin = m_FileView.begin();
 		auto currEnd   = m_FileView.end();
 
 		auto oldView = std::move(m_FileView.m_ViewData);
-		m_FileView.m_ViewSpec = mappedFile->AllocChunk(oldViewSpec, newCapacity);
-		m_FileView.MapView(true);
-		assert((m_FileView.m_ViewSpec.offset & allocGranny) == 0);
-		assert((m_FileView.m_ViewSpec.capacity & allocGranny) == 0);
+		m_FileView.AllocAndMapChunk(newCapacity, m_FileView.m_TileID); // updates m_FileView.m_ViewSpec
 
 		if (m_FileView.m_ViewSpec.offset != oldViewSpec.offset)
 			fast_copy(currBegin, currEnd, m_FileView.begin());
@@ -67,16 +60,6 @@ public:
 
 		GetSeq(seq); 
 		Check(seq); 
-//		assert((reinterpret_cast<UInt64>(seq.begin()) & allocGranny) == 0);
-//		assert(((seq.m_Capacity * sizeof(V)) & allocGranny) == 0);
-
-		if (auto memPageAllocTable = mappedFile->m_MemPageAllocTable.get())
-		{
-			tile_id t = m_FileView.m_TileID;
-			assert(t < memPageAllocTable->filed_size());
-			(*memPageAllocTable)[t] = m_FileView.m_ViewSpec;
-			assert((*memPageAllocTable)[t].size <= (*memPageAllocTable)[t].capacity);
-		}
 	}
 	void resizeSP(alloc_t& seq, SizeT newSize, bool mustClear MG_DEBUG_ALLOCATOR_SRC_ARG) override
 	{ 

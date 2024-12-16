@@ -167,7 +167,7 @@ struct rw_file_view : file_view_base<T, FileViewHandle>
 		assert(nrReservedElem <= this->max_size());
 		MG_CHECK(nrReservedElem < SizeT(-1) / sizeof(T));
 		MG_CHECK(size_calculator<T>().nr_bytes(m_NrElems) == this->m_ViewSpec.size);
-		this->AllocAndMapChunk(size_calculator<T>().nr_bytes(nrReservedElem));
+		this->AllocAndMapFile(size_calculator<T>().nr_bytes(nrReservedElem));
 	}
 
 	void resize(SizeT newNrElems)

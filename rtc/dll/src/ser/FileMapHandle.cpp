@@ -45,6 +45,18 @@ SizeT GetAllocationGrannularity()
 	return allocGrannularity;
 }
 
+SizeT GetAllocationMinorMask()
+{
+	static UInt64 allocMask = GetAllocationGrannularity() - 1;
+	return allocMask;
+}
+
+SizeT GetAllocationMajorMask()
+{
+	static UInt64 allocMask = ~GetAllocationMinorMask();
+	return allocMask;
+}
+
 UInt8 GetLog2AllocationGrannularityImpl()
 {
 	auto x = GetAllocationGrannularityImpl();
@@ -222,39 +234,78 @@ void FileHandle::ReadFileSize(CharPtr handleName)
 	dbg_assert(m_FileSize <= sd_MaxFileSize);
 }
 
-FileChunkSpec MappedFileHandle::AllocChunk(FileChunkSpec& viewSpec, dms::filesize_t newCapacity)
+#if defined(MG_DEBUG)
+void CheckMemPage(const mempage_table* memPageAllocTable, FreeChunk newChunk)
+{
+	assert(memPageAllocTable->m_FreeListByLexi.size() == memPageAllocTable->m_FreeListBySize.size());
+
+	for (const auto& freeChunk : memPageAllocTable->m_FreeListByLexi)
+	{
+		assert(freeChunk.first < freeChunk.second);
+		assert((newChunk.first >= freeChunk.second) || (newChunk.second <= freeChunk.first));
+		assert(memPageAllocTable->m_FreeListBySize.find(freeChunk) != memPageAllocTable->m_FreeListBySize.end());
+	}
+	for (const auto& freeChunk : memPageAllocTable->m_FreeListBySize)
+	{
+		assert(freeChunk.first < freeChunk.second);
+		assert((newChunk.first >= freeChunk.second) || (newChunk.second <= freeChunk.first));
+	}
+}
+#endif //defined(MG_DEBUG)
+
+FileChunkSpec MappedFileHandle::AllocFile(FileChunkSpec& viewSpec, dms::filesize_t newCapacity)
 {
 	auto lock = std::scoped_lock(m_ResizeMutex);
 
-	if (auto memPageAllocTable = m_MemPageAllocTable.get())
-	{
-		auto newChunk = memPageAllocTable->ReallocChunk(FreeChunk(viewSpec.offset, viewSpec.offset + viewSpec.capacity), newCapacity, GetFileSize());
-		if (newChunk.second > m_AllocatedSize)
-			allocAtEnd(0, newChunk.second - m_AllocatedSize);
-
-		return FileChunkSpec(newChunk.first, viewSpec.size, newChunk.size());
-	}
+	assert(newCapacity > viewSpec.capacity); // precondition
+	assert(!m_MemPageAllocTable.get());
 	m_AllocatedSize = 0;
-	return allocAtEnd(viewSpec.size, newCapacity);
+	auto result = allocAtEnd(viewSpec.size, newCapacity);
+	return result;
+}
+
+FileChunkSpec MappedFileHandle::AllocChunk(FileChunkSpec& viewSpec, dms::filesize_t newCapacity, tile_id t)
+{
+	assert(!m_ResizeMutex.try_lock_shared());
+
+	assert(newCapacity > viewSpec.capacity); // precondition
+
+	auto memPageAllocTable = m_MemPageAllocTable.get();
+	assert(memPageAllocTable);
+
+	auto newChunk = memPageAllocTable->ReallocChunk(FreeChunk(viewSpec.offset, viewSpec.offset + viewSpec.capacity), newCapacity, m_AllocatedSize);
+	assert(newChunk.first >= memPageAllocTable->m_ViewSpec.capacity);
+	assert(newChunk.first < newChunk.second);
+	assert(newChunk.first + newCapacity  == newChunk.second);
+
+	if (newChunk.second > m_AllocatedSize)
+		allocAtEnd(0, newChunk.second - m_AllocatedSize);
+
+#if defined(MG_DEBUG)
+	CheckMemPage(memPageAllocTable, newChunk);
+#endif //defined(MG_DEBUG)
+
+	auto result = FileChunkSpec(newChunk.first, viewSpec.size, newChunk.size());
+	assert(t < memPageAllocTable->filed_size());
+	(*memPageAllocTable)[t] = result;
+	assert((*memPageAllocTable)[t].size <= (*memPageAllocTable)[t].capacity);
+
+	return result;
 }
 
 FileChunkSpec MappedFileHandle::allocAtEnd(dms::filesize_t viewSize, dms::filesize_t newCapacity)
 {
-	assert(!m_ResizeMutex.try_lock_shared());
+	assert(!m_ResizeMutex.try_lock_shared()); // caller must have locked this exclusively.
 
-	m_AllocatedSize = (NrMemPages(m_AllocatedSize) << GetLog2AllocationGrannularity());
 	auto newOffset = m_AllocatedSize;
 	m_AllocatedSize += newCapacity;
 
 	if (m_AllocatedSize > GetFileSize())
 	{
-		//		assert(!m_ResizeMutex.try_lock_shared()); // caller must have locked this exclusively.
-
 		SetFileSize(m_AllocatedSize);
 		assert(m_FileSize == m_AllocatedSize);
 		MapFile(true);
 	}
-	assert((newOffset & (GetAllocationGrannularity() - 1)) == 0);
 	return { newOffset, viewSize, newCapacity };
 }
 
@@ -323,16 +374,24 @@ void CreateMemPageAllocTable(std::shared_ptr<MappedFileHandle> self, bool readOn
 
 ViewData::ViewData(MappedFileHandle* mappedFile, DWORD desiredAccess, dms::filesize_t viewOffset, dms::filesize_t viewCapacity)
 {
+	auto pageBase = viewOffset & GetAllocationMajorMask();
+	assert((pageBase & GetAllocationMinorMask()) == 0);
+	auto pageOffset = viewOffset & GetAllocationMinorMask();
+
 	while (true) {
 		m_Ptr =
 			MapViewOfFile(mappedFile->m_hFileMapping, // Handle to mapping object. 
 				desiredAccess,
-				HiDWORD(viewOffset),
-				LoDWORD(viewOffset),
+				HiDWORD(pageBase),
+				LoDWORD(pageBase),
 				viewCapacity
 			);
 		if (m_Ptr)
+		{
+			m_Ptr = reinterpret_cast<BYTE*>(m_Ptr) + pageOffset;
 			break;
+		}
+
 
 		DWORD lastErr = GetLastError();
 		if (lastErr != ERROR_NOT_ENOUGH_MEMORY || !DMS_CoalesceHeap(viewCapacity))
@@ -343,7 +402,11 @@ ViewData::ViewData(MappedFileHandle* mappedFile, DWORD desiredAccess, dms::files
 ViewData::~ViewData()
 {
 	if (has_ptr())
-		UnmapViewOfFile(get_ptr());
+	{
+		auto pageBase = reinterpret_cast<UInt64>(get_ptr()) & GetAllocationMajorMask();
+
+		UnmapViewOfFile(reinterpret_cast<void*>(pageBase));
+	}
 }
 
 //  -----------------------------------------------------------------------
@@ -361,8 +424,6 @@ FileViewHandle::FileViewHandle(std::shared_ptr<MappedFileHandle> mfh, dms::files
 	else
 		m_ViewSpec = { viewOffset, viewSize, viewCapacity };
 	assert(m_ViewSpec.size <= m_ViewSpec.capacity);
-
-	assert((m_ViewSpec.offset & (GetAllocationGrannularity()-1)) == 0);
 }
 
 ConstFileViewHandle::ConstFileViewHandle(std::shared_ptr<ConstMappedFileHandle> cmfh, dms::filesize_t viewOffset, dms::filesize_t viewSize, dms::filesize_t viewCapacity)
@@ -376,19 +437,13 @@ ConstFileViewHandle::ConstFileViewHandle(std::shared_ptr<ConstMappedFileHandle> 
 		m_ViewSpec = { viewOffset, viewSize, viewCapacity };
 
 	assert(m_ViewSpec.size <= m_ViewSpec.capacity);
-	assert((m_ViewSpec.offset & (GetAllocationGrannularity() - 1)) == 0);
 
-	MakeMin(m_ViewSpec.offset  , cmfh->GetFileSize() & ~(GetAllocationGrannularity() - 1));
 	MakeMin(m_ViewSpec.capacity, cmfh->GetFileSize() - m_ViewSpec.offset);
 
 	if (m_ViewSpec.size == -1)
 		m_ViewSpec.size = m_ViewSpec.capacity;
 
 	MG_CHECK(m_ViewSpec.size <= m_ViewSpec.capacity);
-
-	assert((m_ViewSpec.offset & (GetAllocationGrannularity() - 1)) == 0);
-
-//	MapFile(true);
 }
 
 void FileViewHandle::operator =(FileViewHandle&& rhs) noexcept
@@ -398,7 +453,6 @@ void FileViewHandle::operator =(FileViewHandle&& rhs) noexcept
 	m_ViewData = std::move(rhs.m_ViewData);
 
 	assert(m_ViewSpec.size <= m_ViewSpec.capacity);
-	assert((m_ViewSpec.offset & (GetAllocationGrannularity() - 1)) == 0);
 }
 
 void ConstFileViewHandle::operator =(ConstFileViewHandle&& rhs) noexcept
@@ -408,14 +462,11 @@ void ConstFileViewHandle::operator =(ConstFileViewHandle&& rhs) noexcept
 	m_ViewData = std::move(rhs.m_ViewData);
 
 	assert(m_ViewSpec.size <= m_ViewSpec.capacity);
-	assert((m_ViewSpec.offset & (GetAllocationGrannularity() - 1)) == 0);
 }
 
 void FileViewHandle::MapView(bool alsoWrite)
 {
 	MG_CHECK(m_MappedFile); // precondition
-
-	auto lock = std::scoped_lock(m_MappedFile->m_ResizeMutex);
 
 	m_ViewData = ViewData();
 
@@ -423,17 +474,15 @@ void FileViewHandle::MapView(bool alsoWrite)
 		return;
 
 	m_AlsoWrite = alsoWrite;
+	auto offset = m_ViewSpec.offset & GetAllocationMajorMask();
+	assert((offset & GetAllocationMinorMask()) == 0);
 
-	assert((m_ViewSpec.offset & (GetAllocationGrannularity() - 1)) == 0);
-
-	m_ViewData = ViewData(m_MappedFile.get(), alsoWrite ? FILE_MAP_WRITE : FILE_MAP_READ, m_ViewSpec.offset, m_ViewSpec.capacity);
+	m_ViewData = ViewData(m_MappedFile.get(), alsoWrite ? FILE_MAP_WRITE : FILE_MAP_READ, offset, m_ViewSpec.capacity);
 }
 
 void ConstFileViewHandle::MapView()
 {
 	MG_CHECK(m_MappedFile); // precondition
-
-	auto lock = std::scoped_lock(m_MappedFile->m_ResizeMutex);
 
 	assert(!m_ViewData);
 
@@ -444,13 +493,23 @@ void ConstFileViewHandle::MapView()
 	m_ViewData = ViewData(m_MappedFile.get(), FILE_MAP_READ, m_ViewSpec.offset, m_ViewSpec.capacity);
 }
 
-void FileViewHandle::AllocAndMapChunk(dms::filesize_t capacity)
+void FileViewHandle::AllocAndMapChunk(dms::filesize_t capacity, tile_id t)
 {
-	assert(IsUsable());
+	assert(m_MappedFile);
+	assert(capacity > m_ViewSpec.capacity); // precondition
+	assert(!m_MappedFile->m_ResizeMutex.try_lock_shared());
+
+	m_ViewSpec = m_MappedFile->AllocChunk(m_ViewSpec, capacity, t);
+
+	MapView(true);
+}
+
+void FileViewHandle::AllocAndMapFile(dms::filesize_t capacity)
+{
 	assert(m_MappedFile);
 	assert(capacity > m_ViewSpec.capacity); // precondition
 
-	m_ViewSpec = m_MappedFile->AllocChunk(m_ViewSpec, capacity);
+	m_ViewSpec = m_MappedFile->AllocFile(m_ViewSpec, capacity);
 
 	MapView(true);
 }
@@ -506,17 +565,20 @@ void mempage_table::FreeAllocatedChunk(FreeChunk currChunk)
 
 	//search in lexi before and after it
 	auto it = m_FreeListByLexi.lower_bound(currChunk);
-	if (it != m_FreeListByLexi.begin() && (--it)->second == currChunk.first)
+	if (it != m_FreeListByLexi.begin())
 	{
 		auto prevIt = it;
 		auto prevChunk = *--prevIt;
-		m_FreeListBySize.erase(prevChunk);
-		m_FreeListByLexi.erase(it);
-		currChunk.first = prevChunk.first;
+		if (prevChunk.second == currChunk.first)
+		{
+			m_FreeListBySize.erase(prevChunk);
+			it = m_FreeListByLexi.erase(prevIt);
+			currChunk.first = prevChunk.first;
+		}
 	}
 	if (it != m_FreeListByLexi.end() && it->first == currChunk.second)
 	{
-		auto nextChunk = *++it;
+		auto nextChunk = *it;
 		it = m_FreeListByLexi.erase(it);
 		m_FreeListBySize.erase(nextChunk);
 		currChunk.second = nextChunk.second;
@@ -534,19 +596,26 @@ FreeChunk mempage_table::ReallocChunk(FreeChunk currChunk, dms::filesize_t newSi
 		assert(it->first >= currChunk.second); // free chunks don't overlap with used chunks, as currChunk should be
 		if (it->first == currChunk.second) // free chunk starts where currChunk ends
 		{
-			if (currChunk.first + newSize <= it->second)
+			auto freeChunk = *it;
+			auto newEnd = currChunk.first + newSize;
+			if (newEnd <= freeChunk.second)
 			{
 				// grow into the subsequent free chunk
-				auto freeChunk = *it;
 				it = m_FreeListByLexi.erase(it);
 				m_FreeListBySize.erase(freeChunk);
-				if (currChunk.first + newSize < it->size())
+				if (newEnd < freeChunk.second)
 				{
-					freeChunk.first = currChunk.first + newSize;
-					m_FreeListByLexi.insert(it, freeChunk);
-					m_FreeListBySize.insert(it, freeChunk);
+					freeChunk.first = newEnd;
+					it = m_FreeListByLexi.insert(it, freeChunk);
+					m_FreeListBySize.insert(freeChunk);
 				}
-				return FreeChunk(currChunk.first, currChunk.first + newSize);
+				// old chunk has not been freed
+				currChunk.second = newEnd;
+#if defined(MG_DEBUG)
+				CheckMemPage(this, currChunk);
+#endif //defined(MG_DEBUG)
+
+				return currChunk;
 			}
 		}
 	}
@@ -566,17 +635,26 @@ FreeChunk mempage_table::ReallocChunk(FreeChunk currChunk, dms::filesize_t newSi
 		if (newSize < it2->size())
 		{
 			freeChunk.first = currChunk.first + newSize;
-			m_FreeListByLexi.insert(it, freeChunk);
+			it = m_FreeListByLexi.insert(it, freeChunk);
 			m_FreeListBySize.insert(freeChunk);
 		}
 
 		FreeAllocatedChunk(currChunk);
 		return newChunk;
-	
 	}
-	if (currChunk.second == fileSize)
-		return FreeChunk(currChunk.first, currChunk.first + newSize);
 
+	// test if curChunk can be extended beyond the EOF
+	if (currChunk.second == fileSize)
+	{
+		auto newChunk = FreeChunk(currChunk.first, currChunk.first + newSize);
+#if defined(MG_DEBUG)
+		CheckMemPage(this, newChunk);
+#endif //defined(MG_DEBUG)
+
+		return newChunk;
+	}
+
+	// or after removing the last free chunk
 	if (m_FreeListByLexi.size())
 	{
 		auto lastChunkIt = --m_FreeListByLexi.end();
@@ -585,12 +663,23 @@ FreeChunk mempage_table::ReallocChunk(FreeChunk currChunk, dms::filesize_t newSi
 		{
 			m_FreeListBySize.erase(lastChunk);
 			m_FreeListByLexi.erase(lastChunkIt);
+			auto newChunk = FreeChunk(currChunk.first, currChunk.first + newSize);
+#if defined(MG_DEBUG)
+			CheckMemPage(this, newChunk);
+#endif //defined(MG_DEBUG)
+
+			return newChunk;
 		}
-		return FreeChunk(currChunk.first, currChunk.first + newSize);
 	}
 
 	FreeAllocatedChunk(currChunk);
-	return FreeChunk(fileSize, fileSize + newSize);
+
+	auto newChunk = FreeChunk(fileSize, fileSize + newSize);
+#if defined(MG_DEBUG)
+	CheckMemPage(this, newChunk);
+#endif //defined(MG_DEBUG)
+
+	return newChunk;
 }
 
 
