@@ -60,8 +60,8 @@ private:
 
 //  -----------------------------------------------------------------------
 
-struct FileChunckSpec {
-	dms::filesize_t offset, size, capacity;
+struct FileChunkSpec {
+	dms::filesize_t offset = 0, size = 0, capacity = 0;
 };
 
 struct FileHandle
@@ -93,7 +93,7 @@ protected:
 	FileCreationMode m_FCM : 3 = FCM_Undefined;
 };
 
-struct mempage_file_view;
+struct mempage_table;
 
 struct MappedFileHandle : FileHandle
 {
@@ -103,16 +103,15 @@ struct MappedFileHandle : FileHandle
 	RTC_CALL void OpenRw(WeakStr fileName, dms::filesize_t requiredNrBytes, dms_rw_mode rwMode, bool isTmp);
 	RTC_CALL void OpenForRead(WeakStr fileName, bool throwOnError, bool doRetry);
 
-	RTC_CALL FileChunckSpec allocAtEnd(dms::filesize_t viewSize, dms::filesize_t viewCapacity);
+	RTC_CALL FileChunkSpec AllocChunk(FileChunkSpec& viewSpec, dms::filesize_t viewCapacity);
+	RTC_CALL FileChunkSpec allocAtEnd(dms::filesize_t viewSize, dms::filesize_t viewCapacity);
 
-private:
-	void MapFile(bool alsoWrite);
+	RTC_CALL void MapFile(bool alsoWrite);
 
-public:
 	WinHandle m_hFileMapping;
 	std::shared_mutex m_ResizeMutex;
 
-	std::unique_ptr< mempage_file_view > m_MemPageAllocTable;
+	std::unique_ptr< mempage_table > m_MemPageAllocTable;
 	dms::filesize_t m_AllocatedSize = 0;
 
 	MappedFileHandle(const MappedFileHandle&&) = delete;
@@ -120,6 +119,8 @@ public:
 	MappedFileHandle& operator =(const MappedFileHandle&) = delete;
 	MappedFileHandle& operator =(MappedFileHandle&&) = delete;
 };
+
+RTC_CALL void CreateMemPageAllocTable(std::shared_ptr<MappedFileHandle> self, bool readOnly, tile_id tn);
 
 
 struct ConstMappedFileHandle : MappedFileHandle
@@ -165,7 +166,7 @@ struct FileViewHandle
 	RTC_CALL FileViewHandle(std::shared_ptr<mapped_file_type> mfh, dms::filesize_t viewOffset, dms::filesize_t viewSize, dms::filesize_t viewCapacity);
 	RTC_CALL void operator = (FileViewHandle&& rhs) noexcept;
 
-	RTC_CALL bool reallocChunk(dms::filesize_t capacity);
+	RTC_CALL void AllocAndMapChunk(dms::filesize_t capacity);
 
 	bool IsUsable() const { return m_ViewData != nullptr || GetViewCapacity() == 0; }
 
@@ -187,9 +188,9 @@ struct FileViewHandle
 
 	std::shared_ptr<mapped_file_type> m_MappedFile;
 
-	FileChunckSpec m_ViewSpec = { 0, 0, 0 };
-	ViewData       m_ViewData;
-	bool           m_AlsoWrite = false;
+	FileChunkSpec m_ViewSpec = { 0, 0, 0 };
+	ViewData      m_ViewData;
+	bool          m_AlsoWrite = false;
 };
 
 struct ConstFileViewHandle
@@ -226,8 +227,8 @@ struct ConstFileViewHandle
 protected:
 	std::shared_ptr< mapped_file_type> m_MappedFile;
 
-	FileChunckSpec m_ViewSpec = { 0, 0, 0 };
-	ViewData m_ViewData;
+	FileChunkSpec m_ViewSpec = { 0, 0, 0 };
+	ViewData      m_ViewData;
 };
 
 //  -----------------------------------------------------------------------

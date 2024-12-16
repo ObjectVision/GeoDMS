@@ -286,7 +286,7 @@ SizeT MinimalNrMemPages(const AbstrTileRangeData* trd)
 SizeT NrAllocTableMemPages(const AbstrTileRangeData* trd)
 {
 	auto nrTiles = trd->GetNrTiles();
-	auto tileFileChuncSize = safe_size_n<sizeof FileChunckSpec>(nrTiles);
+	auto tileFileChuncSize = safe_size_n<sizeof FileChunkSpec>(nrTiles);
 	return NrMemPages(tileFileChuncSize);
 }
 
@@ -318,16 +318,6 @@ SizeT MinimalDatFileSize(const AbstrTileRangeData* trd)
 	return MinimalDatFileSize<seq_t>(trd);
 }
 
-template <sequence_or_string V>
-SizeT MinimalSeqFileSize(const AbstrTileRangeData* trd)
-{
-	tile_id tn = trd->GetNrTiles();
-	if (tn <= 1)
-		return 0;
-	auto memPageAllocTableSize = safe_size_n<sizeof(FileChunckSpec)>(tn);
-	return NrMemPages(memPageAllocTableSize) << GetLog2AllocationGrannularity();
-}
-
 template <typename V>
 FileTileArray<V>::FileTileArray(const AbstrTileRangeData* trd, SharedStr filenameBase, dms_rw_mode rwMode, bool isTmp)
 	: m_CacheFileName(filenameBase)
@@ -355,14 +345,9 @@ FileTileArray<V>::FileTileArray(const AbstrTileRangeData* trd, SharedStr filenam
 		{
 			cmfh_sequences = std::make_shared<ConstMappedFileHandle>(fullFileName + ".seq");
 			if (tn > 1)
-			{
-				cmfh_sequences->m_MemPageAllocTable.reset(
-					new mempage_file_view(cmfh_sequences, trd->GetNrTiles(), 0)
-				);
-				cmfh_sequences->m_MemPageAllocTable->MapView(false);
-				cmfh_sequences->m_MemPageAllocTable->m_MappedFile.reset();
-			}
+				CreateMemPageAllocTable(cmfh_sequences, true, tn);
 		}
+		mempage_table* memPageAllocTable = nullptr; if (cmfh_sequences) memPageAllocTable = cmfh_sequences->m_MemPageAllocTable.get();
 		for (tile_id t = 0; t != tn; ++t)
 		{
 			if constexpr (has_fixed_elem_size_v<V>)
@@ -371,10 +356,10 @@ FileTileArray<V>::FileTileArray(const AbstrTileRangeData* trd, SharedStr filenam
 			{
 				using elem_type = elem_of_t<V>;
 				auto ms_index = std::make_unique<mappable_const_sequence<IndexRange<SizeT>>>(cmfh, t, trd->GetTileSize(t));
-				FileChunckSpec pageRange = { 0, dms::filesize_t(-1), dms::filesize_t (-1) };
-				if (cmfh_sequences->m_MemPageAllocTable)
+				FileChunkSpec pageRange = { 0, dms::filesize_t(-1), dms::filesize_t (-1) };
+				if (memPageAllocTable)
 				{
-					pageRange = cmfh_sequences->m_MemPageAllocTable->begin()[t];
+					pageRange = (*memPageAllocTable)[t];
 					pageRange.size = capacity_calculator<elem_type>().Byte2Size(pageRange.size);
 				}
 				assert(pageRange.size <= pageRange.capacity);
@@ -394,15 +379,11 @@ FileTileArray<V>::FileTileArray(const AbstrTileRangeData* trd, SharedStr filenam
 		{
 			mfh_sequences = std::make_shared<MappedFileHandle>();
 
-			mfh_sequences->OpenRw(fullFileName+".seq", MinimalSeqFileSize<V>(trd), rwMode, isTmp);
+			mfh_sequences->OpenRw(fullFileName+".seq", MinimalSeqFileSize(tn), rwMode, isTmp);
 			if (tn > 1)
-			{
-				mfh_sequences->m_MemPageAllocTable.reset(new mempage_file_view(mfh_sequences, 0, 0));
-				mfh_sequences->m_MemPageAllocTable->reserveChunk(tn);
-				mfh_sequences->m_MemPageAllocTable->m_MappedFile.reset();
-				mfh_sequences->m_MemPageAllocTable->SetNrElemsWithoutUpdatingMemPageAllocTable(tn);
-			}
+				CreateMemPageAllocTable(mfh_sequences, false, tn);
 		}
+		mempage_table* memPageAllocTable = nullptr; if (mfh_sequences) memPageAllocTable = mfh_sequences->m_MemPageAllocTable.get();
 		for (tile_id t = 0; t != tn; ++t)
 		{
 			if constexpr (has_fixed_elem_size_v<V>)
@@ -411,18 +392,18 @@ FileTileArray<V>::FileTileArray(const AbstrTileRangeData* trd, SharedStr filenam
 			{
 				using elem_type = elem_of_t<V>;
 				auto ms_index  = std::make_unique<mappable_sequence<IndexRange<SizeT>>>(mfh, t, trd->GetTileSize(t));
-				FileChunckSpec pageRange = { 0, 0, 0 };
+				FileChunkSpec pageRange = { 0, 0, 0 };
 				if (rwMode == dms_rw_mode::read_write)
 				{
 					pageRange = { 0, dms::filesize_t(-1), dms::filesize_t(-1) };
-					if (mfh_sequences->m_MemPageAllocTable)
+					if (memPageAllocTable)
 					{
-						pageRange = (*mfh_sequences->m_MemPageAllocTable)[t];
+						pageRange = (*memPageAllocTable)[t];
 						pageRange.size = capacity_calculator<V>().Byte2Size(pageRange.size);
 					}
 				}
-				else if (mfh_sequences->m_MemPageAllocTable)
-					(*mfh_sequences->m_MemPageAllocTable)[t] = pageRange;
+				else if (memPageAllocTable)
+					(*memPageAllocTable)[t] = pageRange;
 
 				assert(pageRange.size <= pageRange.capacity);
 				auto ms_values = std::make_unique<mappable_sequence<elem_type>>(mfh_sequences, t, pageRange.size, pageRange.offset, pageRange.capacity);

@@ -11,6 +11,7 @@
 
 #include "mem/AbstrSequenceProvider.h"
 #include "set/FileView.h"
+#include "set/MemPageTable.h"
 
 //----------------------------------------------------------------------
 // allocators for vectors
@@ -40,24 +41,20 @@ public:
  		Check(seq); 
 		auto mappedFile = m_FileView.GetMappedFile();
 		MG_CHECK(mappedFile);
-		if (m_FileView.m_TileID != no_tile)
+//		if (m_FileView.m_TileID != no_tile)
+		auto oldViewSpec = m_FileView.m_ViewSpec;
+		assert(oldViewSpec.capacity < newCapacity);
 
-		if (m_FileView.m_ViewSpec.offset + m_FileView.m_ViewSpec.capacity == mappedFile->m_AllocatedSize)
-		{
-			m_FileView.UnmapView(); // just save on virtual address space while one can
-			mappedFile->m_AllocatedSize -= m_FileView.m_ViewSpec.capacity;
-			m_FileView.m_ViewSpec = mappedFile->allocAtEnd(m_FileView.m_ViewSpec.size, newCapacity);
-			m_FileView.MapView(true);
-		}
+		auto currBegin = m_FileView.begin();
+		auto currEnd   = m_FileView.end();
+
+		auto oldView = std::move(m_FileView.m_ViewData);
+		m_FileView.m_ViewSpec = mappedFile->AllocChunk(oldViewSpec, newCapacity);
+		m_FileView.MapView(true);
+		if (m_FileView.m_ViewSpec.offset != oldViewSpec.offset)
+			fast_copy(currBegin, currEnd, m_FileView.begin());
 		else
-		{
-			auto oldView = std::move(m_FileView);
-			m_FileView = rw_file_view<V>(mappedFile, m_FileView.filed_size(), -1, newCapacity);
-			m_FileView.m_TileID = oldView.m_TileID;
-			m_FileView.MapView(true);
-			fast_copy(oldView.begin(), oldView.end(), m_FileView.begin());
-//			oldView.UnmapView();
-		}
+			assert(std::equal(currBegin, currEnd, m_FileView.begin(), m_FileView.begin() + (currEnd - currBegin)));
 
 		GetSeq(seq); 
 		Check(seq); 
@@ -66,7 +63,7 @@ public:
 		{
 			tile_id t = m_FileView.m_TileID;
 			assert(t < memPageAllocTable->filed_size());
-			(*memPageAllocTable)[t] = m_FileView.GetViewSpec();
+			(*memPageAllocTable)[t] = m_FileView.m_ViewSpec;
 			assert((*memPageAllocTable)[t].size <= (*memPageAllocTable)[t].capacity);
 		}
 	}

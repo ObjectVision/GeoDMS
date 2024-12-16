@@ -14,6 +14,8 @@
 #include "geo/MinMax.h"
 #include "geo/Undefined.h"
 #include "ser/FileCreationMode.h"
+#include "set/MemPageTable.h"
+#include "set/RangeFuncs.h"
 #include "utl/Environment.h"
 #include "utl/MemGuard.h"
 #include "utl/scoped_exit.h"
@@ -220,24 +222,40 @@ void FileHandle::ReadFileSize(CharPtr handleName)
 	dbg_assert(m_FileSize <= sd_MaxFileSize);
 }
 
-FileChunckSpec MappedFileHandle::allocAtEnd(dms::filesize_t viewSize, dms::filesize_t viewCapacity)
+FileChunkSpec MappedFileHandle::AllocChunk(FileChunkSpec& viewSpec, dms::filesize_t newCapacity)
 {
-	auto awaitExclusiveAcces = std::scoped_lock(m_ResizeMutex);
+	auto lock = std::scoped_lock(m_ResizeMutex);
+
+	if (auto memPageAllocTable = m_MemPageAllocTable.get())
+	{
+		auto newChunk = memPageAllocTable->ReallocChunk(FreeChunk(viewSpec.offset, viewSpec.offset + viewSpec.capacity), newCapacity, GetFileSize());
+		if (newChunk.second > m_AllocatedSize)
+			allocAtEnd(0, newChunk.second - m_AllocatedSize);
+
+		return FileChunkSpec(newChunk.first, viewSpec.size, newChunk.size());
+	}
+	m_AllocatedSize = 0;
+	return allocAtEnd(viewSpec.size, newCapacity);
+}
+
+FileChunkSpec MappedFileHandle::allocAtEnd(dms::filesize_t viewSize, dms::filesize_t newCapacity)
+{
+	assert(!m_ResizeMutex.try_lock_shared());
 
 	m_AllocatedSize = (NrMemPages(m_AllocatedSize) << GetLog2AllocationGrannularity());
 	auto newOffset = m_AllocatedSize;
-	m_AllocatedSize += viewCapacity;
+	m_AllocatedSize += newCapacity;
 
 	if (m_AllocatedSize > GetFileSize())
 	{
-//		assert(!m_ResizeMutex.try_lock_shared()); // caller must have locked this exclusively.
+		//		assert(!m_ResizeMutex.try_lock_shared()); // caller must have locked this exclusively.
 
 		SetFileSize(m_AllocatedSize);
 		assert(m_FileSize == m_AllocatedSize);
 		MapFile(true);
 	}
 	assert((newOffset & (GetAllocationGrannularity() - 1)) == 0);
-	return { newOffset, viewSize, viewCapacity};
+	return { newOffset, viewSize, newCapacity };
 }
 
 //  -----------------------------------------------------------------------
@@ -285,6 +303,22 @@ void MappedFileHandle::OpenForRead(WeakStr fileName, bool throwOnError, bool doR
 	MapFile(false);
 }
 
+void CreateMemPageAllocTable(std::shared_ptr<MappedFileHandle> self, bool readOnly, tile_id tn)
+{
+	auto memPageFileView = std::make_unique<mempage_table>(self, readOnly ? tn : 0, 0);
+	if (readOnly)
+		memPageFileView->MapView(false);
+	else
+	{
+		memPageFileView->ReserveAndMapElems(tn);
+		memPageFileView->SetNrElemsWithoutUpdatingMemPageAllocTable(tn);
+		fast_zero(memPageFileView->begin(), memPageFileView->end());
+	}
+	memPageFileView->m_MappedFile.reset();
+	memPageFileView->InitFreeSetsFromChunkSpecs(tn, self->GetFileSize());
+	self->m_MemPageAllocTable = std::move(memPageFileView);
+}
+
 //  -----------------------------------------------------------------------
 
 ViewData::ViewData(MappedFileHandle* mappedFile, DWORD desiredAccess, dms::filesize_t viewOffset, dms::filesize_t viewCapacity)
@@ -320,7 +354,8 @@ FileViewHandle::FileViewHandle(std::shared_ptr<MappedFileHandle> mfh, dms::files
 	if (viewOffset == -1)
 	{
 		assert(mfh);
-//		auto lockThis = std::lock_guard(mfh->m_ResizeMutex);
+		auto lock = std::scoped_lock(mfh->m_ResizeMutex);
+
 		m_ViewSpec = mfh->allocAtEnd(viewSize, viewCapacity);
 	}
 	else
@@ -328,12 +363,13 @@ FileViewHandle::FileViewHandle(std::shared_ptr<MappedFileHandle> mfh, dms::files
 	assert(m_ViewSpec.size <= m_ViewSpec.capacity);
 
 	assert((m_ViewSpec.offset & (GetAllocationGrannularity()-1)) == 0);
-//	MapFile(false);
 }
 
 ConstFileViewHandle::ConstFileViewHandle(std::shared_ptr<ConstMappedFileHandle> cmfh, dms::filesize_t viewOffset, dms::filesize_t viewSize, dms::filesize_t viewCapacity)
 	:	m_MappedFile(cmfh)
 {
+	auto lock = std::scoped_lock(cmfh->m_ResizeMutex);
+
 	if (viewOffset == -1)
 		m_ViewSpec = cmfh->allocAtEnd(viewSize, viewCapacity);
 	else
@@ -408,49 +444,150 @@ void ConstFileViewHandle::MapView()
 	m_ViewData = ViewData(m_MappedFile.get(), FILE_MAP_READ, m_ViewSpec.offset, m_ViewSpec.capacity);
 }
 
-bool FileViewHandle::reallocChunk(dms::filesize_t capacity)
+void FileViewHandle::AllocAndMapChunk(dms::filesize_t capacity)
 {
 	assert(IsUsable());
 	assert(m_MappedFile);
 	assert(capacity > m_ViewSpec.capacity); // precondition
 
-	auto offset = m_ViewSpec.offset;
+	m_ViewSpec = m_MappedFile->AllocChunk(m_ViewSpec, capacity);
 
-	/*
-	if (m_TileID != no_tile)
+	MapView(true);
+}
+
+
+void RemoveFromFreeList(std::set<FreeChunk, LexiLess>& freeList, const FreeChunk& chunk)
+{
+	if (chunk.first == chunk.second)
+		return;
+	MG_CHECK(chunk.first < chunk.second);
+
+	auto it = freeList.upper_bound(chunk);
+	MG_CHECK(it != freeList.begin()); // we can always find chunk in freeList
+	--it;
+	MG_CHECK(it != freeList.end());
+
+	FreeChunk orgFreeChunk = *it;
+
+	MG_CHECK(orgFreeChunk.first <= chunk.first);
+	MG_CHECK(orgFreeChunk.second >= chunk.second);
+	it = freeList.erase(it);
+	if (orgFreeChunk.second > chunk.second)
+		it = freeList.insert(it, FreeChunk(chunk.second, orgFreeChunk.second));
+	if (orgFreeChunk.first < chunk.first)
+		it = freeList.insert(it, FreeChunk(orgFreeChunk.first, chunk.first));
+}
+
+void mempage_table::InitFreeSetsFromChunkSpecs(tile_id tn, dms::filesize_t fileSize)
+{
+	m_FreeListByLexi.clear();
+	auto startingOffset = MinimalSeqFileSize(tn);
+	assert(startingOffset <= fileSize);
+	if (startingOffset < fileSize)
+		m_FreeListByLexi.insert(FreeChunk(startingOffset, fileSize));
+
+	for (auto it = begin(); it != end(); ++it)
 	{
-		auto m = m_MappedFile->m_MemPageAllocTable;
-		assert(m);
-		if (m_ViewSpec.offset + m_ViewSpec.capacity == m_MappedFile->m_AllocatedSize)
-			m_MappedFile->m_AllocatedSize -= m_ViewSpec.capacity;
-		else
+		auto& chunk = *it;
+		RemoveFromFreeList(m_FreeListByLexi, FreeChunk(chunk.offset, chunk.offset + chunk.capacity));
+	}
+
+	// sort by size in additional set
+	m_FreeListBySize.clear();
+	for (auto& chunk : m_FreeListByLexi)
+		m_FreeListBySize.insert(chunk);
+
+}
+
+void mempage_table::FreeAllocatedChunk(FreeChunk currChunk)
+{
+	//search in lexi before and after it
+	auto it = m_FreeListByLexi.lower_bound(currChunk);
+	if (it != m_FreeListByLexi.begin() && (--it)->second == currChunk.first)
+	{
+		auto prevIt = it;
+		auto prevChunk = *--prevIt;
+		m_FreeListBySize.erase(prevChunk);
+		m_FreeListByLexi.erase(it);
+		currChunk.first = prevChunk.first;
+	}
+	if (it != m_FreeListByLexi.end() && it->first == currChunk.second)
+	{
+		auto nextChunk = *++it;
+		it = m_FreeListByLexi.erase(it);
+		m_FreeListBySize.erase(nextChunk);
+		currChunk.second = nextChunk.second;
+	}
+	m_FreeListByLexi.insert(it, currChunk);
+	m_FreeListBySize.insert(currChunk);
+}
+
+FreeChunk mempage_table::ReallocChunk(FreeChunk currChunk, dms::filesize_t newSize, dms::filesize_t fileSize)
+{
+	assert(currChunk.size() < newSize);
+	auto it = m_FreeListByLexi.lower_bound(currChunk);
+	if (it != m_FreeListByLexi.end())
+	{
+		assert(it->first >= currChunk.second); // free chunks don't overlap with used chunks, as currChunk should be
+		if (it->first == currChunk.second) // free chunk starts where currChunk ends
 		{
-			x
-			m_ViewSpec = m_MappedFile->allocAtEnd(m_ViewSpec.size, capacity - m_ViewSpec.capacity);
-
-			auto& entry = (*m)[m_TileID];
-			entry.size = capacity;
-			m_ViewSpec.capacity = capacity;
-			return;
-		}
-		// maintain for each chunk the size of the folloing hole
-		// maintain a sequential hole list
-		- allocate(b, e)
-		- free(b, e)
-		- enlarge(b, e, new_b)
-		- find_at_least(size)
-
-		check for space after current m_ViewSpec.offset + m_ViewSpec.size
-
-		m->FindHole(capacity);
+			if (currChunk.first + newSize <= it->second)
+			{
+				// grow into the subsequent free chunk
+				auto freeChunk = *it;
+				it = m_FreeListByLexi.erase(it);
+				m_FreeListBySize.erase(freeChunk);
+				if (currChunk.first + newSize < it->size())
+				{
+					freeChunk.first = currChunk.first + newSize;
+					m_FreeListByLexi.insert(it, freeChunk);
+					m_FreeListBySize.insert(it, freeChunk);
+				}
+				return FreeChunk(currChunk.first, currChunk.first + newSize);
+			}
 		}
 	}
-*/
-	m_ViewSpec = m_MappedFile->allocAtEnd(m_ViewSpec.size, capacity);
+	auto searchChunk = FreeChunk(0, newSize);
+	auto it2 = m_FreeListBySize.lower_bound(searchChunk);
+	if (it2 != m_FreeListBySize.end())
+	{
+		// reallocate into the first matching free chunk
+		assert(newSize <= it2->size()); // free chunks don't overlap with used chunks, as currChunk should be
+		auto freeChunk = *it2;
+		m_FreeListBySize.erase(it2);
+		it = m_FreeListByLexi.find(freeChunk);
+		assert(it != m_FreeListByLexi.end());
+		it = m_FreeListByLexi.erase(it);
+		auto newChunk = FreeChunk(freeChunk.first, freeChunk.first + newSize);
 
-applyViewSpec:
-	MapView(true);
-	return offset != m_ViewSpec.offset;
+		if (newSize < it2->size())
+		{
+			freeChunk.first = currChunk.first + newSize;
+			m_FreeListByLexi.insert(it, freeChunk);
+			m_FreeListBySize.insert(freeChunk);
+		}
+
+		FreeAllocatedChunk(currChunk);
+		return newChunk;
+	
+	}
+	if (currChunk.second == fileSize)
+		return FreeChunk(currChunk.first, currChunk.first + newSize);
+
+	if (m_FreeListByLexi.size())
+	{
+		auto lastChunkIt = --m_FreeListByLexi.end();
+		auto lastChunk = *lastChunkIt;
+		if (currChunk.second == lastChunk.first && lastChunk.second == fileSize)
+		{
+			m_FreeListBySize.erase(lastChunk);
+			m_FreeListByLexi.erase(lastChunkIt);
+		}
+		return FreeChunk(currChunk.first, currChunk.first + newSize);
+	}
+
+	FreeAllocatedChunk(currChunk);
+	return FreeChunk(fileSize, fileSize + newSize);
 }
 
 

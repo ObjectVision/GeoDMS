@@ -53,7 +53,6 @@ struct file_view_base : FVH
 	{
 		m_NrElems = newNrElems;
 		this->m_ViewSpec.size = size_calculator<T>().nr_bytes(newNrElems);
-		auto mappedFile = this->m_MappedFile.get();
 	}
 	void SetNrElems(SizeT newNrElems)
 	{
@@ -163,19 +162,12 @@ struct rw_file_view : file_view_base<T, FileViewHandle>
 		}
 	}
 
-/* REMOVE
-	void CloseWFV()
-	{
-		this->SetFileSize( size_calculator<T>().nr_bytes(m_NrElems) );
-		file_view_base<T>::CloseFVB();
-	}
-*/
-	bool reserveChunk(SizeT nrReservedElem)
+	void ReserveAndMapElems(SizeT nrReservedElem)
 	{
 		assert(nrReservedElem <= this->max_size());
 		MG_CHECK(nrReservedElem < SizeT(-1) / sizeof(T));
 		MG_CHECK(size_calculator<T>().nr_bytes(m_NrElems) == this->m_ViewSpec.size);
-		return this->reallocChunk(size_calculator<T>().nr_bytes(nrReservedElem));
+		this->AllocAndMapChunk(size_calculator<T>().nr_bytes(nrReservedElem));
 	}
 
 	void resize(SizeT newNrElems)
@@ -200,16 +192,6 @@ struct rw_file_view : file_view_base<T, FileViewHandle>
 
 	      T& operator[](SizeT i)       { return *(begin() + i); }
 	const T& operator[](SizeT i) const { return *(begin() + i); }
-};
-
-struct mempage_file_view : rw_file_view < FileChunckSpec >
-{
-	using rw_file_view < FileChunckSpec >::rw_file_view; // inherit ctors
-};
-
-struct const_mempage_file_view : const_file_view < FileChunckSpec >
-{
-	using const_file_view < FileChunckSpec >::const_file_view; // inherit ctors
 };
 
 #endif //!defined(__RTC_SET_FILEVIEW_H)
