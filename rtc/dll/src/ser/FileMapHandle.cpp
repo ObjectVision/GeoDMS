@@ -384,7 +384,7 @@ ViewData::ViewData(MappedFileHandle* mappedFile, DWORD desiredAccess, dms::files
 				desiredAccess,
 				HiDWORD(pageBase),
 				LoDWORD(pageBase),
-				viewCapacity
+				viewCapacity + pageOffset
 			);
 		if (m_Ptr)
 		{
@@ -474,10 +474,8 @@ void FileViewHandle::MapView(bool alsoWrite)
 		return;
 
 	m_AlsoWrite = alsoWrite;
-	auto offset = m_ViewSpec.offset & GetAllocationMajorMask();
-	assert((offset & GetAllocationMinorMask()) == 0);
-
-	m_ViewData = ViewData(m_MappedFile.get(), alsoWrite ? FILE_MAP_WRITE : FILE_MAP_READ, offset, m_ViewSpec.capacity);
+	
+	m_ViewData = ViewData(m_MappedFile.get(), alsoWrite ? FILE_MAP_WRITE : FILE_MAP_READ, m_ViewSpec.offset, m_ViewSpec.capacity);
 }
 
 void ConstFileViewHandle::MapView()
@@ -515,15 +513,18 @@ void FileViewHandle::AllocAndMapFile(dms::filesize_t capacity)
 }
 
 
-void RemoveFromFreeList(std::set<FreeChunk, LexiLess>& freeList, const FreeChunk& chunk)
+void RemoveFromFreeList(std::set<FreeChunk, LexiLess>& freeList, FreeChunk chunk)
 {
 	if (chunk.first == chunk.second)
 		return;
 	MG_CHECK(chunk.first < chunk.second);
 
 	auto it = freeList.upper_bound(chunk);
-	MG_CHECK(it != freeList.begin()); // we can always find chunk in freeList
-	--it;
+	if (it == freeList.end() || it->first > chunk.first)
+	{
+		MG_CHECK(it != freeList.begin()); // we can always find chunk in freeList
+		--it;
+	}
 	MG_CHECK(it != freeList.end());
 
 	FreeChunk orgFreeChunk = *it;
