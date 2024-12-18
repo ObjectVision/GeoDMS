@@ -196,7 +196,7 @@ namespace { // DebugOutStreamBuff is local
 		std::vector< MsgData > localFlushPileLine;
 		{
 			leveled_critical_section::scoped_lock lock(*g_DebugStream);
-			auto localFlushPileLine = std::move(s_FlushPipeline);
+			localFlushPileLine = std::move(s_FlushPipeline);
 		}
 		for (auto& msgData : localFlushPileLine)
 			FlushMsg(&msgData);
