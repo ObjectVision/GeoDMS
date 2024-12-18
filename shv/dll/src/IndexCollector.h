@@ -64,7 +64,7 @@ struct IndexCollector : public SharedBase
 	DataReadLock GetDataItemReadLock() const;
 	auto GetDataRead(tile_id t) const->DataArray<entity_id>::locked_cseq_t;
 	tile_id GetNrTiles() const;
-	tile_loc GetTiledLocation(SizeT index) const;
+	tile_loc GetTileDataLocation(SizeT index) const;
 
 	bool HasExtKey() const { return m_ExtKeyAttr; }
 	bool HasGeoRel() const { return m_GeoRelAttr; }

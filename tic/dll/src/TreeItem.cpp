@@ -2540,7 +2540,7 @@ void TreeItem::UpdateMetaInfoImpl2() const
 			}
 			// validate units with refObject if it wasn't copied by the parent
 		}
-		ProcessMainThreadOpers();
+//		ProcessMainThreadOpers();
 	}
 	catch (...)
 	{

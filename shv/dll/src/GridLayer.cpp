@@ -605,6 +605,19 @@ CrdRect GridLayer::CalcSelectedFullWorldRect()  const
 	return AsWorldExtents(Convert<CrdRect>(selectRect), GetGeoCrdUnit());
 }
 
+CrdRect GetWorldExtentsInTile(const IRect& tileRect, const UnitProjection* proj, tile_id offset)
+{
+	assert(IsDefined(offset));
+
+	IPoint gridLoc = Range_GetValue_naked(tileRect, offset);
+
+	return
+		AsWorldExtents(
+			Convert<CrdRect>(IRect(gridLoc, gridLoc + IPoint(1, 1))),
+			proj
+		);
+}
+
 CrdRect GetWorldExtents(const AbstrUnit* geoCrdUnit, const IRect& geoCrdRect, const UnitProjection* proj, feature_id featureIndex)
 {
 	assert(IsDefined(featureIndex));
@@ -1113,11 +1126,11 @@ bool GridLayer::Draw(GraphDrawer& d) const
 				for (tile_offset minFE = 0, maxFE = geoCrdUnit->GetTileCount(t); minFE!=maxFE; ++minFE)
 					if (indexCollector.GetEntityIndex(minFE) == fe)
 					{
-						CrdRect focusWorldRect = ::GetWorldExtents(geoCrdUnit, tileRect, proj, minFE);
+						CrdRect focusWorldRect = GetWorldExtentsInTile(tileRect, proj, minFE);
 
 						while (minFE+1!=maxFE && indexCollector.GetEntityIndex(minFE + 1) == fe)
 						{
-							CrdRect nextWorldRect = ::GetWorldExtents(geoCrdUnit, tileRect, proj, minFE+1);
+							CrdRect nextWorldRect = GetWorldExtentsInTile(tileRect, proj, minFE+1);
 							if	(	nextWorldRect.first .Row() != focusWorldRect.first .Row() 
 								||	nextWorldRect.second.Row() != focusWorldRect.second.Row()
 								||	nextWorldRect.first.Col() > focusWorldRect.second.Col())

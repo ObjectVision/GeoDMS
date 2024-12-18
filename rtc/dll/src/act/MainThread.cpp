@@ -168,6 +168,7 @@ void operation_queue::Process()
 	for (auto& oper : operQueue)
 	{
 		try {
+			SuspendTrigger::Resume();
 			oper();
 		}
 		catch (...)

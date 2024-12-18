@@ -474,7 +474,7 @@ SizeT GraphicLayer::Feature2EntityIndex(SizeT featureIndex) const
 		assert(ic);
 		assert(ic->HasExtKey() || ic->HasGeoRel());
 
-		auto featureLoc = ic->GetTiledLocation(featureIndex);
+		auto featureLoc = ic->GetTileDataLocation(featureIndex);
 		if (!IsDefined(featureLoc.first))
 			return UNDEFINED_VALUE(SizeT);
 

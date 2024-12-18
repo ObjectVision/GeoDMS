@@ -385,9 +385,13 @@ garbage_t runOperationContexts()
 	return cancelGarbage;
 }
 
+static std::atomic<bool> s_RunOperationContextsScheduled = false;
+
 void RunOperationContexts()
 {
-//	if (IsMainThread() && InterestRetainContextBase::IsActive())
+	s_RunOperationContextsScheduled = false;
+
+	//	if (IsMainThread() && InterestRetainContextBase::IsActive())
 //		return;
 	if (s_RunOperationContextsCount)
 		return;
@@ -395,6 +399,13 @@ void RunOperationContexts()
 	std::any receivedGarbage;
 	leveled_std_section::scoped_lock lock(cs_ThreadMessing);
 	receivedGarbage = runOperationContexts();
+}
+
+void ScheduleRunOperationContexts()
+{
+	if (s_RunOperationContextsScheduled.exchange(true))
+		return;
+	PostMainThreadOper(RunOperationContexts);
 }
 
 // *****************************************************************************
@@ -836,7 +847,7 @@ garbage_t OperationContext::separateResources(task_status status)
 
 	releaseBin |= disconnect();
 //	releaseBin |= runOperationContexts();
-	releaseBin |= make_any_scoped_exit( &RunOperationContexts ); // do this after releasing interests and related resources of suppliers
+	releaseBin |= make_any_scoped_exit( &ScheduleRunOperationContexts ); // do this after releasing interests and related resources of suppliers
 	cv_TaskCompleted.notify_all();
 
 	return releaseBin;
@@ -1370,7 +1381,11 @@ task_status OperationContext::Join()
 			freediecount.emplace();
 
 		if (!isFirstTime)
+		{
 			RunOperationContexts(); // OPTIMIZE, CONSISTENCY: Some tasks finished without calling this. Find out why and avoid wasting idle thread time; maybe all threads are waiting in a Join without new and current tasks being activated
+			if (IsMetaThread())
+				ProcessMainThreadOpers();
+		}
 
 		leveled_std_section::unique_lock lock(cs_ThreadMessing);
 		if (m_Status > task_status::running)
@@ -1384,8 +1399,6 @@ task_status OperationContext::Join()
 			prioritize(prioritizedContexts, this->shared_from_this());
 		}
 		cv_TaskCompleted.wait_for(lock.m_BaseLock, std::chrono::milliseconds(200), [this]() { return m_Status > task_status::running; });
-		if (IsMetaThread())
-			ProcessMainThreadOpers();
 		isFirstTime = false;
 	}
 

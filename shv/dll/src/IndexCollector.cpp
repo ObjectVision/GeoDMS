@@ -142,9 +142,9 @@ auto IndexCollector::GetDataRead(tile_id t) const -> DataArray<entity_id>::locke
 	return const_array_checked_cast<entity_id>(lock.GetRefObj())->GetDataRead(t);
 }
 
-tile_loc IndexCollector::GetTiledLocation(SizeT index) const
+tile_loc IndexCollector::GetTileDataLocation(SizeT index) const
 {	
-	return m_TileData->GetTiledLocation(index);
+	return m_TileData->GetTileDataLocation(index);
 }
 
 tile_id IndexCollector::GetNrTiles() const

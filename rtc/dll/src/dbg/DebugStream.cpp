@@ -129,6 +129,91 @@ void MsgDispatch(MsgData* msgData, bool moreToCome)
 
 namespace { // DebugOutStreamBuff is local
 
+	void FlushMsg(MsgData* msgData)
+	{
+		SizeT minorSkipCount = 0, majorSkipCount = 0;
+
+		UInt32 printedLines = 0;
+		SeverityTypeID st = msgData->m_SeverityType;
+		MsgCategory msgCat = msgData->m_MsgCategory;
+		auto msgTxt = msgData->m_Txt;
+		auto i = msgTxt.begin(), e = msgTxt.end();
+		while (i != e)
+		{
+			assert(e[-1] == 0); // guaranteed by caller to have a completed Line.
+			assert(st <= SeverityTypeID::ST_DispError);
+			if (e - i >= 1024000 && (st < SeverityTypeID::ST_MajorTrace || st == SeverityTypeID::ST_MajorTrace && printedLines > 16)) // filter out large trace sections
+				if (st <= SeverityTypeID::ST_MinorTrace)
+					++minorSkipCount;
+				else
+					++majorSkipCount;
+			else
+			{
+				if (minorSkipCount || majorSkipCount) {
+					auto skipMsg = mySSPrintF("... skipped %I64u minor and %I64u major trace lines", UInt64(minorSkipCount), UInt64(majorSkipCount));
+					auto summaryData = MsgData{
+						majorSkipCount ? SeverityTypeID::ST_MajorTrace : SeverityTypeID::ST_MinorTrace
+					,	msgCat
+					,	false
+					,   msgData->m_ThreadID
+					,	msgData->m_DateTime
+					,	std::move(skipMsg)
+					};
+					MsgDispatch(&summaryData, false);
+					minorSkipCount = majorSkipCount = 0;
+				}
+				while (true)
+				{
+					auto eolPtr = std::find(i, e, '\n');
+					if (eolPtr != i)
+					{
+						auto eosPtr = eolPtr; if (eosPtr[-1] == char(0)) --eosPtr;
+						msgData->m_Txt = SharedStr(i, eosPtr); // TODO: can we avoid this extra string copy by forwarding a CharPtrRange ?
+						MsgDispatch(msgData, eolPtr != e);
+						msgData->m_IsFollowup = true;
+					}
+					if (eolPtr == e)
+						break;
+
+					i = ++eolPtr;
+				}
+				++printedLines;
+			}
+			i = std::find(i, e, char(0));
+			++i;
+		}
+	}
+
+	static std::vector< MsgData > s_FlushPipeline;
+
+	void ProcessMsgDataPipeline()
+	{
+		assert(IsMainThread());
+
+		if (!s_nrRtcStreamLocks)
+			return;
+
+		std::vector< MsgData > localFlushPileLine;
+		{
+			leveled_critical_section::scoped_lock lock(*g_DebugStream);
+			auto localFlushPileLine = std::move(s_FlushPipeline);
+		}
+		for (auto& msgData : localFlushPileLine)
+			FlushMsg(&msgData);
+	}
+
+	void PostLogMsg(MsgData&& msgData)
+	{
+		if (!s_nrRtcStreamLocks)
+			return;
+
+		assert(!g_DebugStream->try_lock());
+
+		if (s_FlushPipeline.empty())
+			PostMainThreadOper(ProcessMsgDataPipeline);
+		s_FlushPipeline.emplace_back(std::move(msgData));
+	}
+
 	struct DebugOutStreamBuff : VectorOutStreamBuff
 	{
 		bool LineEmpty() const
@@ -167,78 +252,19 @@ namespace { // DebugOutStreamBuff is local
 				return;
 
 			assert(m_Data.end()[-1] == char(0));
-			MsgData msgData(m_Severity, m_MsgCat, false, GetThreadID(), StreamableDateTime(), SharedStr(begin_ptr(m_Data), end_ptr(m_Data)));
-			PostMainThreadOper([msg = std::move(msgData)] () mutable 
-				{
-					if (!s_nrRtcStreamLocks)
-						return;
-					leveled_critical_section::scoped_lock lock(*g_DebugStream);
-					DebugOutStreamBuff::Flush(&msg);
-				}
-			);
+
+			PostLogMsg(MsgData(m_Severity, m_MsgCat, false, GetThreadID(), StreamableDateTime(), SharedStr(begin_ptr(m_Data), end_ptr(m_Data))));
 			m_Data.clear();
 		}
 		bool AtEnd() const override { return false; }
-		static void Flush(MsgData* msgData)
-		{
-			SizeT minorSkipCount = 0, majorSkipCount = 0;
 
-			UInt32 printedLines = 0;
-			SeverityTypeID st = msgData->m_SeverityType;
-			MsgCategory msgCat = msgData->m_MsgCategory;
-			auto msgTxt = msgData->m_Txt;
-			auto i = msgTxt.begin(), e = msgTxt.end();
-			while (i!=e)
-			{
-				assert(e[-1]==0); // guaranteed by caller to have a completed Line.
-				assert(st <= SeverityTypeID::ST_DispError);
-				if (e - i >= 1024000 && (st < SeverityTypeID::ST_MajorTrace || st == SeverityTypeID::ST_MajorTrace && printedLines > 16)) // filter out large trace sections
-					if (st <= SeverityTypeID::ST_MinorTrace)
-						++minorSkipCount;
-					else
-						++majorSkipCount;
-				else
-				{
-					if (minorSkipCount || majorSkipCount) {
-						auto skipMsg = mySSPrintF("... skipped %I64u minor and %I64u major trace lines", UInt64(minorSkipCount), UInt64(majorSkipCount));
-						auto summaryData = MsgData{
-							majorSkipCount ? SeverityTypeID::ST_MajorTrace : SeverityTypeID::ST_MinorTrace
-						,	msgCat
-						,	false
-						,   msgData->m_ThreadID
-						,	msgData->m_DateTime
-						,	std::move(skipMsg)
-						};
-						MsgDispatch(&summaryData, false);
-						minorSkipCount = majorSkipCount = 0;
-					}
-					while (true)
-					{
-						auto eolPtr = std::find(i, e, '\n');
-						if (eolPtr != i)
-						{
-							auto eosPtr = eolPtr; if (eosPtr[-1] == char(0)) --eosPtr;
-							msgData->m_Txt = SharedStr(i, eosPtr); // TODO: can we avoid this extra string copy by forwarding a CharPtrRange ?
-							MsgDispatch(msgData, eolPtr != e);
-							msgData->m_IsFollowup = true;
-						}
-						if (eolPtr == e)
-							break;
-
-						i = ++eolPtr;
-					}
-					++printedLines;
-				}
-				i = std::find(i, e, char(0));
-				++i;
-			}
-		}
 	protected:
 		SeverityTypeID m_Severity = SeverityTypeID::ST_MinorTrace;
 		MsgCategory m_MsgCat = MsgCategory::progress;
 	};
 
 	static_ptr<DebugOutStreamBuff>  g_DebugStreamBuff;
+
 } // end anonymous namespace
 
 /********** DebugOutStream Singleton **********/

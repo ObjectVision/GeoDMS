@@ -262,18 +262,14 @@ SizeT TableControl::NrRows() const
 
 SizeT TableControl::GetRecNo(SizeT rowNr) const
 {
-	if (!IsDefined(rowNr) || rowNr >= NrRows())
-		return UNDEFINED_VALUE(SizeT);
-
-	if (m_State.Get(TCF_FlipSortOrder))
-		rowNr = (NrRows() - (rowNr+1));
 	if (!m_SelIndexAttr)
-		return rowNr;
+		return getRecNo(rowNr);
 
 	if (!const_cast<TableControl*>(this)->PrepareDataOrUpdateViewLater(m_SelIndexAttr.get_ptr()))
 		return UNDEFINED_VALUE(SizeT);
+
 	PreparedDataReadLock lck(m_SelIndexAttr, "TableControl::GetRecNo");
-	return m_SelIndexAttr->GetRefObj()->GetValueAsSizeT(rowNr);
+	return getRecNo(rowNr);
 }
 
 SizeT TableControl::nrRows() const
