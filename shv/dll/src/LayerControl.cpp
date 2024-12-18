@@ -600,7 +600,7 @@ void LayerControl::DoUpdateView()
 
 	SetHeaderCaption(GetThemeDisplayNameInclMetric(m_Layer.get()).c_str());
 
-	SizeT focusElem = m_Layer->GetFocusElemIndex();
+//	SizeT focusElem = m_Layer->GetFocusElemIndex();
 
 	auto activeTheme = m_Layer->GetActiveTheme();
 	if (!m_PaletteControl || (activeTheme && (m_PaletteControl->GetEntity() != activeTheme->GetPaletteDomain())))

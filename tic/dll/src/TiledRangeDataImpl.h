@@ -126,6 +126,8 @@ struct RegularAdapter: Base
 		return Cardinality(maxExtent);
 	}
 
+	datarow_id GetTileDataRow(tile_loc tileLoc) const override;
+
 private:
 	tile_extent_t<value_type> m_TilingExtent;
 };
@@ -221,6 +223,19 @@ struct IrregularTileRangeData : TiledRangeData<V>
 			}
 		}
 		return GetTiledLocationForValue(v);
+	}
+
+	datarow_id GetTileDataRow(tile_loc tileLoc) const
+	{
+		auto tn = this->GetNrTiles();
+		assert(tileLoc.first < tn);
+		assert(tileLoc.second < Cardinality(m_Ranges[tileLoc.first]));
+
+		datarow_id d = 0;
+		for (tile_id t = 0; t != tileLoc.first; ++t)
+			d += Cardinality(m_Ranges[t]);
+
+		return d + tileLoc.second;
 	}
 
 	tile_id GetNrTiles() const override

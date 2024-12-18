@@ -120,7 +120,8 @@ void GridLayer::SelectPoint(CrdPoint pnt, EventID eventID)
 			CompoundWriteType(eventID)
 		);
 		IPoint gridLoc = RoundDown<4>( tr.Reverse(pnt) );
-		SizeT gridIdx = Range_GetIndex_naked(gridRect, gridLoc);
+		auto gridIdx = Range_GetIndex_naked(gridRect, gridLoc);
+		gridIdx = AsUnit(GetGeoCrdUnit()->GetCurrRangeItem())->GetTiledRangeData()->Shadow2DataRow(gridIdx);
 
 		changed = SelectFeatureIndex(writeLock, gridIdx, eventID);
 		if (changed)
@@ -604,9 +605,11 @@ CrdRect GridLayer::CalcSelectedFullWorldRect()  const
 	return AsWorldExtents(Convert<CrdRect>(selectRect), GetGeoCrdUnit());
 }
 
-CrdRect GetWorldExtents(const IRect& geoCrdRect, const UnitProjection* proj, feature_id featureIndex)
+CrdRect GetWorldExtents(const AbstrUnit* geoCrdUnit, const IRect& geoCrdRect, const UnitProjection* proj, feature_id featureIndex)
 {
-	dms_assert(IsDefined(featureIndex));
+	assert(IsDefined(featureIndex));
+
+	featureIndex = AsUnit(geoCrdUnit->GetCurrRangeItem())->GetTiledRangeData()->Data2ShadowRow(featureIndex);
 
 	IPoint gridLoc  = Range_GetValue_naked(geoCrdRect, featureIndex);
 
@@ -620,8 +623,8 @@ CrdRect GetWorldExtents(const IRect& geoCrdRect, const UnitProjection* proj, fea
 CrdRect GridLayer::GetWorldExtents(feature_id featureIndex) const
 {
 	const AbstrUnit* geoCrdUnit = GetGeoCrdUnit();
-	dms_assert(geoCrdUnit);
-	return ::GetWorldExtents(geoCrdUnit->GetRangeAsIRect(), geoCrdUnit->GetProjection(), featureIndex);
+	assert(geoCrdUnit);
+	return ::GetWorldExtents(geoCrdUnit, geoCrdUnit->GetRangeAsIRect(), geoCrdUnit->GetProjection(), featureIndex);
 }
 
 void GridLayer::InvalidateFeature(SizeT featureIndex)
@@ -911,8 +914,8 @@ bool GridLayer::DrawAllRects(GraphDrawer& d, const GridColorPalette& colorPalett
 	dms_assert(colorTheme);
 	if (!readLocks.push_back(colorTheme, DrlType::Suspendible))
 	{
-		dms_assert(SuspendTrigger::DidSuspend() || colorTheme->WasFailed());
-		if (colorTheme->IsFailed())
+		assert(SuspendTrigger::DidSuspend() || colorTheme->WasFailed());
+		if (colorTheme->WasFailed())
 		{
 			Fail(colorTheme);
 			return false;
@@ -922,8 +925,8 @@ bool GridLayer::DrawAllRects(GraphDrawer& d, const GridColorPalette& colorPalett
 
 	if (m_Themes[AN_Feature] && !readLocks.push_back(m_Themes[AN_Feature].get(), DrlType::Suspendible))
 	{
-		dms_assert(SuspendTrigger::DidSuspend() || m_Themes[AN_Feature]->WasFailed());
-		if (m_Themes[AN_Feature]->IsFailed())
+		assert(SuspendTrigger::DidSuspend() || m_Themes[AN_Feature]->WasFailed());
+		if (m_Themes[AN_Feature]->WasFailed())
 		{
 			Fail(m_Themes[AN_Feature].get());
 			return false;
@@ -1110,11 +1113,11 @@ bool GridLayer::Draw(GraphDrawer& d) const
 				for (tile_offset minFE = 0, maxFE = geoCrdUnit->GetTileCount(t); minFE!=maxFE; ++minFE)
 					if (indexCollector.GetEntityIndex(minFE) == fe)
 					{
-						CrdRect focusWorldRect = ::GetWorldExtents(tileRect, proj, minFE);
+						CrdRect focusWorldRect = ::GetWorldExtents(geoCrdUnit, tileRect, proj, minFE);
 
 						while (minFE+1!=maxFE && indexCollector.GetEntityIndex(minFE + 1) == fe)
 						{
-							CrdRect nextWorldRect = ::GetWorldExtents(tileRect, proj, minFE+1);
+							CrdRect nextWorldRect = ::GetWorldExtents(geoCrdUnit, tileRect, proj, minFE+1);
 							if	(	nextWorldRect.first .Row() != focusWorldRect.first .Row() 
 								||	nextWorldRect.second.Row() != focusWorldRect.second.Row()
 								||	nextWorldRect.first.Col() > focusWorldRect.second.Col())
@@ -1141,7 +1144,7 @@ bool GridLayer::Draw(GraphDrawer& d) const
 			if (!IsDefined(fe))
 				goto skipDrawFocus;
 
-			CrdRect focusWorldRect = ::GetWorldExtents(geoCrdRect, proj, fe);
+			CrdRect focusWorldRect = ::GetWorldExtents(geoCrdUnit, geoCrdRect, proj, fe);
 			GRect focusViewRect = DRect2GRect(focusWorldRect, d.GetTransformation());
 			GRect focusBordRect = focusViewRect; focusBordRect.Expand(focusSize);
 

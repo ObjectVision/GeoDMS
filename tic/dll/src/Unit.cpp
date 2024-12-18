@@ -343,10 +343,36 @@ tile_loc RegularAdapter<Base>::GetTileDataLocation(row_id dataIndex) const
 		assert(tilingExtent.Col() >= 1);
 		auto lastCol = tilingExtent.Col() - 1;
 		auto stripSize = tileSize * lastCol + this->GetTileSize(lastCol);
-		auto s = dataIndex / stripSize;
-		auto r = dataIndex % stripSize;
-		assert(s < tilingExtent.Row());
-		return tile_loc(s * tilingExtent.Col() + r / tileSize, r % tileSize);
+		auto tileRow = dataIndex / stripSize;
+		auto tileCol = dataIndex % stripSize;
+		assert(tileRow < tilingExtent.Row());
+		if (tileRow + 1 == tilingExtent.Row())
+			tileSize = this->GetTileSize(tileRow * tilingExtent.Col());
+		return tile_loc(tileRow * tilingExtent.Col() + tileCol / tileSize, tileCol % tileSize);
+	}
+}
+
+template <typename Base>
+datarow_id RegularAdapter<Base>::GetTileDataRow(tile_loc tileLoc) const
+{
+	if constexpr (is_numeric_v<value_type>)
+		return this->GetRowIndex(tileLoc.first, tileLoc.second);
+	else
+	{
+		auto tileSize = this->GetTileSize(0);
+		auto tilingExtent = this->GetTilingExtent();
+
+		assert(tilingExtent.Row() >= 1);
+		assert(tilingExtent.Col() >= 1);
+		auto lastCol = tilingExtent.Col() - 1;
+		auto stripSize = tileSize * lastCol + this->GetTileSize(lastCol);
+
+		auto tileRow = tileLoc.first / tilingExtent.Col(); 
+		auto tileCol = tileLoc.first % tilingExtent.Col();
+		assert(tileRow < tilingExtent.Row());
+		if (tileRow + 1 == tilingExtent.Row())
+			tileSize = this->GetTileSize(tileRow * tilingExtent.Col());
+		return stripSize * tileRow + tileSize * tileCol + tileLoc.second;
 	}
 }
 

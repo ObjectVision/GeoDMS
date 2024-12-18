@@ -438,13 +438,11 @@ void TableControl::GoTo(SizeT row, gr_elem_index col)
 	SizeT nrRows = NrRows();
 	SizeT nrCols = NrEntries();
 
-	dms_assert(row < nrRows);
-	dms_assert(col < nrCols);
+	assert(row < nrRows);
+	assert(col < nrCols);
 
 	MakeMin(row, nrRows-1);
 	MakeMin(col, nrCols-1);
-
-	dms_assert(!GetColumn(col)->IgnoreActivation());
 
 	if (row == GetActiveRow() && col == GetActiveCol() && m_Rows.IsClosed() && m_Cols.IsClosed())
 		return;

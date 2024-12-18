@@ -80,6 +80,21 @@ struct AbstrTileRangeData : SharedObj
 	virtual I64Rect GetTileRangeAsI64Rect(tile_id t) const = 0;
 	virtual row_id  GetFirstRowIndex(tile_id t) const = 0;
 	virtual row_id  GetRowIndex(tile_id t, tile_offset localIndex) const = 0;
+	virtual datarow_id GetTileDataRow(tile_loc tileLoc) const
+	{
+		return GetRowIndex(tileLoc.first, tileLoc.second);
+	}
+
+	datarow_id Shadow2DataRow(row_id i) const
+	{
+		auto tileLoc = GetTiledLocation(i);
+		return GetTileDataRow(tileLoc);
+	}
+	row_id Data2ShadowRow(datarow_id i) const
+	{
+		auto tileLoc = GetTileDataLocation(i);
+		return GetRowIndex(tileLoc.first, tileLoc.second);
+	}
 
 	virtual void Load(BinaryInpStream& /*pis*/) {}
 	virtual void Save(BinaryOutStream& /*pos*/) const {}
@@ -126,7 +141,7 @@ struct SmallRangeData : AbstrTileRangeData
 	I64Rect GetRangeAsI64Rect() const override { return { {0, 0}, shp2dms_order(GetRangeSize(), row_id(1))}; }
 	I64Rect GetTileRangeAsI64Rect(tile_id t) const { assert(t == 0 || t == no_tile); return GetRangeAsI64Rect(); }
 	row_id GetFirstRowIndex(tile_id t) const override { assert(t == 0); return 0; }
-	row_id GetRowIndex(tile_id t, tile_offset localIndex) const override { assert(t == 0);  return localIndex; }
+	row_id GetRowIndex(tile_id t, tile_offset localIndex) const override { assert(t == 0);  assert(localIndex < GetRangeSize()); return localIndex; }
 
 	// range_t(dependent on T) specific functions, non virtual
 	Range<V> GetTileRange(tile_id t) const { assert(t == 0); return GetRange(); }
@@ -164,7 +179,6 @@ struct FixedRange : AbstrTileRangeData
 	{
 		return 0;
 	}
-
 
 	I64Rect GetRangeAsI64Rect() const override { return { {0, 0}, shp2dms_order(1 << N, 1) }; }
 	I64Rect GetTileRangeAsI64Rect(tile_id t) const { assert(t == 0 || t==no_tile); return GetRangeAsI64Rect(); }
