@@ -8,7 +8,6 @@
 #pragma hdrstop
 #endif
 
-#include "RtcGeneratedVersion.h"
 #include "geo/RangeIndex.h"
 #include "utl/mySPrintF.h"
 
@@ -58,24 +57,6 @@ public:
 		AbstrDataItem* resSubA = CreateDataItem(AB, GetTokenID_mt("first_rel"), AB, AsDataItem(args[0])->GetAbstrDomainUnit());
 		AbstrDataItem* resSubB = CreateDataItem(AB, GetTokenID_mt("second_rel"), AB, AsDataItem(args[1])->GetAbstrDomainUnit());
 		AbstrDataItem* resSubX = CreateDataItem(AB, GetTokenID_mt("X_rel"), AB, AsDataItem(args[0])->GetAbstrValuesUnit());
-
-		if constexpr (DMS_VERSION_MAJOR < 15)
-		{
-			auto depreciatedRes1 = CreateDataItem(AB, GetTokenID_mt("nr_1_rel"), AB, AsDataItem(args[0])->GetAbstrDomainUnit());
-			depreciatedRes1->SetTSF(TSF_Categorical);
-			depreciatedRes1->SetTSF(TSF_Depreciated);
-			depreciatedRes1->SetReferredItem(resSubA);
-
-			auto depreciatedRes2 = CreateDataItem(AB, GetTokenID_mt("nr_2_rel"), AB, AsDataItem(args[1])->GetAbstrDomainUnit());
-			depreciatedRes2->SetTSF(TSF_Categorical);
-			depreciatedRes2->SetTSF(TSF_Depreciated);
-			depreciatedRes2->SetReferredItem(resSubB);
-
-			auto depreciatedResX = CreateDataItem(AB, GetTokenID_mt("nr_X_rel"), AB, AsDataItem(args[0])->GetAbstrValuesUnit());
-			depreciatedResX->SetTSF(TSF_Categorical);
-			depreciatedResX->SetTSF(TSF_Depreciated);
-			depreciatedResX->SetReferredItem(resSubX);
-		}
 	}
 };
 
@@ -243,6 +224,3 @@ namespace
 	tl_oper::inst_tuple<domains, JoinEqualValuesOperator<UInt32, _>, AbstrOperGroup&> jevOpers_u32(cog_jev_u32);
 	tl_oper::inst_tuple<domains, JoinEqualValuesOperator<UInt64, _>, AbstrOperGroup&> jevOpers_u64(cog_jev_u64);
 } // end anonymous namespace
-
-/******************************************************************************/
-

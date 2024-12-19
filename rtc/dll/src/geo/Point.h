@@ -1,4 +1,11 @@
+// Copyright (C) 1998-2024 Object Vision b.v. 
+// License: GNU GPL 3
+/////////////////////////////////////////////////////////////////////////////
+
+#if defined(_MSC_VER)
 #pragma once
+#endif
+
 
 #if !defined(__RTC_GEO_POINT_H)
 #define __RTC_GEO_POINT_H
@@ -9,14 +16,6 @@
 
 #include "geo/Couple.h"
 #include "geo/ElemTraits.h"
-
-#include "RtcGeneratedVersion.h"
-
-#if DMS_VERSION_MAJOR < 15
-
-//#define DMS_POINT_ROWCOL
-
-#endif
 
 //----------------------------------------------------------------------
 // class  : Point<T>

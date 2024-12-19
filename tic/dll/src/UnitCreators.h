@@ -11,7 +11,6 @@
 
 #include "TicBase.h"
 
-#include "RtcGeneratedVersion.h"
 #include "utl/mySPrintF.h"
 
 #include "AbstrDataItem.h"
@@ -61,10 +60,7 @@ inline ConstUnitRef default_unit_creator_and_check_input(const AbstrOperGroup* g
 					, gr->GetName()
 					, metric->AsString(FormattingFlags::ThousandSeparator)
 				);
-				if constexpr (DMS_VERSION_MAJOR >= 16)
-					throwDmsErrD(diagnostic.c_str());
-				else
-					reportD(SeverityTypeID::ST_Warning, diagnostic.c_str());
+				throwDmsErrD(diagnostic.c_str());
 			}
 		}
 	}

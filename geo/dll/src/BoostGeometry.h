@@ -10,7 +10,6 @@
 #define MG_GEO_BOOST_GEOMETRY_H
 
 #include "RtcTypeLists.h"
-#include "RtcGeneratedVersion.h"
 #include "VersionComponent.h"
 #include "ser/SequenceArrayStream.h"
 

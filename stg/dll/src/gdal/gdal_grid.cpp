@@ -1,4 +1,4 @@
-// Copyright (C) 1998-2023 Object Vision b.v. 
+// Copyright (C) 1998-2024 Object Vision b.v. 
 // License: GNU GPL 3
 /////////////////////////////////////////////////////////////////////////////
 
@@ -19,7 +19,6 @@
 
 #include <gdal_priv.h>
 
-#include "RtcGeneratedVersion.h"
 #include "TicPropDefConst.h"
 
 #include "act/UpdateMark.h"

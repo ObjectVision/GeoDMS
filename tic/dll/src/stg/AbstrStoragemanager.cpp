@@ -13,7 +13,6 @@
 #include "AbstrStorageManager.h"
 
 #include "RtcInterface.h"
-#include "RtcVersion.h"
 
 #include "act/ActorVisitor.h"
 #include "act/InterestRetainContext.h"
