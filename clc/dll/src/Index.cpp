@@ -32,7 +32,7 @@
 //                         Helper Funcs
 // *****************************************************************************
 
-CommonOperGroup cog_dir_index("direct_index");
+CommonOperGroup cog_dir_index("direct_index", oper_policy::dynamic_result_class);
 CommonOperGroup cog_index    ("index", oper_policy::dynamic_result_class);
 CommonOperGroup cog_ordinal  (token::ordinal);
 CommonOperGroup cog_subindex ("subindex", oper_policy::dynamic_result_class);
@@ -105,10 +105,10 @@ struct IndexOperator : public AbstrIndexOperator
 class AbstrDirectIndexOperator : public UnaryOperator
 {
 public:
-	typedef DataArray<UInt32> ResultType;
+//	typedef DataArray<UInt32> ResultType;
 	// Override Operator
 	AbstrDirectIndexOperator(const Class* argClass)
-		:	UnaryOperator(&cog_dir_index, ResultType::GetStaticClass(), argClass)
+		:	UnaryOperator(&cog_dir_index, AbstrDataItem::GetStaticClass(), argClass)
 	{}
 
 	bool CreateResult(TreeItemDualRef& resultHolder, const ArgSeqType& args, bool mustCalc) const override
