@@ -406,6 +406,7 @@ void ScheduleRunOperationContexts()
 	if (s_RunOperationContextsScheduled.exchange(true))
 		return;
 	PostMainThreadOper(RunOperationContexts);
+	cv_TaskCompleted.notify_all();
 }
 
 // *****************************************************************************
@@ -848,7 +849,6 @@ garbage_t OperationContext::separateResources(task_status status)
 	releaseBin |= disconnect();
 //	releaseBin |= runOperationContexts();
 	releaseBin |= make_any_scoped_exit( &ScheduleRunOperationContexts ); // do this after releasing interests and related resources of suppliers
-	cv_TaskCompleted.notify_all();
 
 	return releaseBin;
 }
@@ -1380,12 +1380,9 @@ task_status OperationContext::Join()
 		if (OperationContext::CancelableFrame::CurrActiveHasRunCount())
 			freediecount.emplace();
 
-		if (!isFirstTime)
-		{
-			RunOperationContexts(); // OPTIMIZE, CONSISTENCY: Some tasks finished without calling this. Find out why and avoid wasting idle thread time; maybe all threads are waiting in a Join without new and current tasks being activated
-			if (IsMetaThread())
-				ProcessMainThreadOpers();
-		}
+		RunOperationContexts(); // OPTIMIZE, CONSISTENCY: Some tasks finished without calling this. Find out why and avoid wasting idle thread time; maybe all threads are waiting in a Join without new and current tasks being activated
+		if (IsMetaThread())
+			ProcessMainThreadOpers();
 
 		leveled_std_section::unique_lock lock(cs_ThreadMessing);
 		if (m_Status > task_status::running)
@@ -1393,16 +1390,18 @@ task_status OperationContext::Join()
 
 		assert(m_Status > task_status::scheduled || !m_Suppliers.empty() || IsDefined(getScheduledContextsPos(this->shared_from_this())));
 
-		if (isFirstTime && IsMainThread())
+		if (isFirstTime && IsMetaThread())
 		{
 			SupplierSet prioritizedContexts;
 			prioritize(prioritizedContexts, this->shared_from_this());
 		}
-		cv_TaskCompleted.wait_for(lock.m_BaseLock, std::chrono::milliseconds(200), [this]() { return m_Status > task_status::running; });
+		cv_TaskCompleted.wait_for(lock.m_BaseLock, std::chrono::milliseconds(200));
 		isFirstTime = false;
 	}
 
 	RunOperationContexts();
+	if (IsMetaThread())
+		ProcessMainThreadOpers();
 
 	dms_assert(m_Status > task_status::running);
 	dbg_assert(CheckDataReady(m_Result->GetCurrUltimateItem()) || m_Status == task_status::cancelled || m_Status == task_status::exception || !m_Result->GetInterestCount());

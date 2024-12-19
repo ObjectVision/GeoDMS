@@ -29,7 +29,6 @@ struct memory_info {
 		memStat.dwLength = sizeof(MEMORYSTATUSEX);
 		if (!GlobalMemoryStatusEx(&memStat))
 			throwLastSystemError("GlobalMemoryStatusEx");
-		dms_assert(memStat.dwMemoryLoad == (memStat.ullTotalPhys - memStat.ullAvailPhys) / (memStat.ullTotalPhys / 100)); // do we get it?
 	}
 
 	percentage_type ExpectedMemoryLoad(std::size_t requestedSize) const
