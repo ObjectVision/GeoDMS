@@ -575,7 +575,7 @@ namespace SuspendTrigger {
 		dms_assert(!DidSuspend());
 	}
 
-	ResumeLock::ResumeLock()
+	DenyLock::DenyLock()
 		: DynamicIncrementalLock<>(gd_TriggerDenyLockCount)
 	{
 		dms_assert(!DidSuspend());
