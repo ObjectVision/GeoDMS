@@ -167,6 +167,7 @@ void operation_queue::Process()
 		operQueue = std::move(m_Operations);
 		assert(m_Operations.empty());
 	}
+	ConfirmMainThreadOperProcessing();
 	for (auto& oper : operQueue)
 	{
 		try {

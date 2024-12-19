@@ -257,7 +257,10 @@ bool CustomEventFilter::nativeEventFilter(const QByteArray& /*eventType*/, void*
         return true; // Stop further processing of the message
 
     case UM_PROCESS_MAINTHREAD_OPERS:
-        ProcessMainThreadOpers();
+        ProcessMainThreadOpers(); // resends this message if SuspendTrigger::DidSuspend()
+        if (SuspendTrigger::DidSuspend())
+            return true;
+
         if (auto mw = MainWindow::TheOne())
             mw->ProcessAppOpers();
         return true;

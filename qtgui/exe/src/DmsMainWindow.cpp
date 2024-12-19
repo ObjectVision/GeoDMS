@@ -93,7 +93,7 @@ void MainWindow::PostAppOper(std::function<void()>&& func)
 void MainWindow::ProcessAppOpers()
 {
     assert(IsMainThread());
-    ConfirmMainThreadOperProcessing();
+    ProcessMainThreadOpers();
     m_AppOperQueue.Process();
 }
 
