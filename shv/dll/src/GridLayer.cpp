@@ -159,8 +159,8 @@ void GridLayer::SelectRegion(CrdRect worldRect, const AbstrRowProcessor<T>& rowP
 			auto selData = mutable_array_cast<T>(lock)->GetDataWrite(no_tile, CompoundWriteType(eventID));
 
 			auto i = selData.begin() + Range_GetIndex_naked(gridRect, shp2dms_order(IPoint(Left(selectRect), Top(selectRect))));
-			UInt32 gridWidth = Width(gridRect);
-			for (Int32 r = Top(selectRect); r != Bottom(selectRect); ++r, i += gridWidth)
+			auto gridWidth = Width(gridRect);
+			for (auto r = Top(selectRect); r != Bottom(selectRect); ++r, i += gridWidth)
 			{
 				rowProcessor(selData.begin(), selData.size(), r, Left(selectRect), Right(selectRect), i, tr);
 			}
@@ -201,7 +201,7 @@ struct SetCompactValueOper
 	void operator () (sequence_traits<elem_t>::pointer selArrayBegin, SizeT selArraySize, SizeT featureIndex) const
 	{
 		assert(m_Layer);
-		SizeT entityIndex = m_Layer->Feature2EntityIndex(featureIndex);
+		SizeT entityIndex = m_Layer->Shadow2EntityIndex(featureIndex);
 		if (IsDefined(entityIndex))
 		{
 			MG_CHECK(entityIndex < selArraySize);

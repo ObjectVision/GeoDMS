@@ -484,6 +484,12 @@ SizeT GraphicLayer::Feature2EntityIndex(SizeT featureIndex) const
 	return featureIndex;
 }
 
+SizeT GraphicLayer::Shadow2EntityIndex(SizeT featureIndex) const
+{
+	featureIndex = AsUnit(GetGeoCrdUnit()->GetCurrRangeItem())->GetTiledRangeData()->Shadow2DataRow(featureIndex);
+	return Feature2EntityIndex(featureIndex);
+}
+
 SizeT GraphicLayer::Entity2FeatureIndex(SizeT entityIndex) const
 {
 	dms_assert(!HasEntityAggr());

@@ -321,8 +321,6 @@ public:
 	GraphVisitState DoViewPort(ViewPort* vp) override
 	{
 		dms_assert(!SuspendTrigger::DidSuspend());
-		MG_DEBUG_DATA_CODE( SuspendTrigger::ApplyLock findIt; )
-
 		dms_assert(vp);
 		// use Invite to jump over the Visibility filter in the Visit method
 		if (vp->GetContents()->InviteGraphVistor(*this) == GVS_Handled) // layer was added in component of this viewPort

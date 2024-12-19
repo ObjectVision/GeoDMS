@@ -106,6 +106,8 @@ public:
 	SizeT Feature2EntityIndex(SizeT featureIndex) const;
 	SizeT Entity2FeatureIndex(SizeT entityIndex ) const;
 
+	SizeT Shadow2EntityIndex(SizeT featureIndex) const;
+
 	bool HasEditAttr() const;
 	bool HasClassIdAttr() const;
 
