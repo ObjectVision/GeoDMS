@@ -18,11 +18,13 @@
 #include "LockLevels.h"
 #include "Parallel.h"
 
-#include "dbg/Check.h"
-#include "dbg/DmsCatch.h"
 #include "act/MainThread.h"
 #include "act/TriggerOperator.h"
+#include "dbg/Check.h"
+#include "dbg/DmsCatch.h"
+#include "utl/Environment.h"
 
+#include <future>
 
 namespace { // local defs
 
@@ -216,7 +218,13 @@ void ProcessMainThreadOpers()
 		return;
 	if (SuspendTrigger::DidSuspend())
 	{
-		RequestMainThreadOperProcessing();
+		auto callback= std::thread(
+			[] { 
+			Wait(100);
+			RequestMainThreadOperProcessing(); 
+			}
+		);
+		callback.detach();
 		return;
 	}
 
