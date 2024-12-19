@@ -403,7 +403,8 @@ namespace SuspendTrigger {
 
 	#if defined(MG_DEBUG_DATA)
 		THREAD_LOCAL UInt32 gd_TriggerApplyLockCount = 0;
-	#endif
+		THREAD_LOCAL UInt32 gd_TriggerDenyLockCount = 0;
+#endif
 
 	void MarkProgress() noexcept
 	{
@@ -444,6 +445,8 @@ namespace SuspendTrigger {
 
 	void Resume() noexcept
 	{
+		MGD_CHECKDATA(gd_TriggerDenyLockCount == 0); // find who pulls the trigger
+
 		assert(IsMetaThread());
 //		dms_assert(!s_SuspendLevel); // receipe for trouble later on
 		s_bLastResult  = false;
@@ -568,6 +571,12 @@ namespace SuspendTrigger {
 
 	ApplyLock::ApplyLock()
 	:	DynamicIncrementalLock<>(gd_TriggerApplyLockCount)
+	{
+		dms_assert(!DidSuspend());
+	}
+
+	ResumeLock::ResumeLock()
+		: DynamicIncrementalLock<>(gd_TriggerDenyLockCount)
 	{
 		dms_assert(!DidSuspend());
 	}

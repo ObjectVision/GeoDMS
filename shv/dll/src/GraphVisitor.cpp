@@ -616,6 +616,10 @@ GraphVisitState GraphDrawer::DoLayer(GraphicLayer* gl)
 	if (SuspendTrigger::DidSuspend())
 		return GVS_Handled; // suspended: break  or failed: continue with the next layer
 
+#if defined(MG_DEBUG_DATA)
+	SuspendTrigger::DenyLock detectPrematureResumption;
+#endif
+
 	auto result = base_type::DoLayer(gl);
 	assert((result == GVS_Handled) == SuspendTrigger::DidSuspend());
 	return result;

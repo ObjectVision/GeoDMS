@@ -133,6 +133,11 @@ struct FencedBlocker : SilentBlocker
 		RTC_CALL ApplyLock();
 	};
 
+	struct DenyLock : DynamicIncrementalLock<UInt32>
+	{
+		RTC_CALL DenyLock();
+	};
+
 #endif
 
 }; // namespace SuspendTrigger
