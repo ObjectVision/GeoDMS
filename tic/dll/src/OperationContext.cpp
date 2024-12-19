@@ -205,12 +205,6 @@ void connect(OperationContextSPtr waiter, OperationContextSPtr supplier)
 	supplier->m_Waiters.insert(waiter);
 }
 
-bool WaitForCompletedTaskOrTimeout(std::chrono::milliseconds waitFor)
-{
-	leveled_std_section::unique_lock lock(cs_ThreadMessing);
-	return cv_TaskCompleted.wait_for(lock.m_BaseLock, waitFor) != std::cv_status::timeout;
-}
-
 garbage_t OperationContext::disconnect_supplier(OperationContext* supplier)
 {
 	DBG_START("OperationContextPtr", "disconnect_supplier", MG_DEBUGCONNECTIONS);
@@ -408,6 +402,17 @@ void ScheduleRunOperationContexts()
 	PostMainThreadOper(RunOperationContexts);
 	cv_TaskCompleted.notify_all();
 }
+
+bool WaitForCompletedTaskOrTimeout(std::chrono::milliseconds waitFor)
+{
+	RunOperationContexts();
+	if (IsMetaThread())
+		ProcessMainThreadOpers();
+
+	leveled_std_section::unique_lock lock(cs_ThreadMessing);
+	return cv_TaskCompleted.wait_for(lock.m_BaseLock, waitFor) != std::cv_status::timeout;
+}
+
 
 // *****************************************************************************
 // Section:     OperatorContextBase
