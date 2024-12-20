@@ -51,6 +51,7 @@ RTC_CALL void ProcessMainThreadOpers();
 RTC_CALL bool IsProcessingMainThreadOpers();
 RTC_CALL void RequestMainThreadOperProcessing();
 RTC_CALL void ConfirmMainThreadOperProcessing();
+RTC_CALL bool IsMainThreadOperProcessingRequestPending();
 
 struct MainThreadBlocker
 {

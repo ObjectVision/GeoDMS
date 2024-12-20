@@ -61,7 +61,7 @@ inline GRect SelectPoint2Rect(GPoint clipPoint)
 
 GraphVisitState AbstrVisitor::DoObject(GraphicObject* obj)
 {
-	dms_assert(obj);
+	assert(obj);
 
 	return GVS_Continue; // processing not completed
 }
@@ -269,6 +269,7 @@ GraphVisitState GraphVisitor::DoLayerSet(LayerSet* gc)
 		return GVS_Break; // euqals GVS_Handled
 
 	counter.Close();
+	assert(!SuspendTrigger::DidSuspend());
 	return GVS_UnHandled;
 }
 
@@ -621,7 +622,7 @@ GraphVisitState GraphDrawer::DoLayer(GraphicLayer* gl)
 #endif
 
 	auto result = base_type::DoLayer(gl);
-	assert((result == GVS_Handled) == SuspendTrigger::DidSuspend());
+	assert((result == GVS_Handled) == (SuspendTrigger::DidSuspend() || m_DoneGraphics->DidBreak()));
 	return result;
 }
 

@@ -136,6 +136,10 @@ RTC_CALL void ConfirmMainThreadOperProcessing()
 //	auto peekResult = PeekMessage(&msg, NULL, WM_USER, WM_USER, PM_NOREMOVE); // create a message queue for the main thread.
 }
 
+RTC_CALL bool IsMainThreadOperProcessingRequestPending()
+{
+	return s_MainThreadOperProcessRequestPending;
+}
 //----------------------------------------------------------------------
 // section : Operation Queues
 //----------------------------------------------------------------------
@@ -214,6 +218,7 @@ MainThreadBlocker::~MainThreadBlocker()
 void ProcessMainThreadOpers()
 {
 	assert(IsMetaThread());
+	ConfirmMainThreadOperProcessing();
 
 	if (s_ProcessMainThreadOperLevel)
 		return;
