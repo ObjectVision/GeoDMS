@@ -93,12 +93,8 @@ void MainWindow::PostAppOper(std::function<void()>&& func)
 void MainWindow::ProcessAppOpers()
 {
     assert(IsMainThread());
+    ConfirmMainThreadOperProcessing();
     ProcessMainThreadOpers();
-    if (SuspendTrigger::DidSuspend()) // ProcessMainThreadOpers() will post a RequestMainThreadOperProcessing if SuspendTrigger::DidSuspend 
-    {
-        assert(IsMainThreadOperProcessingRequestPending);
-        return;
-    }
     m_AppOperQueue.Process();
 }
 

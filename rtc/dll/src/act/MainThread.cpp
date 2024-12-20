@@ -171,7 +171,8 @@ void operation_queue::Process()
 		operQueue = std::move(m_Operations);
 		assert(m_Operations.empty());
 	}
-	ConfirmMainThreadOperProcessing();
+
+	SuspendTrigger::SilentBlocker blockSuspensions("operation_queue::Process");
 	for (auto& oper : operQueue)
 	{
 		try {
@@ -218,21 +219,9 @@ MainThreadBlocker::~MainThreadBlocker()
 void ProcessMainThreadOpers()
 {
 	assert(IsMetaThread());
-	ConfirmMainThreadOperProcessing();
 
 	if (s_ProcessMainThreadOperLevel)
 		return;
-	if (SuspendTrigger::DidSuspend())
-	{
-		auto callback= std::thread(
-			[] { 
-			Wait(100);
-			RequestMainThreadOperProcessing(); 
-			}
-		);
-		callback.detach();
-		return;
-	}
 
 	StaticStIncrementalLock<s_ProcessMainThreadOperLevel> avoidReenty;
 

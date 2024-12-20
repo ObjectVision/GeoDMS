@@ -313,9 +313,6 @@ void DmsDetailPages::drawPageImpl()
     if (!current_item)
         return;
 
-
-
-
     bool ready = true;
     SuspendTrigger::Resume();
 

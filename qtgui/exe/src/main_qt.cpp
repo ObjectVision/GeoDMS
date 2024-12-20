@@ -241,9 +241,11 @@ CustomEventFilter::~CustomEventFilter() {
     reportD(MsgCategory::other, SeverityTypeID::ST_MinorTrace, "Destroy CustomEventFilter");
 }
 
-bool CustomEventFilter::nativeEventFilter(const QByteArray& /*eventType*/, void* message, qintptr* /*result*/ ) {
-    MSG* msg = static_cast<MSG*>(message);
+bool CustomEventFilter::nativeEventFilter(const QByteArray& /*eventType*/, void* message, qintptr* /*result*/ ) 
+{
+    SuspendTrigger::Resume();
 
+    MSG* msg = static_cast<MSG*>(message);
     switch (msg->message) {
     case UM_SCALECHANGE:  // RegisterScaleChangeNotifications called in DmsViewArea.cpp, but this message is never received here
         if (auto mw = MainWindow::TheOne()) {
