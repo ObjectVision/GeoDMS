@@ -82,8 +82,6 @@ public:
 	SharedStr Caption() const;
 	void SetElemWidth(UInt16 width);
 	void SetElemSize(WPoint size);
-	void SetElemBorder(bool hasBorder) { m_State.Set(DIC_HasElemBorder, hasBorder); }
-	bool HasElemBorder() const         { return m_State.Get(DIC_HasElemBorder); }
 
 	UInt32 ColumnNr() const    { dms_assert(IsDefined(m_ColumnNr)); return m_ColumnNr; }
 	void SetColumnNr(SizeT nr) { dms_assert(IsDefined(nr)); m_ColumnNr = nr; }
@@ -104,8 +102,6 @@ public:
 
 	std::weak_ptr<TableControl> GetTableControl();
 	std::weak_ptr<const TableControl> GetTableControl() const;
-
-	void StartResize(MouseEventDispatcher& med);
 
 protected:
 //	override Actor callbacks

@@ -107,6 +107,9 @@ public:
 #endif
 
 	friend class AutoSizeContainer;
+	void StartResize(MouseEventDispatcher& med);
+	void SetElemBorder(bool hasBorder) { m_State.Set(DIC_HasElemBorder, hasBorder); }
+	bool HasElemBorder() const { return m_State.Get(DIC_HasElemBorder); }
 
 protected:
 	HCURSOR SetViewPortCursor(HCURSOR hCursor); friend class PasteGridController;

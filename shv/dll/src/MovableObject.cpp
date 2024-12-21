@@ -641,3 +641,89 @@ bool MovableObject::UpdateCursor() const
 	return debug_cast<const MovableObject*>(owner.get())->UpdateCursor();
 }
 
+#include "Carets.h"
+#include "Controllers.h"
+
+//----------------------------------------------------------------------
+// class  : ColumnSizerDragger interface
+//----------------------------------------------------------------------
+
+class ColumnSizerDragger : public AbstrController
+{
+	typedef AbstrController base_type;
+public:
+	ColumnSizerDragger(DataView* owner, MovableObject* target);
+
+protected:
+	bool Exec(EventInfo& eventInfo) override;
+};
+
+//----------------------------------------------------------------------
+// class  : ColumnSizerDragger implementation
+//----------------------------------------------------------------------
+
+ColumnSizerDragger::ColumnSizerDragger(DataView* owner, MovableObject* target)
+	: AbstrController(owner, target
+		, EventID::NONE
+		, EventID::MOUSEDRAG | EventID::LBUTTONUP
+		, EventID::CLOSE_EVENTS - EventID::SCROLLED
+		, ToolButtonID::TB_Undefined
+	)
+{}
+
+bool ColumnSizerDragger::Exec(EventInfo& eventInfo)
+{
+	auto to = GetTargetObject().lock(); if (!to) return true;
+	MovableObject* target = debug_cast<MovableObject*>(to.get());
+	assert(target);
+	auto clientPos = target->GetCurrClientAbsLogicalPos();
+	auto newWidth = eventInfo.m_Point.x / target->GetScaleFactors().first - clientPos.X();
+	if (target->HasElemBorder())
+		newWidth -= DOUBLE_BORDERSIZE;
+	MakeMax(newWidth, 6);
+	target->SetElemWidth(TType2GType(newWidth));
+	return true;
+}
+
+//==========================================================================
+void MovableObject::StartResize(MouseEventDispatcher& med)
+{
+	auto dv = GetDataView().lock(); if (!dv) return;
+	auto owner = GetOwner().lock(); if (!owner) return;
+	auto medOwner = med.GetOwner().lock(); if (!medOwner) return;
+	auto currAbsRect = ScaleCrdRect(GetCurrFullAbsLogicalRect(), med.GetSubPixelFactors());
+	auto currIntRect = CrdRect2GRect(currAbsRect);
+	GPoint& mousePoint = med.GetEventInfo().m_Point;
+
+	mousePoint.x = currIntRect.Right();
+	dv->SetCursorPos(mousePoint);
+
+	medOwner->InsertController(
+		new TieCursorController(medOwner.get(), owner.get()
+			, GRect(currIntRect.Left() + 6, mousePoint.y, MaxValue<GType>(), mousePoint.y + 1)
+			, EventID::MOUSEDRAG, EventID::CLOSE_EVENTS - EventID::SCROLLED
+		)
+	);
+
+	medOwner->InsertController(
+		new DualPointCaretController(medOwner.get()
+			, new MovableRectCaret(GRect(currIntRect.Right() - 4, currIntRect.Top(), currIntRect.Right() + 5, currIntRect.Bottom()))
+			, this, mousePoint
+			, EventID::MOUSEDRAG, EventID::NONE, EventID::CLOSE_EVENTS - EventID::SCROLLED
+			, ToolButtonID::TB_Undefined
+		)
+	);
+
+	medOwner->InsertController(
+		new DualPointCaretController(medOwner.get()
+			, new MovableRectCaret(GRect(currIntRect.Right() - 2, currIntRect.Top(), currIntRect.Right() + 3, currIntRect.Bottom()))
+			, this, mousePoint
+			, EventID::MOUSEDRAG, EventID::NONE, EventID::CLOSE_EVENTS - EventID::SCROLLED
+			, ToolButtonID::TB_Undefined
+		)
+	);
+	medOwner->InsertController(
+		new ColumnSizerDragger(medOwner.get(), this)
+	);
+}
+

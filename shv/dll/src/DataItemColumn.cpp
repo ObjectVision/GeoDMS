@@ -1224,11 +1224,15 @@ bool DataItemColumn::MouseEvent(MouseEventDispatcher& med)
 			{
 				DataItemColumn* prevHeader = GetPrevControl();
 				if (prevHeader)
+				{
+					prevHeader->SelectCol();
 					prevHeader->StartResize(med);
+				}
 				return true;
 			}
 			case RG_RIGHT:
 			{
+				SelectCol();
 				StartResize(med);
 				return true;
 			}
@@ -1631,55 +1635,6 @@ bool DataItemColumn::IsNumeric() const
 	return tvu->GetValueType()->IsNumeric();
 }
 
-//----------------------------------------------------------------------
-
-#include "Carets.h"
-#include "Controllers.h"
-
-//----------------------------------------------------------------------
-// class  : ColumnSizerDragger interface
-//----------------------------------------------------------------------
-
-class ColumnSizerDragger : public AbstrController
-{
-	typedef AbstrController base_type;
-public:
-	ColumnSizerDragger(DataView* owner, DataItemColumn* target);
-
-protected:
-	bool Exec(EventInfo& eventInfo) override;
-};
-
-//----------------------------------------------------------------------
-// class  : ColumnSizerDragger implementation
-//----------------------------------------------------------------------
-
-ColumnSizerDragger::ColumnSizerDragger(DataView* owner, DataItemColumn* target)
-	:	AbstrController(owner, target
-		,	EventID::NONE
-		,	EventID::MOUSEDRAG|EventID::LBUTTONUP
-		,	EventID::CLOSE_EVENTS - EventID::SCROLLED
-		,	ToolButtonID::TB_Undefined
-	)
-{}
-
-bool ColumnSizerDragger::Exec(EventInfo& eventInfo)
-{
-	auto to = GetTargetObject().lock(); if (!to) return true;
-	DataItemColumn* target = debug_cast<DataItemColumn*>(to.get());
-	assert(target);
-	auto clientPos = target->GetCurrClientAbsLogicalPos();
-	auto newWidth = eventInfo.m_Point.x / target->GetScaleFactors().first - clientPos.X();
-	if (target->HasElemBorder())
-		newWidth -= DOUBLE_BORDERSIZE;
-	MakeMax(newWidth, 6);
-	target->SetElemWidth(TType2GType(newWidth));
-	return true;
-}
-
-//==========================================================================
-
-
 DataItemColumn* DataItemColumn::GetPrevControl()
 {
 	UInt32 colNr = ColumnNr();
@@ -1687,49 +1642,6 @@ DataItemColumn* DataItemColumn::GetPrevControl()
 		return nullptr;
 	auto tc = GetTableControl().lock(); if (!tc) return nullptr;
 	return debug_cast<DataItemColumn*>(tc->GetEntry(colNr));
-}
-
-void DataItemColumn::StartResize(MouseEventDispatcher& med)
-{
-	auto dv = GetDataView().lock(); if (!dv) return;
-	auto owner = GetOwner().lock(); if (!owner) return;
-	auto medOwner = med.GetOwner().lock(); if (!medOwner) return;
-	auto currAbsRect = ScaleCrdRect(GetCurrFullAbsLogicalRect(), med.GetSubPixelFactors());
-	auto currIntRect = CrdRect2GRect(currAbsRect);
-	GPoint& mousePoint  = med.GetEventInfo().m_Point;
-
-	mousePoint.x = currIntRect.Right();
-	dv->SetCursorPos(mousePoint);
-
-	SelectCol();
-
-	medOwner->InsertController(
-		new TieCursorController(medOwner.get(), owner.get()
-		,	GRect(currIntRect.Left()+6, mousePoint.y, MaxValue<GType>(), mousePoint.y+1)
-		,	EventID::MOUSEDRAG, EventID::CLOSE_EVENTS - EventID::SCROLLED
-		)
-	);
-
-	medOwner->InsertController(
-		new DualPointCaretController(medOwner.get()
-		,	new MovableRectCaret( GRect(currIntRect.Right()-4, currIntRect.Top(), currIntRect.Right()+5, currIntRect.Bottom()) )
-		,	this, mousePoint
-		,	EventID::MOUSEDRAG, EventID::NONE, EventID::CLOSE_EVENTS - EventID::SCROLLED
-		,	ToolButtonID::TB_Undefined
-		)
-	);
-
-	medOwner->InsertController(
-		new DualPointCaretController(medOwner.get()
-		,	new MovableRectCaret( GRect(currIntRect.Right()-2, currIntRect.Top(), currIntRect.Right()+3, currIntRect.Bottom()) )
-		,	this, mousePoint
-		,	EventID::MOUSEDRAG, EventID::NONE, EventID::CLOSE_EVENTS - EventID::SCROLLED
-		,	ToolButtonID::TB_Undefined
-		)
-	);
-	medOwner->InsertController(
-		new ColumnSizerDragger(medOwner.get(), this)
-	);
 }
 
 #include "LayerClass.h"
