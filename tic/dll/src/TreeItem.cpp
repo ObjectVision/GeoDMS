@@ -2936,8 +2936,7 @@ ActorVisitState TreeItem::VisitSuppliers(SupplierVisitFlag svf, const ActorVisit
 	if (storageParent)
 	{
 		auto sm = storageParent->GetStorageManager(false);
-		assert(sm);
-		if (auto nmsm = dynamic_cast<NonmappableStorageManager*>(sm))
+		if(sm) if (auto nmsm = dynamic_cast<NonmappableStorageManager*>(sm))
 			if (nmsm->VisitSuppliers(svf, visitor, storageParent, this) == AVS_SuspendedOrFailed)
 				return AVS_SuspendedOrFailed;
 	}

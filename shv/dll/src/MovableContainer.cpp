@@ -240,8 +240,6 @@ void AutoSizeContainer::GrowHor(CrdType deltaX, CrdType relPosX, const MovableOb
 		if (deltaX < 0)
 			base_type::GrowHor(deltaX, relPosX);
 
-		MG_DEBUGCODE(CheckSubStates());
-
 		m_cmdElemSetChanged();
 	}
 }
@@ -265,8 +263,6 @@ void AutoSizeContainer::GrowVer(CrdType deltaY, CrdType relPosY, const MovableOb
 
 		if (deltaY < 0)
 			base_type::GrowVer(deltaY, relPosY);
-
-		MG_DEBUGCODE(CheckSubStates());
 
 		m_cmdElemSetChanged();
 	}
