@@ -80,7 +80,7 @@ public:
 	const AbstrDataItem* GetSrcAttr() const;
 
 	SharedStr Caption() const;
-	void SetElemWidth(UInt16 width);
+	void SetElemWidth(UInt16 width) override;
 	void SetElemSize(WPoint size);
 
 	UInt32 ColumnNr() const    { dms_assert(IsDefined(m_ColumnNr)); return m_ColumnNr; }

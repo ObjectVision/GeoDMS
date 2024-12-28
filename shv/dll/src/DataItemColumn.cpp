@@ -412,6 +412,18 @@ void DataItemColumn::SetElemSize(WPoint size)
 	InvalidateDraw();
 }
 
+
+void MovableObject::SetElemWidth(UInt16 width)
+{
+	TType colWidth = width; if (HasElemBorder()) colWidth += DOUBLE_BORDERSIZE;
+
+	TType currClientWidth = GetCurrClientSize().X();
+
+	GrowHor(colWidth - currClientWidth, currClientWidth);
+
+	assert(GetCurrClientSize().X() == colWidth);
+}
+
 void DataItemColumn::SetElemWidth(UInt16 width)
 {
 	if (width == m_ElemSize.X())

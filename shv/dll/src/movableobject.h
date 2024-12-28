@@ -37,6 +37,8 @@ public:
 
 	virtual void MoveTo(CrdPoint newClientRelPos); // SetClientRelPos
 	virtual void SetClientSize(CrdPoint newRelPos);
+	virtual void SetElemWidth(UInt16 width);
+
 	void SetClientRect(CrdRect r);
 	void SetFullRelRect(CrdRect r);
 
