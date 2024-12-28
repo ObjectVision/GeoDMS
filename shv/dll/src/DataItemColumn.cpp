@@ -283,7 +283,7 @@ static CharPtr OperExprFormat(const AbstrDataItem* adi, const AbstrDataItem* gro
 	switch (am)
 	{
 	case AggrMethod::asItemList:
-		if (adi->GetValueComposition() != ValueComposition::Single || adi->GetAbstrValuesUnit()->GetValueType()->GetNrDims() > 1)
+		if (adi->GetAbstrValuesUnit()->GetValueType()->GetValueClassID() != ValueClassID::VT_String)
 			return "%1%(String(%2%), %3%)"; // fits for most cases
 		break;
 	case AggrMethod::first:
