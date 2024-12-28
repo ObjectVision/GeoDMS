@@ -454,7 +454,7 @@ void MovableObject::GrowHor(CrdType deltaX, CrdType relPosX, const MovableObject
 
 				assert(IsIncluding(clipRect, oldVisibleAbsRect)); // follows from previous assertion and clipping
 
-				auto intDeltaX = CrdType2GType( ((relPosX + deltaX) * sf.first) - (relPosX * sf.first) );
+				auto intDeltaX = CrdType2GType((relPosX + deltaX) * sf.first) - CrdType2GType(relPosX * sf.first);
 				auto devDelta = GPoint(intDeltaX, 0);
 				if (!oldVisibleAbsRect.empty())
 					dv->ScrollDevice(devDelta, CrdRect2GRect(oldVisibleAbsRect), CrdRect2GRect(clipRect), this);
@@ -489,8 +489,6 @@ void MovableObject::GrowHor(CrdType deltaX, CrdType relPosX, const MovableObject
 
 	if (deltaX < 0)
 		m_ClientLogicalSize.X() += deltaX;
-
-	CheckDrawnRect(this);
 
 	if (owner && IsVisible()) 
 	{
@@ -554,7 +552,7 @@ void MovableObject::GrowVer(CrdType deltaY, CrdType relPosY, const MovableObject
 
 				assert(IsIncluding(clipRect, oldVisibleAbsRect)); // follows from previous assertion and clipping
 
-				auto intDeltaY = CrdType2GType(((relPosY + deltaY) * sf.first) - (relPosY * sf.first));
+				auto intDeltaY = CrdType2GType((relPosY + deltaY) * sf.first) - CrdType2GType(relPosY * sf.first);
 				auto devDelta = GPoint(0, intDeltaY);
 				if (!oldVisibleAbsRect.empty())
 					dv->ScrollDevice(devDelta, CrdRect2GRect(oldVisibleAbsRect), CrdRect2GRect(clipRect), this);
@@ -590,8 +588,6 @@ void MovableObject::GrowVer(CrdType deltaY, CrdType relPosY, const MovableObject
 
 	if (deltaY < 0)
 		m_ClientLogicalSize.Y() += deltaY;
-
-	CheckDrawnRect(this);
 
 	if (owner && IsVisible())
 	{
