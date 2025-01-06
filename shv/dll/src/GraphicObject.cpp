@@ -442,8 +442,14 @@ void GraphicObject::TranslateDrawnRect(CrdRect clipRect, GPoint delta)
 	assert(!m_DrawnFullAbsRect.empty()); 
 	assert(IsIncluding(clipRect, m_DrawnFullAbsRect));
 
+	assert(IsQuartic(clipRect));
+	assert(IsQuartic(m_DrawnFullAbsRect));
+
 	m_DrawnFullAbsRect += GPoint2CrdPoint(delta);
 	m_DrawnFullAbsRect &= clipRect;
+
+	assert(IsQuartic(m_DrawnFullAbsRect));
+
 	if (m_DrawnFullAbsRect.empty())
 		ClearDrawFlag();
 	else
@@ -468,7 +474,12 @@ void GraphicObject::ClipDrawnRect(CrdRect clipRect)
 	if (IsIncluding(clipRect, m_DrawnFullAbsRect))
 		return;
 
+	assert(IsQuartic(clipRect));
+	assert(IsQuartic(m_DrawnFullAbsRect));
 	m_DrawnFullAbsRect &= clipRect;
+
+	assert(IsQuartic(m_DrawnFullAbsRect));
+
 	if (m_DrawnFullAbsRect.empty())
 		ClearDrawFlag();
 	else
@@ -517,7 +528,13 @@ void GraphicObject::ResizeDrawnRect(CrdRect clipRect, GPoint delta, GPoint invar
 
 	Resize(m_DrawnFullAbsRect, delta, invariantLimit);
 
+	assert(IsQuartic(m_DrawnFullAbsRect));
+	assert(IsQuartic(clipRect));
+
 	m_DrawnFullAbsRect &= clipRect;
+
+	assert(IsQuartic(m_DrawnFullAbsRect));
+
 	if (m_DrawnFullAbsRect.empty())
 		ClearDrawFlag();
 	else
