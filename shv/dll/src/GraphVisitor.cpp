@@ -530,7 +530,7 @@ GraphVisitState GraphDrawer::Visit(GraphicObject* go)
 
 		if (go->IsDrawn())
 			go->ClipDrawnRect(ownerRect);
-		assert(IsQuartic(ownerRect));
+		assert(!dynamic_cast<MovableObject*>(go) || IsQuartic(ownerRect));
 		go->m_DrawnFullAbsRect = ownerRect;
 	}
 
