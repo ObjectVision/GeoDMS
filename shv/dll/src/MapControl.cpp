@@ -103,7 +103,7 @@ void MapControl::ProcessSize(CrdPoint mapControlSize)
 	if (m_ScrollPort->IsVisible())
 	{
 		TType scrollPortWidth = mapControlSize.X() / 4L;
-		MakeMin(scrollPortWidth, m_ScrollPort->GetContents()->GetCurrFullSize().X());
+		MakeMin(scrollPortWidth, m_ScrollPort->GetContents()->CalcFullSize().X());
 		viewPortSize.X() -= scrollPortWidth;
 	}
 

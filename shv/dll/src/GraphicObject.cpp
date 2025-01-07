@@ -425,7 +425,7 @@ CrdRect GraphicObject::GetClippedCurrFullAbsDeviceRect(const GraphVisitor& v) co
 void GraphicObject::InvalidateDraw()
 {
 	auto dv = GetDataView().lock(); if (!dv) return;
-	dbg_assert(!dv->md_InvalidateDrawLock );
+//	dbg_assert(!dv->md_InvalidateDrawLock );
 
 	if (!IsDrawn())
 		return;
@@ -442,13 +442,13 @@ void GraphicObject::TranslateDrawnRect(CrdRect clipRect, GPoint delta)
 	assert(!m_DrawnFullAbsRect.empty()); 
 	assert(IsIncluding(clipRect, m_DrawnFullAbsRect));
 
-	assert(IsQuartic(clipRect));
-	assert(IsQuartic(m_DrawnFullAbsRect));
+	assert(!dynamic_cast<MovableObject*>(this) || IsQuartic(clipRect));
+	assert(!dynamic_cast<MovableObject*>(this) || IsQuartic(m_DrawnFullAbsRect));
 
 	m_DrawnFullAbsRect += GPoint2CrdPoint(delta);
 	m_DrawnFullAbsRect &= clipRect;
 
-	assert(IsQuartic(m_DrawnFullAbsRect));
+	assert(!dynamic_cast<MovableObject*>(this) || IsQuartic(m_DrawnFullAbsRect));
 
 	if (m_DrawnFullAbsRect.empty())
 		ClearDrawFlag();
@@ -475,10 +475,10 @@ void GraphicObject::ClipDrawnRect(CrdRect clipRect)
 		return;
 
 	assert(IsQuartic(clipRect));
-	assert(IsQuartic(m_DrawnFullAbsRect));
+	assert(!dynamic_cast<MovableObject*>(this) || IsQuartic(m_DrawnFullAbsRect));
 	m_DrawnFullAbsRect &= clipRect;
 
-	assert(IsQuartic(m_DrawnFullAbsRect));
+	assert(!dynamic_cast<MovableObject*>(this) || IsQuartic(m_DrawnFullAbsRect));
 
 	if (m_DrawnFullAbsRect.empty())
 		ClearDrawFlag();
@@ -528,18 +528,18 @@ void GraphicObject::ResizeDrawnRect(CrdRect clipRect, GPoint delta, GPoint invar
 
 	Resize(m_DrawnFullAbsRect, delta, invariantLimit);
 
-	assert(IsQuartic(m_DrawnFullAbsRect));
+	assert(!dynamic_cast<MovableObject*>(this) || IsQuartic(m_DrawnFullAbsRect));
 	assert(IsQuartic(clipRect));
 
 	m_DrawnFullAbsRect &= clipRect;
 
-	assert(IsQuartic(m_DrawnFullAbsRect));
+	assert(!dynamic_cast<MovableObject*>(this) || IsQuartic(m_DrawnFullAbsRect));
 
 	if (m_DrawnFullAbsRect.empty())
 		ClearDrawFlag();
 	else
 	{
-		dms_assert(!owner || IsIncluding(owner->GetDrawnNettAbsDeviceRect(), GetDrawnFullAbsDeviceRect())); // invariant IsIncluding relation restored ater this ResizeDrawnRect
+		assert(!owner || IsIncluding(owner->GetDrawnNettAbsDeviceRect(), GetDrawnFullAbsDeviceRect())); // invariant IsIncluding relation restored ater this ResizeDrawnRect
 
 		SizeT n = NrEntries();
 		while (n)

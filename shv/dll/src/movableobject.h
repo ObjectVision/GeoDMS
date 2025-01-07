@@ -48,6 +48,7 @@ public:
 	CrdRect  GetCurrClientRelLogicalRect() const { return CrdRect(m_RelPos, m_RelPos + Convert<CrdPoint>(m_ClientLogicalSize)); }
 
 	CrdPoint CalcClientSize() const;
+	CrdPoint CalcFullSize() const { return CalcClientSize() + GetBorderLogicalSize();  }
 	virtual CrdPoint CalcMaxSize() const;
 	CrdRect  CalcClientRelRect() const { return CrdRect(m_RelPos, m_RelPos + Convert<CrdPoint>(CalcClientSize())); }
 	CrdRect  CalcFullRelRect  () const { return CalcClientRelRect() + Convert<CrdRect>(GetBorderLogicalExtents()); }
