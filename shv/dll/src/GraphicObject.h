@@ -66,16 +66,12 @@ const UInt32 SPF_NoScrollBars        = MOF_Next * 0x01; // ScrollPort ONLY:
 const UInt32 TCF_HideSortOptions     = MOF_Next * 0x01; // TableControl ONLY ( PaletteControl is derived from TableControl)
 const UInt32 TCF_FlipSortOrder       = MOF_Next * 0x02; // TableControl ONLY ( PaletteControl is derived from TableControl)
 const UInt32 TCF_HideCount           = MOF_Next * 0x04; // TableControl ONLY ( PaletteControl is derived from TableControl)
-
-const UInt32 PCF_CountsUpdated       = MOF_Next * 0x08; // PaletteControl ONLY:
+const UInt32 TCF_MustBeDefined       = MOF_Next * 0x08; // TableControl ONLY ( PaletteControl is derived from TableControl)
+const UInt32 PCF_CountsUpdated       = MOF_Next * 0x10; // PaletteControl ONLY:
 
 const UInt32 DIC_HasElemBorder       = MOF_Next * 0x01; // DataItemColumn ONLY
 const UInt32 DIC_RelativeDisplay     = MOF_Next * 0x02; // DataItemColumn ONLY
 const UInt32 DIC_TotalReady          = MOF_Next * 0x04; // DataItemColumn ONLY
-
-#if defined(MG_DEBUG)
-const UInt32 GOFD_BlockInvalidateView = MOF_Next * 0x08; // Assume no invalidation between UpdateView and SetAllUpdated in UpdateViewProcessor::Visit
-#endif
 
 //----------------------------------------------------------------------
 // class  : GraphicObject
@@ -145,7 +141,6 @@ public:
 #if defined(MG_DEBUG)
 	virtual void CheckState() const;
 	void CheckSubStates() const;
-	void SetBlockInvalidateView(bool v) { dms_assert(m_State.Get(GOFD_BlockInvalidateView) != v); m_State.Set(GOFD_BlockInvalidateView, v); }
 #endif
 
 	weakPtrCGO GetOwner() const { return m_Owner; }

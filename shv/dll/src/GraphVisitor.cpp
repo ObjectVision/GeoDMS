@@ -530,7 +530,6 @@ GraphVisitState GraphDrawer::Visit(GraphicObject* go)
 
 		if (go->IsDrawn())
 			go->ClipDrawnRect(ownerRect);
-		assert(!dynamic_cast<MovableObject*>(go) || IsQuartic(ownerRect));
 		go->m_DrawnFullAbsRect = ownerRect;
 	}
 
@@ -762,22 +761,6 @@ GraphVisitState GraphUpdater::DoDataItemColumn(DataItemColumn* dic)
 //----------------------------------------------------------------------
 // UpdateViewProcessor members
 //----------------------------------------------------------------------
-
-#if defined(MG_DEBUG)
-	struct BlockInvalidateView
-	{
-		BlockInvalidateView(GraphicObject* go) : m_GO(go)
-		{
-			go->SetBlockInvalidateView(true);
-		}
-		~BlockInvalidateView()
-		{
-			m_GO->SetBlockInvalidateView(false);
-		}
-		
-		GraphicObject* m_GO;
-	};
-#endif
 
 GraphVisitState UpdateViewProcessor::Visit(GraphicObject* go)
 {

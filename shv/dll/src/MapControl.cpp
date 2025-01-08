@@ -106,7 +106,6 @@ void MapControl::ProcessSize(CrdPoint mapControlSize)
 		MakeMin(scrollPortWidth, m_ScrollPort->GetContents()->CalcFullSize().X());
 		viewPortSize.X() -= scrollPortWidth;
 	}
-
 	bool viewPortSmaller = (viewPortSize.X() < m_ViewPort->GetCurrClientSize().X());
 	if (viewPortSmaller)
 		m_ViewPort->SetClientRect( CrdRect( Point<CrdType>(0, 0), viewPortSize ) );

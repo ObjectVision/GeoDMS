@@ -131,7 +131,6 @@ static bool Allowed(const AbstrDataItem* adi, AggrMethod am)
 	const ValueClass* vc = avu->GetValueType();
 
 	switch (am) {
-		case AggrMethod::frequency_table:
 		case AggrMethod::diversity:
 			return false;
 
@@ -157,6 +156,7 @@ static bool Allowed(const AbstrDataItem* adi, AggrMethod am)
 		case AggrMethod::unique_count:
 		case AggrMethod::entropy:
 		case AggrMethod::average_entropy:
+		case AggrMethod::frequency_table:
 			if (!vc->IsCountable())
 				return false;
 			return vcm == ValueComposition::Single;
@@ -203,6 +203,7 @@ static std::pair<ConstUnitRef, ValueComposition> ValuesUnitAndComposition(const 
 			return { count_unit_creator(adi), ValueComposition::Single };
 
 		case AggrMethod::asItemList:
+		case AggrMethod::frequency_table:
 			if (vc->GetValueClassID() == ValueClassID::VT_String)
 				return {avu, ValueComposition::String };
 			return { Unit<SharedStr>::GetStaticClass()->CreateDefault(), ValueComposition::String };
@@ -212,16 +213,10 @@ static std::pair<ConstUnitRef, ValueComposition> ValuesUnitAndComposition(const 
 			return { avu, adi->GetValueComposition() };
 
 		case AggrMethod::modus_count:
-		{
 			return { count_unit_creator(adi), ValueComposition::Single };
-		}
-		case AggrMethod::unique_count:
-		{
-			return { unique_count_unit_creator(adi, groupByRel), ValueComposition::Single };
-		}
 
-		case AggrMethod::frequency_table:
-			return { Unit<SharedStr>::GetStaticClass()->CreateDefault(), ValueComposition::String };
+		case AggrMethod::unique_count:
+			return { unique_count_unit_creator(adi, groupByRel), ValueComposition::Single };
 
 	}
 	return { avu, ValueComposition::Single };
@@ -278,7 +273,7 @@ static CharPtr OperName(const AbstrDataItem* adi, AggrMethod am)
 //	%2% = adi->GetFullName()
 //	%3% = groupByItemName
 
-static CharPtr OperExprFormat(const AbstrDataItem* adi, const AbstrDataItem* groupBy_rel, AggrMethod am)
+static CharPtr OperExprFormat(const AbstrDataItem* adi, const AbstrDataItem* groupBy_rel, AggrMethod am, bool mustBeDefined)
 {
 	switch (am)
 	{
@@ -286,6 +281,12 @@ static CharPtr OperExprFormat(const AbstrDataItem* adi, const AbstrDataItem* gro
 		if (adi->GetAbstrValuesUnit()->GetValueType()->GetValueClassID() != ValueClassID::VT_String)
 			return "%1%(String(%2%), %3%)"; // fits for most cases
 		break;
+	case AggrMethod::frequency_table:
+		if (mustBeDefined)
+			return "frequency_table(%2%, %3%)";
+		else
+			return "frequency_table_with_null(%2%, %3%)";
+
 	case AggrMethod::first:
 	case AggrMethod::last:
 		if (adi->GetValueComposition() != ValueComposition::Single)
@@ -318,10 +319,10 @@ static CharPtr OperExprFormat(const AbstrDataItem* adi, const AbstrDataItem* gro
 	return "%1%(%2%, %3%)"; // fits for most cases
 }
 
-static SharedStr OperExpr(const AbstrDataItem* adi, const AbstrDataItem* groupBy_rel, AggrMethod am)
+static SharedStr OperExpr(const AbstrDataItem* adi, const AbstrDataItem* groupBy_rel, AggrMethod am, bool mustBeDefined)
 {
 	CharPtr groupByItemName = "../GroupBy/per_Row";
-	return mgFormat2SharedStr(OperExprFormat(adi, groupBy_rel, am), OperName(adi, am) , adi->GetFullName(), groupByItemName);
+	return mgFormat2SharedStr(OperExprFormat(adi, groupBy_rel, am, mustBeDefined), OperName(adi, am) , adi->GetFullName(), groupByItemName);
 }
 
 const AbstrDataItem* DataItemColumn::GetActiveTextAttr() const
@@ -378,9 +379,9 @@ void DataItemColumn::UpdateTheme()
 		SharedPtr<AbstrDataItem> aggrAttr = CreateDataItem(GetContext(), aggrID, tc->m_GroupByEntity, aggrValuesSpec.first, aggrValuesSpec.second);
 		aggrAttr->SetKeepDataState(false);
 		aggrAttr->DisableStorage(true);
-		aggrAttr->SetExpr(OperExpr(GetSrcAttr(), tc->m_GroupByRel, aggrMethod));
+		aggrAttr->SetExpr(OperExpr(GetSrcAttr(), tc->m_GroupByRel, aggrMethod, tc->m_State.Get(TCF_MustBeDefined)));
 
-		m_FutureAggrAttr = aggrAttr.get_ptr(); m_FutureAggrAttr->PrepareDataUsage(DrlType::Certain); // can throw when Expr is invalid, m_FutureAggrAttr will then not be updated
+		m_FutureAggrAttr = aggrAttr.get_ptr();
 		attr = aggrAttr;
 	}
 	else

@@ -141,13 +141,43 @@ struct average_entropyFunc {
 	}
 };
 
+template<bool mustBeDefined>
+struct frequencyTableFunc {
+	using result_type = SharedStr;
+
+	template <typename CIter>
+	auto operator ()(CIter b, CIter e, auto countF, auto valueF) -> result_type
+	{
+		VectorOutStreamBuff buff;
+		FormattedOutStream out(&buff);
+		bool hasAlreadyWrittenSomething = false;
+		for (auto i = b; i != e; ++i)
+		{
+			auto count = countF(i);
+			if (!count)
+				continue;
+
+			auto value = valueF(i);
+			if constexpr (mustBeDefined) if (!IsDefined(value))
+				continue;
+
+			if (hasAlreadyWrittenSomething)
+				out << "; ";
+
+			out << value << ": " << count;
+			hasAlreadyWrittenSomething = true;
+		}
+		return SharedStr(buff.GetData(), buff.GetDataEnd());
+	}
+};
+
 // *****************************************************************************
 //											ModusTot
 // *****************************************************************************
 
 // assume v >> n; time complexity: n*log(min(v, n))
 template<typename V, typename R, typename AggrFunc>
-void ModusTotBySet(const DataArray<V>* tileFunctor, typename sequence_traits<R>::reference resData, AggrFunc aggrFunc)
+void ModusTotBySet(const DataArray<V>* tileFunctor, typename sequence_traits<R>::container_type::reference resData, AggrFunc aggrFunc)
 {
 	auto values_fta = GetFutureTileArray(tileFunctor);
 	auto counters = GetWeededWallCounts<V, SizeT>(values_fta, SizeT(-1));
@@ -159,7 +189,7 @@ void ModusTotBySet(const DataArray<V>* tileFunctor, typename sequence_traits<R>:
 }
 
 template<typename V, typename R, typename AggrFunc>
-void ModusTotByTable(const DataArray<V>* tileFunctor, typename sequence_traits<R>::reference resData,  typename Unit<V>::range_t valuesRange, AggrFunc aggrFunc)
+void ModusTotByTable(const DataArray<V>* tileFunctor, typename sequence_traits<R>::container_type::reference resData,  typename Unit<V>::range_t valuesRange, AggrFunc aggrFunc)
 {
 	auto buffer = GetCountsAsArray<V, SizeT>(tileFunctor, valuesRange);
 
@@ -184,7 +214,7 @@ template<typename V>template <typename V> using map_node_type = std::_Tree_node<
 template <typename V> constexpr UInt32 map_node_type_size = sizeof(map_node_type<V>);
 
 template <typename V, typename R, typename AggrFunc>
-void ModusTotDispatcher(const DataArray<V>* valuesTF, bool noOutOfRangeValues, typename sequence_traits<R>::reference resData, AggrFunc aggrFunc)
+void ModusTotDispatcher(const DataArray<V>* valuesTF, bool noOutOfRangeValues, typename sequence_traits<R>::container_type::reference resData, AggrFunc aggrFunc)
 {
 	if constexpr (is_bitvalue_v<scalar_of_t<V>>)
 	{
@@ -299,7 +329,7 @@ void ModusPartByTable(const AbstrDataItem* indicesItem, future_tile_array<V> val
 
 // assume v >> n; time complexity: n*log(min(v, n))
 template<typename V>
-void WeightedModusTotBySet(const DataArray<V>* valuesTF, const AbstrDataItem* weightItem, typename sequence_traits<V>::reference resData)
+void WeightedModusTotBySet(const DataArray<V>* valuesTF, const AbstrDataItem* weightItem, typename sequence_traits<V>::container_type::reference resData)
 {
 	std::map<V, Float64> counters;
 
@@ -326,7 +356,7 @@ void WeightedModusTotBySet(const DataArray<V>* valuesTF, const AbstrDataItem* we
 }
 
 template<typename V>
-void WeightedModusTotByTable(const DataArray<V>* valuesTF, const AbstrDataItem* weightItem, typename sequence_traits<V>::reference resData, const typename Unit<V>::range_t& valuesRange)
+void WeightedModusTotByTable(const DataArray<V>* valuesTF, const AbstrDataItem* weightItem, typename sequence_traits<V>::container_type::reference resData, const typename Unit<V>::range_t& valuesRange)
 {
 	auto vCount = Cardinality(valuesRange);
 	std::vector<Float64> buffer(vCount, 0);
@@ -368,7 +398,7 @@ void WeightedModusTotByTable(const DataArray<V>* valuesTF, const AbstrDataItem* 
 // Thus, tradeof is made at v*p <= n.
 
 template<typename V>
-void WeightedModusTotDispatcher(const DataArray<V>* valuesTF, bool noOutOfRangeValues, const AbstrDataItem* weightItem, typename sequence_traits<V>::reference resData)
+void WeightedModusTotDispatcher(const DataArray<V>* valuesTF, bool noOutOfRangeValues, const AbstrDataItem* weightItem, typename sequence_traits<V>::container_type::reference resData)
 {
 	if constexpr (is_bitvalue_v<scalar_of_t<V>>)
 	{
@@ -570,7 +600,7 @@ public:
 		assert(result);
 		auto  resData = result->GetDataWrite();
 
-		ModusTotDispatcher<V, ResultValueType>(const_array_cast<V>(arg1A), OnlyDefinedCheckRequired(arg1A), resData[0], m_AggrFunc);
+		 ModusTotDispatcher<V, ResultValueType>(const_array_cast<V>(arg1A), OnlyDefinedCheckRequired(arg1A), resData[0], m_AggrFunc);
 	}
 	AggrFunc m_AggrFunc;
 };
@@ -711,6 +741,8 @@ namespace
 
 	CommonOperGroup cogModus("modus", oper_policy::better_not_in_meta_scripting);
 	CommonOperGroup cogModusW("modus_weighted", oper_policy::better_not_in_meta_scripting);
+	CommonOperGroup cogFequencyTable("frequency_table", oper_policy::better_not_in_meta_scripting);
+	CommonOperGroup cogFequencyTableWithNull("frequency_table_with_null", oper_policy::better_not_in_meta_scripting);
 
 	template <typename V, typename AggrFunc>
 	struct AggrFuncInst
@@ -740,6 +772,8 @@ namespace
 			, m_UniqueCountFunc64(cogUniqueCount64, default_unit_creator<UInt64>)
 			, m_EntropyFunc(cogEntropy, default_unit_creator<Float64>)
 			, m_AvgEntropyFunc(cogAvgEntropy, default_unit_creator<Float64>)
+			, m_FreqTable(cogFequencyTable, default_unit_creator<SharedStr>)
+			, m_FreqTableWithNull(cogFequencyTableWithNull, default_unit_creator<SharedStr>)
 		{}
 
 	private:
@@ -757,6 +791,8 @@ namespace
 
 		AggrFuncInst<V, entropyFunc<SizeT> > m_EntropyFunc;
 		AggrFuncInst<V, average_entropyFunc<SizeT> > m_AvgEntropyFunc;
+		AggrFuncInst<V, frequencyTableFunc<true> > m_FreqTable;
+		AggrFuncInst<V, frequencyTableFunc<false> > m_FreqTableWithNull;
 	};
 
 	template <typename V>

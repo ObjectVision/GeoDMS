@@ -151,19 +151,20 @@ struct sequence_traits<std::vector<V> >
 	//	SharedStr            -> vector<V=char>
 #endif
 	//	vector<V=vector<T> > -> sequence_array<T>
-	typedef std::vector<V>*        pointer;
-	typedef const std::vector<V>*  const_pointer;
-	typedef std::vector<V>&        reference;
-	typedef const std::vector<V>&  const_reference;
+	using pointer = std::vector<V>*;
+	using const_pointer = const std::vector<V>*;
+	using reference = std::vector<V>&;
+	using const_reference = const std::vector<V>&;
 
-	typedef typename sequence_traits<V>::container_type value_type;
+	using value_type = typename sequence_traits<V>::container_type;
 
-	typedef sequence_vector<V>     container_type;
-	typedef sequence_array<V>      polymorph_vec_t;
-	typedef container_type         tile_container_type;
+	using container_type = sequence_vector<V>;
+	using polymorph_vec_t = sequence_array<V>;
+	using tile_container_type = container_type;
 
-	typedef sequence_array_ref<V>  seq_t;
-	typedef sequence_array_cref<V> cseq_t;
+
+	using seq_t = sequence_array_ref<V>;
+	using cseq_t = sequence_array_cref<V>;
 };
 
 template <typename V>
@@ -181,14 +182,16 @@ struct sequence_traits<SA_ConstReference<V> >
 
 template <> struct sequence_traits<SharedStr>
 {
-	typedef SharedStr value_type;
-//RMOVE	typedef sequence_traits<char>::container_type value_type;
-	typedef StringVector                          container_type; 
-	typedef container_type                        tile_container_type;
-	typedef StringArray                           polymorph_vec_t;
+	using value_type = SharedStr;
+	using reference = SharedStr&;
+	using const_reference = const SharedStr&;
 
-	typedef sequence_array_ref <char> seq_t;
-	typedef sequence_array_cref<char> cseq_t;
+	using container_type = StringVector;
+	using polymorph_vec_t = StringArray;
+	using tile_container_type = container_type;
+
+	using seq_t = sequence_array_ref<char>;
+	using cseq_t = sequence_array_cref<char>;
 };
 
 template <> struct sequence_traits< StringRef > : sequence_traits<SharedStr> {};

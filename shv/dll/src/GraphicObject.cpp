@@ -366,7 +366,6 @@ void GraphicObject::UpdateView() const
 
 void GraphicObject::InvalidateView()
 {
-	dbg_assert(!m_State.Get(GOFD_BlockInvalidateView));
 	ClearAllUpdated();
 	m_State.Clear(GOF_IsUpdated);
 }
@@ -425,7 +424,7 @@ CrdRect GraphicObject::GetClippedCurrFullAbsDeviceRect(const GraphVisitor& v) co
 void GraphicObject::InvalidateDraw()
 {
 	auto dv = GetDataView().lock(); if (!dv) return;
-//	dbg_assert(!dv->md_InvalidateDrawLock );
+	dbg_assert(!dv->md_InvalidateDrawLock );
 
 	if (!IsDrawn())
 		return;
@@ -442,13 +441,8 @@ void GraphicObject::TranslateDrawnRect(CrdRect clipRect, GPoint delta)
 	assert(!m_DrawnFullAbsRect.empty()); 
 	assert(IsIncluding(clipRect, m_DrawnFullAbsRect));
 
-	assert(!dynamic_cast<MovableObject*>(this) || IsQuartic(clipRect));
-	assert(!dynamic_cast<MovableObject*>(this) || IsQuartic(m_DrawnFullAbsRect));
-
 	m_DrawnFullAbsRect += GPoint2CrdPoint(delta);
 	m_DrawnFullAbsRect &= clipRect;
-
-	assert(!dynamic_cast<MovableObject*>(this) || IsQuartic(m_DrawnFullAbsRect));
 
 	if (m_DrawnFullAbsRect.empty())
 		ClearDrawFlag();
@@ -474,11 +468,7 @@ void GraphicObject::ClipDrawnRect(CrdRect clipRect)
 	if (IsIncluding(clipRect, m_DrawnFullAbsRect))
 		return;
 
-	assert(IsQuartic(clipRect));
-	assert(!dynamic_cast<MovableObject*>(this) || IsQuartic(m_DrawnFullAbsRect));
 	m_DrawnFullAbsRect &= clipRect;
-
-	assert(!dynamic_cast<MovableObject*>(this) || IsQuartic(m_DrawnFullAbsRect));
 
 	if (m_DrawnFullAbsRect.empty())
 		ClearDrawFlag();
@@ -528,12 +518,7 @@ void GraphicObject::ResizeDrawnRect(CrdRect clipRect, GPoint delta, GPoint invar
 
 	Resize(m_DrawnFullAbsRect, delta, invariantLimit);
 
-	assert(!dynamic_cast<MovableObject*>(this) || IsQuartic(m_DrawnFullAbsRect));
-	assert(IsQuartic(clipRect));
-
 	m_DrawnFullAbsRect &= clipRect;
-
-	assert(!dynamic_cast<MovableObject*>(this) || IsQuartic(m_DrawnFullAbsRect));
 
 	if (m_DrawnFullAbsRect.empty())
 		ClearDrawFlag();

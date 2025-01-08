@@ -259,8 +259,8 @@ template <typename T> class abstr_sequence_provider;
 // specific sequence_arrays
 //=======================================
 
-typedef sequence_array <char> StringArray;
-typedef sequence_vector<char> StringVector;
+using StringArray = sequence_array <char>;
+using StringVector = sequence_vector<char>;
 
 typedef SA_ConstReference<char> StringCRef;
 typedef SA_Reference     <char> StringRef;

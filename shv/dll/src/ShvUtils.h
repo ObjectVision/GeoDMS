@@ -22,24 +22,6 @@
 class GraphicObject;
 
 //----------------------------------------------------------------------
-// debug supporting functions
-//----------------------------------------------------------------------
-
-#if defined(_DEBUG)
-
-inline bool IsQuartic(CrdType x) {
-	return x * 4 == CrdType(Int64(x * 4));
-}
-inline bool IsQuartic(CrdPoint p) {
-	return IsQuartic(p.X()) && IsQuartic(p.Y());
-}
-inline bool IsQuartic(CrdRect r) {
-	return IsQuartic(r.first) && IsQuartic(r.second);
-}
-
-#endif //defined(_DEBUG)
-
-//----------------------------------------------------------------------
 // section : Tic extensions, TODO: move to TIC
 //----------------------------------------------------------------------
 
