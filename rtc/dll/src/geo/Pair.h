@@ -31,6 +31,10 @@ struct Pair : std::pair<T, U>
 //	Constructors (specified)
 	Pair (): std::pair<T, U>(T(), U()) {}
 	Pair (const T& row, const U& col): base_type(row, col) {}
+	Pair(T&& row, const U& col) : base_type(std::move(row), col) {}
+	Pair(const T& row, U&& col) : base_type(row, std::move(col)) {}
+	Pair(T&& row, U&& col) : base_type(std::move(row), std::move(col)) {}
+
 	Pair(Undefined): base_type(Undefined(), Undefined()) {}
 
 //	Other Operations (specified)

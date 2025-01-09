@@ -25,9 +25,9 @@ namespace
 		template <typename T> using total_best = count_total_best<T, UInt>;
 		template <typename T> using partial_best = count_partial_best<T, UInt>;
 	};
-	OperAccUniNum::AggrOperators<count_func_types<UInt32>::total_best, count_func_types<UInt32>::partial_best, typelists::ranged_unit_objects> s_CountOpers  (&cogCount);
-	OperAccUniNum::AggrOperators<count_func_types<UInt8 >::total_best, count_func_types<UInt8 >::partial_best, typelists::ranged_unit_objects> s_CountOpers08(&cogCount08);
-	OperAccUniNum::AggrOperators<count_func_types<UInt16>::total_best, count_func_types<UInt16>::partial_best, typelists::ranged_unit_objects> s_CountOpers16(&cogCount16);
-	OperAccUniNum::AggrOperators<count_func_types<UInt32>::total_best, count_func_types<UInt32>::partial_best, typelists::ranged_unit_objects> s_CountOpers32(&cogCount32);
-	OperAccUniNum::AggrOperators<count_func_types<UInt64>::total_best, count_func_types<UInt64>::partial_best, typelists::ranged_unit_objects> s_CountOpers64(&cogCount64);
+	OperAccUniNum::AggrOperators<count_func_types<UInt32>::total_best, count_func_types<UInt32>::partial_best, typelists::ranged_unit_objects> s_CountOpers  (&cogCount, true);
+	OperAccUniNum::AggrOperators<count_func_types<UInt8 >::total_best, count_func_types<UInt8 >::partial_best, typelists::ranged_unit_objects> s_CountOpers08(&cogCount08, true);
+	OperAccUniNum::AggrOperators<count_func_types<UInt16>::total_best, count_func_types<UInt16>::partial_best, typelists::ranged_unit_objects> s_CountOpers16(&cogCount16, true);
+	OperAccUniNum::AggrOperators<count_func_types<UInt32>::total_best, count_func_types<UInt32>::partial_best, typelists::ranged_unit_objects> s_CountOpers32(&cogCount32, true);
+	OperAccUniNum::AggrOperators<count_func_types<UInt64>::total_best, count_func_types<UInt64>::partial_best, typelists::ranged_unit_objects> s_CountOpers64(&cogCount64, true);
 }

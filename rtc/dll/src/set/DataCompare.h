@@ -38,8 +38,9 @@ template <typename T> struct DataCompareImpl<T, true> {
 	}
 };
 
+template<typename T> constexpr bool compare_must_check_undefines_v = has_undefines_v<T> && !has_min_as_null_v<T> && has_fixed_elem_size_v<T>;
 template <typename T>
-struct DataCompare : DataCompareImpl<T, has_undefines_v<T> && !has_min_as_null_v<T> && has_fixed_elem_size_v<T>> {};
+struct DataCompare : DataCompareImpl<T, compare_must_check_undefines_v<T>> {};
 
 template <typename T>
 struct DataCompare<Point<T> >

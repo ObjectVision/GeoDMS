@@ -172,6 +172,8 @@ void SelChangeInvalidator::ProcessChange(bool mustSetFocusElemIndex)
 TableControl::TableControl(MovableObject* owner)
 	:	base_type(owner, MC_Orientation::Cols)
 {
+	m_State.Set(TCF_MustBeDefined);
+
 	assert(owner);
 	auto dv = owner->GetDataView().lock();
 	assert(dv);

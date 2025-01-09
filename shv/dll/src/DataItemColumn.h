@@ -48,6 +48,7 @@ enum class AggrMethod {
 	any,
 	all,
 	frequency_table,
+	frequency_table_with_null,
 	nr_methods
 };
 

@@ -40,6 +40,7 @@ public:
 	bool OnCommand(ToolButtonID id) override;
 	CommandStatus OnCommandEnable(ToolButtonID id) const override;
 	void ToggleTableOrientation();
+	void ToggleGroupByNullValues();
 
 	      TableControl* GetTableControl()       { return m_TableControl.get(); }
 	const TableControl* GetTableControl() const { return m_TableControl.get(); }

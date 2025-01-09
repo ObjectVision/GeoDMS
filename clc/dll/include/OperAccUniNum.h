@@ -26,8 +26,8 @@
 template <class TAcc1Func> 
 struct OperAccTotUniNum : OperAccTotUni<TAcc1Func>
 {
-	OperAccTotUniNum(AbstrOperGroup* gr, TAcc1Func&& acc1Func = TAcc1Func()) 
-		: OperAccTotUni<TAcc1Func>(gr, std::move(acc1Func))
+	OperAccTotUniNum(AbstrOperGroup* gr, bool valueMustBeDefined, TAcc1Func&& acc1Func = TAcc1Func())
+		: OperAccTotUni<TAcc1Func>(gr, valueMustBeDefined, std::move(acc1Func))
 	{}
 
 //	using accumulator_type = typename decltype TAcc1Func::accumulator_type;
@@ -106,9 +106,9 @@ namespace OperAccUniNum
 	>
 	struct AggrOperators
 	{
-		AggrOperators(AbstrOperGroup* gr) 
-			: m_TotlAggrOpers(gr)
-			, m_PartAggrOpers(gr)
+		AggrOperators(AbstrOperGroup* gr, bool valueMustBeDefined)
+			: m_TotlAggrOpers(gr, valueMustBeDefined)
+			, m_PartAggrOpers(gr, valueMustBeDefined)
 		{}
 
 		template <typename T> struct OperAccTotUniNumOper : OperAccTotUniNum   <TotlOper<T>> {
@@ -119,8 +119,8 @@ namespace OperAccUniNum
 		};
 
 	private:
-		tl_oper::inst_tuple_templ<ValueTypes, OperAccTotUniNumOper , AbstrOperGroup*> m_TotlAggrOpers;
-		tl_oper::inst_tuple_templ<ValueTypes, OperAccPartUniNumOper, AbstrOperGroup*> m_PartAggrOpers;
+		tl_oper::inst_tuple_templ<ValueTypes, OperAccTotUniNumOper , AbstrOperGroup*, bool> m_TotlAggrOpers;
+		tl_oper::inst_tuple_templ<ValueTypes, OperAccPartUniNumOper, AbstrOperGroup*, bool> m_PartAggrOpers;
 	};
 }
 

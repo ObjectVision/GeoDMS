@@ -141,7 +141,6 @@ struct average_entropyFunc {
 	}
 };
 
-template<bool mustBeDefined>
 struct frequencyTableFunc {
 	using result_type = SharedStr;
 
@@ -157,14 +156,14 @@ struct frequencyTableFunc {
 			if (!count)
 				continue;
 
-			auto value = valueF(i);
-			if constexpr (mustBeDefined) if (!IsDefined(value))
-				continue;
-
 			if (hasAlreadyWrittenSomething)
 				out << "; ";
 
-			out << value << ": " << count;
+			auto value = valueF(i);
+			if (!IsDefined(value))
+				out << "<null>: " << count;
+			else
+				out << value << ": " << count;
 			hasAlreadyWrittenSomething = true;
 		}
 		return SharedStr(buff.GetData(), buff.GetDataEnd());
@@ -250,7 +249,7 @@ void ModusTotDispatcher(const DataArray<V>* valuesTF, bool noOutOfRangeValues, t
 template<typename V, typename OIV, typename AggrFunc>
 void ModusPartBySet(const AbstrDataItem* indicesItem, abstr_future_tile_array part_fta
 	, future_tile_array<V> values_fta
-	, OIV resBegin, SizeT pCount, AggrFunc aggrFunc)  // countable dommain unit of result; P can be Void.
+	, OIV resBegin, SizeT pCount, bool valueMustBeDefined, AggrFunc aggrFunc)  // countable dommain unit of result; P can be Void.
 {
 	assert(values_fta.size() == part_fta.size());
 
@@ -259,7 +258,7 @@ void ModusPartBySet(const AbstrDataItem* indicesItem, abstr_future_tile_array pa
 
 	auto counters = GetPartitionedWallCounts<V, SizeT>(values_fta
 		, indicesItem, part_fta
-		, 0, tn, pCount);
+		, 0, tn, pCount, valueMustBeDefined);
 
 	auto i = counters.begin(), e = counters.end();
 	auto ri = 0;
@@ -590,8 +589,8 @@ struct ModusTotal : AbstrOperAccTotUni
 	using ResultType = DataArray<ResultValueType>; // will contain the first most occuring value
 			
 public:
-	ModusTotal(AbstrOperGroup* gr, UnitCreatorPtr ucp)
-		:	AbstrOperAccTotUni(gr, ResultType::GetStaticClass(), Arg1Type::GetStaticClass(), ucp, COMPOSITION(ResultType))
+	ModusTotal(AbstrOperGroup* gr, UnitCreatorPtr ucp, bool valueMustBeDefined)
+		:	AbstrOperAccTotUni(gr, ResultType::GetStaticClass(), Arg1Type::GetStaticClass(), ucp, COMPOSITION(ResultType), valueMustBeDefined)
 	{}
 
 	void Calculate(DataWriteLock& res, const AbstrDataItem* arg1A, ArgRefs args, std::vector<ItemReadLock> readLocks) const override
@@ -642,8 +641,8 @@ struct ModusPart : OperAccPartUniWithCFTA<V, typename AggrFunc::result_type>
 	using base_type = OperAccPartUniWithCFTA<V, ResultValueType>;
 	using ProcessDataInfo = base_type::ProcessDataInfo;
 
-	ModusPart(AbstrOperGroup* gr, UnitCreatorPtr ucp)
-		: base_type(gr, ucp)
+	ModusPart(AbstrOperGroup* gr, UnitCreatorPtr ucp, bool valueMustBeDefined)
+		: base_type(gr, ucp, valueMustBeDefined)
 	{}
 
 	void ProcessData(ResultType* result, ProcessDataInfo& pdi) const override
@@ -671,23 +670,25 @@ struct ModusPart : OperAccPartUniWithCFTA<V, typename AggrFunc::result_type>
 			// Thus, tradeof is made at v*p <= n.
 
 			// Countable values; go for Table if sensible
-			SizeT v = MAX_VALUE(SizeT);
+			assert(IsNotUndef(pdi.resCount)); //consequence of the checks on indexRange
+
 			if constexpr (is_integral_v<scalar_of_t<V>>)
 			{
+				SizeT v = MAX_VALUE(SizeT);
 				auto range = pdi.valuesRangeData->GetRange();
 				if (!range.empty())
 					v =  Cardinality(range);
+
+				if (IsDefined(v) && this->m_ValueMustBeDefined
+					//		&& (!resCount || v / map_node_type_size<V> <= n / resCount / sizeof(SizeT))
+					&& (!pdi.resCount || v <= pdi.n / pdi.resCount)
+					) // memory condition v*p<=n, thus TableTime <= 2n.
+				{
+					ModusPartByTable<V>(pdi.arg2A, std::move(pdi.values_fta), std::move(pdi.part_fta), resBegin, pdi.valuesRangeData->GetRange(), pdi.resCount, m_AggrFunc);
+					return;
+				}
 			}
-
-			assert(IsNotUndef(pdi.resCount)); //consequence of the checks on indexRange
-
-			if (IsDefined(v)
-				//		&& (!resCount || v / map_node_type_size<V> <= n / resCount / sizeof(SizeT))
-				&& (!pdi.resCount || v <= pdi.n / pdi.resCount)
-				) // memory condition v*p<=n, thus TableTime <= 2n.
-				ModusPartByTable<V>(pdi.arg2A, std::move(pdi.values_fta), std::move(pdi.part_fta), resBegin, pdi.valuesRangeData->GetRange(), pdi.resCount, m_AggrFunc);
-			else
-				ModusPartBySet<V>(pdi.arg2A, std::move(pdi.part_fta), std::move(pdi.values_fta), resBegin, pdi.resCount, m_AggrFunc);
+			ModusPartBySet<V>(pdi.arg2A, std::move(pdi.part_fta), std::move(pdi.values_fta), resBegin, pdi.resCount, this->m_ValueMustBeDefined, m_AggrFunc);
 		}
 	}
 
@@ -747,9 +748,9 @@ namespace
 	template <typename V, typename AggrFunc>
 	struct AggrFuncInst
 	{
-		AggrFuncInst(AbstrOperGroup& aog, UnitCreatorPtr ucp)
-			: mt(&aog, ucp)
-			, mp(&aog, ucp)
+		AggrFuncInst(AbstrOperGroup& aog, UnitCreatorPtr ucp, bool valueMustBeDefined)
+			: mt(&aog, ucp, valueMustBeDefined)
+			, mp(&aog, ucp, valueMustBeDefined)
 		{}
 
 	private:
@@ -761,19 +762,19 @@ namespace
 	struct AggrFuncsInst
 	{
 		AggrFuncsInst()
-			: m_ModusFunc(cogModus, arg1_values_unit)
-			, m_ModusCountFunc08(cogModusCount08, default_unit_creator<UInt8>)
-			, m_ModusCountFunc16(cogModusCount16, default_unit_creator<UInt16>)
-			, m_ModusCountFunc32(cogModusCount32, default_unit_creator<UInt32>)
-			, m_ModusCountFunc64(cogModusCount64, default_unit_creator<UInt64>)
-			, m_UniqueCountFunc08(cogUniqueCount08, default_unit_creator<UInt8>)
-			, m_UniqueCountFunc16(cogUniqueCount16, default_unit_creator<UInt16>)
-			, m_UniqueCountFunc32(cogUniqueCount32, default_unit_creator<UInt32>)
-			, m_UniqueCountFunc64(cogUniqueCount64, default_unit_creator<UInt64>)
-			, m_EntropyFunc(cogEntropy, default_unit_creator<Float64>)
-			, m_AvgEntropyFunc(cogAvgEntropy, default_unit_creator<Float64>)
-			, m_FreqTable(cogFequencyTable, default_unit_creator<SharedStr>)
-			, m_FreqTableWithNull(cogFequencyTableWithNull, default_unit_creator<SharedStr>)
+			: m_ModusFunc(cogModus, arg1_values_unit, true)
+			, m_ModusCountFunc08(cogModusCount08, default_unit_creator<UInt8>, true)
+			, m_ModusCountFunc16(cogModusCount16, default_unit_creator<UInt16>, true)
+			, m_ModusCountFunc32(cogModusCount32, default_unit_creator<UInt32>, true)
+			, m_ModusCountFunc64(cogModusCount64, default_unit_creator<UInt64>, true)
+			, m_UniqueCountFunc08(cogUniqueCount08, default_unit_creator<UInt8>, true)
+			, m_UniqueCountFunc16(cogUniqueCount16, default_unit_creator<UInt16>, true)
+			, m_UniqueCountFunc32(cogUniqueCount32, default_unit_creator<UInt32>, true)
+			, m_UniqueCountFunc64(cogUniqueCount64, default_unit_creator<UInt64>, true)
+			, m_EntropyFunc(cogEntropy, default_unit_creator<Float64>, true)
+			, m_AvgEntropyFunc(cogAvgEntropy, default_unit_creator<Float64>, true)
+			, m_FreqTable(cogFequencyTable, default_unit_creator<SharedStr>, true)
+			, m_FreqTableWithNull(cogFequencyTableWithNull, default_unit_creator<SharedStr>, false)
 		{}
 
 	private:
@@ -791,10 +792,11 @@ namespace
 
 		AggrFuncInst<V, entropyFunc<SizeT> > m_EntropyFunc;
 		AggrFuncInst<V, average_entropyFunc<SizeT> > m_AvgEntropyFunc;
-		AggrFuncInst<V, frequencyTableFunc<true> > m_FreqTable;
-		AggrFuncInst<V, frequencyTableFunc<false> > m_FreqTableWithNull;
+		AggrFuncInst<V, frequencyTableFunc > m_FreqTable;
+		AggrFuncInst<V, frequencyTableFunc > m_FreqTableWithNull;
 	};
 
+	// TODO: WeightedModusXXXX ook generaliseren met variabele AggrFunc, conform Modus
 	template <typename V>
 	struct WeightedModusInst
 	{
@@ -808,7 +810,7 @@ namespace
 		WeightedModusPart<V> wmp;
 	};
 
-	tl_oper::inst_tuple<typelists::aints, AggrFuncsInst<_> > aggrOpers;
+	tl_oper::inst_tuple<typelists::scalars, AggrFuncsInst<_> > aggrOpers;
 	tl_oper::inst_tuple<typelists::aints, WeightedModusInst<_> > weigthedModusOpers;
 
 //	ModusInst<SharedStr> mpString; //TODO, ook TODO: optimize dispatchers voor (U)Int4/2

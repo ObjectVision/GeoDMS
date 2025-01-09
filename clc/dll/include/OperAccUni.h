@@ -27,10 +27,11 @@
 
 struct AbstrOperAccTotUni: UnaryOperator
 {
-	AbstrOperAccTotUni(AbstrOperGroup* gr, ClassCPtr resultCls, ClassCPtr arg1Cls, UnitCreatorPtr ucp, ValueComposition vc)
+	AbstrOperAccTotUni(AbstrOperGroup* gr, ClassCPtr resultCls, ClassCPtr arg1Cls, UnitCreatorPtr ucp, ValueComposition vc, bool valueMustBeDefined)
 		:	UnaryOperator(gr, resultCls, arg1Cls)
 		,	m_UnitCreatorPtr(std::move(ucp))
 		,	m_ValueComposition(vc)
+		,   m_ValueMustBeDefined(valueMustBeDefined)
 	{
 		gr->SetCanExplainValue();
 	}
@@ -84,9 +85,9 @@ struct AbstrOperAccTotUni: UnaryOperator
 	}
 	virtual void Calculate(DataWriteLock& res, const AbstrDataItem* arg1A, ArgRefs args, std::vector<ItemReadLock> readLocks) const =0;
 
-private:
-	UnitCreatorPtr m_UnitCreatorPtr;
+	UnitCreatorPtr   m_UnitCreatorPtr;
 	ValueComposition m_ValueComposition;
+	bool             m_ValueMustBeDefined;
 };
 
 
@@ -100,15 +101,14 @@ struct OperAccTotUni : AbstrOperAccTotUni
 	typedef DataArray<ResultValueType>          ResultType;
 	typedef DataArray<ValueType>                ArgType;
 			
-	OperAccTotUni(AbstrOperGroup* gr, TAcc1Func&& acc1Func = TAcc1Func())
+	OperAccTotUni(AbstrOperGroup* gr, bool valueMustBeDefined, TAcc1Func&& acc1Func = TAcc1Func())
 		:	AbstrOperAccTotUni(gr
 			,	ResultType::GetStaticClass(), ArgType::GetStaticClass()
-			,	&TAcc1Func::template unit_creator<ResultValueType>, COMPOSITION(ResultValueType)
+			,	&TAcc1Func::template unit_creator<ResultValueType>, COMPOSITION(ResultValueType), valueMustBeDefined
 			)
 		,	m_Acc1Func(acc1Func)
 	{}
 
-protected:
 	TAcc1Func m_Acc1Func;
 };
 
@@ -216,19 +216,18 @@ struct OperAccPartUni: AbstrOperAccPartUni
 	using Arg2Type = AbstrDataItem; // index vector, must be partition type
 	using ResultValueType = R;
 	using ResultType = DataArray<ResultValueType>;
-	/*
-	using ValueType = typename TAcc1Func::value_type1;
-	using AccumulationSeq = typename TAcc1Func::accumulation_seq;
-	*/
-	OperAccPartUni(AbstrOperGroup* gr, UnitCreatorPtr ucp)
+
+	OperAccPartUni(AbstrOperGroup* gr, UnitCreatorPtr ucp, bool valueMustBeDefined)
 	:	AbstrOperAccPartUni(gr
 		,   ResultType::GetStaticClass(), Arg1Type::GetStaticClass(), Arg2Type::GetStaticClass()
 		,	ucp, COMPOSITION(ResultValueType)
 		)
+	,	m_ValueMustBeDefined(valueMustBeDefined)
 	{}
+
+	bool m_ValueMustBeDefined;
 };
 
-//template <typename TAcc1Func, typename ResultValueType = typename dms_result_type_of<TAcc1Func>::type> 
 template <typename V, typename R>
 struct OperAccPartUniWithCFTA : OperAccPartUni<V, R> // with consumable tile array
 	// CFTA = Consumable Future Tile Array
@@ -275,8 +274,8 @@ struct OperAccPartUniWithCFTA : OperAccPartUni<V, R> // with consumable tile arr
 template <typename TAcc1Func, typename Base>
 struct FuncOperAccPartUni : Base
 {
-	FuncOperAccPartUni(AbstrOperGroup* gr, TAcc1Func&& acc1Func)
-		: Base(gr, &TAcc1Func::template unit_creator<field_of_t<typename Base::ResultValueType>>)
+	FuncOperAccPartUni(AbstrOperGroup* gr, bool valueMustBeDefined, TAcc1Func&& acc1Func)
+		: Base(gr, &TAcc1Func::template unit_creator<field_of_t<typename Base::ResultValueType>>, valueMustBeDefined)
 		, m_Acc1Func(std::move(acc1Func))
 	{}
 
@@ -296,8 +295,8 @@ struct OperAccPartUniBuffered : FuncOperAccPartUni<TAcc1Func, OperAccPartUniWith
 
 	using res_buffer_type = typename sequence_traits<typename TAcc1Func::accumulation_type>::container_type;
 
-	OperAccPartUniBuffered(AbstrOperGroup* gr, TAcc1Func&& acc1Func = TAcc1Func())
-		:	base_type(gr, std::move(acc1Func))
+	OperAccPartUniBuffered(AbstrOperGroup* gr, bool valueMustBeDefined, TAcc1Func&& acc1Func = TAcc1Func())
+		:	base_type(gr, valueMustBeDefined, std::move(acc1Func))
 	{}
 
 	auto AggregateTiles(ProcessDataInfo& pdi, tile_id t, tile_id te, SizeT availableThreads) const
@@ -366,8 +365,8 @@ struct OperAccPartUniDirect : FuncOperAccPartUni<TAcc1Func, OperAccPartUniWithCF
 	using base_type = FuncOperAccPartUni<TAcc1Func, OperAccPartUniWithCFTA<ValueType, ResultValueType> >;
 	using ProcessDataInfo = base_type::ProcessDataInfo;
 
-	OperAccPartUniDirect(AbstrOperGroup* gr, TAcc1Func&& acc1Func = TAcc1Func())
-		: base_type(gr, std::move(acc1Func))
+	OperAccPartUniDirect(AbstrOperGroup* gr, bool valueMustBeDefined, TAcc1Func&& acc1Func = TAcc1Func())
+		: base_type(gr, valueMustBeDefined, std::move(acc1Func))
 	{}
 
 	using result_container_t = typename sequence_traits<ResultValueType>::container_type;
@@ -496,8 +495,8 @@ struct OperAccPartUniSer : FuncOperAccPartUni<TAcc1Func, OperAccPartUni<typename
 	using ValueType = typename TAcc1Func::value_type1;
 	using base_type = FuncOperAccPartUni<TAcc1Func, OperAccPartUni<ValueType, SharedStr> >;
 
-	OperAccPartUniSer(AbstrOperGroup* gr, TAcc1Func&& acc1Func = TAcc1Func())
-		: base_type(gr, std::move(acc1Func))
+	OperAccPartUniSer(AbstrOperGroup* gr, bool valueMustBeDefined, TAcc1Func&& acc1Func = TAcc1Func())
+		: base_type(gr, valueMustBeDefined, std::move(acc1Func))
 	{}
 
 	void Calculate(DataWriteLock& res, const AbstrDataItem* arg1A, const AbstrDataItem* arg2A, ArgRefs args, std::vector<ItemReadLock> readLocks) const override

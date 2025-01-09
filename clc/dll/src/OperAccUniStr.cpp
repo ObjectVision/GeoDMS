@@ -55,8 +55,8 @@ void InitOutput(sequence_traits<SharedStr>::seq_t& outputs, const length_finder_
 template <class TAcc1Func> 
 struct OperAccTotUniStr : OperAccTotUni<TAcc1Func>
 {
-	OperAccTotUniStr(AbstrOperGroup* gr, TAcc1Func&& acc1Func = TAcc1Func()) 
-		: OperAccTotUni<TAcc1Func>(gr, std::move(acc1Func))
+	OperAccTotUniStr(AbstrOperGroup* gr, bool valueMustBeDefined, TAcc1Func&& acc1Func = TAcc1Func())
+		: OperAccTotUni<TAcc1Func>(gr, valueMustBeDefined, std::move(acc1Func))
 	{}
 
 	// Override Operator
@@ -257,25 +257,34 @@ namespace
 {
 	CommonOperGroup cogAsExprList("asExprList");
 	CommonOperGroup cogAsItemList("asItemList");
+	CommonOperGroup cogAsExprListWN("asExprList_with_null");
+	CommonOperGroup cogAsItemListWN("asItemList_with_null");
 
-	tl_oper::inst_tuple<typelists::num_objects, OperAccTotUniStr<asexprlist_total <_>>, AbstrOperGroup*> s_AsExprListT(&cogAsExprList);
 
-	OperAccTotUniStr<asexprlist_total<SharedStr>> f1(&cogAsExprList);
-	OperAccTotUniStr<asitemlist_total<SharedStr>> f2(&cogAsItemList);
-	OperAccTotUniStr<min_total_best<SharedStr>> f3(&cog_Min);
-	OperAccTotUniStr<max_total_best<SharedStr>> f4(&cog_Max);
-	OperAccTotUniStr<first_total_best<SharedStr>> f5(&cog_First);
-	OperAccTotUniStr<last_total_best<SharedStr>> f6(&cog_Last);
+	tl_oper::inst_tuple<typelists::num_objects, OperAccTotUniStr<asexprlist_total <_>>, AbstrOperGroup*, bool> s_AsExprListT(&cogAsExprList, true);
+	tl_oper::inst_tuple<typelists::num_objects, OperAccTotUniStr<asexprlist_total <_>>, AbstrOperGroup*, bool> s_AsExprListWNT(&cogAsExprListWN, false);
+
+	OperAccTotUniStr<asexprlist_total<SharedStr>> f1(&cogAsExprList, true);
+	OperAccTotUniStr<asitemlist_total<SharedStr>> f2(&cogAsItemList, true);
+	OperAccTotUniStr<asexprlist_total<SharedStr>> f1WN(&cogAsExprListWN, false);
+	OperAccTotUniStr<asitemlist_total<SharedStr>> f2WN(&cogAsItemListWN, false);
+	OperAccTotUniStr<min_total_best<SharedStr>> f3(&cog_Min, true);
+	OperAccTotUniStr<max_total_best<SharedStr>> f4(&cog_Max, true);
+	OperAccTotUniStr<first_total_best<SharedStr>> f5(&cog_First, true);
+	OperAccTotUniStr<last_total_best<SharedStr>> f6(&cog_Last, true);
 
 //	OPERPART_NUMB_INSTANTIATION  (OperAccPartUniSer, asexprlist_partial, cogAsExprList);
-	tl_oper::inst_tuple<typelists::num_objects, OperAccPartUniSer<asexprlist_partial<_>>, AbstrOperGroup*> s_AsExprListPartNum(&cogAsExprList);
+	tl_oper::inst_tuple<typelists::num_objects, OperAccPartUniSer<asexprlist_partial<_>>, AbstrOperGroup*, bool> s_AsExprListPartNum  (&cogAsExprList, true);
+	tl_oper::inst_tuple<typelists::num_objects, OperAccPartUniSer<asexprlist_partial<_>>, AbstrOperGroup*, bool> s_AsExprListPartNumWN(&cogAsExprListWN, false);
 
-	OperAccPartUniSer<asexprlist_partial   <SharedStr> > s_AsExprListPart(&cogAsExprList);
-	OperAccPartUniSer<asitemlist_partial   <SharedStr> > s_AsItemListPart(&cogAsItemList);
-	OperAccPartUniDirect<min_partial_best  <SharedStr> > s_MinStrPart(&cog_Min);
-	OperAccPartUniDirect<max_partial_best  <SharedStr> > s_MaxStrPart(&cog_Max);
-	OperAccPartUniDirect<first_partial_best<SharedStr> > s_FirstStrPart(&cog_First);
-	OperAccPartUniDirect<last_partial_best <SharedStr> > s_LastStrPart(&cog_Last);
+	OperAccPartUniSer<asexprlist_partial   <SharedStr> > s_AsExprListPart(&cogAsExprList, true);
+	OperAccPartUniSer<asitemlist_partial   <SharedStr> > s_AsItemListPart(&cogAsItemList, true);
+	OperAccPartUniSer<asexprlist_partial   <SharedStr> > s_AsExprListPartWN(&cogAsExprListWN, false);
+	OperAccPartUniSer<asitemlist_partial   <SharedStr> > s_AsItemListPartWN(&cogAsItemListWN, false);
+	OperAccPartUniDirect<min_partial_best  <SharedStr> > s_MinStrPart(&cog_Min, true);
+	OperAccPartUniDirect<max_partial_best  <SharedStr> > s_MaxStrPart(&cog_Max, true);
+	OperAccPartUniDirect<first_partial_best<SharedStr> > s_FirstStrPart(&cog_First, true);
+	OperAccPartUniDirect<last_partial_best <SharedStr> > s_LastStrPart(&cog_Last, true);
 
 	OperAsListTot alt;
 //	OperAsListPart<UInt32> alpui32(cogAsList);

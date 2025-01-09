@@ -119,8 +119,8 @@ public:
 
 namespace
 {
-	OperAccUniNum::AggrOperators<min_total_best, min_partial_best, typelists::ranged_unit_objects> s_MinOpers(&cog_Min);
-	OperAccUniNum::AggrOperators<max_total_best, max_partial_best, typelists::ranged_unit_objects> s_MaxOpers(&cog_Max);
+	OperAccUniNum::AggrOperators<min_total_best, min_partial_best, typelists::ranged_unit_objects> s_MinOpers(&cog_Min, true);
+	OperAccUniNum::AggrOperators<max_total_best, max_partial_best, typelists::ranged_unit_objects> s_MaxOpers(&cog_Max, true);
 
 	struct ltFunc { template<typename V, typename W> bool operator() (const V& a, const W& b) { return a < b; }; template<typename V> static V StartValue() { return MAX_VALUE(V);  } };
 	struct gtFunc { template<typename V, typename W> bool operator() (const V& a, const W& b) { return b < a; }; template<typename V> static V StartValue() { return MIN_VALUE(V); }};

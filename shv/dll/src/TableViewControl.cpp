@@ -88,6 +88,15 @@ void TableViewControl::FillMenu(MouseEventDispatcher& med)
 			, this
 		)
 	);
+	bool aggrValuesMustBeDefined = m_TableControl->m_State.Get(TCF_MustBeDefined);
+	med.m_MenuData.push_back(
+		MenuItem(
+			SharedStr(aggrValuesMustBeDefined ? "Also group by null values" : "Stop group by null values")
+			, make_MembFuncCmd(&TableViewControl::ToggleGroupByNullValues)
+			, this
+			, aggrValuesMustBeDefined ? MF_UNCHECKED : MF_CHECKED
+		)
+	);
 
 	base_type::FillMenu(med);
 }
@@ -96,7 +105,7 @@ void TableViewControl::Sync(TreeItem* context, ShvSyncMode sm)
 {
 	// Don't call GraphicContainer::Sync since that would want to create the ScrollPort, which is already done and default creation is not supported
 
-	dms_assert(m_TableScrollPort);
+	assert(m_TableScrollPort);
 	m_TableScrollPort->Sync(context, sm);
 }
 
@@ -117,6 +126,14 @@ void TableViewControl::ToggleTableOrientation()
 	m_TableHeader->SetMaxSize((m_TableHeader->IsColOriented() ? DEF_TEXT_PIX_HEIGHT : DEF_TEXT_PIX_WIDTH) + DOUBLE_BORDERSIZE);
 
 	ProcessSize(GetCurrClientSize());
+}
+
+void TableViewControl::ToggleGroupByNullValues()
+{
+	bool aggrGroupDefinedValues = m_TableControl->m_State.Get(TCF_MustBeDefined);
+	m_TableControl->m_State.Set(TCF_MustBeDefined, aggrGroupDefinedValues);
+	if (m_TableControl->m_GroupByEntity)
+		m_TableControl->CreateTableGroupBy(true);
 }
 
 CommandStatus TableViewControl::OnCommandEnable(ToolButtonID id) const

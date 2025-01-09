@@ -113,7 +113,7 @@ auto GetCountsDirect(typename sequence_traits<V>::cseq_t data, tile_offset index
 }
 
 template <ordered_value_type V, count_type C>
-auto GetPartitionedCountsDirect(typename sequence_traits<V>::cseq_t data, const IndexGetter* indexGetter, tile_offset index, tile_offset size, SizeT pCount) -> PartionedValueCountPairContainerT<V, C>
+auto GetPartitionedCountsDirect(typename sequence_traits<V>::cseq_t data, const IndexGetter* indexGetter, tile_offset index, tile_offset size, SizeT pCount, bool valueMustBeDefined) -> PartionedValueCountPairContainerT<V, C>
 {
 	assert(size <= BUFFER_SIZE);
 	assert(size > 0);
@@ -131,7 +131,7 @@ auto GetPartitionedCountsDirect(typename sequence_traits<V>::cseq_t data, const 
 	{
 		if constexpr (has_undefines_v<V>)
 		{
-			if (!IsDefined(*valuesIter))
+			if (valueMustBeDefined && !IsDefined(*valuesIter))
 				continue;
 		}
 		SizeT part_i = indexGetter->Get(index);
@@ -145,8 +145,18 @@ auto GetPartitionedCountsDirect(typename sequence_traits<V>::cseq_t data, const 
 	// Postcondition: all buffer ... buffer+size-1 are defined
 	if (size == 0)
 		return {};
+	DataCompare<V> valueComp;
+	auto comp = [valueComp](const partition_value_pair& lhs, const partition_value_pair& rhs) { return lhs.first < rhs.first || lhs.first == rhs.first && valueComp(lhs.second, rhs.second);  };
 
-	std::sort(buffer, buffer + size);
+	bool speciallySorted = false;
+	if constexpr (compare_must_check_undefines_v<V>)
+		if (!valueMustBeDefined)
+		{
+			std::sort(buffer, buffer + size, comp);
+			speciallySorted = true;
+		}
+	if (!speciallySorted)
+		std::sort(buffer, buffer + size);
 
 	PartionedValueCountPairContainerT<V, C> result;
 	result.reserve(size);
@@ -156,16 +166,32 @@ auto GetPartitionedCountsDirect(typename sequence_traits<V>::cseq_t data, const 
 
 	auto currCount = C();
 	++currCount;
-	for (; i != size; ++i)
-	{
-		if (currPartitionValuePart < buffer[i])
+	if constexpr (compare_must_check_undefines_v<V>)
+		if (speciallySorted)
 		{
-			result.emplace_back(currPartitionValuePart, currCount);
-			currPartitionValuePart = buffer[i];
-			currCount = C();
+			for (; i != size; ++i)
+			{
+				if (comp(currPartitionValuePart, buffer[i]))
+				{
+					result.emplace_back(currPartitionValuePart, currCount);
+					currPartitionValuePart = buffer[i];
+					currCount = C();
+				}
+				++currCount;
+			}
+
 		}
-		++currCount;
-	}
+	if (!speciallySorted)
+		for (; i != size; ++i)
+		{
+			if (currPartitionValuePart < buffer[i])
+			{
+				result.emplace_back(currPartitionValuePart, currCount);
+				currPartitionValuePart = buffer[i];
+				currCount = C();
+			}
+			++currCount;
+		}
 	result.emplace_back(currPartitionValuePart, currCount);
 	return result;
 }
@@ -268,15 +294,15 @@ auto GetTileCounts(typename sequence_traits<V>::cseq_t data, SizeT index, SizeT 
 }
 
 template <ordered_value_type V, count_type C>
-auto GetPartitionedTileCounts(typename sequence_traits<V>::cseq_t data, const IndexGetter* indexGetter, SizeT index, SizeT size, SizeT pCount) -> PartionedValueCountPairContainerT<V, C>
+auto GetPartitionedTileCounts(typename sequence_traits<V>::cseq_t data, const IndexGetter* indexGetter, SizeT index, SizeT size, SizeT pCount, bool valueMustBeDefined) -> PartionedValueCountPairContainerT<V, C>
 {
 	if (size <= BUFFER_SIZE)
-		return GetPartitionedCountsDirect<V, C>(data, indexGetter, index, size, pCount);
+		return GetPartitionedCountsDirect<V, C>(data, indexGetter, index, size, pCount, valueMustBeDefined);
 
 	SizeT m = size / 2;
 
-	auto firstHalf  = GetPartitionedTileCounts<V, C>(data, indexGetter, index    ,        m, pCount);
-	auto secondHalf = GetPartitionedTileCounts<V, C>(data, indexGetter, index + m, size - m, pCount);
+	auto firstHalf  = GetPartitionedTileCounts<V, C>(data, indexGetter, index    ,        m, pCount, valueMustBeDefined);
+	auto secondHalf = GetPartitionedTileCounts<V, C>(data, indexGetter, index + m, size - m, pCount, valueMustBeDefined);
 
 	return MergeToLeft(firstHalf, secondHalf);
 }
@@ -415,7 +441,7 @@ auto GetWeededWallCounts(future_tile_array<V>& values_fta, SizeT maxPairCount) -
 }
 
 template <ordered_value_type V, count_type C>
-auto GetPartitionedWallCounts(future_tile_array<V>& values_fta, const AbstrDataItem* indicesItem, abstr_future_tile_array& part_fta, tile_id t, tile_id nrTiles, SizeT pCount) -> PartionedValueCountPairContainerT<V, C>
+auto GetPartitionedWallCounts(future_tile_array<V>& values_fta, const AbstrDataItem* indicesItem, abstr_future_tile_array& part_fta, tile_id t, tile_id nrTiles, SizeT pCount, bool valueMustBeDefined) -> PartionedValueCountPairContainerT<V, C>
 {
 	if (!nrTiles)
 		return {};
@@ -424,19 +450,19 @@ auto GetPartitionedWallCounts(future_tile_array<V>& values_fta, const AbstrDataI
 	{
 		auto tileData = values_fta[t]->GetTile(); values_fta[t] = nullptr;
 		OwningPtr<IndexGetter> indexGetter = IndexGetterCreator::Create(indicesItem, part_fta[t]); part_fta[t] = nullptr;
-		return GetPartitionedTileCounts<V, C>(tileData, indexGetter.get(), 0, tileData.size(), pCount);
+		return GetPartitionedTileCounts<V, C>(tileData, indexGetter.get(), 0, tileData.size(), pCount, valueMustBeDefined);
 	}
 
 	tile_id m = nrTiles / 2;
 	assert(m >= 1);
 
-	auto firstHalf = throttled_async([&values_fta, indicesItem, &part_fta, t, m, pCount]
+	auto firstHalf = throttled_async([&values_fta, indicesItem, &part_fta, t, m, pCount, valueMustBeDefined]
 		{
-			return GetPartitionedWallCounts<V, C>(values_fta, indicesItem, part_fta, t, m, pCount);
+			return GetPartitionedWallCounts<V, C>(values_fta, indicesItem, part_fta, t, m, pCount, valueMustBeDefined);
 		}
 	);
 
-	auto secondHalf = GetPartitionedWallCounts<V, C>(values_fta, indicesItem, part_fta, t + m, nrTiles - m, pCount);
+	auto secondHalf = GetPartitionedWallCounts<V, C>(values_fta, indicesItem, part_fta, t + m, nrTiles - m, pCount, valueMustBeDefined);
 
 	return MergeToLeft(firstHalf.get(), secondHalf);
 }
