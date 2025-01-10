@@ -49,7 +49,7 @@ struct WeakPtrWrap : Ptr
 {
 	using typename Ptr::pointer;
 
-	WeakPtrWrap(pointer ptr = nullptr) noexcept 
+	constexpr WeakPtrWrap(pointer ptr = nullptr) noexcept 
 		: Ptr(ptr)
 	{}
 

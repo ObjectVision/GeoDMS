@@ -158,7 +158,7 @@ inline bool equal<CharPtr>(CharPtr f1, CharPtr l1, CharPtr f2, CharPtr l2)
 RTC_CALL SharedCharArray* SharedCharArray_Create(CharPtr str);
 RTC_CALL SharedCharArray* SharedCharArray_Create(CharPtr begin, CharPtr end);
 RTC_CALL SharedCharArray* SharedCharArray_CreateEmpty();
-inline   SharedCharArray* SharedCharArray_CreateUndefined() { return nullptr; }
+inline constexpr SharedCharArray* SharedCharArray_CreateUndefined() { return nullptr; }
 
 inline bool IsDefined(const SharedCharArray* sca) { return sca != nullptr; }
 
@@ -170,7 +170,7 @@ struct SharedCharArrayPtr : protected WeakPtrWrap<ptr_wrap<SharedCharArray, copy
 	using iterator = array_type::iterator;
 	using const_iterator = array_type::const_iterator;
 
-	SharedCharArrayPtr(pointer p=0) noexcept : WeakPtrWrap(p) {}
+	constexpr SharedCharArrayPtr(pointer p=0) noexcept : WeakPtrWrap(p) {}
 
 	using WeakPtrWrap::has_ptr;
 	const_pointer get_ptr() const { return WeakPtrWrap::get_ptr(); }
@@ -232,7 +232,7 @@ public:
 	template <unsigned int N> explicit SharedStr(const char(&str)[N] )     : base_type(SharedCharArray_Create(str, str+N-1) ){ dms_assert(!str[N-1]); }
 	template <unsigned int N> explicit SharedStr(const char8_t(&str)[N])   : base_type(SharedCharArray_Create(reinterpret_cast<CharPtr>(str), reinterpret_cast<CharPtr>(str) + N - 1)) { dms_assert(!str[N - 1]); }
 	explicit SharedStr(SharedCharArray* arrayPtr): base_type(arrayPtr) {}
-	explicit SharedStr(const Undefined&) : base_type(SharedCharArray_CreateUndefined()) {}
+	constexpr explicit SharedStr(const Undefined&) : base_type(SharedCharArray_CreateUndefined()) {}
 	RTC_CALL explicit SharedStr(MutableCharPtrRange range);
 	RTC_CALL explicit SharedStr(CharPtrRange range);
 	RTC_CALL explicit SharedStr(TokenID id);

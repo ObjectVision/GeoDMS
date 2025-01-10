@@ -117,7 +117,7 @@ struct TokenID
 	RTC_CALL explicit TokenID(CharPtr first, CharPtr last, mt_tag*, existing_tag*);
 //	RTC_CALL explicit TokenID(CharPtr first, CharPtr last, st_tag*, existing_tag*);
 	RTC_CALL explicit TokenID(WeakStr str);
-	         explicit TokenID(Undefined) : m_ID(UNDEFINED_VALUE(TokenT)) {}
+	constexpr explicit TokenID(Undefined) : m_ID(UNDEFINED_VALUE(TokenT)) {}
 //	get id or -1 if not found
 	RTC_CALL static TokenID GetExisting(CharPtr tokenStr);
 	RTC_CALL static TokenID GetExisting(CharPtr first, CharPtr last, mt_tag*);
@@ -173,7 +173,7 @@ private:
 RTC_CALL extern std::atomic<UInt32> gd_TokenCreationBlockCount;
 #endif
 
-inline TokenID UndefinedValue(const TokenID*) { return TokenID(Undefined()); }
+inline constexpr TokenID UndefinedValue(const TokenID*) { return TokenID(Undefined()); }
 
 // ===================== Interface
 

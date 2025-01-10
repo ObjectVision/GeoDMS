@@ -823,7 +823,8 @@ COLORREF DataItemColumn::GetBkColor() const
 bool DataItemColumn::IsEditable(AspectNr a) const 
 {
 	auto tc = GetTableControl().lock(); if (!tc) return false;
-	if (tc->m_GroupByEntity) return false;
+	if (tc->m_GroupByEntity) 
+		return false;
 
 	auto theme = GetEnabledTheme(a);
 	if (!theme)

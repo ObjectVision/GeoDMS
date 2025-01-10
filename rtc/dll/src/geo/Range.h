@@ -88,7 +88,7 @@ bool operator < (const Range<T>& lhs, const Range<T>& rhs)
 //----------------------------------------------------------------------
 
 template <class T>
-inline Range<T> UndefinedValue(const Range<T>*)
+inline constexpr Range<T> UndefinedValue(const Range<T>*)
 {
 	return Range<T>(Undefined());
 }

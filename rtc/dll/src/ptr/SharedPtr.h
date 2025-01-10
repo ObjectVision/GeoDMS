@@ -21,7 +21,7 @@ struct SharedPtrWrap : Ptr
 {
 	using typename Ptr::pointer;
 
-	SharedPtrWrap() noexcept : Ptr() 
+	constexpr SharedPtrWrap() noexcept : Ptr()
 	{
 		assert(!Ptr::m_Ptr);
 	}
@@ -79,11 +79,11 @@ struct SharedPtrWrap : Ptr
 	friend void swap(SharedPtrWrap& a, SharedPtrWrap& b) { a.swap(b); }
 
 protected:
-	SharedPtrWrap(pointer ptr) : Ptr(ptr) { IncCount(); }
+	constexpr SharedPtrWrap(pointer ptr) : Ptr(ptr) { IncCount(); }
 	SharedPtrWrap(pointer ptr, no_zombies) : Ptr(ptr && ptr->DuplRef() ? ptr : nullptr) {}
 
-	void IncCount () const noexcept { if (Ptr::m_Ptr) Ptr::m_Ptr->IncRef(); }
-	void DecCount () const noexcept 
+	constexpr void IncCount () const noexcept { if (Ptr::m_Ptr) Ptr::m_Ptr->IncRef(); }
+	constexpr void DecCount () const noexcept 
 	{ 
 		if (!Ptr::m_Ptr)
 			return;

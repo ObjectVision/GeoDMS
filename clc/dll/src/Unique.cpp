@@ -28,7 +28,7 @@
 template <typename V> const UInt32 BUFFER_SIZE = 4096 / sizeof(V);
 
 template <typename V>
-std::vector<V> GetUniqueValuesDirect(typename DataArray<V>::locked_cseq_t seq, tile_offset index, tile_offset size)
+std::vector<V> GetUniqueValuesDirect(typename DataArray<V>::locked_cseq_t seq, tile_offset index, tile_offset size, bool mustBeDefined)
 {
 	// PRECONDITIONS
 	assert(size <= BUFFER_SIZE<V>);
@@ -36,27 +36,71 @@ std::vector<V> GetUniqueValuesDirect(typename DataArray<V>::locked_cseq_t seq, t
 	assert(index <= seq.size());
 	assert(index + size <= seq.size());
 
-	V buffer[BUFFER_SIZE<V>]; V* bufferCursor = buffer;
+	V buffer[BUFFER_SIZE<V>]; 
+	V* bufferCursor = nullptr;
 	//	fast_copy(seq.begin() + index, seq.begin() + index + size, buffer);
 
 	//	copy only values that are defined and not equal to their predecessor
 	auto i = seq.begin() + index, e = i + size;
 
-redo:
-		if (IsNotUndef(*i))
-			*bufferCursor++ = *i;
-		auto pi = i;
-		while (++i != e)
+	DataCompare<V> cmp;
+
+	if constexpr (compare_must_check_undefines_v<V>)
+	{
+		if (!mustBeDefined)
 		{
-			if (*i != *pi)
-				goto redo;
+
+			if constexpr (equality_must_check_undefines_v<V>)
+			{
+				// order is unimportant here, but NaN == NaN returns false
+				static_assert(!(UNDEFINED_VALUE(V) == UNDEFINED_VALUE(V)));
+
+// areEqual returns true iff a and b are "the same" (i.e., not different)
+//				auto areEqual = [&cmp](auto const& a, auto const& b) {
+//					return a == b || !IsDefined(a) && !IsDefined(b); // a and b are "equal" if NOT (a != b), i.e. NOT (cmp(a,b) || cmp(b,a)).
+//				};
+
+				auto areEqual = [](auto const& a, auto const& b) {  return a == b || !IsDefined(a) && !IsDefined(b); };
+				bufferCursor = std::unique_copy(i, e, buffer, areEqual); 
+			}
+			else
+			{
+				// order is unimportant here, NaN not an issue
+				static_assert(UNDEFINED_VALUE(V) == UNDEFINED_VALUE(V)); // must be defined
+				bufferCursor = std::unique_copy(i, e, buffer); 
+			}
+
+			// use the ordering that handles null well
+			std::sort(buffer, bufferCursor, cmp); 
+			bufferCursor = std::unique(buffer, bufferCursor, cmp);
 		}
-	assert(i == e);
-
-	std::sort(buffer, bufferCursor);
-
-	auto lastValuePtr = std::unique(buffer, bufferCursor);
-	return std::vector<V>( buffer, lastValuePtr );
+		else
+		{
+			bufferCursor = std::copy_if(i, e, buffer, [](const V& x) { return IsNotUndef(x); }); // copy only defined values
+			bufferCursor = std::unique(buffer, bufferCursor); // remove duplicates\
+			// use the simpler ordering as null has been filtered  out.
+			std::sort(buffer, bufferCursor); // sort
+			bufferCursor = std::unique(buffer, bufferCursor);
+		}
+	}
+	else
+	{
+		static_assert(!std::is_floating_point_v<V>); // must be in the first category
+		static_assert(!equality_must_check_undefines_v<V>); // must be in the first category
+		if (!has_undefines_v<V> || !mustBeDefined)
+		{
+			bufferCursor = std::unique_copy(i, e, buffer); // remove adjacent duplicates while copying to buffer
+		}
+		else
+		{
+			bufferCursor = std::copy_if(i, e, buffer, [](const V& x) { return IsNotUndef(x); }); // copy only defined values
+			bufferCursor = std::unique(buffer, bufferCursor); // remove duplicates
+		}
+		// use the simpler ordering as null has been filtered  out or is irrelevant
+		std::sort(buffer, bufferCursor); // sort
+		bufferCursor = std::unique(buffer, bufferCursor);
+	}
+	return std::vector<V>(buffer, bufferCursor);
 }
 
 template <typename Iter, typename Pred>
@@ -84,13 +128,20 @@ auto set_union_by_move(Iter first1, Iter last1, Iter first2, Iter last2, Iter de
 }
 
 template <typename V>
-std::vector<V> MergeToLeft(std::vector<V> left, std::vector<V> right)
+std::vector<V> MergeToLeft(std::vector<V> left, std::vector<V> right, bool mustBeDefined)
 {
 	std::vector<V> result;
 	result.resize(left.size() + right.size());
 
 	if (!result.empty())
 	{
+		if constexpr (compare_must_check_undefines_v<V>)
+			if (!mustBeDefined)
+			{
+				auto actualEnd = set_union_by_move(right.begin(), right.end(), left.begin(), left.end(), result.begin(), DataCompareImpl<V, true>());
+				result.erase(actualEnd, result.end());
+				return result;
+			}
 		auto actualEnd = set_union_by_move(right.begin(), right.end(), left.begin(), left.end(), result.begin(), std::less<void>());
 		result.erase(actualEnd, result.end());
 	}
@@ -100,46 +151,46 @@ std::vector<V> MergeToLeft(std::vector<V> left, std::vector<V> right)
 #include <future>
 
 template <typename V>
-std::vector<V> GetTileUniqueValues(typename DataArray<V>::locked_cseq_t tileData, tile_offset index, tile_offset size)
+std::vector<V> GetTileUniqueValues(typename DataArray<V>::locked_cseq_t tileData, tile_offset index, tile_offset size, bool mustBeDefined)
 {
 	if (size <= BUFFER_SIZE<V>)
-		return GetUniqueValuesDirect<V>(tileData, index, size);
+		return GetUniqueValuesDirect<V>(tileData, index, size, mustBeDefined);
 
 	std::vector<V> result;
 	tile_offset m = size / 2;
 
-	std::future<std::vector<V>> firstHalf = throttled_async([&tileData, index, m]() {
-		return GetTileUniqueValues<V>(tileData, index, m);
+	std::future<std::vector<V>> firstHalf = throttled_async([&tileData, index, m, mustBeDefined]() {
+		return GetTileUniqueValues<V>(tileData, index, m, mustBeDefined);
 		});
 
-	auto secondHalf = GetTileUniqueValues<V>(tileData, index + m, size - m);
-	return MergeToLeft<V>(std::move(firstHalf.get()), std::move(secondHalf));
+	auto secondHalf = GetTileUniqueValues<V>(tileData, index + m, size - m, mustBeDefined);
+	return MergeToLeft<V>(std::move(firstHalf.get()), std::move(secondHalf), mustBeDefined);
 }
 
 template <typename V>
-std::vector<V> GetUniqueWallValues(const DataArray<V>* ado, tile_id t, tile_id nrTiles)
+std::vector<V> GetUniqueWallValues(const DataArray<V>* ado, tile_id t, tile_id nrTiles, bool mustBeDefined)
 {
 	dms_assert(nrTiles >= 1); // PRECONDITION
 	if (nrTiles == 1)
 	{
 		auto tileSize = ado->GetTiledRangeData()->GetTileSize(t);
-		return GetTileUniqueValues<V>(ado->GetTile(t), 0, tileSize);
+		return GetTileUniqueValues<V>(ado->GetTile(t), 0, tileSize, mustBeDefined);
 	}
 
 	tile_id m = nrTiles / 2;
 	dms_assert(m >= 1);
 
-	std::future<std::vector<V>> firstHalf = throttled_async([ado, t, m]() {
-		return GetUniqueWallValues<V>(ado, t, m);
+	std::future<std::vector<V>> firstHalf = throttled_async([ado, t, m, mustBeDefined]() {
+		return GetUniqueWallValues<V>(ado, t, m, mustBeDefined);
 		});
 
-	auto secondHalf = GetUniqueWallValues<V>(ado, t + m, nrTiles - m);
-	return MergeToLeft<V>(firstHalf.get(), std::move(secondHalf));
+	auto secondHalf = GetUniqueWallValues<V>(ado, t + m, nrTiles - m, mustBeDefined);
+	return MergeToLeft<V>(firstHalf.get(), std::move(secondHalf), mustBeDefined);
 }
 
 
 template<fixed_elem V>
-void GetUniqueValues(AbstrUnit* res, AbstrDataItem* resSub, const AbstrDataItem* adi)
+void GetUniqueValues(AbstrUnit* res, AbstrDataItem* resSub, const AbstrDataItem* adi, bool mustBeDefined)
 {
 	dms_assert(adi && adi->GetInterestCount());
 
@@ -150,7 +201,7 @@ void GetUniqueValues(AbstrUnit* res, AbstrDataItem* resSub, const AbstrDataItem*
 	{
 		tile_id tn = ado->GetTiledRangeData()->GetNrTiles();
 		if (tn)
-			values = GetUniqueWallValues<V>(ado, 0, tn);
+			values = GetUniqueWallValues<V>(ado, 0, tn, mustBeDefined);
 	}
 
 	res->SetCount(values.size());
@@ -180,12 +231,12 @@ Iter make_strict_monotonous(Iter first, Iter last, Pred pred)
 }
 
 template<sequence_or_string V>
-void GetUniqueValues(AbstrUnit* res, AbstrDataItem* resSub, const AbstrDataItem* adi)
+void GetUniqueValues(AbstrUnit* res, AbstrDataItem* resSub, const AbstrDataItem* adi, bool mustBeDefined)
 {
 	auto allValues = const_array_cast<V>(adi)->GetDataRead();
 
 	using ConstDataIter = DataArrayBase<V>::const_iterator;
-	visit<typelists::domain_elements>(adi->GetAbstrDomainUnit(), [res, resSub, allValues]<typename E>(const Unit<E>*arg2Domain)
+	visit<typelists::domain_elements>(adi->GetAbstrDomainUnit(), [res, resSub, allValues, mustBeDefined]<typename E>(const Unit<E>*arg2Domain)
 	{
 		using index_type = typename cardinality_type<E>::type;
 		std::vector<index_type> index;
@@ -194,16 +245,27 @@ void GetUniqueValues(AbstrUnit* res, AbstrDataItem* resSub, const AbstrDataItem*
 		index.erase(indexEnd, index.end());
 
 		SizeT nrUndefined = 0;
-		for (auto i : index)
-			if (!IsDefined(allValues[i]))
-				++nrUndefined;
+		if (mustBeDefined)
+		{
+			for (auto i : index)
+				if (!IsDefined(allValues[i]))
+					++nrUndefined;
+		}
 
 		res->SetCount(index.size() - nrUndefined);
 
 		locked_tile_write_channel<V> resWriter(resSub);
-		for (auto i : index)
-			if (IsDefined(allValues[i]))	
+
+		if (mustBeDefined)
+		{
+			for (auto i : index)
+				if (IsDefined(allValues[i]))
+					resWriter.Write(allValues[i]);
+		}
+		else
+			for (auto i : index)
 				resWriter.Write(allValues[i]);
+
 		assert(resWriter.IsEndOfChannel());
 		resWriter.Commit();
 	});
@@ -220,15 +282,22 @@ CommonOperGroup cog_unique32("unique_uint32", oper_policy::dynamic_result_class)
 CommonOperGroup cog_unique16("unique_uint16", oper_policy::dynamic_result_class);
 CommonOperGroup cog_unique08("unique_uint8", oper_policy::dynamic_result_class);
 
+CommonOperGroup cog_uniqueWN("unique_with_null", oper_policy::dynamic_result_class);
+CommonOperGroup cog_unique64WN("unique_uint64_with_null", oper_policy::dynamic_result_class);
+CommonOperGroup cog_unique32WN("unique_uint32_with_null", oper_policy::dynamic_result_class);
+CommonOperGroup cog_unique16WN("unique_uint16_with_null", oper_policy::dynamic_result_class);
+CommonOperGroup cog_unique08WN("unique_uint8_with_null", oper_policy::dynamic_result_class);
+
 static TokenID s_Values = GetTokenID_st("Values");
 
 class AbstrUniqueOperator : public UnaryOperator
 {
 public:
 	// Override Operator
-	AbstrUniqueOperator(ClassCPtr argCls, AbstrOperGroup& og, const UnitClass* resDomainCls)
+	AbstrUniqueOperator(ClassCPtr argCls, AbstrOperGroup& og, const UnitClass* resDomainCls, bool mustBeDefined)
 		: UnaryOperator(&og, AbstrUnit::GetStaticClass(), argCls) 
 		, m_ResDomainClass(resDomainCls)
+		, m_MustBeDefined(mustBeDefined)
 	{}
 
 	bool CreateResult(TreeItemDualRef& resultHolder, const ArgSeqType& args, bool mustCalc) const override
@@ -264,6 +333,7 @@ public:
 	virtual void Calculate(AbstrUnit* res, AbstrDataItem* resSub, const AbstrDataItem* arg1) const =0;
 
 	const UnitClass* m_ResDomainClass = nullptr;
+	bool m_MustBeDefined;
 };
 
 template <typename V>
@@ -275,13 +345,13 @@ class UniqueOperator : public AbstrUniqueOperator
 
 public:
 	// Override Operator
-	UniqueOperator(AbstrOperGroup& og, const UnitClass* resDomainCls)
-		:	AbstrUniqueOperator(ArgType::GetStaticClass(), og, resDomainCls)
+	UniqueOperator(AbstrOperGroup& og, const UnitClass* resDomainCls, bool mustBeDefined)
+		:	AbstrUniqueOperator(ArgType::GetStaticClass(), og, resDomainCls, mustBeDefined)
 	{}
 
 	void Calculate(AbstrUnit* res, AbstrDataItem* resSub, const AbstrDataItem* arg1A) const override
 	{
-		GetUniqueValues<V>(res, resSub, arg1A);
+		GetUniqueValues<V>(res, resSub, arg1A, m_MustBeDefined);
 	}
 };
 
@@ -291,12 +361,20 @@ public:
 
 namespace 
 {
-	tl_oper::inst_tuple_templ<typelists::value_elements, UniqueOperator, AbstrOperGroup&, const UnitClass*>
-		uniqueOperatorsXX(cog_unique, nullptr)
-	, uniqueOperators64(cog_unique64, Unit<UInt64>::GetStaticClass())
-	, uniqueOperators32(cog_unique32, Unit<UInt32>::GetStaticClass())
-	, uniqueOperators16(cog_unique16, Unit<UInt16>::GetStaticClass())
-	, uniqueOperators08(cog_unique08, Unit<UInt8>::GetStaticClass());
+	tl_oper::inst_tuple_templ<typelists::value_elements, UniqueOperator, AbstrOperGroup&, const UnitClass*, bool>
+		uniqueOperatorsXX(cog_unique, nullptr, true)
+		, uniqueOperators64(cog_unique64, Unit<UInt64>::GetStaticClass(), true)
+		, uniqueOperators32(cog_unique32, Unit<UInt32>::GetStaticClass(), true)
+		, uniqueOperators16(cog_unique16, Unit<UInt16>::GetStaticClass(), true)
+		, uniqueOperators08(cog_unique08, Unit<UInt8>::GetStaticClass(), true);
+
+	tl_oper::inst_tuple_templ<typelists::value_elements, UniqueOperator, AbstrOperGroup&, const UnitClass*, bool>
+		uniqueOperatorsWN(cog_uniqueWN, nullptr, false)
+		, uniqueOperators64WN(cog_unique64WN, Unit<UInt64>::GetStaticClass(), false)
+		, uniqueOperators32WN(cog_unique32WN, Unit<UInt32>::GetStaticClass(), false)
+		, uniqueOperators16WN(cog_unique16WN, Unit<UInt16>::GetStaticClass(), false)
+		, uniqueOperators08WN(cog_unique08WN, Unit<UInt8>::GetStaticClass(), false);
+
 } // end anonymous namespace
 
 

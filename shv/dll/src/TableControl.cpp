@@ -1243,12 +1243,15 @@ void TableControl::CreateTableGroupBy(bool activate)
 
 		SharedPtr<AbstrUnit> groupByEntity = resDomainCls->CreateUnit(GetContext(), GetTokenID_mt("GroupBy"));
 		groupByEntity->DisableStorage();
-		groupByEntity->SetExpr(mgFormat2SharedStr("unique(%s)", expr));
+		auto keysMustBeDefined = m_State.Get(TCF_MustBeDefined);
+		auto uniqueExprFormat = keysMustBeDefined ? "unique(%s)" : "unique_with_null(%s)";
+		groupByEntity->SetExpr(mgFormat2SharedStr(uniqueExprFormat, expr));
 		m_GroupByEntity = groupByEntity.get_ptr();
 
 		SharedPtr<AbstrDataItem> groupByRel = CreateDataItem(groupByEntity, GetTokenID_mt("per_Row"), GetEntity(), m_GroupByEntity);
 		groupByRel->DisableStorage();
-		groupByRel->SetExpr(mgFormat2SharedStr("rlookup(%s, values)", expr));
+		auto rlookupExprFormat = keysMustBeDefined ? "rlookup(%s, values)" : "rlookup_with_null(%s, values)";
+		groupByRel->SetExpr(mgFormat2SharedStr(rlookupExprFormat, expr));
 		m_GroupByRel = groupByRel.get_ptr();
 	}
 

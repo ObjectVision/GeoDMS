@@ -97,9 +97,8 @@ auto GetConstSeq(IterRange<Iter>& so) -> sequence_traits<typename value_type_of_
 }
 
 
-
 template <typename Iter>
-IterRange<Iter> UndefinedValue(const IterRange<Iter>*)
+inline constexpr IterRange<Iter> UndefinedValue(const IterRange<Iter>*)
 {
 	return IterRange<Iter>();
 }

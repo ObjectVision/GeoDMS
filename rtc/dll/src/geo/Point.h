@@ -34,7 +34,7 @@ struct Point: Couple<T>
 	constexpr Point(Undefined): Couple<T>(Undefined()) {}
 
 	template <std::convertible_to<T> U>
-	Point(const Point<U>& rhs): Couple<T>(rhs.first, rhs.second) {}
+	constexpr Point(const Point<U>& rhs): Couple<T>(rhs.first, rhs.second) {}
 
 	template <std::convertible_to<T> U>
 	void operator =(const Point<U>& rhs) { first = rhs.first; second = rhs.second; }
@@ -102,7 +102,7 @@ bool operator < (const Point<T>& lhs, const Point<T>& rhs)
 //----------------------------------------------------------------------
 
 template <class T>
-inline Point<T> UndefinedValue(const Point<T>*)
+inline constexpr Point<T> UndefinedValue(const Point<T>*)
 {
   return Point<T>( Undefined() );
 }

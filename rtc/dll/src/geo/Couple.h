@@ -27,17 +27,17 @@ struct Couple
 	typedef typename param_type<T>::type value_cref;
 
 //	Constructors (specified)
-	Couple() : first(), second() {} // value initialization
-	Couple(value_cref a, value_cref b): first(a), second(b) {}
-	Couple(Undefined): first(UNDEFINED_VALUE(T)), second(UNDEFINED_VALUE(T))  {}
+	constexpr Couple() : first(), second() {} // value initialization
+	constexpr Couple(value_cref a, value_cref b): first(a), second(b) {}
+	constexpr Couple(Undefined): first(UNDEFINED_VALUE(T)), second(UNDEFINED_VALUE(T))  {}
 
 //	Other Operations (specified)
-	void operator = (const Couple& rhs)
+	constexpr void operator = (const Couple& rhs)
 	{
 		first  = rhs.first;
 		second = rhs.second;
 	}
-	void swap(Couple& oth)
+	constexpr void swap(Couple& oth)
 	{
 		omni::swap(first,  oth.first );
 		omni::swap(second, oth.second);
@@ -51,7 +51,7 @@ struct Couple
 //----------------------------------------------------------------------
 
 template <typename T>
-bool operator == (const Couple<T>& lhs, const Couple<T>& rhs)
+constexpr bool operator == (const Couple<T>& lhs, const Couple<T>& rhs)
 {
 	return
 		lhs.first  == rhs.first
@@ -59,7 +59,7 @@ bool operator == (const Couple<T>& lhs, const Couple<T>& rhs)
 }
 
 template <typename T>
-bool operator != (const Couple<T>& lhs, const Couple<T>& rhs)
+constexpr bool operator != (const Couple<T>& lhs, const Couple<T>& rhs)
 {
 	return
 		lhs.first  != rhs.first

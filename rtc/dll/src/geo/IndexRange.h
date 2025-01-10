@@ -43,7 +43,7 @@ struct IndexRange : Couple<T>
 //----------------------------------------------------------------------
 
 template <class T>
-inline IndexRange<T> UndefinedValue(const IndexRange<T>*)
+inline constexpr IndexRange<T> UndefinedValue(const IndexRange<T>*)
 {
 	return IndexRange<T>(Undefined());
 }
