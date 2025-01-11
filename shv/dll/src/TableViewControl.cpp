@@ -131,7 +131,7 @@ void TableViewControl::ToggleTableOrientation()
 void TableViewControl::ToggleGroupByNullValues()
 {
 	bool aggrGroupDefinedValues = m_TableControl->m_State.Get(TCF_MustBeDefined);
-	m_TableControl->m_State.Set(TCF_MustBeDefined, aggrGroupDefinedValues);
+	m_TableControl->m_State.Set(TCF_MustBeDefined, !aggrGroupDefinedValues);
 	if (m_TableControl->m_GroupByEntity)
 		m_TableControl->CreateTableGroupBy(true);
 }

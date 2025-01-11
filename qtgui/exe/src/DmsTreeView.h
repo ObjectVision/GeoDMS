@@ -84,6 +84,7 @@ public:
 	void currentChanged(const QModelIndex& current, const QModelIndex& previous) override;
 	auto expandToItem(TreeItem* new_item) -> QModelIndex;
 	void setNewCurrentItem(TreeItem* new_current_item);
+	bool removeItem(const TreeItem* destructing_item);
 	bool expandActiveNode(bool doExpand);
 	bool expandRecursiveFromCurrentItem();
 	QSize sizeHint() const override;

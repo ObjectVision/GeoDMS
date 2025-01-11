@@ -47,59 +47,62 @@ std::vector<V> GetUniqueValuesDirect(typename DataArray<V>::locked_cseq_t seq, t
 
 	if constexpr (compare_must_check_undefines_v<V>)
 	{
-		if (!mustBeDefined)
+		static_assert(has_undefines_v<V>);
+		if constexpr (equality_must_check_undefines_v<V>)
 		{
-
-			if constexpr (equality_must_check_undefines_v<V>)
+			if (!mustBeDefined)
 			{
-				// order is unimportant here, but NaN == NaN returns false
+				// NaN == NaN returns false
 				static_assert(!(UNDEFINED_VALUE(V) == UNDEFINED_VALUE(V)));
 
-// areEqual returns true iff a and b are "the same" (i.e., not different)
-//				auto areEqual = [&cmp](auto const& a, auto const& b) {
-//					return a == b || !IsDefined(a) && !IsDefined(b); // a and b are "equal" if NOT (a != b), i.e. NOT (cmp(a,b) || cmp(b,a)).
-//				};
+				// areEqual returns true iff a and b are "the same" (i.e., not different)
+				//				auto areEqual = [&cmp](auto const& a, auto const& b) {
+				//					return a == b || !IsDefined(a) && !IsDefined(b); // a and b are "equal" if NOT (a != b), i.e. NOT (cmp(a,b) || cmp(b,a)).
+				//				};
 
 				auto areEqual = [](auto const& a, auto const& b) {  return a == b || !IsDefined(a) && !IsDefined(b); };
-				bufferCursor = std::unique_copy(i, e, buffer, areEqual); 
+				bufferCursor = std::unique_copy(i, e, buffer, areEqual);
+				// use the ordering that handles null well
+				std::sort(buffer, bufferCursor, cmp);
+				bufferCursor = std::unique(buffer, bufferCursor, areEqual);
+				goto afterMakingUnique;
 			}
-			else
-			{
-				// order is unimportant here, NaN not an issue
-				static_assert(UNDEFINED_VALUE(V) == UNDEFINED_VALUE(V)); // must be defined
-				bufferCursor = std::unique_copy(i, e, buffer); 
-			}
-
-			// use the ordering that handles null well
-			std::sort(buffer, bufferCursor, cmp); 
-			bufferCursor = std::unique(buffer, bufferCursor, cmp);
 		}
 		else
 		{
-			bufferCursor = std::copy_if(i, e, buffer, [](const V& x) { return IsNotUndef(x); }); // copy only defined values
-			bufferCursor = std::unique(buffer, bufferCursor); // remove duplicates\
-			// use the simpler ordering as null has been filtered  out.
-			std::sort(buffer, bufferCursor); // sort
-			bufferCursor = std::unique(buffer, bufferCursor);
+			// NaN not an issue
+			static_assert(UNDEFINED_VALUE(V) == UNDEFINED_VALUE(V)); // must be defined
+			if (!mustBeDefined)
+			{
+				bufferCursor = std::unique_copy(i, e, buffer); // remove adjacent duplicates while copying to buffer
+				// use the ordering that handles null well
+				std::sort(buffer, bufferCursor, cmp); // sort
+				goto afterSorting;
+			}
 		}
 	}
 	else
 	{
 		static_assert(!std::is_floating_point_v<V>); // must be in the first category
 		static_assert(!equality_must_check_undefines_v<V>); // must be in the first category
-		if (!has_undefines_v<V> || !mustBeDefined)
-		{
-			bufferCursor = std::unique_copy(i, e, buffer); // remove adjacent duplicates while copying to buffer
-		}
-		else
-		{
-			bufferCursor = std::copy_if(i, e, buffer, [](const V& x) { return IsNotUndef(x); }); // copy only defined values
-			bufferCursor = std::unique(buffer, bufferCursor); // remove duplicates
-		}
-		// use the simpler ordering as null has been filtered  out or is irrelevant
-		std::sort(buffer, bufferCursor); // sort
-		bufferCursor = std::unique(buffer, bufferCursor);
 	}
+
+	if (!has_undefines_v<V> || !mustBeDefined)
+	{
+		bufferCursor = std::unique_copy(i, e, buffer); // remove adjacent duplicates while copying to buffer
+	}
+	else
+	{
+		bufferCursor = std::copy_if(i, e, buffer, [](const V& x) { return IsNotUndef(x); }); // copy only defined values
+		bufferCursor = std::unique(buffer, bufferCursor); // remove duplicates
+	}
+	// use the simpler ordering as null has been filtered  out or is irrelevant
+	std::sort(buffer, bufferCursor); // sort
+
+afterSorting:
+	bufferCursor = std::unique(buffer, bufferCursor); // use the normal equality compare operator
+
+afterMakingUnique:
 	return std::vector<V>(buffer, bufferCursor);
 }
 

@@ -463,7 +463,7 @@ const TreeItem* WriteExprOrSourceDescrAndReturnSourceItem(OutStreamBase& stream,
 			stream << "[ ... ]";
 		else
 		{
-			auto flispExprStr = calc->GetAsFLispExprOrg(FormattingFlags::ThousandSeparator);
+			auto flispExprStr = calc->GetAsFLispExprOrg(FormattingFlags::None);
 			s_AnnotateExprFunc(stream, AbstrCalculator::GetSearchContext(ti, CalcRole::Calculator), flispExprStr);
 		}
 	}

@@ -1061,25 +1061,6 @@ struct OldRefDecrementer : SharedPtr<const Actor>
 	using SharedPtr::operator=;
 };
 
-static void TreeItem_RemoveInheritedSubItems(TreeItem* self)
-{
-	dms_assert(IsMetaThread());
-
-	TreeItem* si = self->_GetFirstSubItem();
-	while (si)
-	{
-		auto nsi = si->GetNextItem();
-		if (si->IsInherited())
-		{
-			dms_assert(si->IsAutoDeleteDisabled());
-			dms_assert(si->m_Parent == self);
-			SharedPtr<TreeItem> ssi = si;
-			si->RemoveFromConfig();
-		}
-		si = nsi;
-	}
-}
-
 void TreeItem::SetReferredItem(const TreeItem* refItem) const
 {
 	assert(IsMetaThread() || !refItem);
@@ -1098,9 +1079,6 @@ void TreeItem::SetReferredItem(const TreeItem* refItem) const
 
 	if (refItem && !_CheckResultObjType(refItem))
 		refItem = nullptr;
-
-//	if (mc_RefItem && mc_RefItem->IsCacheRoot() && _GetFirstSubItem()) // when called from destructor, all subitems were already destroyed
-//		TreeItem_RemoveInheritedSubItems(const_cast<TreeItem*>(this)); // only allowed from MainThread()
 
 	// remove the old interest
 	OldRefDecrementer oldRefItemCounter;
@@ -1400,18 +1378,8 @@ void TreeItem::RemoveFromConfig() const
 	auto self = const_cast<TreeItem*>(this);
 	assert(self);
 	assert(IsOwned()); // Disabled Auto Delete results in at least one refCount
-	SharedPtr<TreeItem> holder(self);
-	assert(GetRefCount() > 1);
 	self->EnableAutoDelete();
 	assert(IsOwned()); // holder counts as well
-
-	auto tp = GetTreeParent();
-	if (!tp)
-		return;
-
-	// make this invisible and then exclude from parent to avoid finding them. This should be synchronized with getting new references, but it seems unlikely that this might become a realistic issue
-	NotifyStateChange(this, NC_Deleting);
-	const_cast<TreeItem*>(GetTreeParent().get())->RemoveItem(self);
 }
 
 void TreeItem::AddUsingUrls(CharPtr urlsBegin, CharPtr urlsEnd)
@@ -1831,10 +1799,10 @@ TreeItem* CheckedAs(TreeItem* self, const Class* requiredClass)
 
 TreeItem* CreateAndInitItem(TreeItem* self, TokenID id, const Class* requiredClass)
 {
-	dms_assert(requiredClass);
+	assert(requiredClass);
 
 	OwningPtr<TreeItem> newSubItem = debug_cast<TreeItem*>(requiredClass->CreateObj());
-	dms_assert(newSubItem);
+	assert(newSubItem);
 
 	newSubItem->InitTreeItem(self, id);
 
@@ -1853,7 +1821,12 @@ TreeItem* TreeItem::CreateItem(TokenID id, const Class* requiredClass)
 		// find foundSubItem according to firstSubItemName
 		TreeItem* foundSubItem = GetSubTreeItemByID(id);
 		if (foundSubItem)
+		{
+			// inherit some TreeItem State Flags and reset AutoDeleteDisabled
+			if (IsAutoDeleteDisabled() && !IsCacheItem())
+				foundSubItem->DisableAutoDelete();
 			return CheckedAs(foundSubItem, requiredClass);
+		}
 	}
 
 	// create something

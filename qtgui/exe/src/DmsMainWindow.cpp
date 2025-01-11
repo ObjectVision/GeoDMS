@@ -312,7 +312,8 @@ void MainWindow::updateTreeItemVisitHistory() const {
     m_treeitem_visit_history->setCurrentIndex(m_treeitem_visit_history->count()-1);
 }
 
-void MainWindow::setCurrentTreeItem(TreeItem* target_item, bool update_history) {
+void MainWindow::setCurrentTreeItem(TreeItem* target_item, bool update_history) 
+{
     if (m_current_item == target_item)
         return;
 
@@ -353,6 +354,15 @@ void MainWindow::setCurrentTreeItem(TreeItem* target_item, bool update_history) 
     m_treeview->scrollTo(m_treeview->currentIndex(), QAbstractItemView::ScrollHint::EnsureVisible);
     emit currentItemChanged();
     reportF(MsgCategory::commands, SeverityTypeID::ST_MinorTrace, "ActivateItem %s", m_current_item->GetFullName());
+}
+
+void MainWindow::removeTreeItem(const TreeItem* destructing_item)
+{
+    assert(destructing_item);
+
+    m_treeview->removeItem(destructing_item);
+    if (m_current_item == destructing_item)
+		setCurrentTreeItem(const_cast<TreeItem*>(destructing_item->GetTreeParent().get()));
 }
 
 #include <QFileDialog>
@@ -1392,7 +1402,10 @@ void AnyTreeItemStateHasChanged(ClientHandle /*clientHandle*/, const TreeItem* s
     if (!mainWindow)
         return;
     switch (notificationCode) {
-    case NC_Deleting: break; // TODO: remove self from any representation to avoid accessing it's dangling pointer
+    case NC_Deleting: 
+        // TODO: remove self from any representation to avoid accessing it's dangling pointer
+        mainWindow->removeTreeItem(self);
+        break; 
     case NC_Creating: break;
     case CC_CreateMdiChild: {
         assert(IsMainThread());

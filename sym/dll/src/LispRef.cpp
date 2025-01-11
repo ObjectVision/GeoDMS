@@ -812,7 +812,7 @@ void ListObj::PrintAsFLisp(FormattedOutStream& out, UInt32 level) const
 		++level;
 		if (level > LispRef::MAX_PRINT_LEVEL)
 		{
-			out << "[...]";
+			out << "...";
 			return;
 		}
 	}

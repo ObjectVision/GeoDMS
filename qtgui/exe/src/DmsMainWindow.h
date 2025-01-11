@@ -150,7 +150,8 @@ public:
     auto getRootTreeItem() -> TreeItem* { return m_root; }
     auto getCurrentTreeItem() -> TreeItem* { return m_current_item; }
     auto getCurrentTreeItemOrRoot() -> TreeItem* { return m_current_item ? m_current_item : m_root; }
-    void setCurrentTreeItem(TreeItem* new_current_item, bool update_history=true);
+    void setCurrentTreeItem(TreeItem* target_item, bool update_history=true);
+    void removeTreeItem(const TreeItem* destructing_item);
     void LoadConfig(CharPtr configFilePath, CharPtr currentItemPath = "");
     bool LoadConfigImpl(CharPtr configFilePath);
     void updateToolbar();

@@ -665,7 +665,8 @@ void DmsTreeView::showTreeviewContextMenu(const QPoint& pos) {
 	MainWindow::TheOne()->updateToolsMenu();
 }
 
-void DmsTreeView::setNewCurrentItem(TreeItem* target_item) {
+void DmsTreeView::setNewCurrentItem(TreeItem* target_item) 
+{
 	assert(target_item != nullptr);
 	auto current_node_index = currentIndex();
 	auto root_node_index = rootIndex();
@@ -706,6 +707,36 @@ void DmsTreeView::setNewCurrentItem(TreeItem* target_item) {
 		catchException(false);
 	}
 	
+}
+
+bool DmsTreeView::removeItem(const TreeItem* destructing_item)
+{
+	auto current_node_index = currentIndex();
+	auto root_node_index = rootIndex();
+	auto root_ti = GetTreeItem(root_node_index);
+	if (root_ti == destructing_item)
+		return false;
+
+	auto parent_index = root_node_index;
+
+search_at_parent_index:
+	auto child_count = model()->rowCount(parent_index);
+	for (int i = 0; i < child_count; i++) {
+		auto child_index = model()->index(i, 0, parent_index);
+		auto childItem = GetTreeItem(child_index);
+		if (childItem == destructing_item) {
+			setCurrentIndex(parent_index);
+			collapse(parent_index);
+			return true;
+		}
+
+		if (isAncestor(childItem, destructing_item)) {
+			parent_index = child_index;
+			goto search_at_parent_index; // break with current child_count and continue this quest with the new parent_index  
+		}
+	}
+	// maybe descendant was hidden
+	return false;
 }
 
 void DmsTreeView::onDoubleClick(const QModelIndex& index) {
