@@ -18,13 +18,18 @@
 namespace
 {
 
-	CommonOperGroup cog_rlookup("rlookup", oper_policy::dynamic_result_class);
+	CommonOperGroup cog_rlookup  ("rlookup", oper_policy::dynamic_result_class);
+	CommonOperGroup cog_rlookupWN("rlookup_with_null", oper_policy::dynamic_result_class);
 
 	template <class V>
-	struct RLookupOperator : public SearchIndexOperatorImpl<V, rlookup_dispatcher>
+	struct RLookupOperators
 	{
-		RLookupOperator()
-			: SearchIndexOperatorImpl<V, rlookup_dispatcher>(&cog_rlookup)
+		SearchIndexOperatorImpl<V, rlookup_dispatcher> rlookup;
+		SearchIndexOperatorImpl<V, rlookup_dispatcher> rlookupWN;
+
+		RLookupOperators()
+			: rlookup(&cog_rlookup)
+			, rlookupWN(&cog_rlookupWN)
 		{}
 	};
 
@@ -32,7 +37,7 @@ namespace
 	//                               INSTANTIATION
 	// *****************************************************************************
 
-	tl_oper::inst_tuple_templ<typelists::value_elements, RLookupOperator> rlookupInstances;
+	tl_oper::inst_tuple_templ<typelists::value_elements, RLookupOperators> rlookupInstances;
 
 } // end anonymous namespace
 
