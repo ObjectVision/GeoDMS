@@ -65,7 +65,7 @@ std::any CreateSpatialIndex(const AbstrOperGroup* og, const AbstrDataItem* arg1A
 	// test that arg1Data has only unique values
 	{
 		std::vector<PointType> sortedArg1Data(destBegin, destEnd);
-		std::sort(sortedArg1Data.begin(), sortedArg1Data.end(), DataCompare<PointType>());
+		std::sort(sortedArg1Data.begin(), sortedArg1Data.end(), DataLessThanCompare<PointType>());
 		if (std::adjacent_find(sortedArg1Data.begin(), sortedArg1Data.end()) != sortedArg1Data.end() )
 			og->throwOperError("Multiple destinations with the same location found");
 	}

@@ -424,8 +424,8 @@ struct MakeListFunc
 UInt32 s_LispComponentCount = 0;
 
 struct LispCaches {
-	Cache<MakeNumbFunc, DataCompare<Number_t> > NumbObjCache;
-	//	Cache<MakeUI64Func, DataCompareImpl<UInt64, false> > UI64ObjCache;
+	Cache<MakeNumbFunc, DataLessThanCompare<Number_t> > NumbObjCache;
+	//	Cache<MakeUI64Func, DataLessThanCompareImpl<UInt64, false> > UI64ObjCache;
 	Cache<MakeUI64Func, std::less<UInt64> > UI64ObjCache;
 	Cache<MakeSymbFunc> SymbObjCache;
 	Cache<MakeStrnFunc, std::less<StrnType>, const StrnType&, StrnObj* , DuplStrnData> StrnObjCache;

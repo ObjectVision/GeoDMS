@@ -73,20 +73,39 @@ struct IndexPCompareOper
 	typedef typename std::iterator_traits<CI2>::value_type value_type;
 	const IndexGetter* m_IndexData;
 	CI2                m_Data2Begin;
-	DataCompare<value_type> m_DataComp;
+	DataLessThanCompare<value_type> m_DataComp;
 };
 
 template <typename InIt, typename vIt, typename V>
 InIt indexed_lowerbound(InIt first, InIt last, vIt beginData, const V& value)
 {
 	SizeT n = last - first;
-	DataCompare<V> comp;
+	assert(IsBitValueOrDefined(value));
+//	DataLessThanCompare<V> comp;
+	while (n)
+	{
+		SizeT n2 = n / 2;
+		InIt m = first + n2;
+		assert(IsBitValueOrDefined(beginData[*m]));
+		if (beginData[*m] < value)
+			first = ++m, n -= (n2+1);
+		else
+			n = n2;
+	}
+	return first;
+}
+
+template <typename InIt, typename vIt, typename V>
+InIt indexed_lowerbound_with_null(InIt first, InIt last, vIt beginData, const V& value)
+{
+	SizeT n = last - first;
+	DataLessThanCompare<V> comp;
 	while (n)
 	{
 		SizeT n2 = n / 2;
 		InIt m = first + n2;
 		if (comp(beginData[*m], value))
-			first = ++m, n -= (n2+1);
+			first = ++m, n -= (n2 + 1);
 		else
 			n = n2;
 	}
@@ -97,7 +116,7 @@ template <typename InIt, typename vIt, typename V>
 InIt indexed_upperbound(InIt first, InIt last, vIt beginData, const V& value)
 {
 	SizeT n = last - first;
-	DataCompare<V> comp;
+	DataLessThanCompare<V> comp;
 	while (n)
 	{
 		SizeT n2 = n / 2;

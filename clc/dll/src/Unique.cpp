@@ -43,7 +43,7 @@ std::vector<V> GetUniqueValuesDirect(typename DataArray<V>::locked_cseq_t seq, t
 	//	copy only values that are defined and not equal to their predecessor
 	auto i = seq.begin() + index, e = i + size;
 
-	DataCompare<V> cmp;
+	DataLessThanCompare<V> cmp;
 
 	if constexpr (compare_must_check_undefines_v<V>)
 	{
@@ -65,7 +65,7 @@ std::vector<V> GetUniqueValuesDirect(typename DataArray<V>::locked_cseq_t seq, t
 				// use the ordering that handles null well
 				std::sort(buffer, bufferCursor, cmp);
 				bufferCursor = std::unique(buffer, bufferCursor, areEqual);
-				goto afterMakingUnique;
+				return std::vector<V>(buffer, bufferCursor);
 			}
 		}
 		else
@@ -76,8 +76,9 @@ std::vector<V> GetUniqueValuesDirect(typename DataArray<V>::locked_cseq_t seq, t
 			{
 				bufferCursor = std::unique_copy(i, e, buffer); // remove adjacent duplicates while copying to buffer
 				// use the ordering that handles null well
-				std::sort(buffer, bufferCursor, cmp); // sort
-				goto afterSorting;
+				std::sort(buffer, bufferCursor, cmp); // sort with nulll on top
+				bufferCursor = std::unique(buffer, bufferCursor); // use the normal equality compare operator
+				return std::vector<V>(buffer, bufferCursor);
 			}
 		}
 	}
@@ -98,11 +99,7 @@ std::vector<V> GetUniqueValuesDirect(typename DataArray<V>::locked_cseq_t seq, t
 	}
 	// use the simpler ordering as null has been filtered  out or is irrelevant
 	std::sort(buffer, bufferCursor); // sort
-
-afterSorting:
 	bufferCursor = std::unique(buffer, bufferCursor); // use the normal equality compare operator
-
-afterMakingUnique:
 	return std::vector<V>(buffer, bufferCursor);
 }
 
@@ -141,7 +138,7 @@ std::vector<V> MergeToLeft(std::vector<V> left, std::vector<V> right, bool mustB
 		if constexpr (compare_must_check_undefines_v<V>)
 			if (!mustBeDefined)
 			{
-				auto actualEnd = set_union_by_move(right.begin(), right.end(), left.begin(), left.end(), result.begin(), DataCompareImpl<V, true>());
+				auto actualEnd = set_union_by_move(right.begin(), right.end(), left.begin(), left.end(), result.begin(), DataLessThanCompareImpl<V, true>());
 				result.erase(actualEnd, result.end());
 				return result;
 			}

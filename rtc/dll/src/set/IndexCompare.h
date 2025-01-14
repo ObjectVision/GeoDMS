@@ -33,7 +33,7 @@ struct IndexCompareOper
 
 	value_array_begin_type  m_DataBegin;
 
-	DataCompare<value_type> m_DataComp = {};
+	DataLessThanCompare<value_type> m_DataComp = {};
 };
 
 

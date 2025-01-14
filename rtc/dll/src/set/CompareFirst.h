@@ -26,7 +26,7 @@ struct CompareFirst
 	}
 };
 
-template <typename Key, typename KeyValuePair, typename Comp = DataCompare<Key> >
+template <typename Key, typename KeyValuePair, typename Comp = DataLessThanCompare<Key> >
 struct comp_first
 {
 	typedef Comp         key_compare;

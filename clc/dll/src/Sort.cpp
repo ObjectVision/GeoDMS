@@ -63,7 +63,7 @@ public:
 			dms_assert(resData.size() == unsortedData.size());
 			fast_copy(unsortedData.begin(), unsortedData.end(), resData.begin());
 
-			std::sort(resData.begin(), resData.end(), DataCompare<V>());
+			std::sort(resData.begin(), resData.end(), DataLessThanCompare<V>());
 
 			resLock.Commit();
 		}

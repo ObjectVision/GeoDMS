@@ -91,7 +91,7 @@ auto check_order(ForwardIter curr, ForwardIter last, OrderFunc orderFunc)
 	return { true, last };
 }
 
-template <class Key, class Data, class Compare = DataCompare<Key> >
+template <class Key, class Data, class Compare = DataLessThanCompare<Key> >
 class vector_map
 {
   public:

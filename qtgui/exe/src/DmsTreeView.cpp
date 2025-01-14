@@ -711,7 +711,6 @@ void DmsTreeView::setNewCurrentItem(TreeItem* target_item)
 
 bool DmsTreeView::removeItem(const TreeItem* destructing_item)
 {
-	auto current_node_index = currentIndex();
 	auto root_node_index = rootIndex();
 	auto root_ti = GetTreeItem(root_node_index);
 	if (root_ti == destructing_item)
@@ -725,8 +724,8 @@ search_at_parent_index:
 		auto child_index = model()->index(i, 0, parent_index);
 		auto childItem = GetTreeItem(child_index);
 		if (childItem == destructing_item) {
-			setCurrentIndex(parent_index);
-			collapse(parent_index);
+			model()->removeRow(i, parent_index);
+//			collapse(parent_index);
 			return true;
 		}
 
@@ -735,7 +734,7 @@ search_at_parent_index:
 			goto search_at_parent_index; // break with current child_count and continue this quest with the new parent_index  
 		}
 	}
-	// maybe descendant was hidden
+	// maybe destructing_item was hidden
 	return false;
 }
 
