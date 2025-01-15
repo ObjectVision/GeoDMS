@@ -347,7 +347,7 @@ void GraphicObject::UpdateView() const
 	dbg_assert(!SuspendTrigger::DidSuspend());
 	GetLastChangeTS();
 
-	if (IsUpdated() || WasFailed(FR_Data))
+	if (IsUpdated()) // || WasFailed(FR_Data))
 		return;
 
 	auto dv = GetDataView().lock();

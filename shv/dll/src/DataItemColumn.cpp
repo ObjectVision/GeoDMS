@@ -393,6 +393,7 @@ void DataItemColumn::UpdateTheme()
 	SetTheme(newTheme.get(), GetContext());
 	attr->UpdateMetaInfo();
 	tc->m_cmdOnCaptionChange();
+	InvalidateView();
 	InvalidateDraw();
 }
 
@@ -586,7 +587,7 @@ void DataItemColumn::DoUpdateView()
 	size.FlippableY(isColOriented) += rowSepHeight;
 
 	SetClientSize(size);
-
+//	tc->ProcessCollectionChange();
 	assert(!SuspendTrigger::DidSuspend());
 }
 

@@ -1218,8 +1218,13 @@ void TableControl::CreateTableGroupBy(bool activate)
 
 	auto oldGroupByEntity = std::move(m_GroupByEntity); m_GroupByEntity = nullptr;
 	auto oldGroupByRel    = std::move(m_GroupByRel);    m_GroupByRel= nullptr;
+//	if (auto valuesItem = const_cast<AbstrUnit*>(oldGroupByEntity.get_ptr())->GetSubTreeItemByID(GetTokenID_mt("Values")))
+//		valueqsItem->RemoveFromConfig();
 	if (oldGroupByEntity) oldGroupByEntity->RemoveFromConfig();
 	if (oldGroupByRel) oldGroupByRel->RemoveFromConfig();
+	oldGroupByEntity = nullptr;
+	oldGroupByRel    = nullptr;
+
 
 	if (activate) {
 		auto dic = GetColumn(m_Cols.m_Begin);
@@ -1246,6 +1251,7 @@ void TableControl::CreateTableGroupBy(bool activate)
 		auto keysMustBeDefined = m_State.Get(TCF_MustBeDefined);
 		auto uniqueExprFormat = keysMustBeDefined ? "unique(%s)" : "unique_with_null(%s)";
 		groupByEntity->SetExpr(mgFormat2SharedStr(uniqueExprFormat, expr));
+
 		m_GroupByEntity = groupByEntity.get_ptr();
 
 		SharedPtr<AbstrDataItem> groupByRel = CreateDataItem(groupByEntity, GetTokenID_mt("per_Row"), GetEntity(), m_GroupByEntity);
