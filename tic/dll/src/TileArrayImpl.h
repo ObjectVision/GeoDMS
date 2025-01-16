@@ -280,7 +280,7 @@ SizeT MinimalNrMemPages(const AbstrTileRangeData* trd)
 {
 	assert(trd);
 	using seq_t = typename sequence_traits<V>::polymorph_vec_t::seq_t;
-	return trd->GetNrMemPages(mpf::log2_v<sizeof seq_t>);
+	return trd->GetNrMemPages(mpf::log2_v<sizeof(seq_t)>);
 }
 
 SizeT NrAllocTableMemPages(const AbstrTileRangeData* trd)

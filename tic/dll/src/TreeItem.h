@@ -343,7 +343,7 @@ public:
 	void AddPropAssoc(AbstrPropDef* propDef) const;
 	void SubPropAssoc(AbstrPropDef* propDef) const;
 
-	TIC_CALL void SetDC(const DataController* keyExpr, const TreeItem* newRefItem = nullptr) const;
+	TIC_CALL void SetDC(DataControllerRef newDC, const TreeItem* newRefItem = nullptr) const;
 	TIC_CALL void SetCalculator(AbstrCalculatorRef pr) const; // also called by DataController
 	TIC_CALL SharedTreeItemInterestPtr GetInterestPtrOrNull() const;
 	TIC_CALL SharedTreeItemInterestPtr GetInterestPtrOrCancel() const;

@@ -1170,7 +1170,7 @@ void ViewPort::InvalidateWorldRect(CrdRect rect, TRect borderExtents) const
 	InvalidateClientRect(devRect);
 }
 
-bool CreatePointParam(SharedRwDataItemInterestPtr& param, ViewPort* vp, TokenID nameID)
+bool CreatePointParam(SharedMutableDataItemInterestPtr& param, ViewPort* vp, TokenID nameID)
 {
 	if (param || !vp->GetContext())
 		return false;
@@ -1181,7 +1181,7 @@ bool CreatePointParam(SharedRwDataItemInterestPtr& param, ViewPort* vp, TokenID 
 	return true;
 }
 
-AbstrDataItem* GetPointParam(SharedRwDataItemInterestPtr& param, ViewPort* vp, TokenID nameID)
+AbstrDataItem* GetPointParam(SharedMutableDataItemInterestPtr& param, ViewPort* vp, TokenID nameID)
 {
 	if (!param && vp->GetContext())
 		param = AsDynamicDataItem( vp->GetContext()->GetSubTreeItemByID(nameID) );
@@ -1253,7 +1253,7 @@ void ViewPort::SetROI(const CrdRect& r)
 }
 
 
-void SetRoiParam(TreeItem* context, SharedRwDataItemInterestPtr& param, TokenID id, const AbstrUnit* worldCrdUnit)
+void SetRoiParam(TreeItem* context, SharedMutableDataItemInterestPtr& param, TokenID id, const AbstrUnit* worldCrdUnit)
 {
 	dms_assert(context);
 	if (!param)

@@ -321,8 +321,6 @@ TIC_CALL void DMS_CONV DMS_ReleaseStateChangeNotification (TStateChangeNotificat
 
 TIC_CALL void DMS_CONV DMS_TreeItem_RegisterStateChangeNotification(TStateChangeNotificationFunc fcb, const TreeItem*, ClientHandle clientHandle);
 TIC_CALL void DMS_CONV DMS_TreeItem_ReleaseStateChangeNotification (TStateChangeNotificationFunc fcb, const TreeItem*, ClientHandle clientHandle);
-TIC_CALL void DMS_CONV DMS_TreeItem_IncInterestCount(const TreeItem* self);
-TIC_CALL void DMS_CONV DMS_TreeItem_DecInterestCount(const TreeItem* self);
 
 TIC_CALL void DMS_CONV DMS_Tic_Load();
 

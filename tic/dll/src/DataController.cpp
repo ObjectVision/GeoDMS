@@ -77,7 +77,7 @@ void TreeItemDualRef::Set(const TreeItem* ti, bool isNew)
 		if (GetInterestCount() && m_Data)
 			DecDataInterestCount();
 
-		m_Data = ti;
+		m_Data = nullptr;
 
 		if (isNew)
 			const_cast<TreeItem*>(ti)->SetIsCacheItem();
@@ -85,9 +85,18 @@ void TreeItemDualRef::Set(const TreeItem* ti, bool isNew)
 			m_State.Set(DCF_IsOld);
 
 
+		m_Data = ti;
 		if (GetInterestCount())
-			IncDataInterestCount();
-
+		{
+			try {
+				IncDataInterestCount();
+			}
+			catch (...)
+			{
+				m_Data = nullptr;
+				throw;
+			}
+		}
 		dms_assert(!m_State.Get(DCF_CacheRootKnown));
 	}
 	dms_assert(!ti || GetOld() == ti);
@@ -147,8 +156,10 @@ bool TreeItemDualRef::DoFail(ErrMsgPtr msg, FailType ft) const
 	return true;
 }
 
+
 void TreeItemDualRef::IncDataInterestCount() const
 {
+	assert(IsMetaThread());
 	dbg_assert(!m_State.Get(DCFD_DataCounted));
 	m_Data->IncInterestCount();
 	MG_DEBUGCODE( m_State.Set(DCFD_DataCounted));

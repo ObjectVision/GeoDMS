@@ -131,60 +131,6 @@ TIC_CALL void DMS_CONV DMS_TreeItem_Release(TreeItem* self)
 // C style Interface functions for InterestCounting
 //----------------------------------------------------------------------
 
-void DMS_CONV TreeItem_IncInterestCountImpl(const TreeItem* self)
-{
-	DMS_CALL_BEGIN
-
-		SuspendTrigger::Resume();
-
-		TreeItemContextHandle checkPtr(self, nullptr, "TreeItem_IncInterestCount");
-
-		SilentInterestRetainContext irc("TreeItem_IncInterestCount");
-
-		self->IncInterestCount(); // can throw
-
-#if defined(MG_DEBUG)
-		dms_assert(interestCountAdm);
-		interestCountAdm->insert(self); // if this throws we have a leaked Interest, but this is only in the debug build.
-#endif // defined(MG_DEBUG)
-
-		self->IncRef(); // doesn't throw
-
-	DMS_CALL_END
-}
-
-
-TIC_CALL void DMS_CONV DMS_TreeItem_IncInterestCount(const TreeItem* self)
-{
-	DMS_SE_CALL_BEGIN
-
-		MG_CHECK2(self, "invalid null pointer in DMS_TreeItem_IncInterestCount");
-		TreeItem_IncInterestCountImpl(self);
-
-	DMS_SE_CALL_END
-}
-
-TIC_CALL void DMS_CONV DMS_TreeItem_DecInterestCount(const TreeItem* self)
-{
-	DMS_CALL_BEGIN
-
-		SuspendTrigger::Resume();
-
-		TreeItemContextHandle checkPtr(self, 0, "DMS_TreeItem_DecInterestCount");
-
-#if defined(MG_DEBUG)
-		dms_assert(interestCountAdm);
-		TreeItemMultiSetType::iterator p = interestCountAdm->find(self);
-		dms_assert(p != interestCountAdm->end());
-		interestCountAdm->erase(p);
-#endif // defined(MG_DEBUG)
-
-		self->DecInterestCount();
-		self->Release();
-
-	DMS_CALL_END
-}
-
 TIC_CALL UInt32 DMS_CONV DMS_TreeItem_GetInterestCount(const TreeItem* self)
 {
 	DMS_CALL_BEGIN

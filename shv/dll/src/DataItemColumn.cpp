@@ -391,7 +391,7 @@ void DataItemColumn::UpdateTheme()
 	auto newTheme = std::make_shared<Theme>(m_ActiveTheme, GetSrcAttr(), nullptr, nullptr);
 	//		newTheme->SetThemeAttr(adi);
 	SetTheme(newTheme.get(), GetContext());
-	attr->UpdateMetaInfo();
+//	attr->UpdateMetaInfo();
 	tc->m_cmdOnCaptionChange();
 	InvalidateView();
 	InvalidateDraw();

@@ -53,8 +53,6 @@ leveled_critical_section scs_ExplainAccess(item_level_type(0), ord_level_type::M
 //  struct CalcExplanation
 //  -----------------------------------------------------------------------
 
-typedef InterestPtr<const TreeItem*> TreeItemInterestPtr;
-
 struct Explain::CalcExplImpl;
 
 namespace Explain { // local defs
@@ -395,7 +393,7 @@ namespace Explain { // local defs
 	using QueueEntry        = std::pair<const AbstrUnit*, SizeT>;
 	using ExplArrayEntry    = OwningPtr<AbstrCalcExplanation>;
 	using ExplArray         = std::vector<ExplArrayEntry>;
-	using ItemInterestArray = std::vector<TreeItemInterestPtr>;
+	using ItemInterestArray = std::vector<SharedTreeItemInterestPtr>;
 	using CalcInterestArray = std::vector<CalcInterestPtr>;
 
 	struct CalcExplImpl

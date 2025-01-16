@@ -1408,8 +1408,7 @@ extern "C" {
 		DMS_CALL_END
 	}
 
-	TIC_CALL void DMS_CONV DMS_GeometricUnit_GetRangeAsIPoint(const AbstrUnit* self,
-		Int32* rowBegin, Int32* colBegin, Int32* rowEnd, Int32* colEnd)
+	TIC_CALL void DMS_CONV DMS_GeometricUnit_GetRangeAsIPoint(const AbstrUnit* self, Int32* rowBegin, Int32* colBegin, Int32* rowEnd, Int32* colEnd)
 	{
 		DMS_CALL_BEGIN
 

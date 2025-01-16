@@ -340,7 +340,14 @@ void TreeItem::EnableAutoDeleteImpl() // does not call UpdateMetaInfo
 	DBG_TRACE(("Item: %s", GetFullName().c_str()));      //  DEBUG Access violation
 
 	dms_assert(IsAutoDeleteDisabled());
-
+	mc_Calculator.reset();
+	mc_IntegrityChecker.reset();
+/*
+	mc_RefItem.reset();
+	mc_OrgItem.reset();
+	m_Location.reset();
+	m_SupplCache.reset();
+*/
 	if (!IsCacheItem())
 		DisableStorage();
 
@@ -352,6 +359,8 @@ void TreeItem::EnableAutoDeleteImpl() // does not call UpdateMetaInfo
 
 		subItem = subItem->GetNextItem(); // this line may cause the destruction of the old subItem
 	}
+
+//	m_UsingCache.reset();
 
 	SetTSF(TSF_IsAutoDeleteDisabled, false); // call inherited
 	Release();
@@ -389,9 +398,6 @@ void TreeItem::EnableAutoDelete() // does not call UpdateMetaInfo
 		return;
 
 	bool isConfigRoot = !(IsCacheItem() || IsEndogenous() || GetTreeParent());
-
-	mc_Calculator.reset();
-	mc_IntegrityChecker.reset();
 
 	if (isConfigRoot) // we have a configRoot: close all handles to it
 		EnableAutoDeleteRootImpl();
@@ -681,7 +687,7 @@ void TreeItem::SetExpr(WeakStr expr)
 	}
 }
 
-void TreeItem::SetDC(const DataController* newDC, const TreeItem* newRefItem) const
+void TreeItem::SetDC(DataControllerRef newDC, const TreeItem* newRefItem) const
 {
 	dms_assert(!InTemplate() || !newDC && !newRefItem);
 
@@ -703,7 +709,7 @@ void TreeItem::SetDC(const DataController* newDC, const TreeItem* newRefItem) co
 	SharedTreeItemInterestPtr oldRefItem;
 
 	// TODO G8: re-evaluate for thread and exception safety: set up private and commit in nothrow critical section or lock-free OK.
-	TreeItemInterestPtr interestCopy = GetInterestPtrOrNull();
+	auto interestCopy = GetInterestPtrOrNull();
 
 	if (interestCopy)
 	{
@@ -2848,8 +2854,8 @@ ActorVisitState TreeItem::VisitSuppliers(SupplierVisitFlag svf, const ActorVisit
 
 	if (Test(svf, SupplierVisitFlag::ExplicitSuppliers) && HasSupplCache())
 	{
-		UInt32 n = GetSupplCache()->GetNrConfigured(this); // only ConfigSuppliers, Implied suppliers come after this, Calculator & StorageManager have added them
-		for  (UInt32 i = 0; i < n; ++i)
+		auto n = GetSupplCache()->GetNrConfigured(this); // only ConfigSuppliers, Implied suppliers come after this, Calculator & StorageManager have added them
+		for  (decltype(n) i = 0; i < n; ++i)
 		{
 			const Actor* supplier = GetSupplCache()->begin(this)[i];
 			assert(!SuspendTrigger::DidSuspend()); // precondition

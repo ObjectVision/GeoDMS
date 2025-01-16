@@ -49,7 +49,6 @@ struct SelValuesData;
 struct WmsLayer;
 
 enum ToolButtonID;
-using SharedRwDataItemInterestPtr = InterestPtr<SharedPtr<AbstrDataItem> >;
 
 //----------------------------------------------------------------------
 // class  : ViewPoint
@@ -186,8 +185,8 @@ private:
 	void InvalidateOverlapped();
 
 	SharedPtr<const AbstrUnit> m_WorldCrdUnit;
-	mutable SharedRwDataItemInterestPtr   m_ROI_TL;   // AOI in world coordinates (TopLeft)
-	mutable SharedRwDataItemInterestPtr   m_ROI_BR;   // AOI in world coordinates (BottomRight)
+	mutable SharedMutableDataItemInterestPtr   m_ROI_TL;   // AOI in world coordinates (TopLeft)
+	mutable SharedMutableDataItemInterestPtr   m_ROI_BR;   // AOI in world coordinates (BottomRight)
 	OrientationType            m_Orientation;
 	CrdRect                    m_ROI;
 	CrdTransformation          m_w2vTr;

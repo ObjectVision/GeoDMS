@@ -1219,12 +1219,22 @@ void TableControl::CreateTableGroupBy(bool activate)
 	auto oldGroupByEntity = std::move(m_GroupByEntity); m_GroupByEntity = nullptr;
 	auto oldGroupByRel    = std::move(m_GroupByRel);    m_GroupByRel= nullptr;
 //	if (auto valuesItem = const_cast<AbstrUnit*>(oldGroupByEntity.get_ptr())->GetSubTreeItemByID(GetTokenID_mt("Values")))
-//		valueqsItem->RemoveFromConfig();
+//		valuesItem->RemoveFromConfig();
 	if (oldGroupByEntity) oldGroupByEntity->RemoveFromConfig();
 	if (oldGroupByRel) oldGroupByRel->RemoveFromConfig();
 	oldGroupByEntity = nullptr;
 	oldGroupByRel    = nullptr;
 
+	// release all refs to m_GroupByRel
+	for (SizeT i = 0; i != NrEntries(); ++i)
+	{
+		auto dic = GetColumn(i);
+		try {
+			dic->UpdateTheme();
+//			dic->InvalidateView();
+		}
+		catch (...) {}
+	}
 
 	if (activate) {
 		auto dic = GetColumn(m_Cols.m_Begin);
@@ -1259,20 +1269,19 @@ void TableControl::CreateTableGroupBy(bool activate)
 		auto rlookupExprFormat = keysMustBeDefined ? "rlookup(%s, values)" : "rlookup_with_null(%s, values)";
 		groupByRel->SetExpr(mgFormat2SharedStr(rlookupExprFormat, expr));
 		m_GroupByRel = groupByRel.get_ptr();
-	}
 
-	for (SizeT i = 0; i != NrEntries(); ++i)
-	{
-		auto dic = GetColumn(i);
-		try {	
-			if (dic->m_State.Get(GOF_IgnoreActivation))
-				dic->m_AggrMethod = AggrMethod::count;
-			dic->UpdateTheme();
-			dic->InvalidateView();
+		for (SizeT i = 0; i != NrEntries(); ++i)
+		{
+			auto dic = GetColumn(i);
+			try {
+				if (dic->m_State.Get(GOF_IgnoreActivation))
+					dic->m_AggrMethod = AggrMethod::count;
+				dic->UpdateTheme();
+				dic->InvalidateView();
+			}
+			catch (...) {}
 		}
-		catch (...) {}
 	}
-
 	SyncGroupBy(SM_Save);
 	UpdateTableIndex();
 	InvalidateDraw();

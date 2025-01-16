@@ -93,7 +93,7 @@ protected:
 	friend struct data_swapper;
 	friend struct InterestReporter;
 
-	mutable SharedPtr<const TreeItem> m_Data; // sometimes const, new or tmp;
+	mutable SharedTreeItem m_Data; // sometimes const, new or tmp;
 };
 
 // *****************************************************************************

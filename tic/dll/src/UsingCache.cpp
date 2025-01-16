@@ -74,7 +74,7 @@ static SizeT g_Count = 0;
 #endif
 
 UsingCache::UsingCache(const TreeItem* context)
-:	m_Context(context), m_CacheState(CS_DIRTY)
+:	m_Context(context)
 #if defined(MG_DEBUG_DATA)
 ,	md_SeqNr(++g_Count)
 #endif
@@ -324,7 +324,7 @@ std::atomic<UInt32> sd_UpdateCacheTmpLockCount = 0;
 
 void UsingCache::UpdateCache() const
 {
-	dms_assert(m_CacheState != CS_BUSY);
+	assert(m_CacheState != CacheStateType::BUSY);
 
 	if (!IsDirty())
 		return;
@@ -337,8 +337,8 @@ void UsingCache::UpdateCache() const
 	// in order to find all items, m_Usings, etc.
 	m_Context->UpdateMetaInfo();
 
-	m_CacheState = CS_READY;
-	tmp_swapper<CacheStateType> lockCacheStateAsBusy(m_CacheState, CS_BUSY); 
+	m_CacheState = CacheStateType::READY;
+	tmp_swapper<CacheStateType> lockCacheStateAsBusy(m_CacheState, CacheStateType::BUSY);
 
 	UpdateUsings();
 	UInt32 nrUsings = m_Usings.size();
@@ -383,7 +383,7 @@ void UsingCache::UpdateCache() const
 
 	// sorted and no doubles in m_SortedItemCache?
 	MG_DEBUGCODE( dms_assert(TestOrder(tmpNameSpace.begin(), tmpNameSpace.end())); )
-	dms_assert(m_CacheState == CS_BUSY);
+	dms_assert(m_CacheState == CacheStateType::BUSY);
 	dms_assert(m_SortedItemCache.size() == 0);
 
 	m_SortedItemCache.insert(m_SortedItemCache.begin(), tmpNameSpace.begin(), tmpNameSpace.end());
@@ -413,7 +413,7 @@ const TreeItem* UsingCache::FindNamespace(TokenID url) const
 
 const TreeItem* UsingCache::FindItem(TokenID itemID) const
 {
-	if (m_CacheState == CS_BUSY)
+	if (m_CacheState == CacheStateType::BUSY)
 	{
 		// Get it the old way, look in m_Context, and then in all m_usings in reverse order
 		dms_assert(m_Context);
@@ -475,10 +475,10 @@ void UsingCache::OnItemAdded(const TreeItem* child)
 
 void UsingCache::SetDirty()
 {
-	if (m_CacheState == CS_DIRTY)
+	if (m_CacheState == CacheStateType::DIRTY)
 		return;
 
-	dms_assert(m_CacheState != CS_BUSY); 
+	assert(m_CacheState != CacheStateType::BUSY);
 	vector_clear(m_SortedItemCache);
 
 	auto
@@ -487,5 +487,5 @@ void UsingCache::SetDirty()
 	while (i!=e)
 		(*i++)->SetDirty();
 
-	m_CacheState = CS_DIRTY;
+	m_CacheState = CacheStateType::DIRTY;
 }
