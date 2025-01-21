@@ -20,6 +20,7 @@
 #include "act/TriggerOperator.h"
 #include "act/UpdateMark.h"
 #include "act/UpdateMark.h"
+#include "act/Waiter.h"
 #include "dbg/debug.h"
 #include "dbg/DmsCatch.h"
 #include "mci/SingleLinkedTree.inc"
@@ -2481,6 +2482,9 @@ void TreeItem::UpdateMetaInfoImpl2() const
 		DetermineState();
 		if ((m_State.GetProgress()>=PS_MetaInfo) || WasFailed(FR_MetaInfo)) // reset by DetermineState when supplier was invalidated
 			return;
+
+		auto context = ObjectContextHandle( this, "UpdateMetaIno" );
+		auto waiter = Waiter( &context );
 
 		MG_SIGNAL_ON_UPDATEMETAINFO
 

@@ -117,7 +117,6 @@
     <ClCompile Include="src\ThemeValueGetter.cpp" />
     <ClCompile Include="src\ViewControl.cpp" />
     <ClCompile Include="src\ViewPort.cpp" />
-    <ClCompile Include="src\Waiter.cpp" />
     <ClCompile Include="src\WmsLayer.cpp" />
     <ClCompile Include="src\Wrapper.cpp" />
   </ItemGroup>
@@ -199,7 +198,6 @@
     <ClInclude Include="src\ThemeValueGetter.h" />
     <ClInclude Include="src\ViewControl.h" />
     <ClInclude Include="src\ViewPort.h" />
-    <ClInclude Include="src\waiter.h" />
     <ClInclude Include="src\WmsLayer.h" />
     <ClInclude Include="src\Wrapper.h" />
     <ClInclude Include="res\resource.h" />

@@ -1,4 +1,4 @@
-// Copyright (C) 1998-2023 Object Vision b.v. 
+// Copyright (C) 1998-2025 Object Vision b.v. 
 // License: GNU GPL 3
 /////////////////////////////////////////////////////////////////////////////
 
@@ -34,7 +34,7 @@
 #include "LayerInfo.h"
 #include "MovableObject.h"
 #include "TextEditController.h"
-#include "Waiter.h"
+#include "act/Waiter.h"
 
 #include "ShvUtils.h"
 

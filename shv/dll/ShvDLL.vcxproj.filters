@@ -204,9 +204,6 @@
     <ClCompile Include="src\ResourceIndexCache.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="src\Waiter.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="res\resource.h">
@@ -447,9 +444,6 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="src\ResourceIndexCache.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="src\waiter.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

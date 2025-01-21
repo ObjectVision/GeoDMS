@@ -1,16 +1,16 @@
-// Copyright (C) 1998-2023 Object Vision b.v. 
+// Copyright (C) 1998-2025 Object Vision b.v. 
 // License: GNU GPL 3
 /////////////////////////////////////////////////////////////////////////////
 
-// stdafx.h : include file for standard system include files,
-//  or project specific include files that are used frequently, but
-//      are changed infrequently
-//
-
 #include "ShvDllPch.h"
+
+#if defined(CC_PRAGMAHDRSTOP)
+#pragma hdrstop
+#endif //defined(CC_PRAGMAHDRSTOP)
 
 #include "LayerInfo.h"
 
+#include "act/Waiter.h"
 #include "dbg/DmsCatch.h"
 #include "mci/ValueClass.h"
 #include "mci/ValueWrap.h"
@@ -34,7 +34,6 @@
 #include "GridLayer.h"
 #include "FeatureLayer.h"
 #include "LayerClass.h"
-#include "Waiter.h"
 
 //----------------------------------------------------------------------
 // section : LayerInfo

@@ -1,11 +1,14 @@
-// Copyright (C) 1998-2023 Object Vision b.v. 
+// Copyright (C) 1998-2025 Object Vision b.v. 
 // License: GNU GPL 3
 /////////////////////////////////////////////////////////////////////////////
 
-#include "ShvDllPch.h"
-#include "ShvUtils.h"
+#include "RtcPCH.h"
 
-#include "Waiter.h"
+#if defined(CC_PRAGMAHDRSTOP)
+#pragma hdrstop
+#endif //defined(CC_PRAGMAHDRSTOP)
+
+#include "act/Waiter.h"
 
 #include <set>
 #include <tuple>
@@ -18,6 +21,22 @@ using callback_record = std::tuple< wating_event_callback, wating_event_callback
 static std::atomic<UInt32> s_WaiterCount = 0;
 static std::set<callback_record> s_WaitingCallbacks;
 
+
+//----------------------------------------------------------------------
+// config section
+//----------------------------------------------------------------------
+
+static bool g_BusyMode;
+
+bool IsBusy()
+{
+	return g_BusyMode;
+}
+
+void SetBusy(bool v)
+{
+	g_BusyMode = v;
+}
 
 void Waiter::start(AbstrMsgGenerator* ach)
 {
