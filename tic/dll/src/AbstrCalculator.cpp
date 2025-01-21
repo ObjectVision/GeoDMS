@@ -485,11 +485,13 @@ SharedStr AbstrCalculator::GetAsFLispExprOrg(FormattingFlags ff) const
 	return AsFLispSharedStr(GetLispExprOrg(), ff);
 }
 
+/*REMOVE
 SharedStr AbstrCalculator::GetAsFLispExpr(FormattingFlags ff) const
 {
 	auto metaInfo = GetMetaInfo();
 	return AsFLispSharedStr(GetAsLispRef(metaInfo), ff);
 }
+*/
 
 UInt32 CountIndirections(CharPtr expr)
 {
@@ -993,7 +995,17 @@ OArgRefs ApplyMetaFunc_GetArgs(TreeItem* holder, const AbstrCalculator* ac, cons
 		else
 		{
 			assert(mustCalcArg);
-			FutureData dc = GetOrCreateDataController(std::get<1>(ac->SubstituteExpr(substBuff, cursor.Left()))); // what about non-substitited stuff?
+			auto substResult = ac->SubstituteExpr(substBuff, cursor.Left());
+			if (substResult.index() == 0)
+				throwDmsErrF("in ApplyMetaFunc_GetArgs the sub expression '%s' is a MetaFunc('%s') and cannot be substituted"
+					, AsString(cursor.Left())
+					, AsString(std::get<0>(substResult).GetAsLispRef())
+				);
+			if (substResult.index() == 2)
+				throwDmsErrF("in ApplyMetaFunc_GetArgs the sub expression %s is a SourceItem reference that cannot be substituted", AsString(cursor.Left()));
+			MG_CHECK(substResult.index() == 1);
+
+			FutureData dc = GetOrCreateDataController(std::get<1>(substResult)); // what about non-substitited stuff?
 			dms_assert(dc);
 			FutureData fd = dc->CalcResultWithValuesUnits();
 			dms_assert(!fd || fd->GetInterestCount());

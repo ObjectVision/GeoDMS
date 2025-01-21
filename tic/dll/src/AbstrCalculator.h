@@ -135,7 +135,7 @@ public:
 
 	TIC_CALL virtual bool IsSourceRef() const;
 
-	TIC_CALL SharedStr GetAsFLispExpr(FormattingFlags ff)    const;
+// REMOVE	TIC_CALL SharedStr GetAsFLispExpr(FormattingFlags ff)    const;
 	TIC_CALL SharedStr GetAsFLispExprOrg(FormattingFlags ff) const;
 
 	virtual bool        IsDataBlock() const { return false; }
