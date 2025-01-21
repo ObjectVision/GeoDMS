@@ -1005,22 +1005,11 @@ const AbstrDataItem* GetSystemPalette(const AbstrUnit* paletteDomain, AspectNr a
 
 MG_DEBUGCODE( static bool gd_AdminModeKnown = false; )
 static bool g_AdminMode;
-static bool g_BusyMode;
 
 bool HasAdminMode()
 {
 	dbg_assert(gd_AdminModeKnown);
 	return g_AdminMode;
-}
-
-bool IsBusy()
-{
-	return g_BusyMode;
-}
-
-SHV_CALL void SetBusy(bool v)
-{
-	g_BusyMode = v;
 }
 
 SHV_CALL void SHV_SetAdminMode(bool v)

@@ -432,7 +432,7 @@ TIC_CALL CharPtr DMS_CONV DMS_TreeItem_GetName(const Object* self)
 {
 	DMS_CALL_BEGIN
 
-		ObjectContextHandle checkPtr(self, 0, "DMS_TreeItem_GetName");
+		ObjectContextHandle checkPtr(self, nullptr, "DMS_TreeItem_GetName");
 		return self->GetName().c_str();
 
 	DMS_CALL_END

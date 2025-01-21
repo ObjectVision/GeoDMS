@@ -60,6 +60,7 @@
     <ClInclude Include="src\act\MainThread.h" />
     <ClInclude Include="src\act\SupplierVisitFlag.h" />
     <ClInclude Include="src\act\SupplInterest.h" />
+    <ClInclude Include="src\act\waiter.h" />
     <ClInclude Include="src\ASync.h" />
     <ClInclude Include="src\cs_lock_map.h" />
     <ClInclude Include="src\dbg\Check.h" />
@@ -331,6 +332,7 @@
   <ItemGroup>
     <ClCompile Include="src\act\ActorEnums.cpp" />
     <ClCompile Include="src\act\MainThread.cpp" />
+    <ClCompile Include="src\act\Waiter.cpp" />
     <ClCompile Include="src\dbg\DebugContext.cpp" />
     <ClCompile Include="src\dbg\DebugReporter.cpp" />
     <ClCompile Include="src\dbg\DebugStream.cpp" />

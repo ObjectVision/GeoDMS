@@ -1445,7 +1445,7 @@ void AnyTreeItemStateHasChanged(ClientHandle /*clientHandle*/, const TreeItem* s
         s_CurrMainWindow->m_detail_pages->onTreeItemStateChange();
 }
 
-#include "waiter.h"
+#include "act/Waiter.h"
 
 void OnStartWaiting(ClientHandle /*clientHandle*/, AbstrMsgGenerator* ach) {
     assert(IsMainThread());

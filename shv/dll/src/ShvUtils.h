@@ -292,8 +292,6 @@ SharedDataItemInterestPtr CreateEqualIntervalBreakAttr(std::weak_ptr<DataView>, 
 //----------------------------------------------------------------------
 
 bool HasAdminMode();
-bool IsBusy();
-SHV_CALL void SetBusy(bool);
 
 //----------------------------------------------------------------------
 // DataContainer section

@@ -1,8 +1,11 @@
-// Copyright (C) 1998-2023 Object Vision b.v. 
+// Copyright (C) 1998-2025 Object Vision b.v. 
 // License: GNU GPL 3
 /////////////////////////////////////////////////////////////////////////////
 
+#if defined(_MSC_VER)
 #pragma once
+#endif
+
 
 #if !defined(DMS_QT_UPDATABLE_BROWSER_H)
 #define DMS_QT_UPDATABLE_BROWSER_H
@@ -21,8 +24,9 @@
 #include "qtextdocument.h"
 
 #include "DmsMainWindow.h"
+
 #include "dbg/DebugContext.h"
-#include "waiter.h"
+#include "act/waiter.h"
 
 class FindTextWindow : public QWidget
 {
