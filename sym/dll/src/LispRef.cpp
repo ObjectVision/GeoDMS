@@ -894,8 +894,8 @@ SharedStr AsFLispSharedStr(LispPtr lispRef, FormattingFlags ff)
 	dbg_assert(cap == vector.capacity());
 
 	ExternalVectorOutStreamBuff vecBuf(vector);
-	FormattedOutStream outStr(&vecBuf, ff);
-	lispRef.PrintAsFLisp(outStr, ff == FormattingFlags::ThousandSeparator ? 0 : UNDEFINED_VALUE(UInt32));
+	FormattedOutStream outStr(&vecBuf, StreamFlags(ff));
+	lispRef.PrintAsFLisp(outStr, HasNoLimitInLispExpr(ff) ? UNDEFINED_VALUE(UInt32) : 0);
 	outStr << char('\0');
 	return SharedStr(begin_ptr(vector), end_ptr(vector)-1);
 }

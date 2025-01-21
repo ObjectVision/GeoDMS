@@ -393,10 +393,12 @@ void NewLine(OutStreamBase& out)
 	XML_OutElement br(out, "BR", "", ClosePolicy::nonPairedElement);
 }
 
+/* REMOVE
 void WriteLispRefExpr(OutStreamBase& stream, LispPtr lispExpr)
 {
 	stream << AsFLispSharedStr(lispExpr, FormattingFlags::ThousandSeparator).c_str();
 }
+*/
 
 TIC_CALL void(*s_AnnotateExprFunc)(OutStreamBase& outStream, const TreeItem* searchContext, SharedStr expr);
 
@@ -557,6 +559,7 @@ void WriteExprOrSourceDescrRow(XML_Table& xmlTable, const TreeItem* ti)
 	}
 }
 
+/* REMOVE
 void GetLispRefRow(XML_Table& xmlTable, LispPtr lispExpr, CharPtr title)
 {
 	if (lispExpr.EndP())
@@ -566,6 +569,7 @@ void GetLispRefRow(XML_Table& xmlTable, LispPtr lispExpr, CharPtr title)
 		XML_Table::Row::Cell xmlElemTD(exprRow);
 			WriteLispRefExpr(xmlTable.OutStream(), lispExpr);
 }
+*/
 
 const TreeItem* GetTemplRoot(const TreeItem* self)
 {

@@ -485,11 +485,13 @@ SharedStr AbstrCalculator::GetAsFLispExprOrg(FormattingFlags ff) const
 	return AsFLispSharedStr(GetLispExprOrg(), ff);
 }
 
+/*REMOVE
 SharedStr AbstrCalculator::GetAsFLispExpr(FormattingFlags ff) const
 {
 	auto metaInfo = GetMetaInfo();
 	return AsFLispSharedStr(GetAsLispRef(metaInfo), ff);
 }
+*/
 
 UInt32 CountIndirections(CharPtr expr)
 {

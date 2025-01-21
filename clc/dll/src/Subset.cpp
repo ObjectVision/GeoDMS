@@ -225,7 +225,7 @@ struct SelectMetaOperator : public BinaryOperator
 
 		auto containerExpr = metaCallArgs.Left();
 		auto conditionExpr = metaCallArgs.Right().Left();
-		auto conditionExprStr = AsFLispSharedStr(conditionExpr, FormattingFlags::None);
+		auto conditionExprStr = AsFLispSharedStr(conditionExpr, FormattingFlags::NoLimitInLispExpr);
 		auto conditionCalc = AbstrCalculator::ConstructFromLispRef(resultHolder.GetOld(), conditionExpr, CalcRole::Other);
 		MG_CHECK(conditionCalc);
 		auto conditionDC = GetDC(conditionCalc);
@@ -431,7 +431,7 @@ struct CollectWithAttrOperator : public BinaryOperator
 
 		auto containerExpr = metaCallArgs.Left();
 		auto subsetDomainExpr = metaCallArgs.Right().Left();
-		auto subsetDomainExprStr = AsFLispSharedStr(subsetDomainExpr, FormattingFlags::None);
+		auto subsetDomainExprStr = AsFLispSharedStr(subsetDomainExpr, FormattingFlags::NoLimitInLispExpr);
 
 		MG_USERCHECK2(metaCallArgs.Right().Right().IsRealList(), m_CollectMode == collect_mode::org_rel
 			? "collect_with_attr_by_org_rel: org_rel data-item expected as 3rd argument"
@@ -443,7 +443,7 @@ struct CollectWithAttrOperator : public BinaryOperator
 		if (metaCallArgs.Right().Right().IsRealList())
 		{
 			auto condOrOrgRelExpr = metaCallArgs.Right().Right().Left();
-			condOrOrgRelExprStr = AsFLispSharedStr(condOrOrgRelExpr, FormattingFlags::None);
+			condOrOrgRelExprStr = AsFLispSharedStr(condOrOrgRelExpr, FormattingFlags::NoLimitInLispExpr);
 
 			auto condOrOrgRelCalc = AbstrCalculator::ConstructFromLispRef(resultHolder.GetOld(), condOrOrgRelExpr, CalcRole::Other);
 			condOrOrgRelDC = GetDC(condOrOrgRelCalc);
