@@ -2458,7 +2458,8 @@ void TreeItem::UpdateMetaInfoImpl2() const
 	{
 		throwItemError(
 			"Invalid recursion in UpdateMetaInfo detected.\n"
-			"Check calculation rule and other referring properties of this item and/or its SubItems"
+			"Check calculation rule and other referring properties of this item and/or its Suppliers\n"
+			"Suggestion: check context for ApplyMetaFunc calls that may scan a range of sub-items"
 		);
 	}
 //	dms_assert(IsPassor() || !SuspendTrigger::DidSuspend());
