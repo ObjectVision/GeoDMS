@@ -267,7 +267,7 @@ private:
     void updateStatusMessage();
 
     void begin_timing(AbstrMsgGenerator* ach); friend void OnStartWaiting(ClientHandle clientHandle, AbstrMsgGenerator* ach);
-    void end_timing(AbstrMsgGenerator* ach);   friend void OnEndWaiting  (ClientHandle clientHandle, AbstrMsgGenerator* ach);
+    void end_timing(SharedStr descr);   friend void HandleEndWaiting(SharedStr descr);
 
 
     static void OnViewAction(const TreeItem* tiContext, CharPtr sAction, Int32 nCode, Int32 x, Int32 y, bool doAddHistory, bool isUrl, bool mustOpenDetailsPage);

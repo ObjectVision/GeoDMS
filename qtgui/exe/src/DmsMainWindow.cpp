@@ -1126,7 +1126,7 @@ SharedStr passed_time_str(CharPtr preFix, time_t passedTime) {
 
 RTC_CALL auto GetMemoryStatus() -> SharedStr;
 
-void MainWindow::end_timing(AbstrMsgGenerator* ach) {
+void MainWindow::end_timing(SharedStr descr) {
     if (!s_IsTiming)
         return;
 
@@ -1143,8 +1143,8 @@ void MainWindow::end_timing(AbstrMsgGenerator* ach) {
         return;
 
     auto msgStr = GetMemoryStatus();
-    if (ach)
-        msgStr = SharedStr(ach->GetDescription()) + " " + msgStr;
+    if (!descr.empty())
+        msgStr = descr + " " + msgStr;
     std::get<SharedStr>(current_processing_record) = msgStr;
 
     auto comparator = [](std::time_t passedTime, const processing_record& rhs) { return passedTime <= passed_time(rhs);  };
@@ -1447,19 +1447,35 @@ void AnyTreeItemStateHasChanged(ClientHandle /*clientHandle*/, const TreeItem* s
 
 #include "act/Waiter.h"
 
+static bool endWaitingPending = false;
+
 void OnStartWaiting(ClientHandle /*clientHandle*/, AbstrMsgGenerator* ach) {
     assert(IsMainThread());
+    if (endWaitingPending)
+        return;
+
     QGuiApplication::setOverrideCursor(QCursor(Qt::WaitCursor));
     auto mw = MainWindow::TheOne();
     if (mw)
         mw->begin_timing(ach);
 }
 
-void OnEndWaiting(ClientHandle /*clientHandle*/, AbstrMsgGenerator* ach) {
+void HandleEndWaiting(SharedStr descr) 
+{
+    assert(IsMainThread());
+
     QGuiApplication::restoreOverrideCursor();
     auto mw = MainWindow::TheOne();
     if (mw)
-        mw->end_timing(ach);
+        mw->end_timing(std::move(descr));
+    endWaitingPending = false;
+}
+
+void OnEndWaiting(ClientHandle /*clientHandle*/, AbstrMsgGenerator* ach) {
+   
+    if (endWaitingPending)
+        return;
+    QTimer::singleShot(0, [descr = SharedStr(ach->GetDescription())]() { HandleEndWaiting(std::move(descr)); });
 }
 
 void MainWindow::setupDmsCallbacks() {
