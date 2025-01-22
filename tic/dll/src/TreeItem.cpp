@@ -2484,8 +2484,6 @@ void TreeItem::UpdateMetaInfoImpl2() const
 		if ((m_State.GetProgress()>=PS_MetaInfo) || WasFailed(FR_MetaInfo)) // reset by DetermineState when supplier was invalidated
 			return;
 
-		auto context = ObjectContextHandle( this, "UpdateMetaIno" );
-		auto waiter = Waiter( &context );
 
 		MG_SIGNAL_ON_UPDATEMETAINFO
 
@@ -2493,6 +2491,7 @@ void TreeItem::UpdateMetaInfoImpl2() const
 		DBG_TRACE(("fullname = %s", GetFullName().c_str()));
 
 		TreeItemContextHandle tdc(this, "UpdateMetaInfo");
+		auto waiter = Waiter(&tdc);
 
 		assert(m_LastChangeTS || IsPassor()); // PRECONDITION for SetProgress, guaranteed by IsDeterminingState() || IsPassor() || DetermineState()
 
