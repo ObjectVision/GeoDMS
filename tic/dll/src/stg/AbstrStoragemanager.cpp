@@ -577,13 +577,23 @@ AbstrStorageManager::Construct(const TreeItem* holder, SharedStr relStorageName,
 
 static TokenID s_mdbToken = GetTokenID_st("mdb");
 static TokenID s_odbcToken = GetTokenID_st("odbc");
+static TokenID s_shpToken = GetTokenID_st("shp");
+static TokenID s_tifToken = GetTokenID_st("tif");
+static TokenID s_gdalVectToken = GetTokenID_st("gdal.vect");
+static TokenID s_gdalGridToken = GetTokenID_st("gdal.grid");
 
 AbstrStorageManagerRef AbstrStorageManager::Construct(CharPtr storageName, TokenID typeID, bool readOnly, bool throwOnFailure)
 {
 	CDebugContextHandle dc("AbstractStorageManager::Construct", storageName, false);
 
 	if (!typeID)
+	{
 		typeID = GetTokenID_mt(getFileNameExtension(storageName));
+		if (typeID == s_shpToken)
+			typeID = s_gdalVectToken;
+		else if (typeID == s_tifToken)
+			typeID = s_gdalGridToken;
+	}
 	if (!typeID)
 	{
 		if (!throwOnFailure)
