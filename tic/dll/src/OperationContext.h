@@ -17,7 +17,6 @@
 bool WaitForCompletedTaskOrTimeout(std::chrono::milliseconds waitFor = std::chrono::milliseconds(300));
 
 using dms_task = concurrency::task<void>;
-using OperContextGroupNumber = UInt32;
 inline bool is_empty(const dms_task& x) { return x == dms_task();  }
 
 template<typename Func>
@@ -131,7 +130,7 @@ private:
 	dms_task m_Task;
 
 public:
-	OperContextGroupNumber m_OperContextGroupNumber;
+	fence_number m_FenceNumber;
 	std::vector<ItemReadLock> SetReadLocks(const FutureSuppliers& allInterests);
 	bool SetReadLock(std::vector<ItemReadLock>& locks, const TreeItem* si);
 
@@ -150,11 +149,12 @@ public:
 	WeakPtr<const AbstrOperGroup> m_OperGroup;
 	WeakPtr<const Operator>       m_Oper;
 public:
-	std::any                      m_MetaInfo;
 
 	SupplierSet m_Suppliers;
 	WaiterSet   m_Waiters;
 };
+
+TIC_CALL auto GetNextFenceNumber() -> fence_number;
 
 // TODO G8.1: Verwijderen uit OperationContext.cpp
 bool OperationContext_CreateResult(OperationContext* oc, const FuncDC* funcDC); 

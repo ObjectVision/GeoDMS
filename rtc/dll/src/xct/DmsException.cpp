@@ -293,7 +293,7 @@ RTC_CALL void reportD_without_cancellation_check(MsgCategory msgCat, SeverityTyp
 
 RTC_CALL void reportD(MsgCategory msgCat, SeverityTypeID st, CharPtr msg)
 {
-	DMS_ASyncContinueCheck();
+	ASyncContinueCheck();
 
 	reportD_without_cancellation_check_impl(msgCat, st, [=] {*g_DebugStream << msg;  });
 }
@@ -301,14 +301,14 @@ RTC_CALL void reportD(MsgCategory msgCat, SeverityTypeID st, CharPtr msg)
 
 RTC_CALL void reportD_impl(MsgCategory msgCat, SeverityTypeID st, CharPtrRange&& msg)
 {
-	DMS_ASyncContinueCheck();
+	ASyncContinueCheck();
 
 	reportD_without_cancellation_check_impl(msgCat, st, [=] { *g_DebugStream << msg; });
 }
 
 RTC_CALL void reportD(MsgCategory msgCat, SeverityTypeID st, CharPtr msg1, CharPtr msg2)
 {
-	DMS_ASyncContinueCheck();
+	ASyncContinueCheck();
 
 	reportD_without_cancellation_check_impl(msgCat, st, [=] { *g_DebugStream << msg1 << msg2; });
 }

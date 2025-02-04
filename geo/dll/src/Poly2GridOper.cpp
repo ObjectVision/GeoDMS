@@ -749,6 +749,8 @@ struct Poly2AllGridsOperator : public BinaryOperator
 				auto poly2allgridsFunctor = [&dispatcherTileData, &resultingWall, &resultingPointCount](tile_id tp)
 				{
 					resultingWall[tp] = dispatcherTileData.GetTileResults<int>(tp);
+					ASyncContinueCheck();
+
 					SizeT pointCount = 0;
 					for (const auto& resultingRLE_area : resultingWall[tp])
 						for (const auto& resultingRLE : resultingRLE_area)

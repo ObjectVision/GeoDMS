@@ -15,6 +15,7 @@
 
 #include "utl/Encodes.h"
 #include "utl/mySPrintF.h"
+#include "utl/scoped_exit.h"
 #include "utl/splitPath.h"
 
 #include "DataView.h"
@@ -896,6 +897,10 @@ bool MainWindow::CloseConfig() {
         m_treeview->reset();
 
         m_dms_model->setRoot(nullptr);
+
+        auto oldASyncCancelFunc = SetASyncContinueCheck([] { throw task_canceled{};  });
+        auto _ = make_scoped_exit([oldASyncCancelFunc] {SetASyncContinueCheck(oldASyncCancelFunc);  });
+
         m_root->EnableAutoDelete(); // calls SessionData::ReleaseIt(m_root)
         m_root = nullptr;
         m_current_item.reset();

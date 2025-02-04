@@ -57,12 +57,13 @@ namespace { // local defs
 } // end anonymous namespace
 
 
-RTC_CALL void DMS_CONV DMS_SetASyncContinueCheck(TASyncContinueCheck asyncContinueCheckFunc)
+RTC_CALL auto SetASyncContinueCheck(TASyncContinueCheck asyncContinueCheckFunc) -> TASyncContinueCheck
 {
-	s_asyncContinueCheckFunc = asyncContinueCheckFunc;
+	std::swap(s_asyncContinueCheckFunc, asyncContinueCheckFunc);
+	return asyncContinueCheckFunc;
 }
 
-RTC_CALL void DMS_CONV DMS_ASyncContinueCheck()
+RTC_CALL void ASyncContinueCheck()
 {
 	if (s_asyncContinueCheckFunc)
 		s_asyncContinueCheckFunc();

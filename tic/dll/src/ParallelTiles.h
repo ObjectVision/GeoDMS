@@ -57,6 +57,7 @@ auto CreateTaskWithContext(Func&& func)
 			OperationContext::CancelableFrame frame(currContext);
 			if (currContext)
 				DSM::CancelIfOutOfInterest();
+			ASyncContinueCheck();
 
 			UpdateMarker::PrepareDataInvalidatorLock preventInvalidations;
 			func(std::forward<Args>(args)...);

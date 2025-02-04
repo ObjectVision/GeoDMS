@@ -315,7 +315,7 @@ template <class V>
 typename DataArrayBase<V>::locked_cseq_t 
 DataArrayBase<V>::GetDataRead(tile_id t) const
 {
-	DMS_ASyncContinueCheck();
+	ASyncContinueCheck();
 
 	if (t == no_tile)
 	{
@@ -333,7 +333,7 @@ DataArrayBase<V>::GetDataRead(tile_id t) const
 		}
 		t = 0;
 	}
-	dms_assert(t < GetTiledRangeData()->GetNrTiles());
+	assert(t < GetTiledRangeData()->GetNrTiles());
 	return GetTile(t);
 }
 

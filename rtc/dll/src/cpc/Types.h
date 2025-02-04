@@ -139,6 +139,7 @@ using decpos_t = UInt8;
 
 using FileDateTime     = UInt64; // connection with the real world (as represented by a time stamped Persistent File system); don't confuse it with TimeStamp, which sequences transcient events
 using TimeStamp        = UInt32;    // only used for internal chronological ordering
+using fence_number     = UInt32;
 using interest_count_t = UInt32;
 
 //----------------------------------------------------------------------

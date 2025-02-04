@@ -180,6 +180,7 @@ public:
 	mutable actor_flag_set m_State;
 	mutable TimeStamp      m_LastChangeTS = 0;
 	mutable TimeStamp      m_LastGetStateTS = 0;
+	mutable fence_number   m_FenceNumber = 0;
 
 #if defined(MG_ITEMLEVEL)
 	mutable item_level_type m_ItemLevel = item_level_type(0);

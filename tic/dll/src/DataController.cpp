@@ -393,6 +393,10 @@ auto DataController::CallCalcResult(Explain::Context* context) const -> FutureDa
 	dms_assert(GetInterestCount());
 
 	MakeResult();
+	auto resultItem = this->GetOld();
+	if (resultItem && resultItem->mc_DC)
+		resultHolder = resultItem->mc_DC->CallCalcResult(context);
+
 	assert(resultHolder);
 	return resultHolder;
 }
@@ -421,7 +425,7 @@ auto DataController::CalcResultWithValuesUnits() const -> FutureData// TODO G8: 
 		return nullptr;
 	}
 	*/
-	dms_assert(!WasFailed(FR_MetaInfo));
+	assert(!WasFailed(FR_MetaInfo));
 	return result;
 }
 

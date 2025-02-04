@@ -229,13 +229,13 @@ struct RegCountOperator : public QuaternaryOperator
 //				fc->AddDependency(partition->GetAbstrValuesUnit()); // and of valuesunit, or is that included?
 			}
 		}
-		fc->m_MetaInfo = make_noncopyable_any<RegionInfoArray>(std::move(regionInfoArray));
+		resultHolder->m_ReadAssets.emplace<RegionInfoArray>(std::move(regionInfoArray));
 	}
 
 	bool CalcResult(TreeItemDualRef& resultHolder, ArgRefs args, std::vector<ItemReadLock> readLocks, OperationContext* fc, Explain::Context* context) const override
 	{
 		dms_assert(resultHolder);
-		RegionInfoArray* regionInfoArrayPtr = noncopyable_any_cast<RegionInfoArray>(&fc->m_MetaInfo);
+		RegionInfoArray* regionInfoArrayPtr = rtc::any::any_cast<RegionInfoArray>(&resultHolder->m_ReadAssets);
 		MG_CHECK(regionInfoArrayPtr);
 		RegionInfoArray& regionInfoArray = *regionInfoArrayPtr;
 

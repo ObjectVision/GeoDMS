@@ -521,8 +521,9 @@ OArgRefs FuncDC::GetArgs(bool doUpdateMetaInfo, bool doCalcData) const
 	ArgRefs argSeq; argSeq.reserve(GetNrArgs());
 
 	SharedStr firstArgValue;
-	for (const DcRefListElem* argIter = m_Args; argIter; ++currArg, argIter = argIter->m_Next) {
-		dms_assert(argIter->m_DC); // DcRefListElem invariant
+	for (const DcRefListElem* argIter = m_Args; argIter; ++currArg, argIter = argIter->m_Next) 
+	{
+		assert(argIter->m_DC); // DcRefListElem invariant
 
 		bool mustCalcArg = MustCalcArg(currArg, doCalcData, firstArgValue.begin());
 
@@ -533,6 +534,7 @@ OArgRefs FuncDC::GetArgs(bool doUpdateMetaInfo, bool doCalcData) const
 		} else {
 			dms_assert(!doCalcData || argIter->m_DC->GetInterestCount());
 			FutureData fd = argIter->m_DC; fd = argIter->m_DC->CalcResultWithValuesUnits();
+			MakeMax(this->m_FenceNumber, argIter->m_DC->m_FenceNumber);
 			dms_assert(!fd || argIter->m_DC->GetInterestCount());
 			if (SuspendTrigger::DidSuspend())
 				return {};
@@ -593,6 +595,7 @@ bool FuncDC::MakeResultImpl() const
 		// TODO G8.1: CreateResult() Verwijderen uit OperationContext en constructie vermijden/uitstellen
 
 		resultContext = std::make_shared<OperationContext>(this, m_OperatorGroup);
+
 		result = OperationContext_CreateResult(resultContext.get(), this);
 		if (!result)
 		{
@@ -698,13 +701,13 @@ void FuncDC::CallCalcResultImpl(Explain::Context* context) const
 	}
 	if (!result)
 	{
-		dms_assert(SuspendTrigger::DidSuspend() || WasFailed(FR_Data));  // if we asked for MetaInfo and only DataProcesing failed, we should at least get a result
+		assert(SuspendTrigger::DidSuspend() || WasFailed(FR_Data));  // if we asked for MetaInfo and only DataProcesing failed, we should at least get a result
 		return;
 	}
 
-	dms_assert(m_Data);
-	dms_assert(!SuspendTrigger::DidSuspend() && !WasFailed(FR_MetaInfo));  // if we asked for MetaInfo and only DataProcesing failed, we should at least get a result
-	dms_assert(m_Data->IsCacheItem() || m_Data->IsPassor() || m_OperatorGroup->CanResultToConfigItem() || IsTmp());
+	assert(m_Data);
+	assert(!SuspendTrigger::DidSuspend() && !WasFailed(FR_MetaInfo));  // if we asked for MetaInfo and only DataProcesing failed, we should at least get a result
+	assert(m_Data->IsCacheItem() || m_Data->IsPassor() || m_OperatorGroup->CanResultToConfigItem() || IsTmp());
 }
 
 // =========================================

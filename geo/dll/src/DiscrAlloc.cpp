@@ -2887,8 +2887,8 @@ public:
 		TreeItem* resShadowPriceContainer = res->CreateItem(GetTokenID_mt("shadow_prices"));
 		TreeItem* resTotalAllocatedContainer = res->CreateItem(GetTokenID_mt("total_allocated"));
 
-		fc->m_MetaInfo = make_noncopyable_any<htp_info_type>();
-		htp_info_type& htpInfo = *noncopyable_any_cast<htp_info_type>(&fc->m_MetaInfo);
+		resultHolder->m_ReadAssets.emplace<htp_info_type>();
+		htp_info_type& htpInfo = *rtc::any::any_cast<htp_info_type>(&resultHolder->m_ReadAssets);
 
 		// make AtomicRegionsSet and UniqeRegions -> (AtomicRegionsSet -> Region)
 		CreateResultingItems(
@@ -2911,7 +2911,7 @@ public:
 	bool CalcResult(TreeItemDualRef& resultHolder, ArgRefs args, std::vector<ItemReadLock> readLocks, OperationContext* fc, Explain::Context* context) const override
 	{
 		assert(args.size() == GetNrArguments());
-		htp_info_type& htpInfo = *noncopyable_any_cast<htp_info_type>(&fc->m_MetaInfo);
+		htp_info_type& htpInfo = *rtc::any::any_cast<htp_info_type>(&resultHolder->m_ReadAssets);
 
 //	Recreate result MetaInfo
 		TreeItem* res = resultHolder.GetNew();

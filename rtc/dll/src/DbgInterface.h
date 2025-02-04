@@ -61,11 +61,13 @@ using TASyncContinueCheck = void (DMS_CONV *)();
 
 RTC_CALL void MustCoalesceHeap(SizeT size);
 
+RTC_CALL auto SetASyncContinueCheck(TASyncContinueCheck asyncContinueCheckFunc) -> TASyncContinueCheck;
+RTC_CALL void ASyncContinueCheck();
+
 extern "C" {
 
 RTC_CALL void       DMS_CONV DMS_SetContextNotification(TContextNotification cnFunc, ClientHandle clientHandle);
 
-RTC_CALL void       DMS_CONV DMS_SetASyncContinueCheck(TASyncContinueCheck asyncContinueCheckFunc);
 
 RTC_CALL void       DMS_CONV DMS_RegisterMsgCallback(MsgCallbackFunc fcb, ClientHandle clientHandle);
 RTC_CALL void       DMS_CONV DMS_ReleaseMsgCallback(MsgCallbackFunc fcb, ClientHandle clientHandle);
@@ -85,7 +87,6 @@ RTC_CALL bool       DMS_CONV DMS_CoalesceHeap(std::size_t requiredSize);
 
 void MsgDispatch(SeverityTypeID st, MsgCategory msgCat, CharPtr msg);
 
-RTC_CALL void DMS_ASyncContinueCheck();
 RTC_CALL void DBG_TraceStr(CharPtr msg);
 
 RTC_CALL bool DMS_Test(CharPtr name, CharPtr condStr, bool cond);

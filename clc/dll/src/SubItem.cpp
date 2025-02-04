@@ -8,6 +8,10 @@
 #pragma hdrstop
 #endif
 
+#include <future>
+
+#include "act/any.h"
+
 #include "dbg/SeverityType.h"
 #include "CheckedDomain.h"
 #include "OperGroups.h"
@@ -123,12 +127,7 @@ struct CheckOperator : public BinaryOperator
 #include "UnitProcessor.h"
 
 oper_arg_policy oap_Fence[2] = { oper_arg_policy::subst_with_subitems,  oper_arg_policy::calc_as_result };
-SpecialOperGroup sog_FenceContainer(token::FenceContainer, 2, oap_Fence, oper_policy::dynamic_result_class| oper_policy::existing);
-
-using fence_member_pair = std::pair<SharedPtr<TreeItem>, InterestPtr<SharedPtr<const TreeItem>>>;
-using fence_work_data = std::vector<fence_member_pair>;
-
-TIC_CALL void IncSchedulingOperContextGroupNumber();
+SpecialOperGroup sog_FenceContainer(token::FenceContainer, 2, oap_Fence, oper_policy::dynamic_result_class);
 
 struct FenceContainerOperator : BinaryOperator
 {
@@ -139,17 +138,23 @@ struct FenceContainerOperator : BinaryOperator
 //	bool CreateResult(TreeItemDualRef& resultHolder, const ArgSeqType& args, bool mustCalc) const override;
 	void CreateResultCaller(TreeItemDualRef& resultHolder, const ArgRefs& args, OperationContext* fc, LispPtr) const override
 	{
-		dms_assert(args.size() == 2);
-		auto sourceContainer = std::get<SharedTreeItem>(args[0]).get();
-		if (!resultHolder) {
-			CopyTreeContext context(nullptr, sourceContainer, ""
-				, DataCopyMode::MakePassor | DataCopyMode::MakeEndogenous | DataCopyMode::InFenceOperator //  | DataCopyMode::CopyAlsoReferredItems);
-			);
-			resultHolder = context.Apply();
-		}
-		dms_assert(resultHolder);
+		assert(args.size() == 2);
+		assert(fc);
 
-		fence_work_data workData;
+		auto sourceContainer = std::get<SharedTreeItem>(args[0]).get();
+		if (!resultHolder)
+		{
+			CopyTreeContext context(nullptr, sourceContainer, ""
+				, DataCopyMode::MakePassor | DataCopyMode::MakeEndogenous | DataCopyMode::InFenceOperator | DataCopyMode::NoRoot //  | DataCopyMode::CopyAlsoReferredItems);
+			);
+			context.m_FenceNumber = GetNextFenceNumber();
+
+			resultHolder = context.Apply();
+			resultHolder.m_FenceNumber = context.m_FenceNumber;
+		}
+		assert(resultHolder);
+
+//		fence_work_data workData;
 
 		auto resultRoot = resultHolder.GetNew();
 		for (auto resWalker = resultRoot; resWalker; resWalker = resultRoot->WalkCurrSubTree(resWalker))
@@ -158,66 +163,76 @@ struct FenceContainerOperator : BinaryOperator
 				continue;
 
 			auto srcItem = sourceContainer->FindItem(resWalker->GetRelativeName(resultHolder.GetNew()));
+			MG_CHECK(!srcItem->IsCacheItem());
 			
-			fc->AddDependency(srcItem->GetCheckedDC());
-			workData.emplace_back(resWalker, srcItem);
+//			fc->AddDependency(srcItem->GetCheckedDC());
+//			workData.emplace_back(resWalker, srcItem);
+//			resWalker->SetDC(srcItem->GetFuncDC());
+
 		}
-		fc->m_MetaInfo = make_noncopyable_any<fence_work_data>(std::move(workData));
-		IncSchedulingOperContextGroupNumber();
+
+//		resultHolder->m_ReadAssets.emplace<fence_work_data>(std::move(workData));
+//		assert(resultHolder->m_ReadAssets.has_value());
 	}
 	bool CalcResult(TreeItemDualRef& resultHolder, ArgRefs args, std::vector<ItemReadLock> readLocks, OperationContext * fc, Explain::Context * context) const override
 	{
-		dms_assert(args.size() == 2);
+		assert(args.size() == 2);
 		auto sourceContainer = std::get<SharedTreeItem>(args[0]).get();
+//		assert(resultHolder->m_ReadAssets.has_value());
 
-		const fence_work_data* workDataPtr = noncopyable_any_cast<fence_work_data>(&fc->m_MetaInfo);
+//		const fence_work_data* workDataPtr = rtc::any::any_cast<fence_work_data>(&resultHolder->m_ReadAssets);
 
-		MG_CHECK(workDataPtr);
+//		MG_CHECK(workDataPtr);
 
 		// first, copy ranges of units ?
-		for (const auto& fencePair: *workDataPtr)
-		{	
-			auto resWalker = fencePair.first.get_ptr();
-			auto srcItem = fencePair.second.get_ptr();
-			MG_CHECK(srcItem);
-			if (srcItem->WasFailed(FR_Data))
+		auto resultRoot = resultHolder.GetNew();
+		assert(resultRoot);
+
+		using fence_member_pair = std::pair<SharedPtr<TreeItem>, FutureData>;
+		using fence_work_data = std::vector<fence_member_pair>;
+
+		fence_work_data futureDataContainer;
+
+		std::promise<void> fenceBell;
+		auto bellWaiter = fenceBell.get_future();
+		auto resultFenceNumer = resultHolder.m_FenceNumber;
+		SendMainThreadOper([resultRoot, resultFenceNumer , &futureDataContainer, &fenceBell]()
 			{
-				resWalker->Fail(srcItem);
-				continue;
+				for (auto resWalker = resultRoot; resWalker; resWalker = resultRoot->WalkCurrSubTree(resWalker))
+				{
+					if (!IsUnit(resWalker) && !IsDataItem(resWalker))
+						continue;
+					auto holdInterestIfAny = resWalker->GetInterestPtrOrNull();
+					if (!holdInterestIfAny)
+						continue;
+
+					auto dc = resWalker->mc_DC;
+					assert(dc);
+					assert(dc->m_FenceNumber < resultFenceNumer);
+					futureDataContainer.emplace_back(resWalker, dc->CallCalcResult());
+				}
+				fenceBell.set_value();
 			}
-			if (IsUnit(srcItem))
+		);
+
+		bellWaiter.get();
+
+		// check that all sub-items of result-holder are/become up-to-date or uninteresting
+		for (const auto& fd: futureDataContainer)
+		{
+			auto resWalker = fd.first.get_ptr();
+			if (IsUnit(resWalker))
 			{
-				auto srcAbstrUnit = AsUnit(srcItem->GetCurrUltimateItem());
 				auto resAbstrUnit = AsUnit(resWalker);
-				if (srcAbstrUnit->HasTiledRangeData())
-				{
-					visit<typelists::ranged_unit_objects>(srcAbstrUnit, [resAbstrUnit]<typename V>(const Unit<V>* srcUnit)
-					{
-						MG_CHECK(srcUnit);
-						auto resUnit = dynamic_cast<Unit<V>*>(resAbstrUnit);
-						MG_CHECK(resUnit);
-						resUnit->m_RangeDataPtr.reset( srcUnit->m_RangeDataPtr.get() );
-					});
-						
-				}
+				resAbstrUnit->GetCount();
+				CheckDataReady(resAbstrUnit);
 			}
-			else if (IsDataItem(srcItem))
+			else if (IsDataItem(resWalker))
 			{
-				if (auto holdInterestIfAny = resWalker->GetInterestPtrOrNull())
-				{
-					DataReadLock readLock(AsDataItem(srcItem));
-					AsDataItem(resWalker)->m_DataObject = readLock;
-					assert(CheckDataReady(resWalker));
-				}
+				DataReadLock readLock(AsDataItem(resWalker));
+				assert(CheckDataReady(resWalker));
 			}
-			if (srcItem->WasFailed())
-				resWalker->Fail(srcItem);
-//			assert(resWalker->WasFailed(FR_Data) || CheckDataReady(resWalker)); // m_ItemCount < 0 => CheckDataReady -> false;
 		}
-
-		fc->m_MetaInfo.reset();
-
-		// check that all sub-items of result-holder are up-to-date or uninteresting
 
 		DataReadLock msgLock(AsDataItem(args[1]));
 		auto msgData = const_array_cast<SharedStr>(msgLock)->GetDataRead();
