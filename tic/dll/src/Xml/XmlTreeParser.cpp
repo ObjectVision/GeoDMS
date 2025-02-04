@@ -102,9 +102,7 @@ void XmlTreeParser::ReadAttrCallback(XmlElement& element)
 		CharPtr storageType = element.GetAttrValue(storageTypeID);
 		if (*storageType)
 		{
-			DMS_TreeItem_SetStorageManager(thisItem, 
-				element.GetAttrValue(storageNameID), 
-				storageType, false);
+			DMS_TreeItem_SetStorageManager(thisItem, element.GetAttrValue(storageNameID), storageType, StorageReadOnlySetting::Default);
 		}
 		const Class* thisCls = thisItem->GetDynamicClass();
 		XmlElement::AttrValuesConstIterator avIter = element.GetAttrValuesBegin();

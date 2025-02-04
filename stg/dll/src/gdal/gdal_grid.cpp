@@ -578,7 +578,7 @@ void GdalGridSM::DoUpdateTree(const TreeItem* storageHolder, TreeItem* curr, Syn
 
 	AbstrGridStorageManager::DoUpdateTree(storageHolder, curr, sm);
 
-	if (sm == SM_None)
+	if (sm == SyncMode::None)
 		return;
 	assert(storageHolder);
 	if (storageHolder != curr)
@@ -691,7 +691,7 @@ void GdalGridSM::DoUpdateTree(const TreeItem* storageHolder, TreeItem* curr, Syn
 		}
 	}
 
-	if (sm != SM_AllTables)
+	if (sm != SyncMode::AllTables)
 		return;
 
 	auto subDatasetList = m_hDS->GetMetadata("SUBDATASETS");
@@ -746,7 +746,7 @@ void GdalGridSM::DoUpdateTree(const TreeItem* storageHolder, TreeItem* curr, Syn
 				uc->CreateUnit(curr, itemID);
 			auto dataItem = curr->GetSubTreeItemByID(itemID);
 			if (dataItem)
-				dataItem->SetStorageManager(subDatasetName.c_str(), "gdal.grid", true);
+				dataItem->SetStorageManager(subDatasetName.c_str(), "gdal.grid", StorageReadOnlySetting::Default);
 		}
 	}
 }

@@ -1,4 +1,4 @@
-// Copyright (C) 1998-2023 Object Vision b.v. 
+// Copyright (C) 1998-2025 Object Vision b.v. 
 // License: GNU GPL 3
 /////////////////////////////////////////////////////////////////////////////
 
@@ -144,7 +144,7 @@ public:
 
 //	storage
 
-	TIC_CALL void SetStorageManager(CharPtr storageName, CharPtr storageType, bool readOnly, CharPtr driver = nullptr, CharPtr options = nullptr);
+	TIC_CALL void SetStorageManager(CharPtr storageName, CharPtr storageType, StorageReadOnlySetting readOnly, CharPtr driver = nullptr, CharPtr options = nullptr);
 	TIC_CALL bool HasStorageManager() const;
 	TIC_CALL AbstrStorageManager* GetStorageManager(bool throwOnFailure = true) const;
 	         AbstrStorageManager* GetCurrStorageManager() const { return m_StorageManager; }
@@ -438,6 +438,7 @@ public:
 //private: // TODO G8: encapsulate
 
 	TokenID                        m_ID;
+
 	mutable const TreeItem*        m_BackRef = nullptr; // only used by CacheRoots
 
 	// subItems insert/erase themselves from the non-refcounted subItems set and have a counted-ref to their parent

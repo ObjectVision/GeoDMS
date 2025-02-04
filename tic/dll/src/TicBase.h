@@ -178,5 +178,11 @@ struct TreeItemAdmLock
 
 #endif
 
+//----------------------------------------------------------------------
+// enum classes
+//----------------------------------------------------------------------
+
+enum class StorageReadOnlySetting { Default, ReadOnly, ReadWrite };
+
 
 #endif // __TIC_TICBASE_H

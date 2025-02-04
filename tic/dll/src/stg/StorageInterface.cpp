@@ -82,7 +82,7 @@ TIC_CALL CharPtr DMS_CONV DMS_StorageManager_GetName(const AbstrStorageManager* 
 	return nullptr;
 }
 
-TIC_CALL void DMS_CONV DMS_TreeItem_SetStorageManager(TreeItem* storageHolder, CharPtr storageName, CharPtr storageType, bool readOnly)
+TIC_CALL void DMS_CONV DMS_TreeItem_SetStorageManager(TreeItem* storageHolder, CharPtr storageName, CharPtr storageType, StorageReadOnlySetting readOnly)
 {
 	DMS_CALL_BEGIN
 

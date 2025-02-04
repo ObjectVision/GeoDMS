@@ -532,15 +532,15 @@ SyncMode AbstrStorageManager::GetSyncMode(const TreeItem* storageHolder)
 		syncMode = syncModePropDefPtr->GetValue(storageHolder);
 		if (syncMode)
 		{
-			if (syncMode == st_AllTables) return SM_AllTables;
-			if (syncMode == st_AttrOnly)  return SM_AttrsOfConfiguredTables;
-			if (syncMode == st_None)      return SM_None;
+			if (syncMode == st_AllTables) return SyncMode::AllTables;
+			if (syncMode == st_AttrOnly)  return SyncMode::AttrsOfConfiguredTables;
+			if (syncMode == st_None)      return SyncMode::None;
 			break;
 		}
 		storageHolder = storageHolder->GetTreeParent();
 	}
 	while (storageHolder);
-	return SM_AttrsOfConfiguredTables; // default
+	return SyncMode::AttrsOfConfiguredTables; // default
 }
 
 void AbstrStorageManager::UpdateTree(const TreeItem* storageHolder, TreeItem* curr) const
@@ -548,7 +548,7 @@ void AbstrStorageManager::UpdateTree(const TreeItem* storageHolder, TreeItem* cu
 	auto nameStr = GetNameStr();
 	CDebugContextHandle dch1("AbstrStorageManager::UpdateTree", nameStr.c_str(), false);
 	auto syncMode = GetSyncMode(storageHolder);
-	if (syncMode == SM_None)
+	if (syncMode == SyncMode::None)
 		return;
 	DoUpdateTree(storageHolder, curr, syncMode);
 }
@@ -557,7 +557,7 @@ bool AbstrStorageManager::DoesExistEx(CharPtr storageName, TokenID storageType, 
 {
 	DBG_START("AbstrStorageManager", "DoesExistEx", true);
 
-	SharedPtr<AbstrStorageManager> sm = AbstrStorageManager::Construct(storageHolder, SharedStr(storageName), storageType, true);
+	SharedPtr<AbstrStorageManager> sm = AbstrStorageManager::Construct(storageHolder, SharedStr(storageName), storageType, StorageReadOnlySetting::ReadOnly);
 
 	if (!sm)
 		return false;
@@ -567,7 +567,7 @@ bool AbstrStorageManager::DoesExistEx(CharPtr storageName, TokenID storageType, 
 }
 
 AbstrStorageManagerRef
-AbstrStorageManager::Construct(const TreeItem* holder, SharedStr relStorageName, TokenID typeID, bool readOnly, bool throwOnFail)
+AbstrStorageManager::Construct(const TreeItem* holder, SharedStr relStorageName, TokenID typeID, StorageReadOnlySetting readOnly, bool throwOnFail)
 {
 	if (AbstrCalculator::MustEvaluate(relStorageName.c_str()))
 		relStorageName = AbstrCalculator::EvaluatePossibleStringExpr(holder, relStorageName, CalcRole::Calculator);
@@ -581,8 +581,10 @@ static TokenID s_shpToken = GetTokenID_st("shp");
 static TokenID s_tifToken = GetTokenID_st("tif");
 static TokenID s_gdalVectToken = GetTokenID_st("gdal.vect");
 static TokenID s_gdalGridToken = GetTokenID_st("gdal.grid");
+static TokenID s_gdalWriteVectToken = GetTokenID_st("gdalwrite.vect");
+static TokenID s_gdalWriteGridToken = GetTokenID_st("gdalwrite.grid");
 
-AbstrStorageManagerRef AbstrStorageManager::Construct(CharPtr storageName, TokenID typeID, bool readOnly, bool throwOnFailure)
+AbstrStorageManagerRef AbstrStorageManager::Construct(CharPtr storageName, TokenID typeID, StorageReadOnlySetting readOnlySetting, bool throwOnFailure)
 {
 	CDebugContextHandle dc("AbstractStorageManager::Construct", storageName, false);
 
@@ -600,9 +602,38 @@ AbstrStorageManagerRef AbstrStorageManager::Construct(CharPtr storageName, Token
 			return {};
 		throwDmsErrF("Cannnot derive storage type for storage '%s'", storageName);
 	}
+	bool readOnly = false;
 	if (typeID == s_mdbToken)
 		typeID = s_odbcToken;
 	if (typeID == s_odbcToken) // at this moment we can only read from ODBC
+	{
+		if (readOnlySetting == StorageReadOnlySetting::ReadWrite)
+			throwDmsErrF("The odbc storage type does not allow for writing, yet StorageReadOnly is specified as false.\n"
+				"Consider removing the StorageReadOnly property"
+				, typeID == s_gdalGridToken ? "grid" : "vect"
+			);
+		readOnly = true;
+	}
+	else if (typeID == s_gdalGridToken || typeID == s_gdalVectToken)
+	{
+		if (readOnlySetting == StorageReadOnlySetting::ReadWrite)
+			throwDmsErrF("The gdal.%s storage type does not allow for writing, yet StorageReadOnly is specified as false.\n"
+				"Consider removing the StorageReadOnly property or set the StorageType to gdalwrite.%s"
+				, typeID == s_gdalGridToken ? "grid" : "vect"
+				, typeID == s_gdalGridToken ? "grid" : "vect"
+			);
+		readOnly = true;
+	}
+	else if (typeID == s_gdalWriteGridToken || typeID == s_gdalWriteVectToken)
+	{
+		if (readOnlySetting == StorageReadOnlySetting::ReadOnly)
+			throwDmsErrF("The gdalwrite.%s storage type does not allow for writing, yet StorageReadOnly is specified as true.\n"
+				"Consider removing the StorageReadOnly property or set the StorageType to gdal.%s"
+				, typeID == s_gdalGridToken ? "grid" : "vect"
+				, typeID == s_gdalGridToken ? "grid" : "vect"
+			);
+	}
+	else if (readOnlySetting == StorageReadOnlySetting::ReadOnly)
 		readOnly = true;
 
 	auto sm = StorageClass::CreateStorageManager(storageName, typeID, readOnly, throwOnFailure);

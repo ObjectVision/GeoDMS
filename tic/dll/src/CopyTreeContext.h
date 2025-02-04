@@ -115,6 +115,7 @@ struct CopyTreeContext
 	TokenID              m_DstRootID;
 	mutable TreeItem*    m_DstRoot = nullptr;
 	LispPtr              m_ArgList;
+	fence_number         m_FenceNumber = 0;
 
 private:
 	DataCopyMode            m_Dcm;

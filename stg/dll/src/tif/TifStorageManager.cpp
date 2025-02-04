@@ -351,7 +351,7 @@ bool TiffSM::ReadUnitRange(const StorageMetaInfo& smi) const
 void TiffSM::DoUpdateTree(const TreeItem* storageHolder, TreeItem* curr, SyncMode sm) const
 {
 	AbstrGridStorageManager::DoUpdateTree(storageHolder, curr, sm);
-	if (sm == SM_None)
+	if (sm == SyncMode::None)
 		return;
 	dms_assert(storageHolder);
 	if (storageHolder != curr)

@@ -72,7 +72,7 @@ struct ActorVisitor;
 #include "ptr/SharedStr.h"
 
 class NonmappableStorageManager;
-enum SyncMode { SM_AllTables, SM_AttrsOfConfiguredTables, SM_None };
+enum class SyncMode { AllTables, AttrsOfConfiguredTables, None };
 
 struct StorageCloseHandle;
 struct StorageReadHandle;
@@ -177,8 +177,8 @@ class AbstrStorageManager : public PersistentSharedObj
 
 public:
 	//	Static interface functions
-	TIC_CALL static AbstrStorageManagerRef Construct(CharPtr fullStorageName, TokenID typeID, bool readOnly, bool throwOnFailure);
-	TIC_CALL static AbstrStorageManagerRef Construct(const TreeItem* holder, SharedStr relStorageName, TokenID typeID, bool readOnly, bool throwOnFailure = true);
+	TIC_CALL static AbstrStorageManagerRef Construct(CharPtr fullStorageName, TokenID typeID, StorageReadOnlySetting readOnly, bool throwOnFailure);
+	TIC_CALL static AbstrStorageManagerRef Construct(const TreeItem* holder, SharedStr relStorageName, TokenID typeID, StorageReadOnlySetting readOnly, bool throwOnFailure = true);
 	TIC_CALL static bool                 DoesExistEx(CharPtr name, TokenID typeID, const TreeItem* storageHolder); // XXX TODO, REPLACE CharPtr by SharedCharArray*
 	TIC_CALL static SharedStr            Expand(const TreeItem* configStore, SharedStr storageName);
 	TIC_CALL static SharedStr            Expand(CharPtr configDir, CharPtr storageName);

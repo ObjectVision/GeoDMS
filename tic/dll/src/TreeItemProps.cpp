@@ -733,7 +733,7 @@ namespace {
 	static StoredPropDef<TreeItem, TokenID  > storageTypePropDef(STORAGETYPE_NAME, set_mode::optional, xml_mode::element, stg_cpy_mode, false, chg_mode::invalidate);
 	static StoredPropDef<TreeItem, SharedStr> storageDriverPropDef(STORAGEDRIVER_NAME, set_mode::optional, xml_mode::element, stg_cpy_mode, true, chg_mode::invalidate);
 	static StoredPropDef<TreeItem, SharedStr> storageOptionsPropDef(STORAGEOPTIONS_NAME, set_mode::optional, xml_mode::element, stg_cpy_mode, true, chg_mode::invalidate);
-	static StoredPropDef<TreeItem, PropBool > storageReadOnlyPropDef(STORAGEREADONLY_NAME, set_mode::optional, xml_mode::element, stg_cpy_mode, false);
+	static NonDefaultBoolPropDef<TreeItem>    storageReadOnlyPropDef(STORAGEREADONLY_NAME, set_mode::optional, xml_mode::element, stg_cpy_mode, false);
 	static StoredPropDef<TreeItem, TokenID  > syncModePropDef(SYNCMODE_NAME, set_mode::optional, xml_mode::element, stg_cpy_mode, false);
 
 	static struct CdfPropDef cdfPropDef;

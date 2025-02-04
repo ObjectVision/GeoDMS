@@ -142,7 +142,7 @@ void XdbStorageManager::DoUpdateTree(const TreeItem* storageHolder, TreeItem* cu
 {
 	NonmappableStorageManager::DoUpdateTree(storageHolder, curr, sm);
 
-	if (sm == SM_None)
+	if (sm == SyncMode::None)
 		return;
 
 	dms_assert(storageHolder);
@@ -175,7 +175,7 @@ void XdbStorageManager::DoUpdateTree(const TreeItem* storageHolder, TreeItem* cu
 					ValueClass::FindByValueClassID(imp.ColType(i))))
 				throwItemErrorF("Column %s is configured with a unit type that is incompatible with the xdb type %d", colName, int(imp.ColType(i)));
 		}
-		else if (sm !=SM_None)
+		else if (sm != SyncMode::None)
 		{
 			const ValueClass* vc  = ValueClass::FindByValueClassID(imp.ColType(i));
 			dms_assert(vc);

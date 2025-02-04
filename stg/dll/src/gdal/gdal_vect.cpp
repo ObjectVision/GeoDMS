@@ -681,7 +681,7 @@ void ReadStrAttrData(OGRLayer* layer, SizeT currFieldIndex, sequence_traits<Shar
 	for (; i!=size; ++i)
 	{
 		if (!(i & 0xf000))
-			DMS_ASyncContinueCheck();
+			ASyncContinueCheck();
 
 		DataArray<SharedStr>::reference dataElemRef = data[i];
 		bool dataset_has_random_layer_read_capability = hDS->TestCapability(ODsCRandomLayerRead);
@@ -1826,7 +1826,7 @@ void GdalVectSM::DoUpdateTree(const TreeItem* storageHolder, TreeItem* curr, Syn
 	if (curr->HasCalculator())
 		return;
 
-	if (curr != storageHolder || sm != SM_AllTables)
+	if (curr != storageHolder || sm != SyncMode::AllTables)
 		return;
 
 	GDAL_ErrorFrame gdal_error_frame;

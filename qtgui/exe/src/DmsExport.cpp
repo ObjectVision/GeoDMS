@@ -250,10 +250,10 @@ void DoExportTable(const TreeItem* ti, SharedStr fn, TreeItem* vdc)
     if (vdGeometry)
     {
         auto shpPath = filePath; shpPath.replace_extension("shp");
-        vdGeometry->SetStorageManager(shpPath.generic_string().c_str(), "shp", false);
+        vdGeometry->SetStorageManager(shpPath.generic_string().c_str(), "shp", StorageReadOnlySetting::Default);
     }
     filePath.replace_extension("dbf");
-    vdc->SetStorageManager(filePath.generic_string().c_str(), "dbf", false);
+    vdc->SetStorageManager(filePath.generic_string().c_str(), "dbf", StorageReadOnlySetting::Default);
 }
 
 static TokenID exportTableID = GetTokenID("ExportTable");
@@ -291,7 +291,7 @@ auto DoExportTableOrDatabase(const TreeItem* tableOrDatabaseItem, bool nativeFla
     }
 
     if (!nativeShapeFile)
-        vdc->SetStorageManager(fn.c_str(), storageTypeName, false, driverName, options);
+        vdc->SetStorageManager(fn.c_str(), storageTypeName, StorageReadOnlySetting::Default, driverName, options);
 
     return vdc;
 }
@@ -367,7 +367,7 @@ auto DoExportRasterOrMatrixData(const TreeItem* rasterItemOrDomain, bool nativeF
     }
 
     if (export_raster)
-        export_raster->SetStorageManager(fn.c_str(), storageTypeName, false, driverName, options);
+        export_raster->SetStorageManager(fn.c_str(), storageTypeName, StorageReadOnlySetting::Default, driverName, options);
 
     return export_raster;
 }

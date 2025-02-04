@@ -1978,6 +1978,8 @@ TreeItem* TreeItem::Copy(TreeItem* dest, TokenID id, CopyTreeContext& copyContex
 	if (InTemplate())
 		result->mc_OrgItem = this;
 	//	Now, call the virtual CopyProps func to let the derived class do some work
+
+	assert(mustCopyProps || dstIsRoot || !copyContext.InFenceOperator());
 	if (mustCopyProps)
 	{
 		if (isArg || (copyContext.SetInheritFlag() && !HasOwnCalculatorNow(result)))
@@ -1994,8 +1996,11 @@ TreeItem* TreeItem::Copy(TreeItem* dest, TokenID id, CopyTreeContext& copyContex
 			assert(!dest->InTemplate());
 			assert(copyContext.m_ArgList.IsRealList());
 
-			result->SetCalculator( AbstrCalculator::ConstructFromLispRef(result, copyContext.m_ArgList.Left(), CalcRole::ArgCalc) );
+			result->SetCalculator(AbstrCalculator::ConstructFromLispRef(result, copyContext.m_ArgList.Left(), CalcRole::ArgCalc));
 			result->SetIsHidden(true);
+			assert(result != copyContext.m_DstRoot);
+			assert(copyContext.m_DstRoot != nullptr);
+			result->m_FenceNumber = copyContext.m_DstRoot->m_FenceNumber;
 			copyContext.m_ArgList = copyContext.m_ArgList.Right();
 			return result; // don't copy subItems from this to result (take them from arg)
 		}
@@ -2005,11 +2010,21 @@ TreeItem* TreeItem::Copy(TreeItem* dest, TokenID id, CopyTreeContext& copyContex
 		if (isNew && copyContext.MergeProps())
 			result->DisableStorage();
 
-		if (!copyContext.InFenceOperator())
+		if (copyContext.InFenceOperator())
+		{
+			assert(!isArg);
+			if (IsDataItem(this) || IsUnit(this))
+			{
+				result->SetDC(this->GetCheckedDC());
+			}
+			result->m_FenceNumber = copyContext.m_FenceNumber;
+		}
+		else
 		{
 			CopyPropsContext(result, this, copyContext.MinCpyMode(dstIsRoot), !copyContext.MergeProps()).Apply();
 			if (!result->m_Location)
-				result->m_Location = m_Location;
+				result->m_Location = this->m_Location;
+			result->m_FenceNumber = this->m_FenceNumber;
 
 			if (!copyContext.MustCopyExpr())
 			{
@@ -2122,8 +2137,13 @@ void TreeItem::UpdateMetaInfoImpl() const
 
 //	UpdateDC();
 
-	if (mc_DC && mc_DC->WasFailed())
-		Fail(mc_DC);
+	if (mc_DC)
+	{
+		if (mc_DC->WasFailed())
+			Fail(mc_DC);
+		else
+			MakeMax(mc_DC->m_FenceNumber, this->m_FenceNumber);
+	}
 
 	if (HasConfigData() && mc_Calculator && mc_Calculator->IsDataBlock())
 		return;
@@ -2159,7 +2179,7 @@ void TreeItem::UpdateMetaInfoImpl() const
 	if (IsCacheItem() || !IsDataReadable())
 		return;
 
-	dms_assert(!HasConfigData()); // implied by IsDataReadable
+	assert(!HasConfigData()); // implied by IsDataReadable
 }	// end of recursion protected area
 
 // ======================================================
@@ -2359,7 +2379,7 @@ auto TreeItem::GetCheckedDC() const->DataControllerRef
 		return resultDC;
 	if (mc_RefItem)
 	{
-		dms_assert(!mc_RefItem->IsCacheItem());
+		assert(!mc_RefItem->IsCacheItem());
 		return mc_RefItem->GetCheckedDC();
 	}
 	if (IsCurrLoadable() && !GetTSF(USF_HasConfigRange))
@@ -3980,7 +4000,9 @@ AbstrStorageManager* TreeItem::GetStorageManager(bool throwOnFailure) const
 		auto sm = AbstrStorageManager::Construct(this
 			, storageName
 			, storageTypePropDefPtr->GetValue(this)
-			, storageReadOnlyPropDefPtr->GetValue(this)
+			, storageReadOnlyPropDefPtr->HasNonDefaultValue(this) 
+				? storageReadOnlyPropDefPtr->GetValue(this) ? StorageReadOnlySetting::ReadOnly : StorageReadOnlySetting::ReadWrite
+				: StorageReadOnlySetting::Default
 			, throwOnFailure
 		);
 
@@ -3992,12 +4014,16 @@ AbstrStorageManager* TreeItem::GetStorageManager(bool throwOnFailure) const
 	return m_StorageManager;
 }
 
-void TreeItem::SetStorageManager(CharPtr storageName, CharPtr storageType, bool readOnly, CharPtr driver, CharPtr options)
+void TreeItem::SetStorageManager(CharPtr storageName, CharPtr storageType, StorageReadOnlySetting readOnly, CharPtr driver, CharPtr options)
 {
 	DBG_START("TreeItem", "SetStorageManager", false);
 	storageNamePropDefPtr->SetValue(this, SharedStr(storageName) );
 	storageTypePropDefPtr->SetValue(this, storageType ? GetTokenID_mt(storageType) : TokenID::GetEmptyID() );
-	storageReadOnlyPropDefPtr->SetValue(this, readOnly);
+	if (readOnly != StorageReadOnlySetting::Default)
+		storageReadOnlyPropDefPtr->SetValue(this, readOnly == StorageReadOnlySetting::ReadOnly);
+	else if (storageReadOnlyPropDefPtr->HasNonDefaultValue(this))
+		storageReadOnlyPropDefPtr->RemoveValue(this);
+
 	if (driver != nullptr)
 		storageDriverPropDefPtr->SetValue(this, SharedStr(driver));
 	if (options != nullptr)

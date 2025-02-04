@@ -463,7 +463,7 @@ void ConfigProd::DoStorageProp()
 		m_pCurrent, 
 		m_strIdentifierID.GetStr().c_str(),
 		m_sPropFileTypeID.GetStr().c_str(),
-		false
+		StorageReadOnlySetting::Default
 	);
 }
 

@@ -306,7 +306,7 @@ void CreateDatabaseTableColumnInfo(const ODBCStorageManager* self, const TreeIte
 
 void CreateDatabaseTableInfo(const ODBCStorageManager* self, const TreeItem* storageHolder, SyncMode syncMode)
 {
-	dms_assert(syncMode != SM_None);
+	dms_assert(syncMode != SyncMode::None);
 
 	TDatabase* database = self->OpenDatabaseInstance(storageHolder);
 	if (! database)
@@ -324,7 +324,7 @@ void CreateDatabaseTableInfo(const ODBCStorageManager* self, const TreeItem* sto
 		if (SharedStr(tableInfo.Columns()[3].AsString()) != "SYSTEM TABLE")
 		{
 			CharPtr tableName = tableInfo.Columns()[2].AsString();
-			if (syncMode == SM_AllTables || const_cast<TreeItem*>(storageHolder)->GetSubTreeItemByID(GetTokenID_mt(tableName)))
+			if (syncMode == SyncMode::AllTables || const_cast<TreeItem*>(storageHolder)->GetSubTreeItemByID(GetTokenID_mt(tableName)))
 				CreateDatabaseTableColumnInfo(self, storageHolder, tableName, tableInfo.Columns()[3].AsString());
 		}
 		tableInfo.Next();
@@ -765,7 +765,7 @@ void ODBCStorageManager::DoUpdateTree(const TreeItem* storageHolder, TreeItem* c
 {
 	NonmappableStorageManager::DoUpdateTree(storageHolder, curr, sm);
 
-	dms_assert(sm != SM_None);
+	dms_assert(sm != SyncMode::None);
 
 	dms_assert(storageHolder);
 

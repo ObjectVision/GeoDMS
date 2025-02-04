@@ -109,7 +109,7 @@ void DbfStorageManager::DoUpdateTree(const TreeItem* storageHolder, TreeItem* cu
 {
 	NonmappableStorageManager::DoUpdateTree(storageHolder, curr, sm);
 
-	if (sm == SM_None)
+	if (sm == SyncMode::None)
 		return;
 	dms_assert(storageHolder);
 	if (storageHolder != curr)

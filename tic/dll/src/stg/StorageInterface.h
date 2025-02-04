@@ -31,7 +31,7 @@ granted by an additional written contract for support, assistance and/or develop
 #ifndef __STORAGEINTERFACE_H
 #define __STORAGEINTERFACE_H
 
-#include "RtcBase.h"
+#include "TicBase.h"
 
 class AbstrStorageManager;
 struct TreeItem;
@@ -49,7 +49,7 @@ TIC_CALL const Class* DMS_CONV DMS_AbstrStorageManager_GetStaticClass();
 
 /******************************************* Storage Handlers **********************/
 
-TIC_CALL void          DMS_CONV DMS_TreeItem_SetStorageManager(TreeItem* storageHolder, CharPtr storageName, CharPtr storageType, bool readOnly);
+TIC_CALL void          DMS_CONV DMS_TreeItem_SetStorageManager(TreeItem* storageHolder, CharPtr storageName, CharPtr storageType, StorageReadOnlySetting readOnly);
 TIC_CALL IStringHandle DMS_CONV DMS_TreeItem_GetFullStorageName(TreeItem* context, CharPtr relativeStorageName);
 TIC_CALL IStringHandle DMS_CONV DMS_Config_GetFullStorageName(CharPtr subDir, CharPtr relativeStorageName);
 
