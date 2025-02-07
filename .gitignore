@@ -26,3 +26,5 @@ todo*.txt
 /rtc/dll/obj/x64/Debug
 /vcpkg_installed
 /obj.OLD
+/rtc/dll/src/buildstamp.h
+/rtc/dll/src/RtcGeneratedVersion.h
