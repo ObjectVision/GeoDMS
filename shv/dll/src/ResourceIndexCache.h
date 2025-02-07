@@ -92,7 +92,7 @@ void MakeKeyIndex(std::vector<resource_index_t>& keyIndices, KeyType& keys)
 	if (keys.size() > 1)
 	{
 		keyIndices.resize(orgKeys.size());
-		rlookup2index_array(keyIndices, orgKeys, keys);
+		rlookup2index_array_non_null_values(keyIndices, orgKeys, keys);
 	}
 	else
 		keyIndices.clear();

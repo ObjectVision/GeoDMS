@@ -86,7 +86,7 @@ InIt indexed_lowerbound(InIt first, InIt last, vIt beginData, const V& value)
 	{
 		SizeT n2 = n / 2;
 		InIt m = first + n2;
-		assert(IsBitValueOrDefined(beginData[*m]));
+		MG_CHECK(IsBitValueOrDefined(beginData[*m]));
 		if (beginData[*m] < value)
 			first = ++m, n -= (n2+1);
 		else
@@ -137,10 +137,46 @@ template <typename V>
 using execution_policy = std::conditional_t < sizeof(V) < 4, std::execution::sequenced_policy, std::execution::parallel_policy >;
 
 template<typename IndexContainer, typename ConstDataIter>
-void make_index(IndexContainer& resData, SizeT n, ConstDataIter unsortedDataBegin)
+void make_index_skip_null(IndexContainer& resData, SizeT n, ConstDataIter unsortedDataBegin)
 {
 	using IndexValue = typename IndexContainer::value_type;
-	insert_sequential_index_numbers(resData, n);
+//	insert_sequential_index_numbers(resData, n);
+	SizeT valueCount = 0;
+	for (SizeT i = 0; i != n; ++i)
+		if (IsDefined(unsortedDataBegin[i]))
+			++valueCount;
+	resData.reserve(valueCount);
+	for (SizeT i = 0; i != n; ++i)
+		if (IsDefined(unsortedDataBegin[i]))
+			resData.emplace_back(i);
+
+	std::stable_sort(execution_policy<IndexValue>(), resData.begin(), resData.end(), NonnullIndexCompareOper<ConstDataIter, IndexValue>(unsortedDataBegin));
+}
+
+template<typename IndexContainer, typename ConstDataIter>
+void make_index_non_null_values(IndexContainer& resData, SizeT n, ConstDataIter unsortedDataBegin)
+{
+	using IndexValue = typename IndexContainer::value_type;
+	//	insert_sequential_index_numbers(resData, n);
+	resData.reserve(n);
+	for (SizeT i = 0; i != n; ++i)
+	{
+		MG_CHECK(IsBitValueOrDefined(unsortedDataBegin[i]));
+		resData.emplace_back(i);
+	}
+
+	std::stable_sort(execution_policy<IndexValue>(), resData.begin(), resData.end(), NonnullIndexCompareOper<ConstDataIter, IndexValue>(unsortedDataBegin));
+}
+
+template<typename IndexContainer, typename ConstDataIter>
+void make_index_all_values(IndexContainer& resData, SizeT n, ConstDataIter unsortedDataBegin)
+{
+	using IndexValue = typename IndexContainer::value_type;
+	//	insert_sequential_index_numbers(resData, n);
+	resData.reserve(n);
+	for (SizeT i = 0; i != n; ++i)
+		resData.emplace_back(i);
+
 	std::stable_sort(execution_policy<IndexValue>(), resData.begin(), resData.end(), IndexCompareOper<ConstDataIter, IndexValue>(unsortedDataBegin));
 }
 
@@ -176,10 +212,16 @@ void make_index_in_existing_span(IndexIter resDataBegin, IndexIter resDataEnd, b
 }
 
 template<typename IndexContainer, bit_size_t N, typename CB>
-void make_index(IndexContainer& resData, SizeT n, bit_iterator<N, CB> unsortedDataBegin)
+void make_index_non_null_values(IndexContainer& resData, SizeT n, bit_iterator<N, CB> unsortedDataBegin)
 {
 	resData.resize(n); // dms_rw_mode::write_only_all, so try to skip zero initialization here as all elements will be rewritten, in some permutated order
 	make_index_in_existing_span<typename IndexContainer::iterator, N, CB>(resData.begin(), resData.end(), unsortedDataBegin);
+}
+
+template<typename IndexContainer, bit_size_t N, typename CB>
+void make_index_skip_null(IndexContainer& resData, SizeT n, bit_iterator<N, CB> unsortedDataBegin)
+{
+	make_index_non_null_values(resData, n, unsortedDataBegin);
 }
 
 typedef const UInt32* ConstOrderIter;
@@ -227,7 +269,9 @@ template<typename IndexContainer, typename ConstIter2>
 void make_indexP(IndexContainer& resData, SizeT n, IndexGetter* unsortedPartitionData, ConstIter2   unsortedData2Begin)
 {
 	insert_sequential_index_numbers(resData, n);
-	std::stable_sort(resData.begin(), resData.end(), IndexPCompareOper<ConstIter2>(unsortedPartitionData, unsortedData2Begin) );
+	std::stable_sort(resData.begin(), resData.end()
+	,	IndexPCompareOper<ConstIter2>(unsortedPartitionData, unsortedData2Begin) 
+	);
 }
 
 template<typename ConstIter2> // REMOVE
@@ -270,7 +314,7 @@ template <typename E, typename ResSequence, typename DataArray>
 void make_index_container(ResSequence resData, const DataArray& arg1Data, const Range<E>&  arg1Domain, const crd_point_type_tag*)
 {
 	std::vector<row_id> temp;
-	make_index(temp, resData.size(), arg1Data.begin());
+	make_index_skip_null(temp, resData.size(), arg1Data.begin());
 	Range_Index2Value_naked(arg1Domain, begin_ptr( temp ), end_ptr( temp ), resData.begin());
 }
 

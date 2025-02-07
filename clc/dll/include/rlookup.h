@@ -109,7 +109,7 @@ namespace {
 
 
 	template <typename Vec, typename KeyArrayView>
-	void rlookup2index_array(Vec& resData, const KeyArrayView& arg1Data, /* E1->V */ const KeyArrayView& arg2Data  /* E2->V */ )
+	void rlookup2index_array_non_null_values(Vec& resData, const KeyArrayView& arg1Data, /* E1->V */ const KeyArrayView& arg2Data  /* E2->V */ )
 	{
 		assert(resData.size() == arg1Data.size());
 
@@ -119,7 +119,7 @@ namespace {
 		std::vector<UInt32> index;
 
 		// Sort index 
-		make_index(index, arg2Data.size(), a2Db);
+		make_index_non_null_values(index, arg2Data.size(), a2Db);
 		auto indexBegin = index.begin(), indexEnd = index.end();
 
 		// Then, do a binary search of each element 
@@ -136,7 +136,7 @@ namespace {
 	{
 		// make a mapping V->E2  from arg2. Assign in backward order to keep the first occurence
 		std::vector<I> index;
-		make_index(index, arg2Data.size(), arg2Data.begin());
+		make_index_skip_null(index, arg2Data.size(), arg2Data.begin());
 		return { std::move(index), std::move(arg2Data) };
 	}
 

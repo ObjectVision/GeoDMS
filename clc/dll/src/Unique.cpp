@@ -240,7 +240,11 @@ void GetUniqueValues(AbstrUnit* res, AbstrDataItem* resSub, const AbstrDataItem*
 	{
 		using index_type = typename cardinality_type<E>::type;
 		std::vector<index_type> index;
-		make_index(index, allValues.size(), allValues.begin());
+		if (mustBeDefined)
+			make_index_non_null_values(index, allValues.size(), allValues.begin());
+		else
+			make_index_all_values(index, allValues.size(), allValues.begin());
+
 		auto indexEnd = make_strict_monotonous(index.begin(), index.end(), IndexCompareOper<ConstDataIter, index_type>(allValues.begin()));
 		index.erase(indexEnd, index.end());
 

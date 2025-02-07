@@ -36,6 +36,30 @@ struct IndexCompareOper
 	DataLessThanCompare<value_type> m_DataComp = {};
 };
 
+template <typename CI, typename E = SizeT>
+struct NonnullIndexCompareOper
+{
+	using index_type = E;
+	using value_array_begin_type = CI;
+	using value_type = typename std::iterator_traits<value_array_begin_type>::value_type;
+
+	NonnullIndexCompareOper(value_array_begin_type dataBegin)
+		: m_DataBegin(dataBegin)
+	{
+	}
+
+	bool operator ()(index_type left, index_type right) const
+	{
+		assert(IsBitValueOrDefined(m_DataBegin[left]));
+		assert(IsBitValueOrDefined(m_DataBegin[right]));
+		return m_DataComp(m_DataBegin[left], m_DataBegin[right]);
+	}
+
+	value_array_begin_type  m_DataBegin;
+
+	std::less<void> m_DataComp = {};
+};
+
 
 
 #endif // __RTC_SET_INDEXCOMPARE_H

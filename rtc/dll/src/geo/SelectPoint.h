@@ -59,7 +59,7 @@ ScalarType SelectRow(ConstPointIter polyBegin, ConstPointIter polyEnd, DensityTy
 
 		//	point_index sort on Row ASC
 		std::vector<UInt32> pointIndex;
-		make_index(pointIndex, polySize, polyBegin);
+		make_index_skip_null(pointIndex, polySize, polyBegin);
 		auto
 			currPointIndexPtr = pointIndex.begin(),
 			lastPointIndexPtr = pointIndex.end();

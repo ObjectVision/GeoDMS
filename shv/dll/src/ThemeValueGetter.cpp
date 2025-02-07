@@ -36,7 +36,7 @@ struct ClassifyFunc
 		auto classBreakData = const_array_cast<ThemeValuesType>( classBreaks )->GetDataRead();
 		m_ClassBreakData = ClassBreakData(classBreakData.begin(), classBreakData.end() );
 		m_Index.clear();
-		make_index(m_Index, m_ClassBreakData.size(), m_ClassBreakData.begin() );
+		make_index_skip_null(m_Index, m_ClassBreakData.size(), m_ClassBreakData.begin() );
 	}
 	IndexType operator ()( typename param_type<ThemeValuesType>::type value) const
 	{
