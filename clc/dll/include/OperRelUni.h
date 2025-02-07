@@ -86,7 +86,7 @@ InIt indexed_lowerbound(InIt first, InIt last, vIt beginData, const V& value)
 	{
 		SizeT n2 = n / 2;
 		InIt m = first + n2;
-		assert(IsBitValueOrDefined(beginData[*m]));
+		MG_CHECK(IsBitValueOrDefined(beginData[*m]));
 		if (beginData[*m] < value)
 			first = ++m, n -= (n2+1);
 		else
@@ -140,8 +140,17 @@ template<typename IndexContainer, typename ConstDataIter>
 void make_index(IndexContainer& resData, SizeT n, ConstDataIter unsortedDataBegin)
 {
 	using IndexValue = typename IndexContainer::value_type;
-	insert_sequential_index_numbers(resData, n);
-	std::stable_sort(execution_policy<IndexValue>(), resData.begin(), resData.end(), IndexCompareOper<ConstDataIter, IndexValue>(unsortedDataBegin));
+//	insert_sequential_index_numbers(resData, n);
+	SizeT valueCount = 0;
+	for (SizeT i = 0; i != n; ++i)
+		if (IsDefined(unsortedDataBegin[i]))
+			++valueCount;
+	resData.reserve(valueCount);
+	for (SizeT i = 0; i != n; ++i)
+		if (IsDefined(unsortedDataBegin[i]))
+			resData.emplace_back(i);
+
+	std::stable_sort(execution_policy<IndexValue>(), resData.begin(), resData.end(), NonnullIndexCompareOper<ConstDataIter, IndexValue>(unsortedDataBegin));
 }
 
 template<typename IndexIter, typename ConstDataIter>
@@ -227,7 +236,9 @@ template<typename IndexContainer, typename ConstIter2>
 void make_indexP(IndexContainer& resData, SizeT n, IndexGetter* unsortedPartitionData, ConstIter2   unsortedData2Begin)
 {
 	insert_sequential_index_numbers(resData, n);
-	std::stable_sort(resData.begin(), resData.end(), IndexPCompareOper<ConstIter2>(unsortedPartitionData, unsortedData2Begin) );
+	std::stable_sort(resData.begin(), resData.end()
+	,	IndexPCompareOper<ConstIter2>(unsortedPartitionData, unsortedData2Begin) 
+	);
 }
 
 template<typename ConstIter2> // REMOVE
