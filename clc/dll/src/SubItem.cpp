@@ -205,11 +205,13 @@ struct FenceContainerOperator : BinaryOperator
 					auto holdInterestIfAny = resWalker->GetInterestPtrOrNull();
 					if (!holdInterestIfAny)
 						continue;
-
 					auto dc = resWalker->mc_DC;
 					assert(dc);
-					assert(dc->m_FenceNumber < resultFenceNumer);
-					futureDataContainer.emplace_back(resWalker, dc->CallCalcResult());
+					if (dc)
+					{
+						assert(dc->m_FenceNumber < resultFenceNumer);
+						futureDataContainer.emplace_back(resWalker, dc->CallCalcResult());
+					}
 				}
 				fenceBell.set_value();
 			}
@@ -221,6 +223,13 @@ struct FenceContainerOperator : BinaryOperator
 		for (const auto& fd: futureDataContainer)
 		{
 			auto resWalker = fd.first.get_ptr();
+			auto dc = fd.second;
+			if (dc->WasFailed(FR_MetaInfo))
+			{
+				resWalker->Fail(dc.get_ptr());
+				continue;
+			}
+			auto srcItem = GetItem(dc);
 			if (IsUnit(resWalker))
 			{
 				auto resAbstrUnit = AsUnit(resWalker);
@@ -229,9 +238,14 @@ struct FenceContainerOperator : BinaryOperator
 			}
 			else if (IsDataItem(resWalker))
 			{
-				DataReadLock readLock(AsDataItem(resWalker));
+//				srcItem->PrepareDataUsage(DrlType::Certain);
+
+				DataReadLock readLock(AsDataItem(srcItem));
+				AsDataItem(resWalker)->m_DataObject = readLock;
 				assert(CheckDataReady(resWalker));
 			}
+			if (dc->WasFailed(FR_Data))
+				resWalker->Fail(dc.get_ptr());
 		}
 
 		DataReadLock msgLock(AsDataItem(args[1]));
