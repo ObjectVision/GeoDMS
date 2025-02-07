@@ -60,8 +60,8 @@ PolymorphOutStream::PolymorphOutStream(OutStreamBuff* buff)
 	:	BinaryOutStream(buff)
 {
 	(*this) 
-		<<	UInt16(DMS_VERSION_MAJOR)
-		<<	UInt16(DMS_VERSION_MINOR)
+		<<	UInt16(DMS_GetMajorVersionNumber())
+		<<	UInt16(DMS_GetMinorVersionNumber())
 		<<	UInt8 (DMS_CURR_POLYSTREAM_FORMAT)
 		<<	UInt16(DMS_VERSION_MAJOR_BACKWARD)
 		<<	UInt16(DMS_VERSION_MINOR_BACKWARD);
@@ -86,14 +86,14 @@ PolymorphInpStream::PolymorphInpStream(InpStreamBuff* inp)
 	{
 		(*this) >> versionMajorBW >> versionMinorBW;
 	}
-	tooNew = (versionMajorBW > DMS_VERSION_MAJOR)  || (versionMajorBW == DMS_VERSION_MAJOR && versionMinorBW > DMS_VERSION_MINOR) || (m_FormatID > DMS_CURR_POLYSTREAM_FORMAT);
-	constexpr bool majorBackwardReadSupport = (DMS_VERSION_MAJOR_COMPATIBLE < DMS_VERSION_MAJOR);
-	constexpr bool minorBackwardReadSupport = (DMS_VERSION_MINOR_COMPATIBLE < DMS_VERSION_MINOR);
-	constexpr bool hasBackwardReadSupport  = majorBackwardReadSupport || minorBackwardReadSupport;
+	tooNew = (versionMajorBW > DMS_GetMinorVersionNumber())  || (versionMajorBW == DMS_GetMinorVersionNumber() && versionMinorBW > DMS_GetMinorVersionNumber()) || (m_FormatID > DMS_CURR_POLYSTREAM_FORMAT);
+	bool majorBackwardReadSupport = (DMS_VERSION_MAJOR_COMPATIBLE < DMS_GetMajorVersionNumber());
+	bool minorBackwardReadSupport = (DMS_VERSION_MINOR_COMPATIBLE < DMS_GetMinorVersionNumber());
+	bool hasBackwardReadSupport  = majorBackwardReadSupport || minorBackwardReadSupport;
 
-	constexpr bool majorBackwardWriteSupport = (DMS_VERSION_MAJOR_BACKWARD < DMS_VERSION_MAJOR);
-	constexpr bool minorBackwardWriteSupport = (DMS_VERSION_MINOR_BACKWARD < DMS_VERSION_MINOR);
-	constexpr bool hasBackwardWriteSupport = majorBackwardWriteSupport || minorBackwardWriteSupport;
+	bool majorBackwardWriteSupport = (DMS_VERSION_MAJOR_BACKWARD < DMS_GetMajorVersionNumber());
+	bool minorBackwardWriteSupport = (DMS_VERSION_MINOR_BACKWARD < DMS_GetMinorVersionNumber());
+	bool hasBackwardWriteSupport = majorBackwardWriteSupport || minorBackwardWriteSupport;
 
 	if (tooOld || tooNew)
 	{
@@ -129,8 +129,8 @@ PolymorphInpStream::PolymorphInpStream(InpStreamBuff* inp)
 			strSolution
 		);
 	}
-	dms_assert(m_FormatID >= DMS_MINR_POLYSTREAM_FORMAT); // since older formats have obsolete versions(4.66 -> 2)
-	dms_assert(m_FormatID <= DMS_CURR_POLYSTREAM_FORMAT); // since newer formats have newer versions   (5.23 -> 2)
+	assert(m_FormatID >= DMS_MINR_POLYSTREAM_FORMAT); // since older formats have obsolete versions(4.66 -> 2)
+	assert(m_FormatID <= DMS_CURR_POLYSTREAM_FORMAT); // since newer formats have newer versions   (5.23 -> 2)
 }
 
 void PolymorphOutStream::WriteCls(const Class* cls)

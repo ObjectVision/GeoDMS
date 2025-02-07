@@ -1,4 +1,4 @@
-// Copyright (C) 1998-2024 Object Vision b.v. 
+// Copyright (C) 1998-2025 Object Vision b.v. 
 // License: GNU GPL 3
 /////////////////////////////////////////////////////////////////////////////
 
@@ -296,6 +296,7 @@ typedef char                  CharType;
 typedef SharedArray<CharType> SharedCharArray;
 struct SharedStr;
 struct WeakStr;
+struct CharPtrRange;
 
 namespace std {
 	template <typename T> class shared_ptr;

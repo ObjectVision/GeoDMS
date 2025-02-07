@@ -1,11 +1,15 @@
-// Copyright (C) 1998-2023 Object Vision b.v. 
+// Copyright (C) 1998-2025 Object Vision b.v. 
 // License: GNU GPL 3
 /////////////////////////////////////////////////////////////////////////////
 
+#if defined(_MSC_VER)
 #pragma once
+#endif
 
 #if !defined(__RTC_SER_FORMATTINGFLAGS_H)
 #define __RTC_SER_FORMATTINGFLAGS_H
+
+#include "RtcBase.h"
 
 //----------------------------------------------------------------------
 // FormattingFlags

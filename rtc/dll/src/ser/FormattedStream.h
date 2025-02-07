@@ -9,6 +9,7 @@
 
 #include "ser/FormattingFlags.h"
 #include "ser/BaseStreamBuff.h"
+#include "geo/CharPtrRange.h"
 #include "geo/iterrange.h"
 #include "geo/StringBounds.h"
 #include "ptr/StaticPtr.h"
