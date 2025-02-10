@@ -99,7 +99,30 @@ public:
 	virtual void Calculate(AbstrDataObject* resObj, const AbstrDataItem* arg1A, const AbstrUnit* arg2Domain, const std::any&, tile_id t) const =0;
 };
 
-template <class V>
+
+template< typename V>
+void MakeIndexForAbstrDomainSkipNull(const AbstrDataItem* arg2A, const AbstrUnit* arg2DomainA, std::any& index)
+{
+	auto values = const_array_cast<V>(arg2A)->GetDataRead();
+	visit<typelists::domain_ints>(arg2DomainA, [&index, values = std::move(values)]<typename E>(const Unit<E>*arg2Domain)
+	{
+		index = make_index_array_skip_null< index_type_t<E>, V>(std::move(values));
+	});
+}
+
+template< typename V>
+void MakeIndexForAbstrDomainAllValues(const AbstrDataItem* arg2A, const AbstrUnit* arg2DomainA, std::any& index)
+{
+	auto values = const_array_cast<V>(arg2A)->GetDataRead();
+	visit<typelists::domain_ints>(arg2DomainA, [&index, values = std::move(values)]<typename E>(const Unit<E>*arg2Domain)
+	{
+		index = make_index_array_all_values< index_type_t<E>, V>(std::move(values));
+	});
+}
+
+
+
+template <class V, bool SkipNull>
 class SearchIndexOperator : public AbstrIndexedSearchOperator
 {
 	typedef DataArray<V> ArgumentType;
@@ -111,24 +134,27 @@ public:
 
 	std::any MakeIndex(const AbstrDataItem* arg2A, const AbstrUnit* arg2DomainA) const override
 	{
-		auto values = const_array_cast<V>(arg2A)->GetDataRead();
 		std::any result;
-		visit<typelists::domain_elements>(arg2DomainA, [&result, &values]<typename E>(const Unit<E>* arg2Domain) 
+		if constexpr (SkipNull)
 		{
-			result = make_index_array< index_type_t<E>, V>(values);
-		});
+			MakeIndexForAbstrDomainSkipNull<V>(arg2A, arg2DomainA, result);
+		}
+		else
+		{
+			MakeIndexForAbstrDomainAllValues<V>(arg2A, arg2DomainA, result);
+		}
 		return result;
 	}
 };
 
-template <class V, class IndexApplicator>
-class SearchIndexOperatorImpl : public SearchIndexOperator<V>
+template <class V, class IndexApplicator, bool SkipNull>
+class SearchIndexOperatorImpl : public SearchIndexOperator<V, SkipNull>
 {
 	typedef DataArray<V> ArgumentType;
 
 public:
 	SearchIndexOperatorImpl(AbstrOperGroup* og)
-		: SearchIndexOperator<V>(og)
+		: SearchIndexOperator<V, SkipNull>(og)
 	{}
 
 	auto CreateFutureTileIndexer(SharedPtr<AbstrDataItem> resultAdi, bool lazy, const AbstrUnit* valuesUnitA, const AbstrDataItem* arg1A, const AbstrUnit* arg2DomainA, const AbstrTileRangeData* arg2DomainRange, std::any indexBox MG_DEBUG_ALLOCATOR_SRC_ARG) const -> SharedPtr<const AbstrDataObject> override

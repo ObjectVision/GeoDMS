@@ -132,11 +132,20 @@ namespace {
 	using indexed_tile_t = std::pair<std::vector<I>, typename DataArray<V>::locked_cseq_t>;
 
 	template <typename I, typename V>
-	auto make_index_array(typename DataArray<V>::locked_cseq_t arg2Data) -> indexed_tile_t<I, V>
+	auto make_index_array_skip_null(typename DataArray<V>::locked_cseq_t arg2Data) -> indexed_tile_t<I, V>
 	{
 		// make a mapping V->E2  from arg2. Assign in backward order to keep the first occurence
 		std::vector<I> index;
 		make_index_skip_null(index, arg2Data.size(), arg2Data.begin());
+		return { std::move(index), std::move(arg2Data) };
+	}
+
+	template <typename I, typename V>
+	auto make_index_array_all_values(typename DataArray<V>::locked_cseq_t arg2Data) -> indexed_tile_t<I, V>
+	{
+		// make a mapping V->E2  from arg2. Assign in backward order to keep the first occurence
+		std::vector<I> index;
+		make_index_all_values(index, arg2Data.size(), arg2Data.begin());
 		return { std::move(index), std::move(arg2Data) };
 	}
 

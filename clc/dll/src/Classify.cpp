@@ -17,10 +17,10 @@
 CommonOperGroup cog_classify("classify", oper_policy::dynamic_result_class);
 
 template <typename V>
-struct ClassifyOperator : SearchIndexOperatorImpl<V, classify_dispatcher>
+struct ClassifyOperator : SearchIndexOperatorImpl<V, classify_dispatcher, true>
 {
    ClassifyOperator()
-		: SearchIndexOperatorImpl<V, classify_dispatcher>(&cog_classify)
+		: SearchIndexOperatorImpl<V, classify_dispatcher, true>(&cog_classify)
 	{}
 };
 

@@ -224,6 +224,12 @@ void make_index_skip_null(IndexContainer& resData, SizeT n, bit_iterator<N, CB> 
 	make_index_non_null_values(resData, n, unsortedDataBegin);
 }
 
+template<typename IndexContainer, bit_size_t N, typename CB>
+void make_index_all_values(IndexContainer& resData, SizeT n, bit_iterator<N, CB> unsortedDataBegin)
+{
+	make_index_non_null_values(resData, n, unsortedDataBegin);
+}
+
 typedef const UInt32* ConstOrderIter;
 
 template<typename IndexIter, typename ConstIndexIter, typename ConstDataIter>
@@ -314,7 +320,7 @@ template <typename E, typename ResSequence, typename DataArray>
 void make_index_container(ResSequence resData, const DataArray& arg1Data, const Range<E>&  arg1Domain, const crd_point_type_tag*)
 {
 	std::vector<row_id> temp;
-	make_index_skip_null(temp, resData.size(), arg1Data.begin());
+	make_index_all_values(temp, resData.size(), arg1Data.begin());
 	Range_Index2Value_naked(arg1Domain, begin_ptr( temp ), end_ptr( temp ), resData.begin());
 }
 
