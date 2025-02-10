@@ -72,7 +72,6 @@
     <ClCompile Include="src\ID.cpp" />
     <ClCompile Include="src\Index.cpp" />
     <ClCompile Include="src\Invert.cpp" />
-    <ClCompile Include="src\JoinEqualValues.cpp" />
     <ClCompile Include="src\lookup.cpp" />
     <ClCompile Include="src\Loop.cpp" />
     <ClCompile Include="src\Modus.cpp" />

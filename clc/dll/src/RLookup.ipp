@@ -122,39 +122,46 @@ void MakeIndexForAbstrDomainAllValues(const AbstrDataItem* arg2A, const AbstrUni
 
 
 
-template <class V, bool SkipNull>
-class SearchIndexOperator : public AbstrIndexedSearchOperator
+template <class V>
+class SearchIndexSkipNullOperator : public AbstrIndexedSearchOperator
 {
-	typedef DataArray<V> ArgumentType;
-
 public:
-	SearchIndexOperator(AbstrOperGroup* og)
-		: AbstrIndexedSearchOperator(og, ArgumentType::GetStaticClass())
+	SearchIndexSkipNullOperator(AbstrOperGroup* og)
+		: AbstrIndexedSearchOperator(og, DataArray<V>::GetStaticClass())
+	{
+	}
+
+	std::any MakeIndex(const AbstrDataItem* arg2A, const AbstrUnit* arg2DomainA) const override
+	{
+		std::any result;
+		MakeIndexForAbstrDomainSkipNull<V>(arg2A, arg2DomainA, result);
+		return result;
+	}
+};
+
+template <class V>
+class SearchIndexAllValuesOperator : public AbstrIndexedSearchOperator
+{
+public:
+	SearchIndexAllValuesOperator(AbstrOperGroup* og)
+		: AbstrIndexedSearchOperator(og, DataArray<V>::GetStaticClass())
 	{}
 
 	std::any MakeIndex(const AbstrDataItem* arg2A, const AbstrUnit* arg2DomainA) const override
 	{
 		std::any result;
-		if constexpr (SkipNull)
-		{
-			MakeIndexForAbstrDomainSkipNull<V>(arg2A, arg2DomainA, result);
-		}
-		else
-		{
-			MakeIndexForAbstrDomainAllValues<V>(arg2A, arg2DomainA, result);
-		}
+		MakeIndexForAbstrDomainAllValues<V>(arg2A, arg2DomainA, result);
 		return result;
 	}
 };
 
 template <class V, class IndexApplicator, bool SkipNull>
-class SearchIndexOperatorImpl : public SearchIndexOperator<V, SkipNull>
+class SearchIndexOperatorImpl : public std::conditional_t<SkipNull, SearchIndexSkipNullOperator<V>, SearchIndexAllValuesOperator<V>>
 {
-	typedef DataArray<V> ArgumentType;
-
+	using base_class = std::conditional_t<SkipNull, SearchIndexSkipNullOperator<V>, SearchIndexAllValuesOperator<V>>;
 public:
 	SearchIndexOperatorImpl(AbstrOperGroup* og)
-		: SearchIndexOperator<V, SkipNull>(og)
+		: base_class(og)
 	{}
 
 	auto CreateFutureTileIndexer(SharedPtr<AbstrDataItem> resultAdi, bool lazy, const AbstrUnit* valuesUnitA, const AbstrDataItem* arg1A, const AbstrUnit* arg2DomainA, const AbstrTileRangeData* arg2DomainRange, std::any indexBox MG_DEBUG_ALLOCATOR_SRC_ARG) const -> SharedPtr<const AbstrDataObject> override

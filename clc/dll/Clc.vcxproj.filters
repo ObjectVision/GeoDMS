@@ -58,9 +58,6 @@
     <ClCompile Include="src\Invert.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="src\JoinEqualValues.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="src\lookup.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
