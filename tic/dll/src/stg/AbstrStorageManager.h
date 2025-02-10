@@ -334,15 +334,13 @@ struct StorageCloseHandle
 
 	TreeItem* FocusItem() const { return const_cast<TreeItem*>(MetaInfo()->CurrRI()); }
 
-private:
-	AbstrStorageManager::lock_t    m_StorageLock;
-
 protected:
-	StorageMetaInfoPtr             m_MetaInfo;
 	SharedPtr<NonmappableStorageManager> m_StorageManager;
+	AbstrStorageManager::lock_t          m_StorageLock;
+	StorageMetaInfoPtr                   m_MetaInfo;
 
 private:
-	TimeStamp                      m_TimeStampBefore;
+	TimeStamp                            m_TimeStampBefore;
 
 	void operator =(const StorageCloseHandle&) = delete;
 	void operator =(StorageCloseHandle&&) = delete;

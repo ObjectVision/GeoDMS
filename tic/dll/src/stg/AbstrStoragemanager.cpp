@@ -919,15 +919,15 @@ GdalMetaInfo::GdalMetaInfo(const TreeItem* storageHolder, const TreeItem* curr)
 // *****************************************************************************
 
 StorageCloseHandle::StorageCloseHandle(NonmappableStorageManager* storageManager, const TreeItem* storageHolder, const TreeItem* focusItem, StorageAction sa)
-	: m_StorageLock(storageManager->m_CriticalSection)
+	: m_StorageManager(storageManager)
+	, m_StorageLock(storageManager->m_CriticalSection)
 	, m_MetaInfo(storageManager->GetMetaInfo(storageHolder, const_cast<TreeItem*>(focusItem), sa))
-	, m_StorageManager(storageManager)
 {}
 
 StorageCloseHandle::StorageCloseHandle(NonmappableStorageManager* storageManager, StorageMetaInfoPtr&& smi)
-	: m_StorageLock(storageManager->m_CriticalSection)
+	: m_StorageManager(storageManager)
+	, m_StorageLock(storageManager->m_CriticalSection)
 	, m_MetaInfo(std::move(smi))
-	, m_StorageManager(storageManager)
 {}
 
 StorageCloseHandle::~StorageCloseHandle()
