@@ -447,11 +447,11 @@ auto getAvailableDrivers() -> std::vector<gdal_driver_id>
 {
     std::vector<gdal_driver_id> available_drivers;
     available_drivers.emplace_back("CSV", "Comma Separated Value (*.csv)", "csv", std::vector<CharPtr>{".csv"}, driver_characteristics::native_is_default | driver_characteristics::tableset_is_folder);
-    available_drivers.emplace_back("ESRI Shapefile", "ESRI Shapefile", nullptr, std::vector<CharPtr>{".shp", ".shx", ".dbf", ".prj"}, driver_characteristics::disable_with_no_geometry | driver_characteristics::tableset_is_folder);
+    available_drivers.emplace_back("ESRI Shapefile", "ESRI Shapefile", "shp", std::vector<CharPtr>{".shp", ".shx", ".dbf", ".prj"}, driver_characteristics::disable_with_no_geometry | driver_characteristics::tableset_is_folder);
     available_drivers.emplace_back("GPKG", "GeoPackage vector (*.gpkg)", nullptr, std::vector<CharPtr>{".gpkg"}, driver_characteristics::disable_with_no_geometry);
     available_drivers.emplace_back("GML", "Geography Markup Language (*.GML)", nullptr, std::vector<CharPtr>{".gml"}, driver_characteristics::disable_with_no_geometry);
     available_drivers.emplace_back("GeoJSON", "GeoJSON", nullptr, std::vector<CharPtr>{".json"}, driver_characteristics::disable_with_no_geometry);
-    available_drivers.emplace_back("ESRI Shapefile", "DBF", nullptr, std::vector<CharPtr>{".dbf" }, driver_characteristics::tableset_is_folder | driver_characteristics::disable_with_geometry);
+    available_drivers.emplace_back("ESRI Shapefile", "DBF", "DBF", std::vector<CharPtr>{".dbf" }, driver_characteristics::tableset_is_folder | driver_characteristics::disable_with_geometry);
     available_drivers.emplace_back("GTiff", "GeoTIFF File Format", "tif", std::vector<CharPtr>{".tif", ".tfw"}, driver_characteristics::is_raster | driver_characteristics::tableset_is_folder);
     //available_drivers.emplace_back("BMP", "Microsoft Windows Device Independent Bitmap", nullptr, std::vector<CharPtr>{".bmp"}, driver_characteristics::is_raster);
     //available_drivers.emplace_back("netCDF", "NetCDF: Network Common Data Form", nullptr, std::vector<CharPtr>{".cdf"}, driver_characteristics::is_raster);
@@ -603,10 +603,15 @@ void ExportTab::showEvent(QShowEvent* event)
     auto driver_has_native_version = currDriver.HasNativeVersion();
 
     m_native_driver_checkbox->setEnabled(driver_has_native_version);
-    if (driver_has_native_version &&  currDriver.driver_characteristics & driver_characteristics::only_native_driver)
-        m_native_driver_checkbox->setEnabled(false); //TODO: debug and rewrite
-
-    m_native_driver_checkbox->setChecked(driver_has_native_version);
+    if (driver_has_native_version &&  (currDriver.driver_characteristics & driver_characteristics::only_native_driver))
+    {
+        m_native_driver_checkbox->setChecked(true);
+        m_native_driver_checkbox->setEnabled(false);
+    }
+    else
+    {
+        m_native_driver_checkbox->setChecked(false);
+    }
 
     auto current_item = MainWindow::TheOne()->getCurrentTreeItem();
     auto full_foldername_base = GetFullFolderNameBase(current_item);

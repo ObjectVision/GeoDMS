@@ -379,6 +379,8 @@ bool ShpStorageManager::WriteDataItem(StorageMetaInfoPtr&& smiHolder)
 	const ValueClass*      vClass     = ado->GetValuesType();
 	ValueClassID           vtId       = vClass->GetValueClassID();
 	ValueComposition       vComp    =   adi->GetValueComposition();
+	if (vClass->GetNrDims() != 2)
+		::throwItemError(adi, "ShpStorage error: Cannot write attribute data to a .shp file");
 
 	ShapeTypes shapeType = ShapeTypes::ST_Point;
 	if (vComp == ValueComposition::Sequence)
