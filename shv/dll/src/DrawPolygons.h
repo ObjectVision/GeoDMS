@@ -149,7 +149,7 @@ bool DrawPolygonInterior(
 			if (entityIndex == fe)
 				brushColor = ::GetSysColor(COLOR_HIGHLIGHT);
 			else if (isSelected)
-				brushColor = GetSelectedClr(selectionsArray[entityIndex]);
+				brushColor = GetSelectedClr();
 			else
 			{
 				hatchStyle = defHatchStyle;

@@ -737,7 +737,7 @@ void DataItemColumn::DrawElement(GraphDrawer& d, SizeT rowNr, GRect elemDeviceEx
 		&&	(! tc->ShowSelectedOnly() )
 		&& (selValue = Convert<Bool>(selTheme->GetValueGetter()->GetClassIndex(recNo)), selValue)
 	)
-		bkClr = GetSelectedClr(selValue);
+		bkClr = GetSelectedClr();
 	else if (GetEnabledTheme(AN_LabelBackColor))
 		bkClr = GetEnabledTheme(AN_LabelBackColor)->GetValueGetter()->GetColorValue(recNo);
 	else if (GetEnabledTheme(AN_BrushColor))

@@ -125,7 +125,7 @@ void CheckedGdiCall(bool result, CharPtr context);
 COLORREF GetFocusClr();
 COLORREF GetDefaultClr(UInt32 i);
 COLORREF GetSysPaletteColor(UInt8& counter);
-COLORREF GetSelectedClr(SelectionID i);
+COLORREF GetSelectedClr();
 
 
 //----------------------------------------------------------------------

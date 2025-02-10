@@ -478,7 +478,7 @@ void CheckedGdiCall(bool result, CharPtr context)
 
 COLORREF GetFocusClr() { return ::GetSysColor(COLOR_HIGHLIGHT); }
 COLORREF GetDefaultClr(UInt32 i) { return DmsColor2COLORREF(STG_Bmp_GetDefaultColor(i)); }
-COLORREF GetSelectedClr(SelectionID i) { return GetDefaultClr(i); }
+COLORREF GetSelectedClr() { return DmsColor2COLORREF(CombineRGB(255, 255,0)); }
 
 //----------------------------------------------------------------------
 // section : DrawBorder

@@ -1219,7 +1219,7 @@ bool DrawPoints(
 						if (entityIndex == focusElem)
 							textColor = GetFocusClr();
 						else if (isSelected)
-							textColor = GetSelectedClr(selectionsArray[entityIndex]);
+							textColor = GetSelectedClr();
 						else if (colorGetter)
 							textColor = colorGetter->GetColorValue(entityIndex);
 
@@ -1794,7 +1794,7 @@ bool DrawArcs(const GraphicArcLayer* layer, const FeatureDrawer& fd, const PenIn
 
 									COLORREF brushColor = (entityIndex == fe)
 										? ::GetSysColor(COLOR_HIGHLIGHT)
-										: GetSelectedClr(selectionsArray[entityIndex]);
+										: GetSelectedClr();
 
 									specialPenHolder = CreatePen(PS_SOLID, width, brushColor);
 									pa.SetSpecificPen(specialPenHolder);
