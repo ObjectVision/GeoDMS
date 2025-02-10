@@ -701,6 +701,8 @@ void FuncDC::CallCalcResultImpl(Explain::Context* context) const
 	}
 	if (!result)
 	{
+		if (GetOld()->WasFailed())
+			Fail(GetOld());
 		assert(SuspendTrigger::DidSuspend() || WasFailed(FR_Data));  // if we asked for MetaInfo and only DataProcesing failed, we should at least get a result
 		return;
 	}

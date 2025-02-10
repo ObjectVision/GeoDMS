@@ -159,13 +159,21 @@ struct FenceContainerOperator : BinaryOperator
 		auto resultRoot = resultHolder.GetNew();
 		for (auto resWalker = resultRoot; resWalker; resWalker = resultRoot->WalkCurrSubTree(resWalker))
 		{
+
 			if (!IsDataItem(resWalker) && !IsUnit(resWalker))
 				continue;
 
 			auto srcItem = sourceContainer->FindItem(resWalker->GetRelativeName(resultHolder.GetNew()));
 			MG_CHECK(!srcItem->IsCacheItem());
-			
-//			fc->AddDependency(srcItem->GetCheckedDC());
+
+			if (srcItem->WasFailed())
+				resWalker->Fail(srcItem);
+			if(!resWalker->WasFailed(FR_MetaInfo))
+			{
+				assert(srcItem->mc_DC);
+				assert(resWalker->mc_DC);
+				fc->AddDependency(srcItem->GetCheckedDC());
+			}
 //			workData.emplace_back(resWalker, srcItem);
 //			resWalker->SetDC(srcItem->GetFuncDC());
 
@@ -234,7 +242,7 @@ struct FenceContainerOperator : BinaryOperator
 			{
 				auto resAbstrUnit = AsUnit(resWalker);
 				resAbstrUnit->GetCount();
-				CheckDataReady(resAbstrUnit);
+				CheckDataReady(resAbstrUnit->GetCurrRangeItem());
 			}
 			else if (IsDataItem(resWalker))
 			{
@@ -242,7 +250,7 @@ struct FenceContainerOperator : BinaryOperator
 
 				DataReadLock readLock(AsDataItem(srcItem));
 				AsDataItem(resWalker)->m_DataObject = readLock;
-				assert(CheckDataReady(resWalker));
+				assert(CheckDataReady(resWalker->GetCurrRangeItem()));
 			}
 			if (dc->WasFailed(FR_Data))
 				resWalker->Fail(dc.get_ptr());
