@@ -81,6 +81,7 @@
     <ClCompile Include="src\random.cpp" />
     <ClCompile Include="src\ReadData.cpp" />
     <ClCompile Include="src\RLookup.cpp" />
+    <ClCompile Include="src\RLookupWithNull.cpp" />
     <ClCompile Include="src\Sort.cpp" />
     <ClCompile Include="src\SubItem.cpp" />
     <ClCompile Include="src\Subset.cpp" />

@@ -142,6 +142,9 @@
     <ClCompile Include="src\Unique.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="src\RLookupWithNull.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="include\AggrBinStructNum.h">

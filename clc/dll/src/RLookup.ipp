@@ -104,7 +104,7 @@ template< typename V>
 void MakeIndexForAbstrDomainSkipNull(const AbstrDataItem* arg2A, const AbstrUnit* arg2DomainA, std::any& index)
 {
 	auto values = const_array_cast<V>(arg2A)->GetDataRead();
-	visit<typelists::domain_ints>(arg2DomainA, [&index, values = std::move(values)]<typename E>(const Unit<E>*arg2Domain)
+	visit<typelists::domain_elements>(arg2DomainA, [&index, values = std::move(values)]<typename E>(const Unit<E>*arg2Domain)
 	{
 		index = make_index_array_skip_null< index_type_t<E>, V>(std::move(values));
 	});
@@ -114,7 +114,7 @@ template< typename V>
 void MakeIndexForAbstrDomainAllValues(const AbstrDataItem* arg2A, const AbstrUnit* arg2DomainA, std::any& index)
 {
 	auto values = const_array_cast<V>(arg2A)->GetDataRead();
-	visit<typelists::domain_ints>(arg2DomainA, [&index, values = std::move(values)]<typename E>(const Unit<E>*arg2Domain)
+	visit<typelists::domain_elements>(arg2DomainA, [&index, values = std::move(values)]<typename E>(const Unit<E>*arg2Domain)
 	{
 		index = make_index_array_all_values< index_type_t<E>, V>(std::move(values));
 	});
