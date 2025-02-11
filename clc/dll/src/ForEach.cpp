@@ -13,6 +13,7 @@
 #include "mci/CompositeCast.h"
 
 #include "DataItemClass.h"
+#include "TicPropDefConst.h"
 #include "TreeItemClass.h"
 #include "DataArray.h"
 #include "Unit.h"
@@ -311,16 +312,27 @@ bool ForEach_CreateResult(TreeItemDualRef& resultHolder, const ArgSeqType& args,
 
 		assert(iter);
 
-		if (optExprs)       iter->SetExpr (                          SharedStr(optExprs      ->GetIndexedValue(optExprsIsParam       ? 0 : i)));
-		if (optDescrs)      iter->SetDescr(                          SharedStr(optDescrs     ->GetIndexedValue(optDescrsIsParam      ? 0 : i)));
-		if (optChecks)      integrityCheckPropDefPtr ->SetValue(iter, SharedStr(optChecks     ->GetIndexedValue(optChecksIsParam      ? 0 : i)));
-		if (optLabels)      labelPropDefPtr          ->SetValue(iter, SharedStr(optLabels     ->GetIndexedValue(optLabelsIsParam      ? 0 : i)));
-		if (optStorageName) storageNamePropDefPtr    ->SetValue(iter, SharedStr(optStorageName->GetIndexedValue(optStorageNamesIsParam? 0 : i)));
+		auto AcceptIfNewOrEqual = [iter, groupNameID](SharedStr newStr, SharedStr oldStr, CharPtr propName)
+			{
+				if (!oldStr.empty() && newStr != oldStr)
+				{
+					auto msg = mySSPrintF("Cannot set '%s'  to '%s' of item  '%s' as it is already defined as '%s'"
+						, propName, newStr, iter->GetName(), oldStr);
+					throwErrorD(groupNameID, msg.c_str());
+				}
+				return newStr;
+			};
+
+		if (optExprs)       iter->SetExpr (AcceptIfNewOrEqual(SharedStr(optExprs      ->GetIndexedValue(optExprsIsParam       ? 0 : i)), iter->mc_Expr, "calculation rule"));
+		if (optDescrs)      iter->SetDescr(AcceptIfNewOrEqual(SharedStr(optDescrs     ->GetIndexedValue(optDescrsIsParam      ? 0 : i)), iter->_GetDescr(), DESCR_NAME));
+		if (optChecks)      integrityCheckPropDefPtr ->SetValue(iter, AcceptIfNewOrEqual(SharedStr(optChecks     ->GetIndexedValue(optChecksIsParam      ? 0 : i)), integrityCheckPropDefPtr->GetValue(iter), ICHECK_NAME));
+		if (optLabels)      labelPropDefPtr          ->SetValue(iter, AcceptIfNewOrEqual(SharedStr(optLabels     ->GetIndexedValue(optLabelsIsParam      ? 0 : i)), labelPropDefPtr->GetValue(iter), LABEL_NAME));
+		if (optStorageName) storageNamePropDefPtr    ->SetValue(iter, AcceptIfNewOrEqual(SharedStr(optStorageName->GetIndexedValue(optStorageNamesIsParam? 0 : i)), storageNamePropDefPtr->GetValue(iter), STORAGENAME_NAME));
 		if (optStorageType) storageTypePropDefPtr    ->SetValue(iter, TokenID  (optStorageType->GetIndexedValue(optStorageTypesIsParam? 0 : i)));
 		if (optStorageRo)   storageReadOnlyPropDefPtr->SetValue(iter, optStorageRo->GetIndexedValue(optStorageRoIsParam ? 0 : i));
-		if (optSqlStrings)  sqlStringPropDefPtr      ->SetValue(iter, SharedStr(optSqlStrings ->GetIndexedValue(optSqlStringsIsParam  ? 0 : i)));
-		if (optCdf)         cdfPropDefPtr            ->SetValue(iter, SharedStr(optCdf        ->GetIndexedValue(optCdfIsParam         ? 0 : i)));
-		if (optUrl)         urlPropDefPtr            ->SetValue(iter, SharedStr(optUrl        ->GetIndexedValue(optUrlIsParam         ? 0 : i)));
+		if (optSqlStrings)  sqlStringPropDefPtr      ->SetValue(iter, AcceptIfNewOrEqual(SharedStr(optSqlStrings ->GetIndexedValue(optSqlStringsIsParam  ? 0 : i)), sqlStringPropDefPtr->GetValue(iter), SQLSTRING_NAME));
+		if (optCdf)         cdfPropDefPtr            ->SetValue(iter, AcceptIfNewOrEqual(SharedStr(optCdf        ->GetIndexedValue(optCdfIsParam         ? 0 : i)), cdfPropDefPtr->GetValue(iter), CDF_NAME));
+		if (optUrl)         urlPropDefPtr            ->SetValue(iter, AcceptIfNewOrEqual(SharedStr(optUrl        ->GetIndexedValue(optUrlIsParam         ? 0 : i)), urlPropDefPtr->GetValue(iter), URL_NAME));
 	}
 	resultHolder->SetIsInstantiated();
 	return true;
