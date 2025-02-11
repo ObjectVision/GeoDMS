@@ -105,7 +105,7 @@ private:
 
 [[noreturn]] RTC_CALL void throwErrorD (CharPtr type, CharPtr msg);
 [[noreturn]] RTC_CALL void throwDmsErrD(              CharPtr msg);
-[[noreturn]] RTC_CALL void throwErrorD (const TokenID& type, CharPtr msg);
+[[noreturn]] RTC_CALL void throwErrorD (TokenID type, CharPtr msg);
 
 template<typename Type, typename ...Args>
 [[noreturn]] void throwErrorF(Type&& type, CharPtr format, Args&&... args)

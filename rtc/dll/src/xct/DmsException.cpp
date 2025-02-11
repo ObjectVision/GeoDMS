@@ -336,7 +336,7 @@ SharedStr ErrLoc(CharPtr sourceFile, int line, bool isInternal)
 	DmsException::throwMsgF("%s" ERR_TXT "%s", type, msg);
 }
 
-[[noreturn]] RTC_CALL void throwErrorD(const TokenID& type, CharPtr msg)
+[[noreturn]] RTC_CALL void throwErrorD(TokenID type, CharPtr msg)
 {
 	auto typeStr = SharedStr(type);
 	throwErrorD(typeStr.c_str(), msg);
