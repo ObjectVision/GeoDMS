@@ -76,6 +76,7 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution 
 		DmsDebug.props = DmsDebug.props
 		DmsDef.props = DmsDef.props
 		DmsRelease.props = DmsRelease.props
+		installed-packages.txt = installed-packages.txt
 		license.md = license.md
 		readme-dms.MD = readme-dms.MD
 		README.md = README.md
