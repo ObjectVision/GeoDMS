@@ -1452,11 +1452,11 @@ void AnyTreeItemStateHasChanged(ClientHandle /*clientHandle*/, const TreeItem* s
 
 #include "act/Waiter.h"
 
-static bool endWaitingPending = false;
+static std::atomic<bool> endWaitingPending = false;
 
 void OnStartWaiting(ClientHandle /*clientHandle*/, AbstrMsgGenerator* ach) {
     assert(IsMainThread());
-    if (endWaitingPending)
+    if (endWaitingPending.exchange(false))
         return;
 
     QGuiApplication::setOverrideCursor(QCursor(Qt::WaitCursor));
@@ -1468,18 +1468,20 @@ void OnStartWaiting(ClientHandle /*clientHandle*/, AbstrMsgGenerator* ach) {
 void HandleEndWaiting(SharedStr descr) 
 {
     assert(IsMainThread());
+    if (!endWaitingPending.exchange(false)) // end wait was revoked by intermediate start wait
+        return;
 
     QGuiApplication::restoreOverrideCursor();
     auto mw = MainWindow::TheOne();
     if (mw)
         mw->end_timing(std::move(descr));
-    endWaitingPending = false;
 }
 
 void OnEndWaiting(ClientHandle /*clientHandle*/, AbstrMsgGenerator* ach) {
    
-    if (endWaitingPending)
+    if (endWaitingPending.exchange(true))
         return;
+
     QTimer::singleShot(0, [descr = SharedStr(ach->GetDescription())]() { HandleEndWaiting(std::move(descr)); });
 }
 
