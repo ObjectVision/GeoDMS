@@ -524,6 +524,7 @@ void GraphicLayer::SelectAll(bool select)
 	else
 		fast_zero(i, e);
 	lock.Commit();
+	BroadcastUpdateRequest();
 }
 
 void GraphicLayer::SelectDistrict(CrdPoint pnt, EventID eventID)
@@ -640,7 +641,10 @@ bool GraphicLayer::SelectEntityIndex(AbstrDataObject* selAttrObj, SizeT selected
 			InvalidateFeature( selectedIndex ); // only invalidate changed feature of Layer
 	}
 	else
+	{
 		InvalidateDraw(); // change 
+	}
+	BroadcastUpdateRequest();
 
 	return true;
 

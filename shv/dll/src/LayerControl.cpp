@@ -610,8 +610,11 @@ void LayerControl::DoUpdateView()
 			SetPaletteControl();
 			//	REMOVE	if (m_Layer->DetailsVisible())
 			OnDetailsVisibilityChanged(); // process when m_Layer->DetailsVisible() == false
-			m_PaletteControl->CalcClientSize();
-			MG_DEBUGCODE(m_PaletteControl->CheckState(); )
+			if (m_PaletteControl)
+			{
+				m_PaletteControl->CalcClientSize();
+				MG_DEBUGCODE(m_PaletteControl->CheckState(); )
+			}
 		}
 	}
 	if (m_PaletteControl)

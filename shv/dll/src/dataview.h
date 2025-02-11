@@ -136,6 +136,7 @@ struct DataViewTree : double_linked_tree<DataView>
 	void DelChildView(DataView* childView);
 
 	void BroadcastCmd(ToolButtonID id);
+	void BroadcastUpdateRequest();
 };
 
 //----------------------------------------------------------------------
@@ -352,5 +353,6 @@ void Unkeep(DataView*);
 
 void OnDestroyDataView(DataView* self);
 void BroadcastCommandToAllDataViews(ToolButtonID id);
+void BroadcastUpdateRequest();
 
 #endif // !defined(__SHV_DATAVIEW_H)

@@ -50,7 +50,7 @@ InvalidationBlock::InvalidationBlock(const Actor* self)
 
 void InvalidationBlock::ProcessChange() // request to Invalidate Local Changes 
 {
-	dms_assert(m_ChangingObj);
+	assert(m_ChangingObj);
 	m_ChangingObj->GetLastChangeTS(); // process the changes while actor_flag_set::AF_BlockChange is set
 }
 

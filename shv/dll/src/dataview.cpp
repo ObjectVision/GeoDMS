@@ -149,11 +149,33 @@ void DataViewTree::BroadcastCmd(ToolButtonID id)
 	}
 }
 
+void DataViewTree::BroadcastUpdateRequest()
+{
+	for (auto cv = _GetFirstSubItem(); cv; cv = cv->GetNextItem())
+	{
+		cv->SetUpdateTimer();
+		cv->BroadcastUpdateRequest();
+	}
+}
+
 void BroadcastCommandToAllDataViews(ToolButtonID id)
 {
 	g_DataViewRoots.BroadcastCmd(id);
 }
 
+static std::atomic<bool> s_broadcastPending = false;
+
+void BroadcastUpdateRequest()
+{
+	if (s_broadcastPending.exchange(true))
+		return;
+	PostMainThreadOper([]() 
+		{
+			s_broadcastPending = false;
+			g_DataViewRoots.BroadcastUpdateRequest();
+		}
+	);
+}
 
 //----------------------------------------------------------------------
 // section: DEBUG TOOLS

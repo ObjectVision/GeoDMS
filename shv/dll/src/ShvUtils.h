@@ -206,6 +206,7 @@ enum ToolButtonID // GeoDmsGui.exe: keep this list in sync with type ToolButtonI
 //	TB_SetData,
 	TB_Undefined,
 	OBSOLETE_TB_Pan,                // DualPoint   Tool
+	TB_UpdateView,
 };
 
 inline bool MustQuery(ToolButtonID id)

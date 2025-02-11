@@ -163,6 +163,7 @@ void SelChangeInvalidator::ProcessChange(bool mustSetFocusElemIndex)
 {
 	SelChangeInvalidatorBase::ProcessChange(mustSetFocusElemIndex);
 	m_ChangeLock.ProcessChange();
+	BroadcastUpdateRequest();
 }
 
 //----------------------------------------------------------------------
@@ -411,8 +412,7 @@ void TableControl::UpdateShowSelOnly()
 			);
 		};
 		auto t = dms_task(focusElemSetFunctor);
-}
-
+	}
 }
 
 void TableControl::NotifyRowColChange()
@@ -881,6 +881,7 @@ void TableControl::SelectAllRows(bool v)
 		fast_zero(b, e);
 	writeLock.Commit();
 
+	BroadcastUpdateRequest();
 	NotifyCaptionChange();
 }
 
@@ -911,6 +912,7 @@ void TableControl::SelectRows()
 		b[GetRecNo(rowNr)] = isSelected;
 	writeLock.Commit();
 
+	BroadcastUpdateRequest();
 	NotifyCaptionChange();
 }
 
