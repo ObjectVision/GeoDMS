@@ -1,113 +1,55 @@
-boost-accumulators:x64-windows                    1.84.0              Boost accumulators module
 boost-algorithm:x64-windows                       1.84.0              Boost algorithm module
 boost-align:x64-windows                           1.84.0              Boost align module
-boost-any:x64-windows                             1.84.0              Boost any module
 boost-array:x64-windows                           1.84.0              Boost array module
 boost-asio:x64-windows                            1.84.0              Boost asio module
 boost-assert:x64-windows                          1.84.0              Boost assert module
-boost-assign:x64-windows                          1.84.0              Boost assign module
 boost-atomic:x64-windows                          1.84.0              Boost atomic module
-boost-beast:x64-windows                           1.84.0              Boost beast module
-boost-bimap:x64-windows                           1.84.0              Boost bimap module
 boost-bind:x64-windows                            1.84.0              Boost bind module
 boost-build:x64-windows                           1.84.0              Boost.Build
-boost-callable-traits:x64-windows                 1.84.0              Boost callable_traits module
 boost-chrono:x64-windows                          1.84.0              Boost chrono module
-boost-circular-buffer:x64-windows                 1.84.0              Boost circular_buffer module
-boost-cobalt:x64-windows                          1.84.0              Boost cobalt module
-boost-compat:x64-windows                          1.84.0              Boost compat module
-boost-compatibility:x64-windows                   1.84.0              Boost compatibility module
-boost-compute:x64-windows                         1.84.0              Boost compute module
 boost-concept-check:x64-windows                   1.84.0              Boost concept_check module
 boost-config:x64-windows                          1.84.0              Boost config module
 boost-container-hash:x64-windows                  1.84.0              Boost container_hash module
 boost-container:x64-windows                       1.84.0              Boost container module
 boost-context:x64-windows                         1.84.0              Boost context module
-boost-contract:x64-windows                        1.84.0              Boost contract module
 boost-conversion:x64-windows                      1.84.0              Boost conversion module
-boost-convert:x64-windows                         1.84.0              Boost convert module
 boost-core:x64-windows                            1.84.0              Boost core module
-boost-coroutine2:x64-windows                      1.84.0              Boost coroutine2 module
 boost-coroutine:x64-windows                       1.84.0              Boost coroutine module
-boost-crc:x64-windows                             1.84.0              Boost crc module
 boost-date-time:x64-windows                       1.84.0              Boost date_time module
 boost-describe:x64-windows                        1.84.0              Boost describe module
 boost-detail:x64-windows                          1.84.0              Boost detail module
-boost-dll:x64-windows                             1.84.0              Boost dll module
 boost-dynamic-bitset:x64-windows                  1.84.0              Boost dynamic_bitset module
 boost-endian:x64-windows                          1.84.0              Boost endian module
 boost-exception:x64-windows                       1.84.0              Boost exception module
-boost-fiber:x64-windows                           1.84.0              Boost fiber module
 boost-filesystem:x64-windows                      1.84.0              Boost filesystem module
-boost-flyweight:x64-windows                       1.84.0              Boost flyweight module
-boost-foreach:x64-windows                         1.84.0              Boost foreach module
 boost-format:x64-windows                          1.84.0              Boost format module
 boost-function-types:x64-windows                  1.84.0              Boost function_types module
 boost-function:x64-windows                        1.84.0              Boost function module
 boost-functional:x64-windows                      1.84.0              Boost functional module
 boost-fusion:x64-windows                          1.84.0              Boost fusion module
-boost-geometry:x64-windows                        1.84.0              Boost geometry module
-boost-gil:x64-windows                             1.84.0              Boost gil module
-boost-graph:x64-windows                           1.84.0              Boost graph module
 boost-hana:x64-windows                            1.84.0              Boost hana module
-boost-heap:x64-windows                            1.84.0              Boost heap module
-boost-histogram:x64-windows                       1.84.0              Boost histogram module
-boost-hof:x64-windows                             1.84.0              Boost hof module
-boost-icl:x64-windows                             1.84.0              Boost icl module
 boost-integer:x64-windows                         1.84.0              Boost integer module
-boost-interprocess:x64-windows                    1.84.0              Boost interprocess module
 boost-interval:x64-windows                        1.84.0              Boost interval module
 boost-intrusive:x64-windows                       1.84.0              Boost intrusive module
 boost-io:x64-windows                              1.84.0              Boost io module
-boost-iostreams:x64-windows                       1.84.0              Boost iostreams module
-boost-iostreams[bzip2]:x64-windows                                    Support bzip2 filters
-boost-iostreams[lzma]:x64-windows                                     Support LZMA/xz filters
-boost-iostreams[zlib]:x64-windows                                     Support zlib filters
-boost-iostreams[zstd]:x64-windows                                     Support zstd filters
 boost-iterator:x64-windows                        1.84.0              Boost iterator module
-boost-json:x64-windows                            1.84.0              Boost json module
-boost-lambda2:x64-windows                         1.84.0              Boost lambda2 module
 boost-lambda:x64-windows                          1.84.0              Boost lambda module
-boost-leaf:x64-windows                            1.84.0              Boost leaf module
 boost-lexical-cast:x64-windows                    1.84.0              Boost lexical_cast module
-boost-local-function:x64-windows                  1.84.0              Boost local_function module
-boost-locale:x64-windows                          1.84.0              Boost locale module
-boost-lockfree:x64-windows                        1.84.0              Boost lockfree module
-boost-log:x64-windows                             1.84.0              Boost log module
 boost-logic:x64-windows                           1.84.0              Boost logic module
 boost-math:x64-windows                            1.84.0              Boost math module
-boost-metaparse:x64-windows                       1.84.0              Boost metaparse module
 boost-modular-build-helper:x64-windows            1.84.0#2            Internal vcpkg port used to build Boost libraries
 boost-move:x64-windows                            1.84.0              Boost move module
 boost-mp11:x64-windows                            1.84.0              Boost mp11 module
 boost-mpl:x64-windows                             1.84.0              Boost mpl module
-boost-msm:x64-windows                             1.84.0              Boost msm module
-boost-multi-array:x64-windows                     1.84.0              Boost multi_array module
 boost-multi-index:x64-windows                     1.84.0              Boost multi_index module
-boost-multiprecision:x64-windows                  1.84.0              Boost multiprecision module
-boost-mysql:x64-windows                           1.84.0              Boost mysql module
-boost-nowide:x64-windows                          1.84.0              Boost nowide module
 boost-numeric-conversion:x64-windows              1.84.0              Boost numeric_conversion module
-boost-odeint:x64-windows                          1.84.0              Boost odeint module
 boost-optional:x64-windows                        1.84.0              Boost optional module
-boost-outcome:x64-windows                         1.84.0              Boost outcome module
-boost-parameter-python:x64-windows                1.84.0              Boost parameter_python module
 boost-parameter:x64-windows                       1.84.0              Boost parameter module
-boost-pfr:x64-windows                             1.84.0              Boost pfr module
 boost-phoenix:x64-windows                         1.84.0              Boost phoenix module
-boost-poly-collection:x64-windows                 1.84.0              Boost poly_collection module
-boost-polygon:x64-windows                         1.84.0              Boost polygon module
 boost-pool:x64-windows                            1.84.0              Boost pool module
 boost-predef:x64-windows                          1.84.0              Boost predef module
 boost-preprocessor:x64-windows                    1.84.0              Boost preprocessor module
-boost-process:x64-windows                         1.84.0              Boost process module
-boost-program-options:x64-windows                 1.84.0              Boost program_options module
-boost-property-map:x64-windows                    1.84.0              Boost property_map module
-boost-property-tree:x64-windows                   1.84.0              Boost property_tree module
 boost-proto:x64-windows                           1.84.0              Boost proto module
-boost-ptr-container:x64-windows                   1.84.0              Boost ptr_container module
-boost-python:x64-windows                          1.84.0              Boost python module
-boost-python[python3]:x64-windows                                     Build with Python3 support
 boost-qvm:x64-windows                             1.84.0              Boost qvm module
 boost-random:x64-windows                          1.84.0              Boost random module
 boost-range:x64-windows                           1.84.0              Boost range module
@@ -154,105 +96,17 @@ boost-wave:x64-windows                            1.84.0              Boost wave
 boost-winapi:x64-windows                          1.84.0              Boost winapi module
 boost-xpressive:x64-windows                       1.84.0              Boost xpressive module
 boost-yap:x64-windows                             1.84.0              Boost yap module
-boost:x64-windows                                 1.84.0              Peer-reviewed portable C++ source libraries
 bzip2:x64-windows                                 1.0.8#5             bzip2 is a freely available, patent free, high-q...
 bzip2[tool]:x64-windows                                               Builds bzip2 executable
-cgal:x64-windows                                  5.6.1               The Computational Geometry Algorithms Library (C...
-curl:x64-windows                                  8.6.0#1             A library for transferring data with URLs
-curl[non-http]:x64-windows                                            Enables protocols beyond HTTP/HTTPS/HTTP2
-curl[schannel]:x64-windows                                            SSL support (Secure Channel)
-curl[ssl]:x64-windows                                                 Default SSL backend
-curl[sspi]:x64-windows                                                SSPI support
 expat:x64-windows                                 2.6.1               XML parser library written in C
-freexl:x64-windows                                2.0.0               FreeXL is an open source library to extract vali...
-gdal:x64-windows                                  3.8.4               The Geographic Data Abstraction Library for read...
-gdal[curl]:x64-windows                                                Enable CURL network support
-gdal[default-features]:x64-windows                                    Default set of features, including recommended f...
-gdal[expat]:x64-windows                                               Use EXPAT library
-gdal[geos]:x64-windows                                                Enable GEOS support
-gdal[gif]:x64-windows                                                 Enable GIF support
-gdal[hdf5]:x64-windows                                                Enable HDF5 support
-gdal[iconv]:x64-windows                                               Use iconv library
-gdal[jpeg]:x64-windows                                                Use JPEG compression library
-gdal[lerc]:x64-windows                                                Enable LERC support
-gdal[libkml]:x64-windows                                              Enable the LibKML driver
-gdal[libspatialite]:x64-windows                                       Create or update SpatiaLite databases using libs...
-gdal[libxml2]:x64-windows                                             Use LibXML2 library
-gdal[lzma]:x64-windows                                                Use LZMA library
-gdal[netcdf]:x64-windows                                              Enable NetCDF support
-gdal[openjpeg]:x64-windows                                            Use OpenJPEG library
-gdal[openssl]:x64-windows                                             Use OpenSSL library
-gdal[pcre2]:x64-windows                                               Enable PCRE2 support for sqlite3
-gdal[png]:x64-windows                                                 Use PNG compression library
-gdal[postgresql]:x64-windows                                          Enable PostgreSQL support
-gdal[qhull]:x64-windows                                               Use QHULL library
-gdal[recommended-features]:x64-windows                                Features that are explicity marked as recommende...
-gdal[sqlite3]:x64-windows                                             Enable SQLite3 support
-gdal[webp]:x64-windows                                                Enable WEBP support
-gdal[zstd]:x64-windows                                                Use ZSTD library
-geos:x64-windows                                  3.11.3#1            Geometry Engine Open Source
-giflib:x64-windows                                5.2.2               A library for reading and writing gif images.
-gmp:x64-windows                                   6.3.0               The GNU Multiple Precision Arithmetic Library
-hdf5:x64-windows                                  1.14.2              HDF5 is a data model, library, and file format f...
-hdf5[cpp]:x64-windows                                                 Builds cpp lib
-hdf5[szip]:x64-windows                                                Build with szip
-hdf5[zlib]:x64-windows                                                Build with zlib
-json-c:x64-windows                                2023-08-12          A JSON implementation in C
-lerc:x64-windows                                  4.0.4               An open-source image or raster format which supp...
 libffi:x64-windows                                3.4.6               Portable, high level programming interface to va...
-libgeotiff:x64-windows                            1.7.1#3             Libgeotiff is an open source library on top of l...
-libiconv:x64-windows                              1.17#3              GNU Unicode text conversion
-libjpeg-turbo:x64-windows                         3.0.2               libjpeg-turbo is a JPEG image codec that uses SI...
-libkml:x64-windows                                1.3.0#13            Reference implementation of OGC KML 2.2
 liblzma:x64-windows                               5.6.0               Compression library with an API similar to that ...
-libpng:x64-windows                                1.6.43              libpng is a library implementing an interface fo...
-libpq:x64-windows                                 16.2#1              The official database access API of postgresql
-libpq[lz4]:x64-windows                                                Use lz4
-libpq[openssl]:x64-windows                                            support for encrypted client connections and ran...
-libpq[zlib]:x64-windows                                               Use zlib
-libspatialite:x64-windows                         5.1.0#1             SpatiaLite is an open source library intended to...
-libspatialite[freexl]:x64-windows                                     FreeXL spreadsheet file support.
-libwebp:x64-windows                               1.3.2               WebP codec: library to encode and decode images ...
-libwebp[libwebpmux]:x64-windows                                       Build the libwebpmux library
-libwebp[nearlossless]:x64-windows                                     Enable near-lossless encoding
-libwebp[simd]:x64-windows                                             Enable any SIMD optimization.
-libwebp[unicode]:x64-windows                                          Build Unicode executables. (Adds definition UNIC...
-libxml2:x64-windows                               2.11.7              Libxml2 is the XML C parser and toolkit develope...
-libxml2[http]:x64-windows                                             Add the HTTP support
-libxml2[iconv]:x64-windows                                            Add ICONV support
-libxml2[lzma]:x64-windows                                             Use LZMA
-libxml2[zlib]:x64-windows                                             Use ZLib
-lz4:x64-windows                                   1.9.4#1             Lossless compression algorithm, providing compre...
-minizip:x64-windows                               1.3.1               Minizip zip file manipulation library
-mpfr:x64-windows                                  4.2.1               The MPFR library is a C library for multiple-pre...
-ms-gsl:x64-windows                                4.0.0#1             Microsoft implementation of the Guidelines Suppo...
-netcdf-c:x64-windows                              4.8.1#5             A set of self-describing, machine-independent da...
-netcdf-c[dap]:x64-windows                                             Build with DAP remote access client support
-netcdf-c[hdf5]:x64-windows                                            Build with HDF5 support
-netcdf-c[nczarr]:x64-windows                                          Build with NCZarr cloud storage access support
-netcdf-c[netcdf-4]:x64-windows                                        Build with netCDF-4 support
-nlohmann-json:x64-windows                         3.11.3              JSON for Modern C++
-openjpeg:x64-windows                              2.5.2               OpenJPEG is an open-source JPEG 2000 codec writt...
 openssl:x64-windows                               3.2.1               OpenSSL is an open source project that provides ...
-pcre2:x64-windows                                 10.42#2             Regular Expression pattern matching using the sa...
-pcre2[jit]:x64-windows                                                Enable support for Just-In-Time compiling regex ...
-pcre2[platform-default-features]:x64-windows                          Enable default features
 pkgconf:x64-windows                               2.1.0               pkgconf is a program which helps to configure co...
-proj:x64-windows                                  9.3.1               PROJ library for cartographic projections
-proj[net]:x64-windows                                                 Enable network support
-proj[tiff]:x64-windows                                                Enable TIFF support to read some grids
-python3:x64-windows                               3.11.8#1            The Python programming language
-qhull:x64-windows                                 8.0.2#4             computes the convex hull, Delaunay triangulation...
 sqlite3:x64-windows                               3.45.2              SQLite is a software library that implements a s...
 sqlite3[json1]:x64-windows                                            Enable JSON functionality for sqlite3
 sqlite3[rtree]:x64-windows                                            Enable the RTREE extension
 sqlite3[tool]:x64-windows                                             Build sqlite3 executable
-szip:x64-windows                                  2.1.1#12            Szip compression software, providing lossless co...
-tiff:x64-windows                                  4.6.0#4             A library that supports the manipulation of TIFF...
-tiff[jpeg]:x64-windows                                                Support JPEG compression in TIFF image files
-tiff[lzma]:x64-windows                                                Support LZMA compression in TIFF image files
-tiff[zip]:x64-windows                                                 Support ZIP/deflate compression in TIFF image files
-uriparser:x64-windows                             0.9.7               Strictly RFC 3986 compliant URI parsing and hand...
 vcpkg-cmake-config:x64-windows                    2022-02-06#1        
 vcpkg-cmake-get-vars:x64-windows                  2023-12-31          
 vcpkg-cmake:x64-windows                           2023-05-04          
@@ -260,4 +114,3 @@ vcpkg-msbuild:x64-windows                         2023-08-08
 vcpkg-pkgconfig-get-modules:x64-windows           2023-09-06          
 vcpkg-tool-meson:x64-windows                      1.3.2               Meson build system
 zlib:x64-windows                                  1.3.1               A compression library
-zstd:x64-windows                                  1.5.5#2             Zstandard - Fast real-time compression algorithm
