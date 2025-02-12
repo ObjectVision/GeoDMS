@@ -41,9 +41,15 @@
 const Int32 MAX_COORD = (1 << 26);
 
 #include "VersionComponent.h"
+#include <geos/version.h>
+#include <CGAL/version.h>
+
 static VersionComponent s_Boost("boost " BOOST_LIB_VERSION);
 static VersionComponent s_BoostPolygon("boost::polygon " BOOST_STRINGIZE(BOOST_POLYGON_VERSION));
-
+// static VersionComponent s_BoostGeometry("boost::geometry " BOOST_STRINGIZE(BOOST_GEOMETRY_VERSION));
+static VersionComponent s_BoostGEOS1("boost::geos" BOOST_STRINGIZE(GEOS_VERSION_MAJOR) "." BOOST_STRINGIZE(GEOS_VERSION_MINOR) "." BOOST_STRINGIZE(GEOS_VERSION_PATCH));
+static VersionComponent s_BoostGEOS2("boost::geos" BOOST_STRINGIZE(GEOS_VERSION));
+static VersionComponent s_BoostCGAL("boost::CGAL" BOOST_STRINGIZE(CGAL_VERSION));
 
 template <typename T>
 static bool coords_using_more_than_25_bits(T coord)

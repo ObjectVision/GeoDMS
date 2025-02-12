@@ -69,7 +69,12 @@ auto geos_create_multi_linestring(const DmsPointType* begin, const DmsPointType*
 		}
 		if (!lineStringCoords.empty())
 		{
-			auto ls = geos_factory()->createLineString(std::move(lineStringCoords));
+			auto coordSeq = geos::geom::CoordinateSequence::XY(lineStringCoords.size());
+			std::size_t i = 0;
+			for (const auto& p: lineStringCoords)
+				coordSeq[i++] = p;
+
+			auto ls = geos_factory()->createLineString(coordSeq);
 			resLineStrings.emplace_back(std::move(ls));
 		}
 		if (curr == beyond)
@@ -108,7 +113,7 @@ template <typename DmsPointType>
 struct geos_create_linear_ring_helper_data
 {
 	std::vector<DmsPointType> helperRingPoints;
-	std::vector<geos::geom::Coordinate> helperRingCoords;
+//	std::vector<geos::geom::Coordinate> helperRingCoords;
 };
 
 template <typename DmsPointType>
@@ -126,13 +131,23 @@ auto geos_create_linear_ring(const DmsPointType* begin, const DmsPointType* beyo
 	if (tmp.helperRingPoints.size() < 3)
 		return {};
 
+/* REMOVE
 	tmp.helperRingCoords.clear();
 	tmp.helperRingCoords.reserve(tmp.helperRingPoints.size() + 1);
 	for (const auto& p : tmp.helperRingPoints)
 		tmp.helperRingCoords.emplace_back(geos_Coordinate(p));
 	tmp.helperRingCoords.emplace_back(geos_Coordinate(tmp.helperRingPoints[0])); // close ring.
+	*/
 
-	auto result = geos_factory()->createLinearRing(std::move(tmp.helperRingCoords));
+	auto sequence = geos::geom::CoordinateSequence::XY(tmp.helperRingPoints.size() + 1);
+	std::size_t i = 0;
+	for (const auto& p : tmp.helperRingPoints)
+		sequence[i++] = geos_Coordinate(p);
+	sequence[i] = geos_Coordinate(tmp.helperRingPoints[0]); // close ring.
+
+
+//	auto coordSerq = geos_factory()->create(sequence)
+	auto result = geos_factory()->createLinearRing(sequence);
 	MG_CHECK(result->isClosed());
 	return result;
 }

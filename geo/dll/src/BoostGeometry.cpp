@@ -19,8 +19,6 @@
 
 #include <geos/simplify/DouglasPeuckerSimplifier.h>
 
-static VersionComponent s_BoostGeometry("boost::geometry " BOOST_STRINGIZE(BOOST_GEOMETRY_VERSION));
-
 // *****************************************************************************
 //	more conversion functions
 // *****************************************************************************

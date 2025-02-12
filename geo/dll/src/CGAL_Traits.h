@@ -257,7 +257,7 @@ void cgal_assign_polygon_with_holes_vector(E&& ref, std::vector<CGAL_Traits::Pol
 }
 
 template <dms_sequence E, typename Polygon>
-void cgal_assign_shared_polygon_vector(E&& ref, std::vector<boost::shared_ptr<Polygon>>&& polyVec)
+void cgal_assign_shared_polygon_vector(E&& ref, std::vector<std::shared_ptr<Polygon>>&& polyVec)
 {
 	ref.clear();
 
