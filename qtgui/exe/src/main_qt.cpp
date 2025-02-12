@@ -418,6 +418,11 @@ void ProcessRequestedCmdLineFeedback(char* argMsg) {
     MessageBoxA(nullptr, exceptionText.c_str(), "GeoDmsQt teminated due to a fatal OS Structured Exception", MB_OK | MB_ICONERROR | MB_SYSTEMMODAL | MB_TASKMODAL);
 }
 
+#include "VersionComponent.h"
+
+static VersionComponent s_QT("qt " QT_VERSION_STR);
+
+
 int main(int argc, char* argv[]) {
     if ((argc > 1) && (argv[1][0] == '/') && (argv[1][1] == 'F')) {
         ProcessRequestedCmdLineFeedback(argv[1] + 2 );
