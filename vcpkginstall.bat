@@ -1,21 +1,15 @@
 echo off
-echo "Did this start from Visual Studio 2022 Command Prompt for x64 ? No->Ctrl-Break"
+echo "Did this start from Visual Studio 2022 Command Prompt for x64? No? -> Ctrl-Break"
 echo "CurrDir should now be in the geodms folder ! No ? - >Ctrl-Break"
 echo "Don't forget to install dev/tst, Intel IPP, and NSIS >= 3.08 too !"
 pause
-c:
-cd \dev
 
-git clone https://github.com/Microsoft/vcpkg
+set VCPKG_BINARY_SOURCES=clear;files,C:\dev\vc_archives,readwrite
+set VCPKG_DOWNLOADS=c:\dev\vc_downloads
 
-cd vcpkg
-git pull
-call bootstrap-vcpkg.bat
-vcpkg integrate install
+echo about to delete sub-folder vcpkg_installed
+pause "No? -> Ctrl-Break"
 
-set VCPKG_DEFAULT_TRIPLET=x64-windows
-
-vcpkg install boost boost-locale ms-gsl openssl openssl-windows sqlite3[rtree] gdal
-echo "Base packages installed. See https://github.com/ObjectVision/GeoDMS/wiki/Compiling-the-GeoDMS for further instructions."
-pause
+del /s /q "vcpkg_installed"
+vcpkg install
 
