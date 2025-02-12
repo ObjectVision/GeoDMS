@@ -17,6 +17,7 @@
   </PropertyGroup>
   <PropertyGroup Label="Vcpkg">
     <VcpkgEnableManifest>true</VcpkgEnableManifest>
+    <VcpkgAdditionalInstallOptions>--binarysource=clear;files,$(SolutionDir)\vc_archives,readwrite --downloads-root=$(SolutionDir)\vc_downloads</VcpkgAdditionalInstallOptions>
   </PropertyGroup>
   <ItemDefinitionGroup>
     <Bscmake>

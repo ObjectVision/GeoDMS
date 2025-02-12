@@ -8,13 +8,8 @@ __history
 Thumbs.db
 /filelist*.txt
 todo*.txt
-/enc_temp_folder
 /bin.old
 *.exe
-/XE2/General/__history
-/XE2/General/DmsInterface/__history
-
-/XE2/DMS/GeoDmsGui.identcache
 /exe/gui/GeoDmsGuiQt.vcxproj.filters
 /exe/gui/GeoDmsGuiQt.filters
 /qtgui/exe/res/images/down_arrow.xcf
@@ -28,3 +23,6 @@ todo*.txt
 /obj.OLD
 /rtc/dll/src/buildstamp.h
 /rtc/dll/src/RtcGeneratedVersion.h
+/vcpkg_installed.GARBAGE
+/vc_archives
+/vc_downloads
