@@ -2496,10 +2496,11 @@ void TreeItem::UpdateMetaInfoImpl2() const
 
 	if (GetTreeParent())
 		GetTreeParent()->UpdateMetaInfo();
-	if (HasStorageManager())
-		GetStorageManager();
 	
 	try {
+		if (HasStorageManager())
+			GetStorageManager();
+
 		DetermineState();
 		if ((m_State.GetProgress()>=PS_MetaInfo) || WasFailed(FR_MetaInfo)) // reset by DetermineState when supplier was invalidated
 			return;
