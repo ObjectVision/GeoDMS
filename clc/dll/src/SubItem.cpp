@@ -204,22 +204,25 @@ struct FenceContainerOperator : BinaryOperator
 		std::promise<void> fenceBell;
 		auto bellWaiter = fenceBell.get_future();
 		auto resultFenceNumer = resultHolder.m_FenceNumber;
-		SendMainThreadOper([resultRoot, resultFenceNumer , &futureDataContainer, &fenceBell]()
+		SendMainThreadOper([resultRoot, resultFenceNumer, sourceContainer, &futureDataContainer, &fenceBell]()
 			{
 				for (auto resWalker = resultRoot; resWalker; resWalker = resultRoot->WalkCurrSubTree(resWalker))
 				{
 					if (!IsUnit(resWalker) && !IsDataItem(resWalker))
 						continue;
-					auto holdInterestIfAny = resWalker->GetInterestPtrOrNull();
-					if (!holdInterestIfAny)
-						continue;
+					SharedPtr<TreeItem> holdInterest = resWalker;
 					auto dc = resWalker->mc_DC;
 					assert(dc);
 					if (dc)
 					{
 						assert(dc->m_FenceNumber < resultFenceNumer);
-						futureDataContainer.emplace_back(resWalker, dc->CallCalcResult());
+						futureDataContainer.emplace_back(holdInterest, dc->CallCalcResult());
 					}
+				}
+				for (auto srcWalker = sourceContainer; srcWalker; srcWalker = sourceContainer->WalkConstSubTree(srcWalker))
+				{
+					auto holdInterest = srcWalker;
+					srcWalker->CertainUpdate(PS_Committed, "MainThread executing for FenceContainer");
 				}
 				fenceBell.set_value();
 			}
