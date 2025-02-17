@@ -510,7 +510,7 @@ TokenID TreeItem::GetID () const
 // Containment Functions
 //----------------------------------------------------------------------
 
-bool TreeItem::HasSubItems   () const
+bool TreeItem::HasSubItems() const  noexcept
 {
 	if (_GetFirstSubItem())
 		return true;
@@ -520,7 +520,7 @@ bool TreeItem::HasSubItems   () const
 	return _GetFirstSubItem();
 }
 
-UInt32 TreeItem::CountNrSubItems () const
+UInt32 TreeItem::CountNrSubItems() const noexcept
 {
 	UpdateMetaInfo();
 	UInt32 result = 0;
@@ -533,7 +533,7 @@ UInt32 TreeItem::CountNrSubItems () const
 	return result;
 }
 
-UInt32 TreeItem::_CountNrSubItems ()
+UInt32 TreeItem::_CountNrSubItems ()  noexcept
 {
 	UInt32 result = 0;
 	const TreeItem* iter = _GetFirstSubItem();
@@ -545,13 +545,13 @@ UInt32 TreeItem::_CountNrSubItems ()
 	return result;
 }
 
-const TreeItem* TreeItem::GetFirstSubItem() const
+const TreeItem* TreeItem::GetFirstSubItem() const noexcept
 {
 	UpdateMetaInfo();
 	return _GetFirstSubItem();
 }
 
-const TreeItem* TreeItem::GetCurrFirstSubItem() const
+const TreeItem* TreeItem::GetCurrFirstSubItem() const  noexcept
 {
 	assert(m_State.GetProgress() >= PS_MetaInfo);
 	return _GetFirstSubItem();
@@ -559,14 +559,14 @@ const TreeItem* TreeItem::GetCurrFirstSubItem() const
 
 void TreeItem::AddItem(TreeItem* child)
 {
-	dms_assert(child);
-	dms_assert(!child->m_Parent);
+	assert(child);
+	assert(!child->m_Parent);
 
-	dms_assert(!GetSubTreeItemByID(child->GetID()));
+	assert(!GetSubTreeItemByID(child->GetID()));
 
-	dms_assert(!child->GetInterestCount());
+	assert(!child->GetInterestCount());
 	child->m_Parent = this;
-	dms_assert(child->IsAutoDeleteDisabled() == IsAutoDeleteDisabled() );
+	assert(child->IsAutoDeleteDisabled() == IsAutoDeleteDisabled() );
 
 	AddSub(child);
 
@@ -756,7 +756,7 @@ SharedTreeItemInterestPtr TreeItem::GetInterestPtrOrNull() const
 	return static_cast<const TreeItem*>(Actor::GetInterestPtrOrNull().get_ptr()); 
 }
 
-bool TreeItem::HasCalculatorImpl() const
+bool TreeItem::HasCalculatorImpl() const  noexcept
 // if true this func guarantees that GetCalculator will return a non-null mc_Calculator
 // true if not in template and (has expr or creator) or this is cache-result
 // in which case mc_Calculator has already been set by DataController to a DC_BackPtr
@@ -771,15 +771,15 @@ bool TreeItem::HasCalculatorImpl() const
 		return true;
 	if (IsUnit(this) && GetTSF(USF_HasConfigRange))
 	{
-		dms_assert(!IsCacheItem());
-		dms_assert(!IsPassor());
-		dms_assert(AsUnit(this)->HasVarRange());
+		assert(!IsCacheItem());
+		assert(!IsPassor());
+		assert(AsUnit(this)->HasVarRange());
 		return true;
 	}
 	return false;
 }
 
-bool TreeItem::HasCalculator() const
+bool TreeItem::HasCalculator() const noexcept
 // if true this func guarantees that GetCalculator will return a non-null mc_Calculator
 // true if not in template and (has expr or creator) or this is cache-result
 // in which case mc_Calculator has already been set by DataController to a DC_BackPtr
@@ -792,7 +792,7 @@ bool TreeItem::HasCalculator() const
 	return HasCalculatorImpl();
 }
 
-bool TreeItem::CanSubstituteByCalcSpec() const // TODO G8: Substitute away
+bool TreeItem::CanSubstituteByCalcSpec() const noexcept // TODO G8: Substitute away
 {
 	if (HasCalculator())
 		return true;
@@ -880,7 +880,7 @@ static void ApplyCalculator(TreeItem* holder, const AbstrCalculator* ac)
 	}
 }
 
-void TreeItem::MakeCalculator() const
+void TreeItem::MakeCalculator() const noexcept
 {
 	dms_check_not_debugonly;
 
@@ -923,7 +923,6 @@ void TreeItem::MakeCalculator() const
 	}
 	if (WasFailed(FR_Determine))
 		return;
-
 }
 
 static void ReportItemType(const TreeItem* self, const TreeItem* refItem)
@@ -980,13 +979,13 @@ bool TreeItem::CheckResultItem(const TreeItem* refItem) const
 
 // ============ GetRefItem
 
-const TreeItem* TreeItem::GetCurrRefItem() const
+const TreeItem* TreeItem::GetCurrRefItem() const noexcept
 {
 //	assert(Was(PS_MetaInfo) || WasFailed() || IsPassor() || IsUnit(this) && AsUnit(this)->IsDefaultUnit());
 	return mc_RefItem;
 }
 
-const TreeItem* TreeItem::GetReferredItem() const
+const TreeItem* TreeItem::GetReferredItem() const  noexcept
 {
 	assert(!SuspendTrigger::DidSuspend());
 	if (m_Parent) 
@@ -998,23 +997,23 @@ const TreeItem* TreeItem::GetReferredItem() const
 	return mc_RefItem;
 }
 
-const TreeItem* TreeItem::GetCurrUltimateItem() const
+const TreeItem* TreeItem::GetCurrUltimateItem() const noexcept
 {
 	return _GetCurrUltimateItem(this);
 }
 
-const TreeItem* TreeItem::GetCurrRangeItem() const
+const TreeItem* TreeItem::GetCurrRangeItem() const noexcept
 {
 	return _GetCurrRangeItem(this);
 }
 
-const TreeItem* TreeItem::GetUltimateItem() const
+const TreeItem* TreeItem::GetUltimateItem() const noexcept
 {
 	UpdateMetaInfo();
 	return _GetUltimateItem(this);
 }
 
-const TreeItem* TreeItem::GetSourceItem() const
+const TreeItem* TreeItem::GetSourceItem() const  noexcept
 {
 	const TreeItem* sourceItem = this;
 	do
@@ -1022,21 +1021,21 @@ const TreeItem* TreeItem::GetSourceItem() const
 		sourceItem = sourceItem->GetReferredItem();
 	}
 	while (sourceItem && sourceItem->IsCacheItem());
-	dms_assert(sourceItem != this);
+	assert(sourceItem != this);
 	return sourceItem;
 }
 
-const TreeItem* TreeItem::GetUltimateSourceItem() const
+const TreeItem* TreeItem::GetUltimateSourceItem() const noexcept
 {
 	const TreeItem* item = this;
 	const TreeItem* source;
 	while (source = item->GetSourceItem())
 		item = source;
-	dms_assert(item);
+	assert(item);
 	return item;
 }
 
-const TreeItem* TreeItem::GetCurrSourceItem() const
+const TreeItem* TreeItem::GetCurrSourceItem() const noexcept
 {
 	const TreeItem* sourceItem = this;
 	do
@@ -1048,7 +1047,7 @@ const TreeItem* TreeItem::GetCurrSourceItem() const
 	return sourceItem;
 }
 
-const TreeItem* TreeItem::GetCurrUltimateSourceItem() const
+const TreeItem* TreeItem::GetCurrUltimateSourceItem() const noexcept
 {
 	const TreeItem* item = this;
 	const TreeItem* source;
@@ -2558,7 +2557,7 @@ void TreeItem::UpdateMetaInfoImpl2() const
 
 RTC_CALL bool IsProcessingMainThreadOpers();
 
-void TreeItem::UpdateMetaInfo() const
+void TreeItem::UpdateMetaInfo() const noexcept
 {
 	auto contextForReportingPurposes = TreeItemContextHandle(this, "UpdateMetaInfo");
 
@@ -2731,7 +2730,7 @@ void TreeItem::SetProgress(ProgressState ps) const
 	}
 }
 
-const TreeItem* TreeItem::GetFirstVisibleSubItem() const
+const TreeItem* TreeItem::GetFirstVisibleSubItem() const noexcept
 {
 	dms_assert(this);
 
@@ -2742,7 +2741,7 @@ const TreeItem* TreeItem::GetFirstVisibleSubItem() const
 }
 
 
-const TreeItem* TreeItem::GetNextVisibleItem() const
+const TreeItem* TreeItem::GetNextVisibleItem() const noexcept
 {
 	dms_assert(this);
 	dms_assert(m_Parent);
@@ -2757,7 +2756,7 @@ const TreeItem* TreeItem::GetNextVisibleItem() const
 	return nextItem->GetFirstVisibleSubItem();
 }
 
-const TreeItem* TreeItem::WalkConstSubTree(const TreeItem* curr) const // this acts as subTreeRoot
+const TreeItem* TreeItem::WalkConstSubTree(const TreeItem* curr) const noexcept // this acts as subTreeRoot
 {
 	if (!curr) 
 		return this;
@@ -2802,7 +2801,7 @@ bool TreeItem::VisitConstVisibleSubTree(const ActorVisitor& visitor, const Stack
 	return true;
 }
 
-inline TreeItem* TreeItem::WalkNext(TreeItem* curr) // this acts as subTreeRoot
+inline TreeItem* TreeItem::WalkNext(TreeItem* curr) noexcept // this acts as subTreeRoot
 {
 	while (curr && curr != this)
 	{
@@ -2815,9 +2814,9 @@ inline TreeItem* TreeItem::WalkNext(TreeItem* curr) // this acts as subTreeRoot
 }
 
 // don't call UpdateMetaInfo for when you are in destructor / stop / nothrow land.
-TreeItem* TreeItem::WalkCurrSubTree(TreeItem* curr) // this acts as subTreeRoot
+TreeItem* TreeItem::WalkCurrSubTree(TreeItem* curr) noexcept // this acts as subTreeRoot
 {
-	dms_assert(curr);
+	assert(curr);
 	if (curr->_HasSubItems())
 		return curr->_GetFirstSubItem();
 	return WalkNext(curr);

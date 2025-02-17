@@ -45,7 +45,7 @@ dms_thread_id GetThreadID()
 
 #if defined(WIN32)
 
-void SetPriority()
+void SetPriority()  noexcept
 {
 	HANDLE currThread = GetCurrentThread();
 	SetThreadPriority(currThread, THREAD_PRIORITY_ABOVE_NORMAL);
@@ -74,7 +74,7 @@ bool IsElevatedThread()
 
 DWORD sMainThreadHnd = 0;
 
-void SetMainThreadID()
+void SetMainThreadID()  noexcept
 {
 	assert(sMainThreadID == sThreadID); // must be set from this thread or not set/called at all.
 	sMainThreadID = GetThreadID();
@@ -86,19 +86,19 @@ void SetMainThreadID()
 	SetPriority();
 }
 
-void SetMetaThreadID()
+void SetMetaThreadID() noexcept
 {
 	sMetaThreadID = GetThreadID();
 	SetPriority();
 }
 
-bool IsMainThread()
+bool IsMainThread() noexcept
 {
 	assert(sMainThreadID); // must be set prior.
 	return GetThreadID() == sMainThreadID;
 }
 
-bool IsMetaThread()
+bool IsMetaThread() noexcept
 {
 	assert(sMetaThreadID); // must be set prior.
 	return GetThreadID() == sMetaThreadID;

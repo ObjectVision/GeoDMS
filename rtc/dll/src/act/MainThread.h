@@ -37,10 +37,10 @@ private:
 
 /********** helper funcs  **********/
 
-RTC_CALL void   SetMainThreadID();
-RTC_CALL void   SetMetaThreadID();
-RTC_CALL bool   IsMainThread();
-RTC_CALL bool   IsMetaThread();
+RTC_CALL void   SetMainThreadID() noexcept;
+RTC_CALL void   SetMetaThreadID() noexcept;
+RTC_CALL bool   IsMainThread() noexcept;
+RTC_CALL bool   IsMetaThread() noexcept;
 RTC_CALL bool   NoOtherThreadsStarted();
 RTC_CALL bool   IsElevatedThread();
 RTC_CALL UInt32 GetCallCount();

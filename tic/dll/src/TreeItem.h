@@ -154,21 +154,21 @@ public:
 
 //	Containment
 
-	TIC_CALL UInt32  CountNrSubItems () const; // calls UpdateMetaInfo
-	TIC_CALL UInt32 _CountNrSubItems ();       // doesn't call UpdateMetaInfo
+	TIC_CALL UInt32  CountNrSubItems () const noexcept; // calls UpdateMetaInfo
+	TIC_CALL UInt32 _CountNrSubItems () noexcept;       // doesn't call UpdateMetaInfo
 
-	TIC_CALL bool              HasSubItems   () const;                            // calls UpdateMetaInfo
-	TIC_CALL bool              _HasSubItems  () { return _GetFirstSubItem(); }    // doesn't call UpdateMetaInfo
+	TIC_CALL bool              HasSubItems   () const noexcept;                            // calls UpdateMetaInfo
+	TIC_CALL bool              _HasSubItems  ()  noexcept { return _GetFirstSubItem(); }    // doesn't call UpdateMetaInfo
 
-	TIC_CALL const TreeItem*   GetFirstSubItem() const;
-	TIC_CALL const TreeItem*   GetCurrFirstSubItem() const;
-	TIC_CALL const TreeItem*   GetFirstVisibleSubItem() const;
-	TIC_CALL const TreeItem*   GetNextVisibleItem() const;
+	TIC_CALL const TreeItem*   GetFirstSubItem() const  noexcept;
+	TIC_CALL const TreeItem*   GetCurrFirstSubItem() const  noexcept;
+	TIC_CALL const TreeItem*   GetFirstVisibleSubItem() const  noexcept;
+	TIC_CALL const TreeItem*   GetNextVisibleItem() const  noexcept;
 
-	TIC_CALL const TreeItem*   WalkConstSubTree(const TreeItem* curr) const; // this acts as subTreeRoot
+	TIC_CALL const TreeItem*   WalkConstSubTree(const TreeItem* curr) const  noexcept; // this acts as subTreeRoot
 	TIC_CALL bool              VisitConstVisibleSubTree(const ActorVisitor& visitor, const struct StackFrame* = 0) const;
-	TIC_CALL TreeItem*         WalkCurrSubTree(TreeItem* curr);              // this acts as subTreeRoot
-	TIC_CALL TreeItem*         WalkNext(TreeItem* curr);                     // this acts as subTreeRoot
+	TIC_CALL TreeItem*         WalkCurrSubTree(TreeItem* curr) noexcept;              // this acts as subTreeRoot
+	TIC_CALL TreeItem*         WalkNext(TreeItem* curr)  noexcept;                    // this acts as subTreeRoot
 
 	bool IsInherited() const { return GetTSF(TSF_InheritedRef); }
 	bool IsInInherited() const { if (IsInherited()) return true; auto tp = GetTreeParent(); return tp && tp->IsInherited(); }
@@ -208,8 +208,8 @@ public:
 	static TIC_CALL TreeItem* CreateConfigRoot(TokenID id);
 	static TIC_CALL TreeItem* CreateCacheRoot();
 
-	TIC_CALL bool HasCalculator()   const;
-	TIC_CALL bool HasCalculatorImpl() const;
+	TIC_CALL bool HasCalculator()   const noexcept;
+	TIC_CALL bool HasCalculatorImpl() const noexcept;
 
 	TIC_CALL bool IsLoadable()      const;
 	TIC_CALL bool IsStorable()      const;
@@ -247,7 +247,7 @@ public:
 
 	TIC_CALL TreeItem* Copy(TreeItem* dest, TokenID id, CopyTreeContext& copyContext) const;
 	void UpdateMetaInfoImpl2() const; // sort of const
-	TIC_CALL void UpdateMetaInfo() const override; // sort of const
+	TIC_CALL void UpdateMetaInfo() const noexcept override; // sort of const
 
 //	override Actor callbacks
 
@@ -261,10 +261,10 @@ public:
 //	calculator and reffered items
 
 	TIC_CALL auto GetCalculator() const -> AbstrCalculatorRef;
-	TIC_CALL const TreeItem* GetCurrSourceItem() const;
-	TIC_CALL const TreeItem* GetSourceItem() const;
-	TIC_CALL const TreeItem* GetUltimateSourceItem() const;
-	TIC_CALL const TreeItem* GetCurrUltimateSourceItem() const;
+	TIC_CALL const TreeItem* GetCurrSourceItem() const noexcept;
+	TIC_CALL const TreeItem* GetSourceItem() const noexcept;
+	TIC_CALL const TreeItem* GetUltimateSourceItem() const noexcept;
+	TIC_CALL const TreeItem* GetCurrUltimateSourceItem() const noexcept;
 
 	TIC_CALL bool HasIntegrityChecker() const;
 	TIC_CALL auto GetIntegrityChecker() const -> AbstrCalculatorRef;
@@ -272,11 +272,11 @@ public:
 	TIC_CALL bool HasSizeEstimator() const;
 	TIC_CALL auto GetSizeEstimator() const->AbstrCalculatorRef;
 
-	TIC_CALL const TreeItem* GetCurrUltimateItem() const;
-	TIC_CALL const TreeItem* GetCurrRangeItem() const;
-	TIC_CALL const TreeItem* GetUltimateItem() const;
-	TIC_CALL const TreeItem* GetCurrRefItem () const;
-	TIC_CALL const TreeItem* GetReferredItem() const;
+	TIC_CALL const TreeItem* GetCurrUltimateItem() const noexcept;
+	TIC_CALL const TreeItem* GetCurrRangeItem() const  noexcept;
+	TIC_CALL const TreeItem* GetUltimateItem() const  noexcept;
+	TIC_CALL const TreeItem* GetCurrRefItem () const  noexcept;
+	TIC_CALL const TreeItem* GetReferredItem() const  noexcept;
 	TIC_CALL virtual void Unify(const TreeItem* refItem, CharPtr leftRole, CharPtr rightRole) const;
 
 //	TIC_CALL MetaInfo GetMetaInfo(metainfo_policy_flags mpf) const;
@@ -387,7 +387,7 @@ private:
 public: // TODO G8: Re-encapsulate
 	void EnableAutoDeleteImpl(); // does not call UpdateMetaInfo
 	void EnableAutoDeleteRootImpl(); // does not call UpdateMetaInfo
-	void MakeCalculator() const;
+	void MakeCalculator() const noexcept;
 	void UpdateMetaInfoImpl() const;
 	TIC_CALL void SetReferredItem(const TreeItem* refItem) const;
 	const TreeItem* DetermineReferredItem(const AbstrCalculator* ac) const;
@@ -406,7 +406,7 @@ public: // TODO G8: Re-encapsulate
 	TIC_CALL bool GetIsInstantiated() const;
 	TIC_CALL void SetIsInstantiated() const;
 
-	bool CanSubstituteByCalcSpec() const;
+	bool CanSubstituteByCalcSpec() const noexcept;
 public:
 	void LoadBlobBuffer (const BlobBuffer& rs);
 	void StoreBlobBuffer(      BlobBuffer& rs) const;

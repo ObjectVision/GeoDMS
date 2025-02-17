@@ -146,7 +146,7 @@ protected:
 	//	Override this method to implement reset behaviour. For example:
 	//	aMapView->InvalidateLayer(this).
 	RTC_CALL virtual void DoInvalidate () const;
-	RTC_CALL virtual void UpdateMetaInfo() const;
+	RTC_CALL virtual void UpdateMetaInfo() const noexcept;
 
 	RTC_CALL void UpdateSupplMetaInfo() const;
 

@@ -19,12 +19,12 @@ protected:
 	using this_type_cptr = const CompleteType*;
 
 public:
-	this_type_ptr  _GetFirstSubItem()   { return m_FirstSub; }
-	this_type_ptr  GetNextItem()       { return m_Next; }
+	this_type_ptr  _GetFirstSubItem()  noexcept { return m_FirstSub; }
+	this_type_ptr  GetNextItem()  noexcept { return m_Next; }
 
-	this_type_cptr _GetFirstSubItem() const { return m_FirstSub; }
+	this_type_cptr _GetFirstSubItem() const  noexcept { return m_FirstSub; }
 
-	this_type_cptr GetNextItem() const { return m_Next; }
+	this_type_cptr GetNextItem() const  noexcept { return m_Next; }
 
 	void Reorder(this_type_ptr* first, this_type_ptr* last); // client is responsible that *.inc is instantiated
 

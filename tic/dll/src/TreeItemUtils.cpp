@@ -51,9 +51,9 @@ granted by an additional written contract for support, assistance and/or develop
 // functions 
 //----------------------------------------------------------------------
 
-const TreeItem* _GetHistoricUltimateItem(const TreeItem* ti)
+const TreeItem* _GetHistoricUltimateItem(const TreeItem* ti) noexcept
 {
-	dms_assert(ti);
+	assert(ti);
 
 	while (true)
 	{
@@ -64,40 +64,22 @@ const TreeItem* _GetHistoricUltimateItem(const TreeItem* ti)
 	}
 }
 
-const TreeItem* _GetCurrUltimateItem(const TreeItem* ti)
+const TreeItem* _GetCurrUltimateItem(const TreeItem* ti) noexcept
 {
-	dms_assert(ti);
+	assert(ti);
 	dbg_assert(ti->CheckMetaInfoReadyOrPassor());
 
 	return _GetHistoricUltimateItem(ti);
 }
 
-const TreeItem* _GetCurrRangeItem(const TreeItem* ti)
+const TreeItem* _GetCurrRangeItem(const TreeItem* ti)  noexcept
 {
 	return _GetCurrUltimateItem(ti);
-/*
-	dms_assert(ti);
-	dbg_assert(ti->CheckMetaInfoReadyOrPassor());
-	if (!IsUnit(ti))
-		return _GetCurrUltimateItem(ti);
-	auto u = AsUnit(ti);
-	while (true)
-	{
-		if (u->HasVarRangeData()) // range set in combination with calculation rule
-			return u;
-
-		const TreeItem* refItem = u->mc_RefItem;
-		if (!refItem)
-			return u;
-		dms_assert(IsUnit(refItem));
-		u = AsUnit(refItem);
-	}
-*/
 }
 
-const TreeItem* _GetUltimateItem(const TreeItem* ti)
+const TreeItem* _GetUltimateItem(const TreeItem* ti)  noexcept
 {
-	dms_assert(ti);
+	assert(ti);
 	while (true)
 	{
 		const TreeItem* refItem = ti->GetReferredItem();
@@ -107,7 +89,7 @@ const TreeItem* _GetUltimateItem(const TreeItem* ti)
 	}
 }
 
-bool HasVisibleSubItems(const TreeItem* refItem)
+bool HasVisibleSubItems(const TreeItem* refItem)  noexcept
 {
 	while (true)
 	{

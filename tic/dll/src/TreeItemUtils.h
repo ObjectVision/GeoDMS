@@ -43,16 +43,14 @@ granted by an additional written contract for support, assistance and/or develop
 #include "TreeItem.h"
 #include "TreeItemProps.h"
 
-TIC_CALL const TreeItem* _GetHistoricUltimateItem(const TreeItem* ti);
-TIC_CALL const TreeItem* _GetCurrUltimateItem(const TreeItem* ti);
-TIC_CALL const TreeItem* _GetCurrRangeItem(const TreeItem* ti);
-TIC_CALL const TreeItem* _GetUltimateItem(const TreeItem* ti);
+TIC_CALL const TreeItem* _GetHistoricUltimateItem(const TreeItem* ti) noexcept;
+TIC_CALL const TreeItem* _GetCurrUltimateItem(const TreeItem* ti) noexcept;
+TIC_CALL const TreeItem* _GetCurrRangeItem(const TreeItem* ti) noexcept;
+TIC_CALL const TreeItem* _GetUltimateItem(const TreeItem* ti) noexcept;
 
-TIC_CALL bool HasVisibleSubItems(const TreeItem* refItem);
+TIC_CALL bool HasVisibleSubItems(const TreeItem* refItem) noexcept;
 
 //----------------------------------------------------------------------
-
-TIC_CALL TokenID TreeItem_GetFindableNameID(const TreeItem* self, const TreeItem* subItem);
 
 TIC_CALL TreeItem* CheckedAs(TreeItem* self, const Class* requiredClass);
 

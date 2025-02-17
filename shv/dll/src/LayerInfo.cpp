@@ -302,16 +302,19 @@ const AbstrDataItem* _FindAspectAttr(AspectNr aNr, const TreeItem* item, const A
 	return nullptr;
 }
 
-const AbstrDataItem* _FindAspectParam(AspectNr aNr, const TreeItem* item, const LayerClass* layerClass)
+const AbstrDataItem* _FindAspectParam(AspectNr aNr, const TreeItem* item, const LayerClass* layerClass) noexcept
 {
 	item = item->GetFirstSubItem();
 	while (item)
 	{
 		if ( IsDataItem(item) )
 		{
-			const AbstrDataItem* result = AsDataItem(item);
-			if (result->HasVoidDomainGuarantee() && IsAspectData(aNr, result, layerClass) )
-				return result;
+			try {
+				const AbstrDataItem* result = AsDataItem(item);
+				if (result->HasVoidDomainGuarantee() && IsAspectData(aNr, result, layerClass))
+					return result;
+			}
+			catch (...) {}
 		}
 		item = item->GetNextItem();
 	}
@@ -320,7 +323,7 @@ const AbstrDataItem* _FindAspectParam(AspectNr aNr, const TreeItem* item, const 
 
 const AbstrDataItem* FindAspectParam(AspectNr aNr, const TreeItem* context, const LayerClass* layerClass)
 {
-	dms_assert(AspectArray);
+	assert(AspectArray);
 	if (AspectArray[aNr].relType != AR_AttrOnly)
 		while (context)
 		{

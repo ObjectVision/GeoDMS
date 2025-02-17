@@ -535,7 +535,7 @@ void Actor::DoInvalidate () const
 	dms_assert(DoesHaveSupplInterest() || !m_InterestCount || IsPassor() || WasFailed(FR_Data));
 }
 
-void Actor::UpdateMetaInfo() const
+void Actor::UpdateMetaInfo() const noexcept
 {}
 
 void Actor::UpdateSupplMetaInfo() const
