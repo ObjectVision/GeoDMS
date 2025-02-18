@@ -186,33 +186,7 @@ void operation_queue::Process()
 	}
 }
 
-void suspendible_task_queue::Process()
-{
-	assert(IsMetaThread());
-	decltype(m_Operations) taskQueue;
-	{
-		auto lock = std::scoped_lock(s_MainQueueSection);
-		taskQueue = std::move(m_Operations);
-		assert(m_Operations.empty());
-	}
-
-	SuspendTrigger::SilentBlocker blockSuspensions("operation_queue::Process");
-	for (auto& oper : operQueue)
-	{
-		try {
-			assert(!SuspendTrigger::DidSuspend());
-			oper();
-		}
-		catch (...)
-		{
-			catchAndReportException();
-		}
-	}
-}
-
 operation_queue s_OperQueue;
-suspendible_task_queue s_TaskQueue;
-
 
 void PostMainThreadOper(std::function<void()>&& func)
 {
@@ -223,12 +197,6 @@ void PostMainThreadOper(std::function<void()>&& func)
 void SendMainThreadOper(std::function<void()>&& func)
 {
 	s_OperQueue.Send(std::move(func));
-}
-
-void PostMainThreadTask(std::function<bool()>&& func)
-{
-	s_TaskQueue.Post(std::move(func));
-	RequestMainThreadOperProcessing();
 }
 
 static UInt32 s_ProcessMainThreadOperLevel = 0;
@@ -258,7 +226,6 @@ void ProcessMainThreadOpers()
 	StaticStIncrementalLock<s_ProcessMainThreadOperLevel> avoidReenty;
 
 	s_OperQueue.Process();
-	s_TaskQueue.Process();
 }
 
 #include "ASync.h"
