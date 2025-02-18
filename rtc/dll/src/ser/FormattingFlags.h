@@ -24,10 +24,18 @@ enum class FormattingFlags {
 	LispFlags = NoLimitInLispExpr,
 };
 
-inline FormattingFlags StreamFlags(FormattingFlags ff) { return FormattingFlags(UInt32(ff) & UInt32(FormattingFlags::StreamFlags)); }
-inline FormattingFlags LispFlags  (FormattingFlags ff) { return FormattingFlags(UInt32(ff) & UInt32(FormattingFlags::LispFlags)); }
-inline bool HasThousandSeparator(FormattingFlags ff) { return UInt32(ff) & UInt32(FormattingFlags::ThousandSeparator);  }
-inline bool HasNoLimitInLispExpr(FormattingFlags ff) { return UInt32(ff) & UInt32(FormattingFlags::NoLimitInLispExpr); }
+// Provide a bitwise AND operator for FormattingFlags:
+inline FormattingFlags operator &(FormattingFlags lhs, FormattingFlags rhs)
+{
+	using T = std::underlying_type_t<FormattingFlags>;
+	return static_cast<FormattingFlags>(static_cast<T>(lhs) & static_cast<T>(rhs));
+}
+
+
+inline FormattingFlags StreamFlags(FormattingFlags ff) { return ff & FormattingFlags::StreamFlags; }
+inline FormattingFlags LispFlags  (FormattingFlags ff) { return ff & FormattingFlags::LispFlags; }
+inline bool HasThousandSeparator(FormattingFlags ff) { return (ff & FormattingFlags::ThousandSeparator) != FormattingFlags::None; }
+inline bool HasNoLimitInLispExpr(FormattingFlags ff) { return (ff & FormattingFlags::NoLimitInLispExpr) != FormattingFlags::None; }
 
 
 #endif // __RTC_SER_FORMATTINGFLAGS_H

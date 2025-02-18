@@ -33,7 +33,7 @@ struct IndexCompareOper
 
 	value_array_begin_type  m_DataBegin;
 
-	DataLessThanCompare<value_type> m_DataComp = {};
+	DataLessThanCompare<value_type> m_DataComp = DataLessThanCompare<value_type>{};
 };
 
 template <typename CI, typename E = SizeT>

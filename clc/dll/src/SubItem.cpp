@@ -222,9 +222,10 @@ struct FenceContainerOperator : BinaryOperator
 				}
 
 				// work on exporting stuff from main thread
+				std::vector<SharedTreeItemInterestPtr> interestHolders;
 				for (auto srcWalker = sourceContainer; srcWalker; srcWalker = sourceContainer->WalkConstSubTree(srcWalker))
 				{
-					InterestPtr<const TreeItem*> holdInterest = srcWalker;
+					interestHolders.emplace_back(srcWalker);
 					srcWalker->CertainUpdate(PS_Committed, "MainThread executing for FenceContainer");
 				}
 				fenceBell.set_value();

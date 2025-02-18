@@ -51,7 +51,7 @@ struct DataLessThanCompare<Point<T> >
 			&& m_ElemComp(left.Col(), right.Col())
 			;
 	}
-	DataLessThanCompare<T> m_ElemComp;
+	DataLessThanCompare<T> m_ElemComp = {};
 };
 
 template <typename T, bool CheckUndefined> struct DataEqualityCompareImpl;

@@ -340,7 +340,7 @@ protected:
 	StorageMetaInfoPtr                   m_MetaInfo;
 
 private:
-	TimeStamp                            m_TimeStampBefore;
+	TimeStamp                            m_TimeStampBefore = 0;
 
 	void operator =(const StorageCloseHandle&) = delete;
 	void operator =(StorageCloseHandle&&) = delete;

@@ -40,6 +40,13 @@ enum class OrientationType
 	NegateXY   = NegateX + NegateY
 };
 
+// Provide a bitwise OR operator for OrientationType:
+inline OrientationType operator|(OrientationType lhs, OrientationType rhs)
+{
+	using T = std::underlying_type_t<OrientationType>;
+	return static_cast<OrientationType>(static_cast<T>(lhs) | static_cast<T>(rhs));
+}
+
 inline bool IsRightLeft(OrientationType orientation) { return int(orientation) & 1; }
 inline bool IsBottomTop(OrientationType orientation) { return int(orientation) & 2; }
 inline bool MustNegateX(OrientationType orientation) { return IsRightLeft(orientation); }
@@ -183,7 +190,9 @@ public:
 	point_type      Offset()      const { return m_Offset; }
 	OrientationType X_dir() const { return m_Factor.X() >= 0 ? OrientationType::Default : OrientationType::NegateX; }
 	OrientationType Y_dir() const { return m_Factor.Y() >= 0 ? OrientationType::Default : OrientationType::NegateY; }
-	OrientationType Orientation() const { return OrientationType(int(X_dir()) | int(Y_dir())); }
+
+	OrientationType Orientation() const { return X_dir() | Y_dir(); }
+
 	bool IsNonScaling() const { return m_Factor.X() == 1 && m_Factor.Y() == 1; }
 	bool IsLinear    () const { return m_Offset.X() == 0 && m_Offset.Y() == 0; }
 	bool IsIdentity  () const { return IsNonScaling() && IsLinear(); }

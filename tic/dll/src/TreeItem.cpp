@@ -2651,6 +2651,16 @@ ActorVisitState TreeItem::DoUpdate(ProgressState ps)
 
 				DataReadLockContainer c;                                                  // @@@USE
 				SharedDataItem iCheckerResult = AsDynamicDataItem(iCheckerDC->GetOld());
+				if (iCheckerResult)
+				{
+					assert(iCheckerResult->GetInterestCount());
+
+					SharedPtr<const TreeItem> adiCheckerResult = iCheckerResult->GetCurrUltimateItem();
+					assert(adiCheckerResult->GetInterestCount());
+					if (!WaitForReadyOrSuspendTrigger(adiCheckerResult))
+						return AVS_SuspendedOrFailed;
+
+				}
 				if (!iCheckerResult || !c.Add(iCheckerResult, DrlType::Suspendible))
 				{
 					if (SuspendTrigger::DidSuspend())
