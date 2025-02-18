@@ -35,6 +35,19 @@ private:
 	std::vector<operation_type> m_Operations;
 };
 
+using suspendible_task_type = std::function<bool()>;
+
+struct suspendible_task_queue
+{
+	RTC_CALL bool Post(suspendible_task_type&& task); // returns true if the queue was empty before posting
+//	RTC_CALL void Send(operation_type&& func);
+
+	RTC_CALL void Process();
+
+private:
+	std::vector<suspendible_task_type> m_Operations;
+};
+
 /********** helper funcs  **********/
 
 RTC_CALL void   SetMainThreadID() noexcept;
@@ -47,6 +60,7 @@ RTC_CALL UInt32 GetCallCount();
 RTC_CALL UInt32 GetThreadID();
 RTC_CALL void PostMainThreadOper(operation_type&& func);
 RTC_CALL void SendMainThreadOper(operation_type&& func);
+RTC_CALL void PostMainThreadTask(suspendible_task_type&& task);
 RTC_CALL void ProcessMainThreadOpers();
 RTC_CALL bool IsProcessingMainThreadOpers();
 RTC_CALL void RequestMainThreadOperProcessing();
