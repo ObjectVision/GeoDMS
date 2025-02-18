@@ -206,6 +206,7 @@ struct FenceContainerOperator : BinaryOperator
 		auto resultFenceNumer = resultHolder.m_FenceNumber;
 		SendMainThreadOper([resultRoot, resultFenceNumer, sourceContainer, &futureDataContainer, &fenceBell]()
 			{
+				// schedule all requested results
 				for (auto resWalker = resultRoot; resWalker; resWalker = resultRoot->WalkCurrSubTree(resWalker))
 				{
 					if (!IsUnit(resWalker) && !IsDataItem(resWalker))
@@ -219,9 +220,11 @@ struct FenceContainerOperator : BinaryOperator
 						futureDataContainer.emplace_back(holdInterest, dc->CallCalcResult());
 					}
 				}
+
+				// work on exporting stuff from main thread
 				for (auto srcWalker = sourceContainer; srcWalker; srcWalker = sourceContainer->WalkConstSubTree(srcWalker))
 				{
-					auto holdInterest = srcWalker;
+					InterestPtr<const TreeItem*> holdInterest = srcWalker;
 					srcWalker->CertainUpdate(PS_Committed, "MainThread executing for FenceContainer");
 				}
 				fenceBell.set_value();
