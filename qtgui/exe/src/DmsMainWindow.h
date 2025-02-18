@@ -20,7 +20,6 @@
 #include <QCheckbox>
 #include <qpushbutton>
 #include <QSlider>
-#include <QFileDialog>
 #include <QTextBrowser>
 #include <QListView>
 #include <QMenu>
@@ -163,7 +162,7 @@ public:
     auto CreateCodeAnalysisSubMenu(QMenu* menu) const -> std::unique_ptr<QMenu>;
     auto getIconFromViewstyle(ViewStyle vs) const -> QIcon;
     void hideDetailPagesRadioButtonWidgets(bool hide_properties_buttons, bool hide_source_descr_buttons) const;
-    void addRecentFilesEntry(std::string_view recent_file);
+    Int32 addRecentFilesEntry(std::string_view recent_file);
     void onInternalLinkClick(const QUrl& link, QWidget* origin = nullptr);
     void doViewAction(TreeItem* tiContext, CharPtrRange sAction, QWidget* origin = nullptr);
     bool ShowInDetailPage(SharedStr x);

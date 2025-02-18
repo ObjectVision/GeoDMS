@@ -48,12 +48,9 @@
 #include "DmsAddressBar.h"
 #include "StatisticsBrowser.h"
 
-#include "DataView.h"
 #include "StateChangeNotification.h"
 #include "stg/AbstrStorageManager.h"
 #include <regex>
-
-#include "dataview.h"
 
 static MainWindow* s_CurrMainWindow = nullptr;
 UInt32 s_errorWindowActivationCount = 0;
@@ -370,17 +367,17 @@ void MainWindow::removeTreeItem(const TreeItem* destructing_item)
 
 void MainWindow::fileOpen() {
     //m_recent_files_actions
-    auto proj_dir = SharedStr("");
+    auto cfg_dir = SharedStr("");
     if (m_root)
-        proj_dir = AbstrStorageManager::Expand(m_root.get(), SharedStr("%projDir%"));
+        cfg_dir = AbstrStorageManager::Expand(m_root.get(), SharedStr("%configDir%"));
     else {
         if (!m_recent_file_entries.empty()) {
             auto recent_file_widget = dynamic_cast<DmsRecentFileEntry*>(m_recent_file_entries.at(0));
-            proj_dir = recent_file_widget->m_cfg_file_path.c_str();
+            cfg_dir = recent_file_widget->m_cfg_file_path.c_str();
         }
     }
 
-    auto configFileName = QFileDialog::getOpenFileName(this, "Open configuration", proj_dir.c_str(), "*.dms").toLower();
+    auto configFileName = QFileDialog::getOpenFileName(this, "Open configuration", cfg_dir.c_str(), "*.dms").toLower();
 
     if (configFileName.isEmpty())
         return;
@@ -978,9 +975,9 @@ void MainWindow::saveRecentFileActionToRegistry() {
 void MainWindow::insertCurrentConfigInRecentFiles(std::string_view cfg) {
     auto cfg_index_in_recent_files = configIsInRecentFiles(cfg, GetGeoDmsRegKeyMultiString("RecentFiles"));
     if (cfg_index_in_recent_files == -1)
-        addRecentFilesEntry(cfg);
-    else
-        m_recent_file_entries.move(cfg_index_in_recent_files, 0);
+        cfg_index_in_recent_files = addRecentFilesEntry(cfg);
+
+     m_recent_file_entries.move(cfg_index_in_recent_files, 0);
 
     saveRecentFileActionToRegistry();
     updateFileMenu();
@@ -1200,7 +1197,8 @@ void MainWindow::hideDetailPagesRadioButtonWidgets(bool hide_properties_buttons,
     m_detail_page_source_description_buttons->gridLayoutWidget->setHidden(hide_source_descr_buttons);
 }
 
-void MainWindow::addRecentFilesEntry(std::string_view recent_file) {
+Int32 MainWindow::addRecentFilesEntry(std::string_view recent_file) 
+{
     auto index = m_recent_file_entries.size();
     std::string preprending_spaces = index < 9 ? "   &" : "  ";
     std::string pushbutton_text = preprending_spaces + std::to_string(index + 1) + ". " + std::string(ConvertDosFileName(SharedStr(recent_file.data())).c_str());
@@ -1211,11 +1209,13 @@ void MainWindow::addRecentFilesEntry(std::string_view recent_file) {
     for (auto action_object_pointer : new_recent_file_entry->associatedObjects()) {
        action_object_pointer->installEventFilter(new_recent_file_entry);
     }
+    Int32 cfg_index = m_recent_file_entries.size();
     m_recent_file_entries.push_back(new_recent_file_entry);
 
     // connections
     connect(new_recent_file_entry, &DmsRecentFileEntry::triggered, new_recent_file_entry, &DmsRecentFileEntry::onFileEntryPressed);
     connect(new_recent_file_entry, &DmsRecentFileEntry::toggled, new_recent_file_entry, &DmsRecentFileEntry::onFileEntryPressed);
+    return cfg_index;
 }
 
 auto Realm(const auto& x) -> CharPtrRange {

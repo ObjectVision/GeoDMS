@@ -4,7 +4,8 @@
 #include "DmsMainWindow.h"
 #include "DmsTreeView.h"
 
-#include "QEvent.h"
+#include <QEvent.h>
+#include <QFileInfo>
 #include <QLabel>
 #include <QMdiArea>
 #include <QMimeData>
