@@ -184,6 +184,8 @@ struct FenceContainerOperator : BinaryOperator
 	}
 	bool CalcResult(TreeItemDualRef& resultHolder, ArgRefs args, std::vector<ItemReadLock> readLocks, OperationContext * fc, Explain::Context * context) const override
 	{
+		MG_CHECK(!resultHolder->GetIsInstantiated());
+
 		assert(args.size() == 2);
 		auto sourceContainer = std::get<SharedTreeItem>(args[0]).get();
 //		assert(resultHolder->m_ReadAssets.has_value());

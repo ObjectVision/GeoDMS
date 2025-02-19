@@ -933,7 +933,7 @@ std::vector<ItemReadLock> OperationContext::SetReadLocks(const FutureSuppliers& 
 //	dms_assert(m_FuncDC);
 	for (const DataController* futureSupplier : allInterests)
 	{
-		dms_assert(futureSupplier);
+		MG_CHECK(futureSupplier);
 		if (!futureSupplier)
 			continue;
 
@@ -1239,7 +1239,7 @@ bool OperationContext::ScheduleCalcResult(Explain::Context* context, ArgRefs&& a
 		if (argRef.index() == 0)
 		{
 			allInterests.emplace_back(std::get<FutureData>(argRef));
-			dms_assert(allInterests.back());
+			assert(allInterests.back());
 		}
 	for (const DataController* dcPtr : m_OtherSuppliers)
 	{
@@ -1251,7 +1251,7 @@ bool OperationContext::ScheduleCalcResult(Explain::Context* context, ArgRefs&& a
 				resultHolder.Fail(dcPtr);
 				break;
 			}
-			dms_assert(SuspendTrigger::DidSuspend());
+			assert(SuspendTrigger::DidSuspend());
 			break;
 		}
 		allInterests.emplace_back(otherSupplier);

@@ -178,12 +178,12 @@ DataReadLock::DataReadLock(const AbstrDataItem* item)
 	:	m_RefPtrLock(item = (item ? AsDataItem(item->GetCurrUltimateItem()):nullptr))
 	,	m_DRLA(item)
 {
-	dms_assert(std::uncaught_exceptions() == 0);
+	assert(std::uncaught_exceptions() == 0);
 
 	if (!item)
 		return;
 
-	dms_assert(item->m_DataLockCount);
+	assert(item->m_DataLockCount);
 	if (item->WasFailed(FR_Data))
 		item->ThrowFail();
 	MG_CHECK(item->m_DataObject);
