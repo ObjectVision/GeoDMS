@@ -90,9 +90,6 @@ QDmsMdiArea::QDmsMdiArea(QWidget* parent)
     setTabsClosable(true);
     setAcceptDrops(true);
 
-    this->addAction(MainWindow::TheOne()->m_win_close_action.get());
-    connect(MainWindow::TheOne()->m_win_close_action.get(), &QAction::triggered, this, &QDmsMdiArea::testCloseSubWindow);
-
     // set tabbar properties: elide mode, selection behavior on remove
     QTabBar* mdi_tabbar = getTabBar();
     if (!mdi_tabbar)
@@ -100,6 +97,11 @@ QDmsMdiArea::QDmsMdiArea(QWidget* parent)
 
     mdi_tabbar->setElideMode(Qt::ElideMiddle);
     mdi_tabbar->setSelectionBehaviorOnRemove(QTabBar::SelectionBehavior::SelectLeftTab);
+}
+
+QMdiSubWindow* QDmsMdiArea::addDmsSubWindow(QWidget* widget)
+{
+    return addSubWindow(widget);
 }
 
 void QDmsMdiArea::dragEnterEvent(QDragEnterEvent* event) {
@@ -183,6 +185,12 @@ void QDmsMdiArea::onTileSubWindows()
 {
     setViewMode(QMdiArea::ViewMode::SubWindowView);
     tileSubWindows();
+}
+
+void QDmsMdiArea::closeActiveDmsSubWindow()
+{
+    activatePreviousSubWindow();
+    closeActiveSubWindow();
 }
 
 QDmsViewArea::QDmsViewArea(QMdiArea* parent, TreeItem* viewContext, const TreeItem* currItem, ViewStyle viewStyle)

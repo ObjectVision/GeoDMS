@@ -24,6 +24,7 @@ class QDmsMdiArea : public QMdiArea
     Q_OBJECT
 public:
     QDmsMdiArea(QWidget* parent);
+    QMdiSubWindow* addDmsSubWindow(QWidget* widget); 
     void dragEnterEvent(QDragEnterEvent* event) override;
     void dropEvent(QDropEvent* event) override;
     void closeAllButActiveSubWindow();
@@ -31,11 +32,11 @@ public:
     QSize sizeHint() const override;
     auto getTabBar() -> QTabBar*;
 
-
 public slots:
     void testCloseSubWindow();
     void onCascadeSubWindows();
     void onTileSubWindows();
+    void closeActiveDmsSubWindow();
 };
 
 class QDmsViewArea : public QMdiSubWindow
