@@ -204,7 +204,7 @@ struct FenceContainerOperator : BinaryOperator
 		std::promise<void> fenceBell;
 		auto bellWaiter = fenceBell.get_future();
 		auto resultFenceNumer = resultHolder.m_FenceNumber;
-		SendMainThreadOper([resultRoot, resultFenceNumer, sourceContainer, &futureDataContainer, &fenceBell]()
+		SendMainThreadOper([resultRoot, resultFenceNumer, sourceContainer, &futureDataContainer]()
 			{
 				// schedule all requested results
 				for (auto resWalker = resultRoot; resWalker; resWalker = resultRoot->WalkCurrSubTree(resWalker))
@@ -220,15 +220,26 @@ struct FenceContainerOperator : BinaryOperator
 						futureDataContainer.emplace_back(holdInterest, dc->CallCalcResult());
 					}
 				}
+			}
+		);
+		auto srcWalker = sourceContainer;
+		std::vector<SharedTreeItemInterestPtr> interestHolders;
 
+		PostMainThreadTask([sourceContainer, &srcWalker, &interestHolders, &fenceBell]()-> bool
+			{
+				assert(!BlockerBast::IsBlocked());
 				// work on exporting stuff from main thread
-				std::vector<SharedTreeItemInterestPtr> interestHolders;
-				for (auto srcWalker = sourceContainer; srcWalker; srcWalker = sourceContainer->WalkConstSubTree(srcWalker))
+				for (; srcWalker; srcWalker = sourceContainer->WalkConstSubTree(srcWalker))
 				{
-					interestHolders.emplace_back(srcWalker);
-					srcWalker->CertainUpdate(PS_Committed, "MainThread executing for FenceContainer");
+					if (interestHolders.empty() || interestHolders.back() != srcWalker)
+						interestHolders.emplace_back(srcWalker);
+
+					if (!srcWalker->SuspendibleUpdate(PS_Committed))
+						return false;
+
 				}
 				fenceBell.set_value();
+				return true;
 			}
 		);
 
