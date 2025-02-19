@@ -204,21 +204,21 @@ void suspendible_task_queue::Process()
 		assert(m_Operations.empty());
 	}
 
-	bool suspended = false;
+	bool keepOnRunning = true;
 	for (auto& task: taskQueue)
 	{
-		if (!suspended)
+		if (keepOnRunning)
 		{
 			try {
 				assert(!SuspendTrigger::DidSuspend());
-				suspended = task();
+				keepOnRunning = task();
 			}
 			catch (...)
 			{
 				catchAndReportException();
 			}
 		}
-		if (suspended)
+		if (!keepOnRunning)
 			PostMainThreadTask(std::move(task));
 	}
 }

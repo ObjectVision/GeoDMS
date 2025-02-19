@@ -227,7 +227,7 @@ struct FenceContainerOperator : BinaryOperator
 
 		PostMainThreadTask([sourceContainer, &srcWalker, &interestHolders, &fenceBell]()-> bool
 			{
-				assert(!BlockerBast::IsBlocked());
+				assert(!SuspendTrigger::BlockerBase::IsBlocked());
 				// work on exporting stuff from main thread
 				for (; srcWalker; srcWalker = sourceContainer->WalkConstSubTree(srcWalker))
 				{
