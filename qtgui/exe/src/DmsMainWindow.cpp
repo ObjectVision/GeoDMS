@@ -820,7 +820,7 @@ void MainWindow::createView(ViewStyle viewStyle) {
 
         auto dms_view_window_icon = getIconFromViewstyle(viewStyle);
         dms_mdi_subwindow->setWindowIcon(dms_view_window_icon);
-        m_mdi_area->addSubWindow(dms_mdi_subwindow.get());
+        m_mdi_area->addDmsSubWindow(dms_mdi_subwindow.get());
         dms_mdi_subwindow.release();
     }
     catch (...) {
@@ -1074,7 +1074,7 @@ void MainWindow::showStatisticsDirectly(const TreeItem* tiContext) {
     SharedStr title = "Statistics of " + SharedStr(tiContext->GetName());
     mdiSubWindow->setWindowTitle(title.c_str());
     mdiSubWindow->setWindowIcon(getIconFromViewstyle(ViewStyle::tvsStatistics));
-    m_mdi_area->addSubWindow(mdiSubWindow);
+    m_mdi_area->addDmsSubWindow(mdiSubWindow);
     mdiSubWindow->setAttribute(Qt::WA_DeleteOnClose);
     mdiSubWindow->show();
 
@@ -1695,7 +1695,7 @@ void MainWindow::update_calculation_times_report() {
     vosb.WriteByte(char(0)); // ends
 
     if (!m_mdi_area->subWindowList().contains(m_calculation_times_window.get()))
-        m_mdi_area->addSubWindow(m_calculation_times_window.get());
+        m_mdi_area->addDmsSubWindow(m_calculation_times_window.get());
 
     m_calculation_times_browser->setText(vosb.GetData());
 }
@@ -1728,7 +1728,7 @@ void MainWindow::view_current_config_filelist() const {
 
     mdiSubWindow->setWindowTitle("List of currently loaded configuration (*.dms) files");
     mdiSubWindow->setWindowIcon(getIconFromViewstyle(viewstyle));
-    m_mdi_area->addSubWindow(mdiSubWindow);
+    m_mdi_area->addDmsSubWindow(mdiSubWindow);
     mdiSubWindow->setAttribute(Qt::WA_DeleteOnClose);
     mdiSubWindow->show();
 }

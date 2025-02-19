@@ -253,19 +253,17 @@ void createDmsActions() {
     main_window->m_win_tile_action->setShortcutContext(Qt::ApplicationShortcut);
     main_window->connect(main_window->m_win_tile_action.get(), &QAction::triggered, main_window->m_mdi_area.get(), &QDmsMdiArea::onTileSubWindows);
 
+
     main_window->m_win_cascade_action = std::make_unique<QAction>(QObject::tr("Ca&scade"), main_window->m_window_menu.get());
     main_window->m_win_cascade_action->setShortcut(QKeySequence(QObject::tr("Shift+Ctrl+W")));
     main_window->m_win_cascade_action->setShortcutContext(Qt::ApplicationShortcut);
     main_window->connect(main_window->m_win_cascade_action.get(), &QAction::triggered, main_window->m_mdi_area.get(), &QDmsMdiArea::onCascadeSubWindows);
 
-    main_window->m_win_close_action = std::make_unique<QAction>(QObject::tr("&Close"), main_window->m_window_menu.get());
+    main_window->m_win_close_action = std::make_unique<QAction>(QObject::tr("&Close"));
+    main_window->connect(main_window->m_win_close_action.get(), &QAction::triggered, main_window->m_mdi_area.get(), &QDmsMdiArea::closeActiveDmsSubWindow);
+    main_window->m_window_menu->addAction(main_window->m_win_close_action.get());
+    main_window->m_win_close_action->setShortcutContext(Qt::WidgetShortcut);
     main_window->m_win_close_action->setShortcut(QKeySequence(QObject::tr("Ctrl+W")));
-    main_window->connect(main_window->m_win_close_action.get(), &QAction::triggered, main_window->m_mdi_area.get(), &QDmsMdiArea::closeActiveSubWindow);
-    main_window->m_mdi_area->getTabBar()->addAction(MainWindow::TheOne()->m_win_close_action.get());
-    //connect(m_win_close_action.get(), &QAction::triggered, m_mdi_area.get(), &QDmsMdiArea::testCloseSubWindow);
-
-
-    //connect(m_win_close_action.get(), &QAction::triggered, m_mdi_area, &QDmsMdiArea::testCloseSubWindow);
 
     main_window->m_win_close_all_action = std::make_unique<QAction>(QObject::tr("Close &All"), main_window->m_window_menu.get());
     main_window->m_win_close_all_action->setShortcut(QKeySequence(QObject::tr("Ctrl+L")));
