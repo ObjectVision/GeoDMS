@@ -887,6 +887,10 @@ bool MainWindow::CloseConfig() {
         m_mdi_area->closeAllSubWindows();
     }
 
+    CancelMainThreadTasks();
+    auto oldASyncCancelFunc = SetASyncContinueCheck([] { throw task_canceled{};  });
+    auto _ = make_scoped_exit([oldASyncCancelFunc] {SetASyncContinueCheck(oldASyncCancelFunc);  });
+
     // reset all dms tree data
     if (m_root) {
         m_detail_pages->leaveThisConfig(); // reset ValueInfo cached results
@@ -894,9 +898,6 @@ bool MainWindow::CloseConfig() {
         m_treeview->reset();
 
         m_dms_model->setRoot(nullptr);
-
-        auto oldASyncCancelFunc = SetASyncContinueCheck([] { throw task_canceled{};  });
-        auto _ = make_scoped_exit([oldASyncCancelFunc] {SetASyncContinueCheck(oldASyncCancelFunc);  });
 
         m_root->EnableAutoDelete(); // calls SessionData::ReleaseIt(m_root)
         m_root = nullptr;

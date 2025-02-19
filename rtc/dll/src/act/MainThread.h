@@ -35,7 +35,7 @@ private:
 	std::vector<operation_type> m_Operations;
 };
 
-using suspendible_task_type = std::function<bool()>;
+using suspendible_task_type = std::function<bool(bool)>;
 
 struct suspendible_task_queue
 {
@@ -43,6 +43,7 @@ struct suspendible_task_queue
 //	RTC_CALL void Send(operation_type&& func);
 
 	RTC_CALL void Process();
+	RTC_CALL void CancelTasks();
 
 private:
 	std::vector<suspendible_task_type> m_Operations;
@@ -62,6 +63,7 @@ RTC_CALL void PostMainThreadOper(operation_type&& func);
 RTC_CALL void SendMainThreadOper(operation_type&& func);
 RTC_CALL void PostMainThreadTask(suspendible_task_type&& task);
 RTC_CALL void ProcessMainThreadOpers();
+RTC_CALL void CancelMainThreadTasks();
 RTC_CALL bool IsProcessingMainThreadOpers();
 RTC_CALL void RequestMainThreadOperProcessing();
 RTC_CALL void ConfirmMainThreadOperProcessing();

@@ -204,22 +204,45 @@ void suspendible_task_queue::Process()
 		assert(m_Operations.empty());
 	}
 
-	bool suspended = false;
+	bool keepOnRunning = true;
 	for (auto& task: taskQueue)
 	{
-		if (!suspended)
+		if (keepOnRunning)
 		{
 			try {
 				assert(!SuspendTrigger::DidSuspend());
-				suspended = task();
+				keepOnRunning = task(false);
 			}
 			catch (...)
 			{
 				catchAndReportException();
 			}
 		}
-		if (suspended)
+		if (keepOnRunning)
+			keepOnRunning = !SuspendTrigger::MustSuspend();
+		else
 			PostMainThreadTask(std::move(task));
+	}
+}
+
+void suspendible_task_queue::CancelTasks()
+{
+	assert(IsMetaThread());
+	decltype(m_Operations) taskQueue;
+	{
+		auto lock = std::scoped_lock(s_MainQueueSection);
+		taskQueue = std::move(m_Operations);
+		assert(m_Operations.empty());
+	}
+
+	for (auto& task : taskQueue)
+	{
+		try {
+			assert(!SuspendTrigger::DidSuspend());
+			task(true);
+		}
+		catch (...)
+		{}
 	}
 }
 
@@ -227,21 +250,21 @@ operation_queue s_OperQueue;
 suspendible_task_queue s_TaskQueue;
 
 
-void PostMainThreadOper(std::function<void()>&& func)
+void PostMainThreadOper(operation_type&& func)
 {
-	s_OperQueue.Post(std::move(func));
-	RequestMainThreadOperProcessing();
+	if (s_OperQueue.Post(std::move(func)))
+		RequestMainThreadOperProcessing();
 }
 
-void SendMainThreadOper(std::function<void()>&& func)
+void SendMainThreadOper(operation_type&& func)
 {
 	s_OperQueue.Send(std::move(func));
 }
 
-void PostMainThreadTask(std::function<bool()>&& func)
+void PostMainThreadTask(suspendible_task_type&& func)
 {
-	s_TaskQueue.Post(std::move(func));
-	RequestMainThreadOperProcessing();
+	if (s_TaskQueue.Post(std::move(func)))
+		RequestMainThreadOperProcessing();
 }
 
 static UInt32 s_ProcessMainThreadOperLevel = 0;
@@ -272,6 +295,13 @@ void ProcessMainThreadOpers()
 
 	s_OperQueue.Process();
 	s_TaskQueue.Process();
+}
+
+void CancelMainThreadTasks()
+{
+	assert(IsMetaThread());
+
+	s_TaskQueue.CancelTasks();
 }
 
 #include "ASync.h"

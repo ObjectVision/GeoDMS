@@ -225,18 +225,25 @@ struct FenceContainerOperator : BinaryOperator
 		auto srcWalker = sourceContainer;
 		std::vector<SharedTreeItemInterestPtr> interestHolders;
 
-		PostMainThreadTask([sourceContainer, &srcWalker, &interestHolders, &fenceBell]()-> bool
+		PostMainThreadTask([sourceContainer, &srcWalker, &interestHolders, &fenceBell, &resultHolder](bool mustCancel)-> bool
 			{
-				assert(!BlockerBast::IsBlocked());
+				assert(!SuspendTrigger::BlockerBase::IsBlocked());
 				// work on exporting stuff from main thread
-				for (; srcWalker; srcWalker = sourceContainer->WalkConstSubTree(srcWalker))
+				if (!mustCancel)
 				{
-					if (interestHolders.empty() || interestHolders.back() != srcWalker)
-						interestHolders.emplace_back(srcWalker);
+					for (; srcWalker; srcWalker = sourceContainer->WalkConstSubTree(srcWalker))
+					{
+						if (interestHolders.empty() || interestHolders.back() != srcWalker)
+							interestHolders.emplace_back(srcWalker);
 
-					if (!srcWalker->SuspendibleUpdate(PS_Committed))
-						return false;
-
+						if (!srcWalker->SuspendibleUpdate(PS_Committed))
+						{
+							if (srcWalker->WasFailed())
+								resultHolder.GetNew()->Fail(srcWalker);
+							if (SuspendTrigger::DidSuspend())
+								return false;
+						}
+					}
 				}
 				fenceBell.set_value();
 				return true;
