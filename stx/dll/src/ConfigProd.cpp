@@ -35,11 +35,14 @@
 ConfigProd::ConfigProd(TreeItem* context, bool rootIsFirstItem)
 :	m_pCurrent(nullptr)
 ,	m_ResultCommitted(false)
+
 #if defined(MG_DEBUG)
-,	md_IsIncludedFile(context)
+,	md_ContextWasGiven(context != nullptr)
 #endif
+
 {
 	m_MergeIntoExisting = rootIsFirstItem;
+
 	if (context)
 	{
 		if (rootIsFirstItem)
@@ -53,7 +56,7 @@ ConfigProd::ConfigProd(TreeItem* context, bool rootIsFirstItem)
 
 ConfigProd::~ConfigProd()
 {
-	if (!m_ResultCommitted)
+	if (!m_ResultCommitted && !m_MergeIntoExisting)
 	{
 		if (m_pCurrent)
 		{
@@ -75,6 +78,17 @@ TreeItem* ConfigProd::GetContextItem() const
 	return CurrentIsRoot() 
 		?	nullptr
 		:	m_stackContexts.back1(); 
+}
+
+TreeItem* ConfigProd::GetContextOrRootItem(TokenID& nameID) const
+{
+	auto contextItem = GetContextItem();
+	if (!contextItem && m_MergeIntoExisting)
+	{
+		contextItem = m_pCurrent;
+		nameID = {};
+	}
+	return contextItem;
 }
 
 void ConfigProd::ProdIdentifier(iterator_t first, iterator_t last)
@@ -202,45 +216,48 @@ void ConfigProd::CreateItem(TokenID nameID, const iterator_t& loc)
 {
 	if (CurrentIsRoot())
 	{
-		if(m_eSignatureType != SignatureType::TreeItem)
-			throwSemanticError("root of configuration tree must be a container");
-
 		assert( m_stackContexts.empty() );
 		if (m_pCurrent)
 		{
-			if (m_pCurrent->GetID() == nameID)
-				return;
-			if (!m_MergeIntoExisting)
-				throwDmsErrD("Illegal 2nd item after root of configuration tree.");
-			reportF(MsgCategory::storage_read, SeverityTypeID::ST_Warning
-				, "Configuration file %s: root item '%s' was already provided with name '%s'"
-				, ConfigurationFilenameLock::GetCurrentFileDescrFromConfigLoadDir()->GetFileName().c_str()
-				, AsString(m_pCurrent->GetID()).c_str()
-				, AsString(nameID).c_str()
-			);
+			if (m_pCurrent->GetID() != nameID)
+			{
+				if (!m_MergeIntoExisting)
+					throwDmsErrD("Illegal 2nd item after root of configuration tree.");
+				reportF(MsgCategory::storage_read, SeverityTypeID::ST_Warning
+					, "Configuration file %s: root item '%s' was already provided with name '%s'"
+					, ConfigurationFilenameLock::GetCurrentFileDescrFromConfigLoadDir()->GetFileName().c_str()
+					, AsString(m_pCurrent->GetID()).c_str()
+					, AsString(nameID).c_str()
+				);
+			}
 		}
 		else
+		{
+			if (m_eSignatureType != SignatureType::TreeItem)
+				throwSemanticError("root of configuration tree must be a container");
 			m_pCurrent = TreeItem::CreateConfigRoot(nameID);
-	}
-	else // stackContexts not empty
-	{
-		assert(GetContextItem()); // only non-nulls in stackContexts
-		
-		if (!m_MergeIntoExisting)
-			CheckIsNew(GetContextItem(), nameID);
-
-		switch (m_eSignatureType) {
-			case SignatureType::TreeItem: CreateContainer(nameID); break;
-			case SignatureType::Template: CreateTemplate (nameID); break;
-			case SignatureType::Unit:     CreateUnit     (nameID); break;
-			case SignatureType::Attribute:CreateAttribute(nameID); break;
-			case SignatureType::Parameter:CreateParameter(nameID); break;
-			default: dms_assert(0); // syntax only produces CreateItem with valid signature types
+			goto setLocation;
 		}
 	}
+		
+	if (!m_MergeIntoExisting)
+	{
+		// stackContexts not empty
+		assert(GetContextItem()); // only non-nulls in stackContexts
+		CheckIsNew(GetContextItem(), nameID);
+	}
 
+	switch (m_eSignatureType) {
+		case SignatureType::TreeItem: CreateContainer(nameID); break;
+		case SignatureType::Template: CreateTemplate (nameID); break;
+		case SignatureType::Unit:     CreateUnit     (nameID); break;
+		case SignatureType::Attribute:CreateAttribute(nameID); break;
+		case SignatureType::Parameter:CreateParameter(nameID); break;
+		default: dms_assert(0); // syntax only produces CreateItem with valid signature types
+	}
+
+setLocation:
 	assert(m_pCurrent);
-	
 	position_t const& pos = loc.get_position(); 
 
 	m_pCurrent->SetLocation(
@@ -271,12 +288,9 @@ void ConfigProd::CreateDataItem(TokenID nameID, TokenID domainUnit, TokenID valu
 {
 	if (m_eParamVC == ValueComposition::Unknown)
 		m_eParamVC = ValueComposition::Single;
-			m_pCurrent = CreateAbstrDataItem(
-				GetContextItem(),
-				nameID,
-				domainUnit,
-				valuesUnit,
-				m_eParamVC);
+
+	auto contextItem = GetContextOrRootItem(nameID);
+	m_pCurrent = CreateAbstrDataItem(contextItem, nameID, domainUnit, valuesUnit, m_eParamVC);
 }
 
 void ConfigProd::CreateContainer(TokenID nameID)
@@ -289,7 +303,8 @@ void ConfigProd::CreateContainer(TokenID nameID)
 	if (m_pParamEntity)
 		throwDmsErrD("Illegal domain-unit at container definition");
 
-	m_pCurrent = GetContextItem()->CreateItem(nameID);
+	auto contextItem = GetContextOrRootItem(nameID);
+	m_pCurrent = contextItem->CreateItem(nameID);
 }
 
 void ConfigProd::CreateTemplate(TokenID nameID)
@@ -305,7 +320,7 @@ bool IsPolygonType(ValueClassID vid)
 
 void ConfigProd::CreateUnit(TokenID nameID)
 {
-	dms_assert(!m_pSignatureUnit);
+	assert(!m_pSignatureUnit);
 
 	if (m_pParamEntity)
 		throwDmsErrD("Illegal domain-unit at unit definition");
@@ -313,17 +328,19 @@ void ConfigProd::CreateUnit(TokenID nameID)
 		throwDmsErrD("Units with non-singular ValueComposition are now obsolete");
 
 
-	dms_assert(m_eValueClass); // POSTCONDITION OF DoBasicType which the grammar guarantees to have been processed
+	assert(m_eValueClass); // POSTCONDITION OF DoBasicType which the grammar guarantees to have been processed
 	if (m_eValueClass->GetValueComposition() != ValueComposition::Single)
 		throwDmsErrD("Illegal composite type at unit definition");
 
 	dms_assert( m_eValueClass->GetValueComposition() == ValueComposition::Single);
 
-	dms_assert(GetContextItem());
+	auto contextItem = GetContextOrRootItem(nameID);
+	assert(contextItem);
+
 	const UnitClass* uc = UnitClass::Find(m_eValueClass);
 	dms_assert(m_eValueClass);
-	m_pCurrent = uc->CreateUnit(GetContextItem(), nameID);
-	dms_assert(m_pCurrent);
+	m_pCurrent = uc->CreateUnit(contextItem, nameID);
+	assert(m_pCurrent);
 }
 
 // *****************************************************************************
@@ -336,8 +353,7 @@ void ConfigProd::CreateUnit(TokenID nameID)
 
 void ConfigProd::CreateAttribute(TokenID nameID)
 {
-	dms_assert(GetContextItem());
-	dms_assert(!m_eValueClass); // grammar guaranteed that DoBasicType wasn't called after last call to ClearSignature
+	assert(!m_eValueClass); // grammar guaranteed that DoBasicType wasn't called after last call to ClearSignature
 
 	CreateDataItem(
 		nameID, 
@@ -360,8 +376,8 @@ void ConfigProd::CreateParameter(TokenID nameID)
 		throwDmsErrF("Illegal domain-unit %s at parameter definition", m_pParamEntity);
 
 
-	dms_assert(GetContextItem());
-	dms_assert(!m_eValueClass); // grammar guaranteed that DoBasicType wasn't called after last call to ClearSignature
+	assert(GetContextItem() || m_MergeIntoExisting);
+	assert(!m_eValueClass); // grammar guaranteed that DoBasicType wasn't called after last call to ClearSignature
 
 	CreateDataItem(
 		nameID,

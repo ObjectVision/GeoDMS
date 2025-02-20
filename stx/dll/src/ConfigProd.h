@@ -112,10 +112,11 @@ struct ConfigProd : AbstrDataBlockProd, AbstrContextHandle
 	void ProdQuotedIdentifier();
 
 	TreeItem* GetContextItem() const;
+	TreeItem* GetContextOrRootItem(TokenID& nameID) const;
 	bool      CurrentIsRoot()  const { return m_stackContexts.empty(); }
 
 	MG_DEBUGCODE(
-	bool      CurrentIsTop ()  const { return CurrentIsRoot() || m_stackContexts.size() == 1 && md_IsIncludedFile; }
+	bool      CurrentIsTop ()  const { return CurrentIsRoot() || m_stackContexts.size() == 1 && md_ContextWasGiven; }
 	)
 
 private:
@@ -137,7 +138,7 @@ MG_DEBUGCODE(	void    ClearSignature(); )
 
 	using TreeItemRef = SharedPtr<TreeItem>;
 
-	MG_DEBUGCODE(bool                md_IsIncludedFile; )
+	MG_DEBUGCODE(bool                md_ContextWasGiven; )
 
 	TreeItemRef                      m_pCurrent;
 	quick_replace_stack<TreeItemRef> m_stackContexts;
