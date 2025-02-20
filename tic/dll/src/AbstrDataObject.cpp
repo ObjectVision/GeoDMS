@@ -16,6 +16,7 @@
 #include "mci/PropDef.h"
 #include "mci/ValueClass.h"
 #include "mem/tiledata.h"
+#include "xct/DmsException.h"
 
 #include "AbstrDataItem.h"
 #include "DataArray.h"
@@ -136,6 +137,28 @@ tile_loc AbstrDataObject::GetTiledLocation(row_id idx) const
 tile_loc AbstrDataObject::GetTileDataLocation(datarow_id idx) const
 {
 	return GetTiledRangeData()->GetTileDataLocation(idx);
+}
+
+std::mutex s_DaFailReasonMutex;
+
+auto AbstrDataObject::GetFailReason() const -> ErrMsgPtr
+{
+	auto lock = std::lock_guard(s_DaFailReasonMutex);
+	return m_FailReason;
+}
+
+void AbstrDataObject::SetFailReason(ErrMsgPtr err)
+{
+	auto lock = std::lock_guard(s_DaFailReasonMutex);
+	if (!m_FailReason)
+		m_FailReason = err;
+}
+
+void AbstrDataObject::CheckFailure() const
+{
+	auto fr = GetFailReason(); // get it or not atomically
+	if (fr)
+		throw DmsException(fr);
 }
 
 //----------------------------------------------------------------------

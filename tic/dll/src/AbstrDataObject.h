@@ -198,7 +198,15 @@ public:
 	SharedPtr<const AbstrTileRangeData> m_TileRangeData; // this replaces m_DomainUnitCopy
 	mutable TileBase* m_shadowTilePtr = nullptr; // a kind of weak ptr
 
+	auto GetFailReason() const -> ErrMsgPtr;
+	void SetFailReason(ErrMsgPtr err);
+	void CheckFailure() const;
+
+private:
+	ErrMsgPtr m_FailReason;
+
 #if defined(MG_DEBUG_ALLOCATOR)
+public:
 	SharedStr md_SrcStr;
 #endif
 };

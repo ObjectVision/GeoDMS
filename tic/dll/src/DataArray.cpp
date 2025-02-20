@@ -15,6 +15,7 @@
 #include <memory>
 
 #include "dbg/debug.h"
+#include "dbg/DmsCatch.h"
 #include "dbg/SeverityType.h"
 #include "geo/DataPtrTraits.h"
 #include "geo/StringArray.h"
@@ -84,7 +85,13 @@ struct mutable_shadow_tile : tile<V>
 			return;
 		if (std::uncaught_exceptions())
 			return;
-		CloseMutableShadow<V>(m_SourceTileArray, GetConstSeq(*this));
+		try {
+			CloseMutableShadow<V>(m_SourceTileArray, GetConstSeq(*this)); // can throw memory error
+		}
+		catch (...) 
+		{
+			m_SourceTileArray->SetFailReason(catchException(false));
+		}
 	}
 
 	SharedPtr< DataArrayBase<V> > m_SourceTileArray;

@@ -101,7 +101,6 @@ DataArrayBase<V>::GetIndexedValue(SizeT index) const
 	return Convert<value_type>(data[tl.second]);
 }
 
-
 template <class V>
 typename DataArrayBase<V>::const_iterator
 DataArrayBase<V>::GetIndexedIterator(SizeT index, GuiReadLock& lockHolder) const

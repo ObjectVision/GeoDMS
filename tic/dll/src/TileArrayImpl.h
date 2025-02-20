@@ -139,6 +139,7 @@ template <typename V>
 auto HeapTileArray<V>::GetWritableTile(tile_id t, dms_rw_mode rwMode) -> locked_seq_t
 {
 	assert(t < this->GetTiledRangeData()->GetNrTiles());
+	this->CheckFailure();
 
 	auto& tilePtr = m_Seqs[t];
 	InitTile(tilePtr, this->GetTiledRangeData(), t, rwMode != dms_rw_mode::write_only_all);
@@ -150,6 +151,7 @@ template <typename V>
 auto HeapTileArray<V>::GetTile(tile_id t) const -> locked_cseq_t
 {
 	assert(t < this->GetTiledRangeData()->GetNrTiles());
+	this->CheckFailure();
 
 	auto& tilePtr = m_Seqs[t];
 	InitTile(tilePtr, this->GetTiledRangeData(), t, true);
@@ -164,8 +166,8 @@ auto HeapTileArray<V>::GetTile(tile_id t) const -> locked_cseq_t
 template <typename V>
 HeapSingleArray<V>::HeapSingleArray(const AbstrTileRangeData* trd, bool mustClear)
 {
-	dms_assert(trd);
-	dms_assert(trd->GetNrTiles() == 1); // PRECONDITION
+	assert(trd);
+	assert(trd->GetNrTiles() == 1); // PRECONDITION
 
 	this->m_TileRangeData = trd;
 	auto tileSize = trd->GetTileSize(0);
@@ -175,7 +177,8 @@ HeapSingleArray<V>::HeapSingleArray(const AbstrTileRangeData* trd, bool mustClea
 template <typename V>
 auto HeapSingleArray<V>::GetWritableTile(tile_id t, dms_rw_mode rwMode) -> locked_seq_t
 {
-	dms_assert(t == 0); // PRECONDITION
+	assert(t == 0); // PRECONDITION
+	this->CheckFailure();
 
 	auto tileSize = this->GetTiledRangeData()->GetTileSize(0);
 	dms_assert(m_Seq.size() == this->GetTiledRangeData()->GetTileSize(0));
@@ -186,8 +189,9 @@ auto HeapSingleArray<V>::GetWritableTile(tile_id t, dms_rw_mode rwMode) -> locke
 template <typename V>
 auto HeapSingleArray<V>::GetTile(tile_id t) const -> locked_cseq_t
 {
-	dms_assert(t == 0); // PRECONDITION
-	dms_assert(m_Seq.size() == this->GetTiledRangeData()->GetTileSize(0));
+	assert(t == 0); // PRECONDITION
+	assert(m_Seq.size() == this->GetTiledRangeData()->GetTileSize(0));
+	this->CheckFailure();
 
 	return locked_cseq_t(TileCRef(this), GetConstSeq(m_Seq));
 }
@@ -208,9 +212,9 @@ HeapSingleValue<V>::HeapSingleValue(const AbstrTileRangeData* trd)
 template <typename V>
 auto HeapSingleValue<V>::GetWritableTile(tile_id t, dms_rw_mode rwMode) -> locked_seq_t
 {
-	dms_assert(t == 0); // PRECONDITION
-
-	dms_assert(this->GetTiledRangeData()->GetTileSize(t) == 1);
+	assert(t == 0); // PRECONDITION
+	assert(this->GetTiledRangeData()->GetTileSize(t) == 1);
+	this->CheckFailure();
 
 	if constexpr (is_bitvalue_v<V>)
 	{
@@ -228,9 +232,9 @@ auto HeapSingleValue<V>::GetWritableTile(tile_id t, dms_rw_mode rwMode) -> locke
 template <typename V>
 auto HeapSingleValue<V>::GetTile(tile_id t) const -> locked_cseq_t
 {
-	dms_assert(t == 0); // PRECONDITION
-
-	dms_assert(this->GetTiledRangeData()->GetTileSize(t) == 1);
+	assert(t == 0); // PRECONDITION
+	assert(this->GetTiledRangeData()->GetTileSize(t) == 1);
+	this->CheckFailure();
 
 	if constexpr (is_bitvalue_v<V>)
 	{
@@ -420,6 +424,7 @@ template <typename V>
 auto FileTileArray<V>::GetWritableTile(tile_id t, dms_rw_mode rwMode) -> locked_seq_t
 {
 	assert(t < this->GetTiledRangeData()->GetNrTiles());
+	this->CheckFailure();
 
 	auto& file = m_Files[t];
 	auto fileMapHandle = file.get(rwMode);
@@ -432,6 +437,7 @@ template <typename V>
 auto FileTileArray<V>::GetTile(tile_id t) const -> locked_cseq_t
 {
 	assert(t < this->GetTiledRangeData()->GetNrTiles());
+	this->CheckFailure();
 
 	const auto& file = m_Files[t];
 	auto fileMapHandle = file.get(dms_rw_mode::read_only);
