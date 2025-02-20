@@ -340,7 +340,7 @@ int main_without_SE_handler(int argc, char *argv[]) {
         QString family = QFontDatabase::applicationFontFamilies(id).at(0);
         QFont dms_text_font(family, 25);
 
-        QPixmap pixmap(":/res/images/ruralriver.jpg");
+        QPixmap pixmap(":/res/images/HackedWorld.jpg");
         std::unique_ptr<DmsSplashScreen> splash = std::make_unique<DmsSplashScreen>(pixmap);
         splash->setMessageRect(QRect(splash->rect().topLeft(), QSize(1024, 200)), Qt::AlignCenter);
         dms_text_font.setBold(true);

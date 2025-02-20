@@ -12,3 +12,4 @@ todo*.txt
 /vcpkg_installed
 /vc_archives
 /vc_downloads
+/splash

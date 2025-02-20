@@ -76,7 +76,7 @@
         <file>res/images/IconCalculationTimeOverview.png</file>
         <file>res/images/TV_default_view.bmp</file>
         <file>res/images/ConfigFileList.png</file>
-        <file>res/images/ruralriver.jpg</file>
         <file>res/images/TB_pan_button.bmp</file>
+        <file>res/images/HackedWorld.jpg</file>
     </qresource>
 </RCC>
