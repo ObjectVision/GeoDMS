@@ -224,7 +224,7 @@ RTC_CALL const char* DmsException::what() const noexcept
 }
 
 namespace {
-	SharedStr memoryAllocFailureMsg("memory allocation failed, no recovery possible"); // keep it simple, we cannot affort much anymore
+	SharedStr memoryAllocFailureMsg("memory allocation failed"); // keep it simple, we cannot affort much anymore
 }
 
 //----------------------------------------------------------------------

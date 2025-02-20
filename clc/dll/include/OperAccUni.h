@@ -352,7 +352,9 @@ struct OperAccPartUniBuffered : FuncOperAccPartUni<TAcc1Func, OperAccPartUniWith
 			else
 				resBuffer = res_buffer_type(pdi.resCount);
 		}
-		this->m_Acc1Func.AssignOutput(result->GetDataWrite(no_tile, dms_rw_mode::write_only_all), resBuffer);
+		auto resultShadowTile = result->GetDataWrite(no_tile, dms_rw_mode::write_only_all);
+		this->m_Acc1Func.AssignOutput(resultShadowTile, resBuffer);
+		resBuffer.clear();
 	}
 };
 
