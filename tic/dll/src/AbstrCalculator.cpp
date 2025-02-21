@@ -1209,6 +1209,7 @@ LispRef AbstrCalculator::SubstituteExpr_impl(SubstitutionBuffer& substBuff, Lisp
 
 				tmp_swapper<SharedPtr<const TreeItem>> swap(m_SearchContext, scopeItem);
 				SubstitutionBuffer localBuffer;
+				localBuffer.optionalVisitor = substBuff.optionalVisitor;
 				bufferValue = SubstituteExpr_impl(localBuffer, localExpr.Right().Right().Left(), mpf);
 				goto exit;
 			}
