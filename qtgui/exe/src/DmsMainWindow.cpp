@@ -40,6 +40,7 @@
 #include "DmsDetailPages.h"
 #include "DmsOptions.h"
 #include "DmsExport.h"
+#include "DmsSplashScreen.h"
 #include "DmsValueInfo.h"
 #include "DmsFileChangedWindow.h"
 #include "DmsActions.h"
@@ -429,6 +430,11 @@ void MainWindow::aboutGeoDms() {
     dms_about_text += "- GeoDms icon obtained from: World icons created by turkkub-Flaticon https://www.flaticon.com/free-icons/world";
     QMessageBox::about(this, tr("About GeoDms"),
             tr(dms_about_text.c_str()));
+}
+
+void MainWindow::splashScreen() {
+    auto splash = showSplashScreen();
+    QTimer::singleShot(3000, [splashHandle = std::move(splash)]() { splashHandle->close(); });
 }
 
 void MainWindow::wiki() {

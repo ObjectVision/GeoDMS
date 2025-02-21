@@ -6,10 +6,10 @@
 #include <QPainter>
 #include <QResource>
 #include <QScreen>
-#include <QSplashScreen>
 #include <QThread> // TODO: remove
 
 #include <memory>
+//#include <future>
 
 #include "RtcInterface.h"
 
@@ -28,8 +28,9 @@
 #include "DmsMainWindow.h"
 #include "DmsEventLog.h"
 #include "DmsAddressBar.h"
-#include "DmsTreeView.h"
 #include "DmsDetailPages.h"
+#include "DmsSplashScreen.h"
+#include "DmsTreeView.h"
 #include "TestScript.h"
 
 struct CmdLineException : SharedStr, std::exception {
@@ -296,35 +297,6 @@ protected:
     }
 };
 
-#include <future>
-class DmsSplashScreen : public QSplashScreen {
-public:
-    DmsSplashScreen(const QPixmap& pixmap)
-        : QSplashScreen(pixmap) {}
-    ~DmsSplashScreen() {}
-
-    virtual void drawContents(QPainter* painter) {
-        QPixmap textPix = QSplashScreen::pixmap();
-        painter->setPen(this->m_color);
-        painter->drawText(this->m_rect, this->m_alignment, this->m_message);
-    }
-
-    void showStatusMessage(const QString& message, const QColor& color = Qt::black) {
-        this->m_message = message;
-        this->m_color = color;
-        this->showMessage(this->m_message, this->m_alignment, this->m_color);
-    }
-
-    void setMessageRect(QRect rect, int alignment = Qt::AlignLeft) {
-        this->m_rect = rect;
-        this->m_alignment = alignment;
-    }
-
-    QString m_message = DMS_GetVersion();
-    int     m_alignment = Qt::AlignCenter;
-    QColor  m_color;
-    QRect   m_rect;
-};
 
 int main_without_SE_handler(int argc, char *argv[]) {
     try {
@@ -336,37 +308,19 @@ int main_without_SE_handler(int argc, char *argv[]) {
 
         auto dms_app_on_heap = std::make_unique<QApplication>(argc, argv);
 
-        int id = QFontDatabase::addApplicationFont(":/res/fonts/dmstext.ttf");
-        QString family = QFontDatabase::applicationFontFamilies(id).at(0);
-        QFont dms_text_font(family, 25);
+        auto splash = showSplashScreen();
 
-        QPixmap pixmap(":/res/images/HackedWorld.jpg");
-        std::unique_ptr<DmsSplashScreen> splash = std::make_unique<DmsSplashScreen>(pixmap);
-        splash->setMessageRect(QRect(splash->rect().topLeft(), QSize(1024, 200)), Qt::AlignCenter);
-        dms_text_font.setBold(true);
-        splash->setFont(dms_text_font);
-        
-        auto screen_at_mouse_pos = dms_app_on_heap->screenAt(QCursor::pos());
-        const QPoint currentDesktopsCenter = screen_at_mouse_pos->geometry().center();
-        assert(splash->rect().top () == 0);
-        assert(splash->rect().left() == 0);
-        auto projectedTopLeft = currentDesktopsCenter - splash->rect().center();
-        if (projectedTopLeft.y() < screen_at_mouse_pos->geometry().top())
-                projectedTopLeft.setY( screen_at_mouse_pos->geometry().top() );
-        splash->move(projectedTopLeft);
-        splash->show();
-
-        splash->showMessage("Initialize GeoDMS");
         geoDmsResources |= init_geodms(*dms_app_on_heap.get(), settingsFrame); // destruct resources after app completion
         dms_app_on_heap->installNativeEventFilter(native_event_filter_on_heap.get());
 
         Q_INIT_RESOURCE(GeoDmsGuiQt);
         splash->showMessage("Initialize GeoDMS Gui");
+
         MainWindow main_window(settingsFrame);
         dms_app_on_heap->setWindowIcon(QIcon(":/res/images/GeoDmsGuiQt.png"));
         dms_app_on_heap->installEventFilter(mouse_forward_backward_event_filter_on_heap.get());
 
-        QTimer::singleShot(10, [splashHandle = std::move(splash)]() { splashHandle->close(); });
+        QTimer::singleShot(100, [splashHandle = std::move(splash)]() { splashHandle->close(); });
 
         main_window.showMaximized();
         ConfirmMainThreadOperProcessing();

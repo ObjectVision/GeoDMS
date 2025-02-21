@@ -280,9 +280,11 @@ void createDmsActions() {
     main_window->m_window_menu->addAction(main_window->m_win_close_all_action.get());
     main_window->m_window_menu->addAction(main_window->m_win_close_but_this_action.get());
     main_window->connect(main_window->m_window_menu.get(), &QMenu::aboutToShow, main_window, &MainWindow::updateWindowMenu);
+
     // help menu
     main_window->m_help_menu = std::make_unique<QMenu>(QObject::tr("&Help"));
     main_window->menuBar()->addMenu(main_window->m_help_menu.get());
+
     auto about_action = new QAction(QObject::tr("&About GeoDms"), main_window->m_help_menu.get());
     about_action->setStatusTip(QObject::tr("Show the application's About box"));
     main_window->connect(about_action, &QAction::triggered, main_window, &MainWindow::aboutGeoDms);
@@ -297,6 +299,12 @@ void createDmsActions() {
     wiki_action->setStatusTip(QObject::tr("Open the GeoDms wiki in a browser"));
     main_window->connect(wiki_action, &QAction::triggered, main_window, &MainWindow::wiki);
     main_window->m_help_menu->addAction(wiki_action);
+
+    auto splash_action = new QAction(QObject::tr("Splash screen"), main_window->m_help_menu.get());
+    splash_action->setStatusTip(QObject::tr("Show the GeoDMS splash screen"));
+    main_window->connect(splash_action, &QAction::triggered, main_window, &MainWindow::splashScreen);
+    main_window->m_help_menu->addAction(splash_action);
+
 }
 
 void createDetailPagesActions() {

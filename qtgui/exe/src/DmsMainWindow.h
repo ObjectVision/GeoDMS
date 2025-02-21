@@ -1,4 +1,4 @@
-// Copyright (C) 1998-2024 Object Vision b.v. 
+// Copyright (C) 1998-2025 Object Vision b.v. 
 // License: GNU GPL 3
 /////////////////////////////////////////////////////////////////////////////
 
@@ -6,7 +6,7 @@
 #pragma once
 #endif
 
-#ifndef MAINWINDOW_H
+#if !defined(MAINWINDOW_H)
 #define MAINWINDOW_H
 
 #include <QMainWindow>
@@ -221,6 +221,7 @@ public slots:
     void reopen();
 
     void aboutGeoDms();
+    void splashScreen();
     void wiki();
     void createView(ViewStyle viewStyle);
 
