@@ -187,6 +187,15 @@ struct FenceContainerOperator : BinaryOperator
 		MG_CHECK(!resultHolder->GetIsInstantiated());
 
 		assert(args.size() == 2);
+
+		DataReadLock msgLock(AsDataItem(args[1]));
+		auto msgData = const_array_cast<SharedStr>(msgLock)->GetDataRead();
+
+		reportD(SeverityTypeID::ST_MinorTrace, "FenceContainer START");
+		if (msgData.size() != 1 || !msgData[0].empty())
+			for (auto msg : msgData)
+				reportD(SeverityTypeID::ST_MinorTrace, msg.AsRange());
+
 		auto sourceContainer = std::get<SharedTreeItem>(args[0]).get();
 //		assert(resultHolder->m_ReadAssets.has_value());
 
@@ -224,6 +233,13 @@ struct FenceContainerOperator : BinaryOperator
 				}
 			}
 		);
+
+		reportD(SeverityTypeID::ST_MinorTrace, "FenceContainer ResultFutures collected");
+		if (msgData.size() != 1 || !msgData[0].empty())
+			for (auto msg : msgData)
+				reportD(SeverityTypeID::ST_MinorTrace, msg.AsRange());
+
+
 		auto srcWalker = sourceContainer;
 		std::vector<SharedTreeItemInterestPtr> interestHolders;
 
@@ -254,6 +270,11 @@ struct FenceContainerOperator : BinaryOperator
 
 		bellWaiter.get();
 
+		reportD(SeverityTypeID::ST_MinorTrace, "FenceContainer Source Updates completed");
+		if (msgData.size() != 1 || !msgData[0].empty())
+			for (auto msg : msgData)
+				reportD(SeverityTypeID::ST_MinorTrace, msg.AsRange());
+
 		// check that all sub-items of result-holder are/become up-to-date or uninteresting
 		for (const auto& fd: futureDataContainer)
 		{
@@ -283,8 +304,7 @@ struct FenceContainerOperator : BinaryOperator
 				resWalker->Fail(dc.get_ptr());
 		}
 
-		DataReadLock msgLock(AsDataItem(args[1]));
-		auto msgData = const_array_cast<SharedStr>(msgLock)->GetDataRead();
+		reportD(SeverityTypeID::ST_MinorTrace, "FenceContainer completed calculations of all resulting items");
 		if (msgData.size() != 1 || !msgData[0].empty())
 			for (auto msg: msgData)
 				reportD(SeverityTypeID::ST_MajorTrace, msg.AsRange());

@@ -3155,7 +3155,12 @@ bool TreeItem::ReadItem(StorageReadHandle&& srh) // TODO: Make this a method of 
 
 	try
 	{
-		reportF(MsgCategory::storage_read, SeverityTypeID::ST_MajorTrace, "Read from %s", storageParent->GetStorageManager()->GetNameStr().c_str());	
+		auto progressMsg = mySSPrintF("Read %s from %s"
+			, GetName()
+			, storageParent->GetStorageManager()->GetNameStr()
+		);
+
+		reportD(MsgCategory::storage_read, SeverityTypeID::ST_MajorTrace, progressMsg.AsRange());
 
 		if (srh.Read())
 			return true;
