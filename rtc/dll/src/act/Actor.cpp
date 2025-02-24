@@ -1164,7 +1164,7 @@ void Actor::RestartSupplInterestIfAny() const
 	}
 	else
 	{
-		oldSupplInterestListPtr = std::move(supplInterestListRef);
+		oldSupplInterestListPtr.init( supplInterestListRef.release() );
 		supplInterestListRef.init(supplInterestListPtr.release());
 //		m_State.Set(actor_flag_set::AF_SupplInterest);
 		assert(DoesHaveSupplInterest()); // still set.
