@@ -1164,7 +1164,7 @@ void Actor::RestartSupplInterestIfAny() const
 	}
 	else
 	{
-		supplInterestListRef.init(supplInterestListPtr.release());
+		supplInterestListRef = supplInterestListPtr.release();
 //		m_State.Set(actor_flag_set::AF_SupplInterest);
 		assert(DoesHaveSupplInterest()); // still set.
 	}
