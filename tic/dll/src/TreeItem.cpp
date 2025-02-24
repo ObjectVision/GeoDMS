@@ -2012,10 +2012,10 @@ TreeItem* TreeItem::Copy(TreeItem* dest, TokenID id, CopyTreeContext& copyContex
 		if (copyContext.InFenceOperator())
 		{
 			assert(!isArg);
-			if (IsDataItem(this) || IsUnit(this))
-			{
-				result->SetDC(this->GetCheckedDC());
-			}
+//			if (IsDataItem(this) || IsUnit(this))
+//			{
+//				result->SetDC(this->GetCheckedDC());
+//			}
 			result->m_FenceNumber = copyContext.m_FenceNumber;
 		}
 		else
@@ -2050,7 +2050,7 @@ TreeItem* TreeItem::Copy(TreeItem* dest, TokenID id, CopyTreeContext& copyContex
 	{
 		const TreeItem* refItem = GetReferredItem();
 		if (refItem)
-			CopyTreeContext(result, refItem, "", DataCopyMode(copyContext.GetDCM()|DataCopyMode::DontCreateNew|DataCopyMode::NoRoot) ).Apply();
+			CopyTreeContext(result, refItem, "", DataCopyMode(copyContext.GetDCM()|DataCopyMode::NoRoot) ).Apply();
 	}
 	return result;
 }
@@ -4085,7 +4085,7 @@ UInt32 sd_ItemInterestCounter = 0;
 
 void TreeItem::StartInterest() const
 {
-	dms_assert(!std::uncaught_exceptions());
+	assert(!std::uncaught_exceptions());
 	if (!s_SessionUsageCounter.try_lock_shared())
 	{
 		dms_assert(OperationContext::CancelableFrame::CurrActive());

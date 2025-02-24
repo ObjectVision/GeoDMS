@@ -1140,6 +1140,37 @@ void Actor::StartSupplInterest() const
 	}
 }
 
+void Actor::RestartSupplInterestIfAny() const
+{
+	assert(IsMetaThread());
+
+	if (!DoesHaveSupplInterest())
+		return;
+
+	SupplInterestListPtr supplInterestListPtr = GetSupplInterest(); // can throw
+
+	leveled_critical_section::scoped_lock scopedLock(sc_MoveSupplInterestSection);
+
+	if (!DoesHaveSupplInterest())
+		return;
+
+	assert(s_SupplTreeInterest); // guaranteed by lock to follow from DoesHaveSupplInterest.
+	SupplInterestListPtr& supplInterestListRef = (*s_SupplTreeInterest)[this]; // can insert new and throw bad_alloc
+	assert(!supplInterestListRef);
+
+	// nothrow from here
+	if (WasFailed(FR_Data))
+	{
+		assert(!DoesHaveSupplInterest()); // reset by Failure in GetSupplInterest();
+	}
+	else
+	{
+		supplInterestListRef.init(supplInterestListPtr.release());
+//		m_State.Set(actor_flag_set::AF_SupplInterest);
+		assert(DoesHaveSupplInterest()); // still set.
+	}
+}
+
 SupplInterestListPtr MoveSupplInterest(const Actor* self)
 {
 	SupplInterestListPtr localInterestHolder;

@@ -1124,9 +1124,9 @@ void OperationContext::AddDependency(const DataController* dcRef)
 {
 	if (!dcRef)
 		return;
-	dms_assert(!IsScheduled());
-	dms_assert(IsMainThread());
-	dms_assert(dcRef);
+	assert(!IsScheduled());
+	assert(IsMainThread());
+	assert(dcRef);
 	m_OtherSuppliers.emplace_back(dcRef);
 }
 

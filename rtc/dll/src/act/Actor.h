@@ -174,6 +174,7 @@ protected:
 public:
 	RTC_CALL void StartSupplInterest   () const;          friend struct FuncDC;
 	RTC_CALL garbage_t StopSupplInterest() const noexcept; friend struct AbstrOperGroup;
+	RTC_CALL void RestartSupplInterestIfAny() const;
 
 	// Data Members
 public:

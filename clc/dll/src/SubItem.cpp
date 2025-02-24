@@ -1,4 +1,4 @@
-// Copyright (C) 1998-2024 Object Vision b.v. 
+// Copyright (C) 1998-2025 Object Vision b.v. 
 // License: GNU GPL 3
 /////////////////////////////////////////////////////////////////////////////
 
@@ -35,10 +35,10 @@ struct SubItemOperator: BinaryOperator
 
 	bool CreateResult(TreeItemDualRef& resultHolder, const ArgSeqType& args, bool mustCalc) const override
 	{
-		dms_assert(args.size() == 2);
+		assert(args.size() == 2);
 		const TreeItem* arg1 = args[0];
-		dms_assert(arg1);
-		dms_assert(arg1->IsCacheItem());
+		assert(arg1);
+		assert(arg1->IsCacheItem());
 		if (!resultHolder) {
 			dms_assert(!mustCalc);
 			checked_domain<Void>(args[1], "a2");
@@ -51,10 +51,10 @@ struct SubItemOperator: BinaryOperator
 					subItemName.c_str(),
 					arg1->GetFullName().c_str()
 				);
-			dms_assert(subItem->IsCacheItem());
+			assert(subItem->IsCacheItem());
 			resultHolder = subItem;
 		}
-		dms_assert(resultHolder);
+		assert(resultHolder);
 
 		if (mustCalc)
 		{
@@ -89,15 +89,15 @@ struct CheckOperator : public BinaryOperator
 
 	bool CreateResult(TreeItemDualRef& resultHolder, const ArgSeqType& args, bool mustCalc) const override
 	{
-		dms_assert(args.size() == 2);
+		assert(args.size() == 2);
 		const TreeItem* arg1 = args[0];
-		dms_assert(arg1);
+		assert(arg1);
 //		dms_assert(arg1->IsCacheItem());
 		if (!resultHolder) {
 			dms_assert(!mustCalc);
 			resultHolder = arg1;
 		}
-		dms_assert(resultHolder);
+		assert(resultHolder);
 
 		if (mustCalc)
 		{
@@ -145,21 +145,25 @@ struct FenceContainerOperator : BinaryOperator
 		if (!resultHolder)
 		{
 			CopyTreeContext context(nullptr, sourceContainer, ""
-				, DataCopyMode::MakePassor | DataCopyMode::MakeEndogenous | DataCopyMode::InFenceOperator | DataCopyMode::NoRoot //  | DataCopyMode::CopyAlsoReferredItems);
+				, DataCopyMode::MakePassor | DataCopyMode::MakeEndogenous | DataCopyMode::InFenceOperator | DataCopyMode::NoRoot //| DataCopyMode::CopyReferredItems
 			);
 			context.m_FenceNumber = GetNextFenceNumber();
 
 			resultHolder = context.Apply();
+			resultHolder->m_FenceNumber = context.m_FenceNumber;
 			resultHolder.m_FenceNumber = context.m_FenceNumber;
 		}
 		assert(resultHolder);
+
+		auto resultFenceNumer = resultHolder.m_FenceNumber;
 
 //		fence_work_data workData;
 
 		auto resultRoot = resultHolder.GetNew();
 		for (auto resWalker = resultRoot; resWalker; resWalker = resultRoot->WalkCurrSubTree(resWalker))
 		{
-
+			MG_CHECK(resWalker->m_FenceNumber >= resultFenceNumer);
+		
 			if (!IsDataItem(resWalker) && !IsUnit(resWalker))
 				continue;
 
@@ -171,8 +175,9 @@ struct FenceContainerOperator : BinaryOperator
 			if(!resWalker->WasFailed(FR_MetaInfo))
 			{
 				assert(srcItem->mc_DC);
-				assert(resWalker->mc_DC);
+//				assert(resWalker->mc_DC);
 				fc->AddDependency(srcItem->GetCheckedDC());
+				resWalker->SetReferredItem(srcItem);
 			}
 //			workData.emplace_back(resWalker, srcItem);
 //			resWalker->SetDC(srcItem->GetFuncDC());
@@ -196,7 +201,8 @@ struct FenceContainerOperator : BinaryOperator
 			for (auto msg : msgData)
 				reportD(SeverityTypeID::ST_MinorTrace, msg.AsRange());
 
-		auto sourceContainer = std::get<SharedTreeItem>(args[0]).get();
+		auto srcContainer = std::get<SharedTreeItem>(args[0]).get();
+
 //		assert(resultHolder->m_ReadAssets.has_value());
 
 //		const fence_work_data* workDataPtr = rtc::any::any_cast<fence_work_data>(&resultHolder->m_ReadAssets);
@@ -204,27 +210,42 @@ struct FenceContainerOperator : BinaryOperator
 //		MG_CHECK(workDataPtr);
 
 		// first, copy ranges of units ?
-		auto resultRoot = resultHolder.GetNew();
-		assert(resultRoot);
+//		auto resultRoot = resultHolder.GetNew();
+//		assert(resultRoot);
 
-		using fence_member_pair = std::pair<SharedPtr<TreeItem>, FutureData>;
-		using fence_work_data = std::vector<fence_member_pair>;
+//		using fence_member_pair = std::pair<SharedPtr<TreeItem>, FutureData>;
+//		using fence_work_data = std::vector<fence_member_pair>;
 
-		fence_work_data futureDataContainer;
+//		fence_work_data futureDataContainer;
+
+		auto resultFenceNumer = resultHolder.m_FenceNumber;
+		for (auto srcWalker = srcContainer; srcWalker; srcWalker = srcContainer->WalkConstSubTree(srcWalker))
+		{
+			if (!IsUnit(srcWalker) && !IsDataItem(srcWalker))
+				continue;
+
+			MG_CHECK(srcWalker->m_FenceNumber < resultFenceNumer);
+			MG_CHECK(!srcWalker->IsCacheItem());
+			MG_CHECK(srcWalker->HasInterest() || srcWalker->WasFailed(FR_MetaInfo));
+		}
+
 
 		std::promise<void> fenceBell;
 		auto bellWaiter = fenceBell.get_future();
-		auto resultFenceNumer = resultHolder.m_FenceNumber;
-		SendMainThreadOper([resultRoot, resultFenceNumer, sourceContainer, &futureDataContainer]()
+/*
+		SendMainThreadOper([srcContainer, resultFenceNumer, &srcWalker, &futureDataContainer]()
 			{
 				// schedule all requested results
-				for (auto resWalker = resultRoot; resWalker; resWalker = resultRoot->WalkCurrSubTree(resWalker))
+				for (; srcWalker; srcWalker = srcContainer->WalkConstSubTree(srcWalker))
 				{
-					if (!IsUnit(resWalker) && !IsDataItem(resWalker))
+					if (!IsUnit(srcWalker) && !IsDataItem(srcWalker))
 						continue;
-					SharedPtr<TreeItem> holdInterest = resWalker;
-					auto dc = resWalker->mc_DC;
-					assert(dc);
+
+					MG_CHECK(!srcWalker->IsCacheItem());
+					MG_CHECK(srcWalker->HasInterest());
+
+//					SharedPtr<TreeItem> holdInterest = srcWalker;
+					auto dc = srcWalker->mc_DC;
 					if (dc)
 					{
 						assert(dc->m_FenceNumber < resultFenceNumer);
@@ -233,26 +254,29 @@ struct FenceContainerOperator : BinaryOperator
 				}
 			}
 		);
-
+		*/
 		reportD(SeverityTypeID::ST_MinorTrace, "FenceContainer ResultFutures collected");
 		if (msgData.size() != 1 || !msgData[0].empty())
 			for (auto msg : msgData)
 				reportD(SeverityTypeID::ST_MinorTrace, msg.AsRange());
 
 
-		auto srcWalker = sourceContainer;
-		std::vector<SharedTreeItemInterestPtr> interestHolders;
+		auto srcWalker = srcContainer;
+//		std::vector<SharedTreeItemInterestPtr> interestHolders;
 
-		PostMainThreadTask([sourceContainer, &srcWalker, &interestHolders, &fenceBell, &resultHolder](bool mustCancel)-> bool
+		PostMainThreadTask([srcContainer, &srcWalker, &fenceBell, &resultHolder, resultFenceNumer](bool mustCancel)-> bool
 			{
 				assert(!SuspendTrigger::BlockerBase::IsBlocked());
 				// work on exporting stuff from main thread
 				if (!mustCancel)
 				{
-					for (; srcWalker; srcWalker = sourceContainer->WalkConstSubTree(srcWalker))
+					for (; srcWalker; srcWalker = srcContainer->WalkConstSubTree(srcWalker))
 					{
-						if (interestHolders.empty() || interestHolders.back() != srcWalker)
-							interestHolders.emplace_back(srcWalker);
+						MG_CHECK(srcWalker->HasInterest());
+						MG_CHECK(srcWalker->m_FenceNumber < resultFenceNumer);
+
+						//						if (interestHolders.empty() || interestHolders.back() != srcWalker)
+//							interestHolders.emplace_back(srcWalker);
 
 						if (!srcWalker->SuspendibleUpdate(PS_Committed))
 						{
@@ -269,7 +293,7 @@ struct FenceContainerOperator : BinaryOperator
 		);
 
 		bellWaiter.get();
-
+/*
 		reportD(SeverityTypeID::ST_MinorTrace, "FenceContainer Source Updates completed");
 		if (msgData.size() != 1 || !msgData[0].empty())
 			for (auto msg : msgData)
@@ -303,6 +327,7 @@ struct FenceContainerOperator : BinaryOperator
 			if (dc->WasFailed(FR_Data))
 				resWalker->Fail(dc.get_ptr());
 		}
+		*/
 
 		reportD(SeverityTypeID::ST_MinorTrace, "FenceContainer completed calculations of all resulting items");
 		if (msgData.size() != 1 || !msgData[0].empty())

@@ -327,13 +327,19 @@ SharedTreeItem FuncDC::MakeResult() const // produce signature
 	actor_section_lock_map::ScopedLock specificSectionLock(MG_SOURCE_INFO_CODE("Actor::DecInterestCount") sg_ActorLockMap, this);
 	auto operContext = GetOperContext();
 	if (operContext)
-		m_OtherSuppliersCopy = operContext->m_OtherSuppliers;
-
-	if (!GetInterestCount() && operContext)
 	{
-		DBG_TRACE(("ResetContext"));
-		dms_assert(!DoesHaveSupplInterest());
-		ResetOperContextImpl();
+		m_OtherSuppliersCopy = operContext->m_OtherSuppliers;
+		if (GetInterestCount())
+		{
+			if (DoesHaveSupplInterest() && m_OtherSuppliersCopy.size())
+				RestartSupplInterestIfAny();
+		}
+		else
+		{
+			DBG_TRACE(("ResetContext"));
+			assert(!DoesHaveSupplInterest());
+			ResetOperContextImpl();
+		}
 	}
 	return m_Data;
 }
