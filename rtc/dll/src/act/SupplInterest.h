@@ -83,13 +83,12 @@ struct SupplInterestListElem
 		:	m_NextPtr(next.release())
 		,	m_Value(std::move(value))
 	{
-		dms_assert(m_Value); // class invariant
+		assert(m_Value); // class invariant
 	}
 	~SupplInterestListElem()
 	{
 		// provide assumptions to the optimizer of the member destructors
-		dms_assert(m_Value);              // class invariant
-		dms_assert(m_NextPtr == nullptr); // PRECONDITION for destruction to prevent excessive stack usage.
+		assert(m_Value);              // class invariant
 	}
 
 	SupplInterestListElem* m_NextPtr;
