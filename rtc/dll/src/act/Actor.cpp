@@ -1156,7 +1156,6 @@ void Actor::RestartSupplInterestIfAny() const
 
 	assert(s_SupplTreeInterest); // guaranteed by lock to follow from DoesHaveSupplInterest.
 	SupplInterestListPtr& supplInterestListRef = (*s_SupplTreeInterest)[this]; // can insert new and throw bad_alloc
-	assert(!supplInterestListRef);
 
 	// nothrow from here
 	if (WasFailed(FR_Data))
