@@ -1148,7 +1148,7 @@ void Actor::RestartSupplInterestIfAny() const
 		return;
 
 	SupplInterestListPtr supplInterestListPtr = GetSupplInterest(); // can throw
-
+	SupplInterestListPtr oldSupplInterestListPtr;
 	leveled_critical_section::scoped_lock scopedLock(sc_MoveSupplInterestSection);
 
 	if (!DoesHaveSupplInterest())
@@ -1164,7 +1164,8 @@ void Actor::RestartSupplInterestIfAny() const
 	}
 	else
 	{
-		supplInterestListRef = supplInterestListPtr.release();
+		oldSupplInterestListPtr = std::move(supplInterestListRef);
+		supplInterestListRef.init(supplInterestListPtr.release());
 //		m_State.Set(actor_flag_set::AF_SupplInterest);
 		assert(DoesHaveSupplInterest()); // still set.
 	}
