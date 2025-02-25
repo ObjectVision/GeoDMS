@@ -3268,7 +3268,7 @@ static how_to_proceed PrepareDataCalc(SharedPtr<const TreeItem> self, const Tree
 	//				auto result = CalcResult(apr, GetDynamicObjClass());
 	if (dc)
 	{
-		SuspendTrigger::SilentBlocker xx("@PrepareDataCalc");
+//		SuspendTrigger::SilentBlocker xx("@PrepareDataCalc");
 		auto dc2 = dc->CallCalcResult();
 		assert(!SuspendTrigger::DidSuspend());
 

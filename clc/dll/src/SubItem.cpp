@@ -63,9 +63,10 @@ struct SubItemOperator: BinaryOperator
 			assert(CheckDataReady(ultItem));
 			if (ultItem != resultHolder.GetOld())
 			{
-				SharedTreeItemInterestPtr ultHolder = resultHolder.GetUlt();
+				SharedTreeItem ultHolder = resultHolder.GetUlt();
 				resultHolder->m_ReadAssets.emplace<SharedTreeItemInterestPtr>(std::move(ultHolder));
 			}
+			resultHolder->SetIsInstantiated();
 		}
 		return true;
 	}
@@ -257,14 +258,16 @@ struct FenceContainerOperator : BinaryOperator
 
 						MG_CHECK(srcWalker->m_FenceNumber < resultFenceNumer);
 						MG_CHECK(!srcWalker->IsCacheItem());
-						MG_CHECK(srcWalker->HasInterest() || srcWalker->WasFailed(FR_MetaInfo));
-
-						SharedPtr<const TreeItem> holdInterest = srcWalker;
-						auto dc = srcWalker->mc_DC;
-						if (dc)
+//						MG_CHECK(srcWalker->HasInterest() || srcWalker->WasFailed(FR_MetaInfo));
+						if (srcWalker->HasInterest())
 						{
-							assert(dc->m_FenceNumber < resultFenceNumer);
-							futureDataContainer.emplace_back(holdInterest, dc->CallCalcResult());
+							SharedPtr<const TreeItem> holdInterest = srcWalker;
+							auto dc = srcWalker->mc_DC;
+							if (dc)
+							{
+								assert(dc->m_FenceNumber < resultFenceNumer);
+								futureDataContainer.emplace_back(holdInterest, dc->CallCalcResult());
+							}
 						}
 					}
 				}
@@ -283,17 +286,17 @@ struct FenceContainerOperator : BinaryOperator
 		// check that all sub-items of result-holder are/become up-to-date or uninteresting
 		for (const auto& fd: futureDataContainer)
 		{
-			auto srcWalker = fd.first.get_ptr();
+			auto srcItem = fd.first.get_ptr();
 			auto dc = fd.second;
 			if (dc->WasFailed(FR_MetaInfo))
 			{
-				srcWalker->Fail(dc.get_ptr());
+				srcItem->Fail(dc.get_ptr());
 				continue;
 			}
-			WaitReady(srcWalker);
-			assert(CheckDataReady(srcWalker->GetCurrRangeItem()));
+			WaitReady(srcItem->GetCurrUltimateItem());
+			assert(CheckDataReady(srcItem->GetCurrUltimateItem()));
 			if (dc->WasFailed(FR_Data))
-				srcWalker->Fail(dc.get_ptr());
+				srcItem->Fail(dc.get_ptr());
 		}
 
 		reportD(SeverityTypeID::ST_MinorTrace, "FenceContainer completed calculations of all resulting items");

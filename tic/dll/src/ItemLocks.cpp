@@ -668,10 +668,14 @@ bool RunTask(const TreeItem* item)
 bool CheckCalculatingOrReady(const TreeItem* item)
 {
 	assert(item);
-	assert(item == item->GetCurrRangeItem());
 
 //	if (item->DataAllocated())
 //		return true;
+	if (item->GetIsInstantiated())
+		return true;
+
+	assert(item == item->GetCurrRangeItem());
+
 	if (IsCalculating(item))
 		return true;
 	if (CheckDataReady(item))

@@ -147,7 +147,7 @@ void DataBlockProd::Commit()
 { 
 	if (m_nIndexValue < m_ElemCount)
 	{
-		auto errMsg = mySSPrintF("DoArrayAssignment: Only %d values were provided, but domain %s has %d values. Auto completion is now diagnosed as error.\n"
+		auto errMsg = mySSPrintF("DoArrayAssignment: Only %d values were provided, but domain %s has %d values. Since GeoDMS version 17.0.0, incomplete value arrays are diagnosed as errors.\n"
 			"Provide %d values to fix this or consider adjusting the domain"
 			, m_nIndexValue
 			, CurrDI()->GetAbstrDomainUnit()->GetName().c_str()

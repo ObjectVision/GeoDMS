@@ -184,9 +184,10 @@ std::shared_ptr<OperationContext> FuncDC::ResetOperContextImpl() const
 {
 	leveled_critical_section::scoped_lock ocaLock(cs_OperContextAccess);
 
-	dms_assert(
+	assert(
 		(!m_InterestCount) 
 	||	!IsNew() 
+	||	GetNew()->GetIsInstantiated()
 	||	CheckDataReady(GetNew())
 	||	GetNew()->WasFailed(FR_Data) 
 	||	DSM::IsCancelling()
@@ -427,7 +428,7 @@ auto FuncDC::CallCalcResult(Explain::Context* context) const -> FutureData
 
 	assert(GetInterestCount()); 
 
-	if (!IsAllDataReady(m_Data->GetCurrUltimateItem()) || context)
+	if (!m_Data->GetIsInstantiated() || context)
 	{
 		assert(m_Data->GetInterestCount());
 		assert(m_State.Get(actor_flag_set::AF_SupplInterest) || context);
