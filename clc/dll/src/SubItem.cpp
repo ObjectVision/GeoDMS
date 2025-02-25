@@ -294,7 +294,7 @@ struct FenceContainerOperator : BinaryOperator
 		if (msgData.size() != 1 || !msgData[0].empty())
 			for (auto msg: msgData)
 				reportD(SeverityTypeID::ST_MajorTrace, msg.AsRange());
-		resultHolder->m_ReadAssets = std::move(futureDataContainer);
+		resultHolder->m_ReadAssets.emplace<fence_work_data>(std::move(futureDataContainer));
 		resultHolder->SetIsInstantiated();
 		return true;
 	}
