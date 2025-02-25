@@ -135,7 +135,6 @@ struct FenceContainerOperator : BinaryOperator
 		: BinaryOperator(&sog_FenceContainer, TreeItem::GetStaticClass(), TreeItem::GetStaticClass(), DataArray<SharedStr>::GetStaticClass())
 	{}
 
-//	bool CreateResult(TreeItemDualRef& resultHolder, const ArgSeqType& args, bool mustCalc) const override;
 	void CreateResultCaller(TreeItemDualRef& resultHolder, const ArgRefs& args, OperationContext* fc, LispPtr) const override
 	{
 		assert(args.size() == 2);
@@ -157,16 +156,11 @@ struct FenceContainerOperator : BinaryOperator
 
 		auto resultFenceNumer = resultHolder.m_FenceNumber;
 
-//		fence_work_data workData;
-
 		auto resultRoot = resultHolder.GetNew();
 		for (auto resWalker = resultRoot; resWalker; resWalker = resultRoot->WalkCurrSubTree(resWalker))
 		{
 			MG_CHECK(resWalker->m_FenceNumber >= resultFenceNumer);
 		
-			if (!IsDataItem(resWalker) && !IsUnit(resWalker))
-				continue;
-
 			auto srcItem = sourceContainer->FindItem(resWalker->GetRelativeName(resultHolder.GetNew()));
 			MG_CHECK(!srcItem->IsCacheItem());
 
@@ -174,16 +168,11 @@ struct FenceContainerOperator : BinaryOperator
 				resWalker->Fail(srcItem);
 			if(!resWalker->WasFailed(FR_MetaInfo))
 			{
-				assert(srcItem->mc_DC);
-//				assert(resWalker->mc_DC);
-				fc->AddDependency(srcItem->GetCheckedDC());
+				if (srcItem->mc_DC)
+					fc->AddDependency(srcItem->GetCheckedDC());
 				resWalker->SetReferredItem(srcItem);
 			}
-//			workData.emplace_back(resWalker, srcItem);
-//			resWalker->SetDC(srcItem->GetFuncDC());
-
 		}
-
 //		resultHolder->m_ReadAssets.emplace<fence_work_data>(std::move(workData));
 //		assert(resultHolder->m_ReadAssets.has_value());
 	}
@@ -240,7 +229,10 @@ struct FenceContainerOperator : BinaryOperator
 				{
 					for (; srcWalker; srcWalker = srcContainer->WalkConstSubTree(srcWalker))
 					{
-						MG_CHECK(srcWalker->HasInterest());
+						if (srcWalker->WasFailed(FR_MetaInfo))
+							continue;
+
+						MG_CHECK(srcWalker->GetCurrRangeItem()->HasInterest());
 						MG_CHECK(srcWalker->m_FenceNumber < resultFenceNumer);
 
 //						if (interestHolders.empty() || interestHolders.back() != srcWalker)
@@ -302,6 +294,7 @@ struct FenceContainerOperator : BinaryOperator
 		if (msgData.size() != 1 || !msgData[0].empty())
 			for (auto msg: msgData)
 				reportD(SeverityTypeID::ST_MajorTrace, msg.AsRange());
+		resultHolder->m_ReadAssets = std::move(futureDataContainer);
 		resultHolder->SetIsInstantiated();
 		return true;
 	}
