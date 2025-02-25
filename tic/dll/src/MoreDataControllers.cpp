@@ -545,7 +545,7 @@ OArgRefs FuncDC::GetArgs(bool doUpdateMetaInfo, bool doCalcData) const
 			dms_assert(!fd || argIter->m_DC->GetInterestCount());
 			if (SuspendTrigger::DidSuspend())
 				return {};
-			dms_assert(!fd || CheckCalculatingOrReady(fd->GetOld()->GetCurrRangeItem()) || fd->WasFailed(FR_Data) || fd->GetOld()->WasFailed(FR_Data));
+			assert(!fd || CheckCalculatingOrReady(fd->GetOld()->GetCurrRangeItem()) || fd->WasFailed(FR_Data) || fd->GetOld()->WasFailed(FR_Data));
 			argRef.emplace<FutureData>(std::move(fd));
 			if (currArg == 0 && m_OperatorGroup->HasDynamicArgPolicies())
 				firstArgValue = const_array_cast<SharedStr>(DataReadLock(AsDataItem(argIter->m_DC->GetOld())))->GetIndexedValue(0);

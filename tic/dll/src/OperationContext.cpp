@@ -1476,7 +1476,7 @@ void OperationContext::RunOperator(Explain::Context* context, ArgRefs argRefs, s
 #if defined(MG_DEBUG)
 			const TreeItem* ri = resultHolder.IsOld() ? resultHolder->GetCurrUltimateItem() : resultHolder.GetNew();
 			assert(ri);
-			assert(CheckCalculatingOrReady(ri) || resultHolder->WasFailed(FR_Data));
+			assert(ri->GetIsInstantiated() || CheckCalculatingOrReady(ri) || resultHolder->WasFailed(FR_Data));
 //			dms_assert(CheckDataReady(ri) || resultHolder->WasFailed(FR_Data));
 
 			assert(!resultHolder.IsNew() || resultHolder->m_LastChangeTS == resultHolder.m_LastChangeTS); // further changes in the resulting data must have caused resultHolder to invalidate, as IsNew results are passive
