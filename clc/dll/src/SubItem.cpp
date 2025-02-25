@@ -58,8 +58,14 @@ struct SubItemOperator: BinaryOperator
 
 		if (mustCalc)
 		{
-			dms_assert(CheckDataReady(arg1));
-			dms_assert(CheckDataReady(resultHolder.GetUlt()));
+			assert(CheckDataReady(arg1->GetCurrUltimateItem()));
+			SharedTreeItem ultItem = resultHolder.GetUlt();
+			assert(CheckDataReady(ultItem));
+			if (ultItem != resultHolder.GetOld())
+			{
+				SharedTreeItemInterestPtr ultHolder = resultHolder.GetUlt();
+				resultHolder->m_ReadAssets.emplace<SharedTreeItemInterestPtr>(std::move(ultHolder));
+			}
 		}
 		return true;
 	}
