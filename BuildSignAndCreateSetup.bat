@@ -14,10 +14,8 @@ cd tst
 git pull
 cd %geodms_rootdir%
 
-REM goto :setupCreation
-
-REM CHOICE /M "Update RtcGeneratedVersion.h?"
-REM if ErrorLevel 2 goto :startBuild
+CHOICE /M "Update RtcGeneratedVersion.h?"
+if ErrorLevel 2 goto :startBuild
 
 echo #define DMS_VERSION_MAJOR %DMS_VERSION_MAJOR% > "rtc/dll/src/RtcGeneratedVersion.h"
 echo #define DMS_VERSION_MINOR %DMS_VERSION_MINOR% >> "rtc/dll/src/RtcGeneratedVersion.h"

@@ -1280,7 +1280,8 @@ struct InterestReporter : DebugReporter
 			}
 		}
 
-		if (focusItem->DoesHaveSupplInterest() && s_SupplTreeInterest)
+		assert(focusItem);
+		if (focusItem && focusItem->DoesHaveSupplInterest() && s_SupplTreeInterest)
 		{
 			auto supplPtr = s_SupplTreeInterest->find(focusItem);
 			if (supplPtr != s_SupplTreeInterest->end() && supplPtr->first == focusItem)

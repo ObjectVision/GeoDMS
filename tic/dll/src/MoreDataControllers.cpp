@@ -194,7 +194,7 @@ std::shared_ptr<OperationContext> FuncDC::ResetOperContextImpl() const
 	||	m_State.GetProgress() == PS_None // Just invalidated.
 	);
 
-	auto operContext = std::move(m_OperContext);
+	std::shared_ptr<OperationContext> operContext = std::move(m_OperContext);
 	if (operContext) 
 		operContext->m_FuncDC.reset();
 	assert(!m_OperContext);
@@ -428,7 +428,7 @@ auto FuncDC::CallCalcResult(Explain::Context* context) const -> FutureData
 
 	assert(GetInterestCount()); 
 
-	if (!m_Data->GetIsInstantiated() || context)
+	if (m_OperatorGroup->HasSupplTreeArg() || !IsAllDataReady(m_Data->GetCurrUltimateItem()) || context) // condition required for operations such as parse_xml as first argument of a SubItem
 	{
 		assert(m_Data->GetInterestCount());
 		assert(m_State.Get(actor_flag_set::AF_SupplInterest) || context);
