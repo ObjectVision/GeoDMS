@@ -39,13 +39,13 @@ using suspendible_task_type = std::function<bool()>;
 
 struct suspendible_task_queue
 {
-	RTC_CALL bool Post(operation_type&& func); // returns true if the queue was empty before posting
+	RTC_CALL bool Post(suspendible_task_type&& func); // returns true if the queue was empty before posting
 //	RTC_CALL void Send(operation_type&& func);
 
 	RTC_CALL void Process();
 
 private:
-	std::vector<operation_type> m_Operations;
+	std::vector<suspendible_task_type> m_Operations;
 };
 
 /********** helper funcs  **********/

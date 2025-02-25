@@ -186,6 +186,16 @@ void operation_queue::Process()
 	}
 }
 
+bool suspendible_task_queue::Post(suspendible_task_type&& func)
+{
+	auto lock = std::scoped_lock(s_MainQueueSection);
+	bool result = m_Operations.empty();
+	m_Operations.emplace_back(std::move(func));
+	return result;
+}
+
+RTC_CALL void PostMainThreadTask(suspendible_task_type&& task);
+
 void suspendible_task_queue::Process()
 {
 	assert(IsMetaThread());
@@ -196,17 +206,24 @@ void suspendible_task_queue::Process()
 		assert(m_Operations.empty());
 	}
 
-	SuspendTrigger::SilentBlocker blockSuspensions("operation_queue::Process");
-	for (auto& oper : operQueue)
+	bool keepOnRunning = true;
+	for (auto& task : taskQueue)
 	{
-		try {
-			assert(!SuspendTrigger::DidSuspend());
-			oper();
-		}
-		catch (...)
+		if (keepOnRunning)
 		{
-			catchAndReportException();
+			try {
+				assert(!SuspendTrigger::DidSuspend());
+				keepOnRunning = task();
+			}
+			catch (...)
+			{
+				catchAndReportException();
+			}
 		}
+		if (keepOnRunning)
+			keepOnRunning = !SuspendTrigger::MustSuspend();
+		else
+			PostMainThreadTask(std::move(task));
 	}
 }
 
@@ -216,8 +233,8 @@ suspendible_task_queue s_TaskQueue;
 
 void PostMainThreadOper(std::function<void()>&& func)
 {
-	s_OperQueue.Post(std::move(func));
-	RequestMainThreadOperProcessing();
+	if (s_OperQueue.Post(std::move(func)))
+		RequestMainThreadOperProcessing();
 }
 
 void SendMainThreadOper(std::function<void()>&& func)
@@ -225,10 +242,10 @@ void SendMainThreadOper(std::function<void()>&& func)
 	s_OperQueue.Send(std::move(func));
 }
 
-void PostMainThreadTask(std::function<bool()>&& func)
+void PostMainThreadTask(suspendible_task_type&& func)
 {
-	s_TaskQueue.Post(std::move(func));
-	RequestMainThreadOperProcessing();
+	if (s_TaskQueue.Post(std::move(func)))
+		RequestMainThreadOperProcessing();
 }
 
 static UInt32 s_ProcessMainThreadOperLevel = 0;
