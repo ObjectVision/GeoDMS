@@ -804,9 +804,6 @@ bool AbstrDataItem::TryCleanupMemImpl(garbage_t& garbageCan) const
 	if (m_ItemCount < 0)
 		return false;
 
-	//ClearTSF(TSF_DataInMem);
-	assert(!GetTSF(TSF_DataInMem));
-
 	assert(!GetDataObjLockCount());
 	assert(!PartOfInterest());
 
