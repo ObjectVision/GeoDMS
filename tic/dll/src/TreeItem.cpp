@@ -117,6 +117,7 @@ IMPL_DYNC_TREEITEMCLASS(TreeItem, "TreeItem")
 
 SupplCache* TreeItem::GetOrCreateSupplCache() const
 {
+	assert(IsMetaThread());
 	if (!HasSupplCache())
 		m_SupplCache.assign( new SupplCache );
 	return m_SupplCache;

@@ -1071,7 +1071,7 @@ bool OperationContext_CreateResult(OperationContext* oc, const FuncDC* funcDC) /
 	catch (...)
 	{
 		if (resultHolder.IsNew())
-			resultHolder->CatchFail(FR_MetaInfo); // also calls resultHolder->StopSupplierInterest() (the resulting data).
+			resultHolder->CatchFail(FR_MetaInfo); // also calls resultHolder->StopSupplInterest() (the resulting data).
 		resultHolder.CatchFail(FR_MetaInfo);
 	}
 

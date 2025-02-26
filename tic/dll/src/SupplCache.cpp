@@ -64,6 +64,14 @@ void SupplCache::SetSupplString(WeakStr val)
 	m_strConfigured = val;
 }
 
+void SupplCache::InitAt(const TreeItem* fencedSource)
+{
+	m_NrConfigured = 1;
+	m_IsDirty = false;
+	m_SupplArray.reset( new ActorCRef[1] );
+	m_SupplArray[0] = fencedSource;
+}
+
 void SupplCache::BuildSet(const TreeItem* context) const
 {
 	dms_assert(context);

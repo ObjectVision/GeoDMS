@@ -132,6 +132,7 @@ struct CheckOperator : public BinaryOperator
 #include "CopyTreeContext.h"
 #include "OperationContext.h"
 #include "UnitProcessor.h"
+#include "SupplCache.h"
 
 oper_arg_policy oap_Fence[2] = { oper_arg_policy::subst_with_subitems,  oper_arg_policy::calc_as_result };
 SpecialOperGroup sog_FenceContainer(token::FenceContainer, 2, oap_Fence, oper_policy::dynamic_result_class);
@@ -170,6 +171,7 @@ struct FenceContainerOperator : BinaryOperator
 		
 			auto srcItem = sourceContainer->FindItem(resWalker->GetRelativeName(resultHolder.GetNew()));
 			MG_CHECK(!srcItem->IsCacheItem());
+			resWalker->GetOrCreateSupplCache()->InitAt(srcItem);
 
 			if (srcItem->WasFailed())
 				resWalker->Fail(srcItem);
@@ -177,7 +179,6 @@ struct FenceContainerOperator : BinaryOperator
 			{
 				if (srcItem->mc_DC)
 					fc->AddDependency(srcItem->GetCheckedDC());
-				resWalker->SetReferredItem(srcItem);
 			}
 		}
 //		resultHolder->m_ReadAssets.emplace<fence_work_data>(std::move(workData));
@@ -206,19 +207,18 @@ struct FenceContainerOperator : BinaryOperator
 //		MG_CHECK(workDataPtr);
 
 		// first, copy ranges of units ?
-//		auto resultRoot = resultHolder.GetNew();
-//		assert(resultRoot);
+		auto resultRoot = resultHolder.GetNew();
+		assert(resultRoot);
 
-		using fence_member_pair = std::pair<SharedPtr<const TreeItem>, FutureData>;
+		using fence_member_pair = std::pair<SharedTreeItemInterestPtr, FutureData>;
 		using fence_work_data = std::vector<fence_member_pair>;
-
 		fence_work_data futureDataContainer;
 
 		auto resultFenceNumer = resultHolder.m_FenceNumber;
 
 		std::promise<void> fenceBell;
 		auto bellWaiter = fenceBell.get_future();
-		auto srcWalker = srcContainer;
+		auto resWalker = resultRoot;
 		
 		reportD(SeverityTypeID::ST_MinorTrace, "FenceContainer ResultFutures collected");
 		if (msgData.size() != 1 || !msgData[0].empty())
@@ -228,45 +228,48 @@ struct FenceContainerOperator : BinaryOperator
 
 //		std::vector<SharedTreeItemInterestPtr> interestHolders;
 
-		PostMainThreadTask([srcContainer, &srcWalker, &fenceBell, &resultHolder, resultFenceNumer, &futureDataContainer](bool mustCancel)-> bool
+		PostMainThreadTask([srcContainer, resultRoot, &resWalker, &fenceBell, &resultHolder, resultFenceNumer, &futureDataContainer](bool mustCancel)-> bool
 			{
 				assert(!SuspendTrigger::BlockerBase::IsBlocked());
 				// work on exporting stuff from main thread
 				if (!mustCancel)
 				{
-					for (; srcWalker; srcWalker = srcContainer->WalkConstSubTree(srcWalker))
+					for (; resWalker; resWalker = resultRoot->WalkCurrSubTree(resWalker))
 					{
-						if (srcWalker->WasFailed(FR_MetaInfo))
+						auto resInterestPtr = resWalker->GetInterestPtrOrNull();
+						if (!resInterestPtr)
 							continue;
 
-						MG_CHECK(srcWalker->GetCurrRangeItem()->HasInterest());
-						MG_CHECK(srcWalker->m_FenceNumber < resultFenceNumer);
+						auto srcItem = srcContainer->FindItem(resWalker->GetRelativeName(resultRoot));
+						assert(srcItem);
 
-//						if (interestHolders.empty() || interestHolders.back() != srcWalker)
-//							interestHolders.emplace_back(srcWalker);
 
-						if (!srcWalker->SuspendibleUpdate(PS_Committed))
+						MG_CHECK(srcItem->m_FenceNumber < resultFenceNumer);
+						MG_CHECK(!srcItem->IsCacheItem());
+
+						if (!srcItem->SuspendibleUpdate(PS_Committed))
 						{
-							if (srcWalker->WasFailed())
-								resultHolder.GetNew()->Fail(srcWalker);
+							if (srcItem->WasFailed())
+								resultHolder.GetNew()->Fail(srcItem);
 							if (SuspendTrigger::DidSuspend())
 								return false;
 						}
 
-						if (!IsUnit(srcWalker) && !IsDataItem(srcWalker))
+						if (!IsUnit(resWalker) && !IsDataItem(resWalker))
 							continue;
 
-						MG_CHECK(srcWalker->m_FenceNumber < resultFenceNumer);
-						MG_CHECK(!srcWalker->IsCacheItem());
-//						MG_CHECK(srcWalker->HasInterest() || srcWalker->WasFailed(FR_MetaInfo));
-						if (srcWalker->HasInterest())
+						assert(resWalker->DoesHaveSupplInterest());
+
+						auto dc = srcItem->mc_DC;
+						if (dc)
 						{
-							SharedPtr<const TreeItem> holdInterest = srcWalker;
-							auto dc = srcWalker->mc_DC;
-							if (dc)
+							assert(dc->m_FenceNumber < resultFenceNumer);
+							auto dcInterest = dc->GetInterestPtrOrNull();
+							assert(dcInterest); // follows from 
+							if (dcInterest)
 							{
-								assert(dc->m_FenceNumber < resultFenceNumer);
-								futureDataContainer.emplace_back(holdInterest, dc->CallCalcResult());
+								futureDataContainer.emplace_back(resInterestPtr, dc->CallCalcResult());
+								continue;
 							}
 						}
 					}
@@ -286,24 +289,41 @@ struct FenceContainerOperator : BinaryOperator
 		// check that all sub-items of result-holder are/become up-to-date or uninteresting
 		for (const auto& fd: futureDataContainer)
 		{
-			auto srcItem = fd.first.get_ptr();
+			auto resItem = const_cast<TreeItem*>(fd.first.get_ptr());
 			auto dc = fd.second;
 			if (dc->WasFailed(FR_MetaInfo))
 			{
-				srcItem->Fail(dc.get_ptr());
+				resultHolder->Fail(dc.get_ptr());
 				continue;
 			}
-			WaitReady(srcItem->GetCurrUltimateItem());
-			assert(CheckDataReady(srcItem->GetCurrUltimateItem()));
+			WaitReady(dc->GetUlt());
 			if (dc->WasFailed(FR_Data))
-				srcItem->Fail(dc.get_ptr());
+				resItem->Fail(dc.get_ptr());
+			else
+			{
+				auto srcUltItem = dc->GetUlt();
+				assert(srcUltItem);
+				assert(CheckDataReady(srcUltItem));
+				if (IsDataItem(resItem))
+					AsDataItem(resItem)->m_DataObject = AsDataItem(srcUltItem)->m_DataObject;
+				else
+				{
+					assert(IsUnit(srcUltItem));
+					visit<typelists::all_unit_types>(AsUnit(srcUltItem), 
+						[&resItem]<typename V>(const Unit<V>*srcUltUnit) { checked_valcast<Unit<V>*>(resItem)->m_RangeDataPtr = srcUltUnit->m_RangeDataPtr; }
+					);
+				}
+
+			}
+			resItem->SetIsInstantiated();
+			resItem->StopSupplInterest();
 		}
+
 
 		reportD(SeverityTypeID::ST_MinorTrace, "FenceContainer completed calculations of all resulting items");
 		if (msgData.size() != 1 || !msgData[0].empty())
 			for (auto msg: msgData)
 				reportD(SeverityTypeID::ST_MajorTrace, msg.AsRange());
-		resultHolder->m_ReadAssets.emplace<fence_work_data>(std::move(futureDataContainer));
 		resultHolder->SetIsInstantiated();
 		return true;
 	}

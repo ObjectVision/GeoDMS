@@ -136,7 +136,7 @@ public:
 
 	bool HasSupplCache() const { return m_SupplCache; }
 	const SupplCache* GetSupplCache() const { dms_assert(m_SupplCache); return m_SupplCache; }
-	SupplCache* GetOrCreateSupplCache() const;
+	TIC_CALL SupplCache* GetOrCreateSupplCache() const;
 
 // Dumping 
 

@@ -101,6 +101,7 @@ TIC_CALL bool IsCalculating(const TreeItem* item);
 TIC_CALL bool IsDataCurrReady(const TreeItem* item);
 TIC_CALL bool IsDataReady(const TreeItem* item);
 TIC_CALL bool IsAllDataReady(const TreeItem* item);
+TIC_CALL bool IsAllInterestedCalculatingOrDataReady(const TreeItem* item);
 TIC_CALL bool CheckDataReady(const TreeItem* item);
 TIC_CALL bool CheckAllSubDataReady(const TreeItem* item);
 TIC_CALL bool IsAllocated(const TreeItem* item);
