@@ -416,7 +416,8 @@ auto FuncDC::CallCalcResult(Explain::Context* context) const -> FutureData
 		}
 	}
 	assert(GetInterestCount());
-	assert(m_Data->IsPassor() || m_OperatorGroup->CanResultToConfigItem() );
+	assert(m_Data->IsCacheItem() || m_Data->IsPassor()|| m_OperatorGroup->CanResultToConfigItem() );
+
 	if (context && !m_OperatorGroup->CanExplainValue())
 		context = nullptr;
 

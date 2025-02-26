@@ -152,42 +152,44 @@ struct FenceContainerOperator : BinaryOperator
 		if (!resultHolder)
 		{
 			CopyTreeContext context(nullptr, sourceContainer, ""
-				, DataCopyMode::MakePassor | DataCopyMode::MakeEndogenous | DataCopyMode::InFenceOperator | DataCopyMode::NoRoot //| DataCopyMode::CopyReferredItems
+				, DataCopyMode::MakeEndogenous | DataCopyMode::InFenceOperator | DataCopyMode::NoRoot //| DataCopyMode::CopyReferredItems
 			);
 			context.m_FenceNumber = GetNextFenceNumber();
 
 			resultHolder = context.Apply();
 			resultHolder->m_FenceNumber = context.m_FenceNumber;
 			resultHolder.m_FenceNumber = context.m_FenceNumber;
-		}
-		assert(resultHolder);
 
-		auto resultFenceNumer = resultHolder.m_FenceNumber;
 
-		auto resultRoot = resultHolder.GetNew();
-		for (auto resWalker = resultRoot; resWalker; resWalker = resultRoot->WalkCurrSubTree(resWalker))
-		{
-			MG_CHECK(resWalker->m_FenceNumber >= resultFenceNumer);
-		
-			auto srcItem = sourceContainer->FindItem(resWalker->GetRelativeName(resultHolder.GetNew()));
-			MG_CHECK(!srcItem->IsCacheItem());
-			resWalker->GetOrCreateSupplCache()->InitAt(srcItem);
+			auto resultFenceNumer = resultHolder.m_FenceNumber;
 
-			if (srcItem->WasFailed())
-				resWalker->Fail(srcItem);
-			if(!resWalker->WasFailed(FR_MetaInfo))
+			auto resultRoot = resultHolder.GetNew();
+			for (auto resWalker = resultRoot; resWalker; resWalker = resultRoot->WalkCurrSubTree(resWalker))
 			{
-				if (srcItem->mc_DC)
-					fc->AddDependency(srcItem->GetCheckedDC());
+				MG_CHECK(resWalker->m_FenceNumber >= resultFenceNumer);
+
+				auto srcItem = sourceContainer->FindItem(resWalker->GetRelativeName(resultHolder.GetNew()));
+				MG_CHECK(!srcItem->IsCacheItem());
+				assert(!resWalker->HasInterest());
+				resWalker->GetOrCreateSupplCache()->InitAt(srcItem);
+				assert(!resWalker->HasInterest());
+
+				if (srcItem->WasFailed())
+					resWalker->Fail(srcItem);
+/*
+				if (!resWalker->WasFailed(FR_MetaInfo))
+				{
+					if (srcItem->mc_DC)
+						fc->AddDependency(srcItem->GetCheckedDC());
+				}
+*/
 			}
 		}
-//		resultHolder->m_ReadAssets.emplace<fence_work_data>(std::move(workData));
-//		assert(resultHolder->m_ReadAssets.has_value());
+		assert(resultHolder);
+		assert(!resultHolder->IsPassor());
 	}
 	bool CalcResult(TreeItemDualRef& resultHolder, ArgRefs args, std::vector<ItemReadLock> readLocks, OperationContext * fc, Explain::Context * context) const override
 	{
-		MG_CHECK(!resultHolder->GetIsInstantiated());
-
 		assert(args.size() == 2);
 
 		DataReadLock msgLock(AsDataItem(args[1]));
@@ -200,11 +202,6 @@ struct FenceContainerOperator : BinaryOperator
 
 		auto srcContainer = std::get<SharedTreeItem>(args[0]).get();
 
-//		assert(resultHolder->m_ReadAssets.has_value());
-
-//		const fence_work_data* workDataPtr = rtc::any::any_cast<fence_work_data>(&resultHolder->m_ReadAssets);
-
-//		MG_CHECK(workDataPtr);
 
 		// first, copy ranges of units ?
 		auto resultRoot = resultHolder.GetNew();
@@ -225,8 +222,6 @@ struct FenceContainerOperator : BinaryOperator
 			for (auto msg : msgData)
 				reportD(SeverityTypeID::ST_MinorTrace, msg.AsRange());
 
-
-//		std::vector<SharedTreeItemInterestPtr> interestHolders;
 
 		PostMainThreadTask([srcContainer, resultRoot, &resWalker, &fenceBell, &resultHolder, resultFenceNumer, &futureDataContainer](bool mustCancel)-> bool
 			{
@@ -324,7 +319,10 @@ struct FenceContainerOperator : BinaryOperator
 		if (msgData.size() != 1 || !msgData[0].empty())
 			for (auto msg: msgData)
 				reportD(SeverityTypeID::ST_MajorTrace, msg.AsRange());
+
 		resultHolder->SetIsInstantiated();
+		resultHolder->StopSupplInterest();
+
 		return true;
 	}
 };

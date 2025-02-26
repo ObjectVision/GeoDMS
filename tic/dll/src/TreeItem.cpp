@@ -419,12 +419,10 @@ void TreeItem::EnableAutoDelete() // does not call UpdateMetaInfo
 
 void TreeItem::SetIsCacheItem() // does not call UpdateMetaInfo
 {
-	dms_assert(IsEndogenous());
-	dms_assert(IsPassor());
-	dms_assert(! IsCacheItem());
-	dms_assert(! IsAutoDeleteDisabled());
-	dms_assert(! IsCacheItem()); // only call once
-	dms_assert(! GetTreeParent()); // only call on root
+	assert(IsEndogenous());
+	assert(! IsCacheItem());
+	assert(! IsAutoDeleteDisabled());
+	assert(! GetTreeParent()); // only call on root
 
 	DisableAutoDelete();
 
@@ -2613,11 +2611,14 @@ ActorVisitState TreeItem::DoUpdate(ProgressState ps)
 	DBG_TRACE(("fullname = %s", GetFullName().c_str()));
 	dms_assert(ps > PS_MetaInfo);
 
-	dms_assert(m_State.GetProgress() >= PS_MetaInfo); //UpdateMetaInfo();
+	assert(m_State.GetProgress() >= PS_MetaInfo); //UpdateMetaInfo();
 
-	dms_assert(m_State.GetProgress()>=PS_MetaInfo);
+	assert(m_State.GetProgress()>=PS_MetaInfo);
 
 	TreeItemContextHandle tich(this, "Update");
+
+	if (IsPassor() || IsCacheItem())
+		return AVS_Ready;
 
 	if (!IsDataItem(this) && !IsUnit(this))
 		SetIsInstantiated();
@@ -2721,7 +2722,9 @@ ActorVisitState TreeItem::DoUpdate(ProgressState ps)
 	}
 
 exitReady:
-	if (!MustApplyImpl())
+	assert(!IsCacheItem());
+	assert(!IsPassor());
+	if (!MustApplyImpl() && (IsPassor() || !IsCacheItem()))
 		StopSupplInterest(); // Commit has only interest on this; validate has its own interest path
 
 	return AVS_Ready;
