@@ -348,7 +348,7 @@ SharedStr GetDataDir(const TreeItem* configRoot)
 	return GetConvertedRegConfigSetting(configRoot, "dataDir", "%sourceDataProjDir%/data"); // overridable in ConfigSettings
 }
 
-SharedStr GetPlaceholderValue(CharPtr subDirName, CharPtr placeHolder, bool mustThrow)
+SharedStr GetPlaceholderValue(CharPtr subDirName, CharPtr placeHolder, bool mustThrow = true)
 {
 	dms_assert(IsAbsolutePath(subDirName));
 
@@ -403,25 +403,97 @@ SharedStr GetPlaceholderValue(const TreeItem* configStore, CharPtr placeHolder)
 	return SharedStr(placeHolder);
 }
 
+SharedStr ExpandImpl(const auto* placeHolderRoot, SharedStr orgStorageName)
+{
+	const std::size_t
+		maxSubstitutions = 1024,
+		maxLength = 65000;
+
+	auto storageName = orgStorageName;
+
+	std::size_t
+		nrSubstitutions = 0,
+		lengthWithoutDelimiters = 0;
+
+	while (true)
+	{
+		CharPtr pBegin = storageName.cbegin();
+		CharPtr pEnd = storageName.csend();
+		std::size_t pSize = pEnd - pBegin;
+
+		if (pSize > maxLength)
+		{
+			if (nrSubstitutions == 0)
+				throwDmsErrF("AbstrStorageManager::Expand(): length of storage name is %d; anything larger than %d characters is assumed to be faulty."
+					"\nStorage name: '%s'"
+					, pSize
+					, maxLength
+					, orgStorageName
+				);
+			else
+				throwDmsErrF("AbstrStorageManager::Expand(): length of intermediate name during substitution is %d; anything larger than %d characters is assumed to be faulty."
+					"\nNumber of completed substitutions: %d"
+					"\nStorage name                     : '%s'"
+					"\nCurent substitution result       : '%s'"
+					, pSize
+					, maxLength
+					, nrSubstitutions
+					, orgStorageName
+					, storageName
+				);
+
+		}
+		CharPtr p1 = std::find(pBegin + lengthWithoutDelimiters, pEnd, '%');
+		if (p1 == pEnd)
+			break;
+
+		lengthWithoutDelimiters = p1 - pBegin;
+
+		CharPtr p2 = std::find(p1 + 1, pEnd, '%');
+		if (p2 == pEnd)
+		{
+			if (nrSubstitutions == 0)
+				throwDmsErrF("AbstrStorageManager::Expand(): unbalanced placeholder delimiter (%%) at position %d."
+					"\nStorage name                     : '%s'"
+					, lengthWithoutDelimiters
+					, orgStorageName
+				);
+			else
+				throwDmsErrF("AbstrStorageManager::Expand(): unbalanced placeholder delimiter (%%) at position %d."
+					"\nNumber of completed substitutions: %d"
+					"\nStorage name                     : '%s'"
+					"\nCurent substitution result       : '%s'"
+					, lengthWithoutDelimiters
+					, nrSubstitutions
+					, orgStorageName
+					, storageName
+				);
+		}
+
+		if (++nrSubstitutions >= maxSubstitutions)
+			throwDmsErrF("AbstrStorageManager::Expand(): substitution aborted after too many substitutions. Resursion suspected."
+				"\nNumber of completed substitutions: %d"
+				"\nStorage name                     : '%s'"
+				"\nCurent substitution result       : '%s'"
+				, nrSubstitutions
+				, orgStorageName
+				, storageName
+			);
+
+		storageName
+			= SharedStr(pBegin, p1)
+			+ GetPlaceholderValue(placeHolderRoot, SharedStr(p1 + 1, p2).c_str())
+			+ SharedStr(p2 + 1, pEnd);
+	}
+	return storageName;
+}
+
 SharedStr AbstrStorageManager::Expand(const TreeItem* configStore, SharedStr storageName)
 {
 	FencedInterestRetainContext irc("AbstrStorageManager::Expand");
+	assert(configStore);
 
-	dms_assert(configStore);
-	while (true)
-	{
-		CharPtr p1 = storageName.find('%');
-		if (p1 == storageName.csend())
-			break;
-		CharPtr p2 = std::find(p1+1, storageName.csend(), '%');
-		if (p2 == storageName.csend())
-			configStore->throwItemErrorF("GetFullStorageName('%s'): unbalanced placeholder delimiters (%%).", storageName.c_str());
-		storageName
-				=	SharedStr(storageName.cbegin(), p1)
-				+	GetPlaceholderValue(configStore, SharedStr(p1+1, p2).c_str())
-				+	SharedStr(p2+1, storageName.csend());
-	}
-	return storageName;
+	return ExpandImpl(configStore, storageName);
 }
 
 SharedStr AbstrStorageManager::GetFullStorageName(const TreeItem* configStore, SharedStr storageName)
@@ -451,65 +523,13 @@ SharedStr AbstrStorageManager::GetFullStorageName(const TreeItem* configStore, S
 
 SharedStr AbstrStorageManager::Expand(CharPtr subDirName, CharPtr storageNameCStr)
 {
-	SharedStr storageName = SharedStr(storageNameCStr);
 	SharedStr subDirNameStr;
 	if (!IsAbsolutePath(subDirName))
 	{
 		subDirNameStr = MakeAbsolutePath(subDirName);
 		subDirName = subDirNameStr.c_str();
 	}
-
-	if (storageName.ssize() > 65000)
-		throwDmsErrF("AbstrStorageManager::GetFullStorageName(): length of storage name is %d; anything larger than 65000 bytes is assumed to be faulty."
-			"\nStorage name: '%s'"
-			, storageNameCStr
-			, storageName.ssize()
-		);
-
-	UInt32 substCount = 0;
-	while (true)
-	{
-		if (storageName.ssize() > 65000)
-			throwDmsErrF("AbstrStorageManager::GetFullStorageName(): length of intermediate name during substitution is %d; anything larger than 65000 bytes is assumed to be faulty."
-				"\nNumber of completed substitutions: %d"
-				"\nStorage name                     : '%s'"
-				"\nCurent substitution result       : '%s'"
-				, storageName.ssize()
-				, substCount
-				, storageNameCStr
-				, storageName.c_str()
-			);
-
-		CharPtr p1 = storageName.find('%');
-		if (p1 == storageName.csend())
-			break;
-		CharPtr p2 = std::find(p1 + 1, storageName.csend(), '%');
-		if (p2 == storageName.csend())
-			throwDmsErrF("AbstrStorageManager::GetFullStorageName(): unbalanced placeholder delimiter (%%) at position %d."
-				"\nNumber of completed substitutions: %d"
-				"\nStorage name                     : '%s'"
-				"\nCurent substitution result       : '%s'"
-				, p1 - storageName.begin()
-				, substCount
-				, storageNameCStr
-				, storageName.c_str()
-			);
-		if (substCount >= 1024)
-			throwDmsErrF("AbstrStorageManager::GetFullStorageName(): substitution aborted after too many substitutions. Resursion suspected."
-				"\nNumber of completed substitutions: %d"
-				"\nStorage name                     : '%s'"
-				"\nCurent substitution result       : '%s'"
-				, substCount
-				, storageNameCStr
-				, storageName.c_str()
-			);
-		++substCount;
-		storageName
-			= SharedStr(storageName.cbegin(), p1)
-			+ GetPlaceholderValue(subDirName, SharedStr(p1 + 1, p2).c_str(), true)
-			+ SharedStr(p2 + 1, storageName.csend());
-	}
-	return storageName;
+	return ExpandImpl(subDirName, SharedStr(storageNameCStr));
 }
 
 SharedStr AbstrStorageManager::GetFullStorageName(CharPtr subDirName, CharPtr storageNameCStr)
