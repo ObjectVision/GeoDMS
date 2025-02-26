@@ -565,13 +565,12 @@ bool IsAllInterestedCalculatingOrDataReady_impl(const TreeItem* item)
 	return true;
 }
 
-bool IsAllInterestedCalculatingOrDataReadyaReady(const TreeItem* item)
+bool IsAllInterestedCalculatingOrDataReady(const TreeItem* item)
 {
 	assert(item);
 	if (!item->IsCacheItem())
 	{
-		if (!item->GetInterestCount())
-			return true;
+		assert(item->GetInterestCount()); // or else result would be volatile
 		return IsCalculatingOrReady(item);
 	}
 

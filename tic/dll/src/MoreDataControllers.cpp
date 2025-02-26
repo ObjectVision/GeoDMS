@@ -428,7 +428,8 @@ auto FuncDC::CallCalcResult(Explain::Context* context) const -> FutureData
 
 	assert(GetInterestCount()); 
 
-	if (context || !IsAllInterestedCalculatingOrDataReady(m_Data->GetCurrUltimateItem())) // condition required for operations such as parse_xml as first argument of a SubItem
+	bool mustStartCalc = context || !IsAllInterestedCalculatingOrDataReady(m_Data->GetUltimateItem()); // condition required for operations such as parse_xml as first argument of a SubItem
+	if (mustStartCalc)
 	{
 		assert(m_Data->GetInterestCount());
 		assert(m_State.Get(actor_flag_set::AF_SupplInterest) || context);
