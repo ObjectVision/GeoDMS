@@ -43,7 +43,7 @@ struct flag_set {
 	void Set(UInt32 sf, bool value) { if (value) Set(sf); else Clear(sf); }
 
 private:
-	UInt32 m_DW;
+	std::atomic<UInt32> m_DW;
 };
 
 template <bool VALUE> void SetV(flag_set& fs, UInt32 sf);
