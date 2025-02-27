@@ -151,6 +151,8 @@ struct FenceContainerOperator : BinaryOperator
 		auto sourceContainer = std::get<SharedTreeItem>(args[0]).get();
 		if (!resultHolder)
 		{
+			MG_CHECK(resultHolder.m_FenceNumber == 0);
+
 			CopyTreeContext context(nullptr, sourceContainer, ""
 				, DataCopyMode::MakeEndogenous | DataCopyMode::InFenceOperator | DataCopyMode::NoRoot //| DataCopyMode::CopyReferredItems
 			);
@@ -286,6 +288,10 @@ struct FenceContainerOperator : BinaryOperator
 		{
 			auto resItem = const_cast<TreeItem*>(fd.first.get_ptr());
 			auto dc = fd.second;
+
+			assert(resItem);
+			assert(dc);
+
 			if (dc->WasFailed(FR_MetaInfo))
 			{
 				resultHolder->Fail(dc.get_ptr());

@@ -390,7 +390,7 @@ DataControllerRef GetExistingDataController(LispPtr keyExpr)
 auto DataController::CallCalcResult(Explain::Context* context) const -> FutureData
 {
 	FutureData resultHolder(this);
-	dms_assert(GetInterestCount());
+	assert(GetInterestCount());
 
 	MakeResult();
 	auto resultItem = this->GetOld();
