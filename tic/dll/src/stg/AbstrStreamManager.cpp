@@ -39,18 +39,16 @@ AbstrStreamManager::AbstrStreamManager() // link VTBL in TIC dll
 std::unique_ptr<OutStreamBuff> AbstrStreamManager::OpenOutStream(const StorageMetaInfo& smi, CharPtr path, tile_id t)
 { 
 	auto nameStr = GetNameStr();
-	CDebugContextHandle dch1(nameStr.c_str(), "OpenOutStream", true);
 
-	dms_assert(IsOpenForWrite());
+	assert(IsOpenForWrite());
 	return DoOpenOutStream(smi, path, t); 
 }
 
 std::unique_ptr<InpStreamBuff> AbstrStreamManager::OpenInpStream(const StorageMetaInfo& smi, CharPtr path) const
 { 
 	auto nameStr = GetNameStr();
-	CDebugContextHandle dch1(nameStr.c_str(), "OpenInpStream", false);
 
-	dms_assert(IsOpen());
+	assert(IsOpen());
 	return DoOpenInpStream(smi, path);
 }
 
