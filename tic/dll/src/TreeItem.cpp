@@ -3755,6 +3755,8 @@ bool FinalizeFailure(const TreeItem* self, FailReasonFunc&& func)
 
 bool TreeItem::CommitDataChanges() const
 {
+	assert(IsMetaThread());
+
 	assert(m_State.GetProgress() >= PS_MetaInfo);
 	if (m_State.GetProgress() >= PS_Committed)
 		return true;
@@ -3768,16 +3770,10 @@ bool TreeItem::CommitDataChanges() const
 	MG_DEBUGCODE( assert(! Actor::m_State.Get(ASF_WasLoaded) ); )
 
 	const TreeItem* storageHolder = GetStorageParent(true);
-	bool            hasCalculator = HasCalculator();
 	assert(storageHolder); // guaranteed by IsStorable();
-	auto sm = storageHolder->GetStorageManager();
-	assert(sm); // guaranteed by IsStorable();
 
-	auto nmsm = dynamic_cast<NonmappableStorageManager*>(sm);
-	if (!nmsm)
-		return true;
-
-	if (!hasCalculator && !IsDataReady(this))
+	bool hasCalculator = HasCalculator();
+	if (!hasCalculator)
 		return true;
 
 	if (GetCurrRangeItem()->WasFailed(FR_Committed))
@@ -3792,6 +3788,9 @@ bool TreeItem::CommitDataChanges() const
 	auto interestHolder = GetInterestPtrOrNull();
 	assert(interestHolder); // Commit is Called from DoUpdate
 
+	auto sm = storageHolder->GetStorageManager();
+	assert(sm); // guaranteed by IsStorable();
+
 	if (!IsCalculatingOrReady(GetCurrRangeItem()) && !PrepareDataUsage(DrlType::Suspendible) || GetCurrRangeItem()->WasFailed(FR_Committed))
 		// can have failed just because PrepareDataUsage suspended or failed; 
 		return FinalizeFailure(this, [this]() { return mySSPrintF("Unable to start calculating data when trying to store it in %s", DMS_TreeItem_GetAssociatedFilename(this)); });
@@ -3799,11 +3798,26 @@ bool TreeItem::CommitDataChanges() const
 	if (!WaitForReadyOrSuspendTrigger(GetCurrRangeItem()) || GetCurrRangeItem()->WasFailed(FR_Committed))
 		return FinalizeFailure(this, [this]() { return mySSPrintF("Unable to complete calculating data when trying to store it in %s", DMS_TreeItem_GetAssociatedFilename(this)); });
 
-	if (!DoWriteItem(nmsm->GetMetaInfo(storageHolder, const_cast<TreeItem*>(this), StorageAction::write)) 
+	assert(!SuspendTrigger::DidSuspend());
+
+	auto mmd = dynamic_cast<MmdStorageManager*>(sm);
+	if (mmd)
+	{
+		if (IsUnit(this))
+			AsUnit(this)->GetCount();
+		if (IsDataItem(this))
+			DataReadLock lock(AsDataItem(this)); // make sure data is calculated and stored
+		return true;
+	}
+
+	auto nmsm = dynamic_cast<NonmappableStorageManager*>(sm);
+	MG_CHECK(nmsm); // mmd's have been handled above
+	if (!nmsm)
+		return true;
+
+	if (!DoWriteItem(nmsm->GetMetaInfo(storageHolder, const_cast<TreeItem*>(this), StorageAction::write))
 		|| GetCurrRangeItem()->WasFailed(FR_Committed))
 		return FinalizeFailure(this, [this]() { return mySSPrintF("Unable to write data to storage %s", DMS_TreeItem_GetAssociatedFilename(this)); });
-
-	assert(!SuspendTrigger::DidSuspend());
 
 	return !WasFailed(FR_Committed);
 }
