@@ -15,19 +15,20 @@
 // FormattingFlags
 //----------------------------------------------------------------------
 
-enum class FormattingFlags {
+enum class FormattingFlags : UInt32 {
 	None = 0,
-	ThousandSeparator = 1,
-	NoLimitInLispExpr = 2,
+	ThousandSeparator = 1 << 0,
+	NoLimitInLispExpr = 1 << 1, 
 
 	StreamFlags= ThousandSeparator,
 	LispFlags = NoLimitInLispExpr,
 };
 
 // Provide a bitwise AND operator for FormattingFlags:
-inline FormattingFlags operator &(FormattingFlags lhs, FormattingFlags rhs)
+constexpr inline FormattingFlags operator &(FormattingFlags lhs, FormattingFlags rhs) noexcept
 {
 	using T = std::underlying_type_t<FormattingFlags>;
+	static_assert(std::is_integral<T>::value, "Underlying type must be an integral type");
 	return static_cast<FormattingFlags>(static_cast<T>(lhs) & static_cast<T>(rhs));
 }
 

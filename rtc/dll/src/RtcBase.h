@@ -169,10 +169,12 @@ using zombie_destroyer = std::unique_ptr<SharedObj>;
 struct IString;
 struct Undefined;
 
-enum   class SeverityTypeID  : UInt8;
-enum   class ValueClassID    : UInt8;
-enum   class ValueComposition: UInt8;
-enum   class dms_rw_mode     : Int8; // can have negative values
+enum class SeverityTypeID  : UInt8;
+enum class ValueClassID    : UInt8;
+enum class ValueComposition: UInt8;
+enum class dms_rw_mode     : Int8; // can have negative values
+enum class FormattingFlags : UInt32;
+enum class OrientationType : UInt8;
 
 //----------------------------------------------------------------------
 // StreamBuff types

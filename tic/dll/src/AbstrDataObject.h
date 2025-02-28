@@ -28,7 +28,6 @@ class IMappedFile;
 struct AbstrReadableTileData;
 struct DomainChangeInfo;
 struct SafeFileWriterArray;
-enum class FormattingFlags;
 
 //----------------------------------------------------------------------
 // class  : AbstrDataObject

@@ -13,7 +13,6 @@
 
 #include "mci/Object.h"
 class ValueClass;
-enum class FormattingFlags;
 
 //----------------------------------------------------------------------
 // class  : AbstrValue

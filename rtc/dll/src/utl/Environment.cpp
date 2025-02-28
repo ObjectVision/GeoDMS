@@ -49,7 +49,6 @@ struct LocalAllocatedPtr
 	~LocalAllocatedPtr() { if (m_Ptr) LocalFree(m_Ptr); }
 };
 
-
 SharedStr platform::GetSystemErrorText(DWORD lastErr)
 {
 	LocalAllocatedPtr lpMsgBuf;

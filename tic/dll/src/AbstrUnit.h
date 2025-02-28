@@ -16,7 +16,6 @@
 
 class InpStreamBuff;
 class OutStreamBuff;
-enum class FormattingFlags;
 
 //	A Unit is a piece of information about a property indicating meaning an
 //	defining representations. A concrete Unit is instantiated for each value

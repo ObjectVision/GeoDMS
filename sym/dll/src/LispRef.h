@@ -22,7 +22,6 @@ class SymbObj;
 class NumbObj;
 class ListObj;
 using ChroID = UInt32;
-enum class FormattingFlags;
 struct FormattedOutStream;
 
 /****************** LispComponent *******************/

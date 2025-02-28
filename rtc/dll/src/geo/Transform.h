@@ -28,7 +28,7 @@
 
 [[noreturn]] RTC_CALL void IllegalSingularity();
 
-enum class OrientationType
+enum class OrientationType : UInt8
 {
 	Default    = 0,
 	LeftRight  = 0,
@@ -41,9 +41,10 @@ enum class OrientationType
 };
 
 // Provide a bitwise OR operator for OrientationType:
-inline OrientationType operator|(OrientationType lhs, OrientationType rhs)
+constexpr inline OrientationType operator|(OrientationType lhs, OrientationType rhs) noexcept
 {
 	using T = std::underlying_type_t<OrientationType>;
+	static_assert(std::is_integral<T>::value, "Underlying type must be an integral type");
 	return static_cast<OrientationType>(static_cast<T>(lhs) | static_cast<T>(rhs));
 }
 
