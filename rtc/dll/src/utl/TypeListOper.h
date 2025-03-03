@@ -41,7 +41,7 @@ namespace tl_oper
 			template <typename T, typename U>
 			struct cpair
 			{
-				cpair(param_type_t<Args>... args) : m_First(args...), m_Second(args...) {}
+				cpair(Args... args) : m_First(args...), m_Second(args...) {}
 				T m_First;
 				U m_Second;
 			};
@@ -51,7 +51,7 @@ namespace tl_oper
 			template <typename T, typename U>
 			struct cpair
 			{
-				cpair(param_type_t<Args>... args) : m_First(args...), m_Second(args...) {}
+				cpair(Args... args) : m_First(args...), m_Second(args...) {}
 				F<T> m_First;
 				U m_Second;
 			};

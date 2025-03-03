@@ -121,14 +121,19 @@ public:
 		dms_assert(AsDataItem(GetCurrUltimateItem())->m_DataLockCount != 0);
 		return const_array_cast<V>(this)->GetIndexedReference(index, lockHolder);
 	}
-	template <typename V> SizeT CountValues(typename param_type<typename sequence_traits<V>::value_type>::type value) const
+	template <typename V> SizeT CountValues(param_type_t<V> value) const
 	{
-		dms_assert(AsDataItem(GetCurrUltimateItem())->m_DataLockCount != 0);
+		assert(AsDataItem(GetCurrUltimateItem())->m_DataLockCount != 0);
 		return const_array_cast<V>(this)->CountValues(value);
 	}
 
+	template <typename V> SizeT FindPos(param_type_t<V> value, SizeT startPos) const
+	{
+		assert(AsDataItem(GetCurrUltimateItem())->m_DataLockCount != 0);
+		return const_array_cast<V>(this)->FindPos(value, startPos);
+	}
+
 	template <typename V> V LockAndGetValue(SizeT index) const;
-	template <typename V> SizeT LockAndCountValues(param_type_t<typename sequence_traits<V>::value_type> value) const;
 
 	TokenID DomainUnitToken() const { return m_tDomainUnit; }
 	TokenID ValuesUnitToken() const { return m_tValuesUnit; }

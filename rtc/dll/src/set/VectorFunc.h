@@ -360,7 +360,7 @@ template <typename Vector, typename T>
 inline typename Vector::size_type 
 vector_find(const Vector& vec, const T& object, SizeT startPos = 0)
 {
-	dms_assert(startPos <= vec.size());
+	assert(startPos <= vec.size());
 	auto p = std::find(vec.begin() + startPos, vec.end(), object);
 	return p == vec.end()
 		?	UNDEFINED_VALUE(typename Vector::size_type)

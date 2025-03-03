@@ -207,7 +207,7 @@ struct NumericArray : DataArrayBase<V>
 
 
 	// Helper func
-	SizeT FindPos(V val, SizeT startPos = 0) const;
+	TIC_CALL SizeT FindPos(V val, SizeT startPos = 0) const;
 };
 
 //----------------------------------------------------------------------

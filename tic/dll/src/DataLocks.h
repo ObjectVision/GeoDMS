@@ -188,12 +188,4 @@ template <typename V> V AbstrDataItem::LockAndGetValue(SizeT index) const
 	return GetValue<V>(index);
 }
 
-template <typename V> SizeT AbstrDataItem::LockAndCountValues(param_type_t<typename sequence_traits<V>::value_type> value) const
-{
-	SharedActorInterestPtr tii(this);
-	PreparedDataReadLock lck(this, "AbstrDataItem::LockAndCountValues");
-	return CountValues<V>(value);
-}
-
-
 #endif //!defined(__RTC_SET_RESOURCECOLLECTION_H)

@@ -64,7 +64,7 @@ template <typename T>   struct param_type : std::conditional<sizeof(T) <= 8, T, 
 template <bit_size_t N> struct param_type<bit_value<N> > { typedef bit_value<N> type; };
 template <>             struct param_type<SharedStr>     { typedef WeakStr      type; };
 
-template<typename T> using param_type_t = typename param_type<T>::type;
+template<typename T> using param_type_t = typename param_type<typename sequence_traits<T>::value_type>::type;
 
 //=======================================
 // dms_type

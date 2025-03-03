@@ -1066,7 +1066,8 @@ namespace  {
 
 // Explicit Template Instantiation; TODO G8: Why?
 
-template SizeT DataArrayBase<Bool>::CountValues(param_t v) const;
+template SizeT DataArrayBase<Bool>::CountValues(Bool v) const;
+template SizeT NumericArray<Bool>::FindPos(Bool v, SizeT startPos) const;
 
 //----------------------------------------------------------------------
 // DMS interface functions

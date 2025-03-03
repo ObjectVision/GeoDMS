@@ -2679,8 +2679,33 @@ ActorVisitState TreeItem::DoUpdate(ProgressState ps)
 				SizeT nrFailures = iCheckerResult->CountValues<Bool>(false);
 				if (nrFailures)
 				{
-					//	throwError(ICHECK_NAME, "%s", iChecker->GetExpr().c_str()); // will be caught by SuspendibleUpdate who will Fail this.
-					Fail(ICHECK_NAME ": " + AsString(nrFailures) + " element(s) fail the test of " + iCheckerPtr->GetExpr(), FR_Validate); // will be caught by SuspendibleUpdate who will Fail this.
+					SharedStr helperText;
+					if (iCheckerResult->GetAbstrDomainUnit()->GetCount() == 1)
+					{
+						assert(nrFailures == 1);
+
+						helperText = mySSPrintF("%s is not true"
+							, SingleQuote(iCheckerPtr->GetExpr().c_str())
+						);
+					}
+					else
+					{
+						auto firstFailure = iCheckerResult->FindPos<Bool>(false, 0);
+						if (nrFailures > 1)
+							helperText = mySSPrintF("%d elements of %s are false, first false value at row %d"
+								, SingleQuote(iCheckerPtr->GetExpr().c_str())
+								, nrFailures
+								, firstFailure
+							);
+						else
+							helperText = mySSPrintF("failure at row %d"
+								, firstFailure
+							);
+					}
+
+					// will be caught by SuspendibleUpdate who will Fail this.
+					Fail(mySSPrintF("%s : %s", ICHECK_NAME, helperText), FR_Validate); // will be caught by SuspendibleUpdate who will Fail this.
+
 					assert(WasFailed(FR_Validate));
 					return AVS_Ready;
 				}

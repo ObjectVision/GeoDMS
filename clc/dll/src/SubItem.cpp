@@ -13,9 +13,13 @@
 #include "act/any.h"
 
 #include "dbg/SeverityType.h"
+#include "utl/Quotes.h"
+#include "LispRef.h"
+
 #include "CheckedDomain.h"
 #include "OperGroups.h"
 #include "TreeItemClass.h"
+#include "MoreDataControllers.h"
 
 // *****************************************************************************
 //										SubItemOperator
@@ -101,7 +105,7 @@ struct CheckOperator : public BinaryOperator
 		assert(arg1);
 //		dms_assert(arg1->IsCacheItem());
 		if (!resultHolder) {
-			dms_assert(!mustCalc);
+			assert(!mustCalc);
 			resultHolder = arg1;
 		}
 		assert(resultHolder);
@@ -109,15 +113,49 @@ struct CheckOperator : public BinaryOperator
 		if (mustCalc)
 		{
 			auto arg2A = AsDataItem(args[1]);
-			dms_assert(CheckDataReady(arg2A));
-			dms_assert(CheckDataReady(resultHolder.GetOld()));
+			assert(CheckDataReady(arg2A));
+			assert(CheckDataReady(resultHolder.GetOld()));
 			DataReadLock arg2Lock(arg2A);
 			SizeT nrFailures = arg2A->CountValues<Bool>(false);
 			if (nrFailures)
 			{
-				auto ultimate_item = resultHolder.GetUlt();
+				SharedStr helperText;
+				if (arg2A->GetAbstrDomainUnit()->GetCount() == 1)
+				{
+					assert(nrFailures == 1);
+					auto funcDC = dynamic_cast<FuncDC*>(&resultHolder);
+					MG_CHECK(funcDC);
+					auto condDC = funcDC->GetArgDC(1);
+					assert(condDC);
+
+					helperText = mySSPrintF("%s is not true"
+						, SingleQuote(AsFLispSharedStr(condDC->GetLispRef(), FormattingFlags::None).c_str())
+					);
+				}
+				else
+				{
+					auto firstFailure = arg2A->FindPos<Bool>(false, 0);
+					if (nrFailures > 1)
+						helperText = mySSPrintF("%d elements failed, first failure at row %d"
+							, nrFailures
+							, firstFailure
+						);
+					else
+						helperText = mySSPrintF("failure at row %d"
+							, firstFailure
+						);
+				}
+
 				// will be caught by SuspendibleUpdate who will Fail this.
-				resultHolder.Fail(mySSPrintF( "[[%s]] %s : %d element(s) failed", ultimate_item ? ultimate_item->GetFullCfgName().c_str() : "", ICHECK_NAME, nrFailures), FR_Validate); // will be caught by SuspendibleUpdate who will Fail this.
+				auto ultimate_item = resultHolder.GetUlt();
+				resultHolder.Fail(mySSPrintF("[[%s]] %s : %s"
+					, ultimate_item ? ultimate_item->GetFullCfgName().c_str() : ""
+					, ICHECK_NAME
+					, helperText
+					)
+				, FR_Validate
+				); // will be caught by SuspendibleUpdate who will Fail this.
+
 				assert(resultHolder.WasFailed(FR_Validate));
 			}
 		}

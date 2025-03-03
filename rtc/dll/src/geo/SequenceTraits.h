@@ -76,6 +76,9 @@ struct sequence_traits
 	typedef sequence_obj<T>          polymorph_vec_t;
 };
 
+template <typename T>
+struct sequence_traits<T&> : sequence_traits<T> {};
+
 template <>
 struct sequence_traits<void>
 {
