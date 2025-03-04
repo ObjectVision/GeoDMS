@@ -2414,9 +2414,8 @@ LispRef TreeItem::GetCheckedKeyExpr() const
 				,	adi->GetAbstrDomainUnit()->GetCheckedKeyExpr()
 				);
 
-		// more than one value, so we need a union
+		// one or more values, so we need a union
 		assert(valueList.IsRealList());
-		assert(valueList.Right().IsRealList());
 		return LispRef(
 			LispRef(token::union_data)
 			, LispRef(adi->GetAbstrDomainUnit()->GetCheckedKeyExpr()

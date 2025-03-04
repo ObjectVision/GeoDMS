@@ -670,6 +670,9 @@ bool WmsLayer::Draw(GraphDrawer& d) const
 
 	auto viewportDeviceOffset = ScaleCrdPoint(d.GetClientLogicalAbsPos(), d.GetSubPixelFactors());
 	GRect clippedRelRect = drawGridCoords->GetClippedRelDeviceRect();
+	if (clippedRelRect.empty())
+		return GVS_Continue;
+
 	clippedRelRect &= (bb - CrdPoint2GPoint(viewportDeviceOffset));
 	if (clippedRelRect.empty())
 		return GVS_Continue;
