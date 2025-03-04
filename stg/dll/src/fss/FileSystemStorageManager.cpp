@@ -37,7 +37,7 @@
 FileSystemStorageManager::~FileSystemStorageManager()
 {
 	CloseStorage();
-	dms_assert(!m_FssLockFile.IsOpen());
+	assert(!m_FssLockFile.IsOpen());
 }
 
 void FileSystemStorageManager::DropStream(const TreeItem* item, CharPtr path)

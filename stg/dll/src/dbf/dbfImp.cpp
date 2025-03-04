@@ -426,8 +426,7 @@ bool DbfImpl::ReadHeader()
 	DBG_START("DbfImpl", "ReadHeader", MG_DEBUG_DBF);
 
 	// Must be open
-	if (!IsOpen()) 
-		return false;
+	MG_CHECK(IsOpen());
 
 	// 1. read general header info
 	FILE* fp = GetFP();

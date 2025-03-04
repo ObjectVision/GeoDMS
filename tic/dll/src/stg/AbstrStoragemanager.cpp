@@ -845,7 +845,7 @@ bool AbstrStorageManager::OpenForRead(const StorageMetaInfo& smi) const
 
 	const TreeItem* storageHolder = smi.StorageHolder();
 	assert(!m_IsOpen);
-	assert(!m_CriticalSection.try_acquire());
+	assert(!m_CriticalSection.try_acquire()); // check that CS was already taken
 	if (m_IsOpen) 
 		return true;
 	try {
@@ -866,10 +866,11 @@ void AbstrStorageManager::OpenForWrite(const StorageMetaInfo& smi) // PRECONDITI
 {
 	if (m_IsReadOnly)
 		throwItemError("Storage is read only - write request is denied");
-	assert(!m_IsOpen);
-	assert(!m_CriticalSection.try_acquire());
+	assert(!m_CriticalSection.try_acquire());  // check that CS was already taken
+
 	if (m_IsOpen && m_IsOpenedForWrite)
 		return;
+
 	if (m_IsOpen) // dus niet m_IsOpenedForWrite
 	{
 		DoCloseStorage(false);
