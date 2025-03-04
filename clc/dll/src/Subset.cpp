@@ -270,6 +270,7 @@ struct SelectMetaOperator : public BinaryOperator
 			if (m_ORCM == OrgRelCreationMode::org_rel_and_use_it)
 				resSubExpr = slSubItemCall(resExpr, resSubName.AsStrRange());
 		}
+		SizeT foundSubItems = 0;
 		for (auto subItem = attrContainer->GetFirstSubItem(); subItem; subItem = subItem->GetNextItem())
 		{
 			if (!IsDataItem(subItem))
@@ -281,6 +282,7 @@ struct SelectMetaOperator : public BinaryOperator
 			subDataItem->UpdateMetaInfo();
 			if (!domain->UnifyDomain(subDataItem->GetAbstrDomainUnit()))
 				continue;
+
 			auto resSub = CreateDataItem(res, subDataID, res, subDataItem->GetAbstrValuesUnit(), subDataItem->GetValueComposition());
 
 			SharedStr selectExpr;
@@ -302,7 +304,10 @@ struct SelectMetaOperator : public BinaryOperator
 				throwErrorD(GetGroup()->GetNameID(), msg.c_str());
 			}
 			resSub->SetExpr(selectExpr);
+			++foundSubItems;
 		}
+		if (!foundSubItems)
+			reportF(SeverityTypeID::ST_Warning, "%s: no sub-items found with a domain that is compatible with the domain of the given condition", GetGroup()->GetNameStr());
 		res->SetIsInstantiated();
 	}
 };
