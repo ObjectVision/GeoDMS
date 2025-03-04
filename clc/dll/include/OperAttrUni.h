@@ -1,33 +1,10 @@
-//<HEADER> 
-/*
-Data & Model Server (DMS) is a server written in C++ for DSS applications. 
-Version: see srv/dms/rtc/dll/src/RtcVersion.h for version info.
+// Copyright (C) 1998-2025 Object Vision b.v. 
+// License: GNU GPL 3
+/////////////////////////////////////////////////////////////////////////////
 
-Copyright (C) 1998-2004  YUSE GSO Object Vision BV. 
-
-Documentation on using the Data & Model Server software can be found at:
-http://www.ObjectVision.nl/DMS/
-
-See additional guidelines and notes in srv/dms/Readme-srv.txt 
-
-This library is free software; you can use, redistribute, and/or
-modify it under the terms of the GNU General Public License version 2 
-(the License) as published by the Free Software Foundation,
-provided that this entire header notice and readme-srv.txt is preserved.
-
-See LICENSE.TXT for terms of distribution or look at our web site:
-http://www.objectvision.nl/DMS/License.txt
-or alternatively at: http://www.gnu.org/copyleft/gpl.html
-
-This library is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
-General Public License for more details. However, specific warranties might be
-granted by an additional written contract for support, assistance and/or development
-*/
-//</HEADER>
-
+#if defined(_MSC_VER)
 #pragma once
+#endif
 
 #if !defined(__CLC_OPERATTRUNI_H)
 #define __CLC_OPERATTRUNI_H
@@ -138,13 +115,14 @@ public:
 		auto valuesUnit = debug_cast<const Unit<field_of_t<ResultValueType>>*>(valuesUnitA);
 
 		auto arg1 = MakeShared(const_array_cast<Arg1ValueType>(arg1A)); assert(arg1);
+		auto arg1VU = MakeShared(arg1A->GetAbstrValuesUnit());
 
 		using prepare_data = SharedPtr<typename Arg1Type::future_tile>;
 		auto futureTileFunctor = make_unique_FutureTileFunctor<ResultValueType, prepare_data, false>(resultAdi, lazy, tileRangeData, get_range_ptr_of_valuesunit(valuesUnit)
 			, [arg1, af](tile_id t) { return arg1->GetFutureTile(t); }
-			, [this, af MG_DEBUG_ALLOCATOR_SRC_PARAM](sequence_traits<ResultValueType>::seq_t resData, prepare_data futureData)
+			, [this, arg1VU, af MG_DEBUG_ALLOCATOR_SRC_PARAM](sequence_traits<ResultValueType>::seq_t resData, prepare_data futureData)
 			{
-				this->CalcTile(resData, futureData->GetTile().get_view(), af MG_DEBUG_ALLOCATOR_SRC_PARAM);
+				this->CalcTile(resData, futureData->GetTile().get_view(), arg1VU, af MG_DEBUG_ALLOCATOR_SRC_PARAM);
 			}
 			MG_DEBUG_ALLOCATOR_SRC_PARAM
 		);
@@ -157,10 +135,10 @@ public:
 		auto arg1Data = const_array_cast<Arg1ValueType>(arg1A)->GetTile(t);
 		auto resData = mutable_array_cast<ResultValueType>(res)->GetWritableTile(t);
 
-		CalcTile(resData, arg1Data, af MG_DEBUG_ALLOCATOR_SRC("res->md_SrcStr"));
+		CalcTile(resData, arg1Data, arg1A->GetAbstrValuesUnit(), af MG_DEBUG_ALLOCATOR_SRC("res->md_SrcStr"));
 	}
 
-	virtual void CalcTile(sequence_traits<ResultValueType>::seq_t resData, sequence_traits<Arg1ValueType>::cseq_t arg1Data, ArgFlags af MG_DEBUG_ALLOCATOR_SRC_ARG) const = 0;
+	virtual void CalcTile(sequence_traits<ResultValueType>::seq_t resData, sequence_traits<Arg1ValueType>::cseq_t arg1Data, const AbstrUnit* argVU, ArgFlags af MG_DEBUG_ALLOCATOR_SRC_ARG) const = 0;
 };
 
 
@@ -175,7 +153,7 @@ struct UnaryAttrAssignOperator : UnaryAttrOperator<typename TUniAssign::assignee
 			)
 	{}
 
-	void CalcTile(sequence_traits<typename TUniAssign::assignee_type>::seq_t resData, sequence_traits<typename TUniAssign::arg1_type>::cseq_t arg1Data, ArgFlags af MG_DEBUG_ALLOCATOR_SRC_ARG) const override
+	void CalcTile(sequence_traits<typename TUniAssign::assignee_type>::seq_t resData, sequence_traits<typename TUniAssign::arg1_type>::cseq_t arg1Data, const AbstrUnit* argVU, ArgFlags af MG_DEBUG_ALLOCATOR_SRC_ARG) const override
 	{
 		assert(arg1Data.size() == resData.size());
 
@@ -193,7 +171,7 @@ struct UnaryAttrFuncOperator: UnaryAttrOperator<typename TUniOper::res_type, typ
 			)
 	{}
 
-	void CalcTile(sequence_traits<typename TUniOper::res_type>::seq_t resData, sequence_traits<typename TUniOper::arg1_type>::cseq_t arg1Data, ArgFlags af MG_DEBUG_ALLOCATOR_SRC_ARG) const override
+	void CalcTile(sequence_traits<typename TUniOper::res_type>::seq_t resData, sequence_traits<typename TUniOper::arg1_type>::cseq_t arg1Data, const AbstrUnit* argVU, ArgFlags af MG_DEBUG_ALLOCATOR_SRC_ARG) const override
 	{
 		assert(arg1Data.size() == resData.size());
 
@@ -213,7 +191,7 @@ struct UnaryAttrSpecialFuncOperator: UnaryAttrOperator<typename TUniOper::res_ty
 			)
 	{}
 
-	void CalcTile(sequence_traits<typename TUniOper::res_type>::seq_t resData, sequence_traits<typename TUniOper::arg1_type>::cseq_t arg1Data, ArgFlags af MG_DEBUG_ALLOCATOR_SRC_ARG) const override
+	void CalcTile(sequence_traits<typename TUniOper::res_type>::seq_t resData, sequence_traits<typename TUniOper::arg1_type>::cseq_t arg1Data, const AbstrUnit* argVU, ArgFlags af MG_DEBUG_ALLOCATOR_SRC_ARG) const override
 	{
 		assert(arg1Data.size() == resData.size());
 
@@ -221,6 +199,32 @@ struct UnaryAttrSpecialFuncOperator: UnaryAttrOperator<typename TUniOper::res_ty
 	}
 private:
 	TUniOper m_AttrOper = TUniOper();
+};
+
+#include "Projection.h"
+
+template <typename PointType, bool TAKE_THE_Y, typename ResCoordType = Float64>
+struct UnaryAttr_XY_FuncOperator : UnaryAttrOperator<ResCoordType, PointType>
+{
+	UnaryAttr_XY_FuncOperator(AbstrOperGroup* gr)
+		: UnaryAttrOperator<ResCoordType, PointType>(gr
+			, ArgFlags()
+			, &default_unit_creator<ResCoordType>, ValueComposition::Single
+		)
+	{
+	}
+
+	void CalcTile(sequence_traits<ResCoordType>::seq_t resData, sequence_traits<PointType>::cseq_t arg1Data, const AbstrUnit* argVU, ArgFlags af MG_DEBUG_ALLOCATOR_SRC_ARG) const override
+	{
+		assert(arg1Data.size() == resData.size());
+
+		auto tr = UnitProjection::GetCompositeTransform(argVU->GetProjection());
+
+		if constexpr (TAKE_THE_Y)
+			dms_transform(arg1Data.begin(), arg1Data.end(), resData.begin(), [fy = tr.Factor().Y(), ty = tr.Offset().Y()](const auto& p) { return p.Y() * fy + ty;  });
+		else
+			dms_transform(arg1Data.begin(), arg1Data.end(), resData.begin(), [fx = tr.Factor().X(), tx = tr.Offset().X()](const auto& p) { return p.X() * fx + tx;  });
+	}
 };
 
 

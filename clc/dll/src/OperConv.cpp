@@ -1142,9 +1142,9 @@ struct CastAttrOperator: UnaryAttrOperator<TR, TA>
 		:	UnaryAttrOperator<TR, TA>(gr, ArgFlags(), cast_unit_creator_field<TR>, composition_of_v<TR>)
 	{}
 
-	void CalcTile(sequence_traits<TR>::seq_t resData, sequence_traits<TA>::cseq_t arg1Data, ArgFlags af MG_DEBUG_ALLOCATOR_SRC_ARG) const override
+	void CalcTile(sequence_traits<TR>::seq_t resData, sequence_traits<TA>::cseq_t arg1Data, const AbstrUnit* argVU, ArgFlags af MG_DEBUG_ALLOCATOR_SRC_ARG) const override
 	{
-		dms_assert(arg1Data.size() == resData.size());
+		assert(arg1Data.size() == resData.size());
 
 		do_transform<TR, TA, boost::mpl::quote2<Type0DConversion> >(
 			Unit<field_of_t<TR>>::GetStaticClass()->CreateDefault()
