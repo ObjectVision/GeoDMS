@@ -157,7 +157,7 @@ struct ConnectNeighbourPointOperator : AbstrConnectNeighbourPointOperator
 
 	typedef DataArray<PointType>           ArgType;
 
-	typedef SpatialIndex<CoordType, typename ArgType::const_iterator> SpatialIndexType;
+	using SpatialIndexType = SpatialIndex<CoordType, typename ArgType::const_iterator>;
 
 	ConnectNeighbourPointOperator(bool withPartitioning)
 		:	AbstrConnectNeighbourPointOperator(ArgType::GetStaticClass(), withPartitioning)

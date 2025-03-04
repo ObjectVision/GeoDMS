@@ -112,6 +112,7 @@
     <ClCompile Include="src\GridDist.cpp" />
     <ClCompile Include="src\IpfAlloc.cpp" />
     <ClCompile Include="src\JoinEqualValues.cpp" />
+    <ClCompile Include="src\JoinNearValues.cpp" />
     <ClCompile Include="src\Mandlebrot.cpp" />
     <ClCompile Include="src\nth_element.cpp" />
     <ClCompile Include="src\OperDistrict.cpp" />
