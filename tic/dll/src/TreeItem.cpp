@@ -2605,6 +2605,52 @@ ActorVisitState TreeItem::SuspendibleUpdate(ProgressState ps) const
 	return base_type::SuspendibleUpdate(ps);
 }
 
+bool IntegrityCheckFailure(const TreeItem* self, const AbstrDataItem* iCheckerResult, std::function<SharedStr()> checkStringGenerator)
+{
+	SizeT nrFailures = iCheckerResult->CountValues<Bool>(false);
+	if (!nrFailures)
+		return false;
+	SharedStr helperText = SingleQuote(checkStringGenerator().c_str());
+	if (iCheckerResult->GetAbstrDomainUnit()->GetCount() == 1)
+	{
+		assert(nrFailures == 1);
+
+		helperText += " is false";
+	}
+	else
+	{	
+		auto failurePos = iCheckerResult->FindPos<Bool>(false, 0);
+		if (nrFailures > 1)
+		{
+			helperText = mySSPrintF("%d elements of %s are false, at row %d"
+				, nrFailures
+				, helperText
+				, failurePos
+			);
+			MakeMin(nrFailures, 4); // max 4 extra rows to report
+			while (nrFailures > 1)
+			{
+				failurePos = iCheckerResult->FindPos<Bool>(false, failurePos + 1);
+				if (!IsDefined(failurePos))
+					break;
+				helperText += mySSPrintF(", %d", failurePos);
+			}
+			if (IsDefined(failurePos))
+				helperText += ", ...";
+		}
+		else
+		{
+			helperText += mySSPrintF(" is false at row %d", failurePos);
+		}
+	}
+
+	// will be caught by SuspendibleUpdate who will Fail this.
+	self->Fail(mySSPrintF("%s : %s", ICHECK_NAME, helperText), FR_Validate); // will be caught by SuspendibleUpdate who will Fail this.
+
+	assert(self->WasFailed(FR_Validate));
+	return true;
+}
+
 ActorVisitState TreeItem::DoUpdate(ProgressState ps)
 {
 	DBG_START("TreeItem", "DoUpdate", MG_DEBUG_UPDATEMETAINFO && false);
@@ -2676,39 +2722,9 @@ ActorVisitState TreeItem::DoUpdate(ProgressState ps)
 						Fail("Unknown error in IntegrityCheck: ", FR_MetaInfo);
 					return AVS_SuspendedOrFailed;
 				}
-				SizeT nrFailures = iCheckerResult->CountValues<Bool>(false);
-				if (nrFailures)
-				{
-					SharedStr helperText;
-					if (iCheckerResult->GetAbstrDomainUnit()->GetCount() == 1)
-					{
-						assert(nrFailures == 1);
 
-						helperText = mySSPrintF("%s is not true"
-							, SingleQuote(iCheckerPtr->GetExpr().c_str())
-						);
-					}
-					else
-					{
-						auto firstFailure = iCheckerResult->FindPos<Bool>(false, 0);
-						if (nrFailures > 1)
-							helperText = mySSPrintF("%d elements of %s are false, first false value at row %d"
-								, SingleQuote(iCheckerPtr->GetExpr().c_str())
-								, nrFailures
-								, firstFailure
-							);
-						else
-							helperText = mySSPrintF("failure at row %d"
-								, firstFailure
-							);
-					}
-
-					// will be caught by SuspendibleUpdate who will Fail this.
-					Fail(mySSPrintF("%s : %s", ICHECK_NAME, helperText), FR_Validate); // will be caught by SuspendibleUpdate who will Fail this.
-
-					assert(WasFailed(FR_Validate));
+				if (IntegrityCheckFailure(this, iCheckerResult, [iCheckerPtr]() { return iCheckerPtr->GetExpr(); }))
 					return AVS_Ready;
-				}
 			}
 			catch (...)
 			{
@@ -2754,8 +2770,6 @@ exitReady:
 
 	return AVS_Ready;
 }
-
-//#include "dbg/SeverityType.h" // DEBUG, REMOVE
 
 void TreeItem::SetProgress(ProgressState ps) const
 {

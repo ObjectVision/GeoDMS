@@ -479,5 +479,6 @@ private:
 };
 
 using SharedTreeItem = SharedPtr<const TreeItem>;
+TIC_CALL bool IntegrityCheckFailure(const TreeItem* self, const AbstrDataItem* iCheckerResult, std::function<SharedStr()> checkStringGenerator);
 
 #endif // __TREEITEM_H

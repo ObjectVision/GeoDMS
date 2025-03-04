@@ -84,8 +84,6 @@ struct SubItemOperator: BinaryOperator
 #include "LispTreeType.h"
 #include "TicPropDefConst.h"
 
-//oper_arg_policy oap_SubItem[2] = { oper_arg_policy::calc_subitem_root, oper_arg_policy::calc_always };
-
 CommonOperGroup sog_Check(token::integrity_check, oper_policy::existing|oper_policy::dynamic_result_class);
 
 struct CheckOperator : public BinaryOperator
@@ -116,6 +114,20 @@ struct CheckOperator : public BinaryOperator
 			assert(CheckDataReady(arg2A));
 			assert(CheckDataReady(resultHolder.GetOld()));
 			DataReadLock arg2Lock(arg2A);
+
+			IntegrityCheckFailure(resultHolder.GetOld(), arg2A, [&resultHolder]() -> SharedStr
+				{
+					auto funcDC = dynamic_cast<FuncDC*>(&resultHolder);
+					MG_CHECK(funcDC);
+					auto condDC = funcDC->GetArgDC(1);
+					assert(condDC);
+
+					return AsFLispSharedStr(condDC->GetLispRef(), FormattingFlags::None);
+				}
+			);
+			if (resultHolder->WasFailed())
+				resultHolder.Fail(resultHolder.GetOld());
+
 			SizeT nrFailures = arg2A->CountValues<Bool>(false);
 			if (nrFailures)
 			{
