@@ -1,8 +1,11 @@
-// Copyright (C) 1998-2023 Object Vision b.v. 
+// Copyright (C) 1998-2025 Object Vision b.v. 
 // License: GNU GPL 3
 /////////////////////////////////////////////////////////////////////////////
 
+#if defined(_MSC_VER)
 #pragma once
+#endif
+
 
 #ifndef __TIC_LISPTREETYPE_H
 #define __TIC_LISPTREETYPE_H

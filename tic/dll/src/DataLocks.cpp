@@ -270,6 +270,10 @@ DataWriteLock::DataWriteLock(AbstrDataItem* adi, dms_rw_mode rwm, const SharedOb
 			{
 				auto fsn = sm->GetNameStr();
 				auto rn = configItem->GetRelativeName(sp);
+				if (rn.empty())
+				{
+					rn = "@main";
+				}
 
 				auto fn = DelimitedConcat(fsn, rn);
 				reset(CreateFileData(adi, abstrValuesRangeData, fn, mustClear).release()); // , !adi->IsPersistent(), true); // calls OpenFileData

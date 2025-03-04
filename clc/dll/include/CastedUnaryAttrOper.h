@@ -14,6 +14,7 @@
 #include "ParallelTiles.h"
 #include "UnitClass.h"
 #include "TileFunctorImpl.h"
+#include "stg/MemoryMappeddataStorageManager.h"
 
 // *****************************************************************************
 //									AbstrCastedUnaryAttrOperator
@@ -57,7 +58,20 @@ public:
 			DataReadLock arg1Lock(argDataA);
 
 			tile_id nrTiles = argDataA->GetAbstrDomainUnit()->GetNrTiles();
-			if (IsMultiThreaded3() && (nrTiles > 1) && !res->HasRepetitiveUsers() && (LTF_ElementWeight(argDataA) <= LTF_ElementWeight(res)))
+			bool createPipelinedCaster = IsMultiThreaded3() && (nrTiles > 1) && !res->HasRepetitiveUsers() && (LTF_ElementWeight(argDataA) <= LTF_ElementWeight(res));
+			if (createPipelinedCaster)
+			{
+				const AbstrDataItem* backPtr = res; if (res->IsCacheItem()) backPtr = AsDataItem(backPtr->m_BackRef);
+				if (backPtr && !backPtr->IsCacheItem())
+					if (auto sp = backPtr->GetCurrStorageParent(true))
+					{
+						auto sm = sp->GetStorageManager();
+						assert(sm);
+						if (auto mmd = dynamic_cast<MmdStorageManager*>(sm))
+							createPipelinedCaster = false;
+					}
+			}
+			if (createPipelinedCaster)
 			{
 				auto valuesUnitA = AsUnit(res->GetAbstrValuesUnit()->GetCurrRangeItem());
 				AsDataItem(resultHolder.GetOld())->m_DataObject = CreateFutureTileCaster(res, res->GetLazyCalculatedState(), valuesUnitA, argDataA, argUnitA MG_DEBUG_ALLOCATOR_SRC("res->md_FullName + :  + GetGroup()->GetName().c_str()"));

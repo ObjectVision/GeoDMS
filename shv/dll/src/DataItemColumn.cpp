@@ -169,6 +169,8 @@ static bool Allowed(const AbstrDataItem* adi, AggrMethod am)
 		case AggrMethod::frequency_table_with_null:
 			if (!vc->HasUndefined())
 				return false;
+			[[fallthrough]];
+
 		case AggrMethod::frequency_table:
 		case AggrMethod::asItemList:
 			return vcm == ValueComposition::Single;

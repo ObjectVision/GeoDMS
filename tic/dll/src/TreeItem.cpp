@@ -1085,6 +1085,22 @@ void TreeItem::SetReferredItem(const TreeItem* refItem) const
 	if (refItem && !_CheckResultObjType(refItem))
 		refItem = nullptr;
 
+	if (refItem && IsDataItem(this) && !IsCacheItem() && !refItem->IsCacheItem())
+	{
+		assert(IsDataItem(refItem));
+		if (auto sp = GetStorageParent(true))
+		{
+			auto sm = sp->GetStorageManager();
+			assert(sm);
+			if (auto mmd = dynamic_cast<MmdStorageManager*>(sm))
+			{
+				auto keyExpr = ExprList(token::convert, refItem->GetCheckedKeyExpr(), AsDataItem(refItem)->GetAbstrValuesUnit()->GetCheckedKeyExpr());
+				SetDC(GetOrCreateDataController(keyExpr));
+				return;
+			}
+		}
+	}
+
 	// remove the old interest
 	OldRefDecrementer oldRefItemCounter;
 	SharedPtr<const TreeItem> tmpRefItemHolder = refItem;
