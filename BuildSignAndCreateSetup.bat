@@ -8,6 +8,7 @@ set DMS_VERSION_PATCH=1
 set geodms_rootdir=%cd%
 
 set GeoDmsVersion=%DMS_VERSION_MAJOR%.%DMS_VERSION_MINOR%.%DMS_VERSION_PATCH%
+
 cd ..
 md tst
 cd tst
@@ -60,7 +61,7 @@ CHOICE /M  "NSIS OK (more than 140Mb) and ready to sign Setup?"
 if ErrorLevel 2 exit /B
 
 :afterNSIS
-set SIGNTOOL=C:\Program Files (x86)\Windows Kits\10\bin\10.0.22000.0\x64\signtool.exe
+set SIGNTOOL=C:\Program Files (x86)\Windows Kits\10\bin\10.0.26100.0\x64\signtool.exe
 "%SIGNTOOL%" sign /debug /a /n "Object Vision" /fd SHA256 /tr http://timestamp.globalsign.com/tsa/r6advanced1 /td SHA256 "distr\GeoDms%GeoDmsVersion%-Setup-x64.exe"
 CHOICE /M  "Signing OK? Ready to run installation?"
 if ErrorLevel 2 goto afterNSIS
