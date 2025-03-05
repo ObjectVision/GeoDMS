@@ -14,6 +14,7 @@
 #include "DataItemClass.h"
 #include "UnitClass.h"
 
+#include "geo/CheckedCalc.h"
 #include "geo/SpatialIndex.h"
 
 //#include "pcount.h"
@@ -66,11 +67,11 @@ public:
 	}
 };
 
-template <typename ResultElement, typename ArgValuesElement, typename SqrDistType>
+template <typename ResultElement, typename ArgValuesElement, typename DistType>
 struct JoinNearValuesOperator : AbstrJoinNearValuesOperator
 {
 	JoinNearValuesOperator(AbstrOperGroup& gr)
-		: AbstrJoinNearValuesOperator(gr, Unit<ResultElement>::GetStaticClass(), DataArray<ArgValuesElement>::GetStaticClass(), DataArray<SqrDistType>::GetStaticClass())
+		: AbstrJoinNearValuesOperator(gr, Unit<ResultElement>::GetStaticClass(), DataArray<ArgValuesElement>::GetStaticClass(), DataArray<DistType>::GetStaticClass())
 	{
 	}
 
@@ -78,9 +79,11 @@ struct JoinNearValuesOperator : AbstrJoinNearValuesOperator
 	{
 		const AbstrDataItem* axRef = AsDataItem(args[0]);
 		const AbstrDataItem* bxRef = AsDataItem(args[1]);
+		const AbstrDataItem* distRef = AsDataItem(args[2]);
 
 		DataReadLock axRefLock(axRef);
 		DataReadLock bxRefLock(bxRef); auto bxRefData = const_array_cast<ArgValuesElement>(bxRef)->GetLockedDataRead();
+		DataReadLock distRefLock(distRef);
 
 		const AbstrUnit* A = axRef->GetAbstrDomainUnit();
 		const AbstrUnit* B = bxRef->GetAbstrDomainUnit();
@@ -91,58 +94,43 @@ struct JoinNearValuesOperator : AbstrJoinNearValuesOperator
 		auto nr_A = A->GetCount();
 		auto nr_B = B->GetCount();
 		//		auto nr_X = X->GetCount();
-
+		auto dist = GetTheValue<DistType>(distRef);
+		auto sqrDist = CheckedMul<DistType>(dist, dist, false);
+		auto distVect = ArgValuesElement(dist, dist);
 		AbstrUnit* AB = AsUnit(resultHolder.GetNew());
+		const AbstrUnit* axDomain = axRef->GetAbstrDomainUnit();
 
-		SpatialIndex<ArgValuesElement, const ArgValuesElement*> spIndex(bxRefData);
-
-		neighbour_iter<SpatialIndexType> iter(&spIndex);
+		using CoordType = scalar_of_t<ArgValuesElement>;
+		using SpatialIndexType = SpatialIndex<CoordType, const ArgValuesElement*>;
+		SpatialIndexType spIndex(bxRefData.begin(), bxRefData.end(), 0);
 
 		std::vector<std::pair<SizeT, SizeT > > results;
 
 		for (tile_id at = 0, atn = A->GetNrTiles(); at != atn; ++at)
 		{
-			auto axRefData = const_array_cast<ArgValuesElement>(axRef)->GetTileData(at);
-			auto tileOffset = axxDomain->GetTiledData()->GetTileOffset(at);
-			for (const auto& ap : axRefData)
+			auto axRefData = const_array_cast<ArgValuesElement>(axRef)->GetTile(at);
+			auto tileFirstIndex = axDomain->GetTileFirstIndex(at);
+			for (const auto& ap: axRefData)
 			{
 				if (!IsDefined(ap))
 					continue;
-				iter.Reset(ap);
-				SizeT aRow = (&ap - axRefData.begiin() + tileOffset;
-				for (auto i = spIndex.begin(ap.Expand())); i; ++i)
+				SizeT aRow = (&ap - axRefData.begin()) + tileFirstIndex;
+				auto searchBox = Inflate(ap, distVect);
+				for (auto bxIter = spIndex.begin(searchBox); bxIter; ++bxIter)
 				{
-					if (dist2(*i, ap) <= sqrDist)
+					const ArgValuesElement* bxPointPtr = (*bxIter)->get_ptr();
+					if (SqrDist<DistType>(*bxPointPtr, ap) <= sqrDist)
 					{
-						results.emplace_back(aRow, * i - bxRefData);
+						results.emplace_back(aRow, bxPointPtr - bxRefData.begin());
 					}
 				}
 			}
 		}
 
-//		auto xRange = X->GetRange();
-		ResultElement nr_AB = 0;
-		for (auto aCountPtr = aCounts.begin(), bCountPtr = bCounts.begin(), aCountEnd = aCounts.end(); aCountPtr != aCountEnd; ++aCountPtr, ++bCountPtr)
-		{
-			ResultElement aCount = ThrowingConvertNonNull<ResultElement>(*aCountPtr);
-			ResultElement bCount = ThrowingConvertNonNull<ResultElement>(*bCountPtr);
-			ResultElement abCount = aCount * bCount;
-			// SafeMul
-			MG_USERCHECK2(!bCount || abCount / bCount == aCount,
-				"join_equal_values operator: the product of the cardinalities of a common value exceeds the maximum value of the resulting unit");
-
-			abCounts.emplace_back(abCount);
-			abOffsets.emplace_back(nr_AB);
-			ResultElement old_nr_AB = nr_AB;
-			nr_AB += abCount;
-			MG_USERCHECK2(nr_AB >= old_nr_AB,
-				"join_equal_values operator: the cumulation of the cardinalities of common values exceeds the maximum value of the resulting unit");
-		}
-		AB->SetCount(nr_AB);
+		AB->SetCount(results.size());
 
 		AbstrDataItem* resSubA = CreateDataItem(AB, GetTokenID_mt("first_rel"), AB, AsDataItem(args[0])->GetAbstrDomainUnit());
 		AbstrDataItem* resSubB = CreateDataItem(AB, GetTokenID_mt("second_rel"), AB, AsDataItem(args[1])->GetAbstrDomainUnit());
-		AbstrDataItem* resSubX = CreateDataItem(AB, GetTokenID_mt("X_rel"), AB, AsDataItem(args[0])->GetAbstrValuesUnit());
 
 		DataWriteLock resSubALock(resSubA);
 
@@ -151,24 +139,8 @@ struct JoinNearValuesOperator : AbstrJoinNearValuesOperator
 			{
 				auto aRange = unitA->GetRange();
 				auto subAData = mutable_array_cast<a_type>(resSubALock)->GetDataWrite(no_tile, dms_rw_mode::write_only_all);
-				for (SizeT ab_index = 0, aIndex = 0, aSize = axRefData.size(); aIndex != aSize; ++aIndex)
-				{
-					ArgValuesElement x = axRefData[aIndex];
-					if (IsIncluding(xRange, x))
-					{
-						SizeT x_index = Range_GetIndex_naked(xRange, x);
-						assert(x_index < nr_X);
-						SizeT b_count = bCounts[x_index];
-
-						SizeT resIndex = abOffsets[x_index] + aUsed[x_index]++ * b_count;
-
-						while (b_count)
-						{
-							assert(aIndex < nr_A);
-							subAData[resIndex + --b_count] = Range_GetValue_naked(aRange, aIndex);
-						}
-					}
-				}
+				for (SizeT i = 0, n = results.size(); i != n; ++i)
+					subAData[i] = Range_GetValue_naked(aRange, results[i].first);
 			}
 		);
 		resSubALock.Commit();
@@ -180,26 +152,8 @@ struct JoinNearValuesOperator : AbstrJoinNearValuesOperator
 			{
 				auto bRange = unitB->GetRange();
 				auto subBData = mutable_array_cast<b_type>(resSubBLock)->GetDataWrite(no_tile, dms_rw_mode::write_only_all);
-				for (SizeT ab_index = 0, bIndex = 0, bSize = bxRefData.size(); bIndex != bSize; ++bIndex)
-				{
-					ArgValuesElement x = bxRefData[bIndex];
-					if (IsIncluding(xRange, x))
-					{
-						SizeT x_index = Range_GetIndex_naked(xRange, x);
-						dms_assert(x_index < nr_X);
-						SizeT a_count = aCounts[x_index];
-						SizeT b_count = bCounts[x_index];
-
-						SizeT resIndex = abOffsets[x_index]; resIndex += bUsed[x_index]++;
-
-						while (a_count--)
-						{
-							dms_assert(bIndex < nr_B);
-							subBData[resIndex] = Range_GetValue_naked(bRange, bIndex);
-							resIndex += b_count;
-						}
-					}
-				}
+				for (SizeT i = 0, n = results.size(); i != n; ++i)
+					subBData[i] = Range_GetValue_naked(bRange, results[i].first);
 			}
 		);
 		resSubBLock.Commit();
