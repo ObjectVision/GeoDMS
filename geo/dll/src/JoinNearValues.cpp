@@ -90,7 +90,6 @@ struct JoinNearValuesOperator : AbstrJoinNearValuesOperator
 		const Unit<ArgValuesElement>* X = debug_cast<const Unit<ArgValuesElement>*>(axRef->GetAbstrValuesUnit());
 		MG_CHECK(A->IsOrdinalAndZeroBased());
 		MG_CHECK(B->IsOrdinalAndZeroBased());
-		MG_CHECK(X->IsOrdinalAndZeroBased());
 		auto nr_A = A->GetCount();
 		auto nr_B = B->GetCount();
 		//		auto nr_X = X->GetCount();
@@ -153,7 +152,7 @@ struct JoinNearValuesOperator : AbstrJoinNearValuesOperator
 				auto bRange = unitB->GetRange();
 				auto subBData = mutable_array_cast<b_type>(resSubBLock)->GetDataWrite(no_tile, dms_rw_mode::write_only_all);
 				for (SizeT i = 0, n = results.size(); i != n; ++i)
-					subBData[i] = Range_GetValue_naked(bRange, results[i].first);
+					subBData[i] = Range_GetValue_naked(bRange, results[i].second);
 			}
 		);
 		resSubBLock.Commit();
