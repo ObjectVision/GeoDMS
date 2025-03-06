@@ -179,6 +179,9 @@ struct CheckOperator : public BinaryOperator
 //										FenceOperator
 // *****************************************************************************
 
+#include "act/ActorVisitor.h"
+#include "act/SupplierVisitFlag.h"
+
 #include "CopyTreeContext.h"
 #include "OperationContext.h"
 #include "UnitProcessor.h"
@@ -186,6 +189,19 @@ struct CheckOperator : public BinaryOperator
 
 oper_arg_policy oap_Fence[2] = { oper_arg_policy::subst_with_subitems,  oper_arg_policy::calc_as_result };
 SpecialOperGroup sog_FenceContainer(token::FenceContainer, 2, oap_Fence, oper_policy::dynamic_result_class);
+
+void AssignFenceNumber(const Actor* item, fence_number fn)
+{
+	assert(item);
+	if (item->m_FenceNumber)
+		return;
+	item->m_FenceNumber = fn;
+	VisitSupplProcImpl(item, SupplierVisitFlag::CalcAll, [fn](const Actor* suppl) 
+		{
+			AssignFenceNumber(suppl, fn);
+		}
+	);
+}
 
 struct FenceContainerOperator : BinaryOperator
 {
@@ -197,6 +213,8 @@ struct FenceContainerOperator : BinaryOperator
 	{
 		assert(args.size() == 2);
 		assert(fc);
+
+		MG_CHECK(IsMetaThread());
 
 		auto sourceContainer = std::get<SharedTreeItem>(args[0]).get();
 		if (!resultHolder)
@@ -213,28 +231,23 @@ struct FenceContainerOperator : BinaryOperator
 			resultHolder.m_FenceNumber = context.m_FenceNumber;
 
 
-			auto resultFenceNumer = resultHolder.m_FenceNumber;
+			auto resultFenceNumber = resultHolder.m_FenceNumber;
 
 			auto resultRoot = resultHolder.GetNew();
 			for (auto resWalker = resultRoot; resWalker; resWalker = resultRoot->WalkCurrSubTree(resWalker))
 			{
-				MG_CHECK(resWalker->m_FenceNumber >= resultFenceNumer);
+				MG_CHECK(resWalker->m_FenceNumber >= resultFenceNumber);
 
 				auto srcItem = sourceContainer->FindItem(resWalker->GetRelativeName(resultHolder.GetNew()));
 				MG_CHECK(!srcItem->IsCacheItem());
+				AssignFenceNumber(srcItem, resultFenceNumber);
+
 				assert(!resWalker->HasInterest());
 				resWalker->GetOrCreateSupplCache()->InitAt(srcItem);
 				assert(!resWalker->HasInterest());
 
 				if (srcItem->WasFailed())
 					resWalker->Fail(srcItem);
-/*
-				if (!resWalker->WasFailed(FR_MetaInfo))
-				{
-					if (srcItem->mc_DC)
-						fc->AddDependency(srcItem->GetCheckedDC());
-				}
-*/
 			}
 		}
 		assert(resultHolder);
