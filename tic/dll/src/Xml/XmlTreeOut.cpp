@@ -616,19 +616,23 @@ bool TreeItem_XML_DumpGeneralBody(const TreeItem* self, OutStreamBase* xmlOutStr
 	XML_Table xmlTable(*xmlOutStrPtr);
 	//xmlTable.EditableNameValueRow("FullName", self->GetFullName().c_str());
 
-#if defined(MG_DEBUG)
-	if (!self->InTemplate())
+	if (IsInDebugMode() && !self->InTemplate())
 	{
-		UInt32 nc = DMS_TreeItem_GetProgressState(self);
-		xmlTable.NameValueRow(
-			"ProgressState",
-			mySSPrintF("%s at %d",
-				UpdateStateName(nc),
-				self->GetLastChangeTS()
-			).c_str()
-		);
+		for( auto refItem = self; refItem; refItem = refItem->mc_RefItem)
+		{
+			auto nc = DMS_TreeItem_GetProgressState(refItem);
+			xmlTable.NameValueRow(
+				"ProgressState",
+				mySSPrintF("%s at %d for Fence %d, checked at %d for %s"
+				,	UpdateStateName(nc)
+				,	refItem->LastChangeTS()
+				,	refItem->m_FenceNumber
+				,	refItem->m_LastGetStateTS
+				,	refItem->GetFullName()
+				).c_str()
+			);
+		}
 	}
-#endif
 
 	if (self->IsFailed())
 	{

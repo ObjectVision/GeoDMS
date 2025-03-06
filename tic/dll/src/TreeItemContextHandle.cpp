@@ -115,9 +115,10 @@ void GenerateSystemInfo(AbstrPropWriter& apw, const TreeItem* curr)
 	apw.WriteKey("SessionStartTime", GetSessionStartTimeStr());
 	apw.WriteKey("CurrentTime", GetCurrentTimeStr());
 	apw.WriteKey("StatusFlags",
-		mySSPrintF("0x%x = %s%s%s%s%s%s%s%s%s%s"
+		mySSPrintF("0x%x = %s%s%s%s%s%s%s%s%s%s%s%s"
 			, GetRegStatusFlags()
 			, (GetRegStatusFlags() & RSF_AdminMode) ? "AdminMode " : ""
+			, (GetRegStatusFlags() & RSF_DebugMode) ? "DebugMode " : ""
 			, (GetRegStatusFlags() & RSF_SuspendForGUI) ? "SuspendForGUI " : ""
 			, (GetRegStatusFlags() & RSF_ShowStateColors) ? "ShowStateColors " : ""
 			, (GetRegStatusFlags() & RSF_TraceLogFile) ? "TraceLogFile " : ""
@@ -125,10 +126,11 @@ void GenerateSystemInfo(AbstrPropWriter& apw, const TreeItem* curr)
 			, (GetRegStatusFlags() & RSF_DetailsVisible) ? "DetailsVisible " : ""
 			, (GetRegStatusFlags() & RSF_EventLogVisible) ? "EventLogVisible " : ""
 			, (GetRegStatusFlags() & RSF_ToolBarVisible) ? "ToolBarVisible " : ""
-			, (GetRegStatusFlags() & RSF_MultiThreading1) ? "MultiThreading1 " : ""
-			, (GetRegStatusFlags() & RSF_MultiThreading2) ? "MultiThreading2 " : ""
-			)
-		);
+			, (GetRegStatusFlags() & RSF_MultiThreading1) ? "MT1 " : ""
+			, (GetRegStatusFlags() & RSF_MultiThreading2) ? "MT2 " : ""
+			, (GetRegStatusFlags() & RSF_MultiThreading3) ? "MT3 " : ""
+		)
+	);
 	apw.CloseSection();
 }
 

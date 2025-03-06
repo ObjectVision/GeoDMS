@@ -85,7 +85,7 @@ enum RegStatusFlags
 	//  Flags really in use by the GeoDMS C++ Engine
 	RSF_MultiThreading0 = RSF_SuspendForGUI,
 	RSF_MultiThreading1 = 0x100,
-	//	RSF_MultiThreading2 = 0x200,
+	RSF_DebugMode       = 0x200,
 	RSF_MultiThreading2 = 0x400,
 	RSF_MultiThreading3 = 0x2000,
 	RSF_AllMultiThreading = RSF_SuspendForGUI | RSF_MultiThreading1 | RSF_MultiThreading2 | RSF_MultiThreading3,
@@ -99,7 +99,7 @@ enum RegStatusFlags
 
 	RSF_EventLog_ClearOnLoad = 0x40000,
 	RSF_EventLog_ClearOnReLoad = 0x80000,
-	
+
 	RSF_TreeView_FollowOSLayout = 0x100000,
 	
 	RSF_WasRead = 0x80000000,
@@ -197,6 +197,8 @@ RTC_CALL void   DMS_CONV DMS_Appl_SetFont();
 RTC_CALL void   DMS_CONV DMS_Appl_SetRegStatusFlags(UInt32 sf);
 RTC_CALL UInt32 DMS_CONV DMS_Appl_GetRegStatusFlags();
 }	// extern "C"
+
+RTC_CALL bool IsInDebugMode();
 
 RTC_CALL Int32     GetConfigKeyValue (WeakStr configFileName, CharPtr sectionName, CharPtr keyName, Int32   defaultValue);
 RTC_CALL SharedStr GetConfigKeyString(WeakStr configFileName, CharPtr sectionName, CharPtr keyName, CharPtr defaultValue);
