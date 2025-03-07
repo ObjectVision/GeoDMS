@@ -203,23 +203,16 @@ void DmsDetailPages::scheduleDrawPageImpl(int milliseconds)
         MainWindow::TheOne()->PostAppOper([this, milliseconds]
             {
                 assert(IsMainThread());
-                static std::time_t pendingDeadline = 0;
-                auto deadline = std::time(nullptr) + milliseconds / 1000;
-                if (!pendingDeadline || deadline < pendingDeadline)
-                {
-                    pendingDeadline = deadline;
-                    QTimer::singleShot(milliseconds, [this]
-                        {
-                            assert(IsMainThread());
-                            pendingDeadline = 0;
+                QTimer::singleShot(milliseconds, [this]
+                    {
+                        assert(IsMainThread());
 
-                            if (m_DrawPageRequestPending.exchange(false))
-                            {
-                                this->drawPage();
-                            }
+                        if (m_DrawPageRequestPending.exchange(false))
+                        {
+                            this->drawPage();
                         }
-                    );
-                }
+                    }
+                );
             }
         );
     }
