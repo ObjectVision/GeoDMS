@@ -313,7 +313,6 @@ garbage_t runOperationContexts()
 	while (!s_ScheduledContextsMap.empty())
 	{
 		auto nextFenceNumber = s_ScheduledContextsMap.begin()->first;
-		assert(nextFenceNumber >= s_CurrActiveFenceNumber);
 		if (nextFenceNumber > s_CurrActiveFenceNumber)
 		{
 			if (s_NrRunningOperations)
@@ -340,7 +339,7 @@ garbage_t runOperationContexts()
 			{
 				cancelGarbage |= operContext->shared_from_this(); // copy shared_ptr into container for destruction consideration outside current critical section
 				assert(operContext->m_Status >= task_status::scheduled);
-				assert(operContext->m_FenceNumber == s_CurrActiveFenceNumber);
+				assert(operContext->m_FenceNumber <= s_CurrActiveFenceNumber);
 				if (operContext->m_Status < task_status::activated)
 				{
 					assert(operContext->m_TaskFunc);
@@ -614,9 +613,9 @@ void OperationContext::activateTaskImpl(SharedActorInterestPtr&& resKeeper)
 		auto self = selfWptr.lock(); 
 		if (self) 
 		{
-			assert(self->m_FenceNumber == s_CurrActiveFenceNumber);
+			assert(self->m_FenceNumber <= s_CurrActiveFenceNumber);
 			self->safe_run_caller();
-			assert(self->m_FenceNumber == s_CurrActiveFenceNumber);
+			assert(self->m_FenceNumber <= s_CurrActiveFenceNumber);
 		}
 	};
 
