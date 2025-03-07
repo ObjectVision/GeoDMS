@@ -546,7 +546,7 @@ UInt32 TreeItem::_CountNrSubItems ()  noexcept
 
 const TreeItem* TreeItem::GetFirstSubItem() const noexcept
 {
-	UpdateMetaInfo();
+	UpdateMetaInfoIfNotAlready();
 	return _GetFirstSubItem();
 }
 
@@ -1601,7 +1601,7 @@ SharedTreeItem TreeItem::FindItem(CharPtrRange subItemNames) const
 
 	if (!parent)
 		return nullptr;
-	parent->UpdateMetaInfo();
+	parent->UpdateMetaInfoIfNotAlready();
 	if (parent->WasFailed(FR_MetaInfo))
 		parent->ThrowFail();
 	return parent->GetConstSubTreeItemByID(GetExistingTokenID(ids.second));
