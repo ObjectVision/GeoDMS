@@ -438,17 +438,17 @@ SharedStr PersistentSharedObj::GetSourceName() const
 		);
 }
 
-void throwItemError(ErrMsgPtr msg)
+[[noreturn]] void throwItemError(ErrMsgPtr msg)
 {
 	DmsException::throwMsg(msg);
 }
 
-void throwItemError(const PersistentSharedObj* self, WeakStr msgStr)
+[[noreturn]] void throwItemError(const PersistentSharedObj* self, WeakStr msgStr)
 { 
 	throwItemError(std::make_shared<ErrMsg>( msgStr, self ) ); 
 }
 
-void throwItemError(const PersistentSharedObj* self, CharPtr msg)
+[[noreturn]] void throwItemError(const PersistentSharedObj* self, CharPtr msg)
 {
 	throwItemError(self, SharedStr(msg));
 }

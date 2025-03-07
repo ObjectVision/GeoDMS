@@ -2487,30 +2487,30 @@ void TreeItem::UpdateMetaInfoImpl2() const
 		if ((m_State.GetProgress()>=PS_MetaInfo) || WasFailed(FR_MetaInfo)) // reset by DetermineState when supplier was invalidated
 			return;
 
-	if(m_State.IsDeterminingState() || m_State.IsUpdatingMetaInfo() || m_State.Get(ASF_MakeCalculatorLock) )
-	{
-		throwItemError(
-			"Invalid recursion in UpdateMetaInfo detected.\n"
-			"Check calculation rule and other referring properties of this item and/or its Suppliers\n"
-			"Suggestion: check context for ApplyMetaFunc calls that may scan a range of sub-items"
-		);
-	}
-//	dms_assert(IsPassor() || !SuspendTrigger::DidSuspend());
-
-	FencedInterestRetainContext retainLocalInterestUntilThisDies("UpdateMetaInfo");
-
-	// DetermineState() -> DoInvalidate() could reset TSF_MetaInfoReady
-	if (IsPassor())
-	{
-		if (!WasFailed())  // Passors can fail due to PrepareDataUsage that inherits failure from DataControiller
-			SetMetaInfoReady();
-		return;
-	}
-
-	if (GetTreeParent())
-		GetTreeParent()->UpdateMetaInfo();
-	
 	try {
+		if(m_State.IsDeterminingState() || m_State.IsUpdatingMetaInfo() || m_State.Get(ASF_MakeCalculatorLock) )
+		{
+			throwItemError(
+				"Invalid recursion in UpdateMetaInfo detected.\n"
+				"Check calculation rule and other referring properties of this item and/or its Suppliers\n"
+				"Suggestion: check context for ApplyMetaFunc calls that may scan a range of sub-items"
+			);
+		}
+	//	dms_assert(IsPassor() || !SuspendTrigger::DidSuspend());
+
+		FencedInterestRetainContext retainLocalInterestUntilThisDies("UpdateMetaInfo");
+
+		// DetermineState() -> DoInvalidate() could reset TSF_MetaInfoReady
+		if (IsPassor())
+		{
+			if (!WasFailed())  // Passors can fail due to PrepareDataUsage that inherits failure from DataControiller
+				SetMetaInfoReady();
+			return;
+		}
+
+		if (GetTreeParent())
+			GetTreeParent()->UpdateMetaInfo();
+	
 		if (HasStorageManager())
 			GetStorageManager();
 
