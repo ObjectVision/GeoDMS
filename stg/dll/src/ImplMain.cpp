@@ -73,9 +73,14 @@ bool FilePtrHandle::OpenFH(WeakStr name, FileCreationMode fcm, bool translate, U
 
 	if (m_FP == nullptr)
 	{
-		throwErrorF("OpenFileHandle", "_fsopen('%s', '%s') returned error %d: %s",
+		CharPtr hint = "";
+		if (fileName.ssize() > _MAX_PATH)
+			hint = "Note that the filename is longer than _MAX_PATH, which is 260 characters";
+
+		throwErrorF("OpenFileHandle", "_fsopen('%s', '%s') returned error %d: %s\n%s",
 			fileName.c_str(), mode,
 			errno, strerror(errno)
+		,	hint
 		);
 	}
 	m_TranslateText = translate;
