@@ -304,7 +304,6 @@ struct FenceContainerOperator : BinaryOperator
 						assert(srcItem);
 
 
-//						MG_CHECK(srcItem->m_FenceNumber < resultFenceNumer);
 						MG_CHECK(!srcItem->IsCacheItem());
 
 						if (!srcItem->SuspendibleUpdate(PS_Committed))
@@ -323,7 +322,6 @@ struct FenceContainerOperator : BinaryOperator
 						auto dc = srcItem->mc_DC;
 						if (dc)
 						{
-							assert(dc->m_FenceNumber < resultFenceNumer);
 							auto dcInterest = dc->GetInterestPtrOrNull();
 							assert(dcInterest); // follows from 
 							if (dcInterest)

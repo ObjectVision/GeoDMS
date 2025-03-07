@@ -2570,8 +2570,6 @@ void TreeItem::UpdateMetaInfoImpl2() const
 	assert(m_State.GetProgress() >= PS_MetaInfo);
 }
 
-RTC_CALL bool IsProcessingMainThreadOpers();
-
 void TreeItem::UpdateMetaInfo() const noexcept
 {
 	auto contextForReportingPurposes = TreeItemContextHandle(this, "UpdateMetaInfo");

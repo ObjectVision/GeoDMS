@@ -273,8 +273,6 @@ void EventLogModel::writeSettingsOnToggle(bool newValue)
 	SetRegStatusFlags(dms_reg_status_flags);
 }
 
-RTC_CALL bool IsProcessingMainThreadOpers();
-
 void EventLogModel::updateOnNewMessages()
 {
 	has_queued_update = false;

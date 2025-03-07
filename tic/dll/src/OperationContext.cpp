@@ -313,6 +313,7 @@ garbage_t runOperationContexts()
 	while (!s_ScheduledContextsMap.empty())
 	{
 		auto nextFenceNumber = s_ScheduledContextsMap.begin()->first;
+		assert(nextFenceNumber >= s_CurrActiveFenceNumber);
 		if (nextFenceNumber > s_CurrActiveFenceNumber)
 		{
 			if (s_NrRunningOperations)
@@ -438,7 +439,7 @@ bool WaitForCompletedTaskOrTimeout(std::chrono::milliseconds waitFor)
 #endif
 
 OperationContext::OperationContext()
-	: m_FenceNumber(s_SchedulingFenceNumber)
+	: m_FenceNumber(0)
 {
 	assert(IsMetaThread());
 	
@@ -455,7 +456,7 @@ OperationContext::OperationContext()
 OperationContext::OperationContext(const FuncDC* self, const AbstrOperGroup* og)
 	: m_FuncDC(self)
 	, m_OperGroup(og)
-	, m_FenceNumber(s_SchedulingFenceNumber)
+	, m_FenceNumber(self->m_FenceNumber)
 {
 	DBG_START("OperationContext", "CTor", MG_DEBUG_FUNCCONTEXT);
 	DBG_TRACE(("FuncDC: %s", self->md_sKeyExpr));

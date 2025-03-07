@@ -130,7 +130,11 @@ RTC_CALL void RequestMainThreadOperProcessing()
 RTC_CALL void ConfirmMainThreadOperProcessing()
 {
 	assert(IsMainThread());
+	assert(!SuspendTrigger::DidSuspend());
+
 	s_MainThreadOperProcessRequestPending = false;
+
+	assert(!SuspendTrigger::DidSuspend());
 
 //	MSG msg;
 //	auto peekResult = PeekMessage(&msg, NULL, WM_USER, WM_USER, PM_NOREMOVE); // create a message queue for the main thread.
@@ -270,7 +274,8 @@ void PostMainThreadTask(suspendible_task_type&& func)
 }
 
 static UInt32 s_ProcessMainThreadOperLevel = 0;
-RTC_CALL bool IsProcessingMainThreadOpers()
+
+bool IsProcessingMainThreadOpers()
 {
 	assert(IsMetaThread());
 	return s_ProcessMainThreadOperLevel != 0;
