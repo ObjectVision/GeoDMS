@@ -1583,7 +1583,8 @@ SharedTreeItem TreeItem::FindItem(CharPtrRange subItemNames) const
 		if (ids.second.first[0] == '.')
 			return FollowDots(ids.second);
 
-		UpdateMetaInfo();
+		UpdateMetaInfoIfNotAlready();
+
 		TokenID existingToken = GetExistingTokenID<mt_tag>(ids.second); //to be found token was already created if asserts hold
 		if (!IsDefined(existingToken))
 			return nullptr;
@@ -2509,7 +2510,7 @@ void TreeItem::UpdateMetaInfoImpl2() const
 		}
 
 		if (GetTreeParent())
-			GetTreeParent()->UpdateMetaInfo();
+			GetTreeParent()->UpdateMetaInfoIfNotAlready();
 	
 		if (HasStorageManager())
 			GetStorageManager();
@@ -2618,6 +2619,13 @@ ActorVisitState TreeItem::SuspendibleUpdate(ProgressState ps) const
 		return result;
 	}
 	return base_type::SuspendibleUpdate(ps);
+}
+
+void TreeItem::UpdateMetaInfoIfNotAlready() const noexcept
+{
+	if (m_State.IsDeterminingState() || m_State.IsUpdatingMetaInfo() || m_State.Get(ASF_MakeCalculatorLock))
+		return;
+	UpdateMetaInfo();
 }
 
 bool IntegrityCheckFailure(const TreeItem* self, const AbstrDataItem* iCheckerResult, std::function<SharedStr()> checkStringGenerator)

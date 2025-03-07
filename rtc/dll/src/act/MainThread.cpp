@@ -165,6 +165,8 @@ void operation_queue::Send(operation_type&& func)
 void operation_queue::Process()
 {
 	assert(IsMetaThread());
+	assert(!SuspendTrigger::DidSuspend());
+
 	decltype(m_Operations) operQueue;
 	{
 		auto lock = std::scoped_lock(s_MainQueueSection);
@@ -287,13 +289,16 @@ MainThreadBlocker::~MainThreadBlocker()
 void ProcessMainThreadOpers()
 {
 	assert(IsMetaThread());
+	assert(!SuspendTrigger::DidSuspend());
 
 	if (s_ProcessMainThreadOperLevel)
 		return;
 
 	StaticStIncrementalLock<s_ProcessMainThreadOperLevel> avoidReenty;
 
+	assert(!SuspendTrigger::DidSuspend());
 	s_OperQueue.Process();
+	assert(!SuspendTrigger::DidSuspend());
 	s_TaskQueue.Process();
 }
 
