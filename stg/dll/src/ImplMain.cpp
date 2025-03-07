@@ -45,7 +45,6 @@ SAMPLEFORMAT::SAMPLEFORMAT(const ValueClass* vc)
 #include "FilePtrHandle.h"
 
 FilePtrHandle::FilePtrHandle()
-	:	m_FP(0) 
 {}
 
 FilePtrHandle::~FilePtrHandle()
@@ -62,17 +61,23 @@ bool FilePtrHandle::OpenFH(WeakStr name, FileCreationMode fcm, bool translate, U
 	assert(createNew || UseExisting(fcm));
 	CloseFH();
 
-	m_FP = _fsopen( 
-		ConvertDmsFileName(name).c_str(), 
-		createNew
-		?	translate ? "wt" : "wb"
+	CharPtr mode = createNew
+		? translate ? "wt" : "wb"
 		:
-		(	fcm == FCM_OpenReadOnly 
-			?	translate ?	"rt"  : "rb"
-			:	translate ?	"rt+" : "rb+"
-		),
-		fcm != FCM_OpenReadOnly ? _SH_DENYRW : _SH_DENYWR
-	);
+		(fcm == FCM_OpenReadOnly
+			? translate ? "rt" : "rb"
+			: translate ? "rt+" : "rb+"
+			);
+	auto fileName = ConvertDmsFileName(name);
+	m_FP = _fsopen(fileName.c_str(), mode, fcm != FCM_OpenReadOnly ? _SH_DENYRW : _SH_DENYWR);
+
+	if (m_FP == nullptr)
+	{
+		throwErrorF("OpenFileHandle", "_fsopen('%s', '%s') returned error %d: %s",
+			fileName.c_str(), mode,
+			errno, strerror(errno)
+		);
+	}
 	m_TranslateText = translate;
 	m_CanRead       = !createNew;
 	m_CanWrite      = (fcm != FCM_OpenReadOnly);
