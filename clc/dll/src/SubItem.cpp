@@ -290,7 +290,6 @@ struct FenceContainerOperator : BinaryOperator
 
 		PostMainThreadTask([srcContainer, resultRoot, &resWalker, &fenceBell, &resultHolder, resultFenceNumer, &futureDataContainer](bool mustCancel)-> bool
 			{
-				assert(!SuspendTrigger::BlockerBase::IsBlocked());
 				// work on exporting stuff from main thread
 				if (!mustCancel)
 				{
