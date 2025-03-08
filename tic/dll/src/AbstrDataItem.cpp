@@ -45,6 +45,7 @@
 #include "TileFunctorImpl.h"
 #include "TileLock.h"
 #include "TreeItemClass.h"
+#include "TreeItemContextHandle.h"
 #include "TreeItemUtils.h"
 #include "Unit.h"
 #include "UnitClass.h"
@@ -279,6 +280,7 @@ bool AbstrDataItem::DoReadItem(StorageMetaInfoPtr smi)
 
 			auto tileGenerator = [this, sm, smi, readerFarm](AbstrDataObject* self, tile_id t)
 			{
+				auto context = TreeItemContextHandle(this, "DoReadItem");
 				auto token = readerFarm->acquire();
 				auto returnTokenOnExit = make_scoped_exit([&readerFarm, token]() { readerFarm->release(token); });
 
