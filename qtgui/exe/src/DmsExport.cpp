@@ -712,7 +712,18 @@ void DmsExportWindow::exportImpl()
 
     if (exportConfig)
     {
-        Tree_Update(exportConfig, "Export");
+        SuspendTrigger::Resume();
+        if (auto failedItem = Tree_Update_Or_Return_Failer(exportConfig, "Export"))
+        {
+            MG_CHECK(!SuspendTrigger::DidSuspend());
+            auto errMsgPtr = failedItem->GetFailReason();
+            if (errMsgPtr)
+            {
+                reportF(SeverityTypeID::ST_Error, errMsgPtr->m_Why.c_str());
+                m_export_button->setText("Error (see tooltip)");
+                m_export_button->setStatusTip(errMsgPtr->m_Why.c_str());
+            }
+        }
         return;
     }
 }

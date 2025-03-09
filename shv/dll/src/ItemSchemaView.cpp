@@ -408,11 +408,11 @@ GraphVisitState ItemSchemaView::UpdateView()
 			const TreeItem* theItem = isc->m_RootItems[i];
 			switch (m_ViewStyle) {
 				case tvsUpdateItem:
-					if (ItemUpdateImpl(theItem, "UpdateItem", m_InterestHolder ) == AVS_SuspendedOrFailed)
+					if (!ItemUpdateImpl(theItem, "UpdateItem", m_InterestHolder ))
 						return GVS_BreakOnSuspended();
 					break;
 				case tvsUpdateTree:
-					if (TreeUpdateImpl(theItem, "UpdateTree", m_InterestHolder ) == AVS_SuspendedOrFailed)
+					if (TreeUpdateOrReturnFailerImpl(theItem, "UpdateTree", m_InterestHolder ))
 						return GVS_BreakOnSuspended();
 					break;
 			}

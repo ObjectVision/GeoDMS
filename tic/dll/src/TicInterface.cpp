@@ -663,20 +663,20 @@ TIC_CALL void DMS_CONV DMS_TreeItem_Update(const TreeItem* self)
 	DMS_CALL_END
 }
 
-bool TreeUpdateImpl(const TreeItem* self, CharPtr context, SharedTreeItemInterestPtr& holder )
+auto TreeUpdateOrReturnFailerImpl(const TreeItem* self, CharPtr context, SharedTreeItemInterestPtr& holder) -> SharedTreeItem
 {
 	for (const TreeItem* walker = self; walker; walker = self->WalkConstSubTree(walker))
 		if (!ItemUpdateImpl(walker, context, holder))
-			return false;
+			return walker;
 
-	return true;
+	return {};
 }
 
-TIC_CALL void Tree_Update(const TreeItem* self, CharPtr context)
+TIC_CALL auto Tree_Update_Or_Return_Failer(const TreeItem* self, CharPtr context) -> SharedTreeItem
 {
 	SuspendTrigger::FencedBlocker lockSuspend(context);
 	SharedTreeItemInterestPtr holder;
-	TreeUpdateImpl(self, context, holder);
+	return TreeUpdateOrReturnFailerImpl(self, context, holder);
 }
 
 #include "time.h"
