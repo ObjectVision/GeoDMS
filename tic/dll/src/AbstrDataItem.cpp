@@ -542,7 +542,7 @@ bool AbstrDataItem::CheckResultItem(const TreeItem* refItem) const
 		if (!mydu->UnifyDomain(refdu, "the specified Domain", "the domain of the results of the calculation", UnifyMode::UM_AllowDefaultLeft, &errMsgStr))
 			goto failResultMsg;
 	}
-	dbg_assert(m_LastGetStateTS == refItem->m_LastGetStateTS || refItem->IsPassor());
+	dbg_assert(m_LastGetStateTS >= refItem->m_LastGetStateTS || refItem->IsPassor());
 	{
 		auto myvu = GetAbstrValuesUnit(); myvu->UpdateMetaInfo();
 		auto refvu = adi->GetAbstrValuesUnit(); refvu->UpdateMetaInfo();

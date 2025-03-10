@@ -1252,8 +1252,29 @@ struct union_bg_multi_polygon
 {
 	void operator()(bg_multi_polygon_t& lvalue, bg_multi_polygon_t&& rvalue) const
 	{
+		bool mustTrace = IsInDebugMode();
+
 		bg_multi_polygon_t result;
 		boost::geometry::union_(lvalue, rvalue, result);
+
+		if (mustTrace)
+		{
+			static std::atomic<UInt32> callCounter = 0;
+			auto area1 = boost::geometry::area(lvalue);
+			auto area2 = boost::geometry::area(rvalue);
+			auto arear = boost::geometry::area(result);
+			auto missing1 = (area1 + area2) - arear;
+			auto missing2 = max(area1, area2) - arear;
+
+			reportF(SeverityTypeID::ST_MinorTrace, "%d union_bg_multi_polygon(%d, %d) -> %d "
+			,   callCounter++
+			,	area1, area2, arear
+			);
+			if (missing1 > 0)
+				reportF(SeverityTypeID::ST_MinorTrace, "missing from overlay if surfaces were dusjunct: %d", missing1 );
+			if (missing2 > 0)
+				reportF(SeverityTypeID::ST_MinorTrace, "missing from overlay even when surfaces overlap: %d", missing2 );
+		}
 		result.swap(lvalue);
 	}
 };
