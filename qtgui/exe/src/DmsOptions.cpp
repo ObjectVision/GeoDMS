@@ -173,6 +173,7 @@ DmsGuiOptionsWindow::DmsGuiOptionsWindow(QWidget* parent)
     connect(m_follow_os_layout, &QCheckBox::stateChanged, this, &DmsGuiOptionsWindow::hasChanged);
     connect(m_show_hidden_items, &QCheckBox::stateChanged, this, &DmsGuiOptionsWindow::hasChanged);
     connect(m_show_thousand_separator, &QCheckBox::stateChanged, this, &DmsGuiOptionsWindow::hasChanged);
+    connect(m_toggle_debug_mode, &QCheckBox::stateChanged, this, &DmsGuiOptionsWindow::hasChanged);
     connect(m_show_state_colors_in_treeview, &QCheckBox::stateChanged, this, &DmsGuiOptionsWindow::hasChanged);
     connect(m_valid_color_ti_button, &QPushButton::released, this, &DmsGuiOptionsWindow::changeValidTreeItemColor);
     connect(m_not_calculated_color_ti_button, &QPushButton::released, this, &DmsGuiOptionsWindow::changeNotCalculatedTreeItemColor);
@@ -208,6 +209,7 @@ void DmsGuiOptionsWindow::apply()
     setSF(m_follow_os_layout->isChecked(), dms_reg_status_flags, RSF_TreeView_FollowOSLayout);
     setSF(m_show_hidden_items->isChecked(), dms_reg_status_flags, RSF_AdminMode);
     setSF(m_show_thousand_separator->isChecked(), dms_reg_status_flags, RSF_ShowThousandSeparator);
+    setSF(m_toggle_debug_mode->isChecked(), dms_reg_status_flags, RSF_DebugMode);
     setSF(m_show_state_colors_in_treeview->isChecked(), dms_reg_status_flags, RSF_ShowStateColors);
     SetRegStatusFlags(dms_reg_status_flags);
 
@@ -252,8 +254,8 @@ void DmsGuiOptionsWindow::restoreOptions()
     m_follow_os_layout->setChecked(dms_reg_status_flags & RSF_TreeView_FollowOSLayout);
     m_show_hidden_items->setChecked(dms_reg_status_flags & RSF_AdminMode);
     m_show_thousand_separator->setChecked(dms_reg_status_flags & RSF_ShowThousandSeparator);
+    m_toggle_debug_mode->setChecked(dms_reg_status_flags & RSF_DebugMode);
     m_show_state_colors_in_treeview->setChecked(dms_reg_status_flags & RSF_ShowStateColors);
-
     auto drawing_size_in_pixels = GetDrawingSizeInPixels();
     m_drawing_size->setValue(drawing_size_in_pixels);
 
