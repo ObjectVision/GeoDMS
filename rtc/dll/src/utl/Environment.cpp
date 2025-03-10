@@ -446,7 +446,6 @@ RTC_CALL bool IsMultiThreaded1()
 
 RTC_CALL bool IsInDebugMode()
 {
-	return true;
 	return GetRegStatusFlags() & RSF_DebugMode;
 }
 
