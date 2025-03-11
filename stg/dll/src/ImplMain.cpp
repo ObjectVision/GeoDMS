@@ -12,6 +12,7 @@
 #include "mci/ValueClass.h"
 #include "ptr/SharedStr.h"
 #include "utl/Environment.h"
+#include "utl/mySPrintF.h"
 
 #include <share.h>
 
@@ -73,15 +74,19 @@ bool FilePtrHandle::OpenFH(WeakStr name, FileCreationMode fcm, bool translate, U
 
 	if (m_FP == nullptr)
 	{
+		// only emit a warning when open for write or filename too long, as Open for read failure is a common occurence in DoUpdateTree with a not yet existing storage
 		CharPtr hint = "";
 		if (fileName.ssize() > _MAX_PATH)
-			hint = "Note that the filename is longer than _MAX_PATH, which is 260 characters";
-
-		throwErrorF("OpenFileHandle", "_fsopen('%s', '%s') returned error %d: %s\n%s",
-			fileName.c_str(), mode,
-			errno, strerror(errno)
-		,	hint
-		);
+			hint = " Note that the filename is longer than _MAX_PATH, which is 260 characters";
+		if (createNew || *hint)
+		{
+			auto errMsg = mySSPrintF("_fsopen('%s', '%s')\nreturned error %d: %s.%s"
+				, fileName.c_str(), mode
+				, errno, strerror(errno)
+				, hint
+			);
+			reportD(SeverityTypeID::ST_Warning, errMsg.c_str());
+		}
 	}
 	m_TranslateText = translate;
 	m_CanRead       = !createNew;
