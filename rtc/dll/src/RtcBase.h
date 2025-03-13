@@ -335,19 +335,6 @@ template <typename T> struct pointer_traits<std::weak_ptr<T>  > : pointer_traits
 
 template <typename P> struct raw_ptr { using type = typename pointer_traits<P>::ptr_type; };
 
-//=======================================
-// common std declarations
-//=======================================
-/* REMOVE
-namespace std
-{ 
-//	template <typename V> class allocator;
-//	template <typename V, typename Alloc = std::allocator<V>> class vector;
-	template<class T> struct less;
-	template <typename F> class function;
-}
-*/
-
 extern bool RTC_CALL g_IsTerminating;
 
 

@@ -459,8 +459,6 @@ struct SpatialIndex
 	iterator<RangeType> begin(const RangeType& searchBox) const { return iterator<RangeType>(searchBox, &*m_Nodes.begin()); }
 	iterator<PointType> begin(const PointType& searchPnt) const { return iterator<PointType>(searchPnt, &*m_Nodes.begin()); }
 
-//REMOVE?	template <typename SelType> iterator<SelType> end() const { return {}; }
-
 	ObjectPtr first_leaf() const { dms_assert(m_Leafs.size()); return m_Leafs.begin()->get_ptr(); }
 private:
 	SpatialIndex(const SpatialIndex&) {}

@@ -190,7 +190,7 @@ public:
 //                         Ordinal
 // *****************************************************************************
 
-// REMOVE, TODO: AbstrOrdinalOperator
+// TODO: AbstrOrdinalOperator
 
 template <class V>
 class OrdinalOperator : public UnaryOperator
@@ -250,7 +250,7 @@ public:
 //  subindex(E->E', E'->P(UInt32), E->V) -> (E->E'')
 // *****************************************************************************
 
-// REMOVE, TODO: class AbstrSubIndexOperator
+// TODO: class AbstrSubIndexOperator
 
 template <class V>
 class SubIndexOperator : public TernaryOperator

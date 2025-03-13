@@ -61,7 +61,7 @@ struct ptr_wrap : CTorBase
 	bool has_ptr() const { return m_Ptr != nullptr; }
 	bool is_null() const { return m_Ptr == nullptr; }
 
-	pointer   get_ptr() const { return m_Ptr; } // TODO G8: REMOVE and replace by get()
+	pointer   get_ptr() const { return m_Ptr; }
 	pointer   get() const { return m_Ptr; }
 	pointer   get_nonnull() const { MG_CHECK(m_Ptr != nullptr); return m_Ptr; }
 

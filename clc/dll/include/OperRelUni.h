@@ -280,19 +280,6 @@ void make_indexP(IndexContainer& resData, SizeT n, IndexGetter* unsortedPartitio
 	);
 }
 
-template<typename ConstIter2> // REMOVE
-void make_indexP_in_existing_span (
-	SizeT* resDataBegin,
-	SizeT* resDataEnd,
-	IndexGetter* unsortedPartitionData,
-	ConstIter2   unsortedData2Begin)
-{
-	span_fill_sequential_index_numbers(resDataBegin, resDataEnd);
-	std::stable_sort(resDataBegin, resDataEnd
-	,	IndexPCompareOper<ConstIter2>(unsortedPartitionData, unsortedData2Begin)
-	);
-}
-
 template <typename F>
 typename unsigned_type<F>::type* unsigned_ptr(F* ptr)
 {

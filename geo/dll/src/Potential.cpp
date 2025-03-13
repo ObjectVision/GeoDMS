@@ -563,28 +563,6 @@ bool Potential(AnalysisType at, potential_contexts& context, const kernel_info& 
 	return true;
 }
 #endif //defined(DMS_POTENTIAL_I16)
-/* REMOVE
-template < typename T>
-MDL_CALL kernel_info PrepareConvolutionKernels(AnalysisType at, const UGrid<const T>& weightOrg, UPoint maxDataTileSize)
-{
-	DBG_START("PrepareConvolutionKernel", "Ipps", MG_DEBUG_POTENTIAL);
-
-	//	dms_assert(dataOrg.GetSize() == outputOrg.GetSize());
-	kernel_info result;
-	if (Cardinality(maxDataTileSize))
-	{
-		result.maxDataSize = maxDataTileSize;
-		result.orgWeightSize = weightOrg.GetSize();
-		result.maxColvolvedSize = maxDataTileSize + result.orgWeightSize - UPoint(1, 1);
-
-		dms_assert(maxDataTileSize.Col());
-		dms_assert(weightOrg.GetSize().Row());
-
-		result.orgWeightGrid = weightOrg;
-	}
-	return result;
-}
-*/
 
 template < typename T>
 MDL_CALL void AddConvolutionKernel(kernel_info& self, AnalysisType at, SideSize nrDataCols)
@@ -674,9 +652,6 @@ bool Potential(AnalysisType at, potential_contexts& context, const kernel_info& 
 
 template IppsArray<Float32>;
 template IppsArray<Float64>;
-
-//REMOVE template kernel_info PrepareConvolutionKernel<Float32>(AnalysisType at, const UGrid<const Float32>& weightOrg, UPoint maxDataTileSize);
-//REMOVE template kernel_info PrepareConvolutionKernel<Float64>(AnalysisType at, const UGrid<const Float64>& weightOrg, UPoint maxDataTileSize);
 
 template void AddConvolutionKernel<Float32>(kernel_info& self, AnalysisType at, SideSize nrDataCols);
 template void AddConvolutionKernel<Float64>(kernel_info& self, AnalysisType at, SideSize nrDataCols);

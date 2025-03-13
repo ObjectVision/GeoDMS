@@ -46,7 +46,6 @@ TIC_CALL AbstrDataItem* DMS_CONV DMS_CreateDataItem(TreeItem* context, CharPtr n
 //----------------------------------------------------------------------
 
 TIC_CALL TreeItem* DMS_CONV DMS_TreeItem_Copy(TreeItem* dest, const TreeItem* source, CharPtr name);
-//REMOVE TIC_CALL void DMS_CONV DMS_DataItem_CopyData(AbstrDataItem* dest, const AbstrDataItem* source);
 TIC_CALL bool DMS_CONV DMS_TreeItem_IsEndogenous(const TreeItem* x);
 TIC_CALL const TreeItem* DMS_CONV DMS_TreeItem_GetCreator(const TreeItem* x);
 TIC_CALL const TreeItem* DMS_CONV DMS_TreeItem_GetTemplInstantiator(const TreeItem* x);

@@ -116,8 +116,6 @@ struct DistrictOperator : public UnaryOperator
 
 CommonOperGroup cogDiversity("diversity");
 
-//REMOVE TODO AbstrOperator
-
 template <typename T>
 class DiversityOperator : public TernaryOperator
 {

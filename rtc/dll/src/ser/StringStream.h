@@ -35,19 +35,6 @@ inline PolymorphInpStream& operator >>(PolymorphInpStream& ar, SharedStr& str)
 
 RTC_CALL FormattedInpStream& operator >> (FormattedInpStream& is, SharedStr& cap);
 
-/* REMOVE, replaced by CharPtrRange
-inline FormattedOutStream& operator << (FormattedOutStream& os, SharedStr cap)
-{
-	os << cap.AsRange();
-	return os;
-}
-
-inline FormattedOutStream& operator << (FormattedOutStream& os, WeakStr cap)
-{
-	os << cap.AsRange();
-	return os;
-}
-*/
 //----------------------------------------------------------------------
 // Section      : Serialization support for TokenID
 //----------------------------------------------------------------------

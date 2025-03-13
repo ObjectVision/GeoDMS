@@ -474,8 +474,8 @@ struct SplitSequenceOperator : public UnaryOperator
 //==================================================================================
 
 namespace {
-	CommonOperGroup cog_ReadArray("ReadArray", oper_policy::dynamic_result_class); // REMOVE, Make result class static DataArry with values based on Arg3Type
-	CommonOperGroup cog_ReadElems("ReadElems", oper_policy::dynamic_result_class); // REMOVE, Make result class static DataArry with values based on Arg2Type
+	CommonOperGroup cog_ReadArray("ReadArray", oper_policy::dynamic_result_class); // TODO: Make result class static DataArry with values based on Arg3Type
+	CommonOperGroup cog_ReadElems("ReadElems", oper_policy::dynamic_result_class); // TODO: Make result class static DataArry with values based on Arg2Type
 	CommonOperGroup cog_ReadLines("ReadLines");
 	CommonOperGroup cog_SplitPipedString("split_piped_string", oper_policy::dynamic_result_class);
 	CommonOperGroup cog_SplitMultiLineString("split_multi_linestring", oper_policy::dynamic_result_class);

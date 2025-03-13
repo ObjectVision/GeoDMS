@@ -160,7 +160,7 @@ struct GeoUnitAdapter : U // all integral and float Point types
 //	Override TreeItem virtuals
 	void CopyProps(TreeItem* result, const CopyTreeContext& copyContext) const override;
 
-// mag alleen vanuit Update of Create worden aangeroepen 
+//	mag alleen vanuit Update of Create worden aangeroepen 
 	void SetProjection(SharedPtr < const UnitProjection> p) override;
 private:
 	mutable SharedPtr<const UnitProjection> m_Projection;
@@ -372,17 +372,13 @@ class Unit<const V> {}; // unsupported use
 template <typename E>
 auto get_range_ptr_of_valuesunit(const Unit<E>* valuesUnitPtr)
 {
-	// DEBUG TESTS
-//	dms_assert(valuesUnitPtr);
-	dms_assert(!valuesUnitPtr || valuesUnitPtr->GetCurrRangeItem() == valuesUnitPtr);
+	assert(!valuesUnitPtr || valuesUnitPtr->GetCurrRangeItem() == valuesUnitPtr);
 
 	if constexpr (has_var_range_field_v<E>)
 	{
 		if (valuesUnitPtr)
 		{
 			dbg_assert(valuesUnitPtr->CheckMetaInfoReadyOrPassor());
-//			dms_assert(valuesUnitPtr == valuesUnitPtr->GetCurrRangeItem()); // PRECONDITION ? REMOVE !
-//			dms_assert(valuesUnitPtr->m_RangeDataPtr); // DEBUG TEST
 
 			valuesUnitPtr = const_unit_cast<E>(valuesUnitPtr->GetCurrRangeItem()); // Or fix it here
 			if (!valuesUnitPtr->m_RangeDataPtr)
