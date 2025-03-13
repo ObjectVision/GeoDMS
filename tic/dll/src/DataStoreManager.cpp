@@ -84,6 +84,7 @@ supplier_level operator | (supplier_level lhs, supplier_level rhs) { return supp
 
 static void ProcessDeletion(ClientHandle clientHandle, const TreeItem* self, NotificationCode notificationCode)
 {
+	return;
 	if (notificationCode == NC_Deleting)
 	{
 		assert(self != s_SourceItem); // s_SouceItem is reference counted
