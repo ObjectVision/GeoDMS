@@ -24,8 +24,6 @@
 enum class geometry_library { boost_polygon, boost_geometry, cgal, geos };
 
 namespace bp = boost::polygon;
-//using namespace bp::operators;
-
 
 // *****************************************************************************
 //	bp_assign from polygon_with_holes_data_set
@@ -36,26 +34,6 @@ Point<V> ConvertPoint(const bp::point_data<V>& p)
 {
 	return shp2dms_order<V>(x(p), y(p));
 }
-
-/* REMOVE, WIP
-template <typename R, typename P>
-concept Ring = requires (const R& ring)
-{
-	{ ring.size() } -> std::same_as<SizeT>;
-	{ ring.begin() } -> std::same_as<P*>;
-	{ ring.end() } -> std::same_as<P*>;
-};
-
-template <typename PWH, typename R>
-concept PolygonWithHoles = requires (const PWH& poly)
-{
-	{ outer_ring(poly) } -> std::same_as<R>;
-	{ inner_rings(poly) } -> std::same_as<std::vector<R>>;
-};
-
-template <typename MP, typename PolygonWithHoles>
-concept MultiPolygon = std::same_as<MP, std::vector<PolygonWithHoles>>;
-*/
 
 template <typename E, typename CPI >
 void bp_assign_ring(E&& ref, CPI ringBegin, CPI ringEnd)

@@ -111,14 +111,6 @@ void operator <<=(ResourceHandle& oldResource, R&& res)
 	operator <<=(oldResource, makeResource<R>(std::forward<R>(res)));
 }
 
-/* REMOVE
-template <typename R, typename... Args>
-ResourceHandle  operator <<=(ResourceHandle&& oldResource, Args&& ...args)
-{
-	return  operator <<=(std:move(oldResource), makeResource<R>(std::forward<Args>(args)...));
-}
-*/
-
 template <typename R>
 R& GetAs(ResourceBase* rh)
 {

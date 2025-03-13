@@ -308,13 +308,6 @@ auto cgal_split_assign_polygon_set(RI resIter, const CGAL_Traits::Polygon_set& p
 	{
 		SizeT count = poly.outer_boundary().size();
 		assert(count);
-/* REMOVE
-		for (auto n = poly.holes().size(); n; 
-		{
-			--n;
-			count += poly.holes()[n]->size() + 1;
-		}
-		*/
 
 		for (const auto& hole : poly.holes())
 			count += hole.size() + 1;

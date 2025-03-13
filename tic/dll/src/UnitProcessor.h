@@ -79,22 +79,5 @@ auto visit_and_return_result(const AbstrUnit* inviter, UnitPtrAutoLambda&& al) -
 	return result;
 }
 
-/* REMOVE
-template<typename ValuePtrAutoLambda>
-auto value_ptr_caller(ValuePtrAutoLambda&& autoLambda)
-{
-	return [autoLambda]<typename V>(const Unit<V>* valuesUnit) {
-		V* v = nullptr;
-		autoLambda(v);
-	};
-}
-
-template<typename TypeList, typename ValuePtrAutoLambda>
-void visit_value_ptr(const AbstrUnit* inviter, ValuePtrAutoLambda&& autoLambda)
-{
-	visit<TypeList>(value_ptr_caller(std::forward<ValuePtrAutoLambda>(autoLambda)));
-}
-*/
-
 
 #endif // __UNITPROCESSOR_H

@@ -1,8 +1,12 @@
-// Copyright (C) 1998-2023 Object Vision b.v. 
+// Copyright (C) 1998-2025 Object Vision b.v. 
 // License: GNU GPL 3
 /////////////////////////////////////////////////////////////////////////////
 
 #include "TicPCH.h"
+
+#if defined(CC_PRAGMAHDRSTOP)
+#pragma hdrstop
+#endif //defined(CC_PRAGMAHDRSTOP)
 
 // MmdStorageManager.cpp: implementation of the MmdStorageManager class.
 //
@@ -31,18 +35,6 @@ TIC_CALL AppendTreeFromConfigurationFuncPtr s_AppendTreeFromConfigurationPtr = n
 //////////////////////////////////////////////////////////////////////
 // MmdStorageManager implementation
 //////////////////////////////////////////////////////////////////////
-
-/* REMOVE
-MmdStorageManager::MmdStorageManager()
-{
-}
-
-MmdStorageManager::~MmdStorageManager()
-{
-//	CloseStorage();
-	assert(!m_MmdLockFile.IsOpen());
-}
-*/
 
 SharedStr MmdStorageManager::GetFullFileName(CharPtr name) const
 {

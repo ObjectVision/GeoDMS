@@ -45,13 +45,6 @@ struct Pair : std::pair<T, U>
 		return *this;
 	}
 
-	/* REMOVE
-    bool operator < (const Pair& rhs) const
-    {
-		return std::operator < ((const base_type&)(*this), (const base_type&)(rhs));
-    }
-*/
-
 	const T& First () const { return first;  }
 	const U& Second() const { return second; }
 	      T& First ()       { return first;  }

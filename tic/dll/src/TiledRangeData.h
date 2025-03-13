@@ -74,7 +74,6 @@ struct AbstrTileRangeData : SharedObj
 	virtual tile_loc GetTiledLocation(row_id index, tile_id /*prevT*/) const { return GetTiledLocation(index); }
 	virtual tile_loc GetTileDataLocation(datarow_id dataIndex) const { return GetTiledLocation(dataIndex); }
 	virtual row_id GetRangeSize() const = 0;
-//REMOVE	virtual row_id GetDataSize() const { return GetRangeSize(); }
 
 	virtual I64Rect GetRangeAsI64Rect() const = 0;
 	virtual I64Rect GetTileRangeAsI64Rect(tile_id t) const = 0;

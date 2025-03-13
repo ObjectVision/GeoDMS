@@ -291,7 +291,7 @@ public:
 
 		resultHolder = arg1Unit;
 		dms_assert(!mustCalc || AsUnit(arg1Unit->GetCurrRangeItem())->HasTiledRangeData());
-		return true; // REMOVE (!mustCalc) || arg1Unit->PrepareData();
+		return true;
 	}
 };
 
@@ -326,7 +326,7 @@ public:
 
 		resultHolder = arg1Unit;
 		dms_assert(!mustCalc || AsUnit(arg1Unit->GetCurrRangeItem())->HasTiledRangeData());
-		return true; // REMOVE (!mustCalc) || arg1Unit->PrepareData();
+		return true;
 	}
 };
 

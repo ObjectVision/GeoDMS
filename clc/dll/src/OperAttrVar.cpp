@@ -117,7 +117,6 @@ struct ArgMinMaxOper : UnaryOperator
 				if (v1->IsDefaultUnit())
 					v1 = v;
 			}
-// REMOVE	resultHolder = CreateCacheDataItem(e1, v1, ValueComposition::Single);
 			if (IsArgIndex)
 				v1 = Unit<ResValue>::GetStaticClass()->CreateDefault();
 			resultHolder = CreateCacheDataItem(e1, v1, ValueComposition::Single);

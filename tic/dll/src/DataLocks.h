@@ -39,8 +39,6 @@ struct DataReadLockAtom
 	TIC_CALL DataReadLockAtom(const AbstrDataItem* item);
 	TIC_CALL ~DataReadLockAtom() noexcept;
 
-//	void swap(DataReadLockAtom& oth) noexcept;
-//	void operator = (DataReadLockAtom&& rhs) noexcept { swap(rhs); }
 	DataReadLockAtom& operator = (DataReadLockAtom&& rhs) noexcept = default;
 
 	const AbstrDataItem* GetItem() const { return m_Item; }

@@ -319,69 +319,6 @@ auto GetWeededTileCounts(typename sequence_traits<V>::cseq_t data, SizeT index, 
 	auto secondHalf = GetWeededTileCounts<V, C>(data, index + m, size - m, maxPairCount);
 	return WeededMergeToLeft(firstHalf, secondHalf, maxPairCount);
 }
-/* REMOVE
-template <ordered_value_type V, count_type C>
-auto GetWallCounts_ST(future_tile_array<V>& values_fta, tile_id t, tile_id nrTiles)
--> ValueCountPairContainerT<V, C>
-{
-	assert(nrTiles);
-
-	if (nrTiles == 1)
-	{
-		auto tileData = values_fta[t]->GetTile(); values_fta[t] = nullptr;
-		return GetTileCounts<V, C>(tileData, 0, tileData.size());
-	}
-
-	tile_id m = nrTiles / 2;
-	assert(m >= 1);
-
-	auto firstHalf = GetWallCounts_ST<V, C>(values_fta, t, m);
-	auto secondHalf = GetWallCounts_ST<V, C>(values_fta, t + m, nrTiles - m);
-
-	return MergeToLeft(firstHalf, secondHalf);
-}
-
-template <ordered_value_type V, count_type C>
-auto GetWallCounts_MT(future_tile_array<V>& values_fta, tile_id t, tile_id nrTiles, SizeT availableThreads)
-	-> ValueCountPairContainerT<V, C>
-{
-	assert(nrTiles);
-	assert(availableThreads <= nrTiles);
-	if (availableThreads <= 1)
-	{
-		return GetWallCounts_ST<V, C>(values_fta, t, nrTiles);
-	}
-
-	tile_id m = nrTiles / 2;
-	assert(m >= 1);
-	auto rt = availableThreads / 2;
-
-	auto firstHalf = throttled_async([&values_fta, t, m, rt]
-		{
-			return GetWallCounts_MT<V, C>(values_fta, t, m, rt);
-		}
-	);
-
-	auto secondHalf = GetWallCounts_MT<V, C>(values_fta, t + m, nrTiles - m, availableThreads - rt);
-
-	return MergeToLeft(firstHalf.get(), secondHalf);
-}
-
-template <ordered_value_type V, count_type C>
-auto GetWallCounts(future_tile_array<V>& values_fta)
--> ValueCountPairContainerT<V, C>
-{
-	auto nrTiles = values_fta.size();
-	if (!nrTiles)
-		return {};
-
-	SizeT maxNrThreads = MaxAllowedConcurrentTreads();
-	MakeMin(maxNrThreads, nrTiles);
-	MakeMax(maxNrThreads, 1);
-
-	return GetWallCounts_MT<V, C>(values_fta, 0, nrTiles, maxNrThreads);
-}
-*/
 
 template <ordered_value_type V, count_type C>
 auto GetWeededWallCounts_ST(future_tile_array<V>& values_fta, tile_id t, tile_id nrTiles, SizeT maxPairCount) -> ValueCountPairContainerT<V, C>

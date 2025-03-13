@@ -155,21 +155,6 @@ DataReadLockAtom::~DataReadLockAtom() noexcept
 		m_Item->TryCleanupMem();
 }
 
-/* REMOVE
-//----------------------------------------------------------------------
-// Prepare
-//----------------------------------------------------------------------
-
-const AbstrDataItem* Prepare(const AbstrDataItem* adi)
-{
-	dms_assert(adi);
-	dms_assert(SuspendTrigger::BlockerBase::IsBlocked());
-
-	bool result = adi->PrepareDataUsage(DrlType::CertainOrThrow);
-	dms_assert(result);
-	return adi;
-}
-*/
 //----------------------------------------------------------------------
 // DataReadLock
 //----------------------------------------------------------------------
