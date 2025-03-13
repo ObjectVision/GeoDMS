@@ -352,6 +352,9 @@ struct FenceContainerOperator : BinaryOperator
 			assert(resItem);
 			assert(dc);
 
+			if (!dc)
+				continue;
+
 			if (dc->WasFailed(FR_MetaInfo))
 			{
 				resultHolder->Fail(dc.get_ptr());
