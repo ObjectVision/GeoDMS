@@ -404,14 +404,16 @@ void ScheduleRunOperationContexts()
 	cv_TaskCompleted.notify_all();
 }
 
-bool WaitForCompletedTaskOrTimeout(std::chrono::milliseconds waitFor)
+void WaitForCompletedTaskOrTimeout(std::chrono::milliseconds waitFor)
 {
 	RunOperationContexts();
 	if (IsMetaThread())
 		ProcessMainThreadOpers();
 
 	leveled_std_section::unique_lock lock(cs_ThreadMessing);
-	return cv_TaskCompleted.wait_for(lock.m_BaseLock, waitFor) != std::cv_status::timeout;
+	if (!s_NrRunningOperations)
+		return;
+	cv_TaskCompleted.wait_for(lock.m_BaseLock, waitFor) != std::cv_status::timeout;
 }
 
 
@@ -813,19 +815,21 @@ std::shared_ptr<OperationContext> OperationContext::getSupplOC(arg_index i) cons
 */
 void OperationContext::releaseRunCount(task_status status)
 {
-	dms_assert(!IsRunningOperation(status));
+	assert(!IsRunningOperation(status));
 
-	dms_assert(cs_ThreadMessing.isLocked());
+	assert(cs_ThreadMessing.isLocked());
 
-	dms_assert(m_Status <= task_status::running);
+	assert(m_Status <= task_status::running);
 	if (IsRunningOperation(m_Status))
 	{
-		dms_assert(s_NrRunningOperations > 0);
-		--s_NrRunningOperations;
+		assert(s_NrRunningOperations > 0);
+		auto nrRunning = --s_NrRunningOperations;
+		if (!nrRunning)
+			cv_TaskCompleted.notify_all();
 	}
-	dms_assert(s_NrRunningOperations >= 0);
+	assert(s_NrRunningOperations >= 0);
 	m_Status = status;
-	dms_assert(!IsRunningOperation(m_Status));
+	assert(!IsRunningOperation(m_Status));
 
 }
 
@@ -1404,6 +1408,8 @@ task_status OperationContext::Join()
 		leveled_std_section::unique_lock lock(cs_ThreadMessing);
 		if (m_Status > task_status::running)
 			break;
+		if (!s_NrRunningOperations)
+			continue;
 
 		assert(m_Status > task_status::scheduled || !m_Suppliers.empty() || IsDefined(getScheduledContextsPos(this->shared_from_this())));
 

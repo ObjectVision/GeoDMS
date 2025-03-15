@@ -14,7 +14,7 @@
 #include <optional>
 
 
-bool WaitForCompletedTaskOrTimeout(std::chrono::milliseconds waitFor = std::chrono::milliseconds(300));
+void WaitForCompletedTaskOrTimeout(std::chrono::milliseconds waitFor = std::chrono::milliseconds(300));
 
 using dms_task = concurrency::task<void>;
 inline bool is_empty(const dms_task& x) { return x == dms_task();  }
