@@ -109,20 +109,26 @@ struct JoinNearValuesOperator : AbstrJoinNearValuesOperator
 		{
 			auto axRefData = const_array_cast<ArgValuesElement>(axRef)->GetTile(at);
 			auto tileFirstIndex = axDomain->GetTileFirstIndex(at);
+			std::vector<SizeT> second_rels;
 			for (const auto& ap: axRefData)
 			{
 				if (!IsDefined(ap))
 					continue;
 				SizeT aRow = (&ap - axRefData.begin()) + tileFirstIndex;
 				auto searchBox = Inflate(ap, distVect);
+				second_rels.clear();
 				for (auto bxIter = spIndex.begin(searchBox); bxIter; ++bxIter)
 				{
 					const ArgValuesElement* bxPointPtr = (*bxIter)->get_ptr();
 					if (SqrDist<DistType>(*bxPointPtr, ap) <= sqrDist)
 					{
-						results.emplace_back(aRow, bxPointPtr - bxRefData.begin());
+						auto second_rel = bxPointPtr - bxRefData.begin();
+						second_rels.emplace_back(second_rel);
 					}
 				}
+				std::sort(second_rels.begin(), second_rels.end());
+				for (auto second_rel: second_rels)
+					results.emplace_back(aRow, second_rel);
 			}
 		}
 
