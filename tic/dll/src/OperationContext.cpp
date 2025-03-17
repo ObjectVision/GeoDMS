@@ -413,7 +413,7 @@ void WaitForCompletedTaskOrTimeout(std::chrono::milliseconds waitFor)
 	leveled_std_section::unique_lock lock(cs_ThreadMessing);
 	if (!s_NrRunningOperations)
 		return;
-	cv_TaskCompleted.wait_for(lock.m_BaseLock, waitFor) != std::cv_status::timeout;
+	cv_TaskCompleted.wait_for(lock.m_BaseLock, waitFor);
 }
 
 

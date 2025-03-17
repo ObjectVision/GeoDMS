@@ -6,3 +6,11 @@ D:\SourceData\RegressionTests\prj_snapshots\100m_DynaPop\cfg\StatusQuo.dms @Stat
 
 /TC:\dev\tst\dmsscript\RSLight_2020_expand_C1C2.dmsscript D:\SourceData\RegressionTests\prj_snapshots\RSLight_2020\cfg\Regression_test.dms /C1 /C2 /S3
 /noconfig
+
+
+/LC:/LocalData/hestia/logVS.txt C:/SourceData/RegressionTests/prj_snapshots/Hestia2024/Runs/HestiaRun.dms /t530_hestia2024/result
+env: GEODMS_DIRECTORIES_SOURCEDATADIR=D:/SOURCEDATA/SD51
+
+/LC:\LocalData\Network\log\profile.txt main.dms /NetworkSetup/ConfigurationPerRegio/Generate_Output/OUTPUT_Generate_PublicTransport_traveltimes_CSVFiles
+dir: C:\ProjDir_Jip\NetworkModel_PBL_v2024\cfg
+

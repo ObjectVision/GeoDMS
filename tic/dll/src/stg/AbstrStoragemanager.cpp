@@ -256,46 +256,51 @@ SharedStr GetProjDir(CharPtr configDir)
 	assert(!HasDosDelimiters(configDir));
 	assert(IsAbsolutePath(configDir));
 
-	DBG_START("GetProjDir", configDir, true);
-
-	static SharedStr prevConfigDir;
-	static SharedStr proj_dir;
+	static SharedStr s_prevConfigDir;
+	static SharedStr s_proj_dir;
 
 	// memoization: only (re)calculate proj_dir when configDir is different than at last call
-	if (prevConfigDir != configDir)
+	if (s_prevConfigDir != configDir)
 	{
-		proj_dir = GetConvertedConfigDirKeyString(configDir, "projDir", "..");
-		if (!proj_dir.empty() && proj_dir[0] == '.')
+		DBG_START("GetProjDir", configDir, true);
+
+		s_proj_dir = GetConvertedConfigDirKeyString(configDir, "projDir", "..");
+		if (!s_proj_dir.empty() && s_proj_dir[0] == '.')
 		{
 			SharedStr configLoadDir = splitFullPath(configDir);
 			UInt32 c = 0;
 			UInt32 cc = 0;
 			UInt32 p = 1;
 			do {
-				while (proj_dir[p] == '.')
+				while (s_proj_dir[p] == '.')
 				{
 					++c, ++p;
 				}
-				switch (proj_dir[p])
+				switch (s_proj_dir[p])
 				{
 					case '/':     ++p; [[fallthrough]];
 					case char(0): cc += c; c = -1;
 				}
-			} while(proj_dir[p] == '.');
+			} while(s_proj_dir[p] == '.');
+
 			DBG_TRACE(("GoUp %d times on %s", cc, configLoadDir.c_str()));
+
 			while (cc)
 			{
 				configLoadDir = splitFullPath(configLoadDir.c_str());
 				--cc;
 			}
+
 			DBG_TRACE(("GoUp %d times on %s", cc, configLoadDir.c_str()));
-			proj_dir = DelimitedConcat(configLoadDir.c_str(), SharedStr(proj_dir.cbegin()+p, proj_dir.csend()).c_str());
-			DBG_TRACE(("result after GoUp %s", proj_dir.c_str()));
+
+			s_proj_dir = DelimitedConcat(configLoadDir.c_str(), SharedStr(s_proj_dir.cbegin()+p, s_proj_dir.csend()).c_str());
+
+			DBG_TRACE(("result after GoUp %s", s_proj_dir.c_str()));
 		}
-		prevConfigDir = configDir;
+		s_prevConfigDir = configDir;
 	}
-	assert(!HasDosDelimiters(proj_dir.c_str()));
-  	return proj_dir;
+	assert(!HasDosDelimiters(s_proj_dir.c_str()));
+  	return s_proj_dir;
 }
 
 SharedStr GetLocalTime()
