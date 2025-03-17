@@ -17,7 +17,7 @@
 #include "geo/CheckedCalc.h"
 #include "geo/SpatialIndex.h"
 
-//#include "pcount.h"
+#include "ParallelTiles.h"
 
 // *****************************************************************************
 //                         IndexedSearchOperator
@@ -103,14 +103,17 @@ struct JoinNearValuesOperator : AbstrJoinNearValuesOperator
 		using SpatialIndexType = SpatialIndex<CoordType, const ArgValuesElement*>;
 		SpatialIndexType spIndex(bxRefData.begin(), bxRefData.end(), 0);
 
-		std::vector<std::pair<SizeT, SizeT > > results;
+		using tile_results_type = std::vector<std::pair<SizeT, SizeT > >;
 
-		for (tile_id at = 0, atn = A->GetNrTiles(); at != atn; ++at)
+		auto atn = A->GetNrTiles();
+		std::vector<tile_results_type> resultArrays(atn);
+		parallel_tileloop(atn, [&resultArrays, axDomain, axRef, &spIndex, &bxRefData, distVect, sqrDist](tile_id at)
 		{
 			auto axRefData = const_array_cast<ArgValuesElement>(axRef)->GetTile(at);
 			auto tileFirstIndex = axDomain->GetTileFirstIndex(at);
+			tile_results_type tileResults;
 			std::vector<SizeT> second_rels;
-			for (const auto& ap: axRefData)
+			for (const auto& ap : axRefData)
 			{
 				if (!IsDefined(ap))
 					continue;
@@ -127,9 +130,19 @@ struct JoinNearValuesOperator : AbstrJoinNearValuesOperator
 					}
 				}
 				std::sort(second_rels.begin(), second_rels.end());
-				for (auto second_rel: second_rels)
-					results.emplace_back(aRow, second_rel);
+				for (auto second_rel : second_rels)
+					tileResults.emplace_back(aRow, second_rel);
 			}
+			resultArrays[at] = std::move(tileResults);
+		});
+		SizeT n = 0;
+		for (auto& resultArray : resultArrays)
+			n += resultArray.size();
+		tile_results_type results; results.reserve(n);
+		for (auto& resultArray : resultArrays)
+		{
+			results.insert(results.end(), resultArray.begin(), resultArray.end());
+			resultArray = tile_results_type();
 		}
 
 		AB->SetCount(results.size());
