@@ -41,7 +41,7 @@ public:
 
 	void CreateResultCaller(TreeItemDualRef& resultHolder, const ArgRefs& args, OperationContext*, LispPtr) const override
 	{
-		assert(args.size() == 2);
+		assert(args.size() == 3);
 
 		if (resultHolder)
 			return;
@@ -93,7 +93,7 @@ struct JoinNearValuesOperator : AbstrJoinNearValuesOperator
 		auto nr_A = A->GetCount();
 		auto nr_B = B->GetCount();
 		//		auto nr_X = X->GetCount();
-		auto dist = GetTheValue<DistType>(distRef);
+		auto dist = GetTheCurrValue<DistType>(distRef);
 		auto sqrDist = CheckedMul<DistType>(dist, dist, false);
 		auto distVect = ArgValuesElement(dist, dist);
 		AbstrUnit* AB = AsUnit(resultHolder.GetNew());
@@ -141,8 +141,13 @@ struct JoinNearValuesOperator : AbstrJoinNearValuesOperator
 		tile_results_type results; results.reserve(n);
 		for (auto& resultArray : resultArrays)
 		{
-			results.insert(results.end(), resultArray.begin(), resultArray.end());
-			resultArray = tile_results_type();
+			if (results.empty())
+				results = std::move(resultArray);
+			else
+			{
+				results.insert(results.end(), resultArray.begin(), resultArray.end());
+				resultArray = tile_results_type();
+			}
 		}
 
 		AB->SetCount(results.size());
