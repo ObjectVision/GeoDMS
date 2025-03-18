@@ -282,12 +282,6 @@ struct FenceContainerOperator : BinaryOperator
 		auto bellWaiter = fenceBell.get_future();
 		auto resWalker = resultRoot;
 		
-		reportD(SeverityTypeID::ST_MinorTrace, "FenceContainer ResultFutures collected");
-		if (msgData.size() != 1 || !msgData[0].empty())
-			for (auto msg : msgData)
-				reportD(SeverityTypeID::ST_MinorTrace, msg.AsRange());
-
-
 		PostMainThreadTask([srcContainer, resultRoot, &resWalker, &fenceBell, &resultHolder, resultFenceNumer, &futureDataContainer](bool mustCancel)-> bool
 			{
 				// work on exporting stuff from main thread
@@ -338,11 +332,6 @@ struct FenceContainerOperator : BinaryOperator
 
 		bellWaiter.get();
 
-		reportD(SeverityTypeID::ST_MinorTrace, "FenceContainer Source Updates completed");
-		if (msgData.size() != 1 || !msgData[0].empty())
-			for (auto msg : msgData)
-				reportD(SeverityTypeID::ST_MinorTrace, msg.AsRange());
-
 		// check that all sub-items of result-holder are/become up-to-date or uninteresting
 		for (const auto& fd: futureDataContainer)
 		{
@@ -384,7 +373,6 @@ struct FenceContainerOperator : BinaryOperator
 		}
 
 
-		reportD(SeverityTypeID::ST_MinorTrace, "FenceContainer completed calculations of all resulting items");
 		if (msgData.size() != 1 || !msgData[0].empty())
 			for (auto msg: msgData)
 				reportD(SeverityTypeID::ST_MajorTrace, msg.AsRange());
