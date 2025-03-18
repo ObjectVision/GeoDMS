@@ -81,6 +81,66 @@ using sqr_dist_t = UInt32;
 using euclid_location_t = SPoint;
 
 // *****************************************************************************
+//									TreeRelations
+// *****************************************************************************
+
+//std::atomic<SizeT> s_TreeRelationsCount;
+//std::atomic<SizeT> s_TreeNodeCount;
+
+TreeRelations::TreeRelations(NodeType nrNodes)
+	: m_TreeNodes(nrNodes) // initialize later.
+{
+//	auto rc = ++s_TreeRelationsCount;
+//	auto nc = (s_TreeNodeCount += nrNodes);
+
+//	reportF(SeverityTypeID::ST_MinorTrace, "CTOR TreeRelations: %d %d nodes", rc, nc);
+}
+
+TreeRelations::~TreeRelations()
+{
+//	auto rc = --s_TreeRelationsCount;
+//	auto nc = (s_TreeNodeCount -= m_TreeNodes.size());
+
+//	reportF(SeverityTypeID::ST_MinorTrace, "DTOR TreeRelations: %d %d nodes", rc, nc);
+}
+
+TreeRelations::TreeRelations(const LinkType* firstTB, const NodeType* f1, const NodeType* f2, NodeType nrNodes, LinkType nrEdges)
+	: m_TreeNodes(nrNodes)
+{
+/*
+	auto rc = ++s_TreeRelationsCount;
+	auto nc = (s_TreeNodeCount += nrNodes);
+
+	reportF(SeverityTypeID::ST_MinorTrace, "CTOR TreeRelations: %d %d nodes", rc, nc);
+*/
+	treenode_pointer tnPtr = begin_ptr(m_TreeNodes);
+
+	for (NodeType v = 0; v != nrNodes; ++firstTB, ++tnPtr, ++v)
+	{
+		LinkType tbEdge = *firstTB;
+		if (tbEdge >= nrEdges) continue;
+		if (f2[tbEdge] == v && f1[tbEdge] < nrNodes)
+			m_TreeNodes[f1[tbEdge]].AddChild(tnPtr);
+		if (f1[tbEdge] == v && f2[tbEdge] < nrNodes)
+			m_TreeNodes[f2[tbEdge]].AddChild(tnPtr);
+	}
+	dms_assert(tnPtr == end_ptr(m_TreeNodes));
+}
+
+void TreeRelations::InitNodes(NodeType nrNodes)
+{
+
+/*
+	assert(m_TreeNodes.size() <= nrNodes);
+	auto nc = (s_TreeNodeCount += (nrNodes - m_TreeNodes.size()));
+
+	reportF(SeverityTypeID::ST_MinorTrace, "CTOR TreeRelations: %d %d nodes", s_TreeRelationsCount, nc);
+*/
+
+	vector_resize(m_TreeNodes, nrNodes);
+}
+
+// *****************************************************************************
 //									Helper structs
 // *****************************************************************************
 

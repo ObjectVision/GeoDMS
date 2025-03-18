@@ -46,50 +46,29 @@ private:
 	treenode_pointer m_SibblingNode = {};
 };
 
+
 struct TreeRelations
 {
-	typedef std::vector<TreeNode> treenode_container; // TODO, replace by uninitialized variant
+	using treenode_container = std::vector<TreeNode>; // TODO, replace by uninitialized variant
 
-	TreeRelations(NodeType nrNodes = 0): m_TreeNodes(nrNodes) // initialize later.
-	{}
+	TreeRelations(const LinkType* firstTB, const NodeType* f1, const NodeType* f2, NodeType nrNodes, LinkType nrEdges);
+	TreeRelations(NodeType nrNodes = 0); // initialize later.
+	~TreeRelations();
 
-	void InitNodes(NodeType nrNodes)
-	{
-		vector_resize(m_TreeNodes, nrNodes);
-	}
+	void InitNodes(NodeType nrNodes);
+
 	bool IsUsed() const { return !m_TreeNodes.empty(); }
 
-	TreeRelations(
-		const LinkType* firstTB, 
-		const NodeType* f1,
-		const NodeType* f2,
-		NodeType          nrNodes,
-		LinkType          nrEdges
-	)	:	m_TreeNodes(nrNodes)
-	{
-		treenode_pointer tnPtr = begin_ptr( m_TreeNodes );
-		
-		for (NodeType v = 0; v != nrNodes; ++firstTB, ++tnPtr, ++v)
-		{
-			LinkType tbEdge = *firstTB;
-			if (tbEdge >= nrEdges) continue;
-			if (f2[tbEdge] == v && f1[tbEdge] < nrNodes)
-				m_TreeNodes[ f1[tbEdge] ] .AddChild(tnPtr);
-			if (f1[tbEdge] == v && f2[tbEdge] < nrNodes)
-				m_TreeNodes[ f2[tbEdge] ] .AddChild(tnPtr);
-		}
-		dms_assert(tnPtr == end_ptr( m_TreeNodes ) );
-	}
 
 	void InitRootNode(NodeType node)
 	{
-		dms_assert(node < m_TreeNodes.size());
+		assert(node < m_TreeNodes.size());
 		m_TreeNodes[node] = TreeNode();
 	}
 	void InitChildNode(NodeType node, NodeType parent)
 	{
 		InitRootNode(node);
-		dms_assert(parent < m_TreeNodes.size());
+		assert(parent < m_TreeNodes.size());
 		m_TreeNodes[parent].AddChild(&m_TreeNodes[node]);
 	}
 
