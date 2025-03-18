@@ -399,14 +399,9 @@ struct SpatialIndex
 			i = m_Leafs.begin(),
 			e = m_Leafs.end();
 		for (; i != e; ++i)
-			if (IsTouching(boundingBox, i->GetExtents())) // beware of undefined or empty 
+			if (i->IsDefined() && IsTouching(boundingBox, i->GetExtents())) // beware of undefined or empty 
 			{
-				dms_assert(i->IsDefined());
 				_Add(&*i);
-			}
-			else
-			{
-				dms_assert(!i->IsDefined());
 			}
 	}
 	SpatialIndex(SpatialIndex&& rhs) = default;
