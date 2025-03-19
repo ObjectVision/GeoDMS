@@ -1076,16 +1076,12 @@ auto GetAffineTransformationFromDataItem(const TreeItem* storageHolder) -> affin
 	if (!IsDataItem(storageHolder))
 		return {};
 
-	auto adi = AsDataItem(storageHolder);
-	const AbstrUnit* colDomain = adi->GetAbstrDomainUnit();
-	auto unit_projection = colDomain->GetProjection();
-	auto grid_extends = colDomain->GetRangeAsDRect();
+	auto grid_adi = AsDataItem(storageHolder);
+	auto factor = GetFactorFromGridDomain(grid_adi);
+	auto offset = GetOffsetFromGridDomainAndFactor(grid_adi, factor, false);
 
-	auto transformation = UnitProjection::GetCompositeTransform(unit_projection); 
-	auto factor = transformation.Factor();
-
-	affine_transformation.x_offset = transformation.Offset().X();
-	affine_transformation.y_offset = transformation.Offset().Y();
+	affine_transformation.x_offset = offset.X();
+	affine_transformation.y_offset = offset.Y();
 	affine_transformation.x_scale = factor.X();
 	affine_transformation.y_scale = factor.Y();
 
