@@ -23,7 +23,7 @@ struct SharedPtrWrap : Ptr
 
 	constexpr SharedPtrWrap() noexcept : Ptr()
 	{
-		assert(!Ptr::m_Ptr);
+		assert(!this->m_Ptr);
 	}
 
 	SharedPtrWrap(const SharedPtrWrap& rhs) noexcept
@@ -35,9 +35,14 @@ struct SharedPtrWrap : Ptr
 	SharedPtrWrap(SharedPtrWrap&& rhs) noexcept // we assume no external access to rhs as that would conflict with its rvalue-ness
 		: Ptr() 
 	{ 
-		assert(!Ptr::m_Ptr);
+		assert(!this->m_Ptr);
 		swap(rhs);
 	}
+
+	template <class RhsPtr>
+	SharedPtrWrap(SharedPtrWrap<RhsPtr>&& rhs) noexcept // we assume no external access to rhs as that would conflict with its rvalue-ness
+		: Ptr(rhs.release())
+	{}
 
 	~SharedPtrWrap() noexcept { DecCount(); }
 
@@ -82,13 +87,16 @@ protected:
 	constexpr SharedPtrWrap(pointer ptr) : Ptr(ptr) { IncCount(); }
 	SharedPtrWrap(pointer ptr, no_zombies) : Ptr(ptr && ptr->DuplRef() ? ptr : nullptr) {}
 
+	Ptr release() noexcept { auto ptr = this->m_Ptr; this->m_Ptr = nullptr; return Ptr(ptr); }
+
 	constexpr void IncCount () const noexcept { if (Ptr::m_Ptr) Ptr::m_Ptr->IncRef(); }
 	constexpr void DecCount () const noexcept 
 	{ 
-		if (!Ptr::m_Ptr)
+		if (!this->m_Ptr)
 			return;
-		Ptr::m_Ptr->Release();
+		this->m_Ptr->Release();
 	}
+	template <typename T> friend struct SharedPtrWrap;
 };
 
 template <class T>
@@ -118,7 +126,7 @@ struct SharedPtr : SharedPtrWrap<ptr_base<T, copyable> >
 
 	template <typename SrcPtr>
 	SharedPtr(SharedPtr<SrcPtr>&& rhs) noexcept
-		: base_type(rhs.get_ptr())
+		: base_type(std::move(rhs))
 	{}
 
 	SharedPtr& operator =(const SharedPtr& rhs) = default;
@@ -126,6 +134,7 @@ struct SharedPtr : SharedPtrWrap<ptr_base<T, copyable> >
 
 	template <typename SrcPtr>
 	void operator =(SrcPtr&& rhs) noexcept { *this = SharedPtr(std::forward<SrcPtr>(rhs)); }
+
 };
 
 template<typename T>
