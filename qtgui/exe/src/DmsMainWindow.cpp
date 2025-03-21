@@ -895,7 +895,12 @@ bool MainWindow::CloseConfig() {
     }
 
     CancelMainThreadTasks();
-    auto oldASyncCancelFunc = SetASyncContinueCheck([] { throw task_canceled{};  });
+    auto oldASyncCancelFunc = SetASyncContinueCheck([] 
+        { 
+            if (!IsMetaThread())
+                throw task_canceled{};  
+        }
+    );
     auto _ = make_scoped_exit([oldASyncCancelFunc] {SetASyncContinueCheck(oldASyncCancelFunc);  });
 
     // reset all dms tree data
