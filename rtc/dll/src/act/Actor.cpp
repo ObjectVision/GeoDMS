@@ -546,7 +546,6 @@ void Actor::UpdateSupplMetaInfo() const
 			supplier->UpdateMetaInfo();
 			if (supplier->WasFailed())
 				this->Fail(supplier);
-			MakeMax<fence_number>(this->m_FenceNumber, supplier->m_FenceNumber);
 		}
 	);
 }
