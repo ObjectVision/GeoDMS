@@ -321,7 +321,7 @@ TIC_CALL void DataWriteLock::Commit()
 	assert(adi);
 	assert(!m_adi);
 
-	adi->m_DataObject = get(); reset(); // move from Writable to const
+	adi->m_DataObject = std::move(*this); // move from Writable to const
 	assert(adi->m_DataObject);
 	assert(!get());
 	if (adi->mc_Calculator)
