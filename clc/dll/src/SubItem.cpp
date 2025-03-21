@@ -184,8 +184,9 @@ struct CheckOperator : public BinaryOperator
 
 #include "CopyTreeContext.h"
 #include "OperationContext.h"
-#include "UnitProcessor.h"
+#include "MoreDataControllers.h"
 #include "SupplCache.h"
+#include "UnitProcessor.h"
 
 oper_arg_policy oap_Fence[2] = { oper_arg_policy::subst_with_subitems,  oper_arg_policy::calc_as_result };
 SpecialOperGroup sog_FenceContainer(token::FenceContainer, 2, oap_Fence, oper_policy::dynamic_result_class);
@@ -196,6 +197,17 @@ void AssignFenceNumber(const Actor* item, fence_number fn)
 	if (item->m_FenceNumber)
 		return;
 	item->m_FenceNumber = fn;
+
+	if (auto dc = dynamic_cast<const DataController*>(item))
+	{
+		if (auto si = dynamic_cast<const SymbDC*>(dc))
+			AssignFenceNumber(si->MakeResult(), fn);
+		else if (auto fc = dynamic_cast<const FuncDC*>(dc))
+			for (DcRefListElem* argRef = fc->m_Args; argRef; argRef = argRef->m_Next)
+				AssignFenceNumber(argRef->m_DC, fn);
+		return;
+	}
+
 	VisitSupplProcImpl(item, SupplierVisitFlag::CalcAll, [fn](const Actor* suppl) 
 		{
 			AssignFenceNumber(suppl, fn);
@@ -241,6 +253,7 @@ struct FenceContainerOperator : BinaryOperator
 				auto srcItem = sourceContainer->FindItem(resWalker->GetRelativeName(resultHolder.GetNew()));
 				MG_CHECK(!srcItem->IsCacheItem());
 				AssignFenceNumber(srcItem, resultFenceNumber);
+
 
 				assert(!resWalker->HasInterest());
 				resWalker->GetOrCreateSupplCache()->InitAt(srcItem);
