@@ -296,13 +296,14 @@ void ProcessMainThreadOpers()
 	assert(IsMetaThread());
 	assert(!SuspendTrigger::DidSuspend());
 
-	if (s_ProcessMainThreadOperLevel)
-		return;
+	if (!s_ProcessMainThreadOperLevel)
+	{
 
-	StaticStIncrementalLock<s_ProcessMainThreadOperLevel> avoidReenty;
+		StaticStIncrementalLock<s_ProcessMainThreadOperLevel> avoidReenty;
 
-	assert(!SuspendTrigger::DidSuspend());
-	s_OperQueue.Process();
+		assert(!SuspendTrigger::DidSuspend());
+		s_OperQueue.Process();
+	}
 	assert(!SuspendTrigger::DidSuspend());
 	s_TaskQueue.Process();
 }
