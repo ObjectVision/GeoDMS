@@ -16,6 +16,7 @@
 // used modules and forward class references
 //----------------------------------------------------------------------
 
+#include "act/ActorEnums.h"
 #include "geo/Geometry.h"
 #include "ptr/PtrBase.h"
 #include "ptr/SharedPtr.h"
@@ -208,6 +209,12 @@ private:
 public:
 	SharedStr md_SrcStr;
 #endif
+
+#if defined(MG_DEBUG_INTERESTSOURCE_LOGGING)
+public:
+	mutable actor_flag_set md_ActorFlags;
+#endif
+
 };
 
 

@@ -97,7 +97,7 @@ struct TreeItem : Actor, ItemTree
 	mutable std::weak_ptr<OperationContext> m_Producer;
 	// END   integrated members of impl::treeitem_production_task
 
-protected:
+protected: // ctor / dtor
 	TIC_CALL TreeItem ();
 	TIC_CALL ~TreeItem ();
 

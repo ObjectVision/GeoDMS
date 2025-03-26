@@ -324,6 +324,12 @@ TIC_CALL void DataWriteLock::Commit()
 	adi->m_DataObject = std::move(*this); // move from Writable to const
 	assert(adi->m_DataObject);
 	assert(!get());
+
+#if defined(MG_DEBUG_INTERESTSOURCE_LOGGING)
+	if (adi->m_State.Get(actor_flag_set::AFD_PivotElem))
+		adi->m_DataObject->md_ActorFlags.Set(actor_flag_set::AFD_PivotElem);
+#endif
+
 	if (adi->mc_Calculator)
 	{
 		adi->SetDC(nullptr, nullptr);

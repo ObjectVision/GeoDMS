@@ -435,12 +435,6 @@ void TreeItem::SetIsCacheItem() // does not call UpdateMetaInfo
 
 void TreeItem::InitTreeItem(TreeItem* parent, TokenID id)
 {
-#if defined(MG_DEBUG_INTERESTSOURCE_LOGGING)
-//	static TokenID m25_rel = GetTokenID_mt("m25_rel");
-//	if (id == m25_rel)
-//		m_State.Set(actor_flag_set::AFD_PivotElem);
-#endif
-
 	assert(m_State.GetProgress() < PS_MetaInfo);
 	if (id) CheckTreeItemName( id.GetStr().c_str() );
 	m_ID = id;
@@ -1078,8 +1072,15 @@ void TreeItem::SetReferredItem(const TreeItem* refItem) const
 		return;
 
 #if defined(MG_DEBUG_INTERESTSOURCE_LOGGING)
-	if (m_State.Get(actor_flag_set::AFD_PivotElem) && refItem)
-		refItem->m_State.Set(actor_flag_set::AFD_PivotElem);
+	if (m_State.Get(actor_flag_set::AFD_PivotElem))
+	{
+		auto curr = refItem;
+		while (curr) // propagate PivotElem to the ultimate item
+		{
+			curr->m_State.Set(actor_flag_set::AFD_PivotElem);
+			curr = curr->mc_RefItem;
+		}
+	}
 #endif
 
 	if (refItem && !_CheckResultObjType(refItem))
