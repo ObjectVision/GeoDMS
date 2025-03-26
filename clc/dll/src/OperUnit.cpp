@@ -815,8 +815,9 @@ public:
 template <class E1>
 class NrOfRowsOperator : public AbstrUnitPropOperator
 {
-	typedef Unit<E1>             Arg1Type;
-	typedef DataArray<UInt32>    ResultType;
+	using Arg1Type = Unit<E1>;
+	using ResultValueType = std::conditional_t<sizeof(E1) <= 4, UInt32, UInt64>;
+	using ResultType = DataArray<ResultValueType>;
 
 public:
 	// Override Operator
@@ -827,7 +828,7 @@ public:
 	void Calculate(AbstrDataObject* res, const AbstrUnit* e1) const override
 	{
 		ResultType *result = composite_cast<ResultType*>(res);
-		dms_assert(result);
+		assert(result);
 
 		result->GetDataWrite()[0] = e1->GetCount();
 	}
@@ -848,10 +849,10 @@ public:
 
 	bool CreateResult(TreeItemDualRef& resultHolder, const ArgSeqType& args, bool mustCalc) const override
 	{
-		dms_assert(args.size() == 1);
+		assert(args.size() == 1);
 
 		const AbstrUnit *e1 = AsUnit(args[0]);
-		dms_assert(e1);
+		assert(e1);
 
 		if (!resultHolder)
 		{
