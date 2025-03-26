@@ -208,6 +208,25 @@ void AssignFenceNumber(const Actor* item, fence_number fn)
 		return;
 	}
 
+#if defined(MG_DEBUG_INTERESTSOURCE_LOGGING)
+
+
+	if (auto ti = dynamic_cast<const TreeItem*>(item))
+	{
+		static TokenID sGenerate = GetTokenID_mt("Generate");
+
+		if (ti->GetID() == sGenerate)
+			reportF(SeverityTypeID::ST_MinorTrace, "Fence %d", fn);
+/*
+		if (ti->m_State.Get(actor_flag_set::AFD_PivotElem))
+		{
+			reportF(SeverityTypeID::ST_MinorTrace, "Fence %d", fn);
+		}
+*/
+	}
+
+#endif defined(MG_DEBUG_INTERESTSOURCE_LOGGING)
+
 	VisitSupplProcImpl(item, SupplierVisitFlag::CalcAll, [fn](const Actor* suppl) 
 		{
 			AssignFenceNumber(suppl, fn);
@@ -254,9 +273,10 @@ struct FenceContainerOperator : BinaryOperator
 				MG_CHECK(!srcItem->IsCacheItem());
 				AssignFenceNumber(srcItem, resultFenceNumber);
 
-
 				assert(!resWalker->HasInterest());
-				resWalker->GetOrCreateSupplCache()->InitAt(srcItem);
+
+				if (resWalker != resultRoot) // avoid updating all fenced items before getting them
+					resWalker->GetOrCreateSupplCache()->InitAt(srcItem);
 				assert(!resWalker->HasInterest());
 
 				if (srcItem->WasFailed())
@@ -270,16 +290,7 @@ struct FenceContainerOperator : BinaryOperator
 	{
 		assert(args.size() == 2);
 
-		DataReadLock msgLock(AsDataItem(args[1]));
-		auto msgData = const_array_cast<SharedStr>(msgLock)->GetDataRead();
-
-		reportD(SeverityTypeID::ST_MinorTrace, "FenceContainer START");
-		if (msgData.size() != 1 || !msgData[0].empty())
-			for (auto msg : msgData)
-				reportD(SeverityTypeID::ST_MinorTrace, msg.AsRange());
-
 		auto srcContainer = std::get<SharedTreeItem>(args[0]).get();
-
 
 		// first, copy ranges of units ?
 		auto resultRoot = resultHolder.GetNew();
@@ -385,10 +396,12 @@ struct FenceContainerOperator : BinaryOperator
 			resItem->StopSupplInterest();
 		}
 
+		DataReadLock msgLock(AsDataItem(args[1]));
+		auto msgData = const_array_cast<SharedStr>(msgLock)->GetDataRead();
 
 		if (msgData.size() != 1 || !msgData[0].empty())
 			for (auto msg: msgData)
-				reportD(SeverityTypeID::ST_MajorTrace, msg.AsRange());
+				reportF(SeverityTypeID::ST_MajorTrace, "FenceContainer(%d): %s", resultFenceNumer, SharedStr(msg));
 
 		resultHolder->SetIsInstantiated();
 		resultHolder->StopSupplInterest();
