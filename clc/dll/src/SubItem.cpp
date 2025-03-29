@@ -253,7 +253,7 @@ struct FenceContainerOperator : BinaryOperator
 			MG_CHECK(resultHolder.m_FenceNumber == 0);
 
 			CopyTreeContext context(nullptr, sourceContainer, ""
-				, DataCopyMode::MakeEndogenous | DataCopyMode::InFenceOperator | DataCopyMode::NoRoot //| DataCopyMode::CopyReferredItems
+				, DataCopyMode::MakeEndogenous | DataCopyMode::InFenceOperator | DataCopyMode::NoRoot | DataCopyMode::CopyReferredItems
 			);
 			context.m_FenceNumber = GetNextFenceNumber();
 

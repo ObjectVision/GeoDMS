@@ -546,7 +546,7 @@ const TreeItem* TreeItem::GetFirstSubItem() const noexcept
 
 const TreeItem* TreeItem::GetCurrFirstSubItem() const  noexcept
 {
-	assert(m_State.GetProgress() >= PS_MetaInfo);
+	assert(m_State.GetProgress() >= PS_MetaInfo || WasFailed());
 	return _GetFirstSubItem();
 }
 
@@ -2059,15 +2059,37 @@ TreeItem* TreeItem::Copy(TreeItem* dest, TokenID id, CopyTreeContext& copyContex
 
 	// Now, copy all sub-items
 	if (!copyContext.DontCopySubItems())
-		for (const TreeItem* subItem = GetFirstSubItem(); subItem; subItem = subItem->GetNextItem())
+	{
+		for (const TreeItem* subItem = GetCurrFirstSubItem(); subItem; subItem = subItem->GetNextItem())
 			subItem->Copy(result, subItem->GetID(), copyContext);
 
-	// Now, copy from refItem; maybe more sub-items should be copied
-	if (copyContext.CopyReferredItems())
-	{
-		const TreeItem* refItem = GetReferredItem();
-		if (refItem)
-			CopyTreeContext(result, refItem, "", DataCopyMode(copyContext.GetDCM()|DataCopyMode::NoRoot) ).Apply();
+		// Now, copy from refItem; maybe more sub-items should be copied
+		if (copyContext.CopyReferredItems())
+		{
+			AnchestorStackGuard guard(copyContext, result, this);
+
+			const TreeItem* refItem = GetCurrRefItem();
+//			copyContext.m_Dcm = DataCopyMode(copyContext.GetDCM() | DataCopyMode::DontUpdateMetaInfo);
+			//		if (refItem)
+			//			CopyTreeContext(result, refItem, "", DataCopyMode(copyContext.GetDCM()|DataCopyMode::NoRoot) ).Apply();
+
+			while (refItem)
+			{
+				if (auto resultRef = copyContext.FindAnchestor(refItem))
+				{
+					result->SetReferredItem(resultRef);
+					break;
+				}
+				for (const TreeItem* subItem = refItem->GetCurrFirstSubItem(); subItem; subItem = subItem->GetNextItem())
+				{
+					auto subID = subItem->GetID();
+					if (result->GetSubTreeItemByID(subID) == nullptr)
+						subItem->Copy(result, subItem->GetID(), copyContext);
+				}
+				refItem = refItem->GetCurrRefItem();
+			}
+
+		}
 	}
 	return result;
 }

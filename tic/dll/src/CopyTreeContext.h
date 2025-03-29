@@ -109,6 +109,7 @@ struct CopyTreeContext
 	{
 		return m_SrcRoot->Copy(m_DstContext, m_DstRootID, *this);
 	}
+	TreeItem* FindAnchestor(const TreeItem* src) const;
 
 	TreeItem*            m_DstContext;
 	const TreeItem*      m_SrcRoot;
@@ -116,10 +117,26 @@ struct CopyTreeContext
 	mutable TreeItem*    m_DstRoot = nullptr;
 	LispPtr              m_ArgList;
 	fence_number         m_FenceNumber = 0;
+	DataCopyMode         m_Dcm;
+	using copy_pair = std::pair<SharedPtr<TreeItem>, SharedPtr<const TreeItem> >;
+	std::vector<copy_pair> m_AnchestorStack;
 
-private:
-	DataCopyMode            m_Dcm;
+ private:
 	StaticMtIncrementalLock<TreeItem::s_NotifyChangeLockCount> m_NotifyChangeLock;
+};
+
+struct AnchestorStackGuard
+{
+	TIC_CALL AnchestorStackGuard(CopyTreeContext& ctc, SharedPtr<TreeItem> dst, SharedPtr<const TreeItem> src)
+		: m_CTC(ctc)
+	{
+		m_CTC.m_AnchestorStack.emplace_back(dst, src);
+	}
+	TIC_CALL ~AnchestorStackGuard()
+	{
+		m_CTC.m_AnchestorStack.pop_back();
+	}
+	CopyTreeContext& m_CTC;
 };
 
 //----------------------------------------------------------------------
