@@ -321,6 +321,7 @@ static void ResetAllKeepInterest(TreeItem* item)
 
 void TreeItem::DisableAutoDelete() // does not call UpdateMetaInfo
 {
+	assert(IsMetaThread());
 	if (IsAutoDeleteDisabled())
 		return;
 
@@ -421,7 +422,6 @@ void TreeItem::SetIsCacheItem() // does not call UpdateMetaInfo
 {
 	assert(IsEndogenous());
 	assert(! IsCacheItem());
-	assert(! IsAutoDeleteDisabled());
 	assert(! GetTreeParent()); // only call on root
 
 	DisableAutoDelete();
@@ -1923,7 +1923,7 @@ static bool HasOwnCalculatorNow(TreeItem* result)
 	return (!result->mc_Expr.empty()) || (result->mc_Calculator && result->mc_Calculator->IsDataBlock());
 }
 
-TreeItem* TreeItem::Copy(TreeItem* dest, TokenID id, CopyTreeContext& copyContext) const
+SharedPtr<TreeItem> TreeItem::Copy(TreeItem* dest, TokenID id, CopyTreeContext& copyContext) const
 {
 	const Class* cls = GetDynamicClass();
 
@@ -1931,9 +1931,13 @@ TreeItem* TreeItem::Copy(TreeItem* dest, TokenID id, CopyTreeContext& copyContex
 	bool isNew = (!dest) || (id && !dest->GetSubTreeItemByID(id));
 	if (isNew && copyContext.DontCreateNew())
 		return nullptr; 
-	TreeItem* result = dest->CreateItem(id, cls);
-	if (isNew && copyContext.MustMakePassor())
-		result->SetPassor();
+	SharedPtr<TreeItem> result = dest->CreateItem(id, cls);
+	if (isNew)
+	{
+		result->DisableAutoDelete();
+		if (copyContext.MustMakePassor())
+			result->SetPassor();
+	}
 
 	assert(result);
 //	result->m_State.Clear(ASF_DataReadableDefined);

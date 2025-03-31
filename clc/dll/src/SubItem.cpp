@@ -200,8 +200,9 @@ void AssignFenceNumber(const Actor* item, fence_number fn)
 
 	if (auto dc = dynamic_cast<const DataController*>(item))
 	{
-		if (auto si = dynamic_cast<const SymbDC*>(dc))
-			AssignFenceNumber(si->MakeResult(), fn);
+		if (auto sdc = dynamic_cast<const SymbDC*>(dc))
+			if (auto si = sdc->MakeResult())
+				AssignFenceNumber(si, fn);
 		else if (auto fc = dynamic_cast<const FuncDC*>(dc))
 			for (DcRefListElem* argRef = fc->m_Args; argRef; argRef = argRef->m_Next)
 				AssignFenceNumber(argRef->m_DC, fn);

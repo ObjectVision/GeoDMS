@@ -73,7 +73,7 @@ TokenID CopyTreeContext::GetAbsOrRelNameID(const TreeItem* si, const TreeItem* s
 	return TokenID(fullName);
 }
 
-TreeItem* CopyTreeContext::FindAnchestor(const TreeItem* src) const
+const TreeItem* CopyTreeContext::FindAnchestor(const TreeItem* src) const
 {
 	assert(src);
 	for (auto cp = m_AnchestorStack.end(); cp != m_AnchestorStack.begin();)
@@ -81,6 +81,12 @@ TreeItem* CopyTreeContext::FindAnchestor(const TreeItem* src) const
 		--cp;
 		if (cp->second == src)
 			return cp->first;
+	}
+	for (auto cp = m_AnchestorStack.end(); cp != m_AnchestorStack.begin();)
+	{
+		--cp;
+		if (src->DoesContain(cp->second))
+			return src;
 	}
 	return nullptr;
 }

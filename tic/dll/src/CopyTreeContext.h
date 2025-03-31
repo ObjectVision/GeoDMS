@@ -95,7 +95,7 @@ struct CopyTreeContext
 	TIC_CALL TokenID GetAbsOrRelNameID(const TreeItem*  si, const TreeItem* srcTI, TreeItem* dstTI) const;
 	TIC_CALL TokenID GetAbsOrRelUnitID(const AbstrUnit* su, const AbstrDataItem* srcADI, AbstrDataItem* dstADI) const;
 
-	TreeItem* Apply()
+	SharedPtr<TreeItem> Apply()
 	{
 //		dms_assert(m_DstContext);
 
@@ -105,11 +105,11 @@ struct CopyTreeContext
 		}
 		return ApplyImpl();
 	}
-	TreeItem* ApplyImpl()
+	SharedPtr<TreeItem> ApplyImpl()
 	{
 		return m_SrcRoot->Copy(m_DstContext, m_DstRootID, *this);
 	}
-	TreeItem* FindAnchestor(const TreeItem* src) const;
+	const TreeItem* FindAnchestor(const TreeItem* src) const;
 
 	TreeItem*            m_DstContext;
 	const TreeItem*      m_SrcRoot;

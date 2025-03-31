@@ -245,7 +245,7 @@ public:
 
 //	Copying
 
-	TIC_CALL TreeItem* Copy(TreeItem* dest, TokenID id, CopyTreeContext& copyContext) const;
+	TIC_CALL SharedPtr<TreeItem> Copy(TreeItem* dest, TokenID id, CopyTreeContext& copyContext) const;
 	void UpdateMetaInfoImpl2() const; // sort of const
 	TIC_CALL void UpdateMetaInfo() const noexcept override; // sort of const
 	TIC_CALL void UpdateMetaInfoIfNotAlready() const noexcept;
