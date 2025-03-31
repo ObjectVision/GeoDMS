@@ -227,12 +227,14 @@ void AssignFenceNumber(const Actor* item, fence_number fn)
 	}
 
 #endif defined(MG_DEBUG_INTERESTSOURCE_LOGGING)
-
-	VisitSupplProcImpl(item, SupplierVisitFlag::CalcAll, [fn](const Actor* suppl) 
-		{
-			AssignFenceNumber(suppl, fn);
-		}
-	);
+	try {
+		VisitSupplProcImpl(item, SupplierVisitFlag::CalcAll, [fn](const Actor* suppl)
+			{
+				AssignFenceNumber(suppl, fn);
+			}
+		);
+	}
+	catch (...) {}
 }
 
 struct FenceContainerOperator : BinaryOperator
@@ -259,6 +261,11 @@ struct FenceContainerOperator : BinaryOperator
 			context.m_FenceNumber = GetNextFenceNumber();
 
 			resultHolder = context.Apply();
+
+#if defined(MG_DEBUG)
+			resultHolder->m_State.Set(actor_flag_set::AFD_PivotElem);
+#endif
+
 			resultHolder->m_FenceNumber = context.m_FenceNumber;
 			resultHolder.m_FenceNumber = context.m_FenceNumber;
 
@@ -271,10 +278,10 @@ struct FenceContainerOperator : BinaryOperator
 				MG_CHECK(resWalker->m_FenceNumber >= resultFenceNumber);
 
 				auto srcItem = sourceContainer->FindItem(resWalker->GetRelativeName(resultHolder.GetNew()));
+				if (!srcItem)
+					continue;
 				MG_CHECK(!srcItem->IsCacheItem());
 				AssignFenceNumber(srcItem, resultFenceNumber);
-
-				assert(!resWalker->HasInterest());
 
 				if (resWalker != resultRoot) // avoid updating all fenced items before getting them
 					resWalker->GetOrCreateSupplCache()->InitAt(srcItem);

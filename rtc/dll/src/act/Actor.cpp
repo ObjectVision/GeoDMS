@@ -806,6 +806,12 @@ ErrMsgPtr Actor::GetFailReason() const
 
 bool Actor::DoFail(ErrMsgPtr msg, FailType ft) const
 {
+#if defined(MG_DEBUG_INTERESTSOURCE_LOGGING)
+
+	if (m_State.Get(actor_flag_set::AFD_PivotElem))
+		reportF(SeverityTypeID::ST_MajorTrace, "DoFail(%d) %s %s", int(ft), GetSourceName(), msg->Why());
+
+#endif
 	assert(msg);
 	assert(ft != FR_None);
 	SupplInterestListPtr supplInterestWaste;

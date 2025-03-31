@@ -1081,6 +1081,9 @@ void TreeItem::SetReferredItem(const TreeItem* refItem) const
 			curr = curr->mc_RefItem;
 		}
 	}
+	if (refItem->m_State.Get(actor_flag_set::AFD_PivotElem))
+		m_State.Set(actor_flag_set::AFD_PivotElem);
+
 #endif
 
 	if (refItem && !_CheckResultObjType(refItem))
@@ -1603,8 +1606,8 @@ SharedTreeItem TreeItem::FindItem(CharPtrRange subItemNames) const
 	if (!parent)
 		return nullptr;
 	parent->UpdateMetaInfoIfNotAlready();
-	if (parent->WasFailed(FR_MetaInfo))
-		parent->ThrowFail();
+//	if (parent->WasFailed(FR_MetaInfo))
+//		parent->ThrowFail();
 	return parent->GetConstSubTreeItemByID(GetExistingTokenID(ids.second));
 }
 
