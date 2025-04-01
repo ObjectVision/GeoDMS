@@ -1403,7 +1403,11 @@ task_status OperationContext::Join()
 
 		RunOperationContexts(); // OPTIMIZE, CONSISTENCY: Some tasks finished without calling this. Find out why and avoid wasting idle thread time; maybe all threads are waiting in a Join without new and current tasks being activated
 		if (IsMetaThread())
+		{
+			if (SuspendTrigger::DidSuspend())
+				return task_status::suspended;
 			ProcessMainThreadOpers();
+		}
 
 		leveled_std_section::unique_lock lock(cs_ThreadMessing);
 		if (m_Status > task_status::running)
