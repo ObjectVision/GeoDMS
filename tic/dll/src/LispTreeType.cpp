@@ -245,7 +245,9 @@ namespace token {
 	TIC_CALL TokenID integrity_check = GetTokenID_st("IntegrityCheck");
 
 	TIC_CALL TokenID map = GetTokenID_st("map");
+	TIC_CALL TokenID spatial_reference = GetTokenID_st("spatial_reference");
 	TIC_CALL TokenID geometry = GetTokenID_st("geometry");
+	TIC_CALL TokenID geometry_z = GetTokenID_st("geometry_z");
 	TIC_CALL TokenID FenceContainer = GetTokenID_st("FenceContainer");
 
 	TIC_CALL TokenID SubItems = GetTokenID_st("SubItems");

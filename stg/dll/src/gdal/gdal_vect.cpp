@@ -121,7 +121,10 @@ namespace gdalVectImpl {
 	ValueComposition OGR2ValueComposition(OGRwkbGeometryType geoType)
 	{
 		switch (geoType) {
-		case wkbPoint:           return ValueComposition::Single;
+		case wkbPoint:           
+		//case wkbPoint25D:
+		//case wkbPointZM:
+			return ValueComposition::Single;
 		case wkbMultiPoint:      return ValueComposition::Sequence;
 		case wkbCircularString:	 return ValueComposition::Sequence;
 		case wkbCompoundCurve:	 return ValueComposition::Sequence;
@@ -1666,103 +1669,131 @@ bool IsVatDomain(const AbstrUnit* au)
 #include "UnitClass.h"
 #include "AbstrDataItem.h"
 
-void GdalVectSM::DoUpdateTable(const TreeItem* storageHolder, AbstrUnit* layerDomain, OGRLayer* layer) const
-{
-	dms_assert(layer);
-	GDAL_ErrorFrame gdal_error_frame;
+void GdalVectSM::CompareConfiguredGeometryWithGdal(AbstrDataItem* geometry, OGRLayer* layer) const {
 	auto layer_geometry_type = layer->GetGeomType();
-
 	ValueComposition gdal_vc = gdalVectImpl::OGR2ValueComposition(layer_geometry_type);
-	bool create_vu_from_datasource = false;
+	
+	if (gdal_vc == ValueComposition::Unknown) {
+		return;
+	}
 
+	auto gvu = geometry->GetAbstrValuesUnit();
+	if (not gvu)
+		return;
+
+	if (gvu->GetValueType()->GetValueClassID() == ValueClassID::VT_String)
+		return;
+
+	ValueComposition configured_vc = geometry->GetValueComposition();
+	if (configured_vc == gdal_vc)
+		return;
+
+	auto fail_reason = mySSPrintF("Value composition is \"%s\", which is incompatible with GDAL's geometry type \"%s\""
+		, AsString(GetValueCompositionID(configured_vc))
+		, OGRGeometryTypeToName(layer_geometry_type)
+	);
+	geometry->Fail(fail_reason, FR_MetaInfo);
+}
+auto GdalVectSM::GetValueComponsitionFromFirstGdalFeature(OGRLayer* layer) const -> ValueComposition {
+	OGRwkbGeometryType first_feature_geometry_type = OGRwkbGeometryType::wkbUnknown;
+	auto first_feature = layer->GetNextFeature();
+	layer->GetGeometryColumn();
+	ValueComposition gdal_vc = ValueComposition::Unknown;
+
+	if (first_feature) // attempt interpreting geometry type using first feature
+	{
+		auto geometry_ref = first_feature->GetGeometryRef();
+		first_feature_geometry_type = geometry_ref->getGeometryType();
+		auto gdal_vc = gdalVectImpl::OGR2ValueComposition(first_feature_geometry_type);
+	}
+	layer->ResetReading();
+
+	return gdal_vc;
+}
+
+auto GdalVectSM::CreateSpatialReferenceBasedVu(AbstrUnit* layerDomain, const OGRSpatialReference* ogrSR_ptr) const -> SharedUnit {
+	SharedUnit vu;
+	SharedStr wkt = GetAsWkt(&*ogrSR_ptr);
+	if (!wkt.empty())
+	{
+		auto vu_tmp = Unit<DPoint>::GetStaticClass()->CreateUnit(layerDomain, token::spatial_reference);
+		vu_tmp->SetSpatialReference(GetTokenID_mt(wkt));
+		vu_tmp->DisableStorage(true); // used to avoid reentrance on DoUpdateTree
+		if (!vu)
+			vu = vu_tmp;
+	}
+	return vu;
+}
+
+auto GdalVectSM::CreateGeometryDataItemFromGdal(const TreeItem* storageHolder, const OGRSpatialReference* ogrSR_ptr, AbstrUnit* layerDomain, ValueComposition gdal_vc, OGRLayer* layer) const -> AbstrDataItem* {
+	if (gdal_vc == ValueComposition::Unknown) {
+		gdal_vc = GetValueComponsitionFromFirstGdalFeature(layer);
+	}
+
+	// create default value unit from gdal_vc
+	SharedUnit vu;
+	if (gdal_vc == ValueComposition::Unknown)
+		vu = Unit<SharedStr>::GetStaticClass()->CreateDefault();
+	else
+		vu = FindProjectionRef(storageHolder, layerDomain);
+
+	if (ogrSR_ptr) { // spatial reference available
+		auto vu_new = CreateSpatialReferenceBasedVu(layerDomain, ogrSR_ptr);
+		if (vu_new) {
+			vu = vu_new;
+		}
+	}
+	else if (!vu) // default value
+		vu = Unit<DPoint>::GetStaticClass()->CreateDefault();
+
+	// create missing geometry treeitem
+	if (gdal_vc == ValueComposition::Unknown)
+		gdal_vc = ValueComposition::String; // == ValueComposition::Single
+
+	auto geometry = CreateDataItem(
+		layerDomain, token::geometry,
+		layerDomain, vu, gdal_vc
+	);
+
+	return geometry;
+}
+
+void GdalVectSM::DoUpdateTableGeometry(const TreeItem* storageHolder, AbstrUnit* layerDomain, OGRLayer* layer) const {
+	auto layer_geometry_type = layer->GetGeomType();
+	if (layer_geometry_type == OGRwkbGeometryType::wkbNone)
+		return;
+	ValueComposition gdal_vc = gdalVectImpl::OGR2ValueComposition(layer_geometry_type);
+
+	auto geometry_item = layerDomain->GetSubTreeItemByID(token::geometry);
+	AbstrDataItem* geometry = AsDynamicDataItem(geometry_item);
 	const OGRSpatialReference* ogrSR_ptr = layer->GetSpatialRef();
+
+	if (geometry) {
+		CompareConfiguredGeometryWithGdal(geometry, layer);
+	}
+	else {
+		geometry = CreateGeometryDataItemFromGdal(storageHolder, ogrSR_ptr, layerDomain, gdal_vc, layer);
+	}
+	// check spatial reference
+	auto gvu = GetBaseProjectionUnitFromValuesUnit(geometry);
 	std::optional<OGRSpatialReference> ogrSR;
 	if (ogrSR_ptr)
 		ogrSR = *ogrSR_ptr;
+	CheckSpatialReference(ogrSR, geometry, const_cast<AbstrUnit*>(gvu));
 
-	if (!(layer_geometry_type == OGRwkbGeometryType::wkbNone))
-	{
-		auto geometry_item = layerDomain->GetSubTreeItemByID(token::geometry);
-		AbstrDataItem* geometry = AsDynamicDataItem(geometry_item);
-		if (geometry)
-		{
-			if (auto gvu = geometry->GetAbstrValuesUnit())
-				if (gvu->GetValueType()->GetValueClassID() != ValueClassID::VT_String)
-				{
-					ValueComposition configured_vc = geometry->GetValueComposition();
-					if (configured_vc != gdal_vc && gdal_vc != ValueComposition::Unknown)
-					{
-						auto fail_reason = mySSPrintF("Value composition is \"%s\", which is incompatible with GDAL's geometry type \"%s\""
-							, AsString(GetValueCompositionID(configured_vc))
-							, OGRGeometryTypeToName(layer_geometry_type)
-						);
+	return;
+}
 
-						geometry->Fail(fail_reason, FR_MetaInfo);
-					}
-				}
-		}
-		else
-		{
-			if (gdal_vc == ValueComposition::Unknown) // attempt interpreting geometry type using first feature
-			{
-				OGRwkbGeometryType first_feature_geometry_type = OGRwkbGeometryType::wkbUnknown;
-				auto first_feature = layer->GetNextFeature();
-				layer->GetGeometryColumn();
-				if (first_feature)
-				{
-					auto geometry_ref = first_feature->GetGeometryRef();
-					first_feature_geometry_type = geometry_ref->getGeometryType();
-					gdal_vc = gdalVectImpl::OGR2ValueComposition(first_feature_geometry_type);
-				}
-				layer->ResetReading();
-			}
-
-			// create default value unit from gdal_vc
-			SharedUnit vu;
-			if (gdal_vc == ValueComposition::Unknown)
-				vu = Unit<SharedStr>::GetStaticClass()->CreateDefault();
-			else
-				vu = FindProjectionRef(storageHolder, layerDomain);
-
-			if (ogrSR_ptr) // spatial reference available
-			{
-				SharedStr wkt = GetAsWkt(&*ogrSR_ptr);
-				if (!wkt.empty())
-				{
-					auto vu_tmp = Unit<DPoint>::GetStaticClass()->CreateUnit(layerDomain, GetTokenID_mt("SpatialReference"));
-					vu_tmp->SetSpatialReference(GetTokenID_mt(wkt));
-					vu_tmp->DisableStorage(true); // used to avoid reentrance on DoUpdateTree
-					if (!vu)
-						vu = vu_tmp;
-				}
-			}
-			else if (!vu) // default value
-				vu = Unit<DPoint>::GetStaticClass()->CreateDefault();
-
-			// create missing geometry treeitem
-			if (gdal_vc == ValueComposition::Unknown)
-				gdal_vc = ValueComposition::String; // == ValueComposition::Single
-
-			geometry = CreateDataItem(
-				layerDomain, token::geometry,
-				layerDomain, vu, gdal_vc
-			);
-		}
-		// check spatial reference
-		auto gvu = GetBaseProjectionUnitFromValuesUnit(geometry);
-		CheckSpatialReference(ogrSR, geometry, const_cast<AbstrUnit*>(gvu));
-	}
-
-	// Update Attribute Fields
+void GdalVectSM::DoUpdateTableAttributes(AbstrUnit* layerDomain, OGRLayer* layer) const {
 	WeakPtr<OGRFeatureDefn> featureDefn = layer->GetLayerDefn();
-	for (SizeT i = 0, numFields = featureDefn->GetFieldCount(); i!=numFields; ++i)
+	for (SizeT i = 0, numFields = featureDefn->GetFieldCount(); i != numFields; ++i)
 	{
 		WeakPtr<OGRFieldDefn> fieldDefn = featureDefn->GetFieldDefn(i);
 		auto subType = fieldDefn->GetSubType();
 		auto raw_item_name = fieldDefn->GetNameRef();
 		SharedStr itemName = as_item_name(raw_item_name, raw_item_name + StrLen(raw_item_name));
 		TreeItem* tiColumn = layerDomain->GetItem(itemName.c_str());
-		
+
 		auto valueType = gdalVectImpl::OGR2ValueClass(fieldDefn->GetType(), fieldDefn->GetSubType());
 		//auto explicitlyConfiguredItem = storageHolder->FindItem(itemName);
 		auto explicitlyConfiguredItem = layerDomain->GetItem(itemName);
@@ -1771,6 +1802,18 @@ void GdalVectSM::DoUpdateTable(const TreeItem* storageHolder, AbstrUnit* layerDo
 
 		CreateTreeItemColumnInfo(layerDomain, itemName.c_str(), layerDomain, valueType);
 	}
+	return;
+}
+
+void GdalVectSM::DoUpdateTable(const TreeItem* storageHolder, AbstrUnit* layerDomain, OGRLayer* layer) const
+{
+	dms_assert(layer);
+	GDAL_ErrorFrame gdal_error_frame;
+	bool create_vu_from_datasource = false;
+
+	DoUpdateTableGeometry(storageHolder, layerDomain, layer);
+	DoUpdateTableAttributes(layerDomain, layer);
+	return;
 }
 
 void GdalVectSM::OnTerminalDataItem(const AbstrDataItem* adi) const

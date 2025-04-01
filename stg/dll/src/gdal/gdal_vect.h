@@ -73,11 +73,16 @@ struct GdalVectSM : NonmappableStorageManager, gdalVectComponent
 	void WriteLayer(TokenID layer_id, const GdalMetaInfo& gmi);
 	void DoUpdateTable(const TreeItem* storageHolder, AbstrUnit* curr, OGRLayer* layer) const;
 	prop_tables GetPropTables(const TreeItem* storageHolder = nullptr, TreeItem* curr = nullptr) const override;
-
 	mutable DataItemsWriteStatusInfo m_DataItemsStatusInfo;
 	mutable std::recursive_mutex m_xSectionDataItemsStatusInfo;
 
 private:
+	void DoUpdateTableGeometry(const TreeItem* storageHolder, AbstrUnit* layerDomain, OGRLayer* layer) const;
+	void CompareConfiguredGeometryWithGdal(AbstrDataItem* geometry, OGRLayer* layer) const;
+	auto GetValueComponsitionFromFirstGdalFeature(OGRLayer* layer) const -> ValueComposition;
+	auto CreateSpatialReferenceBasedVu(AbstrUnit* layerDomain, const OGRSpatialReference* ogrSR_ptr) const -> SharedUnit;
+	auto CreateGeometryDataItemFromGdal(const TreeItem* storageHolder, const OGRSpatialReference* ogrSR_ptr, AbstrUnit* layerDomain, ValueComposition gdal_vc, OGRLayer* layer) const -> AbstrDataItem*;
+	void DoUpdateTableAttributes(AbstrUnit* layerDomain, OGRLayer* layer) const;
 	void SetCurrFeatureIndex(SizeT firstFeatureIndex) const;
 	OGRLayer* Layer(const GdalVectlMetaInfo* br) const;
 

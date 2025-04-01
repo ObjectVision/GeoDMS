@@ -179,6 +179,8 @@ namespace token {
 
 	extern TIC_CALL TokenID map;
 	extern TIC_CALL TokenID geometry;
+	extern TIC_CALL TokenID geometry_z;
+	extern TIC_CALL TokenID spatial_reference;
 	extern TIC_CALL TokenID FenceContainer;
 
 	extern TIC_CALL TokenID SubItems;
