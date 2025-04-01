@@ -764,8 +764,6 @@ bool TreeItem::HasCalculatorImpl() const  noexcept
 		return true;
 	if (IsUnit(this) && GetTSF(USF_HasConfigRange))
 	{
-		assert(!IsCacheItem());
-		assert(!IsPassor());
 		assert(AsUnit(this)->HasVarRange());
 		return true;
 	}
@@ -1081,7 +1079,7 @@ void TreeItem::SetReferredItem(const TreeItem* refItem) const
 			curr = curr->mc_RefItem;
 		}
 	}
-	if (refItem->m_State.Get(actor_flag_set::AFD_PivotElem))
+	if (refItem && refItem->m_State.Get(actor_flag_set::AFD_PivotElem))
 		m_State.Set(actor_flag_set::AFD_PivotElem);
 
 #endif
@@ -2027,19 +2025,17 @@ SharedPtr<TreeItem> TreeItem::Copy(TreeItem* dest, TokenID id, CopyTreeContext& 
 			copyContext.m_ArgList = copyContext.m_ArgList.Right();
 			return result; // don't copy subItems from this to result (take them from arg)
 		}
-
-		if (copyContext.MustUpdateMetaInfo())
-			UpdateMetaInfo();
+	}
+	if (copyContext.MustUpdateMetaInfo())
+		UpdateMetaInfo();
+	if (mustCopyProps)
+	{
 		if (isNew && copyContext.MergeProps())
 			result->DisableStorage();
 
 		if (copyContext.InFenceOperator())
 		{
 			assert(!isArg);
-//			if (IsDataItem(this) || IsUnit(this))
-//			{
-//				result->SetDC(this->GetCheckedDC());
-//			}
 			result->m_FenceNumber = copyContext.m_FenceNumber;
 		}
 		else
@@ -2062,7 +2058,7 @@ SharedPtr<TreeItem> TreeItem::Copy(TreeItem* dest, TokenID id, CopyTreeContext& 
 					result->SetCalculator(AbstrCalculator::ConstructFromDBT(AsDataItem(result), mc_Calculator));
 			}
 		}
-	} // end if (!mustCopyProps)
+	}	// if (mustCopyProps)
 
 	// Now, copy all sub-items
 	if (!copyContext.DontCopySubItems())
@@ -2897,12 +2893,12 @@ bool TreeItem::VisitConstVisibleSubTree(const ActorVisitor& visitor, const Stack
 	StackFrame frame = { this, prev };
 	for  (; prev; prev = prev->m_Caller)
 		if (prev->m_Base == this)
-				return true;
+			return true;
 
 	// go to subItems of refItem, if any
 	const TreeItem* curr = this;
 	do {
-		const TreeItem* refItem = GetReferredItem();
+		const TreeItem* refItem = curr->GetReferredItem();
 		if (refItem)
 			if (!refItem->VisitConstVisibleSubTree(visitor, &frame))
 				return false;

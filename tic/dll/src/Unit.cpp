@@ -107,8 +107,6 @@ static auto GetRangeDataAsLispRef(Void rd, bool asCategorical, LispPtr base) -> 
 template <class V>
 LispRef UnitBase<V>::GetKeyExprImpl() const
 {
-	assert(!IsCacheItem());
-
 	LispRef result;
 	if (!IsDefaultUnit()) // || IsCacheRoot())
 	{
@@ -118,9 +116,6 @@ LispRef UnitBase<V>::GetKeyExprImpl() const
 #if defined(MG_DEBUG)
 	auto resultStr = AsString(result);
 #endif
-
-	if (IsCacheItem()) // || result != ExprList(GetValueType()->GetID()))
-		return result;
 
 	// present as metric-less BaseUnit with a unique keyExpr.
 	if (result.EndP() && (!IsLoadable() || GetTSF(USF_HasConfigRange)))
