@@ -49,8 +49,7 @@ bool              TableDomain_IsAttr(const AbstrUnit* domain, const AbstrDataIte
 STGDLL_CALL SharedUnit FindProjectionRef (const TreeItem* storageHolder, const AbstrUnit* uDomain);
 STGDLL_CALL SharedUnit FindProjectionBase(const TreeItem* storageHolder, const AbstrUnit* uDomain);
 
-auto GetFactorFromGridDomain(const AbstrDataItem* grid_adi) -> DPoint;
-auto GetOffsetFromGridDomainAndFactor(const AbstrDataItem* grid_adi, DPoint& factor, bool offset_to_top_left_cell = true) -> DPoint;
+auto GetAffineTransformationFromGridDataItem(const AbstrDataItem* grid_adi, bool offset_to_top_left_cell=true)->Transformation<Float64>;
 bool WriteGeoRefFile(const AbstrDataItem* diGrid, WeakStr geoRefFileName);
 void GetImageToWorldTransformFromFile(TreeItem* storageHolder, WeakStr geoRefFileName);
 
