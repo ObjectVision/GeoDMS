@@ -113,8 +113,9 @@ std::atomic<bool> s_MainThreadOperProcessRequestPending = false;
 
 RTC_CALL void RequestMainThreadOperProcessing()
 {
-	if (!sMainThreadHnd)
-		return; // not yet initialized.
+	WakeUpJoiners();
+	if (!sMainThreadHnd)  // not yet initialized.
+		return;
 
 	if (s_MainThreadOperProcessRequestPending.exchange(true)) // a request was alredy posted?
 	{
@@ -315,14 +316,39 @@ void CancelMainThreadTasks()
 	s_TaskQueue.CancelTasks();
 }
 
+bool HasMainThreadTasks()
+{
+	assert(IsMetaThread());
+	if (!s_TaskQueue.Empty())
+		return true;
+	if (s_ProcessMainThreadOperLevel)
+		return false;
+	if (s_OperQueue.Empty())
+		return true;
+	return false;
+}
+
 #include "ASync.h"
+
+leveled_std_section cs_ThreadMessing(item_level_type(0), ord_level_type::ThreadMessing, "LockedThreadMessing");
+std::condition_variable cv_TaskCompleted;
+
+RTC_CALL void wakeUpJoiners()
+{
+	cv_TaskCompleted.notify_all();
+}
+
+RTC_CALL void WakeUpJoiners()
+{
+	leveled_std_section::unique_lock lock(cs_ThreadMessing);
+	wakeUpJoiners();
+}
 
 std::atomic<UInt32>& throttle_counter()
 {
 	static std::atomic<UInt32> the_counter;
 	return the_counter;
 }
-
 
 UInt32 GetNrVCPUs()
 {

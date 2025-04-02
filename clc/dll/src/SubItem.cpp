@@ -334,7 +334,7 @@ struct FenceContainerOperator : BinaryOperator
 						if (!srcItem->SuspendibleUpdate(PS_Committed))
 						{
 							if (srcItem->WasFailed())
-								resultHolder.GetNew()->Fail(srcItem);
+								resWalker->Fail(srcItem);
 							if (SuspendTrigger::DidSuspend())
 								return false;
 						}
@@ -362,7 +362,12 @@ struct FenceContainerOperator : BinaryOperator
 			}
 		);
 
-		bellWaiter.get();
+		{
+			using DecCountType = StaticMtDecrementalLock<decltype(s_NrRunningOperations), s_NrRunningOperations>;
+			DecCountType dontCountThisOperation;
+			WakeUpJoiners();
+			bellWaiter.get();
+		}
 
 		// check that all sub-items of result-holder are/become up-to-date or uninteresting
 		for (const auto& fd: futureDataContainer)
@@ -378,7 +383,7 @@ struct FenceContainerOperator : BinaryOperator
 
 			if (dc->WasFailed(FR_MetaInfo))
 			{
-				resultHolder->Fail(dc.get_ptr());
+				resItem->Fail(dc.get_ptr());
 				continue;
 			}
 			WaitReady(dc->GetUlt());

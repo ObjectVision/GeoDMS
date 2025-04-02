@@ -99,14 +99,10 @@ void OperatorContextHandle::GenerateDescription()
 
 #include "ASync.h"
 
-leveled_std_section cs_ThreadMessing(item_level_type(0), ord_level_type::ThreadMessing, "LockedThreadMessing");
-std::condition_variable cv_TaskCompleted;
-
 using contexts_within_one_fence = std::deque<OperationContextWPtr>;
 std::map<fence_number, contexts_within_one_fence> s_ScheduledContextsMap;
 
-using RunningOperationsCounter = Int32;
-static std::atomic<RunningOperationsCounter> s_NrRunningOperations = 0;
+std::atomic<RunningOperationsCounter> s_NrRunningOperations = 0;
 static std::atomic<fence_number> s_SchedulingFenceNumber = 0;
 
 auto GetNextFenceNumber() -> fence_number
@@ -197,7 +193,7 @@ void connect(OperationContextSPtr waiter, OperationContextSPtr supplier)
 	DBG_TRACE(("waiter   = %s", AsText(waiter)));
 	DBG_TRACE(("supplier = %s", AsText(supplier)));
 
-	dms_assert(cs_ThreadMessing.isLocked());
+	assert(cs_ThreadMessing.isLocked());
 	if (isSupplier(waiter, supplier))
 		return;
 
@@ -401,7 +397,7 @@ void ScheduleRunOperationContexts()
 	if (s_RunOperationContextsScheduled.exchange(true))
 		return;
 	PostMainThreadOper(RunOperationContexts);
-	cv_TaskCompleted.notify_all();
+//	WakeUpJoiners(); already done in PostMainThreadOper, only if not already another posting in transit
 }
 
 void WaitForCompletedTaskOrTimeout(std::chrono::milliseconds waitFor)
@@ -411,7 +407,7 @@ void WaitForCompletedTaskOrTimeout(std::chrono::milliseconds waitFor)
 		ProcessMainThreadOpers();
 
 	leveled_std_section::unique_lock lock(cs_ThreadMessing);
-	if (!s_NrRunningOperations)
+	if (!s_NrRunningOperations || HasMainThreadTasks())
 		return;
 	cv_TaskCompleted.wait_for(lock.m_BaseLock, waitFor);
 }
@@ -627,7 +623,7 @@ void OperationContext::activateTaskImpl(SharedActorInterestPtr&& resKeeper)
 bool OperationContext::getUniqueLicenseToRun()
 {
 //	dms_assert(m_Suppliers.empty());
-	dms_assert(cs_ThreadMessing.isLocked());
+	assert(cs_ThreadMessing.isLocked());
 
 	if (m_Status >= task_status::activated || !m_TaskFunc)
 	{
@@ -635,13 +631,13 @@ bool OperationContext::getUniqueLicenseToRun()
 	}
 
 	dms_assert(!IsRunningOperation(m_Status));
-	dms_assert(s_NrRunningOperations >= 0);
+	assert(s_NrRunningOperations >= 0);
 
 	m_Status = task_status::activated;
 	++s_NrRunningOperations;
 
 	dms_assert(IsRunningOperation(m_Status));
-	dms_assert(s_NrRunningOperations > 0);
+	assert(s_NrRunningOperations > 0);
 
 	return true;
 }
@@ -825,7 +821,7 @@ void OperationContext::releaseRunCount(task_status status)
 		assert(s_NrRunningOperations > 0);
 		auto nrRunning = --s_NrRunningOperations;
 		if (!nrRunning)
-			cv_TaskCompleted.notify_all();
+			wakeUpJoiners();
 	}
 	assert(s_NrRunningOperations >= 0);
 	m_Status = status;
@@ -1413,6 +1409,9 @@ task_status OperationContext::Join()
 		if (m_Status > task_status::running)
 			break;
 		if (!s_NrRunningOperations)
+			continue;
+
+		if (HasMainThreadTasks())
 			continue;
 
 		assert(m_Status > task_status::scheduled || !m_Suppliers.empty() || IsDefined(getScheduledContextsPos(this->shared_from_this())));

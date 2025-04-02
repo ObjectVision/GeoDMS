@@ -160,4 +160,7 @@ TIC_CALL auto GetNextFenceNumber() -> fence_number;
 bool OperationContext_CreateResult(OperationContext* oc, const FuncDC* funcDC); 
 void OperationContext_AssignResult(OperationContext* oc, const FuncDC* funcDC);
 
+using RunningOperationsCounter = Int32;
+TIC_CALL extern std::atomic<RunningOperationsCounter> s_NrRunningOperations;
+
 #endif //!defined(__TIC_OPERATIONCONTEXT_H)

@@ -31,6 +31,8 @@ struct operation_queue
 
 	RTC_CALL void Process();
 
+	bool Empty() const { assert(IsMetaThread()); return m_Operations.empty(); }
+
 private:
 	std::vector<operation_type> m_Operations;
 };
@@ -44,6 +46,8 @@ struct suspendible_task_queue
 
 	RTC_CALL void Process();
 	RTC_CALL void CancelTasks();
+
+	bool Empty() const { assert(IsMetaThread()); return m_Operations.empty(); }
 
 private:
 	std::vector<suspendible_task_type> m_Operations;
@@ -63,16 +67,22 @@ RTC_CALL void PostMainThreadOper(operation_type&& func);
 RTC_CALL void SendMainThreadOper(operation_type&& func);
 RTC_CALL void PostMainThreadTask(suspendible_task_type&& task);
 RTC_CALL void ProcessMainThreadOpers();
+RTC_CALL bool HasMainThreadTasks();
 RTC_CALL void CancelMainThreadTasks();
 RTC_CALL bool IsProcessingMainThreadOpers();
 RTC_CALL void RequestMainThreadOperProcessing();
 RTC_CALL void ConfirmMainThreadOperProcessing();
 RTC_CALL bool IsMainThreadOperProcessingRequestPending();
+RTC_CALL void wakeUpJoiners(); // assuming thread messing is already locked
+RTC_CALL void WakeUpJoiners(); // does lock
 
 struct MainThreadBlocker
 {
 	RTC_CALL MainThreadBlocker();
 	RTC_CALL ~MainThreadBlocker();
 };
+
+RTC_CALL extern std::condition_variable cv_TaskCompleted;
+RTC_CALL extern leveled_std_section cs_ThreadMessing;
 
 #endif // __RTC_ACT_MAINTHREAD_H
