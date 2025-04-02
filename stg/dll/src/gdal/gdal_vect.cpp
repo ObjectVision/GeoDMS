@@ -1711,24 +1711,9 @@ auto GdalVectSM::GetValueComponsitionFromFirstGdalFeature(OGRLayer* layer) const
 	return gdal_vc;
 }
 
-auto GdalVectSM::CreateSpatialReferenceBasedVu(AbstrUnit* layerDomain, const OGRSpatialReference* ogrSR_ptr) const -> SharedUnit {
-	SharedUnit vu;
-	SharedStr wkt = GetAsWkt(&*ogrSR_ptr);
-	if (!wkt.empty())
-	{
-		auto vu_tmp = Unit<DPoint>::GetStaticClass()->CreateUnit(layerDomain, token::spatial_reference);
-		vu_tmp->SetSpatialReference(GetTokenID_mt(wkt));
-		vu_tmp->DisableStorage(true); // used to avoid reentrance on DoUpdateTree
-		if (!vu)
-			vu = vu_tmp;
-	}
-	return vu;
-}
-
 auto GdalVectSM::CreateGeometryDataItemFromGdal(const TreeItem* storageHolder, const OGRSpatialReference* ogrSR_ptr, AbstrUnit* layerDomain, ValueComposition gdal_vc, OGRLayer* layer) const -> AbstrDataItem* {
-	if (gdal_vc == ValueComposition::Unknown) {
+	if (gdal_vc == ValueComposition::Unknown)
 		gdal_vc = GetValueComponsitionFromFirstGdalFeature(layer);
-	}
 
 	// create default value unit from gdal_vc
 	SharedUnit vu;
@@ -1737,10 +1722,15 @@ auto GdalVectSM::CreateGeometryDataItemFromGdal(const TreeItem* storageHolder, c
 	else
 		vu = FindProjectionRef(storageHolder, layerDomain);
 
-	if (ogrSR_ptr) { // spatial reference available
-		auto vu_new = CreateSpatialReferenceBasedVu(layerDomain, ogrSR_ptr);
-		if (vu_new) {
-			vu = vu_new;
+	if (ogrSR_ptr) { // spatial reference available, add it to layerDomain anyway in order to store wkt, and possibly compare to SR of Found Projection (DialogData ref)
+		SharedStr wkt = GetAsWkt(ogrSR_ptr);
+		if (!wkt.empty())
+		{
+			auto vu_tmp = Unit<DPoint>::GetStaticClass()->CreateUnit(layerDomain, token::spatial_reference);
+			vu_tmp->SetSpatialReference(GetTokenID_mt(wkt));
+			vu_tmp->DisableStorage(true); // used to avoid reentrance on DoUpdateTree
+			if (!vu)
+				vu = vu_tmp;
 		}
 	}
 	else if (!vu) // default value
