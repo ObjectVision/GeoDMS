@@ -1189,7 +1189,7 @@ SizeT ProcessDijkstra(TreeItemDualRef& resultHolder
 						for (ZoneType startPointIndex = ni.orgZone_startPoint_inv.FirstOrSame(orgZone); IsDefined(startPointIndex); startPointIndex = ni.orgZone_startPoint_inv.NextOrNone(startPointIndex))
 						{
 							NodeType currNode = ni.startPoints.Node_rel ? ni.startPoints.Node_rel[startPointIndex] : startPointIndex;
-							dms_assert(currNode < ni.nrV);
+							assert(currNode < ni.nrV);
 
 							treenode_pointer currNodePtr = &tr.m_TreeNodes[currNode];
 
@@ -1209,9 +1209,9 @@ SizeT ProcessDijkstra(TreeItemDualRef& resultHolder
 									y = node_endPoint_inv.NextOrNone(y);
 								}
 								NodeType prevNode = tr.NrOfNode(currNodePtr->GetParent());
-								dms_assert(prevNode < ni.nrV);
+								assert(prevNode < ni.nrV);
 								LinkType currLink = dh.m_TraceBackDataPtr[currNode];
-								dms_assert(currLink < ni.nrE);
+								assert(currLink < ni.nrE);
 
 								MassType flow = *flowPtr;
 								nodeALW[prevNode] += flow;
@@ -1228,6 +1228,8 @@ SizeT ProcessDijkstra(TreeItemDualRef& resultHolder
 				if (res.od_LS)
 				{
 					assert(dh.m_TraceBackDataPtr);
+
+					// 1st pass to count the number of links per destination.
 					for (ZoneType j = 0; j != zonalResultCount; ++j)
 					{
 						NodeType node = nzc.Res2EndNode(j);
@@ -1235,8 +1237,10 @@ SizeT ProcessDijkstra(TreeItemDualRef& resultHolder
 						assert(!IsDefined(node) || !dh.IsStale(node)); // guaranteed by IsConnected(zoneId);
 						if (!IsDefined(node))
 							continue;
-						leveled_critical_section::scoped_lock lock(writeBlocks.od_LS);
-						auto resLinkSetRef = res.od_LS[resultCountBase + j];
+
+						// focus on node that has destination j
+						// 1st pass to count the number of links for this destination.
+						SizeT linkCount = 0;
 						while (true)
 						{
 							assert(node < ni.nrV);
@@ -1255,8 +1259,40 @@ SizeT ProcessDijkstra(TreeItemDualRef& resultHolder
 							}
 							assert(IsDefined(node));
 
-							resLinkSetRef.push_back(currLink);
+							++linkCount;
 						}
+
+						
+						// 2nd pass: lock and write to resLinkSetRef for this destination
+						node = nzc.Res2EndNode(j);
+
+						leveled_critical_section::scoped_lock lock(writeBlocks.od_LS);
+						auto resLinkSetRef = res.od_LS[resultCountBase + j];
+
+						assert(resLinkSetRef.size() == 0);
+						resLinkSetRef.resize_uninitialized(linkCount);
+						auto resLinkSetIter = resLinkSetRef.begin();
+						while (true)
+						{
+							assert(node < ni.nrV);
+							LinkType currLink = dh.m_TraceBackDataPtr[node];
+							assert(!dh.IsStale(node));
+							if (!IsDefined(currLink))
+								break;
+							assert(currLink < ni.nrE);
+
+							if (graph.linkF2Data[currLink] == node)
+								node = graph.linkF1Data[currLink];
+							else
+							{
+								assert(graph.linkF1Data[currLink] == node);
+								node = graph.linkF2Data[currLink];
+							}
+							assert(IsDefined(node));
+
+							*resLinkSetIter++ = currLink;
+						}
+						assert(resLinkSetIter == resLinkSetRef.end());
 					}
 				}
 
