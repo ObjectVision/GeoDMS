@@ -807,18 +807,19 @@ void MainWindow::exportPrimaryData() {
     m_export_window->show();
 }
 
+TokenID s_ViewToken = GetTokenID_st("View");
+
 void MainWindow::createView(ViewStyle viewStyle) {
     if (openErrorOnFailedCurrentItem())
         return;
 
     try {
         auto currItem = getCurrentTreeItem();
-        static UInt32 s_ViewCounter = 0;
         if (!currItem)
             return;
 
         auto desktopItem = GetDefaultDesktopContainer(m_root); // rootItem->CreateItemFromPath("DesktopInfo");
-        auto viewContextItem = desktopItem->CreateItemFromPath(mySSPrintF("View%d", s_ViewCounter++).c_str());
+        auto viewContextItem = desktopItem->CreateItem(UniqueName(desktopItem, s_ViewToken));
 
         SuspendTrigger::Resume();
 

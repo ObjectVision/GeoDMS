@@ -265,12 +265,7 @@ void SaveValue(TreeItem* context, TokenID nameID, typename param_type<V>::type v
 
 	SharedPtr<AbstrDataItem> adi = const_cast<AbstrDataItem*>(AsDataItem(FindTreeItemByID(context, nameID)));
 	if (!adi)
-		adi = CreateDataItem(
-			context 
-		,	nameID
-		,	Unit<Void>::GetStaticClass()->CreateDefault()
-		,	Unit<V   >::GetStaticClass()->CreateDefault()
-		);
+		adi = CreateDataItem(context, nameID, Unit<Void>::GetStaticClass()->CreateDefault(), Unit<V>::GetStaticClass()->CreateDefault());
 
 	adi->DisableStorage();
 	adi->SetKeepDataState(true);

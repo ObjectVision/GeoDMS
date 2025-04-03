@@ -1862,8 +1862,8 @@ TreeItem* TreeItem::CreateItemFromPath(CharPtr subItemNames, const Class* requir
 	if (!requiredClass)
 		requiredClass = TreeItem::GetStaticClass();
 
-	dms_assert(requiredClass->IsDerivedFrom(TreeItem::GetStaticClass()));
-	dms_assert(subItemNames);
+	assert(requiredClass->IsDerivedFrom(TreeItem::GetStaticClass()));
+	assert(subItemNames);
 
 	if (*subItemNames == 0) // all subItemNames are processed ??
 		if (this)

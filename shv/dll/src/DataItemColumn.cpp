@@ -354,10 +354,6 @@ void DataItemColumn::UpdateTheme()
 
 	if (!attr) return;
 
-	auto oldAggrAttr = GetContext()->GetSubTreeItemByID(aggrID);
-	if (oldAggrAttr)
-		oldAggrAttr->RemoveFromConfig();
-
 	if (tc->m_GroupByEntity)
 	{
 		auto aggrMethod = m_AggrMethod;
@@ -376,7 +372,7 @@ void DataItemColumn::UpdateTheme()
 		m_AggrMethod = aggrMethod;
 
 		auto aggrValuesSpec = ValuesUnitAndComposition(GetSrcAttr(), tc->m_GroupByRel, aggrMethod);
-		SharedPtr<AbstrDataItem> aggrAttr = CreateDataItem(GetContext(), aggrID, tc->m_GroupByEntity, aggrValuesSpec.first, aggrValuesSpec.second);
+		SharedPtr<AbstrDataItem> aggrAttr = CreateDataItem(GetContext(), UniqueName(GetContext(), aggrID), tc->m_GroupByEntity, aggrValuesSpec.first, aggrValuesSpec.second);
 		aggrAttr->SetKeepDataState(false);
 		aggrAttr->DisableStorage(true);
 		aggrAttr->SetExpr(OperExpr(GetSrcAttr(), tc->m_GroupByRel, aggrMethod));
@@ -385,15 +381,12 @@ void DataItemColumn::UpdateTheme()
 		attr = aggrAttr;
 	}
 	else
-	{
-		if (m_FutureAggrAttr) 
-			m_FutureAggrAttr->RemoveFromConfig();
 		m_FutureAggrAttr = nullptr;
-	}
+
 	auto newTheme = std::make_shared<Theme>(m_ActiveTheme, GetSrcAttr(), nullptr, nullptr);
-	//		newTheme->SetThemeAttr(adi);
+
 	SetTheme(newTheme.get(), GetContext());
-//	attr->UpdateMetaInfo();
+
 	tc->m_cmdOnCaptionChange();
 	InvalidateView();
 	InvalidateDraw();
@@ -409,7 +402,6 @@ void DataItemColumn::SetElemSize(WPoint size)
 	m_FontArray.reset();
 	m_FontIndexCache.reset();
 
-//	OnSizeChanged();
 	InvalidateView();
 	InvalidateDraw();
 }
