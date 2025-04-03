@@ -128,40 +128,61 @@ exit:
 // ------------------------------------------------------------------------
 
 #include "FilePtrHandle.h"
+auto GetAffineTransformationFromGridDataItem(const AbstrDataItem* grid_adi, bool offset_to_top_left_cell) -> Transformation<Float64> {
+	dms_assert(grid_adi);
+	auto grid_adu = grid_adi->GetAbstrDomainUnit();
+	dms_assert(grid_adi);
 
-bool WriteGeoRefFile(const AbstrDataItem* diGrid, WeakStr geoRefFileName)
-{
-	dms_assert(diGrid);
-	const AbstrUnit* colDomain = diGrid->GetAbstrDomainUnit();
-	dms_assert(diGrid);
+	auto [grid_begin, grid_end] = grid_adu->GetRangeAsDRect();
 
-	auto [gridBegin, gridEnd] = colDomain->GetRangeAsDRect();
+	auto grid_projection = grid_adu->GetProjection();
+	auto factor = (grid_adu) ? grid_projection->Factor() : DPoint(1.0, 1.0);
+	auto f2 = factor;
+
+	if (factor.X() < 0) {
+		f2.X() = -factor.X();
+		grid_begin.Col() = grid_end.Col();
+	}
+
+	if (factor.Y() > 0) {
+		f2.Y() = -factor.Y();
+		grid_begin.Row() = grid_end.Row();
+	}
+
+	auto grid_projection = grid_adu->GetProjection();
+	auto offset = ((grid_projection) ? grid_projection->Offset() : DPoint()) + grid_begin * factor;
 	
+	if (offset_to_top_left_cell)
+		offset += 0.5 * f2;
+	
+	auto affine_transformation = Transformation(offset, factor);
+	return affine_transformation;
+}
+
+bool WriteGeoRefFile(const AbstrDataItem* grid_adi, WeakStr geoRefFileName)
+{
+	dms_assert(grid_adi);
+	const AbstrUnit* colDomain = grid_adi->GetAbstrDomainUnit();
+	dms_assert(grid_adi);
+
 	FilePtrHandle bmpwHnd; bmpwHnd.OpenFH(geoRefFileName, FCM_CreateAlways, true, NR_PAGES_HDRFILE);
 
 	if (bmpwHnd == NULL)
 		return false;
 
 	DMS_CALL_BEGIN
-
 		// MapObjects coordinate system is in cartesian order (LeftBottom -> RightTop)
 		// and wants offset of center of TopLeft cell, positive x factor and negative y factor.
 		// In DMS we defined grid as a series of half-open intervals starting from BottomLeft corner of BottomLeft cell.
-
 		const UnitProjection* colProj = colDomain->GetProjection(); // note that this doesn't have to be the composite projection
-
-		DPoint factor = (colProj) ? colProj->Factor() : DPoint(1.0, 1.0), f2 = factor;
-			if (factor.X() < 0) { f2.X() = -factor.X(); gridBegin.Col() = gridEnd.Col(); }
-			if (factor.Y() > 0) { f2.Y() = -factor.Y(); gridBegin.Row() = gridEnd.Row(); }
-
-		DPoint offset = ((colProj) ? colProj->Offset() : DPoint()) + gridBegin * factor + 0.5 * f2;
-
-		fprintf(bmpwHnd, "%.9G\n", f2.X());
+		auto affine_transformation = GetAffineTransformationFromGridDataItem(grid_adi);
+		
+		fprintf(bmpwHnd, "%.9G\n", affine_transformation.Factor().X());
 		fprintf(bmpwHnd, "%.9G\n", Float64(0.0));
 		fprintf(bmpwHnd, "%.9G\n", Float64(0.0));
-		fprintf(bmpwHnd, "%.9G\n", f2.Y());
-		fprintf(bmpwHnd, "%.9G\n", offset.X());
-		fprintf(bmpwHnd, "%.9G\n", offset.Y());
+		fprintf(bmpwHnd, "%.9G\n", affine_transformation.Factor().Y());
+		fprintf(bmpwHnd, "%.9G\n", affine_transformation.Offset().X());
+		fprintf(bmpwHnd, "%.9G\n", affine_transformation.Offset().Y());
 
 	DMS_CALL_END
 

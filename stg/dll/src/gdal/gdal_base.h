@@ -105,7 +105,7 @@ struct FieldInfo
 	WeakDataItemInterestPtr m_DataHolder; // Ptr to keep data alive until all data for layer items of interest is present.
 };
 
-struct affine_transformation
+struct gdal_affine_crd_transformation
 {
 	Float64 x_offset = 0.0;
 	Float64 x_scale = 1.0;

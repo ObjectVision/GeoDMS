@@ -1069,27 +1069,22 @@ auto GetUnitSizeInMeters(const AbstrUnit* projectionBaseUnit) -> Float64
 	return result;
 }
 
-auto GetAffineTransformationFromDataItem(const TreeItem* storageHolder) -> affine_transformation
+auto GetAffineTransformationFromDataItem(const TreeItem* storageHolder) -> gdal_affine_crd_transformation
 {
-	affine_transformation affine_transformation;
+	gdal_affine_crd_transformation gdal_affine_transformation;
 
 	if (!IsDataItem(storageHolder))
 		return {};
 
-	auto adi = AsDataItem(storageHolder);
-	const AbstrUnit* colDomain = adi->GetAbstrDomainUnit();
-	auto unit_projection = colDomain->GetProjection();
-	auto grid_extends = colDomain->GetRangeAsDRect();
+	auto grid_adi = AsDataItem(storageHolder);
+	auto affine_transformation = GetAffineTransformationFromGridDataItem(grid_adi, false);
 
-	auto transformation = UnitProjection::GetCompositeTransform(unit_projection); 
-	auto factor = transformation.Factor();
+	gdal_affine_transformation.x_offset = affine_transformation.Offset().X();
+	gdal_affine_transformation.y_offset = affine_transformation.Offset().Y();
+	gdal_affine_transformation.x_scale = affine_transformation.Factor().X();
+	gdal_affine_transformation.y_scale = affine_transformation.Factor().Y();
 
-	affine_transformation.x_offset = transformation.Offset().X();
-	affine_transformation.y_offset = transformation.Offset().Y();
-	affine_transformation.x_scale = factor.X();
-	affine_transformation.y_scale = factor.Y();
-
-	return affine_transformation;
+	return gdal_affine_transformation;
 }
 
 auto GetOGRSpatialReferenceFromDataItems(const TreeItem* storageHolder) -> std::optional<OGRSpatialReference>
