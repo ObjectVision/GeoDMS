@@ -129,28 +129,42 @@ exit:
 
 #include "FilePtrHandle.h"
 auto GetAffineTransformationFromGridDataItem(const AbstrDataItem* grid_adi, bool offset_to_top_left_cell) -> Transformation<Float64> {
-	dms_assert(grid_adi);
+	assert(grid_adi);
+
 	auto grid_adu = grid_adi->GetAbstrDomainUnit();
-	dms_assert(grid_adi);
+	MG_CHECK(grid_adu);
 
 	auto [grid_begin, grid_end] = grid_adu->GetRangeAsDRect();
 
 	auto grid_projection = grid_adu->GetProjection();
-	auto factor = (grid_adu) ? grid_projection->Factor() : DPoint(1.0, 1.0);
-	auto f2 = factor;
+	auto factor = DPoint(1.0, 1.0);
+	if (grid_projection)
+		grid_projection->Factor();
 
+	DPoint gridOrigin, f2;
 	if (factor.X() < 0) {
 		f2.X() = -factor.X();
-		grid_begin.Col() = grid_end.Col();
+		gridOrigin.Col() = grid_end.Col();
+	}
+	else
+	{
+		f2.X() = factor.X();
+		gridOrigin.Col() = grid_begin.Col();
 	}
 
 	if (factor.Y() > 0) {
 		f2.Y() = -factor.Y();
-		grid_begin.Row() = grid_end.Row();
+		gridOrigin.Row() = grid_end.Row();
+	}
+	else
+	{
+		f2.Y() = factor.Y();
+		gridOrigin.Row() = grid_begin.Row();
 	}
 
-	auto grid_projection = grid_adu->GetProjection();
-	auto offset = ((grid_projection) ? grid_projection->Offset() : DPoint()) + grid_begin * factor;
+	auto offset = gridOrigin * factor;
+	if (grid_projection)
+		offset += grid_projection->Offset();
 	
 	if (offset_to_top_left_cell)
 		offset += 0.5 * f2;
