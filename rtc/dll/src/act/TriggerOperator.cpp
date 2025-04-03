@@ -90,7 +90,7 @@ void ProcessLastMsg()
 
 void ProgressNotifyMsg(CharPtr msg)
 {
-	dms_assert(sc_NotifyTargetCount.isLocked());
+	assert(sc_NotifyTargetCount.isLocked());
 	if (IsMainThread())
 	{
 		g_LastMsg = nullptr;

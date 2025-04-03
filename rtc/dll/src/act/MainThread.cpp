@@ -113,7 +113,7 @@ std::atomic<bool> s_MainThreadOperProcessRequestPending = false;
 
 RTC_CALL void RequestMainThreadOperProcessing()
 {
-	WakeUpJoiners();
+	wakeUpJoiners();
 	if (!sMainThreadHnd)  // not yet initialized.
 		return;
 
@@ -335,6 +335,7 @@ std::condition_variable cv_TaskCompleted;
 
 RTC_CALL void wakeUpJoiners()
 {
+//	assert(!cs_ThreadMessing.try_lock());
 	cv_TaskCompleted.notify_all();
 }
 
