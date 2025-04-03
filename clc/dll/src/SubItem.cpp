@@ -287,6 +287,9 @@ struct FenceContainerOperator : BinaryOperator
 					resWalker->GetOrCreateSupplCache()->InitAt(srcItem);
 				assert(!resWalker->HasInterest());
 
+				if (IsUnit(resWalker))
+					resWalker->SetReferredItem(srcItem);
+
 				if (srcItem->WasFailed())
 					resWalker->Fail(srcItem);
 			}
@@ -327,7 +330,6 @@ struct FenceContainerOperator : BinaryOperator
 
 						auto srcItem = srcContainer->FindItem(resWalker->GetRelativeName(resultRoot));
 						assert(srcItem);
-
 
 						MG_CHECK(!srcItem->IsCacheItem());
 
