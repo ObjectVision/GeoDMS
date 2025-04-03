@@ -451,7 +451,37 @@ OGRFeature* GetNextFeatureInterleaved(OGRLayer* layer, WeakPtr<GDALDataset> hDS)
 	return nextFeature;
 }
 
+template <typename T>
+void ReadPointZData(typename sequence_traits<T>::seq_t data, OGRLayer* layer, SizeT firstIndex, SizeT size, GDALDataset* hDS)
+{
+	dms_assert(layer);
 
+	DBG_START("ReadPointZData", typeid(T).name(), true);
+
+	SizeT numPoints = 0;
+
+	dms_assert(data.size() == size);
+
+	SizeT i = 0;
+	auto lch = MakeLCH(
+		[firstIndex, &i]() -> SharedStr { return mySSPrintF("Reading Point Feature %d", i + firstIndex); }
+	);
+
+	for (; i != size; ++i)
+	{
+		typename DataArray<T>::reference dataElemRef = data[i];
+		gdalVectImpl::FeaturePtr  feat = hDS->TestCapability(ODsCRandomLayerRead) ? GetNextFeatureInterleaved(layer, hDS) : layer->GetNextFeature();
+		OGRGeometry* geo = feat ? feat->GetGeometryRef() : nullptr;
+		if (geo)
+		{
+			OGRPoint* point = dynamic_cast<OGRPoint*>(geo);
+			MG_CHECK(point);
+			dataElemRef = point->getZ();
+		}
+		else
+			Assign(dataElemRef, Undefined());
+	}
+}
 
 template <typename PointType>
 void ReadPointData(typename sequence_traits<PointType>::seq_t data, OGRLayer* layer, SizeT firstIndex, SizeT size, GDALDataset* hDS)
@@ -629,6 +659,34 @@ found:
 		fieldDefn->SetIgnored(fieldID != i);
 	}
 	return fieldID;
+}
+
+bool GdalVectSM::ReadGeometryZ(const GdalVectlMetaInfo* br, AbstrDataObject* ado, tile_id t, SizeT firstIndex, SizeT size)
+{
+	dms_assert(br);
+	OGRLayer* layer = m_Layer;
+	if (!t)
+		LayerFieldEnable(layer, CharPtrRange(""), nullptr); // only set once
+
+	const ValueClass* vc = ado->GetValuesType();
+	switch (vc->GetValueClassID())
+	{
+	case ValueClassID::VT_Float64: ReadPointZData<Float64>(mutable_array_cast<Float64>(ado)->GetWritableTile(t), layer, firstIndex, size, m_hDS); break;
+	case ValueClassID::VT_Float32: ReadPointZData<Float32>(mutable_array_cast<Float32>(ado)->GetWritableTile(t), layer, firstIndex, size, m_hDS); break;
+	case ValueClassID::VT_Int32: ReadPointZData<Int32>(mutable_array_cast<Int32>(ado)->GetWritableTile(t), layer, firstIndex, size, m_hDS); break;
+	case ValueClassID::VT_UInt32: ReadPointZData<UInt32>(mutable_array_cast<UInt32>(ado)->GetWritableTile(t), layer, firstIndex, size, m_hDS); break;
+	case ValueClassID::VT_Int16: ReadPointZData<Int16>(mutable_array_cast<Int16>(ado)->GetWritableTile(t), layer, firstIndex, size, m_hDS); break;
+	case ValueClassID::VT_UInt16: ReadPointZData<UInt16>(mutable_array_cast<UInt16>(ado)->GetWritableTile(t), layer, firstIndex, size, m_hDS); break;
+	default:
+		ado->throwItemErrorF(
+			"GdalVectSM::ReadGeometryZ not implemented for DataItems with ValuesUnitType: %s",
+			vc->GetName()
+		);
+	}
+
+	m_CurrFeatureIndex += size;
+
+	return true;
 }
 
 bool GdalVectSM::ReadGeometry(const GdalVectlMetaInfo* br, AbstrDataObject* ado, tile_id t, SizeT firstIndex, SizeT size)
@@ -885,8 +943,6 @@ bool GdalVectSM::ReadAttrData(const GdalVectlMetaInfo* br, AbstrDataObject * ado
 	ValueClassID ft = fieldDefn ? gdalVectImpl::OGR2ValueType(fieldDefn->GetType(), fieldDefn->GetSubType()) : ValueClassID::VT_Unknown;
 	ValueClassID at = ado->GetValuesType()->GetValueClassID();
 
-	//if ()
-
 	switch (ft)
 	{
 		case ValueClassID::VT_Unknown:
@@ -995,8 +1051,8 @@ bool GdalVectSM::ReadLayerData(const GdalVectlMetaInfo* br, AbstrDataObject* ado
 	auto adi = br->CurrRD();
 	if (adi->GetID() == token::geometry || adi->GetAbstrValuesUnit()->GetValueType()->GetNrDims() == 2)
 		return ReadGeometry(br, ado, t, firstIndex, size);
-	//if (adi->GetID() == token::geometry_z)
-	//		ReadGeometryZ(...)
+	if (adi->GetID() == token::geometry_z)
+		return ReadGeometryZ(br, ado, t, firstIndex, size);
 	return ReadAttrData(br, ado, t, firstIndex, size);
 }
 
