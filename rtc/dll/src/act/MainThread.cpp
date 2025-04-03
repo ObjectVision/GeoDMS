@@ -193,6 +193,12 @@ void operation_queue::Process()
 	}
 }
 
+bool operation_queue::Empty() const
+{ 
+	assert(!s_MainQueueSection.try_lock());
+	return m_Operations.empty(); 
+}
+
 bool suspendible_task_queue::Post(suspendible_task_type&& task)
 {
 	auto lock = std::scoped_lock(s_MainQueueSection);
@@ -251,6 +257,12 @@ void suspendible_task_queue::CancelTasks()
 		catch (...)
 		{}
 	}
+}
+
+bool suspendible_task_queue::Empty() const 
+{ 
+	assert(!s_MainQueueSection.try_lock());
+	return m_Operations.empty();
 }
 
 operation_queue s_OperQueue;
@@ -316,18 +328,6 @@ void CancelMainThreadTasks()
 	s_TaskQueue.CancelTasks();
 }
 
-bool HasMainThreadTasks()
-{
-	assert(IsMetaThread());
-	if (!s_TaskQueue.Empty())
-		return true;
-	if (s_ProcessMainThreadOperLevel)
-		return false;
-	if (s_OperQueue.Empty())
-		return true;
-	return false;
-}
-
 #include "ASync.h"
 
 leveled_std_section cs_ThreadMessing(item_level_type(0), ord_level_type::ThreadMessing, "LockedThreadMessing");
@@ -338,9 +338,22 @@ RTC_CALL void wakeUpJoiners()
 	cv_TaskCompleted.notify_all();
 }
 
+bool HasMainThreadTasks()
+{
+	auto lock = std::scoped_lock(s_MainQueueSection);
+
+	if (!s_TaskQueue.Empty())
+		return true;
+	if (s_ProcessMainThreadOperLevel)
+		return false;
+	if (s_OperQueue.Empty())
+		return true;
+	return false;
+}
+
 RTC_CALL void WakeUpJoiners()
 {
-	leveled_std_section::unique_lock lock(cs_ThreadMessing);
+	std::unique_lock<std::mutex> lock(cs_ThreadMessing);
 	wakeUpJoiners();
 }
 

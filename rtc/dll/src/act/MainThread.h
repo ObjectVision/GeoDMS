@@ -30,8 +30,7 @@ struct operation_queue
 	RTC_CALL void Send(operation_type&& func);
 
 	RTC_CALL void Process();
-
-	bool Empty() const { assert(IsMetaThread()); return m_Operations.empty(); }
+	RTC_CALL bool Empty() const;
 
 private:
 	std::vector<operation_type> m_Operations;
@@ -47,7 +46,7 @@ struct suspendible_task_queue
 	RTC_CALL void Process();
 	RTC_CALL void CancelTasks();
 
-	bool Empty() const { assert(IsMetaThread()); return m_Operations.empty(); }
+	RTC_CALL bool Empty() const;
 
 private:
 	std::vector<suspendible_task_type> m_Operations;

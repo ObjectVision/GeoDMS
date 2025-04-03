@@ -407,7 +407,9 @@ void WaitForCompletedTaskOrTimeout(std::chrono::milliseconds waitFor)
 		ProcessMainThreadOpers();
 
 	leveled_std_section::unique_lock lock(cs_ThreadMessing);
-	if (!s_NrRunningOperations || HasMainThreadTasks())
+	if (!s_NrRunningOperations)
+		return;
+	if (HasMainThreadTasks())
 		return;
 	cv_TaskCompleted.wait_for(lock.m_BaseLock, waitFor);
 }
