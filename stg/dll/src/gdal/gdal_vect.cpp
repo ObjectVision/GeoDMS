@@ -122,8 +122,8 @@ namespace gdalVectImpl {
 	{
 		switch (geoType) {
 		case wkbPoint:           
-		//case wkbPoint25D:
-		//case wkbPointZM:
+		case wkbPoint25D:
+		case wkbPointZM:
 			return ValueComposition::Single;
 		case wkbMultiPoint:      return ValueComposition::Sequence;
 		case wkbCircularString:	 return ValueComposition::Sequence;
@@ -451,7 +451,37 @@ OGRFeature* GetNextFeatureInterleaved(OGRLayer* layer, WeakPtr<GDALDataset> hDS)
 	return nextFeature;
 }
 
+template <typename T>
+void ReadPointZData(typename sequence_traits<T>::seq_t data, OGRLayer* layer, SizeT firstIndex, SizeT size, GDALDataset* hDS)
+{
+	dms_assert(layer);
 
+	DBG_START("ReadPointZData", typeid(T).name(), true);
+
+	SizeT numPoints = 0;
+
+	dms_assert(data.size() == size);
+
+	SizeT i = 0;
+	auto lch = MakeLCH(
+		[firstIndex, &i]() -> SharedStr { return mySSPrintF("Reading Point Feature %d", i + firstIndex); }
+	);
+
+	for (; i != size; ++i)
+	{
+		typename DataArray<T>::reference dataElemRef = data[i];
+		gdalVectImpl::FeaturePtr  feat = hDS->TestCapability(ODsCRandomLayerRead) ? GetNextFeatureInterleaved(layer, hDS) : layer->GetNextFeature();
+		OGRGeometry* geo = feat ? feat->GetGeometryRef() : nullptr;
+		if (geo)
+		{
+			OGRPoint* point = dynamic_cast<OGRPoint*>(geo);
+			MG_CHECK(point);
+			dataElemRef = point->getZ();
+		}
+		else
+			Assign(dataElemRef, Undefined());
+	}
+}
 
 template <typename PointType>
 void ReadPointData(typename sequence_traits<PointType>::seq_t data, OGRLayer* layer, SizeT firstIndex, SizeT size, GDALDataset* hDS)
@@ -631,6 +661,34 @@ found:
 	return fieldID;
 }
 
+bool GdalVectSM::ReadGeometryZ(const GdalVectlMetaInfo* br, AbstrDataObject* ado, tile_id t, SizeT firstIndex, SizeT size)
+{
+	dms_assert(br);
+	OGRLayer* layer = m_Layer;
+	if (!t)
+		LayerFieldEnable(layer, CharPtrRange(""), nullptr); // only set once
+
+	const ValueClass* vc = ado->GetValuesType();
+	switch (vc->GetValueClassID())
+	{
+	case ValueClassID::VT_Float64: ReadPointZData<Float64>(mutable_array_cast<Float64>(ado)->GetWritableTile(t), layer, firstIndex, size, m_hDS); break;
+	case ValueClassID::VT_Float32: ReadPointZData<Float32>(mutable_array_cast<Float32>(ado)->GetWritableTile(t), layer, firstIndex, size, m_hDS); break;
+	case ValueClassID::VT_Int32: ReadPointZData<Int32>(mutable_array_cast<Int32>(ado)->GetWritableTile(t), layer, firstIndex, size, m_hDS); break;
+	case ValueClassID::VT_UInt32: ReadPointZData<UInt32>(mutable_array_cast<UInt32>(ado)->GetWritableTile(t), layer, firstIndex, size, m_hDS); break;
+	case ValueClassID::VT_Int16: ReadPointZData<Int16>(mutable_array_cast<Int16>(ado)->GetWritableTile(t), layer, firstIndex, size, m_hDS); break;
+	case ValueClassID::VT_UInt16: ReadPointZData<UInt16>(mutable_array_cast<UInt16>(ado)->GetWritableTile(t), layer, firstIndex, size, m_hDS); break;
+	default:
+		ado->throwItemErrorF(
+			"GdalVectSM::ReadGeometryZ not implemented for DataItems with ValuesUnitType: %s",
+			vc->GetName()
+		);
+	}
+
+	m_CurrFeatureIndex += size;
+
+	return true;
+}
+
 bool GdalVectSM::ReadGeometry(const GdalVectlMetaInfo* br, AbstrDataObject* ado, tile_id t, SizeT firstIndex, SizeT size)
 {
 	dms_assert(br);
@@ -709,20 +767,27 @@ void ReadStrAttrData(OGRLayer* layer, SizeT currFieldIndex, sequence_traits<Shar
 	}
 }
 
-bool GDALFieldCanBeInterpretedAsInteger(gdalVectImpl::FeaturePtr &feat, SizeT &currFieldIndex)
-{
-	if ((!feat || !feat->IsFieldSetAndNotNull(currFieldIndex)) || (std::string(feat->GetFieldAsString(currFieldIndex)) != "0" && feat->GetFieldAsInteger64(currFieldIndex) == 0))
-		return false;
-	return true;
-}
-
-bool GDALFieldCanBeInterpretedAsDouble(gdalVectImpl::FeaturePtr& feat, SizeT& currFieldIndex)
+bool GDALFieldCanBeInterpretedAsInteger(const gdalVectImpl::FeaturePtr &feat, SizeT currFieldIndex, GIntBig field_as_int)
 {
 	if (!feat)
 		return false;
 	if (!feat->IsFieldSetAndNotNull(currFieldIndex))
 		return false;
-	if (feat->GetFieldAsDouble(currFieldIndex) != 0)
+
+	if (field_as_int == 0)
+		if (std::strcmp(feat->GetFieldAsString(currFieldIndex), "0") != 0)
+			return false;
+
+	return true;
+}
+
+bool GDALFieldCanBeInterpretedAsDouble(gdalVectImpl::FeaturePtr& feat, SizeT& currFieldIndex, Float64 field_as_double)
+{
+	if (!feat)
+		return false;
+	if (!feat->IsFieldSetAndNotNull(currFieldIndex))
+		return false;
+	if (field_as_double != 0)
 		return true;
 	auto fieldAsCharPtr = feat->GetFieldAsString(currFieldIndex); // who owns this ? lifetime ?
 	if (!fieldAsCharPtr || !*fieldAsCharPtr)
@@ -745,17 +810,32 @@ void ReadInt32AttrData(OGRLayer* layer, SizeT currFieldIndex, typename sequence_
 		[firstIndex, &i]() -> SharedStr { return mySSPrintF("Reading Int32 Field %d", i + firstIndex); }
 	);
 
-	for (; i!=size; ++i)
-	{
-		typename DataArray<T>::reference dataElemRef = data[i];
+	if (hDS->TestCapability(ODsCRandomLayerRead))
+		for (; i != size; ++i)
+		{
+			typename DataArray<T>::reference dataElemRef = data[i];
 
-		gdalVectImpl::FeaturePtr feat = hDS->TestCapability(ODsCRandomLayerRead) ? GetNextFeatureInterleaved(layer, hDS) : layer->GetNextFeature();
+			gdalVectImpl::FeaturePtr feat =  GetNextFeatureInterleaved(layer, hDS);
+
+			auto field_as_int = feat->GetFieldAsInteger(currFieldIndex);
+			if (GDALFieldCanBeInterpretedAsInteger(feat, currFieldIndex, field_as_int))
+				dataElemRef = field_as_int;
+			else
+				Assign(dataElemRef, Undefined()); // throw error if value ie 1.23254
+		}
+	else
+		for (; i!=size; ++i)
+		{
+			typename DataArray<T>::reference dataElemRef = data[i];
+
+			gdalVectImpl::FeaturePtr feat = layer->GetNextFeature();
 		
-		if (GDALFieldCanBeInterpretedAsInteger(feat, currFieldIndex))
-			dataElemRef = feat->GetFieldAsInteger(currFieldIndex);
-		else
-			Assign( dataElemRef, Undefined() );
-	}
+			auto field_as_int = feat->GetFieldAsInteger(currFieldIndex);
+			if (GDALFieldCanBeInterpretedAsInteger(feat, currFieldIndex, field_as_int))
+				dataElemRef = field_as_int;
+			else
+				Assign( dataElemRef, Undefined() ); // throw error if value ie 1.23254
+		}
 }
 
 template <typename T>
@@ -763,19 +843,34 @@ void ReadInt64AttrData(OGRLayer* layer, SizeT currFieldIndex, typename sequence_
 {
 	SizeT i = 0;
 	auto lch = MakeLCH(
-		[firstIndex, &i]() -> SharedStr { return mySSPrintF("Reading Int32 Field %d", i + firstIndex); }
+		[firstIndex, &i]() -> SharedStr { return mySSPrintF("Reading Int64 Field %d", i + firstIndex); }
 	);
 
-	for (; i != size; ++i)
-	{
-		typename DataArray<T>::reference dataElemRef = data[i];
+	if (hDS->TestCapability(ODsCRandomLayerRead)) {
+		for (; i != size; ++i)
+		{
+			typename DataArray<T>::reference dataElemRef = data[i];
 
-		gdalVectImpl::FeaturePtr feat = hDS->TestCapability(ODsCRandomLayerRead) ? GetNextFeatureInterleaved(layer, hDS) : layer->GetNextFeature();
-		
-		if (GDALFieldCanBeInterpretedAsInteger(feat, currFieldIndex))
-			dataElemRef = feat->GetFieldAsInteger64(currFieldIndex);
-		else
-			Assign(dataElemRef, Undefined());
+			gdalVectImpl::FeaturePtr feat = GetNextFeatureInterleaved(layer, hDS);
+
+			auto field_as_int = feat->GetFieldAsInteger64(currFieldIndex);
+			if (GDALFieldCanBeInterpretedAsInteger(feat, currFieldIndex, field_as_int))
+				dataElemRef = field_as_int;
+			else
+				Assign(dataElemRef, Undefined());
+		}
+	} else {
+		for (; i != size; ++i)
+		{
+			typename DataArray<T>::reference dataElemRef = data[i];
+			gdalVectImpl::FeaturePtr feat = layer->GetNextFeature();
+
+			auto field_as_int = feat->GetFieldAsInteger(currFieldIndex);
+			if (GDALFieldCanBeInterpretedAsInteger(feat, currFieldIndex, field_as_int))
+				dataElemRef = feat->GetFieldAsInteger64(currFieldIndex);
+			else
+				Assign(dataElemRef, Undefined());
+		}
 	}
 }
 
@@ -787,15 +882,30 @@ void ReadDoubleAttrData(OGRLayer* layer, SizeT currFieldIndex, typename sequence
 		[firstIndex, &i]() -> SharedStr { return mySSPrintF("Reading Float64 Field %d", i + firstIndex); }
 	);
 
-	for (; i!=size; ++i)
-	{
-		typename DataArray<T>::reference dataElemRef = data[i];
+	if (hDS->TestCapability(ODsCRandomLayerRead)) {
+		for (; i != size; ++i)
+		{
+			typename DataArray<T>::reference dataElemRef = data[i];
 
-		gdalVectImpl::FeaturePtr feat = hDS->TestCapability(ODsCRandomLayerRead) ? GetNextFeatureInterleaved(layer, hDS) : layer->GetNextFeature();
-		if (GDALFieldCanBeInterpretedAsDouble(feat, currFieldIndex))
-			dataElemRef = feat->GetFieldAsDouble(currFieldIndex);
-		else
-			Assign( dataElemRef, Undefined() );
+			gdalVectImpl::FeaturePtr feat = GetNextFeatureInterleaved(layer, hDS);
+			auto field_as_double = feat->GetFieldAsDouble(currFieldIndex);
+			if (GDALFieldCanBeInterpretedAsDouble(feat, currFieldIndex, field_as_double))
+				dataElemRef = field_as_double;
+			else
+				Assign(dataElemRef, Undefined());
+		}
+	} else {
+		for (; i != size; ++i)
+		{
+			typename DataArray<T>::reference dataElemRef = data[i];
+
+			gdalVectImpl::FeaturePtr feat = layer->GetNextFeature();
+			auto field_as_double = feat->GetFieldAsDouble(currFieldIndex);
+			if (GDALFieldCanBeInterpretedAsDouble(feat, currFieldIndex, field_as_double))
+				dataElemRef = field_as_double;
+			else
+				Assign(dataElemRef, Undefined());
+		}
 	}
 }
 
@@ -941,6 +1051,8 @@ bool GdalVectSM::ReadLayerData(const GdalVectlMetaInfo* br, AbstrDataObject* ado
 	auto adi = br->CurrRD();
 	if (adi->GetID() == token::geometry || adi->GetAbstrValuesUnit()->GetValueType()->GetNrDims() == 2)
 		return ReadGeometry(br, ado, t, firstIndex, size);
+	if (adi->GetID() == token::geometry_z)
+		return ReadGeometryZ(br, ado, t, firstIndex, size);
 	return ReadAttrData(br, ado, t, firstIndex, size);
 }
 
@@ -1771,6 +1883,12 @@ void GdalVectSM::DoUpdateTableGeometry(const TreeItem* storageHolder, AbstrUnit*
 		ogrSR = *ogrSR_ptr;
 	CheckSpatialReference(ogrSR, geometry, const_cast<AbstrUnit*>(gvu));
 
+	// add geometry_z attribute if available
+	if (layer_geometry_type == wkbPoint25D || layer_geometry_type == wkbPointZM) {
+		auto geometry_z_vt = gvu->GetValueType()->GetScalarClass();
+		CreateTreeItemColumnInfo(layerDomain, token::geometry_z.AsSharedStr().c_str(), layerDomain, geometry_z_vt);
+	}
+
 	return;
 }
 
@@ -1785,7 +1903,6 @@ void GdalVectSM::DoUpdateTableAttributes(AbstrUnit* layerDomain, OGRLayer* layer
 		TreeItem* tiColumn = layerDomain->GetItem(itemName.c_str());
 
 		auto valueType = gdalVectImpl::OGR2ValueClass(fieldDefn->GetType(), fieldDefn->GetSubType());
-		//auto explicitlyConfiguredItem = storageHolder->FindItem(itemName);
 		auto explicitlyConfiguredItem = layerDomain->GetItem(itemName);
 		if (explicitlyConfiguredItem && TreeItemIsColumn(explicitlyConfiguredItem)) // csv type ambiguity
 			valueType = AsDataItem(explicitlyConfiguredItem)->GetAbstrValuesUnit()->GetValueType();
