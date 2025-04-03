@@ -1423,7 +1423,8 @@ void AnyTreeItemStateHasChanged(ClientHandle /*clientHandle*/, const TreeItem* s
     switch (notificationCode) {
     case NC_Deleting: 
         // TODO: remove self from any representation to avoid accessing it's dangling pointer
-        mainWindow->removeTreeItem(self);
+        // seee https://github.com/ObjectVision/GeoDMS/issues/883 for now.
+        //        mainWindow->removeTreeItem(self);
         break; 
     case NC_Creating: break;
     case CC_CreateMdiChild: {
