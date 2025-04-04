@@ -340,6 +340,7 @@ struct FenceContainerOperator : BinaryOperator
 							if (SuspendTrigger::DidSuspend())
 								return false;
 						}
+						assert(!SuspendTrigger::DidSuspend());
 
 						if (!IsUnit(resWalker) && !IsDataItem(resWalker))
 							continue;
@@ -353,8 +354,11 @@ struct FenceContainerOperator : BinaryOperator
 							assert(dcInterest); // follows from 
 							if (dcInterest)
 							{
-								futureDataContainer.emplace_back(resInterestPtr, dc->CallCalcResult());
-								continue;
+								auto fd = dc->CallCalcResult();
+								if (SuspendTrigger::DidSuspend())
+									return false;
+
+								futureDataContainer.emplace_back(std::move(resInterestPtr), std::move(fd));
 							}
 						}
 					}

@@ -196,7 +196,6 @@ void InterestRetainContextBase::Add(const Actor* actor)
 		push_front(GetRetainContext(), actor);
 }
 
-
 //  -----------------------------------------------------------------------
 //  struct Actor implementation: static, ctor/dtor
 //  -----------------------------------------------------------------------

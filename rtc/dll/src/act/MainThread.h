@@ -81,6 +81,13 @@ struct MainThreadBlocker
 	RTC_CALL ~MainThreadBlocker();
 };
 
+struct RequestMainThreadOperProcessingBlocker
+{
+	RTC_CALL RequestMainThreadOperProcessingBlocker();
+	RTC_CALL ~RequestMainThreadOperProcessingBlocker();
+};
+
+
 RTC_CALL extern std::condition_variable cv_TaskCompleted;
 RTC_CALL extern leveled_std_section cs_ThreadMessing;
 

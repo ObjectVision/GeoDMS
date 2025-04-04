@@ -193,7 +193,7 @@ void connect(OperationContextSPtr waiter, OperationContextSPtr supplier)
 	DBG_TRACE(("waiter   = %s", AsText(waiter)));
 	DBG_TRACE(("supplier = %s", AsText(supplier)));
 
-	assert(cs_ThreadMessing.isLocked());
+	assert(!cs_ThreadMessing.try_lock());
 	if (isSupplier(waiter, supplier))
 		return;
 
@@ -273,7 +273,7 @@ garbage_t OperationContext::disconnect()
 	sd_ManagedContexts.erase(this);
 #endif
 
-	dms_assert(cs_ThreadMessing.isLocked());
+	assert(!cs_ThreadMessing.try_lock());
 
 	garbage_t garbage;
 	garbage |= std::move(m_Suppliers);
@@ -298,7 +298,7 @@ fence_number s_CurrActiveFenceNumber = 0;
 
 garbage_t runOperationContexts()
 {
-	assert(cs_ThreadMessing.isLocked());
+	assert(!cs_ThreadMessing.try_lock());
 
 	assert(!s_RunOperationContextsCount);
 
@@ -596,7 +596,7 @@ void OperationContext::setTask(dms_task&& newTask)
 
 void OperationContext::activateTaskImpl(SharedActorInterestPtr&& resKeeper)
 {
-	assert(cs_ThreadMessing.isLocked());
+	assert(!cs_ThreadMessing.try_lock());
 
 	assert(s_NrRunningOperations >= 0);
 	assert(m_Status < task_status::activated);
@@ -625,7 +625,7 @@ void OperationContext::activateTaskImpl(SharedActorInterestPtr&& resKeeper)
 bool OperationContext::getUniqueLicenseToRun()
 {
 //	dms_assert(m_Suppliers.empty());
-	assert(cs_ThreadMessing.isLocked());
+	assert(!cs_ThreadMessing.try_lock());
 
 	if (m_Status >= task_status::activated || !m_TaskFunc)
 	{
@@ -890,7 +890,10 @@ bool OperationContext::CancelIfNoInterestOrForced(bool forced)
 
 bool OperationContext::HandleFail(const TreeItem* item)
 {
+	RequestMainThreadOperProcessingBlocker letTheNotificationsComeAfter;
+
 	std::any separatedResources;
+
 	leveled_std_section::scoped_lock lock(cs_ThreadMessing);
 
 	if (m_Status == task_status::exception)

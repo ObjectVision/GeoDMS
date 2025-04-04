@@ -111,11 +111,36 @@ bool NoOtherThreadsStarted()
 
 std::atomic<bool> s_MainThreadOperProcessRequestPending = false;
 
+static thread_local UInt32 s_MainThreadOperProcessingRequestLockCounter = 0;
+static thread_local bool   s_MainThreadOperProcessingRequested = false;
+
+RequestMainThreadOperProcessingBlocker::RequestMainThreadOperProcessingBlocker()
+{
+	if (!s_MainThreadOperProcessingRequestLockCounter++)
+	{
+		assert(!s_MainThreadOperProcessingRequested);
+	}
+}
+
+RequestMainThreadOperProcessingBlocker::~RequestMainThreadOperProcessingBlocker()
+{
+	if (!--s_MainThreadOperProcessingRequestLockCounter)
+	{
+		if (s_MainThreadOperProcessingRequested)
+		{
+			RequestMainThreadOperProcessing();
+			s_MainThreadOperProcessingRequested = false;
+		}
+	}
+}
+
 RTC_CALL void RequestMainThreadOperProcessing()
 {
-	wakeUpJoiners();
-	if (!sMainThreadHnd)  // not yet initialized.
-		return;
+	if (s_MainThreadOperProcessingRequestLockCounter)
+	{
+		s_MainThreadOperProcessingRequested = true;
+		return; // come back later when the last RequestMainThreadOperProcessingBlocker is being  destructed.
+	}
 
 	if (s_MainThreadOperProcessRequestPending.exchange(true)) // a request was alredy posted?
 	{
@@ -123,9 +148,12 @@ RTC_CALL void RequestMainThreadOperProcessing()
 		auto currTime = std::time(nullptr);
 		if (lastPostTime + 5 > currTime)
 			return;
-		lastPostTime = currTime;
+		lastPostTime = currTime; // only post again every 5 second
 	}
-	PostThreadMessage(sMainThreadHnd, UM_PROCESS_MAINTHREAD_OPERS, 0, 0); // only effective when MainThread has MessageQueue, ie in GeoDmsGui, and not in GeoDmsRun or python process
+	if (sMainThreadHnd)  // not yet initialized.
+		PostThreadMessage(sMainThreadHnd, UM_PROCESS_MAINTHREAD_OPERS, 0, 0); // only effective when MainThread has MessageQueue, ie in GeoDmsGui, and not in GeoDmsRun or python process
+
+	WakeUpJoiners();
 }
 
 RTC_CALL void ConfirmMainThreadOperProcessing()
@@ -335,7 +363,7 @@ std::condition_variable cv_TaskCompleted;
 
 RTC_CALL void wakeUpJoiners()
 {
-//	assert(!cs_ThreadMessing.try_lock());
+	assert(!cs_ThreadMessing.try_lock());
 	cv_TaskCompleted.notify_all();
 }
 
@@ -354,7 +382,7 @@ bool HasMainThreadTasks()
 
 RTC_CALL void WakeUpJoiners()
 {
-	std::unique_lock<std::mutex> lock(cs_ThreadMessing);
+	auto lockToAvoidHasMainThreadTasksToBeMissed = std::unique_lock(cs_ThreadMessing);
 	wakeUpJoiners();
 }
 

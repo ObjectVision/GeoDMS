@@ -179,7 +179,7 @@ static bool sd_ReportedDone = false;
 
 void DecRemainingTargetCount()
 {
-	dms_assert(g_RemainingTargetCount);
+	assert(g_RemainingTargetCount);
 
 	leveled_critical_section::scoped_lock notifyLock(sc_NotifyTargetCount);
 	NotifyRemainingTargetCount(--g_RemainingTargetCount, g_MaxTargetCount);
