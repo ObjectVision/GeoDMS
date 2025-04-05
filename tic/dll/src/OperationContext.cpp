@@ -418,12 +418,16 @@ void WaitForCompletedTaskOrTimeout(std::chrono::milliseconds waitFor)
 // *****************************************************************************
 // Section:     OperatorContextBase
 // *****************************************************************************
-
 #if defined(MG_DEBUG)
+#define MG_TRACE_OPERATIONCONTEXTS
+#endif
+
+#if defined(MG_TRACE_OPERATIONCONTEXTS)
 
 	leveled_critical_section cs_OcAdm(item_level_type(0), ord_level_type::OperationContext, "OperationContextSet");
 	UInt32 sd_OcCount;
 	std::set<OperationContext*> sd_OC;
+
 	void reportOC(CharPtr source, OperationContext* ocPtr)
 	{
 		auto item = ocPtr->GetResult();
@@ -443,7 +447,7 @@ OperationContext::OperationContext()
 	assert(IsMetaThread());
 	
 
-	#if defined(MG_DEBUG)
+	#if defined(MG_TRACE_OPERATIONCONTEXTS)
 
 		leveled_critical_section::scoped_lock lock(cs_OcAdm);
 		++sd_OcCount;
@@ -460,13 +464,13 @@ OperationContext::OperationContext(const FuncDC* self, const AbstrOperGroup* og)
 	DBG_START("OperationContext", "CTor", MG_DEBUG_FUNCCONTEXT);
 	DBG_TRACE(("FuncDC: %s", self->md_sKeyExpr));
 
-#if defined(MG_DEBUG)
+	#if defined(MG_TRACE_OPERATIONCONTEXTS)
 
-	leveled_critical_section::scoped_lock lock(cs_OcAdm);
-	++sd_OcCount;
-	sd_OC.insert(this);
+		leveled_critical_section::scoped_lock lock(cs_OcAdm);
+		++sd_OcCount;
+		sd_OC.insert(this);
 
-#endif
+	#endif
 }
 
 OperationContext::~OperationContext()
@@ -483,13 +487,14 @@ OperationContext::~OperationContext()
 	dms_assert(m_Status != task_status::scheduled); // cancel, exception or done caught.
 	dms_assert(m_Status == task_status::exception || m_Status == task_status::cancelled || m_Status == task_status::done || m_Status == task_status::none); // cancel, exception or done caught.
 
-#if defined(MG_DEBUG)
+	#if defined(MG_TRACE_OPERATIONCONTEXTS)
 
-	leveled_critical_section::scoped_lock lock(cs_OcAdm);
-	--sd_OcCount;
-	sd_OC.erase(this);
+		leveled_critical_section::scoped_lock lock(cs_OcAdm);
+		--sd_OcCount;
+		sd_OC.erase(this);
 
-#endif
+	#endif
+
 }
 
 task_status OperationContext::Schedule(TreeItem* item, const FutureSuppliers& allInterest, bool runDirect)
@@ -733,84 +738,6 @@ void OperationContext::OnEnd(task_status status) noexcept
 	}
 }
 
-/*
-DataControllerRef OperationContext::getArgDC(arg_index i) const
-{
-	SharedPtr<const FuncDC> funcDC = m_FuncDC.get_ptr();
-	if (!funcDC)
-		return {};
-
-	dms_assert(i < funcDC->GetNrArgs());
-	if (!MustCalcArg(i))
-		return {};
-
-	auto argDcListElem = funcDC->GetArgList();
-	while (i--)
-	{
-		dms_assert(argDcListElem);
-		argDcListElem = argDcListElem->m_Next;
-	}
-	dms_assert(argDcListElem);
-
-	auto dcRef = argDcListElem->m_DC;
-	dms_assert(dcRef);
-
-	return dcRef;
-}
-
-arg_index OperationContext::getNrSupplOC() const
-{
-	SharedPtr<const FuncDC> funcDC = m_FuncDC.get_ptr();
-	return (funcDC ? funcDC->GetNrArgs() : 0) + m_OtherSuppliers.size();
-}
-
-std::shared_ptr<OperationContext> OperationContext::getSupplOC(arg_index i) const
-{
-	dms_assert(i <= getNrSupplOC());
-
-	SharedPtr<const FuncDC> funcDC = m_FuncDC.get_ptr();
-
-	arg_index n = funcDC ? m_FuncDC->GetNrArgs() : 0;
-	if (i < n)
-	{
-		dms_assert(funcDC);
-		auto argDC = getArgDC(i);
-		if (!argDC) // maybe MustCalcArg returned false
-			return {};
-		while (auto argFuncDC = dynamic_cast<const FuncDC*>(argDC.get_ptr()))
-		{
-			auto interestCount = argFuncDC->GetInterestCount();
-			auto result = argFuncDC->GetOperContext();
-			if (result)
-				return result;
-
-			if (!argFuncDC->IsSubItemCall())
-			{
-				const TreeItem* argResult = argDC->GetOld()->GetCurrRangeItem();
-				dms_assert((!interestCount) || CheckDataReady(argResult) || argResult->WasFailed(FR_Data) || m_Status >= task_status::activated);
-				return {};
-			}
-			argDC = argFuncDC->m_Args->m_DC;
-		}
-		return GetOperationContext(argDC->GetOld()->GetCurrRangeItem());
-	}
-	dms_assert(i < n + m_OtherSuppliers.size());
-	auto si = m_OtherSuppliers[i - n];
-	dms_assert(si);
-	if (CheckDataReady(si->GetCurrRangeItem()))
-		return {};
-	//	si->PrepareDataUsage(DrlType::Certain);
-	if (si->WasFailed(FR_Data))
-	{
-//		const_cast<FuncDC*>(m_FuncDC.get_ptr())->Fail(si.get_ptr());
-		return {};
-	}
-	dms_assert(!SuspendTrigger::DidSuspend());
-	auto result = GetOperationContext(si->GetCurrUltimateItem());
-	dms_assert(result || CheckDataReady(si->GetCurrRangeItem()));
-	return result;
-}
-*/
 void OperationContext::releaseRunCount(task_status status)
 {
 	assert(!IsRunningOperation(status));
@@ -1392,6 +1319,8 @@ task_status OperationContext::Join()
 			, GetResult()->GetFullName()
 			, OperationContext::CancelableFrame::CurrActive()->GetResult()->GetFullName()
 		);
+
+	MG_CHECK(m_Status != task_status::none); // being scheduled is a precondition
 
 	bool isFirstTime = true;
 //	TryActivateTaskInline();

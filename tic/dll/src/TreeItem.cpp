@@ -2724,7 +2724,7 @@ ActorVisitState TreeItem::DoUpdate(ProgressState ps)
 			if (fc->m_OperatorGroup->GetNameID() == token::FenceContainer)
 				if (auto fd = dc->CallCalcResult())
 					if (auto oc = fc->GetOperContext())
-						if (oc->Join() != task_status::done)
+						if (oc->GetStatus() != task_status::none && oc->Join() != task_status::done)
 							return ActorVisitState::AVS_SuspendedOrFailed;
 
 	if (ps < PS_Validated)

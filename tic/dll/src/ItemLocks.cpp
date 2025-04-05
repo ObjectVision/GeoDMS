@@ -554,7 +554,7 @@ bool IsAllDataReady(const TreeItem* item)
 bool IsAllInterestedCalculatingOrDataReady_impl(const TreeItem* item)
 {
 	if (item->GetInterestCount())
-		if (!IsDataCurrReady(item))
+		if (!IsDataCurrReady(item->GetCurrUltimateItem()))
 			return false;
 
 	//	if (item->IsCacheItem())
@@ -567,6 +567,8 @@ bool IsAllInterestedCalculatingOrDataReady_impl(const TreeItem* item)
 
 bool IsAllInterestedCalculatingOrDataReady(const TreeItem* item)
 {
+	assert(IsMetaThread());
+
 	assert(item);
 	if (!item->IsCacheItem())
 	{
