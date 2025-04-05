@@ -92,7 +92,7 @@ void ConsiderMakingFreeSpace(SizeT sz)
 			K32EmptyWorkingSet(GetCurrentProcess());
 			SendMainThreadOper([] 
 				{
-					reportD(SeverityTypeID::ST_MajorTrace, "Calling EmptyWorkingSet to release used pages to the standby status.");
+					reportD(SeverityTypeID::ST_MinorTrace, "Calling EmptyWorkingSet to release used pages to the standby status.");
 //					DBG_DebugReport();
 				}
 			);
@@ -148,7 +148,7 @@ void WaitForAvailableMemory(std::size_t requestedSize)
 	// Programs that must run on earlier versions of Windows as well as Windows 7 and later versions should always call this function as K32EmptyWorkingSet. 
 	// To ensure correct resolution of symbols, add Psapi.lib to the TARGETLIBS macro and compile the program with -DPSAPI_VERSION=1. To use run-time dynamic linking, load Psapi.dll.
 
-	reportD(ST_MajorTrace, "Calling EmptyWorkingSet to release used pages to the standby status.");
+	reportD(ST_MinorTrace, "Calling EmptyWorkingSet to release used pages to the standby status.");
 	EmptyWorkingSet(GetCurrentProcess());
 
 #endif
