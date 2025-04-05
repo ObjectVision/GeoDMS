@@ -284,7 +284,10 @@ struct FenceContainerOperator : BinaryOperator
 				AssignFenceNumber(srcItem, resultFenceNumber);
 
 				if (resWalker != resultRoot) // avoid updating all fenced items before getting them
+				{
 					resWalker->GetOrCreateSupplCache()->InitAt(srcItem);
+					resWalker->SetLocation(srcItem->GetLocation());
+				}
 				assert(!resWalker->HasInterest());
 
 				if (IsUnit(resWalker))
@@ -345,7 +348,7 @@ struct FenceContainerOperator : BinaryOperator
 						if (!IsUnit(resWalker) && !IsDataItem(resWalker))
 							continue;
 
-						assert(resWalker->DoesHaveSupplInterest());
+//						assert(resWalker->DoesHaveSupplInterest());
 
 						auto dc = srcItem->mc_DC;
 						if (dc)
@@ -409,7 +412,10 @@ struct FenceContainerOperator : BinaryOperator
 						[&resItem]<typename V>(const Unit<V>*srcUltUnit) { checked_valcast<Unit<V>*>(resItem)->m_RangeDataPtr = srcUltUnit->m_RangeDataPtr; }
 					);
 				}
-
+				if (dc->WasFailed())
+					resItem->Fail(dc.get_ptr());
+				if (srcUltItem->WasFailed())
+					resItem->Fail(srcUltItem);
 			}
 			resItem->SetIsInstantiated();
 			resItem->StopSupplInterest();

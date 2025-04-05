@@ -332,8 +332,8 @@ public:
 	void SetDataChanged(); 
 
 //	SourceLocation
-	TIC_CALL void    SetLocation(SourceLocation* loc);
-	TIC_CALL const SourceLocation* GetLocation() const override;
+	TIC_CALL void SetLocation(const SourceLocation* loc);
+	TIC_CALL auto GetLocation() const -> const SourceLocation* override;
 	TIC_CALL SharedStr GetConfigFileName  () const;
 	TIC_CALL UInt32  GetConfigFileLineNr() const;
 	TIC_CALL UInt32  GetConfigFileColNr () const;
@@ -462,7 +462,7 @@ public: // TODO G8: encapsulate and move config attr (aka mc_ ) into a separate 
 	mutable SharedPtr<const TreeItem> mc_RefItem, mc_OrgItem;
 
 private:
-	SharedPtr<SourceLocation>      m_Location;
+	SharedPtr<const SourceLocation> m_Location;
 
 	DECL_RTTI(TIC_CALL, TreeItemClass)
 

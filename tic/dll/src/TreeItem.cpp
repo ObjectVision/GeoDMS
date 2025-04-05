@@ -345,12 +345,7 @@ void TreeItem::EnableAutoDeleteImpl() // does not call UpdateMetaInfo
 	dms_assert(IsAutoDeleteDisabled());
 	mc_Calculator.reset();
 	mc_IntegrityChecker.reset();
-/*
-	mc_RefItem.reset();
-	mc_OrgItem.reset();
-	m_Location.reset();
-	m_SupplCache.reset();
-*/
+
 	if (!IsCacheItem())
 		DisableStorage();
 
@@ -4357,7 +4352,7 @@ bool TreeItem::CheckBlobBuffer(const BlobBuffer& rs) const
 //	impl SourceLocation related member funcs of TreeItem
 //----------------------------------------------------------------------
 
-void TreeItem::SetLocation(SourceLocation* loc)
+void TreeItem::SetLocation(const SourceLocation* loc)
 {
 	m_Location = loc;
 }
