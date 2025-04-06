@@ -38,11 +38,31 @@ auto mgFormat(CharPtr msg, Args&&... args)
 	return modOperChain(boost::format(msg), std::forward<Args>(args)...);
 }
 
+//----------------------------------------------------------------------
+// format and consume rvalue references as values to avoid keeping TokenStr locks alive after the call
+//----------------------------------------------------------------------
+
+template <typename T>
+using remove_rvalue_reference_t = std::conditional_t<std::is_rvalue_reference_v<T>, std::remove_reference_t<T>, T>;
+
+#pragma warning (push)
+#pragma warning (disable: 26800)
+
+template <typename ...Args>
+void release_resources(Args...) 
+{
+}
+
 template<typename ...Args>
 std::string mgFormat2string(CharPtr msg, Args&&... args)
 {
-	return str(mgFormat(msg, std::forward<Args>(args)...));
+	auto result = str(mgFormat<Args...>(msg, std::forward<Args>(args)...));
+
+	release_resources<remove_rvalue_reference_t<Args>...>(std::forward<Args>(args)...);
+
+	return result;
 }
 
+#pragma warning (pop)
 
 #endif // __RTC_SER_FORMAT_H

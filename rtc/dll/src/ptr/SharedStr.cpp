@@ -8,6 +8,7 @@
 #pragma hdrstop
 #endif //defined(CC_PRAGMAHDRSTOP)
 
+#include "act/MainThread.h"
 #include "ptr/OwningPtr.h"
 #include "ptr/SharedStr.h"
 
@@ -45,6 +46,8 @@ SharedCharArray* SharedCharArray_Create(CharPtr begin, CharPtr end)
 
 SharedCharArray* SharedCharArray_Create(TokenID id)
 {
+	RequestMainThreadOperProcessingBlocker saveNotificationAfterAssignment;
+
 	auto range = id.AsStrRange();
 	return SharedCharArray_Create(range.m_CharPtrRange.begin(), range.m_CharPtrRange.end());
 }
