@@ -9,6 +9,7 @@
 #endif //defined(CC_PRAGMAHDRSTOP)
 
 #if defined(WIN32)
+
 #include <windows.h>
 
 #else

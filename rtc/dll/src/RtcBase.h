@@ -27,18 +27,24 @@
 
 
 //----------------------------------------------------------------------
-// avoid horrible Windows min & max definitions
-//----------------------------------------------------------------------
-
-#define NOMINMAX
-
-//----------------------------------------------------------------------
 // Used modules
 //----------------------------------------------------------------------
 #define BOOST_MPL_LIMIT_VECTOR_SIZE 50
 
 #include "cpc/CompChar.h"
 #include "cpc/Types.h"
+
+
+#if defined(WIN32)
+
+// avoid horrible Windows min & max definitions
+#define NOMINMAX
+
+// build for Windows 10
+#define WINVER 0x0A00
+#define _WIN32_WINNT 0x0A00
+
+#endif
 
 using dms_thread_id = UInt32;
 
