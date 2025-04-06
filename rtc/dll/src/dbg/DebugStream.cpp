@@ -357,6 +357,7 @@ DebugOutStream::scoped_lock::~scoped_lock()
 			CCrtLog() 
 			{
 				DMS_RegisterMsgCallback(CrtMsgCallback, typesafe_cast<ClientHandle>(this));
+
 				DebugOutStream::scoped_lock lock(g_DebugStream, SeverityTypeID::ST_MajorTrace);
 				*g_DebugStream << "CRT logging started\n" << char(0);
 			}

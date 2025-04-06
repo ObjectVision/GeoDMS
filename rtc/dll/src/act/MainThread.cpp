@@ -382,7 +382,8 @@ bool HasMainThreadTasks()
 
 RTC_CALL void WakeUpJoiners()
 {
-	auto lockToAvoidHasMainThreadTasksToBeMissed = std::unique_lock(cs_ThreadMessing);
+	leveled_critical_section::scoped_lock lockToAvoidHasMainThreadTasksToBeMissed(cs_ThreadMessing);
+
 	wakeUpJoiners();
 }
 

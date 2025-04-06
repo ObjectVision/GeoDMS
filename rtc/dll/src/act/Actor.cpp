@@ -1180,6 +1180,8 @@ SupplInterestListPtr MoveSupplInterest(const Actor* self)
 	SupplInterestListPtr localInterestHolder;
 	if ( self->DoesHaveSupplInterest() )
 	{
+		RequestMainThreadOperProcessingBlocker saveNotificationAfterMove;
+
 		leveled_critical_section::scoped_lock scopedLock(sc_MoveSupplInterestSection);
 
 		if ( self->DoesHaveSupplInterest() ) // 2nd check after lock
