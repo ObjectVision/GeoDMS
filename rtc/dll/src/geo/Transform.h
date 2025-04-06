@@ -40,6 +40,9 @@ enum class OrientationType : UInt8
 	NegateXY   = NegateX + NegateY
 };
 
+#pragma warning (push)
+#pragma warning (disable: 26827)
+
 // Provide a bitwise OR operator for OrientationType:
 constexpr inline OrientationType operator|(OrientationType lhs, OrientationType rhs) noexcept
 {
@@ -47,6 +50,8 @@ constexpr inline OrientationType operator|(OrientationType lhs, OrientationType 
 	static_assert(std::is_integral<T>::value, "Underlying type must be an integral type");
 	return static_cast<OrientationType>(static_cast<T>(lhs) | static_cast<T>(rhs));
 }
+
+#pragma warning (pop)
 
 inline bool IsRightLeft(OrientationType orientation) { return int(orientation) & 1; }
 inline bool IsBottomTop(OrientationType orientation) { return int(orientation) & 2; }

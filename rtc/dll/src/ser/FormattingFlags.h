@@ -24,6 +24,9 @@ enum class FormattingFlags : UInt32 {
 	LispFlags = NoLimitInLispExpr,
 };
 
+#pragma warning (push)
+#pragma warning (disable: 26827)
+
 // Provide a bitwise AND operator for FormattingFlags:
 constexpr inline FormattingFlags operator &(FormattingFlags lhs, FormattingFlags rhs) noexcept
 {
@@ -32,6 +35,7 @@ constexpr inline FormattingFlags operator &(FormattingFlags lhs, FormattingFlags
 	return static_cast<FormattingFlags>(static_cast<T>(lhs) & static_cast<T>(rhs));
 }
 
+#pragma warning (pop)
 
 inline FormattingFlags StreamFlags(FormattingFlags ff) { return ff & FormattingFlags::StreamFlags; }
 inline FormattingFlags LispFlags  (FormattingFlags ff) { return ff & FormattingFlags::LispFlags; }
