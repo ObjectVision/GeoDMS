@@ -284,10 +284,8 @@ struct FenceContainerOperator : BinaryOperator
 				AssignFenceNumber(srcItem, resultFenceNumber);
 
 				if (resWalker != resultRoot) // avoid updating all fenced items before getting them
-				{
 					resWalker->GetOrCreateSupplCache()->InitAt(srcItem);
-					resWalker->SetLocation(srcItem->GetLocation());
-				}
+
 				assert(!resWalker->HasInterest());
 
 				if (IsUnit(resWalker))

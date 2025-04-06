@@ -2028,6 +2028,10 @@ SharedPtr<TreeItem> TreeItem::Copy(TreeItem* dest, TokenID id, CopyTreeContext& 
 		if (isNew && copyContext.MergeProps())
 			result->DisableStorage();
 
+		CopyPropsContext(result, this, copyContext.MinCpyMode(dstIsRoot), !copyContext.MergeProps()).Apply();
+		if (!result->m_Location)
+			result->m_Location = this->m_Location;
+
 		if (copyContext.InFenceOperator())
 		{
 			assert(!isArg);
@@ -2035,9 +2039,6 @@ SharedPtr<TreeItem> TreeItem::Copy(TreeItem* dest, TokenID id, CopyTreeContext& 
 		}
 		else
 		{
-			CopyPropsContext(result, this, copyContext.MinCpyMode(dstIsRoot), !copyContext.MergeProps()).Apply();
-			if (!result->m_Location)
-				result->m_Location = this->m_Location;
 			result->m_FenceNumber = this->m_FenceNumber;
 
 			if (!copyContext.MustCopyExpr())
