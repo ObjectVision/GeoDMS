@@ -791,7 +791,6 @@ garbage_t OperationContext::separateResources(task_status status)
 	assert(!m_FuncDC);
 
 	releaseBin |= disconnect();
-//	releaseBin |= runOperationContexts();
 	releaseBin |= make_any_scoped_exit( &ScheduleRunOperationContexts ); // do this after releasing interests and related resources of suppliers
 
 	return releaseBin;
@@ -801,10 +800,6 @@ bool OperationContext::CancelIfNoInterestOrForced(bool forced)
 {
 	if (!forced)
 	{
-//		if (cs_ThreadMessing.isLocked()) // isLockedFromThisThread ?
-//			return false;
-
-//		leveled_std_section::scoped_lock globalSectionLock(sg_CountSection);
 		if (!m_Result || m_Result->GetInterestCount())
 			return false;
 	}
@@ -830,11 +825,11 @@ bool OperationContext::HandleFail(const TreeItem* item)
 		return false;
 
 	m_Result->Fail(item);
-	dms_assert(m_Result->WasFailed(FR_Data));
+	assert(m_Result->WasFailed(FR_Data));
 	if (m_Status < task_status::exception)
 	{
 		separatedResources = separateResources(task_status::exception);
-		dms_assert(!m_ResKeeper);
+		assert(!m_ResKeeper);
 	}
 	return true;
 }

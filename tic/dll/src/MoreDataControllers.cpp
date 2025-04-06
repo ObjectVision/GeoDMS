@@ -129,16 +129,10 @@ FuncDC::FuncDC(LispPtr keyExpr,	const AbstrOperGroup* og)
 	DBG_TRACE(("keyExpr = %s", AsFLispSharedStr(keyExpr, FormattingFlags::ThousandSeparator).c_str()));
 
 	if (og->IsDepreciated())
-		reportF(SeverityTypeID::ST_Warning, "depreciated operator %s used: %s."
-			, og->GetName()
-			, og->GetObsoleteMsg()
-		);
+		reportF(SeverityTypeID::ST_Warning, "depreciated operator %s used: %s.", og->GetName(), og->GetObsoleteMsg());
 
 	if (og->IsObsolete())
-		throwErrorF("FuncDC", "obsolete operator %s used: %s."
-			, og->GetName()
-			, og->GetObsoleteMsg()
-		);
+		throwErrorF("FuncDC", "obsolete operator %s used: %s.", og->GetName(), og->GetObsoleteMsg());
 
 	assert(GetLispRef().IsRealList());    // no EndP allowed
 	assert(GetLispRef().Left().IsSymb()); // operator or calculation scheme call

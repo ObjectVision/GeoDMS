@@ -155,7 +155,8 @@ void reportD(MsgCategory msgCat, SeverityTypeID st, IterRange<CharIterType> valu
 template <typename ...Args>
 void reportF(SeverityTypeID st, CharPtr format, Args&&... args)
 {
-	reportD(st, mgFormat2string<Args...>(format, std::forward<Args>(args)...).c_str());
+	auto formattedStr = mgFormat2string<Args...>(format, std::forward<Args>(args)...);
+	reportD(st, formattedStr.c_str());
 }
 
 template <typename ...Args>
