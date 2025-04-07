@@ -857,24 +857,34 @@ void MainWindow::defaultViewOrAddItemToCurrentView() {
 }
 
 void MainWindow::defaultView() {
-    reportF(MsgCategory::commands, SeverityTypeID::ST_MajorTrace, "defaultView // for item %s", m_current_item->GetFullName());
+    auto currItem = getCurrentTreeItem();
+    if (!currItem)
+        return;
+
+    reportF(MsgCategory::commands, SeverityTypeID::ST_MajorTrace, "defaultView // for item %s", currItem->GetFullName());
     auto default_view_style = SHV_GetDefaultViewStyle(m_current_item);
     if (default_view_style == ViewStyle::tvsPaletteEdit)
         default_view_style = ViewStyle::tvsTableView;
     if (default_view_style == ViewStyle::tvsDefault) {
-        reportF(MsgCategory::other, SeverityTypeID::ST_Error, "Unable to deduce viewstyle for item %s, no view created.", m_current_item->GetFullName());
+        reportF(MsgCategory::other, SeverityTypeID::ST_Error, "Unable to deduce viewstyle for item %s, no view created.", currItem->GetFullName());
         return;
     }
     createView(default_view_style);
 }
 
 void MainWindow::mapView() {
-    reportF(MsgCategory::commands, SeverityTypeID::ST_MajorTrace, "mapview // for item %s", m_current_item->GetFullName());
+    auto currItem = getCurrentTreeItem();
+    if (!currItem)
+        return;
+    reportF(MsgCategory::commands, SeverityTypeID::ST_MajorTrace, "mapview // for item %s", currItem->GetFullName());
     createView(ViewStyle::tvsMapView);
 }
 
 void MainWindow::tableView() {
-    reportF(MsgCategory::commands, SeverityTypeID::ST_MajorTrace, "tableView // for item %s", m_current_item->GetFullName());
+    auto currItem = getCurrentTreeItem();
+    if (!currItem)
+        return;
+    reportF(MsgCategory::commands, SeverityTypeID::ST_MajorTrace, "tableView // for item %s", currItem->GetFullName());
     createView(ViewStyle::tvsTableView);
 }
 
