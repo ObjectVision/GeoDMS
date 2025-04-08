@@ -472,32 +472,106 @@ void dms_assign(bg_multi_polygon_t& lvalue, SA_ConstReference<DmsPointType> rval
 	assign_multi_polygon(lvalue, rvalue, true, helperPolygon, helperRing);
 }
 
+
+struct bg_intersection_direct {
+	template <typename A, typename B>
+	void operator ()(A&& a, B&& b, auto& r) const
+	{
+		boost::geometry::intersection(std::forward<A>(a), std::forward<B>(b), r);
+	}
+};
+
+struct bg_union_direct {
+	template <typename A, typename B>
+	void operator ()(A&& a, B&& b, auto& r) const
+	{
+		boost::geometry::union_(std::forward<A>(a), std::forward<B>(b), r);
+	}
+};
+
+struct bg_difference_direct {
+	template <typename A, typename B>
+	void operator ()(A&& a, B&& b, auto& r) const
+	{
+		boost::geometry::difference(std::forward<A>(a), std::forward<B>(b), r);
+	}
+};
+
+struct bg_sym_difference_direct {
+
+	template <typename A, typename B>
+	void operator ()(A&& a, B&& b, auto& r) const
+	{
+		boost::geometry::sym_difference(std::forward<A>(a), std::forward<B>(b), r);
+	}
+};
+
+template<typename Geometry>
+bg_multi_polygon_t clean_geometry_with_buffer0(Geometry&& input)
+{
+	namespace bg = boost::geometry;
+
+	bg_multi_polygon_t output;
+	bg::strategy::buffer::join_round join_strategy(0);
+	bg::strategy::buffer::end_round end_strategy(0);
+	bg::strategy::buffer::distance_symmetric<double> distance_strategy(0);
+	bg::strategy::buffer::side_straight side_strategy;
+	bg::strategy::buffer::point_circle circle_strategy(0);
+
+	bg::buffer(input, output,
+		distance_strategy, side_strategy,
+		join_strategy, end_strategy, circle_strategy);
+
+	return output;
+}
+
+template <typename BG_OPER>
+struct bg_checked_operation {
+	BG_OPER m_op;
+
+	template <typename A, typename B>
+	void operator ()(A&& a, B&& b, auto& r) const
+	{
+		if (boost::geometry::is_valid(a))
+			if (boost::geometry::is_valid(b))
+				m_op(std::forward<A>(a), std::forward<B>(b), r);
+			else
+			{
+				auto bb = clean_geometry_with_buffer0(b);
+				m_op(std::forward<A>(a), std::move(bb), r);
+			}
+		else
+			if (boost::geometry::is_valid(b))
+			{
+				auto aa = clean_geometry_with_buffer0(a);
+				m_op(std::move(aa), std::forward<B>(b), r);
+
+			}
+			else
+			{
+				auto aa = clean_geometry_with_buffer0(a);
+				auto bb = clean_geometry_with_buffer0(b);
+				m_op(std::move(aa), std::move(bb), r);
+			}
+	}
+};
+
+using bg_intersection   = bg_checked_operation<bg_intersection_direct>;
+using bg_union          = bg_checked_operation<bg_union_direct>;
+using bg_difference     = bg_checked_operation<bg_difference_direct>;
+using bg_sym_difference = bg_checked_operation<bg_sym_difference_direct>;
+
 template<typename DmsPointType>
 void dms_insert(bg_multi_polygon_t& lvalue, SA_ConstReference<DmsPointType> rvalue)
 {
 	bg_multi_polygon_t tmpMP, resMP;
 
 	dms_assign(tmpMP, rvalue);
+	bg_union operator_;
+	operator_(lvalue, tmpMP, resMP);
 
-	boost::geometry::union_(lvalue, tmpMP, resMP);
 	lvalue.swap(resMP);
 }
-
-struct bg_intersection {
-	void operator ()(const auto& a, const auto& b, auto& r) const { boost::geometry::intersection(a, b, r); }
-};
-
-struct bg_union {
-	void operator ()(const auto& a, const auto& b, auto& r) const { boost::geometry::union_(a, b, r); }
-};
-
-struct bg_difference {
-	void operator ()(const auto& a, const auto& b, auto& r) const { boost::geometry::difference(a, b, r); }
-};
-
-struct bg_sym_difference {
-	void operator ()(const auto& a, const auto& b, auto& r) const { boost::geometry::sym_difference(a, b, r); }
-};
 
 
 
