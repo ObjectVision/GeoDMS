@@ -23,7 +23,8 @@ int main(int argc, char** argv)
 		{ 174000            , 604340     }, // G
 		{ 173904.25160630842, 604340     }  // A
 	};
-	std::cout << "area of s1 = " << bg::area(s1) << std::endl;
+	std::cout << "is_valid(s1) = " << bg::is_valid(s1) << std::endl;
+	std::cout << "area(s1)     = " << bg::area(s1) << std::endl;
 
 	Ring s2{
 		{ 173797.5588235294 , 604360     }, // E
@@ -33,7 +34,8 @@ int main(int argc, char** argv)
 		{ 173735.58701923076, 604360     }, // I
 		{ 173797.5588235294 , 604360     }  // E
 	};
-	std::cout << "area of s2 = " << bg::area(s2) << std::endl;
+	std::cout << "is_valid(s2) = " << bg::is_valid(s2) << std::endl;
+	std::cout << "area(s2)     = " << bg::area(s2) << std::endl;
 
 	MultiPolygon result;
 	bg::union_(s1, s2, result);
