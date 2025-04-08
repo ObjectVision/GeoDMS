@@ -789,7 +789,7 @@ void Actor::ClearFail() const
 		leveled_critical_section::scoped_lock syncFailCalls(sc_FailSection);
 
 		auto errMsgPtr = s_ActorFailReasonAssoc.GetExisting(this);
-//		errMsgPtr->forgetWhere(this);
+
 		s_ActorFailReasonAssoc.eraseExisting(this);
 		m_State.ClearFailed();
 	}
@@ -815,6 +815,7 @@ bool Actor::DoFail(ErrMsgPtr msg, FailType ft) const
 	assert(ft != FR_None);
 	SupplInterestListPtr supplInterestWaste;
 	{
+		RequestMainThreadOperProcessingBlocker saveNotificationAfterFail;
 		leveled_critical_section::scoped_lock syncFailCalls(sc_FailSection);
 		auto prevFT = GetFailType();
 		if (prevFT && prevFT <= ft)
