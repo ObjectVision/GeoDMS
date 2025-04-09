@@ -3357,7 +3357,7 @@ static how_to_proceed PrepareDataCalc(SharedPtr<const TreeItem> self, const Tree
 	//				const AbstrCalculator* apr = GetCalculator();
 	//				dms_assert(apr); // guaranteed by HasCalculator
 	//				dms_assert(!SuspendTrigger::DidSuspend()); // Postcondition when CreateResultingTreeItem returns a result
-	dms_check(self->GetInterestCount());
+	dms_check(self->HasInterest());
 
 	//				auto result = CalcResult(apr, GetDynamicObjClass());
 	if (dc)

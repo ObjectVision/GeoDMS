@@ -392,14 +392,13 @@ void assign_multi_polygon(bg_multi_polygon_t& resMP, SA_ConstReference<DmsPointT
 	resMP.clear();
 
 	SA_ConstRingIterator<DmsPointType>
-		rb(polyRef, 0),
+		ri(polyRef, 0),
 		re(polyRef, -1);
-	auto ri = rb;
-	//			dbg_assert(ri != re);
 	if (ri == re)
 		return;
 	bool outerOrientation = true;
-	for (; ri != re; ++ri)
+	bool isFirstRing = true;
+	for (; ri != re; ++ri, isFirstRing = false)
 	{
 		assert((*ri).begin() != (*ri).end());
 		assert((*ri).begin()[0] == (*ri).end()[-1]); // closed ?
@@ -413,9 +412,9 @@ void assign_multi_polygon(bg_multi_polygon_t& resMP, SA_ConstReference<DmsPointT
 		assert(helperRing.begin() != helperRing.end());
 		assert(helperRing.begin()[0] == helperRing.end()[-1]); // closed ?
 		bool currOrientation = (boost::geometry::area(helperRing) > 0);
-		if (ri == rb || currOrientation == outerOrientation)
+		if (isFirstRing || currOrientation == outerOrientation)
 		{
-			if (ri != rb && !helperPolygon.outer().empty())
+			if (!isFirstRing && !helperPolygon.outer().empty())
 				resMP.emplace_back(std::move(helperPolygon));
 			helperPolygon.clear(); assert(helperPolygon.outer().empty() && helperPolygon.inners().empty());
 
@@ -522,6 +521,13 @@ bg_multi_polygon_t clean_geometry_with_buffer0(Geometry&& input)
 		distance_strategy, side_strategy,
 		join_strategy, end_strategy, circle_strategy);
 
+	if (output.size() == 0)
+	{
+		std::string reason;
+		if (!boost::geometry::is_valid(input, reason))
+			reportF(SeverityTypeID::ST_Warning, "bg_clean_geometry_with_buffer0 failure %s", reason);
+		return input;
+	}
 	return output;
 }
 

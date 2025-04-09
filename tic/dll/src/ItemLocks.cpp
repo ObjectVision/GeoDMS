@@ -541,7 +541,7 @@ bool IsAllDataCurrReady(const TreeItem* item)
 bool IsDataReady(const TreeItem* item)
 {
 	assert(item);
-	assert(item->GetInterestCount()); // or else result would be volatile
+	assert(item->HasInterest()); // or else result would be volatile
 	return IsDataCurrReady(item);
 }
 

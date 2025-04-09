@@ -54,14 +54,14 @@ struct SA_ConstRingIterator
 
 	SA_ConstRingIterator(SA_ConstRingIterator&& src) 
 		:	m_SequenceBase(src.m_SequenceBase)
-		,	m_IndexBuffer (std::move(src.m_IndexBuffer))
+		,	m_PointIndexPairArray (std::move(src.m_PointIndexPairArray))
 		,	m_RingIndex   (src.m_RingIndex)
 	{
 	}
 
 	SA_ConstRingIterator(const SA_ConstRingIterator& src) 
 		:	m_SequenceBase(src.m_SequenceBase)
-		,	m_IndexBuffer (src.m_IndexBuffer)
+		,	m_PointIndexPairArray (src.m_PointIndexPairArray)
 		,	m_RingIndex   (src.m_RingIndex)
 	{
 	}
@@ -73,11 +73,25 @@ struct SA_ConstRingIterator
 	{
 		if (index != -1)
 		{
-			fillPointIndexBuffer(m_IndexBuffer, scr.begin(), scr.end());
-			if (m_IndexBuffer.empty())
+			fillPointIndexBuffer(m_PointIndexPairArray, scr.begin(), scr.end());
+			if (m_PointIndexPairArray.empty())
 				m_RingIndex = -1;
 			else
-				assert(m_RingIndex < m_IndexBuffer.size());
+			{
+				assert(m_RingIndex < m_PointIndexPairArray.size());
+
+#if defined(MG_DEBUG)
+				// check that the rings are in order
+				auto i = m_PointIndexPairArray.begin(), e = m_PointIndexPairArray.end();
+				assert(i->first < i->second);
+				++i;
+				for (; i != e; ++i)
+				{
+					assert(i->first < i->second);
+					assert(i[-1].second <= i->first);
+				}
+#endif
+			}
 		}
 	}
 
@@ -88,24 +102,24 @@ struct SA_ConstRingIterator
 	void operator ++()
 	{ 
 		assert(m_RingIndex != -1);
-		if (++m_RingIndex == m_IndexBuffer.size())
+		if (++m_RingIndex == m_PointIndexPairArray.size())
 			m_RingIndex = -1;
 	}
 	void operator --()
 	{
 		assert(m_RingIndex != 0);
 		if (m_RingIndex == -1)
-			m_RingIndex = m_IndexBuffer.size() - 1;
+			m_RingIndex = m_PointIndexPairArray.size() - 1;
 		else
 			--m_RingIndex;
 	}
 	SA_ConstRing<P> operator *() const
 	{
 		assert(m_RingIndex != -1);
-		assert(m_RingIndex < m_IndexBuffer.size());
+		assert(m_RingIndex < m_PointIndexPairArray.size());
 		return SA_ConstRing<P>(
-			m_SequenceBase + m_IndexBuffer[m_RingIndex].first 
-		,	m_SequenceBase + m_IndexBuffer[m_RingIndex].second
+			m_SequenceBase + m_PointIndexPairArray[m_RingIndex].first 
+		,	m_SequenceBase + m_PointIndexPairArray[m_RingIndex].second
 		);
 	}
 	difference_type operator -(const SA_ConstRingIterator& oth) const
@@ -115,15 +129,15 @@ struct SA_ConstRingIterator
 		if (index == othIndex) // same, including both at end
 			return 0;
 		if (othIndex == -1)
-			othIndex = m_IndexBuffer.size(); // oth is at end but not this
+			othIndex = m_PointIndexPairArray.size(); // oth is at end but not this
 		if (index == -1)
-			index = oth.m_IndexBuffer.size(); // this is at end but not oth
+			index = oth.m_PointIndexPairArray.size(); // this is at end but not oth
 		return index - othIndex;
 	}
 
-	const P*            m_SequenceBase = nullptr;
-	pointIndexBuffer_t  m_IndexBuffer;
-	SizeT               m_RingIndex = -1;
+	const P*              m_SequenceBase = nullptr;
+	index_range_vector_t  m_PointIndexPairArray;
+	SizeT                 m_RingIndex = -1;
 };
 
 #endif //!defined(DMS_RTC_GEO_RINGITERATOR_H)

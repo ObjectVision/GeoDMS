@@ -322,7 +322,7 @@ bool DrawPolygons(const GraphicPolygonLayer* layer, const FeatureDrawer& fd, con
 	// draw Boundaries (always)
 	if (mainCount == 1)
 	{
-		pointIndexBuffer_t pointIndexBuffer;
+		index_range_vector_t pointIndexBuffer;
 		if (penIndices && !layer->IsDisabledAspectGroup(AG_Pen))
 		{
 			PenArray pa(d.GetDC(), penIndices);
@@ -367,6 +367,7 @@ bool DrawPolygons(const GraphicPolygonLayer* layer, const FeatureDrawer& fd, con
 						}
 
 						fillPointBuffer     (pointBuffer, featurePtr->begin(), featurePtr->end(), d.GetTransformation());
+						pointIndexBuffer.resize(0);
 						fillPointIndexBuffer(pointIndexBuffer, featurePtr->begin(), featurePtr->end());
 
 						auto bi = pointBuffer.begin();

@@ -161,7 +161,7 @@ auto geos_create_polygons(SA_ConstReference<DmsPointType> polyRef, bool mustInse
 	SA_ConstRingIterator<DmsPointType> rb(polyRef, 0), re(polyRef, -1);
 	if (rb == re)
 		return {};
-	std::sort(rb.m_IndexBuffer.begin(), rb.m_IndexBuffer.end());
+//	std::sort(rb.m_IndexBuffer.begin(), rb.m_IndexBuffer.end());
 
 	std::vector< std::unique_ptr<geos::geom::Polygon>> resPolygons;
 	std::unique_ptr<geos::geom::LinearRing> currRing;

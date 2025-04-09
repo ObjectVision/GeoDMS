@@ -164,8 +164,9 @@ static TokenID t_Overridable = GetTokenID_st(OVERRIDABLE_NAME);
 SharedStr GetRegConfigSetting(const TreeItem* configRoot, CharPtr key, CharPtr defaultValue)
 {
 //	static TokenID configSettingsID("ConfigSettings");
-	dms_assert(configRoot);
-	
+	assert(configRoot);
+	assert(IsMetaThread());
+
 	SharedStr result;
 	if (PlatformInfo::GetEnvString(OVERRIDABLE_NAME, key, result))
 		return result;
@@ -186,7 +187,10 @@ SharedStr GetRegConfigSetting(const TreeItem* configRoot, CharPtr key, CharPtr d
 		if (!keyTi)
 			keyTi = configSettings->GetConstSubTreeItemByID(tidKey);
 		if (keyTi && IsDataItem( keyTi) )
+		{
+			const_cast<TreeItem*>(keyTi)->SetKeepDataState(true);
 			return AsDataItem(keyTi)->LockAndGetValue<SharedStr>(0);
+		}
 	}
 
 	return SharedStr(defaultValue);
