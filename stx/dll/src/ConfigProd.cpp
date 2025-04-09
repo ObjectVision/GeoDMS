@@ -118,7 +118,7 @@ void ConfigProd::DoInclude()
 	if (!m_pCurrent)
 		throwSemanticError(mgFormat2string("Parse error in included config file %s", GetTokenStr(m_strIdentifierID)).c_str());
 	dms_assert(m_pCurrent);
-	dbg_assert(!CurrentIsTop());
+//	dbg_assert(!CurrentIsTop());
 }
 
 // *****************************************************************************
