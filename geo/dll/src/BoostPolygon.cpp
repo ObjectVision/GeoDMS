@@ -1255,7 +1255,8 @@ struct union_bg_multi_polygon
 		bool mustTrace = IsInDebugMode();
 
 		bg_multi_polygon_t result;
-		boost::geometry::union_(lvalue, rvalue, result);
+		bg_union union_operator;
+		union_operator(lvalue, rvalue, result);
 
 		if (mustTrace)
 		{

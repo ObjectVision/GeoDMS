@@ -598,9 +598,9 @@ struct union_geos_multi_polygon
 		if (!lhs)
 			lhs = std::move(rhs);
 		else if (rhs)
-			lhs = union_(lhs.get(), rhs.get());
+			lhs = union_operator(lhs.get(), rhs.get());
 	}
-	geos_union union_;
+	geos_union union_operator;
 };
 
 template <typename E>
@@ -615,8 +615,8 @@ void dms_insert(std::unique_ptr<geos::geom::Geometry>& lhs, E&& ref)
 	std::unique_ptr<geos::geom::Geometry> res; 
 	dms_assign(res, std::forward<E>(ref));
 
-	union_geos_multi_polygon union_;
-	union_(lhs, std::move(res));
+	union_geos_multi_polygon union_operator;
+	union_operator(lhs, std::move(res));
 }
 
 
