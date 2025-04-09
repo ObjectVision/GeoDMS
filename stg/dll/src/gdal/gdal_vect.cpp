@@ -1806,6 +1806,7 @@ void GdalVectSM::CompareConfiguredGeometryWithGdal(AbstrDataItem* geometry, OGRL
 	);
 	geometry->Fail(fail_reason, FR_MetaInfo);
 }
+
 auto GdalVectSM::GetValueComponsitionFromFirstGdalFeature(OGRLayer* layer) const -> ValueComposition {
 	OGRwkbGeometryType first_feature_geometry_type = OGRwkbGeometryType::wkbUnknown;
 	auto first_feature = layer->GetNextFeature();
@@ -1816,7 +1817,7 @@ auto GdalVectSM::GetValueComponsitionFromFirstGdalFeature(OGRLayer* layer) const
 	{
 		auto geometry_ref = first_feature->GetGeometryRef();
 		first_feature_geometry_type = geometry_ref->getGeometryType();
-		auto gdal_vc = gdalVectImpl::OGR2ValueComposition(first_feature_geometry_type);
+		gdal_vc = gdalVectImpl::OGR2ValueComposition(first_feature_geometry_type);
 	}
 	layer->ResetReading();
 
