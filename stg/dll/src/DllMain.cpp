@@ -139,7 +139,7 @@ auto GetAffineTransformationFromGridDataItem(const AbstrDataItem* grid_adi, bool
 	auto grid_projection = grid_adu->GetProjection();
 	auto factor = DPoint(1.0, 1.0);
 	if (grid_projection)
-		grid_projection->Factor();
+		factor = grid_projection->Factor();
 
 	DPoint gridOrigin, f2;
 	if (factor.X() < 0) {
