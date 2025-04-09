@@ -510,6 +510,10 @@ bg_multi_polygon_t clean_geometry_with_buffer0(Geometry&& input)
 {
 	namespace bg = boost::geometry;
 
+	std::string reason;
+	if (!boost::geometry::is_valid(input, reason))
+		reportF(SeverityTypeID::ST_Warning, "bg_clean_geometry_with_buffer0 failure %s", reason);
+
 	bg_multi_polygon_t output;
 	bg::strategy::buffer::join_round join_strategy(0);
 	bg::strategy::buffer::end_round end_strategy(0);
@@ -523,9 +527,6 @@ bg_multi_polygon_t clean_geometry_with_buffer0(Geometry&& input)
 
 	if (output.size() == 0)
 	{
-		std::string reason;
-		if (!boost::geometry::is_valid(input, reason))
-			reportF(SeverityTypeID::ST_Warning, "bg_clean_geometry_with_buffer0 failure %s", reason);
 		return input;
 	}
 	return output;

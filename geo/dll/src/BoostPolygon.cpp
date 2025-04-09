@@ -1267,14 +1267,12 @@ struct union_bg_multi_polygon
 			auto missing1 = (area1 + area2) - arear;
 			auto missing2 = max(area1, area2) - arear;
 
-			reportF(SeverityTypeID::ST_MinorTrace, "%d union_bg_multi_polygon(%d, %d) -> %d "
-			,   callCounter++
-			,	area1, area2, arear
-			);
-			if (missing1 > 0)
-				reportF(SeverityTypeID::ST_MinorTrace, "missing from overlay if surfaces were dusjunct: %d", missing1 );
-			if (missing2 > 0)
-				reportF(SeverityTypeID::ST_MinorTrace, "missing from overlay even when surfaces overlap: %d", missing2 );
+			if ((missing1 > 0) || (missing2 > 0))
+				reportF(SeverityTypeID::ST_MinorTrace, "%d union_bg_multi_polygon(%d, %d) -> %d missing at least %s and at most %s"
+				,   callCounter++
+				,	area1, area2, arear
+				,   missing2, missing1
+				);
 		}
 		result.swap(lvalue);
 	}
