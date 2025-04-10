@@ -321,6 +321,13 @@ MappedFileHandle::~MappedFileHandle()
 void MappedFileHandle::MapFile(bool alsoWrite)
 {
 	m_hFileMapping = WinHandle();
+	if (!m_hFile)
+		throwErrorF("CreateFileMapping", "%s('%s') failed"
+			, alsoWrite ? "CreateFile" : "OpenFile", m_FileName);
+
+	if (m_FileSize == UNDEFINED_FILE_SIZE)
+		throwErrorF("CreateFileMapping", "%s('%s') failed because MappingSize is undefined"
+			, alsoWrite ? "CreateFile" : "OpenFile", m_FileName);
 
 	WinHandle fileMapping =
 		CreateFileMapping(
