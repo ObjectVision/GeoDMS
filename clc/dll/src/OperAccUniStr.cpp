@@ -136,10 +136,10 @@ public:
 
 			aslist_total::accumulation_ref output = resValue;
 
-			tile_id te = arg1A->GetAbstrDomainUnit()->GetNrTiles();
+			tile_id tn = arg1A->GetAbstrDomainUnit()->GetNrTiles();
 			{
 				InfiniteNullOutStreamBuff lengthFinderStreamBuff;
-				for (tile_id t=0; t!=te; ++t)
+				for (tile_id t=0; t!=tn; ++t)
 				{
 					auto arg1Data = arg1->GetLockedDataRead(t);
 
@@ -148,7 +148,7 @@ public:
 				output.resize_uninitialized(lengthFinderStreamBuff.CurrPos());
 			}
 			ThrowingMemoOutStreamBuff outStr(ByteRange(begin_ptr( output ), end_ptr( output )));
-			for (tile_id t=0; t!=te; ++t)
+			for (tile_id t=0; t!=tn; ++t)
 			{
 				auto arg1Data = arg1->GetLockedDataRead(t);
 				aggr1_total<unary_ser_aslist>(outStr, arg1Data.begin(), arg1Data.end(), m_SerFunc);

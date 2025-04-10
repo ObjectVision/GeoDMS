@@ -9,6 +9,7 @@
 #if !defined(DMS_GEO_CGAL_TRAITS_H)
 #define DMS_GEO_CGAL_TRAITS_H
 
+#include <numbers>
 #include "geo/RingIterator.h"
 
 
@@ -80,8 +81,7 @@ void assign_multi_polygon(CGAL_Traits::Polygon_set& resMP, SA_ConstReference<Dms
 	resMP.clear();
 	std::vector<CGAL_Traits::Ring> foundHoles;
 
-	SA_ConstRingIterator<DmsPointType> rb(polyRef, 0), re(polyRef, -1);
-	auto ri = rb;
+	SA_ConstRingIterator<DmsPointType> ri(polyRef, 0), re(polyRef, -1);
 
 	if (ri == re)
 		return;
@@ -189,18 +189,11 @@ void cgal_assign_ring(E&& ref, const CGAL::Polygon_2<K>& polyData)
 	assert(polyData.size() > 0);
 
 	auto pb = polyData.vertices_begin(), pe = polyData.vertices_end();
-//*
+
 	// reassign points in reverse order to restore clockwise order
 	cgal_assign_point(std::forward<E>(ref), *pb); // add first ring point that will become also the last GeoDms ring point as closing point
 	for (auto pri=pe; pri!=pb;)
 		cgal_assign_point(ref, *--pri);
-//	*/
-
-/*
-	for (auto pi = pb; pi != pe; ++pi)
-		cgal_assign_point(ref, *pi);
-	cgal_assign_point(ref, *pb); // add first ring point as closing point
-//	*/
 }
 
 template <dms_sequence E>
@@ -323,6 +316,13 @@ auto cgal_split_assign_polygon_set(RI resIter, const CGAL_Traits::Polygon_set& p
 	}
 	return resIter;
 }
+
+template <typename K>
+void bg_assign_cgal_point(bg_ring_t& ref, const CGAL::Point_2<K>& p)
+{
+	ref.push_back(shp2dms_order<Float64>(CGAL::to_double(p.x()), CGAL::to_double(p.y())));
+}
+
 
 template<typename DmsPointType>
 void dms_assign(CGAL_Traits::Polygon_set& lvalue, SA_ConstReference<DmsPointType> rvalue)

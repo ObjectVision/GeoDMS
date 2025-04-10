@@ -505,15 +505,19 @@ struct bg_sym_difference_direct {
 	}
 };
 
+
+auto fix_bg_polygons_with_CGAL(bg_multi_polygon_t&& input) -> bg_multi_polygon_t;
+
 template<typename Geometry>
 bg_multi_polygon_t clean_geometry_with_buffer0(Geometry&& input)
 {
 	namespace bg = boost::geometry;
 
 	std::string reason;
-	if (!boost::geometry::is_valid(input, reason))
-		reportF(SeverityTypeID::ST_Warning, "bg_clean_geometry_with_buffer0 failure %s", reason);
+	if (boost::geometry::is_valid(input, reason))
+		return input;
 
+/* SKIP buffer fix, doesn't work on CAPRI, see #857
 	bg_multi_polygon_t output;
 	bg::strategy::buffer::join_round join_strategy(0);
 	bg::strategy::buffer::end_round end_strategy(0);
@@ -525,10 +529,20 @@ bg_multi_polygon_t clean_geometry_with_buffer0(Geometry&& input)
 		distance_strategy, side_strategy,
 		join_strategy, end_strategy, circle_strategy);
 
-	if (output.size() == 0)
+	if (output.size())
 	{
-		return input;
+		reportF(SeverityTypeID::ST_Warning, "bg_clean_geometry failure fixed by bg::buffer: %s", reason);
+		return output;
 	}
+*/
+	auto output = fix_bg_polygons_with_CGAL(std::move(input));
+
+	std::string reason2;
+	if (boost::geometry::is_valid(output, reason2))
+		reportF(SeverityTypeID::ST_Warning, "clean geometry succeded. fail-reason=\"%s\".", reason);
+	else
+		reportF(SeverityTypeID::ST_Warning, "clean geometry failed. fail-reason=\"%s\".\nAfter CGAL clean-up fail-reason=\"%s\".", reason, reason2);
+
 	return output;
 }
 

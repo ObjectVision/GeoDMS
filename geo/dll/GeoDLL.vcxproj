@@ -104,6 +104,7 @@
     <ClCompile Include="src\BoostGeometry.cpp" />
     <ClCompile Include="src\BoostPolygon.cpp" />
     <ClCompile Include="src\Canyon.cpp" />
+    <ClCompile Include="src\CGAL.cpp" />
     <ClCompile Include="src\Connect.cpp" />
     <ClCompile Include="src\ConnectedParts.cpp" />
     <ClCompile Include="src\Dijkstra.cpp" />

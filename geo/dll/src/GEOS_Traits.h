@@ -158,10 +158,9 @@ auto geos_create_polygons(SA_ConstReference<DmsPointType> polyRef, bool mustInse
 {
 	assert(mustInsertInnerRings);
 
-	SA_ConstRingIterator<DmsPointType> rb(polyRef, 0), re(polyRef, -1);
-	if (rb == re)
+	SA_ConstRingIterator<DmsPointType> ri(polyRef, 0), re(polyRef, -1);
+	if (ri == re)
 		return {};
-//	std::sort(rb.m_IndexBuffer.begin(), rb.m_IndexBuffer.end());
 
 	std::vector< std::unique_ptr<geos::geom::Polygon>> resPolygons;
 	std::unique_ptr<geos::geom::LinearRing> currRing;
@@ -169,21 +168,21 @@ auto geos_create_polygons(SA_ConstReference<DmsPointType> polyRef, bool mustInse
 
 	geos_create_linear_ring_helper_data<DmsPointType> tmpRingData;
 
-	auto ri = rb;
-
+	bool isFirstRing = true;
 	bool outerOrientationCW = true;
-	for (; ri != re; ++ri)
+
+	for (; ri != re; ++ri, isFirstRing = false)
 	{
 		auto helperRing = geos_create_linear_ring((*ri).begin(), (*ri).end(), tmpRingData);
 		if (helperRing.get() == nullptr)
 			continue;
 
 		bool currOrientationCW = !geos::algorithm::Orientation::isCCW(helperRing->getCoordinatesRO());
-		MG_CHECK(ri != rb || currOrientationCW);
+		MG_CHECK(!isFirstRing || currOrientationCW);
 
-		if (ri == rb || currOrientationCW == outerOrientationCW)
+		if (isFirstRing || currOrientationCW == outerOrientationCW)
 		{
-			if (ri != rb && currRing && !currRing->isEmpty())
+			if (!isFirstRing && currRing && !currRing->isEmpty())
 			{
 				resPolygons.emplace_back(geos_factory()->createPolygon(std::move(currRing), std::move(currInnerRings)));
 				currInnerRings.clear();
