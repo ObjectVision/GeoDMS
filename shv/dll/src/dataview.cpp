@@ -859,8 +859,8 @@ GraphVisitState DataView::UpdateView()
 {
 	if (m_State.Get(DVF_InUpdateView))
 		return GVS_Continue;
-	if (SuspendTrigger::MustSuspend())
-		return GVS_Break;
+//	if (SuspendTrigger::MustSuspend())
+//		return GVS_Break;
 
 	SuspendibleUpdate(PS_Committed);
 	if (SuspendTrigger::DidSuspend())
@@ -1299,7 +1299,8 @@ bool DataView::DispatchMouseEvent(EventID event, WPARAM nFlags, GPoint devicePoi
 	bool result = false;
 	MouseEventDispatcher med(this, eventInfo);
 	{
-		SuspendTrigger::FencedBlocker blockSuspension("DataView::DispatchMouseEvent");
+//		SuspendTrigger::FencedBlocker blockSuspension("DataView::DispatchMouseEvent");
+		SuspendTrigger::Resume();
 		result = med.Visit(GetContents().get());
 	}
 
