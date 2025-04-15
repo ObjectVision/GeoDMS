@@ -21,7 +21,9 @@
 #include <geos/geom/LinearRing.h>
 #include <geos/algorithm/Orientation.h>
 #include <geos/operation/polygonize/Polygonizer.h>
-
+#include <geos/operation/valid/IsValidOp.h>
+#include <geos/operation/valid/MakeValid.h>
+//#include <geos_c.h>
 
 inline auto geos_factory() -> const geos::geom::GeometryFactory*
 {
@@ -552,7 +554,7 @@ auto geos_split_assign_geometry(RI resIter, const geos::geom::Geometry* geometry
 	return geos_split_write_geometry(resIter, geometry);
 }
 
-struct geos_intersection {
+struct geos_intersection_base {
 	auto operator ()(const geos::geom::Geometry* a, const geos::geom::Geometry* b) const -> std::unique_ptr<geos::geom::Geometry>
 	{
 		auto r = a->intersection(b);
@@ -561,7 +563,7 @@ struct geos_intersection {
 	}
 };
 
-struct geos_union {
+struct geos_union_base {
 	auto operator ()(const geos::geom::Geometry* a, const geos::geom::Geometry* b) const -> std::unique_ptr<geos::geom::Geometry>
 	{
 		auto  r = a->Union(b);
@@ -570,7 +572,7 @@ struct geos_union {
 	}
 };
 
-struct geos_difference {
+struct geos_difference_base {
 	auto operator ()(const geos::geom::Geometry* a, const geos::geom::Geometry* b) const -> std::unique_ptr<geos::geom::Geometry>
 	{
 		auto r = a->difference(b);
@@ -579,7 +581,7 @@ struct geos_difference {
 	}
 };
 
-struct geos_sym_difference {
+struct geos_sym_difference_base {
 	auto operator ()(const geos::geom::Geometry* a, const geos::geom::Geometry* b) const -> std::unique_ptr<geos::geom::Geometry>
 	{
 		auto r = a->symDifference(b);
@@ -587,6 +589,56 @@ struct geos_sym_difference {
 		return r;
 	}
 };
+
+inline auto clean_geos_geometry(const geos::geom::Geometry* input) -> std::unique_ptr<geos::geom::Geometry>
+{
+	geos::operation::valid::MakeValid fixer;
+
+	std::unique_ptr<geos::geom::Geometry> output = fixer.build(input);
+
+	if (!output->isValid())
+	{
+		geos::operation::valid::IsValidOp validator(output.get());
+		reportF(SeverityTypeID::ST_Warning, "GEOS fix failed. fail-reason=\"%s\".", validator.getValidationError()->getMessage());
+	}
+
+	return output;
+}
+
+template <typename POper>
+struct geos_operator_wrapper
+{
+	auto operator()(const geos::geom::Geometry* a, const geos::geom::Geometry* b) const->std::unique_ptr<geos::geom::Geometry>
+	{
+		if (a->isValid())
+			if (b->isValid())
+				return m_Oper(a, b);
+			else
+			{
+				auto bClean = clean_geos_geometry(b);
+				return m_Oper(a, bClean.get());
+			}
+		else
+		{
+			auto aClean = clean_geos_geometry(a);
+			if (b->isValid())
+				return m_Oper(aClean.get(), b);
+			else
+			{
+				auto bClean = clean_geos_geometry(b);
+				return m_Oper(aClean.get(), bClean.get());
+			}
+		}
+	}
+
+	POper m_Oper;
+};
+
+using geos_intersection = geos_operator_wrapper< geos_intersection_base>;
+using geos_union        = geos_operator_wrapper< geos_union_base>;
+using geos_difference = geos_operator_wrapper< geos_difference_base >;
+using geos_sym_difference = geos_operator_wrapper< geos_sym_difference_base >;
+
 
 struct union_geos_multi_polygon
 {
