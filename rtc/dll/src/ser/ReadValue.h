@@ -39,75 +39,18 @@ inline void SkipSpace(FormattedInpStream& str)
 	}
 }
 
-/********** Read Integers from chars **********/
 
-#include <boost/spirit/include/classic_core.hpp>
-#include <boost/spirit/include/classic_numerics.hpp>
+template <typename T> const SizeT max_scan_size_v = 40;
 
-template <typename ScannerT> bool ScanValue(double       & value, const ScannerT& scan) { return boost::spirit::real_p[boost::spirit::assign_a(value)].parse(scan); }
-template <typename ScannerT> bool ScanValue(long double  & value, const ScannerT& scan) { return boost::spirit::real_p[boost::spirit::assign_a(value)].parse(scan); }
-template <typename ScannerT> bool ScanValue(int     & value, const ScannerT& scan) { return boost::spirit::int_p [boost::spirit::assign_a(value)].parse(scan); }
-template <typename ScannerT> bool ScanValue(unsigned& value, const ScannerT& scan) { return boost::spirit::uint_p[boost::spirit::assign_a(value)].parse(scan); }
 
-#if defined(DMS_TM_HAS_INT64)
 
-boost::spirit:: int_parser< Int64> const  int64_p;
-boost::spirit::uint_parser<UInt64> const uint64_p;
-
-template <typename ScannerT> bool ScanValue(Int64& value, const ScannerT& scan) { return int64_p [boost::spirit::assign_a(value)].parse(scan); }
-template <typename ScannerT> bool ScanValue(UInt64& value, const ScannerT& scan) { return uint64_p[boost::spirit::assign_a(value)].parse(scan); }
-#endif
-
-///////////////////////////////////////////////////////////////////////////
-//
-//  continental_iteration_policy class which translates a COMMA to a PERIOD to support continental decimal separators
-//
-///////////////////////////////////////////////////////////////////////////
-
-template <typename BaseT>
-struct continental_iteration_policy : public BaseT
-{
-    typedef BaseT base_t;
-
-    continental_iteration_policy()
-    : BaseT() {}
-
-    template <typename PolicyT>
-    continental_iteration_policy(PolicyT const& other)
-    : BaseT(other) {}
-
-    template <typename T>
-    T filter(T ch) const
-    {
-        ch = BaseT::filter(ch);
-		if (ch == ',')
-			return '.';
-		return ch;
-    }
-};
-
-///////////////////////////////////////////////////////////////////////////
-//
-//  continental_scanner
-//
-///////////////////////////////////////////////////////////////////////////
-
-typedef boost::spirit::scanner<CharPtr> char_scanner;
-
-    typedef boost::spirit::scanner_policies<
-        continental_iteration_policy<
-            char_scanner::iteration_policy_t>,
-        char_scanner::match_policy_t,
-        char_scanner::action_policy_t
-    > continental_policies_t;
-
-typedef boost::spirit::scanner<CharPtr, continental_policies_t> continental_char_scanner;
 
 template <typename T>
 T ReadValue(CharPtr src, CharPtr end)
 {
 	T value;
-	if (ScanValue(value, char_scanner(src, end)))
+	auto fromResult = std::from_chars(src, end, value);
+	if (fromResult.ec == std::errc())
 		return value;
 	return UNDEFINED_VALUE(T);
 }
@@ -116,28 +59,38 @@ template <typename T>
 T ReadValue(FormattedInpStream& str)
 {
 	T value;
-	dms_assert(str.CurrPos() != -1);
+	assert(str.CurrPos() != -1);
 	if (str.IsCommaDecimalSeparator())
 	{
-		continental_char_scanner::iterator_t f = str.Buffer().GetDataBegin() + str.CurrPos();
-		continental_char_scanner scan(f, str.Buffer().GetDataEnd());
-		if (ScanValue(value, scan))
+		char buffer[max_scan_size_v<T>];
+		char* bufferPtr = buffer;
+		char* bufferEnd = buffer + sizeof(buffer);
+		auto f = str.Buffer().GetDataBegin() + str.CurrPos();
+		auto e = str.Buffer().GetDataEnd();
+		while (f != e && bufferPtr != bufferEnd)
 		{
-			str.SetCurrPos(scan.first - str.Buffer().GetDataBegin()); 
-			return value;
+			if (*f == ',')
+			{
+				*bufferPtr++ = '.'; // replace comma with period
+				++f;
+			}
+			else	
+				*bufferPtr++ = *f++;
 		}
+		auto fromResult = std::from_chars(buffer, bufferPtr, value);
+		if (fromResult.ec != std::errc())
+			return UNDEFINED_VALUE(T);
+		str.SetCurrPos(str.CurrPos() + (bufferPtr - buffer));
+		return value;
 	}
-	else
-	{
-		char_scanner::iterator_t f = str.Buffer().GetDataBegin() + str.CurrPos();
-		char_scanner scan(f, str.Buffer().GetDataEnd());
-		if (ScanValue(value, scan))
-		{
-			str.SetCurrPos(scan.first - str.Buffer().GetDataBegin()); 
-			return value;
-		}
-	}
-	return UNDEFINED_VALUE(T);
+
+	auto  f = str.Buffer().GetDataBegin() + str.CurrPos();
+	auto fromResult = std::from_chars(f, str.Buffer().GetDataEnd(), value);
+
+	if (fromResult.ec != std::errc())
+		return UNDEFINED_VALUE(T);
+	str.SetCurrPos(fromResult.ptr - str.Buffer().GetDataBegin());
+	return value;
 }
 
 bool ReadNull(FormattedInpStream& str)
@@ -177,7 +130,7 @@ template <typename T>
 T ReadValueAfterSpace(CharPtr src)
 {
 	SkipSpace(src);
-	return ReadValue<T>(src, 0);
+	return ReadValue<T>(src, src+max_scan_size_v<T>);
 }
 
 template <typename T>

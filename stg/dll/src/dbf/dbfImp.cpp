@@ -627,16 +627,12 @@ void FormatSpecification(ValueClassID vc, UInt8 colwidth, UInt8 deccount, bool r
 
 Float64 ReadAsFloat64(CharPtr fieldBuffer, CharPtr filedBufferEnd)
 {
-	CharPtr iter = fieldBuffer;
-	SkipSpace(iter, filedBufferEnd);
-	Float64 tmp;
-	if (ScanValue(tmp, char_scanner(iter, filedBufferEnd)))
-	{
-		SkipSpace(iter, filedBufferEnd);
-		if (iter == filedBufferEnd)
-			return tmp;
-	}
-	throwErrorF("DBF","unexpected character in parsing '%s' as numeric", SharedStr(fieldBuffer, filedBufferEnd).c_str());
+	Float64 tmp = ReadValueAfterSpace<Float64>(fieldBuffer, filedBufferEnd);
+	if (!IsDefined(tmp))
+		throwErrorF("DBF", "unexpected character in parsing '%s' as numeric"
+			, SharedStr(fieldBuffer, filedBufferEnd).c_str()
+		);
+	return tmp;
 }
 
 template <typename T>

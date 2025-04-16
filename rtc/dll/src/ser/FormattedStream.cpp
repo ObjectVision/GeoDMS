@@ -480,7 +480,15 @@ int mysnprintf<Int64>(char* charBuf, UInt32 bufLen, CharPtr formatOut, Int64 val
 #define ENABLE_UNDEF_HANDLING(X) X
 #define DISABLE_UNDEF_HANDLING(X)
 
-#define DEFINE_FORMATTED_STREAMABLE(T, U, C, FOUT, UNDEF_HANDLER) \
+#define DEFINE_FORMATTED_STREAMABLE(T, U, C, UNDEF_HANDLER) \
+RTC_CALL int AsCharArrayBase(T value, char* buffer, UInt32 bufLen) \
+{ \
+	auto to_chars_result = std::to_chars(buffer, buffer + bufLen, value); \
+	if (to_chars_result.ec != std::errc()) return -1;  \
+	int actualSize = to_chars_result.ptr - buffer; \
+	assert(actualSize > 0 && actualSize <= bufLen); \
+	return actualSize; \
+} \
 RTC_CALL FormattedOutStream& operator <<(FormattedOutStream& str, T value) \
 {   UNDEF_HANDLER( \
  	if (!IsDefined(value)) \
@@ -488,61 +496,60 @@ RTC_CALL FormattedOutStream& operator <<(FormattedOutStream& str, T value) \
 	else ) \
 	{ \
 		char charBuf[C+1]; \
-		int actualSize = mysnprintf<U>(charBuf, C+1, FOUT, U(value), str.GetFormattingFlags()); \
-		dms_assert(actualSize > 0 && actualSize <= C+1); \
-		str.Buffer().WriteBytes(charBuf, actualSize); \
+		auto actualSize = AsCharArrayBase(value, charBuf, C+1); \
+		if (actualSize > 0) str.Buffer().WriteBytes(charBuf, actualSize); \
 	} \
 	return str; \
 } \
 RTC_CALL FormattedInpStream& operator >>(FormattedInpStream& str, T& value) \
 { \
-	value = Convert<T>(ReadValueOrNullAfterSpace<U>(str)); \
-	return str; \
+value = Convert<T>(ReadValueOrNullAfterSpace<U>(str)); \
+return str; \
 } \
 RTC_CALL void AssignValueFromCharPtr(T& value, CharPtr data) \
 { \
-	value = Convert<T>(ReadValueAfterSpace<U>(data)); \
+value = Convert<T>(ReadValueAfterSpace<U>(data)); \
 } \
 RTC_CALL void AssignValueFromCharPtrs(T& value, CharPtr begin, CharPtr end) \
 { \
-	value = Convert<T>(ReadValueAfterSpace<U>(begin, end)); \
+value = Convert<T>(ReadValueAfterSpace<U>(begin, end)); \
 } \
 RTC_CALL void AssignValueFromCharPtrs_Checked(T& value, CharPtr begin, CharPtr end) \
 { \
-	value = Convert<T>(ReadValueAfterSpace<U>(begin, end)); \
+value = Convert<T>(ReadValueAfterSpace<U>(begin, end)); \
 } \
 RTC_CALL bool AsCharArray(T value, char* buffer, UInt32 bufLen) \
 { \
-	UNDEF_HANDLER( \
+	UNDEF_HANDLER(\
 		if (!IsDefined(value)) \
 		{ \
 			CharPtr undef = UNDEFINED_VALUE_STRING; \
-			fast_copy(undef, undef+Min<UInt32>(sizeof(UNDEFINED_VALUE_STRING), bufLen), buffer); \
+			fast_copy(undef, undef + Min<UInt32>(sizeof(UNDEFINED_VALUE_STRING), bufLen), buffer); \
 			return sizeof(UNDEFINED_VALUE_STRING) <= bufLen; \
 		} \
 	) \
-	int count = snprintf(buffer, bufLen, FOUT, U(value)); \
-	return UInt32(count) < bufLen; \
-} \
+	auto actualSize = AsCharArrayBase(value, buffer, bufLen); \
+	return actualSize > 0 && actualSize <= bufLen; \
+} 
 			
-DEFINE_FORMATTED_STREAMABLE(UInt32, UInt32, 13, "%u", ENABLE_UNDEF_HANDLING)
-DEFINE_FORMATTED_STREAMABLE(Int32, Int32, 14, "%d", ENABLE_UNDEF_HANDLING)
-DEFINE_FORMATTED_STREAMABLE(UInt16, UInt32,  6, "%u", ENABLE_UNDEF_HANDLING)
-DEFINE_FORMATTED_STREAMABLE(Int16, Int32,  7, "%d", ENABLE_UNDEF_HANDLING)
-DEFINE_FORMATTED_STREAMABLE(UInt8, UInt32,  3, "%u", ENABLE_UNDEF_HANDLING)
-DEFINE_FORMATTED_STREAMABLE(Int8, Int32,  4, "%d", ENABLE_UNDEF_HANDLING)
-DEFINE_FORMATTED_STREAMABLE(UInt4, UInt32,  2, "%u", DISABLE_UNDEF_HANDLING)
+DEFINE_FORMATTED_STREAMABLE(UInt32, UInt32, 13, ENABLE_UNDEF_HANDLING)
+DEFINE_FORMATTED_STREAMABLE(Int32, Int32, 14, ENABLE_UNDEF_HANDLING)
+DEFINE_FORMATTED_STREAMABLE(UInt16, UInt32,  6, ENABLE_UNDEF_HANDLING)
+DEFINE_FORMATTED_STREAMABLE(Int16, Int16,  7, ENABLE_UNDEF_HANDLING)
+DEFINE_FORMATTED_STREAMABLE(UInt8, UInt32,  3, ENABLE_UNDEF_HANDLING)
+DEFINE_FORMATTED_STREAMABLE(Int8, Int32,  4, ENABLE_UNDEF_HANDLING)
+DEFINE_FORMATTED_STREAMABLE(UInt4, UInt32,  2, DISABLE_UNDEF_HANDLING)
 #if defined(DMS_TM_HAS_UINT2)
-DEFINE_FORMATTED_STREAMABLE(UInt2, UInt32,  1, "%u", DISABLE_UNDEF_HANDLING)
+DEFINE_FORMATTED_STREAMABLE(UInt2, UInt32,  1, DISABLE_UNDEF_HANDLING)
 #endif
-DEFINE_FORMATTED_STREAMABLE(Float32, double, 16, "%.9G", ENABLE_UNDEF_HANDLING)
-DEFINE_FORMATTED_STREAMABLE(Float64, double, 32, "%.17G", ENABLE_UNDEF_HANDLING)
+DEFINE_FORMATTED_STREAMABLE(Float32, Float32, 16, ENABLE_UNDEF_HANDLING)
+DEFINE_FORMATTED_STREAMABLE(Float64, double, 32, ENABLE_UNDEF_HANDLING)
 #if defined(DMS_TM_HAS_FLOAT80)
-DEFINE_FORMATTED_STREAMABLE(Float80, long double, 32, "%.21lG", ENABLE_UNDEF_HANDLING)
+DEFINE_FORMATTED_STREAMABLE(Float80, long double, 32, ENABLE_UNDEF_HANDLING)
 #endif
 #if defined(DMS_TM_HAS_INT64)
-DEFINE_FORMATTED_STREAMABLE(UInt64, UInt64, 30, "%I64u", ENABLE_UNDEF_HANDLING)
-DEFINE_FORMATTED_STREAMABLE(Int64, Int64, 30, "%I64d", ENABLE_UNDEF_HANDLING)
+DEFINE_FORMATTED_STREAMABLE(UInt64, UInt64, 30, ENABLE_UNDEF_HANDLING)
+DEFINE_FORMATTED_STREAMABLE(Int64, Int64, 30, ENABLE_UNDEF_HANDLING)
 #endif
 
 #include "ser/StreamException.h"
