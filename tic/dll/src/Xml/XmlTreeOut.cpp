@@ -230,20 +230,19 @@ bool WriteUnitProps(XML_Table& xmlTable, const AbstrUnit* unit, bool allTileInfo
 		row.ValueCell("Tile Sizes");
 		XML_Table::Row::Cell cell(row);
 
-		XML_OutElement details(xmlTable.OutStream(), "details");
+		xmlTable.OutStream() << "DataSize " << AsString(trd->GetElemCount()).c_str();
+		if (IsInDebugMode())
 		{
-			XML_OutElement summary(xmlTable.OutStream(), "summary");
-			xmlTable.OutStream() << "DataSize " << AsString(trd->GetElemCount()).c_str();
-		}
-		for (tile_id t = 0, tn = trd->GetNrTiles(); t != tn; ++t)
-		{
-			NewLine(xmlTable.OutStream());
-			xmlTable.OutStream() 
-				<< mySSPrintF("Tile %d", t).c_str()
-				<< GetTileStrRange(currRangeUnit.get_ptr(), t).c_str()
-				<< " = "
-				<< GetTileStrCount(currRangeUnit.get_ptr(), t).c_str()
-				<< " elements.";
+			for (tile_id t = 0, tn = trd->GetNrTiles(); t != tn; ++t)
+			{
+				NewLine(xmlTable.OutStream());
+				xmlTable.OutStream()
+					<< mySSPrintF("Tile %d", t).c_str()
+					<< GetTileStrRange(currRangeUnit.get_ptr(), t).c_str()
+					<< " = "
+					<< GetTileStrCount(currRangeUnit.get_ptr(), t).c_str()
+					<< " elements.";
+			}
 		}
 	}
 	return true;
@@ -474,14 +473,10 @@ const TreeItem* WriteExprOrSourceDescrAndReturnSourceItem(OutStreamBase& stream,
 
 void WriteExprOrSourceDescr(OutStreamBase& stream, const TreeItem* self)
 {
-	XML_OutElement details(stream, "details");
+	auto si = WriteExprOrSourceDescrAndReturnSourceItem(stream, self);
 
-	auto si = self;
-	{
-		XML_OutElement summary(stream, "summary");
-
-		si = WriteExprOrSourceDescrAndReturnSourceItem(stream, self);
-	}
+	if (!IsInDebugMode())
+		return;
 
 	while (si)
 	{
@@ -698,31 +693,31 @@ bool TreeItem_XML_DumpGeneralBody(const TreeItem* self, OutStreamBase* xmlOutStr
 		XML_Table::Row::Cell xmlElemTD(exprRow);
 
 		auto& out  = xmlTable.OutStream();
-		XML_OutElement details(out, "details");
-		{
-			XML_OutElement summary(out, "summary");
-			out << explicitSupplPropDefPtr->GetValueAsSharedStr(self).c_str();
-		}
 
-		try {
-			auto n = self->GetSupplCache()->GetNrConfigured(self); // only ConfigSuppliers, Implied suppliers come after this, Calculator & StorageManager have added them
-			for (decltype(n) i = 0; i < n; ++i)
-			{
-				const Actor* supplier = self->GetSupplCache()->begin(self)[i];
-				auto supplTI = debug_cast<const TreeItem*>(supplier);
-				if (supplTI)
+		out << explicitSupplPropDefPtr->GetValueAsSharedStr(self).c_str();
+
+		if (IsInDebugMode())
+		{
+			try {
+				auto n = self->GetSupplCache()->GetNrConfigured(self); // only ConfigSuppliers, Implied suppliers come after this, Calculator & StorageManager have added them
+				for (decltype(n) i = 0; i < n; ++i)
 				{
-					NewLine(out);
-					out << AsString(i).c_str();
-					hRefWithText(out, supplTI->GetFullName().c_str(), ItemUrl(supplTI).c_str());
+					const Actor* supplier = self->GetSupplCache()->begin(self)[i];
+					auto supplTI = debug_cast<const TreeItem*>(supplier);
+					if (supplTI)
+					{
+						NewLine(out);
+						out << AsString(i).c_str();
+						hRefWithText(out, supplTI->GetFullName().c_str(), ItemUrl(supplTI).c_str());
+					}
 				}
 			}
-		}
-		catch (...)
-		{
-			auto err = catchException(true);
-			if (err)
-				xmlTable.NameErrRow("ExplicitSuppliers", *err, self);
+			catch (...)
+			{
+				auto err = catchException(true);
+				if (err)
+					xmlTable.NameErrRow("ExplicitSuppliers", *err, self);
+			}
 		}
 	}
 
