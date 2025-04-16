@@ -129,14 +129,14 @@ namespace {
 	struct InitAnnotateFunc {
 		InitAnnotateFunc()
 		{
-			dms_assert(s_AnnotateExprFunc == nullptr);
+			assert(s_AnnotateExprFunc == nullptr);
 			s_AnnotateExprFunc = annotateExpr;
 		}
 
 #if defined(MG_DEBUG)
 		~InitAnnotateFunc()
 		{
-			dms_assert(s_AnnotateExprFunc != nullptr);
+			assert(s_AnnotateExprFunc != nullptr);
 			s_AnnotateExprFunc = nullptr;
 		}
 #endif

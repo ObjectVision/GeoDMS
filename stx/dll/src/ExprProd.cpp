@@ -243,26 +243,23 @@ void ExprProd::CloseExprList()
 
 const TreeItem* WriteHtmlLink(OutStreamBase& outStream, const TreeItem* searchContext, CharPtr first, CharPtr last)
 {
-	if (searchContext)
-		for (auto iter = first; iter != last; ++iter)
-			if (*iter != '.')
-			{
-				TokenID itemRef = TokenID(first, last, (mt_tag*)nullptr);
-				if (!ValueClass::FindByScriptName(itemRef))
+	if (searchContext && first != last)
+	{
+		TokenID itemRef = TokenID(first, last, (mt_tag*)nullptr);
+		if (!ValueClass::FindByScriptName(itemRef))
+		{
+			try {
+				const TreeItem* item = searchContext->FindItem(CharPtrRange(first, last));
+				if (item)
 				{
-					try {
-						const TreeItem* item = searchContext->FindItem(CharPtrRange(first, last));
-						if (item)
-						{
-							XML_hRef xmlElemA(outStream, ItemUrl(item).c_str());
-							outStream.WriteRange(first, last);
-							return item;
-						}
-					}
-					catch (...) {}
+					XML_hRef xmlElemA(outStream, ItemUrl(item).c_str());
+					outStream.WriteRange(first, last);
+					return item;
 				}
-				break;
 			}
+			catch (...) {}
+		}
+	}
 	outStream.WriteRange(first, last);
 	return nullptr;
 }
