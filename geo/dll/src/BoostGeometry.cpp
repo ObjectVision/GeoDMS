@@ -1421,21 +1421,15 @@ namespace
 
 	template <typename P> using BgIntersectMultiPolygonOperator = BgMultiPolygonOperator < P, bg_intersection> ;
 	tl_oper::inst_tuple_templ<typelists::points, BgIntersectMultiPolygonOperator, AbstrOperGroup&> bgIntersectMultiPolygonOperatorsNamed(grBgIntersect);
-	tl_oper::inst_tuple_templ<typelists::float_points, BgIntersectMultiPolygonOperator, AbstrOperGroup&> bgIntersectMultiPolygonOperatorsMul(cog_mul);
-	tl_oper::inst_tuple_templ<typelists::float_points, BgIntersectMultiPolygonOperator, AbstrOperGroup&> bgIntersectMultiPolygonOperatorsBitAnd(cog_bitand);
 
 	template <typename P> using BgUnionMultiPolygonOperator = BgMultiPolygonOperator<P, bg_union>;
 	tl_oper::inst_tuple_templ<typelists::points, BgUnionMultiPolygonOperator, AbstrOperGroup&> bgUnionMultiPolygonOperatorsNamed(grBgUnion);
-	tl_oper::inst_tuple_templ<typelists::float_points, BgUnionMultiPolygonOperator, AbstrOperGroup&> bgUnionMultiPolygonOperatorsAdd(cog_add);
-	tl_oper::inst_tuple_templ<typelists::float_points, BgUnionMultiPolygonOperator, AbstrOperGroup&> bgUnionMultiPolygonOperatorsBitOr(cog_bitor);
 
 	template <typename P> using BgDifferenceMultiPolygonOperator = BgMultiPolygonOperator<P, bg_difference>;
 	tl_oper::inst_tuple_templ<typelists::points, BgDifferenceMultiPolygonOperator, AbstrOperGroup&> bgDifferenceMultiPolygonOperatorsNamed(grBgDifference);
-	tl_oper::inst_tuple_templ<typelists::float_points, BgDifferenceMultiPolygonOperator, AbstrOperGroup&> bgDifferenceMultiPolygonOperatorsSub(cog_sub);
 
 	template <typename P> using BgSymmetricDifferenceMultiPolygonOperator = BgMultiPolygonOperator<P, bg_sym_difference>;
 	tl_oper::inst_tuple_templ<typelists::points, BgSymmetricDifferenceMultiPolygonOperator, AbstrOperGroup&> bgSymmetricDifferenceMultiPolygonOperatorsNamed(grBgXOR);
-	tl_oper::inst_tuple_templ<typelists::float_points, BgSymmetricDifferenceMultiPolygonOperator, AbstrOperGroup&> bgSymmetricDifferenceMultiPolygonOperatorsBitXOR(cog_bitxor);
 
 
 	template <typename P> using BgBufferMultiPolygonOperator = BufferMultiPolygonOperator<P, geometry_library::boost_geometry>;
@@ -1462,15 +1456,25 @@ namespace
 
 	template <typename P> using GEOS_IntersectMultiPolygonOperator = GEOS_MultiPolygonOperator < P, geos_intersection>;
 	tl_oper::inst_tuple_templ<typelists::points, GEOS_IntersectMultiPolygonOperator, AbstrOperGroup&> geosIntersectMultiPolygonOperatorsNamed(grgeosIntersect);
+	tl_oper::inst_tuple_templ<typelists::float_points, GEOS_IntersectMultiPolygonOperator, AbstrOperGroup&> bgIntersectMultiPolygonOperatorsMul(cog_mul);
+	tl_oper::inst_tuple_templ<typelists::float_points, GEOS_IntersectMultiPolygonOperator, AbstrOperGroup&> bgIntersectMultiPolygonOperatorsBitAnd(cog_bitand);
+
 
 	template <typename P> using GEOS_UnionMultiPolygonOperator = GEOS_MultiPolygonOperator<P, geos_union>;
 	tl_oper::inst_tuple_templ<typelists::points, GEOS_UnionMultiPolygonOperator, AbstrOperGroup&> geosUnionMultiPolygonOperatorsNamed(grgeosUnion);
+	tl_oper::inst_tuple_templ<typelists::float_points, GEOS_UnionMultiPolygonOperator, AbstrOperGroup&> bgUnionMultiPolygonOperatorsAdd(cog_add);
+	tl_oper::inst_tuple_templ<typelists::float_points, GEOS_UnionMultiPolygonOperator, AbstrOperGroup&> bgUnionMultiPolygonOperatorsBitOr(cog_bitor);
+
 
 	template <typename P> using GEOS_DifferenceMultiPolygonOperator = GEOS_MultiPolygonOperator<P, geos_difference>;
 	tl_oper::inst_tuple_templ<typelists::points, GEOS_DifferenceMultiPolygonOperator, AbstrOperGroup&> geosDifferenceMultiPolygonOperatorsNamed(grgeosDifference);
+	tl_oper::inst_tuple_templ<typelists::float_points, GEOS_DifferenceMultiPolygonOperator, AbstrOperGroup&> bgDifferenceMultiPolygonOperatorsSub(cog_sub);
+
 
 	template <typename P> using GEOS_SymmetricDifferenceMultiPolygonOperator = GEOS_MultiPolygonOperator<P, geos_sym_difference>;
 	tl_oper::inst_tuple_templ<typelists::points, GEOS_SymmetricDifferenceMultiPolygonOperator, AbstrOperGroup&> geosSymmetricDifferenceMultiPolygonOperatorsNamed(grgeosXOR);
+	tl_oper::inst_tuple_templ<typelists::float_points, GEOS_SymmetricDifferenceMultiPolygonOperator, AbstrOperGroup&> bgSymmetricDifferenceMultiPolygonOperatorsBitXOR(cog_bitxor);
+
 
 }
 
