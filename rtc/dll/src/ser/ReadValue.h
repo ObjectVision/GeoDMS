@@ -67,7 +67,10 @@ T ReadValue(FormattedInpStream& str)
 		char* bufferEnd = buffer + sizeof(buffer);
 		auto f = str.Buffer().GetDataBegin() + str.CurrPos();
 		auto e = str.Buffer().GetDataEnd();
-		while (f != e && bufferPtr != bufferEnd)
+		if (e - f < bufferEnd - bufferPtr)
+			bufferEnd = buffer + (e - f);
+
+		while (bufferPtr != bufferEnd)
 		{
 			if (*f == ',')
 			{
@@ -80,7 +83,7 @@ T ReadValue(FormattedInpStream& str)
 		auto fromResult = std::from_chars(buffer, bufferPtr, value);
 		if (fromResult.ec != std::errc())
 			return UNDEFINED_VALUE(T);
-		str.SetCurrPos(str.CurrPos() + (bufferPtr - buffer));
+		str.SetCurrPos(str.CurrPos() + (fromResult.ptr - buffer));
 		return value;
 	}
 
