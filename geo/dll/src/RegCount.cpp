@@ -1,4 +1,4 @@
-// Copyright (C) 1998-2024 Object Vision b.v. 
+// Copyright (C) 1998-2025 Object Vision b.v. 
 // License: GNU GPL 3
 /////////////////////////////////////////////////////////////////////////////
 
@@ -74,7 +74,7 @@ struct RegionInfo
 	DataReadLock                    m_ReadLock;
 	OwningPtr<IndexGetter>          m_IndexGetter;
 	SizeT                           m_NrParts;
-	SharedPtr<AbstrDataItem>        m_Result;
+	WeakPtr<AbstrDataItem>          m_Result;
 
 	DataWriteLock                   m_WriteLock;
 private:
@@ -168,18 +168,18 @@ struct RegCountOperator : public QuaternaryOperator
 
 	void CreateResultCaller(TreeItemDualRef& resultHolder, const ArgRefs& args, OperationContext* fc, LispPtr) const override
 	{
-		dms_assert(args.size() == 4);
+		assert(args.size() == 4);
 
-		const AbstrDataItem* arg1A = AsDataItem(args[0]); dms_assert(arg1A);
-		const AbstrDataItem* arg2A = AsDataItem(args[1]); dms_assert(arg2A);
-		const TreeItem*      partitionContainer = GetItem(args[2]); dms_assert(partitionContainer);
-		const AbstrDataItem* arg4A = AsDataItem(args[3]); dms_assert(arg4A);
+		const AbstrDataItem* arg1A = AsDataItem(args[0]); assert(arg1A);
+		const AbstrDataItem* arg2A = AsDataItem(args[1]); assert(arg2A);
+		const TreeItem*      partitionContainer = GetItem(args[2]); assert(partitionContainer);
+		const AbstrDataItem* arg4A = AsDataItem(args[3]); assert(arg4A);
 
 		const AbstrUnit* gridDomain = arg1A->GetAbstrDomainUnit();
-		dms_assert(gridDomain);
+		assert(gridDomain);
 
 		auto actorTypeUnit = arg1A->GetAbstrValuesUnit(); // LANDUSE CLASSES
-		dms_assert(actorTypeUnit);
+		assert(actorTypeUnit);
 		ActorTypeIndex n = actorTypeUnit->GetCount();
 
 		actorTypeUnit->UnifyDomain(arg2A->GetAbstrDomainUnit(), "v1", "e2", UM_Throw);
@@ -191,7 +191,7 @@ struct RegCountOperator : public QuaternaryOperator
 			? gridDomain
 			: m_CountUnitClass->CreateDefault()
 			: count_unit_creator(GetItems(args)).get_ptr();
-		dms_assert(regionInfoArray.m_ResUnit);
+		assert(regionInfoArray.m_ResUnit);
 
 		if (!resultHolder)
 			resultHolder = TreeItem::CreateCacheRoot();
@@ -218,10 +218,10 @@ struct RegCountOperator : public QuaternaryOperator
 			if (className.empty())
 				throwErrorF("RegCount", "no ItemName for row %d of 2nd argument", i);
 			TokenID nameID = GetTokenID_mt(className.c_str());
-			dms_assert(nameID);
+			assert(nameID);
 			const AbstrUnit* regionalDomain = partition ? partition->GetAbstrValuesUnit() : Unit<Void>::GetStaticClass()->CreateDefault();
 			AbstrDataItem* resultItem = CreateDataItem(resultHolder, nameID, regionalDomain, regionInfoArray.m_ResUnit);
-			dms_assert(resultItem);
+			assert(resultItem);
 			regionInfoArray.emplace_back(partition, resultItem);
 			if (partition)
 			{
@@ -234,18 +234,18 @@ struct RegCountOperator : public QuaternaryOperator
 
 	bool CalcResult(TreeItemDualRef& resultHolder, ArgRefs args, std::vector<ItemReadLock> readLocks, OperationContext* fc, Explain::Context* context) const override
 	{
-		dms_assert(resultHolder);
+		assert(resultHolder);
 		RegionInfoArray* regionInfoArrayPtr = rtc::any::any_cast<RegionInfoArray>(&resultHolder->m_ReadAssets);
 		MG_CHECK(regionInfoArrayPtr);
 		RegionInfoArray& regionInfoArray = *regionInfoArrayPtr;
 
-		const AbstrDataItem* arg1A = AsDataItem(args[0]); dms_assert(arg1A);
-		const AbstrDataItem* arg2A = AsDataItem(args[1]); dms_assert(arg2A);
-		const TreeItem*      partitionContainer = GetItem(args[2]); dms_assert(partitionContainer);
-		const AbstrDataItem* arg4A = AsDataItem(args[3]); dms_assert(arg4A);
+		const AbstrDataItem* arg1A = AsDataItem(args[0]); assert(arg1A);
+		const AbstrDataItem* arg2A = AsDataItem(args[1]); assert(arg2A);
+		const TreeItem*      partitionContainer = GetItem(args[2]); assert(partitionContainer);
+		const AbstrDataItem* arg4A = AsDataItem(args[3]); assert(arg4A);
 
 		auto actorTypeRange = const_array_cast<ActorType>(arg1A)->GetValueRangeData(); // LANDUSE CLASSES
-		dms_assert(actorTypeRange);
+		assert(actorTypeRange);
 		ActorTypeIndex n = Cardinality(actorTypeRange->GetRange());
 		MG_CHECK(regionInfoArray.size() == n);
 
