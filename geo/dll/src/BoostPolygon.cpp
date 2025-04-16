@@ -1264,15 +1264,26 @@ struct union_bg_multi_polygon
 			auto area1 = boost::geometry::area(lvalue);
 			auto area2 = boost::geometry::area(rvalue);
 			auto arear = boost::geometry::area(result);
-			auto missing1 = (area1 + area2) - arear;
-			auto missing2 = max(area1, area2) - arear;
-
-			if ((missing1 > 0) || (missing2 > 0))
-				reportF(SeverityTypeID::ST_MinorTrace, "%d union_bg_multi_polygon(%d, %d) -> %d missing at least %s and at most %s"
-				,   callCounter++
-				,	area1, area2, arear
-				,   missing2, missing1
-				);
+			if (arear > area1 + area2)
+			{
+				auto tooMuch = arear - (area1 + area2);
+				if (tooMuch > 0.1)
+					reportF(SeverityTypeID::ST_MinorTrace, "%d union_bg_multi_polygon(%f, %f) -> %f: resulting area %f too big "
+						, callCounter++
+						, area1, area2, arear
+						, tooMuch
+					);
+			}
+			else if (arear < max(area1, area2))
+			{
+				auto missing = max(area1, area2) - arear;
+				if (missing > 0.1)
+					reportF(SeverityTypeID::ST_MinorTrace, "%d union_bg_multi_polygon(%f, %f) -> %f: resulting area %f too small "
+						, callCounter++
+						, area1, area2, arear
+						, missing
+					);
+			}
 		}
 		result.swap(lvalue);
 	}

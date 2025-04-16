@@ -73,9 +73,7 @@ struct bg_union_poly_traits
 
 	using multi_polygon_type  = boost::geometry::model::multi_polygon<polygon_with_holes_type>;
 	using polygon_result_type = multi_polygon_type; //  std::vector<polygon_with_holes_type>;
-
 };
-
 
 
 // TODO: return_lower_bound obv concepts overloaden
@@ -507,9 +505,10 @@ struct bg_sym_difference_direct {
 
 
 auto fix_bg_polygons_with_CGAL(bg_multi_polygon_t&& input) -> bg_multi_polygon_t;
+auto fix_bg_polygons_with_GEOS(bg_multi_polygon_t&& input) -> bg_multi_polygon_t;
 
 template<typename Geometry>
-bg_multi_polygon_t clean_geometry_with_buffer0(Geometry&& input)
+bg_multi_polygon_t clean_bg_geometry(Geometry&& input)
 {
 	namespace bg = boost::geometry;
 
@@ -517,34 +516,69 @@ bg_multi_polygon_t clean_geometry_with_buffer0(Geometry&& input)
 	if (boost::geometry::is_valid(input, reason))
 		return input;
 
-/* SKIP buffer fix, doesn't work on CAPRI, see #857
-	bg_multi_polygon_t output;
-	bg::strategy::buffer::join_round join_strategy(0);
-	bg::strategy::buffer::end_round end_strategy(0);
-	bg::strategy::buffer::distance_symmetric<double> distance_strategy(0);
-	bg::strategy::buffer::side_straight side_strategy;
-	bg::strategy::buffer::point_circle circle_strategy(0);
+	reportF(SeverityTypeID::ST_Warning, "clean bg geometry with GEOS because \"%s\".", reason);
 
-	bg::buffer(input, output,
-		distance_strategy, side_strategy,
-		join_strategy, end_strategy, circle_strategy);
-
-	if (output.size())
-	{
-		reportF(SeverityTypeID::ST_Warning, "bg_clean_geometry failure fixed by bg::buffer: %s", reason);
-		return output;
-	}
-*/
-	auto output = fix_bg_polygons_with_CGAL(std::move(input));
+	auto output = fix_bg_polygons_with_GEOS(std::move(input));
 
 	std::string reason2;
-	if (boost::geometry::is_valid(output, reason2))
-		reportF(SeverityTypeID::ST_Warning, "clean geometry succeded. fail-reason=\"%s\".", reason);
-	else
-		reportF(SeverityTypeID::ST_Warning, "clean geometry failed. fail-reason=\"%s\".\nAfter CGAL clean-up fail-reason=\"%s\".", reason, reason2);
+	if (!boost::geometry::is_valid(output, reason2))
+		reportF(SeverityTypeID::ST_Warning, "fix_bg_polygons_with_GEOS failed because \"%s\".", reason2);
 
 	return output;
 }
+
+inline void checkWindingOrders(const bg_multi_polygon_t& mp)
+{
+	for (const auto& polygon : mp)
+	{
+		auto outerArea = boost::geometry::area(polygon.outer());
+		if (outerArea < 0)
+			reportF(SeverityTypeID::ST_Warning, "checkWindingOrders: outer ring has negative area %f", outerArea);
+		for (const auto& inner : polygon.inners())
+		{
+			auto innerArea = boost::geometry::area(inner);
+			if (innerArea > 0)
+				reportF(SeverityTypeID::ST_Warning, "checkWindingOrders: inner ring has positive area %f", innerArea);
+			outerArea -= innerArea;
+		}
+		if (outerArea < 0)
+			reportF(SeverityTypeID::ST_Warning, "checkWindingOrders: innner rings sum up to more than the outer ring with %f", outerArea);
+	}
+}
+
+inline void fixWindingOrders(bg_multi_polygon_t& mp)
+{
+	bool mustRemovePolygons = false;
+	for (auto& polygon : mp)
+	{
+		auto outerArea = boost::geometry::area(polygon.outer());
+		if (outerArea < 0)
+		{
+			reportF(SeverityTypeID::ST_Warning, "fixWindingOrders: outer ring had negative area %f", outerArea);
+			std::reverse(polygon.outer().begin(), polygon.outer().end());
+		}
+		for (auto& inner : polygon.inners())
+		{
+			auto innerArea = boost::geometry::area(inner);
+			if (innerArea > 0)
+			{
+				reportF(SeverityTypeID::ST_Warning, "fixWindingOrders: inner ring had positive area %f", innerArea);
+				std::reverse(inner.begin(), inner.end());
+			}
+			outerArea -= innerArea;
+		}
+		if (outerArea < 0)
+		{
+			reportF(SeverityTypeID::ST_Warning, "checkWindingOrders: innner rings sum up to more than the outer ring with %f", outerArea);
+			mustRemovePolygons = true;
+			polygon = {};
+		}
+	}
+	if (mustRemovePolygons)
+		mp.erase(std::remove_if(mp.begin(), mp.end(), [](const bg_polygon_t& polygon) { return polygon.outer().empty(); }), mp.end());
+}
+
+static SizeT d_DebugCount = 0;
 
 template <typename BG_OPER>
 struct bg_checked_operation {
@@ -553,27 +587,38 @@ struct bg_checked_operation {
 	template <typename A, typename B>
 	void operator ()(A&& a, B&& b, auto& r) const
 	{
+		checkWindingOrders(a);
+		checkWindingOrders(b);
+
+		d_DebugCount++;
+
 		if (boost::geometry::is_valid(a))
 			if (boost::geometry::is_valid(b))
 				m_op(std::forward<A>(a), std::forward<B>(b), r);
 			else
 			{
-				auto bb = clean_geometry_with_buffer0(b);
+				auto bb = clean_bg_geometry(b);
 				m_op(std::forward<A>(a), std::move(bb), r);
 			}
 		else
 			if (boost::geometry::is_valid(b))
 			{
-				auto aa = clean_geometry_with_buffer0(a);
+				auto aa = clean_bg_geometry(a);
 				m_op(std::move(aa), std::forward<B>(b), r);
 
 			}
 			else
 			{
-				auto aa = clean_geometry_with_buffer0(a);
-				auto bb = clean_geometry_with_buffer0(b);
+				auto aa = clean_bg_geometry(a);
+				auto bb = clean_bg_geometry(b);
 				m_op(std::move(aa), std::move(bb), r);
-			}
+		}
+		fixWindingOrders(r);
+		if (!boost::geometry::is_valid(r))
+		{
+			r = clean_bg_geometry(r);
+			fixWindingOrders(r);
+		}
 	}
 };
 

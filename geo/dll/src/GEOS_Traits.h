@@ -590,17 +590,27 @@ struct geos_sym_difference_base {
 	}
 };
 
+inline void checkAndReportValidity(const geos::geom::Geometry* input)
+{
+	geos::operation::valid::IsValidOp validator(input);
+	if (validator.isValid())
+		return;
+	const auto* err = validator.getValidationError();
+	if (!err)
+		return;
+	auto coord = err->getCoordinate();
+	reportF(SeverityTypeID::ST_Warning, "GEOS fix failed. fail-reason=\"%s\" at (%f, %f)."
+		, err->getMessage(), coord.x, coord.y);
+}
+
 inline auto clean_geos_geometry(const geos::geom::Geometry* input) -> std::unique_ptr<geos::geom::Geometry>
 {
-	geos::operation::valid::MakeValid fixer;
+	checkAndReportValidity(input);
 
+	geos::operation::valid::MakeValid fixer;
 	std::unique_ptr<geos::geom::Geometry> output = fixer.build(input);
 
-	if (!output->isValid())
-	{
-		geos::operation::valid::IsValidOp validator(output.get());
-		reportF(SeverityTypeID::ST_Warning, "GEOS fix failed. fail-reason=\"%s\".", validator.getValidationError()->getMessage());
-	}
+	checkAndReportValidity(output.get());
 
 	return output;
 }
@@ -610,25 +620,29 @@ struct geos_operator_wrapper
 {
 	auto operator()(const geos::geom::Geometry* a, const geos::geom::Geometry* b) const->std::unique_ptr<geos::geom::Geometry>
 	{
+		std::unique_ptr<geos::geom::Geometry> result;
 		if (a->isValid())
 			if (b->isValid())
-				return m_Oper(a, b);
+				result = m_Oper(a, b);
 			else
 			{
 				auto bClean = clean_geos_geometry(b);
-				return m_Oper(a, bClean.get());
+				result = m_Oper(a, bClean.get());
 			}
 		else
 		{
 			auto aClean = clean_geos_geometry(a);
 			if (b->isValid())
-				return m_Oper(aClean.get(), b);
+				result = m_Oper(aClean.get(), b);
 			else
 			{
 				auto bClean = clean_geos_geometry(b);
-				return m_Oper(aClean.get(), bClean.get());
+				result = m_Oper(aClean.get(), bClean.get());
 			}
 		}
+		if (!result->isValid())
+			result = clean_geos_geometry(result.get());
+		return result;
 	}
 
 	POper m_Oper;

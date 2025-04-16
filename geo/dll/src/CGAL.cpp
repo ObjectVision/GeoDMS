@@ -109,3 +109,143 @@ auto fix_bg_polygons_with_CGAL(bg_multi_polygon_t&& input) -> bg_multi_polygon_t
 
 #include "GEOS_Traits.h"
 
+namespace bg = boost::geometry;
+using BoostPoint = DPoint;
+using BoostPolygon = bg_polygon_t;
+using BoostMultiPolygon = bg_multi_polygon_t;
+using GEOS_point_index = unsigned int;
+
+using x = bg_multi_polygon_t;
+
+// Convert Boost polygon to GEOS polygon
+auto to_geos_polygon(const BoostPolygon& poly, geos_create_linear_ring_helper_data<DPoint>& tmp) -> std::unique_ptr<geos::geom::Polygon>
+{
+	auto shell = geos_create_linear_ring<DPoint>(begin_ptr(poly.outer()), end_ptr(poly.outer()), tmp);
+
+	std::vector<std::unique_ptr<geos::geom::LinearRing>> holes;
+
+	for (const auto& inner : poly.inners()) {
+		holes.emplace_back(geos_create_linear_ring<DPoint>(begin_ptr(inner), end_ptr(inner), tmp));
+	}
+
+	return geos_factory()->createPolygon(std::move(shell), std::move(holes));
+}
+
+// Convert Boost multipolygon to GEOS multipolygon
+auto to_geos_multipolygon(const bg_multi_polygon_t& mp, geos_create_linear_ring_helper_data<DPoint>& tmp) -> std::unique_ptr<geos::geom::MultiPolygon>
+{
+	std::vector<std::unique_ptr<geos::geom::Polygon>> polys;
+	for (const auto& p : mp) {
+		polys.emplace_back(to_geos_polygon(p, tmp));
+	}
+	auto r = geos_factory()->createMultiPolygon(std::move(polys));
+	r->normalize();
+	return r;
+}
+
+auto geos_point_to_bg(const geos::geom::Coordinate& c) -> DPoint
+{
+	return shp2dms_order(c.x, c.y);
+}
+
+auto geos_lr_to_bg(const geos::geom::LinearRing* lr) -> bg_ring_t
+{
+	assert(lr);
+	const auto* coords = lr->getCoordinatesRO();
+	assert(coords);
+	auto s = coords->getSize();
+	if (s <= 3)
+		return {};
+
+	bg_ring_t result; result.reserve(s);
+	MG_CHECK(coords->getAt(0) == coords->getAt(s - 1));
+	for (SizeT i = 0; i != s; ++i)
+		result.emplace_back(geos_point_to_bg(coords->getAt(i)));
+	return result;
+}
+
+
+auto geos_polygon_with_holes_to_bg(const geos::geom::Polygon* poly) -> bg_polygon_t
+{
+	assert(poly);
+	auto outerRing = geos_lr_to_bg(poly->getExteriorRing());
+	if (outerRing.empty())
+		return {};
+	bg_polygon_t result;
+	result.outer().swap(outerRing);
+
+	std::vector<geos::geom::Coordinate> backTrackPoints;
+	SizeT irCount = poly->getNumInteriorRing();
+	for (SizeT ir = 0; ir != irCount; ++ir)
+		result.inners().emplace_back(geos_lr_to_bg(poly->getInteriorRingN(ir)));
+
+	return result;
+}
+
+auto bg_from_geos_mp(const geos::geom::MultiPolygon* mp) -> bg_multi_polygon_t
+{
+	assert(mp);
+	if (mp->isEmpty())
+		return {};
+
+	bg_multi_polygon_t result;
+
+	SizeT polygonCount = mp->getNumGeometries();
+	assert(polygonCount != 0); // follows from poly.size()
+	result.reserve(polygonCount);
+
+	for (SizeT i = 0; i != polygonCount; ++i)
+	{
+		const auto* poly = debug_cast<const geos::geom::Polygon*>(mp->getGeometryN(i));
+		result.emplace_back(geos_polygon_with_holes_to_bg(poly));
+	}
+	return result;
+}
+
+
+auto bg_from_geos_geometry(const geos::geom::Geometry* geometry) -> bg_multi_polygon_t
+{
+	if (!geometry || geometry->isEmpty())
+		return {};
+
+	if (auto mp = dynamic_cast<const geos::geom::MultiPolygon*>(geometry))
+		return bg_from_geos_mp(mp);
+
+	if (auto poly = dynamic_cast<const geos::geom::Polygon*>(geometry))
+	{
+		bg_multi_polygon_t result;
+		auto polyWithHoles = geos_polygon_with_holes_to_bg(poly);
+		result.emplace_back(std::move(polyWithHoles));
+		return result;
+	}
+	if (auto gc = dynamic_cast<const geos::geom::GeometryCollection*>(geometry))
+	{
+		bg_multi_polygon_t result;
+		for (SizeT i = 0; i != gc->getNumGeometries(); ++i)
+		{
+			const auto* subGeom = gc->getGeometryN(i);
+			auto subResult = bg_from_geos_geometry(subGeom);
+			result.reserve(result.size() + subResult.size());
+			for (auto& subPoly : subResult)
+				result.emplace_back(std::move(subPoly));
+		}
+		return result;
+	}
+
+	// separate points and linestrings are discarded here
+	return {};
+}
+
+
+// Full wrapper: fix Boost MultiPolygon using GEOSMakeValid
+auto fix_bg_polygons_with_GEOS(bg_multi_polygon_t&& input) -> bg_multi_polygon_t
+{
+	geos_create_linear_ring_helper_data<DPoint> tmp;
+	auto raw_input = to_geos_multipolygon(input, tmp);
+
+	if (raw_input->isValid())
+		return bg_from_geos_mp(raw_input.get());
+
+	auto geosResult = clean_geos_geometry(raw_input.get());
+	return bg_from_geos_geometry(geosResult.get());
+}

@@ -167,7 +167,6 @@ struct BgMultiPolygonOperator : BinaryMapAlgebraicOperator<P>
 		assert(n2 == n || (af & AF2_ISPARAM));
 		assert(resData.size() == n);
 
-
 		bg_ring_t helperRing;
 		bg_polygon_t helperPolygon;
 		bg_multi_polygon_t currMP1, currMP2, resMP;
