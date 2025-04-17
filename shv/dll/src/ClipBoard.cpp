@@ -90,7 +90,7 @@ ClipBoard::ClipBoard(bool wait)
 		++s_ClipBoardOpenCount;
 	else
 		MessageBeep(-1);
-	dms_assert(m_Success || !wait);
+	assert(m_Success || !wait);
 }
 
 ClipBoard::~ClipBoard() 

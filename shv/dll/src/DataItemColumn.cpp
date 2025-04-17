@@ -1411,6 +1411,7 @@ void DataItemColumn::FillMenu(MouseEventDispatcher& med)
 	SharedStr caption = GetThemeDisplayName(this);
 
 	auto tc = GetTableControl().lock(); if (!tc) return;
+	auto dv = GetDataView().lock(); if (!dv) return;
 	auto sa = GetSrcAttr();
 	if (sa)
 	{
@@ -1422,7 +1423,7 @@ void DataItemColumn::FillMenu(MouseEventDispatcher& med)
 		}
 	}
 	if (tc->m_GroupByEntity && !IsDefined(m_GroupByIndex)) {
-		SubMenu subMenu(med.m_MenuData, SharedStr("Aggregate by ")); // SUBMENU
+		SubMenu subMenu(med.m_MenuData, SharedStr("Aggregate by ...")); // SUBMENU
 		for (auto am = AggrMethod(0); am != AggrMethod::nr_methods; am = AggrMethod(int(am)+1))
 			if (Allowed(GetSrcAttr(), am))
 				med.m_MenuData.push_back(MenuItem(
@@ -1432,7 +1433,13 @@ void DataItemColumn::FillMenu(MouseEventDispatcher& med)
 					am == m_AggrMethod ? MF_CHECKED : 0
 				));
 	}
-
+	{
+		SubMenu subMenu(med.m_MenuData, SharedStr("Copy to clipboard...")); // SUBMENU
+		med.m_MenuData.emplace_back(SharedStr("Focus Cell(s) value(s) as text"), make_MembFuncCmd(&TableControl::FocusCopy), tc.get());
+		med.m_MenuData.emplace_back(SharedStr("Table as text"), make_MembFuncCmd(&TableControl::WholeTableCopy), tc.get());
+		med.m_MenuData.emplace_back(SharedStr("Column as image"), make_MembFuncCmd(&DataItemColumn::CopyToClipboard, dv.get()), this);
+		med.m_MenuData.emplace_back(SharedStr("Table as image"), make_MembFuncCmd(&DataItemColumn::CopyToClipboard, dv.get()), tc.get());
+	}
 	{
 		SubMenu subMenu(med.m_MenuData, SharedStr("Activate...")); // SUBMENU
 		InsertSubMenu(med.m_MenuData, "Source Attribute", GetSrcAttr(), this);
@@ -1544,13 +1551,13 @@ void DataItemColumn::FillMenu(MouseEventDispatcher& med)
 void DataItemColumn::SortAsc()
 {
 	auto tc = GetTableControl().lock(); if (!tc) return;
-	tc->CreateTableIndex(this, SO_Ascending);
+	tc->CreateTableIndex(this, SortOrder::Ascending);
 }
 
 void DataItemColumn::SortDesc()
 {
 	auto tc = GetTableControl().lock(); if (!tc) return;
-	tc->CreateTableIndex(this, SO_Descending);
+	tc->CreateTableIndex(this, SortOrder::Descending);
 }
 
 void DataItemColumn::Remove()

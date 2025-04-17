@@ -779,6 +779,11 @@ TreeItem* GraphicObject::GetContext()
 	return m_ViewContext; 
 }
 
+const TreeItem* GraphicObject::GetContext() const
+{
+	return m_ViewContext;
+}
+
 void GraphicObject::ClearOwner()
 {
 	InvalidateDraw();
