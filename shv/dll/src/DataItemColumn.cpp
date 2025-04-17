@@ -812,7 +812,7 @@ COLORREF DataItemColumn::GetBkColor() const
 	if (isSymbol || IsEditable(AN_LabelText))
 		return DmsColor2COLORREF(DmsWhite);
 
-	return DmsColor2COLORREF(UNDEFINED_VALUE(DmsColor));  // Transparent
+	return MovableObject::GetBkColor();
 }
 
 bool DataItemColumn::IsEditable(AspectNr a) const 
@@ -1434,14 +1434,14 @@ void DataItemColumn::FillMenu(MouseEventDispatcher& med)
 				));
 	}
 	{
-		SubMenu subMenu(med.m_MenuData, SharedStr("Copy to clipboard...")); // SUBMENU
+		SubMenu subMenu(med.m_MenuData, SharedStr("Copy to clipboard ...")); // SUBMENU
 		med.m_MenuData.emplace_back(SharedStr("Focus Cell(s) value(s) as text"), make_MembFuncCmd(&TableControl::FocusCopy), tc.get());
 		med.m_MenuData.emplace_back(SharedStr("Table as text"), make_MembFuncCmd(&TableControl::WholeTableCopy), tc.get());
 		med.m_MenuData.emplace_back(SharedStr("Column as image"), make_MembFuncCmd(&DataItemColumn::CopyToClipboard, dv.get()), this);
 		med.m_MenuData.emplace_back(SharedStr("Table as image"), make_MembFuncCmd(&DataItemColumn::CopyToClipboard, dv.get()), tc.get());
 	}
 	{
-		SubMenu subMenu(med.m_MenuData, SharedStr("Activate...")); // SUBMENU
+		SubMenu subMenu(med.m_MenuData, SharedStr("Activate ...")); // SUBMENU
 		InsertSubMenu(med.m_MenuData, "Source Attribute", GetSrcAttr(), this);
 		InsertSubMenu(med.m_MenuData, "Table Domain", tc->GetEntity(), this);
 	}
