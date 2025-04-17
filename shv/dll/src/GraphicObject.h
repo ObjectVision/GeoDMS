@@ -149,6 +149,7 @@ public:
 	bool IsOwnerOf(GraphicObject* obj) const;
 
 	TreeItem* GetContext();
+	const TreeItem* GetContext() const;
 
 	void ClearContext();
 

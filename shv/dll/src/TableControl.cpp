@@ -1,9 +1,12 @@
-// Copyright (C) 1998-2024 Object Vision b.v. 
+// Copyright (C) 1998-2025 Object Vision b.v. 
 // License: GNU GPL 3
 /////////////////////////////////////////////////////////////////////////////
 
 #include "ShvDllPch.h"
 
+#if defined(CC_PRAGMAHDRSTOP)
+#pragma hdrstop
+#endif //defined(CC_PRAGMAHDRSTOP)
 
 #include "TableControl.h"
 
@@ -953,33 +956,14 @@ void TableControl::GoToFirstSelected()
 		}
 }
 
-void TableControl::SaveTo(OutStreamBuff* buffPtr) const
+void TableControl_SaveTo(const TableControl* self, OutStreamBuff* buffPtr, SizeT n1, SizeT n2, SizeT k1, SizeT k2)
 {
-	SizeT k1, k2;
-	SizeT n1, n2;
-	if (m_Cols.IsClosed() && m_Rows.IsClosed())
-	{
-		n1 = 0;
-		n2 = NrRows();
-
-		k1 = 0;
-		k2 = NrEntries();
-	}
-	else
-	{
-		k1 = m_Cols.m_Begin;
-		k2 = m_Cols.m_End + 1;
-
-		n1 = m_Rows.m_Begin;
-		n2 = m_Rows.m_End + 1;
-	}
-
 	SizeT pk = k2 - 1;
 
 	std::vector<TableColumnSpec> itemArray; itemArray.reserve(k2 - k1);
 	for (SizeT j = k1; j != k2; ++j)
 	{
-		const DataItemColumn* dic = GetConstColumn(j);
+		const DataItemColumn* dic = self->GetConstColumn(j);
 		if (!dic) continue;
 		const AbstrDataItem* adi = dic->GetActiveTextAttr();
 		if (!adi)
@@ -991,22 +975,60 @@ void TableControl::SaveTo(OutStreamBuff* buffPtr) const
 	}
 	std::vector<SizeT> recNos; recNos.reserve(n2 - n1);
 	for (SizeT i = n1; i != n2; ++i)
-		recNos.emplace_back(GetRecNo(i));
+		recNos.emplace_back(self->GetRecNo(i));
 
 	Table_Dump(buffPtr, begin_ptr(itemArray), end_ptr(itemArray), begin_ptr(recNos), end_ptr(recNos));
 }
 
-void TableControl::TableCopy() const
+void TableControl_SaveTo(const TableControl* self, OutStreamBuff* buffPtr, TableCopyMode tcm)
+{
+	SizeT k1, k2;
+	SizeT n1, n2;
+	if (tcm == TableCopyMode::WholeTable || self->SelCols().IsClosed() && self->SelRows().IsClosed() && tcm == TableCopyMode::OpenFocusOrTable || !self->SelCols().IsDefined() || !self->SelRows().IsDefined())
+	{
+		n1 = 0;
+		n2 = self->NrRows();
+
+		k1 = 0;
+		k2 = self->NrEntries();
+	}
+	else
+	{
+		k1 = self->SelCols().m_Begin;
+		k2 = self->SelCols().m_End + 1;
+
+		n1 = self->SelRows().m_Begin;
+		n2 = self->SelRows().m_End + 1;
+	}
+	TableControl_SaveTo(self, buffPtr, n1, n2, k1, k2);
+}
+
+void TableControl_TableCopy(const TableControl* self, TableCopyMode tcm)
 {
 	VectorOutStreamBuff buff;
 
-	SaveTo(&buff);
+	TableControl_SaveTo(self, &buff, tcm);
 
 	ClipBoard clipBoard(false); if (!clipBoard.IsOpen()) return;
 	clipBoard.SetText(buff.GetData(), buff.GetDataEnd());
 }
 
-ExportInfo TableControl::GetExportInfo()
+void TableControl::TableCopy()
+{
+	TableControl_TableCopy(this, TableCopyMode::OpenFocusOrTable);
+}
+
+void TableControl::FocusCopy()
+{
+	TableControl_TableCopy(this, TableCopyMode::FocusOnly);
+}
+
+void TableControl::WholeTableCopy()
+{
+	TableControl_TableCopy(this, TableCopyMode::WholeTable);
+}
+
+ExportInfo TableControl::GetExportInfo() const
 {
 	ExportInfo result;
 	result.m_SubPixelFactor = 1;
@@ -1030,14 +1052,14 @@ ExportInfo TableControl::GetExportInfo()
 	return result;
 }
 
-void TableControl::Export()
+void TableControl::Export() const
 {
 	ExportInfo info = GetExportInfo();
 	
 	SharedStr fileName = mySSPrintF("%s.csv", info.m_FullFileNameBase.c_str());
 
 	FileOutStreamBuff buff(fileName, true);
-	SaveTo(&buff);
+	TableControl_SaveTo(this, &buff, TableCopyMode::WholeTable);
 }
 
 void TableControl::SetRowHeight(UInt16 height)
@@ -1177,7 +1199,7 @@ void TableControl::CreateTableIndex(DataItemColumn* dic, SortOrder so)
 	assert(m_Entity);
 
 	m_IndexColumn = dic->shared_from_base<const DataItemColumn>();
-	m_State.Set(TCF_FlipSortOrder, so == SO_Descending);
+	m_State.Set(TCF_FlipSortOrder, so == SortOrder::Descending);
 
 	UpdateTableIndex();
 }

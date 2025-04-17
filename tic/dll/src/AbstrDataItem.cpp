@@ -1098,33 +1098,36 @@ TIC_CALL void DMS_CONV Table_Dump(OutStreamBuff* out, const TableColumnSpec* col
 		tileLocks.emplace_back(drl.GetRefObj()->CreateReadableTileData(no_tile));
 
 	FormattedOutStream fout(out, FormattingFlags::None);
-	for (auto columnSpecIter = columnSpecPtr; columnSpecIter != columnSpecEnd; ++columnSpecIter)
+	if (nrDataItems > 1 || !recNos || recNoEnd - recNos != 1)
 	{
-		if (columnSpecIter != columnSpecPtr)
-			out->WriteByte(';');
-		if (columnSpecIter->m_ColumnName)
+		// write header
+		for (auto columnSpecIter = columnSpecPtr; columnSpecIter != columnSpecEnd; ++columnSpecIter)
 		{
-			auto columnStr = columnSpecIter->m_ColumnName.AsStrRange();
-			DoubleQuote(fout, columnStr.m_CharPtrRange.first, columnStr.m_CharPtrRange.second);
+			if (columnSpecIter != columnSpecPtr)
+				out->WriteByte(';');
+			if (columnSpecIter->m_ColumnName)
+			{
+				auto columnStr = columnSpecIter->m_ColumnName.AsStrRange();
+				DoubleQuote(fout, columnStr.m_CharPtrRange.first, columnStr.m_CharPtrRange.second);
+			}
+			else
+			{
+				SharedStr themeDisplName = GetDisplayNameWithinContext(columnSpecIter->m_DataItem, true, [columnSpecPtr, columnSpecEnd]() mutable -> const AbstrDataItem*
+					{
+						if (columnSpecPtr == columnSpecEnd)
+							return nullptr;
+						const AbstrDataItem* dataItem = columnSpecPtr->m_DataItem;
+						++columnSpecPtr;
+						return dataItem;
+					}
+				);
+				DoubleQuote(fout, themeDisplName);
+			}
 		}
-		else
-		{
-			SharedStr themeDisplName = GetDisplayNameWithinContext(columnSpecIter->m_DataItem, true, [columnSpecPtr, columnSpecEnd]() mutable -> const AbstrDataItem*
-				{
-					if (columnSpecPtr == columnSpecEnd)
-						return nullptr;
-					const AbstrDataItem* dataItem = columnSpecPtr->m_DataItem;
-					++columnSpecPtr;
-					return dataItem;
-				}
-			);
-			DoubleQuote(fout, themeDisplName);
-		}
+		out->WriteByte('\n');
 	}
-	out->WriteByte('\n');
 
 	SizeT nrRows = recNos ? (recNoEnd - recNos) : domain->GetCount();
-
 	SizeT nrCols = tileLocks.size();
 	for (SizeT i = 0; i != nrRows; ++i) {
 		SizeT recNo = (recNos) ? *recNos++ : i;

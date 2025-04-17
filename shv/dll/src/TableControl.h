@@ -18,7 +18,13 @@
 
 struct ThemeReadLocks;
 struct FocusElemProvider;
-enum SortOrder { SO_Ascending, SO_Descending };
+enum class SortOrder { Ascending, Descending };
+enum class TableCopyMode
+{
+	WholeTable,
+	FocusOnly, // writes only the focus area, without headers if closed
+	OpenFocusOrTable,
+};
 
 //----------------------------------------------------------------------
 // class  : SelChangeInvalidator
@@ -108,15 +114,18 @@ public:
 	SizeT NrRows() const;
 	SizeT GetRecNo(SizeT i) const;
 	SizeT GetRowNr(SizeT i) const;
-	ExportInfo GetExportInfo();
+	ExportInfo GetExportInfo() const;
 
 	SizeT nrRows() const;
 	SizeT getRecNo(SizeT i) const;
 	SizeT getRowNr(SizeT i) const;
 
 	bool  InSelRange(SizeT row, gr_elem_index col) const { return m_Cols.IsInRange(col) && m_Rows.IsInRange(row); }
-	void  Export();
-	void  TableCopy() const;
+	void  Export() const;
+	void  TableCopy();
+	void  FocusCopy();
+	void  WholeTableCopy();
+
 	void  SelectAllRows(bool v);
 	void  SelectRows();
 	void  GoToFirstSelected();
@@ -141,14 +150,16 @@ public:
 	ActorVisitState VisitSuppliers(SupplierVisitFlag svf, const ActorVisitor& visitor) const override;
 	bool MouseEvent(MouseEventDispatcher& med) override;
 
-protected: 
+	const SelRange& SelRows() const { return m_Rows; }
+	const SelRange& SelCols() const { return m_Cols; }
+
+protected:
 	friend class  DataItemColumn; 
 	friend struct SelChangeInvalidatorBase;
 	friend class  TableHeaderControl;
 	friend class  TableViewControl;
 	friend class  EditPaletteControl;
 
-	void SaveTo(OutStreamBuff* buffPtr) const;
 	void NotifyCaptionChange();
 	void NotifyRowColChange();
 	void ProcessDIC(DataItemColumn* dic);
