@@ -299,7 +299,8 @@ GraphVisitState MovableObject::InviteGraphVistor(AbstrVisitor& v)
 
 HBITMAP MovableObject::GetAsDDBitmap(DataView* dv, CrdType subPixelFactor, MovableObject* extraObj)
 {
-	auto devSize = ScaleCrdPoint(CalcClientSize(), GetScaleFactors());
+	auto scaleFactors = GetScaleFactors();
+	auto devSize = ScaleCrdPoint(CalcClientSize(), scaleFactors);
 	auto intSize = CrdPoint2GPoint(devSize);
 	SharedStrContextHandle context(mySSPrintF("while Copying %d x % u pixels to a Device Dependent Bitmap (DDB)", intSize.x, intSize.y));
 
@@ -323,7 +324,10 @@ HBITMAP MovableObject::GetAsDDBitmap(DataView* dv, CrdType subPixelFactor, Movab
 
 	SuspendTrigger::FencedBlocker xxx("MovableObject::GetAsDDBitmap");
 
-	GraphDrawer drawer(memDC, rgn, dv, GdMode(GD_DrawBackground|GD_UpdateData|GD_DrawData), DPoint(subPixelFactor, subPixelFactor));
+	scaleFactors.first  *= subPixelFactor;
+	scaleFactors.second *= subPixelFactor;
+
+	GraphDrawer drawer(memDC, rgn, dv, GdMode(GD_DrawBackground|GD_UpdateData|GD_DrawData), scaleFactors);
 
 	AddClientLogicalOffset useZeroBase(&drawer, -m_RelPos);
 	bool suspended = drawer.Visit(this); //DrawBackgroud && DrawData
@@ -366,11 +370,11 @@ void GetDIBitsWithBmp(BITMAPINFO& bmp, GPoint size, UInt32 bitCount, HDC hDc, HB
 
 void MovableObject::CopyToClipboard(DataView* dv)
 {
+	GdiHandle<HBITMAP> hBmp(GetAsDDBitmap(dv));
+
 	ClipBoard clipBoard(false);
 	if (!clipBoard.IsOpen())
 		throwItemError("Cannot open Clipboard");
-
-	GdiHandle<HBITMAP> hBmp(GetAsDDBitmap(dv) );
 	clipBoard.SetBitmap(hBmp);
 }
 
