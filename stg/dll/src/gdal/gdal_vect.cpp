@@ -373,6 +373,23 @@ void AddLinearRing(typename DataArray<PolygonType>::reference dataElemRef, OGRLi
 }
 
 template <typename PolygonType>
+void AddLinearRing(typename DataArray<PolygonType>::reference dataElemRef, OGRLineString* lineString)
+{
+	if (!lineString)
+		return;
+
+	SizeT numPoints = lineString->getNumPoints();
+	if (!numPoints)
+		return;
+
+	for (SizeT p = 0; p != numPoints; ++p)
+		AddLinePoint<PolygonType>(dataElemRef, lineString, p);
+
+	while (--numPoints)
+		AddLinePoint<PolygonType>(dataElemRef, lineString, numPoints);
+}
+
+template <typename PolygonType>
 void AddLineBegin(typename DataArray<PolygonType>::reference dataElemRef, OGRLineString* lineString)
 {
 	AddLinePoint<PolygonType>(dataElemRef, lineString, 0);
@@ -396,17 +413,36 @@ void AddPolygon(typename DataArray<PolygonType>::reference dataElemRef, OGRPolyg
 }
 
 template <typename PolygonType>
+void AddPolygon(typename DataArray<PolygonType>::reference dataElemRef, OGRLineString* geoLineString)
+{
+	AddLinearRing<PolygonType>(dataElemRef, geoLineString);
+}
+
+template <typename PolygonType>
 void AddMultiPolygon(typename DataArray<PolygonType>::reference dataElemRef, OGRMultiPolygon* geoMultiPolygon)
 {
 	SizeT numPolygons = geoMultiPolygon->getNumGeometries();
-	if (numPolygons)
-	{
-		for (SizeT i=0; i!=numPolygons; ++i)
-			AddPolygon<PolygonType>(dataElemRef, debug_cast<OGRPolygon*>(geoMultiPolygon->getGeometryRef(i)));
-		--numPolygons;
-		while (numPolygons--)
-			AddLineBegin<PolygonType>(dataElemRef, debug_cast<OGRPolygon*>(geoMultiPolygon->getGeometryRef(numPolygons))->getExteriorRing());
-	}
+	if (!numPolygons)
+		return;
+	for (SizeT i=0; i!=numPolygons; ++i)
+		AddPolygon<PolygonType>(dataElemRef, debug_cast<OGRPolygon*>(geoMultiPolygon->getGeometryRef(i)));
+	--numPolygons;
+	while (numPolygons--)
+		AddLineBegin<PolygonType>(dataElemRef, debug_cast<OGRPolygon*>(geoMultiPolygon->getGeometryRef(numPolygons))->getExteriorRing());
+}
+
+template <typename PolygonType>
+void AddMultiPolygon(typename DataArray<PolygonType>::reference dataElemRef, OGRMultiLineString* geoMultiLineString)
+{
+	SizeT numLineStrings = geoMultiLineString->getNumGeometries();
+	if (!numLineStrings)
+		return;
+
+	for (SizeT i = 0; i != numLineStrings; ++i)
+		AddPolygon<PolygonType>(dataElemRef, debug_cast<OGRLineString*>(geoMultiLineString->getGeometryRef(i)));
+	--numLineStrings;
+	while (numLineStrings--)
+		AddLineBegin<PolygonType>(dataElemRef, debug_cast<OGRLineString*>(geoMultiLineString->getGeometryRef(numLineStrings)));
 }
 
 template <typename PolygonType>
@@ -519,7 +555,7 @@ void ReadPointData(typename sequence_traits<PointType>::seq_t data, OGRLayer* la
 }
 
 template <typename PolygonType>
-void ReadPolyData(typename sequence_traits<PolygonType>::seq_t dataArray, OGRLayer* layer, SizeT firstIndex, SizeT size, ResourceHandle& readBuffer, GDALDataset* m_hDS)
+void ReadPolyData(typename sequence_traits<PolygonType>::seq_t dataArray, OGRLayer* layer, SizeT firstIndex, SizeT size, ResourceHandle& readBuffer, GDALDataset* m_hDS, bool makePolygonFeatures)
 {
 	assert(layer);
 
@@ -546,7 +582,7 @@ void ReadPolyData(typename sequence_traits<PolygonType>::seq_t dataArray, OGRLay
 		typename DataArray<PolygonType>::reference dataElemRef = data[i];
 
 		gdalVectImpl::FeaturePtr feat = m_hDS->TestCapability(ODsCRandomLayerRead) ? GetNextFeatureInterleaved(layer, m_hDS) : layer->GetNextFeature();
-		OGRGeometry* geo = feat ? feat ->GetGeometryRef() : 0;
+		OGRGeometry* geo = feat ? feat ->GetGeometryRef() : nullptr;
 
 		if (!geo) {
 			Assign( dataElemRef, Undefined() );
@@ -556,17 +592,45 @@ void ReadPolyData(typename sequence_traits<PolygonType>::seq_t dataArray, OGRLay
 		auto geometry_type = geo->getGeometryType();
 
 		switch (geometry_type) {
-		case OGRwkbGeometryType::wkbPoint: { AddPoint<PolygonType>(dataElemRef, geo->toPoint()); break; }
-		case OGRwkbGeometryType::wkbMultiPoint: { AddMultiPoint<PolygonType>(dataElemRef, geo->toMultiPoint()); break; }
-		case OGRwkbGeometryType::wkbLineString: { AddLineString<PolygonType>(dataElemRef, geo->toLineString()); break; }
-		case OGRwkbGeometryType::wkbCircularString: { AddLineString<PolygonType>(dataElemRef, geo->getLinearGeometry()->toLineString()); break; }
-		case OGRwkbGeometryType::wkbCompoundCurve: { AddLineString<PolygonType>(dataElemRef, geo->getLinearGeometry()->toLineString()); break; }
-		case OGRwkbGeometryType::wkbPolygon: { AddPolygon<PolygonType>(dataElemRef, geo->toPolygon()); break; }
-		case OGRwkbGeometryType::wkbCurvePolygon: { AddPolygon<PolygonType>(dataElemRef, geo->getLinearGeometry()->toPolygon()); break; }
-		case OGRwkbGeometryType::wkbMultiPolygon: { AddMultiPolygon<PolygonType>(dataElemRef, geo->toMultiPolygon()); break; }
-		case OGRwkbGeometryType::wkbMultiLineString: { AddMultiLineString<PolygonType>(dataElemRef, geo->toMultiLineString()); break; }
-		case OGRwkbGeometryType::wkbMultiSurface: { AddMultiPolygon<PolygonType>(dataElemRef, geo->getLinearGeometry()->toMultiPolygon()); break; }
-		default: { reportF(SeverityTypeID::ST_Warning, "Cannot interpret geometry type %s to geodms Polygon.", OGRGeometryTypeToName(geometry_type)); Assign(dataElemRef, Undefined()); break; }
+
+		case OGRwkbGeometryType::wkbPoint: 
+			AddPoint<PolygonType>(dataElemRef, geo->toPoint()); break;
+		case OGRwkbGeometryType::wkbMultiPoint: 
+			AddMultiPoint<PolygonType>(dataElemRef, geo->toMultiPoint()); break;
+		case OGRwkbGeometryType::wkbLineString: 
+			if (makePolygonFeatures)
+			{
+				reportF(SeverityTypeID::ST_Warning, "Feature %d is a linestring and not a (multi)polygon", i + firstIndex);
+				AddPolygon<PolygonType>(dataElemRef, geo->toLineString()); 
+			}
+			else
+				AddLineString<PolygonType>(dataElemRef, geo->toLineString()); 
+			break;
+		case OGRwkbGeometryType::wkbCircularString: 
+			AddLineString<PolygonType>(dataElemRef, geo->getLinearGeometry()->toLineString()); break;
+		case OGRwkbGeometryType::wkbCompoundCurve:
+			AddLineString<PolygonType>(dataElemRef, geo->getLinearGeometry()->toLineString()); break;
+		case OGRwkbGeometryType::wkbPolygon: 
+			AddPolygon<PolygonType>(dataElemRef, geo->toPolygon()); break;
+		case OGRwkbGeometryType::wkbCurvePolygon: 
+			AddPolygon<PolygonType>(dataElemRef, geo->getLinearGeometry()->toPolygon()); break;
+		case OGRwkbGeometryType::wkbMultiPolygon: 
+			AddMultiPolygon<PolygonType>(dataElemRef, geo->toMultiPolygon()); break;
+		case OGRwkbGeometryType::wkbMultiLineString: 
+			if (makePolygonFeatures)
+			{
+				reportF(SeverityTypeID::ST_Warning, "Feature %d is a multi-linestring and not a (multi)polygon", i + firstIndex);
+				AddMultiPolygon<PolygonType>(dataElemRef, geo->toMultiLineString());
+			}
+			else
+				AddMultiLineString<PolygonType>(dataElemRef, geo->toMultiLineString()); 
+			break;
+		case OGRwkbGeometryType::wkbMultiSurface: 
+			AddMultiPolygon<PolygonType>(dataElemRef, geo->getLinearGeometry()->toMultiPolygon()); break;
+
+		default: 
+			reportF(SeverityTypeID::ST_Warning, "Cannot interpret geometry type %s to geodms Polygon.", OGRGeometryTypeToName(geometry_type)); Assign(dataElemRef, Undefined()); 
+			break;
 		}
 
 		dms_assert(data.data_size() == data.actual_data_size()); // no holes
@@ -691,27 +755,33 @@ bool GdalVectSM::ReadGeometryZ(const GdalVectlMetaInfo* br, AbstrDataObject* ado
 
 bool GdalVectSM::ReadGeometry(const GdalVectlMetaInfo* br, AbstrDataObject* ado, tile_id t, SizeT firstIndex, SizeT size)
 {
-	dms_assert(br);
+	assert(br);
+	assert(br->CurrWD());
+	ValueComposition valueComp = br->CurrWD()->GetValueComposition();
+
+	bool makePolygonFeatures = valueComp == ValueComposition::Polygon;
+
 	OGRLayer* layer = m_Layer;
 	if (!t)
 		LayerFieldEnable(layer, CharPtrRange(""), nullptr); // only set once
 
 	const ValueClass* vc = ado->GetValuesType();
+
 	switch (vc->GetValueClassID())
 	{
 		case ValueClassID::VT_DArc:
-		case ValueClassID::VT_DPolygon: ReadPolyData<DPolygon>(mutable_array_cast<DPolygon>(ado)->GetWritableTile(t), layer, firstIndex, size, m_ReadBuffer, m_hDS); break;
+		case ValueClassID::VT_DPolygon: ReadPolyData<DPolygon>(mutable_array_cast<DPolygon>(ado)->GetWritableTile(t), layer, firstIndex, size, m_ReadBuffer, m_hDS, makePolygonFeatures); break;
 		case ValueClassID::VT_FArc:
-		case ValueClassID::VT_FPolygon: ReadPolyData<FPolygon>(mutable_array_cast<FPolygon>(ado)->GetWritableTile(t), layer, firstIndex, size, m_ReadBuffer, m_hDS); break;
+		case ValueClassID::VT_FPolygon: ReadPolyData<FPolygon>(mutable_array_cast<FPolygon>(ado)->GetWritableTile(t), layer, firstIndex, size, m_ReadBuffer, m_hDS, makePolygonFeatures); break;
 #if defined (DMS_TM_HAS_INT_SEQ)
 		case ValueClassID::VT_IArc:
-		case ValueClassID::VT_IPolygon: ReadPolyData<IPolygon>(mutable_array_cast<IPolygon>(ado)->GetWritableTile(t), layer, firstIndex, size, m_ReadBuffer, m_hDS); break;
+		case ValueClassID::VT_IPolygon: ReadPolyData<IPolygon>(mutable_array_cast<IPolygon>(ado)->GetWritableTile(t), layer, firstIndex, size, m_ReadBuffer, m_hDS, makePolygonFeatures); break;
 		case ValueClassID::VT_UArc:
-		case ValueClassID::VT_UPolygon: ReadPolyData<UPolygon>(mutable_array_cast<UPolygon>(ado)->GetWritableTile(t), layer, firstIndex, size, m_ReadBuffer, m_hDS); break;
+		case ValueClassID::VT_UPolygon: ReadPolyData<UPolygon>(mutable_array_cast<UPolygon>(ado)->GetWritableTile(t), layer, firstIndex, size, m_ReadBuffer, m_hDS, makePolygonFeatures); break;
 		case ValueClassID::VT_WArc:
-		case ValueClassID::VT_WPolygon: ReadPolyData<WPolygon>(mutable_array_cast<WPolygon>(ado)->GetWritableTile(t), layer, firstIndex, size, m_ReadBuffer, m_hDS); break;
+		case ValueClassID::VT_WPolygon: ReadPolyData<WPolygon>(mutable_array_cast<WPolygon>(ado)->GetWritableTile(t), layer, firstIndex, size, m_ReadBuffer, m_hDS, makePolygonFeatures); break;
 		case ValueClassID::VT_SArc:
-		case ValueClassID::VT_SPolygon: ReadPolyData<SPolygon>(mutable_array_cast<SPolygon>(ado)->GetWritableTile(t), layer, firstIndex, size, m_ReadBuffer, m_hDS); break;
+		case ValueClassID::VT_SPolygon: ReadPolyData<SPolygon>(mutable_array_cast<SPolygon>(ado)->GetWritableTile(t), layer, firstIndex, size, m_ReadBuffer, m_hDS, makePolygonFeatures); break;
 #endif
 		case ValueClassID::VT_DPoint: ReadPointData<DPoint>(mutable_array_cast<DPoint>(ado)->GetWritableTile(t), layer, firstIndex, size, m_hDS); break;
 		case ValueClassID::VT_FPoint: ReadPointData<FPoint>(mutable_array_cast<FPoint>(ado)->GetWritableTile(t), layer, firstIndex, size, m_hDS); break;
