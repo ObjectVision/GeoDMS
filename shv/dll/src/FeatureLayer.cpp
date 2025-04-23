@@ -347,7 +347,7 @@ FontIndexCache* FeatureLayer::GetFontIndexCache(FontRole fr) const
 {
 	assert(fr >= 0);
 	assert(fr < FR_Count);
-	dms_assert( WasValid() ); // we should only get here from after successful update in Draw
+//	dms_assert( WasValid() ); // we should only get here from after successful update in Draw
 
 	if (!m_FontIndexCaches[fr])
 	{

@@ -1468,6 +1468,8 @@ void InitializeLayerGeometryAndFields(const TreeItem* unit_item, TokenID layerID
 		auto adi = AsDataItem(sub_item);
 		auto fieldID = sub_item->GetID();
 
+		TreeItemContextHandle tich(adi, "InitializeLayer");
+
 		if (layer_domain)
 			adi->GetAbstrDomainUnit()->UnifyDomain(layer_domain, "Domain of attribute", "layerDomain", UnifyMode::UM_Throw); // Check that domain of subItem is DomainUnifyable with layerItem
 
