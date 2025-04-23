@@ -7,8 +7,6 @@
 
 #include <QObject>
 #include <QDockWidget>
-#include <QWebEngineView>
-#include <QWebEnginePage>
 #include <QTimer>
 #include <Qclipboard.h>
 
@@ -381,10 +379,11 @@ void DmsDetailPages::drawPageImpl()
         buffer.WriteByte(0); // std::ends
         // set buff to detail page:
         CharPtr contents = buffer.GetData();
-        if (m_active_detail_page != ActiveDetailPage::CONFIGURATION)
+        if (m_active_detail_page != ActiveDetailPage::CONFIGURATION) {
             setHtml(contents);
-        else
-            setHtml( htmlEncodeTextDoc(contents).c_str() );
+        } else {
+            setHtml(htmlEncodeTextDoc(contents).c_str());
+        }
     }
     if (!ready)
         scheduleDrawPageImpl(500);
@@ -438,6 +437,5 @@ QSize DmsDetailPages::minimumSizeHint() const
 void DmsDetailPages::resizeEvent(QResizeEvent* event)
 {
     m_current_width = width();
-    //TODO: reimplement this behavior to comply to QtWebView
-    //QTextBrowser::resizeEvent(event);
+    QTextBrowser::resizeEvent(event);
 }

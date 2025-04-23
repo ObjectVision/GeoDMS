@@ -10,9 +10,7 @@
 #if !defined(DMS_QT_UPDATABLE_BROWSER_H)
 #define DMS_QT_UPDATABLE_BROWSER_H
 
-//#include <QTextBrowser.h>
-#include <QWebEngineView>
-
+#include <QTextBrowser.h>
 #include <QTimer.h>
 #include <QMdiSubWindow.h>
 #include <QShortCut>
@@ -39,7 +37,6 @@ public slots:
     void previousClicked(bool checked = false);
 
     void findInQTextBrowser(bool backwards = false);
-    void findInQWebEnginePage(bool backwards = false);
 
     QLineEdit* find_text = nullptr;
     QCheckBox* match_whole_word = nullptr;
@@ -49,13 +46,7 @@ public slots:
     QLabel* result_info = nullptr;
 };
 
-struct DmsWebEnginePage : QWebEnginePage
-{
-    DmsWebEnginePage(QObject* parent = nullptr);
-	bool acceptNavigationRequest(const QUrl &url, QWebEnginePage::NavigationType type, bool isMainFrame) override;
-};
-
-struct QUpdatableWebBrowser : QWebEngineView, MsgGenerator
+struct QUpdatableWebBrowser : QTextBrowser, MsgGenerator
 {
     QUpdatableWebBrowser(QWidget* parent);
     void restart_updating();
@@ -66,6 +57,7 @@ struct QUpdatableWebBrowser : QWebEngineView, MsgGenerator
 
 public slots:
     void openFindWindow();
+    void onAnchorClicked(const QUrl &url);
 
 protected:
     void focusInEvent(QFocusEvent* event) override {
@@ -85,7 +77,6 @@ protected:
     virtual bool update() = 0;
 
 private:
-    DmsWebEnginePage* current_page = nullptr;
     QMenu* context_menu = nullptr;
 };
 
