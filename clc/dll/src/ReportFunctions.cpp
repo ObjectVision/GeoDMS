@@ -1,4 +1,4 @@
-// Copyright (C) 1998-2023 Object Vision b.v. 
+﻿// Copyright (C) 1998-2023 Object Vision b.v. 
 // License: GNU GPL 3
 /////////////////////////////////////////////////////////////////////////////
 
@@ -51,7 +51,10 @@ struct TreeItemOperator : Operator
 
 // =========================================================
 // DocData creates the following:
-//	this = Expr = "DocData()";
+//    container x := DocData()
+// 
+//  Results in the following structure:
+// 
 //	ObjectTypes
 //	Operators
 //		name
@@ -296,6 +299,16 @@ public:
 
 #include "stg/StorageClass.h"
 #include "gdal/gdal_base.h"
+
+// =========================================================
+// DocStorageManagers creates the following:
+//    container x := DocStoragemanagers()
+// 
+//  Results in the following structure:
+// 
+//  StorageManagers
+//	gdal_grid
+//	gdal_vect
 
 class DocStorageManagersOperator : public Operator
 {
