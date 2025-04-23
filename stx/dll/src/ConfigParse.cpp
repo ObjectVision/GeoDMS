@@ -175,9 +175,11 @@ struct config_grammar : public boost::spirit::grammar<config_grammar>
 
 			// ==== ==== ITEM PARAMS
 			itemParam =
-				pizza_p("arc")[([&cp](...) { cp.SetVC(ValueComposition::Sequence); })]
-				| pizza_p("polygon")[([&cp](...) { cp.SetVC(ValueComposition::Polygon); })]
-				| pizza_p("poly")[([&cp](...) { cp.SetVC(ValueComposition::Polygon); })]
+				  pizza_p("arc"     )[([&cp](...) { cp.SetVC(ValueComposition::Sequence); })]
+				| pizza_p("sequence")[([&cp](...) { cp.SetVC(ValueComposition::Sequence); })]
+				| pizza_p("single"  )[([&cp](...) { cp.SetVC(ValueComposition::Single  ); })]
+				| pizza_p("polygon" )[([&cp](...) { cp.SetVC(ValueComposition::Polygon ); })]
+				| pizza_p("poly"    )[([&cp](...) { cp.SetVC(ValueComposition::Polygon ); })]
 				| itemRef[([&cp](...) { cp.DoEntityParam(); })];
 
 
