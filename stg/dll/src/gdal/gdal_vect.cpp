@@ -1209,31 +1209,48 @@ void SetPolygonGeometryForFeature(OGRFeature* feature, SA_ConstReference<PointTy
 	dms_assert(vc == ValueComposition::Polygon);
 
 
-	auto OGRMultiPoly = (OGRMultiPolygon*)OGRGeometryFactory::createGeometry(wkbMultiPolygon);
-	auto OGRPoly      = (OGRPolygon*     )OGRGeometryFactory::createGeometry(wkbPolygon);
 
 	typedef typename sequence_traits<PointType  >::container_type PolygonType;
 	typedef typename sequence_traits<PolygonType>::container_type PolygonArray;
 
-	for (SA_ConstRingIterator<PointType> ri(pointSequence, 0), re(pointSequence, -1); ri != re; ++ri) // iterate over all rings in pointSequence
-	{
-		auto ring = *ri;
-		auto OGRRing = (OGRLinearRing*)OGRGeometryFactory::createGeometry(wkbLinearRing);
+	auto ri = SA_ConstRingIterator<PointType>(pointSequence, 0);
+	auto re = SA_ConstRingIterator<PointType>(pointSequence, -1);
 
-		for (auto&& p : ring) { // points; outer-rings clock-wise, inner rings in reverse order
+	std::unique_ptr<OGRPolygon> ogrPoly;
+	std::unique_ptr<OGRMultiPolygon> ogrMultiPoly;
+	bool currOuterIsClockwise = false;
+	while (ri != re)
+	{
+		auto ogrRing = std::unique_ptr<OGRLinearRing>(debug_cast<OGRLinearRing*>(OGRGeometryFactory::createGeometry(wkbLinearRing)));
+
+		for (const auto& p : *ri) { // points; outer-rings clock-wise, inner rings in reverse order
 			OGRPoint pt;
 			pt.setX(p.X());
 			pt.setY(p.Y());
-			OGRRing->addPoint(&pt);
+			ogrRing->addPoint(&pt);
+		}
+		// initialize a (new) polygon if this ring is an outer ring
+		if (!ogrPoly || (currOuterIsClockwise == (ogrRing->isClockwise() != 0)) )
+		{
+			if (ogrPoly)
+			{
+				ogrMultiPoly.reset( debug_cast<OGRMultiPolygon*>(OGRGeometryFactory::createGeometry(wkbMultiPolygon)) );
+				ogrMultiPoly->addGeometry(ogrPoly.release());
+			}
+			else 
+				currOuterIsClockwise = ogrRing->isClockwise();
+			ogrPoly.reset( debug_cast<OGRPolygon*>(OGRGeometryFactory::createGeometry(wkbPolygon)) );
 		}
 
-		OGRPoly->addRing(OGRRing);
+		ogrPoly->addRing(ogrRing.release());
 	}
-
-	// TODO: As OGRMultiPoly only has a single OGRPoly added, we could use OGRPoly directly
-	OGRMultiPoly->addGeometry(OGRPoly);
-
-	feature->SetGeometry(OGRMultiPoly); // TODO: makes a copy, switch to SetGeometryDirectly
+	if (ogrMultiPoly)
+	{
+		ogrMultiPoly->addGeometry(ogrPoly.release());
+		feature->SetGeometry(ogrMultiPoly.release());
+	}
+	else
+		feature->SetGeometry(ogrPoly.release());
 }
 
 bool GdalVectSM::WriteGeometryElement(const AbstrDataItem* adi, OGRFeature* feature, tile_id t, SizeT tileFeatureIndex)
