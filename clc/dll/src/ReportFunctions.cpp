@@ -130,13 +130,10 @@ public:
 	{
 		dms_check_not_debugonly; 
 
-		dms_assert(args.size() == 0);
+		assert(args.size() == 0);
 
 		if (!resultHolder)
-		{
 			resultHolder = TreeItem::CreateCacheRoot();
-			resultHolder.GetNew()->SetKeepDataState(true);
-		}
 
 		TreeItem* result = resultHolder;
 
