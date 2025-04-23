@@ -49,7 +49,7 @@
   </PropertyGroup>
   <PropertyGroup Label="QtSettings">
     <QtInstall>6.9.0_msvc2022_64</QtInstall>
-    <QtModules>core;gui;widgets;printsupport;webenginewidgets</QtModules>
+    <QtModules>core;gui;widgets</QtModules>
     <QtDeploy>true</QtDeploy>
   </PropertyGroup>
   <ImportGroup Condition="Exists('$(QtMsBuild)\qt.props')">
@@ -174,7 +174,6 @@
     <ClInclude Include="src\DmsGuiParameters.h" />
     <QtMoc Include="src\DmsToolbar.h" />
     <ClInclude Include="src\DmsSplashScreen.h" />
-    <ClInclude Include="src\dms_memory_leak_debugging.h" />
     <ClInclude Include="src\StatisticsBrowser.h" />
     <ClInclude Include="src\TestScript.h" />
     <ClInclude Include="src\UpdatableBrowser.h" />

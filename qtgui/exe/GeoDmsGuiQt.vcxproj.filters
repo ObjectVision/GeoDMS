@@ -118,9 +118,6 @@
     <ClInclude Include="src\TestScript.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="src\dms_memory_leak_debugging.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="src\StatisticsBrowser.h">
       <Filter>Header Files</Filter>
     </ClInclude>

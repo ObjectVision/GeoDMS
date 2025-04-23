@@ -35,11 +35,6 @@
 
 #include "StxInterface.h"
 
-#include "dms_memory_leak_debugging.h"
-#ifdef _DEBUG
-#define new MYDEBUG_NEW 
-#endif
-
 // =================================================================================================
 
 void DmsDetailPages::setActiveDetailPage(ActiveDetailPage new_active_detail_page)

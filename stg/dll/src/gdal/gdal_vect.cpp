@@ -1238,7 +1238,7 @@ void SetPolygonGeometryForFeature(OGRFeature* feature, SA_ConstReference<PointTy
 				ogrMultiPoly->addGeometry(ogrPoly.release());
 			}
 			else 
-				currOuterIsClockwise = ogrRing->isClockwise();
+				currOuterIsClockwise = (ogrRing->isClockwise() != 0);
 			ogrPoly.reset( debug_cast<OGRPolygon*>(OGRGeometryFactory::createGeometry(wkbPolygon)) );
 		}
 
