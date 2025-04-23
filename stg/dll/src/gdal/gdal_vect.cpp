@@ -1219,7 +1219,7 @@ void SetPolygonGeometryForFeature(OGRFeature* feature, SA_ConstReference<PointTy
 	std::unique_ptr<OGRPolygon> ogrPoly;
 	std::unique_ptr<OGRMultiPolygon> ogrMultiPoly;
 	bool currOuterIsClockwise = false;
-	while (ri != re)
+	for (; ri != re; ++ri)
 	{
 		auto ogrRing = std::unique_ptr<OGRLinearRing>(debug_cast<OGRLinearRing*>(OGRGeometryFactory::createGeometry(wkbLinearRing)));
 
