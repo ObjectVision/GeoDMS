@@ -684,43 +684,6 @@ bool TreeItem_XML_DumpGeneralBody(const TreeItem* self, OutStreamBase* xmlOutStr
 	xmlTable.LinedRow();
 	WriteExprOrSourceDescrRow(xmlTable, self);
 
-	// ==================== Explicit Suppliers
-	if (self->HasSupplCache())
-	{
-		XML_Table::Row exprRow(xmlTable);
-		exprRow.OutStream().WriteAttr("bgcolor", CLR_HROW);
-		exprRow.ValueCell("ExplicitSuppliers");
-		XML_Table::Row::Cell xmlElemTD(exprRow);
-
-		auto& out  = xmlTable.OutStream();
-
-		out << explicitSupplPropDefPtr->GetValueAsSharedStr(self).c_str();
-
-		if (IsInDebugMode())
-		{
-			try {
-				auto n = self->GetSupplCache()->GetNrConfigured(self); // only ConfigSuppliers, Implied suppliers come after this, Calculator & StorageManager have added them
-				for (decltype(n) i = 0; i < n; ++i)
-				{
-					const Actor* supplier = self->GetSupplCache()->begin(self)[i];
-					auto supplTI = debug_cast<const TreeItem*>(supplier);
-					if (supplTI)
-					{
-						NewLine(out);
-						out << AsString(i).c_str();
-						hRefWithText(out, supplTI->GetFullName().c_str(), ItemUrl(supplTI).c_str());
-					}
-				}
-			}
-			catch (...)
-			{
-				auto err = catchException(true);
-				if (err)
-					xmlTable.NameErrRow("ExplicitSuppliers", *err, self);
-			}
-		}
-	}
-
 	const TreeItem* sp = self->GetStorageParent(false);
 	if (sp)
 	{
@@ -756,54 +719,90 @@ bool TreeItem_XML_DumpGeneralBody(const TreeItem* self, OutStreamBase* xmlOutStr
 				xmlTable.EditableNameValueRow(SQLSTRING_NAME, result.c_str());
 		}
 	}
-	if (!IsDataItem(self) || self->WasFailed(FR_MetaInfo))
-		return true;
 
-	const AbstrUnit* prevUnit = nullptr;
-	auto prevVC = vc;
-	const AbstrDataItem* di = AsDataItem(self);
-	CharPtr title = "ValuesUnit";
-	do {
-		auto avu = di->GetAbstrValuesUnit();
-		vc = di->GetValueComposition();
-		if (prevUnit != avu || prevVC != vc)
-		{
-			if (!WriteUnitInfo(xmlTable, title, avu))
-				if (SuspendTrigger::DidSuspend())
-					return false;
-				else
-					break;
-			if (vc != ValueComposition::Single)
-				xmlTable.NameValueRow("ValueComposition", GetValueCompositionID(vc).GetStr().c_str());
-
-			prevUnit = avu;
-			prevVC = vc;
-		}
-		WriteCdf(xmlTable, di->GetAbstrValuesUnit());
-
-		di = AsDataItem(di->GetReferredItem());
-		title = "Derived ValuesUnit";
-	} while (di);
-
-	title = "DomainUnit";
-	di = AsDataItem(self);
-	prevUnit = nullptr;
-	do {
-		auto adu = di->GetAbstrDomainUnit();
-		if (prevUnit != adu)
-		{
-			if (!WriteUnitInfo(xmlTable, title, adu))
+	if (IsDataItem(self))
+	{
+		const AbstrUnit* prevUnit = nullptr;
+		auto prevVC = vc;
+		const AbstrDataItem* di = AsDataItem(self);
+		CharPtr title = "ValuesUnit";
+		do {
+			auto avu = di->GetAbstrValuesUnit();
+			vc = di->GetValueComposition();
+			if (prevUnit != avu || prevVC != vc)
 			{
-				if (SuspendTrigger::DidSuspend())
-					return false;
-				else
-					break;
+				if (!WriteUnitInfo(xmlTable, title, avu))
+					if (SuspendTrigger::DidSuspend())
+						return false;
+					else
+						break;
+				if (vc != ValueComposition::Single)
+					xmlTable.NameValueRow("ValueComposition", GetValueCompositionID(vc).GetStr().c_str());
+
+				prevUnit = avu;
+				prevVC = vc;
 			}
-			prevUnit = adu;
+			WriteCdf(xmlTable, di->GetAbstrValuesUnit());
+
+			di = AsDataItem(di->GetReferredItem());
+			title = "Derived ValuesUnit";
+		} while (di);
+
+		title = "DomainUnit";
+		di = AsDataItem(self);
+		prevUnit = nullptr;
+		do {
+			auto adu = di->GetAbstrDomainUnit();
+			if (prevUnit != adu)
+			{
+				if (!WriteUnitInfo(xmlTable, title, adu))
+				{
+					if (SuspendTrigger::DidSuspend())
+						return false;
+					else
+						break;
+				}
+				prevUnit = adu;
+			}
+			di = AsDataItem(di->GetReferredItem());
+			title = "Derived DomainUnit";
+		} while (di);
+	}
+
+	// ==================== Explicit Suppliers
+	if (self->HasSupplCache())
+	{
+		XML_Table::Row exprRow(xmlTable);
+		exprRow.OutStream().WriteAttr("bgcolor", CLR_HROW);
+		exprRow.ValueCell("ExplicitSuppliers");
+		XML_Table::Row::Cell xmlElemTD(exprRow);
+
+		auto& out = xmlTable.OutStream();
+
+		out << explicitSupplPropDefPtr->GetValueAsSharedStr(self).c_str();
+
+		try {
+			auto n = self->GetSupplCache()->GetNrConfigured(self); // only ConfigSuppliers, Implied suppliers come after this, Calculator & StorageManager have added them
+			for (decltype(n) i = 0; i < n; ++i)
+			{
+				const Actor* supplier = self->GetSupplCache()->begin(self)[i];
+				auto supplTI = debug_cast<const TreeItem*>(supplier);
+				if (supplTI)
+				{
+					NewLine(out);
+					out << AsString(i).c_str();
+					hRefWithText(out, supplTI->GetFullName().c_str(), ItemUrl(supplTI).c_str());
+				}
+			}
 		}
-		di = AsDataItem(di->GetReferredItem());
-		title = "Derived DomainUnit";
-	} while (di);
+		catch (...)
+		{
+			auto err = catchException(true);
+			if (err)
+				xmlTable.NameErrRow("ExplicitSuppliers", *err, self);
+		}
+	}
+
 	return true;
 }
 
