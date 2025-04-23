@@ -1204,14 +1204,12 @@ void SetArcGeometryForFeature(OGRFeature* feature, SequenceType b, ValueComposit
 }
 
 template<typename PointType>
-void SetPolygonGeometryForFeature(OGRFeature* feature, SA_ConstReference<PointType> pointSequence, ValueComposition vc)
+void SetPolygonGeometryForFeature(OGRFeature* feature, SA_ConstReference<PointType> pointSequence)
 {
-	dms_assert(vc == ValueComposition::Polygon);
+	assert(vc == ValueComposition::Polygon);
 
-
-
-	typedef typename sequence_traits<PointType  >::container_type PolygonType;
-	typedef typename sequence_traits<PolygonType>::container_type PolygonArray;
+	using PolygonType  = typename sequence_traits<PointType  >::container_type;
+	using PolygonArray = typename sequence_traits<PolygonType>::container_type;
 
 	auto ri = SA_ConstRingIterator<PointType>(pointSequence, 0);
 	auto re = SA_ConstRingIterator<PointType>(pointSequence, -1);
@@ -1219,6 +1217,7 @@ void SetPolygonGeometryForFeature(OGRFeature* feature, SA_ConstReference<PointTy
 	std::unique_ptr<OGRPolygon> ogrPoly;
 	std::unique_ptr<OGRMultiPolygon> ogrMultiPoly;
 	bool currOuterIsClockwise = false;
+
 	for (; ri != re; ++ri)
 	{
 		auto ogrRing = std::unique_ptr<OGRLinearRing>(debug_cast<OGRLinearRing*>(OGRGeometryFactory::createGeometry(wkbLinearRing)));
@@ -1234,7 +1233,8 @@ void SetPolygonGeometryForFeature(OGRFeature* feature, SA_ConstReference<PointTy
 		{
 			if (ogrPoly)
 			{
-				ogrMultiPoly.reset( debug_cast<OGRMultiPolygon*>(OGRGeometryFactory::createGeometry(wkbMultiPolygon)) );
+				if (!ogrMultiPoly)
+					ogrMultiPoly.reset( debug_cast<OGRMultiPolygon*>(OGRGeometryFactory::createGeometry(wkbMultiPolygon)) );
 				ogrMultiPoly->addGeometry(ogrPoly.release());
 			}
 			else 
@@ -1292,7 +1292,7 @@ bool GdalVectSM::WriteGeometryElement(const AbstrDataItem* adi, OGRFeature* feat
 					
 					auto polyData = debug_valcast<const DataArray<PolygonType>*>(ado)->GetDataRead(t);
 
-					SetPolygonGeometryForFeature(feature, polyData[tileFeatureIndex], vc);
+					SetPolygonGeometryForFeature(feature, polyData[tileFeatureIndex]);
 				}
 				break;
 			}
