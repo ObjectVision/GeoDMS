@@ -52,14 +52,15 @@ void fillPointIndexBufferImpl(index_range_vector_t& buf, PI iBase, PI ii, PI ie,
 		ii = ij;
 		assert(ii != ie && ii[0] == ie[-1] || !isClosedRing);  // follows from invariant and postcondition
 
-		for (ij = ii + 5; ij < ie; ++ ij)
-		{                                          // ii ..  .. ..   .. ij
-			if (ij[0] == ii[0] && ij[-1] == ii[1]) // SO S1 .S2 S3.. SI SO ...
-			{
-				fillPointIndexBufferImpl(buf, iBase, ii + 1, ij, true);
-				goto retry;
+		if (ie - ii > 5)
+			for (ij = ii + 5; ij < ie; ++ij)
+			{                                          // ii ..  .. ..   .. ij
+				if (ij[0] == ii[0] && ij[-1] == ii[1]) // SO S1 .S2 S3.. SI SO ...
+				{
+					fillPointIndexBufferImpl(buf, iBase, ii + 1, ij, true);
+					goto retry;
+				}
 			}
-		}
 		assert(ii == ie || ii[0] == ie[-1] || !isClosedRing); // invariant ?
 	}
 }

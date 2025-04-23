@@ -88,7 +88,7 @@ struct SA_ConstRingIterator
 				for (; i != e; ++i)
 				{
 					assert(i->first < i->second);
-					assert(i[-1].second <= i->first);
+					assert(i[-1].second <= i->first+1);
 				}
 #endif
 			}
