@@ -7,8 +7,6 @@
 
 #include <QObject>
 #include <QDockWidget>
-#include <QWebEngineView>
-#include <QWebEnginePage>
 #include <QTimer>
 #include <Qclipboard.h>
 
@@ -36,11 +34,6 @@
 #include "TreeItemProps.h"
 
 #include "StxInterface.h"
-
-#include "dms_memory_leak_debugging.h"
-#ifdef _DEBUG
-#define new MYDEBUG_NEW 
-#endif
 
 // =================================================================================================
 
@@ -381,10 +374,11 @@ void DmsDetailPages::drawPageImpl()
         buffer.WriteByte(0); // std::ends
         // set buff to detail page:
         CharPtr contents = buffer.GetData();
-        if (m_active_detail_page != ActiveDetailPage::CONFIGURATION)
+        if (m_active_detail_page != ActiveDetailPage::CONFIGURATION) {
             setHtml(contents);
-        else
-            setHtml( htmlEncodeTextDoc(contents).c_str() );
+        } else {
+            setHtml(htmlEncodeTextDoc(contents).c_str());
+        }
     }
     if (!ready)
         scheduleDrawPageImpl(500);
@@ -438,6 +432,5 @@ QSize DmsDetailPages::minimumSizeHint() const
 void DmsDetailPages::resizeEvent(QResizeEvent* event)
 {
     m_current_width = width();
-    //TODO: reimplement this behavior to comply to QtWebView
-    //QTextBrowser::resizeEvent(event);
+    QTextBrowser::resizeEvent(event);
 }

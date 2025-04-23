@@ -522,13 +522,13 @@ void ReadPointZData(typename sequence_traits<T>::seq_t data, OGRLayer* layer, Si
 template <typename PointType>
 void ReadPointData(typename sequence_traits<PointType>::seq_t data, OGRLayer* layer, SizeT firstIndex, SizeT size, GDALDataset* hDS)
 {
-	dms_assert(layer);
+	assert(layer);
 
 	DBG_START("ReadPointData", typeid(PointType).name(), true);
 
 	SizeT numPoints = 0;
 
-	dms_assert(data.size() == size);
+	assert(data.size() == size);
 	
 	SizeT i=0;
 	auto lch = MakeLCH(
@@ -555,7 +555,7 @@ void ReadPointData(typename sequence_traits<PointType>::seq_t data, OGRLayer* la
 }
 
 template <typename PolygonType>
-void ReadPolyData(typename sequence_traits<PolygonType>::seq_t dataArray, OGRLayer* layer, SizeT firstIndex, SizeT size, ResourceHandle& readBuffer, GDALDataset* m_hDS, bool makePolygonFeatures)
+void ReadPolyData(typename sequence_traits<PolygonType>::seq_t dataArray, OGRLayer* layer, SizeT firstIndex, SizeT size, ResourceHandle& readBuffer, GDALDataset* m_hDS)
 {
 	assert(layer);
 
@@ -594,53 +594,175 @@ void ReadPolyData(typename sequence_traits<PolygonType>::seq_t dataArray, OGRLay
 		switch (geometry_type) {
 
 		case OGRwkbGeometryType::wkbPoint: 
-			AddPoint<PolygonType>(dataElemRef, geo->toPoint()); break;
-		case OGRwkbGeometryType::wkbMultiPoint: 
-			AddMultiPoint<PolygonType>(dataElemRef, geo->toMultiPoint()); break;
-		case OGRwkbGeometryType::wkbLineString: 
-			if (makePolygonFeatures)
-			{
-				reportF(SeverityTypeID::ST_Warning, "Feature %d is a linestring and not a (multi)polygon", i + firstIndex);
-				AddPolygon<PolygonType>(dataElemRef, geo->toLineString()); 
-			}
-			else
-				AddLineString<PolygonType>(dataElemRef, geo->toLineString()); 
+			reportF(SeverityTypeID::ST_Warning, "Feature %d is a Point and skipped as only Surfaces, aka (Multi)Polygons, are read.\n"
+				"Hint: Configure another attribute without ValueComposition to read separate points."
+				, i + firstIndex
+			);
+			Assign(dataElemRef, Undefined());
 			break;
+
+		case OGRwkbGeometryType::wkbMultiPoint: 
+			reportF(SeverityTypeID::ST_Warning, "Feature %d is a MultiPoint and skipped as only Surfaces, aka (Multi)Polygons, are read.\n"
+				"Hint: Configure another attribute with ValueComposition=sequence to read MultiPoints."
+				, i + firstIndex);
+			Assign(dataElemRef, Undefined());
+			break;
+
+		case OGRwkbGeometryType::wkbLineString: 
+			reportF(SeverityTypeID::ST_Warning, "Feature %d is a Linestring and skipped as only Surfaces, aka (Multi)Polygons, are read.\n"
+				"Hint: Configure another attribute with ValueComposition=sequence to read Linestrings."
+				, i + firstIndex);
+			Assign(dataElemRef, Undefined());
+			break;
+
 		case OGRwkbGeometryType::wkbCircularString: 
-			AddLineString<PolygonType>(dataElemRef, geo->getLinearGeometry()->toLineString()); break;
+			reportF(SeverityTypeID::ST_Warning, "Feature %d is a CircularString and skipped as only Surfaces, aka (Multi)Polygons, are read.\n"
+				"Hint: Configure another attribute with ValueComposition=sequence to read it as Linestring."
+				, i + firstIndex);
+			Assign(dataElemRef, Undefined());
+			break;
+
 		case OGRwkbGeometryType::wkbCompoundCurve:
-			AddLineString<PolygonType>(dataElemRef, geo->getLinearGeometry()->toLineString()); break;
+			reportF(SeverityTypeID::ST_Warning, "Feature %d is a CompoundCurve and skipped as only Surfaces, aka (Multi)Polygons, are read.\n"
+				"Hint: Configure another attribute with ValueComposition=sequence to read it as Linestring."
+				, i + firstIndex);
+			Assign(dataElemRef, Undefined());
+			break;
+
 		case OGRwkbGeometryType::wkbPolygon: 
 			AddPolygon<PolygonType>(dataElemRef, geo->toPolygon()); break;
+
 		case OGRwkbGeometryType::wkbCurvePolygon: 
 			AddPolygon<PolygonType>(dataElemRef, geo->getLinearGeometry()->toPolygon()); break;
+
 		case OGRwkbGeometryType::wkbMultiPolygon: 
 			AddMultiPolygon<PolygonType>(dataElemRef, geo->toMultiPolygon()); break;
+
 		case OGRwkbGeometryType::wkbMultiLineString: 
-			if (makePolygonFeatures)
-			{
-				reportF(SeverityTypeID::ST_Warning, "Feature %d is a multi-linestring and not a (multi)polygon", i + firstIndex);
-				AddMultiPolygon<PolygonType>(dataElemRef, geo->toMultiLineString());
-			}
-			else
-				AddMultiLineString<PolygonType>(dataElemRef, geo->toMultiLineString()); 
+			reportF(SeverityTypeID::ST_Warning, "Feature %d is a MultiLineString and skipped as only Surfaces, aka (Multi)Polygons, are read.\n"
+				"Hint: Configure another attribute with ValueComposition=sequence to read it as Linestring."
+				, i + firstIndex);
+			Assign(dataElemRef, Undefined());
 			break;
-		case OGRwkbGeometryType::wkbMultiSurface: 
+
+		case OGRwkbGeometryType::wkbMultiSurface:
 			AddMultiPolygon<PolygonType>(dataElemRef, geo->getLinearGeometry()->toMultiPolygon()); break;
 
 		default: 
-			reportF(SeverityTypeID::ST_Warning, "Cannot interpret geometry type %s to geodms Polygon.", OGRGeometryTypeToName(geometry_type)); Assign(dataElemRef, Undefined()); 
+			reportF(SeverityTypeID::ST_Warning, "Feature %d has type %s, which cannot be represented as GeoDMS Polygon.\n"
+				"Hint: Configure a geometry attribute with ValueType=string and no ValueComposition to read the features as WKTs."
+				, i + firstIndex, OGRGeometryTypeToName(geometry_type));
+			Assign(dataElemRef, Undefined()); 
 			break;
 		}
 
-		dms_assert(data.data_size() == data.actual_data_size()); // no holes
+		dms_assert(data.data_size() == data.actual_data_size()); // no fragmentation
 	}
 
-	dms_assert(data.data_size() == data.actual_data_size()); // no holes
+	dms_assert(data.data_size() == data.actual_data_size()); // no fragmentation
 
 	Assign(dataArray, data);
 
 	dms_assert(dataArray.get_sa().data_size()== data.actual_data_size());
+}
+
+template <typename PolygonType>
+void ReadLinestringData(typename sequence_traits<PolygonType>::seq_t dataArray, OGRLayer* layer, SizeT firstIndex, SizeT size, ResourceHandle& readBuffer, GDALDataset* m_hDS)
+{
+	assert(layer);
+
+	DBG_START("ReadLinestringData", typeid(PolygonType).name(), true);
+
+	DBG_TRACE(("firstIndex %d, size %d", firstIndex, size));
+
+	using dataBufType = typename sequence_traits<PolygonType>::container_type;
+	if (!readBuffer)
+	{
+		assert(!firstIndex || !size);
+		readBuffer = makeResource<dataBufType>();
+	}
+	dataBufType& data = GetAs<dataBufType>(readBuffer);
+	data.reset(size, 0 MG_DEBUG_ALLOCATOR_SRC("gdal_vect: ReadLinestringData"));
+
+	SizeT i = 0;
+	auto lch = MakeLCH(
+		[firstIndex, &i]() -> SharedStr { return mySSPrintF("reading Points of Feature %d", i + firstIndex); }
+	);
+
+	for (; i != size; ++i)
+	{
+		typename DataArray<PolygonType>::reference dataElemRef = data[i];
+
+		gdalVectImpl::FeaturePtr feat = m_hDS->TestCapability(ODsCRandomLayerRead) ? GetNextFeatureInterleaved(layer, m_hDS) : layer->GetNextFeature();
+		OGRGeometry* geo = feat ? feat->GetGeometryRef() : nullptr;
+
+		if (!geo) {
+			Assign(dataElemRef, Undefined());
+			continue;
+		}
+
+		auto geometry_type = geo->getGeometryType();
+
+		switch (geometry_type) {
+
+		case OGRwkbGeometryType::wkbPoint:
+			AddPoint<PolygonType>(dataElemRef, geo->toPoint()); break;
+
+		case OGRwkbGeometryType::wkbMultiPoint:
+			AddMultiPoint<PolygonType>(dataElemRef, geo->toMultiPoint()); break;
+
+		case OGRwkbGeometryType::wkbLineString:
+			AddLineString<PolygonType>(dataElemRef, geo->toLineString()); break;
+		case OGRwkbGeometryType::wkbCircularString:
+			AddLineString<PolygonType>(dataElemRef, geo->getLinearGeometry()->toLineString()); break;
+		case OGRwkbGeometryType::wkbCompoundCurve:
+			AddLineString<PolygonType>(dataElemRef, geo->getLinearGeometry()->toLineString()); break;
+
+		case OGRwkbGeometryType::wkbPolygon:
+			reportF(SeverityTypeID::ST_Warning, "Feature %d is a Polygon and skipped as only Curves, aka (Multi)Linestrings, and (sequences of) Points are read.\n"
+				"Hint: Configure another attribute with ValueComposition=polygon to read it."
+				, i + firstIndex);
+			Assign(dataElemRef, Undefined());
+			break;
+		case OGRwkbGeometryType::wkbCurvePolygon:
+			reportF(SeverityTypeID::ST_Warning, "Feature %d is a CurvePolygon and skipped as only Curves, aka (Multi)Linestrings, and (sequences of) Points are read.\n"
+				"Hint: Configure another attribute with ValueComposition=polygon to read it as Polygon."
+				, i + firstIndex);
+			Assign(dataElemRef, Undefined());
+			break;
+		case OGRwkbGeometryType::wkbMultiPolygon:
+			reportF(SeverityTypeID::ST_Warning, "Feature %d is a MultiPolygon and skipped as only Curves, aka (Multi)Linestrings, and (sequences of) Points are read.\n"
+				"Hint: Configure another attribute with ValueComposition=polygon to read it."
+				, i + firstIndex);
+			Assign(dataElemRef, Undefined());
+			break;
+		case OGRwkbGeometryType::wkbMultiLineString:
+			AddMultiLineString<PolygonType>(dataElemRef, geo->toMultiLineString());
+			break;
+
+		case OGRwkbGeometryType::wkbMultiSurface:
+			reportF(SeverityTypeID::ST_Warning, "Feature %d is a MultiSurface and skipped as only Curves, aka (Multi)Linestrings, and (sequences of) Points are read.\n"
+				"Hint: Configure another attribute with ValueComposition=polygon to read it as MultiPolygon."
+				, i + firstIndex);
+			Assign(dataElemRef, Undefined());
+			break;
+
+		default:
+			reportF(SeverityTypeID::ST_Warning, "Feature %d has type %s, which cannot be represented as GeoDMS Point Sequence.\n"
+				"Hint: Configure a geometry attribute with ValueType=string and no ValueComposition to read the features as WKTs."
+				, i + firstIndex, OGRGeometryTypeToName(geometry_type));
+			Assign(dataElemRef, Undefined());
+			break;
+		}
+
+		assert(data.data_size() == data.actual_data_size()); // no fragmentation
+	}
+
+	assert(data.data_size() == data.actual_data_size()); // no fragmentation
+
+	Assign(dataArray, data);
+
+	dms_assert(dataArray.get_sa().data_size() == data.actual_data_size());
 }
 
 void ReadStringData(sequence_traits<SharedStr>::seq_t dataArray, OGRLayer* layer, SizeT firstIndex, SizeT size, ResourceHandle& readBuffer, GDALDataset* hDS)
@@ -757,31 +879,35 @@ bool GdalVectSM::ReadGeometry(const GdalVectlMetaInfo* br, AbstrDataObject* ado,
 {
 	assert(br);
 	assert(br->CurrWD());
-	ValueComposition valueComp = br->CurrWD()->GetValueComposition();
-
-	bool makePolygonFeatures = valueComp == ValueComposition::Polygon;
 
 	OGRLayer* layer = m_Layer;
 	if (!t)
 		LayerFieldEnable(layer, CharPtrRange(""), nullptr); // only set once
 
 	const ValueClass* vc = ado->GetValuesType();
-
-	switch (vc->GetValueClassID())
+	auto vcId = vc->GetValueClassID();
+	if (IsPolygonType(vcId))
 	{
-		case ValueClassID::VT_DArc:
-		case ValueClassID::VT_DPolygon: ReadPolyData<DPolygon>(mutable_array_cast<DPolygon>(ado)->GetWritableTile(t), layer, firstIndex, size, m_ReadBuffer, m_hDS, makePolygonFeatures); break;
-		case ValueClassID::VT_FArc:
-		case ValueClassID::VT_FPolygon: ReadPolyData<FPolygon>(mutable_array_cast<FPolygon>(ado)->GetWritableTile(t), layer, firstIndex, size, m_ReadBuffer, m_hDS, makePolygonFeatures); break;
+		auto vComposition = br->CurrWD()->GetValueComposition();
+		if (vComposition == ValueComposition::Sequence)
+			reinterpret_cast<UInt8&>(vcId) -= static_cast<UInt8>(ValueClassID::NrPointTypes);
+	}
+	switch (vcId)
+	{
+		case ValueClassID::VT_DArc:     ReadLinestringData<DPolygon>(mutable_array_cast<DPolygon>(ado)->GetWritableTile(t), layer, firstIndex, size, m_ReadBuffer, m_hDS); break;
+		case ValueClassID::VT_DPolygon: ReadPolyData      <DPolygon>(mutable_array_cast<DPolygon>(ado)->GetWritableTile(t), layer, firstIndex, size, m_ReadBuffer, m_hDS); break;
+		case ValueClassID::VT_FArc:     ReadLinestringData<FPolygon>(mutable_array_cast<FPolygon>(ado)->GetWritableTile(t), layer, firstIndex, size, m_ReadBuffer, m_hDS); break;
+		case ValueClassID::VT_FPolygon: ReadPolyData      <FPolygon>(mutable_array_cast<FPolygon>(ado)->GetWritableTile(t), layer, firstIndex, size, m_ReadBuffer, m_hDS); break;
+
 #if defined (DMS_TM_HAS_INT_SEQ)
-		case ValueClassID::VT_IArc:
-		case ValueClassID::VT_IPolygon: ReadPolyData<IPolygon>(mutable_array_cast<IPolygon>(ado)->GetWritableTile(t), layer, firstIndex, size, m_ReadBuffer, m_hDS, makePolygonFeatures); break;
-		case ValueClassID::VT_UArc:
-		case ValueClassID::VT_UPolygon: ReadPolyData<UPolygon>(mutable_array_cast<UPolygon>(ado)->GetWritableTile(t), layer, firstIndex, size, m_ReadBuffer, m_hDS, makePolygonFeatures); break;
-		case ValueClassID::VT_WArc:
-		case ValueClassID::VT_WPolygon: ReadPolyData<WPolygon>(mutable_array_cast<WPolygon>(ado)->GetWritableTile(t), layer, firstIndex, size, m_ReadBuffer, m_hDS, makePolygonFeatures); break;
-		case ValueClassID::VT_SArc:
-		case ValueClassID::VT_SPolygon: ReadPolyData<SPolygon>(mutable_array_cast<SPolygon>(ado)->GetWritableTile(t), layer, firstIndex, size, m_ReadBuffer, m_hDS, makePolygonFeatures); break;
+		case ValueClassID::VT_IArc:     ReadLinestringData<IPolygon>(mutable_array_cast<IPolygon>(ado)->GetWritableTile(t), layer, firstIndex, size, m_ReadBuffer, m_hDS); break;
+		case ValueClassID::VT_IPolygon: ReadPolyData      <IPolygon>(mutable_array_cast<IPolygon>(ado)->GetWritableTile(t), layer, firstIndex, size, m_ReadBuffer, m_hDS); break;
+		case ValueClassID::VT_UArc:     ReadLinestringData<UPolygon>(mutable_array_cast<UPolygon>(ado)->GetWritableTile(t), layer, firstIndex, size, m_ReadBuffer, m_hDS); break;
+		case ValueClassID::VT_UPolygon: ReadPolyData      <UPolygon>(mutable_array_cast<UPolygon>(ado)->GetWritableTile(t), layer, firstIndex, size, m_ReadBuffer, m_hDS); break;
+		case ValueClassID::VT_WArc:     ReadLinestringData<WPolygon>(mutable_array_cast<WPolygon>(ado)->GetWritableTile(t), layer, firstIndex, size, m_ReadBuffer, m_hDS); break;
+		case ValueClassID::VT_WPolygon: ReadPolyData      <WPolygon>(mutable_array_cast<WPolygon>(ado)->GetWritableTile(t), layer, firstIndex, size, m_ReadBuffer, m_hDS); break;
+		case ValueClassID::VT_SArc:     ReadLinestringData<SPolygon>(mutable_array_cast<SPolygon>(ado)->GetWritableTile(t), layer, firstIndex, size, m_ReadBuffer, m_hDS); break;
+		case ValueClassID::VT_SPolygon: ReadPolyData      <SPolygon>(mutable_array_cast<SPolygon>(ado)->GetWritableTile(t), layer, firstIndex, size, m_ReadBuffer, m_hDS); break;
 #endif
 		case ValueClassID::VT_DPoint: ReadPointData<DPoint>(mutable_array_cast<DPoint>(ado)->GetWritableTile(t), layer, firstIndex, size, m_hDS); break;
 		case ValueClassID::VT_FPoint: ReadPointData<FPoint>(mutable_array_cast<FPoint>(ado)->GetWritableTile(t), layer, firstIndex, size, m_hDS); break;
@@ -789,6 +915,7 @@ bool GdalVectSM::ReadGeometry(const GdalVectlMetaInfo* br, AbstrDataObject* ado,
 		case ValueClassID::VT_UPoint: ReadPointData<UPoint>(mutable_array_cast<UPoint>(ado)->GetWritableTile(t), layer, firstIndex, size, m_hDS); break;
 		case ValueClassID::VT_SPoint: ReadPointData<SPoint>(mutable_array_cast<SPoint>(ado)->GetWritableTile(t), layer, firstIndex, size, m_hDS); break;
 		case ValueClassID::VT_WPoint: ReadPointData<WPoint>(mutable_array_cast<WPoint>(ado)->GetWritableTile(t), layer, firstIndex, size, m_hDS); break;
+
 		case ValueClassID::VT_SharedStr: ReadStringData(mutable_array_cast<SharedStr>(ado)->GetWritableTile(t), layer, firstIndex, size, m_ReadBuffer, m_hDS); break;
 	default:
 			ado->throwItemErrorF(
@@ -1204,14 +1331,10 @@ void SetArcGeometryForFeature(OGRFeature* feature, SequenceType b, ValueComposit
 }
 
 template<typename PointType>
-void SetPolygonGeometryForFeature(OGRFeature* feature, SA_ConstReference<PointType> pointSequence, ValueComposition vc)
+void SetPolygonGeometryForFeature(OGRFeature* feature, SA_ConstReference<PointType> pointSequence)
 {
-	dms_assert(vc == ValueComposition::Polygon);
-
-
-
-	typedef typename sequence_traits<PointType  >::container_type PolygonType;
-	typedef typename sequence_traits<PolygonType>::container_type PolygonArray;
+	using PolygonType  = typename sequence_traits<PointType  >::container_type;
+	using PolygonArray = typename sequence_traits<PolygonType>::container_type;
 
 	auto ri = SA_ConstRingIterator<PointType>(pointSequence, 0);
 	auto re = SA_ConstRingIterator<PointType>(pointSequence, -1);
@@ -1219,6 +1342,7 @@ void SetPolygonGeometryForFeature(OGRFeature* feature, SA_ConstReference<PointTy
 	std::unique_ptr<OGRPolygon> ogrPoly;
 	std::unique_ptr<OGRMultiPolygon> ogrMultiPoly;
 	bool currOuterIsClockwise = false;
+
 	for (; ri != re; ++ri)
 	{
 		auto ogrRing = std::unique_ptr<OGRLinearRing>(debug_cast<OGRLinearRing*>(OGRGeometryFactory::createGeometry(wkbLinearRing)));
@@ -1234,11 +1358,12 @@ void SetPolygonGeometryForFeature(OGRFeature* feature, SA_ConstReference<PointTy
 		{
 			if (ogrPoly)
 			{
-				ogrMultiPoly.reset( debug_cast<OGRMultiPolygon*>(OGRGeometryFactory::createGeometry(wkbMultiPolygon)) );
+				if (!ogrMultiPoly)
+					ogrMultiPoly.reset( debug_cast<OGRMultiPolygon*>(OGRGeometryFactory::createGeometry(wkbMultiPolygon)) );
 				ogrMultiPoly->addGeometry(ogrPoly.release());
 			}
 			else 
-				currOuterIsClockwise = ogrRing->isClockwise();
+				currOuterIsClockwise = (ogrRing->isClockwise() != 0);
 			ogrPoly.reset( debug_cast<OGRPolygon*>(OGRGeometryFactory::createGeometry(wkbPolygon)) );
 		}
 
@@ -1292,7 +1417,7 @@ bool GdalVectSM::WriteGeometryElement(const AbstrDataItem* adi, OGRFeature* feat
 					
 					auto polyData = debug_valcast<const DataArray<PolygonType>*>(ado)->GetDataRead(t);
 
-					SetPolygonGeometryForFeature(feature, polyData[tileFeatureIndex], vc);
+					SetPolygonGeometryForFeature(feature, polyData[tileFeatureIndex]);
 				}
 				break;
 			}

@@ -67,31 +67,33 @@ enum class ValueClassID : UInt8 {
 	VT_FPoint = 18,
 	VT_DPoint = 19,
 
-	VT_SRect = VT_SPoint + 6,
-	VT_WRect = VT_WPoint + 6,
-	VT_IRect = VT_IPoint + 6,
-	VT_URect = VT_UPoint + 6,
-	VT_FRect = VT_FPoint + 6,
-	VT_DRect = VT_DPoint + 6,
+	NrPointTypes = 6,
+
+	VT_SRect = VT_SPoint + NrPointTypes,
+	VT_WRect = VT_WPoint + NrPointTypes,
+	VT_IRect = VT_IPoint + NrPointTypes,
+	VT_URect = VT_UPoint + NrPointTypes,
+	VT_FRect = VT_FPoint + NrPointTypes,
+	VT_DRect = VT_DPoint + NrPointTypes,
 
 #if defined(DMS_TM_HAS_INT_SEQ)
-	VT_SArc = VT_SPoint + 12,
-	VT_WArc = VT_WPoint + 12,
-	VT_IArc = VT_IPoint + 12,
-	VT_UArc = VT_UPoint + 12,
+	VT_SArc = VT_SPoint + 2 * NrPointTypes,
+	VT_WArc = VT_WPoint + 2 * NrPointTypes,
+	VT_IArc = VT_IPoint + 2 * NrPointTypes,
+	VT_UArc = VT_UPoint + 2 * NrPointTypes,
 #endif
-	VT_FArc = VT_FPoint + 12,
-	VT_DArc = VT_DPoint + 12, // 31
+	VT_FArc = VT_FPoint + 2 * NrPointTypes,
+	VT_DArc = VT_DPoint + 2 * NrPointTypes, // 31
 
-	VT_FirstPolygon = 25,
+	VT_FirstPolygon = 32,
 #if defined(DMS_TM_HAS_INT_SEQ)
-	VT_SPolygon = VT_SArc + 6,
-	VT_WPolygon = VT_WArc + 6,
-	VT_IPolygon = VT_IArc + 6,
-	VT_UPolygon = VT_UArc + 6,
+	VT_SPolygon = VT_SArc + NrPointTypes,
+	VT_WPolygon = VT_WArc + NrPointTypes,
+	VT_IPolygon = VT_IArc + NrPointTypes,
+	VT_UPolygon = VT_UArc + NrPointTypes,
 #endif
-	VT_FPolygon = VT_FArc + 6,
-	VT_DPolygon = VT_DArc + 6, // 37
+	VT_FPolygon = VT_FArc + NrPointTypes,
+	VT_DPolygon = VT_DArc + NrPointTypes, // 37
 	VT_FirstAfterPolygon = 38,
 
 	VT_SharedStr = 38,
@@ -131,5 +133,12 @@ enum class ValueClassID : UInt8 {
 	VT_Count = 63,
 	VT_Unknown  = 64
 };
+
+
+inline bool IsPolygonType(ValueClassID vid)
+{
+	return (vid >= ValueClassID::VT_FirstPolygon && vid < ValueClassID::VT_FirstAfterPolygon);
+}
+
 
 #endif // __RTC_MCI_VALUECLASSID_H
