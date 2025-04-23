@@ -36,7 +36,6 @@ Section "" ;No components page, name is not important
   File ..\bin\Release\${GeoDmsPlatform}\RewriteExpr.lsp
   File ..\bin\Release\${GeoDmsPlatform}\*.dll
   File ..\bin\Release\${GeoDmsPlatform}\*.pyd
-  File ..\res\readme.txt
   File ..\res\NotePadPlusPlus\GeoDMS_npp_def.xml
   
   WriteUninstaller $INSTDIR\uninstaller.exe
@@ -92,7 +91,6 @@ Section uninstall
   Delete $INSTDIR\GeoDmsRun.exe
   Delete $INSTDIR\RewriteExpr.lsp
   Delete $INSTDIR\*.dll
-  Delete $INSTDIR\readme.txt
   Delete $INSTDIR\GeoDMS_npp_def.xml
 
   Delete $INSTDIR\gdaldata\*.*
