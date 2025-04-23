@@ -313,11 +313,6 @@ void ConfigProd::CreateTemplate(TokenID nameID)
 	m_pCurrent->SetIsTemplate();
 }
 
-bool IsPolygonType(ValueClassID vid)
-{
-	return (vid >= ValueClassID::VT_FirstPolygon && vid < ValueClassID::VT_FirstAfterPolygon);
-}
-
 void ConfigProd::CreateUnit(TokenID nameID)
 {
 	assert(!m_pSignatureUnit);
@@ -412,9 +407,21 @@ void ConfigProd::DoBasicType()
 		throwErrorD( "ConfigProd::DoBasicType: Unknown ValueType", m_strIdentifierID.GetStr().c_str());
 }
 
+TokenID st_Arc      = GetTokenID_st("arc");
+TokenID st_Single   = GetTokenID_st("single");
+TokenID st_Sequence = GetTokenID_st("sequence");
+TokenID st_Poly     = GetTokenID_st("poly");
+TokenID st_Polygon  = GetTokenID_st("polygon");
+
 void ConfigProd::DoEntityParam()
 {
-	m_pParamEntity = m_strIdentifierID;
+	if      (m_strIdentifierID == st_Arc     ) SetVC(ValueComposition::Sequence);
+	else if (m_strIdentifierID == st_Single  ) SetVC(ValueComposition::Single);
+	else if (m_strIdentifierID == st_Sequence) SetVC(ValueComposition::Sequence);
+	else if (m_strIdentifierID == st_Poly    ) SetVC(ValueComposition::Polygon);
+	else if (m_strIdentifierID == st_Polygon ) SetVC(ValueComposition::Polygon);
+	else
+		m_pParamEntity = m_strIdentifierID;
 }
 
 void ConfigProd::SetVC (ValueComposition    vc)

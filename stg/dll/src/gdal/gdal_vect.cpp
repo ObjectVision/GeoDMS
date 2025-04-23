@@ -885,8 +885,14 @@ bool GdalVectSM::ReadGeometry(const GdalVectlMetaInfo* br, AbstrDataObject* ado,
 		LayerFieldEnable(layer, CharPtrRange(""), nullptr); // only set once
 
 	const ValueClass* vc = ado->GetValuesType();
-
-	switch (vc->GetValueClassID())
+	auto vcId = vc->GetValueClassID();
+	if (IsPolygonType(vcId))
+	{
+		auto vComposition = br->CurrWD()->GetValueComposition();
+		if (vComposition == ValueComposition::Sequence)
+			reinterpret_cast<UInt8&>(vcId) -= static_cast<UInt8>(ValueClassID::NrPointTypes);
+	}
+	switch (vcId)
 	{
 		case ValueClassID::VT_DArc:     ReadLinestringData<DPolygon>(mutable_array_cast<DPolygon>(ado)->GetWritableTile(t), layer, firstIndex, size, m_ReadBuffer, m_hDS); break;
 		case ValueClassID::VT_DPolygon: ReadPolyData      <DPolygon>(mutable_array_cast<DPolygon>(ado)->GetWritableTile(t), layer, firstIndex, size, m_ReadBuffer, m_hDS); break;
@@ -1327,8 +1333,6 @@ void SetArcGeometryForFeature(OGRFeature* feature, SequenceType b, ValueComposit
 template<typename PointType>
 void SetPolygonGeometryForFeature(OGRFeature* feature, SA_ConstReference<PointType> pointSequence)
 {
-	assert(vc == ValueComposition::Polygon);
-
 	using PolygonType  = typename sequence_traits<PointType  >::container_type;
 	using PolygonArray = typename sequence_traits<PolygonType>::container_type;
 
