@@ -1743,7 +1743,11 @@ namespace boost { namespace polygon{
           //we got a hole out of the point we just processed
           //iter is still at the next y element above the current y value in the tree
           //std::cout << "checking whether ot handle hole\n";
-          if(currentIter == inputEnd ||
+          if (iter == scanData_.end())
+          {
+              reportF(SeverityTypeID::ST_Warning, "BoostPolygon: Unexpected tailless hole detected at (%d, %d)", x_, currentY);
+          }
+          else if(currentIter == inputEnd ||
              currentIter->pt.get(HORIZONTAL) != x_ ||
              scanline_base<Unit>::on_above_or_below(currentIter->pt, half_edge(iter->first.pt, iter->first.other_pt)) != -1) {
             //(high_precision)(currentIter->pt.get(VERTICAL)) >= iter->first.evalAtX(x_)) {
