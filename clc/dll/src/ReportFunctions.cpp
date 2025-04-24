@@ -324,7 +324,7 @@ public:
 	// Override Operator
 	bool CreateResult(TreeItemDualRef& resultHolder, const ArgSeqType& args, bool mustCalc) const override
 	{
-		dms_assert(args.size() == 0);
+		assert(args.size() == 0);
 
 		if (!resultHolder)
 			resultHolder = TreeItem::CreateCacheRoot();

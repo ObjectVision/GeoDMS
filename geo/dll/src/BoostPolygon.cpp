@@ -370,6 +370,7 @@ public:
 					if (currMP1.empty())
 						return;
 
+					bg_intersection intersectionFunctor;
 					for (; iter; ++iter)
 					{
 						orgRels.first = p1_rel;
@@ -380,7 +381,7 @@ public:
 						assign_multi_polygon(currMP2, *((*iter)->get_ptr()), true, helperPolygon, helperRing);
 
 						resMP.clear();
-						boost::geometry::intersection(currMP1, currMP2, resMP);
+						intersectionFunctor(currMP1, std::move(currMP2), resMP);
 						if (resMP.empty())
 							continue;
 
@@ -413,6 +414,7 @@ public:
 						assign_multi_polygon(poly2, *((*iter)->get_ptr()), true, helperPoly, helperRing);
 
 						CGAL_Traits::Polygon_set res;
+
 						res.intersection(poly1, poly2);
 
 						if (res.is_empty())
@@ -430,6 +432,7 @@ public:
 				else if constexpr (GL == geometry_library::geos)
 				{
 					auto mp1 = geos_create_polygons(*polyPtr);
+					geos_intersection intersectionFunctor;
 
 					for (box_iter_type iter = spIndexPtr->begin(bbox); iter; ++iter)
 					{
@@ -441,7 +444,7 @@ public:
 						CGAL_Traits::Polygon_set poly2;
 						auto mp2 = geos_create_polygons(*((*iter)->get_ptr()));
 
-						auto res = mp1->intersection(mp2.get());
+						auto res = intersectionFunctor(mp1.get(), mp2.get());
 
 						if (!res || res->isEmpty())
 							continue;
