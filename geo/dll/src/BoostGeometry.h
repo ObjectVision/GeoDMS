@@ -634,7 +634,7 @@ void dms_insert(bg_multi_polygon_t& lvalue, SA_ConstReference<DmsPointType> rval
 
 	dms_assign(tmpMP, rvalue);
 	bg_union operator_;
-	operator_(lvalue, tmpMP, resMP);
+	operator_(lvalue, std::move(tmpMP), resMP);
 
 	lvalue.swap(resMP);
 }

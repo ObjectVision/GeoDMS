@@ -3,7 +3,7 @@ cls
 
 set DMS_VERSION_MAJOR=17
 set DMS_VERSION_MINOR=4
-set DMS_VERSION_PATCH=0
+set DMS_VERSION_PATCH=2
 
 set geodms_rootdir=%cd%
 
@@ -57,7 +57,7 @@ cd nsi
 "C:\Program Files (x86)\NSIS\makensis.exe" DmsSetupScriptX64.nsi
 cd ..
 
-CHOICE /M  "NSIS OK (more than 140Mb) and ready to sign Setup?"
+CHOICE /M  "NSIS OK (more than  75Mb) and ready to sign Setup?"
 if ErrorLevel 2 exit /B
 
 :afterNSIS
