@@ -171,27 +171,25 @@ auto geos_create_polygons(SA_ConstReference<DmsPointType> polyRef, bool mustInse
 	geos_create_linear_ring_helper_data<DmsPointType> tmpRingData;
 
 	bool isFirstRing = true;
-	bool outerOrientationCW = true;
 
-	for (; ri != re; ++ri, isFirstRing = false)
+	for (; ri != re; ++ri)
 	{
 		auto helperRing = geos_create_linear_ring((*ri).begin(), (*ri).end(), tmpRingData);
 		if (helperRing.get() == nullptr)
 			continue;
 
 		bool currOrientationCW = !geos::algorithm::Orientation::isCCW(helperRing->getCoordinatesRO());
-		MG_CHECK(!isFirstRing || currOrientationCW);
+		if (isFirstRing && !currOrientationCW)
+			continue;
 
-		if (isFirstRing || currOrientationCW == outerOrientationCW)
+		if (isFirstRing || currOrientationCW)
 		{
-			if (!isFirstRing && currRing && !currRing->isEmpty())
-			{
+			if (currRing && !currRing->isEmpty())
 				resPolygons.emplace_back(geos_factory()->createPolygon(std::move(currRing), std::move(currInnerRings)));
-				currInnerRings.clear();
-			}
-			currRing = std::move( helperRing );
-			outerOrientationCW = currOrientationCW;
 
+			currInnerRings.clear();
+			currRing = std::move( helperRing );
+			isFirstRing = false;
 /* NYI
 			// skip outer rings that intersect with a previous outer ring if innerRings are skipped
 			if (!mustInsertInnerRings)
@@ -230,9 +228,8 @@ auto geos_create_polygons(SA_ConstReference<DmsPointType> polyRef, bool mustInse
 		}
 	}
 	if (currRing && !currRing->isEmpty())
-	{
 		resPolygons.emplace_back(geos_factory()->createPolygon(std::move(currRing), std::move(currInnerRings)));
-	}
+
 	if (resPolygons.empty())
 		return {};
 
@@ -531,7 +528,8 @@ auto geos_split_write_geometry(RI resIter, const geos::geom::Geometry* geometry)
 		return resIter;
 
 	if (geometry)
-		throwDmsErrF("geos_split_write_geometry: unsupported geometry type: %s", geometry->toText().c_str());
+			reportF(SeverityTypeID::ST_Warning, "geos_split_write_geometry: unsupported geometry type: %s, no envelope available"
+				, geometry->toText().c_str());
 
 	return resIter;
 }
