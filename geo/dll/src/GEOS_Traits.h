@@ -555,6 +555,11 @@ auto geos_split_assign_geometry(RI resIter, const geos::geom::Geometry* geometry
 struct geos_intersection_base {
 	auto operator ()(const geos::geom::Geometry* a, const geos::geom::Geometry* b) const -> std::unique_ptr<geos::geom::Geometry>
 	{
+		if (!a)
+			return {};
+		if (!b)
+			return {};
+
 		auto r = a->intersection(b);
 		cleanupPolygons(r);
 		return r;
@@ -564,6 +569,13 @@ struct geos_intersection_base {
 struct geos_union_base {
 	auto operator ()(const geos::geom::Geometry* a, const geos::geom::Geometry* b) const -> std::unique_ptr<geos::geom::Geometry>
 	{
+		if (!a)
+			if (!b)
+				return {};
+			else
+				return b->clone();
+		if (!b)
+			return a->clone();
 		auto  r = a->Union(b);
 		cleanupPolygons(r);
 		return r;
@@ -573,6 +585,10 @@ struct geos_union_base {
 struct geos_difference_base {
 	auto operator ()(const geos::geom::Geometry* a, const geos::geom::Geometry* b) const -> std::unique_ptr<geos::geom::Geometry>
 	{
+		if (!a)
+			return {};
+		if (!b)
+			return a->clone();
 		auto r = a->difference(b);
 		cleanupPolygons(r);
 		return r;
@@ -582,6 +598,14 @@ struct geos_difference_base {
 struct geos_sym_difference_base {
 	auto operator ()(const geos::geom::Geometry* a, const geos::geom::Geometry* b) const -> std::unique_ptr<geos::geom::Geometry>
 	{
+		if (!a)
+			if (!b)
+				return {};
+			else
+				return b->clone();
+		if (!b)
+			return a->clone();
+
 		auto r = a->symDifference(b);
 		cleanupPolygons(r);
 		return r;
@@ -619,8 +643,8 @@ struct geos_operator_wrapper
 	auto operator()(const geos::geom::Geometry* a, const geos::geom::Geometry* b) const->std::unique_ptr<geos::geom::Geometry>
 	{
 		std::unique_ptr<geos::geom::Geometry> result;
-		if (a->isValid())
-			if (b->isValid())
+		if (!a || a->isValid())
+			if (!b || b->isValid())
 				result = m_Oper(a, b);
 			else
 			{
@@ -630,7 +654,7 @@ struct geos_operator_wrapper
 		else
 		{
 			auto aClean = clean_geos_geometry(a);
-			if (b->isValid())
+			if (!b || b->isValid())
 				result = m_Oper(aClean.get(), b);
 			else
 			{
@@ -638,7 +662,7 @@ struct geos_operator_wrapper
 				result = m_Oper(aClean.get(), bClean.get());
 			}
 		}
-		if (!result->isValid())
+		if (result && !result->isValid())
 			result = clean_geos_geometry(result.get());
 		return result;
 	}
