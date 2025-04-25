@@ -482,13 +482,15 @@ struct SimplifyMultiPolygonOperator : public AbstrSimplifyOperator
 			{
 				auto polyDataElem = polyData[i];
 				auto currGeom = geos_create_polygons(polyDataElem);
+				if (currGeom)
+				{
+					geos::simplify::DouglasPeuckerSimplifier simplifier(currGeom.get());
+					simplifier.setDistanceTolerance(maxError);
 
-				geos::simplify::DouglasPeuckerSimplifier simplifier(currGeom.get());
-				simplifier.setDistanceTolerance(maxError);
+					auto resGeom = simplifier.getResultGeometry();
 
-				auto resGeom = simplifier.getResultGeometry();
-
-				geos_assign_geometry(resData[i], resGeom.get());
+					geos_assign_geometry(resData[i], resGeom.get());
+				}
 			}
 		}
 	}
