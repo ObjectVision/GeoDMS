@@ -11,6 +11,9 @@
 
 #include "RtcBase.h"
 
+#include "Parallel.h"
+//#include <condition_variable>
+
 enum {
 	WM_QT_ACTIVATENOTIFIERS = 0x402,
 	UM_PROCESS_QUEUE = 0x8010,

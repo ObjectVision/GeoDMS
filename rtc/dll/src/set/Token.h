@@ -10,15 +10,16 @@
 #define __MG_SYMBOL_TOKEN_H
 
 #include <atomic>
+
+#include "act/MainThread.h"
 #include "cpc/Types.h"
 #include "geo/Undefined.h"
 #include "Parallel.h"
 #include "geo/CharPtrRange.h"
 
 using IndexedString_critical_section = leveled_counted_section;
-using IndexedString_shared_lock = leveled_counted_section::shared_lock;
-using IndexedString_scoped_lock = leveled_counted_section::scoped_lock;
-using IndexedString_unique_lock = leveled_counted_section::unique_lock;
+struct IndexedString_shared_lock : RequestMainThreadOperProcessingBlocker, leveled_counted_section::shared_lock { using leveled_counted_section::shared_lock::shared_lock; };
+struct IndexedString_scoped_lock : RequestMainThreadOperProcessingBlocker, leveled_counted_section::scoped_lock { using leveled_counted_section::scoped_lock::scoped_lock; };
 
 
 struct TokenStr
