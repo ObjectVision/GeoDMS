@@ -358,11 +358,11 @@ namespace boost { namespace polygon {
 
       iterator_type itr = begin(), itrEnd = end();
 
-      rectangle_type edge_box;
-      set_points(edge_box, (*itr).first.first, (*itr).first.second);
+      set_points(rect, (*itr).first.first, (*itr).first.second);
 
       while(++itr != itrEnd)
 	  {
+        rectangle_type edge_box;
         set_points(edge_box, (*itr).first.first, (*itr).first.second);
         encompass(rect, edge_box);
       }
