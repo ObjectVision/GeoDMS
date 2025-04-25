@@ -27,10 +27,12 @@ class DmsDetailPages : public QUpdatableWebBrowser
 {
 
 public:
+
 	DmsDetailPages(QWidget* parent = nullptr);
 	bool update() override;
 	QSize sizeHint() const override;
 	QSize minimumSizeHint() const override;
+	void keyPressEvent(QKeyEvent* event) override;
 	auto activeDetailPageFromName(CharPtrRange sName)->ActiveDetailPage;
 
 	ActiveDetailPage m_active_detail_page = ActiveDetailPage::GENERAL;

@@ -39,7 +39,7 @@ FindTextWindow::FindTextWindow(QWidget* parent)
 
 void FindTextWindow::findInQTextBrowser(bool backwards)
 {
-    auto* updatable_text_browser = dynamic_cast<QUpdatableTextBrowser*>(parent());
+    auto* updatable_text_browser = dynamic_cast<QUpdatableWebBrowser*>(parent());
     assert(updatable_text_browser);
 
     // set find flag
@@ -66,8 +66,8 @@ void FindTextWindow::findInText(bool backwards)
     }
 
     auto* updatable_web_browser = dynamic_cast<QUpdatableWebBrowser*>(current_parent);
-    //if (updatable_web_browser)
-    //    findInQWebEnginePage(backwards);
+    if (updatable_web_browser)
+        findInQTextBrowser(backwards);
 
     return;
 }
