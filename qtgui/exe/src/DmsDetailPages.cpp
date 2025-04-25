@@ -429,6 +429,17 @@ QSize DmsDetailPages::minimumSizeHint() const
     return QSize(m_default_width, 0);
 }
 
+void DmsDetailPages::keyPressEvent(QKeyEvent* event)
+{
+    if (event->matches(QKeySequence::Copy))
+    {
+        copy();
+        event->accept();
+        return;
+    }
+    return QWidget::keyPressEvent(event);
+}
+
 void DmsDetailPages::resizeEvent(QResizeEvent* event)
 {
     m_current_width = width();
