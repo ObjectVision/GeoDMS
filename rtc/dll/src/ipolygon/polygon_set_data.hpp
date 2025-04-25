@@ -184,6 +184,7 @@ namespace boost { namespace polygon {
       if( ! scanline_base<coordinate_type>::is_45_degree(edge.first) &&
           ! scanline_base<coordinate_type>::is_horizontal(edge.first) &&
           ! scanline_base<coordinate_type>::is_vertical(edge.first) ) is_45_ = false;
+
       data_.push_back(edge);
       if(data_.back().first.second < data_.back().first.first) {
         std::swap(data_.back().first.second, data_.back().first.first);
@@ -351,18 +352,19 @@ namespace boost { namespace polygon {
 
     template <typename rectangle_type>
     bool extents(rectangle_type& rect) {
-      if(empty()) return false;
-	  assert(begin() != end()); 
-      bool first_iteration = true; // TODO: rewrite without first_iteration
-      for(iterator_type itr = begin(); itr != end(); ++itr) 
+      if(empty()) 
+          return false;
+	  assert(begin() != end());
+
+      iterator_type itr = begin(), itrEnd = end();
+
+      rectangle_type edge_box;
+      set_points(edge_box, (*itr).first.first, (*itr).first.second);
+
+      while(++itr != itrEnd)
 	  {
-        rectangle_type edge_box;
         set_points(edge_box, (*itr).first.first, (*itr).first.second);
-        if(first_iteration)
-          rect = edge_box;
-        else
-          encompass(rect, edge_box);
-        first_iteration = false;
+        encompass(rect, edge_box);
       }
       return true;
     }
