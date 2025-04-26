@@ -258,6 +258,18 @@ void geos_write_point(E&& ref, const geos::geom::Coordinate& c)
 
 }
 
+inline bool geos_can_write_lr(const geos::geom::LinearRing* lr)
+{
+	assert(lr);
+	const auto* coords = lr->getCoordinatesRO();
+	assert(coords);
+	auto s = coords->getSize();
+	if (s <= 3)
+		return false;
+
+	return true;
+}
+
 template <dms_sequence E>
 auto geos_write_lr(E&& ref, const geos::geom::LinearRing* lr) -> std::optional<geos::geom::Coordinate>
 {
@@ -279,6 +291,12 @@ void geos_write_back(E&& ref, const geos::geom::LinearRing* lr)
 {
 	assert(lr);
 	geos_write_point(ref, lr->getCoordinatesRO()->back());
+}
+
+inline bool geos_can_write_polygon_with_holes(const geos::geom::Polygon* poly)
+{
+	assert(poly);
+	return geos_can_write_lr(poly->getExteriorRing());
 }
 
 template <dms_sequence E>
@@ -488,21 +506,57 @@ void geos_assign_geometry(E&& ref, const geos::geom::Geometry* geometry)
 	geos_write_geometry(std::forward<E>(ref), geometry);
 }
 
+inline auto geos_split_count_mp(const geos::geom::MultiPolygon* mp) -> SizeT
+{
+	SizeT result = 0;
+	for (SizeT i = 0, np = mp->getNumGeometries(); i != np; ++i)
+		if (geos_can_write_polygon_with_holes(mp->getGeometryN(i)))
+			++result;
+
+	return result;
+}
+
 template <typename RI>
 auto geos_split_write_mp(RI resIter, const geos::geom::MultiPolygon* mp) -> RI
 {
 	for (SizeT i = 0, np = mp->getNumGeometries(); i != np; ++i)
-	{
-		auto backTrackPtr = geos_write_polygon_with_holes(*resIter, mp->getGeometryN(i));
-		if (backTrackPtr)
+		if(auto backTrackPtr = geos_write_polygon_with_holes(*resIter, mp->getGeometryN(i)))
 			++resIter;
-	}
+
 	return resIter;
+}
+
+inline auto geos_split_count_geometry(const geos::geom::Geometry* geometry) -> SizeT
+{
+	if (!geometry || geometry->isEmpty())
+		return 0;
+
+	if (auto mp = dynamic_cast<const geos::geom::MultiPolygon*>(geometry))
+		return geos_split_count_mp(mp);
+
+	if (auto poly = dynamic_cast<const geos::geom::Polygon*>(geometry))
+		return 1;
+	if (auto gc = dynamic_cast<const geos::geom::GeometryCollection*>(geometry))
+	{
+		SizeT result = 0;
+		for (SizeT i = 0, n = gc->getNumGeometries(); i != n; ++i)
+			result += geos_split_count_geometry(gc->getGeometryN(i));
+
+		return result;
+	}
+	if (auto poly = dynamic_cast<const geos::geom::LinearRing*>(geometry))
+		if (geos_can_write_lr(poly))
+			return 1;
+
+	return 0;
 }
 
 template <typename RI>
 auto geos_split_write_geometry(RI resIter, const geos::geom::Geometry* geometry) -> RI
 {
+	if (!geometry || geometry->isEmpty())
+		return resIter;
+
 	if (auto mp = dynamic_cast<const geos::geom::MultiPolygon*>(geometry))
 		return geos_split_write_mp(resIter, mp);
 
@@ -528,8 +582,7 @@ auto geos_split_write_geometry(RI resIter, const geos::geom::Geometry* geometry)
 		return resIter;
 
 	if (geometry)
-			reportF(SeverityTypeID::ST_Warning, "geos_split_write_geometry: unsupported geometry type: %s, no envelope available"
-				, geometry->toText().c_str());
+		reportF(SeverityTypeID::ST_Warning, "geos_split_write_geometry: unsupported geometry type: %s", geometry->toText().c_str());
 
 	return resIter;
 }
@@ -538,17 +591,6 @@ template <typename RI>
 auto geos_split_assign_geometry(RI resIter, const geos::geom::Geometry* geometry) -> RI
 {
 	resIter->clear();
-	if (!geometry || geometry->isEmpty())
-		return resIter;
-
-	if (auto mp = dynamic_cast<const geos::geom::MultiPolygon*>(geometry))
-		return geos_split_write_mp(resIter, mp);
-
-	if (auto poly = dynamic_cast<const geos::geom::Polygon*>(geometry))
-	{
-		geos_assign_polygon_with_holes(*resIter, poly);
-		return ++resIter;
-	}
 	return geos_split_write_geometry(resIter, geometry);
 }
 

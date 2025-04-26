@@ -1553,7 +1553,7 @@ public:
 			{
 				if (!geometryTowerIter->empty())
 				{
-					splitCount += geometryTowerIter->front()->getNumGeometries(); // geometryPtr 
+					splitCount += geos_split_count_geometry(geometryTowerIter->front().get()); // geometryPtr 
 				}
 			}
 			resUnit->SetCount(splitCount); // we must be in delayed store now
@@ -1566,7 +1566,7 @@ public:
 				{
 					if (!geometryTowerIter->empty())
 					{
-						SizeT nrSplits = geometryTowerIter->front()->getNumGeometries();
+						SizeT nrSplits = geos_split_count_geometry(geometryTowerIter->front().get());
 						SizeT nextCount = splitCount2 + nrSplits;
 						while (splitCount2 != nextCount)
 							resRelLock->SetValueAsSizeT(splitCount2++, i);
@@ -1597,7 +1597,7 @@ public:
 				++resIter;
 			}
 		}
-		assert(resIter == resArray.end() || domainCount == 0);
+		MG_CHECK(resIter == resArray.end() || domainCount == 0);
 	}
 };
 
