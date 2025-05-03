@@ -590,7 +590,6 @@ auto geos_split_write_geometry(RI resIter, const geos::geom::Geometry* geometry)
 template <typename RI>
 auto geos_split_assign_geometry(RI resIter, const geos::geom::Geometry* geometry) -> RI
 {
-	resIter->clear();
 	return geos_split_write_geometry(resIter, geometry);
 }
 
