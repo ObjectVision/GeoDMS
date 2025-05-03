@@ -192,22 +192,17 @@ void DmsDetailPages::scheduleDrawPageImpl(int milliseconds)
 {
     if (!m_DrawPageRequestPending.exchange(true))
     {
-        //assert(m_DrawPageRequestPending);
-        //MainWindow::TheOne()->PostAppOper([this, milliseconds]
-         //   {
+        assert(m_DrawPageRequestPending);
+        QTimer::singleShot(milliseconds, [this]
+            {
                 assert(IsMainThread());
-                QTimer::singleShot(milliseconds, [this]
-                    {
-                        assert(IsMainThread());
 
-                        if (m_DrawPageRequestPending.exchange(false))
-                        {
-                            this->drawPage();
-                        }
-                    }
-                );
-            //}
-        //);
+                if (m_DrawPageRequestPending.exchange(false))
+                {
+                    this->drawPage();
+                }
+            }
+        );
     }
 }
 

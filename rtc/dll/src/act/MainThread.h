@@ -34,6 +34,7 @@ struct operation_queue
 
 	RTC_CALL void Process();
 	RTC_CALL bool Empty() const;
+	RTC_CALL bool SynchonizedEmpty() const;
 
 private:
 	std::vector<operation_type> m_Operations;
@@ -87,6 +88,7 @@ struct MainThreadBlocker
 struct RequestMainThreadOperProcessingBlocker
 {
 	RTC_CALL RequestMainThreadOperProcessingBlocker();
+	RTC_CALL RequestMainThreadOperProcessingBlocker(const RequestMainThreadOperProcessingBlocker&);
 	RTC_CALL ~RequestMainThreadOperProcessingBlocker();
 };
 

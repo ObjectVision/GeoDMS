@@ -122,16 +122,22 @@ RequestMainThreadOperProcessingBlocker::RequestMainThreadOperProcessingBlocker()
 		assert(!s_MainThreadOperProcessingRequested);
 	}
 }
+RequestMainThreadOperProcessingBlocker::RequestMainThreadOperProcessingBlocker(const RequestMainThreadOperProcessingBlocker&)
+{
+	assert(s_MainThreadOperProcessingRequestLockCounter);
+	s_MainThreadOperProcessingRequestLockCounter++;
+}
 
 RequestMainThreadOperProcessingBlocker::~RequestMainThreadOperProcessingBlocker()
 {
-	if (!--s_MainThreadOperProcessingRequestLockCounter)
+	assert(s_MainThreadOperProcessingRequestLockCounter);
+	if (--s_MainThreadOperProcessingRequestLockCounter)
+		return;
+
+	if (s_MainThreadOperProcessingRequested)
 	{
-		if (s_MainThreadOperProcessingRequested)
-		{
-			RequestMainThreadOperProcessing();
-			s_MainThreadOperProcessingRequested = false;
-		}
+		RequestMainThreadOperProcessing();
+		s_MainThreadOperProcessingRequested = false;
 	}
 }
 
@@ -226,6 +232,12 @@ bool operation_queue::Empty() const
 { 
 	assert(!s_MainQueueSection.try_lock());
 	return m_Operations.empty(); 
+}
+
+bool operation_queue::SynchonizedEmpty() const
+{
+	auto lock = std::scoped_lock(s_MainQueueSection);
+	return Empty();
 }
 
 bool suspendible_task_queue::Post(suspendible_task_type&& task)

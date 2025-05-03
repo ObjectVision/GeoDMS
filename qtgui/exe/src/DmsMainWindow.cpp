@@ -94,9 +94,16 @@ void MainWindow::ProcessAppOpers()
     assert(IsMainThread());
     assert(!SuspendTrigger::DidSuspend());
     ConfirmMainThreadOperProcessing();
-   ProcessMainThreadOpers();
-   if (!SuspendTrigger::DidSuspend())
-        m_AppOperQueue.Process();
+    ProcessMainThreadOpers();
+    if (m_AppOperQueue.SynchonizedEmpty())
+        return;
+
+    if (SuspendTrigger::DidSuspend())
+    {
+        RequestMainThreadOperProcessing();
+        return;
+    }
+    m_AppOperQueue.Process();
 }
 
 void MainWindow::saveValueInfo() {
