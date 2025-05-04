@@ -538,6 +538,8 @@ void MainWindow::scheduleUpdateToolbar() {
     m_UpdateToolbarRequestPending = true;
     QTimer::singleShot(0, [this]()
         {
+            if (g_IsTerminating)
+                return;
             m_UpdateToolbarRequestPending = false;
             this->updateToolbar();
         }
@@ -571,7 +573,9 @@ bool MainWindow::event(QEvent* event) {
     {
         QTimer::singleShot(0, this, [=]() 
             { 
-                auto vos = ReportChangedFiles(); 
+                if (g_IsTerminating)
+                    return;
+                auto vos = ReportChangedFiles();
                 if (vos.CurrPos())
                 {
                     auto changed_files = std::string(vos.GetData(), vos.GetDataEnd());
@@ -581,6 +585,8 @@ bool MainWindow::event(QEvent* event) {
                     // that initiated the WindowActivate, before showing the FileChangedWindow
                     QTimer::singleShot(0, this, [=]()
                         {
+                            if (g_IsTerminating)
+                                return;
                             m_file_changed_window->show();
                         });
                 }
@@ -1022,9 +1028,13 @@ void MainWindow::LoadConfig(CharPtr configFilePath, CharPtr currentItemPath) {
 
     QTimer::singleShot(hadSubWindows ? 100 : 0, this, [=]()
         { 
+            if (g_IsTerminating)
+                return;
             if (LoadConfigImpl(configFilePathStr.c_str()))
                 QTimer::singleShot(0, this, [=]()
                     {
+                        if (g_IsTerminating)
+                            return;
                         m_address_bar->setPath(currentItemPathStr.c_str());
                     }
                 );
@@ -1468,7 +1478,7 @@ void AnyTreeItemStateHasChanged(ClientHandle /*clientHandle*/, const TreeItem* s
         QTimer::singleShot(1000, []() 
             { 
                 // MainWindow could have been destroyed
-                if (!s_CurrMainWindow)
+                if (g_IsTerminating)
                     return;
 
                 s_TreeViewRefreshPending = false;
@@ -1515,7 +1525,13 @@ void OnEndWaiting(ClientHandle /*clientHandle*/, AbstrMsgGenerator* ach) {
     if (endWaitingPending.exchange(true))
         return;
 
-    QTimer::singleShot(0, [descr = SharedStr(ach->GetDescription())]() { HandleEndWaiting(std::move(descr)); });
+    QTimer::singleShot(0, [descr = SharedStr(ach->GetDescription())]() 
+        { 
+            if (g_IsTerminating)
+                return;
+            HandleEndWaiting(std::move(descr));
+        }
+    );
 }
 
 void MainWindow::setupDmsCallbacks() {

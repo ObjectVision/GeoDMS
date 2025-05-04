@@ -196,11 +196,11 @@ void DmsDetailPages::scheduleDrawPageImpl(int milliseconds)
         QTimer::singleShot(milliseconds, [this]
             {
                 assert(IsMainThread());
+                if (g_IsTerminating)
+                    return;
 
                 if (m_DrawPageRequestPending.exchange(false))
-                {
                     this->drawPage();
-                }
             }
         );
     }
