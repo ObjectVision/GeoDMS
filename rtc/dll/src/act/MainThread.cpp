@@ -251,32 +251,43 @@ bool suspendible_task_queue::Post(suspendible_task_type&& task)
 void suspendible_task_queue::Process()
 {
 	assert(IsMetaThread());
-	decltype(m_Operations) taskQueue;
+	std::vector<suspendible_task_type> localTaskQueCopy;
 	{
 		auto lock = std::scoped_lock(s_MainQueueSection);
-		taskQueue = std::move(m_Operations);
+		localTaskQueCopy = std::move(m_Operations);
 		assert(m_Operations.empty());
 	}
 
-	bool keepOnRunning = true;
-	for (auto& task: taskQueue)
+	// Iterator to the current task being processed
+	auto currTaskIter = localTaskQueCopy.begin();
+
+	// Process tasks until a suspension is detected
+	while (currTaskIter != localTaskQueCopy.end())
 	{
-		if (keepOnRunning)
-		{
-			try {
-				assert(!SuspendTrigger::DidSuspend());
-				keepOnRunning = task(false);
-			}
-			catch (...)
-			{
-				catchAndReportException();
-			}
+		try {
+			assert(!SuspendTrigger::DidSuspend());
+			if (!(*currTaskIter)(false))
+				break; // Stop processing if task requests suspension
 		}
-		if (keepOnRunning)
-			keepOnRunning = !SuspendTrigger::MustSuspend();
-		else
-			PostMainThreadTask(std::move(task));
+		catch (...)
+		{
+			catchAndReportException();
+		}
+
+		++currTaskIter;
+
+		// Break if a suspension is required
+		if (SuspendTrigger::MustSuspend())
+			break;
 	}
+
+	// If all tasks completed, nothing to defer, so avoid a mutex lock
+	if (currTaskIter == localTaskQueCopy.end())
+		return;
+
+	// Move deferred tasks to the front of m_Operations, maintaining order
+	auto lock = std::scoped_lock(s_MainQueueSection);
+	m_Operations.insert(m_Operations.begin(), std::make_move_iterator(currTaskIter), std::make_move_iterator(localTaskQueCopy.end()));
 }
 
 void suspendible_task_queue::CancelTasks()
