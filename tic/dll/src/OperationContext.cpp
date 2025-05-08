@@ -427,6 +427,7 @@ void WaitForCompletedTaskOrTimeout(std::chrono::milliseconds waitFor)
 	leveled_critical_section cs_OcAdm(item_level_type(0), ord_level_type::OperationContext, "OperationContextSet");
 	UInt32 sd_OcCount;
 	std::set<OperationContext*> sd_OC;
+	std::set<OperationContext*> sd_RunningOC;
 
 	void reportOC(CharPtr source, OperationContext* ocPtr)
 	{
@@ -486,6 +487,8 @@ OperationContext::~OperationContext()
 	OnEnd(task_status::cancelled);
 	dms_assert(m_Status != task_status::scheduled); // cancel, exception or done caught.
 	dms_assert(m_Status == task_status::exception || m_Status == task_status::cancelled || m_Status == task_status::done || m_Status == task_status::none); // cancel, exception or done caught.
+
+	assert(!IsRunningOperation(m_Status));
 
 	#if defined(MG_TRACE_OPERATIONCONTEXTS)
 
@@ -643,6 +646,10 @@ bool OperationContext::getUniqueLicenseToRun()
 	m_Status = task_status::activated;
 	++s_NrRunningOperations;
 
+	#if defined(MG_TRACE_OPERATIONCONTEXTS)
+		sd_RunningOC.insert(this);
+	#endif
+
 	dms_assert(IsRunningOperation(m_Status));
 	assert(s_NrRunningOperations > 0);
 
@@ -683,6 +690,9 @@ task_status OperationContext::OnStart()
 			{
 				s_NrRunningOperations++;
 				m_Status = task_status::activated;
+#if defined(MG_TRACE_OPERATIONCONTEXTS)
+				sd_RunningOC.insert(this);
+#endif
 			}
 			dms_assert(m_Status != task_status::running);
 			dms_assert(IsRunningOperation(m_Status));
@@ -749,6 +759,9 @@ void OperationContext::releaseRunCount(task_status status)
 	{
 		assert(s_NrRunningOperations > 0);
 		auto nrRunning = --s_NrRunningOperations;
+#if defined(MG_TRACE_OPERATIONCONTEXTS)
+		sd_RunningOC.erase(this);
+#endif
 		if (!nrRunning)
 			wakeUpJoiners();
 	}
