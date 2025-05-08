@@ -12,7 +12,7 @@
 #include "RtcBase.h"
 
 #include "Parallel.h"
-//#include <condition_variable>
+#include <map>
 
 enum {
 	WM_QT_ACTIVATENOTIFIERS = 0x402,
@@ -41,10 +41,12 @@ private:
 };
 
 using suspendible_task_type = std::function<bool(bool)>;
+using suspendible_task_array_type = std::vector<suspendible_task_type>;
+using suspendible_task_map_type = std::map<fence_number, suspendible_task_array_type>;
 
 struct suspendible_task_queue
 {
-	RTC_CALL bool Post(suspendible_task_type&& task); // returns true if the queue was empty before posting
+	RTC_CALL bool Post(fence_number fn, suspendible_task_type&& task); // returns true if the queue was empty before posting
 //	RTC_CALL void Send(operation_type&& func);
 
 	RTC_CALL void Process();
@@ -53,7 +55,7 @@ struct suspendible_task_queue
 	RTC_CALL bool Empty() const;
 
 private:
-	std::vector<suspendible_task_type> m_Operations;
+	suspendible_task_map_type m_OperationMap;
 };
 
 /********** helper funcs  **********/
@@ -68,7 +70,7 @@ RTC_CALL UInt32 GetCallCount();
 RTC_CALL UInt32 GetThreadID();
 RTC_CALL void PostMainThreadOper(operation_type&& func);
 RTC_CALL void SendMainThreadOper(operation_type&& func);
-RTC_CALL void PostMainThreadTask(suspendible_task_type&& task);
+RTC_CALL void PostMainThreadTask(fence_number fn, suspendible_task_type&& task);
 RTC_CALL void ProcessMainThreadOpers();
 RTC_CALL bool HasMainThreadTasks();
 RTC_CALL void CancelMainThreadTasks();

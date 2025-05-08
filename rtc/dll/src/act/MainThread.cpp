@@ -240,81 +240,92 @@ bool operation_queue::SynchonizedEmpty() const
 	return Empty();
 }
 
-bool suspendible_task_queue::Post(suspendible_task_type&& task)
+bool suspendible_task_queue::Post(fence_number fn, suspendible_task_type&& task)
 {
 	auto lock = std::scoped_lock(s_MainQueueSection);
-	bool result = m_Operations.empty();
-	m_Operations.emplace_back(std::move(task));
+	bool result = m_OperationMap.empty();
+	m_OperationMap[fn].emplace_back(std::move(task));
 	return result;
 }
 
 void suspendible_task_queue::Process()
 {
 	assert(IsMetaThread());
-	std::vector<suspendible_task_type> localTaskQueCopy;
+	while (!Empty() && !SuspendTrigger::DidSuspend())
 	{
-		auto lock = std::scoped_lock(s_MainQueueSection);
-		localTaskQueCopy = std::move(m_Operations);
-		assert(m_Operations.empty());
-	}
-
-	// Iterator to the current task being processed
-	auto currTaskIter = localTaskQueCopy.begin();
-
-	// Process tasks until a suspension is detected
-	while (currTaskIter != localTaskQueCopy.end())
-	{
-		try {
-			assert(!SuspendTrigger::DidSuspend());
-			if (!(*currTaskIter)(false))
-				break; // Stop processing if task requests suspension
-		}
-		catch (...)
+		std::vector<suspendible_task_type> localTaskQueCopy;
+		fence_number fn;
 		{
-			catchAndReportException();
+			auto lock = std::scoped_lock(s_MainQueueSection);
+			auto taskMapFrontIter = m_OperationMap.begin();
+			fn = taskMapFrontIter->first;
+			localTaskQueCopy = std::move(taskMapFrontIter->second);
+			m_OperationMap.erase(taskMapFrontIter);
 		}
 
-		++currTaskIter;
+		// Iterator to the current task being processed
+		auto currTaskIter = localTaskQueCopy.begin();
 
-		// Break if a suspension is required
-		if (SuspendTrigger::MustSuspend())
-			break;
+		// Process tasks until a suspension is detected
+		while (currTaskIter != localTaskQueCopy.end())
+		{
+			try {
+				assert(!SuspendTrigger::DidSuspend());
+				if (!(*currTaskIter)(false))
+					break; // Stop processing if task requests suspension
+			}
+			catch (...)
+			{
+				catchAndReportException();
+			}
+
+			++currTaskIter;
+
+			// Break if a suspension is required
+			if (SuspendTrigger::MustSuspend())
+				break;
+		}
+
+		// If all tasks completed, nothing to defer, so avoid a mutex lock
+		if (currTaskIter != localTaskQueCopy.end())
+		{
+			// Move deferred tasks to the front of m_Operations, maintaining order
+			auto lock = std::scoped_lock(s_MainQueueSection);
+			auto& currTaskArray = m_OperationMap[fn];
+			currTaskArray.insert(currTaskArray.begin(), std::make_move_iterator(currTaskIter), std::make_move_iterator(localTaskQueCopy.end()));
+			return;
+		}
 	}
-
-	// If all tasks completed, nothing to defer, so avoid a mutex lock
-	if (currTaskIter == localTaskQueCopy.end())
-		return;
-
-	// Move deferred tasks to the front of m_Operations, maintaining order
-	auto lock = std::scoped_lock(s_MainQueueSection);
-	m_Operations.insert(m_Operations.begin(), std::make_move_iterator(currTaskIter), std::make_move_iterator(localTaskQueCopy.end()));
 }
 
 void suspendible_task_queue::CancelTasks()
 {
 	assert(IsMetaThread());
-	decltype(m_Operations) taskQueue;
+	assert(!SuspendTrigger::DidSuspend());
+
+	decltype(m_OperationMap) localTaskArrayMap;
 	{
 		auto lock = std::scoped_lock(s_MainQueueSection);
-		taskQueue = std::move(m_Operations);
-		assert(m_Operations.empty());
+		localTaskArrayMap = std::move(m_OperationMap);
+		assert(m_OperationMap.empty());
 	}
 
-	for (auto& task : taskQueue)
-	{
-		try {
-			assert(!SuspendTrigger::DidSuspend());
-			task(true);
+	for (auto& taskArray : localTaskArrayMap)
+		for (auto& task : taskArray.second)
+		{
+			try {
+				assert(!SuspendTrigger::DidSuspend());
+				task(true);
+			}
+			catch (...)
+			{}
 		}
-		catch (...)
-		{}
-	}
 }
 
 bool suspendible_task_queue::Empty() const 
 { 
 	assert(!s_MainQueueSection.try_lock());
-	return m_Operations.empty();
+	return m_OperationMap.empty();
 }
 
 operation_queue s_OperQueue;
@@ -332,9 +343,9 @@ void SendMainThreadOper(operation_type&& func)
 	s_OperQueue.Send(std::move(func));
 }
 
-void PostMainThreadTask(suspendible_task_type&& func)
+void PostMainThreadTask(fence_number fn, suspendible_task_type&& func)
 {
-	if (s_TaskQueue.Post(std::move(func)))
+	if (s_TaskQueue.Post(fn, std::move(func)))
 		RequestMainThreadOperProcessing();
 }
 

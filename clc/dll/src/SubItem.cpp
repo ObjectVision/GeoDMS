@@ -318,7 +318,7 @@ struct FenceContainerOperator : BinaryOperator
 		auto bellWaiter = fenceBell.get_future();
 		auto resWalker = resultRoot;
 		
-		PostMainThreadTask([srcContainer, resultRoot, &resWalker, &fenceBell, &resultHolder, resultFenceNumer, &futureDataContainer](bool mustCancel)-> bool
+		PostMainThreadTask(resultFenceNumer, [srcContainer, resultRoot, &resWalker, &fenceBell, &resultHolder, resultFenceNumer, &futureDataContainer](bool mustCancel)-> bool
 			{
 				// work on exporting stuff from main thread
 				if (!mustCancel)
