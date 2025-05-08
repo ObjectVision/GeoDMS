@@ -253,48 +253,42 @@ void suspendible_task_queue::Process()
 	assert(IsMetaThread());
 	while (!Empty() && !SuspendTrigger::DidSuspend())
 	{
-		std::vector<suspendible_task_type> localTaskQueCopy;
+		suspendible_task_type currTask; // Current task being processed
 		fence_number fn;
 		{
 			auto lock = std::scoped_lock(s_MainQueueSection);
+
 			auto taskMapFrontIter = m_OperationMap.begin();
 			fn = taskMapFrontIter->first;
-			localTaskQueCopy = std::move(taskMapFrontIter->second);
-			m_OperationMap.erase(taskMapFrontIter);
+			assert(!taskMapFrontIter->second.empty());
+			currTask = std::move(taskMapFrontIter->second.front());
+			taskMapFrontIter->second.pop_front();
+			if (taskMapFrontIter->second.empty())
+				m_OperationMap.erase(taskMapFrontIter);
 		}
 
-		// Iterator to the current task being processed
-		auto currTaskIter = localTaskQueCopy.begin();
-
-		// Process tasks until a suspension is detected
-		while (currTaskIter != localTaskQueCopy.end())
-		{
-			try {
-				assert(!SuspendTrigger::DidSuspend());
-				if (!(*currTaskIter)(false))
-					break; // Stop processing if task requests suspension
-			}
-			catch (...)
+		assert(!SuspendTrigger::DidSuspend());
+		try {
+			bool suspended = !currTask(false);
+			assert(suspended == SuspendTrigger::DidSuspend());
+			if (suspended)
 			{
-				catchAndReportException();
+				// If the task was not completed, move it back to the frony of the queue for its fence number
+				auto lock = std::scoped_lock(s_MainQueueSection);
+
+				m_OperationMap[fn].emplace_front(std::move(currTask));
+				return;
 			}
-
-			++currTaskIter;
-
-			// Break if a suspension is required
-			if (SuspendTrigger::MustSuspend())
-				break;
 		}
-
-		// If all tasks completed, nothing to defer, so avoid a mutex lock
-		if (currTaskIter != localTaskQueCopy.end())
+		catch (...)
 		{
-			// Move deferred tasks to the front of m_Operations, maintaining order
-			auto lock = std::scoped_lock(s_MainQueueSection);
-			auto& currTaskArray = m_OperationMap[fn];
-			currTaskArray.insert(currTaskArray.begin(), std::make_move_iterator(currTaskIter), std::make_move_iterator(localTaskQueCopy.end()));
-			return;
+			catchAndReportException();
 		}
+		assert(!SuspendTrigger::DidSuspend());
+
+		// Break if a suspension is required
+		if (SuspendTrigger::MustSuspend())
+			return;
 	}
 }
 

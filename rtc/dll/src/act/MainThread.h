@@ -13,6 +13,7 @@
 
 #include "Parallel.h"
 #include <map>
+#include <deque>
 
 enum {
 	WM_QT_ACTIVATENOTIFIERS = 0x402,
@@ -41,7 +42,7 @@ private:
 };
 
 using suspendible_task_type = std::function<bool(bool)>;
-using suspendible_task_array_type = std::vector<suspendible_task_type>;
+using suspendible_task_array_type = std::deque<suspendible_task_type>;
 using suspendible_task_map_type = std::map<fence_number, suspendible_task_array_type>;
 
 struct suspendible_task_queue
