@@ -36,7 +36,7 @@
 */
 
 /*
-HT<S> takes the following arguments:
+HTP<S> takes the following arguments:
 
 	suitabilities: for each ggType:
 		{
@@ -63,6 +63,26 @@ results in:
 		}
 
 */
+/* 
+*	summary of the algorithm:
+*   - a solution if defined by a shadow price for each claim, such that alocation of all cells according to the suitabilities augmented by the shadow prices of the related claims, will meet the claim constraints.
+*   - to quickly find almost correct shadow prices, the algorithm starts with a downscaled version of the problem, where the the number of land units (preferably by pseudo random selection) and claims have been reduced by a power of 4
+*   - during each scale up, the shadow prices are adjusted when maximum claims are exceeded abnd after each scale up, minimum claims are satisfied by sufficient reallocation.
+*   - for each claim pair that relate to overlapping land units, keep a priority queue of cells ordered by increasing cost of reallocation from the first ggType to the second ggType.
+*   - when a max claim is exceeded, the cell with the lowest reallocation cost is reallocated. 
+*	- As each claim can have multiple facets and destination claims may also be saturated, a cheapest path is searched throught the graph of facets to the first accessible non-saturated destination claim. 
+*	- The cost of each facet in this path is the difference between the augmented suitability of the source ggType and the augmented suitability of the destination ggType of the first valid land unit that is on top of the facet's priority queue.
+*   - when reallocation is administered, each top land unit on the path of facets is reallocated and registered in the facets of the destination claims.
+*   - reallocated land units are added to the priority queues of the destination claim but only removed from the priority queues of the source claim once visited (lazily)
+*   - note that shadow price adaptations don't affect the relative order of land units in each priority queue, so the order of the priority queues is preserved.
+*   - conversely, when a min claim is not met, realllocation is sought of land units with ggTypes who's minimum claim have slack.
+* 
+*  Complexity:
+*  - as the facets are organized such that the cost of reallocation of land units in their priority queues can be calulated in (armortized) constant time
+*  - and the number of facets is O(k*k*p) where k is the number of claims and p the number of partitions
+*  - making one reallocation is bounded by O(k*p) search steps and adjustments
+*  - the scaling provides an upper bound on the expected number of reallocations
+*  - The algorithm is O(n*k) where n is the number of land units and k the number of claims.
 /* 
 	SMALL PERTURBATIONS
 	In order to make exact allocation possible, equal suitabilities are virtually perturbated.
@@ -123,15 +143,15 @@ enum class discr_alloc_version
 //									Helping structures
 // *****************************************************************************
 
-typedef UInt32             atomic_region_count_t;
-typedef UInt32             claim_type;  // will be varied
-typedef Couple<claim_type> claim_range; // allow min > max in this data-type
-typedef UInt32             claim_id;    // set of all claims, a (subset of a) partitioning of #AR * #AT
-typedef UInt32             facet_id;    // set of claim substitution possibilities
-typedef UInt32             facet_code;  // set of #AR * k * k, which is renumbered by m_FacetIDs to facet_id
+using atomic_region_count_t = UInt32;  
+using claim_type = UInt32;  // will be varied  
+using claim_range = Couple<claim_type>; // allow min > max in this data-type  
+using claim_id = UInt32;    // set of all claims, a (subset of a) partitioning of #AR * #AT  
+using facet_id = UInt32;    // set of claim substitution possibilities  
+using facet_code = UInt32;  // set of #AR * k * k, which is renumbered by m_FacetIDs to facet_id  
 
-typedef Int32  perturbation_type; // Simulation of Simplicity, see Edelsbrunner, 1990
-typedef claim_type land_unit_id; // representation of number of units allocated to one class; must correspond with claim_type
+using perturbation_type = Int32; // Simulation of Simplicity, see Edelsbrunner, 1990  
+using land_unit_id = claim_type; // representation of number of units allocated to one class; must correspond with claim_type  
 using partitioning_id = UInt8;
 
 const land_unit_id NR_BELOW_THRESHOLD_NOTIFICATIONS = 5;
@@ -362,12 +382,15 @@ struct partitioning_info_t
 typedef UPoint cursor_type;
 const UInt32 stepFactor = 4;
 
+
+// regions_info_base is used to store the partitioning information of the atomic regions insofar it does not depend on the index type for atomic regions
+// abbreviations:
+// AR = atomic region
+// UR = unique region
+// AT = alllocation type (index of ggType).
+
 struct regions_info_base
 {
-	regions_info_base()
-		:	m_N()
-	{}
-
 	void PreparePermutation(land_unit_id n)
 	{
 		MG_CHECK(m_N == 0 || m_N == n);
@@ -416,15 +439,16 @@ struct regions_info_base
 	cursor_type GetCursor() const { return cursor_type(m_CurrPI, m_PrevStep); }
 	void SetCursor(cursor_type c) {m_CurrPI = c.first; m_PrevStep = c.second; }
 
-	land_unit_id m_N;
+	land_unit_id m_N = 0;
 	mutable SizeT m_StepSize = 1, m_CurrBase = 0, m_PrevStep = 0, m_CurrPI = 0;
 
 	SharedPtr<const AbstrDataItem> m_AtomicRegionMap;
 	DataReadLock                   m_AtomicRegionLock;
-	std::vector<UInt32>            m_AtomicRegionSizes; // 1 per atomic_region containing nr cells (sums to n)
+	std::vector<UInt32>            m_AtomicRegionSizes; // 1 per atomic_region containing the number of cells (sums to n)
 	mutable OwningPtr<bi_graph>    m_Ar2Ur;             // bi_graph that represents AR -> UR relation
 };
 
+// regions_info_t is used to store the partitioning information of the atomic regions
 template <typename AR>
 struct regions_info_t : regions_info_base
 {
@@ -481,19 +505,13 @@ struct regions_info_t : regions_info_base
 	}
 };
 
+// specialization for Void, which is used when no partitioning needs to be administered
 template <>
 struct regions_info_t<Void> : regions_info_base
 {
 	using atomic_region_id = Void;
 	using atomic_region_proxy = UInt32;
-/*
-	using atomic_region_data_handle = typename DataArray<atomic_region_id>::locked_cseq_t;
 
-	WeakPtr<const TileFunctor<atomic_region_id> > m_AtomicRegionMapObj;
-	atomic_region_data_handle                     m_AtomicRegionMapData; // 1 per grid-cell           (==  n )
-	std::vector<partitioning_info_t<AR> >         m_Partitionings;       // 1 per Unique partitioning (==  p )
-	atomic_region_id                              m_NrUniqueRegions;     // #ur
-*/
 	UInt32 GetNrAtomicRegions() const { return 1; }
 	UInt32 GetNrPartitionings() const { return 1; }
 	UInt32 GetNrUniqueRegions() const { return 1; }
@@ -519,6 +537,19 @@ struct regions_info_t<Void> : regions_info_base
 		return UniqueRegionStr(0);
 	}
 };
+
+// *****************************************************************************
+//									htp_info_t
+// *****************************************************************************
+/// htp_info_t is used to store information and intermediate results of the DiscreteAlloc algorithm
+/// It contains information of their atomic regions, their claims, the facets and the results
+// *****************************************************************************
+// there is one facet for each claim to claim confrontation, i.e. one facet for each pair of claims related to overlapping land units and for different ggTypes
+// for each facet, there is a priority queue of land units that are candidates for reallocation in order to increase (up) or decrease (down) the supply for the claim
+// 
+// S is the type of the suitability values, typically Int32; it must be addititive, compareable and assignable, and preferrably a signed integer
+// AR is the type of the atomic region index, typically UInt16 or Void
+// AT is the type of ggTypes index, typically UInt8
 
 template <typename S, typename AR, typename AT>
 struct htp_info_t : regions_info_t<AR>
@@ -546,7 +577,6 @@ struct htp_info_t : regions_info_t<AR>
 	std::vector<priority_heap<S> >       m_Facets;                // 1 per claim to claim confrontation
 	std::vector<facet_id>                m_FacetIds;              // 1 per ggType^2 in each atomic region (== #ar * k *k)
 
-//	DataReadLockContainer               m_Locks;                 // contains locks on suitability maps
 	claim<S>& GetClaim(UInt32 ar, AT j)
 	{ 
 		assert(ar < this->GetNrAtomicRegions());
@@ -641,7 +671,7 @@ const bi_graph& GetAr2UrBiGraph(const regions_info_t<AR>* self)
 }
 
 // *****************************************************************************
-//									Factet related funcs
+//									Facet related funcs
 // *****************************************************************************
 
 template <typename S, typename AR, typename AT>
