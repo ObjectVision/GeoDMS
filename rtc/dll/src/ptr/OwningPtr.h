@@ -16,8 +16,6 @@
 #include "dbg/Check.h"
 #include "ptr/PtrBase.h"
 
-#include <boost/checked_delete.hpp>
-
 template <class T>
 struct OwningPtr : ptr_base<T, movable>
 {
@@ -36,7 +34,13 @@ struct OwningPtr : ptr_base<T, movable>
 	void    init   (pointer ptr)       noexcept { dms_assert(this->is_null()); this->m_Ptr = ptr; }
 	pointer release()                  noexcept { pointer tmp_ptr = this->m_Ptr; this->m_Ptr = nullptr; return tmp_ptr; }
 	void    reset  ()                  noexcept { assign(nullptr); }
-	void    assign (pointer ptr)       noexcept { dms_assert(this->m_Ptr != ptr || !ptr); std::swap(this->m_Ptr, ptr); boost::checked_delete(ptr); }
+	void    assign (pointer ptr)       noexcept 
+	{ 
+		assert(this->m_Ptr != ptr || !ptr); 
+		std::swap(this->m_Ptr, ptr); 
+		static_assert(sizeof(T) != 0, "Type must be complete");
+		delete ptr;
+	}
 	void    swap   (OwningPtr<T>& oth) noexcept { std::swap(this->m_Ptr, oth.m_Ptr); }
 
 	void operator = (OwningPtr&& rhs) noexcept { assign(rhs.release()); }

@@ -854,6 +854,7 @@
     <ClInclude Include="src\geo\RingIterator.h" />
     <ClInclude Include="src\set\MemPageTable.h" />
     <ClInclude Include="src\act\waiter.h" />
+    <ClInclude Include="src\utl\NonCopyable.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\act\Actor.cpp">

@@ -21,7 +21,7 @@
 #include "SpiritTools.h"
 #include "TextPosition.h"
 
-struct AbstrDataBlockProd : private boost::noncopyable
+struct AbstrDataBlockProd : private geodms::rtc::noncopyable
 {
 	virtual ~AbstrDataBlockProd() {}
 

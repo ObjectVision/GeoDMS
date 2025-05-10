@@ -57,7 +57,7 @@ namespace gdalVectImpl {
 	//
 	// *****************************************************************************
 
-	struct FeaturePtr : ptr_base<OGRFeature, boost::noncopyable>
+	struct FeaturePtr : ptr_base<OGRFeature, geodms::rtc::noncopyable>
 	{
 		FeaturePtr(OGRFeature* geo)
 			: ptr_base(geo)

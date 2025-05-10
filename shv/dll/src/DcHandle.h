@@ -1,4 +1,4 @@
-// Copyright (C) 1998-2023 Object Vision b.v. 
+// Copyright (C) 1998-2025 Object Vision b.v. 
 // License: GNU GPL 3
 /////////////////////////////////////////////////////////////////////////////
 
@@ -20,7 +20,7 @@
 // DcHandleBase
 //----------------------------------------------------------------------
 
-struct DcHandleBase : private boost::noncopyable
+struct DcHandleBase : private geodms::rtc::noncopyable
 {
 	explicit DcHandleBase(HWND hWnd);
 	~DcHandleBase();
@@ -46,7 +46,7 @@ struct DcHandle : DcHandleBase
 // CompatibleDcHandle
 //----------------------------------------------------------------------
 
-struct CompatibleDcHandle : private boost::noncopyable
+struct CompatibleDcHandle : private geodms::rtc::noncopyable
 {
 	explicit CompatibleDcHandle(HDC hdc, HFONT defaultFont);
 	~CompatibleDcHandle();
@@ -72,7 +72,7 @@ struct CaretDcHandle : DcHandle
 // PaintDcHandle
 //----------------------------------------------------------------------
 
-struct PaintDcHandle : private boost::noncopyable
+struct PaintDcHandle : private geodms::rtc::noncopyable
 {
 	explicit PaintDcHandle(HWND hWnd, HFONT defaultFont);
 	~PaintDcHandle();
@@ -131,7 +131,7 @@ private:
 #include "utl/TypeInfoOrdering.h"
 
 template <typename HandleType>
-struct GdiHandle : private boost::noncopyable
+struct GdiHandle : private geodms::rtc::noncopyable
 {
 	GdiHandle() // default ctor does not obtain a resource
 		:	m_hGdiObj(NULL) 
@@ -173,7 +173,7 @@ private:
 //----------------------------------------------------------------------
 
 template <typename HandleType>
-struct GdiObjectSelector : private boost::noncopyable
+struct GdiObjectSelector : private geodms::rtc::noncopyable
 {
 	GdiObjectSelector(HDC hdc, HandleType gdiObj)
 		:	m_hDC(hdc)
@@ -264,7 +264,7 @@ struct VisitorDeviceRectSelector : ClipDeviceRectSelector
 // DcMixModeSelector
 //----------------------------------------------------------------------
 
-struct DcMixModeSelector : private boost::noncopyable
+struct DcMixModeSelector : private geodms::rtc::noncopyable
 {
 	explicit DcMixModeSelector(HDC hdc, int fnDrawMode = R2_NOTXORPEN);
 	~DcMixModeSelector();
@@ -281,7 +281,7 @@ private:
 // DcTextAlignSelector
 //----------------------------------------------------------------------
 
-struct DcTextAlignSelector : private boost::noncopyable
+struct DcTextAlignSelector : private geodms::rtc::noncopyable
 {
 	explicit DcTextAlignSelector(HDC hdc, UINT fTextAlignMode = TA_LEFT|TA_TOP|TA_NOUPDATECP);
 	~DcTextAlignSelector();
@@ -298,7 +298,7 @@ private:
 // DcTextColorSelector
 //----------------------------------------------------------------------
 
-struct DcTextColorSelector : private boost::noncopyable
+struct DcTextColorSelector : private geodms::rtc::noncopyable
 {
 	explicit DcTextColorSelector(HDC hdc, DmsColor crColor);
 	~DcTextColorSelector();
@@ -312,7 +312,7 @@ private:
 // DcBackColorSelector
 //----------------------------------------------------------------------
 
-struct DcBackColorSelector : private boost::noncopyable
+struct DcBackColorSelector : private geodms::rtc::noncopyable
 {
 	explicit DcBackColorSelector(HDC hdc, DmsColor crColor);
 	~DcBackColorSelector();
@@ -326,7 +326,7 @@ private:
 // DcBkModeSelector
 //----------------------------------------------------------------------
 
-struct DcBkModeSelector : private boost::noncopyable
+struct DcBkModeSelector : private geodms::rtc::noncopyable
 {
 	explicit DcBkModeSelector(HDC hdc, int iBkMode = OPAQUE);
 	~DcBkModeSelector();
@@ -343,7 +343,7 @@ private:
 // DcPolyFillModeSelector
 //----------------------------------------------------------------------
 
-struct DcPolyFillModeSelector : private boost::noncopyable
+struct DcPolyFillModeSelector : private geodms::rtc::noncopyable
 {
 	explicit DcPolyFillModeSelector(HDC hdc, int polyFillMode = ALTERNATE);
 	~DcPolyFillModeSelector();
@@ -360,7 +360,7 @@ private:
 // DcPolyFillModeSelector
 //----------------------------------------------------------------------
 
-struct DcBrushOrgSelector : private boost::noncopyable
+struct DcBrushOrgSelector : private geodms::rtc::noncopyable
 {
 	explicit DcBrushOrgSelector(HDC hdc, GPoint brushOrg);
 	~DcBrushOrgSelector();

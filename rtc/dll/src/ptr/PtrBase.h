@@ -1,4 +1,4 @@
-// Copyright (C) 1998-2024 Object Vision b.v. 
+// Copyright (C) 1998-2025 Object Vision b.v. 
 // License: GNU GPL 3
 /////////////////////////////////////////////////////////////////////////////
 
@@ -9,22 +9,19 @@
 #if !defined(__PTR_PTR_BASE_H)
 #define __PTR_PTR_BASE_H
 
-#include <boost/noncopyable.hpp>
-
 #include "RtcBase.h"
 #include "dbg/Check.h"
-//#include "geo/SequenceTraits.h"
 #include "set/BitVector.h"
+#include "utl/noncopyable.h"
 
 //  -----------------------------------------------------------------------
 // movable (kind of boost::noncopyable
 //  -----------------------------------------------------------------------
 
-using noncopyable = boost::noncopyable;
+using copyable = geodms::rtc::copyable;
+using noncopyable = geodms::rtc::noncopyable;
 
-struct copyable {};
-
-struct movable : noncopyable
+struct movable : geodms::rtc::noncopyable
 {
 protected:
 	movable() noexcept {}
@@ -34,7 +31,6 @@ private:   // emphasize that the following members should not be default generat
 	void operator = (movable&);
 	movable(movable&);
 };
-
 
 // ============================
 // ptr_wrap acts as a base class for smart pointers, providing elementary operations that are

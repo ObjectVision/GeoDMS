@@ -7,11 +7,10 @@
 #ifndef __MCI_REGISTER_H
 #define __MCI_REGISTER_H
 
-#include <boost/noncopyable.hpp>
-
 #include "geo/BaseBounds.h"
 #include "set/VectorFunc.h"
 #include "set/Token.h"
+#include "utl/noncopyable.h"
 
 template <typename ItemType>
 struct CompareLtItemIdPtrs
@@ -142,7 +141,7 @@ private:
 };
 
 template <typename T, typename Key = CharPtr, typename CompareT = CompareLtItemNamePtrs<T> >
-struct StaticRegister : private boost::noncopyable
+struct StaticRegister : private geodms::rtc::noncopyable
 {
 	typedef std::vector<T*> ContainerType;
 	typedef typename ContainerType::const_iterator const_iterator;

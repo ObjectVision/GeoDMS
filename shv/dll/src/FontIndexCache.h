@@ -74,8 +74,8 @@ private: friend struct FontArray;
 
 #include "DcHandle.h"
 
-typedef GdiHandle<HFONT>                                SafeFontHandle; // derived from boost::noncopyable
-typedef std::vector<SafeFontHandle>                     FontHandleCollection;
+using SafeFontHandle = GdiHandle<HFONT>;
+using FontHandleCollection = std::vector<SafeFontHandle>;
 
 struct FontArray
 {

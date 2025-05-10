@@ -14,12 +14,13 @@
 #include "geo/StringBounds.h"
 #include "ptr/StaticPtr.h"
 #include "utl/Instantiate.h"
+#include "utl/noncopyable.h"
 
 // *****************************************************************************
 // Section:     FormattedOutStream
 // *****************************************************************************
 
-struct FormattedOutStream : boost::noncopyable
+struct FormattedOutStream : geodms::rtc::noncopyable
 { 
 	RTC_CALL FormattedOutStream(OutStreamBuff* out, FormattingFlags ff = FormattingFlags::ThousandSeparator);
 

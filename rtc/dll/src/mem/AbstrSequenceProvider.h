@@ -13,6 +13,7 @@
 #include "mem/FixedAlloc.h"
 #include "ptr/SharedStr.h"
 #include "ser/FileCreationMode.h"
+#include "utl/noncopyable.h"
 
 //----------------------------------------------------------------------
 // interfaces to abstr_sequence_provider
@@ -20,7 +21,7 @@
 using SaSizeT = UInt32;
 
 template <typename V>
-class abstr_sequence_provider : private boost::noncopyable
+class abstr_sequence_provider : private geodms::rtc::noncopyable
 {
 public:
 	typedef typename sequence_traits<V>::value_type    value_type;

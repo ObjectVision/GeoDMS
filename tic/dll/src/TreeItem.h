@@ -100,6 +100,7 @@ struct TreeItem : Actor, ItemTree
 protected: // ctor / dtor
 	TIC_CALL TreeItem ();
 	TIC_CALL ~TreeItem ();
+	friend struct OwningPtr<TreeItem>;
 
 public:
 //	ctor / dtor
@@ -472,8 +473,6 @@ private:
 	friend struct DataWriteLock;
 	friend struct DmsSpiritProduct;
 	friend struct InterestReporter;
-
-	template<typename T> friend void boost::checked_delete(T* x) BOOST_NOEXCEPT;
 
 	// Helper Functions
 	friend TIC_CALL const TreeItem* FindTreeItemByID(const TreeItem* searchLoc, TokenID subItemID);

@@ -16,9 +16,9 @@
 //----------------------------------------------------------------------
 
 template <typename T>
-struct DestroyablePtr : ptr_base<T, boost::noncopyable>
+struct DestroyablePtr : ptr_base<T, geodms::rtc::noncopyable>
 {
-	using base_type = ptr_base<T, boost::noncopyable>;
+	using base_type = ptr_base<T, geodms::rtc::noncopyable>;
 	using typename base_type::pointer;
 
 	DestroyablePtr(T* ptr = nullptr) : base_type(ptr) {}
@@ -41,7 +41,7 @@ struct DestroyablePtr : ptr_base<T, boost::noncopyable>
 //----------------------------------------------------------------------
 
 template <typename V>
-struct sequence_obj : private boost::noncopyable
+struct sequence_obj : private geodms::rtc::noncopyable
 {
 public:
 	typedef abstr_sequence_provider<V>              provider_t;
