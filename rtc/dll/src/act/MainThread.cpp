@@ -251,12 +251,14 @@ bool suspendible_task_queue::Post(fence_number fn, suspendible_task_type&& task)
 void suspendible_task_queue::Process()
 {
 	assert(IsMetaThread());
-	while (!Empty() && !SuspendTrigger::DidSuspend())
+	while (!SuspendTrigger::MustSuspend())
 	{
 		suspendible_task_type currTask; // Current task being processed
 		fence_number fn;
 		{
 			auto lock = std::scoped_lock(s_MainQueueSection);
+			if (Empty())
+				return;
 
 			auto taskMapFrontIter = m_OperationMap.begin();
 			fn = taskMapFrontIter->first;
@@ -285,10 +287,6 @@ void suspendible_task_queue::Process()
 			catchAndReportException();
 		}
 		assert(!SuspendTrigger::DidSuspend());
-
-		// Break if a suspension is required
-		if (SuspendTrigger::MustSuspend())
-			return;
 	}
 }
 
