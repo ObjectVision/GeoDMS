@@ -162,5 +162,8 @@ void OperationContext_AssignResult(OperationContext* oc, const FuncDC* funcDC);
 
 using RunningOperationsCounter = Int32;
 TIC_CALL extern std::atomic<RunningOperationsCounter> s_NrRunningOperations;
+TIC_CALL extern fence_number s_CurrBlockedFenceNumber;
+TIC_CALL extern const TreeItem* s_CurrBlockedFenceItem;
+TIC_CALL extern const TreeItem* s_CurrFenceContainer;
 
 #endif //!defined(__TIC_OPERATIONCONTEXT_H)
