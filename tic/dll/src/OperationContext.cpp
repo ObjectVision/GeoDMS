@@ -482,14 +482,14 @@ OperationContext::~OperationContext()
 	DBG_START("OperationContext", "DTor", MG_DEBUG_FUNCCONTEXT);
 	DBG_TRACE(("FuncDC: %s", m_FuncDC ? m_FuncDC->md_sKeyExpr.c_str() : "(leeg)"));
 
-	dms_assert(!m_FuncDC || !m_FuncDC->m_OperContext);
+	assert(!m_FuncDC || !m_FuncDC->m_OperContext);
 
 	dms_assert(m_Status != task_status::running);
 	dms_assert(m_Status != task_status::suspended); // cancel, exception or done caught.
 
 	OnEnd(task_status::cancelled);
-	dms_assert(m_Status != task_status::scheduled); // cancel, exception or done caught.
-	dms_assert(m_Status == task_status::exception || m_Status == task_status::cancelled || m_Status == task_status::done || m_Status == task_status::none); // cancel, exception or done caught.
+	assert(m_Status != task_status::scheduled); // cancel, exception or done caught.
+	assert(m_Status == task_status::exception || m_Status == task_status::cancelled || m_Status == task_status::done || m_Status == task_status::none); // cancel, exception or done caught.
 
 	assert(!IsRunningOperation(m_Status));
 
@@ -517,7 +517,6 @@ task_status OperationContext::Schedule(TreeItem* item, const FutureSuppliers& al
 	if (!runDirect && !IsMultiThreaded2())
 		runDirect = true;
 
-	dms_assert(m_Status != task_status::suspended || runDirect);
 	m_ActiveTimestamp = UpdateMarker::GetActiveTS(MG_DEBUG_TS_SOURCE_CODE("Obtaining active frame for produce item task"));
 
 	if (item)
@@ -642,6 +641,7 @@ bool OperationContext::getUniqueLicenseToRun()
 
 	if (m_Status >= task_status::activated || !m_TaskFunc)
 	{
+		assert(m_Status != task_status::suspended);
 		return false;
 	}
 
@@ -673,11 +673,12 @@ task_status OperationContext::TryActivateTaskInline()
 //	std::function<void()> func;
 	{
 		leveled_std_section::scoped_lock lock(cs_ThreadMessing);
-		dms_assert(m_Status != task_status::suspended);
+		assert(m_Status != task_status::suspended);
 		if (!getUniqueLicenseToRun())
 			return m_Status;
+		s_MtSemaphore.release();
 	}
-	dms_assert(!SuspendTrigger::DidSuspend());
+	assert(!SuspendTrigger::DidSuspend());
 
 	safe_run_caller();
 	return m_Status;
@@ -711,17 +712,20 @@ task_status OperationContext::OnStart()
 	return Join();
 }
 
+/* REMOVE
 void OperationContext::OnSuspend()
 {
 	leveled_std_section::scoped_lock lock(cs_ThreadMessing);
 
-	dms_assert(m_Status >= task_status::activated);
-
-	if (m_Status >= task_status::suspended)
+	if (m_Status < task_status::activated)
 		return;
+
+	//REMOVE	if (m_Status >= task_status::suspended)
+	//REMOVE		return;
 
 	releaseRunCount(task_status::suspended);
 }
+*/
 
 void OperationContext::OnException() noexcept
 {
@@ -730,24 +734,25 @@ void OperationContext::OnException() noexcept
 
 garbage_t OperationContext::onEnd(task_status status) noexcept
 {
-	if (m_Status > task_status::suspended)
+	if (m_Status >= task_status::cancelled)
 		return {};
 
-	dms_assert(status != task_status::exception || m_Result->WasFailed(FR_Data));
+	assert(status != task_status::exception || m_Result->WasFailed(FR_Data));
 
 	return separateResources(status);
 }
 
 void OperationContext::OnEnd(task_status status) noexcept
 {
-	dms_assert(status > task_status::suspended);
-//	dms_assert(m_Status >= task_status::running);
-	dms_assert(!SuspendTrigger::DidSuspend() || status == task_status::cancelled);
+	assert(status >= task_status::cancelled);
+//	assert(m_Status >= task_status::running);
+//	assert(!SuspendTrigger::DidSuspend() || status == task_status::cancelled);
+	assert(!SuspendTrigger::DidSuspend());
 
 	std::any garbage;
 	{
 		leveled_std_section::scoped_lock lock(cs_ThreadMessing);
-		if (m_Status > task_status::suspended)
+		if (m_Status >= task_status::cancelled)
 			return;
 
 		dms_assert(status != task_status::exception || m_Result->WasFailed(FR_Data));
@@ -781,10 +786,10 @@ void OperationContext::releaseRunCount(task_status status)
 
 garbage_t OperationContext::separateResources(task_status status)
 {
-	dms_assert(cs_ThreadMessing.isLocked());
+	assert(cs_ThreadMessing.isLocked());
 
-	dms_assert(status > task_status::suspended);
-	if (m_Status > task_status::suspended)
+	assert(status >= task_status::cancelled); // new status must be a final status
+	if (m_Status >= task_status::cancelled) // don't change an already established final status
 		return {};
 	
 	releaseRunCount(status);
@@ -926,7 +931,7 @@ bool OperationContext::connectArgs(const FutureSuppliers& allInterests)
 		if (!oc)
 			continue;
 		auto status = oc->getStatus();
-		if (status > task_status::none && status <= task_status::suspended)
+		if (status > task_status::none && status < task_status::cancelled)
 		{
 			connect(shared_from_this(), oc);
 			connected = true;
@@ -944,6 +949,8 @@ bool OperationContext::connectArgs(const FutureSuppliers& allInterests)
 
 task_status OperationContext::JoinSupplOrSuspendTrigger()
 {
+	assert(!SuspendTrigger::DidSuspend());
+
 	auto suppliers = m_Suppliers;
 	for (auto& oc: suppliers)
 	{
@@ -957,20 +964,19 @@ task_status OperationContext::JoinSupplOrSuspendTrigger()
 			return task_status::suspended;
 
 		task_status ocStatus = oc->Join();
-		dms_assert(ocStatus > task_status::running);
+		assert(ocStatus > task_status::running);
 		dms_assert(CheckDataReady(supplResult->GetCurrUltimateItem()) || supplResult->WasFailed(FR_Data) || !supplResult->GetInterestCount() || SuspendTrigger::DidSuspend());
 		switch (ocStatus)
 		{
 		case task_status::done:
 			continue;
 		case task_status::suspended:
-			OnSuspend();
-			break;
+			return task_status::suspended;
 		case task_status::exception:
 			HandleFail(oc->GetResult());
 			break;
 		case task_status::cancelled:
-			dms_assert(m_Status == task_status::cancelled); // MUST HAVE BEEN ALL RESET AS ATOMIC OPERATION
+			assert(m_Status == task_status::cancelled); // MUST HAVE BEEN ALL RESET AS ATOMIC OPERATION
 			break;
 		}
 		return m_Status;
@@ -1121,11 +1127,7 @@ void OperationContext::safe_run_with_cleanup() noexcept
 		OnException(); // clean-up
 	else
 	{
-		if (SuspendTrigger::DidSuspend())
-		{
-			dms_assert(m_Status == task_status::suspended);
-			return;
-		}
+		assert(!SuspendTrigger::DidSuspend());
 		OnEnd(task_status::done); // just set status to done and clean-up
 	}
 
@@ -1229,10 +1231,10 @@ bool OperationContext::ScheduleCalcResult(Explain::Context* context, ArgRefs&& a
 				if (!funcDC) 
 					return; // TODO G8: Debug why.
 
-				dms_assert(funcDC && (funcDC->DoesHaveSupplInterest() || !funcDC->GetInterestCount() || context));
+				assert(funcDC && (funcDC->DoesHaveSupplInterest() || !funcDC->GetInterestCount() || context));
 
-				dms_assert(self->m_Status == task_status::running || self->m_Status == task_status::suspended);
-				dms_assert(!SuspendTrigger::DidSuspend());
+				assert(self->m_Status == task_status::running);
+				assert(!SuspendTrigger::DidSuspend());
 
 				std::vector<SharedPtr<const Actor>> statusActors; statusActors.reserve(argRefs.size());
 				for (const auto& argRef : argRefs)
@@ -1288,7 +1290,9 @@ bool OperationContext::ScheduleCalcResult(Explain::Context* context, ArgRefs&& a
 //		dms_assert(!doASync);
 		return false;
 	}
-	return resultStatus != task_status::suspended && resultStatus != task_status::exception;
+	assert(resultStatus != task_status::suspended);
+
+	return resultStatus != task_status::exception;
 }
 
 bool RunQueuedTaskInline()

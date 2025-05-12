@@ -81,7 +81,7 @@ struct OperationContext : std::enable_shared_from_this<OperationContext>
 
 	TIC_CALL dms_task GetTask() const;
 	TIC_CALL task_status OnStart();
-	TIC_CALL void OnSuspend();
+	//REMOVE TIC_CALL void OnSuspend();
 	TIC_CALL void OnException() noexcept;
 	TIC_CALL void OnEnd(task_status status) noexcept;
 	garbage_t onEnd(task_status status) noexcept;
@@ -89,7 +89,7 @@ struct OperationContext : std::enable_shared_from_this<OperationContext>
 	TIC_CALL bool CancelIfNoInterestOrForced(bool forced);
 	bool HandleFail(const TreeItem* item);
 
-	bool IsScheduled() const { task_status status = m_Status; return status > task_status::none && status != task_status::suspended; }
+	bool IsScheduled() const { task_status status = m_Status; return status > task_status::none /*REMOVE && status != task_status::suspended */ ; }
 	bool IsDone() const { return m_Status >= task_status::cancelled; }
 	bool IsCanceled() const { return m_Status == task_status::cancelled; }
 	SharedPtr<const TreeItem> GetResult() const { return m_Result; }
