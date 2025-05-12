@@ -17,16 +17,13 @@
 #include <semaphore>
 #include "ppl.h"
 
-RTC_CALL extern std::counting_semaphore<> s_MtSemaphore;
-
-
 
 template <typename Functor>
 auto throttled_async(Concurrency::task_group& gr, Functor&& f) -> std::future<std::invoke_result_t<Functor>>
 {
 	using R = std::invoke_result_t<Functor>;
 
-	if (IsMultiThreaded1() && !IsLowOnFreeRAM() && s_MtSemaphore.try_acquire())
+	if (IsMultiThreaded1() && !IsLowOnFreeRAM())
 		{
 //			return std::async(std::launch::async, [fn = std::forward<Functor>(f)]
 		auto p = std::make_shared<std::promise<R>>();
@@ -34,7 +31,6 @@ auto throttled_async(Concurrency::task_group& gr, Functor&& f) -> std::future<st
 				[p, f = std::forward<Functor>(f)] ()
 				{
 					try {
-						auto x = make_scoped_exit([] {s_MtSemaphore.release(); });
 						if constexpr (std::is_void_v<R>)
 						{
 							f();

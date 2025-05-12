@@ -243,7 +243,10 @@ garbage_t OperationContext::disconnect_supplier(OperationContext* supplier)
 		DBG_TRACE(("add to queue %s", AsText(wptr_this_waiter)));
 
 		if (m_Status == task_status::scheduled)
+		{
+			assert(m_Oper && m_Oper->CanRunParallel());
 			s_ScheduledContextsMap[m_FenceNumber].emplace_back(shared_from_this());
+		}
 		break;
 
 	case task_status::exception:
@@ -532,14 +535,15 @@ task_status OperationContext::Schedule(TreeItem* item, const FutureSuppliers& al
 		leveled_std_section::scoped_lock lock(cs_ThreadMessing);
 		if (m_Status >= task_status::scheduled)
 			return m_Status;
+		m_Status = task_status::scheduled;
 
 		bool connectedArgs = connectArgs(allInterest);
 		if (!runDirect)
 		{
-			dms_assert(!IsRunningOperation(m_Status));
-			m_Status = task_status::scheduled;
+			assert(!IsRunningOperation(m_Status));
 			if (!connectedArgs)
 			{
+				assert(m_Oper && m_Oper->CanRunParallel());
 				s_ScheduledContextsMap[m_FenceNumber].emplace_back(shared_from_this());
 				mustConsiderRun = true;
 			}
@@ -547,11 +551,11 @@ task_status OperationContext::Schedule(TreeItem* item, const FutureSuppliers& al
 	}
 	if (runDirect)
 	{
+		assert(m_Suppliers.empty());
 		auto supplStatus = JoinSupplOrSuspendTrigger();
-		dms_assert(supplStatus != task_status::cancelled);
+		assert(supplStatus != task_status::cancelled);
 		if (supplStatus != task_status::done)
 			return supplStatus;
-		dms_assert(m_Status < task_status::scheduled);
 		return TryActivateTaskInline();
 	}
 
@@ -616,10 +620,12 @@ bool OperationContext::activateTaskImpl(SharedActorInterestPtr&& resKeeper)
 	assert(s_NrRunningOperations >= 0);
 	assert(m_Status < task_status::activated);
 	assert(m_TaskFunc);
+	assert(m_Oper);
+	assert(m_Oper->CanRunParallel());
 
 	if (!getUniqueLicenseToRun())
 		return m_Status >= task_status::activated || !m_TaskFunc;
-
+	
 	m_ResKeeper = std::move(resKeeper);
 
 	std::weak_ptr<OperationContext> selfWptr = shared_from_this();
@@ -632,7 +638,6 @@ bool OperationContext::activateTaskImpl(SharedActorInterestPtr&& resKeeper)
 			self->safe_run_caller();
 			assert(self->m_FenceNumber <= s_CurrActiveFenceNumber);
 		}
-		s_MtSemaphore.release();
 	};
 
 	setTask(dms_task(selfCaller));
@@ -653,9 +658,6 @@ bool OperationContext::getUniqueLicenseToRun()
 	dms_assert(!IsRunningOperation(m_Status));
 	assert(s_NrRunningOperations >= 0);
 
-	if (!s_MtSemaphore.try_acquire())
-		return false;
-
 	m_Status = task_status::activated;
 	++s_NrRunningOperations;
 
@@ -672,16 +674,13 @@ bool OperationContext::getUniqueLicenseToRun()
 task_status OperationContext::TryActivateTaskInline()
 {
 	assert(m_Suppliers.empty());
-	assert(m_Status < task_status::scheduled);
 
 	SuspendTrigger::FencedBlocker blockGuiInterruptions("OperationContext::TryActivateTaskInline()");
-//	std::function<void()> func;
 	{
 		leveled_std_section::scoped_lock lock(cs_ThreadMessing);
 		assert(m_Status != task_status::suspended);
 		if (!getUniqueLicenseToRun())
 			return m_Status;
-		s_MtSemaphore.release();
 	}
 	assert(!SuspendTrigger::DidSuspend());
 
@@ -750,9 +749,6 @@ garbage_t OperationContext::onEnd(task_status status) noexcept
 void OperationContext::OnEnd(task_status status) noexcept
 {
 	assert(status >= task_status::cancelled);
-//	assert(m_Status >= task_status::running);
-//	assert(!SuspendTrigger::DidSuspend() || status == task_status::cancelled);
-	assert(!SuspendTrigger::DidSuspend());
 
 	std::any garbage;
 	{
@@ -956,7 +952,12 @@ task_status OperationContext::JoinSupplOrSuspendTrigger()
 {
 	assert(!SuspendTrigger::DidSuspend());
 
-	auto suppliers = m_Suppliers;
+	SupplierSet suppliers;
+	{
+		leveled_std_section::unique_lock lock(cs_ThreadMessing);
+		suppliers = m_Suppliers;
+	}
+
 	for (auto& oc: suppliers)
 	{
 		if (!oc)
@@ -1320,6 +1321,8 @@ void prioritize(SupplierSet& prioritizedContexts, OperationContextSPtr self)
 	dms_assert(self);
 	if (self->getStatus() != task_status::scheduled)
 		return;
+
+	assert(self->m_Oper && self->m_Oper->CanRunParallel());
 
 	auto ptr = prioritizedContexts.lower_bound(self);
 	if (ptr != prioritizedContexts.end() && !ptr->owner_before(self))

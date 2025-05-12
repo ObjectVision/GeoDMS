@@ -3363,7 +3363,8 @@ static how_to_proceed PrepareDataCalc(SharedPtr<const TreeItem> self, const Tree
 	{
 //		SuspendTrigger::SilentBlocker xx("@PrepareDataCalc");
 		auto dc2 = dc->CallCalcResult();
-		assert(!SuspendTrigger::DidSuspend());
+		if (SuspendTrigger::DidSuspend())
+			return how_to_proceed::suspended;
 
 		dms_assert(dc2 || SuspendTrigger::DidSuspend() || dc->WasFailed(FR_Data));
 		if (dc->WasFailed()) //  && !WasFailed())

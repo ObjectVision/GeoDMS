@@ -10,7 +10,9 @@
 template <typename Func>
 task_status OperationContext::ScheduleItemWriter(MG_SOURCE_INFO_DECL TreeItem* item, Func&& func, const FutureSuppliers& allInterests, bool runDirect, Explain::Context* context)
 {
-	dms_assert(!m_TaskFunc);
+	assert(IsMetaThread());
+//	dms_assert(!m_TaskFunc);
+	assert(m_Status == task_status::none);
 	m_TaskFunc = std::move(func);
 	m_Context = context;
 

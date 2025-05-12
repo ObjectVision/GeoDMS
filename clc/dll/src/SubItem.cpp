@@ -311,24 +311,25 @@ struct FenceContainerOperator : BinaryOperator
 		using fence_work_data = std::vector<fence_member_pair>;
 		fence_work_data futureDataContainer;
 
-		auto resultFenceNumer = resultHolder.m_FenceNumber;
+		auto resultFenceNumber = resultHolder.m_FenceNumber;
 
 		std::promise<void> fenceBell;
 		auto bellWaiter = fenceBell.get_future();
 		auto resWalker = resultRoot;
 		
-		PostMainThreadTask(resultFenceNumer, [srcContainer, resultRoot, &resWalker, &fenceBell, &resultHolder, resultFenceNumer, &futureDataContainer](bool mustCancel)-> bool
+		PostMainThreadTask(resultFenceNumber, [srcContainer, resultRoot, &resWalker, &fenceBell, &resultHolder, resultFenceNumber, &futureDataContainer](bool mustCancel)-> bool
 			{
 				// work on exporting stuff from main thread
 				if (!mustCancel)
 				{
-					if (s_CurrBlockedFenceNumber >= resultFenceNumer)
-						throwErrorF("FenceContainer", "Invalid Recursion calling % s from updating %s for %s"
-						,	resultRoot->GetFullName()
+					if (s_CurrBlockedFenceNumber)
+						throwErrorF("FenceContainer", "Invalid Recursion calling %#%d s from updating %s for %s#%d"
+							, resultRoot->GetFullName(),  resultFenceNumber
 						,	s_CurrBlockedFenceItem->GetFullName()
-						,	s_CurrFenceContainer->GetFullName()
+						,	s_CurrFenceContainer->GetFullName(), s_CurrBlockedFenceNumber
 						);
-					tmp_swapper<fence_number> lockFence(s_CurrBlockedFenceNumber, resultFenceNumer);
+
+					tmp_swapper<fence_number> lockFence(s_CurrBlockedFenceNumber, resultFenceNumber);
 					s_CurrFenceContainer = resultRoot;
 					for (; resWalker; resWalker = resultRoot->WalkCurrSubTree(resWalker))
 					{
@@ -380,8 +381,6 @@ struct FenceContainerOperator : BinaryOperator
 		{
 			using DecCountType = StaticMtDecrementalLock<decltype(s_NrRunningOperations), s_NrRunningOperations>;
 			DecCountType dontCountThisOperation;
-			s_MtSemaphore.release();
-			auto x = make_scoped_exit([] {s_MtSemaphore.acquire(); });
 
 			WakeUpJoiners();
 			bellWaiter.get();
@@ -435,7 +434,7 @@ struct FenceContainerOperator : BinaryOperator
 
 		if (msgData.size() != 1 || !msgData[0].empty())
 			for (auto msg: msgData)
-				reportF(SeverityTypeID::ST_MajorTrace, "FenceContainer(%d): %s", resultFenceNumer, SharedStr(msg));
+				reportF(SeverityTypeID::ST_MajorTrace, "FenceContainer(%d): %s", resultFenceNumber, SharedStr(msg));
 
 		resultHolder->SetIsInstantiated();
 		resultHolder->StopSupplInterest();
