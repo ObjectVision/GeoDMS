@@ -110,7 +110,7 @@ private:
 namespace {
 	const CharPtr strDataArray = "DataArray";
 	const CharPtr strSeqArray = "SequenceArray";
-	CommonOperGroup ogDataArray(strDataArray, oper_policy::dynamic_result_class | oper_policy::calc_requires_metainfo);
+	CommonOperGroup ogDataArray(strDataArray, oper_policy::dynamic_result_class);
 	CommonOperGroup ogSeqArray(strSeqArray, oper_policy::dynamic_result_class);
 
 	DataArrayOperator theDataBlockOper(&ogDataArray, ValueComposition::Single);

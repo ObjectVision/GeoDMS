@@ -198,6 +198,8 @@ void connect(OperationContextSPtr waiter, OperationContextSPtr supplier)
 	if (isSupplier(waiter, supplier))
 		return;
 
+	assert(waiter->m_Oper && waiter->m_Oper->CanRunParallel());
+
 	waiter->m_Suppliers.insert(supplier);
 	supplier->m_Waiters.insert(waiter);
 }
@@ -536,14 +538,14 @@ task_status OperationContext::Schedule(TreeItem* item, const FutureSuppliers& al
 		if (m_Status >= task_status::scheduled)
 			return m_Status;
 		m_Status = task_status::scheduled;
+		assert(!IsRunningOperation(m_Status));
 
-		bool connectedArgs = connectArgs(allInterest);
 		if (!runDirect)
 		{
-			assert(!IsRunningOperation(m_Status));
+			bool connectedArgs = connectArgs(allInterest);
 			if (!connectedArgs)
 			{
-				assert(m_Oper && m_Oper->CanRunParallel());
+				assert(!m_Oper || m_Oper->CanRunParallel());
 				s_ScheduledContextsMap[m_FenceNumber].emplace_back(shared_from_this());
 				mustConsiderRun = true;
 			}
@@ -620,8 +622,7 @@ bool OperationContext::activateTaskImpl(SharedActorInterestPtr&& resKeeper)
 	assert(s_NrRunningOperations >= 0);
 	assert(m_Status < task_status::activated);
 	assert(m_TaskFunc);
-	assert(m_Oper);
-	assert(m_Oper->CanRunParallel());
+	assert(!m_Oper || m_Oper->CanRunParallel());
 
 	if (!getUniqueLicenseToRun())
 		return m_Status >= task_status::activated || !m_TaskFunc;
@@ -893,10 +894,6 @@ std::vector<ItemReadLock> OperationContext::SetReadLocks(const FutureSuppliers& 
 
 		auto supplierItem = futureSupplier->GetOld(); // can be reference to default unit
 		dms_assert(supplierItem);
-		dms_assert(!dynamic_cast<const FuncDC*>(futureSupplier)
-			|| !dynamic_cast<const FuncDC*>(futureSupplier)->m_OperContext
-			|| dynamic_cast<const FuncDC*>(futureSupplier)->m_OperContext->m_Status == task_status::none
-		); // supplier operation was completed before this one starts
 		supplierItem = supplierItem->GetCurrRangeItem();
 		if (HandleFail(supplierItem))
 			return{};
