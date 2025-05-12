@@ -322,6 +322,14 @@ struct FenceContainerOperator : BinaryOperator
 				// work on exporting stuff from main thread
 				if (!mustCancel)
 				{
+					if (s_CurrBlockedFenceNumber >= resultFenceNumer)
+						throwErrorF("FenceContainer", "Invalid Recursion calling % s from updating %s for %s"
+						,	resultRoot->GetFullName()
+						,	s_CurrBlockedFenceItem->GetFullName()
+						,	s_CurrFenceContainer->GetFullName()
+						);
+					tmp_swapper<fence_number> lockFence(s_CurrBlockedFenceNumber, resultFenceNumer);
+					s_CurrFenceContainer = resultRoot;
 					for (; resWalker; resWalker = resultRoot->WalkCurrSubTree(resWalker))
 					{
 						auto resInterestPtr = resWalker->GetInterestPtrOrNull();
@@ -333,6 +341,7 @@ struct FenceContainerOperator : BinaryOperator
 
 						MG_CHECK(!srcItem->IsCacheItem());
 
+						s_CurrBlockedFenceItem = srcItem.get();
 						if (!srcItem->SuspendibleUpdate(PS_Committed))
 						{
 							if (srcItem->WasFailed())

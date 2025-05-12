@@ -256,7 +256,7 @@ void suspendible_task_queue::Process()
 		suspendible_task_type currTask; // Current task being processed
 		fence_number fn;
 		{
-			auto lock = std::scoped_lock(s_MainQueueSection);
+			auto lockForPoppingTask = std::scoped_lock(s_MainQueueSection);
 			if (Empty())
 				return;
 
@@ -276,7 +276,7 @@ void suspendible_task_queue::Process()
 			if (suspended)
 			{
 				// If the task was not completed, move it back to the frony of the queue for its fence number
-				auto lock = std::scoped_lock(s_MainQueueSection);
+				auto lockForReinsertingTask = std::scoped_lock(s_MainQueueSection);
 
 				m_OperationMap[fn].emplace_front(std::move(currTask));
 				return;
