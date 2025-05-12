@@ -719,11 +719,29 @@ BestItemRef AbstrCalculator::FindErrorneousItem() const
 	auto errorChecker = [&errorneousItem](const Actor* a)
 		{
 			auto ti = dynamic_cast<const TreeItem*>(a);
-			if (ti && !ti->IsCacheItem() && WasInFailed(ti))
+			if (!ti)
+				return AVS_Ready;
+			if (!ti->IsCacheItem())
 			{
-				errorneousItem = ti;
-				return  AVS_SuspendedOrFailed;
+				for (auto ri = ti; ri; ri = ri->GetCurrRefItem())				
+					if (WasInFailed(ri))
+					{
+						errorneousItem = ti;
+						return  AVS_SuspendedOrFailed;
+					}
+				if (auto miDcPtr = ti->mc_Calculator)
+				{
+					if (miDcPtr->IsSourceRef())
+						if (auto si = miDcPtr->GetSourceItem())
+							for (auto ri = si; ri; ri = ri->GetCurrRefItem())
+								if (WasInFailed(ri))
+								{
+									errorneousItem = si;
+									return  AVS_SuspendedOrFailed;
+								}
+				}
 			}
+
 			return AVS_Ready;
 		};
 	auto visitor = MakeDerivedBoolVisitor(std::move(errorChecker));
