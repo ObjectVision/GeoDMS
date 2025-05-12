@@ -76,7 +76,6 @@
 #include <stdarg.h>
 #include <future>
 
-
 using TreeItemInterestPtr = InterestPtr<const TreeItem*>;
 
 #include "cs_lock_map.h"

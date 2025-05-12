@@ -1384,7 +1384,11 @@ task_status OperationContext::Join()
 
 	RunOperationContexts();
 	if (IsMetaThread())
+	{
+		if (SuspendTrigger::DidSuspend())
+			return task_status::suspended;
 		ProcessMainThreadOpers();
+	}
 
 	dms_assert(m_Status > task_status::running);
 	dbg_assert(CheckDataReady(m_Result->GetCurrUltimateItem()) || m_Status == task_status::cancelled || m_Status == task_status::exception || !m_Result->GetInterestCount());
