@@ -390,7 +390,7 @@ void RunOperationContexts()
 	if (s_RunOperationContextsCount)
 		return;
 	
-	std::any receivedGarbage;
+	garbage_t receivedGarbage;
 	leveled_std_section::scoped_lock lock(cs_ThreadMessing);
 	receivedGarbage = runOperationContexts();
 }
