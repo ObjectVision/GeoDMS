@@ -10,8 +10,8 @@
 
 #include <future>
 
+#include "ASync.h"
 #include "act/any.h"
-
 #include "dbg/SeverityType.h"
 #include "utl/Quotes.h"
 #include "LispRef.h"
@@ -269,7 +269,6 @@ struct FenceContainerOperator : BinaryOperator
 			resultHolder->m_FenceNumber = context.m_FenceNumber;
 			resultHolder.m_FenceNumber = context.m_FenceNumber;
 
-
 			auto resultFenceNumber = resultHolder.m_FenceNumber;
 
 			auto resultRoot = resultHolder.GetNew();
@@ -372,6 +371,9 @@ struct FenceContainerOperator : BinaryOperator
 		{
 			using DecCountType = StaticMtDecrementalLock<decltype(s_NrRunningOperations), s_NrRunningOperations>;
 			DecCountType dontCountThisOperation;
+			s_MtSemaphore.release();
+			auto x = make_scoped_exit([] {s_MtSemaphore.acquire(); });
+
 			WakeUpJoiners();
 			bellWaiter.get();
 		}

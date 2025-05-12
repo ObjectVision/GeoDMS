@@ -104,7 +104,7 @@ struct OperationContext : std::enable_shared_from_this<OperationContext>
 	bool getUniqueLicenseToRun();
 	task_status TryActivateTaskInline();
 	void setTask(dms_task&& t);
-	void activateTaskImpl(SharedActorInterestPtr&& resKeeper);
+	bool activateTaskImpl(SharedActorInterestPtr&& resKeeper);
 	void releaseRunCount(task_status status);
 	garbage_t separateResources(task_status status);
 

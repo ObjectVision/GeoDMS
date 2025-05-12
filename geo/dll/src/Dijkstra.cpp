@@ -596,11 +596,6 @@ SizeT ProcessDijkstra(TreeItemDualRef& resultHolder
 
 	concurrency::combinable<std::vector<MassType> >  resLinkFlowC;
 
-	// ===================== start looping through all orgZones
-	concurrency::task_group tasks;
-
-	auto available_tasks = std::counting_semaphore(MaxConcurrentTreads());
-
 	MassType orgMass = 1.0; if (tgOrgMass && tgOrgMassHasVoidDomain)
 	{
 		orgMass = tgOrgMass[0]; tgOrgMass = nullptr; tgOrgMassHasVoidDomain = false;
@@ -612,257 +607,168 @@ SizeT ProcessDijkstra(TreeItemDualRef& resultHolder
 		orgAlpha = tgOrgAlpha[0]; tgOrgAlpha = nullptr; tgOrgAlphaHasVoidDomain = false;
 		MG_USERCHECK(orgAlpha >= 0.0);
 	}
+	auto orgZoneTask = 
+		[=,
+		//			returnTokenOnExit = make_any_scoped_exit([&available_tasks]() { available_tasks.release(); }), // given to task by value
+		&resultHolder,
+		&writeBlocks,
+		&ni, &graph, &node_endPoint_inv, &zoneCount, &resultCount, &processTimer,
+		&nzcC, &dhC, &trC, &pot_ijC, &resLinkFlowC, // combinables with thread locals to reuse per orgZone
+		&res
+		](ZoneType orgZone)
+		{
+			DSM::CancelIfOutOfInterest(resultHolder.GetNew());
+			if (OperationContext::CancelableFrame::CurrActiveCanceled())
+				return;
 
-	for (ZoneType orgZone = 0; orgZone != ni.nrOrgZones; ++orgZone)
-	{
-		// Wait for a task to release an available slot.
-		available_tasks.acquire();
-		auto returnTokenOnExit = make_shared_exit([&available_tasks]() { available_tasks.release(); }); // given to task by value
+			auto& nzc = nzcC.local();
+			auto& dh = dhC.local();
+			TreeRelations& tr = trC.local();
+			auto& nodeALW = dh.m_AltLinkWeight;
+			auto& nodeLA = dh.m_LinkAttr;
+			auto& resLinkFlow = resLinkFlowC.local();
 
-		tasks.run(CreateTaskWithContext(
-			[=,
-//			returnTokenOnExit = make_any_scoped_exit([&available_tasks]() { available_tasks.release(); }), // given to task by value
-			&resultHolder,
-			&writeBlocks,
-			&ni, &graph, &node_endPoint_inv, &zoneCount, &resultCount, &processTimer,
-			&nzcC, &dhC, &trC, &pot_ijC, &resLinkFlowC, // combinables with thread locals to reuse per orgZone
-			&res
-			]()
+			assert(orgZone < ni.nrOrgZones);
+			assert(dh.Empty());
+
+			if (!nzc.m_ResImpPerDstZone) // initialized before?
 			{
-				DSM::CancelIfOutOfInterest(resultHolder.GetNew());
-				if (OperationContext::CancelableFrame::CurrActiveCanceled())
-					return;
+				nzc.Init(ni, df, euclidicSqrDist);
+				dh.Init(ni.nrV, useSrcZoneStamps, useTraceBack);
+			}
 
-				auto& nzc = nzcC.local();
-				auto& dh = dhC.local();
-				TreeRelations& tr = trC.local();
-				auto& nodeALW = dh.m_AltLinkWeight;
-				auto& nodeLA = dh.m_LinkAttr;
-				auto& resLinkFlow = resLinkFlowC.local();
-
-				assert(orgZone < ni.nrOrgZones);
-				assert(dh.Empty());
-
-				if (!nzc.m_ResImpPerDstZone) // initialized before?
+			bool trIsUsed = false;
+			if (altLinkWeights || res.LinkFlow || linkAttr)
+			{
+				tr.InitNodes(ni.nrV);
+				trIsUsed = true;
+				if (altLinkWeights || res.LinkFlow)
 				{
-					nzc.Init(ni, df, euclidicSqrDist);
-					dh.Init(ni.nrV, useSrcZoneStamps, useTraceBack);
+					if (!nodeALW)
+						nodeALW = OwningPtrSizedArray<ImpType>(ni.nrV, dont_initialize MG_DEBUG_ALLOCATOR_SRC("dijkstra: nodeALW"));
+					if (res.LinkFlow)
+						resLinkFlow.resize(ni.nrE, 0);
+				}
+				if (linkAttr)
+				{
+					if (!nodeLA)
+						nodeLA = OwningPtrSizedArray<ImpType>(ni.nrV, dont_initialize MG_DEBUG_ALLOCATOR_SRC("dijkstra: nodeLA"));
+				}
+			}
+
+
+			if (res.node_TB)
+			{
+				assert(!useTraceBack);
+				assert(!flags(df & DijkstraFlag::OD));
+				assert(!dh.m_TraceBackData);
+				dh.m_TraceBackDataPtr = res.node_TB;
+				fast_undefine(dh.m_TraceBackDataPtr, dh.m_TraceBackDataPtr + ni.nrV); // REMOVE WHEN new Tree is implemented
+			}
+
+			// ===================== initialization of a new orgZone
+			dh.m_MaxImp = (orgMaxImpedances) ? orgMaxImpedances[orgMaxImpedancesHasVoidDomain ? 0 : orgZone] : MAX_VALUE(ImpType);
+
+			dh.ResetImpedances();
+			nzc.ResetSrc(orgZone);
+			//				if (res.orgZone_MaxImp) res.orgZone_MaxImp[orgZone] = 0.0;
+			if (res.orgZone_SumImp) res.orgZone_SumImp[orgZone] = 0.0;
+			if (res.orgZone_SumLinkAttr) res.orgZone_SumLinkAttr[orgZone] = 0.0;
+
+			// ===================== InsertNode for all statPoints of current orgZone
+			for (ZoneType startPointIndex = ni.orgZone_startPoint_inv.FirstOrSame(orgZone); IsDefined(startPointIndex); startPointIndex = ni.orgZone_startPoint_inv.NextOrNone(startPointIndex))
+			{
+				dms_assert(startPointIndex < ni.nrX); // guaranteed by InvertedRel
+				NodeType startNode = ni.startPoints.Node_rel ? ni.startPoints.Node_rel[startPointIndex] : startPointIndex;
+				dh.InsertNode(startNode, ni.startPoints.Impedances ? ni.startPoints.Impedances[startPointIndex] : ImpType(0), UNDEFINED_VALUE(LinkType));
+				if (trIsUsed)
+					tr.InitRootNode(startNode);
+			};
+			MassType
+				cumulativeMass = 0,
+				maxSrcMass = (srcMassLimitPtr) ? srcMassLimitPtr[srcMassLimitHasVoidDomain ? 0 : orgZone] : MAX_VALUE(MassType);
+
+			// ===================== iterate through buffer until all destinations are processed or cut or limit has been reached.
+			typedef heapElemType<ImpType, ZoneType> EndPointHeapElemType;
+			std::vector<EndPointHeapElemType> endPointHeap;
+
+			// iterate through buffer until destinations are processed.
+			while (!dh.Empty())
+			{
+				NodeType currNode = dh.Front().Value(); dms_assert(currNode < ni.nrV);
+				ImpType currImp = dh.Front().Imp();
+
+				dh.PopNode();
+				assert(currImp >= 0);
+
+				// If alternative route from heap was faster: accept that when we are certain of it 
+				if (!dh.MarkFinal(currNode, currImp))
+					continue;
+
+				if (flags(df & DijkstraFlag::VerboseLogging))
+				{
+					reportF(SeverityTypeID::ST_MajorTrace, "Node %1% accepted at impedance %2% from link %3%"
+						, currNode, currImp
+						, dh.m_TraceBackDataPtr[currNode]
+					);
 				}
 
-				bool trIsUsed = false;
-				if (altLinkWeights || res.LinkFlow || linkAttr)
+				if (trIsUsed)
 				{
-					tr.InitNodes(ni.nrV);
-					trIsUsed = true;
-					if (altLinkWeights || res.LinkFlow)
+					assert(dh.m_TraceBackDataPtr);
+					LinkType backLink = dh.m_TraceBackDataPtr[currNode];
+					if (IsDefined(backLink))
 					{
-						if (!nodeALW)
-							nodeALW = OwningPtrSizedArray<ImpType>(ni.nrV, dont_initialize MG_DEBUG_ALLOCATOR_SRC("dijkstra: nodeALW"));
-						if (res.LinkFlow)
-							resLinkFlow.resize(ni.nrE, 0);
-					}
-					if (linkAttr)
-					{
-						if (!nodeLA)
-							nodeLA = OwningPtrSizedArray<ImpType>(ni.nrV, dont_initialize MG_DEBUG_ALLOCATOR_SRC("dijkstra: nodeLA"));
+						dms_assert(backLink < ni.nrE);
+						NodeType parentNode;
+						if (graph.linkF2Data[backLink] == currNode)
+							parentNode = graph.linkF1Data[backLink];
+						else
+						{
+							dms_assert(graph.linkF1Data[backLink] == currNode);
+							parentNode = graph.linkF2Data[backLink];
+						}
+						dms_assert(parentNode < ni.nrV);
+						tr.InitChildNode(currNode, parentNode);
 					}
 				}
-
-				
-				if (res.node_TB)
+				ZoneType y = node_endPoint_inv.FirstOrSame(currNode);
+				if (ni.endPoints.Impedances) // check if max cumulative mass has been reached.
 				{
-					assert(!useTraceBack);
-					assert(!flags(df & DijkstraFlag::OD));
-					assert(!dh.m_TraceBackData);
-					dh.m_TraceBackDataPtr = res.node_TB;
-					fast_undefine(dh.m_TraceBackDataPtr, dh.m_TraceBackDataPtr + ni.nrV); // REMOVE WHEN new Tree is implemented
-				}
-
-				// ===================== initialization of a new orgZone
-				dh.m_MaxImp = (orgMaxImpedances) ? orgMaxImpedances[orgMaxImpedancesHasVoidDomain ? 0 : orgZone] : MAX_VALUE(ImpType);
-
-				dh.ResetImpedances();
-				nzc.ResetSrc(orgZone);
-//				if (res.orgZone_MaxImp) res.orgZone_MaxImp[orgZone] = 0.0;
-				if (res.orgZone_SumImp) res.orgZone_SumImp[orgZone] = 0.0;
-				if (res.orgZone_SumLinkAttr) res.orgZone_SumLinkAttr[orgZone] = 0.0;
-
-				// ===================== InsertNode for all statPoints of current orgZone
-				for (ZoneType startPointIndex = ni.orgZone_startPoint_inv.FirstOrSame(orgZone); IsDefined(startPointIndex); startPointIndex = ni.orgZone_startPoint_inv.NextOrNone(startPointIndex))
-				{
-					dms_assert(startPointIndex < ni.nrX); // guaranteed by InvertedRel
-					NodeType startNode = ni.startPoints.Node_rel ? ni.startPoints.Node_rel[startPointIndex] : startPointIndex;
-					dh.InsertNode(startNode, ni.startPoints.Impedances ? ni.startPoints.Impedances[startPointIndex] : ImpType(0), UNDEFINED_VALUE(LinkType));
-					if (trIsUsed)
-						tr.InitRootNode(startNode);
-				};
-				MassType
-					cumulativeMass = 0,
-					maxSrcMass = (srcMassLimitPtr) ? srcMassLimitPtr[srcMassLimitHasVoidDomain ? 0 : orgZone] : MAX_VALUE(MassType);
-
-				// ===================== iterate through buffer until all destinations are processed or cut or limit has been reached.
-				typedef heapElemType<ImpType, ZoneType> EndPointHeapElemType;
-				std::vector<EndPointHeapElemType> endPointHeap;
-
-				// iterate through buffer until destinations are processed.
-				while (!dh.Empty())
-				{
-					NodeType currNode = dh.Front().Value(); dms_assert(currNode < ni.nrV);
-					ImpType currImp = dh.Front().Imp();
-
-					dh.PopNode();
-					assert(currImp >= 0);
-
-					// If alternative route from heap was faster: accept that when we are certain of it 
-					if (!dh.MarkFinal(currNode, currImp))
-						continue;
-
-					if (flags(df & DijkstraFlag::VerboseLogging))
+					while (IsDefined(y))
 					{
-						reportF(SeverityTypeID::ST_MajorTrace, "Node %1% accepted at impedance %2% from link %3%"
-							, currNode, currImp
-							, dh.m_TraceBackDataPtr[currNode]
-						);
-					}
+						dms_assert(y < ni.nrY);
+						dms_assert(ni.endPoints.Impedances[y] >= 0);
+						ImpType endpointImpData = currImp + ni.endPoints.Impedances[y];
 
-					if (trIsUsed)
-					{
-						assert(dh.m_TraceBackDataPtr);
-						LinkType backLink = dh.m_TraceBackDataPtr[currNode];
-						if (IsDefined(backLink))
+						if (flags(df & DijkstraFlag::VerboseLogging))
 						{
-							dms_assert(backLink < ni.nrE);
-							NodeType parentNode;
-							if (graph.linkF2Data[backLink] == currNode)
-								parentNode = graph.linkF1Data[backLink];
-							else
-							{
-								dms_assert(graph.linkF1Data[backLink] == currNode);
-								parentNode = graph.linkF2Data[backLink];
-							}
-							dms_assert(parentNode < ni.nrV);
-							tr.InitChildNode(currNode, parentNode);
-						}
-					}
-					ZoneType y = node_endPoint_inv.FirstOrSame(currNode);
-					if (ni.endPoints.Impedances) // check if max cumulative mass has been reached.
-					{
-						while (IsDefined(y))
-						{
-							dms_assert(y < ni.nrY);
-							dms_assert(ni.endPoints.Impedances[y] >= 0);
-							ImpType endpointImpData = currImp + ni.endPoints.Impedances[y];
-
-							if (flags(df & DijkstraFlag::VerboseLogging))
-							{
-								ZoneType dstZone = ni.endPoints.Zone_rel ? ni.endPoints.Zone_rel[y] : y;
-								dms_assert(dstZone < ni.nrDstZones);
-								reportF(SeverityTypeID::ST_MajorTrace, "Node %1% connects to DstZone %2% at impedance %3% through endPoint %4%"
-									, currNode, dstZone, endpointImpData, y
-								);
-							}
-
-							endPointHeap.push_back(EndPointHeapElemType(y, endpointImpData));
-							std::push_heap(endPointHeap.begin(), endPointHeap.end());
-
-							y = node_endPoint_inv.NextOrNone(y);
-						}
-						while (!endPointHeap.empty() && endPointHeap.front().Imp() <= currImp)
-						{
-							ZoneType yy = endPointHeap.front().Value();
-							ImpType dstImp = endPointHeap.front().Imp();
-
-							if (nzc.CommitY(yy, dstImp))
-							{
-								ZoneType dstZone = ni.endPoints.Zone_rel ? ni.endPoints.Zone_rel[yy] : yy;
-								dms_assert(dstZone < ni.nrDstZones);
-								if (flags(df & DijkstraFlag::VerboseLogging))
-									reportF(SeverityTypeID::ST_MajorTrace, "Committed to DstZone %1% at impedance %2% through endPoint %3%", dstZone, dstImp, yy);
-
-								if (dstMassPtr)
-								{
-									cumulativeMass += dstMassPtr[dstMassHasVoidDomain ? 0 : dstZone];
-									if (cumulativeMass >= maxSrcMass)
-										MakeMin(dh.m_MaxImp, dstImp); // no new zones will be finalized that are beyond this zone. 
-								}
-							}
-
-							std::pop_heap(endPointHeap.begin(), endPointHeap.end());
-							endPointHeap.pop_back();
-						}
-					}
-					else
-					{
-						while (IsDefined(y))
-						{
-							dms_assert(y < ni.nrY);
 							ZoneType dstZone = ni.endPoints.Zone_rel ? ni.endPoints.Zone_rel[y] : y;
 							dms_assert(dstZone < ni.nrDstZones);
-
-							if (flags(df & DijkstraFlag::VerboseLogging))
-								reportF(SeverityTypeID::ST_MajorTrace, "Node %1% identifies with DstZone %2% at impedance %3% through endPoint %4%", currNode, dstZone, currImp, y);
-
-							if (nzc.CommitY(y, currImp) && dstMassPtr)
-							{
-								cumulativeMass += dstMassPtr[dstMassHasVoidDomain ? 0 : dstZone];
-								if (cumulativeMass >= maxSrcMass)
-									MakeMin(dh.m_MaxImp, currImp); // no new zones will be finalized that are beyond this zone. 
-							}
-
-							y = node_endPoint_inv.NextOrNone(y);
+							reportF(SeverityTypeID::ST_MajorTrace, "Node %1% connects to DstZone %2% at impedance %3% through endPoint %4%"
+								, currNode, dstZone, endpointImpData, y
+							);
 						}
-					}
 
-					// traverse neighbouring nodes
-					LinkType currLink = graph.node_link1_inv.First(currNode);
-					while (currLink != UNDEFINED_VALUE(LinkType))
-					{
-						dms_assert(currLink < ni.nrE);
-						NodeType otherNode = graph.linkF2Data[currLink]; dms_assert(otherNode < ni.nrV);
-						ImpType deltaCost = graph.linkImpDataPtr[currLink];
-						dms_assert(deltaCost >= 0);
-						if (deltaCost < dh.m_MaxImp)
-							dh.InsertNode(otherNode, currImp + deltaCost, currLink);
-						currLink = graph.node_link1_inv.Next(currLink);
-					}
-					if (!flags(df & (DijkstraFlag::Bidirectional | DijkstraFlag::BidirFlag)))
-						continue;
+						endPointHeap.push_back(EndPointHeapElemType(y, endpointImpData));
+						std::push_heap(endPointHeap.begin(), endPointHeap.end());
 
-					currLink = graph.node_link2_inv.First(currNode);
-					while (currLink != UNDEFINED_VALUE(LinkType))
-					{
-						dms_assert(currLink < ni.nrE);
-						NodeType otherNode = graph.linkF1Data[currLink]; dms_assert(otherNode < ni.nrV);
-						ImpType deltaCost = graph.linkImpDataPtr[currLink];
-						dms_assert(deltaCost >= 0);
-						if (deltaCost < dh.m_MaxImp)
-							dh.InsertNode(otherNode, currImp + deltaCost, currLink);
-						currLink = graph.node_link2_inv.Next(currLink);
+						y = node_endPoint_inv.NextOrNone(y);
 					}
-				}
-				if (ni.endPoints.Impedances)
-				{
-					// postprocess remaining endPoints.
-					while (!endPointHeap.empty() && endPointHeap.front().Imp() < dh.m_MaxImp)
+					while (!endPointHeap.empty() && endPointHeap.front().Imp() <= currImp)
 					{
 						ZoneType yy = endPointHeap.front().Value();
 						ImpType dstImp = endPointHeap.front().Imp();
 
 						if (nzc.CommitY(yy, dstImp))
 						{
+							ZoneType dstZone = ni.endPoints.Zone_rel ? ni.endPoints.Zone_rel[yy] : yy;
+							dms_assert(dstZone < ni.nrDstZones);
 							if (flags(df & DijkstraFlag::VerboseLogging))
-							{
-								ZoneType dstZone = ni.endPoints.Zone_rel ? ni.endPoints.Zone_rel[yy] : yy;
-								dms_assert(dstZone < ni.nrDstZones);
-								reportF(SeverityTypeID::ST_MajorTrace, "Finally committed to dstzone %1% at impedance %2% through endpoint %3%"
-									, dstZone, dstImp, yy
-								);
-							}
+								reportF(SeverityTypeID::ST_MajorTrace, "Committed to DstZone %1% at impedance %2% through endPoint %3%", dstZone, dstImp, yy);
 
 							if (dstMassPtr)
 							{
-								ZoneType dstZone = ni.endPoints.Zone_rel ? ni.endPoints.Zone_rel[yy] : yy;
-								dms_assert(dstZone < ni.nrDstZones);
 								cumulativeMass += dstMassPtr[dstMassHasVoidDomain ? 0 : dstZone];
 								if (cumulativeMass >= maxSrcMass)
 									MakeMin(dh.m_MaxImp, dstImp); // no new zones will be finalized that are beyond this zone. 
@@ -873,440 +779,522 @@ SizeT ProcessDijkstra(TreeItemDualRef& resultHolder
 						endPointHeap.pop_back();
 					}
 				}
-				// ===================== count number of reached/processed dstZones j from this orgZone i 
-				ZoneType zonalResultCount = nzc.ZonalResCount();
-				SizeT resultCountBase = 0;
-				if (nzc.IsDense())
-					resultCountBase = SizeT(ni.nrDstZones) * SizeT(orgZone);
 				else
 				{
-					if (resCumulCount)
+					while (IsDefined(y))
 					{
-						resultCountBase = resCumulCount[orgZone];
-						SizeT givenZonalResultCount;
-						if (orgZone + 1 < ni.nrOrgZones)
-							givenZonalResultCount = resCumulCount[orgZone + 1] - resultCountBase;
-						else
-							givenZonalResultCount = nrRes - resultCountBase;
-						if (zonalResultCount != givenZonalResultCount)
-						{
-							MG_CHECK(flags(df & DijkstraFlag::PrecalculatedNrDstZones));
-							if (zonalResultCount > givenZonalResultCount)
-								throwDmsErrF("orgZone %1%: zonalResultCount %2% != givenZonalResultCount %3%", orgZone, zonalResultCount, givenZonalResultCount);
-						}
-					}
-				}
-
-				// ===================== write optional od related res.od_ImpData, res.od_DstZoneIds, and res.od_SrcZoneIds
-
-				resultCount += zonalResultCount;
-
-				if (nzc.IsDense())
-				{
-					dms_assert(zonalResultCount == ni.nrDstZones);
-
-					if (res.od_ImpData)
-						fast_copy(nzc.m_ResImpPerDstZone.begin(), nzc.m_ResImpPerDstZone.begin() + zonalResultCount, res.od_ImpData + resultCountBase);
-					if (res.od_DstZoneIds)
-					{
-						auto dstZonePtr = res.od_DstZoneIds + resultCountBase + zonalResultCount;
-						ZoneType c = zonalResultCount;
-						while (c)
-							*--dstZonePtr = --c;
-					}
-					if (res.od_EndPointIds)
-					{
-						auto endPointPtr = res.od_EndPointIds + resultCountBase + zonalResultCount;
-						ZoneType c = zonalResultCount;
-						while (c)
-							*--endPointPtr = nzc.DstZone2EndPoint(--c);
-					}
-				}
-				else
-				{
-					if (flags(df & DijkstraFlag::Counting))
-					{
-						dms_assert(resCount);
-						dms_assert(!res.od_ImpData);
-						dms_assert(!res.od_DstZoneIds);
-						dms_assert(orgZone < ni.nrOrgZones);
-						resCount[orgZone] = zonalResultCount;
-					}
-					else
-					{
-						if (res.od_ImpData)
-						{
-							auto currPtr = res.od_ImpData + resultCountBase;
-							for (ZoneType resIndex = 0; resIndex != zonalResultCount; ++resIndex)
-								*currPtr++ = nzc.Res2Imp(resIndex);
-						}
-						if (res.od_DstZoneIds) {
-							auto currPtr = res.od_DstZoneIds + resultCountBase;
-							for (ZoneType resIndex = 0; resIndex != zonalResultCount; ++resIndex)
-								*currPtr++ = nzc.Res2DstZone(resIndex);
-						}
-						if (res.od_EndPointIds) {
-							auto currPtr = res.od_EndPointIds + resultCountBase;
-							for (ZoneType resIndex = 0; resIndex != zonalResultCount; ++resIndex)
-								*currPtr++ = nzc.Res2EndPoint(resIndex);
-						}
-					}
-				}
-				if (res.od_SrcZoneIds)
-				{
-					auto currPtr = res.od_SrcZoneIds + resultCountBase;
-					fast_fill(currPtr, currPtr + zonalResultCount, orgZone);
-				}
-
-				if (res.orgZone_NrDstZones)
-					res.orgZone_NrDstZones[orgZone] = zonalResultCount;
-
-				// ===================== calculate optional alternative impedances, and write to resAltLinkImp if requested
-				const ImpType* d_vj = dh.m_ResultDataPtr;
-				const ImpType* la_vj = nullptr;
-
-				assert(nodeALW || !res.od_AltLinkImp);
-				if (altLinkWeights)
-				{
-					assert(trIsUsed);
-					d_vj = nodeALW.begin();
-					UpdateALW(ni, dh, tr, nzc, altLinkWeights, altLinkWeightsHasVoidDomain, orgZone, zonalResultCount, resultCountBase, nodeALW.begin(), res.od_AltLinkImp);
-				}
-				assert(linkAttr || !flags(df & DijkstraFlag::UseLinkAttr));
-				if (linkAttr)
-				{
-					assert(trIsUsed);
-					la_vj = nodeLA.begin();
-					UpdateALW(ni, dh, tr, nzc, linkAttr, linkAttrHasVoidDomain, orgZone, zonalResultCount, resultCountBase, nodeLA.begin(), res.od_LinkAttr);
-				}
-
-				// ===================== interaction: calculate t[i, j] etc.
-				if (flags(df & DijkstraFlag::InteractionOrMaxImp))
-				{
-					std::vector<ImpType>& pot_ij = pot_ijC.local();
-					Float64 totalPotential = 0;
-					ImpType maxImp = 0;
-
-					// t[i, j] := impedance[i, j] ^ -beta;
-					// pot[i, j] : = w[j] * t[i, j]
-					// OrgZone_factor[i] : = SUM j: pot[i, j] = D_i
-
-					// flow[i, j] : = v[i] * pot[i, j] * D_i ^ (alpha - 1);
-					// OrgZone_demand[i] : = SUM j: flow[i, j] 
-					// orgZone_SumImp[i] : = SUM j: impedance[i, j] * flow[i, j]
-					// DstZone_supply[j] : = SUM i: flow[i, j]
-					// flow[l] : = SUM l in (i->j): flow[i, j]
-					// see: http://wiki.objectvision.nl/index.php/Accessibility#Attraction_Potential
-					// and: http://wiki.objectvision.nl/index.php/Dijkstra_functions
-
-					assert(flags(df & DijkstraFlag::Calc_pot_ij) == (res.dstZone_Factor || res.dstZone_Supply || res.LinkFlow || res.orgZone_SumImp || res.orgZone_SumLinkAttr));
-					if (flags(df & DijkstraFlag::Calc_pot_ij))
-						vector_zero_n_reuse(pot_ij, zonalResultCount);
-					for (SizeT j = 0; j != zonalResultCount; ++j)
-					{
-						ZoneType dstZone = nzc.Res2DstZone(j);
+						dms_assert(y < ni.nrY);
+						ZoneType dstZone = ni.endPoints.Zone_rel ? ni.endPoints.Zone_rel[y] : y;
 						dms_assert(dstZone < ni.nrDstZones);
-						dms_assert(!flags(df & DijkstraFlag::SparseResult) || nzc.IsConnected(dstZone));
 
-						NodeType node = nzc.DstZone2EndNode(dstZone);
-						if (!IsDefined(node))
+						if (flags(df & DijkstraFlag::VerboseLogging))
+							reportF(SeverityTypeID::ST_MajorTrace, "Node %1% identifies with DstZone %2% at impedance %3% through endPoint %4%", currNode, dstZone, currImp, y);
+
+						if (nzc.CommitY(y, currImp) && dstMassPtr)
 						{
-							dms_assert(!flags(df & DijkstraFlag::SparseResult) || !flags(df & DijkstraFlag::OD));
-							dbg_assert(!nzc.IsConnected(dstZone));
-							continue;
-						}
-						Float64 impedance = d_vj[node];
-						assert(IsDefined(impedance));
-						assert(impedance >= 0.0);
-						if (ni.endPoints.Impedances && !altLinkWeights)
-							impedance += ni.endPoints.Impedances[dstZone]; // TODO: check of dit niet dubbel werk is
-
-						if (orgMinImp) MakeMax(impedance, orgMinImp[orgMinImpHasVoidDomain ? 0 : orgZone]);
-						if (dstMinImp) MakeMax(impedance, dstMinImp[dstMinImpHasVoidDomain ? 0 : dstZone]);
-						assert(impedance >= 0.0);
-
-						if (impedance <= 0 && !tgBetaDecayIsZero)
-							continue;
-
-						assert(impedance > 0 || tgBetaDecayIsZero);
-						MakeMax(maxImp, impedance);
-
-						if (!flags(df & DijkstraFlag::Interaction))
-							continue; // next j.
-
-						// t_ij
-						Float64 potential = 1.0;
-
-						if (!tgBetaDecayIsZero)
-						{
-							if (tgBetaDecayIsOne)
-								potential = 1.0 / impedance;
-							else 
-								potential = exp(log(impedance) * -tgBetaDecay);
+							cumulativeMass += dstMassPtr[dstMassHasVoidDomain ? 0 : dstZone];
+							if (cumulativeMass >= maxSrcMass)
+								MakeMin(dh.m_MaxImp, currImp); // no new zones will be finalized that are beyond this zone. 
 						}
 
-						if (flags(df & DijkstraFlag::DistLogit))
-						{
-							if (impedance > 0)
-								potential = 1.0 / (1.0 + exp(tgAlphaLogit + tgBetaLogit * log(impedance) + tgGammaLogit * impedance));
-							else if (tgBetaLogit == 0)
-								potential = 1.0 / (1.0 + exp(tgAlphaLogit + tgGammaLogit * impedance));
-							else if (tgBetaLogit < 0)
-								potential = 0;
-						}
-						if (flags(df & DijkstraFlag::Calc_pot_ij))
-							pot_ij[j] = potential;
-
-						if (tgDstMass)
-							potential *= tgDstMass[tdDstMassHasVoidDomain ? 0 : dstZone];  // w_j * t_ij
-						totalPotential += potential; // SUM w_j * t_ij = D_i
+						y = node_endPoint_inv.NextOrNone(y);
 					}
-					if (res.orgZone_MaxImp)
-						res.orgZone_MaxImp[orgZone] = maxImp;
+				}
+
+				// traverse neighbouring nodes
+				LinkType currLink = graph.node_link1_inv.First(currNode);
+				while (currLink != UNDEFINED_VALUE(LinkType))
+				{
+					dms_assert(currLink < ni.nrE);
+					NodeType otherNode = graph.linkF2Data[currLink]; dms_assert(otherNode < ni.nrV);
+					ImpType deltaCost = graph.linkImpDataPtr[currLink];
+					dms_assert(deltaCost >= 0);
+					if (deltaCost < dh.m_MaxImp)
+						dh.InsertNode(otherNode, currImp + deltaCost, currLink);
+					currLink = graph.node_link1_inv.Next(currLink);
+				}
+				if (!flags(df & (DijkstraFlag::Bidirectional | DijkstraFlag::BidirFlag)))
+					continue;
+
+				currLink = graph.node_link2_inv.First(currNode);
+				while (currLink != UNDEFINED_VALUE(LinkType))
+				{
+					dms_assert(currLink < ni.nrE);
+					NodeType otherNode = graph.linkF1Data[currLink]; dms_assert(otherNode < ni.nrV);
+					ImpType deltaCost = graph.linkImpDataPtr[currLink];
+					dms_assert(deltaCost >= 0);
+					if (deltaCost < dh.m_MaxImp)
+						dh.InsertNode(otherNode, currImp + deltaCost, currLink);
+					currLink = graph.node_link2_inv.Next(currLink);
+				}
+			}
+			if (ni.endPoints.Impedances)
+			{
+				// postprocess remaining endPoints.
+				while (!endPointHeap.empty() && endPointHeap.front().Imp() < dh.m_MaxImp)
+				{
+					ZoneType yy = endPointHeap.front().Value();
+					ImpType dstImp = endPointHeap.front().Imp();
+
+					if (nzc.CommitY(yy, dstImp))
+					{
+						if (flags(df & DijkstraFlag::VerboseLogging))
+						{
+							ZoneType dstZone = ni.endPoints.Zone_rel ? ni.endPoints.Zone_rel[yy] : yy;
+							dms_assert(dstZone < ni.nrDstZones);
+							reportF(SeverityTypeID::ST_MajorTrace, "Finally committed to dstzone %1% at impedance %2% through endpoint %3%"
+								, dstZone, dstImp, yy
+							);
+						}
+
+						if (dstMassPtr)
+						{
+							ZoneType dstZone = ni.endPoints.Zone_rel ? ni.endPoints.Zone_rel[yy] : yy;
+							dms_assert(dstZone < ni.nrDstZones);
+							cumulativeMass += dstMassPtr[dstMassHasVoidDomain ? 0 : dstZone];
+							if (cumulativeMass >= maxSrcMass)
+								MakeMin(dh.m_MaxImp, dstImp); // no new zones will be finalized that are beyond this zone. 
+						}
+					}
+
+					std::pop_heap(endPointHeap.begin(), endPointHeap.end());
+					endPointHeap.pop_back();
+				}
+			}
+			// ===================== count number of reached/processed dstZones j from this orgZone i 
+			ZoneType zonalResultCount = nzc.ZonalResCount();
+			SizeT resultCountBase = 0;
+			if (nzc.IsDense())
+				resultCountBase = SizeT(ni.nrDstZones) * SizeT(orgZone);
+			else
+			{
+				if (resCumulCount)
+				{
+					resultCountBase = resCumulCount[orgZone];
+					SizeT givenZonalResultCount;
+					if (orgZone + 1 < ni.nrOrgZones)
+						givenZonalResultCount = resCumulCount[orgZone + 1] - resultCountBase;
+					else
+						givenZonalResultCount = nrRes - resultCountBase;
+					if (zonalResultCount != givenZonalResultCount)
+					{
+						MG_CHECK(flags(df & DijkstraFlag::PrecalculatedNrDstZones));
+						if (zonalResultCount > givenZonalResultCount)
+							throwDmsErrF("orgZone %1%: zonalResultCount %2% != givenZonalResultCount %3%", orgZone, zonalResultCount, givenZonalResultCount);
+					}
+				}
+			}
+
+			// ===================== write optional od related res.od_ImpData, res.od_DstZoneIds, and res.od_SrcZoneIds
+
+			resultCount += zonalResultCount;
+
+			if (nzc.IsDense())
+			{
+				dms_assert(zonalResultCount == ni.nrDstZones);
+
+				if (res.od_ImpData)
+					fast_copy(nzc.m_ResImpPerDstZone.begin(), nzc.m_ResImpPerDstZone.begin() + zonalResultCount, res.od_ImpData + resultCountBase);
+				if (res.od_DstZoneIds)
+				{
+					auto dstZonePtr = res.od_DstZoneIds + resultCountBase + zonalResultCount;
+					ZoneType c = zonalResultCount;
+					while (c)
+						*--dstZonePtr = --c;
+				}
+				if (res.od_EndPointIds)
+				{
+					auto endPointPtr = res.od_EndPointIds + resultCountBase + zonalResultCount;
+					ZoneType c = zonalResultCount;
+					while (c)
+						*--endPointPtr = nzc.DstZone2EndPoint(--c);
+				}
+			}
+			else
+			{
+				if (flags(df & DijkstraFlag::Counting))
+				{
+					dms_assert(resCount);
+					dms_assert(!res.od_ImpData);
+					dms_assert(!res.od_DstZoneIds);
+					dms_assert(orgZone < ni.nrOrgZones);
+					resCount[orgZone] = zonalResultCount;
+				}
+				else
+				{
+					if (res.od_ImpData)
+					{
+						auto currPtr = res.od_ImpData + resultCountBase;
+						for (ZoneType resIndex = 0; resIndex != zonalResultCount; ++resIndex)
+							*currPtr++ = nzc.Res2Imp(resIndex);
+					}
+					if (res.od_DstZoneIds) {
+						auto currPtr = res.od_DstZoneIds + resultCountBase;
+						for (ZoneType resIndex = 0; resIndex != zonalResultCount; ++resIndex)
+							*currPtr++ = nzc.Res2DstZone(resIndex);
+					}
+					if (res.od_EndPointIds) {
+						auto currPtr = res.od_EndPointIds + resultCountBase;
+						for (ZoneType resIndex = 0; resIndex != zonalResultCount; ++resIndex)
+							*currPtr++ = nzc.Res2EndPoint(resIndex);
+					}
+				}
+			}
+			if (res.od_SrcZoneIds)
+			{
+				auto currPtr = res.od_SrcZoneIds + resultCountBase;
+				fast_fill(currPtr, currPtr + zonalResultCount, orgZone);
+			}
+
+			if (res.orgZone_NrDstZones)
+				res.orgZone_NrDstZones[orgZone] = zonalResultCount;
+
+			// ===================== calculate optional alternative impedances, and write to resAltLinkImp if requested
+			const ImpType* d_vj = dh.m_ResultDataPtr;
+			const ImpType* la_vj = nullptr;
+
+			assert(nodeALW || !res.od_AltLinkImp);
+			if (altLinkWeights)
+			{
+				assert(trIsUsed);
+				d_vj = nodeALW.begin();
+				UpdateALW(ni, dh, tr, nzc, altLinkWeights, altLinkWeightsHasVoidDomain, orgZone, zonalResultCount, resultCountBase, nodeALW.begin(), res.od_AltLinkImp);
+			}
+			assert(linkAttr || !flags(df & DijkstraFlag::UseLinkAttr));
+			if (linkAttr)
+			{
+				assert(trIsUsed);
+				la_vj = nodeLA.begin();
+				UpdateALW(ni, dh, tr, nzc, linkAttr, linkAttrHasVoidDomain, orgZone, zonalResultCount, resultCountBase, nodeLA.begin(), res.od_LinkAttr);
+			}
+
+			// ===================== interaction: calculate t[i, j] etc.
+			if (flags(df & DijkstraFlag::InteractionOrMaxImp))
+			{
+				std::vector<ImpType>& pot_ij = pot_ijC.local();
+				Float64 totalPotential = 0;
+				ImpType maxImp = 0;
+
+				// t[i, j] := impedance[i, j] ^ -beta;
+				// pot[i, j] : = w[j] * t[i, j]
+				// OrgZone_factor[i] : = SUM j: pot[i, j] = D_i
+
+				// flow[i, j] : = v[i] * pot[i, j] * D_i ^ (alpha - 1);
+				// OrgZone_demand[i] : = SUM j: flow[i, j] 
+				// orgZone_SumImp[i] : = SUM j: impedance[i, j] * flow[i, j]
+				// DstZone_supply[j] : = SUM i: flow[i, j]
+				// flow[l] : = SUM l in (i->j): flow[i, j]
+				// see: http://wiki.objectvision.nl/index.php/Accessibility#Attraction_Potential
+				// and: http://wiki.objectvision.nl/index.php/Dijkstra_functions
+
+				assert(flags(df & DijkstraFlag::Calc_pot_ij) == (res.dstZone_Factor || res.dstZone_Supply || res.LinkFlow || res.orgZone_SumImp || res.orgZone_SumLinkAttr));
+				if (flags(df & DijkstraFlag::Calc_pot_ij))
+					vector_zero_n_reuse(pot_ij, zonalResultCount);
+				for (SizeT j = 0; j != zonalResultCount; ++j)
+				{
+					ZoneType dstZone = nzc.Res2DstZone(j);
+					dms_assert(dstZone < ni.nrDstZones);
+					dms_assert(!flags(df & DijkstraFlag::SparseResult) || nzc.IsConnected(dstZone));
+
+					NodeType node = nzc.DstZone2EndNode(dstZone);
+					if (!IsDefined(node))
+					{
+						dms_assert(!flags(df & DijkstraFlag::SparseResult) || !flags(df & DijkstraFlag::OD));
+						dbg_assert(!nzc.IsConnected(dstZone));
+						continue;
+					}
+					Float64 impedance = d_vj[node];
+					assert(IsDefined(impedance));
+					assert(impedance >= 0.0);
+					if (ni.endPoints.Impedances && !altLinkWeights)
+						impedance += ni.endPoints.Impedances[dstZone]; // TODO: check of dit niet dubbel werk is
+
+					if (orgMinImp) MakeMax(impedance, orgMinImp[orgMinImpHasVoidDomain ? 0 : orgZone]);
+					if (dstMinImp) MakeMax(impedance, dstMinImp[dstMinImpHasVoidDomain ? 0 : dstZone]);
+					assert(impedance >= 0.0);
+
+					if (impedance <= 0 && !tgBetaDecayIsZero)
+						continue;
+
+					assert(impedance > 0 || tgBetaDecayIsZero);
+					MakeMax(maxImp, impedance);
 
 					if (!flags(df & DijkstraFlag::Interaction))
-						goto afterInteraction;
+						continue; // next j.
 
-					if (res.orgZone_Factor)
-						res.orgZone_Factor[orgZone] = totalPotential; // D_i
+					// t_ij
+					Float64 potential = 1.0;
 
-					if (totalPotential)
+					if (!tgBetaDecayIsZero)
 					{
-						assert(totalPotential >= 0.0);
-						Float64 balancingFactor = orgMass;
-						if (tgOrgMass)
-							balancingFactor = tgOrgMass[orgZone]; // v_i
-						auto orgAlphaCopy = orgAlpha;
-						if (tgOrgAlpha)
-						{
-							orgAlphaCopy = tgOrgAlpha[orgZone];
-							MG_USERCHECK(orgAlphaCopy >= 0.0);
-						}
-						if (orgAlphaCopy != 0.0)
-						{
-							if (orgAlphaCopy == 1.0)
-								balancingFactor *= totalPotential;
-							else
-								balancingFactor *= exp(log(totalPotential) * orgAlphaCopy);
-						}
+						if (tgBetaDecayIsOne)
+							potential = 1.0 / impedance;
+						else
+							potential = exp(log(impedance) * -tgBetaDecay);
+					}
 
-						if (res.orgZone_Demand)
-							res.orgZone_Demand[orgZone] = balancingFactor; // M_ix == v_i * D_i^alpha
-						balancingFactor /= totalPotential; // M_ix / D_i == v_i * D_i^(alpha-1)
+					if (flags(df & DijkstraFlag::DistLogit))
+					{
+						if (impedance > 0)
+							potential = 1.0 / (1.0 + exp(tgAlphaLogit + tgBetaLogit * log(impedance) + tgGammaLogit * impedance));
+						else if (tgBetaLogit == 0)
+							potential = 1.0 / (1.0 + exp(tgAlphaLogit + tgGammaLogit * impedance));
+						else if (tgBetaLogit < 0)
+							potential = 0;
+					}
+					if (flags(df & DijkstraFlag::Calc_pot_ij))
+						pot_ij[j] = potential;
 
-						if (flags(df & DijkstraFlag::Calc_pot_ij))
+					if (tgDstMass)
+						potential *= tgDstMass[tdDstMassHasVoidDomain ? 0 : dstZone];  // w_j * t_ij
+					totalPotential += potential; // SUM w_j * t_ij = D_i
+				}
+				if (res.orgZone_MaxImp)
+					res.orgZone_MaxImp[orgZone] = maxImp;
+
+				if (!flags(df & DijkstraFlag::Interaction))
+					goto afterInteraction;
+
+				if (res.orgZone_Factor)
+					res.orgZone_Factor[orgZone] = totalPotential; // D_i
+
+				if (totalPotential)
+				{
+					assert(totalPotential >= 0.0);
+					Float64 balancingFactor = orgMass;
+					if (tgOrgMass)
+						balancingFactor = tgOrgMass[orgZone]; // v_i
+					auto orgAlphaCopy = orgAlpha;
+					if (tgOrgAlpha)
+					{
+						orgAlphaCopy = tgOrgAlpha[orgZone];
+						MG_USERCHECK(orgAlphaCopy >= 0.0);
+					}
+					if (orgAlphaCopy != 0.0)
+					{
+						if (orgAlphaCopy == 1.0)
+							balancingFactor *= totalPotential;
+						else
+							balancingFactor *= exp(log(totalPotential) * orgAlphaCopy);
+					}
+
+					if (res.orgZone_Demand)
+						res.orgZone_Demand[orgZone] = balancingFactor; // M_ix == v_i * D_i^alpha
+					balancingFactor /= totalPotential; // M_ix / D_i == v_i * D_i^(alpha-1)
+
+					if (flags(df & DijkstraFlag::Calc_pot_ij))
+					{
+						Float64 sumImp = 0.0, sumLinkAttr = 0.0;
+						for (ZoneType j = 0; j != zonalResultCount; ++j)
 						{
-							Float64 sumImp = 0.0, sumLinkAttr = 0.0;
-							for (ZoneType j = 0; j != zonalResultCount; ++j)
+							pot_ij[j] *= balancingFactor; // v_i * D_i^(alpha-1) * t_ij
+
+							ZoneType dstZone = nzc.Res2DstZone(j);
+							assert(dstZone < ni.nrDstZones);
+							assert(!flags(df & DijkstraFlag::SparseResult) || nzc.IsConnected(dstZone));
+							assert(nzc.IsConnected(dstZone) || pot_ij.empty() || (pot_ij[j] == 0));
+
+							if (res.dstZone_Factor)
 							{
-								pot_ij[j] *= balancingFactor; // v_i * D_i^(alpha-1) * t_ij
+								assert(!pot_ij.empty());
 
-								ZoneType dstZone = nzc.Res2DstZone(j);
-								assert(dstZone < ni.nrDstZones);
-								assert(!flags(df & DijkstraFlag::SparseResult) || nzc.IsConnected(dstZone));
-								assert(nzc.IsConnected(dstZone) || pot_ij.empty() || (pot_ij[j] == 0));
-
-								if (res.dstZone_Factor)
+								leveled_critical_section::scoped_lock lock(writeBlocks.dstFactor);
+								res.dstZone_Factor[dstZone] += pot_ij[j];
+							}
+							if (res.dstZone_Supply || (flags(df & (DijkstraFlag::ProdLinkFlow | DijkstraFlag::ProdOrgSumImp | DijkstraFlag::ProdOrgSumLinkAttr))))
+							{
+								assert(!pot_ij.empty());
+								if (tgDstMass)
+									pot_ij[j] *= tgDstMass[tdDstMassHasVoidDomain ? 0 : dstZone];  // M_ij == v_i * D_i^(alpha-1) * w_j * t_ij
+								if (res.dstZone_Supply)
 								{
-									assert(!pot_ij.empty());
-
-									leveled_critical_section::scoped_lock lock(writeBlocks.dstFactor);
-									res.dstZone_Factor[dstZone] += pot_ij[j];
-								}
-								if (res.dstZone_Supply || (flags(df & (DijkstraFlag::ProdLinkFlow | DijkstraFlag::ProdOrgSumImp | DijkstraFlag::ProdOrgSumLinkAttr))))
-								{
-									assert(!pot_ij.empty());
-									if (tgDstMass)
-										pot_ij[j] *= tgDstMass[tdDstMassHasVoidDomain ? 0 : dstZone];  // M_ij == v_i * D_i^(alpha-1) * w_j * t_ij
-									if (res.dstZone_Supply)
-									{
-										leveled_critical_section::scoped_lock lock(writeBlocks.dstSupply);
-										res.dstZone_Supply[dstZone] += pot_ij[j];
-									}
-								}
-
-								if (!flags(df & (DijkstraFlag::ProdOrgSumImp | DijkstraFlag::ProdOrgSumLinkAttr)))
-									continue;
-
-								NodeType node = nzc.DstZone2EndNode(dstZone);
-								if (!IsDefined(node))
-									continue;
-
-								if (res.orgZone_SumImp)
-								{
-									assert(d_vj);
-									Float64 impedance = d_vj[node];
-									sumImp += impedance * pot_ij[j];
-								}
-								if (res.orgZone_SumLinkAttr)
-								{
-									assert(la_vj);
-									Float64 linkAttr = la_vj[node];
-									sumLinkAttr += linkAttr * pot_ij[j];
+									leveled_critical_section::scoped_lock lock(writeBlocks.dstSupply);
+									res.dstZone_Supply[dstZone] += pot_ij[j];
 								}
 							}
+
+							if (!flags(df & (DijkstraFlag::ProdOrgSumImp | DijkstraFlag::ProdOrgSumLinkAttr)))
+								continue;
+
+							NodeType node = nzc.DstZone2EndNode(dstZone);
+							if (!IsDefined(node))
+								continue;
+
 							if (res.orgZone_SumImp)
-								res.orgZone_SumImp[orgZone] = sumImp;
+							{
+								assert(d_vj);
+								Float64 impedance = d_vj[node];
+								sumImp += impedance * pot_ij[j];
+							}
 							if (res.orgZone_SumLinkAttr)
-								res.orgZone_SumLinkAttr[orgZone] = sumLinkAttr;
+							{
+								assert(la_vj);
+								Float64 linkAttr = la_vj[node];
+								sumLinkAttr += linkAttr * pot_ij[j];
+							}
 						}
-					}
-					else
-					{
-						if (res.orgZone_Demand)
-							res.orgZone_Demand[orgZone] = 0.0; // v_i * D_i^alpha with D_i is zero.
 						if (res.orgZone_SumImp)
-							res.orgZone_SumImp[orgZone] = 0.0;
+							res.orgZone_SumImp[orgZone] = sumImp;
 						if (res.orgZone_SumLinkAttr)
-							res.orgZone_SumLinkAttr[orgZone] = 0.0;
-					}
-					// ===================== Write Link_flow, WARNING: nodeALW is reused and overwritten.
-					if (res.LinkFlow && totalPotential)
-					{
-						assert(dh.m_TraceBackDataPtr);
-						assert(nodeALW);
-						assert(tr.IsUsed());
-						assert(flags(df & DijkstraFlag::Interaction));
-
-						// init nodeALW for used nodes to zero.
-						for (ZoneType startPointIndex = ni.orgZone_startPoint_inv.FirstOrSame(orgZone); IsDefined(startPointIndex); startPointIndex = ni.orgZone_startPoint_inv.NextOrNone(startPointIndex))
-						{
-							NodeType currNode = ni.startPoints.Node_rel ? ni.startPoints.Node_rel[startPointIndex] : startPointIndex;
-							dms_assert(currNode < ni.nrV);
-
-							treenode_pointer currNodePtr = &tr.m_TreeNodes[currNode];
-
-							for (currNodePtr = tr.MostDown(currNodePtr); currNodePtr->GetParent(); currNodePtr = tr.WalkDepthFirst_BottomUp(currNodePtr))
-							{
-								assert(currNodePtr && currNodePtr->GetParent());
-								currNode = tr.NrOfNode(currNodePtr);
-								assert(currNode < ni.nrV);
-
-								nodeALW[currNode] = 0;
-							}
-						}
-
-						for (ZoneType startPointIndex = ni.orgZone_startPoint_inv.FirstOrSame(orgZone); IsDefined(startPointIndex); startPointIndex = ni.orgZone_startPoint_inv.NextOrNone(startPointIndex))
-						{
-							NodeType currNode = ni.startPoints.Node_rel ? ni.startPoints.Node_rel[startPointIndex] : startPointIndex;
-							assert(currNode < ni.nrV);
-
-							treenode_pointer currNodePtr = &tr.m_TreeNodes[currNode];
-
-							for (currNodePtr = tr.MostDown(currNodePtr); currNodePtr->GetParent(); currNodePtr = tr.WalkDepthFirst_BottomUp(currNodePtr))
-							{
-								assert(currNodePtr && currNodePtr->GetParent());
-								currNode = tr.NrOfNode(currNodePtr);
-								assert(currNode < ni.nrV);
-
-								MassType* flowPtr = &nodeALW[currNode];
-								ZoneType y = node_endPoint_inv.FirstOrSame(currNode);
-								while (IsDefined(y))
-								{
-									ZoneType j = nzc.Y2Res(y);
-									if (IsDefined(j))
-										*flowPtr += pot_ij[j];
-									y = node_endPoint_inv.NextOrNone(y);
-								}
-								NodeType prevNode = tr.NrOfNode(currNodePtr->GetParent());
-								assert(prevNode < ni.nrV);
-								LinkType currLink = dh.m_TraceBackDataPtr[currNode];
-								assert(currLink < ni.nrE);
-
-								MassType flow = *flowPtr;
-								nodeALW[prevNode] += flow;
-
-								resLinkFlow[currLink] += flow;
-							}
-						}
+							res.orgZone_SumLinkAttr[orgZone] = sumLinkAttr;
 					}
 				}
-
-				// ===================== Write resulting Link Set per found OD pair
-			afterInteraction:
-
-				if (res.od_LS)
+				else
+				{
+					if (res.orgZone_Demand)
+						res.orgZone_Demand[orgZone] = 0.0; // v_i * D_i^alpha with D_i is zero.
+					if (res.orgZone_SumImp)
+						res.orgZone_SumImp[orgZone] = 0.0;
+					if (res.orgZone_SumLinkAttr)
+						res.orgZone_SumLinkAttr[orgZone] = 0.0;
+				}
+				// ===================== Write Link_flow, WARNING: nodeALW is reused and overwritten.
+				if (res.LinkFlow && totalPotential)
 				{
 					assert(dh.m_TraceBackDataPtr);
+					assert(nodeALW);
+					assert(tr.IsUsed());
+					assert(flags(df & DijkstraFlag::Interaction));
 
-					// 1st pass to count the number of links per destination.
-					for (ZoneType j = 0; j != zonalResultCount; ++j)
+					// init nodeALW for used nodes to zero.
+					for (ZoneType startPointIndex = ni.orgZone_startPoint_inv.FirstOrSame(orgZone); IsDefined(startPointIndex); startPointIndex = ni.orgZone_startPoint_inv.NextOrNone(startPointIndex))
 					{
-						NodeType node = nzc.Res2EndNode(j);
-						assert(IsDefined(node) || nzc.IsDense());
-						assert(!IsDefined(node) || !dh.IsStale(node)); // guaranteed by IsConnected(zoneId);
-						if (!IsDefined(node))
-							continue;
+						NodeType currNode = ni.startPoints.Node_rel ? ni.startPoints.Node_rel[startPointIndex] : startPointIndex;
+						dms_assert(currNode < ni.nrV);
 
-						// focus on node that has destination j
-						// 1st pass to count the number of links for this destination.
-						SizeT linkCount = 0;
-						while (true)
+						treenode_pointer currNodePtr = &tr.m_TreeNodes[currNode];
+
+						for (currNodePtr = tr.MostDown(currNodePtr); currNodePtr->GetParent(); currNodePtr = tr.WalkDepthFirst_BottomUp(currNodePtr))
 						{
-							assert(node < ni.nrV);
-							LinkType currLink = dh.m_TraceBackDataPtr[node];
-							assert(!dh.IsStale(node));
-							if (!IsDefined(currLink))
-								break;
+							assert(currNodePtr && currNodePtr->GetParent());
+							currNode = tr.NrOfNode(currNodePtr);
+							assert(currNode < ni.nrV);
+
+							nodeALW[currNode] = 0;
+						}
+					}
+
+					for (ZoneType startPointIndex = ni.orgZone_startPoint_inv.FirstOrSame(orgZone); IsDefined(startPointIndex); startPointIndex = ni.orgZone_startPoint_inv.NextOrNone(startPointIndex))
+					{
+						NodeType currNode = ni.startPoints.Node_rel ? ni.startPoints.Node_rel[startPointIndex] : startPointIndex;
+						assert(currNode < ni.nrV);
+
+						treenode_pointer currNodePtr = &tr.m_TreeNodes[currNode];
+
+						for (currNodePtr = tr.MostDown(currNodePtr); currNodePtr->GetParent(); currNodePtr = tr.WalkDepthFirst_BottomUp(currNodePtr))
+						{
+							assert(currNodePtr && currNodePtr->GetParent());
+							currNode = tr.NrOfNode(currNodePtr);
+							assert(currNode < ni.nrV);
+
+							MassType* flowPtr = &nodeALW[currNode];
+							ZoneType y = node_endPoint_inv.FirstOrSame(currNode);
+							while (IsDefined(y))
+							{
+								ZoneType j = nzc.Y2Res(y);
+								if (IsDefined(j))
+									*flowPtr += pot_ij[j];
+								y = node_endPoint_inv.NextOrNone(y);
+							}
+							NodeType prevNode = tr.NrOfNode(currNodePtr->GetParent());
+							assert(prevNode < ni.nrV);
+							LinkType currLink = dh.m_TraceBackDataPtr[currNode];
 							assert(currLink < ni.nrE);
 
-							if (graph.linkF2Data[currLink] == node)
-								node = graph.linkF1Data[currLink];
-							else
-							{
-								assert(graph.linkF1Data[currLink] == node);
-								node = graph.linkF2Data[currLink];
-							}
-							assert(IsDefined(node));
+							MassType flow = *flowPtr;
+							nodeALW[prevNode] += flow;
 
-							++linkCount;
+							resLinkFlow[currLink] += flow;
 						}
-
-						
-						// 2nd pass: lock and write to resLinkSetRef for this destination
-						node = nzc.Res2EndNode(j);
-
-						leveled_critical_section::scoped_lock lock(writeBlocks.od_LS);
-						auto resLinkSetRef = res.od_LS[resultCountBase + j];
-
-						assert(resLinkSetRef.size() == 0);
-						resLinkSetRef.resize_uninitialized(linkCount);
-						auto resLinkSetIter = resLinkSetRef.begin();
-						while (true)
-						{
-							assert(node < ni.nrV);
-							LinkType currLink = dh.m_TraceBackDataPtr[node];
-							assert(!dh.IsStale(node));
-							if (!IsDefined(currLink))
-								break;
-							assert(currLink < ni.nrE);
-
-							if (graph.linkF2Data[currLink] == node)
-								node = graph.linkF1Data[currLink];
-							else
-							{
-								assert(graph.linkF1Data[currLink] == node);
-								node = graph.linkF2Data[currLink];
-							}
-							assert(IsDefined(node));
-
-							*resLinkSetIter++ = currLink;
-						}
-						assert(resLinkSetIter == resLinkSetRef.end());
 					}
 				}
-
-				// ===================== report nrOrgZones every 5 seconds
-				zoneCount++;
-				if (processTimer.PassedSecs())
-					reportF(SeverityTypeID::ST_MajorTrace, "impedance_matrix %s %s of %s sources: resulted in %s od-pairs"
-						, actionMsg
-						, AsString(zoneCount), AsString(ni.nrOrgZones), AsString(resultCount));
-				&returnTokenOnExit;
 			}
-		));
-	}
-	tasks.wait(); // Wait for all tasks to finish.
+
+			// ===================== Write resulting Link Set per found OD pair
+		afterInteraction:
+
+			if (res.od_LS)
+			{
+				assert(dh.m_TraceBackDataPtr);
+
+				// 1st pass to count the number of links per destination.
+				for (ZoneType j = 0; j != zonalResultCount; ++j)
+				{
+					NodeType node = nzc.Res2EndNode(j);
+					assert(IsDefined(node) || nzc.IsDense());
+					assert(!IsDefined(node) || !dh.IsStale(node)); // guaranteed by IsConnected(zoneId);
+					if (!IsDefined(node))
+						continue;
+
+					// focus on node that has destination j
+					// 1st pass to count the number of links for this destination.
+					SizeT linkCount = 0;
+					while (true)
+					{
+						assert(node < ni.nrV);
+						LinkType currLink = dh.m_TraceBackDataPtr[node];
+						assert(!dh.IsStale(node));
+						if (!IsDefined(currLink))
+							break;
+						assert(currLink < ni.nrE);
+
+						if (graph.linkF2Data[currLink] == node)
+							node = graph.linkF1Data[currLink];
+						else
+						{
+							assert(graph.linkF1Data[currLink] == node);
+							node = graph.linkF2Data[currLink];
+						}
+						assert(IsDefined(node));
+
+						++linkCount;
+					}
+
+
+					// 2nd pass: lock and write to resLinkSetRef for this destination
+					node = nzc.Res2EndNode(j);
+
+					leveled_critical_section::scoped_lock lock(writeBlocks.od_LS);
+					auto resLinkSetRef = res.od_LS[resultCountBase + j];
+
+					assert(resLinkSetRef.size() == 0);
+					resLinkSetRef.resize_uninitialized(linkCount);
+					auto resLinkSetIter = resLinkSetRef.begin();
+					while (true)
+					{
+						assert(node < ni.nrV);
+						LinkType currLink = dh.m_TraceBackDataPtr[node];
+						assert(!dh.IsStale(node));
+						if (!IsDefined(currLink))
+							break;
+						assert(currLink < ni.nrE);
+
+						if (graph.linkF2Data[currLink] == node)
+							node = graph.linkF1Data[currLink];
+						else
+						{
+							assert(graph.linkF1Data[currLink] == node);
+							node = graph.linkF2Data[currLink];
+						}
+						assert(IsDefined(node));
+
+						*resLinkSetIter++ = currLink;
+					}
+					assert(resLinkSetIter == resLinkSetRef.end());
+				}
+			}
+
+			// ===================== report nrOrgZones every 5 seconds
+			zoneCount++;
+			if (processTimer.PassedSecs())
+				reportF(SeverityTypeID::ST_MajorTrace, "impedance_matrix %s %s of %s sources: resulted in %s od-pairs"
+					, actionMsg
+					, AsString(zoneCount), AsString(ni.nrOrgZones), AsString(resultCount));
+		};
+
+	// ===================== start looping through all orgZones
+	parallel_for<ZoneType>(0, ni.nrOrgZones, orgZoneTask);
+
 	if (res.LinkFlow)
 		resLinkFlowC.combine_each(
 			[&res](std::vector<MassType>& localLinkFlow){

@@ -110,8 +110,6 @@ auto GetNextFenceNumber() -> fence_number
 	return ++s_SchedulingFenceNumber;
 }
 
-static Int32 s_nrVCPUs = GetNrVCPUs();
-
 //using dep_link = Point<OperationContext * > ;
 
 #if defined(MG_DEBUG)
@@ -322,7 +320,7 @@ garbage_t runOperationContexts()
 		auto currContext = scheduledContexts.begin();
 		bool isLowOnFreeRamTested = false;
 
-		for (; s_NrRunningOperations < s_nrVCPUs && currContext != scheduledContexts.end(); ++currContext)
+		for (; currContext != scheduledContexts.end(); ++currContext)
 		{
 			if (s_NrRunningOperations >= 1 && !isLowOnFreeRamTested) // HEURISTIC: only allow more than 1 operations when RAM isn't being exausted
 			{
@@ -331,35 +329,40 @@ garbage_t runOperationContexts()
 				isLowOnFreeRamTested = true;
 			}
 			auto operContext = currContext->lock();
-			if (operContext)
+			if (!operContext)
+				continue;
+
+			cancelGarbage |= operContext->shared_from_this(); // copy shared_ptr into container for destruction consideration outside current critical section
+			assert(operContext->m_Status >= task_status::scheduled);
+			assert(operContext->m_FenceNumber <= s_CurrActiveFenceNumber);
+			if (operContext->m_Status < task_status::activated)
 			{
-				cancelGarbage |= operContext->shared_from_this(); // copy shared_ptr into container for destruction consideration outside current critical section
-				assert(operContext->m_Status >= task_status::scheduled);
-				assert(operContext->m_FenceNumber <= s_CurrActiveFenceNumber);
-				if (operContext->m_Status < task_status::activated)
+				assert(operContext->m_TaskFunc);
+				if (DSM::IsCancelling())
 				{
-					assert(operContext->m_TaskFunc);
-					if (DSM::IsCancelling())
-					{
-						cancelGarbage |= operContext->separateResources(task_status::cancelled);
-						continue;
-					}
-					auto funcDC = operContext->m_FuncDC;
-					SharedActorInterestPtr resKeeper;
-					if (funcDC)
-						resKeeper = funcDC->GetInterestPtrOrNull();
-					else
-						resKeeper = operContext->GetResult()->GetInterestPtrOrNull();
-
-					if (!resKeeper)
-						continue;
-
-					dms_assert(operContext->m_Status < task_status::activated);
-					dms_assert(operContext->m_TaskFunc);
-
-					operContext->activateTaskImpl(std::move(resKeeper));
-					assert(s_NrRunningOperations >= 0);
+					cancelGarbage |= operContext->separateResources(task_status::cancelled);
+					continue;
 				}
+				auto funcDC = operContext->m_FuncDC;
+				SharedActorInterestPtr resKeeper;
+				if (funcDC)
+					resKeeper = funcDC->GetInterestPtrOrNull();
+				else
+					resKeeper = operContext->GetResult()->GetInterestPtrOrNull();
+
+				if (!resKeeper)
+					continue;
+
+				assert(operContext->m_Status < task_status::activated);
+				assert(operContext->m_TaskFunc);
+
+				// start task
+				if (!operContext->activateTaskImpl(std::move(resKeeper)))
+				{
+					assert(s_NrRunningOperations);
+					break;
+				}
+				assert(s_NrRunningOperations >= 0);
 			}
 		}
 		scheduledContexts.erase(scheduledContexts.begin(), currContext);
@@ -378,7 +381,7 @@ garbage_t runOperationContexts()
 
 static std::atomic<bool> s_RunOperationContextsScheduled = false;
 
-void RunOperationContexts()
+TIC_CALL void RunOperationContexts()
 {
 	s_RunOperationContextsScheduled = false;
 
@@ -387,7 +390,7 @@ void RunOperationContexts()
 	if (s_RunOperationContextsCount)
 		return;
 	
-	std::any receivedGarbage;
+	garbage_t receivedGarbage;
 	leveled_std_section::scoped_lock lock(cs_ThreadMessing);
 	receivedGarbage = runOperationContexts();
 }
@@ -602,7 +605,7 @@ void OperationContext::setTask(dms_task&& newTask)
 	assert(!is_empty(m_Task));
 }
 
-void OperationContext::activateTaskImpl(SharedActorInterestPtr&& resKeeper)
+bool OperationContext::activateTaskImpl(SharedActorInterestPtr&& resKeeper)
 {
 	assert(!cs_ThreadMessing.try_lock());
 
@@ -611,7 +614,7 @@ void OperationContext::activateTaskImpl(SharedActorInterestPtr&& resKeeper)
 	assert(m_TaskFunc);
 
 	if (!getUniqueLicenseToRun())
-		return;
+		return m_Status >= task_status::activated || !m_TaskFunc;
 
 	m_ResKeeper = std::move(resKeeper);
 
@@ -625,9 +628,11 @@ void OperationContext::activateTaskImpl(SharedActorInterestPtr&& resKeeper)
 			self->safe_run_caller();
 			assert(self->m_FenceNumber <= s_CurrActiveFenceNumber);
 		}
+		s_MtSemaphore.release();
 	};
 
 	setTask(dms_task(selfCaller));
+	return true;
 }
 
 bool OperationContext::getUniqueLicenseToRun()
@@ -642,6 +647,9 @@ bool OperationContext::getUniqueLicenseToRun()
 
 	dms_assert(!IsRunningOperation(m_Status));
 	assert(s_NrRunningOperations >= 0);
+
+	if (!s_MtSemaphore.try_acquire())
+		return false;
 
 	m_Status = task_status::activated;
 	++s_NrRunningOperations;

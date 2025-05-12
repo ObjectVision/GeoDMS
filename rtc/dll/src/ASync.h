@@ -14,24 +14,32 @@
 #include "utl/scoped_exit.h"
 
 #include <future>
+#include <semaphore>
 
-RTC_CALL std::atomic<UInt32>& throttle_counter();
-RTC_CALL UInt32 GetNrVCPUs();
+//RTC_CALL UInt32 GetNrVCPUs();
+RTC_CALL extern std::counting_semaphore<> s_MtSemaphore;
+
 
 template <typename Functor>
-auto throttled_async(Functor f) -> std::future<decltype(f())>
+auto throttled_async(Functor&& f) -> std::future<std::invoke_result_t<Functor>>
 {
-	throttle_counter()++;
-	if (throttle_counter() <= GetNrVCPUs() && !IsLowOnFreeRAM() && IsMultiThreaded1())
-		return std::async(std::launch::async, [f]
+	if (IsMultiThreaded1() && !IsLowOnFreeRAM())
+		if (s_MtSemaphore.try_acquire())
+		return std::async(std::launch::async, [fn = std::forward<Functor>(f)]
 		{ 
-			auto x = make_scoped_exit([] {throttle_counter()--;  });  
-			return f();
+			auto x = make_scoped_exit([] {s_MtSemaphore.release(); });
+			return fn();
 		});
-	throttle_counter()--;
 
-	std::promise<decltype(f())> p;
-	p.set_value(f()); // don't be lazy and don't trash.
+	using R = std::invoke_result_t<Functor>;
+	std::promise<R> p;
+	if constexpr (std::is_void_v<R>)
+	{
+		f();
+		p.set_value();
+	}
+	else
+		p.set_value(f()); // don't be lazy and don't trash.
 	return p.get_future();
 }
 

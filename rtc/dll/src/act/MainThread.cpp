@@ -414,12 +414,6 @@ RTC_CALL void WakeUpJoiners()
 	wakeUpJoiners();
 }
 
-std::atomic<UInt32>& throttle_counter()
-{
-	static std::atomic<UInt32> the_counter;
-	return the_counter;
-}
-
 UInt32 GetNrVCPUs()
 {
 	auto nrVCPUs = std::thread::hardware_concurrency();
@@ -427,6 +421,8 @@ UInt32 GetNrVCPUs()
 		return 1;
 	return nrVCPUs;
 }
+
+RTC_CALL std::counting_semaphore<> s_MtSemaphore{ GetNrVCPUs() };
 
 RTC_CALL UInt32 MaxConcurrentTreads()
 {
