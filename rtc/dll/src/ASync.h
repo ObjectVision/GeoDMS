@@ -15,23 +15,46 @@
 
 #include <future>
 #include <semaphore>
+#include "ppl.h"
 
-//RTC_CALL UInt32 GetNrVCPUs();
 RTC_CALL extern std::counting_semaphore<> s_MtSemaphore;
 
 
-template <typename Functor>
-auto throttled_async(Functor&& f) -> std::future<std::invoke_result_t<Functor>>
-{
-	if (IsMultiThreaded1() && !IsLowOnFreeRAM())
-		if (s_MtSemaphore.try_acquire())
-		return std::async(std::launch::async, [fn = std::forward<Functor>(f)]
-		{ 
-			auto x = make_scoped_exit([] {s_MtSemaphore.release(); });
-			return fn();
-		});
 
+template <typename Functor>
+auto throttled_async(Concurrency::task_group& gr, Functor&& f) -> std::future<std::invoke_result_t<Functor>>
+{
 	using R = std::invoke_result_t<Functor>;
+
+	if (IsMultiThreaded1() && !IsLowOnFreeRAM() && s_MtSemaphore.try_acquire())
+		{
+//			return std::async(std::launch::async, [fn = std::forward<Functor>(f)]
+		auto p = std::make_shared<std::promise<R>>();
+			gr.run(
+				[p, f = std::forward<Functor>(f)] ()
+				{
+					try {
+						auto x = make_scoped_exit([] {s_MtSemaphore.release(); });
+						if constexpr (std::is_void_v<R>)
+						{
+							f();
+							p->set_value();
+						}
+						else
+							p->set_value(f());
+					}
+					catch (Concurrency::task_canceled&)
+					{
+						throw;
+					}
+					catch (...) {
+						p->set_exception(std::current_exception());
+					}
+				}
+			);
+			return p->get_future();
+		}
+
 	std::promise<R> p;
 	if constexpr (std::is_void_v<R>)
 	{
@@ -40,6 +63,7 @@ auto throttled_async(Functor&& f) -> std::future<std::invoke_result_t<Functor>>
 	}
 	else
 		p.set_value(f()); // don't be lazy and don't trash.
+
 	return p.get_future();
 }
 

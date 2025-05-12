@@ -951,8 +951,11 @@ task_status OperationContext::JoinSupplOrSuspendTrigger()
 			continue;
 
 		const TreeItem* supplResult = oc->GetResult();
-		dms_assert(supplResult); 
+		assert(supplResult); 
 		dms_assert(oc->GetStatus() >= task_status::scheduled || CheckDataReady(supplResult) || supplResult->WasFailed(FR_Data) || !supplResult->GetInterestCount());
+		if (SuspendTrigger::DidSuspend())
+			return task_status::suspended;
+
 		task_status ocStatus = oc->Join();
 		dms_assert(ocStatus > task_status::running);
 		dms_assert(CheckDataReady(supplResult->GetCurrUltimateItem()) || supplResult->WasFailed(FR_Data) || !supplResult->GetInterestCount() || SuspendTrigger::DidSuspend());

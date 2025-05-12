@@ -373,17 +373,36 @@ void ProcessRequestedCmdLineFeedback(char* argMsg) {
 }
 
 #include "VersionComponent.h"
-
 static VersionComponent s_QT("qt " QT_VERSION_STR);
 
+#include "ppl.h"
+#include "parallel.h"
+
+int main1(int argc, char* argv[]) {
+    DMS_SE_CALL_BEGIN
+        return main_without_SE_handler(argc, argv);
+    DMS_SE_CALL_END
+}
 
 int main(int argc, char* argv[]) {
     if ((argc > 1) && (argv[1][0] == '/') && (argv[1][1] == 'F')) {
         ProcessRequestedCmdLineFeedback(argv[1] + 2 );
         return 0;
     }
+  
+    // 1) build policy
+    concurrency::SchedulerPolicy policy(2, concurrency::MinConcurrency, GetNrVCPUs(), concurrency::MaxConcurrency, GetNrVCPUs());
 
-    DMS_SE_CALL_BEGIN
-        return main_without_SE_handler(argc, argv);
-    DMS_SE_CALL_END
+    // install that policy as the DEFAULT scheduler’s policy --
+    // must do this *before* any parallel work runs
+    concurrency::Scheduler::SetDefaultSchedulerPolicy(policy);
+    // 2) attach a new scheduler to THIS context
+//	concurrency::CurrentScheduler::Create(policy);
+
+    auto result = main1(argc, argv);
+
+    // 4) when you’re done, detach so the default scheduler resumes
+//	concurrency::CurrentScheduler::Detach();
+
+    return result;
 }

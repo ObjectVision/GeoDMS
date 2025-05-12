@@ -309,12 +309,14 @@ struct OperAccPartUniBuffered : FuncOperAccPartUni<TAcc1Func, OperAccPartUniWith
 			auto rt = availableThreads / 2;
 			assert(m > t);
 			assert(m < te);
-			auto futureSecondHalfBuffer = throttled_async([this, &pdi, m, te, rt]()
+			Concurrency::task_group gr;
+			auto futureSecondHalfBuffer = throttled_async(gr, [this, &pdi, m, te, rt]()
 				{
 					return AggregateTiles(pdi, m, te, rt);
 				});
 			auto firstHalfBuffer = AggregateTiles(pdi, t, m, availableThreads - rt);
 
+			gr.wait();
 			auto secondHalfBuffer = futureSecondHalfBuffer.get();
 			auto secondHalfBufferIterator = secondHalfBuffer.begin();
 
@@ -383,7 +385,8 @@ struct OperAccPartUniDirect : FuncOperAccPartUni<TAcc1Func, OperAccPartUniWithCF
 			assert(m > t);
 			assert(m < te);
 
-			auto futureSecondHalf = throttled_async([this, resData, &pdi, m, te, rt]()
+			concurrency::task_group gr;
+			auto futureSecondHalf = throttled_async(gr, [this, resData, &pdi, m, te, rt]()
 				-> result_container_t
 				{
 					result_container_t secondHalf(resData.size());
@@ -394,6 +397,8 @@ struct OperAccPartUniDirect : FuncOperAccPartUni<TAcc1Func, OperAccPartUniWithCF
 				});
 
 			AggregateTiles(resData, pdi, t, m, availableThreads - rt);
+			gr.wait();
+
 			auto secondHalf = futureSecondHalf.get();
 			auto secondHalfBufferIterator = secondHalf.begin();
 

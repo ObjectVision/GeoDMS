@@ -422,7 +422,7 @@ UInt32 GetNrVCPUs()
 	return nrVCPUs;
 }
 
-RTC_CALL std::counting_semaphore<> s_MtSemaphore{ GetNrVCPUs() };
+RTC_CALL std::counting_semaphore<> s_MtSemaphore{ GetNrVCPUs() * 1000 };
 
 RTC_CALL UInt32 MaxConcurrentTreads()
 {
