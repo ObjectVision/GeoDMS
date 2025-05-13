@@ -324,7 +324,7 @@ struct FenceContainerOperator : BinaryOperator
 				{
 					try {
 						if (s_CurrBlockedFenceNumber)
-							throwErrorF("FenceContainer", "Invalid Recursion calling %#%d s from updating %s for %s#%d"
+							throwErrorF("FenceContainer", "Invalid Recursion calling %s#%d from updating %s for %s#%d"
 								, resultRoot->GetFullName(), resultFenceNumber
 								, s_CurrBlockedFenceItem->GetFullName()
 								, s_CurrFenceContainer->GetFullName(), s_CurrBlockedFenceNumber
