@@ -46,8 +46,9 @@ struct OperAccTotUniNum : OperAccTotUni<TAcc1Func>
 					return AggregateTiles(values_fta, m, te, rt);
 				});
 			auto firstHalfValue = AggregateTiles(values_fta, t, m, availableThreads - rt);
-			auto secondHalfValue  = futureSecondHalfValue.get();
+
 			gr.wait();
+			auto secondHalfValue  = futureSecondHalfValue.get();
 
 			this->m_Acc1Func.CombineValues(firstHalfValue, secondHalfValue);
 			return firstHalfValue;
