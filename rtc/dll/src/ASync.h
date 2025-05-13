@@ -1,4 +1,4 @@
-// Copyright (C) 1998-2024 Object Vision b.v. 
+﻿// Copyright (C) 1998-2024 Object Vision b.v. 
 // License: GNU GPL 3
 /////////////////////////////////////////////////////////////////////////////
 
@@ -18,72 +18,77 @@
 #include "ppl.h"
 
 template <typename T>
-struct add_fake_copy_constructor
+class add_fake_copy_constructor
 {
-	mutable T m_data;
-	mutable bool m_hasValue;
-/*
-	template <typename... Args>
-	add_fake_copy_constructor(Args&&... args)
-		: T(std::forward<Args>(args)...)
-	{}
-	*/
-	add_fake_copy_constructor()
-		: m_data(T()), m_hasValue(false)
-	{}
+    mutable T     m_data;
+    mutable bool  m_hasValue = false;
 
-	add_fake_copy_constructor(T&& org)
-		: m_data(std::move(org)), m_hasValue(true)
-	{}
+public:
+    // Default
+    add_fake_copy_constructor() = default;
 
-	/*
-		add_fake_copy_constructor(const T& rhs)
-			: T(std::move(const_cast<T&>(rhs))), m_hasValue(true)
-		{}
-	*/
+    // Construct from an rvalue T
+    add_fake_copy_constructor(T&& v) 
+        noexcept(std::is_nothrow_move_constructible_v<T>)
+        : m_data(std::move(v)), m_hasValue(true)
+    {}
 
-	add_fake_copy_constructor(const add_fake_copy_constructor<T>& rhs)
-		: add_fake_copy_constructor<T>(rhs.get())
-	{
-	}
+    // “Fake” copy‐ctor
+    add_fake_copy_constructor(const add_fake_copy_constructor& rhs)
+        noexcept(std::is_nothrow_move_constructible_v<T>)
+        : m_data(std::move(rhs.m_data)), m_hasValue(rhs.m_hasValue)
+    {
+        rhs.m_hasValue = false;
+    }
 
-	//	add_fake_copy_constructor(const add_fake_copy_constructor<T>& rhs)
-	//		: add_fake_copy_constructor<T>(std::move<add_fake_copy_constructor<T>>(const_cast<add_fake_copy_constructor<T>&>(rhs)))
-	//	{}
-
-	add_fake_copy_constructor(add_fake_copy_constructor<T>&& rhs)
-		: add_fake_copy_constructor<T>(rhs.get())
-	{
-	}
-
-	void operator =(const add_fake_copy_constructor<T>& rhs)
-	{
-		m_data = std::move(rhs.m_data); // value or zombie, take it anyways
-		m_hasValue = rhs.m_hasValue;
-		rhs.m_hasValue = false; // make sure the rhs is known as a zombie
-	}
-	void operator =(add_fake_copy_constructor<T>&& rhs)
-	{
-		m_data = std::move(rhs.m_data); // value or zombie, take it anyways
-		m_hasValue = rhs.m_hasValue;
-		rhs.m_hasValue = false; // make sure the rhs is known as a zombie
-	}
-
-	T get() const
-	{
-		if (!m_hasValue)
-			throw std::runtime_error("Fake copy constructor: object not initialized");
-		m_hasValue = false; // make sure the object is not used again
-		return std::move(m_data);
-	}
-
-	operator T () const
-	{ 
-		return get();
-	}
+    // Move‐ctor
+    add_fake_copy_constructor(add_fake_copy_constructor&& rhs)
+        noexcept(std::is_nothrow_move_constructible_v<T>)
+        : m_data(std::move(rhs.m_data)), m_hasValue(rhs.m_hasValue)
+    {
+        rhs.m_hasValue = false;
+    }
 
 
+    // “Fake” copy‐assign
+    void operator=(const add_fake_copy_constructor& rhs)
+        noexcept(std::is_nothrow_move_assignable_v<T>)
+    {
+        m_data = std::move(rhs.m_data);
+        m_hasValue = rhs.m_hasValue;
+        rhs.m_hasValue = false;
+    }
+
+    //  Move‐assign
+    void operator=(add_fake_copy_constructor&& rhs)
+        noexcept(std::is_nothrow_move_assignable_v<T>)
+    {
+        if (this != &rhs) {
+            m_data = std::move(rhs.m_data); // value or zombie, take it anyways
+            m_hasValue = rhs.m_hasValue;
+            rhs.m_hasValue = false; // make sure the rhs is known as a zombie
+        }
+    }
+
+    // Take out the value (non‐const)
+    T take() const
+    {
+        if (!m_hasValue)
+            throw std::runtime_error("Object not initialized");
+        m_hasValue = false; // make sure the object is not used again
+        return std::move(m_data);
+    }
+
+    // value‐conversion
+    operator T() const
+    {
+        return take();   // reuse your non‐const take()
+    }
+
+    // 10) Bool‐test
+    explicit operator bool() const noexcept { return m_hasValue; }
 };
+
 
 template <typename Functor>
 using future = std::invoke_result_t<Functor>;
