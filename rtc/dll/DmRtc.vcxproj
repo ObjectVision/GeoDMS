@@ -239,7 +239,6 @@
     <ClInclude Include="src\geo\PointOrder.h" />
     <ClInclude Include="src\geo\Range.h" />
     <ClInclude Include="src\geo\RangeIndex.h" />
-    <ClInclude Include="src\geo\RndPoint.h" />
     <ClInclude Include="src\geo\Round.h" />
     <ClInclude Include="src\geo\SelectPoint.h" />
     <ClInclude Include="src\geo\SequenceArray.h" />

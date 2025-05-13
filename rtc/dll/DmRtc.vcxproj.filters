@@ -203,9 +203,6 @@
     <ClInclude Include="src\geo\RangeIndex.h">
       <Filter>Geometry</Filter>
     </ClInclude>
-    <ClInclude Include="src\geo\RndPoint.h">
-      <Filter>Geometry</Filter>
-    </ClInclude>
     <ClInclude Include="src\geo\Round.h">
       <Filter>Geometry</Filter>
     </ClInclude>
