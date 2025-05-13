@@ -285,6 +285,7 @@ void suspendible_task_queue::Process()
 		catch (...)
 		{
 			catchAndReportException();
+			currTask(true); // let this task bell 
 		}
 		assert(!SuspendTrigger::DidSuspend());
 	}
@@ -412,12 +413,6 @@ RTC_CALL void WakeUpJoiners()
 	leveled_critical_section::scoped_lock lockToAvoidHasMainThreadTasksToBeMissed(cs_ThreadMessing);
 
 	wakeUpJoiners();
-}
-
-std::atomic<UInt32>& throttle_counter()
-{
-	static std::atomic<UInt32> the_counter;
-	return the_counter;
 }
 
 UInt32 GetNrVCPUs()

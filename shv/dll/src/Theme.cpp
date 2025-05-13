@@ -573,8 +573,10 @@ ActorVisitState PrepareThemeData(const AbstrDataItem* adi, const Actor* act)
 		return AVS_Ready;
 
 	// first try to commit.
-	if ((adi->SuspendibleUpdate(PS_Committed) == AVS_SuspendedOrFailed) && SuspendTrigger::DidSuspend())
+	adi->SuspendibleUpdate(PS_Committed);
+	if (SuspendTrigger::DidSuspend())
 		return AVS_SuspendedOrFailed;
+
 	if (!adi->WasFailed(FR_Data))
 	{
 

@@ -283,6 +283,8 @@ int main1(int argc, char** argv)
 	return main_with_error_report(argc, argv);
 }
 
+#include "OperationContext.h"
+
 int main(int argc, char** argv)
 {
 	s_argcOrg = argc;
@@ -291,7 +293,13 @@ int main(int argc, char** argv)
 	DMS_Geo_Load();
 	DMS_Clc_Load();
 
-	DMS_SetGlobalCppExceptionTranslator(reportMsg);
+	tg_maintainer manageOperationContextTasks;
 
-	return main1(argc, argv);
+	DMS_SetGlobalCppExceptionTranslator(reportMsg);
+	auto result = main1(argc, argv);
+
+	// 4) when you’re done, detach so the default scheduler resumes
+//	concurrency::CurrentScheduler::Detach();
+
+	return result;
 }

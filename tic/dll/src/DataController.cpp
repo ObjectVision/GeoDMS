@@ -391,11 +391,18 @@ auto DataController::CallCalcResult(Explain::Context* context) const -> FutureDa
 {
 	FutureData resultHolder(this);
 	assert(GetInterestCount());
+	assert(!SuspendTrigger::DidSuspend());
 
 	MakeResult();
+	assert(!SuspendTrigger::DidSuspend());
+
 	auto resultItem = this->GetOld();
 	if (resultItem && resultItem->mc_DC)
+	{
 		resultHolder = resultItem->mc_DC->CallCalcResult(context);
+		assert(!SuspendTrigger::DidSuspend());
+
+	}
 
 	assert(resultHolder);
 	return resultHolder;

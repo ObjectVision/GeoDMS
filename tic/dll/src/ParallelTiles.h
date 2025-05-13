@@ -7,6 +7,7 @@
 #if !defined(__TIC_PARALLELTILES_H)
 #define __TIC_PARALLELTILES_H
 
+#include "ASync.h"
 #include "Parallel.h"
 
 #include "act/MainThread.h"
@@ -30,8 +31,12 @@ TIC_CALL extern std::atomic<UInt32> gd_nrActiveLoops;
 
 #endif // defined(MG_DEBUG)
 
+
+TIC_CALL void RunOperationContexts();
+
+
 template <typename IndexType, typename Func>
-void parallel_for_impl(IndexType first, IndexType last, const Func& func)
+void parallel_for_impl(IndexType first, IndexType last, Func&& func)
 {
 #if defined(MG_DEBUG)
 	StaticMtIncrementalLock<gd_nrActiveLoops> lockLoops;
@@ -40,11 +45,27 @@ void parallel_for_impl(IndexType first, IndexType last, const Func& func)
 	if (first == last)
 		return;
 	if (first + 1 == last)
+	{
 		func(first);
-	else if (IsMultiThreaded1() )
-		Concurrency::parallel_for<IndexType>(first, last, func);
-	else
-		serial_for<IndexType>(first, last, func);
+		return;
+	}
+	if (IsMultiThreaded1() )
+	{
+		concurrency::parallel_for<IndexType>(first, last, std::forward<Func>(func));
+/*
+		concurrency::task_group tasks;
+		for (; first != last; ++first)
+			tasks.run([first, &func] { func(first); }
+			);
+
+		tasks.wait();
+*/
+		if (IsMultiThreaded2())
+			RunOperationContexts();
+
+		return;
+	}
+	serial_for<IndexType>(first, last, std::forward<Func>(func));
 }
 
 template <typename ...Args, typename Func>
@@ -52,7 +73,7 @@ auto CreateTaskWithContext(Func&& func)
 {
 	return [func = std::move(func), currContext = OperationContext::CancelableFrame::CurrActive()](Args&& ...args)->void
 	{
-		dms_assert(!std::uncaught_exceptions());
+		assert(!std::uncaught_exceptions());
 		try {
 			OperationContext::CancelableFrame frame(currContext);
 			if (currContext)

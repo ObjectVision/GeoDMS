@@ -6,7 +6,7 @@ set geodms_rootdir=%cd%
 REM msbuild all22.sln -t:build -p:Configuration=Debug -p:Platform=x64
 
 cd ..\tst\batch
-Call unit.bat D64 off
+Call unit.bat D64 on
 cd %geodms_rootdir%
 echo on
 

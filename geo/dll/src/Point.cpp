@@ -147,8 +147,11 @@ public:
 			, [arg1, arg2](tile_id t) { return prepare_data{ arg1->GetFutureTile(t), arg2->GetFutureTile(t) }; }
 			, [this](sequence_traits<PointType>::seq_t resData, prepare_data futureData)
 			{
-				auto futureTileA = throttled_async([&futureData] { return futureData.first->GetTile();  });
+				concurrency::task_group gr;
+				auto futureTileA = throttled_async(gr, [&futureData] { return futureData.first->GetTile();  });
 				auto tileB = futureData.second->GetTile();
+
+				gr.wait();
 				this->CalcTile(resData, futureTileA.get().get_view(), tileB.get_view());
 			}
 			MG_DEBUG_ALLOCATOR_SRC("Point tile functor")

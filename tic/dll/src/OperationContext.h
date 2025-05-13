@@ -14,22 +14,16 @@
 #include <optional>
 
 
+struct tg_maintainer
+{
+	TIC_CALL tg_maintainer();
+	TIC_CALL ~tg_maintainer();
+};
+
 void WaitForCompletedTaskOrTimeout(std::chrono::milliseconds waitFor = std::chrono::milliseconds(300));
 
 using dms_task = concurrency::task<void>;
 inline bool is_empty(const dms_task& x) { return x == dms_task();  }
-
-template<typename Func>
-auto start_dms_task(Func&& f)
-{
-	return dms_task(std::forward<Func>(f));
-}
-
-template <typename Func>
-auto start_dms_task_with_context(Func&& f)
-{
-	return dms_task(CreateTaskWithContext(std::forward<Func>(f)));
-}
 
 
 enum class task_status {
@@ -79,9 +73,8 @@ struct OperationContext : std::enable_shared_from_this<OperationContext>
 
 	TIC_CALL task_status Schedule(TreeItem* item, const FutureSuppliers& allArgInterest, bool runDirect);
 
-	TIC_CALL dms_task GetTask() const;
 	TIC_CALL task_status OnStart();
-	TIC_CALL void OnSuspend();
+	//REMOVE TIC_CALL void OnSuspend();
 	TIC_CALL void OnException() noexcept;
 	TIC_CALL void OnEnd(task_status status) noexcept;
 	garbage_t onEnd(task_status status) noexcept;
@@ -89,7 +82,7 @@ struct OperationContext : std::enable_shared_from_this<OperationContext>
 	TIC_CALL bool CancelIfNoInterestOrForced(bool forced);
 	bool HandleFail(const TreeItem* item);
 
-	bool IsScheduled() const { task_status status = m_Status; return status > task_status::none && status != task_status::suspended; }
+	bool IsScheduled() const { task_status status = m_Status; return status > task_status::none /*REMOVE && status != task_status::suspended */ ; }
 	bool IsDone() const { return m_Status >= task_status::cancelled; }
 	bool IsCanceled() const { return m_Status == task_status::cancelled; }
 	SharedPtr<const TreeItem> GetResult() const { return m_Result; }
@@ -103,8 +96,7 @@ struct OperationContext : std::enable_shared_from_this<OperationContext>
 //private:
 	bool getUniqueLicenseToRun();
 	task_status TryActivateTaskInline();
-	void setTask(dms_task&& t);
-	void activateTaskImpl(SharedActorInterestPtr&& resKeeper);
+	bool activateTaskImpl(SharedActorInterestPtr&& resKeeper);
 	void releaseRunCount(task_status status);
 	garbage_t separateResources(task_status status);
 
@@ -125,9 +117,6 @@ public:
 	Explain::Context*               m_Context = nullptr;
 	ItemWriteLock                   m_WriteLock;
 	TimeStamp                       m_ActiveTimestamp = -1;
-
-private:
-	dms_task m_Task;
 
 public:
 	fence_number m_FenceNumber;

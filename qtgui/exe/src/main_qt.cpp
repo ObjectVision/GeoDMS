@@ -374,9 +374,15 @@ void ProcessRequestedCmdLineFeedback(char* argMsg) {
 }
 
 #include "VersionComponent.h"
-
 static VersionComponent s_QT("qt " QT_VERSION_STR);
 
+#include "OperationContext.h"
+
+int main1(int argc, char* argv[]) {
+    DMS_SE_CALL_BEGIN
+        return main_without_SE_handler(argc, argv);
+    DMS_SE_CALL_END
+}
 
 int main(int argc, char* argv[]) {
     if ((argc > 1) && (argv[1][0] == '/') && (argv[1][1] == 'F')) {
@@ -384,7 +390,12 @@ int main(int argc, char* argv[]) {
         return 0;
     }
 
-    DMS_SE_CALL_BEGIN
-        return main_without_SE_handler(argc, argv);
-    DMS_SE_CALL_END
+    tg_maintainer manageOperationContextTasks;
+
+    auto result = main1(argc, argv);
+
+    // 4) when you’re done, detach so the default scheduler resumes
+//	concurrency::CurrentScheduler::Detach();
+
+    return result;
 }
