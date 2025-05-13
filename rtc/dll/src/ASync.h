@@ -17,11 +17,17 @@
 #include <semaphore>
 #include "ppl.h"
 
+#if defined(MG_DEBUG)
+#define MG_DEBUG_FAKE_COPY_CONSTRUCTOR
+#endif
+
 template <typename T>
 class add_fake_copy_constructor
 {
     mutable T     m_data;
+#if defined(MG_DEBUG_FAKE_COPY_CONSTRUCTOR)
     mutable bool  m_hasValue = false;
+#endif
 
 public:
     // Default
@@ -30,23 +36,36 @@ public:
     // Construct from an rvalue T
     add_fake_copy_constructor(T&& v) 
         noexcept(std::is_nothrow_move_constructible_v<T>)
-        : m_data(std::move(v)), m_hasValue(true)
+        : m_data(std::move(v))
+#if defined(MG_DEBUG_FAKE_COPY_CONSTRUCTOR)
+        , m_hasValue(true)
+#endif
     {}
 
     // “Fake” copy‐ctor
     add_fake_copy_constructor(const add_fake_copy_constructor& rhs)
         noexcept(std::is_nothrow_move_constructible_v<T>)
-        : m_data(std::move(rhs.m_data)), m_hasValue(rhs.m_hasValue)
+        : m_data(std::move(rhs.m_data))
+#if defined(MG_DEBUG_FAKE_COPY_CONSTRUCTOR)
+        , m_hasValue(rhs.m_hasValue)
+#endif
     {
+#if defined(MG_DEBUG_FAKE_COPY_CONSTRUCTOR)
         rhs.m_hasValue = false;
+#endif
     }
 
     // Move‐ctor
     add_fake_copy_constructor(add_fake_copy_constructor&& rhs)
         noexcept(std::is_nothrow_move_constructible_v<T>)
-        : m_data(std::move(rhs.m_data)), m_hasValue(rhs.m_hasValue)
+        : m_data(std::move(rhs.m_data))
+#if defined(MG_DEBUG_FAKE_COPY_CONSTRUCTOR)
+        , m_hasValue(rhs.m_hasValue)
+#endif
     {
+#if defined(MG_DEBUG_FAKE_COPY_CONSTRUCTOR)
         rhs.m_hasValue = false;
+#endif
     }
 
 
@@ -55,8 +74,10 @@ public:
         noexcept(std::is_nothrow_move_assignable_v<T>)
     {
         m_data = std::move(rhs.m_data);
+#if defined(MG_DEBUG_FAKE_COPY_CONSTRUCTOR)
         m_hasValue = rhs.m_hasValue;
         rhs.m_hasValue = false;
+#endif
     }
 
     //  Move‐assign
@@ -65,8 +86,10 @@ public:
     {
         if (this != &rhs) {
             m_data = std::move(rhs.m_data); // value or zombie, take it anyways
+#if defined(MG_DEBUG_FAKE_COPY_CONSTRUCTOR)
             m_hasValue = rhs.m_hasValue;
             rhs.m_hasValue = false; // make sure the rhs is known as a zombie
+#endif
         }
     }
 
@@ -74,7 +97,9 @@ public:
     T take() const noexcept(std::is_nothrow_move_constructible_v<T>)
     {
         assert(m_hasValue);// throw std::runtime_error("Object not initialized");
+#if defined(MG_DEBUG_FAKE_COPY_CONSTRUCTOR)
         m_hasValue = false; // make sure the object is not used again
+#endif
         return std::move(m_data);
     }
 
@@ -83,9 +108,6 @@ public:
     {
         return take();   // reuse your non‐const take()
     }
-
-    // 10) Bool‐test
-    explicit operator bool() const noexcept { return m_hasValue; }
 };
 
 
