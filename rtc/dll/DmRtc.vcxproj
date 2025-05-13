@@ -62,6 +62,7 @@
     <ClInclude Include="src\act\SupplInterest.h" />
     <ClInclude Include="src\act\waiter.h" />
     <ClInclude Include="src\ASync.h" />
+    <ClInclude Include="src\buildstamp.h" />
     <ClInclude Include="src\cs_lock_map.h" />
     <ClInclude Include="src\dbg\Check.h" />
     <ClInclude Include="src\dbg\CheckPtr.h" />
