@@ -395,8 +395,6 @@ struct FenceContainerOperator : BinaryOperator
 
 			WakeUpJoiners();
 			bellWaiter.get();
-			if (cancel)
-				throw cancel;
 		}
 
 		// check that all sub-items of result-holder are/become up-to-date or uninteresting

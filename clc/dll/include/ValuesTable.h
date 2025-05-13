@@ -360,8 +360,8 @@ auto GetWeededWallCounts_MT(future_tile_array<V>& values_fta, tile_id t, tile_id
 	);
 
 	auto secondHalf = GetWeededWallCounts_MT<V, C>(values_fta, t + m, nrTiles - m, maxPairCount, availableThreads - rt);
-	gr.wait();
 
+	gr.wait();
 	return WeededMergeToLeft(firstHalf.get(), secondHalf, maxPairCount);
 }
 
@@ -403,8 +403,8 @@ auto GetPartitionedWallCounts(future_tile_array<V>& values_fta, const AbstrDataI
 	);
 
 	auto secondHalf = GetPartitionedWallCounts<V, C>(values_fta, indicesItem, part_fta, t + m, nrTiles - m, pCount, valueMustBeDefined);
-	gr.wait();
 
+	gr.wait();
 	return MergeToLeft(firstHalf.get(), secondHalf);
 }
 
@@ -435,6 +435,7 @@ auto GetWallCountsAsArray(WallCountsAsArrayInfo<V>& info, tile_id t, tile_id te,
 				return GetWallCountsAsArray<V, C>(info, m, te, rt);
 			});
 		auto firstHalfValue = GetWallCountsAsArray<V, C>(info, t, m, availableThreads - rt);
+
 		gr.wait();
 		auto secondHalfValue = futureSecondHalfValue.get();
 

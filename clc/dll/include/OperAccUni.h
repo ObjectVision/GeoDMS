@@ -397,9 +397,9 @@ struct OperAccPartUniDirect : FuncOperAccPartUni<TAcc1Func, OperAccPartUniWithCF
 				});
 
 			AggregateTiles(resData, pdi, t, m, availableThreads - rt);
-			gr.wait();
 
-			auto secondHalf = futureSecondHalf.get();
+			gr.wait();
+			result_container_t secondHalf = futureSecondHalf.get();
 			auto secondHalfBufferIterator = secondHalf.begin();
 
 			auto firstHalfBufferIterator = resData.begin(), firstHalfBufferEnd = resData.end();

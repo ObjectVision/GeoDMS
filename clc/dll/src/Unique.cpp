@@ -160,13 +160,13 @@ std::vector<V> GetTileUniqueValues(typename DataArray<V>::locked_cseq_t tileData
 	tile_offset m = size / 2;
 
 	concurrency::task_group gr;
-	std::future<std::vector<V>> firstHalf = throttled_async(gr, [&tileData, index, m, mustBeDefined]() {
+	auto firstHalf = throttled_async(gr, [&tileData, index, m, mustBeDefined]() {
 		return GetTileUniqueValues<V>(tileData, index, m, mustBeDefined);
 		});
 
 	auto secondHalf = GetTileUniqueValues<V>(tileData, index + m, size - m, mustBeDefined);
-	gr.wait();
 
+	gr.wait();
 	return MergeToLeft<V>(std::move(firstHalf.get()), std::move(secondHalf), mustBeDefined);
 }
 
@@ -184,13 +184,13 @@ std::vector<V> GetUniqueWallValues(const DataArray<V>* ado, tile_id t, tile_id n
 	dms_assert(m >= 1);
 
 	concurrency::task_group gr;
-	std::future<std::vector<V>> firstHalf = throttled_async(gr, [ado, t, m, mustBeDefined]() {
+	auto firstHalf = throttled_async(gr, [ado, t, m, mustBeDefined]() {
 		return GetUniqueWallValues<V>(ado, t, m, mustBeDefined);
 		});
 
 	auto secondHalf = GetUniqueWallValues<V>(ado, t + m, nrTiles - m, mustBeDefined);
-	gr.wait();
 
+	gr.wait();
 	return MergeToLeft<V>(firstHalf.get(), std::move(secondHalf), mustBeDefined);
 }
 
