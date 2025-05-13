@@ -285,6 +285,7 @@ void suspendible_task_queue::Process()
 		catch (...)
 		{
 			catchAndReportException();
+			currTask(true); // let this task bell 
 		}
 		assert(!SuspendTrigger::DidSuspend());
 	}

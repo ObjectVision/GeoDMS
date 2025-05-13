@@ -322,55 +322,66 @@ struct FenceContainerOperator : BinaryOperator
 				// work on exporting stuff from main thread
 				if (!mustCancel)
 				{
-					if (s_CurrBlockedFenceNumber)
-						throwErrorF("FenceContainer", "Invalid Recursion calling %#%d s from updating %s for %s#%d"
-							, resultRoot->GetFullName(),  resultFenceNumber
-						,	s_CurrBlockedFenceItem->GetFullName()
-						,	s_CurrFenceContainer->GetFullName(), s_CurrBlockedFenceNumber
-						);
+					try {
+						if (s_CurrBlockedFenceNumber)
+							throwErrorF("FenceContainer", "Invalid Recursion calling %#%d s from updating %s for %s#%d"
+								, resultRoot->GetFullName(), resultFenceNumber
+								, s_CurrBlockedFenceItem->GetFullName()
+								, s_CurrFenceContainer->GetFullName(), s_CurrBlockedFenceNumber
+							);
 
-					tmp_swapper<fence_number> lockFence(s_CurrBlockedFenceNumber, resultFenceNumber);
-					s_CurrFenceContainer = resultRoot;
-					for (; resWalker; resWalker = resultRoot->WalkCurrSubTree(resWalker))
-					{
-						auto resInterestPtr = resWalker->GetInterestPtrOrNull();
-						if (!resInterestPtr)
-							continue;
-
-						auto srcItem = srcContainer->FindItem(resWalker->GetRelativeName(resultRoot));
-						assert(srcItem);
-
-						MG_CHECK(!srcItem->IsCacheItem());
-
-						s_CurrBlockedFenceItem = srcItem.get();
-						if (!srcItem->SuspendibleUpdate(PS_Committed))
+						tmp_swapper<fence_number> lockFence(s_CurrBlockedFenceNumber, resultFenceNumber);
+						s_CurrFenceContainer = resultRoot;
+						for (; resWalker; resWalker = resultRoot->WalkCurrSubTree(resWalker))
 						{
-							if (srcItem->WasFailed())
-								resWalker->Fail(srcItem);
-							if (SuspendTrigger::DidSuspend())
-								return false;
-						}
-						assert(!SuspendTrigger::DidSuspend());
+							auto resInterestPtr = resWalker->GetInterestPtrOrNull();
+							if (!resInterestPtr)
+								continue;
 
-						if (!IsUnit(resWalker) && !IsDataItem(resWalker))
-							continue;
+							auto srcItem = srcContainer->FindItem(resWalker->GetRelativeName(resultRoot));
+							assert(srcItem);
 
-//						assert(resWalker->DoesHaveSupplInterest());
+							MG_CHECK(!srcItem->IsCacheItem());
 
-						auto dc = srcItem->mc_DC;
-						if (dc)
-						{
-							auto dcInterest = dc->GetInterestPtrOrNull();
-							assert(dcInterest); // follows from 
-							if (dcInterest)
+							s_CurrBlockedFenceItem = srcItem.get();
+							if (!srcItem->SuspendibleUpdate(PS_Committed))
 							{
-								auto fd = dc->CallCalcResult();
+								if (srcItem->WasFailed())
+									resWalker->Fail(srcItem);
 								if (SuspendTrigger::DidSuspend())
 									return false;
+							}
+							assert(!SuspendTrigger::DidSuspend());
 
-								futureDataContainer.emplace_back(std::move(resInterestPtr), std::move(fd));
+							if (!IsUnit(resWalker) && !IsDataItem(resWalker))
+								continue;
+
+							//						assert(resWalker->DoesHaveSupplInterest());
+
+							auto dc = srcItem->mc_DC;
+							if (dc)
+							{
+								auto dcInterest = dc->GetInterestPtrOrNull();
+								assert(dcInterest); // follows from 
+								if (dcInterest)
+								{
+									auto fd = dc->CallCalcResult();
+									if (SuspendTrigger::DidSuspend())
+										return false;
+
+									futureDataContainer.emplace_back(std::move(resInterestPtr), std::move(fd));
+								}
 							}
 						}
+					}
+					catch (Concurrency::task_canceled&)
+					{
+						throw;
+					}
+					catch (...)
+					{
+						fenceBell.set_exception(std::current_exception());
+						return true;
 					}
 				}
 				fenceBell.set_value();
@@ -384,6 +395,8 @@ struct FenceContainerOperator : BinaryOperator
 
 			WakeUpJoiners();
 			bellWaiter.get();
+			if (cancel)
+				throw cancel;
 		}
 
 		// check that all sub-items of result-holder are/become up-to-date or uninteresting
