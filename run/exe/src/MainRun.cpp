@@ -283,8 +283,7 @@ int main1(int argc, char** argv)
 	return main_with_error_report(argc, argv);
 }
 
-#include "ppl.h"
-#include "parallel.h"
+#include "OperationContext.h"
 
 int main(int argc, char** argv)
 {
@@ -294,14 +293,7 @@ int main(int argc, char** argv)
 	DMS_Geo_Load();
 	DMS_Clc_Load();
 
-	// 1) build policy
-	concurrency::SchedulerPolicy policy(2, concurrency::MinConcurrency, GetNrVCPUs(), concurrency::MaxConcurrency, GetNrVCPUs());
-
-	// install that policy as the DEFAULT scheduler’s policy --
-	// must do this *before* any parallel work runs
-	concurrency::Scheduler::SetDefaultSchedulerPolicy(policy);
-	// 2) attach a new scheduler to THIS context
-//	concurrency::CurrentScheduler::Create(policy);
+	tg_maintainer manageOperationContextTasks;
 
 	DMS_SetGlobalCppExceptionTranslator(reportMsg);
 	auto result = main1(argc, argv);

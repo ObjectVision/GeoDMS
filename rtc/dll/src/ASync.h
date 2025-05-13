@@ -71,16 +71,15 @@ public:
     }
 
     // Take out the value (non‐const)
-    T take() const
+    T take() const noexcept(std::is_nothrow_move_constructible_v<T>)
     {
-        if (!m_hasValue)
-            throw std::runtime_error("Object not initialized");
+        assert(m_hasValue);// throw std::runtime_error("Object not initialized");
         m_hasValue = false; // make sure the object is not used again
         return std::move(m_data);
     }
 
     // value‐conversion
-    operator T() const
+    operator T() const noexcept(std::is_nothrow_move_constructible_v<T>)
     {
         return take();   // reuse your non‐const take()
     }

@@ -375,8 +375,7 @@ void ProcessRequestedCmdLineFeedback(char* argMsg) {
 #include "VersionComponent.h"
 static VersionComponent s_QT("qt " QT_VERSION_STR);
 
-#include "ppl.h"
-#include "parallel.h"
+#include "OperationContext.h"
 
 int main1(int argc, char* argv[]) {
     DMS_SE_CALL_BEGIN
@@ -389,15 +388,8 @@ int main(int argc, char* argv[]) {
         ProcessRequestedCmdLineFeedback(argv[1] + 2 );
         return 0;
     }
-  
-    // 1) build policy
-    concurrency::SchedulerPolicy policy(2, concurrency::MinConcurrency, GetNrVCPUs(), concurrency::MaxConcurrency, GetNrVCPUs());
 
-    // install that policy as the DEFAULT scheduler’s policy --
-    // must do this *before* any parallel work runs
-    concurrency::Scheduler::SetDefaultSchedulerPolicy(policy);
-    // 2) attach a new scheduler to THIS context
-//	concurrency::CurrentScheduler::Create(policy);
+    tg_maintainer manageOperationContextTasks;
 
     auto result = main1(argc, argv);
 

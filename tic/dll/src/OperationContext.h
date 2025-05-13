@@ -14,6 +14,12 @@
 #include <optional>
 
 
+struct tg_maintainer
+{
+	TIC_CALL tg_maintainer();
+	TIC_CALL ~tg_maintainer();
+};
+
 void WaitForCompletedTaskOrTimeout(std::chrono::milliseconds waitFor = std::chrono::milliseconds(300));
 
 using dms_task = concurrency::task<void>;

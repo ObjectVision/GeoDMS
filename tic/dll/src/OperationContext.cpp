@@ -601,10 +601,36 @@ task_status OperationContext::GetStatus() const
 	return m_Status;
 }
 
+static concurrency::task_group* s_OcTaskGroup = nullptr;
+
+TIC_CALL tg_maintainer::tg_maintainer()
+{
+	// build policy
+	concurrency::SchedulerPolicy policy(2, concurrency::MinConcurrency, GetNrVCPUs(), concurrency::MaxConcurrency, GetNrVCPUs());
+
+	// install that policy as the DEFAULT scheduler’s policy --
+	// must do this *before* any parallel work runs
+	concurrency::Scheduler::SetDefaultSchedulerPolicy(policy);
+
+	assert(!s_OcTaskGroup);
+	s_OcTaskGroup = new concurrency::task_group;
+}
+
+TIC_CALL tg_maintainer::~tg_maintainer()
+{
+	assert(s_OcTaskGroup);
+
+	s_OcTaskGroup->cancel();
+	s_OcTaskGroup->wait();
+
+	delete s_OcTaskGroup;
+	s_OcTaskGroup = nullptr;
+}
+
 concurrency::task_group& GetTaskGroup()
 {
-	static concurrency::task_group taskGroup;
-	return taskGroup;
+	assert(s_OcTaskGroup);
+	return *s_OcTaskGroup;
 }
 
 bool OperationContext::activateTaskImpl(SharedActorInterestPtr&& resKeeper)
