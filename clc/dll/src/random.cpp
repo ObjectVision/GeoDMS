@@ -27,7 +27,7 @@
 #include <algorithm>
 
 #include <random>
-//#include <boost/random/mersenne_twister.hpp>
+
 #include <boost/random/uniform_real.hpp>
 #include <boost/random/uniform_01.hpp>
 #include <boost/random/uniform_int.hpp>
@@ -38,11 +38,13 @@
 // *****************************************************************************
 
 using uniform_engine_t = std::mt19937; //uniform_engine_t
+using rnd_seed_t = UInt32;
+using uniform_result_t = uniform_engine_t::result_type;
 
 template <typename T>
 struct uniform_engine_real
 {
-	uniform_engine_real(uniform_engine_t::result_type seed, T min, T max)
+	uniform_engine_real(rnd_seed_t seed, T min, T max)
 		:	m_Engine( seed )
 		,	m_Distr(min, max)
 	{}
@@ -55,7 +57,7 @@ struct uniform_engine_real
 template <typename T>
 struct uniform_engine_int
 {
-	uniform_engine_int(uniform_engine_t::result_type seed, T min, T max)
+	uniform_engine_int(rnd_seed_t seed, T min, T max)
 		:	m_Engine(seed)
 		,	m_Distr(min, max-1)
 	{}
@@ -95,7 +97,7 @@ struct uniform_engine
 
 	base_engine m_Base;
 
-	uniform_engine(UInt32 seed, T min, T max)
+	uniform_engine(rnd_seed_t seed, T min, T max)
 		:	m_Base(seed, min, max)
 	{}
 
@@ -115,9 +117,9 @@ namespace {
 
 class AbstrRndUniformOperator : public TernaryOperator
 {
-	typedef DataArray<UInt32> Arg1Type; // Random Seed
-	typedef AbstrUnit         Arg2Type; // domain of result
-//	typedef Unit<T>           Arg3Type; // values of result
+	typedef DataArray<rnd_seed_t> Arg1Type; // Random Seed
+	typedef AbstrUnit             Arg2Type; // domain of result
+//	typedef Unit<T>               Arg3Type; // values of result
 
 public:
 	AbstrRndUniformOperator(const Class* resultType, const Class* valuesUnitType)
@@ -142,7 +144,7 @@ public:
 
 		if (mustCalc)
 		{
-			uniform_engine_t::result_type seed = GetTheCurrValue<UInt32>(args[0]) + 1; // we don't want zero seed
+			uniform_engine_t::result_type seed = GetTheCurrValue<rnd_seed_t>(args[0]) + 1; // we don't want zero seed
 
 			AbstrDataItem* res = AsDataItem(resultHolder.GetNew());
 			DataWriteLock resLock(res);
@@ -212,15 +214,18 @@ public:
 //											RndUniformOperator
 // *****************************************************************************
 
-/* TODO
+#include "UnitProcessor.h"
+
+template <typename V>
 class SeededRndUniformOperator : public BinaryOperator
 {
-	typedef DataArray<UInt32> Arg1Type; // Random Seeds with domain
-//	typedef Unit<T>           Arg2Type; // values of result
+	using ResultType = DataArray<V>;        // result type
 
+	using Arg1Type = DataArray<rnd_seed_t>; // Random Seeds with domain
+	using Arg2Type = Unit<V>;               // values of result
 public:
-	SeededRndUniformOperator(const Class* resultType, const Class* valuesUnitType)
-		: BinaryOperator(&cogRndUniform, resultType, Arg1Type::GetStaticClass(), AbstrUnit::GetStaticClass())
+	SeededRndUniformOperator()
+		: BinaryOperator(&cogRndUniform, ResultType::GetStaticClass(), Arg1Type::GetStaticClass(), Arg2Type::GetStaticClass())
 	{}
 
 	using rng_engine = std::mt19937;
@@ -232,8 +237,8 @@ public:
 		auto seedAttr = AsDataItem(args[0]);             assert(seedAttr);
 		auto domain   = seedAttr->GetAbstrDomainUnit();  assert(domain);
 
-		const AbstrUnit* values = AsUnit(args[1]);
-		assert(values);;
+		auto values = debug_cast<const Unit<V>*>(args[1]);
+		assert(values);
 
 		const AbstrUnit* arg3 = AsUnit(args[2]);
 		dms_assert(arg3);
@@ -243,20 +248,32 @@ public:
 
 		if (mustCalc)
 		{
-			uniform_engine_t::result_type seed = GetTheCurrValue<UInt32>(args[0]) + 1; // we don't want zero seed
-
 			AbstrDataItem* res = AsDataItem(resultHolder.GetNew());
+			DataReadLock seeedLock(seedAttr);
+			auto seedTileArray = const_array_cast<rnd_seed_t>(seedAttr);
 			DataWriteLock resLock(res);
+			auto resTileArray = mutable_array_cast<V>(resLock);
 
-			Calculate(resLock, seed, arg2->GetNrTiles(), arg3);
+			auto lowerBound = values->GetRange().first;
+			auto upperBound = values->GetRange().second;
+			for (tile_id t = 0; t != domain->GetNrTiles(); ++t)
+			{
+				auto seedData = seedTileArray->GetTile(t);
+				auto resData = resTileArray->GetWritableTile(t, dms_rw_mode::write_only_all);
+				auto resIter = resData.begin();
+				for (auto seed : seedData)
+				{
+					auto newEngine = uniform_engine<V>(seed, lowerBound, upperBound);
+					*resIter++ = newEngine();
+				}
+				assert(resIter - resData.begin() == seedData.size());
+			}
 
 			resLock.Commit();
 		}
 		return true;
 	}
-	virtual void Calculate(DataWriteLock& res, uniform_engine_t::result_type seed, tile_id te, const AbstrUnit* arg3) const = 0;
 };
-*/
 
 // *****************************************************************************
 //											AbstrRndPermutationOperator
@@ -268,7 +285,7 @@ namespace {
 
 class AbstrRndPermutationOperator : public BinaryOperator
 {
-	typedef DataArray<UInt32> Arg1Type; // Random Seed
+	using Arg1Type =DataArray<rnd_seed_t>; // Random Seed
 
 public:
 	AbstrRndPermutationOperator(const Class* resultType, const Class* resDomainCls)
@@ -294,7 +311,7 @@ public:
 
 		if (mustCalc)
 		{
-			uniform_engine_t::result_type seed = GetTheCurrValue<UInt32>(args[0]) + 1; // we don't want zero seed
+			uniform_engine_t::result_type seed = GetTheCurrValue<rnd_seed_t>(args[0]) + 1; // we don't want zero seed
 
 			AbstrDataItem* res = AsDataItem(resultHolder.GetNew());
 			DataWriteLock resLock(res);
@@ -338,8 +355,8 @@ public:
 		while (elem_index--)
 		{
 			SizeT rndElem = selectRnd(rndEngine, elem_index, nrTminus1);
-			dms_assert(rndElem >= elem_index);
-			dms_assert(rndElem <= nrTminus1);
+			assert(rndElem >= elem_index);
+			assert(rndElem <= nrTminus1);
 
 			if (elem_index < rndElem) // avoid triggering reading uninitialized memory
 				resultData[elem_index] = resultData[rndElem]; // could be the default initialized if i==rndElem
@@ -355,6 +372,7 @@ public:
 
 namespace
 {
+	tl_oper::inst_tuple_templ <typelists::num_objects, SeededRndUniformOperator> rndUniS32;
 	RndUniformOperator<Float32> rndUniF32;
 	RndUniformOperator<Float64> rndUniF64;
 	RndUniformOperator<UInt32>  rndUniU32;
