@@ -26,7 +26,8 @@
 #include <iterator>
 #include <algorithm>
 
-#include <boost/random/mersenne_twister.hpp>
+#include <random>
+//#include <boost/random/mersenne_twister.hpp>
 #include <boost/random/uniform_real.hpp>
 #include <boost/random/uniform_01.hpp>
 #include <boost/random/uniform_int.hpp>
@@ -36,19 +37,17 @@
 //											CLASSES
 // *****************************************************************************
 
+using uniform_engine_t = std::mt19937; //uniform_engine_t
+
 template <typename T>
 struct uniform_engine_real
 {
-	uniform_engine_real(boost::mt19937::result_type seed, T min, T max)
-		:	m_Engine(boost::mt19937(seed) )
+	uniform_engine_real(uniform_engine_t::result_type seed, T min, T max)
+		:	m_Engine( seed )
 		,	m_Distr(min, max)
 	{}
 
-//	typedef boost::uniform_01< boost::mt19937, T> engine_type;
-	typedef boost::mt19937 engine_type;
-	
-
-	engine_type            m_Engine;
+	uniform_engine_t       m_Engine;
 	boost::uniform_real<T> m_Distr;
 };
 
@@ -56,16 +55,13 @@ struct uniform_engine_real
 template <typename T>
 struct uniform_engine_int
 {
-	uniform_engine_int(boost::mt19937::result_type seed, T min, T max)
+	uniform_engine_int(uniform_engine_t::result_type seed, T min, T max)
 		:	m_Engine(seed)
 		,	m_Distr(min, max-1)
 	{}
 
 
-//	typedef boost::uniform_int<T> distribution_type;
-//	typedef boost::uniform_smallint< boost::mt19937, T> type;
-
-	boost::mt19937        m_Engine;
+	uniform_engine_t      m_Engine;
 	boost::uniform_int<T> m_Distr;
 };
 
@@ -73,13 +69,13 @@ struct uniform_engine_int
 template <typename T>
 struct uniform_engine_int_f
 {
-	typedef uniform_engine_int<T> type;
+	using type = uniform_engine_int<T>;
 };
 
 template <typename T>
 struct uniform_engine_real_f
 {
-	typedef uniform_engine_real<T> type;
+	using  type = uniform_engine_real<T>;
 };
 
 /* 
@@ -87,20 +83,17 @@ template <>
 struct uniform_engine_int<UInt8>
 {
 	typedef boost::uniform_smallint< UInt8> distribution_type;
-//	typedef boost::uniform_smallint< boost::mt19937, T> type;
+//	typedef boost::uniform_smallint< uniform_engine_t, T> type;
 };
 */
 
 template <typename T>
 struct uniform_engine
 {
-	typedef boost::mpl::eval_if_c<std::numeric_limits<T>::is_integer
-	,	uniform_engine_int_f<T>
-	,	uniform_engine_real_f<T>
-	>
-	base_engine_f;
+	using base_engine_f = std::conditional_t<std::is_integral<T>::value, uniform_engine_int_f<T>, uniform_engine_real_f<T> >;
+	using base_engine = typename base_engine_f::type;
 
-	typename base_engine_f::type m_Base;
+	base_engine m_Base;
 
 	uniform_engine(UInt32 seed, T min, T max)
 		:	m_Base(seed, min, max)
@@ -139,20 +132,17 @@ public:
 	// Override Operator
 	bool CreateResult(TreeItemDualRef& resultHolder, const ArgSeqType& args, bool mustCalc) const override
 	{
-		dms_assert(args.size() == 3);
+		assert(args.size() == 3);
 
-		const AbstrUnit* arg2 = AsUnit(args[1]);
-		dms_assert(arg2);
-
-		const AbstrUnit* arg3 = AsUnit(args[2]);
-		dms_assert(arg3);
+		const AbstrUnit* arg2 = AsUnit(args[1]); assert(arg2);
+		const AbstrUnit* arg3 = AsUnit(args[2]); assert(arg3);
 
 		if (!resultHolder)
 			resultHolder = CreateCacheDataItem(arg2, arg3);
 
 		if (mustCalc)
 		{
-			boost::mt19937::result_type seed = GetTheCurrValue<UInt32>(args[0]) + 1; // we don't want zero seed
+			uniform_engine_t::result_type seed = GetTheCurrValue<UInt32>(args[0]) + 1; // we don't want zero seed
 
 			AbstrDataItem* res = AsDataItem(resultHolder.GetNew());
 			DataWriteLock resLock(res);
@@ -163,7 +153,7 @@ public:
 		}
 		return true;
 	}
-	virtual void Calculate(DataWriteLock& res, boost::mt19937::result_type seed, tile_id te, const AbstrUnit* arg3) const =0;
+	virtual void Calculate(DataWriteLock& res, uniform_engine_t::result_type seed, tile_id te, const AbstrUnit* arg3) const =0;
 };
 
 template <typename T>
@@ -194,7 +184,7 @@ public:
 			)
 	{}
 
-	void Calculate(DataWriteLock& res, boost::mt19937::result_type seed, tile_id te, const AbstrUnit* arg3) const override
+	void Calculate(DataWriteLock& res, uniform_engine_t::result_type seed, tile_id te, const AbstrUnit* arg3) const override
 	{
 		Range<T> range = const_unit_cast<T>(arg3)->GetRange();
 		if (!(range.first < range.second) || !FloatRangeOK(range))
@@ -217,6 +207,56 @@ public:
 		}
 	}
 };
+
+// *****************************************************************************
+//											RndUniformOperator
+// *****************************************************************************
+
+/* TODO
+class SeededRndUniformOperator : public BinaryOperator
+{
+	typedef DataArray<UInt32> Arg1Type; // Random Seeds with domain
+//	typedef Unit<T>           Arg2Type; // values of result
+
+public:
+	SeededRndUniformOperator(const Class* resultType, const Class* valuesUnitType)
+		: BinaryOperator(&cogRndUniform, resultType, Arg1Type::GetStaticClass(), AbstrUnit::GetStaticClass())
+	{}
+
+	using rng_engine = std::mt19937;
+	// Override Operator
+	bool CreateResult(TreeItemDualRef& resultHolder, const ArgSeqType& args, bool mustCalc) const override
+	{
+		assert(args.size() == 2);
+
+		auto seedAttr = AsDataItem(args[0]);             assert(seedAttr);
+		auto domain   = seedAttr->GetAbstrDomainUnit();  assert(domain);
+
+		const AbstrUnit* values = AsUnit(args[1]);
+		assert(values);;
+
+		const AbstrUnit* arg3 = AsUnit(args[2]);
+		dms_assert(arg3);
+
+		if (!resultHolder)
+			resultHolder = CreateCacheDataItem(domain, values);
+
+		if (mustCalc)
+		{
+			uniform_engine_t::result_type seed = GetTheCurrValue<UInt32>(args[0]) + 1; // we don't want zero seed
+
+			AbstrDataItem* res = AsDataItem(resultHolder.GetNew());
+			DataWriteLock resLock(res);
+
+			Calculate(resLock, seed, arg2->GetNrTiles(), arg3);
+
+			resLock.Commit();
+		}
+		return true;
+	}
+	virtual void Calculate(DataWriteLock& res, uniform_engine_t::result_type seed, tile_id te, const AbstrUnit* arg3) const = 0;
+};
+*/
 
 // *****************************************************************************
 //											AbstrRndPermutationOperator
@@ -254,7 +294,7 @@ public:
 
 		if (mustCalc)
 		{
-			boost::mt19937::result_type seed = GetTheCurrValue<UInt32>(args[0]) + 1; // we don't want zero seed
+			uniform_engine_t::result_type seed = GetTheCurrValue<UInt32>(args[0]) + 1; // we don't want zero seed
 
 			AbstrDataItem* res = AsDataItem(resultHolder.GetNew());
 			DataWriteLock resLock(res);
@@ -265,10 +305,8 @@ public:
 		}
 		return true;
 	}
-	virtual void Calculate(DataWriteLock& res, boost::mt19937::result_type seed, const AbstrUnit* arg2) const =0;
+	virtual void Calculate(DataWriteLock& res, uniform_engine_t::result_type seed, const AbstrUnit* arg2) const =0;
 };
-
-typedef boost::mt19937 uniform_engine_t;
 
 SizeT selectRnd(uniform_engine_t& engine, SizeT first, SizeT last)
 {
@@ -285,7 +323,7 @@ public:
 		:	AbstrRndPermutationOperator( ResultType::GetStaticClass(), Arg2Type::GetStaticClass() )
 	{}
 
-	void Calculate(DataWriteLock& res, boost::mt19937::result_type seed, const AbstrUnit* domainA) const override
+	void Calculate(DataWriteLock& res, uniform_engine_t::result_type seed, const AbstrUnit* domainA) const override
 	{
 		ResultType* result = mutable_array_cast<E>(res);
 		const Unit<E>* domain = const_unit_cast<E>(domainA);
