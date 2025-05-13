@@ -19,18 +19,6 @@ void WaitForCompletedTaskOrTimeout(std::chrono::milliseconds waitFor = std::chro
 using dms_task = concurrency::task<void>;
 inline bool is_empty(const dms_task& x) { return x == dms_task();  }
 
-template<typename Func>
-auto start_dms_task(Func&& f)
-{
-	return dms_task(std::forward<Func>(f));
-}
-
-template <typename Func>
-auto start_dms_task_with_context(Func&& f)
-{
-	return dms_task(CreateTaskWithContext(std::forward<Func>(f)));
-}
-
 
 enum class task_status {
 	none, scheduled, activated, running, 
@@ -79,7 +67,6 @@ struct OperationContext : std::enable_shared_from_this<OperationContext>
 
 	TIC_CALL task_status Schedule(TreeItem* item, const FutureSuppliers& allArgInterest, bool runDirect);
 
-	TIC_CALL dms_task GetTask() const;
 	TIC_CALL task_status OnStart();
 	//REMOVE TIC_CALL void OnSuspend();
 	TIC_CALL void OnException() noexcept;
@@ -103,7 +90,6 @@ struct OperationContext : std::enable_shared_from_this<OperationContext>
 //private:
 	bool getUniqueLicenseToRun();
 	task_status TryActivateTaskInline();
-	void setTask(dms_task&& t);
 	bool activateTaskImpl(SharedActorInterestPtr&& resKeeper);
 	void releaseRunCount(task_status status);
 	garbage_t separateResources(task_status status);
@@ -125,9 +111,6 @@ public:
 	Explain::Context*               m_Context = nullptr;
 	ItemWriteLock                   m_WriteLock;
 	TimeStamp                       m_ActiveTimestamp = -1;
-
-private:
-	dms_task m_Task;
 
 public:
 	fence_number m_FenceNumber;

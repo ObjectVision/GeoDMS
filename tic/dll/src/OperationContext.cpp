@@ -601,18 +601,10 @@ task_status OperationContext::GetStatus() const
 	return m_Status;
 }
 
-dms_task OperationContext::GetTask() const
+concurrency::task_group& GetTaskGroup()
 {
-	leveled_std_section::scoped_lock lock(cs_ThreadMessing);
-
-	return m_Task;
-}
-
-void OperationContext::setTask(dms_task&& newTask)
-{
-	assert(is_empty(m_Task));
-	m_Task = newTask;
-	assert(!is_empty(m_Task));
+	static concurrency::task_group taskGroup;
+	return taskGroup;
 }
 
 bool OperationContext::activateTaskImpl(SharedActorInterestPtr&& resKeeper)
@@ -641,7 +633,7 @@ bool OperationContext::activateTaskImpl(SharedActorInterestPtr&& resKeeper)
 		}
 	};
 
-	setTask(dms_task(selfCaller));
+	GetTaskGroup().run(selfCaller);
 	return true;
 }
 
