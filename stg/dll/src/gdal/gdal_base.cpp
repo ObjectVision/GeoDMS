@@ -1261,6 +1261,8 @@ auto FileExtensionToKnownGDALDriverShortName(std::string_view ext) -> const char
 
 void TryRegisterVectorDriverFromKnownDriverShortName(std::string_view known_driver_shortname)
 {
+	assert(!gdalComponentImpl::gdalSection.try_lock()); // caller must already have locked this
+
 	if (known_driver_shortname == "ESRI Shapefile")
 		RegisterOGRShape();
 
@@ -1293,6 +1295,8 @@ void TryRegisterVectorDriverFromKnownDriverShortName(std::string_view known_driv
 
 void TryRegisterRasterDriverFromKnownDriverShortName(std::string_view known_driver_short_name)
 {
+	assert(!gdalComponentImpl::gdalSection.try_lock()); // caller must have locked this
+
 	if (known_driver_short_name == "GTiff")
 		GDALRegister_GTiff();
 
@@ -1320,6 +1324,8 @@ void TryRegisterRasterDriverFromKnownDriverShortName(std::string_view known_driv
 
 void GDALRegisterTrustedDriverFromKnownDriverShortName(std::string_view known_driver_short_name)
 {
+	leveled_critical_section::scoped_lock lock(gdalComponentImpl::gdalSection);
+
 	if (known_driver_short_name.empty())
 		return;
 
@@ -1402,7 +1408,7 @@ bool DriverSupportsUpdate(std::string_view dataset_file_name, const CPLStringLis
 
 GDALDatasetHandle Gdal_DoOpenStorage(const StorageMetaInfo& smi, dms_rw_mode rwMode, UInt32 gdalOpenFlags, bool continueWrite)
 {
-	dms_assert(rwMode != dms_rw_mode::unspecified);
+	assert(rwMode != dms_rw_mode::unspecified);
 	if (rwMode == dms_rw_mode::read_write)
 		rwMode = dms_rw_mode::write_only_all;
 
@@ -1521,7 +1527,11 @@ GDALDatasetHandle Gdal_DoOpenStorage(const StorageMetaInfo& smi, dms_rw_mode rwM
 
 	auto driver_short_name = GetDriverShortNameFromDataSourceNameOrDriverArray(data_source_name.c_str(), driver_array);
 	GDALRegisterTrustedDriverFromKnownDriverShortName(driver_short_name);
-	auto driver = GetGDALDriverManager()->GetDriverByName(driver_short_name);
+	GDALDriver* driver = nullptr;
+	{
+		leveled_critical_section::scoped_lock lock(gdalComponentImpl::gdalSection);
+		driver = GetGDALDriverManager()->GetDriverByName(driver_short_name);
+	}
 	if (!driver)
 		throwErrorF("GDAL", "Cannot find driver for %s", data_source_name);
 
