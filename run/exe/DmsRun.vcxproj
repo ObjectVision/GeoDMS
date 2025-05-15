@@ -88,6 +88,14 @@
     </ProjectReference>
   </ItemGroup>
   <ItemGroup>
+    <CustomBuild Include="..\..\profiler\Profiler.py">
+      <FileType>Document</FileType>
+      <Command>COPY %(Identity) "$(TargetDir)"</Command>
+      <Message>Copying Profiler.py into Target Folder</Message>
+      <Outputs>$(TargetDir)%(Filename)%(Extension)</Outputs>
+    </CustomBuild>
+  </ItemGroup>
+  <ItemGroup>
     <Text Include="DebugSettings.txt" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
