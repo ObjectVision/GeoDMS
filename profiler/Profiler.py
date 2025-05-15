@@ -156,17 +156,20 @@ def getPerformance(exp:Experiment, sampling_rate=1.0):
         # If command_with_args is a full string like "path\\to\\script.bat arg1 arg2"
         # and the first part is a relative path, resolve it:
         parts = shlex.split(command_with_args)  # splits respecting quotes
-        parts[0] = os.path.abspath(os.path.join(cwd, parts[0]))  # make sure script path is absolute
+        
+        if cwd:
+            parts[0] = os.path.abspath(os.path.join(cwd, parts[0]))  # make sure script path is absolute
 
         title = exp.name.replace('"', "'")  # zorg dat er geen quotes inzitten
         print(f"Running subprocess: {parts}, cwd={cwd}, title={title}")
 
         # Bouw custom_env, en vertaal environment_string
         custom_env = os.environ.copy()  # behoud bestaande omgeving
-        for pair in environment_string.split(';'):
-            if '=' in pair:
-                key, value = pair.split('=', 1)
-                custom_env[key.strip()] = value.strip()
+        if environment_string:
+            for pair in environment_string.split(';'):
+                if '=' in pair:
+                    key, value = pair.split('=', 1)
+                    custom_env[key.strip()] = value.strip()
 
         # Construct a single command that sets the title, calls the batch, and optionally pauses (if needed to detect command-line syntax errors)
         cmd_parts = [
@@ -343,17 +346,17 @@ def getSvnVersion(exp):
     return svn_id
 
 def getExperimentFileName(experiment:Experiment):
-    experiment_hash = int(hashlib.sha256((experiment.name + experiment.command).encode('utf-8')).hexdigest(), 16) % 10**15
+    #experiment_hash = int(hashlib.sha256((experiment.name + experiment.command).encode('utf-8')).hexdigest(), 16) % 10**15
     
-    fldrname = f"{experiment.experiment_folder}/experiment_data/"
+    fldrname = f"{experiment.experiment_folder}"
     if not os.path.exists(fldrname):
         os.makedirs(fldrname)
-    filename  = f"{experiment.name}{experiment_hash}.bin"
+    filename  = f"{experiment.name}.bin"
     return (fldrname, filename)
 
 def storeExperimentToPickleFile(experiment):
     fldrname, filename = getExperimentFileName(experiment)
-    exp_fn = fldrname + filename
+    exp_fn = f"{fldrname}/{filename}"
     with open(exp_fn, "wb") as f:
         pickle.dump(experiment, f)
     return
@@ -381,7 +384,7 @@ def RunExperiments(experiments:list[Experiment], sampling_rate=1.0):
             continue
         
         fldrname, filename = getExperimentFileName(exp)
-        exp_fn = fldrname + filename
+        exp_fn = f"{fldrname}/{filename}"
 
         print(f"experiment file: {exp_fn}")
         
@@ -550,32 +553,32 @@ def VisualizeExperiments(experiments, vgroups):
     for i,color in enumerate(colors):
         legend_items.append(LegendItem(label=labels[i], renderers=[renderer for renderer in renderers if renderer.glyph.line_color==color]))
     
-    ## Use a dummy figure for the LEGEND
-    dum_fig = plotting.figure(width=600,height=600,outline_line_alpha=0,tools="pan,wheel_zoom,box_zoom,reset,save,hover",toolbar_location=None)
-    # set the components of the figure invisible
+    ## Use dummy figure as legend for all experiments 
+    dum_fig = plotting.figure(width=300,height=50*len(legend_items), outline_line_alpha=0,tools="pan,wheel_zoom,box_zoom,reset,save,hover")
     for fig_component in [dum_fig.grid[0],dum_fig.ygrid[0],dum_fig.xaxis[0],dum_fig.yaxis[0]]:
         fig_component.visible = False
-    # The glyphs referred by the legend need to be present in the figure that holds the legend, so we must add them to the figure renderers
     dum_fig.renderers += renderers
-    # set the figure range outside of the range of all glyphs
-    dum_fig.x_range.end = 1005
+    dum_fig.x_range.end = 1001
     dum_fig.x_range.start = 1000
-    # add the legend
-    dum_fig.add_layout( Legend(click_policy='hide',location='top_left',border_line_alpha=0,items=legend_items) )
+    dum_fig.add_layout(Legend(click_policy='hide',border_line_alpha=0,items=legend_items))
 
     output_fn = f"{experiments[0].experiment_folder}compare.html"
     print(f"Storing experiments interactive figure in {output_fn}")
     
-    grid_structure = []
+    grid_structure = [[dum_fig, None]]
     for i,fig in enumerate(figs):
         if i == 0:
-            grid_structure.append([fig, dum_fig])
+            grid_structure.append([fig, None])
         else:
             grid_structure.append([fig, None])
-    grid = plotting.gridplot(grid_structure)
+    grid = plotting.gridplot(grid_structure, toolbar_location="left")
     plotting.output_file(output_fn)
     plotting.show(grid)
     return
+
+def InitExperimentsFromDirectCall(direct_call:str):
+    name, command, experiment_folder, geodms_logfile = direct_call.split(";")
+    return [Experiment(name=name, command=command, experiment_folder=experiment_folder, environment_variables=None,cwd=None,geodms_logfile=geodms_logfile,binary_experiment_file=None)]
 
 def InitExperimentsFromCsvFile(fn):
     if not os.path.exists(fn):
@@ -686,10 +689,14 @@ def testReadAllocatorInfoLog():
 
     return alloc_log
 
-def Run(config_fn, sampling_rate=1.0):
+def Run(direct_call:str="", config_fn:str="", sampling_rate=1.0):
 
-    # init
-    experiments = InitExperimentsFromCsvFile(config_fn)
+    # init experiments from either direct_call or csv experiment file definition
+    experiments = []
+    if direct_call:
+        experiments = InitExperimentsFromDirectCall(direct_call)
+    elif config_fn:
+        experiments = InitExperimentsFromCsvFile(config_fn)
 
     if not experiments:
         print(f"No valid experiments found in experiment file: {config_fn}")
@@ -707,11 +714,21 @@ def Run(config_fn, sampling_rate=1.0):
 def RunFromCmdLine():
     # arguments
     parser = argparse.ArgumentParser()
-    parser.add_argument("fn", help="csv file that describes experiments: path/to/file.csv")
+    parser.add_argument("-csv", help="csv file that describes experiments: path/to/file.csv")
     parser.add_argument("-s", help="Time between samples, cannot be lower than 1.0")
+    parser.add_argument("-direct_call", help="Direct call option, tried if no csv file is given, syntax: ")
     args = parser.parse_args()
-    config_fn = args.fn
     
+    config_fn = ""
+    direct_call = ""
+    sampling_rate = 1.0
+
+    if args.csv:
+        config_fn = args.fn
+
+    if args.direct_call:
+        direct_call = args.direct_call
+  
     # time between samples
     if args.s:
         if float(args.s) < 1.0:
@@ -722,11 +739,15 @@ def RunFromCmdLine():
     else:
         sampling_rate = 1.0
 
-    Run(config_fn, sampling_rate)
+    Run(direct_call=direct_call, config_fn=config_fn, sampling_rate=sampling_rate)
     return
 
 def RunTestConfig(config_fn):
-    Run(config_fn)
+    Run(config_fn=config_fn)
+    return
+
+def RunTestDirectCall(direct_call):
+    Run(direct_call=direct_call) 
     return
 
 def main():
@@ -734,9 +755,15 @@ def main():
     return
     
 if __name__=="__main__":
-    main()
+    #main() # python Profiler.py -direct_call test_profile_direct_call;'C:/Program Files/ObjectVision/GeoDms17.4.6/GeoDmsRun.exe' /LE:/experiments/direct_call/log.txt 'c:/users/cicada/prj/edm/cfg/stam.dms' @statistics /Evaluatie/test_tov_vorige_versie/checks/FR/test;E:/experiments/direct_call;E:/experiments/direct_call/log.txt
+    #python Profiler.py -direct_call naam_van_run E:/experiments/direct_call E:/experiments/direct_call/log.txt "C:/Program Files/ObjectVision/GeoDms17.4.6/GeoDmsRun.exe" /LE:/experiments/direct_call/log.txt "c:/users/cicada/prj/edm/cfg/stam.dms" @statistics /Evaluatie/test_tov_vorige_versie/checks/FR/test
+    RunTestDirectCall("test_profile_direct_call;'C:/Program Files/ObjectVision/GeoDms17.4.6/GeoDmsRun.exe' /LE:/experiments/direct_call/log.txt 'c:/users/cicada/prj/edm/cfg/stam.dms' @statistics /Evaluatie/test_tov_vorige_versie/checks/FR/test;E:/experiments/direct_call;E:/experiments/direct_call/log.txt") # name, command, experiment_folder, geodms_logfile
     #RunTestConfig("./profile_setups.txt")
     #RunTestConfig("C:/Users/Cicada/prj/GeoDMS-Test/Performance/scripts/profiler_rework.txt")
     #RunTestConfig("./profile_setups_profile_rework.txt")
     #testReadLog()
     #testReadAllocatorInfoLog()
+
+    # -a regel toevoegen experiment file, tenzij deze al bestaat
+    # apparte run command
+    # run specifiek experiment: naam
