@@ -393,7 +393,10 @@ private:
 void GraphDataView::AddLayer(const TreeItem* viewItem, bool isDropped)
 {
 	assert(!SuspendTrigger::DidSuspend());
+
+#if defined(MG_DEBUG_DATA)
 	SuspendTrigger::ApplyLock checkWhereMustSuspendWasCalled;
+#endif
 
 	MG_USERCHECK(IsDataItem(viewItem));
 
