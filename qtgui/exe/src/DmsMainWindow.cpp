@@ -94,7 +94,7 @@ void MainWindow::ProcessAppOpers()
     assert(IsMainThread());
     assert(!SuspendTrigger::DidSuspend());
     ConfirmMainThreadOperProcessing();
-    ProcessMainThreadOpers();
+    ProcessMainThreadOpersAndTasks();
     if (m_AppOperQueue.SynchonizedEmpty())
         return;
 

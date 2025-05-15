@@ -188,7 +188,7 @@ struct CheckOperator : public BinaryOperator
 #include "SupplCache.h"
 #include "UnitProcessor.h"
 
-oper_arg_policy oap_Fence[2] = { oper_arg_policy::subst_with_subitems,  oper_arg_policy::calc_as_result };
+oper_arg_policy oap_Fence[2] = { oper_arg_policy::calc_subitem_root,  oper_arg_policy::calc_as_result };
 SpecialOperGroup sog_FenceContainer(token::FenceContainer, 2, oap_Fence, oper_policy::dynamic_result_class);
 
 void AssignFenceNumber(const Actor* item, fence_number fn)
@@ -250,7 +250,7 @@ struct FenceContainerOperator : BinaryOperator
 
 		MG_CHECK(IsMetaThread());
 
-		auto sourceContainer = std::get<SharedTreeItem>(args[0]).get();
+		SharedTreeItem sourceContainer = GetItem(args[0]);
 		if (!resultHolder)
 		{
 			MG_CHECK(resultHolder.m_FenceNumber == 0);
@@ -301,7 +301,7 @@ struct FenceContainerOperator : BinaryOperator
 	{
 		assert(args.size() == 2);
 
-		auto srcContainer = std::get<SharedTreeItem>(args[0]).get();
+		SharedTreeItem sourceContainer = GetItem(args[0]);
 
 		// first, copy ranges of units ?
 		auto resultRoot = resultHolder.GetNew();
@@ -317,7 +317,7 @@ struct FenceContainerOperator : BinaryOperator
 		auto bellWaiter = fenceBell.get_future();
 		auto resWalker = resultRoot;
 		
-		PostMainThreadTask(resultFenceNumber, [srcContainer, resultRoot, &resWalker, &fenceBell, &resultHolder, resultFenceNumber, &futureDataContainer](bool mustCancel)-> bool
+		PostMainThreadTask(resultFenceNumber, [sourceContainer, resultRoot, &resWalker, &fenceBell, &resultHolder, resultFenceNumber, &futureDataContainer](bool mustCancel)-> bool
 			{
 				// work on exporting stuff from main thread
 				if (!mustCancel)
@@ -338,8 +338,8 @@ struct FenceContainerOperator : BinaryOperator
 							if (!resInterestPtr)
 								continue;
 
-							auto srcItem = srcContainer->FindItem(resWalker->GetRelativeName(resultRoot));
-							assert(srcItem);
+						auto srcItem = sourceContainer->FindItem(resWalker->GetRelativeName(resultRoot));
+						assert(srcItem);
 
 							MG_CHECK(!srcItem->IsCacheItem());
 

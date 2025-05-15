@@ -415,7 +415,7 @@ void WaitForCompletedTaskOrTimeout(std::chrono::milliseconds waitFor)
 {
 	RunOperationContexts();
 	if (IsMetaThread())
-		ProcessMainThreadOpers();
+		ProcessMainThreadOpersAndTasks();
 
 	leveled_std_section::unique_lock lock(cs_ThreadMessing);
 	if (!s_NrRunningOperations)

@@ -1259,6 +1259,8 @@ SharedActorInterestPtr Actor::GetInterestPtrOrNull() const
 {
 	assert(this);
 
+	RequestMainThreadOperProcessingBlocker postponeRequestAfterCountSectionToAvoidDeadlock;
+
 	leveled_std_section::scoped_lock globalSectionLock(sg_CountSection);
 	if (!m_InterestCount)
 		return {};

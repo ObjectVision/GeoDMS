@@ -778,6 +778,8 @@ SharedDataItemInterestPtr CreateColorPalette(DataView* dv, const AbstrUnit* pale
 }
 SharedDataItemInterestPtr CreateSystemColorPalette(DataView* dv, const AbstrUnit* paletteDomain, AspectNr aNr, bool ramp, bool always, bool unique, const Float64* first, const Float64* last)
 {
+	assert(!SuspendTrigger::DidSuspend());
+
 	bool hasZero = false;
 	bool bothSigns = false;
 	SizeT nrNegative = 0, nrBreaks = last - first;

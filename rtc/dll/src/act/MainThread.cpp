@@ -374,6 +374,12 @@ void ProcessMainThreadOpers()
 		s_OperQueue.Process();
 	}
 	assert(!SuspendTrigger::DidSuspend());
+}
+
+void ProcessMainThreadOpersAndTasks()
+{
+	ProcessMainThreadOpers();
+	assert(!SuspendTrigger::DidSuspend());
 	s_TaskQueue.Process();
 }
 

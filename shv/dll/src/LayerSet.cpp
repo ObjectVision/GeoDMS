@@ -238,6 +238,7 @@ void AddIndicatedAspects(GraphicLayer* layer, const AbstrDataItem* viewItem, con
 
 std::shared_ptr<GraphicLayer> LayerSet::CreateLayer(const AbstrDataItem* viewItem, const LayerInfo& featureInfo, DataView* dv, bool foreground)
 {
+	assert(!SuspendTrigger::DidSuspend());
 	dms_assert(viewItem);
 	dms_assert(featureInfo.m_LayerClass);
 	dms_assert(featureInfo.m_LayerClass->IsDerivedFrom(GraphicLayer::GetStaticClass()));

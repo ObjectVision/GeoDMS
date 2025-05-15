@@ -17,6 +17,16 @@ inline bool AssertIsOrdinalType(const ord_type_tag*) { return true; }
 #endif
 
 template <class V>
+inline SizeT Range_GetIndex_naked_unchecked(const Range<V>& range, V loc)
+{
+	static_assert(is_integral_v<V>);
+
+	unsigned_type_t<V> offset = loc - range.first;
+	SizeT index = offset;
+	return index;
+}
+
+template <class V>
 inline SizeT Range_GetIndex_naked(const Range<V>& range, V loc)
 {
 	static_assert(is_integral_v<V>);
@@ -25,8 +35,7 @@ inline SizeT Range_GetIndex_naked(const Range<V>& range, V loc)
 	assert(IsIncluding(range, loc));    // caller must shield out-of-range
 
 	assert(loc >= range.first);
-	unsigned_type_t<V> offset = loc - range.first;
-	SizeT index = offset;   
+	auto index = Range_GetIndex_naked_unchecked<V>(range, loc);
 	assert(index < Cardinality(range)); // Postcondition
 	return index;
 }
@@ -64,6 +73,12 @@ inline V Range_GetValue_naked(const Range<V>& range, SizeT index)
 
 //	(full) specialization for Void
 template <>
+inline SizeT Range_GetIndex_naked_unchecked<Void>(const Range<Void>&, Void)
+{
+	return  0;
+}
+
+template <>
 inline SizeT Range_GetIndex_naked<Void>(const Range<Void>&, Void)
 {
 	return  0;
@@ -78,12 +93,24 @@ inline Void Range_GetValue_naked(const Range<Void>&, SizeT i)
 
 // overloading for Bool
 template <bit_size_t N>
+inline SizeT Range_GetIndex_naked_unchecked(const Range<UInt32>& range, bit_value<N> loc)
+{
+	return loc;
+}
+
+template <bit_size_t N, typename Block>
+inline SizeT Range_GetIndex_naked_unchecked(const Range<UInt32>& range, bit_reference<N, Block> loc)
+{
+	return bit_value<N>(loc);
+}
+
+template <bit_size_t N>
 inline SizeT Range_GetIndex_naked(const Range<UInt32>& range, bit_value<N> loc)
 {
 	assert(range.first == 0);
 	assert(range.second== bit_value<N>::nr_values);
 
-	return  loc;
+	return loc;
 }
 
 template <bit_size_t N, typename Block>
@@ -93,6 +120,22 @@ inline SizeT Range_GetIndex_naked(const Range<UInt32>& range, bit_reference<N, B
 	assert(range.second== bit_value<N>::nr_values);
 
 	return bit_value<N>(loc);
+}
+
+// overloading for Point
+template <typename T>
+inline SizeT Range_GetIndex_naked_unchecked(const Range<Point<T> >& range, Point<T>loc)
+{
+	assert(IsDefined(range));        // caller must shield undefined values
+
+	SizeT rowSize = Width(range);
+	loc.Row() -= Top(range);  SizeT rowIndex = loc.Row();
+	loc.Col() -= Left(range); SizeT colIndex = loc.Col();
+
+	SizeT index = rowIndex * rowSize + colIndex;
+	assert(colIndex < rowSize || index >= Cardinality(range)); // Postcondition: out of range values must be noticable by an out of range index.
+
+	return index;
 }
 
 template <typename T>

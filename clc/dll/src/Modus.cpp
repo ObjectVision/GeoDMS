@@ -300,10 +300,10 @@ void ModusPartByTable(const AbstrDataItem* indicesItem, future_tile_array<V> val
 
 		for (; valuesIter != valuesEnd; ++i, ++valuesIter)
 		{
-			UInt32 vi = Range_GetIndex_naked(valuesRange, *valuesIter);
+			auto vi = Range_GetIndex_naked_unchecked(valuesRange, *valuesIter);
 			if (vi >= vCount)
 				continue;
-			SizeT pi = indexGetter->Get(i);
+			auto pi = indexGetter->Get(i);
 			if (pi >= pCount)
 				continue;
 			SafeIncrementCounter(bufferB[ pi * vCount + vi]);
@@ -509,14 +509,14 @@ void WeightedModusPartByTable(const DataArray<V>* valuesTF, const AbstrDataItem*
 			if (IsDefined(*valuesIter) && IsDefined(weight = weightsGetter->Get(weightIter)))
 			{
 				assert(IsIncluding(valuesRange, *valuesIter)); // PRECONDITION
-				UInt32 vi = Range_GetIndex_naked(valuesRange, *valuesIter);
-				assert(vi < vCount);
-				SizeT pi = indexGetter->Get(i);
-				if (IsNotUndef(pi))
-				{
-					assert(pi < pCount);
-					bufferB[pi * vCount + vi] += weight;
-				}
+				auto vi = Range_GetIndex_naked_unchecked(valuesRange, *valuesIter);
+				if (vi >= vCount)
+					continue;
+				auto pi = indexGetter->Get(i);
+				if (pi >= pCount)
+					continue;
+				assert(pi < pCount);
+				bufferB[pi * vCount + vi] += weight;
 			}
 	}
 

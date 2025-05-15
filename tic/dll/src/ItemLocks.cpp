@@ -82,7 +82,10 @@ namespace treeitem_production_task
 				producer = self->m_Producer.lock();
 			}
 			if (producer)
+			{
+				SuspendTrigger::FencedBlocker lock("treeitem_production_task");
 				producer->Join();
+			}
 		}
 
 		leveled_critical_section::unique_lock lock(cs_lockCounterUpdate);

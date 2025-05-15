@@ -2059,7 +2059,8 @@ SharedPtr<TreeItem> TreeItem::Copy(TreeItem* dest, TokenID id, CopyTreeContext& 
 	if (!copyContext.DontCopySubItems())
 	{
 		for (const TreeItem* subItem = GetCurrFirstSubItem(); subItem; subItem = subItem->GetNextItem())
-			subItem->Copy(result, subItem->GetID(), copyContext);
+			if (!copyContext.InFenceOperator() || !subItem->IsTemplate())
+				subItem->Copy(result, subItem->GetID(), copyContext);
 
 		// Now, copy from refItem; maybe more sub-items should be copied
 		if (copyContext.CopyReferredItems())
@@ -2080,9 +2081,12 @@ SharedPtr<TreeItem> TreeItem::Copy(TreeItem* dest, TokenID id, CopyTreeContext& 
 				}
 				for (const TreeItem* subItem = refItem->GetCurrFirstSubItem(); subItem; subItem = subItem->GetNextItem())
 				{
-					auto subID = subItem->GetID();
-					if (result->GetSubTreeItemByID(subID) == nullptr)
-						subItem->Copy(result, subItem->GetID(), copyContext);
+					if (!copyContext.InFenceOperator() || !subItem->IsTemplate())
+					{
+						auto subID = subItem->GetID();
+						if (result->GetSubTreeItemByID(subID) == nullptr)
+							subItem->Copy(result, subItem->GetID(), copyContext);
+					}
 				}
 				refItem = refItem->GetCurrRefItem();
 			}

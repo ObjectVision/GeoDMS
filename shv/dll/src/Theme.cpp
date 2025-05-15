@@ -384,6 +384,8 @@ void Theme::CheckConsistency() const
 
 SharedDataItemInterestPtr CreatePaletteData(DataView* dv, const AbstrUnit* domain, AspectNr aNr, bool ramp, bool always, const Float64* first, const Float64* last)
 {
+	assert(!SuspendTrigger::DidSuspend());
+
 	dms_assert(domain);
 	dms_assert(!domain->IsCacheItem());
 	AspectType at = AspectArray[aNr].aspectType;
@@ -401,6 +403,7 @@ SharedDataItemInterestPtr CreatePaletteData(DataView* dv, const AbstrUnit* domai
 
 std::shared_ptr<Theme> Theme::Create(AspectNr aNr, const AbstrDataItem* thematicAttr, const LayerInfo& featureLayerInfo, DataView* dv, bool doThrow)
 {
+	assert(!SuspendTrigger::DidSuspend());
 	dms_assert(thematicAttr);
 
 	LayerInfo layerInfo = GetAspectInfo(aNr, thematicAttr, featureLayerInfo, false);
@@ -478,6 +481,7 @@ std::shared_ptr<Theme> Theme::Create(AspectNr aNr, const AbstrDataItem* thematic
 //		breakAttr->GetAbstrDomainUnit()->PrepareDataUsage(DrlType::CertainOrThrow);
 
 		FutureSuppliers emptyFutureSupplierSet;
+		thematicAttrHolder->PrepareDataUsage(DrlType::Certain);
 //		etc->m_WriteLock = ItemWriteLock(breakAttr.get_ptr());
 		etc->ScheduleItemWriter(MG_SOURCE_INFO_CODE("Theme::Create") nbai.breakAttr.get_ptr(),
 				[dv_wptr, ts, thematicAttrHolder

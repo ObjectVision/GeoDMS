@@ -119,6 +119,8 @@ public:
 	{}
 	GraphVisitState DoLayerSet(LayerSet* ls) override
 	{
+		assert(!SuspendTrigger::DidSuspend());
+
 		auto dv = ls->GetDataView().lock(); if (!dv) return GVS_Handled;
 		if (!m_WorldCrdUnit) // could be NULL when filling Overview Layerset
 		{
@@ -391,6 +393,8 @@ private:
 void GraphDataView::AddLayer(const TreeItem* viewItem, bool isDropped)
 {
 	assert(!SuspendTrigger::DidSuspend());
+	SuspendTrigger::ApplyLock checkWhereMustSuspendWasCalled;
+
 	MG_USERCHECK(IsDataItem(viewItem));
 
 	LayerInfo info = GetCompleteLayerInfoOrThrow(viewItem);
