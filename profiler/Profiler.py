@@ -553,18 +553,14 @@ def VisualizeExperiments(experiments, vgroups):
     for i,color in enumerate(colors):
         legend_items.append(LegendItem(label=labels[i], renderers=[renderer for renderer in renderers if renderer.glyph.line_color==color]))
     
-    ## Use a dummy figure for the LEGEND
-    dum_fig = plotting.figure(width=300,height=200, outline_line_alpha=0,tools="pan,wheel_zoom,box_zoom,reset,save,hover") # toolbar_location=None 
-    # set the components of the figure invisible
+    ## Use dummy figure as legend for all experiments 
+    dum_fig = plotting.figure(width=300,height=50*len(legend_items), outline_line_alpha=0,tools="pan,wheel_zoom,box_zoom,reset,save,hover")
     for fig_component in [dum_fig.grid[0],dum_fig.ygrid[0],dum_fig.xaxis[0],dum_fig.yaxis[0]]:
         fig_component.visible = False
-    # The glyphs referred by the legend need to be present in the figure that holds the legend, so we must add them to the figure renderers
     dum_fig.renderers += renderers
-    # set the figure range outside of the range of all glyphs
     dum_fig.x_range.end = 1001
     dum_fig.x_range.start = 1000
-    # add the legend
-    dum_fig.add_layout(Legend(click_policy='hide',border_line_alpha=0,items=legend_items)) # location='top_center'
+    dum_fig.add_layout(Legend(click_policy='hide',border_line_alpha=0,items=legend_items))
 
     output_fn = f"{experiments[0].experiment_folder}compare.html"
     print(f"Storing experiments interactive figure in {output_fn}")
@@ -759,9 +755,9 @@ def main():
     return
     
 if __name__=="__main__":
-    main() # python Profiler.py -direct_call test_profile_direct_call;'C:/Program Files/ObjectVision/GeoDms17.4.6/GeoDmsRun.exe' /LE:/experiments/direct_call/log.txt 'c:/users/cicada/prj/edm/cfg/stam.dms' @statistics /Evaluatie/test_tov_vorige_versie/checks/FR/test;E:/experiments/direct_call;E:/experiments/direct_call/log.txt
+    #main() # python Profiler.py -direct_call test_profile_direct_call;'C:/Program Files/ObjectVision/GeoDms17.4.6/GeoDmsRun.exe' /LE:/experiments/direct_call/log.txt 'c:/users/cicada/prj/edm/cfg/stam.dms' @statistics /Evaluatie/test_tov_vorige_versie/checks/FR/test;E:/experiments/direct_call;E:/experiments/direct_call/log.txt
     #python Profiler.py -direct_call naam_van_run E:/experiments/direct_call E:/experiments/direct_call/log.txt "C:/Program Files/ObjectVision/GeoDms17.4.6/GeoDmsRun.exe" /LE:/experiments/direct_call/log.txt "c:/users/cicada/prj/edm/cfg/stam.dms" @statistics /Evaluatie/test_tov_vorige_versie/checks/FR/test
-    #RunTestDirectCall("test_profile_direct_call;'C:/Program Files/ObjectVision/GeoDms17.4.6/GeoDmsRun.exe' /LE:/experiments/direct_call/log.txt 'c:/users/cicada/prj/edm/cfg/stam.dms' @statistics /Evaluatie/test_tov_vorige_versie/checks/FR/test;E:/experiments/direct_call;E:/experiments/direct_call/log.txt") # name, command, experiment_folder, geodms_logfile
+    RunTestDirectCall("test_profile_direct_call;'C:/Program Files/ObjectVision/GeoDms17.4.6/GeoDmsRun.exe' /LE:/experiments/direct_call/log.txt 'c:/users/cicada/prj/edm/cfg/stam.dms' @statistics /Evaluatie/test_tov_vorige_versie/checks/FR/test;E:/experiments/direct_call;E:/experiments/direct_call/log.txt") # name, command, experiment_folder, geodms_logfile
     #RunTestConfig("./profile_setups.txt")
     #RunTestConfig("C:/Users/Cicada/prj/GeoDMS-Test/Performance/scripts/profiler_rework.txt")
     #RunTestConfig("./profile_setups_profile_rework.txt")
