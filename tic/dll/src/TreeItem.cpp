@@ -886,7 +886,7 @@ void TreeItem::MakeCalculator() const noexcept
 
 	if (m_State.Get(ASF_MakeCalculatorLock))
 		return Fail(
-			"Invalid recursion in GetCalculator detected.\n"
+			"Invalid Recursion in GetCalculator detected.\n"
 			"Check calculation rule of this item"
 			, FR_Determine
 		);
@@ -2010,12 +2010,12 @@ SharedPtr<TreeItem> TreeItem::Copy(TreeItem* dest, TokenID id, CopyTreeContext& 
 		{
 			assert(!dest->InTemplate());
 			assert(copyContext.m_ArgList.IsRealList());
+			assert(!copyContext.InFenceOperator());
 
 			result->SetCalculator(AbstrCalculator::ConstructFromLispRef(result, copyContext.m_ArgList.Left(), CalcRole::ArgCalc));
 			result->SetIsHidden(true);
 			assert(result != copyContext.m_DstRoot);
 			assert(copyContext.m_DstRoot != nullptr);
-			result->m_FenceNumber = copyContext.m_DstRoot->m_FenceNumber;
 			copyContext.m_ArgList = copyContext.m_ArgList.Right();
 			return result; // don't copy subItems from this to result (take them from arg)
 		}
@@ -2031,14 +2031,8 @@ SharedPtr<TreeItem> TreeItem::Copy(TreeItem* dest, TokenID id, CopyTreeContext& 
 		if (!result->m_Location)
 			result->m_Location = this->m_Location;
 
-		if (copyContext.InFenceOperator())
+		if (!copyContext.InFenceOperator())
 		{
-			assert(!isArg);
-			result->m_FenceNumber = copyContext.m_FenceNumber;
-		}
-		else
-		{
-			result->m_FenceNumber = this->m_FenceNumber;
 
 			if (!copyContext.MustCopyExpr())
 			{
@@ -2181,8 +2175,6 @@ void TreeItem::UpdateMetaInfoImpl() const
 	{
 		if (mc_DC->WasFailed())
 			Fail(mc_DC);
-		else
-			MakeMax(mc_DC->m_FenceNumber, this->m_FenceNumber);
 	}
 
 	if (HasConfigData() && mc_Calculator && mc_Calculator->IsDataBlock())
@@ -2245,7 +2237,7 @@ MetaInfo TreeItem::GetCurrMetaInfo(metainfo_policy_flags mpf) const
 
 	if (m_State.Get(ASF_GetCalcMetaInfo))
 		throwItemError(
-			"Invalid recursion in TreeItem::GetCurrMetaInfo() detected.\n"
+			"Invalid Recursion in TreeItem::GetCurrMetaInfo() detected.\n"
 			"Check calculation rule of this item"
 		);
 	auto_flag_recursion_lock<ASF_GetCalcMetaInfo> lock(m_State);
@@ -2517,7 +2509,7 @@ void TreeItem::UpdateMetaInfoImpl2() const
 		if(m_State.IsDeterminingState() || m_State.IsUpdatingMetaInfo() || m_State.Get(ASF_MakeCalculatorLock) )
 		{
 			throwItemError(
-				"Invalid recursion in UpdateMetaInfo detected.\n"
+				"Invalid Recursion in UpdateMetaInfo detected.\n"
 				"Check calculation rule and other referring properties of this item and/or its Suppliers\n"
 				"Suggestion: check context for ApplyMetaFunc calls that may scan a range of sub-items"
 			);
@@ -4111,7 +4103,7 @@ AbstrStorageManager* TreeItem::GetStorageManager(bool throwOnFailure) const
 		if (m_State.Get(ASF_GetStorageManagerLock))
 		{
 			throwItemError(
-				"Invalid recursion detected in GetStorageManager.\n"
+				"Invalid Recursion detected in GetStorageManager.\n"
 				"Check the storage definition rule and other referring properties of this item and/or its SubItems"
 			);
 		}

@@ -73,6 +73,7 @@ RTC_CALL void PostMainThreadOper(operation_type&& func);
 RTC_CALL void SendMainThreadOper(operation_type&& func);
 RTC_CALL void PostMainThreadTask(fence_number fn, suspendible_task_type&& task);
 RTC_CALL void ProcessMainThreadOpers();
+RTC_CALL void ProcessSuspendibleTasks();
 RTC_CALL void ProcessMainThreadOpersAndTasks();
 RTC_CALL bool HasMainThreadTasks();
 RTC_CALL void CancelMainThreadTasks();

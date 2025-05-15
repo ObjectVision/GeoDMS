@@ -25,6 +25,32 @@
 //										SubItemOperator
 // *****************************************************************************
 
+// normal phases in processing an operator
+// -M find the operator group, determined by the operator name
+// -M SRC->DST: determine signature, result meta-info, or result data for each of the arguments, determined by their corresponting OperArgPolicy
+// -M SRC->DST: Signature and other result meta-info generation and determine suppliers: CreateResultCaller(...) -> CreateResult(..., ..., false);
+// - 
+// -M DST->SRC: Set target interests -> set iterest on m_ResultHolder->m_Data and SetSupplierIterest
+// -M SRC->DST: Scheduling: Create OperationContexts -> Activate free OC's -> register running OC's -> Terminating OC's free waiters.
+//	- W SRC->DST: Calculation: CalcResult  -> CreateResult(..., ..., true), called from running OC's
+
+// SubItem determines the 2nd arg during interest-setting, during scheduling in order to determine
+// which sub-item of a container should be calculated
+
+
+// FenceContainer Creates a full mirror-tree as result meta-info, with Fence Numbers, but no supppliers
+// at Calculation, it sets interest on source items that are mirrored by interesting sub-items, 
+// schedules (which creates full mirror-trees at upstream Fences), and runs them, which starts by Calculation up stream Fences, all the way up and down; depth first dependency traversal.
+//
+// Intended purposes
+// - Calc a sequential process in phases, to force summarization of intermediate results and thus not keeping large intermediate results for later summmarization
+// - partition and serialize parallel work to avoid too much simultaneous intermediate data 
+// 
+// issues
+// + Fence suppliers are always seen and numbered during meta-info info generation as this includes a mirror-tree
+// - still red items in HESTIA:/TussenResultaten/StartJaar/StateNaAllocatie_Fenced
+// - setting additional targets during or after calculations, see issue #902
+
 oper_arg_policy oap_SubItem[2] = { oper_arg_policy::calc_subitem_root, oper_arg_policy::calc_always };
 
 SpecialOperGroup sog_SubItem("SubItem", 2, oap_SubItem, oper_policy::existing|oper_policy::dynamic_result_class);
@@ -188,54 +214,45 @@ struct CheckOperator : public BinaryOperator
 #include "SupplCache.h"
 #include "UnitProcessor.h"
 
+// FenceContainers are used to separate calculations into groups that are to be executed serially, sequentially and/or consequetively and NOT in parallel.
+// All calculation steps behind the fence are to be completed before calculation steps in front of the fence, i.e. steps that use fenced results, are to be executed
+// the carninality of fenced domains are assumed to be known as part of the fenced results and can be used in the schedule execution plan of the front items
+// When any of a fence result consumers is scheduled, a fence is requested to execute as first part of the schedule execution of everything in front of the fence
+
+
 oper_arg_policy oap_Fence[2] = { oper_arg_policy::calc_subitem_root,  oper_arg_policy::calc_as_result };
 SpecialOperGroup sog_FenceContainer(token::FenceContainer, 2, oap_Fence, oper_policy::dynamic_result_class);
 
-void AssignFenceNumber(const Actor* item, fence_number fn)
+const fence_number first_fence_number = 1;
+
+void AssignFenceNumberImpl(const Actor* item) noexcept
 {
 	assert(item);
+
 	if (item->m_FenceNumber)
 		return;
-	item->m_FenceNumber = fn;
 
-	if (auto dc = dynamic_cast<const DataController*>(item))
-	{
-		if (auto sdc = dynamic_cast<const SymbDC*>(dc))
-			if (auto si = sdc->MakeResult())
-				AssignFenceNumber(si, fn);
-		else if (auto fc = dynamic_cast<const FuncDC*>(dc))
-			for (DcRefListElem* argRef = fc->m_Args; argRef; argRef = argRef->m_Next)
-				AssignFenceNumber(argRef->m_DC, fn);
-		return;
-	}
+	item->m_FenceNumber = first_fence_number;
 
-#if defined(MG_DEBUG_INTERESTSOURCE_LOGGING)
-
-
-	if (auto ti = dynamic_cast<const TreeItem*>(item))
-	{
-		static TokenID sGenerate = GetTokenID_mt("Generate");
-
-		if (ti->GetID() == sGenerate)
-			reportF(SeverityTypeID::ST_MinorTrace, "Fence %d", fn);
-/*
-		if (ti->m_State.Get(actor_flag_set::AFD_PivotElem))
-		{
-			reportF(SeverityTypeID::ST_MinorTrace, "Fence %d", fn);
-		}
-*/
-	}
-
-#endif defined(MG_DEBUG_INTERESTSOURCE_LOGGING)
 	try {
-		VisitSupplProcImpl(item, SupplierVisitFlag::CalcAll, [fn](const Actor* suppl)
+		VisitSupplProcImpl(item, SupplierVisitFlag::CalcAll, [item](const Actor* suppl)
 			{
-				AssignFenceNumber(suppl, fn);
+				AssignFenceNumberImpl(suppl);
+				MakeMax<fence_number>(item->m_FenceNumber, suppl->m_FenceNumber);
 			}
 		);
 	}
 	catch (...) {}
 }
+
+void AssignFenceNumber(const Actor* item)
+{
+	assert(item);
+	assert(IsMainThread());
+
+	AssignFenceNumberImpl(item);
+}
+
 
 struct FenceContainerOperator : BinaryOperator
 {
@@ -258,29 +275,33 @@ struct FenceContainerOperator : BinaryOperator
 			CopyTreeContext context(nullptr, sourceContainer, ""
 				, DataCopyMode::MakeEndogenous | DataCopyMode::InFenceOperator | DataCopyMode::NoRoot | DataCopyMode::CopyReferredItems
 			);
-			context.m_FenceNumber = GetNextFenceNumber();
 
-			resultHolder = context.Apply();
+			resultHolder = context.Apply(); // might generate upstream FenceNumbers, hidden upstream
+
 
 #if defined(MG_DEBUG)
 			resultHolder->m_State.Set(actor_flag_set::AFD_PivotElem);
 #endif
 
-			resultHolder->m_FenceNumber = context.m_FenceNumber;
-			resultHolder.m_FenceNumber = context.m_FenceNumber;
+			auto resultFenceNumber = GetNextFenceNumber();
+			resultHolder->m_FenceNumber = resultFenceNumber;
+			resultHolder.m_FenceNumber = resultFenceNumber;
 
-			auto resultFenceNumber = resultHolder.m_FenceNumber;
+			assert(sourceContainer->m_FenceNumber < resultFenceNumber);
 
 			auto resultRoot = resultHolder.GetNew();
 			for (auto resWalker = resultRoot; resWalker; resWalker = resultRoot->WalkCurrSubTree(resWalker))
 			{
-				MG_CHECK(resWalker->m_FenceNumber >= resultFenceNumber);
+				//				MG_CHECK(resWalker->m_FenceNumber >= resultFenceNumber);
+				resWalker->m_FenceNumber = resultFenceNumber;
 
 				auto srcItem = sourceContainer->FindItem(resWalker->GetRelativeName(resultHolder.GetNew()));
 				if (!srcItem)
 					continue;
 				MG_CHECK(!srcItem->IsCacheItem());
-				AssignFenceNumber(srcItem, resultFenceNumber);
+
+				AssignFenceNumber(srcItem);
+				MG_CHECK(srcItem->m_FenceNumber < resultFenceNumber);
 
 				if (resWalker != resultRoot) // avoid updating all fenced items before getting them
 					resWalker->GetOrCreateSupplCache()->InitAt(srcItem);
@@ -292,11 +313,29 @@ struct FenceContainerOperator : BinaryOperator
 
 				if (srcItem->WasFailed())
 					resWalker->Fail(srcItem);
+
 			}
 		}
 		assert(resultHolder);
 		assert(!resultHolder->IsPassor());
 	}
+
+	// The set of source sub-items that should be updated and kept is to be determined after the scheduling of all its consumers
+	// thus after scheduling this and before or during calculating this.
+	// Therfore only when the processing of this Fence is executed, we'll look at which sub-items need to be copied or kept.
+	// making and providing (shallow) copies of fenced data items is a mechanism to separate using a fence-result from using the fenced-item before the fence
+	// i.e. 
+	// 
+	// container state { a; b; c := a+b; }  
+	// container fence := FenceContainer(state, '...');
+	// d := fence/a + fence/b; 
+	// 
+	// d := add(subitem(fence, 'a') + subitem(fence, 'b');
+	// d should not be rewritten to state/a + state/b as that whould keep refs open that we want to close before completing of fence, but
+	// of a of b, en/of hun domein suppliers zijn van fence, wordt bepaald op moment van fence execution;
+	// op dat moment zijn de targets bekend en kan (re)scheduling bepaald worden; na completering van deze fence zijn de target domain bepaald en kan (re)scheduling van operaties na deze fence (beter) plaats vinden.
+
+
 	bool CalcResult(TreeItemDualRef& resultHolder, ArgRefs args, std::vector<ItemReadLock> readLocks, OperationContext * fc, Explain::Context * context) const override
 	{
 		assert(args.size() == 2);
@@ -313,17 +352,19 @@ struct FenceContainerOperator : BinaryOperator
 
 		auto resultFenceNumber = resultHolder.m_FenceNumber;
 
-		std::promise<void> fenceBell;
-		auto bellWaiter = fenceBell.get_future();
+		Concurrency::task_completion_event<void> fenceBell;
+		auto bellWaiter = Concurrency::task<void>{ fenceBell };
 		auto resWalker = resultRoot;
 		
+		// now, collect all targets that this Fence should calculate and start a Main Thread action to do so.
+		// this should be done before supplier Fences do this and after target collection and interest-setting of consuming Fences.
 		PostMainThreadTask(resultFenceNumber, [sourceContainer, resultRoot, &resWalker, &fenceBell, &resultHolder, resultFenceNumber, &futureDataContainer](bool mustCancel)-> bool
 			{
 				// work on exporting stuff from main thread
 				if (!mustCancel)
 				{
 					try {
-						if (s_CurrBlockedFenceNumber)
+						if (s_CurrBlockedFenceNumber && s_CurrBlockedFenceNumber <= resultFenceNumber)
 							throwErrorF("FenceContainer", "Invalid Recursion calling %s#%d from updating %s for %s#%d"
 								, resultRoot->GetSourceName(), resultFenceNumber
 								, s_CurrBlockedFenceItem->GetSourceName()
@@ -338,8 +379,8 @@ struct FenceContainerOperator : BinaryOperator
 							if (!resInterestPtr)
 								continue;
 
-						auto srcItem = sourceContainer->FindItem(resWalker->GetRelativeName(resultRoot));
-						assert(srcItem);
+							auto srcItem = sourceContainer->FindItem(resWalker->GetRelativeName(resultRoot));
+							assert(srcItem);
 
 							MG_CHECK(!srcItem->IsCacheItem());
 
@@ -384,7 +425,7 @@ struct FenceContainerOperator : BinaryOperator
 						return true;
 					}
 				}
-				fenceBell.set_value();
+				fenceBell.set();
 				return true;
 			}
 		);

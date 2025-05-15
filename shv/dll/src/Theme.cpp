@@ -482,6 +482,8 @@ std::shared_ptr<Theme> Theme::Create(AspectNr aNr, const AbstrDataItem* thematic
 
 		FutureSuppliers emptyFutureSupplierSet;
 		thematicAttrHolder->PrepareDataUsage(DrlType::Certain);
+		thematicAttrHolder->GetAbstrDomainUnit()->PrepareDataUsage(DrlType::Certain);
+
 //		etc->m_WriteLock = ItemWriteLock(breakAttr.get_ptr());
 		etc->ScheduleItemWriter(MG_SOURCE_INFO_CODE("Theme::Create") nbai.breakAttr.get_ptr(),
 				[dv_wptr, ts, thematicAttrHolder

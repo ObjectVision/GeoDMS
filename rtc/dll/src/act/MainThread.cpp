@@ -376,11 +376,16 @@ void ProcessMainThreadOpers()
 	assert(!SuspendTrigger::DidSuspend());
 }
 
+void ProcessSuspendibleTasks()
+{
+	assert(!SuspendTrigger::DidSuspend());
+	s_TaskQueue.Process();
+}
+
 void ProcessMainThreadOpersAndTasks()
 {
 	ProcessMainThreadOpers();
-	assert(!SuspendTrigger::DidSuspend());
-	s_TaskQueue.Process();
+	ProcessSuspendibleTasks();
 }
 
 void CancelMainThreadTasks()

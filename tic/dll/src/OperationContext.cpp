@@ -103,7 +103,7 @@ using contexts_within_one_fence = std::deque<OperationContextWPtr>;
 std::map<fence_number, contexts_within_one_fence> s_ScheduledContextsMap;
 
 std::atomic<RunningOperationsCounter> s_NrRunningOperations = 0;
-static std::atomic<fence_number> s_SchedulingFenceNumber = 0;
+static std::atomic<fence_number> s_SchedulingFenceNumber = 1;
 fence_number s_CurrBlockedFenceNumber = 0;
 const TreeItem* s_CurrBlockedFenceItem = nullptr;
 const TreeItem* s_CurrFenceContainer = nullptr;
@@ -1365,8 +1365,8 @@ task_status OperationContext::Join()
 			, GetResult()->GetFullName()
 			, OperationContext::CancelableFrame::CurrActive()->GetResult()->GetFullName()
 		);
-	if (IsMainThread() && s_CurrBlockedFenceNumber && m_FenceNumber >= s_CurrBlockedFenceNumber)
-		throwErrorF("FenceContainer", "Invalid recursion, OperationContext(%s)::Join called from updating %s for %s"
+	if (IsMainThread() && s_CurrBlockedFenceNumber && s_CurrBlockedFenceNumber <= m_FenceNumber)
+		throwErrorF("FenceContainer", "Invalid Recursion, OperationContext(%s)::Join called from updating %s for %s"
 		,	GetResult()->GetFullName()
 		,	s_CurrBlockedFenceItem->GetFullName()
 		,	s_CurrFenceContainer->GetFullName()
@@ -1388,6 +1388,7 @@ task_status OperationContext::Join()
 			if (SuspendTrigger::DidSuspend())
 				return task_status::suspended;
 			ProcessMainThreadOpers();
+			ProcessSuspendibleTasks();
 		}
 
 		leveled_std_section::unique_lock lock(cs_ThreadMessing);
@@ -1416,6 +1417,7 @@ task_status OperationContext::Join()
 		if (SuspendTrigger::DidSuspend())
 			return task_status::suspended;
 		ProcessMainThreadOpers();
+		ProcessSuspendibleTasks();
 	}
 
 	dms_assert(m_Status > task_status::running);
