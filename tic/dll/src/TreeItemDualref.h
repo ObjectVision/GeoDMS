@@ -17,17 +17,11 @@ enum DataControllerFlags
 {
 	DCF_IsOld              = 0x001 * actor_flag_set::AF_Next,
 	DCF_IsTmp              = 0x002 * actor_flag_set::AF_Next,
-	DCF_CacheRootKnown     = 0x004 * actor_flag_set::AF_Next,
-	DCF_DSM_FileNameKnown  = 0x008 * actor_flag_set::AF_Next,
-	DCF_DSM_SmallDataKnown = 0x010 * actor_flag_set::AF_Next,
-	DCF_CalcStarted        = 0x020 * actor_flag_set::AF_Next,
 
 	#if defined(MG_DEBUG_DATA)
-	DCFD_IsCalculating   = 0x040 * actor_flag_set::AF_Next,
 	DCFD_DataCounted     = 0x080 * actor_flag_set::AF_Next,
 	#endif
 
-	DCF_IdentifyingExpr  = 0x100 * actor_flag_set::AF_Next,
 	DCF_CanChange        = 0x400 * actor_flag_set::AF_Next, // op_is_transient
 };
 
@@ -62,9 +56,6 @@ struct TreeItemDualRef : Actor
 	bool IsOld() const { return m_Data &&  m_State.Get(DCF_IsOld); }
 	bool IsTmp() const { return m_Data &&  m_State.Get(DCF_IsTmp); }
 	bool IsTransient() const { return m_State.Get(DCF_IsTmp|DCF_CanChange); };
-
-	bool IsFileNameKnown()  const { return m_State.Get(DCF_DSM_FileNameKnown); }
-	bool IsUnitRangeKnown() const { return m_State.Get(DCF_DSM_SmallDataKnown); }
 
 	void operator =(      TreeItem* rhs) { SetNew(rhs); }
 	void operator =(const TreeItem* rhs) { SetOld(rhs); }

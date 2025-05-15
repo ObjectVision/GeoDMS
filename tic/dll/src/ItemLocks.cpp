@@ -554,15 +554,42 @@ bool IsAllDataReady(const TreeItem* item)
 	return IsAllDataCurrReady(item);
 }
 
-bool IsAllInterestedCalculatingOrDataReady_impl(const TreeItem* item)
+bool IsAllInterestedDataReady_impl(const TreeItem* item)
 {
+	MGD_PRECONDITION(item);
+	MGD_PRECONDITION(item->IsCacheItem());
+	MGD_PRECONDITION(item == item->GetCurrUltimateItem());
+
 	if (item->GetInterestCount())
-		if (!IsDataCurrReady(item->GetCurrUltimateItem()))
+		if (!IsDataCurrReady(item))
 			return false;
 
-	//	if (item->IsCacheItem())
 	for (auto subItem = item->_GetFirstSubItem(); subItem; subItem = subItem->GetNextItem())
-		if (!IsAllInterestedCalculatingOrDataReady_impl(subItem->GetCurrUltimateItem()))
+		if (!IsAllInterestedDataReady_impl(subItem->GetCurrUltimateItem()))
+			return false;
+
+	return true;
+}
+
+bool IsAllInterestedCalculatingOrDataReady_impl(const TreeItem* item)
+{
+	MGD_PRECONDITION(item);
+	MGD_PRECONDITION(item->IsCacheItem());
+
+	if (item->GetInterestCount())
+	{
+		auto ultimateCacheItem = item->GetCurrUltimateItem();
+		assert(ultimateCacheItem);
+		assert(ultimateCacheItem->IsCacheItem());
+
+		if (IsCalculating(ultimateCacheItem))
+			return true;
+		if (!IsDataCurrReady(ultimateCacheItem))
+			return false;
+	}
+
+	for (auto subItem = item->_GetFirstSubItem(); subItem; subItem = subItem->GetNextItem())
+		if (!IsAllInterestedDataReady_impl(subItem->GetCurrUltimateItem()))
 			return false;
 
 	return true;

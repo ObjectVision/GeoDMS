@@ -47,10 +47,6 @@ struct DataController : TreeItemDualRef
 
 	virtual bool IsCalculating() const;
 
-	bool IsFileNameKnown() const { return m_State.Get(DCF_DSM_FileNameKnown); }
-	void SetFileNameKnown() const { return m_State.Set(DCF_DSM_FileNameKnown); }
-	void ClearFileNameKnown() const { return m_State.Clear(DCF_DSM_FileNameKnown); }
-
 protected:
 	TIC_CALL void DoInvalidate () const override;
 	TIC_CALL SharedStr GetSourceName() const override; // override Object

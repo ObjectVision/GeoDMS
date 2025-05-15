@@ -64,15 +64,14 @@ TreeItemDualRef::~TreeItemDualRef()
 {
 	Clear();
 	dbg_assert(!m_State.Get(DCFD_DataCounted));
-//	dms_assert(!m_State.Get(DCF_CacheRootKnown|DCF_DSM_SmallDataKnown));
 }
 
 void TreeItemDualRef::Set(const TreeItem* ti, bool isNew)
 {
 	if (ti && m_Data != ti)
 	{
-		dms_assert(IsMetaThread());
-		dms_assert(!m_State.Get(DCF_IsOld|DCF_IsTmp));
+		assert(IsMetaThread());
+		assert(!m_State.Get(DCF_IsOld|DCF_IsTmp));
 
 		if (GetInterestCount() && m_Data)
 			DecDataInterestCount();
@@ -97,9 +96,8 @@ void TreeItemDualRef::Set(const TreeItem* ti, bool isNew)
 				throw;
 			}
 		}
-		dms_assert(!m_State.Get(DCF_CacheRootKnown));
 	}
-	dms_assert(!ti || GetOld() == ti);
+	assert(!ti || GetOld() == ti);
 }
 
 void TreeItemDualRef::SetNew(TreeItem* newTI)

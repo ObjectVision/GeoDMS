@@ -219,7 +219,6 @@ bool FuncDC::IsCalculating() const
 
 void FuncDC::DoInvalidate() const
 {
-	m_State.Clear(DCF_CalcStarted);
 	m_Operator.reset();
 	CancelOperContext();
 	dms_assert(!IsCalculating());
@@ -229,14 +228,12 @@ void FuncDC::DoInvalidate() const
 	dms_assert(!m_Data);										 // dropped by base_type::DoInvalidate
 	dms_assert(DoesHaveSupplInterest() || !GetInterestCount());	 // set by base_type::DoInvalidate
 	dms_assert(!IsCalculating());
-	dms_assert(!m_State.Get(DCF_CalcStarted));
 }
 
 garbage_t FuncDC::StopInterest () const noexcept
 { 
 	auto garbage = ResetOperContextImplAndStopSupplInterest();
 	garbage |= DataController::StopInterest(); 
-	m_State.Clear(DCF_CalcStarted);
 	return garbage;
 }
 
@@ -255,11 +252,6 @@ oper_arg_policy FuncDC::GetArgPolicy(arg_index argNr, CharPtr firstArgValue) con
 // Postcondition of CalcResult(true):
 //		Null is returned OR calculation has started that will make m_Data have valid data such that it can be accessed (DataReadLock can be set) or become failed
 //		and used as arg to calculate a result for a referring FuncDC
-//
-//	normal operation:
-//
-//		DCF_CalcStarted until interestcount drops to 0.
-//
 //
 //	special operations:
 //
@@ -283,7 +275,6 @@ SharedTreeItem FuncDC::MakeResult() const // produce signature
 #if defined(MG_DEBUG_DCDATA)
 	DBG_START("FuncDc::MakeResult", md_sKeyExpr.c_str(), MG_DEBUG_FUNCDC);
 
-//	auto_flag_recursion_lock<DCFD_IsCalculating> reentryLock(Actor::m_State);
 	const TreeItem* dContext = m_Data;
 
 	assert(IsMetaThread());
@@ -344,7 +335,6 @@ auto FuncDC::CallCalcResult(Explain::Context* context) const -> FutureData
 #if defined(MG_DEBUG_DCDATA)
 	DBG_START("FuncDc::CallCalcResult", md_sKeyExpr.c_str(), MG_DEBUG_FUNCDC);
 
-//	auto_flag_recursion_lock<DCFD_IsCalculating> reentryLock(Actor::m_State);
 	const TreeItem* dContext = m_Data;
 
 	assert(IsMetaThread());
@@ -362,12 +352,6 @@ auto FuncDC::CallCalcResult(Explain::Context* context) const -> FutureData
 #endif
 
 	FutureData thisFutureResult = this;
-	if (m_State.Get(DCF_CalcStarted) && !context)
-	{
-		dms_assert(CheckCalculatingOrReady(m_Data->GetCurrRangeItem()) || m_Data->WasFailed(FR_Data));
-		dms_assert(!SuspendTrigger::DidSuspend());
-		return thisFutureResult;
-	}
 
 	// precondition if doCalc: Interest, SupplInterest, Not FR_MetaInfo, nor Args; FR_Data may occur in worker threads, but then re-Make is futile.
 //	dms_assert(m_InterestCount);
@@ -427,7 +411,6 @@ auto FuncDC::CallCalcResult(Explain::Context* context) const -> FutureData
 	if (mustStartCalc)
 	{
 		assert(m_Data->GetInterestCount());
-		assert(m_State.Get(actor_flag_set::AF_SupplInterest) || context);
 
 		CallCalcResultImpl(context);
 		if (!m_Data || SuspendTrigger::DidSuspend())
@@ -438,7 +421,6 @@ auto FuncDC::CallCalcResult(Explain::Context* context) const -> FutureData
 		assert(!SuspendTrigger::DidSuspend());
 		assert(m_OperContext || IsDataReady(m_Data->GetCurrRangeItem()) || m_Data->WasFailed(FR_Data) || SuspendTrigger::DidSuspend());
 	}
-	m_State.Set(DCF_CalcStarted);
 	return thisFutureResult;
 }
 
@@ -523,7 +505,7 @@ OArgRefs FuncDC::GetArgs(bool doUpdateMetaInfo, bool doCalcData) const
 	arg_index currArg = 0;
 	ArgRefs argSeq; argSeq.reserve(GetNrArgs());
 
-	SharedStr firstArgValue;
+	SharedStr firstArgValue; // may be filled with first arg value that encoded the role of consecutive arguments for OperatorGroups with Dyanmic Arguments
 	for (const DcRefListElem* argIter = m_Args; argIter; ++currArg, argIter = argIter->m_Next) 
 	{
 		assert(argIter->m_DC); // DcRefListElem invariant
@@ -533,12 +515,12 @@ OArgRefs FuncDC::GetArgs(bool doUpdateMetaInfo, bool doCalcData) const
 		ArgRef argRef;
 		if (!mustCalcArg) {
 			argRef.emplace<SharedTreeItem>(argIter->m_DC->MakeResult()); // post:CheckCalculatingOrReady
-			dms_assert(!SuspendTrigger::DidSuspend()); // POSTCONDITION of argIter->m_DC->MakeResult();
+			assert(!SuspendTrigger::DidSuspend()); // POSTCONDITION of argIter->m_DC->MakeResult();
 		} else {
-			dms_assert(!doCalcData || argIter->m_DC->GetInterestCount());
+			assert(!doCalcData || argIter->m_DC->GetInterestCount());
 			FutureData fd = argIter->m_DC; fd = argIter->m_DC->CalcResultWithValuesUnits();
 			MakeMax(this->m_FenceNumber, argIter->m_DC->m_FenceNumber);
-			dms_assert(!fd || argIter->m_DC->GetInterestCount());
+			assert(!fd || argIter->m_DC->GetInterestCount());
 			if (SuspendTrigger::DidSuspend())
 				return {};
 			assert(!fd || CheckCalculatingOrReady(fd->GetOld()->GetCurrRangeItem()) || fd->WasFailed(FR_Data) || fd->GetOld()->WasFailed(FR_Data));

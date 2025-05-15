@@ -4246,13 +4246,9 @@ garbage_t TreeItem::StopInterest() const noexcept
 	else
 		garbage |= TryCleanupMem();
 
-	try {
-		m_ReadAssets.Clear();
-	}
-	catch(...)
-	{
-		reportF(SeverityTypeID::ST_Warning, "%s uncaught exception ", GetSourceName());
-	}
+	if (m_ReadAssets.has_value())
+		garbage |= std::move(m_ReadAssets);
+
 	s_SessionUsageCounter.unlock_shared();
 
 #if defined(MG_DEBUG_DATASTORELOCK)

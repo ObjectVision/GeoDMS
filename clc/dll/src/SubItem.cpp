@@ -90,7 +90,7 @@ struct SubItemOperator: BinaryOperator
 		{
 			assert(CheckDataReady(arg1->GetCurrUltimateItem()));
 			SharedTreeItem ultItem = resultHolder.GetUlt();
-			assert(CheckDataReady(ultItem));
+			MG_CHECK(CheckDataReady(ultItem));
 			if (ultItem != resultHolder.GetOld() && IsDataReady(ultItem))
 			{
 				SharedTreeItem ultHolder = resultHolder.GetUlt();
