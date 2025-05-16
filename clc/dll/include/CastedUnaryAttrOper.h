@@ -130,7 +130,7 @@ public:
 		
 		if (mustCalc)
 		{
-			AbstrDataItem* res = debug_cast<AbstrDataItem*>(resultHolder.GetNew());
+			auto res = AsDataItem(resultHolder.GetNew());
 			MG_PRECONDITION(res);
 
 			assert(res->GetValueComposition() == ValueComposition::Single); 
@@ -203,7 +203,7 @@ public:
 
 		if (mustCalc)
 		{
-			AbstrDataItem* res = debug_cast<AbstrDataItem*>(resultHolder.GetNew());
+			auto res = AsDataItem(resultHolder.GetNew());
 			MG_PRECONDITION(res);
 
 			DataWriteLock resLock(res, dms_rw_mode::write_only_mustzero);

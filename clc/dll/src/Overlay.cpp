@@ -334,7 +334,7 @@ public:
 	}
 
 	// Override Operator
-	virtual void CreateResultCaller(TreeItemDualRef& resultHolder, const ArgRefs& args, OperationContext* fc, LispPtr) const
+	virtual void CreateResultCaller(TreeItemDualRef& resultHolder, const ArgRefs& args, LispPtr) const
 	{
 		dms_assert(args.size() == 3);
 
@@ -388,13 +388,13 @@ public:
 					resPartitionRel
 				) 
 			);
-			fc->AddDependency(partitioningDI->GetCheckedDC()); // requires Meta info.
-//			fc->AddDependency(partitioningDI->GetAbstrValuesUnit()); // and of valuesunit, or is that included?
+			debug_refcast<FuncDC&>(resultHolder).AddDependency(partitioningDI->GetCheckedDC()); // requires Meta info.
+//			debug_refcast<FuncDC&>(resultHolder).AddDependency(partitioningDI->GetAbstrValuesUnit()); // and of valuesunit, or is that included?
 		}
 		resultHolder->m_ReadAssets.emplace<overlay_partitionong_info_array>(std::move(partitionInfo));
 	}
 
-	bool CalcResult(TreeItemDualRef& resultHolder, ArgRefs args, std::vector<ItemReadLock> readLocks, OperationContext* fc, Explain::Context* context) const override
+	bool CalcResult(TreeItemDualRef& resultHolder, ArgRefs args, std::vector<ItemReadLock> readLocks, Explain::Context* context) const override
 	{
 		dms_assert(resultHolder);
 		const overlay_partitionong_info_array& partitionInfo = *any_cast<overlay_partitionong_info_array>(&resultHolder->m_ReadAssets);

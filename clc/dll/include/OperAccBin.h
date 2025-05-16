@@ -57,7 +57,7 @@ struct AbstrOperAccTotBin : public BinaryOperator
 
 		if (mustCalc)
 		{		
-			AbstrDataItem* res = debug_cast<AbstrDataItem*>(resultHolder.GetNew());
+			auto res = AsDataItem(resultHolder.GetNew());
 			MG_PRECONDITION(res);
 
 			DataReadLock arg1Lock(arg1A);
@@ -145,9 +145,9 @@ struct AbstrOperAccPartBin: TernaryOperator
 	{
 		MG_PRECONDITION(args.size() == 3);
 
-		const AbstrDataItem* arg1A = debug_cast<const AbstrDataItem*>(args[0]);
-		const AbstrDataItem* arg2A = debug_cast<const AbstrDataItem*>(args[1]);
-		const AbstrDataItem* arg3A = debug_cast<const AbstrDataItem*>(args[2]);
+		auto arg1A = AsDataItem(args[0]);
+		auto arg2A = AsDataItem(args[1]);
+		auto arg3A = AsDataItem(args[2]);
 		assert(arg1A);
 		assert(arg2A);
 		assert(arg3A);
@@ -175,7 +175,7 @@ struct AbstrOperAccPartBin: TernaryOperator
 			DataReadLock arg2Lock(arg2A);
 			DataReadLock arg3Lock(arg3A);
 
-			AbstrDataItem* res = debug_cast<AbstrDataItem*>(resultHolder.GetNew());
+			auto res = AsDataItem(resultHolder.GetNew());
 			assert(res);
 			DataWriteLock resLock(res);
 

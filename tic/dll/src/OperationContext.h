@@ -60,7 +60,7 @@ struct OperationContext : std::enable_shared_from_this<OperationContext>
 	};
 
 	TIC_CALL OperationContext();
-	TIC_CALL OperationContext(const FuncDC* self, const AbstrOperGroup* og);
+	TIC_CALL OperationContext(const FuncDC* self);
 	TIC_CALL ~OperationContext();
 
 	OperationContext(const OperationContext&) = delete;
@@ -127,15 +127,11 @@ public:
 
 	bool MustCalcArg(arg_index i, CharPtr firstArgValue) const;
 
-	TIC_CALL void AddDependency(const DataController* keyExpr);
 	void RunOperator(Explain::Context* context, ArgRefs allInterests, std::vector<ItemReadLock> readLocks);
 
 	const FuncDC* GetFuncDC() const { return m_FuncDC;  }
 
-	std::vector<DataControllerRef> m_OtherSuppliers;
-
 	WeakPtr<const FuncDC>         m_FuncDC; MG_DEBUGCODE(WeakPtr<const FuncDC> md_FuncDC; )
-	WeakPtr<const AbstrOperGroup> m_OperGroup;
 	WeakPtr<const Operator>       m_Oper;
 public:
 
@@ -144,10 +140,6 @@ public:
 };
 
 TIC_CALL auto GetNextFenceNumber() -> fence_number;
-
-// TODO G8.1: Verwijderen uit OperationContext.cpp
-bool OperationContext_CreateResult(OperationContext* oc, const FuncDC* funcDC); 
-void OperationContext_AssignResult(OperationContext* oc, const FuncDC* funcDC);
 
 using RunningOperationsCounter = Int32;
 TIC_CALL extern std::atomic<RunningOperationsCounter> s_NrRunningOperations;

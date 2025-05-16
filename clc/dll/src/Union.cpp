@@ -232,7 +232,7 @@ public:
 	{}
 
    // Override Operator
-	void CreateResultCaller(TreeItemDualRef& resultHolder, const ArgRefs& args, OperationContext*, LispPtr) const override
+	void CreateResultCaller(TreeItemDualRef& resultHolder, const ArgRefs& args, LispPtr) const override
 	{
 		arg_index n = args.size() - 1;
 		dms_assert(n >= 1);
@@ -272,7 +272,7 @@ public:
 			resultHolder->SetTSF(TSF_Categorical);
 	}
 
-	bool CalcResult(TreeItemDualRef& resultHolder, ArgRefs args, std::vector<ItemReadLock> readLocks, OperationContext* fc, Explain::Context* context) const override
+	bool CalcResult(TreeItemDualRef& resultHolder, ArgRefs args, std::vector<ItemReadLock> readLocks, Explain::Context* context) const override
 	{
 		dms_assert(resultHolder);
 

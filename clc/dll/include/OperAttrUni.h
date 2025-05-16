@@ -47,7 +47,7 @@ struct AbstrUnaryAttrOperator: UnaryOperator
 	{
 		MG_PRECONDITION(args.size() == 1);
 
-		const AbstrDataItem* arg1A = debug_cast<const AbstrDataItem*>(args[0]);
+		auto arg1A = AsDataItem(args[0]);
 		assert(arg1A);
 
 		const AbstrUnit* e = arg1A->GetAbstrDomainUnit();

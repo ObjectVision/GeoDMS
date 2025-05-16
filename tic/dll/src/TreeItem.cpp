@@ -3356,10 +3356,8 @@ static how_to_proceed PrepareDataCalc(SharedPtr<const TreeItem> self, const Tree
 	//				dms_assert(!SuspendTrigger::DidSuspend()); // Postcondition when CreateResultingTreeItem returns a result
 	dms_check(self->HasInterest());
 
-	//				auto result = CalcResult(apr, GetDynamicObjClass());
 	if (dc)
 	{
-//		SuspendTrigger::SilentBlocker xx("@PrepareDataCalc");
 		auto dc2 = dc->CallCalcResult();
 		if (SuspendTrigger::DidSuspend())
 			return how_to_proceed::suspended;

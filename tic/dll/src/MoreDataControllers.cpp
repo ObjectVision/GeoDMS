@@ -198,7 +198,6 @@ std::shared_ptr<OperationContext> FuncDC::ResetOperContextImpl() const
 garbage_t FuncDC::ResetOperContextImplAndStopSupplInterest() const
 {
 	auto res = StopSupplInterest();
-//	dms_assert(!DoesHaveSupplInterest());
 	res |= ResetOperContextImpl();
 	return res;
 }
@@ -311,21 +310,15 @@ SharedTreeItem FuncDC::MakeResult() const // produce signature
 		return nullptr;
 
 	actor_section_lock_map::ScopedLock specificSectionLock(MG_SOURCE_INFO_CODE("Actor::DecInterestCount") sg_ActorLockMap, this);
-	auto operContext = GetOperContext();
-	if (operContext)
+
+	if (GetInterestCount())
 	{
-		m_OtherSuppliersCopy = operContext->m_OtherSuppliers;
-		if (GetInterestCount())
-		{
-			if (DoesHaveSupplInterest() && m_OtherSuppliersCopy.size())
-				RestartSupplInterestIfAny();
-		}
-		else
-		{
-			DBG_TRACE(("ResetContext"));
-			assert(!DoesHaveSupplInterest());
-			ResetOperContextImpl();
-		}
+		if (DoesHaveSupplInterest() && m_OtherSuppliers.size())
+			RestartSupplInterestIfAny();
+	}
+	else
+	{
+		assert(!DoesHaveSupplInterest());
 	}
 	return m_Data;
 }
@@ -359,7 +352,7 @@ auto FuncDC::CallCalcResult(Explain::Context* context) const -> FutureData
 	static UInt32 debug_counter = 0;
 	DBG_TRACE(("%s m_Data %s m_OperContext %s context %s ", debug_counter++, bool(m_Data), bool(m_OperContext), bool(context)));
 
-	if (!m_Data || !m_OperContext)
+	if (!m_Data)
 	{
 		DBG_TRACE(("MakeResult starts"));
 		if (!MakeResultImpl())
@@ -369,7 +362,6 @@ auto FuncDC::CallCalcResult(Explain::Context* context) const -> FutureData
 			return {};
 		}
 		dms_assert(m_Data);
-		assert(m_OperContext);
 		DBG_TRACE(("MakeResult completed well"));
 	}
 	m_Data->UpdateMetaInfo();
@@ -551,6 +543,76 @@ OArgRefs FuncDC::GetArgs(bool doUpdateMetaInfo, bool doCalcData) const
 	return argSeq;
 }
 
+bool FuncDC_CreateResult(const FuncDC* funcDC) // TODO G8.1: Verwijderen uit OperationContext
+{
+	DBG_START("FuncDC", "CreateResult", MG_DEBUG_FUNCDC);
+	DBG_TRACE(("FuncDC: %s", funcDC->md_sKeyExpr));
+
+	assert(IsMetaThread());
+	assert(funcDC);
+
+	MG_DEBUGCODE(const TreeItem * oldItem = funcDC->GetOld());
+
+	SuspendTrigger::FencedBlocker lockSuspend("OperationContext_CreateResult");
+
+	assert(!funcDC->WasFailed(FR_MetaInfo));
+	assert(!SuspendTrigger::DidSuspend());
+
+	TreeItemDualRef& resultHolder = *const_cast<FuncDC*>(funcDC);
+	try {
+		OArgRefs args = funcDC->GetArgs(true, false); // TODO, OPTIMIZE: CreateResult also sometimes calls GetArgs(false).
+
+		assert(!SuspendTrigger::DidSuspend());
+		if (!args)
+		{
+			assert(funcDC->WasFailed(FR_MetaInfo));
+			return false;
+		}
+		auto oper = funcDC->GetCurrOperator();
+		if (!oper) {
+			oper = funcDC->m_OperatorGroup->FindOperByArgs(*args);
+			if (funcDC)
+				funcDC->SetOperator(oper);
+		}
+		assert(oper);
+
+		assert(!funcDC->WasFailed(FR_MetaInfo));
+		assert(!SuspendTrigger::DidSuspend());
+
+		oper->CreateResultCaller(resultHolder, *args, funcDC->GetLispRef().Right()); // may set the fence number of funcDC
+	}
+	catch (...)
+	{
+		if (resultHolder.IsNew())
+			resultHolder->CatchFail(FR_MetaInfo); // also calls resultHolder->StopSupplInterest() (the resulting data).
+		resultHolder.CatchFail(FR_MetaInfo);
+	}
+
+	bool resultingFlag = !resultHolder.WasFailed(FR_MetaInfo);
+
+	if (resultHolder)
+	{
+		if (!resultHolder->GetDynamicObjClass()->IsDerivedFrom(oc->m_Oper->GetResultClass()))
+		{
+			auto msg = mySSPrintF("result of %s is of type %s, expected type: %s"
+				, funcDC->m_OperatorGroup->GetName()
+				, resultHolder->GetCurrentObjClass()->GetName()
+				, funcDC->m_Operator->GetResultClass()->GetName()
+			);
+			resultHolder->Fail(msg, FR_MetaInfo);
+		}
+		if (resultHolder->WasFailed(FR_MetaInfo))
+		{
+			resultHolder.Fail(resultHolder.GetOld(), FR_MetaInfo);
+			resultingFlag = false;
+		}
+	}
+
+	assert(resultingFlag != (SuspendTrigger::DidSuspend() || resultHolder.WasFailed(FR_MetaInfo)));
+	return resultingFlag;
+}
+
+
 bool FuncDC::MakeResultImpl() const
 {
 	assert(IsMetaThread());
@@ -571,7 +633,6 @@ bool FuncDC::MakeResultImpl() const
 		return false;
 
 	bool result = false;
-	std::shared_ptr< OperationContext> resultContext;
 	try {
 		UpdateMarker::ChangeSourceLock changeStamp(this, "FuncDC::MakeResult");
 		UpdateLock lock(this, actor_flag_set::AF_UpdatingMetaInfo);
@@ -579,13 +640,8 @@ bool FuncDC::MakeResultImpl() const
 		// ============== Call the actual operator
 		// TODO G8.1: CreateResult() Verwijderen uit OperationContext en constructie vermijden/uitstellen
 
-		resultContext = std::make_shared<OperationContext>(this, m_OperatorGroup);
-
-		result = OperationContext_CreateResult(resultContext.get(), this);
-		if (!result)
-		{
-			assert(SuspendTrigger::DidSuspend() || WasFailed(FR_MetaInfo));  // if we asked for MetaInfo and only DataProcesing failed, we should at least get a result
-		}
+		result = FuncDC_CreateResult(this);
+		assert(result || SuspendTrigger::DidSuspend() || WasFailed(FR_MetaInfo));  // if we asked for MetaInfo and only DataProcesing failed, we should at least get a result
 	}
 	catch (...)
 	{
@@ -595,19 +651,12 @@ bool FuncDC::MakeResultImpl() const
 	if (! result)
 	{
 		assert(SuspendTrigger::DidSuspend() || WasFailed(FR_MetaInfo));  // if we asked for MetaInfo and only DataProcesing failed, we should at least get a result
-		resultContext->m_FuncDC.reset();
 		return false;
 	}
 
 	assert(m_Data);
 	assert(!SuspendTrigger::DidSuspend() && !WasFailed(FR_MetaInfo) );  // if we asked for MetaInfo and only DataProcesing failed, we should at least get a result
 	assert(m_Data->IsCacheItem() || m_Data->IsPassor() || m_OperatorGroup->CanResultToConfigItem() || IsTmp());
-
-	leveled_critical_section::scoped_lock ocaLock(cs_OperContextAccess);
-
-	assert(!m_OperContext);
-	m_OperContext = resultContext;
-	assert(m_OperContext);
 
 	return true;
 }
@@ -627,6 +676,7 @@ void FuncDC::CallCalcResultImpl(Explain::Context* context) const
 	assert(!SuspendTrigger::DidSuspend());
 	assert(m_Data);
 	assert(GetInterestCount());
+	assert(!IsTmp());
 
 //	SharedTreeItemInterestPtr promise = m_Data;
 
@@ -646,7 +696,7 @@ void FuncDC::CallCalcResultImpl(Explain::Context* context) const
 		auto argInterest = GetArgs(false, true);
 		if (!argInterest)
 		{
-			dms_assert(m_Data->WasFailed(FR_Data) || SuspendTrigger::DidSuspend());
+			assert(m_Data->WasFailed(FR_Data) || SuspendTrigger::DidSuspend());
 			return;
 		}
 		assert(!SuspendTrigger::DidSuspend());
@@ -659,16 +709,31 @@ void FuncDC::CallCalcResultImpl(Explain::Context* context) const
 
 		// ============== Call the actual operator
 
-		std::shared_ptr<OperationContext> operContext;
+		assert(!m_OperContext);
+		auto operContext = std::make_shared<OperationContext>(this);
 		{
 			leveled_critical_section::scoped_lock ocaLock(cs_OperContextAccess);
-			operContext = m_OperContext;
-			assert(!operContext || operContext->getStatus() != task_status::cancelled); // ==  OperContext should call ResetOperContextImplAndStopSupplInterest before status==Canceled.
+
+			assert(!m_OperContext);
+			m_OperContext = operContext;
+			assert(m_OperContext);
 		}
+
 		assert(operContext || CheckDataReady(m_Data) || !IsNew());
 		if (operContext && !operContext->IsScheduled())
 		{
-			OperationContext_AssignResult(operContext.get(), this);
+			if (IsNew())
+			{
+				// mark TimeStamp of result
+				TreeItem* cacheRoot = GetNew();
+				TimeStamp ts = GetLastChangeTS();
+				for (TreeItem* cacheItem = cacheRoot; cacheItem; cacheItem = cacheRoot->WalkCurrSubTree(cacheItem))
+					cacheItem->MarkTS(ts);
+			}
+			assert(!operContext->m_Result || operContext->m_Result == GetOld());
+			operContext->m_Result = GetOld();
+
+			dms_assert(!IsNew() || GetNew()->m_LastChangeTS == m_LastChangeTS); // further changes in the resulting data must have caused resultHolder to invalidate, as IsNew results are passive
 
 			result = operContext->ScheduleCalcResult(context, std::move(*argInterest) );
 			dms_assert(operContext->IsScheduled() || !result); // this should provide that AssignResult will not be called twice
@@ -740,7 +805,7 @@ ActorVisitState FuncDC::VisitSuppliers(SupplierVisitFlag svf, const ActorVisitor
 			firstArgValue = const_array_cast<SharedStr>(DataReadLock(AsDataItem(dc->CalcCertainResult()->GetOld())))->GetIndexedValue(0);
 	}
 
-	for (auto& s : m_OtherSuppliersCopy)
+	for (auto& s : m_OtherSuppliers)
 		if (visitor.Visit(s) == AVS_SuspendedOrFailed)
 			return AVS_SuspendedOrFailed;
 

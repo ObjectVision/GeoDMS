@@ -35,7 +35,7 @@ public:
 		: BinaryOperator(&gr, resultUnitClass, argClass, argClass)
 	{}
 
-	void CreateResultCaller(TreeItemDualRef& resultHolder, const ArgRefs& args, OperationContext*, LispPtr) const override
+	void CreateResultCaller(TreeItemDualRef& resultHolder, const ArgRefs& args, LispPtr) const override
 	{
 		assert(args.size() == 2);
 
@@ -67,7 +67,7 @@ struct JoinEqualValuesOperator : AbstrJoinEqualValuesOperator
 		: AbstrJoinEqualValuesOperator(gr, Unit<ResultElement>::GetStaticClass(), DataArray<ArgValuesElement>::GetStaticClass())
 	{}
 
-	bool CalcResult(TreeItemDualRef& resultHolder, ArgRefs args, std::vector<ItemReadLock> readLocks, OperationContext*, Explain::Context* context = nullptr) const override
+	bool CalcResult(TreeItemDualRef& resultHolder, ArgRefs args, std::vector<ItemReadLock> readLocks, Explain::Context* context = nullptr) const override
 	{
 		const AbstrDataItem* axRef = AsDataItem(args[0]);
 		const AbstrDataItem* bxRef = AsDataItem(args[1]);

@@ -75,7 +75,7 @@ private:
 
 struct FuncDC : DataController
 {
-	typedef DataController base_type;
+	using base_type = DataController;
 
 	FuncDC(LispPtr keyExpr, const AbstrOperGroup* og);
 
@@ -128,6 +128,8 @@ struct FuncDC : DataController
 //protected: 
 	
 	virtual bool MakeResultImpl() const;
+	void AddDependency(const DataController* dc) const { m_OtherSuppliers.emplace_back(dc); }
+
 	void CallCalcResultImpl(Explain::Context* context) const;
 	const Class* GetResultCls () const override;
 	OArgRefs GetArgs(bool doUpdateMetaInfo, bool doUpdateData) const;
@@ -144,9 +146,10 @@ struct FuncDC : DataController
 	OwningPtr<DcRefListElem>      m_Args;
 	WeakPtr<const AbstrOperGroup> m_OperatorGroup;
 	mutable WeakPtr<const Operator>  m_Operator;
+
 private: friend struct OperationContext;
 	mutable std::shared_ptr<OperationContext> m_OperContext;
-	mutable std::vector<DataControllerRef> m_OtherSuppliersCopy;
+	mutable std::vector<DataControllerRef> m_OtherSuppliers;
 };
 
 #endif // __TIC_MOREDATACONTROLLERS_H

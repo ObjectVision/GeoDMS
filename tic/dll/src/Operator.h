@@ -62,7 +62,7 @@ protected:
 	TIC_CALL virtual bool CreateResult(TreeItemDualRef& resultHolder, const ArgSeqType& args, bool mustCalc) const;
 public:
 //	Returns FALSE in case of suspension; throw on matching failure
-	virtual void CreateResultCaller(TreeItemDualRef& resultHolder, const ArgRefs& args, OperationContext*, LispPtr metaCallArgs = LispPtr()) const
+	virtual void CreateResultCaller(TreeItemDualRef& resultHolder, const ArgRefs& args, LispPtr metaCallArgs = LispPtr()) const
 	{
 		if (resultHolder && !resultHolder.IsTmp())
 			return;
@@ -74,7 +74,7 @@ public:
 		dms_assert(resultHolder);
 	}
 
-	virtual bool CalcResult(TreeItemDualRef& resultHolder, ArgRefs args, std::vector<ItemReadLock> readLocks, OperationContext*, Explain::Context* context = nullptr) const
+	virtual bool CalcResult(TreeItemDualRef& resultHolder, ArgRefs args, std::vector<ItemReadLock> readLocks, Explain::Context* context = nullptr) const
 	{
 		dms_assert(resultHolder);
 		dms_assert(!CanExplainValue()); // or this method should be overridden.

@@ -166,7 +166,7 @@ struct RegCountOperator : public QuaternaryOperator
 		,	m_CountUnitClass(countUnitClass)
 	{}
 
-	void CreateResultCaller(TreeItemDualRef& resultHolder, const ArgRefs& args, OperationContext* fc, LispPtr) const override
+	void CreateResultCaller(TreeItemDualRef& resultHolder, const ArgRefs& args, LispPtr) const override
 	{
 		assert(args.size() == 4);
 
@@ -225,14 +225,14 @@ struct RegCountOperator : public QuaternaryOperator
 			regionInfoArray.emplace_back(partition, resultItem);
 			if (partition)
 			{
-				fc->AddDependency(partition->GetCheckedDC()); // requires Meta info.
-//				fc->AddDependency(partition->GetAbstrValuesUnit()); // and of valuesunit, or is that included?
+				debug_cast<FuncDC&>(resultHolder).AddDependency(partition->GetCheckedDC()); // requires Meta info.
+//				debug_cast<FuncDC&>(resultHolder).AddDependency(partition->GetAbstrValuesUnit()); // and of valuesunit, or is that included?
 			}
 		}
 		resultHolder->m_ReadAssets.emplace<RegionInfoArray>(std::move(regionInfoArray));
 	}
 
-	bool CalcResult(TreeItemDualRef& resultHolder, ArgRefs args, std::vector<ItemReadLock> readLocks, OperationContext* fc, Explain::Context* context) const override
+	bool CalcResult(TreeItemDualRef& resultHolder, ArgRefs args, std::vector<ItemReadLock> readLocks, Explain::Context* context) const override
 	{
 		assert(resultHolder);
 		RegionInfoArray* regionInfoArrayPtr = rtc::any::any_cast<RegionInfoArray>(&resultHolder->m_ReadAssets);

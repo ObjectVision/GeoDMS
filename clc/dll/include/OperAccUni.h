@@ -36,7 +36,7 @@ struct AbstrOperAccTotUni: UnaryOperator
 		gr->SetCanExplainValue();
 	}
 
-	void CreateResultCaller(TreeItemDualRef& resultHolder, const ArgRefs& args, OperationContext*, LispPtr) const override
+	void CreateResultCaller(TreeItemDualRef& resultHolder, const ArgRefs& args, LispPtr) const override
 	{
 		assert(args.size() == 1);
 
@@ -54,7 +54,7 @@ struct AbstrOperAccTotUni: UnaryOperator
 		);
 	}
 
-	bool CalcResult(TreeItemDualRef& resultHolder, ArgRefs args, std::vector<ItemReadLock> readLocks, OperationContext*, Explain::Context* context) const override
+	bool CalcResult(TreeItemDualRef& resultHolder, ArgRefs args, std::vector<ItemReadLock> readLocks, Explain::Context* context) const override
 	{
 		assert(resultHolder);
 		AbstrDataItem* res = AsDataItem(resultHolder.GetNew());
@@ -131,7 +131,7 @@ struct AbstrOperAccPartUni: BinaryOperator
 
 	}
 
-	void CreateResultCaller(TreeItemDualRef& resultHolder, const ArgRefs& args, OperationContext*, LispPtr) const override
+	void CreateResultCaller(TreeItemDualRef& resultHolder, const ArgRefs& args, LispPtr) const override
 	{
 		MG_PRECONDITION(args.size() == 2);
 
@@ -154,7 +154,7 @@ struct AbstrOperAccPartUni: BinaryOperator
 		resultHolder = CreateCacheDataItem(p2, (*m_UnitCreatorPtr)(GetGroup(), argSeq), m_ValueComposition);
 	}
 
-	bool CalcResult(TreeItemDualRef& resultHolder, ArgRefs args, std::vector<ItemReadLock> readLocks, OperationContext* oc, Explain::Context* context) const override
+	bool CalcResult(TreeItemDualRef& resultHolder, ArgRefs args, std::vector<ItemReadLock> readLocks, Explain::Context* context) const override
 	{
 		const AbstrDataItem* arg1A = AsDataItem(args[0]);
 		const AbstrDataItem* arg2A = AsDataItem(args[1]);

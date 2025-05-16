@@ -217,7 +217,7 @@ struct SelectMetaOperator : public BinaryOperator
 	OrgRelCreationMode m_ORCM;
 	TokenID            m_SelectOper;
 
-	void CreateResultCaller(TreeItemDualRef& resultHolder, const ArgRefs& args, OperationContext*, LispPtr metaCallArgs) const override
+	void CreateResultCaller(TreeItemDualRef& resultHolder, const ArgRefs& args, LispPtr metaCallArgs) const override
 	{
 		assert(args.size() == 1);
 
@@ -424,7 +424,7 @@ struct CollectWithAttrOperator : public BinaryOperator
 		, m_CollectMode(collectMode)
 	{}
 
-	void CreateResultCaller(TreeItemDualRef& resultHolder, const ArgRefs& args, OperationContext*, LispPtr metaCallArgs) const override
+	void CreateResultCaller(TreeItemDualRef& resultHolder, const ArgRefs& args, LispPtr metaCallArgs) const override
 	{
 		assert(args.size() == 2);
 

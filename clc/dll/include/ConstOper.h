@@ -124,7 +124,7 @@ struct AbstrConstOperator : public BinaryOperator
 
 		if (mustCalc)
 		{
-			AbstrDataItem* res = debug_cast<AbstrDataItem*>(resultHolder.GetNew());
+			auto res = AsDataItem(resultHolder.GetNew());
 			MG_PRECONDITION(res);
 
 			DataReadLock arg1Lock(arg1A);
@@ -184,7 +184,7 @@ struct AbstrConstParamOperator : public Operator
 		}
 		if (mustCalc)
 		{
-			AbstrDataItem* res = debug_cast<AbstrDataItem*>(resultHolder.GetNew());
+			auto res = AsDataItem(resultHolder.GetNew());
 			DataWriteLock resLock(res);
 
 			Calculate(resLock);

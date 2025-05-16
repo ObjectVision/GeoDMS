@@ -54,8 +54,8 @@ const bool MG_DEBUGCONNECTIONS = false;
 
 struct OperatorContextHandle : ContextHandle
 {
-	OperatorContextHandle(TokenID operID, bool mustCalc, const FuncDC* funcDC)
-		: m_MustCalc(mustCalc), m_OperID(operID), m_FuncDC(funcDC)
+	OperatorContextHandle(bool mustCalc, const FuncDC* funcDC)
+		: m_MustCalc(mustCalc), m_FuncDC(funcDC)
 	{}
 
 protected:
@@ -63,7 +63,6 @@ void GenerateDescription() override;
 
 private:
 	bool              m_MustCalc;
-	TokenID           m_OperID;
 	const FuncDC*     m_FuncDC;
 };
 
@@ -72,8 +71,10 @@ private:
 void OperatorContextHandle::GenerateDescription()
 {
 	UInt32 c = 0;
+	auto operID= m_FuncDC->m_OperatorGroup->GetNameID();
+
 	SharedStr msg = mySSPrintF("while operator %s is %s\n",
-		GetTokenStr(m_OperID).c_str(),
+		GetTokenStr(operID).c_str(),
 		(m_MustCalc
 			? "calculating data"
 			: "creating a result item"));
@@ -458,11 +459,12 @@ OperationContext::OperationContext()
 	#endif
 }
 
-OperationContext::OperationContext(const FuncDC* self, const AbstrOperGroup* og)
+OperationContext::OperationContext(const FuncDC* self)
 	: m_FuncDC(self)
-	, m_OperGroup(og)
 	, m_FenceNumber(self->GetFenceNumber())
 {
+	assert(m_FenceNumber);
+
 	DBG_START("OperationContext", "CTor", MG_DEBUG_FUNCCONTEXT);
 	DBG_TRACE(("FuncDC: %s", self->md_sKeyExpr));
 
@@ -957,110 +959,6 @@ task_status OperationContext::JoinSupplOrSuspendTrigger()
 	return task_status::done;
 }
 
-bool OperationContext_CreateResult(OperationContext* oc, const FuncDC* funcDC) // TODO G8.1: Verwijderen uit OperationContext
-{
-	DBG_START("OperationContext", "CreateResult", MG_DEBUG_FUNCCONTEXT);
-	DBG_TRACE(("FuncDC: %s", funcDC->md_sKeyExpr));
-
-	assert(IsMetaThread());
-	assert(funcDC);
-
-	MG_DEBUGCODE(const TreeItem* oldItem = funcDC->GetOld());
-
-	SuspendTrigger::FencedBlocker lockSuspend("OperationContext_CreateResult");
-
-	OperatorContextHandle operContext(oc->m_OperGroup->GetNameID(), false, funcDC);
-
-	assert(!funcDC->WasFailed(FR_MetaInfo));
-	assert(!SuspendTrigger::DidSuspend());
-
-	TreeItemDualRef& resultHolder = *const_cast<FuncDC*>(funcDC);
-	try {
-		OArgRefs args = funcDC->GetArgs(true, false); // TODO, OPTIMIZE: CreateResult also sometimes calls GetArgs(false).
-		assert(!oc->m_FenceNumber);
-
-		assert(!SuspendTrigger::DidSuspend());
-		if (!args)
-		{
-			assert(funcDC->WasFailed(FR_MetaInfo));
-			return false;
-		}
-		oc->m_Oper = funcDC->GetCurrOperator();
-		if (!oc->m_Oper) {
-			oc->m_Oper = oc->m_OperGroup->FindOperByArgs(*args);
-			if (funcDC)
-				funcDC->SetOperator(oc->m_Oper);
-		}
-		assert(oc->m_Oper);
-
-		assert(!funcDC->WasFailed(FR_MetaInfo));
-		assert(!SuspendTrigger::DidSuspend());
-
-		oc->m_Oper->CreateResultCaller(resultHolder, *args, oc, funcDC->GetLispRef().Right()); // may set the fence number of funcDC
-		oc->m_FenceNumber = funcDC->GetCurrFenceNumber();
-	}
-	catch (...)
-	{
-		if (resultHolder.IsNew())
-			resultHolder->CatchFail(FR_MetaInfo); // also calls resultHolder->StopSupplInterest() (the resulting data).
-		resultHolder.CatchFail(FR_MetaInfo);
-	}
-
-	bool resultingFlag = !resultHolder.WasFailed(FR_MetaInfo);
-
-	if (resultHolder)
-	{
-		if (!resultHolder->GetDynamicObjClass()->IsDerivedFrom(oc->m_Oper->GetResultClass()))
-		{
-			auto msg = mySSPrintF("result of %s is of type %s, expected type: %s"
-				, oc->m_Oper->GetGroup()->GetName()
-				, resultHolder->GetCurrentObjClass()->GetName()
-				, oc->m_Oper->GetResultClass()->GetName()
-			);
-			resultHolder->Fail(msg, FR_MetaInfo);
-		}
-		if (resultHolder->WasFailed(FR_MetaInfo))
-		{
-			resultHolder.Fail(resultHolder.GetOld(), FR_MetaInfo);
-			resultingFlag = false;
-		}
-	}
-		
-	assert(resultingFlag != (SuspendTrigger::DidSuspend() || resultHolder.WasFailed(FR_MetaInfo)));
-	return resultingFlag;
-}
-
-
-void OperationContext_AssignResult(OperationContext* oc, const FuncDC* funcDC)
-{
-	if (funcDC->IsNew())
-	{
-		// mark TimeStamp of result
-		TreeItem* cacheRoot = funcDC->GetNew();
-		TimeStamp ts = funcDC->GetLastChangeTS();
-		for (TreeItem* cacheItem = cacheRoot; cacheItem; cacheItem = cacheRoot->WalkCurrSubTree(cacheItem))
-			cacheItem->MarkTS(ts);
-		dms_assert(!oc->m_Result || oc->m_Result == funcDC->GetNew());
-		oc->m_Result = funcDC->GetNew();
-		dms_assert(oc->m_Result == funcDC->GetNew());
-	}
-	else if (!funcDC->IsTmp())
-	{
-		oc->m_Result = funcDC->GetOld();
-	}
-	dms_assert(!funcDC->IsNew() || funcDC->GetNew()->m_LastChangeTS == funcDC->m_LastChangeTS); // further changes in the resulting data must have caused resultHolder to invalidate, as IsNew results are passive
-}
-
-void OperationContext::AddDependency(const DataController* dcRef)
-{
-	if (!dcRef)
-		return;
-	assert(!IsScheduled());
-	assert(IsMainThread());
-	assert(dcRef);
-	m_OtherSuppliers.emplace_back(dcRef);
-}
-
 bool OperationContext::MustCalcArg(arg_index i, CharPtr firstArgValue) const
 {
 	return m_FuncDC->MustCalcArg(i, true, firstArgValue);
@@ -1172,9 +1070,8 @@ bool OperationContext::ScheduleCalcResult(Explain::Context* context, ArgRefs&& a
 
 	assert(m_Oper);
 	assert(!SuspendTrigger::DidSuspend());
-	assert(m_OperGroup);
 
-	OperatorContextHandle operContext(m_OperGroup->GetNameID(), true, m_FuncDC);
+	OperatorContextHandle operContext(true, m_FuncDC);
 
 	TreeItemDualRef& resultHolder = *const_cast<FuncDC*>(m_FuncDC.get_nonnull());
 	assert(resultHolder);
@@ -1207,28 +1104,30 @@ bool OperationContext::ScheduleCalcResult(Explain::Context* context, ArgRefs&& a
 
 	FutureSuppliers allInterests;
 
-	allInterests.reserve(argRefs.size() + m_OtherSuppliers.size()); // TODO G8: count better
+	allInterests.reserve(argRefs.size() + (m_FuncDC ? m_FuncDC->m_OtherSuppliers.size() : 0)); // TODO G8: count better
 	for (const auto& argRef : argRefs)
 		if (argRef.index() == 0)
 		{
 			allInterests.emplace_back(std::get<FutureData>(argRef));
 			assert(allInterests.back());
 		}
-	for (const DataController* dcPtr : m_OtherSuppliers)
-	{
-		auto otherSupplier = dcPtr->CallCalcResult();
-		if (!otherSupplier)
+	if (m_FuncDC)
+		for (const DataController* dcPtr : m_FuncDC->m_OtherSuppliers)
 		{
-			if (dcPtr->WasFailed(FR_Data))
+			auto otherSupplier = dcPtr->CallCalcResult();
+			if (!otherSupplier)
 			{
-				resultHolder.Fail(dcPtr);
+				if (dcPtr->WasFailed(FR_Data))
+				{
+					resultHolder.Fail(dcPtr);
+					break;
+				}
+				assert(SuspendTrigger::DidSuspend());
 				break;
 			}
-			assert(SuspendTrigger::DidSuspend());
-			break;
+			allInterests.emplace_back(otherSupplier);
 		}
-		allInterests.emplace_back(otherSupplier);
-	}
+
 	task_status resultStatus = m_Status;
 	if (!resultHolder.WasFailed(FR_Data) && !SuspendTrigger::DidSuspend())
 	{
@@ -1448,7 +1347,7 @@ void OperationContext::RunOperator(Explain::Context* context, ArgRefs argRefs, s
 		try {
 			TreeItemDualRefContextHandle reportProgressAndErr(&resultHolder);
 
-			actualResult = m_Oper->CalcResult(resultHolder, std::move(argRefs), std::move(readLocks), this, context); // ============== payload
+			actualResult = m_Oper->CalcResult(resultHolder, std::move(argRefs), std::move(readLocks), context); // ============== payload
 
 			dms_assert(resultHolder || IsCanceled());
 			dms_assert(actualResult || SuspendTrigger::DidSuspend());

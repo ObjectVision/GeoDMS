@@ -1077,7 +1077,7 @@ bool ApplyMetaFunc_impl(TreeItem* holder, const AbstrCalculator* ac, const Abstr
 
 		LifetimeProtector<TreeItemDualRef> resultHolder; resultHolder->SetTmp(holder);
 
-		oper->CreateResultCaller(*resultHolder, *args, nullptr, metaCallArgs);
+		oper->CreateResultCaller(*resultHolder, *args, metaCallArgs);
 
 		bool resultingFlag = !resultHolder->WasFailed(FR_MetaInfo);
 

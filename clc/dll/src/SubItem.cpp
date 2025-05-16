@@ -230,10 +230,9 @@ struct FenceContainerOperator : BinaryOperator
 		: BinaryOperator(&sog_FenceContainer, TreeItem::GetStaticClass(), TreeItem::GetStaticClass(), DataArray<SharedStr>::GetStaticClass())
 	{}
 
-	void CreateResultCaller(TreeItemDualRef& resultHolder, const ArgRefs& args, OperationContext* fc, LispPtr) const override
+	void CreateResultCaller(TreeItemDualRef& resultHolder, const ArgRefs& args, LispPtr) const override
 	{
 		assert(args.size() == 2);
-		assert(fc);
 
 		MG_CHECK(IsMetaThread());
 
@@ -303,7 +302,7 @@ struct FenceContainerOperator : BinaryOperator
 	// op dat moment zijn de targets bekend en kan (re)scheduling bepaald worden; na completering van deze fence zijn de target domain bepaald en kan (re)scheduling van operaties na deze fence (beter) plaats vinden.
 
 
-	bool CalcResult(TreeItemDualRef& resultHolder, ArgRefs args, std::vector<ItemReadLock> readLocks, OperationContext * fc, Explain::Context * context) const override
+	bool CalcResult(TreeItemDualRef& resultHolder, ArgRefs args, std::vector<ItemReadLock> readLocks, Explain::Context * context) const override
 	{
 		assert(args.size() == 2);
 

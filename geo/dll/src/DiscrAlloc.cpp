@@ -1092,7 +1092,7 @@ void CreateResultingItems(
 	TreeItem* resShadowPriceContainer,
 	TreeItem* resTotalAllocatedContainer,
 	htp_info_t<S, AR, AT>& htpInfo,
-	bool mustAdjust, OperationContext* fc
+	bool mustAdjust, FuncDC& funcDC
 )
 {
 	// init elementary data members
@@ -1128,7 +1128,7 @@ void CreateResultingItems(
 				if (!regioRefDI)
 					atomicRegionUnit->throwItemErrorF("SubItem expected with the name %s", partitioningName.c_str());
 				regioRefDI->UpdateMetaInfo();
-				fc->AddDependency(regioRefDI->GetCheckedDC());
+				funcDC.AddDependency(regioRefDI->GetCheckedDC());
 			}
 
 			if (regioRefDI && !atomicRegionUnit->UnifyDomain(regioRefDI->GetAbstrDomainUnit(), "atomicRegionUnit", "Domain of regional partitioning thereof", UnifyMode(), &resultMsg))
@@ -1145,7 +1145,7 @@ void CreateResultingItems(
 
 			if (htpInfo.m_Partitionings.back().m_ValuesLabelLock)
 			{
-				fc->AddDependency(htpInfo.m_Partitionings.back().m_ValuesLabelLock->GetCheckedDC());
+				funcDC.AddDependency(htpInfo.m_Partitionings.back().m_ValuesLabelLock->GetCheckedDC());
 			}
 		}
 		assert(htpInfo.m_Partitionings.size() == P);
@@ -1202,8 +1202,8 @@ void CreateResultingItems(
 		if (minClaims->WasFailed(FR_Data)) minClaims->ThrowFail();
 		if (maxClaims->WasFailed(FR_Data)) maxClaims->ThrowFail();
 
-		fc->AddDependency(minClaims->GetCheckedDC());
-		fc->AddDependency(maxClaims->GetCheckedDC());
+		funcDC.AddDependency(minClaims->GetCheckedDC());
+		funcDC.AddDependency(maxClaims->GetCheckedDC());
 
 		const AbstrUnit* partitioningUnit = nullptr;
 		if constexpr (!std::is_same_v<AR, Void>)
@@ -1275,7 +1275,7 @@ void CreateResultingItems(
 
 		gg->m_diSuitabilityMap = AsCertainDataItem(suitabilitiesSet->GetConstSubTreeItemByID(gg->m_NameID));
 		gg->m_diSuitabilityMap->UpdateMetaInfo();
-		fc->AddDependency(gg->m_diSuitabilityMap->GetCheckedDC());
+		funcDC.AddDependency(gg->m_diSuitabilityMap->GetCheckedDC());
 		if (!allocUnit->UnifyDomain(gg->m_diSuitabilityMap->GetAbstrDomainUnit(), "AllocUnit (second argument)", "Domain of suitability map", UnifyMode(), &resultMsg))
 			throwErrorF("discrete_alloc", "Domain of suitability map for %s:\n%s\n %s and allocUnit (arg2) incompatible: %s"
 				,	gg->m_NameID, gg->m_diSuitabilityMap->GetSourceName()
@@ -2847,7 +2847,7 @@ public:
 		assert(argClsIter == m_ArgClassesEnd);
 	}
 
-	void CreateResultCaller(TreeItemDualRef& resultHolder, const ArgRefs& args, OperationContext* fc, LispPtr) const override
+	void CreateResultCaller(TreeItemDualRef& resultHolder, const ArgRefs& args, LispPtr) const override
 	{
 		assert(args.size() == GetNrArguments());
 
@@ -2879,7 +2879,7 @@ public:
 		{
 			atomicRegionUnit = debug_cast<const Unit<AR>*>(GetItem(*argIter++));
 			assert(atomicRegionUnit);
-			//		fc->AddDependency(atomicRegionUnit->GetAsLispExpr()); is al implicit dependency as being calculating argument
+			//		debug_cast<FuncDC&>(resultHolder).AddDependency(atomicRegionUnit->GetAsLispExpr()); is al implicit dependency as being calculating argument
 
 			atomicRegionMapA = AsDataItem(*argIter++);
 			MG_CHECK(atomicRegionMapA);
@@ -2930,7 +2930,7 @@ public:
 			resShadowPriceContainer,
 			resTotalAllocatedContainer,
 			htpInfo,
-			m_MustAdjust, fc
+			m_MustAdjust, debug_refcast<FuncDC&>(resultHolder)
 		);
 
 		AbstrDataItem* resPrices = nullptr;
@@ -2938,7 +2938,7 @@ public:
 			resPrices = CreateDataItem(res, GetTokenID_mt("bid_price"), allocUnit, htpInfo.m_PriceUnit);
 	}
 
-	bool CalcResult(TreeItemDualRef& resultHolder, ArgRefs args, std::vector<ItemReadLock> readLocks, OperationContext* fc, Explain::Context* context) const override
+	bool CalcResult(TreeItemDualRef& resultHolder, ArgRefs args, std::vector<ItemReadLock> readLocks, Explain::Context* context) const override
 	{
 		assert(args.size() == GetNrArguments());
 		htp_info_type& htpInfo = *rtc::any::any_cast<htp_info_type>(&resultHolder->m_ReadAssets);

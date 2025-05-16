@@ -79,7 +79,7 @@ auto Operator::GetArgPolicy(arg_index argNr, CharPtr firstArgValue) const -> ope
 
 TIC_CALL auto Operator::EstimatePerformance(TreeItemDualRef& resultHolder, const ArgRefs& args) -> PerformanceEstimationData
 {
-	CreateResultCaller(resultHolder, args, nullptr);
+	CreateResultCaller(resultHolder, args);
 
 	if (!IsDataItem(resultHolder.GetNew()))
 		return {0, 0};

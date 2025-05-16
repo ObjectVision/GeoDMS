@@ -535,7 +535,7 @@ ConstUnitRef AbstrOperGroup::CreateValuesUnit(const ArgSeqType& dataArgs) const
 	const Operator* oper = FindOperByArgs(unitSeq);
 	MG_CHECK(oper);
 
-	oper->CreateResultCaller(*resultRef, unitSeq, nullptr, LispPtr());
+	oper->CreateResultCaller(*resultRef, unitSeq, LispPtr());
 
 	dms_assert(resultRef->GetOld());
 	ConstUnitRef u = debug_cast<const AbstrUnit*>(resultRef->GetOld());

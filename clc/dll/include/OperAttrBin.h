@@ -44,8 +44,8 @@ struct AbstrBinaryAttrOper : BinaryOperator
 	{
 		assert(args.size() == 2);
 
-		const AbstrDataItem* arg1A = debug_cast<const AbstrDataItem*>(args[0]);
-		const AbstrDataItem* arg2A = debug_cast<const AbstrDataItem*>(args[1]);
+		auto arg1A = AsDataItem(args[0]);
+		auto arg2A = AsDataItem(args[1]);
 
 		assert(arg1A);
 		assert(arg2A);

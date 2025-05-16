@@ -300,7 +300,7 @@ struct RapidXmlOperator : public BinaryOperator
 			)
 	{}
 
-	void CreateResultCaller(TreeItemDualRef& resultHolder, const ArgRefs& argRegs, OperationContext*, LispPtr metaCallArgs) const override
+	void CreateResultCaller(TreeItemDualRef& resultHolder, const ArgRefs& argRegs, LispPtr metaCallArgs) const override
 	{
 		assert(!CanExplainValue()); // or this method should be overridden.
 		auto args = GetItems(argRegs);
@@ -341,7 +341,7 @@ struct RapidXmlOperator : public BinaryOperator
 		assert(resultHolder);
 	}
 
-	bool CalcResult(TreeItemDualRef& resultHolder, ArgRefs argRefs, std::vector<ItemReadLock> readLocks, OperationContext*, Explain::Context* context = nullptr) const override
+	bool CalcResult(TreeItemDualRef& resultHolder, ArgRefs argRefs, std::vector<ItemReadLock> readLocks, Explain::Context* context = nullptr) const override
 	{
 		assert(resultHolder);
 		assert(!CanExplainValue()); // or this method should be overridden.
