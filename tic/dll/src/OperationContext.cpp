@@ -188,7 +188,7 @@ void connect(OperationContextSPtr waiter, OperationContextSPtr supplier)
 	if (isSupplier(waiter, supplier))
 		return;
 
-	assert(waiter->m_Oper && waiter->m_Oper->CanRunParallel());
+	assert(waiter->GetOperator() && waiter->GetOperator()->CanRunParallel());
 
 	waiter->m_Suppliers.insert(supplier);
 	supplier->m_Waiters.insert(waiter);
@@ -234,7 +234,7 @@ garbage_t OperationContext::disconnect_supplier(OperationContext* supplier)
 
 		if (m_Status == task_status::scheduled)
 		{
-			assert(m_Oper && m_Oper->CanRunParallel());
+			assert(!m_FuncDC || GetOperator()->CanRunParallel());
 			s_ScheduledContextsMap[m_FenceNumber].emplace_back(shared_from_this());
 		}
 		break;
@@ -535,7 +535,7 @@ task_status OperationContext::Schedule(TreeItem* item, const FutureSuppliers& al
 			bool connectedArgs = connectArgs(allInterest);
 			if (!connectedArgs)
 			{
-				assert(!m_Oper || m_Oper->CanRunParallel());
+				assert(!m_FuncDC || GetOperator()->CanRunParallel());
 				s_ScheduledContextsMap[m_FenceNumber].emplace_back(shared_from_this());
 				mustConsiderRun = true;
 			}
@@ -632,7 +632,7 @@ bool OperationContext::activateTaskImpl(SharedActorInterestPtr&& resKeeper)
 	assert(s_NrRunningOperations >= 0);
 	assert(m_Status < task_status::activated);
 	assert(m_TaskFunc);
-	assert(!m_Oper || m_Oper->CanRunParallel());
+	assert(!m_FuncDC || GetOperator()->CanRunParallel());
 
 	if (!getUniqueLicenseToActivate())
 		return m_Status >= task_status::activated || !m_TaskFunc;
@@ -1068,7 +1068,7 @@ bool OperationContext::ScheduleCalcResult(Explain::Context* context, ArgRefs&& a
 	DBG_START("OperationContext", "ScheduleCalcResult", MG_DEBUG_FUNCCONTEXT);
 	DBG_TRACE(("FuncDC: %s", m_FuncDC->md_sKeyExpr));
 
-	assert(m_Oper);
+	assert(GetOperator());
 	assert(!SuspendTrigger::DidSuspend());
 
 	OperatorContextHandle operContext(true, m_FuncDC);
@@ -1077,14 +1077,14 @@ bool OperationContext::ScheduleCalcResult(Explain::Context* context, ArgRefs&& a
 	assert(resultHolder);
 
 	MG_DEBUGCODE(const TreeItem* oldItem = resultHolder.GetOld() );
-	MG_DEBUGCODE(auto oper = m_Oper);
+	MG_DEBUGCODE(auto oper = GetOperator());
 	dbg_assert(oldItem);
 
 	dms_assert(resultHolder.IsTmp() || resultHolder->GetInterestCount());
 	dms_assert(resultHolder.GetInterestCount());
 	dbg_assert(!resultHolder.IsTmp()); // DEBUG 19/03/2020
 
-	bool doASync = m_Oper->CanRunParallel() && resultHolder.DoesHaveSupplInterest() && !context;
+	bool doASync = GetOperator()->CanRunParallel() && resultHolder.DoesHaveSupplInterest() && !context;
 
 	assert(m_Result);
 
@@ -1186,7 +1186,7 @@ void prioritize(SupplierSet& scheduledContexts, SupplierSet& activatedContexts, 
 	if (status == task_status::scheduled)
 	{
 
-		assert(self->m_Oper && self->m_Oper->CanRunParallel());
+		assert(self->GetOperator() && self->GetOperator()->CanRunParallel());
 
 		auto [_, wasInserted] = scheduledContexts.insert(self);
 		if (!wasInserted)
@@ -1347,7 +1347,7 @@ void OperationContext::RunOperator(Explain::Context* context, ArgRefs argRefs, s
 		try {
 			TreeItemDualRefContextHandle reportProgressAndErr(&resultHolder);
 
-			actualResult = m_Oper->CalcResult(resultHolder, std::move(argRefs), std::move(readLocks), context); // ============== payload
+			actualResult = GetOperator()->CalcResult(resultHolder, std::move(argRefs), std::move(readLocks), context); // ============== payload
 
 			dms_assert(resultHolder || IsCanceled());
 			dms_assert(actualResult || SuspendTrigger::DidSuspend());
@@ -1365,7 +1365,7 @@ void OperationContext::RunOperator(Explain::Context* context, ArgRefs argRefs, s
 		{
 			resultHolder.CatchFail(FR_Data); // Now done by TreeItemDualRef::DoFail
 			auto errPtr = resultHolder.GetFailReason();
-			errPtr->TellExtraF("in function %s", m_Oper->GetGroup()->GetNameStr());
+			errPtr->TellExtraF("in function %s", GetOperGroup()->GetName());
 			if (resultHolder.HasBackRef())
 				errPtr->TellExtraF("while calculating %s", resultHolder.GetBackRefStr());
 			HandleFail(resultHolder);

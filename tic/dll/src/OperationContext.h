@@ -131,8 +131,12 @@ public:
 
 	const FuncDC* GetFuncDC() const { return m_FuncDC;  }
 
-	WeakPtr<const FuncDC>         m_FuncDC; MG_DEBUGCODE(WeakPtr<const FuncDC> md_FuncDC; )
-	WeakPtr<const Operator>       m_Oper;
+	WeakPtr<const FuncDC>         m_FuncDC;
+	MG_DEBUGCODE(WeakPtr<const FuncDC> md_FuncDC; )
+
+	const Operator*       GetOperator () const { assert(m_FuncDC); return m_FuncDC->m_Operator; }
+	const AbstrOperGroup* GetOperGroup() const { assert(m_FuncDC); return m_FuncDC->m_OperatorGroup; }
+
 public:
 
 	SupplierSet m_Suppliers;

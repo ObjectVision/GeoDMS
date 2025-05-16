@@ -293,10 +293,8 @@ SharedTreeItem FuncDC::MakeResult() const // produce signature
 		{
 			assert(WasFailed(FR_MetaInfo)); // MakeResult cannot suspend
 			assert(!DoesHaveSupplInterest());
-			assert(!m_OperContext);
 			return nullptr;
 		}
-		assert(m_OperContext);
 		MG_CHECK(m_Data);
 		DBG_TRACE(("MakeResult completed well"));
 	}
@@ -592,7 +590,7 @@ bool FuncDC_CreateResult(const FuncDC* funcDC) // TODO G8.1: Verwijderen uit Ope
 
 	if (resultHolder)
 	{
-		if (!resultHolder->GetDynamicObjClass()->IsDerivedFrom(oc->m_Oper->GetResultClass()))
+		if (!resultHolder->GetDynamicObjClass()->IsDerivedFrom(funcDC->m_Operator->GetResultClass()))
 		{
 			auto msg = mySSPrintF("result of %s is of type %s, expected type: %s"
 				, funcDC->m_OperatorGroup->GetName()

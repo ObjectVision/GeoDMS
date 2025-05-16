@@ -225,8 +225,8 @@ struct RegCountOperator : public QuaternaryOperator
 			regionInfoArray.emplace_back(partition, resultItem);
 			if (partition)
 			{
-				debug_cast<FuncDC&>(resultHolder).AddDependency(partition->GetCheckedDC()); // requires Meta info.
-//				debug_cast<FuncDC&>(resultHolder).AddDependency(partition->GetAbstrValuesUnit()); // and of valuesunit, or is that included?
+				debug_refcast<FuncDC&>(resultHolder).AddDependency(partition->GetCheckedDC()); // requires Meta info.
+//				debug_refcast<FuncDC&>(resultHolder).AddDependency(partition->GetAbstrValuesUnit()); // and of valuesunit, or is that included?
 			}
 		}
 		resultHolder->m_ReadAssets.emplace<RegionInfoArray>(std::move(regionInfoArray));
