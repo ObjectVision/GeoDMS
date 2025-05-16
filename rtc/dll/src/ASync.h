@@ -13,9 +13,8 @@
 #include "utl/MemGuard.h"
 #include "utl/scoped_exit.h"
 
-#include <future>
-#include <semaphore>
 #include "ppl.h"
+#include "ppltasks.h"
 
 #if defined(MG_DEBUG)
 #define MG_DEBUG_FAKE_COPY_CONSTRUCTOR
@@ -112,18 +111,18 @@ public:
 
 
 template <typename Functor>
-using future = std::invoke_result_t<Functor>;
+using funtor_result_t = std::invoke_result_t<Functor>;
 
 template <typename R>
 using make_copy_constructible = std::conditional_t<std::is_copy_constructible_v<R>, R, add_fake_copy_constructor< R >>;
 
 template <typename Functor>
-using movable_future = make_copy_constructible<future<Functor>>;
+using movable_functor_result_t = make_copy_constructible<funtor_result_t<Functor>>;
 
 template <typename Functor>
-auto throttled_async(Concurrency::task_group& gr, Functor&& f) -> concurrency::task<movable_future<Functor>>
+auto throttled_async(Concurrency::task_group& gr, Functor&& f) -> Concurrency::task<movable_functor_result_t<Functor>>
 {
-	using R = movable_future<Functor>;
+	using R = movable_functor_result_t<Functor>;
 
 	// 1) Create an event and wrap it in a task
 	concurrency::task_completion_event<R> tce;

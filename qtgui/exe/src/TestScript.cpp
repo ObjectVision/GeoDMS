@@ -231,7 +231,7 @@ SharedStr ReadLine(FormattedInpStream& fis)
 	return result;
 }
 
-#include <future>
+#include <ppltasks.h>
 
 int RunTestScript(SharedStr testScriptName, bool* mustTerminateToken)
 {
@@ -241,9 +241,8 @@ int RunTestScript(SharedStr testScriptName, bool* mustTerminateToken)
 	{
 		auto line = ReadLine(fis);
 
-		std::promise<int> p;
-		std::future<int> mainThreadResult = p.get_future();
-
+		auto p = Concurrency::task_completion_event<int>();
+		auto mainThreadResult = Concurrency::task<int>{ p };
 		if (*mustTerminateToken)
 			return 0;
 
@@ -254,7 +253,7 @@ int RunTestScript(SharedStr testScriptName, bool* mustTerminateToken)
 		mw->PostAppOper([line, &p]
 			{
 				auto waitMilliSec = RunTestLine(line);
-				p.set_value(waitMilliSec);
+				p.set(waitMilliSec);
 			}
 		);
 

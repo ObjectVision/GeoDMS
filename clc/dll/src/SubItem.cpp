@@ -8,8 +8,6 @@
 #pragma hdrstop
 #endif
 
-#include <future>
-
 #include "ASync.h"
 #include "act/any.h"
 #include "dbg/SeverityType.h"

@@ -13,8 +13,12 @@ task_status OperationContext::ScheduleItemWriter(MG_SOURCE_INFO_DECL TreeItem* i
 	assert(IsMetaThread());
 //	dms_assert(!m_TaskFunc);
 	assert(m_Status == task_status::none);
+
 	m_TaskFunc = std::move(func);
 	m_Context = context;
+	if (item)
+		m_FenceNumber = item->GetFenceNumber();
+	assert(m_FenceNumber);
 
 	return Schedule(item, allInterests, runDirect); // might run inline
 }

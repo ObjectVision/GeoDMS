@@ -25,8 +25,6 @@
 #include "dbg/DmsCatch.h"
 #include "utl/Environment.h"
 
-#include <future>
-
 namespace { // local defs
 
 	THREAD_LOCAL dms_thread_id sThreadID  = 0;

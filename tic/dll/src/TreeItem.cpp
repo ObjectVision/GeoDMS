@@ -74,7 +74,6 @@
 #include "stg/MemoryMappeddataStorageManager.h"
 
 #include <stdarg.h>
-#include <future>
 
 using TreeItemInterestPtr = InterestPtr<const TreeItem*>;
 
@@ -2588,6 +2587,8 @@ void TreeItem::UpdateMetaInfoImpl2() const
 	}
 	assert(m_State.GetProgress() >= PS_MetaInfo);
 }
+
+#include <future>
 
 void TreeItem::UpdateMetaInfo() const noexcept
 {

@@ -49,9 +49,8 @@ namespace treeitem_production_task
 
 #if defined(MG_DEBUG)
 		auto producer = oc.lock();
-		assert(producer);
-		assert(producer->m_FenceNumber);
-		assert(self->GetCurrFenceNumber() >= producer->m_FenceNumber);
+		assert(!producer || producer->m_FenceNumber);
+		assert(!producer || self->GetCurrFenceNumber() >= producer->m_FenceNumber);
 #endif defined(MG_DEBUG)
 
 		leveled_critical_section::unique_lock lock(cs_lockCounterUpdate);

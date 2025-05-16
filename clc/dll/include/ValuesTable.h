@@ -278,8 +278,6 @@ auto WeededMergeToLeft(const ValueCountPairContainerT<V, C>& left, const ValueCo
 	return result;
 }
 
-#include <future>
-
 template <ordered_value_type V, count_type C>
 auto GetTileCounts(typename sequence_traits<V>::cseq_t data, SizeT index, SizeT size) -> ValueCountPairContainerT<V, C>
 {

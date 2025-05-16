@@ -148,8 +148,6 @@ std::vector<V> MergeToLeft(std::vector<V> left, std::vector<V> right, bool mustB
 	return result;
 }
 
-#include <future>
-
 template <typename V>
 std::vector<V> GetTileUniqueValues(typename DataArray<V>::locked_cseq_t tileData, tile_offset index, tile_offset size, bool mustBeDefined)
 {

@@ -462,11 +462,11 @@ std::shared_ptr<Theme> Theme::Create(AspectNr aNr, const AbstrDataItem* thematic
 		layerInfo.m_diClassBreaksOrExtKey,
 		layerInfo.m_diAspectOrFeature
 	);
-	dms_assert(result);
+	assert(result);
 	if (etc)
 	{
-		dms_assert(nbai.breakAttr);
-		dms_assert(layerInfo.m_diAspectOrFeature);
+		assert(nbai.breakAttr);
+		assert(layerInfo.m_diAspectOrFeature);
 		std::weak_ptr<Theme> result_wptr = result;
 
 		result->m_ClassTask.emplace<std::shared_ptr<OperationContext>>(etc);
@@ -483,6 +483,9 @@ std::shared_ptr<Theme> Theme::Create(AspectNr aNr, const AbstrDataItem* thematic
 		FutureSuppliers emptyFutureSupplierSet;
 		thematicAttrHolder->PrepareDataUsage(DrlType::Certain);
 		thematicAttrHolder->GetAbstrDomainUnit()->PrepareDataUsage(DrlType::Certain);
+
+		MakeMax<fence_number>(nbai.breakAttr->m_FenceNumber, thematicAttrHolder->GetFenceNumber());
+		MakeMax<fence_number>(nbai.breakAttr->m_FenceNumber, thematicAttrHolder->GetAbstrDomainUnit()->GetFenceNumber());
 
 //		etc->m_WriteLock = ItemWriteLock(breakAttr.get_ptr());
 		etc->ScheduleItemWriter(MG_SOURCE_INFO_CODE("Theme::Create") nbai.breakAttr.get_ptr(),
