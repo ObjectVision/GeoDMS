@@ -837,6 +837,8 @@ bool OperationContext::HandleFail(const TreeItem* item)
 
 bool OperationContext::SetReadLock(std::vector<ItemReadLock>& locks, const TreeItem* si) 
 {
+	assert(m_FenceNumber >= si->GetCurrFenceNumber());
+
 	try {
 		locks.emplace_back(si);
 	}
@@ -1272,7 +1274,7 @@ task_status OperationContext::Join()
 
 		// or wait for conditioin that was certainly not met just after setting the thread messing lock
 		if (activatedContexts.empty())
-			cv_TaskCompleted.wait_for(lock.m_BaseLock, std::chrono::milliseconds(200));
+			cv_TaskCompleted.wait_for(lock.m_BaseLock, std::chrono::milliseconds(500));
 	}
 	dms_assert(m_Status > task_status::running);
 	dbg_assert(CheckDataReady(m_Result->GetCurrUltimateItem()) || m_Status == task_status::cancelled || m_Status == task_status::exception || !m_Result->GetInterestCount());

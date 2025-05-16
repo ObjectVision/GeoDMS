@@ -47,6 +47,8 @@ namespace treeitem_production_task
 
 		assert(IsMetaThread() || oc.expired()); // creator tasks are initiated sequentialluy from the MainThread; Cleanup can come from any reading tasks that gives up the last iterest.
 
+		assert(self->GetCurrFenceNumber() >= oc->GetCurrFenceNumber());
+
 		leveled_critical_section::unique_lock lock(cs_lockCounterUpdate);
 		cv_lockrelease.wait(lock.m_BaseLock, [self]() {return self->m_ItemCount <= 0;  });
 
@@ -84,6 +86,8 @@ namespace treeitem_production_task
 			if (producer)
 			{
 				SuspendTrigger::FencedBlocker lock("treeitem_production_task");
+				assert(self->GetCurrFenceNumber() >= producer->GetCurrFenceNumber());
+
 				producer->Join();
 			}
 		}
