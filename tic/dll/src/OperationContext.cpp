@@ -1367,7 +1367,7 @@ task_status OperationContext::Join()
 
 		activatedContexts.clear();
 
-		RunOperationContexts(); // OPTIMIZE, CONSISTENCY: Some tasks finished without calling this. Find out why and avoid wasting idle thread time; maybe all threads are waiting in a Join without new and current tasks being activated
+//		RunOperationContexts(); // OPTIMIZE, CONSISTENCY: Some tasks finished without calling this. Find out why and avoid wasting idle thread time; maybe all threads are waiting in a Join without new and current tasks being activated
 		if (IsMetaThread())
 		{
 			if (SuspendTrigger::DidSuspend())
@@ -1380,8 +1380,9 @@ task_status OperationContext::Join()
 		if (m_Status > task_status::running)
 			break;
 
-		if (!s_NrRunningOperations)
-			continue;
+		runOperationContexts();
+//		if (!s_NrRunningOperations)
+//			continue;
 		if (IsMetaThread() && HasMainThreadTasks())
 			continue;
 
@@ -1408,6 +1409,7 @@ task_status OperationContext::Join()
 			}
 		}
 
+		// or wait for conditioin that was certainly not met just after setting the thread messing lock
 		if (activatedContexts.empty())
 			cv_TaskCompleted.wait_for(lock.m_BaseLock, std::chrono::milliseconds(200));
 	}
@@ -1432,7 +1434,6 @@ TIC_CALL task_status DoWorkWhileWaitingFor(task_status* fenceStatus)
 
 		activatedContexts.clear();
 
-		RunOperationContexts(); // OPTIMIZE, CONSISTENCY: Some tasks finished without calling this. Find out why and avoid wasting idle thread time; maybe all threads are waiting in a Join without new and current tasks being activated
 		if (IsMetaThread())
 		{
 			if (SuspendTrigger::MustSuspend())
@@ -1445,8 +1446,8 @@ TIC_CALL task_status DoWorkWhileWaitingFor(task_status* fenceStatus)
 		if (*fenceStatus > task_status::running)
 			return *fenceStatus;
 
-		if (!s_NrRunningOperations)
-			continue;
+		runOperationContexts();
+
 		if (IsMetaThread() && HasMainThreadTasks())
 			continue;
 
