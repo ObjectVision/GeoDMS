@@ -240,7 +240,7 @@ struct FenceContainerOperator : BinaryOperator
 			MG_CHECK(resultHolder.m_FenceNumber == 0);
 
 			CopyTreeContext context(nullptr, sourceContainer, ""
-				, DataCopyMode::MakeEndogenous | DataCopyMode::InFenceOperator | DataCopyMode::NoRoot | DataCopyMode::CopyReferredItems
+				, DataCopyMode::MakeEndogenous | DataCopyMode::InFenceOperator | DataCopyMode::CopyReferredItems
 			);
 
 			resultHolder = context.Apply(); // might generate upstream FenceNumbers, hidden upstream
@@ -259,8 +259,6 @@ struct FenceContainerOperator : BinaryOperator
 			auto resultRoot = resultHolder.GetNew();
 			for (auto resWalker = resultRoot; resWalker; resWalker = resultRoot->WalkCurrSubTree(resWalker))
 			{
-// done by caller				resWalker->m_FenceNumber = resultFenceNumber;
-
 				auto srcItem = sourceContainer->FindItem(resWalker->GetRelativeName(resultHolder.GetNew()));
 				if (!srcItem)
 					continue;

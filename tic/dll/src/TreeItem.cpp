@@ -1939,7 +1939,7 @@ SharedPtr<TreeItem> TreeItem::Copy(TreeItem* dest, TokenID id, CopyTreeContext& 
 	bool mustCopyProps = true;
 	bool dstIsRoot = (copyContext.m_DstRoot == nullptr);
 
-	dms_assert(copyContext.m_SrcRoot);
+	assert(copyContext.m_SrcRoot);
 	bool isArg = (copyContext.m_ArgList)
 		&& (GetTreeParent() == copyContext.m_SrcRoot);
 
@@ -2094,6 +2094,9 @@ void TreeItem::Unify(const TreeItem* refItem, CharPtr leftRole, CharPtr rightRol
 
 void TreeItem::CopyProps(TreeItem* result, const CopyTreeContext& copyContext) const
 {
+	if (copyContext.InFenceOperator())
+		return;
+
 	result->SetTSF(TSF_HasConfigData, HasConfigData() );
 }
 

@@ -212,6 +212,7 @@ template <typename V>
 void RangedUnit<V>::CopyProps(TreeItem* result, const CopyTreeContext& copyContext) const
 {
 	AbstrUnit::CopyProps(result, copyContext);
+	debug_cast<RangedUnit*>(result)->m_Metric = this->m_Metric;
 	debug_cast<RangedUnit*>(result)->m_RangeDataPtr = this->m_RangeDataPtr;
 }
 
