@@ -24,24 +24,9 @@ void serial_for(IndexType first, IndexType last, Func&& func)
 
 #include <ppl.h>
 
-#if defined(MG_DEBUG)
-
-#include "utl/swapper.h"
-TIC_CALL extern std::atomic<UInt32> gd_nrActiveLoops;
-
-#endif // defined(MG_DEBUG)
-
-
-TIC_CALL void RunOperationContexts();
-
-
 template <typename IndexType, typename Func>
 void parallel_for_impl(IndexType first, IndexType last, Func&& func)
 {
-#if defined(MG_DEBUG)
-	StaticMtIncrementalLock<gd_nrActiveLoops> lockLoops;
-#endif // defined(MG_DEBUG)
-
 	if (first == last)
 		return;
 	if (first + 1 == last)
@@ -52,17 +37,6 @@ void parallel_for_impl(IndexType first, IndexType last, Func&& func)
 	if (IsMultiThreaded1() )
 	{
 		concurrency::parallel_for<IndexType>(first, last, std::forward<Func>(func));
-/*
-		concurrency::task_group tasks;
-		for (; first != last; ++first)
-			tasks.run([first, &func] { func(first); }
-			);
-
-		tasks.wait();
-*/
-		if (IsMultiThreaded2())
-			RunOperationContexts();
-
 		return;
 	}
 	serial_for<IndexType>(first, last, std::forward<Func>(func));

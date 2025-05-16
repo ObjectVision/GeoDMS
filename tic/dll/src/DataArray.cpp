@@ -300,12 +300,6 @@ void MakeConstShadowTile(const_shadow<V>* shadowTilePtr, const DataArrayBase<V>*
 	}
 }
 
-#if defined(MG_DEBUG)
-
-std::atomic<UInt32> gd_nrActiveLoops;
-
-#endif // defined(MG_DEBUG)
-
 //----------------------------------------------------------------------
 // class  : DataArrayBase memberfunc impl
 //----------------------------------------------------------------------
@@ -771,8 +765,7 @@ DataCheckMode CheckMode(CI b, CI e, Undefined, DataCheckMode dcm)
 template <typename V>
 DataCheckMode DataArrayBase<V>::DoGetCheckMode() const
 {
-	dbg_assert(IsMultiThreaded2() || !gd_nrActiveLoops);
-	dms_assert(IsMetaThread() || IsMultiThreaded2());
+	assert(IsMetaThread() || IsMultiThreaded2());
 
 	if constexpr (!has_var_range_field_v<V> || !has_fixed_elem_size_v<V>)
 		return has_undefines_v<field_of_t<V>> ? DCM_CheckDefined : DCM_None;
@@ -788,8 +781,7 @@ DataCheckMode DataArrayBase<V>::DoGetCheckMode() const
 template <typename V>
 DataCheckMode DataArrayBase<V>::DoDetermineCheckMode() const
 {
-	dbg_assert(IsMultiThreaded2() || !gd_nrActiveLoops);
-	dms_assert(IsMetaThread() || IsMultiThreaded2());
+	assert(IsMetaThread() || IsMultiThreaded2());
 
 	if constexpr (!has_var_range_field_v<V> || !has_fixed_elem_size_v<V>)
 		return has_undefines_v<field_of_t<V>> ? DCM_CheckDefined : DCM_None;

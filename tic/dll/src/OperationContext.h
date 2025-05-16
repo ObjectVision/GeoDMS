@@ -73,7 +73,7 @@ struct OperationContext : std::enable_shared_from_this<OperationContext>
 
 	TIC_CALL task_status Schedule(TreeItem* item, const FutureSuppliers& allArgInterest, bool runDirect);
 
-	TIC_CALL task_status OnStart();
+	TIC_CALL bool getUniqueLicenseToRun();
 	//REMOVE TIC_CALL void OnSuspend();
 	TIC_CALL void OnException() noexcept;
 	TIC_CALL void OnEnd(task_status status) noexcept;
@@ -94,7 +94,7 @@ struct OperationContext : std::enable_shared_from_this<OperationContext>
 
 	friend garbage_t runOperationContexts();
 //private:
-	bool getUniqueLicenseToRun();
+	bool getUniqueLicenseToActivate();
 	task_status TryActivateTaskInline();
 	bool activateTaskImpl(SharedActorInterestPtr&& resKeeper);
 	void releaseRunCount(task_status status);

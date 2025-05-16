@@ -431,8 +431,8 @@ struct FenceContainerOperator : BinaryOperator
 		);
 
 		{
-			using DecCountType = StaticMtDecrementalLock<decltype(s_NrRunningOperations), s_NrRunningOperations>;
-			DecCountType dontCountThisOperation;
+//			using DecCountType = StaticMtDecrementalLock<decltype(s_NrRunningOperations), s_NrRunningOperations>;
+//			DecCountType dontCountThisOperation;
 
 			WakeUpJoiners();
 			bellWaiter.get();

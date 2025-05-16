@@ -633,6 +633,7 @@ concurrency::task_group& GetTaskGroup()
 	return *s_OcTaskGroup;
 }
 
+
 bool OperationContext::activateTaskImpl(SharedActorInterestPtr&& resKeeper)
 {
 	assert(!cs_ThreadMessing.try_lock());
@@ -642,7 +643,7 @@ bool OperationContext::activateTaskImpl(SharedActorInterestPtr&& resKeeper)
 	assert(m_TaskFunc);
 	assert(!m_Oper || m_Oper->CanRunParallel());
 
-	if (!getUniqueLicenseToRun())
+	if (!getUniqueLicenseToActivate())
 		return m_Status >= task_status::activated || !m_TaskFunc;
 	
 	m_ResKeeper = std::move(resKeeper);
@@ -654,7 +655,8 @@ bool OperationContext::activateTaskImpl(SharedActorInterestPtr&& resKeeper)
 		if (self) 
 		{
 			assert(self->m_FenceNumber <= s_CurrActiveFenceNumber);
-			self->safe_run_caller();
+			if (self->getUniqueLicenseToRun())
+				self->safe_run_caller();
 			assert(self->m_FenceNumber <= s_CurrActiveFenceNumber);
 		}
 	};
@@ -663,7 +665,7 @@ bool OperationContext::activateTaskImpl(SharedActorInterestPtr&& resKeeper)
 	return true;
 }
 
-bool OperationContext::getUniqueLicenseToRun()
+bool OperationContext::getUniqueLicenseToActivate()
 {
 //	dms_assert(m_Suppliers.empty());
 	assert(!cs_ThreadMessing.try_lock());
@@ -674,7 +676,7 @@ bool OperationContext::getUniqueLicenseToRun()
 		return false;
 	}
 
-	dms_assert(!IsRunningOperation(m_Status));
+	assert(!IsRunningOperation(m_Status));
 	assert(s_NrRunningOperations >= 0);
 
 	m_Status = task_status::activated;
@@ -684,7 +686,7 @@ bool OperationContext::getUniqueLicenseToRun()
 		sd_RunningOC.insert(this);
 	#endif
 
-	dms_assert(IsRunningOperation(m_Status));
+	assert(IsRunningOperation(m_Status));
 	assert(s_NrRunningOperations > 0);
 
 	return true;
@@ -695,60 +697,28 @@ task_status OperationContext::TryActivateTaskInline()
 	assert(m_Suppliers.empty());
 
 	SuspendTrigger::FencedBlocker blockGuiInterruptions("OperationContext::TryActivateTaskInline()");
-	{
-		leveled_std_section::scoped_lock lock(cs_ThreadMessing);
-		assert(m_Status != task_status::suspended);
-		if (!getUniqueLicenseToRun())
-			return m_Status;
-	}
-	assert(!SuspendTrigger::DidSuspend());
 
-	safe_run_caller();
+	if (getUniqueLicenseToRun())
+		safe_run_caller();
+
 	return m_Status;
 }
 
 
-task_status OperationContext::OnStart()
+bool  OperationContext::getUniqueLicenseToRun()
 {
 	DSM::CancelIfOutOfInterest(m_Result);
-	{
-		leveled_std_section::scoped_lock lock(cs_ThreadMessing);
-
-		dms_assert(m_Status >= task_status::activated || m_Status == task_status::none);
-		dms_assert(m_Status != task_status::running);
-		if (m_Status < task_status::running)
-		{
-			if (m_Status == task_status::none)
-			{
-				s_NrRunningOperations++;
-				m_Status = task_status::activated;
-#if defined(MG_TRACE_OPERATIONCONTEXTS)
-				sd_RunningOC.insert(this);
-#endif
-			}
-			dms_assert(m_Status != task_status::running);
-			dms_assert(IsRunningOperation(m_Status));
-			m_Status = task_status::running;
-			return m_Status;
-		}
-	}
-	return Join();
-}
-
-/* REMOVE
-void OperationContext::OnSuspend()
-{
 	leveled_std_section::scoped_lock lock(cs_ThreadMessing);
 
-	if (m_Status < task_status::activated)
-		return;
+	if (m_Status >= task_status::running)
+		return false;
 
-	//REMOVE	if (m_Status >= task_status::suspended)
-	//REMOVE		return;
+	getUniqueLicenseToActivate();
+	assert(m_Status == task_status::activated);
 
-	releaseRunCount(task_status::suspended);
+	m_Status = task_status::running;
+	return true;
 }
-*/
 
 void OperationContext::OnException() noexcept
 {
@@ -1118,11 +1088,12 @@ void OperationContext::safe_run_with_catch() noexcept
 	try {
 		OperationContext::CancelableFrame frame(this);
 
-		if (OnStart() == task_status::running) {
-			UpdateMarker::ChangeSourceLock tsLock(m_ActiveTimestamp, "safe_run");
-			dms_assert(m_TaskFunc);
-			m_TaskFunc(m_Context);
-		}
+		assert(m_Status == task_status::running);
+
+		UpdateMarker::ChangeSourceLock tsLock(m_ActiveTimestamp, "safe_run");
+
+		assert(m_TaskFunc);
+		m_TaskFunc(m_Context);
 	}
 	catch (const task_canceled&)
 	{
@@ -1140,7 +1111,7 @@ void OperationContext::safe_run_with_catch() noexcept
 
 void OperationContext::safe_run_with_cleanup() noexcept
 {
-	dms_assert(!SuspendTrigger::DidSuspend());
+	assert(!SuspendTrigger::DidSuspend());
 
 	safe_run_with_catch();
 
@@ -1153,8 +1124,8 @@ void OperationContext::safe_run_with_cleanup() noexcept
 	}
 
 	// check that clean-up was done. This includes releasing the RunCount
-	dms_assert(!m_TaskFunc);
-	dms_assert(!m_WriteLock);
+	assert(!m_TaskFunc);
+	assert(!m_WriteLock);
 }
 
 void OperationContext::safe_run_caller() noexcept
@@ -1331,32 +1302,43 @@ SizeT getScheduledContextsPos(OperationContextSPtr self)
 	return UNDEFINED_VALUE(SizeT);
 }
 
-void prioritize(SupplierSet& prioritizedContexts, OperationContextSPtr self)
+
+void prioritize(SupplierSet& scheduledContexts, SupplierSet& activatedContexts, OperationContextSPtr self)
 {
-	dms_assert(self);
-	if (self->getStatus() != task_status::scheduled)
-		return;
-
-	assert(self->m_Oper && self->m_Oper->CanRunParallel());
-
-	auto ptr = prioritizedContexts.lower_bound(self);
-	if (ptr != prioritizedContexts.end() && !ptr->owner_before(self))
-		return;
-	prioritizedContexts.insert(ptr, self);
-	if (self->m_Suppliers.empty())
+	assert(self);
+	auto status = self->getStatus();
+	if (status == task_status::activated)
 	{
-		auto pos = getScheduledContextsPos(self);
-		assert(IsDefined(pos));
-
-		if(IsDefined(pos))
-			s_ScheduledContextsMap[self->m_FenceNumber].erase(s_ScheduledContextsMap[self->m_FenceNumber].begin() + pos);
-		s_ScheduledContextsMap[self->m_FenceNumber].push_front(self->weak_from_this());
+		activatedContexts.insert(self);
 		return;
 	}
+	if (status == task_status::scheduled)
+	{
 
-	for (auto& s : self->m_Suppliers)
-		prioritize(prioritizedContexts, s);
+		assert(self->m_Oper && self->m_Oper->CanRunParallel());
+
+		auto [_, wasInserted] = scheduledContexts.insert(self);
+		if (!wasInserted)
+			return;   // it was already in the set
+		/*
+			if (self->m_Suppliers.empty())
+			{
+				auto pos = getScheduledContextsPos(self);
+				assert(IsDefined(pos));
+
+				auto fn = self->m_FenceNumber;
+				if(IsDefined(pos))
+					s_ScheduledContextsMap[fn].erase(s_ScheduledContextsMap[fn].begin() + pos);
+				s_ScheduledContextsMap[fn].push_front(self->weak_from_this());
+				return;
+			}
+			*/
+
+		for (auto& s : self->m_Suppliers)
+			prioritize(scheduledContexts, activatedContexts, s);
+	}
 }
+
 
 task_status OperationContext::Join()
 {
@@ -1373,14 +1355,15 @@ task_status OperationContext::Join()
 		);
 	MG_CHECK(m_Status != task_status::none); // being scheduled is a precondition
 
-	bool isFirstTime = true;
-//	TryActivateTaskInline();
+	SupplierSet activatedContexts;
+
 	while (m_Status <= task_status::running)
 	{
-		using DecCountType = StaticMtDecrementalLock<decltype(s_NrRunningOperations), s_NrRunningOperations>;
-		std::optional<DecCountType> freediecount;
-		if (OperationContext::CancelableFrame::CurrActiveHasRunCount())
-			freediecount.emplace();
+		for (auto inlineWork : activatedContexts)
+			if (inlineWork->getUniqueLicenseToRun())  // already running elsewhere. go for something else
+				inlineWork->safe_run_caller();
+
+		activatedContexts.clear();
 
 		RunOperationContexts(); // OPTIMIZE, CONSISTENCY: Some tasks finished without calling this. Find out why and avoid wasting idle thread time; maybe all threads are waiting in a Join without new and current tasks being activated
 		if (IsMetaThread())
@@ -1394,32 +1377,21 @@ task_status OperationContext::Join()
 		leveled_std_section::unique_lock lock(cs_ThreadMessing);
 		if (m_Status > task_status::running)
 			break;
+
 		if (!s_NrRunningOperations)
 			continue;
-
-		if (HasMainThreadTasks())
+		if (IsMetaThread() && HasMainThreadTasks())
 			continue;
 
 		assert(m_Status > task_status::scheduled || !m_Suppliers.empty() || IsDefined(getScheduledContextsPos(this->shared_from_this())));
-
-		if (isFirstTime && IsMetaThread())
+		if (m_Status < task_status::running)
 		{
-			SupplierSet prioritizedContexts;
-			prioritize(prioritizedContexts, this->shared_from_this());
+			SupplierSet scheduledContexts;
+			prioritize(scheduledContexts, activatedContexts, shared_from_this());
 		}
-		cv_TaskCompleted.wait_for(lock.m_BaseLock, std::chrono::milliseconds(200));
-		isFirstTime = false;
+		else
+			cv_TaskCompleted.wait_for(lock.m_BaseLock, std::chrono::milliseconds(200));
 	}
-
-	RunOperationContexts();
-	if (IsMetaThread())
-	{
-		if (SuspendTrigger::DidSuspend())
-			return task_status::suspended;
-		ProcessMainThreadOpers();
-		ProcessSuspendibleTasks();
-	}
-
 	dms_assert(m_Status > task_status::running);
 	dbg_assert(CheckDataReady(m_Result->GetCurrUltimateItem()) || m_Status == task_status::cancelled || m_Status == task_status::exception || !m_Result->GetInterestCount());
 	return m_Status;

@@ -474,31 +474,6 @@ bool IsCalculating(const TreeItem* item)
 	} while (item);
 	return false;
 }
-/*
-bool CheckFilesPresent(const AbstrDataItem* adi)
-{
-	assert(IsMetaThread());
-
-	if (DataStoreManager::Curr()->CheckFilesPresent(adi))
-	{
-		assert(adi->GetTSF(DSF_DSM_Allocated)); // avoid extra work
-		return true;
-	}
-	assert(!adi->IsFnKnown()); // avoid extra work
-	return false;
-}
-
-bool CheckFilesPresent(const DataController* dc, const TreeItem* cacheRoot, const AbstrDataItem* adi)
-{
-	if (DataStoreManager::Curr()->CheckFilesPresent(dc, cacheRoot, adi))
-	{
-		assert(adi->GetTSF(DSF_DSM_Allocated)); // avoid extra work
-		return true;
-	}
-	assert(!adi->IsFnKnown()); // avoid extra work
-	return false;
-}
-*/
 
 bool IsDataCurrReady(const TreeItem* item)
 {
@@ -792,12 +767,21 @@ bool WaitForReadyOrSuspendTrigger(const TreeItem* item)
 			assert(!SuspendTrigger::DidSuspend()); // cotrolflow logic
 			return IsDataReady(item) || item->WasFailed(FR_Data);
 		}
-
-		assert(IsMultiThreaded2());
-		WaitForCompletedTaskOrTimeout(); // max 300 milliseconds
-		SuspendTrigger::MarkProgress(); // Is ti or any other item indeed progressing without dropping off from scope
-		if (counter++ == 34) // sporadious wakeup at least every 10 secs to release from mysterious hang
-			SuspendTrigger::DoSuspend();
+		std::shared_ptr<OperationContext> producer;
+		{
+			leveled_critical_section::scoped_lock lock(treeitem_production_task::cs_lockCounterUpdate);
+			producer = item->m_Producer.lock();
+		}
+		if (producer)
+			producer->Join();
+		else
+		{
+			assert(IsMultiThreaded2());
+			WaitForCompletedTaskOrTimeout(); // max 300 milliseconds
+			SuspendTrigger::MarkProgress(); // Is ti or any other item indeed progressing without dropping off from scope
+			if (counter++ == 34) // sporadious wakeup at least every 10 secs to release from mysterious hang
+				SuspendTrigger::DoSuspend();
+		}
 	} while (!SuspendTrigger::MustSuspend());
 
 	assert(SuspendTrigger::DidSuspend()); // POSTCONDITION for MustSuspend returing true

@@ -691,7 +691,6 @@ DataCheckMode AbstrDataItem::GetRawCheckMode() const
 
 	if (!adi->GetTSF(DSF_ValuesChecked))
 	{
-		dbg_assert(IsMultiThreaded2() || !gd_nrActiveLoops);
 		assert(IsMetaThread() || IsMultiThreaded2());
 		if (IsMultiThreaded2())
 		{
@@ -719,7 +718,6 @@ DataCheckMode AbstrDataItem::DetermineRawCheckMode() const
 
 	assert(adi->GetDataObjLockCount() > 0);
 
-	dbg_assert(IsMultiThreaded2() || !gd_nrActiveLoops);
 	assert(IsMetaThread() || IsMultiThreaded2());
 	if (IsMultiThreaded2())
 	{
