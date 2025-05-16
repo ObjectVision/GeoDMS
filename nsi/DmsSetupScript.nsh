@@ -34,6 +34,7 @@ Section "" ;No components page, name is not important
   File ..\bin\Release\${GeoDmsPlatform}\GeoDmsRun.exe
   File ..\bin\Release\${GeoDmsPlatform}\GeoDmsGuiQt.exe
   File ..\bin\Release\${GeoDmsPlatform}\RewriteExpr.lsp
+  File ..\bin\Release\${GeoDmsPlatform}\profiler.py
   File ..\bin\Release\${GeoDmsPlatform}\*.dll
   File ..\bin\Release\${GeoDmsPlatform}\*.pyd
   File ..\res\NotePadPlusPlus\GeoDMS_npp_def.xml
@@ -87,10 +88,12 @@ SectionEnd ; end the section
 
 Section uninstall
 
-  Delete $INSTDIR\GeoDmsGuiQt.exe
   Delete $INSTDIR\GeoDmsRun.exe
+  Delete $INSTDIR\GeoDmsGuiQt.exe
   Delete $INSTDIR\RewriteExpr.lsp
+  Delete $INSTDIR\profiler.py
   Delete $INSTDIR\*.dll
+  Delete $INSTDIR\*.pyd
   Delete $INSTDIR\GeoDMS_npp_def.xml
 
   Delete $INSTDIR\gdaldata\*.*
