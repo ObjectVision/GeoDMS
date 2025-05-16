@@ -306,7 +306,7 @@ garbage_t runOperationContexts()
 		if (nextFenceNumber > s_CurrActiveFenceNumber)
 		{
 			if (s_NrRunningOperations)
-				break; // try again next time
+				break; // try again later
 			s_CurrActiveFenceNumber = nextFenceNumber;
 			NotifyCurrentTargetCount();
 		}
@@ -446,11 +446,9 @@ void WaitForCompletedTaskOrTimeout(std::chrono::milliseconds waitFor)
 #endif
 
 OperationContext::OperationContext()
-	: m_FenceNumber(0)
 {
 	assert(IsMetaThread());
 	
-
 	#if defined(MG_TRACE_OPERATIONCONTEXTS)
 
 		leveled_critical_section::scoped_lock lock(cs_OcAdm);
@@ -463,7 +461,7 @@ OperationContext::OperationContext()
 OperationContext::OperationContext(const FuncDC* self, const AbstrOperGroup* og)
 	: m_FuncDC(self)
 	, m_OperGroup(og)
-	, m_FenceNumber(self->m_FenceNumber)
+	, m_FenceNumber(self->GetFenceNumber())
 {
 	DBG_START("OperationContext", "CTor", MG_DEBUG_FUNCCONTEXT);
 	DBG_TRACE(("FuncDC: %s", self->md_sKeyExpr));
@@ -979,12 +977,12 @@ bool OperationContext_CreateResult(OperationContext* oc, const FuncDC* funcDC) /
 	TreeItemDualRef& resultHolder = *const_cast<FuncDC*>(funcDC);
 	try {
 		OArgRefs args = funcDC->GetArgs(true, false); // TODO, OPTIMIZE: CreateResult also sometimes calls GetArgs(false).
-		MakeMax(oc->m_FenceNumber, funcDC->m_FenceNumber);
+		assert(!oc->m_FenceNumber);
 
-		dms_assert(!SuspendTrigger::DidSuspend());
+		assert(!SuspendTrigger::DidSuspend());
 		if (!args)
 		{
-			dms_assert(funcDC->WasFailed(FR_MetaInfo));
+			assert(funcDC->WasFailed(FR_MetaInfo));
 			return false;
 		}
 		oc->m_Oper = funcDC->GetCurrOperator();
@@ -993,12 +991,13 @@ bool OperationContext_CreateResult(OperationContext* oc, const FuncDC* funcDC) /
 			if (funcDC)
 				funcDC->SetOperator(oc->m_Oper);
 		}
-		dms_assert(oc->m_Oper);
+		assert(oc->m_Oper);
 
-		dms_assert(!funcDC->WasFailed(FR_MetaInfo));
-		dms_assert(!SuspendTrigger::DidSuspend());
+		assert(!funcDC->WasFailed(FR_MetaInfo));
+		assert(!SuspendTrigger::DidSuspend());
 
-		oc->m_Oper->CreateResultCaller(resultHolder, *args, oc, funcDC->GetLispRef().Right());
+		oc->m_Oper->CreateResultCaller(resultHolder, *args, oc, funcDC->GetLispRef().Right()); // may set the fence number of funcDC
+		oc->m_FenceNumber = funcDC->GetCurrFenceNumber();
 	}
 	catch (...)
 	{

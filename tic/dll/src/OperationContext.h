@@ -119,7 +119,7 @@ public:
 	TimeStamp                       m_ActiveTimestamp = -1;
 
 public:
-	fence_number m_FenceNumber;
+	fence_number m_FenceNumber = 0;
 	std::vector<ItemReadLock> SetReadLocks(const FutureSuppliers& allInterests);
 	bool SetReadLock(std::vector<ItemReadLock>& locks, const TreeItem* si);
 

@@ -2125,6 +2125,8 @@ void TreeItem::UpdateMetaInfoImpl() const
 	assert(!WasFailed(FR_MetaInfo));
 
 	UpdateSupplMetaInfo(); // Update Suppliers, calls MakeCalculator() -> mc_DC
+	GetFenceNumber();
+
 	VisitSupplBoolImpl(this, SupplierVisitFlag::NamedSuppliers,
 		[this](const Actor* supplier) -> bool
 		{

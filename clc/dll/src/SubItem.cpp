@@ -224,37 +224,6 @@ TIC_CALL task_status DoWorkWhileWaitingFor(task_status* fenceStatus); // TODO: m
 oper_arg_policy oap_Fence[2] = { oper_arg_policy::calc_subitem_root,  oper_arg_policy::calc_as_result };
 SpecialOperGroup sog_FenceContainer(token::FenceContainer, 2, oap_Fence, oper_policy::dynamic_result_class);
 
-const fence_number first_fence_number = 1;
-
-void AssignFenceNumberImpl(const Actor* item) noexcept
-{
-	assert(item);
-
-	if (item->m_FenceNumber)
-		return;
-
-	item->m_FenceNumber = first_fence_number;
-
-	try {
-		VisitSupplProcImpl(item, SupplierVisitFlag::CalcAll, [item](const Actor* suppl)
-			{
-				AssignFenceNumberImpl(suppl);
-				MakeMax<fence_number>(item->m_FenceNumber, suppl->m_FenceNumber);
-			}
-		);
-	}
-	catch (...) {}
-}
-
-void AssignFenceNumber(const Actor* item)
-{
-	assert(item);
-	assert(IsMainThread());
-
-	AssignFenceNumberImpl(item);
-}
-
-
 struct FenceContainerOperator : BinaryOperator
 {
 	FenceContainerOperator()
@@ -288,21 +257,18 @@ struct FenceContainerOperator : BinaryOperator
 			resultHolder->m_FenceNumber = resultFenceNumber;
 			resultHolder.m_FenceNumber = resultFenceNumber;
 
-			assert(sourceContainer->m_FenceNumber < resultFenceNumber);
+			assert(sourceContainer->GetCurrFenceNumber() < resultFenceNumber);
 
 			auto resultRoot = resultHolder.GetNew();
 			for (auto resWalker = resultRoot; resWalker; resWalker = resultRoot->WalkCurrSubTree(resWalker))
 			{
-				//				MG_CHECK(resWalker->m_FenceNumber >= resultFenceNumber);
 				resWalker->m_FenceNumber = resultFenceNumber;
 
 				auto srcItem = sourceContainer->FindItem(resWalker->GetRelativeName(resultHolder.GetNew()));
 				if (!srcItem)
 					continue;
 				MG_CHECK(!srcItem->IsCacheItem());
-
-				AssignFenceNumber(srcItem);
-				MG_CHECK(srcItem->m_FenceNumber < resultFenceNumber);
+				MG_CHECK(srcItem->GetCurrFenceNumber() < resultFenceNumber);
 
 				if (resWalker != resultRoot) // avoid updating all fenced items before getting them
 					resWalker->GetOrCreateSupplCache()->InitAt(srcItem);

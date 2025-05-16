@@ -1305,3 +1305,40 @@ bool WasInFailed(const Actor* a)
 		return false;
 	return WasInFailed(debug_cast<const Actor*>(p));
 }
+
+const fence_number first_fence_number = 1;
+
+void AssignFenceNumberImpl(const Actor* item) noexcept
+{
+	assert(item);
+
+	if (item->m_FenceNumber)
+		return;
+
+	item->m_FenceNumber = first_fence_number;
+
+	try {
+		VisitSupplProcImpl(item, SupplierVisitFlag::CalcAll, [item](const Actor* suppl)
+			{
+				AssignFenceNumberImpl(suppl);
+				MakeMax<fence_number>(item->m_FenceNumber, suppl->m_FenceNumber);
+			}
+		);
+	}
+	catch (...) {}
+}
+
+void AssignFenceNumber(const Actor* item)
+{
+	assert(item);
+	assert(IsMainThread());
+
+	AssignFenceNumberImpl(item);
+}
+
+auto Actor::GetFenceNumber() const -> fence_number
+{
+	AssignFenceNumber(this);
+	return m_FenceNumber;
+}
+
