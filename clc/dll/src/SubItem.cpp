@@ -219,6 +219,7 @@ struct CheckOperator : public BinaryOperator
 // the carninality of fenced domains are assumed to be known as part of the fenced results and can be used in the schedule execution plan of the front items
 // When any of a fence result consumers is scheduled, a fence is requested to execute as first part of the schedule execution of everything in front of the fence
 
+TIC_CALL task_status DoWorkWhileWaitingFor(task_status* fenceStatus); // TODO: move to OperationContext.h
 
 oper_arg_policy oap_Fence[2] = { oper_arg_policy::calc_subitem_root,  oper_arg_policy::calc_as_result };
 SpecialOperGroup sog_FenceContainer(token::FenceContainer, 2, oap_Fence, oper_policy::dynamic_result_class);
@@ -352,14 +353,19 @@ struct FenceContainerOperator : BinaryOperator
 
 		auto resultFenceNumber = resultHolder.m_FenceNumber;
 
-		Concurrency::task_completion_event<void> fenceBell;
-		auto bellWaiter = Concurrency::task<void>{ fenceBell };
+//		Concurrency::task_completion_event<void> fenceBell;
+//		auto bellWaiter = Concurrency::task<void>{ fenceBell };
+		task_status fenceStatus = task_status::activated;
+		std::exception_ptr fenceErrorPtr;
+
 		auto resWalker = resultRoot;
 		
 		// now, collect all targets that this Fence should calculate and start a Main Thread action to do so.
 		// this should be done before supplier Fences do this and after target collection and interest-setting of consuming Fences.
-		PostMainThreadTask(resultFenceNumber, [sourceContainer, resultRoot, &resWalker, &fenceBell, &resultHolder, resultFenceNumber, &futureDataContainer](bool mustCancel)-> bool
+		PostMainThreadTask(resultFenceNumber, [sourceContainer, resultRoot, &resWalker, &fenceStatus, &fenceErrorPtr, &resultHolder, resultFenceNumber, &futureDataContainer](bool mustCancel)-> bool
 			{
+				fenceStatus = task_status::running;
+
 				// work on exporting stuff from main thread
 				if (!mustCancel)
 				{
@@ -421,11 +427,12 @@ struct FenceContainerOperator : BinaryOperator
 					}
 					catch (...)
 					{
-						fenceBell.set_exception(std::current_exception());
+						fenceErrorPtr = std::current_exception();
+						fenceStatus = task_status::exception;
 						return true;
 					}
 				}
-				fenceBell.set();
+				fenceStatus = task_status::done;
 				return true;
 			}
 		);
@@ -433,9 +440,9 @@ struct FenceContainerOperator : BinaryOperator
 		{
 //			using DecCountType = StaticMtDecrementalLock<decltype(s_NrRunningOperations), s_NrRunningOperations>;
 //			DecCountType dontCountThisOperation;
-
-			WakeUpJoiners();
-			bellWaiter.get();
+			DoWorkWhileWaitingFor(&fenceStatus);
+//			WakeUpJoiners();
+//			bellWaiter.get();
 		}
 
 		// check that all sub-items of result-holder are/become up-to-date or uninteresting

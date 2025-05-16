@@ -1334,6 +1334,8 @@ void prioritize(SupplierSet& scheduledContexts, SupplierSet& activatedContexts, 
 			}
 			*/
 
+		MG_CHECK(!self->m_Suppliers.empty() || self->m_FenceNumber > s_CurrActiveFenceNumber);
+
 		for (auto& s : self->m_Suppliers)
 			prioritize(scheduledContexts, activatedContexts, s);
 	}
@@ -1384,17 +1386,84 @@ task_status OperationContext::Join()
 			continue;
 
 		assert(m_Status > task_status::scheduled || !m_Suppliers.empty() || IsDefined(getScheduledContextsPos(this->shared_from_this())));
-		if (m_Status < task_status::running)
+
+		// look for work to do inline
+		if (!s_ScheduledContextsMap.empty())
 		{
-			SupplierSet scheduledContexts;
-			prioritize(scheduledContexts, activatedContexts, shared_from_this());
+			auto scheduledTasksForHighestFence = s_ScheduledContextsMap.begin();
+			if (scheduledTasksForHighestFence->first < m_FenceNumber)
+			{
+				SupplierSet scheduledContexts;
+				for (auto& scheduledTaskWPtr : scheduledTasksForHighestFence->second)
+					if (auto scheduledTask = scheduledTaskWPtr.lock())
+						prioritize(scheduledContexts, activatedContexts, scheduledTask);
+			}
 		}
-		else
+		if (activatedContexts.empty())
+		{
+			if (m_Status < task_status::running)
+			{
+				SupplierSet scheduledContexts;
+				prioritize(scheduledContexts, activatedContexts, shared_from_this());
+			}
+		}
+
+		if (activatedContexts.empty())
 			cv_TaskCompleted.wait_for(lock.m_BaseLock, std::chrono::milliseconds(200));
 	}
 	dms_assert(m_Status > task_status::running);
 	dbg_assert(CheckDataReady(m_Result->GetCurrUltimateItem()) || m_Status == task_status::cancelled || m_Status == task_status::exception || !m_Result->GetInterestCount());
 	return m_Status;
+}
+
+TIC_CALL task_status DoWorkWhileWaitingFor(task_status* fenceStatus)
+{
+	SupplierSet activatedContexts;
+	task_status status;
+	while (IsRunningOperation(status = *fenceStatus))
+	{
+		for (auto inlineWork : activatedContexts)
+			if (inlineWork->getUniqueLicenseToRun())  // already running elsewhere. go for something else
+			{
+				inlineWork->safe_run_caller();
+				if (!IsRunningOperation(status = *fenceStatus))
+					return status;
+			}
+
+		activatedContexts.clear();
+
+		RunOperationContexts(); // OPTIMIZE, CONSISTENCY: Some tasks finished without calling this. Find out why and avoid wasting idle thread time; maybe all threads are waiting in a Join without new and current tasks being activated
+		if (IsMetaThread())
+		{
+			if (SuspendTrigger::MustSuspend())
+				return task_status::suspended;
+			ProcessMainThreadOpers();
+			ProcessSuspendibleTasks();
+		}
+
+		leveled_std_section::unique_lock lock(cs_ThreadMessing);
+		if (*fenceStatus > task_status::running)
+			return *fenceStatus;
+
+		if (!s_NrRunningOperations)
+			continue;
+		if (IsMetaThread() && HasMainThreadTasks())
+			continue;
+
+		// look for work to do inline
+		if (!s_ScheduledContextsMap.empty())
+		{
+			auto scheduledTasksForHighestFence = s_ScheduledContextsMap.begin();
+			SupplierSet scheduledContexts;
+			for (auto& scheduledTaskWPtr : scheduledTasksForHighestFence->second)
+				if (auto scheduledTask = scheduledTaskWPtr.lock())
+					prioritize(scheduledContexts, activatedContexts, scheduledTask);
+		}
+		// or wait for conditioin that was certainly not met just after setting the thread messing lock
+		if (activatedContexts.empty())
+			cv_TaskCompleted.wait_for(lock.m_BaseLock, std::chrono::milliseconds(200));
+	}
+	return status;
 }
 
 void OperationContext::RunOperator(Explain::Context* context, ArgRefs argRefs, std::vector<ItemReadLock> readLocks)
