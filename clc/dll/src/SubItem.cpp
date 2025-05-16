@@ -314,8 +314,6 @@ struct FenceContainerOperator : BinaryOperator
 
 		auto resultFenceNumber = resultHolder.m_FenceNumber;
 
-//		Concurrency::task_completion_event<void> fenceBell;
-//		auto bellWaiter = Concurrency::task<void>{ fenceBell };
 		task_status fenceStatus = task_status::activated;
 		std::exception_ptr fenceErrorPtr;
 
@@ -392,6 +390,7 @@ struct FenceContainerOperator : BinaryOperator
 					}
 				}
 				fenceStatus = task_status::done;
+				WakeUpJoiners();
 				return true;
 			}
 		);
