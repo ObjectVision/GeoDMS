@@ -288,6 +288,7 @@ garbage_t OperationContext::disconnect()
 
 UInt32 s_RunOperationContextsCount = 0;
 fence_number s_CurrActiveFenceNumber = 0;
+bool s_IsInLowRamMode = false;
 
 garbage_t runOperationContexts()
 {
@@ -1274,8 +1275,6 @@ SizeT getScheduledContextsPos(OperationContextSPtr self)
 			return pos - queue.begin();
 	return UNDEFINED_VALUE(SizeT);
 }
-
-bool s_IsInLowRamMode = false;
 
 void prioritize(SupplierSet& scheduledContexts, SupplierSet& activatedContexts, OperationContextSPtr self)
 {
