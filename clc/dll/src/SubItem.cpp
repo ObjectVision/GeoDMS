@@ -253,7 +253,7 @@ struct FenceContainerOperator : BinaryOperator
 #endif
 
 			auto resultFenceNumber = GetNextFenceNumber();
-			resultHolder->m_FenceNumber = resultFenceNumber;
+//			resultHolder->m_FenceNumber = resultFenceNumber;
 			resultHolder.m_FenceNumber = resultFenceNumber;
 
 			assert(sourceContainer->GetCurrFenceNumber() < resultFenceNumber);
@@ -261,7 +261,7 @@ struct FenceContainerOperator : BinaryOperator
 			auto resultRoot = resultHolder.GetNew();
 			for (auto resWalker = resultRoot; resWalker; resWalker = resultRoot->WalkCurrSubTree(resWalker))
 			{
-				resWalker->m_FenceNumber = resultFenceNumber;
+// done by caller				resWalker->m_FenceNumber = resultFenceNumber;
 
 				auto srcItem = sourceContainer->FindItem(resWalker->GetRelativeName(resultHolder.GetNew()));
 				if (!srcItem)
@@ -327,6 +327,7 @@ struct FenceContainerOperator : BinaryOperator
 		
 		// now, collect all targets that this Fence should calculate and start a Main Thread action to do so.
 		// this should be done before supplier Fences do this and after target collection and interest-setting of consuming Fences.
+		// so each Fence Calculation causes an avalange of interest in targets in higher fences and then their calculation before this calculation starts
 		PostMainThreadTask(resultFenceNumber, [sourceContainer, resultRoot, &resWalker, &fenceStatus, &fenceErrorPtr, &resultHolder, resultFenceNumber, &futureDataContainer](bool mustCancel)-> bool
 			{
 				fenceStatus = task_status::running;
@@ -346,6 +347,8 @@ struct FenceContainerOperator : BinaryOperator
 						s_CurrFenceContainer = resultRoot;
 						for (; resWalker; resWalker = resultRoot->WalkCurrSubTree(resWalker))
 						{
+							assert(resWalker->GetCurrFenceNumber() == resultFenceNumber);
+
 							auto resInterestPtr = resWalker->GetInterestPtrOrNull();
 							if (!resInterestPtr)
 								continue;
@@ -373,16 +376,11 @@ struct FenceContainerOperator : BinaryOperator
 							auto dc = srcItem->mc_DC;
 							if (dc)
 							{
-								auto dcInterest = dc->GetInterestPtrOrNull();
-								assert(dcInterest); // follows from 
-								if (dcInterest)
-								{
-									auto fd = dc->CallCalcResult();
-									if (SuspendTrigger::DidSuspend())
-										return false;
+								auto fd = dc->CallCalcResult();
+								if (SuspendTrigger::DidSuspend())
+									return false;
 
-									futureDataContainer.emplace_back(std::move(resInterestPtr), std::move(fd));
-								}
+								futureDataContainer.emplace_back(std::move(resInterestPtr), std::move(fd));
 							}
 						}
 					}

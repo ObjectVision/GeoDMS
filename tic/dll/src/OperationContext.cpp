@@ -404,13 +404,15 @@ void ScheduleRunOperationContexts()
 
 void WaitForCompletedTaskOrTimeout(std::chrono::milliseconds waitFor)
 {
-	RunOperationContexts();
 	if (IsMetaThread())
 		ProcessMainThreadOpersAndTasks();
 
 	leveled_std_section::unique_lock lock(cs_ThreadMessing);
-	if (!s_NrRunningOperations)
+	runOperationContexts();
+
+	if (IsMetaThread() && HasMainThreadTasks())
 		return;
+
 	if (HasMainThreadTasks())
 		return;
 	cv_TaskCompleted.wait_for(lock.m_BaseLock, waitFor);
@@ -1244,8 +1246,7 @@ task_status OperationContext::Join()
 			break;
 
 		runOperationContexts();
-//		if (!s_NrRunningOperations)
-//			continue;
+
 		if (IsMetaThread() && HasMainThreadTasks())
 			continue;
 
@@ -1322,7 +1323,7 @@ TIC_CALL task_status DoWorkWhileWaitingFor(task_status* fenceStatus)
 		}
 		// or wait for conditioin that was certainly not met just after setting the thread messing lock
 		if (activatedContexts.empty())
-			cv_TaskCompleted.wait_for(lock.m_BaseLock, std::chrono::milliseconds(200));
+			cv_TaskCompleted.wait_for(lock.m_BaseLock, std::chrono::milliseconds(500));
 	}
 	return status;
 }

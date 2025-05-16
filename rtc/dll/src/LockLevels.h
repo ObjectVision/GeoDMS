@@ -57,8 +57,7 @@ enum class ord_level_type : UInt32
 
 	TreeItemFlags = MOST_INNER_LOCK - 1,
 	ItemRegister = MOST_INNER_LOCK - 2,
-	OperationContext = MOST_INNER_LOCK - 1,
-	OperationContextDeque = OperationContext - 1,
+	OperationContext = MOST_INNER_LOCK,
 	UpdatingInterestSet = MOST_INNER_LOCK - 1,
 
 //	FailSection = IndexedString + 1,

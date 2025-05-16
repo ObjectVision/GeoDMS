@@ -539,7 +539,7 @@ void Actor::UpdateMetaInfo() const noexcept
 
 void Actor::UpdateSupplMetaInfo() const
 {
-	VisitSupplProcImpl(this, SupplierVisitFlag::Update, [this](const Actor* supplier)
+	VisitSupplProcImpl(this, SupplierVisitFlag::UpdateSupplMetaInfo, [this](const Actor* supplier)
 		{
 			assert(supplier);
 			supplier->UpdateMetaInfo();
@@ -1308,7 +1308,7 @@ bool WasInFailed(const Actor* a)
 
 const fence_number first_fence_number = 1;
 
-void AssignFenceNumberImpl(const Actor* item) noexcept
+void AssignFenceNumber(const Actor* item) noexcept
 {
 	assert(item);
 
@@ -1318,26 +1318,21 @@ void AssignFenceNumberImpl(const Actor* item) noexcept
 	item->m_FenceNumber = first_fence_number;
 
 	try {
-		VisitSupplProcImpl(item, SupplierVisitFlag::CalcAll, [item](const Actor* suppl)
+		VisitSupplProcImpl(item, SupplierVisitFlag::FenceNumberScan, [item](const Actor* suppl)
 			{
-				AssignFenceNumberImpl(suppl);
-				MakeMax<fence_number>(item->m_FenceNumber, suppl->m_FenceNumber);
+//				assert(suppl->m_State.GetProgress() >= ProgressState::PS_MetaInfo);
+//				suppl->UpdateMetaInfo();
+				MakeMax<fence_number>(item->m_FenceNumber, suppl->GetFenceNumber());
 			}
 		);
 	}
 	catch (...) {}
 }
 
-void AssignFenceNumber(const Actor* item)
-{
-	assert(item);
-	assert(IsMainThread());
-
-	AssignFenceNumberImpl(item);
-}
-
 auto Actor::GetFenceNumber() const -> fence_number
 {
+	assert(IsMainThread());
+//	assert(m_State.GetProgress() >= ProgressState::PS_MetaInfo);
 	AssignFenceNumber(this);
 	return m_FenceNumber;
 }

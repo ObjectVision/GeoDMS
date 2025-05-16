@@ -24,13 +24,14 @@ enum class SupplierVisitFlag
 	SourceData = 0x0100, // result of a SubItem main-expression or main-reference
 	Checker = 0x0200,
 	ReadyDcsToo = 0x0400,
+	ScanSupplTree =0x0800,
 
 	Calc = DataController | DcArgs,
-
 	//	Meta    = 0x0002, // Explicit Suppliers, FuncFC args that don't require delayed updating, such as TemplDC args, and ImplSupplFromIndirectProps
 	//	Calc    = 0x0002, // Data processing and reading, Domain +Values Unit
 
 	Update = Signature | ExplicitSuppliers | SourceData | NamedSuppliers,
+	UpdateSupplMetaInfo = Update | ScanSupplTree,
 	DetermineState = Update | Calc | Checker | ReadyDcsToo | DetermineCalc,
 
 	Explain = NamedSuppliers | SourceData,
@@ -42,7 +43,9 @@ enum class SupplierVisitFlag
 //	Commit = 0x0008, // Specific additional items such as PaletteData, 
 
 	CalcAll = Calc | Explain | Update | ReadyDcsToo,
+
 	InspectAll = CalcAll | Inspect,
+	FenceNumberScan = CalcAll | ScanSupplTree,
 
 	TemplateOrg = 0x1000, // use to visit also the template origin
 	CDF         = 0x2000, // use to visit the cdf source item and its palette

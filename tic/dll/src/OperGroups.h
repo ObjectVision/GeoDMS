@@ -97,6 +97,7 @@ struct AbstrOperGroup : SharedObj
 		return oap != oper_arg_policy::is_templ && oap != oper_arg_policy::calc_never && oap != oper_arg_policy::calc_at_subitem;
 	}
 	bool MustSupplyTree(arg_index argNr, CharPtr firstArgValue) const { return GetArgPolicy(argNr, firstArgValue) == oper_arg_policy::subst_with_subitems; }
+	bool IsSubItemRoot (arg_index argNr, CharPtr firstArgValue) const { return GetArgPolicy(argNr, firstArgValue) == oper_arg_policy::calc_subitem_root; }
 	bool IsArgTempl (arg_index argNr, CharPtr firstArgValue) const { return GetArgPolicy(argNr, firstArgValue) == oper_arg_policy::is_templ; }
 
 	TokenID   GetNameID()            const { return m_OperNameID; }

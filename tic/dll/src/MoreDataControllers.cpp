@@ -541,6 +541,23 @@ OArgRefs FuncDC::GetArgs(bool doUpdateMetaInfo, bool doCalcData) const
 	return argSeq;
 }
 
+void MarkCacheItems(const FuncDC* funcDC)
+{
+	if (funcDC->IsNew())
+	{
+		// mark TimeStamp of result
+		TreeItem* cacheRoot = funcDC->GetNew();
+		TimeStamp ts = funcDC->GetLastChangeTS();
+		fence_number fn = funcDC->GetFenceNumber();
+		for (TreeItem* cacheItem = cacheRoot; cacheItem; cacheItem = cacheRoot->WalkCurrSubTree(cacheItem))
+		{
+			cacheItem->MarkTS(ts);
+			assert(cacheItem->m_FenceNumber == 0);
+			cacheItem->m_FenceNumber = fn;
+		}
+	}
+}
+
 bool FuncDC_CreateResult(const FuncDC* funcDC) // TODO G8.1: Verwijderen uit OperationContext
 {
 	DBG_START("FuncDC", "CreateResult", MG_DEBUG_FUNCDC);
@@ -587,6 +604,7 @@ bool FuncDC_CreateResult(const FuncDC* funcDC) // TODO G8.1: Verwijderen uit Ope
 	}
 
 	bool resultingFlag = !resultHolder.WasFailed(FR_MetaInfo);
+	MarkCacheItems(funcDC);
 
 	if (resultHolder)
 	{
@@ -707,27 +725,18 @@ void FuncDC::CallCalcResultImpl(Explain::Context* context) const
 
 		// ============== Call the actual operator
 
-		assert(!m_OperContext);
-		auto operContext = std::make_shared<OperationContext>(this);
+		std::shared_ptr< OperationContext> operContext;
 		{
 			leveled_critical_section::scoped_lock ocaLock(cs_OperContextAccess);
 
-			assert(!m_OperContext);
-			m_OperContext = operContext;
-			assert(m_OperContext);
+			if (!m_OperContext)
+				m_OperContext = std::make_shared<OperationContext>(this);
+			operContext = m_OperContext;
 		}
 
 		assert(operContext || CheckDataReady(m_Data) || !IsNew());
 		if (operContext && !operContext->IsScheduled())
 		{
-			if (IsNew())
-			{
-				// mark TimeStamp of result
-				TreeItem* cacheRoot = GetNew();
-				TimeStamp ts = GetLastChangeTS();
-				for (TreeItem* cacheItem = cacheRoot; cacheItem; cacheItem = cacheRoot->WalkCurrSubTree(cacheItem))
-					cacheItem->MarkTS(ts);
-			}
 			assert(!operContext->m_Result || operContext->m_Result == GetOld());
 			operContext->m_Result = GetOld();
 
@@ -772,11 +781,11 @@ void FuncDC::CallCalcResultImpl(Explain::Context* context) const
 ActorVisitState FuncDC::VisitSuppliers(SupplierVisitFlag svf, const ActorVisitor& visitor) const
 {
 	DcRefListElem* dcRefElem = m_Args.get_ptr(); // points to currently uniquely owned DcRefListElem
-	SharedStr firstArgValue;
+	SharedStr firstArgValue;  // may be filled with first arg value that encoded the role of consecutive arguments for OperatorGroups with Dyanmic Arguments
 	for (arg_index argNr = 0; dcRefElem; dcRefElem = dcRefElem->m_Next, ++argNr)
 	{
 		auto firstArgValueCPtr = firstArgValue.cbegin();
-		dms_assert(m_OperatorGroup);
+		assert(m_OperatorGroup);
 		if (!Test(svf, SupplierVisitFlag::ReadyDcsToo)
 			&& !MustCalcArg(argNr, true, firstArgValueCPtr)
 			&& !m_OperatorGroup->MustSupplyTree(argNr, firstArgValueCPtr))
@@ -791,10 +800,11 @@ ActorVisitState FuncDC::VisitSuppliers(SupplierVisitFlag svf, const ActorVisitor
 		if (!dcResult)
 			continue;
 
-		if (visitor(dcResult) == AVS_SuspendedOrFailed) // TODO, REMOVE, WHY, FIND OUT IF dc DOESN'T ALREADY COVER THIS.
+		if (visitor(dcResult) == AVS_SuspendedOrFailed)
 			return AVS_SuspendedOrFailed;
 
-		if (m_OperatorGroup->MustSupplyTree(argNr, firstArgValueCPtr)) // TODO: zoveel mogelijk wegwerken dmv substitutie van argumenten
+		if (m_OperatorGroup->MustSupplyTree(argNr, firstArgValueCPtr) || 
+			Test(svf, SupplierVisitFlag::ScanSupplTree) && m_OperatorGroup->IsSubItemRoot(argNr, firstArgValueCPtr)) 
 		{
 			if (dcResult->VisitConstVisibleSubTree(visitor) == AVS_SuspendedOrFailed)
 				return AVS_SuspendedOrFailed;

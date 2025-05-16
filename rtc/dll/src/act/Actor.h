@@ -154,7 +154,7 @@ public:
 	RTC_CALL garbage_t StopSupplInterest() const noexcept; friend struct AbstrOperGroup;
 	RTC_CALL void RestartSupplInterestIfAny() const;
 	RTC_CALL auto GetFenceNumber() const -> fence_number;
-	auto GetCurrFenceNumber() const -> fence_number { MG_CHECK(m_FenceNumber); return m_FenceNumber; }
+	auto GetCurrFenceNumber() const -> fence_number { MG_CHECK(m_FenceNumber || IsPassor()); return m_FenceNumber; }
 
 	// Data Members
 public:
