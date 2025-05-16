@@ -141,66 +141,14 @@ void transform_assign(TOutputIter out, TOutputIter outEnd, assign_default<T> ope
 //AMP Depreciated
 // check out: https://en.wikipedia.org/wiki/SYCL
 
-#define _SILENCE_AMP_DEPRECATION_WARNINGS
-#include <amp.h>
-
 // unary tranform_assign function
 template<typename TInputIter1, typename TOutputIter, typename TUnaryAssign> inline
-TOutputIter transform_assign_cpu(TOutputIter out, TInputIter1 in1, TInputIter1 end1, TUnaryAssign oper)
+TOutputIter transform_assign(TOutputIter out, TInputIter1 in1, TInputIter1 end1, TUnaryAssign oper)
 {
 	for (; in1 != end1; ++out, ++in1)
 		oper(*out, *in1);
 	return out;
 }
-
-// unary tranform_assign function
-template<typename TInputIter1, typename TOutputIter, typename TUnaryAssign> inline
-TOutputIter transform_assign_amp(TOutputIter out, TInputIter1 in1, TInputIter1 end1, TUnaryAssign oper)
-{
-	using arg_value_type = typename std::iterator_traits<TInputIter1>::value_type;
-	using res_value_type = typename std::iterator_traits<TOutputIter>::value_type;
-
-	SizeT sz = std::distance(in1, end1);
-	while (sz)
-	{
-		static_assert(sizeof(arg_value_type) < (1 << 7));
-		static_assert(sizeof(res_value_type) < (1 << 7));
-
-		SizeT blockSize = sz;
-		MakeMin(blockSize, (1 << 24));
-		sz -= blockSize;
-
-		concurrency::array_view<const arg_value_type, 1> src(blockSize, in1);
-		concurrency::array_view<res_value_type, 1> dst(blockSize, out);
-
-		concurrency::parallel_for_each(dst.extent,
-			[=](concurrency::index<1> idx) restrict(amp, cpu)
-			{
-				oper(dst[idx], src[idx]);
-			}
-		);
-	}
-	return out + sz;
-}
-
-//template <typename T> constexpr bool is_ampable_v = std::is_integral_v<T> && !(sizeof(T) % sizeof(int));
-template <typename T> constexpr bool is_ampable_v = false; // std::is_integral_v<T> && (sizeof(T) == sizeof(int));
-template <typename T> concept Ampable = is_ampable_v<T>;
-
-// unary tranform_assign function
-template<typename TInputIter1, typename TOutputIter, typename TUnaryAssign> inline
-void transform_assign(TOutputIter out, TInputIter1 in1, TInputIter1 end1, TUnaryAssign oper)
-{
-	using arg_value_type = typename std::iterator_traits<TInputIter1>::value_type;
-	using res_value_type = typename std::iterator_traits<TOutputIter>::value_type;
-
-	if constexpr (is_ampable_v<arg_value_type> && is_ampable_v<res_value_type> && Ampable<TUnaryAssign>)
-		transform_assign_amp(out, in1, end1, oper);
-	else
-		transform_assign_cpu(out, in1, end1, oper);
-}
-
-
 // binary tranform_assign function
 template<typename TInputIter1, typename TInputIter2, typename TOutputIter, typename TBinaryAssign> inline
 void transform_assign(TOutputIter out, TInputIter1 in1, TInputIter1 end1, TInputIter2 in2, TBinaryAssign oper)

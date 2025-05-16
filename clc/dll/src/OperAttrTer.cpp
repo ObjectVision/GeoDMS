@@ -37,14 +37,9 @@ void ApplyTernaryAssign(ResData& resData,
 			typename cref<typename Arg1Data::value_type>::type v1 = arg1Data[0];
 			typename cref<typename Arg2Data::value_type>::type v2 = arg2Data[0];
 
-			if constexpr (Ampable<TTerAssignOper>)
-				transform_assign_amp(resData.begin(), arg3Data.begin(), arg3Data.end(), 
-					[v1, v2, terAssignOper](typename ResData::reference rr, typename cref<typename Arg3Data::value_type>::type a3) restrict(cpu, amp) { terAssignOper(rr, v1, v2, a3);  }
-				);
-			else
-				transform_assign_cpu(resData.begin(), arg3Data.begin(), arg3Data.end(),
-					[v1, v2, terAssignOper](typename ResData::reference rr, typename cref<typename Arg3Data::value_type>::type a3) restrict(cpu) { terAssignOper(rr, v1, v2, a3);  }
-				);
+			transform_assign(resData.begin(), arg3Data.begin(), arg3Data.end(),
+				[v1, v2, terAssignOper](typename ResData::reference rr, typename cref<typename Arg3Data::value_type>::type a3) { terAssignOper(rr, v1, v2, a3);  }
+			);
 		}
 		else 
 		{
@@ -186,54 +181,18 @@ struct iif_assign: ternary_assign<T, Bool, T, T>
 
 #include "geo/color.h"
 
-template<class T>	
-struct rgb_assign_base : ternary_assign<UInt32, T, T, T>
-{
-	static ConstUnitRef unit_creator(const AbstrOperGroup* gr, const ArgSeqType& args) { return default_unit_creator<UInt32>(); }
-};
-
 //template<typename T> struct rgb_assign;
 
-template<typename T> //requires (!is_ampable_v<T>)
-struct rgb_assign_cpu : rgb_assign_base<T>
+template<typename T>
+struct rgb_assign : ternary_assign<UInt32, T, T, T>
 {
-	void operator()(typename rgb_assign_cpu::assignee_ref res, typename rgb_assign_cpu::arg1_cref r, typename rgb_assign_cpu::arg2_cref g, typename rgb_assign_cpu::arg3_cref b) const
+	static ConstUnitRef unit_creator(const AbstrOperGroup* gr, const ArgSeqType& args) { return default_unit_creator<UInt32>(); }
+
+	void operator()(typename rgb_assign::assignee_ref res, typename rgb_assign::arg1_cref r, typename rgb_assign::arg2_cref g, typename rgb_assign::arg3_cref b) const
 	{
 		Assign(res, CombineRGB(r, g, b));
 	}
 };
-
-template<typename T>
-struct rgb_assign_amp : rgb_assign_base<T>
-{
-	void operator()(typename rgb_assign_amp::assignee_ref res, typename rgb_assign_amp::arg1_cref r, typename rgb_assign_amp::arg2_cref g, typename rgb_assign_amp::arg3_cref b) const
-	restrict(amp, cpu)
-	{
-		res =	(((UInt32)b) << 16)
-			|	(((UInt32)g) << 8)
-			|	((UInt32)r)
-		;
-	}
-};
-
-struct rgb_amp_generator
-{
-	template <typename T>
-	using apply = rgb_assign_amp < T>;
-};
-
-struct rgb_cpu_generator
-{
-	template <typename T>
-	using apply = rgb_assign_cpu < T>;
-};
-
-template<typename T> //requires (!is_ampable_v<T>)
-struct rgb_assign : std::conditional_t<is_ampable_v<T>, rgb_amp_generator, rgb_cpu_generator>::template apply<T>
-{
-};
-
-template<typename T> constexpr bool is_ampable_v<rgb_assign<T>> = is_ampable_v<T>;
 
 struct substr_assign3 : ternary_assign<SharedStr, SharedStr, UInt32, UInt32>
 {
