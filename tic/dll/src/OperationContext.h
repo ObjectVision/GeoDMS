@@ -95,7 +95,7 @@ struct OperationContext : std::enable_shared_from_this<OperationContext>
 	friend garbage_t runOperationContexts();
 //private:
 	bool getUniqueLicenseToActivate();
-	task_status TryActivateTaskInline();
+	bool TryRunningTaskInline();
 	bool activateTaskImpl(SharedActorInterestPtr&& resKeeper);
 	void releaseRunCount(task_status status);
 	garbage_t separateResources(task_status status);
