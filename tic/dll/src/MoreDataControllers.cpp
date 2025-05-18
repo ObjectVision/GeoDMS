@@ -213,7 +213,7 @@ bool FuncDC::IsCalculating() const
 		return base_type::IsCalculating();
 
 	leveled_critical_section::scoped_lock ocaLock(cs_OperContextAccess);
-	return m_OperContext && m_OperContext->IsScheduled();
+	return m_OperContext && m_OperContext->m_Status != task_status::none;
 }
 
 void FuncDC::DoInvalidate() const
@@ -509,7 +509,7 @@ OArgRefs FuncDC::GetArgs(bool doUpdateMetaInfo, bool doCalcData) const
 		} else {
 			assert(!doCalcData || argIter->m_DC->GetInterestCount());
 			FutureData fd = argIter->m_DC; fd = argIter->m_DC->CalcResultWithValuesUnits();
-			MakeMax(this->m_FenceNumber, argIter->m_DC->m_FenceNumber);
+			MakeMax(this->m_PhaseNumber, argIter->m_DC->m_PhaseNumber);
 			assert(!fd || argIter->m_DC->GetInterestCount());
 			if (SuspendTrigger::DidSuspend())
 				return {};
@@ -548,17 +548,17 @@ void MarkCacheItems(const FuncDC* funcDC)
 		// mark TimeStamp of result
 		TreeItem* cacheRoot = funcDC->GetNew();
 		TimeStamp ts = funcDC->GetLastChangeTS();
-		fence_number fn = funcDC->GetFenceNumber();
+		phase_number fn = funcDC->GetPhaseNumber();
 		for (TreeItem* cacheItem = cacheRoot; cacheItem; cacheItem = cacheRoot->WalkCurrSubTree(cacheItem))
 		{
 			cacheItem->MarkTS(ts);
-			assert(cacheItem->m_FenceNumber == 0);
-			cacheItem->m_FenceNumber = fn;
+			assert(cacheItem->m_PhaseNumber == 0);
+			cacheItem->m_PhaseNumber = fn;
 		}
 	}
 }
 
-bool FuncDC_CreateResult(const FuncDC* funcDC) // TODO G8.1: Verwijderen uit OperationContext
+bool FuncDC_CreateResult(const FuncDC* funcDC)
 {
 	DBG_START("FuncDC", "CreateResult", MG_DEBUG_FUNCDC);
 	DBG_TRACE(("FuncDC: %s", funcDC->md_sKeyExpr));
@@ -568,7 +568,7 @@ bool FuncDC_CreateResult(const FuncDC* funcDC) // TODO G8.1: Verwijderen uit Ope
 
 	MG_DEBUGCODE(const TreeItem * oldItem = funcDC->GetOld());
 
-	SuspendTrigger::FencedBlocker lockSuspend("OperationContext_CreateResult");
+	SuspendTrigger::FencedBlocker lockSuspend("FuncDC_CreateResult");
 
 	assert(!funcDC->WasFailed(FR_MetaInfo));
 	assert(!SuspendTrigger::DidSuspend());
@@ -654,8 +654,6 @@ bool FuncDC::MakeResultImpl() const
 		UpdateLock lock(this, actor_flag_set::AF_UpdatingMetaInfo);
 	
 		// ============== Call the actual operator
-		// TODO G8.1: CreateResult() Verwijderen uit OperationContext en constructie vermijden/uitstellen
-
 		result = FuncDC_CreateResult(this);
 		assert(result || SuspendTrigger::DidSuspend() || WasFailed(FR_MetaInfo));  // if we asked for MetaInfo and only DataProcesing failed, we should at least get a result
 	}
@@ -725,6 +723,8 @@ void FuncDC::CallCalcResultImpl(Explain::Context* context) const
 
 		// ============== Call the actual operator
 
+		// todo: merge ScheduleCalcResult into ctor of OperationContext, 
+		// todo: add separate interface for reactivation with a specific ExplainValue::Context
 		std::shared_ptr< OperationContext> operContext;
 		{
 			leveled_critical_section::scoped_lock ocaLock(cs_OperContextAccess);
@@ -735,7 +735,7 @@ void FuncDC::CallCalcResultImpl(Explain::Context* context) const
 		}
 
 		assert(operContext || CheckDataReady(m_Data) || !IsNew());
-		if (operContext && !operContext->IsScheduled())
+		if (operContext && operContext->m_Status == task_status::none)
 		{
 			assert(!operContext->m_Result || operContext->m_Result == GetOld());
 			operContext->m_Result = GetOld();
@@ -743,13 +743,13 @@ void FuncDC::CallCalcResultImpl(Explain::Context* context) const
 			dms_assert(!IsNew() || GetNew()->m_LastChangeTS == m_LastChangeTS); // further changes in the resulting data must have caused resultHolder to invalidate, as IsNew results are passive
 
 			result = operContext->ScheduleCalcResult(context, std::move(*argInterest) );
-			dms_assert(operContext->IsScheduled() || !result); // this should provide that AssignResult will not be called twice
-			dms_assert(!(*argInterest).size() || !result);
+			assert(operContext->m_Status != task_status::none || !result); // this should provide that AssignResult will not be called twice
+			assert(!(*argInterest).size() || !result);
 			if (result)
 				SuspendTrigger::MarkProgress();
 		}
 
-		assert(!result || (operContext && operContext->IsScheduled()) || CheckDataReady(m_Data) || (!IsNew() && CheckCalculatingOrReady(GetCacheRoot(m_Data))));
+		assert(!result || (operContext && operContext->m_Status != task_status::none) || CheckDataReady(m_Data) || (!IsNew() && CheckCalculatingOrReady(GetCacheRoot(m_Data))));
 	}
 	catch (...)
 	{

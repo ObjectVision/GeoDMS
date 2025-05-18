@@ -238,7 +238,7 @@ bool operation_queue::SynchonizedEmpty() const
 	return Empty();
 }
 
-bool suspendible_task_queue::Post(fence_number fn, suspendible_task_type&& task)
+bool suspendible_task_queue::Post(phase_number fn, suspendible_task_type&& task)
 {
 	auto lock = std::scoped_lock(s_MainQueueSection);
 	bool result = m_OperationMap.empty();
@@ -252,7 +252,7 @@ void suspendible_task_queue::Process()
 	while (!SuspendTrigger::MustSuspend())
 	{
 		suspendible_task_type currTask; // Current task being processed
-		fence_number fn;
+		phase_number fn;
 		{
 			auto lockForPoppingTask = std::scoped_lock(s_MainQueueSection);
 			if (Empty())
@@ -334,7 +334,7 @@ void SendMainThreadOper(operation_type&& func)
 	s_OperQueue.Send(std::move(func));
 }
 
-void PostMainThreadTask(fence_number fn, suspendible_task_type&& func)
+void PostMainThreadTask(phase_number fn, suspendible_task_type&& func)
 {
 	if (s_TaskQueue.Post(fn, std::move(func)))
 		RequestMainThreadOperProcessing();

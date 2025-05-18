@@ -2127,7 +2127,7 @@ void TreeItem::UpdateMetaInfoImpl() const
 	assert(!WasFailed(FR_MetaInfo));
 
 	UpdateSupplMetaInfo(); // Update Suppliers, calls MakeCalculator() -> mc_DC
-	GetFenceNumber();
+	GetPhaseNumber();
 
 	VisitSupplBoolImpl(this, SupplierVisitFlag::NamedSuppliers,
 		[this](const Actor* supplier) -> bool
@@ -2718,7 +2718,7 @@ ActorVisitState TreeItem::DoUpdate(ProgressState ps)
 
 	if (auto dc = GetOrgDC().first)
 		if (auto fc = dynamic_cast<const FuncDC*>(dc.get()))
-			if (fc->m_OperatorGroup->GetNameID() == token::FenceContainer)
+			if (fc->m_OperatorGroup->GetNameID() == token::PhaseContainer)
 				if (auto fd = dc->CallCalcResult())
 					if (auto oc = fc->GetOperContext())
 						if (oc->GetStatus() != task_status::none && oc->Join() != task_status::done)

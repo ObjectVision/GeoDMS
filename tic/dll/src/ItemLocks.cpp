@@ -49,8 +49,8 @@ namespace treeitem_production_task
 
 #if defined(MG_DEBUG)
 		auto producer = oc.lock();
-		assert(!producer || producer->m_FenceNumber);
-		assert(!producer || self->GetCurrFenceNumber() >= producer->m_FenceNumber);
+		assert(!producer || producer->m_PhaseNumber);
+		assert(!producer || self->GetCurrFenceNumber() >= producer->m_PhaseNumber);
 #endif defined(MG_DEBUG)
 
 		leveled_critical_section::unique_lock lock(cs_lockCounterUpdate);
@@ -90,7 +90,7 @@ namespace treeitem_production_task
 			if (producer)
 			{
 				SuspendTrigger::FencedBlocker lock("treeitem_production_task");
-				assert(self->GetCurrFenceNumber() >= producer->m_FenceNumber);
+				assert(self->GetCurrFenceNumber() >= producer->m_PhaseNumber);
 
 				producer->Join();
 			}
@@ -785,9 +785,9 @@ bool WaitForReadyOrSuspendTrigger(const TreeItem* item)
 		else
 		{
 			assert(IsMultiThreaded2());
-			WaitForCompletedTaskOrTimeout(); // max 300 milliseconds
+			WaitForCompletedTaskOrTimeout(std::chrono::milliseconds(500)); // max 500 milliseconds
 			SuspendTrigger::MarkProgress(); // Is ti or any other item indeed progressing without dropping off from scope
-			if (counter++ == 34) // sporadious wakeup at least every 10 secs to release from mysterious hang
+			if (counter++ == 20) // sporadious wakeup at least every 10 secs to release from mysterious hang
 				SuspendTrigger::DoSuspend();
 		}
 	} while (!SuspendTrigger::MustSuspend());

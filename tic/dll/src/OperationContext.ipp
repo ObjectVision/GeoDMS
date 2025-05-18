@@ -17,8 +17,8 @@ task_status OperationContext::ScheduleItemWriter(MG_SOURCE_INFO_DECL TreeItem* i
 	m_TaskFunc = std::move(func);
 	m_Context = context;
 	if (item)
-		m_FenceNumber = item->GetFenceNumber();
-	assert(m_FenceNumber);
+		m_PhaseNumber = item->GetPhaseNumber();
+	assert(m_PhaseNumber);
 
 	return Schedule(item, allInterests, runDirect); // might run inline
 }

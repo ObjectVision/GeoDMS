@@ -43,11 +43,11 @@ private:
 
 using suspendible_task_type = std::function<bool(bool)>;
 using suspendible_task_array_type = std::deque<suspendible_task_type>;
-using suspendible_task_map_type = std::map<fence_number, suspendible_task_array_type>;
+using suspendible_task_map_type = std::map<phase_number, suspendible_task_array_type>;
 
 struct suspendible_task_queue
 {
-	RTC_CALL bool Post(fence_number fn, suspendible_task_type&& task); // returns true if the queue was empty before posting
+	RTC_CALL bool Post(phase_number fn, suspendible_task_type&& task); // returns true if the queue was empty before posting
 //	RTC_CALL void Send(operation_type&& func);
 
 	RTC_CALL void Process();
@@ -71,7 +71,7 @@ RTC_CALL UInt32 GetCallCount();
 RTC_CALL UInt32 GetThreadID();
 RTC_CALL void PostMainThreadOper(operation_type&& func);
 RTC_CALL void SendMainThreadOper(operation_type&& func);
-RTC_CALL void PostMainThreadTask(fence_number fn, suspendible_task_type&& task);
+RTC_CALL void PostMainThreadTask(phase_number fn, suspendible_task_type&& task);
 RTC_CALL void ProcessMainThreadOpers();
 RTC_CALL void ProcessSuspendibleTasks();
 RTC_CALL void ProcessMainThreadOpersAndTasks();

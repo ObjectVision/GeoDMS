@@ -116,7 +116,7 @@ struct CopyTreeContext
 	TokenID              m_DstRootID;
 	mutable TreeItem*    m_DstRoot = nullptr;
 	LispPtr              m_ArgList;
-//	fence_number         m_FenceNumber = 0;
+//	phase_number         m_PhaseNumber = 0;
 	DataCopyMode         m_Dcm;
 	using copy_pair = std::pair<SharedPtr<TreeItem>, SharedPtr<const TreeItem> >;
 	std::vector<copy_pair> m_AnchestorStack;

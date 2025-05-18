@@ -27,10 +27,9 @@ inline bool is_empty(const dms_task& x) { return x == dms_task();  }
 
 
 enum class task_status {
-	none, scheduled, activated, running, 
+	none, waiting_for_suppliers, scheduled, activated, running, 
 	suspended, cancelled, exception, done
 };
-inline bool IsRunningOperation(task_status s) { return s >= task_status::activated && s <= task_status::running; }
 
 using FutureResultData = SharedTreeItemInterestPtr;
 
@@ -47,14 +46,6 @@ struct OperationContext : std::enable_shared_from_this<OperationContext>
 		TIC_CALL static OperationContext* CurrActive();
 		TIC_CALL static void CurrActiveCancelIfNoInterestOrForced(bool forceCancel);
 		TIC_CALL static bool CurrActiveCanceled();
-		static bool CurrActiveHasRunCount()
-		{
-			auto ca = CurrActive();
-			if (!ca)
-				return false;
-			auto status = ca->getStatus();
-			return IsRunningOperation(status);
-		}
 	private:
 		OperationContext* m_Prev;
 	};
@@ -73,7 +64,7 @@ struct OperationContext : std::enable_shared_from_this<OperationContext>
 
 	TIC_CALL task_status Schedule(TreeItem* item, const FutureSuppliers& allArgInterest, bool runDirect);
 
-	TIC_CALL bool getUniqueLicenseToRun();
+	TIC_CALL bool GetUniqueLicenseToRun();
 	//REMOVE TIC_CALL void OnSuspend();
 	TIC_CALL void OnException() noexcept;
 	TIC_CALL void OnEnd(task_status status) noexcept;
@@ -82,8 +73,6 @@ struct OperationContext : std::enable_shared_from_this<OperationContext>
 	TIC_CALL bool CancelIfNoInterestOrForced(bool forced);
 	bool HandleFail(const TreeItem* item);
 
-	bool IsScheduled() const { task_status status = m_Status; return status > task_status::none /*REMOVE && status != task_status::suspended */ ; }
-	bool IsDone() const { return m_Status >= task_status::cancelled; }
 	bool IsCanceled() const { return m_Status == task_status::cancelled; }
 	SharedPtr<const TreeItem> GetResult() const { return m_Result; }
 	task_status GetStatus() const;
@@ -96,7 +85,7 @@ struct OperationContext : std::enable_shared_from_this<OperationContext>
 //private:
 	bool getUniqueLicenseToActivate();
 	bool TryRunningTaskInline();
-	bool activateTaskImpl(SharedActorInterestPtr&& resKeeper);
+	bool activateTaskImpl();
 	void releaseRunCount(task_status status);
 	garbage_t separateResources(task_status status);
 
@@ -119,7 +108,7 @@ public:
 	TimeStamp                       m_ActiveTimestamp = -1;
 
 public:
-	fence_number m_FenceNumber = 0;
+	phase_number m_PhaseNumber = 0;
 	std::vector<ItemReadLock> SetReadLocks(const FutureSuppliers& allInterests);
 	bool SetReadLock(std::vector<ItemReadLock>& locks, const TreeItem* si);
 
@@ -143,12 +132,12 @@ public:
 	WaiterSet   m_Waiters;
 };
 
-TIC_CALL auto GetNextFenceNumber() -> fence_number;
+TIC_CALL auto GetNextPhaseNumber() -> phase_number;
+TIC_CALL void DoWorkWhileWaitingFor(task_status* phaseContainerStatus);
 
-using RunningOperationsCounter = Int32;
-TIC_CALL extern std::atomic<RunningOperationsCounter> s_NrRunningOperations;
-TIC_CALL extern fence_number s_CurrBlockedFenceNumber;
-TIC_CALL extern const TreeItem* s_CurrBlockedFenceItem;
-TIC_CALL extern const TreeItem* s_CurrFenceContainer;
+
+TIC_CALL extern phase_number s_CurrBlockedPhaseNumber;
+TIC_CALL extern const TreeItem* s_CurrBlockedPhaseItem;
+TIC_CALL extern const TreeItem* s_CurrPhaseContainer;
 
 #endif //!defined(__TIC_OPERATIONCONTEXT_H)

@@ -1306,34 +1306,34 @@ bool WasInFailed(const Actor* a)
 	return WasInFailed(debug_cast<const Actor*>(p));
 }
 
-const fence_number first_fence_number = 1;
+const phase_number first_phase_number = 1;
 
-void AssignFenceNumber(const Actor* item) noexcept
+void AssignPhaseNumber(const Actor* item) noexcept
 {
 	assert(item);
 
-	if (item->m_FenceNumber)
+	if (item->m_PhaseNumber)
 		return;
 
-	item->m_FenceNumber = first_fence_number;
+	item->m_PhaseNumber = first_phase_number;
 
 	try {
 		VisitSupplProcImpl(item, SupplierVisitFlag::FenceNumberScan, [item](const Actor* suppl)
 			{
 //				assert(suppl->m_State.GetProgress() >= ProgressState::PS_MetaInfo);
 //				suppl->UpdateMetaInfo();
-				MakeMax<fence_number>(item->m_FenceNumber, suppl->GetFenceNumber());
+				MakeMax<phase_number>(item->m_PhaseNumber, suppl->GetPhaseNumber());
 			}
 		);
 	}
 	catch (...) {}
 }
 
-auto Actor::GetFenceNumber() const -> fence_number
+auto Actor::GetPhaseNumber() const -> phase_number
 {
 	assert(IsMainThread());
 //	assert(m_State.GetProgress() >= ProgressState::PS_MetaInfo);
-	AssignFenceNumber(this);
-	return m_FenceNumber;
+	AssignPhaseNumber(this);
+	return m_PhaseNumber;
 }
 

@@ -621,7 +621,7 @@ bool TreeItem_XML_DumpGeneralBody(const TreeItem* self, OutStreamBase* xmlOutStr
 				mySSPrintF("%s at %d for Fence %d, checked at %d for %s"
 				,	UpdateStateName(nc)
 				,	refItem->LastChangeTS()
-				,	refItem->m_FenceNumber
+				,	refItem->m_PhaseNumber
 				,	refItem->m_LastGetStateTS
 				,	refItem->GetFullName()
 				).c_str()

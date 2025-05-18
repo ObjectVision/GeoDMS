@@ -14,6 +14,7 @@
 
 #include <agents.h>
 #include <deque>
+#include <ppl.h>
 
 #include "Parallel.h"
 #include "dbg/Check.h"
@@ -28,8 +29,6 @@
 
 #include "LockLevels.h"
 #include "LispTreeType.h"
-
-#include "Parallel.h"
 
 #include "DataLocks.h"
 #include "DataStoreManagerCaller.h"
@@ -98,27 +97,119 @@ void OperatorContextHandle::GenerateDescription()
 // Section:     OperatorContextQueue
 // *****************************************************************************
 
-#include "ASync.h"
+phase_number s_CurrBlockedPhaseNumber = 0;
+const TreeItem* s_CurrBlockedPhaseItem = nullptr;
+const TreeItem* s_CurrPhaseContainer = nullptr;
 
-using contexts_within_one_fence = std::deque<OperationContextWPtr>;
-std::map<fence_number, contexts_within_one_fence> s_ScheduledContextsMap;
+using context_array = std::vector<OperationContextWPtr>;
+using contexts_within_one_phase = std::deque<OperationContextWPtr>;
+using RunningOperationsCounter = Int32;
 
-std::atomic<RunningOperationsCounter> s_NrRunningOperations = 0;
-static std::atomic<fence_number> s_SchedulingFenceNumber = 1;
-fence_number s_CurrBlockedFenceNumber = 0;
-const TreeItem* s_CurrBlockedFenceItem = nullptr;
-const TreeItem* s_CurrFenceContainer = nullptr;
+// protected by exclusive lock on cs_ThreadMessing
+static std::map<phase_number, contexts_within_one_phase> s_ScheduledContextsMap;
+static contexts_within_one_phase s_RadioActives;
+static RunningOperationsCounter s_NrActivatedOrRunningOperations = 0; 
+static phase_number s_CurrActivePhaseNumber = 0;
+static bool s_IsInLowRamMode = false;
 
-auto GetNextFenceNumber() -> fence_number
-{
-	return ++s_SchedulingFenceNumber;
-}
+
+// *****************************************************************************
+// Section:     extra debug stuff
+// *****************************************************************************
 
 #if defined(MG_DEBUG)
 
+static UInt32 sd_runOperationContextsRecursionCount = 0;
 static std::set<const OperationContext*> sd_ManagedContexts;
 
 #endif
+
+#if defined(MG_DEBUG)
+#define MG_TRACE_OPERATIONCONTEXTS
+#endif
+
+#if defined(MG_TRACE_OPERATIONCONTEXTS)
+
+leveled_critical_section cs_OcAdm(item_level_type(0), ord_level_type::OperationContext, "OperationContextSet");
+
+static UInt32 sd_OcCount;
+static std::set<OperationContext*> sd_OC;
+static std::set<OperationContext*> sd_RunningOC;
+
+void reportOC(CharPtr source, OperationContext* ocPtr)
+{
+	auto item = ocPtr->GetResult();
+	reportF_without_cancellation_check(MsgCategory::other, SeverityTypeID::ST_MajorTrace, "OperationContext %s %d: %s", source, int(ocPtr->GetStatus()), item ? item->GetSourceName().c_str() : "");
+}
+auto reportRemaingOcOnExit = make_scoped_exit([]()
+	{
+		for (auto ocPtr : sd_OC)
+			reportOC("Leaked", ocPtr);
+	});
+
+#endif
+
+// *****************************************************************************
+// Section: GetTaskGroup() en tg_maintainer
+// 
+// note: caller is responsible for having exactly one tg_maintainer object in main() or at least during calls to GetTaskGroup();
+// note: GetTaskGroup() returns a singleton, but calls to GetTaskGroup().run(...) can be made from different threads
+// 
+// *****************************************************************************
+
+static concurrency::task_group* s_OcTaskGroup = nullptr;
+
+
+TIC_CALL tg_maintainer::tg_maintainer()
+{
+	// build policy
+	concurrency::SchedulerPolicy policy(2, concurrency::MinConcurrency, GetNrVCPUs(), concurrency::MaxConcurrency, GetNrVCPUs());
+
+	// install that policy as the DEFAULT scheduler’s policy --
+	// must do this *before* any parallel work runs
+	concurrency::Scheduler::SetDefaultSchedulerPolicy(policy);
+
+	assert(!s_OcTaskGroup);
+	s_OcTaskGroup = new concurrency::task_group;
+}
+
+TIC_CALL tg_maintainer::~tg_maintainer()
+{
+	assert(s_OcTaskGroup);
+
+	dbg_assert(sd_RunningOC.empty());
+	dbg_assert(sd_OC.empty());
+	dbg_assert(sd_runOperationContextsRecursionCount == 0);
+
+	s_ScheduledContextsMap.clear();
+	s_RadioActives.clear();
+
+	//	assert(s_NrActivatedOrRunningOperations == 0);
+	assert(s_ScheduledContextsMap.empty()); ;
+	assert(s_RadioActives.empty());
+
+	s_OcTaskGroup->cancel();
+	s_OcTaskGroup->wait();
+
+	delete s_OcTaskGroup;
+	s_OcTaskGroup = nullptr;
+}
+
+concurrency::task_group& GetTaskGroup()
+{
+	assert(s_OcTaskGroup);
+	return *s_OcTaskGroup;
+}
+
+// *****************************************************************************
+// Section: PhaseNumbers
+// *****************************************************************************
+
+auto GetNextPhaseNumber() -> phase_number
+{
+	static std::atomic<phase_number> s_SchedulingFenceNumber = 1;
+	return ++s_SchedulingFenceNumber;
+}
 
 bool hasSuppliers(OperationContextSPtr waiter)
 {
@@ -133,7 +224,7 @@ bool equal(OperationContextWPtr a, OperationContextWPtr b)
 #if defined(MG_DEBUG)
 	auto sa = a.lock();
 	auto sb = b.lock();
-	dms_assert(!sa && !sb || sa.get() == sb.get());
+	assert(!sa && !sb || sa.get() == sb.get());
 #endif
 	return true;
 }
@@ -153,7 +244,7 @@ bool isSupplier(OperationContextSPtr waiter, OperationContextSPtr supplier)
 
 std::string AsText(OperationContext* ptr)
 {
-	dms_assert(ptr);
+	assert(ptr);
 
 	auto funcDC = ptr->GetFuncDC();
 	return mgFormat2string("status=%x %s", (int)ptr->getStatus(), funcDC ? funcDC->md_sKeyExpr.c_str(): "(leeg)");
@@ -194,9 +285,23 @@ void connect(OperationContextSPtr waiter, OperationContextSPtr supplier)
 	supplier->m_Waiters.insert(waiter);
 }
 
+void scheduleRunnableTask(OperationContext* self)
+{
+	assert(!cs_ThreadMessing.try_lock());
+	assert(!self->m_FuncDC || self->GetOperator()->CanRunParallel());
+
+	// next RunOperationContexts() must not start scheduling tasks with phase numbers higher than this task.
+	auto fn = self->m_PhaseNumber;
+	MakeMin<phase_number>(s_CurrActivePhaseNumber, fn);
+	s_ScheduledContextsMap[fn].emplace_back(self->shared_from_this());
+	self->m_Status = task_status::scheduled;
+}
+
 garbage_t OperationContext::disconnect_supplier(OperationContext* supplier)
 {
 	DBG_START("OperationContextPtr", "disconnect_supplier", MG_DEBUGCONNECTIONS);
+
+	assert(!cs_ThreadMessing.try_lock());
 
 	OperationContextWPtr wptr_this_waiter = weak_from_this();
 	OperationContextSPtr sptr_supplier = supplier->weak_from_this().lock(); // inaccessible when called from supplier's destructor, i.e. when it is not owned anymore
@@ -205,7 +310,7 @@ garbage_t OperationContext::disconnect_supplier(OperationContext* supplier)
 #if defined(MG_DEBUG)
 	DBG_TRACE(("waiter = %s", AsText(wptr_this_waiter)));
 #endif
-	dms_assert(!supplier->m_FuncDC || !supplier->m_FuncDC->m_OperContext);
+	assert(!supplier->m_FuncDC || !supplier->m_FuncDC->m_OperContext);
 	garbage_t garbage;
 	if (sptr_supplier)
 	{
@@ -216,7 +321,7 @@ garbage_t OperationContext::disconnect_supplier(OperationContext* supplier)
 #if defined(MG_DEBUG)
 	for (const auto& s : m_Suppliers)
 	{
-		dms_assert(s.get() != supplier);
+		assert(s.get() != supplier);
 	}
 #endif
 
@@ -232,11 +337,8 @@ garbage_t OperationContext::disconnect_supplier(OperationContext* supplier)
 		dbg_assert(m_Suppliers.empty());
 		DBG_TRACE(("add to queue %s", AsText(wptr_this_waiter)));
 
-		if (m_Status == task_status::scheduled)
-		{
-			assert(!m_FuncDC || GetOperator()->CanRunParallel());
-			s_ScheduledContextsMap[m_FenceNumber].emplace_back(shared_from_this());
-		}
+		if (m_Status == task_status::waiting_for_suppliers)
+			scheduleRunnableTask(this);
 		break;
 
 	case task_status::exception:
@@ -248,10 +350,10 @@ garbage_t OperationContext::disconnect_supplier(OperationContext* supplier)
 		break;
 	}
 	default:
-		dms_assert(supplierStatus != task_status::running);
-		dms_assert(supplierStatus != task_status::suspended);
-		dms_assert(supplierStatus != task_status::scheduled);
-		dms_assert(supplierStatus != task_status::none);
+		assert(supplierStatus != task_status::running);
+		assert(supplierStatus != task_status::suspended);
+		assert(supplierStatus != task_status::scheduled);
+		assert(supplierStatus != task_status::none);
 	}
 
 	return garbage;
@@ -261,6 +363,8 @@ garbage_t OperationContext::disconnect()
 {
 	DBG_START("OperationContextPtr", "disconnect", MG_DEBUGCONNECTIONS);
 	DBG_TRACE(("this = %s", AsText(this)))
+
+	assert(cs_ThreadMessing.isLocked());
 
 #if defined(MG_DEBUG)
 	assert( sd_ManagedContexts.find(this) != sd_ManagedContexts.end() || !m_FuncDC);
@@ -287,28 +391,33 @@ garbage_t OperationContext::disconnect()
 	return garbage;
 }
 
-UInt32 s_RunOperationContextsCount = 0;
-fence_number s_CurrActiveFenceNumber = 0;
-bool s_IsInLowRamMode = false;
+/// <summary>
+///  collectOperations that must be set to GetOperGroup() outside the cs_ThreadMessing lock by the caller
+/// </summary>
+/// <returns>
+/// a pair of context_array that contains the collected operations and garbage that must be destructed before calling GetOperGroup, but after teh cs_ThreadMessing lock.
+/// </returns>
 
-garbage_t runOperationContexts()
+auto collectOperationContexts() -> std::pair<context_array, garbage_t>
 {
 	assert(!cs_ThreadMessing.try_lock());
 
-	assert(!s_RunOperationContextsCount);
+#if defined(MG_DEBUG)
+	assert(!sd_runOperationContextsRecursionCount);
+	DynamicIncrementalLock s_ActivationGuard(sd_runOperationContextsRecursionCount);
+#endif
 
-	DynamicIncrementalLock s_ActivationGuard(s_RunOperationContextsCount);
-
+	context_array results;
 	garbage_t cancelGarbage;
 
 	while (!s_ScheduledContextsMap.empty())
 	{
-		auto nextFenceNumber = s_ScheduledContextsMap.begin()->first;
-		if (nextFenceNumber > s_CurrActiveFenceNumber)
+		auto nextPhaseNumber = s_ScheduledContextsMap.begin()->first;
+		if (nextPhaseNumber > s_CurrActivePhaseNumber)
 		{
-			if (s_NrRunningOperations)
-				break; // try again later
-			s_CurrActiveFenceNumber = nextFenceNumber;
+			if (s_NrActivatedOrRunningOperations)
+				break; // try again later, when all operations of the current phase have completed
+			s_CurrActivePhaseNumber = nextPhaseNumber;
 			NotifyCurrentTargetCount();
 		}
 
@@ -321,7 +430,7 @@ garbage_t runOperationContexts()
 
 		for (; currContext != scheduledContexts.end(); ++currContext)
 		{
-			if (s_NrRunningOperations >= 1 && !isLowOnFreeRamTested) // HEURISTIC: only allow more than 1 operations when RAM isn't being exausted
+			if (s_NrActivatedOrRunningOperations >= 1 && !isLowOnFreeRamTested) // HEURISTIC: only allow more than 1 operations when RAM isn't being exausted
 			{
 				if (IsLowOnFreeRAM())
 				{
@@ -336,7 +445,7 @@ garbage_t runOperationContexts()
 
 			cancelGarbage |= operContext->shared_from_this(); // copy shared_ptr into container for destruction consideration outside current critical section
 			assert(operContext->m_Status >= task_status::scheduled);
-			assert(operContext->m_FenceNumber <= s_CurrActiveFenceNumber);
+			assert(operContext->m_PhaseNumber == s_CurrActivePhaseNumber);
 			if (operContext->m_Status < task_status::activated)
 			{
 				assert(operContext->m_TaskFunc);
@@ -345,26 +454,14 @@ garbage_t runOperationContexts()
 					cancelGarbage |= operContext->separateResources(task_status::cancelled);
 					continue;
 				}
-				auto funcDC = operContext->m_FuncDC;
-				SharedActorInterestPtr resKeeper;
-				if (funcDC)
-					resKeeper = funcDC->GetInterestPtrOrNull();
-				else
-					resKeeper = operContext->GetResult()->GetInterestPtrOrNull();
-
-				if (!resKeeper)
-					continue;
 
 				assert(operContext->m_Status < task_status::activated);
 				assert(operContext->m_TaskFunc);
 
-				// start task
-				if (!operContext->activateTaskImpl(std::move(resKeeper)))
-				{
-					assert(s_NrRunningOperations);
-					break;
-				}
-				assert(s_NrRunningOperations >= 0);
+				// activate and collect task
+				if (operContext->activateTaskImpl())
+					results.emplace_back(operContext);
+				assert(s_NrActivatedOrRunningOperations >= 0);
 			}
 		}
 		scheduledContexts.erase(scheduledContexts.begin(), currContext);
@@ -375,24 +472,45 @@ garbage_t runOperationContexts()
 
 	}
 
-	if (!s_NrRunningOperations)
+	if (!s_NrActivatedOrRunningOperations)
 		NotifyCurrentTargetCount();
 
-	return cancelGarbage;
+	return { std::move(results), std::move(cancelGarbage) };
 }
 
 static std::atomic<bool> s_RunOperationContextsScheduled = false;
+
+auto CollectOperationContextsImpl() -> context_array
+{
+	context_array activatedOperationContextArray;
+	garbage_t receivedGarbage;
+
+	leveled_std_section::scoped_lock lock(cs_ThreadMessing);
+	std::tie(activatedOperationContextArray, receivedGarbage) = collectOperationContexts();
+	return activatedOperationContextArray;
+}
+
+void RunCollectedContexts(context_array collectedActivatedContexts)
+{
+	for (auto activatedContextWPtr : collectedActivatedContexts)
+		if (auto activatedContext = activatedContextWPtr.lock())
+		{
+			auto selfCaller = [activatedContextWPtr]()
+				{
+					if (auto self = activatedContextWPtr.lock())
+						self->TryRunningTaskInline();
+				};
+
+			GetTaskGroup().run(selfCaller);
+		}
+}
 
 TIC_CALL void RunOperationContexts()
 {
 	s_RunOperationContextsScheduled = false;
 
-	if (s_RunOperationContextsCount)
-		return;
-	
-	garbage_t receivedGarbage;
-	leveled_std_section::scoped_lock lock(cs_ThreadMessing);
-	receivedGarbage = runOperationContexts();
+	auto collectedActivatedContexts = CollectOperationContextsImpl();
+	RunCollectedContexts(std::move(collectedActivatedContexts));
 }
 
 void ScheduleRunOperationContexts()
@@ -402,51 +520,32 @@ void ScheduleRunOperationContexts()
 	PostMainThreadOper(RunOperationContexts);
 }
 
-void WaitForCompletedTaskOrTimeout(std::chrono::milliseconds waitFor)
+inline bool IsActiveOrRunning(task_status s) { return s >= task_status::activated && s <= task_status::running; }
+
+void OperationContex_setActivated(OperationContext* self)
 {
-	if (IsMetaThread())
-		ProcessMainThreadOpersAndTasks();
+	assert(!cs_ThreadMessing.try_lock());
+	self->m_Status = task_status::activated;
+	++s_NrActivatedOrRunningOperations;
 
-	leveled_std_section::unique_lock lock(cs_ThreadMessing);
-	runOperationContexts();
-
-	if (IsMetaThread() && HasMainThreadTasks())
-		return;
-
-	if (HasMainThreadTasks())
-		return;
-	cv_TaskCompleted.wait_for(lock.m_BaseLock, waitFor);
-}
-
-
-// *****************************************************************************
-// Section:     OperatorContextBase
-// *****************************************************************************
-#if defined(MG_DEBUG)
-#define MG_TRACE_OPERATIONCONTEXTS
-#else
-#define MG_TRACE_OPERATIONCONTEXTS
-#endif
+	assert(IsActiveOrRunning(self->m_Status));
+	assert(s_NrActivatedOrRunningOperations > 0);
 
 #if defined(MG_TRACE_OPERATIONCONTEXTS)
-
-	leveled_critical_section cs_OcAdm(item_level_type(0), ord_level_type::OperationContext, "OperationContextSet");
-	UInt32 sd_OcCount;
-	std::set<OperationContext*> sd_OC;
-	std::set<OperationContext*> sd_RunningOC;
-
-	void reportOC(CharPtr source, OperationContext* ocPtr)
-	{
-		auto item = ocPtr->GetResult();
-		reportF_without_cancellation_check(MsgCategory::other, SeverityTypeID::ST_MajorTrace, "OperationContext %s %d: %s", source, int(ocPtr->GetStatus()), item ? item->GetSourceName().c_str() : "");
-	}
-	auto reportRemaingOcOnExit = make_scoped_exit([]()
-		{
-			for (auto ocPtr : sd_OC)
-				reportOC("Leaked", ocPtr);
-		});
-	
+	sd_RunningOC.insert(self);
 #endif
+
+}
+
+void OperationContex_SetActivated(OperationContext* self)
+{
+	leveled_std_section::scoped_lock lock(cs_ThreadMessing);
+	OperationContex_setActivated(self);
+}
+
+// *****************************************************************************
+// Section:     OperatorContext
+// *****************************************************************************
 
 OperationContext::OperationContext()
 {
@@ -461,11 +560,19 @@ OperationContext::OperationContext()
 	#endif
 }
 
+/// <summary>
+///		This constructor is used to create a new OperationContext with a given FuncDC.
+/// </summary>
+/// <param name="self"></param>
+/// 
+/// Call ScheduleCalcResult() to start the calculation.
+/// todo: integreate ScheduleCalcResult into the constructor.
+
 OperationContext::OperationContext(const FuncDC* self)
 	: m_FuncDC(self)
-	, m_FenceNumber(self->GetFenceNumber())
+	, m_PhaseNumber(self->GetPhaseNumber())
 {
-	assert(m_FenceNumber);
+	assert(m_PhaseNumber);
 
 	DBG_START("OperationContext", "CTor", MG_DEBUG_FUNCCONTEXT);
 	DBG_TRACE(("FuncDC: %s", self->md_sKeyExpr));
@@ -486,14 +593,14 @@ OperationContext::~OperationContext()
 
 	assert(!m_FuncDC || !m_FuncDC->m_OperContext);
 
-	dms_assert(m_Status != task_status::running);
-	dms_assert(m_Status != task_status::suspended); // cancel, exception or done caught.
+	assert(m_Status != task_status::running);
+	assert(m_Status != task_status::suspended); // cancel, exception or done caught.
 
 	OnEnd(task_status::cancelled);
 	assert(m_Status != task_status::scheduled); // cancel, exception or done caught.
 	assert(m_Status == task_status::exception || m_Status == task_status::cancelled || m_Status == task_status::done || m_Status == task_status::none); // cancel, exception or done caught.
 
-	assert(!IsRunningOperation(m_Status));
+	assert(!IsActiveOrRunning(m_Status));
 
 	#if defined(MG_TRACE_OPERATIONCONTEXTS)
 
@@ -519,30 +626,14 @@ task_status OperationContext::Schedule(TreeItem* item, const FutureSuppliers& al
 	if (!runDirect && !IsMultiThreaded2())
 		runDirect = true;
 
+	assert(!runDirect || IsMetaThread());
+	assert(m_Status == task_status::none);
+
 	m_ActiveTimestamp = UpdateMarker::GetActiveTS(MG_DEBUG_TS_SOURCE_CODE("Obtaining active frame for produce item task"));
 
 	if (item)
 		m_WriteLock = ItemWriteLock(item, std::weak_ptr(shared_from_this())); // sets item->m_Producer to this; no future access right yet
 
-	bool mustConsiderRun = false;
-	{
-		leveled_std_section::scoped_lock lock(cs_ThreadMessing);
-		if (m_Status >= task_status::scheduled)
-			return m_Status;
-		m_Status = task_status::scheduled;
-		assert(!IsRunningOperation(m_Status));
-
-		if (!runDirect)
-		{
-			bool connectedArgs = connectArgs(allInterest);
-			if (!connectedArgs)
-			{
-				assert(!m_FuncDC || GetOperator()->CanRunParallel());
-				s_ScheduledContextsMap[m_FenceNumber].emplace_back(shared_from_this());
-				mustConsiderRun = true;
-			}
-		}
-	}
 	if (runDirect)
 	{
 		assert(m_Suppliers.empty());
@@ -550,13 +641,37 @@ task_status OperationContext::Schedule(TreeItem* item, const FutureSuppliers& al
 		assert(supplStatus != task_status::cancelled);
 		if (supplStatus != task_status::done)
 			return supplStatus;
-		TryRunningTaskInline();
-		return m_Status;
+
+		OperationContex_SetActivated(this);
+		if (TryRunningTaskInline())
+			return GetStatus();
+		return Join();
 	}
 
+	bool mustConsiderRun = false;
+	{
+		leveled_std_section::scoped_lock lock(cs_ThreadMessing);
+		if (m_Status < task_status::scheduled)
+		{
+			assert(!IsActiveOrRunning(m_Status));
+
+			bool connectedArgs = connectArgs(allInterest);
+			if (connectedArgs)
+			{
+				assert(m_PhaseNumber >= s_CurrActivePhaseNumber); // must be a Superior of the non-completed suppliers, which must have at least s_CurrActivePhaseNumber
+				m_Status = task_status::waiting_for_suppliers;
+			}
+			else
+			{
+				scheduleRunnableTask(this); assert(m_Status == task_status::scheduled);
+				assert(m_PhaseNumber >= s_CurrActivePhaseNumber); // scheduleRunnableTask will have descreasd the s_CurrActivePhaseNumber if this task needed that.
+				mustConsiderRun = true;
+			}
+		}
+	}
 	if (mustConsiderRun)
 		RunOperationContexts();
-	return task_status::scheduled;
+	return GetStatus();
 }
 
 THREAD_LOCAL OperationContext* sl_CurrOperationContext = nullptr;
@@ -594,95 +709,38 @@ task_status OperationContext::GetStatus() const
 	return m_Status;
 }
 
-static concurrency::task_group* s_OcTaskGroup = nullptr;
-
-TIC_CALL tg_maintainer::tg_maintainer()
-{
-	// build policy
-	concurrency::SchedulerPolicy policy(2, concurrency::MinConcurrency, GetNrVCPUs(), concurrency::MaxConcurrency, GetNrVCPUs());
-
-	// install that policy as the DEFAULT scheduler’s policy --
-	// must do this *before* any parallel work runs
-	concurrency::Scheduler::SetDefaultSchedulerPolicy(policy);
-
-	assert(!s_OcTaskGroup);
-	s_OcTaskGroup = new concurrency::task_group;
-}
-
-TIC_CALL tg_maintainer::~tg_maintainer()
-{
-	assert(s_OcTaskGroup);
-
-	s_OcTaskGroup->cancel();
-	s_OcTaskGroup->wait();
-
-	delete s_OcTaskGroup;
-	s_OcTaskGroup = nullptr;
-}
-
-concurrency::task_group& GetTaskGroup()
-{
-	assert(s_OcTaskGroup);
-	return *s_OcTaskGroup;
-}
-
-
-bool OperationContext::activateTaskImpl(SharedActorInterestPtr&& resKeeper)
+bool OperationContext::activateTaskImpl()
 {
 	assert(!cs_ThreadMessing.try_lock());
 
-	assert(s_NrRunningOperations >= 0);
+	auto funcDC = m_FuncDC;
+
+	SharedActorInterestPtr resKeeper;
+	if (funcDC)
+		resKeeper = funcDC->GetInterestPtrOrNull();
+	else
+		resKeeper = GetResult()->GetInterestPtrOrNull();
+
+	if (!resKeeper)
+		return false;
+
+	assert(s_NrActivatedOrRunningOperations >= 0);
 	assert(m_Status < task_status::activated);
 	assert(m_TaskFunc);
 	assert(!m_FuncDC || GetOperator()->CanRunParallel());
 
-	if (!getUniqueLicenseToActivate())
-		return m_Status >= task_status::activated || !m_TaskFunc;
-	
+	assert(!IsActiveOrRunning(m_Status));
+	assert(s_NrActivatedOrRunningOperations >= 0);
+
+	if (s_IsInLowRamMode && s_NrActivatedOrRunningOperations > 0)
+		return false;
+
+	OperationContex_setActivated(this);
+
 	m_ResKeeper = std::move(resKeeper);
 
 	std::weak_ptr<OperationContext> selfWptr = shared_from_this();
-	auto selfCaller = [selfWptr]() 
-	{ 
-		auto self = selfWptr.lock(); 
-		if (self) 
-		{
-			assert(self->m_FenceNumber <= s_CurrActiveFenceNumber);
-
-			self->TryRunningTaskInline();
-
-			assert(self->m_FenceNumber <= s_CurrActiveFenceNumber);
-		}
-	};
-
-	GetTaskGroup().run(selfCaller);
-	return true;
-}
-
-bool OperationContext::getUniqueLicenseToActivate()
-{
-//	dms_assert(m_Suppliers.empty());
-	assert(!cs_ThreadMessing.try_lock());
-
-	if (m_Status >= task_status::activated || !m_TaskFunc)
-	{
-		assert(m_Status != task_status::suspended);
-		return false;
-	}
-
-	assert(!IsRunningOperation(m_Status));
-	assert(s_NrRunningOperations >= 0);
-
-	m_Status = task_status::activated;
-	++s_NrRunningOperations;
-
-	#if defined(MG_TRACE_OPERATIONCONTEXTS)
-		sd_RunningOC.insert(this);
-	#endif
-
-	assert(IsRunningOperation(m_Status));
-	assert(s_NrRunningOperations > 0);
-
+	s_RadioActives.emplace_back(selfWptr);
 	return true;
 }
 
@@ -690,7 +748,7 @@ bool OperationContext::TryRunningTaskInline()
 {
 	assert(m_Suppliers.empty());
 
-	if (!getUniqueLicenseToRun())
+	if (!GetUniqueLicenseToRun())
 		return false;
 
 	safe_run_caller();
@@ -698,16 +756,24 @@ bool OperationContext::TryRunningTaskInline()
 }
 
 
-bool  OperationContext::getUniqueLicenseToRun()
+bool  OperationContext::GetUniqueLicenseToRun()
 {
 	DSM::CancelIfOutOfInterest(m_Result);
+
 	leveled_std_section::scoped_lock lock(cs_ThreadMessing);
+	assert(m_Status >= task_status::activated);
 
 	if (m_Status >= task_status::running)
 		return false;
 
-	getUniqueLicenseToActivate();
+	if (m_Status == task_status::activated && m_PhaseNumber > s_CurrActivePhaseNumber)
+	{
+		scheduleRunnableTask(this);
+		return false;
+	}
+
 	assert(m_Status == task_status::activated);
+	assert(m_PhaseNumber == s_CurrActivePhaseNumber);
 
 	m_Status = task_status::running;
 	return true;
@@ -740,24 +806,24 @@ void OperationContext::OnEnd(task_status status) noexcept
 
 void OperationContext::releaseRunCount(task_status status)
 {
-	assert(!IsRunningOperation(status));
+	assert(!IsActiveOrRunning(status));
 
 	assert(cs_ThreadMessing.isLocked());
 
 	assert(m_Status <= task_status::running);
-	if (IsRunningOperation(m_Status))
+	if (IsActiveOrRunning(m_Status))
 	{
-		assert(s_NrRunningOperations > 0);
-		auto nrRunning = --s_NrRunningOperations;
+		assert(s_NrActivatedOrRunningOperations > 0);
+		auto nrRunning = --s_NrActivatedOrRunningOperations;
 #if defined(MG_TRACE_OPERATIONCONTEXTS)
 		sd_RunningOC.erase(this);
 #endif
 		if (!nrRunning)
 			wakeUpJoiners();
 	}
-	assert(s_NrRunningOperations >= 0);
+	assert(s_NrActivatedOrRunningOperations >= 0);
 	m_Status = status;
-	assert(!IsRunningOperation(m_Status));
+	assert(!IsActiveOrRunning(m_Status));
 
 }
 
@@ -839,7 +905,7 @@ bool OperationContext::HandleFail(const TreeItem* item)
 
 bool OperationContext::SetReadLock(std::vector<ItemReadLock>& locks, const TreeItem* si) 
 {
-	assert(m_FenceNumber >= si->GetCurrFenceNumber());
+	assert(m_PhaseNumber >= si->GetCurrFenceNumber());
 
 	try {
 		locks.emplace_back(si);
@@ -852,7 +918,7 @@ bool OperationContext::SetReadLock(std::vector<ItemReadLock>& locks, const TreeI
 	catch (...)
 	{
 		auto hasError = HandleFail(si);
-		dms_assert(hasError);
+		assert(hasError);
 		return false;
 	}
 	return true;
@@ -869,7 +935,7 @@ std::vector<ItemReadLock> OperationContext::SetReadLocks(const FutureSuppliers& 
 			continue;
 
 		auto supplierItem = futureSupplier->GetOld(); // can be reference to default unit
-		dms_assert(supplierItem);
+		assert(supplierItem);
 		supplierItem = supplierItem->GetCurrRangeItem();
 		if (HandleFail(supplierItem))
 			return{};
@@ -889,32 +955,34 @@ bool OperationContext::connectArgs(const FutureSuppliers& allInterests)
 	DBG_START("OperationContext", "connectArgs", MG_DEBUG_FUNCCONTEXT);
 	DBG_TRACE(("FuncDC: %s", m_FuncDC->md_sKeyExpr));
 
-	dms_assert(cs_ThreadMessing.isLocked());
+	assert(cs_ThreadMessing.isLocked());
 	bool connected = false;
 	for (const auto& supplierInterest: allInterests)
 	{
 		if (!supplierInterest)
 			continue;
 		auto funcSupplier = dynamic_cast<const FuncDC*>(supplierInterest.get_ptr());
-		std::shared_ptr<OperationContext> oc;
+		std::shared_ptr<OperationContext> supplOperationContext;
 		if (funcSupplier)
-			oc = funcSupplier->GetOperContext();
+			supplOperationContext = funcSupplier->GetOperContext();
 		else
-			oc = GetOperationContext(supplierInterest->GetOld()->GetCurrRangeItem());
+			supplOperationContext = GetOperationContext(supplierInterest->GetOld()->GetCurrRangeItem());
 
-		if (!oc)
+		if (!supplOperationContext)
 			continue;
-		auto status = oc->getStatus();
+
+		auto status = supplOperationContext->getStatus();
 		if (status > task_status::none && status < task_status::cancelled)
 		{
-			connect(shared_from_this(), oc);
+			assert(supplOperationContext->m_PhaseNumber <= m_PhaseNumber);
+			connect(shared_from_this(), supplOperationContext);
 			connected = true;
 			dbg_assert(m_Suppliers.size());
 		}
 	}
 
 #if defined(MG_DEBUG)
-	dms_assert(sd_ManagedContexts.find(this) == sd_ManagedContexts.end()); 
+	assert(sd_ManagedContexts.find(this) == sd_ManagedContexts.end()); 
 	sd_ManagedContexts.insert(this);
 #endif
 
@@ -938,13 +1006,13 @@ task_status OperationContext::JoinSupplOrSuspendTrigger()
 
 		const TreeItem* supplResult = oc->GetResult();
 		assert(supplResult); 
-		dms_assert(oc->GetStatus() >= task_status::scheduled || CheckDataReady(supplResult) || supplResult->WasFailed(FR_Data) || !supplResult->GetInterestCount());
+		assert(oc->GetStatus() >= task_status::scheduled || CheckDataReady(supplResult) || supplResult->WasFailed(FR_Data) || !supplResult->GetInterestCount());
 		if (SuspendTrigger::DidSuspend())
 			return task_status::suspended;
 
 		task_status ocStatus = oc->Join();
 		assert(ocStatus > task_status::running);
-		dms_assert(CheckDataReady(supplResult->GetCurrUltimateItem()) || supplResult->WasFailed(FR_Data) || !supplResult->GetInterestCount() || SuspendTrigger::DidSuspend());
+		assert(CheckDataReady(supplResult->GetCurrUltimateItem()) || supplResult->WasFailed(FR_Data) || !supplResult->GetInterestCount() || SuspendTrigger::DidSuspend());
 		switch (ocStatus)
 		{
 		case task_status::done:
@@ -1019,7 +1087,9 @@ void OperationContext::safe_run_caller() noexcept
 {
 	DMS_SE_CALL_BEGIN
 
+		assert(m_PhaseNumber == s_CurrActivePhaseNumber);
 		safe_run_with_cleanup();
+		assert(m_PhaseNumber == s_CurrActivePhaseNumber);
 
 	DMS_SE_CALL_END
 }
@@ -1084,8 +1154,8 @@ bool OperationContext::ScheduleCalcResult(Explain::Context* context, ArgRefs&& a
 	MG_DEBUGCODE(auto oper = GetOperator());
 	dbg_assert(oldItem);
 
-	dms_assert(resultHolder.IsTmp() || resultHolder->GetInterestCount());
-	dms_assert(resultHolder.GetInterestCount());
+	assert(resultHolder.IsTmp() || resultHolder->GetInterestCount());
+	assert(resultHolder.GetInterestCount());
 	dbg_assert(!resultHolder.IsTmp()); // DEBUG 19/03/2020
 
 	bool doASync = GetOperator()->CanRunParallel() && resultHolder.DoesHaveSupplInterest() && !context;
@@ -1101,7 +1171,7 @@ bool OperationContext::ScheduleCalcResult(Explain::Context* context, ArgRefs&& a
 	assert(IsMetaThread());
 	if (!resultHolder.DoesHaveSupplInterest())
 	{
-		dms_assert(!doASync);
+		assert(!doASync);
 		Actor::UpdateLock lock(&resultHolder, actor_flag_set::AF_ChangingInterest); // DEBUG, 19-03-2020
 		resultHolder.StartSupplInterest();
 	}
@@ -1145,10 +1215,10 @@ bool OperationContext::ScheduleCalcResult(Explain::Context* context, ArgRefs&& a
 
 		assert(!argRefs.size()); // moved in ?
 
-		dms_assert(!SuspendTrigger::DidSuspend() || !doASync || !IsMultiThreaded2());
+		assert(!SuspendTrigger::DidSuspend() || !doASync || !IsMultiThreaded2());
 
 		dbg_assert(!resultHolder || resultHolder->GetDynamicObjClass()->IsDerivedFrom(oper->GetResultClass()));
-		MG_DEBUGCODE(dms_assert(resultHolder.GetOld() == oldItem));
+		MG_DEBUGCODE(assert(resultHolder.GetOld() == oldItem));
 
 		if (resultHolder && resultHolder->WasFailed())
 			resultHolder.Fail(resultHolder.GetOld());
@@ -1170,7 +1240,8 @@ bool OperationContext::ScheduleCalcResult(Explain::Context* context, ArgRefs&& a
 
 SizeT getScheduledContextsPos(OperationContextSPtr self)
 {
-	auto& queue = s_ScheduledContextsMap[self->m_FenceNumber];
+	assert(!cs_ThreadMessing.try_lock());
+	auto& queue = s_ScheduledContextsMap[self->m_PhaseNumber];
 	auto pos = queue.begin(), end = queue.end();
 	for (; pos != end; ++pos)
 		if (pos->lock() == self)
@@ -1178,62 +1249,192 @@ SizeT getScheduledContextsPos(OperationContextSPtr self)
 	return UNDEFINED_VALUE(SizeT);
 }
 
-void prioritize(SupplierSet& scheduledContexts, SupplierSet& activatedContexts, OperationContextSPtr self)
+struct prioritize_results
 {
+	SupplierSet waitingAndScheduledContexts;
+	SupplierSet activatedContexts;
+	context_array collectedActivations;
+};
+
+void prioritize_impl(prioritize_results& results, OperationContextSPtr self)
+{
+	assert(!cs_ThreadMessing.try_lock());
 	assert(self);
+	assert(self->m_PhaseNumber == s_CurrActivePhaseNumber); // else we wouldn't be here.
+
 	auto status = self->getStatus();
+	assert(status != task_status::none);
+
+	if (status >= task_status::running)
+		return; // no more running of this task than already is or was going on.
+
 	if (status == task_status::activated)
 	{
-		activatedContexts.insert(self);
+		results.activatedContexts.insert(self);
 		return;
 	}
+
 	if (status == task_status::scheduled)
-	{
+		if (self->activateTaskImpl())
+		{
+			auto& vec = s_ScheduledContextsMap[self->m_PhaseNumber];
+			auto it = std::find_if(vec.begin(), vec.end(), [&](const OperationContextWPtr& wptr) { return !wptr.expired() && wptr.lock() == self; });
+			if (it != vec.end())
+				vec.erase(it);
+			status = self->getStatus();
+			results.collectedActivations.emplace_back(self);
+			return;
+		}
 
-		assert(self->GetOperator() && self->GetOperator()->CanRunParallel());
+	assert(status == task_status::waiting_for_suppliers || status == task_status::scheduled);
 
-		auto [_, wasInserted] = scheduledContexts.insert(self);
-		if (!wasInserted)
-			return;   // it was already in the set
+	auto [_, wasInserted] = results.waitingAndScheduledContexts.insert(self);
+	if (!wasInserted)
+		return;   // it was already in the set
 
-		MG_CHECK(!self->m_Suppliers.empty() || self->m_FenceNumber > s_CurrActiveFenceNumber || s_IsInLowRamMode);
+	for (auto& s : self->m_Suppliers)
+		prioritize_impl(results, s);
+}
 
-		for (auto& s : self->m_Suppliers)
-			prioritize(scheduledContexts, activatedContexts, s);
+auto prioritize(OperationContextSPtr waiter) -> std::pair<SupplierSet, context_array>
+{
+	// Build the two sets once per Join:
+	prioritize_results results;
+	prioritize_impl(results, waiter);
+	return { std::move(results.activatedContexts), std::move(results.collectedActivations) };
+}
+
+OperationContextSPtr FindOnePriorityTasks(phase_number currFenceNumber, contexts_within_one_phase* nonPriorityTaskSink)
+{
+	leveled_std_section::unique_lock lock(cs_ThreadMessing);
+	OperationContextSPtr ocSPtr;
+	while (!s_RadioActives.empty()) {
+
+		auto oc = s_RadioActives.front(); s_RadioActives.pop_front();
+		ocSPtr = oc.lock();
+		if (!ocSPtr)
+			continue; // expired
+
+		if (ocSPtr->m_PhaseNumber <= currFenceNumber)
+			break;
+		nonPriorityTaskSink->emplace_back(ocSPtr); // put it back later to avoid looping forever
 	}
+
+	return ocSPtr;
+}
+
+OperationContextSPtr FindAndLicenceOnePriorityTasks(phase_number currFenceNumber)
+{
+	contexts_within_one_phase nonPriorityTasks;
+
+	OperationContextSPtr ocSPtr;
+	while (true) {
+
+		ocSPtr = FindOnePriorityTasks(currFenceNumber, &nonPriorityTasks);
+		if (!ocSPtr)
+			break; // none found
+
+		// try to grab the license—only one thread ever wins per OC
+		if (ocSPtr->GetUniqueLicenseToRun())
+			break; // we can do one piece of inline work—go do it and re-check your fences/status
+		// otherwise, someone else is already running it; try the next one
+	}
+
+
+	// place back the skipped tasks, as they needs to be available for later scheduling when the s_CurrActivePhaseNumber is increased
+	if (!nonPriorityTasks.empty())
+	{
+		leveled_std_section::unique_lock lock(cs_ThreadMessing);
+		while (!nonPriorityTasks.empty()) {
+			auto oc = nonPriorityTasks.back(); nonPriorityTasks.pop_back();
+			s_RadioActives.emplace_front(oc); // put it back
+		}
+	}
+
+	return ocSPtr;
 }
 
 
+bool StealOneTask(phase_number currFenceNumber)
+{
+	auto ocSPtr = FindAndLicenceOnePriorityTasks(currFenceNumber);
+	if (!ocSPtr)
+		return false; // no work to do
+
+	ocSPtr->safe_run_caller(); // inline the work right here:
+	return true;
+}
+
+auto PopActiveSuppliers(OperationContextSPtr waiter) -> std::vector<std::shared_ptr<OperationContext>>
+{
+	std::vector<std::shared_ptr<OperationContext>> result;
+
+	leveled_std_section::scoped_lock lock(cs_ThreadMessing);
+	if (IsActiveOrRunning(waiter->m_Status))
+	{
+		result.emplace_back(std::move(waiter));
+		return result;
+	}
+
+	auto [activatedTasks, collectedTasksToRun] = prioritize(waiter);
+	RunCollectedContexts(std::move(collectedTasksToRun));
+
+	// Scan the deque for weak_ptrs that are both live and in activated:
+	for (auto it = s_RadioActives.begin(); it != s_RadioActives.end(); ++it)
+		if (auto oc = it->lock())
+			if (activatedTasks.count(oc)) 
+				result.emplace_back(std::move(oc)); // keep it in the result set
+	return result;
+}
+
+
+bool CurrActiveTaskHasRunCount()
+{
+	auto ca = OperationContext::CancelableFrame::CurrActive();
+	if (!ca)
+		return false;
+	auto status = ca->getStatus();
+	return IsActiveOrRunning(status);
+}
+
+
+/// <summary>
+///		Wait for the task to finish.
+/// </summary>
+/// <param name="self">The task to wait for</param>
+/// <returns>task_status of OperationContext, which is always above task_status::running, or task_status::suspended</returns>
+/// 
+/// \exception task_canceled
+/// 
+/// Join waits for the task to finish. 
+/// If it is activated, it will run the task inline.
+/// If it is not yet activated, it will run other tasks until it is activated.
+/// If the current thread is the GUI thread, it will pop up active suppliers that are not yet running and try to run them inline.
+/// If it is already running, it will wait for the task to finish, while stealing other tasks if this is not the GUI thread.
+
 task_status OperationContext::Join()
 {
-	if (OperationContext::CancelableFrame::CurrActiveHasRunCount())
+	if (CurrActiveTaskHasRunCount())
 		reportF(MsgCategory::other, SeverityTypeID::ST_MinorTrace, "OperationContext(%s)::Join called from Active Context %s"
 			, GetResult()->GetFullName()
 			, OperationContext::CancelableFrame::CurrActive()->GetResult()->GetFullName()
 		);
-	if (IsMainThread() && s_CurrBlockedFenceNumber && s_CurrBlockedFenceNumber <= m_FenceNumber)
-		throwErrorF("FenceContainer", "Invalid Recursion, OperationContext(%s)::Join called from updating %s for %s"
+	if (IsMainThread() && s_CurrBlockedPhaseNumber && s_CurrBlockedPhaseNumber <= m_PhaseNumber)
+		throwErrorF("PhaseContainer", "Invalid Recursion, OperationContext(%s)::Join called from updating %s for %s"
 		,	GetResult()->GetFullName()
-		,	s_CurrBlockedFenceItem->GetFullName()
-		,	s_CurrFenceContainer->GetFullName()
+		,	s_CurrBlockedPhaseItem->GetFullName()
+		,	s_CurrPhaseContainer->GetFullName()
 		);
 	MG_CHECK(m_Status != task_status::none); // being scheduled is a precondition
 
-	SupplierSet activatedContexts;
 
 	while (m_Status <= task_status::running)
 	{
-		for (auto inlineWork : activatedContexts)
-		{
-			if (inlineWork->TryRunningTaskInline())  // already running elsewhere. go for something else before giving up on task collection effort
-				if (m_Status > task_status::running)
-					return m_Status;
-		}
+		if (m_Status == task_status::activated)
+			if (TryRunningTaskInline())
+				return m_Status;
 
-		activatedContexts.clear();
-
-//		RunOperationContexts(); // OPTIMIZE, CONSISTENCY: Some tasks finished without calling this. Find out why and avoid wasting idle thread time; maybe all threads are waiting in a Join without new and current tasks being activated
-		if (IsMetaThread())
+		if (IsMetaThread() && s_CurrBlockedPhaseNumber && s_CurrBlockedPhaseNumber <= m_PhaseNumber)
 		{
 			if (SuspendTrigger::DidSuspend())
 				return task_status::suspended;
@@ -1241,91 +1442,105 @@ task_status OperationContext::Join()
 			ProcessSuspendibleTasks();
 		}
 
+		if (IsMetaThread() && m_PhaseNumber <= s_CurrActivePhaseNumber)
+			while (true)
+			{
+				auto activatedContexts = PopActiveSuppliers(shared_from_this());
+				if (activatedContexts.empty())
+					break;
+				for (const auto& inlineTaskCandidate : activatedContexts)
+					inlineTaskCandidate->TryRunningTaskInline();  // already running elsewhere. go for something else before giving up on task collection effort
+			}
+		else			
+			while (m_Status <= task_status::running)
+				if (!StealOneTask(m_PhaseNumber))
+					break;
+
+		RunOperationContexts(); // OPTIMIZE, CONSISTENCY: Some tasks finished without calling this. Find out why and avoid wasting idle thread time; maybe all threads are waiting in a Join without new and current tasks being activated
+
 		leveled_std_section::unique_lock lock(cs_ThreadMessing);
 		if (m_Status > task_status::running)
 			break;
+		if (m_Status == task_status::activated)
+			continue; // try to run it inline in the next iteration
 
-		runOperationContexts();
-
-		if (IsMetaThread() && HasMainThreadTasks())
-			continue;
-
-		assert(m_Status > task_status::scheduled || !m_Suppliers.empty() || IsDefined(getScheduledContextsPos(this->shared_from_this())));
-
-		// look for work to do inline
-		if (!s_ScheduledContextsMap.empty())
+		if (m_Status == task_status::scheduled)
 		{
-			auto scheduledTasksForHighestFence = s_ScheduledContextsMap.begin();
-			if (scheduledTasksForHighestFence->first < m_FenceNumber)
-			{
-				SupplierSet scheduledContexts;
-				for (auto& scheduledTaskWPtr : scheduledTasksForHighestFence->second)
-					if (auto scheduledTask = scheduledTaskWPtr.lock())
-						prioritize(scheduledContexts, activatedContexts, scheduledTask);
-			}
+			assert(m_Suppliers.empty()); // scheduled since the last call of RunOperations or not activated because of s_IsInLowRamMode
+			assert(IsDefined(getScheduledContextsPos(this->shared_from_this()))); // always true for scheduled tasks outzide cs_ThreadMessing
+			continue; // try to activate and run it
 		}
-		if (activatedContexts.empty())
+		if (m_Status == task_status::waiting_for_suppliers)
 		{
-			if (m_Status < task_status::running)
-			{
-				SupplierSet scheduledContexts;
-				prioritize(scheduledContexts, activatedContexts, shared_from_this());
-			}
+			assert(!m_Suppliers.empty());
+			continue; // try to run suppliers inline in the next iteration
 		}
+
+		assert(m_Status == task_status::running);
+
+		if (IsMetaThread() && HasMainThreadTasks() && s_CurrBlockedPhaseNumber && s_CurrBlockedPhaseNumber <= m_PhaseNumber)
+			continue; // do that first 
 
 		// or wait for conditioin that was certainly not met just after setting the thread messing lock
-		if (activatedContexts.empty())
-			cv_TaskCompleted.wait_for(lock.m_BaseLock, std::chrono::milliseconds(500));
+		cv_TaskCompleted.wait_for(lock.m_BaseLock, std::chrono::milliseconds(500));
 	}
-	dms_assert(m_Status > task_status::running);
+	assert(m_Status > task_status::running);
 	dbg_assert(CheckDataReady(m_Result->GetCurrUltimateItem()) || m_Status == task_status::cancelled || m_Status == task_status::exception || !m_Result->GetInterestCount());
 	return m_Status;
 }
 
-TIC_CALL task_status DoWorkWhileWaitingFor(task_status* fenceStatus)
+/// Wait for the task to finish or timeout
+/// \param waitFor The time to wait for the task to finish
+///
+/// it assumes that the caller loops with a while condition that will only become true 
+/// as a side-effect of a completing unknown task
+/// if the caller knows which task to wait for, it should use the Join() method instead
+///
+
+void WaitForCompletedTaskOrTimeout(std::chrono::milliseconds waitFor)
 {
-	SupplierSet activatedContexts;
-	task_status status;
-	while (IsRunningOperation(status = *fenceStatus))
+	if (IsMetaThread())
+		ProcessMainThreadOpersAndTasks();
+
+	RunOperationContexts();
+
+	leveled_std_section::unique_lock lock(cs_ThreadMessing);
+	if (IsMetaThread() && HasMainThreadTasks())
+		return; // don't wait for other threads if we have main thread tasks to do
+	if (!s_NrActivatedOrRunningOperations)
+		return; // no tasks to wait for
+
+	cv_TaskCompleted.wait_for(lock.m_BaseLock, waitFor);
+}
+
+TIC_CALL void DoWorkWhileWaitingFor(task_status* fenceStatus)
+{
+	while (IsActiveOrRunning(*fenceStatus))
 	{
-		for (auto inlineWork : activatedContexts)
-			if (inlineWork->TryRunningTaskInline())  // already running elsewhere. go for something else before giving up on task collection effort
-				if (!IsRunningOperation(status = *fenceStatus))
-					return status;
-
-		activatedContexts.clear();
-
 		if (IsMetaThread())
 		{
-			if (SuspendTrigger::MustSuspend())
-				return task_status::suspended;
+//			if (SuspendTrigger::MustSuspend())
+//				return false;
 			ProcessMainThreadOpers();
 			ProcessSuspendibleTasks();
 		}
 
+		while (IsActiveOrRunning(*fenceStatus))
+			if (!StealOneTask(-1))
+				break;
+
+		RunOperationContexts(); // OPTIMIZE, CONSISTENCY: Some tasks finished without calling this. Find out why and avoid wasting idle thread time; maybe all threads are waiting in a Join without new and current tasks being activated
+
 		leveled_std_section::unique_lock lock(cs_ThreadMessing);
 		if (*fenceStatus > task_status::running)
-			return *fenceStatus;
-
-		runOperationContexts();
+			break;
 
 		if (IsMetaThread() && HasMainThreadTasks())
 			continue;
 
-		// look for work to do inline
-		if (!s_ScheduledContextsMap.empty())
-		{
-			auto scheduledTasksForHighestFence = s_ScheduledContextsMap.begin();
-			SupplierSet scheduledContexts;
-			for (auto& scheduledTaskWPtr : scheduledTasksForHighestFence->second)
-				if (auto scheduledTask = scheduledTaskWPtr.lock())
-					prioritize(scheduledContexts, activatedContexts, scheduledTask);
-		}
-		// or wait for conditioin that was certainly not met just after setting the thread messing lock
-		if (activatedContexts.empty())
-			cv_TaskCompleted.wait_for(lock.m_BaseLock, std::chrono::milliseconds(500));
+		// wait for conditioin that was certainly not met just after setting the thread messing lock
+		cv_TaskCompleted.wait_for(lock.m_BaseLock, std::chrono::milliseconds(500));
 	}
-	return status;
 }
 
 void OperationContext::RunOperator(Explain::Context* context, ArgRefs argRefs, std::vector<ItemReadLock> readLocks)
@@ -1340,7 +1555,7 @@ void OperationContext::RunOperator(Explain::Context* context, ArgRefs argRefs, s
 		return;
 	}
 	TreeItemDualRef& resultHolder = *const_cast<FuncDC*>(funcDC.get_nonnull());
-	dms_assert(resultHolder);
+	assert(resultHolder);
 	bool actualResult = false;
 	if (!CancelIfNoInterestOrForced(false))
 	{
@@ -1352,9 +1567,9 @@ void OperationContext::RunOperator(Explain::Context* context, ArgRefs argRefs, s
 
 			actualResult = GetOperator()->CalcResult(resultHolder, std::move(argRefs), std::move(readLocks), context); // ============== payload
 
-			dms_assert(resultHolder || IsCanceled());
-			dms_assert(actualResult || SuspendTrigger::DidSuspend());
-			dms_assert(!IsDataItem(resultHolder.GetUlt()) || AsDataItem(resultHolder.GetUlt())->m_DataObject
+			assert(resultHolder || IsCanceled());
+			assert(actualResult || SuspendTrigger::DidSuspend());
+			assert(!IsDataItem(resultHolder.GetUlt()) || AsDataItem(resultHolder.GetUlt())->m_DataObject
 				|| !actualResult
 				|| CheckCalculatingOrReady(resultHolder.GetUlt())
 				|| resultHolder->WasFailed(FR_Data)
@@ -1362,7 +1577,7 @@ void OperationContext::RunOperator(Explain::Context* context, ArgRefs argRefs, s
 		}
 		catch (const task_canceled&)
 		{
-			dms_assert(m_Status == task_status::cancelled || m_Status == task_status::exception);
+			assert(m_Status == task_status::cancelled || m_Status == task_status::exception);
 		}
 		catch (...)
 		{
@@ -1373,14 +1588,14 @@ void OperationContext::RunOperator(Explain::Context* context, ArgRefs argRefs, s
 				errPtr->TellExtraF("while calculating %s", resultHolder.GetBackRefStr());
 			HandleFail(resultHolder);
 		}
-		dms_assert(!resultHolder.IsNew() || resultHolder->m_LastChangeTS == resultHolder.m_LastChangeTS); // further changes in the resulting data must have caused resultHolder to invalidate, as IsNew results are passive
+		assert(!resultHolder.IsNew() || resultHolder->m_LastChangeTS == resultHolder.m_LastChangeTS); // further changes in the resulting data must have caused resultHolder to invalidate, as IsNew results are passive
 		if (actualResult)
 		{
 #if defined(MG_DEBUG)
 			const TreeItem* ri = resultHolder.IsOld() ? resultHolder->GetCurrUltimateItem() : resultHolder.GetNew();
 			assert(ri);
 			assert(ri->GetIsInstantiated() || CheckCalculatingOrReady(ri) || resultHolder->WasFailed(FR_Data));
-//			dms_assert(CheckDataReady(ri) || resultHolder->WasFailed(FR_Data));
+//			assert(CheckDataReady(ri) || resultHolder->WasFailed(FR_Data));
 
 			assert(!resultHolder.IsNew() || resultHolder->m_LastChangeTS == resultHolder.m_LastChangeTS); // further changes in the resulting data must have caused resultHolder to invalidate, as IsNew results are passive
 #endif

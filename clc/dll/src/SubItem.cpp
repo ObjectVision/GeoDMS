@@ -36,7 +36,7 @@
 // which sub-item of a container should be calculated
 
 
-// FenceContainer Creates a full mirror-tree as result meta-info, with Fence Numbers, but no supppliers
+// PhaseContainer Creates a full mirror-tree as result meta-info, with Phase Numbers, but no supppliers
 // at Calculation, it sets interest on source items that are mirrored by interesting sub-items, 
 // schedules (which creates full mirror-trees at upstream Fences), and runs them, which starts by Calculation up stream Fences, all the way up and down; depth first dependency traversal.
 //
@@ -45,7 +45,7 @@
 // - partition and serialize parallel work to avoid too much simultaneous intermediate data 
 // 
 // issues
-// + Fence suppliers are always seen and numbered during meta-info info generation as this includes a mirror-tree
+// + Phase suppliers are always seen and numbered during meta-info info generation as this includes a mirror-tree
 // - still red items in HESTIA:/TussenResultaten/StartJaar/StateNaAllocatie_Fenced
 // - setting additional targets during or after calculations, see issue #902
 
@@ -212,20 +212,19 @@ struct CheckOperator : public BinaryOperator
 #include "SupplCache.h"
 #include "UnitProcessor.h"
 
-// FenceContainers are used to separate calculations into groups that are to be executed serially, sequentially and/or consequetively and NOT in parallel.
-// All calculation steps behind the fence are to be completed before calculation steps in front of the fence, i.e. steps that use fenced results, are to be executed
+// PhaseContainers are used to separate calculations into groups that are to be executed serially, sequentially and/or consequetively and NOT in parallel.
+// All calculation steps behind the phase are to be completed before calculation steps in front of the phase, i.e. steps that use fenced results, are to be executed
 // the carninality of fenced domains are assumed to be known as part of the fenced results and can be used in the schedule execution plan of the front items
-// When any of a fence result consumers is scheduled, a fence is requested to execute as first part of the schedule execution of everything in front of the fence
+// When any of a phase result consumers is scheduled, a phase is requested to execute as first part of the schedule execution of everything in front of the phase
 
-TIC_CALL task_status DoWorkWhileWaitingFor(task_status* fenceStatus); // TODO: move to OperationContext.h
+oper_arg_policy oap_Phase[2] = { oper_arg_policy::calc_subitem_root,  oper_arg_policy::calc_as_result };
+SpecialOperGroup sog_PhaseContainer(token::PhaseContainer, 2, oap_Phase, oper_policy::dynamic_result_class);
+Obsolete<SpecialOperGroup> sog_FenceContainer("use PhaseContainer", "FenceContainer", 2, oap_Phase, oper_policy::dynamic_result_class|oper_policy::depreciated);
 
-oper_arg_policy oap_Fence[2] = { oper_arg_policy::calc_subitem_root,  oper_arg_policy::calc_as_result };
-SpecialOperGroup sog_FenceContainer(token::FenceContainer, 2, oap_Fence, oper_policy::dynamic_result_class);
-
-struct FenceContainerOperator : BinaryOperator
+struct PhaseContainerOperator : BinaryOperator
 {
-	FenceContainerOperator()
-		: BinaryOperator(&sog_FenceContainer, TreeItem::GetStaticClass(), TreeItem::GetStaticClass(), DataArray<SharedStr>::GetStaticClass())
+	PhaseContainerOperator(AbstrOperGroup& operGroup)
+		: BinaryOperator(&operGroup, TreeItem::GetStaticClass(), TreeItem::GetStaticClass(), DataArray<SharedStr>::GetStaticClass())
 	{}
 
 	void CreateResultCaller(TreeItemDualRef& resultHolder, const ArgRefs& args, LispPtr) const override
@@ -237,7 +236,7 @@ struct FenceContainerOperator : BinaryOperator
 		SharedTreeItem sourceContainer = GetItem(args[0]);
 		if (!resultHolder)
 		{
-			MG_CHECK(resultHolder.m_FenceNumber == 0);
+			MG_CHECK(resultHolder.m_PhaseNumber == 0);
 
 			CopyTreeContext context(nullptr, sourceContainer, ""
 				, DataCopyMode::MakeEndogenous | DataCopyMode::InFenceOperator | DataCopyMode::CopyReferredItems
@@ -250,11 +249,10 @@ struct FenceContainerOperator : BinaryOperator
 			resultHolder->m_State.Set(actor_flag_set::AFD_PivotElem);
 #endif
 
-			auto resultFenceNumber = GetNextFenceNumber();
-//			resultHolder->m_FenceNumber = resultFenceNumber;
-			resultHolder.m_FenceNumber = resultFenceNumber;
+			auto resultPhaseNumber = GetNextPhaseNumber();
+			resultHolder.m_PhaseNumber = resultPhaseNumber;
 
-			assert(sourceContainer->GetCurrFenceNumber() < resultFenceNumber);
+			assert(sourceContainer->GetCurrFenceNumber() < resultPhaseNumber);
 
 			auto resultRoot = resultHolder.GetNew();
 			for (auto resWalker = resultRoot; resWalker; resWalker = resultRoot->WalkCurrSubTree(resWalker))
@@ -263,7 +261,7 @@ struct FenceContainerOperator : BinaryOperator
 				if (!srcItem)
 					continue;
 				MG_CHECK(!srcItem->IsCacheItem());
-				MG_CHECK(srcItem->GetCurrFenceNumber() < resultFenceNumber);
+				MG_CHECK(srcItem->GetCurrFenceNumber() < resultPhaseNumber);
 
 				if (resWalker != resultRoot) // avoid updating all fenced items before getting them
 					resWalker->GetOrCreateSupplCache()->InitAt(srcItem);
@@ -284,18 +282,18 @@ struct FenceContainerOperator : BinaryOperator
 
 	// The set of source sub-items that should be updated and kept is to be determined after the scheduling of all its consumers
 	// thus after scheduling this and before or during calculating this.
-	// Therfore only when the processing of this Fence is executed, we'll look at which sub-items need to be copied or kept.
-	// making and providing (shallow) copies of fenced data items is a mechanism to separate using a fence-result from using the fenced-item before the fence
+	// Therfore only when the processing of this Phase is executed, we'll look at which sub-items need to be copied or kept.
+	// making and providing (shallow) copies of fenced data items is a mechanism to separate using a phase-result from using the fenced-item before the phase
 	// i.e. 
 	// 
 	// container state { a; b; c := a+b; }  
-	// container fence := FenceContainer(state, '...');
-	// d := fence/a + fence/b; 
+	// container phase := PhaseContainer(state, '...');
+	// d := phase/a + phase/b; 
 	// 
-	// d := add(subitem(fence, 'a') + subitem(fence, 'b');
-	// d should not be rewritten to state/a + state/b as that whould keep refs open that we want to close before completing of fence, but
-	// of a of b, en/of hun domein suppliers zijn van fence, wordt bepaald op moment van fence execution;
-	// op dat moment zijn de targets bekend en kan (re)scheduling bepaald worden; na completering van deze fence zijn de target domain bepaald en kan (re)scheduling van operaties na deze fence (beter) plaats vinden.
+	// d := add(subitem(phase, 'a') + subitem(phase, 'b');
+	// d should not be rewritten to state/a + state/b as that whould keep refs open that we want to close before completing of phase, but
+	// of a of b, en/of hun domein suppliers zijn van phase, wordt bepaald op moment van phase execution;
+	// op dat moment zijn de targets bekend en kan (re)scheduling bepaald worden; na completering van deze phase zijn de target domain bepaald en kan (re)scheduling van operaties na deze phase (beter) plaats vinden.
 
 
 	bool CalcResult(TreeItemDualRef& resultHolder, ArgRefs args, std::vector<ItemReadLock> readLocks, Explain::Context * context) const override
@@ -312,36 +310,36 @@ struct FenceContainerOperator : BinaryOperator
 		using fence_work_data = std::vector<fence_member_pair>;
 		fence_work_data futureDataContainer;
 
-		auto resultFenceNumber = resultHolder.m_FenceNumber;
+		auto resultPhaseNumber = resultHolder.m_PhaseNumber;
 
-		task_status fenceStatus = task_status::activated;
+		task_status phaseContainerStatus = task_status::activated;
 		std::exception_ptr fenceErrorPtr;
 
 		auto resWalker = resultRoot;
 		
-		// now, collect all targets that this Fence should calculate and start a Main Thread action to do so.
+		// now, collect all targets that this Phase should calculate and start a Main Thread action to do so.
 		// this should be done before supplier Fences do this and after target collection and interest-setting of consuming Fences.
-		// so each Fence Calculation causes an avalange of interest in targets in higher fences and then their calculation before this calculation starts
-		PostMainThreadTask(resultFenceNumber, [sourceContainer, resultRoot, &resWalker, &fenceStatus, &fenceErrorPtr, &resultHolder, resultFenceNumber, &futureDataContainer](bool mustCancel)-> bool
+		// so each Phase Calculation causes an avalange of interest in targets in higher fences and then their calculation before this calculation starts
+		PostMainThreadTask(resultPhaseNumber, [sourceContainer, resultRoot, &resWalker, &phaseContainerStatus, &fenceErrorPtr, &resultHolder, resultPhaseNumber, &futureDataContainer](bool mustCancel)-> bool
 			{
-				fenceStatus = task_status::running;
+				phaseContainerStatus = task_status::running;
 
 				// work on exporting stuff from main thread
 				if (!mustCancel)
 				{
 					try {
-						if (s_CurrBlockedFenceNumber && s_CurrBlockedFenceNumber <= resultFenceNumber)
-							throwErrorF("FenceContainer", "Invalid Recursion calling %s#%d from updating %s for %s#%d"
-								, resultRoot->GetSourceName(), resultFenceNumber
-								, s_CurrBlockedFenceItem->GetSourceName()
-								, s_CurrFenceContainer->GetSourceName(), s_CurrBlockedFenceNumber
+						if (s_CurrBlockedPhaseNumber && s_CurrBlockedPhaseNumber <= resultPhaseNumber)
+							throwErrorF("PhaseContainer", "Invalid Recursion calling %s#%d from updating %s for %s#%d"
+								, resultRoot->GetSourceName(), resultPhaseNumber
+								, s_CurrBlockedPhaseItem->GetSourceName()
+								, s_CurrPhaseContainer->GetSourceName(), s_CurrBlockedPhaseNumber
 							);
 
-						tmp_swapper<fence_number> lockFence(s_CurrBlockedFenceNumber, resultFenceNumber);
-						s_CurrFenceContainer = resultRoot;
+						tmp_swapper<phase_number> lockFence(s_CurrBlockedPhaseNumber, resultPhaseNumber);
+						s_CurrPhaseContainer = resultRoot;
 						for (; resWalker; resWalker = resultRoot->WalkCurrSubTree(resWalker))
 						{
-							assert(resWalker->GetCurrFenceNumber() == resultFenceNumber);
+							assert(resWalker->GetCurrFenceNumber() == resultPhaseNumber);
 
 							auto resInterestPtr = resWalker->GetInterestPtrOrNull();
 							if (!resInterestPtr)
@@ -352,7 +350,7 @@ struct FenceContainerOperator : BinaryOperator
 
 							MG_CHECK(!srcItem->IsCacheItem());
 
-							s_CurrBlockedFenceItem = srcItem.get();
+							s_CurrBlockedPhaseItem = srcItem.get();
 							if (!srcItem->SuspendibleUpdate(PS_Committed))
 							{
 								if (srcItem->WasFailed())
@@ -385,22 +383,20 @@ struct FenceContainerOperator : BinaryOperator
 					catch (...)
 					{
 						fenceErrorPtr = std::current_exception();
-						fenceStatus = task_status::exception;
+						phaseContainerStatus = task_status::exception;
 						return true;
 					}
 				}
-				fenceStatus = task_status::done;
+				phaseContainerStatus = task_status::done;
 				WakeUpJoiners();
 				return true;
 			}
 		);
 
 		{
-//			using DecCountType = StaticMtDecrementalLock<decltype(s_NrRunningOperations), s_NrRunningOperations>;
-//			DecCountType dontCountThisOperation;
-			DoWorkWhileWaitingFor(&fenceStatus);
-//			WakeUpJoiners();
-//			bellWaiter.get();
+			DoWorkWhileWaitingFor(&phaseContainerStatus);
+			if (phaseContainerStatus == task_status::exception && fenceErrorPtr)
+				std::rethrow_exception(fenceErrorPtr);
 		}
 
 		// check that all sub-items of result-holder are/become up-to-date or uninteresting
@@ -451,7 +447,7 @@ struct FenceContainerOperator : BinaryOperator
 
 		if (msgData.size() != 1 || !msgData[0].empty())
 			for (auto msg: msgData)
-				reportF(SeverityTypeID::ST_MajorTrace, "FenceContainer(%d): %s", resultFenceNumber, SharedStr(msg));
+				reportF(SeverityTypeID::ST_MajorTrace, "PhaseContainer(%d): %s", resultPhaseNumber, SharedStr(msg));
 
 		resultHolder->SetIsInstantiated();
 		resultHolder->StopSupplInterest();
@@ -464,6 +460,6 @@ namespace {
 
 	SubItemOperator subItemOperator;
 	CheckOperator checkOperator;
-	FenceContainerOperator fcOp;
-
+	PhaseContainerOperator fcOpObsolete(sog_FenceContainer);
+	PhaseContainerOperator fcOp(sog_PhaseContainer);
 }

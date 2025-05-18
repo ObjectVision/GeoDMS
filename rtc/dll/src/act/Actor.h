@@ -153,15 +153,15 @@ public:
 	RTC_CALL void StartSupplInterest   () const;          friend struct FuncDC;
 	RTC_CALL garbage_t StopSupplInterest() const noexcept; friend struct AbstrOperGroup;
 	RTC_CALL void RestartSupplInterestIfAny() const;
-	RTC_CALL auto GetFenceNumber() const -> fence_number;
-	auto GetCurrFenceNumber() const -> fence_number { MG_CHECK(m_FenceNumber || IsPassor()); return m_FenceNumber; }
+	RTC_CALL auto GetPhaseNumber() const -> phase_number;
+	auto GetCurrFenceNumber() const -> phase_number { MG_CHECK(m_PhaseNumber || IsPassor()); return m_PhaseNumber; }
 
 	// Data Members
 public:
 	mutable actor_flag_set m_State;
 	mutable TimeStamp      m_LastChangeTS = 0;
 	mutable TimeStamp      m_LastGetStateTS = 0;
-	mutable fence_number   m_FenceNumber = 0;
+	mutable phase_number   m_PhaseNumber = 0;
 
 #if defined(MG_ITEMLEVEL)
 	mutable item_level_type m_ItemLevel = item_level_type(0);

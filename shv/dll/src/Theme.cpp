@@ -484,8 +484,8 @@ std::shared_ptr<Theme> Theme::Create(AspectNr aNr, const AbstrDataItem* thematic
 		thematicAttrHolder->PrepareDataUsage(DrlType::Certain);
 		thematicAttrHolder->GetAbstrDomainUnit()->PrepareDataUsage(DrlType::Certain);
 
-		MakeMax<fence_number>(nbai.breakAttr->m_FenceNumber, thematicAttrHolder->GetFenceNumber());
-		MakeMax<fence_number>(nbai.breakAttr->m_FenceNumber, thematicAttrHolder->GetAbstrDomainUnit()->GetFenceNumber());
+		MakeMax<phase_number>(nbai.breakAttr->m_PhaseNumber, thematicAttrHolder->GetPhaseNumber());
+		MakeMax<phase_number>(nbai.breakAttr->m_PhaseNumber, thematicAttrHolder->GetAbstrDomainUnit()->GetPhaseNumber());
 
 //		etc->m_WriteLock = ItemWriteLock(breakAttr.get_ptr());
 		etc->ScheduleItemWriter(MG_SOURCE_INFO_CODE("Theme::Create") nbai.breakAttr.get_ptr(),
