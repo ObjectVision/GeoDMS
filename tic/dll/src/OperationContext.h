@@ -60,9 +60,23 @@ struct OperationContext : std::enable_shared_from_this<OperationContext>
 	TIC_CALL task_status Join();
 
 	template <typename Func>
-	task_status ScheduleItemWriter(MG_SOURCE_INFO_DECL TreeItem* item, Func&& func, const FutureSuppliers& allInterest, bool runDirect, Explain::Context* context);
+	task_status ScheduleItemWriter(MG_SOURCE_INFO_DECL TreeItem* item, Func&& func, const FutureSuppliers& allArgInterests, bool runDirect, Explain::Context* context)
+	{
+		assert(IsMetaThread());
+		//	dms_assert(!m_TaskFunc);
+		assert(m_Status == task_status::none);
 
-	TIC_CALL task_status Schedule(TreeItem* item, const FutureSuppliers& allArgInterest, bool runDirect);
+		m_TaskFunc = std::move(func);
+		m_Context = context;
+		if (item)
+			m_PhaseNumber = item->GetPhaseNumber();
+		assert(m_PhaseNumber);
+
+		return Schedule(item, allArgInterests, runDirect, context); // might run inline
+	}
+
+
+	TIC_CALL task_status Schedule(TreeItem* item, const FutureSuppliers& allArgInterest, bool runDirect, Explain::Context* context);
 
 	TIC_CALL bool GetUniqueLicenseToRun();
 	//REMOVE TIC_CALL void OnSuspend();
@@ -76,16 +90,14 @@ struct OperationContext : std::enable_shared_from_this<OperationContext>
 	bool IsCanceled() const { return m_Status == task_status::cancelled; }
 	SharedPtr<const TreeItem> GetResult() const { return m_Result; }
 	task_status GetStatus() const;
-	task_status getStatus() const { return m_Status; }
+	task_status getStatus() const { return m_Status.load(std::memory_order_relaxed); }
 
 	TIC_CALL task_status JoinSupplOrSuspendTrigger();
 	void ActivateOtherSuppl();
 
-	friend garbage_t runOperationContexts();
 //private:
-	bool getUniqueLicenseToActivate();
 	bool TryRunningTaskInline();
-	bool activateTaskImpl();
+	bool collectTaskImpl();
 	void releaseRunCount(task_status status);
 	garbage_t separateResources(task_status status);
 

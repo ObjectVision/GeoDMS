@@ -32,7 +32,7 @@
 #include "ItemLocks.h"
 #include "LispTreeType.h"
 #include "Operator.h"
-#include "OperationContext.ipp"
+#include "OperationContext.h"
 #include "Param.h"
 #include "SessionData.h"
 #include "TreeItemClass.h"

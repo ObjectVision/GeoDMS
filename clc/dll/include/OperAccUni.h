@@ -9,7 +9,7 @@
 #if !defined(__CLC_OPERACCUNI_H)
 #define __CLC_OPERACCUNI_H
 
-#include "ASync.h"
+#include "ThrottledASync.h"
 
 #include "UnitClass.h"
 

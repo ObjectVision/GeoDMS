@@ -393,7 +393,7 @@ void CancelMainThreadTasks()
 	s_TaskQueue.CancelTasks();
 }
 
-#include "ASync.h"
+#include "ThrottledASync.h"
 
 leveled_std_section cs_ThreadMessing(item_level_type(0), ord_level_type::ThreadMessing, "LockedThreadMessing");
 std::condition_variable cv_TaskCompleted;

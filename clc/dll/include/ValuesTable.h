@@ -15,7 +15,7 @@
 #include "ClcBase.h"
 
 #include "set/CompareFirst.h"
-#include "ASync.h"
+#include "ThrottledASync.h"
 
 #include "AbstrDataItem.h"
 #include "DataArray.h"

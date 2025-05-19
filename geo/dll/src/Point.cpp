@@ -8,7 +8,7 @@
 #pragma hdrstop
 #endif
 
-#include "async.h"
+#include "ThrottledAsync.h"
 
 #include "mci/CompositeCast.h"
 #include "mth/Mathlib.h"

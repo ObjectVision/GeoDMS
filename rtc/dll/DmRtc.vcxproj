@@ -61,7 +61,6 @@
     <ClInclude Include="src\act\SupplierVisitFlag.h" />
     <ClInclude Include="src\act\SupplInterest.h" />
     <ClInclude Include="src\act\waiter.h" />
-    <ClInclude Include="src\ASync.h" />
     <ClInclude Include="src\buildstamp.h" />
     <ClInclude Include="src\cs_lock_map.h" />
     <ClInclude Include="src\dbg\Check.h" />
@@ -84,7 +83,6 @@
     <ClInclude Include="src\geo\IterTraits.h" />
     <ClInclude Include="src\geo\neighbouriter.h" />
     <ClInclude Include="src\geo\PointIndexBuffer.h" />
-    <ClInclude Include="src\geo\RingIterator.h" />
     <ClInclude Include="src\geo\Undef_xx.h" />
     <ClInclude Include="src\ipolygon\detail\boolean_op.hpp" />
     <ClInclude Include="src\ipolygon\detail\boolean_op_45.hpp" />
@@ -172,7 +170,9 @@
     <ClInclude Include="src\set\DataCompare.h" />
     <ClInclude Include="src\set\IndexCompare.h" />
     <ClInclude Include="src\set\MemPageTable.h" />
+    <ClInclude Include="src\ThrottledASync.h" />
     <ClInclude Include="src\throwItemError.h" />
+    <ClInclude Include="src\utl\AddFakeCopyCTor.h" />
     <ClInclude Include="src\utl\Encodes.h" />
     <ClInclude Include="src\utl\MemGuard.h" />
     <ClInclude Include="src\utl\NonCopyable.h" />

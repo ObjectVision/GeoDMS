@@ -1,4 +1,4 @@
-// Copyright (C) 1998-2023 Object Vision b.v. 
+// Copyright (C) 1998-2025 Object Vision b.v. 
 // License: GNU GPL 3
 /////////////////////////////////////////////////////////////////////////////
 
@@ -7,13 +7,14 @@
 #if !defined(__TIC_PARALLELTILES_H)
 #define __TIC_PARALLELTILES_H
 
-#include "ASync.h"
 #include "Parallel.h"
 
 #include "act/MainThread.h"
 #include "ser/DebugOutStream.h"
 #include "DataStoreManagerCaller.h" 
 #include "OperationContext.h" 
+
+#include <ppl.h>
 
 template <typename IndexType, typename Func>
 void serial_for(IndexType first, IndexType last, Func&& func)
@@ -22,7 +23,6 @@ void serial_for(IndexType first, IndexType last, Func&& func)
 		func(first);
 }
 
-#include <ppl.h>
 
 template <typename IndexType, typename Func>
 void parallel_for_impl(IndexType first, IndexType last, Func&& func)

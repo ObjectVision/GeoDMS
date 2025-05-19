@@ -12,7 +12,7 @@
 #include "dbg/SeverityType.h"
 #include "geo/Range.h"
 #include "set/DataCompare.h"
-#include "ASync.h"
+#include "ThrottledASync.h"
 
 #include "CalcClassBreaks.h"
 

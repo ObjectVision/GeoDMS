@@ -9,7 +9,7 @@
 
 #include "dbg/DmsCatch.h"
 #include "mci/ValueWrap.h"
-#include "ASync.h"
+#include "ThrottledASync.h"
 
 #include "AbstrUnit.h"
 #include "DataItemClass.h"

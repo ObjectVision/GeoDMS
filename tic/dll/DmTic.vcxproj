@@ -122,7 +122,6 @@
     <ClInclude Include="src\LispContextHandle.h" />
     <ClInclude Include="src\MetaInfo.h" />
     <ClInclude Include="src\OperationContext.h" />
-    <ClInclude Include="src\OperationContext.ipp" />
     <ClInclude Include="src\ParallelTiles.h" />
     <ClInclude Include="src\Projection.h" />
     <ClInclude Include="src\propfuncs.h" />

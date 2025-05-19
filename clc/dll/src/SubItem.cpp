@@ -8,7 +8,7 @@
 #pragma hdrstop
 #endif
 
-#include "ASync.h"
+#include "ThrottledASync.h"
 #include "act/any.h"
 #include "dbg/SeverityType.h"
 #include "utl/Quotes.h"

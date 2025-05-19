@@ -383,9 +383,6 @@
     <ClInclude Include="src\propfuncs.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="src\OperationContext.ipp">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="src\dedicatedattrs.h">
       <Filter>Header Files</Filter>
     </ClInclude>

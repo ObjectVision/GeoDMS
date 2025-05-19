@@ -18,13 +18,6 @@
 
 #include "AggrFuncNum.h"
 
-//#include "set/CompareFirst.h"
-//#include "ASync.h"
-
-//#include "AbstrDataItem.h"
-//#include "DataArray.h"
-//#include "UnitProcessor.h"
-
 //----------------------------------------------------------------------
 // typedefs
 //----------------------------------------------------------------------

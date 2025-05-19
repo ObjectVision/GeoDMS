@@ -524,9 +524,9 @@ struct TableEntry
 struct Table : std::vector<TableEntry>
 {
 	template <class... NameTypes>
-	Table(const TreeItem* container, NameTypes... names)
+	Table(const TreeItem* container, NameTypes&&... names)
 	{
-		int dummy[sizeof...(NameTypes)] = {(emplace_back(container, names),0)...};
+		(emplace_back(container, std::forward<NameTypes>(names)), ...);
 	}
 };
 
