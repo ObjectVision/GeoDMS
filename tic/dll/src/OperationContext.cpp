@@ -426,8 +426,7 @@ garbage_t OperationContext::disconnect()
 
 	for (auto waiterPtr = m_Waiters.begin(); waiterPtr != m_Waiters.end();)
 	{
-		auto waiter = waiterPtr->lock();
-		if (waiter)
+		if (auto waiter = waiterPtr->lock())
 		{
 			garbage |= waiter->disconnect_supplier(this);
 			garbage |= std::move(waiter);
@@ -860,7 +859,10 @@ void OperationContext::OnException() noexcept
 garbage_t OperationContext::onEnd(task_status status) noexcept
 {
 	if (m_Status >= task_status::cancelled)
+	{
+		assert(m_Suppliers.empty());
 		return {};
+	}
 
 	assert(status != task_status::exception || m_Result->WasFailed(FR_Data));
 
@@ -911,7 +913,15 @@ garbage_t OperationContext::separateResources(task_status status)
 	releaseRunCount(status);
 
 	garbage_t releaseBin;
+	if (!m_Suppliers.empty())
+	{
+		assert(status != task_status::done);
+		for (const auto& supplier : m_Suppliers)
+			m_Waiters.erase(this->weak_from_this());
 
+		releaseBin |= std::move(m_Suppliers);
+		assert(m_Suppliers.empty());
+	}
 //	if (m_TaskFunc)
 //		releaseBin |= std::move(m_TaskFunc); // may contain argInterests that may release a lot upon destruction.
 //	m_TaskFunc = {};
@@ -1487,9 +1497,9 @@ task_status OperationContext::Join()
 			while (true)
 			{
 				auto [activatedContexts, collectedTasksToRun] = PopActiveSuppliers(shared_from_this());
-				StartCollectedOperationContexts(std::move(collectedTasksToRun));
 				if (activatedContexts.empty() && collectedTasksToRun.empty())
 					break;
+				StartCollectedOperationContexts(std::move(collectedTasksToRun));
 				// run as much as possible and needed for this Join before giving up on task collection effort
 				for (const auto& inlineTaskCandidate : activatedContexts)
 					inlineTaskCandidate->TryRunningTaskInline();  
