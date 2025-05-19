@@ -72,6 +72,7 @@ struct OperationContext : std::enable_shared_from_this<OperationContext>
 	TIC_CALL task_status Schedule(TreeItem* item, const FutureSuppliers& allArgInterest, bool runDirect, Explain::Context* context);
 
 	TIC_CALL bool GetUniqueLicenseToRun();
+	TIC_CALL bool getUniqueLicenseToRun();
 	//REMOVE TIC_CALL void OnSuspend();
 	TIC_CALL void OnException() noexcept;
 	TIC_CALL void OnEnd(task_status status) noexcept;

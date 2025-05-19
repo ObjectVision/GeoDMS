@@ -97,8 +97,8 @@ void OperatorContextHandle::GenerateDescription()
 // Section:     OperatorContextQueue
 // *****************************************************************************
 
+leveled_std_section cs_ThreadMessing(item_level_type(0), ord_level_type::ThreadMessing, "LockedThreadMessing");
 std::condition_variable cv_TaskCompleted;
-leveled_std_section cs_ThreadMessing;
 
 phase_number s_CurrBlockedPhaseNumber = 0;
 const TreeItem* s_CurrBlockedPhaseItem = nullptr;
@@ -327,7 +327,6 @@ void connect(OperationContextSPtr waiter, OperationContextSPtr supplier)
 void scheduleRunnableTask(OperationContext* self)
 {
 	assert(!cs_ThreadMessing.try_lock());
-	assert(!self->m_FuncDC || self->GetOperator()->CanRunParallel());
 
 	// next StartOperationContexts() must not start scheduling tasks with phase numbers higher than this task.
 	auto fn = self->m_PhaseNumber;
@@ -713,6 +712,8 @@ task_status OperationContext::Schedule(TreeItem* item, const FutureSuppliers& al
 		return Join();
 	}
 
+	assert(!m_FuncDC || GetOperator()->CanRunParallel());
+
 	bool mustConsiderRun = false;
 	{
 		leveled_std_section::scoped_lock lock(cs_ThreadMessing);
@@ -729,7 +730,7 @@ task_status OperationContext::Schedule(TreeItem* item, const FutureSuppliers& al
 			else
 			{
 				scheduleRunnableTask(this); assert(m_Status == task_status::scheduled);
-				assert(m_PhaseNumber >= s_CurrActivePhaseNumber); // scheduleRunnableTask will have descreasd the s_CurrActivePhaseNumber if this task needed that.
+				assert(m_PhaseNumber >= s_CurrActivePhaseNumber); // scheduleRunnableTask will have decreasd the s_CurrActivePhaseNumber if this task needed that.
 				mustConsiderRun = true;
 			}
 		}
@@ -821,27 +822,34 @@ bool OperationContext::TryRunningTaskInline()
 }
 
 
-bool  OperationContext::GetUniqueLicenseToRun()
+bool  OperationContext::getUniqueLicenseToRun()
 {
-	DSM::CancelIfOutOfInterest(m_Result);
+	assert(!cs_ThreadMessing.try_lock());
+	auto status = getStatus();
+	assert(status >= task_status::activated);
 
-	leveled_std_section::scoped_lock lock(cs_ThreadMessing);
-	assert(m_Status >= task_status::activated);
-
-	if (m_Status >= task_status::running)
+	if (status >= task_status::running)
 		return false;
 
-	if (m_Status == task_status::activated && m_PhaseNumber > s_CurrActivePhaseNumber)
+	assert(status == task_status::activated);
+	if (m_PhaseNumber > s_CurrActivePhaseNumber)
 	{
-		scheduleRunnableTask(this);
+		scheduleRunnableTask(this); // move it back 
 		return false;
 	}
 
-	assert(m_Status == task_status::activated);
 	assert(m_PhaseNumber == s_CurrActivePhaseNumber);
+
+	DSM::CancelIfOutOfInterest(m_Result);
 
 	m_Status = task_status::running;
 	return true;
+}
+
+bool OperationContext::GetUniqueLicenseToRun()
+{
+	leveled_std_section::scoped_lock lock(cs_ThreadMessing);
+	return getUniqueLicenseToRun();
 }
 
 void OperationContext::OnException() noexcept
@@ -1390,57 +1398,22 @@ auto PopActiveSuppliers(OperationContextSPtr waiter) -> std::pair<SupplierSet, c
 // Section:     StealOneTask
 // *****************************************************************************
 
-OperationContextSPtr findOnePriorityTasks(phase_number currFenceNumber, contexts_within_one_phase* nonPriorityTaskSink)
+auto FindAndLicenceOnePriorityTasks(phase_number currFenceNumber) -> OperationContextSPtr
 {
-	OperationContextSPtr ocSPtr;
-	while (!s_RadioActives.empty()) {
-
-		auto oc = s_RadioActives.front(); s_RadioActives.pop_front();
-		ocSPtr = oc.lock();
-		if (!ocSPtr)
-			continue; // expired
-
-		if (ocSPtr->m_PhaseNumber <= currFenceNumber)
-			break;
-		nonPriorityTaskSink->emplace_back(ocSPtr); // put it back later to avoid looping forever
-	}
-
-	return ocSPtr;
-}
-
-OperationContextSPtr FindAndLicenceOnePriorityTasks(phase_number currFenceNumber)
-{
-	contexts_within_one_phase laterPhasedTasks;
-	OperationContextSPtr ocSPtr;
-
 	leveled_std_section::unique_lock lock(cs_ThreadMessing);
 
-	while (s_RadioActives.empty()) {
-
+	while (!s_RadioActives.empty()) {
 		auto oc = s_RadioActives.front(); s_RadioActives.pop_front();
-		ocSPtr = oc.lock();
+		auto ocSPtr = oc.lock();
 		if (!ocSPtr)
 			continue; // expired
 
 		// try to grab the license—only one thread ever wins per OC
-		if (ocSPtr->m_PhaseNumber > currFenceNumber)
-			laterPhasedTasks.emplace_back(oc); // put it back later to avoid missing them later
-		else if (ocSPtr->GetUniqueLicenseToRun())
-			break; // we can do one piece of inline work—go do it and re-check your fences/status
-			// otherwise, someone else is already running it; try the next one
+		if (ocSPtr->getUniqueLicenseToRun())
+			return ocSPtr; // we can do one piece of inline work—go do it (now you must) and re-check your fences/status
+		// otherwise, someone else is already running it; try the next one
 	}
-
-
-	// place back the skipped tasks, as they needs to be available for later scheduling when the s_CurrActivePhaseNumber is increased
-	if (!laterPhasedTasks.empty())
-	{
-		while (!laterPhasedTasks.empty()) {
-			auto oc = laterPhasedTasks.back(); laterPhasedTasks.pop_back();
-			s_RadioActives.emplace_front(oc); // put it back
-		}
-	}
-
-	return ocSPtr;
+	return {};
 }
 
 

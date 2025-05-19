@@ -114,10 +114,12 @@ static thread_local UInt32 s_MainThreadOperProcessingRequestLockCounter = 0;
 static thread_local bool   s_MainThreadOperProcessingRequested = false;
 
 callback_ptr s_wakeUpJoinersCallback = nullptr;
+
 RTC_CALL callback_ptr SetWakeUpJoinersCallback(callback_ptr callback)
 {
 	auto oldWakeUpJoinersCallback = s_wakeUpJoinersCallback;
 	s_wakeUpJoinersCallback = callback;
+	return oldWakeUpJoinersCallback;
 }
 
 RequestMainThreadOperProcessingBlocker::RequestMainThreadOperProcessingBlocker()

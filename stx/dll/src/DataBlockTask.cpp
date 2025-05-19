@@ -74,9 +74,11 @@ struct DataArrayOperator : TernaryOperator
 
 		DataReadLock readLock(arg3A);
 		auto dataBlock = const_array_cast<SharedStr>(arg3A)->GetDataRead()[0];
-		AbstrDataItem* adi = AsDataItem(resultHolder.GetNew());
+		AbstrDataItem* resultAttr = AsDataItem(resultHolder.GetNew());
 
-		DataBlockProd prod(adi, domain->GetCount());
+		assert(!IsDataReady(resultAttr)); // must be here only once.
+
+		DataBlockProd prod(resultAttr, domain->GetCount());
 		try {
 			parse_info_t info
 				=	boost::spirit::parse(
