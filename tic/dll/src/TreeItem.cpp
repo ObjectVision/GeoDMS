@@ -3485,9 +3485,9 @@ static how_to_proceed PrepareDataRead(SharedPtr<const TreeItem> self, const Tree
 					sHandle.FocusItem()->ReadItem(std::move(sHandle)); // Read Item
 				}
 				, emptyFutureSupplierSet
-					, false
-					, nullptr
-					);
+				, false
+				, nullptr
+			);
 			readInfoPtr.reset();
 			assert(CheckCalculatingOrReady(refItem) || refItem->WasFailed(FR_Data) || SuspendTrigger::DidSuspend());
 			assert(self->GetInterestCount());

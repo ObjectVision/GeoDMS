@@ -62,15 +62,8 @@ struct OperationContext : std::enable_shared_from_this<OperationContext>
 	template <typename Func>
 	task_status ScheduleItemWriter(MG_SOURCE_INFO_DECL TreeItem* item, Func&& func, const FutureSuppliers& allArgInterests, bool runDirect, Explain::Context* context)
 	{
-		assert(IsMetaThread());
-		//	dms_assert(!m_TaskFunc);
-		assert(m_Status == task_status::none);
-
+		assert(!m_TaskFunc);
 		m_TaskFunc = std::move(func);
-		m_Context = context;
-		if (item)
-			m_PhaseNumber = item->GetPhaseNumber();
-		assert(m_PhaseNumber);
 
 		return Schedule(item, allArgInterests, runDirect, context); // might run inline
 	}
@@ -132,16 +125,15 @@ public:
 
 	const FuncDC* GetFuncDC() const { return m_FuncDC;  }
 
-	WeakPtr<const FuncDC>         m_FuncDC;
-	MG_DEBUGCODE(WeakPtr<const FuncDC> md_FuncDC; )
 
 	const Operator*       GetOperator () const { assert(m_FuncDC); return m_FuncDC->m_Operator; }
 	const AbstrOperGroup* GetOperGroup() const { assert(m_FuncDC); return m_FuncDC->m_OperatorGroup; }
 
 public:
 
-	SupplierSet m_Suppliers;
-	WaiterSet   m_Waiters;
+	WeakPtr<const FuncDC> m_FuncDC;
+	SupplierSet           m_Suppliers;
+	WaiterSet             m_Waiters;
 };
 
 TIC_CALL auto GetNextPhaseNumber() -> phase_number;

@@ -177,8 +177,8 @@ TIC_CALL tg_maintainer::~tg_maintainer()
 {
 	assert(s_OcTaskGroup);
 
-	dbg_assert(sd_RunningOC.empty());
-	dbg_assert(sd_OC.empty());
+//	dbg_assert(sd_RunningOC.empty());
+//	dbg_assert(sd_OC.empty());
 	dbg_assert(sd_runOperationContextsRecursionCount == 0);
 
 	s_ScheduledContextsMap.clear();
@@ -305,7 +305,7 @@ void scheduleRunnableTask(OperationContext* self)
 	assert(!cs_ThreadMessing.try_lock());
 	assert(!self->m_FuncDC || self->GetOperator()->CanRunParallel());
 
-	// next RunOperationContexts() must not start scheduling tasks with phase numbers higher than this task.
+	// next StartOperationContexts() must not start scheduling tasks with phase numbers higher than this task.
 	auto fn = self->m_PhaseNumber;
 	MakeMin<phase_number>(s_CurrActivePhaseNumber, fn);
 	s_ScheduledContextsMap[fn].emplace_back(self->shared_from_this());
@@ -329,7 +329,10 @@ garbage_t OperationContext::disconnect_supplier(OperationContext* supplier)
 #if defined(MG_DEBUG)
 	DBG_TRACE(("waiter = %s", AsText(wptr_this_waiter)));
 #endif
+
+	assert(m_Status == task_status::waiting_for_suppliers);
 	assert(!supplier->m_FuncDC || !supplier->m_FuncDC->m_OperContext);
+
 	garbage_t garbage;
 	if (sptr_supplier)
 	{
@@ -372,6 +375,7 @@ garbage_t OperationContext::disconnect_supplier(OperationContext* supplier)
 		assert(supplierStatus != task_status::running);
 		assert(supplierStatus != task_status::suspended);
 		assert(supplierStatus != task_status::scheduled);
+		assert(supplierStatus != task_status::waiting_for_suppliers);
 		assert(supplierStatus != task_status::none);
 	}
 
@@ -509,7 +513,7 @@ auto CollectOperationContextsImpl() -> context_array
 	return activatedOperationContextArray;
 }
 
-void RunCollectedContexts(context_array collectedActivatedContexts)
+void StartCollectedOperationContexts(context_array collectedActivatedContexts)
 {
 	for (auto activatedContextWPtr : collectedActivatedContexts)
 		if (auto activatedContext = activatedContextWPtr.lock())
@@ -524,19 +528,20 @@ void RunCollectedContexts(context_array collectedActivatedContexts)
 		}
 }
 
-TIC_CALL void RunOperationContexts()
+TIC_CALL void StartOperationContexts()
 {
 	s_RunOperationContextsScheduled = false;
 
 	auto collectedActivatedContexts = CollectOperationContextsImpl();
-	RunCollectedContexts(std::move(collectedActivatedContexts));
+	StartCollectedOperationContexts(std::move(collectedActivatedContexts));
 }
 
-void ScheduleRunOperationContexts()
+void PostStartOperationContexts()
 {
 	if (s_RunOperationContextsScheduled.exchange(true))
 		return;
-	PostMainThreadOper(RunOperationContexts);
+	PostMainThreadOper(StartOperationContexts);
+	StartOperationContexts();
 }
 
 inline bool IsActiveOrRunning(task_status s) { return s >= task_status::activated && s <= task_status::running; }
@@ -635,6 +640,7 @@ task_status OperationContext::Schedule(TreeItem* item, const FutureSuppliers& al
 {
 	assert(IsMetaThread());
 	assert(UpdateMarker::IsInActiveState());
+	assert(m_Status == task_status::none);
 
 	assert(IsMetaThread());
 	//	dms_assert(!m_TaskFunc);
@@ -643,7 +649,11 @@ task_status OperationContext::Schedule(TreeItem* item, const FutureSuppliers& al
 
 	m_Context = context;
 	if (item)
-		m_PhaseNumber = item->GetPhaseNumber();
+	{
+		auto itemFN = item->GetPhaseNumber();
+		assert(!m_PhaseNumber || m_PhaseNumber == itemFN);
+		m_PhaseNumber = itemFN;
+	}
 
 	assert(m_PhaseNumber);
 
@@ -701,7 +711,7 @@ task_status OperationContext::Schedule(TreeItem* item, const FutureSuppliers& al
 		}
 	}
 	if (mustConsiderRun)
-		RunOperationContexts();
+		StartOperationContexts();
 	return GetStatus();
 }
 
@@ -884,14 +894,12 @@ garbage_t OperationContext::separateResources(task_status status)
 	m_WriteLock = ItemWriteLock();
 
 	if (m_FuncDC)
-	{
-		MG_DEBUGCODE(if (m_FuncDC) md_FuncDC = m_FuncDC);
 		releaseBin |= m_FuncDC->ResetOperContextImplAndStopSupplInterest();
-	}
+
 	assert(!m_FuncDC);
 
 	releaseBin |= disconnect();
-	releaseBin |= make_any_scoped_exit( &ScheduleRunOperationContexts ); // do this after releasing interests and related resources of suppliers
+	releaseBin |= make_any_scoped_exit( &StartOperationContexts ); // do this after releasing interests and related resources of suppliers
 
 	return releaseBin;
 }
@@ -1147,7 +1155,7 @@ bool OperationContext::ScheduleCalcResult(Explain::Context* context, ArgRefs&& a
 		auto func = OC_CalcResultFunc{ this, std::move(argRefs), allInterests };
 
 		resultStatus = ScheduleItemWriter(MG_SOURCE_INFO_CODE("OperationContext::SheduleCalcResult") m_FuncDC->IsNew() ? m_FuncDC->GetNew() : nullptr
-			, func
+			, std::move(func)
 			, allInterests
 			, !doASync, context
 		);
@@ -1464,6 +1472,9 @@ task_status OperationContext::Join()
 
 	while (m_Status <= task_status::running)
 	{
+		if (SuspendTrigger::DidSuspend())
+			return task_status::suspended;
+
 		if (m_Status == task_status::activated)
 			if (TryRunningTaskInline())
 				return m_Status;
@@ -1480,7 +1491,7 @@ task_status OperationContext::Join()
 			while (true)
 			{
 				auto [activatedContexts, collectedTasksToRun] = PopActiveSuppliers(shared_from_this());
-				RunCollectedContexts(std::move(collectedTasksToRun));
+				StartCollectedOperationContexts(std::move(collectedTasksToRun));
 				if (activatedContexts.empty() && collectedTasksToRun.empty())
 					break;
 				// run as much as possible and needed for this Join before giving up on task collection effort
@@ -1495,7 +1506,7 @@ task_status OperationContext::Join()
 				if (!StealOneTask(m_PhaseNumber))
 					break;
 
-		RunOperationContexts(); // OPTIMIZE, CONSISTENCY: Some tasks finished without calling this. Find out why and avoid wasting idle thread time; maybe all threads are waiting in a Join without new and current tasks being activated
+		StartOperationContexts(); // OPTIMIZE, CONSISTENCY: Some tasks finished without calling this. Find out why and avoid wasting idle thread time; maybe all threads are waiting in a Join without new and current tasks being activated
 
 		leveled_std_section::unique_lock lock(cs_ThreadMessing);
 		if (m_Status > task_status::running)
@@ -1546,7 +1557,7 @@ void WaitForCompletedTaskOrTimeout(std::chrono::milliseconds waitFor)
 			return;
 	}
 
-	RunOperationContexts();
+	StartOperationContexts();
 
 	leveled_std_section::unique_lock lock(cs_ThreadMessing);
 	if (IsMetaThread() && HasMainThreadTasks())
@@ -1574,7 +1585,7 @@ TIC_CALL void DoWorkWhileWaitingFor(task_status* fenceStatus)
 			if (!StealOneTask(-1))
 				break;
 
-		RunOperationContexts(); // OPTIMIZE, CONSISTENCY: Some tasks finished without calling this. Find out why and avoid wasting idle thread time; maybe all threads are waiting in a Join without new and current tasks being activated
+		StartOperationContexts(); // OPTIMIZE, CONSISTENCY: Some tasks finished without calling this. Find out why and avoid wasting idle thread time; maybe all threads are waiting in a Join without new and current tasks being activated
 
 		leveled_std_section::unique_lock lock(cs_ThreadMessing);
 		if (*fenceStatus > task_status::running)

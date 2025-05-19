@@ -485,12 +485,13 @@ const Class* FuncDC::GetResultCls() const
 
 OArgRefs FuncDC::GetArgs(bool doUpdateMetaInfo, bool doCalcData) const
 {
-	dms_assert(IsMetaThread());
+	assert(IsMetaThread());
+	assert(!SuspendTrigger::DidSuspend()); // PRECONDITION
 
 	DBG_START("FuncDc::GetArgs", md_sKeyExpr.c_str(), MG_DEBUG_FUNCDC && doCalcData);
 
-	dms_assert(!doCalcData || GetInterestCount());
-	dms_assert(!doCalcData || DoesHaveSupplInterest());
+	assert(!doCalcData || GetInterestCount());
+	assert(!doCalcData || DoesHaveSupplInterest());
 
 	arg_index currArg = 0;
 	ArgRefs argSeq; argSeq.reserve(GetNrArgs());
@@ -707,8 +708,8 @@ void FuncDC::CallCalcResultImpl(Explain::Context* context) const
 
 	bool result = true;
 	try {
-		auto argInterest = GetArgs(false, true);
-		if (!argInterest)
+		auto argRefs= GetArgs(false, true);
+		if (!argRefs)
 		{
 			assert(m_Data->WasFailed(FR_Data) || SuspendTrigger::DidSuspend());
 			return;
@@ -742,9 +743,9 @@ void FuncDC::CallCalcResultImpl(Explain::Context* context) const
 
 			dms_assert(!IsNew() || GetNew()->m_LastChangeTS == m_LastChangeTS); // further changes in the resulting data must have caused resultHolder to invalidate, as IsNew results are passive
 
-			result = operContext->ScheduleCalcResult(context, std::move(*argInterest) );
+			result = operContext->ScheduleCalcResult(context, std::move(*argRefs) );
 			assert(operContext->m_Status != task_status::none || !result); // this should provide that AssignResult will not be called twice
-			assert(!(*argInterest).size() || !result);
+			assert(!(*argRefs).size() || !result);
 			if (result)
 				SuspendTrigger::MarkProgress();
 		}
