@@ -140,6 +140,7 @@ TIC_CALL auto GetNextPhaseNumber() -> phase_number;
 TIC_CALL void DoWorkWhileWaitingFor(task_status* phaseContainerStatus);
 
 
+TIC_CALL void WakeUpJoiners();
 TIC_CALL extern phase_number s_CurrBlockedPhaseNumber;
 TIC_CALL extern const TreeItem* s_CurrBlockedPhaseItem;
 TIC_CALL extern const TreeItem* s_CurrPhaseContainer;

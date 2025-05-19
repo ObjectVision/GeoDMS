@@ -81,8 +81,6 @@ RTC_CALL bool IsProcessingMainThreadOpers();
 RTC_CALL void RequestMainThreadOperProcessing();
 RTC_CALL void ConfirmMainThreadOperProcessing();
 RTC_CALL bool IsMainThreadOperProcessingRequestPending();
-RTC_CALL void wakeUpJoiners(); // assuming thread messing is already locked
-RTC_CALL void WakeUpJoiners(); // does lock
 
 struct MainThreadBlocker
 {
@@ -97,8 +95,7 @@ struct RequestMainThreadOperProcessingBlocker
 	RTC_CALL ~RequestMainThreadOperProcessingBlocker();
 };
 
-
-RTC_CALL extern std::condition_variable cv_TaskCompleted;
-RTC_CALL extern leveled_std_section cs_ThreadMessing;
+using callback_ptr = void(*)();
+RTC_CALL callback_ptr SetWakeUpJoinersCallback(callback_ptr callback);
 
 #endif // __RTC_ACT_MAINTHREAD_H

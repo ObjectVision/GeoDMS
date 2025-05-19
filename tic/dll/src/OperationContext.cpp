@@ -97,6 +97,9 @@ void OperatorContextHandle::GenerateDescription()
 // Section:     OperatorContextQueue
 // *****************************************************************************
 
+std::condition_variable cv_TaskCompleted;
+leveled_std_section cs_ThreadMessing;
+
 phase_number s_CurrBlockedPhaseNumber = 0;
 const TreeItem* s_CurrBlockedPhaseItem = nullptr;
 const TreeItem* s_CurrPhaseContainer = nullptr;
@@ -149,6 +152,19 @@ auto reportRemaingOcOnExit = make_scoped_exit([]()
 
 #endif
 
+void wakeUpJoiners()
+{
+	assert(!cs_ThreadMessing.try_lock());
+	cv_TaskCompleted.notify_all();
+}
+
+TIC_CALL void WakeUpJoiners()
+{
+	leveled_critical_section::scoped_lock lockToAvoidHasMainThreadTasksToBeMissed(cs_ThreadMessing);
+
+	wakeUpJoiners();
+}
+
 // *****************************************************************************
 // Section: GetTaskGroup() en tg_maintainer
 // 
@@ -171,23 +187,31 @@ TIC_CALL tg_maintainer::tg_maintainer()
 
 	assert(!s_OcTaskGroup);
 	s_OcTaskGroup = new concurrency::task_group;
+	auto oldCallback = SetWakeUpJoinersCallback(WakeUpJoiners);
+	assert(oldCallback == nullptr);
 }
 
 TIC_CALL tg_maintainer::~tg_maintainer()
 {
 	assert(s_OcTaskGroup);
 
+	auto oldCallback = SetWakeUpJoinersCallback(nullptr);
+	assert(oldCallback == WakeUpJoiners);
+
 //	dbg_assert(sd_RunningOC.empty());
 //	dbg_assert(sd_OC.empty());
-	dbg_assert(sd_runOperationContextsRecursionCount == 0);
+	{
+		leveled_std_section::scoped_lock lock(cs_ThreadMessing);
 
-	s_ScheduledContextsMap.clear();
-	s_RadioActives.clear();
+		dbg_assert(sd_runOperationContextsRecursionCount == 0);
 
-	//	assert(s_NrActivatedOrRunningOperations == 0);
-	assert(s_ScheduledContextsMap.empty()); ;
-	assert(s_RadioActives.empty());
+		s_ScheduledContextsMap.clear();
+		s_RadioActives.clear();
 
+		//	assert(s_NrActivatedOrRunningOperations == 0);
+		assert(s_ScheduledContextsMap.empty()); ;
+		assert(s_RadioActives.empty());
+	}
 	s_OcTaskGroup->cancel();
 	s_OcTaskGroup->wait();
 
@@ -1283,9 +1307,9 @@ void OperationContext::safe_run_caller() noexcept
 {
 	DMS_SE_CALL_BEGIN
 
-		assert(m_PhaseNumber == s_CurrActivePhaseNumber);
+		assert(m_PhaseNumber >= s_CurrActivePhaseNumber);
 		safe_run_with_cleanup();
-		assert(m_PhaseNumber == s_CurrActivePhaseNumber);
+		assert(m_PhaseNumber >= s_CurrActivePhaseNumber);
 
 	DMS_SE_CALL_END
 }
@@ -1438,7 +1462,6 @@ bool CurrActiveTaskHasRunCount()
 	auto status = ca->getStatus();
 	return IsActiveOrRunning(status);
 }
-
 
 /// <summary>
 ///		Wait for the task to finish.

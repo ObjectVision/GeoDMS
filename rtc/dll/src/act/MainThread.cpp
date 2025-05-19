@@ -113,6 +113,13 @@ std::atomic<bool> s_MainThreadOperProcessRequestPending = false;
 static thread_local UInt32 s_MainThreadOperProcessingRequestLockCounter = 0;
 static thread_local bool   s_MainThreadOperProcessingRequested = false;
 
+callback_ptr s_wakeUpJoinersCallback = nullptr;
+RTC_CALL callback_ptr SetWakeUpJoinersCallback(callback_ptr callback)
+{
+	auto oldWakeUpJoinersCallback = s_wakeUpJoinersCallback;
+	s_wakeUpJoinersCallback = callback;
+}
+
 RequestMainThreadOperProcessingBlocker::RequestMainThreadOperProcessingBlocker()
 {
 	if (!s_MainThreadOperProcessingRequestLockCounter++)
@@ -158,7 +165,8 @@ RTC_CALL void RequestMainThreadOperProcessing()
 	if (sMainThreadHnd)  // not yet initialized.
 		PostThreadMessage(sMainThreadHnd, UM_PROCESS_MAINTHREAD_OPERS, 0, 0); // only effective when MainThread has MessageQueue, ie in GeoDmsGui, and not in GeoDmsRun or python process
 
-	WakeUpJoiners();
+	if (s_wakeUpJoinersCallback)
+		s_wakeUpJoinersCallback();
 }
 
 RTC_CALL void ConfirmMainThreadOperProcessing()
@@ -395,15 +403,6 @@ void CancelMainThreadTasks()
 
 #include "ThrottledASync.h"
 
-leveled_std_section cs_ThreadMessing(item_level_type(0), ord_level_type::ThreadMessing, "LockedThreadMessing");
-std::condition_variable cv_TaskCompleted;
-
-RTC_CALL void wakeUpJoiners()
-{
-	assert(!cs_ThreadMessing.try_lock());
-	cv_TaskCompleted.notify_all();
-}
-
 bool HasMainThreadTasks()
 {
 	auto lock = std::scoped_lock(s_MainQueueSection);
@@ -415,13 +414,6 @@ bool HasMainThreadTasks()
 	if (s_OperQueue.Empty())
 		return true;
 	return false;
-}
-
-RTC_CALL void WakeUpJoiners()
-{
-	leveled_critical_section::scoped_lock lockToAvoidHasMainThreadTasksToBeMissed(cs_ThreadMessing);
-
-	wakeUpJoiners();
 }
 
 UInt32 GetNrVCPUs()
