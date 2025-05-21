@@ -1,11 +1,9 @@
 import os
 import re
 import psutil
-import shutil
 from datetime import datetime
 import time
 import pickle
-import hashlib
 import difflib
 import subprocess
 import shlex
@@ -27,8 +25,22 @@ class Experiment:
         self.geodms_logfile         = geodms_logfile
         self.binary_experiment_file = binary_experiment_file
         self.result = {}
-        def __str__(self):
-            return f"Experiment: name:{name} command:{command}"
+    def __str__(self):
+        return f"Experiment: name:{self.name} command:{self.command}"
+    
+    def __repr__(self):
+        # name;command;experiment_folder;environment_variables;cwd;geodms_logfile;binary_experiment_file
+        return f"{self.name};{self.command};{self.experiment_folder};{self.environment_variables};{self.cwd};{self.geodms_logfile};{self.binary_experiment_file}"
+    
+    def __eq__(self, other):
+        name_is_eq = self.name == other.name
+        command_is_eq = self.command == other.command
+        exp_fldr_is_eq = self.experiment_folder == other.experiment_folder
+        env_vars_is_eq = self.environment_variables == other.environment_variables
+        cwd_is_eq = self.cwd == other.cwd
+        logfile_is_eq = self.geodms_logfile == other.geodms_logfile
+        binfile_is_eq = self.binary_experiment_file == other.binary_experiment_file
+        return name_is_eq and command_is_eq and exp_fldr_is_eq and env_vars_is_eq and cwd_is_eq and logfile_is_eq and binfile_is_eq  
 
 def readLog(log_filename, filter=None):
     ret = {"time":[], "text":[]}
@@ -370,7 +382,7 @@ def loadExperimentFromPickleFile(experiment, exp_fn=None):
         experiment = pickle.load(f)
     return experiment
 
-def RunExperiments(experiments:list[Experiment], sampling_rate=1.0):
+def RunExperiments(experiments:list[Experiment]):
     for exp_index, exp in enumerate(experiments):
         print(f"Running experiment: {experiments[exp_index].__dict__}\n")
         bin_exp_fn = exp.binary_experiment_file
@@ -576,21 +588,20 @@ def VisualizeExperiments(experiments, vgroups):
     plotting.show(grid)
     return
 
-def InitExperimentsFromDirectCall(direct_call:str):
-    name, command, experiment_folder, geodms_logfile = direct_call.split(";")
-    return [Experiment(name=name, command=command, experiment_folder=experiment_folder, environment_variables=None,cwd=None,geodms_logfile=geodms_logfile,binary_experiment_file=None)]
+def InitExperimentFromCommandLineDefinition(direct_call:str):
+    name, experiment_folder, geodms_logfile, command = direct_call.split(";")
+    return [Experiment(name=name, command=command, experiment_folder=experiment_folder, environment_variables=None, cwd=None, geodms_logfile=geodms_logfile, binary_experiment_file=None)]
 
 def InitExperimentsFromCsvFile(fn):
     if not os.path.exists(fn):
         raise Exception(f"Experiment file does not exist: {fn}")
     
+    experiments = []
     with open(fn) as experiment_csv_file:
         csv_reader = csv.reader(experiment_csv_file, delimiter=";")
 
         print("Skipping first line in experiment file, assuming it has a header")
         next(csv_reader)
-
-        experiments = []
         for row_index, csv_row in enumerate(csv_reader):
             assert len(csv_row)==7, f"Unexpected number of csv fields ({len(csv_row)}) in experiment file row {row_index}, should be semicolon separated with fields: name;command;experiment_folder;environment_variables(optional);cwd(optional);geodms_logfile(optional);binary_experiment_file(optional), skipping"
             # experiment fields
@@ -689,21 +700,16 @@ def testReadAllocatorInfoLog():
 
     return alloc_log
 
-def Run(direct_call:str="", config_fn:str="", sampling_rate=1.0):
-
+def Run(config_fn):
     # init experiments from either direct_call or csv experiment file definition
-    experiments = []
-    if direct_call:
-        experiments = InitExperimentsFromDirectCall(direct_call)
-    elif config_fn:
-        experiments = InitExperimentsFromCsvFile(config_fn)
+    experiments = InitExperimentsFromCsvFile(config_fn)
 
     if not experiments:
         print(f"No valid experiments found in experiment file: {config_fn}")
         return
         
     # run 
-    experiments = RunExperiments(experiments, sampling_rate)
+    experiments = RunExperiments(experiments)
     
     # visualize    
     vgroups = [("cpu_percent", (0,100)), ("cpu_curr_time", False), ("vms", False), ("num_threads", False), ("total_read_bytes", False), ("total_write_bytes", False)]
@@ -711,35 +717,52 @@ def Run(direct_call:str="", config_fn:str="", sampling_rate=1.0):
 
     return
 
+def UpdateExperiments(experiments:list[Experiment], new_experiment:Experiment) -> list[Experiment]:
+    for experiment in experiments:
+        if experiment == new_experiment: # new_experiment is duplicate
+            return experiments
+    return experiments.append(new_experiment)
+
+def WriteExperimentsToExperimentFile(experiment_filename:str, experiments:list[Experiment]):
+    pass
+
+def WriteExperimentsToExperimentFile(experiment_filename:str, experiments:list[Experiment]):
+    with open(experiment_filename, "w") as f:
+        f.write("name;command;experiment_folder;environment_variables;cwd;geodms_logfile;binary_experiment_file\n") # header
+        for experiment in experiments:
+            f.write(f"{repr(experiment)}\n")
+    return
+
+
+def AppendExperimentToExperimentFile(experiment_filename:str, experiment_definition:str):
+    new_experiment = InitExperimentFromCommandLineDefinition(experiment_definition)
+
+    # make sure experiment_filename exists
+    os.makedirs(os.path.dirname(experiment_filename), exist_ok=True)
+    if not os.path.isfile(experiment_filename):
+        with open(experiment_filename, "w") as f:
+            f.write("")
+
+    experiments = InitExperimentsFromCsvFile(experiment_filename)
+    experiments = UpdateExperiments(experiment_filename, experiments, new_experiment)
+    WriteExperimentsToExperimentFile(experiment_filename, experiments)
+
 def RunFromCmdLine():
     # arguments
     parser = argparse.ArgumentParser()
-    parser.add_argument("-csv", help="csv file that describes experiments: path/to/file.csv")
-    parser.add_argument("-s", help="Time between samples, cannot be lower than 1.0")
-    parser.add_argument("-direct_call", help="Direct call option, tried if no csv file is given, syntax: ")
+    parser.add_argument("filename", help="filename that describes experiments: path/to/file.csv")
+    parser.add_argument("-a", help="append an cmdline defined experiment to the experiment filename, syntax: -a name;experiment_folder;geodms_logfile;command")
     args = parser.parse_args()
     
-    config_fn = ""
-    direct_call = ""
-    sampling_rate = 1.0
+    config_fn = args.filename
 
-    if args.csv:
-        config_fn = args.fn
+    if args.a:
+        experiment_definition = args.a
+        print(f"Appending experiment definition {args.a}")
+        AppendExperimentToExperimentFile(experiment_definition)
+        return
 
-    if args.direct_call:
-        direct_call = args.direct_call
-  
-    # time between samples
-    if args.s:
-        if float(args.s) < 1.0:
-            print("Argument s set to 1.0, time between samples cannot be lower than 1.0")
-            sampling_rate = 1.0
-        else:
-            sampling_rate = float(args.s)
-    else:
-        sampling_rate = 1.0
-
-    Run(direct_call=direct_call, config_fn=config_fn, sampling_rate=sampling_rate)
+    Run(config_fn=config_fn)
     return
 
 def RunTestConfig(config_fn):
@@ -755,9 +778,9 @@ def main():
     return
     
 if __name__=="__main__":
-    #main() # python Profiler.py -direct_call test_profile_direct_call;'C:/Program Files/ObjectVision/GeoDms17.4.6/GeoDmsRun.exe' /LE:/experiments/direct_call/log.txt 'c:/users/cicada/prj/edm/cfg/stam.dms' @statistics /Evaluatie/test_tov_vorige_versie/checks/FR/test;E:/experiments/direct_call;E:/experiments/direct_call/log.txt
+    main() # python Profiler.py -direct_call test_profile_direct_call;'C:/Program Files/ObjectVision/GeoDms17.4.6/GeoDmsRun.exe' /LE:/experiments/direct_call/log.txt 'c:/users/cicada/prj/edm/cfg/stam.dms' @statistics /Evaluatie/test_tov_vorige_versie/checks/FR/test;E:/experiments/direct_call;E:/experiments/direct_call/log.txt
     #python Profiler.py -direct_call naam_van_run E:/experiments/direct_call E:/experiments/direct_call/log.txt "C:/Program Files/ObjectVision/GeoDms17.4.6/GeoDmsRun.exe" /LE:/experiments/direct_call/log.txt "c:/users/cicada/prj/edm/cfg/stam.dms" @statistics /Evaluatie/test_tov_vorige_versie/checks/FR/test
-    RunTestDirectCall("test_profile_direct_call;'C:/Program Files/ObjectVision/GeoDms17.4.6/GeoDmsRun.exe' /LE:/experiments/direct_call/log.txt 'c:/users/cicada/prj/edm/cfg/stam.dms' @statistics /Evaluatie/test_tov_vorige_versie/checks/FR/test;E:/experiments/direct_call;E:/experiments/direct_call/log.txt") # name, command, experiment_folder, geodms_logfile
+    #RunTestDirectCall("test_profile_direct_call;'C:/Program Files/ObjectVision/GeoDms17.4.6/GeoDmsRun.exe' /LE:/experiments/direct_call/log.txt 'c:/users/cicada/prj/edm/cfg/stam.dms' @statistics /Evaluatie/test_tov_vorige_versie/checks/FR/test;E:/experiments/direct_call;E:/experiments/direct_call/log.txt") # name, command, experiment_folder, geodms_logfile
     #RunTestConfig("./profile_setups.txt")
     #RunTestConfig("C:/Users/Cicada/prj/GeoDMS-Test/Performance/scripts/profiler_rework.txt")
     #RunTestConfig("./profile_setups_profile_rework.txt")
