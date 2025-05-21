@@ -192,17 +192,11 @@ TIC_CALL tg_maintainer::tg_maintainer()
 
 	assert(!s_OcTaskGroup);
 	s_OcTaskGroup = new concurrency::task_group;
-	auto oldCallback = SetWakeUpJoinersCallback(WakeUpJoiners);
-	assert(oldCallback == nullptr);
 }
 
 TIC_CALL tg_maintainer::~tg_maintainer()
 {
 	assert(s_OcTaskGroup);
-
-	auto oldCallback = SetWakeUpJoinersCallback(nullptr);
-	assert(oldCallback == WakeUpJoiners);
-
 	{
 		leveled_std_section::scoped_lock lock(cs_ThreadMessing);
 
@@ -834,7 +828,7 @@ bool OperationContext::TryRunningTaskInline(bool dontRunIfInLaterPhase)
 	if (!GetUniqueLicenseToRun(dontRunIfInLaterPhase))
 		return false;
 
-	Run_caller();
+	Run_Caller();
 	return true;
 }
 
@@ -957,7 +951,7 @@ garbage_t OperationContext::separateResources(task_status status)
 		releaseBin |= std::move(m_ResKeeper); // may release interest of FuncDC, probably not a big thing, but it may release ownership of this, which therefore should have been called by a shared_ptr copy.
 	assert(!m_ResKeeper);
 
-	assert(!m_WriteLock || status == task_status::cancelled || status == task_status::exception); // all other routes outside Schedule go through Run_caller, which alwayws release the writeLock on completion
+	assert(!m_WriteLock || status == task_status::cancelled || status == task_status::exception); // all other routes outside Schedule go through Run_Caller, which alwayws release the writeLock on completion
 	m_WriteLock = ItemWriteLock();
 
 	if (m_FuncDC)
@@ -1374,7 +1368,7 @@ void OperationContext::Run_with_cleanup() noexcept
 	assert(!m_WriteLock);
 }
 
-void OperationContext::Run_caller() noexcept
+void OperationContext::Run_Caller() noexcept
 {
 	DMS_SE_CALL_BEGIN
 
@@ -1489,7 +1483,7 @@ bool StealOneTask(phase_number currFenceNumber)
 	if (!ocSPtr)
 		return false; // no work to do
 
-	ocSPtr->Run_caller(); // inline the work right here:
+	ocSPtr->Run_Caller(); // inline the work right here:
 	return true;
 }
 
