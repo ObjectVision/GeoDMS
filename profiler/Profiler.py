@@ -711,12 +711,12 @@ def testReadAllocatorInfoLog():
 
     return alloc_log
 
-def Run(config_fn):
+def Run(experiment_filename):
     # init experiments from either direct_call or csv experiment file definition
-    experiments = InitExperimentsFromCsvFile(config_fn)
+    experiments = InitExperimentsFromCsvFile(experiment_filename)
 
     if not experiments:
-        print(f"No valid experiments found in experiment file: {config_fn}")
+        print(f"No valid experiments found in experiment file: {experiment_filename}")
         return
         
     # run 
@@ -799,11 +799,11 @@ def RunFromCmdLine():
         return
 
 
-    Run(config_fn=experiment_filename)
+    Run(experiment_filename=experiment_filename)
     return
 
-def RunTestConfig(config_fn):
-    Run(config_fn=config_fn)
+def RunTestConfig(experiment_filename):
+    Run(experiment_filename=experiment_filename)
     return
 
 def RunTestDirectCall(direct_call):
