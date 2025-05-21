@@ -116,6 +116,12 @@ static phase_number s_CurrActivePhaseNumber = 0;
 static bool s_IsInLowRamMode = false;
 static UInt32 s_CurrFinishedCount = 0;
 
+phase_number GetCurrActivePhaseNumber()
+{
+	leveled_critical_section::scoped_lock lockToAvoidHasMainThreadTasksToBeMissed(cs_ThreadMessing);
+	return s_CurrActivePhaseNumber;
+}
+
 UInt32 GetCurrFinishedCount()
 {
 	leveled_critical_section::scoped_lock lockToAvoidHasMainThreadTasksToBeMissed(cs_ThreadMessing);
@@ -556,7 +562,7 @@ void StartCollectedOperationContexts(context_array collectedActivatedContexts)
 			auto selfCaller = [activatedContextWPtr]()
 				{
 					if (auto self = activatedContextWPtr.lock())
-						self->TryRunningTaskInline(true);
+						self->TryRunningTaskInline(GetCurrActivePhaseNumber());
 				};
 
 			GetTaskGroup().run(selfCaller);
@@ -718,7 +724,7 @@ task_status OperationContext::Schedule(TreeItem* item, const FutureSuppliers& al
 			return supplStatus;
 
 		OperationContex_SetActivated(this);
-		if (TryRunningTaskInline(false))
+		if (TryRunningTaskInline(m_PhaseNumber))
 			return GetStatus();
 		return Join(); // already done, cancelled or exception?
 	}
@@ -821,11 +827,11 @@ bool OperationContext::collectTaskImpl()
 	return true;
 }
 
-bool OperationContext::TryRunningTaskInline(bool dontRunIfInLaterPhase)
+bool OperationContext::TryRunningTaskInline(phase_number targetPhaseNumber)
 {
 	assert(m_Suppliers.empty());
 
-	if (!GetUniqueLicenseToRun(dontRunIfInLaterPhase))
+	if (!GetUniqueLicenseToRun(targetPhaseNumber))
 		return false;
 
 	Run_Caller();
@@ -833,23 +839,24 @@ bool OperationContext::TryRunningTaskInline(bool dontRunIfInLaterPhase)
 }
 
 
-bool  OperationContext::getUniqueLicenseToRun(bool dontRunIfInLaterPhase)
+bool  OperationContext::getUniqueLicenseToRun(phase_number targetPhaseNumber)
 {
 	assert(!cs_ThreadMessing.try_lock());
 	auto status = getStatus();
-	assert(status >= task_status::activated);
+
+	if (status == task_status::scheduled) // maybe it was placed back from active to scheduled because earlier phases became in focus again.
+		return false;
 
 	if (status >= task_status::running)
 		return false;
 
 	assert(status == task_status::activated);
-	if (dontRunIfInLaterPhase && (m_PhaseNumber > s_CurrActivePhaseNumber))
+
+	if (m_PhaseNumber > targetPhaseNumber)
 	{
-		scheduleRunnableTask(this); // move it back 
+		scheduleRunnableTask(this); // place it back 
 		return false;
 	}
-
-	assert(m_PhaseNumber == s_CurrActivePhaseNumber || !dontRunIfInLaterPhase);
 
 	DSM::CancelIfOutOfInterest(m_Result);
 
@@ -857,10 +864,10 @@ bool  OperationContext::getUniqueLicenseToRun(bool dontRunIfInLaterPhase)
 	return true;
 }
 
-bool OperationContext::GetUniqueLicenseToRun(bool dontRunIfInLaterPhase)
+bool OperationContext::GetUniqueLicenseToRun(phase_number targetPhaseNumber)
 {
 	leveled_std_section::scoped_lock lock(cs_ThreadMessing);
-	return getUniqueLicenseToRun(dontRunIfInLaterPhase);
+	return getUniqueLicenseToRun(targetPhaseNumber);
 }
 
 void OperationContext::OnException() noexcept
@@ -1467,7 +1474,7 @@ auto FindAndLicenceOnePriorityTasks(phase_number currFenceNumber) -> OperationCo
 			continue; // expired
 
 		// try to grab the license—only one thread ever wins per OC
-		if (ocSPtr->getUniqueLicenseToRun(true))
+		if (ocSPtr->getUniqueLicenseToRun(currFenceNumber))
 			return ocSPtr; // we can do one piece of inline work—go do it (now you must) and re-check your fences/status
 		else
 			garbage.emplace_back(std::move(ocSPtr)); // maybe we-re the last owner and we dón't wat to destry here 
@@ -1555,14 +1562,14 @@ task_status OperationContext::Join()
 				StartCollectedOperationContexts(std::move(collectedTasksToRun));
 				// run as much as possible and needed for this Join before giving up on task collection effort
 				for (const auto& inlineTaskCandidate : activatedContexts)
-					inlineTaskCandidate->TryRunningTaskInline(true);  
+					inlineTaskCandidate->TryRunningTaskInline(s_CurrActivePhaseNumber);  
 				for (const auto& inlineTaskCandidateWPtr : collectedTasksToRun)
 					if (auto inlineTaskCandidate = inlineTaskCandidateWPtr.lock())
-						inlineTaskCandidate->TryRunningTaskInline(true);  // already running elsewhere. go for something else before giving up on task collection effort
+						inlineTaskCandidate->TryRunningTaskInline(s_CurrActivePhaseNumber);  // already running elsewhere. go for something else before giving up on task collection effort
 			}
 		else			
 */
-		UInt32 currentFinishCount = GetCurrFinishedCount();
+		auto currentFinishCount = GetCurrFinishedCount();
 		StartOperationContexts(); // OPTIMIZE, CONSISTENCY: Some tasks finished without calling this. Find out why and avoid wasting idle thread time; maybe all threads are waiting in a Join without new and current tasks being activated
 		if (!IsMetaThread() || SuspendTrigger::BlockerBase::IsBlocked())
 			while (m_Status <= task_status::running)
@@ -1598,36 +1605,9 @@ task_status OperationContext::Join()
 	return m_Status;
 }
 
-/// Wait for the task to finish or timeout
-/// \param waitFor The time to wait for the task to finish
-///
-/// it assumes that the caller loops with a while condition that will only become true 
-/// as a side-effect of a completing unknown task
-/// if the caller knows which task to wait for, it should use the Join() method instead
-///
-
-void WaitForCompletedTaskOrTimeout(std::chrono::milliseconds waitFor)
+TIC_CALL void DoWorkWhileWaitingFor(phase_number maxPhaseNumber, task_status* fenceStatus)
 {
-	assert(!SuspendTrigger::DidSuspend());
-	if (IsMetaThread())
-	{
-		ProcessMainThreadOpersAndTasks();
-		if (SuspendTrigger::DidSuspend())
-			return;
-	}
-
-	StartOperationContexts();
-
-	leveled_std_section::unique_lock lock(cs_ThreadMessing);
-	if (IsMetaThread() && HasMainThreadTasks())
-		return; // don't wait for other threads if we have main thread tasks to do
-
-	cv_TaskCompleted.wait_for(lock.m_BaseLock, waitFor);
-}
-
-TIC_CALL void DoWorkWhileWaitingFor(task_status* fenceStatus)
-{
-	while (IsActiveOrRunning(*fenceStatus))
+	while (!fenceStatus || IsActiveOrRunning(*fenceStatus))
 	{
 		if (IsMetaThread())
 		{
@@ -1637,22 +1617,46 @@ TIC_CALL void DoWorkWhileWaitingFor(task_status* fenceStatus)
 			ProcessSuspendibleTasks();
 		}
 
-		while (IsActiveOrRunning(*fenceStatus))
-			if (!StealOneTask(-1))
-				break;
+		auto currentFinishCount = GetCurrFinishedCount();
 
 		StartOperationContexts(); // OPTIMIZE, CONSISTENCY: Some tasks finished without calling this. Find out why and avoid wasting idle thread time; maybe all threads are waiting in a Join without new and current tasks being activated
+		while (!fenceStatus || IsActiveOrRunning(*fenceStatus))
+		{
+			if (!StealOneTask(maxPhaseNumber))
+				break;
+			if (!fenceStatus)
+				return; // let caller reconsider after one tasks has been done and no explicit termination condition variable is provided
+		}
 
 		leveled_std_section::unique_lock lock(cs_ThreadMessing);
 		if (*fenceStatus > task_status::running)
 			break;
+
+		if (currentFinishCount != s_CurrFinishedCount)
+			continue;
 
 		if (IsMetaThread() && HasMainThreadTasks())
 			continue;
 
 		// wait for conditioin that was certainly not met just after setting the thread messing lock
 		cv_TaskCompleted.wait_for(lock.m_BaseLock, std::chrono::milliseconds(500));
+
+		if (!fenceStatus)
+			return; // let caller reconsider after one tasks has been done and no explicit termination condition variable is provided
 	}
+}
+
+/// Wait for the task to finish or timeout
+/// \param waitFor The time to wait for the task to finish
+///
+/// it assumes that the caller loops with a while condition that will only become true 
+/// as a side-effect of a completing unknown task
+/// if the caller knows which task to wait for, it should use the Join() method instead
+///
+
+void WaitForCompletedTaskOrTimeout()
+{
+	DoWorkWhileWaitingFor(phase_number(-1), nullptr);
 }
 
 void OperationContext::RunOperator(Explain::Context* context, ArgRefs argRefs, std::vector<ItemReadLock> readLocks)

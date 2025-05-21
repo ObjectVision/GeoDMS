@@ -20,7 +20,7 @@ struct tg_maintainer
 	TIC_CALL ~tg_maintainer();
 };
 
-void WaitForCompletedTaskOrTimeout(std::chrono::milliseconds waitFor = std::chrono::milliseconds(300));
+void WaitForCompletedTaskOrTimeout();
 
 using dms_task = concurrency::task<void>;
 inline bool is_empty(const dms_task& x) { return x == dms_task();  }
@@ -71,8 +71,8 @@ struct OperationContext : std::enable_shared_from_this<OperationContext>
 
 	TIC_CALL task_status Schedule(TreeItem* item, const FutureSuppliers& allArgInterest, bool runDirect, Explain::Context* context);
 
-	TIC_CALL bool GetUniqueLicenseToRun(bool dontRunIfInLaterPhase);
-	TIC_CALL bool getUniqueLicenseToRun(bool dontRunIfInLaterPhase);
+	TIC_CALL bool GetUniqueLicenseToRun(phase_number targetPhaseNumber);
+	TIC_CALL bool getUniqueLicenseToRun(phase_number targetPhaseNumber);
 	//REMOVE TIC_CALL void OnSuspend();
 	TIC_CALL void OnException() noexcept;
 	TIC_CALL void OnEnd(task_status status) noexcept;
@@ -90,7 +90,7 @@ struct OperationContext : std::enable_shared_from_this<OperationContext>
 	void ActivateOtherSuppl();
 
 //private:
-	bool TryRunningTaskInline(bool dontRunIfInLaterPhase);
+	bool TryRunningTaskInline(phase_number targetPhaseNumber);
 	bool collectTaskImpl();
 	void releaseRunCount(task_status status);
 	garbage_t separateResources(task_status status);
@@ -138,7 +138,7 @@ public:
 };
 
 TIC_CALL auto GetNextPhaseNumber() -> phase_number;
-TIC_CALL void DoWorkWhileWaitingFor(task_status* phaseContainerStatus);
+TIC_CALL void DoWorkWhileWaitingFor(phase_number maxPhaseNumber, task_status* phaseContainerStatus);
 
 
 TIC_CALL void WakeUpJoiners();
