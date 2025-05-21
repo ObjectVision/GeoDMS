@@ -113,15 +113,6 @@ std::atomic<bool> s_MainThreadOperProcessRequestPending = false;
 static thread_local UInt32 s_MainThreadOperProcessingRequestLockCounter = 0;
 static thread_local bool   s_MainThreadOperProcessingRequested = false;
 
-callback_ptr s_wakeUpJoinersCallback = nullptr;
-
-RTC_CALL callback_ptr SetWakeUpJoinersCallback(callback_ptr callback)
-{
-	auto oldWakeUpJoinersCallback = s_wakeUpJoinersCallback;
-	s_wakeUpJoinersCallback = callback;
-	return oldWakeUpJoinersCallback;
-}
-
 RequestMainThreadOperProcessingBlocker::RequestMainThreadOperProcessingBlocker()
 {
 	if (!s_MainThreadOperProcessingRequestLockCounter++)
@@ -166,9 +157,6 @@ RTC_CALL void RequestMainThreadOperProcessing()
 	}
 	if (sMainThreadHnd)  // not yet initialized.
 		PostThreadMessage(sMainThreadHnd, UM_PROCESS_MAINTHREAD_OPERS, 0, 0); // only effective when MainThread has MessageQueue, ie in GeoDmsGui, and not in GeoDmsRun or python process
-
-	if (s_wakeUpJoinersCallback)
-		s_wakeUpJoinersCallback();
 }
 
 RTC_CALL void ConfirmMainThreadOperProcessing()

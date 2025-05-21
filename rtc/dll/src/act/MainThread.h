@@ -95,7 +95,4 @@ struct RequestMainThreadOperProcessingBlocker
 	RTC_CALL ~RequestMainThreadOperProcessingBlocker();
 };
 
-using callback_ptr = void(*)();
-RTC_CALL callback_ptr SetWakeUpJoinersCallback(callback_ptr callback);
-
 #endif // __RTC_ACT_MAINTHREAD_H
