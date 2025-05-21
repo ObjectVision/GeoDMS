@@ -49,6 +49,12 @@ struct uniform_engine_real
 		,	m_Distr(min, max)
 	{}
 
+	uniform_engine_real(std::seed_seq& seeds, T min, T max)
+		: m_Engine(seeds)
+		, m_Distr(min, max)
+	{
+	}
+
 	uniform_engine_t       m_Engine;
 	boost::uniform_real<T> m_Distr;
 };
@@ -61,6 +67,11 @@ struct uniform_engine_int
 		:	m_Engine(seed)
 		,	m_Distr(min, max-1)
 	{}
+	uniform_engine_int(std::seed_seq& seeds, T min, T max)
+		: m_Engine(seeds)
+		, m_Distr(min, max - 1)
+	{
+	}
 
 
 	uniform_engine_t      m_Engine;
@@ -101,6 +112,10 @@ struct uniform_engine
 		:	m_Base(seed, min, max)
 	{}
 
+	uniform_engine(std::seed_seq& seeds, T min, T max)
+		: m_Base(seeds, min, max)
+	{
+	}
 	T operator () ()
 	{
 		return m_Base.m_Distr(m_Base.m_Engine);
@@ -194,19 +209,22 @@ public:
 
 		ResultType* result = mutable_array_cast<T>(res);
 
-		typedef uniform_engine<T> uniform_engine_t;
-		uniform_engine_t rndEngine(seed, range.first, range.second);
+		// todo: enable MT3
+		parallel_tileloop(te, [&](tile_id t)
+			{
+				using uniform_engine_t = uniform_engine<T> ;
+				auto seeds = std::seed_seq{ seed, t };
+				uniform_engine_t rndEngine(seeds, range.first, range.second); // let each tile have its own seed
 
-		for (tile_id t=0; t!=te; ++t)
-		{
-			auto resultData = result->GetWritableTile(t);
-			auto
-				rb = resultData.begin(),
-				re = resultData.end();
+				auto resultData = result->GetWritableTile(t);
+				auto
+					rb = resultData.begin(),
+					re = resultData.end();
 
-			while (rb != re)
-				Assign(*rb++, rndEngine() );
-		}
+				while (rb != re)
+					Assign(*rb++, rndEngine());
+			}
+		);
 	}
 };
 
