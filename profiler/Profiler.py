@@ -25,6 +25,7 @@ class Experiment:
         self.geodms_logfile         = geodms_logfile
         self.binary_experiment_file = binary_experiment_file
         self.result = {}
+
     def __str__(self):
         return f"Experiment: name:{self.name} command:{self.command}"
     
@@ -41,6 +42,16 @@ class Experiment:
         logfile_is_eq = self.geodms_logfile == other.geodms_logfile
         binfile_is_eq = self.binary_experiment_file == other.binary_experiment_file
         return name_is_eq and command_is_eq and exp_fldr_is_eq and env_vars_is_eq and cwd_is_eq and logfile_is_eq and binfile_is_eq  
+
+    def summary(self) -> str:
+        # name;status;start_time;duration;highest_commit
+        if not self.result:
+            return f"{self.name};Failed;;;;"
+        start_time = self.result.profile_log.time[0]
+        end_time = self.result.profile_log.time[-1]
+        duration = (end_time - start_time).total_seconds()
+        highest_commit = max(self.result.profile_log.vms)
+        return f"{self.name};OK;{start_time};{duration};{highest_commit}"
 
 def readLog(log_filename, filter=None):
     ret = {"time":[], "text":[]}
@@ -452,7 +463,7 @@ def vgroupToLabel(vgroup):
     elif vgroup[0] == "total_write_bytes":
         label = "total written bytes (GB)"    
     elif type(vgroup[0]) is tuple or vgroup[0]=="vms":
-        label = "Committed and and freelist allocated memory (^) (GB)"
+        label = "Committed and freelist allocated memory (^) (GB)"
     
     return label
     
@@ -747,14 +758,35 @@ def AppendExperimentToExperimentFile(experiment_filename:str, experiment_definit
     experiments = UpdateExperiments(experiment_filename, experiments, new_experiment)
     WriteExperimentsToExperimentFile(experiment_filename, experiments)
 
+def ExportExperimentSummariesToFile(experiment_filename:str):
+    # retrieve summary
+    experiments = InitExperimentsFromCsvFile(experiment_filename)
+    experiment_summaries = []
+    for exp_index, experiment in enumerate(experiments):
+        fldrname, filename = getExperimentFileName(experiment)
+        exp_fn = f"{fldrname}/{filename}"
+        print(f"Summarizing experiment file: {exp_fn}")
+        experiment = loadExperimentFromPickleFile(None, exp_fn)
+        experiment_summaries.append(experiment.summary())
+
+    # write to file
+    summary_file = f"{experiment_filename[:-4]}.summary"
+    with open(summary_file, "w") as f:
+        f.write("name;status;start_time;duration;highest_commit\n")
+        for summary in experiment_summaries:
+            f.write(f"{summary}\n")
+    
+    return
+
 def RunFromCmdLine():
     # arguments
     parser = argparse.ArgumentParser()
     parser.add_argument("filename", help="filename that describes experiments: path/to/file.csv")
     parser.add_argument("-a", help="append an cmdline defined experiment to the experiment filename, syntax: -a name;experiment_folder;geodms_logfile;command")
+    parser.add_argument("-s", help="exports a summary of all experiments in the experiment file: name;status;starttime;duration;highestcommit;")
     args = parser.parse_args()
     
-    config_fn = args.filename
+    experiment_filename = args.filename
 
     if args.a:
         experiment_definition = args.a
@@ -762,7 +794,12 @@ def RunFromCmdLine():
         AppendExperimentToExperimentFile(experiment_definition)
         return
 
-    Run(config_fn=config_fn)
+    if args.s:
+        ExportExperimentSummariesToFile(experiment_filename)
+        return
+
+
+    Run(config_fn=experiment_filename)
     return
 
 def RunTestConfig(config_fn):
