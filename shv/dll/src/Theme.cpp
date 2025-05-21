@@ -454,7 +454,6 @@ std::shared_ptr<Theme> Theme::Create(AspectNr aNr, const AbstrDataItem* thematic
 
 //		breakAttr->GetAbstrDomainUnit()->PrepareDataUsage(DrlType::CertainOrThrow);
 
-		FutureSuppliers emptyFutureSupplierSet;
 		thematicAttrHolder->PrepareDataUsage(DrlType::Certain);
 		thematicAttrHolder->GetAbstrDomainUnit()->PrepareDataUsage(DrlType::Certain);
 
@@ -478,7 +477,7 @@ std::shared_ptr<Theme> Theme::Create(AspectNr aNr, const AbstrDataItem* thematic
 				auto r = result_wptr.lock();
 				if (r) r->m_ClassTask.Clear();
 			}
-		,	emptyFutureSupplierSet
+		,   FutureSuppliers()
 		,	false
 		,	nullptr
 		);

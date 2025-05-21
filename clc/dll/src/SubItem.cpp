@@ -73,6 +73,8 @@ struct SubItemOperator: BinaryOperator
 
 			SharedStr subItemName = GetCurrValue<SharedStr>(args[1], 0);
 			const TreeItem* subItem = arg1->GetCurrItem(subItemName);
+			if (subItem && subItem->IsCacheItem())
+				subItem = subItem->GetCurrUltimateItem(); // "/nr_OrgEntity" -> "/org_rel"
 
 			if (!subItem)
 				GetGroup()->throwOperErrorF("Cannot find '%s' from '%s'",
@@ -87,7 +89,8 @@ struct SubItemOperator: BinaryOperator
 		if (mustCalc)
 		{
 			assert(CheckDataReady(arg1->GetCurrUltimateItem()));
-			SharedTreeItem ultItem = resultHolder.GetUlt();
+			SharedTreeItem ultItem = resultHolder.GetOld();
+			assert(ultItem == ultItem->GetCurrUltimateItem());
 			MG_CHECK(CheckDataReady(ultItem));
 			if (ultItem != resultHolder.GetOld() && IsDataReady(ultItem))
 			{
@@ -243,7 +246,6 @@ struct PhaseContainerOperator : BinaryOperator
 			);
 
 			resultHolder = context.Apply(); // might generate upstream FenceNumbers, hidden upstream
-
 
 #if defined(MG_DEBUG)
 			resultHolder->m_State.Set(actor_flag_set::AFD_PivotElem);

@@ -300,17 +300,17 @@ struct RapidXmlOperator : public BinaryOperator
 			)
 	{}
 
-	void CreateResultCaller(TreeItemDualRef& resultHolder, const ArgRefs& argRegs, LispPtr metaCallArgs) const override
+	void CreateResultCaller(TreeItemDualRef& resultHolder, const ArgRefs& argRefs, LispPtr metaCallArgs) const override
 	{
 		assert(!CanExplainValue()); // or this method should be overridden.
-		auto args = GetItems(argRegs);
-		assert(args.size() >= 2);
+		auto args = GetItems(argRefs);
+		assert(args.size() >= 2); // parse_xml(xmlData, schema, optional arguemts for schema...)
 
 		if (!resultHolder)
 			resultHolder = TreeItem::CreateCacheRoot();
 
 		assert(metaCallArgs);
-		InstantiateTemplate(resultHolder.GetNew(), args[1], metaCallArgs.Right().Right()); // GetArgList()->m_Next->m_//Next); // but why?
+		InstantiateTemplate(resultHolder.GetNew(), args[1], metaCallArgs.Right().Right()); // GetArgList()->m_Next->m_Next) is the remainder of the nul-terminated left-right list after taking the first two elements out
 //		TemplDC::Instantiate(resultHolder, args[1], debug_cast<FuncDC*>(&resultHolder)->GetArgList()->m_Next->m_Next);
 
 		AbstrUnit* entityTable = Unit<UInt32>::GetStaticClass()->CreateUnit(resultHolder, GetTokens().entityTableID);

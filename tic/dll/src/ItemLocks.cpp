@@ -592,11 +592,6 @@ bool IsAllInterestedCalculatingOrDataReady(const TreeItem* item)
 	return IsAllInterestedCalculatingOrDataReady_impl(item);
 }
 
-bool CheckDataReady(const TreeItem* item) // TODO G8: REMOVE
-{
-	return IsDataReady(item);
-}
-
 bool CheckAllSubDataReady(const TreeItem* item)
 {
 	if (!CheckDataReady(item))
@@ -609,44 +604,8 @@ bool CheckAllSubDataReady(const TreeItem* item)
 	return true;
 }
 
-bool IsAllocated(const TreeItem* item) // TODO G8: kan dit weg ?
-{
-//	assert(IsDataItem(item) || !item->IsFnKnown());
-
-	if (IsDataReady(item))
-		return true;
-
-	if (IsUnit(item))
-		return AsUnit(item)->GetValueType()->HasFixedValues(); // range known?
-
-	return false;
-}
-
-/*
-bool IsDcReady(const DataController* dc, const TreeItem* cacheRoot, const TreeItem* cacheItem)
-{
-	if (IsDataReady(cacheItem, true))
-	{
-		if (!cacheItem->IsFnKnown())
-			return true;
-		assert(IsDataItem(cacheItem)); // implied by TSF_DSM_FnKnown
-		assert(IsMetaThread()); // ???
-		actor_section_lock_map::ScopedLock specificSectionLock(MG_SOURCE_INFO_CODE("IsDcReady") sg_ActorLockMap, cacheItem);
-		return CheckFilesPresent(dc, cacheRoot, AsDataItem(cacheItem));
-	}
-
-	if (!IsDataItem(cacheItem) && !IsUnit(cacheItem))
-		return true;
-
-	assert(!cacheItem->IsFnKnown()); // it would have been ready
-	return false;
-}
-*/
-
 bool IsCalculatingOrReady(const TreeItem* item)
 {
-//	if (item->DataAllocated())
-//		return true;
 	if (IsCalculating(item))
 		return true;
 	if (IsDataReady(item))

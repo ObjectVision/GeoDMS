@@ -397,7 +397,14 @@ auto FuncDC::CallCalcResult(Explain::Context* context) const -> FutureData
 
 	assert(GetInterestCount()); 
 
-	bool mustStartCalc = context || !IsAllInterestedCalculatingOrDataReady(m_Data); // condition required for operations such as parse_xml as first argument of a SubItem
+	assert(!IsTmp());
+	bool mustStartCalc = (context != nullptr);
+	if (!mustStartCalc)
+		if (IsNew())
+			mustStartCalc = !IsAllInterestedCalculatingOrDataReady(m_Data);
+		else
+			mustStartCalc = !IsDataReady(m_Data); // condition required for operations such as parse_xml as first argument of a SubItem
+
 	if (mustStartCalc)
 	{
 		assert(m_Data->GetInterestCount());
@@ -409,7 +416,7 @@ auto FuncDC::CallCalcResult(Explain::Context* context) const -> FutureData
 			return {}; // maybe suspended or failed
 		}
 		assert(!SuspendTrigger::DidSuspend());
-		assert(m_OperContext || IsDataReady(m_Data->GetCurrRangeItem()) || m_Data->WasFailed(FR_Data) || SuspendTrigger::DidSuspend());
+		assert(m_OperContext || IsDataReady(m_Data) || m_Data->WasFailed(FR_Data) || SuspendTrigger::DidSuspend());
 	}
 	return thisFutureResult;
 }
@@ -500,6 +507,14 @@ OArgRefs FuncDC::GetArgs(bool doUpdateMetaInfo, bool doCalcData) const
 	for (const DcRefListElem* argIter = m_Args; argIter; ++currArg, argIter = argIter->m_Next) 
 	{
 		assert(argIter->m_DC); // DcRefListElem invariant
+
+// DEBUG, REMOVE, NOCOMMIT
+#if defined(MG_DEBUG)
+	if (doCalcData)
+		if (auto funcSupplier = dynamic_cast<const FuncDC*>(argIter->m_DC.get()))
+			if (funcSupplier->GetOperator()->GetGroup()->GetNameID() == token::subitem)
+				funcSupplier->m_State.Set(actor_flag_set::AFD_PivotElem);
+#endif
 
 		bool mustCalcArg = MustCalcArg(currArg, doCalcData, firstArgValue.begin());
 

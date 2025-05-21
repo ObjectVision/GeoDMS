@@ -102,9 +102,7 @@ TIC_CALL bool IsDataCurrReady(const TreeItem* item);
 TIC_CALL bool IsDataReady(const TreeItem* item);
 TIC_CALL bool IsAllDataReady(const TreeItem* item);
 TIC_CALL bool IsAllInterestedCalculatingOrDataReady(const TreeItem* item);
-TIC_CALL bool CheckDataReady(const TreeItem* item);
 TIC_CALL bool CheckAllSubDataReady(const TreeItem* item);
-TIC_CALL bool IsAllocated(const TreeItem* item);
 TIC_CALL bool IsCalculatingOrReady(const TreeItem* item);
 TIC_CALL bool CheckCalculatingOrReady(const TreeItem* item);
 TIC_CALL bool IsCalculatingOrReady(const DataController* dc, const TreeItem* cacheRoot, const TreeItem* cacheItem);
@@ -112,6 +110,7 @@ TIC_CALL bool IsInWriteLock(const TreeItem* item);
 TIC_CALL bool WaitForReadyOrSuspendTrigger(const TreeItem* ti);
 TIC_CALL bool WaitReady(const TreeItem* item);
 TIC_CALL bool RunTask(const TreeItem* item);
+inline   bool CheckDataReady(const TreeItem* item) { return IsDataReady(item); } // Obsolete?
 
 TIC_CALL std::shared_ptr<OperationContext> GetOperationContext(const TreeItem* item);
 

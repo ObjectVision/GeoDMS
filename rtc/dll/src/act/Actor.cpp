@@ -1259,17 +1259,9 @@ SharedActorInterestPtr Actor::GetInterestPtrOrNull() const
 {
 	assert(this);
 
-	RequestMainThreadOperProcessingBlocker postponeRequestAfterCountSectionToAvoidDeadlock;
-
 	leveled_std_section::scoped_lock globalSectionLock(sg_CountSection);
 	if (!m_InterestCount)
 		return {};
-
-#if defined(MG_DEBUG_INTERESTSOURCE)
-	bool isPivotedForLogging = m_State.Get(actor_flag_set::AFD_PivotElem);
-	if (isPivotedForLogging)
-		reportF(SeverityTypeID::ST_MajorTrace, "DupInterestCount %s", GetInterestCount());
-#endif //defined(MG_DEBUG_INTERESTSOURCE)
 
 	SharedPtr<const Actor> result = this;
 

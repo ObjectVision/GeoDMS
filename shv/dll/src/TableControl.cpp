@@ -1296,12 +1296,12 @@ void TableControl::CreateTableGroupBy(bool activate)
 
 		for (SizeT i = 0; i != NrEntries(); ++i)
 		{
-			auto dic = GetColumn(i);
+			auto dic2 = GetColumn(i);
 			try {
-				if (dic->m_State.Get(GOF_IgnoreActivation))
-					dic->m_AggrMethod = AggrMethod::count;
-				dic->UpdateTheme();
-				dic->InvalidateView();
+				if (dic2->m_State.Get(GOF_IgnoreActivation))
+					dic2->m_AggrMethod = AggrMethod::count;
+				dic2->UpdateTheme();
+				dic2->InvalidateView();
 			}
 			catch (...) {}
 		}

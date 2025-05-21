@@ -139,24 +139,23 @@ template <typename Thing>
 concept NotJustAnyGarbageDestructible = NotJustAnyDestructible<Thing> && NotJustGarbageDestructible<Thing>;
 
 template <typename T>
-struct add_dummy_copy_constructor : T 
+struct add_dummy_copy_constructor : std::enable_if<std::is_class_v<T>, T>::type
 {
+    template <typename... Args>
+    add_dummy_copy_constructor(Args&&... args)
+        :	T(std::forward<Args>(args)...)
+    {}
 
-	template <typename... Args>
-	add_dummy_copy_constructor(Args&&... args) 
-		:	T(std::forward<Args>(args)...) 
-	{}
+    add_dummy_copy_constructor(T&& org)
+        : T(std::move(org))
+    {}
 
-	add_dummy_copy_constructor(T&& org)
-		: T(std::move(org))
-	{}
+    add_dummy_copy_constructor(add_dummy_copy_constructor const&)
+    {
+        throwIllegalAbstract(MG_POS, "add_dummy_copy_constructor");
+    }
 
-	add_dummy_copy_constructor(add_dummy_copy_constructor const&) 
-	{
-		throwIllegalAbstract(MG_POS, "add_dummy_copy_constructor");
-	}
-
-	add_dummy_copy_constructor(add_dummy_copy_constructor&&) = default;
+    add_dummy_copy_constructor(add_dummy_copy_constructor&&) = default;
 };
 
 template <class T, class... Args>

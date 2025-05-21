@@ -3472,7 +3472,6 @@ static how_to_proceed PrepareDataRead(SharedPtr<const TreeItem> self, const Tree
 			auto rtc = std::make_shared<OperationContext>();
 			self->m_ReadAssets.emplace<decltype(rtc)>(rtc);
 
-			FutureSuppliers emptyFutureSupplierSet; // TODO G8: Let readInfoPtr provide required suppliers, such as GridStorageMetaInfo->m_VIP->m_GridDomain (as its range is required in further processing
 			rtc->ScheduleItemWriter(MG_SOURCE_INFO_CODE("TreeItem::PrepareDataUsageImpl for Readable data") const_cast<TreeItem*>(refItem),
 				[storageParent, self, readInfoPtr, nmsm](Explain::Context* context)
 				{
@@ -3484,7 +3483,7 @@ static how_to_proceed PrepareDataRead(SharedPtr<const TreeItem> self, const Tree
 					assert(!*readInfoPtr);
 					sHandle.FocusItem()->ReadItem(std::move(sHandle)); // Read Item
 				}
-				, emptyFutureSupplierSet
+				, FutureSuppliers() // TODO: Let readInfoPtr provide required suppliers, such as GridStorageMetaInfo->m_VIP->m_GridDomain (as its range is required in further processing
 				, false
 				, nullptr
 			);

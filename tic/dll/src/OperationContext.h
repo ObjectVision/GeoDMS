@@ -63,7 +63,7 @@ struct OperationContext : std::enable_shared_from_this<OperationContext>
 	task_status ScheduleItemWriter(MG_SOURCE_INFO_DECL TreeItem* item, Func&& func, const FutureSuppliers& allArgInterests, bool runDirect, Explain::Context* context)
 	{
 		assert(!m_TaskFunc);
-		m_TaskFunc = std::move(func);
+		m_TaskFunc = std::forward<Func>(func);
 
 		return Schedule(item, allArgInterests, runDirect, context); // might run inline
 	}
@@ -71,8 +71,8 @@ struct OperationContext : std::enable_shared_from_this<OperationContext>
 
 	TIC_CALL task_status Schedule(TreeItem* item, const FutureSuppliers& allArgInterest, bool runDirect, Explain::Context* context);
 
-	TIC_CALL bool GetUniqueLicenseToRun();
-	TIC_CALL bool getUniqueLicenseToRun();
+	TIC_CALL bool GetUniqueLicenseToRun(bool dontRunIfInLaterPhase);
+	TIC_CALL bool getUniqueLicenseToRun(bool dontRunIfInLaterPhase);
 	//REMOVE TIC_CALL void OnSuspend();
 	TIC_CALL void OnException() noexcept;
 	TIC_CALL void OnEnd(task_status status) noexcept;
@@ -90,23 +90,23 @@ struct OperationContext : std::enable_shared_from_this<OperationContext>
 	void ActivateOtherSuppl();
 
 //private:
-	bool TryRunningTaskInline();
+	bool TryRunningTaskInline(bool dontRunIfInLaterPhase);
 	bool collectTaskImpl();
 	void releaseRunCount(task_status status);
 	garbage_t separateResources(task_status status);
 
 	bool connectArgs(const FutureSuppliers& allInterests);
 
-	garbage_t disconnect();
+	garbage_t disconnect_waiters();
 	garbage_t disconnect_supplier(OperationContext* supplier);
 
 	FutureResultData m_Result;
 	SharedActorInterestPtr m_ResKeeper;
 	std::atomic<task_status> m_Status = task_status::none;
 
-	void safe_run_with_catch() noexcept;
-	void safe_run_with_cleanup() noexcept;
-	void safe_run_caller() noexcept;
+	void Run_with_catch() noexcept;
+	void Run_with_cleanup() noexcept;
+	void Run_Caller() noexcept;
 public:
 	std::function<void(Explain::Context*)> m_TaskFunc;
 	Explain::Context*               m_Context = nullptr;
