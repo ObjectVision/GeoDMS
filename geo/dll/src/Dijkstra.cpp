@@ -618,7 +618,7 @@ SizeT ProcessDijkstra(TreeItemDualRef& resultHolder
 		](ZoneType orgZone)
 		{
 			DSM::CancelIfOutOfInterest(resultHolder.GetNew());
-			if (OperationContext::CancelableFrame::CurrActiveCanceled())
+			if (CancelableFrame::CurrActiveCanceled())
 				return;
 
 			auto& nzc = nzcC.local();
@@ -1304,7 +1304,7 @@ SizeT ProcessDijkstra(TreeItemDualRef& resultHolder
 		});
 	
 
-	if (OperationContext::CancelableFrame::CurrActiveCanceled())
+	if (CancelableFrame::CurrActiveCanceled())
 		return UNDEFINED_VALUE(SizeT);
 
 	reportF(SeverityTypeID::ST_MajorTrace, "impedance_matrix %s all %d sources: resulted in %s od-pairs"

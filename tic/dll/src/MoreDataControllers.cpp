@@ -212,8 +212,12 @@ bool FuncDC::IsCalculating() const
 	if (!IsNew())
 		return base_type::IsCalculating();
 
-	leveled_critical_section::scoped_lock ocaLock(cs_OperContextAccess);
-	return m_OperContext && m_OperContext->m_Status != task_status::none;
+	auto ocSPtr = GetOperContext();
+	if (!ocSPtr)
+		return false;
+
+	auto status = ocSPtr->GetStatus();
+	return status != task_status::none && status != task_status::exception && status != task_status::cancelled;
 }
 
 void FuncDC::DoInvalidate() const
@@ -741,26 +745,19 @@ void FuncDC::CallCalcResultImpl(Explain::Context* context) const
 
 		// todo: merge ScheduleCalcResult into ctor of OperationContext, 
 		// todo: add separate interface for reactivation with a specific ExplainValue::Context
-		std::shared_ptr< OperationContext> operContext;
+		auto operContext = this->GetOperContext();
+		if (!operContext || operContext->m_Context != context)
 		{
-			leveled_critical_section::scoped_lock ocaLock(cs_OperContextAccess);
+			operContext = OperationContext::CreateFuncDC(this);
+			result = operContext->GetStatus() != task_status::exception;
 
-			if (!m_OperContext)
-				m_OperContext = std::make_shared<OperationContext>(this);
-			operContext = m_OperContext;
-		}
+//			leveled_critical_section::scoped_lock ocaLock(cs_OperContextAccess);
+			m_OperContext = operContext;
+			m_OperContext->ScheduleCalcResult(std::move(*argRefs), context);
 
-		assert(operContext || CheckDataReady(m_Data) || !IsNew());
-		if (operContext && operContext->m_Status == task_status::none)
-		{
-			assert(!operContext->m_Result || operContext->m_Result == GetOld());
-			operContext->m_Result = GetOld();
+			assert(!IsNew() || GetNew()->m_LastChangeTS == m_LastChangeTS); // further changes in the resulting data must have caused resultHolder to invalidate, as IsNew results are passive
 
-			dms_assert(!IsNew() || GetNew()->m_LastChangeTS == m_LastChangeTS); // further changes in the resulting data must have caused resultHolder to invalidate, as IsNew results are passive
-
-			result = operContext->ScheduleCalcResult(context, std::move(*argRefs) );
-			assert(operContext->m_Status != task_status::none || !result); // this should provide that AssignResult will not be called twice
-			assert(!(*argRefs).size() || !result);
+			// this function only runs in the main thread and should not be re-entrant, so we can safely assume that no other thread is filling the m_OperContext
 			if (result)
 				SuspendTrigger::MarkProgress();
 		}

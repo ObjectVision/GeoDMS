@@ -46,7 +46,7 @@
 
 [[noreturn]] void DSM::CancelOrThrow(const TreeItem* item)
 {
-	if (OperationContext::CancelableFrame::CurrActive())
+	if (CancelableFrame::CurrActive())
 		concurrency::cancel_current_task(); // assume it was cancelled due to outdated suppliers
 
 	if (item)
@@ -56,12 +56,12 @@
 
 void DSM::CancelIfOutOfInterest(const TreeItem* item)
 {
-	if (IsMainThread() && !OperationContext::CancelableFrame::CurrActive())
+	if (IsMainThread() && !CancelableFrame::CurrActive())
 		return;
 
-	OperationContext::CancelableFrame::CurrActiveCancelIfNoInterestOrForced(DSM::IsCancelling());
+	CancelableFrame::CurrActiveCancelIfNoInterestOrForced(DSM::IsCancelling());
 
-	if (OperationContext::CancelableFrame::CurrActiveCanceled() && !std::uncaught_exceptions())
+	if (CancelableFrame::CurrActiveCanceled() && !std::uncaught_exceptions())
 	{
 		CancelOrThrow(item);
 	}

@@ -3469,11 +3469,8 @@ static how_to_proceed PrepareDataRead(SharedPtr<const TreeItem> self, const Tree
 		{
 			auto readInfoPtr = std::make_shared<StorageMetaInfoPtr>(std::move(readInfo));
 			dms_assert(!CheckCalculatingOrReady(refItem));
-			auto rtc = std::make_shared<OperationContext>();
-			self->m_ReadAssets.emplace<decltype(rtc)>(rtc);
-
-			rtc->ScheduleItemWriter(MG_SOURCE_INFO_CODE("TreeItem::PrepareDataUsageImpl for Readable data") const_cast<TreeItem*>(refItem),
-				[storageParent, self, readInfoPtr, nmsm](Explain::Context* context)
+			auto rtc = OperationContext::CreateItemWriter(const_cast<TreeItem*>(refItem),
+				[storageParent, self, readInfoPtr, nmsm](OperationContext* ocPtr, Explain::Context* context)
 				{
 					auto onExit = make_scoped_exit([self]() { self->m_ReadAssets.Clear(); });
 					assert(readInfoPtr);
@@ -3487,6 +3484,9 @@ static how_to_proceed PrepareDataRead(SharedPtr<const TreeItem> self, const Tree
 				, false
 				, nullptr
 			);
+
+			self->m_ReadAssets.emplace<decltype(rtc)>(rtc);
+
 			readInfoPtr.reset();
 			assert(CheckCalculatingOrReady(refItem) || refItem->WasFailed(FR_Data) || SuspendTrigger::DidSuspend());
 			assert(self->GetInterestCount());
@@ -4195,7 +4195,7 @@ void TreeItem::StartInterest() const
 	assert(!std::uncaught_exceptions());
 	if (!s_SessionUsageCounter.try_lock_shared())
 	{
-		dms_assert(OperationContext::CancelableFrame::CurrActive());
+		assert(CancelableFrame::CurrActive());
 		DSM::CancelOrThrow(this);
 	}
 	auto unlockDsmUsageCounter = make_releasable_scoped_exit([]() { s_SessionUsageCounter.unlock_shared(); });
@@ -4266,7 +4266,7 @@ SharedTreeItemInterestPtr TreeItem::GetInterestPtrOrCancel() const
 	if (result)
 		return result;
 
-	dms_assert(OperationContext::CancelableFrame::CurrActive());
+	assert(CancelableFrame::CurrActive());
 	DSM::CancelOrThrow(this);
 }
 

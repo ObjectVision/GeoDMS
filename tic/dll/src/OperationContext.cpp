@@ -276,7 +276,7 @@ bool contains(const Set& set, const Elem& elem)
 	return set.find(elem) != set.end();
 }
 
-bool isSupplier(OperationContextSPtr waiter, OperationContextSPtr supplier)
+bool isSupplier(OperationContext* waiter, OperationContextSPtr supplier)
 {
 	return waiter && contains(waiter->m_Suppliers, supplier);
 }
@@ -310,7 +310,7 @@ std::string AsText(std::weak_ptr<T> xPtr)
 
 #endif
 
-void connect(OperationContextSPtr waiter, OperationContextSPtr supplier)
+void connect(OperationContext* waiter, OperationContextSPtr supplier)
 {
 	DBG_START("OperationContextPtr", "connect", MG_DEBUGCONNECTIONS);
 	DBG_TRACE(("waiter   = %s", AsText(waiter)));
@@ -323,7 +323,7 @@ void connect(OperationContextSPtr waiter, OperationContextSPtr supplier)
 	assert(waiter->GetOperator() && waiter->GetOperator()->CanRunParallel());
 
 	waiter->m_Suppliers.insert(supplier);
-	supplier->m_Waiters.insert(waiter);
+	supplier->m_Waiters.insert(waiter->weak_from_this());
 }
 
 void scheduleRunnableTask(OperationContext* self)
@@ -333,7 +333,7 @@ void scheduleRunnableTask(OperationContext* self)
 	// next StartOperationContexts() must not start scheduling tasks with phase numbers higher than this task.
 	auto fn = self->m_PhaseNumber;
 	MakeMin<phase_number>(s_CurrActivePhaseNumber, fn);
-	s_ScheduledContextsMap[fn].emplace_back(self->shared_from_this());
+	s_ScheduledContextsMap[fn].emplace_back(self->weak_from_this());
 	self->m_Status = task_status::scheduled;
 }
 
@@ -612,19 +612,6 @@ void OperationContex_SetActivated(OperationContext* self)
 // Section:     OperatorContext
 // *****************************************************************************
 
-OperationContext::OperationContext()
-{
-	assert(IsMetaThread());
-	
-	#if defined(MG_TRACE_OPERATIONCONTEXTS)
-
-		leveled_critical_section::scoped_lock lock(cs_OcAdm);
-		++sd_OcCount;
-		sd_OC.insert(this);
-
-	#endif
-}
-
 /// <summary>
 ///		This constructor is used to create a new OperationContext with a given FuncDC.
 /// </summary>
@@ -639,16 +626,12 @@ OperationContext::OperationContext(const FuncDC* self)
 {
 	assert(m_PhaseNumber);
 
-	DBG_START("OperationContext", "CTor", MG_DEBUG_FUNCCONTEXT);
-	DBG_TRACE(("FuncDC: %s", self->md_sKeyExpr));
+	m_Result = self->GetOld();
+}
 
-	#if defined(MG_TRACE_OPERATIONCONTEXTS)
-
-		leveled_critical_section::scoped_lock lock(cs_OcAdm);
-		++sd_OcCount;
-		sd_OC.insert(this);
-
-	#endif
+OperationContext::OperationContext(task_func_type func)
+	: m_TaskFunc( std::move(func) )
+{
 }
 
 OperationContext::~OperationContext()
@@ -668,17 +651,34 @@ OperationContext::~OperationContext()
 
 	#if defined(MG_TRACE_OPERATIONCONTEXTS)
 
-		leveled_critical_section::scoped_lock lock(cs_OcAdm);
-		--sd_OcCount;
-		sd_OC.erase(this);
+	leveled_critical_section::scoped_lock lock(cs_OcAdm);
+	--sd_OcCount;
+	sd_OC.erase(this);
 
 	#endif
 
 }
 
+void OperationContext_AddOcCount(OperationContext* self)
+{
+
+#if defined(MG_TRACE_OPERATIONCONTEXTS)
+
+	leveled_critical_section::scoped_lock lock(cs_OcAdm);
+	++sd_OcCount;
+	sd_OC.insert(self);
+
+#endif
+
+}
+
+
 task_status OperationContext::Schedule(TreeItem* item, const FutureSuppliers& allArgInterest, bool runDirect, Explain::Context* context)
 {
 	assert(IsMetaThread());
+
+	OperationContext_AddOcCount(this);
+
 	assert(UpdateMarker::IsInActiveState());
 	assert(m_Status == task_status::none);
 
@@ -713,7 +713,7 @@ task_status OperationContext::Schedule(TreeItem* item, const FutureSuppliers& al
 	m_ActiveTimestamp = UpdateMarker::GetActiveTS(MG_DEBUG_TS_SOURCE_CODE("Obtaining active frame for produce item task"));
 
 	if (item)
-		m_WriteLock = ItemWriteLock(item, std::weak_ptr(shared_from_this())); // sets item->m_Producer to this; no future access right yet
+		m_WriteLock = ItemWriteLock(item, weak_from_this()); // sets item->m_Producer to this; no future access right yet
 
 	if (runDirect)
 	{
@@ -734,6 +734,7 @@ task_status OperationContext::Schedule(TreeItem* item, const FutureSuppliers& al
 	bool mustConsiderRun = false;
 	{
 		leveled_std_section::scoped_lock lock(cs_ThreadMessing);
+		assert(m_Status == task_status::none); // TODO: remove task_status::none and task_status::suspended from possible task statuses
 		if (m_Status < task_status::scheduled)
 		{
 			assert(!IsActiveOrRunning(m_Status));
@@ -759,29 +760,29 @@ task_status OperationContext::Schedule(TreeItem* item, const FutureSuppliers& al
 
 THREAD_LOCAL OperationContext* sl_CurrOperationContext = nullptr;
 
-OperationContext::CancelableFrame::CancelableFrame(OperationContext* self)
+CancelableFrame::CancelableFrame(OperationContext* self)
 : m_Prev(sl_CurrOperationContext)
 {
 	sl_CurrOperationContext = self;
 }
 
-OperationContext::CancelableFrame::~CancelableFrame()
+CancelableFrame::~CancelableFrame()
 {
 	sl_CurrOperationContext = m_Prev;
 }
 
-OperationContext* OperationContext::CancelableFrame::CurrActive()
+OperationContext* CancelableFrame::CurrActive()
 {
 	return sl_CurrOperationContext;
 }
 
-bool OperationContext::CancelableFrame::CurrActiveCanceled()
+bool CancelableFrame::CurrActiveCanceled()
 {
 	auto ca = CurrActive();
 	return ca && ca->IsCanceled();
 }
 
-void OperationContext::CancelableFrame::CurrActiveCancelIfNoInterestOrForced(bool forceCancel)
+void CancelableFrame::CurrActiveCancelIfNoInterestOrForced(bool forceCancel)
 {
 	if (CurrActive())
 		CurrActive()->CancelIfNoInterestOrForced(forceCancel);
@@ -1096,7 +1097,7 @@ bool OperationContext::connectArgs(const FutureSuppliers& allArgInterests)
 		if (status > task_status::none && status < task_status::cancelled)
 		{
 			assert(supplOperationContext->m_PhaseNumber <= m_PhaseNumber);
-			connect(shared_from_this(), supplOperationContext);
+			connect(this, supplOperationContext);
 			connected = true;
 			dbg_assert(m_Suppliers.size());
 		}
@@ -1116,11 +1117,10 @@ bool OperationContext::connectArgs(const FutureSuppliers& allArgInterests)
 
 
 struct OC_CalcResultFunc {
-	OperationContext* self;
 	mutable ArgRefs argRefs;
 	mutable FutureSuppliers allInterests;
 
-	void operator () (Explain::Context* context) const
+	void operator () (OperationContext* self, Explain::Context* context) const
 	{
 		SharedPtr<const FuncDC> funcDC = self->m_FuncDC.get();
 
@@ -1170,7 +1170,7 @@ struct OC_CalcResultFunc {
 	}
 };
 
-bool OperationContext::ScheduleCalcResult(Explain::Context* context, ArgRefs&& argRefs)
+bool OperationContext::ScheduleCalcResult(ArgRefs&& argRefs, Explain::Context* context)
 {
 	DBG_START("OperationContext", "ScheduleCalcResult", MG_DEBUG_FUNCCONTEXT);
 	DBG_TRACE(("FuncDC: %s", m_FuncDC->md_sKeyExpr));
@@ -1238,12 +1238,13 @@ bool OperationContext::ScheduleCalcResult(Explain::Context* context, ArgRefs&& a
 	task_status resultStatus = m_Status;
 	if (!resultHolder.WasFailed(FR_Data) && !SuspendTrigger::DidSuspend())
 	{
-		auto func = OC_CalcResultFunc{ this, std::move(argRefs), allArgInterests }; // TOD: move in, but keep view of ArgInterests array
+		auto func = OC_CalcResultFunc{ std::move(argRefs), allArgInterests }; // TOD: move in, but keep view of ArgInterests array
 
-		resultStatus = ScheduleItemWriter(MG_SOURCE_INFO_CODE("OperationContext::SheduleCalcResult") m_FuncDC->IsNew() ? m_FuncDC->GetNew() : nullptr
-			, std::move(func)
-			, allArgInterests // TODO: move in view on allArgInterest
-			, !doASync, context
+		m_TaskFunc = std::move(func);
+		resultStatus = Schedule(m_FuncDC->IsNew() ? m_FuncDC->GetNew() : nullptr
+			, allArgInterests
+			, !doASync
+			, context
 		);
 
 		assert(!argRefs.size()); // moved in ?
@@ -1328,7 +1329,7 @@ auto OperationContext_TakeTaskFunc(OperationContext* self)
 void OperationContext::Run_with_catch() noexcept
 {
 	try {
-		OperationContext::CancelableFrame frame(this);
+		CancelableFrame frame(this);
 
 		assert(m_Status == task_status::running);
 
@@ -1337,7 +1338,7 @@ void OperationContext::Run_with_catch() noexcept
 		assert(m_TaskFunc);
 		auto taskFunc = OperationContext_TakeTaskFunc(this);
 		if (taskFunc)
-			taskFunc(m_Context); // run the payload functor, set by ScheduleItemWriter
+			taskFunc(this, m_Context); // run the payload functor, set by ScheduleItemWriter
 	}
 	catch (const task_canceled&)
 	{
@@ -1496,7 +1497,7 @@ bool StealOneTask(phase_number currFenceNumber)
 
 bool CurrActiveTaskHasRunCount()
 {
-	auto ca = OperationContext::CancelableFrame::CurrActive();
+	auto ca = CancelableFrame::CurrActive();
 	if (!ca)
 		return false;
 	auto status = ca->getStatus();
@@ -1522,7 +1523,7 @@ task_status OperationContext::Join()
 	if (CurrActiveTaskHasRunCount())
 		reportF(MsgCategory::other, SeverityTypeID::ST_MinorTrace, "OperationContext(%s)::Join called from Active Context %s"
 			, GetResult()->GetFullName()
-			, OperationContext::CancelableFrame::CurrActive()->GetResult()->GetFullName()
+			, CancelableFrame::CurrActive()->GetResult()->GetFullName()
 		);
 	if (IsMainThread() && s_CurrBlockedPhaseNumber && s_CurrBlockedPhaseNumber <= m_PhaseNumber)
 		throwErrorF("PhaseContainer", "Invalid Recursion, OperationContext(%s)::Join called from updating %s for %s"
@@ -1629,7 +1630,7 @@ TIC_CALL void DoWorkWhileWaitingFor(phase_number maxPhaseNumber, task_status* fe
 		}
 
 		leveled_std_section::unique_lock lock(cs_ThreadMessing);
-		if (*fenceStatus > task_status::running)
+		if (fenceStatus && *fenceStatus > task_status::running)
 			break;
 
 		if (currentFinishCount != s_CurrFinishedCount)

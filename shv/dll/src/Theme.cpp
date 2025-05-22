@@ -396,7 +396,7 @@ std::shared_ptr<Theme> Theme::Create(AspectNr aNr, const AbstrDataItem* thematic
 	SharedDataItemInterestPtr thematicAttrHolder(thematicAttr);
 	NewBreakAttrItems nbai;
 	SharedUnit paletteDomain;
-	std::shared_ptr<OperationContext> etc;
+	std::shared_ptr<OperationContext> etc; bool mustScheduleBreakCalculator = false;
 
 	if (!layerInfo.IsComplete())
 	{
@@ -412,7 +412,7 @@ std::shared_ptr<Theme> Theme::Create(AspectNr aNr, const AbstrDataItem* thematic
 					thematicAttr->ThrowFail();
 				dms_assert(CheckCalculatingOrReady(thematicAttr->GetCurrRangeItem()));
 
-				etc = std::make_shared<OperationContext>();
+				mustScheduleBreakCalculator = true;
 
 			[[fallthrough]];
 			case LayerInfo::PaletteMissing:
@@ -437,13 +437,12 @@ std::shared_ptr<Theme> Theme::Create(AspectNr aNr, const AbstrDataItem* thematic
 		layerInfo.m_diAspectOrFeature
 	);
 	assert(result);
-	if (etc)
+	if (mustScheduleBreakCalculator)
 	{
 		assert(nbai.breakAttr);
 		assert(layerInfo.m_diAspectOrFeature);
 		std::weak_ptr<Theme> result_wptr = result;
 
-		result->m_ClassTask.emplace<std::shared_ptr<OperationContext>>(etc);
 
 		std::weak_ptr<DataView> dv_wptr = dv->shared_from_this();
 
@@ -452,28 +451,21 @@ std::shared_ptr<Theme> Theme::Create(AspectNr aNr, const AbstrDataItem* thematic
 		MakeMax<TimeStamp>(ts, layerInfo.m_diAspectOrFeature->GetLastChangeTS());
 		UpdateMarker::ChangeSourceLock changeStamp(ts, "CreateNonzeroJenksFisherBreakAttr");
 
-//		breakAttr->GetAbstrDomainUnit()->PrepareDataUsage(DrlType::CertainOrThrow);
-
 		thematicAttrHolder->PrepareDataUsage(DrlType::Certain);
 		thematicAttrHolder->GetAbstrDomainUnit()->PrepareDataUsage(DrlType::Certain);
 
 		MakeMax<phase_number>(nbai.breakAttr->m_PhaseNumber, thematicAttrHolder->GetPhaseNumber());
 		MakeMax<phase_number>(nbai.breakAttr->m_PhaseNumber, thematicAttrHolder->GetAbstrDomainUnit()->GetPhaseNumber());
 
-//		etc->m_WriteLock = ItemWriteLock(breakAttr.get_ptr());
-		etc->ScheduleItemWriter(MG_SOURCE_INFO_CODE("Theme::Create") nbai.breakAttr.get_ptr(),
-				[dv_wptr, ts, thematicAttrHolder
-					, iwlPaletteDomain = std::make_shared<ItemWriteLock>(nbai.paletteDomain.get_ptr())
-					, breakAttr = nbai.breakAttr
-					, result_wptr, aNr
-					, etc_wptr = std::weak_ptr(etc)
-					](Explain::Context* context) 
+		auto etc = OperationContext::CreateItemWriter(nbai.breakAttr.get_ptr(),
+			[dv_wptr, ts, thematicAttrHolder
+				, iwlPaletteDomain = std::make_shared<ItemWriteLock>(nbai.paletteDomain.get_ptr())
+				, breakAttr = nbai.breakAttr
+				, result_wptr, aNr
+				](OperationContext* self, Explain::Context* context)
 			{
-				auto etc = etc_wptr.lock();
-				if (!etc)
-					return;
 				UpdateMarker::ChangeSourceLock changeStamp(ts, "CreateNonzeroJenksFisherBreakAttr");
-				CreateNonzeroJenksFisherBreakAttr(dv_wptr, thematicAttrHolder, std::move(*iwlPaletteDomain), breakAttr, std::move(etc->m_WriteLock), aNr); // async
+				CreateNonzeroJenksFisherBreakAttr(dv_wptr, thematicAttrHolder, std::move(*iwlPaletteDomain), breakAttr, std::move(self->m_WriteLock), aNr); // async
 				auto r = result_wptr.lock();
 				if (r) r->m_ClassTask.Clear();
 			}
@@ -481,6 +473,8 @@ std::shared_ptr<Theme> Theme::Create(AspectNr aNr, const AbstrDataItem* thematic
 		,	false
 		,	nullptr
 		);
+
+		result->m_ClassTask.emplace<std::shared_ptr<OperationContext>>(etc);
 	}
 
 	return result;

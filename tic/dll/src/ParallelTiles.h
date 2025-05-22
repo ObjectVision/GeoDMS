@@ -45,11 +45,11 @@ void parallel_for_impl(IndexType first, IndexType last, Func&& func)
 template <typename ...Args, typename Func>
 auto CreateTaskWithContext(Func&& func)
 {
-	return [func = std::move(func), currContext = OperationContext::CancelableFrame::CurrActive()](Args&& ...args)->void
+	return [func = std::move(func), currContext = CancelableFrame::CurrActive()](Args&& ...args)->void
 	{
 		assert(!std::uncaught_exceptions());
 		try {
-			OperationContext::CancelableFrame frame(currContext);
+			CancelableFrame frame(currContext);
 			if (currContext)
 				DSM::CancelIfOutOfInterest();
 			ASyncContinueCheck();

@@ -947,7 +947,7 @@ void Actor::IncInterestCount() const // NO UpdateMetaInfo, Just work on existing
 		if (m_InterestCount)
 		{
 			++m_InterestCount;
-			dms_assert(m_InterestCount); // assume no overflow
+			assert(m_InterestCount); // assume no overflow
 			return;
 		}
 	}

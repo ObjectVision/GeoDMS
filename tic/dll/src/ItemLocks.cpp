@@ -302,7 +302,7 @@ namespace cs_lock {
 		if (!s_SessionUsageCounter.try_lock_shared())
 		{
 			assert(DSM::IsCancelling());
-			assert(OperationContext::CancelableFrame::CurrActive());
+			assert(CancelableFrame::CurrActive());
 			DSM::CancelOrThrow(item);
 		}
 		auto unlockDsmUsageCounter = make_releasable_scoped_exit([]() { s_SessionUsageCounter.unlock_shared(); });
@@ -326,7 +326,7 @@ namespace cs_lock {
 		if (!s_SessionUsageCounter.try_lock_shared())
 		{
 			assert(DSM::IsCancelling());
-			assert(OperationContext::CancelableFrame::CurrActive());
+			assert(CancelableFrame::CurrActive());
 			DSM::CancelOrThrow(item);
 		}
 		auto unlockDsmUsageCounter = make_releasable_scoped_exit([]() { s_SessionUsageCounter.unlock_shared(); });

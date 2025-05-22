@@ -20,6 +20,16 @@ struct tg_maintainer
 	TIC_CALL ~tg_maintainer();
 };
 
+struct CancelableFrame {
+	TIC_CALL CancelableFrame(OperationContext* self);
+	TIC_CALL ~CancelableFrame();
+	TIC_CALL static OperationContext* CurrActive();
+	TIC_CALL static void CurrActiveCancelIfNoInterestOrForced(bool forceCancel);
+	TIC_CALL static bool CurrActiveCanceled();
+private:
+	OperationContext* m_Prev;
+};
+
 void WaitForCompletedTaskOrTimeout();
 
 using dms_task = concurrency::task<void>;
@@ -38,38 +48,40 @@ using OperationContextWPtr = std::weak_ptr<OperationContext>;
 using SupplierSet = std::set<OperationContextSPtr, std::owner_less<OperationContextSPtr>>;
 using WaiterSet = std::set<OperationContextWPtr, std::owner_less<OperationContextWPtr>>;
 
+using task_func_signature = void(OperationContext* self, Explain::Context*);
+using task_func_type = std::function<task_func_signature>;
+
 struct OperationContext : std::enable_shared_from_this<OperationContext>
 {
-	struct CancelableFrame {
-		TIC_CALL CancelableFrame(OperationContext* self);
-		TIC_CALL ~CancelableFrame();
-		TIC_CALL static OperationContext* CurrActive();
-		TIC_CALL static void CurrActiveCancelIfNoInterestOrForced(bool forceCancel);
-		TIC_CALL static bool CurrActiveCanceled();
-	private:
-		OperationContext* m_Prev;
-	};
+	static std::shared_ptr<OperationContext> CreateFuncDC(const FuncDC* self)
+	{
+		return std::make_shared<OperationContext>(self);
+	}
 
-	TIC_CALL OperationContext();
-	TIC_CALL OperationContext(const FuncDC* self);
+	static std::shared_ptr<OperationContext> CreateItemWriter(TreeItem* item, task_func_type func, const FutureSuppliers& allArgInterests, bool runDirect, Explain::Context* context)
+	{
+		auto result = std::make_shared<OperationContext>(func);
+		result->Schedule(item, allArgInterests, runDirect, context); // might run inline
+		return result;
+	}
+
 	TIC_CALL ~OperationContext();
+
+//private:
+	// ctor / dtor
+	TIC_CALL OperationContext(const FuncDC* self);
+	TIC_CALL OperationContext(task_func_type func);
 
 	OperationContext(const OperationContext&) = delete;
 	void operator =(const OperationContext&) = delete;
 
-	TIC_CALL task_status Join();
-
-	template <typename Func>
-	task_status ScheduleItemWriter(MG_SOURCE_INFO_DECL TreeItem* item, Func&& func, const FutureSuppliers& allArgInterests, bool runDirect, Explain::Context* context)
-	{
-		assert(!m_TaskFunc);
-		m_TaskFunc = std::forward<Func>(func);
-
-		return Schedule(item, allArgInterests, runDirect, context); // might run inline
-	}
-
+	bool ScheduleCalcResult(ArgRefs&& argInterest, Explain::Context* context);
 
 	TIC_CALL task_status Schedule(TreeItem* item, const FutureSuppliers& allArgInterest, bool runDirect, Explain::Context* context);
+
+public:
+	// main interface functions
+	TIC_CALL task_status Join();
 
 	TIC_CALL bool GetUniqueLicenseToRun(phase_number targetPhaseNumber);
 	TIC_CALL bool getUniqueLicenseToRun(phase_number targetPhaseNumber);
@@ -108,17 +120,15 @@ struct OperationContext : std::enable_shared_from_this<OperationContext>
 	void Run_with_cleanup() noexcept;
 	void Run_Caller() noexcept;
 public:
-	std::function<void(Explain::Context*)> m_TaskFunc;
-	Explain::Context*               m_Context = nullptr;
-	ItemWriteLock                   m_WriteLock;
-	TimeStamp                       m_ActiveTimestamp = -1;
+	task_func_type     m_TaskFunc;
+	Explain::Context*  m_Context = nullptr;
+	ItemWriteLock      m_WriteLock;
+	TimeStamp          m_ActiveTimestamp = -1;
 
 public:
 	phase_number m_PhaseNumber = 0;
 	std::vector<ItemReadLock> SetReadLocks(const FutureSuppliers& allInterests);
 	bool SetReadLock(std::vector<ItemReadLock>& locks, const TreeItem* si);
-
-	bool ScheduleCalcResult(Explain::Context* context, ArgRefs&& argInterest);
 
 	bool MustCalcArg(arg_index i, CharPtr firstArgValue) const;
 
