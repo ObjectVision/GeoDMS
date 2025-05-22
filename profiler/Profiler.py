@@ -9,7 +9,7 @@ import subprocess
 import shlex
 import argparse
 import csv
-
+import sys
 from bokeh import plotting
 from bokeh.models import HoverTool, PanTool, ResetTool, WheelZoomTool, CheckboxGroup, CheckboxButtonGroup, CustomJS, Legend, LegendItem
 from bokeh.layouts import row, column
@@ -205,12 +205,16 @@ def getPerformance(exp:Experiment, sampling_rate=1.0):
         print(f"Full command: {cmd_parts}\n")
 
         # Launch this in a new console window (not via start!)
-        parent_process_open_handle = subprocess.Popen(
-            cmd_parts,
-            cwd=cwd, env=custom_env, 
-            creationflags=subprocess.CREATE_NEW_CONSOLE, 
-            shell=False
-        )
+        try:
+            parent_process_open_handle = subprocess.Popen(
+                cmd_parts,
+                cwd=cwd, env=custom_env, 
+                creationflags=subprocess.CREATE_NEW_CONSOLE, 
+                shell=False 
+            )
+        except Exception as e:
+            pass
+
         parent_process = psutil.Process(parent_process_open_handle.pid)
         experiment_start_time = datetime.fromtimestamp(parent_process.create_time())
         cpu_ct = 0
@@ -781,12 +785,13 @@ def ExportExperimentSummariesToFile(experiment_filename:str):
 def RunFromCmdLine():
     # arguments
     parser = argparse.ArgumentParser()
-    parser.add_argument("filename", help="filename that describes experiments: path/to/file.csv")
+    parser.add_argument("-f", help="filename that describes experiments, syntax: -f path/to/file.csv")
     parser.add_argument("-a", help="append an cmdline defined experiment to the experiment filename, syntax: -a name;experiment_folder;geodms_logfile;command")
-    parser.add_argument("-s", help="exports a summary of all experiments in the experiment file: name;status;starttime;duration;highestcommit;")
-    args = parser.parse_args()
+    parser.add_argument("-s", help="exports a summary of all experiments in the experiment file, syntax: -s name;status;starttime;duration;highestcommit;")
     
-    experiment_filename = args.filename
+    print(sys.argv[1:])
+    args = parser.parse_args()
+    experiment_filename = args.f
 
     if args.a:
         experiment_definition = args.a
@@ -804,10 +809,6 @@ def RunFromCmdLine():
 
 def RunTestConfig(experiment_filename):
     Run(experiment_filename=experiment_filename)
-    return
-
-def RunTestDirectCall(direct_call):
-    Run(direct_call=direct_call) 
     return
 
 def main():
