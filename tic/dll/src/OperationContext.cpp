@@ -1269,19 +1269,19 @@ void OperationContext_scheduleThis(OperationContext* self)
 {
 	assert(self);
 
-	if (self->m_Status != task_status::none)
+	if (self->getStatus() != task_status::none)
 		return;
 
-	if (!self->m_Suppliers.empty())
+	if (self->m_Suppliers.empty())
+	{
+		scheduleRunnableTask(self);
+		assert(self->getStatus() == task_status::scheduled);
+	}
+	else
 	{
 		for (const auto& s : self->m_Suppliers)
 			OperationContext_scheduleThis(s.get());
 		self->m_Status = task_status::waiting_for_suppliers;
-	}
-	else
-	{
-		scheduleRunnableTask(self);
-		assert(self->m_Status == task_status::scheduled);
 	}
 }
 
@@ -1301,19 +1301,21 @@ task_status OperationContext::JoinSupplOrSuspendTrigger()
 		leveled_std_section::unique_lock lock(cs_ThreadMessing);
 		suppliers = m_Suppliers;
 		for (auto& oc : suppliers)
+		{
 			OperationContext_scheduleThis(oc.get());
+			assert(oc->getStatus() >= task_status::waiting_for_suppliers);
+		}
 	}
 	if (!suppliers.empty())
 		StartOperationContexts();
 
 	for (auto& oc: suppliers)
 	{
-		if (!oc)
-			continue;
+		assert(oc);
+		assert(oc->GetStatus() >= task_status::waiting_for_suppliers);
 
 		const TreeItem* supplResult = oc->GetResult();
 		assert(supplResult); 
-		assert(oc->GetStatus() >= task_status::scheduled || CheckDataReady(supplResult) || supplResult->WasFailed(FR_Data) || !supplResult->GetInterestCount());
 		if (SuspendTrigger::DidSuspend())
 			return task_status::suspended;
 
