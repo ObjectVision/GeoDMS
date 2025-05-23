@@ -590,8 +590,11 @@ inline bool IsActiveOrRunning(task_status s) { return s >= task_status::activate
 
 void OperationContex_setActivated(OperationContext* self)
 {
+	assert(self);
+
 	assert(!cs_ThreadMessing.try_lock());
 	assert(!IsActiveOrRunning(self->getStatus()));
+	assert(self->m_Suppliers.empty());
 
 	self->m_Status = task_status::activated;
 	++s_NrActivatedOrRunningOperations[self->m_PhaseNumber];
@@ -690,6 +693,33 @@ bool OperationContext_ConnectArgs(OperationContext* oc, const FutureSuppliers& a
 	return oc->connectArgs(allArgInterest);
 }
 
+void OperationContext_scheduleThis(OperationContext* self)
+{
+	assert(self);
+
+	if (self->getStatus() != task_status::none)
+		return;
+
+	if (self->m_Suppliers.empty())
+	{
+		scheduleRunnableTask(self);
+		assert(self->getStatus() == task_status::scheduled);
+	}
+	else
+	{
+		for (const auto& s : self->m_Suppliers)
+			OperationContext_scheduleThis(s.get());
+		self->m_Status = task_status::waiting_for_suppliers;
+	}
+}
+
+void OperationContext_ScheduleThis(OperationContext* self)
+{
+	leveled_std_section::scoped_lock lock(cs_ThreadMessing);
+
+	OperationContext_scheduleThis(self);
+}
+
 task_status OperationContext::Schedule(TreeItem* item, const FutureSuppliers& allArgInterest, bool runDirect, Explain::Context* context)
 {
 	assert(IsMetaThread());
@@ -739,15 +769,20 @@ task_status OperationContext::Schedule(TreeItem* item, const FutureSuppliers& al
 		assert(supplStatus != task_status::cancelled);
 		if (supplStatus != task_status::done)
 			return supplStatus;
-
-		OperationContex_SetActivated(this);
-		if (TryRunningTaskInline(m_PhaseNumber))
-			return GetStatus();
+		else
+		{
+			leveled_std_section::scoped_lock lock(cs_ThreadMessing);
+			OperationContext_scheduleThis(this);
+			if (!getUniqueLicenseToRun(m_PhaseNumber))
+				return getStatus();
+		}
+		Run_Caller();
 		return Join(); // already done, cancelled or exception?
 	}
 
 	assert(!m_FuncDC || GetOperator()->CanRunParallel());
 
+	OperationContext_ScheduleThis(this);
 	return GetStatus();
 }
 
@@ -1263,33 +1298,6 @@ bool OperationContext::ScheduleCalcResult(ArgRefs&& argRefs, Explain::Context* c
 	assert(resultStatus != task_status::suspended);
 
 	return resultStatus != task_status::exception;
-}
-
-void OperationContext_scheduleThis(OperationContext* self)
-{
-	assert(self);
-
-	if (self->getStatus() != task_status::none)
-		return;
-
-	if (self->m_Suppliers.empty())
-	{
-		scheduleRunnableTask(self);
-		assert(self->getStatus() == task_status::scheduled);
-	}
-	else
-	{
-		for (const auto& s : self->m_Suppliers)
-			OperationContext_scheduleThis(s.get());
-		self->m_Status = task_status::waiting_for_suppliers;
-	}
-}
-
-void OperationContext_ScheduleThis(OperationContext* self)
-{
-	leveled_std_section::scoped_lock lock(cs_ThreadMessing);
-
-	OperationContext_scheduleThis(self);
 }
 
 task_status OperationContext::JoinSupplOrSuspendTrigger()
