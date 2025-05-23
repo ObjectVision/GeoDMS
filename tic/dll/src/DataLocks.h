@@ -147,7 +147,7 @@ private:
 	DataWriteLock(const DataWriteLock&) = delete;
 	DataWriteLock& operator = (const DataWriteLock&) = delete;
 
-	SharedPtr<AbstrDataItem> m_adi;  // TODO G8: REMOVE
+	SharedPtr<AbstrDataItem> m_adi;
 };
 
 template<typename V> TileFunctor<V>*

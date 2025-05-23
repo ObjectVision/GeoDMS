@@ -299,7 +299,7 @@ afterReset:
 
 void DataWrite_Unlock(AbstrDataItem* adi)
 {
-	dms_assert(adi);
+	assert(adi);
 	leveled_std_section::scoped_lock globalDataLockCountLock(sg_CountSection);
 	++adi->m_DataLockCount;
 	dms_assert(adi->m_DataLockCount == 0);

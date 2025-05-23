@@ -322,8 +322,6 @@ void connect(OperationContext* waiter, OperationContextSPtr supplier)
 	if (isSupplier(waiter, supplier))
 		return;
 
-	assert(waiter->GetOperator() && waiter->GetOperator()->CanRunParallel());
-
 	waiter->m_Suppliers.insert(supplier);
 	supplier->m_Waiters.insert(waiter->weak_from_this());
 }
@@ -331,6 +329,7 @@ void connect(OperationContext* waiter, OperationContextSPtr supplier)
 void scheduleRunnableTask(OperationContext* self)
 {
 	assert(!cs_ThreadMessing.try_lock());
+	assert(self->m_Status < task_status::scheduled);
 
 	// next StartOperationContexts() must not start scheduling tasks with phase numbers higher than this task.
 	auto fn = self->m_PhaseNumber;
@@ -592,6 +591,8 @@ inline bool IsActiveOrRunning(task_status s) { return s >= task_status::activate
 void OperationContex_setActivated(OperationContext* self)
 {
 	assert(!cs_ThreadMessing.try_lock());
+	assert(!IsActiveOrRunning(self->getStatus()));
+
 	self->m_Status = task_status::activated;
 	++s_NrActivatedOrRunningOperations[self->m_PhaseNumber];
 
@@ -599,15 +600,20 @@ void OperationContex_setActivated(OperationContext* self)
 	assert(s_NrActivatedOrRunningOperations[self->m_PhaseNumber] > 0);
 
 #if defined(MG_TRACE_OPERATIONCONTEXTS)
-	sd_RunningOC.insert(self);
+	auto nrRunning = sd_RunningOC.size();
+	auto [iter, isInserted] = sd_RunningOC.insert(self);
+	assert(isInserted);
+	assert(sd_RunningOC.size() == nrRunning + 1);
 #endif
-
 }
 
-void OperationContex_SetActivated(OperationContext* self)
+bool OperationContex_SetActivated(OperationContext* self)
 {
 	leveled_std_section::scoped_lock lock(cs_ThreadMessing);
+	if (self->m_Status >= task_status::activated)
+		return false;
 	OperationContex_setActivated(self);
+	return true;
 }
 
 // *****************************************************************************
@@ -622,6 +628,19 @@ void OperationContex_SetActivated(OperationContext* self)
 /// Call ScheduleCalcResult() to start the calculation.
 /// todo: integreate ScheduleCalcResult into the constructor.
 
+void OperationContext_AddOcCount(OperationContext* self)
+{
+
+#if defined(MG_TRACE_OPERATIONCONTEXTS)
+
+	leveled_critical_section::scoped_lock lock(cs_OcAdm);
+	++sd_OcCount;
+	sd_OC.insert(self);
+
+#endif
+
+}
+
 OperationContext::OperationContext(const FuncDC* self)
 	: m_FuncDC(self)
 	, m_PhaseNumber(self->GetPhaseNumber())
@@ -629,11 +648,14 @@ OperationContext::OperationContext(const FuncDC* self)
 	assert(m_PhaseNumber);
 
 	m_Result = self->GetOld();
+
+	OperationContext_AddOcCount(this);
 }
 
 OperationContext::OperationContext(task_func_type func)
 	: m_TaskFunc( std::move(func) )
 {
+	OperationContext_AddOcCount(this);
 }
 
 OperationContext::~OperationContext()
@@ -661,25 +683,16 @@ OperationContext::~OperationContext()
 
 }
 
-void OperationContext_AddOcCount(OperationContext* self)
+bool OperationContext_ConnectArgs(OperationContext* oc, const FutureSuppliers& allArgInterest)
 {
+	leveled_std_section::scoped_lock lock(cs_ThreadMessing);
 
-#if defined(MG_TRACE_OPERATIONCONTEXTS)
-
-	leveled_critical_section::scoped_lock lock(cs_OcAdm);
-	++sd_OcCount;
-	sd_OC.insert(self);
-
-#endif
-
+	return oc->connectArgs(allArgInterest);
 }
-
 
 task_status OperationContext::Schedule(TreeItem* item, const FutureSuppliers& allArgInterest, bool runDirect, Explain::Context* context)
 {
 	assert(IsMetaThread());
-
-	OperationContext_AddOcCount(this);
 
 	assert(UpdateMarker::IsInActiveState());
 	assert(m_Status == task_status::none);
@@ -717,9 +730,11 @@ task_status OperationContext::Schedule(TreeItem* item, const FutureSuppliers& al
 	if (item)
 		m_WriteLock = ItemWriteLock(item, weak_from_this()); // sets item->m_Producer to this; no future access right yet
 
+	bool connectedArgs = (!allArgInterest.empty()) && OperationContext_ConnectArgs(this, allArgInterest);
+
 	if (runDirect)
 	{
-		assert(m_Suppliers.empty());
+//		assert(m_Suppliers.empty());
 		auto supplStatus = JoinSupplOrSuspendTrigger();
 		assert(supplStatus != task_status::cancelled);
 		if (supplStatus != task_status::done)
@@ -733,30 +748,6 @@ task_status OperationContext::Schedule(TreeItem* item, const FutureSuppliers& al
 
 	assert(!m_FuncDC || GetOperator()->CanRunParallel());
 
-	bool mustConsiderRun = false;
-	{
-		leveled_std_section::scoped_lock lock(cs_ThreadMessing);
-		assert(m_Status == task_status::none); // TODO: remove task_status::none and task_status::suspended from possible task statuses
-		if (m_Status < task_status::scheduled)
-		{
-			assert(!IsActiveOrRunning(m_Status));
-
-			bool connectedArgs = connectArgs(allArgInterest);
-			if (connectedArgs)
-			{
-				assert(m_PhaseNumber >= s_CurrActivePhaseNumber); // must be a Superior of the non-completed suppliers, which must have at least s_CurrActivePhaseNumber
-				m_Status = task_status::waiting_for_suppliers;
-			}
-			else
-			{
-				scheduleRunnableTask(this); assert(m_Status == task_status::scheduled);
-				assert(m_PhaseNumber >= s_CurrActivePhaseNumber); // scheduleRunnableTask will have decreasd the s_CurrActivePhaseNumber if this task needed that.
-				mustConsiderRun = true;
-			}
-		}
-	}
-	if (mustConsiderRun)
-		StartOperationContexts();
 	return GetStatus();
 }
 
@@ -1096,7 +1087,7 @@ bool OperationContext::connectArgs(const FutureSuppliers& allArgInterests)
 			continue;
 
 		auto status = supplOperationContext->getStatus();
-		if (status > task_status::none && status < task_status::cancelled)
+		if (status < task_status::cancelled)
 		{
 			assert(supplOperationContext->m_PhaseNumber <= m_PhaseNumber);
 			connect(this, supplOperationContext);
@@ -1274,6 +1265,33 @@ bool OperationContext::ScheduleCalcResult(ArgRefs&& argRefs, Explain::Context* c
 	return resultStatus != task_status::exception;
 }
 
+void OperationContext_scheduleThis(OperationContext* self)
+{
+	assert(self);
+
+	if (self->m_Status != task_status::none)
+		return;
+
+	if (!self->m_Suppliers.empty())
+	{
+		for (const auto& s : self->m_Suppliers)
+			OperationContext_scheduleThis(s.get());
+		self->m_Status = task_status::waiting_for_suppliers;
+	}
+	else
+	{
+		scheduleRunnableTask(self);
+		assert(self->m_Status == task_status::scheduled);
+	}
+}
+
+void OperationContext_ScheduleThis(OperationContext* self)
+{
+	leveled_std_section::scoped_lock lock(cs_ThreadMessing);
+
+	OperationContext_scheduleThis(self);
+}
+
 task_status OperationContext::JoinSupplOrSuspendTrigger()
 {
 	assert(!SuspendTrigger::DidSuspend());
@@ -1282,7 +1300,11 @@ task_status OperationContext::JoinSupplOrSuspendTrigger()
 	{
 		leveled_std_section::unique_lock lock(cs_ThreadMessing);
 		suppliers = m_Suppliers;
+		for (auto& oc : suppliers)
+			OperationContext_scheduleThis(oc.get());
 	}
+	if (!suppliers.empty())
+		StartOperationContexts();
 
 	for (auto& oc: suppliers)
 	{
@@ -1533,8 +1555,9 @@ task_status OperationContext::Join()
 		,	s_CurrBlockedPhaseItem->GetFullName()
 		,	s_CurrPhaseContainer->GetFullName()
 		);
-	MG_CHECK(GetStatus() != task_status::none); // being scheduled is a precondition
+	OperationContext_ScheduleThis(this);
 
+	MG_CHECK(GetStatus() != task_status::none); // being scheduled is a precondition
 
 	while (GetStatus() <= task_status::running)
 	{

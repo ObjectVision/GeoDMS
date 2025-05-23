@@ -396,7 +396,7 @@ std::shared_ptr<Theme> Theme::Create(AspectNr aNr, const AbstrDataItem* thematic
 	SharedDataItemInterestPtr thematicAttrHolder(thematicAttr);
 	NewBreakAttrItems nbai;
 	SharedUnit paletteDomain;
-	std::shared_ptr<OperationContext> etc; bool mustScheduleBreakCalculator = false;
+	bool mustScheduleBreakCalculator = false;
 
 	if (!layerInfo.IsComplete())
 	{

@@ -167,29 +167,11 @@ AbstrValue* AbstrDataItem::CreateAbstrValue  () const
 void AbstrDataItem::ClearData(garbage_t& garbage) const
 {
 	assert(GetDataObjLockCount() == 0);
-#if defined(MG_DEBUG)
-//	static TokenID testsID = GetTokenID("tests");
-//	if (m_BackRef && m_BackRef->GetID() == testsID)
-//		__debugbreak();
-#endif
 	garbage |= std::move(m_DataObject);
 	assert(!m_DataObject);
 
 	assert(GetDataObjLockCount() == 0);
 }
-
-/* REMOVE
-garbage_t AbstrDataItem::CloseData() const
-{
-	assert(GetDataObjLockCount() == 0);
-
-	garbage_t garbage;
-	garbage |= std::move(m_DataObject);
-	assert(!m_DataObject);
-
-	return garbage;
-}
-*/
 
 void AbstrDataItem::XML_DumpData(OutStreamBase* xmlOutStr) const
 { 

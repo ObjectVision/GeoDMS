@@ -75,7 +75,7 @@ struct OperationContext : std::enable_shared_from_this<OperationContext>
 	OperationContext(const OperationContext&) = delete;
 	void operator =(const OperationContext&) = delete;
 
-	bool ScheduleCalcResult(ArgRefs&& argInterest, Explain::Context* context);
+	bool ScheduleCalcResult(ArgRefs&& argRefs, Explain::Context* context);
 
 	TIC_CALL task_status Schedule(TreeItem* item, const FutureSuppliers& allArgInterest, bool runDirect, Explain::Context* context);
 
