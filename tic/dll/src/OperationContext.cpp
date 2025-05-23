@@ -142,6 +142,8 @@ static std::set<const OperationContext*> sd_ManagedContexts;
 #define MG_TRACE_OPERATIONCONTEXTS
 #endif
 
+#define MG_TRACE_OPERATIONCONTEXTS
+
 #if defined(MG_TRACE_OPERATIONCONTEXTS)
 
 leveled_critical_section cs_OcAdm(item_level_type(0), ord_level_type::OperationContext, "OperationContextSet");
@@ -1531,10 +1533,10 @@ task_status OperationContext::Join()
 		,	s_CurrBlockedPhaseItem->GetFullName()
 		,	s_CurrPhaseContainer->GetFullName()
 		);
-	MG_CHECK(m_Status != task_status::none); // being scheduled is a precondition
+	MG_CHECK(GetStatus() != task_status::none); // being scheduled is a precondition
 
 
-	while (m_Status <= task_status::running)
+	while (GetStatus() <= task_status::running)
 	{
 		if (IsMetaThread() && !SuspendTrigger::BlockerBase::IsBlocked())
 		{
@@ -1542,9 +1544,9 @@ task_status OperationContext::Join()
 				return task_status::suspended;
 		}
 		else
-			if (m_Status == task_status::activated)
+			if (GetStatus() == task_status::activated)
 				if (TryRunningTaskInline(true))
-					return m_Status;
+					return GetStatus();
 
 		if (IsMetaThread())
 		{
@@ -1573,9 +1575,14 @@ task_status OperationContext::Join()
 		auto currentFinishCount = GetCurrFinishedCount();
 		StartOperationContexts(); // OPTIMIZE, CONSISTENCY: Some tasks finished without calling this. Find out why and avoid wasting idle thread time; maybe all threads are waiting in a Join without new and current tasks being activated
 		if (!IsMetaThread() || SuspendTrigger::BlockerBase::IsBlocked())
-			while (m_Status <= task_status::running)
-				if (!StealOneTask(m_PhaseNumber))
-					break;
+		{
+			while (StealOneTask(m_PhaseNumber))
+			{
+				StartOperationContexts(); // OPTIMIZE, CONSISTENCY: Some tasks finished without calling this. Find out why and avoid wasting idle thread time; maybe all threads are waiting in a Join without new and current tasks being activated
+				if (GetStatus() > task_status::running)
+					goto exit;
+			}
+		}
 
 
 		leveled_std_section::unique_lock lock(cs_ThreadMessing);
@@ -1601,9 +1608,11 @@ task_status OperationContext::Join()
 		// or wait for conditioin that was certainly not met just after setting the thread messing lock
 		cv_TaskCompleted.wait_for(lock.m_BaseLock, std::chrono::milliseconds(500));
 	}
-	assert(m_Status > task_status::running);
-	dbg_assert(CheckDataReady(m_Result->GetCurrUltimateItem()) || m_Status == task_status::cancelled || m_Status == task_status::exception || !m_Result->GetInterestCount());
-	return m_Status;
+exit:
+	auto status = GetStatus();
+	assert(status > task_status::running);
+	dbg_assert(CheckDataReady(m_Result->GetCurrUltimateItem()) || status == task_status::cancelled || status == task_status::exception || !m_Result->GetInterestCount());
+	return status;
 }
 
 TIC_CALL void DoWorkWhileWaitingFor(phase_number maxPhaseNumber, task_status* fenceStatus)
