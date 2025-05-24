@@ -610,6 +610,7 @@ void OperationContex_setActivated(OperationContext* self)
 #endif
 }
 
+/*
 bool OperationContex_SetActivated(OperationContext* self)
 {
 	leveled_std_section::scoped_lock lock(cs_ThreadMessing);
@@ -618,6 +619,7 @@ bool OperationContex_SetActivated(OperationContext* self)
 	OperationContex_setActivated(self);
 	return true;
 }
+*/
 
 // *****************************************************************************
 // Section:     OperatorContext
@@ -764,25 +766,22 @@ task_status OperationContext::Schedule(TreeItem* item, const FutureSuppliers& al
 
 	if (runDirect)
 	{
-//		assert(m_Suppliers.empty());
 		auto supplStatus = JoinSupplOrSuspendTrigger();
-		assert(supplStatus != task_status::cancelled);
-		if (supplStatus != task_status::done)
-			return supplStatus;
-		else
+		assert(m_Suppliers.empty());
+		assert(GetStatus() == task_status::none);
 		{
 			leveled_std_section::scoped_lock lock(cs_ThreadMessing);
-			OperationContext_scheduleThis(this);
-			if (!getUniqueLicenseToRun(m_PhaseNumber))
-				return getStatus();
+
+			OperationContex_setActivated(this);
+			bool running = getUniqueLicenseToRun(m_PhaseNumber); assert(running);
 		}
-		Run_Caller();
-		return Join(); // already done, cancelled or exception?
+		Run_with_cleanup();
 	}
-
-	assert(!m_FuncDC || GetOperator()->CanRunParallel());
-
-	OperationContext_ScheduleThis(this);
+	else
+	{
+		assert(!m_FuncDC || GetOperator()->CanRunParallel());
+		OperationContext_ScheduleThis(this);
+	}
 	return GetStatus();
 }
 
