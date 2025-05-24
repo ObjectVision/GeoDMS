@@ -47,6 +47,190 @@ const bool MG_DEBUGCONNECTIONS = false;
 const bool MG_DEBUGCONNECTIONS = false;
 #endif //defined(MG_DEBUG)
 
+concurrency::task_group& GetTaskGroup();
+
+// *****************************************************************************
+// Section:     tile_task_group
+// *****************************************************************************
+
+#include "ParallelTiles.h"
+
+static std::set<tile_task_group*> s_TileTaskGroups;
+std::mutex s_TileTaskGroupsMutex;
+
+static int s_NrRunningTileTaskThreads = 0;
+
+bool LicenceAnotherThread()
+{
+	if (IsMultiThreaded1())
+	{
+		auto lock = std::unique_lock<std::mutex>(s_TileTaskGroupsMutex);
+		if (s_NrRunningTileTaskThreads < GetNrVCPUs())
+		{
+			++s_NrRunningTileTaskThreads;
+			return true;
+		}
+	}
+	return false;
+}
+
+void DecommissionAnotherThread()
+{
+	auto lock = std::unique_lock<std::mutex>(s_TileTaskGroupsMutex);
+	--s_NrRunningTileTaskThreads;
+}
+
+auto TakeOneTileTask() -> std::pair<tile_task_group*, tile_task_group::IndexType>
+{
+	auto lock = std::unique_lock<std::mutex>(s_TileTaskGroupsMutex);
+	for (auto& taskGroup : s_TileTaskGroups)
+	{
+		auto i = taskGroup->GetNextCommissioned();
+		if (i < taskGroup->m_Last)
+			return { taskGroup, i };
+	}
+	return { nullptr, -1 };
+}
+
+bool StealOneTileTask(bool doMore)
+{
+	auto tileTask = TakeOneTileTask();
+	if (!tileTask.first)
+		return false;
+	tileTask.first->DoWork(tileTask.second, doMore);
+	return true;
+}
+
+void StealTileTasks()
+{
+	StealOneTileTask(true);
+}
+
+tile_task_group::tile_task_group(IndexType last, task_func func)
+	: m_Last(last)
+	, m_Func(func)
+	, m_CallingContext(CancelableFrame::CurrActive())
+{
+	if (m_Last > 0);
+	{
+		auto lock = std::unique_lock<std::mutex>(s_TileTaskGroupsMutex);
+		s_TileTaskGroups.insert(this);
+		auto last = m_Last;
+		while (last-- > 0)
+		{
+			if (!LicenceAnotherThread())
+				break;
+
+			GetTaskGroup().run(
+				[this] { this->DoThisOrThat(); DecommissionAnotherThread();  }
+			);
+		}
+	}
+
+}
+
+tile_task_group::~tile_task_group()
+{
+	assert(m_NrCompleted == m_Last);
+}
+
+void tile_task_group::decommission()
+{
+	assert(m_Commissioned == m_Last);
+	s_TileTaskGroups.erase(this);
+}
+
+auto tile_task_group::GetNextCommissioned() -> IndexType
+{
+	auto lock = std::unique_lock<std::mutex>(s_TileTaskGroupsMutex);
+	if (m_Commissioned >= m_Last)
+		return m_Last;
+
+	auto result = m_Commissioned++;
+	if (m_Commissioned >= m_Last)
+		decommission();
+	return result;
+}
+
+void tile_task_group::RegisterCompletion(IndexType nr)
+{
+	m_NrCompleted += nr;
+	if (m_NrCompleted == m_Last)
+		m_TileTasksDone.notify_all();
+}
+
+void tile_task_group::DoWork(IndexType i, bool doMore)
+{
+	assert(!std::uncaught_exceptions());
+	try {
+		CancelableFrame frame(m_CallingContext);
+		while (i < m_Last)
+		{
+			if (m_CallingContext)
+				DSM::CancelIfOutOfInterest();
+			ASyncContinueCheck();
+
+			UpdateMarker::PrepareDataInvalidatorLock preventInvalidations;
+			auto countCompletionAlways = scoped_exit([this] { this->RegisterCompletion(); });
+			m_Func(i);
+			if (!doMore)
+				break;
+			i = GetNextCommissioned();
+		}
+	}
+	catch (const task_canceled&)
+	{
+		assert(m_CallingContext);
+		if (m_CallingContext)
+			m_CallingContext->CancelIfNoInterestOrForced(true);
+	}
+	catch (...)
+	{
+		auto lock = std::unique_lock<std::mutex>(s_TileTaskGroupsMutex);
+		if (!m_Exception);
+		{
+			m_Exception = std::current_exception();
+			auto remainingTasks = m_Last - m_Commissioned;
+			if (remainingTasks)
+			{
+
+				m_Commissioned += remainingTasks;
+				decommission();
+				RegisterCompletion(remainingTasks); // other tasks in flight might still come in before m_TileTaskDone can be notified.
+			}
+		}
+	}
+}
+
+void tile_task_group::DoThisOrThat()
+{
+	DoWork();
+	StealOneTileTask(true);
+}
+
+void tile_task_group::Join()
+{
+	DoWork();
+	if (m_Exception)
+		std::rethrow_exception(m_Exception);
+	else
+	{
+		assert(m_NrCompleted == m_Last);
+	}
+
+	while (m_NrCompleted < m_Last)
+	{
+		if (StealOneTileTask(false))
+			continue;
+		//			if (DoWorkWhileWaitingFor(phase_number(-1), nullptr))
+		//				continue;
+
+		auto lock = std::unique_lock<std::mutex>(s_TileTaskGroupsMutex);
+		if (m_NrCompleted < m_Last)
+			m_TileTasksDone.wait_for(lock, std::chrono::milliseconds(500));
+	}
+}
+
 // *****************************************************************************
 // Section:     OperatorContextHandle
 // *****************************************************************************
@@ -858,6 +1042,7 @@ bool OperationContext::collectTaskImpl()
 bool OperationContext::TryRunningTaskInline(phase_number targetPhaseNumber)
 {
 	assert(m_Suppliers.empty());
+	StealOneTileTask(true);
 
 	if (!GetUniqueLicenseToRun(targetPhaseNumber))
 		return false;
@@ -1520,6 +1705,8 @@ auto FindAndLicenceOnePriorityTasks(phase_number currFenceNumber) -> OperationCo
 
 bool StealOneTask(phase_number currFenceNumber)
 {
+	StealOneTileTask(true)
+		;
 	auto ocSPtr = FindAndLicenceOnePriorityTasks(currFenceNumber);
 	if (!ocSPtr)
 		return false; // no work to do
@@ -1553,6 +1740,8 @@ bool CurrActiveTaskHasRunCount()
 
 task_status OperationContext::Join()
 {
+	StealOneTileTask(true);
+
 	if (CurrActiveTaskHasRunCount())
 		reportF(MsgCategory::other, SeverityTypeID::ST_MinorTrace, "OperationContext(%s)::Join called from Active Context %s"
 			, GetResult()->GetFullName()
@@ -1649,6 +1838,8 @@ exit:
 
 TIC_CALL void DoWorkWhileWaitingFor(phase_number maxPhaseNumber, task_status* fenceStatus)
 {
+	StealOneTileTask(true);
+
 	while (!fenceStatus || IsActiveOrRunning(*fenceStatus))
 	{
 		if (IsMetaThread())
@@ -1661,7 +1852,7 @@ TIC_CALL void DoWorkWhileWaitingFor(phase_number maxPhaseNumber, task_status* fe
 
 		auto currentFinishCount = GetCurrFinishedCount();
 
-		StartOperationContexts(); // OPTIMIZE, CONSISTENCY: Some tasks finished without calling this. Find out why and avoid wasting idle thread time; maybe all threads are waiting in a Join without new and current tasks being activated
+		StartOperationContexts();
 		while (!fenceStatus || IsActiveOrRunning(*fenceStatus))
 		{
 			if (!StealOneTask(maxPhaseNumber))

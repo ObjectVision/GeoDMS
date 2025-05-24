@@ -15,11 +15,11 @@
 #include "ClcBase.h"
 
 #include "set/CompareFirst.h"
-#include "ThrottledASync.h"
 
 #include "AbstrDataItem.h"
 #include "DataArray.h"
 #include "FutureTileArray.h"
+#include "ParallelTiles.h"
 #include "UnitProcessor.h"
 
 #include "AggrFuncNum.h"
@@ -360,7 +360,7 @@ auto GetWeededWallCounts_MT(future_tile_array<V>& values_fta, tile_id t, tile_id
 	auto secondHalf = GetWeededWallCounts_MT<V, C>(values_fta, t + m, nrTiles - m, maxPairCount, availableThreads - rt);
 
 	gr.wait();
-	return WeededMergeToLeft(firstHalf.get(), secondHalf, maxPairCount);
+	return WeededMergeToLeft(firstHalf->get(), secondHalf, maxPairCount);
 }
 
 template <ordered_value_type V, count_type C>
@@ -403,7 +403,7 @@ auto GetPartitionedWallCounts(future_tile_array<V>& values_fta, const AbstrDataI
 	auto secondHalf = GetPartitionedWallCounts<V, C>(values_fta, indicesItem, part_fta, t + m, nrTiles - m, pCount, valueMustBeDefined);
 
 	gr.wait();
-	return MergeToLeft(firstHalf.get(), secondHalf);
+	return MergeToLeft(firstHalf->get(), secondHalf);
 }
 
 inline auto GetDomain(const AbstrDataItem* adi)  { return adi->GetAbstrDomainUnit(); }
@@ -435,7 +435,7 @@ auto GetWallCountsAsArray(WallCountsAsArrayInfo<V>& info, tile_id t, tile_id te,
 		auto firstHalfValue = GetWallCountsAsArray<V, C>(info, t, m, availableThreads - rt);
 
 		gr.wait();
-		auto secondHalfValue = futureSecondHalfValue.get();
+		auto secondHalfValue = futureSecondHalfValue->get();
 
 		for (SizeT i = 0, e = info.vCount; i < e; ++i)
 			firstHalfValue[i] += secondHalfValue[i];

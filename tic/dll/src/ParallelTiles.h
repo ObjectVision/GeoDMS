@@ -11,10 +11,144 @@
 
 #include "act/MainThread.h"
 #include "ser/DebugOutStream.h"
+//REMOVE #include "utl/AddFakeCopyCTor.h"
+#include "utl/MemGuard.h"
+
 #include "DataStoreManagerCaller.h" 
 #include "OperationContext.h" 
 
 #include <ppl.h>
+
+struct tile_task_group
+{
+	using IndexType = SizeT;
+	using task_func = std::function<void(IndexType)>;
+
+private:
+	IndexType m_Last;
+	OperationContext* m_CallingContext = nullptr;
+
+	mutable IndexType m_Commissioned = 0;
+	mutable std::atomic<IndexType> m_NrCompleted = 0;
+
+protected:
+	task_func m_Func;
+	mutable std::exception_ptr m_Exception;
+	mutable std::condition_variable m_TileTasksDone;
+
+public:
+	TIC_CALL tile_task_group(IndexType last, task_func func);
+	TIC_CALL ~tile_task_group();
+
+	TIC_CALL void Join();
+
+private:
+	tile_task_group(const tile_task_group&) = delete;
+	tile_task_group& operator=(const tile_task_group&) = delete; 
+
+	void decommission();
+	IndexType GetNextCommissioned();
+	void RegisterCompletion(IndexType nr = 1);
+	void DoWork(IndexType i, bool doMore);
+
+	void DoWork()
+	{
+		DoWork(GetNextCommissioned(), true);
+	}
+
+	void DoThisOrThat();
+	friend auto TakeOneTileTask() -> std::pair<tile_task_group*, tile_task_group::IndexType>;
+	friend bool StealOneTileTask(bool doMore);
+};
+
+
+template <typename Functor>
+using functor_result_t = std::invoke_result_t<Functor>;
+
+
+template <typename R>
+struct tile_task_result : tile_task_group
+{
+	template <typename Functor>
+	tile_task_result(Functor&& func)
+		: tile_task_group(1, [func = std::forward<Functor>(func), &result] { result = func();  })
+	{}
+
+	tile_task_result(R&& r)
+		: tile_task_group(0, nullptr)
+	{
+		result = std::move(r);
+	}
+	R get() const
+	{
+		const_cast<tile_task_result<R>*>(this)->Join(); // throws exception, if any
+		m_Func = nullptr;
+		assert(result.has_value()); // post condition of join, or preset.
+		return std::move(*result);
+	}	
+	std::optional<R> result;
+};
+
+template <>
+struct tile_task_result<void> : tile_task_group
+{
+	template <typename Functor>
+	tile_task_result(Functor&& func)
+		: tile_task_group(1, [func = std::forward<Functor>(func), &result] { func(); result = true; })
+	{
+	}
+
+	tile_task_result()
+		: tile_task_group(0, nullptr)
+	{
+		result = true;
+	}
+	void get() const
+	{
+		const_cast<tile_task_result<void>*>(this)->Join(); // throws exception, if any
+		assert(result); // post condition of join, or preset.
+	}
+	bool result = false;
+};
+
+template <typename Functor>
+using func_task_result = tile_task_result<functor_result_t<Functor>>;
+
+template <typename Functor>
+using func_task_result_sptr = std::shared_ptr<func_task_result<Functor>>;
+
+template <typename Functor>
+auto throttled_async(Concurrency::task_group& gr, Functor&& f) -> func_task_result_sptr<Functor>
+{
+	using R = functor_result_t<Functor>;
+
+	// 1) Create an event and wrap it in a task
+//	concurrency::task_completion_event<R> tce;
+//	concurrency::task<R> t{ tce };
+
+	if (IsMultiThreaded1() && !IsLowOnFreeRAM())
+	{
+		//		return std::async(std::launch::async, [fn = std::forward<Functor>(f)]
+		return std::make_shared<func_task_result<Functor>>(1,
+			[f = std::forward<Functor>(f)](SizeT t) -> R
+			{
+				assert(t == 0);
+				if constexpr (std::is_void_v<R>)
+					f();
+				else
+					return f();
+			}
+		);
+	}
+	if constexpr (std::is_void_v<R>)
+	{
+		f();
+		return std::make_shared<tile_task_result<R>>();
+	}
+	else
+		return std::make_shared<tile_task_result<R>>(f());
+}
+
 
 template <typename IndexType, typename Func>
 void serial_for(IndexType first, IndexType last, Func&& func)
@@ -23,55 +157,22 @@ void serial_for(IndexType first, IndexType last, Func&& func)
 		func(first);
 }
 
-
 template <typename IndexType, typename Func>
-void parallel_for_impl(IndexType first, IndexType last, Func&& func)
+void parallel_for(IndexType last, Func&& func)
 {
-	if (first == last)
+	if (!last)
 		return;
-	if (first + 1 == last)
-	{
-		func(first);
-		return;
-	}
-	if (IsMultiThreaded1() )
-	{
-		concurrency::parallel_for<IndexType>(first, last, std::forward<Func>(func));
-		return;
-	}
-	serial_for<IndexType>(first, last, std::forward<Func>(func));
-}
 
-template <typename ...Args, typename Func>
-auto CreateTaskWithContext(Func&& func)
-{
-	return [func = std::move(func), currContext = CancelableFrame::CurrActive()](Args&& ...args)->void
-	{
-		assert(!std::uncaught_exceptions());
-		try {
-			CancelableFrame frame(currContext);
-			if (currContext)
-				DSM::CancelIfOutOfInterest();
-			ASyncContinueCheck();
-
-			UpdateMarker::PrepareDataInvalidatorLock preventInvalidations;
-			func(std::forward<Args>(args)...);
-		}
-		catch (const task_canceled&)
-		{
-			dms_assert(currContext);
-			if (currContext)
-				currContext->CancelIfNoInterestOrForced(true);
-		}
-	};
-}
-
-template <typename IndexType, typename Func>
-void parallel_for(IndexType first, IndexType last, Func&& func)
-{
 	UpdateMarker::PrepareDataInvalidatorLock preventInvalidations;
 
-	parallel_for_impl<IndexType>(first, last, CreateTaskWithContext<const IndexType& >(std::move(func)));
+	if (last == 1)
+	{
+		func(0);
+		return;
+	}
+
+	tile_task_group taskArray{ last, func };
+	taskArray.Join();
 }
 
 
@@ -83,7 +184,7 @@ void parallel_for_if_separable(IndexType first, IndexType last, Func&& func)
 		if (last - first >= 8192)
 		{
 			IndexType nrBlocks = (last - first) / 4096;
-			parallel_for<IndexType>(0, nrBlocks, [&func, first](IndexType blockNr)
+			parallel_for<IndexType>(nrBlocks, [&func, first](IndexType blockNr)
 				{
 					Func funcCopy = func;
 					serial_for<IndexType>(first + blockNr * 4096, first + (blockNr + 1) * 4096, funcCopy);
@@ -99,7 +200,7 @@ template <typename Func>
 void parallel_tileloop(tile_id last, Func&& func)
 {
 	std::atomic<tile_id> sequentialTileNumber;
-	parallel_for<tile_id>(0, last, [func = std::move(func), &sequentialTileNumber](tile_id t) { func(sequentialTileNumber++); });
+	parallel_for<tile_id>(last, [func = std::move(func), &sequentialTileNumber](tile_id t) { func(sequentialTileNumber++); });
 }
 
 template <typename Func>

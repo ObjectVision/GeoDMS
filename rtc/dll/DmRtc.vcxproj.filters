@@ -853,7 +853,6 @@
     <ClInclude Include="src\buildstamp.h" />
     <ClInclude Include="src\utl\AddFakeCopyCTor.h" />
     <ClInclude Include="src\geo\RingIterator.h" />
-    <ClInclude Include="src\ThrottledASync.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\act\Actor.cpp">

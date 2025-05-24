@@ -12,12 +12,12 @@
 #include "dbg/SeverityType.h"
 #include "geo/Range.h"
 #include "set/DataCompare.h"
-#include "ThrottledASync.h"
 
 #include "CalcClassBreaks.h"
 
 #include "AbstrUnit.h"
 #include "DataArray.h"
+#include "ParallelTiles.h"
 #include "UnitProcessor.h"
 
 

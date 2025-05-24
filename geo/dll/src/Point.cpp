@@ -8,7 +8,6 @@
 #pragma hdrstop
 #endif
 
-#include "ThrottledAsync.h"
 
 #include "mci/CompositeCast.h"
 #include "mth/Mathlib.h"
@@ -18,6 +17,7 @@
 #include "set/VectorFunc.h"
 #include "utl/Swap.h"
 
+#include "ParallelTiles.h"
 #include "Param.h"
 #include "UnitClass.h"
 #include "DataItemClass.h"
@@ -152,7 +152,7 @@ public:
 				auto tileB = futureData.second->GetTile();
 
 				gr.wait();
-				this->CalcTile(resData, futureTileA.get().get_view(), tileB.get_view());
+				this->CalcTile(resData, futureTileA->get().get_view(), tileB.get_view());
 			}
 			MG_DEBUG_ALLOCATOR_SRC("Point tile functor")
 			);

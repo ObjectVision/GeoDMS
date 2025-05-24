@@ -9,7 +9,6 @@
 
 #include "dbg/DmsCatch.h"
 #include "mci/ValueWrap.h"
-#include "ThrottledASync.h"
 
 #include "AbstrUnit.h"
 #include "DataItemClass.h"
@@ -139,7 +138,7 @@ public:
 					auto tileB = futureData.second->GetTile();
 
 					gr.wait();
-					this->CalcTile(resData, futureTileA.get().get_view(), tileB.get_view(), af MG_DEBUG_ALLOCATOR_SRC_PARAM);
+					this->CalcTile(resData, futureTileA->get().get_view(), tileB.get_view(), af MG_DEBUG_ALLOCATOR_SRC_PARAM);
 				}
 				catch (...)
 				{

@@ -14,10 +14,10 @@
 #include "set/DataCompare.h"
 #include "utl/TypeListOper.h"
 #include "RtcTypeLists.h"
-#include "ThrottledASync.h"
 
 #include "DataArray.h"
 #include "DataItemClass.h"
+#include "ParallelTiles.h"
 #include "TileChannel.h"
 #include "Unit.h"
 #include "UnitClass.h"
@@ -165,7 +165,7 @@ std::vector<V> GetTileUniqueValues(typename DataArray<V>::locked_cseq_t tileData
 	auto secondHalf = GetTileUniqueValues<V>(tileData, index + m, size - m, mustBeDefined);
 
 	gr.wait();
-	return MergeToLeft<V>(std::move(firstHalf.get()), std::move(secondHalf), mustBeDefined);
+	return MergeToLeft<V>(std::move(firstHalf->get()), std::move(secondHalf), mustBeDefined);
 }
 
 template <typename V>
@@ -189,7 +189,7 @@ std::vector<V> GetUniqueWallValues(const DataArray<V>* ado, tile_id t, tile_id n
 	auto secondHalf = GetUniqueWallValues<V>(ado, t + m, nrTiles - m, mustBeDefined);
 
 	gr.wait();
-	return MergeToLeft<V>(firstHalf.get(), std::move(secondHalf), mustBeDefined);
+	return MergeToLeft<V>(firstHalf->get(), std::move(secondHalf), mustBeDefined);
 }
 
 

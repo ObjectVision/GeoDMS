@@ -391,8 +391,6 @@ void CancelMainThreadTasks()
 	s_TaskQueue.CancelTasks();
 }
 
-#include "ThrottledASync.h"
-
 bool HasMainThreadTasks()
 {
 	auto lock = std::scoped_lock(s_MainQueueSection);

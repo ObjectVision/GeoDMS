@@ -1732,7 +1732,7 @@ public:
 
 		leveled_critical_section resLocalAdditionSection(item_level_type(0), ord_level_type::SpecificOperator, "Polygon.LocalAdditionSection");
 
-		parallel_for(tile_offset(0), tile_offset(pointArray.size()),
+		parallel_for(tile_offset(pointArray.size()),
 			[&pointArray, &polyArray, spIndexPtr, resTileData, &resLocalAdditionSection]
 			(tile_offset pointTileOffset)->void
 			{
@@ -1768,7 +1768,7 @@ public:
 			for (auto& resTileData : *resData)
 				resTileDataArray.emplace_back(std::move(resTileData));
 
-			parallel_for<SizeT>(0, resTileDataArray.size()
+			parallel_for<SizeT>(resTileDataArray.size()
 			,	[&resTileDataArray](SizeT t)
 				{
 					auto& resTileData = resTileDataArray[t];

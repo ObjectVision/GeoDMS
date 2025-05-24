@@ -8,16 +8,16 @@
 #pragma hdrstop
 #endif
 
-#include "ThrottledASync.h"
 #include "act/any.h"
 #include "dbg/SeverityType.h"
 #include "utl/Quotes.h"
 #include "LispRef.h"
 
 #include "CheckedDomain.h"
-#include "OperGroups.h"
-#include "TreeItemClass.h"
 #include "MoreDataControllers.h"
+#include "OperGroups.h"
+#include "ParallelTiles.h"
+#include "TreeItemClass.h"
 
 // *****************************************************************************
 //										SubItemOperator

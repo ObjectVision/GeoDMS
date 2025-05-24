@@ -9,7 +9,6 @@
 #if !defined(__CLC_OPERACCUNI_H)
 #define __CLC_OPERACCUNI_H
 
-#include "ThrottledASync.h"
 
 #include "UnitClass.h"
 
@@ -18,6 +17,7 @@
 #include "FutureTileArray.h"
 #include "Explain.h"
 #include "OperAcc.h"
+#include "ParallelTiles.h"
 #include "TreeItemClass.h"
 #include "IndexGetterCreator.h"
 
@@ -317,7 +317,7 @@ struct OperAccPartUniBuffered : FuncOperAccPartUni<TAcc1Func, OperAccPartUniWith
 			auto firstHalfBuffer = AggregateTiles(pdi, t, m, availableThreads - rt);
 
 			gr.wait();
-			auto secondHalfBuffer = futureSecondHalfBuffer.get();
+			auto secondHalfBuffer = futureSecondHalfBuffer->get();
 			auto secondHalfBufferIterator = secondHalfBuffer.begin();
 
 			auto firstHalfBufferIterator = firstHalfBuffer.begin(), firstHalfBufferEnd = firstHalfBuffer.end();
@@ -399,7 +399,7 @@ struct OperAccPartUniDirect : FuncOperAccPartUni<TAcc1Func, OperAccPartUniWithCF
 			AggregateTiles(resData, pdi, t, m, availableThreads - rt);
 
 			gr.wait();
-			result_container_t secondHalf = futureSecondHalf.get();
+			result_container_t secondHalf = futureSecondHalf->get();
 			auto secondHalfBufferIterator = secondHalf.begin();
 
 			auto firstHalfBufferIterator = resData.begin(), firstHalfBufferEnd = resData.end();

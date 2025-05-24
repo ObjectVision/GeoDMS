@@ -1293,7 +1293,7 @@ SizeT ProcessDijkstra(TreeItemDualRef& resultHolder
 		};
 
 	// ===================== start looping through all orgZones
-	parallel_for<ZoneType>(0, ni.nrOrgZones, orgZoneTask);
+	parallel_for<ZoneType>(ni.nrOrgZones, orgZoneTask);
 
 	if (res.LinkFlow)
 		resLinkFlowC.combine_each(
