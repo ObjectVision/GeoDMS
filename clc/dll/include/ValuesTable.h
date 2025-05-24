@@ -350,8 +350,7 @@ auto GetWeededWallCounts_MT(future_tile_array<V>& values_fta, tile_id t, tile_id
 	auto m = nrTiles / 2;
 	auto rt = availableThreads / 2;
 
-	concurrency::task_group gr;
-	auto firstHalf = throttled_async(gr, [&values_fta, t, m, maxPairCount, rt]
+	auto firstHalf = throttled_async([&values_fta, t, m, maxPairCount, rt]
 		{
 			return GetWeededWallCounts_MT<V, C>(values_fta, t, m, maxPairCount, rt);
 		}
@@ -359,7 +358,6 @@ auto GetWeededWallCounts_MT(future_tile_array<V>& values_fta, tile_id t, tile_id
 
 	auto secondHalf = GetWeededWallCounts_MT<V, C>(values_fta, t + m, nrTiles - m, maxPairCount, availableThreads - rt);
 
-	gr.wait();
 	return WeededMergeToLeft(firstHalf->get(), secondHalf, maxPairCount);
 }
 
@@ -393,8 +391,7 @@ auto GetPartitionedWallCounts(future_tile_array<V>& values_fta, const AbstrDataI
 	tile_id m = nrTiles / 2;
 	assert(m >= 1);
 
-	concurrency::task_group gr;
-	auto firstHalf = throttled_async(gr, [&values_fta, indicesItem, &part_fta, t, m, pCount, valueMustBeDefined]
+	auto firstHalf = throttled_async([&values_fta, indicesItem, &part_fta, t, m, pCount, valueMustBeDefined]
 		{
 			return GetPartitionedWallCounts<V, C>(values_fta, indicesItem, part_fta, t, m, pCount, valueMustBeDefined);
 		}
@@ -402,7 +399,6 @@ auto GetPartitionedWallCounts(future_tile_array<V>& values_fta, const AbstrDataI
 
 	auto secondHalf = GetPartitionedWallCounts<V, C>(values_fta, indicesItem, part_fta, t + m, nrTiles - m, pCount, valueMustBeDefined);
 
-	gr.wait();
 	return MergeToLeft(firstHalf->get(), secondHalf);
 }
 
@@ -427,14 +423,12 @@ auto GetWallCountsAsArray(WallCountsAsArrayInfo<V>& info, tile_id t, tile_id te,
 		auto m = te - (te - t) / 2;
 		auto rt = availableThreads / 2;
 
-		concurrency::task_group gr;
-		auto futureSecondHalfValue = throttled_async(gr, [m, te, rt, &info]()
+		auto futureSecondHalfValue = throttled_async([m, te, rt, &info]()
 			{
 				return GetWallCountsAsArray<V, C>(info, m, te, rt);
 			});
 		auto firstHalfValue = GetWallCountsAsArray<V, C>(info, t, m, availableThreads - rt);
 
-		gr.wait();
 		auto secondHalfValue = futureSecondHalfValue->get();
 
 		for (SizeT i = 0, e = info.vCount; i < e; ++i)

@@ -47,6 +47,7 @@ private:
 	tile_task_group& operator=(const tile_task_group&) = delete; 
 
 	void decommission();
+	IndexType getNextCommissioned();
 	IndexType GetNextCommissioned();
 	void RegisterCompletion(IndexType nr = 1);
 	void DoWork(IndexType i, bool doMore);
@@ -57,8 +58,9 @@ private:
 	}
 
 	void DoThisOrThat();
-	friend auto TakeOneTileTask() -> std::pair<tile_task_group*, tile_task_group::IndexType>;
+	friend auto takeOneTileTask() -> std::pair<tile_task_group*, tile_task_group::IndexType>;
 	friend bool StealOneTileTask(bool doMore);
+	friend void DoThisOrThatAndDecommission();
 };
 
 
@@ -70,8 +72,8 @@ template <typename R>
 struct tile_task_result : tile_task_group
 {
 	template <typename Functor>
-	tile_task_result(Functor&& func)
-		: tile_task_group(1, [func = std::forward<Functor>(func), &result] { result = func();  })
+	tile_task_result(Functor&& func_)
+		: tile_task_group(1, [func = std::forward<Functor>(func_), this](SizeT t) { assert(t == 0);  this->result = func();  })
 	{}
 
 	tile_task_result(R&& r)
@@ -79,10 +81,10 @@ struct tile_task_result : tile_task_group
 	{
 		result = std::move(r);
 	}
-	R get() const
+	R get()
 	{
-		const_cast<tile_task_result<R>*>(this)->Join(); // throws exception, if any
-		m_Func = nullptr;
+		this->Join(); // throws exception, if any
+		this->m_Func = tile_task_group::task_func();
 		assert(result.has_value()); // post condition of join, or preset.
 		return std::move(*result);
 	}	
@@ -93,19 +95,19 @@ template <>
 struct tile_task_result<void> : tile_task_group
 {
 	template <typename Functor>
-	tile_task_result(Functor&& func)
-		: tile_task_group(1, [func = std::forward<Functor>(func), &result] { func(); result = true; })
-	{
-	}
+	tile_task_result(Functor&& func_)
+		: tile_task_group(1, [func = std::forward<Functor>(func_), this](SizeT t) { assert(t == 0); func(0); this->result = true; })
+	{}
 
 	tile_task_result()
 		: tile_task_group(0, nullptr)
 	{
 		result = true;
 	}
-	void get() const
+	void get()
 	{
-		const_cast<tile_task_result<void>*>(this)->Join(); // throws exception, if any
+		this->Join(); // throws exception, if any
+		this->m_Func = tile_task_group::task_func();
 		assert(result); // post condition of join, or preset.
 	}
 	bool result = false;
@@ -118,27 +120,14 @@ template <typename Functor>
 using func_task_result_sptr = std::shared_ptr<func_task_result<Functor>>;
 
 template <typename Functor>
-auto throttled_async(Concurrency::task_group& gr, Functor&& f) -> func_task_result_sptr<Functor>
+auto throttled_async(Functor&& f) -> func_task_result_sptr<Functor>
 {
 	using R = functor_result_t<Functor>;
-
-	// 1) Create an event and wrap it in a task
-//	concurrency::task_completion_event<R> tce;
-//	concurrency::task<R> t{ tce };
 
 	if (IsMultiThreaded1() && !IsLowOnFreeRAM())
 	{
 		//		return std::async(std::launch::async, [fn = std::forward<Functor>(f)]
-		return std::make_shared<func_task_result<Functor>>(1,
-			[f = std::forward<Functor>(f)](SizeT t) -> R
-			{
-				assert(t == 0);
-				if constexpr (std::is_void_v<R>)
-					f();
-				else
-					return f();
-			}
-		);
+		return std::make_shared<func_task_result<Functor>>(f);
 	}
 	if constexpr (std::is_void_v<R>)
 	{

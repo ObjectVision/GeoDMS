@@ -55,7 +55,7 @@ concurrency::task_group& GetTaskGroup();
 
 #include "ParallelTiles.h"
 
-static std::set<tile_task_group*> s_TileTaskGroups;
+static std::deque<tile_task_group*> s_TileTaskGroups;
 std::mutex s_TileTaskGroupsMutex;
 
 static int s_NrRunningTileTaskThreads = 0;
@@ -74,22 +74,38 @@ bool LicenceAnotherThread()
 	return false;
 }
 
-void DecommissionAnotherThread()
+auto takeOneTileTask() -> std::pair<tile_task_group*, tile_task_group::IndexType>
 {
-	auto lock = std::unique_lock<std::mutex>(s_TileTaskGroupsMutex);
-	--s_NrRunningTileTaskThreads;
+	while (!s_TileTaskGroups.empty())
+	{
+		auto* taskGroup = s_TileTaskGroups.front();
+		if (taskGroup)
+		{
+			auto i = taskGroup->getNextCommissioned();
+			if (i < taskGroup->m_Last)
+				return { taskGroup, i };
+		}
+		s_TileTaskGroups.pop_front();
+	}
+	return { nullptr, -1 };
 }
 
 auto TakeOneTileTask() -> std::pair<tile_task_group*, tile_task_group::IndexType>
 {
 	auto lock = std::unique_lock<std::mutex>(s_TileTaskGroupsMutex);
-	for (auto& taskGroup : s_TileTaskGroups)
+	return takeOneTileTask();
+}
+
+auto TakeOneTaskOrDecommissionThread() -> std::pair<tile_task_group*, tile_task_group::IndexType>
+{
+	auto lock = std::unique_lock<std::mutex>(s_TileTaskGroupsMutex);
+	auto tileTask = takeOneTileTask();
+	if (!tileTask.first)
 	{
-		auto i = taskGroup->GetNextCommissioned();
-		if (i < taskGroup->m_Last)
-			return { taskGroup, i };
+		assert(s_NrRunningTileTaskThreads > 0);
+		--s_NrRunningTileTaskThreads; // no task available, caller must decommission this thread
 	}
-	return { nullptr, -1 };
+	return tileTask;
 }
 
 bool StealOneTileTask(bool doMore)
@@ -106,27 +122,43 @@ void StealTileTasks()
 	StealOneTileTask(true);
 }
 
+void DoThisOrThatAndDecommission()
+{
+	while(true)
+	{
+		StealTileTasks();
+		auto tileTask = TakeOneTaskOrDecommissionThread();
+		if (!tileTask.first)
+			return;
+		tileTask.first->DoWork(tileTask.second, true);
+	}
+}
+
 tile_task_group::tile_task_group(IndexType last, task_func func)
 	: m_Last(last)
 	, m_Func(func)
 	, m_CallingContext(CancelableFrame::CurrActive())
 {
-	if (m_Last > 0);
+	if (m_Last == 0)
+		return;
+
+	auto lock = std::unique_lock<std::mutex>(s_TileTaskGroupsMutex);
+	s_TileTaskGroups.emplace_back(this);
+
+	// now fire some workers, but not too many. Trust that existing workers will also pick up due to their DoThisOrThat before completion that is synchronized with this 
+	// unless they have just completed their DoThisOrThat and are waiting for access to Decommissionn their thread.
+	while (last-- > 0)
 	{
-		auto lock = std::unique_lock<std::mutex>(s_TileTaskGroupsMutex);
-		s_TileTaskGroups.insert(this);
-		auto last = m_Last;
-		while (last-- > 0)
-		{
-			if (!LicenceAnotherThread())
-				break;
+		if (!LicenceAnotherThread())
+			break;
 
-			GetTaskGroup().run(
-				[this] { this->DoThisOrThat(); DecommissionAnotherThread();  }
-			);
-		}
+		GetTaskGroup().run(
+			[this] 
+			{ 
+				DoThisOrThatAndDecommission( ); 
+			}
+		);
 	}
-
 }
 
 tile_task_group::~tile_task_group()
@@ -137,12 +169,18 @@ tile_task_group::~tile_task_group()
 void tile_task_group::decommission()
 {
 	assert(m_Commissioned == m_Last);
-	s_TileTaskGroups.erase(this);
+
+	auto lock = std::unique_lock<std::mutex>(s_TileTaskGroupsMutex);
+	for (auto& tg_ptr: s_TileTaskGroups)
+		if (tg_ptr == this)
+		{
+			tg_ptr = nullptr; // decommission this task group
+			break;
+		}
 }
 
-auto tile_task_group::GetNextCommissioned() -> IndexType
+auto tile_task_group::getNextCommissioned() -> IndexType
 {
-	auto lock = std::unique_lock<std::mutex>(s_TileTaskGroupsMutex);
 	if (m_Commissioned >= m_Last)
 		return m_Last;
 
@@ -150,6 +188,13 @@ auto tile_task_group::GetNextCommissioned() -> IndexType
 	if (m_Commissioned >= m_Last)
 		decommission();
 	return result;
+}
+
+auto tile_task_group::GetNextCommissioned() -> IndexType
+
+{
+	auto lock = std::unique_lock<std::mutex>(s_TileTaskGroupsMutex);
+	return getNextCommissioned();
 }
 
 void tile_task_group::RegisterCompletion(IndexType nr)
@@ -187,7 +232,7 @@ void tile_task_group::DoWork(IndexType i, bool doMore)
 	catch (...)
 	{
 		auto lock = std::unique_lock<std::mutex>(s_TileTaskGroupsMutex);
-		if (!m_Exception);
+		if (!m_Exception)
 		{
 			m_Exception = std::current_exception();
 			auto remainingTasks = m_Last - m_Commissioned;

@@ -132,12 +132,9 @@ public:
 				if (resultAdi->WasFailed(FR_Data))
 					resultAdi->ThrowFail();
 				try {
-					concurrency::task_group gr;
-
-					auto futureTileA = throttled_async(gr, [&futureData] { return futureData.first->GetTile();  });
+					auto futureTileA = throttled_async([&futureData] { return futureData.first->GetTile();  });
 					auto tileB = futureData.second->GetTile();
 
-					gr.wait();
 					this->CalcTile(resData, futureTileA->get().get_view(), tileB.get_view(), af MG_DEBUG_ALLOCATOR_SRC_PARAM);
 				}
 				catch (...)
