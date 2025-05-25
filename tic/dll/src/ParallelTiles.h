@@ -33,7 +33,7 @@ private:
 
 protected:
 	task_func m_Func;
-	mutable std::exception_ptr m_Exception;
+	mutable std::exception_ptr m_ExceptionPtr;
 	mutable std::condition_variable m_TileTasksDone;
 
 public:
@@ -46,6 +46,8 @@ private:
 	tile_task_group(const tile_task_group&) = delete;
 	tile_task_group& operator=(const tile_task_group&) = delete; 
 
+	void AwaitRunningSlots() noexcept;
+
 	void decommission();
 	IndexType getNextCommissioned();
 	void registerCompletions(IndexType nr);
@@ -54,7 +56,6 @@ private:
 
 	void DoWork(IndexType i, bool doMore);
 
-	void DoThisOrThat();
 	friend auto takeOneTileTask() -> std::pair<tile_task_group*, tile_task_group::IndexType>;
 	friend bool StealOneTileTask(bool doMore);
 	friend void DoThisOrThatAndDecommission();

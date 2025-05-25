@@ -157,21 +157,31 @@ tile_task_group::tile_task_group(IndexType last, task_func func)
 
 tile_task_group::~tile_task_group()
 {
-	assert(m_Commissioned == m_Last || m_Exception);
-	if (m_Commissioned < m_Last && !m_Exception)
+	auto nrCommissioned = m_Commissioned;
+	auto wasDecommissioned = (nrCommissioned == m_Last);
+	assert(wasDecommissioned);
+	if (!wasDecommissioned)
 	{
+		assert(nrCommissioned < m_Last); // consistency check
 		auto lock = std::unique_lock<std::mutex>(s_TileTaskGroupsMutex);
-		if (m_Commissioned < m_Last && !m_Exception)
-			decommission();
+		if (m_Commissioned < m_Last) // recheck if decommission is still required
+		{
+			auto remainingTasks = (m_Last - m_Commissioned); // current slot still has to be registered as completed, after which this task_group may be destructed.
+			m_Commissioned += remainingTasks;
+			assert(m_Commissioned == m_Last);
+			decommission(); // stop handing out slots for this task group, so that no new tasks will be started, but the current ones can still finish.
+			registerCompletions(remainingTasks); // other tasks in flight might still come in before m_TileTasksDone can be notified.
+		}
 	}
-	if (m_NrCompleted < m_Last)
-		Join();
-	assert(m_NrCompleted == m_Last);
+	if (m_NrCompleted < m_Last)      // any other task-slots still running
+		AwaitRunningSlots();         // then wait for them. Silence possible excecptions.
+	assert(m_NrCompleted == m_Last); // we now expect to have completed all commissioned task-slots.
 }
 
 void tile_task_group::decommission()
 {
-	assert(m_Commissioned == m_Last || m_Exception);
+	assert(!s_TileTaskGroupsMutex.try_lock()); // don't let the notification fall outside a waiter lock
+	assert(m_Commissioned == m_Last);
 
 	assert(!s_TileTaskGroupsMutex.try_lock());
 	for (auto& tg_ptr: s_TileTaskGroups)
@@ -184,7 +194,9 @@ void tile_task_group::decommission()
 
 auto tile_task_group::getNextCommissioned() -> IndexType
 {
-	if (m_Commissioned >= m_Last || m_Exception)
+	assert(!s_TileTaskGroupsMutex.try_lock()); // don't let the notification fall outside a waiter lock
+
+	if (m_Commissioned >= m_Last)
 		return UNDEFINED_VALUE(IndexType);
 
 	auto result = m_Commissioned++; // ownership of this slot of the task_group is now obtained and will continue until this thread causes m_NrCompleted to increment accordingly
@@ -257,36 +269,23 @@ void tile_task_group::DoWork(IndexType i, bool doMore)
 	catch (...)
 	{
 		auto lock = std::unique_lock<std::mutex>(s_TileTaskGroupsMutex);
-		if (m_Exception)
+		if (m_ExceptionPtr)
 			registerCompletions(1); // release this slot of the task_group, so from here, this may be destroyed; decommissioning already was done by an earlier settler of m_Exception.
 		else
 		{
-			m_Exception = std::current_exception();
-			auto remainingTasks = 1+(m_Last - m_Commissioned); // current slot still has to be registered as completed, after which this task_group may be destructed.
+			m_ExceptionPtr = std::current_exception();
+			auto remainingTasks = m_Last - m_Commissioned; // current slot still has to be registered as completed, after which this task_group may be destructed.
 			m_Commissioned += remainingTasks;
 			assert(m_Commissioned == m_Last);
 			decommission(); // stop handing out slots for this task group, so that no new tasks will be started, but the current ones can still finish.
-			registerCompletions(remainingTasks); // other tasks in flight might still come in before m_TileTaskDone can be notified.
+			registerCompletions(1 + remainingTasks); // other tasks in flight might still come in before m_TileTasksDone can be notified.
 		}
 	}
 }
 
-void tile_task_group::DoThisOrThat() // TODO: never called, remove here and from interface
+void tile_task_group::AwaitRunningSlots() noexcept
 {
-	StealOneTileTask(true);
-}
-
-void tile_task_group::Join()
-{
-	IndexType nextSlot = 0;
-	{
-		auto lock = std::unique_lock<std::mutex>(s_TileTaskGroupsMutex);
-		nextSlot = getNextCommissioned();
-	}
-	if (IsDefined(nextSlot))
-		DoWork(nextSlot, true);
-
-	assert(m_Commissioned == m_Last || m_Exception);
+	assert(m_Commissioned == m_Last); // post condition of DoWork
 
 	while (m_NrCompleted < m_Last)
 	{
@@ -299,8 +298,23 @@ void tile_task_group::Join()
 		if (m_NrCompleted < m_Last)
 			m_TileTasksDone.wait_for(lock, std::chrono::milliseconds(500));
 	}
-	if (m_Exception)
-		std::rethrow_exception(m_Exception);
+	assert(m_NrCompleted == m_Last); // no more other worker threads can access this task group, so we can safely access m_ExceptionPtr now.
+}
+
+void tile_task_group::Join()
+{
+	IndexType nextSlot = 0;
+	{
+		auto lock = std::unique_lock<std::mutex>(s_TileTaskGroupsMutex);
+		nextSlot = getNextCommissioned();
+	}
+	if (IsDefined(nextSlot))
+		DoWork(nextSlot, true);
+
+	AwaitRunningSlots();
+
+	if (m_ExceptionPtr) 
+		std::rethrow_exception(m_ExceptionPtr);
 }
 
 // *****************************************************************************
