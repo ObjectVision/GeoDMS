@@ -62,18 +62,19 @@ static int s_NrRunningTileTaskThreads = 0;
 
 auto takeOneTileTask() -> std::pair<tile_task_group*, tile_task_group::IndexType>
 {
+	assert(!s_TileTaskGroupsMutex.try_lock());
 	while (!s_TileTaskGroups.empty())
 	{
 		auto* taskGroup = s_TileTaskGroups.front();
 		if (taskGroup)
 		{
 			auto i = taskGroup->getNextCommissioned();
-			if (i < taskGroup->m_Last)
+			if (IsDefined(i))
 				return { taskGroup, i };
 		}
 		s_TileTaskGroups.pop_front();
 	}
-	return { nullptr, -1 };
+	return { nullptr, UNDEFINED_VALUE(tile_task_group::IndexType) };
 }
 
 auto TakeOneTileTask() -> std::pair<tile_task_group*, tile_task_group::IndexType>
@@ -99,23 +100,19 @@ bool StealOneTileTask(bool doMore)
 	auto tileTask = TakeOneTileTask();
 	if (!tileTask.first)
 		return false;
+	assert(IsDefined(tileTask.second)); // we assume starting with a valid ticket to a slot, or else this tile_task_group may already be destroyed.
 	tileTask.first->DoWork(tileTask.second, doMore);
 	return true;
-}
-
-void StealTileTasks()
-{
-	StealOneTileTask(true);
 }
 
 void DoThisOrThatAndDecommission()
 {
 	while(true)
 	{
-		StealTileTasks();
 		auto tileTask = TakeOneTaskOrDecommissionThread();
 		if (!tileTask.first)
 			return;
+		assert(IsDefined(tileTask.second)); // we assume starting with a valid ticket to a slot, or else this tile_task_group may already be destroyed.
 		tileTask.first->DoWork(tileTask.second, true);
 	}
 }
@@ -160,6 +157,15 @@ tile_task_group::tile_task_group(IndexType last, task_func func)
 
 tile_task_group::~tile_task_group()
 {
+	assert(m_Commissioned == m_Last || m_Exception);
+	if (m_Commissioned < m_Last && !m_Exception)
+	{
+		auto lock = std::unique_lock<std::mutex>(s_TileTaskGroupsMutex);
+		if (m_Commissioned < m_Last && !m_Exception)
+			decommission();
+	}
+	if (m_NrCompleted < m_Last)
+		Join();
 	assert(m_NrCompleted == m_Last);
 }
 
@@ -179,45 +185,67 @@ void tile_task_group::decommission()
 auto tile_task_group::getNextCommissioned() -> IndexType
 {
 	if (m_Commissioned >= m_Last || m_Exception)
-		return m_Last;
+		return UNDEFINED_VALUE(IndexType);
 
-	auto result = m_Commissioned++;
+	auto result = m_Commissioned++; // ownership of this slot of the task_group is now obtained and will continue until this thread causes m_NrCompleted to increment accordingly
+	assert(result < m_Last);
 	if (m_Commissioned >= m_Last)
-		decommission();
+		decommission(); // stop handing out slots for this task group, so that no new tasks will be started, but the current ones, including the slot that the caller must complete, can still finish.
 	return result;
 }
 
-auto tile_task_group::GetNextCommissioned() -> IndexType
-
+void tile_task_group::registerCompletions(IndexType nr)
 {
-	auto lock = std::unique_lock<std::mutex>(s_TileTaskGroupsMutex);
-	return getNextCommissioned();
-}
-
-void tile_task_group::RegisterCompletion(IndexType nr)
-{
+	assert(!s_TileTaskGroupsMutex.try_lock()); // don't let the notification fall outside a waiter lock
+	assert(nr);
 	m_NrCompleted += nr;
+	assert(m_NrCompleted <= m_Last);
 	if (m_NrCompleted == m_Last)
 		m_TileTasksDone.notify_all();
+}
+
+void tile_task_group::RegisterCompletion()
+{
+	assert(m_NrCompleted < m_Last);
+	if (++m_NrCompleted == m_Last)
+	{
+		auto lock = std::unique_lock<std::mutex>(s_TileTaskGroupsMutex); // don't let the notification fall outside a waiter lock
+		m_TileTasksDone.notify_all();
+	}
+}
+
+auto tile_task_group::RegisterCompletionAndGetNextCommissioned()->IndexType
+{
+	auto lock = std::unique_lock<std::mutex>(s_TileTaskGroupsMutex); // don't let the notification fall outside a waiter lock
+	assert(m_NrCompleted < m_Last);
+	if (++m_NrCompleted == m_Last)
+	{
+		m_TileTasksDone.notify_all();
+		return UNDEFINED_VALUE(IndexType);
+	}
+	return getNextCommissioned();
 }
 
 void tile_task_group::DoWork(IndexType i, bool doMore)
 {
 	assert(!std::uncaught_exceptions());
+	assert(IsDefined(i)); // we assume starting with a valid ticket to a slot, or else this tile_task_group may already be destroyed.
 	try {
 		CancelableFrame frame(m_CallingContext);
-		while (i < m_Last)
+		while (IsDefined(i))
 		{
 			if (m_CallingContext)
 				DSM::CancelIfOutOfInterest();
 			ASyncContinueCheck();
 
 			UpdateMarker::PrepareDataInvalidatorLock preventInvalidations;
-			auto countCompletionAlways = scoped_exit([this] { this->RegisterCompletion(); });
 			m_Func(i);
 			if (!doMore)
+			{
+				RegisterCompletion(); // release this slot of the task_group, so from here, this may be destroyed
 				break;
-			i = GetNextCommissioned();
+			}
+			i = RegisterCompletionAndGetNextCommissioned(); // release this slot and obtain the next one, or none if this task group is done.
 		}
 	}
 	catch (const task_canceled&)
@@ -229,30 +257,35 @@ void tile_task_group::DoWork(IndexType i, bool doMore)
 	catch (...)
 	{
 		auto lock = std::unique_lock<std::mutex>(s_TileTaskGroupsMutex);
-		if (!m_Exception)
+		if (m_Exception)
+			registerCompletions(1); // release this slot of the task_group, so from here, this may be destroyed; decommissioning already was done by an earlier settler of m_Exception.
+		else
 		{
 			m_Exception = std::current_exception();
-			auto remainingTasks = m_Last - m_Commissioned;
-			if (remainingTasks)
-			{
-
-				m_Commissioned += remainingTasks;
-				decommission();
-				RegisterCompletion(remainingTasks); // other tasks in flight might still come in before m_TileTaskDone can be notified.
-			}
+			auto remainingTasks = 1+(m_Last - m_Commissioned); // current slot still has to be registered as completed, after which this task_group may be destructed.
+			m_Commissioned += remainingTasks;
+			assert(m_Commissioned == m_Last);
+			decommission(); // stop handing out slots for this task group, so that no new tasks will be started, but the current ones can still finish.
+			registerCompletions(remainingTasks); // other tasks in flight might still come in before m_TileTaskDone can be notified.
 		}
 	}
 }
 
-void tile_task_group::DoThisOrThat()
+void tile_task_group::DoThisOrThat() // TODO: never called, remove here and from interface
 {
-	DoWork();
 	StealOneTileTask(true);
 }
 
 void tile_task_group::Join()
 {
-	DoWork();
+	IndexType nextSlot = 0;
+	{
+		auto lock = std::unique_lock<std::mutex>(s_TileTaskGroupsMutex);
+		nextSlot = getNextCommissioned();
+	}
+	if (IsDefined(nextSlot))
+		DoWork(nextSlot, true);
+
 	assert(m_Commissioned == m_Last || m_Exception);
 
 	while (m_NrCompleted < m_Last)

@@ -48,14 +48,11 @@ private:
 
 	void decommission();
 	IndexType getNextCommissioned();
-	IndexType GetNextCommissioned();
-	void RegisterCompletion(IndexType nr = 1);
-	void DoWork(IndexType i, bool doMore);
+	void registerCompletions(IndexType nr);
+	void RegisterCompletion();
+	auto RegisterCompletionAndGetNextCommissioned()->IndexType;
 
-	void DoWork()
-	{
-		DoWork(GetNextCommissioned(), true);
-	}
+	void DoWork(IndexType i, bool doMore);
 
 	void DoThisOrThat();
 	friend auto takeOneTileTask() -> std::pair<tile_task_group*, tile_task_group::IndexType>;
