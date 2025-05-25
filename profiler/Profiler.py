@@ -16,7 +16,7 @@ from bokeh.layouts import row, column
 from bokeh.palettes import Category10, Category20, Category20b, Category20c
 
 class Experiment:
-    def __init__(self, name, command, experiment_folder, environment_variables, cwd, geodms_logfile, binary_experiment_file):
+    def __init__(self, name=None, command=None, experiment_folder=None, environment_variables=None, cwd=None, geodms_logfile=None, binary_experiment_file=None):
         self.name                   = name
         self.command                = command
         self.experiment_folder      = experiment_folder
@@ -43,15 +43,17 @@ class Experiment:
         binfile_is_eq = self.binary_experiment_file == other.binary_experiment_file
         return name_is_eq and command_is_eq and exp_fldr_is_eq and env_vars_is_eq and cwd_is_eq and logfile_is_eq and binfile_is_eq  
 
-    def summary(self) -> str:
-        # name;status;start_time;duration;highest_commit
-        if not self.result:
-            return f"{self.name};Failed;;;;"
-        start_time = self.result.profile_log.time[0]
-        end_time = self.result.profile_log.time[-1]
+    def summary(self) -> dict:
+        status = True if self.result else False
+        start_time = self.result['log']['time'][0]
+        end_time = self.result['log']['time'][-1]
         duration = (end_time - start_time).total_seconds()
-        highest_commit = max(self.result.profile_log.vms)
-        return f"{self.name};OK;{start_time};{duration};{highest_commit}"
+        highest_commit = max(self.result['log']['vms'])
+        total_read = self.result['log']['total_read_bytes'][-1]
+        total_write = self.result['log']['total_write_bytes'][-1]
+        max_threads = max(self.result['log']['num_threads'])
+        
+        return {"status":status, "start_time":start_time, "end_time":end_time, "duration":duration, "highest_commit":highest_commit, "total_read":total_read, "total_write":total_write, "max_threads":max_threads}
 
 def readLog(log_filename, filter=None):
     ret = {"time":[], "text":[]}
@@ -476,7 +478,7 @@ def ExpHasLogAvailable(exp, key):
         return True
     return False
 
-def VisualizeExperiments(experiments, vgroups):
+def VisualizeExperiments(experiments, show_figure:bool=True, vgroups=[("cpu_percent", (0,100)), ("cpu_curr_time", False), ("vms", False), ("num_threads", False), ("total_read_bytes", False), ("total_write_bytes", False)]) -> str:
     print("Rendering experiments.\n")
     tool_tips = """
     <div>
@@ -581,7 +583,7 @@ def VisualizeExperiments(experiments, vgroups):
         legend_items.append(LegendItem(label=labels[i], renderers=[renderer for renderer in renderers if renderer.glyph.line_color==color]))
     
     ## Use dummy figure as legend for all experiments 
-    dum_fig = plotting.figure(width=300,height=50*len(legend_items), outline_line_alpha=0,tools="pan,wheel_zoom,box_zoom,reset,save,hover")
+    dum_fig = plotting.figure(width=1000,height=50*len(legend_items), outline_line_alpha=0,tools="pan,wheel_zoom,box_zoom,reset,save,hover")
     for fig_component in [dum_fig.grid[0],dum_fig.ygrid[0],dum_fig.xaxis[0],dum_fig.yaxis[0]]:
         fig_component.visible = False
     dum_fig.renderers += renderers
@@ -589,7 +591,7 @@ def VisualizeExperiments(experiments, vgroups):
     dum_fig.x_range.start = 1000
     dum_fig.add_layout(Legend(click_policy='hide',border_line_alpha=0,items=legend_items))
 
-    output_fn = f"{experiments[0].experiment_folder}compare.html"
+    output_fn = f"{experiments[0].experiment_folder}/compare.html"
     print(f"Storing experiments interactive figure in {output_fn}")
     
     grid_structure = [[dum_fig, None]]
@@ -600,8 +602,10 @@ def VisualizeExperiments(experiments, vgroups):
             grid_structure.append([fig, None])
     grid = plotting.gridplot(grid_structure, toolbar_location="left")
     plotting.output_file(output_fn)
-    plotting.show(grid)
-    return
+    plotting.save(grid)
+    if show_figure:
+        plotting.show(grid)
+    return output_fn
 
 def InitExperimentFromCommandLineDefinition(direct_call:str):
     name, experiment_folder, geodms_logfile, command = direct_call.split(";")
@@ -727,8 +731,8 @@ def Run(experiment_filename):
     experiments = RunExperiments(experiments)
     
     # visualize    
-    vgroups = [("cpu_percent", (0,100)), ("cpu_curr_time", False), ("vms", False), ("num_threads", False), ("total_read_bytes", False), ("total_write_bytes", False)]
-    VisualizeExperiments(experiments, vgroups)
+    #vgroups = [("cpu_percent", (0,100)), ("cpu_curr_time", False), ("vms", False), ("num_threads", False), ("total_read_bytes", False), ("total_write_bytes", False)]
+    visualized_experiments_filename = VisualizeExperiments(experiments)
 
     return
 
