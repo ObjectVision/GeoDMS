@@ -60,20 +60,6 @@ std::mutex s_TileTaskGroupsMutex;
 
 static int s_NrRunningTileTaskThreads = 0;
 
-bool LicenceAnotherThread()
-{
-	if (IsMultiThreaded1())
-	{
-		auto lock = std::unique_lock<std::mutex>(s_TileTaskGroupsMutex);
-		if (s_NrRunningTileTaskThreads < GetNrVCPUs())
-		{
-			++s_NrRunningTileTaskThreads;
-			return true;
-		}
-	}
-	return false;
-}
-
 auto takeOneTileTask() -> std::pair<tile_task_group*, tile_task_group::IndexType>
 {
 	while (!s_TileTaskGroups.empty())
@@ -139,19 +125,30 @@ tile_task_group::tile_task_group(IndexType last, task_func func)
 	, m_Func(func)
 	, m_CallingContext(CancelableFrame::CurrActive())
 {
-	if (m_Last == 0)
-		return;
-
-	auto lock = std::unique_lock<std::mutex>(s_TileTaskGroupsMutex);
-	s_TileTaskGroups.emplace_back(this);
-
-	// now fire some workers, but not too many. Trust that existing workers will also pick up due to their DoThisOrThat before completion that is synchronized with this 
-	// unless they have just completed their DoThisOrThat and are waiting for access to Decommissionn their thread.
-	while (last-- > 0)
+	UInt32 nrThreadsToCommission = 0;
+	if (m_Last > 0)
 	{
-		if (!LicenceAnotherThread())
-			break;
+		auto lock = std::unique_lock<std::mutex>(s_TileTaskGroupsMutex);
+		s_TileTaskGroups.emplace_back(this);
 
+		// now fire some workers, but not too many. Trust that existing workers will also pick up due to their DoThisOrThat before completion that is synchronized with this 
+		// unless they have just completed their DoThisOrThat and are waiting for access to Decommissionn their thread.
+
+		if (IsMultiThreaded1())
+		{
+			auto maxNrThreads = GetNrVCPUs();
+			if (s_NrRunningTileTaskThreads < maxNrThreads)
+			{
+				nrThreadsToCommission = maxNrThreads - s_NrRunningTileTaskThreads;
+				if (last < nrThreadsToCommission)
+					nrThreadsToCommission = last;
+			}
+		}
+		s_NrRunningTileTaskThreads += nrThreadsToCommission;
+	}
+
+	while (nrThreadsToCommission-- > 0)
+	{
 		GetTaskGroup().run(
 			[this] 
 			{ 
@@ -168,9 +165,9 @@ tile_task_group::~tile_task_group()
 
 void tile_task_group::decommission()
 {
-	assert(m_Commissioned == m_Last);
+	assert(m_Commissioned == m_Last || m_Exception);
 
-	auto lock = std::unique_lock<std::mutex>(s_TileTaskGroupsMutex);
+	assert(!s_TileTaskGroupsMutex.try_lock());
 	for (auto& tg_ptr: s_TileTaskGroups)
 		if (tg_ptr == this)
 		{
@@ -181,7 +178,7 @@ void tile_task_group::decommission()
 
 auto tile_task_group::getNextCommissioned() -> IndexType
 {
-	if (m_Commissioned >= m_Last)
+	if (m_Commissioned >= m_Last || m_Exception)
 		return m_Last;
 
 	auto result = m_Commissioned++;
@@ -256,12 +253,7 @@ void tile_task_group::DoThisOrThat()
 void tile_task_group::Join()
 {
 	DoWork();
-	if (m_Exception)
-		std::rethrow_exception(m_Exception);
-	else
-	{
-		assert(m_NrCompleted == m_Last);
-	}
+	assert(m_Commissioned == m_Last || m_Exception);
 
 	while (m_NrCompleted < m_Last)
 	{
@@ -274,6 +266,8 @@ void tile_task_group::Join()
 		if (m_NrCompleted < m_Last)
 			m_TileTasksDone.wait_for(lock, std::chrono::milliseconds(500));
 	}
+	if (m_Exception)
+		std::rethrow_exception(m_Exception);
 }
 
 // *****************************************************************************
