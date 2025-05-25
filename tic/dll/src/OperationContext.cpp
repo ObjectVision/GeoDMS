@@ -116,6 +116,7 @@ static phase_number s_CurrActivePhaseNumber = 0;
 static bool s_IsInLowRamMode = false;
 static UInt32 s_CurrFinishedCount = 0;
 
+static std::atomic<UInt32> s_NrWaitingJoins = 0;
 phase_number GetCurrActivePhaseNumber()
 {
 	leveled_critical_section::scoped_lock lockToAvoidHasMainThreadTasksToBeMissed(cs_ThreadMessing);
@@ -498,7 +499,7 @@ auto collectOperationContexts() -> std::pair<context_array, garbage_t>
 
 		for (; currContext != scheduledContexts.end(); ++currContext)
 		{
-			if (s_NrActivatedOrRunningOperations[nextPhaseNumber] >= 1 && !isLowOnFreeRamTested) // HEURISTIC: only allow more than 1 operations when RAM isn't being exausted
+			if (!isLowOnFreeRamTested && s_NrActivatedOrRunningOperations[nextPhaseNumber] >= s_NrWaitingJoins) // HEURISTIC: only allow more than 1 operations when RAM isn't being exausted
 			{
 				if (IsLowOnFreeRAM())
 				{
@@ -609,17 +610,6 @@ void OperationContex_setActivated(OperationContext* self)
 	assert(sd_RunningOC.size() == nrRunning + 1);
 #endif
 }
-
-/*
-bool OperationContex_SetActivated(OperationContext* self)
-{
-	leveled_std_section::scoped_lock lock(cs_ThreadMessing);
-	if (self->m_Status >= task_status::activated)
-		return false;
-	OperationContex_setActivated(self);
-	return true;
-}
-*/
 
 // *****************************************************************************
 // Section:     OperatorContext
@@ -1554,10 +1544,12 @@ bool CurrActiveTaskHasRunCount()
 task_status OperationContext::Join()
 {
 	if (CurrActiveTaskHasRunCount())
+	{
 		reportF(MsgCategory::other, SeverityTypeID::ST_MinorTrace, "OperationContext(%s)::Join called from Active Context %s"
 			, GetResult()->GetFullName()
 			, CancelableFrame::CurrActive()->GetResult()->GetFullName()
 		);
+	}
 	if (IsMainThread() && s_CurrBlockedPhaseNumber && s_CurrBlockedPhaseNumber <= m_PhaseNumber)
 		throwErrorF("PhaseContainer", "Invalid Recursion, OperationContext(%s)::Join called from updating %s for %s"
 		,	GetResult()->GetFullName()
@@ -1604,6 +1596,8 @@ task_status OperationContext::Join()
 			}
 		else			
 */
+		StaticMtIncrementalLock<s_NrWaitingJoins> increaseTheNumberOfWaitingJoinsToAvoidWaitingForNothing;
+
 		auto currentFinishCount = GetCurrFinishedCount();
 		StartOperationContexts(); // OPTIMIZE, CONSISTENCY: Some tasks finished without calling this. Find out why and avoid wasting idle thread time; maybe all threads are waiting in a Join without new and current tasks being activated
 		if (!IsMetaThread() || SuspendTrigger::BlockerBase::IsBlocked())
