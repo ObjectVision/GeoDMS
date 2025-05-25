@@ -219,11 +219,9 @@ void tile_task_group::registerCompletions(IndexType nr)
 void tile_task_group::RegisterCompletion()
 {
 	assert(m_NrCompleted < m_Last);
-	if (++m_NrCompleted == m_Last)
-	{
-		auto lock = std::unique_lock<std::mutex>(s_TileTaskGroupsMutex); // don't let the notification fall outside a waiter lock
+	auto lock = std::unique_lock<std::mutex>(s_TileTaskGroupsMutex); // don't let the notification fall outside a waiter lock
+	if (++m_NrCompleted == m_Last) // don't increment outside lock as it may cause another thread to Join and destruct
 		m_TileTasksDone.notify_all();
-	}
 }
 
 auto tile_task_group::RegisterCompletionAndGetNextCommissioned()->IndexType
@@ -298,7 +296,7 @@ void tile_task_group::AwaitRunningSlots() noexcept
 		if (m_NrCompleted < m_Last)
 			m_TileTasksDone.wait_for(lock, std::chrono::milliseconds(500));
 	}
-	assert(m_NrCompleted == m_Last); // no more other worker threads can access this task group, so we can safely access m_ExceptionPtr now.
+	assert(m_NrCompleted == m_Last); 
 }
 
 void tile_task_group::Join()
@@ -312,6 +310,7 @@ void tile_task_group::Join()
 		DoWork(nextSlot, true);
 
 	AwaitRunningSlots();
+	// no more other worker threads can access this task group, so we can safely access m_ExceptionPtr now.
 
 	if (m_ExceptionPtr) 
 		std::rethrow_exception(m_ExceptionPtr);
