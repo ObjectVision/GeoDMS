@@ -55,7 +55,7 @@ concurrency::task_group& GetTaskGroup();
 
 #include "ParallelTiles.h"
 
-static std::deque<tile_task_group*> s_TileTaskGroups;
+static std::vector<tile_task_group*> s_TileTaskGroups;
 std::mutex s_TileTaskGroupsMutex;
 
 static int s_NrRunningTileTaskThreads = 0;
@@ -65,14 +65,14 @@ auto takeOneTileTask() -> std::pair<tile_task_group*, tile_task_group::IndexType
 	assert(!s_TileTaskGroupsMutex.try_lock());
 	while (!s_TileTaskGroups.empty())
 	{
-		auto* taskGroup = s_TileTaskGroups.front();
+		auto* taskGroup = s_TileTaskGroups.back();
 		if (taskGroup)
 		{
 			auto i = taskGroup->getNextCommissioned();
 			if (IsDefined(i))
 				return { taskGroup, i };
 		}
-		s_TileTaskGroups.pop_front();
+		s_TileTaskGroups.pop_back();
 	}
 	return { nullptr, UNDEFINED_VALUE(tile_task_group::IndexType) };
 }
@@ -145,14 +145,7 @@ tile_task_group::tile_task_group(IndexType last, task_func func)
 	}
 
 	while (nrThreadsToCommission-- > 0)
-	{
-		GetTaskGroup().run(
-			[this] 
-			{ 
-				DoThisOrThatAndDecommission( ); 
-			}
-		);
-	}
+		GetTaskGroup().run([] { DoThisOrThatAndDecommission(); });
 }
 
 tile_task_group::~tile_task_group()
@@ -183,11 +176,13 @@ void tile_task_group::decommission()
 	assert(!s_TileTaskGroupsMutex.try_lock()); // don't let the notification fall outside a waiter lock
 	assert(m_Commissioned == m_Last);
 
-	assert(!s_TileTaskGroupsMutex.try_lock());
-	for (auto& tg_ptr: s_TileTaskGroups)
-		if (tg_ptr == this)
+	auto ttgFirst = s_TileTaskGroups.begin();
+	auto ttgPtr = s_TileTaskGroups.end();
+
+	while (ttgPtr != ttgFirst)
+		if (*--ttgPtr == this)
 		{
-			tg_ptr = nullptr; // decommission this task group
+			*ttgPtr = nullptr; // decommission this task group
 			break;
 		}
 }
@@ -204,6 +199,12 @@ auto tile_task_group::getNextCommissioned() -> IndexType
 	if (m_Commissioned >= m_Last)
 		decommission(); // stop handing out slots for this task group, so that no new tasks will be started, but the current ones, including the slot that the caller must complete, can still finish.
 	return result;
+}
+
+auto tile_task_group::GetNextCommissioned() -> IndexType
+{
+	auto lock = std::unique_lock<std::mutex>(s_TileTaskGroupsMutex);
+	return getNextCommissioned();
 }
 
 void tile_task_group::registerCompletions(IndexType nr)
@@ -287,10 +288,9 @@ void tile_task_group::AwaitRunningSlots() noexcept
 
 	while (m_NrCompleted < m_Last)
 	{
-		if (StealOneTileTask(false))
-			continue;
-		//			if (DoWorkWhileWaitingFor(phase_number(-1), nullptr))
-		//				continue;
+		// TODO: this can cause other tiles to process that use the same m_Mutex in FutureTileFunctor::tile_record::GetTile
+		/ if (StealOneTileTask(false))
+		//	 continue;
 
 		auto lock = std::unique_lock<std::mutex>(s_TileTaskGroupsMutex);
 		if (m_NrCompleted < m_Last)
@@ -301,11 +301,7 @@ void tile_task_group::AwaitRunningSlots() noexcept
 
 void tile_task_group::Join()
 {
-	IndexType nextSlot = 0;
-	{
-		auto lock = std::unique_lock<std::mutex>(s_TileTaskGroupsMutex);
-		nextSlot = getNextCommissioned();
-	}
+	IndexType nextSlot = GetNextCommissioned();
 	if (IsDefined(nextSlot))
 		DoWork(nextSlot, true);
 

@@ -44,12 +44,15 @@ public:
 
 private:
 	tile_task_group(const tile_task_group&) = delete;
-	tile_task_group& operator=(const tile_task_group&) = delete; 
+	tile_task_group(tile_task_group&&) = delete;
+	tile_task_group& operator=(const tile_task_group&) = delete;
+	tile_task_group& operator=(tile_task_group&&) = delete;
 
 	void AwaitRunningSlots() noexcept;
 
 	void decommission();
 	IndexType getNextCommissioned();
+	IndexType GetNextCommissioned();
 	void registerCompletions(IndexType nr);
 	void RegisterCompletion();
 	auto RegisterCompletionAndGetNextCommissioned()->IndexType;
@@ -59,6 +62,7 @@ private:
 	friend auto takeOneTileTask() -> std::pair<tile_task_group*, tile_task_group::IndexType>;
 	friend bool StealOneTileTask(bool doMore);
 	friend void DoThisOrThatAndDecommission();
+	template <typename R> friend struct tile_task_result;
 };
 
 
@@ -67,48 +71,58 @@ using functor_result_t = std::invoke_result_t<Functor>;
 
 
 template <typename R>
-struct tile_task_result : tile_task_group
+struct tile_task_result
 {
+	std::optional<R> result;
+	tile_task_group  group;
+
 	template <typename Functor>
 	tile_task_result(Functor&& func_)
-		: tile_task_group(1, [func = std::forward<Functor>(func_), this](SizeT t) { assert(t == 0);  this->result = func();  })
+		: group(1, [func = std::forward<Functor>(func_), this](SizeT t) 
+			{ 
+				assert(t == 0);
+				assert(!this->result.has_value());
+				this->result.emplace( func() );
+			}
+		)
 	{}
 
 	tile_task_result(R&& r)
-		: tile_task_group(0, nullptr)
-	{
-		result = std::move(r);
-	}
+		: result(std::move(r))
+		, group(0, nullptr)
+	{}
+
 	R get()
 	{
-		this->Join(); // throws exception, if any
-		this->m_Func = tile_task_group::task_func();
+		group.Join(); // throws exception, if any
+		group.m_Func = tile_task_group::task_func();
 		assert(result.has_value()); // post condition of join, or preset.
-		return std::move(*result);
+		return std::move(result.value());
 	}	
-	std::optional<R> result;
 };
 
 template <>
-struct tile_task_result<void> : tile_task_group
+struct tile_task_result<void>
 {
+	bool result = false;
+	tile_task_group  group;
+
 	template <typename Functor>
 	tile_task_result(Functor&& func_)
 		: tile_task_group(1, [func = std::forward<Functor>(func_), this](SizeT t) { assert(t == 0); func(0); this->result = true; })
 	{}
 
 	tile_task_result()
-		: tile_task_group(0, nullptr)
-	{
-		result = true;
-	}
+		: result(true)
+		, group(0, nullptr)
+	{}
+
 	void get()
 	{
-		this->Join(); // throws exception, if any
-		this->m_Func = tile_task_group::task_func();
+		group.Join(); // throws exception, if any
+		group.m_Func = tile_task_group::task_func();
 		assert(result); // post condition of join, or preset.
 	}
-	bool result = false;
 };
 
 template <typename Functor>
