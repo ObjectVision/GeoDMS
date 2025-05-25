@@ -289,7 +289,7 @@ void tile_task_group::AwaitRunningSlots() noexcept
 	while (m_NrCompleted < m_Last)
 	{
 		// TODO: this can cause other tiles to process that use the same m_Mutex in FutureTileFunctor::tile_record::GetTile
-		/ if (StealOneTileTask(false))
+		// if (StealOneTileTask(false))
 		//	 continue;
 
 		auto lock = std::unique_lock<std::mutex>(s_TileTaskGroupsMutex);
