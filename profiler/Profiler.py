@@ -171,7 +171,7 @@ def getProcessCurrentStatistics(process:psutil.Process, experiment_start_time):
         return [t, dt, cpu_p, mem_p, rss, vms, num_threads, rb, wb, net_c]
     return [t, dt, cpu_p, mem_p, rss, vms, num_threads, rb, wb, net_c]
 
-def getPerformance(exp:Experiment, sampling_rate=1.0):
+def getPerformance(exp:Experiment, sampling_rate=1.0, timeout=3600):
     profile_log = {"time":[], "dtime":[], "cpu_percent":[], "cpu_curr_time":[], "memory_percent":[], "rss":[], "vms":[], "num_threads":[], "total_read_bytes":[], "total_write_bytes":[], "net_connections":[], "processes":[]} # rss=resident set size (aka physical non swapped memory in use by process), vms virtual memory ize
     command_with_args = exp.command
     environment_string = exp.environment_variables
@@ -198,7 +198,7 @@ def getPerformance(exp:Experiment, sampling_rate=1.0):
 
         # Construct a single command that sets the title, calls the batch, and optionally pauses (if needed to detect command-line syntax errors)
         cmd_parts = [
-            "cmd", "/k",  # new console, keep open on error
+            "cmd", "/C",  # new console, keep open on error
             "title", title, "&&",  # set title
             "call",  # call the batch file
         ] + parts  # add the rest of the command
@@ -220,9 +220,14 @@ def getPerformance(exp:Experiment, sampling_rate=1.0):
         parent_process = psutil.Process(parent_process_open_handle.pid)
         experiment_start_time = datetime.fromtimestamp(parent_process.create_time())
         cpu_ct = 0
-        time_measurement_start = datetime.now()
+
         while (psutil.pid_exists(parent_process.pid)):
-       
+            time_measurement_start = datetime.now()
+
+            # timeout
+            if (time_measurement_start - experiment_start_time).total_seconds() > timeout:
+                parent_process.kill()
+            
             try: # dry run cpu_p for every child, first time cpu_percent() always returns 0.0, see
             
                 child_processes = parent_process.children(recursive=True)
@@ -268,8 +273,8 @@ def getPerformance(exp:Experiment, sampling_rate=1.0):
 
             time_measurement_end = datetime.now()
             dtimestamp = (time_measurement_end-time_measurement_start).total_seconds()
-            sleep_time = sampling_rate-dtimestamp        
-            time_measurement_start = time_measurement_end
+            sleep_time = sampling_rate-dtimestamp
+
             if sleep_time > 0.0:
                 time.sleep(sleep_time)
             else:
@@ -283,7 +288,15 @@ def getPerformance(exp:Experiment, sampling_rate=1.0):
 
     except Exception as e:
         print(f"Unexpected error occurred: {e}")
-    return profile_log, experiment_start_time
+    
+    return_code = parent_process.wait()
+    
+    #C005 -> access violation niet in log
+    # return_code 0 -> geen fout
+    # return_code > 0 fout
+    # toevoegen log file aan output
+    # error level -> kleur
+    return profile_log, experiment_start_time, return_code
 
 def getClosestLog(dms_log_t, profile_log, param, current_ind):
     smallest_dt = float("inf") # start with positive infinity
@@ -426,7 +439,8 @@ def RunExperiments(experiments:list[Experiment]):
         geodms_logfile = exp.geodms_logfile
         if os.path.exists(geodms_logfile): # always start with empty log
             os.remove(geodms_logfile)
-        exp.result["log"], start_time = getPerformance(exp)
+        exp.result["log"], start_time, status_code = getPerformance(exp)
+        exp.result["status_code"] = status_code
 
         if os.path.exists(geodms_logfile):
             exp.result["cpu_percent"]       = getLogInfoForPlotting(exp.result["log"], geodms_logfile, "cpu_percent")
