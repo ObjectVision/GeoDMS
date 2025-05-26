@@ -199,7 +199,7 @@ def getPerformance(exp:Experiment, sampling_rate=1.0, timeout=3600):
 
         # Construct a single command that sets the title, calls the batch, and optionally pauses (if needed to detect command-line syntax errors)
         cmd_parts = [
-            "cmd", "/C",  # new console, keep open on error
+            "cmd", "/C",#"/k",  # new console, keep open on error
             "title", title, "&&",  # set title
             "call",  # call the batch file
         ] + parts  # add the rest of the command
