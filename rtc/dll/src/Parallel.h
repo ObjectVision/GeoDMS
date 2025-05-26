@@ -27,6 +27,7 @@ RTC_CALL bool IsMultiThreaded0(); /// RSF_SuspendForGUI
 RTC_CALL bool IsMultiThreaded1();
 RTC_CALL bool IsMultiThreaded2();
 RTC_CALL bool IsMultiThreaded3();
+RTC_CALL bool IsMultiThreaded1or2();
 RTC_CALL UInt32 GetNrVCPUs();
 RTC_CALL UInt32 MaxConcurrentTreads();
 RTC_CALL UInt32 MaxAllowedConcurrentTreads(); // make it constant to avoid rounding off errors to depend on architecture or settings.

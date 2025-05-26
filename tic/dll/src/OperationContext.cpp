@@ -506,6 +506,9 @@ TIC_CALL tg_maintainer::~tg_maintainer()
 	s_OcTaskGroup->cancel();
 	s_OcTaskGroup->wait();
 
+	assert(sd_RunningOC.empty() || g_IsTerminating);
+	assert(sd_OC.empty() || g_IsTerminating);
+
 	delete s_OcTaskGroup;
 	s_OcTaskGroup = nullptr;
 }

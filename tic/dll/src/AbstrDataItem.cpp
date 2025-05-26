@@ -673,8 +673,8 @@ DataCheckMode AbstrDataItem::GetRawCheckMode() const
 
 	if (!adi->GetTSF(DSF_ValuesChecked))
 	{
-		assert(IsMetaThread() || IsMultiThreaded2());
-		if (IsMultiThreaded2())
+		assert(IsMetaThread() || IsMultiThreaded1or2());
+		if (IsMultiThreaded1or2())
 		{
 			data_flags_lock_map::ScopedLock localLock(MG_SOURCE_INFO_CODE("AbstrDataItem::GetRawCheckMode") sg_DataFlagsLockMap, adi);
 			if (!adi->GetTSF(DSF_ValuesChecked))
@@ -700,8 +700,8 @@ DataCheckMode AbstrDataItem::DetermineRawCheckMode() const
 
 	assert(adi->GetDataObjLockCount() > 0);
 
-	assert(IsMetaThread() || IsMultiThreaded2());
-	if (IsMultiThreaded2())
+	assert(IsMetaThread() || IsMultiThreaded1or2());
+	if (IsMultiThreaded1or2())
 	{
 		data_flags_lock_map::ScopedLock localLock(MG_SOURCE_INFO_CODE("AbstrDataItem::GetRawCheckMode") sg_DataFlagsLockMap, adi);
 		return adi->DetermineRawCheckModeImpl();

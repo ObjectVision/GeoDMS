@@ -243,22 +243,24 @@ namespace DemandManagement {
 	IncInterestFence::IncInterestFence()
 		:	m_PrevFence(s_CurrFence)
 	{
-		dms_assert(IsMetaThread());
-		dms_assert(!IsMultiThreaded2());
+		assert(IsMetaThread());
+		assert(!IsMultiThreaded2());
 
+		leveled_critical_section::scoped_lock lock(sd_UpdatingInterestSet);
 		s_CurrFence = this;
 	}
 
 	IncInterestFence::~IncInterestFence()
 	{
-		dms_assert(IsMetaThread());
-		dms_assert(!IsMultiThreaded2());
+		assert(IsMetaThread());
+		assert(!IsMultiThreaded2());
 
 		dms_assert(s_CurrFence == this);
 		for (auto i = m_TempTargets.begin(), e=m_TempTargets.end(); i!=e; ++i)
 		{
 			reportF(SeverityTypeID::ST_MajorTrace, "IncInterest %u broke through Fence %s", i->second, i->first->GetSourceName().c_str());
 		}
+		leveled_critical_section::scoped_lock lock(sd_UpdatingInterestSet);
 		s_CurrFence = m_PrevFence;
 	}
 
@@ -273,44 +275,45 @@ namespace DemandManagement {
 	IncInterestGate::IncInterestGate()
 		: m_PrevFence(s_CurrFence)
 	{
-		dms_assert(IsMetaThread());
-		dms_assert(!IsMultiThreaded2());
+		assert(IsMetaThread());
+		assert(!IsMultiThreaded2());
 
+		leveled_critical_section::scoped_lock lock(sd_UpdatingInterestSet);
 		s_CurrFence = nullptr;
 	}
 
 	IncInterestGate::~IncInterestGate()
 	{
-		dms_assert(IsMetaThread());
-		dms_assert(!IsMultiThreaded2());
+		assert(IsMetaThread());
+		assert(!IsMultiThreaded2());
 
-		dms_assert(s_CurrFence == nullptr);
+		leveled_critical_section::scoped_lock lock(sd_UpdatingInterestSet);
+		assert(s_CurrFence == nullptr);
 		s_CurrFence = m_PrevFence;
 	}
 
 	void AddTempTarget(const Actor* a)
 	{
-		dms_assert(a);
+		assert(a);
 
-		dms_assert(IsMetaThread());
+		assert(IsMetaThread());
 
+		leveled_critical_section::scoped_lock lock(sd_UpdatingInterestSet);
 		if (IsMetaThread() && s_CurrFence)
 			s_CurrFence->m_TempTargets[a] = s_TargetCount++;
 
-		leveled_critical_section::scoped_lock lock(sd_UpdatingInterestSet);
 		sd_InterestSet.insert(a);
 	}
 
 	void ReleaseTempTarget(const Actor* a)
 	{
-		dms_assert(a);
+		assert(a);
 
-		dms_assert(!s_CurrFence || IsMetaThread() );
+		leveled_critical_section::scoped_lock lock(sd_UpdatingInterestSet);
 
 		if (IsMetaThread() && s_CurrFence)
 			s_CurrFence->m_TempTargets.erase(a);
 
-		leveled_critical_section::scoped_lock lock(sd_UpdatingInterestSet);
 		sd_InterestSet.erase(a);
 	}
 

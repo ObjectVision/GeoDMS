@@ -765,7 +765,7 @@ DataCheckMode CheckMode(CI b, CI e, Undefined, DataCheckMode dcm)
 template <typename V>
 DataCheckMode DataArrayBase<V>::DoGetCheckMode() const
 {
-	assert(IsMetaThread() || IsMultiThreaded2());
+	assert(IsMetaThread() || IsMultiThreaded1or2());
 
 	if constexpr (!has_var_range_field_v<V> || !has_fixed_elem_size_v<V>)
 		return has_undefines_v<field_of_t<V>> ? DCM_CheckDefined : DCM_None;
@@ -781,7 +781,7 @@ DataCheckMode DataArrayBase<V>::DoGetCheckMode() const
 template <typename V>
 DataCheckMode DataArrayBase<V>::DoDetermineCheckMode() const
 {
-	assert(IsMetaThread() || IsMultiThreaded2());
+	assert(IsMetaThread() || IsMultiThreaded1or2());
 
 	if constexpr (!has_var_range_field_v<V> || !has_fixed_elem_size_v<V>)
 		return has_undefines_v<field_of_t<V>> ? DCM_CheckDefined : DCM_None;
@@ -799,7 +799,7 @@ DataCheckMode DataArrayBase<V>::DoDetermineCheckMode() const
 			{
 				if (dcm != DCM_CheckBoth)
 				{
-					auto data = GetDataRead(t);
+					auto data = GetTile(t);
 
 					DataCheckMode localDcm = CheckMode(data.begin(), data.end(), valuesRange, DataCheckMode(dcm.load()) );
 

@@ -3467,25 +3467,32 @@ static how_to_proceed PrepareDataRead(SharedPtr<const TreeItem> self, const Tree
 	if (auto nmsm = MakeShared(dynamic_cast<NonmappableStorageManager*>(sm.get())))
 		if (StorageMetaInfoPtr readInfo = nmsm->GetMetaInfo(storageParent, const_cast<TreeItem*>(refItem), StorageAction::read))
 		{
-			auto readInfoPtr = std::make_shared<StorageMetaInfoPtr>(std::move(readInfo));
-			dms_assert(!CheckCalculatingOrReady(refItem));
-			auto rtc = OperationContext::CreateItemWriter(const_cast<TreeItem*>(refItem),
-				[storageParent, self, readInfoPtr, nmsm](OperationContext* ocPtr, Explain::Context* context)
+			auto readInfoPtr = std::make_shared<std::atomic<StorageMetaInfoPtr>>(std::move(readInfo));
+			assert(!CheckCalculatingOrReady(refItem));
+
+			using OcPtr = std::atomic < std::shared_ptr<OperationContext>>;
+			std::shared_ptr<OcPtr> ocPtrPtr = std::make_shared<OcPtr>();
+
+			*ocPtrPtr = OperationContext::CreateItemWriter(const_cast<TreeItem*>(refItem),
+				[storageParent
+				, ocWeakPtrPtr = std::weak_ptr<OcPtr>(ocPtrPtr)
+				, readInfoPtr
+				, nmsm](OperationContext* ocPtr, Explain::Context* context)
 				{
-					auto onExit = make_scoped_exit([self]() { self->m_ReadAssets.Clear(); });
+					auto onExit = make_scoped_exit([ocWeakPtrPtr]() { if(auto ocSharedPtrPtr = ocWeakPtrPtr.lock())  *ocSharedPtrPtr = std::shared_ptr<OperationContext>(); });
 					assert(readInfoPtr);
-					assert(*readInfoPtr);
-					(*readInfoPtr)->OnPreLock();
-					StorageReadHandle sHandle(nmsm, std::move(*readInfoPtr)); // locks storage manager
-					assert(!*readInfoPtr);
+					assert(readInfoPtr->load());
+					(*readInfoPtr).load()->OnPreLock();
+					StorageReadHandle sHandle(nmsm, readInfoPtr->exchange(StorageMetaInfoPtr())); // locks storage manager
+					assert(!readInfoPtr->load());
 					sHandle.FocusItem()->ReadItem(std::move(sHandle)); // Read Item
 				}
 				, FutureSuppliers() // TODO: Let readInfoPtr provide required suppliers, such as GridStorageMetaInfo->m_VIP->m_GridDomain (as its range is required in further processing
 				, false
 				, nullptr
 			);
-
-			self->m_ReadAssets.emplace<decltype(rtc)>(rtc);
+			if (ocPtrPtr->load()->GetStatus() < task_status::running)
+				self->m_ReadAssets.emplace<std::shared_ptr<OcPtr>>(ocPtrPtr);
 
 			readInfoPtr.reset();
 			assert(CheckCalculatingOrReady(refItem) || refItem->WasFailed(FR_Data) || SuspendTrigger::DidSuspend());

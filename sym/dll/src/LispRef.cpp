@@ -446,6 +446,9 @@ struct LispCaches {
 	{
 		assert(!s_LispComponentCount);
 
+		if (g_IsTerminating)
+			return;
+
 		assert(NumbObjCache.empty());
 		assert(StrnObjCache.empty());
 		assert(UI64ObjCache.empty());

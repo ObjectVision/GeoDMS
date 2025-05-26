@@ -434,6 +434,11 @@ RTC_CALL void SetCachedStatusFlag(UInt32 newSF, bool newVal)
 		g_OvrStatusFlags &= ~newSF; // clear
 }
 
+RTC_CALL bool IsInDebugMode()
+{
+	return GetRegStatusFlags() & RSF_DebugMode;
+}
+
 RTC_CALL bool IsMultiThreaded0()
 {
 	return GetRegStatusFlags() & RSF_SuspendForGUI;
@@ -444,11 +449,6 @@ RTC_CALL bool IsMultiThreaded1()
 	return GetRegStatusFlags() & RSF_MultiThreading1;
 }
 
-RTC_CALL bool IsInDebugMode()
-{
-	return GetRegStatusFlags() & RSF_DebugMode;
-}
-
 RTC_CALL bool IsMultiThreaded2()
 {
 	return GetRegStatusFlags() & RSF_MultiThreading2;
@@ -457,6 +457,11 @@ RTC_CALL bool IsMultiThreaded2()
 RTC_CALL bool IsMultiThreaded3()
 {
 	return GetRegStatusFlags() & RSF_MultiThreading3;
+}
+
+RTC_CALL bool IsMultiThreaded1or2()
+{
+	return GetRegStatusFlags() & (RSF_MultiThreading1| RSF_MultiThreading2);
 }
 
 RTC_CALL bool HasDynamicROI()

@@ -146,8 +146,8 @@ private:
 	const AbstrUnit* FindUnit(TokenID, CharPtr role, ValueComposition* vcPtr) const;
 	void InitDataItem(const AbstrUnit* du, const AbstrUnit* vu, const DataItemClass* dic);
 	garbage_t CleanupMem(bool hasSourceOrExit, std::size_t minNrBytes) noexcept;
-	void GetRawCheckModeImpl() const;
-	DataCheckMode DetermineRawCheckModeImpl() const;
+	void GetRawCheckModeImpl() const; // DataCheckMode that always works for the value type of the data object
+	DataCheckMode DetermineRawCheckModeImpl() const; // scan the actual values once to determine the minimally required DataCheckMode 
 
 	TokenID                                  m_tDomainUnit = TokenID::GetUndefinedID(),
 	                                         m_tValuesUnit = TokenID::GetUndefinedID();
@@ -156,7 +156,6 @@ private:
 public: // TODO G8: Re-encapsulate
 	mutable SharedPtr<const AbstrDataObject> m_DataObject;
 	mutable std::atomic<Int32>               m_DataLockCount = 0; // -1 = WriteLock; positive: nr Of Read Locks on Data
-//REMOVE	SharedStr                                m_FileName;
 
 	friend struct DataReadLock;
 	friend struct DataReadLockAtom; 
@@ -166,7 +165,7 @@ public: // TODO G8: Re-encapsulate
 
 	friend TIC_CALL BestItemRef TreeItem_GetErrorSource(const TreeItem* src, bool tryCalcSuppliers);
 
-//	Serialization
+//	Serialization & RTTI
 	DECL_RTTI(TIC_CALL, TreeItemClass)
 };
 
