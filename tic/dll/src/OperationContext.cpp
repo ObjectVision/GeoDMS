@@ -151,7 +151,7 @@ leveled_critical_section cs_OcAdm(item_level_type(0), ord_level_type::OperationC
 
 static UInt32 sd_OcCount;
 static std::set<OperationContext*> sd_OC;
-static std::set<OperationContext*> sd_RunningOC;
+static std::map<OperationContext*, phase_number> sd_RunningOC;
 
 void reportOC(CharPtr source, OperationContext* ocPtr)
 {
@@ -613,10 +613,10 @@ void OperationContex_setActivated(OperationContext* self)
 	assert(s_NrActivatedOrRunningOperations[self->m_PhaseNumber] > 0);
 
 #if defined(MG_TRACE_OPERATIONCONTEXTS)
-	auto nrRunning = sd_RunningOC.size();
-	auto [iter, isInserted] = sd_RunningOC.insert(self);
-	assert(isInserted);
-	assert(sd_RunningOC.size() == nrRunning + 1);
+	auto nrRunningOCs = sd_RunningOC.size();
+	assert(sd_RunningOC.find(self) == sd_RunningOC.end());
+	sd_RunningOC[self] = self->m_PhaseNumber;
+	assert(sd_RunningOC.size() == nrRunningOCs + 1);
 #endif
 }
 
@@ -937,9 +937,15 @@ void OperationContext::releaseRunCount(task_status status)
 	{
 		assert(s_NrActivatedOrRunningOperations[m_PhaseNumber] > 0);
 		auto nrRunning = --s_NrActivatedOrRunningOperations[m_PhaseNumber];
+
 #if defined(MG_TRACE_OPERATIONCONTEXTS)
+		auto nrRunningOCs = sd_RunningOC.size();
+		assert(sd_RunningOC.find(this) != sd_RunningOC.end());
+		assert(sd_RunningOC[this] == this->m_PhaseNumber);
 		sd_RunningOC.erase(this);
+		assert(nrRunningOCs == sd_RunningOC.size() + 1);
 #endif
+
 		if (!nrRunning)
 			wakeUpJoiners();
 	}
