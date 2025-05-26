@@ -16,7 +16,7 @@ from bokeh.layouts import row, column
 from bokeh.palettes import Category10, Category20, Category20b, Category20c
 
 class Experiment:
-    def __init__(self, name=None, command=None, experiment_folder=None, environment_variables=None, cwd=None, geodms_logfile=None, binary_experiment_file=None):
+    def __init__(self, name=None, command=None, experiment_folder=None, environment_variables=None, cwd=None, geodms_logfile=None, binary_experiment_file=None, file_comparison:tuple=None):
         self.name                   = name
         self.command                = command
         self.experiment_folder      = experiment_folder
@@ -24,6 +24,7 @@ class Experiment:
         self.cwd                    = cwd
         self.geodms_logfile         = geodms_logfile
         self.binary_experiment_file = binary_experiment_file
+        self.file_comparison=None
         self.result = {}
 
     def __str__(self):
