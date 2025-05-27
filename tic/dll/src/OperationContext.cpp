@@ -773,9 +773,18 @@ auto collectOperationContexts() -> std::pair<context_array, garbage_t>
 		auto nextPhaseNumber = s_ScheduledContextsMap.begin()->first;
 		if (nextPhaseNumber > s_CurrActivePhaseNumber)
 		{
-			if (s_NrActivatedOrRunningOperations[s_CurrActivePhaseNumber])
-				break; // try again later, when all operations of the current phase have completed
-			s_NrActivatedOrRunningOperations.erase(s_CurrActivePhaseNumber);
+			while (!s_NrActivatedOrRunningOperations.empty())
+			{
+				auto firstIter = s_NrActivatedOrRunningOperations.begin();
+				if (firstIter->second == 0)
+				{
+					s_NrActivatedOrRunningOperations.erase(firstIter);
+					continue;
+				}
+				if (firstIter->first < nextPhaseNumber)
+					goto exit; // try again later, when all operations of the current phase have completed
+				break;
+			}
 			s_CurrActivePhaseNumber = nextPhaseNumber;
 			NotifyCurrentTargetCount();
 		}
@@ -830,7 +839,7 @@ auto collectOperationContexts() -> std::pair<context_array, garbage_t>
 		s_ScheduledContextsMap.erase(s_ScheduledContextsMap.begin());
 
 	}
-
+exit:
 	return { std::move(results), std::move(cancelGarbage) };
 }
 
