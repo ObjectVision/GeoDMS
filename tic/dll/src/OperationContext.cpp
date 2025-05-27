@@ -416,7 +416,28 @@ leveled_critical_section cs_OcAdm(item_level_type(0), ord_level_type::OperationC
 
 static UInt32 sd_OcCount;
 static std::set<OperationContext*> sd_OC;
-static std::set<OperationContext*> sd_RunningOC;
+static std::map<OperationContext*, phase_number> sd_RunningOC;
+
+void CheckNumberOfRunningOCConsistency()
+{
+	MG_CHECK(!cs_ThreadMessing.try_lock());
+		
+	SizeT numberOfRunningOCs = 0;
+	for (const auto& levelNumberPair : s_NrActivatedOrRunningOperations)
+		numberOfRunningOCs += levelNumberPair.second;
+	MG_CHECK(numberOfRunningOCs == sd_RunningOC.size());
+
+	std::map<phase_number, RunningOperationsCounter> recount;
+	for (const auto& runningPair : sd_RunningOC)
+	{
+		MG_CHECK(runningPair.first->m_PhaseNumber == runningPair.second);
+		++recount[runningPair.second];
+	}
+	for (const auto& recountPair : recount)
+	{
+		MG_CHECK(s_NrActivatedOrRunningOperations[recountPair.first] == recountPair.second);
+	}
+}
 
 void reportOC(CharPtr source, OperationContext* ocPtr)
 {
@@ -601,7 +622,8 @@ void scheduleRunnableTask(OperationContext* self)
 	auto fn = self->m_PhaseNumber;
 	MakeMin<phase_number>(s_CurrActivePhaseNumber, fn);
 	s_ScheduledContextsMap[fn].emplace_back(self->weak_from_this());
-	self->m_Status = task_status::scheduled;
+	self->releaseRunCount(task_status::scheduled);
+//	self->m_Status = task_status::scheduled;
 }
 
 // *****************************************************************************
@@ -871,17 +893,27 @@ void OperationContex_setActivated(OperationContext* self)
 	assert(!IsActiveOrRunning(self->getStatus()));
 	assert(self->m_Suppliers.empty());
 
+#if defined(MG_TRACE_OPERATIONCONTEXTS)
+	CheckNumberOfRunningOCConsistency();
+#endif
+
 	self->m_Status = task_status::activated;
 	++s_NrActivatedOrRunningOperations[self->m_PhaseNumber];
 
 	assert(IsActiveOrRunning(self->m_Status));
+
+
 	assert(s_NrActivatedOrRunningOperations[self->m_PhaseNumber] > 0);
 
 #if defined(MG_TRACE_OPERATIONCONTEXTS)
-	auto nrRunning = sd_RunningOC.size();
-	auto [iter, isInserted] = sd_RunningOC.insert(self);
-	assert(isInserted);
-	assert(sd_RunningOC.size() == nrRunning + 1);
+
+	auto nrRunningOCs = sd_RunningOC.size();
+	MG_CHECK(sd_RunningOC.find(self) == sd_RunningOC.end());
+	sd_RunningOC[self] = self->m_PhaseNumber;
+	MG_CHECK(sd_RunningOC.size() == nrRunningOCs + 1);
+
+	CheckNumberOfRunningOCConsistency();
+
 #endif
 }
 
@@ -1202,14 +1234,29 @@ void OperationContext::releaseRunCount(task_status status)
 	if (IsActiveOrRunning(m_Status))
 	{
 		assert(s_NrActivatedOrRunningOperations[m_PhaseNumber] > 0);
-		auto nrRunning = --s_NrActivatedOrRunningOperations[m_PhaseNumber];
+
 #if defined(MG_TRACE_OPERATIONCONTEXTS)
-		sd_RunningOC.erase(this);
+		CheckNumberOfRunningOCConsistency();
 #endif
-		if (!nrRunning)
+		auto nrRunning = --s_NrActivatedOrRunningOperations[m_PhaseNumber];
+
+#if defined(MG_TRACE_OPERATIONCONTEXTS)
+
+		auto nrRunningOCs = sd_RunningOC.size();
+		MG_CHECK(sd_RunningOC.find(this) != sd_RunningOC.end());
+		MG_CHECK(sd_RunningOC[this] == this->m_PhaseNumber);
+		sd_RunningOC.erase(this);
+		MG_CHECK(nrRunningOCs == sd_RunningOC.size() + 1);
+
+		CheckNumberOfRunningOCConsistency();
+
+#endif
+
+		if (!nrRunning && m_PhaseNumber == s_CurrActivePhaseNumber)
 			wakeUpJoiners();
 	}
-	s_CurrFinishedCount++;
+	if (status > task_status::running)
+		s_CurrFinishedCount++;
 	assert(s_NrActivatedOrRunningOperations[m_PhaseNumber] >= 0);
 	m_Status = status;
 	assert(!IsActiveOrRunning(m_Status));
