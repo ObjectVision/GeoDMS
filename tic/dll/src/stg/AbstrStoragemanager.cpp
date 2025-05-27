@@ -37,7 +37,8 @@
 #include "TreeItemContextHandle.h"
 #include "TreeItemProps.h"
 #include "stg/StorageClass.h"
-
+#include <windows.h>
+#include "processenv.h"
 
 #if defined(MG_DEBUG)
 #define MG_DEBUG_ASM 1
@@ -194,6 +195,16 @@ SharedStr GetRegConfigSetting(const TreeItem* configRoot, CharPtr key, CharPtr d
 	}
 
 	return SharedStr(defaultValue);
+}
+
+auto GetEnvironmentSetting(CharPtr placeHolder) -> SharedStr
+{
+	const UInt64 buffer_size = 512;
+	char buffer[buffer_size];
+	auto number_of_characters_in_buffer = GetEnvironmentVariableA("SourceDataDir", buffer, buffer_size);
+	if (number_of_characters_in_buffer > 0)
+		return SharedStr(buffer, buffer+number_of_characters_in_buffer);
+	return {};
 }
 
 SharedStr GetConvertedRegConfigSetting(const TreeItem* configRoot, CharPtr key, CharPtr defaultValue)
@@ -390,20 +401,22 @@ SharedStr GetPlaceholderValue(CharPtr subDirName, CharPtr placeHolder, bool must
 		throwErrorD("Unknown placeholder", placeHolder);
 	return SharedStr();
 }
-
 SharedStr GetPlaceholderValue(const TreeItem* configStore, CharPtr placeHolder)
 {
 	if (!stricmp(placeHolder, "caseDir"))           return GetCaseDir        (configStore);
 	if (!stricmp(placeHolder, "storageBaseName"  )) return GetStorageBaseName(configStore);
 	if (!stricmp(placeHolder, "currDir"))           return SharedStr( SessionData::Curr()->GetConfigLoadDir() );
-
 	if (!stricmp(placeHolder, "sourceDataProjDir")) return GetSourceDataProjDir(SessionData::Curr()->GetConfigRoot());
 	if (!stricmp(placeHolder, "dataDir"          )) return GetDataDir          (SessionData::Curr()->GetConfigRoot());
 
-	SharedStr result = GetPlaceholderValue(SessionData::Curr()->GetConfigDir().c_str(), placeHolder, false);
+	auto result = GetEnvironmentSetting(placeHolder);
 	if (!result.empty())
 		return result;
 
+	result = GetPlaceholderValue(SessionData::Curr()->GetConfigDir().c_str(), placeHolder, false);
+	if (!result.empty())
+		return result;
+	//ss
 	result = GetConvertedRegConfigSetting(SessionData::Curr()->GetConfigRoot(), placeHolder, "");
 	if (!result.empty())
 		return result;
