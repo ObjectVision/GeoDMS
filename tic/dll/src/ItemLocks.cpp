@@ -528,7 +528,9 @@ bool IsDataReady(const TreeItem* item)
 {
 	assert(item);
 	assert(item->HasInterest()); // or else result would be volatile
-	return IsDataCurrReady(item);
+	bool result = IsDataCurrReady(item);
+	assert(result || item->GetInterestCount());
+	return result;
 }
 
 bool IsAllDataReady(const TreeItem* item)

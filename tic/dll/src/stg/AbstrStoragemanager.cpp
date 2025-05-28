@@ -189,6 +189,7 @@ SharedStr GetRegConfigSetting(const TreeItem* configRoot, CharPtr key, CharPtr d
 		if (keyTi && IsDataItem( keyTi) )
 		{
 			const_cast<TreeItem*>(keyTi)->SetKeepDataState(true);
+			InterestPtr<const TreeItem*> haveInterest(keyTi);
 			return AsDataItem(keyTi)->LockAndGetValue<SharedStr>(0);
 		}
 	}

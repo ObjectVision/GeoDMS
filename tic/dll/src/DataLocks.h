@@ -179,6 +179,8 @@ auto mutable_array_checkedcast(DataWriteLock const& lock) -> TileFunctor<V>*
 
 template <typename V> V AbstrDataItem::LockAndGetValue(SizeT index) const
 {
+	assert(IsMetaThread());
+
 	InterestRetainContextBase base;
 	if (!HasInterest())
 		base.Add(this);

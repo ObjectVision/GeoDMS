@@ -3557,8 +3557,8 @@ bool TreeItem::PrepareDataUsageImpl(DrlType drlFlags) const
 		goto failed_norefitem;
 	refItem = GetCurrUltimateItem();
 	
-	dms_assert(refItem->IsPassor() || HasConfigData() || refItem->m_State.GetProgress() >= PS_MetaInfo || refItem->WasFailed(FR_MetaInfo));
-	dms_assert(refItem->GetInterestCount() || !IsDataItem(this) || AsDataItem(refItem)->m_DataObject || drlType == DrlType::Certain); // interest consistency
+	assert(refItem->IsPassor() || HasConfigData() || refItem->m_State.GetProgress() >= PS_MetaInfo || refItem->WasFailed(FR_MetaInfo));
+	assert(GetInterestCount() || !IsDataItem(this)); // interest consistency
 
 	if (CheckCalculatingOrReady(refItem)) // quick route first
 		goto data_ready; // may have been arranged in an alternative thread.
