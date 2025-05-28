@@ -1,4 +1,4 @@
-// Copyright (C) 1998-2024 Object Vision b.v. 
+// Copyright (C) 1998-2025 Object Vision b.v. 
 // License: GNU GPL 3
 /////////////////////////////////////////////////////////////////////////////
 
@@ -16,6 +16,7 @@
 #include "utl/Environment.h"
 
 #include "stg/AbstrStorageManager.h"
+#include "DataArray.h"
 #include "DataItemClass.h"
 #include "ParallelTiles.h"
 #include "Param.h"
@@ -210,7 +211,7 @@ public:
 		ResultType* result = mutable_array_cast<T>(res);
 
 		// todo: enable MT3
-		parallel_tileloop(te, [&](tile_id t)
+		parallel_tileloop(te, [result, seed, range](tile_id t)
 			{
 				using uniform_engine_t = uniform_engine<T> ;
 				auto seeds = std::seed_seq{ seed, t };
@@ -235,31 +236,35 @@ public:
 #include "UnitProcessor.h"
 
 template <typename V>
-class SeededRndUniformOperator : public BinaryOperator
+class SeededRndUniformOperator : public TernaryOperator
 {
 	using ResultType = DataArray<V>;        // result type
 
-	using Arg1Type = DataArray<rnd_seed_t>; // Random Seeds with domain
-	using Arg2Type = Unit<V>;               // values of result
+	using Arg1Type = DataArray<rnd_seed_t>; // Random Seed parameter
+	using Arg2Type = DataArray<rnd_seed_t>; // Random Seeds per domain elememt
+	using Arg3Type = Unit<V>;               // values of result
 public:
 	SeededRndUniformOperator()
-		: BinaryOperator(&cogRndUniform, ResultType::GetStaticClass(), Arg1Type::GetStaticClass(), Arg2Type::GetStaticClass())
+		: TernaryOperator(&cogRndUniform, ResultType::GetStaticClass(), Arg1Type::GetStaticClass(), Arg2Type::GetStaticClass(), Arg3Type::GetStaticClass())
 	{}
 
 	using rng_engine = std::mt19937;
 	// Override Operator
 	bool CreateResult(TreeItemDualRef& resultHolder, const ArgSeqType& args, bool mustCalc) const override
 	{
-		assert(args.size() == 2);
+		assert(args.size() == 3);
 
-		auto seedAttr = AsDataItem(args[0]);             assert(seedAttr);
+		auto seedParam= AsDataItem(args[0]);             assert(seedParam);
+		auto seedAttr = AsDataItem(args[1]);             assert(seedAttr);
 		auto domain   = seedAttr->GetAbstrDomainUnit();  assert(domain);
+
+		MG_USERCHECK(seedParam->HasVoidDomainGuarantee() && "The first seed argument must be a parameter or an attribute with void domain.");
 
 		auto values = debug_cast<const Unit<V>*>(args[1]);
 		assert(values);
 
 		const AbstrUnit* arg3 = AsUnit(args[2]);
-		dms_assert(arg3);
+		assert(arg3);
 
 		if (!resultHolder)
 			resultHolder = CreateCacheDataItem(domain, values);
@@ -267,25 +272,30 @@ public:
 		if (mustCalc)
 		{
 			AbstrDataItem* res = AsDataItem(resultHolder.GetNew());
+			auto seed1 = GetTheCurrValue<rnd_seed_t>(seedParam);
+
 			DataReadLock seeedLock(seedAttr);
 			auto seedTileArray = const_array_cast<rnd_seed_t>(seedAttr);
 			DataWriteLock resLock(res);
 			auto resTileArray = mutable_array_cast<V>(resLock);
 
-			auto lowerBound = values->GetRange().first;
-			auto upperBound = values->GetRange().second;
-			for (tile_id t = 0; t != domain->GetNrTiles(); ++t)
-			{
-				auto seedData = seedTileArray->GetTile(t);
-				auto resData = resTileArray->GetWritableTile(t, dms_rw_mode::write_only_all);
-				auto resIter = resData.begin();
-				for (auto seed : seedData)
+			auto range = values->GetRange();
+
+			// todo: enable MT3
+			parallel_tileloop(domain->GetNrTiles(), [seed1, seedTileArray, range, resTileArray](tile_id t)
 				{
-					auto newEngine = uniform_engine<V>(seed, lowerBound, upperBound);
-					*resIter++ = newEngine();
+					auto seedData = seedTileArray->GetTile(t);
+					auto resData = resTileArray->GetWritableTile(t, dms_rw_mode::write_only_all);
+					auto resIter = resData.begin();
+					for (auto seed : seedData)
+					{
+						auto seeds = std::seed_seq{ seed1, seed };
+						auto newEngine = uniform_engine<V>(seed, range.first, range.second);
+						*resIter++ = newEngine();
+					}
+					assert(resIter - resData.begin() == seedData.size());
 				}
-				assert(resIter - resData.begin() == seedData.size());
-			}
+			);
 
 			resLock.Commit();
 		}
