@@ -307,6 +307,8 @@ int main_without_SE_handler(int argc, char *argv[]) {
         auto mouse_forward_backward_event_filter_on_heap = std::make_unique<DmsMouseForwardBackwardEventFilter>();
 
         auto dms_app_on_heap = std::make_unique<QApplication>(argc, argv);
+        geoDmsResources |= init_geodms(*dms_app_on_heap.get(), settingsFrame); // destruct resources after app completion
+        dms_app_on_heap->installNativeEventFilter(native_event_filter_on_heap.get());
 
         SharedStr tsn = settingsFrame.m_TestScriptName;
 
@@ -314,8 +316,6 @@ int main_without_SE_handler(int argc, char *argv[]) {
         if (tsn.empty())
             splash = showSplashScreen();
 
-        geoDmsResources |= init_geodms(*dms_app_on_heap.get(), settingsFrame); // destruct resources after app completion
-        dms_app_on_heap->installNativeEventFilter(native_event_filter_on_heap.get());
 
         Q_INIT_RESOURCE(GeoDmsGuiQt);
         if (tsn.empty())
