@@ -1413,9 +1413,6 @@ std::vector<ItemReadLock> OperationContext::SetReadLocks(const FutureSuppliers& 
 
 bool OperationContext::connectArgs(const FutureSuppliers& allArgInterests)
 {
-	if (!m_FuncDC)
-		return false;
-
 	DBG_START("OperationContext", "connectArgs", MG_DEBUG_FUNCCONTEXT);
 	DBG_TRACE(("FuncDC: %s", m_FuncDC->md_sKeyExpr));
 
@@ -1870,7 +1867,8 @@ bool CurrActiveTaskHasRunCount()
 
 task_status OperationContext::Join()
 {
-	StealOneTileTask(true);
+	if (!IsMetaThread())
+		StealOneTileTask(true);
 
 	if (CurrActiveTaskHasRunCount())
 	{
@@ -1879,7 +1877,7 @@ task_status OperationContext::Join()
 			, CancelableFrame::CurrActive()->GetResult()->GetFullName()
 		);
 	}
-	if (IsMainThread() && s_CurrBlockedPhaseNumber && s_CurrBlockedPhaseNumber <= m_PhaseNumber)
+	if (IsMetaThread() && s_CurrBlockedPhaseNumber && s_CurrBlockedPhaseNumber <= m_PhaseNumber)
 		throwErrorF("PhaseContainer", "Invalid Recursion, OperationContext(%s)::Join called from updating %s for %s"
 		,	GetResult()->GetFullName()
 		,	s_CurrBlockedPhaseItem->GetFullName()
@@ -1903,6 +1901,7 @@ task_status OperationContext::Join()
 
 		if (IsMetaThread())
 		{
+			SuspendTrigger::MarkProgress();
 			ProcessMainThreadOpers();
 			ProcessSuspendibleTasks();
 			if (SuspendTrigger::DidSuspend())
@@ -1929,7 +1928,7 @@ task_status OperationContext::Join()
 
 		auto currentFinishCount = GetCurrFinishedCount();
 		StartOperationContexts(); // OPTIMIZE, CONSISTENCY: Some tasks finished without calling this. Find out why and avoid wasting idle thread time; maybe all threads are waiting in a Join without new and current tasks being activated
-		if (!IsMetaThread() || SuspendTrigger::BlockerBase::IsBlocked())
+		if (!IsMetaThread())
 		{
 			while (StealOneTask(m_PhaseNumber))
 			{
@@ -1957,8 +1956,13 @@ task_status OperationContext::Join()
 			assert(!m_Suppliers.empty());
 		}
 
-		if (IsMetaThread() && HasMainThreadTasks())
-			continue; // do that first 
+		if (IsMetaThread())
+		{
+			if (SuspendTrigger::MustSuspend())
+				return task_status::suspended;
+			if (HasMainThreadTasks())
+				continue; // do that first 
+		}
 
 		// or wait for conditioin that was certainly not met just after setting the thread messing lock
 		cv_TaskCompleted.wait_for(lock.m_BaseLock, std::chrono::milliseconds(500));
@@ -1982,6 +1986,7 @@ TIC_CALL void DoWorkWhileWaitingFor(phase_number maxPhaseNumber, task_status* fe
 //				return false;
 			ProcessMainThreadOpers();
 			ProcessSuspendibleTasks();
+			SuspendTrigger::MarkProgress();
 		}
 
 		auto currentFinishCount = GetCurrFinishedCount();

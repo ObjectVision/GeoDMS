@@ -453,9 +453,14 @@ std::shared_ptr<Theme> Theme::Create(AspectNr aNr, const AbstrDataItem* thematic
 
 		thematicAttrHolder->PrepareDataUsage(DrlType::Certain);
 		thematicAttrHolder->GetAbstrDomainUnit()->PrepareDataUsage(DrlType::Certain);
-
+		auto thematicDomainUnit = thematicAttrHolder->GetAbstrDomainUnit();
+		FutureData fta = thematicAttrHolder->GetCheckedDC(); if (fta) fta = fta->CalcResultWithValuesUnits();
+		FutureData fdu = thematicDomainUnit->GetCheckedDC(); if (fdu) fdu = fdu->CallCalcResult();
 		MakeMax<phase_number>(nbai.breakAttr->m_PhaseNumber, thematicAttrHolder->GetPhaseNumber());
 		MakeMax<phase_number>(nbai.breakAttr->m_PhaseNumber, thematicAttrHolder->GetAbstrDomainUnit()->GetPhaseNumber());
+		FutureSuppliers fs; fs.reserve(2);
+		if (fta) fs.emplace_back(std::move(fta));
+		if (fdu) fs.emplace_back(std::move(fdu));
 
 		auto etc = OperationContext::CreateItemWriter(nbai.breakAttr.get_ptr(),
 			[dv_wptr, ts, thematicAttrHolder
@@ -469,7 +474,7 @@ std::shared_ptr<Theme> Theme::Create(AspectNr aNr, const AbstrDataItem* thematic
 				auto r = result_wptr.lock();
 				if (r) r->m_ClassTask.Clear();
 			}
-		,   FutureSuppliers()
+		,   std::move(fs)
 		,	false
 		,	nullptr
 		);
