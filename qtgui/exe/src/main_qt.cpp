@@ -308,28 +308,50 @@ int main_without_SE_handler(int argc, char *argv[]) {
 
         auto dms_app_on_heap = std::make_unique<QApplication>(argc, argv);
 
-        auto splash = showSplashScreen();
+        SharedStr tsn = settingsFrame.m_TestScriptName;
+
+        std::unique_ptr<DmsSplashScreen> splash;
+        if (tsn.empty())
+            splash = showSplashScreen();
 
         geoDmsResources |= init_geodms(*dms_app_on_heap.get(), settingsFrame); // destruct resources after app completion
         dms_app_on_heap->installNativeEventFilter(native_event_filter_on_heap.get());
 
         Q_INIT_RESOURCE(GeoDmsGuiQt);
-        splash->showMessage("Initialize GeoDMS Gui");
+        if (tsn.empty())
+            splash->showMessage("Initialize GeoDMS Gui");
+
 
         MainWindow main_window(settingsFrame);
         dms_app_on_heap->setWindowIcon(QIcon(":/res/images/GeoDmsGuiQt.png"));
         dms_app_on_heap->installEventFilter(mouse_forward_backward_event_filter_on_heap.get());
 
-        QTimer::singleShot(100, [splashHandle = std::move(splash)]() { splashHandle->close(); });
-
-        main_window.showMaximized();
-        ConfirmMainThreadOperProcessing();
-
-        SharedStr tsn = settingsFrame.m_TestScriptName;
         std::future<int> testResult;
         bool mustTerminateToken = false;
-        if (!tsn.empty())
+
+        if (tsn.empty())
+            QTimer::singleShot(1000
+                , [splashHandle = std::move(splash), &main_window]() 
+                { 
+                    main_window.showMaximized();
+                    splashHandle->close();
+                    ConfirmMainThreadOperProcessing();
+                }
+            );
+
+        else
         {
+#ifdef Q_OS_WIN
+            main_window.show(); // show it without maximizing yet
+            HWND hwnd = (HWND)main_window.winId();
+            ShowWindow(hwnd, SW_SHOWMAXIMIZED);
+            SetWindowPos(hwnd, HWND_BOTTOM, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE | SWP_SHOWWINDOW);
+#else
+            main_window.setWindowState(Qt::WindowMaximized | Qt::WindowInactive);
+            main_window.show();
+#endif
+            ConfirmMainThreadOperProcessing();
+
             main_window.PostAppOper([tsn, &testResult, &mustTerminateToken]
                 {
                     testResult = std::async([tsn, &mustTerminateToken]
