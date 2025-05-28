@@ -927,9 +927,12 @@ auto CreateAbstrHeapTileFunctor(const AbstrDataItem* adi, SharedPtr<const Shared
 	dbg_assert(adi->GetAbstrDomainUnit()->CheckMetaInfoReadyOrPassor());
 	dbg_assert(adi->GetAbstrValuesUnit()->CheckMetaInfoReadyOrPassor());
 
-	auto adu = adi->GetAbstrDomainUnit();
-	assert(adu);
-	SharedPtr<const AbstrTileRangeData> currTRD = AsUnit(adu->GetCurrRangeItem())->GetTiledRangeData();
+	auto adu = adi->GetAbstrDomainUnit();   MG_CHECK(adu);
+	auto cri = adu->GetCurrRangeItem();     MG_CHECK(cri);
+	MG_CHECK(IsUnit(cri));
+	auto aduCRI = AsUnit(cri);
+
+	SharedPtr<const AbstrTileRangeData> currTRD = aduCRI->GetTiledRangeData();
 	MG_CHECK(currTRD);
 	SharedPtr<const AbstrUnit> valuesUnit = AsUnit(adi->GetAbstrValuesUnit()->GetCurrRangeItem());
 

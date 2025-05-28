@@ -41,6 +41,7 @@
 //----------------------------------------------------------------------
 // Compile time polymorphic helper functions 
 //----------------------------------------------------------------------
+std::mutex sc_RangeDataPtrAccess;
 
 namespace {
 
@@ -481,6 +482,7 @@ void RangedUnit<V>::LoadRangeImpl(BinaryInpStream& pis)
 		Range<V> range;
 		tile_id tn;
 		pis >> range >> tn;
+		auto lock = std::lock_guard(sc_RangeDataPtrAccess);
 		if (range.empty() || tn == 0)
 			this->m_RangeDataPtr.reset();
 		else
@@ -539,6 +541,7 @@ void CountableUnitBase<V>::LoadRangeImpl(BinaryInpStream& pis)
 		tile_id tn;
 		pis >> range >> tn;
 
+		auto lock = std::lock_guard(sc_RangeDataPtrAccess);
 		if constexpr (has_small_range_v<V>)
 		{
 			MG_CHECK(tn == no_tile);
@@ -607,6 +610,7 @@ void RangedUnit<V>::StoreRangeImpl(BinaryOutStream& pos) const
 {
 	if constexpr (has_var_range_v<V>)
 	{
+		auto lock = std::lock_guard(sc_RangeDataPtrAccess);
 		if (this->m_RangeDataPtr)
 			pos << this->m_RangeDataPtr->GetRange();
 		else
@@ -619,6 +623,7 @@ void CountableUnitBase<V>::StoreRangeImpl(BinaryOutStream& pos) const
 {
 	if constexpr (has_var_range_v<V>)
 	{
+		auto lock = std::lock_guard(sc_RangeDataPtrAccess);
 		MG_CHECK(this->m_RangeDataPtr);
 		tile_id tn = this->m_RangeDataPtr->GetNrTiles();
 		if (tn == 1)
@@ -635,7 +640,8 @@ void CountableUnitBase<V>::StoreRangeImpl(BinaryOutStream& pos) const
 template <typename V>
 bool CountableUnitBase<V>::ContainsUndefined(tile_id t) const
 {
-	dms_assert(this->m_RangeDataPtr); // PRECONDITION: IsCurrTiled()
+	auto lock = std::lock_guard(sc_RangeDataPtrAccess);
+	assert(this->m_RangeDataPtr); // PRECONDITION: IsCurrTiled()
 	return :: ContainsUndefined(this->m_RangeDataPtr->GetTileRange(t));
 }
 
@@ -758,14 +764,17 @@ NotifyRangeDataChange(RangedUnit<V>* self, const typename RangedUnit<V>::range_d
 template <class V>
 void CountableUnitBase<V>::SetRange(const range_t& range)
 {
-	auto oldRangeDataPtr = this->m_RangeDataPtr;
+	decltype(this->m_RangeDataPtr) oldRangeDataPtr, newRangeDataPtr;
 	static_assert(!has_simple_range_v<V>);
-
-	if constexpr (has_small_range_v<V>)
-		this->m_RangeDataPtr.assign(std::make_unique<SmallRangeData<V>>(range).release());
-	else
-		this->m_RangeDataPtr.assign(std::make_unique<DefaultTileRangeData<V>>(range).release());
-
+	{
+		auto lock = std::lock_guard(sc_RangeDataPtrAccess);
+		oldRangeDataPtr = this->m_RangeDataPtr;
+		if constexpr (has_small_range_v<V>)
+			this->m_RangeDataPtr.assign(std::make_unique<SmallRangeData<V>>(range).release());
+		else
+			this->m_RangeDataPtr.assign(std::make_unique<DefaultTileRangeData<V>>(range).release());
+		newRangeDataPtr = this->m_RangeDataPtr;
+	}
 	if (this->IsCacheItem())
 		return;
 
@@ -776,8 +785,9 @@ void CountableUnitBase<V>::SetRange(const range_t& range)
 
 	if (oldRangeDataPtr)
 	{
+		MG_CHECK(IsMetaThread());
 		dms_assert(!UpdateMarker::IsLoadingConfig());
-		NotifyRangeDataChange(this, oldRangeDataPtr.get_ptr(), this->m_RangeDataPtr.get_ptr());
+		NotifyRangeDataChange(this, oldRangeDataPtr.get_ptr(), newRangeDataPtr.get_ptr());
 	}
 	MarkUnitChange(this);
 }
@@ -789,13 +799,19 @@ void CountableUnitBase<V>::SetMaxRange()
 	if constexpr (has_small_range_v<V>)
 		SetRange(range_t(MinValue<V>(), MaxValue<V>()));
 	else
+	{
+		auto lock = std::lock_guard(sc_RangeDataPtrAccess);
 		this->m_RangeDataPtr.assign(std::make_unique <MaxRangeData<V>>().release()); // not suitable as domain
+	}
 }
 
 template <class V>
 void FloatUnit<V>::SetRange (const range_t& range)
 {
-	this->m_RangeDataPtr.assign(std::make_unique<SimpleRangeData<V>>(range).release());
+	{
+		auto lock = std::lock_guard(sc_RangeDataPtrAccess);
+		this->m_RangeDataPtr.assign(std::make_unique<SimpleRangeData<V>>(range).release());
+	}
 
 	if (this->IsCacheItem())
 		return;
@@ -813,14 +829,24 @@ void TileAdapter<Base>::SetIrregularTileRange(std::vector<range_t> optionalTileR
 {
 	static_assert(!has_simple_range_v<value_t>);
 	std::unique_ptr< TiledRangeData<value_t> > newRangeData;
+	SharedPtr<const TiledRangeData<value_t> >  oldRangeData;
 	if (optionalTileRanges.empty())
 		newRangeData.reset(new DefaultTileRangeData<value_t>(UNDEFINED_VALUE(range_t)));
 	else
 		newRangeData.reset(new IrregularTileRangeData<value_t>(std::move(optionalTileRanges)));
 
-	if (this->m_RangeDataPtr)
-		NotifyRangeDataChange(this, this->m_RangeDataPtr.get_ptr(), newRangeData.get());
-	this->m_RangeDataPtr.assign(newRangeData.release());
+	{
+		auto lock = std::lock_guard(sc_RangeDataPtrAccess);
+		oldRangeData = std::move(this->m_RangeDataPtr);
+		this->m_RangeDataPtr.assign(newRangeData.release());
+	}
+
+	if (oldRangeData)
+	{
+		MG_CHECK(IsMetaThread());
+		NotifyRangeDataChange(this, oldRangeData.get_ptr(), newRangeData.get());
+	}
+
 	MarkUnitChange(this);
 }
 
@@ -1085,6 +1111,7 @@ bool CountableUnitBase<V>::IsCurrTiled() const
 template <typename V>
 auto CountableUnitBase<V>::GetTiledRangeData() const -> SharedPtr <const AbstrTileRangeData>
 { 
+	auto lock = std::lock_guard(sc_RangeDataPtrAccess);
 	return this->m_RangeDataPtr.get();
 }
 
