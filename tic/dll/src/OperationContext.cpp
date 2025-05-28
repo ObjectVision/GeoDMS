@@ -1966,7 +1966,7 @@ task_status OperationContext::Join()
 exit:
 	auto status = GetStatus();
 	assert(status > task_status::running);
-	dbg_assert(CheckDataReady(m_Result->GetCurrUltimateItem()) || status == task_status::cancelled || status == task_status::exception || !m_Result->GetInterestCount());
+	dbg_assert((m_Result->m_ItemCount < 0) || CheckDataReady(m_Result->GetCurrUltimateItem()) || status == task_status::cancelled || status == task_status::exception || !m_Result->GetInterestCount());
 	return status;
 }
 
@@ -2004,6 +2004,9 @@ TIC_CALL void DoWorkWhileWaitingFor(phase_number maxPhaseNumber, task_status* fe
 
 		if (IsMetaThread() && HasMainThreadTasks())
 			continue;
+
+		if (SuspendTrigger::MustSuspend())
+			return;
 
 		// wait for conditioin that was certainly not met just after setting the thread messing lock
 		cv_TaskCompleted.wait_for(lock.m_BaseLock, std::chrono::milliseconds(500));
