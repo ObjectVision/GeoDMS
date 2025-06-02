@@ -399,7 +399,7 @@ bool HasMainThreadTasks()
 		return true;
 	if (s_ProcessMainThreadOperLevel)
 		return false;
-	if (s_OperQueue.Empty())
+	if (!s_OperQueue.Empty())
 		return true;
 	return false;
 }

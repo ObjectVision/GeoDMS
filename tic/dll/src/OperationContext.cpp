@@ -2023,19 +2023,6 @@ TIC_CALL void DoWorkWhileWaitingFor(phase_number maxPhaseNumber, task_status* fe
 	}
 }
 
-/// Wait for the task to finish or timeout
-/// \param waitFor The time to wait for the task to finish
-///
-/// it assumes that the caller loops with a while condition that will only become true 
-/// as a side-effect of a completing unknown task
-/// if the caller knows which task to wait for, it should use the Join() method instead
-///
-
-void WaitForCompletedTaskOrTimeout() // REMOVE
-{
-	DoWorkWhileWaitingFor(phase_number(-1), nullptr);
-}
-
 void OperationContext::RunOperator(Explain::Context* context, ArgRefs argRefs, std::vector<ItemReadLock> readLocks)
 {
 	SharedPtr<const FuncDC> funcDC = m_FuncDC.get_ptr();

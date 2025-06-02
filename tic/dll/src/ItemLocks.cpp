@@ -742,7 +742,10 @@ bool WaitForReadyOrSuspendTrigger(const TreeItem* item)
 			producer = item->m_Producer.lock();
 		}
 		if (producer)
-			producer->Join();
+		{
+			auto status = producer->Join();
+			return status == task_status::done;
+		}
 		else
 		{
 			assert(IsMultiThreaded2());

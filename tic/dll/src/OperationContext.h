@@ -30,8 +30,6 @@ private:
 	OperationContext* m_Prev;
 };
 
-void WaitForCompletedTaskOrTimeout();
-
 using dms_task = concurrency::task<void>;
 inline bool is_empty(const dms_task& x) { return x == dms_task();  }
 
