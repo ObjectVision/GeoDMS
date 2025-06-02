@@ -1976,7 +1976,8 @@ exit:
 
 TIC_CALL void DoWorkWhileWaitingFor(phase_number maxPhaseNumber, task_status* fenceStatus)
 {
-	StealOneTileTask(true);
+	if (!IsMetaThread())
+		StealOneTileTask(true);
 
 	while (!fenceStatus || IsActiveOrRunning(*fenceStatus))
 	{
@@ -1992,13 +1993,14 @@ TIC_CALL void DoWorkWhileWaitingFor(phase_number maxPhaseNumber, task_status* fe
 		auto currentFinishCount = GetCurrFinishedCount();
 
 		StartOperationContexts();
-		while (!fenceStatus || IsActiveOrRunning(*fenceStatus))
-		{
-			if (!StealOneTask(maxPhaseNumber))
-				break;
-			if (!fenceStatus)
-				return; // let caller reconsider after one tasks has been done and no explicit termination condition variable is provided
-		}
+		if (!IsMetaThread())
+			while (!fenceStatus || IsActiveOrRunning(*fenceStatus))
+			{
+				if (!StealOneTask(maxPhaseNumber))
+					break;
+				if (!fenceStatus)
+					return; // let caller reconsider after one tasks has been done and no explicit termination condition variable is provided
+			}
 
 		leveled_std_section::unique_lock lock(cs_ThreadMessing);
 		if (fenceStatus && *fenceStatus > task_status::running)
@@ -2029,7 +2031,7 @@ TIC_CALL void DoWorkWhileWaitingFor(phase_number maxPhaseNumber, task_status* fe
 /// if the caller knows which task to wait for, it should use the Join() method instead
 ///
 
-void WaitForCompletedTaskOrTimeout()
+void WaitForCompletedTaskOrTimeout() // REMOVE
 {
 	DoWorkWhileWaitingFor(phase_number(-1), nullptr);
 }
