@@ -382,12 +382,6 @@ static bool s_IsInLowRamMode = false;
 static UInt32 s_CurrFinishedCount = 0;
 
 static std::atomic<UInt32> s_NrWaitingJoins = 0;
-phase_number GetCurrActivePhaseNumber()
-{
-	leveled_critical_section::scoped_lock lockToAvoidHasMainThreadTasksToBeMissed(cs_ThreadMessing);
-	return s_CurrActivePhaseNumber;
-}
-
 UInt32 GetCurrFinishedCount()
 {
 	leveled_critical_section::scoped_lock lockToAvoidHasMainThreadTasksToBeMissed(cs_ThreadMessing);
@@ -624,6 +618,8 @@ void scheduleRunnableTask(OperationContext* self)
 	// next StartOperationContexts() must not start scheduling tasks with phase numbers higher than this task.
 	auto fn = self->m_PhaseNumber;
 	MakeMin<phase_number>(s_CurrActivePhaseNumber, fn);
+	assert(s_CurrBlockedPhaseNumber == 0 || s_CurrBlockedPhaseNumber >= s_CurrActivePhaseNumber);
+
 	s_ScheduledContextsMap[fn].emplace_back(self->weak_from_this());
 	self->releaseRunCount(task_status::scheduled);
 //	self->m_Status = task_status::scheduled;
@@ -771,6 +767,9 @@ auto collectOperationContexts() -> std::pair<context_array, garbage_t>
 	while (!s_ScheduledContextsMap.empty())
 	{
 		auto nextPhaseNumber = s_ScheduledContextsMap.begin()->first;
+
+		assert(s_CurrBlockedPhaseNumber == 0 || s_CurrBlockedPhaseNumber >= s_CurrActivePhaseNumber);
+
 		if (nextPhaseNumber > s_CurrActivePhaseNumber)
 		{
 			while (!s_NrActivatedOrRunningOperations.empty())
@@ -786,6 +785,7 @@ auto collectOperationContexts() -> std::pair<context_array, garbage_t>
 				break;
 			}
 			s_CurrActivePhaseNumber = nextPhaseNumber;
+			assert(s_CurrBlockedPhaseNumber == 0 || s_CurrBlockedPhaseNumber >= s_CurrActivePhaseNumber); // else we would not be allowd to enter this level as currBlockedPhaseNumber is in the MainStack being executed.
 			NotifyCurrentTargetCount();
 		}
 
@@ -813,6 +813,7 @@ auto collectOperationContexts() -> std::pair<context_array, garbage_t>
 
 			cancelGarbage |= operContext->shared_from_this(); // copy shared_ptr into container for destruction consideration outside current critical section
 			assert(operContext->m_Status >= task_status::scheduled);
+			assert(s_CurrBlockedPhaseNumber == 0 || s_CurrBlockedPhaseNumber >= s_CurrActivePhaseNumber);
 			assert(operContext->m_PhaseNumber == s_CurrActivePhaseNumber);
 			if (operContext->m_Status < task_status::activated)
 			{
@@ -863,7 +864,7 @@ void StartCollectedOperationContexts(context_array collectedActivatedContexts)
 			auto selfCaller = [activatedContextWPtr]()
 				{
 					if (auto self = activatedContextWPtr.lock())
-						self->TryRunningTaskInline(GetCurrActivePhaseNumber());
+						self->TryRunningTaskInline();
 				};
 
 			GetTaskGroup().run(selfCaller);
@@ -1072,7 +1073,7 @@ task_status OperationContext::Schedule(TreeItem* item, const FutureSuppliers& al
 			leveled_std_section::scoped_lock lock(cs_ThreadMessing);
 
 			OperationContex_setActivated(this);
-			bool running = getUniqueLicenseToRun(m_PhaseNumber); assert(running);
+			bool running = getUniqueLicenseToRun(true); assert(running);
 		}
 		Run_with_cleanup();
 	}
@@ -1154,12 +1155,12 @@ bool OperationContext::collectTaskImpl()
 	return true;
 }
 
-bool OperationContext::TryRunningTaskInline(phase_number targetPhaseNumber)
+bool OperationContext::TryRunningTaskInline()
 {
 	assert(m_Suppliers.empty());
 	StealOneTileTask(true);
 
-	if (!GetUniqueLicenseToRun(targetPhaseNumber))
+	if (!GetUniqueLicenseToRun())
 		return false;
 
 	Run_Caller();
@@ -1167,7 +1168,7 @@ bool OperationContext::TryRunningTaskInline(phase_number targetPhaseNumber)
 }
 
 
-bool  OperationContext::getUniqueLicenseToRun(phase_number targetPhaseNumber)
+bool  OperationContext::getUniqueLicenseToRun(bool runDirect)
 {
 	assert(!cs_ThreadMessing.try_lock());
 	auto status = getStatus();
@@ -1180,11 +1181,13 @@ bool  OperationContext::getUniqueLicenseToRun(phase_number targetPhaseNumber)
 
 	assert(status == task_status::activated);
 
-	if (m_PhaseNumber > targetPhaseNumber)
-	{
-		scheduleRunnableTask(this); // place it back 
-		return false;
-	}
+	assert(s_CurrBlockedPhaseNumber == 0 || s_CurrBlockedPhaseNumber >= s_CurrActivePhaseNumber);
+	if (!runDirect)
+		if (m_PhaseNumber > s_CurrActivePhaseNumber)
+		{
+			scheduleRunnableTask(this); // place it back 
+			return false;
+		}
 
 	DSM::CancelIfOutOfInterest(m_Result);
 
@@ -1192,10 +1195,10 @@ bool  OperationContext::getUniqueLicenseToRun(phase_number targetPhaseNumber)
 	return true;
 }
 
-bool OperationContext::GetUniqueLicenseToRun(phase_number targetPhaseNumber)
+bool OperationContext::GetUniqueLicenseToRun()
 {
 	leveled_std_section::scoped_lock lock(cs_ThreadMessing);
-	return getUniqueLicenseToRun(targetPhaseNumber);
+	return getUniqueLicenseToRun(false);
 }
 
 void OperationContext::OnException() noexcept
@@ -1807,7 +1810,7 @@ auto PopActiveSuppliers(OperationContextSPtr waiter) -> std::pair<SupplierSet, c
 // Section:     StealOneTask
 // *****************************************************************************
 
-auto FindAndLicenceOnePriorityTasks(phase_number currFenceNumber) -> OperationContextSPtr
+auto FindAndLicenceOnePriorityTasks() -> OperationContextSPtr
 {
 	std::vector<OperationContextSPtr> garbage;
 
@@ -1820,7 +1823,7 @@ auto FindAndLicenceOnePriorityTasks(phase_number currFenceNumber) -> OperationCo
 			continue; // expired
 
 		// try to grab the license—only one thread ever wins per OC
-		if (ocSPtr->getUniqueLicenseToRun(currFenceNumber))
+		if (ocSPtr->getUniqueLicenseToRun(false))
 			return ocSPtr; // we can do one piece of inline work—go do it (now you must) and re-check your fences/status
 		else
 			garbage.emplace_back(std::move(ocSPtr)); // maybe we-re the last owner and we dón't wat to destry here 
@@ -1830,11 +1833,11 @@ auto FindAndLicenceOnePriorityTasks(phase_number currFenceNumber) -> OperationCo
 }
 
 
-bool StealOneTask(phase_number currFenceNumber)
+bool StealOneTask()
 {
 	StealOneTileTask(true)
 		;
-	auto ocSPtr = FindAndLicenceOnePriorityTasks(currFenceNumber);
+	auto ocSPtr = FindAndLicenceOnePriorityTasks();
 	if (!ocSPtr)
 		return false; // no work to do
 
@@ -1896,7 +1899,7 @@ task_status OperationContext::Join()
 		}
 		else
 			if (GetStatus() == task_status::activated)
-				if (TryRunningTaskInline(true))
+				if (TryRunningTaskInline())
 					return GetStatus();
 
 		if (IsMetaThread())
@@ -1917,10 +1920,10 @@ task_status OperationContext::Join()
 				StartCollectedOperationContexts(std::move(collectedTasksToRun));
 				// run as much as possible and needed for this Join before giving up on task collection effort
 				for (const auto& inlineTaskCandidate : activatedContexts)
-					inlineTaskCandidate->TryRunningTaskInline(s_CurrActivePhaseNumber);  
+					inlineTaskCandidate->TryRunningTaskInline();  
 				for (const auto& inlineTaskCandidateWPtr : collectedTasksToRun)
 					if (auto inlineTaskCandidate = inlineTaskCandidateWPtr.lock())
-						inlineTaskCandidate->TryRunningTaskInline(s_CurrActivePhaseNumber);  // already running elsewhere. go for something else before giving up on task collection effort
+						inlineTaskCandidate->TryRunningTaskInline();  // already running elsewhere. go for something else before giving up on task collection effort
 			}
 		else			
 */
@@ -1930,7 +1933,7 @@ task_status OperationContext::Join()
 		StartOperationContexts(); // OPTIMIZE, CONSISTENCY: Some tasks finished without calling this. Find out why and avoid wasting idle thread time; maybe all threads are waiting in a Join without new and current tasks being activated
 		if (!IsMetaThread())
 		{
-			while (StealOneTask(m_PhaseNumber))
+			while (StealOneTask())
 			{
 				StartOperationContexts(); // OPTIMIZE, CONSISTENCY: Some tasks finished without calling this. Find out why and avoid wasting idle thread time; maybe all threads are waiting in a Join without new and current tasks being activated
 				if (GetStatus() > task_status::running)
@@ -1974,7 +1977,7 @@ exit:
 	return status;
 }
 
-TIC_CALL void DoWorkWhileWaitingFor(phase_number maxPhaseNumber, task_status* fenceStatus)
+TIC_CALL void DoWorkWhileWaitingFor(task_status* fenceStatus)
 {
 	if (!IsMetaThread())
 		StealOneTileTask(true);
@@ -1996,7 +1999,7 @@ TIC_CALL void DoWorkWhileWaitingFor(phase_number maxPhaseNumber, task_status* fe
 		if (!IsMetaThread())
 			while (!fenceStatus || IsActiveOrRunning(*fenceStatus))
 			{
-				if (!StealOneTask(maxPhaseNumber))
+				if (!StealOneTask())
 					break;
 				if (!fenceStatus)
 					return; // let caller reconsider after one tasks has been done and no explicit termination condition variable is provided

@@ -396,7 +396,7 @@ struct PhaseContainerOperator : BinaryOperator
 		);
 
 		{
-			DoWorkWhileWaitingFor(resultPhaseNumber, &phaseContainerStatus);
+			DoWorkWhileWaitingFor(&phaseContainerStatus);
 			if (phaseContainerStatus == task_status::exception && fenceErrorPtr)
 				std::rethrow_exception(fenceErrorPtr);
 		}

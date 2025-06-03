@@ -749,7 +749,7 @@ bool WaitForReadyOrSuspendTrigger(const TreeItem* item)
 		else
 		{
 			assert(IsMultiThreaded2());
-			DoWorkWhileWaitingFor(phase_number(-1), nullptr); // max 500 milliseconds
+			DoWorkWhileWaitingFor(nullptr); // max 500 milliseconds
 			SuspendTrigger::MarkProgress(); // Is ti or any other item indeed progressing without dropping off from scope
 			if (counter++ == 20) // sporadious wakeup at least every 10 secs to release from mysterious hang
 				SuspendTrigger::DoSuspend();

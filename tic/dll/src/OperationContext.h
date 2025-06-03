@@ -81,8 +81,8 @@ public:
 	// main interface functions
 	TIC_CALL task_status Join();
 
-	TIC_CALL bool GetUniqueLicenseToRun(phase_number targetPhaseNumber);
-	TIC_CALL bool getUniqueLicenseToRun(phase_number targetPhaseNumber);
+	TIC_CALL bool GetUniqueLicenseToRun();
+	TIC_CALL bool getUniqueLicenseToRun(bool runDirect);
 	//REMOVE TIC_CALL void OnSuspend();
 	TIC_CALL void OnException() noexcept;
 	TIC_CALL void OnEnd(task_status status) noexcept;
@@ -100,7 +100,7 @@ public:
 	void ActivateOtherSuppl();
 
 //private:
-	bool TryRunningTaskInline(phase_number targetPhaseNumber);
+	bool TryRunningTaskInline();
 	bool collectTaskImpl();
 	void releaseRunCount(task_status status);
 	garbage_t separateResources(task_status status);
@@ -146,7 +146,7 @@ public:
 };
 
 TIC_CALL auto GetNextPhaseNumber() -> phase_number;
-TIC_CALL void DoWorkWhileWaitingFor(phase_number maxPhaseNumber, task_status* phaseContainerStatus);
+TIC_CALL void DoWorkWhileWaitingFor(task_status* phaseContainerStatus);
 
 
 TIC_CALL void WakeUpJoiners();
