@@ -2082,6 +2082,18 @@ void GdalVectSM::DoUpdateTableGeometry(const TreeItem* storageHolder, AbstrUnit*
 	ValueComposition gdal_vc = gdalVectImpl::OGR2ValueComposition(layer_geometry_type);
 
 	auto geometry_item = layerDomain->GetSubTreeItemByID(token::geometry);
+	if (geometry_item)
+	{
+		if (geometry_item->IsDisabledStorage() || geometry_item->HasCalculator() && IsReadOnly())
+			geometry_item = nullptr;
+	}
+	if (!geometry_item)
+	{
+		for (geometry_item = layerDomain->_GetFirstSubItem(); geometry_item; geometry_item->GetNextItem())
+			if (IsDataItem(geometry_item) && AsDataItem(geometry_item)->GetAbstrValuesUnit()->GetValueType()->GetNrDims() == 2)
+				if (!geometry_item->IsDisabledStorage() && (!geometry_item->HasCalculator() || !IsReadOnly()))
+					break;
+	}
 	AbstrDataItem* geometry = AsDynamicDataItem(geometry_item);
 	const OGRSpatialReference* ogrSR_ptr = layer->GetSpatialRef();
 
