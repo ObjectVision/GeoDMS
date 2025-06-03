@@ -201,7 +201,8 @@ QDmsViewArea::QDmsViewArea(QMdiArea* parent, TreeItem* viewContext, const TreeIt
     setAcceptDrops(true);
 
     m_DataView = SHV_DataView_Create(viewContext, viewStyle, ShvSyncMode::SM_Load);
-    if (!m_DataView)
+    auto dv = m_DataView.lock();
+    if (!dv)
         throwErrorF("CreateView", "Cannot create view with style %s with context '%s'"
             , GetViewStyleName(viewStyle)
             , viewContext->GetFullName().c_str()
@@ -215,14 +216,14 @@ QDmsViewArea::QDmsViewArea(QMdiArea* parent, TreeItem* viewContext, const TreeIt
     // or PostMessage(UM_PROCESS_QUEUE, ...) directly here to trigger DataView::ProcessGuiOpers()
     try {
         auto current_item = MainWindow::TheOne()->getCurrentTreeItem();
-        m_DataView->AddLayer(currItem, false);
-        if (m_DataView->GetViewType()== ViewStyle::tvsMapView)
-            reportF(MsgCategory::commands, SeverityTypeID::ST_MinorTrace, "Add layer for item %s in %s", current_item->GetFullName(), m_DataView->GetCaption());
+        dv->AddLayer(currItem, false);
+        if (dv->GetViewType()== ViewStyle::tvsMapView)
+            reportF(MsgCategory::commands, SeverityTypeID::ST_MinorTrace, "Add layer for item %s in %s", current_item->GetFullName(), dv->GetCaption());
         else
             reportF(MsgCategory::commands, SeverityTypeID::ST_MinorTrace, "Add column for item %s in %s('%s')"
                 , current_item->GetFullName()
 				, GetViewStyleName(viewStyle)
-                , m_DataView->GetCaption()
+                , dv->GetCaption()
             );
     }
     catch (...) {
@@ -233,7 +234,7 @@ QDmsViewArea::QDmsViewArea(QMdiArea* parent, TreeItem* viewContext, const TreeIt
 
 QDmsViewArea::QDmsViewArea(QMdiArea* parent, MdiCreateStruct* createStruct)
     :   QMdiSubWindow(parent)
-    ,   m_DataView(createStruct->dataView)
+    ,   m_DataView(createStruct->dataView->shared_from_this())
 {
     //setUpdatesEnabled(false);
     setWindowTitle(createStruct->caption);
@@ -257,6 +258,7 @@ void QDmsViewArea::CreateDmsView(QMdiArea* parent, ViewStyle viewStyle)
     if (rect.width() < 200) rect.setWidth(200);
     if (rect.height() < 100) rect.setHeight(100);
 
+    auto dv = m_DataView.lock(); MG_CHECK(dv);
     static LPCWSTR dmsViewAreaClassName = RegisterViewAreaWindowClass(instance); // I say this only once
     auto vs = WS_CHILD | WS_CLIPSIBLINGS | WS_CLIPCHILDREN; //  viewStyle == tvsMapView ? WS_DLGFRAME | WS_CHILD : WS_CHILD;
     auto dv_hWnd = CreateWindowEx(
@@ -269,11 +271,11 @@ void QDmsViewArea::CreateDmsView(QMdiArea* parent, ViewStyle viewStyle)
         parent_hwnd,                     // handle to parent (MainWindow)
         nullptr,                         // no menu
         instance,                        // instance owning this window 
-        m_DataView
+        dv.get()
     );
     m_DataViewHWnd = dv_hWnd;
 
-    SHV_DataView_SetStatusTextFunc(m_DataView, this, OnStatusText); // to communicate title etc.
+    SHV_DataView_SetStatusTextFunc(dv.get(), this, OnStatusText); // to communicate title etc.
     SetWindowPos(dv_hWnd, HWND_TOP
         , rect.x(), rect.y()
         , rect.width(), rect.height()
@@ -359,12 +361,15 @@ void QDmsViewArea::dropEvent(QDropEvent* event) {
     auto source = qobject_cast<DmsTreeView*>(event->source());
     if (tree_view != source)
         return;
+    auto dv = getDataView();
+    if (!dv)
+        return;
 
     auto current_item = MainWindow::TheOne()->getCurrentTreeItem();
-    if (m_DataView->CanContain(current_item))
-        SHV_DataView_AddItem(m_DataView, MainWindow::TheOne()->getCurrentTreeItem(), false);
+    if (dv->CanContain(current_item))
+        SHV_DataView_AddItem(dv.get(), MainWindow::TheOne()->getCurrentTreeItem(), false);
     else
-        reportF(MsgCategory::commands, SeverityTypeID::ST_Error, "Item %s is incompatible with view: %s", current_item->GetFullName(), m_DataView->GetCaption());
+        reportF(MsgCategory::commands, SeverityTypeID::ST_Error, "Item %s is incompatible with view: %s", current_item->GetFullName(), dv->GetCaption());
 }
 
 void QDmsViewArea::moveEvent(QMoveEvent* event) {
@@ -388,7 +393,8 @@ auto QDmsViewArea::contentsRectInPixelUnits()->QRect {
 }
 
 void QDmsViewArea::keyPressEvent(QKeyEvent* keyEvent) {
-    if (m_DataView->OnKeyDown(keyEvent->key() | KeyInfo::Flag::Char))
+	auto dv = getDataView();
+    if (!dv || dv->OnKeyDown(keyEvent->key() | KeyInfo::Flag::Char))
         return;
 
     if (keyEvent->key() == Qt::Key_W && keyEvent->modifiers() == Qt::ControlModifier)
@@ -409,7 +415,9 @@ void QDmsViewArea::UpdatePosAndSize() {
 
 void QDmsViewArea::on_rescale() {
     auto rect = contentsRectInPixelUnits();
-    m_DataView->InvalidateDeviceRect(GRect(rect.left(), rect.top(), rect.right(), rect.bottom()));
+    auto dv = getDataView();
+    if (dv)
+        dv->InvalidateDeviceRect(GRect(rect.left(), rect.top(), rect.right(), rect.bottom()));
 }
 
 void QDmsViewArea::paintEvent(QPaintEvent* event) {

@@ -82,7 +82,7 @@ SHV_CALL void DMS_CONV DMS_Shv_Load()
 // ============   "C" interface funcs
 #include "MapControl.h"
 
-DataView* DMS_CONV SHV_DataView_Create(TreeItem* context, ViewStyle ct, ShvSyncMode sm)
+auto DMS_CONV SHV_DataView_Create(TreeItem* context, ViewStyle ct, ShvSyncMode sm) -> std::weak_ptr<DataView>
 {
 	DMS_CALL_BEGIN
 
@@ -127,11 +127,11 @@ DataView* DMS_CONV SHV_DataView_Create(TreeItem* context, ViewStyle ct, ShvSyncM
 		}
 		if (result) {
 			Keep(result);
-			return result.get();
+			return result;
 		}
 
 	DMS_CALL_END
-	return nullptr;
+	return {};
 }
 
 void DMS_CONV SHV_DataView_StoreDesktopData(DataView* dv)
