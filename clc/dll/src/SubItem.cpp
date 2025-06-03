@@ -254,7 +254,7 @@ struct PhaseContainerOperator : BinaryOperator
 			auto resultPhaseNumber = GetNextPhaseNumber();
 			resultHolder.m_PhaseNumber = resultPhaseNumber;
 
-			assert(sourceContainer->GetCurrFenceNumber() < resultPhaseNumber);
+			assert(sourceContainer->GetCurrPhaseNumber() < resultPhaseNumber);
 
 			auto resultRoot = resultHolder.GetNew();
 			for (auto resWalker = resultRoot; resWalker; resWalker = resultRoot->WalkCurrSubTree(resWalker))
@@ -263,7 +263,8 @@ struct PhaseContainerOperator : BinaryOperator
 				if (!srcItem)
 					continue;
 				MG_CHECK(!srcItem->IsCacheItem());
-				MG_CHECK(srcItem->GetCurrFenceNumber() < resultPhaseNumber);
+				auto srcPhaseNumber = srcItem->GetPhaseNumber();
+				MG_CHECK(srcPhaseNumber < resultPhaseNumber);
 
 				if (resWalker != resultRoot) // avoid updating all fenced items before getting them
 					resWalker->GetOrCreateSupplCache()->InitAt(srcItem);
@@ -341,7 +342,7 @@ struct PhaseContainerOperator : BinaryOperator
 						s_CurrPhaseContainer = resultRoot;
 						for (; resWalker; resWalker = resultRoot->WalkCurrSubTree(resWalker))
 						{
-							assert(resWalker->GetCurrFenceNumber() == resultPhaseNumber);
+							assert(resWalker->GetCurrPhaseNumber() == resultPhaseNumber);
 
 							auto resInterestPtr = resWalker->GetInterestPtrOrNull();
 							if (!resInterestPtr)

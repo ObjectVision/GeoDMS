@@ -50,7 +50,7 @@ namespace treeitem_production_task
 #if defined(MG_DEBUG)
 		auto producer = oc.lock();
 		assert(!producer || producer->m_PhaseNumber);
-		assert(!producer || self->GetCurrFenceNumber() >= producer->m_PhaseNumber);
+		assert(!producer || self->GetCurrPhaseNumber() >= producer->m_PhaseNumber);
 #endif defined(MG_DEBUG)
 
 		leveled_critical_section::unique_lock lock(cs_lockCounterUpdate);
@@ -90,7 +90,7 @@ namespace treeitem_production_task
 			if (producer)
 			{
 				SuspendTrigger::FencedBlocker lock("treeitem_production_task");
-				assert(self->GetCurrFenceNumber() >= producer->m_PhaseNumber);
+				assert(self->GetCurrPhaseNumber() >= producer->m_PhaseNumber);
 
 				producer->Join();
 			}

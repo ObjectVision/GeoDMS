@@ -154,7 +154,7 @@ public:
 	RTC_CALL garbage_t StopSupplInterest() const noexcept; friend struct AbstrOperGroup;
 	RTC_CALL void RestartSupplInterestIfAny() const;
 	RTC_CALL auto GetPhaseNumber() const -> phase_number;
-	auto GetCurrFenceNumber() const -> phase_number { MG_CHECK(m_PhaseNumber || IsPassor()); return m_PhaseNumber; }
+	auto GetCurrPhaseNumber() const -> phase_number { MG_CHECK(m_PhaseNumber || IsPassor()); return m_PhaseNumber; }
 
 	// Data Members
 public:
