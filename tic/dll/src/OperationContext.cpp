@@ -1366,7 +1366,7 @@ bool OperationContext::HandleFail(const TreeItem* item)
 
 bool OperationContext::SetReadLock(std::vector<ItemReadLock>& locks, const TreeItem* si) 
 {
-	assert(m_PhaseNumber >= si->GetCurrFenceNumber());
+	assert(m_PhaseNumber >= si->GetCurrPhaseNumber());
 
 	assert(si);
 	assert(si->HasInterest());

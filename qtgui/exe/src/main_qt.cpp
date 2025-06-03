@@ -137,7 +137,7 @@ bool WmCopyData(MSG* copyMsgPtr) {
     if (!pcds)
         return false;
     HWND hWindow = nullptr;
-    DataView* dv = nullptr;
+    std::shared_ptr<DataView> dv;
     auto commandCode = (CommandCode)pcds->dwData;
     switch (commandCode) {
     case CommandCode::SendApp: //break; // send msg without HWND

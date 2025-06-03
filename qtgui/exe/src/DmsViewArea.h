@@ -53,7 +53,7 @@ public:
     void dragEnterEvent(QDragEnterEvent* event) override;
     void closeEvent(QCloseEvent* event) override;
     void dropEvent(QDropEvent* event) override;
-    auto getDataView() -> DataView* { return m_DataView; }
+    auto getDataView() -> std::shared_ptr<DataView> { return m_DataView.lock(); }
     auto getDataViewHwnd() -> void* { return m_DataViewHWnd; } // QEvent::WinIdChange
     void UpdatePosAndSize();
 
@@ -70,7 +70,7 @@ private:
     auto contentsRectInPixelUnits() -> QRect;
     void keyPressEvent(QKeyEvent* keyEvent) override;
 
-    DataView* m_DataView = nullptr;
+    std::weak_ptr<DataView> m_DataView;
     void* m_DataViewHWnd = nullptr;
     DWORD m_cookie = 0; // used for RegisterScaleChangeNotifications
     DPoint m_LastScaleFactors;

@@ -167,7 +167,7 @@ public:
 	TIC_CALL const TreeItem*   GetNextVisibleItem() const  noexcept;
 
 	TIC_CALL const TreeItem*   WalkConstSubTree(const TreeItem* curr) const  noexcept; // this acts as subTreeRoot
-	TIC_CALL bool              VisitConstVisibleSubTree(const ActorVisitor& visitor, const struct StackFrame* = nullptr) const;
+	TIC_CALL bool              VisitConstVisibleSubTree(const ActorVisitor& visitor) const;
 	TIC_CALL TreeItem*         WalkCurrSubTree(TreeItem* curr) noexcept;              // this acts as subTreeRoot
 	TIC_CALL TreeItem*         WalkNext(TreeItem* curr)  noexcept;                    // this acts as subTreeRoot
 

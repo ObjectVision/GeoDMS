@@ -857,7 +857,7 @@ void MainWindow::defaultViewOrAddItemToCurrentView() {
         {
             if (active_mdi_subwindow->getDataView()->CanContain(m_current_item))
             {
-                SHV_DataView_AddItem(active_mdi_subwindow->getDataView(), m_current_item, false);
+                SHV_DataView_AddItem(active_mdi_subwindow->getDataView().get(), m_current_item, false);
                 return;
             }
         }

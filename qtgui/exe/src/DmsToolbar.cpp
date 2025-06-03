@@ -206,7 +206,7 @@ void updateDmsToolbar() {
     main_window->m_tooled_mdi_subwindow = active_mdi_subwindow;
     auto active_dms_view_area = dynamic_cast<QDmsViewArea*>(active_mdi_subwindow);
 
-    DataView* dv = nullptr;
+    std::shared_ptr<DataView> dv;
     if (active_dms_view_area) {
         // get viewstyle from dataview
         dv = active_dms_view_area->getDataView();
