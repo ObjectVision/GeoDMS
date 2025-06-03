@@ -2883,27 +2883,46 @@ struct StackFrame
 	const StackFrame* m_Caller;
 };
 
-bool TreeItem::VisitConstVisibleSubTree(const ActorVisitor& visitor, const StackFrame* prev) const
-{
-//	Invite(visitor);
+using TreeItemSet = std::set<const TreeItem*>;
 
-	StackFrame frame = { this, prev };
-	for  (; prev; prev = prev->m_Caller)
-		if (prev->m_Base == this)
-			return true;
+bool TreeItem_VisitConstVisibleSubTree(const TreeItem * self, const ActorVisitor& visitor, TreeItemSet& visitedItems)
+{
+	auto [_, isNewItem] = visitedItems.insert(self);
+	if (!isNewItem)
+		return true;
 
 	// go to subItems of refItem, if any
-	const TreeItem* curr = this;
-	do {
-		const TreeItem* refItem = curr->GetReferredItem();
-		if (refItem)
-			if (!refItem->VisitConstVisibleSubTree(visitor, &frame))
+	std::set<TokenID> visitedSubItems;
+
+	for (const TreeItem* curr = self; curr; curr = curr->GetReferredItem())
+		for (auto subItem = curr->GetFirstSubItem(); subItem; subItem = subItem->GetNextItem())
+		{
+			auto [_, isNewSubItem] = visitedSubItems.insert(subItem->GetID());
+			if (!isNewSubItem)
+				continue;
+			visitor(subItem);
+			if (!TreeItem_VisitConstVisibleSubTree(subItem, visitor, visitedItems))
 				return false;
-		if (curr != this)
-			if (!visitor(curr))
-				return false;
-	} while (curr = WalkConstSubTree(curr));
+		}
+	/*
+		const TreeItem* curr = this;
+		do {
+			const TreeItem* refItem = curr->GetReferredItem();
+			if (refItem)
+				if (!refItem->VisitConstVisibleSubTree(visitor, &frame))
+					return false;
+			if (curr != this)
+				if (!visitor(curr))
+					return false;
+		} while (curr = WalkConstSubTree(curr));
+		*/
 	return true;
+}
+
+bool TreeItem::VisitConstVisibleSubTree(const ActorVisitor& visitor) const
+{
+	TreeItemSet visitedSet;
+	return TreeItem_VisitConstVisibleSubTree(this, visitor, visitedSet);
 }
 
 inline TreeItem* TreeItem::WalkNext(TreeItem* curr) noexcept // this acts as subTreeRoot
@@ -2995,7 +3014,7 @@ ActorVisitState TreeItem::VisitSuppliers(SupplierVisitFlag svf, const ActorVisit
 
 			assert(!SuspendTrigger::DidSuspend()); // precondition
 			auto supplTI = debug_cast<const TreeItem*>(supplier); // all configured suppliers are TreeItems; all implied suppliers are AbstrCalculators
-			if (supplTI->VisitConstVisibleSubTree(visitor) == AVS_SuspendedOrFailed)
+			if (visitor(supplTI) == AVS_SuspendedOrFailed)
 				return AVS_SuspendedOrFailed;
 		}
 	}
