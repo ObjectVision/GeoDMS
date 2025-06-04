@@ -2089,7 +2089,7 @@ void GdalVectSM::DoUpdateTableGeometry(const TreeItem* storageHolder, AbstrUnit*
 	}
 	if (!geometry_item)
 	{
-		for (geometry_item = layerDomain->_GetFirstSubItem(); geometry_item; geometry_item->GetNextItem())
+		for (geometry_item = layerDomain->_GetFirstSubItem(); geometry_item; geometry_item = geometry_item->GetNextItem())
 			if (IsDataItem(geometry_item) && AsDataItem(geometry_item)->GetAbstrValuesUnit()->GetValueType()->GetNrDims() == 2)
 				if (!geometry_item->IsDisabledStorage() && (!geometry_item->HasCalculator() || !IsReadOnly()))
 					break;
