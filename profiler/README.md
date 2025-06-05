@@ -26,13 +26,13 @@ name;command;experiment_folder;environment_variables;cwd;geodms_logfile;binary_e
 name: the name of the experiment, this should be unique, as it is also reflected in the final profile visualization
 command: the command to be run, can be relative, like: ../Runs/run_my_awesome_geodms_model.bat
 experiment_folder: the folder where experiments are written to
-environment_variables: to be implemented
+environment_variables: ; separated list of environment variables
 cwd: current working directory, if for instance the batchfile expects to be run from a certain folder you can specify that here
 geodms_logfile: a geodms logfile can be combined with the final profile, giving the user extra information on the experiment
 binary_experiment_file: a pickle dumped binary experiment file, such that experiments from multiple locations can be combined in one single profile visualization
 
 # Usage
-To run a given experiment file use command: python GeoDMSPerformance.py <experiment.file>.
+To run a given experiment file use command: python GeoDMSPerformance.py -f <experiment.file>.
 
 # Output
 Three outputs are generated:
