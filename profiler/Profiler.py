@@ -54,7 +54,7 @@ class Experiment:
         total_write = self.result['log']['total_write_bytes'][-1]
         max_threads = max(self.result['log']['num_threads'])
         
-        return {"status":status, "start_time":start_time, "end_time":end_time, "duration":duration, "highest_commit":highest_commit, "total_read":total_read, "total_write":total_write, "max_threads":max_threads}
+        return {"status":status, "command":self.command, "start_time":start_time, "end_time":end_time, "duration":duration, "highest_commit":highest_commit, "total_read":total_read, "total_write":total_write, "max_threads":max_threads}
 
 def readLog(log_filename, filter=None):
     ret = {"time":[], "text":[]}
@@ -512,7 +512,8 @@ def VisualizeExperiments(experiments, show_figure:bool=True, vgroups=[("cpu_perc
     colors = []
     labels = []
     for i, exp in enumerate(experiments):
-        colors.append(Category10[10][i])
+        color_index = i % 9
+        colors.append(Category10[10][color_index])
         fldrname, filename = getExperimentFileName(exp)
         labels.append(filename[:-4])
 
@@ -560,8 +561,8 @@ def VisualizeExperiments(experiments, show_figure:bool=True, vgroups=[("cpu_perc
         for i, exp in enumerate(experiments):
             if not exp:
                 continue
-                
-            color = Category10[10][i]
+            color_index = i % 9
+            color = Category10[10][color_index]
 
             fldrname, filename = getExperimentFileName(exp)
             if type(vgroup[0]) is tuple: # do something with this vgroup case
