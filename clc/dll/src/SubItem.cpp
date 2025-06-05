@@ -331,13 +331,6 @@ struct PhaseContainerOperator : BinaryOperator
 				if (!mustCancel)
 				{
 					try {
-						if (s_CurrBlockedPhaseNumber && s_CurrBlockedPhaseNumber <= resultPhaseNumber)
-							throwErrorF("PhaseContainer", "Invalid Recursion calling %s#%d from updating %s for %s#%d"
-								, resultRoot->GetSourceName(), resultPhaseNumber
-								, s_CurrBlockedPhaseItem->GetSourceName()
-								, s_CurrPhaseContainer->GetSourceName(), s_CurrBlockedPhaseNumber
-							);
-
 						tmp_swapper<phase_number> lockFence(s_CurrBlockedPhaseNumber, resultPhaseNumber);
 						s_CurrPhaseContainer = resultRoot;
 						for (; resWalker; resWalker = resultRoot->WalkCurrSubTree(resWalker))
