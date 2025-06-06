@@ -65,7 +65,7 @@ using Bool = bit_value<1>;
 using UInt2 = bit_value<2>;
 using UInt4 = bit_value<4>;
 
-template <bit_size_t N, typename Block = bit_block_t, typename Allocator = std::allocator<Block> >
+template <bit_size_t N, typename Block = bit_block_t>
 struct BitVector;
 
 template <bit_size_t N, typename Block = bit_block_t>

@@ -96,9 +96,8 @@ struct sequence_traits<bit_value<N> >
 { 
 	typedef bit_value<N>                        value_type;
 	typedef bit_block_t                         block_type;
-	typedef std::allocator<block_type>          allocator;
 
-	typedef BitVector<N, block_type, allocator> container_type;
+	typedef BitVector<N, block_type>            container_type;
 	typedef container_type                      tile_container_type;
 
 	typedef bit_iterator<N, block_type>         pointer;
