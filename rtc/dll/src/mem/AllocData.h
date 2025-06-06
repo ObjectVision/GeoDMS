@@ -32,7 +32,7 @@ struct alloc_data : IterRange<typename sequence_traits<V>::pointer>
 	}
 	~alloc_data()
 	{
-		MG_CHECK(m_Capacity == 0, "alloc_data not empty on destruction");
+		MG_CHECK2(m_Capacity == 0, "alloc_data not empty on destruction");
 	}
 
 	alloc_data& operator = (alloc_data&& rhs) noexcept

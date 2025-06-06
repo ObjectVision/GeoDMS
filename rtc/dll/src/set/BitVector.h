@@ -496,7 +496,7 @@ struct BitVector : bit_info<N, Block>
 	}
 
 	BitVector(size_type sz)
-		, m_NrElems(sz)
+		: m_NrElems(sz)
 	{
 		::resizeSO(m_bits, bit_info_t::calc_nr_blocks(sz), true MG_DEBUG_ALLOCATOR_SRC("BitVector"));
 	}
@@ -602,10 +602,6 @@ struct BitVector : bit_info<N, Block>
 	}
 	void resizeSO(size_type num_values, bool mustClear  MG_DEBUG_ALLOCATOR_SRC_ARG)
 	{
-		::resizeSO(m_bits, num_values, mustClear MG_DEBUG_ALLOCATOR_SRC_PARAM);
-	}
-	void reallocSO(size_type num_values, bool mustClear MG_DEBUG_ALLOCATOR_SRC_ARG)
-	{
 		size_type old_num_blocks = num_blocks();
 		size_type required_blocks = bit_info_t::calc_nr_blocks(num_values);
 
@@ -613,6 +609,11 @@ struct BitVector : bit_info<N, Block>
 
 		m_NrElems = num_values;
 		clear_unused_bits();
+	}
+	void reallocSO(size_type num_values, bool mustClear MG_DEBUG_ALLOCATOR_SRC_ARG)
+	{
+		m_bits.clear();
+		resizeSO(num_values, mustClear MG_DEBUG_ALLOCATOR_SRC_PARAM);
 	}
 	void insert(iterator ip, size_type k, bit_info_t::value_type v)
 	{

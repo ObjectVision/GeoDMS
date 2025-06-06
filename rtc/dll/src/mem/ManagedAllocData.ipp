@@ -84,6 +84,7 @@ managed_alloc_data<V>::~managed_alloc_data()
 		destroy_range(first, second);
 
 		CreateMyAllocator<V>()->deallocate(first, m_Capacity);
+		m_Capacity = 0;
 	}
 }
 template <typename V>
