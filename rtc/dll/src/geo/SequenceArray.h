@@ -945,9 +945,9 @@ sequence_vector<T>::sequence_vector(CIter i, CIter e)
 		++ri;
 		++i;
 	}
-	dms_assert(this->calcActualDataSize() == this->actual_data_size());
-	dms_assert(srcDataSize == this->actual_data_size());
-	dms_assert(!this->IsDirty());
+	assert(this->calcActualDataSize() == this->actual_data_size());
+	assert(srcDataSize == this->actual_data_size());
+	assert(!this->IsDirty());
 }
 
 template <typename T>

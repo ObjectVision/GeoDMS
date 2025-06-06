@@ -15,6 +15,7 @@
 #include "geo/mpf.h"
 #include "geo/Undefined.h"
 #include "mem/FixedAlloc.h"
+#include "mem/resize.h"
 #include "ptr/IterCast.h"
 #include "set/rangefuncs.h"
 #include "utl/swap.h"

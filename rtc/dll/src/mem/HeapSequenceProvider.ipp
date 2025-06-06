@@ -42,10 +42,12 @@ SizeT heap_sequence_provider<V>::max_size()
 template <typename V>
 void heap_sequence_provider<V>::reserve(alloc_t& seq, SizeT newSize MG_DEBUG_ALLOCATOR_SRC_ARG)
 {
-	dms_assert(seq.m_Capacity >= seq.size());
+	assert(seq.m_Capacity >= seq.size());
 	if (newSize > seq.m_Capacity)
 	{
-		seq = managed_alloc_data<V>(seq.begin(), seq.end(), newSize MG_DEBUG_ALLOCATOR_SRC_PARAM);
+		auto oldSeq = std::move(seq);
+		seq = managed_alloc_data<V>(oldSeq.begin(), oldSeq.end(), newSize MG_DEBUG_ALLOCATOR_SRC_PARAM);
+		free(oldSeq); // oldSeq is now copied, so we can safely clear it
 	}
 }
 
@@ -60,7 +62,7 @@ void heap_sequence_provider<V>::resizeSP(alloc_t& seq, SizeT newSize, bool mustC
 		if (newSize > seq.m_Capacity) // ALLOC || !seq.begin())
 			reserve(seq, Max<SizeT>(newSize, 2*seq.m_Capacity) MG_DEBUG_ALLOCATOR_SRC_PARAM);
 
-		dms_assert(newSize <= seq.m_Capacity);
+		assert(newSize <= seq.m_Capacity);
 
 		iterator newEnd = seq.begin() + newSize;
 		raw_awake_or_init(seq.end(), newEnd, mustClear);

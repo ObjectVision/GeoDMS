@@ -13,6 +13,7 @@
 #include "geo/Conversions.h"
 #include "geo/SequenceTraits.h"
 #include "geo/Undefined.h"
+#include "mem/resize.h"
 #include "ptr/IterCast.h"
 #include "ser/FormattedStream.h"
 #include "ser/PointStream.h"
@@ -46,33 +47,6 @@ template <typename InpStream, int N, typename B> inline
 void ReadBinRangeImpl(InpStream& ar, bit_iterator<N, B> first, bit_iterator<N, B> last, const directcpy_streamable_tag*)
 {
 	ReadBinRangeImpl(ar, first.data_begin(), last.data_end(), TYPEID(directcpy_streamable_tag));
-}
-
-template <typename Vector> inline
-void resizeSO(Vector& vec, SizeT len, bool mustDefaultInitialize MG_DEBUG_ALLOCATOR_SRC_ARG)
-{
-	vec.resizeSO(len, mustDefaultInitialize MG_DEBUG_ALLOCATOR_SRC_PARAM);
-}
-
-template <typename Vector> inline
-void reallocSO(Vector& vec, SizeT len, bool mustDefaultInitialize MG_DEBUG_ALLOCATOR_SRC_ARG)
-{
-	vec.reallocSO(len, mustDefaultInitialize MG_DEBUG_ALLOCATOR_SRC_PARAM);
-}
-
-template <typename V, typename A> inline
-void resizeSO(std::vector<V, A>& vec, SizeT len, bool mustDefaultInitialize MG_DEBUG_ALLOCATOR_SRC_ARG)
-{
-	vec.resize(len);
-}
-
-template <typename V, typename A> inline
-void reallocSO(std::vector<V, A>& vec, SizeT len, bool mustDefaultInitialize MG_DEBUG_ALLOCATOR_SRC_ARG)
-{
-	if (vec.capacity() < len)
-		vec = std::vector<V, A>(len);
-	else
-		vec.resize(len);
 }
 
 template <typename InpStream, typename Vector> inline

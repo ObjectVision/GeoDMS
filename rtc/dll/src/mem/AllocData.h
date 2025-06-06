@@ -30,6 +30,11 @@ struct alloc_data : IterRange<typename sequence_traits<V>::pointer>
 	{
 		this->operator =(std::move(rhs));
 	}
+	~alloc_data()
+	{
+		MG_CHECK(m_Capacity == 0, "alloc_data not empty on destruction");
+	}
+
 	alloc_data& operator = (alloc_data&& rhs) noexcept
 	{
 		static_cast<base_type*>(this)->operator=( std::move<base_type&>(rhs) );
