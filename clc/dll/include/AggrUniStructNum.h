@@ -49,7 +49,7 @@ struct null_wrap : private std::pair<T, bool>
 	}
 	bool IsDefined() const { return this->second; };
 
-	auto value() const -> const T&
+	auto value() const & -> const T&
 	{ 
 		assert(IsDefined());
 		return this->first; 
@@ -104,6 +104,15 @@ void MakeUndefined(null_wrap<T>& output)
 
 template<typename T>
 inline void Assign(SA_Reference<T> lhs, const null_wrap<std::vector<T>>& rhs)
+{
+	if (rhs.IsDefined())
+		lhs.assign(begin_ptr(rhs.value()), end_ptr(rhs.value()));
+	else
+		lhs.assign(Undefined());
+}
+
+template<typename T>
+inline void Assign(SA_Reference<T> lhs, const null_wrap<locked_sequence<T>>& rhs)
 {
 	if (rhs.IsDefined())
 		lhs.assign(begin_ptr(rhs.value()), end_ptr(rhs.value()));

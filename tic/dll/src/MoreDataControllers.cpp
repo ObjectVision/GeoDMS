@@ -512,14 +512,6 @@ OArgRefs FuncDC::GetArgs(bool doUpdateMetaInfo, bool doCalcData) const
 	{
 		assert(argIter->m_DC); // DcRefListElem invariant
 
-// DEBUG, REMOVE, NOCOMMIT
-#if defined(MG_DEBUG)
-	if (doCalcData)
-		if (auto funcSupplier = dynamic_cast<const FuncDC*>(argIter->m_DC.get()))
-			if (funcSupplier->GetOperator()->GetGroup()->GetNameID() == token::subitem)
-				funcSupplier->m_State.Set(actor_flag_set::AFD_PivotElem);
-#endif
-
 		bool mustCalcArg = MustCalcArg(currArg, doCalcData, firstArgValue.begin());
 
 		ArgRef argRef;

@@ -1,54 +1,56 @@
-//<HEADER> 
-/*
-Data & Model Server (DMS) is a server written in C++ for DSS applications. 
-Version: see srv/dms/rtc/dll/src/RtcVersion.h for version info.
+// Copyright (C) 1998-2025 Object Vision b.v. 
+// License: GNU GPL 3
+/////////////////////////////////////////////////////////////////////////////
 
-Copyright (C) 1998-2004  YUSE GSO Object Vision BV. 
+#if defined(_MSC_VER)
+#pragma once
+#endif
 
-Documentation on using the Data & Model Server software can be found at:
-http://www.ObjectVision.nl/DMS/
-
-See additional guidelines and notes in srv/dms/Readme-srv.txt 
-
-This library is free software; you can use, redistribute, and/or
-modify it under the terms of the GNU General Public License version 2 
-(the License) as published by the Free Software Foundation,
-provided that this entire header notice and readme-srv.txt is preserved.
-
-See LICENSE.TXT for terms of distribution or look at our web site:
-http://www.objectvision.nl/DMS/License.txt
-or alternatively at: http://www.gnu.org/copyleft/gpl.html
-
-This library is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
-General Public License for more details. However, specific warranties might be
-granted by an additional written contract for support, assistance and/or development
-*/
-//</HEADER>
 
 #if !defined(__RTC_MEM_LOCKEDSEQUENCEOBJ_H)
 #define __RTC_MEM_LOCKEDSEQUENCEOBJ_H
 
-//#include "mem/SequenceObj.h"
 #include "mem/HeapSequenceProvider.h"
 
 template <typename V>
 struct locked_sequence : sequence_traits<V>::polymorph_vec_t
-	//sequence_obj<V>
 {
 	using base_type = typename sequence_traits<V>::polymorph_vec_t;
+	using const_iterator = typename base_type::const_iterator;
 
-	locked_sequence(bool mustClear)
+	locked_sequence(bool mustClear = true)
 		: base_type( heap_sequence_provider<typename elem_of<V>::type>::CreateProvider() )
 	{
 		this->Lock(mustClear ? dms_rw_mode::write_only_mustzero : dms_rw_mode::write_only_all);
 	}
+	locked_sequence(SizeT sz MG_DEBUG_ALLOCATOR_SRC_ARG)
+		: locked_sequence<V>(true)
+	{
+		this->resizeSO(sz, true MG_DEBUG_ALLOCATOR_SRC_PARAM);
+	}
+
+	locked_sequence(SizeT sz, const V& v MG_DEBUG_ALLOCATOR_SRC_ARG)
+		: locked_sequence<V>(false)
+	{
+		this->resizeSO(sz, false MG_DEBUG_ALLOCATOR_SRC_PARAM);
+		fast_fill(this->begin(), this->end(), v);
+	}
+
+	locked_sequence(const_iterator first, const_iterator last)
+		: locked_sequence<V>(false)
+	{
+		this->appendRange(first, last);
+	}
+	locked_sequence(const locked_sequence<V>& other) = delete;
+	locked_sequence(locked_sequence<V>&& other) = default;
+
+	locked_sequence<V>& operator=(const locked_sequence<V>& other) = delete;
+	locked_sequence<V>& operator=(locked_sequence<V>&& other) = default;
+
 	~locked_sequence()
 	{
 		this->UnLock();
 	}
-
 };
 
 

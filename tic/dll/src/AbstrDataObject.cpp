@@ -117,7 +117,7 @@ void CopyData(const AbstrDataObject* oldDataO, AbstrDataObject* newDataO, const 
 				writeChannel.Write(tileData.begin(), tileData.begin()+currWriteSize);
 				restSize -= currWriteSize;
 			}
-			writeChannel.WriteConst(V(), newDataSize - copySize);
+			writeChannel.WriteZeroes(newDataSize - copySize);
 			dms_assert(writeChannel.IsEndOfChannel());
 		}
 	);

@@ -340,5 +340,13 @@ inline std::vector<T> Convert4(typename sequence_array<T>::const_reference v, co
 	return std::vector<T>(v.begin(), v.end()); 
 }
 
+template <typename T, typename ExceptFunc, typename ConvertFunc>
+inline locked_sequence<T> Convert4(typename sequence_array<T>::const_reference v, const locked_sequence<T>*, const ExceptFunc* dummyExceptFunc, const ConvertFunc* dummyConvertFunc)
+{
+	if (!v.IsDefined())
+		return ExceptFunc().template apply<locked_sequence<T>>(v);
+	return locked_sequence<T>(v.begin(), v.end());
+}
+
 
 #endif // __RTC_GEO_CONVERSIONS_H

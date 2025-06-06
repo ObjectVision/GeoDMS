@@ -98,9 +98,10 @@ struct assign_output
 {
 	assign_output(const TUnaryAssign& aFunc = TUnaryAssign()) : m_Assign(aFunc) {}
 
-	void AssignOutput(typename TUnaryAssign::assignee_ref res, auto&& accumulator) const
+	template<typename V>
+	void AssignOutput(typename TUnaryAssign::assignee_ref res, V&& accumulator) const
 	{
-		m_Assign(res, accumulator);
+		m_Assign(res, std::forward<V>(accumulator));
 	}
 private:
 	TUnaryAssign m_Assign;

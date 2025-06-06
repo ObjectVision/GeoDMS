@@ -920,7 +920,7 @@ TIC_CALL auto CreateHeapTileArrayV(const AbstrTileRangeData* tdr, const range_or
 	return newTileFunctor;
 }
 
-auto CreateAbstrHeapTileFunctor(const AbstrDataItem* adi, SharedPtr<const SharedObj> abstrValuesRangeData, const bool mustClear) -> std::unique_ptr<AbstrDataObject>
+auto CreateAbstrHeapTileFunctor(const AbstrDataItem* adi, SharedPtr<const SharedObj> abstrValuesRangeData, const bool mustClear MG_DEBUG_ALLOCATOR_SRC_ARG) -> std::unique_ptr<AbstrDataObject>
 {
 	MG_CHECK(adi->GetAbstrDomainUnit());
 	MG_CHECK(adi->GetAbstrValuesUnit());
@@ -948,7 +948,7 @@ auto CreateAbstrHeapTileFunctor(const AbstrDataItem* adi, SharedPtr<const Shared
 	{
 	case ValueComposition::Single:
 		visit<typelists::fields>(valuesUnit, 
-			[&resultHolder, adi, currTRD, abstrValuesRangeData, mustClear] <typename value_type> (const Unit<value_type>* valuesUnitPtr)
+			[&resultHolder, adi, currTRD, abstrValuesRangeData, mustClear MG_DEBUG_ALLOCATOR_SRC_PARAM] <typename value_type> (const Unit<value_type>* valuesUnitPtr)
 			{
 				resultHolder.reset(CreateHeapTileArrayV<value_type>(currTRD, dynamic_cast<const range_or_void_data<value_type>*>(abstrValuesRangeData.get()), mustClear MG_DEBUG_ALLOCATOR_SRC_PARAM).release());
 			}
@@ -957,7 +957,7 @@ auto CreateAbstrHeapTileFunctor(const AbstrDataItem* adi, SharedPtr<const Shared
 	case ValueComposition::Sequence:
 	case ValueComposition::Polygon:
 		visit<typelists::sequence_fields>(valuesUnit, 
-			[&resultHolder, adi, currTRD, abstrValuesRangeData, mustClear] <typename value_type> (const Unit<value_type>*valuesUnitPtr)
+			[&resultHolder, adi, currTRD, abstrValuesRangeData, mustClear MG_DEBUG_ALLOCATOR_SRC_PARAM] <typename value_type> (const Unit<value_type>*valuesUnitPtr)
 			{
 				using element_type = typename sequence_traits<value_type>::container_type;
 

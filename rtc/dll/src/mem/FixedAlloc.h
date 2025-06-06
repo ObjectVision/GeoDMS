@@ -1,4 +1,4 @@
-// Copyright (C) 1998-2023 Object Vision b.v. 
+// Copyright (C) 1998-2025 Object Vision b.v. 
 // License: GNU GPL 3
 /////////////////////////////////////////////////////////////////////////////
 
@@ -26,7 +26,7 @@
 
 	Defines:
 
-	define MG_DEBUG_ALLOCATOR to maintain allocation statistics.
+	define MG_DEBUG_ALLOCATOR to maintain allocation statistics in RtcBase.h
 
 	This allocator fulfills the allocator requirements as described in
 	section 20.1 of the April 1995 WP and the STL specification, as
@@ -37,8 +37,10 @@
 #include <atomic>
 
 #if defined(MG_DEBUG)
-//#define MG_DEBUG_ALLOCATOR
+#define MG_DEBUG_ALLOCATOR
 #endif
+
+#define MG_DEBUG_ALLOCATOR
 
 #if defined(MG_DEBUG_ALLOCATOR)
 

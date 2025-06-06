@@ -46,7 +46,7 @@ managed_alloc_data<V>::managed_alloc_data()
 template <typename V>
 managed_alloc_data<V>::managed_alloc_data(size_type sz, bool mustClear MG_DEBUG_ALLOCATOR_SRC_ARG)
 {
-	dms_assert(sz);
+	assert(sz);
 	first  = CreateMyAllocator<V>()->allocate(sz MG_DEBUG_ALLOCATOR_SRC_PARAM);
 	second = first + sz;
 	raw_awake_or_init(first, second, mustClear);
@@ -56,8 +56,8 @@ managed_alloc_data<V>::managed_alloc_data(size_type sz, bool mustClear MG_DEBUG_
 template <typename V>
 managed_alloc_data<V>::managed_alloc_data(size_type sz, size_type capacity, bool mustClear MG_DEBUG_ALLOCATOR_SRC_ARG)
 {
-	dms_assert(capacity);
-	dms_assert(sz <= capacity);
+	assert(capacity);
+	assert(sz <= capacity);
 	first  = CreateMyAllocator<V>()->allocate(capacity MG_DEBUG_ALLOCATOR_SRC_PARAM);
 	second = first + sz;
 	raw_awake_or_init(first, second, mustClear);
@@ -67,8 +67,8 @@ managed_alloc_data<V>::managed_alloc_data(size_type sz, size_type capacity, bool
 template <typename V>
 managed_alloc_data<V>::managed_alloc_data(const_iterator first_, const_iterator last_, size_type capacity MG_DEBUG_ALLOCATOR_SRC_ARG)
 {
-	dms_assert(capacity);
-	dms_assert(size_type(last_ - first_) <= capacity);
+	assert(capacity);
+	assert(size_type(last_ - first_) <= capacity);
 
 	first  = CreateMyAllocator<V>()->allocate(capacity MG_DEBUG_ALLOCATOR_SRC_PARAM);
 

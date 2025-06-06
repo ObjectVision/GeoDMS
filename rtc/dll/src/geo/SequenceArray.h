@@ -1070,7 +1070,15 @@ template <typename T> inline void Assign(SA_Reference<T> lhs, const std::vector<
 		lhs.assign(Undefined());
 }
 
-template <typename T> inline void Assign(SA_Reference<T> lhs, TokenID rhs) 
+template <typename T> inline void Assign(SA_Reference<T> lhs, const locked_sequence<T>& rhs)
+{
+	if (IsDefined(rhs))
+		lhs.assign(begin_ptr(rhs), end_ptr(rhs));
+	else
+		lhs.assign(Undefined());
+}
+
+template <typename T> inline void Assign(SA_Reference<T> lhs, TokenID rhs)
 { 
 	if (IsDefined(rhs))
 		lhs.assign(rhs.GetStr(), rhs.GetStrEnd() ); 

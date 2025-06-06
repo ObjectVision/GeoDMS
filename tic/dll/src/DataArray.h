@@ -18,6 +18,7 @@
 #include "geo/GeoSequence.h"
 #include "geo/iterrange.h"
 #include "geo/SequenceArray.h"
+#include "mem/LockedSequenceObj.h"
 #include "ptr/LifetimeProtector.h"
 
 #include "AbstrDataObject.h"

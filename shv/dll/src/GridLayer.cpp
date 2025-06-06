@@ -474,7 +474,7 @@ void GridLayer::SelectDistrict(CrdPoint pnt, EventID eventID)
 		DataWriteLock dwl(selAttr, dwlt);
 
 		AbstrDataObject* selObj = dwl.get();
-		sequence_traits<Bool>::container_type  resVector(selObj->GetNrFeaturesNow());
+		sequence_traits<Bool>::container_type  resVector(selObj->GetNrFeaturesNow(), false MG_DEBUG_ALLOCATOR_SRC("GridLayer"));
 
 		District(
 			selAttr, selObj,

@@ -59,21 +59,22 @@ template <typename V> struct crefval_of<std::vector<V> > { typedef SA_ConstRefer
 template <typename T>
 struct sequence_traits
 { 
-	typedef T                        value_type;
-	typedef T                        block_type;
-	typedef std::vector<T>           container_type;
-	typedef OwningPtrSizedArray<T>   tile_container_type;
+	using value_type = T;
+	using block_type = T;
+	using container_type = locked_sequence<T>;
+//	using container_type = std::vector<T>;
+	using tile_container_type = OwningPtrSizedArray<T>;
 
-	typedef T*                       pointer;
-	typedef const T*                 const_pointer;
+	using pointer = T*;
+	using const_pointer = const T*;
 
-	typedef T&                       reference;
-	typedef const T&                 const_reference;
+	using reference = T&;
+	using const_reference = const T&;
 
- 	typedef IterRange<pointer>       seq_t;
- 	typedef IterRange<const_pointer> cseq_t;
+	using seq_t = IterRange<pointer>;
+	using cseq_t = IterRange<const_pointer>;
 
-	typedef sequence_obj<T>          polymorph_vec_t;
+	using polymorph_vec_t = sequence_obj<T>;
 };
 
 template <typename T>
@@ -96,9 +97,8 @@ struct sequence_traits<bit_value<N> >
 { 
 	typedef bit_value<N>                        value_type;
 	typedef bit_block_t                         block_type;
-	typedef std::allocator<block_type>          allocator;
 
-	typedef BitVector<N, block_type, allocator> container_type;
+	typedef BitVector<N, block_type>            container_type;
 	typedef container_type                      tile_container_type;
 
 	typedef bit_iterator<N, block_type>         pointer;
@@ -114,8 +114,6 @@ struct sequence_traits<bit_value<N> >
 };
 
 template <> struct sequence_traits<bool> : sequence_traits<bit_value<1>>{};
-
-#if !defined(MG_USE_VECTOR_CHAR)
 
 template <> struct sequence_traits<char>
 { 
@@ -137,8 +135,6 @@ template <> struct sequence_traits<char>
 	typedef sequence_obj<char>       polymorph_vec_t;
 };
 
-#endif
-
 //=======================================
 // sequence_traits of vector<V> (container of vector<V> is sequence_array<V>)
 //=======================================
@@ -148,16 +144,33 @@ struct sequence_traits<std::vector<V> >
 {
 	//	typedef value_type rebuilds V according to:
 	//	vector<V=T>          -> vector<T, pd_alloc>
-#if !defined(MG_USE_VECTOR_CHAR)
 	//	vector<V=char>       -> SharedStr
-#else
-	//	SharedStr            -> vector<V=char>
-#endif
 	//	vector<V=vector<T> > -> sequence_array<T>
 	using pointer = std::vector<V>*;
 	using const_pointer = const std::vector<V>*;
 	using reference = std::vector<V>&;
 	using const_reference = const std::vector<V>&;
+
+	using value_type = typename sequence_traits<V>::container_type;
+
+	using container_type = sequence_vector<V>;
+	using polymorph_vec_t = sequence_array<V>;
+	using tile_container_type = container_type;
+
+
+	using seq_t = sequence_array_ref<V>;
+	using cseq_t = sequence_array_cref<V>;
+};
+
+template <typename V>
+struct sequence_traits<locked_sequence<V> >
+{
+	//	vector<V=char>       -> SharedStr
+	//	vector<V=vector<T> > -> sequence_array<T>
+	using pointer = locked_sequence<V>*;
+	using const_pointer = const locked_sequence<V>*;
+	using reference = locked_sequence<V>&;
+	using const_reference = const locked_sequence<V>&;
 
 	using value_type = typename sequence_traits<V>::container_type;
 

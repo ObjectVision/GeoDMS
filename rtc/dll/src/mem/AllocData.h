@@ -37,6 +37,7 @@ struct alloc_data : IterRange<typename sequence_traits<V>::pointer>
 
 	alloc_data& operator = (alloc_data&& rhs) noexcept
 	{
+		assert(m_Capacity == 0);
 		static_cast<base_type*>(this)->operator=( std::move<base_type&>(rhs) );
 		m_Capacity = rhs.m_Capacity;
 		static_cast<base_type&>(rhs) = {};

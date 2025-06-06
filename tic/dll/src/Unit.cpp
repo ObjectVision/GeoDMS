@@ -138,7 +138,7 @@ LispRef UnitBase<V>::GetKeyExprImpl() const
 
 					MG_CHECK(std::find(sr_range.begin(), sr_range.end(), char(0xFF)) == sr_range.end());
 
-					auto baseUnitStr = OwningPtrSizedArray<char>(dd.ssize() + sr_range.size() + 1, dont_initialize);
+					auto baseUnitStr = OwningPtrSizedArray<char>(dd.ssize() + sr_range.size() + 1, dont_initialize MG_DEBUG_ALLOCATOR_SRC("UnitBase<V>::GetKeyExprImpl()"));
 					auto resultIter = fast_copy(sr_range.begin(), sr_range.end(), baseUnitStr.begin());
 					* resultIter++ = char(0xFF);
 					resultIter = fast_copy(dd.begin(), dd.send(), resultIter);

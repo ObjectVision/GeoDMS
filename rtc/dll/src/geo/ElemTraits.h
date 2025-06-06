@@ -94,6 +94,7 @@ template <>           struct dimension_of<Void>      : std::integral_constant<st
 template <typename T> struct dimension_of<Point<T> > : std::integral_constant<std::size_t, 2 * dimension_of<T>::value> {};
 template <typename T> struct dimension_of<Range<T> > {}; // Not Applicable
 template <typename T> struct dimension_of<std::vector<T> > : dimension_of<T> {};
+template <typename T> struct dimension_of<locked_sequence<T> > : dimension_of<T> {};
 template <typename T> const int dimension_of_v = dimension_of<T>::value;
 
 //----------------------------------------------------------------------
@@ -172,14 +173,16 @@ template <>             struct nrvalbits_of<Float64> : std::integral_constant<st
 template <>             struct nrvalbits_of<Float80> : std::integral_constant<std::size_t, (1<<15) > {};
 #endif
 
-template <typename T> struct is_composite                 : std::false_type{};
-template <typename T> struct is_composite<std::vector<T> > : std::true_type{};
+template <typename T> struct is_composite                      : std::false_type{};
+template <typename T> struct is_composite<std::vector<T> >     : std::true_type{};
+template <typename T> struct is_composite<locked_sequence<T> > : std::true_type {};
 
 template <typename T> constexpr bool is_composite_v = is_composite<T>::value;
 
-template <typename T> struct has_fixed_elem_size                 : std::true_type{};
-template <typename T> struct has_fixed_elem_size<std::vector<T> >: std::false_type{};
-template <> struct has_fixed_elem_size<SharedStr>                : std::false_type{};
+template <typename T> struct has_fixed_elem_size                      : std::true_type{};
+template <typename T> struct has_fixed_elem_size<std::vector<T> >     : std::false_type{};
+template <typename T> struct has_fixed_elem_size<locked_sequence<T> > : std::false_type {};
+template <> struct has_fixed_elem_size<SharedStr>                     : std::false_type{};
 
 template <typename T> constexpr bool has_fixed_elem_size_v = has_fixed_elem_size<T>::value;
 
@@ -193,21 +196,24 @@ concept sequence_or_string = !has_fixed_elem_size_v<_Ty>;
 // Section      : type converters
 //----------------------------------------------------------------------
 
-template <typename T> struct field_of                  { typedef T type; };
-template <typename T> struct field_of<Range<T> >       { typedef T type; };
-template <typename T> struct field_of<std::vector<T> > { typedef T type; };
+template <typename T> struct field_of                      { typedef T type; };
+template <typename T> struct field_of<Range<T> >           { typedef T type; };
+template <typename T> struct field_of<std::vector<T> >     { typedef T type; };
+template <typename T> struct field_of<locked_sequence<T> > { typedef T type; };
 
 template <typename T> using field_of_t = typename field_of<T>::type;
 
-template <typename T> struct elem_of                   { typedef T        type; }; 
-template <typename T> struct elem_of<std::vector<T> >  { typedef T        type; };
-template <>           struct elem_of<SharedStr>        { typedef CharType type; };
+template <typename T> struct elem_of                      { typedef T        type; }; 
+template <typename T> struct elem_of<std::vector<T> >     { typedef T        type; };
+template <typename T> struct elem_of<locked_sequence<T> > { typedef T        type; };
+template <>           struct elem_of<SharedStr>           { typedef CharType type; };
 
 template <typename T> using elem_of_t = typename elem_of<T>::type;
 
 template <typename T> struct scalar_of                        { using type = T; };
 template <typename T> struct scalar_of<Range<T> >             { using type = typename scalar_of<T>::type; };
 template <typename T> struct scalar_of<std::vector<T> >       { using type = typename scalar_of<T>::type; };
+template <typename T> struct scalar_of<locked_sequence<T> >   { using type = typename scalar_of<T>::type; };
 template <typename T> struct scalar_of<Point<T> >             { using type = typename scalar_of<T>::type; };
 template <typename T> struct scalar_of<const T>               {}; // illegal use of scalar_of
 template <typename T> struct scalar_of<SA_Reference<T> >      { using type = typename scalar_of<T>::type; };
@@ -236,6 +242,7 @@ template <>           struct unsigned_type<Int8 >     { typedef UInt8  type; };
 template <typename T> struct unsigned_type<Range<T> > { typedef Range<typename unsigned_type<T>::type> type; };
 template <typename T> struct unsigned_type<Point<T> > { typedef Point<typename unsigned_type<T>::type> type; };
 template <typename T> struct unsigned_type<std::vector<T> > { typedef std::vector<typename unsigned_type<T>::type> type; };
+template <typename T> struct unsigned_type<locked_sequence<T> > { typedef locked_sequence<typename unsigned_type<T>::type> type; };
 template <typename T> using unsigned_type_t = typename unsigned_type<T>::type;
 
 // use acc_type<T>::type as accumulator for the summation and multiplication of many numbers of type T such as sumof squares 
@@ -283,6 +290,7 @@ template <bit_size_t N> struct cardinality_type<bit_value<N>> { using type = bit
 template <typename T> struct cardinality_type<Point<T>> : square_type < typename cardinality_type<T>::type >{};
 template <typename T> struct cardinality_type<Range<T>> : cardinality_type<T> {};
 template <typename T> struct cardinality_type<std::vector<T>> : cardinality_type<T> {};
+template <typename T> struct cardinality_type<locked_sequence<T>> : cardinality_type<T> {};
 
 template <typename T> using cardinality_type_t = typename cardinality_type<T>::type;
 //----------------------------------------------------------------------

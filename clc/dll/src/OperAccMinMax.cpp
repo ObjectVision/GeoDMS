@@ -91,7 +91,7 @@ public:
 	{
 		typedef sequence_traits<V>::container_type valueContainer;
 		if (!valueArray)
-			valueArray = makeResource<valueContainer>(nr_p, Comparator::template StartValue<V>());
+			valueArray = makeResource<valueContainer>(nr_p, Comparator::template StartValue<V>() MG_DEBUG_ALLOCATOR_SRC("Accumulation array for MinMaxIndexOperator"));
 		valueContainer& values = GetAs<valueContainer>(valueArray);
 
 		auto valueData = const_array_cast<V>(arg1A)->GetLockedDataRead();

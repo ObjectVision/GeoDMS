@@ -86,7 +86,7 @@ struct OperAccTotUniNum : OperAccTotUni<TAcc1Func>
 
 		auto resData = result->GetDataWrite();
 		assert(resData.size() == 1);
-		this->m_Acc1Func.AssignOutput(resData[0], value );
+		this->m_Acc1Func.AssignOutput(resData[0], std::move(value) );
 	}
 };
 

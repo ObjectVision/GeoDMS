@@ -1,4 +1,4 @@
-//<HEADER> // Copyright (C) 1998-2023 Object Vision b.v. 
+// Copyright (C) 1998-2025 Object Vision b.v. 
 // License: GNU GPL 3
 /////////////////////////////////////////////////////////////////////////////
 
@@ -13,6 +13,7 @@
 #include "geo/Conversions.h"
 #include "geo/SequenceTraits.h"
 #include "geo/Undefined.h"
+#include "mem/LockedSequenceObj.h"
 #include "mem/resize.h"
 #include "ptr/IterCast.h"
 #include "ser/FormattedStream.h"
@@ -21,7 +22,6 @@
 #include "ser/StreamTraits.h"
 #include "set/VectorFunc.h"
 #include "xct/DmsException.h"
-#include "ptr/IterCast.h"
 
 //======================== Decl
 
@@ -133,6 +133,21 @@ PolymorphOutStream& operator << (PolymorphOutStream& ar, const std::vector<T, A>
 	return ar;
 }
 
+template <typename T> inline
+PolymorphInpStream& operator >> (PolymorphInpStream& ar, locked_sequence<T>& vec)
+{
+	ReadBinRange(ar, vec);
+	return ar;
+}
+
+// required to do PolymorphOutStream& << TreeItem* for vector<TreeItem*>
+template <typename T> inline
+PolymorphOutStream& operator << (PolymorphOutStream& ar, const locked_sequence<T>& vec)
+{
+	WriteBinRange(ar, vec);
+	return ar;
+}
+
 template <typename Vector> inline
 void WriteFormattedRange(FormattedOutStream& os, const Vector& vec)
 {
@@ -149,9 +164,11 @@ void ReadFormattedRange(FormattedInpStream& is, Vector& vec)
 {
 	SizeT len;
 	is >> "{" >> len >> ":";
-	vec.resize(len, typename Vector::value_type());
+	resizeSO(vec, len, false MG_DEBUG_ALLOCATOR_SRC("ReadFormattedRange"));
+
 	typename Vector::iterator first = vec.begin();
 	typename Vector::iterator last  = vec.end();
+
 	while (first != last && !is.Buffer().AtEnd())
 		is >> *first++;
 	is >> "}";
@@ -166,6 +183,20 @@ FormattedOutStream& operator << (FormattedOutStream& os, const std::vector<T, A>
 
 template <typename T, typename A> inline
 FormattedInpStream& operator >> (FormattedInpStream& is, std::vector<T, A>& vec)
+{
+	ReadFormattedRange(is, vec);
+	return is;
+}
+
+template <typename T> inline
+FormattedOutStream& operator << (FormattedOutStream& os, const locked_sequence<T>& vec)
+{
+	WriteFormattedRange(os, vec);
+	return os;
+}
+
+template <typename T> inline
+FormattedInpStream& operator >> (FormattedInpStream& is, locked_sequence<T>& vec)
 {
 	ReadFormattedRange(is, vec);
 	return is;

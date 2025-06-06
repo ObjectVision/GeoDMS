@@ -225,6 +225,7 @@ template <> struct geometry_concept<SA_Reference<SPoint> > { using type = polygo
 template <> struct geometry_concept<SA_Reference<WPoint> > { using type = polygon_set_concept; };
 
 template <typename S> struct geometry_concept<std::vector<bp::point_data<S>> > { using type = polygon_concept; };
+template <typename S> struct geometry_concept<locked_sequence<bp::point_data<S>> > { using type = polygon_concept; };
 
 template <typename S> struct scalar_of<bp::point_data<S>> { using type = scalar_of_t<S>; };
 
@@ -290,6 +291,11 @@ template <> struct polygon_traits<std::vector<bp::point_data<Int32 >>> : point_s
 template <> struct polygon_traits<std::vector<bp::point_data<UInt32>>> : point_sequence_traits< std::vector<bp::point_data<UInt32>>> {};
 template <> struct polygon_traits<std::vector<bp::point_data<Int16 >>> : point_sequence_traits< std::vector<bp::point_data<Int16 >>> {};
 template <> struct polygon_traits<std::vector<bp::point_data<UInt16>>> : point_sequence_traits< std::vector<bp::point_data<UInt16>>> {};
+
+template <> struct polygon_traits<locked_sequence<bp::point_data<Int32 >>> : point_sequence_traits< locked_sequence<bp::point_data<Int32 >>> {};
+template <> struct polygon_traits<locked_sequence<bp::point_data<UInt32>>> : point_sequence_traits< locked_sequence<bp::point_data<UInt32>>> {};
+template <> struct polygon_traits<locked_sequence<bp::point_data<Int16 >>> : point_sequence_traits< locked_sequence<bp::point_data<Int16 >>> {};
+template <> struct polygon_traits<locked_sequence<bp::point_data<UInt16>>> : point_sequence_traits< locked_sequence<bp::point_data<UInt16>>> {};
 
 template <> struct polygon_set_traits<SA_ConstReference<IPoint> > : poly_sequence_traits<SA_ConstReference<IPoint> > {};
 template <> struct polygon_set_traits<SA_ConstReference<UPoint> > : poly_sequence_traits<SA_ConstReference<UPoint> > {};

@@ -1,4 +1,4 @@
-// Copyright (C) 1998-2024 Object Vision b.v. 
+// Copyright (C) 1998-2025 Object Vision b.v. 
 // License: GNU GPL 3
 /////////////////////////////////////////////////////////////////////////////
 
@@ -384,10 +384,9 @@ struct OperAccPartUniDirect : FuncOperAccPartUni<TAcc1Func, OperAccPartUniWithCF
 			assert(m > t);
 			assert(m < te);
 
-			auto futureSecondHalf = throttled_async([this, resData, &pdi, m, te, rt]()
-				-> result_container_t
+			auto futureSecondHalf = throttled_async([this, resData, &pdi, m, te, rt]() -> result_container_t
 				{
-					result_container_t secondHalf(resData.size());
+					result_container_t secondHalf(resData.size() MG_DEBUG_ALLOCATOR_SRC("OperAccPartUniDirect secondHalf"));
 					auto secondHalfRef = result_seq_t(&secondHalf);
 					m_Acc1Func.Init(secondHalfRef);
 					AggregateTiles(secondHalfRef, pdi, m, te, rt);

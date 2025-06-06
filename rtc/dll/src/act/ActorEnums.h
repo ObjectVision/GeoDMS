@@ -153,8 +153,12 @@ public:
 
 		#if defined(MG_DEBUG)
 		AFD_ProcessCounted   = 0x1000,
+		#endif
+
+		#if defined(MG_DEBUG) || defined(MG_DEBUG_INTERESTSOURCE_LOGGING)
 		AFD_PivotElem        = 0x2000,
 		#endif
+
 		AF_Next              = 0x4000,
 		AF_Mask              = AF_Next -1
 	};	

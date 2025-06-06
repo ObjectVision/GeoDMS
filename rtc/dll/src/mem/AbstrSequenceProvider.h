@@ -63,6 +63,12 @@ public:
 	{
 		resizeSP(seq, seq.size() + n, mustClear MG_DEBUG_ALLOCATOR_SRC_PARAM);
 	} 
+	void reallocSP(alloc_t& seq, SizeT newSize, bool mustClear MG_DEBUG_ALLOCATOR_SRC_ARG) // reallocate sequence, discard old sequence if neccesary
+	{
+		if (newSize > seq.capacity())
+			free(seq);
+		resizeSP(seq, newSize, mustClear MG_DEBUG_ALLOCATOR_SRC_PARAM);
+	}
 };
 
 

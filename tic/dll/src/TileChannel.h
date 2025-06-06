@@ -318,13 +318,30 @@ struct tile_write_channel
 			m_Cursor.second += m;
 		}
 	}
+	void WriteZeroes( SizeT numElems)
+	{
+		while (true)
+		{
+			SizeT numWritable = NrFreeInTile();
+			SizeT numWrite = Min<SizeT>(numWritable, numElems);
+			fast_zero(Curr(), Curr()+numWrite);
+			numElems -= numWrite;
+			if (!numElems)
+			{
+				m_Cursor.second += numWrite;
+				return;
+			}
+			GetNextTile();
+		}
+	}
+
 	void WriteConst(T value, SizeT numElems)
 	{
 		while (true)
 		{
 			SizeT numWritable = NrFreeInTile();
 			SizeT numWrite = Min<SizeT>(numWritable, numElems);
-			fast_fill(Curr(), Curr()+numWrite, value);
+			fast_fill(Curr(), Curr() + numWrite, value);
 			numElems -= numWrite;
 			if (!numElems)
 			{

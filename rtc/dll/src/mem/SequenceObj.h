@@ -1,4 +1,4 @@
-// Copyright (C) 1998-2024 Object Vision b.v. 
+// Copyright (C) 1998-2025 Object Vision b.v. 
 // License: GNU GPL 3
 /////////////////////////////////////////////////////////////////////////////
 
@@ -75,7 +75,7 @@ public:
 		MGD_CHECKDATA(!IsLocked());
 		ResetAllocator();
 	}
-	void operator = (sequence_obj&& rhs)  noexcept
+	sequence_obj& operator = (sequence_obj&& rhs)  noexcept
 	{
 		ResetAllocator();
 
@@ -87,8 +87,9 @@ public:
 		md_IsLocked = rhs.md_IsLocked;
 		rhs.md_IsLocked = false;
 #endif
-
+		return *this;
 	}
+
 	void swap(sequence_obj<V>& rhs) noexcept { m_Data.swap(rhs.m_Data); m_Provider.swap(rhs.m_Provider); MG_DEBUG_DATA_CODE(std::swap(md_IsLocked, rhs.md_IsLocked); ) }
 
 	SizeT Size    () const { return m_Provider ? m_Provider->Size    (m_Data) : 0; }
@@ -97,6 +98,7 @@ public:
 
 	void   reserve(SizeT newSize MG_DEBUG_ALLOCATOR_SRC_ARG) { MGD_CHECKDATA(IsLocked()); m_Provider->reserve(m_Data, newSize MG_DEBUG_ALLOCATOR_SRC_PARAM); }
 	void   resizeSO(SizeT newSize, bool mustClear MG_DEBUG_ALLOCATOR_SRC_ARG) { MGD_CHECKDATA(IsLocked()); m_Provider->resizeSP(m_Data, newSize, mustClear MG_DEBUG_ALLOCATOR_SRC_PARAM); }
+	void   reallocSO(SizeT newSize, bool mustClear MG_DEBUG_ALLOCATOR_SRC_ARG) { MGD_CHECKDATA(IsLocked()); m_Provider->reallocSP(m_Data, newSize, mustClear MG_DEBUG_ALLOCATOR_SRC_PARAM); }
 
 	// operations on locked data
 	SizeT          size () const { MGD_CHECKDATA(IsLocked()); return m_Data.size(); }
@@ -140,10 +142,17 @@ public:
 		MGD_CHECKDATA(IsLocked());
 		MGD_CHECKDATA(m_Provider);
 		SizeT oldSize = size();
-		dms_assert(oldSize + 1 > oldSize); // No overflow
+		assert(oldSize + 1 > oldSize); // No overflow
 		m_Provider->grow(m_Data, 1, false MG_DEBUG_ALLOCATOR_SRC_SA);
-		dms_assert(m_Data.size() == oldSize + 1);
+		assert(m_Data.size() == oldSize + 1);
 		m_Data.back() = v;
+	}
+	void pop_back()
+	{ 
+		MGD_CHECKDATA(IsLocked()); 
+		MGD_CHECKDATA(m_Provider); 
+		MG_CHECK(!empty()); 
+		m_Provider->cut(m_Data, m_Data.size() -1);
 	}
 	void erase(iterator b, iterator e) { MGD_CHECKDATA(IsLocked()); destroy_range(b, e);  raw_move(e, end(), b); cut(size() - (e - b)); }
 	void cut(SizeT newNrElems)         { MGD_CHECKDATA(IsLocked()); MGD_CHECKDATA(m_Provider); m_Provider->cut(m_Data, newNrElems); }
@@ -176,15 +185,18 @@ public:
 	WeakStr GetFileName() const { return m_Provider->GetFileName(); }
 
 private:
-	sequence_obj(const sequence_obj<V>&);
+	sequence_obj(const sequence_obj<V>&) = delete; // no copy constructor
+	sequence_obj& operator = (const sequence_obj& rhs)  noexcept = delete; // no copy assignment
 
 	DestroyablePtr< provider_t > m_Provider;
 	mutable alloc_data<V>        m_Data;
+
 #if defined(MG_DEBUG_DATA)
 	mutable bool md_IsLocked = false;
 public:
 	bool IsLocked() const { return md_IsLocked; }
 #endif
+
 };
 
 template <typename V>

@@ -201,7 +201,7 @@ public:
 template<typename NodeType, typename LinkType, typename PartType, typename PartLinkType>
 auto stronglyConnectedComponentsIterativeWithInvertedLinks(NodeType nrV, LinkType nrE, const LinkType* link1, const LinkType* nextLink1, const NodeType* node2Data, PartType* resSubData)
 {
-	sequence_traits<Bool>::container_type onStackFlag(nrV, false);
+	sequence_traits<Bool>::container_type onStackFlag(nrV, false MG_DEBUG_ALLOCATOR_SRC("stronglyConnectedComponentsIterativeWithInvertedLinks"));
 	std::vector<NodeType> nodeStack;
 	std::vector<Couple<PartType>> partLinks;
 

@@ -65,7 +65,7 @@ using Bool = bit_value<1>;
 using UInt2 = bit_value<2>;
 using UInt4 = bit_value<4>;
 
-template <bit_size_t N, typename Block = bit_block_t, typename Allocator = std::allocator<Block> >
+template <bit_size_t N, typename Block = bit_block_t>
 struct BitVector;
 
 template <bit_size_t N, typename Block = bit_block_t>
@@ -116,7 +116,7 @@ struct bit_sequence;
 
 #	define MG_DEBUG_DATA
 //#	define MG_DEBUG_UPDATESOURCE
-//#	define MG_DEBUG_ALLOCATOR
+#	define MG_DEBUG_ALLOCATOR
 #	define MG_DEBUG_INTERESTSOURCE 
 #	define MG_DEBUG_DATASTORELOCK
 
@@ -127,6 +127,7 @@ struct bit_sequence;
 #else
 //#	define MG_DEBUG_INTERESTSOURCE 
 #	undef MG_DEBUG_DATA
+#	define MG_DEBUG_ALLOCATOR
 #endif
 
 #if defined(MG_DEBUG_INTERESTSOURCE) || defined(MG_DEBUG_ALLOCATOR)
@@ -251,7 +252,8 @@ template <typename T> struct IndexRange;
 
 template <typename T> struct elem_traits;
 template <typename T> struct sequence_traits;
-template <typename V> struct sequence_obj;
+template <typename T> struct sequence_obj;
+template <typename T> struct locked_sequence;
 template <typename T> struct sequence_array;
 template <typename T> struct sequence_vector;
 template <typename T> struct sequence_array_ref;
