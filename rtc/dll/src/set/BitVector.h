@@ -53,6 +53,7 @@ struct bit_info
 	static const bit_index_type nr_used_bits_per_block = nr_elem_per_block * N;
 	static const Block  value_mask             = calc_bit_mask<Block, N>::value;
 	static const Block  used_bits_mask         = calc_bit_mask<Block, nr_used_bits_per_block>::value;
+	static const Block  unit_block_value = unit_block<N>::value;
 
 	static size_type        calc_nr_blocks(size_type sz)  { return (sz + (nr_elem_per_block-1)) / nr_elem_per_block; }
 
@@ -344,8 +345,8 @@ struct bit_sequence : bit_sequence_base<N, Block>
 		dms_assert( data_end  () == src.data_end  () );
 	}
 
-	template <typename OthBlock, typename Alloc>
-	bit_sequence(BitVector<N, OthBlock, Alloc>* cont)
+	template <typename OthBlock>
+	bit_sequence(BitVector<N, OthBlock>* cont)
 		:	bit_sequence_base<N, Block>(cont->data_begin(),  cont->size())
 	{}
 
@@ -477,11 +478,10 @@ struct bit_sequence : bit_sequence_base<N, Block>
 	}
 };
 
-template <bit_size_t N, typename Block /*= UInt32*/, typename Allocator /*= std::allocator<Block>*/ >
+template <bit_size_t N, typename Block>
 struct BitVector : bit_info<N, Block>
 {
-	typedef Allocator                      allocator;
-	typedef std::vector<Block, allocator>  block_container;
+	using block_container = sequence_traits<Block>::container_type;
 	typedef bit_reference<N, Block>        reference;
 	typedef bit_value<N>                   const_reference;
 
@@ -491,21 +491,21 @@ struct BitVector : bit_info<N, Block>
 	using bit_info_t = bit_info<N, Block>;
 	using typename bit_info_t::size_type;
 
-	BitVector(size_type sz = 0)
-		:	m_bits( bit_info_t::calc_nr_blocks(sz) )
-		,	m_NrElems(sz)
-	{}
-
-	BitVector(size_type sz, bool v, allocator alloc = allocator())
-		:	m_bits(
-			bit_info_t::calc_nr_blocks(sz),
-				(v)
-				?   bit_info_t::used_bits_mask
-				:	Block(),
-				alloc
-			)
-		,	m_NrElems(sz)
+	BitVector()
 	{
+	}
+
+	BitVector(size_type sz)
+		, m_NrElems(sz)
+	{
+		::resizeSO(m_bits, bit_info_t::calc_nr_blocks(sz), true MG_DEBUG_ALLOCATOR_SRC("BitVector"));
+	}
+
+	BitVector(size_type sz, bit_value<N> v MG_DEBUG_ALLOCATOR_SRC_ARG)
+		:	m_NrElems(sz)
+	{
+		::resizeSO(m_bits, bit_info_t::calc_nr_blocks(sz), false MG_DEBUG_ALLOCATOR_SRC_PARAM);
+		fast_fill(begin_ptr(m_bits), end_ptr(m_bits), v * bit_info_t::unit_block_value);
 		if (v)
 			clear_unused_bits();
 	}
@@ -569,10 +569,11 @@ struct BitVector : bit_info<N, Block>
 		size_type old_num_blocks = num_blocks();
 		size_type required_blocks = bit_info_t::calc_nr_blocks(num_values);
 
-		typename bit_info_t::block_type v = value ? ~Block(0) : Block(0);
+		typename bit_info_t::block_type blockValue = value * bit_info_t::unit_block_value;
 
 		if (required_blocks != old_num_blocks) {
-			m_bits.resize(required_blocks, v); // s.g. (copy) [gps]
+			::resizeSO(m_bits, required_blocks, false MG_DEBUG_ALLOCATOR_SRC("BitVector::resize"));
+			fast_fill(begin_ptr(m_bits) + old_num_blocks, begin_ptr(m_bits) + required_blocks, blockValue); // s.g. (copy) [gps]
 		}
 
 
@@ -589,10 +590,10 @@ struct BitVector : bit_info<N, Block>
 		if (value && (num_values > m_NrElems)) {
 			size_type extra_values = count_extra_values(); // gps
 			if (extra_values) {
-				dms_assert(old_num_blocks >= 1 && old_num_blocks <= m_bits.size());
+				assert(old_num_blocks >= 1 && old_num_blocks <= m_bits.size());
 
 				// Set them.
-				m_bits[old_num_blocks - 1] |= (v << (extra_values * N)); // gps
+				m_bits[old_num_blocks - 1] |= (blockValue << (extra_values * N)); // gps
 			}
 		}
 
@@ -601,19 +602,14 @@ struct BitVector : bit_info<N, Block>
 	}
 	void resizeSO(size_type num_values, bool mustClear  MG_DEBUG_ALLOCATOR_SRC_ARG)
 	{
-		resize(num_values, !mustClear); 
+		::resizeSO(m_bits, num_values, mustClear MG_DEBUG_ALLOCATOR_SRC_PARAM);
 	}
 	void reallocSO(size_type num_values, bool mustClear MG_DEBUG_ALLOCATOR_SRC_ARG)
 	{
 		size_type old_num_blocks = num_blocks();
 		size_type required_blocks = bit_info_t::calc_nr_blocks(num_values);
 
-//		typename bit_info_t::block_type v = value ? ~Block(0) : Block(0);
-
-		if (required_blocks < old_num_blocks)
-			m_bits.resize(required_blocks); // TODO: avoid zeroing if not required
-		else if (required_blocks > old_num_blocks)
-			m_bits = block_container(required_blocks); // TODO: avoid zeroing if not required
+		::resizeSO(m_bits, required_blocks, mustClear MG_DEBUG_ALLOCATOR_SRC_PARAM);
 
 		m_NrElems = num_values;
 		clear_unused_bits();
@@ -626,7 +622,7 @@ struct BitVector : bit_info<N, Block>
 		SizeT i = m_NrElems ? ip - begin() : 0;
 		SizeT newNrElems = m_NrElems + k;
 		dms_assert(newNrElems);
-		enable_nr_blocks(bit_info_t::calc_nr_blocks(newNrElems) );
+		enable_nr_blocks(bit_info_t::calc_nr_blocks(newNrElems) MG_DEBUG_ALLOCATOR_SRC("BitVector::insert"));
 		ip = begin() + i;
 		fast_fill(
 			ip,
@@ -642,7 +638,7 @@ struct BitVector : bit_info<N, Block>
 		SizeT oldNrElems = m_NrElems;
 		SizeT newNrElems = oldNrElems + 1;
 		dms_assert(newNrElems);
-		enable_nr_blocks(bit_info_t::calc_nr_blocks(newNrElems) );
+		enable_nr_blocks(bit_info_t::calc_nr_blocks(newNrElems) MG_DEBUG_ALLOCATOR_SRC("BitVector::push_back"));
 		m_NrElems = newNrElems;
 		operator [](oldNrElems) = v;
 	}
@@ -678,11 +674,11 @@ struct BitVector : bit_info<N, Block>
 	}
 
 private:
-	void enable_nr_blocks(size_type nrBlocks)
+	void enable_nr_blocks(size_type nrBlocks MG_DEBUG_ALLOCATOR_SRC_ARG)
 	{
 		if (nrBlocks > m_bits.capacity())
-			m_bits.reserve(Max<size_type>(m_bits.capacity() * 1.5, nrBlocks));
-		m_bits.resize(nrBlocks);
+			::reallocSO(m_bits, Max<size_type>(m_bits.capacity() * 1.5, nrBlocks), false MG_DEBUG_ALLOCATOR_SRC_PARAM);
+		resizeSO(nrBlocks, false MG_DEBUG_ALLOCATOR_SRC_PARAM);
 	}
 	void             clear_unused_bits();
     Block&           m_highest_block()       { return m_bits.back(); }
@@ -692,7 +688,7 @@ private:
 
 private:
 	block_container m_bits;
-	size_type       m_NrElems;
+	size_type       m_NrElems = 0;
 };
 
 // If size() is not a multiple of nr_elem_per_block
@@ -700,8 +696,8 @@ private:
 // This function resets the unused bits (convenient
 // for the implementation of many member functions)
 //
-template <bit_size_t N, typename Block, typename Allocator>
-void BitVector<N, Block, Allocator>::clear_unused_bits()
+template <bit_size_t N, typename Block>
+void BitVector<N, Block>::clear_unused_bits()
 {
     dms_assert (num_blocks() == bit_info_t::calc_nr_blocks(m_NrElems));
 
@@ -739,14 +735,14 @@ auto GetConstSeq(const bit_sequence<N, Block>& so) -> bit_sequence<N, const Bloc
 	return { so.begin(), so.end() };
 }
 
-template <bit_size_t N, typename Block, typename Alloc>
-auto GetSeq(BitVector<N, Block, Alloc>& so)
+template <bit_size_t N, typename Block>
+auto GetSeq(BitVector<N, Block>& so)
 {
 	return bit_sequence<N, Block>(so.data_begin(), so.size());
 }
 
-template <bit_size_t N, typename Block, typename Alloc>
-auto GetConstSeq(const BitVector<N, Block, Alloc>& so) -> bit_sequence<N, const Block>
+template <bit_size_t N, typename Block>
+auto GetConstSeq(const BitVector<N, Block>& so) -> bit_sequence<N, const Block>
 {
 	return { so.begin(), so.end() };
 }
