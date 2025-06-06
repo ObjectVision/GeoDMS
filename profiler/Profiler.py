@@ -1,24 +1,22 @@
 import os
 import re
 import psutil
-import shutil
 from datetime import datetime
 import time
 import pickle
-import hashlib
 import difflib
 import subprocess
 import shlex
 import argparse
 import csv
-
+import sys
 from bokeh import plotting
 from bokeh.models import HoverTool, PanTool, ResetTool, WheelZoomTool, CheckboxGroup, CheckboxButtonGroup, CustomJS, Legend, LegendItem
 from bokeh.layouts import row, column
 from bokeh.palettes import Category10, Category20, Category20b, Category20c
 
 class Experiment:
-    def __init__(self, name, command, experiment_folder, environment_variables, cwd, geodms_logfile, binary_experiment_file):
+    def __init__(self, name=None, command=None, experiment_folder=None, environment_variables=None, cwd=None, geodms_logfile=None, binary_experiment_file=None, file_comparison:tuple=None):
         self.name                   = name
         self.command                = command
         self.experiment_folder      = experiment_folder
@@ -26,9 +24,37 @@ class Experiment:
         self.cwd                    = cwd
         self.geodms_logfile         = geodms_logfile
         self.binary_experiment_file = binary_experiment_file
+        self.file_comparison=None
         self.result = {}
-        def __str__(self):
-            return f"Experiment: name:{name} command:{command}"
+
+    def __str__(self):
+        return f"Experiment: name:{self.name} command:{self.command}"
+    
+    def __repr__(self):
+        # name;command;experiment_folder;environment_variables;cwd;geodms_logfile;binary_experiment_file
+        return f"{self.name};{self.command};{self.experiment_folder};{self.environment_variables};{self.cwd};{self.geodms_logfile};{self.binary_experiment_file}"
+    
+    def __eq__(self, other):
+        name_is_eq = self.name == other.name
+        command_is_eq = self.command == other.command
+        exp_fldr_is_eq = self.experiment_folder == other.experiment_folder
+        env_vars_is_eq = self.environment_variables == other.environment_variables
+        cwd_is_eq = self.cwd == other.cwd
+        logfile_is_eq = self.geodms_logfile == other.geodms_logfile
+        binfile_is_eq = self.binary_experiment_file == other.binary_experiment_file
+        return name_is_eq and command_is_eq and exp_fldr_is_eq and env_vars_is_eq and cwd_is_eq and logfile_is_eq and binfile_is_eq  
+
+    def summary(self) -> dict:
+        status = True if self.result else False
+        start_time = self.result['log']['time'][0]
+        end_time = self.result['log']['time'][-1]
+        duration = (end_time - start_time).total_seconds()
+        highest_commit = max(self.result['log']['vms'])
+        total_read = self.result['log']['total_read_bytes'][-1]
+        total_write = self.result['log']['total_write_bytes'][-1]
+        max_threads = max(self.result['log']['num_threads'])
+        
+        return {"status":status, "command":self.command, "start_time":start_time, "end_time":end_time, "duration":duration, "highest_commit":highest_commit, "total_read":total_read, "total_write":total_write, "max_threads":max_threads}
 
 def readLog(log_filename, filter=None):
     ret = {"time":[], "text":[]}
@@ -146,7 +172,7 @@ def getProcessCurrentStatistics(process:psutil.Process, experiment_start_time):
         return [t, dt, cpu_p, mem_p, rss, vms, num_threads, rb, wb, net_c]
     return [t, dt, cpu_p, mem_p, rss, vms, num_threads, rb, wb, net_c]
 
-def getPerformance(exp:Experiment, sampling_rate=1.0):
+def getPerformance(exp:Experiment, sampling_rate=1.0, timeout=3600):
     profile_log = {"time":[], "dtime":[], "cpu_percent":[], "cpu_curr_time":[], "memory_percent":[], "rss":[], "vms":[], "num_threads":[], "total_read_bytes":[], "total_write_bytes":[], "net_connections":[], "processes":[]} # rss=resident set size (aka physical non swapped memory in use by process), vms virtual memory ize
     command_with_args = exp.command
     environment_string = exp.environment_variables
@@ -173,7 +199,7 @@ def getPerformance(exp:Experiment, sampling_rate=1.0):
 
         # Construct a single command that sets the title, calls the batch, and optionally pauses (if needed to detect command-line syntax errors)
         cmd_parts = [
-            "cmd", "/k",  # new console, keep open on error
+            "cmd", "/C",#"/k",  # new console, keep open on error
             "title", title, "&&",  # set title
             "call",  # call the batch file
         ] + parts  # add the rest of the command
@@ -182,18 +208,27 @@ def getPerformance(exp:Experiment, sampling_rate=1.0):
         print(f"Full command: {cmd_parts}\n")
 
         # Launch this in a new console window (not via start!)
-        parent_process_open_handle = subprocess.Popen(
-            cmd_parts,
-            cwd=cwd, env=custom_env, 
-            creationflags=subprocess.CREATE_NEW_CONSOLE, 
-            shell=False
-        )
+        try:
+            parent_process_open_handle = subprocess.Popen(
+                cmd_parts,
+                cwd=cwd, env=custom_env, 
+                creationflags=subprocess.CREATE_NEW_CONSOLE, 
+                shell=False 
+            )
+        except Exception as e:
+            pass
+
         parent_process = psutil.Process(parent_process_open_handle.pid)
         experiment_start_time = datetime.fromtimestamp(parent_process.create_time())
         cpu_ct = 0
-        time_measurement_start = datetime.now()
+
         while (psutil.pid_exists(parent_process.pid)):
-       
+            time_measurement_start = datetime.now()
+
+            # timeout
+            if (time_measurement_start - experiment_start_time).total_seconds() > timeout:
+                parent_process.kill()
+            
             try: # dry run cpu_p for every child, first time cpu_percent() always returns 0.0, see
             
                 child_processes = parent_process.children(recursive=True)
@@ -239,8 +274,8 @@ def getPerformance(exp:Experiment, sampling_rate=1.0):
 
             time_measurement_end = datetime.now()
             dtimestamp = (time_measurement_end-time_measurement_start).total_seconds()
-            sleep_time = sampling_rate-dtimestamp        
-            time_measurement_start = time_measurement_end
+            sleep_time = sampling_rate-dtimestamp
+
             if sleep_time > 0.0:
                 time.sleep(sleep_time)
             else:
@@ -254,7 +289,15 @@ def getPerformance(exp:Experiment, sampling_rate=1.0):
 
     except Exception as e:
         print(f"Unexpected error occurred: {e}")
-    return profile_log, experiment_start_time
+    
+    return_code = parent_process.wait()
+    
+    #C005 -> access violation niet in log
+    # return_code 0 -> geen fout
+    # return_code > 0 fout
+    # toevoegen log file aan output
+    # error level -> kleur
+    return profile_log, experiment_start_time, return_code
 
 def getClosestLog(dms_log_t, profile_log, param, current_ind):
     smallest_dt = float("inf") # start with positive infinity
@@ -370,7 +413,7 @@ def loadExperimentFromPickleFile(experiment, exp_fn=None):
         experiment = pickle.load(f)
     return experiment
 
-def RunExperiments(experiments:list[Experiment], sampling_rate=1.0):
+def RunExperiments(experiments:list[Experiment]):
     for exp_index, exp in enumerate(experiments):
         print(f"Running experiment: {experiments[exp_index].__dict__}\n")
         bin_exp_fn = exp.binary_experiment_file
@@ -397,7 +440,8 @@ def RunExperiments(experiments:list[Experiment], sampling_rate=1.0):
         geodms_logfile = exp.geodms_logfile
         if os.path.exists(geodms_logfile): # always start with empty log
             os.remove(geodms_logfile)
-        exp.result["log"], start_time = getPerformance(exp)
+        exp.result["log"], start_time, status_code = getPerformance(exp)
+        exp.result["status_code"] = status_code
 
         if os.path.exists(geodms_logfile):
             exp.result["cpu_percent"]       = getLogInfoForPlotting(exp.result["log"], geodms_logfile, "cpu_percent")
@@ -440,7 +484,7 @@ def vgroupToLabel(vgroup):
     elif vgroup[0] == "total_write_bytes":
         label = "total written bytes (GB)"    
     elif type(vgroup[0]) is tuple or vgroup[0]=="vms":
-        label = "Committed and and freelist allocated memory (^) (GB)"
+        label = "Committed and freelist allocated memory (^) (GB)"
     
     return label
     
@@ -449,7 +493,7 @@ def ExpHasLogAvailable(exp, key):
         return True
     return False
 
-def VisualizeExperiments(experiments, vgroups):
+def VisualizeExperiments(experiments, show_figure:bool=True, vgroups=[("cpu_percent", (0,100)), ("cpu_curr_time", False), ("vms", False), ("num_threads", False), ("total_read_bytes", False), ("total_write_bytes", False)]) -> str:
     print("Rendering experiments.\n")
     tool_tips = """
     <div>
@@ -468,7 +512,8 @@ def VisualizeExperiments(experiments, vgroups):
     colors = []
     labels = []
     for i, exp in enumerate(experiments):
-        colors.append(Category10[10][i])
+        color_index = i % 9
+        colors.append(Category10[10][color_index])
         fldrname, filename = getExperimentFileName(exp)
         labels.append(filename[:-4])
 
@@ -516,8 +561,8 @@ def VisualizeExperiments(experiments, vgroups):
         for i, exp in enumerate(experiments):
             if not exp:
                 continue
-                
-            color = Category10[10][i]
+            color_index = i % 9
+            color = Category10[10][color_index]
 
             fldrname, filename = getExperimentFileName(exp)
             if type(vgroup[0]) is tuple: # do something with this vgroup case
@@ -554,7 +599,7 @@ def VisualizeExperiments(experiments, vgroups):
         legend_items.append(LegendItem(label=labels[i], renderers=[renderer for renderer in renderers if renderer.glyph.line_color==color]))
     
     ## Use dummy figure as legend for all experiments 
-    dum_fig = plotting.figure(width=300,height=50*len(legend_items), outline_line_alpha=0,tools="pan,wheel_zoom,box_zoom,reset,save,hover")
+    dum_fig = plotting.figure(width=1000,height=50*len(legend_items), outline_line_alpha=0,tools="pan,wheel_zoom,box_zoom,reset,save,hover")
     for fig_component in [dum_fig.grid[0],dum_fig.ygrid[0],dum_fig.xaxis[0],dum_fig.yaxis[0]]:
         fig_component.visible = False
     dum_fig.renderers += renderers
@@ -562,7 +607,7 @@ def VisualizeExperiments(experiments, vgroups):
     dum_fig.x_range.start = 1000
     dum_fig.add_layout(Legend(click_policy='hide',border_line_alpha=0,items=legend_items))
 
-    output_fn = f"{experiments[0].experiment_folder}compare.html"
+    output_fn = f"{experiments[0].experiment_folder}/compare.html"
     print(f"Storing experiments interactive figure in {output_fn}")
     
     grid_structure = [[dum_fig, None]]
@@ -573,24 +618,25 @@ def VisualizeExperiments(experiments, vgroups):
             grid_structure.append([fig, None])
     grid = plotting.gridplot(grid_structure, toolbar_location="left")
     plotting.output_file(output_fn)
-    plotting.show(grid)
-    return
+    plotting.save(grid)
+    if show_figure:
+        plotting.show(grid)
+    return output_fn
 
-def InitExperimentsFromDirectCall(direct_call:str):
-    name, command, experiment_folder, geodms_logfile = direct_call.split(";")
-    return [Experiment(name=name, command=command, experiment_folder=experiment_folder, environment_variables=None,cwd=None,geodms_logfile=geodms_logfile,binary_experiment_file=None)]
+def InitExperimentFromCommandLineDefinition(direct_call:str):
+    name, experiment_folder, geodms_logfile, command = direct_call.split(";")
+    return [Experiment(name=name, command=command, experiment_folder=experiment_folder, environment_variables=None, cwd=None, geodms_logfile=geodms_logfile, binary_experiment_file=None)]
 
 def InitExperimentsFromCsvFile(fn):
     if not os.path.exists(fn):
         raise Exception(f"Experiment file does not exist: {fn}")
     
+    experiments = []
     with open(fn) as experiment_csv_file:
         csv_reader = csv.reader(experiment_csv_file, delimiter=";")
 
         print("Skipping first line in experiment file, assuming it has a header")
         next(csv_reader)
-
-        experiments = []
         for row_index, csv_row in enumerate(csv_reader):
             assert len(csv_row)==7, f"Unexpected number of csv fields ({len(csv_row)}) in experiment file row {row_index}, should be semicolon separated with fields: name;command;experiment_folder;environment_variables(optional);cwd(optional);geodms_logfile(optional);binary_experiment_file(optional), skipping"
             # experiment fields
@@ -689,65 +735,100 @@ def testReadAllocatorInfoLog():
 
     return alloc_log
 
-def Run(direct_call:str="", config_fn:str="", sampling_rate=1.0):
-
+def Run(experiment_filename):
     # init experiments from either direct_call or csv experiment file definition
-    experiments = []
-    if direct_call:
-        experiments = InitExperimentsFromDirectCall(direct_call)
-    elif config_fn:
-        experiments = InitExperimentsFromCsvFile(config_fn)
+    experiments = InitExperimentsFromCsvFile(experiment_filename)
 
     if not experiments:
-        print(f"No valid experiments found in experiment file: {config_fn}")
+        print(f"No valid experiments found in experiment file: {experiment_filename}")
         return
         
     # run 
-    experiments = RunExperiments(experiments, sampling_rate)
+    experiments = RunExperiments(experiments)
     
     # visualize    
-    vgroups = [("cpu_percent", (0,100)), ("cpu_curr_time", False), ("vms", False), ("num_threads", False), ("total_read_bytes", False), ("total_write_bytes", False)]
-    VisualizeExperiments(experiments, vgroups)
+    #vgroups = [("cpu_percent", (0,100)), ("cpu_curr_time", False), ("vms", False), ("num_threads", False), ("total_read_bytes", False), ("total_write_bytes", False)]
+    visualized_experiments_filename = VisualizeExperiments(experiments)
 
+    return
+
+def UpdateExperiments(experiments:list[Experiment], new_experiment:Experiment) -> list[Experiment]:
+    for experiment in experiments:
+        if experiment == new_experiment: # new_experiment is duplicate
+            return experiments
+    return experiments.append(new_experiment)
+
+def WriteExperimentsToExperimentFile(experiment_filename:str, experiments:list[Experiment]):
+    pass
+
+def WriteExperimentsToExperimentFile(experiment_filename:str, experiments:list[Experiment]):
+    with open(experiment_filename, "w") as f:
+        f.write("name;command;experiment_folder;environment_variables;cwd;geodms_logfile;binary_experiment_file\n") # header
+        for experiment in experiments:
+            f.write(f"{repr(experiment)}\n")
+    return
+
+
+def AppendExperimentToExperimentFile(experiment_filename:str, experiment_definition:str):
+    new_experiment = InitExperimentFromCommandLineDefinition(experiment_definition)
+
+    # make sure experiment_filename exists
+    os.makedirs(os.path.dirname(experiment_filename), exist_ok=True)
+    if not os.path.isfile(experiment_filename):
+        with open(experiment_filename, "w") as f:
+            f.write("")
+
+    experiments = InitExperimentsFromCsvFile(experiment_filename)
+    experiments = UpdateExperiments(experiment_filename, experiments, new_experiment)
+    WriteExperimentsToExperimentFile(experiment_filename, experiments)
+
+def ExportExperimentSummariesToFile(experiment_filename:str):
+    # retrieve summary
+    experiments = InitExperimentsFromCsvFile(experiment_filename)
+    experiment_summaries = []
+    for exp_index, experiment in enumerate(experiments):
+        fldrname, filename = getExperimentFileName(experiment)
+        exp_fn = f"{fldrname}/{filename}"
+        print(f"Summarizing experiment file: {exp_fn}")
+        experiment = loadExperimentFromPickleFile(None, exp_fn)
+        experiment_summaries.append(experiment.summary())
+
+    # write to file
+    summary_file = f"{experiment_filename[:-4]}.summary"
+    with open(summary_file, "w") as f:
+        f.write("name;status;start_time;duration;highest_commit\n")
+        for summary in experiment_summaries:
+            f.write(f"{summary}\n")
+    
     return
 
 def RunFromCmdLine():
     # arguments
     parser = argparse.ArgumentParser()
-    parser.add_argument("-csv", help="csv file that describes experiments: path/to/file.csv")
-    parser.add_argument("-s", help="Time between samples, cannot be lower than 1.0")
-    parser.add_argument("-direct_call", help="Direct call option, tried if no csv file is given, syntax: ")
-    args = parser.parse_args()
+    parser.add_argument("-f", help="filename that describes experiments, syntax: -f path/to/file.csv")
+    parser.add_argument("-a", help="append an cmdline defined experiment to the experiment filename, syntax: -a name;experiment_folder;geodms_logfile;command")
+    parser.add_argument("-s", help="exports a summary of all experiments in the experiment file, syntax: -s name;status;starttime;duration;highestcommit;")
     
-    config_fn = ""
-    direct_call = ""
-    sampling_rate = 1.0
+    print(sys.argv[1:])
+    args = parser.parse_args()
+    experiment_filename = args.f
 
-    if args.csv:
-        config_fn = args.fn
+    if args.a:
+        experiment_definition = args.a
+        print(f"Appending experiment definition {args.a}")
+        AppendExperimentToExperimentFile(experiment_definition)
+        return
 
-    if args.direct_call:
-        direct_call = args.direct_call
-  
-    # time between samples
     if args.s:
-        if float(args.s) < 1.0:
-            print("Argument s set to 1.0, time between samples cannot be lower than 1.0")
-            sampling_rate = 1.0
-        else:
-            sampling_rate = float(args.s)
-    else:
-        sampling_rate = 1.0
+        ExportExperimentSummariesToFile(experiment_filename)
+        return
 
-    Run(direct_call=direct_call, config_fn=config_fn, sampling_rate=sampling_rate)
+
+    Run(experiment_filename=experiment_filename)
     return
 
-def RunTestConfig(config_fn):
-    Run(config_fn=config_fn)
-    return
-
-def RunTestDirectCall(direct_call):
-    Run(direct_call=direct_call) 
+def RunTestConfig(experiment_filename):
+    Run(experiment_filename=experiment_filename)
     return
 
 def main():
@@ -755,9 +836,9 @@ def main():
     return
     
 if __name__=="__main__":
-    #main() # python Profiler.py -direct_call test_profile_direct_call;'C:/Program Files/ObjectVision/GeoDms17.4.6/GeoDmsRun.exe' /LE:/experiments/direct_call/log.txt 'c:/users/cicada/prj/edm/cfg/stam.dms' @statistics /Evaluatie/test_tov_vorige_versie/checks/FR/test;E:/experiments/direct_call;E:/experiments/direct_call/log.txt
+    main() # python Profiler.py -direct_call test_profile_direct_call;'C:/Program Files/ObjectVision/GeoDms17.4.6/GeoDmsRun.exe' /LE:/experiments/direct_call/log.txt 'c:/users/cicada/prj/edm/cfg/stam.dms' @statistics /Evaluatie/test_tov_vorige_versie/checks/FR/test;E:/experiments/direct_call;E:/experiments/direct_call/log.txt
     #python Profiler.py -direct_call naam_van_run E:/experiments/direct_call E:/experiments/direct_call/log.txt "C:/Program Files/ObjectVision/GeoDms17.4.6/GeoDmsRun.exe" /LE:/experiments/direct_call/log.txt "c:/users/cicada/prj/edm/cfg/stam.dms" @statistics /Evaluatie/test_tov_vorige_versie/checks/FR/test
-    RunTestDirectCall("test_profile_direct_call;'C:/Program Files/ObjectVision/GeoDms17.4.6/GeoDmsRun.exe' /LE:/experiments/direct_call/log.txt 'c:/users/cicada/prj/edm/cfg/stam.dms' @statistics /Evaluatie/test_tov_vorige_versie/checks/FR/test;E:/experiments/direct_call;E:/experiments/direct_call/log.txt") # name, command, experiment_folder, geodms_logfile
+    #RunTestDirectCall("test_profile_direct_call;'C:/Program Files/ObjectVision/GeoDms17.4.6/GeoDmsRun.exe' /LE:/experiments/direct_call/log.txt 'c:/users/cicada/prj/edm/cfg/stam.dms' @statistics /Evaluatie/test_tov_vorige_versie/checks/FR/test;E:/experiments/direct_call;E:/experiments/direct_call/log.txt") # name, command, experiment_folder, geodms_logfile
     #RunTestConfig("./profile_setups.txt")
     #RunTestConfig("C:/Users/Cicada/prj/GeoDMS-Test/Performance/scripts/profiler_rework.txt")
     #RunTestConfig("./profile_setups_profile_rework.txt")
