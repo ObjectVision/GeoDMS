@@ -386,7 +386,7 @@ void TNameSet::InsertItem(const AbstrDataItem* adi)
 	SharedStr name = SharedStr(adi->GetID());
 	auto name2 = name;
 	if (name2.ssize() > m_Len)
-		name2 = SharedStr(name.begin(), name.begin() + m_Len);
+		name2 = SharedStr(CharPtrRange(name.begin(), name.begin() + m_Len));
 
 	while (HasMappedName(name2.c_str()))
 		if (name2.ssize() < m_Len)
@@ -433,7 +433,7 @@ SharedStr TNameSet::FieldNameToMappedName(CharPtr src) const
 		++src;
 	}
 	*dstPtr = char(0);
-	return SharedStr(dst.get(), dstPtr);
+	return SharedStr(CharPtrRange(dst.get(), dstPtr));
 }
 
 SharedStr TNameSet::FieldNameToItemName(CharPtr fieldName) const

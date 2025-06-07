@@ -174,7 +174,7 @@ const AbstrUnit* UnitClass::GetUnitOrDefault(const TreeItem* context, TokenID id
 
 const UnitClass* UnitClass::Find(const ValueClass* valueClass)
 {
-	dms_assert(valueClass);
+	assert(valueClass);
 	return valueClass->m_UnitClass;
 }
 
@@ -182,7 +182,7 @@ const ValueClass* UnitClass::GetValueType(ValueComposition vc) const
 { 
 	if (vc == ValueComposition::Single)
 		return m_ValueType;
-	dms_assert(vc == ValueComposition::Polygon || vc == ValueComposition::Sequence);
+	assert(vc == ValueComposition::Polygon || vc == ValueComposition::Sequence);
 	return m_ValueType->GetSequenceClass();
 }
 

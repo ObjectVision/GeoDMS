@@ -137,7 +137,7 @@ namespace AbstrOperGroupRegImpl {
 // *****************************************************************************
 
 AbstrOperGroup::AbstrOperGroup(CharPtr operName, oper_policy op)
-	:	m_OperName(operName)
+	:	m_OperName(operName MG_DEBUG_ALLOCATOR_SRC("AbstrOperGroup::OperName"))
 	,	m_OperNameID(GetTokenID_st(operName))
 //	,	m_FirstMember(0) assume static initialization and possible usage before construction
 	,	m_Policy(op)

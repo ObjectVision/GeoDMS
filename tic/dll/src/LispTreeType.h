@@ -282,7 +282,22 @@ LispRef AsLispRef(const locked_sequence<T>& v)
 }
 
 template <typename T>
+LispRef AsLispRef(const my_vector<T>& v)
+{
+	auto valueList = LispRef();
+	for (auto b = v.begin(), e = v.end(); b != e;)
+		valueList = LispRef(AsLispRef(*--e), valueList);
+	return slUnionDataLispExpr(valueList, v.size());
+}
+
+template <typename T>
 LispRef AsLispRef(const locked_sequence<T>& v, LispPtr valuesUnitKeyExpr)
+{
+	throwNYI(MG_POS, "AsLispRef(vector)");
+}
+
+template <typename T>
+LispRef AsLispRef(const my_vector<T>& v, LispPtr valuesUnitKeyExpr)
 {
 	throwNYI(MG_POS, "AsLispRef(vector)");
 }

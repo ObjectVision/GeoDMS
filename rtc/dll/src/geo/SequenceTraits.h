@@ -27,6 +27,12 @@ struct is_dms_sequence<SA_Reference<P>> : std::true_type {};
 template <typename P>
 struct is_dms_sequence<std::vector<P>> : std::true_type {};
 
+template <typename P>
+struct is_dms_sequence<locked_sequence<P>> : std::true_type {};
+
+template <typename P>
+struct is_dms_sequence<my_vector<P>> : std::true_type {};
+
 template <typename R>
 struct is_dms_sequence<R&> : is_dms_sequence<R> {};
 
@@ -61,7 +67,7 @@ struct sequence_traits
 { 
 	using value_type = T;
 	using block_type = T;
-	using container_type = locked_sequence<T>;
+	using container_type = my_vector<T>;
 //	using container_type = std::vector<T>;
 	using tile_container_type = OwningPtrSizedArray<T>;
 
@@ -171,6 +177,27 @@ struct sequence_traits<locked_sequence<V> >
 	using const_pointer = const locked_sequence<V>*;
 	using reference = locked_sequence<V>&;
 	using const_reference = const locked_sequence<V>&;
+
+	using value_type = typename sequence_traits<V>::container_type;
+
+	using container_type = sequence_vector<V>;
+	using polymorph_vec_t = sequence_array<V>;
+	using tile_container_type = container_type;
+
+
+	using seq_t = sequence_array_ref<V>;
+	using cseq_t = sequence_array_cref<V>;
+};
+
+template <typename V>
+struct sequence_traits<my_vector<V> >
+{
+	//	vector<V=char>       -> SharedStr
+	//	vector<V=vector<T> > -> sequence_array<T>
+	using pointer = my_vector<V>*;
+	using const_pointer = const my_vector<V>*;
+	using reference = my_vector<V>&;
+	using const_reference = const my_vector<V>&;
 
 	using value_type = typename sequence_traits<V>::container_type;
 

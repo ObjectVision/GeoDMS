@@ -1254,7 +1254,7 @@ struct InterestReporter : DebugReporter
 
 			if (IsDataItem(ti))
 			{
-				SharedStr name( ti->GetFullName().c_str());
+				SharedStr name( ti->GetFullName().c_str() MG_DEBUG_ALLOCATOR_SRC("ReportTree"));
 				CDebugContextHandle debugContext2("ReportTreeUnits", name.c_str(), true);
 				const AbstrDataItem* adi = AsDataItem(ti);
 				if (adi->HasDataObj())

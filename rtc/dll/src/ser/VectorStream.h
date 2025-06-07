@@ -148,6 +148,21 @@ PolymorphOutStream& operator << (PolymorphOutStream& ar, const locked_sequence<T
 	return ar;
 }
 
+template <typename T> inline
+PolymorphInpStream& operator >> (PolymorphInpStream& ar, my_vector<T>& vec)
+{
+	ReadBinRange(ar, vec);
+	return ar;
+}
+
+// required to do PolymorphOutStream& << TreeItem* for vector<TreeItem*>
+template <typename T> inline
+PolymorphOutStream& operator << (PolymorphOutStream& ar, const my_vector<T>& vec)
+{
+	WriteBinRange(ar, vec);
+	return ar;
+}
+
 template <typename Vector> inline
 void WriteFormattedRange(FormattedOutStream& os, const Vector& vec)
 {
@@ -197,6 +212,20 @@ FormattedOutStream& operator << (FormattedOutStream& os, const locked_sequence<T
 
 template <typename T> inline
 FormattedInpStream& operator >> (FormattedInpStream& is, locked_sequence<T>& vec)
+{
+	ReadFormattedRange(is, vec);
+	return is;
+}
+
+template <typename T> inline
+FormattedOutStream& operator << (FormattedOutStream& os, const my_vector<T>& vec)
+{
+	WriteFormattedRange(os, vec);
+	return os;
+}
+
+template <typename T> inline
+FormattedInpStream& operator >> (FormattedInpStream& is, my_vector<T>& vec)
 {
 	ReadFormattedRange(is, vec);
 	return is;

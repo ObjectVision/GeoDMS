@@ -194,7 +194,7 @@ SharedStr GetRegConfigSetting(const TreeItem* configRoot, CharPtr key, CharPtr d
 		}
 	}
 
-	return SharedStr(defaultValue);
+	return SharedStr(defaultValue MG_DEBUG_ALLOCATOR_SRC("GetRegConfigSetting"));
 }
 
 SharedStr GetConvertedRegConfigSetting(const TreeItem* configRoot, CharPtr key, CharPtr defaultValue)
@@ -298,7 +298,7 @@ SharedStr GetProjDir(CharPtr configDir)
 
 			DBG_TRACE(("GoUp %d times on %s", cc, configLoadDir.c_str()));
 
-			s_proj_dir = DelimitedConcat(configLoadDir.c_str(), SharedStr(s_proj_dir.cbegin()+p, s_proj_dir.csend()).c_str());
+			s_proj_dir = DelimitedConcat(configLoadDir.c_str(), SharedStr(CharPtrRange(s_proj_dir.cbegin()+p, s_proj_dir.csend())).c_str());
 
 			DBG_TRACE(("result after GoUp %s", s_proj_dir.c_str()));
 		}
@@ -314,7 +314,7 @@ SharedStr GetLocalTime()
 	std::string s(30, '\0');
 	std::strftime(&s[0], s.size(), "%Y-%m-%d_%H-%M-%S", std::localtime(&time_now));
 
-	return SharedStr(s.c_str());
+	return SharedStr(s.c_str() MG_DEBUG_ALLOCATOR_SRC("GetLocalTime"));
 }
 
 SharedStr GetProjBase(CharPtr configDir)
@@ -371,10 +371,10 @@ SharedStr GetPlaceholderValue(CharPtr subDirName, CharPtr placeHolder, bool must
 	if (!stricmp(placeHolder, "programFiles32"  )) return PlatformInfo::GetProgramFiles32();
 	if (!stricmp(placeHolder, "localDataDir"    )) return GetLocalDataDir();
 	if (!stricmp(placeHolder, "sourceDataDir"   )) return GetSourceDataDir();
-	if (!stricmp(placeHolder, "configDir"       )) return SharedStr(subDirName);
+	if (!stricmp(placeHolder, "configDir"       )) return SharedStr(subDirName MG_DEBUG_ALLOCATOR_SRC("GetPlaceholderValue.configDir"));
 	if (!stricmp(placeHolder, "configName"      )) return GetConfigName(subDirName);
-	if (!stricmp(placeHolder, "geodmsversion"   )) return SharedStr(DMS_GetVersion());
-	if (!stricmp(placeHolder, "platform"        )) return SharedStr(DMS_GetPlatform());
+	if (!stricmp(placeHolder, "geodmsversion"   )) return SharedStr(DMS_GetVersion() MG_DEBUG_ALLOCATOR_SRC("GetPlaceholderValue.geodmsversion"));
+	if (!stricmp(placeHolder, "platform"        )) return SharedStr(DMS_GetPlatform() MG_DEBUG_ALLOCATOR_SRC("GetPlaceholderValue.platform"));
 	if (!stricmp(placeHolder, "osversion"       )) return PlatformInfo::GetVersionStr();
 	if (!stricmp(placeHolder, "username"        )) return PlatformInfo::GetUserNameA();
 	if (!stricmp(placeHolder, "computername"    )) return PlatformInfo::GetComputerNameA();
@@ -410,7 +410,7 @@ SharedStr GetPlaceholderValue(const TreeItem* configStore, CharPtr placeHolder)
 		return result;
 
 	reportF(MsgCategory::progress, SeverityTypeID::ST_Warning, "Unable to find placeholder: %%%s%%.", placeHolder);
-	return SharedStr(placeHolder);
+	return SharedStr(placeHolder MG_DEBUG_ALLOCATOR_SRC("GetPlaceholderValue.placeHolder"));
 }
 
 SharedStr ExpandImpl(const auto* placeHolderRoot, SharedStr orgStorageName)
@@ -491,9 +491,9 @@ SharedStr ExpandImpl(const auto* placeHolderRoot, SharedStr orgStorageName)
 			);
 
 		storageName
-			= SharedStr(pBegin, p1)
-			+ GetPlaceholderValue(placeHolderRoot, SharedStr(p1 + 1, p2).c_str())
-			+ SharedStr(p2 + 1, pEnd);
+			= SharedStr(CharPtrRange(pBegin, p1))
+			+ GetPlaceholderValue(placeHolderRoot, SharedStr(CharPtrRange(p1 + 1, p2)).c_str())
+			+ SharedStr(CharPtrRange(p2 + 1, pEnd));
 	}
 	return storageName;
 }
@@ -527,7 +527,7 @@ SharedStr AbstrStorageManager::GetFullStorageName(const TreeItem* configStore, S
 	if (!IsAbsolutePath(storageName.c_str()))
 		storageName = MakeAbsolutePath(storageName.c_str());
 	if (*storageName.c_str() == ':')
-		return SharedStr(storageName.cbegin()+1, storageName.csend());
+		return SharedStr(CharPtrRange(storageName.cbegin()+1, storageName.csend()));
 	return storageName;
 }
 
@@ -539,7 +539,7 @@ SharedStr AbstrStorageManager::Expand(CharPtr subDirName, CharPtr storageNameCSt
 		subDirNameStr = MakeAbsolutePath(subDirName);
 		subDirName = subDirNameStr.c_str();
 	}
-	return ExpandImpl(subDirName, SharedStr(storageNameCStr));
+	return ExpandImpl(subDirName, SharedStr(storageNameCStr MG_DEBUG_ALLOCATOR_SRC("AbstrStorageManager::Expand")));
 }
 
 SharedStr AbstrStorageManager::GetFullStorageName(CharPtr subDirName, CharPtr storageNameCStr)
@@ -588,7 +588,7 @@ bool AbstrStorageManager::DoesExistEx(CharPtr storageName, TokenID storageType, 
 {
 	DBG_START("AbstrStorageManager", "DoesExistEx", true);
 
-	SharedPtr<AbstrStorageManager> sm = AbstrStorageManager::Construct(storageHolder, SharedStr(storageName), storageType, StorageReadOnlySetting::ReadOnly);
+	SharedPtr<AbstrStorageManager> sm = AbstrStorageManager::Construct(storageHolder, SharedStr(storageName MG_DEBUG_ALLOCATOR_SRC("AbstrStorageManager::DoesExistEx")), storageType, StorageReadOnlySetting::ReadOnly);
 
 	if (!sm)
 		return false;

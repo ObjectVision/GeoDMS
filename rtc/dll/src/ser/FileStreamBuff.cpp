@@ -206,7 +206,7 @@ DMS_CONV DMS_FileOutStreamBuff_Create(CharPtr fileName, bool isAsciiFile)
 {
 	DMS_CALL_BEGIN
 
-		return new FileOutStreamBuff(ConvertDosFileName(SharedStr(fileName)), isAsciiFile, false);
+		return new FileOutStreamBuff(ConvertDosFileName(SharedStr(fileName MG_DEBUG_ALLOCATOR_SRC("DMS_FileOutStreamBuff_Create"))), isAsciiFile, false);
 
 	DMS_CALL_END
 	return nullptr;

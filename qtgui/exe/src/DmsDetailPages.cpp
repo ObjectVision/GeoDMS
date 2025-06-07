@@ -185,7 +185,7 @@ auto htmlEncodeTextDoc(CharPtr str) -> SharedStr
     XML_OutStream_WriteText(xmlOut, str);
 
     outBuff.OutStreamBuff::WriteBytes("</PRE></BODY></HTML>");
-    return SharedStr( outBuff.GetData(), outBuff.GetDataEnd());
+    return SharedStr(CharPtrRange(outBuff.GetData(), outBuff.GetDataEnd()));
 }
 
 void DmsDetailPages::scheduleDrawPageImpl(int milliseconds)

@@ -97,7 +97,7 @@ struct trim_assign : same_length_unary_string_assign
 			++i;
 		while (i!=e && isspace(UChar(*(e-1))))
 			--e;
-		res.assign(i, e);
+		res.assign(i, e MG_DEBUG_ALLOCATOR_SRC("trim_assign"));
 	}
 };
 
@@ -112,7 +112,7 @@ struct ltrim_assign : same_length_unary_string_assign
 			e = arg.end();
 		while (i!=e && isspace(UChar(*i)))
 			++i;
-		res.assign(i, e);
+		res.assign(i, e MG_DEBUG_ALLOCATOR_SRC("ltrim_assign"));
 	}
 };
 
@@ -127,7 +127,7 @@ struct rtrim_assign : same_length_unary_string_assign
 			e = arg.end();
 		while (i!=e && isspace(UChar(*(e-1))))
 			--e;
-		res.assign(i, e);
+		res.assign(i, e MG_DEBUG_ALLOCATOR_SRC("rtrim_assign"));
 	}
 };
 

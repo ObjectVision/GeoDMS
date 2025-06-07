@@ -17,7 +17,7 @@
 #include "ser/FileCreationMode.h"
 
 //----------------------------------------------------------------------
-// class  : locked_sequence
+// class  : locked_seq
 //----------------------------------------------------------------------
 
 template <typename Resource>

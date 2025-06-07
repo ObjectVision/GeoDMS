@@ -64,7 +64,7 @@ SharedStr platform::GetSystemErrorText(DWORD lastErr)
 		NULL 
 	);
 	// Process any inserts in lpMsgBuf.
-	return SharedStr((LPCTSTR)lpMsgBuf.m_Ptr);
+	return SharedStr((LPCTSTR)lpMsgBuf.m_Ptr MG_DEBUG_ALLOCATOR_SRC("platform::GetSystemErrorText"));
 };
 
 RTC_CALL bool platform::isCharPtrAndExceeds_MAX_PATH(CharPtr xFileName)
@@ -185,7 +185,7 @@ SharedStr GetCurrentDir()
 
 	if (buffer.empty())
 		return SharedStr();
-	return ConvertDosFileName(SharedStr(begin_ptr(buffer), end_ptr(buffer)-1));
+	return ConvertDosFileName(SharedStr(CharPtrRange(begin_ptr(buffer), end_ptr(buffer)-1)));
 }
 
 void SetCurrentDir(CharPtr dir)
@@ -212,7 +212,7 @@ void AddFontResourceExA_checked(_In_ LPCSTR name, _In_ DWORD fl, _Reserved_ PVOI
 void DMS_Appl_SetExeDir(CharPtr exeDir)
 {
 	dms_assert(g_ExeDir.empty()); // should only called once, exeDirs don't just change during a session
-	g_ExeDir = ConvertDosFileName(SharedStr(exeDir));
+	g_ExeDir = ConvertDosFileName(SharedStr(exeDir MG_DEBUG_ALLOCATOR_SRC("DMS_Appl_SetExeDir")));
 	
 	SetMainThreadID();
 }
@@ -654,7 +654,7 @@ SharedStr ConvertDmsFileName(WeakStr path) // replaces '/' by '\' iff prefixed b
 	if (strncmp(path.begin(), "file:", 5))
 		return path;
 
-	return ConvertDmsFileNameAlways(SharedStr(path.begin()+5, path.send()));
+	return ConvertDmsFileNameAlways(SharedStr(CharPtrRange(path.begin()+5, path.send())));
 }
 
 bool HasDosDelimiters(CharPtr source)
@@ -726,7 +726,7 @@ void MakeDirsForFile(WeakStr fullFileName)
 
 extern "C" RTC_CALL void DMS_CONV DMS_MakeDirsForFile(CharPtr fileName)
 {
-	MakeDirsForFile(ConvertDosFileName(SharedStr(fileName)));
+	MakeDirsForFile(ConvertDosFileName(SharedStr(fileName MG_DEBUG_ALLOCATOR_SRC("DMS_MakeDirsForFile"))));
 }
 
 //  -----------------------------------------------------------------------
@@ -1123,7 +1123,7 @@ Int32 GetConfigKeyValue(WeakStr configFileName, CharPtr sectionName, CharPtr key
 SharedStr GetConfigKeyString(WeakStr configFileName, CharPtr sectionName, CharPtr keyName, CharPtr defaultValue)
 {
 	if (!IsFileOrDirAccessible(configFileName))
-		return SharedStr(defaultValue);
+		return SharedStr(defaultValue MG_DEBUG_ALLOCATOR_SRC("GetConfigKeyString"));
 
 	const UInt32 DEFAULT_BUFFER_SIZE = 300;
 
@@ -1138,7 +1138,7 @@ SharedStr GetConfigKeyString(WeakStr configFileName, CharPtr sectionName, CharPt
 //		char* buffer = s_CharBuffer.GetBuffer(size);
 		DWORD resSize = GetPrivateProfileString(sectionName, keyName, defaultValue, buf, size, ConvertDmsFileName(configFileName).c_str());
 		if (resSize+2 < size )
-			return SharedStr(buf, buf+resSize);
+			return SharedStr(CharPtrRange(buf, buf+resSize));
 		size *= 2;
 		heapBuffer.reset(new char[size]);
 		buf = heapBuffer.get();
@@ -1183,7 +1183,7 @@ namespace PlatformInfo
 		char buffer[UNLEN+1];
 		if (!::GetUserNameA(buffer, &sz))
 			throwLastSystemError("GetUserName");
-		return SharedStr(buffer, buffer+sz-1);
+		return SharedStr(CharPtrRange(buffer, buffer+sz-1));
 	}
 	RTC_CALL SharedStr GetComputerNameA()
 	{
@@ -1191,14 +1191,14 @@ namespace PlatformInfo
 		char buffer[MAX_COMPUTERNAME_LENGTH + 1]; 
 		if (!::GetComputerNameA(buffer, &sz))
 			throwLastSystemError("GetComputerName");
-		return SharedStr(buffer, buffer+sz);
+		return SharedStr(CharPtrRange(buffer, buffer+sz));
 	}
 	RTC_CALL bool GetEnv(CharPtr varName, SharedStr& result)
 	{
 		CharPtr resPtr = getenv(varName);
 		if (!resPtr)
 			return false;
-		result = SharedStr(resPtr);
+		result = SharedStr(resPtr MG_DEBUG_ALLOCATOR_SRC("GetEnv"));
 		return true;
 	}
 	RTC_CALL bool GetEnvString(CharPtr section, CharPtr key, SharedStr& result)

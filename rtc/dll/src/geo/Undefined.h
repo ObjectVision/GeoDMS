@@ -103,6 +103,9 @@ constexpr auto UndefinedOrZero(const std::vector<Field, Alloc>*) { return std::v
 template <typename Field>
 constexpr auto UndefinedOrZero(const locked_sequence<Field>*) { return locked_sequence<Field>(); }
 
+template <typename Field>
+constexpr auto UndefinedOrZero(const my_vector<Field>*) { return my_vector<Field>(); }
+
 
 //----------------------------------------------------------------------
 // Section      : MakeUndefined operator; override for burdensome copy constructibles (to avoid return by value)
@@ -134,6 +137,13 @@ inline void MakeUndefined(locked_sequence<Field>& vec)
 		vec = locked_sequence<Field>();
 }
 
+template <typename Field>
+inline void MakeUndefined(my_vector<Field>& vec)
+{
+	if (vec.size())
+		vec = my_vector<Field>();
+}
+
 template <typename Field, typename Alloc>
 inline void MakeUndefinedOrZero(std::vector<Field, Alloc>& vec)
 {
@@ -142,6 +152,12 @@ inline void MakeUndefinedOrZero(std::vector<Field, Alloc>& vec)
 
 template <typename Field>
 inline void MakeUndefinedOrZero(locked_sequence<Field>& vec)
+{
+	MakeUndefined(vec);
+}
+
+template <typename Field>
+inline void MakeUndefinedOrZero(my_vector<Field>& vec)
 {
 	MakeUndefined(vec);
 }
@@ -172,6 +188,9 @@ inline constexpr bool IsDefined(const std::vector<Field>& v) { return v.size(); 
 
 template <typename Field>
 inline constexpr bool IsDefined(const locked_sequence<Field>& v) { return v.size(); }
+
+template <typename Field>
+inline constexpr bool IsDefined(const my_vector<Field>& v) { return v.size(); }
 
 //inline bool IsDefined(Float32 v) { return fpclassify(v) <= 0; }
 //inline bool IsDefined(Float64 v) { return fpclassify(v) <= 0; }

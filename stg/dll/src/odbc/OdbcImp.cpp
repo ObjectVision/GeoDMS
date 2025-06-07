@@ -351,7 +351,7 @@ static ULONG GetRecordCount(TDatabase *db, CharPtr sql)
 	recordCount.CreateRecordSet(sql);
 	recordCount.UnbindAllInternal();
 
-	TRecordSetOpenLock rsOpenLokc(&recordCount); // Does Rewind
+	TRecordSetOpenLock rsOpenLock(&recordCount); // Does Rewind
 	recordCount.Next(); // combined with Rewind this constitutes a MoveFirst
 
 	while (!recordCount.EndOfFile())
@@ -524,7 +524,7 @@ void TDatabase::Open()
 		else
 		{
 			++returnSize; // allow for string terminator
-			m_ConnectionString.resize(returnSize);
+			m_ConnectionString.resize(returnSize MG_DEBUG_ALLOCATOR_SRC("TDatabase.ConnectionString"));
 			CharType* connectionStr = m_ConnectionString.begin();
 			Check(SQLDriverConnect(
 				Handle(), 
@@ -621,7 +621,7 @@ SharedStr TDatabase::GetInfoCharacter(SQLUSMALLINT infotype)
 	char infoValue[MAXBUFLEN];
 	SQLSMALLINT	infoValueLen;
 	Check(SQLGetInfo(Handle(), infotype, infoValue, MAXBUFLEN, &infoValueLen));
-	return SharedStr(infoValue, infoValue+infoValueLen);
+	return SharedStr(CharPtrRange(infoValue, infoValue+infoValueLen));
 }
 
 void TDatabase::SetMonade(TRecordSet *recordset, const TExecType rse)
@@ -1478,7 +1478,7 @@ SharedStr TRecordSet::ColumnAttrValueString(const SQLUSMALLINT col, const SQLUSM
 	char result[MAXBUFLEN];
 	SQLSMALLINT	attrValueLen;
 	Check(SQLColAttributes(Handle(), col, attribute, result, MAXBUFLEN, &attrValueLen, nullptr));
-	return SharedStr(result, result + attrValueLen);
+	return SharedStr(CharPtrRange(result, result + attrValueLen));
 }
 
 void TRecordSet::Check(const SQLRETURN ret)	

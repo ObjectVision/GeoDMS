@@ -191,7 +191,7 @@ SharedStr UnitMetric::AsString(FormattingFlags ff) const
 	FormattedOutStream resultStr(&resultBuff, ff);
 	resultStr << (*this);
 	CharPtr cstr = resultBuff.GetData(); 
-	return SharedStr(cstr, cstr + resultBuff.CurrPos());
+	return SharedStr(CharPtrRange(cstr, cstr + resultBuff.CurrPos()) MG_DEBUG_ALLOCATOR_SRC("UnitMetric::AsString"));
 }
 
 typedef const UnitMetric::BaseUnitsMapType::value_type* BaseUnitCPtr;
@@ -428,7 +428,7 @@ SharedStr UnitProjection::AsString(FormattingFlags ff) const
 	FormattedOutStream resultStr(&resultBuff, ff);
 	resultStr << (*this);
 	CharPtr first = resultBuff.GetData();
-	return SharedStr(first, first+resultBuff.CurrPos());
+	return SharedStr(CharPtrRange(first, first+resultBuff.CurrPos()) MG_DEBUG_ALLOCATOR_SRC("UnitProjection::AsString"));
 }
 
 FormattedOutStream& operator <<(FormattedOutStream& str, const UnitProjection& repr)

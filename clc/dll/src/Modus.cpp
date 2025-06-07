@@ -15,6 +15,7 @@
 #include "geo/Conversions.h"
 #include "geo/IsNotUndef.h"
 #include "mci/CompositeCast.h"
+// #include "mem/HeapSequenceProvider.ipp"
 #include "set/VectorFunc.h"
 
 #include "DataItemClass.h"
@@ -166,7 +167,7 @@ struct frequencyTableFunc {
 				out << value << ": " << count;
 			hasAlreadyWrittenSomething = true;
 		}
-		return SharedStr(buff.GetData(), buff.GetDataEnd());
+		return SharedStr(CharPtrRange(buff.GetData(), buff.GetDataEnd()));
 	}
 };
 

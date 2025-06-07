@@ -141,7 +141,7 @@ SharedStr UrlDecode(WeakStr urlStr)
 	if (sz == urlStr.ssize() && urlStr.find('+') == urlStr.send())
 		return urlStr;
 
-	auto result = SharedCharArray::CreateUninitialized(sz + 1);
+	auto result = SharedCharArray::CreateUninitialized(sz + 1 MG_DEBUG_ALLOCATOR_SRC("UrlDecode"));
 	SharedStr resultStr(result); // assign ownership
 
 	char* resultPtr = result->begin();
@@ -165,13 +165,13 @@ SharedStr UrlDecode(WeakStr urlStr)
 SharedStr to_utf(CharPtr first, CharPtr last)
 {
 	std::string result = boost::locale::conv::to_utf<char>(first, last, GetCp1250Locale()); //  s_to_utf_locale); // , boost::locale::conv::default_method);
-	return SharedStr(result.c_str());
+	return SharedStr(result.c_str() MG_DEBUG_ALLOCATOR_SRC("to_utf"));
 }
 
 SharedStr from_utf(CharPtr first, CharPtr last)
 {
 	std::string result = boost::locale::conv::from_utf<char>(first, last, GetCp1250Locale()); // s_from_utf_locale);
-	return SharedStr(result.c_str());
+	return SharedStr(result.c_str() MG_DEBUG_ALLOCATOR_SRC("from_utf"));
 }
 
 bool itemName_test(CharPtr p)
@@ -243,7 +243,7 @@ SharedStr as_item_name(CharPtr first, CharPtr last)
 	if (isdigit((unsigned char)*first))
 		++n;
 
-	auto resultPtr = SharedCharArray::Create(n+1, false); // size + zero termination
+	auto resultPtr = SharedCharArray::Create(n+1, false MG_DEBUG_ALLOCATOR_SRC("as_item_name")); // size + zero termination
 	auto resultStr = SharedStr(resultPtr);
 
 	auto dstPtr = resultPtr->begin();
@@ -278,7 +278,7 @@ SharedStr as_item_name(CharPtr first, CharPtr last)
 SharedStr AsFilename(WeakStr filenameStr)
 {
 	auto sz = filenameStr.ssize();
-	auto resultPtr = SharedCharArray::Create(sz + 1, false); // size + zero termination
+	auto resultPtr = SharedCharArray::Create(sz + 1, false MG_DEBUG_ALLOCATOR_SRC("AsFilename")); // size + zero termination
 	auto resultStr = SharedStr(resultPtr);
 
 	auto dstPtr = resultPtr->begin();

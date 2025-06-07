@@ -377,7 +377,7 @@ bool XdbImp::SetFileName(WeakStr src, CharPtr datExtension, bool saveColInfo)
 		return false;
 
 	// fill membervariable
-	m_DatFileName = SharedStr(m_FileName.c_str(), fileNameExtension) + datExtension;
+	m_DatFileName = SharedStr(CharPtrRange(m_FileName.c_str(), fileNameExtension)) + datExtension;
 	if (!saveColInfo)
 		m_FileName = "";
 	DBG_TRACE(("Names: %s %s", m_FileName.c_str(), m_DatFileName.c_str()));

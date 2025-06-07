@@ -34,7 +34,7 @@ struct ClassifyFunc
 		//	make index for log(n) accesss: ValuesType by sorting the IndexType->V index on values of V
 		PreparedDataReadLock drl(classBreaks, "ClassBreak function");
 		auto classBreakData = const_array_cast<ThemeValuesType>( classBreaks )->GetDataRead();
-		m_ClassBreakData = ClassBreakData(classBreakData.begin(), classBreakData.end() );
+		m_ClassBreakData = ClassBreakData(classBreakData.begin(), classBreakData.end() MG_DEBUG_ALLOCATOR_SRC("ClassifyFunc"));
 		m_Index.clear();
 		make_index_skip_null(m_Index, m_ClassBreakData.size(), m_ClassBreakData.begin() );
 	}
@@ -63,7 +63,7 @@ MakeClassIndexArray(ThemeClassPairType tcp)
 	auto themeData = debug_cast<const DataArray<ThemeValuesType>*>(tcp.first->GetRefObj())->GetDataRead();
 
 	SharedArrayPtr<typename sequence_traits<ClassIdType>::value_type> 
-		resultingArray(SharedArray<typename sequence_traits<ClassIdType>::value_type>::Create(themeData.size(), false) );
+		resultingArray(SharedArray<typename sequence_traits<ClassIdType>::value_type>::Create(themeData.size(), false MG_DEBUG_ALLOCATOR_SRC("MakeClassIndexArray")) );
 
 	classify2index_range(
 		begin_ptr(resultingArray)

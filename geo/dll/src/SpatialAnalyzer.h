@@ -224,7 +224,7 @@ void Districter<T, D>::GetDistrict(DistrDataPtr output, UGridPoint seedPoint, D 
 template <typename T, typename D>
 void Districter<T, D>::GetDistrict(DistrDataPtr output, UGridPoint seedPoint, UGridRect& resRect)
 {
-	m_Processed = DistrSelVecType(this->GridSize(), false);
+	m_Processed = DistrSelVecType(this->GridSize(), false MG_DEBUG_ALLOCATOR_SRC("GetDistrict buffer"));
 	//	vector_zero_n(m_Processed, GridSize());
 
 	m_ResRect = UGridRect();
@@ -243,7 +243,7 @@ D Districter<T, D>::GetDistricts(UGrid<D> output, bool rule8)
 
 	fast_undefine(output.begin(), output.end());
 
-	m_Processed = DistrSelVecType(this->GridSize(), false);
+	m_Processed = DistrSelVecType(this->GridSize(), false MG_DEBUG_ALLOCATOR_SRC("GetDistricts"));
 	//	vector_zero_n(m_Processed, GridSize());
 	
 	D resNrDistricts = 0; bool isFirstDistrict = true;

@@ -67,9 +67,9 @@ void bp_assign_polygon(E&& ref, POLYGON&& polygonWithHoles)
 	while (hi != hb)
 	{
 		--hi;
-		ref.push_back(ConvertPoint(hi->begin()[0]));
+		ref.push_back(ConvertPoint(hi->begin()[0]) MG_DEBUG_ALLOCATOR_SRC("bp_assign_polygon"));
 	}
-	ref.push_back(ConvertPoint(polygonWithHoles.begin()[0]));
+	ref.push_back(ConvertPoint(polygonWithHoles.begin()[0]) MG_DEBUG_ALLOCATOR_SRC("bp_assign_polygon"));
 }
 
 template <dms_sequence E, typename MP>
@@ -93,7 +93,7 @@ void bp_assign_mp (E&& ref,  MP&& poly)
 			count += hi->size() + 1;
 	}
 
-	ref.reserve(count);
+	ref.reserve(count MG_DEBUG_ALLOCATOR_SRC("bp_assign_mp"));
 	
 	for (i=b; i!=e; ++i)
 		bp_assign_polygon(ref, *i);
@@ -104,7 +104,7 @@ void bp_assign_mp (E&& ref,  MP&& poly)
 	while (i!=b)
 	{
 		--i;
-		ref.push_back(ConvertPoint(i->begin()[0]));
+		ref.push_back(ConvertPoint(i->begin()[0]) MG_DEBUG_ALLOCATOR_SRC("bp_assign_mp"));
 	}
 	assert(ref.size() == count);
 }
@@ -131,7 +131,7 @@ auto bp_split_assign (RI resIter, MP& poly) -> RI
 		for (auto hi=i->begin_holes(), he=i->end_holes(); hi!=he; ++hi)
 			count += hi->size() + 1;
 
-		resIter->reserve(count);
+		resIter->reserve(count MG_DEBUG_ALLOCATOR_SRC("bp_split_assign"));
 	
 		bp_assign_polygon(*resIter, *i);
 		assert(resIter->size() == count);
@@ -226,6 +226,7 @@ template <> struct geometry_concept<SA_Reference<WPoint> > { using type = polygo
 
 template <typename S> struct geometry_concept<std::vector<bp::point_data<S>> > { using type = polygon_concept; };
 template <typename S> struct geometry_concept<locked_sequence<bp::point_data<S>> > { using type = polygon_concept; };
+template <typename S> struct geometry_concept<my_vector<bp::point_data<S>> > { using type = polygon_concept; };
 
 template <typename S> struct scalar_of<bp::point_data<S>> { using type = scalar_of_t<S>; };
 
@@ -297,6 +298,11 @@ template <> struct polygon_traits<locked_sequence<bp::point_data<UInt32>>> : poi
 template <> struct polygon_traits<locked_sequence<bp::point_data<Int16 >>> : point_sequence_traits< locked_sequence<bp::point_data<Int16 >>> {};
 template <> struct polygon_traits<locked_sequence<bp::point_data<UInt16>>> : point_sequence_traits< locked_sequence<bp::point_data<UInt16>>> {};
 
+template <> struct polygon_traits<my_vector<bp::point_data<Int32 >>> : point_sequence_traits< my_vector<bp::point_data<Int32 >>> {};
+template <> struct polygon_traits<my_vector<bp::point_data<UInt32>>> : point_sequence_traits< my_vector<bp::point_data<UInt32>>> {};
+template <> struct polygon_traits<my_vector<bp::point_data<Int16 >>> : point_sequence_traits< my_vector<bp::point_data<Int16 >>> {};
+template <> struct polygon_traits<my_vector<bp::point_data<UInt16>>> : point_sequence_traits< my_vector<bp::point_data<UInt16>>> {};
+
 template <> struct polygon_set_traits<SA_ConstReference<IPoint> > : poly_sequence_traits<SA_ConstReference<IPoint> > {};
 template <> struct polygon_set_traits<SA_ConstReference<UPoint> > : poly_sequence_traits<SA_ConstReference<UPoint> > {};
 template <> struct polygon_set_traits<SA_ConstReference<SPoint> > : poly_sequence_traits<SA_ConstReference<SPoint> > {};
@@ -307,10 +313,20 @@ template <> struct polygon_set_traits<SA_Reference<UPoint> > : poly_sequence_tra
 template <> struct polygon_set_traits<SA_Reference<SPoint> > : poly_sequence_traits<SA_Reference<SPoint> > {};
 template <> struct polygon_set_traits<SA_Reference<WPoint> > : poly_sequence_traits<SA_Reference<WPoint> > {};
 
-template <> struct polygon_set_traits<IPolygon> : poly_sequence_traits<IPolygon> {};
-template <> struct polygon_set_traits<UPolygon> : poly_sequence_traits<UPolygon> {};
-template <> struct polygon_set_traits<SPolygon> : poly_sequence_traits<SPolygon> {};
-template <> struct polygon_set_traits<WPolygon> : poly_sequence_traits<WPolygon> {};
+template <> struct polygon_set_traits<locked_sequence<IPoint>> : poly_sequence_traits<locked_sequence<IPoint>> {};
+template <> struct polygon_set_traits<locked_sequence<UPoint>> : poly_sequence_traits<locked_sequence<UPoint>> {};
+template <> struct polygon_set_traits<locked_sequence<SPoint>> : poly_sequence_traits<locked_sequence<SPoint>> {};
+template <> struct polygon_set_traits<locked_sequence<WPoint>> : poly_sequence_traits<locked_sequence<WPoint>> {};
+
+template <> struct polygon_set_traits<my_vector<IPoint>> : poly_sequence_traits<my_vector<IPoint>> {};
+template <> struct polygon_set_traits<my_vector<UPoint>> : poly_sequence_traits<my_vector<UPoint>> {};
+template <> struct polygon_set_traits<my_vector<SPoint>> : poly_sequence_traits<my_vector<SPoint>> {};
+template <> struct polygon_set_traits<my_vector<WPoint>> : poly_sequence_traits<my_vector<WPoint>> {};
+
+template <> struct polygon_set_traits<std::vector<IPoint>> : poly_sequence_traits<std::vector<IPoint>> {};
+template <> struct polygon_set_traits<std::vector<UPoint>> : poly_sequence_traits<std::vector<UPoint>> {};
+template <> struct polygon_set_traits<std::vector<SPoint>> : poly_sequence_traits<std::vector<SPoint>> {};
+template <> struct polygon_set_traits<std::vector<WPoint>> : poly_sequence_traits<std::vector<WPoint>> {};
 
 }} // namespace boost { namespace polygon {
 

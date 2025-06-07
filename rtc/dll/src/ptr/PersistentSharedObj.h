@@ -31,7 +31,7 @@ public:
 	RTC_CALL SharedStr GetFindableName(const PersistentSharedObj* subItem) const;
 
 	[[noreturn]] RTC_CALL void throwItemError(WeakStr msgStr) const { ::throwItemError(this, msgStr); }
-	[[noreturn]] void throwItemError(CharPtr msg) const { ::throwItemError(this, SharedStr(msg)); }
+	[[noreturn]] void throwItemError(CharPtr msg) const { ::throwItemError(this, SharedStr(msg MG_DEBUG_ALLOCATOR_SRC("throwItemError"))); }
 
 	template<typename ...Args>
 	[[noreturn]] void throwItemErrorF(CharPtr msg, Args&&... args) const {

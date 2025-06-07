@@ -38,7 +38,7 @@ SharedStr myVSSPrintF(CharPtr format, va_list argList)
 	{
 		SizeT nrCharsWritten = std::vsnprintf(buf, size, format, argList); // returns UInt32(-1) if size of buf is too small
 		if (nrCharsWritten <= size)
-			return SharedStr(buf, buf+nrCharsWritten);
+			return SharedStr(CharPtrRange(buf, buf+nrCharsWritten));
 		size *= 2;
 		heapBuffer.reset(new char[size]);
 		buf = heapBuffer.get();
@@ -73,13 +73,13 @@ SharedStr splitPathBase(CharPtr full_path, CharPtr* new_path_ptr)
 	*new_path_ptr = new_path;
 
 	if (!*new_path) // delim not found in full_path?
-		return SharedStr(full_path);
+		return SharedStr(full_path MG_DEBUG_ALLOCATOR_SRC("splitPathBase"));
 	else
 	{
 		// delimiter found: sub item name is the left of the delimter and rest is 
 		// new path (starting after delim) to be recursively parsed (it may contain more occurences of delim)
 		++*new_path_ptr;
-		return SharedStr(full_path, new_path);
+		return SharedStr(CharPtrRange(full_path, new_path));
 	}
 }
 
@@ -129,7 +129,7 @@ SharedStr splitFullPath(CharPtr full_path)
 		{
 			assert(*new_path != '\\');
 			if (*new_path == DELIMITER_CHAR)
-				return SharedStr(full_path, new_path); // return extracted file-name and return path base without last delimiter
+				return SharedStr(CharPtrRange(full_path, new_path)); // return extracted file-name and return path base without last delimiter
 		}
 	assert(new_path == full_path);
 	return SharedStr();
@@ -170,7 +170,7 @@ SharedStr getFileNameBase(CharPtr full_path)
 	if (*full_path_search != '.')
 		full_path_search = full_path_end;
 
-	return SharedStr(full_path, full_path_search);
+	return SharedStr(CharPtrRange(full_path, full_path_search));
 }
 
 SharedStr replaceFileExtension(CharPtr full_path, CharPtrRange newExt)
@@ -208,15 +208,15 @@ SharedStr DelimitedConcat(CharPtr a, CharPtr b)
 	dms_assert(!HasDosDelimiters(b));
 
 	if (!*a || IsAbsolutePath(b))
-		return SharedStr(b);
+		return SharedStr(b MG_DEBUG_ALLOCATOR_SRC("DelimitedConcat"));
 
 	SizeT aLen = StrLen(a), bLen = StrLen(b);
 	if (!bLen)
-		return SharedStr(a, a + aLen);
+		return SharedStr(CharPtrRange(a, a + aLen));
 
 	dms_assert(*b != DELIMITER_CHAR);
 
-	SharedCharArray* aPtr = SharedCharArray::CreateUninitialized(aLen + bLen + 2);
+	SharedCharArray* aPtr = SharedCharArray::CreateUninitialized(aLen + bLen + 2 MG_DEBUG_ALLOCATOR_SRC("DelimitedConcat"));
 	SharedStr aStr(aPtr);
 
 	char* ptr = fast_copy(a, a + aLen, aPtr->begin());
@@ -242,7 +242,7 @@ SharedStr DelimitedConcat(CharPtrRange a, CharPtrRange b)
 
 	dms_assert(*b.first != DELIMITER_CHAR);
 
-	SharedCharArray* aPtr = SharedCharArray::CreateUninitialized(a.size() + b.size() + 2);
+	SharedCharArray* aPtr = SharedCharArray::CreateUninitialized(a.size() + b.size() + 2 MG_DEBUG_ALLOCATOR_SRC("DelimitedConcat"));
 	SharedStr aStr(aPtr);
 
 	char* ptr = fast_copy(a.first, a.second, aPtr->begin());
@@ -257,7 +257,7 @@ SharedStr DelimitedConcat(CharPtrRange a, CharPtrRange b)
 RTC_CALL SharedStr MakeAbsolutePath(CharPtr relPath)
 {
 	if ( IsAbsolutePath(relPath))
-		return SharedStr(relPath);
+		return SharedStr(relPath MG_DEBUG_ALLOCATOR_SRC("MakeAbsolutePath"));
 	return DelimitedConcat(GetCurrentDir().c_str(), relPath);
 }
 
@@ -269,7 +269,7 @@ RTC_CALL SharedStr MakeFileName(CharPtr path)
 	if (!*path)
 		return SharedStr();
 
-	SharedCharArray* streamName = SharedCharArray_Create(path);
+	SharedCharArray* streamName = SharedCharArray_Create(path MG_DEBUG_ALLOCATOR_SRC("MakeFileName"));
 
 	dms_assert(*(streamName->begin()) != ' ');
 

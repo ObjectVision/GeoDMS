@@ -41,9 +41,9 @@ class CanyonOperator : public NonaryOperator
 {
 	using PointType = T;
 	using scalar_type = scalar_of_t<T>;
+	using PolygonType = sequence_traits<PointType>::container_type;
 
 	typedef Range<PointType>                   RangeType;
-	typedef std::vector<PointType>             PolyType;
 	typedef Int16                              HeightType;
 	typedef typename PointType::field_type     CoordType;
 	typedef typename acc_type<CoordType>::type SqrDistType;
@@ -53,7 +53,7 @@ class CanyonOperator : public NonaryOperator
 	typedef DataArray<UInt32>     Arg3Type; // CalcPoint -> Segment
 	typedef DataArray<PointType>  Arg4Type; // Segment   -> Loc
 	typedef DataArray<PointType>  Arg5Type; // Segment   -> Loc
-	typedef DataArray<PolyType>   Arg6Type; // Building  -> *VertexLoc
+	typedef DataArray<PolygonType>Arg6Type; // Building  -> *VertexLoc
 	typedef DataArray<HeightType> Arg7Type; // Building  -> Height
 	typedef DataArray<HeightType> Arg8Type; // MinHeight
 	typedef DataArray<CoordType>  Arg9Type; // MaxDistance
@@ -150,15 +150,15 @@ public:
 			DataReadLock arg8Lock(debug_valcast<const AbstrDataItem*>(args[7]));
 			DataReadLock arg9Lock(debug_valcast<const AbstrDataItem*>(args[8]));
 
-			const Arg1Type* arg1 = const_array_cast<PointType >(arg1A);
-			const Arg2Type* arg2 = const_array_cast<HeightType>(arg2A);
-			const Arg3Type* arg3 = const_array_cast<UInt32    >(arg3A);
-			const Arg4Type* arg4 = const_array_cast<PointType >(arg4A);
-			const Arg5Type* arg5 = const_array_cast<PointType >(arg5A);
-			const Arg6Type* arg6 = const_array_cast<PolyType  >(arg6A);
-			const Arg7Type* arg7 = const_array_cast<HeightType>(arg7A);
-			const Arg8Type* arg8 = const_array_cast<HeightType>(arg8A);
-			const Arg9Type* arg9 = const_array_cast<CoordType >(arg9A);
+			const Arg1Type* arg1 = const_array_cast<PointType  >(arg1A);
+			const Arg2Type* arg2 = const_array_cast<HeightType >(arg2A);
+			const Arg3Type* arg3 = const_array_cast<UInt32     >(arg3A);
+			const Arg4Type* arg4 = const_array_cast<PointType  >(arg4A);
+			const Arg5Type* arg5 = const_array_cast<PointType  >(arg5A);
+			const Arg6Type* arg6 = const_array_cast<PolygonType>(arg6A);
+			const Arg7Type* arg7 = const_array_cast<HeightType >(arg7A);
+			const Arg8Type* arg8 = const_array_cast<HeightType >(arg8A);
+			const Arg9Type* arg9 = const_array_cast<CoordType  >(arg9A);
 
 			dms_assert(arg1 && arg2 && arg3 && arg4 && arg5 && arg6 && arg7 && arg8 && arg9);
 

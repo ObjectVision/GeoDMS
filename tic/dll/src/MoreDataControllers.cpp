@@ -839,7 +839,7 @@ SharedTreeItem StringDC::MakeResult() const
 	{
 		const_cast<StringDC*>(this)->SetNew( 
 			CreateConstParam<SharedStr>(
-				SharedStr( keyExpr.GetStrnBeg(),  keyExpr.GetStrnEnd() )  
+				SharedStr(CharPtrRange( keyExpr.GetStrnBeg(),  keyExpr.GetStrnEnd() ))
 			).get_ptr()
 		);
 	}

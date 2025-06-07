@@ -158,7 +158,7 @@ SharedStr GetCurrentTimeStr()
 	VectorOutStreamBuff outBuff;
 	FormattedOutStream fout(&outBuff, FormattingFlags::None);
 	fout << StreamableDateTime();
-	return SharedStr(outBuff.GetData(), outBuff.GetDataEnd());
+	return SharedStr(CharPtrRange(outBuff.GetData(), outBuff.GetDataEnd()));
 }
 
 RTC_CALL void DMS_CONV DMS_Rtc_Load()

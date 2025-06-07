@@ -153,11 +153,11 @@ bool SA_Reference<T>::operator < (const sequence_value_type& rhs) const
 }
 
 template <typename T>
-void SA_Reference<T>::assign(const_iterator first, const_iterator last)
+void SA_Reference<T>::assign(const_iterator first, const_iterator last MG_DEBUG_ALLOCATOR_SRC_ARG)
 {
 	assert( !is_null() );
 
-	m_Container->allocateSequenceRange(m_SeqPtr, first, last);
+	m_Container->allocateSequenceRange(m_SeqPtr, first, last MG_DEBUG_ALLOCATOR_SRC_PARAM);
 	assert(size() == last - first);
 }
 
@@ -187,7 +187,7 @@ void SA_Reference<T>::clear()
 }
 
 template <typename T>
-void SA_Reference<T>::resize(size_type seqSize, const value_type& initValue)
+void SA_Reference<T>::resize(size_type seqSize, const value_type& initValue MG_DEBUG_ALLOCATOR_SRC_ARG)
 {
 	assert( !is_null() );
 
@@ -195,11 +195,11 @@ void SA_Reference<T>::resize(size_type seqSize, const value_type& initValue)
 		assign(Undefined());
 	else
 		if (seqSize != size() || (seqSize == 0 && !IsDefined()))
-			m_Container->allocateSequence(m_SeqPtr, seqSize, [initValue](auto i, auto e) { fast_fill(i, e, initValue);  });
+			m_Container->allocateSequence(m_SeqPtr, seqSize, [initValue](auto i, auto e) { fast_fill(i, e, initValue);  } MG_DEBUG_ALLOCATOR_SRC_PARAM);
 }
 
 template <typename T>
-RTC_CALL void SA_Reference<T>::resize_uninitialized(size_type seqSize)
+RTC_CALL void SA_Reference<T>::resize_uninitialized(size_type seqSize MG_DEBUG_ALLOCATOR_SRC_ARG)
 {
 	assert(!is_null());
 
@@ -207,30 +207,30 @@ RTC_CALL void SA_Reference<T>::resize_uninitialized(size_type seqSize)
 		assign(Undefined());
 	else
 		if (seqSize != size() || (seqSize == 0 && !IsDefined()))
-			m_Container->allocateSequence(m_SeqPtr, seqSize, [](auto i, auto e) {} );
+			m_Container->allocateSequence(m_SeqPtr, seqSize, [](auto i, auto e) {} MG_DEBUG_ALLOCATOR_SRC_PARAM);
 }
 
 template <typename T>
-void SA_Reference<T>::push_back(const value_type& value)
+void SA_Reference<T>::push_back(const value_type& value MG_DEBUG_ALLOCATOR_SRC_ARG)
 {
 	assert( !is_null() );
 	assert(size() == 0 || end()== m_Container->m_Values.end()); // not an actual requirement for the following, but to avoid fragmentation it's good to obey this
-	m_Container->allocateSequence(m_SeqPtr, size()+1, [value](auto i, auto e) { assert(i + 1 == e);  *i = value; } );
+	m_Container->allocateSequence(m_SeqPtr, size()+1, [value](auto i, auto e) { assert(i + 1 == e);  *i = value; } MG_DEBUG_ALLOCATOR_SRC_PARAM);
 }
 
 template <typename T>
-void SA_Reference<T>::push_back()
+void SA_Reference<T>::push_back(MG_DEBUG_ALLOCATOR_TXT_ARG)
 {
 	assert(!is_null());
 	assert(size() == 0 || end() == m_Container->m_Values.end()); // not an actual requirement for the following, but to avoid fragmentation it's good to obey this
-	m_Container->allocateSequence(m_SeqPtr, size() + 1, [](auto i, auto e) {} );
+	m_Container->allocateSequence(m_SeqPtr, size() + 1, [](auto i, auto e) {} MG_DEBUG_ALLOCATOR_SRC_PARAM);
 }
 
 template <typename T>
 void SA_Reference<T>::operator =(SA_ConstReference<T> rhs) 
 { 
 	if (rhs.IsDefined()) 
-		assign(rhs.begin(), rhs.end()); 
+		assign(rhs.begin(), rhs.end() MG_DEBUG_ALLOCATOR_SRC("SA_Reference<T>::operator =(SA_ConstReference<T> rhs)"));
 	else 
 		assign(Undefined()); 
 }
@@ -240,7 +240,7 @@ void SA_Reference<T>::operator =(SA_Reference rhs)
 { 
 	assert(!is_null() ); 
 	if (rhs.IsDefined())
-		assign(rhs.begin(), rhs.end()); 
+		assign(rhs.begin(), rhs.end() MG_DEBUG_ALLOCATOR_SRC("SA_Reference<T>::operator =(SA_Reference rhs)"));
 	else
 		assign(Undefined());
 }
@@ -249,7 +249,7 @@ template <typename T>
 void SA_Reference<T>::operator =(const typename sequence_traits<T>::container_type& rhs) 
 { 
 	if (::IsDefined(rhs))
-		assign(begin_ptr(rhs), end_ptr(rhs));
+		assign(begin_ptr(rhs), end_ptr(rhs) MG_DEBUG_ALLOCATOR_SRC("SA_Reference<T>::operator =(const typename sequence_traits<T>::container_type& rhs)"));
 	else
 		assign(Undefined());
 }
@@ -269,14 +269,14 @@ void SA_Reference<T>::swap(SA_Reference<T>& rhs)
 		if (n1 < n2)
 		{
 			swap_range(begin(), end(), rhs.begin());
-			append(rhs.begin()+n1, rhs.end());
+			this->append(rhs.begin()+n1, rhs.end() MG_DEBUG_ALLOCATOR_SRC("SA_Reference<T>::swap"));
 			rhs.erase(rhs.begin()+n1, rhs.end());
 		}
 		else
 		{
 			swap_range(begin(), begin()+n2, rhs.begin());
-			rhs.append(begin()+n2, end());
-			erase(begin()+n2, end());
+			rhs.append(begin()+n2, end() MG_DEBUG_ALLOCATOR_SRC("SA_Reference<T>::swap"));
+			this->erase(begin()+n2, end());
 		}
 	}
 }
@@ -304,21 +304,21 @@ SA_Reference<T>::SA_Reference(SequenceArrayType* container, seq_iterator seqPtr)
 // sequence_array constructors
 
 template <typename T>
-sequence_array<T>::sequence_array(const sequence_array<T>& src, data_size_type expectedGrowth)
+sequence_array<T>::sequence_array(const sequence_array<T>& src, data_size_type expectedGrowth MG_DEBUG_ALLOCATOR_SRC_ARG)
 {
-	Reset(0, 0 MG_DEBUG_ALLOCATOR_SRC_SA);
-	assign(src, expectedGrowth);
+	Reset(0, 0 MG_DEBUG_ALLOCATOR_SRC_PARAM);
+	assign(src, expectedGrowth MG_DEBUG_ALLOCATOR_SRC_PARAM);
 }
 
 template <typename T>
-void sequence_array<T>::assign(const sequence_array<T>& src, data_size_type expectedGrowth)
+void sequence_array<T>::assign(const sequence_array<T>& src, data_size_type expectedGrowth MG_DEBUG_ALLOCATOR_SRC_ARG)
 {
 	MGD_CHECKDATA(IsLocked());
 	MGD_CHECKDATA(src.IsLocked());
 
 	assert(src.calcActualDataSize() == src.actual_data_size());
 
-	reset(src.size(), src.actual_data_size() + expectedGrowth MG_DEBUG_ALLOCATOR_SRC_SA);
+	reset(src.size(), src.actual_data_size() + expectedGrowth MG_DEBUG_ALLOCATOR_SRC_PARAM);
 
 	typename base_type::const_seq_iterator
 		i = src.m_Indices.begin(),
@@ -330,7 +330,7 @@ void sequence_array<T>::assign(const sequence_array<T>& src, data_size_type expe
 
 	for (; i != e; ++ri, ++i)
 		if(IsDefined(*i))
-			allocateSequenceRange(ri, srcDataBegin + i->first, srcDataBegin + i->second );
+			allocateSequenceRange(ri, srcDataBegin + i->first, srcDataBegin + i->second MG_DEBUG_ALLOCATOR_SRC_PARAM);
 		else
 			Assign(*ri, Undefined() );
 
@@ -522,7 +522,7 @@ bool sequence_array<T>::allocate_data(data_vector_t& oldData, typename data_vect
 	else
 	{
 		assert(IsDirty());
-		oldData.appendRange(m_Values.begin(), m_Values.end());
+		oldData.append(m_Values.begin(), m_Values.end() MG_DEBUG_ALLOCATOR_SRC_PARAM);
 		m_Values.clear();
 	}
 
@@ -545,7 +545,7 @@ bool sequence_array<T>::allocate_data(data_vector_t& oldData, typename data_vect
 		if (size)
 		{
 			data_size_type dataCurr = dataEnd;
-			m_Values.appendRange(oldBegin + i->first, oldBegin + i->second);
+			m_Values.append(oldBegin + i->first, oldBegin + i->second MG_DEBUG_ALLOCATOR_SRC_PARAM);
 			dataEnd += size;
 			assert(dataEnd == m_Values.size());
 			*i = seq_t(dataCurr, dataEnd);
@@ -576,7 +576,7 @@ void sequence_array<T>::cut(size_type nrSeqs)
 }
 
 template <typename T>
-template <typename Initializer> void sequence_array<T>::allocateSequence(typename base_type::seq_iterator seqPtr, data_size_type newSize, Initializer&& initFunc )
+template <typename Initializer> void sequence_array<T>::allocateSequence(typename base_type::seq_iterator seqPtr, data_size_type newSize, Initializer&& initFunc MG_DEBUG_ALLOCATOR_SRC_ARG)
 {
 	MGD_CHECKDATA(IsLocked());
 	assert_iter(seqPtr!=seq_iterator());
@@ -593,10 +593,10 @@ template <typename Initializer> void sequence_array<T>::allocateSequence(typenam
 		{
 			if (oldSize && !atEnd)
 			{
-				appendRange(m_Values.begin()+seqPtr->first, m_Values.begin()+seqPtr->second); // copy oldSize elemeents from original 
-				abandon    (seqPtr->first, seqPtr->second); // and abandon that area
+				appendValues(m_Values.begin()+seqPtr->first, m_Values.begin()+seqPtr->second MG_DEBUG_ALLOCATOR_SRC_PARAM); // copy oldSize elemeents from original 
+				abandon     (seqPtr->first, seqPtr->second); // and abandon that area
 			}
-			appendInitializer(delta, initFunc);
+			appendInitializer(delta, initFunc MG_DEBUG_ALLOCATOR_SRC_PARAM);
 			*seqPtr = seq_t(m_Values.size()-newSize, m_Values.size());
 		}
 		else
@@ -610,20 +610,20 @@ template <typename Initializer> void sequence_array<T>::allocateSequence(typenam
 			abandon(oldFirst, oldSecond);  // removes oldSize bytes from m_ActualData
 			*seqPtr = seq_t();
 
-			bool dataWasMoved = allocate_data(oldData, Max<data_size_type>(m_ActualDataSize+2*oldSize, newSize) MG_DEBUG_ALLOCATOR_SRC_SA);
+			bool dataWasMoved = allocate_data(oldData, Max<data_size_type>(m_ActualDataSize+2*oldSize, newSize) MG_DEBUG_ALLOCATOR_SRC_PARAM);
 			assert(!IsDirty());
 			if (oldSize)
 			{
 				if (dataWasMoved)
-					appendRange(oldData.begin() + oldFirst, oldData.begin() + oldSecond);
+					appendValues(oldData.begin() + oldFirst, oldData.begin() + oldSecond MG_DEBUG_ALLOCATOR_SRC_PARAM);
 				else
 				{
 					assert(oldFirst == m_Values.size());
-					appendInitializer(oldSize, [](auto i, auto e) {}); // skip old range that was abandoned but is still there.
+					appendInitializer(oldSize, [](auto i, auto e) {} MG_DEBUG_ALLOCATOR_SRC_PARAM); // skip old range that was abandoned but is still there.
 					assert(oldSecond == m_Values.size());
 				}
 			}
-			appendInitializer(delta, initFunc);
+			appendInitializer(delta, initFunc MG_DEBUG_ALLOCATOR_SRC_PARAM);
 
 			*seqPtr = seq_t(m_Values.size()-newSize, m_Values.size());
 
@@ -637,7 +637,7 @@ template <typename Initializer> void sequence_array<T>::allocateSequence(typenam
 }
 
 template <typename T>
-void sequence_array<T>::allocateSequenceRange(typename base_type::seq_iterator seqPtr, const_data_iterator first, const_data_iterator last)
+void sequence_array<T>::allocateSequenceRange(typename base_type::seq_iterator seqPtr, const_data_iterator first, const_data_iterator last MG_DEBUG_ALLOCATOR_SRC_ARG)
 {
 	MGD_CHECKDATA(IsLocked());
 
@@ -659,14 +659,14 @@ void sequence_array<T>::allocateSequenceRange(typename base_type::seq_iterator s
 		{
 			if (!atEnd)
 			{
-				appendRange(first, last);                      // insert new range
+				appendValues(first, last MG_DEBUG_ALLOCATOR_SRC_PARAM);                      // insert new range
 				abandon(seqPtr->first, seqPtr->second);        // and abandon old sequence
 			}
 			else
 			{
 				const_data_iterator copyArea = first+oldSize;
 				std::copy(first, copyArea, m_Values.begin() + seqPtr->first);   // overwrite first part
-				appendRange(copyArea, last);                   // insert second part
+				appendValues(copyArea, last MG_DEBUG_ALLOCATOR_SRC_PARAM);                   // insert second part
 			}
 			*seqPtr = seq_t(m_Values.size()-newSize, m_Values.size());
 		}
@@ -677,8 +677,8 @@ void sequence_array<T>::allocateSequenceRange(typename base_type::seq_iterator s
 			abandon(seqPtr->first, seqPtr->second);
 			*seqPtr = seq_t();
 
-			bool dataWasMoved = allocate_data(oldData, Max<data_size_type>(m_ActualDataSize+2*oldSize, newSize) MG_DEBUG_ALLOCATOR_SRC_SA);
-			appendRange(first, last);
+			bool dataWasMoved = allocate_data(oldData, Max<data_size_type>(m_ActualDataSize+2*oldSize, newSize) MG_DEBUG_ALLOCATOR_SRC_PARAM);
+			appendValues(first, last MG_DEBUG_ALLOCATOR_SRC_PARAM);
 
 			*seqPtr = seq_t(m_Values.size()-newSize, m_Values.size());
 
@@ -740,22 +740,22 @@ void sequence_array<T>::abandon(data_size_type first, data_size_type last)
 
 template <typename T>
 template <typename Initializer>
-void sequence_array<T>::appendInitializer(size_type n, Initializer&& initFunc)
+void sequence_array<T>::appendInitializer(size_type n, Initializer&& initFunc MG_DEBUG_ALLOCATOR_SRC_ARG)
 {
 	assert(m_Values.capacity() - m_Values.size() >= n);
 
-	m_Values.appendInitializer(n, initFunc);
+	m_Values.appendInitializer(n, initFunc MG_DEBUG_ALLOCATOR_SRC_PARAM);
 	m_ActualDataSize += n;
 }
 
 //	template <typename InputIterator>
-//	void appendRange(InputIterator first, InputIterator last)
+//	void appendValues(InputIterator first, InputIterator last)
 template <typename T>
-void sequence_array<T>::appendRange(const_data_iterator first, const_data_iterator last)
+void sequence_array<T>::appendValues(const_data_iterator first, const_data_iterator last MG_DEBUG_ALLOCATOR_SRC_ARG)
 {
 	assert((m_Values.capacity() - m_Values.size()) >= data_size_type(last - first));
 
-	m_Values.appendRange(first, last);
+	m_Values.append(first, last MG_DEBUG_ALLOCATOR_SRC_PARAM);
 	m_ActualDataSize += (last - first);
 }
 
@@ -844,7 +844,7 @@ template struct sequence_array<char>;
 template struct sequence_array<DPoint>;
 template struct sequence_array<FPoint>;
 //template struct sequence_array<TokenID>;
-template void sequence_array<TokenID>::allocateSequenceRange(typename base_type::seq_iterator seqPtr, const_data_iterator first, const_data_iterator last );
+template void sequence_array<TokenID>::allocateSequenceRange(typename base_type::seq_iterator seqPtr, const_data_iterator first, const_data_iterator last MG_DEBUG_ALLOCATOR_SRC_ARG);
 template void sequence_array<TokenID>::Reset(size_type nrSeqs, data_vector_t::size_type expectedDataSize MG_DEBUG_ALLOCATOR_SRC_ARG);
 template void sequence_array<TokenID>::Lock(enum dms_rw_mode) const;
 
@@ -860,8 +860,65 @@ template struct SA_ConstReference<FPoint>;
 //template struct SA_ConstReference<TokenID>;
 template SA_ConstReference<TokenID>::SA_ConstReference(const SequenceArrayType* sa, const_seq_iterator cSeqPtr);
 
-#if defined (DMS_TM_HAS_INT_SEQ)
+template struct managed_alloc_data<UInt64>;
+template struct managed_alloc_data<UInt32>;
+template struct managed_alloc_data<UInt16>;
+template struct managed_alloc_data<UInt8>;
 
+template struct managed_alloc_data<Int64>;
+template struct managed_alloc_data<Int32>;
+template struct managed_alloc_data<Int16>;
+template struct managed_alloc_data<Int8>;
+
+template struct managed_alloc_data<Float32>;
+template struct managed_alloc_data<Float64>;
+
+template struct managed_alloc_data<IPoint>;
+template struct managed_alloc_data<UPoint>;
+template struct managed_alloc_data<SPoint>;
+template struct managed_alloc_data<WPoint>;
+template struct managed_alloc_data<FPoint>;
+template struct managed_alloc_data<DPoint>;
+
+template struct my_vector<UInt64>;
+template struct my_vector<UInt32>;
+template struct my_vector<UInt16>;
+template struct my_vector<UInt8>;
+
+template struct my_vector<Int64>;
+template struct my_vector<Int32>;
+template struct my_vector<Int16>;
+template struct my_vector<Int8>;
+
+template struct my_vector<Float32>;
+template struct my_vector<Float64>;
+
+template struct my_vector<IPoint>;
+template struct my_vector<UPoint>;
+template struct my_vector<SPoint>;
+template struct my_vector<WPoint>;
+template struct my_vector<FPoint>;
+template struct my_vector<DPoint>;
+
+template class heap_sequence_provider<UInt64>;
+template class heap_sequence_provider<UInt32>;
+template class heap_sequence_provider<UInt16>;
+template class heap_sequence_provider<UInt8>;
+
+template class heap_sequence_provider<Int64>;
+template class heap_sequence_provider<Int32>;
+template class heap_sequence_provider<Int16>;
+template class heap_sequence_provider<Int8>;
+
+//template class heap_sequence_provider<Float32>;
+//template class heap_sequence_provider<Float64>;
+
+template class heap_sequence_provider<IPoint>;
+template class heap_sequence_provider<UPoint>;
+template class heap_sequence_provider<SPoint>;
+template class heap_sequence_provider<WPoint>;
+template class heap_sequence_provider<FPoint>;
+template class heap_sequence_provider<DPoint>;
 
 template struct sequence_array<UInt64>;
 template struct sequence_array<UInt32>;
@@ -916,5 +973,3 @@ template struct SA_ConstReference<SPoint>;
 template struct SA_ConstReference<IPoint>;
 template struct SA_ConstReference<WPoint>;
 template struct SA_ConstReference<UPoint>;
-
-#endif

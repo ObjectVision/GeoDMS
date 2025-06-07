@@ -196,13 +196,13 @@ ValueClass::ValueClass(
 
 	if (fieldClass && vc == ValueComposition::Range)
 	{
-		dms_assert(fieldClass != this);
-		dms_assert(size == 2*fieldClass->GetSize() );
+		assert(fieldClass != this);
+		assert(size == 2*fieldClass->GetSize() );
 		fieldClass->m_RangeClass = this;
 	}
 	if (fieldClass && vc == ValueComposition::Sequence)
 	{
-		dms_assert(fieldClass != this);
+		assert(fieldClass != this);
 		fieldClass->m_SequenceClass = this;
 	}
 }

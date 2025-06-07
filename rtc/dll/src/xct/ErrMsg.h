@@ -25,7 +25,7 @@ struct ErrMsg {
 
 	ErrMsg() {}
 	RTC_CALL explicit ErrMsg(WeakStr msg, const PersistentSharedObj* ptr = nullptr);
-	explicit ErrMsg(CharPtr msg, const PersistentSharedObj* ptr = nullptr) : ErrMsg(SharedStr(msg), ptr) {}
+	explicit ErrMsg(CharPtr msg, const PersistentSharedObj* ptr = nullptr) : ErrMsg(SharedStr(msg MG_DEBUG_ALLOCATOR_SRC("ErrMsg")), ptr) {}
 
 	RTC_CALL void TellWhere(const PersistentSharedObj* ptr);
 

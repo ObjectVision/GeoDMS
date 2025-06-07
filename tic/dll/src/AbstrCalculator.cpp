@@ -116,7 +116,7 @@ SharedTreeItem FindSubItem(const TreeItem* sourceItem, SharedStr relPath)
 			++delimPos;
 		auto subItem = sourceItem->GetConstSubTreeItemByID(GetTokenID_mt(begin, delimPos));
 		if (!subItem)
-			throwErrorF("FindSubItem", "Cannot find %s from %s", SharedStr(begin, delimPos), sourceItem->GetFullName().c_str());
+			throwErrorF("FindSubItem", "Cannot find %s from %s", SharedStr(CharPtrRange(begin, delimPos)), sourceItem->GetFullName().c_str());
 		MG_CHECK(!subItem->IsCacheItem());
 		sourceItem = subItem;
 		begin = delimPos;
@@ -666,7 +666,7 @@ ActorVisitState AbstrCalculator::VisitImplSuppl(SupplierVisitFlag svf, const Act
 	dms_assert(nrEvals);
 	FencedInterestRetainContext irc("AbstrCalculator::VisitImplSuppl");
 
-	SharedStr resultStr(exprPtr+nrEvals); // creates a new copy of exprPtr
+	SharedStr resultStr(exprPtr+nrEvals MG_DEBUG_ALLOCATOR_SRC("AbstrCalculator::VisitImplSuppl.resultStr")); // creates a new copy of exprPtr
 	while (!resultStr.empty())
 	{
 		AbstrCalculatorRef calculator = ConstructFromDirectStr(const_cast<TreeItem*>(context), resultStr, cr);

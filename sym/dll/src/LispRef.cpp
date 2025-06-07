@@ -900,7 +900,7 @@ SharedStr AsFLispSharedStr(LispPtr lispRef, FormattingFlags ff)
 	FormattedOutStream outStr(&vecBuf, StreamFlags(ff));
 	lispRef.PrintAsFLisp(outStr, HasNoLimitInLispExpr(ff) ? UNDEFINED_VALUE(UInt32) : 0);
 	outStr << char('\0');
-	return SharedStr(begin_ptr(vector), end_ptr(vector)-1);
+	return SharedStr(CharPtrRange(begin_ptr(vector), end_ptr(vector)-1) MG_DEBUG_ALLOCATOR_SRC("AsFLispSharedStr"));
 }
 
 /****************** IsExpr *******************/

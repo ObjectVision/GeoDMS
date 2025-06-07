@@ -23,6 +23,8 @@ struct CharPtrRange : IterRange<CharPtr> {
 	{}
 	CharPtrRange(iterator first, std::size_t n) : IterRange(first, n) 
 	{}
+//	CharPtrRange(IterRange<CharPtr> range) : IterRange(range)
+//	{}
 };
 
 struct MutableCharPtrRange : IterRange<char*>

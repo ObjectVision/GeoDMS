@@ -373,7 +373,7 @@ UInt32 DbfImpl::RecordLength()
 
 SharedStr NameToDbfColumnName(CharPtr src)
 {
-	return SharedStr(src, src+ Min<UInt32>(StrLen(src), DBF_COLNAME_SIZE));
+	return SharedStr(CharPtrRange(src, src+ Min<UInt32>(StrLen(src), DBF_COLNAME_SIZE)));
 } // NameToDbfColumnName
 
 UInt32 DbfImpl::ColumnNameToIndex(CharPtr name)
@@ -628,7 +628,7 @@ Float64 ReadAsFloat64(CharPtr fieldBuffer, CharPtr filedBufferEnd)
 	Float64 tmp = ReadValueAfterSpace<Float64>(fieldBuffer, filedBufferEnd);
 	if (!IsDefined(tmp))
 		throwErrorF("DBF", "unexpected character in parsing '%s' as numeric"
-			, SharedStr(fieldBuffer, filedBufferEnd).c_str()
+			, SharedStr(CharPtrRange(fieldBuffer, filedBufferEnd)).c_str()
 		);
 	return tmp;
 }
@@ -668,7 +668,7 @@ void DbfImpl::ReadDataElement(void* data, UInt32 recordindex, UInt32 columnindex
 			)
 				(* ( StringArray::reference * ) data).assign(Undefined());
 			else
-				(* ( StringArray::reference * ) data).assign(fieldBuffer, fieldBufferEnd);
+				(* ( StringArray::reference * ) data).assign(fieldBuffer, fieldBufferEnd MG_DEBUG_ALLOCATOR_SRC("ReadDataElement"));
 			break;
 		}
 		case ValueClassID::VT_Bool    :

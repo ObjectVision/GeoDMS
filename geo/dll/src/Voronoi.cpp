@@ -150,8 +150,9 @@ PointIndexPairIter triangualize(
 template <class T>
 class TriangualizeOperator : public UnaryOperator
 {
-	typedef T                      PointType;
-	typedef std::vector<PointType>  PolygonType;
+	using PointType = T;
+	using PolygonType = sequence_traits<PointType>::container_type;
+
 	typedef Unit<PointType>        PointUnitType;
 	typedef DataArray<PolygonType> ResultType;	
 

@@ -116,7 +116,7 @@ struct bit_sequence;
 
 #	define MG_DEBUG_DATA
 //#	define MG_DEBUG_UPDATESOURCE
-#	define MG_DEBUG_ALLOCATOR
+//#	define MG_DEBUG_ALLOCATOR
 #	define MG_DEBUG_INTERESTSOURCE 
 #	define MG_DEBUG_DATASTORELOCK
 
@@ -254,6 +254,7 @@ template <typename T> struct elem_traits;
 template <typename T> struct sequence_traits;
 template <typename T> struct sequence_obj;
 template <typename T> struct locked_sequence;
+template <typename T> struct my_vector;
 template <typename T> struct sequence_array;
 template <typename T> struct sequence_vector;
 template <typename T> struct sequence_array_ref;

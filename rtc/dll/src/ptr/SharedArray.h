@@ -60,9 +60,9 @@ struct SharedArray : SharedBase
 		erase(end()-1);
 	}
 
-	static SharedArray<T>* Create(size_t size, bool mustClear)
+	static SharedArray<T>* Create(size_t size, bool mustClear MG_DEBUG_ALLOCATOR_SRC_ARG)
 	{
-		SharedArray<T>* result = CreateUninitialized(size);
+		SharedArray<T>* result = CreateUninitialized(size MG_DEBUG_ALLOCATOR_SRC_PARAM);
 
 		iterator f = result->begin();
 		raw_awake_or_init( f, f+size, mustClear);
@@ -70,18 +70,18 @@ struct SharedArray : SharedBase
 		return result;
 	}
 
-	static SharedArray<T>* Create(size_t size, T value)
+	static SharedArray<T>* Create(size_t size, T value MG_DEBUG_ALLOCATOR_SRC_ARG)
 	{
-		SharedArray<T>* result = CreateUninitialized(size);
+		SharedArray<T>* result = CreateUninitialized(size MG_DEBUG_ALLOCATOR_SRC_PARAM);
 
 		iterator f = result->begin();
 		raw_fill(f, f + size, value);
 		return result; 
 	}
 
-	static SharedArray<T>* Create(const T* first, const T* last)
+	static SharedArray<T>* Create(const T* first, const T* last MG_DEBUG_ALLOCATOR_SRC_ARG)
 	{
-		SharedArray<T>* result = CreateUninitialized(last-first);
+		SharedArray<T>* result = CreateUninitialized(last-first MG_DEBUG_ALLOCATOR_SRC_PARAM);
 
 		raw_copy(first, last, result->begin());
 		return result; 
@@ -96,13 +96,14 @@ struct SharedArray : SharedBase
 			/ sizeof(allocator_i::value_type);
 	}
 
-	static SharedArray<T>* CreateUninitialized(SizeT size)
+	static SharedArray<T>* CreateUninitialized(SizeT size MG_DEBUG_ALLOCATOR_SRC_ARG)
 	{
 		allocator_i alloc;
 		size_t allocSize = NrAllocations(size);
-		SharedArray<T>* result = new (alloc.allocate(allocSize)) SharedArray<T>(size, allocSize);
+		SharedArray<T>* result = new (alloc.allocate(allocSize MG_DEBUG_ALLOCATOR_SRC_PARAM)) SharedArray<T>(size, allocSize);
 		return result;
 	}
+
 	void Release() const
 	{
 		if (!DecRef())
@@ -143,7 +144,7 @@ private: // copying this is not allowed
 		,	m_AllocSize(allocSize) 
 	{}
 	SharedArray(const SharedArray&) = delete;
-	~SharedArray()                          { ShrinkTo(0); }
+	~SharedArray() { ShrinkTo(0); }
 
 	size_t     m_Size;
 	size_t     m_AllocSize;

@@ -67,7 +67,7 @@ struct bg_union_poly_traits
 //	using coordinate_type = scalar_of_t<P>;
 	using coordinate_type = Float64;
 	using point_type = Point<coordinate_type>;
-	using ring_type = std::vector<point_type>;
+	using ring_type = sequence_traits<point_type>::container_type;
 
 	using polygon_with_holes_type = boost::geometry::model::polygon<point_type>;
 
@@ -244,6 +244,20 @@ void bg_store_ring(std::vector<DmsPointType>& resDataElem, const auto& ring)
 	resDataElem.append_range(ring);
 }
 
+template <typename DmsPointType, typename Ring>
+void bg_store_ring(locked_sequence<DmsPointType>& resDataElem, Ring&& ring)
+{
+	assert(ring.begin()[0] == ring.end()[-1]); // closed ?
+	resDataElem.append_range(std::forward<Ring>(ring) MG_DEBUG_ALLOCATOR_SRC("bg_store_ring"));
+}
+
+template <typename DmsPointType, typename Ring>
+void bg_store_ring(my_vector<DmsPointType>& resDataElem, Ring&& ring)
+{
+	assert(ring.begin()[0] == ring.end()[-1]); // closed ?
+	resDataElem.append_range(std::forward<Ring>(ring) MG_DEBUG_ALLOCATOR_SRC("bg_store_ring"));
+}
+
 template <dms_sequence E>
 void bg_store_polygon(E&& ref, const bg_polygon_t& resPoly)
 {
@@ -258,9 +272,9 @@ void bg_store_polygon(E&& ref, const bg_polygon_t& resPoly)
 	while (nh)
 	{
 		--nh;
-		ref.emplace_back(resPoly.inners()[nh].end()[-1]);
+		ref.emplace_back(resPoly.inners()[nh].end()[-1] MG_DEBUG_ALLOCATOR_SRC("bg_store_polygon"));
 	}
-	ref.emplace_back(resPoly.outer().end()[-1]);
+	ref.emplace_back(resPoly.outer().end()[-1] MG_DEBUG_ALLOCATOR_SRC("bg_store_polygon"));
 }
 
 template <dms_sequence E>
@@ -282,7 +296,7 @@ void bg_store_multi_polygon(E&& ref, const bg_multi_polygon_t& resMP)
 			count += hi->size() + 1;
 	}
 
-	ref.reserve(count);
+	ref.reserve(count MG_DEBUG_ALLOCATOR_SRC("bg_store_multi_polygon"));
 
 	for (const auto& resPoly : resMP)
 		bg_store_polygon(ref, resPoly);
@@ -291,7 +305,7 @@ void bg_store_multi_polygon(E&& ref, const bg_multi_polygon_t& resMP)
 	while (np)
 	{
 		--np;
-		ref.emplace_back(resMP[np].outer().end()[-1]);
+		ref.emplace_back(resMP[np].outer().end()[-1] MG_DEBUG_ALLOCATOR_SRC("bg_store_multi_polygon"));
 	}
 	assert(ref.size() == count);
 }
@@ -316,7 +330,7 @@ auto bg_split_assign(RI resIter, const BG_MP& mp) -> RI
 			count += hi->size() + 1;
 
 		resIter->clear();
-		resIter->reserve(count);
+		resIter->reserve(count MG_DEBUG_ALLOCATOR_SRC("bg_split_assign"));
 
 		assert(outerRing.begin() != outerRing.end());
 		assert(outerRing.begin()[0] == outerRing.end()[-1]);

@@ -233,8 +233,7 @@ struct OperAccPartBin : AbstrOperAccPartBin
 
 		tile_id tn = arg1A->GetAbstrDomainUnit()->GetNrTiles();
 
-		typename sequence_traits<typename AccumulationSeq::value_type>::container_type
-			resBuffer(arg3A->GetAbstrValuesUnit()->GetCount());
+		std::vector<typename AccumulationSeq::value_type> resBuffer(arg3A->GetAbstrValuesUnit()->GetCount());
 
 		for (tile_id t=0; t!=tn; ++t)
 		{

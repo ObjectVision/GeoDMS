@@ -307,7 +307,7 @@ auto cgal_split_assign_polygon_set(RI resIter, const CGAL_Traits::Polygon_set& p
 
 
 		resIter->clear();
-		resIter->reserve(count);
+		resIter->reserve(count MG_DEBUG_ALLOCATOR_SRC("cgal_split_assign_polygon_set"));
 
 		cgal_assign_polygon_with_holes(*resIter, poly);
 

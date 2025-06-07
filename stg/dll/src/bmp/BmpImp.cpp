@@ -1282,7 +1282,7 @@ Boolean BmpImp::SetRow(row_t rowNumber, UByte* buf)
 			return SetCodedRow(rowNumber, buf);
 
 		case 24:
-			vector_resize(m_CodedBuf, GetRowSize(), 0);
+			vector_resize(m_CodedBuf, GetRowSize(), 0 MG_DEBUG_ALLOCATOR_SRC("BmpImp::SetRow"));
 			std::vector<UByte>::iterator out_buf = m_CodedBuf.begin();
 			// A true color row, make it 3 bytes per pixel B, G & R
 			// instead of R, G & B

@@ -89,7 +89,7 @@ struct AbstrDirectPotentialOperator : public BinaryOperator
 			DataWriteHandle resDataHandle(res, dms_rw_mode::write_only_mustzero);
 			tile_id te = resDomainUnit->GetNrTiles();
 
-			BitVector<1> wasInitialized(te, false);
+			BitVector<1> wasInitialized(te, false MG_DEBUG_ALLOCATOR_SRC("BitVector for DirectPotential"));
 
 			UPoint maxDataTileSize{ 0, 0 };
 
@@ -221,7 +221,7 @@ public:
 		{
 			// make copy of dataGrid with Undefined replaced by 0.
 			typename sequence_traits<T>::container_type
-				definedDataGridCopy(dataGridData.begin(), dataGridData.end());
+				definedDataGridCopy(dataGridData.begin(), dataGridData.end() MG_DEBUG_ALLOCATOR_SRC("DirectPotentialOperator.definedDataGridCopy"));
 			auto
 				ddgcI = begin_ptr( definedDataGridCopy),
 				ddgcE = end_ptr  ( definedDataGridCopy);

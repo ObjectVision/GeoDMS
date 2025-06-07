@@ -258,8 +258,8 @@ struct get_locked_cseq_t { using type = typename ArgType::locked_cseq_t; };
 template <class T, typename PolygonIndex>
 class Points2SequenceOperator : public AbstrPoints2SequenceOperator<PolygonIndex>
 {
-	typedef T                          PointType;
-	typedef std::vector<PointType>     PolygonType;
+	using PointType = T;
+	using PolygonType = sequence_traits<PointType>::container_type;
 	typedef Unit<PointType>            PointUnitType;
 	typedef DataArray<PolygonType>     ResultType;	
 	typedef DataArray<PointType>       Arg1Type;
@@ -331,13 +331,13 @@ public:
 		dbg_assert(cumulSize == resData.get_sa().actual_data_size());
 
 		SizeT nrPoints = std::accumulate(nrPointsPerSeq.begin(), nrPointsPerSeq.end(), SizeT(0));
-		resData.get_sa().data_reserve(nrPoints MG_DEBUG_ALLOCATOR_SRC("res->md_SrcStr"));
+		resData.get_sa().data_reserve(nrPoints MG_DEBUG_ALLOCATOR_SRC("Points2SequenceOperator"));
 
 		// ==== then resize each resulting polygon according to the nr of seen points.
 		for (PolygonIndexOrUInt32 i=0; i!=nrPolys; ++i)
 		{
 			SizeT polySize = nrPointsPerSeq[i];
-			resData[i].resize_uninitialized(polySize);
+			resData[i].resize_uninitialized(polySize MG_DEBUG_ALLOCATOR_SRC("Points2SequenceOperator.resData"));
 			dbg_assert((cumulSize += polySize) == resData.get_sa().actual_data_size());
 		}
 		dbg_assert(cumulSize == nrPoints);
@@ -349,7 +349,7 @@ public:
 		// ==== then proces all input-tiles again and collect to the resulting polygon tile
 		OwningPtrSizedArray<SizeT> currOrdinals;
 		if (!arg3) 
-			currOrdinals = OwningPtrSizedArray<SizeT>(nrPolys, value_construct MG_DEBUG_ALLOCATOR_SRC("OperPolygon: currOrdinals"));
+			currOrdinals = OwningPtrSizedArray<SizeT>(nrPolys, value_construct MG_DEBUG_ALLOCATOR_SRC("Points2SequenceOperator.Ordinals"));
 
 		for (tile_id ta=0; ta!=tn; ++ta) if (hasPoly[ta])
 		{
@@ -504,8 +504,8 @@ struct AbstrArcs2SegmentsOperator : public UnaryOperator
 template <typename T>
 class Arcs2SegmentsOperator : public AbstrArcs2SegmentsOperator
 {
-	typedef T                         PointType;
-	typedef std::vector<PointType>    PolygonType;
+	using PointType = T;
+	using PolygonType = sequence_traits<PointType>::container_type;
 	typedef Unit<PointType>           PointUnitType;
 
 	typedef DataArray<PolygonType>    Arg1Type;
@@ -1103,10 +1103,10 @@ protected:
 template <typename P>
 class PointInPolygonOperator : public AbstrPointInPolygonOperator
 {
-	typedef P                      PointType;
-	typedef std::vector<PointType>  PolygonType;
-	typedef Unit<PointType>        PointUnitType;
-	typedef Range<PointType>       BoxType;
+	using PointType = P;
+	using PolygonType = sequence_traits<PointType>::container_type;
+	using PointUnitType = Unit<PointType>;
+	using BoxType = Range<PointType>;
 
 	using Arg1Type = DataArray<PointType>;
 	using Arg2Type = DataArray<PolygonType>;
@@ -1413,8 +1413,8 @@ protected:
 template <typename P, typename RankingType>
 class PointInRankedPolygonOperator : public AbstrPointInRankedPolygonOperator
 {
-	typedef P                      PointType;
-	typedef std::vector<PointType>  PolygonType;
+	using PointType = P;
+	using PolygonType = sequence_traits<PointType>::container_type;
 	typedef Unit<PointType>        PointUnitType;
 	typedef Range<PointType>       BoxType;
 
@@ -1646,8 +1646,8 @@ protected:
 template <typename P>
 class PointInAllPolygonsOperator : public AbstrPointInAllPolygonsOperator
 {
-	typedef P                      PointType;
-	typedef std::vector<PointType> PolygonType;
+	using PointType = P;
+	using PolygonType = sequence_traits<PointType>::container_type;
 	typedef Unit<PointType>        PointUnitType;
 	typedef Range<PointType>       BoxType;
 	typedef std::vector<BoxType>   BoxArrayType;

@@ -32,13 +32,15 @@ template <typename ArgValue>
 auto // typename sequence_traits<ArgValue>::container_type
 GetTileAsContainer(const AbstrDataItem* arg, tile_id t, SizeT n)
 {
-	auto tileData = const_array_cast<ArgValue>(arg)->GetLockedDataRead(arg->HasVoidDomainGuarantee() ? 0 : t);
-	if (arg->HasVoidDomainGuarantee())
+	auto argData = const_array_cast<ArgValue>(arg);
+	if (arg->HasVoidDomainGuarantee()) // consider the parameter as a const value for all domain elements
 	{
+		auto tileData = argData->GetTile(0);
 		ArgValue v = tileData[0];
-		return typename sequence_traits<ArgValue>::container_type( n, v );
+		return typename sequence_traits<ArgValue>::container_type(n, v MG_DEBUG_ALLOCATOR_SRC("GetTileAsContainer"));
 	}
-	return typename sequence_traits<ArgValue>::container_type{ tileData.begin(), tileData.end() };
+	auto tileData = argData->GetTile(t);
+	return typename sequence_traits<ArgValue>::container_type{ tileData.begin(), tileData.end() MG_DEBUG_ALLOCATOR_SRC("GetTileAsContainer") };
 }
 
 enum class null_policy {
@@ -67,15 +69,17 @@ void InitializeResTile(auto& valueSoFarContainer, auto& valueSoFar, typename seq
 	}
 	else
 	{
-		if (arg1->HasVoidDomainGuarantee())
+		auto arg1Data = const_array_cast<ArgValue>(arg1);
+		if (arg1->HasVoidDomainGuarantee()) // consider the parameter as a const value for all domain elements
 		{
-			ArgValue argValue = const_array_cast<ArgValue>(arg1)->GetTile(0)[0];
-				fast_fill(resTile.begin(), resTile.end(), argValue);
+			auto argValues = arg1Data->GetTile(0);
+			ArgValue argValue = argValues[0];
+			fast_fill(resTile.begin(), resTile.end(), argValue);
 		}
 		else
 		{
-			auto argValues = const_array_cast<ArgValue>(arg1)->GetTile(t);
-			dms_assert(argValues.size() == resTile.size());
+			auto argValues = arg1Data->GetTile(t);
+			assert(argValues.size() == resTile.size());
 			fast_copy(argValues.begin(), argValues.end(), resTile.begin());
 		}
 		valueSoFar = resTile; // write directly to resTile;
@@ -139,6 +143,7 @@ struct ArgMinMaxOper : UnaryOperator
 
 					auto resTile = mutable_array_cast<ResValue>(resLock)->GetWritableTile(t, IsArgIndex ? dms_rw_mode::write_only_mustzero : dms_rw_mode::write_only_all);
 					InitializeResTile<ResValue, ArgValue, NP, IsArgIndex>(valueSoFarContainer, valueSoFar, resTile.get_view(), arg1, t, n);
+					assert(resTile.size() == n);
 
 					for (arg_index j = 1; j != args.size(); ++j)
 					{

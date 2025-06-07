@@ -50,11 +50,11 @@ struct DllHandle
 	
 	FARPROC GetProc(CharPtr dllProcName)
 	{
-		DllProcCacheType::iterator i = m_DllProcCache.find(SharedStr(dllProcName));
+		DllProcCacheType::iterator i = m_DllProcCache.find(SharedStr(dllProcName MG_DEBUG_ALLOCATOR_SRC("GetProc")));
 		if (i != m_DllProcCache.end())
 			return i->second;
 
-		FARPROC& proc = m_DllProcCache[SharedStr(dllProcName)];
+		FARPROC& proc = m_DllProcCache[SharedStr(dllProcName MG_DEBUG_ALLOCATOR_SRC("GetProc"))];
 		proc = GetProcAddress(m_hDLL, dllProcName);
 		return proc;
 	}
@@ -116,11 +116,11 @@ DllHandle* RTC_GetDll(CharPtr dllname)
 
 	dms_assert(s_nrDllComponwentLocks);
 
-	DllHandleCacheType::iterator i = s_DllHandleCache->find(SharedStr(dllname));
+	DllHandleCacheType::iterator i = s_DllHandleCache->find(SharedStr(dllname MG_DEBUG_ALLOCATOR_SRC("RTC_GetDll")));
 	if (i != s_DllHandleCache->end())
 		return &(i->second);
 
-	DllHandle& hnd = (*s_DllHandleCache)[SharedStr(dllname)];
+	DllHandle& hnd = (*s_DllHandleCache)[SharedStr(dllname MG_DEBUG_ALLOCATOR_SRC("RTC_GetDll"))];
 	hnd.SetInstance(LoadLibrary(dllname));
 	return &hnd;
 }

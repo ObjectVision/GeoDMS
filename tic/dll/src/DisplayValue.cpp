@@ -67,7 +67,7 @@ SharedStr DisplayValue(const AbstrDataItem* adi, SizeT index, bool useMetric, Sh
 			streamsize_t valueLen = drl->AsCharArraySize(index, maxLen, locks.first, FormattingFlags::ThousandSeparator);
 			dms_assert(valueLen <= maxLen);
 
-			result = SharedArray<char>::Create(valueLen + 1, false);
+			result = SharedArray<char>::Create(valueLen + 1, false MG_DEBUG_ALLOCATOR_SRC("DisplayValue"));
 			drl->AsCharArray(index, result.begin(), valueLen, locks.first, FormattingFlags::ThousandSeparator);
 			result.begin()[valueLen] = char(0);
 			if (valueLen < maxLen && adi->GetValueComposition() == ValueComposition::Single)
@@ -118,7 +118,7 @@ SharedStr DisplayValue(const AbstrUnit* au, const AbstrValue* valuePtr, bool use
 	streamsize_t valueLen = valuePtr->AsCharArraySize(maxLen, FormattingFlags::ThousandSeparator);
 	assert(valueLen <= maxLen);
 
-	result = SharedArray<char>::Create(valueLen + 1, false);
+	result = SharedArray<char>::Create(valueLen + 1, false MG_DEBUG_ALLOCATOR_SRC("DisplayValue"));
 	valuePtr->AsCharArray(result.begin(), valueLen, FormattingFlags::ThousandSeparator);
 	result.begin()[valueLen] = char(0);
 

@@ -1338,7 +1338,7 @@ void MainWindow::onInternalLinkClick(const QUrl& link, QWidget* origin) {
             return;
         }
         if (!ShowInDetailPage(SharedStr(linkStr.c_str()))) {
-            auto raw_string = SharedStr(begin_ptr(linkStr), end_ptr(linkStr));
+            auto raw_string = SharedStr(CharPtrRange(begin_ptr(linkStr), end_ptr(linkStr)));
             ReplaceSpecificDelimiters(raw_string.GetAsMutableRange(), '\\');
             auto linkCStr = ConvertDosFileName(raw_string); // obtain zero-termination and non-const access
             QDesktopServices::openUrl(QUrl(linkCStr.c_str(), QUrl::TolerantMode));

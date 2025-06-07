@@ -309,9 +309,9 @@ template <typename InIter>
 void ShpPolygon::AddPoints(InIter first, InIter last)
 {
 	// Add part 
-	(*m_Parts).push_back((*m_Points).size());
+	(*m_Parts).push_back((*m_Points).size() MG_DEBUG_ALLOCATOR_SRC("ShpPolygon::AddPoints"));
 
-	(*m_Points).append(first, last);
+	(*m_Points).append(first, last MG_DEBUG_ALLOCATOR_SRC("ShpPolygon::AddPoints"));
 }
 
 // Throw some points into a fresh shape file

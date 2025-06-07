@@ -98,7 +98,7 @@ SharedStr GenerateContext()
 			ach = ach->GetPrev();
 		}
 	}
-	return SharedStr(osb.GetData(), osb.GetDataEnd());
+	return SharedStr(CharPtrRange(osb.GetData(), osb.GetDataEnd()));
 }
 
 CharPtr FailTypeStr(FailType ft)
@@ -220,7 +220,7 @@ RTC_CALL const char* DmsException::what() const noexcept
 
 [[noreturn]] RTC_CALL void DmsException::throwMsgD(CharPtr msg)
 {
-	throwMsgD(SharedStr(msg));
+	throwMsgD(SharedStr(msg MG_DEBUG_ALLOCATOR_SRC("DmsException::throwMsgD")));
 }
 
 namespace {
@@ -425,7 +425,7 @@ ErrMsgPtr catchExceptionImpl(bool rethrowCancelation)
 		CharPtr xWhat = x.what();
 		auto xLength = StrLen(xWhat);
 		MakeMin<SizeT>(xLength, 32767);
-		return std::make_shared<ErrMsg>( SharedStr(xWhat, xWhat+xLength) );
+		return std::make_shared<ErrMsg>( SharedStr(CharPtrRange(xWhat, xWhat+xLength)) );
 	}
 	catch (...)
 	{
@@ -583,7 +583,7 @@ SharedStr GetExceptionText(unsigned int exceptionCode, _EXCEPTION_POINTERS* pExp
 		default: result = "Unknown ExceptionCode";
 	}
 	dms_assert(result);
-	return SharedStr(result);
+	return SharedStr(result MG_DEBUG_ALLOCATOR_SRC("GetExceptionText"));
 }
 
 
@@ -757,6 +757,6 @@ RTC_CALL SharedStr GetFirstLine(WeakStr msg)
 	CharPtr eolPtr = msg.find('\n');
 	if (eolPtr == msg.csend())
 		return msg;
-	return SharedStr(msg.begin(), eolPtr);
+	return SharedStr(CharPtrRange(msg.begin(), eolPtr));
 }
 

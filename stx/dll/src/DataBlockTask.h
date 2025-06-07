@@ -49,7 +49,7 @@ struct DataBlockTask  : AbstrCalculator // TODO G8: RENAME TO DataBlockExprKey
 	bool IsSourceRef() const override { return false; }
 
 	bool IsDataBlock() const override { return true; }
-	SharedStr GetExpr () const override { return SharedStr(m_DataBlock->GetStrnBeg(), m_DataBlock->GetStrnEnd()); }
+	SharedStr GetExpr () const override { return SharedStr(CharPtrRange(m_DataBlock->GetStrnBeg(), m_DataBlock->GetStrnEnd())); }
 
 private: friend struct DataBlockProd;
 	const AbstrDataItem* GetContext() const { return AsDataItem(GetHolder()); }

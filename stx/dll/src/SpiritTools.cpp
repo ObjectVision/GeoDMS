@@ -114,7 +114,8 @@ SYNTAX_CALL SharedStr problemlocAsString(CharPtr bufferBegin, CharPtr bufferEnd,
 	dms_assert(untabEnd == untabbedLine.size());
 	
 	auto utb = begin_ptr(untabbedLine);
-	return SharedStr(utb, utb + untabEnd) + "\n" + SharedStr(utb, utb + untabPos) + "^";
+	return SharedStr(CharPtrRange(utb, utb + untabEnd)) + "\n" 
+		+ SharedStr(CharPtrRange(utb, utb + untabPos)) + "^";
 }
 
 UInt32 nrLineBreaks(CharPtr first, CharPtr last)

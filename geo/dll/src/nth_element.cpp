@@ -268,7 +268,7 @@ struct NthElementTot: AbstrPthElementTot<I>
 		}
 		assert(n < N);
 		typename sequence_traits<V>::container_type copy;
-		copy.reserve(N);
+		copy.reserve(N MG_DEBUG_ALLOCATOR_SRC("NthElementTot buffer"));
 
 		for (tile_id t=0; t!=tn; ++t)
 			for (auto argVi: argV->GetTile(t))
@@ -327,15 +327,15 @@ struct NthElementPart: AbstrPthElementPart<I>
 
 		// cumulative counts per partition
 		SizeT cumulativeN = 0;
-		std::vector<SizeT> cumul; cumul.reserve(nrP);
-		for (std::vector<SizeT>::const_iterator i = partCount.begin(), e = partCount.end(); i!=e; ++i)
+		sequence_traits<SizeT>::container_type cumul; cumul.reserve(nrP MG_DEBUG_ALLOCATOR_SRC("NthElementPart buffer"));
+		for (auto i = partCount.begin(), e = partCount.end(); i!=e; ++i)
 		{
-			cumul.push_back(cumulativeN);
+			cumul.push_back(cumulativeN MG_DEBUG_ALLOCATOR_SRC_EMPTY);
 			cumulativeN += *i;
 		}
 		assert(cumulativeN <= N);
-		std::vector<SizeT> cumul2 = cumul;
-		typename sequence_traits<V>::container_type copy(cumulativeN, V());
+		sequence_traits<SizeT>::container_type cumul2 = cumul;
+		typename sequence_traits<V>::container_type copy(cumulativeN, V() MG_DEBUG_ALLOCATOR_SRC("NthElementPart buffer copy"));
 		for (tile_id t=0, te=argVA->GetAbstrDomainUnit()->GetNrTiles(); t!=te; ++t)
 		{
 			auto argVData = argV->GetTile(t);
@@ -462,7 +462,7 @@ struct NthElementWeightedTot: AbstrNthElementWeightedTot<W>
 			count_best_total(N, argVData.begin(), argVData.end());
 		}
 
-		sequence_traits<UInt32>::container_type indexVector; indexVector.reserve(N);
+		sequence_traits<UInt32>::container_type indexVector; indexVector.reserve(N MG_DEBUG_ALLOCATOR_SRC("NthElementWeightedTot buffer"));
 
 		SizeT i = 0;
 		auto argVData = argV->GetLockedDataRead();
@@ -521,7 +521,7 @@ struct NthElementWeightedPart: AbstrNthElementWeightedPart
 		assert(resData.size() == nrP);
 
 		// === make partCount
-		std::vector<SizeT> partCount(nrP, 0);
+		auto partCount = sequence_traits<SizeT>::container_type(nrP, 0 MG_DEBUG_ALLOCATOR_SRC("NthElementWeightedPath index buffer"));
 		for (tile_id t=0, te=argVA->GetAbstrDomainUnit()->GetNrTiles(); t!=te; ++t)
 		{
 			auto argVData = argV->GetLockedDataRead(t);
@@ -531,17 +531,17 @@ struct NthElementWeightedPart: AbstrNthElementWeightedPart
 
 		// === cumulative counts per partition
 		SizeT cumulativeN = 0;
-		std::vector<SizeT> cumul; cumul.reserve(nrP);
+		sequence_traits<SizeT>::container_type cumul; cumul.reserve(nrP MG_DEBUG_ALLOCATOR_SRC("NthElementWeightedPath buffer"));
 		for (auto pc: partCount)
 		{
-			cumul.push_back(cumulativeN);
+			cumul.push_back(cumulativeN MG_DEBUG_ALLOCATOR_SRC_EMPTY);
 			cumulativeN += pc;
 		}
 		assert(cumulativeN <= N);
-		std::vector<SizeT> cumul2 = cumul;
+		auto cumul2 = sequence_traits<SizeT>::container_type(cumul MG_DEBUG_ALLOCATOR_SRC("NthElementWeightedPath bufferCopy"));
 
 		// === make indexvector
-		std::vector<SizeT> indexVector(cumulativeN, SizeT()); // SIZE-N
+		auto indexVector = sequence_traits<SizeT>::container_type(cumulativeN, SizeT() MG_DEBUG_ALLOCATOR_SRC("NthElementWeightedPath index buffer")); // SIZE-N
 
 		SizeT i = 0;
 		auto argVData = argV->GetLockedDataRead();
@@ -578,8 +578,7 @@ struct NthElementWeightedPart: AbstrNthElementWeightedPart
 
 			W cumulWeight = arg2Data[e2Void ? 0 : ii];
 
-			sequence_traits<SizeT>::container_type::iterator 
-				cbi = indexVector.begin() + cumul[ii];
+			auto cbi = begin_ptr(indexVector) + cumul[ii];
 			resData[ii] = nth::nth_element_weighted<V>(cbi, cbi + partCount[ii], argVData.begin(), argWData.begin(), cumulWeight);
 		}
 	}
@@ -628,7 +627,7 @@ struct RthElementTot: AbstrPthElementTot<RatioType>
 			count_best_total(N, argVData.begin(), argVData.end());
 		}
 		typename sequence_traits<V>::container_type copy;
-		copy.reserve(N);
+		copy.reserve(N MG_DEBUG_ALLOCATOR_SRC("RthElementTot buffer"));
 
 		for (tile_id t=0, te=argVA->GetAbstrDomainUnit()->GetNrTiles(); t!=te; ++t)
 		{
@@ -725,7 +724,7 @@ struct RthElementPart: AbstrPthElementPart<RatioType>
 		assert(cumulativeN <= N);
 		std::vector<I> cumul2 = cumul;
 
-		typename sequence_traits<V>::container_type copy(cumulativeN, V());
+		typename sequence_traits<V>::container_type copy(cumulativeN, V() MG_DEBUG_ALLOCATOR_SRC("rth_element buffer"));
 		for (tile_id t=0, te=argVA->GetAbstrDomainUnit()->GetNrTiles(); t!=te; ++t)
 		{
 			auto argVData = argV->GetLockedDataRead(t);

@@ -181,40 +181,60 @@ void vector_resize(Vector& vec, typename Vector::size_type  n)
 		vector_cut(vec, n);
 	else if (vec.size() < n)
 		vec.resize(n); // use default
-	dms_assert(vec.size() == n);
+	assert(vec.size() == n);
 }
 
 template <typename Vector>
-void vector_resize_uninitialized(Vector& vec, typename Vector::size_type n)
+void vector_resize_uninitialized(Vector& vec, typename Vector::size_type n MG_DEBUG_ALLOCATOR_SRC_ARG)
 {
 	CheckAllocSize(n, sizeof(Vector::value_type), "vector_resize");
 	if (vec.size() > n)
 		vector_cut(vec, n);
 	else if (vec.size() < n)
-		vec.resize_uninitialized(n); // use default
-	dms_assert(vec.size() == n);
+		vec.resize_uninitialized(n MG_DEBUG_ALLOCATOR_SRC_PARAM); // use default
+	assert(vec.size() == n);
 }
 
 template <typename Vector>
-void vector_resize(Vector& vec, typename Vector::size_type  n, typename Vector::const_reference zero_value)
+void vector_resize(Vector& vec, typename Vector::size_type n, typename Vector::const_reference zero_value MG_DEBUG_ALLOCATOR_SRC_ARG)
 {
 	CheckAllocSize(n, sizeof(Vector::value_type), "vector_resize");
+	if (vec.size() > n)
+		vector_cut(vec, n);
+	else if (vec.size() < n)
+		vec.resize(n, zero_value MG_DEBUG_ALLOCATOR_SRC_PARAM);
+	assert(vec.size() == n);
+}
+
+template <typename Vector>
+void vector_resize(Vector& vec, typename Vector::size_type n, Undefined MG_DEBUG_ALLOCATOR_SRC_ARG)
+{
+	CheckAllocSize(n, sizeof(Vector::value_type), "vector_resize");
+	if (vec.size() > n)
+		vector_cut(vec, n);
+	else if (vec.size() < n)
+		vec.resize(n, Undefined() MG_DEBUG_ALLOCATOR_SRC_PARAM);
+	assert(vec.size() == n);
+}
+
+template <typename V, typename A>
+void vector_resize(std::vector<V, A>& vec, typename std::vector<V, A>::size_type n, typename std::vector<V, A>::const_reference zero_value MG_DEBUG_ALLOCATOR_SRC_ARG)
+{
 	if (vec.size() > n)
 		vector_cut(vec, n);
 	else if (vec.size() < n)
 		vec.resize(n, zero_value);
-	dms_assert(vec.size() == n);
+	assert(vec.size() == n);
 }
 
-template <typename Vector>
-void vector_resize(Vector& vec, typename Vector::size_type  n, Undefined)
+template <typename V, typename A>
+void vector_resize(std::vector<V, A>& vec, SizeT n, Undefined MG_DEBUG_ALLOCATOR_SRC_ARG)
 {
-	CheckAllocSize(n, sizeof(Vector::value_type), "vector_resize");
 	if (vec.size() > n)
 		vector_cut(vec, n);
 	else if (vec.size() < n)
 		vec.resize(n, Undefined());
-	dms_assert(vec.size() == n);
+	assert(vec.size() == n);
 }
 
 /*

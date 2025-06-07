@@ -131,13 +131,13 @@ const IString* IString::Create(WeakStr strVal) { return new IString(strVal); }
 const IString* IString::Create(TokenID strVal) { return new IString(strVal); }
 
 IString::IString(CharPtr strVal)
-	:	SharedStr(strVal) 
+	:	SharedStr(strVal MG_DEBUG_ALLOCATOR_SRC("IString"))
 {
 	Init();
 }
 
 IString::IString(CharPtr strBegin, CharPtr strEnd)
-	:	SharedStr(strBegin, strEnd) 
+	:	SharedStr(CharPtrRange(strBegin, strEnd) MG_DEBUG_ALLOCATOR_SRC("IString"))
 {
 	Init();
 }
@@ -221,7 +221,7 @@ BinaryInpStream& operator >>(BinaryInpStream& ar, SharedStr& str)
 	ar >> len;
 	if (len)
 	{
-		SharedCharArray* sca =SharedCharArray::CreateUninitialized(SizeT(len)+1); sca->back() = char(0);
+		SharedCharArray* sca =SharedCharArray::CreateUninitialized(SizeT(len)+1 MG_DEBUG_ALLOCATOR_SRC("operator >>(BinaryInpStream& ar, SharedStr& str)")); sca->back() = char(0);
 		str.assign(sca);
 		ar.Buffer().ReadBytes(sca->begin(), len);
 	}
@@ -324,20 +324,20 @@ char NibbleAsHex(unsigned char v)
 
 RTC_CALL void AsHex(StringRef& res, UInt4 v) 
 { 
-	res.resize_uninitialized(1);
+	res.resize_uninitialized(1 MG_DEBUG_ALLOCATOR_SRC("AsHex1"));
 	res[0] = NibbleAsHex(v);
 }
 
 RTC_CALL void AsHex(StringRef& res, UInt8 v)
 {
-	res.resize_uninitialized(2);
+	res.resize_uninitialized(2 MG_DEBUG_ALLOCATOR_SRC("AsHex2"));
 	res[1] = NibbleAsHex(v & 0x000F); v >>= 4;
 	res[0] = NibbleAsHex(v);
 }
 
 RTC_CALL void AsHex(StringRef& res, UInt16 v)
 {
-	res.resize_uninitialized(4);
+	res.resize_uninitialized(4 MG_DEBUG_ALLOCATOR_SRC("AsHex4"));
 	res[3] = NibbleAsHex(v & 0x000F); v >>= 4;
 	res[2] = NibbleAsHex(v & 0x000F); v >>= 4;
 	res[1] = NibbleAsHex(v & 0x000F); v >>= 4;
@@ -346,7 +346,7 @@ RTC_CALL void AsHex(StringRef& res, UInt16 v)
 
 RTC_CALL void AsHex(StringRef& res, UInt32 v)
 {
-	res.resize_uninitialized(8);
+	res.resize_uninitialized(8 MG_DEBUG_ALLOCATOR_SRC("AsHex8"));
 	res[7] = NibbleAsHex(v & 0x000F); v >>= 4;
 	res[6] = NibbleAsHex(v & 0x000F); v >>= 4;
 	res[5] = NibbleAsHex(v & 0x000F); v >>= 4;
@@ -359,7 +359,7 @@ RTC_CALL void AsHex(StringRef& res, UInt32 v)
 
 RTC_CALL void AsHex(StringRef& res, UInt64 v)
 {
-	res.resize_uninitialized(16);
+	res.resize_uninitialized(16 MG_DEBUG_ALLOCATOR_SRC("AsHex16"));
 	res[15] = NibbleAsHex(v & 0x000F); v >>= 4;
 	res[14] = NibbleAsHex(v & 0x000F); v >>= 4;
 	res[13] = NibbleAsHex(v & 0x000F); v >>= 4;
@@ -381,12 +381,12 @@ RTC_CALL void AsHex(StringRef& res, UInt64 v)
 RTC_CALL void AsHex(StringRef& res, StringCRef v)
 { 
 	StringCRef::size_type vSize = v.size();
-	res.reserve(vSize * 2);
-	res.resize_uninitialized(0);
+	res.reserve(vSize * 2 MG_DEBUG_ALLOCATOR_SRC("AsHex"));
+	res.resize_uninitialized(0 MG_DEBUG_ALLOCATOR_SRC("AsHex(StringCref)"));
 	for (StringCRef::size_type p=0; p!=vSize; ++p)
 	{
 		unsigned char ch = v[p];
-		res.push_back(NibbleAsHex( ch >>   4 ) );
-		res.push_back(NibbleAsHex( ch & 0x0F ) );
+		res.push_back(NibbleAsHex( ch >>   4 ) MG_DEBUG_ALLOCATOR_SRC("AsHex(StringCref)"));
+		res.push_back(NibbleAsHex( ch & 0x0F ) MG_DEBUG_ALLOCATOR_SRC("AsHex(StringCref)"));
 	}
 }

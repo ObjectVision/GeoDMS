@@ -334,19 +334,19 @@ void GdalVectSM::DoCloseStorage(bool mustCommit) const
 template <typename PolygonType>
 void AddPoint(typename DataArray<PolygonType>::reference dataElemRef, OGRPoint* point)
 {
-	dataElemRef.push_back(shp2dms_order(point->getX(), point->getY()));
+	dataElemRef.push_back(shp2dms_order(point->getX(), point->getY()) MG_DEBUG_ALLOCATOR_SRC("AddPoint"));
 }
 
 template <typename PolygonType>
 void AddLinePoint(typename DataArray<PolygonType>::reference dataElemRef, OGRLineString* lineString, SizeT p)
 {
-	dataElemRef.push_back(shp2dms_order(lineString->getX(p), lineString->getY(p)));
+	dataElemRef.push_back(shp2dms_order(lineString->getX(p), lineString->getY(p)) MG_DEBUG_ALLOCATOR_SRC("AddLinePoint"));
 }
 
 template <typename PolygonType>
 void AddSeparator(typename DataArray<PolygonType>::reference dataElemRef)
 {
-	dataElemRef.emplace_back(Undefined());
+	dataElemRef.emplace_back(MG_DEBUG_ALLOCATOR_FIRST("AddSeparator") Undefined());
 }
 
 template <typename PolygonType>
@@ -800,7 +800,7 @@ void ReadStringData(sequence_traits<SharedStr>::seq_t dataArray, OGRLayer* layer
 			geo->exportToWkt(&result.m_Text);
 			if (result.m_Text)
 			{
-				dataElemRef.assign(result.m_Text, result.m_Text +strlen(result.m_Text));
+				dataElemRef.assign(result.m_Text, result.m_Text +strlen(result.m_Text) MG_DEBUG_ALLOCATOR_SRC("gdal.vect.ReadStringData"));
 			}
 		}
 		else
@@ -957,7 +957,7 @@ void ReadStrAttrData(OGRLayer* layer, SizeT currFieldIndex, sequence_traits<Shar
 		{
 			CharPtr fieldAsString;
 			fieldAsString = feat->GetFieldAsString(currFieldIndex);
-			dataElemRef.assign(fieldAsString, fieldAsString + StrLen(fieldAsString));
+			dataElemRef.assign(fieldAsString, fieldAsString + StrLen(fieldAsString) MG_DEBUG_ALLOCATOR_SRC("gdal.vect.ReadStrAttrData"));
 		}
 		else
 			Assign( dataElemRef, Undefined() );

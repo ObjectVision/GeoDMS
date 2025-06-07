@@ -153,9 +153,9 @@ IndexedStrings<MustZeroTerminate>::GetOrCreateID_impl(CharPtr keyFirst, CharPtr 
 		return *i; //	return found ID.
 
 	index_type nextID = m_Vec.size();
-	m_Vec.push_back_seq(keyFirst, keyLast);
+	m_Vec.push_back_seq(keyFirst, keyLast MG_DEBUG_ALLOCATOR_SRC("IndexedStrings.GetOrCreateID_impl"));
 	if (MustZeroTerminate)
-		m_Vec.back().push_back(0); // add null terminator
+		m_Vec.back().push_back(0 MG_DEBUG_ALLOCATOR_SRC("IndexedStrings.GetOrCreateID_impl")); // add null terminator
 	m_Idx.insert(i, nextID);
 	return nextID;
 }

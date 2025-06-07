@@ -43,12 +43,14 @@ const int ValueComposition_BitCount = 3;
 
 #include "RtcBase.h" 
 
-template <typename T> struct composition_of                  { static const ValueComposition value = ValueComposition::Single;   };
-template <>           struct composition_of<Void>            { static const ValueComposition value = ValueComposition::Void;     };
-template <>           struct composition_of<SharedStr>       { static const ValueComposition value = ValueComposition::String;   };
-template <>           struct composition_of<CharPtr>         { static const ValueComposition value = ValueComposition::String;   };
-template <typename T> struct composition_of<Range<T> >       { static const ValueComposition value = ValueComposition::Range;    };
-template <typename T> struct composition_of<std::vector<T> > { static const ValueComposition value = ValueComposition::Sequence; };
+template <typename T> struct composition_of                      { static const ValueComposition value = ValueComposition::Single;   };
+template <>           struct composition_of<Void>                { static const ValueComposition value = ValueComposition::Void;     };
+template <>           struct composition_of<SharedStr>           { static const ValueComposition value = ValueComposition::String;   };
+template <>           struct composition_of<CharPtr>             { static const ValueComposition value = ValueComposition::String;   };
+template <typename T> struct composition_of<Range<T> >           { static const ValueComposition value = ValueComposition::Range;    };
+template <typename T> struct composition_of<std::vector<T> >     { static const ValueComposition value = ValueComposition::Sequence; };
+template <typename T> struct composition_of<locked_sequence<T> > { static const ValueComposition value = ValueComposition::Sequence; };
+template <typename T> struct composition_of<my_vector<T> > { static const ValueComposition value = ValueComposition::Sequence; };
 
 template <typename T> constexpr ValueComposition composition_of_v = composition_of<T>::value;
 

@@ -234,7 +234,7 @@ namespace { // local defs
 		{
 			TreeItem* ti = debug_cast<TreeItem*>(self);
 			assert(ti);
-			ti->SetExpr( SharedStr(value) );
+			ti->SetExpr( SharedStr(value MG_DEBUG_ALLOCATOR_SRC("ExprPropDef::SetValueAsCharArray")) );
 		}
 	};
 

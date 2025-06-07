@@ -26,7 +26,7 @@
 
 void StringRef_resize_uninitialized(StringRef& res, SizeT n)
 {
-	res.resize_uninitialized(n);
+	res.resize_uninitialized(n MG_DEBUG_ALLOCATOR_SRC("StringRef_resize_uninitialized"));
 }
 
 Char* begin_ptr(StringRef& res)
@@ -98,7 +98,7 @@ void AsString(StringRef& res, const double& value, UInt8 decPos)
 		char charBuf[255 + 26];
 		auto n = snprintf(charBuf, 255 + 26, "%.*G", int(decPos), value);
 		if (n > 0)
-			res.assign(charBuf, charBuf + n);
+			res.assign(charBuf, charBuf + n MG_DEBUG_ALLOCATOR_SRC("AsString"));
 	}
 	else
 		res.assign(Undefined());
@@ -112,7 +112,7 @@ void AsString(StringRef& res, const double& value, UInt8 decPos)
 SharedStr AsString(const StringCRef& v) 
 { 
 	return v.IsDefined() 
-		? SharedStr(begin_ptr(v), end_ptr(v)) 
+		? SharedStr(CharPtrRange(begin_ptr(v), end_ptr(v)))
 		: SharedStr(Undefined()); 
 }
 

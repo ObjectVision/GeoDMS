@@ -199,7 +199,7 @@ RTC_CALL SharedStr TokenID::AsSharedStr() const
 		return SharedStr(Undefined());
 
 	IndexedString_shared_lock guard{ GetCS() };
-	return SharedStr{(*s_TokenListPtr)[m_ID], s_TokenListPtr->item_end(m_ID)};
+	return SharedStr{CharPtrRange((*s_TokenListPtr)[m_ID], s_TokenListPtr->item_end(m_ID)) MG_DEBUG_ALLOCATOR_SRC("TokenID::AsSharedStr()")};
 }
 
 RTC_CALL std::string TokenID::AsStdString() const

@@ -204,7 +204,7 @@ struct substr_assign3 : ternary_assign<SharedStr, SharedStr, UInt32, UInt32>
 		MakeMin(arg2, orgSize);
 		MakeMin(arg3, orgSize-arg2);
 		arg3 += arg2;
-		res.assign(arg1.begin() + arg2, arg1.begin() + arg3);
+		res.assign(arg1.begin() + arg2, arg1.begin() + arg3 MG_DEBUG_ALLOCATOR_SRC("substr_assign3"));
 	}
 };
 

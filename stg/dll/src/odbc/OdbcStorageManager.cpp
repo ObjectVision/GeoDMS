@@ -319,9 +319,9 @@ void CreateDatabaseTableInfo(const ODBCStorageManager* self, const TreeItem* sto
 	TRecordSetOpenLock tableInfoLock(&tableInfo); // Does Rewind
 	tableInfo.Next(); // combined with Rewind this constitutes a MoveFirst
 
-	while	(! tableInfo.EndOfFile())
+	while (! tableInfo.EndOfFile())
 	{
-		if (SharedStr(tableInfo.Columns()[3].AsString()) != "SYSTEM TABLE")
+		if (strcmp(tableInfo.Columns()[3].AsString(), "SYSTEM TABLE") != 0)
 		{
 			CharPtr tableName = tableInfo.Columns()[2].AsString();
 			if (syncMode == SyncMode::AllTables || const_cast<TreeItem*>(storageHolder)->GetSubTreeItemByID(GetTokenID_mt(tableName)))
@@ -593,7 +593,7 @@ public:
 				{
 					if (ThrowingConvert<unsigned_type<SQLLEN>::type>(actualSize) > buffElemSize)
 						m_ODBCStorageManager->throwItemErrorF("ReadStrings cannot read %d chars for row %d with a buffersize of only %d bytes", actualSize, recordsRead, buffElemSize);
-					(*stringPtr).assign( buffPtr, buffPtr+actualSize);
+					(*stringPtr).assign( buffPtr, buffPtr+actualSize MG_DEBUG_ALLOCATOR_SRC("ODBC.ReadStrings"));
 				}
 				++stringPtr;
 				buffPtr += buffElemSize;

@@ -18,7 +18,7 @@
 inline void Assign(StringRef lhs, WeakStr rhs) 
 { 
 	if (IsDefined(rhs))
-		lhs.assign(rhs.begin(), rhs.send() ); 
+		lhs.assign(rhs.begin(), rhs.send() MG_DEBUG_ALLOCATOR_SRC("Assign"));
 	else
 		lhs.assign(Undefined());
 }
@@ -26,7 +26,7 @@ inline void Assign(StringRef lhs, WeakStr rhs)
 inline void Assign(StringRef lhs, CharPtr rhs)
 { 
 	if (rhs)
-		lhs.assign(rhs, rhs + StrLen(rhs) ); 
+		lhs.assign(rhs, rhs + StrLen(rhs) MG_DEBUG_ALLOCATOR_SRC("Assign"));
 	else
 		lhs.assign(Undefined());
 }
@@ -34,7 +34,7 @@ inline void Assign(StringRef lhs, CharPtr rhs)
 inline void Assign(SharedStr& lhs, StringCRef rhs) 
 { 
 	if (rhs.IsDefined())
-		lhs = SharedStr(begin_ptr(rhs), end_ptr(rhs));
+		lhs = SharedStr(CharPtrRange(begin_ptr(rhs), end_ptr(rhs)) MG_DEBUG_ALLOCATOR_SRC("Assign"));
 	else
 		lhs = SharedStr(Undefined());
 }

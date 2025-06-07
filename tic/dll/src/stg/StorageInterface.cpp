@@ -99,7 +99,7 @@ TIC_CALL IStringHandle DMS_CONV DMS_TreeItem_GetFullStorageName(TreeItem* contex
 
 		TreeItemContextHandle checkPtr(context, TreeItem::GetStaticClass(), "DMS_TreeItem_GetFullStorageName");
 
-		return IString::Create(AbstrStorageManager::GetFullStorageName(context, SharedStr(relativeStorageName)).c_str());
+		return IString::Create(AbstrStorageManager::GetFullStorageName(context, SharedStr(relativeStorageName MG_DEBUG_ALLOCATOR_SRC("DMS_TreeItem_GetFullStorageName"))).c_str());
 
 	DMS_CALL_END
 	return 0;

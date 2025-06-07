@@ -383,7 +383,7 @@ SharedStr AbstrUnit::GetBackgroundReference() const
 		const SharedStr pair_str = m->m_BaseUnits.begin()->first;
 		auto tab_pos = std::find(pair_str.begin(), pair_str.send(), char(0xFF));
 		if (tab_pos != pair_str.send())
-			return SharedStr(tab_pos + 1, pair_str.send());
+			return SharedStr(CharPtrRange(tab_pos + 1, pair_str.send()) MG_DEBUG_ALLOCATOR_SRC("AbstrUnit::GetBackgroundReference"));
 	}
 	return {};
 }
@@ -553,7 +553,7 @@ SharedStr AbstrUnit::GetLabelAtIndex(SizeT index, SharedDataItemInterestPtr& ipH
 		const AbstrDataObject* ado = ipHolder->GetCurrRefObj();
 
 		MakeMin(maxLen, ado->AsCharArraySize(index, maxLen, lock, FormattingFlags::ThousandSeparator));
-		SharedStr result = SharedStr(SharedArray<char>::Create(maxLen + 1, false));
+		SharedStr result = SharedStr(SharedArray<char>::Create(maxLen + 1, false MG_DEBUG_ALLOCATOR_SRC("AbstrUnit::GetLabelAtIndex")));
 		ado->AsCharArray(index, result.begin(), maxLen, lock, FormattingFlags::ThousandSeparator);
 		result.begin()[maxLen] = char(0);
 		return result;

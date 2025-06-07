@@ -40,7 +40,7 @@ struct geos_union_poly_traits
 	//	using coordinate_type = scalar_of_t<P>;
 	using coordinate_type = Float64;
 	using point_type = Point<coordinate_type>;
-	using ring_type = std::vector<point_type>;
+	using ring_type = sequence_traits<point_type>::container_type;
 
 	using polygon_with_holes_type = geos::geom::Polygon;
 

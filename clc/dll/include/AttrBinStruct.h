@@ -501,15 +501,15 @@ template <typename T> struct qint_t          { typedef Int64 type; };
 template <>           struct qint_t<Float32> { typedef Int32 type; };
 
 template <typename T> 
-typename std::enable_if<std::is_integral_v<T>, T>::type
-mod_func_impl(const T& counter, const T& divider)
+T mod_func_impl(const T& counter, const T& divider)
+	requires(std::is_integral_v<T>)
 {
 	return counter % divider;
 }
 
 template <typename T>
-typename std::enable_if<std::is_floating_point_v <T>, T>::type
-mod_func_impl(const T& counter, const T& divider)
+T mod_func_impl(const T& counter, const T& divider)
+	requires(std::is_floating_point_v<T>)
 {
 	typename qint_t<T>::type quotient = counter / divider;
 	return counter - quotient * divider;

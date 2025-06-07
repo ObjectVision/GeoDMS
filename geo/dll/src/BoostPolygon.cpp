@@ -16,6 +16,7 @@
 #include "geo/BoostPolygon.h"
 #include "geo/SpatialIndex.h"
 #include "mci/ValueWrap.h"
+#include "mem/LockedSequenceObj.h"
 #include "ptr/Resource.h"
 #include "ptr/ResourceArray.h"
 #include "utl/mySPrintF.h"
@@ -131,7 +132,7 @@ protected:
 
 	bool CreateResult(TreeItemDualRef& resultHolder, const ArgSeqType& args, bool mustCalc) const override
 	{
-		dms_assert(args.size() == (m_OnlyForwardMatches ? 1 : 2));
+		assert(args.size() == (m_OnlyForwardMatches ? 1 : 2));
 
 		const AbstrDataItem* arg1A = AsDataItem(args[0]);
 		const AbstrDataItem* arg2A = m_OnlyForwardMatches ? arg1A : AsDataItem(args[1]);
@@ -214,8 +215,8 @@ protected:
 template <typename P, geometry_library GL, bool MustProduceGeometries>
 class PolygonOverlayOperator : public AbstrPolygonOverlayOperator
 {
-	typedef P                       PointType;
-	typedef std::vector<PointType>  PolygonType;
+	using PointType = P;
+	using PolygonType = sequence_traits<PointType>::container_type;
 	typedef Unit<PointType>         PointUnitType;
 	typedef Range<PointType>        BoxType;
 	typedef std::vector<BoxType>    BoxArrayType;
@@ -1295,7 +1296,7 @@ struct union_bg_multi_polygon
 template <typename P>
 class BgPolygonOperator : public AbstrPolygonOperator
 {
-	using SequenceType = std::vector<P>;
+	using SequenceType = sequence_traits<P>::container_type;
 
 	using traits_t = bg_union_poly_traits<P>;
 
@@ -1404,8 +1405,8 @@ struct union_cgal_multi_polygon
 template <typename P>
 class CGAL_PolygonOperator : public AbstrPolygonOperator
 {
-	using SequenceType = std::vector<P>;
-
+	using SequenceType = sequence_traits<P>::container_type;
+	
 	using traits_t = CGAL_Traits;
 
 //	using ScalarType = traits_t::coordinate_type;
@@ -1508,7 +1509,7 @@ public:
 template <typename P>
 class GEOS_PolygonOperator : public AbstrPolygonOperator
 {
-	using SequenceType = std::vector<P>;
+	using SequenceType = sequence_traits<P>::container_type;
 
 	using traits_t = geos_union_poly_traits<P>;
 
@@ -1652,7 +1653,7 @@ template <typename P>
 class PolygonConnectivityOperator : public AbstrPolygonConnectivityOperator
 {
 	using PointType = P;
-	using PolygonType = std::vector<PointType>;
+	using PolygonType = sequence_traits<PointType>::container_type;
 
 	using Arg1Type = DataArray<PolygonType>;
 	using ScalarType = scalar_of_t<PointType>;

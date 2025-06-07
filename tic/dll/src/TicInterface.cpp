@@ -455,7 +455,7 @@ TIC_CALL void DMS_CONV DMS_TreeItem_SetDescr(TreeItem* self, CharPtr description
 	DMS_CALL_BEGIN
 
 		TreeItemContextHandle checkPtr(self, TreeItem::GetStaticClass(), "DMS_TreeItem_SetDescr");
-		self->SetDescr(SharedStr(description));
+		self->SetDescr(SharedStr(description MG_DEBUG_ALLOCATOR_SRC("DMS_TreeItem_SetDescr")));
 
 	DMS_CALL_END
 }
@@ -518,7 +518,7 @@ TIC_CALL void        DMS_CONV DMS_TreeItem_SetExpr(TreeItem* self, CharPtr expre
 		DBG_TRACE(("self = %s", self->GetName().c_str()));
 		DBG_TRACE(("expr = %s", expression));
 
-		self->SetExpr(SharedStr(expression));
+		self->SetExpr(SharedStr(expression MG_DEBUG_ALLOCATOR_SRC("DMS_TreeItem_SetExpr")));
 
 	DMS_CALL_END
 }

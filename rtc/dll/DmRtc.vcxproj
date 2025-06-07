@@ -152,6 +152,7 @@
     <ClInclude Include="src\mem\FixedAlloc.h" />
     <ClInclude Include="src\mem\grid.h" />
     <ClInclude Include="src\mem\RectCopy.h" />
+    <ClInclude Include="src\mem\resize.h" />
     <ClInclude Include="src\mem\tiledata.h" />
     <ClInclude Include="src\Parallel.h" />
     <ClInclude Include="src\ptr\InterestHolders.h" />
@@ -327,7 +328,6 @@
     <ClInclude Include="src\utl\case.h" />
     <ClInclude Include="src\mci\DoubleLinkedTree.inc" />
     <ClInclude Include="src\mem\HeapSequenceProvider.ipp" />
-    <ClInclude Include="src\mem\ManagedAllocData.ipp" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\act\ActorEnums.cpp" />

@@ -1258,7 +1258,7 @@ SizeT ProcessDijkstra(TreeItemDualRef& resultHolder
 					auto resLinkSetRef = res.od_LS[resultCountBase + j];
 
 					assert(resLinkSetRef.size() == 0);
-					resLinkSetRef.resize_uninitialized(linkCount);
+					resLinkSetRef.resize_uninitialized(linkCount MG_DEBUG_ALLOCATOR_SRC("Dijkstra.LinkSet"));
 					auto resLinkSetIter = resLinkSetRef.begin();
 					while (true)
 					{
@@ -1327,7 +1327,7 @@ class DijkstraMatrOperator : public VariadicOperator
 	using ParamType = div_type_t<T>;
 	using LinkType = UInt32;
 	using ZoneType = UInt32;
-	typedef std::vector<LinkType> EdgeSeq;
+	using EdgeSeq = sequence_traits<LinkType>::container_type;
 
 	typedef DataArray<ImpType>  ArgImpType;  // link_imp, alt_imp, (optional) impCut: E->Imp
 	typedef DataArray<NodeType> ArgNodeType; // link_f1, link_f2: E->V

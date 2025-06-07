@@ -287,7 +287,7 @@ template <typename ExceptFunc, typename ConvertFunc>
 inline SharedStr Convert4(StringCRef val, const SharedStr*, const ExceptFunc* dummyFunc, const ConvertFunc* dummyConvertFunc) 
 { 
 	return val.IsDefined()
-		?	SharedStr(val.begin(), val.end())
+		?	SharedStr(CharPtrRange(val.begin(), val.end()))
 		:	UNDEFINED_VALUE(SharedStr); 
 }
 
@@ -295,7 +295,7 @@ template <typename ExceptFunc, typename ConvertFunc>
 inline SharedStr Convert4(std::string_view val, const SharedStr*, const ExceptFunc* dummyFunc, const ConvertFunc* dummyConvertFunc)
 {
 	return IsDefined(val)
-		? SharedStr(val.begin(), val.end())
+		? SharedStr(CharPtrRange(val.begin(), val.end()))
 		: UNDEFINED_VALUE(SharedStr);
 }
 
@@ -345,7 +345,15 @@ inline locked_sequence<T> Convert4(typename sequence_array<T>::const_reference v
 {
 	if (!v.IsDefined())
 		return ExceptFunc().template apply<locked_sequence<T>>(v);
-	return locked_sequence<T>(v.begin(), v.end());
+	return locked_sequence<T>(v.begin(), v.end() MG_DEBUG_ALLOCATOR_SRC("Convert4"));
+}
+
+template <typename T, typename ExceptFunc, typename ConvertFunc>
+inline my_vector<T> Convert4(typename sequence_array<T>::const_reference v, const my_vector<T>*, const ExceptFunc* dummyExceptFunc, const ConvertFunc* dummyConvertFunc)
+{
+	if (!v.IsDefined())
+		return ExceptFunc().template apply<my_vector<T>>(v);
+	return my_vector<T>(v.begin(), v.end() MG_DEBUG_ALLOCATOR_SRC("Convert4"));
 }
 
 

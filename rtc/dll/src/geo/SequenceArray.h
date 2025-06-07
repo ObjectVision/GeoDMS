@@ -208,9 +208,21 @@ struct SA_ConstReference : private SequenceArray_Base<T>
 
 	SA_ConstIterator<T> makePtr() const { return SA_ConstIterator<T>(m_Container, m_CSeqPtr); }
 
-	operator sequence_value_type () const
+	operator std::vector<T> () const
 	{
-		return sequence_value_type(begin(), end());
+		return { begin(), end() };
+	}
+	operator locked_sequence<T>() const
+	{
+		return { IterRange<const_iterator>(begin(), end()) MG_DEBUG_ALLOCATOR_SRC("SA_ConstReference copy") };
+	}
+	operator my_vector<T>() const
+	{
+		return { begin(), end() MG_DEBUG_ALLOCATOR_SRC("SA_ConstReference copy") };
+	}
+	operator SharedStr() const requires(std::is_same_v<T, char>)
+	{
+		return SharedStr{ CharPtrRange(begin(), end()) MG_DEBUG_ALLOCATOR_SRC("SA_ConstReference copy") };
 	}
 
 private:
@@ -314,17 +326,17 @@ struct SA_Reference : private SequenceArray_Base<T>
 	RTC_CALL bool operator ==(const sequence_value_type& rhs) const;
 	RTC_CALL bool operator < (const sequence_value_type& rhs) const;
 
-	RTC_CALL void assign(const_iterator first, const_iterator last);
+	RTC_CALL void assign(const_iterator first, const_iterator last MG_DEBUG_ALLOCATOR_SRC_ARG);
 	RTC_CALL void assign(Undefined);
 
-	iterator insert(iterator startPtr, const T& value)
+	iterator insert(iterator startPtr, const T& value MG_DEBUG_ALLOCATOR_SRC_ARG)
 	{
 		size_type startPos = startPtr - begin();
-		dms_assert(startPos <= size());
+		assert(startPos <= size());
 
-		resize_uninitialized(size() + 1);
+		resize_uninitialized(size() + 1 MG_DEBUG_ALLOCATOR_SRC_PARAM);
 		startPtr = begin() + startPos; // can be relocated due to resize()
-		dms_assert(startPtr < end());
+		assert(startPtr < end());
 
 		std::copy_backward(startPtr, end() - 1, startPtr + 1);
 		*startPtr = value;
@@ -332,63 +344,63 @@ struct SA_Reference : private SequenceArray_Base<T>
 	}
 
 	template <typename InIter>
-	void insert(iterator startPtr, InIter first, InIter last)
+	void insert(iterator startPtr, InIter first, InIter last MG_DEBUG_ALLOCATOR_SRC_ARG)
 	{
 		size_type startPos = startPtr - begin();
-		dms_assert(startPos <= size());
+		assert(startPos <= size());
 
 		size_type n = std::distance(first, last);
 
 		resize_uninitialized(size() + n);
 		startPtr = begin() + startPos;
-		dms_assert(startPtr <= end() - n);
+		assert(startPtr <= end() - n);
 
 		std::copy_backward(startPtr, end() - n, startPtr + n);
 		fast_copy(first, last, startPtr);
 	}
 
 	template <typename InIter>
-	void append(InIter first, InIter last)
+	void append(InIter first, InIter last MG_DEBUG_ALLOCATOR_SRC_ARG)
 	{
 		size_type n = last - first; // std::distance(first, last);
 
 		size_type oldSize = size();
-		resize_uninitialized(oldSize + n);
+		resize_uninitialized(oldSize + n MG_DEBUG_ALLOCATOR_SRC_PARAM);
 
 		iterator startPtr = begin() + oldSize;
-		dms_assert(startPtr + n == end());
+		assert(startPtr + n == end());
 
 		fast_copy(first, last, startPtr);
 	}
 
 	template <std::ranges::range Range>
 	requires std::convertible_to<std::ranges::range_value_t<Range>, T>
-	void append_range(Range&& range)
+	void append_range(Range&& range MG_DEBUG_ALLOCATOR_SRC_ARG)
 	{
-		append(std::begin(range), std::end(range));
+		append(std::begin(range), std::end(range) MG_DEBUG_ALLOCATOR_SRC_PARAM);
 	}
 
 	RTC_CALL void erase(iterator first, iterator last);
 	RTC_CALL void clear();
-	RTC_CALL void resize(size_type seqSize, const value_type& zero);
-	RTC_CALL void resize_uninitialized(size_type seqSize);
-	RTC_CALL void reserve(size_type seqSize)
+	RTC_CALL void resize(size_type seqSize, const value_type& zero MG_DEBUG_ALLOCATOR_SRC_ARG);
+	RTC_CALL void resize_uninitialized(size_type seqSize MG_DEBUG_ALLOCATOR_SRC_ARG);
+	RTC_CALL void reserve(size_type seqSize MG_DEBUG_ALLOCATOR_SRC_ARG)
 	{
 		SizeT currSize = size();
 		if (currSize < seqSize)
 		{
-			resize_uninitialized(seqSize);
+			resize_uninitialized(seqSize MG_DEBUG_ALLOCATOR_SRC_PARAM);
 			erase(begin() + currSize, end());
 		}
 	}
 	template <typename ...Args>
-	void emplace_back(Args&& ...args)
+	void emplace_back(MG_DEBUG_ALLOCATOR_FIRST_ARG Args&& ...args )
 	{
-		push_back();
+		push_back(MG_DEBUG_ALLOCATOR_TXT_PARAM);
 		back() = value_type(std::forward<Args>(args)...);
 	}
-	RTC_CALL void push_back(const value_type& value);
-	RTC_CALL void push_back();
+	RTC_CALL void push_back(const value_type& value MG_DEBUG_ALLOCATOR_SRC_ARG);
+	RTC_CALL void push_back(MG_DEBUG_ALLOCATOR_TXT_ARG);
 
 	RTC_CALL void operator =(SA_ConstReference<T> rhs);
 	RTC_CALL void operator =(SA_Reference rhs);
@@ -396,13 +408,21 @@ struct SA_Reference : private SequenceArray_Base<T>
 
 	RTC_CALL void swap(SA_Reference<T>& rhs);
 
-//	SA_Iterator<T> operator &() const { return SA_Iterator<T>(m_Container, m_SeqPtr); }
 	SA_Iterator<T> makePtr() const { return SA_Iterator<T>(m_Container, m_SeqPtr); }
 
-	operator sequence_value_type () const
+	operator std::vector<T>() const
 	{
-		return sequence_value_type(begin(), end());
+		return { begin(), end() };
 	}
+	operator locked_sequence<T>() const
+	{
+		return { IterRange<const_iterator>(begin(), end()) MG_DEBUG_ALLOCATOR_SRC("SA_Reference copy") };
+	}
+	operator SharedStr() const requires(std::is_same_v<T, char>)
+	{
+		return SharedStr{ CharPtrRange(begin(), end()) MG_DEBUG_ALLOCATOR_SRC("SA_Reference copy") };
+	}
+
 
 private:
 	friend struct sequence_array<T>;
@@ -659,13 +679,13 @@ public:
 		,	m_Indices(pr ? pr->CloneForSeqs() : 0)
 	{}
 
-	RTC_CALL sequence_array(const sequence_array<T>& src, data_size_type expectedGrowth = 0);
+	RTC_CALL sequence_array(const sequence_array<T>& src, data_size_type expectedGrowth MG_DEBUG_ALLOCATOR_SRC_ARG);
 	sequence_array(sequence_array<T>&& rhs) noexcept { swap(rhs); }
 
-	void operator =(const sequence_array<T>& src) { assign(src, 0); }
+	void operator =(const sequence_array<T>& src) { assign(src, 0 MG_DEBUG_ALLOCATOR_SRC("sequence_array::operator =(const sequence_array<T>&)")); }
 	void operator =(sequence_array<T>&& src) noexcept { swap(src); }
 
-	RTC_CALL void assign(const sequence_array<T>& src, data_size_type expectedGrowth);
+	RTC_CALL void assign(const sequence_array<T>& src, data_size_type expectedGrowth MG_DEBUG_ALLOCATOR_SRC_ARG);
 	RTC_CALL void swap(sequence_array<T>& rhs) noexcept;
 
 	//=======================================
@@ -677,13 +697,13 @@ public:
 
 	void reserve(size_type n MG_DEBUG_ALLOCATOR_SRC_ARG)      { m_Indices.reserve(n MG_DEBUG_ALLOCATOR_SRC_PARAM); }
 	void reserve_data(size_type n MG_DEBUG_ALLOCATOR_SRC_ARG) { m_Values.reserve(n MG_DEBUG_ALLOCATOR_SRC_PARAM); }
-	void push_back(Undefined)      { m_Indices.push_back(seq_t( Undefined() )); }
+	void push_back(Undefined MG_DEBUG_ALLOCATOR_SRC_ARG)      { m_Indices.push_back(seq_t( Undefined() ) MG_DEBUG_ALLOCATOR_SRC_PARAM); }
 
 	template <typename CIter>
-	void push_back_seq(CIter first, CIter last)
+	void push_back_seq(CIter first, CIter last MG_DEBUG_ALLOCATOR_SRC_ARG)
 	{
-		m_Indices.push_back( seq_t());
-		allocateSequenceRange(m_Indices.end()-1, first, last);
+		m_Indices.push_back( seq_t() MG_DEBUG_ALLOCATOR_SRC_PARAM);
+		allocateSequenceRange(m_Indices.end()-1, first, last MG_DEBUG_ALLOCATOR_SRC_PARAM);
 	}
 	
 	//=======================================
@@ -855,16 +875,16 @@ public:
 	RTC_CALL void StreamIn (BinaryInpStream& ar, bool mayResize);
 
 protected:
-	template<typename Initializer> void allocateSequence(typename base_type::seq_iterator seqPtr, data_size_type newSize, Initializer&& initFunc);
+	template<typename Initializer> void allocateSequence(typename base_type::seq_iterator seqPtr, data_size_type newSize, Initializer&& initFunc MG_DEBUG_ALLOCATOR_SRC_ARG);
 
-	RTC_CALL void allocateSequenceRange(typename base_type::seq_iterator seqPtr, const_data_iterator first, const_data_iterator last);
+	RTC_CALL void allocateSequenceRange(typename base_type::seq_iterator seqPtr, const_data_iterator first, const_data_iterator last MG_DEBUG_ALLOCATOR_SRC_ARG);
 
 private:
 	void cut_seq(typename base_type::seq_iterator seqPtr, typename data_vector_t::size_type newSize);
 	void abandon(data_size_type first, data_size_type last);
-	template<typename Initializer> void appendInitializer(size_type n, Initializer&& init);
+	template<typename Initializer> void appendInitializer(size_type n, Initializer&& init MG_DEBUG_ALLOCATOR_SRC_ARG);
 
-	RTC_CALL void appendRange(const_data_iterator first, const_data_iterator last);
+	RTC_CALL void appendValues(const_data_iterator first, const_data_iterator last MG_DEBUG_ALLOCATOR_SRC_ARG);
 
 protected:
 	auto calcActualDataSize() const->data_size_type;
@@ -906,7 +926,7 @@ struct sequence_vector : sequence_array<T>
 		this->Lock(dms_rw_mode::write_only_all);
 	}
 	template<typename CIter>
-	sequence_vector(CIter i, CIter e);
+	sequence_vector(CIter i, CIter e MG_DEBUG_ALLOCATOR_SRC_ARG);
 	~sequence_vector()
 	{
 		if (this->IsAssigned())
@@ -930,18 +950,18 @@ struct sequence_vector : sequence_array<T>
 
 template <typename T>
 template <typename CIter>
-sequence_vector<T>::sequence_vector(CIter i, CIter e)
+sequence_vector<T>::sequence_vector(CIter i, CIter e MG_DEBUG_ALLOCATOR_SRC_ARG)
 	:	sequence_vector()
 {
 	auto srcDataSize = CalcActualDataSize(i, e);
 
-	this->reset(std::distance(i, e), srcDataSize MG_DEBUG_ALLOCATOR_SRC("sequence_vector from span"));
+	this->reset(std::distance(i, e), srcDataSize MG_DEBUG_ALLOCATOR_SRC_PARAM);
 
 	auto ri = this->m_Indices.begin();
 
 	while (i != e)
 	{
-		this->allocateSequenceRange(ri, begin_ptr(*i), end_ptr(*i));
+		this->allocateSequenceRange(ri, begin_ptr(*i), end_ptr(*i) MG_DEBUG_ALLOCATOR_SRC_PARAM);
 		++ri;
 		++i;
 	}
@@ -1073,7 +1093,15 @@ template <typename T> inline void Assign(SA_Reference<T> lhs, const std::vector<
 template <typename T> inline void Assign(SA_Reference<T> lhs, const locked_sequence<T>& rhs)
 {
 	if (IsDefined(rhs))
-		lhs.assign(begin_ptr(rhs), end_ptr(rhs));
+		lhs.assign(begin_ptr(rhs), end_ptr(rhs) MG_DEBUG_ALLOCATOR_SRC("Assign"));
+	else
+		lhs.assign(Undefined());
+}
+
+template <typename T> inline void Assign(SA_Reference<T> lhs, const my_vector<T>& rhs)
+{
+	if (IsDefined(rhs))
+		lhs.assign(begin_ptr(rhs), end_ptr(rhs) MG_DEBUG_ALLOCATOR_SRC("Assign"));
 	else
 		lhs.assign(Undefined());
 }
@@ -1096,12 +1124,27 @@ template <typename T> inline void Assign(std::vector<T>&  lhs, SA_Reference<T> r
 	lhs.assign(rhs.begin(), rhs.end()); 
 }
 
-template <typename T> inline void Assign(sequence_array_ref<T> lhs, const sequence_array<T>& rhs) 
+template <typename T> inline void Assign(my_vector<T>& lhs, SA_ConstReference<T> rhs)
+{
+	lhs.assign(rhs.begin(), rhs.end());
+}
+
+template <typename T> inline void Assign(my_vector<T>& lhs, SA_Reference<T> rhs)
+{
+	lhs.assign(rhs.begin(), rhs.end());
+}
+
+template <typename T> inline void Assign(sequence_array_ref<T> lhs, const sequence_array<T>& rhs)
 {
 	lhs.get_sa() = rhs;
 }
 
 template <typename T> inline void Assign(std::vector<T>& lhs, Undefined)
+{
+	vector_clear(lhs);
+}
+
+template <typename T> inline void Assign(my_vector<T>& lhs, Undefined)
 {
 	vector_clear(lhs);
 }

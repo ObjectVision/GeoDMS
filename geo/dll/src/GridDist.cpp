@@ -147,14 +147,14 @@ class GridDistOperator : public Operator
 			if (!IsDefined(newDist))
 				return false;
 
-			m_DistData .push_back(newDist);
+			m_DistData.push_back(newDist MG_DEBUG_ALLOCATOR_SRC("GridDistOperator.AddBorderCase"));
 			if (m_DistData.back() >= orgDist) // prevoius compare could have been done without rouding off 80 bits registers to Float64, this check hopefully doesn't suffer from this false optimization
 			{
 				m_DistData.pop_back();
 				return false;
 			}
-			m_IndexData.push_back(index);
-			m_EdgeData .push_back(src);
+			m_IndexData.push_back(index MG_DEBUG_ALLOCATOR_SRC("GridDistOperator.IndexData"));
+			m_EdgeData .push_back(src   MG_DEBUG_ALLOCATOR_SRC("GridDistOperator.EdgeData"));
 			++m_NumBorderCases;
 			return true;
 		}

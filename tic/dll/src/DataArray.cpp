@@ -10,8 +10,6 @@
 
 #include "DataArray.ipp"
 
-#include "mem/HeapSequenceProvider.ipp"
-
 #include <memory>
 
 #include "dbg/debug.h"
@@ -416,61 +414,7 @@ bool DataArrayBase<V>::CheckValuesUnit(const AbstrUnit* valuesUnit)
 {
 	return dynamic_cast<const unit_t*>(valuesUnit) != nullptr;
 }
-/*
-template <typename V>
-void DataArrayBase<V>::DoCreateWritable(AbstrDataItem* adi, dms_rw_mode rwMode, UInt32 nrElem, tile_id t)
-{
-	dms_assert(t < GetTiledRangeData()->GetNrTiles());
-	dms_assert(rwMode != dms_rw_mode::unspecified);
-	dms_assert(rwMode != dms_rw_mode::read_only);
 
-	MGD_CHECKDATA(!IsLocked(t));
-	if (m_Seqs[t].CanWrite() && (m_Seqs[t].Size() == nrElem) && (rwMode == dms_rw_mode::read_write))
-	{
-		if (m_Seqs[t].IsOpen())
-			goto exit;
-	}
-	else
-	{
-		if (adi && adi->GetTSF(DSF_DSM_Allocated))
-		{
-			dms_assert(!m_Seqs[t].IsHeapAllocated()); // follows from DSF_DSM_Allocated
-			if (m_Seqs[t].IsOpen())
-			{
-				if (rwMode == dms_rw_mode::read_write)
-					m_Seqs[t].Close();
-				else
-					m_Seqs[t].Drop();
-			}
-			DoCreateMappedFile(m_Seqs[t].GetFileName(), true, t); // get a non-const FileMapping
-		}	
-		else 
-		{
-//			dms_assert(!adi->GetTSF(TSF_DSM_DcKnown));  // else adi->GetTSF(DSF_DSM_Allocated) should have been true
-			if (!m_Seqs[t].IsAssigned() )
-				m_Seqs[t].Reset( heap_sequence_provider<typename elem_of<V>::type>::CreateProvider() );
-			dms_assert(m_Seqs[t].IsHeapAllocated());
-		}
-	}
-
-	dms_assert(!m_Seqs[t].IsOpen() || !(adi && adi->GetTSF(DSF_DSM_Allocated)));
-
-	m_Seqs[t].Open(
-		nrElem
-	,	rwMode
-	,	!(adi && adi->IsFnKnown())  // try to keep in RAM - FileCache if not persistent 
-	,	DSM::GetSafeFileWriterArray(adi)
-	);
-
-exit:
-	dms_assert(m_Seqs[t].IsOpen());
-	dms_assert(m_Seqs[t].CanWrite());
-	dms_assert(m_Seqs[t].Size() == nrElem);
-
-	MGD_CHECKDATA(!IsLocked(t));
-}
-
-*/
 
 template <typename V>
 constexpr bool is_real_numeric_v = is_numeric_v<V> && ! is_bitvalue_v<V>;

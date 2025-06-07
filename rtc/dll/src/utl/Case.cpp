@@ -23,7 +23,7 @@ inline char UpperCase(char ch)
 void UpperCase(StringRef& result, CharPtr begin, CharPtr end)
 {
 	dms_assert(end || !begin);
-	result.resize_uninitialized( end-begin );
+	result.resize_uninitialized( end-begin MG_DEBUG_ALLOCATOR_SRC("UpperCase"));
 	char* res = result.begin();
 	while (begin != end)
 		*res++ = UpperCase(*begin++);
@@ -39,7 +39,7 @@ inline char LowerCase(char ch)
 void LowerCase(StringRef& result, CharPtr begin, CharPtr end)
 {
 	dms_assert(end || !begin);
-	result.resize_uninitialized( end-begin );
+	result.resize_uninitialized( end-begin MG_DEBUG_ALLOCATOR_SRC("LowerCase"));
 	char* res = result.begin();
 	while (begin != end)
 		*res++ = LowerCase(*begin++);

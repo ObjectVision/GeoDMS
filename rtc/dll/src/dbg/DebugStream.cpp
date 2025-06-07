@@ -108,7 +108,7 @@ void MsgDispatch(MsgData* msgData, bool moreToCome)
 		return;
 
 	if (msgData->m_Txt.ssize() > 256)
-		msgData->m_Txt = SharedStr(msgData->m_Txt.begin(), msgData->m_Txt.begin() + 256) + "...";
+		msgData->m_Txt = SharedStr(CharPtrRange(msgData->m_Txt.begin(), msgData->m_Txt.begin() + 256)) + "...";
 
 	TMsgCallbackSinkContainer::iterator
 		b = g_MsgCallbacks->begin(),
@@ -169,7 +169,7 @@ namespace { // DebugOutStreamBuff is local
 					if (eolPtr != i)
 					{
 						auto eosPtr = eolPtr; if (eosPtr[-1] == char(0)) --eosPtr;
-						msgData->m_Txt = SharedStr(i, eosPtr); // TODO: can we avoid this extra string copy by forwarding a CharPtrRange ?
+						msgData->m_Txt = SharedStr(CharPtrRange(i, eosPtr)); // TODO: can we avoid this extra string copy by forwarding a CharPtrRange ?
 						MsgDispatch(msgData, eolPtr != e);
 						msgData->m_IsFollowup = true;
 					}
@@ -254,7 +254,7 @@ namespace { // DebugOutStreamBuff is local
 
 			assert(m_Data.end()[-1] == char(0));
 
-			PostLogMsg(MsgData(m_Severity, m_MsgCat, false, GetThreadID(), StreamableDateTime(), SharedStr(begin_ptr(m_Data), end_ptr(m_Data))));
+			PostLogMsg(MsgData(m_Severity, m_MsgCat, false, GetThreadID(), StreamableDateTime(), SharedStr(CharPtrRange(begin_ptr(m_Data), end_ptr(m_Data)))));
 			m_Data.clear();
 		}
 		bool AtEnd() const override { return false; }
@@ -632,7 +632,7 @@ CDebugLog* DMS_CONV DBG_DebugLog_Open(CharPtr fileName)
 {
 	DMS_CALL_BEGIN
 
-		return new CDebugLog(SharedStr(fileName));
+		return new CDebugLog(SharedStr(fileName MG_DEBUG_ALLOCATOR_SRC("DBG_DebugLog_Open")));
 
 	DMS_CALL_END
 	return nullptr;

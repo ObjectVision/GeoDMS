@@ -530,7 +530,7 @@ void ConfigProd::DoExprProp(iterator_t first, iterator_t last)
 {
 	dms_assert(m_pCurrent);
 
-	m_pCurrent->SetExpr(SharedStr(&*first, &*last));
+	m_pCurrent->SetExpr(SharedStr(CharPtrRange(&*first, &*last)));
 }
 
 ///////////////////////////////////////////////////////////////////////////////

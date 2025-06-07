@@ -115,7 +115,16 @@ template<typename T>
 inline void Assign(SA_Reference<T> lhs, const null_wrap<locked_sequence<T>>& rhs)
 {
 	if (rhs.IsDefined())
-		lhs.assign(begin_ptr(rhs.value()), end_ptr(rhs.value()));
+		lhs.assign(begin_ptr(rhs.value()), end_ptr(rhs.value()) MG_DEBUG_ALLOCATOR_SRC("Assign"));
+	else
+		lhs.assign(Undefined());
+}
+
+template<typename T>
+inline void Assign(SA_Reference<T> lhs, const null_wrap<my_vector<T>>& rhs)
+{
+	if (rhs.IsDefined())
+		lhs.assign(begin_ptr(rhs.value()), end_ptr(rhs.value()) MG_DEBUG_ALLOCATOR_SRC("Assign"));
 	else
 		lhs.assign(Undefined());
 }
@@ -123,7 +132,7 @@ inline void Assign(SA_Reference<T> lhs, const null_wrap<locked_sequence<T>>& rhs
 inline void Assign(StringRef lhs, const null_wrap<SharedStr>& rhs)
 {
 	if (rhs.IsDefined())
-		lhs.assign(rhs->begin(), rhs->send());
+		lhs.assign(rhs->begin(), rhs->send() MG_DEBUG_ALLOCATOR_SRC("Assign"));
 	else
 		lhs.assign(Undefined());
 }

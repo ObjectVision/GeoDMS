@@ -125,7 +125,7 @@ extern std::mutex s_mutableTileRecSection;
 template <typename V>
 void InitTile(SharedPtr<tile<V>>& tilePtr, const AbstrTileRangeData* trd, tile_id t, bool mustClear)
 {
-	auto sectionLokc = std::unique_lock(s_mutableTileRecSection);
+	auto sectionLock = std::unique_lock(s_mutableTileRecSection);
 	if (!tilePtr)
 	{
 		tilePtr = new tile<V>;

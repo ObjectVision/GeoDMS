@@ -70,7 +70,7 @@ struct Element : SharedBase
 	void Release() const { if (!DecRef()) delete this;	}
 	virtual void AddValue(entity_id parentID, CharPtr begin, CharPtr end) {}
 
-	SharedStr GetName() const { return m_DmsFullName.empty() ? SharedStr() : SharedStr(m_DmsFullName.begin()+1, m_DmsFullName.send()); }
+	SharedStr GetName() const { return m_DmsFullName.empty() ? SharedStr() : SharedStr(CharPtrRange(m_DmsFullName.begin()+1, m_DmsFullName.send())); }
 
 	Entity*      m_Parent = nullptr;
 	entity_index m_EntityIndex = UNDEFINED_VALUE(entity_index);
@@ -123,8 +123,8 @@ struct Attribute : Element
 		if (currCount >= entityCount)
 			m_Attr->throwItemErrorF("Too many occurences of attribute %s in entity %s #%I64u", GetName(), m_Parent->GetName(), UInt64(entityCount));
 		for (SizeT i= entityCount - currCount - 1; i;--i)
-			m_Data.push_back(Undefined());
-		m_Data.push_back_seq(begin, end);
+			m_Data.push_back(Undefined() MG_DEBUG_ALLOCATOR_SRC("XML::Attribute.AddUndefined"));
+		m_Data.push_back_seq(begin, end MG_DEBUG_ALLOCATOR_SRC("XML::Attribute.AddValue"));
 		assert(m_Data.size() == entityCount);
 	}
 
@@ -189,7 +189,7 @@ struct ParseContext
 		{
 			iter = m_Map.insert(iter, entity_map::value_type(key, CreateElement(m_ResultHolder, context, id, name, nameEnd, m_EntityNames.size())));
 			SharedStr elementName = mySSPrintF("%s.%s", ns.GetStr().c_str(), id.GetStr().c_str());
-			m_EntityNames.push_back_seq(elementName.cbegin(), elementName.csend());
+			m_EntityNames.push_back_seq(elementName.cbegin(), elementName.csend() MG_DEBUG_ALLOCATOR_SRC("BoostXML::EntityNames"));
 			if (!iter->second->m_DmsFullName.empty())
 				m_KnownEntities.insert(std::make_pair(iter->second->m_DmsFullName, iter->second.get_ptr()));
 		}
@@ -357,7 +357,7 @@ struct RapidXmlOperator : public BinaryOperator
 		{
 			boost::property_tree::detail::rapidxml::xml_document<char> doc;
 
-			SharedStr strCopy(stringRef.begin(), stringRef.end());
+			SharedStr strCopy(CharPtrRange(stringRef.begin(), stringRef.end()));
 
 			doc.parse<boost::property_tree::detail::rapidxml::parse_trim_whitespace | boost::property_tree::detail::rapidxml::parse_no_string_terminators>(strCopy.begin() );
 

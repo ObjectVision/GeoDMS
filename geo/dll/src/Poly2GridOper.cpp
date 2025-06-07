@@ -829,7 +829,8 @@ struct Poly2AllGridsOperator : public BinaryOperator
 	template <typename CrdPoint>
 	struct Poly2gridOperators
 	{
-		using PolygonType = std::vector<CrdPoint>;
+		using PointType = CrdPoint;
+		using PolygonType = sequence_traits<PointType>::container_type;
 		using PolygonDataType = DataArray<PolygonType>;
 
 		tl_oper::inst_tuple_templ<typelists::domain_points, DomainInst, const DataItemClass*> m_AllDomainsInst = PolygonDataType::GetStaticClass();

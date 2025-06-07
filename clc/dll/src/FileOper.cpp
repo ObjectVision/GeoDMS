@@ -200,10 +200,10 @@ public:
 				Assign(resultData[i],
 					AbstrStorageManager::GetFullStorageName(
 						args[0],              // context
-						SharedStr(            // relFileName
+						SharedStr(CharPtrRange(            // relFileName
 							fileNameData[i].begin(), 
 							fileNameData[i].end()  
-						)
+						))
 					)
 				);
 			lock.Commit();

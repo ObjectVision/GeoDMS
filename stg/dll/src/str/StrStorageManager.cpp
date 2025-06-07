@@ -60,7 +60,7 @@ bool StrStorageManager::ReadDataItem (StorageMetaInfoPtr smi, AbstrDataObject* b
 			auto sdoData = sdo->GetWritableTile(t, dms_rw_mode::read_write);
 			dms_assert(sdoData.size() == n);
 
-			sdoData[i].resize_uninitialized(fileSize);
+			sdoData[i].resize_uninitialized(fileSize MG_DEBUG_ALLOCATOR_SRC("StrStorageManager::ReadDataItem"));
 			dataBegin = sdoData[i].begin();
 			dataSize  = fileSize;
 		}

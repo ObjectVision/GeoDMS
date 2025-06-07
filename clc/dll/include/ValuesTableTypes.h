@@ -43,8 +43,6 @@ concept count_type = requires(C a, C b)
 
 using CountType = SizeT;
 
-template <typename V> using my_vector = std::vector<V, my_allocator<V>>;
-
 template<ordered_value_type V, count_type C = CountType> using ValueCountPair = std::pair<V, C>;
 template<ordered_value_type V, count_type C = CountType> using ValueCountPairContainerT = my_vector< ValueCountPair<V, C> >;
 template<ordered_value_type V, count_type C = CountType> using PartionedValueCountPairContainerT = ValueCountPairContainerT<Pair<SizeT, V>, C>;

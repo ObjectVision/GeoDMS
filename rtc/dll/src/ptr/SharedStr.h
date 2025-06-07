@@ -155,8 +155,8 @@ inline bool equal<CharPtr>(CharPtr f1, CharPtr l1, CharPtr f2, CharPtr l2)
 
 //----------------------------------------------------------------------
 
-RTC_CALL SharedCharArray* SharedCharArray_Create(CharPtr str);
-RTC_CALL SharedCharArray* SharedCharArray_Create(CharPtr begin, CharPtr end);
+RTC_CALL SharedCharArray* SharedCharArray_Create(CharPtr str MG_DEBUG_ALLOCATOR_SRC_ARG);
+RTC_CALL SharedCharArray* SharedCharArray_Create(CharPtr begin, CharPtr end MG_DEBUG_ALLOCATOR_SRC_ARG);
 RTC_CALL SharedCharArray* SharedCharArray_CreateEmpty();
 inline constexpr SharedCharArray* SharedCharArray_CreateUndefined() { return nullptr; }
 
@@ -222,25 +222,26 @@ private:
 
 public:
 	RTC_CALL SharedStr() noexcept;
-	SharedStr(CharPtr begin, CharPtr end): base_type(SharedCharArray_Create(begin, end) ){}
+//	SharedStr(CharPtr begin, CharPtr end MG_DEBUG_ALLOCATOR_SRC(CharPtr srcStr = "SharedStr")): base_type(SharedCharArray_Create(begin, end MG_DEBUG_ALLOCATOR_SRC_PARAM) ){}
 	SharedStr(WeakStr str)               : base_type(str.get_ptr()) {}
 	SharedStr(SharedStr&& str) noexcept  : base_type(std::move(str)) {}
 
 	explicit SharedStr(const SharedStr& rhs) = default;
-	explicit SharedStr(CharPtr zStr)             : base_type(SharedCharArray_Create(zStr) ) {}
-	explicit SharedStr(const std::string& strStr): base_type(SharedCharArray_Create(begin_ptr(strStr), end_ptr(strStr))) {}
+	explicit SharedStr(CharPtr zStr MG_DEBUG_ALLOCATOR_SRC(CharPtr srcStr = "SharedStr")) : base_type(SharedCharArray_Create(zStr MG_DEBUG_ALLOCATOR_SRC_PARAM)) {}
+	explicit SharedStr(const std::string& strStr MG_DEBUG_ALLOCATOR_SRC(CharPtr srcStr = "SharedStr")): base_type(SharedCharArray_Create(begin_ptr(strStr), end_ptr(strStr) MG_DEBUG_ALLOCATOR_SRC_PARAM)) {}
 	template <unsigned int N> explicit SharedStr(const char(&str)[N] )     : base_type(SharedCharArray_Create(str, str+N-1) ){ dms_assert(!str[N-1]); }
 	template <unsigned int N> explicit SharedStr(const char8_t(&str)[N])   : base_type(SharedCharArray_Create(reinterpret_cast<CharPtr>(str), reinterpret_cast<CharPtr>(str) + N - 1)) { dms_assert(!str[N - 1]); }
 	explicit SharedStr(SharedCharArray* arrayPtr): base_type(arrayPtr) {}
 	constexpr explicit SharedStr(const Undefined&) : base_type(SharedCharArray_CreateUndefined()) {}
-	RTC_CALL explicit SharedStr(MutableCharPtrRange range);
-	RTC_CALL explicit SharedStr(CharPtrRange range);
-	RTC_CALL explicit SharedStr(TokenID id);
-	RTC_CALL explicit SharedStr(const struct TokenStr& str);
-	RTC_CALL SharedStr(const SA_ConstReference<char>& range);
+	RTC_CALL explicit SharedStr(MutableCharPtrRange range MG_DEBUG_ALLOCATOR_SRC(CharPtr srcStr = "SharedStr::SharedStr(MutableCharPtrRange range)"));
+	RTC_CALL explicit SharedStr(CharPtrRange range MG_DEBUG_ALLOCATOR_SRC(CharPtr srcStr = "SharedStr::SharedStr(CharPtrRange range)"));
+//	RTC_CALL explicit SharedStr(IterRange<CharPtr> range MG_DEBUG_ALLOCATOR_SRC(CharPtr srcStr = "SharedStr::SharedStr(CharPtrRange range)"));
+	RTC_CALL explicit SharedStr(TokenID id MG_DEBUG_ALLOCATOR_SRC(CharPtr srcStr = "SharedStr::SharedStr(TokenID id)"));
+	RTC_CALL explicit SharedStr(const struct TokenStr& str MG_DEBUG_ALLOCATOR_SRC(CharPtr srcStr = "SharedStr::SharedStr(const struct TokenStr&)"));
+	RTC_CALL SharedStr(const SA_ConstReference<char>& range MG_DEBUG_ALLOCATOR_SRC(CharPtr srcStr = "SharedStr::SharedStr(const SA_ConstReference<char>&)"));
 
-	void operator = (CharPtr zStr) { assign(SharedCharArray_Create(zStr)); }
-	void operator = (const char8_t* zStr) { assign(SharedCharArray_Create(reinterpret_cast<CharPtr>(zStr))); }
+	void operator = (CharPtr zStr) { assign(SharedCharArray_Create(zStr MG_DEBUG_ALLOCATOR_SRC("SharedStr::operator = (CharPtr)"))); }
+	void operator = (const char8_t* zStr) { assign(SharedCharArray_Create(reinterpret_cast<CharPtr>(zStr) MG_DEBUG_ALLOCATOR_SRC("SharedStr::operator = (const char8_t*)"))); }
 	//	template <unsigned int N> void operator = (const char str[N])    { assign(SharedCharArray_Create(str, str + N - 1)); dms_assert(!str[N - 1]); }
 	//	template <unsigned int N> void operator = (const char8_t str[N]) { assign(SharedCharArray_Create(reinterpret_cast<CharPtr>(str), reinterpret_cast<CharPtr>(str)+N-1)); dms_assert(!str[N - 1]); }
 	void operator = (WeakStr  str) { assign(str.get_ptr()); }
@@ -277,7 +278,7 @@ public:
 	RTC_CALL MutableCharPtrRange GetAsMutableRange();
 	SharedCharArray* GetAsMutableCharArray()   { MakeUnique(); return const_cast<SharedCharArray*>(get_ptr()); }
 
-	RTC_CALL void resize(SizeT sz);
+	RTC_CALL void resize(SizeT sz MG_DEBUG_ALLOCATOR_SRC_ARG);
 	RTC_CALL bool contains(CharPtrRange subStr) const;
 	RTC_CALL bool contains_case_insensitive(CharPtrRange subStr) const;
 

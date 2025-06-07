@@ -36,16 +36,39 @@ struct locked_sequence : sequence_traits<V>::polymorph_vec_t
 		fast_fill(this->begin(), this->end(), v);
 	}
 
-	locked_sequence(const_iterator first, const_iterator last)
+	locked_sequence(IterRange<const_iterator> range MG_DEBUG_ALLOCATOR_SRC_ARG)
 		: locked_sequence<V>(false)
 	{
-		this->appendRange(first, last);
+		this->append(range.first, range.second MG_DEBUG_ALLOCATOR_SRC_PARAM);
 	}
-	locked_sequence(const locked_sequence<V>& other) = delete;
-	locked_sequence(locked_sequence<V>&& other) = default;
 
-	locked_sequence<V>& operator=(const locked_sequence<V>& other) = delete;
-	locked_sequence<V>& operator=(locked_sequence<V>&& other) = default;
+	locked_sequence(const_iterator first, const_iterator last MG_DEBUG_ALLOCATOR_SRC_ARG)
+		: locked_sequence<V>(false)
+	{
+		this->append(first, last MG_DEBUG_ALLOCATOR_SRC_PARAM);
+	}
+
+	locked_sequence(const locked_sequence<V>& rhs MG_DEBUG_ALLOCATOR_SRC_ARG)
+		: locked_sequence<V>(rhs.begin(), rhs.end() MG_DEBUG_ALLOCATOR_SRC_PARAM)
+	{}
+
+	locked_sequence(locked_sequence<V>&& other)
+		: locked_sequence<V>(false)
+	{
+		this->swap(other);
+	}
+
+	locked_sequence<V>& operator=(const locked_sequence<V>& other)
+	{
+		auto ohterCopy = locked_sequence<V>(other.begin(), other.end());
+		this->swap(ohterCopy);
+		return *this;
+	}
+	locked_sequence<V>& operator=(locked_sequence<V>&& other) noexcept
+	{
+		this->swap(other);
+		return *this;
+	}
 
 	~locked_sequence()
 	{

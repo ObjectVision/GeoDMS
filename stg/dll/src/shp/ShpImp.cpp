@@ -659,7 +659,7 @@ std::size_t ShpParts::Read(FILE * fp, ShpPartIndex num_parts)
     DBG_START("ShpParts", "Read", false);
 	
 	// Make room
-	get_ptr()->resize_uninitialized(num_parts);
+	get_ptr()->resize_uninitialized(num_parts MG_DEBUG_ALLOCATOR_SRC("ShpParts::Read"));
 	if (!num_parts)
 		return 0;
 
@@ -752,7 +752,7 @@ std::size_t Write(FILE * fp, const ShpPoint* ptr, UInt32 nrPoints)
 std::size_t ShpPoints::Read(FILE * fp, ShpPointIndex num_points)
 {
 	// Make room
-	get_ptr()->resize_uninitialized(num_points);
+	get_ptr()->resize_uninitialized(num_points MG_DEBUG_ALLOCATOR_SRC("ShpPoints::Read"));
 	if (!num_points)
 		return 0;
 	return ::Read(fp, &*(get_ptr()->begin()), num_points);
@@ -785,7 +785,7 @@ std::size_t ShpPolygon::Read(FILE* fp)
 		pos += m_Parts .Read(fp, m_Header.m_NumParts);
 	else
 	{
-		m_Parts.get_ptr()->resize_uninitialized(1);
+		m_Parts.get_ptr()->resize_uninitialized(1 MG_DEBUG_ALLOCATOR_SRC("ShpPolygon::Read"));
 		m_Parts.get_ptr()->front() = 0;
 	}
 	pos += m_Points.Read(fp, m_Header.m_NumPoints);
@@ -971,8 +971,8 @@ ShpPolygon& ShpImp::ShapeSet_PushBackPolygon(ShapeTypes shapeType)
 	ShpPolygon& polygon = m_Polygons.back();
 	polygon.m_Points.m_Container = &m_SeqPoints;
 	polygon.m_Parts .m_Container = &m_SeqParts;
-	polygon.m_Points.m_Index = m_SeqPoints.size(); m_SeqPoints.push_back(Undefined());
-	polygon.m_Parts .m_Index = m_SeqParts .size(); m_SeqParts .push_back(Undefined());
+	polygon.m_Points.m_Index = m_SeqPoints.size(); m_SeqPoints.push_back(Undefined() MG_DEBUG_ALLOCATOR_SRC("ShpImp::ShapeSet_PushBackPolygon.m_SeqPoints"));
+	polygon.m_Parts .m_Index = m_SeqParts .size(); m_SeqParts .push_back(Undefined() MG_DEBUG_ALLOCATOR_SRC("ShpImp::ShapeSet_PushBackPolygon.m_SeqParts" ));
 	return polygon;
 }
 

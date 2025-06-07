@@ -87,7 +87,7 @@ namespace { // local defs
 	source_seq_index SourceCalculator::Assign0()
 	{
 		auto result = m_SourceSecArray.size();
-		m_SourceSecArray.push_back(Undefined());
+		m_SourceSecArray.push_back(Undefined() MG_DEBUG_ALLOCATOR_SRC("SourceCalculator::Assign0()"));
 		return result;
 	}
 
@@ -96,7 +96,7 @@ namespace { // local defs
 		,	m_bShowHidden(bShowHidden)
 		,	m_SourceSecArray(1 MG_DEBUG_ALLOCATOR_SRC_SA)
 	{
-		m_SourceSecArray.push_back(Undefined());
+		m_SourceSecArray.push_back(Undefined()  MG_DEBUG_ALLOCATOR_SRC("SourceCalculator::SourceCalculator"));
 		assert(m_SourceSecArray[0].size() == 0);
 	}
 
@@ -187,7 +187,7 @@ namespace { // local defs
 
 
 		auto result = m_SourceSecArray.size();
-		m_SourceSecArray.push_back_seq(begin_ptr(resultingTokenSequence), end_ptr(resultingTokenSequence));
+		m_SourceSecArray.push_back_seq(begin_ptr(resultingTokenSequence), end_ptr(resultingTokenSequence) MG_DEBUG_ALLOCATOR_SRC("SourceCalculator.SourceSecArray"));
 		return result;
 	}
 
@@ -229,7 +229,7 @@ namespace { // local defs
 			fout << " First error at:\n" << m_FirstErrorItem->GetSourceName();
 
 		CharPtr first = vout.GetData();
-		return SharedStr(first, first + vout.CurrPos());
+		return SharedStr(CharPtrRange(first, first + vout.CurrPos()));
 	}
 
 	SharedStr SourceCalculator::GetDescr(TreeItem const * ti)
@@ -247,7 +247,7 @@ namespace { // local defs
 			fout << first_error_item;
 
 		CharPtr first = vout.GetData();
-		return SharedStr(first, first+vout.CurrPos());
+		return SharedStr(CharPtrRange(first, first+vout.CurrPos()));
 	}
 
 } // end of anonymous namespace

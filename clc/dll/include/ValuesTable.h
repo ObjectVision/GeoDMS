@@ -234,7 +234,7 @@ template <ordered_value_type V, count_type C>
 auto MergeToLeft(const ValueCountPairContainerT<V, C>& left, const ValueCountPairContainerT<V, C>& right) -> ValueCountPairContainerT<V, C>
 {
 	ValueCountPairContainerT<V, C> result;
-	result.resize(left.size() + right.size());
+	result.resize(left.size() + right.size() MG_DEBUG_ALLOCATOR_SRC("MergeToLeft"));
 
 	if (!result.empty())
 	{

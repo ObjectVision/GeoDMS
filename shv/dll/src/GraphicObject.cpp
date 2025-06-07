@@ -741,7 +741,7 @@ void GraphicObject::FillMenu(MouseEventDispatcher& med)
 				item = cr->FindBestItem(fr->FullName()).first;
 		while (true) {
 			CharPtr eol = std::find(bol, eos, '\n');
-			auto txt = SharedStr(bol, eol);
+			auto txt = SharedStr(CharPtrRange(bol, eol));
 			if (item)
 				med.m_MenuData.push_back( MenuItem(txt, new RequestClientCmd(item, CC_Activate), this) );
 			else

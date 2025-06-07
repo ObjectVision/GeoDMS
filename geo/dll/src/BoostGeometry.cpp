@@ -141,14 +141,14 @@ static CommonOperGroup grBgOuter_multi_polygon("bg_outer_multi_polygon", oper_po
 //	map algebraic operations on boost geometry polygons
 // *****************************************************************************
 
-template <typename P> using sequence_t = std::vector<P>;
+template <typename P> using sequence_t = sequence_traits<P>::container_type;
 template <typename P> using BinaryMapAlgebraicOperator = BinaryAttrOper<sequence_t<P>, sequence_t<P>, sequence_t<P>>;
 
 template <typename P, typename BinaryBgMpOper>
 struct BgMultiPolygonOperator : BinaryMapAlgebraicOperator<P>
 {
 	using PointType = P;
-	using PolygonType = std::vector<PointType>;
+	using PolygonType = sequence_traits<PointType>::container_type;
 	using ArgType = DataArray<PolygonType>;
 
 	BgMultiPolygonOperator(AbstrOperGroup& gr, BinaryBgMpOper&& oper = BinaryBgMpOper())
@@ -200,7 +200,7 @@ template <typename P, typename BinaryBgMpOper>
 struct CGAL_MultiPolygonOperator : BinaryMapAlgebraicOperator<P>
 {
 	using PointType = P;
-	using PolygonType = std::vector<PointType>;
+	using PolygonType = sequence_traits<PointType>::container_type;
 	using ArgType = DataArray<PolygonType>;
 
 	CGAL_MultiPolygonOperator(AbstrOperGroup& gr, BinaryBgMpOper&& oper = BinaryBgMpOper())
@@ -253,7 +253,7 @@ template <typename P, typename BinaryBgMpOper>
 struct GEOS_MultiPolygonOperator : BinaryMapAlgebraicOperator<P>
 {
 	using PointType = P;
-	using PolygonType = std::vector<PointType>;
+	using PolygonType = sequence_traits<PointType>::container_type;
 	using ArgType = DataArray<PolygonType>;
 
 	GEOS_MultiPolygonOperator(AbstrOperGroup& gr, BinaryBgMpOper&& oper = BinaryBgMpOper())
@@ -401,7 +401,7 @@ template <typename P, geometry_library GL>
 struct SimplifyMultiPolygonOperator : public AbstrSimplifyOperator
 {
 	using PointType = P;
-	using PolygonType = std::vector<PointType>;
+	using PolygonType = sequence_traits<PointType>::container_type;
 	using Arg1Type = DataArray<PolygonType>;
 
 	SimplifyMultiPolygonOperator(AbstrOperGroup& aog)
@@ -500,7 +500,7 @@ template <typename P>
 struct SimplifyPolygonOperator : public AbstrSimplifyOperator
 {
 	using PointType = P;
-	using PolygonType = std::vector<PointType>;
+	using PolygonType = sequence_traits<PointType>::container_type;
 	using Arg1Type = DataArray<PolygonType>;
 
 	SimplifyPolygonOperator()
@@ -569,7 +569,7 @@ template <typename P>
 struct SimplifyLinestringOperator : public AbstrSimplifyOperator
 {
 	using PointType = P;
-	using PolygonType = std::vector<PointType>;
+	using PolygonType = sequence_traits<PointType>::container_type;
 	using Arg1Type = DataArray<PolygonType>;
 
 	SimplifyLinestringOperator()
@@ -705,7 +705,7 @@ struct BufferPointOperator : public AbstrBufferOperator
 {
 	using PointType = P;
 	using CoordType = scalar_of_t<PointType>;
-	using PolygonType = std::vector<PointType>;
+	using PolygonType = sequence_traits<PointType>::container_type;
 	using Arg1Type = DataArray<PointType>;
 	using ResultType = DataArray<PolygonType>;
 
@@ -822,7 +822,7 @@ struct BufferMultiPointOperator : public AbstrBufferOperator
 {
 	using PointType = P;
 	using CoordType = scalar_of_t<PointType>;
-	using PolygonType = std::vector<PointType>;
+	using PolygonType = sequence_traits<PointType>::container_type;
 	using Arg1Type = DataArray<PolygonType>;
 
 	BufferMultiPointOperator(AbstrOperGroup& gr)
@@ -971,7 +971,7 @@ struct BufferLineStringOperator : public AbstrBufferOperator
 {
 	using PointType = P;
 	using CoordType = scalar_of_t<PointType>;
-	using PolygonType = std::vector<PointType>;
+	using PolygonType = sequence_traits<PointType>::container_type;
 	using Arg1Type = DataArray<PolygonType>;
 
 	BufferLineStringOperator(AbstrOperGroup& gr)
@@ -1098,7 +1098,7 @@ template <typename P, geometry_library GL>
 struct BufferMultiPolygonOperator : public AbstrBufferOperator
 {
 	using PointType = P;
-	using PolygonType = std::vector<PointType>;
+	using PolygonType = sequence_traits<PointType>::container_type;
 	using Arg1Type = DataArray<PolygonType>;
 
 	BufferMultiPolygonOperator(AbstrOperGroup& gr)
@@ -1186,7 +1186,7 @@ template <typename P>
 struct BufferSinglePolygonOperator : public AbstrBufferOperator
 {
 	using PointType = P;
-	using PolygonType = std::vector<PointType>;
+	using PolygonType = sequence_traits<PointType>::container_type;
 	using Arg1Type = DataArray<PolygonType>;
 
 	BufferSinglePolygonOperator(AbstrOperGroup& gr)
@@ -1306,7 +1306,7 @@ template <typename P>
 struct OuterMultiPolygonOperator : public AbstrOuterOperator
 {
 	using PointType = P;
-	using PolygonType = std::vector<PointType>;
+	using PolygonType = sequence_traits<PointType>::container_type;
 	using Arg1Type = DataArray<PolygonType>;
 
 	OuterMultiPolygonOperator(AbstrOperGroup& gr)
@@ -1339,7 +1339,7 @@ template <typename P>
 struct OuterSingePolygonOperator : public AbstrOuterOperator
 {
 	using PointType = P;
-	using PolygonType = std::vector<PointType>;
+	using PolygonType = sequence_traits<PointType>::container_type;
 	using Arg1Type = DataArray<PolygonType>;
 
 	OuterSingePolygonOperator(AbstrOperGroup& gr)

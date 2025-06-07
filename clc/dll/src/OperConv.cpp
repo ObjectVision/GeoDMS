@@ -510,7 +510,7 @@ struct Type1DConversion  : unary_func<TR,TA>
 	{
 		for (; pai != pae; ++pri, ++pai)
 		{
-			pri->resize_uninitialized(pai->size());
+			pri->resize_uninitialized(pai->size() MG_DEBUG_ALLOCATOR_SRC("ltrim_assign"));
 			Dispatch(pri->begin(), pai->begin(), pai->end());
 		}
 	}
@@ -842,7 +842,7 @@ void AssignFuncRes0(
 	  SA_Reference     <typename Functor::res_type > res,
 	  SA_ConstReference<typename Functor::arg1_type> arg)
 {
-	res.resize_uninitialized(arg.size());
+	res.resize_uninitialized(arg.size() MG_DEBUG_ALLOCATOR_SRC("AssignFuncRes0"));
 	dms_transform(arg.begin(), arg.end(), res.begin(), func);
 }
 
@@ -1199,7 +1199,7 @@ public:
 			DataWriteLock resLock(res);
 			ResultType* result = mutable_array_cast<SharedStr>(resLock);
 
-			Assign(result->GetDataWrite()[0], SharedStr(dataBegin, dataBegin+ vout.CurrPos()));
+			Assign(result->GetDataWrite()[0], SharedStr(CharPtrRange(dataBegin, dataBegin+ vout.CurrPos())));
 
 			resLock.Commit();
 		}

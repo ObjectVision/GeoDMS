@@ -187,7 +187,7 @@ inline char* _SingleQuote(char* buf, CharPtr begin, CharPtr end)
 
 SharedStr SingleQuote(CharPtr str)
 {
-	SharedCharArray* result = SharedCharArray::CreateUninitialized(sizeSingleQuouteMiddle(str)+3);
+	SharedCharArray* result = SharedCharArray::CreateUninitialized(sizeSingleQuouteMiddle(str)+3 MG_DEBUG_ALLOCATOR_SRC("SingleQuote"));
 	SharedStr resultStr(result);
 
 	char* resEnd = _SingleQuote(result->begin(), str);
@@ -199,7 +199,7 @@ SharedStr SingleQuote(CharPtr str)
 void SingleQuote  (StringRef& result, CharPtr begin, CharPtr end)
 {
 	dms_assert(end || !begin);
-	result.resize_uninitialized(sizeSingleQuouteMiddle(begin, end) + 2);
+	result.resize_uninitialized(sizeSingleQuouteMiddle(begin, end) + 2 MG_DEBUG_ALLOCATOR_SRC("SingleQuote"));
 	end = _SingleQuote(&result[0], begin, end);
 	dms_assert(result.size() == end - &(result[0]));
 }
@@ -207,7 +207,7 @@ void SingleQuote  (StringRef& result, CharPtr begin, CharPtr end)
 void SingleQuote  (SharedStr& result, CharPtr begin, CharPtr end)
 {
 	dms_assert(end || !begin);
-	SharedCharArray* resPtr = SharedCharArray::CreateUninitialized( sizeSingleQuouteMiddle(begin, end)+3 );
+	SharedCharArray* resPtr = SharedCharArray::CreateUninitialized( sizeSingleQuouteMiddle(begin, end)+3 MG_DEBUG_ALLOCATOR_SRC("SingleQuote"));
 	result = SharedStr(resPtr);
 	char* resEnd = _SingleQuote(resPtr->begin(), begin, end);
 	*resEnd = 0;
@@ -356,7 +356,7 @@ inline char* _DoubleQuote(char* buf, CharPtr begin, CharPtr end)
 
 SharedStr DoubleQuote(CharPtr str)
 {
-	SharedCharArray* result = SharedCharArray::CreateUninitialized(sizeDoubleQuouteMiddle(str)+3);
+	SharedCharArray* result = SharedCharArray::CreateUninitialized(sizeDoubleQuouteMiddle(str)+3 MG_DEBUG_ALLOCATOR_SRC("DoubleQuote"));
 	SharedStr resultStr(result);
 
 	char* resEnd = _DoubleQuote(result->begin(), str);
@@ -369,7 +369,7 @@ SharedStr DoubleQuote(CharPtr str)
 void DoubleQuote(sequence_array<char>::reference& result, CharPtr begin, CharPtr end)
 {
 	dms_assert(end || !begin);
-	result.resize_uninitialized(sizeDoubleQuouteMiddle(begin, end)+2);
+	result.resize_uninitialized(sizeDoubleQuouteMiddle(begin, end)+2 MG_DEBUG_ALLOCATOR_SRC("DoubleQuote"));
 	end = _DoubleQuote(&(result[0]), begin, end);
 	dms_assert(result.size() == end - &(result[0]));
 }
@@ -568,7 +568,7 @@ SharedStr SingleUnQuoteMiddle(CharPtr str)
 	auto sz = _SingleUnQuoteMiddleSize(str);
 	if (!sz)
 		return SharedStr();
-	SharedCharArray* result = SharedCharArray::CreateUninitialized(sz+1);
+	SharedCharArray* result = SharedCharArray::CreateUninitialized(sz+1 MG_DEBUG_ALLOCATOR_SRC("SingleUnQuoteMiddle"));
 	SharedStr resultStr(result);
 
 	char* resEnd = _SingleUnQuoteMiddle(result->begin(), str);
@@ -586,7 +586,7 @@ void SingleUnQuoteMiddle(SharedStr& resStr, CharPtr begin, CharPtr end)
 		resStr.clear();
 	else
 	{
-		SharedCharArray* result = SharedCharArray::CreateUninitialized(sz+1);
+		SharedCharArray* result = SharedCharArray::CreateUninitialized(sz+1 MG_DEBUG_ALLOCATOR_SRC("SingleUnQuoteMiddle"));
 		resStr = SharedStr(result);
 		char* resEnd = _SingleUnQuoteMiddle(result->begin(), begin, end);
 		*resEnd = 0;
@@ -702,7 +702,7 @@ SharedStr DoubleUnQuoteMiddle(CharPtr str)
 	auto sz = _DoubleUnQuoteMiddleSize(str);
 	if (!sz)
 		return SharedStr();
-	SharedCharArray* result = SharedCharArray::CreateUninitialized(sz+1);
+	SharedCharArray* result = SharedCharArray::CreateUninitialized(sz+1 MG_DEBUG_ALLOCATOR_SRC("DoubleUnQuoteMiddle"));
 	SharedStr resStr(result);
 
 	char* resEnd = _DoubleUnQuoteMiddle(result->begin(), str);
@@ -721,7 +721,7 @@ void DoubleUnQuoteMiddle(SharedStr& resStr, CharPtr begin, CharPtr end)
 		resStr.clear();
 	else
 	{
-		SharedCharArray* result = SharedCharArray::CreateUninitialized(sz+1);
+		SharedCharArray* result = SharedCharArray::CreateUninitialized(sz+1 MG_DEBUG_ALLOCATOR_SRC("DoubleUnQuoteMiddle"));
 		resStr = result;
 		char* resEnd = _DoubleUnQuoteMiddle(result->begin(), begin, end);
 		*resEnd = 0;
@@ -759,7 +759,7 @@ SharedStr DoubleUnQuote(CharPtr str)
 RTC_CALL void DoubleQuote(SharedStr& ref, CharPtr b, CharPtr e)
 {
 
-	ref.resize(sizeDoubleQuouteMiddle(b, e)+2);
+	ref.resize(sizeDoubleQuouteMiddle(b, e)+2 MG_DEBUG_ALLOCATOR_SRC("DoubleQuote"));
 
 	auto ref_iter = ref.begin();
 	*ref_iter++ = '\"';
@@ -774,7 +774,7 @@ void SingleUnQuote(StringRef& result, CharPtr begin, CharPtr end)
 	dms_assert(begin+2 <= end);
 	MG_PRECONDITION(begin && end!=begin && *begin == '\'' && end && *(end-1) == '\'');
 
-	result.resize_uninitialized(_SingleUnQuoteMiddleSize(++begin, --end));
+	result.resize_uninitialized(_SingleUnQuoteMiddleSize(++begin, --end) MG_DEBUG_ALLOCATOR_SRC("SingleUnQuote"));
 	if (!result.empty())
 	{
 		end = _SingleUnQuoteMiddle(&(result[0]), begin, end);
@@ -787,7 +787,7 @@ void DoubleUnQuote(StringRef& result, CharPtr begin, CharPtr end)
 	dms_assert(begin+2 <= end);
 	MG_PRECONDITION(begin && end!=begin && *begin == '\"' && end && *(end-1) == '\"');
 
-	result.resize_uninitialized(_DoubleUnQuoteMiddleSize(++begin, --end));
+	result.resize_uninitialized(_DoubleUnQuoteMiddleSize(++begin, --end) MG_DEBUG_ALLOCATOR_SRC("DoubleUnQuote"));
 	if (!result.empty())
 	{
 		end = _DoubleUnQuoteMiddle(&(result[0]), begin, end);
@@ -801,7 +801,7 @@ void DoubleUnQuote(SharedStr& result, CharPtr begin, CharPtr end)
 	MG_PRECONDITION(begin && end != begin && *begin == '\"' && end && *(end - 1) == '\"');
 
 	auto sz = _DoubleUnQuoteMiddleSize(++begin, --end);
-	result.resize(sz);
+	result.resize(sz MG_DEBUG_ALLOCATOR_SRC("DoubleUnQuote"));
 
 	auto res_end = _DoubleUnQuoteMiddle(result.begin(), begin, end);
 	assert(result[sz] == '\0');
@@ -813,7 +813,7 @@ SharedStr DoubleUnQuote(CharPtr begin, CharPtr end)
 	dms_assert(begin + 2 <= end);
 	MG_PRECONDITION(begin && end != begin && *begin == '\"' && end && *(end - 1) == '\"');
 
-	SharedCharArray* resPtr = SharedCharArray::CreateUninitialized(_DoubleUnQuoteMiddleSize(++begin, --end) + 1);
+	SharedCharArray* resPtr = SharedCharArray::CreateUninitialized(_DoubleUnQuoteMiddleSize(++begin, --end) + 1 MG_DEBUG_ALLOCATOR_SRC("DoubleUnQuote"));
 
 	auto res_end = _DoubleUnQuoteMiddle(resPtr->begin(), begin, end);
 	*res_end = '\0';

@@ -865,7 +865,7 @@ void Actor::ThrowFail(SharedStr str, FailType ft) const
 
 void Actor::ThrowFail(CharPtr str, FailType ft) const
 {
-	ThrowFail(SharedStr(str), ft);
+	ThrowFail(SharedStr(str MG_DEBUG_ALLOCATOR_SRC("ThrowFail")), ft);
 }
 
 void Actor::ThrowFail(const Actor* src, FailType ft) const
@@ -898,7 +898,7 @@ void Actor::Fail(WeakStr why, FailType ft) const
 
 void Actor::Fail(CharPtr str, FailType ft) const
 {
-	Fail(SharedStr(str), ft);
+	Fail(SharedStr(str MG_DEBUG_ALLOCATOR_SRC("Actor::Fail")), ft);
 }
 
 void Actor::Fail(const Actor* src, FailType ft) const

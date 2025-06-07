@@ -312,7 +312,7 @@ SharedStr PersistentSharedObj::GetFullName() const
 		item = parent;
 	}
 	dms_assert(nameSz);
-	SharedCharArray* result = SharedCharArray::CreateUninitialized(nameSz);
+	SharedCharArray* result = SharedCharArray::CreateUninitialized(nameSz MG_DEBUG_ALLOCATOR_SRC("PersistentSharedObj::GetFullName"));
 	SharedStr resultStr(result);
 
 	char* nameConcatBufferPtr = result->end();
@@ -359,8 +359,8 @@ SharedStr PersistentSharedObj::GetRelativeName(const PersistentSharedObj* contex
 		nameSz += item->GetID().GetStrLen()+1;
 		item = item->GetParent();
 	}
-	dms_assert(nameSz);
-	SharedCharArray* result = SharedCharArray::CreateUninitialized(nameSz);
+	assert(nameSz);
+	SharedCharArray* result = SharedCharArray::CreateUninitialized(nameSz MG_DEBUG_ALLOCATOR_SRC("PersistentSharedObj::GetRelativeName"));
 	SharedStr resultStr(result);
 
 	char* nameConcatBufferPtr = result->end();
@@ -450,7 +450,7 @@ SharedStr PersistentSharedObj::GetSourceName() const
 
 [[noreturn]] void throwItemError(const PersistentSharedObj* self, CharPtr msg)
 {
-	throwItemError(self, SharedStr(msg));
+	throwItemError(self, SharedStr(msg MG_DEBUG_ALLOCATOR_SRC("throwItemError")));
 }
 
 void Object::XML_Dump(OutStreamBase* xmlOutStr) const

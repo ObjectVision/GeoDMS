@@ -495,10 +495,10 @@ struct BitVector : bit_info<N, Block>
 	{
 	}
 
-	BitVector(size_type sz)
+	BitVector(size_type sz MG_DEBUG_ALLOCATOR_SRC_ARG)
 		: m_NrElems(sz)
 	{
-		::resizeSO(m_bits, bit_info_t::calc_nr_blocks(sz), true MG_DEBUG_ALLOCATOR_SRC("BitVector"));
+		::resizeSO(m_bits, bit_info_t::calc_nr_blocks(sz), true MG_DEBUG_ALLOCATOR_SRC_PARAM);
 	}
 
 	BitVector(size_type sz, bit_value<N> v MG_DEBUG_ALLOCATOR_SRC_ARG)
@@ -511,26 +511,28 @@ struct BitVector : bit_info<N, Block>
 	}
 
 	template <typename Iter>
-	BitVector(Iter first, Iter last)
-		:	m_bits( bit_info_t::calc_nr_blocks(last - first) )
-		,	m_NrElems(last - first)
+	BitVector(Iter first, Iter last MG_DEBUG_ALLOCATOR_SRC_ARG)
+		:	m_NrElems(last - first)
 	{
+		::resizeSO(m_bits, bit_info_t::calc_nr_blocks(m_NrElems), false MG_DEBUG_ALLOCATOR_SRC_PARAM);
 		std::copy(first, last, begin());	//	OPTIMIZE: if first.elem_offset == 0, direct insertion into m_Bits prevents double passing it. 
 	}
 
-	BitVector(bit_iterator<N, const Block> first, bit_iterator<N, const Block> last)
-		:	m_bits(bit_info_t::calc_nr_blocks(last - first) )
-		,	m_NrElems(last - first)
+	BitVector(bit_iterator<N, const Block> first, bit_iterator<N, const Block> last MG_DEBUG_ALLOCATOR_SRC_ARG)
+		:	m_NrElems(last - first)
 	{
-		dms_assert(first.m_NrElems < bit_info_t::nr_elem_per_block);
-		dms_assert(last .m_NrElems < bit_info_t::nr_elem_per_block);
-		if (first.m_NrElems == 0)
+		assert(first.m_NrElems < bit_info_t::nr_elem_per_block);
+		assert(last .m_NrElems < bit_info_t::nr_elem_per_block);
+
+		::resizeSO(m_bits, bit_info_t::calc_nr_blocks(m_NrElems), false MG_DEBUG_ALLOCATOR_SRC_PARAM);
+
+		if (first.m_NrElems == 0) 	// if first.elem_offset == 0, direct insertion into m_Bits prevents double passing it. 
 		{
 			fast_copy(first.m_BlockData, first.m_BlockData + m_bits.size(), begin_ptr( m_bits ));
 			clear_unused_bits();
 		}
 		else
-			std::copy(first, last, begin());	//	OPTIMIZE: if first.elem_offset == 0, direct insertion into m_Bits prevents double passing it. 
+			std::copy(first, last, begin());
 	}
 	BitVector(BitVector&& rhs) noexcept
 	{
@@ -633,13 +635,13 @@ struct BitVector : bit_info<N, Block>
 		m_NrElems = newNrElems;
 	}
 
-	void push_back(bit_info_t::value_type v)
+	void push_back(bit_info_t::value_type v MG_DEBUG_ALLOCATOR_SRC_ARG)
 	{
 		// substitute a call to insert(end(), 1, v); with iterator ip = end() and size_type k=1;
 		SizeT oldNrElems = m_NrElems;
 		SizeT newNrElems = oldNrElems + 1;
 		dms_assert(newNrElems);
-		enable_nr_blocks(bit_info_t::calc_nr_blocks(newNrElems) MG_DEBUG_ALLOCATOR_SRC("BitVector::push_back"));
+		enable_nr_blocks(bit_info_t::calc_nr_blocks(newNrElems) MG_DEBUG_ALLOCATOR_SRC_PARAM);
 		m_NrElems = newNrElems;
 		operator [](oldNrElems) = v;
 	}

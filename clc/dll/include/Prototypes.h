@@ -122,6 +122,7 @@ using IndexGetter = AbstrValueGetter<SizeT> ;
 // arguments   
 template <typename T> struct cref : param_type<T> {};
 template <typename E> struct cref<std::vector<E> > { using type = typename sequence_traits<std::vector<E> >::container_type::const_reference; };
+template <typename E> struct cref<my_vector<E> > { using type = typename sequence_traits<locked_sequence<E> >::container_type::const_reference; };
 template <typename E> struct cref<locked_sequence<E> > { using type = typename sequence_traits<locked_sequence<E> >::container_type::const_reference; };
 template <>           struct cref<SharedStr     > { using type = typename sequence_traits<SharedStr>::container_type::const_reference; };
 

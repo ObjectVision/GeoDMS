@@ -344,10 +344,10 @@ public:
 					resData[i]
 				,	AbstrStorageManager::Expand(
 						args[0]
-					,	SharedStr(
+					,	SharedStr(CharPtrRange(
 							begin_ptr(argData[i])
 						,	end_ptr(argData[i])
-						)
+						))
 					)
 				);
 

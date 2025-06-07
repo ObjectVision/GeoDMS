@@ -132,7 +132,7 @@ struct StorageMetaInfo : std::enable_shared_from_this<StorageMetaInfo>
 		: m_StorageManager(storageHolder->GetStorageManager())
 		, m_StorageHolder(storageHolder)
 		, m_Curr(curr)
-		, m_RelativeName(storageHolder->DoesContain(curr) ? curr->GetRelativeName(storageHolder).c_str() : curr->GetFullName().c_str())
+		, m_RelativeName(storageHolder->DoesContain(curr) ? curr->GetRelativeName(storageHolder) : curr->GetFullName())
 	{}
 	TIC_CALL virtual ~StorageMetaInfo();
 	TIC_CALL virtual void OnPreLock();

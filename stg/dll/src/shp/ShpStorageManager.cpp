@@ -138,7 +138,7 @@ void ReadSequences(AbstrDataObject* ado, UInt32 shpImpFeatureCount, ShpImp* pImp
 		auto polygonSize = pImp->ShapeSet_NrPoints(p);
 		if (!polygonSize)
 		{
-			vector_resize_uninitialized(*polygonPtr, 0);
+			vector_resize_uninitialized(*polygonPtr, 0 MG_DEBUG_ALLOCATOR_SRC("ShpStorageManager.ReadSequences"));
 			continue;
 		}
 		UInt32 nrExtraParts = pImp->ShapeSet_NrParts(p) - 1;
@@ -150,7 +150,7 @@ void ReadSequences(AbstrDataObject* ado, UInt32 shpImpFeatureCount, ShpImp* pImp
 				if (!IsRingClosed(pImp->ShapeSet_GetPoints(p, partI)))
 					++nrUnclosedRings;
 
-		vector_resize_uninitialized(*polygonPtr, SizeT(polygonSize) + nrExtraParts + nrUnclosedRings);
+		vector_resize_uninitialized(*polygonPtr, SizeT(polygonSize) + nrExtraParts + nrUnclosedRings MG_DEBUG_ALLOCATOR_SRC("ShpStorageManager.ReadSequences"));
 
 		typename sequence_traits<PointType>::pointer
 			pointData = (*polygonPtr).begin();

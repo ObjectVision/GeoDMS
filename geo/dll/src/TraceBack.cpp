@@ -129,7 +129,7 @@ struct TraceBackOperator : QuaternaryOperator
 			//			resultData[parentLink] += resultData[tbLink];
 
 			typename sequence_traits<FlowType>::container_type
-				flowDataCopy(flowData.begin(), flowData.end()); 
+				flowDataCopy(flowData.begin(), flowData.end() MG_DEBUG_ALLOCATOR_SRC("TraceBack.flowDataCopy"));
 
 			TreeRelations tr(tbData.begin(), node1Data.begin(), node2Data.begin(), nrV, nrE);
 

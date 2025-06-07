@@ -114,7 +114,7 @@ SharedStr RegistryHandle::ReadString(CharPtr name) const
 	UInt32 len = GetDataSize(name);
 	if (!len)
 		return SharedStr();
-	SharedCharArray* result = SharedCharArray::CreateUninitialized(len);
+	SharedCharArray* result = SharedCharArray::CreateUninitialized(len MG_DEBUG_ALLOCATOR_SRC("RegistryHandle::ReadString"));
 	SharedStr resultStr = SharedStr( result );
 
 	RegDataType regDataType;

@@ -542,9 +542,6 @@
     <ClInclude Include="src\mem\HeapSequenceProvider.ipp">
       <Filter>Memory</Filter>
     </ClInclude>
-    <ClInclude Include="src\mem\ManagedAllocData.ipp">
-      <Filter>Memory</Filter>
-    </ClInclude>
     <ClInclude Include="src\mci\DoubleLinkedTree.inc">
       <Filter>Meta Class Information</Filter>
     </ClInclude>
@@ -852,7 +849,9 @@
     <ClInclude Include="src\utl\NonCopyable.h" />
     <ClInclude Include="src\buildstamp.h" />
     <ClInclude Include="src\utl\AddFakeCopyCTor.h" />
-    <ClInclude Include="src\geo\RingIterator.h" />
+    <ClInclude Include="src\mem\resize.h">
+      <Filter>Memory</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\act\Actor.cpp">

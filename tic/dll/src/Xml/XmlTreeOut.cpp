@@ -884,7 +884,7 @@ TIC_CALL bool XML_MetaInfoRef(const TreeItem* self, OutStreamBase* xmlOutStrPtr)
 				if (url[0] == '#')
 				{
 					context = self;
-					url = SharedStr(url.begin() + 1, url.send());
+					url = SharedStr(CharPtrRange(url.begin() + 1, url.send()));
 				}
 
 				auto expandedUrl = AbstrStorageManager::GetFullStorageName(context, url);
@@ -1265,7 +1265,7 @@ void ItemSave(const TreeItem* self, CharPtr fileName, bool copyDir)
 			FormattedInpStream fin(&fileInp);
 			FormattedOutStream fout(&vectOut, FormattingFlags::None);
 			ReadCommentedHeader(fin, fout);
-			commentedHeader = SharedStr(vectOut.GetData(), vectOut.GetDataEnd());
+			commentedHeader = SharedStr(CharPtrRange(vectOut.GetData(), vectOut.GetDataEnd()));
 		}
 		else
 			commentedHeader = mySSPrintF("// DMS ConfigDataDump version %s\n", DMS_GetVersion());
@@ -1293,7 +1293,7 @@ TIC_CALL bool DMS_CONV DMS_TreeItem_Dump(const TreeItem* self, CharPtr fileName)
 	DMS_CALL_BEGIN
 
 		dms_assert(self);
-		SharedStr fileNameStr(fileName);
+		SharedStr fileNameStr(fileName MG_DEBUG_ALLOCATOR_SRC("DMS_TreeItem_Dump"));
 		fileNameStr = ConvertDosFileName(fileNameStr);
 
 		TreeItemContextHandle checkPtr(self, TreeItem::GetStaticClass(), "ConfigSave");

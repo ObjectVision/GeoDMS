@@ -81,7 +81,7 @@ public:
 
 		m_Data = std::move(rhs.m_Data); rhs.m_Data = {};
 		m_Provider.swap( rhs.m_Provider );
-		dms_assert(rhs.m_Provider.is_null());
+		assert(rhs.m_Provider.is_null());
 
 #if defined(MG_DEBUG_DATA)
 		md_IsLocked = rhs.md_IsLocked;
@@ -115,37 +115,58 @@ public:
 	const_reference back() const { dms_assert(!empty()); return end()[-1]; }
 
 	template <typename Initializer>
-	void appendInitializer(SizeT n, Initializer&& initFunc) 
+	void appendInitializer(SizeT n, Initializer&& initFunc MG_DEBUG_ALLOCATOR_SRC_ARG)
 	{ 
 		MGD_CHECKDATA(IsLocked()); 
 		MGD_CHECKDATA(m_Provider);
 		SizeT oldSize = size();
-		dms_assert(oldSize + n > oldSize); // No overflow
-		m_Provider->grow(m_Data, n, false MG_DEBUG_ALLOCATOR_SRC_SA);
-		dms_assert(m_Data.size() == oldSize + n);
+		assert(oldSize + n > oldSize); // No overflow
+		m_Provider->grow(m_Data, n, false MG_DEBUG_ALLOCATOR_SRC_PARAM);
+		assert(m_Data.size() == oldSize + n);
 		initFunc(m_Data.begin() + oldSize, m_Data.end());
 	}
-	void appendRange(const_iterator first, const_iterator last)
+
+	template <typename InIter>
+	void append(InIter first, InIter last MG_DEBUG_ALLOCATOR_SRC_ARG)
 	{
 		MGD_CHECKDATA(IsLocked());
 		MGD_CHECKDATA(m_Provider);
 		SizeT oldSize = size();
 		SizeT n = last - first;
-		dms_assert(oldSize + n >= oldSize); // No overflow
-		m_Provider->grow(m_Data, n, false MG_DEBUG_ALLOCATOR_SRC_SA);
-		dms_assert(m_Data.size() == oldSize + n);
+		assert(oldSize + n >= oldSize); // No overflow
+		m_Provider->grow(m_Data, n, false MG_DEBUG_ALLOCATOR_SRC_PARAM);
+		assert(m_Data.size() == oldSize + n);
 		fast_copy(first, last, m_Data.begin() + oldSize);
 	}
 
-	void push_back(param_t v)
+	template <std::ranges::range Range>
+		requires std::convertible_to<std::ranges::range_value_t<Range>, V>
+	void append_range(Range&& range MG_DEBUG_ALLOCATOR_SRC_ARG)
+	{
+		append(std::begin(range), std::end(range) MG_DEBUG_ALLOCATOR_SRC_PARAM);
+	}
+
+
+	void push_back(param_t v MG_DEBUG_ALLOCATOR_SRC_ARG)
 	{ 
 		MGD_CHECKDATA(IsLocked());
 		MGD_CHECKDATA(m_Provider);
 		SizeT oldSize = size();
 		assert(oldSize + 1 > oldSize); // No overflow
-		m_Provider->grow(m_Data, 1, false MG_DEBUG_ALLOCATOR_SRC_SA);
+		m_Provider->grow(m_Data, 1, false MG_DEBUG_ALLOCATOR_SRC_PARAM);
 		assert(m_Data.size() == oldSize + 1);
 		m_Data.back() = v;
+	}
+	template <typename... Args>
+	void emplace_back(Args&& ...args)
+	{ 
+		MGD_CHECKDATA(IsLocked()); 
+		MGD_CHECKDATA(m_Provider); 
+		SizeT oldSize = size();
+		assert(oldSize + 1 > oldSize); // No overflow
+		m_Provider->grow(m_Data, 1, false MG_DEBUG_ALLOCATOR_SRC("emplace_back"));
+		assert(m_Data.size() == oldSize + 1);
+		new (&m_Data.back()) value_type(std::forward<Args>(args)...); // placement new
 	}
 	void pop_back()
 	{ 

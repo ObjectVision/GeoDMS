@@ -484,11 +484,11 @@ using ConnectInfoBaseClass = std::conditional_t < CT == compare_type::none,
 template <typename P, typename E = UInt32, compare_type CT = compare_type::none, typename SegmID = UInt32, typename SqrtDistType = Float64, bool HasMaxDist = false, bool HasMinDist = false, bool OnlyDistResult = false>
 class ConnectInfoOperator : ConnectInfoBaseClass<CT, HasMaxDist, HasMinDist>
 {
-	typedef P                              PointType;
+	using PointType = P;
+	using PolygonType = sequence_traits<PointType>::container_type;
 	typedef Range<P>                       RangeType;
 	typedef typename PointType::field_type CoordType;
 	typedef SqrtDistType                   SqrDistType;
-	typedef std::vector<PointType>         PolygonType;
 	typedef Unit<PointType>                PointUnitType;
 	typedef Unit<SqrtDistType>             DistUnitType;
 	typedef Unit<Bool>                     BoolUnitType;
@@ -844,11 +844,11 @@ class FastConnectOperator : std::conditional_t<CT == compare_type::none
 	,	std::conditional_t<HasMaxDist, std::conditional_t<HasMinDist, SexenaryOperator, QuinaryOperator>, QuaternaryOperator>
 	>
 {
-	typedef T                              PointType;
+	using PointType = T;
+	using PolygonType = sequence_traits<PointType>::container_type;
 	typedef Range<T>                       RangeType;
 	typedef typename PointType::field_type CoordType;
 	typedef SqrtDistType                   SqrDistType;
-	typedef std::vector<PointType>         PolygonType;
 	typedef Unit<PointType>                PointUnitType;
 
 	typedef Unit<R>                    ResultUnitType;

@@ -33,6 +33,7 @@ granted by an additional written contract for support, assistance and/or develop
 
 #include "dbg/Check.h"
 #include "mci/AbstrValue.h"
+#include "mem/ManagedAllocData.h"
 #include "geo/BitValue.h"
 #include "geo/SequenceTraits.h"
 #include "geo/SequenceArray.h"

@@ -47,8 +47,8 @@ RTC_CALL FormattedInpStream& operator >>(FormattedInpStream& str, TokenID& value
 //----------------------------------------------------------------------
 
 inline void AssignValueFromCharPtr (CharPtr& value, CharPtr data)               { value = data; }
-inline void AssignValueFromCharPtr (SharedStr& value, CharPtr data)               { value = SharedCharArray_Create(data); }
-inline void AssignValueFromCharPtrs(SharedStr& value, CharPtr begin, CharPtr end) { value = SharedCharArray_Create(begin, end); }
+inline void AssignValueFromCharPtr (SharedStr& value, CharPtr data)               { value = SharedCharArray_Create(data MG_DEBUG_ALLOCATOR_SRC("AssignValueFromCharPtr")); }
+inline void AssignValueFromCharPtrs(SharedStr& value, CharPtr begin, CharPtr end) { value = SharedCharArray_Create(begin, end MG_DEBUG_ALLOCATOR_SRC("AssignValueFromCharPtr")); }
 
 inline void AssignValueFromCharPtr (TokenID&  value, CharPtr data)               { value = TokenID(data, (mt_tag*) nullptr); }
 inline void AssignValueFromCharPtrs(TokenID&  value, CharPtr begin, CharPtr end) { value = TokenID(begin, end, (mt_tag*) nullptr); }

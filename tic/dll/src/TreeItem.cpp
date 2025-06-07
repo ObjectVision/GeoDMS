@@ -633,7 +633,7 @@ SharedStr TreeItem::GetDisplayName() const
 	{
 		const AbstrUnit* tu = AsUnit(this);
 		if (tu->IsDefaultUnit())
-			return SharedStr(tu->GetUnitClass()->GetValueType()->GetName().c_str());
+			return SharedStr(tu->GetUnitClass()->GetValueType()->GetName().c_str() MG_DEBUG_ALLOCATOR_SRC("TreeItem::GetDisplayName"));
 	}
 
 	if (IsGenericID(GetID()) && GetTreeParent())
@@ -1666,14 +1666,14 @@ static auto FollowBestDots(const TreeItem* self, CharPtrRange dots) noexcept -> 
 	while (true)
 	{
 		if (*dots.first != '.')
-			return { self, SharedStr(dots.first) };
+			return { self, SharedStr(dots.first MG_DEBUG_ALLOCATOR_SRC("FollowBestDots")) };
 		dots.first++;
 		if (dots.first == dots.second)
-			return { self, SharedStr(dots.first) };
+			return { self, SharedStr(dots.first MG_DEBUG_ALLOCATOR_SRC("FollowBestDots")) };
 
 		auto parent = self->GetTreeParent();
 		if (!parent)
-			return { self, SharedStr(dots.first - 1) };
+			return { self, SharedStr(dots.first - 1 MG_DEBUG_ALLOCATOR_SRC("FollowBestDots")) };
 		self = parent;
 	}
 }
@@ -1735,7 +1735,7 @@ auto TreeItem::FindBestItem(CharPtrRange subItemNames) const -> BestItemRef
 		return { this, SharedStr(subItemNames) };
 
 	if (!parentRef.second.empty())
-		return { parentRef.first, parentRef.second + SharedStr(ids.first.second, ids.second.second) };
+		return { parentRef.first, parentRef.second + SharedStr(CharPtrRange(ids.first.second, ids.second.second)) };
 
 	parentRef.first->UpdateMetaInfo();
 	auto result = parentRef.first->GetConstSubTreeItemByID(GetExistingTokenID(ids.second));
@@ -4026,7 +4026,7 @@ void TreeItem::XML_Dump(OutStreamBase* xmlOutStr, bool dumpSubTags) const
 	}
 
 	// Copy of code from Object because xmlElem must live after subItems
-	SharedStr tagName = SharedStr((xmlOutStr->GetSyntaxType() != OutStreamBase::ST_DMS) ? GetXmlClassName().c_str() : GetSignature().c_str());
+	SharedStr tagName = SharedStr((xmlOutStr->GetSyntaxType() != OutStreamBase::ST_DMS) ? SharedStr(GetXmlClassName()) : GetSignature());
 
 	XML_OutElement xmlElem(*xmlOutStr, tagName.c_str(), GetName().c_str());
 
@@ -4165,7 +4165,7 @@ AbstrStorageManager* TreeItem::GetStorageManager(bool throwOnFailure) const
 void TreeItem::SetStorageManager(CharPtr storageName, CharPtr storageType, StorageReadOnlySetting readOnly, CharPtr driver, CharPtr options)
 {
 	DBG_START("TreeItem", "SetStorageManager", false);
-	storageNamePropDefPtr->SetValue(this, SharedStr(storageName) );
+	storageNamePropDefPtr->SetValue(this, SharedStr(storageName MG_DEBUG_ALLOCATOR_SRC("TreeItem::SetStorageManager storageName")) );
 	storageTypePropDefPtr->SetValue(this, storageType ? GetTokenID_mt(storageType) : TokenID::GetEmptyID() );
 	if (readOnly != StorageReadOnlySetting::Default)
 		storageReadOnlyPropDefPtr->SetValue(this, readOnly == StorageReadOnlySetting::ReadOnly);
@@ -4173,11 +4173,11 @@ void TreeItem::SetStorageManager(CharPtr storageName, CharPtr storageType, Stora
 		storageReadOnlyPropDefPtr->RemoveValue(this);
 
 	if (driver != nullptr)
-		storageDriverPropDefPtr->SetValue(this, SharedStr(driver));
+		storageDriverPropDefPtr->SetValue(this, SharedStr(driver MG_DEBUG_ALLOCATOR_SRC("TreeItem::SetStorageManager driver")));
 	if (options != nullptr)
-		storageOptionsPropDefPtr->SetValue(this, SharedStr(options));
+		storageOptionsPropDefPtr->SetValue(this, SharedStr(options MG_DEBUG_ALLOCATOR_SRC("TreeItem::SetStorageManager options")));
 	SetStorageManager(nullptr);
-//	m_State.Clear(ASF_DataReadableDefined);
+
 	Invalidate();
 }
 

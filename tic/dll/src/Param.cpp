@@ -124,7 +124,7 @@ TIC_CALL void DMS_CONV DMS_StringParam_SetValue(AbstrParam* self, CharPtr value)
 
 		CheckPtr(self, DataArray<SharedStr>::GetStaticClass(), "DMS_StringParam_SetValue");
 		self->SetTSF(TSF_HasConfigData);
-		SetTheValue<SharedStr>(self, SharedStr(value));
+		SetTheValue<SharedStr>(self, SharedStr(value MG_DEBUG_ALLOCATOR_SRC("DMS_StringParam_SetValue")));
 		return;
 
 	DMS_CALL_END

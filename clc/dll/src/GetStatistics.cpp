@@ -51,7 +51,7 @@ SharedStr ReplaceChar(SharedStr src, char ch, char esc)
 		buff.WriteByte(esc);
 		pos = std::find(src.begin(), src.end(), ch);
 	}
-	return { buff.GetData(), buff.GetDataEnd() };
+	return SharedStr{ CharPtrRange(buff.GetData(), buff.GetDataEnd()) };
 }
 
 SharedStr Tablelize(SharedStr src)

@@ -293,7 +293,7 @@ struct OperAccPartUniBuffered : FuncOperAccPartUni<TAcc1Func, OperAccPartUniWith
 	using ProcessDataInfo = base_type::ProcessDataInfo;
 	using AccumulationSeq = typename TAcc1Func::accumulation_seq;
 
-	using res_buffer_type = typename sequence_traits<typename TAcc1Func::accumulation_type>::container_type;
+	using res_buffer_type = std::vector<typename TAcc1Func::accumulation_type>;
 
 	OperAccPartUniBuffered(AbstrOperGroup* gr, bool valueMustBeDefined, TAcc1Func&& acc1Func = TAcc1Func())
 		:	base_type(gr, valueMustBeDefined, std::move(acc1Func))

@@ -35,8 +35,8 @@ static std::shared_ptr<SessionData> s_CurrSD;
 //----------------------------------------------------------------------
 
 SessionData::SessionData(CharPtr configLoadDir, CharPtr configSubDir)
-	:	m_ConfigLoadDir(configLoadDir)
-	,	m_ConfigSubDir(configSubDir)
+	:	m_ConfigLoadDir(configLoadDir MG_DEBUG_ALLOCATOR_SRC("SessionData::ConfigLoadDir"))
+	,	m_ConfigSubDir(configSubDir   MG_DEBUG_ALLOCATOR_SRC("SessionData::ConfigSubDir"))
 	,	m_ConfigDir(  DelimitedConcat(configLoadDir, configSubDir) )
 	,	m_ConfigLoadTS(-1)              // set by Open() 
 	,	m_cfgColFirst( g_cfgColFirst )  // set by SetConfigPointColFirst

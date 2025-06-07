@@ -73,7 +73,7 @@ struct assertive_parser_creator
 
 inline auto assert_d(CharPtr descriptor)
 {
-	return assertive_parser_creator<typename assertion_type_traits<SharedStr>::type>( SharedStr(descriptor) );
+	return assertive_parser_creator<typename assertion_type_traits<SharedStr>::type>( SharedStr(descriptor MG_DEBUG_ALLOCATOR_SRC("assert_d")) );
 }
 
 ///////////////////////////////////////////////////////////////////////////////

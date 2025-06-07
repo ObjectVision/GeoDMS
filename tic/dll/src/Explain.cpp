@@ -109,7 +109,7 @@ namespace Explain { // local defs
 			VectorOutStreamBuff buff;
 			OutStream_DMS x(&buff, nullptr);
 			PrintSeqNr(x);
-			return SharedStr(buff.GetData(), buff.GetDataEnd());
+			return SharedStr(CharPtrRange(buff.GetData(), buff.GetDataEnd()));
 		}
 		auto MatchesExtraInfo(std::string_view extraInfo) const -> match_status
 		{

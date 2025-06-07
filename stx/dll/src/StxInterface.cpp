@@ -62,7 +62,7 @@ SYNTAX_CALL TreeItem* CreateTreeFromConfiguration(CharPtr sourceFilename)
 	try {
 		CDebugContextHandle debugContext("DMS_CreateTreeFromConfiguration", sourceFilename, false);
 
-		SharedStr sourceFileNameStr(sourceFilename);
+		SharedStr sourceFileNameStr(sourceFilename MG_DEBUG_ALLOCATOR_SRC("CreateTreeFromConfiguration"));
 		sourceFileNameStr = ConvertDosFileName(sourceFileNameStr);
 
 		SharedStr configLoadDir = splitFullPath(sourceFileNameStr.begin());
@@ -198,7 +198,7 @@ TreeItem* AppendTreeFromConfiguration(CharPtr sourceFileName, TreeItem* context 
 	MG_PRECONDITION(sourceFileName);
 	CDebugContextHandle debugContext("AppendTreeFromConfiguration", sourceFileName, false);
 
-	SharedStr sourceFileNameStr(sourceFileName);
+	SharedStr sourceFileNameStr(sourceFileName MG_DEBUG_ALLOCATOR_SRC("AppendTreeFromConfiguration"));
 	sourceFileNameStr = ConvertDosFileName(sourceFileNameStr);
 
  	SharedStr sourcePathNameStr = AbstrStorageManager::Expand(
@@ -364,7 +364,7 @@ bool DMS_ProcessPostData(TreeItem* context, CharPtr postData, UInt32 dataSize)
 			CharPtr firstNameChar = postData + inpBuff.CurrPos()-1;
 			while (!inpBuff .AtEnd() && inpStream.NextChar() != '=')
 				inpStream.ReadChar();
-			SharedStr name(firstNameChar, postData + inpBuff.CurrPos()-1);
+			SharedStr name(CharPtrRange(firstNameChar, postData + inpBuff.CurrPos()-1));
 			if (inpBuff.AtEnd())
 				context->throwItemError("Unexpected token:"+name);
 
@@ -373,7 +373,7 @@ bool DMS_ProcessPostData(TreeItem* context, CharPtr postData, UInt32 dataSize)
 			CharPtr firstValueChar = postData + inpBuff.CurrPos()-1;
 			while (!inpBuff.AtEnd() && inpStream.NextChar() != '&')
 				inpStream.ReadChar();
-			SharedStr value(firstValueChar, postData + inpBuff.CurrPos()-1);
+			SharedStr value(CharPtrRange(firstValueChar, postData + inpBuff.CurrPos()-1));
 
 			ProcessNameValue(context, name, value);
 

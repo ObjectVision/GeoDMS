@@ -28,7 +28,7 @@ inline SharedStr AsString(const T& value, FormattingFlags ff = FormattingFlags::
 	SizeT size = AsCharArraySize(value, -1, ff);
 	if (!size)
 		return SharedStr();
-	SharedCharArray* resultPtr = SharedCharArray::CreateUninitialized(size+1);
+	SharedCharArray* resultPtr = SharedCharArray::CreateUninitialized(size+1 MG_DEBUG_ALLOCATOR_SRC("AsString"));
 	SharedStr result(resultPtr);
 	AsCharArray(value, result.begin(), size, ff);
 	resultPtr->back() = char('\0');
@@ -37,14 +37,14 @@ inline SharedStr AsString(const T& value, FormattingFlags ff = FormattingFlags::
 
 inline SharedStr AsString(WeakStr   value) { return SharedStr(value); }
 inline SharedStr AsString(SharedStr value) { return value; }
-inline SharedStr AsString(CharPtr   value) { return SharedStr(value); }
+inline SharedStr AsString(CharPtr   value) { return SharedStr(value MG_DEBUG_ALLOCATOR_SRC("AsString")); }
 //inline SharedStr AsString(FormattedOutStream&, const SharedStr&  v) { return v; }
 
 // ===================== AsDataStr
 
 template <typename T>
 inline SharedStr AsDataStr(const T& v) { return AsString(v);    }
-inline SharedStr AsDataStr(Bool     v) { return SharedStr(v ? "true" : "false");  }
+inline SharedStr AsDataStr(Bool     v) { return SharedStr(v ? "true" : "false" MG_DEBUG_ALLOCATOR_SRC("AsDataStr"));  }
 inline SharedStr AsDataStr(WeakStr  v) { return DoubleQuote(v.c_str()); }
 inline SharedStr AsDataStr(CharPtr  v) { return DoubleQuote(v); }
 inline SharedStr AsDataStr(const SharedStr&  v) { return AsDataStr(typesafe_cast<WeakStr>(v)); }

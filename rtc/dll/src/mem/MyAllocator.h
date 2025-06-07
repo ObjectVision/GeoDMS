@@ -24,12 +24,12 @@ struct my_allocator<bit_value<N> >
 	}
 	void deallocate(iterator i, size_type sz)
 	{
-		dms_assert(!i.nr_elem());
+		assert(!i.nr_elem());
 		m_BlockAllocator.deallocate(i.data_begin(), info_t::calc_nr_blocks(sz));
 	}
 	size_type max_size() const
 	{
-		dms_assert(m_BlockAllocator.max_size() > info_t::calc_nr_blocks( MAX_VALUE(std::size_t) ) );
+		assert(m_BlockAllocator.max_size() > info_t::calc_nr_blocks( MAX_VALUE(std::size_t) ) );
 		return MAX_VALUE(std::size_t);
 	}
 
@@ -72,7 +72,7 @@ struct my_allocator {
 	template <class U> bool operator==(const my_allocator <U>&) const { return true; }
 	template <class U> bool operator!=(const my_allocator <U>&) const { return false; }
 
-	T* allocate(SizeT n MG_DEBUG_ALLOCATOR_SRC_ARG_D)
+	T* allocate(SizeT n MG_DEBUG_ALLOCATOR_SRC_ARG)
 	{
 		auto result = reinterpret_cast<T*>(AllocateFromStock(safe_size_n<sizeof(T)>(n) MG_DEBUG_ALLOCATOR_SRC_PARAM));
 		return result;
@@ -80,6 +80,10 @@ struct my_allocator {
 	void deallocate(T* ptr, size_t n)
 	{
 		LeaveToStock(ptr, sizeof(T)*n);
+	}
+	SizeT max_size() const
+	{
+		return SizeT(-1) / sizeof(T);
 	}
 };
 
@@ -93,6 +97,5 @@ auto CreateMyAllocator()
 	static my_allocator<V> allocator;
 	return &allocator;
 }
-
 
 #endif //!defined(__RTC_MEM_MYALLOCATOR_H)
