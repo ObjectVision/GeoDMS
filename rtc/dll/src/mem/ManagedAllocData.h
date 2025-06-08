@@ -144,12 +144,14 @@ struct my_vector : managed_alloc_data<V>
 		{
 			// enough capacity, just copy the elements
 			this->destroy_elements();
+			if (!rhs.empty())
+			{
+				assert(this->m_Capacity >= rhs.size());
+				assert(this->first != nullptr || rhs.empty()); // ensure the pointers are valid
+				assert(this->second == this->first);
 
-			assert(this->m_Capacity >= rhs.size());
-			assert(this->first != nullptr); // ensure the pointers are valid
-			assert(this->second == this->first); 
-
-			this->second = fast_copy(rhs.first, rhs.second, this->first);
+				this->second = fast_copy(rhs.first, rhs.second, this->first);
+			}
 			return;
 		}
 		my_vector<V> rhsCopy(rhs MG_DEBUG_ALLOCATOR_SRC("my_vector::CopyAssignment"));
