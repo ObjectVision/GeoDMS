@@ -91,7 +91,7 @@ auto GetCountsDirect(typename sequence_traits<V>::cseq_t data, tile_offset index
 	std::sort(buffer, buffer + size);
 
 	ValueCountPairContainerT<V, C> result;
-	result.reserve(size);
+	result.reserve(size MG_DEBUG_ALLOCATOR_SRC("GetCountsDirect"));
 
 	tile_offset i = 0;
 	V currValue = buffer[i++];
@@ -102,13 +102,13 @@ auto GetCountsDirect(typename sequence_traits<V>::cseq_t data, tile_offset index
 	{
 		if (currValue < buffer[i])
 		{
-			result.emplace_back(currValue, currCount);
+			result.emplace_back(MG_DEBUG_ALLOCATOR_FIRST("GetCountsDirect") currValue, currCount);
 			currValue = buffer[i];
 			currCount = C();
 		}
 		++currCount;
 	}
-	result.emplace_back(currValue, currCount);
+	result.emplace_back(MG_DEBUG_ALLOCATOR_FIRST("GetCountsDirect") currValue, currCount);
 	return result;
 }
 
@@ -159,7 +159,7 @@ auto GetPartitionedCountsDirect(typename sequence_traits<V>::cseq_t data, const 
 		std::sort(buffer, buffer + size);
 
 	PartionedValueCountPairContainerT<V, C> result;
-	result.reserve(size);
+	result.reserve(size MG_DEBUG_ALLOCATOR_SRC("GetPartitionedCountsDirect result buffer"));
 
 	tile_offset i = 0;
 	partition_value_pair currPartitionValuePart = buffer[i++];
@@ -173,7 +173,7 @@ auto GetPartitionedCountsDirect(typename sequence_traits<V>::cseq_t data, const 
 			{
 				if (comp(currPartitionValuePart, buffer[i]))
 				{
-					result.emplace_back(currPartitionValuePart, currCount);
+					result.emplace_back(MG_DEBUG_ALLOCATOR_FIRST("GetPartitionedCountsDirect result buffer") currPartitionValuePart, currCount);
 					currPartitionValuePart = buffer[i];
 					currCount = C();
 				}
@@ -186,13 +186,13 @@ auto GetPartitionedCountsDirect(typename sequence_traits<V>::cseq_t data, const 
 		{
 			if (currPartitionValuePart < buffer[i])
 			{
-				result.emplace_back(currPartitionValuePart, currCount);
+				result.emplace_back(MG_DEBUG_ALLOCATOR_FIRST("GetPartitionedCountsDirect result buffer") currPartitionValuePart, currCount);
 				currPartitionValuePart = buffer[i];
 				currCount = C();
 			}
 			++currCount;
 		}
-	result.emplace_back(currPartitionValuePart, currCount);
+	result.emplace_back(MG_DEBUG_ALLOCATOR_FIRST("GetPartitionedCountsDirect result buffer") currPartitionValuePart, currCount);
 	return result;
 }
 
@@ -484,7 +484,7 @@ auto MakeValueCountContainer(std::vector<C>&& freqTable) -> ValueCountPairContai
 	ValueCountPairContainerT<R, C> result;
 	for (SizeT i = 0, n = freqTable.size(); i != n; ++i)
 		if (freqTable[i] > 0)
-			result.insert(result.end(), { i, freqTable[i] });
+			result.insert(result.end(), { i, freqTable[i] } MG_DEBUG_ALLOCATOR_SRC("MakeValueCountContainer"));
 	return result;
 }
 
@@ -520,10 +520,10 @@ auto GetWeededCountsOfV(const DataArray<V>* valuesTF, bool noOutOfRangeValues,  
 			return vcxxx;
 		else
 		{
-			ValueCountPairContainerT<R, C> result; result.reserve(vcxxx.size());
+			ValueCountPairContainerT<R, C> result; result.reserve(vcxxx.size() MG_DEBUG_ALLOCATOR_SRC("GetWeededCountsOfV"));
 			CountablePointConverter<V> conv(valuesTF->m_ValueRangeDataPtr);
 			for (const auto& vcp : vcxxx)
-				result.emplace_back(conv.GetScalar<R>(vcp.first), vcp.second);
+				result.emplace_back(MG_DEBUG_ALLOCATOR_FIRST("GetWeededCountsOfV") conv.GetScalar<R>(vcp.first), vcp.second);
 			return result;
 		}
 	}

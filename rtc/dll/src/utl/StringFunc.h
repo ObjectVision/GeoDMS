@@ -65,7 +65,7 @@ void ReplaceAssign(StringRef res, C1 arg1, C2 arg2, C3 arg3)
 	if (arg3len != arg2len)
 		resLen += StrCount(arg1, arg2) * (arg3len - arg2len);
 
-	res.resize_uninitialized(resLen);
+	res.resize_uninitialized(resLen MG_DEBUG_ALLOCATOR_SRC("ReplaceAssign result buffer"));
 
 	auto i = arg1.begin(), e = arg1.end();
 	auto a2b = arg2.begin(), a2e = arg2.end();

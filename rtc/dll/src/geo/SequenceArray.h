@@ -329,7 +329,7 @@ struct SA_Reference : private SequenceArray_Base<T>
 	RTC_CALL void assign(const_iterator first, const_iterator last MG_DEBUG_ALLOCATOR_SRC_ARG);
 	RTC_CALL void assign(Undefined);
 
-	iterator insert(iterator startPtr, const T& value MG_DEBUG_ALLOCATOR_SRC_ARG)
+	iterator insert(iterator startPtr, const T& value MG_DEBUG_ALLOCATOR_SRC(CharPtr srcStr = "SA_Reference.insert"))
 	{
 		size_type startPos = startPtr - begin();
 		assert(startPos <= size());

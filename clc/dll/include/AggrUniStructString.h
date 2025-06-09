@@ -75,7 +75,7 @@ struct unary_assign_string_total_accumulation: unary_total_accumulation<SharedSt
 
 		aggr1_total<TSerFunc>(lengthFinderStreamBuff, input.begin(), input.end(), m_SerFunc);
 
-		output.resize_uninitialized(lengthFinderStreamBuff.CurrPos());
+		output.resize_uninitialized(lengthFinderStreamBuff.CurrPos() MG_DEBUG_ALLOCATOR_SRC("unary_assign_string_total_accumulation"));
 
 		ThrowingMemoOutStreamBuff writerStreamBuff(ByteRange(begin_ptr( output ), end_ptr( output )));
 		writerStreamBuff.m_Curr += sz;

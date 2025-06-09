@@ -910,9 +910,9 @@ SharedDataItemInterestPtr CreateEqualIntervalBreakAttr(std::weak_ptr<DataView> d
 	Range<Float64> range = themeUnit->GetRangeAsFloat64();
 	MakeRange(range.first, range.second);
 	ValueCountPairContainer sortedUniqueValueCache;
-	sortedUniqueValueCache.reserve(2);
-	sortedUniqueValueCache.push_back(ValueCountPair<Float64>(range.first,  1) );
-	sortedUniqueValueCache.push_back(ValueCountPair<Float64>(range.second, 1) );
+	sortedUniqueValueCache.reserve(2 MG_DEBUG_ALLOCATOR_SRC("CreateEqualIntervalBreakAttr"));
+	sortedUniqueValueCache.push_back(ValueCountPair<Float64>(range.first,  1) MG_DEBUG_ALLOCATOR_SRC("CreateEqualIntervalBreakAttr"));
+	sortedUniqueValueCache.push_back(ValueCountPair<Float64>(range.second, 1) MG_DEBUG_ALLOCATOR_SRC("CreateEqualIntervalBreakAttr"));
 
 	ClassifyEqualInterval(breakAttr, sortedUniqueValueCache, themeUnit->GetTiledRangeData());
 

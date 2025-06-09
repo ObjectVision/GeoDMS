@@ -96,7 +96,7 @@ struct RegexSearchOperator : CommonOperGroup, TernaryOperator
 						boost::cmatch matchResult;
 
 						if (i->IsDefined() && boost::regex_search(i->begin(), i->end(), matchResult, rx, flags))
-							resI->assign(matchResult[0].first, matchResult[0].second);
+							resI->assign(matchResult[0].first, matchResult[0].second MG_DEBUG_ALLOCATOR_SRC("RegexSearch"));
 						else
 							resI->assign(Undefined());
 					}

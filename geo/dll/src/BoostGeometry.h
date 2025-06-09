@@ -199,7 +199,7 @@ template <typename P>
 void write_linestring(SA_Reference<P> resDataRef, const bg_linestring_t& ls)
 {
 	for (const auto& p : ls)
-		resDataRef.emplace_back(p);
+		resDataRef.emplace_back(MG_DEBUG_ALLOCATOR_FIRST("write_linestring")p);
 }
 
 template <typename P>
@@ -217,7 +217,7 @@ void bg_store_multi_linestring(SA_Reference<P> resDataRef, const bg_multi_linest
 	if (nrPoints == 0)
 		return;
 
-	resDataRef.reserve(nrPoints);
+	resDataRef.reserve(nrPoints MG_DEBUG_ALLOCATOR_SRC("bg_store_multi_linestring"));
 
 	assert(!mls.empty());
 	write_linestring(resDataRef, mls.front());
@@ -225,7 +225,7 @@ void bg_store_multi_linestring(SA_Reference<P> resDataRef, const bg_multi_linest
 	SizeT nrWrittenLineStrings = 1, nrLineStrings = mls.size();
 	while (nrWrittenLineStrings != nrLineStrings)
 	{
-		resDataRef.emplace_back(Undefined()); // write a separator
+		resDataRef.emplace_back(MG_DEBUG_ALLOCATOR_FIRST("bg_store_multi_linestring") Undefined()); // write a separator
 		write_linestring(resDataRef, mls[nrWrittenLineStrings++]);
 	}
 }
@@ -234,7 +234,7 @@ template <typename DmsPointType>
 void bg_store_ring(SA_Reference<DmsPointType> resDataElem, const auto& ring)
 {
 	assert(ring.begin()[0] == ring.end()[-1]); // closed ?
-	resDataElem.append_range(ring);
+	resDataElem.append_range(ring MG_DEBUG_ALLOCATOR_SRC("bg_store_ring"));
 }
 
 template <typename DmsPointType>
@@ -272,9 +272,9 @@ void bg_store_polygon(E&& ref, const bg_polygon_t& resPoly)
 	while (nh)
 	{
 		--nh;
-		ref.emplace_back(resPoly.inners()[nh].end()[-1] MG_DEBUG_ALLOCATOR_SRC("bg_store_polygon"));
+		ref.emplace_back(MG_DEBUG_ALLOCATOR_FIRST("bg_store_polygon") resPoly.inners()[nh].end()[-1] );
 	}
-	ref.emplace_back(resPoly.outer().end()[-1] MG_DEBUG_ALLOCATOR_SRC("bg_store_polygon"));
+	ref.emplace_back(MG_DEBUG_ALLOCATOR_FIRST("bg_store_polygon") resPoly.outer().end()[-1]);
 }
 
 template <dms_sequence E>
@@ -305,7 +305,7 @@ void bg_store_multi_polygon(E&& ref, const bg_multi_polygon_t& resMP)
 	while (np)
 	{
 		--np;
-		ref.emplace_back(resMP[np].outer().end()[-1] MG_DEBUG_ALLOCATOR_SRC("bg_store_multi_polygon"));
+		ref.emplace_back(MG_DEBUG_ALLOCATOR_FIRST("bg_store_multi_polygon") resMP[np].outer().end()[-1]);
 	}
 	assert(ref.size() == count);
 }

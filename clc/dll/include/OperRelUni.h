@@ -335,7 +335,7 @@ void make_subindex_container(
 
 	if (domain.first)
 	{
-		typename sequence_traits<typename IndexArray::value_type>::container_type prevIndexTemp(prevIndexData.size()); 
+		typename sequence_traits<typename IndexArray::value_type>::container_type prevIndexTemp(prevIndexData.size() MG_DEBUG_ALLOCATOR_SRC("make_subindex_container prevIndexTemp"));
 		Range_Value2Index_checked(domain, prevIndexData.begin(), prevIndexData.end(), prevIndexTemp.begin());
 		make_subindex(
 			unsigned_ptr(resDataBegin), 

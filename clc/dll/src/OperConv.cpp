@@ -725,7 +725,7 @@ struct Type2DConversion: unary_func<TR, TA> // http://www.gdal.org/ogr/osr_tutor
 	{
 		for (; pai!=pae; ++pri, ++pai)
 		{
-			pri->resize_uninitialized(pai->size());
+			pri->resize_uninitialized(pai->size() MG_DEBUG_ALLOCATOR_SRC("Type2DConversion"));
 			Dispatch(pri->begin(), pai->begin(), pai->end());
 		}
 	}

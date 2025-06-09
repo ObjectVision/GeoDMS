@@ -175,9 +175,9 @@ void convert_assign(SA_Reference<T> dst, USeq&& src)
 		MakeUndefined(dst);
 	else
 	{
-		dst.reserve(src.size());
+		dst.reserve(src.size() MG_DEBUG_ALLOCATOR_SRC("convert_assign"));
 		for (auto s : src)
-			dst.emplace_back(Convert<T>(s));
+			dst.emplace_back(MG_DEBUG_ALLOCATOR_FIRST("convert_assign") Convert<T>(s));
 	}
 }
 

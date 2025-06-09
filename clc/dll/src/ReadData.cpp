@@ -348,7 +348,7 @@ struct ReadLinesOperator: public TernaryOperator
 			char ch;
 			while (ch = dataValuesStream.NextChar(), !eolch(ch))
 			{
-				ref.push_back(ch);
+				ref.push_back(ch MG_DEBUG_ALLOCATOR_SRC("ReadLines"));
 				dataValuesStream.ReadChar();
 			}
 			if (eofch(ch))
@@ -449,7 +449,7 @@ struct SplitSequenceOperator : public UnaryOperator
 				{
 					if (dwlOrgRel)
 						updateOrgRelIndexOperation();
-					resSequenceIter->assign(seqStartPtr, seqPtr);
+					resSequenceIter->assign(seqStartPtr, seqPtr MG_DEBUG_ALLOCATOR_SRC("ReadData SplitSequence"));
 					++resSequenceIter;
 					seqStartPtr = ++seqPtr;
 				}
@@ -458,7 +458,7 @@ struct SplitSequenceOperator : public UnaryOperator
 			}
 			if (dwlOrgRel)
 				updateOrgRelIndexOperation();
-			resSequenceIter->assign(seqStartPtr, seqPtr);
+			resSequenceIter->assign(seqStartPtr, seqPtr MG_DEBUG_ALLOCATOR_SRC("ReadData SplitSequence"));
 			++resSequenceIter;
 			++orgRelIndex;
 		}

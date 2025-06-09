@@ -72,7 +72,7 @@ struct StrConcatOperator : BinaryAttrOper<SharedStr, SharedStr, SharedStr>
 
 			if (a1Defined && a2Defined)
 			{
-				ri->resize_uninitialized(a1Size + a2Size);
+				ri->resize_uninitialized(a1Size + a2Size MG_DEBUG_ALLOCATOR_SRC("Concat string result"));
 				fast_copy(a2Begin, a2End, fast_copy(a1Begin, a1End, ri->begin()));
 			}
 			else
@@ -115,7 +115,7 @@ struct Str2Operator : BinaryAttrOper<SharedStr, SharedStr, strpos_t>
 			if (pos < size)
 				totalSize += size - pos;
 		}
-		resData.get_sa().data_reserve(totalSize MG_DEBUG_ALLOCATOR_SRC_PARAM);
+		resData.get_sa().data_reserve(totalSize MG_DEBUG_ALLOCATOR_SRC(GetGroup()->GetNameStr()));
 		dms_assert(resData.size() == cardinality);
 
 		ResultType::iterator
@@ -126,7 +126,7 @@ struct Str2Operator : BinaryAttrOper<SharedStr, SharedStr, strpos_t>
 			strpos_t pos = *a2b;
 
 			auto range = m_SubFunc(a1b->begin(), a1b->end(), pos);
-			ri->assign(range.first, range.second);
+			ri->assign(range.first, range.second MG_DEBUG_ALLOCATOR_SRC("cgal_assign_point"));
 
 			if (!e1Void) ++a1b;
 			if (!e2Void) ++a2b;
@@ -193,7 +193,7 @@ void Repeat(StringRef& res, const StringCRef& arg, strpos_t count)
 		MakeUndefined(res);
 	else
 	{
-		res.resize_uninitialized(arg.size()*count);
+		res.resize_uninitialized(arg.size()*count MG_DEBUG_ALLOCATOR_SRC("Repeat result"));
 		StringRef::iterator i = res.begin();
 		for (; count; --count)
 			i = fast_copy(arg.begin(), arg.end(), i);

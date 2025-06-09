@@ -43,7 +43,7 @@ void InitOutput(sequence_traits<SharedStr>::seq_t& outputs, const length_finder_
 		lengthFinderItr = lengthFinderArray.begin();
 
 	while (outputsItr != outputsEnd)
-		(outputsItr++)->resize_uninitialized(lengthFinderItr++->CurrPos()); // +1);
+		(outputsItr++)->resize_uninitialized(lengthFinderItr++->CurrPos() MG_DEBUG_ALLOCATOR_SRC("OperAttrStr.InitOutput")); // +1);
 }
 
 
@@ -145,7 +145,7 @@ public:
 
 					aggr1_total<unary_ser_aslist>(lengthFinderStreamBuff, arg1Data.begin(), arg1Data.end(), m_SerFunc);
 				}
-				output.resize_uninitialized(lengthFinderStreamBuff.CurrPos());
+				output.resize_uninitialized(lengthFinderStreamBuff.CurrPos() MG_DEBUG_ALLOCATOR_SRC("AsListTot"));
 			}
 			ThrowingMemoOutStreamBuff outStr(ByteRange(begin_ptr( output ), end_ptr( output )));
 			for (tile_id t=0; t!=tn; ++t)

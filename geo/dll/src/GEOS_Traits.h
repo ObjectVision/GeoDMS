@@ -254,7 +254,7 @@ auto geos_create_polygons(SA_ConstReference<DmsPointType> polyRef, bool mustInse
 template <dms_sequence E>
 void geos_write_point(E&& ref, const geos::geom::Coordinate& c)
 {
-	ref.emplace_back(shp2dms_order(c.x, c.y));
+	ref.emplace_back(MG_DEBUG_ALLOCATOR_FIRST("geos_write_point") shp2dms_order(c.x, c.y));
 
 }
 
@@ -338,7 +338,7 @@ void geos_assign_polygon_with_holes(E&& ref, const geos::geom::Polygon* poly)
 		count += poly->getInteriorRingN(--irCount)->getCoordinatesRO()->getSize() + 1;
 
 	ref.clear();
-	ref.reserve(count);
+	ref.reserve(count MG_DEBUG_ALLOCATOR_SRC("geos_assign_polygon_with_holes"));
 
 	geos_write_polygon_with_holes(std::forward<E>(ref), poly);
 	assert(ref.size() == count);
@@ -409,7 +409,7 @@ void geos_assign_mp(E&& ref, const geos::geom::MultiPolygon* mp)
 		}
 	}
 
-	ref.reserve(count);
+	ref.reserve(count MG_DEBUG_ALLOCATOR_SRC("geos_assign_mp"));
 	geos_write_mp(std::move(ref), mp);
 }
 

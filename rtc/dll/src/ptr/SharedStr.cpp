@@ -203,17 +203,17 @@ SharedStr::SharedStr(const TokenStr& str MG_DEBUG_ALLOCATOR_SRC_ARG)
 
 void SharedStr::operator = (const TokenID& id)
 { 
-	assign(SharedCharArray_Create(id.GetStr().c_str(), id.GetStrEnd().c_str())); 
+	assign(SharedCharArray_Create(id.GetStr().c_str(), id.GetStrEnd().c_str() MG_DEBUG_ALLOCATOR_SRC("SharedStr::operator = ")));
 }
 void SharedStr::operator = (const SA_ConstReference<char>& range)
 { 
-	assign(SharedCharArray_Create(range.begin(), range.end())); 
+	assign(SharedCharArray_Create(range.begin(), range.end() MG_DEBUG_ALLOCATOR_SRC("SharedStr::operator = ")));
 }
 
 void SharedStr::MakeUnique()
 {
 	if (has_ptr() && get_ptr()->GetRefCount() > 1)
-		assign(SharedCharArray_Create(cbegin(), csend()));
+		assign(SharedCharArray_Create(cbegin(), csend() MG_DEBUG_ALLOCATOR_SRC("SharedStr::MakeUnique ")));
 	dms_assert(!has_ptr() || get_ptr()->GetRefCount() == 1 || !ssize());
 }
 

@@ -1074,7 +1074,7 @@ public:
 					{
 						// add Arc with connection
 						dms_assert(resStreetEnd->empty());
-						resStreetEnd->resize_uninitialized(2);
+						resStreetEnd->resize_uninitialized(2 MG_DEBUG_ALLOCATOR_SRC("Connect resStreetEnd"));
 						auto resPointPtr = resStreetEnd->begin();
 						resPointPtr[0] = point;
 						resPointPtr[1] = arcHnd.m_CutPoint;
@@ -1088,7 +1088,7 @@ public:
 							dms_assert(resCutIter < resCutEnd);              // still space available in last segment of results
 							dms_assert(arcHnd.m_SegmIndex < arcRef.size() - 1);// segmIndex < #segm = #points -1
 							dms_assert(resCutIter->empty());
-							(*resCutIter).resize_uninitialized(arcRef.size() - arcHnd.m_SegmIndex - (arcHnd.m_InSegm ? 0 : 1));
+							(*resCutIter).resize_uninitialized(arcRef.size() - arcHnd.m_SegmIndex - (arcHnd.m_InSegm ? 0 : 1) MG_DEBUG_ALLOCATOR_SRC("Connect resCut"));
 							dms_assert((*resCutIter).size() > 1); // if match was made on lastNode, then inArc was false.
 
 							resPointPtr = resCutIter->begin();

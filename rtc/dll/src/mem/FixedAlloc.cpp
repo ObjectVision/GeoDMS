@@ -828,7 +828,7 @@ ElemAllocComponent::~ElemAllocComponent()
 void PostReporting()
 {
 	s_ReportingRequestPending = true;
-	SendMainThreadOper([] 
+	PostMainThreadOper([] 
 		{
 			if (s_ReportingRequestPending)
 				ReportFixedAllocStatus();
@@ -887,15 +887,21 @@ void RemoveAlloc(void* ptr, size_t sz)
 	reg.map.erase(pos);
 }
 
-void ReportAllocs()
+auto GetAllocRegisterCopy()
 {
 	auto& reg = GetAllocRegister();
 	std::lock_guard guard(reg.mutex);
+	return reg.map; // return a copy of the map, so that it can be used outside the lock
+}
+
+void ReportAllocs()
+{
+	auto map = GetAllocRegisterCopy();
 	objectstore_count_t i = 0;
 
 	std::map<SizeT, SizeT> fequencyCounts;
 	reportD(SeverityTypeID::ST_MinorTrace, "All Registered Memory Blocks");
-	for (auto& registeredAlloc : reg.map)
+	for (auto& registeredAlloc : map)
 	{
 		SizeT sz = registeredAlloc.second.second;
 		reportF(SeverityTypeID::ST_MajorTrace, "Alloc %d size %x src %s", i++, sz, registeredAlloc.second.first);

@@ -179,7 +179,7 @@ template <dms_sequence E, typename K>
 void cgal_assign_point(E&& ref, const CGAL::Point_2<K>& p)
 {
 	using coordinate_type = scalar_of_t<std::remove_reference_t<E>>;
-	ref.push_back( shp2dms_order<coordinate_type>(CGAL::to_double( p.x() ), CGAL::to_double( p.y())) );
+	ref.push_back( shp2dms_order<coordinate_type>(CGAL::to_double( p.x() ), CGAL::to_double( p.y())) MG_DEBUG_ALLOCATOR_SRC("cgal_assign_point"));
 }
 
 template <dms_sequence E, typename K>
@@ -235,7 +235,7 @@ void cgal_assign_polygon_with_holes_vector(E&& ref, std::vector<CGAL_Traits::Pol
 		for (auto hi = resPoly.holes().begin(), he = resPoly.holes().end(); hi != he; ++hi)
 			count += hi->size() + 2;
 	}
-	ref.reserve(count);
+	ref.reserve(count MG_DEBUG_ALLOCATOR_SRC("cgal_assign_polygon_with_holes_vector"));
 
 	for (const auto& poly : polyVec)
 		cgal_assign_polygon_with_holes(ref, poly);
@@ -267,7 +267,7 @@ void cgal_assign_shared_polygon_vector(E&& ref, std::vector<std::shared_ptr<Poly
 //		for (auto hi = resPoly.holes().begin(), he = resPoly.holes().end(); hi != he; ++hi)
 //			count += hi->size() + 2;
 	}
-	ref.reserve(count);
+	ref.reserve(count MG_DEBUG_ALLOCATOR_SRC("cgal_assign_shared_polygon_vector"));
 
 	for (const auto& sharedPolyPtr : polyVec)
 		if (auto polyPtr = sharedPolyPtr.get())

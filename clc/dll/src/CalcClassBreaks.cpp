@@ -448,7 +448,7 @@ struct JenksFisher
 #endif
 	{
 		DBG_START("JenksFisher", "JenksFisher", MG_DEBUG_CLASSBREAKS);
-		m_CumulValues.reserve(vcpc.size());
+		m_CumulValues.reserve(vcpc.size() MG_DEBUG_ALLOCATOR_SRC("JenksFischer CumulValues"));
 		Float64    cwv=0;
 		CountType  cw =0, w;
 
@@ -462,7 +462,7 @@ struct JenksFisher
 
 			assert(!i || vcpc[i-1].first < vcpc[i].first);
 			cwv+= w * vcpc[i].first;
-			m_CumulValues.push_back(ValueCountPair<Float64>(cwv, cw));
+			m_CumulValues.push_back(ValueCountPair<Float64>(cwv, cw) MG_DEBUG_ALLOCATOR_SRC("JenksFischer CumulValues"));
 
 			if (i < m_BufSize)
 				m_PrevSSM[i] = cwv * cwv / cw; // prepare SSM for first class, last m_K values can be omitted since they never belong to the first class
@@ -674,14 +674,14 @@ break_array ClassifyJenksFisher(const ValueCountPairContainer& vcpc, SizeT kk, b
 		++firstPositivePos;
 	assert(firstPositivePos == vcpc.size() || vcpc[firstPositivePos].first > 0);
 
-	auto positiveValues = ValueCountPairContainer(vcpc.begin() + firstPositivePos, vcpc.end());
+	auto positiveValues = ValueCountPairContainer(vcpc.begin() + firstPositivePos, vcpc.end() MG_DEBUG_ALLOCATOR_SRC("ClassifyJenksFischer"));
 	CountType zeroCount = 0;
 	SizeT firstNonnegativePos = firstPositivePos;
 	if (firstPositivePos > 0 && vcpc[firstPositivePos - 1].first == 0)
 		zeroCount = vcpc[--firstNonnegativePos].second;
 	bool hasZeroClass = (zeroCount > 0);
 
-	auto negativeValues = ValueCountPairContainer(vcpc.begin(), vcpc.begin() + firstNonnegativePos);
+	auto negativeValues = ValueCountPairContainer(vcpc.begin(), vcpc.begin() + firstNonnegativePos MG_DEBUG_ALLOCATOR_SRC("ClassifyJenksFischer"));
 	if (negativeValues.size() <= 1)
 	{
 		auto result = ClassifyCRJenksFisher(positiveValues, kk - negativeValues.size() - (hasZeroClass ? 1 : 0));

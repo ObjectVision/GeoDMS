@@ -239,7 +239,7 @@ BinaryInpStream& operator >>(BinaryInpStream& ar, SharedStr& str)
 FormattedInpStream& operator >> (FormattedInpStream& is, SharedStr& str)
 {
 	CharPtrRange result = is.NextWord();
-	str.assign (SharedCharArray_Create(result.begin(), result.end()));
+	str.assign (SharedCharArray_Create(result.begin(), result.end() MG_DEBUG_ALLOCATOR_SRC("FormattedInpStream::operator >>")) );
 	return is;
 }
 

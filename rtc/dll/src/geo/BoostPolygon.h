@@ -43,7 +43,7 @@ void bp_assign_ring(E&& ref, CPI ringBegin, CPI ringEnd)
 
 	// REVERSE ORDER
 	for (; ringBegin != ringEnd; )
-		ref.emplace_back(ConvertPoint(*--ringEnd));
+		ref.emplace_back(MG_DEBUG_ALLOCATOR_FIRST("bp_assign_ring") ConvertPoint(*--ringEnd));
 }
 
 template <dms_sequence E, typename POLYGON>

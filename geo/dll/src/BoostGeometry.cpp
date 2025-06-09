@@ -451,7 +451,7 @@ struct SimplifyMultiPolygonOperator : public AbstrSimplifyOperator
 						continue;
 
 					assert(resRing.begin()[0] == resRing.end()[-1]); // closed ?
-					resData[i].append(resRing.begin(), resRing.end());
+					resData[i].append(resRing.begin(), resRing.end() MG_DEBUG_ALLOCATOR_SRC(GetGroup()->GetNameStr()));
 					ringClosurePoints.emplace_back(resRing.end()[-1]);
 				}
 				if (ringClosurePoints.empty())
@@ -459,7 +459,7 @@ struct SimplifyMultiPolygonOperator : public AbstrSimplifyOperator
 				ringClosurePoints.pop_back();
 				while (!ringClosurePoints.empty())
 				{
-					resData[i].emplace_back(ringClosurePoints.back());
+					resData[i].emplace_back(MG_DEBUG_ALLOCATOR_FIRST(GetGroup()->GetNameStr()) ringClosurePoints.back());
 					ringClosurePoints.pop_back();
 				}
 			}
@@ -550,7 +550,7 @@ struct SimplifyPolygonOperator : public AbstrSimplifyOperator
 				}
 
 				dms_assert(resRing.begin()[0] == resRing.end()[-1]); // closed ?
-				resData[i].append(resRing.begin(), resRing.end());
+				resData[i].append(resRing.begin(), resRing.end() MG_DEBUG_ALLOCATOR_SRC(GetGroup()->GetNameStr()));
 				ringClosurePoints.emplace_back(resRing.end()[-1]);
 			}
 			if (ringClosurePoints.empty())
@@ -558,7 +558,7 @@ struct SimplifyPolygonOperator : public AbstrSimplifyOperator
 			ringClosurePoints.pop_back();
 			while (!ringClosurePoints.empty())
 			{
-				resData[i].emplace_back(ringClosurePoints.back());
+				resData[i].emplace_back(MG_DEBUG_ALLOCATOR_FIRST(GetGroup()->GetNameStr()) ringClosurePoints.back());
 				ringClosurePoints.pop_back();
 			}
 		}
@@ -1336,13 +1336,13 @@ struct OuterMultiPolygonOperator : public AbstrOuterOperator
 };
 
 template <typename P>
-struct OuterSingePolygonOperator : public AbstrOuterOperator
+struct OuterSinglePolygonOperator : public AbstrOuterOperator
 {
 	using PointType = P;
 	using PolygonType = sequence_traits<PointType>::container_type;
 	using Arg1Type = DataArray<PolygonType>;
 
-	OuterSingePolygonOperator(AbstrOperGroup& gr)
+	OuterSinglePolygonOperator(AbstrOperGroup& gr)
 		: AbstrOuterOperator(gr, Arg1Type::GetStaticClass())
 	{}
 
@@ -1363,13 +1363,13 @@ struct OuterSingePolygonOperator : public AbstrOuterOperator
 
 				if (!currPoly.outer().empty())
 				{
-					resData[i].reserve(currPoly.outer().size());
+					resData[i].reserve(currPoly.outer().size() MG_DEBUG_ALLOCATOR_SRC("OuterSinglePolygon"));
 					bg_store_ring(resData[i], currPoly.outer());
 				}
 			}
 			catch (DmsException& e)
 			{
-				e.AsErrMsg()->TellExtraF("OuterSingePolygonOperator::Calculate tile %d, offset %d", t, i);
+				e.AsErrMsg()->TellExtraF("OuterSinglePolygonOperator::Calculate tile %d, offset %d", t, i);
 				throw;
 			}
 
@@ -1440,7 +1440,7 @@ namespace
 	tl_oper::inst_tuple_templ<typelists::points, BgBufferMultiPolygonOperator, AbstrOperGroup&> bg_bufferMultiPolygonOperators(grBgBuffer_multi_polygon);
 	tl_oper::inst_tuple_templ<typelists::points, GeosBufferMultiPolygonOperator, AbstrOperGroup&> geos_bufferMultiPolygonOperators(grGeosBuffer_multi_polygon);
 
-	tl_oper::inst_tuple_templ<typelists::points, OuterSingePolygonOperator, AbstrOperGroup&> bg_outerSinglePolygonOperators(grBgOuter_single_polygon);
+	tl_oper::inst_tuple_templ<typelists::points, OuterSinglePolygonOperator, AbstrOperGroup&> bg_outerSinglePolygonOperators(grBgOuter_single_polygon);
 	tl_oper::inst_tuple_templ<typelists::points, OuterMultiPolygonOperator, AbstrOperGroup&> bg_outerMultiPolygonOperators(grBgOuter_multi_polygon);
 
 	template <typename P> using CGAL_IntersectMultiPolygonOperator = CGAL_MultiPolygonOperator < P, cgal_intersection>;

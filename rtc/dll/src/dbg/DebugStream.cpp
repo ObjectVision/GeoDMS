@@ -137,13 +137,15 @@ namespace { // DebugOutStreamBuff is local
 		UInt32 printedLines = 0;
 		SeverityTypeID st = msgData->m_SeverityType;
 		MsgCategory msgCat = msgData->m_MsgCategory;
-		auto msgTxt = msgData->m_Txt;
-		auto i = msgTxt.begin(), e = msgTxt.end();
-		while (i != e)
+		auto msgTxt = std::move(msgData->m_Txt);
+		auto i = msgTxt.cbegin(), e = msgTxt.csend();
+		while (i != e || minorSkipCount || majorSkipCount)
 		{
-			assert(e[-1] == 0); // guaranteed by caller to have a completed Line.
+			auto endofline = std::find(i, e, char(0));
+
+			assert(*e == 0); // guaranteed by caller to have a completed Line.
 			assert(st <= SeverityTypeID::ST_DispError);
-			if (e - i >= 1024000 && (st < SeverityTypeID::ST_MajorTrace || st == SeverityTypeID::ST_MajorTrace && printedLines > 16)) // filter out large trace sections
+			if (e - i >= 10240 && (st < SeverityTypeID::ST_MajorTrace || st == SeverityTypeID::ST_MajorTrace && printedLines > 16)) // filter out large trace sections
 				if (st <= SeverityTypeID::ST_MinorTrace)
 					++minorSkipCount;
 				else
@@ -163,25 +165,30 @@ namespace { // DebugOutStreamBuff is local
 					MsgDispatch(&summaryData, false);
 					minorSkipCount = majorSkipCount = 0;
 				}
+				msgData->m_IsFollowup = false;
 				while (true)
 				{
-					auto eolPtr = std::find(i, e, '\n');
-					if (eolPtr != i)
+					auto eosPtr = std::find(i, endofline, '\n');
+					if (eosPtr != i)
 					{
-						auto eosPtr = eolPtr; if (eosPtr[-1] == char(0)) --eosPtr;
+						assert(eosPtr[-1] != char(0));
 						msgData->m_Txt = SharedStr(CharPtrRange(i, eosPtr)); // TODO: can we avoid this extra string copy by forwarding a CharPtrRange ?
-						MsgDispatch(msgData, eolPtr != e);
-						msgData->m_IsFollowup = true;
+						MsgDispatch(msgData, eosPtr != e);
 					}
-					if (eolPtr == e)
+					if (eosPtr == endofline)
 						break;
 
-					i = ++eolPtr;
+					msgData->m_IsFollowup = true;
+					i = ++eosPtr;
 				}
 				++printedLines;
 			}
-			i = std::find(i, e, char(0));
-			++i;
+			i = endofline;
+			if (i != e)
+			{
+				assert(!*i);
+				++i;
+			}
 		}
 	}
 
@@ -359,7 +366,7 @@ DebugOutStream::scoped_lock::~scoped_lock()
 				DMS_RegisterMsgCallback(CrtMsgCallback, typesafe_cast<ClientHandle>(this));
 
 				DebugOutStream::scoped_lock lock(g_DebugStream, SeverityTypeID::ST_MajorTrace);
-				*g_DebugStream << "CRT logging started\n" << char(0);
+				*g_DebugStream << "CRT logging started\n";
 			}
 			~CCrtLog() 
 			{

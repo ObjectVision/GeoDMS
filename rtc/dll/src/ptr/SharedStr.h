@@ -223,14 +223,14 @@ private:
 public:
 	RTC_CALL SharedStr() noexcept;
 //	SharedStr(CharPtr begin, CharPtr end MG_DEBUG_ALLOCATOR_SRC(CharPtr srcStr = "SharedStr")): base_type(SharedCharArray_Create(begin, end MG_DEBUG_ALLOCATOR_SRC_PARAM) ){}
-	SharedStr(WeakStr str)               : base_type(str.get_ptr()) {}
+	SharedStr(WeakStr str) : base_type(str.get_ptr()) {}
 	SharedStr(SharedStr&& str) noexcept  : base_type(std::move(str)) {}
 
 	explicit SharedStr(const SharedStr& rhs) = default;
 	explicit SharedStr(CharPtr zStr MG_DEBUG_ALLOCATOR_SRC(CharPtr srcStr = "SharedStr")) : base_type(SharedCharArray_Create(zStr MG_DEBUG_ALLOCATOR_SRC_PARAM)) {}
 	explicit SharedStr(const std::string& strStr MG_DEBUG_ALLOCATOR_SRC(CharPtr srcStr = "SharedStr")): base_type(SharedCharArray_Create(begin_ptr(strStr), end_ptr(strStr) MG_DEBUG_ALLOCATOR_SRC_PARAM)) {}
-	template <unsigned int N> explicit SharedStr(const char(&str)[N] )     : base_type(SharedCharArray_Create(str, str+N-1) ){ dms_assert(!str[N-1]); }
-	template <unsigned int N> explicit SharedStr(const char8_t(&str)[N])   : base_type(SharedCharArray_Create(reinterpret_cast<CharPtr>(str), reinterpret_cast<CharPtr>(str) + N - 1)) { dms_assert(!str[N - 1]); }
+//	template <unsigned int N> explicit SharedStr(const char(&str)[N] )     : base_type(SharedCharArray_Create(str, str+N-1 MG_DEBUG_ALLOCATOR_SRC("SharedStr::ctor")) ){ dms_assert(!str[N-1]); }
+//	template <unsigned int N> explicit SharedStr(const char8_t(&str)[N])   : base_type(SharedCharArray_Create(reinterpret_cast<CharPtr>(str), reinterpret_cast<CharPtr>(str) + N - 1 MG_DEBUG_ALLOCATOR_SRC("SharedStr::ctor"))) { assert(!str[N - 1]); }
 	explicit SharedStr(SharedCharArray* arrayPtr): base_type(arrayPtr) {}
 	constexpr explicit SharedStr(const Undefined&) : base_type(SharedCharArray_CreateUndefined()) {}
 	RTC_CALL explicit SharedStr(MutableCharPtrRange range MG_DEBUG_ALLOCATOR_SRC(CharPtr srcStr = "SharedStr::SharedStr(MutableCharPtrRange range)"));
@@ -242,8 +242,7 @@ public:
 
 	void operator = (CharPtr zStr) { assign(SharedCharArray_Create(zStr MG_DEBUG_ALLOCATOR_SRC("SharedStr::operator = (CharPtr)"))); }
 	void operator = (const char8_t* zStr) { assign(SharedCharArray_Create(reinterpret_cast<CharPtr>(zStr) MG_DEBUG_ALLOCATOR_SRC("SharedStr::operator = (const char8_t*)"))); }
-	//	template <unsigned int N> void operator = (const char str[N])    { assign(SharedCharArray_Create(str, str + N - 1)); dms_assert(!str[N - 1]); }
-	//	template <unsigned int N> void operator = (const char8_t str[N]) { assign(SharedCharArray_Create(reinterpret_cast<CharPtr>(str), reinterpret_cast<CharPtr>(str)+N-1)); dms_assert(!str[N - 1]); }
+
 	void operator = (WeakStr  str) { assign(str.get_ptr()); }
 	RTC_CALL void operator = (const TokenID& id);
 	void operator = (SharedCharArray* id) { assign(id); }
@@ -268,6 +267,7 @@ public:
 
 	char* begin() { MakeUnique(); return has_ptr() ?  get_ptr()->begin() : nullptr;  }
 	char* send () { MakeUnique(); return has_ptr() ?  get_ptr()->end()-1 : nullptr;  }
+
 	char* end()   { return send(); }
 	const char* end() const { return send(); }
 

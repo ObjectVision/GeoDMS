@@ -221,7 +221,9 @@ void createDmsActions() {
     main_window->m_save_value_info_pages = std::make_unique<QAction>(QObject::tr("Debug: save value info page(s)"));
     main_window->connect(main_window->m_save_value_info_pages.get(), &QAction::triggered, main_window, &MainWindow::saveValueInfo);
     main_window->m_tools_menu->addAction(main_window->m_save_value_info_pages.get());
+#endif
 
+#ifdef MG_DEBUGREPORTER
     main_window->m_debug_reports = std::make_unique<QAction>(QObject::tr("Debug: produce internal report(s)"));
     main_window->connect(main_window->m_debug_reports.get(), &QAction::triggered, main_window, &MainWindow::debugReports);
     main_window->m_tools_menu->addAction(main_window->m_debug_reports.get());

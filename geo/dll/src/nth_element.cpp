@@ -275,7 +275,7 @@ struct NthElementTot: AbstrPthElementTot<I>
 				if (IsDefined(argVi))
 				{
 					assert(copy.size() < N); // sufficient reservation
-					copy.push_back(argVi);
+					copy.push_back(argVi MG_DEBUG_ALLOCATOR_SRC("NthElementTot buffer"));
 				}
 		assert(copy.size() == N); // neccesary reservation
 		std::nth_element(copy.begin(), copy.begin() + n, copy.end());
@@ -473,7 +473,7 @@ struct NthElementWeightedTot: AbstrNthElementWeightedTot<W>
 			if (IsDefined(v) && IsDefined(*argW_ptr) && *argW_ptr > 0)
 			{
 				assert(indexVector.size() < N); // sufficient reservation
-				indexVector.push_back(i);
+				indexVector.push_back(i MG_DEBUG_ALLOCATOR_SRC("NthElementWeightedTot buffer"));
 			}
 			++argW_ptr; ++i;
 		}
@@ -637,7 +637,7 @@ struct RthElementTot: AbstrPthElementTot<RatioType>
 				if (IsDefined(*iv))
 				{
 					assert(copy.size() < N); // sufficient reservation
-					copy.push_back(*iv);
+					copy.push_back(*iv MG_DEBUG_ALLOCATOR_SRC("RthElementTot buffer"));
 				}
 			}
 		}
