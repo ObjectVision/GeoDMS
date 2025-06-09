@@ -786,6 +786,29 @@ void ReportFixedAllocFinalSummary()
 
 #endif //defined(MG_CACHE_ALLOC)
 
+
+#if defined(MG_DEBUG_ALLOCATOR)
+
+#include <map>
+#include "dbg/DebugReporter.h"
+
+struct alloc_register_t
+{
+	std::map<void*, std::pair<CharPtr, size_t>> map;
+	std::mutex mutex;
+};
+
+std::unique_ptr< alloc_register_t> s_AllocRegister;
+
+auto& GetAllocRegister()
+{
+	assert(s_AllocRegister);
+	return *s_AllocRegister;
+}
+
+
+#endif
+
 //----------------------------------------------------------------------
 // clean-up
 //----------------------------------------------------------------------
@@ -799,10 +822,19 @@ ElemAllocComponent::ElemAllocComponent()
 
 	SetMainThreadID();
 
+
+#if defined(MG_DEBUG_ALLOCATOR)
+	s_AllocRegister.reset(std::make_unique<alloc_register_t>().release());
+#endif
+
 	GetFreeStackAllocatorArray();
+
 #if defined(MG_CACHE_ALLOC_SMALL)
 	GetFreeListAllocatorArray();
 #endif //defined(MG_CACHE_ALLOC_SMALL)
+
+#if defined(MG_X)
+#endif
 
 #if defined(MG_DEBUG)
 //	_CrtSetDbgFlag(_CRTDBG_ALLOC_MEM_DF | _CRTDBG_LEAK_CHECK_DF /*| _CRTDBG_CHECK_CRT_DF | _CRTDBG_CHECK_ALWAYS_DF*/);
@@ -819,6 +851,10 @@ ElemAllocComponent::~ElemAllocComponent()
 	if (--g_ElemAllocCounter)
 		return;
 #endif //defined(MG_CACHE_ALLOC)
+
+#if defined(MG_DEBUG_ALLOCATOR)
+	s_AllocRegister.reset();
+#endif
 }
 
 #if defined(MG_CACHE_ALLOC)
@@ -852,21 +888,6 @@ void ConsiderReporting()
 
 
 #if defined(MG_DEBUG_ALLOCATOR)
-
-#include <map>
-#include "dbg/DebugReporter.h"
-
-struct alloc_register_t
-{
-	std::map<void*, std::pair<CharPtr, size_t>> map;
-	std::mutex mutex;
-};
-
-auto& GetAllocRegister()
-{
-	static alloc_register_t allocRegister;
-	return allocRegister;
-}
 
 void RegisterAlloc(void* ptr, size_t sz MG_DEBUG_ALLOCATOR_SRC_ARG)
 {

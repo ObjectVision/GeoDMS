@@ -191,7 +191,7 @@ namespace { // DebugOutStreamBuff is local
 			}
 		}
 	}
-
+	ElemAllocComponent s_AllocComponent;
 	static std::vector< MsgData > s_FlushPipeline;
 
 	void ProcessMsgDataPipeline()
