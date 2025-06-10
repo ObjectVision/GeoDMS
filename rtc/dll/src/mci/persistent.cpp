@@ -129,17 +129,18 @@
 		if (cls && !item->IsKindOf(cls) && !item->GetDynamicObjClass()->IsDerivedFrom(cls))
 			throwErrorF("CheckPtr", "Invalid Item in %s; %s expected" , dmsFunc, cls->GetName().c_str());
 	}
-	static UInt32 g_NrPersistentObjects = 0;
+	static std::atomic<UInt32> g_NrPersistentObjects = 0;
 	
 	void ReportExistingObjects()
 	{
-		if (g_NrPersistentObjects)
+		auto nrPersistentObjects = g_NrPersistentObjects.load();
+		if (nrPersistentObjects)
 		{
 			DMS_CALL_BEGIN
 
 #if defined(_MSC_VER)
 				_RPT1(_CRT_WARN, "\n\nMemory Leak of %d Objects after destructing all DMS Runtime components\nUse MG_CHECKPTR to determine which objects", 
-					g_NrPersistentObjects
+					nrPersistentObjects
 				);
 #else //defined(_MSC_VER)
 

@@ -798,7 +798,7 @@ struct alloc_register_t
 	std::mutex mutex;
 };
 
-std::unique_ptr< alloc_register_t> s_AllocRegister;
+static alloc_register_t* s_AllocRegister = nullptr;
 
 auto& GetAllocRegister()
 {
@@ -824,7 +824,8 @@ ElemAllocComponent::ElemAllocComponent()
 
 
 #if defined(MG_DEBUG_ALLOCATOR)
-	s_AllocRegister.reset(std::make_unique<alloc_register_t>().release());
+	assert(!s_AllocRegister);
+	s_AllocRegister = new alloc_register_t;
 #endif
 
 	GetFreeStackAllocatorArray();
@@ -853,7 +854,9 @@ ElemAllocComponent::~ElemAllocComponent()
 #endif //defined(MG_CACHE_ALLOC)
 
 #if defined(MG_DEBUG_ALLOCATOR)
-	s_AllocRegister.reset();
+	assert(s_AllocRegister);
+	delete s_AllocRegister;
+	s_AllocRegister = nullptr;
 #endif
 }
 
