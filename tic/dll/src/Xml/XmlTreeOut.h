@@ -100,7 +100,7 @@ struct XML_Table : XML_OutElement
 		OutStream().WriteAttr("bgcolor", color);
 		Row::Cell cell(row);
 		OutStream().WriteAttr("COLSPAN", colSpan);
-		OutStream().WriteTrimmed(value);
+		OutStream().WriteValue(value);
 	}
 
 	void EditableNameValueRow(CharPtr propName, CharPtr propValue, const TreeItem* context = 0)
