@@ -3014,7 +3014,7 @@ ActorVisitState TreeItem::VisitSuppliers(SupplierVisitFlag svf, const ActorVisit
 
 			assert(!SuspendTrigger::DidSuspend()); // precondition
 			auto supplTI = debug_cast<const TreeItem*>(supplier); // all configured suppliers are TreeItems; all implied suppliers are AbstrCalculators
-			if (visitor(supplTI) == AVS_SuspendedOrFailed)
+			if (supplTI->VisitConstVisibleSubTree(visitor) == AVS_SuspendedOrFailed)
 				return AVS_SuspendedOrFailed;
 		}
 	}
