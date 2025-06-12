@@ -170,15 +170,12 @@ static void ReportDataItem(const AbstrDataItem* di)
 	assert(di);
 	auto ado = di->GetDataObj();
 	assert(ado);
-	std::size_t c = ado->GetNrBytesNow(false);
-	if (c<1000) return;
 
-	reportF(MsgCategory::memory, SeverityTypeID::ST_MinorTrace, "RefCnt=%d; InterestCnt=%d; KE=%d; #DataLocks=%d, NrBytes=%Iu, Name=%s",
+	reportF(MsgCategory::memory, SeverityTypeID::ST_MinorTrace, "RefCnt=%d; InterestCnt=%d; KE=%d; #DataLocks=%d, Name=%s",
 		di->GetRefCount(),
 		di->GetInterestCount(),
 		di->GetKeepDataState(),
 		di->GetDataObjLockCount(),
-		c,
 		di->GetFullName().c_str()
 	);
 }
@@ -202,7 +199,7 @@ TIC_CALL void TreeItemWithMemReport()
 }
 
 #include "dbg/DebugReporter.h"
-static auto treeItemWithMemReporter = MakeDebugCaller(TreeItemWithMemReport);
+//static auto treeItemWithMemReporter = MakeDebugCaller(TreeItemWithMemReport);
 
 #endif //defined(MG_DEBUG_DATA)
 

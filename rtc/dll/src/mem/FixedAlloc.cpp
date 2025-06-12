@@ -935,19 +935,28 @@ void ReportAllocs()
 		fequencyCounts[aspects]++;
 	}
 
-	SizeT cumulSize = 0;
+	SizeT cumulSize = 0, otherCount = 0, otherSize = 0;
 	reportD(SeverityTypeID::ST_MinorTrace, "Frequency counts per size:");
 	i = 0;
+	reportF(SeverityTypeID::ST_MajorTrace, "volgnummer;size;count;totalsize;txt");
 	for (auto& freq : fequencyCounts)
 	{
 		auto txt = freq.first.first;
 		SizeT sz = freq.first.second;
 		SizeT cnt = freq.second;
 		SizeT totalSz = sz * cnt;
-		reportF(SeverityTypeID::ST_MajorTrace, "#%.5d Size %x(%d) count %d total %x(%d): '%s'", i++, sz, sz, cnt, totalSz, totalSz, txt);
+		if (totalSz > 1000000)
+			reportF(SeverityTypeID::ST_MajorTrace, "#%.5d;%d;%d;'%s'", i++, sz, cnt, totalSz, txt);
+		else
+		{
+			otherCount++;
+			otherSize += totalSz;				
+		}
 		cumulSize += totalSz;
 	}
-	reportF(SeverityTypeID::ST_MajorTrace, "Total Size = %x(%d)", cumulSize, cumulSize);
+	reportF(SeverityTypeID::ST_MajorTrace, "Other count = %d", otherCount);
+	reportF(SeverityTypeID::ST_MajorTrace, "Other size = %d", otherSize);
+	reportF(SeverityTypeID::ST_MajorTrace, "Total Size = %d", cumulSize);
 
 	ReportFixedAllocStatus();
 //	PostReporting(); // Warning: allocSection can be locked, so don't call ReportFixedAllocStatus() here.
