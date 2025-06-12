@@ -946,7 +946,7 @@ void ReportAllocs()
 		SizeT cnt = freq.second;
 		SizeT totalSz = sz * cnt;
 		if (totalSz > 1000000)
-			reportF(SeverityTypeID::ST_MajorTrace, "#%.5d;%d;%d;'%s'", i++, sz, cnt, totalSz, txt);
+			reportF(SeverityTypeID::ST_MajorTrace, "#%.5d;%d;%d;%d;'%s'", i++, sz, cnt, totalSz, txt);
 		else
 		{
 			otherCount++;
