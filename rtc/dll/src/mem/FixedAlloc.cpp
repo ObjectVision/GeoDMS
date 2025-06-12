@@ -792,9 +792,11 @@ void ReportFixedAllocFinalSummary()
 #include <map>
 #include "dbg/DebugReporter.h"
 
+
 struct alloc_register_t
 {
-	std::map<void*, std::pair<CharPtr, size_t>> map;
+	using aspects_t = std::pair<CharPtr, size_t>; // source string and size
+	std::map<void*, aspects_t> map;
 	std::mutex mutex;
 };
 
@@ -923,13 +925,14 @@ void ReportAllocs()
 	auto map = GetAllocRegisterCopy();
 	objectstore_count_t i = 0;
 
-	std::map<SizeT, SizeT> fequencyCounts;
+	std::map<alloc_register_t::aspects_t, SizeT> fequencyCounts;
 	reportD(SeverityTypeID::ST_MinorTrace, "All Registered Memory Blocks");
 	for (auto& registeredAlloc : map)
 	{
-		SizeT sz = registeredAlloc.second.second;
-		reportF(SeverityTypeID::ST_MajorTrace, "Alloc %d size %x src %s", i++, sz, registeredAlloc.second.first);
-		fequencyCounts[sz]++;
+		auto aspects = registeredAlloc.second;
+		SizeT sz = aspects.second;
+//		reportF(SeverityTypeID::ST_MajorTrace, "Alloc %d size %x src %s", i++, sz, registeredAlloc.second.first);
+		fequencyCounts[aspects]++;
 	}
 
 	SizeT cumulSize = 0;
@@ -937,15 +940,17 @@ void ReportAllocs()
 	i = 0;
 	for (auto& freq : fequencyCounts)
 	{
-		SizeT sz = freq.first;
+		auto txt = freq.first.first;
+		SizeT sz = freq.first.second;
 		SizeT cnt = freq.second;
 		SizeT totalSz = sz * cnt;
-		reportF(SeverityTypeID::ST_MajorTrace, "#%.5d Size %x(%d) count %d total %x(%d)", i++, sz, sz, cnt, totalSz, totalSz);
+		reportF(SeverityTypeID::ST_MajorTrace, "#%.5d Size %x(%d) count %d total %x(%d): '%s'", i++, sz, sz, cnt, totalSz, totalSz, txt);
 		cumulSize += totalSz;
 	}
 	reportF(SeverityTypeID::ST_MajorTrace, "Total Size = %x(%d)", cumulSize, cumulSize);
 
-	PostReporting(); // Warning: allocSection can be locked, so don't call ReportFixedAllocStatus() here.
+	ReportFixedAllocStatus();
+//	PostReporting(); // Warning: allocSection can be locked, so don't call ReportFixedAllocStatus() here.
 }
 
 struct AllocReporter : DebugReporter
