@@ -152,7 +152,7 @@ tile_task_group::~tile_task_group()
 {
 	auto nrCommissioned = m_Commissioned;
 	auto wasDecommissioned = (nrCommissioned == m_Last);
-	assert(wasDecommissioned);
+	MG_CHECK(wasDecommissioned);
 	if (!wasDecommissioned)
 	{
 		assert(nrCommissioned < m_Last); // consistency check
@@ -168,7 +168,7 @@ tile_task_group::~tile_task_group()
 	}
 	if (m_NrCompleted < m_Last)      // any other task-slots still running
 		AwaitRunningSlots();         // then wait for them. Silence possible excecptions.
-	assert(m_NrCompleted == m_Last); // we now expect to have completed all commissioned task-slots.
+	MG_CHECK(m_NrCompleted == m_Last); // we now expect to have completed all commissioned task-slots.
 }
 
 void tile_task_group::decommission()
@@ -250,6 +250,7 @@ void tile_task_group::DoWork(IndexType i, bool doMore)
 			ASyncContinueCheck();
 
 			UpdateMarker::PrepareDataInvalidatorLock preventInvalidations;
+			MG_CHECK(m_NrCompleted < m_Last); // we should not have completed all tasks yet, as task i counts as one of them.
 			m_Func(i);
 			if (!doMore)
 			{
