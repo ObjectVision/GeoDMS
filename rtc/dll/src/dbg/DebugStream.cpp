@@ -139,11 +139,18 @@ namespace { // DebugOutStreamBuff is local
 		MsgCategory msgCat = msgData->m_MsgCategory;
 		auto msgTxt = std::move(msgData->m_Txt);
 		auto i = msgTxt.cbegin(), e = msgTxt.csend();
+
+		assert(*e == 0); // guaranteed by caller to have a completed Line.
+
+		// forget the terminating nulls and drop trailing empty lines in order to point to just beyond a real message that is the last line.
+		while (i != e && e[-1] == 0 || e[-1] == '\n')
+			--e; 
+		bool islastMsgSentAsMoreToCome = false;
 		while (i != e || minorSkipCount || majorSkipCount)
 		{
 			auto endofline = std::find(i, e, char(0));
+			bool isLastLine = (endofline == e);
 
-			assert(*e == 0); // guaranteed by caller to have a completed Line.
 			assert(st <= SeverityTypeID::ST_DispError);
 			if (e - i >= 10240 && (st < SeverityTypeID::ST_MajorTrace || st == SeverityTypeID::ST_MajorTrace && printedLines > 16)) // filter out large trace sections
 				if (st <= SeverityTypeID::ST_MinorTrace)
@@ -169,11 +176,12 @@ namespace { // DebugOutStreamBuff is local
 				while (true)
 				{
 					auto eosPtr = std::find(i, endofline, '\n');
-					if (eosPtr != i)
+					if (eosPtr != i) // skip empty lines
 					{
 						assert(eosPtr[-1] != char(0));
 						msgData->m_Txt = SharedStr(CharPtrRange(i, eosPtr)); // TODO: can we avoid this extra string copy by forwarding a CharPtrRange ?
-						MsgDispatch(msgData, eosPtr != e);
+						islastMsgSentAsMoreToCome = eosPtr != endofline || !isLastLine;
+						MsgDispatch(msgData, islastMsgSentAsMoreToCome);
 					}
 					if (eosPtr == endofline)
 						break;
@@ -190,6 +198,7 @@ namespace { // DebugOutStreamBuff is local
 				++i;
 			}
 		}
+		assert(!islastMsgSentAsMoreToCome);
 	}
 	ElemAllocComponent s_AllocComponent;
 	static std::vector< MsgData > s_FlushPipeline;

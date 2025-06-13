@@ -308,7 +308,7 @@ void EventLogModel::updateOnNewMessages()
 void EventLogModel::addText(MsgData&& msgData, bool moreToCome)
 {
 #if defined(MG_DEBUG)
-	MG_CHECK(not(msgData.m_IsFollowup && md_AddTextCompleted)); // previous msg must have had the cha
+	MG_CHECK(not(msgData.m_IsFollowup && md_AddTextCompleted)); // previous msg must not have been handled as completed if this is a followup
 #endif
 
 	auto mainWindow = MainWindow::TheOne();
@@ -341,7 +341,7 @@ void EventLogModel::addText(MsgData&& msgData, bool moreToCome)
 
 	// idle time update
 	has_queued_update = true;
-	QTimer::singleShot(5000, this, [=]()
+	QTimer::singleShot(500, this, [=]()
 		{
 			updateOnNewMessages();
 		});
