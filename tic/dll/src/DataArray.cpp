@@ -325,7 +325,7 @@ DataArrayBase<V>::GetDataRead(tile_id t) const
 			auto cstGenerationLock = std::unique_lock(cstPtr->m_TileGenerationCS);
 			if (!cstPtr->m_TileReady)
 			{
-				MakeConstShadowTile(cstPtr.get(), this MG_DEBUG_ALLOCATOR_SRC("ConstShadowTile this->md_SrcStr"));
+				MakeConstShadowTile(cstPtr.get(), this MG_DEBUG_ALLOCATOR_SRC(this->md_SrcStr.c_str()));
 				cstPtr->m_TileReady = true;
 			}
 			return { TileCRef(cstPtr.get_ptr()), GetConstSeq(*cstPtr) };

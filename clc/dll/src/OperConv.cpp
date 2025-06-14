@@ -59,7 +59,7 @@ public:
 	{}
 
 	// Override Operator
-	SharedPtr<const AbstrDataObject> CreateConstFunctor(const AbstrDataItem* arg1A, const AbstrUnit* arg2U MG_DEBUG_ALLOCATOR_SRC_ARG) const override
+	SharedPtr<const AbstrDataObject> CreateConstFunctor(const AbstrDataItem* arg1A, const AbstrUnit* arg2U MG_DEBUG_ALLOCATOR_SRC(SharedStr srcStr)) const override
 	{
 		auto tileDataRange = arg2U->GetTiledRangeData();
 		auto maxTileSize = tileDataRange->GetMaxTileSize();
@@ -76,7 +76,7 @@ public:
 		auto  argData = const_array_cast  <TR>(arg1A)->GetDataRead();
 		auto resData = mutable_array_cast<TR>(borrowedDataHandle)->GetDataWrite(t);
 
-		dms_assert(argData.size() == 1); // domain of arg1 was checked to be void
+		assert(argData.size() == 1); // domain of arg1 was checked to be void
 		
 		typename ResultType::iterator
 			i = resData.begin(),
@@ -970,7 +970,7 @@ public:
 		{}
 
 	// Override Operator
-	auto CreateFutureTileCaster(SharedPtr<AbstrDataItem> resultAdi, bool lazy, const AbstrUnit* valuesUnitA, const AbstrDataItem* arg1A, const AbstrUnit* argUnitA MG_DEBUG_ALLOCATOR_SRC_ARG) const -> SharedPtr<const AbstrDataObject> override
+	auto CreateFutureTileCaster(SharedPtr<AbstrDataItem> resultAdi, bool lazy, const AbstrUnit* valuesUnitA, const AbstrDataItem* arg1A, const AbstrUnit* argUnitA MG_DEBUG_ALLOCATOR_SRC(SharedStr srcStr)) const -> SharedPtr<const AbstrDataObject> override
 	{
 		auto tileRangeData = AsUnit(arg1A->GetAbstrDomainUnit()->GetCurrRangeItem())->GetTiledRangeData();
 		auto valuesUnit = debug_cast<const Unit<field_of_t<TR>>*>(valuesUnitA);
@@ -1026,7 +1026,7 @@ public:
 		{}
 
 	// Override Operator
-	auto CreateFutureTileCaster(SharedPtr<AbstrDataItem> resultAdi, bool lazy, const AbstrUnit* valuesUnitA, const AbstrDataItem* arg1A, const AbstrUnit* argUnitA MG_DEBUG_ALLOCATOR_SRC_ARG) const -> SharedPtr<const AbstrDataObject> override
+	auto CreateFutureTileCaster(SharedPtr<AbstrDataItem> resultAdi, bool lazy, const AbstrUnit* valuesUnitA, const AbstrDataItem* arg1A, const AbstrUnit* argUnitA MG_DEBUG_ALLOCATOR_SRC(SharedStr srcStr)) const -> SharedPtr<const AbstrDataObject> override
 	{
 		auto tileRangeData = AsUnit(arg1A->GetAbstrDomainUnit()->GetCurrRangeItem())->GetTiledRangeData();
 		auto valuesUnit = debug_cast<const Unit<field_of_t<TR>>*>(valuesUnitA);

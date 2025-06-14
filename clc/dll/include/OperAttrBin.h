@@ -74,7 +74,7 @@ struct AbstrBinaryAttrOper : BinaryOperator
 			auto tn = e->GetNrTiles();
 			auto valuesUnitA = AsUnit(res->GetAbstrValuesUnit()->GetCurrRangeItem());
 			if (IsMultiThreaded3() && (tn > 1) && (LTF_ElementWeight(arg1A) + LTF_ElementWeight(arg2A) <= LTF_ElementWeight(res)))
-				res->m_DataObject = CreateFutureTileFunctor(res, res->GetLazyCalculatedState(), valuesUnitA, arg1A, arg2A, af MG_DEBUG_ALLOCATOR_SRC("res->md_FullName + GetGroup()->GetName().c_str()"));
+				res->m_DataObject = CreateFutureTileFunctor(res, res->GetLazyCalculatedState(), valuesUnitA, arg1A, arg2A, af MG_DEBUG_ALLOCATOR_SRC(res->md_FullName + " := "  + GetGroup()->GetNameStr()));
 			else
 			{
 				DataWriteLock resLock(res);
@@ -91,7 +91,7 @@ struct AbstrBinaryAttrOper : BinaryOperator
 		return true;
 	}
 
-	virtual SharedPtr<const AbstrDataObject> CreateFutureTileFunctor(SharedPtr<AbstrDataItem>, bool lazy, const AbstrUnit* valuesUnitA, const AbstrDataItem* arg1A, const AbstrDataItem* arg2A, ArgFlags af MG_DEBUG_ALLOCATOR_SRC_ARG) const = 0;
+	virtual SharedPtr<const AbstrDataObject> CreateFutureTileFunctor(SharedPtr<AbstrDataItem>, bool lazy, const AbstrUnit* valuesUnitA, const AbstrDataItem* arg1A, const AbstrDataItem* arg2A, ArgFlags af MG_DEBUG_ALLOCATOR_SRC(SharedStr srcStr)) const = 0;
 	virtual void Calculate(AbstrDataObject* borrowedDataHandle, const AbstrDataItem* arg1A, const AbstrDataItem* arg2A,	ArgFlags af, tile_id t) const=0;
 
 private:
@@ -115,7 +115,7 @@ public:
 		)
 	{}
 
-	SharedPtr<const AbstrDataObject> CreateFutureTileFunctor(SharedPtr<AbstrDataItem> resultAdi, bool lazy, const AbstrUnit* valuesUnitA, const AbstrDataItem* arg1A, const AbstrDataItem* arg2A, ArgFlags af MG_DEBUG_ALLOCATOR_SRC_ARG) const override
+	SharedPtr<const AbstrDataObject> CreateFutureTileFunctor(SharedPtr<AbstrDataItem> resultAdi, bool lazy, const AbstrUnit* valuesUnitA, const AbstrDataItem* arg1A, const AbstrDataItem* arg2A, ArgFlags af MG_DEBUG_ALLOCATOR_SRC(SharedStr srcStr)) const override
 	{
 		auto rangedArg = (af & AF1_ISPARAM) ? arg2A : arg1A;
 		auto tileRangeData = AsUnit(rangedArg->GetAbstrDomainUnit()->GetCurrRangeItem())->GetTiledRangeData();
@@ -135,7 +135,7 @@ public:
 					auto futureTileA = throttled_async([&futureData] { return futureData.first->GetTile();  });
 					auto tileB = futureData.second->GetTile();
 
-					this->CalcTile(resData, futureTileA->get().get_view(), tileB.get_view(), af MG_DEBUG_ALLOCATOR_SRC_PARAM);
+					this->CalcTile(resData, futureTileA->get().get_view(), tileB.get_view(), af MG_DEBUG_ALLOCATOR_SRC(srcStr.c_str()));
 				}
 				catch (...)
 				{

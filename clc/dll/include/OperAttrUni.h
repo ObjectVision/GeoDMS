@@ -70,7 +70,7 @@ struct AbstrUnaryAttrOperator: UnaryOperator
 
 			auto valuesUnitA = AsUnit(res->GetAbstrValuesUnit()->GetCurrRangeItem());
 			if (IsMultiThreaded3() && (tn > 1) && (LTF_ElementWeight(arg1A) <= LTF_ElementWeight(res)))
-				AsDataItem(resultHolder.GetOld())->m_DataObject = CreateFutureTileFunctor(res, res->GetLazyCalculatedState(), valuesUnitA, arg1A, af MG_DEBUG_ALLOCATOR_SRC("res->md_FullName + GetGroup()->GetName().c_str()"));
+				AsDataItem(resultHolder.GetOld())->m_DataObject = CreateFutureTileFunctor(res, res->GetLazyCalculatedState(), valuesUnitA, arg1A, af MG_DEBUG_ALLOCATOR_SRC(res->md_FullName + " := " + GetGroup()->GetNameStr()));
 			else
 			{
 				DataWriteLock resLock(res);
@@ -88,7 +88,7 @@ struct AbstrUnaryAttrOperator: UnaryOperator
 		return true;
 	}
 
-	virtual SharedPtr<const AbstrDataObject> CreateFutureTileFunctor(SharedPtr<AbstrDataItem> resultAdi, bool lazy, const AbstrUnit* valuesUnitA, const AbstrDataItem* arg1A, ArgFlags af MG_DEBUG_ALLOCATOR_SRC_ARG) const = 0;
+	virtual SharedPtr<const AbstrDataObject> CreateFutureTileFunctor(SharedPtr<AbstrDataItem> resultAdi, bool lazy, const AbstrUnit* valuesUnitA, const AbstrDataItem* arg1A, ArgFlags af MG_DEBUG_ALLOCATOR_SRC(SharedStr srcStr)) const = 0;
 	virtual void Calculate(AbstrDataObject* borrowedDataHandle, const AbstrDataItem* arg1A, ArgFlags af, tile_id t) const =0;
 
 private:
@@ -109,7 +109,7 @@ public:
 		: AbstrUnaryAttrOperator(gr, ResultType::GetStaticClass(), Arg1Type::GetStaticClass(), possibleArgFlags, ucp, vc)
 	{}
 
-	auto CreateFutureTileFunctor(SharedPtr<AbstrDataItem> resultAdi, bool lazy, const AbstrUnit* valuesUnitA, const AbstrDataItem* arg1A, ArgFlags af MG_DEBUG_ALLOCATOR_SRC_ARG) const -> SharedPtr<const AbstrDataObject> override
+	auto CreateFutureTileFunctor(SharedPtr<AbstrDataItem> resultAdi, bool lazy, const AbstrUnit* valuesUnitA, const AbstrDataItem* arg1A, ArgFlags af MG_DEBUG_ALLOCATOR_SRC(SharedStr srcStr)) const -> SharedPtr<const AbstrDataObject> override
 	{
 		auto tileRangeData = AsUnit(arg1A->GetAbstrDomainUnit()->GetCurrRangeItem())->GetTiledRangeData();
 		auto valuesUnit = debug_cast<const Unit<field_of_t<ResultValueType>>*>(valuesUnitA);
@@ -122,7 +122,7 @@ public:
 			, [arg1, af](tile_id t) { return arg1->GetFutureTile(t); }
 			, [this, arg1VU, af MG_DEBUG_ALLOCATOR_SRC_PARAM](sequence_traits<ResultValueType>::seq_t resData, prepare_data futureData)
 			{
-				this->CalcTile(resData, futureData->GetTile().get_view(), arg1VU, af MG_DEBUG_ALLOCATOR_SRC_PARAM);
+				this->CalcTile(resData, futureData->GetTile().get_view(), arg1VU, af MG_DEBUG_ALLOCATOR_SRC(srcStr.c_str()));
 			}
 			MG_DEBUG_ALLOCATOR_SRC_PARAM
 		);
@@ -135,7 +135,7 @@ public:
 		auto arg1Data = const_array_cast<Arg1ValueType>(arg1A)->GetTile(t);
 		auto resData = mutable_array_cast<ResultValueType>(res)->GetWritableTile(t);
 
-		CalcTile(resData, arg1Data, arg1A->GetAbstrValuesUnit(), af MG_DEBUG_ALLOCATOR_SRC("res->md_SrcStr"));
+		CalcTile(resData, arg1Data, arg1A->GetAbstrValuesUnit(), af MG_DEBUG_ALLOCATOR_SRC(res->md_SrcStr.c_str()));
 	}
 
 	virtual void CalcTile(sequence_traits<ResultValueType>::seq_t resData, sequence_traits<Arg1ValueType>::cseq_t arg1Data, const AbstrUnit* argVU, ArgFlags af MG_DEBUG_ALLOCATOR_SRC_ARG) const = 0;

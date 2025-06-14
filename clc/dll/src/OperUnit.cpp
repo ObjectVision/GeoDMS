@@ -141,7 +141,7 @@ bool UnitCombine_impl(AbstrUnit* res, const ArgSeqType& args, bool mustCalc, boo
 		SizeT cycleSize = groupSize * unitCount;
 		auto trd = res->GetTiledRangeData();
 		visit<typelists::domain_elements>(ithUnit.get(),
-			[resSub, trd, groupSize, cycleSize, unitCount] <typename V> (const Unit<V>* valuesUnit)
+			[resSub, trd, groupSize, cycleSize, unitCount MG_DEBUG_ALLOCATOR_SRC(res)] <typename V> (const Unit<V>*valuesUnit)
 			{
 				auto conv = CountableValueConverter<V>(valuesUnit->m_RangeDataPtr);
 				auto lazyTileFunctor = make_unique_LazyTileFunctor<V>(resSub, trd, valuesUnit->m_RangeDataPtr
@@ -165,7 +165,7 @@ bool UnitCombine_impl(AbstrUnit* res, const ArgSeqType& args, bool mustCalc, boo
 							}
 						}
 					}
-					MG_DEBUG_ALLOCATOR_SRC("res->md_FullName +  := combine()")
+					MG_DEBUG_ALLOCATOR_SRC(res->md_FullName +  ": = combine()")
 				);
 				resSub->m_DataObject = lazyTileFunctor.release();
 			}

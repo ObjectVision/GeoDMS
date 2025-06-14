@@ -74,7 +74,7 @@ public:
 			if (createPipelinedCaster)
 			{
 				auto valuesUnitA = AsUnit(res->GetAbstrValuesUnit()->GetCurrRangeItem());
-				AsDataItem(resultHolder.GetOld())->m_DataObject = CreateFutureTileCaster(res, res->GetLazyCalculatedState(), valuesUnitA, argDataA, argUnitA MG_DEBUG_ALLOCATOR_SRC(GetGroup()->GetNameStr()));
+				AsDataItem(resultHolder.GetOld())->m_DataObject = CreateFutureTileCaster(res, res->GetLazyCalculatedState(), valuesUnitA, argDataA, argUnitA MG_DEBUG_ALLOCATOR_SRC(res->md_FullName + " := "  + GetGroup()->GetNameStr()));
 			}
 			else
 			{
@@ -97,7 +97,7 @@ public:
 		return true;
 	}
 	virtual void Calculate(AbstrDataObject* res, const AbstrDataItem* argDataA, const AbstrUnit* argUnit, tile_id t) const =0;
-	virtual auto CreateFutureTileCaster(SharedPtr<AbstrDataItem> resultAdi, bool lazy, const AbstrUnit* valuesUnitA, const AbstrDataItem* arg1A, const AbstrUnit* argUnitA MG_DEBUG_ALLOCATOR_SRC_ARG) const -> SharedPtr<const AbstrDataObject> = 0;
+	virtual auto CreateFutureTileCaster(SharedPtr<AbstrDataItem> resultAdi, bool lazy, const AbstrUnit* valuesUnitA, const AbstrDataItem* arg1A, const AbstrUnit* argUnitA MG_DEBUG_ALLOCATOR_SRC(SharedStr srcStr)) const -> SharedPtr<const AbstrDataObject> = 0;
 
 private:
 	ValueComposition m_VC;
@@ -147,7 +147,7 @@ public:
 						, [binaryOper, res, retainedArgDomainUnit, retainedArgValuesUnit](AbstrDataObject* self, tile_id t) {
 							binaryOper->Calculate(self, retainedArgDomainUnit, retainedArgValuesUnit, t); // write into the same tile.
 						}
-						MG_DEBUG_ALLOCATOR_SRC("res->md_FullName +  := MappingOperator()")
+						MG_DEBUG_ALLOCATOR_SRC(res->md_FullName +  ": = MappingOperator()")
 					);
 					res->m_DataObject = lazyTileFunctor.release();
 				}
@@ -243,7 +243,7 @@ public:
 	{}
 
 	// Override Operator
-	auto CreateFutureTileCaster(SharedPtr<AbstrDataItem> resultAdi, bool lazy, const AbstrUnit* valuesUnitA, const AbstrDataItem* arg1A, const AbstrUnit* argUnitA MG_DEBUG_ALLOCATOR_SRC_ARG) const -> SharedPtr<const AbstrDataObject> override
+	auto CreateFutureTileCaster(SharedPtr<AbstrDataItem> resultAdi, bool lazy, const AbstrUnit* valuesUnitA, const AbstrDataItem* arg1A, const AbstrUnit* argUnitA MG_DEBUG_ALLOCATOR_SRC(SharedStr srcStr)) const -> SharedPtr<const AbstrDataObject> override
 	{
 		auto tileRangeData = AsUnit(arg1A->GetAbstrDomainUnit()->GetCurrRangeItem())->GetTiledRangeData();
 		auto valuesUnit = debug_cast<const Unit<field_of_t<ResultValueType>>*>(valuesUnitA);

@@ -41,8 +41,8 @@ struct StrConcatOperator : BinaryAttrOper<SharedStr, SharedStr, SharedStr>
 		bool e1Void = (af & AF1_ISPARAM);
 		bool e2Void = (af & AF2_ISPARAM);
 
-		dms_assert(arg1Data.size() == (e1Void ? 1 : cardinality));
-		dms_assert(arg2Data.size() == (e2Void ? 1 : cardinality));
+		assert(arg1Data.size() == (e1Void ? 1 : cardinality));
+		assert(arg2Data.size() == (e2Void ? 1 : cardinality));
 
 		using data_size_type = sequence_traits<SharedStr>::seq_t::data_size_type;
 		data_size_type arg1Size = arg1Data.get_sa().actual_data_size(); if (e1Void) arg1Size = CheckedMul<data_size_type>(cardinality, arg1Size, false);

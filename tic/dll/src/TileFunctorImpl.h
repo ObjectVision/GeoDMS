@@ -29,7 +29,7 @@ struct DelayedTileFunctor : TileFunctor<V>
 	cache_t m_ActiveTiles;
 	SharedPtr<AbstrDataItem> m_ResultAdi;
 
-	DelayedTileFunctor(SharedPtr<AbstrDataItem> resultAdi, const AbstrTileRangeData* tiledDomainRangeData, range_data_ptr_or_void<field_of_t<V>> valueRangePtr MG_DEBUG_ALLOCATOR_SRC_ARG)
+	DelayedTileFunctor(SharedPtr<AbstrDataItem> resultAdi, const AbstrTileRangeData* tiledDomainRangeData, range_data_ptr_or_void<field_of_t<V>> valueRangePtr MG_DEBUG_ALLOCATOR_SRC(SharedStr srcStr))
 		: TileFunctor<V>(tiledDomainRangeData, valueRangePtr MG_DEBUG_ALLOCATOR_SRC_PARAM)
 		, m_ResultAdi(resultAdi)
 		, m_ActiveTiles(std::make_unique<SharedPtr<future_tile>[]>(tiledDomainRangeData->GetNrTiles()))
@@ -109,27 +109,20 @@ struct FutureTileFunctor : DelayedTileFunctor<V>
 	};
 
 	FutureTileFunctor(SharedPtr<AbstrDataItem> resultAdi, const AbstrTileRangeData* tiledDomainRangeData, range_data_ptr_or_void<field_of_t<V>> valueRangePtr
-	, PrepareFunc&& pFunc_, ApplyFunc&& aFunc_ MG_DEBUG_ALLOCATOR_SRC_ARG)
+	, PrepareFunc&& pFunc_, ApplyFunc&& aFunc_ MG_DEBUG_ALLOCATOR_SRC(SharedStr srcStr))
 	: DelayedTileFunctor<V>(resultAdi, tiledDomainRangeData, valueRangePtr MG_DEBUG_ALLOCATOR_SRC_PARAM)
 	, aFunc(aFunc_)
-#if defined(MG_DEBUG_ALLOCATOR)
-	, md_SrcStr(srcStr)
-#endif
 	{
 		assert(tiledDomainRangeData->GetNrTiles() > 1);
 		for (tile_id t = 0; t != tiledDomainRangeData->GetNrTiles(); ++t)
-			this->m_ActiveTiles[t] = new tile_record(pFunc_(t), aFunc, tiledDomainRangeData->GetTileSize(t) MG_DEBUG_ALLOCATOR_SRC_PARAM);
+			this->m_ActiveTiles[t] = new tile_record(pFunc_(t), aFunc, tiledDomainRangeData->GetTileSize(t) MG_DEBUG_ALLOCATOR_SRC(this->md_SrcStr.c_str()));
 	}
 
 	ApplyFunc aFunc;
-
-#if defined(MG_DEBUG_ALLOCATOR)
-	CharPtr md_SrcStr;
-#endif
 };
 
 template <typename V, typename PrepareState, bool MustZero, typename PrepareFunc, typename ApplyFunc>
-auto make_unique_FutureTileFunctor(SharedPtr<AbstrDataItem> resultAdi, bool lazy, const AbstrTileRangeData* tiledDomainRangeData, range_data_ptr_or_void<field_of_t<V>> valueRangePtr, PrepareFunc&& pFunc, ApplyFunc&& aFunc MG_DEBUG_ALLOCATOR_SRC_ARG)
+auto make_unique_FutureTileFunctor(SharedPtr<AbstrDataItem> resultAdi, bool lazy, const AbstrTileRangeData* tiledDomainRangeData, range_data_ptr_or_void<field_of_t<V>> valueRangePtr, PrepareFunc&& pFunc, ApplyFunc&& aFunc MG_DEBUG_ALLOCATOR_SRC(SharedStr srcStr))
 -> std::unique_ptr<TileFunctor<V>>
 { 
 	if (lazy)
@@ -145,14 +138,14 @@ auto make_unique_FutureTileFunctor(SharedPtr<AbstrDataItem> resultAdi, bool lazy
 			aFunc(mutable_array_cast<V>(ado)->GetWritableTile(t, rwMode), preparedStates[t]);
 		};
 
-		return make_unique_LazyTileFunctor<V>(resultAdi, tiledDomainRangeData, valueRangePtr, std::move(lazyApplyFunc) MG_DEBUG_ALLOCATOR_SRC_PARAM);
+		return make_unique_LazyTileFunctor<V>(resultAdi, tiledDomainRangeData, valueRangePtr, std::move(lazyApplyFunc) MG_DEBUG_ALLOCATOR_SRC(std::move(srcStr)));
 	}
 
 	return std::make_unique<FutureTileFunctor<V, PrepareState, MustZero, PrepareFunc, ApplyFunc>>(resultAdi,
 		tiledDomainRangeData, valueRangePtr, 
 		std::forward<PrepareFunc>(pFunc), 
 		std::forward<ApplyFunc>(aFunc) 
-		MG_DEBUG_ALLOCATOR_SRC_PARAM
+		MG_DEBUG_ALLOCATOR_SRC(std::move(srcStr))
 	);
 }
 
@@ -174,7 +167,7 @@ struct LazyTileFunctor : GeneratedTileFunctor<V>
 
 	using cache_t = std::unique_ptr<lazy_tile_record[]>;
 
-	LazyTileFunctor(SharedPtr<AbstrDataItem> resultAdi, const AbstrTileRangeData* tiledDomainRangeData, range_data_ptr_or_void<field_of_t<V>> valueRangePtr, ApplyFunc&& aFunc MG_DEBUG_ALLOCATOR_SRC_ARG)
+	LazyTileFunctor(SharedPtr<AbstrDataItem> resultAdi, const AbstrTileRangeData* tiledDomainRangeData, range_data_ptr_or_void<field_of_t<V>> valueRangePtr, ApplyFunc&& aFunc MG_DEBUG_ALLOCATOR_SRC(SharedStr srcStr))
 		: GeneratedTileFunctor<V>(tiledDomainRangeData, valueRangePtr MG_DEBUG_ALLOCATOR_SRC_PARAM)
 		, m_ApplyFunc(std::move(aFunc))
 		, m_ActiveTiles(std::make_unique<lazy_tile_record[]>(tiledDomainRangeData->GetNrTiles()))
@@ -193,9 +186,9 @@ struct LazyTileFunctor : GeneratedTileFunctor<V>
 };
 
 template <typename V, typename ApplyFunc>
-auto make_unique_LazyTileFunctor(SharedPtr<AbstrDataItem> resultAdi, const AbstrTileRangeData* tiledDomainRangeData, range_data_ptr_or_void<field_of_t<V>> valueRangePtr, ApplyFunc&& aFunc MG_DEBUG_ALLOCATOR_SRC_ARG)
+auto make_unique_LazyTileFunctor(SharedPtr<AbstrDataItem> resultAdi, const AbstrTileRangeData* tiledDomainRangeData, range_data_ptr_or_void<field_of_t<V>> valueRangePtr, ApplyFunc&& aFunc MG_DEBUG_ALLOCATOR_SRC(SharedStr srcStr))
 {
-	return std::make_unique<LazyTileFunctor<V, ApplyFunc>>(resultAdi, tiledDomainRangeData, valueRangePtr, std::forward<ApplyFunc>(aFunc) MG_DEBUG_ALLOCATOR_SRC_PARAM);
+	return std::make_unique<LazyTileFunctor<V, ApplyFunc>>(resultAdi, tiledDomainRangeData, valueRangePtr, std::forward<ApplyFunc>(aFunc) MG_DEBUG_ALLOCATOR_SRC(std::move(srcStr)));
 }
 
 

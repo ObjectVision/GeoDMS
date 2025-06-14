@@ -44,7 +44,7 @@ struct ConstTileFunctor : GeneratedTileFunctor<V>
 
 	using cache_t = OwningPtrSizedArray<std::weak_ptr<tile<V>>>;
 
-	ConstTileFunctor(const AbstrTileRangeData* tiledDomainRangeData, range_data_ptr_or_void<V> valueRangePtr, tile_offset maxTileSize, V value MG_DEBUG_ALLOCATOR_SRC_ARG)
+	ConstTileFunctor(const AbstrTileRangeData* tiledDomainRangeData, range_data_ptr_or_void<V> valueRangePtr, tile_offset maxTileSize, V value MG_DEBUG_ALLOCATOR_SRC(SharedStr srcStr))
 		: GeneratedTileFunctor<V>(tiledDomainRangeData, valueRangePtr MG_DEBUG_ALLOCATOR_SRC_PARAM)
 		, m_MaxTileSize(maxTileSize)
 		, m_Value(value)
@@ -82,7 +82,7 @@ struct ConstTileFunctor : GeneratedTileFunctor<V>
 };
 
 template <typename V>
-auto make_unique_ConstTileFunctor(const AbstrTileRangeData* tiledDomainRangeData, range_data_ptr_or_void<V> valueRangePtr, tile_offset maxTileSize, V v MG_DEBUG_ALLOCATOR_SRC_ARG)
+auto make_unique_ConstTileFunctor(const AbstrTileRangeData* tiledDomainRangeData, range_data_ptr_or_void<V> valueRangePtr, tile_offset maxTileSize, V v MG_DEBUG_ALLOCATOR_SRC(SharedStr srcStr))
 {
 	return std::make_unique<ConstTileFunctor<V>>(tiledDomainRangeData, valueRangePtr, maxTileSize, v MG_DEBUG_ALLOCATOR_SRC_PARAM);
 }
@@ -134,7 +134,7 @@ struct AbstrConstOperator : public BinaryOperator
 
 			auto tn = trd->GetNrTiles();
 			if (tn > 1 || tn == 1 && arg2U->GetTiledRangeData()->GetTileSize(0) >= 256)
-				res->m_DataObject = CreateConstFunctor(arg1A, arg2U MG_DEBUG_ALLOCATOR_SRC("ConstFunctor()"));
+				res->m_DataObject = CreateConstFunctor(arg1A, arg2U MG_DEBUG_ALLOCATOR_SRC(res->md_FullName + " := ConstFunctor()"));
 			else
 			{
 				DataWriteLock resLock(res);
@@ -148,7 +148,7 @@ struct AbstrConstOperator : public BinaryOperator
 		}
 		return true;
 	}
-	virtual SharedPtr<const AbstrDataObject> CreateConstFunctor(const AbstrDataItem* arg1A, const AbstrUnit* arg2U MG_DEBUG_ALLOCATOR_SRC_ARG) const = 0;
+	virtual SharedPtr<const AbstrDataObject> CreateConstFunctor(const AbstrDataItem* arg1A, const AbstrUnit* arg2U MG_DEBUG_ALLOCATOR_SRC(SharedStr srcStr)) const = 0;
 	virtual void Calculate(AbstrDataObject* borrowedDataHandle, const AbstrDataItem* arg1A, tile_id t) const =0;
 
 private:

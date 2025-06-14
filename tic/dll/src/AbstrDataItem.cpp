@@ -280,7 +280,7 @@ bool AbstrDataItem::DoReadItem(StorageMetaInfoPtr smi)
 			{
 				visit<typelists::numerics>(rangeValuesUnit, [this, tileRangeData, &tileGenerator]<typename V>(const Unit<V>*valuesUnit) {
 					this->m_DataObject = make_unique_LazyTileFunctor<V>(this, tileRangeData, valuesUnit->m_RangeDataPtr, std::move(tileGenerator)
-						MG_DEBUG_ALLOCATOR_SRC("AbstrDataItem::DoReadItem of random rereadable tiles")
+						MG_DEBUG_ALLOCATOR_SRC(md_FullName + ".AbstrDataItem::DoReadItem of random rereadable tiles")
 					).release();
 				});
 			}

@@ -108,7 +108,7 @@ struct AbstrTernaryAttrOper : TernaryOperator
 
 			auto valuesUnitA = AsUnit(res->GetAbstrValuesUnit()->GetCurrRangeItem());
 			if (IsMultiThreaded3() && (tn > 1) && (LTF_ElementWeight(arg1A) + LTF_ElementWeight(arg2A) + LTF_ElementWeight(arg3A) <= LTF_ElementWeight(res)))
-				AsDataItem(resultHolder.GetOld())->m_DataObject = CreateFutureTileFunctor(res, res->GetLazyCalculatedState(), valuesUnitA, arg1A, arg2A, arg3A, af MG_DEBUG_ALLOCATOR_SRC("res->md_FullName + GetGroup()->GetName().c_str()"));
+				AsDataItem(resultHolder.GetOld())->m_DataObject = CreateFutureTileFunctor(res, res->GetLazyCalculatedState(), valuesUnitA, arg1A, arg2A, arg3A, af MG_DEBUG_ALLOCATOR_SRC(res->md_FullName + " := " + GetGroup()->GetNameStr()));
 			else
 			{
 				DataWriteLock resLock(res);
@@ -124,7 +124,7 @@ struct AbstrTernaryAttrOper : TernaryOperator
 		}
 		return true;
 	}
-	virtual auto CreateFutureTileFunctor(SharedPtr<AbstrDataItem> resultAdi, bool lazy, const AbstrUnit* valuesUnitA, const AbstrDataItem* arg1A, const AbstrDataItem* arg2A, const AbstrDataItem* arg3A, ArgFlags af MG_DEBUG_ALLOCATOR_SRC_ARG) const -> SharedPtr<const AbstrDataObject> =0;
+	virtual auto CreateFutureTileFunctor(SharedPtr<AbstrDataItem> resultAdi, bool lazy, const AbstrUnit* valuesUnitA, const AbstrDataItem* arg1A, const AbstrDataItem* arg2A, const AbstrDataItem* arg3A, ArgFlags af MG_DEBUG_ALLOCATOR_SRC(SharedStr srcStr)) const -> SharedPtr<const AbstrDataObject> =0;
 	virtual void Calculate(AbstrDataObject* borrowedDataHandle,	const AbstrDataItem* arg1A,	const AbstrDataItem* arg2A,	const AbstrDataItem* arg3A,	ArgFlags af, tile_id t) const =0;
 
 private:
@@ -146,7 +146,7 @@ public:
 		: AbstrTernaryAttrOper(gr, ResultType::GetStaticClass(), Arg1Type::GetStaticClass(), Arg2Type::GetStaticClass(), Arg3Type::GetStaticClass(), ucp, vc, needsUndefInfo)
 	{}
 
-	auto CreateFutureTileFunctor(SharedPtr<AbstrDataItem> resultAdi, bool lazy, const AbstrUnit* valuesUnitA, const AbstrDataItem* arg1A, const AbstrDataItem* arg2A, const AbstrDataItem* arg3A, ArgFlags af MG_DEBUG_ALLOCATOR_SRC_ARG) const -> SharedPtr<const AbstrDataObject> override
+	auto CreateFutureTileFunctor(SharedPtr<AbstrDataItem> resultAdi, bool lazy, const AbstrUnit* valuesUnitA, const AbstrDataItem* arg1A, const AbstrDataItem* arg2A, const AbstrDataItem* arg3A, ArgFlags af MG_DEBUG_ALLOCATOR_SRC(SharedStr srcStr)) const -> SharedPtr<const AbstrDataObject> override
 	{
 		auto rangedArg = (af & AF1_ISPARAM) ? (af & AF2_ISPARAM) ? arg3A : arg2A : arg1A;
 		auto tileRangeData = AsUnit(rangedArg->GetAbstrDomainUnit()->GetCurrRangeItem())->GetTiledRangeData();
@@ -161,7 +161,7 @@ public:
 			, [arg1, arg2, arg3, af](tile_id t) { return prepare_data{ arg1->GetFutureTile(af & AF1_ISPARAM ? 0 : t), arg2->GetFutureTile(af & AF2_ISPARAM ? 0 : t), arg3->GetFutureTile(af & AF3_ISPARAM ? 0 : t) }; }
 			, [this, af MG_DEBUG_ALLOCATOR_SRC_PARAM](sequence_traits<ResultValueType>::seq_t resData, prepare_data futureData)
 			{
-				this->CalcTile(resData, std::get<0>(futureData)->GetTile().get_view(), std::get<1>(futureData)->GetTile().get_view(), std::get<2>(futureData)->GetTile().get_view(), af MG_DEBUG_ALLOCATOR_SRC_PARAM);
+				this->CalcTile(resData, std::get<0>(futureData)->GetTile().get_view(), std::get<1>(futureData)->GetTile().get_view(), std::get<2>(futureData)->GetTile().get_view(), af MG_DEBUG_ALLOCATOR_SRC(srcStr.c_str()));
 			}
 			MG_DEBUG_ALLOCATOR_SRC_PARAM
 		);
@@ -176,7 +176,7 @@ public:
 		auto arg3Data = const_array_cast<Arg3ValueType>(arg3A)->GetTile(af & AF3_ISPARAM ? 0 : t);
 		auto resData = mutable_array_cast<ResultValueType>(res)->GetWritableTile(t);
 
-		CalcTile(resData, arg1Data, arg2Data, arg3Data, af MG_DEBUG_ALLOCATOR_SRC("res->md_SrcStr"));
+		CalcTile(resData, arg1Data, arg2Data, arg3Data, af MG_DEBUG_ALLOCATOR_SRC(res->md_SrcStr.c_str()));
 	}
 
 	virtual void CalcTile(sequence_traits<ResultValueType>::seq_t resData, sequence_traits<Arg1ValueType>::cseq_t arg1Data, sequence_traits<Arg2ValueType>::cseq_t arg2Data, sequence_traits<Arg3ValueType>::cseq_t arg3Data, ArgFlags af MG_DEBUG_ALLOCATOR_SRC_ARG) const = 0;

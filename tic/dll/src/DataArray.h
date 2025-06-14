@@ -295,16 +295,16 @@ struct TileFunctor : data_array_traits<V>::type
 {
 	TileFunctor() {}
 
-	TileFunctor(const AbstrTileRangeData* tiledDomainRangeData, range_data_ptr_or_void<field_of_t<V>> valueRangePtr MG_DEBUG_ALLOCATOR_SRC_ARG)
+	TileFunctor(const AbstrTileRangeData* tiledDomainRangeData, range_data_ptr_or_void<field_of_t<V>> valueRangePtr MG_DEBUG_ALLOCATOR_SRC(SharedStr srcStr))
+#if defined(MG_DEBUG_ALLOCATOR)
+		: md_SrcStr( std::move(srcStr) )
+#endif
 	{
 		if constexpr (has_var_range_field_v<V>)
 		{
 			MG_CHECK(valueRangePtr);
 		}
 
-#if defined(MG_DEBUG_ALLOCATOR)
-		this->md_SrcStr = srcStr;
-#endif
 		this->m_TileRangeData = tiledDomainRangeData;
 		this->InitValueRangeData(valueRangePtr);
 	}

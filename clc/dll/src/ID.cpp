@@ -68,7 +68,7 @@ public:
 				,	[idOper, res, trd](AbstrDataObject* self, tile_id t) {
 						idOper->Calculate(self, trd, t); // write into the same tile.
 					}
-					MG_DEBUG_ALLOCATOR_SRC("res->md_FullName +  := id()")
+					MG_DEBUG_ALLOCATOR_SRC(res->md_FullName +  ": = id()")
 				);
 				res->m_DataObject = lazyTileFunctor.release();
 			};
@@ -99,7 +99,7 @@ public:
 
 		auto resData = result->GetWritableTile(t, dms_rw_mode::write_only_all);
 		auto resRange = debug_cast<const typename Unit<E1>::range_data_t*>(tileRanges)->GetTileRange(t);
-		CalcTile(resData, resRange MG_DEBUG_ALLOCATOR_SRC("borrowedDataHandle->md_SrcStr"));
+		CalcTile(resData, resRange MG_DEBUG_ALLOCATOR_SRC(borrowedDataHandle->md_SrcStr.c_str()));
 	}
 
 	void CalcTile(sequence_traits<E1>::seq_t resData, Unit<E1>::range_t resRange MG_DEBUG_ALLOCATOR_SRC_ARG) const
@@ -108,7 +108,7 @@ public:
 			i = resData.begin(),
 			e = resData.end();
 
-		dms_assert((e-i) == Cardinality(resRange));
+		assert((e-i) == Cardinality(resRange));
 
 		for (row_id count = 0; i != e; ++i)
 			*i = Range_GetValue_naked(resRange, count++);
