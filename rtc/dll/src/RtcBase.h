@@ -127,7 +127,7 @@ struct bit_sequence;
 #else
 //#	define MG_DEBUG_INTERESTSOURCE 
 #	undef MG_DEBUG_DATA
-#	define MG_DEBUG_ALLOCATOR
+//#	define MG_DEBUG_ALLOCATOR
 #endif
 
 #if defined(MG_DEBUG_INTERESTSOURCE) || defined(MG_DEBUG_ALLOCATOR)
@@ -142,9 +142,6 @@ struct bit_sequence;
 #if defined(MG_DEBUG)
 #	define release_protected public
 #	define release_private public
-#else
-#	define release_protected protected
-#	define release_private private
 #endif
 
 #if defined(MG_DEBUG_DATASTORELOCK)
