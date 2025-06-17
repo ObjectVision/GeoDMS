@@ -571,7 +571,7 @@ SyncMode AbstrStorageManager::GetSyncMode(const TreeItem* storageHolder)
 		storageHolder = storageHolder->GetTreeParent();
 	}
 	while (storageHolder);
-	return SyncMode::AttrsOfConfiguredTables; // default
+	return SyncMode::AllTables; // default
 }
 
 void AbstrStorageManager::UpdateTree(const TreeItem* storageHolder, TreeItem* curr) const
