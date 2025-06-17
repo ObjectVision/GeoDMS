@@ -3770,7 +3770,19 @@ nodata:
 
 bool TreeItem::PrepareData() const
 {
-	return PrepareDataUsage(DrlType::Suspendible) && WaitForReadyOrSuspendTrigger(GetCurrUltimateItem());
+	if (!PrepareDataUsage(DrlType::Suspendible))
+		return false;
+	auto ultItem = GetCurrUltimateItem();
+	if (!WaitForReadyOrSuspendTrigger(ultItem))
+	{
+		if (SuspendTrigger::DidSuspend())
+			return false;
+		assert(ultItem->WasFailed());
+		if (ultItem != this)
+			this->Fail(ultItem);
+		return false;
+	}
+	return true;
 }
 
 
