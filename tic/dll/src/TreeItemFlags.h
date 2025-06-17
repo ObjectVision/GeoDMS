@@ -83,7 +83,7 @@ const DataItemStatusFlags DSF_ValuesChecked          = 0x08000000;
 const DataItemStatusFlags DSF_CachedByStorageManager = 0x10000000;
 const DataItemStatusFlags DSF_HasSortedValues        = 0x20000000;
 
-const int VC2DSF_SHIFT = DCM2DSF_SHIFT + 4;
+const int VC2DSF_SHIFT = DCM2DSF_SHIFT + 5;
 const int VC_MASK = 0x03U;
 
 struct treeitem_flag_set : flag_set
@@ -100,8 +100,7 @@ struct treeitem_flag_set : flag_set
 
 	void SetDataCheckMode(DataCheckMode dcm)
 	{
-		SetBits(DCM_MASK << DCM2DSF_SHIFT, (dcm << DCM2DSF_SHIFT) | DSF_ValuesChecked);
-
+		SetBits((DCM_MASK << DCM2DSF_SHIFT) | DSF_ValuesChecked, (dcm << DCM2DSF_SHIFT) | DSF_ValuesChecked);
 	}
 
 	DataCheckMode GetDataCheckMode() const
