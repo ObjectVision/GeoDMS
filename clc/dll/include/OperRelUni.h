@@ -46,6 +46,66 @@ granted by an additional written contract for support, assistance and/or develop
 #include "pcount.h"
 #include "prototypes.h"
 
+template <typename vIt, typename V>
+vIt lowerbound(vIt beginData, vIt endData, const V& value)
+{
+	SizeT n = endData - beginData;
+	assert(IsBitValueOrDefined(value));
+
+	while (n)
+	{
+		SizeT n2 = n / 2;
+		MG_CHECK(IsBitValueOrDefined(beginData[n2]));
+		if (beginData[n2] < value)
+		{
+			n -= ++n2;
+			beginData += n2;
+		}
+		else
+			n = n2;
+	}
+	return beginData;
+}
+
+template <typename vIt, typename V>
+vIt lowerbound_with_null(vIt beginData, vIt endData, const V& value)
+{
+	SizeT n = endData - beginData;
+	DataLessThanCompare<V> comp;
+	while (n)
+	{
+		SizeT n2 = n / 2;
+		if (comp(beginData[n2], value))
+		{
+			n -= ++n2;
+			beginData += n2;
+		}
+		else
+			n = n2;
+	}
+	return beginData;
+}
+
+template <typename vIt, typename V>
+vIt upperbound(vIt beginData, vIt endData, const V& value)
+{
+	SizeT n = endData - beginData;
+	DataLessThanCompare<V> comp;
+	while (n)
+	{
+		SizeT n2 = n / 2;
+//		InIt m = first + n2;
+		if (!comp(value, beginData[n2]))
+		{
+			n -= ++n2;
+			beginData += n2;
+		}
+		else
+			n = n2;
+	}
+	return beginData;
+}
+
 // *****************************************************************************
 //                      INDEX operations
 // *****************************************************************************
@@ -81,7 +141,7 @@ InIt indexed_lowerbound(InIt first, InIt last, vIt beginData, const V& value)
 {
 	SizeT n = last - first;
 	assert(IsBitValueOrDefined(value));
-//	DataLessThanCompare<V> comp;
+
 	while (n)
 	{
 		SizeT n2 = n / 2;

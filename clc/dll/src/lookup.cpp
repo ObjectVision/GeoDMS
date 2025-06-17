@@ -73,6 +73,8 @@ public:
 			resultHolder = CreateCacheDataItem(domainA, valuesA, vc );
 			if (valuesA->GetTSF(TSF_Categorical) || arg2A->GetTSF(TSF_Categorical))
 				resultHolder->SetTSF(TSF_Categorical);
+			if (arg1A->m_StatusFlags.HasSortedValues() && arg2A->m_StatusFlags.HasSortedValues())
+				resultHolder->m_StatusFlags.SetHasSortedValues();
 		}
 
 		if (mustCalc)

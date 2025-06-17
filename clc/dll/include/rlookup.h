@@ -36,6 +36,18 @@ namespace {
 		return UNDEFINED_VALUE(std::iterator_traits<II>::value_type);
 	}
 
+	template <typename T, typename TI>
+	SizeT binarySearch2index(const T& dataValue, TI classBoundsPtr, TI classBoundsEnd)
+	{
+		if (IsBitValueOrDefined(dataValue))
+		{
+			TI i = lowerbound(classBoundsPtr, classBoundsEnd, dataValue);
+			if (i != classBoundsEnd && *i == dataValue)
+				return i - classBoundsPtr;
+		}
+		return UNDEFINED_VALUE(SizeT);
+	}
+
 	template <typename II, typename T, typename TI>
 	auto rlookup2index_with_null(II ib, II ie, const T& dataValue, TI classBoundsPtr) -> std::iterator_traits<II>::value_type
 	{
@@ -46,6 +58,19 @@ namespace {
 		if (i != ie && eqCmp(classBoundsPtr[*i], dataValue))
 			return *i;
 		return UNDEFINED_VALUE(std::iterator_traits<II>::value_type);
+	}
+
+	template <typename T, typename TI>
+	SizeT binarySearch2index_with_null(const T& dataValue, TI classBoundsPtr, TI classBoundsEnd)
+	{
+		using V = typename std::iterator_traits<TI>::value_type;
+		DataEqualityCompare<V> eqCmp;
+
+		TI i = lowerbound_with_null(classBoundsPtr, classBoundsEnd, dataValue);
+		if (i != classBoundsEnd && eqCmp(*i, dataValue))
+			return i - classBoundsPtr;
+
+		return UNDEFINED_VALUE(SizeT);
 	}
 
 	template <typename RI, typename II, typename TI>
@@ -59,6 +84,24 @@ namespace {
 			}
 		);
 		return dataPtr + n;
+	}
+
+	template <typename E, typename T, typename TI>
+	E binarySearch2value(const T& dataValue, TI classBoundsPtr, TI classBoundsEnd, const typename Unit<E>::range_t& resRange)
+	{
+		auto index = binarySearch2index(dataValue, classBoundsPtr, classBoundsEnd);
+		if (IsDefined(index))
+			return Range_GetValue_naked(resRange, index);
+		return UNDEFINED_OR_ZERO(E);
+	}
+
+	template <typename E, typename T, typename TI>
+	E binarySearch2value_with_null(const T& dataValue, TI classBoundsPtr, TI classBoundsEnd, const typename Unit<E>::range_t& resRange)
+	{
+		auto index = binarySearch2index_with_null(dataValue, classBoundsPtr, classBoundsEnd);
+		if (IsDefined(index))
+			return Range_GetValue_naked(resRange, index);
+		return UNDEFINED_OR_ZERO(E);
 	}
 
 	template <typename E, typename II, typename T, typename TI>
@@ -77,6 +120,34 @@ namespace {
 		if (IsDefined(index))
 			return Range_GetValue_naked(resRange, index);
 		return UNDEFINED_OR_ZERO(E);
+	}
+
+	template <typename RI, typename TI, typename RangeType>
+	TI binarySearch2value_range(RI rb, RI re, TI dataPtr, TI classBoundsPtr, TI classBoundsEnd, RangeType resRange)
+	{
+		SizeT n = re - rb;
+		using result_type = typename std::iterator_traits<RI>::value_type;
+		using key_type = typename std::iterator_traits<TI>::value_type;
+		parallel_for_if_separable<SizeT, result_type>(0, n, [=](SizeT i)
+			{
+				rb[i] = binarySearch2value<result_type>(dataPtr[i], classBoundsPtr, classBoundsEnd, resRange);
+			}
+		);
+		return dataPtr + n;
+	}
+
+	template <typename RI, typename TI, typename RangeType>
+	TI binarySearch2value_range_with_null(RI rb, RI re, TI dataPtr, TI classBoundsPtr, TI classBoundsEnd, RangeType resRange)
+	{
+		SizeT n = re - rb;
+		using result_type = typename std::iterator_traits<RI>::value_type;
+		using key_type = typename std::iterator_traits<TI>::value_type;
+		parallel_for_if_separable<SizeT, result_type>(0, n, [=](SizeT i)
+			{
+				rb[i] = binarySearch2value_with_null<result_type>(dataPtr[i], classBoundsPtr, classBoundsEnd, resRange);
+			}
+		);
+		return dataPtr + n;
 	}
 
 	template <typename RI, typename II, typename TI, typename RangeType>
@@ -174,6 +245,27 @@ namespace {
 		return UNDEFINED_VALUE(std::iterator_traits<II>::value_type);
 	}
 
+	template <typename T, typename TI>
+	SizeT upperBound2index(const T& dataValue, TI classBoundsPtr, TI classBoundsEnd)
+	{
+		if (IsBitValueOrDefined(dataValue))
+		{
+			TI i = upperbound(classBoundsPtr, classBoundsEnd, dataValue);
+			if (i != classBoundsPtr)
+			{
+				// Check
+				MGD_CHECKDATA(
+					(i == classBoundsEnd || dataValue < *i)
+					&& (!(dataValue < i[-1]) || !IsBitValueOrDefined(i[-1]))
+				);
+
+				// Action
+				return i - classBoundsPtr - 1;
+			}
+		}
+		return UNDEFINED_VALUE(SizeT);
+	}
+
 	template <typename II, typename T, typename TI, typename E>
 	E classify2value(II ib, II ie, const T& dataValue, TI classBoundsPtr, const Range<E>& resRange)
 	{
@@ -183,7 +275,16 @@ namespace {
 		return UNDEFINED_VALUE(E);
 	}
 
-	
+	template <typename T, typename TI, typename E>
+	E upperBound2value(const T& dataValue, TI classBoundsPtr, TI classBoundsEnd, const Range<E>& resRange)
+	{
+		auto index = upperBound2index(dataValue, classBoundsPtr, classBoundsEnd);
+		if (IsDefined(index))
+			return Range_GetValue_naked(resRange, index);
+		return UNDEFINED_VALUE(E);
+	}
+
+
 	template <typename RI, typename II, typename TI>
 	TI classify2index_range(RI rb, RI re, II ib, II ie, TI dataPtr, TI classBoundsPtr)
 	{
@@ -192,6 +293,19 @@ namespace {
 		parallel_for_if_separable<SizeT, result_type>(0, n, [=](SizeT i)
 			{
 				rb[i] = classify2index(ib, ie, dataPtr[i], classBoundsPtr);
+			}
+		);
+		return dataPtr + n;
+	}
+
+	template <typename RI, typename TI, typename RangeType>
+	TI upperBound2value_range(RI rb, RI re, TI dataPtr, TI classBoundsPtr, TI classBoundsEnd, RangeType resRange)
+	{
+		SizeT n = re - rb;
+		using result_type = typename std::iterator_traits<RI>::value_type;
+		parallel_for_if_separable<SizeT, result_type>(0, n, [=](SizeT i)
+			{
+				rb[i] = upperBound2value(dataPtr[i], classBoundsPtr, classBoundsEnd, resRange);
 			}
 		);
 		return dataPtr + n;
@@ -215,12 +329,10 @@ namespace {
 
 	struct rlookup_dispatcher {
 		template <typename ResultIndexView, typename ValueArrayView>
-		void apply(ResultIndexView resData, ValueArrayView arg1Data, ValueArrayView arg2Data
+		void applyIndexedSearch(ResultIndexView resData, ValueArrayView arg1Data, ValueArrayView arg2Data
 		,	typename Unit<typename ResultIndexView::value_type>::range_t arg2DomainRange
 		,	const std::vector<index_type_t<typename ResultIndexView::value_type>>& index
 		)
-			// requires std::is_same_v< Unit<Vec::value_type>::range_t, Range<E> >
-			// requires std::is_same_v< TArray1::value_type, TArray2::value_type >
 		{
 			assert(resData.size() == arg1Data.size());
 
@@ -229,16 +341,27 @@ namespace {
 			auto a2De = rlookup2value_range(resData.begin(), resData.end(), begin_ptr(index), end_ptr(index), arg1Data.begin(), arg2Data.begin(), arg2DomainRange);
 			assert(a2De == arg1Data.end());
 		}
+
+		template <typename ResultIndexView, typename ValueArrayView>
+		void applyBinarySearch(ResultIndexView resData, ValueArrayView arg1Data, ValueArrayView arg2Data
+			, typename Unit<typename ResultIndexView::value_type>::range_t arg2DomainRange
+		)
+		{
+			assert(resData.size() == arg1Data.size());
+
+			// do a binary search of each element 
+
+			auto a2De = binarySearch2value_range(resData.begin(), resData.end(), arg1Data.begin(), arg2Data.begin(), arg2Data.end(), arg2DomainRange);
+			assert(a2De == arg1Data.end());
+		}
 	};
 
 	struct rlookup_with_null_dispatcher {
 		template <typename ResultIndexView, typename ValueArrayView>
-		void apply(ResultIndexView resData, ValueArrayView arg1Data, ValueArrayView arg2Data
+		void applyIndexedSearch(ResultIndexView resData, ValueArrayView arg1Data, ValueArrayView arg2Data
 			, typename Unit<typename ResultIndexView::value_type>::range_t arg2DomainRange
 			, const std::vector<index_type_t<typename ResultIndexView::value_type>>& index
 		)
-			// requires std::is_same_v< Unit<Vec::value_type>::range_t, Range<E> >
-			// requires std::is_same_v< TArray1::value_type, TArray2::value_type >
 		{
 			assert(resData.size() == arg1Data.size());
 
@@ -247,11 +370,23 @@ namespace {
 			auto a2De = rlookup2value_range_with_null(resData.begin(), resData.end(), begin_ptr(index), end_ptr(index), arg1Data.begin(), arg2Data.begin(), arg2DomainRange);
 			assert(a2De == arg1Data.end());
 		}
+		template <typename ResultIndexView, typename ValueArrayView>
+		void applyBinarySearch(ResultIndexView resData, ValueArrayView arg1Data, ValueArrayView arg2Data
+			, typename Unit<typename ResultIndexView::value_type>::range_t arg2DomainRange
+		)
+		{
+			assert(resData.size() == arg1Data.size());
+
+			// do a binary search of each element 
+
+			auto a2De = binarySearch2value_range_with_null(resData.begin(), resData.end(), arg1Data.begin(), arg2Data.begin(), arg2Data.end(), arg2DomainRange);
+			assert(a2De == arg1Data.end());
+		}
 	};
 
 	struct classify_dispatcher {
 		template <typename ResultIndexView, typename ValueArrayView>
-		void apply(ResultIndexView resData, ValueArrayView arg1Data, ValueArrayView arg2Data
+		void applyIndexedSearch(ResultIndexView resData, ValueArrayView arg1Data, ValueArrayView arg2Data
 			, typename Unit<typename ResultIndexView::value_type>::range_t arg2DomainRange
 			, const std::vector<index_type_t<typename ResultIndexView::value_type>>& index
 		)
@@ -260,6 +395,20 @@ namespace {
 
 			// do a binary search of each element 
 			auto a2De = classify2value_range(resData.begin(), resData.end(), begin_ptr(index), end_ptr(index), arg1Data.begin(), arg2Data.begin(), arg2DomainRange);
+			assert(a2De == arg1Data.end());
+		}
+		template <typename ResultIndexView, typename ValueArrayView>
+		void applyBinarySearch(ResultIndexView resData, ValueArrayView arg1Data, ValueArrayView arg2Data
+			, typename Unit<typename ResultIndexView::value_type>::range_t arg2DomainRange
+		)
+			// requires std::is_same_v< Unit<Vec::value_type>::range_t, Range<E> >
+			// requires std::is_same_v< TArray1::value_type, TArray2::value_type >
+		{
+			assert(resData.size() == arg1Data.size());
+
+			// do a binary search of each element 
+
+			auto a2De = upperBound2value_range(resData.begin(), resData.end(), arg1Data.begin(), arg2Data.begin(), arg2Data.end(), arg2DomainRange);
 			assert(a2De == arg1Data.end());
 		}
 	};

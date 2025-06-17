@@ -1,4 +1,4 @@
-// Copyright (C) 1998-2023 Object Vision b.v. 
+// Copyright (C) 1998-2025 Object Vision b.v. 
 // License: GNU GPL 3
 /////////////////////////////////////////////////////////////////////////////
 
@@ -81,22 +81,41 @@ const DataItemStatusFlags DSF_HasUndefinedValues     = 0x02000000;
 const DataItemStatusFlags DSF_HasOutOfRangeValues    = 0x04000000;
 const DataItemStatusFlags DSF_ValuesChecked          = 0x08000000;
 const DataItemStatusFlags DSF_CachedByStorageManager = 0x10000000;
+const DataItemStatusFlags DSF_HasSortedValues        = 0x20000000;
 
 const int VC2DSF_SHIFT = DCM2DSF_SHIFT + 4;
 const int VC_MASK = 0x03U;
 
 struct treeitem_flag_set : flag_set
 {
-	TIC_CALL void SetValueComposition(ValueComposition vc);
+	void SetValueComposition(ValueComposition vc)
+	{
+		SetBits(VC_MASK << VC2DSF_SHIFT, UInt32(vc) << VC2DSF_SHIFT);
+	}
+
 	ValueComposition GetValueComposition() const
 	{
 		return ValueComposition(GetBits(VC_MASK << VC2DSF_SHIFT) >> VC2DSF_SHIFT);
 	}
-	TIC_CALL void SetDataCheckMode(DataCheckMode dcm);
+
+	void SetDataCheckMode(DataCheckMode dcm)
+	{
+		SetBits(DCM_MASK << DCM2DSF_SHIFT, (dcm << DCM2DSF_SHIFT) | DSF_ValuesChecked);
+
+	}
+
 	DataCheckMode GetDataCheckMode() const
 	{
-		dms_assert(Get(DSF_ValuesChecked));
+		assert(Get(DSF_ValuesChecked));
 		return DataCheckMode(GetBits(DCM_MASK << DCM2DSF_SHIFT) >> DCM2DSF_SHIFT);
+	}
+	bool HasSortedValues() const
+	{
+		return Get(DSF_HasSortedValues);
+	}
+	void SetHasSortedValues(bool hasSortedValues = true)
+	{
+		Set(DSF_HasSortedValues, hasSortedValues);
 	}
 };
 

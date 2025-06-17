@@ -327,7 +327,8 @@ public:
 
 		AbstrDataItem* resSub = CreateDataItem(res, s_Values, res, arg1Values, arg1->GetValueComposition() );
 		MG_PRECONDITION(resSub);
-		
+		resSub->m_StatusFlags.SetHasSortedValues();
+
 		if (mustCalc)
 		{
 			DataReadLock arg1Lock(arg1);
