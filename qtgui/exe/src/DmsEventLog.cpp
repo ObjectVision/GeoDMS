@@ -644,12 +644,8 @@ void DmsEventLog::onItemClicked(const QModelIndex& index)
 	MainWindow::TheOne()->m_address_bar->setPath(link.data());
 }
 
-QSize DmsEventLog::sizeHint() const {
-	return QSize(0, default_height);
-}
-
 QSize DmsEventLog::minimumSizeHint() const {
-	return QSize(0, default_height);
+	return QSize(0, 0);
 }
 
 void geoDMSMessage(ClientHandle /*clientHandle*/, const MsgData* msgData, bool moreToCome)
