@@ -3310,7 +3310,7 @@ bool TreeItem::DoWriteItem(StorageMetaInfoPtr&&) const
 			dms_assert(IsUnit(this));
 			return true;
 		}
-		auto result = CalledCalcHandle(apr,GetDynamicObjClass());
+		auto result = CalledCalcHandle(apr, GetDynamicObjClass());
 		if (result->IsFailed())
 		{
 			Fail(result.get_ptr());
