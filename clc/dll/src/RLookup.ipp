@@ -65,9 +65,8 @@ public:
 			compatible_values_unit_creator_func(0, GetGroup(), args, true);
 			resultHolder = CreateCacheDataItem(arg1_DomainUnit, arg2_DomainUnit);
 			resultHolder->SetTSF(TSF_Categorical);
-			if (arg1A->m_StatusFlags.HasSortedValues() && arg2A->m_StatusFlags.HasSortedValues())
-				resultHolder->m_StatusFlags.SetHasSortedValues();
 		}
+		resultHolder->m_StatusFlags.SetHasSortedValues(arg1A->m_StatusFlags.HasSortedValues() && arg2A->m_StatusFlags.HasSortedValues());
 
 		if (mustCalc)
 		{
@@ -243,7 +242,6 @@ public:
 					assert(keyValuesPtr);
 					CalcTileWithKeyValues<res_seq_t, E>(resData.get_view(), arg1Data.get_view(), keyValuesPtr, arg2Domain->GetRange());
 				}
-
 			}
 		);
 	}

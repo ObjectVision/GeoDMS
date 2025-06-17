@@ -42,6 +42,11 @@ Annotated<CommonOperGroup> cog_unionData (
 ,	token::union_data, oper_policy::allow_extra_args|oper_policy::can_explain_value
 );
 
+Annotated<CommonOperGroup> cog_orderedUnionData(
+	"Note that the first argument indicates the domain of the result and subsequent arguments (at least one) determine the unit and type of the resulting values."
+	, token::ordered_union_data, oper_policy::allow_extra_args | oper_policy::can_explain_value
+);
+
 // *****************************************************************************
 //                         UnionOperator
 // *****************************************************************************
@@ -227,15 +232,18 @@ class UnionDataOperator : public BinaryOperator // extra args are allowed
 	typedef DataArray<V>         ResultType;
 
 public:
-	UnionDataOperator()
-		:	BinaryOperator(&cog_unionData, ResultType::GetStaticClass(), Arg1Type::GetStaticClass(), ArgType::GetStaticClass())
+	bool m_IsOrdered;
+
+	UnionDataOperator(bool isOrdered)
+		:	BinaryOperator(isOrdered ? &cog_orderedUnionData : &cog_unionData, ResultType::GetStaticClass(), Arg1Type::GetStaticClass(), ArgType::GetStaticClass())
+		,   m_IsOrdered(isOrdered)
 	{}
 
    // Override Operator
 	void CreateResultCaller(TreeItemDualRef& resultHolder, const ArgRefs& args, LispPtr) const override
 	{
 		arg_index n = args.size() - 1;
-		dms_assert(n >= 1);
+		assert(n >= 1);
 
 		const AbstrUnit* resultDomain = AsUnit(GetItem(args[0]));
 
@@ -270,6 +278,8 @@ public:
 		resultHolder = CreateCacheDataItem(resultDomain, constUnitRef, vc );
 		if (isCategorical)
 			resultHolder->SetTSF(TSF_Categorical);
+		if (m_IsOrdered)
+			resultHolder->m_StatusFlags.SetHasSortedValues();
 	}
 
 	bool CalcResult(TreeItemDualRef& resultHolder, ArgRefs args, std::vector<ItemReadLock> readLocks, Explain::Context* context) const override
@@ -358,10 +368,17 @@ namespace
 	struct UnionOpers
 	{
 		UnionOperator<X>     unionOrg;
-		UnionDataOperator<X> unionData;
+		UnionDataOperator<X> unionData = UnionDataOperator<X>(false);
+	};
+
+	template <typename X>
+	struct OrderedUnionOpers
+	{
+		UnionDataOperator<X> orderedUnionData = UnionDataOperator<X>(true);
 	};
 
 	tl_oper::inst_tuple_templ<typelists::value_elements, UnionOpers > instUnionOpers;
+	tl_oper::inst_tuple_templ<typelists::num_objects, OrderedUnionOpers > instOrderedUnionOpers;
 	UnionUnitOperator<UInt32> unionUnit(cog_unionUnit);
 	UnionUnitOperator<UInt8 > unionUnit08(cog_unionUnit08);
 	UnionUnitOperator<UInt16> unionUnit16(cog_unionUnit16);

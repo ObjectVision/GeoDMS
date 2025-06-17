@@ -44,7 +44,10 @@ public:
 		dms_assert(adi);
 
 		if (!resultHolder)
-			resultHolder = CreateCacheDataItem(adi->GetAbstrDomainUnit(), adi->GetAbstrValuesUnit(), COMPOSITION(V) );
+		{
+			resultHolder = CreateCacheDataItem(adi->GetAbstrDomainUnit(), adi->GetAbstrValuesUnit(), COMPOSITION(V));
+			resultHolder->m_StatusFlags.SetHasSortedValues();
+		}
 
 		if (mustCalc)
 		{

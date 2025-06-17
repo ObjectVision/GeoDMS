@@ -131,7 +131,30 @@ CLC_CALL void ClassifyLogInterval(break_array& faLimits, SizeT k, const ValueCou
 
 void FillBreakAttrFromArray(AbstrDataItem* breakAttr, const break_array& data, const SharedObj* abstrValuesRangeData)
 {
-	DataWriteLock breakLock(breakAttr, data.size() == breakAttr->GetAbstrDomainUnit()->GetCount() ? dms_rw_mode::write_only_all : dms_rw_mode::write_only_mustzero, abstrValuesRangeData);
+	auto breakAttrDomainCount = breakAttr->GetAbstrDomainUnit()->GetCount();
+	DataWriteLock breakLock(breakAttr, (data.size() == breakAttrDomainCount) ? dms_rw_mode::write_only_all : dms_rw_mode::write_only_mustzero, abstrValuesRangeData);
+
+	bool isOrdered = (data.size() >= breakAttrDomainCount);
+	auto dataComp = DataLessThanCompare<Float64>();
+	if (data.size())
+	{
+		auto dataIter = data.begin();
+		while (isOrdered)
+		{
+			auto value = *dataIter;
+			assert(IsDefined(value) || dataIter == data.begin());
+			do
+			{
+				++dataIter;
+				if (dataIter == data.end())
+					goto endOfCheck;
+			} while (!IsDefined(*dataIter)); // skip subsequent undefined values
+			isOrdered = !dataComp(*dataIter, value); // only assign monotonously increasing classbreaks.
+		}
+	}
+endOfCheck:
+
+	breakAttr->m_StatusFlags.SetHasSortedValues(isOrdered);
 
 	assert(data.size() == breakLock->GetNrFeaturesNow());
 	breakLock->SetValuesAsFloat64Array(tile_loc(no_tile, 0), data.size(), begin_ptr(data));

@@ -2452,7 +2452,7 @@ LispRef TreeItem::GetCheckedKeyExpr() const
 		// one or more values, so we need a union
 		assert(valueList.IsRealList());
 		return LispRef(
-			LispRef(token::union_data)
+			LispRef(adi->m_StatusFlags.HasSortedValues() ? token::ordered_union_data : token::union_data)
 			, LispRef(adi->GetAbstrDomainUnit()->GetCheckedKeyExpr()
 				, valueList
 			)

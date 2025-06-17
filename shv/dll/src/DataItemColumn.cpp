@@ -947,6 +947,8 @@ void DataItemColumn::SetOrgText  (SizeT recNo, CharPtr textData)
 		av->AssignFromCharPtr(textData);
 		ado->SetAbstrValue(recNo, *av);
 	dwl.Commit();
+
+	adi->m_StatusFlags.SetHasSortedValues(false); // no longer guaranteed
 }
 
 void DataItemColumn::SetRevBorder(bool revBorder)

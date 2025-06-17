@@ -70,9 +70,8 @@ struct AbstrInvertOperator : public UnaryOperator
 		{
 			resultHolder = CreateCacheDataItem(newDomain, entity);
 			resultHolder->SetTSF(TSF_Categorical);
-			if (arg1A->m_StatusFlags.HasSortedValues())
-				resultHolder->m_StatusFlags.SetHasSortedValues();
 		}
+		resultHolder->m_StatusFlags.SetHasSortedValues(arg1A->m_StatusFlags.HasSortedValues());
 		AbstrDataItem* res = AsDataItem(resultHolder.GetNew());
 
 		AbstrDataItem* resSub = nullptr;

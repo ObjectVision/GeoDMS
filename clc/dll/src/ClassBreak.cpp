@@ -43,7 +43,10 @@ struct ClassifyFixedOperator: public BinaryOperator
 		const AbstrUnit* classUnit = AsUnit(args[1]);
 
 		if (!resultHolder)
+		{
 			resultHolder = CreateCacheDataItem(classUnit, valuesUnit);
+			resultHolder->m_StatusFlags.SetHasSortedValues();
+		}
 
 		if (mustCalc)
 		{

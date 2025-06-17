@@ -25,6 +25,7 @@
 #include "AggrFuncNum.h"
 #include "AttrBinStruct.h"
 #include "IndexGetterCreator.h"
+#include "TileChannel.h"
 #include "ValuesTableTypes.h"
 
 const UInt32 BUFFER_SIZE = 1024;
@@ -542,8 +543,44 @@ auto GetWeededCounts_Impl(const AbstrDataItem* adi, SizeT maxPairCount) -> Value
 }
 
 template <ordered_value_type R, typename TypeList, count_type C>
+auto GetSequentialCounts_impl(const AbstrDataItem* adi) -> ValueCountPairContainerT<R, C>
+{
+	return visit_and_return_result<TypeList, ValueCountPairContainerT<R, C> >(adi->GetAbstrValuesUnit()
+		, [adi]<typename V>(const Unit<V>*valuesUnit)
+			{
+
+				ValueCountPairContainerT<R, C> results;
+
+				auto tileFunctor = const_array_cast<V>(adi);
+				auto tileChannel = tile_read_channel<V>(tileFunctor);
+
+				while (!tileChannel.AtEnd())
+				{
+					auto currValue = *tileChannel;
+					if (!IsDefined(currValue))
+					{
+						++tileChannel;
+						continue;
+					}
+					C  c = 0;
+					do
+					{
+						++tileChannel;
+						++c;
+					} while (!tileChannel.AtEnd() && *tileChannel == currValue);
+					assert(tileChannel.AtEnd() || !IsDefined(*tileChannel) || currValue < *tileChannel); // we were guarteeded that values are sorted
+					results.emplace_back(MG_DEBUG_ALLOCATOR_FIRST("GetSequentialCounts_impl") currValue, c);
+				}
+				return results;
+			}
+	);
+}
+
+template <ordered_value_type R, typename TypeList, count_type C>
 auto GetCounts_Impl(const AbstrDataItem* adi) -> ValueCountPairContainerT<R, C>
 {
+	if (adi->m_StatusFlags.HasSortedValues())
+		return GetSequentialCounts_impl<R, TypeList, C>(adi);
 	return GetWeededCounts_Impl<R, TypeList, C>(adi, SizeT(-1));
 }
 
