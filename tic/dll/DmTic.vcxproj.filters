@@ -137,9 +137,6 @@
     <ClCompile Include="src\Xml\XmlTreeParser.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="src\TreeItemFlags.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="src\Aspect.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>

@@ -2452,7 +2452,7 @@ LispRef TreeItem::GetCheckedKeyExpr() const
 		// one or more values, so we need a union
 		assert(valueList.IsRealList());
 		return LispRef(
-			LispRef(token::union_data)
+			LispRef(adi->m_StatusFlags.HasSortedValues() ? token::ordered_union_data : token::union_data)
 			, LispRef(adi->GetAbstrDomainUnit()->GetCheckedKeyExpr()
 				, valueList
 			)
@@ -3310,7 +3310,7 @@ bool TreeItem::DoWriteItem(StorageMetaInfoPtr&&) const
 			dms_assert(IsUnit(this));
 			return true;
 		}
-		auto result = CalledCalcHandle(apr,GetDynamicObjClass());
+		auto result = CalledCalcHandle(apr, GetDynamicObjClass());
 		if (result->IsFailed())
 		{
 			Fail(result.get_ptr());
@@ -3770,7 +3770,19 @@ nodata:
 
 bool TreeItem::PrepareData() const
 {
-	return PrepareDataUsage(DrlType::Suspendible) && WaitForReadyOrSuspendTrigger(GetCurrUltimateItem());
+	if (!PrepareDataUsage(DrlType::Suspendible))
+		return false;
+	auto ultItem = GetCurrUltimateItem();
+	if (!WaitForReadyOrSuspendTrigger(ultItem))
+	{
+		if (SuspendTrigger::DidSuspend())
+			return false;
+		assert(ultItem->WasFailed());
+		if (ultItem != this)
+			this->Fail(ultItem);
+		return false;
+	}
+	return true;
 }
 
 

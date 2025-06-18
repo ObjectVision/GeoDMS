@@ -95,6 +95,7 @@ namespace token {
 	extern TIC_CALL TokenID ValuesUnit;
 
 	extern TIC_CALL TokenID union_data;
+	extern TIC_CALL TokenID ordered_union_data;
 	extern TIC_CALL TokenID sourceDescr;
 	extern TIC_CALL TokenID container;
 	extern TIC_CALL TokenID classify;

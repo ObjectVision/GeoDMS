@@ -200,9 +200,31 @@ void GetUniqueValues(AbstrUnit* res, AbstrDataItem* resSub, const AbstrDataItem*
 	SizeT count = ado->GetTiledRangeData()->GetElemCount();
 	if (count)
 	{
-		tile_id tn = ado->GetTiledRangeData()->GetNrTiles();
-		if (tn)
-			values = GetUniqueWallValues<V>(ado, 0, tn, mustBeDefined);
+		if (adi->m_StatusFlags.HasSortedValues())
+		{
+			auto tileChannel = tile_read_channel<V>(ado);
+			while (!tileChannel.AtEnd())
+			{
+				auto currValue = *tileChannel;
+				if (mustBeDefined && !IsDefined(currValue))
+				{
+					++tileChannel;
+					continue;
+				}
+				do
+				{
+					++tileChannel;
+				} while (!tileChannel.AtEnd() && *tileChannel == currValue);
+				assert(tileChannel.AtEnd() || !IsDefined(*tileChannel) || currValue < *tileChannel); // we were guarteeded that values are sorted
+				values.push_back(currValue);
+			}
+		}
+		else
+		{
+			tile_id tn = ado->GetTiledRangeData()->GetNrTiles();
+			if (tn)
+				values = GetUniqueWallValues<V>(ado, 0, tn, mustBeDefined);
+		}
 	}
 
 	res->SetCount(values.size());
@@ -327,7 +349,8 @@ public:
 
 		AbstrDataItem* resSub = CreateDataItem(res, s_Values, res, arg1Values, arg1->GetValueComposition() );
 		MG_PRECONDITION(resSub);
-		
+		resSub->m_StatusFlags.SetHasSortedValues();
+
 		if (mustCalc)
 		{
 			DataReadLock arg1Lock(arg1);

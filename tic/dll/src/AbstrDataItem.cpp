@@ -388,7 +388,7 @@ const Class* AbstrDataItem::GetCurrentObjClass() const
 {
 	return HasDataObj()
 		?	GetDataObj()->GetDynamicClass()
-		:	GetDynamicClass();
+		:	GetDynamicObjClass();
 }
 
 void AbstrDataItem::Unify(const TreeItem* refItem, CharPtr leftRole, CharPtr rightRole) const

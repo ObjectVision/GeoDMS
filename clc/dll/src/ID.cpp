@@ -38,11 +38,15 @@ CommonOperGroup cog_id(token::id);
 
 class AbstrIDOperator : public UnaryOperator
 {
+	bool m_HasSortedResultValues = false; // ID does not generate sorted values for all value types
 public:
 	// Override Operator
-	AbstrIDOperator(const Class* resultClass, const Class* arg1Class)
+	AbstrIDOperator(const Class* resultClass, const UnitClass* arg1Class)
 		: UnaryOperator(&cog_id, resultClass, arg1Class) 
-	{}
+	{
+		if (arg1Class->GetValueType()->GetNrDims() == 1)
+			m_HasSortedResultValues = true; // but for all numeric domains, it does
+	}
 
 	bool CreateResult(TreeItemDualRef& resultHolder, const ArgSeqType& args, bool mustCalc) const override
 	{
@@ -56,6 +60,8 @@ public:
 			resultHolder = CreateCacheDataItem(e1, e1);
 			resultHolder.GetNew()->SetFreeDataState(true); // never cache
 			resultHolder->SetTSF(TSF_Categorical);
+			if (m_HasSortedResultValues)
+				resultHolder->m_StatusFlags.SetHasSortedValues();
 		}
 		if (mustCalc)
 		{

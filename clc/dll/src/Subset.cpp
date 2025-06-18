@@ -143,6 +143,7 @@ struct SubsetOperator: public UnaryOperator
 			auto resSubName = ((m_ORCM == OrgRelCreationMode::org_rel) || (m_ORCM == OrgRelCreationMode::org_rel_and_use_it)) ? token::org_rel : token::nr_OrgEntity;
 			resSub = CreateDataItem(res, resSubName, res, arg1Domain);
 			resSub->SetTSF(TSF_Categorical);
+			resSub->m_StatusFlags.SetHasSortedValues();
 
 			MG_PRECONDITION(resSub);
 		}
@@ -332,9 +333,12 @@ struct AbstrCollectByCondOperator : TernaryOperator
 		condA->GetAbstrDomainUnit()->UnifyDomain(dataA->GetAbstrDomainUnit(), "e1", "e2", UM_Throw);
 
 		if (!resultHolder)
+		{
 			resultHolder = CreateCacheDataItem(subset, dataA->GetAbstrValuesUnit(), dataA->GetValueComposition());
-		if (dataA->GetTSF(TSF_Categorical))
-			resultHolder->SetTSF(TSF_Categorical);
+			if (dataA->GetTSF(TSF_Categorical))
+				resultHolder->SetTSF(TSF_Categorical);
+		}
+		resultHolder->m_StatusFlags.SetHasSortedValues(dataA->m_StatusFlags.HasSortedValues());
 
 		if (mustCalc)
 		{

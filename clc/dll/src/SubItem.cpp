@@ -263,6 +263,12 @@ struct PhaseContainerOperator : BinaryOperator
 				if (!srcItem)
 					continue;
 				MG_CHECK(!srcItem->IsCacheItem());
+
+				if (srcItem->GetTSF(TSF_Categorical))
+					resWalker->SetTSF(TSF_Categorical);
+
+				resWalker->m_StatusFlags.SetHasSortedValues(srcItem->GetCurrUltimateItem()->m_StatusFlags.HasSortedValues());
+
 				auto srcPhaseNumber = srcItem->GetPhaseNumber();
 				MG_CHECK(srcPhaseNumber < resultPhaseNumber);
 

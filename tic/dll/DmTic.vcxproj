@@ -100,7 +100,6 @@
     <ClCompile Include="src\TreeItem.cpp" />
     <ClCompile Include="src\TreeItemClass.cpp" />
     <ClCompile Include="src\TreeItemContextHandle.cpp" />
-    <ClCompile Include="src\TreeItemFlags.cpp" />
     <ClCompile Include="src\TreeItemProps.cpp" />
     <ClCompile Include="src\TreeItemSet.cpp" />
     <ClCompile Include="src\TreeItemUtils.cpp" />

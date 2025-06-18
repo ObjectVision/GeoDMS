@@ -734,7 +734,7 @@ bool WaitForReadyOrSuspendTrigger(const TreeItem* item)
 		if (!IsCalculating(item))
 		{
 			assert(!SuspendTrigger::DidSuspend()); // cotrolflow logic
-			return IsDataReady(item) || item->WasFailed(FR_Data);
+			return IsDataReady(item);
 		}
 		std::shared_ptr<OperationContext> producer;
 		{

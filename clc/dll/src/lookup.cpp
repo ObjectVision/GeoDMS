@@ -74,6 +74,7 @@ public:
 			if (valuesA->GetTSF(TSF_Categorical) || arg2A->GetTSF(TSF_Categorical))
 				resultHolder->SetTSF(TSF_Categorical);
 		}
+		resultHolder->m_StatusFlags.SetHasSortedValues(arg1A->m_StatusFlags.HasSortedValues() && arg2A->m_StatusFlags.HasSortedValues());
 
 		if (mustCalc)
 		{

@@ -26,7 +26,7 @@ void flag_set::Set(UInt32 sf)
 
 void flag_set::SetBits(UInt32 sf, UInt32 values)
 {
-	dms_assert(!(values & ~sf));
+	assert(!(values & ~sf));
 
 	UInt32 oldDW = m_DW;
 	while (!m_DW.compare_exchange_weak(oldDW, (oldDW & ~sf) | values))
