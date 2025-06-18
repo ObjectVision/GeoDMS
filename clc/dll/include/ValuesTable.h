@@ -482,9 +482,15 @@ template <ordered_value_type R, count_type C>
 auto MakeValueCountContainer(std::vector<C>&& freqTable) -> ValueCountPairContainerT<R, C>
 {
 	ValueCountPairContainerT<R, C> result;
+	SizeT c = 0;
 	for (SizeT i = 0, n = freqTable.size(); i != n; ++i)
 		if (freqTable[i] > 0)
-			result.insert(result.end(), { i, freqTable[i] } MG_DEBUG_ALLOCATOR_SRC("MakeValueCountContainer"));
+			c++;
+	result.reserve(c MG_DEBUG_ALLOCATOR_SRC("MakeValueCountContainer"));
+
+	for (SizeT i = 0, n = freqTable.size(); i != n; ++i)
+		if (freqTable[i] > 0)
+			result.push_back({ i, freqTable[i] } MG_DEBUG_ALLOCATOR_SRC("MakeValueCountContainer"));
 	return result;
 }
 
