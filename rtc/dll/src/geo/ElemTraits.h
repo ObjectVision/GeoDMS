@@ -347,6 +347,7 @@ template <typename T> struct elem_traits<Point<T> >
 //=======================================
 
 template<typename Dst> struct DefaultConvertFunc;
+template<typename Dst> struct RoundedConvertFunc;
 template <typename U> struct DnConvertFunc;
 template <typename U> struct UpConvertFunc;
 

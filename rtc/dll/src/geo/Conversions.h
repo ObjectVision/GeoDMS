@@ -131,7 +131,7 @@ struct DnConvertFunc
 	template <typename T>
 	struct rebind
 	{
-		typedef DnConvertFunc<T> type;
+		using type = DnConvertFunc<T>;
 	};
 };
 
@@ -146,12 +146,27 @@ struct UpConvertFunc
 	template <typename T>
 	struct rebind
 	{
-		typedef UpConvertFunc<T> type;
+		using type = UpConvertFunc<T>;
 	};
 };
 
 template <typename U>
 struct DefaultConvertFunc
+{
+	template <typename T>
+	U operator ()(const T& val) const
+	{
+		return U(val);
+	}
+	template <typename T>
+	struct rebind
+	{
+		using type = DefaultConvertFunc<T>;
+	};
+};
+
+template <typename U>
+struct RoundedConvertFunc
 {
 	template <typename T>
 	U operator ()(const T& val) const
@@ -164,7 +179,7 @@ struct DefaultConvertFunc
 	template <typename T>
 	struct rebind
 	{
-		typedef DefaultConvertFunc<T> type;
+		using type = RoundedConvertFunc<T>;
 	};
 };
 

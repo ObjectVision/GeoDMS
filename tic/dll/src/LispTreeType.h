@@ -76,6 +76,7 @@ namespace token {
 	extern TIC_CALL TokenID arrow;
 	extern TIC_CALL TokenID lookup;
 	extern TIC_CALL TokenID convert;
+	extern TIC_CALL TokenID rounded_convert;
 	extern TIC_CALL TokenID eval;
 	extern TIC_CALL TokenID scope;
 
