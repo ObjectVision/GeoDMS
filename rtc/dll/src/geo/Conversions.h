@@ -156,7 +156,10 @@ struct DefaultConvertFunc
 	template <typename T>
 	U operator ()(const T& val) const
 	{
-		return U(val);
+		if constexpr (std::is_floating_point_v<scalar_of_t<T>> && is_integral_v<scalar_of_t<U>>)
+			return Round<sizeof(scalar_of_t<U>)>(val);
+		else
+			return U(val);
 	}
 	template <typename T>
 	struct rebind
