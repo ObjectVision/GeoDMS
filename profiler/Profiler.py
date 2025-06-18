@@ -16,7 +16,7 @@ from bokeh.layouts import row, column
 from bokeh.palettes import Category10, Category20, Category20b, Category20c
 
 class Experiment:
-    def __init__(self, name=None, command=None, experiment_folder=None, environment_variables=None, cwd=None, geodms_logfile=None, binary_experiment_file=None, file_comparison:tuple=None):
+    def __init__(self, name=None, command=None, experiment_folder=None, environment_variables=None, cwd=None, geodms_logfile=None, binary_experiment_file=None, file_comparison:tuple=None, store_results:bool=True):
         self.name                   = name
         self.command                = command
         self.experiment_folder      = experiment_folder
@@ -24,7 +24,8 @@ class Experiment:
         self.cwd                    = cwd
         self.geodms_logfile         = geodms_logfile
         self.binary_experiment_file = binary_experiment_file
-        self.file_comparison=None
+        self.file_comparison=file_comparison
+        self.store_results = store_results
         self.result = {}
 
     def __str__(self):
@@ -460,8 +461,8 @@ def RunExperiments(experiments:list[Experiment]):
         exp.result["log_alloc"] = None
         if log_alloc:
             exp.result["log_alloc"] = log_alloc
-
-        storeExperimentToPickleFile(exp)
+        if exp.store_results:
+            storeExperimentToPickleFile(exp)
 
     print(f"Experiments profiling completed\n")
     return experiments
