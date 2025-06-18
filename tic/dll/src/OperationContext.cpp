@@ -1068,7 +1068,7 @@ task_status OperationContext::Schedule(TreeItem* item, const FutureSuppliers& al
 	if (runDirect)
 	{
 		auto supplStatus = JoinSupplOrSuspendTrigger();
-		assert(m_Suppliers.empty());
+		assert(m_Suppliers.empty() || context);
 		assert(GetStatus() == task_status::none);
 		{
 			leveled_std_section::scoped_lock lock(cs_ThreadMessing);
