@@ -795,7 +795,7 @@ void ReportFixedAllocFinalSummary()
 
 struct alloc_register_t
 {
-	using aspects_t = std::pair<CharPtr, size_t>; // source string and size
+	using aspects_t = std::pair<std::string, size_t>; // source string and size
 	std::map<void*, aspects_t> map;
 	std::mutex mutex;
 };
