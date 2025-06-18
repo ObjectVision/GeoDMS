@@ -48,11 +48,9 @@ Section "" ;No components page, name is not important
 
   File ..\bin\Release\${GeoDmsPlatform}\Qt6Core.dll
   File ..\bin\Release\${GeoDmsPlatform}\Qt6Gui.dll
-  File ..\bin\Release\${GeoDmsPlatform}\Qt6Network.dll
   File ..\bin\Release\${GeoDmsPlatform}\Qt6Svg.dll
   File ..\bin\Release\${GeoDmsPlatform}\Qt6Widgets.dll
 
-  File ..\bin\Release\${GeoDmsPlatform}\vcamp140.dll
   File ..\bin\Release\${GeoDmsPlatform}\vccorlib140.dll
   File ..\bin\Release\${GeoDmsPlatform}\vcomp140.dll
   File ..\bin\Release\${GeoDmsPlatform}\vcruntime140.dll
@@ -98,7 +96,6 @@ Section "" ;No components page, name is not important
   File ..\bin\Release\${GeoDmsPlatform}\minizip.dll
   File ..\bin\Release\${GeoDmsPlatform}\mpfr-6.dll
   File ..\bin\Release\${GeoDmsPlatform}\netcdf.dll
-  File ..\bin\Release\${GeoDmsPlatform}\opengl32sw.dll
   File ..\bin\Release\${GeoDmsPlatform}\openjp2.dll
   File ..\bin\Release\${GeoDmsPlatform}\pcre2-8.dll
   File ..\bin\Release\${GeoDmsPlatform}\proj_9.dll
