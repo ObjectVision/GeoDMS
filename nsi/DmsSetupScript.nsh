@@ -37,26 +37,43 @@ Section "" ;No components page, name is not important
   File ..\bin\Release\${GeoDmsPlatform}\profiler.py
 
   ; File ..\bin\Release\${GeoDmsPlatform}\*.dll
+  File ..\bin\Release\${GeoDmsPlatform}\Rtc.dll
+  File ..\bin\Release\${GeoDmsPlatform}\Shv.dll
   File ..\bin\Release\${GeoDmsPlatform}\Stg.dll
   File ..\bin\Release\${GeoDmsPlatform}\Stx.dll
   File ..\bin\Release\${GeoDmsPlatform}\Sym.dll
   File ..\bin\Release\${GeoDmsPlatform}\Tic.dll
-  File ..\bin\Release\${GeoDmsPlatform}\tiff.dll
+  File ..\bin\Release\${GeoDmsPlatform}\Clc.dll
+  File ..\bin\Release\${GeoDmsPlatform}\Geo.dll
+
+  File ..\bin\Release\${GeoDmsPlatform}\Qt6Core.dll
+  File ..\bin\Release\${GeoDmsPlatform}\Qt6Gui.dll
+  File ..\bin\Release\${GeoDmsPlatform}\Qt6Network.dll
+  File ..\bin\Release\${GeoDmsPlatform}\Qt6Svg.dll
+  File ..\bin\Release\${GeoDmsPlatform}\Qt6Widgets.dll
+
   File ..\bin\Release\${GeoDmsPlatform}\vcamp140.dll
   File ..\bin\Release\${GeoDmsPlatform}\vccorlib140.dll
   File ..\bin\Release\${GeoDmsPlatform}\vcomp140.dll
   File ..\bin\Release\${GeoDmsPlatform}\vcruntime140.dll
   File ..\bin\Release\${GeoDmsPlatform}\vcruntime140_1.dll
   File ..\bin\Release\${GeoDmsPlatform}\vcruntime140_threads.dll
-  File ..\bin\Release\${GeoDmsPlatform}\zlib1.dll
-  File ..\bin\Release\${GeoDmsPlatform}\zstd.dll
+  File ..\bin\Release\${GeoDmsPlatform}\concrt140.dll
+
+  File ..\bin\Release\${GeoDmsPlatform}\msvcp140.dll
+  File ..\bin\Release\${GeoDmsPlatform}\msvcp140_1.dll
+  File ..\bin\Release\${GeoDmsPlatform}\msvcp140_2.dll
+  File ..\bin\Release\${GeoDmsPlatform}\msvcp140_atomic_wait.dll
+  File ..\bin\Release\${GeoDmsPlatform}\msvcp140_codecvt_ids.dll
+
   File ..\bin\Release\${GeoDmsPlatform}\boost_locale-vc143-mt-x64-1_86.dll
   File ..\bin\Release\${GeoDmsPlatform}\boost_thread-vc143-mt-x64-1_86.dll
-  File ..\bin\Release\${GeoDmsPlatform}\Clc.dll
-  File ..\bin\Release\${GeoDmsPlatform}\concrt140.dll
-  File ..\bin\Release\${GeoDmsPlatform}\freexl-1.dll
+
   File ..\bin\Release\${GeoDmsPlatform}\gdal.dll
-  File ..\bin\Release\${GeoDmsPlatform}\Geo.dll
+  File ..\bin\Release\${GeoDmsPlatform}\tiff.dll
+  File ..\bin\Release\${GeoDmsPlatform}\zlib1.dll
+  File ..\bin\Release\${GeoDmsPlatform}\zstd.dll
+  File ..\bin\Release\${GeoDmsPlatform}\freexl-1.dll
   File ..\bin\Release\${GeoDmsPlatform}\geos.dll
   File ..\bin\Release\${GeoDmsPlatform}\geos_c.dll
   File ..\bin\Release\${GeoDmsPlatform}\geotiff.dll
@@ -80,11 +97,6 @@ Section "" ;No components page, name is not important
   File ..\bin\Release\${GeoDmsPlatform}\libxml2.dll
   File ..\bin\Release\${GeoDmsPlatform}\minizip.dll
   File ..\bin\Release\${GeoDmsPlatform}\mpfr-6.dll
-  File ..\bin\Release\${GeoDmsPlatform}\msvcp140.dll
-  File ..\bin\Release\${GeoDmsPlatform}\msvcp140_1.dll
-  File ..\bin\Release\${GeoDmsPlatform}\msvcp140_2.dll
-  File ..\bin\Release\${GeoDmsPlatform}\msvcp140_atomic_wait.dll
-  File ..\bin\Release\${GeoDmsPlatform}\msvcp140_codecvt_ids.dll
   File ..\bin\Release\${GeoDmsPlatform}\netcdf.dll
   File ..\bin\Release\${GeoDmsPlatform}\opengl32sw.dll
   File ..\bin\Release\${GeoDmsPlatform}\openjp2.dll
@@ -92,13 +104,6 @@ Section "" ;No components page, name is not important
   File ..\bin\Release\${GeoDmsPlatform}\proj_9.dll
   File ..\bin\Release\${GeoDmsPlatform}\python3.dll
   File ..\bin\Release\${GeoDmsPlatform}\qhull_r.dll
-  File ..\bin\Release\${GeoDmsPlatform}\Qt6Core.dll
-  File ..\bin\Release\${GeoDmsPlatform}\Qt6Gui.dll
-  File ..\bin\Release\${GeoDmsPlatform}\Qt6Network.dll
-  File ..\bin\Release\${GeoDmsPlatform}\Qt6Svg.dll
-  File ..\bin\Release\${GeoDmsPlatform}\Qt6Widgets.dll
-  File ..\bin\Release\${GeoDmsPlatform}\Rtc.dll
-  File ..\bin\Release\${GeoDmsPlatform}\Shv.dll
   File ..\bin\Release\${GeoDmsPlatform}\spatialite.dll
   File ..\bin\Release\${GeoDmsPlatform}\sqlite3.dll
 
