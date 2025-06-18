@@ -638,7 +638,7 @@ garbage_t OperationContext::disconnect_supplier(OperationContext* supplier)
 
 	OperationContextWPtr wptr_supplier = supplier->weak_from_this();
 	auto status = getStatus();
-	assert(status != task_status::running);
+	assert(status != task_status::running || m_Context);
 	assert(status != task_status::activated);
 	assert(status != task_status::scheduled);
 	if (status > task_status::running)
@@ -896,7 +896,7 @@ void OperationContex_setActivated(OperationContext* self)
 
 	assert(!cs_ThreadMessing.try_lock());
 	assert(!IsActiveOrRunning(self->getStatus()));
-	assert(self->m_Suppliers.empty());
+	assert(self->m_Suppliers.empty() || self->m_Context);
 
 #if defined(MG_TRACE_OPERATIONCONTEXTS)
 	CheckNumberOfRunningOCConsistency();
@@ -1068,7 +1068,13 @@ task_status OperationContext::Schedule(TreeItem* item, const FutureSuppliers& al
 	if (runDirect)
 	{
 		auto supplStatus = JoinSupplOrSuspendTrigger();
+		assert(supplStatus > task_status::running);
 		assert(m_Suppliers.empty() || context);
+		if (supplStatus != task_status::done)
+		{
+			assert(supplStatus == task_status::suspended || supplStatus == GetStatus());
+			return supplStatus;
+		}
 		assert(GetStatus() == task_status::none);
 		{
 			leveled_std_section::scoped_lock lock(cs_ThreadMessing);
