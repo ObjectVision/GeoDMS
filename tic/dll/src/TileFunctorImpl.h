@@ -81,7 +81,7 @@ struct FutureTileFunctor : DelayedTileFunctor<V>
 
 	struct tile_record : future_tile
 	{
-		tile_record(PrepareState ps, const ApplyFunc& aFunc, tile_offset tileSize MG_DEBUG_ALLOCATOR_SRC_ARG)
+		tile_record(PrepareState ps, const ApplyFunc& aFunc, tile_offset tileSize MG_DEBUG_ALLOCATOR_SRC(SharedStr srcStr))
 			: m_State(std::in_place_index<0>, std::move(ps), aFunc, tileSize)
 #if defined(MG_DEBUG_ALLOCATOR)
 			, md_SrcStr(srcStr)
@@ -94,7 +94,7 @@ struct FutureTileFunctor : DelayedTileFunctor<V>
 			{
 				const tile_spec& tf = std::get<0>(m_State);
 				tile_data resData;
-				reallocSO(resData, tf.tileSize, MustZero MG_DEBUG_ALLOCATOR_SRC(md_SrcStr));
+				reallocSO(resData, tf.tileSize, MustZero MG_DEBUG_ALLOCATOR_SRC(md_SrcStr.c_str()));
 				tf.aFunc(GetSeq(resData), tf.pState);
 				m_State.emplace<1>(std::move(resData));
 			}
@@ -104,7 +104,7 @@ struct FutureTileFunctor : DelayedTileFunctor<V>
 		std::mutex  m_Mutex;
 		future_state m_State;
 #if defined(MG_DEBUG_ALLOCATOR)
-		CharPtr md_SrcStr;
+		SharedStr md_SrcStr;
 #endif
 	};
 
@@ -115,7 +115,7 @@ struct FutureTileFunctor : DelayedTileFunctor<V>
 	{
 		assert(tiledDomainRangeData->GetNrTiles() > 1);
 		for (tile_id t = 0; t != tiledDomainRangeData->GetNrTiles(); ++t)
-			this->m_ActiveTiles[t] = new tile_record(pFunc_(t), aFunc, tiledDomainRangeData->GetTileSize(t) MG_DEBUG_ALLOCATOR_SRC(this->md_SrcStr.c_str()));
+			this->m_ActiveTiles[t] = new tile_record(pFunc_(t), aFunc, tiledDomainRangeData->GetTileSize(t) MG_DEBUG_ALLOCATOR_SRC(this->md_SrcStr));
 	}
 
 	ApplyFunc aFunc;
