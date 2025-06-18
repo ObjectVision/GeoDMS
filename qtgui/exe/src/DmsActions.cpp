@@ -292,11 +292,6 @@ void createDmsActions() {
     main_window->connect(about_action, &QAction::triggered, main_window, &MainWindow::aboutGeoDms);
     main_window->m_help_menu->addAction(about_action);
 
-    auto aboutQt_action = new QAction(QObject::tr("About &Qt"), main_window->m_help_menu.get());
-    aboutQt_action->setStatusTip(QObject::tr("Show the Qt library's About box"));
-    main_window->connect(aboutQt_action, &QAction::triggered, qApp, &QApplication::aboutQt);
-    main_window->m_help_menu->addAction(aboutQt_action);
-
     auto wiki_action = new QAction(QObject::tr("&Wiki"), main_window->m_help_menu.get());
     wiki_action->setStatusTip(QObject::tr("Open the GeoDms wiki in a browser"));
     main_window->connect(wiki_action, &QAction::triggered, main_window, &MainWindow::wiki);
