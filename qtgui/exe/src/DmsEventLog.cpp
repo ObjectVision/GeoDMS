@@ -197,7 +197,6 @@ void EventLogModel::scanFilter(msg_line_index_t index)
 {
 	msg_line_index_t msgLineCount = m_MsgLines.size();
 	MG_CHECK(index <= msgLineCount);
-	MG_CHECK(index == msgLineCount || not(m_MsgLines.at(index).m_IsFollowup));
 
 	while (index != msgLineCount)
 	{
@@ -205,9 +204,8 @@ void EventLogModel::scanFilter(msg_line_index_t index)
 		if (itemPassesFilter(item))
 		{
 			// insert all related messages
-			while (m_MsgLines.at(index).m_IsFollowup)
+			while (m_MsgLines.at(index).m_IsFollowup && index > 0)
 			{
-				assert(index > 0);
 				--index;
 			}
 
