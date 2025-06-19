@@ -166,8 +166,8 @@ tile_task_group::~tile_task_group()
 			registerCompletions(remainingTasks); // other tasks in flight might still come in before m_TileTasksDone can be notified.
 		}
 	}
-	if (m_NrCompleted < m_Last)      // any other task-slots still running
-		AwaitRunningSlots();         // then wait for them. Silence possible excecptions.
+
+	AwaitRunningSlots();         // then wait for them. Silence possible excecptions.
 	MG_CHECK(m_NrCompleted == m_Last); // we now expect to have completed all commissioned task-slots.
 }
 
@@ -287,15 +287,17 @@ void tile_task_group::AwaitRunningSlots() noexcept
 {
 	assert(m_Commissioned == m_Last); // post condition of DoWork
 
-	while (m_NrCompleted < m_Last)
+	while (true)
 	{
 		// TODO: this can cause other tiles to process that use the same m_Mutex in FutureTileFunctor::tile_record::GetTile
 		// if (StealOneTileTask(false))
 		//	 continue;
 
 		auto lock = std::unique_lock<std::mutex>(s_TileTaskGroupsMutex);
-		if (m_NrCompleted < m_Last)
-			m_TileTasksDone.wait_for(lock, std::chrono::milliseconds(500));
+
+		if (m_NrCompleted >= m_Last)
+			break;
+		m_TileTasksDone.wait_for(lock, std::chrono::milliseconds(500));
 	}
 	assert(m_NrCompleted == m_Last); 
 }
