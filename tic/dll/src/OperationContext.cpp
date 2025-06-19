@@ -150,25 +150,23 @@ tile_task_group::tile_task_group(IndexType last, task_func func)
 
 tile_task_group::~tile_task_group()
 {
-	auto nrCommissioned = m_Commissioned;
-	auto wasDecommissioned = (nrCommissioned == m_Last);
-	MG_CHECK(wasDecommissioned);
-	if (!wasDecommissioned)
+	auto lock = std::unique_lock<std::mutex>(s_TileTaskGroupsMutex);
+	if (m_Commissioned < m_Last) // recheck if decommission is still required
 	{
-		assert(nrCommissioned < m_Last); // consistency check
-		auto lock = std::unique_lock<std::mutex>(s_TileTaskGroupsMutex);
-		if (m_Commissioned < m_Last) // recheck if decommission is still required
-		{
-			auto remainingTasks = (m_Last - m_Commissioned); // current slot still has to be registered as completed, after which this task_group may be destructed.
-			m_Commissioned += remainingTasks;
-			assert(m_Commissioned == m_Last);
-			decommission(); // stop handing out slots for this task group, so that no new tasks will be started, but the current ones can still finish.
-			registerCompletions(remainingTasks); // other tasks in flight might still come in before m_TileTasksDone can be notified.
-		}
+		auto remainingTasks = (m_Last - m_Commissioned); // current slot still has to be registered as completed, after which this task_group may be destructed.
+		m_Commissioned += remainingTasks;
+		assert(m_Commissioned == m_Last);
+		decommission(); // stop handing out slots for this task group, so that no new tasks will be started, but the current ones can still finish.
+		registerCompletions(remainingTasks); // other tasks in flight might still come in before m_TileTasksDone can be notified.
 	}
-
-	AwaitRunningSlots();         // then wait for them. Silence possible excecptions.
-	MG_CHECK(m_NrCompleted == m_Last); // we now expect to have completed all commissioned task-slots.
+	assert(m_Commissioned == m_Last); // we now expect to have completed all commissioned task-slots.
+	while (true)
+	{
+		if (m_NrCompleted >= m_Last)
+			break;
+		m_TileTasksDone.wait_for(lock, std::chrono::milliseconds(500));
+	}
+	assert(m_NrCompleted == m_Last); // we now expect to have completed all commissioned task-slots.
 }
 
 void tile_task_group::decommission()
@@ -219,8 +217,8 @@ void tile_task_group::registerCompletions(IndexType nr)
 
 void tile_task_group::RegisterCompletion()
 {
-	assert(m_NrCompleted < m_Last);
 	auto lock = std::unique_lock<std::mutex>(s_TileTaskGroupsMutex); // don't let the notification fall outside a waiter lock
+	assert(m_NrCompleted < m_Last);
 	if (++m_NrCompleted == m_Last) // don't increment outside lock as it may cause another thread to Join and destruct
 		m_TileTasksDone.notify_all();
 }
@@ -250,7 +248,6 @@ void tile_task_group::DoWork(IndexType i, bool doMore)
 			ASyncContinueCheck();
 
 			UpdateMarker::PrepareDataInvalidatorLock preventInvalidations;
-			MG_CHECK(m_NrCompleted < m_Last); // we should not have completed all tasks yet, as task i counts as one of them.
 			m_Func(i);
 			if (!doMore)
 			{
@@ -295,11 +292,11 @@ void tile_task_group::AwaitRunningSlots() noexcept
 
 		auto lock = std::unique_lock<std::mutex>(s_TileTaskGroupsMutex);
 
+		assert(m_NrCompleted <= m_Last);
 		if (m_NrCompleted >= m_Last)
 			break;
 		m_TileTasksDone.wait_for(lock, std::chrono::milliseconds(500));
 	}
-	assert(m_NrCompleted == m_Last); 
 }
 
 void tile_task_group::Join()
