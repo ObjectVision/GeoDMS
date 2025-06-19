@@ -690,65 +690,6 @@ void GdalGridSM::DoUpdateTree(const TreeItem* storageHolder, TreeItem* curr, Syn
 			gridDataDomain->CatchFail(FR_MetaInfo);
 		}
 	}
-
-	if (sm != SyncMode::AllTables)
-		return;
-
-	auto subDatasetList = m_hDS->GetMetadata("SUBDATASETS");
-	if (subDatasetList)
-	{
-		std::string itemName, subDatasetName;
-		netCDFSubdatasetInfo netCDFSubInfo;
-
-		auto count = CSLCount(subDatasetList);
-		for (int i = 0; i < CSLCount(subDatasetList); i++)
-		{
-			auto subDatasetItem = std::string(CSLGetField(subDatasetList, i));
-
-			if (subDatasetItem.contains("NAME"))
-			{
-				itemName = GetNetCDFItemName(subDatasetItem);
-				subDatasetName = CPLParseNameValue(subDatasetItem.c_str(), nullptr);
-				continue;
-			}
-			else if (subDatasetItem.contains("DESC"))
-			{
-				netCDFSubInfo = GetNetCDFSubdatasetInfo(subDatasetItem);
-			}
-
-			TokenID itemID = GetTokenID_mt(itemName.c_str()); // GDAL
-			const UnitClass* uc = nullptr;
-			if (!curr->GetSubTreeItemByID(itemID))
-			{
-				if (netCDFSubInfo.nx > 1 && netCDFSubInfo.ny > 1)
-				{
-					if (netCDFSubInfo.nx < std::numeric_limits<UInt16>::max() and netCDFSubInfo.ny < (std::numeric_limits<UInt16>::max()))
-						uc = Unit<WPoint>::GetStaticClass();
-					else
-					{
-						dms_assert(netCDFSubInfo.nx < std::numeric_limits<UInt32>::max() && netCDFSubInfo.ny < std::numeric_limits<UInt32>::max());
-						uc = Unit<UPoint>::GetStaticClass();
-					}
-				}
-				else
-				{
-					if (netCDFSubInfo.nx*netCDFSubInfo.ny < (std::numeric_limits<UInt8>::max()))
-						uc = Unit<UInt8>::GetStaticClass();
-					else if (netCDFSubInfo.nx * netCDFSubInfo.ny < (std::numeric_limits<UInt16>::max()))
-						uc = Unit<UInt16>::GetStaticClass();
-					else if (netCDFSubInfo.nx * netCDFSubInfo.ny < (std::numeric_limits<UInt32>::max()))
-						uc = Unit<UInt32>::GetStaticClass();
-					else
-						uc = Unit<UInt64>::GetStaticClass();
-				}
-			}
-			if (uc)
-				uc->CreateUnit(curr, itemID);
-			auto dataItem = curr->GetSubTreeItemByID(itemID);
-			if (dataItem)
-				dataItem->SetStorageManager(subDatasetName.c_str(), "gdal.grid", StorageReadOnlySetting::Default);
-		}
-	}
 }
 
 // *****************************************************************************
