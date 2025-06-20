@@ -384,55 +384,74 @@ struct SpatialRefBlock: SharedBase, gdalComponent
 //			Type Conversion Functor
 // *****************************************************************************
 
-template<typename TR, typename TA>
-struct Type0DConversion  : unary_func<TR,TA>
+template<typename mustRoundToNearest>
+struct Type0DConversionFunctor
 {
-	Type0DConversion(const AbstrUnit* resUnit, const AbstrUnit* srcUnit)
-	{ 
-		if (resUnit->GetUnitClass()->CreateDefault() != resUnit) // cast?
+	template<typename TR, typename TA>
+	struct Type0DConversion : unary_func<TR, TA>
+	{
+		Type0DConversion(const AbstrUnit* resUnit, const AbstrUnit* srcUnit)
 		{
-			MG_CHECK(!srcUnit->GetMetric    ());
-			MG_CHECK(!srcUnit->GetProjection());
+			if (resUnit->GetUnitClass()->CreateDefault() != resUnit) // cast?
+			{
+				MG_CHECK(!srcUnit->GetMetric());
+				MG_CHECK(!srcUnit->GetProjection());
+			}
+		};
+
+		TR operator() (typename sequence_traits<TA>::container_type::const_reference v) const
+		{
+			if constexpr (mustRoundToNearest::value)
+				return RoundedConvert<TR>(v);
+			else
+				return Convert<TR>(v);
+		}
+
+		using iterator = typename DataArrayBase<TR>::iterator;
+		using const_iterator = typename DataArrayBase<TA>::const_iterator;
+
+		void Dispatch(iterator ri, const_iterator ai, const_iterator ae)
+		{
+			for (; ai != ae; ++ai, ++ri)
+				Assign(*ri, operator ()(*ai));
+		}
+
+
+		typedef typename sequence_traits<TR>::container_type TPR;
+		typedef typename sequence_traits<TPR>::seq_t         pr_seq;
+		typedef typename pr_seq::iterator                    seq_iterator;
+
+		typedef typename sequence_traits<TA>::container_type TPA;
+		typedef typename sequence_traits<TPA>::cseq_t  pa_cseq;
+		typedef typename pa_cseq::const_iterator       cseq_iterator;
+
+		void Dispatch(seq_iterator pri, cseq_iterator pai, cseq_iterator pae)
+		{
+			for (; pai != pae; ++pri, ++pai)
+			{
+				pri->resize(pai->size());
+				Dispatch(pri->begin(), pai->begin(), pai->end());
+			}
 		}
 	};
 
-	TR operator() (typename sequence_traits<TA>::container_type::const_reference v) const
-	{
-		return Convert<TR>(v);
-	}
-
-	using iterator = typename DataArrayBase<TR>::iterator;
-	using const_iterator = typename DataArrayBase<TA>::const_iterator;
-
-	void Dispatch(iterator ri, const_iterator ai, const_iterator ae)
-	{
-		for (; ai != ae; ++ai, ++ri)
-			Assign(*ri, operator ()(*ai) );
-	}
-
-
-	typedef typename sequence_traits<TR>::container_type TPR;
-	typedef typename sequence_traits<TPR>::seq_t         pr_seq;
-	typedef typename pr_seq::iterator                    seq_iterator;
-
-	typedef typename sequence_traits<TA>::container_type TPA;
-	typedef typename sequence_traits<TPA>::cseq_t  pa_cseq;
-	typedef typename pa_cseq::const_iterator       cseq_iterator;
-
-	void Dispatch(seq_iterator pri, cseq_iterator pai, cseq_iterator pae)
-	{
-		for (; pai != pae; ++pri, ++pai)
-		{
-			pri->resize(pai->size());
-			Dispatch(pri->begin(), pai->begin(), pai->end());
-		}
-	}
 };
 
 template<typename TR, typename TA>
-void DispatchMapping(Type0DConversion<TR, TA>& functor, typename Type0DConversion<TR, TA>::iterator ri,  typename Unit<TA>::range_t tileRange, SizeT n)
+void DispatchMapping(Type0DConversionFunctor<std::false_type>::template Type0DConversion<TR, TA>& functor
+	, typename Type0DConversionFunctor<std::false_type>::template Type0DConversion<TR, TA>::iterator ri
+	, typename Unit<TA>::range_t tileRange, SizeT n)
 {
-	for (SizeT i=0; i!=n; ++ri, ++i)
+	for (SizeT i = 0; i != n; ++ri, ++i)
+		Assign(*ri, functor(Range_GetValue_naked(tileRange, i)));
+}
+
+template<typename TR, typename TA>
+void DispatchMapping(Type0DConversionFunctor<std::true_type>::template Type0DConversion<TR, TA>& functor
+	, typename Type0DConversionFunctor<std::true_type>::template Type0DConversion<TR, TA>::iterator ri
+	, typename Unit<TA>::range_t tileRange, SizeT n)
+{
+	for (SizeT i = 0; i != n; ++ri, ++i)
 		Assign(*ri, functor(Range_GetValue_naked(tileRange, i)));
 }
 
@@ -440,96 +459,126 @@ void DispatchMapping(Type0DConversion<TR, TA>& functor, typename Type0DConversio
 //			Type 1D Conversion Functor
 // *****************************************************************************
 
-template<typename TR, typename TA>
+template<bool mustRoundToNearest, typename TR, typename TA>
 TR checked_multiply(TA v, Float64 factor)
 {
-	return IsDefined(v) ? Convert<TR>(v * factor) : UNDEFINED_OR_ZERO(TR);
+	if (!IsDefined(v))
+		return UNDEFINED_OR_ZERO(TR);
+	if constexpr (mustRoundToNearest)
+		return RoundedConvert<TR>(v * factor);
+	else
+		return Convert<TR>(v * factor);
 }
 
-template<typename TR, bit_size_t N>
+template<bool mustRoundToNearest, typename TR, bit_size_t N>
 TR checked_multiply(bit_value<N> v, Float64 factor)
 {
-	return Convert<TR>(v * factor);
+	if constexpr (mustRoundToNearest)
+		return RoundedConvert<TR>(v * factor);
+	else
+		return Convert<TR>(v * factor);
 }
 
-template<typename TR, typename TA>
-struct Type1DConversion  : unary_func<TR,TA>
+template<typename mustRoundToNearest>
+struct Type1DConversionFunctor
 {
-	Type1DConversion(const AbstrUnit* resUnit, const AbstrUnit* srcUnit) 
-	{ 
-		if (!srcUnit->GetCurrMetric() || !resUnit->GetCurrMetric() || srcUnit->GetCurrMetric() == resUnit->GetCurrMetric())
+	template<typename TR, typename TA>
+	struct Type1DConversion : unary_func<TR, TA>
+	{
+		Type1DConversion(const AbstrUnit* resUnit, const AbstrUnit* srcUnit)
 		{
-			m_Factor = 1.0;
-			return;
-		}
-		if (!(srcUnit->GetCurrMetric()->m_BaseUnits == resUnit->GetCurrMetric()->m_BaseUnits))
+			if (!srcUnit->GetCurrMetric() || !resUnit->GetCurrMetric() || srcUnit->GetCurrMetric() == resUnit->GetCurrMetric())
+			{
+				m_Factor = 1.0;
+				return;
+			}
+			if (!(srcUnit->GetCurrMetric()->m_BaseUnits == resUnit->GetCurrMetric()->m_BaseUnits))
+			{
+				srcUnit->UnifyValues(resUnit, "Base Units of first argument", "Base Units of cast target as specified by the second argument", UM_Throw);
+				dms_assert(0); // if+unify => throw
+			}
+			m_Factor = srcUnit->GetCurrMetric()->m_Factor / resUnit->GetCurrMetric()->m_Factor;
+		};
+
+		TR ApplyDirect(typename sequence_traits<TA>::container_type::const_reference v) const
 		{
-			srcUnit->UnifyValues(resUnit, "Base Units of first argument", "Base Units of cast target as specified by the second argument", UM_Throw);
-			dms_assert(0); // if+unify => throw
+			assert(m_Factor == 1.0);
+
+			if constexpr (mustRoundToNearest::value)
+				return RoundedConvert<TR>(v);
+			else
+				return Convert<TR>(v);
 		}
-		m_Factor = srcUnit->GetCurrMetric()->m_Factor / resUnit->GetCurrMetric()->m_Factor;
+
+		TR ApplyScaled(typename sequence_traits<TA>::container_type::const_reference v) const
+		{
+			assert(m_Factor != 1.0);
+			if constexpr (has_undefines_v<TA>)
+				if (!IsDefined(v))
+					return UNDEFINED_OR_ZERO(TR);
+			return checked_multiply<mustRoundToNearest::value, TR>(v, m_Factor);
+		}
+
+		using iterator = typename DataArrayBase<TR>::iterator;
+		using const_iterator = typename DataArrayBase<TA>::const_iterator;
+
+		void Dispatch(iterator ri, const_iterator ai, const_iterator ae)
+		{
+			if (m_Factor != 1.0)
+				for (; ai != ae; ++ai, ++ri)
+					Assign(*ri, ApplyScaled(*ai));
+			else
+				for (; ai != ae; ++ai, ++ri)
+					Assign(*ri, ApplyDirect(*ai));
+		}
+		typedef typename sequence_traits<TR>::container_type TPR;
+		typedef typename sequence_traits<TPR>::seq_t         pr_seq;
+		typedef typename pr_seq::iterator                    seq_iterator;
+
+		typedef typename sequence_traits<TA>::container_type TPA;
+		typedef typename sequence_traits<TPA>::cseq_t  pa_cseq;
+		typedef typename pa_cseq::const_iterator       cseq_iterator;
+
+		void Dispatch(seq_iterator pri, cseq_iterator pai, cseq_iterator pae)
+		{
+			for (; pai != pae; ++pri, ++pai)
+			{
+				pri->resize_uninitialized(pai->size() MG_DEBUG_ALLOCATOR_SRC("ltrim_assign"));
+				Dispatch(pri->begin(), pai->begin(), pai->end());
+			}
+		}
+
+		Float64 m_Factor;
 	};
-
-	TR ApplyDirect(typename sequence_traits<TA>::container_type::const_reference v) const
-	{
-		assert(m_Factor == 1.0 );
-
-		return Convert<TR>(v);
-	}
-
-	TR ApplyScaled(typename sequence_traits<TA>::container_type::const_reference v) const
-	{
-		assert(m_Factor != 1.0);
-		if constexpr (has_undefines_v<TA>)
-			if (!IsDefined(v))
-				return UNDEFINED_OR_ZERO(TR);
-		return checked_multiply<TR>(v, m_Factor);
-	}
-
-	using iterator = typename DataArrayBase<TR>::iterator;
-	using const_iterator = typename DataArrayBase<TA>::const_iterator;
-
-	void Dispatch(iterator ri, const_iterator ai, const_iterator ae)
-	{
-		if (m_Factor != 1.0)
-			for (; ai != ae; ++ai, ++ri)
-				Assign(*ri, ApplyScaled(*ai) );
-		else 
-			for (; ai != ae; ++ai, ++ri)
-				Assign(*ri, ApplyDirect(*ai) );
-	}
-	typedef typename sequence_traits<TR>::container_type TPR;
-	typedef typename sequence_traits<TPR>::seq_t         pr_seq;
-	typedef typename pr_seq::iterator                    seq_iterator;
-
-	typedef typename sequence_traits<TA>::container_type TPA;
-	typedef typename sequence_traits<TPA>::cseq_t  pa_cseq;
-	typedef typename pa_cseq::const_iterator       cseq_iterator;
-
-	void Dispatch(seq_iterator pri, cseq_iterator pai, cseq_iterator pae)
-	{
-		for (; pai != pae; ++pri, ++pai)
-		{
-			pri->resize_uninitialized(pai->size() MG_DEBUG_ALLOCATOR_SRC("ltrim_assign"));
-			Dispatch(pri->begin(), pai->begin(), pai->end());
-		}
-	}
-
-	Float64 m_Factor;
 };
 
-const int PROJ_BLOCK_SIZE = 1024;
-
 template<typename TR, typename TA>
-void DispatchMapping(Type1DConversion<TR, TA>& functor, typename Type1DConversion<TR, TA>::iterator ri,  typename Unit<TA>::range_t tileRange, SizeT n)
+void DispatchMapping(Type1DConversionFunctor<std::false_type>::template Type1DConversion<TR, TA>& functor
+	, typename Type1DConversionFunctor<std::false_type>::template Type1DConversion<TR, TA>::iterator ri
+	, typename Unit<TA>::range_t tileRange, SizeT n)
 {
 	if (functor.m_Factor != 1.0)
-		for (SizeT i=0; i!=n; ++ri, ++i)
-			Assign(*ri, functor.ApplyScaled(Range_GetValue_naked(tileRange, i)) );
+		for (SizeT i = 0; i != n; ++ri, ++i)
+			Assign(*ri, functor.ApplyScaled(Range_GetValue_naked(tileRange, i)));
 	else
-		for (SizeT i=0; i!=n; ++ri, ++i)
+		for (SizeT i = 0; i != n; ++ri, ++i)
 			Assign(*ri, functor.ApplyDirect(Range_GetValue_naked(tileRange, i)));
 }
+
+template<typename TR, typename TA>
+void DispatchMapping(Type1DConversionFunctor<std::true_type>::template Type1DConversion<TR, TA>& functor
+	, typename Type1DConversionFunctor<std::true_type>::template Type1DConversion<TR, TA>::iterator ri
+	, typename Unit<TA>::range_t tileRange, SizeT n)
+{
+	if (functor.m_Factor != 1.0)
+		for (SizeT i = 0; i != n; ++ri, ++i)
+			Assign(*ri, functor.ApplyScaled(Range_GetValue_naked(tileRange, i)));
+	else
+		for (SizeT i = 0; i != n; ++ri, ++i)
+			Assign(*ri, functor.ApplyDirect(Range_GetValue_naked(tileRange, i)));
+}
+
+const int PROJ_BLOCK_SIZE = 1024;
 
 template<typename TR, typename TA>
 struct Type2DConversion: unary_func<TR, TA> // http://www.gdal.org/ogr/osr_tutorial.html
@@ -852,15 +901,16 @@ void AssignFuncRes0(
 
 template <typename T> struct is_2d : std::integral_constant<bool, dimension_of<T>::value == 2> {};
 
+template <typename mustRoundToNearest>
 struct TypeConversionF
 {
 	template <typename TR, typename TA>
 	struct apply : 
 		std::conditional<( is_numeric_v<TR> && is_numeric_v<TA>)
-		,	Type1DConversion<TR, TA>
+		,	Type1DConversionFunctor<mustRoundToNearest>::Type1DConversion<TR, TA>
 		,	std::conditional_t<(is_2d<TR>::value && is_2d<TA>::value)
 			,	Type2DConversion<TR, TA>
-			,	Type0DConversion<TR, TA>
+			, Type0DConversionFunctor<mustRoundToNearest>::Type0DConversion<TR, TA>
 			>
 		>
 	{};
@@ -1006,13 +1056,14 @@ public:
 
 
 
-template <typename TR, typename TA>
+template <typename TR, typename TA, typename mustRoundToNearest>
 class ConvertAttrOperator : public AbstrCastedUnaryAttrOperator
 {
 	typedef DataArray<TR>    ResultType;
 	typedef field_of_t<TR>   field_type;
 	typedef DataArray<TA>    Arg1Type;
 	typedef Unit<field_type> Arg2Type;
+	using ConversionFunctor = TypeConversionF<mustRoundToNearest>;
 
 public:
 	ConvertAttrOperator(AbstrOperGroup* gr, bool reverseArgs = false)
@@ -1042,7 +1093,7 @@ public:
 			, [srcUnit, dstUnit](sequence_traits<TR>::seq_t resData, prepare_data arg1FutureData)
 			{
 				auto argData = arg1FutureData->GetTile();
-				do_convert<TR, TA, TypeConversionF>(dstUnit, srcUnit, argData.begin(), argData.end(), resData.begin());
+				do_convert<TR, TA, ConversionFunctor>(dstUnit, srcUnit, argData.begin(), argData.end(), resData.begin());
 			}
 			MG_DEBUG_ALLOCATOR_SRC_PARAM
 		);
@@ -1054,7 +1105,7 @@ public:
 		auto argData = const_array_cast<TA>(argDataA)->GetDataRead(t);
 		auto resultData =  mutable_array_cast<TR>(borrowedDataHandle)->GetDataWrite(t);
 
-		do_convert<TR, TA, TypeConversionF>(argUnit, argDataA->GetAbstrValuesUnit(), argData.begin(), argData.end(), resultData.begin());
+		do_convert<TR, TA, ConversionFunctor>(argUnit, argDataA->GetAbstrValuesUnit(), argData.begin(), argData.end(), resultData.begin());
 	}
 };
 
@@ -1081,7 +1132,7 @@ public:
 	{
 		auto resultData =  mutable_array_cast<TR>(borrowedDataHandle)->GetDataWrite(t);
 
-		do_mapping<TR, TA, TypeConversionF>(
+		do_mapping<TR, TA, TypeConversionF<std::false_type>>(
 			debug_cast<const Unit<TR>*>(argValuesUnit), 
 			debug_cast<const Unit<TA>*>(argDomainUnit), t, 
 			resultData.begin(), resultData.end()
@@ -1114,7 +1165,7 @@ public:
 	{
 		auto resultData = mutable_array_cast<Cardinal>(borrowedDataHandle)->GetDataWrite(no_tile, dms_rw_mode::read_write);
 
-		do_mapping_count<TR, TA, TypeConversionF>(
+		do_mapping_count<TR, TA, TypeConversionF<std::false_type>>(
 			debug_cast<const Unit<TR>*>(argValuesUnit),
 			debug_cast<const Unit<TA>*>(argDomainUnit), t,
 			resultData.begin(), resultData.end()
@@ -1146,7 +1197,7 @@ struct CastAttrOperator: UnaryAttrOperator<TR, TA>
 	{
 		assert(arg1Data.size() == resData.size());
 
-		do_transform<TR, TA, boost::mpl::quote2<Type0DConversion> >(
+		do_transform<TR, TA, boost::mpl::quote2<Type0DConversionFunctor<std::false_type>::Type0DConversion> >(
 			Unit<field_of_t<TR>>::GetStaticClass()->CreateDefault()
 		,	Unit<field_of_t<TA>>::GetStaticClass()->CreateDefault()
 		,	arg1Data.begin(), arg1Data.end()
@@ -1280,6 +1331,7 @@ namespace
 	};
 
 	CommonOperGroup cog_Convert(token::convert);
+	CommonOperGroup cog_RoundedConvert(token::rounded_convert);
 
 	template <typename TA, typename TRL>
 	struct convertAndCastOpers
@@ -1289,9 +1341,19 @@ namespace
 			, lookupOpers(&cog_lookup, true) // support for v[u] notation, which becomes lookup(u, v)
 		{}
 
-		tl_oper::inst_tuple<TRL, ConvertAttrOperator<_, TA>, AbstrOperGroup*, bool> convertOpers;
-		tl_oper::inst_tuple<TRL, ConvertAttrOperator<_, TA>, AbstrOperGroup*, bool> lookupOpers;
+		tl_oper::inst_tuple<TRL, ConvertAttrOperator<_, TA, std::false_type >, AbstrOperGroup*, bool> convertOpers;
+		tl_oper::inst_tuple<TRL, ConvertAttrOperator<_, TA, std::false_type >, AbstrOperGroup*, bool> lookupOpers;
 		tl_oper::inst_tuple<TRL, NamedCastAttrOper  <_, TA> > castOpers;
+	};
+	template <typename TA, typename TRL>
+	struct roundedConvertOpers
+	{
+		roundedConvertOpers()
+			: roundedConvertOpers_(&cog_RoundedConvert, false)
+		{
+		}
+
+		tl_oper::inst_tuple<TRL, ConvertAttrOperator<_, TA, std::true_type>, AbstrOperGroup*, bool> roundedConvertOpers_;
 	};
 	template <typename TA, typename TRL>
 	struct mappingOpers
@@ -1314,6 +1376,7 @@ namespace
 	convertAndCastOpers< SharedStr, typelists::strings>   stringConvertAndCastOpers;
 
 	tl_oper::inst_tuple<typelists::scalars, convertAndCastOpers<_, typelists::numerics> > numericConvertAndCastOpers;
+	tl_oper::inst_tuple<typelists::floats, roundedConvertOpers<_, typelists::numerics> > numericRoundedConvertOpers;
 
 	tl_oper::inst_tuple<typelists::points, convertAndCastOpers<_, typelists::points   > > pointConvertAndCastOpers;
 	tl_oper::inst_tuple<typelists::numeric_sequences, convertAndCastOpers<_, typelists::numeric_sequences> > numericSequenceConvertAndCastOpers;

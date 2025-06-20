@@ -150,25 +150,23 @@ tile_task_group::tile_task_group(IndexType last, task_func func)
 
 tile_task_group::~tile_task_group()
 {
-	auto nrCommissioned = m_Commissioned;
-	auto wasDecommissioned = (nrCommissioned == m_Last);
-	MG_CHECK(wasDecommissioned);
-	if (!wasDecommissioned)
+	auto lock = std::unique_lock<std::mutex>(s_TileTaskGroupsMutex);
+	if (m_Commissioned < m_Last) // recheck if decommission is still required
 	{
-		assert(nrCommissioned < m_Last); // consistency check
-		auto lock = std::unique_lock<std::mutex>(s_TileTaskGroupsMutex);
-		if (m_Commissioned < m_Last) // recheck if decommission is still required
-		{
-			auto remainingTasks = (m_Last - m_Commissioned); // current slot still has to be registered as completed, after which this task_group may be destructed.
-			m_Commissioned += remainingTasks;
-			assert(m_Commissioned == m_Last);
-			decommission(); // stop handing out slots for this task group, so that no new tasks will be started, but the current ones can still finish.
-			registerCompletions(remainingTasks); // other tasks in flight might still come in before m_TileTasksDone can be notified.
-		}
+		auto remainingTasks = (m_Last - m_Commissioned); // current slot still has to be registered as completed, after which this task_group may be destructed.
+		m_Commissioned += remainingTasks;
+		assert(m_Commissioned == m_Last);
+		decommission(); // stop handing out slots for this task group, so that no new tasks will be started, but the current ones can still finish.
+		registerCompletions(remainingTasks); // other tasks in flight might still come in before m_TileTasksDone can be notified.
 	}
-	if (m_NrCompleted < m_Last)      // any other task-slots still running
-		AwaitRunningSlots();         // then wait for them. Silence possible excecptions.
-	MG_CHECK(m_NrCompleted == m_Last); // we now expect to have completed all commissioned task-slots.
+	assert(m_Commissioned == m_Last); // we now expect to have completed all commissioned task-slots.
+	while (true)
+	{
+		if (m_NrCompleted >= m_Last)
+			break;
+		m_TileTasksDone.wait_for(lock, std::chrono::milliseconds(500));
+	}
+	assert(m_NrCompleted == m_Last); // we now expect to have completed all commissioned task-slots.
 }
 
 void tile_task_group::decommission()
@@ -219,8 +217,8 @@ void tile_task_group::registerCompletions(IndexType nr)
 
 void tile_task_group::RegisterCompletion()
 {
-	assert(m_NrCompleted < m_Last);
 	auto lock = std::unique_lock<std::mutex>(s_TileTaskGroupsMutex); // don't let the notification fall outside a waiter lock
+	assert(m_NrCompleted < m_Last);
 	if (++m_NrCompleted == m_Last) // don't increment outside lock as it may cause another thread to Join and destruct
 		m_TileTasksDone.notify_all();
 }
@@ -250,7 +248,6 @@ void tile_task_group::DoWork(IndexType i, bool doMore)
 			ASyncContinueCheck();
 
 			UpdateMarker::PrepareDataInvalidatorLock preventInvalidations;
-			MG_CHECK(m_NrCompleted < m_Last); // we should not have completed all tasks yet, as task i counts as one of them.
 			m_Func(i);
 			if (!doMore)
 			{
@@ -287,17 +284,19 @@ void tile_task_group::AwaitRunningSlots() noexcept
 {
 	assert(m_Commissioned == m_Last); // post condition of DoWork
 
-	while (m_NrCompleted < m_Last)
+	while (true)
 	{
 		// TODO: this can cause other tiles to process that use the same m_Mutex in FutureTileFunctor::tile_record::GetTile
 		// if (StealOneTileTask(false))
 		//	 continue;
 
 		auto lock = std::unique_lock<std::mutex>(s_TileTaskGroupsMutex);
-		if (m_NrCompleted < m_Last)
-			m_TileTasksDone.wait_for(lock, std::chrono::milliseconds(500));
+
+		assert(m_NrCompleted <= m_Last);
+		if (m_NrCompleted >= m_Last)
+			break;
+		m_TileTasksDone.wait_for(lock, std::chrono::milliseconds(500));
 	}
-	assert(m_NrCompleted == m_Last); 
 }
 
 void tile_task_group::Join()
@@ -638,7 +637,7 @@ garbage_t OperationContext::disconnect_supplier(OperationContext* supplier)
 
 	OperationContextWPtr wptr_supplier = supplier->weak_from_this();
 	auto status = getStatus();
-	assert(status != task_status::running);
+	assert(status != task_status::running || m_Context);
 	assert(status != task_status::activated);
 	assert(status != task_status::scheduled);
 	if (status > task_status::running)
@@ -896,7 +895,7 @@ void OperationContex_setActivated(OperationContext* self)
 
 	assert(!cs_ThreadMessing.try_lock());
 	assert(!IsActiveOrRunning(self->getStatus()));
-	assert(self->m_Suppliers.empty());
+	assert(self->m_Suppliers.empty() || self->m_Context);
 
 #if defined(MG_TRACE_OPERATIONCONTEXTS)
 	CheckNumberOfRunningOCConsistency();
@@ -1068,7 +1067,13 @@ task_status OperationContext::Schedule(TreeItem* item, const FutureSuppliers& al
 	if (runDirect)
 	{
 		auto supplStatus = JoinSupplOrSuspendTrigger();
-		assert(m_Suppliers.empty());
+		assert(supplStatus > task_status::running);
+		assert(m_Suppliers.empty() || context);
+		if (supplStatus != task_status::done)
+		{
+			assert(supplStatus == task_status::suspended || supplStatus == GetStatus());
+			return supplStatus;
+		}
 		assert(GetStatus() == task_status::none);
 		{
 			leveled_std_section::scoped_lock lock(cs_ThreadMessing);

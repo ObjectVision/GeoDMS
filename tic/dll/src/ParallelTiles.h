@@ -29,7 +29,7 @@ private:
 	OperationContext* m_CallingContext = nullptr;
 
 	mutable IndexType m_Commissioned = 0;
-	mutable std::atomic<IndexType> m_NrCompleted = 0;
+	mutable IndexType m_NrCompleted = 0;
 
 protected:
 	task_func m_Func;

@@ -173,7 +173,6 @@ void QUpdatableWebBrowser::openFindWindow()
 QUpdatableTextBrowser::QUpdatableTextBrowser(QWidget* parent)
     : QTextBrowser(parent)
 {
-    setText("askfjbhasjkfh");
     setOpenLinks(false);
     setOpenExternalLinks(false);
     setProperty("DmsHelperWindowType", DmsHelperWindowType::HW_UNKNOWN);

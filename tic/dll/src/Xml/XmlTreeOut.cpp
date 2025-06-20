@@ -200,6 +200,9 @@ bool WriteUnitProps(XML_Table& xmlTable, const AbstrUnit* unit, bool allTileInfo
 
 	if (unit->GetValueType()->IsNumeric() || unit->GetNrDimensions() == 2)
 		xmlTable.EditableNameValueRow("Range", GetStrRange(currRangeUnit.get_ptr()).c_str(), currRangeUnit.get_ptr());
+	if (auto trd = currRangeUnit->GetTiledRangeData())
+		if (trd->HasSortedValues())
+			xmlTable.NameValueRow("HasSorteValues", "Yes");
 
 	if (!unit->GetValueType()->IsCountable())
 		return true;
@@ -668,6 +671,8 @@ bool TreeItem_XML_DumpGeneralBody(const TreeItem* self, OutStreamBase* xmlOutStr
 			xmlTable.NameValueRow("ValueComposition", GetValueCompositionID(vc).GetStr().c_str());
 		if (di->GetTSF(TSF_Categorical))
 			xmlTable.NameValueRow("Categorical", "Yes");
+		if (AsDataItem(di->GetUltimateItem())->m_StatusFlags.HasSortedValues())
+			xmlTable.NameValueRow("HasSortedValues", "Yes");
 
 		WriteCdf(xmlTable, di);
 	}

@@ -95,6 +95,8 @@ struct AbstrTileRangeData : SharedObj
 		return GetRowIndex(tileLoc.first, tileLoc.second);
 	}
 
+	virtual bool HasSortedValues() const = 0;
+
 	virtual void Load(BinaryInpStream& /*pis*/) {}
 	virtual void Save(BinaryOutStream& /*pos*/) const {}
 
@@ -147,6 +149,8 @@ struct SmallRangeData : AbstrTileRangeData
 	row_id GetElemCount() const { return GetRangeSize(); }
 	bool IsFirstValueZero() const { return m_Range.first == 0; }
 
+	bool HasSortedValues() const override { return true;  }
+
 	auto GetAsLispRef(LispPtr base, bool asCategorical) const -> LispRef override;
 
 	V GetTileValue(tile_id t, tile_offset localIndex) const
@@ -188,6 +192,8 @@ struct FixedRange : AbstrTileRangeData
 	Range<UInt32> GetTileRange(tile_id t) const { assert(t == 0); return GetRange(); }
 	row_id GetElemCount() const { return GetRangeSize(); }
 	bool IsFirstValueZero() const { return true; }
+
+	bool HasSortedValues() const override { return true; }
 
 	bit_value<N> GetTileValue(tile_id t, tile_offset localIndex) const
 	{
@@ -384,6 +390,7 @@ struct MaxRangeData : TiledRangeData<V>
 	bool IsFirstValueZero() const { throwIllegalAbstract(MG_POS, "MaxRangeData::IsFirstValueZero"); }
 
 	auto GetAsLispRef(LispPtr base, bool asCategorical) const->LispRef override { return base; }
+	bool HasSortedValues() const override { throwIllegalAbstract(MG_POS, "MaxRangeData::HasSortedValues"); }
 };
 
 //----------------------------------------------------------------------

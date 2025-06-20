@@ -143,6 +143,7 @@ namespace token {
 	TIC_CALL TokenID arrow = GetTokenID_st("arrow");
 	TIC_CALL TokenID lookup = GetTokenID_st("lookup");
 	TIC_CALL TokenID convert = GetTokenID_st("convert");
+	TIC_CALL TokenID rounded_convert = GetTokenID_st("rounded_convert");
 	TIC_CALL TokenID eval = GetTokenID_st("eval");
 	TIC_CALL TokenID scope = GetTokenID_st("scope");
 

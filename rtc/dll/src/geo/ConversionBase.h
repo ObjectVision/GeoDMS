@@ -45,6 +45,13 @@ Dst Convert(const Src& src)
 }
 
 template<typename Dst, typename Src> inline
+Dst RoundedConvert(const Src& src)
+{
+	using ConvertFunc = RoundedConvertFunc<Dst>;
+	return Convert4(src, TYPEID(Dst), TYPEID(undefined_or_zero_func), TYPEID(ConvertFunc));
+}
+
+template<typename Dst, typename Src> inline
 Dst SignedIntGridConvert(const Src& src)
 {
 	using ConvertFunc = IntRoundDnFunc<Dst>;

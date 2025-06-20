@@ -2669,7 +2669,7 @@ bool IntegrityCheckFailure(const TreeItem* self, const AbstrDataItem* iCheckerRe
 				, failurePos
 			);
 			MakeMin(nrFailures, 4); // max 4 extra rows to report
-			while (nrFailures > 1)
+			while (nrFailures-- > 0)
 			{
 				failurePos = iCheckerResult->FindPos<Bool>(false, failurePos + 1);
 				if (!IsDefined(failurePos))

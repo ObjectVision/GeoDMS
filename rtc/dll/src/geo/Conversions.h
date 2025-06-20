@@ -131,7 +131,7 @@ struct DnConvertFunc
 	template <typename T>
 	struct rebind
 	{
-		typedef DnConvertFunc<T> type;
+		using type = DnConvertFunc<T>;
 	};
 };
 
@@ -146,7 +146,7 @@ struct UpConvertFunc
 	template <typename T>
 	struct rebind
 	{
-		typedef UpConvertFunc<T> type;
+		using type = UpConvertFunc<T>;
 	};
 };
 
@@ -161,7 +161,25 @@ struct DefaultConvertFunc
 	template <typename T>
 	struct rebind
 	{
-		typedef DefaultConvertFunc<T> type;
+		using type = DefaultConvertFunc<T>;
+	};
+};
+
+template <typename U>
+struct RoundedConvertFunc
+{
+	template <typename T>
+	U operator ()(const T& val) const
+	{
+		if constexpr (std::is_floating_point_v<scalar_of_t<T>> && is_integral_v<scalar_of_t<U>>)
+			return Round<sizeof(scalar_of_t<U>)>(val);
+		else
+			return U(val);
+	}
+	template <typename T>
+	struct rebind
+	{
+		using type = RoundedConvertFunc<T>;
 	};
 };
 

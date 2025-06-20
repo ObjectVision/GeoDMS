@@ -143,7 +143,6 @@ struct SubsetOperator: public UnaryOperator
 			auto resSubName = ((m_ORCM == OrgRelCreationMode::org_rel) || (m_ORCM == OrgRelCreationMode::org_rel_and_use_it)) ? token::org_rel : token::nr_OrgEntity;
 			resSub = CreateDataItem(res, resSubName, res, arg1Domain);
 			resSub->SetTSF(TSF_Categorical);
-			resSub->m_StatusFlags.SetHasSortedValues();
 
 			MG_PRECONDITION(resSub);
 		}
@@ -151,6 +150,7 @@ struct SubsetOperator: public UnaryOperator
 		if (mustCalc)
 		{
 			DataReadLock arg1Lock(arg1A);
+
 			Calculate(res, resSub, arg1A, arg1Domain);
 		}
 		return true;
@@ -186,9 +186,13 @@ struct SubsetOperator: public UnaryOperator
 
 			assert(resSub->GetAbstrValuesUnit()->UnifyDomain(arg1A->GetAbstrDomainUnit(), "values of resSub", "e1"));
 
+			if (auto trd = AsUnit(arg1Domain->GetCurrRangeItem())->GetTiledRangeData())
+				resSub->m_StatusFlags.SetHasSortedValues(trd->HasSortedValues());
+
 			visit<typelists::domain_elements>(arg1Domain, 
-				[&resSubLock, arg1Obj] <typename a_type> (const Unit<a_type>*)
+				[&resSubLock, arg1Obj] <typename a_type> (const Unit<a_type>* arg1Domain)
 				{
+					
 					make_subset_container(
 						mutable_array_cast<a_type>(resSubLock)
 						, arg1Obj
@@ -338,7 +342,7 @@ struct AbstrCollectByCondOperator : TernaryOperator
 			if (dataA->GetTSF(TSF_Categorical))
 				resultHolder->SetTSF(TSF_Categorical);
 		}
-		resultHolder->m_StatusFlags.SetHasSortedValues(dataA->m_StatusFlags.HasSortedValues());
+		resultHolder->m_StatusFlags.SetHasSortedValues(dataA->m_StatusFlags.HasSortedValues() && AsUnit(dataA->GetAbstrDomainUnit()->GetCurrRangeItem())->GetTiledRangeData()->HasSortedValues());
 
 		if (mustCalc)
 		{

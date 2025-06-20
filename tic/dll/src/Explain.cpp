@@ -496,7 +496,7 @@ namespace Explain { // local defs
 		leveled_critical_section::scoped_lock lock(scs_ExplainAccess);
 
 		dms_assert(domain);
-		domain = AsUnit(domain->GetUltimateItem());
+		domain = AsUnit(domain->GetCurrUltimateItem());
 		dms_assert(domain);
 		for (auto entryPtr = m_Queue.begin(); entryPtr != m_Queue.end(); ++entryPtr)
 			if (entryPtr->first == domain && entryPtr->second == index)

@@ -161,6 +161,9 @@ auto MakeResult(const AbstrCalculator* calculator)->make_result_t
 
 auto CalledCalcHandle(const AbstrCalculator* calculator, const Class* cls)->calc_result_t
 {
+	if (SuspendTrigger::DidSuspend())
+		return {};
+
 	auto dc = MakeResult(calculator);
 	dms_assert(dc);
 	dms_assert(dc->GetOld() || dc->WasFailed(FR_MetaInfo));
@@ -168,8 +171,10 @@ auto CalledCalcHandle(const AbstrCalculator* calculator, const Class* cls)->calc
 		return dc;
 	CheckResultingTreeItem(dc->GetOld(), cls);
 	auto result = dc->CallCalcResult(nullptr);
+
 	if (SuspendTrigger::DidSuspend())
 		return {};
+
 	if (!result)
 	{
 		assert(dc->WasFailed(FR_Data));

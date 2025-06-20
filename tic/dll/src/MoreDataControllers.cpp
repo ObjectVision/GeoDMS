@@ -770,7 +770,7 @@ void FuncDC::CallCalcResultImpl(Explain::Context* context) const
 	}
 
 	assert(m_Data);
-	assert(!SuspendTrigger::DidSuspend() && !WasFailed(FR_MetaInfo));  // if we asked for MetaInfo and only DataProcesing failed, we should at least get a result
+	assert(!SuspendTrigger::DidSuspend() && !WasFailed(FR_MetaInfo) || m_OperContext && m_OperContext->m_Context);  // if we asked for MetaInfo and only DataProcesing failed, we should at least get a result
 	assert(m_Data->IsCacheItem() || m_Data->IsPassor() || m_OperatorGroup->CanResultToConfigItem() || IsTmp());
 }
 
