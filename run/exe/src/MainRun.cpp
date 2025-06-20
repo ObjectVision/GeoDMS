@@ -21,6 +21,7 @@
 #include "AbstrDataObject.h"
 #include "AbstrUnit.h"
 #include "DataLocks.h"
+#include "OperationContext.h"
 
 #include <iostream>
 #include <algorithm>
@@ -135,7 +136,7 @@ int main2_without_SE(int argc, char** argv)
 			break;
 
 		case itemCmd::histogram:
-			(*dataOut) << "@histogram is Under Construction" << std::endl;
+			(*dataOut) << "@histogram is Not Yet Implemented" << std::endl;
 			break;
 
 		case itemCmd::list:
@@ -161,21 +162,6 @@ int s_argcOrg = 0;
 char** s_argvOrg = nullptr;
 
 
-void printCommandLine()
-{
-	if (!s_argcOrg)
-		return;
-	assert(s_argvOrg);
-
-	int argc = s_argcOrg;
-	char** argv = s_argvOrg;
-
-	std::cerr << std::endl << "CommandLine> ";
-	while (argc--)
-		std::cerr << *argv++ << " ";
-	std::cerr << std::endl;
-}
-
 void logCommandLine(const char* msg)
 {
 	if (!s_argcOrg)
@@ -187,6 +173,8 @@ void logCommandLine(const char* msg)
 	reportF(SeverityTypeID::ST_MajorTrace, msg);
 	for (auto argc = 0; argc != s_argcOrg; ++argc, ++argv)
 		reportF(SeverityTypeID::ST_MajorTrace, "%d:%s", argc, *argv);
+	 
+	ProcessMainThreadOpers(); // flush
 }
 
 char SeverityAsChar(SeverityTypeID st)
@@ -225,19 +213,48 @@ void DMS_CONV logMsg(ClientHandle clientHandle, const MsgData* msgData, bool mor
 
 }
 
-void DMS_CONV reportMsg(CharPtr msg)
+int main1(int argc, char** argv)
 {
-	std::cerr << std::endl << "\nCaught at Main:" << msg << std::endl;
+	if (argc > 0)
+		DMS_Appl_SetExeDir(splitFullPath(ConvertDosFileName(SharedStr(argv[0])).c_str()).c_str());
+
+	SuspendTrigger::FencedBlocker lockSuspend("@DmsRun main");
+	--argc; ++argv;
+	CharPtr firstParam = argv[0];
+	if ((argc > 0) && firstParam[0] == '/' && firstParam[1] == 'L')
+	{
+		SharedStr dmsLogFileName = ConvertDosFileName(SharedStr(firstParam + 2));
+
+		CDebugLog log(MakeAbsolutePath(dmsLogFileName.c_str()));
+		SetCachedStatusFlag(RSF_TraceLogFile);
+		return main2(argc - 1, argv + 1);
+	}
+	return main2(argc, argv);
 }
 
 int main_with_catch(int argc, char** argv)
 {
 	DMS_CALL_BEGIN
 
-		return main2(argc, argv);
+		return main1(argc, argv);
 
 	DMS_CALL_END
 	return 2;
+}
+
+void printCommandLine()
+{
+	if (!s_argcOrg)
+		return;
+	assert(s_argvOrg);
+
+	int argc = s_argcOrg;
+	char** argv = s_argvOrg;
+
+	std::cerr << std::endl << "CommandLine> ";
+	while (argc--)
+		std::cerr << *argv++ << " ";
+	std::cerr << std::endl;
 }
 
 int main_with_error_report(int argc, char** argv)
@@ -253,37 +270,15 @@ int main_with_error_report(int argc, char** argv)
 	else
 		reportF(SeverityTypeID::ST_MajorTrace, "GeoDmsRun completed successfully.");
 	logCommandLine("GeoDmsRun.exe STOPPED with the folling chopped CommandLine");
+
 	return result;
 }
 
-int main1(int argc, char** argv)
+
+void DMS_CONV reportMsg(CharPtr msg)
 {
-	DMS_RegisterMsgCallback(logMsg, nullptr);
-	auto exitGuard = make_scoped_exit([]
-		{
-			ReportFixedAllocFinalSummary();
-			DMS_ReleaseMsgCallback(logMsg, nullptr);
-		}
-	);
-
-	if (argc > 0)
-		DMS_Appl_SetExeDir(splitFullPath(ConvertDosFileName(SharedStr(argv[0])).c_str()).c_str());
-
-	SuspendTrigger::FencedBlocker lockSuspend("@DmsRun main");
-	--argc; ++argv;
-	CharPtr firstParam = argv[0];
-	if ((argc > 0) && firstParam[0] == '/' && firstParam[1] == 'L')
-	{
-		SharedStr dmsLogFileName = ConvertDosFileName(SharedStr(firstParam + 2));
-
-		CDebugLog log(MakeAbsolutePath(dmsLogFileName.c_str()));
-		SetCachedStatusFlag(RSF_TraceLogFile);
-		return main_with_error_report(argc - 1, argv + 1);
-	}
-	return main_with_error_report(argc, argv);
+	std::cerr << std::endl << "\nCaught at Main:" << msg << std::endl;
 }
-
-#include "OperationContext.h"
 
 int main(int argc, char** argv)
 {
@@ -293,10 +288,19 @@ int main(int argc, char** argv)
 	DMS_Geo_Load();
 	DMS_Clc_Load();
 
+	DMS_SetGlobalCppExceptionTranslator(reportMsg);
+
+	DMS_RegisterMsgCallback(logMsg, nullptr);
+	auto exitGuard = make_scoped_exit([]
+		{
+			ReportFixedAllocFinalSummary();
+			DMS_ReleaseMsgCallback(logMsg, nullptr);
+		}
+	);
+
 	tg_maintainer manageOperationContextTasks;
 
-	DMS_SetGlobalCppExceptionTranslator(reportMsg);
-	auto result = main1(argc, argv);
+	auto result = main_with_error_report(argc, argv);
 
 	// 4) when you’re done, detach so the default scheduler resumes
 //	concurrency::CurrentScheduler::Detach();
