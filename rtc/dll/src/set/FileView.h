@@ -176,15 +176,6 @@ struct rw_file_view : file_view_base<T, FileViewHandle>
 			throwErrorD("rw_file_view", "cannot grow a FileMapping");
 		this->SetNrElems(newNrElems);
 	}
-
-	void grow(SizeT newNrElems)
-	{
-		if (this->filed_size() + newNrElems > this->filed_capacity())
-			throwErrorD("rw_file_view", "cannot grow a FileMapping");
-//		m_FileSize = size_calculator<T>().nr_bytes(newNrElems);
-		this->SetNrElems(m_NrElems + newNrElems);
-	}
-
 	iterator       begin()       { return iter_creator<T>()( DataBegin(), 0 ); }
 	iterator       end()         { return iter_creator<T>()( DataBegin(), m_NrElems); }
 	const_iterator begin() const { return iter_creator<T>()( DataBegin(), 0 ); }
