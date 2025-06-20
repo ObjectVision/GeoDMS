@@ -66,6 +66,7 @@ public:
 			resultHolder = CreateCacheDataItem(arg1_DomainUnit, arg2_DomainUnit);
 			resultHolder->SetTSF(TSF_Categorical);
 		}
+
 		resultHolder->m_StatusFlags.SetHasSortedValues(arg1A->m_StatusFlags.HasSortedValues() && arg2A->m_StatusFlags.HasSortedValues());
 
 		if (mustCalc)
@@ -77,7 +78,7 @@ public:
 
 			tile_id nrTiles = arg1_DomainUnit->GetNrTiles();
 
-			bool hasIndex = !arg2A->m_StatusFlags.HasSortedValues();
+			bool hasIndex = !arg2A->m_StatusFlags.HasSortedValues() || arg2A->HasUndefinedValues();
 			auto index = MakeIndex(hasIndex, arg2A, arg2_DomainUnit);
 			const AbstrUnit* arg2Domain = arg2A->GetAbstrDomainUnit();
 			auto arg2DomainRange = arg2Lock->GetTiledRangeData();
@@ -138,7 +139,7 @@ public:
 		std::any result;
 		if (!mustMakeIndex)
 		{
-			assert(arg2A->m_StatusFlags.HasSortedValues());
+			assert(arg2A->m_StatusFlags.HasSortedValues() && !arg2A->HasUndefinedValues());
 			result = const_array_cast<V>(arg2A)->GetDataRead();
 		}
 		else

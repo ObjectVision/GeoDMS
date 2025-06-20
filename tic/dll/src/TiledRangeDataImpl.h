@@ -1,4 +1,4 @@
-// Copyright (C) 1998-2023 Object Vision b.v. 
+// Copyright (C) 1998-2025 Object Vision b.v. 
 // License: GNU GPL 3
 /////////////////////////////////////////////////////////////////////////////
 
@@ -127,6 +127,16 @@ struct RegularAdapter: Base
 	}
 
 	datarow_id GetTileDataRow(tile_loc tileLoc) const override;
+
+	bool HasSortedValues() const override
+	{
+		if constexpr (dimension_of_v<value_type> == 2)
+			return GetTilingExtent().Col() == 1;
+		else
+			return true;
+	}
+
+
 
 private:
 	tile_extent_t<value_type> m_TilingExtent;
@@ -262,8 +272,13 @@ struct IrregularTileRangeData : TiledRangeData<V>
 
 	bool IsCovered() const override
 	{
-		return false; // pessimistic base impl
+		return false; // pessimistic impl, to be optimized someday
 	}
+	bool HasSortedValues() const override
+	{
+		return false; // pessimistic impl, to be optimized someday
+	}
+
 	tile_offset GetMaxTileSize() const override
 	{
 		tile_offset result = 0;
