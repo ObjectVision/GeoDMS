@@ -4237,24 +4237,27 @@ void TreeItem::StartInterest() const
 	UpdateMetaInfo();
 	dms_assert(GetInterestCount() == 0);
 
-	SharedPtr<const TreeItem> refItem = GetReferredItem();
-
-	SharedActorInterestPtr    calcHolder = mc_DC.get_ptr();
-	SharedTreeItemInterestPtr refItemHolder = refItem;
 	SharedTreeItemInterestPtr parentHolder = GetTreeParent(); //  IsCacheItem() ? GetTreeParent() : nullptr;
 
-	Actor::StartInterest();
+	Actor::StartInterest(); // -> StartSupplInterest() -> VisitSuppl -> UpdateDC -. SetReferredItem
+
+	auto undoActorInterest = make_releasable_scoped_exit([this]() { this->Actor::StopInterest();; });
+
+	SharedPtr<const TreeItem> refItem = mc_RefItem; // last call to UpdateMetaInfo
+	SharedActorInterestPtr    calcHolder = mc_DC.get_ptr();
+	SharedTreeItemInterestPtr refItemHolder = refItem;
 
 	const TreeItem* storageParent = GetStorageParent(false);
 	if (storageParent)
 	{
-		auto undoActorInterest = make_releasable_scoped_exit([this]() { this->Actor::StopInterest();; });
 		if (auto nmsm = dynamic_cast<NonmappableStorageManager*>(storageParent->GetStorageManager()))
 			nmsm->StartInterest(storageParent, this);
 
+	}
+
 		// nothrow from here
 		undoActorInterest.release();
-	}
+
 	// nothrow from here, avoid rollbacks and release the InterestHolders without releasing the interest
 	parentHolder.release();
 	refItemHolder.release();

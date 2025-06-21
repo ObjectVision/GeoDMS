@@ -115,11 +115,11 @@ using garbage_t = std::vector<std::any>;
 inline void operator |=(garbage_t& lhs, garbage_t&& rhs)
 {
 	if (lhs.empty())
-		lhs = std::move(rhs);
+		lhs.swap(rhs);
 	else if (!rhs.empty())
 	{
 		lhs.insert(lhs.end(), std::make_move_iterator(rhs.begin()), std::make_move_iterator(rhs.end()));
-		rhs = {}; // free emptied holders/
+		garbage_t().swap(rhs); // free emptied holders without calling any destructors of the std::any containees, as they have been relocated
 	}
 }
 

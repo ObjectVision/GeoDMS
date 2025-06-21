@@ -350,11 +350,13 @@ SharedStr ErrLoc(CharPtr sourceFile, int line, bool isInternal)
 
 [[noreturn]] RTC_CALL void throwIllegalAbstract(CharPtr sourceFile, int line, const PersistentSharedObj* obj, CharPtr method)
 {
+	assert(0);
 	obj->throwItemErrorF("Illegal Abstract %s called.\n%s", method, ErrLoc(sourceFile, line, true));
 }
 
 [[noreturn]] RTC_CALL void throwIllegalAbstract(CharPtr sourceFile, int line, CharPtr method)
 {
+	assert(0);
 	throwErrorF("Illegal Abstract", "%s called.\n%s", method, ErrLoc(sourceFile, line, true));
 }
 
@@ -365,11 +367,13 @@ SharedStr ErrLoc(CharPtr sourceFile, int line, bool isInternal)
 
 [[noreturn]] RTC_CALL void  throwPreconditionFailed(CharPtr sourceFile, int line, CharPtr msg)
 {
+	assert(0);
 	throwErrorF("Precondition Exception", "%s\n%s", msg, ErrLoc(sourceFile, line, true));
 }
 
 [[noreturn]] RTC_CALL void throwCheckFailed(CharPtr sourceFile, int line, CharPtr msg)
 {
+	assert(0);
 	throwErrorF("Check Failed", "%s\n%s", msg, ErrLoc(sourceFile, line, true));
 }
 
