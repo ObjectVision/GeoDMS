@@ -436,7 +436,11 @@ void CheckNumberOfRunningOCConsistency()
 void reportOC(CharPtr source, OperationContext* ocPtr)
 {
 	auto item = ocPtr->GetResult();
-	reportF_without_cancellation_check(MsgCategory::other, SeverityTypeID::ST_MajorTrace, "OperationContext %s %d: %s", source, int(ocPtr->GetStatus()), item ? item->GetSourceName().c_str() : "");
+	reportF_without_cancellation_check(MsgCategory::other, SeverityTypeID::ST_MajorTrace, "OperationContext %s %d: %s"
+		, source
+		, int(ocPtr->GetStatus())
+		, item ? item->GetFullName().c_str() : ""
+	);
 }
 auto reportRemaingOcOnExit = make_scoped_exit([]()
 	{

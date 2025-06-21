@@ -390,7 +390,7 @@ struct MaxRangeData : TiledRangeData<V>
 	bool IsFirstValueZero() const { throwIllegalAbstract(MG_POS, "MaxRangeData::IsFirstValueZero"); }
 
 	auto GetAsLispRef(LispPtr base, bool asCategorical) const->LispRef override { return base; }
-	bool HasSortedValues() const override { throwIllegalAbstract(MG_POS, "MaxRangeData::HasSortedValues"); }
+	bool HasSortedValues() const override { return false; }
 };
 
 //----------------------------------------------------------------------
