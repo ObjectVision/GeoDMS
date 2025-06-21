@@ -104,7 +104,7 @@ struct MappedFileHandle : FileHandle
 	RTC_CALL void OpenForRead(WeakStr fileName, bool throwOnError, bool doRetry);
 
 	RTC_CALL FileChunkSpec AllocFile (FileChunkSpec& viewSpec, dms::filesize_t viewCapacity);
-	RTC_CALL FileChunkSpec AllocChunk(FileChunkSpec& viewSpec, dms::filesize_t viewCapacity, tile_id t);
+	RTC_CALL FileChunkSpec allocChunk(FileChunkSpec& viewSpec, dms::filesize_t viewCapacity, tile_id t);
 	RTC_CALL FileChunkSpec allocAtEnd(dms::filesize_t viewSize, dms::filesize_t viewCapacity);
 
 	RTC_CALL void MapFile(bool alsoWrite);
@@ -168,7 +168,7 @@ struct FileViewHandle
 	RTC_CALL void operator = (FileViewHandle&& rhs) noexcept;
 
 	RTC_CALL void AllocAndMapFile (dms::filesize_t capacity);
-	RTC_CALL void AllocAndMapChunk(dms::filesize_t capacity, tile_id t);
+	RTC_CALL void allocAndMapChunk(dms::filesize_t capacity, tile_id t);
 
 	bool IsUsable() const { return m_ViewData.has_ptr() || GetViewCapacity() == 0; }
 

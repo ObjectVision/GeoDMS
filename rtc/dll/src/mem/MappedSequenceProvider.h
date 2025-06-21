@@ -51,7 +51,7 @@ public:
 		auto currEnd   = m_FileView.end();
 
 		auto oldView = std::move(m_FileView.m_ViewData);
-		m_FileView.AllocAndMapChunk(newCapacity, m_FileView.m_TileID); // updates m_FileView.m_ViewSpec
+		m_FileView.allocAndMapChunk(newCapacity, m_FileView.m_TileID); // updates m_FileView.m_ViewSpec
 
 		if (m_FileView.m_ViewSpec.offset != oldViewSpec.offset)
 			fast_copy(currBegin, currEnd, m_FileView.begin());

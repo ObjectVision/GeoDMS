@@ -264,7 +264,7 @@ FileChunkSpec MappedFileHandle::AllocFile(FileChunkSpec& viewSpec, dms::filesize
 	return result;
 }
 
-FileChunkSpec MappedFileHandle::AllocChunk(FileChunkSpec& viewSpec, dms::filesize_t newCapacity, tile_id t)
+FileChunkSpec MappedFileHandle::allocChunk(FileChunkSpec& viewSpec, dms::filesize_t newCapacity, tile_id t)
 {
 	assert(!m_ResizeMutex.try_lock_shared());
 
@@ -498,13 +498,13 @@ void ConstFileViewHandle::MapView()
 	m_ViewData = ViewData(m_MappedFile.get(), FILE_MAP_READ, m_ViewSpec.offset, m_ViewSpec.capacity);
 }
 
-void FileViewHandle::AllocAndMapChunk(dms::filesize_t capacity, tile_id t)
+void FileViewHandle::allocAndMapChunk(dms::filesize_t capacity, tile_id t)
 {
 	assert(m_MappedFile);
 	assert(capacity > m_ViewSpec.capacity); // precondition
 	assert(!m_MappedFile->m_ResizeMutex.try_lock_shared());
 
-	m_ViewSpec = m_MappedFile->AllocChunk(m_ViewSpec, capacity, t);
+	m_ViewSpec = m_MappedFile->allocChunk(m_ViewSpec, capacity, t);
 
 	MapView(true);
 }
