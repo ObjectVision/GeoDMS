@@ -87,17 +87,16 @@ int main2_without_SE(int argc, char** argv)
 		}
 		else
 		{
-			std::cout << std::endl << "Item " << *argv;
+			reportF(SeverityTypeID::ST_MajorTrace, "Item %s", *argv);
 			CheckTreeItemPath(*argv);
 			const TreeItem* item = DMS_TreeItem_GetItem(cfg, *argv);
 			if (!item)
 			{
-				std::cout << " Not found"  << std::endl;
+				reportF(SeverityTypeID::ST_Error, "ErrorLevel up to 1 because the specified item '%s' was not found.", *argv);
 				std::cerr << std::endl << "Item " << *argv << " not found" << std::endl;
 				result = 1;
 			}
-			else
-				std::cout << std::endl;
+			ProcessMainThreadOpers();
 
 			for (const TreeItem* walker = item; walker; walker = item->WalkConstSubTree(walker))
 				items.push_back(itemCmdPair(currCmd, SharedPtr<const TreeItem>(walker)));
@@ -115,7 +114,7 @@ int main2_without_SE(int argc, char** argv)
 	for (const auto& itemPair: items)
 	{
 		const TreeItem* item = itemPair.second;
-		dms_assert(item);
+		assert(item);
 		SharedStr itemSourceName = item->GetSourceName();
 		CDebugContextHandle ch("Updating", itemSourceName.c_str(), true);
 		std::cout  << std::endl << "Update " << itemSourceName.c_str() << std::endl;
@@ -125,8 +124,12 @@ int main2_without_SE(int argc, char** argv)
 		{
 			auto fr = item->GetFailReason();
 			if (fr)
+			{
+				reportF(SeverityTypeID::ST_Error, "ErrorLevel up to 1 due to failure: %s", fr->GetAsText().c_str()); ProcessMainThreadOpers();
 				std::cerr << std::endl << "Failure: " << fr->GetAsText() << std::endl;
+			}
 			result = 1;
+			continue; // skip this item
 		}
 
 		switch (itemPair.first)
@@ -153,7 +156,9 @@ int main2(int argc, char** argv)
 {
 	DMS_SE_CALLBACK_BEGIN
 
-		return main2_without_SE(argc, argv);
+		auto result = main2_without_SE(argc, argv);
+		ProcessMainThreadOpers();
+		return result;
 
 	DMS_SE_CALLBACK_END // throws
 }
