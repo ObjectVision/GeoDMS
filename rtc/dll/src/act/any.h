@@ -139,7 +139,10 @@ template <typename Thing>
 concept NotJustAnyGarbageDestructible = NotJustAnyDestructible<Thing> && NotJustGarbageDestructible<Thing>;
 
 template <typename T>
-struct add_dummy_copy_constructor : std::enable_if<std::is_class_v<T>, T>::type
+concept ClassType = std::is_class_v<T>;
+
+template <ClassType T>
+struct add_dummy_copy_constructor : T
 {
     template <typename... Args>
     add_dummy_copy_constructor(Args&&... args)
