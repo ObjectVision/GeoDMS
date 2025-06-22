@@ -1137,7 +1137,6 @@ void Actor::StartSupplInterest() const
 	// nothrow from here
 	if (!WasFailed(FR_Data))
 	{
-
 		supplInterestListRef.init(supplInterestListPtr.release());
 		m_State.Set(actor_flag_set::AF_SupplInterest);
 		undoTargetCount.release();

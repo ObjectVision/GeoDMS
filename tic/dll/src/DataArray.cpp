@@ -262,15 +262,33 @@ void MakeConstShadowTile(const_shadow<V>* shadowTilePtr, const DataArrayBase<V>*
 
 		auto minValuePtr = shadowTilePtr->m_Seqs[0].get_sa().data_begin();
 		auto maxValuePtr = shadowTilePtr->m_Seqs[0].get_sa().data_end();
+		MG_CHECK((reinterpret_cast<const char*>(maxValuePtr) - reinterpret_cast<const char*>(minValuePtr)) % sizeof(element_type) == 0);
 		for (tile_id t = 1; t != tn; ++t)
 		{
-			auto currValueBeginPtr = shadowTilePtr->m_Seqs[t].get_sa().data_begin();
-			auto currValueEndPtr = shadowTilePtr->m_Seqs[t].get_sa().data_end();
-			MakeMin(minValuePtr, currValueBeginPtr);
-			MakeMax(maxValuePtr, currValueEndPtr);
+			auto& sa = shadowTilePtr->m_Seqs[t].get_sa();
+			if (!sa.data_size())
+				continue;
 
-			MG_CHECK((reinterpret_cast<const char*>(currValueBeginPtr) - reinterpret_cast<const char*>(minValuePtr)) % sizeof(element_type) == 0);
-			MG_CHECK((reinterpret_cast<const char*>(currValueEndPtr) - reinterpret_cast<const char*>(minValuePtr)) % sizeof(element_type) == 0);
+			auto currValueBeginPtr = sa.data_begin();
+			auto currValueEndPtr = shadowTilePtr->m_Seqs[t].get_sa().data_end();
+
+			if (minValuePtr)
+			{
+				assert(maxValuePtr);
+				MG_CHECK((reinterpret_cast<const char*>(currValueBeginPtr) - reinterpret_cast<const char*>(minValuePtr)) % sizeof(element_type) == 0);
+				MG_CHECK((reinterpret_cast<const char*>(currValueEndPtr) - reinterpret_cast<const char*>(minValuePtr)) % sizeof(element_type) == 0);
+
+				MakeMin(minValuePtr, currValueBeginPtr);
+				MakeMax(maxValuePtr, currValueEndPtr); 
+			}
+			else
+			{
+				assert(!maxValuePtr);
+
+				minValuePtr = currValueBeginPtr;
+				maxValuePtr = currValueEndPtr;
+			}
+
 		}
 		shadowTilePtr->SetValues(sequence_obj<element_type>(alloc_data<element_type>(const_cast<element_type*>(minValuePtr), const_cast<element_type*>(maxValuePtr), 0)));
 
