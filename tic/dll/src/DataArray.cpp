@@ -271,6 +271,8 @@ void MakeConstShadowTile(const_shadow<V>* shadowTilePtr, const DataArrayBase<V>*
 
 			auto currValueBeginPtr = sa.data_begin();
 			auto currValueEndPtr = shadowTilePtr->m_Seqs[t].get_sa().data_end();
+			assert(currValueBeginPtr);
+			assert(currValueEndPtr);
 
 			if (minValuePtr)
 			{
@@ -305,7 +307,7 @@ void MakeConstShadowTile(const_shadow<V>* shadowTilePtr, const DataArrayBase<V>*
 				I64Rect tileRange = trd->GetTileRangeAsI64Rect(t);
 				auto tileData = shadowTilePtr->m_Seqs[t];
 				assert(Cardinality(tileRange) == tileData.size());
-				auto offset = tileData.get_sa().data_begin() - minValuePtr;
+				SizeT offset = tileData.get_sa().data_begin() - minValuePtr;
 				assert(offset >= 0);
 				assert(offset <= shadowTilePtr->data_size());
 				assert(offset + tileData.size() <= shadowTilePtr->data_size());

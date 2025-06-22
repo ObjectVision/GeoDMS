@@ -1233,7 +1233,7 @@ void OperationContext::OnEnd(task_status status) noexcept
 {
 	assert(status >= task_status::cancelled);
 
-	std::any garbage;
+	garbage_t garbage;
 
 	leveled_std_section::scoped_lock lock(cs_ThreadMessing);
 	garbage = onEnd(status);
@@ -1336,7 +1336,8 @@ bool OperationContext::CancelIfNoInterestOrForced(bool forced)
 			return false;
 	}
 
-	std::any separatedResources;
+	garbage_t separatedResources;
+
 	leveled_std_section::scoped_lock lock(cs_ThreadMessing);
 	separatedResources = separateResources(task_status::cancelled); // destroy after lock
 	return true;
@@ -1356,7 +1357,7 @@ bool OperationContext::HandleFail(const TreeItem* item)
 
 	RequestMainThreadOperProcessingBlocker letTheNotificationsComeAfter;
 
-	std::any separatedResources;
+	garbage_t separatedResources;
 
 	leveled_std_section::scoped_lock lock(cs_ThreadMessing);
 
