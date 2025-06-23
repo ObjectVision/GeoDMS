@@ -633,7 +633,7 @@ void scheduleRunnableTask(OperationContext* self)
 // Section: disconnect suppliers
 // *****************************************************************************
 
-garbage_t OperationContext::disconnect_supplier(OperationContext* supplier)
+garbage_can OperationContext::disconnect_supplier(OperationContext* supplier)
 {
 	DBG_START("OperationContextPtr", "disconnect_supplier", MG_DEBUGCONNECTIONS);
 
@@ -651,7 +651,7 @@ garbage_t OperationContext::disconnect_supplier(OperationContext* supplier)
 	}
 	assert(!supplier->m_FuncDC || !supplier->m_FuncDC->m_OperContext);
 
-	garbage_t garbage;
+	garbage_can garbage;
 	if (OperationContextSPtr sptr_supplier = wptr_supplier.lock())
 	{
 		m_Suppliers.erase(sptr_supplier);
@@ -684,7 +684,7 @@ garbage_t OperationContext::disconnect_supplier(OperationContext* supplier)
 	{
 		SharedTreeItem supplResult = supplier->GetResult();
 		if (supplResult)
-			garbage |= make_any_scoped_exit([self = weak_from_this(), supplResult]
+			garbage |= make_movable_scoped_exit([self = weak_from_this(), supplResult]
 				{
 					if (auto selfSPtr = self.lock())
 					{
@@ -696,7 +696,7 @@ garbage_t OperationContext::disconnect_supplier(OperationContext* supplier)
 		break;
 	}
 	case task_status::cancelled:
-		garbage |= make_any_scoped_exit([self = weak_from_this()]
+		garbage |= make_movable_scoped_exit([self = weak_from_this()]
 			{
 				if (auto selfSPtr = self.lock())
 					selfSPtr->OnEnd(task_status::cancelled);
@@ -715,7 +715,7 @@ garbage_t OperationContext::disconnect_supplier(OperationContext* supplier)
 	return garbage;
 }
 
-garbage_t OperationContext::disconnect_waiters()
+garbage_can OperationContext::disconnect_waiters()
 {
 	DBG_START("OperationContextPtr", "disconnect_waiters", MG_DEBUGCONNECTIONS);
 	DBG_TRACE(("this = %s", AsText(this)))
@@ -729,7 +729,7 @@ garbage_t OperationContext::disconnect_waiters()
 
 	assert(!cs_ThreadMessing.try_lock());
 
-	garbage_t garbage;
+	garbage_can garbage;
 	garbage |= std::move(m_Suppliers);
 
 	dbg_assert(m_Suppliers.empty()); // DEBUG
@@ -756,7 +756,7 @@ garbage_t OperationContext::disconnect_waiters()
 /// a pair of context_array that contains the collected operations and garbage that must be destructed before calling GetOperGroup, but after teh cs_ThreadMessing lock.
 /// </returns>
 
-auto collectOperationContexts() -> std::pair<context_array, garbage_t>
+auto collectOperationContexts() -> std::pair<context_array, garbage_can>
 {
 	assert(!cs_ThreadMessing.try_lock());
 
@@ -766,7 +766,7 @@ auto collectOperationContexts() -> std::pair<context_array, garbage_t>
 #endif
 
 	context_array results;
-	garbage_t cancelGarbage;
+	garbage_can cancelGarbage;
 
 	while (!s_ScheduledContextsMap.empty())
 	{
@@ -853,7 +853,7 @@ static std::atomic<bool> s_RunOperationContextsScheduled = false;
 auto CollectOperationContextsImpl() -> context_array
 {
 	context_array activatedOperationContextArray;
-	garbage_t receivedGarbage;
+	garbage_can receivedGarbage;
 
 	leveled_std_section::scoped_lock lock(cs_ThreadMessing);
 	std::tie(activatedOperationContextArray, receivedGarbage) = collectOperationContexts();
@@ -1216,7 +1216,7 @@ void OperationContext::OnException() noexcept
 	OnEnd(task_status::exception);
 }
 
-garbage_t OperationContext::onEnd(task_status status) noexcept
+garbage_can OperationContext::onEnd(task_status status) noexcept
 {
 	if (m_Status >= task_status::cancelled)
 	{
@@ -1233,7 +1233,7 @@ void OperationContext::OnEnd(task_status status) noexcept
 {
 	assert(status >= task_status::cancelled);
 
-	garbage_t garbage;
+	garbage_can garbage;
 
 	leveled_std_section::scoped_lock lock(cs_ThreadMessing);
 	garbage = onEnd(status);
@@ -1279,7 +1279,7 @@ void OperationContext::releaseRunCount(task_status status)
 
 }
 
-garbage_t OperationContext::separateResources(task_status status)
+garbage_can OperationContext::separateResources(task_status status)
 {
 	assert(cs_ThreadMessing.isLocked());
 
@@ -1290,7 +1290,7 @@ garbage_t OperationContext::separateResources(task_status status)
 	releaseRunCount(status);
 	assert(getStatus() == status);
 
-	garbage_t releaseBin;
+	garbage_can releaseBin;
 	if (!m_Suppliers.empty())
 	{
 		assert(status != task_status::done);
@@ -1323,7 +1323,7 @@ garbage_t OperationContext::separateResources(task_status status)
 	assert(!m_FuncDC);
 
 	releaseBin |= disconnect_waiters();
-	releaseBin |= make_any_scoped_exit( &StartOperationContexts ); // do this after releasing interests and related resources of suppliers
+	releaseBin |= make_movable_scoped_exit( &StartOperationContexts ); // do this after releasing interests and related resources of suppliers
 
 	return releaseBin;
 }
@@ -1336,7 +1336,7 @@ bool OperationContext::CancelIfNoInterestOrForced(bool forced)
 			return false;
 	}
 
-	garbage_t separatedResources;
+	garbage_can separatedResources;
 
 	leveled_std_section::scoped_lock lock(cs_ThreadMessing);
 	separatedResources = separateResources(task_status::cancelled); // destroy after lock
@@ -1357,7 +1357,7 @@ bool OperationContext::HandleFail(const TreeItem* item)
 
 	RequestMainThreadOperProcessingBlocker letTheNotificationsComeAfter;
 
-	garbage_t separatedResources;
+	garbage_can separatedResources;
 
 	leveled_std_section::scoped_lock lock(cs_ThreadMessing);
 

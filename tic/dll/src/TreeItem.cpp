@@ -3145,11 +3145,11 @@ void TreeItem::SetDataChanged()
 	SetProgressAt(PS_MetaInfo, UpdateMarker::GetActiveTS(MG_DEBUG_TS_SOURCE_CODE(mySSPrintF("SetDataChanged(%s)", GetFullName().c_str()).c_str()) ) );  // new data not validated nor committed
 }
 
-garbage_t TreeItem::DropValue()
+garbage_can TreeItem::DropValue()
 {
 	MG_LOCKER_NO_UPDATEMETAINFO
 
-	garbage_t garbageCan;
+	garbage_can garbageCan;
 	ClearData(garbageCan); // Resets m_SegsPtr (DoClearData) and resets TSF_DataInMem
 	return garbageCan;
 }
@@ -3967,7 +3967,7 @@ bool TreeItem::PartOfInterest() const
 	return PartOfInterestImpl(GetTreeParent());
 }
 
-garbage_t TreeItem::TryCleanupMem() const
+garbage_can TreeItem::TryCleanupMem() const
 {
 	if (IsCacheItem() && !IsCacheRoot())
 		return {};
@@ -3976,12 +3976,12 @@ garbage_t TreeItem::TryCleanupMem() const
 
 	leveled_std_section::scoped_lock globalDataLockCountLock(sg_CountSection);
 
-	garbage_t garbage;
+	garbage_can garbage;
 	TryCleanupMemImpl(garbage);
 	return garbage;
 }
 
-bool TreeItem::TryCleanupMemImpl(garbage_t& garbageCan) const
+bool TreeItem::TryCleanupMemImpl(garbage_can& garbageCan) const
 {
 	if (PartOfInterestOrKeep())
 		return false;
@@ -4000,7 +4000,7 @@ bool TreeItem::TryCleanupMemImpl(garbage_t& garbageCan) const
 	return true;
 }
 
-void TreeItem::ClearData(garbage_t&) const
+void TreeItem::ClearData(garbage_can&) const
 {}
 
 //----------------------------------------------------------------------
@@ -4268,7 +4268,7 @@ void TreeItem::StartInterest() const
 #endif
 }
 
-garbage_t TreeItem::StopInterest() const noexcept
+garbage_can TreeItem::StopInterest() const noexcept
 {
 	const TreeItem* storageParent = GetCurrStorageParent(false);
 	if (storageParent)

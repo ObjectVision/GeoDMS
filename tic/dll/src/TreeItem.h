@@ -16,7 +16,8 @@
 #include "TicBase.h"
 
 #include "act/Actor.h"
-#include "act/Any.h"
+#include "act/any.h"
+#include "act/garbage_can.h"
 #include "mci/SingleLinkedTree.h"
 #include "ptr/InterestHolders.h"
 #include "ptr/PersistentSharedObj.h"
@@ -237,11 +238,11 @@ public:
 
 	TIC_CALL bool TryPrepareDataUsage() const; // called in idle time for items that will soon be visible, returns false when Suspended
 	TIC_CALL bool CommitDataChanges() const;
-	TIC_CALL garbage_t TryCleanupMem() const; // overridden by AbstrDataItem
-	TIC_CALL garbage_t DropValue();
+	TIC_CALL garbage_can TryCleanupMem() const; // overridden by AbstrDataItem
+	TIC_CALL garbage_can DropValue();
 	TIC_CALL bool PrepareDataUsageImpl(DrlType drlType) const;
 	TIC_CALL bool PrepareDataUsage(DrlType drlType) const;
-	TIC_CALL virtual bool TryCleanupMemImpl(garbage_t& garbageCan) const; // overridden by AbstrDataItem
+	TIC_CALL virtual bool TryCleanupMemImpl(garbage_can& garbageCan) const; // overridden by AbstrDataItem
 	TIC_CALL bool PrepareData() const;
 
 //	Copying
@@ -353,7 +354,7 @@ public:
 //protected: // new callback functions
 	TIC_CALL virtual bool DoReadItem(StorageMetaInfoPtr smi); friend struct StorageReadHandle;
 	TIC_CALL virtual bool DoWriteItem(StorageMetaInfoPtr&& smiHolder) const;
-	TIC_CALL virtual void ClearData(garbage_t&) const;
+	TIC_CALL virtual void ClearData(garbage_can&) const;
 	TIC_CALL virtual void CopyProps(TreeItem* result, const CopyTreeContext& copyContext) const;
 	TIC_CALL virtual SharedStr GetSignature() const;
 	TIC_CALL virtual bool CheckResultItem(const TreeItem* refItem) const;
@@ -383,7 +384,7 @@ public:
 
 protected:
 	void StartInterest() const override;
-	garbage_t StopInterest () const noexcept override;
+	garbage_can StopInterest () const noexcept override;
 
 private:
 public: // TODO G8: Re-encapsulate

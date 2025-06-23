@@ -9,7 +9,7 @@
 #endif //defined(_MSC_VER)
 
 #include "act/Actor.h"
-#include "act/any.h"
+#include "act/garbage_can.h"
 #include "act/ActorEnums.h"
 #include "act/ActorSet.h"
 #include "act/ActorVisitor.h"
@@ -1018,7 +1018,7 @@ bool DecCountIfAboveZero(interest_count_t* interestCount)
 	return true;
 }
 
-garbage_t Actor::DecInterestCount() const noexcept // nothrow, JUST LIKE destructor
+garbage_can Actor::DecInterestCount() const noexcept // nothrow, JUST LIKE destructor
 {
 #if defined(MG_DEBUG_INTERESTSOURCE)
 	DynamicIncrementalLock<> incInterestCountDetector(sd_DecInterestCount);
@@ -1040,7 +1040,7 @@ garbage_t Actor::DecInterestCount() const noexcept // nothrow, JUST LIKE destruc
 	DBG_TRACE(("Ptr %x Dec %d HasSuppl %d", this, GetInterestCount(), DoesHaveSupplInterest()));
 #endif
 
-	garbage_t garbage;
+	garbage_can garbage;
 	{
 		actor_section_lock_map::ScopedLock specificSectionLock(MG_SOURCE_INFO_CODE("Actor::DecInterestCount") sg_ActorLockMap, this);
 		if (DecCount(&m_InterestCount))
@@ -1075,7 +1075,7 @@ void Actor::StartInterest() const
 #endif
 }
 
-garbage_t Actor::StopInterest() const noexcept
+garbage_can Actor::StopInterest() const noexcept
 {
 #if defined(MG_DEBUG_INTERESTSOURCE)
 	DemandManagement::ReleaseTempTarget(this);
@@ -1221,9 +1221,9 @@ SupplInterestListPtr MoveSupplInterest(const Actor* self)
 // c. failure in meta info (no data can be generated); other failures might still cause future data generation requests unless it was already generated.
 // d. TreeItem that became PS_Committed; no further action will be asked on this nor its suppliers unless other counted routes exist (through different DataControllers)
 
-garbage_t Actor::StopSupplInterest() const noexcept
+garbage_can Actor::StopSupplInterest() const noexcept
 {
-	garbage_t garbage;
+	garbage_can garbage;
 	garbage |= MoveSupplInterest(this);
 	return garbage;
 }

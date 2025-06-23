@@ -10,7 +10,6 @@
 #define __RTC_UTL_SCOPED_EXIT_H
 
 #include "RtcBase.h"
-#include "act/any.h"
 #include <optional>
 
 template <typename Func>
@@ -64,8 +63,8 @@ auto make_movable_scoped_exit(Func&& f) { return movable_scoped_exit<Func>(std::
 template <typename Func>
 auto make_releasable_scoped_exit(Func&& f) { return releasable_scoped_exit<Func>(std::forward<Func>(f)); }
 
-template <typename Func>
-std::any make_any_scoped_exit(Func&& f) { return make_noncopyable_any<movable_scoped_exit<Func>>(std::forward<Func>(f)); }
+//template <typename Func>
+//std::any make_any_scoped_exit(Func&& f) { return make_noncopyable_any<movable_scoped_exit<Func>>(std::forward<Func>(f)); }
 
 template <typename Func>
 auto make_shared_exit(Func&& f) { return std::make_shared<scoped_exit<Func>>(std::forward<Func>(f)); }

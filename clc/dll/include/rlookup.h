@@ -13,7 +13,6 @@
 #include "OperRelUni.h"
 
 #include "ParallelTiles.h"
-#include "act/any.h"
 #include "mci/CompositeCast.h"
 
 // *****************************************************************************

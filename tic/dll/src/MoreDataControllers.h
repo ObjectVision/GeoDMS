@@ -123,7 +123,7 @@ struct FuncDC : DataController
 //	void IncDataInterestCount() const override;
 	void DoInvalidate() const override;
 	bool IsCalculating() const override;
-	garbage_t StopInterest () const noexcept override;
+	garbage_can StopInterest () const noexcept override;
 
 //protected: 
 	
@@ -141,7 +141,7 @@ struct FuncDC : DataController
 
 	std::shared_ptr<OperationContext> GetOperContext() const;
 	std::shared_ptr<OperationContext> ResetOperContextImpl() const;
-	garbage_t ResetOperContextImplAndStopSupplInterest() const;
+	garbage_can ResetOperContextImplAndStopSupplInterest() const;
 
 	OwningPtr<DcRefListElem>      m_Args;
 	WeakPtr<const AbstrOperGroup> m_OperatorGroup;

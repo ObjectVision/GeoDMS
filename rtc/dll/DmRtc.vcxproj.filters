@@ -852,6 +852,9 @@
     <ClInclude Include="src\mem\resize.h">
       <Filter>Memory</Filter>
     </ClInclude>
+    <ClInclude Include="src\act\garbage_can.h">
+      <Filter>Actor Update Mechanism</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\act\Actor.cpp">
@@ -1006,6 +1009,9 @@
     </ClCompile>
     <ClCompile Include="src\act\Waiter.cpp">
       <Filter>Mathematic Utilities</Filter>
+    </ClCompile>
+    <ClCompile Include="src\act\garbage_can.cpp">
+      <Filter>Actor Update Mechanism</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

@@ -3,7 +3,7 @@
 #if !defined(__TIC_OPERATIONCONTEXT_H)
 #define __TIC_OPERATIONCONTEXT_H
 
-#include "act/any.h"
+#include "act/garbage_can.h"
 #include "act/MainThread.h"
 #include "dbg/DebugContext.h"
 
@@ -86,7 +86,7 @@ public:
 	//REMOVE TIC_CALL void OnSuspend();
 	TIC_CALL void OnException() noexcept;
 	TIC_CALL void OnEnd(task_status status) noexcept;
-	garbage_t onEnd(task_status status) noexcept;
+	garbage_can onEnd(task_status status) noexcept;
 
 	TIC_CALL bool CancelIfNoInterestOrForced(bool forced);
 	bool HandleFail(const TreeItem* item);
@@ -103,12 +103,12 @@ public:
 	bool TryRunningTaskInline();
 	bool collectTaskImpl();
 	void releaseRunCount(task_status status);
-	garbage_t separateResources(task_status status);
+	garbage_can separateResources(task_status status);
 
 	bool connectArgs(const FutureSuppliers& allInterests);
 
-	garbage_t disconnect_waiters();
-	garbage_t disconnect_supplier(OperationContext* supplier);
+	garbage_can disconnect_waiters();
+	garbage_can disconnect_supplier(OperationContext* supplier);
 
 	FutureResultData m_Result;
 	SharedActorInterestPtr m_ResKeeper;

@@ -74,10 +74,10 @@ protected:
 
 //	override Actor virtuals
 	void StartInterest() const override;
-	garbage_t StopInterest () const noexcept override;
+	garbage_can StopInterest () const noexcept override;
 
 	virtual void IncDataInterestCount() const;
-	garbage_t DecDataInterestCount() const;
+	garbage_can DecDataInterestCount() const;
 	void DoInvalidate () const override;
 	bool DoFail(ErrMsgPtr msg, FailType ft) const override;
 

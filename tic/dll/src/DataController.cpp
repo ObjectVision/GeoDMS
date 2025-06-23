@@ -163,7 +163,7 @@ void TreeItemDualRef::IncDataInterestCount() const
 	MG_DEBUGCODE( m_State.Set(DCFD_DataCounted));
 }
 
-garbage_t TreeItemDualRef::DecDataInterestCount() const
+garbage_can TreeItemDualRef::DecDataInterestCount() const
 {
 	dbg_assert( m_State.Get(DCFD_DataCounted));
 	auto result = m_Data->DecInterestCount();
@@ -188,9 +188,9 @@ void TreeItemDualRef::StartInterest() const
 	}
 }
 
-garbage_t TreeItemDualRef::StopInterest() const noexcept
+garbage_can TreeItemDualRef::StopInterest() const noexcept
 {
-	garbage_t garbage;
+	garbage_can garbage;
 	if (m_Data && !IsTmp())
 		garbage |= DecDataInterestCount();
 	garbage |= Actor::StopInterest();

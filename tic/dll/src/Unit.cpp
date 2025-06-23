@@ -187,7 +187,7 @@ LispRef UnitBase<V>::GetKeyExprImpl() const
 //----------------------------------------------------------------------
 
 template <class V>
-void  RangedUnit<V>::ClearData(garbage_t& g) const
+void  RangedUnit<V>::ClearData(garbage_can& g) const
 { 
 	g |= std::move(const_cast<RangedUnit<V>*>(this)->m_RangeDataPtr); 
 	dms_assert(!this->HasTiledRangeData());

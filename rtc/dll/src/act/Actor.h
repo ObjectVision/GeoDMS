@@ -137,7 +137,7 @@ protected:
 
 public:
 	RTC_CALL void IncInterestCount() const;
-	RTC_CALL garbage_t DecInterestCount() const noexcept;
+	RTC_CALL garbage_can DecInterestCount() const noexcept;
 	auto GetInterestCount() const noexcept { return m_InterestCount; }
 	RTC_CALL bool DoesHaveSupplInterest() const noexcept;
 
@@ -147,11 +147,11 @@ public:
 
 protected:
 	RTC_CALL virtual void StartInterest() const;
-	RTC_CALL virtual garbage_t StopInterest () const noexcept;
+	RTC_CALL virtual garbage_can StopInterest () const noexcept;
 
 public:
 	RTC_CALL void StartSupplInterest   () const;          friend struct FuncDC;
-	RTC_CALL garbage_t StopSupplInterest() const noexcept; friend struct AbstrOperGroup;
+	RTC_CALL garbage_can StopSupplInterest() const noexcept; friend struct AbstrOperGroup;
 	RTC_CALL void RestartSupplInterestIfAny() const;
 	RTC_CALL auto GetPhaseNumber() const -> phase_number;
 	auto GetCurrPhaseNumber() const -> phase_number { MG_CHECK(m_PhaseNumber || IsPassor()); return m_PhaseNumber; }

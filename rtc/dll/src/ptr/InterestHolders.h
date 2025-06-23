@@ -14,7 +14,7 @@
 #define __RTC_PTR_INTERESTHOLDER_H
 
 #include "RtcBase.h"
-#include "act/any.h"
+#include "act/garbage_can.h"
 #include "utl/swap.h"
 struct Actor;
 
@@ -24,7 +24,7 @@ struct Actor;
 //----------------------------------------------------------------------
 
 template <typename T> void OptionalInterestInc(T* ptr)          { if (ptr) ptr->IncInterestCount(); }
-template <typename T> garbage_t OptionalInterestDec(T* ptr) noexcept { if (!ptr) return {};  return ptr->DecInterestCount(); }
+template <typename T> garbage_can OptionalInterestDec(T* ptr) noexcept { if (!ptr) return {};  return ptr->DecInterestCount(); }
 
 //----------------------------------------------------------------------
 // class  : InterestPtr

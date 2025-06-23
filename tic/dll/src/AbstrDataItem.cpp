@@ -164,7 +164,7 @@ AbstrValue* AbstrDataItem::CreateAbstrValue  () const
 	return GetDynamicObjClass()->GetValuesType()->CreateValue();
 }
 
-void AbstrDataItem::ClearData(garbage_t& garbage) const
+void AbstrDataItem::ClearData(garbage_can& garbage) const
 {
 	assert(GetDataObjLockCount() == 0);
 	garbage |= std::move(m_DataObject);
@@ -609,11 +609,11 @@ void AbstrDataItem::StartInterest() const
 	valuesHolder.release();
 }
 
-garbage_t AbstrDataItem::StopInterest() const noexcept
+garbage_can AbstrDataItem::StopInterest() const noexcept
 {
 	assert(GetInterestCount() == 0);
 
-	garbage_t garbage;
+	garbage_can garbage;
 	garbage |= OptionalInterestDec( GetAbstrDomainUnit() );
 	garbage |= OptionalInterestDec( GetAbstrValuesUnit() );
 
@@ -775,7 +775,7 @@ void AbstrDataItem::OnDomainUnitRangeChange(const DomainChangeInfo* info)
 }
 
 // called when InterestCount drops to 0 or KeepData went to false 
-bool AbstrDataItem::TryCleanupMemImpl(garbage_t& garbageCan) const
+bool AbstrDataItem::TryCleanupMemImpl(garbage_can& garbageCan) const
 {
 	MG_LOCKER_NO_UPDATEMETAINFO
 
@@ -814,13 +814,13 @@ bool AbstrDataItem::TryCleanupMemImpl(garbage_t& garbageCan) const
 
 // called when InterestCount drops to 0 or KeepData went to false 
 // TODO G8: Consider merging with ClearData 
-garbage_t AbstrDataItem::CleanupMem(bool hasSourceOrExit, std::size_t minNrBytes) noexcept
+garbage_can AbstrDataItem::CleanupMem(bool hasSourceOrExit, std::size_t minNrBytes) noexcept
 {
 	MG_LOCKER_NO_UPDATEMETAINFO
 
 	assert(m_DataObject);
 	// Drop Composite from root when Out Of Interest
-	garbage_t garbageCan;
+	garbage_can garbageCan;
 	if (hasSourceOrExit && !GetKeepDataState())
 		garbageCan |= DropValue(); // calls ClearData
 

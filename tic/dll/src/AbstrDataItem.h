@@ -59,7 +59,7 @@ public:
 
 //	Override Actor
 	TIC_CALL void StartInterest() const override;
-	TIC_CALL garbage_t StopInterest () const noexcept override;
+	TIC_CALL garbage_can StopInterest () const noexcept override;
 
 //	wrapper funcs that forward to DataObject
 	TIC_CALL auto GetAbstrDomainUnit() const -> const AbstrUnit*;
@@ -71,13 +71,13 @@ public:
 
 //	Override TreeItem virtuals
 	SharedStr GetDescr() const override;
-	bool TryCleanupMemImpl(garbage_t& garbageCan) const override;
+	bool TryCleanupMemImpl(garbage_can& garbageCan) const override;
 
 //	Override TreeItem virtuals that forward to DataObject
 	SharedStr GetSignature() const override;
 	bool DoReadItem(StorageMetaInfoPtr smi) override;
 	bool DoWriteItem(StorageMetaInfoPtr&& smi) const override;
-	void ClearData(garbage_t&) const override;
+	void ClearData(garbage_can&) const override;
 
 	void Unify(const TreeItem* refItem, CharPtr leftRole, CharPtr rightRole) const override;
 //REMOVE	LispRef GetKeyExprImpl() const override;
@@ -145,7 +145,7 @@ private:
 	bool CheckResultItem(const TreeItem* refItem) const override;
 	const AbstrUnit* FindUnit(TokenID, CharPtr role, ValueComposition* vcPtr) const;
 	void InitDataItem(const AbstrUnit* du, const AbstrUnit* vu, const DataItemClass* dic);
-	garbage_t CleanupMem(bool hasSourceOrExit, std::size_t minNrBytes) noexcept;
+	garbage_can CleanupMem(bool hasSourceOrExit, std::size_t minNrBytes) noexcept;
 	void GetRawCheckModeImpl() const; // DataCheckMode that always works for the value type of the data object
 	DataCheckMode DetermineRawCheckModeImpl() const; // scan the actual values once to determine the minimally required DataCheckMode 
 

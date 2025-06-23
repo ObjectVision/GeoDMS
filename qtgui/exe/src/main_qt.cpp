@@ -12,7 +12,7 @@
 
 #include "RtcInterface.h"
 
-#include "act/Any.h"
+#include "act/garbage_can.h"
 #include "dbg/DebugLog.h"
 #include "dbg/DmsCatch.h"
 #include "utl/Environment.h"
@@ -301,7 +301,7 @@ int main_without_SE_handler(int argc, char *argv[]) {
     try {
         qputenv("QT_QPA_PLATFORM", "windows:darkmode=1"); // https://doc.qt.io/qt-6/qguiapplication.html#platform-specific-arguments
         CmdLineSetttings settingsFrame;
-        garbage_t geoDmsResources; // destruct resources after app completion
+        garbage_can geoDmsResources; // destruct resources after app completion
 
         auto native_event_filter_on_heap = std::make_unique<CustomEventFilter>();
         auto mouse_forward_backward_event_filter_on_heap = std::make_unique<DmsMouseForwardBackwardEventFilter>();

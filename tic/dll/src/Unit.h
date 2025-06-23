@@ -73,7 +73,7 @@ struct RangedUnit : UnitBase<V>
 	TIC_CALL range_t GetRange() const;
 	TIC_CALL virtual void SetRange(const range_t& range) = 0;
 
-	void  ClearData(garbage_t& g) const override;
+	void  ClearData(garbage_can& g) const override;
 
 	TIC_CALL void ValidateRange(const range_t& range) const;
 

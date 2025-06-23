@@ -195,7 +195,7 @@ std::shared_ptr<OperationContext> FuncDC::ResetOperContextImpl() const
 	return operContext;
 }
 
-garbage_t FuncDC::ResetOperContextImplAndStopSupplInterest() const
+garbage_can FuncDC::ResetOperContextImplAndStopSupplInterest() const
 {
 	auto res = StopSupplInterest();
 	res |= ResetOperContextImpl();
@@ -233,7 +233,7 @@ void FuncDC::DoInvalidate() const
 	dms_assert(!IsCalculating());
 }
 
-garbage_t FuncDC::StopInterest () const noexcept
+garbage_can FuncDC::StopInterest () const noexcept
 { 
 	auto garbage = ResetOperContextImplAndStopSupplInterest();
 	garbage |= DataController::StopInterest(); 
