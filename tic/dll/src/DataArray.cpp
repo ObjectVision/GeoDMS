@@ -310,7 +310,7 @@ void MakeConstShadowTile(const_shadow<V>* shadowTilePtr, const DataArrayBase<V>*
 				SizeT offset = tileData.get_sa().data_begin() - minValuePtr;
 				assert(offset >= 0);
 				assert(offset <= shadowTilePtr->data_size());
-				assert(offset + tileData.size() <= shadowTilePtr->data_size());
+				assert(offset + tileData.get_sa().data_size() <= shadowTilePtr->data_size());
 				RectCopyAndAddConst< IndexRange<SizeT>>(shadowData
 					, U64Grid<const IndexRange<SizeT>>(Size(tileRange), tileData.get_sa().index_begin())
 					, shadowRangeBase - tileRange.first
