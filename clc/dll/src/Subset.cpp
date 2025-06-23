@@ -342,7 +342,6 @@ struct AbstrCollectByCondOperator : TernaryOperator
 			if (dataA->GetTSF(TSF_Categorical))
 				resultHolder->SetTSF(TSF_Categorical);
 		}
-		resultHolder->m_StatusFlags.SetHasSortedValues(dataA->m_StatusFlags.HasSortedValues() && AsUnit(dataA->GetAbstrDomainUnit()->GetCurrRangeItem())->GetTiledRangeData()->HasSortedValues());
 
 		if (mustCalc)
 		{
@@ -351,6 +350,8 @@ struct AbstrCollectByCondOperator : TernaryOperator
 			DataReadLock arg1Lock(condA);
 			DataReadLock arg2Lock(dataA);
 			DataWriteLock resLock(res);
+
+			resultHolder->m_StatusFlags.SetHasSortedValues(dataA->m_StatusFlags.HasSortedValues() && AsUnit(dataA->GetAbstrDomainUnit()->GetCurrRangeItem())->GetTiledRangeData()->HasSortedValues());
 
 			Calculate(resLock, subset, condA, dataA);
 			resLock.Commit();
