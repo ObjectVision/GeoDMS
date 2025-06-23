@@ -106,11 +106,15 @@ public:
             constexpr std::size_t stride = std::max(sizeof(T), alignof(T));
             bin.stride = stride;
             bin.destroy = [](std::byte* base, std::size_t count) {
-                for (std::size_t i = 0; i < count; ++i) {
-                    T* ptr = reinterpret_cast<T*>(base + i * stride);
+                constexpr std::size_t stride = std::max(sizeof(T), alignof(T));
+
+                while (count--) 
+                {
+                    T* ptr = reinterpret_cast<T*>(base);
                     ptr->~T();
+					base += stride;
                 }
-                };
+               };
         }
 
         return type_bin_handle<T>{ &bin };
@@ -128,7 +132,7 @@ public:
 
 
 // Pipe-insertion operators for syntax sugar
-template<typename T>
+template<std::move_constructible T>
 inline void operator|=(garbage_can& gc, T&& obj) {
     gc.add(std::move(obj));
 }
