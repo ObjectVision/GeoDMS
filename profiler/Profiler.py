@@ -437,6 +437,15 @@ def RunExperiments(experiments:list[Experiment]):
             experiments[exp_index] = loadExperimentFromPickleFile(None, exp_fn)
             continue
 
+        # Remove named experiment figure filename, as experiment is being recalculated the previous figure is invalid
+        named_experiment_figure = None
+        try:
+            named_experiment_figure = f"{fldrname}/{filename.split("__")[1][0:-4]}.html"
+        except:
+            pass
+        if named_experiment_figure and os.path.isfile(named_experiment_figure):
+            os.remove(named_experiment_figure)
+
         # Sample performance
         geodms_logfile = exp.geodms_logfile
         if os.path.exists(geodms_logfile): # always start with empty log
