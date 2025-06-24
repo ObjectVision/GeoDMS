@@ -64,7 +64,8 @@ struct fast_copier_and_const_adder
 	{
 		auto targetEnd = fast_copy(first, last, target);
 		while (target != targetEnd)
-			*target++ += increment;
+			if (IsDefined(*target))
+				*target++ += increment;
 	}
 };
 
