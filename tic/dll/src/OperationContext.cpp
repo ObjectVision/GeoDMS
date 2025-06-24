@@ -165,6 +165,7 @@ tile_task_group::~tile_task_group()
 	{
 		if (m_NrCompleted >= m_Last)
 			break;
+
 		m_TileTasksDone.wait_for(lock, std::chrono::milliseconds(500));
 	}
 	assert(m_NrCompleted == m_Last); // we now expect to have completed all commissioned task-slots.
@@ -294,13 +295,9 @@ void tile_task_group::AwaitRunningSlots() noexcept
 		auto lock = std::unique_lock<std::mutex>(s_TileTaskGroupsMutex);
 
 		assert(m_NrCompleted <= m_Last);
-		assert(s_OcTaskGroup);
 
 		if (m_NrCompleted >= m_Last)
 			break;
-
-		if (s_OcTaskGroup->is_canceling())
-			throw task_canceled{};
 
 		m_TileTasksDone.wait_for(lock, std::chrono::milliseconds(500));
 	}
@@ -1207,6 +1204,8 @@ bool  OperationContext::getUniqueLicenseToRun(bool runDirect)
 		}
 
 	DSM::CancelIfOutOfInterest(m_Result);
+	if (GetTaskGroup().is_canceling())
+		throw task_canceled{};
 
 	m_Status = task_status::running;
 	return true;

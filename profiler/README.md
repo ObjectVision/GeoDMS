@@ -1,5 +1,5 @@
 # Intro
-This document describes the steps to use the GeoDMSPerformance.py script, which creates an interactive representation of the performance of GeoDMS for a given item in a configuration.
+This document describes the steps to use the Profiler.py script, which creates an interactive representation of the performance of GeoDMS for a given item in a configuration.
 
 # Prerequisites
 Python 3.x is required in order to run, and can be installed from https://www.python.org/downloads/. Make sure to register to system path.
@@ -9,7 +9,7 @@ the script folder:
 - bokeh
 
 # Overview
-GeoDMSPerformance.py is a tool that helps the GeoDMS modeler get insight into the performance of a model. 
+Profiler.py is a tool that helps the GeoDMS modeler get insight into the performance of a model. 
 The script lets the user define performance experiments and make comparisons between revisions in terms of:
 - cpu usage
 - virtual and physical memory
@@ -32,7 +32,7 @@ geodms_logfile: a geodms logfile can be combined with the final profile, giving 
 binary_experiment_file: a pickle dumped binary experiment file, such that experiments from multiple locations can be combined in one single profile visualization
 
 # Usage
-To run a given experiment file use command: python GeoDMSPerformance.py -f <experiment.file>.
+To run a given experiment file use command: python Profiler.py -f <experiment.file>.
 
 # Output
 Three outputs are generated:
