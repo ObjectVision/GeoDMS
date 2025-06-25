@@ -563,7 +563,6 @@ void mempage_table::InitFreeSetsFromChunkSpecs(tile_id tn, dms::filesize_t fileS
 	m_FreeListBySize.clear();
 	for (auto& chunk : m_FreeListByLexi)
 		m_FreeListBySize.insert(chunk);
-
 }
 
 void mempage_table::FreeAllocatedChunk(FreeChunk currChunk)

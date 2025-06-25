@@ -43,7 +43,7 @@ struct file_view_base : FVH
 	}
 	SizeT filed_capacity() const
 	{
-		SizeT cap = capacity_calculator<T>().Byte2Size(this->GetViewCapacity());
+		SizeT cap = capacity_calculator<T>::Byte2Size(this->GetViewCapacity());
 		assert(m_NrElems <= cap);
 		return cap;
 	}

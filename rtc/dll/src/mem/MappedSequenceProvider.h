@@ -45,13 +45,13 @@ public:
 		auto lock = std::scoped_lock(mappedFile->m_ResizeMutex);
 
 		auto oldViewSpec = m_FileView.m_ViewSpec;
-		assert(oldViewSpec.capacity < newCapacity);
+		assert(oldViewSpec.capacity < size_calculator<V>::nr_bytes(newCapacity));
 
 		auto currBegin = m_FileView.begin();
 		auto currEnd   = m_FileView.end();
 
 		auto oldView = std::move(m_FileView.m_ViewData);
-		m_FileView.allocAndMapChunk(newCapacity, m_FileView.m_TileID); // updates m_FileView.m_ViewSpec
+		m_FileView.allocAndMapChunk(size_calculator<V>::nr_bytes(newCapacity), m_FileView.m_TileID); // updates m_FileView.m_ViewSpec
 
 		if (m_FileView.m_ViewSpec.offset != oldViewSpec.offset)
 			fast_copy(currBegin, currEnd, m_FileView.begin());

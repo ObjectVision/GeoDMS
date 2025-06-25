@@ -1,32 +1,10 @@
-//<HEADER> 
-/*
-Data & Model Server (DMS) is a server written in C++ for DSS applications. 
-Version: see srv/dms/rtc/dll/src/RtcVersion.h for version info.
+// Copyright (C) 1998-2025 Object Vision b.v. 
+// License: GNU GPL 3
+/////////////////////////////////////////////////////////////////////////////
 
-Copyright (C) 1998-2004  YUSE GSO Object Vision BV. 
-
-Documentation on using the Data & Model Server software can be found at:
-http://www.ObjectVision.nl/DMS/
-
-See additional guidelines and notes in srv/dms/Readme-srv.txt 
-
-This library is free software; you can use, redistribute, and/or
-modify it under the terms of the GNU General Public License version 2 
-(the License) as published by the Free Software Foundation,
-provided that this entire header notice and readme-srv.txt is preserved.
-
-See LICENSE.TXT for terms of distribution or look at our web site:
-http://www.objectvision.nl/DMS/License.txt
-or alternatively at: http://www.gnu.org/copyleft/gpl.html
-
-This library is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
-General Public License for more details. However, specific warranties might be
-granted by an additional written contract for support, assistance and/or development
-*/
-//</HEADER>
+#if defined(_MSC_VER)
 #pragma once
+#endif
 
 #if !defined(__RTC_GEO_SIZECALCULATOR_H)
 #define __RTC_GEO_SIZECALCULATOR_H
@@ -40,7 +18,7 @@ granted by an additional written contract for support, assistance and/or develop
 template <typename T>
 struct capacity_calculator
 {
-	SizeT Byte2Size(std::size_t nrBytes) const
+	static SizeT Byte2Size(std::size_t nrBytes)
 	{
 		assert(nrBytes % sizeof(T) == 0);
 		return nrBytes / sizeof(T);
@@ -50,7 +28,7 @@ struct capacity_calculator
 template <bit_size_t N>
 struct capacity_calculator<bit_value<N> >
 {
-	SizeT Byte2Size(std::size_t nrBytes) const
+	static SizeT Byte2Size(std::size_t nrBytes)
 	{
 		static_assert(sizeof(SizeT) >= sizeof(std::size_t), "SizeT unexpected");
 		dms_assert(nrBytes % sizeof(bit_block_t) == 0);
@@ -69,10 +47,11 @@ struct capacity_calculator<bit_value<N> >
 template <typename T>
 struct size_calculator
 {
-	typedef typename sequence_traits<T>::block_type block_type;
-	constexpr SizeT       nr_blocks(SizeT nrElems) const { return nrElems; }
-	constexpr std::size_t nr_bytes(SizeT nrElems) const { return std::size_t(nr_blocks(nrElems)) * sizeof(block_type); }
-	constexpr SizeT       max_elems(std::size_t nrBytes) const { return nrBytes / sizeof(T); }
+	using block_type = typename sequence_traits<T>::block_type;
+
+	constexpr static SizeT       nr_blocks(SizeT nrElems) { return nrElems; }
+	constexpr static std::size_t nr_bytes(SizeT nrElems) { return std::size_t(nr_blocks(nrElems)) * sizeof(block_type); }
+	constexpr static SizeT       max_elems(std::size_t nrBytes) { return capacity_calculator<T>::Byte2Size(nrBytes); }
 };
 
 template <> struct size_calculator<bool> {}; // PREVENT USING bool AS T
@@ -80,11 +59,11 @@ template <> struct size_calculator<bool> {}; // PREVENT USING bool AS T
 template <int N>
 struct size_calculator<bit_value<N> >
 {
-	typedef typename sequence_traits<bit_value<N> >::block_type     block_type;
+	using block_type = typename sequence_traits<bit_value<N> >::block_type;
 
-	SizeT       nr_blocks(SizeT nrElems) const { return bit_info<N, block_type>::calc_nr_blocks( nrElems ); }
-	std::size_t nr_bytes (SizeT nrElems) const { return std::size_t(nr_blocks( nrElems )) * sizeof(block_type); }
-	SizeT       max_elems(std::size_t nrBytes) const { return capacity_calculator<bit_value<N> >().Byte2Size(nrBytes); }
+	constexpr static SizeT       nr_blocks(SizeT nrElems)       { return bit_info<N, block_type>::calc_nr_blocks( nrElems ); }
+	constexpr static std::size_t nr_bytes (SizeT nrElems)       { return std::size_t(nr_blocks( nrElems )) * sizeof(block_type); }
+	constexpr static SizeT       max_elems(std::size_t nrBytes) { return capacity_calculator<bit_value<N> >::Byte2Size(nrBytes); }
 };
 
 //----------------------------------------------------------------------

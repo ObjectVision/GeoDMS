@@ -68,6 +68,14 @@ struct managed_alloc_data : alloc_data<V>
 
 	~managed_alloc_data() { clear(); }
 
+	managed_alloc_data& operator = (managed_alloc_data&& rhs) noexcept
+	{
+		assert(m_Capacity == 0);
+		static_cast<alloc_data<V>::base_type&>(*this) = {};
+		static_cast<alloc_data<V>*>(this)->operator=(std::move<alloc_data<V>&>(rhs));
+		return *this;
+	}
+
 	void destroy_elements()
 	{
 		destroy_range(first, second);
