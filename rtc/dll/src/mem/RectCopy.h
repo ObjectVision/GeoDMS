@@ -63,9 +63,9 @@ struct fast_copier_and_const_adder
 	void operator() (const_pointer first, const_pointer last, pointer target) const
 	{
 		auto targetEnd = fast_copy(first, last, target);
-		while (target != targetEnd)
+		for (; target != targetEnd; ++target)
 			if (IsDefined(*target))
-				*target++ += increment;
+				*target += increment;
 	}
 };
 
