@@ -86,6 +86,19 @@ void MmdStorageManager::DoWriteTree(const TreeItem* storageHolder)
 	storageHolder->XML_Dump(&out, false);
 }
 
+bool IsInMMD(const AbstrDataItem* cacheItem)
+{
+	auto configItem = SharedPtr<const AbstrDataItem>((cacheItem->m_BackRef && IsDataItem(cacheItem->m_BackRef)) ? AsDataItem(cacheItem->m_BackRef) : cacheItem);
+	if (auto sp = configItem->GetCurrStorageParent(true))
+	{
+		auto sm = sp->GetStorageManager();
+		assert(sm);
+		if (auto mmd = dynamic_cast<MmdStorageManager*>(sm))
+			return true;
+	}
+	return false;
+}
+
 //----------------------------------------------------------------------
 // instantiation and registration
 //----------------------------------------------------------------------

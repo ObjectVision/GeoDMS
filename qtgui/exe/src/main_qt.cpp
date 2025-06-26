@@ -415,8 +415,5 @@ int main(int argc, char* argv[]) {
 
     auto result = main1(argc, argv);
 
-    // 4) when you’re done, detach so the default scheduler resumes
-//	concurrency::CurrentScheduler::Detach();
-
     return result;
 }

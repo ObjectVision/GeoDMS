@@ -23,6 +23,7 @@
 #include "Unit.h"
 #include "UnitClass.h"
 #include "UnitProcessor.h"
+#include "stg/AbstrStorageManager.h"
 
 #include "lookup.h"
 
@@ -84,7 +85,7 @@ public:
 			auto arg2DomainRange = arg2Lock->GetTiledRangeData();
 
 
-			if (IsMultiThreaded3() && (nrTiles > 1) && (LTF_ElementWeight(arg1A) <= LTF_ElementWeight(res)) && (nrTiles > arg2DomainRange->GetNrTiles()))
+			if (IsMultiThreaded3() && (nrTiles > 1) && !IsInMMD(res) && (LTF_ElementWeight(arg1A) <= LTF_ElementWeight(res)) && (nrTiles > arg2DomainRange->GetNrTiles()))
 				AsDataItem(resultHolder.GetOld())->m_DataObject = CreateFutureTileIndexer(res, res->GetLazyCalculatedState(), arg2_DomainUnit, arg1A, arg2Domain, arg2DomainRange, hasIndex, std::move(index) MG_DEBUG_ALLOCATOR_SRC(res->md_FullName + " := RLookup()"));
 			else
 			{

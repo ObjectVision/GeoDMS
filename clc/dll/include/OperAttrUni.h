@@ -17,6 +17,7 @@
 #include "ParallelTiles.h"
 #include "TileFunctorImpl.h"
 #include "UnitProcessor.h"
+#include "stg/AbstrStorageManager.h"
 
 // *****************************************************************************
 //											UnaryAttrOperator
@@ -69,7 +70,7 @@ struct AbstrUnaryAttrOperator: UnaryOperator
 			auto tn = e->GetNrTiles();
 
 			auto valuesUnitA = AsUnit(res->GetAbstrValuesUnit()->GetCurrRangeItem());
-			if (IsMultiThreaded3() && (tn > 1) && (LTF_ElementWeight(arg1A) <= LTF_ElementWeight(res)))
+			if (IsMultiThreaded3() && (tn > 1) && !IsInMMD(res) && (LTF_ElementWeight(arg1A) <= LTF_ElementWeight(res)))
 				AsDataItem(resultHolder.GetOld())->m_DataObject = CreateFutureTileFunctor(res, res->GetLazyCalculatedState(), valuesUnitA, arg1A, af MG_DEBUG_ALLOCATOR_SRC(res->md_FullName + " := " + GetGroup()->GetNameStr()));
 			else
 			{

@@ -58,19 +58,7 @@ public:
 			DataReadLock arg1Lock(argDataA);
 
 			tile_id nrTiles = argDataA->GetAbstrDomainUnit()->GetNrTiles();
-			bool createPipelinedCaster = IsMultiThreaded3() && (nrTiles > 1) && !res->HasRepetitiveUsers() && (LTF_ElementWeight(argDataA) <= LTF_ElementWeight(res));
-			if (createPipelinedCaster)
-			{
-				const AbstrDataItem* backPtr = res; if (res->IsCacheItem()) backPtr = AsDataItem(backPtr->m_BackRef);
-				if (backPtr && !backPtr->IsCacheItem())
-					if (auto sp = backPtr->GetCurrStorageParent(true))
-					{
-						auto sm = sp->GetStorageManager();
-						assert(sm);
-						if (auto mmd = dynamic_cast<MmdStorageManager*>(sm))
-							createPipelinedCaster = false;
-					}
-			}
+			bool createPipelinedCaster = IsMultiThreaded3() && (nrTiles > 1) && !IsInMMD(res) && !res->HasRepetitiveUsers() && (LTF_ElementWeight(argDataA) <= LTF_ElementWeight(res));
 			if (createPipelinedCaster)
 			{
 				auto valuesUnitA = AsUnit(res->GetAbstrValuesUnit()->GetCurrRangeItem());
@@ -134,7 +122,7 @@ public:
 			MG_PRECONDITION(res);
 
 			assert(res->GetValueComposition() == ValueComposition::Single); 
-			if (IsMultiThreaded3())
+			if (IsMultiThreaded3() && !IsInMMD(res))
 			{
 				auto binaryOper = this;
 

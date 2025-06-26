@@ -1,4 +1,4 @@
-// Copyright (C) 1998-2023 Object Vision b.v. 
+// Copyright (C) 1998-2025 Object Vision b.v. 
 // License: GNU GPL 3
 /////////////////////////////////////////////////////////////////////////////
 
@@ -12,12 +12,12 @@
 
 #include "AbstrUnit.h"
 #include "DataItemClass.h"
-
 #include "Operator.h"
 #include "ParallelTiles.h"
 #include "TileFunctorImpl.h"
 #include "UnitCreators.h"
 #include "UnitProcessor.h"
+#include "stg/AbstrStorageManager.h"
 
 // *****************************************************************************
 //			AttrAttr operators
@@ -73,7 +73,7 @@ struct AbstrBinaryAttrOper : BinaryOperator
 
 			auto tn = e->GetNrTiles();
 			auto valuesUnitA = AsUnit(res->GetAbstrValuesUnit()->GetCurrRangeItem());
-			if (IsMultiThreaded3() && (tn > 1) && (LTF_ElementWeight(arg1A) + LTF_ElementWeight(arg2A) <= LTF_ElementWeight(res)))
+			if (IsMultiThreaded3() && (tn > 1) && !IsInMMD(res) && (LTF_ElementWeight(arg1A) + LTF_ElementWeight(arg2A) <= LTF_ElementWeight(res)))
 				res->m_DataObject = CreateFutureTileFunctor(res, res->GetLazyCalculatedState(), valuesUnitA, arg1A, arg2A, af MG_DEBUG_ALLOCATOR_SRC(res->md_FullName + " := "  + GetGroup()->GetNameStr()));
 			else
 			{

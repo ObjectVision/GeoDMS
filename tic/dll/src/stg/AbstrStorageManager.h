@@ -1,4 +1,4 @@
-// Copyright (C) 1998-2023 Object Vision b.v. 
+// Copyright (C) 1998-2025 Object Vision b.v. 
 // License: GNU GPL 3
 /////////////////////////////////////////////////////////////////////////////
 
@@ -377,6 +377,7 @@ struct StorageWriteHandle : StorageCloseHandle
 TIC_CALL SharedStr GetConfigIniFileName();
 TIC_CALL SharedStr GetCaseDir(const TreeItem* configStore);
 TIC_CALL bool GetEnvStr(CharPtr section, CharPtr key, SharedStr& result);
+TIC_CALL bool IsInMMD(const AbstrDataItem*);
 
 extern "C" TIC_CALL bool DMS_CONV DMS_IsConfigDirty(const TreeItem* configRoot);
 

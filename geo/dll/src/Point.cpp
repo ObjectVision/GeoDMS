@@ -21,6 +21,7 @@
 #include "Param.h"
 #include "UnitClass.h"
 #include "DataItemClass.h"
+#include "stg/AbstrStorageManager.h"
 
 // *****************************************************************************
 //									RELATIONAL FUNCTIONS
@@ -112,7 +113,7 @@ public:
 		AbstrDataItem* res = AsDataItem(resultHolder.GetNew());
 		auto tn = entity1->GetNrTiles();
 
-		if (IsMultiThreaded3() && (tn > 1) && (LTF_ElementWeight(arg1A) + LTF_ElementWeight(arg2A) <= LTF_ElementWeight(res)))
+		if (IsMultiThreaded3() && (tn > 1) && !IsInMMD(res) && (LTF_ElementWeight(arg1A) + LTF_ElementWeight(arg2A) <= LTF_ElementWeight(res)))
 			res->m_DataObject = CreateFutureTileFunctor(res, res->GetLazyCalculatedState(), res->GetAbstrValuesUnit(), arg1A, arg2A MG_DEBUG_ALLOCATOR_SRC(res->md_FullName + " := Convert(...)"));
 		else
 		{
