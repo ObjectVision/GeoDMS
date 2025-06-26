@@ -191,15 +191,17 @@ bool WriteUnitProps(XML_Table& xmlTable, const AbstrUnit* unit, bool allTileInfo
 			xmlTable.EditableNameValueRow(PROJECTION_NAME, projStr.c_str(), unit);
 	}
 
-	InterestPtr<const AbstrUnit*> currRangeUnit = AsUnit(unit->GetCurrRangeItem());
-
-	if (!CheckDataReady(currRangeUnit.get_ptr()))
+	InterestPtr<const AbstrUnit*> unitInterestHolder = unit;
+	auto currRangeUnit = AsUnit(unit->GetCurrRangeItem());
+	assert(currRangeUnit->GetInterestCount());
+	assert(currRangeUnit == currRangeUnit->GetCurrRangeItem());
+	if (!CheckDataReady(currRangeUnit))
 		return false;
 
-	ItemReadLock xx(currRangeUnit.get_ptr());
+	ItemReadLock xx(currRangeUnit);
 
 	if (unit->GetValueType()->IsNumeric() || unit->GetNrDimensions() == 2)
-		xmlTable.EditableNameValueRow("Range", GetStrRange(currRangeUnit.get_ptr()).c_str(), currRangeUnit.get_ptr());
+		xmlTable.EditableNameValueRow("Range", GetStrRange(currRangeUnit).c_str(), currRangeUnit);
 	if (auto trd = currRangeUnit->GetTiledRangeData())
 		if (trd->HasSortedValues())
 			xmlTable.NameValueRow("HasSorteValues", "Yes");
@@ -210,7 +212,7 @@ bool WriteUnitProps(XML_Table& xmlTable, const AbstrUnit* unit, bool allTileInfo
 	WriteCdf(xmlTable, unit);
 
 
-	xmlTable.NameValueRow("NrElements", GetStrCount(currRangeUnit.get_ptr()).c_str());
+	xmlTable.NameValueRow("NrElements", GetStrCount(currRangeUnit).c_str());
 
 	if (!currRangeUnit->IsTiled())
 		return true;
@@ -241,9 +243,9 @@ bool WriteUnitProps(XML_Table& xmlTable, const AbstrUnit* unit, bool allTileInfo
 				NewLine(xmlTable.OutStream());
 				xmlTable.OutStream()
 					<< mySSPrintF("Tile %d", t).c_str()
-					<< GetTileStrRange(currRangeUnit.get_ptr(), t).c_str()
+					<< GetTileStrRange(currRangeUnit, t).c_str()
 					<< " = "
-					<< GetTileStrCount(currRangeUnit.get_ptr(), t).c_str()
+					<< GetTileStrCount(currRangeUnit, t).c_str()
 					<< " elements.";
 			}
 		}
@@ -1234,6 +1236,11 @@ OutStreamBase::SyntaxType GetSyntaxTypeFromExt(CharPtr fileExt)
 
 static SharedStr s_gDumpFolder;
 
+bool IsDumpingToFolder() 
+{ 
+	return !s_gDumpFolder.empty();
+}
+
 void ItemSave(const TreeItem* self, CharPtr fileName, bool copyDir)
 {
 	CharPtr fileExt = getFileNameExtension(fileName);
@@ -1308,7 +1315,7 @@ TIC_CALL bool DMS_CONV DMS_TreeItem_Dump(const TreeItem* self, CharPtr fileName)
 			fileNameStr = DelimitedConcat(GetCaseDir(self->GetTreeParent()).c_str(), fileNameStr.c_str());
 		else
 		{
-			dms_assert(s_gDumpFolder.empty() );
+			assert(s_gDumpFolder.empty() );
 			fileNameStr = MakeAbsolutePath( fileNameStr.c_str() );
 		}
 		ItemSave(self, fileNameStr.c_str(), isRoot);

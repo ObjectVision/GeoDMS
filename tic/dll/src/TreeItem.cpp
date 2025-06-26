@@ -1086,6 +1086,7 @@ void TreeItem::SetReferredItem(const TreeItem* refItem) const
 			assert(sm);
 			if (auto mmd = dynamic_cast<MmdStorageManager*>(sm))
 			{
+				// hack to get a cache item instead of a config-item in order to connect the DaraArray to the mmd storage
 				auto keyExpr = ExprList(token::convert, refItem->GetCheckedKeyExpr(), AsDataItem(refItem)->GetAbstrValuesUnit()->GetCheckedKeyExpr());
 				SetDC(GetOrCreateDataController(keyExpr));
 				return;
@@ -4011,6 +4012,7 @@ void TreeItem::ClearData(garbage_can&) const
 #include "xml/xmlTreeOut.h"
 #include <time.h>
 
+bool IsDumpingToFolder();
 
 void TreeItem::XML_Dump(OutStreamBase* xmlOutStr, bool dumpSubTags) const
 { 
@@ -4074,13 +4076,19 @@ void TreeItem::XML_Dump(OutStreamBase* xmlOutStr, bool dumpSubTags) const
 
 	// check if any non endogenous subitems exist
 	const TreeItem* subItem = _GetFirstSubItem(); // we don't want UpdateMetaInfo
-	while(true)
+	if (!subItem)
+		return;
+	bool mustDumpEndogenousSubItems = !IsDumpingToFolder();
+	if (!mustDumpEndogenousSubItems)
 	{
-		if (!subItem)
-			goto afterSubItems;
-		if (!subItem->IsEndogenous())
-			break; // found one
-		subItem = subItem->GetNextItem();
+		while (true)
+		{
+			if (!subItem->IsEndogenous())
+				break; // found one
+			subItem = subItem->GetNextItem();
+			if (!subItem)
+				return; // no non endogenous subitems, so we don't dump subitems
+		}
 	}
 
 	// output all non endogenous subitems
@@ -4090,17 +4098,11 @@ void TreeItem::XML_Dump(OutStreamBase* xmlOutStr, bool dumpSubTags) const
 	subItem = _GetFirstSubItem(); // we don't want UpdateMetaInfo
 	while (subItem)
 	{
-		if (!subItem->IsEndogenous())
+		if (mustDumpEndogenousSubItems || !subItem->IsEndogenous())
 			subItem->XML_Dump(xmlOutStr, dumpSubTags);
 		subItem = subItem->GetNextItem();
 	}
 	xmlOutStr->EndSubItems();
-
-afterSubItems:;
-	/* REMOVE
-		if (m_StorageManager)
-		m_StorageManager->CloseStorage();
-	*/
 }
 
 
