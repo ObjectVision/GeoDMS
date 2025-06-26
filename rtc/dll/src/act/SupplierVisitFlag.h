@@ -30,9 +30,9 @@ enum class SupplierVisitFlag
 	//	Meta    = 0x0002, // Explicit Suppliers, FuncFC args that don't require delayed updating, such as TemplDC args, and ImplSupplFromIndirectProps
 	//	Calc    = 0x0002, // Data processing and reading, Domain +Values Unit
 
-	Update = Signature | ExplicitSuppliers | SourceData | NamedSuppliers,
-	UpdateSupplMetaInfo = Update | ScanSupplTree,
-	DetermineState = Update | Calc | Checker | ReadyDcsToo | DetermineCalc,
+	Update = DomainValues | ExplicitSuppliers | SourceData | NamedSuppliers,
+	UpdateSupplMetaInfo = Parent | Update | ScanSupplTree,
+	DetermineState = UpdateSupplMetaInfo | Calc | Checker | ReadyDcsToo | DetermineCalc,
 
 	Explain = NamedSuppliers | SourceData,
 
