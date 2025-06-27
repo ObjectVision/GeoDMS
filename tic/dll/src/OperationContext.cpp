@@ -1507,11 +1507,13 @@ struct OC_CalcResultFunc {
 			{
 				// forward FR_Validate and FR_Committed failures
 				for (const auto& statusActor : statusActors)
+				{
 					if (statusActor && statusActor->WasFailed())
-					{
 						funcDC->Fail(statusActor);
+
+					if (funcDC->WasFailed(FR_Data))
 						return true;
-					}
+				}
 				return false;
 			};
 

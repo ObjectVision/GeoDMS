@@ -2658,14 +2658,15 @@ bool IntegrityCheckFailure(const TreeItem* self, const AbstrDataItem* iCheckerRe
 	{
 		assert(nrFailures == 1);
 
-		helperText += " is false";
+		helperText += " is not true";
 	}
 	else
 	{	
 		auto failurePos = iCheckerResult->FindPos<Bool>(false, 0);
+		SizeT oxfordComma = nrFailures >= 3;
 		if (nrFailures > 1)
 		{
-			helperText = mySSPrintF("%d elements of %s are false, at row %d"
+			helperText = mySSPrintF("%d elements of %s are not true, at row %d"
 				, nrFailures
 				, helperText
 				, failurePos
@@ -2676,14 +2677,17 @@ bool IntegrityCheckFailure(const TreeItem* self, const AbstrDataItem* iCheckerRe
 				failurePos = iCheckerResult->FindPos<Bool>(false, failurePos + 1);
 				if (!IsDefined(failurePos))
 					break;
-				helperText += mySSPrintF(", %d", failurePos);
+
+				CharPtr format = nrFailures ? ", %d" : oxfordComma ? ", and %d" : " and %d";
+				helperText += mySSPrintF(format, failurePos);
+
 			}
 			if (IsDefined(failurePos))
-				helperText += ", ...";
+				helperText += ", etc.";
 		}
 		else
 		{
-			helperText += mySSPrintF(" is false at row %d", failurePos);
+			helperText += mySSPrintF(" is not true at row %d", failurePos);
 		}
 	}
 

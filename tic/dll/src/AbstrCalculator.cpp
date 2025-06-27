@@ -604,13 +604,17 @@ SharedStr AbstrCalculator::EvaluateExpr(const TreeItem* context, CharPtrRange ex
 		const AbstrDataItem* resDataItem = AsDataItem(resItem);
 		assert(resDataItem || res->WasFailed(FR_Data));
 
-		if (res->WasFailed(FR_Data))
+		if (res->WasFailed(FR_Validate))
 			res->ThrowFail();
 
 		assert(resDataItem);
-		if (resDataItem->WasFailed(FR_Data)) resDataItem->ThrowFail();
-		if (resDataItem->WasFailed()) context->Fail(resDataItem);
-		resultStr = GetTheValue<SharedStr>(resDataItem);
+		if (!resDataItem->WasFailed(FR_Data))
+			resultStr = GetTheValue<SharedStr>(resDataItem);
+		if (resDataItem->WasFailed(FR_Validate))
+			context->Fail(resDataItem, FR_MetaInfo);
+
+		if (resDataItem->WasFailed(FR_Committed)) // just pass on commit failures.
+			context->Fail(resDataItem);
 
 		auto nrNewEvals = CountIndirections( resultStr.c_str() );
 		if (nrNewEvals)

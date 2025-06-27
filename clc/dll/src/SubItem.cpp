@@ -153,49 +153,6 @@ struct CheckOperator : public BinaryOperator
 			);
 			if (resultHolder->WasFailed())
 				resultHolder.Fail(resultHolder.GetOld());
-
-			SizeT nrFailures = arg2A->CountValues<Bool>(false);
-			if (nrFailures)
-			{
-				SharedStr helperText;
-				if (arg2A->GetAbstrDomainUnit()->GetCount() == 1)
-				{
-					assert(nrFailures == 1);
-					auto funcDC = dynamic_cast<FuncDC*>(&resultHolder);
-					MG_CHECK(funcDC);
-					auto condDC = funcDC->GetArgDC(1);
-					assert(condDC);
-
-					helperText = mySSPrintF("%s is not true"
-						, SingleQuote(AsFLispSharedStr(condDC->GetLispRef(), FormattingFlags::None).c_str())
-					);
-				}
-				else
-				{
-					auto firstFailure = arg2A->FindPos<Bool>(false, 0);
-					if (nrFailures > 1)
-						helperText = mySSPrintF("%d elements failed, first failure at row %d"
-							, nrFailures
-							, firstFailure
-						);
-					else
-						helperText = mySSPrintF("failure at row %d"
-							, firstFailure
-						);
-				}
-
-				// will be caught by SuspendibleUpdate who will Fail this.
-				auto ultimate_item = resultHolder.GetUlt();
-				resultHolder.Fail(mySSPrintF("[[%s]] %s : %s"
-					, ultimate_item ? ultimate_item->GetFullCfgName().c_str() : ""
-					, ICHECK_NAME
-					, helperText
-					)
-				, FR_Validate
-				); // will be caught by SuspendibleUpdate who will Fail this.
-
-				assert(resultHolder.WasFailed(FR_Validate));
-			}
 		}
 		return true;
 	}
