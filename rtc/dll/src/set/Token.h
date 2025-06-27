@@ -10,6 +10,7 @@
 #define __MG_SYMBOL_TOKEN_H
 
 #include <atomic>
+#include <type_traits>
 
 #include "act/MainThread.h"
 #include "cpc/Types.h"
@@ -223,6 +224,15 @@ template <typename Char, typename Traits>
 std::basic_ostream<Char, Traits>& operator << (std::basic_ostream<Char, Traits>& os, TokenID id)
 {
 	return os << id.GetStr();
+}
+
+namespace std {
+	template<>
+	struct hash<TokenID> {
+		std::size_t operator()(const TokenID& id) const noexcept {
+			return std::hash<decltype(id.GetNr(TokenID::TokenKey()))>()(id.GetNr(TokenID::TokenKey()));
+		}
+	};
 }
 
 

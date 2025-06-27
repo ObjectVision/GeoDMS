@@ -74,6 +74,7 @@
 #include "stg/MemoryMappeddataStorageManager.h"
 
 #include <stdarg.h>
+#include <unordered_set>
 
 using TreeItemInterestPtr = InterestPtr<const TreeItem*>;
 
@@ -2881,39 +2882,27 @@ struct StackFrame
 	const StackFrame* m_Caller;
 };
 
-using TreeItemSet = std::set<const TreeItem*>;
+using TreeItemSet = std::unordered_set<const TreeItem*>;
 
 bool TreeItem_VisitConstVisibleSubTree(const TreeItem * self, const ActorVisitor& visitor, TreeItemSet& visitedItems)
 {
-	auto [_, isNewItem] = visitedItems.insert(self);
+	auto [_1, isNewItem] = visitedItems.insert(self);
 	if (!isNewItem)
 		return true;
 
 	// go to subItems of refItem, if any
-	std::set<TokenID> visitedSubItems;
+	std::unordered_set<TokenID> visitedSubItemNames;
 
 	for (const TreeItem* curr = self; curr; curr = curr->GetReferredItem())
 		for (auto subItem = curr->GetFirstSubItem(); subItem; subItem = subItem->GetNextItem())
 		{
-			auto [_, isNewSubItem] = visitedSubItems.insert(subItem->GetID());
+			auto [_2, isNewSubItem] = visitedSubItemNames.insert(subItem->GetID());
 			if (!isNewSubItem)
 				continue;
 			visitor(subItem);
 			if (!TreeItem_VisitConstVisibleSubTree(subItem, visitor, visitedItems))
 				return false;
 		}
-	/*
-		const TreeItem* curr = this;
-		do {
-			const TreeItem* refItem = curr->GetReferredItem();
-			if (refItem)
-				if (!refItem->VisitConstVisibleSubTree(visitor, &frame))
-					return false;
-			if (curr != this)
-				if (!visitor(curr))
-					return false;
-		} while (curr = WalkConstSubTree(curr));
-		*/
 	return true;
 }
 
