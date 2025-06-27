@@ -1120,7 +1120,7 @@ retry:
 		if (mc_RefItem && mc_RefItem != tmpRefItemHolder && mc_RefItem->m_BackRef == this)
 			mc_RefItem->m_BackRef = nullptr;
 		mc_RefItem = std::move(tmpRefItemHolder);
-		if (mc_RefItem && mc_RefItem->IsCacheRoot() && !mc_RefItem->m_BackRef)
+		if (mc_RefItem && mc_RefItem->IsCacheItem() && !mc_RefItem->m_BackRef)
 			mc_RefItem->m_BackRef = this;
 	}
 

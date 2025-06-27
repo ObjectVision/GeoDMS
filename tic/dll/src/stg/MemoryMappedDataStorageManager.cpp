@@ -61,8 +61,13 @@ bool MmdStorageManager::DoCheckExistence(const TreeItem* storageHolder, const Tr
 
 void MmdStorageManager::DoUpdateTree(const TreeItem* storageHolder, TreeItem* curr, SyncMode sm) const
 {
-	if (curr != storageHolder)
+	if (curr != storageHolder) // only update the root item
 		return;
+	if (curr->HasCalculator()) // don't read schema info if the item has a calculator; this is the production case
+		return;
+	if (curr->_GetFirstSubItem())
+		return; 
+
 	auto dictFileName = GetFullFileName("0Dictionary.dms");
 
 	if (!IsFileOrDirAccessible(dictFileName))
