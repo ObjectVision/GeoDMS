@@ -4003,10 +4003,10 @@ void TreeItem::ClearData(garbage_can&) const
 
 bool IsDumpingToFolder();
 
-void TreeItem::XML_Dump(OutStreamBase* xmlOutStr, bool dumpSubTags) const
+void TreeItem::XML_Dump(OutStreamBase* xmlOutStr, bool notWritingDictionary) const
 { 
 	// write #include <filename> if configStore defined
-	if (xmlOutStr->GetLevel() > 0 && dumpSubTags)
+	if (xmlOutStr->GetLevel() > 0 && IsDumpingToFolder())
 	{
 		SharedStr dirName = SharedStr( configStorePropDefPtr->GetValue(this) );
 		if (!dirName.empty())
@@ -4032,7 +4032,7 @@ void TreeItem::XML_Dump(OutStreamBase* xmlOutStr, bool dumpSubTags) const
 
 	xmlOutStr->DumpPropList(this);
 
-	if (dumpSubTags)
+	if (notWritingDictionary)
 		xmlOutStr->DumpSubTags(this);
 	// end of Copy
 
@@ -4051,7 +4051,7 @@ void TreeItem::XML_Dump(OutStreamBase* xmlOutStr, bool dumpSubTags) const
 			}
 		}
 	}
-	else if (IsUnit(this) && !dumpSubTags)
+	else if (IsUnit(this) && !notWritingDictionary)
 	{
 		auto au = AsUnit(this);
 		if (au->HasVarRange())
@@ -4068,16 +4068,14 @@ void TreeItem::XML_Dump(OutStreamBase* xmlOutStr, bool dumpSubTags) const
 	if (!subItem)
 		return;
 	bool mustDumpEndogenousSubItems = !IsDumpingToFolder();
-	if (!mustDumpEndogenousSubItems)
+	while (true)
 	{
-		while (true)
-		{
-			if (!subItem->IsEndogenous())
+		if (notWritingDictionary || !subItem->IsDisabledStorage()) // disabled storage items are not dumped in MMD dictionary
+			if (mustDumpEndogenousSubItems || !subItem->IsEndogenous())
 				break; // found one
-			subItem = subItem->GetNextItem();
-			if (!subItem)
-				return; // no non endogenous subitems, so we don't dump subitems
-		}
+		subItem = subItem->GetNextItem();
+		if (!subItem)
+			return; // no non endogenous subitems, so we don't dump subitems
 	}
 
 	// output all non endogenous subitems
@@ -4088,7 +4086,7 @@ void TreeItem::XML_Dump(OutStreamBase* xmlOutStr, bool dumpSubTags) const
 	while (subItem)
 	{
 		if (mustDumpEndogenousSubItems || !subItem->IsEndogenous())
-			subItem->XML_Dump(xmlOutStr, dumpSubTags);
+			subItem->XML_Dump(xmlOutStr, notWritingDictionary);
 		subItem = subItem->GetNextItem();
 	}
 	xmlOutStr->EndSubItems();
