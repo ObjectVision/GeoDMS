@@ -1734,8 +1734,13 @@ void OperationContext::Run_with_cleanup() noexcept
 	else
 	{
 		assert(!SuspendTrigger::DidSuspend());
+
+		dbg_assert((m_Result->m_ItemCount < 0) || CheckDataReady(m_Result->GetCurrUltimateItem()) || !m_Result->GetInterestCount());
+
 		OnEnd(task_status::done); // just set status to done and clean-up
 	}
+
+	dbg_assert((m_Result->m_ItemCount < 0) || CheckDataReady(m_Result->GetCurrUltimateItem()) || m_Status == task_status::exception || !m_Result->GetInterestCount());
 
 	// check that clean-up was done. This includes releasing the RunCount
 	assert(!m_WriteLock);
