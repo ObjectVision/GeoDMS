@@ -409,6 +409,11 @@ TIC_CALL void(*s_AnnotateExprFunc)(OutStreamBase& outStream, const TreeItem* sea
 const TreeItem* WriteExprOrSourceDescrAndReturnSourceItem(OutStreamBase& stream, const TreeItem* ti)
 {
 	SharedStr exprStr = ti->GetExpr();
+	if (!IsDefined(exprStr))
+	{
+		stream << "<undefined> This can the result of a containing item having a for_each with an 'e'  argument that evaluates to an undefined calculation rule.";
+		return ti->GetSourceItem();
+	}
 	if (!exprStr.empty())
 	{
 		assert(s_AnnotateExprFunc);

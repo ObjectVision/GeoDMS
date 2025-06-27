@@ -323,8 +323,8 @@ bool ForEach_CreateResult(TreeItemDualRef& resultHolder, const ArgSeqType& args,
 				return newStr;
 			};
 
-		if (optExprs)       iter->SetExpr (AcceptIfNewOrEqual(SharedStr(optExprs      ->GetIndexedValue(optExprsIsParam       ? 0 : i)), iter->mc_Expr, "calculation rule"));
-		if (optDescrs)      iter->SetDescr(AcceptIfNewOrEqual(SharedStr(optDescrs     ->GetIndexedValue(optDescrsIsParam      ? 0 : i)), descrPropDefPtr->GetValue(iter), DESCR_NAME));
+		if (optExprs)       iter                     ->SetExpr (      AcceptIfNewOrEqual(SharedStr(optExprs      ->GetIndexedValue(optExprsIsParam       ? 0 : i)), iter->mc_Expr, "calculation rule"));
+		if (optDescrs)      iter                     ->SetDescr(      AcceptIfNewOrEqual(SharedStr(optDescrs     ->GetIndexedValue(optDescrsIsParam      ? 0 : i)), descrPropDefPtr->GetValue(iter), DESCR_NAME));
 		if (optChecks)      integrityCheckPropDefPtr ->SetValue(iter, AcceptIfNewOrEqual(SharedStr(optChecks     ->GetIndexedValue(optChecksIsParam      ? 0 : i)), integrityCheckPropDefPtr->GetValue(iter), ICHECK_NAME));
 		if (optLabels)      labelPropDefPtr          ->SetValue(iter, AcceptIfNewOrEqual(SharedStr(optLabels     ->GetIndexedValue(optLabelsIsParam      ? 0 : i)), labelPropDefPtr->GetValue(iter), LABEL_NAME));
 		if (optStorageName) storageNamePropDefPtr    ->SetValue(iter, AcceptIfNewOrEqual(SharedStr(optStorageName->GetIndexedValue(optStorageNamesIsParam? 0 : i)), storageNamePropDefPtr->GetValue(iter), STORAGENAME_NAME));
