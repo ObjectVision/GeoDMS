@@ -21,24 +21,12 @@ struct duplicate_arg {
 	const Arg& operator()(const Arg& arg, const Res&) const { return arg; }
 };
 
-struct duplicate_ref {
-	const auto & operator()(const auto& ref) const { return ref; }
-};
-
-struct duplicate_nozombies {
-	LispRef operator()(LispObj* ptr) const 
-	{
-		return LispRef(LispPtr(ptr), no_zombies{});
-	}
-};
-
 template<
 	typename Func,
 	typename ArgOrder = std::less<typename Func::argument_type>,
 	typename argument_reftype = param_type_t < typename Func::argument_type>,
 	typename result_reftype = typename Func::result_reftype,
-	typename KeyDuplFunc = duplicate_arg<typename Func::argument_type, typename Func::result_reftype>, 
-	typename Ref2ResFunc = std::conditional_t<std::is_same_v<typename Func::result_type, result_reftype>, duplicate_ref, duplicate_nozombies>
+	typename KeyDuplFunc = duplicate_arg<typename Func::argument_type, typename Func::result_reftype>
 >
 struct Cache
 {
@@ -59,7 +47,7 @@ struct Cache
 		auto i = m_Map.lower_bound(arg);
 		while (i != m_Map.end() && !m_Comp(arg, i->first))
 		{
-			auto sharedRef = m_Ref2ResFunc(i->second);
+			auto sharedRef = LispRef(LispPtr(i->second), no_zombies{});
 			if (sharedRef)
 				return sharedRef;
 			++i;
@@ -70,7 +58,7 @@ struct Cache
 		return res;
 	}
 
-	SizeT size () const { return m_Map.size (); }
+//	SizeT size () const { return m_Map.size (); }
 	bool  empty() const { return m_Map.empty(); }
 
 	void remove(argument_reftype arg)
@@ -81,7 +69,8 @@ struct Cache
 		while (i->second->IsOwned())
 		{
 			++i;
-			assert(i != m_Map.end());
+			if (i == m_Map.end())
+				return;
 		}
 		m_Map.erase(i);
 	}
@@ -93,9 +82,76 @@ private:
 	Func         m_Func;
 	ArgOrder     m_Comp;
 	KeyDuplFunc  m_KeyDupl;
-	Ref2ResFunc  m_Ref2ResFunc;
 	map_type     m_Map;
 	std::recursive_mutex   mx_MapLock;
+};
+
+
+#include <unordered_set>
+
+template<typename Func>
+struct UnorederedSetCache
+{
+	using function = Func;
+	using argument_type = typename function::argument_type;
+	using result_type = typename function::result_type;
+	using argument_reftype = param_type_t < typename function::argument_type>;
+	using hasher = typename function::hasher;
+	using equality_compare = typename function::equality_compare;
+
+	using uset_type = std::unordered_multiset<result_type, hasher, equality_compare>;
+
+	LispRef apply(argument_reftype arg)
+	{
+		auto cacheLock = std::lock_guard(mx_MapLock);
+
+		MG_DEBUGCODE(md_NrCalls++; )
+			dms_check_not_debugonly;
+		auto i = m_USet.find(arg);
+		while (i != m_USet.end() && m_EqComp(arg, *i))
+		{
+			auto sharedRef = LispRef(LispPtr(*i), no_zombies{});
+			if (sharedRef)
+				return sharedRef;
+			++i;
+		}
+		result_type res = m_Func(arg);
+		m_USet.insert(std::move(res));
+		MG_DEBUGCODE(md_NrMisses++; )
+		return res;
+	}
+
+	//	SizeT size () const { return m_Map.size (); }
+	bool  empty() const { return m_USet.empty(); }
+
+	void remove(argument_reftype arg)
+	{
+		auto cacheLock = std::lock_guard(mx_MapLock);
+
+		auto i = m_USet.find(arg);
+		assert(i != m_USet.end());
+		while ((*i)->IsOwned())
+		{
+			++i;
+			if (i == m_USet.end() || !m_EqComp(arg, *i))
+				return;
+		}
+		assert(m_EqComp(arg, *i));
+		m_USet.erase(i);
+	}
+
+private:
+
+#if defined(MG_DEBUG)
+	SizeT md_NrCalls = 0;
+	SizeT md_NrMisses = 0;
+#endif
+
+	hasher           m_Hasher;
+	equality_compare m_EqComp;
+	Func             m_Func;
+	uset_type        m_USet;
+	std::mutex       mx_MapLock;
 };
 
 

@@ -158,7 +158,6 @@ IMPL_CLASS(LispObj, 0)
 
 #define IMPL_STATIC_LISPCLS(cls) IMPL_RTTI(cls, LispCls) IMPL_LISPCLS(cls, cls::ReloadObj)
 
-
 /******************                               *******************/
 /****************** class NumbObj                 *******************/
 /******************                               *******************/
@@ -166,40 +165,31 @@ IMPL_CLASS(LispObj, 0)
 class NumbObj: public LispObj
 {
 	friend LispRef::LispRef(Number v);
-	friend struct MakeNumbFunc;
+
+public:
+	NumbObj(Number v)
+		: m_Value(v.m_Value)
+	{
+	}
+	~NumbObj();
+
+	Number_t m_Value;
 
 private:
 	NumbObj() = delete;
 	NumbObj(const NumbObj&) = delete;
 	NumbObj(NumbObj&&) = delete;
 
-	NumbObj(Number v)
-		:	m_Value(v) 
-	{}
-   ~NumbObj();
 
 	virtual bool   IsNumb()     const { return true; }
-	virtual Number GetNumbVal() const { return m_Value;    }
+	virtual Number GetNumbVal() const { return Number(m_Value); }
 
 	virtual void Print(FormattedOutStream& out, UInt32 level)   const { out << m_Value << ' '; }
 	static LispObj* ReloadObj(PolymorphInpStream& ar);
 	virtual void WriteObj(PolymorphOutStream& ar) const;
 
-	Number m_Value;
 
 	DECL_RTTI(SYM_CALL, LispCls);
-};
-
-struct MakeNumbFunc
-{
-	using argument_type = Number_t;
-	using result_reftype = NumbObj*;
-	using result_type = LispRef;
-
-	auto operator()(Number_t v) const -> result_reftype
-	{
-		return new NumbObj(Number(v));
-	}
 };
 
 /******************                               *******************/
@@ -209,16 +199,16 @@ struct MakeNumbFunc
 
 class UI64Obj : public LispObj
 {
-	friend LispRef::LispRef(UInt64 v);
-	friend struct MakeUI64Func;
+//	friend LispRef::LispRef(UInt64 v);
+
+public:
+	UI64Obj(UInt64 v) : m_Value(v) {}
+	~UI64Obj();
 
 private:
 	UI64Obj() = delete;
 	UI64Obj(const UI64Obj&) = delete;
 	UI64Obj(UI64Obj&&) = delete;
-
-	UI64Obj(UInt64 v): m_Value(v) {}
-	~UI64Obj();
 
 	virtual bool   IsUI64()     const { return true; }
 	virtual UInt64 GetUI64Val() const { return m_Value; }
@@ -232,35 +222,24 @@ private:
 	DECL_RTTI(SYM_CALL, LispCls);
 };
 
-struct MakeUI64Func
-{
-	using argument_type = UInt64;
-	using result_type = LispRef;
-	using result_reftype = UI64Obj*;
-
-	auto operator()(UInt64 v) const -> result_reftype
-	{
-		return new UI64Obj(v);
-	}
-};
-
 IMPL_STATIC_LISPCLS(UI64Obj)
 
 /******************                                   *******************/
 /****************** class SymbObj                     *******************/
 /******************                                   *******************/
 
+using SymbType = std::pair<TokenID, ChroID>;
 
 class SymbObj : public LispObj
 {
-	friend struct MakeSymbFunc;
-	friend auto GetOrCreateSymbObj(LispCaches* self, TokenID t, ChroID c) -> LispRef;
-
+//	friend struct MakeSymbFunc;
+//	friend auto GetOrCreateSymbObj(LispCaches* self, TokenID t, ChroID c) -> LispRef;
+private:
 	SymbObj()              : m_TokenID(TokenID::GetUndefinedID()) { NeverLinkThis(); }
 	SymbObj(const SymbObj&): m_TokenID(TokenID::GetUndefinedID()) { NeverLinkThis(); }
 
+public:
 	SymbObj (TokenID  t, ChroID c) : m_TokenID(t), m_ChroID(c) {}
-
   ~SymbObj();
 
 	bool     IsSymb()     const override { return true;  }
@@ -278,21 +257,9 @@ class SymbObj : public LispObj
 	TokenID m_TokenID;
 	ChroID  m_ChroID = 0;
 
+	SymbType GetKey() { return { m_TokenID, m_ChroID }; }
+
 	DECL_RTTI(SYM_CALL, LispCls);
-};
-
-using SymbType = std::pair<TokenID,  ChroID>;
-
-struct MakeSymbFunc
-{	
-	using argument_type = SymbType;
-	using result_type = LispRef;
-	using result_reftype = SymbObj*;
-
-	auto operator()(const SymbType& v) const -> result_reftype
-	{ 
-		return new SymbObj(v.first, v.second); 
-	} 
 };
 
 /******************                                   *******************/
@@ -376,18 +343,20 @@ struct DuplStrnData {
 /****************** class ListObj                     *******************/
 /******************                                   *******************/
 
+using ListType = std::pair<LispPtr, LispPtr>;
+
 
 class ListObj: public LispObj
 {
-	friend LispRef::LispRef(LispPtr head, LispPtr tail);
-	friend struct MakeListFunc;
+//	friend LispRef::LispRef(LispPtr head, LispPtr tail);
+//	friend struct MakeListFunc;
+public:
+	ListObj(LispPtr head, LispPtr tail) : m_Left(head), m_Right(tail) {}
+	~ListObj();
 
 private:
 	ListObj()                { NeverLinkThis(); }
 	ListObj(const ListObj& ) { NeverLinkThis(); }
-
-	ListObj (LispPtr head, LispPtr tail):	m_Left(head), m_Right(tail) {}
-   ~ListObj();
 
 	bool   IsList() const override { return true; }
 	LispPtr Left () const override { return m_Left;  }
@@ -399,23 +368,12 @@ private:
 	static LispObj* ReloadObj (PolymorphInpStream& ar);
 	void WriteObj(PolymorphOutStream& ar) const override;
 
+	ListType GetKey() const { return { m_Left, m_Right }; }
+
 	LispRef m_Left;
 	LispRef m_Right;
 
 	DECL_RTTI(SYM_CALL, LispCls);
-};
-
-typedef std::pair<LispPtr, LispPtr> ListType;
-
-struct MakeListFunc
-{	
-	using argument_type = ListType ;
-	using result_type = LispRef;
-	using result_reftype = ListObj*;
-	auto operator()(const ListType& v) const -> result_reftype
-	{ 
-		return new ListObj(v.second, v.first);
-	} 
 };
 
 
@@ -424,16 +382,246 @@ struct MakeListFunc
 UInt32 s_LispComponentCount = 0;
 
 struct LispCaches {
-	Cache<MakeNumbFunc, DataLessThanCompare<Number_t> > NumbObjCache;
-	//	Cache<MakeUI64Func, DataLessThanCompareImpl<UInt64, false> > UI64ObjCache;
-	Cache<MakeUI64Func, std::less<UInt64> > UI64ObjCache;
-	Cache<MakeSymbFunc> SymbObjCache;
-	Cache<MakeStrnFunc, std::less<StrnType>, const StrnType&, StrnObj* , DuplStrnData> StrnObjCache;
-	Cache<MakeListFunc> ListObjCache;
 
+	// ================ Numbers ================
+
+	struct MakeNumbFunc
+	{
+		using argument_type = Number_t;
+		using result_type = NumbObj*;
+
+		auto operator()(Number_t v) const -> result_type
+		{
+			return new NumbObj(Number(v));
+		}
+
+		struct equality_compare
+		{
+			using is_transparent = int;
+
+//			bool operator()(Number_t left, Number_t right) const
+//			{
+//				return m_DataComp(left, right);
+//			}
+			bool operator()(argument_type left, result_type rightPtr) const
+			{
+				assert(rightPtr);
+				return m_DataComp(left, rightPtr->m_Value);
+			}
+			bool operator()(result_type leftPtr, argument_type right) const
+			{
+				assert(leftPtr);
+				return m_DataComp(leftPtr->m_Value, right);
+			}
+			bool operator()(result_type leftPtr, result_type rightPtr) const
+			{
+				assert(leftPtr);
+				assert(rightPtr);
+				return m_DataComp(leftPtr->m_Value, rightPtr->m_Value);
+			}
+
+			DataEqualityCompare<Number_t> m_DataComp;
+		};
+
+		struct hasher
+		{
+			using is_transparent = int;
+
+			std::size_t operator()(argument_type v) const
+			{
+				return std::hash<argument_type>()(v);
+			}
+			std::size_t operator()(result_type ptr) const
+			{
+				assert(ptr);
+				return std::hash<argument_type>()(ptr->m_Value);
+			}
+		};
+	};
+
+	UnorederedSetCache<MakeNumbFunc> NumbObjCache;
+
+
+	// ================ UInt64 ================
+
+	struct MakeUI64Func
+	{
+		using argument_type = UInt64;
+		using result_type   = UI64Obj*;
+
+		auto operator()(UInt64 v) const -> result_type
+		{
+			return new UI64Obj(v);
+		}
+
+		struct equality_compare
+		{
+			using is_transparent = int;
+
+			//			bool operator()(Number_t left, Number_t right) const
+			//			{
+			//				return m_DataComp(left, right);
+			//			}
+			bool operator()(argument_type left, result_type rightPtr) const
+			{
+				assert(rightPtr);
+				return left == rightPtr->m_Value;
+			}
+
+			bool operator()(result_type leftPtr, argument_type right) const
+			{
+				assert(leftPtr);
+				return leftPtr->m_Value == right;
+			}
+
+			bool operator()(result_type leftPtr, result_type rightPtr) const
+			{
+				assert(leftPtr);
+				assert(rightPtr);
+				return leftPtr->m_Value == rightPtr->m_Value;
+			}
+		};
+
+		struct hasher
+		{
+			using is_transparent = int;
+
+			std::size_t operator()(argument_type v) const
+			{
+				return std::hash<argument_type>()(v);
+			}
+			std::size_t operator()(result_type ptr) const
+			{
+				assert(ptr);
+				return std::hash<argument_type>()(ptr->m_Value);
+			}
+		};
+	};
+
+
+	UnorederedSetCache<MakeUI64Func> UI64ObjCache;
+
+
+	// ================ Symbols ================
+
+	struct MakeSymbFunc
+	{
+		using argument_type = SymbType;
+		using result_type   = SymbObj*;
+
+		auto operator()(const SymbType& v) const -> result_type
+		{
+			return new SymbObj(v.first, v.second);
+		}
+
+		struct equality_compare
+		{
+			using is_transparent = int;
+
+			//			bool operator()(Number_t left, Number_t right) const
+			//			{
+			//				return m_DataComp(left, right);
+			//			}
+			bool operator()(argument_type left, result_type rightPtr) const
+			{
+				assert(rightPtr);
+				return left == rightPtr->GetKey();
+			}
+			bool operator()(result_type leftPtr, argument_type right) const
+			{
+				assert(leftPtr);
+				return leftPtr->GetKey() == right;
+			}
+			bool operator()(result_type leftPtr, result_type rightPtr) const
+			{
+				assert(leftPtr);
+				assert(rightPtr);
+				return leftPtr->GetKey() == rightPtr->GetKey();
+			}
+		};
+
+		struct hasher
+		{
+			using is_transparent = int;
+
+			std::size_t operator()(argument_type v) const
+			{
+				return std::hash<argument_type>()(v);
+			}
+			std::size_t operator()(result_type ptr) const
+			{
+				assert(ptr);
+				return std::hash<argument_type>()(ptr->GetKey());
+			}
+		};
+	};
+
+	UnorederedSetCache<MakeSymbFunc> SymbObjCache;
 	std::vector<SymbObj*> ZeroSymbObjCache;
-	UInt32                nrActiveZeroSymbObj = 0;
 
+	// ================ Strings ================
+
+	Cache<MakeStrnFunc, std::less<StrnType>, const StrnType&, StrnObj* , DuplStrnData> StrnObjCache;
+
+	// ================ Lists ================
+
+	struct MakeListFunc
+	{
+		using argument_type = ListType;
+		using result_type   = ListObj*;
+
+		auto operator()(const ListType& v) const -> result_type
+		{
+			return new ListObj(v.second, v.first);
+		}
+
+		struct equality_compare
+		{
+			using is_transparent = int;
+
+			//			bool operator()(Number_t left, Number_t right) const
+			//			{
+			//				return m_DataComp(left, right);
+			//			}
+			bool operator()(argument_type left, result_type rightPtr) const
+			{
+				assert(rightPtr);
+				return left == rightPtr->GetKey();
+			}
+			bool operator()(result_type leftPtr, argument_type right) const
+			{
+				assert(leftPtr);
+				return leftPtr->GetKey() == right;
+			}
+			bool operator()(result_type leftPtr, result_type rightPtr) const
+			{
+				assert(leftPtr);
+				assert(rightPtr);
+				return leftPtr->GetKey() == rightPtr->GetKey();
+			}
+		};
+
+		struct hasher
+		{
+			using is_transparent = int;
+
+			std::size_t operator()(argument_type v) const
+			{
+				return std::hash<argument_type>()(v);
+			}
+			std::size_t operator()(result_type ptr) const
+			{
+				assert(ptr);
+				return std::hash<argument_type>()(ptr->GetKey());
+			}
+		};
+	};
+
+	UnorederedSetCache<MakeListFunc> ListObjCache;
+
+	// ================ other ================
+
+	UInt32                nrActiveZeroSymbObj = 0;
 	leveled_std_section   CS;
 
 	LispCaches()
@@ -462,7 +650,7 @@ std::mutex sx_TimelessSymbolArrayLock;
 auto GetOrCreateSymbObj(LispCaches* self, TokenID t, ChroID c) -> LispRef
 {
 	if (c)
-		return self->SymbObjCache.apply(SymbType(t, c)); // has its own guard
+		return self->SymbObjCache.apply(LispCaches::SymbType(t, c)); // has its own guard
 
 	auto cacheLock = std::lock_guard(sx_TimelessSymbolArrayLock);
 
@@ -479,6 +667,7 @@ auto GetOrCreateSymbObj(LispCaches* self, TokenID t, ChroID c) -> LispRef
 	SymbObj*& cacheEntry = self->ZeroSymbObjCache[tnr];
 	if (cacheEntry)
 	{
+		// as the LispObj in cacheEntry might already be between decommission and destruction, we need to check if it is still valid
 		auto result = LispRef(LispPtr(cacheEntry), no_zombies{});
 		if (result)
 			return result;
@@ -491,25 +680,15 @@ auto GetOrCreateSymbObj(LispCaches* self, TokenID t, ChroID c) -> LispRef
 
 alignas(LispCaches) Byte s_LispCacheBuffer[sizeof(LispCaches)];
 
-LispCaches* GetLispCachesImpl()
+LispCaches* GetLispCachesPtr()
 {
 	return reinterpret_cast<LispCaches*>(s_LispCacheBuffer);
 }
 
-struct LispCachesHandle : ptr_base<LispCaches, noncopyable>
-{
-	LispCachesHandle(LispCaches* src)
-		:	ptr_base<LispCaches, noncopyable>(src)
-		,   m_ScopedLock(src->CS)
-	{}
-
-	std::scoped_lock<leveled_std_section> m_ScopedLock;
-};
-
-auto GetLispCaches() -> LispCachesHandle
+LispCaches* GetLispCaches()
 {
 	assert(s_LispComponentCount);
-	return GetLispCachesImpl();
+	return GetLispCachesPtr();
 }
 
 LispComponent::LispComponent()
@@ -521,17 +700,20 @@ LispComponent::LispComponent()
 LispComponent::~LispComponent()
 {
 	if (!--s_LispComponentCount)
-		GetLispCachesImpl()->~LispCaches();
+		GetLispCachesPtr()->~LispCaches();
 }
 
 
 /****************** NumbObj implementation  *******************/
 
 LispRef::LispRef(Number value)
-	: SharedPtrWrap( GetLispCaches()->NumbObjCache.apply(value) )
+	: SharedPtrWrap( GetLispCaches()->NumbObjCache.apply(value.m_Value) )
 {}
 
-NumbObj::~NumbObj() { GetLispCaches()->NumbObjCache.remove(m_Value); }
+NumbObj::~NumbObj() 
+{ 
+	GetLispCaches()->NumbObjCache.remove(m_Value); 
+}
 
 LispObj* NumbObj::ReloadObj(PolymorphInpStream& ar)
 {
@@ -540,7 +722,7 @@ LispObj* NumbObj::ReloadObj(PolymorphInpStream& ar)
 	double value;
 	ar >> value;
 	DBG_TRACE(("numb = %lf", value));
-	return GetLispCaches()->NumbObjCache.apply(Number(value));
+	return GetLispCaches()->NumbObjCache.apply(value);
 }
 
 void NumbObj::WriteObj(PolymorphOutStream& ar) const
@@ -592,7 +774,7 @@ SymbObj::~SymbObj()
 {
 	auto x = GetLispCaches();
 	if (m_ChroID)
-		x->SymbObjCache.remove(SymbType(m_TokenID, m_ChroID));
+		x->SymbObjCache.remove(LispCaches::SymbType(m_TokenID, m_ChroID));
 	else
 	{
 		auto cacheLock = std::lock_guard(sx_TimelessSymbolArrayLock);
@@ -720,7 +902,7 @@ void StrnObj::WriteObj(PolymorphOutStream& ar) const
 /****************** ListObj implementation  *******************/
 
 LispRef::LispRef(LispPtr head, LispPtr tail)
-	: SharedPtrWrap<LispPtr>(GetLispCaches()->ListObjCache.apply(ListType(tail, head)))
+	: SharedPtrWrap<LispPtr>(GetLispCaches()->ListObjCache.apply(LispCaches::ListType(tail, head)))
 {}
 
 using zombie_destroyer_stack = std::stack<zombie_destroyer>;
@@ -746,7 +928,7 @@ ListObj::~ListObj()
 	std::stack<zombie_destroyer> nodes;
 
 	// No need to reset since release already nullifies the unique_ptrs
-	GetLispCaches()->ListObjCache.remove(ListType(m_Right, m_Left));
+	GetLispCaches()->ListObjCache.remove(LispCaches::ListType(m_Right, m_Left));
 	ref_mover(nodes, m_Left);
 	ref_mover(nodes, m_Right);
 
@@ -756,7 +938,7 @@ ListObj::~ListObj()
 
 		auto currentLispObj = static_cast<ListObj*>(current.get());
 		assert(currentLispObj);
-		GetLispCaches()->ListObjCache.remove(ListType(currentLispObj->m_Right, currentLispObj->m_Left));
+		GetLispCaches()->ListObjCache.remove(LispCaches::ListType(currentLispObj->m_Right, currentLispObj->m_Left));
 		ref_mover(nodes,currentLispObj->m_Left);
 		ref_mover(nodes,currentLispObj->m_Right);
 		// delete current
@@ -855,7 +1037,7 @@ LispObj* ListObj::ReloadObj(PolymorphInpStream& ar)
 	DBG_TRACE(("head = %s", AsString(head).c_str()));
 	ar >> tail;
 	DBG_TRACE(("tail = %s", AsString(tail).c_str()));
-	return GetLispCaches()->ListObjCache.apply(ListType(tail, head));
+	return GetLispCaches()->ListObjCache.apply(LispCaches::ListType(tail, head));
 }
 
 void ListObj::WriteObj(PolymorphOutStream& ar) const

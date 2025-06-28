@@ -28,7 +28,7 @@
 #include <functional>
 #include "set/Cache.h"
 
-using cache_key_t = std::pair<LispRef, AssocList> ;
+using cache_key_t = std::pair<LispRef, AssocList>;
 
 /*************** Elementary functions  ******/
 
@@ -338,8 +338,9 @@ LispRef EvalStep(LispPtr expr, AssocListPtr env)
 
 struct EvalStepFunc
 {
-	typedef cache_key_t argument_type;
-	typedef LispRef     result_type;
+	using argument_type = cache_key_t;
+	using result_type = LispRef;
+	using result_reftype = result_type;
 
 	LispRef operator ()(const cache_key_t& exprEnvPair) const
 	{
@@ -357,7 +358,7 @@ LispRef Eval(LispPtr expr, AssocListPtr env)
 #endif
 //	reportF(ST_MinorTrace, "Eval: %s", AsString(expr).c_str()); // DEBUG
 
-	return g_evalCache(Assoc(env, expr))
+	return g_evalCache(Assoc(expr, env))
 	return result;
 }
 
