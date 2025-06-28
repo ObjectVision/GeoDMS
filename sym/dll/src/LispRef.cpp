@@ -205,6 +205,8 @@ public:
 	UI64Obj(UInt64 v) : m_Value(v) {}
 	~UI64Obj();
 
+	UInt64 GetKey() { return m_Value; }	
+
 private:
 	UI64Obj() = delete;
 	UI64Obj(const UI64Obj&) = delete;
@@ -354,6 +356,8 @@ public:
 	ListObj(LispPtr head, LispPtr tail) : m_Left(head), m_Right(tail) {}
 	~ListObj();
 
+	ListType GetKey() const { return { m_Right, m_Left }; }
+
 private:
 	ListObj()                { NeverLinkThis(); }
 	ListObj(const ListObj& ) { NeverLinkThis(); }
@@ -367,8 +371,6 @@ private:
 
 	static LispObj* ReloadObj (PolymorphInpStream& ar);
 	void WriteObj(PolymorphOutStream& ar) const override;
-
-	ListType GetKey() const { return { m_Left, m_Right }; }
 
 	LispRef m_Left;
 	LispRef m_Right;
@@ -465,20 +467,20 @@ struct LispCaches {
 			bool operator()(argument_type left, result_type rightPtr) const
 			{
 				assert(rightPtr);
-				return left == rightPtr->m_Value;
+				return left == rightPtr->GetKey();
 			}
 
 			bool operator()(result_type leftPtr, argument_type right) const
 			{
 				assert(leftPtr);
-				return leftPtr->m_Value == right;
+				return leftPtr->GetKey() == right;
 			}
 
 			bool operator()(result_type leftPtr, result_type rightPtr) const
 			{
 				assert(leftPtr);
 				assert(rightPtr);
-				return leftPtr->m_Value == rightPtr->m_Value;
+				return leftPtr->GetKey() == rightPtr->GetKey();
 			}
 		};
 
@@ -493,7 +495,7 @@ struct LispCaches {
 			std::size_t operator()(result_type ptr) const
 			{
 				assert(ptr);
-				return std::hash<argument_type>()(ptr->m_Value);
+				return std::hash<argument_type>()(ptr->GetKey());
 			}
 		};
 	};
@@ -546,12 +548,15 @@ struct LispCaches {
 
 			std::size_t operator()(argument_type v) const
 			{
-				return std::hash<argument_type>()(v);
+				std::size_t h1 = std::hash<TokenT>{}(v.first.GetNr(TokenID::TokenKey{}));
+				std::size_t h2 = std::hash<ChroID>{}(v.second);
+
+				return h1 ^ h2;
 			}
 			std::size_t operator()(result_type ptr) const
 			{
 				assert(ptr);
-				return std::hash<argument_type>()(ptr->GetKey());
+				return operator()(ptr->GetKey());
 			}
 		};
 	};
@@ -607,12 +612,14 @@ struct LispCaches {
 
 			std::size_t operator()(argument_type v) const
 			{
-				return std::hash<argument_type>()(v);
+				std::size_t h1 = std::hash<LispObj*>()(v.first);
+				std::size_t h2 = std::hash<LispObj*>()(v.second);
+				return h1 ^ h2;
 			}
 			std::size_t operator()(result_type ptr) const
 			{
 				assert(ptr);
-				return std::hash<argument_type>()(ptr->GetKey());
+				return operator()(ptr->GetKey());
 			}
 		};
 	};
@@ -650,7 +657,7 @@ std::mutex sx_TimelessSymbolArrayLock;
 auto GetOrCreateSymbObj(LispCaches* self, TokenID t, ChroID c) -> LispRef
 {
 	if (c)
-		return self->SymbObjCache.apply(LispCaches::SymbType(t, c)); // has its own guard
+		return self->SymbObjCache.apply(SymbType(t, c)); // has its own guard
 
 	auto cacheLock = std::lock_guard(sx_TimelessSymbolArrayLock);
 
@@ -774,7 +781,7 @@ SymbObj::~SymbObj()
 {
 	auto x = GetLispCaches();
 	if (m_ChroID)
-		x->SymbObjCache.remove(LispCaches::SymbType(m_TokenID, m_ChroID));
+		x->SymbObjCache.remove(SymbType(m_TokenID, m_ChroID));
 	else
 	{
 		auto cacheLock = std::lock_guard(sx_TimelessSymbolArrayLock);
@@ -902,7 +909,7 @@ void StrnObj::WriteObj(PolymorphOutStream& ar) const
 /****************** ListObj implementation  *******************/
 
 LispRef::LispRef(LispPtr head, LispPtr tail)
-	: SharedPtrWrap<LispPtr>(GetLispCaches()->ListObjCache.apply(LispCaches::ListType(tail, head)))
+	: SharedPtrWrap<LispPtr>(GetLispCaches()->ListObjCache.apply(ListType(tail, head)))
 {}
 
 using zombie_destroyer_stack = std::stack<zombie_destroyer>;
@@ -928,7 +935,7 @@ ListObj::~ListObj()
 	std::stack<zombie_destroyer> nodes;
 
 	// No need to reset since release already nullifies the unique_ptrs
-	GetLispCaches()->ListObjCache.remove(LispCaches::ListType(m_Right, m_Left));
+	GetLispCaches()->ListObjCache.remove(GetKey());
 	ref_mover(nodes, m_Left);
 	ref_mover(nodes, m_Right);
 
@@ -938,7 +945,7 @@ ListObj::~ListObj()
 
 		auto currentLispObj = static_cast<ListObj*>(current.get());
 		assert(currentLispObj);
-		GetLispCaches()->ListObjCache.remove(LispCaches::ListType(currentLispObj->m_Right, currentLispObj->m_Left));
+		GetLispCaches()->ListObjCache.remove(currentLispObj->GetKey());
 		ref_mover(nodes,currentLispObj->m_Left);
 		ref_mover(nodes,currentLispObj->m_Right);
 		// delete current
@@ -1037,7 +1044,7 @@ LispObj* ListObj::ReloadObj(PolymorphInpStream& ar)
 	DBG_TRACE(("head = %s", AsString(head).c_str()));
 	ar >> tail;
 	DBG_TRACE(("tail = %s", AsString(tail).c_str()));
-	return GetLispCaches()->ListObjCache.apply(LispCaches::ListType(tail, head));
+	return GetLispCaches()->ListObjCache.apply(ListType(tail, head));
 }
 
 void ListObj::WriteObj(PolymorphOutStream& ar) const
