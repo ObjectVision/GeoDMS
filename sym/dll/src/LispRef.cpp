@@ -169,11 +169,11 @@ class NumbObj: public LispObj
 public:
 	NumbObj(Number v)
 		: m_Value(v.m_Value)
-	{
-	}
+	{}
+
 	~NumbObj();
 
-	Number_t m_Value;
+	Number_t GetKey() { return m_Value; }
 
 private:
 	NumbObj() = delete;
@@ -188,6 +188,7 @@ private:
 	static LispObj* ReloadObj(PolymorphInpStream& ar);
 	virtual void WriteObj(PolymorphOutStream& ar) const;
 
+	Number_t m_Value;
 
 	DECL_RTTI(SYM_CALL, LispCls);
 };
@@ -275,14 +276,14 @@ struct StrnType : Couple<CharPtr>
 	SizeT size() const { return second - first; }
 	bool  empty() const { return first == second; }
 
-	bool operator < (const StrnType& rhs) const
+	bool operator < (const StrnType& rhs) const noexcept
 	{
 		auto sz1 = size(), sz2 = rhs.size();
 		int cmpRes = strncmp(first, rhs.first, Min<UInt32>(sz1, sz2));
 		return (cmpRes < 0)
 			|| (cmpRes == 0 && sz1 < sz2);
 	}
-	bool operator == (const StrnType& rhs) const
+	bool operator == (const StrnType& rhs) const noexcept
 	{
 		auto sz1 = size(), sz2 = rhs.size();
 		if (sz1 != sz2)
@@ -291,6 +292,36 @@ struct StrnType : Couple<CharPtr>
 		return cmpRes == 0;
 	}
 
+	struct hasher {
+		std::size_t operator()(const StrnType& range) const noexcept {
+			const char* first = range.first;
+			const char* last = range.second;
+			const std::size_t len = static_cast<std::size_t>(last - first);
+
+			std::size_t hash = 0xcbf29ce484222325; // FNV-1a 64-bit base
+			constexpr std::size_t prime = 0x100000001b3;
+
+			// Process in word-sized chunks
+			while (last - first >= sizeof(std::size_t)) {
+				std::size_t chunk;
+				std::memcpy(&chunk, first, sizeof(std::size_t));
+				if constexpr (std::endian::native != std::endian::little) {
+					chunk = std::byteswap(chunk);
+				}
+
+				hash ^= chunk;
+				hash *= prime;
+				first += sizeof(std::size_t);
+			}
+
+			// Handle tail
+			std::size_t chunk = 0;
+			std::memcpy(&chunk, first, last - first);
+			hash ^= chunk;
+
+			return hash;
+		}
+	};
 };
 
 class StrnObj : public LispObj
@@ -327,7 +358,6 @@ private:
 /******************                                   *******************/
 
 using ListType = std::pair<LispPtr, LispPtr>;
-
 
 class ListObj: public LispObj
 {
@@ -378,48 +408,8 @@ struct LispCaches {
 			return new NumbObj(Number(v));
 		}
 
-		struct equality_compare
-		{
-			using is_transparent = int;
-
-//			bool operator()(Number_t left, Number_t right) const
-//			{
-//				return m_DataComp(left, right);
-//			}
-			bool operator()(argument_type left, result_type rightPtr) const
-			{
-				assert(rightPtr);
-				return m_DataComp(left, rightPtr->m_Value);
-			}
-			bool operator()(result_type leftPtr, argument_type right) const
-			{
-				assert(leftPtr);
-				return m_DataComp(leftPtr->m_Value, right);
-			}
-			bool operator()(result_type leftPtr, result_type rightPtr) const
-			{
-				assert(leftPtr);
-				assert(rightPtr);
-				return m_DataComp(leftPtr->m_Value, rightPtr->m_Value);
-			}
-
-			DataEqualityCompare<Number_t> m_DataComp;
-		};
-
-		struct hasher
-		{
-			using is_transparent = int;
-
-			std::size_t operator()(argument_type v) const
-			{
-				return std::hash<argument_type>()(v);
-			}
-			std::size_t operator()(result_type ptr) const
-			{
-				assert(ptr);
-				return std::hash<argument_type>()(ptr->m_Value);
-			}
-		};
+		using equality_compare = DataEqualityCompare<argument_type>;
+		using hasher = std::hash<argument_type>;
 	};
 
 	UnorderedSetCache<MakeNumbFunc> NumbObjCache;
@@ -437,48 +427,8 @@ struct LispCaches {
 			return new UI64Obj(v);
 		}
 
-		struct equality_compare
-		{
-			using is_transparent = int;
-
-			//			bool operator()(Number_t left, Number_t right) const
-			//			{
-			//				return m_DataComp(left, right);
-			//			}
-			bool operator()(argument_type left, result_type rightPtr) const
-			{
-				assert(rightPtr);
-				return left == rightPtr->GetKey();
-			}
-
-			bool operator()(result_type leftPtr, argument_type right) const
-			{
-				assert(leftPtr);
-				return leftPtr->GetKey() == right;
-			}
-
-			bool operator()(result_type leftPtr, result_type rightPtr) const
-			{
-				assert(leftPtr);
-				assert(rightPtr);
-				return leftPtr->GetKey() == rightPtr->GetKey();
-			}
-		};
-
-		struct hasher
-		{
-			using is_transparent = int;
-
-			std::size_t operator()(argument_type v) const
-			{
-				return std::hash<argument_type>()(v);
-			}
-			std::size_t operator()(result_type ptr) const
-			{
-				assert(ptr);
-				return std::hash<argument_type>()(ptr->GetKey());
-			}
-		};
+		using equality_compare = std::equal_to<argument_type>;
+		using hasher = std::hash<argument_type>;
 	};
 
 
@@ -497,47 +447,17 @@ struct LispCaches {
 			return new SymbObj(v.first, v.second);
 		}
 
-		struct equality_compare
-		{
-			using is_transparent = int;
-
-			//			bool operator()(Number_t left, Number_t right) const
-			//			{
-			//				return m_DataComp(left, right);
-			//			}
-			bool operator()(argument_type left, result_type rightPtr) const
-			{
-				assert(rightPtr);
-				return left == rightPtr->GetKey();
-			}
-			bool operator()(result_type leftPtr, argument_type right) const
-			{
-				assert(leftPtr);
-				return leftPtr->GetKey() == right;
-			}
-			bool operator()(result_type leftPtr, result_type rightPtr) const
-			{
-				assert(leftPtr);
-				assert(rightPtr);
-				return leftPtr->GetKey() == rightPtr->GetKey();
-			}
-		};
-
+		using equality_compare = std::equal_to<argument_type>;
 		struct hasher
 		{
-			using is_transparent = int;
-
 			std::size_t operator()(argument_type v) const
 			{
+				constexpr std::size_t prime = 0x100000001b3;
+
 				std::size_t h1 = std::hash<TokenT>{}(v.first.GetNr(TokenID::TokenKey{}));
 				std::size_t h2 = std::hash<ChroID>{}(v.second);
 
-				return h1 ^ h2;
-			}
-			std::size_t operator()(result_type ptr) const
-			{
-				assert(ptr);
-				return operator()(ptr->GetKey());
+				return (h1 * prime ) ^ h2;
 			}
 		};
 	};
@@ -546,44 +466,6 @@ struct LispCaches {
 	std::vector<SymbObj*> ZeroSymbObjCache;
 
 	// ================ Strings ================
-/*
-#include <cstddef>
-#include <cstdint>
-#include <cstring>
-#include <utility>
-#include <bit>
-*/
-	struct FastCharRangeHash {
-		std::size_t operator()(const std::pair<const char*, const char*>& range) const noexcept {
-			const char* first = range.first;
-			const char* last = range.second;
-			const std::size_t len = static_cast<std::size_t>(last - first);
-
-			std::size_t hash = 0xcbf29ce484222325; // FNV-1a 64-bit base
-			constexpr std::size_t prime = 0x100000001b3;
-
-			// Process in word-sized chunks
-			while (last - first >= sizeof(std::size_t)) {
-				std::size_t chunk;
-				std::memcpy(&chunk, first, sizeof(std::size_t));
-				if constexpr (std::endian::native != std::endian::little) {
-					chunk = std::byteswap(chunk);
-				}
-
-				hash ^= chunk;
-				hash *= prime;
-				first += sizeof(std::size_t);
-			}
-
-			// Handle tail
-			while (first < last) {
-				hash ^= static_cast<unsigned char>(*first++);
-				hash *= prime;
-			}
-
-			return hash;
-		}
-	};
 
 	struct MakeStrnFunc
 	{
@@ -600,47 +482,8 @@ struct LispCaches {
 			*e = 0;
 			return new StrnObj(b, e);
 		}
-
-		struct equality_compare
-		{
-			using is_transparent = int;
-
-			//			bool operator()(Number_t left, Number_t right) const
-			//			{
-			//				return m_DataComp(left, right);
-			//			}
-			bool operator()(argument_type left, result_type rightPtr) const
-			{
-				assert(rightPtr);
-				return left == rightPtr->GetKey();
-			}
-			bool operator()(result_type leftPtr, argument_type right) const
-			{
-				assert(leftPtr);
-				return leftPtr->GetKey() == right;
-			}
-			bool operator()(result_type leftPtr, result_type rightPtr) const
-			{
-				assert(leftPtr);
-				assert(rightPtr);
-				return leftPtr->GetKey() == rightPtr->GetKey();
-			}
-		};
-
-		struct hasher : FastCharRangeHash
-		{
-			using is_transparent = int;
-
-			std::size_t operator()(argument_type v) const
-			{
-				return FastCharRangeHash::operator()(std::make_pair(v.first, v.second));
-			}
-			std::size_t operator()(result_type ptr) const
-			{
-				assert(ptr);
-				return operator()(ptr->GetKey());
-			}
-		};
+		using equality_compare = std::equal_to<argument_type>;
+		using hasher = StrnType::hasher;
 	};
 
 	UnorderedSetCache<MakeStrnFunc> StrnObjCache;
@@ -657,46 +500,16 @@ struct LispCaches {
 			return new ListObj(v.second, v.first);
 		}
 
-		struct equality_compare
-		{
-			using is_transparent = int;
-
-			//			bool operator()(Number_t left, Number_t right) const
-			//			{
-			//				return m_DataComp(left, right);
-			//			}
-			bool operator()(argument_type left, result_type rightPtr) const
-			{
-				assert(rightPtr);
-				return left == rightPtr->GetKey();
-			}
-			bool operator()(result_type leftPtr, argument_type right) const
-			{
-				assert(leftPtr);
-				return leftPtr->GetKey() == right;
-			}
-			bool operator()(result_type leftPtr, result_type rightPtr) const
-			{
-				assert(leftPtr);
-				assert(rightPtr);
-				return leftPtr->GetKey() == rightPtr->GetKey();
-			}
-		};
-
+		using equality_compare = std::equal_to<argument_type>;
 		struct hasher
 		{
-			using is_transparent = int;
-
 			std::size_t operator()(argument_type v) const
 			{
+				constexpr std::size_t prime = 0x100000001b3;
+
 				std::size_t h1 = std::hash<LispObj*>()(v.first);
 				std::size_t h2 = std::hash<LispObj*>()(v.second);
-				return h1 ^ h2;
-			}
-			std::size_t operator()(result_type ptr) const
-			{
-				assert(ptr);
-				return operator()(ptr->GetKey());
+				return (h1 * prime) ^ h2;
 			}
 		};
 	};

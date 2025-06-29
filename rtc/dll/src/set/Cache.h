@@ -99,8 +99,51 @@ struct UnorderedSetCache
 	using argument_type = typename function::argument_type;
 	using result_type = typename function::result_type;
 	using argument_reftype = param_type_t < typename function::argument_type>;
-	using hasher = typename function::hasher;
-	using equality_compare = typename function::equality_compare;
+	using arg_hasher = typename function::hasher;
+	using arg_compare = typename function::equality_compare;
+	struct equality_compare
+	{
+		using is_transparent = int;
+
+		bool operator()(argument_type left, argument_type right) const
+		{
+			return m_ArgComp(left, right);
+		}
+		bool operator()(argument_type left, result_type rightPtr) const
+		{
+			assert(rightPtr);
+			return m_ArgComp(left, rightPtr->GetKey());
+		}
+		bool operator()(result_type leftPtr, argument_type right) const
+		{
+			assert(leftPtr);
+			return m_ArgComp(leftPtr->GetKey(), right);
+		}
+		bool operator()(result_type leftPtr, result_type rightPtr) const
+		{
+			assert(leftPtr);
+			assert(rightPtr);
+			return m_ArgComp(leftPtr->GetKey(), rightPtr->GetKey());
+		}
+
+		arg_compare m_ArgComp;
+	};
+
+	struct hasher
+	{
+		using is_transparent = int;
+
+		std::size_t operator()(argument_type v) const
+		{
+			return m_ArgHasher(v);
+		}
+		std::size_t operator()(result_type ptr) const
+		{
+			assert(ptr);
+			return m_ArgHasher(ptr->GetKey());
+		}
+		arg_hasher m_ArgHasher;
+	};
 
 	using uset_type = std::unordered_set<result_type, hasher, equality_compare>;
 
