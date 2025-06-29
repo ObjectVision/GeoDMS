@@ -40,22 +40,25 @@ struct Cache
 
 	result_type apply(argument_reftype arg)
 	{
-		auto cacheLock = std::lock_guard(mx_MapLock);
-
-		MG_DEBUGCODE(md_NrCalls++; )
-		dms_check_not_debugonly; 
-		auto i = m_Map.lower_bound(arg);
-		while (i != m_Map.end() && !m_Comp(arg, i->first))
+		while (true)
 		{
-			auto sharedRef = LispRef(LispPtr(i->second), no_zombies{});
-			if (sharedRef)
-				return sharedRef;
-			++i;
+			auto cacheLock = std::lock_guard(mx_MapLock);
+
+			MG_DEBUGCODE(md_NrCalls++; )
+				dms_check_not_debugonly;
+			auto i = m_Map.lower_bound(arg);
+			if (i != m_Map.end() && !m_Comp(arg, i->first))
+			{
+				auto sharedRef = LispRef(LispPtr(i->second), no_zombies{});
+				if (sharedRef)
+					return sharedRef;
+				continue; // retry if the reference is zombie
+			}
+			result_reftype res = m_Func(arg);
+			i = m_Map.insert(i, typename map_type::value_type(m_KeyDupl(arg, res), res));
+			MG_DEBUGCODE(md_NrMisses++; )
+				return res;
 		}
-		result_reftype res = m_Func(arg);
-		i = m_Map.insert(i, typename map_type::value_type(m_KeyDupl(arg, res), res));
-		MG_DEBUGCODE(md_NrMisses++; )
-		return res;
 	}
 
 //	SizeT size () const { return m_Map.size (); }
@@ -90,7 +93,7 @@ private:
 #include <unordered_set>
 
 template<typename Func>
-struct UnorederedSetCache
+struct UnorderedSetCache
 {
 	using function = Func;
 	using argument_type = typename function::argument_type;
@@ -99,26 +102,29 @@ struct UnorederedSetCache
 	using hasher = typename function::hasher;
 	using equality_compare = typename function::equality_compare;
 
-	using uset_type = std::unordered_multiset<result_type, hasher, equality_compare>;
+	using uset_type = std::unordered_set<result_type, hasher, equality_compare>;
 
 	LispRef apply(argument_reftype arg)
 	{
-		auto cacheLock = std::lock_guard(mx_MapLock);
-
-		MG_DEBUGCODE(md_NrCalls++; )
-			dms_check_not_debugonly;
-		auto i = m_USet.find(arg);
-		while (i != m_USet.end() && m_EqComp(arg, *i))
+		while (true)
 		{
-			auto sharedRef = LispRef(LispPtr(*i), no_zombies{});
-			if (sharedRef)
-				return sharedRef;
-			++i;
+			auto cacheLock = std::lock_guard(mx_MapLock);
+
+			MG_DEBUGCODE(md_NrCalls++; )
+				dms_check_not_debugonly;
+			auto i = m_USet.find(arg);
+			if (i != m_USet.end() && m_EqComp(arg, *i))
+			{
+				auto sharedRef = LispRef(LispPtr(*i), no_zombies{});
+				if (sharedRef)
+					return sharedRef;
+				continue; // retry if the reference is zombie
+			}
+			result_type res = m_Func(arg);
+			m_USet.insert(std::move(res));
+			MG_DEBUGCODE(md_NrMisses++; )
+				return res;
 		}
-		result_type res = m_Func(arg);
-		m_USet.insert(std::move(res));
-		MG_DEBUGCODE(md_NrMisses++; )
-		return res;
 	}
 
 	//	SizeT size () const { return m_Map.size (); }
@@ -130,12 +136,7 @@ struct UnorederedSetCache
 
 		auto i = m_USet.find(arg);
 		assert(i != m_USet.end());
-		while ((*i)->IsOwned())
-		{
-			++i;
-			if (i == m_USet.end() || !m_EqComp(arg, *i))
-				return;
-		}
+		assert(!(*i)->IsOwned());
 		assert(m_EqComp(arg, *i));
 		m_USet.erase(i);
 	}

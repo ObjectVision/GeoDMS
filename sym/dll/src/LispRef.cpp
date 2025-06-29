@@ -234,15 +234,15 @@ using SymbType = std::pair<TokenID, ChroID>;
 
 class SymbObj : public LispObj
 {
-//	friend struct MakeSymbFunc;
-//	friend auto GetOrCreateSymbObj(LispCaches* self, TokenID t, ChroID c) -> LispRef;
-private:
-	SymbObj()              : m_TokenID(TokenID::GetUndefinedID()) { NeverLinkThis(); }
-	SymbObj(const SymbObj&): m_TokenID(TokenID::GetUndefinedID()) { NeverLinkThis(); }
-
 public:
 	SymbObj (TokenID  t, ChroID c) : m_TokenID(t), m_ChroID(c) {}
   ~SymbObj();
+
+	SymbType GetKey() { return { m_TokenID, m_ChroID }; }
+
+private:
+	SymbObj() : m_TokenID(TokenID::GetUndefinedID()) { NeverLinkThis(); }
+	SymbObj(const SymbObj&) : m_TokenID(TokenID::GetUndefinedID()) { NeverLinkThis(); }
 
 	bool     IsSymb()     const override { return true;  }
 	TokenID  GetSymbID()  const override { return m_TokenID;     }
@@ -259,8 +259,6 @@ public:
 	TokenID m_TokenID;
 	ChroID  m_ChroID = 0;
 
-	SymbType GetKey() { return { m_TokenID, m_ChroID }; }
-
 	DECL_RTTI(SYM_CALL, LispCls);
 };
 
@@ -268,38 +266,47 @@ public:
 /****************** class StrnObj                     *******************/
 /******************                                   *******************/
 
-struct StrnType: Couple<CharPtr>
+struct StrnType : Couple<CharPtr>
 {
-	StrnType(): Couple<CharPtr>(TokenID::GetEmptyStr(), TokenID::GetEmptyStr()) {}
-	StrnType(CharPtr b, CharPtr e): Couple<CharPtr>(b, e) {}
-	StrnType(const StrnType& oth) : Couple<CharPtr>(oth)  {}
+	StrnType() : Couple<CharPtr>(TokenID::GetEmptyStr(), TokenID::GetEmptyStr()) {}
+	StrnType(CharPtr b, CharPtr e) : Couple<CharPtr>(b, e) {}
+	StrnType(const StrnType& oth) : Couple<CharPtr>(oth) {}
 
-	SizeT size () const { return second - first;  }
-	bool  empty() const { return first == second; } 
+	SizeT size() const { return second - first; }
+	bool  empty() const { return first == second; }
 
 	bool operator < (const StrnType& rhs) const
 	{
-		UInt32 sz1 = size(), sz2 = rhs.size();
-		int cmpRes = strncmp(first, rhs.first, Min<UInt32>(sz1, sz2) );
+		auto sz1 = size(), sz2 = rhs.size();
+		int cmpRes = strncmp(first, rhs.first, Min<UInt32>(sz1, sz2));
 		return (cmpRes < 0)
 			|| (cmpRes == 0 && sz1 < sz2);
 	}
+	bool operator == (const StrnType& rhs) const
+	{
+		auto sz1 = size(), sz2 = rhs.size();
+		if (sz1 != sz2)
+			return false;
+		int cmpRes = strncmp(first, rhs.first, sz1);
+		return cmpRes == 0;
+	}
+
 };
 
 class StrnObj : public LispObj
 {
-	friend struct MakeStrnFunc;
-	friend struct DuplStrnData;
-	friend struct LispRef;
+
+public:
+	StrnObj(CharPtr b, CharPtr e) : m_Data(b, e) {}
+	~StrnObj();
 
 	static StrnObj* GetEmpty();
+
+	const StrnType& GetKey() const { return m_Data; }
 
 private:
 	StrnObj() { }
 	StrnObj(const StrnObj& oth): m_Data(oth.m_Data) { NeverLinkThis(); }
-
-	StrnObj(CharPtr b, CharPtr e) : m_Data(b, e) {}
-	~StrnObj();
 
 	bool    IsStrn()     const override { return true;          }
 	CharPtr GetStrnBeg() const override { return m_Data.first;  }
@@ -309,36 +316,10 @@ private:
 	void WriteObj  (PolymorphOutStream& ar) const override;
 	static LispObj* ReloadObj(PolymorphInpStream& ar);
 
-	const StrnType& GetConstData() const { return m_Data; }
 
 	StrnType m_Data; 
 
 	DECL_RTTI(SYM_CALL, LispCls);
-};
-
-struct MakeStrnFunc
-{
-	using argument_type = StrnType;
-	using result_type = LispRef;
-	using result_reftype = StrnObj*;
-
-	auto operator()(const StrnType& v) const -> result_reftype
-	{
-		auto len = v.size();
-		assert(len); // zero-sized strings are separately provided by StrnObj::Empty()
-		char* b = new char[len + 1],
-			* e = b + len;
-		strncpy(b, v.first, len);
-		*e = 0;
-		return new StrnObj(b, e);
-	}
-};
-
-struct DuplStrnData {
-	const StrnType& operator()(const StrnType&, StrnObj* res) const
-	{
-		return res->GetConstData();
-	}
 };
 
 /******************                                   *******************/
@@ -441,7 +422,7 @@ struct LispCaches {
 		};
 	};
 
-	UnorederedSetCache<MakeNumbFunc> NumbObjCache;
+	UnorderedSetCache<MakeNumbFunc> NumbObjCache;
 
 
 	// ================ UInt64 ================
@@ -501,7 +482,7 @@ struct LispCaches {
 	};
 
 
-	UnorederedSetCache<MakeUI64Func> UI64ObjCache;
+	UnorderedSetCache<MakeUI64Func> UI64ObjCache;
 
 
 	// ================ Symbols ================
@@ -561,12 +542,108 @@ struct LispCaches {
 		};
 	};
 
-	UnorederedSetCache<MakeSymbFunc> SymbObjCache;
+	UnorderedSetCache<MakeSymbFunc> SymbObjCache;
 	std::vector<SymbObj*> ZeroSymbObjCache;
 
 	// ================ Strings ================
+/*
+#include <cstddef>
+#include <cstdint>
+#include <cstring>
+#include <utility>
+#include <bit>
+*/
+	struct FastCharRangeHash {
+		std::size_t operator()(const std::pair<const char*, const char*>& range) const noexcept {
+			const char* first = range.first;
+			const char* last = range.second;
+			const std::size_t len = static_cast<std::size_t>(last - first);
 
-	Cache<MakeStrnFunc, std::less<StrnType>, const StrnType&, StrnObj* , DuplStrnData> StrnObjCache;
+			std::size_t hash = 0xcbf29ce484222325; // FNV-1a 64-bit base
+			constexpr std::size_t prime = 0x100000001b3;
+
+			// Process in word-sized chunks
+			while (last - first >= sizeof(std::size_t)) {
+				std::size_t chunk;
+				std::memcpy(&chunk, first, sizeof(std::size_t));
+				if constexpr (std::endian::native != std::endian::little) {
+					chunk = std::byteswap(chunk);
+				}
+
+				hash ^= chunk;
+				hash *= prime;
+				first += sizeof(std::size_t);
+			}
+
+			// Handle tail
+			while (first < last) {
+				hash ^= static_cast<unsigned char>(*first++);
+				hash *= prime;
+			}
+
+			return hash;
+		}
+	};
+
+	struct MakeStrnFunc
+	{
+		using argument_type = StrnType;
+		using result_type = StrnObj*;
+
+		auto operator()(const StrnType& v) const -> result_type
+		{
+			auto len = v.size();
+			assert(len); // zero-sized strings are separately provided by StrnObj::Empty()
+			char* b = new char[len + 1],
+				* e = b + len;
+			strncpy(b, v.first, len);
+			*e = 0;
+			return new StrnObj(b, e);
+		}
+
+		struct equality_compare
+		{
+			using is_transparent = int;
+
+			//			bool operator()(Number_t left, Number_t right) const
+			//			{
+			//				return m_DataComp(left, right);
+			//			}
+			bool operator()(argument_type left, result_type rightPtr) const
+			{
+				assert(rightPtr);
+				return left == rightPtr->GetKey();
+			}
+			bool operator()(result_type leftPtr, argument_type right) const
+			{
+				assert(leftPtr);
+				return leftPtr->GetKey() == right;
+			}
+			bool operator()(result_type leftPtr, result_type rightPtr) const
+			{
+				assert(leftPtr);
+				assert(rightPtr);
+				return leftPtr->GetKey() == rightPtr->GetKey();
+			}
+		};
+
+		struct hasher : FastCharRangeHash
+		{
+			using is_transparent = int;
+
+			std::size_t operator()(argument_type v) const
+			{
+				return FastCharRangeHash::operator()(std::make_pair(v.first, v.second));
+			}
+			std::size_t operator()(result_type ptr) const
+			{
+				assert(ptr);
+				return operator()(ptr->GetKey());
+			}
+		};
+	};
+
+	UnorderedSetCache<MakeStrnFunc> StrnObjCache;
 
 	// ================ Lists ================
 
@@ -624,7 +701,7 @@ struct LispCaches {
 		};
 	};
 
-	UnorederedSetCache<MakeListFunc> ListObjCache;
+	UnorderedSetCache<MakeListFunc> ListObjCache;
 
 	// ================ other ================
 
