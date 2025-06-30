@@ -72,6 +72,15 @@ inline int stricmp(CharPtr lhs, CharPtr rhs)
 
 #endif
 
+struct Utf8CaseInsensitiveEqual {
+	RTC_CALL bool operator()(CharPtrRange a, CharPtrRange b) const noexcept;
+};
+
+struct Utf8CaseInsensitiveHasher
+{
+	RTC_CALL std::size_t operator()(CharPtrRange input) const noexcept;
+};
+
 inline bool lex_compare_cs(CharPtr f1, CharPtr l1, CharPtr f2, CharPtr l2)
 {
 	auto sz1 = l1-f1, sz2 = l2-f2;
@@ -198,9 +207,13 @@ struct SharedCharArrayPtr : protected WeakPtrWrap<ptr_wrap<SharedCharArray, copy
 	RTC_CALL bool operator < (CharPtr b) const;
 	RTC_CALL bool operator ==(CharPtr b) const;
 	RTC_CALL bool operator !=(CharPtr b) const;
-
 	RTC_CALL CharPtrRange AsRange() const;
 	RTC_CALL std::string AsStdString() const;
+
+	struct hasher {
+		RTC_CALL std::size_t operator()(const SharedCharArrayPtr& v) const noexcept;
+	};
+
 	void swap(SharedCharArrayPtr& oth) { WeakPtrWrap::swap(oth); }
 };
 
@@ -271,7 +284,7 @@ public:
 	char* end()   { return send(); }
 	const char* end() const { return send(); }
 
-	void erase(SizeT pos, SizeT c=1) { MakeUnique(); dms_assert(has_ptr()); return get_ptr()->erase (pos, c); }
+	void erase(SizeT pos, SizeT c=1) { MakeUnique(); assert(has_ptr()); return get_ptr()->erase (pos, c); }
 	RTC_CALL void insert(SizeT pos, char ch);
 	RTC_CALL SharedStr replace(CharPtr key, CharPtr val) const;
 
@@ -281,6 +294,16 @@ public:
 	RTC_CALL void resize(SizeT sz MG_DEBUG_ALLOCATOR_SRC_ARG);
 	RTC_CALL bool contains(CharPtrRange subStr) const;
 	RTC_CALL bool contains_case_insensitive(CharPtrRange subStr) const;
+
+	struct cs_hasher
+	{
+		RTC_CALL size_t operator()(const SharedStr& str) const noexcept;
+	};
+
+	struct ci_hasher
+	{
+		RTC_CALL size_t operator()(const SharedStr& str) const noexcept;
+	};
 
 private:
 	RTC_CALL void MakeUnique();

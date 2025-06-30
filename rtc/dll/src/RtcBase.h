@@ -301,7 +301,7 @@ template <typename T> struct OwningPtr;
 template <typename T> struct OwningPtrSizedArray;
 template <typename P> struct InterestPtr;
 typedef char                  CharType;
-typedef SharedArray<CharType> SharedCharArray;
+using SharedCharArray = SharedArray<CharType> ;
 struct SharedStr;
 struct WeakStr;
 struct CharPtrRange;

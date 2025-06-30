@@ -30,7 +30,7 @@ struct Number
 	explicit Number(Number_t v)
 		: m_Value(v)
 	{}
-	operator Number_t() const { return m_Value;  }
+//	operator Number_t() const { return m_Value;  }
 
 	Number_t m_Value;
 };

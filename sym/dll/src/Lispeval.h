@@ -42,8 +42,8 @@ SYM_CALL LispRef         Eval(LispPtr expr, AssocListPtr env);
 SYM_CALL LispRef RepeatedEval(LispPtr expr, AssocListPtr env);
 #endif
 
-SYM_CALL LispRef        Apply (LispPtr expr, AssocListPtr env);
-SYM_CALL LispRef RepeatedApply(LispPtr expr, AssocListPtr env);
+//SYM_CALL LispRef        Apply (LispPtr expr, AssocListPtr env);
+//SYM_CALL LispRef RepeatedApply(LispPtr expr, AssocListPtr env);
 
 //==============================
 

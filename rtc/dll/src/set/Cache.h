@@ -1,4 +1,4 @@
-// Copyright (C) 1998-2023 Object Vision b.v. 
+// Copyright (C) 1998-2025 Object Vision b.v. 
 // License: GNU GPL 3
 /////////////////////////////////////////////////////////////////////////////
 
@@ -16,127 +16,178 @@
 #include <atomic>
 
 /****************** struct Cache                  *******************/
-template <typename Arg, typename Res>
-struct duplicate_arg {
-	const Arg& operator()(const Arg& arg, const Res&) const { return arg; }
-};
 
-struct duplicate_ref {
-	const auto & operator()(const auto& ref) const { return ref; }
-};
+#include <unordered_set>
 
-struct duplicate_nozombies {
-	LispRef operator()(LispObj* ptr) const 
-	{
-		return LispRef(LispPtr(ptr), no_zombies{});
-	}
-};
-
-template<
-	typename Func,
-	typename ArgOrder = std::less<typename Func::argument_type>,
-	typename argument_reftype = param_type_t < typename Func::argument_type>,
-	typename result_reftype = typename Func::result_reftype,
-	typename KeyDuplFunc = duplicate_arg<typename Func::argument_type, typename Func::result_reftype>, 
-	typename Ref2ResFunc = std::conditional_t<std::is_same_v<typename Func::result_type, result_reftype>, duplicate_ref, duplicate_nozombies>
->
-struct Cache
+template<typename Func>
+struct UnorderedSetCache
 {
 	using function = Func;
 	using argument_type = typename function::argument_type;
 	using result_type = typename function::result_type;
-	
-	using map_type = std::map<argument_type, result_reftype, ArgOrder>;
-
-	Cache() { MG_DEBUGCODE( md_NrCalls = md_NrMisses = 0; ) }
-
-	result_type apply(argument_reftype arg)
+	using argument_reftype = param_type_t < typename function::argument_type>;
+	using arg_hasher = typename function::hasher;
+	using arg_compare = typename function::equality_compare;
+	struct equality_compare
 	{
-		auto cacheLock = std::lock_guard(mx_MapLock);
+		using is_transparent = int;
 
-		MG_DEBUGCODE(md_NrCalls++; )
-		dms_check_not_debugonly; 
-		auto i = m_Map.lower_bound(arg);
-		while (i != m_Map.end() && !m_Comp(arg, i->first))
+		bool operator()(argument_type left, argument_type right) const
 		{
-			auto sharedRef = m_Ref2ResFunc(i->second);
-			if (sharedRef)
-				return sharedRef;
-			++i;
+			return m_ArgComp(left, right);
 		}
-		result_reftype res = m_Func(arg);
-		i = m_Map.insert(i, typename map_type::value_type(m_KeyDupl(arg, res), res));
-		MG_DEBUGCODE(md_NrMisses++; )
-		return res;
+		bool operator()(argument_type left, result_type rightPtr) const
+		{
+			assert(rightPtr);
+			return m_ArgComp(left, rightPtr->GetKey());
+		}
+		bool operator()(result_type leftPtr, argument_type right) const
+		{
+			assert(leftPtr);
+			return m_ArgComp(leftPtr->GetKey(), right);
+		}
+		bool operator()(result_type leftPtr, result_type rightPtr) const
+		{
+			assert(leftPtr);
+			assert(rightPtr);
+			return m_ArgComp(leftPtr->GetKey(), rightPtr->GetKey());
+		}
+
+		arg_compare m_ArgComp;
+	};
+
+	struct hasher
+	{
+		using is_transparent = int;
+
+		std::size_t operator()(argument_type v) const
+		{
+			return m_ArgHasher(v);
+		}
+		std::size_t operator()(result_type ptr) const
+		{
+			assert(ptr);
+			return m_ArgHasher(ptr->GetKey());
+		}
+		arg_hasher m_ArgHasher;
+	};
+
+	using uset_type = std::unordered_set<result_type, hasher, equality_compare>;
+
+	LispRef apply(argument_reftype arg)
+	{
+		while (true)
+		{
+			auto cacheLock = std::lock_guard(mx_MapLock);
+
+			MG_DEBUGCODE(md_NrCalls++; )
+				dms_check_not_debugonly;
+			auto i = m_USet.find(arg);
+			if (i != m_USet.end() && m_EqComp(arg, *i))
+			{
+				auto sharedRef = LispRef(LispPtr(*i), no_zombies{});
+				if (sharedRef)
+					return sharedRef;
+				continue; // retry if the reference is zombie
+			}
+			result_type res = m_Func(arg);
+			m_USet.insert(res);
+			MG_DEBUGCODE(md_NrMisses++; )
+			return res;
+		}
 	}
 
-	SizeT size () const { return m_Map.size (); }
-	bool  empty() const { return m_Map.empty(); }
+	//	SizeT size () const { return m_Map.size (); }
+	bool  empty() const { return m_USet.empty(); }
 
 	void remove(argument_reftype arg)
 	{
 		auto cacheLock = std::lock_guard(mx_MapLock);
-		auto i = m_Map.lower_bound(arg);
-		assert(i != m_Map.end());
-		while (i->second->IsOwned())
-		{
-			++i;
-			assert(i != m_Map.end());
-		}
-		m_Map.erase(i);
+
+		auto i = m_USet.find(arg);
+		assert(i != m_USet.end());
+		assert(!(*i)->IsOwned());
+		assert(m_EqComp(arg, *i));
+		m_USet.erase(i);
 	}
 
 private:
-	MG_DEBUGCODE(SizeT md_NrCalls; )
-	MG_DEBUGCODE(SizeT md_NrMisses; )
 
-	Func         m_Func;
-	ArgOrder     m_Comp;
-	KeyDuplFunc  m_KeyDupl;
-	Ref2ResFunc  m_Ref2ResFunc;
-	map_type     m_Map;
-	std::recursive_mutex   mx_MapLock;
+#if defined(MG_DEBUG)
+	SizeT md_NrCalls = 0;
+	SizeT md_NrMisses = 0;
+#endif
+
+	hasher           m_Hasher;
+	equality_compare m_EqComp;
+	Func             m_Func;
+	uset_type        m_USet;
+	std::mutex       mx_MapLock;
 };
 
 
-/****************** struct StaticCache                  *******************/
-/*
-template<
-	typename Func, 
-	typename ArgOrder = std::less<typename Func::argument_type>,
-	typename DuplFunc = duplicate_arg<typename Func::argument_type, typename Func::result_type> 
->
-struct StaticCache
+template<typename Func>
+struct UnorderedMapCache
 {
-	using cache_type    = Cache<Func, ArgOrder, DuplFunc> ;
-	using argument_type = typename cache_type::argument_type       ;
-	using result_type   = typename cache_type::result_type         ;
+	using function = Func;
+	using argument_type = typename function::argument_type;
+	using result_type = typename function::result_type;
+	using argument_reftype = param_type_t < typename function::argument_type>;
+	using arg_hasher = typename function::hasher;
+	using arg_compare = typename function::equality_compare;
 
-	StaticCache()
-		: m_PtrSection(item_level_type(0), ord_level_type::LispObjCache, "LispObjCache")
-	{}
+	using umap_type = std::unordered_map<argument_type, result_type, arg_hasher, arg_compare>;
 
-	result_type apply(const argument_type& arg)
+	LispRef apply(argument_reftype arg)
 	{
-		leveled_std_section::scoped_lock lock(m_PtrSection);
-		return m_Cache.apply(arg);
+		while (true)
+		{
+			auto cacheLock = std::lock_guard(mx_MapLock);
+
+			MG_DEBUGCODE(md_NrCalls++; )
+				dms_check_not_debugonly;
+			auto i = m_UMap.find(arg);
+			if (i != m_UMap.end() && m_EqComp(arg, i->first))
+			{
+				auto sharedRef = LispRef(LispPtr(i->second), no_zombies{});
+				if (sharedRef)
+					return sharedRef;
+				continue; // retry if the reference is zombie
+			}
+			result_type res = m_Func(arg);
+			m_UMap.insert({ std::move(arg), res });
+			MG_DEBUGCODE(md_NrMisses++; )
+			return res;
+		}
 	}
 
-	SizeT size() const { return m_Cache.size(); } // only defined if !IsNull()
+	//	SizeT size () const { return m_Map.size (); }
+	bool  empty() const { return m_UMap.empty(); }
 
-	void remove(const argument_type& arg)           // only defined if !IsNull()
+	void remove(argument_reftype arg)
 	{
-		leveled_std_section::scoped_lock lock(m_PtrSection);
+		auto cacheLock = std::lock_guard(mx_MapLock);
 
-		m_Cache->remove(arg);
-		if (m_Cache->empty())
-			m_Cache.reset();
+		auto i = m_UMap.find(arg);
+		assert(i != m_UMap.end());
+		assert(!(*i)->IsOwned());
+		assert(m_EqComp(arg, *i));
+		m_UMap.erase(i);
 	}
-	void clear() { m_Cache.reset(); }
 
 private:
-	cache_type m_Cache;
-	leveled_std_section m_PtrSection;
+
+#if defined(MG_DEBUG)
+	SizeT md_NrCalls = 0;
+	SizeT md_NrMisses = 0;
+#endif
+
+	arg_hasher  m_Hasher;
+	arg_compare m_EqComp;
+	Func        m_Func;
+	umap_type   m_UMap;
+	std::recursive_mutex mx_MapLock;
 };
-*/
+
+
 #endif // !defined(__SET_CACHE_H)

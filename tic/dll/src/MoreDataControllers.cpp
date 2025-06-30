@@ -1,3 +1,7 @@
+// Copyright (C) 1998-2024 Object Vision b.v. 
+// License: GNU GPL 3
+/////////////////////////////////////////////////////////////////////////////
+
 #include "TicPCH.h"
 
 #if defined(CC_PRAGMAHDRSTOP)
@@ -855,16 +859,16 @@ SharedTreeItem StringDC::MakeResult() const
 
 SharedTreeItem NumbDC::MakeResult() const
 {
-	dms_assert(GetLispRef().IsNumb());
+	assert(GetLispRef().IsNumb());
 
 	if (!m_Data)
 		const_cast<NumbDC*>(this)->SetNew( 
 			CreateConstParam<Float64>(
-				GetLispRef().GetNumbVal()
+				GetLispRef().GetNumbVal().m_Value
 			).get_ptr() 
 		);
 
-	dms_assert(m_Data);
+	assert(m_Data);
 	return m_Data;
 }
 
@@ -874,7 +878,7 @@ SharedTreeItem NumbDC::MakeResult() const
 
 SharedTreeItem UI64DC::MakeResult() const
 {
-	dms_assert(GetLispRef().IsUI64());
+	assert(GetLispRef().IsUI64());
 
 	if (!m_Data)
 		const_cast<UI64DC*>(this)->SetNew(
@@ -883,7 +887,7 @@ SharedTreeItem UI64DC::MakeResult() const
 				).get_ptr()
 		);
 
-	dms_assert(m_Data);
+	assert(m_Data);
 	return m_Data;
 }
 
