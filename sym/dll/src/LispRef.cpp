@@ -291,36 +291,12 @@ struct StrnType : Couple<CharPtr>
 		int cmpRes = strncmp(first, rhs.first, sz1);
 		return cmpRes == 0;
 	}
-
 	struct hasher {
-		std::size_t operator()(const StrnType& range) const noexcept {
-			const char* first = range.first;
-			const char* last = range.second;
-			const std::size_t len = static_cast<std::size_t>(last - first);
-
-			std::size_t hash = 0xcbf29ce484222325; // FNV-1a 64-bit base
-			constexpr std::size_t prime = 0x100000001b3;
-
-			// Process in word-sized chunks
-			while (last - first >= sizeof(std::size_t)) {
-				std::size_t chunk;
-				std::memcpy(&chunk, first, sizeof(std::size_t));
-				if constexpr (std::endian::native != std::endian::little) {
-					chunk = std::byteswap(chunk);
-				}
-
-				hash ^= chunk;
-				hash *= prime;
-				first += sizeof(std::size_t);
-			}
-
-			// Handle tail
-			std::size_t chunk = 0;
-			std::memcpy(&chunk, first, last - first);
-			hash ^= chunk;
-
-			return hash;
+		std::size_t operator()(const StrnType& v) const noexcept
+		{
+			return hasherFunc({ v.first, v.second });
 		}
+		CharPtrRange::hasher hasherFunc;
 	};
 };
 

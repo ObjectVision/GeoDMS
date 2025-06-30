@@ -264,6 +264,7 @@ LispRef ApplySubstList(LispPtr expr, AssocListPtr substList)
 	return expr;
 }
 
+/*
 LispRef ApplyList(LispPtr expr, AssocListPtr env)
 {
 	if (!expr.IsRealList())
@@ -274,11 +275,14 @@ LispRef ApplyList(LispPtr expr, AssocListPtr env)
 		ApplyList(expr.Right(), env)
 	);
 }
+*/
 
+/*
 inline LispRef ApplyStep(LispPtr expr, AssocListPtr env)
 {
 	return ApplySubstList(ApplyList(expr, env), env); // bottom up
 }
+*/
 
 #if defined(MG_USE_LISPFUNCS)
 
@@ -340,7 +344,9 @@ struct EvalStepFunc
 {
 	using argument_type = cache_key_t;
 	using result_type = LispRef;
-	using result_reftype = result_type;
+
+	using hasher = std::hash<argument_type>;
+	using equality_compare = std::equal_to<SharedStr>;
 
 	LispRef operator ()(const cache_key_t& exprEnvPair) const
 	{
@@ -348,7 +354,7 @@ struct EvalStepFunc
 	}
 };
 
-Cache<EvalStepFunc> g_evalCache;
+UnorderdMapCache<EvalStepFunc> g_evalCache;
 
 LispRef Eval(LispPtr expr, AssocListPtr env)
 {
@@ -388,21 +394,26 @@ LispRef MakeVarsOfUnderscores(LispPtr expr)
 
 #endif //defined(MG_USE_LISPFUNCS)
 
-
+/*
 struct ApplyStepFunc
 {
 	using argument_type = cache_key_t;
 	using result_type = LispRef;
-	using result_reftype = result_type;
+//	using result_reftype = result_type;
+	using hasher = std::hash<const LispObj*>;
+	using equality_compare = std::equal_to<const LispObj*>;
 
 	LispRef operator ()(const cache_key_t& exprEnvPair) const
 	{
 		return ApplyStep(exprEnvPair.first, exprEnvPair.second);
 	}
 };
+*/
 
 LispComponent s_LispServiceSubscription;
-Cache<ApplyStepFunc> g_applyCache;
+
+/* REMOVE
+UnorderedMapCache<ApplyStepFunc> g_applyCache;
 
 LispRef Apply(LispPtr expr, AssocListPtr env)
 {
@@ -429,7 +440,7 @@ LispRef RepeatedApply(LispPtr expr, AssocListPtr env)
 		result = std::move(newResult);
 	}
 }
-
+*/
 //==============================
 
 #include "RewriteRules.h"
@@ -490,7 +501,8 @@ struct ApplyTopEnvFunc
 {
 	using argument_type = LispRef;
 	using result_type = LispRef;
-	using result_reftype = result_type;
+	using hasher = std::hash<const LispObj*>;
+	using equality_compare = std::equal_to<const LispObj*>;
 
 	LispRef operator ()(LispPtr expr) const
 	{
@@ -534,7 +546,7 @@ struct ApplyTopEnvFunc
 	}
 };
 
-Cache<ApplyTopEnvFunc> g_applyTopEnvCache;
+UnorderedMapCache<ApplyTopEnvFunc> g_applyTopEnvCache;
 
 #if defined(MG_DEBUG)
 std::atomic<UInt32> gd_ApplyTopLevel = 0;

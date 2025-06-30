@@ -154,7 +154,9 @@ struct ParseExprFunctor
 {
 	using argument_type  = SharedStr;
 	using result_type    = LispRef;
-	using result_reftype = result_type;
+
+	using hasher = SharedStr::cs_hasher;
+	using equality_compare = std::equal_to<SharedStr>;
 
 	LispRef operator ()(WeakStr exprStr)
 	{
@@ -167,7 +169,7 @@ struct ParseExprFunctor
 
 #include "set/Cache.h"
 
-using parse_result_cache = Cache<ParseExprFunctor> ;
+using parse_result_cache = UnorderedMapCache<ParseExprFunctor> ;
 
 static parse_result_cache g_Cache;
 
