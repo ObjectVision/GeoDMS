@@ -260,11 +260,8 @@ public:
 
 		MG_USERCHECK(seedParam->HasVoidDomainGuarantee() && "The first seed argument must be a parameter or an attribute with void domain.");
 
-		auto values = debug_cast<const Unit<V>*>(args[1]);
+		auto values = debug_cast<const Unit<V>*>(args[2]);
 		assert(values);
-
-		const AbstrUnit* arg3 = AsUnit(args[2]);
-		assert(arg3);
 
 		if (!resultHolder)
 			resultHolder = CreateCacheDataItem(domain, values);
@@ -290,7 +287,7 @@ public:
 					for (auto seed : seedData)
 					{
 						auto seeds = std::seed_seq{ seed1, seed };
-						auto newEngine = uniform_engine<V>(seed, range.first, range.second);
+						auto newEngine = uniform_engine<V>(seeds, range.first, range.second);
 						*resIter++ = newEngine();
 					}
 					assert(resIter - resData.begin() == seedData.size());
