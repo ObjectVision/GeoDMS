@@ -50,10 +50,12 @@ struct SharedPtrInsensitiveCompare {
 	typedef std::true_type is_transparent;
 };
 
+/* REMOVE
 template <bool MustZeroTerminate>
 struct StringIndexCompare
 {
-	typedef TokenT index_type;
+	using is_transparent = std::true_type;
+	using index_type = TokenT;
 
 	StringIndexCompare(const StringArray& container);
 
@@ -62,9 +64,70 @@ struct StringIndexCompare
 	bool operator()(index_type a, CharPtrRange ib) const;
 	bool operator()(CharPtrRange ia, index_type b) const;
 
-	typedef std::true_type is_transparent;
 private:
 	const StringArray & r_Container;
+};
+*/
+
+template <bool MustZeroTerminate>
+struct StringIndexer
+{
+	using index_type = TokenT;
+
+	StringIndexer(const StringArray& container)
+		: r_Container(container)
+	{}
+
+	CharPtrRange GetPtrs(index_type x) const;
+
+private:
+	const StringArray& r_Container;
+};
+
+template <bool MustZeroTerminate>
+struct StringIndexEqualityCompare : StringIndexer<MustZeroTerminate>
+{
+	using is_transparent = std::true_type;
+	using index_type = TokenT;
+
+	using StringIndexer< MustZeroTerminate>::StringIndexer;
+
+	bool operator()(index_type a, index_type b) const
+	{
+		return equaler(this->GetPtrs(a), this->GetPtrs(b));
+	}
+	bool operator()(index_type a, CharPtrRange ib) const
+	{
+		return equaler(this->GetPtrs(a), ib);
+	}
+	bool operator()(CharPtrRange ia, index_type b) const
+	{
+		return equaler(ia, this->GetPtrs(b));
+	}
+
+private:
+	Utf8CaseInsensitiveEqual equaler;
+};
+
+template <bool MustZeroTerminate>
+struct StringIndexHasher : StringIndexer<MustZeroTerminate>
+{
+	using is_transparent = std::true_type;
+	using index_type = TokenT;
+
+	using StringIndexer< MustZeroTerminate>::StringIndexer;
+
+	bool operator()(index_type a) const
+	{
+		return this->operator()(this->GetPtrs(a));
+	}
+	bool operator()(CharPtrRange ia) const
+	{
+		return hasher(ia);
+	}
+
+private:
+	Utf8CaseInsensitiveHasher hasher;
 };
 
 
@@ -85,13 +148,17 @@ struct IndexedStringsBase
 	StringVector m_Vec;
 };
 
+#include <unordered_set>
+
 template <bool MustZeroTerminate>
 struct IndexedStrings : IndexedStringsBase
 {	
-	typedef StringIndexCompare<MustZeroTerminate>   compare_type;
-	typedef std::set<index_type, compare_type>      index_set_type;
-	typedef typename index_set_type::iterator       index_iterator;
-	typedef typename index_set_type::const_iterator const_index_iterator;
+	using equality_compare = StringIndexEqualityCompare<MustZeroTerminate>;
+	using hasher = StringIndexHasher<MustZeroTerminate>;
+	using index_set_type = std::unordered_set <index_type, hasher, equality_compare>;
+
+	using index_iterator = typename index_set_type::iterator;
+	using const_index_iterator = typename index_set_type::const_iterator;
 
 	RTC_CALL IndexedStrings();
 

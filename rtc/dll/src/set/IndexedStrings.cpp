@@ -44,6 +44,7 @@ bool SharedPtrInsensitiveCompare::operator ()(CharPtr lhs, CharPtr rhs) const
 
 //  -----------------------------------------------------------------------
 
+/* REMOVE
 
 template <bool MustZeroTerminate>
 StringIndexCompare<MustZeroTerminate>::StringIndexCompare(const StringArray& container)
@@ -53,12 +54,12 @@ StringIndexCompare<MustZeroTerminate>::StringIndexCompare(const StringArray& con
 template <bool MustZeroTerminate>
 CharPtrRange StringIndexCompare<MustZeroTerminate>::GetPtrs(index_type x) const
 {
-	dms_assert(IsDefined(x));
+	assert(IsDefined(x));
 
 	StringCRef ref = r_Container[x];
-	dms_assert( !MustZeroTerminate || ref.size() ); // even empty string has a nonzero size because of the null terminator
+	assert( !MustZeroTerminate || ref.size() ); // even empty string has a nonzero size because of the null terminator
 	CharPtrRange ix = CharPtrRange(ref.begin(), MustZeroTerminate ? &ref.back() : ref.end()); // exclude null terminator in compare
-	dms_assert(!MustZeroTerminate || !*ix.end());  // check that it is a null terminator that is excluded 
+	assert(!MustZeroTerminate || !*ix.end());  // check that it is a null terminator that is excluded 
 	return ix;
 }
 
@@ -81,6 +82,22 @@ bool StringIndexCompare<MustZeroTerminate>::operator()(CharPtrRange ia, index_ty
 {
 	CharPtrRange ib = GetPtrs(b);
 	return lex_caseinsensitive_compare(ia.begin(), ia.end(), ib.begin(), ib.end());
+}
+*/
+
+//  -----------------------------------------------------------------------
+
+
+template <bool MustZeroTerminate>
+CharPtrRange StringIndexer<MustZeroTerminate>::GetPtrs(index_type x) const
+{
+	assert(IsDefined(x));
+
+	StringCRef ref = r_Container[x];
+	assert(!MustZeroTerminate || ref.size()); // even empty string has a nonzero size because of the null terminator
+	CharPtrRange ix = CharPtrRange(ref.begin(), MustZeroTerminate ? &ref.back() : ref.end()); // exclude null terminator in compare
+	assert(!MustZeroTerminate || !*ix.end());  // check that it is a null terminator that is excluded 
+	return ix;
 }
 
 //  -----------------------------------------------------------------------
@@ -124,7 +141,7 @@ void IndexedStringsBase::reserve(index_type sz MG_DEBUG_ALLOCATOR_SRC_ARG)
 
 template <bool MustZeroTerminate>
 IndexedStrings<MustZeroTerminate>::IndexedStrings()
-	:	m_Idx(compare_type(m_Vec)) 
+	:	m_Idx(4096, hasher(m_Vec), equality_compare(m_Vec))
 {}
 
 template <bool MustZeroTerminate>
@@ -148,15 +165,15 @@ IndexedStringsBase::index_type
 IndexedStrings<MustZeroTerminate>::GetOrCreateID_impl(CharPtr keyFirst, CharPtr keyLast) // range of chars excluding null terminator
 {
 	CharPtrRange keyValue(keyFirst, keyLast);
-	index_iterator i = m_Idx.lower_bound(keyValue);
-	if (i != m_Idx.end() && !m_Idx.key_comp()(keyValue, *i))
+	index_iterator i = m_Idx.find(keyValue);
+	if (i != m_Idx.end() && m_Idx.key_eq()(keyValue, *i))
 		return *i; //	return found ID.
 
 	index_type nextID = m_Vec.size();
 	m_Vec.push_back_seq(keyFirst, keyLast MG_DEBUG_ALLOCATOR_SRC("IndexedStrings.GetOrCreateID_impl"));
 	if (MustZeroTerminate)
 		m_Vec.back().push_back(0 MG_DEBUG_ALLOCATOR_SRC("IndexedStrings.GetOrCreateID_impl")); // add null terminator
-	m_Idx.insert(i, nextID);
+	m_Idx.insert(nextID);
 	return nextID;
 }
 
@@ -183,8 +200,8 @@ IndexedStringsBase::index_type
 IndexedStrings<MustZeroTerminate>::GetExisting_impl(CharPtr keyFirst, CharPtr keyLast) const
 {
 	CharPtrRange keyValue(keyFirst, keyLast);
-	index_iterator i = m_Idx.lower_bound(keyValue);
-	if (i != m_Idx.end() && !m_Idx.key_comp()(keyValue, *i))
+	index_iterator i = m_Idx.find(keyValue);
+	if (i != m_Idx.end() && m_Idx.key_eq()(keyValue, *i))
 		return *i; //	return found ID.
 
 	return UNDEFINED_VALUE(index_type);
