@@ -81,6 +81,15 @@ struct Utf8CaseInsensitiveHasher
 	RTC_CALL std::size_t operator()(CharPtrRange input) const noexcept;
 };
 
+
+struct AsciiFoldedCaseInsensitiveEqual {
+	RTC_CALL bool operator()(CharPtrRange a, CharPtrRange b) const noexcept;
+};
+
+struct AsciiFoldedChunkedCaseInsensitiveHasher {
+	RTC_CALL std::size_t operator()(CharPtrRange str) const noexcept;
+};
+
 inline bool lex_compare_cs(CharPtr f1, CharPtr l1, CharPtr f2, CharPtr l2)
 {
 	auto sz1 = l1-f1, sz2 = l2-f2;

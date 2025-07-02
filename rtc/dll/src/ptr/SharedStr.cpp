@@ -536,10 +536,83 @@ std::size_t Utf8CaseInsensitiveHasher::operator()(CharPtrRange input) const noex
 	return hash;
 }
 
+// Fold all ASCII uppercase letters in a size_t chunk to lowercase
+static constexpr std::size_t fold_ascii_uppercase_chunk(std::size_t word) noexcept {
+	constexpr std::size_t A = 0x4141414141414141;
+	constexpr std::size_t Z = 0x5a5a5a5a5a5a5a5a;
+	constexpr std::size_t bit = 0x2020202020202020;
+
+	// Compute (c >= 'A' && c <= 'Z') without branches
+	std::size_t gt_eq_A = ~(word - A);
+	std::size_t lt_eq_Z = ~(Z - word);
+	std::size_t mask = (gt_eq_A & lt_eq_Z) & 0x8080808080808080;
+
+	// Create byte mask (1 or 0) and apply case fold
+	std::size_t flag = (mask >> 7) * 0x01;
+	return word ^ (flag * 0x20);
+}
+
+RTC_CALL bool AsciiFoldedCaseInsensitiveEqual::operator()(CharPtrRange a, CharPtrRange b) const noexcept
+{
+	auto aSize = a.size();
+	if (aSize != b.size())
+		return false;
+
+	while (aSize >= sizeof(std::size_t)) {
+		std::size_t chunkA, chunkB;
+		std::memcpy(&chunkA, a.first, sizeof(std::size_t));
+		std::memcpy(&chunkB, b.first, sizeof(std::size_t));
+		chunkA = fold_ascii_uppercase_chunk(chunkA);
+		chunkB = fold_ascii_uppercase_chunk(chunkB);
+		if (chunkA != chunkB)
+			return false;
+		a.first += sizeof(std::size_t);
+		b.first += sizeof(std::size_t);
+		aSize -= sizeof(std::size_t);
+	}
+
+	std::size_t chunkA = 0, chunkB = 0;
+	std::memcpy(&chunkA, a.first, aSize);
+	std::memcpy(&chunkB, b.first, aSize);
+	chunkA = fold_ascii_uppercase_chunk(chunkA);
+	chunkB = fold_ascii_uppercase_chunk(chunkB);
+
+	if (chunkA != chunkB)
+		return false;
+	return true;
+}
+
+std::size_t AsciiFoldedChunkedCaseInsensitiveHasher::operator()(CharPtrRange str) const noexcept {
+	const char* ptr = str.first;
+	const char* end = str.second;
+
+	std::size_t hash = 0xcbf29ce484222325; // FNV-1a offset basis
+	constexpr std::size_t prime = 0x100000001b3;
+
+	// Process full word chunks
+	while (end - ptr >= sizeof(std::size_t)) {
+		std::size_t chunk;
+		std::memcpy(&chunk, ptr, sizeof(std::size_t));
+		chunk = fold_ascii_uppercase_chunk(chunk);
+		hash ^= chunk;
+		hash *= prime;
+		ptr += sizeof(std::size_t);
+	}
+
+	// Process tail bytes
+	std::size_t tail = 0;
+	UInt32 tailSize = end - ptr;
+	std::memcpy(&tail, ptr, tailSize);  // zero-padded
+	tail = fold_ascii_uppercase_chunk(tail);
+	hash ^= tail;
+	hash *= prime;
+
+	return hash;
+}
 
 std::size_t SharedCharArrayPtr::hasher::operator()(const SharedCharArrayPtr& v) const noexcept
 {
-	struct Utf8CaseInsensitiveHasher hasherFunc;
+	AsciiFoldedChunkedCaseInsensitiveHasher hasherFunc;
 	return hasherFunc(CharPtrRange{ v.begin(), v.send() });
 }
 
@@ -551,7 +624,7 @@ size_t SharedStr::cs_hasher::operator()(const SharedStr& str) const noexcept
 
 size_t SharedStr::ci_hasher::operator()(const SharedStr& str) const noexcept
 {
-	Utf8CaseInsensitiveHasher ciHasherFunc;
+	AsciiFoldedChunkedCaseInsensitiveHasher ciHasherFunc;
 	return ciHasherFunc(CharPtrRange{ str.begin(), str.send() });
 }
 

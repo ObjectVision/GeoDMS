@@ -749,7 +749,9 @@ void FuncDC::CallCalcResultImpl(Explain::Context* context) const
 
 //			leveled_critical_section::scoped_lock ocaLock(cs_OperContextAccess);
 			m_OperContext = operContext;
-			m_OperContext->ScheduleCalcResult(std::move(*argRefs), context); // connection with m_OperContext must have been established before scheduling, as direct-running -> done -> undo FuncDC -> OC relation
+			if (result)
+				if (!m_OperContext->ScheduleCalcResult(std::move(*argRefs), context)) // connection with m_OperContext must have been established before scheduling, as direct-running -> done -> undo FuncDC -> OC relation
+					result = false;
 
 			assert(!IsNew() || GetNew()->m_LastChangeTS == m_LastChangeTS); // further changes in the resulting data must have caused resultHolder to invalidate, as IsNew results are passive
 

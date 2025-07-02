@@ -106,7 +106,7 @@ struct StringIndexEqualityCompare : StringIndexer<MustZeroTerminate>
 	}
 
 private:
-	Utf8CaseInsensitiveEqual equaler;
+	AsciiFoldedCaseInsensitiveEqual equaler;
 };
 
 template <bool MustZeroTerminate>
@@ -127,7 +127,7 @@ struct StringIndexHasher : StringIndexer<MustZeroTerminate>
 	}
 
 private:
-	Utf8CaseInsensitiveHasher hasher;
+	AsciiFoldedChunkedCaseInsensitiveHasher hasher;
 };
 
 

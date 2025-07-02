@@ -1076,6 +1076,8 @@ task_status OperationContext::Schedule(TreeItem* item, const FutureSuppliers& al
 	{
 		auto supplStatus = JoinSupplOrSuspendTrigger();
 		assert(supplStatus > task_status::running);
+		if (supplStatus == task_status::suspended)
+			return task_status::suspended;
 		assert(m_Suppliers.empty() || context);
 		if (supplStatus != task_status::done)
 		{
@@ -1152,7 +1154,9 @@ bool OperationContext::collectTaskImpl()
 	assert(s_NrActivatedOrRunningOperations[m_PhaseNumber] >= 0);
 	assert(m_Status < task_status::activated);
 	assert(m_TaskFunc);
-	assert(!m_FuncDC || GetOperator()->CanRunParallel());
+
+	if (m_FuncDC && !GetOperator()->CanRunParallel())
+		return false;
 
 	assert(!IsActiveOrRunning(m_Status));
 	assert(s_NrActivatedOrRunningOperations[m_PhaseNumber] >= 0);
