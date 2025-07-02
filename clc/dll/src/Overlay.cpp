@@ -63,7 +63,7 @@ struct overlay_partitioning_info_t
 	AbstrDataItem*                m_ResPartRel;
 };
 
-using overlay_partitionong_info_array = std::vector<overlay_partitioning_info_t>;
+using overlay_partitioning_info_array = std::vector<overlay_partitioning_info_t>;
 
 struct overlay_recode_info_t
 {
@@ -354,7 +354,7 @@ public:
 
 		AbstrDataItem* resAtomicRegionGrid = CreateDataItem(resAtomicRegions, t_UnionData, gridDomain, resAtomicRegions);
 
-		overlay_partitionong_info_array partitionInfo;
+		overlay_partitioning_info_array partitionInfo;
 
 		// make AtomicRegionsSet, gridDomain->AtomicRegionSet and UniqeRegions -> (AtomicRegionsSet -> Region)
 		DataReadLock ggPartNamesLock(ggPartNamesA);
@@ -391,13 +391,13 @@ public:
 			debug_refcast<FuncDC&>(resultHolder).AddDependency(partitioningDI->GetCheckedDC()); // requires Meta info.
 //			debug_refcast<FuncDC&>(resultHolder).AddDependency(partitioningDI->GetAbstrValuesUnit()); // and of valuesunit, or is that included?
 		}
-		resultHolder->m_ReadAssets.emplace<overlay_partitionong_info_array>(std::move(partitionInfo));
+		resultHolder->m_ReadAssets.emplace<overlay_partitioning_info_array>(std::move(partitionInfo));
 	}
 
 	bool CalcResult(TreeItemDualRef& resultHolder, ArgRefs args, std::vector<ItemReadLock> readLocks, Explain::Context* context) const override
 	{
 		dms_assert(resultHolder);
-		const overlay_partitionong_info_array& partitionInfo = *any_cast<overlay_partitionong_info_array>(&resultHolder->m_ReadAssets);
+		const overlay_partitioning_info_array& partitionInfo = *any_cast<overlay_partitioning_info_array>(&resultHolder->m_ReadAssets);
 
 		AbstrUnit* resAtomicRegions = AsUnit(resultHolder.GetNew());
 		dbg_assert(resAtomicRegions);

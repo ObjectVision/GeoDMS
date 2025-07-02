@@ -426,7 +426,7 @@ struct LispCaches {
 		using equality_compare = std::equal_to<argument_type>;
 		struct hasher
 		{
-			std::size_t operator()(argument_type v) const
+			std::size_t operator()(argument_type v) const noexcept
 			{
 				constexpr std::size_t prime = 0x100000001b3;
 
@@ -479,7 +479,7 @@ struct LispCaches {
 		using equality_compare = std::equal_to<argument_type>;
 		struct hasher
 		{
-			std::size_t operator()(argument_type v) const
+			std::size_t operator()(argument_type v) const noexcept
 			{
 				constexpr std::size_t prime = 0x100000001b3;
 

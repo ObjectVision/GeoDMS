@@ -78,7 +78,7 @@ struct StringIndexer
 		: r_Container(container)
 	{}
 
-	CharPtrRange GetPtrs(index_type x) const;
+	CharPtrRange GetPtrs(index_type x) const noexcept;
 
 private:
 	const StringArray& r_Container;
@@ -92,15 +92,15 @@ struct StringIndexEqualityCompare : StringIndexer<MustZeroTerminate>
 
 	using StringIndexer< MustZeroTerminate>::StringIndexer;
 
-	bool operator()(index_type a, index_type b) const
+	bool operator()(index_type a, index_type b) const noexcept
 	{
 		return equaler(this->GetPtrs(a), this->GetPtrs(b));
 	}
-	bool operator()(index_type a, CharPtrRange ib) const
+	bool operator()(index_type a, CharPtrRange ib) const noexcept
 	{
 		return equaler(this->GetPtrs(a), ib);
 	}
-	bool operator()(CharPtrRange ia, index_type b) const
+	bool operator()(CharPtrRange ia, index_type b) const noexcept
 	{
 		return equaler(ia, this->GetPtrs(b));
 	}
@@ -117,11 +117,11 @@ struct StringIndexHasher : StringIndexer<MustZeroTerminate>
 
 	using StringIndexer< MustZeroTerminate>::StringIndexer;
 
-	bool operator()(index_type a) const
+	auto operator()(index_type a) const noexcept
 	{
-		return this->operator()(this->GetPtrs(a));
+		return hasher(this->GetPtrs(a));
 	}
-	bool operator()(CharPtrRange ia) const
+	auto operator()(CharPtrRange ia) const noexcept
 	{
 		return hasher(ia);
 	}

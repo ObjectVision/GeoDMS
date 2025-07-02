@@ -89,7 +89,7 @@ bool StringIndexCompare<MustZeroTerminate>::operator()(CharPtrRange ia, index_ty
 
 
 template <bool MustZeroTerminate>
-CharPtrRange StringIndexer<MustZeroTerminate>::GetPtrs(index_type x) const
+CharPtrRange StringIndexer<MustZeroTerminate>::GetPtrs(index_type x) const noexcept
 {
 	assert(IsDefined(x));
 

@@ -28,7 +28,7 @@ template <typename T> struct DataLessThanCompareImpl<T, true> {
 	using is_transparent = int;
 
 	template <typename U1, typename U2>
-	bool operator()(U1&& left, U2&& right) const
+	bool operator()(U1&& left, U2&& right) const noexcept
 	{
 		return IsDefined(right) && ((left < right) || !IsDefined(left));
 	}
@@ -44,7 +44,7 @@ struct DataLessThanCompare<Point<T> >
 	using is_transparent = int;
 
 	template <typename U1, typename U2>
-	bool operator()(U1&& left, U2&& right) const
+	bool operator()(U1&& left, U2&& right) const noexcept
 	{
 		return m_ElemComp(left.Row(), right.Row())
 			||	!m_ElemComp(right.Row(), left.Row())
@@ -66,7 +66,7 @@ struct DataEqualityCompareImpl<T, true>
 	using is_transparent = int;
 
 	template <typename U1, typename U2>
-	bool operator()(U1&& left, U2&& right) const
+	bool operator()(U1&& left, U2&& right) const noexcept
 	{
 		return left == right || !IsDefined(left) && !IsDefined(right);
 	}
@@ -81,7 +81,7 @@ struct DataEqualityCompare<Point<T> >
 	using is_transparent = int;
 
 	template <typename U1, typename U2>
-	bool operator()(U1&& left, U2&& right) const
+	bool operator()(U1&& left, U2&& right) const noexcept
 	{
 		return m_ElemComp(left.Row(), right.Row())
 			&& m_ElemComp(left.Col(), right.Col())

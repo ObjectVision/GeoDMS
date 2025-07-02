@@ -489,6 +489,9 @@ static size_t decode_utf8(const char* ptr, const char* end, char32_t& out) noexc
 }
 
 bool Utf8CaseInsensitiveEqual::operator()(CharPtrRange a, CharPtrRange b) const noexcept {
+	if (a.size() != b.size())
+		return false;
+
 	const char* p1 = a.first;
 	const char* p2 = b.first;
 	const char* end1 = a.second;

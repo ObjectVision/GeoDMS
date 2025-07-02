@@ -32,7 +32,8 @@ struct CharPtrRange : IterRange<CharPtr> {
 	struct hasher {
 		std::hash<std::string_view> hash_fn;
 
-		std::size_t operator()(const CharPtrRange& range) const noexcept {
+		std::size_t operator()(const CharPtrRange& range) const noexcept 
+		{
 			const char* first = range.first;
 			const char* last = range.second;
 
