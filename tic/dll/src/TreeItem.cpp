@@ -4280,8 +4280,8 @@ garbage_can TreeItem::StopInterest() const noexcept
 	else
 		garbage |= TryCleanupMem();
 
-	if (m_ReadAssets.has_value())
-		garbage |= std::move(m_ReadAssets);
+//	if (m_ReadAssets.has_value())
+//		garbage |= std::move(m_ReadAssets);
 
 	s_SessionUsageCounter.unlock_shared();
 

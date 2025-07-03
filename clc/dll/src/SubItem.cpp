@@ -84,7 +84,7 @@ struct SubItemOperator: BinaryOperator
 			resultHolder = subItem;
 		}
 		assert(resultHolder);
-
+/*
 		if (mustCalc)
 		{
 			assert(CheckDataReady(arg1->GetCurrUltimateItem()));
@@ -98,6 +98,7 @@ struct SubItemOperator: BinaryOperator
 			}
 			resultHolder->SetIsInstantiated();
 		}
+		*/
 		return true;
 	}
 };
