@@ -587,7 +587,7 @@ std::size_t AsciiFoldedChunkedCaseInsensitiveHasher::operator()(CharPtrRange str
 	const char* end = str.second;
 
 	std::size_t hash = 0xcbf29ce484222325; // FNV-1a offset basis
-	constexpr std::size_t prime = 0x100000001b3;
+	constexpr std::size_t prime = 0x0305070b0d111317; // swirl prime for 8-byte chunks
 
 	// Process full word chunks
 	while (end - ptr >= sizeof(std::size_t)) {
