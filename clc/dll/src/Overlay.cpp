@@ -388,7 +388,13 @@ public:
 					resPartitionRel
 				) 
 			);
-			debug_refcast<FuncDC&>(resultHolder).AddDependency(partitioningDI->GetCheckedDC()); // requires Meta info.
+			if (partitioningDI->WasFailed(FR_MetaInfo))
+				partitioningDI->ThrowFail();
+
+			auto partitioningDC = partitioningDI->GetCheckedDC(); // requires Meta info.
+			MG_CHECK(partitioningDC);
+
+			debug_refcast<FuncDC&>(resultHolder).AddDependency(partitioningDC);
 //			debug_refcast<FuncDC&>(resultHolder).AddDependency(partitioningDI->GetAbstrValuesUnit()); // and of valuesunit, or is that included?
 		}
 		resultHolder->m_ReadAssets.emplace<overlay_partitioning_info_array>(std::move(partitionInfo));

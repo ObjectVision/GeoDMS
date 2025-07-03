@@ -128,7 +128,7 @@ struct FuncDC : DataController
 //protected: 
 	
 	virtual bool MakeResultImpl() const;
-	void AddDependency(const DataController* dc) const { m_OtherSuppliers.emplace_back(dc); }
+	void AddDependency(const DataController* dc) const { MG_CHECK(dc); m_OtherSuppliers.emplace_back(dc); }
 
 	void CallCalcResultImpl(Explain::Context* context) const;
 	const Class* GetResultCls () const override;
