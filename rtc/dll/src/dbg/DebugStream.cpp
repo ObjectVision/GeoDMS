@@ -182,11 +182,11 @@ namespace { // DebugOutStreamBuff is local
 						msgData->m_Txt = SharedStr(CharPtrRange(i, eosPtr)); // TODO: can we avoid this extra string copy by forwarding a CharPtrRange ?
 						islastMsgSentAsMoreToCome = eosPtr != endofline || !isLastLine;
 						MsgDispatch(msgData, islastMsgSentAsMoreToCome);
+						msgData->m_IsFollowup = islastMsgSentAsMoreToCome;
 					}
 					if (eosPtr == endofline)
 						break;
 
-					msgData->m_IsFollowup = true;
 					i = ++eosPtr;
 				}
 				++printedLines;
@@ -216,7 +216,10 @@ namespace { // DebugOutStreamBuff is local
 			localFlushPileLine = std::move(s_FlushPipeline);
 		}
 		for (auto& msgData : localFlushPileLine)
+		{
+			assert(!msgData.m_IsFollowup);
 			FlushMsg(&msgData);
+		}
 	}
 
 	void PostLogMsg(MsgData&& msgData)

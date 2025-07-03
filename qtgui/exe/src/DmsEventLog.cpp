@@ -305,9 +305,7 @@ void EventLogModel::updateOnNewMessages()
 
 void EventLogModel::addText(MsgData&& msgData, bool moreToCome)
 {
-#if defined(MG_DEBUG)
-	MG_CHECK(not(msgData.m_IsFollowup && md_AddTextCompleted)); // previous msg must not have been handled as completed if this is a followup
-#endif
+	assert(not(msgData.m_IsFollowup && md_AddTextCompleted)); // previous msg must not have been handled as completed if this is a followup
 
 	auto mainWindow = MainWindow::TheOne();
 	if (!mainWindow)
