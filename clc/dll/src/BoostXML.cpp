@@ -70,7 +70,8 @@ struct Element : SharedBase
 	void Release() const { if (!DecRef()) delete this;	}
 	virtual void AddValue(entity_id parentID, CharPtr begin, CharPtr end) {}
 
-	SharedStr GetName() const { return m_DmsFullName.empty() ? SharedStr() : SharedStr(CharPtrRange(m_DmsFullName.begin()+1, m_DmsFullName.send())); }
+	SharedStr GetNameStr() const { return m_DmsFullName.empty() ? SharedStr() : SharedStr(CharPtrRange(m_DmsFullName.begin()+1, m_DmsFullName.send())); }
+	TokenID   GetNameID() const { return m_DmsFullName.empty() ? TokenID::GetEmptyID() : GetTokenID(CharPtrRange(m_DmsFullName.begin() + 1, m_DmsFullName.send())); }
 
 	Entity*      m_Parent = nullptr;
 	entity_index m_EntityIndex = UNDEFINED_VALUE(entity_index);
@@ -121,7 +122,7 @@ struct Attribute : Element
 		assert(parentID.second == entityCount - 1);
 
 		if (currCount >= entityCount)
-			m_Attr->throwItemErrorF("Too many occurences of attribute %s in entity %s #%I64u", GetName(), m_Parent->GetName(), UInt64(entityCount));
+			m_Attr->throwItemErrorF("Too many occurences of attribute %s in entity %s #%I64u", GetNameStr(), m_Parent->GetNameStr(), UInt64(entityCount));
 		for (SizeT i= entityCount - currCount - 1; i;--i)
 			m_Data.push_back(Undefined() MG_DEBUG_ALLOCATOR_SRC("XML::Attribute.AddUndefined"));
 		m_Data.push_back_seq(begin, end MG_DEBUG_ALLOCATOR_SRC("XML::Attribute.AddValue"));
@@ -180,7 +181,7 @@ struct ParseContext
 	{
 		char* name = basePtr->name();
 		char* nameEnd = name+basePtr->name_size();
-		TokenID ns = context ? GetTokenID(context->GetName()) : TokenID::GetEmptyID();
+		TokenID ns = context ? context->GetNameID() : TokenID::GetEmptyID();
 		TokenID id = GetTokenID_mt(name, nameEnd);
 
 		entity_map::key_type key(ns, id);
