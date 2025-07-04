@@ -113,7 +113,7 @@ bool SharedCharArrayPtr::operator < (CharPtr b) const
 	auto sz = m_Ptr->size();
 	assert(sz);
 	assert(begin()[sz-1] == char(0));
-	return strnicmp(begin(), b, sz) < 0;
+	return strncmp(begin(), b, sz) < 0;
 }
 
 CharPtrRange SharedCharArrayPtr::AsRange() const
@@ -129,14 +129,14 @@ bool SharedCharArrayPtr::operator ==(CharPtr b) const
 		return !::IsDefined(b);
 	if (!::IsDefined(b))
 		return false;
-	dms_assert(b && IsDefined());
+	assert(b && IsDefined());
 	if (empty())
 		return !*b;
 	assert(m_Ptr);
 	auto sz = m_Ptr->size();
 	assert(sz);
 	assert(begin()[sz-1] == char(0));
-	return strnicmp(begin(), b, sz) == 0;
+	return strncmp(begin(), b, sz) == 0 && b[sz] == char(0); // ensure that b is also terminated with 0
 }
 
 bool SharedCharArrayPtr::operator !=(CharPtr b) const
@@ -582,12 +582,22 @@ RTC_CALL bool AsciiFoldedCaseInsensitiveEqual::operator()(CharPtrRange a, CharPt
 	return true;
 }
 
+static std::size_t avalanche(std::size_t h) noexcept {
+	// David Stafford's mix13 (variant of Murmur3 finalizer)
+	h ^= h >> 33;
+	h *= 0xff51afd7ed558ccd;
+	h ^= h >> 33;
+	h *= 0xc4ceb9fe1a85ec53;
+	h ^= h >> 33;
+	return h;
+}
+
 std::size_t AsciiFoldedChunkedCaseInsensitiveHasher::operator()(CharPtrRange str) const noexcept {
 	const char* ptr = str.first;
 	const char* end = str.second;
 
-	std::size_t hash = 0xcbf29ce484222325; // FNV-1a offset basis
-	constexpr std::size_t prime = 0x0305070b0d111317; // swirl prime for 8-byte chunks
+	std::size_t hash = 0; // 0xcbf29ce484222325; // FNV-1a offset basis
+//	constexpr std::size_t prime = 0x0305070b0d111317; // swirl prime for 8-byte chunks
 
 	// Process full word chunks
 	while (end - ptr >= sizeof(std::size_t)) {
@@ -595,7 +605,7 @@ std::size_t AsciiFoldedChunkedCaseInsensitiveHasher::operator()(CharPtrRange str
 		std::memcpy(&chunk, ptr, sizeof(std::size_t));
 		chunk = fold_ascii_uppercase_chunk(chunk);
 		hash ^= chunk;
-		hash *= prime;
+//		hash *= prime;
 		ptr += sizeof(std::size_t);
 	}
 
@@ -605,9 +615,9 @@ std::size_t AsciiFoldedChunkedCaseInsensitiveHasher::operator()(CharPtrRange str
 	std::memcpy(&tail, ptr, tailSize);  // zero-padded
 	tail = fold_ascii_uppercase_chunk(tail);
 	hash ^= tail;
-	hash *= prime;
+//	hash *= prime;
 
-	return hash;
+	return avalanche(hash);
 }
 
 std::size_t SharedCharArrayPtr::hasher::operator()(const SharedCharArrayPtr& v) const noexcept

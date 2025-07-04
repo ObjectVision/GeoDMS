@@ -120,22 +120,28 @@ inline bool lex_compare_ci(CharPtr f1, CharPtr l1, CharPtr f2, CharPtr l2)
 template <typename T> struct is_char : std::false_type {};
 template <> struct is_char<Char> : std::true_type {};
 
-template <typename T> bool is_char_v = is_char<T>::value;
+template <typename T> const bool is_char_v = is_char<T>::value;
 
 template <typename CI1, typename CI2>
 inline bool lex_compare(CI1 f1, CI1 l1, CI2 f2, CI2 l2)
 {
-//	static_assert(!is_char_v<typename std::iterator_traits<CI1>::value_type>);
-//	static_assert(!is_char_v<typename std::iterator_traits<CI2>::value_type>);
-	static_assert(!is_char<typename std::iterator_traits<CI1>::value_type>::value);
-	static_assert(!is_char<typename std::iterator_traits<CI2>::value_type>::value);
+	static_assert(!is_char_v<typename std::iterator_traits<CI1>::value_type>);
+	static_assert(!is_char_v<typename std::iterator_traits<CI2>::value_type>);
 	return std::lexicographical_compare(f1, l1, f2, l2);
 }
 
 template <>
 inline bool lex_compare<CharPtr, CharPtr>(CharPtr f1, CharPtr l1, CharPtr f2, CharPtr l2)
 {
-	return lex_compare_cs(f1, l1, f2, l2);
+	// compare like strncmp, as if the characters are unsigned according to the standard and existing practice, but also look beyond intermediate zeroes, to avoid inconsistency with equaility that must match hashed equivalence
+	// i.e. if hash(a) != hash(b) then a != b and a<b or b<a, which would be violated if character ranges only differ beyond a null-terminator for strncmp
+
+	return std::lexicographical_compare(
+		reinterpret_cast<const unsigned char*>(f1)
+	,	reinterpret_cast<const unsigned char*>(l1)
+	,	reinterpret_cast<const unsigned char*>(f2)
+	,	reinterpret_cast<const unsigned char*>(l2)
+	);
 }
 
 inline bool equal_cs(CharPtr f1, CharPtr l1, CharPtr f2, CharPtr l2)
@@ -163,12 +169,6 @@ inline bool equal(CI1 f1, CI1 l1, CI2 f2, CI2 l2)
 {
 	return	(l1-f1) == (l2-f2)
 		&&	std::equal(f1, l1, f2);
-}
-
-template <>
-inline bool equal<CharPtr>(CharPtr f1, CharPtr l1, CharPtr f2, CharPtr l2)
-{
-	return equal_cs(f1, l1, f2, l2);
 }
 
 //----------------------------------------------------------------------
