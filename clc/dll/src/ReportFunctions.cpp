@@ -4,6 +4,10 @@
 
 #include "ClcPch.h"
 
+#if defined(CC_PRAGMAHDRSTOP)
+#pragma hdrstop
+#endif
+
 #include "geo/StringArray.h"
 #include "mci/CompositeCast.h"
 #include "ser/AsString.h"

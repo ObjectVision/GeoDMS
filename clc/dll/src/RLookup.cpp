@@ -8,8 +8,6 @@
 #pragma hdrstop
 #endif
 
-//#define MG_REDUCE_CODE_HACK
-
 #include "Rlookup.ipp"
 
 // *****************************************************************************

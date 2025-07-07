@@ -8,7 +8,6 @@
 #pragma hdrstop
 #endif //defined(CC_PRAGMAHDRSTOP)
 
-
 #include "GridLayer.h"
 
 #include "act/InvalidationBlock.h"

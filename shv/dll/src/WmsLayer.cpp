@@ -1,3 +1,7 @@
+// Copyright (C) 1998-2025 Object Vision b.v. 
+// License: GNU GPL 3
+/////////////////////////////////////////////////////////////////////////////
+
 #include "RtcInterface.h"
 
 #include <boost/asio/io_service.hpp>
@@ -12,9 +16,13 @@
 #include <boost/beast/http.hpp>
 #include <boost/beast/websocket/stream.hpp>
 
-#include "ShvBase.h"
-
 #include "ShvDllPch.h"
+
+#if defined(CC_PRAGMAHDRSTOP)
+#pragma hdrstop
+#endif //defined(CC_PRAGMAHDRSTOP)
+
+#include "ShvBase.h"
 
 #include "WmsLayer.h"
 #include "DataView.h"

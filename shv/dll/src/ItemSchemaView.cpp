@@ -4,7 +4,12 @@
 // 
 // SheetVisualTestView.cpp : implementation of the DataView class
 //
+
 #include "ShvDllPch.h"
+
+#if defined(CC_PRAGMAHDRSTOP)
+#pragma hdrstop
+#endif //defined(CC_PRAGMAHDRSTOP)
 
 #include "ItemSchemaView.h"
 

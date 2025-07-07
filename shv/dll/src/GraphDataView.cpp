@@ -4,6 +4,10 @@
 
 #include "ShvDllPch.h"
 
+#if defined(CC_PRAGMAHDRSTOP)
+#pragma hdrstop
+#endif //defined(CC_PRAGMAHDRSTOP)
+
 #include <memory>
 #include <ppltasks.h>
 
