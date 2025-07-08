@@ -472,6 +472,7 @@ const MovableObject* ScrollPort::GetContents() const
 {
 	return debug_cast<const MovableObject*>(base_type::GetContents()); 
 }
+
 void ScrollPort::MoveTo(CrdPoint newRelPos)
 {
 	base_type::MoveTo(newRelPos);

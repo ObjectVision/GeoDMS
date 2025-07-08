@@ -57,6 +57,7 @@ public:
 
 protected:
 	// Override virtuals of GraphicObject
+	void ShiftLayerControlSlider(TType delta);
 	bool OnKeyDown(UInt32 nVirtKey) override;
 	void ProcessSize(CrdPoint mapControlSize) override;
 

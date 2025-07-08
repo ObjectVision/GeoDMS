@@ -47,13 +47,14 @@ public:
 	CrdPoint CalcMaxSize() const override;
 	CrdPoint GetCurrNettLogicalSize() const override { return m_NettSize; }
 
+	void MoveTo(CrdPoint newRelPos) override;
+
 private:
 //	Override virtuals of GraphicObject
   	GraphVisitState InviteGraphVistor(AbstrVisitor&) override;
 	bool OnKeyDown(UInt32 nVirtKey) override;
 	void DoUpdateView() override;
 	void OnChildSizeChanged() override;
-	void MoveTo(CrdPoint newRelPos) override;
 	bool MouseEvent(MouseEventDispatcher& med) override;
 
 	void GrowHor(CrdType xDelta, CrdType xRelPos, const MovableObject* sourceItem = nullptr) override;

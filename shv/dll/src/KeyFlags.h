@@ -40,8 +40,8 @@ granted by an additional written contract for support, assistance and/or develop
 
 namespace KeyInfo {
 
-	const UInt32 CharMask  = 0x0000FFFF;
-	const UInt32 FlagsMask = 0xFFFF0000;
+	const UInt32 CharMask  = 0x07FFFFFF; // See Qt::Key_Left etc.
+	const UInt32 FlagsMask = 0xF8000000;
 	
 	namespace Flag {
 		const UInt32 Char = 0x80000000; // true for WM_(SYS)CHAR , false for WM_(SYS)KEY[DOWN|UP]
@@ -54,7 +54,7 @@ namespace KeyInfo {
 	}
 
 	inline UInt32 FlagsOf  (UInt32 virtKey) { return virtKey & FlagsMask; }
-	inline char   CharOf   (UInt32 virtKey) { return virtKey & CharMask; }
+	inline UInt32 CharOf   (UInt32 virtKey) { return virtKey & CharMask; }
 	inline UInt32 CcmOf    (UInt32 virtKey) { return virtKey & Flag::CCM; }
 
 	inline bool IsChar     (UInt32 virtKey) { return  FlagsOf(virtKey) == Flag::Char; } // nonsystem normal char

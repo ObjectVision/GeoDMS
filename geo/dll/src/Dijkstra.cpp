@@ -2093,6 +2093,4 @@ namespace
 	DijkstraOperListType itOpers(&itGroup, DijkstraFlag());
 	DijkstraOperListType im32Opers(&im32Group, DijkstraFlag(DijkstraFlag::OD));
 	DijkstraOperListType im64Opers(&im64Group, DijkstraFlag(DijkstraFlag::OD | DijkstraFlag::UInt64_Od));
-
-
 }

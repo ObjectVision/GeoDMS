@@ -126,12 +126,76 @@ void MapControl::ToggleLayerControl()
 	ProcessSize(GetCurrClientSize());
 }
 
+void MapControl::ShiftLayerControlSlider(TType delta)
+{
+	if (!GetScrollPort()->IsVisible())
+		ToggleLayerControl();
+
+	auto MapControlSize = GetCurrClientSize().X();
+	auto currWidth = m_ScrollPort->GetCurrFullSize().X();
+	auto maxWidth = m_ScrollPort->GetContents()->CalcFullSize().X();
+	auto minWidth = 10;
+	auto newWidth = currWidth - delta;
+	MakeMin(newWidth, maxWidth);
+	MakeMin(newWidth, GetCurrClientSize().X());
+	if (newWidth < minWidth)
+	{
+		ToggleLayerControl();
+		return;
+	}
+
+	delta = (currWidth - newWidth);
+	auto scrollPos = GetScrollPort()->GetCurrClientRelPos();
+	auto scrollSize = GetScrollPort()->GetCurrClientSize();
+	auto viewPortSize = GetViewPort()->GetCurrClientSize();
+	auto overviewSize = GetOverviewPort()->GetCurrClientSize();
+	auto overviewPos = GetOverviewPort()->GetCurrClientRelPos();
+
+	viewPortSize.X() += delta;
+	scrollPos.X() += delta;
+	scrollSize.X() -= delta;
+	overviewPos.X() += delta;
+	overviewSize.X() -= delta;
+
+	if (delta < 0.0) // move virtual slider to the left
+	{
+		GetViewPort()->SetClientSize(viewPortSize);
+
+		GetScrollPort()->MoveTo(scrollPos);
+		GetScrollPort()->SetClientSize(scrollSize);
+
+		GetOverviewPort()->MoveTo(overviewPos);
+		GetOverviewPort()->SetClientSize(overviewSize);
+	}
+	else // move virtual slider to the right
+	{
+		GetScrollPort()->SetClientSize(scrollSize);
+		GetScrollPort()->MoveTo(scrollPos);
+
+		GetOverviewPort()->SetClientSize(overviewSize);
+		GetOverviewPort()->MoveTo(overviewPos);
+
+		GetViewPort()->SetClientSize(viewPortSize);
+	}
+}
+
 bool MapControl::OnKeyDown(UInt32 virtKey)
 {
-	if (KeyInfo::IsCtrl(virtKey))
+	bool ctrlDown = (GetKeyState(VK_CONTROL) & 0x8000) != 0;
+
+	if (ctrlDown)
 	{
-		switch (KeyInfo::CharOf(virtKey)) {
-			case 'G': return OnCommand(TB_CopyLC); 
+		auto charKey = KeyInfo::CharOf(virtKey);
+		switch (charKey) {
+			case 'G': return OnCommand(TB_CopyLC);
+
+			case 'S':
+				ShiftLayerControlSlider(-10); 
+				return true;
+
+			case 'D':
+				ShiftLayerControlSlider(+10);
+				return true;
 		}
 	}
 	return base_type::OnKeyDown(virtKey)  || GetViewPort()->OnKeyDown(virtKey);

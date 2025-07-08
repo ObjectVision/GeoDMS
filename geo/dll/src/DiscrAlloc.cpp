@@ -38,7 +38,7 @@
 /*
 HTP<S> takes the following arguments:
 
-	suitabilities: for each ggType:
+	suitabilities: for each ggType (aka land use type)
 		{
 			allocUnit -> Eur/m2: S
 		}
@@ -68,7 +68,7 @@ results in:
 *   - a solution if defined by a shadow price for each claim, such that alocation of all cells according to the suitabilities augmented by the shadow prices of the related claims, will meet the claim constraints.
 *   - to quickly find almost correct shadow prices, the algorithm starts with a downscaled version of the problem, where the the number of land units (preferably by pseudo random selection) and claims have been reduced by a power of 4
 *   - during each scale up, the shadow prices are adjusted when maximum claims are exceeded abnd after each scale up, minimum claims are satisfied by sufficient reallocation.
-*   - for each claim pair that relate to overlapping land units, keep a priority queue of cells ordered by increasing cost of reallocation from the first ggType to the second ggType.
+*   - for each claim pair that relate to overlapping land units, keep a priority queue of cells ordered by increasing cost of reallocation from the first ggType (aka land use type) to the second ggType.
 *   - when a max claim is exceeded, the cell with the lowest reallocation cost is reallocated. 
 *	- As each claim can have multiple facets and destination claims may also be saturated, a cheapest path is searched throught the graph of facets to the first accessible non-saturated destination claim. 
 *	- The cost of each facet in this path is the difference between the augmented suitability of the source ggType and the augmented suitability of the destination ggType of the first valid land unit that is on top of the facet's priority queue.
@@ -303,7 +303,7 @@ struct ggType_info_t
 
 	UInt32                        m_PartitioningID = 0;
 	claim_id                      m_FirstClaimID = UNDEFINED_VALUE(claim_id);  // ref into m_Claims array
-	UInt32                        m_NrClaims = 0;      // limits range of m_Claims array for this ggType
+	UInt32                        m_NrClaims = 0;      // limits range of m_Claims array for this ggType (aka land use type)
 
 	DataReadLock                  m_SuitabilityDataLock;
 	typename DataArray<S>::locked_cseq_t m_Suitabilities; // 1 per grid-cell, points directly into memory mapped file
@@ -387,7 +387,7 @@ const UInt32 stepFactor = 4;
 // abbreviations:
 // AR = atomic region
 // UR = unique region
-// AT = alllocation type (index of ggType).
+// AT = alllocation type (index of ggType, aka land use type).
 
 struct regions_info_base
 {
