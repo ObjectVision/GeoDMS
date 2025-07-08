@@ -129,7 +129,11 @@ void MapControl::ToggleLayerControl()
 void MapControl::ShiftLayerControlSlider(TType delta)
 {
 	if (!GetScrollPort()->IsVisible())
+	{
+		if (delta >= 0)
+			return;
 		ToggleLayerControl();
+	}
 
 	auto MapControlSize = GetCurrClientSize().X();
 	auto currWidth = m_ScrollPort->GetCurrFullSize().X();
