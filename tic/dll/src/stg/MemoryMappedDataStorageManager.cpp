@@ -65,7 +65,7 @@ void MmdStorageManager::DoUpdateTree(const TreeItem* storageHolder, TreeItem* cu
 		return;
 	if (curr->HasCalculator()) // don't read schema info if the item has a calculator; this is the production case
 		return;
-	if (curr->_GetFirstSubItem())
+	if (curr->_GetFirstSubItem() && !storageReadOnlyPropDefPtr->GetValue(storageHolder))
 		return; 
 
 	auto dictFileName = GetFullFileName("0Dictionary.dms");
