@@ -536,32 +536,38 @@ std::size_t Utf8CaseInsensitiveHasher::operator()(CharPtrRange input) const noex
 	return hash;
 }
 
-// Fold all ASCII uppercase letters in a size_t chunk to lowercase
-static constexpr std::size_t fold_ascii_uppercase_chunk(std::size_t word) noexcept {
-	std::size_t result = word;
-	for (std::size_t i = 0; i < sizeof(std::size_t); ++i) {
-		unsigned char c = static_cast<unsigned char>(word >> (i * 8));
-		if (c >= 'A' && c <= 'Z') c += 0x20;
-		result |= (std::size_t(0x20) << (i * 8));
-	}
-	return result;
+#include <immintrin.h>
+#include <cstdint>
+
+using chunk_t = __m128i;
+
+// Fold ASCII uppercase letters in a 16-byte __m128i chunk
+inline __m128i fold_ascii_uppercase(chunk_t chunk) noexcept {
+	// Set up constants
+	const __m128i A = _mm_set1_epi8('A'); // 0x41
+	const __m128i Z = _mm_set1_epi8('Z'); // 0x5A
+	const __m128i AZ_range = _mm_set1_epi8('Z' - 'A' + 1); // 26
+	const __m128i lowercase_bit = _mm_set1_epi8(0x20);     // bit 5
+
+	// Compute: mask = (chunk - 'A') < 26
+	__m128i shifted = _mm_subs_epu8(chunk, A);              // saturate at 0
+	__m128i is_upper = _mm_cmplt_epi8(shifted, AZ_range);   // signed < 26
+
+	// Apply lowercase folding where mask is set
+	return _mm_or_si128(chunk, _mm_and_si128(is_upper, lowercase_bit));
 }
 
-/*
-	constexpr std::size_t A = 0x4141414141414141;
-	constexpr std::size_t Z = 0x5a5a5a5a5a5a5a5a;
-	constexpr std::size_t bit = 0x2020202020202020;
 
-	// Compute (c >= 'A' && c <= 'Z') without branches
-	std::size_t gt_eq_A = ~(word - A);
-	std::size_t lt_eq_Z = ~(Z - word);
-	std::size_t mask = (gt_eq_A & lt_eq_Z) & 0x8080808080808080;
-
-	// Create byte mask (1 or 0) and apply case fold
-	std::size_t flag = (mask >> 7) * 0x01;
-	return word ^ (flag * 0x20);
+inline bool chunks_equal(__m128i a, __m128i b) noexcept {
+	__m128i cmp = _mm_cmpeq_epi8(a, b);             // returns 0xFF in each byte if equal
+	return _mm_movemask_epi8(cmp) == 0xFFFF;        // all 16 bytes must be equal
 }
-*/
+
+inline __m128i load_tail(const char* ptr, std::size_t size) noexcept {
+	alignas(16) char buffer[16] = {};  // zero-initialized
+	std::memcpy(buffer, ptr, size);   // copies only the valid tail
+	return _mm_load_si128(reinterpret_cast<const __m128i*>(buffer));
+}
 
 RTC_CALL bool AsciiFoldedCaseInsensitiveEqual::operator()(CharPtrRange a, CharPtrRange b) const noexcept
 {
@@ -569,27 +575,26 @@ RTC_CALL bool AsciiFoldedCaseInsensitiveEqual::operator()(CharPtrRange a, CharPt
 	if (aSize != b.size())
 		return false;
 
-	while (aSize >= sizeof(std::size_t)) {
-		std::size_t chunkA, chunkB;
-		std::memcpy(&chunkA, a.first, sizeof(std::size_t));
-		std::memcpy(&chunkB, b.first, sizeof(std::size_t));
-		chunkA = fold_ascii_uppercase_chunk(chunkA);
-		chunkB = fold_ascii_uppercase_chunk(chunkB);
-		if (chunkA != chunkB)
+	while (aSize >= sizeof(chunk_t)) {
+		chunk_t chunkA, chunkB;
+		chunkA = _mm_loadu_si128(reinterpret_cast<const chunk_t*>(a.first));
+		chunkB = _mm_loadu_si128(reinterpret_cast<const chunk_t*>(b.first));
+		chunkA = fold_ascii_uppercase(chunkA);
+		chunkB = fold_ascii_uppercase(chunkB);
+
+		if (!chunks_equal(chunkA, chunkB))
 			return false;
-		a.first += sizeof(std::size_t);
-		b.first += sizeof(std::size_t);
-		aSize -= sizeof(std::size_t);
+		a.first += sizeof(chunk_t);
+		b.first += sizeof(chunk_t);
+		aSize -= sizeof(chunk_t);
 	}
 
-	std::size_t chunkA = 0, chunkB = 0;
-	std::memcpy(&chunkA, a.first, aSize);
-	std::memcpy(&chunkB, b.first, aSize);
-	chunkA = fold_ascii_uppercase_chunk(chunkA);
-	chunkB = fold_ascii_uppercase_chunk(chunkB);
-
-	if (chunkA != chunkB)
-		return false;
+	if (aSize > 0) {
+		chunk_t chunkA = fold_ascii_uppercase(load_tail(a.first, aSize));
+		chunk_t chunkB = fold_ascii_uppercase(load_tail(b.first, aSize));
+		if (!chunks_equal(chunkA, chunkB))
+			return false;
+	}
 	return true;
 }
 
@@ -603,6 +608,14 @@ static std::size_t avalanche(std::size_t h) noexcept {
 	return h;
 }
 
+void hash_in(std::size_t& hash, __m128i v)
+{
+	std::uint64_t low = static_cast<std::uint64_t>(_mm_extract_epi64(v, 0));
+	std::uint64_t high = static_cast<std::uint64_t>(_mm_extract_epi64(v, 1));
+	hash ^= low;
+	hash ^= high;
+}
+
 std::size_t AsciiFoldedChunkedCaseInsensitiveHasher::operator()(CharPtrRange str) const noexcept {
 	const char* ptr = str.first;
 	const char* end = str.second;
@@ -611,23 +624,19 @@ std::size_t AsciiFoldedChunkedCaseInsensitiveHasher::operator()(CharPtrRange str
 //	constexpr std::size_t prime = 0x0305070b0d111317; // swirl prime for 8-byte chunks
 
 	// Process full word chunks
-	while (end - ptr >= sizeof(std::size_t)) {
-		std::size_t chunk;
+	while (end - ptr >= sizeof(chunk_t)) {
+		chunk_t chunk = _mm_loadu_si128(reinterpret_cast<const chunk_t*>(ptr));
 		std::memcpy(&chunk, ptr, sizeof(std::size_t));
-		chunk = fold_ascii_uppercase_chunk(chunk);
-		hash ^= chunk;
-//		hash *= prime;
-		ptr += sizeof(std::size_t);
+		hash_in(hash, fold_ascii_uppercase(chunk));
+		ptr += sizeof(chunk_t);
 	}
 
 	// Process tail bytes
-	std::size_t tail = 0;
 	UInt32 tailSize = end - ptr;
-	std::memcpy(&tail, ptr, tailSize);  // zero-padded
-	tail = fold_ascii_uppercase_chunk(tail);
-	hash ^= tail;
-//	hash *= prime;
-
+	if (tailSize > 0) {
+		chunk_t chunk = load_tail(ptr, tailSize);
+		hash_in(hash, fold_ascii_uppercase(chunk));
+	}
 	return avalanche(hash);
 }
 
