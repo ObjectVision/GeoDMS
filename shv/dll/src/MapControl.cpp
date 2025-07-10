@@ -126,6 +126,21 @@ void MapControl::ToggleLayerControl()
 	ProcessSize(GetCurrClientSize());
 }
 
+void MapControl::FillMenu(MouseEventDispatcher& med)
+{
+	ViewControl::FillMenu(med);
+	med.m_MenuData.AddSeparator();
+	med.m_MenuData.push_back(
+		MenuItem(SharedStr("Drag LayerControl Left (Ctrl-S)"), make_MembFuncCmd(&MapControl::ShiftLayerControlSliderLeft), this)
+	);
+	med.m_MenuData.push_back(
+		MenuItem(SharedStr("Drag LayerControl Right (Ctrl-D)"), make_MembFuncCmd(&MapControl::ShiftLayerControlSliderRight), this)
+	);
+	med.m_MenuData.push_back(
+		MenuItem(SharedStr("Copy LayerControl to Clipboard (Ctrl-G)"), make_MembFuncCmd(&MapControl::OnCommand, TB_CopyLC), this)
+	);
+}
+
 void MapControl::ShiftLayerControlSlider(TType delta)
 {
 	if (!GetScrollPort()->IsVisible())
@@ -194,11 +209,11 @@ bool MapControl::OnKeyDown(UInt32 virtKey)
 			case 'G': return OnCommand(TB_CopyLC);
 
 			case 'S':
-				ShiftLayerControlSlider(-10); 
+				ShiftLayerControlSliderLeft(); 
 				return true;
 
 			case 'D':
-				ShiftLayerControlSlider(+10);
+				ShiftLayerControlSliderRight();
 				return true;
 		}
 	}

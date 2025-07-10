@@ -167,6 +167,7 @@ void FillFontMenu(MenuData& md, LayerControlBase* self)
 	}
 
 }
+
 void LayerControlBase::FillMenu(MouseEventDispatcher& med)
 {
 	base_type::FillMenu(med);
