@@ -538,6 +538,16 @@ std::size_t Utf8CaseInsensitiveHasher::operator()(CharPtrRange input) const noex
 
 // Fold all ASCII uppercase letters in a size_t chunk to lowercase
 static constexpr std::size_t fold_ascii_uppercase_chunk(std::size_t word) noexcept {
+	std::size_t result = word;
+	for (std::size_t i = 0; i < sizeof(std::size_t); ++i) {
+		unsigned char c = static_cast<unsigned char>(word >> (i * 8));
+		if (c >= 'A' && c <= 'Z') c += 0x20;
+		result |= (std::size_t(0x20) << (i * 8));
+	}
+	return result;
+}
+
+/*
 	constexpr std::size_t A = 0x4141414141414141;
 	constexpr std::size_t Z = 0x5a5a5a5a5a5a5a5a;
 	constexpr std::size_t bit = 0x2020202020202020;
@@ -551,6 +561,7 @@ static constexpr std::size_t fold_ascii_uppercase_chunk(std::size_t word) noexce
 	std::size_t flag = (mask >> 7) * 0x01;
 	return word ^ (flag * 0x20);
 }
+*/
 
 RTC_CALL bool AsciiFoldedCaseInsensitiveEqual::operator()(CharPtrRange a, CharPtrRange b) const noexcept
 {
