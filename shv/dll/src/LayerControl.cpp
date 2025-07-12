@@ -199,7 +199,14 @@ void LayerControlBase::ToggleVisibilityAndMakeActiveIfNeeded()
 	m_LayerElem->ToggleVisibility();
 	bool is_visible = m_LayerElem->IsVisible();
 	if (is_visible) // layer toggled to visible state, make it active
-		SetActiveEntry(this);
+	{
+		auto dv = GetDataView().lock(); 
+		if (dv)
+			dv->Activate(this);
+	}
+	m_State.Set(GOF_IgnoreActivation, !is_visible); // only allow for activation if layer is visible
+	for (auto i = NrEntries(); i--; )
+		GetEntry(i)->m_State.Set(GOF_IgnoreActivation, !is_visible);
 }
 
 #include "Carets.h"
