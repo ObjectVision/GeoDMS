@@ -214,15 +214,15 @@ void parallel_tileloop_if(bool canRunParallel, tile_id last, Func&& func)
 }
 
 template <typename E, typename Func>
-typename std::enable_if<is_separable_v<E>>::type
-parallel_tileloop_if_separable(tile_id last, Func&& func)
+	requires is_separable_v<E>
+void parallel_tileloop_if_separable(tile_id last, Func&& func)
 {
 	parallel_tileloop<Func>(last, std::move(func));
 }
 
 template <typename E, typename Func>
-typename std::enable_if<!is_separable_v<E>>::type
-parallel_tileloop_if_separable(tile_id last, Func&& func)
+	requires (!is_separable_v<E>)
+void parallel_tileloop_if_separable(tile_id last, Func&& func)
 {
 	serial_for<tile_id>(0, last, std::move(func));
 }

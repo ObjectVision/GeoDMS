@@ -1,9 +1,15 @@
-// Copyright (C) 1998-2023 Object Vision b.v. 
+// Copyright (C) 1998-2025 Object Vision b.v. 
 // License: GNU GPL 3
 /////////////////////////////////////////////////////////////////////////////
 
+#if defined(_MSC_VER)
+#pragma once
+#endif
+
 #if !defined(__CLC_INVERT_H)
 #define __CLC_INVERT_H
+
+#include "ClcBase.h"
 
 #include "geo/CheckedCalc.h"
 
@@ -36,8 +42,8 @@ void invert2values_impl(
 // *****************************************************************************
 
 template<typename E, typename V, typename ResIter, typename DataIter>
-typename std::enable_if<is_bitvalue<typename std::iterator_traits<DataIter>::value_type>::value == 0>::type
-invert2values_best(ResIter  resultPtr
+requires (is_bitvalue_v<typename std::iterator_traits<DataIter>::value_type> == 0)
+void invert2values_best(ResIter  resultPtr
 	,	DataIter curr, DataIter last
 	,	Range<V> domainRange
 	,	typename Unit<E>::range_t entityRange
@@ -128,8 +134,8 @@ void invertAll2values_tile(ResIter  resultPerV
 // *****************************************************************************
 
 template<typename E, typename V, typename ResIter, typename DataIter>
-typename std::enable_if<has_undefines_v<typename std::iterator_traits<DataIter>::value_type> >::type
-invertAll2values_best(ResIter  resultPerV, ResIter resultPerE
+requires has_undefines_v<typename std::iterator_traits<DataIter>::value_type>
+void invertAll2values_best(ResIter  resultPerV, ResIter resultPerE
 	,	DataIter curr, DataIter last
 	,	Range<V> domainRange
 	,	typename Unit<E>::range_t entityRange

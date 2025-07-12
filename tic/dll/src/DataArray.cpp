@@ -443,9 +443,12 @@ bool DataArrayBase<V>::CheckValuesUnit(const AbstrUnit* valuesUnit)
 template <typename V>
 constexpr bool is_real_numeric_v = is_numeric_v<V> && ! is_bitvalue_v<V>;
 
-template <typename V, typename Iter>
-typename std::enable_if< is_real_numeric_v<V> >::type
-SplitClasses(Iter c, Iter d, Iter r, Iter e)
+template <typename T>
+concept RealNumeric = is_real_numeric_v<T>;
+
+
+template <RealNumeric V, typename Iter>
+void SplitClasses(Iter c, Iter d, Iter r, Iter e)
 {
 	while (true)
 	{
@@ -458,13 +461,13 @@ SplitClasses(Iter c, Iter d, Iter r, Iter e)
 			break;
 		*r = *d;
 	}
-	dms_assert(d == c);
+	assert(d == c);
 }
 
 
 template <typename V, typename Iter>
-typename std::enable_if< !is_real_numeric_v<V> >::type
-SplitClasses(Iter c, Iter d, Iter r, Iter e)
+	requires (!is_real_numeric_v<V>)
+void SplitClasses(Iter c, Iter d, Iter r, Iter e)
 {
 	while (true)
 	{
@@ -473,7 +476,7 @@ SplitClasses(Iter c, Iter d, Iter r, Iter e)
 			break;
 		*r = *d;
 	}
-	dms_assert(d == c);
+	assert(d == c);
 }
 
 //----------------------------------------------------------------------

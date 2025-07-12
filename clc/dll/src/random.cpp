@@ -174,16 +174,15 @@ public:
 	virtual void Calculate(DataWriteLock& res, uniform_engine_t::result_type seed, tile_id te, const AbstrUnit* arg3) const =0;
 };
 
-template <typename T>
-typename std::enable_if<is_integral_v<T>, bool>::type
-FloatRangeOK(const Range<T>& r)
+template <IntegralValue T>
+bool FloatRangeOK(const Range<T>& r)
 {
 	return true;
 }
 
 template <typename T>
-typename std::enable_if<!is_integral_v<T>, bool>::type
-FloatRangeOK(const Range<T>& r)
+	requires (!is_integral_v<T>)
+bool FloatRangeOK(const Range<T>& r)
 {
 	return r.first > MIN_VALUE(T) && r.second < MAX_VALUE(T) && r.first < r.second;
 }

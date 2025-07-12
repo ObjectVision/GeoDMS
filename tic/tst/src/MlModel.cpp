@@ -41,9 +41,9 @@ void random_discrete_fill(Iter first, Iter last, UInt32 ub, UInt32 seed)
 
 #include "set/rangefuncs.h"
 
-template <typename T> inline 
-typename std::enable_if< raw_constructed< T >::value, OwningPtrSizedArray<T> >::type
-new_zero_array(UInt32 n)
+template <typename T>
+	requires raw_constructed_v<T>
+inline auto new_zero_array(UInt32 n) -> OwningPtrSizedArray<T>
 {
 	auto result = OwningPtrSizedArray<T>(n, dont_initialize MG_DEBUG_ALLOCATOR_SRC_EMPTY);
 	fast_zero(result.begin(), result.end());

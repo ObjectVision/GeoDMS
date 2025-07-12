@@ -515,76 +515,76 @@ class ConnectInfoOperator : ConnectInfoBaseClass<CT, HasMaxDist, HasMinDist>
 	}
 
 public:
-	template <compare_type CT2 = CT>
-	ConnectInfoOperator(typename std::enable_if<CT2 == compare_type::none && !HasMinDist && !HasMaxDist>::type* = nullptr)
+	ConnectInfoOperator()
+		requires(CT == compare_type::none && !HasMinDist && !HasMaxDist)
 		:	BinaryOperator(cogInfo(), ResultCls()
 			,	Arg1Type::GetStaticClass(), Arg2Type::GetStaticClass()
 			)
 	{}
 
-	template <compare_type CT2 = CT>
-	ConnectInfoOperator(typename std::enable_if<CT2 == compare_type::none && !HasMinDist && HasMaxDist>::type* = nullptr)
-		:	TernaryOperator(cogInfo(), ResultCls()
+	ConnectInfoOperator()
+		requires(CT == compare_type::none && !HasMinDist && HasMaxDist)
+	:	TernaryOperator(cogInfo(), ResultCls()
 			,	Arg1Type::GetStaticClass(), Arg2Type::GetStaticClass()
 			,	DataArray<SqrtDistType>::GetStaticClass()
 			)
 	{}
 
-	template <compare_type CT2 = CT>
-	ConnectInfoOperator(typename std::enable_if<CT2 == compare_type::none && HasMinDist && HasMaxDist>::type* = nullptr)
-		:	QuaternaryOperator(cogInfo(), ResultCls()
+	ConnectInfoOperator()
+		requires(CT == compare_type::none && HasMinDist && HasMaxDist)
+	:	QuaternaryOperator(cogInfo(), ResultCls()
 			,	Arg1Type::GetStaticClass(), Arg2Type::GetStaticClass()
 			,	DataArray<SqrtDistType>::GetStaticClass(), DataArray<SqrtDistType>::GetStaticClass()
 			)
 	{}
 
 
-	template <compare_type CT2 = CT>
-	ConnectInfoOperator(typename std::enable_if<CT2 == compare_type::eq && !HasMinDist && !HasMaxDist>::type* = nullptr)
-		:	QuaternaryOperator(OnlyDistResult ? &cogDISTINFO_EQ : &cogCONINFO_EQ, ResultCls()
+	ConnectInfoOperator()
+		requires(CT == compare_type::eq && !HasMinDist && !HasMaxDist)
+	:	QuaternaryOperator(OnlyDistResult ? &cogDISTINFO_EQ : &cogCONINFO_EQ, ResultCls()
 			,	Arg1Type::GetStaticClass(), DataArray<E>::GetStaticClass()
 			,	Arg2Type::GetStaticClass(), DataArray<E>::GetStaticClass()
 			)
 	{}
 
-	template <compare_type CT2 = CT>
-	ConnectInfoOperator(typename std::enable_if<CT2 == compare_type::eq && !HasMinDist && HasMaxDist>::type* = nullptr)
-		: QuinaryOperator(OnlyDistResult ? &cogDISTINFO_EQ : &cogCONINFO_EQ, ResultCls()
+	ConnectInfoOperator()
+		requires(CT == compare_type::eq && !HasMinDist && HasMaxDist)
+	: QuinaryOperator(OnlyDistResult ? &cogDISTINFO_EQ : &cogCONINFO_EQ, ResultCls()
 			, Arg1Type::GetStaticClass(), DataArray<E>::GetStaticClass()
 			, Arg2Type::GetStaticClass(), DataArray<E>::GetStaticClass()
 			, DataArray<SqrtDistType>::GetStaticClass()
 		)
 	{}
 
-	template <compare_type CT2 = CT>
-	ConnectInfoOperator(typename std::enable_if<CT2 == compare_type::eq && HasMinDist && HasMaxDist>::type* = nullptr)
-		: SexenaryOperator(OnlyDistResult ? &cogDISTINFO_EQ : &cogCONINFO_EQ, ResultCls()
+	ConnectInfoOperator()
+		requires(CT == compare_type::eq && HasMinDist && HasMaxDist)
+	: SexenaryOperator(OnlyDistResult ? &cogDISTINFO_EQ : &cogCONINFO_EQ, ResultCls()
 			, Arg1Type::GetStaticClass(), DataArray<E>::GetStaticClass()
 			, Arg2Type::GetStaticClass(), DataArray<E>::GetStaticClass()
 			, DataArray<SqrtDistType>::GetStaticClass(), DataArray<SqrtDistType>::GetStaticClass()
 		)
 	{}
 
-	template <compare_type CT2 = CT>
-	ConnectInfoOperator(typename std::enable_if<CT2 == compare_type::ne && !HasMinDist && !HasMaxDist>::type* = nullptr)
-		:	QuaternaryOperator(OnlyDistResult ? &cogDISTINFO_NE : &cogCONINFO_NE, ResultCls()
+	ConnectInfoOperator()
+		requires(CT == compare_type::ne && !HasMinDist && !HasMaxDist)
+	:	QuaternaryOperator(OnlyDistResult ? &cogDISTINFO_NE : &cogCONINFO_NE, ResultCls()
 			,	Arg1Type::GetStaticClass(), DataArray<E>::GetStaticClass()
 			,	Arg2Type::GetStaticClass(), DataArray<E>::GetStaticClass()
 			)
 	{}
 
-	template <compare_type CT2 = CT>
-	ConnectInfoOperator(typename std::enable_if<CT2 == compare_type::ne && !HasMinDist && HasMaxDist>::type* = nullptr)
-		: QuinaryOperator(OnlyDistResult ? &cogDISTINFO_NE : &cogCONINFO_NE, ResultCls()
+	ConnectInfoOperator()
+		requires(CT == compare_type::ne && !HasMinDist && HasMaxDist)
+	: QuinaryOperator(OnlyDistResult ? &cogDISTINFO_NE : &cogCONINFO_NE, ResultCls()
 			, Arg1Type::GetStaticClass(), DataArray<E>::GetStaticClass()
 			, Arg2Type::GetStaticClass(), DataArray<E>::GetStaticClass()
 			, DataArray<SqrtDistType>::GetStaticClass()
 		)
 	{}
 
-	template <compare_type CT2 = CT>
-	ConnectInfoOperator(typename std::enable_if<CT2 == compare_type::ne && HasMinDist && HasMaxDist>::type* = nullptr)
-		: SexenaryOperator(OnlyDistResult ? &cogDISTINFO_NE : &cogCONINFO_NE, ResultCls()
+	ConnectInfoOperator()
+		requires(CT == compare_type::ne && HasMinDist && HasMaxDist)
+	: SexenaryOperator(OnlyDistResult ? &cogDISTINFO_NE : &cogCONINFO_NE, ResultCls()
 			, Arg1Type::GetStaticClass(), DataArray<E>::GetStaticClass()
 			, Arg2Type::GetStaticClass(), DataArray<E>::GetStaticClass()
 			, DataArray<SqrtDistType>::GetStaticClass(), DataArray<SqrtDistType>::GetStaticClass()
@@ -859,24 +859,24 @@ class FastConnectOperator : std::conditional_t<CT == compare_type::none
 	typedef SpatialIndex<CoordType, sequence_array_index<PointType> > SpatialIndexType;
 			
 public:
-	template <compare_type CT2 = CT>
-	FastConnectOperator(typename std::enable_if<CT2 == compare_type::none && !HasMaxDist && !HasMinDist>::type* = nullptr)
-		:	BinaryOperator(&cogCON, ResultUnitType::GetStaticClass()
+	FastConnectOperator()
+		requires(CT == compare_type::none && !HasMinDist && !HasMaxDist)
+	:	BinaryOperator(&cogCON, ResultUnitType::GetStaticClass()
 			,	Arg1Type::GetStaticClass()
 			,	Arg2Type::GetStaticClass()
 			)
 	{}
-	template <compare_type CT2 = CT>
-	FastConnectOperator(typename std::enable_if<CT2 == compare_type::none && HasMaxDist && !HasMinDist>::type* = nullptr)
-		: TernaryOperator(&cogCON, ResultUnitType::GetStaticClass()
+	FastConnectOperator()
+		requires(CT == compare_type::none && !HasMinDist && HasMaxDist)
+	: TernaryOperator(&cogCON, ResultUnitType::GetStaticClass()
 			, Arg1Type::GetStaticClass()
 			, Arg2Type::GetStaticClass()
 			, DataArray<SqrDistType>::GetStaticClass()
 		)
 	{}
-	template <compare_type CT2 = CT>
-	FastConnectOperator(typename std::enable_if<CT2 == compare_type::none && HasMaxDist && HasMinDist>::type* = nullptr)
-		: QuaternaryOperator(&cogCON, ResultUnitType::GetStaticClass()
+	FastConnectOperator()
+		requires(CT == compare_type::none && HasMinDist && HasMaxDist)
+	: QuaternaryOperator(&cogCON, ResultUnitType::GetStaticClass()
 			, Arg1Type::GetStaticClass()
 			, Arg2Type::GetStaticClass()
 			, DataArray<SqrDistType>::GetStaticClass()
@@ -884,16 +884,16 @@ public:
 		)
 	{}
 
-	template <compare_type CT2 = CT>
-	FastConnectOperator(typename std::enable_if<CT2 == compare_type::eq>::type* = nullptr)
-		:	QuaternaryOperator(&cogCON_EQ, ResultUnitType::GetStaticClass()
+	FastConnectOperator()
+		requires(CT == compare_type::eq)
+	:	QuaternaryOperator(&cogCON_EQ, ResultUnitType::GetStaticClass()
 			,	Arg1Type::GetStaticClass(), DataArray<E>::GetStaticClass()
 			,	Arg2Type::GetStaticClass(), DataArray<E>::GetStaticClass()
 		)
 	{}
-	template <compare_type CT2 = CT>
-	FastConnectOperator(typename std::enable_if<CT2 == compare_type::ne>::type* = nullptr)
-		: QuaternaryOperator(&cogCON_NE, ResultUnitType::GetStaticClass()
+	FastConnectOperator()
+		requires(CT == compare_type::ne)
+	: QuaternaryOperator(&cogCON_NE, ResultUnitType::GetStaticClass()
 			, Arg1Type::GetStaticClass(), DataArray<E>::GetStaticClass()
 			, Arg2Type::GetStaticClass(), DataArray<E>::GetStaticClass()
 		)

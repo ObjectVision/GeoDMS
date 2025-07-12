@@ -114,15 +114,12 @@ struct InterestPtr
 
 	explicit operator bool() const { return m_Item; }
 	bool operator !() const { return !m_Item;  }
-	template<
-		typename U = CPtr,
-		typename = typename std::enable_if< std::is_class<U>::value >::type
-	>
-	operator IPtr() const { return get_ptr(); }
+
+	operator IPtr() const requires(std::is_class_v<CPtr>) { return get_ptr(); }
 	operator CPtr() const { return m_Item; }
 
-	IPtr operator ->() const { dms_assert(m_Item != nullptr); return  get_ptr(); }
-	IRef operator * () const { dms_assert(m_Item != nullptr); return *get_ptr(); }
+	IPtr operator ->() const { assert(m_Item != nullptr); return  get_ptr(); }
+	IRef operator * () const { assert(m_Item != nullptr); return *get_ptr(); }
 
 	bool operator <  (const InterestPtr& right) const { return get_ptr() <  right.get_ptr(); }
 	bool operator == (const InterestPtr& right) const { return get_ptr() == right.get_ptr(); }

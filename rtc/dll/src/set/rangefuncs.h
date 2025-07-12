@@ -81,6 +81,9 @@ template <typename T>
 struct raw_copyable : std::bool_constant<trivially_copyable<T>::value && raw_constructed<T>::value> {};
 
 template <typename T>
+constexpr bool raw_copyable_v = raw_copyable<T>::value;
+
+template <typename T>
 struct trivially_move_assignable : std::is_trivially_move_assignable<T> {};
 template <bit_size_t N> struct trivially_move_assignable<bit_value<N> > : std::true_type {};
 template <typename T, typename U> struct trivially_move_assignable<Pair<T, U>> : std::bool_constant<trivially_move_assignable<T>::value && trivially_move_assignable<U>::value> {};
@@ -243,8 +246,8 @@ auto fast_copy_backward(const T* first, const T* last, T* targetEnd) -> T*
 }
 
 template <typename T> 
-typename std::enable_if<std::is_trivially_assignable_v<T, T>, T*>::type
-fast_move_backward(T* first, T* last, T* target)
+	requires std::is_trivially_assignable_v<T, T>
+auto fast_move_backward(T* first, T* last, T* target) -> T*
 {
 	return fast_copy_backward_trivial_impl(const_cast<const T*>(first), const_cast<const T*>(last), target);
 }
@@ -545,17 +548,17 @@ fast_fill(Iter first, Iter last, U value)
 	return std::fill(first, last, value);
 }
 
-template <typename T, typename U> inline
-typename std::enable_if<std::is_trivially_assignable_v<T, U> && (sizeof(T) == 1)>::type
-fast_fill(T* first, T* last, U value)
+template <typename T, typename U>
+	requires (std::is_trivially_assignable_v<T, U> && (sizeof(T) == 1))
+inline void fast_fill(T* first, T* last, U value)
 {
 	static_assert(sizeof(T) == 1);
 	memset(first, value, last - first);
 }
 
-template <typename T, typename U> inline
-typename std::enable_if<std::is_trivially_assignable_v<T, U> && (sizeof(T) == 2)>::type
-fast_fill(T* first, T* last, U value)
+template <typename T, typename U>
+	requires (std::is_trivially_assignable_v<T, U> && (sizeof(T) == 2))
+inline void fast_fill(T* first, T* last, U value)
 {
 	static_assert(sizeof(T) == 2);
 	assert(IsAligned2(first));
@@ -599,16 +602,16 @@ void fast_fill(bit_iterator<N, B> first, bit_iterator<N, B> last, U value)
 // Section      : raw_fill
 //----------------------------------------------------------------------
 
-template <typename Iter, typename U> inline
-typename std::enable_if< raw_copyable< typename std::iterator_traits<Iter>::value_type >::value >::type
-raw_fill(Iter first, Iter last, U value)
+template <typename Iter, typename U>
+	requires raw_copyable_v<typename std::iterator_traits<Iter>::value_type >
+inline void raw_fill(Iter first, Iter last, U value)
 {
 	fast_fill(first, last, value);
 }
 
-template <typename Iter, typename U> inline
-typename std::enable_if< !raw_copyable< typename std::iterator_traits<Iter>::value_type >::value >::type
-raw_fill(Iter first, Iter last, U value)
+template <typename Iter, typename U>
+	requires (!raw_copyable_v<typename std::iterator_traits<Iter>::value_type >)
+inline void raw_fill(Iter first, Iter last, U value)
 {
 	using T = typename std::iterator_traits<Iter>::value_type;
 
@@ -637,9 +640,9 @@ fast_zero(Iter first, Iter last)
 	return fast_fill(first, last, T());
 }
 
-template <typename T> inline
-typename std::enable_if<std::is_trivially_assignable_v<T, T> >::type
-fast_zero(T* first, T* last)
+template <typename T>
+	requires std::is_trivially_assignable_v<T, T>
+inline void fast_zero(T* first, T* last)
 {
 	memset(first, 0, (last - first) * sizeof(T));
 }

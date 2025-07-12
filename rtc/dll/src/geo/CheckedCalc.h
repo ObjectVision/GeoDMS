@@ -164,8 +164,8 @@ const ValueClass* NextSubIntegral()
 //----------------------------------------------------------------------
 
 template <typename T> 
-typename std::enable_if<! is_signed_v<T>, T >::type
-CheckedAdd(T a, T b)
+requires (!is_signed_v<T>)
+auto CheckedAdd(T a, T b) -> T
 {
 	assert(a>=0);
 	assert(b>=0);
@@ -176,8 +176,8 @@ CheckedAdd(T a, T b)
 	return r;
 }
 
-template <typename T> T
-CheckedMul(T a,T b, bool suggestAlternative)
+template <typename T>
+auto CheckedMul(T a,T b, bool suggestAlternative) -> T
 {
 	if constexpr (is_integral_v<T>)
 	{
@@ -192,7 +192,7 @@ CheckedMul(T a,T b, bool suggestAlternative)
 }
 
 template <>
-inline UInt64 CheckedMul<UInt64>(UInt64 a, UInt64 b, bool suggestAlternative)
+inline auto CheckedMul<UInt64>(UInt64 a, UInt64 b, bool suggestAlternative) -> UInt64
 {
 	UInt64 res = a * b; 
 	if ((a && (res / a != b)) || (b && (res / b != a)))
@@ -201,7 +201,7 @@ inline UInt64 CheckedMul<UInt64>(UInt64 a, UInt64 b, bool suggestAlternative)
 }
 
 template <>
-inline Int64 CheckedMul<Int64>(Int64 a, Int64 b, bool suggestAlternative)
+inline auto CheckedMul<Int64>(Int64 a, Int64 b, bool suggestAlternative) -> Int64
 {
 	Int64 res = a * b; 
 	if ((a && (res / a != b)) || (b && (res / b != a)))

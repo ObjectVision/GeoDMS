@@ -47,7 +47,7 @@ struct ref_type_of_iterator<T*>
 // get value_type for an iterator
 //=======================================
 
-template <typename Iter> //, typename std::enable_if < std::is_class_v<Iter>>::type* =nullptr >
+template <typename Iter>
 struct value_type_of_iterator
 {
 	using type = typename Iter::value_type;
