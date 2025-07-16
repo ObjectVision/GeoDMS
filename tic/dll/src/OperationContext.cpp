@@ -1046,8 +1046,10 @@ task_status OperationContext::Schedule(TreeItem* item, const FutureSuppliers& al
 	if (item)
 	{
 		auto itemFN = item->GetPhaseNumber();
-		assert(!m_PhaseNumber || m_PhaseNumber == itemFN);
-		m_PhaseNumber = itemFN;
+//		assert(!m_PhaseNumber || m_PhaseNumber == itemFN);
+		MakeMax(m_PhaseNumber, itemFN);
+		item->m_PhaseNumber = m_PhaseNumber; // set the phase number of the item to the phase number of this operation context
+
 	}
 
 	assert(m_PhaseNumber);
