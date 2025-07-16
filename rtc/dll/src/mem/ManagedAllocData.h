@@ -139,7 +139,7 @@ struct my_vector : managed_alloc_data<V>
 		: my_vector<V>(rhs.first, rhs.second MG_DEBUG_ALLOCATOR_SRC_PARAM)
 	{}
 
-	my_vector(my_vector<V>&& rhs)
+	my_vector(my_vector<V>&& rhs) noexcept
 	{
 		this->swap(rhs);
 	}
@@ -164,6 +164,11 @@ struct my_vector : managed_alloc_data<V>
 		}
 		my_vector<V> rhsCopy(rhs MG_DEBUG_ALLOCATOR_SRC("my_vector::CopyAssignment"));
 		this->swap(rhsCopy);
+	}
+
+	void operator =(my_vector<V>&& rhs) noexcept
+	{
+		this->swap(rhs);
 	}
 
 	~my_vector() = default;
