@@ -32,7 +32,7 @@ private:
 
 using dms_task = concurrency::task<void>;
 inline bool is_empty(const dms_task& x) { return x == dms_task();  }
-
+using explain_context_ptr_t = std::shared_ptr<Explain::Context>;
 
 enum class task_status {
 	none, waiting_for_suppliers, scheduled, activated, running, 
@@ -46,7 +46,7 @@ using OperationContextWPtr = std::weak_ptr<OperationContext>;
 using SupplierSet = std::set<OperationContextSPtr, std::owner_less<OperationContextSPtr>>;
 using WaiterSet = std::set<OperationContextWPtr, std::owner_less<OperationContextWPtr>>;
 
-using task_func_signature = void(OperationContext* self, Explain::Context*);
+using task_func_signature = void(OperationContext* self, explain_context_ptr_t context);
 using task_func_type = std::function<task_func_signature>;
 
 struct OperationContext : std::enable_shared_from_this<OperationContext>
@@ -56,10 +56,10 @@ struct OperationContext : std::enable_shared_from_this<OperationContext>
 		return std::make_shared<OperationContext>(self);
 	}
 
-	static std::shared_ptr<OperationContext> CreateItemWriter(TreeItem* item, task_func_type func, const FutureSuppliers& allArgInterests, bool runDirect, Explain::Context* context)
+	static std::shared_ptr<OperationContext> CreateItemWriter(TreeItem* item, task_func_type func, const FutureSuppliers& allArgInterests, bool runDirect)
 	{
 		auto result = std::make_shared<OperationContext>(func);
-		result->Schedule(item, allArgInterests, runDirect, context); // might run inline
+		result->Schedule(item, allArgInterests, runDirect); // might run inline
 		return result;
 	}
 
@@ -73,9 +73,9 @@ struct OperationContext : std::enable_shared_from_this<OperationContext>
 	OperationContext(const OperationContext&) = delete;
 	void operator =(const OperationContext&) = delete;
 
-	bool ScheduleCalcResult(ArgRefs&& argRefs, Explain::Context* context);
+	bool ScheduleCalcResult(ArgRefs&& argRefs, explain_context_ptr_t context);
 
-	TIC_CALL task_status Schedule(TreeItem* item, const FutureSuppliers& allArgInterest, bool runDirect, Explain::Context* context);
+	TIC_CALL task_status Schedule(TreeItem* item, const FutureSuppliers& allArgInterest, bool runDirect, explain_context_ptr_t context = {});
 
 public:
 	// main interface functions
@@ -114,12 +114,11 @@ public:
 	SharedActorInterestPtr m_ResKeeper;
 	std::atomic<task_status> m_Status = task_status::none;
 
-	void Run_with_catch() noexcept;
-	void Run_with_cleanup() noexcept;
+	void Run_with_catch(explain_context_ptr_t context) noexcept;
+	void Run_with_cleanup(explain_context_ptr_t context) noexcept;
 	void Run_Caller() noexcept;
 public:
-	task_func_type     m_TaskFunc;
-	Explain::Context*  m_Context = nullptr;
+	task_func_type                    m_TaskFunc;
 	ItemWriteLock      m_WriteLock;
 	TimeStamp          m_ActiveTimestamp = -1;
 
@@ -130,7 +129,7 @@ public:
 
 	bool MustCalcArg(arg_index i, CharPtr firstArgValue) const;
 
-	void RunOperator(Explain::Context* context, ArgRefs allInterests, std::vector<ItemReadLock> readLocks);
+	void RunOperator(ArgRefs allInterests, std::vector<ItemReadLock> readLocks, explain_context_ptr_t context);
 
 	const FuncDC* GetFuncDC() const { return m_FuncDC;  }
 

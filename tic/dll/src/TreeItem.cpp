@@ -3487,7 +3487,7 @@ static how_to_proceed PrepareDataRead(SharedPtr<const TreeItem> self, const Tree
 				[storageParent
 				, ocWeakPtrPtr = std::weak_ptr<OcPtr>(ocPtrPtr)
 				, readInfoPtr
-				, nmsm](OperationContext* ocPtr, Explain::Context* context)
+				, nmsm](OperationContext* ocPtr, explain_context_ptr_t context)
 				{
 					auto onExit = make_scoped_exit([ocWeakPtrPtr]() { if(auto ocSharedPtrPtr = ocWeakPtrPtr.lock())  *ocSharedPtrPtr = std::shared_ptr<OperationContext>(); });
 					assert(readInfoPtr);
@@ -3499,7 +3499,6 @@ static how_to_proceed PrepareDataRead(SharedPtr<const TreeItem> self, const Tree
 				}
 				, FutureSuppliers() // TODO: Let readInfoPtr provide required suppliers, such as GridStorageMetaInfo->m_VIP->m_GridDomain (as its range is required in further processing
 				, false
-				, nullptr
 			);
 			if (ocPtrPtr->load()->GetStatus() < task_status::running)
 				self->m_ReadAssets.emplace<std::shared_ptr<OcPtr>>(ocPtrPtr);

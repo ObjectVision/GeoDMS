@@ -269,13 +269,25 @@ SizeT TableControl::NrRows() const
 SizeT TableControl::GetRecNo(SizeT rowNr) const
 {
 	if (!m_SelIndexAttr)
-		return getRecNo(rowNr);
+		return getRecNo(rowNr, NrRows());
 
 	if (!const_cast<TableControl*>(this)->PrepareDataOrUpdateViewLater(m_SelIndexAttr.get_ptr()))
 		return UNDEFINED_VALUE(SizeT);
 
 	PreparedDataReadLock lck(m_SelIndexAttr, "TableControl::GetRecNo");
-	return getRecNo(rowNr);
+	return getRecNo(rowNr, NrRows());
+}
+
+SizeT TableControl::GetRecNo(SizeT rowNr, SizeT nrRows) const
+{
+	if (!m_SelIndexAttr)
+		return getRecNo(rowNr, nrRows);
+
+	if (!const_cast<TableControl*>(this)->PrepareDataOrUpdateViewLater(m_SelIndexAttr.get_ptr()))
+		return UNDEFINED_VALUE(SizeT);
+
+	PreparedDataReadLock lck(m_SelIndexAttr, "TableControl::GetRecNo");
+	return getRecNo(rowNr, nrRows);
 }
 
 SizeT TableControl::nrRows() const
@@ -288,13 +300,13 @@ SizeT TableControl::nrRows() const
 	return rowEntity->GetCount();
 }
 
-SizeT TableControl::getRecNo(SizeT rowNr) const
+SizeT TableControl::getRecNo(SizeT rowNr, SizeT nrRows) const
 {
-	if (!IsDefined(rowNr) || rowNr >= nrRows())
+	if (!IsDefined(rowNr) || rowNr >= nrRows)
 		return UNDEFINED_VALUE(SizeT);
 
 	if (m_State.Get(TCF_FlipSortOrder))
-		rowNr = (nrRows() - (rowNr + 1));
+		rowNr = (nrRows - (rowNr + 1));
 	if (!m_SelIndexAttr)
 		return rowNr;
 	assert(m_SelIndexAttr->m_DataLockCount > 0);

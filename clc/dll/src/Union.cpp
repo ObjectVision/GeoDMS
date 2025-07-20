@@ -303,7 +303,10 @@ public:
 
 		dms_assert(!context || context->m_Domain && resultDomain->UnifyDomain(context->m_Domain, "r1", "e2"));
 		dms_assert(!context || context->m_Coordinate);
-		SizeT coordOffset = context ? context->m_Coordinate->first : 0;
+		SizeT coordOffset = 0;
+		if (context)
+			if (auto coord = context->m_Coordinate)
+				coordOffset = coord->first;
 
 		dms_assert(!res->m_DataObject || context);
 		bool dontRecalc = IsDataReady(res);

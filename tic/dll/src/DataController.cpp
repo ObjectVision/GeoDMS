@@ -385,7 +385,7 @@ DataControllerRef GetExistingDataController(LispPtr keyExpr)
 
 #include "DataLocks.h"
 
-auto DataController::CallCalcResult(Explain::Context* context) const -> FutureData
+auto DataController::CallCalcResult(std::shared_ptr<Explain::Context> context) const -> FutureData
 {
 	FutureData resultHolder(this);
 	assert(GetInterestCount());

@@ -471,7 +471,7 @@ std::shared_ptr<Theme> Theme::Create(AspectNr aNr, const AbstrDataItem* thematic
 				, iwlPaletteDomain = std::make_shared<ItemWriteLock>(nbai.paletteDomain.get_ptr())
 				, breakAttr = nbai.breakAttr
 				, result_wptr, aNr
-				](OperationContext* self, Explain::Context* context)
+				](OperationContext* self, explain_context_ptr_t context)
 			{
 				UpdateMarker::ChangeSourceLock changeStamp(ts, "CreateNonzeroJenksFisherBreakAttr");
 				CreateNonzeroJenksFisherBreakAttr(dv_wptr, thematicAttrHolder, std::move(*iwlPaletteDomain), breakAttr, std::move(self->m_WriteLock), aNr); // async
@@ -480,7 +480,6 @@ std::shared_ptr<Theme> Theme::Create(AspectNr aNr, const AbstrDataItem* thematic
 			}
 		,   std::move(fs)
 		,	false
-		,	nullptr
 		);
 
 		result->m_ClassTask.emplace<std::shared_ptr<OperationContext>>(etc);

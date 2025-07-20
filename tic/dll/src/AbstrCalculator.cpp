@@ -183,7 +183,7 @@ auto CalledCalcHandle(const AbstrCalculator* calculator, const Class* cls)->calc
 	return result;
 }
 
-void ExplainResult(const AbstrCalculator* calculator, Explain::Context* context)
+void ExplainResult(const AbstrCalculator* calculator, std::shared_ptr<Explain::Context> context)
 {
 	assert(context);
 	auto dc = MakeResult(calculator);

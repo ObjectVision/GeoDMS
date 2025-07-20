@@ -1165,6 +1165,8 @@ void DataItemColumn::FindNextValue(SharedStr searchText)
 			auto searchValue = ThrowingConvert<value_type>(searchText);
 			SizeT nrRows = tc->NrRows();
 			SizeT row = tc->GetActiveRow();
+			if (!IsDefined(row))
+				row = 0;
 			SizeT currRow = row;
 			auto searchData = const_array_cast<value_type>(aa)->GetLockedDataRead();
 			do{
