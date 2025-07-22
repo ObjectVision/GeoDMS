@@ -35,6 +35,7 @@ Section "" ;No components page, name is not important
   File ..\bin\Release\${GeoDmsPlatform}\GeoDmsGuiQt.exe
   File ..\bin\Release\${GeoDmsPlatform}\RewriteExpr.lsp
   File ..\bin\Release\${GeoDmsPlatform}\profiler.py
+  File ..\bin\Release\${GeoDmsPlatform}\regression.py
 
   ; File ..\bin\Release\${GeoDmsPlatform}\*.dll
   File ..\bin\Release\${GeoDmsPlatform}\Rtc.dll
@@ -161,6 +162,7 @@ Section uninstall
   Delete $INSTDIR\GeoDmsGuiQt.exe
   Delete $INSTDIR\RewriteExpr.lsp
   Delete $INSTDIR\profiler.py
+  Delete $INSTDIR\regression.py
   Delete $INSTDIR\*.dll
   Delete $INSTDIR\geodms.pyd
   Delete $INSTDIR\GeoDMS_npp_def.xml

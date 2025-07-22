@@ -88,10 +88,16 @@
     </ProjectReference>
   </ItemGroup>
   <ItemGroup>
-    <CustomBuild Include="..\..\profiler\Profiler.py">
+    <CustomBuild Include="..\..\profiler\profiler.py">
       <FileType>Document</FileType>
       <Command>COPY %(Identity) "$(TargetDir)"</Command>
-      <Message>Copying Profiler.py into Target Folder</Message>
+      <Message>Copying profiler.py into Target Folder</Message>
+      <Outputs>$(TargetDir)%(Filename)%(Extension)</Outputs>
+    </CustomBuild>
+    <CustomBuild Include="..\..\profiler\regression.py">
+      <FileType>Document</FileType>
+      <Command>COPY %(Identity) "$(TargetDir)"</Command>
+      <Message>Copying regression.py into Target Folder</Message>
       <Outputs>$(TargetDir)%(Filename)%(Extension)</Outputs>
     </CustomBuild>
   </ItemGroup>
