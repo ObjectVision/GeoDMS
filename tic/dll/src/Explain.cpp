@@ -79,7 +79,7 @@ namespace Explain { // local defs
 			reportD(SeverityTypeID::ST_MinorTrace, "Byte");
 		}
 
-		virtual ArgRef GetCalcDataItem(Context* context) const = 0;
+		virtual ArgRef GetCalcDataItem(std::shared_ptr<Explain::Context> context) const = 0;
 
 		CoordinateType* AddIndex(SizeT index) // returns nullptr if abundant
 		{
@@ -96,7 +96,7 @@ namespace Explain { // local defs
 			return &m_Coordinates.back();
 		}
 
-		const AbstrValue* CalcValue(Context* context); // returns nullptr if suspended
+		const AbstrValue* CalcValue(std::shared_ptr<Explain::Context> context); // returns nullptr if suspended
 
 		void GetDescr(CalcExplImpl* self, OutStreamBase& stream, bool& isFirst, bool showHidden) const;
 		void DescrValue(OutStreamBase& stream) const;
@@ -140,7 +140,7 @@ namespace Explain { // local defs
 			:	AbstrCalcExplanation(dataItem)
 		{}
 
-		ArgRef GetCalcDataItem(Context* context) const override { return ArgRef(std::in_place_type<SharedTreeItem>, m_DataItem.get_ptr()); }
+		ArgRef GetCalcDataItem(std::shared_ptr<Explain::Context> context) const override { return ArgRef(std::in_place_type<SharedTreeItem>, m_DataItem.get_ptr()); }
 
 		void GetDescrImpl(CalcExplImpl* self, OutStreamBase& stream, bool isFirst, bool showHidden) const override;
 
@@ -168,7 +168,7 @@ namespace Explain { // local defs
 			assert(calcPtr);
 		}
 
-		ArgRef GetCalcDataItem(Context* context) const override
+		ArgRef GetCalcDataItem(std::shared_ptr<Explain::Context> context) const override
 		{
 			ExplainResult(m_CalcPtr, context);
 			return CalledCalcHandle(m_CalcPtr, AbstrDataItem::GetStaticClass());
@@ -521,11 +521,11 @@ namespace Explain { // local defs
 				CoordinateType* coordPtr = explanation->AddIndex(entry.second);
 				if (!coordPtr || !IsDefined(coordPtr->first))
 					continue;
-				dms_assert(coordPtr->second.is_null()); // we don't expect to process the same entry twice
+				assert(coordPtr->second.is_null()); // we don't expect to process the same entry twice
 
-				Context context{ this, entry.first, coordPtr };
+				auto context = std::make_shared<Context>( this, entry.first, coordPtr );
 
-				const AbstrValue* value = explanation->CalcValue(&context);
+				const AbstrValue* value = explanation->CalcValue(context);
 				if (!value)
 					return false; // suspend or NULL
 
@@ -914,7 +914,7 @@ namespace Explain { // local defs
 				self->AddLispExplanation(factor, level, this, ++seqNr);
 	}
 
-	const AbstrValue* AbstrCalcExplanation::CalcValue(Context* context) // returns nullptr if suspended
+	const AbstrValue* AbstrCalcExplanation::CalcValue(std::shared_ptr<Explain::Context> context) // returns nullptr if suspended
 	{
 		dms_assert(context);
 		dms_assert(context->m_CalcExpl);

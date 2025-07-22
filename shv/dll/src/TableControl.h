@@ -113,11 +113,12 @@ public:
 
 	SizeT NrRows() const;
 	SizeT GetRecNo(SizeT i) const;
+	SizeT GetRecNo(SizeT rowNr, SizeT nrRows) const;
 	SizeT GetRowNr(SizeT i) const;
 	ExportInfo GetExportInfo() const;
 
 	SizeT nrRows() const;
-	SizeT getRecNo(SizeT i) const;
+	SizeT getRecNo(SizeT i, SizeT nrRows) const;
 	SizeT getRowNr(SizeT i) const;
 
 	bool  InSelRange(SizeT row, gr_elem_index col) const { return m_Cols.IsInRange(col) && m_Rows.IsInRange(row); }

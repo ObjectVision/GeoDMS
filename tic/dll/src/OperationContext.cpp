@@ -645,7 +645,7 @@ garbage_can OperationContext::disconnect_supplier(OperationContext* supplier)
 
 	OperationContextWPtr wptr_supplier = supplier->weak_from_this();
 	auto status = getStatus();
-	assert(status != task_status::running || m_Context);
+	assert(status != task_status::running);
 	assert(status != task_status::activated);
 	assert(status != task_status::scheduled);
 	if (status > task_status::running)
@@ -903,7 +903,7 @@ void OperationContex_setActivated(OperationContext* self)
 
 	assert(!cs_ThreadMessing.try_lock());
 	assert(!IsActiveOrRunning(self->getStatus()));
-	assert(self->m_Suppliers.empty() || self->m_Context);
+	assert(self->m_Suppliers.empty());
 
 #if defined(MG_TRACE_OPERATIONCONTEXTS)
 	CheckNumberOfRunningOCConsistency();
@@ -978,6 +978,7 @@ OperationContext::~OperationContext()
 
 	assert(!m_FuncDC || !m_FuncDC->m_OperContext);
 
+
 	assert(m_Status != task_status::running);
 	OnEnd(task_status::cancelled);
 
@@ -1030,19 +1031,18 @@ void OperationContext_ScheduleThis(OperationContext* self)
 	OperationContext_scheduleThis(self);
 }
 
-task_status OperationContext::Schedule(TreeItem* item, const FutureSuppliers& allArgInterest, bool runDirect, Explain::Context* context)
+task_status OperationContext::Schedule(TreeItem* item, const FutureSuppliers& allArgInterest, bool runDirect, explain_context_ptr_t context)
 {
 	assert(IsMetaThread());
 
 	assert(UpdateMarker::IsInActiveState());
-	assert(m_Status == task_status::none);
+	assert(m_Status == task_status::none || context);
 
 	assert(IsMetaThread());
 	//	dms_assert(!m_TaskFunc);
-	assert(m_Status == task_status::none);
+	assert(m_Status == task_status::none || context);
 	assert(m_TaskFunc);
-
-	m_Context = context;
+	assert(runDirect || !context); // runDirect must be set when a result collecting context is given.
 	if (item)
 	{
 		auto itemFN = item->GetPhaseNumber();
@@ -1065,7 +1065,7 @@ task_status OperationContext::Schedule(TreeItem* item, const FutureSuppliers& al
 		runDirect = true;
 
 	assert(!runDirect || IsMetaThread());
-	assert(m_Status == task_status::none);
+	assert(m_Status == task_status::none || context);
 
 	m_ActiveTimestamp = UpdateMarker::GetActiveTS(MG_DEBUG_TS_SOURCE_CODE("Obtaining active frame for produce item task"));
 
@@ -1093,10 +1093,12 @@ task_status OperationContext::Schedule(TreeItem* item, const FutureSuppliers& al
 			OperationContex_setActivated(this);
 			bool running = getUniqueLicenseToRun(true); assert(running);
 		}
-		Run_with_cleanup();
+		Run_with_cleanup(context);
 	}
 	else
 	{
+		assert(!context);
+
 		assert(!m_FuncDC || GetOperator()->CanRunParallel());
 		OperationContext_ScheduleThis(this);
 	}
@@ -1485,8 +1487,9 @@ struct OC_CalcResultFunc {
 	mutable ArgRefs argRefs;
 	mutable FutureSuppliers allInterests;
 
-	void operator () (OperationContext* self, Explain::Context* context) const
+	void operator () (OperationContext* self, explain_context_ptr_t context) const
 	{
+		assert(self);
 		SharedPtr<const FuncDC> funcDC = self->m_FuncDC.get();
 
 #if defined(MG_DEBUG_OPERATIONS)
@@ -1500,7 +1503,7 @@ struct OC_CalcResultFunc {
 		if (!funcDC)
 			return;
 
-		assert(funcDC && (funcDC->DoesHaveSupplInterest() || !funcDC->GetInterestCount() || context));
+		assert(funcDC->DoesHaveSupplInterest() || !funcDC->GetInterestCount() || context);
 
 		assert(self->m_Status == task_status::running);
 		assert(!SuspendTrigger::DidSuspend());
@@ -1530,14 +1533,14 @@ struct OC_CalcResultFunc {
 		allInterests.clear();
 
 		funcDC->StopSupplInterest();
-		self->RunOperator(context, std::move(argRefs), std::move(readLocks)); // RunImpl() may destroy this and make m_FuncDC inaccessible // CONTEXT
+		self->RunOperator(std::move(argRefs), std::move(readLocks), context); // RunImpl() may destroy this and make m_FuncDC inaccessible // CONTEXT
 		argRefs.clear();
 
 		failureProcessor();
 	}
 };
 
-bool OperationContext::ScheduleCalcResult(ArgRefs&& argRefs, Explain::Context* context)
+bool OperationContext::ScheduleCalcResult(ArgRefs&& argRefs, explain_context_ptr_t context)
 {
 	DBG_START("OperationContext", "ScheduleCalcResult", MG_DEBUG_FUNCCONTEXT);
 	DBG_TRACE(("FuncDC: %s", m_FuncDC->md_sKeyExpr));
@@ -1699,7 +1702,7 @@ auto OperationContext_TakeTaskFunc(OperationContext* self)
 	return taskFunc;
 }
 
-void OperationContext::Run_with_catch() noexcept
+void OperationContext::Run_with_catch(explain_context_ptr_t context) noexcept
 {
 	try {
 		CancelableFrame frame(this);
@@ -1711,7 +1714,7 @@ void OperationContext::Run_with_catch() noexcept
 		assert(m_TaskFunc);
 		auto taskFunc = OperationContext_TakeTaskFunc(this);
 		if (taskFunc)
-			taskFunc(this, m_Context); // run the payload functor, set by ScheduleItemWriter
+			taskFunc(this, context); // run the payload functor, set by ScheduleItemWriter
 	}
 	catch (const task_canceled&)
 	{
@@ -1730,11 +1733,11 @@ void OperationContext::Run_with_catch() noexcept
 	// writeLock release here before OnEnd allows Waiters to start
 }
 
-void OperationContext::Run_with_cleanup() noexcept
+void OperationContext::Run_with_cleanup(explain_context_ptr_t context) noexcept
 {
 	assert(!SuspendTrigger::DidSuspend());
 
-	Run_with_catch();
+	Run_with_catch(context);
 	assert(!m_TaskFunc);
 
 	if (GetResult()->WasFailed(FR_Data))
@@ -1754,12 +1757,17 @@ void OperationContext::Run_with_cleanup() noexcept
 	assert(!m_WriteLock);
 }
 
+void OperationContext_Run_with_cleanup_without_context(OperationContext* self) noexcept
+{
+	self->Run_with_cleanup({});
+}
+
 void OperationContext::Run_Caller() noexcept
 {
 	DMS_SE_CALL_BEGIN
 
 		assert(m_PhaseNumber >= s_CurrActivePhaseNumber);
-		Run_with_cleanup();
+		OperationContext_Run_with_cleanup_without_context(this);
 
 	DMS_SE_CALL_END
 }
@@ -2056,7 +2064,7 @@ TIC_CALL void DoWorkWhileWaitingFor(task_status* fenceStatus)
 	}
 }
 
-void OperationContext::RunOperator(Explain::Context* context, ArgRefs argRefs, std::vector<ItemReadLock> readLocks)
+void OperationContext::RunOperator(ArgRefs argRefs, std::vector<ItemReadLock> readLocks, explain_context_ptr_t context)
 {
 	SharedPtr<const FuncDC> funcDC = m_FuncDC.get_ptr();
 	if (!funcDC || funcDC->WasFailed(FR_Data))
@@ -2078,7 +2086,7 @@ void OperationContext::RunOperator(Explain::Context* context, ArgRefs argRefs, s
 		try {
 			TreeItemDualRefContextHandle reportProgressAndErr(&resultHolder);
 
-			actualResult = GetOperator()->CalcResult(resultHolder, std::move(argRefs), std::move(readLocks), context); // ============== payload
+			actualResult = GetOperator()->CalcResult(resultHolder, std::move(argRefs), std::move(readLocks), context.get()); // ============== payload
 
 			assert(resultHolder || IsCanceled());
 			assert(actualResult || SuspendTrigger::DidSuspend());

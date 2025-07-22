@@ -329,7 +329,7 @@ SharedTreeItem FuncDC::MakeResult() const // produce signature
 	return m_Data;
 }
 
-auto FuncDC::CallCalcResult(Explain::Context* context) const -> FutureData
+auto FuncDC::CallCalcResult(std::shared_ptr<Explain::Context> context) const -> FutureData
 {
 #if defined(MG_DEBUG_DCDATA)
 	DBG_START("FuncDc::CallCalcResult", md_sKeyExpr.c_str(), MG_DEBUG_FUNCDC);
@@ -367,7 +367,7 @@ auto FuncDC::CallCalcResult(Explain::Context* context) const -> FutureData
 			assert(!m_OperContext);
 			return {};
 		}
-		dms_assert(m_Data);
+		assert(m_Data);
 		DBG_TRACE(("MakeResult completed well"));
 	}
 	m_Data->UpdateMetaInfo();
@@ -394,8 +394,11 @@ auto FuncDC::CallCalcResult(Explain::Context* context) const -> FutureData
 	assert(GetInterestCount());
 	assert(m_Data->IsCacheItem() || m_Data->IsPassor()|| m_OperatorGroup->CanResultToConfigItem() );
 
-	if (context && !m_OperatorGroup->CanExplainValue())
-		context = nullptr;
+	if (context)
+	{
+		if (!m_OperatorGroup->CanExplainValue())
+			context.reset();
+	}
 
 	#if defined(MG_DEBUG_UPDATESOURCE)
 		SupplInclusionTester guaranteeThatCompleteSupplRelIsTransitive(this);
@@ -529,7 +532,8 @@ OArgRefs FuncDC::GetArgs(bool doUpdateMetaInfo, bool doCalcData) const
 			assert(!fd || argIter->m_DC->GetInterestCount());
 			if (SuspendTrigger::DidSuspend())
 				return {};
-			assert(!fd || CheckCalculatingOrReady(fd->GetOld()->GetCurrRangeItem()) || fd->WasFailed(FR_Data) || fd->GetOld()->WasFailed(FR_Data));
+			assert(!fd || CheckCalculatingOrReady(fd->GetOld()->GetCurrRangeItem()) || fd->WasFailed(FR_Data) || fd->GetOld()->WasFailed(FR_Data) 
+			|| dynamic_cast<const FuncDC*>(fd.get_ptr()) && dynamic_cast<const FuncDC*>(fd.get_ptr())->m_OperatorGroup->GetNameID() == token::subitem); // the latter can refer to a sub-items of a FenceContainer that has a upstream RangeItem
 			argRef.emplace<FutureData>(std::move(fd));
 			if (currArg == 0 && m_OperatorGroup->HasDynamicArgPolicies())
 				firstArgValue = const_array_cast<SharedStr>(DataReadLock(AsDataItem(argIter->m_DC->GetOld())))->GetIndexedValue(0);
@@ -693,7 +697,7 @@ bool FuncDC::MakeResultImpl() const
 
 // =========================================  CallCalcResult
 
-void FuncDC::CallCalcResultImpl(Explain::Context* context) const
+void FuncDC::CallCalcResultImpl(std::shared_ptr<Explain::Context> context) const
 {
 #if defined(MG_DEBUG_DCDATA)
 	DBG_START("FuncDc::CallCalcResult", md_sKeyExpr.c_str(), MG_DEBUG_FUNCDC);
@@ -742,23 +746,23 @@ void FuncDC::CallCalcResultImpl(Explain::Context* context) const
 		// todo: merge ScheduleCalcResult into ctor of OperationContext, 
 		// todo: add separate interface for reactivation with a specific ExplainValue::Context
 		auto operContext = this->GetOperContext();
-		if (!operContext || operContext->m_Context != context)
+		if (!operContext)
 		{
 			operContext = OperationContext::CreateFuncDC(this);
-			result = operContext->GetStatus() != task_status::exception;
-
-//			leveled_critical_section::scoped_lock ocaLock(cs_OperContextAccess);
 			m_OperContext = operContext;
-			if (result)
-				if (!m_OperContext->ScheduleCalcResult(std::move(*argRefs), context)) // connection with m_OperContext must have been established before scheduling, as direct-running -> done -> undo FuncDC -> OC relation
-					result = false;
 
-			assert(!IsNew() || GetNew()->m_LastChangeTS == m_LastChangeTS); // further changes in the resulting data must have caused resultHolder to invalidate, as IsNew results are passive
+			//			leveled_critical_section::scoped_lock ocaLock(cs_OperContextAccess);
+		}
+		result = operContext->GetStatus() != task_status::exception;
+		if (operContext->GetStatus() == task_status::none || context)
+			if (!m_OperContext->ScheduleCalcResult(std::move(*argRefs), context)) // connection with m_OperContext must have been established before scheduling, as direct-running -> done -> undo FuncDC -> OC relation
+				result = false;
+
+		assert(!IsNew() || GetNew()->m_LastChangeTS == m_LastChangeTS); // further changes in the resulting data must have caused resultHolder to invalidate, as IsNew results are passive
 
 			// this function only runs in the main thread and should not be re-entrant, so we can safely assume that no other thread is filling the m_OperContext
-			if (result)
-				SuspendTrigger::MarkProgress();
-		}
+		if (result)
+			SuspendTrigger::MarkProgress();
 
 		assert(!result || operContext || CheckDataReady(m_Data) || (!IsNew() && CheckCalculatingOrReady(GetCacheRoot(m_Data))));
 	}
@@ -776,7 +780,7 @@ void FuncDC::CallCalcResultImpl(Explain::Context* context) const
 	}
 
 	assert(m_Data);
-	assert(!SuspendTrigger::DidSuspend() && !WasFailed(FR_MetaInfo) || m_OperContext && m_OperContext->m_Context);  // if we asked for MetaInfo and only DataProcesing failed, we should at least get a result
+	assert(!SuspendTrigger::DidSuspend() && !WasFailed(FR_MetaInfo));  // if we asked for MetaInfo and only DataProcesing failed, we should at least get a result
 	assert(m_Data->IsCacheItem() || m_Data->IsPassor() || m_OperatorGroup->CanResultToConfigItem() || IsTmp());
 }
 
@@ -948,7 +952,7 @@ SharedTreeItem SymbDC::MakeResult() const
 	return m_Data;
 }
 
-auto SymbDC::CallCalcResult(Explain::Context* context) const -> FutureData
+auto SymbDC::CallCalcResult(std::shared_ptr<Explain::Context> context) const -> FutureData
 {
 	dms_check(GetInterestCount());
 	dms_assert(!SuspendTrigger::DidSuspend());
