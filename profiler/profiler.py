@@ -206,7 +206,12 @@ def getPerformance(exp:Experiment, sampling_rate=1.0, timeout=7200):
         ] + parts  # add the rest of the command
         # + ["&&", "pause"]  # keep the console open, uncomment for debugging non-waiting failures
 
+        cmd_parts_final = []
+        for cmd_part in cmd_parts:
+            cmd_parts_final.append(cmd_part.replace('"', ""))
         print(f"Full command: {cmd_parts}\n")
+
+        cmd_parts = cmd_parts_final
 
         # Launch this in a new console window (not via start!)
         try:

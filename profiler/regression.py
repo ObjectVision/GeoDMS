@@ -7,6 +7,8 @@ import glob
 from bs4 import BeautifulSoup
 import filecmp
 import webbrowser
+import subprocess
+from datetime import datetime
 
 def get_empty_table_row_col_html() -> str:
     return '<td style="border-right: 0px; border-bottom: 1px solid @@@COLOR@@@; box-shadow: 0 1px 0 #FFFFFF; padding: 0px;"></td>\n'
@@ -60,6 +62,8 @@ def get_table_regression_test_row(result_paths:dict, summary_row:list) -> str:
 
         #2025 05 21 : 12.24.32
         command = summary_col_row["command"]#.replace("GeoDmsRun.exe", "GeoDmsGuiQt.exe")
+        command = command.replace("'", '"')
+        command = command.replace("\"", "")
         table_col_header = table_col_header.replace("@@@GEODMS_CMD@@@", command)
         table_col_header = table_col_header.replace("@@@STARTTIME@@@", str(summary_col_row["start_time"].strftime("%Y %m %d %H:%M:%S")))
         table_col_header = table_col_header.replace("@@@DAYS@@@", str(int(day)))
@@ -113,7 +117,11 @@ def collect_experiment_summaries(version_range:tuple, result_paths:dict, sorted_
     cols = len(sorted_valid_result_folders)+1
     summaries = [[None for _ in range(cols)] for _ in range(rows)]
 
-    summaries[0][0] = f"geodms regression test results:<br> {version_range[0]}...{version_range[1]}"
+    if "title" in result_paths and "logo" in result_paths:
+        summaries[0][0] = f"<img src='{result_paths["logo"]}' alt='TNO logo' width='150' height='75'><br>\
+                            {result_paths["title"]}<br>"
+    else:
+        summaries[0][0] = f"geodms regression test results:<br> {version_range[0]}...{version_range[1]}"
 
     # fill table with summaries
     for regression_test in regression_test_files.keys():
@@ -125,7 +133,7 @@ def collect_experiment_summaries(version_range:tuple, result_paths:dict, sorted_
             col = get_result_col(experiment_file, sorted_valid_result_folders)
             if not summaries[0][col]:
                 summaries[0][col] = get_col_header(col, sorted_valid_result_folders)
-            experiment = Profiler.loadExperimentFromPickleFile(None, experiment_file)
+            experiment = profiler.loadExperimentFromPickleFile(None, experiment_file)
             summaries[row][col] = experiment.summary()
             regression_test_experiments.append(experiment)
             log_filename = get_log_filename(sorted_valid_result_folders[col-1][0], regression_test)
@@ -139,7 +147,7 @@ def collect_experiment_summaries(version_range:tuple, result_paths:dict, sorted_
         
         target_visualized_experiments_filename = get_profile_figure_filename(result_paths["results_folder"], regression_test)
         if not os.path.exists(target_visualized_experiments_filename):
-            visualized_experiments_filename = Profiler.VisualizeExperiments(regression_test_experiments, show_figure=False)
+            visualized_experiments_filename = profiler.VisualizeExperiments(regression_test_experiments, show_figure=False)
             #os.remove(target_visualized_experiments_filename)
             os.rename(visualized_experiments_filename, target_visualized_experiments_filename)
 
@@ -232,15 +240,15 @@ def get_profile_figure_filename(result_folder:str, regression_test:str):
     return f"{result_folder}/{regression_test}.html"
 
 def get_col_header(col:int, sorted_valid_result_folders:list) -> dict:
-    result_folder_name, _ = sorted_valid_result_folders[col-1]
-    major, minor, patch, architecture, sf, multithreading, local_machine_name = parse_folder_name(result_folder_name)
-    return {"version":f"{major}.{minor}.{patch}", "build":"Release", "platform":architecture, "multi_tasking":multithreading, "computer_name":local_machine_name}
+    result_folder_name, _,_ = sorted_valid_result_folders[col-1]
+    major, minor, patch, architecture, sf, multithreading, local_machine_name, time, hash = parse_folder_name(result_folder_name)
+    return {"version":f"{major}.{minor}.{patch}", "build":"Release", "platform":architecture, "multi_tasking":multithreading, "computer_name":local_machine_name, "time":time, "hash":hash}
 
 def get_result_col(experiment_file:str, sorted_valid_result_folders:list):
     col = 1
     experiment_filename = os.path.basename(experiment_file)
     foldername_from_experiment_file = experiment_filename.split("__")[0]
-    for foldername, _ in sorted_valid_result_folders:
+    for foldername, _,_ in sorted_valid_result_folders:
         if foldername == foldername_from_experiment_file:
             return col
         col+=1
@@ -259,7 +267,7 @@ def collect_experiment_filenames_per_experiment(regression_tests:list, result_pa
     regression_tests_experiment_filenames = {}
     for regression_test in regression_tests:
         regression_tests_experiment_filenames[regression_test] = []
-        for experiment_folder, _ in sorted_valid_result_folders:
+        for experiment_folder, _, _ in sorted_valid_result_folders:
             experiment_folder_path = f"{result_paths["results_base_folder"]}/{experiment_folder}"
             experiment_filenames = get_all_experiments_from_experiment_folder(experiment_folder_path)
             for experiment_filename in experiment_filenames:
@@ -284,8 +292,10 @@ def get_all_regression_tests_by_name(result_paths:dict, valid_result_folders:lis
 def sort_valid_result_folders_new_to_old(valid_result_folders:list) -> list:
     sorted_valid_result_folders = []
     for result_folder in valid_result_folders:
-        sorted_valid_result_folders.append((result_folder, Version(get_semantic_version_from_folder_name(result_folder))))
-        sorted_valid_result_folders.sort(reverse=True, key=lambda x: x[1])
+        time = get_datetime_from_folder_name(result_folder)
+        version = Version(get_semantic_version_from_folder_name(result_folder))
+        sorted_valid_result_folders.append((result_folder, time, version))
+        sorted_valid_result_folders.sort(reverse=True, key=lambda x: (x[1], x[2]))
     return sorted_valid_result_folders
 
 def get_all_experiments_from_experiment_folder(experiment_folder_path:str):
@@ -300,7 +310,11 @@ def get_valid_result_folders(version:str, result_paths:dict) -> list:
     for candidate in result_folder_candidates:
         if not folder_is_results_folder(candidate):
             continue
-        major, minor, patch, architecture, sf, multithreading, local_machine_name = parse_folder_name(candidate)
+        parsed_result_folder_name = parse_folder_name(candidate)
+        if len(parsed_result_folder_name)==7:
+            major, minor, patch, architecture, sf, multithreading, local_machine_name = parsed_result_folder_name
+        else:
+            major, minor, patch, architecture, sf, multithreading, local_machine_name, time, hash  = parsed_result_folder_name
         if Version(f"{major}.{minor}.{patch}") <= Version(version):
             valid_result_folders.append(candidate)
 
@@ -309,17 +323,31 @@ def get_valid_result_folders(version:str, result_paths:dict) -> list:
 def folder_is_results_folder(result_folder_name:str) -> bool:
     # valid: 17_4_5_x64_SF_C1C2C3_OVSRV07
     split_result_folder_name = result_folder_name.split("_")
-    if len(split_result_folder_name)!=7:
+    split_length = len(split_result_folder_name)
+    if split_length !=7 and split_length != 9:
         return False
-    major, minor, patch, architecture,_,statusflags,machine_name = split_result_folder_name
+    if split_length==7:
+        major, minor, patch, architecture,_,statusflags,machine_name = split_result_folder_name
+    if split_length==9:
+        major, minor, patch, architecture,_,statusflags,machine_name,commit_time,hash = split_result_folder_name
     return major.isdigit() and minor.isdigit() and patch.isdigit()
 
 def parse_folder_name(result_folder_name:str) -> list:
-    major, minor, patch, architecture, sf, multithreading, local_machine_name = result_folder_name.split("_")
-    return [major, minor, patch, architecture, sf, multithreading, local_machine_name]
+    result = result_folder_name.split("_")
+    if len(result) == 7:
+        result.extend(["",""])
+    return result
+
+def get_datetime_from_folder_name(result_folder_name:str) -> datetime:
+    split_result_folder = result_folder_name.split("_")
+    commit_time = datetime(1970, 1, 1)
+    if len(split_result_folder) == 9:
+        commit_time = datetime.strptime(split_result_folder[-2], r'%Y%m%d%H%M%S')
+    return commit_time
 
 def get_semantic_version_from_folder_name(result_folder_name:str):
-    major, minor, patch,_,_,_,_ = parse_folder_name(result_folder_name)
+    split_result_folder = result_folder_name.split("_")
+    major, minor, patch,_,_,_,_,_,_ = parse_folder_name(result_folder_name)
     return f"{major}.{minor}.{patch}"
 
 def get_version_range(valid_result_folders:list) -> tuple:
@@ -374,13 +402,30 @@ def get_geodms_paths(version:str) -> dict:
     geodms_paths = {}
     geodms_paths["GeoDmsPlatform"] = "x64"
     geodms_paths["GeoDmsPath"] = os.path.expandvars(f"%ProgramFiles%/ObjectVision/GeoDms{version}")
-    geodms_paths["GeoDmsProfilerPath"] = geodms_profiler if geodms_profiler_env_key!=geodms_profiler else f"{geodms_paths["GeoDmsPath"]}/Profiler.py"
+    geodms_paths["GeoDmsProfilerPath"] = geodms_profiler if geodms_profiler_env_key!=geodms_profiler else f"{geodms_paths["GeoDmsPath"]}/profiler.py"
     geodms_paths["GeoDmsRunPath"] = f"{geodms_paths["GeoDmsPath"]}/GeoDmsRun.exe"
     geodms_paths["GeoDmsGuiQtPath"] = f"{geodms_paths["GeoDmsPath"]}/GeoDmsGuiQt.exe"
     return geodms_paths
 
-def get_result_folder_name(version:str, geodms_paths:dict, MT1:str, MT2:str, MT3:str) -> str:
-    return f"{version.replace(".", "_")}_{geodms_paths["GeoDmsPlatform"]}_SF_{MT1}{MT2}{MT3}_{get_local_machine_name()}"
+def get_git_repo_latest_commit_timestamp_and_hash(local_git_repo:str) -> list[datetime, str]:    
+    # commit time
+    commit_time = str(subprocess.check_output(r"git show -s --format=%cd --date=format:%Y%m%d%H%M%S HEAD", cwd=local_git_repo))
+    commit_time = commit_time[2:-3]
+    time_object = datetime.strptime(commit_time, r'%Y%m%d%H%M%S')
+
+    # abbreviated hash
+    abbreviated_hash = str(subprocess.check_output(r"git show -s --format=%h HEAD", cwd=local_git_repo))
+    abbreviated_hash = abbreviated_hash[2:-3]
+
+    return [time_object, abbreviated_hash]
+
+def get_result_folder_name(version:str, geodms_paths:dict, MT1:str, MT2:str, MT3:str, local_git_repo:str=None) -> str:
+    # datetime format: git show
+    folder_name = f"{version.replace(".", "_")}_{geodms_paths["GeoDmsPlatform"]}_SF_{MT1}{MT2}{MT3}_{get_local_machine_name()}"
+    if local_git_repo:
+        latest_commit_timestamp, abbreviated_hash = get_git_repo_latest_commit_timestamp_and_hash(local_git_repo)
+        folder_name = f"{folder_name}_{latest_commit_timestamp.strftime('%Y%m%d%H%M%S')}_{abbreviated_hash}"
+    return folder_name
 
 def get_result_paths(geodms_paths:dict, regression_test_paths:dict, version:str, MT1:str, MT2:str, MT3:str) -> dict:
     result_paths = {}
@@ -424,6 +469,7 @@ def get_table_title_html_template() -> str:
 def get_table_col_header_html_template() -> str:
     #<td style="border-right: 0px; border-bottom: 1px solid #BEBEE6; box-shadow: 0 1px 0 #FFFFFF; padding: 5px;"><I>version</I>: <B>17.4.6</B><BR><I>build</I>: <B>Release</B><BR><I>platform</I>: <B>x64</B><BR><I>multi tasking</I>: <B>S1S2S3</B><BR> 			<I>operating system</I>: <B>Windows 10</B><BR> 			<I>computername</I>: <B>OVSRV07</B><BR> </td>
     return '<td style="border-right: 0px; border-bottom: 1px solid #BEBEE6; box-shadow: 0 1px 0 #FFFFFF; padding: 0px;"><B>@@@VERSION@@@</B><BR>\
+    <B>@@@GITSHORTHASH@@@<B><BR>\
     <B>@@@MULTITASKING@@@</B><BR>\
     <B>@@@TOTALTIME@@@</B><BR>\
     <B>@@@SUCCESSRATIO@@@</B></td>\n'
@@ -439,6 +485,7 @@ def get_table_header_row(summary_row:list) -> str:
     table_header_row = table_header_row.replace("@@@TITLE@@@", summary_row[0])
     for summary_col_header in summary_row[1:]:
         table_col_header = get_table_col_header_html_template()
+        table_col_header = table_col_header.replace("@@@GITSHORTHASH@@@", summary_col_header["hash"])
         table_col_header = table_col_header.replace("@@@VERSION@@@", summary_col_header["version"])
         table_col_header = table_col_header.replace("@@@PLATFORM@@@", summary_col_header["platform"])
         table_col_header = table_col_header.replace("@@@MULTITASKING@@@", summary_col_header["multi_tasking"])
@@ -448,7 +495,7 @@ def get_table_header_row(summary_row:list) -> str:
         table_col_header = table_col_header.replace("@@@COMPUTER_NAME@@@", summary_col_header["computer_name"])
         table_header_row += table_col_header
         
-    return f'<tr style="background-color: #fff497">{table_header_row}</tr>'
+    return f'<tr style="background-color: #ffffff">{table_header_row}</tr>'
 
 def get_table_rows(result_paths:dict, regression_test_summaries:list[list]) -> str:
     rows = ""    
@@ -531,13 +578,10 @@ def collect_and_generate_test_results(version:str, result_paths:dict):
     webbrowser.open(final_html_file)
     return
 
-def run_experiments(experiments):
-    experiments = Profiler.RunExperiments(experiments)
-
 def add_exp(exps:list, name, cmd, exp_fldr, env=None, cwd=None, log_fn=None, bin_fn=None, file_comparison:tuple=None, store_results=True) -> list:
-    exps.append(Profiler.Experiment(name=name, command=cmd, experiment_folder=exp_fldr, environment_variables=env, cwd=cwd, geodms_logfile=log_fn, binary_experiment_file=bin_fn, file_comparison=file_comparison, store_results=store_results))
+    exps.append(profiler.Experiment(name=name, command=cmd, experiment_folder=exp_fldr, environment_variables=env, cwd=cwd, geodms_logfile=log_fn, binary_experiment_file=bin_fn, file_comparison=file_comparison, store_results=store_results))
     return exps
 
 def add_cexp(exps:list, name, cmd, exp_fldr, env=None, cwd=None, log_fn=None, bin_fn=None, file_comparison:tuple=None) -> list:
-    exps.append(Profiler.Experiment(name=name, command=cmd, experiment_folder=exp_fldr, environment_variables=env, cwd=cwd, geodms_logfile=log_fn, binary_experiment_file=bin_fn, file_comparison=file_comparison))
+    exps.append(profiler.Experiment(name=name, command=cmd, experiment_folder=exp_fldr, environment_variables=env, cwd=cwd, geodms_logfile=log_fn, binary_experiment_file=bin_fn, file_comparison=file_comparison))
     return exps
