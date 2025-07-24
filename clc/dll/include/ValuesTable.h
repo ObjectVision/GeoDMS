@@ -46,7 +46,7 @@ inline void SafeIncrementCounter(SizeT& assignee)
 inline bool OnlyDefinedCheckRequired(const AbstrDataItem* adi)
 {
 	DataCheckMode dcm = adi->GetCheckMode();
-	return !(dcm & DCM_CheckDefined);
+	return !(dcm & DCM_CheckRange);
 }
 
 template <typename V>
