@@ -38,6 +38,7 @@ public:
 	bool OnCommand(ToolButtonID id) override;
 	CommandStatus OnCommandEnable(ToolButtonID id) const override;
 	void OnChildSizeChanged() override;
+	void DoUpdateView() override;
 
 	void Sync(TreeItem* viewContext, ShvSyncMode sm);
 

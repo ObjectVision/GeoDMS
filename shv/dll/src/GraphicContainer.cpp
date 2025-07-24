@@ -40,6 +40,7 @@ template <typename ElemType>
 void GraphicContainer<ElemType>::ProcessCollectionChange()
 {
 	this->InvalidateDraw();
+	this->InvalidateView();
 	m_cmdElemSetChanged();
 }
 

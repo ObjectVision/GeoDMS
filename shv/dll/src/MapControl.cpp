@@ -141,6 +141,12 @@ void MapControl::FillMenu(MouseEventDispatcher& med)
 	);
 }
 
+void MapControl::DoUpdateView()
+{
+	ProcessSize(GetCurrClientSize());
+	ViewControl::DoUpdateView();
+}
+
 void MapControl::ShiftLayerControlSlider(TType delta)
 {
 	if (!GetScrollPort()->IsVisible())

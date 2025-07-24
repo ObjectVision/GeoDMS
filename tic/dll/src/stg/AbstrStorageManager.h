@@ -97,27 +97,28 @@ struct enable_shared_from_this_base : std::enable_shared_from_this<Base>
 		return std::static_pointer_cast<const Derived>(this->shared_from_this());
 	}
 
+//	using weak_from_this;
+
 	template <typename Derived>
 	std::weak_ptr<Derived> weak_from_base()
 	{
-		return shared_from_base<Derived>();
+		auto sp = this->weak_from_this().lock();  // get shared_ptr<Base>
+		if (!sp)
+			return std::weak_ptr<Derived>(); // return empty if not initialized
+
+		return std::static_pointer_cast<Derived>(sp); // cast and return as weak_ptr	}
 	}
 
 	template <typename Derived>
 	std::weak_ptr<const Derived> weak_from_base() const
 	{
-		return shared_from_base<Derived>();
+		auto sp = this->weak_from_this().lock();  // get shared_ptr<Base>
+		if (!sp)
+			return std::weak_ptr<Derived>(); // return empty if not initialized
+
+		return std::static_pointer_cast<const Derived>(sp); // cast and return as weak_ptr	}
 	}
 
-	std::weak_ptr<Base> weak_from_this()
-	{
-		return this->shared_from_this();
-	}
-
-	std::weak_ptr<const Base> weak_from_this() const
-	{
-		return this->shared_from_this();
-	}
 };
 
 enum class StorageAction { read, write, updatetree, writetree };

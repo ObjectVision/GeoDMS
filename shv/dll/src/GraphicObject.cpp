@@ -60,7 +60,7 @@ void GraphicObject::ClearContext()
 
 void GraphicObject::ClearAllUpdated()
 { 
-	std::shared_ptr<GraphicObject> parent = shared_from_this();
+	std::shared_ptr<GraphicObject> parent = weak_from_this().lock();
 	while (parent && parent->AllUpdated())
 	{
 		parent->m_State.Clear(GOF_AllUpdated);
