@@ -515,8 +515,16 @@ auto GetWeededCountsOfV(const DataArray<V>* valuesTF, bool noOutOfRangeValues,  
 					SizeT n = valuesTF->GetTiledRangeData()->GetElemCount();
 					if (v <= n) // Countable values; go for Table if sensible
 					{
-						auto freqTable = GetCountsAsArray<V, C>(valuesTF, valuesUnit->GetRange());
-						return MakeValueCountContainer<R, C>(std::move(freqTable));
+						auto range = valuesUnit->GetRange();
+						auto freqTable = GetCountsAsArray<V, C>(valuesTF, range);
+						auto vcc = MakeValueCountContainer<R, C>(std::move(freqTable));
+						R offset = Convert<R>(range.first);
+						if (offset != R())
+						{
+							for (auto& vcPair : vcc)
+								vcPair.first += offset;
+						}
+
 					}
 				}
 			}
