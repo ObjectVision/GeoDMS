@@ -438,6 +438,10 @@ auto GetWallCountsAsArray(WallCountsAsArrayInfo<V>& info, tile_id t, tile_id te,
 	}
 
 	auto localInfo = info;
+	if constexpr (!has_undefines_v<V>)
+	{
+		MG_CHECK(localInfo.vCount == (1 << nrbits_of_v<V>));
+	}
 	std::vector<C> buffer(localInfo.vCount, 0);
 	auto bufferB = buffer.begin();
 	for (; t != te; ++t)
@@ -447,13 +451,18 @@ auto GetWallCountsAsArray(WallCountsAsArrayInfo<V>& info, tile_id t, tile_id te,
 			valuesEnd = valuesLock.end();
 		for (; valuesIter != valuesEnd; ++valuesIter)
 		{
-			if (IsDefined(*valuesIter))
+			if constexpr (has_undefines_v<V>)
 			{
-				auto i = Range_GetIndex_naked(localInfo.valuesRange, *valuesIter);
-				if (i >= localInfo.vCount)
-					throwErrorF("Range Error", "Value %s not in expected range from %d till %d", i, localInfo.valuesRange.first, localInfo.valuesRange.second);
-				SafeIncrementCounter(bufferB[i]);
+				if (!IsDefined(*valuesIter))
+					continue;
 			}
+			auto i = Range_GetIndex_naked(localInfo.valuesRange, *valuesIter);
+			if constexpr (has_undefines_v<V>)
+			{
+				if (i >= localInfo.vCount)
+					throwErrorF("Range Error", "Value %s not in expected range from %d till %d", *valuesIter, localInfo.valuesRange.first, localInfo.valuesRange.second);
+			}
+			SafeIncrementCounter(bufferB[i]);
 		}
 	}
 	return buffer;
