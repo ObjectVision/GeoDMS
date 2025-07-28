@@ -53,7 +53,10 @@
 // include windows for LoadLibrary
 #include <windows.h>
 
-// declaration, should have been made in cpl_csv.h
+// forward declarations
+void TryRegisterRasterDriverFromKnownDriverShortName(std::string_view known_driver_short_name);
+void GDALRegisterTrustedDriverFromKnownDriverShortName(std::string_view known_driver_short_name);
+
 
 // ------------------------------------------------------------------------
 // Implementation of the abstact storagemanager interface
@@ -609,7 +612,10 @@ gdalComponent::gdalComponent()
 						//GDALAllRegister(); // can throw
 						//OGRRegisterAll(); // can throw
 
-
+			TryRegisterRasterDriverFromKnownDriverShortName("JPEG");
+			TryRegisterRasterDriverFromKnownDriverShortName("PNG");
+			TryRegisterRasterDriverFromKnownDriverShortName("GTiff");
+			TryRegisterRasterDriverFromKnownDriverShortName("BMP");
 		}
 		catch (...)
 		{
@@ -727,6 +733,9 @@ void gdalVector_CreateMetaInfo(TreeItem* container, bool mustCalc)
 
 void gdalComponent::CreateMetaInfo(TreeItem* container, bool mustCalc)
 {
+	gdalComponent xxx;
+	GDALAllRegister(); // cannot open file based on trusted drivers
+
 	gdalRaster_CreateMetaInfo(container, mustCalc);
 	gdalVector_CreateMetaInfo(container, mustCalc);
 }
@@ -1322,15 +1331,20 @@ void TryRegisterRasterDriverFromKnownDriverShortName(std::string_view known_driv
 		GDALRegister_MBTiles();
 }
 
+void gdalRegisterTrustedDriverFromKnownDriverShortName(std::string_view known_driver_short_name)
+{
+	TryRegisterVectorDriverFromKnownDriverShortName(known_driver_short_name);
+	TryRegisterRasterDriverFromKnownDriverShortName(known_driver_short_name);
+}
+
 void GDALRegisterTrustedDriverFromKnownDriverShortName(std::string_view known_driver_short_name)
 {
-	leveled_critical_section::scoped_lock lock(gdalComponentImpl::gdalSection);
-
 	if (known_driver_short_name.empty())
 		return;
 
-	TryRegisterVectorDriverFromKnownDriverShortName(known_driver_short_name);
-	TryRegisterRasterDriverFromKnownDriverShortName(known_driver_short_name);
+	leveled_critical_section::scoped_lock lock(gdalComponentImpl::gdalSection);
+
+	gdalRegisterTrustedDriverFromKnownDriverShortName(known_driver_short_name);
 }
 
 void GDALRegisterTrustedDriverFromFileExtension(std::string_view ext)
@@ -1615,14 +1629,3 @@ CrdTransformation GetTransformation(gdal_transform gdalTr)
 	);
 }
 
-// *****************************************************************************
-
-#include "gdal_grid.h"
-
-GDAL_SimpleReader::GDAL_SimpleReader()
-{
-	GDALRegisterTrustedDriverFromKnownDriverShortName("JPEG");
-	GDALRegisterTrustedDriverFromKnownDriverShortName("PNG");
-	GDALRegisterTrustedDriverFromKnownDriverShortName("GTiff");
-	GDALRegisterTrustedDriverFromKnownDriverShortName("BMP");
-}

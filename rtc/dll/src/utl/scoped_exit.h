@@ -35,7 +35,7 @@ struct movable_scoped_exit {
 
 	~movable_scoped_exit() { if (m_Func) (*m_Func)(); }
 
-	movable_scoped_exit(movable_scoped_exit&& rhs)
+	movable_scoped_exit(movable_scoped_exit&& rhs) noexcept(std::is_nothrow_move_constructible_v<Func>)
 	:	m_Func(std::move(rhs.m_Func))
 	{
 		rhs.m_Func.reset();

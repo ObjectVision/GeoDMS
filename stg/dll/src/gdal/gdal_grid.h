@@ -60,9 +60,8 @@ struct GdalWritableGridSM : GdalGridSM
 
 struct GDAL_SimpleReader : gdalComponent
 {
-	typedef UInt32 color_type;
-	typedef std::vector<UInt8> band_data;
-	STGDLL_CALL GDAL_SimpleReader();
+	using color_type = UInt32;
+	using band_data = std::vector<UInt8>;
 
 	struct buffer_type
 	{
