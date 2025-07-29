@@ -15,9 +15,15 @@
 #include "act/ActorEnums.h"
 #include "TreeItemProps.h"
 
+#include <unordered_set>
+struct ActorVisitor;
+
 //----------------------------------------------------------------------
 // C++ style Interface functions for TreeItem retrieval
 //----------------------------------------------------------------------
+
+using TreeItemSet = std::unordered_set<const TreeItem*>;
+bool TreeItem_VisitConstVisibleSubTree(const TreeItem* self, const ActorVisitor& visitor, TreeItemSet& visitedItems);
 
 TIC_CALL auto TreeItem_GetBestItemAndUnfoundPart(const TreeItem* context, CharPtr path)->BestItemRef;
 
@@ -329,4 +335,5 @@ TIC_CALL bool XML_MetaInfoRef(const TreeItem* self, OutStreamBase* xmlOutStrPtr)
 TIC_CALL bool TreeItem_XML_DumpGeneral(const TreeItem* self, OutStreamBase* xmlOutStrPtr);
 TIC_CALL void TreeItem_XML_DumpSourceDescription(const TreeItem* self, SourceDescrMode mode, OutStreamBase* xmlOutStrPtr);
 TIC_CALL void TreeItem_XML_ConvertAndDumpDatasetProperties(const TreeItem* self, const prop_tables& dataset_properties, OutStreamBase* xmlOutStrPtr);
+
 #endif // __TIC_INTERFACE_H

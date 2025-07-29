@@ -2880,14 +2880,6 @@ const TreeItem* TreeItem::WalkConstSubTree(const TreeItem* curr) const noexcept 
 	return nullptr;
 }
 
-struct StackFrame
-{
-	const TreeItem*   m_Base;
-	const StackFrame* m_Caller;
-};
-
-using TreeItemSet = std::unordered_set<const TreeItem*>;
-
 bool TreeItem_VisitConstVisibleSubTree(const TreeItem * self, const ActorVisitor& visitor, TreeItemSet& visitedItems)
 {
 	auto [_1, isNewItem] = visitedItems.insert(self);

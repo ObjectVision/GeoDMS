@@ -989,6 +989,64 @@ TIC_CALL const TreeItem* DMS_CONV DMS_TreeItem_GetTemplSourceItem(const TreeItem
 #include "UsingCache.h"
 #include "SupplCache.h"
 #include "TreeItemProps.h"
+#include "MoreDataControllers.h"
+
+TIC_CALL SharedTreeItem DataController_GetErrorSource(const DataController* dc, UInt32 searchLevel, bool mustVisitSubTree)
+{
+	auto ti = dc->GetOld();
+	if (!ti->IsCacheItem())
+	{
+		if (ti->WasFailed())
+			return ti;
+		if (mustVisitSubTree)
+		{
+			TreeItemSet visitedSet;
+			SharedTreeItem foundErrorSource;
+			auto visitor = MakeDerivedBoolVisitor([&foundErrorSource](const Actor* subItemAsActor) 
+				{
+					auto ti = dynamic_cast<const TreeItem*>(subItemAsActor);
+					if (ti)
+						if (ti->WasFailed())
+						{
+							foundErrorSource = ti;
+							return false;
+						}
+					return true;
+				}
+			);
+			TreeItem_VisitConstVisibleSubTree(ti, std::move(visitor), visitedSet);
+			if (foundErrorSource)
+				return foundErrorSource;
+		}
+	}
+
+	if (!searchLevel)
+		return {};
+	auto fc = dynamic_cast<const FuncDC*>(dc);
+	if (!fc)
+		return {};
+	--searchLevel;
+
+	auto operatorGroup = fc->m_OperatorGroup;
+	auto args = fc->m_Args.get();
+	arg_index argNr = 0;
+	SharedStr firstArgValue;  // may be filled with first arg value that encoded the role of consecutive arguments for OperatorGroups with Dyanmic Arguments
+
+	while (args)
+	{
+		mustVisitSubTree = operatorGroup->MustSupplyTree(argNr, firstArgValue.cbegin()) || operatorGroup->IsSubItemRoot(argNr, firstArgValue.cbegin());
+		auto foundErrroSource = DataController_GetErrorSource(args->m_DC.get(), searchLevel, mustVisitSubTree);
+		if (foundErrroSource)
+			return foundErrroSource;
+
+		if (argNr == 0 && operatorGroup->HasDynamicArgPolicies())
+			firstArgValue = const_array_cast<SharedStr>(DataReadLock(AsDataItem(dc->CalcCertainResult()->GetOld())))->GetIndexedValue(0);
+
+		args = args->m_Next.get();
+		++argNr;
+	}
+	return {};
+}
 
 TIC_CALL BestItemRef TreeItem_GetErrorSource(const TreeItem* src, bool tryCalcSuppliers)
 {
@@ -1091,7 +1149,7 @@ TIC_CALL BestItemRef TreeItem_GetErrorSource(const TreeItem* src, bool tryCalcSu
 	}
 
 	// SourceItem
-	auto sourceItem = src->GetCurrSourceItem();
+	SharedTreeItem sourceItem = src->GetCurrSourceItem();
 	if (sourceItem)
 	{
 		assert(!sourceItem->IsCacheItem());
@@ -1127,6 +1185,13 @@ TIC_CALL BestItemRef TreeItem_GetErrorSource(const TreeItem* src, bool tryCalcSu
 			return sc->FindPrimaryDataFailedItem();
 		}
 	}
+	if (auto dc = src->mc_DC)
+	{
+		sourceItem = DataController_GetErrorSource(dc, 2, true);
+		if (sourceItem)
+			return { sourceItem, {} };
+	}
+	
 	return { nullptr, {} };
 }
 
