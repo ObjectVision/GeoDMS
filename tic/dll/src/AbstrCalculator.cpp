@@ -728,9 +728,7 @@ BestItemRef AbstrCalculator::FindErrorneousItem() const
 	auto errorChecker = [&errorneousItem](const Actor* a)
 		{
 			auto ti = dynamic_cast<const TreeItem*>(a);
-			if (!ti)
-				return AVS_Ready;
-			if (!ti->IsCacheItem())
+			if (ti && !ti->IsCacheItem())
 			{
 				for (auto ri = ti; ri; ri = ri->GetCurrRefItem())				
 					if (WasInFailed(ri))

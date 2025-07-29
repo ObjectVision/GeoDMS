@@ -1054,7 +1054,7 @@ TIC_CALL BestItemRef TreeItem_GetErrorSource(const TreeItem* src, bool tryCalcSu
 		}
 	}
 
-	// domain and values units ?
+	 // domain and values units ?
 	if (IsDataItem(src))
 	{
 		BestItemRef result = { AsDataItem(src)->GetAbstrDomainUnit(), {} };

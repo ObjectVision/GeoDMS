@@ -239,7 +239,6 @@ struct PhaseContainerOperator : BinaryOperator
 
 				if (srcItem->WasFailed())
 					resWalker->Fail(srcItem);
-
 			}
 		}
 		assert(resultHolder);
