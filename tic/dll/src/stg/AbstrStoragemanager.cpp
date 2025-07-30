@@ -167,14 +167,17 @@ SharedStr GetRegConfigSetting(const TreeItem* configRoot, CharPtr key, CharPtr d
 	assert(configRoot);
 	assert(IsMetaThread());
 
+	// read value from environment setting GEODMS_Overridable_%key%
 	SharedStr result;
 	if (PlatformInfo::GetEnvString(OVERRIDABLE_NAME, key, result))
 		return result;
 
+	// read value from registry: Computer\HKEY_CURRENT_USER\Software\ObjectVision\%MACHINE%\GeoDMS\%key%
 	result = GetGeoDmsRegKey(key);
 	if (!result.empty())
 		return result;
 
+	// read from configuration as last resort
 	const TreeItem* configSettings = SessionData::getIt(configRoot)->GetConfigSettings();
 	if (configSettings)
 	{
@@ -360,7 +363,7 @@ SharedStr GetDataDir(const TreeItem* configRoot)
 
 SharedStr GetPlaceholderValue(CharPtr subDirName, CharPtr placeHolder, bool mustThrow = true)
 {
-	dms_assert(IsAbsolutePath(subDirName));
+	assert(IsAbsolutePath(subDirName));
 
 	if (!stricmp(placeHolder, "projDir"         )) return GetProjDir (subDirName);
 	if (!stricmp(placeHolder, "projName"        )) return GetProjName(subDirName);
