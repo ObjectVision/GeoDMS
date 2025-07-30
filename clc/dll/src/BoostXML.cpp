@@ -26,7 +26,9 @@
 #include "MoreDataControllers.h"
 
 #include "VersionComponent.h"
+
 static VersionComponent s_BoostPropTree("boost::property_tree::detail::rapidxml");
+using IndexedStringValues = IndexedStrings<false, GenericEqual, GenericHasher>;
 
 namespace { // anonymous
 

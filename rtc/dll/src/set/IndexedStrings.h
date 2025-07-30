@@ -49,7 +49,6 @@ private:
 };
 */
 
-template <bool MustZeroTerminate>
 struct StringIndexer
 {
 	using index_type = TokenT;
@@ -58,49 +57,48 @@ struct StringIndexer
 		: r_Container(container)
 	{}
 
-	CharPtrRange GetPtrs(index_type x) const noexcept;
+	template<bool MustZeroTerminate> CharPtrRange GetPtrs(index_type x) const noexcept;
 
 private:
 	const StringArray& r_Container;
 };
 
-template <bool MustZeroTerminate>
-struct StringIndexEqualityCompare : StringIndexer<MustZeroTerminate>
+template <bool MustZeroTerminate, typename CharPtrRangeEqCmp>
+struct StringIndexEqualityCompare : StringIndexer
 {
 	using is_transparent = std::true_type;
 	using index_type = TokenT;
 
-	using StringIndexer< MustZeroTerminate>::StringIndexer;
+	using StringIndexer::StringIndexer;
 
 	bool operator()(index_type a, index_type b) const noexcept
 	{
-		return equaler(this->GetPtrs(a), this->GetPtrs(b));
+		return equaler(this->GetPtrs<MustZeroTerminate>(a), this->GetPtrs<MustZeroTerminate>(b));
 	}
 	bool operator()(index_type a, CharPtrRange ib) const noexcept
 	{
-		return equaler(this->GetPtrs(a), ib);
+		return equaler(this->GetPtrs<MustZeroTerminate>(a), ib);
 	}
 	bool operator()(CharPtrRange ia, index_type b) const noexcept
 	{
-		return equaler(ia, this->GetPtrs(b));
+		return equaler(ia, this->GetPtrs<MustZeroTerminate>(b));
 	}
 
 private:
-//	Utf8CaseInsensitiveEqual equaler;
-	AsciiFoldedCaseInsensitiveEqual equaler;
+	CharPtrRangeEqCmp equaler;
 };
 
-template <bool MustZeroTerminate>
-struct StringIndexHasher : StringIndexer<MustZeroTerminate>
+template <bool MustZeroTerminate, typename CharPtrRangeHasher>
+struct StringIndexHasher : StringIndexer
 {
 	using is_transparent = std::true_type;
 	using index_type = TokenT;
 
-	using StringIndexer< MustZeroTerminate>::StringIndexer;
+	using StringIndexer::StringIndexer;
 
 	auto operator()(index_type a) const noexcept
 	{
-		return hasher(this->GetPtrs(a));
+		return hasher(this->GetPtrs<MustZeroTerminate>(a));
 	}
 	auto operator()(CharPtrRange ia) const noexcept
 	{
@@ -108,8 +106,7 @@ struct StringIndexHasher : StringIndexer<MustZeroTerminate>
 	}
 
 private:
-//	Utf8CaseInsensitiveHasher hasher;
-	AsciiFoldedChunkedCaseInsensitiveHasher hasher;
+	CharPtrRangeHasher hasher;
 };
 
 
@@ -132,11 +129,11 @@ struct IndexedStringsBase
 
 #include <unordered_set>
 
-template <bool MustZeroTerminate>
+template <bool MustZeroTerminate, typename CharPtrRangeEqCmp, typename CharPtrRangeHasher>
 struct IndexedStrings : IndexedStringsBase
 {	
-	using equality_compare = StringIndexEqualityCompare<MustZeroTerminate>;
-	using hasher = StringIndexHasher<MustZeroTerminate>;
+	using equality_compare = StringIndexEqualityCompare<MustZeroTerminate, CharPtrRangeEqCmp>;
+	using hasher = StringIndexHasher<MustZeroTerminate, CharPtrRangeHasher>;
 	using index_set_type = std::unordered_set <index_type, hasher, equality_compare>;
 
 	using index_iterator = typename index_set_type::iterator;
@@ -186,7 +183,9 @@ private:
 	index_type GetExisting_impl(CharPtr keyFirst, CharPtr keyLast) const;
 };
 
-typedef IndexedStrings<true > TokenStrings;
-typedef IndexedStrings<false> IndexedStringValues; 
+//	Utf8CaseInsensitiveEqual equaler;
+//	Utf8CaseInsensitiveHasher hasher;
+
+using TokenStrings = IndexedStrings<true, AsciiFoldedCaseInsensitiveEqual, AsciiFoldedChunkedCaseInsensitiveHasher>;
 
 #endif // __RTC_SET_INDEXEDSTRINGS_H

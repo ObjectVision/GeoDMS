@@ -88,8 +88,8 @@ bool StringIndexCompare<MustZeroTerminate>::operator()(CharPtrRange ia, index_ty
 //  -----------------------------------------------------------------------
 
 
-template <bool MustZeroTerminate>
-CharPtrRange StringIndexer<MustZeroTerminate>::GetPtrs(index_type x) const noexcept
+template<bool MustZeroTerminate>
+CharPtrRange StringIndexer::GetPtrs(index_type x) const noexcept
 {
 	assert(IsDefined(x));
 
@@ -139,30 +139,30 @@ void IndexedStringsBase::reserve(index_type sz MG_DEBUG_ALLOCATOR_SRC_ARG)
 
 //  -----------------------------------------------------------------------
 
-template <bool MustZeroTerminate>
-IndexedStrings<MustZeroTerminate>::IndexedStrings()
+template <bool MustZeroTerminate, typename CharPtrRangeEqCmp, typename CharPtrRangeHasher>
+IndexedStrings<MustZeroTerminate, CharPtrRangeEqCmp, CharPtrRangeHasher>::IndexedStrings()
 	:	m_Idx(4096, hasher(m_Vec), equality_compare(m_Vec))
 {}
 
-template <bool MustZeroTerminate>
+template <bool MustZeroTerminate, typename CharPtrRangeEqCmp, typename CharPtrRangeHasher>
 IndexedStringsBase::index_type 
-IndexedStrings<MustZeroTerminate>::GetOrCreateID_mt(CharPtr keyFirst, CharPtr keyLast) // range of chars excluding null terminator
+IndexedStrings<MustZeroTerminate, CharPtrRangeEqCmp, CharPtrRangeHasher>::GetOrCreateID_mt(CharPtr keyFirst, CharPtr keyLast) // range of chars excluding null terminator
 {
 	IndexedString_scoped_lock lock(GetCS());
 
 	return GetOrCreateID_impl(keyFirst, keyLast);
 }
 
-template <bool MustZeroTerminate>
+template <bool MustZeroTerminate, typename CharPtrRangeEqCmp, typename CharPtrRangeHasher>
 IndexedStringsBase::index_type
-IndexedStrings<MustZeroTerminate>::GetOrCreateID_st(CharPtr keyFirst, CharPtr keyLast) // range of chars excluding null terminator
+IndexedStrings<MustZeroTerminate, CharPtrRangeEqCmp, CharPtrRangeHasher>::GetOrCreateID_st(CharPtr keyFirst, CharPtr keyLast) // range of chars excluding null terminator
 {
 	return GetOrCreateID_impl(keyFirst, keyLast);
 }
 
-template <bool MustZeroTerminate>
+template <bool MustZeroTerminate, typename CharPtrRangeEqCmp, typename CharPtrRangeHasher>
 IndexedStringsBase::index_type
-IndexedStrings<MustZeroTerminate>::GetOrCreateID_impl(CharPtr keyFirst, CharPtr keyLast) // range of chars excluding null terminator
+IndexedStrings<MustZeroTerminate, CharPtrRangeEqCmp, CharPtrRangeHasher>::GetOrCreateID_impl(CharPtr keyFirst, CharPtr keyLast) // range of chars excluding null terminator
 {
 	CharPtrRange keyValue(keyFirst, keyLast);
 	index_iterator i = m_Idx.find(keyValue);
@@ -177,27 +177,27 @@ IndexedStrings<MustZeroTerminate>::GetOrCreateID_impl(CharPtr keyFirst, CharPtr 
 	return nextID;
 }
 
-template <bool MustZeroTerminate>
+template <bool MustZeroTerminate, typename CharPtrRangeEqCmp, typename CharPtrRangeHasher>
 IndexedStringsBase::index_type
-IndexedStrings<MustZeroTerminate>::GetExisting_st(CharPtr keyFirst, CharPtr keyLast) const
+IndexedStrings<MustZeroTerminate, CharPtrRangeEqCmp, CharPtrRangeHasher>::GetExisting_st(CharPtr keyFirst, CharPtr keyLast) const
 {
 	dbg_assert(scc_GetOrCreateID == 0);
 
 	return GetExisting_impl(keyFirst, keyLast);
 }
 
-template <bool MustZeroTerminate>
+template <bool MustZeroTerminate, typename CharPtrRangeEqCmp, typename CharPtrRangeHasher>
 IndexedStringsBase::index_type
-IndexedStrings<MustZeroTerminate>::GetExisting_mt(CharPtr keyFirst, CharPtr keyLast) const
+IndexedStrings<MustZeroTerminate, CharPtrRangeEqCmp, CharPtrRangeHasher>::GetExisting_mt(CharPtr keyFirst, CharPtr keyLast) const
 {
 	IndexedString_shared_lock lock(GetCS());
 
 	return GetExisting_impl(keyFirst, keyLast);
 }
 
-template <bool MustZeroTerminate>
+template <bool MustZeroTerminate, typename CharPtrRangeEqCmp, typename CharPtrRangeHasher>
 IndexedStringsBase::index_type
-IndexedStrings<MustZeroTerminate>::GetExisting_impl(CharPtr keyFirst, CharPtr keyLast) const
+IndexedStrings<MustZeroTerminate, CharPtrRangeEqCmp, CharPtrRangeHasher>::GetExisting_impl(CharPtr keyFirst, CharPtr keyLast) const
 {
 	CharPtrRange keyValue(keyFirst, keyLast);
 	index_iterator i = m_Idx.find(keyValue);
@@ -207,5 +207,7 @@ IndexedStrings<MustZeroTerminate>::GetExisting_impl(CharPtr keyFirst, CharPtr ke
 	return UNDEFINED_VALUE(index_type);
 }
 
-template struct IndexedStrings<false>;
-template struct IndexedStrings<true >;
+using IndexedStringValues = IndexedStrings<false, GenericEqual, GenericHasher>;
+
+template TokenStrings;
+template IndexedStringValues;

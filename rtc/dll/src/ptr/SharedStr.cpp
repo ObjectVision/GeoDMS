@@ -569,6 +569,33 @@ inline __m128i load_tail(const char* ptr, std::size_t size) noexcept {
 	return _mm_load_si128(reinterpret_cast<const __m128i*>(buffer));
 }
 
+RTC_CALL bool GenericEqual::operator()(CharPtrRange a, CharPtrRange b) const noexcept
+{
+	auto aSize = a.size();
+	if (aSize != b.size())
+		return false;
+
+	while (aSize >= sizeof(chunk_t)) {
+		chunk_t chunkA, chunkB;
+		chunkA = _mm_loadu_si128(reinterpret_cast<const chunk_t*>(a.first));
+		chunkB = _mm_loadu_si128(reinterpret_cast<const chunk_t*>(b.first));
+
+		if (!chunks_equal(chunkA, chunkB))
+			return false;
+		a.first += sizeof(chunk_t);
+		b.first += sizeof(chunk_t);
+		aSize -= sizeof(chunk_t);
+	}
+
+	if (aSize > 0) {
+		chunk_t chunkA = load_tail(a.first, aSize);
+		chunk_t chunkB = load_tail(b.first, aSize);
+		if (!chunks_equal(chunkA, chunkB))
+			return false;
+	}
+	return true;
+}
+
 RTC_CALL bool AsciiFoldedCaseInsensitiveEqual::operator()(CharPtrRange a, CharPtrRange b) const noexcept
 {
 	auto aSize = a.size();
@@ -616,7 +643,7 @@ void hash_in(std::size_t& hash, __m128i v)
 	hash ^= high;
 }
 
-std::size_t AsciiFoldedChunkedCaseInsensitiveHasher::operator()(CharPtrRange str) const noexcept {
+std::size_t GenericHasher::operator()(CharPtrRange str) const noexcept {
 	const char* ptr = str.first;
 	const char* end = str.second;
 
@@ -626,7 +653,29 @@ std::size_t AsciiFoldedChunkedCaseInsensitiveHasher::operator()(CharPtrRange str
 	// Process full word chunks
 	while (end - ptr >= sizeof(chunk_t)) {
 		chunk_t chunk = _mm_loadu_si128(reinterpret_cast<const chunk_t*>(ptr));
-		std::memcpy(&chunk, ptr, sizeof(std::size_t));
+		hash_in(hash, chunk);
+		ptr += sizeof(chunk_t);
+	}
+
+	// Process tail bytes
+	UInt32 tailSize = end - ptr;
+	if (tailSize > 0) {
+		chunk_t chunk = load_tail(ptr, tailSize);
+		hash_in(hash, chunk);
+	}
+	return avalanche(hash);
+}
+
+std::size_t AsciiFoldedChunkedCaseInsensitiveHasher::operator()(CharPtrRange str) const noexcept {
+	const char* ptr = str.first;
+	const char* end = str.second;
+
+	std::size_t hash = 0; // 0xcbf29ce484222325; // FNV-1a offset basis
+	//	constexpr std::size_t prime = 0x0305070b0d111317; // swirl prime for 8-byte chunks
+
+		// Process full word chunks
+	while (end - ptr >= sizeof(chunk_t)) {
+		chunk_t chunk = _mm_loadu_si128(reinterpret_cast<const chunk_t*>(ptr));
 		hash_in(hash, fold_ascii_uppercase(chunk));
 		ptr += sizeof(chunk_t);
 	}
@@ -639,7 +688,6 @@ std::size_t AsciiFoldedChunkedCaseInsensitiveHasher::operator()(CharPtrRange str
 	}
 	return avalanche(hash);
 }
-
 std::size_t SharedCharArrayPtr::hasher::operator()(const SharedCharArrayPtr& v) const noexcept
 {
 	AsciiFoldedChunkedCaseInsensitiveHasher hasherFunc;

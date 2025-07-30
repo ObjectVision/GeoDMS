@@ -72,6 +72,14 @@ inline int stricmp(CharPtr lhs, CharPtr rhs)
 
 #endif
 
+struct GenericEqual {
+	RTC_CALL bool operator()(CharPtrRange a, CharPtrRange b) const noexcept;
+};
+
+struct GenericHasher {
+	RTC_CALL std::size_t operator()(CharPtrRange str) const noexcept;
+};
+
 struct Utf8CaseInsensitiveEqual {
 	RTC_CALL bool operator()(CharPtrRange a, CharPtrRange b) const noexcept;
 };
