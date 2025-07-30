@@ -175,34 +175,57 @@ struct MergeOperatorBase : public AbstrRasterMergeOperator
 		const AbstrDataItem* valueDataA, tile_id u, 
 		const ViewPortInfoEx<Int64>& vpi, UInt32 a) const override
 	{
-		dms_assert(resDataA);
-		dms_assert(indexDataA);
-		dms_assert(valueDataA);
+		assert(resDataA);
+		assert(indexDataA);
+		assert(valueDataA);
 
 		I64Rect tRect = vpi.GetGridExtents();
 		I64Rect uRect = vpi.GetViewPortInGridAsIRect();
 		bool valueVoidDomain = valueDataA->HasVoidDomainGuarantee();
-		dms_assert(u == t || !valueVoidDomain);
+		assert(u == t || !valueVoidDomain);
 		if (valueVoidDomain)
 			u = 0;
 
 		auto indexData  = const_array_cast  <IndexType>(indexDataA)->GetTile(t);
+
+		I64Rect tuRect = tRect & uRect;
+		SizeT
+			tWidth = Width(tRect),
+			uWidth = Width(uRect),
+			tuWidth = Width(tuRect);
+
+		assert(!tuRect.empty());
+		bool found = false;
+		auto indexIter = indexData.begin() + Range_GetIndex_naked(tRect, tuRect.first);
+		Int64 r = tuRect.first.Row(), re = tuRect.second.Row();
+		for (; r != re and not(found); ++r)
+		{
+			for (UInt64 c = 0; c != tuWidth; ++indexIter, ++c)
+				if (*indexIter == a)
+				{
+					found = true;
+					break;
+				}
+			if (found)
+				break; // do not increase r for the row on which the value a a found has to be reprocessed
+			indexIter += (tWidth - tuWidth);
+		}
+
+		if (not(found))
+			return;
+
+		auto currPos = shp2dms_order(tuRect.first.Col(), r);
+		indexIter = indexData.begin() + Range_GetIndex_naked(tRect, currPos); // reset to beginning of the row
+
+		// delay this up to the point that whe know some values need to be copied at all, see https://github.com/ObjectVision/GeoDMS/issues/927
 		auto valueData  = const_array_cast  <ValueType>(valueDataA)->GetTile(u);
 		auto resultData = mutable_array_cast<ValueType>(  resDataA)->GetWritableTile(t);
 
-		I64Rect tuRect = tRect & uRect; 
-		SizeT
-			tWidth  = Width(tRect),
-			uWidth  = Width(uRect),
-			tuWidth = Width(tuRect);
-
-		dms_assert(!tuRect.empty());
+		auto resIter = resultData.begin() + Range_GetIndex_naked(tRect, currPos);
 
 		if (valueVoidDomain) {
-			auto indexIter = indexData.begin() + Range_GetIndex_naked(tRect, tuRect.first);
 			ValueType value = valueData[0];
-			auto resIter = resultData.begin() + Range_GetIndex_naked(tRect, tuRect.first);
-			for (Int64 r = tuRect.first.Row(), re = tuRect.second.Row(); r != re; ++r)
+			for (re = tuRect.second.Row(); r != re; ++r)
 			{
 				auto indexEnd = indexIter + tuWidth;
 
@@ -215,10 +238,9 @@ struct MergeOperatorBase : public AbstrRasterMergeOperator
 			}
 		}
 		else {
-			auto indexIter = indexData.begin() + Range_GetIndex_naked(tRect, tuRect.first);
-			auto valueIter = valueData.begin() + Range_GetIndex_naked(uRect, tuRect.first);
-			auto resIter   = resultData.begin() + Range_GetIndex_naked(tRect, tuRect.first);
-			for (Int64 r = tuRect.first.Row(), re = tuRect.second.Row(); r != re; ++r)
+			auto valueIter = valueData.begin() + Range_GetIndex_naked(uRect, currPos);
+
+			for (; r != re; ++r)
 			{
 				auto indexEnd = indexIter + tuWidth;
 
