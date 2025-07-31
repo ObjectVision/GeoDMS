@@ -253,7 +253,7 @@ def get_result_col(experiment_file:str, sorted_valid_result_folders:list):
             return col
         col+=1
 
-    raise("col out of range regression: {col}")
+    raise(Exception(f"col out of range regression: {col}"))
 
 def get_result_row(regression_test:str, regression_test_names:list):
     row = 1
