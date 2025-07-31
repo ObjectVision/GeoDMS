@@ -628,7 +628,7 @@ AbstrPropDef* Class::FindPropDef(TokenID nameID) const
 	return nullptr;
 }
 
-IMPL_RTTI_METACLASS(Class, "OBJECT", nullptr)
+IMPL_RTTI_METACLASS(Class, "Object", nullptr)
 
 
 RTC_CALL const Class* DMS_CONV DMS_Class_GetStaticClass()
@@ -672,7 +672,7 @@ Object* MetaClass::CreateFromXml(Object* context, struct XmlElement& elem) const
 	return m_XmlFunc(context, elem);
 }
 
-IMPL_RTTI_METACLASS(MetaClass, "CLASS", nullptr)
+IMPL_RTTI_METACLASS(MetaClass, "Class", nullptr)
 
 /********** Interface Implementation **********/
 

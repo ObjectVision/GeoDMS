@@ -210,7 +210,7 @@ Object* UnitClass::CreateFromXml(Object* context, struct XmlElement& elem)
 // reflection
 //----------------------------------------------------------------------
 
-IMPL_RTTI_METACLASS(UnitClass, "UNIT", UnitClass::CreateFromXml)
+IMPL_RTTI_METACLASS(UnitClass, "Unit", UnitClass::CreateFromXml)
 
 //----------------------------------------------------------------------
 // destruction of default units

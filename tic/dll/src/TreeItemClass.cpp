@@ -36,5 +36,5 @@ Object* TreeItemClass::CreateFromXml(Object* context, struct XmlElement& elem)
 }
 
 
-IMPL_RTTI_METACLASS(TreeItemClass, "TREEITEM", TreeItemClass::CreateFromXml)
+IMPL_RTTI_METACLASS(TreeItemClass, "TreeItem", TreeItemClass::CreateFromXml)
 

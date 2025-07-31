@@ -229,7 +229,7 @@ AbstrValue* ValueClass::CreateValue() const
 bool ValueClass::IsRange   () const { return m_ValueComposition == ValueComposition::Range; }
 bool ValueClass::IsSequence() const { return m_ValueComposition == ValueComposition::Sequence; }
 
-IMPL_RTTI_METACLASS(ValueClass, "VALUE", nullptr);
+IMPL_RTTI_METACLASS(ValueClass, "Value", nullptr);
 
 //----------------------------------------------------------------------
 // instantiation and registration

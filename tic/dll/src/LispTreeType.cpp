@@ -299,10 +299,10 @@ LispRef CreateStorageSpec(const TreeItem* src)
 	);
 }
 
-static TokenID paramID = GetTokenID_st("param");
-static TokenID attrID = GetTokenID_st("attr");
-static TokenID unitID = GetTokenID_st("unit");
-static TokenID itemID = GetTokenID_st("item");
+static TokenID paramID = GetTokenID_st("Param");
+static TokenID attrID = GetTokenID_st("Attr");
+static TokenID unitID = GetTokenID_st("Unit");
+static TokenID itemID = GetTokenID_st("Item");
 
 LispRef CreateLispSubTree(const TreeItem* self, bool inclSubTree);
 
