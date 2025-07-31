@@ -1,3 +1,7 @@
+// Copyright (C) 1998-2025 Object Vision b.v. 
+// License: GNU GPL 3
+/////////////////////////////////////////////////////////////////////////////
+
 #include "RtcPCH.h"
 
 
@@ -5,85 +9,6 @@
 
 #include "set/IndexedStrings.h"
 #include "LockLevels.h"
-
-//  -----------------------------------------------------------------------
-
-inline bool lex_caseinsensitive_compare(CharPtr f1, CharPtr l1, CharPtr f2, CharPtr l2)
-{
-	assert(f1 &&  l1 || f1 == l1);
-	assert(f2 &&  l2 || f2 == l2);
-
-	SizeT 
-		sz1 = l1-f1, 
-		sz2 = l2-f2;
-	SizeT sz_min = Min<SizeT>(sz1, sz2);
-	if (!sz_min)
-	{
-		assert(f1 == l1 || f2 == l2);
-		return sz2;
-	}
-	assert(f1 && l1 && f2 && l2 && f1!=l1 && f2!=l2);
-	int cmpRes = strnicmp(f1, f2, sz_min);
-	return (cmpRes < 0)
-		|| (cmpRes == 0 && sz1 < sz2);
-}
-
-inline bool lex_caseinsensitive_compare(CharPtr f1, CharPtr f2)
-{
-	if (!f1 || !*f1)
-		return f2 && *f2;
-	if (!f2 )
-		return false;
-	return stricmp(f1, f2) < 0;
-}
-
-bool SharedPtrInsensitiveCompare::operator ()(CharPtr lhs, CharPtr rhs) const
-{
-	return lex_caseinsensitive_compare(lhs, rhs);
-}
-
-//  -----------------------------------------------------------------------
-
-/* REMOVE
-
-template <bool MustZeroTerminate>
-StringIndexCompare<MustZeroTerminate>::StringIndexCompare(const StringArray& container)
-	: r_Container(container)
-{}
-
-template <bool MustZeroTerminate>
-CharPtrRange StringIndexCompare<MustZeroTerminate>::GetPtrs(index_type x) const
-{
-	assert(IsDefined(x));
-
-	StringCRef ref = r_Container[x];
-	assert( !MustZeroTerminate || ref.size() ); // even empty string has a nonzero size because of the null terminator
-	CharPtrRange ix = CharPtrRange(ref.begin(), MustZeroTerminate ? &ref.back() : ref.end()); // exclude null terminator in compare
-	assert(!MustZeroTerminate || !*ix.end());  // check that it is a null terminator that is excluded 
-	return ix;
-}
-
-template <bool MustZeroTerminate>
-bool StringIndexCompare<MustZeroTerminate>::operator()(index_type a, index_type b) const 
-{ 
-	CharPtrRange ia = GetPtrs(a), ib= GetPtrs(b);
-	return lex_caseinsensitive_compare(ia.begin(), ia.end(), ib.begin(), ib.end());
-}
-
-template <bool MustZeroTerminate>
-bool StringIndexCompare<MustZeroTerminate>::operator()(index_type a, CharPtrRange ib) const
-{
-	CharPtrRange ia = GetPtrs(a);
-	return lex_caseinsensitive_compare(ia.begin(), ia.end(), ib.begin(), ib.end());
-}
-
-template <bool MustZeroTerminate>
-bool StringIndexCompare<MustZeroTerminate>::operator()(CharPtrRange ia, index_type b) const
-{
-	CharPtrRange ib = GetPtrs(b);
-	return lex_caseinsensitive_compare(ia.begin(), ia.end(), ib.begin(), ib.end());
-}
-*/
 
 //  -----------------------------------------------------------------------
 
@@ -167,7 +92,40 @@ IndexedStrings<MustZeroTerminate, CharPtrRangeEqCmp, CharPtrRangeHasher>::GetOrC
 	CharPtrRange keyValue(keyFirst, keyLast);
 	index_iterator i = m_Idx.find(keyValue);
 	if (i != m_Idx.end() && m_Idx.key_eq()(keyValue, *i))
-		return *i; //	return found ID.
+	{
+		// warn for mixing up upper and lower case writngs of whatever
+		index_type foundIndex = *i;
+		if constexpr (std::is_same_v<CharPtrRangeEqCmp, AsciiFoldedCaseInsensitiveEqual>)
+		{
+			GenericEqual eq;
+			StringIndexer indexer(m_Vec);
+
+			auto foundValue = indexer.GetPtrs<MustZeroTerminate>(foundIndex);
+			if (not eq(foundValue, keyValue))
+			{
+				static std::vector<bool> s_AlreadyReportedBitmap;
+				auto tooSmall = s_AlreadyReportedBitmap.size() <= foundIndex;
+				if (tooSmall or not s_AlreadyReportedBitmap[foundIndex])
+				{
+					if (tooSmall)
+					{
+						auto newSize = s_AlreadyReportedBitmap.size() * 2;
+						MakeMax(newSize, foundIndex + 1);
+						s_AlreadyReportedBitmap.resize(newSize);
+					}
+					s_AlreadyReportedBitmap[foundIndex] = true;
+
+					auto warningStr = mgFormat2string("Depreciated mix-up of cases, tokenized '%s' as token %d and then seen '%s'", foundValue, foundIndex, keyValue);
+					PostMainThreadOper([warningStr] {
+						reportD(SeverityTypeID::ST_Warning, warningStr.c_str());
+						}
+					);
+				}
+			}
+		}
+
+		return foundIndex; //	return found ID.
+	}
 
 	index_type nextID = m_Vec.size();
 	m_Vec.push_back_seq(keyFirst, keyLast MG_DEBUG_ALLOCATOR_SRC("IndexedStrings.GetOrCreateID_impl"));

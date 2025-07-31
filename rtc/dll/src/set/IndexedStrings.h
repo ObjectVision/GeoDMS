@@ -1,4 +1,4 @@
-// Copyright (C) 1998-2024 Object Vision b.v. 
+// Copyright (C) 1998-2025 Object Vision b.v. 
 // License: GNU GPL 3
 /////////////////////////////////////////////////////////////////////////////
 
@@ -20,34 +20,6 @@
 #include "mem/HeapSequenceProvider.h"
 
 RTC_CALL IndexedString_critical_section& GetCS();
-
-struct SharedPtrInsensitiveCompare {
-	RTC_CALL bool operator ()(CharPtr lhs, CharPtr rhs) const;
-
-	bool operator ()(const SharedStr& lhs, CharPtr rhs) const { return operator ()(lhs.begin(), rhs); }
-	bool operator ()(CharPtr lhs, const SharedStr& rhs) const { return operator ()(lhs, rhs.begin()); }
-	bool operator ()(const SharedStr& lhs, const SharedStr& rhs) const { return operator ()(lhs.begin(), rhs.begin()); }
-	typedef std::true_type is_transparent;
-};
-
-/* REMOVE
-template <bool MustZeroTerminate>
-struct StringIndexCompare
-{
-	using is_transparent = std::true_type;
-	using index_type = TokenT;
-
-	StringIndexCompare(const StringArray& container);
-
-	CharPtrRange GetPtrs(index_type x) const;
-	bool operator()(index_type a, index_type b) const;
-	bool operator()(index_type a, CharPtrRange ib) const;
-	bool operator()(CharPtrRange ia, index_type b) const;
-
-private:
-	const StringArray & r_Container;
-};
-*/
 
 struct StringIndexer
 {

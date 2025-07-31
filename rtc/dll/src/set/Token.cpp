@@ -1,3 +1,7 @@
+// Copyright (C) 1998-2025 Object Vision b.v. 
+// License: GNU GPL 3
+/////////////////////////////////////////////////////////////////////////////
+
 #include "RtcPCH.h"
 
 /****************** token_list_with_emptyzero  *******************/
