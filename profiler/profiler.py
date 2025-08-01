@@ -16,13 +16,14 @@ from bokeh.layouts import row, column
 from bokeh.palettes import Category10, Category20, Category20b, Category20c
 
 class Experiment:
-    def __init__(self, name=None, command=None, experiment_folder=None, environment_variables=None, cwd=None, geodms_logfile=None, binary_experiment_file=None, file_comparison:tuple=None, store_results:bool=True):
+    def __init__(self, name:str=None, command:str=None, experiment_folder:str=None, environment_variables=None, cwd=None, geodms_logfile:str=None, indicator_results_file:str=None, binary_experiment_file:str=None, file_comparison:tuple=None, store_results:bool=True):
         self.name                   = name
         self.command                = command
         self.experiment_folder      = experiment_folder
         self.environment_variables  = environment_variables
         self.cwd                    = cwd
         self.geodms_logfile         = geodms_logfile
+        self.indicator_results_file = indicator_results_file
         self.binary_experiment_file = binary_experiment_file
         self.file_comparison=file_comparison
         self.store_results = store_results
@@ -457,6 +458,12 @@ def RunExperiments(experiments:list[Experiment]):
             os.remove(geodms_logfile)
         exp.result["log"], start_time, status_code = getPerformance(exp)
         exp.result["status_code"] = status_code
+
+        # Indicators
+        exp.result["indicators"] = None
+        if exp.indicator_results_file and os.path.isfile(exp.indicator_results_file):
+            with open(exp.indicator_results_file) as f:
+                exp.result["indicators"] = f.read()
 
         if os.path.exists(geodms_logfile):
             exp.result["cpu_percent"]       = getLogInfoForPlotting(exp.result["log"], geodms_logfile, "cpu_percent")

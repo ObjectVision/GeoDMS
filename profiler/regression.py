@@ -1,6 +1,7 @@
 import os
 import platform
-import importlib.util
+import importlib
+import warnings
 import sys
 from packaging.version import Version
 import glob
@@ -168,12 +169,10 @@ def collect_experiment_summaries(version_range:tuple, result_paths:dict, sorted_
         summaries[0][col]["success_ratio"] = (succeeded, total_tests)
     return summaries
 
-def parse_regression_test_status_file(status_filename:str) -> dict:
+def parse_indicators(indicators:str) -> dict:
     # <description>operator test</description><size>number unique tests: 1356</size><result>OK</result>
-    raw_html = ""
+    raw_html = indicators
     result_dict = {}
-    with open(status_filename, "r") as f:
-        raw_html = f.read()
     soup = BeautifulSoup(raw_html)
     for child in soup.children:
         result_dict[child.name] = child.text
@@ -204,13 +203,18 @@ def compare_files(file_comparison:tuple):
             return False        
     return True
 
-def get_regression_test_result(status_code:int, regression_test:str, regression_test_folder:str, file_comparison:tuple) -> tuple:
-    regression_test_status_filename_txt = f"{regression_test_folder}/{regression_test}.txt"
-    regression_test_status_filename_xml = f"{regression_test_folder}/{regression_test}.xml"
-    regression_test_status_filename = regression_test_status_filename_txt
-    if not os.path.isfile(regression_test_status_filename):
-        regression_test_status_filename = regression_test_status_filename_xml
-        
+def get_regression_test_result(status_code:int, regression_test:str, regression_test_folder:str, file_comparison:tuple, indicators:str=None) -> tuple:
+    
+    if not indicators: # attempt get default indicators from experiment if not specified
+        indicators_default_fn_txt = f"{regression_test_folder}/{regression_test}.txt"
+        indicators_default_fn_xml = f"{regression_test_folder}/{regression_test}.xml"
+        if os.path.isfile(indicators_default_fn_txt):
+            with open(indicators_default_fn_txt, "r") as f:
+                indicators = f.read()
+        elif os.path.isfile(indicators_default_fn_xml):
+            with open(indicators_default_fn_xml, "r") as f:
+                indicators = f.read()
+            
     if status_code == 15:
         return ("TIMEOUT", {})
 
@@ -221,17 +225,21 @@ def get_regression_test_result(status_code:int, regression_test:str, regression_
         files_are_comparable = compare_files(file_comparison)
         return ("OK", {}) if files_are_comparable else ("FCFAIL", {})
 
-    if not os.path.isfile(regression_test_status_filename):
+    if not indicators:
         return ("OK", {})
     
-    parsed_status_file = parse_regression_test_status_file(regression_test_status_filename)
-    result_text = parsed_status_file["result"]
-    if len(result_text)>15:
-        
-        #if "OK" in result_text:
-        print(f"Compressing geodms result_text from '{result_text}' to 'OK'")
-        result_text = "OK"
-    return (result_text, parsed_status_file)
+    parsed_indicators = parse_indicators(indicators)
+    if parsed_indicators["result"]:    
+        result_text = parsed_indicators["result"]
+        if len(result_text)>15:
+            
+            #if "OK" in result_text:
+            print(f"Compressing geodms result_text from '{result_text}' to 'OK'")
+            result_text = "OK"
+    else:
+        warnings.warn(f"Experiment {regression_test} has no 'result' indicator")
+
+    return (result_text, parsed_indicators)
 
 def get_log_filename(result_folder:str, regression_test:str):
     return f"{result_folder}/log/{regression_test}.txt"
@@ -407,7 +415,18 @@ def get_geodms_paths(version:str) -> dict:
     geodms_paths["GeoDmsGuiQtPath"] = f"{geodms_paths["GeoDmsPath"]}/GeoDmsGuiQt.exe"
     return geodms_paths
 
-def get_git_repo_latest_commit_timestamp_and_hash(local_git_repo:str) -> list[datetime, str]:    
+def get_git_repo_latest_commit_timestamp_and_hash(local_git_repo:str) -> list[datetime, str]:
+    if local_git_repo == "latest":
+        time_object_full = datetime.now()
+        time_object = time_object_full.replace(minute=0, second=0, microsecond=0)
+        abbreviated_hash = "latest"
+        return [time_object, abbreviated_hash]
+
+    # check if repo is clean
+    repo_porcelain_status = str(subprocess.check_output(r"git status --porcelain", cwd=local_git_repo))
+    if repo_porcelain_status:
+        raise(Exception("git repo has non-empty porcelain status, use 'latest' or make sure there are no uncommitted changes"))
+
     # commit time
     commit_time = str(subprocess.check_output(r"git show -s --format=%cd --date=format:%Y%m%d%H%M%S HEAD", cwd=local_git_repo))
     commit_time = commit_time[2:-3]
@@ -578,8 +597,8 @@ def collect_and_generate_test_results(version:str, result_paths:dict):
     webbrowser.open(final_html_file)
     return
 
-def add_exp(exps:list, name, cmd, exp_fldr, env=None, cwd=None, log_fn=None, bin_fn=None, file_comparison:tuple=None, store_results=True) -> list:
-    exps.append(profiler.Experiment(name=name, command=cmd, experiment_folder=exp_fldr, environment_variables=env, cwd=cwd, geodms_logfile=log_fn, binary_experiment_file=bin_fn, file_comparison=file_comparison, store_results=store_results))
+def add_exp(exps:list, name, cmd, exp_fldr, env=None, cwd=None, log_fn=None, indicator_results_file=None, bin_fn=None, file_comparison:tuple=None, store_results=True) -> list:
+    exps.append(profiler.Experiment(name=name, command=cmd, experiment_folder=exp_fldr, environment_variables=env, cwd=cwd, geodms_logfile=log_fn, indicator_results_file=indicator_results_file, binary_experiment_file=bin_fn, file_comparison=file_comparison, store_results=store_results))
     return exps
 
 def add_cexp(exps:list, name, cmd, exp_fldr, env=None, cwd=None, log_fn=None, bin_fn=None, file_comparison:tuple=None) -> list:
