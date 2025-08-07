@@ -439,7 +439,7 @@ def get_git_repo_latest_commit_timestamp_and_hash(local_git_repo:str) -> list[da
 
     # check if repo is clean
     repo_porcelain_status = str(subprocess.check_output(r"git status --porcelain", cwd=local_git_repo))
-    if repo_porcelain_status:
+    if len(repo_porcelain_status) < 4:
         raise(Exception("git repo has non-empty porcelain status, use 'latest' or make sure there are no uncommitted changes"))
 
     # commit time
