@@ -148,7 +148,7 @@ def collect_experiment_summaries(version_range:tuple, result_paths:dict, sorted_
             status_code = experiment.result["status_code"] if "status_code" in experiment.result else 0
             prev_indicators = {}
             if col<len(binary_experiment_result_files):
-                prev_indicators = summaries[row][col+1]["results"]
+                prev_indicators = summaries[row][col+1]["results"][1]
 
             results = get_regression_test_result(status_code, regression_test, f"{result_paths["results_base_folder"]}/{sorted_valid_result_folders[col-1][0]}", experiment.file_comparison, experiment.result['indicators'], prev_indicators)
             summaries[row][col]["status"] = results[0]
@@ -241,8 +241,8 @@ def get_regression_test_result(status_code:int, regression_test:str, regression_
     for indicator in parsed_indicators:
         if not indicator in prev_indicators:
             continue
-        if parsed_indicators[indicator] != prev_indicators[indicator]:
-            parse_folder_name[indicator][1] = False
+        if parsed_indicators[indicator][0] != prev_indicators[indicator][0]:
+            parsed_indicators[indicator][1] = False
 
     if parsed_indicators["result"]:    
         result_text = parsed_indicators["result"][0]
