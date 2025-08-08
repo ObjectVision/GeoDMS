@@ -33,15 +33,18 @@ def get_days_hours_minutes_seconds_from_duration(duration:int):
     seconds = time
     return day, hour, minutes, seconds
 
-def get_indicator_part_from_parsed_results(parsed_results:dict)->str:
+def get_indicator_part_from_parsed_results(parsed_results:dict)->list:
     indicator_part = ""
+    set_indicator_flag = False
     for indicator in parsed_results:
         if indicator == "result":
             continue
-        value = parsed_results[indicator]
-        #nr_inhabitants: <B>1337</B><BR>
-        indicator_part += f"{indicator}: <B>{value}</B><BR>"
-    return indicator_part
+        value = parsed_results[indicator][0]
+        status = parsed_results[indicator][1]
+        if not status:
+            set_indicator_flag = True
+        indicator_part += f"{indicator}: <B style='color:red;'>{value}</B><BR>" if not status else f"{indicator}: <B>{value}</B><BR>"
+    return [indicator_part, set_indicator_flag]
 
 def get_table_regression_test_row(result_paths:dict, summary_row:list) -> str:
     regression_test_row = get_table_row_title_html_template()
@@ -79,7 +82,8 @@ def get_table_regression_test_row(result_paths:dict, summary_row:list) -> str:
         table_col_header = table_col_header.replace("@@@PROFILE_FIGURE@@@", summary_col_row["profile_figure_filename"])
 
         # indicators        
-        indicator_part = get_indicator_part_from_parsed_results(summary_col_row["results"][1])
+        indicator_part, indicator_flag = get_indicator_part_from_parsed_results(summary_col_row["results"][1])
+        table_col_header = table_col_header.replace("@@@INDICATOR_FLAG@@@", '<span class="material-symbols-outlined" style="cursor:pointer;" title="Indicators changed">warning</span>' if indicator_flag else "") 
         table_col_header = table_col_header.replace("@@@INDICATORS@@@", indicator_part)
 
         regression_test_row += table_col_header
@@ -109,7 +113,7 @@ def get_table_row_col_html_template(result_paths:dict, log_fn:str=None, profile_
     total write: <B>@@@TOTALWRITE@@@[GB]</B><BR>\
     @@@INDICATORS@@@\
     </details>\
-    {log_part} {geodms_part} {profile_part}\
+    {log_part} {geodms_part} {profile_part} @@@INDICATOR_FLAG@@@\
     </td>\n'
 
 def collect_experiment_summaries(version_range:tuple, result_paths:dict, sorted_valid_result_folders:list, regression_test_names:list, regression_test_files:dict) -> list[list]:
@@ -130,7 +134,7 @@ def collect_experiment_summaries(version_range:tuple, result_paths:dict, sorted_
         summaries[row][0] = regression_test.replace("_", " ")
         binary_experiment_result_files = regression_test_files[regression_test]
         regression_test_experiments = []
-        for experiment_file in binary_experiment_result_files:
+        for experiment_file in reversed(binary_experiment_result_files):
             col = get_result_col(experiment_file, sorted_valid_result_folders)
             if not summaries[0][col]:
                 summaries[0][col] = get_col_header(col, sorted_valid_result_folders)
@@ -142,7 +146,11 @@ def collect_experiment_summaries(version_range:tuple, result_paths:dict, sorted_
             summaries[row][col]["profile_figure_filename"] = f"../{profile_fig_filename}"
             summaries[row][col]["log_filename"] = f"../{log_filename}"
             status_code = experiment.result["status_code"] if "status_code" in experiment.result else 0
-            results = get_regression_test_result(status_code, regression_test, f"{result_paths["results_base_folder"]}/{sorted_valid_result_folders[col-1][0]}", experiment.file_comparison, experiment.result['indicators'])
+            prev_indicators = {}
+            if col<len(binary_experiment_result_files):
+                prev_indicators = summaries[row][col+1]["results"][1]
+
+            results = get_regression_test_result(status_code, regression_test, f"{result_paths["results_base_folder"]}/{sorted_valid_result_folders[col-1][0]}", experiment.file_comparison, experiment.result['indicators'], prev_indicators)
             summaries[row][col]["status"] = results[0]
             summaries[row][col]["results"] = results
         
@@ -175,7 +183,7 @@ def parse_indicators(indicators:str) -> dict:
     result_dict = {}
     soup = BeautifulSoup(raw_html)
     for child in soup.children:
-        result_dict[child.name] = child.text
+        result_dict[child.name] = [child.text, True]
     return result_dict
 
 def get_filepairs(benchmark_files:list, generated_files:list) -> list:
@@ -203,7 +211,7 @@ def compare_files(file_comparison:tuple):
             return False        
     return True
 
-def get_regression_test_result(status_code:int, regression_test:str, regression_test_folder:str, file_comparison:tuple, indicators:str=None) -> tuple:
+def get_regression_test_result(status_code:int, regression_test:str, regression_test_folder:str, file_comparison:tuple, indicators:str=None, prev_indicators:dict={}) -> tuple:
     
     if not indicators: # attempt get default indicators from experiment if not specified
         indicators_default_fn_txt = f"{regression_test_folder}/{regression_test}.txt"
@@ -228,9 +236,16 @@ def get_regression_test_result(status_code:int, regression_test:str, regression_
     if not indicators:
         return ("OK", {})
     
+    # compare previous with current indicators for flagging differences
     parsed_indicators = parse_indicators(indicators)
+    for indicator in parsed_indicators:
+        if not indicator in prev_indicators:
+            continue
+        if parsed_indicators[indicator][0] != prev_indicators[indicator][0]:
+            parsed_indicators[indicator][1] = False
+
     if parsed_indicators["result"]:    
-        result_text = parsed_indicators["result"]
+        result_text = parsed_indicators["result"][0]
         if len(result_text)>15:
             
             #if "OK" in result_text:
@@ -424,7 +439,7 @@ def get_git_repo_latest_commit_timestamp_and_hash(local_git_repo:str) -> list[da
 
     # check if repo is clean
     repo_porcelain_status = str(subprocess.check_output(r"git status --porcelain", cwd=local_git_repo))
-    if repo_porcelain_status:
+    if len(repo_porcelain_status) < 4:
         raise(Exception("git repo has non-empty porcelain status, use 'latest' or make sure there are no uncommitted changes"))
 
     # commit time
