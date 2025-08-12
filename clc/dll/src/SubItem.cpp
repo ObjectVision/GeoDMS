@@ -9,6 +9,7 @@
 #endif
 
 #include "dbg/SeverityType.h"
+#include "utl/mySPrintF.h"
 #include "utl/Quotes.h"
 #include "LispRef.h"
 
@@ -285,7 +286,7 @@ struct PhaseContainerOperator : BinaryOperator
 		// now, collect all targets that this Phase should calculate and start a Main Thread action to do so.
 		// this should be done before supplier Fences do this and after target collection and interest-setting of consuming Fences.
 		// so each Phase Calculation causes an avalange of interest in targets in higher fences and then their calculation before this calculation starts
-		PostMainThreadTask(resultPhaseNumber, [sourceContainer, resultRoot, &resWalker, &phaseContainerStatus, &fenceErrorPtr, &resultHolder, resultPhaseNumber, &futureDataContainer](bool mustCancel)-> bool
+		PostMainThreadTask(resultPhaseNumber, [this, sourceContainer, resultRoot, &resWalker, &phaseContainerStatus, &fenceErrorPtr, &resultHolder, resultPhaseNumber, &futureDataContainer](bool mustCancel)-> bool
 			{
 				phaseContainerStatus = task_status::running;
 
@@ -324,7 +325,9 @@ struct PhaseContainerOperator : BinaryOperator
 							//						assert(resWalker->DoesHaveSupplInterest());
 
 							auto dc = srcItem->mc_DC;
-							if (dc)
+							if (!dc)
+								resWalker->Fail(mySSPrintF("PhaseContainer: Source %s has no calculation rule so its data cannot be collected", srcItem->GetSourceName()).c_str(), FR_Data);
+							else
 							{
 								auto fd = dc->CallCalcResult();
 								if (SuspendTrigger::DidSuspend())
