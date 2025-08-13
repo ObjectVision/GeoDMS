@@ -65,8 +65,8 @@ Section "" ;No components page, name is not important
   File ..\bin\Release\${GeoDmsPlatform}\msvcp140_atomic_wait.dll
   File ..\bin\Release\${GeoDmsPlatform}\msvcp140_codecvt_ids.dll
 
-  File ..\bin\Release\${GeoDmsPlatform}\boost_locale-vc143-mt-x64-1_86.dll
-  File ..\bin\Release\${GeoDmsPlatform}\boost_thread-vc143-mt-x64-1_86.dll
+  File ..\bin\Release\${GeoDmsPlatform}\boost_locale-vc143-mt-x64-1_88.dll
+  File ..\bin\Release\${GeoDmsPlatform}\boost_thread-vc143-mt-x64-1_88.dll
 
   File ..\bin\Release\${GeoDmsPlatform}\gdal.dll
   File ..\bin\Release\${GeoDmsPlatform}\tiff.dll
@@ -104,6 +104,7 @@ Section "" ;No components page, name is not important
   File ..\bin\Release\${GeoDmsPlatform}\qhull_r.dll
   File ..\bin\Release\${GeoDmsPlatform}\spatialite.dll
   File ..\bin\Release\${GeoDmsPlatform}\sqlite3.dll
+  File ..\bin\Release\${GeoDmsPlatform}\szip.dll
 
   File ..\bin\Release\${GeoDmsPlatform}\geodms.pyd
 
