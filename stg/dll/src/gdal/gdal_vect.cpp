@@ -539,18 +539,16 @@ void ReadPointData(typename sequence_traits<PointType>::seq_t data, OGRLayer* la
 	{
 		typename DataArray<PointType>::reference dataElemRef = data[i];
 
-		gdalVectImpl::FeaturePtr  feat = hDS->TestCapability(ODsCRandomLayerRead) ? GetNextFeatureInterleaved(layer, hDS) : layer->GetNextFeature();
-		OGRGeometry* geo = feat ? feat ->GetGeometryRef() : nullptr;
-		if (geo)
-		{
-			OGRPoint* point = dynamic_cast<OGRPoint*>(geo);
-			MG_CHECK(point);
-
-			dataElemRef.X() = point->getX();
-			dataElemRef.Y() = point->getY();
-		}
-		else
-			Assign( dataElemRef, Undefined() );
+		gdalVectImpl::FeaturePtr feat = hDS->TestCapability(ODsCRandomLayerRead) ? GetNextFeatureInterleaved(layer, hDS) : layer->GetNextFeature();
+		if (feat)
+			if (OGRGeometry* geo = feat->GetGeometryRef())
+				if (OGRPoint* point = dynamic_cast<OGRPoint*>(geo))
+				{
+					dataElemRef.X() = point->getX();
+					dataElemRef.Y() = point->getY();
+					continue;
+				}
+		Assign( dataElemRef, Undefined() );
 	}
 }
 

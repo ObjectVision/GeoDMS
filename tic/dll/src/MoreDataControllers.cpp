@@ -186,8 +186,8 @@ std::shared_ptr<OperationContext> FuncDC::ResetOperContextImpl() const
 		(!m_InterestCount) 
 	||	!IsNew() 
 	||	GetNew()->GetIsInstantiated()
+	||	GetNew()->WasFailed(FR_Data)
 	||	CheckDataReady(GetNew())
-	||	GetNew()->WasFailed(FR_Data) 
 	||	DSM::IsCancelling()
 	||	m_State.GetProgress() == PS_None // Just invalidated.
 	);

@@ -994,7 +994,7 @@ TIC_CALL const TreeItem* DMS_CONV DMS_TreeItem_GetTemplSourceItem(const TreeItem
 TIC_CALL SharedTreeItem DataController_GetErrorSource(const DataController* dc, UInt32 searchLevel, bool mustVisitSubTree)
 {
 	auto ti = dc->GetOld();
-	if (!ti->IsCacheItem())
+	if (ti && !ti->IsCacheItem())
 	{
 		if (ti->WasFailed())
 			return ti;

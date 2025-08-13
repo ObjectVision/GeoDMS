@@ -25,6 +25,6 @@ Feel free to contact us for support on land use modelling, transport modelling o
 
 Object Vision b.v.
 Email:    [info(at)objectvision.nl](mailto:info@objectvision.nl)
-Phone:    +31-20-598.9083
+Phone:    +31-20-598.9083 
 Location: 1081 HV  AMSTERDAM - the Netherlands - De Boelelaan 1085 room R223
 Website:  [https://objectvision.nl](https://objectvision.nl)

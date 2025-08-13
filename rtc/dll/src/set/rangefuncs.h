@@ -655,7 +655,15 @@ fast_zero(bit_iterator<N, Block> first, bit_iterator<N, Block> last)
 
 	if (elemIndex)
 	{
-		(*first.data_begin()) &= ((Block(1) << (elemIndex * N)) - 1);
+		Block mask = (Block(1) << (elemIndex * N)) - 1; // mask for the first block
+		if (first.data_begin() == last.data_begin())
+		{
+			assert(first.nr_elem() <= last.nr_elem());
+			mask |= ~((Block(1) << (last.nr_elem() * N)) - 1);
+			(*first.data_begin()) &= mask;
+			return;
+		}
+		(*first.data_begin()) &= mask;
 		first.skip_block();
 	}
 
