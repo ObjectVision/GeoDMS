@@ -1928,8 +1928,16 @@ task_status OperationContext::Join()
 
 	MG_CHECK(GetStatus() != task_status::none); // being scheduled is a precondition
 
+	std::weak_ptr<OperationContext> firstSupplier;
+
 	while (GetStatus() <= task_status::running)
 	{
+		if (auto fs = firstSupplier.lock())
+		{
+			fs->Join();
+			firstSupplier = {};
+		}
+
 		if (IsMetaThread() && !SuspendTrigger::BlockerBase::IsBlocked())
 		{
 			if (SuspendTrigger::DidSuspend())
@@ -1995,6 +2003,21 @@ task_status OperationContext::Join()
 		if (m_Status == task_status::waiting_for_suppliers)
 		{
 			assert(!m_Suppliers.empty());
+			UInt32 recursionCount = 0;
+			// find first context without suppliers and wait for that one
+			firstSupplier = this->weak_from_this();
+			while (auto fs = firstSupplier.lock())
+			{
+				if (fs->m_Suppliers.empty())
+					break;
+
+				if (recursionCount++ > sd_OcCount)
+					throwErrorF("OperationContext", "Invalid Recursion detected on OperationContext(%s)::Join"
+						, GetResult()->GetFullName()
+					);
+
+				firstSupplier = *(fs->m_Suppliers.begin());
+			}
 		}
 
 		if (IsMetaThread())
