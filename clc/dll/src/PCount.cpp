@@ -2,6 +2,21 @@
 // License: GNU GPL 3
 /////////////////////////////////////////////////////////////////////////////
 
+// This file implements partition counting and "has any" operators for data arrays
+// of enumerated types, typically used for counting occurrences of classes (e.g. land use types)
+// in a dataset. The operators are registered in operator groups for dynamic dispatch.
+// The implementation supports parallel processing for large datasets and multiple result types
+// (e.g. UInt8, UInt16, UInt32, UInt64).
+//
+// Main classes and templates:
+// - PartCountOperator: Counts the number of occurrences of each enum value in the input array.
+// - HasAnyOperator: Checks if any value from the enum is present in the input array.
+// - Operator generators: Used to instantiate the above operators for all relevant enum types and result types.
+// - Operator group registration: Registers the operators for use in the system.
+//
+// The code uses various utility functions and types for locking, parallelism, and type dispatch.
+// It is designed for extensibility and efficient execution on large tiled datasets.
+
 #include "ClcPch.h"
 
 #if defined(CC_PRAGMAHDRSTOP)
@@ -29,6 +44,7 @@
 
 namespace {
 
+	// Operator groups for partition counting and "has any" operations
 	CommonOperGroup cog_pcount ("pcount", oper_policy::dynamic_result_class);
 	CommonOperGroup cog_has_any("has_any");
 	CommonOperGroup cog_pcount_uint8("pcount_uint8");
@@ -36,16 +52,20 @@ namespace {
 	CommonOperGroup cog_pcount_uint32("pcount_uint32");
 	CommonOperGroup cog_pcount_uint64("pcount_uint64");
 
+	// Template for partition counting operator
+	// EnumType: the type of the enumerated values to count
+	// ResultCountType: the type of the result counts (default: Undefined, resolved at runtime)
 	template <typename EnumType, typename ResultCountType = Undefined>
 	class PartCountOperator : public UnaryOperator
 	{
- 		using enum_t = EnumType;
+			using enum_t = EnumType;
 		using range_t = typename Unit<enum_t>::range_t;
 		using Arg1Type = DataArray<enum_t>;   // indices vector
 		using arg_cseq_t = typename sequence_traits<enum_t>::cseq_t;
 		using ResultType = std::conditional_t<std::is_same_v<ResultCountType, Undefined>, AbstrDataItem, DataArray<ResultCountType>>;
 		
 	public:
+		// Constructor: registers operator with operator group and argument/result types
 		PartCountOperator(AbstrOperGroup& og)
 			:	UnaryOperator(&og, 
 					ResultType::GetStaticClass(), 
@@ -53,6 +73,7 @@ namespace {
 				) 
 		{}
 
+		// Main calculation function: creates and fills the result data item
 		bool CreateResult(TreeItemDualRef& resultHolder, const ArgSeqType& args, bool mustCalc) const override
 		{
 			dms_assert(args.size() == 1);
@@ -63,6 +84,7 @@ namespace {
 			const Unit<enum_t>* e1 = debug_cast<const Unit<enum_t>*>(arg1A->GetAbstrValuesUnit()); // LANDUSE CLASSES
 			dms_assert(e1);
 
+			// Create result data item if needed
 			if (!resultHolder)
 			{
 				SharedPtr<const AbstrUnit> resValuesUnit;
@@ -73,6 +95,7 @@ namespace {
 				resultHolder = CreateCacheDataItem(e1, resValuesUnit);
 			}
 
+			// Perform calculation if requested
 			if (mustCalc)
 			{
 				AbstrDataItem* res = AsDataItem(resultHolder.GetNew());
@@ -88,6 +111,7 @@ namespace {
 				DataCheckMode dcm = ((tnr>1) ? DCM_CheckRange : arg1A->GetCheckMode());
 
 				SizeT nrRes = e1->GetCount();
+				// Use parallel processing if input is large
 				if (tn > 1 && arg1A->GetAbstrDomainUnit()->GetCount() > 8 * nrRes)
 				{
 					Concurrency::combinable<std::vector<SizeT>> counts;
@@ -99,6 +123,7 @@ namespace {
 							pcount_container<enum_t, SizeT>(IterRange<SizeT*>(&localCounts), arg1Data, indexRange, dcm, false);
 						}
 					);
+					// Combine results from all threads
 					visit<typelists::uints>(res->GetAbstrValuesUnit(), [resObj = resLock.get(), &counts] <typename E> (const Unit<E>*)
 						{
 							auto resData = mutable_array_cast<E>(resObj)->GetDataWrite(no_tile, dms_rw_mode::write_only_mustzero);
@@ -113,6 +138,7 @@ namespace {
 				}
 				else
 				{
+					// Single-threaded processing for small input
 					visit<typelists::uints>(res->GetAbstrValuesUnit()
 						, [resObj = resLock.get(), arg1, indexRange = e1->GetRange(), dcm, tn]<typename E>(const Unit<E>*) {
 							auto resData = mutable_array_cast<E>(resObj)->GetDataWrite(no_tile, dms_rw_mode::write_only_mustzero);
@@ -127,6 +153,7 @@ namespace {
 		}
 	};
 
+	// Generator for PartCountOperator for a given result count type
 	template <typename ResultCountType>
 	struct PartCountOperatorGenerator {
 		template <typename EnumType> struct Operator : PartCountOperator<EnumType, ResultCountType> {
@@ -135,6 +162,7 @@ namespace {
 		};
 	};
 
+	// Operator for checking if any value from the enum is present in the input
 	template <typename EnumType>
 	class HasAnyOperator : public UnaryOperator
 	{
@@ -145,6 +173,7 @@ namespace {
 		using ResultType = DataArray<Bool>;
 
 	public:
+		// Constructor: registers operator with operator group and argument/result types
 		HasAnyOperator(AbstrOperGroup& og)
 			: UnaryOperator(&og,
 				ResultType::GetStaticClass(),
@@ -152,6 +181,7 @@ namespace {
 			)
 		{}
 
+		// Main calculation function: creates and fills the result data item
 		bool CreateResult(TreeItemDualRef& resultHolder, const ArgSeqType& args, bool mustCalc) const override
 		{
 			assert(args.size() == 1);
@@ -162,6 +192,7 @@ namespace {
 			const Unit<enum_t>* e1 = debug_cast<const Unit<enum_t>*>(arg1A->GetAbstrValuesUnit()); // LANDUSE CLASSES
 			assert(e1);
 
+			// Create result data item if needed
 			if (!resultHolder)
 			{
 				SharedPtr<const AbstrUnit> resValuesUnit;
@@ -169,6 +200,7 @@ namespace {
 				resultHolder = CreateCacheDataItem(e1, resValuesUnit);
 			}
 
+			// Perform calculation if requested
 			if (mustCalc)
 			{
 				AbstrDataItem* res = AsDataItem(resultHolder.GetNew());
@@ -186,6 +218,7 @@ namespace {
 				SizeT nrRes = e1->GetCount();
 				auto resObj = resLock.get();
 				auto resData = mutable_array_cast<Bool>(resObj)->GetDataWrite(no_tile, dms_rw_mode::write_only_mustzero);
+				// Use parallel processing if input is large
 				if (tn > 1 && arg1A->GetAbstrDomainUnit()->GetCount() > 8 * nrRes)
 				{
 					Concurrency::combinable<sequence_traits<Bool>::container_type> hasAnies;
@@ -197,6 +230,7 @@ namespace {
 							has_any_container<enum_t>(sequence_traits<Bool>::seq_t(&localHasAnies), arg1Data, indexRange, dcm);
 						}
 					);
+					// Combine results from all threads
 					hasAnies.combine_each(
 						[&resData](auto& localHasAnies) {
 							assert(resData.size() == localHasAnies.size());
@@ -207,6 +241,7 @@ namespace {
 				}
 				else
 				{
+					// Single-threaded processing for small input
 					for (tile_id t = 0; t != tn; ++t)
 						has_any_container<enum_t>(resData.get_view(), arg1->GetTile(t).get_view(), e1->GetRange(), dcm);
 				}
@@ -216,6 +251,7 @@ namespace {
 		}
 	};
 
+	// Generator for HasAnyOperator
 	struct HasAnyOperatorGenerator {
 		template <typename EnumType> struct Operator : HasAnyOperator<EnumType> {
 			using base_type = HasAnyOperator<EnumType>;
@@ -223,12 +259,14 @@ namespace {
 		};
 	};
 
+	// Register partition count operators for all partition element types and result count types
 	tl_oper::inst_tuple_templ<typelists::partition_elements, PartCountOperatorGenerator<Undefined>::Operator, AbstrOperGroup& > partCountOpers(cog_pcount);
 	tl_oper::inst_tuple_templ<typelists::partition_elements, PartCountOperatorGenerator<UInt8    >::Operator, AbstrOperGroup& > partCountOpers8(cog_pcount_uint8);
 	tl_oper::inst_tuple_templ<typelists::partition_elements, PartCountOperatorGenerator<UInt16   >::Operator, AbstrOperGroup& > partCountOpers16(cog_pcount_uint16);
 	tl_oper::inst_tuple_templ<typelists::partition_elements, PartCountOperatorGenerator<UInt32   >::Operator, AbstrOperGroup& > partCountOpers32(cog_pcount_uint32);
 	tl_oper::inst_tuple_templ<typelists::partition_elements, PartCountOperatorGenerator<UInt64   >::Operator, AbstrOperGroup& > partCountOpers64(cog_pcount_uint64);
 
+	// Register "has any" operators for all partition element types
 	tl_oper::inst_tuple<typelists::partition_elements, HasAnyOperatorGenerator::Operator<_>, AbstrOperGroup& > hasAnyOpers(cog_has_any);
 } // end anonymous namespace
 
