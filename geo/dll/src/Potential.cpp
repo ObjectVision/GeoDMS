@@ -1,6 +1,12 @@
-// Copyright (C) 1998-2024 Object Vision b.v. 
+// Copyright (C) 1998-2025 Object Vision b.v. 
 // License: GNU GPL 3
 /////////////////////////////////////////////////////////////////////////////
+// Potential.cpp
+// Implements various convolution and potential analysis functions for grid data.
+// Supports multiple backends: classic, Intel IPP (ippi, ipps), and custom implementations.
+// Handles memory alignment, buffer management, and kernel preparation for efficient computation.
+// Main entry points: Potential(), AddConvolutionKernel(), and MDL_Potential32/64.
+// See Potential.h for API and type definitions.
 
 #include "GeoPCH.h"
 
@@ -24,17 +30,16 @@
 #include "ippcore.h"
 #include "ipps.h"
 
-
 #if defined(DMS_USE_INTEL_IPPI)
 #	include "IppiUtils.h"
 #endif
-
 
 // *****************************************************************************
 //											impl
 // *****************************************************************************
 
 #if defined(DMS_USE_INTEL_IPPI)
+// Checks if a pointer and row size are 32-byte aligned for IPP operations.
 bool IsAligned32(const void* data, UInt32 nrBytesPerRow)
 {
 	return 
@@ -42,6 +47,7 @@ bool IsAligned32(const void* data, UInt32 nrBytesPerRow)
 	&&	(nrBytesPerRow                 & 0x001F) == 0;
 }
 
+// Allocator and copier for IPP-aligned memory for Float32 and Int16.
 template <typename T> struct ippiMallocator;
 template <> struct ippiMallocator<Float32> {
 	Float32* allocate(IPoint size, int* nrBytesPerRowPtr) { return  ippiMalloc_32f_C1(size.Col(), size.Row(), nrBytesPerRowPtr); }
@@ -56,7 +62,6 @@ template <> struct ippiMallocator<Float32> {
 		);
 	}
 };
-
 template <> struct ippiMallocator<Int16> {
 	Int16* allocate(IPoint size, int* nrBytesPerRowPtr) { return  ippiMalloc_16s_C1(size.Col(), size.Row(), nrBytesPerRowPtr); }
 	IppStatus copy  (const Int16* pSrc, int srcStep, Int16* pDst, int dstStep, IppiSize roiSize) { return ippiCopy_16s_C1R(pSrc,  srcStep, pDst, dstStep, roiSize); }
@@ -71,9 +76,11 @@ template <> struct ippiMallocator<Int16> {
 	}
 };
 
+// Wrapper for a const grid with 32-byte alignment for IPP.
 template <typename T>
 struct TCAlignedGrid : TGrid<const T>
 {
+	// Allocates aligned memory if needed and copies data.
 	TCAlignedGrid(const TGrid& src)
 		:	TGrid(src)
 		,	m_NrBytesPerRow(0)
@@ -104,20 +111,18 @@ struct TCAlignedGrid : TGrid<const T>
 		dms_assert(NrBytesPerRow() >= orgNrBytesPerRow); 
 		dms_assert(IsAligned32(GetDataPtr(), m_NrBytesPerRow));
 	}
-
 	~TCAlignedGrid()
 	{
 		if (m_DataBase)
 			ippiFree(m_DataBase);
 	}
-
 	UInt32   NrBytesPerRow() { return UInt32(m_NrBytesPerRow); }
-
 private:
 	int m_NrBytesPerRow;
 	T*  m_DataBase;
 };
 
+// Wrapper for a mutable grid with 32-byte alignment for IPP.
 template <typename T>
 struct TAlignedGrid : TGrid<T>
 {
@@ -142,7 +147,6 @@ struct TAlignedGrid : TGrid<T>
 		dms_assert(NrBytesPerRow() >= orgNrBytesPerRow); 
 		dms_assert(IsAligned32(GetDataPtr(), m_NrBytesPerRow));
 	}
-
 	~TAlignedGrid()
 	{
 		if (m_OrgData)
@@ -156,14 +160,13 @@ struct TAlignedGrid : TGrid<T>
 			ippiFree(GetDataPtr()); 
 		}
 	}
-
 	UInt32 NrBytesPerRow() { return m_NrBytesPerRow; }
-
 private:
 	int  m_NrBytesPerRow;
 	T*   m_OrgData;
 };
 
+// Reverses a kernel for convolution (mirrors both axes).
 template <typename T>
 struct TReversedKernel: TGrid<T>
 {
@@ -189,11 +192,11 @@ struct TReversedKernel: TGrid<T>
 			ippiFree(GetDataPtr()); 
 	}
 	UInt32 NrBytesPerRow() { return m_NrBytesPerRow; }
-
 private:
 	int  m_NrBytesPerRow;
 };
 
+// IPP-based convolution for Int16 grids.
 bool PotentialIppi16s(
 	const TCInt16Grid& dataOrg, 
 	const TInt16Grid & outputOrg,
@@ -221,6 +224,7 @@ bool PotentialIppi16s(
 	return result == ippStsNoErr;
 }
 
+// IPP-based convolution for Float32 grids.
 bool PotentialIppi32f(potential_context<Float32>& context,
 	const TCFloat32Grid& dataOrg,
 	const TFloat32Grid & outputOrg,
@@ -247,11 +251,11 @@ bool PotentialIppi32f(potential_context<Float32>& context,
 	DmsIppCheckResult(result, "ippiConvFull_32f_C1R", MG_POS);
 	return result == ippStsNoErr;
 }
-
 #endif //defined(DMS_USE_INTEL_IPPI)
 
 //================================================== IppsArray
 
+// Cleans up aligned memory for IppsArray.
 template <typename A>
 void IppsArray<A>::clean()
 {
@@ -259,6 +263,7 @@ void IppsArray<A>::clean()
 		::operator delete(m_Data, std::align_val_t{ 64 });
 }
 
+// Reserves aligned memory for IppsArray.
 template <typename A>
 void IppsArray<A>::reserve(TileSize nrElem)
 {
@@ -274,6 +279,7 @@ void IppsArray<A>::reserve(TileSize nrElem)
 
 namespace potential::impl {
 
+// Initializes a padded array for convolution input.
 template <typename A, typename T>
 TileSize IppsArray_Init(IppsArray<A>* self, UPoint& zeroInfo, const UGrid<const T>& dataOrg, SideSize kernelWidth)
 {
@@ -323,6 +329,7 @@ TileSize IppsArray_Init(IppsArray<A>* self, UPoint& zeroInfo, const UGrid<const 
 	return bufferSize;
 }
 
+// Initializes a reversed (mirrored) kernel buffer for convolution.
 template <typename A, typename T>
 void IppsArray_InitReversed(IppsArray<A>* self, const UGrid<const T>& dataOrg, SideSize tileDataWidth)
 {
@@ -359,12 +366,14 @@ void IppsArray_InitReversed(IppsArray<A>* self, const UGrid<const T>& dataOrg, S
 }
 
 /*
+// (Unused) IPP convolution for Int16.
 inline IppStatus ippsConv( const Ipp16s* pSrc1, int lenSrc1, const Ipp16s* pSrc2, int lenSrc2, Ipp16s* pDst)
 {
 	return ippsConv_16s_Sfs(pSrc1, lenSrc1, pSrc2, lenSrc2, pDst, 1);
 }
 */
 
+// IPP convolution for Float32 with buffer management.
 inline IppStatus ippsConv( const Ipp32f* pSrc1, int lenSrc1, const Ipp32f* pSrc2, int lenSrc2, Ipp32f* pDst, IppsArray<UInt8>& buffer)
 {
 	int buffSize;
@@ -378,6 +387,7 @@ inline IppStatus ippsConv( const Ipp32f* pSrc1, int lenSrc1, const Ipp32f* pSrc2
 	return ippsConvolve_32f(pSrc1, lenSrc1, pSrc2, lenSrc2, pDst, (IppEnum)(ippAlgAuto), buffer.begin());
 }
 
+// IPP convolution for Float64 with buffer management.
 inline IppStatus ippsConv( const Ipp64f* pSrc1, int lenSrc1, const Ipp64f* pSrc2, int lenSrc2, Ipp64f* pDst, IppsArray<UInt8>& buffer)
 {
 	int buffSize;
@@ -391,7 +401,7 @@ inline IppStatus ippsConv( const Ipp64f* pSrc1, int lenSrc1, const Ipp64f* pSrc2
 	return ippsConvolve_64f(pSrc1, lenSrc1, pSrc2, lenSrc2, pDst, (IppEnum)(ippAlgAuto), buffer.begin());
 }
 
-
+// Performs raw convolution using IPP, with buffer and kernel management.
 template <typename A, typename T>
 TileSize PotentialIppsRaw(potential_context<A>& context, UPoint& zeroInfo, const kernel_info& kernelInfo, const UGrid<const T>& dataOrg)
 {
@@ -416,7 +426,6 @@ TileSize PotentialIppsRaw(potential_context<A>& context, UPoint& zeroInfo, const
 	dms_assert(dataBufferSize <= context.paddedInput.capacity());
 	dms_assert(outputSize <= context.overlappingOutput.capacity());
 
-
 	IppStatus result = 
 		ippsConv(
 			context.paddedInput.begin(), dataBufferSize,
@@ -431,8 +440,10 @@ TileSize PotentialIppsRaw(potential_context<A>& context, UPoint& zeroInfo, const
 	return outputSize;
 }
 
+// Helper for squaring Float64 values.
 inline Float64 Sqr64(Float64 v) { return v*v; }
 
+// Performs convolution and then smooths small values to zero.
 template <typename A, typename T>
 TileSize PotentialIppsSmooth(potential_context<A>& context, UPoint& zeroInfo, const kernel_info& kernelInfo, const UGrid<const T>& dataOrg)
 {
@@ -457,6 +468,7 @@ TileSize PotentialIppsSmooth(potential_context<A>& context, UPoint& zeroInfo, co
 //	CalculateClassic
 // *****************************************************************************
 
+// Classic (non-IPP) convolution and proximity calculation.
 template <typename T>
 bool CalculateClassic(AnalysisType at,
 		const UGrid<const T>& dataGrid, const UGrid<const T>& kernelGrid,
@@ -529,7 +541,7 @@ bool CalculateClassic(AnalysisType at,
 
 #if defined(DMS_POTENTIAL_I16)
 
-//bool Potential(AnalysisType at, const TCInt16Grid& data, const TInt16Grid & output, const TCInt16Grid& weight)
+// Main entry for Int16 potential calculation, dispatches to classic or IPP/IPPS.
 bool Potential(AnalysisType at, potential_contexts& context, const kernel_info& weightBuffer, const TCInt16Grid& data)
 {
 	DBG_START("Potential", "", MG_DEBUG_POTENTIAL);
@@ -564,6 +576,7 @@ bool Potential(AnalysisType at, potential_contexts& context, const kernel_info& 
 }
 #endif //defined(DMS_POTENTIAL_I16)
 
+// Adds a convolution kernel to the kernel_info for a given data type and analysis type.
 template < typename T>
 MDL_CALL void AddConvolutionKernel(kernel_info& self, AnalysisType at, SideSize nrDataCols)
 {
@@ -581,6 +594,7 @@ MDL_CALL void AddConvolutionKernel(kernel_info& self, AnalysisType at, SideSize 
 		potential::impl::IppsArray_InitReversed(self.weightBuffer<T>(nrDataCols), weightOrg, nrDataCols);
 }
 
+// Main entry for Float32 potential calculation, dispatches to classic, IPP, or IPPS.
 bool Potential(AnalysisType at, potential_contexts& context, const kernel_info& kernelInfo, const UCFloat32Grid& dataOrg)
 {
 	DBG_START("Potential", "Float32", MG_DEBUG_POTENTIAL);
@@ -621,6 +635,7 @@ bool Potential(AnalysisType at, potential_contexts& context, const kernel_info& 
 	return true;
 }
 
+// Main entry for Float64 potential calculation, dispatches to classic or IPPS.
 bool Potential(AnalysisType at, potential_contexts& context, const kernel_info& kernelInfo, const UCFloat64Grid& dataOrg)
 {
 	DBG_START("Potential", "Float64", MG_DEBUG_POTENTIAL);
@@ -650,6 +665,7 @@ bool Potential(AnalysisType at, potential_contexts& context, const kernel_info& 
 	return true;
 }
 
+// Explicit template instantiations for IppsArray and AddConvolutionKernel.
 template IppsArray<Float32>;
 template IppsArray<Float64>;
 
@@ -657,9 +673,12 @@ template void AddConvolutionKernel<Float32>(kernel_info& self, AnalysisType at, 
 template void AddConvolutionKernel<Float64>(kernel_info& self, AnalysisType at, SideSize nrDataCols);
 
 // *****************************************************************************
+// MDL Exported API
+// *****************************************************************************
 
 #if defined(MDL_EXPORTS)
 
+// Exported API for Float32 potential calculation.
 bool MDL_Potential32(
 	AnalysisType at, 
 	const TCFloat32Grid& data, 
@@ -669,6 +688,7 @@ bool MDL_Potential32(
 	return Potential(at, data, output, weight);
 }
 
+// Exported API for Float64 potential calculation.
 bool MDL_Potential64(
 	AnalysisType at, 
 	const TCFloat64Grid& data, 
@@ -679,5 +699,3 @@ bool MDL_Potential64(
 }
 
 #endif
-
-
