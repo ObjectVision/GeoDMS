@@ -59,7 +59,7 @@
  * the GDAL MIT/X license (pulled from the OpenEV distribution). 
  *
  * Adapted to GeoDMS in 2012/2013
- * In 2017 a mayor reorganization and code optimization was performed
+ * In 2017 a major reorganization and code optimization was performed
  * - All edges within the required y-range are ordered by first y and kept 
  *   in the heap currEdges while relevant for the current ray and that is ordered on the last y .
  * - TODO: edges on the left of the x-range within the y-range are coded at togglers at their start and stop row of open left

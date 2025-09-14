@@ -108,15 +108,15 @@ struct IppsArray
 		clean();
 	}
 
-	// "Copy" constructor actually acts as move (steals) – legacy pattern.
-	// NOTE: This is unconventional; intentional to avoid accidental deep copies.
-	IppsArray(IppsArray& rhs) noexcept
+	// Move constructor
+	IppsArray(IppsArray&& rhs) noexcept
 		:	m_Data(rhs.m_Data)
 		,	m_Capacity(rhs.m_Capacity)
 	{
 		rhs.m_Data = nullptr;
 		rhs.m_Capacity = 0;
 	}
+	IppsArray(const IppsArray& rhs) = delete; // No copy ctor.
 
 	// Allocate (or grow) buffer to hold at least nrElem elements.
 	void reserve(TileSize nrElem);
