@@ -180,7 +180,6 @@ struct CheckOperator : public BinaryOperator
 
 oper_arg_policy oap_Phase[2] = { oper_arg_policy::calc_subitem_root,  oper_arg_policy::calc_as_result };
 SpecialOperGroup sog_PhaseContainer(token::PhaseContainer, 2, oap_Phase, oper_policy::dynamic_result_class);
-Obsolete<SpecialOperGroup> sog_FenceContainer("use PhaseContainer", "FenceContainer", 2, oap_Phase, oper_policy::dynamic_result_class|oper_policy::depreciated);
 
 struct PhaseContainerOperator : BinaryOperator
 {
@@ -421,6 +420,5 @@ namespace {
 
 	SubItemOperator subItemOperator;
 	CheckOperator checkOperator;
-	PhaseContainerOperator fcOpObsolete(sog_FenceContainer);
 	PhaseContainerOperator fcOp(sog_PhaseContainer);
 }

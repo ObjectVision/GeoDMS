@@ -174,19 +174,6 @@ namespace token {
 	TIC_CALL TokenID select_uint32_with_org_rel = GetTokenID_st("select_uint32_with_org_rel");
 	TIC_CALL TokenID select_uint64_with_org_rel = GetTokenID_st("select_uint64_with_org_rel");
 
-	// DEPRECIATED BEGIN
-	TIC_CALL TokenID select_unit = GetTokenID_st("select_unit");
-	TIC_CALL TokenID select_orgrel = GetTokenID_st("select_orgrel");
-	TIC_CALL TokenID select_unit_uint8 = GetTokenID_st("select_unit_uint8");
-	TIC_CALL TokenID select_orgrel_uint8 = GetTokenID_st("select_orgrel_uint8");
-	TIC_CALL TokenID select_unit_uint8_org_rel = GetTokenID_st("select_org_rel_uint8");
-	TIC_CALL TokenID select_unit_uint16 = GetTokenID_st("select_unit_uint16");
-	TIC_CALL TokenID select_orgrel_uint16 = GetTokenID_st("select_orgrel_uint16");
-	TIC_CALL TokenID select_unit_uint32 = GetTokenID_st("select_unit_uint32");
-	TIC_CALL TokenID select_orgrel_uint32 = GetTokenID_st("select_orgrel_uint32");
-	// DEPRECIATED END
-
-
 	TIC_CALL TokenID select_with_attr_by_cond = GetTokenID_st("select_with_attr_by_cond");
 	TIC_CALL TokenID select_uint8_with_attr_by_cond= GetTokenID_st("select_uint8_with_attr_by_cond");
 	TIC_CALL TokenID select_uint16_with_attr_by_cond= GetTokenID_st("select_uint16_with_attr_by_cond");
@@ -204,19 +191,6 @@ namespace token {
 	TIC_CALL TokenID select_uint16_with_attr_by_org_rel = GetTokenID_st("select_uint16_with_attr_by_org_rel");
 	TIC_CALL TokenID select_uint32_with_attr_by_org_rel = GetTokenID_st("select_uint32_with_attr_by_org_rel");
 	TIC_CALL TokenID select_uint64_with_attr_by_org_rel = GetTokenID_st("select_uint64_with_attr_by_org_rel");
-
-	// DEPRECIATED BEGIN
-	TIC_CALL TokenID select_many = GetTokenID_st("select_many");
-	TIC_CALL TokenID select_afew = GetTokenID_st("select_afew");
-	TIC_CALL TokenID select_many_uint8 = GetTokenID_st("select_many_uint8");
-	TIC_CALL TokenID select_afew_uint8 = GetTokenID_st("select_afew_uint8");
-	TIC_CALL TokenID select_many_uint16 = GetTokenID_st("select_many_uint16");
-	TIC_CALL TokenID select_afew_uint16 = GetTokenID_st("select_afew_uint16");
-	TIC_CALL TokenID select_many_uint32 = GetTokenID_st("select_many_uint32");
-	TIC_CALL TokenID select_afew_uint32 = GetTokenID_st("select_afew_uint32");
-	// DEPRECIATED END
-
-	TIC_CALL TokenID select_data = GetTokenID_st("select_data");
 
 	TIC_CALL TokenID collect_by_cond = GetTokenID_st("collect_by_cond");
 	TIC_CALL TokenID collect_by_org_rel = GetTokenID_st("collect_by_org_rel"); // synonimous with lookup, arrow-operator, and (reversed) array-index operator

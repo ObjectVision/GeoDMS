@@ -2083,7 +2083,7 @@ namespace
 		{}
 	};
 
-	static CommonOperGroup grOverlayPolygon("overlay_polygon", oper_policy::dynamic_result_class | oper_policy::better_not_in_meta_scripting);
+	//static CommonOperGroup grOverlayPolygon("overlay_polygon", oper_policy::dynamic_result_class | oper_policy::better_not_in_meta_scripting);
 	static CommonOperGroup grBgOverlayPolygon("bg_overlay_polygon", oper_policy::dynamic_result_class | oper_policy::better_not_in_meta_scripting);
 	static CommonOperGroup grBpOverlayPolygon("bp_overlay_polygon", oper_policy::dynamic_result_class | oper_policy::better_not_in_meta_scripting);
 	static CommonOperGroup grCGALOverlayPolygon("cgal_overlay_polygon", oper_policy::dynamic_result_class | oper_policy::better_not_in_meta_scripting);
@@ -2103,9 +2103,9 @@ namespace
 	template <typename P> using CGAL_ConnectivityOperator = PolygonOverlayOperator<P, geometry_library::cgal, false>;
 	template <typename P> using GEOS_ConnectivityOperator = PolygonOverlayOperator<P, geometry_library::geos, false>;
 
-	tl_oper::inst_tuple_templ<typelists::sint_points , BoostPolygonOverlayOperator , AbstrOperGroup&, bool> boostPolygonOverlayOperators   (grOverlayPolygon, false);
+//	tl_oper::inst_tuple_templ<typelists::sint_points , BoostPolygonOverlayOperator , AbstrOperGroup&, bool> boostPolygonOverlayOperators   (grOverlayPolygon, false);
 	tl_oper::inst_tuple_templ<typelists::sint_points , BoostPolygonOverlayOperator , AbstrOperGroup&, bool> boostPolygonBpOverlayOperators (grBpOverlayPolygon, false);
-	tl_oper::inst_tuple_templ<typelists::float_points, BoostGeometryOverlayOperator, AbstrOperGroup&, bool> boostGeometryOverlayOperators  (grOverlayPolygon, false);
+//	tl_oper::inst_tuple_templ<typelists::float_points, BoostGeometryOverlayOperator, AbstrOperGroup&, bool> boostGeometryOverlayOperators  (grOverlayPolygon, false);
 	tl_oper::inst_tuple_templ<typelists::points      , BoostGeometryOverlayOperator, AbstrOperGroup&, bool> boostGeometryBgOverlayOperators(grBgOverlayPolygon, false);
 	tl_oper::inst_tuple_templ<typelists::points,       CGAL_OverlayOperator, AbstrOperGroup&, bool> cgalOverlayOperators(grCGALOverlayPolygon, false);
 	tl_oper::inst_tuple_templ<typelists::points,       GEOS_OverlayOperator, AbstrOperGroup&, bool> geosOverlayOperators(grGEOSOverlayPolygon, false);

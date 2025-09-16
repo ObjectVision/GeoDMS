@@ -387,7 +387,6 @@ public:
 
 static TokenID s_Point = token::point;
 static TokenID s_NextPoint = GetTokenID_st("NextPoint");
-static TokenID s_DepreciatedSequenceNr = GetTokenID_st("SequenceNr");
 
 namespace {
 	enum TableCreateFlags
@@ -464,13 +463,6 @@ struct AbstrArcs2SegmentsOperator : public UnaryOperator
 			resSub3 = CreateDataItem(resDomain, token::sequence_rel, resDomain, polyEntity);
 			MG_PRECONDITION(resSub3);
 			resSub3->SetTSF(TSF_Categorical);
-			if (!mustCalc)
-			{
-				auto depreciatedRes = CreateDataItem(resDomain, s_DepreciatedSequenceNr, resDomain, polyEntity);
-				depreciatedRes->SetTSF(TSF_Categorical);
-				depreciatedRes->SetTSF(TSF_Depreciated);
-				depreciatedRes->SetReferredItem(resSub3);
-			}
 		}
 
 		if (m_CreateFlags & DoCreateOrdinal)
@@ -711,14 +703,6 @@ struct AbstrDynaPointOperator : public TernaryOperator
 			resSub3 = CreateDataItem(resDomain, token::sequence_rel, resDomain, pointEntity);
 			resSub3->SetTSF(TSF_Categorical);
 			MG_PRECONDITION(resSub3);
-
-			if (!mustCalc)
-			{
-				auto depreciatedRes = CreateDataItem(resDomain, s_DepreciatedSequenceNr, resDomain, pointEntity);
-				depreciatedRes->SetTSF(TSF_Categorical);
-				depreciatedRes->SetTSF(TSF_Depreciated);
-				depreciatedRes->SetReferredItem(resSub3);
-			}
 		}
 
 		if (m_CreateFlags & DoCreateOrdinal)
@@ -1832,9 +1816,6 @@ namespace
 	CommonOperGroup cogUB("upper_bound", oper_policy::better_not_in_meta_scripting);
 	CommonOperGroup cogCB("center_bound");
 
-	Obsolete<CommonOperGroup> cogFN("use first_point instead", "first_node", oper_policy::depreciated);
-	Obsolete<CommonOperGroup> cogLN("use last_point instead",  "last_node", oper_policy::depreciated);
-
 	CommonOperGroup cogFP("first_point", oper_policy::better_not_in_meta_scripting);
 	CommonOperGroup cogLP("last_point", oper_policy::better_not_in_meta_scripting);
 
@@ -1884,8 +1865,8 @@ namespace
 		UnaryAttrFuncOperator<CenterBoundFunc<T> > cb;
 
 		// Functors that return Undefined for empty and null sequences
-		UnaryAttrSpecialFuncOperator<FirstFunc<T> > firstN, firstP;
-		UnaryAttrSpecialFuncOperator<LastFunc <T> > lastN, lastP;
+		UnaryAttrSpecialFuncOperator<FirstFunc<T> > firstP;
+		UnaryAttrSpecialFuncOperator<LastFunc <T> > lastP;
 
 		// points2sequence
 		Points2SequenceOperator<T, Void> p2s1, p2s_p, p2s_po;
@@ -1904,8 +1885,6 @@ namespace
 			, ub(&cogUB)
 			, cb(&cogCB)
 
-			, firstN(&cogFN)
-			, lastN(&cogLN)
 			, firstP(&cogFP)
 			, lastP(&cogLP)
 

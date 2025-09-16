@@ -374,12 +374,7 @@ namespace
 {
 	oper_arg_policy oap_sn[2] = { oper_arg_policy::calc_never, oper_arg_policy::calc_as_result };
 
-	Obsolete<ExecOperGroup> cog_EXEC("Use EXEC_EC and check the resulting UInt32 values as errorcode", "EXEC", oper_policy::depreciated);
 	ExecOperGroup cog_EXEC_V("EXEC_EC", oper_policy());
-
-	OperExec<false>      exec1(&cog_EXEC);
-	OperExecInDir<false> exec2(&cog_EXEC);
-	OperCmdInDir<false>  exec3(&cog_EXEC);
 
 	OperExec<true>      exec1V(&cog_EXEC_V);
 	OperExecInDir<true> exec2V(&cog_EXEC_V);

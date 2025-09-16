@@ -20,7 +20,7 @@
 enum class oper_policy
 {
 	none                 = 0,
-	dont_cache_result    = 1, // dont create the result in the data-cache but instantiate in-place (templates, for each, loop, select_many, select_afew).
+	dont_cache_result    = 1, // dont create the result in the data-cache but instantiate in-place (templates, for each, loop, select_with_attr, etc.).
 	                          // Requires application as MetaFunc.
 	existing             = 2, // can result to an existing item, thus result is a supplier (SubItem, DomainUnit, ValuesUnit, GetProjectionBase, Generate).
 	has_external_effects = 4,
