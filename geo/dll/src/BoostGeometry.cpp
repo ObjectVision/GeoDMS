@@ -114,10 +114,6 @@ static CommonOperGroup grGeosBuffer_point      ("geos_buffer_point",       oper_
 static CommonOperGroup grGeosBuffer_multi_point("geos_buffer_multi_point", oper_policy::better_not_in_meta_scripting);
 
 
-#if DMS_VERSION_MAJOR < 15
-static Obsolete<CommonOperGroup> grBgBuffer_polygon("use bg_buffer_single_polygon", "bg_buffer_polygon", oper_policy::better_not_in_meta_scripting|oper_policy::depreciated);
-#endif
-
 static CommonOperGroup grBgBuffer_single_polygon("bg_buffer_single_polygon", oper_policy::better_not_in_meta_scripting);
 
 static CommonOperGroup grBpBuffer_linestring("bp_buffer_linestring", oper_policy::better_not_in_meta_scripting);
@@ -129,10 +125,8 @@ static CommonOperGroup grBpBuffer_multi_polygon("bp_buffer_multi_polygon", oper_
 static CommonOperGroup grBgBuffer_multi_polygon("bg_buffer_multi_polygon", oper_policy::better_not_in_meta_scripting);
 static CommonOperGroup grGeosBuffer_multi_polygon("geos_buffer_multi_polygon", oper_policy::better_not_in_meta_scripting);
 
-#if DMS_VERSION_MAJOR < 15
-static Obsolete<CommonOperGroup> grOuter_polygon("use bg_outer_single_polygon", "outer_polygon", oper_policy::better_not_in_meta_scripting | oper_policy::depreciated);
-static Obsolete<CommonOperGroup> grOuter_multi_polygon("use bg_outer_multi_polygon", "outer_multi_polygon", oper_policy::better_not_in_meta_scripting | oper_policy::depreciated);
-#endif
+static CommonOperGroup grOuter_polygon("outer_single_polygon", oper_policy::better_not_in_meta_scripting);
+static CommonOperGroup grOuter_multi_polygon("outer_multi_polygon", oper_policy::better_not_in_meta_scripting);
 
 static CommonOperGroup grBgOuter_single_polygon("bg_outer_single_polygon", oper_policy::better_not_in_meta_scripting);
 static CommonOperGroup grBgOuter_multi_polygon("bg_outer_multi_polygon", oper_policy::better_not_in_meta_scripting);
