@@ -2107,7 +2107,11 @@ void OperationContext::RunOperator(ArgRefs argRefs, std::vector<ItemReadLock> re
 		if (funcDC->WasFailed(FR_MetaInfo))
 			return;
 		try {
+
+			ASyncContinueCheck();
+
 			TreeItemDualRefContextHandle reportProgressAndErr(&resultHolder);
+
 
 			actualResult = GetOperator()->CalcResult(resultHolder, std::move(argRefs), std::move(readLocks), context.get()); // ============== payload
 

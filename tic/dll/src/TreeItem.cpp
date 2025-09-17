@@ -569,7 +569,7 @@ void TreeItem::RemoveItem(TreeItem* child)
 	SharedTreeItem thisHolder;
 	bool mustDisconnectInterest;
 	{
-		leveled_std_section::scoped_lock globalSectionLock(sg_CountSection);
+		leveled_std_section::scoped_lock globalDataLockCountLock(sg_CountSection);
 		mustDisconnectInterest = child->m_InterestCount;
 		thisHolder = std::move(child->m_Parent); // reduces ref count
 	}
@@ -3345,7 +3345,7 @@ bool TreeItem::PrepareDataUsage(DrlType drlFlags) const
 	return result;
 }
 
-enum class how_to_proceed { nothing, data_ready, failed, suspended, suspended_or_failed}; // return_suspended_or_failed, return_OK };
+enum class how_to_proceed { nothing, data_ready, failed, suspended, suspended_or_failed}; // return_suspended_or_failed, return_OK ;
 
 static how_to_proceed PrepareDataCalc(SharedPtr<const TreeItem> self, const TreeItem* refItem, DrlType drlFlags)
 {
@@ -3420,6 +3420,19 @@ static how_to_proceed PrepareDataCalc(SharedPtr<const TreeItem> self, const Tree
 
 static how_to_proceed PrepareDataRead(SharedPtr<const TreeItem> self, const TreeItem* refItem, DrlType drlFlags)
 {
+	// PSEUDOCODE:
+	// - Ensure refItem is data-readable and not a cache item.
+	// - Prepare all suppliers (Calc group) of 'self'; on failure/suspend, propagate result.
+	// - If refItem is a DataItem, ensure its domain unit (adu) can provide cardinality.
+	// - Acquire storage manager and meta info to start a read OperationContext (oc).
+	// - Before scheduling/starting the read oc:
+	//     - If 'self' is a DataItem:
+	//         - Fetch its domain unit (adu).
+	//         - If the adu has a DataController, add its FutureData to futureSuppliers so the adu calculation
+	//           is guaranteed to run before/with this read Operation.
+	// - Track oc in self->m_ReadAssets to keep it alive.
+	// - Return data_ready/suspended/failed based on status and triggers.
+
 	MG_DEBUGCODE(dms_assert(!refItem->HasCalculatorImpl())); // implied by IsDataReadable
 	dms_assert(!refItem->IsCacheItem());        // how else to derive data
 
@@ -3438,7 +3451,7 @@ static how_to_proceed PrepareDataRead(SharedPtr<const TreeItem> self, const Tree
 	);
 	if (supplResult == AVS_SuspendedOrFailed)
 	{
-		if (SuspendTrigger::DidSuspend())	
+		if (SuspendTrigger::DidSuspend())
 			return how_to_proceed::suspended;
 		else
 		{
@@ -3446,8 +3459,6 @@ static how_to_proceed PrepareDataRead(SharedPtr<const TreeItem> self, const Tree
 			return how_to_proceed::failed;
 		}
 	}
-	//				if (UpdateSuppliers(PS_Committed) == AVS_SuspendedOrFailed)
-	//					goto suspended_or_failed;
 
 	assert(!SuspendTrigger::DidSuspend());
 
@@ -3472,16 +3483,46 @@ static how_to_proceed PrepareDataRead(SharedPtr<const TreeItem> self, const Tree
 			auto readInfoPtr = std::make_shared<std::atomic<StorageMetaInfoPtr>>(std::move(readInfo));
 			assert(!CheckCalculatingOrReady(refItem));
 
-			using OcPtr = std::atomic < std::shared_ptr<OperationContext>>;
+			using OcPtr = std::atomic<std::shared_ptr<OperationContext>>;
 			std::shared_ptr<OcPtr> ocPtrPtr = std::make_shared<OcPtr>();
+
+			// Collect future suppliers that must run before/with this read operation.
+			FutureSuppliers futureSuppliers;
+
+			// If self is a DataItem, ensure its AbstrDomainUnit calculation (if any) is a dependency.
+			if (IsDataItem(self.get()))
+				if (auto selfAdu = AsDataItem(self.get())->GetAbstrDomainUnit())
+				{
+					// If the domain unit has a DataController, make it a future supplier.
+					if (auto aduDC = selfAdu->GetCheckedDC())
+					{
+						auto fut = aduDC->CallCalcResult();
+						if (fut)
+							futureSuppliers.emplace_back(std::move(fut));
+					}
+				}
+			if (IsDataItem(refItem))
+				if (auto refAdu = AsDataItem(refItem)->GetAbstrDomainUnit())
+				{
+					// If the domain unit has a DataController, make it a future supplier.
+					if (auto aduDC = refAdu->GetCheckedDC())
+					{
+						auto fut = aduDC->CallCalcResult();
+						if (fut)
+							futureSuppliers.emplace_back(std::move(fut));
+					}
+				}
 
 			*ocPtrPtr = OperationContext::CreateItemWriter(const_cast<TreeItem*>(refItem),
 				[storageParent
 				, ocWeakPtrPtr = std::weak_ptr<OcPtr>(ocPtrPtr)
 				, readInfoPtr
-				, nmsm](OperationContext* ocPtr, explain_context_ptr_t context)
+				, nmsm](OperationContext* /*ocPtr*/, explain_context_ptr_t /*context*/)
 				{
-					auto onExit = make_scoped_exit([ocWeakPtrPtr]() { if(auto ocSharedPtrPtr = ocWeakPtrPtr.lock())  *ocSharedPtrPtr = std::shared_ptr<OperationContext>(); });
+					auto onExit = make_scoped_exit([ocWeakPtrPtr]() {
+						if (auto ocSharedPtrPtr = ocWeakPtrPtr.lock())
+							*ocSharedPtrPtr = std::shared_ptr<OperationContext>();
+					});
 					assert(readInfoPtr);
 					assert(readInfoPtr->load());
 					(*readInfoPtr).load()->OnPreLock();
@@ -3489,11 +3530,13 @@ static how_to_proceed PrepareDataRead(SharedPtr<const TreeItem> self, const Tree
 					assert(!readInfoPtr->load());
 					sHandle.FocusItem()->ReadItem(std::move(sHandle)); // Read Item
 				}
-				, FutureSuppliers() // TODO: Let readInfoPtr provide required suppliers, such as GridStorageMetaInfo->m_VIP->m_GridDomain (as its range is required in further processing
+				, std::move(futureSuppliers)
 				, false
 			);
-			if (ocPtrPtr->load()->GetStatus() < task_status::running)
-				self->m_ReadAssets.emplace<std::shared_ptr<OcPtr>>(ocPtrPtr);
+
+			if (auto loadedPtr = ocPtrPtr->load())
+				if (loadedPtr->GetStatus() < task_status::running)
+					self->m_ReadAssets.emplace<std::shared_ptr<OcPtr>>(ocPtrPtr);
 
 			readInfoPtr.reset();
 			assert(CheckCalculatingOrReady(refItem) || refItem->WasFailed(FR_Data) || SuspendTrigger::DidSuspend());
