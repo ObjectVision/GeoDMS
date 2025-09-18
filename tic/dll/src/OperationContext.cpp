@@ -1,6 +1,65 @@
 // Copyright (C) 1998-2025 Object Vision b.v. 
 // License: GNU GPL 3
 /////////////////////////////////////////////////////////////////////////////
+//
+// Overview
+// --------
+// This file implements the core scheduling and execution machinery for
+// OperationContext and tile_task_group processing. It orchestrates:
+//  - A cooperative task-stealing scheduler for both OperationContext tasks and
+//    fine-grained tile tasks (tile_task_group).
+//  - Phase-based activation: operations are grouped by 'phase_number' and only
+//    operations in the current active phase are allowed to run.
+//  - Supplier/waiter dependency management: operations wait for their suppliers
+//    to complete (or fail) before activation.
+//  - Low-RAM heuristics: limits parallel activations when RAM is low.
+//  - Integration with a global task_group for background execution,
+//    while allowing inline execution on join.
+//  - Robust, lock-disciplined state transitions with extensive debug checks.
+//
+// Threading model
+// ---------------
+// - cs_ThreadMessing protects all shared scheduling state: queues, phase maps,
+//   counters, and OperationContext life-cycle changes.
+// - s_TileTaskGroupsMutex protects the global list of tile_task_group instances.
+// - task_group from PPL executes background functors.
+//
+// OperationContext life-cycle
+// ---------------------------
+// States (task_status):
+//   none -> waiting_for_suppliers (if suppliers exist) -> scheduled -> activated -> running -> [done|exception|cancelled]
+// - Schedule* methods enqueue contexts and manage supplier connections.
+// - collectOperationContexts scans scheduled queues (by phase), activates contexts,
+//   and transfers them to the "radio actives" queue for potential inline/parallel run.
+// - TryRunningTaskInline tries to acquire a unique run license and inlines execution.
+// - Join waits for completion; on non-main threads it steals work; on main thread it
+//   pumps UI-related work and respects suspend triggers.
+// - OnEnd/separateResources finalize state, detach waiters/suppliers, and free resources.
+//	
+// tile_task_group
+// ---------------
+// Manages a pool of tile tasks with ticketing (commissioned slots) and cooperatively
+// executes them via the same task_group. It supports:
+// - Work stealing by threads via TakeOneTileTask.
+// - Exception propagation and early decommissioning.
+// - Controlled thread commissioning based on available vCPUs.
+//
+// Important invariants and practices
+// ----------------------------------
+// - All modifications to scheduling state happen under cs_ThreadMessing.
+// - All modifications to tile_task_group registry happen under s_TileTaskGroupsMutex.
+// - Notifications (cv_TaskCompleted) are signaled while holding cs_ThreadMessing to
+//   avoid missed wakeups.
+// - No lock order inversions: keep lock ordering consistent and avoid acquiring
+//   cs_ThreadMessing from tile_task_group paths and vice versa where possible.
+// - Exceptions from tasks are caught and transformed into state transitions.
+//
+// Debug support
+// -------------
+// - MG_TRACE_OPERATIONCONTEXTS provides extensive consistency checks and tracing.
+// - sd_RunningOC/s_NrActivatedOrRunningOperations are kept in sync via asserts.
+//
+//
 
 #include "TicPCH.h"
 
@@ -52,15 +111,30 @@ concurrency::task_group& GetTaskGroup();
 // *****************************************************************************
 // Section:     tile_task_group
 // *****************************************************************************
+//
+// A light-weight ticket dispenser for tile-level tasks.
+// - Multiple tile_task_group instances can coexist. Each instance has 'm_Last'
+//   indicating the total number of tiles (tickets).
+// - Global array s_TileTaskGroups functions as a registry for stealing.
+// - Threads grab a commissioned index and process it; completion is tracked.
+// - Destructor waits for all slots to be completed or propagates exception.
+//
+// *****************************************************************************
 
 #include "ParallelTiles.h"
 
+// Global registry of tile task groups for work stealing.
 static std::vector<tile_task_group*> s_TileTaskGroups;
+// Guards s_TileTaskGroups.
 std::mutex s_TileTaskGroupsMutex;
+// Global cancellation flag for tile tasks (currently unused here).
 static bool s_IsCancelled = false;
 
+// Number of worker threads currently running DoThisOrThatAndDecommission loop.
 static int s_NrRunningTileTaskThreads = 0;
 
+// Internal: pop a valid commissioned slot from any registered tile_task_group.
+// Requires s_TileTaskGroupsMutex to be held.
 auto takeOneTileTask() -> std::pair<tile_task_group*, tile_task_group::IndexType>
 {
 	assert(!s_TileTaskGroupsMutex.try_lock());
@@ -78,12 +152,14 @@ auto takeOneTileTask() -> std::pair<tile_task_group*, tile_task_group::IndexType
 	return { nullptr, UNDEFINED_VALUE(tile_task_group::IndexType) };
 }
 
+// Try to take a tile task. Thread-safe wrapper.
 auto TakeOneTileTask() -> std::pair<tile_task_group*, tile_task_group::IndexType>
 {
 	auto lock = std::unique_lock<std::mutex>(s_TileTaskGroupsMutex);
 	return takeOneTileTask();
 }
 
+// Take a tile task or decide the caller should decommission its worker thread.
 auto TakeOneTaskOrDecommissionThread() -> std::pair<tile_task_group*, tile_task_group::IndexType>
 {
 	auto lock = std::unique_lock<std::mutex>(s_TileTaskGroupsMutex);
@@ -96,6 +172,7 @@ auto TakeOneTaskOrDecommissionThread() -> std::pair<tile_task_group*, tile_task_
 	return tileTask;
 }
 
+// Attempt to steal and execute a single tile task. Returns true if did work.
 bool StealOneTileTask(bool doMore)
 {
 	auto tileTask = TakeOneTileTask();
@@ -106,6 +183,7 @@ bool StealOneTileTask(bool doMore)
 	return true;
 }
 
+// Worker loop that executes tile tasks until no tasks remain, then exits.
 void DoThisOrThatAndDecommission()
 {
 	while(true)
@@ -118,6 +196,8 @@ void DoThisOrThatAndDecommission()
 	}
 }
 
+// Construct a tile task group with 'last' slots and a work function.
+// Commissions worker threads based on vCPU availability.
 tile_task_group::tile_task_group(IndexType last, task_func func)
 	: m_Last(last)
 	, m_Func(func)
@@ -129,9 +209,7 @@ tile_task_group::tile_task_group(IndexType last, task_func func)
 		auto lock = std::unique_lock<std::mutex>(s_TileTaskGroupsMutex);
 		s_TileTaskGroups.emplace_back(this);
 
-		// now fire some workers, but not too many. Trust that existing workers will also pick up due to their DoThisOrThat before completion that is synchronized with this 
-		// unless they have just completed their DoThisOrThat and are waiting for access to Decommissionn their thread.
-
+		// Fire workers, bounded by available vCPUs and remaining slots.
 		if (IsMultiThreaded1())
 		{
 			auto maxNrThreads = GetNrVCPUs();
@@ -145,10 +223,12 @@ tile_task_group::tile_task_group(IndexType last, task_func func)
 		s_NrRunningTileTaskThreads += nrThreadsToCommission;
 	}
 
+	// Launch workers outside of lock.
 	while (nrThreadsToCommission-- > 0)
 		GetTaskGroup().run([] { DoThisOrThatAndDecommission(); });
 }
 
+// Destructor waits for all commissioned slots to complete and propagates exceptions.
 tile_task_group::~tile_task_group()
 {
 	auto lock = std::unique_lock<std::mutex>(s_TileTaskGroupsMutex);
@@ -171,6 +251,7 @@ tile_task_group::~tile_task_group()
 	assert(m_NrCompleted == m_Last); // we now expect to have completed all commissioned task-slots.
 }
 
+// Remove this group from the global registry, preventing new slots to be handed out.
 void tile_task_group::decommission()
 {
 	assert(!s_TileTaskGroupsMutex.try_lock()); // don't let the notification fall outside a waiter lock
@@ -187,6 +268,7 @@ void tile_task_group::decommission()
 		}
 }
 
+// Commission next slot if available and return the ticket; otherwise undefined.
 auto tile_task_group::getNextCommissioned() -> IndexType
 {
 	assert(!s_TileTaskGroupsMutex.try_lock()); // don't let the notification fall outside a waiter lock
@@ -201,12 +283,14 @@ auto tile_task_group::getNextCommissioned() -> IndexType
 	return result;
 }
 
+// Thread-safe wrapper to get a commissioned slot.
 auto tile_task_group::GetNextCommissioned() -> IndexType
 {
 	auto lock = std::unique_lock<std::mutex>(s_TileTaskGroupsMutex);
 	return getNextCommissioned();
 }
 
+// Register multiple completions (e.g., on exception settle path).
 void tile_task_group::registerCompletions(IndexType nr)
 {
 	assert(!s_TileTaskGroupsMutex.try_lock()); // don't let the notification fall outside a waiter lock
@@ -217,6 +301,7 @@ void tile_task_group::registerCompletions(IndexType nr)
 		m_TileTasksDone.notify_all();
 }
 
+// Register a single completion.
 void tile_task_group::RegisterCompletion()
 {
 	auto lock = std::unique_lock<std::mutex>(s_TileTaskGroupsMutex); // don't let the notification fall outside a waiter lock
@@ -225,6 +310,7 @@ void tile_task_group::RegisterCompletion()
 		m_TileTasksDone.notify_all();
 }
 
+// Register completion and immediately try to commission a next slot (if any).
 auto tile_task_group::RegisterCompletionAndGetNextCommissioned()->IndexType
 {
 	auto lock = std::unique_lock<std::mutex>(s_TileTaskGroupsMutex); // don't let the notification fall outside a waiter lock
@@ -237,6 +323,8 @@ auto tile_task_group::RegisterCompletionAndGetNextCommissioned()->IndexType
 	return getNextCommissioned();
 }
 
+// Execute slot 'i' and optionally continue with more slots (doMore=true).
+// Handles cancellation and exception paths, ensuring proper decommissioning.
 void tile_task_group::DoWork(IndexType i, bool doMore)
 {
 	assert(!std::uncaught_exceptions());
@@ -282,6 +370,7 @@ void tile_task_group::DoWork(IndexType i, bool doMore)
 	}
 }
 
+// Wait until all commissioned slots are completed. No exceptions thrown.
 void tile_task_group::AwaitRunningSlots() noexcept
 {
 	assert(m_Commissioned == m_Last); // post condition of DoWork
@@ -303,6 +392,7 @@ void tile_task_group::AwaitRunningSlots() noexcept
 	}
 }
 
+// Join ensures completion of all tasks and rethrows any stored exception.
 void tile_task_group::Join()
 {
 	IndexType nextSlot = GetNextCommissioned();
@@ -318,6 +408,11 @@ void tile_task_group::Join()
 
 // *****************************************************************************
 // Section:     OperatorContextHandle
+// *****************************************************************************
+//
+// Lightweight ContextHandle for debugging/describing the running operator and
+// its arguments during scheduling/execution.
+//
 // *****************************************************************************
 
 struct OperatorContextHandle : ContextHandle
@@ -365,6 +460,15 @@ void OperatorContextHandle::GenerateDescription()
 // *****************************************************************************
 // Section:     OperatorContextQueue
 // *****************************************************************************
+//
+// Central scheduling structures and synchronization for OperationContext.
+// - s_ScheduledContextsMap: per-phase queues of weak_ptrs ready to be activated.
+// - s_RadioActives: "radio-active" queue of contexts that have been activated and
+//   are candidates for inline execution or stealing.
+// - s_NrActivatedOrRunningOperations: per-phase counters (activated+running).
+// - s_CurrActivePhaseNumber: currently focus phase; only this phase is activated.
+//
+// *****************************************************************************
 
 leveled_std_section cs_ThreadMessing(item_level_type(0), ord_level_type::ThreadMessing, "LockedThreadMessing");
 std::condition_variable cv_TaskCompleted;
@@ -394,6 +498,11 @@ UInt32 GetCurrFinishedCount()
 // *****************************************************************************
 // Section:     extra debug stuff
 // *****************************************************************************
+//
+// Debug-only bookkeeping to assert consistency of running counts and
+// to report leaked OperationContext instances.
+//
+// *****************************************************************************
 
 #if defined(MG_DEBUG)
 
@@ -416,6 +525,7 @@ static UInt32 sd_OcCount;
 static std::set<OperationContext*> sd_OC;
 static std::map<OperationContext*, phase_number> sd_RunningOC;
 
+// Verify that administrative counters agree.
 void CheckNumberOfRunningOCConsistency()
 {
 	MG_CHECK(!cs_ThreadMessing.try_lock());
@@ -428,7 +538,7 @@ void CheckNumberOfRunningOCConsistency()
 	std::map<phase_number, RunningOperationsCounter> recount;
 	for (const auto& runningPair : sd_RunningOC)
 	{
-		MG_CHECK(runningPair.first->m_PhaseNumber == runningPair.second);
+				MG_CHECK(runningPair.first->m_PhaseNumber == runningPair.second);
 		++recount[runningPair.second];
 	}
 	for (const auto& recountPair : recount)
@@ -437,6 +547,7 @@ void CheckNumberOfRunningOCConsistency()
 	}
 }
 
+// Debug reporting helper.
 void reportOC(CharPtr source, OperationContext* ocPtr)
 {
 	auto item = ocPtr->GetResult();
@@ -454,6 +565,7 @@ auto reportRemaingOcOnExit = make_scoped_exit([]()
 
 #endif
 
+// Notify waiting threads that a task completed or state changed.
 void wakeUpJoiners()
 {
 	assert(!cs_ThreadMessing.try_lock());
@@ -470,6 +582,10 @@ TIC_CALL void WakeUpJoiners()
 // *****************************************************************************
 // Section: GetTaskGroup() en tg_maintainer
 // 
+// Purpose:
+//  - Initialize the default PPL scheduler with vCPU based policy.
+//  - Maintain a global task_group used by OperationContext and tile tasks.
+// 
 // note: caller is responsible for having exactly one tg_maintainer object in main() or at least during calls to GetTaskGroup();
 // note: GetTaskGroup() returns a singleton, but calls to GetTaskGroup().run(...) can be made from different threads
 // 
@@ -480,7 +596,7 @@ static concurrency::task_group* s_OcTaskGroup = nullptr;
 
 TIC_CALL tg_maintainer::tg_maintainer()
 {
-	// build policy
+	// build policy: pin min/max concurrency to number of vCPUs
 	concurrency::SchedulerPolicy policy(2, concurrency::MinConcurrency, GetNrVCPUs(), concurrency::MaxConcurrency, GetNrVCPUs());
 
 	// install that policy as the DEFAULT scheduler’s policy --
@@ -515,6 +631,7 @@ TIC_CALL tg_maintainer::~tg_maintainer()
 	s_OcTaskGroup = nullptr;
 }
 
+// Global access to the task group, must be initialized by tg_maintainer.
 concurrency::task_group& GetTaskGroup()
 {
 	assert(s_OcTaskGroup);
@@ -523,6 +640,10 @@ concurrency::task_group& GetTaskGroup()
 
 // *****************************************************************************
 // Section: PhaseNumbers
+// *****************************************************************************
+//
+// Provide increasing unique phase identifiers for scheduling phases.
+//
 // *****************************************************************************
 
 auto GetNextPhaseNumber() -> phase_number
@@ -534,7 +655,12 @@ auto GetNextPhaseNumber() -> phase_number
 // *****************************************************************************
 // Section: helper functions
 // *****************************************************************************
+//
+// Utilities for weak_ptr comparison, queue lookup, supplier checks etc.
+//
+// *****************************************************************************
 
+// Find the position of 'self' in its phase queue. Requires cs_ThreadMessing.
 SizeT getScheduledContextsPos(OperationContextSPtr self)
 {
 	assert(!cs_ThreadMessing.try_lock());
@@ -577,6 +703,7 @@ bool isSupplier(OperationContext* waiter, OperationContextSPtr supplier)
 
 #if defined(MG_DEBUG)
 
+// Debug printing helpers for OperationContext pointers.
 std::string AsText(OperationContext* ptr)
 {
 	assert(ptr);
@@ -604,6 +731,7 @@ std::string AsText(std::weak_ptr<T> xPtr)
 
 #endif
 
+// Connect 'waiter' to a 'supplier' OperationContext to receive completion/fail events.
 void connect(OperationContext* waiter, OperationContextSPtr supplier)
 {
 	DBG_START("OperationContextPtr", "connect", MG_DEBUGCONNECTIONS);
@@ -618,6 +746,7 @@ void connect(OperationContext* waiter, OperationContextSPtr supplier)
 	supplier->m_Waiters.insert(waiter->weak_from_this());
 }
 
+// Enqueue a runnable context into its phase queue and record scheduling state.
 void scheduleRunnableTask(OperationContext* self)
 {
 	assert(!cs_ThreadMessing.try_lock());
@@ -636,7 +765,13 @@ void scheduleRunnableTask(OperationContext* self)
 // *****************************************************************************
 // Section: disconnect suppliers
 // *****************************************************************************
+//
+// Helper transitions for finalization: detach from suppliers and notify waiters.
+// Ensures consistent state transitions and triggers follow-up scheduling.
+//
+// *****************************************************************************
 
+// Disconnect specific supplier and handle state transitions based on supplier status.
 garbage_can OperationContext::disconnect_supplier(OperationContext* supplier)
 {
 	DBG_START("OperationContextPtr", "disconnect_supplier", MG_DEBUGCONNECTIONS);
@@ -719,6 +854,7 @@ garbage_can OperationContext::disconnect_supplier(OperationContext* supplier)
 	return garbage;
 }
 
+// Disconnect all waiters and suppliers; to be called under cs_ThreadMessing.
 garbage_can OperationContext::disconnect_waiters()
 {
 	DBG_START("OperationContextPtr", "disconnect_waiters", MG_DEBUGCONNECTIONS);
@@ -759,7 +895,11 @@ garbage_can OperationContext::disconnect_waiters()
 /// <returns>
 /// a pair of context_array that contains the collected operations and garbage that must be destructed before calling GetOperGroup, but after teh cs_ThreadMessing lock.
 /// </returns>
-
+//
+// Collect and activate OperationContexts in the current phase until RAM pressure
+// or queue exhaustion. Returns the list of activated contexts (as weak_ptrs)
+// and a garbage_can for post-lock destruction.
+//
 auto collectOperationContexts() -> std::pair<context_array, garbage_can>
 {
 	assert(!cs_ThreadMessing.try_lock());
@@ -778,6 +918,7 @@ auto collectOperationContexts() -> std::pair<context_array, garbage_can>
 
 		assert(s_CurrBlockedPhaseNumber == 0 || s_CurrBlockedPhaseNumber >= s_CurrActivePhaseNumber);
 
+		// Advance to next phase only when all lower-phase tasks are done.
 		if (nextPhaseNumber > s_CurrActivePhaseNumber)
 		{
 			while (!s_NrActivatedOrRunningOperations.empty())
@@ -801,11 +942,13 @@ auto collectOperationContexts() -> std::pair<context_array, garbage_can>
 
 		auto currContext = scheduledContexts.begin();
 
+		// Reset low-RAM throttle for this activation pass.
 		s_IsInLowRamMode = false; // reset for next activation round
 		bool isLowOnFreeRamTested = false;
 
 		for (; currContext != scheduledContexts.end(); ++currContext)
 		{
+			// Heuristic: don't activate too many when low on RAM or when too many joins are waiting.
 			if (!isLowOnFreeRamTested && s_NrActivatedOrRunningOperations[nextPhaseNumber] >= s_NrWaitingJoins) // HEURISTIC: only allow more than 1 operations when RAM isn't being exausted
 			{
 				if (IsLowOnFreeRAM())
@@ -841,6 +984,7 @@ auto collectOperationContexts() -> std::pair<context_array, garbage_can>
 				assert(s_NrActivatedOrRunningOperations[nextPhaseNumber] >= 0);
 			}
 		}
+		// Drop processed scheduled contexts.
 		scheduledContexts.erase(scheduledContexts.begin(), currContext);
 		if (!scheduledContexts.empty())
 			break;
@@ -854,6 +998,7 @@ exit:
 
 static std::atomic<bool> s_RunOperationContextsScheduled = false;
 
+// Collect activated contexts (under lock) and return by value.
 auto CollectOperationContextsImpl() -> context_array
 {
 	context_array activatedOperationContextArray;
@@ -864,6 +1009,7 @@ auto CollectOperationContextsImpl() -> context_array
 	return activatedOperationContextArray;
 }
 
+// Schedule execution of contexts via the task_group.
 void StartCollectedOperationContexts(context_array collectedActivatedContexts)
 {
 	for (auto activatedContextWPtr : collectedActivatedContexts)
@@ -879,6 +1025,7 @@ void StartCollectedOperationContexts(context_array collectedActivatedContexts)
 		}
 }
 
+// Entry point to advance scheduling and run newly activated contexts.
 TIC_CALL void StartOperationContexts()
 {
 	s_RunOperationContextsScheduled = false;
@@ -887,6 +1034,7 @@ TIC_CALL void StartOperationContexts()
 	StartCollectedOperationContexts(std::move(collectedActivatedContexts));
 }
 
+// Post a main-thread request to start contexts and also try to start from here.
 void PostStartOperationContexts()
 {
 	if (s_RunOperationContextsScheduled.exchange(true))
@@ -897,6 +1045,7 @@ void PostStartOperationContexts()
 
 inline bool IsActiveOrRunning(task_status s) { return s >= task_status::activated && s <= task_status::running; }
 
+// Transition a context to 'activated' and bump counters. Requires cs_ThreadMessing.
 void OperationContex_setActivated(OperationContext* self)
 {
 	assert(self);
@@ -932,6 +1081,11 @@ void OperationContex_setActivated(OperationContext* self)
 // *****************************************************************************
 // Section:     OperatorContext
 // *****************************************************************************
+//
+// Implements OperationContext scheduling, execution, dependency management, and
+// resource cleanup. See top-of-file overview for the life-cycle.
+//
+// *****************************************************************************
 
 /// <summary>
 ///		This constructor is used to create a new OperationContext with a given FuncDC.
@@ -941,6 +1095,7 @@ void OperationContex_setActivated(OperationContext* self)
 /// Call ScheduleCalcResult() to start the calculation.
 /// todo: integreate ScheduleCalcResult into the constructor.
 
+// Debug/admin counter increment for constructed OperationContext.
 void OperationContext_AddOcCount(OperationContext* self)
 {
 
@@ -954,6 +1109,7 @@ void OperationContext_AddOcCount(OperationContext* self)
 
 }
 
+// Construct for a FuncDC-backed operation (operator execution).
 OperationContext::OperationContext(const FuncDC* self)
 	: m_FuncDC(self)
 	, m_PhaseNumber(self->GetPhaseNumber())
@@ -965,12 +1121,14 @@ OperationContext::OperationContext(const FuncDC* self)
 	OperationContext_AddOcCount(this);
 }
 
+// Construct for a raw task_func-based operation (custom tasks).
 OperationContext::OperationContext(task_func_type func)
 	: m_TaskFunc( std::move(func) )
 {
 	OperationContext_AddOcCount(this);
 }
 
+// Destructor enforces finalization and ensures no active/running states linger.
 OperationContext::~OperationContext()
 {
 	DBG_START("OperationContext", "DTor", MG_DEBUG_FUNCCONTEXT);
@@ -997,6 +1155,7 @@ OperationContext::~OperationContext()
 
 }
 
+// Connect argument suppliers under lock; returns true if any connections were made.
 bool OperationContext_ConnectArgs(OperationContext* oc, const FutureSuppliers& allArgInterest)
 {
 	leveled_std_section::scoped_lock lock(cs_ThreadMessing);
@@ -1004,6 +1163,7 @@ bool OperationContext_ConnectArgs(OperationContext* oc, const FutureSuppliers& a
 	return oc->connectArgs(allArgInterest);
 }
 
+// Schedule a single OperationContext (recursively pre-schedules suppliers if needed).
 void OperationContext_scheduleThis(OperationContext* self)
 {
 	assert(self);
@@ -1024,6 +1184,7 @@ void OperationContext_scheduleThis(OperationContext* self)
 	}
 }
 
+// Thread-safe wrapper to schedule this context.
 void OperationContext_ScheduleThis(OperationContext* self)
 {
 	leveled_std_section::scoped_lock lock(cs_ThreadMessing);
@@ -1031,6 +1192,8 @@ void OperationContext_ScheduleThis(OperationContext* self)
 	OperationContext_scheduleThis(self);
 }
 
+// Core scheduling entry: sets up phase/result/write lock, connects suppliers,
+// and either runs inline or enqueues for async execution.
 task_status OperationContext::Schedule(TreeItem* item, const FutureSuppliers& allArgInterest, bool runDirect, explain_context_ptr_t context)
 {
 	assert(IsMetaThread());
@@ -1076,6 +1239,7 @@ task_status OperationContext::Schedule(TreeItem* item, const FutureSuppliers& al
 
 	if (runDirect)
 	{
+		// Inline path: ensure suppliers are resolved or suspended.
 		auto supplStatus = JoinSupplOrSuspendTrigger();
 		assert(supplStatus > task_status::running);
 		if (supplStatus == task_status::suspended)
@@ -1097,6 +1261,7 @@ task_status OperationContext::Schedule(TreeItem* item, const FutureSuppliers& al
 	}
 	else
 	{
+		// Async path: enqueue for activation.
 		assert(!context);
 
 		assert(!m_FuncDC || GetOperator()->CanRunParallel());
@@ -1104,6 +1269,15 @@ task_status OperationContext::Schedule(TreeItem* item, const FutureSuppliers& al
 	}
 	return GetStatus();
 }
+
+// *****************************************************************************
+// Section: CancelableFrame
+// *****************************************************************************
+//
+// Thread-local guard that marks the current OperationContext as "active" for
+// cancellation propagation and context-sensitive operations.
+//
+// *****************************************************************************
 
 THREAD_LOCAL OperationContext* sl_CurrOperationContext = nullptr;
 
@@ -1134,12 +1308,16 @@ void CancelableFrame::CurrActiveCancelIfNoInterestOrForced(bool forceCancel)
 	if (CurrActive())
 		CurrActive()->CancelIfNoInterestOrForced(forceCancel);
 }
+
+// Simple thread-safe getter for status.
 task_status OperationContext::GetStatus() const
 { 
 	leveled_std_section::scoped_lock lock(cs_ThreadMessing);
 	return m_Status;
 }
 
+// Try to collect task payload and transition to 'activated'.
+// Adds to s_RadioActives for potential inline/stealing.
 bool OperationContext::collectTaskImpl()
 {
 	assert(!cs_ThreadMessing.try_lock());
@@ -1177,6 +1355,7 @@ bool OperationContext::collectTaskImpl()
 	return true;
 }
 
+// Try to run inline: first drain tile work, then acquire license and run.
 bool OperationContext::TryRunningTaskInline()
 {
 	assert(m_Suppliers.empty());
@@ -1190,6 +1369,8 @@ bool OperationContext::TryRunningTaskInline()
 }
 
 
+// Acquire the unique run license under scheduling constraints (phase fences).
+// If 'runDirect' is false and the phase is not active, reschedule back.
 bool  OperationContext::getUniqueLicenseToRun(bool runDirect)
 {
 	assert(!cs_ThreadMessing.try_lock());
@@ -1219,17 +1400,20 @@ bool  OperationContext::getUniqueLicenseToRun(bool runDirect)
 	return true;
 }
 
+// Thread-safe wrapper for licensing.
 bool OperationContext::GetUniqueLicenseToRun()
 {
 	leveled_std_section::scoped_lock lock(cs_ThreadMessing);
 	return getUniqueLicenseToRun(false);
 }
 
+// Transition to 'exception' final state (no-throw wrapper).
 void OperationContext::OnException() noexcept
 {
 	OnEnd(task_status::exception);
 }
 
+// Internal helper for OnEnd paths; returns garbage_can for deferred destruction.
 garbage_can OperationContext::onEnd(task_status status) noexcept
 {
 	if (m_Status >= task_status::cancelled)
@@ -1243,6 +1427,7 @@ garbage_can OperationContext::onEnd(task_status status) noexcept
 	return separateResources(status);
 }
 
+// Finalization entry (thread-safe).
 void OperationContext::OnEnd(task_status status) noexcept
 {
 	assert(status >= task_status::cancelled);
@@ -1254,6 +1439,7 @@ void OperationContext::OnEnd(task_status status) noexcept
 	assert(getStatus() >= task_status::cancelled);
 }
 
+// Decrease activated/running count and set 'status'. Requires cs_ThreadMessing.
 void OperationContext::releaseRunCount(task_status status)
 {
 	assert(!IsActiveOrRunning(status));
@@ -1273,7 +1459,7 @@ void OperationContext::releaseRunCount(task_status status)
 #if defined(MG_TRACE_OPERATIONCONTEXTS)
 
 		auto nrRunningOCs = sd_RunningOC.size();
-		MG_CHECK(sd_RunningOC.find(this) != sd_RunningOC.end());
+		MG_CHECK(!(sd_RunningOC.find(this) == sd_RunningOC.end()));
 		MG_CHECK(sd_RunningOC[this] == this->m_PhaseNumber);
 		sd_RunningOC.erase(this);
 		MG_CHECK(nrRunningOCs == sd_RunningOC.size() + 1);
@@ -1293,6 +1479,8 @@ void OperationContext::releaseRunCount(task_status status)
 
 }
 
+// Core resource separation on final states: drop suppliers, task payload,
+// locks, and FuncDC references. Schedules more contexts after release.
 garbage_can OperationContext::separateResources(task_status status)
 {
 	assert(cs_ThreadMessing.isLocked());
@@ -1342,6 +1530,7 @@ garbage_can OperationContext::separateResources(task_status status)
 	return releaseBin;
 }
 
+// Attempt cancellation if no interest remains (or forced). Returns true if cancelled.
 bool OperationContext::CancelIfNoInterestOrForced(bool forced)
 {
 	if (!forced)
@@ -1357,6 +1546,7 @@ bool OperationContext::CancelIfNoInterestOrForced(bool forced)
 	return true;
 }
 
+// Handle a failure coming from item; transition this context to 'exception' if needed.
 bool OperationContext::HandleFail(const TreeItem* item)
 {
 	// note that all statusses of cancelled and higher: exception or done, are final, i.e. never change again once it is set.
@@ -1389,6 +1579,8 @@ bool OperationContext::HandleFail(const TreeItem* item)
 	return true;
 }
 
+// Try to set a read lock for a supplier 'si'. On failure or cancellation,
+// transitions state appropriately and/or propagates failure.
 bool OperationContext::SetReadLock(std::vector<ItemReadLock>& locks, const TreeItem* si) 
 {
 	assert(m_PhaseNumber >= si->GetCurrPhaseNumber());
@@ -1416,6 +1608,8 @@ bool OperationContext::SetReadLock(std::vector<ItemReadLock>& locks, const TreeI
 	return true;
 }
 
+// Acquire read locks for all suppliers declared in allInterests.
+// Returns empty on failure or cancellation.
 std::vector<ItemReadLock> OperationContext::SetReadLocks(const FutureSuppliers& allInterests)
 {
 	std::vector<ItemReadLock> locks; locks.reserve(allInterests.size());
@@ -1439,6 +1633,7 @@ std::vector<ItemReadLock> OperationContext::SetReadLocks(const FutureSuppliers& 
 	return locks;
 }
 
+// Connect to all argument suppliers by establishing waiter/supplier links.
 bool OperationContext::connectArgs(const FutureSuppliers& allArgInterests)
 {
 	DBG_START("OperationContext", "connectArgs", MG_DEBUG_FUNCCONTEXT);
@@ -1481,8 +1676,17 @@ bool OperationContext::connectArgs(const FutureSuppliers& allArgInterests)
 // *****************************************************************************
 // Section: ScheduleCalcResult
 // *****************************************************************************
+//
+// Schedule operator result calculation:
+//  - Gather suppliers from args and m_FuncDC->m_OtherSuppliers.
+//  - Manage suppl interest and read locks.
+//  - Prepare a payload functor (OC_CalcResultFunc) that runs the operator
+//    with strong exception and failure handling.
+//  - Either inline execute or enqueue depending on parallel capability.
+//
+// *****************************************************************************
 
-
+// Payload functor that runs on OperationContext::Run_* path.
 struct OC_CalcResultFunc {
 	mutable ArgRefs argRefs;
 	mutable FutureSuppliers allInterests;
@@ -1512,6 +1716,7 @@ struct OC_CalcResultFunc {
 		for (const auto& argRef : argRefs)
 			statusActors.emplace_back(GetStatusActor(argRef));
 
+		// Validate status/failure on supplier actors before and after running.
 		auto failureProcessor = [&]() -> bool
 			{
 				// forward FR_Validate and FR_Committed failures
@@ -1529,6 +1734,7 @@ struct OC_CalcResultFunc {
 		if (failureProcessor())
 			return;
 
+		// Acquire read locks for suppliers and stop suppl interest on the FuncDC.
 		auto readLocks = self->SetReadLocks(allInterests);
 		allInterests.clear();
 
@@ -1540,6 +1746,7 @@ struct OC_CalcResultFunc {
 	}
 };
 
+// High-level scheduling for CalcResult with arguments and optional context.
 bool OperationContext::ScheduleCalcResult(ArgRefs&& argRefs, explain_context_ptr_t context)
 {
 	DBG_START("OperationContext", "ScheduleCalcResult", MG_DEBUG_FUNCCONTEXT);
@@ -1642,6 +1849,7 @@ bool OperationContext::ScheduleCalcResult(ArgRefs&& argRefs, explain_context_ptr
 	return resultStatus != task_status::exception;
 }
 
+// Enforce supplier completion or return early on suspension; used by inline path.
 task_status OperationContext::JoinSupplOrSuspendTrigger()
 {
 	assert(!SuspendTrigger::DidSuspend());
@@ -1690,10 +1898,13 @@ task_status OperationContext::JoinSupplOrSuspendTrigger()
 	return task_status::done;
 }
 
+// Query MustCalcArg passthrough.
 bool OperationContext::MustCalcArg(arg_index i, CharPtr firstArgValue) const
 {
 	return m_FuncDC->MustCalcArg(i, true, firstArgValue);
 }
+
+// Take and clear m_TaskFunc under lock to avoid races.
 auto OperationContext_TakeTaskFunc(OperationContext* self)
 {
 	leveled_std_section::unique_lock lock(cs_ThreadMessing);
@@ -1702,6 +1913,8 @@ auto OperationContext_TakeTaskFunc(OperationContext* self)
 	return taskFunc;
 }
 
+// Execute payload with cancellation and exception swallowing, then release write lock.
+// This part must not throw; Run_with_cleanup will handle final state.
 void OperationContext::Run_with_catch(explain_context_ptr_t context) noexcept
 {
 	try {
@@ -1733,6 +1946,7 @@ void OperationContext::Run_with_catch(explain_context_ptr_t context) noexcept
 	// writeLock release here before OnEnd allows Waiters to start
 }
 
+// Wrapper that runs payload and transitions to final states accordingly.
 void OperationContext::Run_with_cleanup(explain_context_ptr_t context) noexcept
 {
 	assert(!SuspendTrigger::DidSuspend());
@@ -1757,11 +1971,13 @@ void OperationContext::Run_with_cleanup(explain_context_ptr_t context) noexcept
 	assert(!m_WriteLock);
 }
 
+// Helper for task_group functor: run without context.
 void OperationContext_Run_with_cleanup_without_context(OperationContext* self) noexcept
 {
 	self->Run_with_cleanup({});
 }
 
+// Inline caller to run this OperationContext synchronously.
 void OperationContext::Run_Caller() noexcept
 {
 	DMS_SE_CALL_BEGIN
@@ -1775,6 +1991,11 @@ void OperationContext::Run_Caller() noexcept
 // *****************************************************************************
 // Section:     PopActiveSupplierss
 // *****************************************************************************
+//
+// Utilities to prioritize and collect suppliers for inline execution, mainly
+// intended for GUI-thread joins to reduce latency by running prerequisites.
+//
+// *****************************************************************************
 
 struct prioritize_results
 {
@@ -1783,6 +2004,8 @@ struct prioritize_results
 	context_array collectedActivations;
 };
 
+// DFS-like traversal to collect activated suppliers and collectable tasks
+// while avoiding revisiting nodes.
 void prioritize_impl(prioritize_results& results, OperationContextSPtr self)
 {
 	assert(!cs_ThreadMessing.try_lock());
@@ -1823,6 +2046,7 @@ void prioritize_impl(prioritize_results& results, OperationContextSPtr self)
 		prioritize_impl(results, s);
 }
 
+// Convenience wrapper to compute sets for prioritization.
 auto prioritize(OperationContextSPtr waiter) -> std::pair<SupplierSet, context_array>
 {
 	// Build the two sets once per Join:
@@ -1831,6 +2055,7 @@ auto prioritize(OperationContextSPtr waiter) -> std::pair<SupplierSet, context_a
 	return { std::move(results.activatedContexts), std::move(results.collectedActivations) };
 }
 
+// Pop currently activated suppliers or collect them if possible.
 auto PopActiveSuppliers(OperationContextSPtr waiter) -> std::pair<SupplierSet, context_array>
 {
 	leveled_std_section::scoped_lock lock(cs_ThreadMessing);
@@ -1847,7 +2072,16 @@ auto PopActiveSuppliers(OperationContextSPtr waiter) -> std::pair<SupplierSet, c
 // *****************************************************************************
 // Section:     StealOneTask
 // *****************************************************************************
+//
+// Work stealing for OperationContexts and tile tasks:
+//  - First try to steal a tile task.
+//  - Then try to pick an activated OperationContext from s_RadioActives and
+//    acquire the unique run license.
+//  - Run inline if successful.
+//
+// *****************************************************************************
 
+// Find and license a single activated OperationContext to run inline.
 auto FindAndLicenceOnePriorityTasks() -> OperationContextSPtr
 {
 	std::vector<OperationContextSPtr> garbage;
@@ -1871,6 +2105,7 @@ auto FindAndLicenceOnePriorityTasks() -> OperationContextSPtr
 }
 
 
+// Try to steal and execute any single unit of work; returns true if did work.
 bool StealOneTask()
 {
 	StealOneTileTask(true)
@@ -1883,6 +2118,7 @@ bool StealOneTask()
 	return true;
 }
 
+// Returns whether the currently active context (if any) still has run-count.
 bool CurrActiveTaskHasRunCount()
 {
 	auto ca = CancelableFrame::CurrActive();
@@ -1905,7 +2141,8 @@ bool CurrActiveTaskHasRunCount()
 /// If it is not yet activated, it will run other tasks until it is activated.
 /// If the current thread is the GUI thread, it will pop up active suppliers that are not yet running and try to run them inline.
 /// If it is already running, it will wait for the task to finish, while stealing other tasks if this is not the GUI thread.
-
+//
+// Core wait function with cooperative progress (stealing and pumping).
 task_status OperationContext::Join()
 {
 	if (!IsMetaThread())
@@ -2038,6 +2275,15 @@ exit:
 	return status;
 }
 
+// *****************************************************************************
+// Section:     DoWorkWhileWaitingFor
+// *****************************************************************************
+//
+// Cooperative waiting helper to make progress while waiting for a fence status.
+// Pumps main-thread tasks, steals background work, and honors suspend triggers.
+//
+// *****************************************************************************
+
 TIC_CALL void DoWorkWhileWaitingFor(task_status* fenceStatus)
 {
 	if (!IsMetaThread())
@@ -2086,6 +2332,15 @@ TIC_CALL void DoWorkWhileWaitingFor(task_status* fenceStatus)
 			return; // let caller reconsider after one tasks has been done and no explicit termination condition variable is provided
 	}
 }
+
+// *****************************************************************************
+// Section:     RunOperator
+// *****************************************************************************
+//
+// Execute the operator payload with argRefs and readLocks, converting exceptions
+// into failures and managing interest/cancellation semantics.
+//
+// *****************************************************************************
 
 void OperationContext::RunOperator(ArgRefs argRefs, std::vector<ItemReadLock> readLocks, explain_context_ptr_t context)
 {
