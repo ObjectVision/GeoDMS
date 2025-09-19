@@ -76,8 +76,8 @@ struct IndexAssignerBase : UnitProcessor
 	std::unique_ptr<IndexType[]> m_ResBuffer;
 };
 
-using IndexAssigner32    = fold_t<typelists::domain_elements, IndexAssignerBase<UInt32>, UnitVisitorImpl>;
-using IndexAssignerSizeT = fold_t<typelists::domain_elements, IndexAssignerBase<SizeT>, UnitVisitorImpl>;
+using IndexAssigner32    = tl::fold_t<typelists::domain_elements, IndexAssignerBase<UInt32>, UnitVisitorImpl>;
+using IndexAssignerSizeT = tl::fold_t<typelists::domain_elements, IndexAssignerBase<SizeT>, UnitVisitorImpl>;
 
 /******************************************************************************/
 
@@ -116,7 +116,7 @@ struct IdAssignerBase : UnitProcessor
 	SizeT          m_Start, m_Base, m_Len;
 };
 
-using IdAssigner = fold_t<typelists::domain_elements, IdAssignerBase, UnitVisitorImpl>;
+using IdAssigner = tl::fold_t<typelists::domain_elements, IdAssignerBase, UnitVisitorImpl>;
 
 /******************************************************************************/
 
@@ -148,7 +148,7 @@ struct NullAssignerBase : UnitProcessor
 	SizeT          m_Start, m_Len;
 };
 
-using NullAssigner = fold_t<typelists::domain_elements, NullAssignerBase, UnitVisitorImpl>;
+using NullAssigner = tl::fold_t<typelists::domain_elements, NullAssignerBase, UnitVisitorImpl>;
 
 /******************************************************************************/
 

@@ -294,8 +294,7 @@ const ValueClass* ValueWrap<T>::GetStaticClass()
 		static T s_UndefinedValue;
 		ValueClass::InviterFunc inviterFunc = [](const ValueClassVisitor* vcp) -> void
 		{ 
-			const ValueClassVisitorBase<T>* castedVisitor = vcp;
-			castedVisitor->Visit((const T*)nullptr);
+			vcp->Visit((const T*)nullptr);
 		};
 		MakeUndefinedOrZero(s_UndefinedValue);
 		s_StaticCls.assign(

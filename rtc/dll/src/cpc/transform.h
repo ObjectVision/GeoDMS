@@ -89,6 +89,30 @@ namespace tl {
     template<class List, template <typename Arg> class F>
     using transform_templ = transform_t<List, bind_placeholders<F, ph::_1> >;
 
+    // ----- left-fold over a typelist -----
+    // fold<type_list<Ts...>, State, F> computes F<Tn, F<Tn-1, ... F<T1, State>...>>
+    template<class List, class State, template<class, class> class F>
+    struct fold;
+
+    template<class State, template<class, class> class F>
+    struct fold<tl::type_list<>, State, F> { using type = State; };
+
+    template<class Head, class... Tail, class State, template<class, class> class F>
+    struct fold<tl::type_list<Head, Tail...>, State, F> {
+        using type =
+            typename fold<tl::type_list<Tail...>, F<Head, State>, F>::type;
+    };
+
+    template<class List, class State, template<class, class> class F>
+    using fold_t = typename fold<List, State, F>::type;
+
+    struct empty_base 
+    {
+        // Seed the name; never actually callable.
+        template<class T> void Visit(const T*) const = delete;
+    };
+
+
 } // namespace tl
 
 #endif // __RTC_CPC_TRANSFORM_H

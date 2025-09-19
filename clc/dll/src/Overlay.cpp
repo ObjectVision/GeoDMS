@@ -168,7 +168,7 @@ struct OverlayLayerVisitorBase : UnitProcessor
 	mutable bool                       m_CanContainNulls = false;
 };
 
-struct OverlayLayerVisitor : fold_t<typelists::domain_ints, OverlayLayerVisitorBase, UnitVisitorImpl>
+struct OverlayLayerVisitor : tl::fold_t<typelists::domain_ints, OverlayLayerVisitorBase, UnitVisitorImpl>
 {};
 
 

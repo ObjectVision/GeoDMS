@@ -1248,9 +1248,7 @@ DimType  Unit<V>::GetNrDimensions() const
 template <class V>
 void Unit<V>::InviteUnitProcessor(const UnitProcessor& visitor) const
 {
-//	visitor.Visit(this);
-	const UnitVisitor<V>& castedVisitor = visitor;
-	castedVisitor.Visit(this);
+	visitor.Visit(this);
 }
 
 //----------------------------------------------------------------------

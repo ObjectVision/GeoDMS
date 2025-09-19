@@ -25,50 +25,21 @@ class DataItemClass;
 #include "RtcTypeLists.h"
 #include "utl/TypeListOper.h"
 
-// ----- left-fold over a typelist -----
-// fold<type_list<Ts...>, State, F> computes F<Tn, F<Tn-1, ... F<T1, State>...>>
-template<class List, class State, template<class, class> class F>
-struct fold;
-
-template<class State, template<class, class> class F>
-struct fold<tl::type_list<>, State, F> { using type = State; };
-
-template<class Head, class... Tail, class State, template<class, class> class F>
-struct fold<tl::type_list<Head, Tail...>, State, F> {
-	using type =
-		typename fold<tl::type_list<Tail...>, F<Head, State>, F>::type;
-};
-
-template<class List, class State, template<class, class> class F>
-using fold_t = typename fold<List, State, F>::type;
-
-struct empty_base {};
-
 //----------------------------------------------------------------------
 
-template <typename Host>
-struct ValueClassVisitorBase {
-	virtual void Visit(const Host* /*inviter*/) const { throwIllegalAbstract(MG_POS, "ValueClassVisitor"); }
+using ValueClassList = tl::jv2_t<typelists::vc_types, typelists::range_objects>;
+
+template <typename Host, typename Base>
+struct ValueClassVisitorBase : Base {
+	using Base::Visit;  // <- keep earlier overloads visible
+
+	virtual void Visit(const Host* inviter) const {
+		throwIllegalAbstract(MG_POS, "ValueClassVisitor");
+	}
 };
 
-// 3) Turn each Host into ValueClassVisitor<Host>.
-using AllHosts = tl::jv2_t<typelists::vc_types, typelists::range_objects>;
-using ValueClassVisitorsList = tl::transform_t<AllHosts, tl::bind_placeholders<ValueClassVisitorBase, ph::_1>>;
-
-// 4) Inherit from all these visitors and lift their overloads.
-template<class List> struct inherit_all;
-
-template<class... Bases>
-struct inherit_all<tl::type_list<Bases...>> : Bases... {
-	// Bring every Visit overload into this scope so calls like
-	//   proc.Visit((SomeHost*)ptr);
-	// find the right one without qualification.
-	using Bases::Visit...;
-};
-
-// 5) Your processor now *implements* (via inheritance) a virtual Visit for each Host.
-struct ValueClassVisitor : inherit_all<ValueClassVisitorsList> {};
-
+// Build the visitor interface with a single vptr referring to a virtual Visit method for each ValueClass in ValueClassList
+using ValueClassVisitor = tl::fold_t<ValueClassList, tl::empty_base, ValueClassVisitorBase>;
 
 
 template<typename ValueClassAutoLambda>
@@ -85,7 +56,6 @@ struct ValueClassAutoLambdaCallerBase : ValueClassVisitor
 };
 
 
-// --------- BOOST-FREE replacement for the MPL fold ---------
 template <typename Host, typename Base>
 struct ValueClassProcessorImpl : Base
 {
@@ -97,17 +67,14 @@ struct ValueClassProcessorImpl : Base
 	}
 };
 
+template<class TL, class AL>
+using ValueClassLambdaCallerBase_t = tl::fold_t<TL, ValueClassAutoLambdaCallerBase<AL>, ValueClassProcessorImpl>;
+
 template<typename TypeList, typename AutoLambda>
-struct ValueClassLambdaCaller
-	: fold_t<TypeList,
-	ValueClassAutoLambdaCallerBase<AutoLambda>,
-	ValueClassProcessorImpl> // F<Host, Base>
+struct ValueClassLambdaCaller : ValueClassLambdaCallerBase_t<TypeList, AutoLambda>
 {
-	using base_type =
-		fold_t<TypeList,
-		ValueClassAutoLambdaCallerBase<AutoLambda>,
-		ValueClassProcessorImpl>;
-	using base_type::base_type; // inherit constructors
+	using Base = ValueClassLambdaCallerBase_t<TypeList, AutoLambda>;
+	using Base::Base; // inherit constructors
 };
 
 //----------------------------------------------------------------------

@@ -19,26 +19,17 @@
 #include "RtcTypeLists.h"
 #include "utl/TypeListOper.h"
 
-template <typename Host>
-struct UnitVisitor {
-	virtual void Visit(const Unit<Host>* inviter) const  { throwIllegalAbstract(MG_POS, inviter, "UnitVisitor"); }
-
-};
-using UnitVisitorsList = tl::transform_t<typelists::all_unit_types, tl::bind_placeholders<UnitVisitor, ph::_1>>;
-
-struct UnitProcessor: inherit_all<UnitVisitorsList> {};
-
 template <typename Host, typename Base>
-struct UnitVisitorImpl : Base
+struct UnitVisitorBase : Base 
 {
-	using Base::Base; // inherit ctors
+	using Base::Visit;  // <- keep earlier overloads visible
 
-	void Visit(const Unit<Host>* inviter) const override 
-	{ 
-		this->VisitImpl(inviter); 
-	}
+	virtual void Visit(const Unit<Host>* inviter) const  { throwIllegalAbstract(MG_POS, inviter, "UnitVisitor"); }
 };
 
+// Build the visitor interface with a single vptr referring to a virtual Visit method for each unit_types
+struct UnitProcessor : tl::fold_t<typelists::all_unit_types, tl::empty_base, UnitVisitorBase>
+{};
 
 template<typename UnitPtrAutoLambda>
 struct AutoLambdaCallerBase : UnitProcessor
@@ -53,12 +44,28 @@ struct AutoLambdaCallerBase : UnitProcessor
 	}
 };
 
-template<typename TypeList, typename AutoLambda>
-struct UnitLambdaCaller : fold_t<TypeList, AutoLambdaCallerBase<AutoLambda>, UnitVisitorImpl>
+template <typename Host, typename Base>
+struct UnitVisitorImpl : Base
 {
-	using base_type = fold_t<TypeList, AutoLambdaCallerBase<AutoLambda>, UnitVisitorImpl>;
-	using base_type::base_type; // inherit ctors
+	using Base::Base; // inherit ctors
+
+	void Visit(const Unit<Host>* inviter) const override
+	{
+		this->VisitImpl(inviter);
+	}
 };
+
+template<class TL, class AL>
+using UnitLambdaCallerBase_t = tl::fold_t<TL, AutoLambdaCallerBase<AL>, UnitVisitorImpl>;
+
+template<typename TypeList, typename AutoLambda>
+struct UnitLambdaCaller : UnitLambdaCallerBase_t<TypeList, AutoLambda>
+{
+	using Base = UnitLambdaCallerBase_t<TypeList, AutoLambda>;
+	using Base::Base; // inherit constructors
+};
+
+//----------------------------------------------------------------------
 
 template<typename TypeList, typename UnitPtrAutoLambda>
 void visit(const AbstrUnit* inviter, UnitPtrAutoLambda&& al)

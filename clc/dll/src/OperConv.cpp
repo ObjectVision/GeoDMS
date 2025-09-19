@@ -197,7 +197,7 @@ DPoint rd2LatLongWgs84(DPoint rd) //shp_order
 
 DPoint latLongWgs842rd(DPoint ll) //shp_order
 {
-	//Bereken RD coördinaten
+	//Bereken RD coÃ¶rdinaten
 	//bron: http://www.gpsgek.nl/informatief/wgs84-rd-script.html
 
 	Float64
