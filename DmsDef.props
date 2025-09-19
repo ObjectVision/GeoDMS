@@ -36,7 +36,7 @@
       <ExternalWarningLevel>TurnOffAllWarnings</ExternalWarningLevel>
       <DisableAnalyzeExternal>true</DisableAnalyzeExternal>
       <AnalyzeExternalRuleset>BasicCorrectnessRules.ruleset</AnalyzeExternalRuleset>
-      <AdditionalOptions>/bigobj /analyze:stacksize 32768 %(AdditionalOptions)</AdditionalOptions>
+      <AdditionalOptions>/utf-8 /bigobj /analyze:stacksize 32768 %(AdditionalOptions)</AdditionalOptions>
       <SDLCheck>true</SDLCheck>
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
