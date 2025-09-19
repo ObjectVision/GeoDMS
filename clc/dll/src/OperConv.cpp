@@ -924,6 +924,8 @@ struct ConversionGenerator
 
 	using R = std::conditional_t<use_field, field_of_t<TR>, TR >;
 	using A = std::conditional_t<use_field, field_of_t<TA>, TA >;
+
+	static_assert(tl::BinaryMeta<MetaFunc, TR, TA>);
 	using type = MetaFunc::template apply2<R, A>;
 };
 
