@@ -1174,7 +1174,7 @@ class PointInPolygonOperator : public AbstrPointInPolygonOperator
 		DispatcherData* m_Data = nullptr;
 	};
 
-	struct Dispatcher : boost::mpl::fold<typelists::partition_elements, DispatcherBase, VisitorImpl<Unit<boost::mpl::_2>, boost::mpl::_1> >::type
+	struct Dispatcher : fold_t<typelists::partition_elements, DispatcherBase, UnitVisitorImpl>
 	{};
 
 public:
@@ -1461,7 +1461,7 @@ class PointInRankedPolygonOperator : public AbstrPointInRankedPolygonOperator
 		DispatcherData* m_Data = nullptr;
 	};
 
-	struct Dispatcher : boost::mpl::fold<typelists::partition_elements, DispatcherBase, VisitorImpl<Unit<boost::mpl::_2>, boost::mpl::_1> >::type
+	struct Dispatcher : fold_t<typelists::partition_elements, DispatcherBase, UnitVisitorImpl>
 	{};
 
 public:

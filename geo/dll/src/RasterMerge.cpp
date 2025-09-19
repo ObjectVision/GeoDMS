@@ -336,14 +336,14 @@ struct SimpleMergeOperator : public MergeOperatorBase<IndexType, ValueType>
 
 namespace 
 {
-//	tl_oper::inst_tuple<typelists::value_elements, RasterMergeOperator< UInt8, _> > rasterMerge08Opers;
-//	tl_oper::inst_tuple<typelists::value_elements, RasterMergeOperator<UInt16, _> > rasterMerge16Opers;
-	tl_oper::inst_tuple<typelists::numerics, RasterImpressOperator< _> > rasterImpressOpers;
-	tl_oper::inst_tuple<typelists::numerics, RasterMergeOperator< UInt8, _> > rasterMerge08Opers;
-	tl_oper::inst_tuple<typelists::numerics, RasterMergeOperator<UInt16, _> > rasterMerge16Opers;
+//	tl_oper::inst_tuple<typelists::value_elements, tl::bind_placeholders<RasterMergeOperator, UInt8, ph::_1> > rasterMerge08Opers;
+//	tl_oper::inst_tuple<typelists::value_elements, tl::bind_placeholders<RasterMergeOperator, UInt16, ph::_1> > rasterMerge16Opers;
+	tl_oper::inst_tuple_templ<typelists::numerics, RasterImpressOperator > rasterImpressOpers;
+	tl_oper::inst_tuple<typelists::numerics, tl::bind_placeholders<RasterMergeOperator, UInt8, ph::_1> > rasterMerge08Opers;
+	tl_oper::inst_tuple<typelists::numerics, tl::bind_placeholders<RasterMergeOperator, UInt16, ph::_1> > rasterMerge16Opers;
 
-	tl_oper::inst_tuple<typelists::numerics, SimpleMergeOperator< UInt8, _> > simpleMerge08Opers;
-	tl_oper::inst_tuple<typelists::numerics, SimpleMergeOperator<UInt16, _> > simpleMerge16Opers;
+	tl_oper::inst_tuple<typelists::numerics, tl::bind_placeholders<SimpleMergeOperator,  UInt8, ph::_1> > simpleMerge08Opers;
+	tl_oper::inst_tuple<typelists::numerics, tl::bind_placeholders<SimpleMergeOperator, UInt16, ph::_1> > simpleMerge16Opers;
 }	// end anonymous namespace
 
 /******************************************************************************/

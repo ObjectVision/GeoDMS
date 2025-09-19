@@ -64,10 +64,6 @@ struct IndexAssignerBase : UnitProcessor
 
 		Range_Index2Value_checked(inviter->GetRange(), m_Indices, m_Indices + m_Len, resData.begin()+m_Start);
 	}
-	#define INSTANTIATE(E) \
-		void Visit(const Unit<E>* inviter) const override { VisitImpl(inviter); }
-		INSTANTIATE_CNT_ELEM
-	#undef INSTANTIATE
 
 	AbstrDataItem*   m_ResItem;
 	AbstrDataObject* m_Res;
@@ -80,14 +76,14 @@ struct IndexAssignerBase : UnitProcessor
 	std::unique_ptr<IndexType[]> m_ResBuffer;
 };
 
-using IndexAssigner32    = IndexAssignerBase<UInt32>;
-using IndexAssignerSizeT = IndexAssignerBase<SizeT>;
+using IndexAssigner32    = fold_t<typelists::domain_elements, IndexAssignerBase<UInt32>, UnitVisitorImpl>;
+using IndexAssignerSizeT = fold_t<typelists::domain_elements, IndexAssignerBase<SizeT>, UnitVisitorImpl>;
 
 /******************************************************************************/
 
-struct IdAssigner : UnitProcessor
+struct IdAssignerBase : UnitProcessor
 {
-	IdAssigner(AbstrDataObject* res, tile_id t, SizeT start, SizeT base, SizeT len)
+	IdAssignerBase(AbstrDataObject* res, tile_id t, SizeT start, SizeT base, SizeT len)
 		:	m_Res(res)
 		,	m_TileID(t)
 		,	m_Start(start)
@@ -114,16 +110,13 @@ struct IdAssigner : UnitProcessor
 		for (; i != e; ++target, ++i) 
 			*target = Range_GetValue_naked(range, i);
 	}
-	#define INSTANTIATE(E) \
-		void Visit(const Unit<E>* inviter) const override { VisitImpl(inviter); }
-		INSTANTIATE_CNT_ELEM
-	#undef INSTANTIATE
 
 	AbstrDataObject* m_Res;
 	tile_id        m_TileID;
 	SizeT          m_Start, m_Base, m_Len;
 };
 
+using IdAssigner = fold_t<typelists::domain_elements, IdAssignerBase, UnitVisitorImpl>;
 
 /******************************************************************************/
 
@@ -155,11 +148,7 @@ struct NullAssignerBase : UnitProcessor
 	SizeT          m_Start, m_Len;
 };
 
-struct NullAssigner : boost::mpl::fold<typelists::domain_elements, NullAssignerBase, VisitorImpl<Unit<_2>, _1> >::type
-{
-	using base_type = boost::mpl::fold<typelists::domain_elements, NullAssignerBase, VisitorImpl<Unit<_2>, _1> >::type;
-	using base_type::base_type; // inherit ctors
-};
+using NullAssigner = fold_t<typelists::domain_elements, NullAssignerBase, UnitVisitorImpl>;
 
 /******************************************************************************/
 

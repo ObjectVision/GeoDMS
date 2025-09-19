@@ -292,9 +292,9 @@ const ValueClass* ValueWrap<T>::GetStaticClass()
 	static OwningPtr<ValueClass> s_StaticCls;
 	if (!s_StaticCls) {
 		static T s_UndefinedValue;
-		ValueClass::InviterFunc inviterFunc = [](const ValueClassProcessor* vcp) -> void
+		ValueClass::InviterFunc inviterFunc = [](const ValueClassVisitor* vcp) -> void
 		{ 
-			const ValueClassVisitor<T>* castedVisitor = vcp;
+			const ValueClassVisitorBase<T>* castedVisitor = vcp;
 			castedVisitor->Visit((const T*)nullptr);
 		};
 		MakeUndefinedOrZero(s_UndefinedValue);
@@ -327,11 +327,8 @@ const Class* ValueWrap<T>::GetDynamicClass() const { return GetStaticClass(); }
 #include "ser/PairStream.h"
 
 namespace {
-
-	TypeListClassReg< tl::transform<typelists::vc_types, ValueWrap<_> > > s_x;
-	TypeListClassReg< tl::transform<typelists::range_objects, ValueWrap<_> > > s_rx;
-//	TypeListClassReg< tl::transform<typelists::all_vc_types, ValueWrap<Range<_>> > > s_rx;
-//	TypeListClassReg< tl::transform<typelists::ranged_unit_objects, ValueWrap<Range<_>> > > s_rx;
+	TypeListClassReg<tl::transform_templ<typelists::vc_types, ValueWrap> > s_x;
+	TypeListClassReg<tl::transform_templ<typelists::range_objects, ValueWrap> > s_rx;
 }
 
 //----------------------------------------------------------------------

@@ -214,6 +214,8 @@ typedef const IString* IStringHandle;
 struct TokenID;
 struct TokenStr;
 
+template <class T> class ValueWrap;
+
 //----------------------------------------------------------------------
 // Callback function typedefs
 //----------------------------------------------------------------------

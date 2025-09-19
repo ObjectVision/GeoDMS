@@ -1007,27 +1007,12 @@ auto CreateFileTileArray(const AbstrDataItem* adi, const SharedObj* abstrValuesR
 #include "utl/TypeListOper.h"
 #include "TileArrayImpl.h"
 
-//#include <boost/mpl/for_each.hpp>
-//template <class T> struct wrop {};
-
 namespace  {
-	/*
-	struct Instantiator {
-		template <class T> // T must be derived from Object (or at least have GetStaticClass and GetDynamicClass defined)
-		void operator ()(wrap<T>) const // deduce T
-		{
-//			T::GetStaticClass();   // Call to register
-			&(HeapTileArray<T>::HeapTileArray); // take address to instantiate
-		}
-	};
 
-	Instantiator inst;
-	boost::mpl::for_each<typelists::value_elements, wrap<_> >(inst);
-	*/
-	TypeListClassReg<tl::transform<typelists::value_elements, DataArrayBase<_>>> s_DAB;
-	TypeListClassReg<tl::transform<typelists::value_elements, TileFunctor<_>>>   s_TFR;
-	TypeListClassReg<tl::transform<typelists::value_elements, HeapTileArray<_>>> s_HTA;
-	TypeListClassReg<tl::transform<typelists::value_elements, FileTileArray<_>>> s_FTA;
+	TypeListClassReg<tl::transform_templ<typelists::value_elements, DataArrayBase>> s_DAB;
+	TypeListClassReg<tl::transform_templ<typelists::value_elements, TileFunctor>>   s_TFR;
+	TypeListClassReg<tl::transform_templ<typelists::value_elements, HeapTileArray>> s_HTA;
+	TypeListClassReg<tl::transform_templ<typelists::value_elements, FileTileArray>> s_FTA;
 }
 
 // Explicit Template Instantiation; TODO G8: Why?
@@ -1039,12 +1024,14 @@ template SizeT NumericArray<Bool>::FindPos(Bool v, SizeT startPos) const;
 // DMS interface functions
 //----------------------------------------------------------------------
 
+/*
 #include "dbg/DmsCatch.h"
 #include "TreeItemContextHandle.h"
+*/
 
 /*********************************** DMS_##T##AttrGetValue *************************************/
 /*********************************** DMS_##T##AttrGetValueArray *************************************/
-
+/*
 #define INSTANTIATE(T) \
 TIC_CALL api_type<T>::type DMS_CONV DMS_##T##Attr_GetValue(const AbstrDataItem* self, SizeT index) \
 { \
@@ -1074,10 +1061,12 @@ INSTANTIATE(SharedStr)
 #undef INSTANTIATE
 
 static_assert(sizeof(bool) == 1);
+*/
 
 /*********************************** DMS_##T##Attr_SetValue *************************************/
 /*********************************** DMS_##T##Attr_SetValueArray *************************************/
 
+/*
 #define INSTANTIATE(T) \
 TIC_CALL void DMS_CONV DMS_##T##Attr_SetValue(AbstrDataItem* self, SizeT index, api_type<T>::type value) \
 { \
@@ -1102,4 +1091,4 @@ INSTANTIATE_NUM_ORG
 INSTANTIATE(Bool)
 
 #undef INSTANTIATE
-
+*/

@@ -71,12 +71,12 @@ struct IndexGetterCreatorBase : UnitProcessor
 	mutable WeakPtr<IndexGetter>   m_Result;
 };
 
-struct IndexGetterCreator1 : boost::mpl::fold<typelists::domain_elements, IndexGetterCreatorBase<adi_tile_getter>, VisitorImpl<Unit<_2>, _1> >::type
+struct IndexGetterCreator1 : fold_t<typelists::domain_elements, IndexGetterCreatorBase<adi_tile_getter>, UnitVisitorImpl>
 {
 	IndexGetterCreator1(const AbstrDataItem* adi, tile_id t);
 };
 
-struct IndexGetterCreator2 : boost::mpl::fold<typelists::domain_elements, IndexGetterCreatorBase<aft_tile_getter>, VisitorImpl<Unit<_2>, _1> >::type
+struct IndexGetterCreator2 : fold_t<typelists::domain_elements, IndexGetterCreatorBase<aft_tile_getter>, UnitVisitorImpl>
 {
 	IndexGetterCreator2(const AbstrDataItem* adi, abstr_future_tile_ptr aft);
 };

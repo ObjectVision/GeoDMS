@@ -286,7 +286,7 @@ namespace Cumulate
 
 		template <typename T> using CumulatePartThis = CumulatePart<UniAssigner, IniAssign, T>;
 
-		tl_oper::inst_tuple_templ<typelists::partition_elements, CumulatePartThis, AbstrOperGroup*>
+		tl_oper::inst_tuple_templ<typelists::partition_elements, CumulatePartThis>
 			m_AggrPartOperator;
 	};
 
@@ -302,13 +302,14 @@ namespace Cumulate
 		{}
 
 	private:
-		template <typename T> using ThisCumulOperInstances = CumulOperInstances<UniAssigner<T>, IniAssigner>;
+		template <typename T> struct ThisCumulOperInstances : CumulOperInstances<UniAssigner<T>, IniAssigner>
+		{
+			using CumulOperInstances<UniAssigner<T>, IniAssigner>::CumulOperInstances;
+		};
 
-		tl_oper::inst_tuple_templ<ValueTypes, ThisCumulOperInstances, AbstrOperGroup*>
+		tl_oper::inst_tuple_templ<ValueTypes, ThisCumulOperInstances>
 			m_AggrOperators;
 	};
-
-	int x;
 
 	template <typename T>
 	struct unary_assign_accumulate : unary_assign_add<acc_type_t<T>, T>

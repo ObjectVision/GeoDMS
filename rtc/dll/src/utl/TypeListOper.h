@@ -1,4 +1,4 @@
-// Copyright (C) 1998-2024 Object Vision b.v. 
+// Copyright (C) 1998-2025 Object Vision b.v. 
 // License: GNU GPL 3
 /////////////////////////////////////////////////////////////////////////////
 
@@ -12,106 +12,90 @@
 
 #include "cpc/transform.h"
 
-#include <boost/mpl/placeholders.hpp>
-
 //----------------------------------------------------------------------
 // typelist operations
 //----------------------------------------------------------------------
 
-#include <boost/mpl/fold.hpp>
-
 namespace tl_oper
 {
-	namespace impl {
+	// --------------------  runtime construction helpers  --------------------
+	// Construct a tuple whose element types come from `List`, passing the SAME Args...
+	// to each element's constructor.
 
-		template <typename ...Args> struct empty_base
-		{ 
-			empty_base(typename param_type<Args>::type...) 
-			{} 
-		};
+	template<class... Ts>
+	struct constructed_tuple_impl;
 
-		template <typename Head, typename Tail>
-		struct scattered_hierarchy
-			:	Head
-			,	Tail
-		{};
-
-		template <typename... Args>
-		struct constructed_pair_functor {
-			template <typename T, typename U>
-			struct cpair
-			{
-				cpair(Args... args) : m_First(args...), m_Second(args...) {}
-				T m_First;
-				U m_Second;
-			};
-		};
-		template <template <typename T> typename F, typename... Args>
-		struct constructed_pair_templ_functor {
-			template <typename T, typename U>
-			struct cpair
-			{
-				cpair(Args... args) : m_First(args...), m_Second(args...) {}
-				F<T> m_First;
-				U m_Second;
-			};
-		};
-	}
-
-	// =================== using boost::mpl 
-
-	template<typename TL, typename... Args>
-	struct tuple_func
+	template<class Head>
+	struct constructed_tuple_impl<Head>
 	{
-		using type = typename boost::mpl::fold< TL
-			, impl::empty_base<Args...>
-			, typename impl::constructed_pair_functor<Args...>::template cpair<boost::mpl::_2, boost::mpl::_1>
-		>::type;
+		template<class... Args>
+		explicit constructed_tuple_impl(Args&&... args)
+			: head(std::forward<Args>(args)...)
+		{}
+
+		Head head;
 	};
 
-	template<typename TL, typename F, typename... Args>
-	using inst_tuple = typename tuple_func<tl::transform<TL, F>, Args... >::type;
-
-	// =================== end using boost::mpl 
-
-	template<typename TL, template <typename T> typename F, typename... Args>
-	struct tuple_templ_func
+	template<class Head, class... Tail>
+	struct constructed_tuple_impl<Head, Tail...> : constructed_tuple_impl<Tail...>
 	{
-		using type = typename boost::mpl::fold< TL
-			, impl::empty_base<Args...>
-			, typename impl::constructed_pair_templ_functor<F, Args...>::template cpair<boost::mpl::_2, boost::mpl::_1>
-		>::type;
+		using Base = constructed_tuple_impl<Tail...>;
+
+		template<class... Args>
+		explicit constructed_tuple_impl(Args&&... args)
+			: Base(std::forward<Args>(args)...)
+			, head(std::forward<Args>(args)...)
+		{}
+
+		Head head;
 	};
 
-	template<typename TL, template <typename T> typename F, typename... Args>
-	using inst_tuple_templ = typename tuple_templ_func<TL, F, Args...>::type;
+	template<class TL>
+	struct constructed_tuple;
 
-	
+	template<class... Ts>
+	struct constructed_tuple<tl::type_list<Ts...>> : constructed_tuple_impl<Ts...>
+	{
+		using Base = constructed_tuple_impl<Ts...>;
+
+		template<class... Args>
+		explicit constructed_tuple(Args&&... args)
+			: Base(std::forward<Args>(args)...)
+		{}
+	};
+
+
+	template<typename TL, typename FunctorF>
+	struct inst_tuple
+	{
+		using TL2 = tl::transform_t<TL, FunctorF>;
+		using tuple_type = constructed_tuple<TL2>;
+
+		tuple_type m_ConstructedData;
+
+		template<class... Args>
+		inst_tuple(Args&&... args) : m_ConstructedData(std::forward<Args>(args)...) {}
+	};
+
+	template<typename TL, template <typename T> typename F>
+	struct inst_tuple_templ : inst_tuple<TL, tl::bind_placeholders<F, ph::_1>>
+	{
+		using inst_tuple<TL, tl::bind_placeholders<F, ph::_1>>::inst_tuple;
+	};
+
 }	// namespace tl_oper
 
 //----------------------------------------------------------------------
 // MPL defs for Registering Classs RTTI
 //----------------------------------------------------------------------
 
-#include <boost/mpl/for_each.hpp>
+template<class TL> struct TypeListClassReg;
 
-template <class T> struct wrap {};
-
-struct ClassReg {
-	template <class T> // T must be derived from Object (or at least have GetStaticClass and GetDynamicClass defined)
-	void operator ()(wrap<T>) const // deduce T
-	{
-		T::GetStaticClass();   // Call to register
-//		&T::GetDynamicClass; // take address to instantiate
-	}
-};
-
-template <typename TypeList>
-struct TypeListClassReg {
+template<class... Ts>
+struct TypeListClassReg<tl::type_list<Ts...>> {
 	TypeListClassReg() {
-		boost::mpl::for_each<TypeList, wrap<boost::mpl::placeholders::_> >(ClassReg());
+		([]<class T>{ T::GetStaticClass(); } .template operator() < Ts > (), ...);
 	}
 };
-
 
 #endif // __RTC_UTL_TYPELISTOPER_H

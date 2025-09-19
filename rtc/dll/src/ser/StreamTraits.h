@@ -55,10 +55,6 @@ using stream_tag_t = std::conditional_t<is_binary_streamable_v<T>, directcpy_str
 
 #define STREAMTYPE_TAG(T) TYPEID(stream_tag_t<const T>)
 
-#if defined(MG_DEBUG)
-	#include <boost/mpl/assert.hpp>
-
-	BOOST_MPL_ASSERT((is_binary_streamable<UInt32>));
-#endif // defined(MG_DEBUG)
+static_assert(is_binary_streamable_v<UInt32>);
 
 #endif // !defined(__RTC_SER_STREAMTRAITS_H)

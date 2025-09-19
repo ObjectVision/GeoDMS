@@ -120,8 +120,8 @@ namespace OperAccUniNum
 		};
 
 	private:
-		tl_oper::inst_tuple_templ<ValueTypes, OperAccTotUniNumOper , AbstrOperGroup*, bool> m_TotlAggrOpers;
-		tl_oper::inst_tuple_templ<ValueTypes, OperAccPartUniNumOper, AbstrOperGroup*, bool> m_PartAggrOpers;
+		tl_oper::inst_tuple_templ<ValueTypes, OperAccTotUniNumOper > m_TotlAggrOpers;
+		tl_oper::inst_tuple_templ<ValueTypes, OperAccPartUniNumOper> m_PartAggrOpers;
 	};
 }
 

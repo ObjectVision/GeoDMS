@@ -206,11 +206,11 @@ namespace
 
 	template <typename SqrDistType>
 	struct JNVOpers {
-		tl_oper::inst_tuple<domains, JoinNearValuesOperator<UInt32, _, SqrDistType>, AbstrOperGroup&> jevOpers;
-		tl_oper::inst_tuple<domains, JoinNearValuesOperator<UInt8 , _, SqrDistType>, AbstrOperGroup&> jevOpers_u8;
-		tl_oper::inst_tuple<domains, JoinNearValuesOperator<UInt16, _, SqrDistType>, AbstrOperGroup&> jevOpers_u16;
-		tl_oper::inst_tuple<domains, JoinNearValuesOperator<UInt32, _, SqrDistType>, AbstrOperGroup&> jevOpers_u32;
-		tl_oper::inst_tuple<domains, JoinNearValuesOperator<UInt64, _, SqrDistType>, AbstrOperGroup&> jevOpers_u64;
+		tl_oper::inst_tuple<domains, tl::bind_placeholders<JoinNearValuesOperator, UInt32, ph::_1, SqrDistType>> jevOpers;
+		tl_oper::inst_tuple<domains, tl::bind_placeholders<JoinNearValuesOperator, UInt8 , ph::_1, SqrDistType>> jevOpers_u8;
+		tl_oper::inst_tuple<domains, tl::bind_placeholders<JoinNearValuesOperator, UInt16, ph::_1, SqrDistType>> jevOpers_u16;
+		tl_oper::inst_tuple<domains, tl::bind_placeholders<JoinNearValuesOperator, UInt32, ph::_1, SqrDistType>> jevOpers_u32;
+		tl_oper::inst_tuple<domains, tl::bind_placeholders<JoinNearValuesOperator, UInt64, ph::_1, SqrDistType>> jevOpers_u64;
 
 		JNVOpers() 
 		:	jevOpers(cog_jev)

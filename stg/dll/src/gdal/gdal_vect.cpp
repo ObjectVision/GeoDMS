@@ -1482,7 +1482,7 @@ bool GdalVectSM::WriteFieldElement(const AbstrDataItem* adi, int field_index, OG
 
 	GDAL_ErrorFrame frame;
 	
-	using field_types = boost::mpl::vector <Float32, Float64, Bool, UInt2, UInt4, Int8, UInt8, Int16, UInt16, Int32, UInt32, Int64, UInt64, SharedStr>;
+	using field_types = tl::type_list<Float32, Float64, Bool, UInt2, UInt4, Int8, UInt8, Int16, UInt16, Int32, UInt32, Int64, UInt64, SharedStr>;
 
 	visit<field_types>(avu,
 		[this, ado, adi, feature, tileFeatureIndex, field_index, t, &frame] <typename field_type> (const Unit<field_type>*) 

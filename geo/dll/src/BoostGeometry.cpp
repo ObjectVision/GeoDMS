@@ -1380,8 +1380,8 @@ namespace
 	template <typename P> using BgSimplifyMultiPolygonOperator = SimplifyMultiPolygonOperator<P, geometry_library::boost_geometry>;
 	template <typename P> using GeosSimplifyMultiPolygonOperator = SimplifyMultiPolygonOperator<P, geometry_library::geos>;
 	tl_oper::inst_tuple_templ<typelists::points, SimplifyLinestringOperator> simplifyLineStringOperators;
-	tl_oper::inst_tuple_templ<typelists::points, BgSimplifyMultiPolygonOperator, AbstrOperGroup&> bg_simplifyMultiPolygonOperators(grBgSimplify_multi_polygon);
-	tl_oper::inst_tuple_templ<typelists::points, GeosSimplifyMultiPolygonOperator, AbstrOperGroup&> geos_simplifyMultiPolygonOperators(grGeosSimplify_multi_polygon);
+	tl_oper::inst_tuple_templ<typelists::points, BgSimplifyMultiPolygonOperator> bg_simplifyMultiPolygonOperators(grBgSimplify_multi_polygon);
+	tl_oper::inst_tuple_templ<typelists::points, GeosSimplifyMultiPolygonOperator> geos_simplifyMultiPolygonOperators(grGeosSimplify_multi_polygon);
 	tl_oper::inst_tuple_templ<typelists::points, SimplifyPolygonOperator> simplifyPolygonOperators;
 
 	template <typename P> using BpBufferPointOperator = BufferPointOperator<P, geometry_library::boost_polygon>;
@@ -1394,14 +1394,14 @@ namespace
 	template <typename P> using CgalBufferMultiPointOperator = BufferMultiPointOperator<P, geometry_library::cgal>;
 	template <typename P> using GeosBufferMultiPointOperator = BufferMultiPointOperator<P, geometry_library::geos>;
 
-	tl_oper::inst_tuple_templ<typelists::int_points, BpBufferPointOperator, AbstrOperGroup&> bpBufferPointOperators(grBpBuffer_point);
-	tl_oper::inst_tuple_templ<typelists::int_points, BpBufferMultiPointOperator, AbstrOperGroup&> bpBufferMultiPointOperators(grBpBuffer_multi_point);
-	tl_oper::inst_tuple_templ<typelists::points, BgBufferPointOperator, AbstrOperGroup&> bgBufferPointOperators(grBgBuffer_point);
-	tl_oper::inst_tuple_templ<typelists::points, BgBufferMultiPointOperator, AbstrOperGroup&> bgBufferMultiPointOperators(grBgBuffer_multi_point);
-	tl_oper::inst_tuple_templ<typelists::points, CgalBufferPointOperator, AbstrOperGroup&> cgalBufferPointOperators(grBgBuffer_point);
-	tl_oper::inst_tuple_templ<typelists::points, CgalBufferMultiPointOperator, AbstrOperGroup&> cgalBufferMultiPointOperators(grCgalBuffer_multi_point);
-	tl_oper::inst_tuple_templ<typelists::points, GeosBufferPointOperator, AbstrOperGroup&> geosBufferPointOperators(grBgBuffer_point);
-	tl_oper::inst_tuple_templ<typelists::points, GeosBufferMultiPointOperator, AbstrOperGroup&> geosBeosBufferMultiPointOperators(grGeosBuffer_multi_point);
+	tl_oper::inst_tuple_templ<typelists::int_points, BpBufferPointOperator> bpBufferPointOperators(grBpBuffer_point);
+	tl_oper::inst_tuple_templ<typelists::int_points, BpBufferMultiPointOperator> bpBufferMultiPointOperators(grBpBuffer_multi_point);
+	tl_oper::inst_tuple_templ<typelists::points, BgBufferPointOperator> bgBufferPointOperators(grBgBuffer_point);
+	tl_oper::inst_tuple_templ<typelists::points, BgBufferMultiPointOperator> bgBufferMultiPointOperators(grBgBuffer_multi_point);
+	tl_oper::inst_tuple_templ<typelists::points, CgalBufferPointOperator> cgalBufferPointOperators(grBgBuffer_point);
+	tl_oper::inst_tuple_templ<typelists::points, CgalBufferMultiPointOperator> cgalBufferMultiPointOperators(grCgalBuffer_multi_point);
+	tl_oper::inst_tuple_templ<typelists::points, GeosBufferPointOperator> geosBufferPointOperators(grBgBuffer_point);
+	tl_oper::inst_tuple_templ<typelists::points, GeosBufferMultiPointOperator> geosBeosBufferMultiPointOperators(grGeosBuffer_multi_point);
 
 
 
@@ -1409,67 +1409,67 @@ namespace
 	template <typename P> using BgBufferLineStringOperator = BufferLineStringOperator<P, geometry_library::boost_geometry>;
 	template <typename P> using GeosBufferLineStringOperator = BufferLineStringOperator<P, geometry_library::geos>;
 	template <typename P> using CgalBufferLineStringOperator = BufferLineStringOperator<P, geometry_library::cgal>;
-	tl_oper::inst_tuple_templ<typelists::int_points, BpBufferLineStringOperator, AbstrOperGroup&> bpBufferLineStringOperators(grBpBuffer_linestring);
-	tl_oper::inst_tuple_templ<typelists::points, BgBufferLineStringOperator, AbstrOperGroup&> bgBufferLineStringOperators(grBgBuffer_linestring);
-	tl_oper::inst_tuple_templ<typelists::points, GeosBufferLineStringOperator, AbstrOperGroup&> geosBufferLineStringOperators(grGeosBuffer_linestring);
-	tl_oper::inst_tuple_templ<typelists::points, CgalBufferLineStringOperator, AbstrOperGroup&> cgalBufferLineStringOperators(grCgalBuffer_linestring);
+	tl_oper::inst_tuple_templ<typelists::int_points, BpBufferLineStringOperator> bpBufferLineStringOperators(grBpBuffer_linestring);
+	tl_oper::inst_tuple_templ<typelists::points, BgBufferLineStringOperator> bgBufferLineStringOperators(grBgBuffer_linestring);
+	tl_oper::inst_tuple_templ<typelists::points, GeosBufferLineStringOperator> geosBufferLineStringOperators(grGeosBuffer_linestring);
+	tl_oper::inst_tuple_templ<typelists::points, CgalBufferLineStringOperator> cgalBufferLineStringOperators(grCgalBuffer_linestring);
 
 
 	template <typename P> using BgIntersectMultiPolygonOperator = BgMultiPolygonOperator < P, bg_intersection> ;
-	tl_oper::inst_tuple_templ<typelists::points, BgIntersectMultiPolygonOperator, AbstrOperGroup&> bgIntersectMultiPolygonOperatorsNamed(grBgIntersect);
+	tl_oper::inst_tuple_templ<typelists::points, BgIntersectMultiPolygonOperator> bgIntersectMultiPolygonOperatorsNamed(grBgIntersect);
 
 	template <typename P> using BgUnionMultiPolygonOperator = BgMultiPolygonOperator<P, bg_union>;
-	tl_oper::inst_tuple_templ<typelists::points, BgUnionMultiPolygonOperator, AbstrOperGroup&> bgUnionMultiPolygonOperatorsNamed(grBgUnion);
+	tl_oper::inst_tuple_templ<typelists::points, BgUnionMultiPolygonOperator> bgUnionMultiPolygonOperatorsNamed(grBgUnion);
 
 	template <typename P> using BgDifferenceMultiPolygonOperator = BgMultiPolygonOperator<P, bg_difference>;
-	tl_oper::inst_tuple_templ<typelists::points, BgDifferenceMultiPolygonOperator, AbstrOperGroup&> bgDifferenceMultiPolygonOperatorsNamed(grBgDifference);
+	tl_oper::inst_tuple_templ<typelists::points, BgDifferenceMultiPolygonOperator> bgDifferenceMultiPolygonOperatorsNamed(grBgDifference);
 
 	template <typename P> using BgSymmetricDifferenceMultiPolygonOperator = BgMultiPolygonOperator<P, bg_sym_difference>;
-	tl_oper::inst_tuple_templ<typelists::points, BgSymmetricDifferenceMultiPolygonOperator, AbstrOperGroup&> bgSymmetricDifferenceMultiPolygonOperatorsNamed(grBgXOR);
+	tl_oper::inst_tuple_templ<typelists::points, BgSymmetricDifferenceMultiPolygonOperator> bgSymmetricDifferenceMultiPolygonOperatorsNamed(grBgXOR);
 
 
 	template <typename P> using BgBufferMultiPolygonOperator = BufferMultiPolygonOperator<P, geometry_library::boost_geometry>;
 	template <typename P> using GeosBufferMultiPolygonOperator = BufferMultiPolygonOperator<P, geometry_library::geos>;
-	tl_oper::inst_tuple_templ<typelists::points, BufferSinglePolygonOperator, AbstrOperGroup&> bg_buffersinglePolygonOperators(grBgBuffer_single_polygon);
-	tl_oper::inst_tuple_templ<typelists::points, BgBufferMultiPolygonOperator, AbstrOperGroup&> bg_bufferMultiPolygonOperators(grBgBuffer_multi_polygon);
-	tl_oper::inst_tuple_templ<typelists::points, GeosBufferMultiPolygonOperator, AbstrOperGroup&> geos_bufferMultiPolygonOperators(grGeosBuffer_multi_polygon);
+	tl_oper::inst_tuple_templ<typelists::points, BufferSinglePolygonOperator> bg_buffersinglePolygonOperators(grBgBuffer_single_polygon);
+	tl_oper::inst_tuple_templ<typelists::points, BgBufferMultiPolygonOperator> bg_bufferMultiPolygonOperators(grBgBuffer_multi_polygon);
+	tl_oper::inst_tuple_templ<typelists::points, GeosBufferMultiPolygonOperator> geos_bufferMultiPolygonOperators(grGeosBuffer_multi_polygon);
 
-	tl_oper::inst_tuple_templ<typelists::points, OuterSinglePolygonOperator, AbstrOperGroup&> bg_outerSinglePolygonOperators(grBgOuter_single_polygon);
-	tl_oper::inst_tuple_templ<typelists::points, OuterMultiPolygonOperator, AbstrOperGroup&> bg_outerMultiPolygonOperators(grBgOuter_multi_polygon);
+	tl_oper::inst_tuple_templ<typelists::points, OuterSinglePolygonOperator> bg_outerSinglePolygonOperators(grBgOuter_single_polygon);
+	tl_oper::inst_tuple_templ<typelists::points, OuterMultiPolygonOperator> bg_outerMultiPolygonOperators(grBgOuter_multi_polygon);
 
 	template <typename P> using CGAL_IntersectMultiPolygonOperator = CGAL_MultiPolygonOperator < P, cgal_intersection>;
-	tl_oper::inst_tuple_templ<typelists::points, CGAL_IntersectMultiPolygonOperator, AbstrOperGroup&> cgalIntersectMultiPolygonOperatorsNamed(grcgalIntersect);
+	tl_oper::inst_tuple_templ<typelists::points, CGAL_IntersectMultiPolygonOperator> cgalIntersectMultiPolygonOperatorsNamed(grcgalIntersect);
 
 	template <typename P> using CGAL_UnionMultiPolygonOperator = CGAL_MultiPolygonOperator<P, cgal_union>;
-	tl_oper::inst_tuple_templ<typelists::points, CGAL_UnionMultiPolygonOperator, AbstrOperGroup&> cgalUnionMultiPolygonOperatorsNamed(grcgalUnion);
+	tl_oper::inst_tuple_templ<typelists::points, CGAL_UnionMultiPolygonOperator> cgalUnionMultiPolygonOperatorsNamed(grcgalUnion);
 
 	template <typename P> using CGAL_DifferenceMultiPolygonOperator = CGAL_MultiPolygonOperator<P, cgal_difference>;
-	tl_oper::inst_tuple_templ<typelists::points, CGAL_DifferenceMultiPolygonOperator, AbstrOperGroup&> cgalDifferenceMultiPolygonOperatorsNamed(grcgalDifference);
+	tl_oper::inst_tuple_templ<typelists::points, CGAL_DifferenceMultiPolygonOperator> cgalDifferenceMultiPolygonOperatorsNamed(grcgalDifference);
 
 	template <typename P> using CGAL_SymmetricDifferenceMultiPolygonOperator = CGAL_MultiPolygonOperator<P, cgal_sym_difference>;
-	tl_oper::inst_tuple_templ<typelists::points, CGAL_SymmetricDifferenceMultiPolygonOperator, AbstrOperGroup&> cgalSymmetricDifferenceMultiPolygonOperatorsNamed(grcgalXOR);
+	tl_oper::inst_tuple_templ<typelists::points, CGAL_SymmetricDifferenceMultiPolygonOperator> cgalSymmetricDifferenceMultiPolygonOperatorsNamed(grcgalXOR);
 
 
 	template <typename P> using GEOS_IntersectMultiPolygonOperator = GEOS_MultiPolygonOperator < P, geos_intersection>;
-	tl_oper::inst_tuple_templ<typelists::points, GEOS_IntersectMultiPolygonOperator, AbstrOperGroup&> geosIntersectMultiPolygonOperatorsNamed(grgeosIntersect);
-	tl_oper::inst_tuple_templ<typelists::float_points, GEOS_IntersectMultiPolygonOperator, AbstrOperGroup&> bgIntersectMultiPolygonOperatorsMul(cog_mul);
-	tl_oper::inst_tuple_templ<typelists::float_points, GEOS_IntersectMultiPolygonOperator, AbstrOperGroup&> bgIntersectMultiPolygonOperatorsBitAnd(cog_bitand);
+	tl_oper::inst_tuple_templ<typelists::points, GEOS_IntersectMultiPolygonOperator> geosIntersectMultiPolygonOperatorsNamed(grgeosIntersect);
+	tl_oper::inst_tuple_templ<typelists::float_points, GEOS_IntersectMultiPolygonOperator> bgIntersectMultiPolygonOperatorsMul(cog_mul);
+	tl_oper::inst_tuple_templ<typelists::float_points, GEOS_IntersectMultiPolygonOperator> bgIntersectMultiPolygonOperatorsBitAnd(cog_bitand);
 
 
 	template <typename P> using GEOS_UnionMultiPolygonOperator = GEOS_MultiPolygonOperator<P, geos_union>;
-	tl_oper::inst_tuple_templ<typelists::points, GEOS_UnionMultiPolygonOperator, AbstrOperGroup&> geosUnionMultiPolygonOperatorsNamed(grgeosUnion);
-	tl_oper::inst_tuple_templ<typelists::float_points, GEOS_UnionMultiPolygonOperator, AbstrOperGroup&> bgUnionMultiPolygonOperatorsAdd(cog_add);
-	tl_oper::inst_tuple_templ<typelists::float_points, GEOS_UnionMultiPolygonOperator, AbstrOperGroup&> bgUnionMultiPolygonOperatorsBitOr(cog_bitor);
+	tl_oper::inst_tuple_templ<typelists::points, GEOS_UnionMultiPolygonOperator> geosUnionMultiPolygonOperatorsNamed(grgeosUnion);
+	tl_oper::inst_tuple_templ<typelists::float_points, GEOS_UnionMultiPolygonOperator> bgUnionMultiPolygonOperatorsAdd(cog_add);
+	tl_oper::inst_tuple_templ<typelists::float_points, GEOS_UnionMultiPolygonOperator> bgUnionMultiPolygonOperatorsBitOr(cog_bitor);
 
 
 	template <typename P> using GEOS_DifferenceMultiPolygonOperator = GEOS_MultiPolygonOperator<P, geos_difference>;
-	tl_oper::inst_tuple_templ<typelists::points, GEOS_DifferenceMultiPolygonOperator, AbstrOperGroup&> geosDifferenceMultiPolygonOperatorsNamed(grgeosDifference);
-	tl_oper::inst_tuple_templ<typelists::float_points, GEOS_DifferenceMultiPolygonOperator, AbstrOperGroup&> bgDifferenceMultiPolygonOperatorsSub(cog_sub);
+	tl_oper::inst_tuple_templ<typelists::points, GEOS_DifferenceMultiPolygonOperator> geosDifferenceMultiPolygonOperatorsNamed(grgeosDifference);
+	tl_oper::inst_tuple_templ<typelists::float_points, GEOS_DifferenceMultiPolygonOperator> bgDifferenceMultiPolygonOperatorsSub(cog_sub);
 
 
 	template <typename P> using GEOS_SymmetricDifferenceMultiPolygonOperator = GEOS_MultiPolygonOperator<P, geos_sym_difference>;
-	tl_oper::inst_tuple_templ<typelists::points, GEOS_SymmetricDifferenceMultiPolygonOperator, AbstrOperGroup&> geosSymmetricDifferenceMultiPolygonOperatorsNamed(grgeosXOR);
-	tl_oper::inst_tuple_templ<typelists::float_points, GEOS_SymmetricDifferenceMultiPolygonOperator, AbstrOperGroup&> bgSymmetricDifferenceMultiPolygonOperatorsBitXOR(cog_bitxor);
+	tl_oper::inst_tuple_templ<typelists::points, GEOS_SymmetricDifferenceMultiPolygonOperator> geosSymmetricDifferenceMultiPolygonOperatorsNamed(grgeosXOR);
+	tl_oper::inst_tuple_templ<typelists::float_points, GEOS_SymmetricDifferenceMultiPolygonOperator> bgSymmetricDifferenceMultiPolygonOperatorsBitXOR(cog_bitxor);
 
 
 }

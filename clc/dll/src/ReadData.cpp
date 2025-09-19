@@ -68,7 +68,7 @@ public:
 	SizeT               m_Offset = 0, m_Count = 0;
 };
 
-struct NumberReader :  boost::mpl::fold<typelists::scalars, NumberReaderBase, VisitorImpl<Unit<_2>, _1> >::type
+struct NumberReader : fold_t<typelists::scalars, NumberReaderBase, UnitVisitorImpl>
 {};
 
 

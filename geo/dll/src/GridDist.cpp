@@ -678,29 +678,29 @@ namespace {
 			, m_OpersWithInitialImpedance(og, flags | GridDistFlags::HasInitialImpedance)
 		{}
 
-		tl_oper::inst_tuple<typelists::domain_points, GridDistOperator<Imp, _>, AbstrOperGroup&, GridDistFlags>
+		tl_oper::inst_tuple<typelists::domain_points, tl::bind_placeholders<GridDistOperator, Imp, ph::_1>>
 			m_OpersWithoutInitialImpedance, m_OpersWithInitialImpedance;
 
 	};
 
-	tl_oper::inst_tuple_templ<typelists::floats, GridDistOperSet, AbstrOperGroup&, GridDistFlags> gridDistOperSets__(cogGD__, GridDistFlags::NoFlags);
-	tl_oper::inst_tuple_templ<typelists::floats, GridDistOperSet, AbstrOperGroup&, GridDistFlags> gridDistOperSetsM_(cogGDM_, GridDistFlags::HasLimitParameter);
-	tl_oper::inst_tuple_templ<typelists::floats, GridDistOperSet, AbstrOperGroup&, GridDistFlags> gridDistOperSets_U(cogGD_U, GridDistFlags::UseShadowTile);
-	tl_oper::inst_tuple_templ<typelists::floats, GridDistOperSet, AbstrOperGroup&, GridDistFlags> gridDistOperSetsMU(cogGDMU, GridDistFlags::HasLimitParameterAndUseShadowTile);
+	tl_oper::inst_tuple_templ<typelists::floats, GridDistOperSet> gridDistOperSets__(cogGD__, GridDistFlags::NoFlags);
+	tl_oper::inst_tuple_templ<typelists::floats, GridDistOperSet> gridDistOperSetsM_(cogGDM_, GridDistFlags::HasLimitParameter);
+	tl_oper::inst_tuple_templ<typelists::floats, GridDistOperSet> gridDistOperSets_U(cogGD_U, GridDistFlags::UseShadowTile);
+	tl_oper::inst_tuple_templ<typelists::floats, GridDistOperSet> gridDistOperSetsMU(cogGDMU, GridDistFlags::HasLimitParameterAndUseShadowTile);
 
-	tl_oper::inst_tuple_templ<typelists::floats, GridDistOperSet, AbstrOperGroup&, GridDistFlags> gridDistOperSets__LF(cogGD__LF, GridDistFlags::HasLatitudeFactor);
-	tl_oper::inst_tuple_templ<typelists::floats, GridDistOperSet, AbstrOperGroup&, GridDistFlags> gridDistOperSetsM_LF(cogGDM_LF, GridDistFlags::HasLimitParameter| GridDistFlags::HasLatitudeFactor);
-	tl_oper::inst_tuple_templ<typelists::floats, GridDistOperSet, AbstrOperGroup&, GridDistFlags> gridDistOperSets_ULF(cogGD_ULF, GridDistFlags::UseShadowTile| GridDistFlags::HasLatitudeFactor);
-	tl_oper::inst_tuple_templ<typelists::floats, GridDistOperSet, AbstrOperGroup&, GridDistFlags> gridDistOperSetsMULF(cogGDMULF, GridDistFlags::HasLimitParameterAndUseShadowTile| GridDistFlags::HasLatitudeFactor);
+	tl_oper::inst_tuple_templ<typelists::floats, GridDistOperSet> gridDistOperSets__LF(cogGD__LF, GridDistFlags::HasLatitudeFactor);
+	tl_oper::inst_tuple_templ<typelists::floats, GridDistOperSet> gridDistOperSetsM_LF(cogGDM_LF, GridDistFlags::HasLimitParameter| GridDistFlags::HasLatitudeFactor);
+	tl_oper::inst_tuple_templ<typelists::floats, GridDistOperSet> gridDistOperSets_ULF(cogGD_ULF, GridDistFlags::UseShadowTile| GridDistFlags::HasLatitudeFactor);
+	tl_oper::inst_tuple_templ<typelists::floats, GridDistOperSet> gridDistOperSetsMULF(cogGDMULF, GridDistFlags::HasLimitParameterAndUseShadowTile| GridDistFlags::HasLatitudeFactor);
 
-	tl_oper::inst_tuple_templ<typelists::floats, GridDistOperSet, AbstrOperGroup&, GridDistFlags> gridDistOperSets__Z(cogGD__Z, GridDistFlags::HasZonalBoundaryImpedance);
-	tl_oper::inst_tuple_templ<typelists::floats, GridDistOperSet, AbstrOperGroup&, GridDistFlags> gridDistOperSetsM_Z(cogGDM_Z, GridDistFlags::HasLimitParameter| GridDistFlags::HasZonalBoundaryImpedance);
-	tl_oper::inst_tuple_templ<typelists::floats, GridDistOperSet, AbstrOperGroup&, GridDistFlags> gridDistOperSets_UZ(cogGD_UZ, GridDistFlags::UseShadowTile| GridDistFlags::HasZonalBoundaryImpedance);
-	tl_oper::inst_tuple_templ<typelists::floats, GridDistOperSet, AbstrOperGroup&, GridDistFlags> gridDistOperSetsMUZ(cogGDMUZ, GridDistFlags::HasLimitParameterAndUseShadowTile| GridDistFlags::HasZonalBoundaryImpedance);
+	tl_oper::inst_tuple_templ<typelists::floats, GridDistOperSet> gridDistOperSets__Z(cogGD__Z, GridDistFlags::HasZonalBoundaryImpedance);
+	tl_oper::inst_tuple_templ<typelists::floats, GridDistOperSet> gridDistOperSetsM_Z(cogGDM_Z, GridDistFlags::HasLimitParameter| GridDistFlags::HasZonalBoundaryImpedance);
+	tl_oper::inst_tuple_templ<typelists::floats, GridDistOperSet> gridDistOperSets_UZ(cogGD_UZ, GridDistFlags::UseShadowTile| GridDistFlags::HasZonalBoundaryImpedance);
+	tl_oper::inst_tuple_templ<typelists::floats, GridDistOperSet> gridDistOperSetsMUZ(cogGDMUZ, GridDistFlags::HasLimitParameterAndUseShadowTile| GridDistFlags::HasZonalBoundaryImpedance);
 
-	tl_oper::inst_tuple_templ<typelists::floats, GridDistOperSet, AbstrOperGroup&, GridDistFlags> gridDistOperSets__LFZ(cogGD__LFZ, GridDistFlags::HasLatitudeFactor| GridDistFlags::HasZonalBoundaryImpedance);
-	tl_oper::inst_tuple_templ<typelists::floats, GridDistOperSet, AbstrOperGroup&, GridDistFlags> gridDistOperSetsM_LFZ(cogGDM_LFZ, GridDistFlags::HasLimitParameter | GridDistFlags::HasLatitudeFactor| GridDistFlags::HasZonalBoundaryImpedance);
-	tl_oper::inst_tuple_templ<typelists::floats, GridDistOperSet, AbstrOperGroup&, GridDistFlags> gridDistOperSets_ULFZ(cogGD_ULFZ, GridDistFlags::UseShadowTile | GridDistFlags::HasLatitudeFactor| GridDistFlags::HasZonalBoundaryImpedance);
-	tl_oper::inst_tuple_templ<typelists::floats, GridDistOperSet, AbstrOperGroup&, GridDistFlags> gridDistOperSetsMULFZ(cogGDMULFZ, GridDistFlags::HasLimitParameterAndUseShadowTile | GridDistFlags::HasLatitudeFactor| GridDistFlags::HasZonalBoundaryImpedance);
+	tl_oper::inst_tuple_templ<typelists::floats, GridDistOperSet> gridDistOperSets__LFZ(cogGD__LFZ, GridDistFlags::HasLatitudeFactor| GridDistFlags::HasZonalBoundaryImpedance);
+	tl_oper::inst_tuple_templ<typelists::floats, GridDistOperSet> gridDistOperSetsM_LFZ(cogGDM_LFZ, GridDistFlags::HasLimitParameter | GridDistFlags::HasLatitudeFactor| GridDistFlags::HasZonalBoundaryImpedance);
+	tl_oper::inst_tuple_templ<typelists::floats, GridDistOperSet> gridDistOperSets_ULFZ(cogGD_ULFZ, GridDistFlags::UseShadowTile | GridDistFlags::HasLatitudeFactor| GridDistFlags::HasZonalBoundaryImpedance);
+	tl_oper::inst_tuple_templ<typelists::floats, GridDistOperSet> gridDistOperSetsMULFZ(cogGDMULFZ, GridDistFlags::HasLimitParameterAndUseShadowTile | GridDistFlags::HasLatitudeFactor| GridDistFlags::HasZonalBoundaryImpedance);
 
 }

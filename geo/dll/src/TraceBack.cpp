@@ -269,7 +269,7 @@ namespace
 {
 	tl_oper::inst_tuple<
 		typelists::num_objects,
-		TraceBackOperator<_, UInt32, UInt32>
+		tl::bind_placeholders<TraceBackOperator, ph::_1, UInt32, UInt32>
 	>
 	traceBackOperSet;
 

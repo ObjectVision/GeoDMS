@@ -62,7 +62,7 @@ public:
 	tile_id          m_TileID;
 };
 
-struct FastUndefiner :  boost::mpl::fold<typelists::fields, FastUndefineBase, VisitorImpl<Unit<_2>, _1> >::type
+struct FastUndefiner : fold_t<typelists::fields, FastUndefineBase, UnitVisitorImpl>
 {
 	FastUndefiner(const AbstrUnit* resValues, AbstrDataObject* resObj, tile_id tileID)
 	{

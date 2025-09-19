@@ -18,8 +18,8 @@
 template <typename TL, template <typename T> class MetaFunc>
 struct BinaryPolyOperInstantiation
 {
-	using OperTemplate = BinaryPolyAttrAssignOper<MetaFunc<_> >;
-	tl_oper::inst_tuple<TL, OperTemplate, AbstrOperGroup*> m_OperList;
+	using OperTemplate = tl::bind_placeholders < BinaryPolyAttrAssignOper, MetaFunc<ph::_1> >;
+	tl_oper::inst_tuple<TL, OperTemplate> m_OperList;
 
 	BinaryPolyOperInstantiation(AbstrOperGroup* gr)
 		: m_OperList(gr)

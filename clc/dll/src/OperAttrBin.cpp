@@ -411,7 +411,7 @@ struct BinaryInstantiation{
 		using BinaryAttrFuncOper<MetaFunc<T> >::BinaryAttrFuncOper; // <MetaFunc<T> >; // inherit constructors
 	};
 
-	tl_oper::inst_tuple_templ<TL, OperTemplate, AbstrOperGroup*> m_OperList;
+	tl_oper::inst_tuple_templ<TL, OperTemplate> m_OperList;
 
 	BinaryInstantiation(AbstrOperGroup* gr)
 		: m_OperList(gr)
@@ -504,9 +504,9 @@ namespace {
 	CogBinaryInstantiation<aints, logical_or > sOr("or");
 
 //TODO: voor alle Floats beschikbaar maken.
-	tl_oper::inst_tuple<num_objects, UnitMulOpers<_1, _1, _1> > g_UnitUnaryTypeMulOpers;
+	tl_oper::inst_tuple<num_objects, tl::bind_placeholders<UnitMulOpers, ph::_1, ph::_1, ph::_1> > g_UnitUnaryTypeMulOpers;
 
-	tl_oper::inst_tuple<num_objects, ParamUnitOpers<_1> > g_ParamUnitOpers;
+	tl_oper::inst_tuple_templ<num_objects, ParamUnitOpers > g_ParamUnitOpers;
 
 	#define INST(T,U,V) UnitMulOpers<T,U,V> g_UnitMul3##T##U##V;
 	INST(Int32,   Int32,   UInt16)

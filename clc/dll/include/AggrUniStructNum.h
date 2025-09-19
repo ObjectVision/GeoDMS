@@ -14,7 +14,6 @@
 #include "composition.h"
 
 #include "geo/Undefined.h"
-#include <boost/mpl/identity.hpp>
 
 // MOVE TO RTC
 

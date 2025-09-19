@@ -811,8 +811,8 @@ namespace
 		WeightedModusPart<V> wmp;
 	};
 
-	tl_oper::inst_tuple<typelists::scalars, AggrFuncsInst<_> > aggrOpers;
-	tl_oper::inst_tuple<typelists::aints, WeightedModusInst<_> > weigthedModusOpers;
+	tl_oper::inst_tuple_templ<typelists::scalars, AggrFuncsInst> aggrOpers;
+	tl_oper::inst_tuple_templ<typelists::aints, WeightedModusInst> weigthedModusOpers;
 
 //	ModusInst<SharedStr> mpString; //TODO, ook TODO: optimize dispatchers voor (U)Int4/2
 }

@@ -261,8 +261,8 @@ namespace
 	CommonOperGroup cogAsItemListWN("asItemList_with_null");
 
 
-	tl_oper::inst_tuple<typelists::num_objects, OperAccTotUniStr<asexprlist_total <_>>, AbstrOperGroup*, bool> s_AsExprListT(&cogAsExprList, true);
-	tl_oper::inst_tuple<typelists::num_objects, OperAccTotUniStr<asexprlist_total <_>>, AbstrOperGroup*, bool> s_AsExprListWNT(&cogAsExprListWN, false);
+	tl_oper::inst_tuple<typelists::num_objects, tl::bind_placeholders<OperAccTotUniStr, asexprlist_total <ph::_1>>> s_AsExprListT(&cogAsExprList, true);
+	tl_oper::inst_tuple<typelists::num_objects, tl::bind_placeholders<OperAccTotUniStr, asexprlist_total <ph::_1>>> s_AsExprListWNT(&cogAsExprListWN, false);
 
 	OperAccTotUniStr<asexprlist_total<SharedStr>> f1(&cogAsExprList, true);
 	OperAccTotUniStr<asitemlist_total<SharedStr>> f2(&cogAsItemList, true);
@@ -274,8 +274,8 @@ namespace
 	OperAccTotUniStr<last_total_best<SharedStr>> f6(&cog_Last, true);
 
 //	OPERPART_NUMB_INSTANTIATION  (OperAccPartUniSer, asexprlist_partial, cogAsExprList);
-	tl_oper::inst_tuple<typelists::num_objects, OperAccPartUniSer<asexprlist_partial<_>>, AbstrOperGroup*, bool> s_AsExprListPartNum  (&cogAsExprList, true);
-	tl_oper::inst_tuple<typelists::num_objects, OperAccPartUniSer<asexprlist_partial<_>>, AbstrOperGroup*, bool> s_AsExprListPartNumWN(&cogAsExprListWN, false);
+	tl_oper::inst_tuple<typelists::num_objects, tl::bind_placeholders<OperAccPartUniSer, asexprlist_partial<ph::_1>>> s_AsExprListPartNum  (&cogAsExprList, true);
+	tl_oper::inst_tuple<typelists::num_objects, tl::bind_placeholders<OperAccPartUniSer, asexprlist_partial<ph::_1>>> s_AsExprListPartNumWN(&cogAsExprListWN, false);
 
 	OperAccPartUniSer<asexprlist_partial   <SharedStr> > s_AsExprListPart(&cogAsExprList, true);
 	OperAccPartUniSer<asitemlist_partial   <SharedStr> > s_AsItemListPart(&cogAsItemList, true);

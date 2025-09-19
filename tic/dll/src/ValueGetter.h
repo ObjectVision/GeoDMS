@@ -54,7 +54,7 @@ struct ValueGetterCreatorBase : UnitProcessor
 };
 
 template <typename T, typename TL>
-struct ValueGetterCreator :  boost::mpl::fold<TL, ValueGetterCreatorBase<T>, VisitorImpl<Unit<_2>, _1> >::type
+struct ValueGetterCreator :  fold_t<TL, ValueGetterCreatorBase<T>, UnitVisitorImpl>
 {
 	ValueGetterCreator(const AbstrDataItem* adi, tile_id t)
 	{

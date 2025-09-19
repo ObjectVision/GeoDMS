@@ -1912,8 +1912,8 @@ private:
 
 namespace 
 {
-	using DistTypeList = boost::mpl::vector<Float64, Float32, UInt32, UInt64>;
-	using DijkstraOperListType = tl_oper::inst_tuple_templ< DistTypeList, DijkstraMatrOperator, AbstrOperGroup*, DijkstraFlag>;
+	using DistTypeList = tl::type_list<Float64, Float32, UInt32, UInt64>;
+	using DijkstraOperListType = tl_oper::inst_tuple_templ< DistTypeList, DijkstraMatrOperator>;
 
 	CommonOperGroup dsGroup("dijkstra_s", oper_policy::allow_extra_args | oper_policy::better_not_in_meta_scripting);
 	CommonOperGroup dm32Group("dijkstra_m", oper_policy::allow_extra_args | oper_policy::better_not_in_meta_scripting);

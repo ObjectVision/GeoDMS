@@ -21,9 +21,9 @@
 
 //----------------------------------------------------------------------
 template <typename T> struct can_be_indirect;
-template <> struct can_be_indirect<Bool>      : boost::mpl::false_ {};
-template <> struct can_be_indirect<SharedStr> : boost::mpl::true_  {};
-template <> struct can_be_indirect<TokenID  > : boost::mpl::false_ {};
+template <> struct can_be_indirect<Bool>      : std::false_type {};
+template <> struct can_be_indirect<SharedStr> : std::true_type  {};
+template <> struct can_be_indirect<TokenID  > : std::false_type {};
 
 template <class ItemType, class PropType>
 class StoredPropDef: public PropDef<ItemType, PropType>

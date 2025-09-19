@@ -1885,7 +1885,7 @@ namespace
 				m_Policy = oper_policy(m_Policy | oper_policy::depreciated);
 		}
 
-		tl_oper::inst_tuple_templ<typelists::sint_points, BpPolygonOperator, AbstrOperGroup*, PolygonFlags>
+		tl_oper::inst_tuple_templ<typelists::sint_points, BpPolygonOperator>
 			m_Instances;
 	};
 
@@ -1895,7 +1895,7 @@ namespace
 			: m_Instances(cog, flags)
 		{}
 
-		tl_oper::inst_tuple_templ<typelists::sint_points, BpPolygonOperator, AbstrOperGroup*, PolygonFlags>
+		tl_oper::inst_tuple_templ<typelists::sint_points, BpPolygonOperator>
 			m_Instances;
 	};
 
@@ -1908,7 +1908,7 @@ namespace
 			SetBetterNotInMetaScripting();
 		}
 
-		tl_oper::inst_tuple_templ<typelists::seq_points, BgPolygonOperator, AbstrOperGroup*, PolygonFlags>
+		tl_oper::inst_tuple_templ<typelists::seq_points, BgPolygonOperator>
 			m_Instances;
 	};
 
@@ -1918,7 +1918,7 @@ namespace
 			: m_Instances(cog, flags)
 		{}
 
-		tl_oper::inst_tuple_templ<typelists::seq_points, BgPolygonOperator, AbstrOperGroup*, PolygonFlags>
+		tl_oper::inst_tuple_templ<typelists::seq_points, BgPolygonOperator>
 			m_Instances;
 	};
 
@@ -1931,7 +1931,7 @@ namespace
 			SetBetterNotInMetaScripting();
 		}
 
-		tl_oper::inst_tuple_templ<typelists::seq_points, CGAL_PolygonOperator, AbstrOperGroup*, PolygonFlags>
+		tl_oper::inst_tuple_templ<typelists::seq_points, CGAL_PolygonOperator>
 			m_Instances;
 	};
 
@@ -1941,7 +1941,7 @@ namespace
 			: m_Instances(cog, flags)
 		{}
 
-		tl_oper::inst_tuple_templ<typelists::seq_points, CGAL_PolygonOperator, AbstrOperGroup*, PolygonFlags>
+		tl_oper::inst_tuple_templ<typelists::seq_points, CGAL_PolygonOperator>
 			m_Instances;
 	};
 
@@ -1954,7 +1954,7 @@ namespace
 			SetBetterNotInMetaScripting();
 		}
 
-		tl_oper::inst_tuple_templ<typelists::seq_points, GEOS_PolygonOperator, AbstrOperGroup*, PolygonFlags>
+		tl_oper::inst_tuple_templ<typelists::seq_points, GEOS_PolygonOperator>
 			m_Instances;
 	};
 
@@ -1964,7 +1964,7 @@ namespace
 			: m_Instances(cog, flags)
 		{}
 
-		tl_oper::inst_tuple_templ<typelists::seq_points, GEOS_PolygonOperator, AbstrOperGroup*, PolygonFlags>
+		tl_oper::inst_tuple_templ<typelists::seq_points, GEOS_PolygonOperator>
 			m_Instances;
 	};
 
@@ -2103,29 +2103,29 @@ namespace
 	template <typename P> using CGAL_ConnectivityOperator = PolygonOverlayOperator<P, geometry_library::cgal, false>;
 	template <typename P> using GEOS_ConnectivityOperator = PolygonOverlayOperator<P, geometry_library::geos, false>;
 
-//	tl_oper::inst_tuple_templ<typelists::sint_points , BoostPolygonOverlayOperator , AbstrOperGroup&, bool> boostPolygonOverlayOperators   (grOverlayPolygon, false);
-	tl_oper::inst_tuple_templ<typelists::sint_points , BoostPolygonOverlayOperator , AbstrOperGroup&, bool> boostPolygonBpOverlayOperators (grBpOverlayPolygon, false);
-//	tl_oper::inst_tuple_templ<typelists::float_points, BoostGeometryOverlayOperator, AbstrOperGroup&, bool> boostGeometryOverlayOperators  (grOverlayPolygon, false);
-	tl_oper::inst_tuple_templ<typelists::points      , BoostGeometryOverlayOperator, AbstrOperGroup&, bool> boostGeometryBgOverlayOperators(grBgOverlayPolygon, false);
-	tl_oper::inst_tuple_templ<typelists::points,       CGAL_OverlayOperator, AbstrOperGroup&, bool> cgalOverlayOperators(grCGALOverlayPolygon, false);
-	tl_oper::inst_tuple_templ<typelists::points,       GEOS_OverlayOperator, AbstrOperGroup&, bool> geosOverlayOperators(grGEOSOverlayPolygon, false);
+//	tl_oper::inst_tuple_templ<typelists::sint_points , BoostPolygonOverlayOperator > boostPolygonOverlayOperators   (grOverlayPolygon, false);
+	tl_oper::inst_tuple_templ<typelists::sint_points , BoostPolygonOverlayOperator > boostPolygonBpOverlayOperators (grBpOverlayPolygon, false);
+//	tl_oper::inst_tuple_templ<typelists::float_points, BoostGeometryOverlayOperator> boostGeometryOverlayOperators  (grOverlayPolygon, false);
+	tl_oper::inst_tuple_templ<typelists::points      , BoostGeometryOverlayOperator> boostGeometryBgOverlayOperators(grBgOverlayPolygon, false);
+	tl_oper::inst_tuple_templ<typelists::points,       CGAL_OverlayOperator> cgalOverlayOperators(grCGALOverlayPolygon, false);
+	tl_oper::inst_tuple_templ<typelists::points,       GEOS_OverlayOperator> geosOverlayOperators(grGEOSOverlayPolygon, false);
 
 	tl_oper::inst_tuple_templ<typelists::sint_points, PolygonConnectivityOperator>	polygonConnectivityOperators;
 	tl_oper::inst_tuple_templ<typelists::points,      BoxConnectivityOperator>	    boxConnectivityOperators;
 
-	tl_oper::inst_tuple_templ<typelists::sint_points, BoostPolygonConnectivityOperator, AbstrOperGroup&, bool> boostPolygonConnectivityOperators(grBpPolygonConnectivity, false);
-	tl_oper::inst_tuple_templ<typelists::points, BoostGeometryConnectivityOperator, AbstrOperGroup&, bool> boostGeometryConnectivityOperators(grBgPolygonConnectivity, false);
-	tl_oper::inst_tuple_templ<typelists::points, CGAL_ConnectivityOperator, AbstrOperGroup&, bool> cgalConnectivityOperators(grCGALPolygonConnectivity, false);
-	tl_oper::inst_tuple_templ<typelists::points, GEOS_ConnectivityOperator, AbstrOperGroup&, bool> geosConnectivityOperators(grGEOSPolygonConnectivity, false);
+	tl_oper::inst_tuple_templ<typelists::sint_points, BoostPolygonConnectivityOperator> boostPolygonConnectivityOperators(grBpPolygonConnectivity, false);
+	tl_oper::inst_tuple_templ<typelists::points, BoostGeometryConnectivityOperator> boostGeometryConnectivityOperators(grBgPolygonConnectivity, false);
+	tl_oper::inst_tuple_templ<typelists::points, CGAL_ConnectivityOperator> cgalConnectivityOperators(grCGALPolygonConnectivity, false);
+	tl_oper::inst_tuple_templ<typelists::points, GEOS_ConnectivityOperator> geosConnectivityOperators(grGEOSPolygonConnectivity, false);
 
-	tl_oper::inst_tuple_templ<typelists::sint_points, BoostPolygonOverlayOperator, AbstrOperGroup&, bool> boostPolygonBpOverlay1Operators(grBpOverlayPolygon, true);
-	tl_oper::inst_tuple_templ<typelists::points, BoostGeometryOverlayOperator, AbstrOperGroup&, bool> boostGeometryBgOverlay1Operators(grBgOverlayPolygon, true);
-	tl_oper::inst_tuple_templ<typelists::points, CGAL_OverlayOperator, AbstrOperGroup&, bool> cgalOverlay1Operators(grCGALOverlayPolygon, true);
-	tl_oper::inst_tuple_templ<typelists::points, GEOS_OverlayOperator, AbstrOperGroup&, bool> geosOverlay1Operators(grGEOSOverlayPolygon, true);
-	tl_oper::inst_tuple_templ<typelists::sint_points, BoostPolygonConnectivityOperator, AbstrOperGroup&, bool> boostPolygonConnectivity1Operators(grBpPolygonConnectivity, true);
-	tl_oper::inst_tuple_templ<typelists::points, BoostGeometryConnectivityOperator, AbstrOperGroup&, bool> boostGeometryConnectivity1Operators(grBgPolygonConnectivity, true);
-	tl_oper::inst_tuple_templ<typelists::points, CGAL_ConnectivityOperator, AbstrOperGroup&, bool> cgalConnectivity1Operators(grCGALPolygonConnectivity, true);
-	tl_oper::inst_tuple_templ<typelists::points, GEOS_ConnectivityOperator, AbstrOperGroup&, bool> geosConnectivity1Operators(grGEOSPolygonConnectivity, true);
+	tl_oper::inst_tuple_templ<typelists::sint_points, BoostPolygonOverlayOperator> boostPolygonBpOverlay1Operators(grBpOverlayPolygon, true);
+	tl_oper::inst_tuple_templ<typelists::points, BoostGeometryOverlayOperator> boostGeometryBgOverlay1Operators(grBgOverlayPolygon, true);
+	tl_oper::inst_tuple_templ<typelists::points, CGAL_OverlayOperator> cgalOverlay1Operators(grCGALOverlayPolygon, true);
+	tl_oper::inst_tuple_templ<typelists::points, GEOS_OverlayOperator> geosOverlay1Operators(grGEOSOverlayPolygon, true);
+	tl_oper::inst_tuple_templ<typelists::sint_points, BoostPolygonConnectivityOperator> boostPolygonConnectivity1Operators(grBpPolygonConnectivity, true);
+	tl_oper::inst_tuple_templ<typelists::points, BoostGeometryConnectivityOperator> boostGeometryConnectivity1Operators(grBgPolygonConnectivity, true);
+	tl_oper::inst_tuple_templ<typelists::points, CGAL_ConnectivityOperator> cgalConnectivity1Operators(grCGALPolygonConnectivity, true);
+	tl_oper::inst_tuple_templ<typelists::points, GEOS_ConnectivityOperator> geosConnectivity1Operators(grGEOSPolygonConnectivity, true);
 
 
 	PolyOperatorGroupss simple("", PolygonFlags());

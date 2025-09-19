@@ -55,8 +55,9 @@ class ConstAttrOperator : public AbstrConstOperator
 
 public:
 	ConstAttrOperator()
-		:	AbstrConstOperator(&cog_const, ResultType::GetStaticClass(), composition_of_v<TR>)
-	{}
+		: AbstrConstOperator(&cog_const, ResultType::GetStaticClass(), composition_of_v<TR>)
+	{
+	}
 
 	// Override Operator
 	SharedPtr<const AbstrDataObject> CreateConstFunctor(const AbstrDataItem* arg1A, const AbstrUnit* arg2U MG_DEBUG_ALLOCATOR_SRC(SharedStr srcStr)) const override
@@ -77,11 +78,11 @@ public:
 		auto resData = mutable_array_cast<TR>(borrowedDataHandle)->GetDataWrite(t);
 
 		assert(argData.size() == 1); // domain of arg1 was checked to be void
-		
+
 		typename ResultType::iterator
 			i = resData.begin(),
 			e = resData.end();
-		for (; i!=e; ++i)
+		for (; i != e; ++i)
 			Assign(*i, argData[0]);
 	}
 };
@@ -93,79 +94,79 @@ public:
 
 DPoint rd2LatLong(DPoint rd) //shp_order
 {
-		double
-			x	=	rd.first,
-			y	=	rd.second;
+	double
+		x = rd.first,
+		y = rd.second;
 
-		if (x < 0 || x > 290000)
-			throwErrorD("Argument Error", "RD2LatLong requires x to be between 0 and 290000");
-		if (y < 290000 || y > 630000)
-			throwErrorD("Argument Error", "RD2LatLong requires y to be between 290000 and 630000");
+	if (x < 0 || x > 290000)
+		throwErrorD("Argument Error", "RD2LatLong requires x to be between 0 and 290000");
+	if (y < 290000 || y > 630000)
+		throwErrorD("Argument Error", "RD2LatLong requires y to be between 290000 and 630000");
 
-		const double
-			x0  = 155000.000,
-			y0  = 463000.000,
+	const double
+		x0 = 155000.000,
+		y0 = 463000.000,
 
-			l0 =  5.387638889, // OL (x)
-			f0 = 52.156160556, // NB (y)
+		l0 = 5.387638889, // OL (x)
+		f0 = 52.156160556, // NB (y)
 
-			 a01=3236.0331637,  b10=5261.3028966,
-			 a20= -32.5915821,  b11= 105.9780241,
-			 a02=  -0.2472814,  b12=   2.4576469,
-			 a21=  -0.8501341,  b30=  -0.8192156,
-			 a03=  -0.0655238,  b31=  -0.0560092,
-			 a22=  -0.0171137,  b13=   0.0560089,
-			 a40=   0.0052771,  b32=  -0.0025614,
-			 a23=  -0.0003859,  b14=   0.0012770,
-			 a41=   0.0003314,  b50=   0.0002574,
-			 a04=   0.0000371,  b33=  -0.0000973,
-			 a42=   0.0000143,  b51=   0.0000293,
-			 a24=  -0.0000090,  b15=   0.0000291;
+		a01 = 3236.0331637, b10 = 5261.3028966,
+		a20 = -32.5915821, b11 = 105.9780241,
+		a02 = -0.2472814, b12 = 2.4576469,
+		a21 = -0.8501341, b30 = -0.8192156,
+		a03 = -0.0655238, b31 = -0.0560092,
+		a22 = -0.0171137, b13 = 0.0560089,
+		a40 = 0.0052771, b32 = -0.0025614,
+		a23 = -0.0003859, b14 = 0.0012770,
+		a41 = 0.0003314, b50 = 0.0002574,
+		a04 = 0.0000371, b33 = -0.0000973,
+		a42 = 0.0000143, b51 = 0.0000293,
+		a24 = -0.0000090, b15 = 0.0000291;
 
-		double 
-			dx=(x-x0) / 100000, // horizontal distance from RD center in 100 km units
-			dy=(y-y0) / 100000; // vertical   distance from RD center in 100 km units
+	double
+		dx = (x - x0) / 100000, // horizontal distance from RD center in 100 km units
+		dy = (y - y0) / 100000; // vertical   distance from RD center in 100 km units
 
-		double
-			dx2 = dx*dx,
-			dx3 = dx2*dx,
-			dx4 = dx2 * dx2,
-			dx5 = dx4*dx,
+	double
+		dx2 = dx * dx,
+		dx3 = dx2 * dx,
+		dx4 = dx2 * dx2,
+		dx5 = dx4 * dx,
 
-			dy2 = dy *dy,
-			dy3 = dy2*dy,
-			dy4 = dy2*dy2,
-			dy5 = dy4*dy;
+		dy2 = dy * dy,
+		dy3 = dy2 * dy,
+		dy4 = dy2 * dy2,
+		dy5 = dy4 * dy;
 
-		double
-			df =	a01*dy 
-				+	a20*dx2
-				+	a02*dy2
-				+	a21*dx2*dy
-				+	a03*dy3
-				+	a40*dx4
-				+	a22*dx2*dy2
-				+	a04*dy4
-				+	a41*dx4*dy
-				+	a23*dx2*dy3
-				+	a42*dx4*dy2
-				+	a24*dx2*dy4,
+	double
+		df = a01 * dy
+		+ a20 * dx2
+		+ a02 * dy2
+		+ a21 * dx2 * dy
+		+ a03 * dy3
+		+ a40 * dx4
+		+ a22 * dx2 * dy2
+		+ a04 * dy4
+		+ a41 * dx4 * dy
+		+ a23 * dx2 * dy3
+		+ a42 * dx4 * dy2
+		+ a24 * dx2 * dy4,
 
 
-			dl	=	b10*dx 
-				+	b11*dx*dy 
-				+	b30*dx3
-				+	b12*dx*dy2
-				+	b31*dx3*dy
-				+	b13*dx*dy3
-				+	b50*dx5 
-				+	b32*dx3*dy2 
-				+	b14*dx*dy4
-				+	b51*dx5*dy
-				+	b33*dx3*dy3
-				+	b15*dx*dy5;
+		dl = b10 * dx
+		+ b11 * dx * dy
+		+ b30 * dx3
+		+ b12 * dx * dy2
+		+ b31 * dx3 * dy
+		+ b13 * dx * dy3
+		+ b50 * dx5
+		+ b32 * dx3 * dy2
+		+ b14 * dx * dy4
+		+ b51 * dx5 * dy
+		+ b33 * dx3 * dy3
+		+ b15 * dx * dy5;
 
-		return DPoint(l0 + dl/3600, f0 + df/3600); // shp order
+	return DPoint(l0 + dl / 3600, f0 + df / 3600); // shp order
 }
 
 DPoint rd2LatLongEd50(DPoint rd) //shp_order
@@ -176,8 +177,8 @@ DPoint rd2LatLongEd50(DPoint rd) //shp_order
 		f = lf.second; // NB (y) 
 
 	return DPoint(
-		l + (+89.120 + 3.708 * (f - 52) - 17.176* (l - 5)) / 100000
-	,	f + (-18.00 - 14.723 * (f - 52) - 1.029 * (l - 5)) / 100000
+		l + (+89.120 + 3.708 * (f - 52) - 17.176 * (l - 5)) / 100000
+		, f + (-18.00 - 14.723 * (f - 52) - 1.029 * (l - 5)) / 100000
 	);
 }
 
@@ -189,50 +190,51 @@ DPoint rd2LatLongWgs84(DPoint rd) //shp_order
 		f = lf.second; // NB (y) 
 
 	return DPoint(
-		l + (-37.902 +  0.329 * (f - 52) - 14.667 * (l - 5)) / 100000
-	,	f + (-96.862 - 11.714 * (f - 52) -  0.125 * (l - 5)) / 100000
+		l + (-37.902 + 0.329 * (f - 52) - 14.667 * (l - 5)) / 100000
+		, f + (-96.862 - 11.714 * (f - 52) - 0.125 * (l - 5)) / 100000
 	);
 }
 
 DPoint latLongWgs842rd(DPoint ll) //shp_order
 {
 	//Bereken RD coördinaten
-	// bron: http://www.gpsgek.nl/informatief/wgs84-rd-script.html
+	//bron: http://www.gpsgek.nl/informatief/wgs84-rd-script.html
+
 	Float64
 		longitude = ll.first,
-		latitude  = ll.second;
+		latitude = ll.second;
 	Float64
 		dL = 0.36 * (longitude - 5.38720621), // OL (x)
 		dF = 0.36 * (latitude - 52.15517440); // NB (y)
 	Float64
 		dF2 = dF * dF,
 		dF3 = dF * dF2,
-//		dF4 = dF2 * dF2,
+		//		dF4 = dF2 * dF2,
 		dL2 = dL * dL,
 		dL3 = dL * dL2,
 		dL4 = dL2 * dL2;
 	Float64
 		somX
-			=  190094.945 * dL
-			+ -11832.228 * dF * dL
-			+ -144.221 * dF2 * dL 
-			+ -32.391 * dL3
-			+ -0.705 * dF
-			+ -2.340 * dF3 * dL
-			+ -0.608 * dF * dL3
-			+ -0.008 * dL2
-			+ 0.148 * dF2 * dL3,
+		= 190094.945 * dL
+		+ -11832.228 * dF * dL
+		+ -144.221 * dF2 * dL
+		+ -32.391 * dL3
+		+ -0.705 * dF
+		+ -2.340 * dF3 * dL
+		+ -0.608 * dF * dL3
+		+ -0.008 * dL2
+		+ 0.148 * dF2 * dL3,
 		somY
-			= 309056.544 * dF
-			+ 3638.893 * dL2
-			+ 73.077 * dF2
-			+ -157.984 * dF * dL2
-			+ 59.788 * dF3
-			+ 0.433 * dL
-			+ -6.439 * dF2 * dL2
-			+ -0.032 * dF * dL
-			+ 0.092 * dL4
-			+ -0.054 * dF * dL4;
+		= 309056.544 * dF
+		+ 3638.893 * dL2
+		+ 73.077 * dF2
+		+ -157.984 * dF * dL2
+		+ 59.788 * dF3
+		+ 0.433 * dL
+		+ -6.439 * dF2 * dL2
+		+ -0.032 * dF * dL
+		+ 0.092 * dL4
+		+ -0.054 * dF * dL4;
 
 	return DPoint(155000 + somX, 463000 + somY);
 }
@@ -242,7 +244,7 @@ DPoint rd2LatLongGE(DPoint rd) //shp_order
 	//	correctiefactoren voor rd coordinaten voor een betere match met GE
 	const double Xc = 17.78369991;
 	const double Yc = 40.18290427;
-	
+
 	const double Xx = -0.0000749081;
 	const double Xy = -0.0000128123;
 	const double Yx = -0.0000064425;
@@ -250,8 +252,8 @@ DPoint rd2LatLongGE(DPoint rd) //shp_order
 
 	return rd2LatLongWgs84(
 		DPoint(
-			rd.first  + Xc + Xx * rd.first + Xy * rd.second
-		,	rd.second + Yc + Yx * rd.first + Yy * rd.second
+			rd.first + Xc + Xx * rd.first + Xy * rd.second
+			, rd.second + Yc + Yx * rd.first + Yy * rd.second
 		)
 	);
 }
@@ -261,22 +263,22 @@ DPoint rd2LatLongGE(DPoint rd) //shp_order
 // *****************************************************************************
 
 template<typename TR, typename TA, DPoint CF(DPoint)>
-struct ConvertFunc : unary_func<TR, TA> 
+struct ConvertFunc : unary_func<TR, TA>
 {
 	TR operator() (const TA& p) const
 	{
 		if (!IsDefined(p))
 			return UNDEFINED_VALUE(TR);
 		DPoint res = CF(DPoint(p.Col(), p.Row()));
-		return shp2dms_order<scalar_of_t<TR>>( res.first, res.second);
+		return shp2dms_order<scalar_of_t<TR>>(res.first, res.second);
 	}
 };
 
-template<typename TR, typename TA> struct RD2LatLong     : ConvertFunc<TR, TA, rd2LatLong     > { RD2LatLong     (const AbstrUnit* resUnit, const AbstrUnit* srcUnit) { /* check for EPSG compatibility? */ } };
-template<typename TR, typename TA> struct RD2LatLongEd50 : ConvertFunc<TR, TA, rd2LatLongEd50 > { RD2LatLongEd50 (const AbstrUnit* resUnit, const AbstrUnit* srcUnit) { /* check for EPSG compatibility? */ } };
-template<typename TR, typename TA> struct RD2LatLongWgs84: ConvertFunc<TR, TA, rd2LatLongWgs84> { RD2LatLongWgs84(const AbstrUnit* resUnit, const AbstrUnit* srcUnit) { /* check for EPSG compatibility? */ } };
-template<typename TR, typename TA> struct RD2LatLongGE   : ConvertFunc<TR, TA, rd2LatLongGE   > { RD2LatLongGE   (const AbstrUnit* resUnit, const AbstrUnit* srcUnit) { /* check for EPSG compatibility? */ } };
-template<typename TR, typename TA> struct LatLongWgs842RD: ConvertFunc<TR, TA, latLongWgs842rd> { LatLongWgs842RD(const AbstrUnit* resUnit, const AbstrUnit* srcUnit) { /* check for EPSG compatibility? */ } };
+template<typename TR, typename TA> struct RD2LatLong : ConvertFunc<TR, TA, rd2LatLong     > { RD2LatLong(const AbstrUnit* resUnit, const AbstrUnit* srcUnit) { /* check for EPSG compatibility? */ } };
+template<typename TR, typename TA> struct RD2LatLongEd50 : ConvertFunc<TR, TA, rd2LatLongEd50 > { RD2LatLongEd50(const AbstrUnit* resUnit, const AbstrUnit* srcUnit) { /* check for EPSG compatibility? */ } };
+template<typename TR, typename TA> struct RD2LatLongWgs84 : ConvertFunc<TR, TA, rd2LatLongWgs84> { RD2LatLongWgs84(const AbstrUnit* resUnit, const AbstrUnit* srcUnit) { /* check for EPSG compatibility? */ } };
+template<typename TR, typename TA> struct RD2LatLongGE : ConvertFunc<TR, TA, rd2LatLongGE   > { RD2LatLongGE(const AbstrUnit* resUnit, const AbstrUnit* srcUnit) { /* check for EPSG compatibility? */ } };
+template<typename TR, typename TA> struct LatLongWgs842RD : ConvertFunc<TR, TA, latLongWgs842rd> { LatLongWgs842RD(const AbstrUnit* resUnit, const AbstrUnit* srcUnit) { /* check for EPSG compatibility? */ } };
 
 // *****************************************************************************
 //			Generic COORDINATE CONVERSION FUNCTOR
@@ -331,7 +333,7 @@ const AbstrUnit* CompositeBase(const AbstrUnit* proj)
 	return res;
 }
 
-bool ProjectionIsColFirst(OGRSpatialReference &srs)
+bool ProjectionIsColFirst(OGRSpatialReference& srs)
 {
 	OGRAxisOrientation PROJCS_peOrientation;
 	OGRAxisOrientation GEOGCS_peOrientation;
@@ -348,12 +350,12 @@ static leveled_critical_section cs_SpatialRefBlockCreation(item_level_type(0), o
 #include <proj.h>
 
 static std::mutex s_projMutex;
-struct SpatialRefBlock: SharedBase, gdalComponent 
+struct SpatialRefBlock : SharedBase, gdalComponent
 {
-	pj_ctx*                      m_ProjCtx = nullptr;
+	pj_ctx* m_ProjCtx = nullptr;
 	OGRSpatialReference          m_Src, m_Dst;  // http://www.gdal.org/ogr/classOGRSpatialReference.html
 	OGRCoordinateTransformation* m_Transformer = nullptr; // http://www.gdal.org/ogr/classOGRCoordinateTransformation.html
-	SpatialRefBlock() 
+	SpatialRefBlock()
 	{
 		std::lock_guard guard(s_projMutex);
 		m_ProjCtx = proj_context_create();
@@ -581,11 +583,11 @@ void DispatchMapping(Type1DConversionFunctor<std::true_type>::template Type1DCon
 const int PROJ_BLOCK_SIZE = 1024;
 
 template<typename TR, typename TA>
-struct Type2DConversion: unary_func<TR, TA> // http://www.gdal.org/ogr/osr_tutorial.html
+struct Type2DConversion : unary_func<TR, TA> // http://www.gdal.org/ogr/osr_tutorial.html
 {
 	Type2DConversion(const AbstrUnit* resUnit, const AbstrUnit* srcUnit)
-		:	m_PreRescaler (UnitProjection::GetCompositeTransform(srcUnit->GetCurrProjection()))
-		,	m_PostRescaler(UnitProjection::GetCompositeTransform(resUnit->GetCurrProjection()).Inverse())
+		: m_PreRescaler(UnitProjection::GetCompositeTransform(srcUnit->GetCurrProjection()))
+		, m_PostRescaler(UnitProjection::GetCompositeTransform(resUnit->GetCurrProjection()).Inverse())
 	{
 		TokenID srcFormat = CompositeBase(srcUnit)->GetCurrSpatialReference();
 		if (srcFormat)
@@ -598,10 +600,10 @@ struct Type2DConversion: unary_func<TR, TA> // http://www.gdal.org/ogr/osr_tutor
 				GDAL_ErrorFrame frame;
 				SharedStr srcFormatStr = SharedStr(srcFormat);
 				SharedStr resFormatStr = SharedStr(resFormat);
-				
+
 				if (!AuthorityCodeIsValidCrs(srcFormatStr.c_str()))
 				{
-					reportF(MsgCategory::progress, SeverityTypeID::ST_Error, 
+					reportF(MsgCategory::progress, SeverityTypeID::ST_Error,
 						"The 'src' unit in projection conversion from 'src' unit %s to res unit %s is not a valid projection.",
 						srcUnit->GetFullName(), resUnit->GetFullName());
 				}
@@ -613,8 +615,8 @@ struct Type2DConversion: unary_func<TR, TA> // http://www.gdal.org/ogr/osr_tutor
 						srcUnit->GetFullName(), resUnit->GetFullName());
 				}
 
-				OGRCheck(&m_OgrComponentHolder->m_Src, m_OgrComponentHolder->m_Src.SetFromUserInput(srcFormatStr.c_str()), srcFormatStr.c_str(), srcUnit );
-				OGRCheck(&m_OgrComponentHolder->m_Dst, m_OgrComponentHolder->m_Dst.SetFromUserInput(resFormatStr.c_str()), resFormatStr.c_str(), resUnit );
+				OGRCheck(&m_OgrComponentHolder->m_Src, m_OgrComponentHolder->m_Src.SetFromUserInput(srcFormatStr.c_str()), srcFormatStr.c_str(), srcUnit);
+				OGRCheck(&m_OgrComponentHolder->m_Dst, m_OgrComponentHolder->m_Dst.SetFromUserInput(resFormatStr.c_str()), resFormatStr.c_str(), resUnit);
 				m_OgrComponentHolder->CreateTransformer();
 				m_Source_is_expected_to_be_col_first = ProjectionIsColFirst(m_OgrComponentHolder->m_Src);
 				m_Projection_is_col_first = ProjectionIsColFirst(m_OgrComponentHolder->m_Dst);
@@ -622,7 +624,7 @@ struct Type2DConversion: unary_func<TR, TA> // http://www.gdal.org/ogr/osr_tutor
 				return;
 			}
 		}
-		
+
 		m_PreRescaler *= m_PostRescaler;
 		m_PostRescaler = CrdTransformation(); // clear
 	}
@@ -660,7 +662,7 @@ struct Type2DConversion: unary_func<TR, TA> // http://www.gdal.org/ogr/osr_tutor
 		if (!IsDefined(p))
 			return UNDEFINED_VALUE(TR);
 
-		return SignedIntGridConvert<TR>( m_PreRescaler.Apply(DPoint(p)) );
+		return SignedIntGridConvert<TR>(m_PreRescaler.Apply(DPoint(p)));
 	}
 	TR ApplyScaledProjection(const TA& p) const
 	{
@@ -675,7 +677,7 @@ struct Type2DConversion: unary_func<TR, TA> // http://www.gdal.org/ogr/osr_tutor
 		if (!m_OgrComponentHolder->m_Transformer->Transform(1, &res.first, &res.second, nullptr))
 			return UNDEFINED_VALUE(TR);
 		res = prj2dms_order(res.first, res.second, m_Projection_is_col_first);
-		return SignedIntGridConvert<TR>( m_PostRescaler.Apply( res ) );
+		return SignedIntGridConvert<TR>(m_PostRescaler.Apply(res));
 	}
 
 	using iterator = typename DataArrayBase<TR>::iterator;
@@ -729,12 +731,12 @@ struct Type2DConversion: unary_func<TR, TA> // http://www.gdal.org/ogr/osr_tutor
 
 	void Dispatch(iterator ri, const_iterator ai, const_iterator ae)
 	{
-		if (m_OgrComponentHolder) 
+		if (m_OgrComponentHolder)
 		{
 			Float64 resX[PROJ_BLOCK_SIZE];
 			Float64 resY[PROJ_BLOCK_SIZE];
 			int     successFlags[PROJ_BLOCK_SIZE];
-	
+
 			auto n = ae - ai;
 			while (n)
 			{
@@ -753,13 +755,13 @@ struct Type2DConversion: unary_func<TR, TA> // http://www.gdal.org/ogr/osr_tutor
 				ai += ss;
 			}
 		}
-		else 
+		else
 			if (m_PreRescaler.IsIdentity())
 				for (; ai != ae; ++ai, ++ri)
 					Assign(*ri, ApplyDirect(*ai));
 			else
 				for (; ai != ae; ++ai, ++ri)
-					Assign(*ri, ApplyScaled(*ai) );
+					Assign(*ri, ApplyScaled(*ai));
 	}
 
 	typedef typename sequence_traits<TR>::container_type TPR;
@@ -772,7 +774,7 @@ struct Type2DConversion: unary_func<TR, TA> // http://www.gdal.org/ogr/osr_tutor
 
 	void Dispatch(seq_iterator pri, cseq_iterator pai, cseq_iterator pae)
 	{
-		for (; pai!=pae; ++pri, ++pai)
+		for (; pai != pae; ++pri, ++pai)
 		{
 			pri->resize_uninitialized(pai->size() MG_DEBUG_ALLOCATOR_SRC("Type2DConversion"));
 			Dispatch(pri->begin(), pai->begin(), pai->end());
@@ -787,9 +789,9 @@ struct Type2DConversion: unary_func<TR, TA> // http://www.gdal.org/ogr/osr_tutor
 };
 
 template<typename TR, typename TA>
-void DispatchMapping(Type2DConversion<TR,TA>& functor, typename Type2DConversion<TR,TA>::iterator ri,  typename Unit<TA>::range_t tileRange, SizeT n)
+void DispatchMapping(Type2DConversion<TR, TA>& functor, typename Type2DConversion<TR, TA>::iterator ri, typename Unit<TA>::range_t tileRange, SizeT n)
 {
-	if (functor.m_OgrComponentHolder) 
+	if (functor.m_OgrComponentHolder)
 	{
 		Float64 resX[PROJ_BLOCK_SIZE];
 		Float64 resY[PROJ_BLOCK_SIZE];
@@ -824,13 +826,13 @@ void DispatchMapping(Type2DConversion<TR,TA>& functor, typename Type2DConversion
 			n -= s;
 		}
 	}
-	else 
+	else
 		if (functor.m_PreRescaler.IsIdentity())
-			for (SizeT i=0; i!=n; ++ri, ++i)
+			for (SizeT i = 0; i != n; ++ri, ++i)
 				Assign(*ri, functor.ApplyDirect(Range_GetValue_naked(tileRange, i)));
 		else
-			for (SizeT i=0; i!=n; ++ri, ++i)
-				Assign(*ri, functor.ApplyScaled(Range_GetValue_naked(tileRange, i)) );
+			for (SizeT i = 0; i != n; ++ri, ++i)
+				Assign(*ri, functor.ApplyScaled(Range_GetValue_naked(tileRange, i)));
 }
 
 template<typename TR, typename TA, typename RI>
@@ -842,14 +844,14 @@ void DispatchMappingCount(Type2DConversion<TR, TA>& functor, RI ri, typename Uni
 			for (SizeT i = 0; i != k; ++i)
 			{
 				auto j = Range_GetIndex_checked(dstRange, functor.ApplyProjection(Range_GetValue_naked(srcTileRange, i)));
-				if (j<n)
+				if (j < n)
 					ri[j]++;
 			}
 		else
 			for (SizeT i = 0; i != k; ++i)
 			{
 				auto j = Range_GetIndex_checked(dstRange, functor.ApplyScaledProjection(Range_GetValue_naked(srcTileRange, i)));
-				if (j<n)
+				if (j < n)
 					ri[j]++;
 			}
 	else
@@ -857,14 +859,14 @@ void DispatchMappingCount(Type2DConversion<TR, TA>& functor, RI ri, typename Uni
 			for (SizeT i = 0; i != k; ++i)
 			{
 				auto j = Range_GetIndex_checked(dstRange, functor.ApplyDirect(Range_GetValue_naked(srcTileRange, i)));
-				if (j<n)
+				if (j < n)
 					ri[j]++;
 			}
 		else
 			for (SizeT i = 0; i != k; ++i)
 			{
 				auto j = Range_GetIndex_checked(dstRange, functor.ApplyScaled(Range_GetValue_naked(srcTileRange, i)));
-				if (j<n)
+				if (j < n)
 					ri[j]++;
 			}
 }
@@ -877,19 +879,19 @@ void DispatchMappingCount(Type2DConversion<TR, TA>& functor, RI ri, typename Uni
 // assign converted elements
 template <typename Functor>
 void AssignFuncRes0(
-	const Functor&                                                                         func, 
+	const Functor& func,
 	typename sequence_traits<typename Functor::res_type >::container_type::reference       res,
 	typename sequence_traits<typename Functor::arg1_type>::container_type::const_reference arg)
 {
-	Assign(res, func(arg) );
+	Assign(res, func(arg));
 }
 
 // assign converted sequences
 template <typename Functor>
 void AssignFuncRes0(
-	  const Functor&                                 func, 
-	  SA_Reference     <typename Functor::res_type > res,
-	  SA_ConstReference<typename Functor::arg1_type> arg)
+	const Functor& func,
+	SA_Reference     <typename Functor::res_type > res,
+	SA_ConstReference<typename Functor::arg1_type> arg)
 {
 	res.resize_uninitialized(arg.size() MG_DEBUG_ALLOCATOR_SRC("AssignFuncRes0"));
 	dms_transform(arg.begin(), arg.end(), res.begin(), func);
@@ -905,25 +907,25 @@ template <typename mustRoundToNearest>
 struct TypeConversionF
 {
 	template <typename TR, typename TA>
-	struct apply : 
-		std::conditional<( is_numeric_v<TR> && is_numeric_v<TA>)
-		,	Type1DConversionFunctor<mustRoundToNearest>::Type1DConversion<TR, TA>
-		,	std::conditional_t<(is_2d<TR>::value && is_2d<TA>::value)
-			,	Type2DConversion<TR, TA>
-			, Type0DConversionFunctor<mustRoundToNearest>::Type0DConversion<TR, TA>
+	using apply2 =
+		std::conditional_t<(is_numeric_v<TR>&& is_numeric_v<TA>)
+			, typename Type1DConversionFunctor<mustRoundToNearest>::template Type1DConversion<TR, TA>
+			, std::conditional_t<(is_2d<TR>::value&& is_2d<TA>::value)
+				, Type2DConversion<TR, TA>
+				, typename Type0DConversionFunctor<mustRoundToNearest>::template Type0DConversion<TR, TA>
 			>
-		>
-	{};
-
+		>;
 };
 
 template <typename MetaFunc, typename TR, typename TA>
-struct ConversionGenerator 
-	:	MetaFunc::template apply<
-			std::conditional_t<(is_composite_v<TR> && is_composite_v<TA> ), field_of_t<TR>, TR >
-		,	std::conditional_t<(is_composite_v<TR> && is_composite_v<TA> ), field_of_t<TA>, TA >
-	>
-{};
+struct ConversionGenerator
+{
+	static constexpr bool use_field = is_composite_v<TR> && is_composite_v<TA>;
+
+	using R = std::conditional_t<use_field, field_of_t<TR>, TR >;
+	using A = std::conditional_t<use_field, field_of_t<TA>, TA >;
+	using type = MetaFunc::template apply2<R, A>;
+};
 
 template <
 	typename TR,
@@ -934,8 +936,12 @@ template <
 >
 void do_transform(const AbstrUnit* dstUnit, const AbstrUnit* srcUnit, CIT srcBegin, CIT srcEnd, RIT dstBegin)
 {
-	using FunctorType = typename ConversionGenerator<TCF, TR, TA>::type;
-	FunctorType functor(dstUnit, srcUnit);
+	using FunctorType = ConversionGenerator<TCF, TR, TA>::type;
+
+//	auto functor = FunctorType(dstUnit, srcUnit);
+	auto dstUnit2 = dstUnit;
+	auto srcUnit2 = srcUnit;
+	auto functor = FunctorType{ dstUnit2, srcUnit2 };
 
 	parallel_for_if_separable<SizeT, TR>(0, srcEnd - srcBegin, [dstBegin, srcBegin, &functor](SizeT i)
 		{
@@ -955,7 +961,7 @@ void do_convert(const AbstrUnit* dstUnit, const AbstrUnit* srcUnit, CIT srcIter,
 {
 	using FunctorType = typename ConversionGenerator<TCF, TR, TA>::type;
 
-	FunctorType functor(dstUnit, srcUnit);
+	auto functor = FunctorType{ dstUnit, srcUnit };
 	functor.Dispatch(dstIter, srcIter, srcEnd);
 }
 
@@ -969,7 +975,7 @@ void do_mapping(const Unit<TR>* dstUnit, const Unit<TA>* srcUnit, tile_id t, RIT
 {
 	using FunctorType = typename ConversionGenerator<TCF, TR, TA>::type;
 
-	FunctorType functor(dstUnit, srcUnit);
+	auto functor = FunctorType{ dstUnit, srcUnit };
 	auto tileRange = srcUnit->GetTileRange(t);
 	SizeT n = Cardinality(tileRange);
 	MG_CHECK(dstIter + n == dstEnd);
@@ -986,7 +992,11 @@ void do_mapping_count(const Unit<TR>* dstUnit, const Unit<TA>* srcUnit, tile_id 
 {
 	using FunctorType = typename ConversionGenerator<TCF, TR, TA>::type;
 
-	FunctorType functor(dstUnit, srcUnit);
+//	auto functor = FunctorType( dstUnit, srcUnit );
+	auto dstUnit2 = dstUnit;
+	auto srcUnit2 = srcUnit;
+	auto functor = FunctorType(dstUnit2, srcUnit2);
+
 	auto srcTileRange = srcUnit->GetTileRange(t);
 	auto dstRange = dstUnit->GetRange();
 	SizeT n = Cardinality(dstRange);
@@ -1010,14 +1020,15 @@ class TransformAttrOperator : public AbstrCastedUnaryAttrOperator
 
 public:
 	TransformAttrOperator(AbstrOperGroup* gr, bool reverseArgs = false)
-		:	AbstrCastedUnaryAttrOperator(gr
-			,	ResultType::GetStaticClass() 
-				,	Arg1Type::GetStaticClass()
-				,	Arg2Type::GetStaticClass()
-			,	composition_of_v<TR>
-			,	reverseArgs
-			)
-		{}
+		: AbstrCastedUnaryAttrOperator(gr
+			, ResultType::GetStaticClass()
+			, Arg1Type::GetStaticClass()
+			, Arg2Type::GetStaticClass()
+			, composition_of_v<TR>
+			, reverseArgs
+		)
+	{
+	}
 
 	// Override Operator
 	auto CreateFutureTileCaster(SharedPtr<AbstrDataItem> resultAdi, bool lazy, const AbstrUnit* valuesUnitA, const AbstrDataItem* arg1A, const AbstrUnit* argUnitA MG_DEBUG_ALLOCATOR_SRC(SharedStr srcStr)) const -> SharedPtr<const AbstrDataObject> override
@@ -1046,7 +1057,7 @@ public:
 	void Calculate(AbstrDataObject* borrowedDataHandle, const AbstrDataItem* argDataA, const AbstrUnit* argUnit, tile_id t) const override
 	{
 		auto argData = const_array_cast<TA>(argDataA)->GetDataRead(t);
-		auto resultData =  mutable_array_cast<TR>(borrowedDataHandle)->GetDataWrite(t);
+		auto resultData = mutable_array_cast<TR>(borrowedDataHandle)->GetDataWrite(t);
 
 		do_transform<TR, TA, TCF>(argUnit, argDataA->GetAbstrValuesUnit(), argData.begin(), argData.end(), resultData.begin());
 	}
@@ -1067,14 +1078,15 @@ class ConvertAttrOperator : public AbstrCastedUnaryAttrOperator
 
 public:
 	ConvertAttrOperator(AbstrOperGroup* gr, bool reverseArgs = false)
-		:	AbstrCastedUnaryAttrOperator(gr
-			,	ResultType::GetStaticClass() 
-				,	Arg1Type::GetStaticClass()
-				,	Arg2Type::GetStaticClass()
-			,	composition_of_v<TR>
-			,	reverseArgs
-			)
-		{}
+		: AbstrCastedUnaryAttrOperator(gr
+			, ResultType::GetStaticClass()
+			, Arg1Type::GetStaticClass()
+			, Arg2Type::GetStaticClass()
+			, composition_of_v<TR>
+			, reverseArgs
+		)
+	{
+	}
 
 	// Override Operator
 	auto CreateFutureTileCaster(SharedPtr<AbstrDataItem> resultAdi, bool lazy, const AbstrUnit* valuesUnitA, const AbstrDataItem* arg1A, const AbstrUnit* argUnitA MG_DEBUG_ALLOCATOR_SRC(SharedStr srcStr)) const -> SharedPtr<const AbstrDataObject> override
@@ -1103,7 +1115,7 @@ public:
 	void Calculate(AbstrDataObject* borrowedDataHandle, const AbstrDataItem* argDataA, const AbstrUnit* argUnit, tile_id t) const override
 	{
 		auto argData = const_array_cast<TA>(argDataA)->GetDataRead(t);
-		auto resultData =  mutable_array_cast<TR>(borrowedDataHandle)->GetDataWrite(t);
+		auto resultData = mutable_array_cast<TR>(borrowedDataHandle)->GetDataWrite(t);
 
 		do_convert<TR, TA, ConversionFunctor>(argUnit, argDataA->GetAbstrValuesUnit(), argData.begin(), argData.end(), resultData.begin());
 	}
@@ -1120,21 +1132,22 @@ class MappingOperator : public AbstrMappingOperator
 
 public:
 	MappingOperator()
-		:	AbstrMappingOperator(&cog_mapping
-			,	ResultType::GetStaticClass() 
-				,	Arg1Type::GetStaticClass()
-				,	Arg2Type::GetStaticClass()
-			)
-		{}
+		: AbstrMappingOperator(&cog_mapping
+			, ResultType::GetStaticClass()
+			, Arg1Type::GetStaticClass()
+			, Arg2Type::GetStaticClass()
+		)
+	{
+	}
 
 	// Override Operator
 	void Calculate(AbstrDataObject* borrowedDataHandle, const AbstrUnit* argDomainUnit, const AbstrUnit* argValuesUnit, tile_id t) const override
 	{
-		auto resultData =  mutable_array_cast<TR>(borrowedDataHandle)->GetDataWrite(t);
+		auto resultData = mutable_array_cast<TR>(borrowedDataHandle)->GetDataWrite(t);
 
 		do_mapping<TR, TA, TypeConversionF<std::false_type>>(
-			debug_cast<const Unit<TR>*>(argValuesUnit), 
-			debug_cast<const Unit<TA>*>(argDomainUnit), t, 
+			debug_cast<const Unit<TR>*>(argValuesUnit),
+			debug_cast<const Unit<TA>*>(argDomainUnit), t,
 			resultData.begin(), resultData.end()
 		);
 	}
@@ -1158,7 +1171,8 @@ public:
 			, Arg2Type::GetStaticClass()
 			, Arg3Type::GetStaticClass()
 		)
-	{}
+	{
+	}
 
 	// Override Operator
 	void Calculate(DataWriteHandle& borrowedDataHandle, const AbstrUnit* argDomainUnit, const AbstrUnit* argValuesUnit, tile_id t) const override
@@ -1187,21 +1201,22 @@ ConstUnitRef cast_unit_creator_field(const AbstrOperGroup* gr, const ArgSeqType&
 
 
 template <typename TR, typename TA>
-struct CastAttrOperator: UnaryAttrOperator<TR, TA>
+struct CastAttrOperator : UnaryAttrOperator<TR, TA>
 {
 	CastAttrOperator(AbstrOperGroup* gr)
-		:	UnaryAttrOperator<TR, TA>(gr, ArgFlags(), cast_unit_creator_field<TR>, composition_of_v<TR>)
-	{}
+		: UnaryAttrOperator<TR, TA>(gr, ArgFlags(), cast_unit_creator_field<TR>, composition_of_v<TR>)
+	{
+	}
 
 	void CalcTile(sequence_traits<TR>::seq_t resData, sequence_traits<TA>::cseq_t arg1Data, const AbstrUnit* argVU, ArgFlags af MG_DEBUG_ALLOCATOR_SRC_ARG) const override
 	{
 		assert(arg1Data.size() == resData.size());
 
-		do_transform<TR, TA, boost::mpl::quote2<Type0DConversionFunctor<std::false_type>::Type0DConversion> >(
+		do_transform<TR, TA, tl::bind_placeholders<Type0DConversionFunctor<std::false_type>::Type0DConversion, ph::_1, ph::_2> >(
 			Unit<field_of_t<TR>>::GetStaticClass()->CreateDefault()
-		,	Unit<field_of_t<TA>>::GetStaticClass()->CreateDefault()
-		,	arg1Data.begin(), arg1Data.end()
-		,	resData.begin()
+			, Unit<field_of_t<TA>>::GetStaticClass()->CreateDefault()
+			, arg1Data.begin(), arg1Data.end()
+			, resData.begin()
 		);
 	}
 };
@@ -1219,17 +1234,18 @@ class AsDataStringOperator : public UnaryOperator
 
 public:
 	AsDataStringOperator(AbstrOperGroup* gr)
-		:	UnaryOperator(gr
+		: UnaryOperator(gr
 			, ResultType::GetStaticClass()
-			,	Arg1Type::GetStaticClass()
-			) 
-	{}
+			, Arg1Type::GetStaticClass()
+		)
+	{
+	}
 
 	// Override Operator
 	bool CreateResult(TreeItemDualRef& resultHolder, const ArgSeqType& args, bool mustCalc) const override
 	{
 		dms_assert(args.size() == 1);
-		
+
 		const Arg1Type* arg1 = AsDataItem(args[0]);
 
 		dms_assert(arg1);
@@ -1250,7 +1266,7 @@ public:
 			DataWriteLock resLock(res);
 			ResultType* result = mutable_array_cast<SharedStr>(resLock);
 
-			Assign(result->GetDataWrite()[0], SharedStr(CharPtrRange(dataBegin, dataBegin+ vout.CurrPos())));
+			Assign(result->GetDataWrite()[0], SharedStr(CharPtrRange(dataBegin, dataBegin + vout.CurrPos())));
 
 			resLock.Commit();
 		}
@@ -1262,7 +1278,7 @@ public:
 //											UnitGroups
 // *****************************************************************************
 
-template <typename V> 
+template <typename V>
 CommonOperGroup* GetUnitGroup()
 {
 	static CommonOperGroup cog(ValueWrap<V>::GetStaticClass()->GetID());
@@ -1289,12 +1305,12 @@ namespace {
 
 #include "LispTreeType.h"
 
-namespace 
+namespace
 {
-	AbstrOperGroup* RD2LatLong_og     () { static CommonOperGroup cog("RD2LatLong"     ); return &cog; }
-	AbstrOperGroup* RD2LatLongEd50_og () { static CommonOperGroup cog("RD2LatLongEd50"); return &cog; }
+	AbstrOperGroup* RD2LatLong_og() { static CommonOperGroup cog("RD2LatLong"); return &cog; }
+	AbstrOperGroup* RD2LatLongEd50_og() { static CommonOperGroup cog("RD2LatLongEd50"); return &cog; }
 	AbstrOperGroup* RD2LatLongWgs84_og() { static CommonOperGroup cog("RD2LatLongWgs84"); return &cog; }
-	AbstrOperGroup* RD2LatLongGE_og   () { static CommonOperGroup cog("RD2LatLongGE"); return &cog; }
+	AbstrOperGroup* RD2LatLongGE_og() { static CommonOperGroup cog("RD2LatLongGE"); return &cog; }
 	AbstrOperGroup* LatLongWgs842RD_og() { static CommonOperGroup cog("LatLongWgs842RD"); return &cog; }
 
 	template <typename TR, typename TA>
@@ -1306,13 +1322,14 @@ namespace
 			, cRD2LLWgs84(RD2LatLongWgs84_og())
 			, cRD2LLGE(RD2LatLongGE_og())
 			, cLLWgs842RD(LatLongWgs842RD_og())
-		{}
+		{
+		}
 
-		TransformAttrOperator < TR, TA, boost::mpl::quote2<RD2LatLong     > > cRD2LL;
-		TransformAttrOperator < TR, TA, boost::mpl::quote2<RD2LatLongEd50 > > cRD2LLEd50;
-		TransformAttrOperator < TR, TA, boost::mpl::quote2<RD2LatLongWgs84> > cRD2LLWgs84;
-		TransformAttrOperator < TR, TA, boost::mpl::quote2<RD2LatLongGE   > > cRD2LLGE;
-		TransformAttrOperator < TR, TA, boost::mpl::quote2<LatLongWgs842RD> > cLLWgs842RD;
+		TransformAttrOperator < TR, TA, tl::bind_placeholders<RD2LatLong, ph::_1, ph::_2> > cRD2LL;
+		TransformAttrOperator < TR, TA, tl::bind_placeholders<RD2LatLongEd50, ph::_1, ph::_2> > cRD2LLEd50;
+		TransformAttrOperator < TR, TA, tl::bind_placeholders<RD2LatLongWgs84, ph::_1, ph::_2> > cRD2LLWgs84;
+		TransformAttrOperator < TR, TA, tl::bind_placeholders<RD2LatLongGE, ph::_1, ph::_2> > cRD2LLGE;
+		TransformAttrOperator < TR, TA, tl::bind_placeholders<LatLongWgs842RD, ph::_1, ph::_2> > cLLWgs842RD;
 	};
 
 	template <typename TR, typename TA>
@@ -1333,39 +1350,53 @@ namespace
 	CommonOperGroup cog_Convert(token::convert);
 	CommonOperGroup cog_RoundedConvert(token::rounded_convert);
 
-	template <typename TA, typename TRL>
+	template <typename TRL>
 	struct convertAndCastOpers
 	{
-		convertAndCastOpers()
-			: convertOpers(&cog_Convert, false)
-			, lookupOpers(&cog_lookup, true) // support for v[u] notation, which becomes lookup(u, v)
-		{}
+		template <typename TA>
+		struct apply_TA
+		{
+			using ConvertOpers = tl_oper::inst_tuple<TRL, tl::bind_placeholders<ConvertAttrOperator, ph::_1, TA, std::false_type> >;
+			using CastOpers = tl_oper::inst_tuple<TRL, tl::bind_placeholders<NamedCastAttrOper, ph::_1, TA> >;
 
-		tl_oper::inst_tuple<TRL, ConvertAttrOperator<_, TA, std::false_type >, AbstrOperGroup*, bool> convertOpers;
-		tl_oper::inst_tuple<TRL, ConvertAttrOperator<_, TA, std::false_type >, AbstrOperGroup*, bool> lookupOpers;
-		tl_oper::inst_tuple<TRL, NamedCastAttrOper  <_, TA> > castOpers;
+			// Members
+			ConvertOpers m_convertOpers{ &cog_Convert, false };
+			ConvertOpers m_lookupOpers { &cog_lookup , true }; // same type, different args
+			CastOpers    m_castOpers   {};                     // support for v[u] notation, which becomes lookup(u, v)
+		};
 	};
-	template <typename TA, typename TRL>
+
+	template <typename TRL>
 	struct roundedConvertOpers
 	{
-		roundedConvertOpers()
-			: roundedConvertOpers_(&cog_RoundedConvert, false)
+		template <typename TA>
+		struct apply_TA
 		{
-		}
-
-		tl_oper::inst_tuple<TRL, ConvertAttrOperator<_, TA, std::true_type>, AbstrOperGroup*, bool> roundedConvertOpers_;
+			using rco = tl_oper::inst_tuple<TRL, tl::bind_placeholders<ConvertAttrOperator, ph::_1, TA, std::true_type>>;
+			rco m_RoundedConvertOpers_{ &cog_RoundedConvert, false };
+		};
 	};
-	template <typename TA, typename TRL>
+
+	template <typename TRL>
 	struct mappingOpers
 	{
-		tl_oper::inst_tuple<TRL, MappingOperator<_, TA> > m_MappingOpers;
+		template <typename TA>
+		struct apply_TA
+		{
+			tl_oper::inst_tuple<TRL, tl::bind_placeholders<MappingOperator, ph::_1, TA> > m_MappingOpers;
+		};
 	};
-	template <typename TA, typename TRL>
+
+	template <typename TRL>
 	struct mappingCountOpers
 	{
-		tl_oper::inst_tuple<TRL, MappingCountOperator<_, TA, UInt8 > > m_MappingCountOpers_08;
-		tl_oper::inst_tuple<TRL, MappingCountOperator<_, TA, UInt16> > m_MappingCountOpers_16;
-		tl_oper::inst_tuple<TRL, MappingCountOperator<_, TA, UInt32> > m_MappingCountOpers_32;
+		template <typename TA>
+		struct apply_TA
+		{
+			tl_oper::inst_tuple<TRL, tl::bind_placeholders<MappingCountOperator, ph::_1, TA, UInt8 > > m_MappingCountOpers_08;
+			tl_oper::inst_tuple<TRL, tl::bind_placeholders<MappingCountOperator, ph::_1, TA, UInt16> > m_MappingCountOpers_16;
+			tl_oper::inst_tuple<TRL, tl::bind_placeholders<MappingCountOperator, ph::_1, TA, UInt32> > m_MappingCountOpers_32;
+		};
 	};
 
 
@@ -1373,33 +1404,33 @@ namespace
 	Rd2LlOpersWithSeq<DPoint, FPoint> rd2llDF;
 	Rd2LlOpersWithSeq<FPoint, FPoint> rd2llFF;
 
-	convertAndCastOpers< SharedStr, typelists::strings>   stringConvertAndCastOpers;
+	convertAndCastOpers<typelists::strings>::apply_TA<SharedStr>   stringConvertAndCastOpers;
 
-	tl_oper::inst_tuple<typelists::scalars, convertAndCastOpers<_, typelists::numerics> > numericConvertAndCastOpers;
-	tl_oper::inst_tuple<typelists::floats, roundedConvertOpers<_, typelists::numerics> > numericRoundedConvertOpers;
+	tl_oper::inst_tuple_templ<typelists::scalars, convertAndCastOpers<typelists::numerics>::apply_TA > numericConvertAndCastOpers;
+	tl_oper::inst_tuple_templ<typelists::floats, roundedConvertOpers<typelists::numerics>::apply_TA > numericRoundedConvertOpers;
 
-	tl_oper::inst_tuple<typelists::points, convertAndCastOpers<_, typelists::points   > > pointConvertAndCastOpers;
-	tl_oper::inst_tuple<typelists::numeric_sequences, convertAndCastOpers<_, typelists::numeric_sequences> > numericSequenceConvertAndCastOpers;
-	tl_oper::inst_tuple<typelists::point_sequences, convertAndCastOpers<_, typelists::point_sequences> > pointSequenceConvertAndCastOpers;
+	tl_oper::inst_tuple_templ<typelists::points, convertAndCastOpers<typelists::points   >::apply_TA > pointConvertAndCastOpers;
+	tl_oper::inst_tuple_templ<typelists::numeric_sequences, convertAndCastOpers<typelists::numeric_sequences>::apply_TA > numericSequenceConvertAndCastOpers;
+	tl_oper::inst_tuple_templ<typelists::point_sequences, convertAndCastOpers<typelists::point_sequences>::apply_TA > pointSequenceConvertAndCastOpers;
 
-	tl_oper::inst_tuple<typelists::points, convertAndCastOpers<_, typelists::strings> > points2stringConvertAndCastOpers;
-	tl_oper::inst_tuple<typelists::sequences, convertAndCastOpers<_, typelists::strings> > seq2stringConvertAndCastOpers;
+	tl_oper::inst_tuple_templ<typelists::points, convertAndCastOpers<typelists::strings>::apply_TA > points2stringConvertAndCastOpers;
+	tl_oper::inst_tuple_templ<typelists::sequences, convertAndCastOpers<typelists::strings>::apply_TA > seq2stringConvertAndCastOpers;
 
-	tl_oper::inst_tuple<typelists::ints, mappingOpers<_, typelists::num_objects> > numericMappingOpers;
-	tl_oper::inst_tuple<typelists::domain_points, mappingOpers<_, typelists::points   > > pointMappingOpers;
-	tl_oper::inst_tuple<typelists::domain_points, mappingCountOpers<_, typelists::domain_points   > > pointMappingCountOpers;
-	tl_oper::inst_tuple<typelists::sequences, NamedCastAttrOper  <_, SharedStr> > castSequenceOpers;
-//		convertAndCastOpers< SharedStr, typelists::points>    points2stringConvertAndCastOpers;
-//		convertAndCastOpers< SharedStr, typelists::sequences> seq2stringConvertAndCastOpers;
-//TEST */
+	tl_oper::inst_tuple_templ<typelists::ints         , mappingOpers<typelists::num_objects>::apply_TA > numericMappingOpers;
+	tl_oper::inst_tuple_templ<typelists::domain_points, mappingOpers<typelists::points     >::apply_TA > pointMappingOpers;
+	tl_oper::inst_tuple_templ<typelists::domain_points, mappingCountOpers<typelists::domain_points>::apply_TA > pointMappingCountOpers;
+	tl_oper::inst_tuple<typelists::sequences, tl::bind_placeholders<NamedCastAttrOper  , ph::_1, SharedStr> > castSequenceOpers;
+	//		convertAndCastOpers< SharedStr, typelists::points>    points2stringConvertAndCastOpers;
+	//		convertAndCastOpers< SharedStr, typelists::sequences> seq2stringConvertAndCastOpers;
+	//TEST */
 
-	//	ConstAttrOperator
-//	#define INSTANTIATE(x) ConstAttrOperator<x> ca##x;
-//	INSTANTIATE_FLD_ELEM
+		//	ConstAttrOperator
+	//	#define INSTANTIATE(x) ConstAttrOperator<x> ca##x;
+	//	INSTANTIATE_FLD_ELEM
 
-	tl_oper::inst_tuple<typelists::fields, ConstAttrOperator<_>> constAttrOpers;
+	tl_oper::inst_tuple_templ<typelists::fields, ConstAttrOperator> constAttrOpers;
 
-	#define PI	3.14159265358979323846
+#define PI	3.14159265358979323846
 
 	CommonOperGroup cog_true(token::true_);
 	CommonOperGroup cog_false(token::false_);

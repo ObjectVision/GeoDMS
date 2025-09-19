@@ -252,36 +252,36 @@ namespace {
 	CommonOperGroup cog_maxelemK("max_elem_ifdefined", oper_policy::allow_extra_args);
 
 
-	tl_oper::inst_tuple<typelists::numerics, ArgMinMaxOperGenerator<UInt32, MinMaxOperType::Minimum, null_policy::simple, true>::template apply<_>, AbstrOperGroup& > argMinOpers   (cog_argmin);
-	tl_oper::inst_tuple<typelists::numerics, ArgMinMaxOperGenerator<UInt32, MinMaxOperType::Maximum, null_policy::simple, true>::template apply<_>, AbstrOperGroup& > argMaxOpers   (cog_argmax);
-	tl_oper::inst_tuple<typelists::numerics, ArgMinMaxOperGenerator<UInt8 , MinMaxOperType::Minimum, null_policy::simple, true>::template apply<_>, AbstrOperGroup& > argMinOpersU8 (cog_argmin8);
-	tl_oper::inst_tuple<typelists::numerics, ArgMinMaxOperGenerator<UInt8 , MinMaxOperType::Maximum, null_policy::simple, true>::template apply<_>, AbstrOperGroup& > argMaxOpersU8 (cog_argmax8);
-	tl_oper::inst_tuple<typelists::numerics, ArgMinMaxOperGenerator<UInt16, MinMaxOperType::Minimum, null_policy::simple, true>::template apply<_>, AbstrOperGroup& > argMinOpersU16(cog_argmin16);
-	tl_oper::inst_tuple<typelists::numerics, ArgMinMaxOperGenerator<UInt16, MinMaxOperType::Maximum, null_policy::simple, true>::template apply<_>, AbstrOperGroup& > argMaxOpersU16(cog_argmax16);
+	tl_oper::inst_tuple_templ<typelists::numerics, ArgMinMaxOperGenerator<UInt32, MinMaxOperType::Minimum, null_policy::simple, true>::apply> argMinOpers   (cog_argmin);
+	tl_oper::inst_tuple_templ<typelists::numerics, ArgMinMaxOperGenerator<UInt32, MinMaxOperType::Maximum, null_policy::simple, true>::apply> argMaxOpers   (cog_argmax);
+	tl_oper::inst_tuple_templ<typelists::numerics, ArgMinMaxOperGenerator<UInt8 , MinMaxOperType::Minimum, null_policy::simple, true>::apply> argMinOpersU8 (cog_argmin8);
+	tl_oper::inst_tuple_templ<typelists::numerics, ArgMinMaxOperGenerator<UInt8 , MinMaxOperType::Maximum, null_policy::simple, true>::apply> argMaxOpersU8 (cog_argmax8);
+	tl_oper::inst_tuple_templ<typelists::numerics, ArgMinMaxOperGenerator<UInt16, MinMaxOperType::Minimum, null_policy::simple, true>::apply> argMinOpersU16(cog_argmin16);
+	tl_oper::inst_tuple_templ<typelists::numerics, ArgMinMaxOperGenerator<UInt16, MinMaxOperType::Maximum, null_policy::simple, true>::apply> argMaxOpersU16(cog_argmax16);
 
-	tl_oper::inst_tuple<typelists::numerics, ArgMinMaxOperGenerator<UInt32, MinMaxOperType::Minimum, null_policy::certain, true>::template apply<_>, AbstrOperGroup& > argMinCOpers(cog_argminC);
-	tl_oper::inst_tuple<typelists::numerics, ArgMinMaxOperGenerator<UInt32, MinMaxOperType::Maximum, null_policy::certain, true>::template apply<_>, AbstrOperGroup& > argMaxCOpers(cog_argmaxC);
-	tl_oper::inst_tuple<typelists::numerics, ArgMinMaxOperGenerator<UInt8, MinMaxOperType::Minimum, null_policy::certain, true>::template apply<_>, AbstrOperGroup& > argMinCOpersU8(cog_argminC8);
-	tl_oper::inst_tuple<typelists::numerics, ArgMinMaxOperGenerator<UInt8, MinMaxOperType::Maximum, null_policy::certain, true>::template apply<_>, AbstrOperGroup& > argMaxCOpersU8(cog_argmaxC8);
-	tl_oper::inst_tuple<typelists::numerics, ArgMinMaxOperGenerator<UInt16, MinMaxOperType::Minimum, null_policy::certain, true>::template apply<_>, AbstrOperGroup& > argMinCOpersU16(cog_argminC16);
-	tl_oper::inst_tuple<typelists::numerics, ArgMinMaxOperGenerator<UInt16, MinMaxOperType::Maximum, null_policy::certain, true>::template apply<_>, AbstrOperGroup& > argMaxCOpersU16(cog_argmaxC16);
+	tl_oper::inst_tuple_templ<typelists::numerics, ArgMinMaxOperGenerator<UInt32, MinMaxOperType::Minimum, null_policy::certain, true>::apply> argMinCOpers(cog_argminC);
+	tl_oper::inst_tuple_templ<typelists::numerics, ArgMinMaxOperGenerator<UInt32, MinMaxOperType::Maximum, null_policy::certain, true>::apply> argMaxCOpers(cog_argmaxC);
+	tl_oper::inst_tuple_templ<typelists::numerics, ArgMinMaxOperGenerator<UInt8, MinMaxOperType::Minimum, null_policy::certain, true>::apply> argMinCOpersU8(cog_argminC8);
+	tl_oper::inst_tuple_templ<typelists::numerics, ArgMinMaxOperGenerator<UInt8, MinMaxOperType::Maximum, null_policy::certain, true>::apply> argMaxCOpersU8(cog_argmaxC8);
+	tl_oper::inst_tuple_templ<typelists::numerics, ArgMinMaxOperGenerator<UInt16, MinMaxOperType::Minimum, null_policy::certain, true>::apply> argMinCOpersU16(cog_argminC16);
+	tl_oper::inst_tuple_templ<typelists::numerics, ArgMinMaxOperGenerator<UInt16, MinMaxOperType::Maximum, null_policy::certain, true>::apply> argMaxCOpersU16(cog_argmaxC16);
 
-	tl_oper::inst_tuple<typelists::numerics, ArgMinMaxOperGenerator<UInt32, MinMaxOperType::Minimum, null_policy::known, true>::template apply<_>, AbstrOperGroup& > argMinKOpers(cog_argminK);
-	tl_oper::inst_tuple<typelists::numerics, ArgMinMaxOperGenerator<UInt32, MinMaxOperType::Maximum, null_policy::known, true>::template apply<_>, AbstrOperGroup& > argMaxKOpers(cog_argmaxK);
-	tl_oper::inst_tuple<typelists::numerics, ArgMinMaxOperGenerator<UInt8, MinMaxOperType::Minimum, null_policy::known, true>::template apply<_>, AbstrOperGroup& > argMinKOpersU8(cog_argminK8);
-	tl_oper::inst_tuple<typelists::numerics, ArgMinMaxOperGenerator<UInt8, MinMaxOperType::Maximum, null_policy::known, true>::template apply<_>, AbstrOperGroup& > argMaxKOpersU8(cog_argmaxK8);
-	tl_oper::inst_tuple<typelists::numerics, ArgMinMaxOperGenerator<UInt16, MinMaxOperType::Minimum, null_policy::known, true>::template apply<_>, AbstrOperGroup& > argMinKOpersU16(cog_argminK16);
-	tl_oper::inst_tuple<typelists::numerics, ArgMinMaxOperGenerator<UInt16, MinMaxOperType::Maximum, null_policy::known, true>::template apply<_>, AbstrOperGroup& > argMaxKOpersU16(cog_argmaxK16);
+	tl_oper::inst_tuple_templ<typelists::numerics, ArgMinMaxOperGenerator<UInt32, MinMaxOperType::Minimum, null_policy::known, true>::apply> argMinKOpers(cog_argminK);
+	tl_oper::inst_tuple_templ<typelists::numerics, ArgMinMaxOperGenerator<UInt32, MinMaxOperType::Maximum, null_policy::known, true>::apply> argMaxKOpers(cog_argmaxK);
+	tl_oper::inst_tuple_templ<typelists::numerics, ArgMinMaxOperGenerator<UInt8, MinMaxOperType::Minimum, null_policy::known, true>::apply> argMinKOpersU8(cog_argminK8);
+	tl_oper::inst_tuple_templ<typelists::numerics, ArgMinMaxOperGenerator<UInt8, MinMaxOperType::Maximum, null_policy::known, true>::apply> argMaxKOpersU8(cog_argmaxK8);
+	tl_oper::inst_tuple_templ<typelists::numerics, ArgMinMaxOperGenerator<UInt16, MinMaxOperType::Minimum, null_policy::known, true>::apply> argMinKOpersU16(cog_argminK16);
+	tl_oper::inst_tuple_templ<typelists::numerics, ArgMinMaxOperGenerator<UInt16, MinMaxOperType::Maximum, null_policy::known, true>::apply> argMaxKOpersU16(cog_argmaxK16);
 
-	tl_oper::inst_tuple<typelists::numerics, ArgMinMaxOperGenerator<UInt32, MinMaxOperType::Minimum, null_policy::fast,  true>::template apply<_>, AbstrOperGroup& > argMinOpers_fast(cog_argmin_fast);
-	tl_oper::inst_tuple<typelists::numerics, ArgMinMaxOperGenerator<UInt32, MinMaxOperType::Maximum, null_policy::fast,  true>::template apply<_>, AbstrOperGroup& > argMaxOpers_fast(cog_argmax_fast);
+	tl_oper::inst_tuple_templ<typelists::numerics, ArgMinMaxOperGenerator<UInt32, MinMaxOperType::Minimum, null_policy::fast,  true>::apply> argMinOpers_fast(cog_argmin_fast);
+	tl_oper::inst_tuple_templ<typelists::numerics, ArgMinMaxOperGenerator<UInt32, MinMaxOperType::Maximum, null_policy::fast,  true>::apply> argMaxOpers_fast(cog_argmax_fast);
 
-	tl_oper::inst_tuple<typelists::numerics, ArgMinMaxOperGenerator<void, MinMaxOperType::Minimum, null_policy::simple, false>::template apply<_>, AbstrOperGroup& > minElemOpers(cog_minelem);
-	tl_oper::inst_tuple<typelists::numerics, ArgMinMaxOperGenerator<void, MinMaxOperType::Maximum, null_policy::simple, false>::template apply<_>, AbstrOperGroup& > maxElemOpers(cog_maxelem);
-	tl_oper::inst_tuple<typelists::numerics, ArgMinMaxOperGenerator<void, MinMaxOperType::Minimum, null_policy::fast,  false>::template apply<_>, AbstrOperGroup& > minElemFastOpers_fast(cog_minelem_fast);
-	tl_oper::inst_tuple<typelists::numerics, ArgMinMaxOperGenerator<void, MinMaxOperType::Maximum, null_policy::fast,  false>::template apply<_>, AbstrOperGroup& > maxElemFastOpers_fast(cog_maxelem_fast);
-	tl_oper::inst_tuple<typelists::numerics, ArgMinMaxOperGenerator<void, MinMaxOperType::Minimum, null_policy::certain, false>::template apply<_>, AbstrOperGroup& > minElemCOpers(cog_minelemC);
-	tl_oper::inst_tuple<typelists::numerics, ArgMinMaxOperGenerator<void, MinMaxOperType::Maximum, null_policy::certain, false>::template apply<_>, AbstrOperGroup& > maxElemCOpers(cog_maxelemC);
-	tl_oper::inst_tuple<typelists::numerics, ArgMinMaxOperGenerator<void, MinMaxOperType::Minimum, null_policy::known, false>::template apply<_>, AbstrOperGroup& > minElemKOpers(cog_minelemK);
-	tl_oper::inst_tuple<typelists::numerics, ArgMinMaxOperGenerator<void, MinMaxOperType::Maximum, null_policy::known, false>::template apply<_>, AbstrOperGroup& > maxElemKOpers(cog_maxelemK);
+	tl_oper::inst_tuple_templ<typelists::numerics, ArgMinMaxOperGenerator<void, MinMaxOperType::Minimum, null_policy::simple, false>::apply> minElemOpers(cog_minelem);
+	tl_oper::inst_tuple_templ<typelists::numerics, ArgMinMaxOperGenerator<void, MinMaxOperType::Maximum, null_policy::simple, false>::apply> maxElemOpers(cog_maxelem);
+	tl_oper::inst_tuple_templ<typelists::numerics, ArgMinMaxOperGenerator<void, MinMaxOperType::Minimum, null_policy::fast,  false>::apply> minElemFastOpers_fast(cog_minelem_fast);
+	tl_oper::inst_tuple_templ<typelists::numerics, ArgMinMaxOperGenerator<void, MinMaxOperType::Maximum, null_policy::fast,  false>::apply> maxElemFastOpers_fast(cog_maxelem_fast);
+	tl_oper::inst_tuple_templ<typelists::numerics, ArgMinMaxOperGenerator<void, MinMaxOperType::Minimum, null_policy::certain, false>::apply> minElemCOpers(cog_minelemC);
+	tl_oper::inst_tuple_templ<typelists::numerics, ArgMinMaxOperGenerator<void, MinMaxOperType::Maximum, null_policy::certain, false>::apply> maxElemCOpers(cog_maxelemC);
+	tl_oper::inst_tuple_templ<typelists::numerics, ArgMinMaxOperGenerator<void, MinMaxOperType::Minimum, null_policy::known, false>::apply> minElemKOpers(cog_minelemK);
+	tl_oper::inst_tuple_templ<typelists::numerics, ArgMinMaxOperGenerator<void, MinMaxOperType::Maximum, null_policy::known, false>::apply> maxElemKOpers(cog_maxelemK);
 } // namespace

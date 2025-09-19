@@ -125,6 +125,6 @@ namespace
 	struct ltFunc { template<typename V, typename W> bool operator() (const V& a, const W& b) { return a < b; }; template<typename V> static V StartValue() { return MAX_VALUE(V);  } };
 	struct gtFunc { template<typename V, typename W> bool operator() (const V& a, const W& b) { return b < a; }; template<typename V> static V StartValue() { return MIN_VALUE(V); }};
 
-	tl_oper::inst_tuple<typelists::numerics, MinMaxIndexOperator<_, ltFunc>, AbstrOperGroup&> s_MinIndexOpers(cog_MinIndex);
-	tl_oper::inst_tuple<typelists::numerics, MinMaxIndexOperator<_, gtFunc>, AbstrOperGroup&> s_MaxIndexOpers(cog_MaxIndex);
+	tl_oper::inst_tuple<typelists::numerics, tl::bind_placeholders<MinMaxIndexOperator, ph::_1, ltFunc>> s_MinIndexOpers(cog_MinIndex);
+	tl_oper::inst_tuple<typelists::numerics, tl::bind_placeholders<MinMaxIndexOperator, ph::_1, gtFunc>> s_MaxIndexOpers(cog_MaxIndex);
 }

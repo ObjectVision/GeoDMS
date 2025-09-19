@@ -217,7 +217,7 @@ public:
 template <typename T>
 struct PerimeterOperators : PerimeterOperator<T>
 {
-	tl_oper::inst_tuple<typelists::floats, WeightedPerimeterOperator<T, _> > weightedPerimeterOpers;
+	tl_oper::inst_tuple<typelists::floats, tl::bind_placeholders<WeightedPerimeterOperator, T, ph::_1> > weightedPerimeterOpers;
 };
 
 namespace

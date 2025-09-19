@@ -218,9 +218,9 @@ namespace
 	CommonOperGroup cog_jev_u64("join_equal_values_uint64", op);
 
 	using domains = typelists::domain_ints; // domain_elements;
-	tl_oper::inst_tuple<domains, JoinEqualValuesOperator<UInt32, _>, AbstrOperGroup&> jevOpers    (cog_jev);
-	tl_oper::inst_tuple<domains, JoinEqualValuesOperator<UInt8 , _>, AbstrOperGroup&> jevOpers_u8 (cog_jev_u8);
-	tl_oper::inst_tuple<domains, JoinEqualValuesOperator<UInt16, _>, AbstrOperGroup&> jevOpers_u16(cog_jev_u16);
-	tl_oper::inst_tuple<domains, JoinEqualValuesOperator<UInt32, _>, AbstrOperGroup&> jevOpers_u32(cog_jev_u32);
-	tl_oper::inst_tuple<domains, JoinEqualValuesOperator<UInt64, _>, AbstrOperGroup&> jevOpers_u64(cog_jev_u64);
+	tl_oper::inst_tuple<domains, tl::bind_placeholders<JoinEqualValuesOperator, UInt32, ph::_1>> jevOpers    (cog_jev);
+	tl_oper::inst_tuple<domains, tl::bind_placeholders<JoinEqualValuesOperator, UInt8 , ph::_1>> jevOpers_u8 (cog_jev_u8);
+	tl_oper::inst_tuple<domains, tl::bind_placeholders<JoinEqualValuesOperator, UInt16, ph::_1>> jevOpers_u16(cog_jev_u16);
+	tl_oper::inst_tuple<domains, tl::bind_placeholders<JoinEqualValuesOperator, UInt32, ph::_1>> jevOpers_u32(cog_jev_u32);
+	tl_oper::inst_tuple<domains, tl::bind_placeholders<JoinEqualValuesOperator, UInt64, ph::_1>> jevOpers_u64(cog_jev_u64);
 } // end anonymous namespace

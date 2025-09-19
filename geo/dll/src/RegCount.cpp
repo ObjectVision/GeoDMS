@@ -147,7 +147,7 @@ struct RegTileCounterBase : UnitProcessor
 };
 
 template <typename ActorType>
-struct RegTileCounter :  boost::mpl::fold<typelists::uints, RegTileCounterBase<ActorType>, VisitorImpl<Unit<boost::mpl::_2>, boost::mpl::_1> >::type
+struct RegTileCounter : fold_t<typelists::uints, RegTileCounterBase<ActorType>, UnitVisitorImpl>
 {};
 
 

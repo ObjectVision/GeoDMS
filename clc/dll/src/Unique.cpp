@@ -389,14 +389,14 @@ public:
 
 namespace 
 {
-	tl_oper::inst_tuple_templ<typelists::value_elements, UniqueOperator, AbstrOperGroup&, const UnitClass*, bool>
+	tl_oper::inst_tuple_templ<typelists::value_elements, UniqueOperator>
 		uniqueOperatorsXX(cog_unique, nullptr, true)
 		, uniqueOperators64(cog_unique64, Unit<UInt64>::GetStaticClass(), true)
 		, uniqueOperators32(cog_unique32, Unit<UInt32>::GetStaticClass(), true)
 		, uniqueOperators16(cog_unique16, Unit<UInt16>::GetStaticClass(), true)
 		, uniqueOperators08(cog_unique08, Unit<UInt8>::GetStaticClass(), true);
 
-	tl_oper::inst_tuple_templ<typelists::value_elements, UniqueOperator, AbstrOperGroup&, const UnitClass*, bool>
+	tl_oper::inst_tuple_templ<typelists::value_elements, UniqueOperator>
 		uniqueOperatorsWN(cog_uniqueWN, nullptr, false)
 		, uniqueOperators64WN(cog_unique64WN, Unit<UInt64>::GetStaticClass(), false)
 		, uniqueOperators32WN(cog_unique32WN, Unit<UInt32>::GetStaticClass(), false)

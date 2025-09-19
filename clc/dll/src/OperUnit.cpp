@@ -1214,15 +1214,15 @@ namespace
 	};
 
 	CommonOperGroup cog_NrOfRows("NrOfRows");
-	tl_oper::inst_tuple_templ<typelists::domain_elements, NrOfRowsOperator, AbstrOperGroup* > nrOfRowsOpers(&cog_NrOfRows);
+	tl_oper::inst_tuple_templ<typelists::domain_elements, NrOfRowsOperator> nrOfRowsOpers(&cog_NrOfRows);
 
 	tl_oper::inst_tuple_templ<typelists::tiled_domain_elements, TiledDomainOperators > tiledDomainOpers;
 
 	tl_oper::inst_tuple_templ<typelists::ranged_unit_objects, UnitRangeOperators > unitRangeOpers;
 	tl_oper::inst_tuple_templ<typelists::bints, UnitFixedRangeOperators > unitFixedRangeOpers;
 
-	tl_oper::inst_tuple_templ<typelists::domain_objects, UnitRange2Operator, AbstrOperGroup*, bool> unitCatRange2Opers(&cog_CatRange, true);
-	tl_oper::inst_tuple_templ<typelists::domain_objects, UnitRange3Operator, AbstrOperGroup*, bool> unitCatRange3Opers(&cog_CatRange, true);
+	tl_oper::inst_tuple_templ<typelists::domain_objects, UnitRange2Operator> unitCatRange2Opers(&cog_CatRange, true);
+	tl_oper::inst_tuple_templ<typelists::domain_objects, UnitRange3Operator> unitCatRange3Opers(&cog_CatRange, true);
 
 	CommonOperGroup cog_combine("combine", oper_policy::allow_extra_args);
 	CommonOperGroup cog_combine08("combine_uint8", oper_policy::allow_extra_args);
@@ -1249,9 +1249,9 @@ namespace
 	UnitCombineOperator<UInt64> g_UnitCombineu64(cog_combineu64, false);
 
 
-	tl_oper::inst_tuple<typelists::points, PointOperators<_> > pointOpers;
+	tl_oper::inst_tuple_templ<typelists::points, PointOperators > pointOpers;
 
-	tl_oper::inst_tuple<typelists::ranged_unit_objects, BaseUnitOperator<_> > baseUnitOpers; // here the 2nd arg is a unit of which only the UnitClass is requested
+	tl_oper::inst_tuple_templ<typelists::ranged_unit_objects, BaseUnitOperator > baseUnitOpers; // here the 2nd arg is a unit of which only the UnitClass is requested
 	BaseUnitObsoleteOperator  buOldOper; // actually this DOES calc_always the 2nd arg (typename string)
 
 	SpecialOperGroup sog_DefUnit("DefaultUnit", 1, &oap_BaseUnit[0], oper_policy::dynamic_result_class); // arg0 is typename str: calc_always
@@ -1259,7 +1259,7 @@ namespace
 	DefaultUnitOperator defOper(&sog_DefUnit);
 
 	// give default unit
-	tl_oper::inst_tuple<typelists::all_unit_types, Default0UnitOperator<_> > defaultUnitOpers; // here the 2nd arg is a unit of which only the UnitClass is requested
+	tl_oper::inst_tuple_templ<typelists::all_unit_types, Default0UnitOperator > defaultUnitOpers; // here the 2nd arg is a unit of which only the UnitClass is requested
 
 	oper_arg_policy oap_DataUnit = oper_arg_policy::calc_as_result;
 	SpecialOperGroup sog_DomainUnit("DomainUnit", 1, &oap_DataUnit, oper_policy(oper_policy::existing | oper_policy::dynamic_result_class));
@@ -1274,6 +1274,5 @@ namespace
 		castUnitOperator() : CastUnitOperatorBase(GetUnitGroup<V>(), Unit<V>::GetStaticClass())
 		{}
 	};
-	tl_oper::inst_tuple<typelists::numerics, castUnitOperator<_> > castUnitOpers;
-
+	tl_oper::inst_tuple_templ<typelists::numerics, castUnitOperator > castUnitOpers;
 }

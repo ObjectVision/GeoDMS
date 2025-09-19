@@ -235,13 +235,13 @@ namespace
 			using LookupOperator<T, V>::LookupOperator; // inherit contructors;
 		};
 
-		tl_oper::inst_tuple_templ<typelists::domain_elements, LookupVOperator, AbstrOperGroup&> m_Operators;
+		tl_oper::inst_tuple_templ<typelists::domain_elements, LookupVOperator> m_Operators;
 
 		lookup_instances(AbstrOperGroup& aog) : m_Operators(aog) {}
 	};
 
-	tl_oper::inst_tuple_templ<typelists::value_elements, lookup_instances, AbstrOperGroup&> operLookup(cog_lookup);
-	tl_oper::inst_tuple_templ<typelists::value_elements, lookup_instances, AbstrOperGroup&> operCollectByOrgRel(cog_collect_by_org_rel);
+	tl_oper::inst_tuple_templ<typelists::value_elements, lookup_instances> operLookup(cog_lookup);
+	tl_oper::inst_tuple_templ<typelists::value_elements, lookup_instances> operCollectByOrgRel(cog_collect_by_org_rel);
 
 } // end anonymous namespace
 

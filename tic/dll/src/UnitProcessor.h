@@ -21,23 +21,19 @@
 
 template <typename Host>
 struct UnitVisitor {
-	virtual void Visit(const Host* inviter) const  { throwIllegalAbstract(MG_POS, inviter, "UnitVisitor"); }
-};
+	virtual void Visit(const Unit<Host>* inviter) const  { throwIllegalAbstract(MG_POS, inviter, "UnitVisitor"); }
 
-struct UnitProcessor
-	:	boost::mpl::fold<
-			typelists::all_unit_types
-		,	tl_oper::impl::empty_base<>
-		,	tl_oper::impl::scattered_hierarchy<UnitVisitor<Unit<boost::mpl::_2> >, boost::mpl::_1>
-	>	::	type
-{};
+};
+using UnitVisitorsList = tl::transform_t<typelists::all_unit_types, tl::bind_placeholders<UnitVisitor, ph::_1>>;
+
+struct UnitProcessor: inherit_all<UnitVisitorsList> {};
 
 template <typename Host, typename Base>
-struct VisitorImpl : Base
+struct UnitVisitorImpl : Base
 {
 	using Base::Base; // inherit ctors
 
-	void Visit(const Host* inviter) const override 
+	void Visit(const Unit<Host>* inviter) const override 
 	{ 
 		this->VisitImpl(inviter); 
 	}
@@ -58,9 +54,9 @@ struct AutoLambdaCallerBase : UnitProcessor
 };
 
 template<typename TypeList, typename AutoLambda>
-struct UnitLambdaCaller : boost::mpl::fold<TypeList, AutoLambdaCallerBase<AutoLambda>, VisitorImpl<Unit<_2>, _1> >::type
+struct UnitLambdaCaller : fold_t<TypeList, AutoLambdaCallerBase<AutoLambda>, UnitVisitorImpl>
 {
-	using base_type = boost::mpl::fold<TypeList, AutoLambdaCallerBase<AutoLambda>, VisitorImpl<Unit<_2>, _1> >::type;
+	using base_type = fold_t<TypeList, AutoLambdaCallerBase<AutoLambda>, UnitVisitorImpl>;
 	using base_type::base_type; // inherit ctors
 };
 

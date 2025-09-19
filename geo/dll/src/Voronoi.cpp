@@ -248,7 +248,7 @@ namespace
 {
 	CommonOperGroup cogTR("triangualize");
 
-	tl_oper::inst_tuple_templ<typelists::seq_points, TriangualizeOperator, AbstrOperGroup*> trOPers(&cogTR);
+	tl_oper::inst_tuple_templ<typelists::seq_points, TriangualizeOperator> trOPers(&cogTR);
 }
 
 /******************************************************************************/

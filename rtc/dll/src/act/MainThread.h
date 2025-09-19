@@ -14,6 +14,7 @@
 #include "Parallel.h"
 #include <map>
 #include <deque>
+#include <functional>
 
 enum {
 	WM_QT_ACTIVATENOTIFIERS = 0x402,

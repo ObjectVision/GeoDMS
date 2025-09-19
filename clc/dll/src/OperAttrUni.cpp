@@ -87,7 +87,7 @@ namespace
 	};
 
 	#define UNARY_TL_INSTANTIATION(TL, M, MetaFunc, Group) \
-		tl_oper::inst_tuple<TL, UnaryAttr##M##Operator<MetaFunc<_> >, AbstrOperGroup*> s_##TL##MetaFunc(Group)
+		tl_oper::inst_tuple<TL, tl::bind_placeholders<UnaryAttr##M##Operator, MetaFunc<ph::_1> >> s_##TL##MetaFunc(Group)
 
 	CommonOperGroup cog_neg("neg");
 	CommonOperGroup cog_not("not");
@@ -186,5 +186,5 @@ namespace
 	INST(rtrim);
 #undef INST
 
-	tl_oper::inst_tuple_templ<num_objects, UnitSqrtOperator, AbstrOperGroup*> g_UnitSqrtOper(&cog_sqrt);
+	tl_oper::inst_tuple_templ<num_objects, UnitSqrtOperator> g_UnitSqrtOper(&cog_sqrt);
 }

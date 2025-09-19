@@ -25,42 +25,54 @@ class DataItemClass;
 #include "RtcTypeLists.h"
 #include "utl/TypeListOper.h"
 
+// ----- left-fold over a typelist -----
+// fold<type_list<Ts...>, State, F> computes F<Tn, F<Tn-1, ... F<T1, State>...>>
+template<class List, class State, template<class, class> class F>
+struct fold;
+
+template<class State, template<class, class> class F>
+struct fold<tl::type_list<>, State, F> { using type = State; };
+
+template<class Head, class... Tail, class State, template<class, class> class F>
+struct fold<tl::type_list<Head, Tail...>, State, F> {
+	using type =
+		typename fold<tl::type_list<Tail...>, F<Head, State>, F>::type;
+};
+
+template<class List, class State, template<class, class> class F>
+using fold_t = typename fold<List, State, F>::type;
+
+struct empty_base {};
+
+//----------------------------------------------------------------------
+
 template <typename Host>
-struct ValueClassVisitor {
+struct ValueClassVisitorBase {
 	virtual void Visit(const Host* /*inviter*/) const { throwIllegalAbstract(MG_POS, "ValueClassVisitor"); }
 };
 
-struct ValueClassProcessor1
-	: boost::mpl::fold<typelists::vc_types
-	, tl_oper::impl::empty_base<>
-	, tl_oper::impl::scattered_hierarchy<ValueClassVisitor<boost::mpl::_2>, boost::mpl::_1>
-	>	::type
-{};
+// 3) Turn each Host into ValueClassVisitor<Host>.
+using AllHosts = tl::jv2_t<typelists::vc_types, typelists::range_objects>;
+using ValueClassVisitorsList = tl::transform_t<AllHosts, tl::bind_placeholders<ValueClassVisitorBase, ph::_1>>;
 
-struct ValueClassProcessor2
-	: boost::mpl::fold<typelists::range_objects
-	, tl_oper::impl::empty_base<>
-	, tl_oper::impl::scattered_hierarchy<ValueClassVisitor<boost::mpl::_2>, boost::mpl::_1>
-	>	::type
-{};
+// 4) Inherit from all these visitors and lift their overloads.
+template<class List> struct inherit_all;
 
-struct ValueClassProcessor : ValueClassProcessor1, ValueClassProcessor2
-{};
-
-template <typename Host, typename Base>
-struct ValueClassVisitorImpl : Base
-{
-	using Base::Base; // inherit ctors
-
-	void Visit(const Host* inviter) const override
-	{
-		this->VisitImpl(inviter);
-	}
+template<class... Bases>
+struct inherit_all<tl::type_list<Bases...>> : Bases... {
+	// Bring every Visit overload into this scope so calls like
+	//   proc.Visit((SomeHost*)ptr);
+	// find the right one without qualification.
+	using Bases::Visit...;
 };
+
+// 5) Your processor now *implements* (via inheritance) a virtual Visit for each Host.
+struct ValueClassVisitor : inherit_all<ValueClassVisitorsList> {};
+
 
 
 template<typename ValueClassAutoLambda>
-struct ValueClassAutoLambdaCallerBase : ValueClassProcessor
+struct ValueClassAutoLambdaCallerBase : ValueClassVisitor
 {
 	ValueClassAutoLambdaCallerBase(ValueClassAutoLambda&& al) : m_AutoLambda(std::forward<ValueClassAutoLambda>(al)) {};
 	ValueClassAutoLambda m_AutoLambda;
@@ -72,11 +84,30 @@ struct ValueClassAutoLambdaCallerBase : ValueClassProcessor
 	}
 };
 
-template<typename TypeList, typename AutoLambda>
-struct ValueClassLambdaCaller : boost::mpl::fold<TypeList, ValueClassAutoLambdaCallerBase<AutoLambda>, ValueClassVisitorImpl<_2, _1> >::type
+
+// --------- BOOST-FREE replacement for the MPL fold ---------
+template <typename Host, typename Base>
+struct ValueClassProcessorImpl : Base
 {
-	using base_type = boost::mpl::fold<TypeList, ValueClassAutoLambdaCallerBase<AutoLambda>, ValueClassVisitorImpl<_2, _1> >::type;
-	using base_type::base_type; // inherit ctors
+	using Base::Base; // inherit ctors
+
+	void Visit(const Host* inviter) const override
+	{
+		this->VisitImpl(inviter);
+	}
+};
+
+template<typename TypeList, typename AutoLambda>
+struct ValueClassLambdaCaller
+	: fold_t<TypeList,
+	ValueClassAutoLambdaCallerBase<AutoLambda>,
+	ValueClassProcessorImpl> // F<Host, Base>
+{
+	using base_type =
+		fold_t<TypeList,
+		ValueClassAutoLambdaCallerBase<AutoLambda>,
+		ValueClassProcessorImpl>;
+	using base_type::base_type; // inherit constructors
 };
 
 //----------------------------------------------------------------------
@@ -88,7 +119,7 @@ class ValueClass  : public Class
 	using base_type = Class;
 
 public:
-	using InviterFunc = void(*)(const ValueClassProcessor*);
+	using InviterFunc = void(*)(const ValueClassVisitor*);
 
 	ValueClass(
 		Constructor           cFunc, 
@@ -113,7 +144,7 @@ public:
 	~ValueClass();
 
 	RTC_CALL AbstrValue*  CreateValue() const;
-	void InviteProcessor(ValueClassProcessor* vcp) const { dms_assert(m_iFunc); m_iFunc(vcp); }
+	void InviteProcessor(ValueClassVisitor* vcp) const { dms_assert(m_iFunc); m_iFunc(vcp); }
 
 	UInt32  GetSize   () const { return m_Size;      }
 	UInt32  GetBitSize() const { return m_BitSize;   }

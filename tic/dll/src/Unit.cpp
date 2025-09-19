@@ -1249,7 +1249,7 @@ template <class V>
 void Unit<V>::InviteUnitProcessor(const UnitProcessor& visitor) const
 {
 //	visitor.Visit(this);
-	const UnitVisitor<Unit<V> >& castedVisitor = visitor;
+	const UnitVisitor<V>& castedVisitor = visitor;
 	castedVisitor.Visit(this);
 }
 
@@ -1289,10 +1289,7 @@ const Class* Unit<T>::GetDynamicClass() const
 
 namespace {
 	TypeListClassReg<
-		tl::transform<
-			typelists::all_unit_types
-		,	Unit<_>
-		>
+		tl::transform_templ<typelists::all_unit_types, Unit>
 	> s_x;
 
 	template <typename V>
@@ -1309,8 +1306,8 @@ namespace {
 		IrregularTileRangeData<V>* itr = nullptr;
 	};
 
-	tl_oper::inst_tuple_templ<typelists::ranged_unit_objects, RangeProp, bool > unitRangeProps(false);
-	tl_oper::inst_tuple_templ<typelists::ranged_unit_objects, RangeProp, bool > unitCatRangeProps(true);
+	tl_oper::inst_tuple_templ<typelists::ranged_unit_objects, RangeProp> unitRangeProps(false);
+	tl_oper::inst_tuple_templ<typelists::ranged_unit_objects, RangeProp> unitCatRangeProps(true);
 
 	tl_oper::inst_tuple_templ<typelists::tiled_domain_elements, TiledUnitInstantiator > tui;
 }

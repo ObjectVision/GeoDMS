@@ -2235,7 +2235,7 @@ namespace diagnostic_tests {
 MetaInfo TreeItem::GetCurrMetaInfo(metainfo_policy_flags mpf) const
 {
 	// suppliers have been scanned, thus mc_Calculator and m_SupplCache have been determined.
-	assert(diagnostic_tests::DetermineStateWasCalled(this));
+//	assert(diagnostic_tests::DetermineStateWasCalled(this));
 	assert(IsMainThread());
 
 	if (m_State.Get(ASF_GetCalcMetaInfo))

@@ -251,22 +251,14 @@ namespace {
 		}
 	};
 
-	// Generator for HasAnyOperator
-	struct HasAnyOperatorGenerator {
-		template <typename EnumType> struct Operator : HasAnyOperator<EnumType> {
-			using base_type = HasAnyOperator<EnumType>;
-			using base_type::base_type;
-		};
-	};
-
 	// Register partition count operators for all partition element types and result count types
-	tl_oper::inst_tuple_templ<typelists::partition_elements, PartCountOperatorGenerator<Undefined>::Operator, AbstrOperGroup& > partCountOpers(cog_pcount);
-	tl_oper::inst_tuple_templ<typelists::partition_elements, PartCountOperatorGenerator<UInt8    >::Operator, AbstrOperGroup& > partCountOpers8(cog_pcount_uint8);
-	tl_oper::inst_tuple_templ<typelists::partition_elements, PartCountOperatorGenerator<UInt16   >::Operator, AbstrOperGroup& > partCountOpers16(cog_pcount_uint16);
-	tl_oper::inst_tuple_templ<typelists::partition_elements, PartCountOperatorGenerator<UInt32   >::Operator, AbstrOperGroup& > partCountOpers32(cog_pcount_uint32);
-	tl_oper::inst_tuple_templ<typelists::partition_elements, PartCountOperatorGenerator<UInt64   >::Operator, AbstrOperGroup& > partCountOpers64(cog_pcount_uint64);
+	tl_oper::inst_tuple_templ<typelists::partition_elements, PartCountOperatorGenerator<Undefined>::Operator> partCountOpers(cog_pcount);
+	tl_oper::inst_tuple_templ<typelists::partition_elements, PartCountOperatorGenerator<UInt8    >::Operator> partCountOpers8(cog_pcount_uint8);
+	tl_oper::inst_tuple_templ<typelists::partition_elements, PartCountOperatorGenerator<UInt16   >::Operator> partCountOpers16(cog_pcount_uint16);
+	tl_oper::inst_tuple_templ<typelists::partition_elements, PartCountOperatorGenerator<UInt32   >::Operator> partCountOpers32(cog_pcount_uint32);
+	tl_oper::inst_tuple_templ<typelists::partition_elements, PartCountOperatorGenerator<UInt64   >::Operator> partCountOpers64(cog_pcount_uint64);
 
 	// Register "has any" operators for all partition element types
-	tl_oper::inst_tuple<typelists::partition_elements, HasAnyOperatorGenerator::Operator<_>, AbstrOperGroup& > hasAnyOpers(cog_has_any);
+	tl_oper::inst_tuple_templ<typelists::partition_elements, HasAnyOperator> hasAnyOpers(cog_has_any);
 } // end anonymous namespace
 

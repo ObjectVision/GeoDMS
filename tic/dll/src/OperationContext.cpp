@@ -599,7 +599,7 @@ TIC_CALL tg_maintainer::tg_maintainer()
 	// build policy: pin min/max concurrency to number of vCPUs
 	concurrency::SchedulerPolicy policy(2, concurrency::MinConcurrency, GetNrVCPUs(), concurrency::MaxConcurrency, GetNrVCPUs());
 
-	// install that policy as the DEFAULT scheduler’s policy --
+	// install that policy as the DEFAULT schedulerâ€™s policy --
 	// must do this *before* any parallel work runs
 	concurrency::Scheduler::SetDefaultSchedulerPolicy(policy);
 
@@ -2094,11 +2094,11 @@ auto FindAndLicenceOnePriorityTasks() -> OperationContextSPtr
 		if (!ocSPtr)
 			continue; // expired
 
-		// try to grab the license—only one thread ever wins per OC
+		// try to grab the licenseâ€”only one thread ever wins per OC
 		if (ocSPtr->getUniqueLicenseToRun(false))
-			return ocSPtr; // we can do one piece of inline work—go do it (now you must) and re-check your fences/status
+			return ocSPtr; // we can do one piece of inline workâ€”go do it (now you must) and re-check your fences/status
 		else
-			garbage.emplace_back(std::move(ocSPtr)); // maybe we-re the last owner and we dón't wat to destry here 
+			garbage.emplace_back(std::move(ocSPtr)); // maybe we-re the last owner and we dÃ³n't wat to destry here 
 		// otherwise, someone else is already running it; try the next one
 	}
 	return {};

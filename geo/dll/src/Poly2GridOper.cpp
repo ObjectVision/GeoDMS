@@ -971,7 +971,7 @@ struct Poly2AllGridsOperator : public BinaryOperator
 		using PolygonType = sequence_traits<PointType>::container_type;
 		using PolygonDataType = DataArray<PolygonType>;
 
-		tl_oper::inst_tuple_templ<typelists::domain_points, DomainInst, const DataItemClass*> m_AllDomainsInst = PolygonDataType::GetStaticClass();
+		tl_oper::inst_tuple_templ<typelists::domain_points, DomainInst> m_AllDomainsInst = PolygonDataType::GetStaticClass();
 	};
 
 namespace
