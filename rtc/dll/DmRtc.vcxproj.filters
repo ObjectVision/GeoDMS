@@ -911,9 +911,6 @@
     <ClCompile Include="src\mth\BigInt.cpp">
       <Filter>Mathematic Utilities</Filter>
     </ClCompile>
-    <ClCompile Include="src\mth\Mathlib.cpp">
-      <Filter>Mathematic Utilities</Filter>
-    </ClCompile>
     <ClCompile Include="src\ptr\SharedStr.cpp">
       <Filter>Smart Pointers</Filter>
     </ClCompile>

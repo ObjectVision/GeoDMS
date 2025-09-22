@@ -307,7 +307,7 @@ int main(int argc, char** argv)
 
 	auto result = main_with_error_report(argc, argv);
 
-	// 4) when you’re done, detach so the default scheduler resumes
+	// 4) when youâ€™re done, detach so the default scheduler resumes
 //	concurrency::CurrentScheduler::Detach();
 
 	return result;

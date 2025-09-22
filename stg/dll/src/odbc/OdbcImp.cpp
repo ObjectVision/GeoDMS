@@ -179,10 +179,10 @@ void Check(const SQLRETURN ret, const SQLSMALLINT handletype, const SQLHANDLE ha
 	SQL_TINYINT 			3 
 	SQL_TYPE_DATE			10 (yyyy-mm-dd). 
 	SQL_TYPE_TIME			8	(hh-mm-ss), 
-								9 + s (hh:mm:ss[.fff…], s is the seconds precision). 
+								9 + s (hh:mm:ss[.fffâ€¦], s is the seconds precision). 
 	SQL_TYPE_TIMESTAMP	16 (yyyy-mm-dd-hh:mm) 
 								19 (yyyy-mm-dd hh:mm:ss)
-								20 + s (yyyy-mm-dd hh:mm:ss[.fff…], where s is the seconds precision). 
+								20 + s (yyyy-mm-dd hh:mm:ss[.fffâ€¦], where s is the seconds precision). 
 	SQL_VARBINARY(n)		n 
 	SQL_VARCHAR(n)			n
 */

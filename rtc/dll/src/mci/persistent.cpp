@@ -256,7 +256,7 @@ const Object* Object::_GetAs(const Class* cls) const
 // Section:     PersistentSharedObj impl
 // *****************************************************************************
 
-const PersistentSharedObj* PersistentSharedObj::GetParent() const
+[[nodiscard]] const PersistentSharedObj* PersistentSharedObj::GetParent() const noexcept
 {
 	return nullptr;
 }
@@ -273,7 +273,7 @@ const PersistentSharedObj* PersistentSharedObj::GetRoot() const
 	}
 }
 
-bool PersistentSharedObj::DoesContain(const PersistentSharedObj* subItemCandidate) const
+bool PersistentSharedObj::DoesContain(const PersistentSharedObj* subItemCandidate) const noexcept
 {
 	while (subItemCandidate)
 	{

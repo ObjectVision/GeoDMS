@@ -1142,7 +1142,7 @@ retry:
 
 // ============ GetParent
 
-const PersistentSharedObj* TreeItem::GetParent () const
+[[nodiscard]] const PersistentSharedObj* TreeItem::GetParent () const noexcept
 {
 	return GetTreeParent();
 }

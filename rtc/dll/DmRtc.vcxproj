@@ -371,7 +371,6 @@
     <ClCompile Include="src\mth\BigInt.cpp" />
     <ClCompile Include="src\utl\Case.cpp" />
     <ClCompile Include="src\set\IndexedStrings.cpp" />
-    <ClCompile Include="src\mth\Mathlib.cpp" />
     <ClCompile Include="src\set\Token.cpp" />
     <ClCompile Include="src\xml\XmlConst.cpp" />
     <ClCompile Include="src\xml\XMLOut.cpp" />
