@@ -939,22 +939,9 @@ public:
 		resultHolder = resDomain;
 
 		AbstrDataItem* resSub   = CreateDataItem(resDomain, token::geometry, resDomain, polyUnit, ValueComposition::Sequence);
-		if (!mustCalc)
-		{
-			auto resSub_depreciated = CreateDataItem(resDomain, GetTokenID_mt("UnionData"), resDomain, polyUnit, ValueComposition::Sequence);
-			resSub_depreciated->SetTSF(TSF_Depreciated);
-			resSub_depreciated->SetReferredItem(resSub);
-		}
-
 		AbstrDataItem* resNrOrg = CreateDataItem(resDomain, token::arc_rel, resDomain, arg1A->GetAbstrDomainUnit());
+
 		resNrOrg->SetTSF(TSF_Categorical);
-		if (!mustCalc)
-		{
-			auto resNrOrg_depreciated = CreateDataItem(resDomain, token::nr_OrgEntity, resDomain, arg1A->GetAbstrDomainUnit());
-			resNrOrg_depreciated->SetTSF(TSF_Categorical);
-			resNrOrg_depreciated->SetTSF(TSF_Depreciated);
-			resNrOrg_depreciated->SetReferredItem(resNrOrg);
-		}
 
 		MG_PRECONDITION(resSub);
 
