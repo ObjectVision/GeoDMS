@@ -74,7 +74,7 @@
 //   - Preserve all original logic; only add comments.
 //   - Keep comments concise but informative for future maintainers.
 //
-// No functional changes below—only comments added.
+// No functional changes belowâ€”only comments added.
 // ============================================================================
 
 #include "GeoPCH.h"

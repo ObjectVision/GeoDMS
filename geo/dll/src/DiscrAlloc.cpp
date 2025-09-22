@@ -31,7 +31,7 @@
 
 /*
 	discrete allocation, O(n*k), see:
-		Tokuyama, T., & Nakano, J.(1995). Efficient algorithms for the Hitchcock transportation problem. SIAM Journal on Computing, 24(3), 563–578.
+		Tokuyama, T., & Nakano, J.(1995). Efficient algorithms for the Hitchcock transportation problem. SIAM Journal on Computing, 24(3), 563â€“578.
 		Koomen, E., Hilferink, M., & Borsboom-van Beurden, J. (2011). Introducing land use scanner (pp. 3-21). Springer Netherlands. paragraph 1.3.3
 */
 
@@ -124,7 +124,7 @@ results in:
 
 
 	See:
-	Edelsbrunner, H. And Mücke, E. Simulation of simplicity: a technique to cope with degenerate cases in geometric algorithms, 4th Annual ACM Symposium on Computational Geometry (1988) 118-133.
+	Edelsbrunner, H. And MÃ¼cke, E. Simulation of simplicity: a technique to cope with degenerate cases in geometric algorithms, 4th Annual ACM Symposium on Computational Geometry (1988) 118-133.
 */
 
 #define EPSILON(x) (x)

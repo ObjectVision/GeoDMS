@@ -50,7 +50,7 @@
 //   - Per OD LinkSet sequences (od_LS) built by reverse walking TB links
 //
 // Sparse vs Dense mode decision:
-//   - Sparse result when flags(df & SparseResult) and OD mode — uses stamping arrays per origin
+//   - Sparse result when flags(df & SparseResult) and OD mode â€” uses stamping arrays per origin
 //   - Dense mode: directly positions OD results at (org * nrDst + dst)
 //
 // Safety & assertions:

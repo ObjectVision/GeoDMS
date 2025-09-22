@@ -39,8 +39,8 @@
 //             - Wait until resTileAddition[tr].m_NrAddedTiles >= ti
 //               (serialized accumulation order).
 //             - If tr intersects overlapTileRect: Store(...)
-//               • If first contribution: copy / assign
-//               • Else: additive accumulation (or max for Proximity)
+//               â€¢ If first contribution: copy / assign
+//               â€¢ Else: additive accumulation (or max for Proximity)
 //             - Increment m_NrAddedTiles and notify waiters.
 // 9. Commit result write handle.
 // 10. Instantiation block registers multiple DirectPotentialOperator<T>
@@ -67,8 +67,8 @@
 // -----------------------------------------------------------------------------
 // - incremental = (result tile already had contributions).
 // - Potential / Proximity modes differ:
-//     • Potential modes: additive accumulation (sum).
-//     • Proximity: max accumulation.
+//     â€¢ Potential modes: additive accumulation (sum).
+//     â€¢ Proximity: max accumulation.
 // - First writer copies result in directly without clearing the tile, because
 //   DataWriteHandle was initialized with zero (write_only_mustzero).
 //
