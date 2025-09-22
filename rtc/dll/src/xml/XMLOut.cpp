@@ -256,7 +256,7 @@ void OutStream_XmlBase::WriteValueWithConfigSourceDecorations(CharPtr data)
 
 	while (currPos < dataSize)
 	{
-		auto currLineEnd = std::find(data+currPos, data+dataSize, '\n')-data;
+		auto currLineEnd = static_cast<std::size_t>(std::find(data+currPos, data+dataSize, '\n')-data);
 
 		while (currPos < currLineEnd)
 		{

@@ -131,7 +131,7 @@ std::mutex s_TileTaskGroupsMutex;
 static bool s_IsCancelled = false;
 
 // Number of worker threads currently running DoThisOrThatAndDecommission loop.
-static int s_NrRunningTileTaskThreads = 0;
+static UInt32 s_NrRunningTileTaskThreads = 0;
 
 // Internal: pop a valid commissioned slot from any registered tile_task_group.
 // Requires s_TileTaskGroupsMutex to be held.
@@ -479,7 +479,7 @@ const TreeItem* s_CurrPhaseContainer = nullptr;
 
 using context_array = std::vector<OperationContextWPtr>;
 using contexts_within_one_phase = std::deque<OperationContextWPtr>;
-using RunningOperationsCounter = Int32;
+using RunningOperationsCounter = UInt32;
 
 // protected by exclusive lock on cs_ThreadMessing
 static std::map<phase_number, contexts_within_one_phase> s_ScheduledContextsMap;
@@ -1453,6 +1453,7 @@ void OperationContext::releaseRunCount(task_status status)
 
 #if defined(MG_TRACE_OPERATIONCONTEXTS)
 		CheckNumberOfRunningOCConsistency();
+		assert(s_NrActivatedOrRunningOperations[m_PhaseNumber] > 0);
 #endif
 		auto nrRunning = --s_NrActivatedOrRunningOperations[m_PhaseNumber];
 

@@ -481,11 +481,12 @@ int mysnprintf<Int64>(char* charBuf, UInt32 bufLen, CharPtr formatOut, Int64 val
 #define DISABLE_UNDEF_HANDLING(X)
 
 #define DEFINE_FORMATTED_STREAMABLE(T, U, C, UNDEF_HANDLER) \
-RTC_CALL int AsCharArrayBase(T value, char* buffer, UInt32 bufLen) \
+RTC_CALL UInt32 AsCharArrayBase(T value, char* buffer, UInt32 bufLen) \
 { \
+	assert(bufLen < UInt32(-1)); \
 	auto to_chars_result = std::to_chars(buffer, buffer + bufLen, value); \
-	if (to_chars_result.ec != std::errc()) return -1;  \
-	int actualSize = to_chars_result.ptr - buffer; \
+	if (to_chars_result.ec != std::errc()) return UInt32(-1);  \
+	auto actualSize = static_cast<UInt32>(to_chars_result.ptr - buffer); \
 	assert(actualSize > 0 && actualSize <= bufLen); \
 	return actualSize; \
 } \
@@ -497,7 +498,8 @@ RTC_CALL FormattedOutStream& operator <<(FormattedOutStream& str, T value) \
 	{ \
 		char charBuf[C+1]; \
 		auto actualSize = AsCharArrayBase(value, charBuf, C+1); \
-		if (actualSize > 0) str.Buffer().WriteBytes(charBuf, actualSize); \
+		if (actualSize > 0u && actualSize <= C+1) \
+			str.Buffer().WriteBytes(charBuf, actualSize); \
 	} \
 	return str; \
 } \
@@ -529,7 +531,7 @@ RTC_CALL bool AsCharArray(T value, char* buffer, UInt32 bufLen) \
 		} \
 	) \
 	auto actualSize = AsCharArrayBase(value, buffer, bufLen); \
-	return actualSize > 0 && actualSize <= bufLen; \
+	return actualSize > 0u && actualSize <= bufLen; \
 } 
 			
 DEFINE_FORMATTED_STREAMABLE(UInt32, UInt32, 13, ENABLE_UNDEF_HANDLING)
