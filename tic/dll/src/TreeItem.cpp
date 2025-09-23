@@ -3490,29 +3490,6 @@ static how_to_proceed PrepareDataRead(SharedPtr<const TreeItem> self, const Tree
 			FutureSuppliers futureSuppliers;
 
 			// If self is a DataItem, ensure its AbstrDomainUnit calculation (if any) is a dependency.
-			if (IsDataItem(self.get()))
-				if (auto selfAdu = AsDataItem(self.get())->GetAbstrDomainUnit())
-				{
-					// If the domain unit has a DataController, make it a future supplier.
-					if (auto aduDC = selfAdu->GetCheckedDC())
-					{
-						auto fut = aduDC->CallCalcResult();
-						if (fut)
-							futureSuppliers.emplace_back(std::move(fut));
-					}
-				}
-			if (IsDataItem(refItem))
-				if (auto refAdu = AsDataItem(refItem)->GetAbstrDomainUnit())
-				{
-					// If the domain unit has a DataController, make it a future supplier.
-					if (auto aduDC = refAdu->GetCheckedDC())
-					{
-						auto fut = aduDC->CallCalcResult();
-						if (fut)
-							futureSuppliers.emplace_back(std::move(fut));
-					}
-				}
-
 			*ocPtrPtr = OperationContext::CreateItemWriter(const_cast<TreeItem*>(refItem),
 				[storageParent
 				, ocWeakPtrPtr = std::weak_ptr<OcPtr>(ocPtrPtr)
