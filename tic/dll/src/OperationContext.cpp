@@ -759,7 +759,9 @@ void scheduleRunnableTask(OperationContext* self)
 
 	s_ScheduledContextsMap[fn].emplace_back(self->weak_from_this());
 	self->releaseRunCount(task_status::scheduled);
-//	self->m_Status = task_status::scheduled;
+
+	assert(self->m_Status == task_status::scheduled);
+	assert(IsDefined(getScheduledContextsPos(self->shared_from_this()))); // always true for scheduled tasks outzide cs_ThreadMessing
 }
 
 // *****************************************************************************
@@ -985,6 +987,16 @@ auto collectOperationContexts() -> std::pair<context_array, garbage_can>
 			}
 		}
 		// Drop processed scheduled contexts.
+#if defined(MG_DEBUG)
+		for (auto sciPtr = scheduledContexts.begin(); sciPtr != currContext; ++sciPtr)
+		{
+			if (auto sci = sciPtr->lock())
+			{
+				assert(IsDefined(getScheduledContextsPos(sci->shared_from_this()))); // always true for scheduled tasks outzide cs_ThreadMessing
+				assert(sci->m_Status != task_status::scheduled);
+			}
+		}
+#endif
 		scheduledContexts.erase(scheduledContexts.begin(), currContext);
 		if (!scheduledContexts.empty())
 			break;
