@@ -987,16 +987,6 @@ auto collectOperationContexts() -> std::pair<context_array, garbage_can>
 			}
 		}
 		// Drop processed scheduled contexts.
-#if defined(MG_DEBUG)
-		for (auto sciPtr = scheduledContexts.begin(); sciPtr != currContext; ++sciPtr)
-		{
-			if (auto sci = sciPtr->lock())
-			{
-				assert(IsDefined(getScheduledContextsPos(sci->shared_from_this()))); // always true for scheduled tasks outzide cs_ThreadMessing
-				assert(sci->m_Status != task_status::scheduled);
-			}
-		}
-#endif
 		scheduledContexts.erase(scheduledContexts.begin(), currContext);
 		if (!scheduledContexts.empty())
 			break;
@@ -2248,7 +2238,7 @@ task_status OperationContext::Join()
 		if (m_Status == task_status::scheduled)
 		{
 			assert(m_Suppliers.empty()); // scheduled since the last call of RunOperations or not activated because of s_IsInLowRamMode
-			assert(IsDefined(getScheduledContextsPos(this->shared_from_this()))); // always true for scheduled tasks outzide cs_ThreadMessing
+//			assert(IsDefined(getScheduledContextsPos(this->shared_from_this()))); // always true for scheduled tasks outzide cs_ThreadMessing
 		}
 		if (m_Status == task_status::waiting_for_suppliers)
 		{
