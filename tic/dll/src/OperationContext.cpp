@@ -759,7 +759,9 @@ void scheduleRunnableTask(OperationContext* self)
 
 	s_ScheduledContextsMap[fn].emplace_back(self->weak_from_this());
 	self->releaseRunCount(task_status::scheduled);
-//	self->m_Status = task_status::scheduled;
+	assert(self->m_Status == task_status::scheduled);
+	assert(!self->m_FuncDC || self->GetOperator()->CanRunParallel());
+
 }
 
 // *****************************************************************************
@@ -985,6 +987,16 @@ auto collectOperationContexts() -> std::pair<context_array, garbage_can>
 			}
 		}
 		// Drop processed scheduled contexts.
+
+#if defined(MG_DEBUG)
+		for (auto contextPtr = scheduledContexts.begin(); contextPtr != currContext; ++contextPtr)
+			if (auto activatedContext = contextPtr->lock())
+			{
+				assert(activatedContext->m_Status != task_status::scheduled);
+			}
+
+#endif
+
 		scheduledContexts.erase(scheduledContexts.begin(), currContext);
 		if (!scheduledContexts.empty())
 			break;
@@ -1167,6 +1179,7 @@ bool OperationContext_ConnectArgs(OperationContext* oc, const FutureSuppliers& a
 void OperationContext_scheduleThis(OperationContext* self)
 {
 	assert(self);
+	assert(!self->m_FuncDC || self->GetOperator()->CanRunParallel());
 
 	if (self->getStatus() != task_status::none)
 		return;
@@ -1179,7 +1192,16 @@ void OperationContext_scheduleThis(OperationContext* self)
 	else
 	{
 		for (const auto& s : self->m_Suppliers)
-			OperationContext_scheduleThis(s.get());
+		{
+			auto supplier = s.get();
+			assert(supplier);
+			if (supplier->m_FuncDC && !supplier->GetOperator()->CanRunParallel())
+			{
+				assert(supplier->m_Status == task_status::done);
+			}
+			else
+				OperationContext_scheduleThis(supplier);
+		}
 		self->m_Status = task_status::waiting_for_suppliers;
 	}
 }
@@ -1197,6 +1219,7 @@ void OperationContext_ScheduleThis(OperationContext* self)
 task_status OperationContext::Schedule(TreeItem* item, const FutureSuppliers& allArgInterest, bool runDirect, explain_context_ptr_t context)
 {
 	assert(IsMetaThread());
+	assert(!m_FuncDC || GetOperator()->CanRunParallel() || runDirect);
 
 	assert(UpdateMarker::IsInActiveState());
 	assert(m_Status == task_status::none || context);
