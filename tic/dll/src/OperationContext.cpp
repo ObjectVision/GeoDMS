@@ -761,7 +761,7 @@ void scheduleRunnableTask(OperationContext* self)
 	self->releaseRunCount(task_status::scheduled);
 	assert(self->m_Status == task_status::scheduled);
 	assert(!self->m_FuncDC || self->GetOperator()->CanRunParallel());
-
+	assert(IsDefined(getScheduledContextsPos(self->shared_from_this()))); // always true for scheduled tasks outzide cs_ThreadMessing
 }
 
 // *****************************************************************************
@@ -2259,7 +2259,7 @@ task_status OperationContext::Join()
 		if (m_Status == task_status::scheduled)
 		{
 			assert(m_Suppliers.empty()); // scheduled since the last call of RunOperations or not activated because of s_IsInLowRamMode
-			assert(IsDefined(getScheduledContextsPos(this->shared_from_this()))); // always true for scheduled tasks outzide cs_ThreadMessing
+//			assert(IsDefined(getScheduledContextsPos(this->shared_from_this()))); // always true for scheduled tasks outzide cs_ThreadMessing
 		}
 		if (m_Status == task_status::waiting_for_suppliers)
 		{
