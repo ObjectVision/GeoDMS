@@ -6,7 +6,6 @@ import sys
 from packaging.version import Version
 import glob
 from bs4 import BeautifulSoup
-import filecmp
 import webbrowser
 import subprocess
 from datetime import datetime
@@ -188,31 +187,6 @@ def parse_indicators(indicators:str) -> dict:
         result_dict[child.name] = [child.text, True]
     return result_dict
 
-def get_filepairs(benchmark_files:list, generated_files:list) -> list:
-    file_pairs = []
-    for benchmark_file in benchmark_files:
-        benchmark_filename = os.path.basename(benchmark_file)
-        for index, generated_file in enumerate(generated_files):
-            generated_filename = os.path.basename(generated_file)
-            if benchmark_filename ==  generated_filename:
-                file_pairs.append((benchmark_file, generated_file))
-            if index == len(generated_files)-1:
-                file_pairs.append((benchmark_file, None))
-    return file_pairs
-
-def compare_files(file_comparison:tuple):
-    benchmark_files = glob.glob(file_comparison[0])
-    generated_files = glob.glob(file_comparison[1])
-    filepairs = get_filepairs(benchmark_files, generated_files)
-
-    for benchmark_file, generated_file in filepairs:
-        if not generated_file:
-            return False
-        files_are_similar = filecmp.cmp(benchmark_file, generated_file)
-        if not files_are_similar:
-            return False        
-    return True
-
 def get_regression_test_result(status_code:int, regression_test:str, regression_test_folder:str, file_comparison:tuple, indicators:str=None, prev_indicators:dict={}) -> tuple:
     
     if not indicators: # attempt get default indicators from experiment if not specified
@@ -224,16 +198,15 @@ def get_regression_test_result(status_code:int, regression_test:str, regression_
         elif os.path.isfile(indicators_default_fn_xml):
             with open(indicators_default_fn_xml, "r") as f:
                 indicators = f.read()
-            
+
+    if status_code == 99:
+        return ("FCFAIL", {})
+
     if status_code == 15:
         return ("TIMEOUT", {})
 
     if status_code != 0:
         return (str(status_code), {})
-
-    if file_comparison:
-        files_are_comparable = compare_files(file_comparison)
-        return ("OK", {}) if files_are_comparable else ("FCFAIL", {})
 
     if not indicators:
         return ("OK", {})
