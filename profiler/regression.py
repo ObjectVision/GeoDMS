@@ -147,8 +147,10 @@ def collect_experiment_summaries(version_range:tuple, result_paths:dict, sorted_
             summaries[row][col]["log_filename"] = f"../{log_filename}"
             status_code = experiment.result["status_code"] if "status_code" in experiment.result else 0
             prev_indicators = {}
-            if col<len(binary_experiment_result_files):
-                prev_indicators = summaries[row][col+1]["results"][1]
+            if col<len(binary_experiment_result_files)-1:
+                if summaries[row][col+1]:
+                    prev_results = summaries[row][col+1]["results"]
+                    prev_indicators = prev_results[1]
 
             results = get_regression_test_result(status_code, regression_test, f"{result_paths["results_base_folder"]}/{sorted_valid_result_folders[col-1][0]}", experiment.file_comparison, experiment.result['indicators'], prev_indicators)
             summaries[row][col]["status"] = results[0]
@@ -439,7 +441,7 @@ def get_git_repo_latest_commit_timestamp_and_hash(local_git_repo:str) -> list[da
 
     # check if repo is clean
     repo_porcelain_status = str(subprocess.check_output(r"git status --porcelain", cwd=local_git_repo))
-    if len(repo_porcelain_status) < 4:
+    if len(repo_porcelain_status)>4:
         raise(Exception("git repo has non-empty porcelain status, use 'latest' or make sure there are no uncommitted changes"))
 
     # commit time
