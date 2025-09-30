@@ -3,7 +3,7 @@ cls
 
 set DMS_VERSION_MAJOR=17
 set DMS_VERSION_MINOR=9
-set DMS_VERSION_PATCH=7
+set DMS_VERSION_PATCH=8
 
 set geodms_rootdir=%cd%
 
