@@ -427,7 +427,7 @@ def get_filepairs(benchmark_files:list, generated_files:list) -> list:
 
     # single file case
     if len(benchmark_files) == 1 and len(generated_files) == 1:
-        return (benchmark_files[0], generated_files[0])
+        return [(benchmark_files[0], generated_files[0])]
 
     # multi file case
     for benchmark_file in benchmark_files:
