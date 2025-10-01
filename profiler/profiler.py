@@ -493,7 +493,7 @@ def RunExperiments(experiments:list[Experiment]):
         exp.result["status_code"] = status_code
 
         # if file comparison check, change status in case of failure
-        if exp["status_code"]==0 and exp.file_comparison and not compare_files(exp.file_comparison):
+        if exp.result["status_code"]==0 and exp.file_comparison and not compare_files(exp.file_comparison):
             exp.result["status_code"] = 99
 
         # Indicators
