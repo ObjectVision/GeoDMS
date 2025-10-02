@@ -14,6 +14,8 @@ from bokeh import plotting
 from bokeh.models import HoverTool, PanTool, ResetTool, WheelZoomTool, CheckboxGroup, CheckboxButtonGroup, CustomJS, Legend, LegendItem
 from bokeh.layouts import row, column
 from bokeh.palettes import Category10, Category20, Category20b, Category20c
+import glob
+import filecmp
 
 class Experiment:
     def __init__(self, name:str=None, command:str=None, experiment_folder:str=None, environment_variables=None, cwd=None, geodms_logfile:str=None, indicator_results_file:str=None, binary_experiment_file:str=None, file_comparison:tuple=None, store_results:bool=True):
@@ -420,6 +422,37 @@ def loadExperimentFromPickleFile(experiment, exp_fn=None):
         experiment = pickle.load(f)
     return experiment
 
+def get_filepairs(benchmark_files:list, generated_files:list) -> list:
+    file_pairs = []
+
+    # single file case
+    if len(benchmark_files) == 1 and len(generated_files) == 1:
+        return [(benchmark_files[0], generated_files[0])]
+
+    # multi file case
+    for benchmark_file in benchmark_files:
+        benchmark_filename = os.path.basename(benchmark_file)
+        for index, generated_file in enumerate(generated_files):
+            generated_filename = os.path.basename(generated_file)
+            if benchmark_filename ==  generated_filename:
+                file_pairs.append((benchmark_file, generated_file))
+            if index == len(generated_files)-1:
+                file_pairs.append((benchmark_file, None))
+    return file_pairs
+
+def compare_files(file_comparison:tuple):
+    benchmark_files = glob.glob(file_comparison[0])
+    generated_files = glob.glob(file_comparison[1])
+    filepairs = get_filepairs(benchmark_files, generated_files)
+
+    for benchmark_file, generated_file in filepairs:
+        if not generated_file:
+            return False
+        files_are_similar = filecmp.cmp(benchmark_file, generated_file)
+        if not files_are_similar:
+            return False        
+    return True
+
 def RunExperiments(experiments:list[Experiment]):
     for exp_index, exp in enumerate(experiments):
         print(f"Running experiment: {experiments[exp_index].__dict__}\n")
@@ -458,6 +491,10 @@ def RunExperiments(experiments:list[Experiment]):
             os.remove(geodms_logfile)
         exp.result["log"], start_time, status_code = getPerformance(exp)
         exp.result["status_code"] = status_code
+
+        # if file comparison check, change status in case of failure
+        if exp.result["status_code"]==0 and exp.file_comparison and not compare_files(exp.file_comparison):
+            exp.result["status_code"] = 99
 
         # Indicators
         exp.result["indicators"] = None

@@ -6,7 +6,6 @@ import sys
 from packaging.version import Version
 import glob
 from bs4 import BeautifulSoup
-import filecmp
 import webbrowser
 import subprocess
 from datetime import datetime
@@ -147,8 +146,10 @@ def collect_experiment_summaries(version_range:tuple, result_paths:dict, sorted_
             summaries[row][col]["log_filename"] = f"../{log_filename}"
             status_code = experiment.result["status_code"] if "status_code" in experiment.result else 0
             prev_indicators = {}
-            if col<len(binary_experiment_result_files):
-                prev_indicators = summaries[row][col+1]["results"][1]
+            if col<len(binary_experiment_result_files)-1:
+                if summaries[row][col+1]:
+                    prev_results = summaries[row][col+1]["results"]
+                    prev_indicators = prev_results[1]
 
             results = get_regression_test_result(status_code, regression_test, f"{result_paths["results_base_folder"]}/{sorted_valid_result_folders[col-1][0]}", experiment.file_comparison, experiment.result['indicators'], prev_indicators)
             summaries[row][col]["status"] = results[0]
@@ -186,31 +187,6 @@ def parse_indicators(indicators:str) -> dict:
         result_dict[child.name] = [child.text, True]
     return result_dict
 
-def get_filepairs(benchmark_files:list, generated_files:list) -> list:
-    file_pairs = []
-    for benchmark_file in benchmark_files:
-        benchmark_filename = os.path.basename(benchmark_file)
-        for index, generated_file in enumerate(generated_files):
-            generated_filename = os.path.basename(generated_file)
-            if benchmark_filename ==  generated_filename:
-                file_pairs.append((benchmark_file, generated_file))
-            if index == len(generated_files)-1:
-                file_pairs.append((benchmark_file, None))
-    return file_pairs
-
-def compare_files(file_comparison:tuple):
-    benchmark_files = glob.glob(file_comparison[0])
-    generated_files = glob.glob(file_comparison[1])
-    filepairs = get_filepairs(benchmark_files, generated_files)
-
-    for benchmark_file, generated_file in filepairs:
-        if not generated_file:
-            return False
-        files_are_similar = filecmp.cmp(benchmark_file, generated_file)
-        if not files_are_similar:
-            return False        
-    return True
-
 def get_regression_test_result(status_code:int, regression_test:str, regression_test_folder:str, file_comparison:tuple, indicators:str=None, prev_indicators:dict={}) -> tuple:
     
     if not indicators: # attempt get default indicators from experiment if not specified
@@ -222,16 +198,15 @@ def get_regression_test_result(status_code:int, regression_test:str, regression_
         elif os.path.isfile(indicators_default_fn_xml):
             with open(indicators_default_fn_xml, "r") as f:
                 indicators = f.read()
-            
+
+    if status_code == 99:
+        return ("FCFAIL", {})
+
     if status_code == 15:
         return ("TIMEOUT", {})
 
     if status_code != 0:
         return (str(status_code), {})
-
-    if file_comparison:
-        files_are_comparable = compare_files(file_comparison)
-        return ("OK", {}) if files_are_comparable else ("FCFAIL", {})
 
     if not indicators:
         return ("OK", {})
@@ -439,7 +414,7 @@ def get_git_repo_latest_commit_timestamp_and_hash(local_git_repo:str) -> list[da
 
     # check if repo is clean
     repo_porcelain_status = str(subprocess.check_output(r"git status --porcelain", cwd=local_git_repo))
-    if len(repo_porcelain_status) < 4:
+    if len(repo_porcelain_status)>4:
         raise(Exception("git repo has non-empty porcelain status, use 'latest' or make sure there are no uncommitted changes"))
 
     # commit time
