@@ -23,7 +23,7 @@ struct ActorVisitor;
 //----------------------------------------------------------------------
 
 using TreeItemSet = std::unordered_set<const TreeItem*>;
-bool TreeItem_VisitConstVisibleSubTree(const TreeItem* self, const ActorVisitor& visitor, TreeItemSet& visitedItems);
+auto TreeItem_VisitConstVisibleSubTree(const TreeItem* self, const ActorVisitor& visitor, TreeItemSet& visitedItems) -> ActorVisitState;
 
 TIC_CALL auto TreeItem_GetBestItemAndUnfoundPart(const TreeItem* context, CharPtr path)->BestItemRef;
 

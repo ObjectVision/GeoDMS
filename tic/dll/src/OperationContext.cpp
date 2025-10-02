@@ -1690,8 +1690,8 @@ bool OperationContext::connectArgs(const FutureSuppliers& allArgInterests)
 	}
 
 #if defined(MG_DEBUG)
-	assert(sd_ManagedContexts.find(this) == sd_ManagedContexts.end()); 
-	sd_ManagedContexts.insert(this);
+	if(sd_ManagedContexts.find(this) == sd_ManagedContexts.end())
+		sd_ManagedContexts.insert(this);
 #endif
 
 	return connected;

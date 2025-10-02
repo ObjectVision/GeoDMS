@@ -2880,11 +2880,11 @@ const TreeItem* TreeItem::WalkConstSubTree(const TreeItem* curr) const noexcept 
 	return nullptr;
 }
 
-bool TreeItem_VisitConstVisibleSubTree(const TreeItem * self, const ActorVisitor& visitor, TreeItemSet& visitedItems)
+auto TreeItem_VisitConstVisibleSubTree(const TreeItem * self, const ActorVisitor& visitor, TreeItemSet& visitedItems) -> ActorVisitState
 {
 	auto [_1, isNewItem] = visitedItems.insert(self);
 	if (!isNewItem)
-		return true;
+		return ActorVisitState::AVS_Ready;
 
 	// go to subItems of refItem, if any
 	std::unordered_set<TokenID> visitedSubItemNames;
@@ -2895,14 +2895,16 @@ bool TreeItem_VisitConstVisibleSubTree(const TreeItem * self, const ActorVisitor
 			auto [_2, isNewSubItem] = visitedSubItemNames.insert(subItem->GetID());
 			if (!isNewSubItem)
 				continue;
+			if (SuspendTrigger::DidSuspend())
+				return ActorVisitState::AVS_SuspendedOrFailed;
 			visitor(subItem);
-			if (!TreeItem_VisitConstVisibleSubTree(subItem, visitor, visitedItems))
-				return false;
+			if (TreeItem_VisitConstVisibleSubTree(subItem, visitor, visitedItems) == ActorVisitState::AVS_SuspendedOrFailed)
+				return ActorVisitState::AVS_SuspendedOrFailed;
 		}
-	return true;
+	return ActorVisitState::AVS_Ready;
 }
 
-bool TreeItem::VisitConstVisibleSubTree(const ActorVisitor& visitor) const
+auto TreeItem::VisitConstVisibleSubTree(const ActorVisitor& visitor) const -> ActorVisitState
 {
 	TreeItemSet visitedSet;
 	return TreeItem_VisitConstVisibleSubTree(this, visitor, visitedSet);

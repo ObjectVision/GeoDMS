@@ -218,7 +218,7 @@ public:
 
 	// Walkers for subtree traversal (const and non-const); Visit* supports visitor pattern.
 	TIC_CALL const TreeItem*   WalkConstSubTree(const TreeItem* curr) const  noexcept; // this acts as subTreeRoot
-	TIC_CALL bool              VisitConstVisibleSubTree(const ActorVisitor& visitor) const;
+	TIC_CALL auto              VisitConstVisibleSubTree(const ActorVisitor& visitor) const -> ActorVisitState;
 	TIC_CALL TreeItem*         WalkCurrSubTree(TreeItem* curr) noexcept;              // this acts as subTreeRoot
 	TIC_CALL TreeItem*         WalkNext(TreeItem* curr)  noexcept;                    // this acts as subTreeRoot
 
