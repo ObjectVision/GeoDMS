@@ -414,7 +414,7 @@ auto FuncDC::CallCalcResult(std::shared_ptr<Explain::Context> context) const -> 
 		if (IsNew() && GetOperator()->CanRunParallel())
 			mustStartCalc = !IsAllInterestedCalculatingOrDataReady(m_Data);
 		else
-			mustStartCalc = !IsDataReady(m_Data); // condition required for operations such as parse_xml as first argument of a SubItem
+			mustStartCalc = !IsAllDataReady(m_Data); // condition required for operations such as parse_xml as first argument of a SubItem
 
 	if (mustStartCalc)
 	{
