@@ -947,6 +947,7 @@ auto collectOperationContexts() -> std::pair<context_array, garbage_can>
 		// Reset low-RAM throttle for this activation pass.
 		s_IsInLowRamMode = false; // reset for next activation round
 		bool isLowOnFreeRamTested = false;
+		bool isCancelling = false;
 
 		for (; currContext != scheduledContexts.end(); ++currContext)
 		{
@@ -971,8 +972,9 @@ auto collectOperationContexts() -> std::pair<context_array, garbage_can>
 			if (operContext->m_Status < task_status::activated)
 			{
 				assert(operContext->m_TaskFunc);
-				if (DSM::IsCancelling())
+				if (isCancelling || DSM::IsCancelling())
 				{
+					isCancelling = true;
 					cancelGarbage |= operContext->separateResources(task_status::cancelled);
 					continue;
 				}
@@ -989,11 +991,12 @@ auto collectOperationContexts() -> std::pair<context_array, garbage_can>
 		// Drop processed scheduled contexts.
 
 #if defined(MG_DEBUG)
-		for (auto contextPtr = scheduledContexts.begin(); contextPtr != currContext; ++contextPtr)
-			if (auto activatedContext = contextPtr->lock())
-			{
-				assert(activatedContext->m_Status != task_status::scheduled);
-			}
+		if (!isCancelling)
+			for (auto contextPtr = scheduledContexts.begin(); contextPtr != currContext; ++contextPtr)
+				if (auto activatedContext = contextPtr->lock())
+				{
+					assert(activatedContext->m_Status != task_status::scheduled);
+				}
 
 #endif
 
@@ -1365,9 +1368,6 @@ bool OperationContext::collectTaskImpl()
 
 	assert(!IsActiveOrRunning(m_Status));
 	assert(s_NrActivatedOrRunningOperations[m_PhaseNumber] >= 0);
-
-	if (s_IsInLowRamMode && s_NrActivatedOrRunningOperations[m_PhaseNumber] > 0)
-		return false;
 
 	OperationContex_setActivated(this);
 
@@ -2404,6 +2404,7 @@ void OperationContext::RunOperator(ArgRefs argRefs, std::vector<ItemReadLock> re
 		}
 		catch (const task_canceled&)
 		{
+			OnEnd(task_status::cancelled);
 			assert(m_Status == task_status::cancelled || m_Status == task_status::exception);
 		}
 		catch (...)
