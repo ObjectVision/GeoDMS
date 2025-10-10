@@ -3491,7 +3491,36 @@ static how_to_proceed PrepareDataRead(SharedPtr<const TreeItem> self, const Tree
 			// Collect future suppliers that must run before/with this read operation.
 			FutureSuppliers futureSuppliers;
 
-			// If self is a DataItem, ensure its AbstrDomainUnit calculation (if any) is a dependency.
+			// If refItem is a DataItem, ensure its domain and values calculation (if any) are dependencies
+			dms_check(refItem->GetInterestCount());
+			if (IsDataItem(refItem))
+			{
+				if (auto refAdu = AsDataItem(refItem)->GetAbstrDomainUnit())
+				{
+					dms_check(refAdu->GetInterestCount());
+					// If the domain unit has a DataController, make it a future supplier.
+					if (auto aduDC = refAdu->GetCheckedDC())
+					{
+						FutureData tmpFut = aduDC; // SymbDC might not yet have interest
+						auto fut = aduDC->CallCalcResult();
+						if (fut)
+							futureSuppliers.emplace_back(std::move(fut));
+					}
+				}
+				if (auto refAvu = AsDataItem(refItem)->GetAbstrValuesUnit())
+				{
+					dms_check(refAvu->GetInterestCount());
+					// If the values unit has a DataController, make it a future supplier.
+					if (auto avuDC = refAvu->GetCheckedDC())
+					{
+						FutureData tmpFut = avuDC; // SymbDC might not yet have interest
+						auto fut = avuDC->CallCalcResult();
+						if (fut)
+							futureSuppliers.emplace_back(std::move(fut));
+					}
+				}
+			}
+
 			*ocPtrPtr = OperationContext::CreateItemWriter(const_cast<TreeItem*>(refItem),
 				[storageParent
 				, ocWeakPtrPtr = std::weak_ptr<OcPtr>(ocPtrPtr)
