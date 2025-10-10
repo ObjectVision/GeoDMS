@@ -347,12 +347,6 @@ void tile_task_group::DoWork(IndexType i, bool doMore)
 			i = RegisterCompletionAndGetNextCommissioned(); // release this slot and obtain the next one, or none if this task group is done.
 		}
 	}
-	catch (const task_canceled&)
-	{
-		assert(m_CallingContext);
-		if (m_CallingContext)
-			m_CallingContext->CancelIfNoInterestOrForced(true);
-	}
 	catch (...)
 	{
 		auto lock = std::unique_lock<std::mutex>(s_TileTaskGroupsMutex);
