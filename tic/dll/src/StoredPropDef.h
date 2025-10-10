@@ -25,6 +25,8 @@ template <> struct can_be_indirect<Bool>      : std::false_type {};
 template <> struct can_be_indirect<SharedStr> : std::true_type  {};
 template <> struct can_be_indirect<TokenID  > : std::false_type {};
 
+extern std::mutex g_RemoveRequestMutex;
+
 template <class ItemType, class PropType>
 class StoredPropDef: public PropDef<ItemType, PropType>
 {
@@ -41,6 +43,7 @@ public:
 	{}
 	~StoredPropDef()
 	{
+		auto lockRemoveRequest = std::scoped_lock(g_RemoveRequestMutex);
 		auto lock = std::scoped_lock(m_Mutex);
 		for (const auto& keyValue: m_Data)
 			keyValue.first->SubPropAssoc(this);
@@ -64,7 +67,10 @@ public:
 		assert(item);
 		item->AssertPropChangeRights( this->GetName().c_str() );
 
+		auto lockRemoveRequest = std::scoped_lock(g_RemoveRequestMutex);
+
 		auto lock = std::scoped_lock(m_Mutex);
+
 		auto i = m_Data.lower_bound(item);
 
 		if (i == m_Data.end() || i->first != item)
@@ -157,6 +163,7 @@ public:
 	}
 	~StoredPropDef()
 	{
+		auto lockRemoveRequest = std::scoped_lock(g_RemoveRequestMutex);
 		auto lock = std::scoped_lock(m_Mutex);
 		for (const auto& key: m_Data)
 			key->SubPropAssoc(this);
@@ -178,6 +185,7 @@ public:
 		assert(item);
 		item->AssertPropChangeRights(this->GetName().c_str());
 
+		auto lockRemoveRequest = std::scoped_lock(g_RemoveRequestMutex);
 		auto lock = std::scoped_lock(m_Mutex);
 		auto i = m_Data.lower_bound(item);
 
@@ -261,6 +269,7 @@ public:
 
 	~NonDefaultBoolPropDef()
 	{
+		auto lockRemoveRequest = std::scoped_lock(g_RemoveRequestMutex);
 		auto lock = std::scoped_lock(m_Mutex);
 		for (const auto& keyValue : m_Data)
 			keyValue.first->SubPropAssoc(this);
@@ -284,6 +293,7 @@ public:
 		assert(item);
 		item->AssertPropChangeRights(this->GetName().c_str());
 
+		auto lockRemoveRequest = std::scoped_lock(g_RemoveRequestMutex);
 		auto lock = std::scoped_lock(m_Mutex);
 		auto i = m_Data.lower_bound(item);
 

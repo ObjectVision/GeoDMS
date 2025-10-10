@@ -152,7 +152,8 @@ void TreeItem::AddPropAssoc(AbstrPropDef* propDef) const
 {
 	assert(IsMetaThread());
 
-	auto lock = std::scoped_lock(g_RemoveRequestMutex);
+	assert(!g_RemoveRequestMutex.try_lock()); // must have been locked already
+
 //	assert(!IsCacheItem());
 	if (!g_RemoveRequestSet) 
 		g_RemoveRequestSet.assign( new RemoveRequestSet );
@@ -162,7 +163,8 @@ void TreeItem::AddPropAssoc(AbstrPropDef* propDef) const
 
 void TreeItem::SubPropAssoc(AbstrPropDef* propDef) const
 {
-	auto lock = std::scoped_lock(g_RemoveRequestMutex);
+	assert(!g_RemoveRequestMutex.try_lock()); // must have been locked already
+
 	assert(g_RemoveRequestSet);
 	RemoveRequestSet::iterator
 		it = g_RemoveRequestSet->find(RemoveRequestSet::value_type(this, propDef)),
