@@ -54,30 +54,6 @@ granted by an additional written contract for support, assistance and/or develop
 
 #include "TicInterface.h"
 
-#define INSTANTIATE(T) \
-TIC_CALL api_type<T>::type DMS_CONV DMS_##T##Param_GetValue(const AbstrDataItem* self) \
-{ \
-	DMS_CALL_BEGIN \
-		TreeItemContextHandle checkPtr(self, DataArray<T>::GetStaticClass(), "DMS_" #T "Param_GetValue"); \
-		return GetTheValue<T>(self); \
-	DMS_CALL_END \
-	return UNDEFINED_OR_ZERO(T); \
-} \
-TIC_CALL void DMS_CONV DMS_##T##Param_SetValue(AbstrDataItem* self, api_type<T>::type value) \
-{ \
-	DMS_CALL_BEGIN \
-		TreeItemContextHandle checkPtr(self, DataArray<T>::GetStaticClass(), "DMS_" #T "Param_SetValue"); \
-		SetTheValue<T>(self,value); \
-		return; \
-	DMS_CALL_END \
-	return; \
-} \
-
-	INSTANTIATE_NUM_ELEM
-	INSTANTIATE(Bool)
-
-#undef INSTANTIATE
-
 TIC_CALL Float64 DMS_CONV DMS_NumericParam_GetValueAsFloat64(const AbstrParam* self)
 {
 	DMS_CALL_BEGIN

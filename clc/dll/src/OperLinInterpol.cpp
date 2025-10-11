@@ -214,17 +214,18 @@ public:
 //											INSTANTIATION
 // *****************************************************************************
 
-	#define INSTANTIATE(T) \
-		InterpolateLinearOperator<T,UInt32>  interpolOper##T##UInt32 ; \
-		InterpolateLinearOperator<T,Int32>   interpolOper##T##Int32  ; \
-		InterpolateLinearOperator<T,UInt16>  interpolOper##T##UInt16 ; \
-		InterpolateLinearOperator<T,Int16>   interpolOper##T##Int16  ; \
-		InterpolateLinearOperator<T,UInt8>   interpolOper##T##UInt8  ; \
-		InterpolateLinearOperator<T,Int8>    interpolOper##T##Int8   ; \
-		InterpolateLinearOperator<T,Float32> interpolOper##T##Float32; \
-		InterpolateLinearOperator<T,Float64> interpolOper##T##Float64;
+	template <NumericElem T>
+	struct interpolate_to_types_instantiator
+	{
+		InterpolateLinearOperator<T, UInt32>  interpolOperUInt32;
+		InterpolateLinearOperator<T, Int32>   interpolOperInt32;
+		InterpolateLinearOperator<T, UInt16>  interpolOperUInt16;
+		InterpolateLinearOperator<T, Int16>   interpolOperInt16;
+		InterpolateLinearOperator<T, UInt8>   interpolOperUInt8;
+		InterpolateLinearOperator<T, Int8>    interpolOperInt8;
+		InterpolateLinearOperator<T, Float32> interpolOperFloat32;
+		InterpolateLinearOperator<T, Float64> interpolOperFloat64;
+	};
 
-	INSTANTIATE_NUM_ORG
-	// INSTANTIATE_NUM_ELEM
-	#undef INSTANTIATE
+	tl_oper::inst_tuple_templ < typelists::num_objects, interpolate_to_types_instantiator> interpolate_to_types_instantiators;
 }

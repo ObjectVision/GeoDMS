@@ -227,7 +227,7 @@ void StoreValues(AbstrDataItem* adi, Container& c)
 	auto data = mutable_array_cast<V>(lock)->GetLockedDataWrite();
 	SizeT i=0;
 	for (auto v: c)
-		Assign(data[i++], v);
+		Assign(data[i++], Convert<V>(v));
 	lock.Commit();
 }
 

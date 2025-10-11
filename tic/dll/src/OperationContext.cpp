@@ -813,6 +813,7 @@ garbage_can OperationContext::disconnect_supplier(OperationContext* supplier)
 
 		if (m_Status == task_status::waiting_for_suppliers)
 			scheduleRunnableTask(this);
+		assert(m_Status != task_status::waiting_for_suppliers);
 		break;
 
 	case task_status::exception:
@@ -1178,6 +1179,8 @@ void OperationContext_scheduleThis(OperationContext* self)
 	assert(self);
 	assert(!self->m_FuncDC || self->GetOperator()->CanRunParallel());
 
+	assert(!cs_ThreadMessing.try_lock());
+
 	if (self->getStatus() != task_status::none)
 		return;
 
@@ -1200,6 +1203,7 @@ void OperationContext_scheduleThis(OperationContext* self)
 				OperationContext_scheduleThis(supplier);
 		}
 		self->m_Status = task_status::waiting_for_suppliers;
+		assert(!(self->m_Suppliers.empty()));
 	}
 }
 
@@ -1519,6 +1523,7 @@ garbage_can OperationContext::separateResources(task_status status)
 
 		releaseBin |= std::move(m_Suppliers);
 		assert(m_Suppliers.empty());
+		assert(getStatus() != task_status::waiting_for_suppliers);
 	}
 	if (m_TaskFunc) 
 	{
@@ -2240,7 +2245,6 @@ task_status OperationContext::Join()
 		}
 		if (m_Status == task_status::waiting_for_suppliers)
 		{
-			assert(!m_Suppliers.empty());
 			UInt32 recursionCount = 0;
 			// find first context without suppliers and wait for that one
 			firstSupplier = this->weak_from_this();

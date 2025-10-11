@@ -483,6 +483,8 @@ struct IndirectGetterCreator : UnitProcessor
 	mutable AbstrThemeValueGetter* m_ResultingGetter;
 };
 
+
+
 struct ClassifiedGetterCreator : UnitProcessor
 {
 	ClassifiedGetterCreator(

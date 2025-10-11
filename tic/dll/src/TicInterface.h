@@ -225,18 +225,6 @@ TIC_CALL const AbstrUnit*  DMS_CONV DMS_Param_GetValueUnit(const AbstrParam* sel
 // C style Interface functions for Primary Data Access / Modification
 //----------------------------------------------------------------------
 
-#define INSTANTIATE(T) \
-	TIC_CALL api_type<T>::type DMS_CONV DMS_##T##Param_GetValue(const AbstrParam* self); \
-	TIC_CALL void              DMS_CONV DMS_##T##Param_SetValue(AbstrParam* self, api_type<T>::type value);
-
-	INSTANTIATE_NUM_ELEM
-	INSTANTIATE(Bool)
-
-#undef INSTANTIATE
-
-TIC_CALL bool DMS_CONV DMS_BoolParam_GetValue(const AbstrParam* self);
-TIC_CALL void DMS_CONV DMS_BoolParam_SetValue(AbstrParam* self, bool value);
-
 TIC_CALL Float64 DMS_CONV DMS_NumericParam_GetValueAsFloat64(const AbstrParam* self);
 TIC_CALL void    DMS_CONV DMS_NumericParam_SetValueAsFloat64(AbstrParam* self, Float64 value);
 TIC_CALL void    DMS_CONV DMS_StringParam_SetValue(AbstrParam* self, CharPtr value);     

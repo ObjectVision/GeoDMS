@@ -173,7 +173,6 @@ struct Undefined {};
 // Section      : Assign
 //----------------------------------------------------------------------
 
-template <typename T> void Assign(T& lhs, const T& rhs) { lhs = rhs;          }
 template <typename T> void Assign(T& lhs, Undefined)    { MakeUndefinedOrZero(lhs); }
 
 //----------------------------------------------------------------------

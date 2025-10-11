@@ -1082,10 +1082,18 @@ template <typename T> inline void Assign(SA_Reference<T> lhs, SA_ConstReference<
 template <typename T> inline void Assign(SA_Reference<T> lhs, SA_Reference     <T> rhs) { lhs = rhs; }
 template <typename T> inline void Assign(SA_Reference<T> lhs, Undefined)  { lhs.assign(Undefined()); }
 
+inline void Assign(SA_Reference<char> lhs, const SharedStr& rhs)     
+{ 
+	if (IsDefined(rhs))
+		lhs.assign(rhs.cbegin(), rhs.csend() MG_DEBUG_ALLOCATOR_SRC("Assign"));
+	else
+		lhs.assign(Undefined());
+}
+
 template <typename T> inline void Assign(SA_Reference<T> lhs, const std::vector<T>& rhs) 
 { 
 	if (IsDefined(rhs))
-		lhs.assign(begin_ptr(rhs), end_ptr(rhs) ); 
+		lhs.assign(begin_ptr(rhs), end_ptr(rhs) MG_DEBUG_ALLOCATOR_SRC("Assign"));
 	else
 		lhs.assign(Undefined());
 }

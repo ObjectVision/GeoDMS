@@ -86,31 +86,34 @@ template<typename T> inline T MaxValue() { return minmax_traits<T>::MaxValue(); 
 //----------------------------------------------------------------------
 // Macro style generic definitions to avoid ambiguity with pair versions.
 
-template <bool IsSigned, typename T> struct IsNegativeFunc          { bool operator()(T v) const { return false; } };
-template <               typename T> struct IsNegativeFunc<true, T> { bool operator()(T v) const { return v<0;   } };
 
-template <typename T>
-inline Bool IsNegative(T v)
+// concept gate for your functions
+template<class T>
+concept NumericElem = is_numeric_v<T>;
+
+template <NumericElem T>
+inline bool IsNegative(T v)
 {
-	return IsNegativeFunc<is_signed<T>::value, T>()(v);
+	if constexpr (is_signed<T>::value)
+		return (v < 0);
+	else
+		return false;
 }
 
-#define INSTANTIATE(T) \
-	inline	Float64 AsFloat64(T x)                        { return Float64(x); }         \
-	inline	T    LowerBound       (param_type<T>::type a, param_type<T>::type b) { return Min<T>(a, b); } \
-	inline	T    UpperBound       (param_type<T>::type a, param_type<T>::type b) { return Max<T>(a, b); } \
-	inline	bool IsLowerBound     (param_type<T>::type a, param_type<T>::type b) { return ! (b < a); } \
-	inline	bool IsUpperBound     (param_type<T>::type a, param_type<T>::type b) { return ! (a < b); } \
-	inline	bool IsStrictlyLower  (param_type<T>::type a, param_type<T>::type b) { return a < b; }	\
-	inline	bool IsStrictlyGreater(param_type<T>::type a, param_type<T>::type b) { return b < a; }	\
-	inline	void MakeLowerBound(T& a, param_type<T>::type b) { MakeMin(a, b); } \
-	inline	void MakeUpperBound(T& a, param_type<T>::type b) { MakeMax(a, b); } \
-	inline	void MakeBounds(T& a, T& b)                      { MakeRange(a, b); } \
-	inline  void Assign(T& lhs, param_type<T>::type rhs)     { lhs = rhs; } \
 
-	INSTANTIATE_NUM_ELEM
+template <NumericElem T> Float64 AsFloat64(T x)               { return static_cast<Float64>(x); }
+template <NumericElem T> T       LowerBound       (T  a, T b) { return Min<T>(a, b); }
+template <NumericElem T> T       UpperBound       (T  a, T b) { return Max<T>(a, b); }
+template <NumericElem T> bool    IsLowerBound     (T  a, T b) { return ! (b < a); }
+template <NumericElem T> bool    IsUpperBound     (T  a, T b) { return ! (a < b); }
+template <NumericElem T> bool    IsStrictlyLower  (T  a, T b) { return a < b; }
+template <NumericElem T> bool    IsStrictlyGreater(T  a, T b) { return b < a; }
+template <NumericElem T> void    MakeLowerBound   (T& lhs, param_type_t<T> b)   { MakeMin(lhs, b); }
+template <NumericElem T> void    MakeUpperBound   (T& lhs, param_type_t<T> b)   { MakeMax(lhs, b); }
+template <NumericElem T> void    MakeBounds       (T& a, T& b)    { MakeRange(a, b); }
 
-#undef INSTANTIATE
+template <typename T> void       Assign           (T& lhs, param_type_t<T> rhs) { lhs = rhs; }
+
 
 template <IntegralValue T>
 void MakeStrictlyGreater(T& ref)
