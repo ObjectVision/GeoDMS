@@ -50,7 +50,14 @@ inline SharedStr AsDataStr(CharPtr  v) { return DoubleQuote(v); }
 inline SharedStr AsDataStr(const SharedStr&  v) { return AsDataStr(typesafe_cast<WeakStr>(v)); }
 
 template <typename T>
-inline void WriteDataString(FormattedOutStream& out, const T& v) { out << v;    }
+inline void WriteDataString(FormattedOutStream& out, const T& v) 
+{
+	if constexpr (is_bit_reference_v<T>)
+		out << v.value();
+	else
+		out << v;
+}
+
 RTC_CALL void WriteDataString(FormattedOutStream& out, Bool     v);
 RTC_CALL void WriteDataString(FormattedOutStream& out, WeakStr  v);
 RTC_CALL void WriteDataString(FormattedOutStream& out, CharPtr  v);
@@ -61,25 +68,41 @@ inline   SharedStr AsRgbStr(const T& v) { return AsDataStr(v); }
 RTC_CALL SharedStr AsRgbStr(UInt32   v); // defined in StringStream.cpp
 
 template <class T>
-void AssignValueFromCharPtr(T& value, CharPtr data) 
+void AssignValueFromCharPtr(T& value, CharPtr data)
 { 
-	MemoInpStreamBuff memoStr(data);
-	FormattedInpStream inpStream(&memoStr);
-	inpStream >> value;
+	if constexpr (is_numeric_v<T>)
+		AssignNumericValueFromCharPtr(value, data);
+	else
+	{
+		MemoInpStreamBuff memoStr(data);
+		FormattedInpStream inpStream(&memoStr);
+		inpStream >> value;
+	}
 }
 
 template <class T>
 void AssignValueFromCharPtrs(T& value, CharPtr begin, CharPtr end)
 { 
-	MemoInpStreamBuff memoStr(begin, end);
-	FormattedInpStream inpStream(&memoStr);
-	inpStream >> value;
+	if constexpr (is_numeric_v<T>)
+		AssignNumericValueFromCharPtrs<T>(value, begin, end);
+	else
+	{
+		MemoInpStreamBuff memoStr(begin, end);
+		FormattedInpStream inpStream(&memoStr);
+		inpStream >> value;
+	}
 }
+
+RTC_CALL void AssignValueFromCharPtr(Bool& value, CharPtr data);
+RTC_CALL void AssignValueFromCharPtrs(Bool& value, CharPtr begin, CharPtr end);
 
 template <class T>
 void AssignValueFromCharPtrs_Checked(T& value, CharPtr begin, CharPtr end)
 {
-	return AssignValueFromCharPtrs(value, begin, end);
+	if constexpr (is_numeric_v<T>)
+		AssignNumericValueFromCharPtrs_Checked<T>(value, begin, end);
+	else
+		return AssignValueFromCharPtrs(value, begin, end);
 }
 
 template <class T>
@@ -87,9 +110,15 @@ inline bool AsCharArray(const T& value, char* buffer, SizeT bufLen, FormattingFl
 {
 	SilentMemoOutStreamBuff memoBuf(ByteRange(buffer, buffer + bufLen));
 	FormattedOutStream outStream(&memoBuf, ff);
-	outStream << value ;
+
+	if constexpr (is_bit_reference_v<T>)
+		outStream << value.value();
+	else
+		outStream << value ;
+
 	if (memoBuf.CurrPos() >= bufLen)
 		return false;
+
 	outStream << char('\0');
 	return true;
 }
@@ -124,7 +153,12 @@ inline SizeT AsCharArraySize(const T& value, streamsize_t maxLen, FormattingFlag
 {
 	FiniteNullOutStreamBuff nullBuf(maxLen);
 	FormattedOutStream outStream(&nullBuf, ff);
-	outStream << value ;
+
+	if constexpr (is_bit_reference_v<T>)
+		outStream << value.value();
+	else
+		outStream << value ;
+
 	return Min<streamsize_t>(nullBuf.CurrPos(), maxLen);
 }
 

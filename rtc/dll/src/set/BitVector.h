@@ -27,6 +27,10 @@
 template <bit_size_t N, typename Block> struct bit_reference;
 template <bit_size_t N, typename Block> struct bit_iterator;
 
+template <typename T> struct is_bit_reference : std::false_type {};
+template <bit_size_t N, typename Block> struct is_bit_reference<bit_reference<N, Block>> : std::true_type {};
+template <typename T> constexpr bool is_bit_reference_v = is_bit_reference<T>::value;
+
 //======================== bit calculations
 
 template <typename Block, bit_size_t NrBlockBits, bit_size_t NrBits> struct calc_bit_mask_impl                        { static const Block value = (Block(1) << NrBits) - Block(1); };

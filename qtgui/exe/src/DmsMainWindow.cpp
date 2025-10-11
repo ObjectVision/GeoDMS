@@ -1387,7 +1387,7 @@ void MainWindow::doViewAction(TreeItem* tiContext, CharPtrRange sAction, QWidget
 
     SizeT recNo = UNDEFINED_VALUE(SizeT);
     if (!sRecNr.empty())
-        AssignValueFromCharPtrs(recNo, sRecNr.begin(), sRecNr.end());
+        AssignNumericValueFromCharPtrs(recNo, sRecNr.begin(), sRecNr.end());
 
     if (!strncmp(sMenu.begin(), "popuptable", sMenu.size())) {
         PopupTable(recNo);

@@ -195,7 +195,7 @@ protected:
 					, GetGroup()->GetNameStr()
 					, AsString(domain1Unit->GetNrTiles())
 					, AsString(u+1), AsString(ue)
-					, AsString(intersectCount)
+					, AsString(intersectCount.load())
 				);
 			}
 

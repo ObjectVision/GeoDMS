@@ -370,14 +370,6 @@ returnEOF:
 /********** FormattedOutStream Interface **********/
 #include <boost/locale.hpp>
 
-template<typename U>
-int mysnprintf(char* charBuf, UInt32 bufLen, CharPtr formatOut, U value, FormattingFlags ff)
-{
-	auto charCount = snprintf(charBuf, bufLen, formatOut, value);
-	dms_assert(UInt32(charCount) <= bufLen);
-	return charCount;
-}
-
 int process_uint(char* charBuf, char* decPtr, UInt32 bufLen, int numCount)
 {
 	auto decPos = decPtr - charBuf;
@@ -426,133 +418,119 @@ int process_frac(char* charBuf, UInt32 bufLen, int charCount)
 	return process_uint(charBuf, decPtr, bufLen, charCount);
 }
 
-template<>
-int mysnprintf<double>(char* charBuf, UInt32 bufLen, CharPtr formatOut, double value, FormattingFlags ff)
+template<typename U>
+auto mysnprintf(char* charBuf, UInt32 bufLen, U value, FormattingFlags ff) -> UInt32
 {
-	auto charCount = snprintf(charBuf, bufLen, formatOut, value);
-	assert(UInt32(charCount )<= bufLen);
+	auto to_chars_result = std::to_chars(charBuf, charBuf + bufLen, value);
+	if (to_chars_result.ec != std::errc()) return 0;
+	auto charCount = static_cast<UInt32>(to_chars_result.ptr - charBuf);
+	assert(UInt32(charCount) <= bufLen);
 	if (HasThousandSeparator(ff))
-		charCount += process_frac(charBuf, bufLen, charCount);
+	{
+		if constexpr (std::is_floating_point_v<U>)
+			charCount += process_frac(charBuf, bufLen, charCount);
+		else if constexpr (std::is_signed_v<U>)
+			charCount += process_int(charBuf, bufLen, charCount);
+		else
+			charCount += process_uint(charBuf, charBuf + charCount, bufLen, charCount);
+	}
 	return charCount;
 }
 
-template<>
-int mysnprintf<UInt32>(char* charBuf, UInt32 bufLen, CharPtr formatOut, UInt32 value, FormattingFlags ff)
-{
-	auto charCount = snprintf(charBuf, bufLen, formatOut, value);
-	dms_assert(UInt32(charCount) <= bufLen);
-	if (HasThousandSeparator(ff))
-		charCount += process_uint(charBuf, charBuf + charCount, bufLen, charCount);
-	return charCount;
-}
-
-template<>
-int mysnprintf<Int32>(char* charBuf, UInt32 bufLen, CharPtr formatOut, Int32 value, FormattingFlags ff)
-{
-	auto charCount = snprintf(charBuf, bufLen, formatOut, value);
-	dms_assert(UInt32(charCount) <= bufLen);
-	if (HasThousandSeparator(ff))
-		charCount += process_int(charBuf, bufLen, charCount);
-	return charCount;
-}
-
-template<>
-int mysnprintf<UInt64>(char* charBuf, UInt32 bufLen, CharPtr formatOut, UInt64 value, FormattingFlags ff)
-{
-	auto charCount = snprintf(charBuf, bufLen, formatOut, value);
-	dms_assert(UInt32(charCount) <= bufLen);
-	if (HasThousandSeparator(ff))
-		charCount += process_uint(charBuf, charBuf + charCount, bufLen, charCount);
-	return charCount;
-}
-
-template<>
-int mysnprintf<Int64>(char* charBuf, UInt32 bufLen, CharPtr formatOut, Int64 value, FormattingFlags ff)
-{
-	auto charCount = snprintf(charBuf, bufLen, formatOut, value);
-	dms_assert(UInt32(charCount) <= bufLen);
-	if (HasThousandSeparator(ff))
-		charCount += process_int(charBuf, bufLen, charCount);
-	return charCount;
-}
+template<typename T> struct mysnprintf_type { using type = T; };
+template<> struct mysnprintf_type<Int8> { using type = Int32; };
+template<> struct mysnprintf_type<UInt8> { using type = UInt32; };
+template<> struct mysnprintf_type<UInt4> { using type = UInt32; };
+template<> struct mysnprintf_type<UInt2> { using type = UInt32; };
+template<typename T> using mysnprintf_type_t = typename mysnprintf_type<T>::type;
 
 
-#define ENABLE_UNDEF_HANDLING(X) X
-#define DISABLE_UNDEF_HANDLING(X)
+constexpr int NUMERIC_BUFFER_SIZE = 32;
+constexpr int NUMERIC_BUFFER_SIZEZ = NUMERIC_BUFFER_SIZE + 1;
 
-#define DEFINE_FORMATTED_STREAMABLE(T, U, C, UNDEF_HANDLER) \
-RTC_CALL UInt32 AsCharArrayBase(T value, char* buffer, UInt32 bufLen) \
-{ \
-	assert(bufLen < UInt32(-1)); \
-	auto to_chars_result = std::to_chars(buffer, buffer + bufLen, value); \
-	if (to_chars_result.ec != std::errc()) return UInt32(-1);  \
-	auto actualSize = static_cast<UInt32>(to_chars_result.ptr - buffer); \
-	assert(actualSize > 0 && actualSize <= bufLen); \
-	return actualSize; \
-} \
-RTC_CALL FormattedOutStream& operator <<(FormattedOutStream& str, T value) \
-{   UNDEF_HANDLER( \
- 	if (!IsDefined(value)) \
-		str << Undefined(); \
-	else ) \
-	{ \
-		char charBuf[C+1]; \
-		auto actualSize = AsCharArrayBase(value, charBuf, C+1); \
-		if (actualSize > 0u && actualSize <= C+1) \
-			str.Buffer().WriteBytes(charBuf, actualSize); \
-	} \
-	return str; \
-} \
-RTC_CALL FormattedInpStream& operator >>(FormattedInpStream& str, T& value) \
-{ \
-value = Convert<T>(ReadValueOrNullAfterSpace<U>(str)); \
-return str; \
-} \
-RTC_CALL void AssignValueFromCharPtr(T& value, CharPtr data) \
-{ \
-value = Convert<T>(ReadValueAfterSpace<U>(data)); \
-} \
-RTC_CALL void AssignValueFromCharPtrs(T& value, CharPtr begin, CharPtr end) \
-{ \
-value = Convert<T>(ReadValueAfterSpace<U>(begin, end)); \
-} \
-RTC_CALL void AssignValueFromCharPtrs_Checked(T& value, CharPtr begin, CharPtr end) \
-{ \
-value = Convert<T>(ReadValueAfterSpace<U>(begin, end)); \
-} \
-RTC_CALL bool AsCharArray(T value, char* buffer, UInt32 bufLen) \
-{ \
-	UNDEF_HANDLER(\
-		if (!IsDefined(value)) \
-		{ \
-			CharPtr undef = UNDEFINED_VALUE_STRING; \
-			fast_copy(undef, undef + Min<UInt32>(sizeof(UNDEFINED_VALUE_STRING), bufLen), buffer); \
-			return sizeof(UNDEFINED_VALUE_STRING) <= bufLen; \
-		} \
-	) \
-	auto actualSize = AsCharArrayBase(value, buffer, bufLen); \
-	return actualSize > 0u && actualSize <= bufLen; \
+template<typename T>
+UInt32 AsCharArrayBase(T value, char* buffer, UInt32 bufLen, FormattingFlags ff) 
+{ 
+	assert(bufLen < UInt32(-1)); 
+	using U = mysnprintf_type_t<T>; 
+	auto actualSize = mysnprintf<U>(buffer, bufLen, value, ff); 
+	assert(actualSize > 0 && actualSize <= bufLen); 
+	return actualSize; 
 } 
-			
-DEFINE_FORMATTED_STREAMABLE(UInt32, UInt32, 13, ENABLE_UNDEF_HANDLING)
-DEFINE_FORMATTED_STREAMABLE(Int32, Int32, 14, ENABLE_UNDEF_HANDLING)
-DEFINE_FORMATTED_STREAMABLE(UInt16, UInt32,  6, ENABLE_UNDEF_HANDLING)
-DEFINE_FORMATTED_STREAMABLE(Int16, Int16,  7, ENABLE_UNDEF_HANDLING)
-DEFINE_FORMATTED_STREAMABLE(UInt8, UInt32,  3, ENABLE_UNDEF_HANDLING)
-DEFINE_FORMATTED_STREAMABLE(Int8, Int32,  4, ENABLE_UNDEF_HANDLING)
-DEFINE_FORMATTED_STREAMABLE(UInt4, UInt32,  2, DISABLE_UNDEF_HANDLING)
-#if defined(DMS_TM_HAS_UINT2)
-DEFINE_FORMATTED_STREAMABLE(UInt2, UInt32,  1, DISABLE_UNDEF_HANDLING)
-#endif
-DEFINE_FORMATTED_STREAMABLE(Float32, Float32, 16, ENABLE_UNDEF_HANDLING)
-DEFINE_FORMATTED_STREAMABLE(Float64, double, 32, ENABLE_UNDEF_HANDLING)
-#if defined(DMS_TM_HAS_FLOAT80)
-DEFINE_FORMATTED_STREAMABLE(Float80, long double, 32, ENABLE_UNDEF_HANDLING)
-#endif
-#if defined(DMS_TM_HAS_INT64)
-DEFINE_FORMATTED_STREAMABLE(UInt64, UInt64, 30, ENABLE_UNDEF_HANDLING)
-DEFINE_FORMATTED_STREAMABLE(Int64, Int64, 30, ENABLE_UNDEF_HANDLING)
-#endif
+
+template<typename T>
+RTC_CALL FormattedOutStream& operator <<(FormattedOutStream& str, T value) requires is_numeric_v<T>
+{ 
+	if constexpr (has_undefines_v<T>) 
+	{
+		if (!IsDefined(value))
+		{
+			str << Undefined();
+			return str;
+		}
+	}
+	char charBuf[NUMERIC_BUFFER_SIZEZ];
+	auto actualSize = AsCharArrayBase(value, charBuf, NUMERIC_BUFFER_SIZEZ, str.GetFormattingFlags());
+	if (actualSize > 0u && actualSize <= NUMERIC_BUFFER_SIZEZ)
+		str.Buffer().WriteBytes(charBuf, actualSize); 
+	return str; 
+} 
+
+template<typename T>
+RTC_CALL FormattedInpStream& operator >>(FormattedInpStream& str, T& value) requires is_numeric_v<T>
+{ 
+	using U = mysnprintf_type_t<T>; 
+	value = Convert<T>(ReadValueOrNullAfterSpace<U>(str)); 
+	return str; 
+} 
+
+template<typename T>
+RTC_CALL void AssignNumericValueFromCharPtr(T& value, CharPtr data) 
+{ 
+	using U = mysnprintf_type_t<T>;
+	value = Convert<T>(ReadValueAfterSpace<U>(data));
+} 
+
+template<typename T>
+RTC_CALL void AssignNumericValueFromCharPtrs(T& value, CharPtr begin, CharPtr end) 
+{ 
+	using U = mysnprintf_type_t<T>;
+	value = Convert<T>(ReadValueAfterSpace<U>(begin, end));
+} 
+
+template<typename T>
+RTC_CALL void AssignNumericValueFromCharPtrs_Checked(T& value, CharPtr begin, CharPtr end)
+{ 
+	using U = mysnprintf_type_t<T>;
+	value = Convert<T>(ReadValueAfterSpace<U>(begin, end));
+} 
+
+template<typename T>
+RTC_CALL bool AsCharArray(T value, char* buffer, UInt32 bufLen)
+{ 
+	if constexpr (has_undefines_v<T>) 
+		if (!IsDefined(value)) 
+		{ 
+			CharPtr undef = UNDEFINED_VALUE_STRING; 
+			fast_copy(undef, undef + Min<UInt32>(sizeof(UNDEFINED_VALUE_STRING), bufLen), buffer); 
+			return sizeof(UNDEFINED_VALUE_STRING) <= bufLen; 
+		} 
+	auto actualSize = AsCharArrayBase(value, buffer, bufLen, FormattingFlags::None); 
+	return actualSize > 0u && actualSize <= bufLen; 
+} 
+
+
+#define INSTANTIATE(T) \
+template RTC_CALL FormattedOutStream& operator << <T> (FormattedOutStream& str, T value); \
+template RTC_CALL FormattedInpStream& operator >> <T> (FormattedInpStream& str, T& value); \
+template RTC_CALL void AssignNumericValueFromCharPtr<T>(T& value, CharPtr data); \
+template RTC_CALL void AssignNumericValueFromCharPtrs<T>(T& value, CharPtr begin, CharPtr end); \
+template RTC_CALL void AssignNumericValueFromCharPtrs_Checked<T>(T& value, CharPtr begin, CharPtr end); \
+template RTC_CALL bool AsCharArray(T value, char* buffer, UInt32 bufLen); \
+
+INSTANTIATE_NUM_ELEM
+
+#undef INSTANTIATE
 
 #include "ser/StreamException.h"
 
@@ -583,24 +561,44 @@ RTC_CALL FormattedInpStream& operator >>(FormattedInpStream& str, CharPtr value)
 	return str;
 }
 
-//DEFINE_FORMATTED_STREAMABLE(Bool)
-FormattedOutStream& operator <<(FormattedOutStream& str, Bool value) 
+RTC_CALL FormattedOutStream& operator <<(FormattedOutStream& str, CharPtr value)
+{
+	assert(value);
+	str.Buffer().WriteBytes(value, StrLen(value));
+	return str;
+}
+
+RTC_CALL FormattedOutStream& operator <<(FormattedOutStream& str, CharPtrRange value)
+{
+	str.Buffer().WriteBytes(value.begin(), value.size());
+	return str;
+}
+
+RTC_CALL FormattedOutStream& operator <<(FormattedOutStream& str, Bool value)
 {
 	str << CharPtr(value ? "True" : "False");
 	return str;
 }
 
-FormattedOutStream& operator <<(FormattedOutStream& str, const ErrMsg& err)
+RTC_CALL FormattedOutStream& operator <<(FormattedOutStream& str, const SharedStr& value)
+{
+	assert(value.has_ptr());
+	str.Buffer().WriteBytes(value.c_str(), value.ssize());
+	return str;
+}
+
+
+RTC_CALL FormattedOutStream& operator <<(FormattedOutStream& str, const ErrMsg& err)
 {
 	str << err.GetAsText();
 
 	return str;
 }
 
-FormattedInpStream& operator >>(FormattedInpStream& str, Bool& value) 
+RTC_CALL FormattedInpStream& operator >>(FormattedInpStream& str, Bool& value)
 {
 	auto result = str.NextToken();
-	value = (result.second.size() && result.second[0]=='T');
+	value = (result.second.size() && (result.second[0]=='T' || result.second[0] == 't'));
 
 	return str;
 }
@@ -667,7 +665,7 @@ RTC_CALL FormattedOutStream& operator <<(FormattedOutStream& fos, const Streamab
 {
 	char timeBuff[60];
 	if (write_time_str(timeBuff, sizeof(timeBuff), self.m_time) > 0)
-		fos << timeBuff;
+		fos << static_cast<CharPtr>(timeBuff);
 
 	return fos;
 }

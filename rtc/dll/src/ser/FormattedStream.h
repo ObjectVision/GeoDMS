@@ -102,22 +102,31 @@ struct FormattedInpStream : std::iterator<std::input_iterator_tag, char>
 	MG_DEBUGCODE( streamsize_t md_LastPos = 0; )
 };
 
+
+template <typename T> RTC_CALL FormattedOutStream& operator <<(FormattedOutStream& str, T value) requires is_numeric_v<T>;
+template <typename T> RTC_CALL FormattedInpStream& operator >>(FormattedInpStream& str, T& value) requires is_numeric_v<T>;
+template <typename T> RTC_CALL void AssignNumericValueFromCharPtr(T& value, CharPtr data);
+template <typename T> RTC_CALL void AssignNumericValueFromCharPtrs(T& value, CharPtr begin, CharPtr end);
+template <typename T> RTC_CALL void AssignNumericValueFromCharPtrs_Checked(T& value, CharPtr begin, CharPtr end);
+template <typename T> RTC_CALL bool AsCharArray(T value, char* buffer, UInt32 bufLen);
+
 #define INSTANTIATE(T) \
-RTC_CALL FormattedOutStream& operator <<(FormattedOutStream& str, T value); \
-RTC_CALL FormattedInpStream& operator >>(FormattedInpStream& str, T& value); \
-RTC_CALL void AssignValueFromCharPtr(T& value, CharPtr data); \
-RTC_CALL void AssignValueFromCharPtrs(T& value, CharPtr begin, CharPtr end); \
-RTC_CALL void AssignValueFromCharPtrs_Checked(T& value, CharPtr begin, CharPtr end); \
-RTC_CALL bool AsCharArray(T value, char* buffer, UInt32 bufLen); \
+extern template RTC_CALL FormattedOutStream& operator << <T> (FormattedOutStream& str, T value); \
+extern template RTC_CALL FormattedInpStream& operator >> <T> (FormattedInpStream& str, T& value); \
+extern template RTC_CALL void AssignNumericValueFromCharPtr<T>(T& value, CharPtr data); \
+extern template RTC_CALL void AssignNumericValueFromCharPtrs<T>(T& value, CharPtr begin, CharPtr end); \
+extern template RTC_CALL void AssignNumericValueFromCharPtrs_Checked<T>(T& value, CharPtr begin, CharPtr end); \
+extern template RTC_CALL bool AsCharArray(T value, char* buffer, UInt32 bufLen); \
 
 
 INSTANTIATE_NUM_ELEM
 
-INSTANTIATE_BOOL
+//INSTANTIATE_BOOL
 INSTANTIATE_UINT2
 INSTANTIATE_UINT4
 
 #undef INSTANTIATE
+
 
 //DEFINE_FORMATTED_STREAMABLE(char)
 inline FormattedOutStream& operator <<(FormattedOutStream& str, char value) 
@@ -136,25 +145,24 @@ inline FormattedInpStream& operator >>(FormattedInpStream& str, char& value)
 RTC_CALL FormattedOutStream& operator <<(FormattedOutStream& str, const Undefined&);
 
 //DEFINE_FORMATTED_STREAMABLE(Void)
+RTC_CALL FormattedOutStream& operator <<(FormattedOutStream& str, Bool);
+RTC_CALL FormattedInpStream& operator >>(FormattedInpStream& str, Bool&);
+
+//DEFINE_FORMATTED_STREAMABLE(Void)
 inline FormattedOutStream& operator <<(FormattedOutStream& str, const Void&) { return str; }
 inline FormattedInpStream& operator >>(FormattedInpStream& str,       Void&) { return str; }
 
 //INSTANTIATE(CharPtr)
-inline FormattedOutStream& operator <<(FormattedOutStream& str, CharPtr value)
-{
-	dms_assert(value);
-	str.Buffer().WriteBytes(value, StrLen(value));
-	return str;
-}
+RTC_CALL FormattedOutStream& operator <<(FormattedOutStream& str, CharPtr value);
+RTC_CALL FormattedOutStream& operator <<(FormattedOutStream& str, const SharedStr& value);
 
-inline FormattedOutStream& operator <<(FormattedOutStream& str, CharPtrRange value)
-{
-	str.Buffer().WriteBytes(value.begin(), value.size());
-	return str;
-}
-
+RTC_CALL FormattedOutStream& operator <<(FormattedOutStream& str, CharPtrRange value);
 RTC_CALL FormattedInpStream& operator >>(FormattedInpStream& str, CharPtr value);
 
+inline FormattedOutStream& operator <<(FormattedOutStream& str, char* value)
+{
+	return str << static_cast<CharPtr>(value);
+}
 
 
 #endif // __RTC_SER_FORMATTEDSTREAM_H
