@@ -267,12 +267,8 @@ public:
 	void Run_with_catch(explain_context_ptr_t context) noexcept;
 
 	// Run_with_cleanup
-	// Execute task with guaranteed cleanup and final OnEnd transition.
+	// Execute task with guaranteed cleanup and final OnEnd transition (after license/locks).
 	void Run_with_cleanup(explain_context_ptr_t context) noexcept;
-
-	// Run_Caller
-	// Entry for inline execution on caller thread (after license/locks).
-	void Run_Caller() noexcept;
 
 public:
 	// Task function that implements the computation or write logic.

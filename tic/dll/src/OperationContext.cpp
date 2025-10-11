@@ -1381,7 +1381,7 @@ bool OperationContext::TryRunningTaskInline()
 	if (!GetUniqueLicenseToRun())
 		return false;
 
-	Run_Caller();
+	Run_with_cleanup({});
 	return true;
 }
 
@@ -1534,7 +1534,7 @@ garbage_can OperationContext::separateResources(task_status status)
 		releaseBin |= std::move(m_ResKeeper); // may release interest of FuncDC, probably not a big thing, but it may release ownership of this, which therefore should have been called by a shared_ptr copy.
 	assert(!m_ResKeeper);
 
-	assert(!m_WriteLock || status == task_status::cancelled || status == task_status::exception); // all other routes outside Schedule go through Run_Caller, which alwayws release the writeLock on completion
+	assert(!m_WriteLock || status == task_status::cancelled || status == task_status::exception); // all other routes go through Run_with_cleanup, which alwayws release the writeLock on completion
 	m_WriteLock = ItemWriteLock();
 
 	if (m_FuncDC)
@@ -1989,23 +1989,6 @@ void OperationContext::Run_with_cleanup(explain_context_ptr_t context) noexcept
 	assert(!m_WriteLock);
 }
 
-// Helper for task_group functor: run without context.
-void OperationContext_Run_with_cleanup_without_context(OperationContext* self) noexcept
-{
-	self->Run_with_cleanup({});
-}
-
-// Inline caller to run this OperationContext synchronously.
-void OperationContext::Run_Caller() noexcept
-{
-	DMS_SE_CALL_BEGIN
-
-		assert(m_PhaseNumber >= s_CurrActivePhaseNumber);
-		OperationContext_Run_with_cleanup_without_context(this);
-
-	DMS_SE_CALL_END
-}
-
 // *****************************************************************************
 // Section:     PopActiveSupplierss
 // *****************************************************************************
@@ -2132,7 +2115,7 @@ bool StealOneTask()
 	if (!ocSPtr)
 		return false; // no work to do
 
-	ocSPtr->Run_Caller(); // inline the work right here:
+	ocSPtr->Run_with_cleanup({});
 	return true;
 }
 

@@ -625,7 +625,8 @@ bool TreeItem_XML_DumpGeneralBody(const TreeItem* self, OutStreamBase* xmlOutStr
 	{
 		for( auto refItem = self; refItem; refItem = refItem->mc_RefItem)
 		{
-			auto nc = DMS_TreeItem_GetProgressState(refItem);
+			assert(!DebugOnlyLock::IsLocked()); // PRECONDITION
+			auto nc = TreeItem_GetProgressState(refItem);
 			xmlTable.NameValueRow(
 				"ProgressState",
 				mySSPrintF("%s at %d for Fence %d, checked at %d for %s"

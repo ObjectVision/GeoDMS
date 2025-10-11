@@ -502,7 +502,8 @@ CLC_CALL CharPtr DMS_CONV DMS_NumericDataItem_GetStatistics(const TreeItem* item
 		static const TreeItem*  s_LastItem = 0;
 		static TimeStamp        s_LastChangeTS=0;
 
-		bool      itemIsValid = DMS_TreeItem_GetProgressState(item) >= PS_Validated;
+		assert(!DebugOnlyLock::IsLocked()); // PRECONDITION
+		bool      itemIsValid = TreeItem_GetProgressState(item) >= PS_Validated;
 		TimeStamp itemLastChangeTS = item->GetLastChangeTS();
 
 		assert(item->HasInterest()); // PRECONDITION

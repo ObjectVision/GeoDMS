@@ -185,8 +185,6 @@ TIC_CALL void     DMS_CONV DMS_TreeItem_SetExpr (TreeItem* self, CharPtr express
 // TreeItem status management
 TIC_CALL UInt32		 DMS_CONV TreeItem_GetProgressState(const TreeItem* self);
 TIC_CALL void        DMS_CONV DMS_TreeItem_Invalidate(TreeItem* self);
-TIC_CALL UInt32      DMS_CONV DMS_TreeItem_GetProgressState(const TreeItem* self);
-TIC_CALL bool        DMS_CONV DMS_TreeItem_IsFailed(const TreeItem* self);
 
 TIC_CALL TimeStamp   DMS_CONV DMS_TreeItem_GetLastChangeTS(const TreeItem* self);
 TIC_CALL IStringHandle DMS_CONV DMS_TreeItem_GetFailReasonAsIString(const TreeItem* self);

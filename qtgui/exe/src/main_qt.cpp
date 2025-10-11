@@ -400,8 +400,11 @@ static VersionComponent s_QT("qt " QT_VERSION_STR);
 #include "OperationContext.h"
 
 int main1(int argc, char* argv[]) {
+
     DMS_SE_CALL_BEGIN
+
         return main_without_SE_handler(argc, argv);
+
     DMS_SE_CALL_END
 }
 

@@ -280,17 +280,6 @@ ActorVisitState DataView_Update(DataView* self)
 	return AVS_Ready;
 }
 
-ActorVisitState DMS_CONV SHV_DataView_Update(DataView* self)
-{
-	DMS_SE_CALL_BEGIN
-
-		return DataView_Update(self);
-
-	DMS_SE_CALL_END
-
-	return AVS_Ready;
-}
-
 void DMS_CONV SHV_DataView_Destroy(DataView* self)
 {
 	DMS_CALL_BEGIN

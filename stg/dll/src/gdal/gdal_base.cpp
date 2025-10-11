@@ -542,7 +542,7 @@ void proj_setup(const char* const* projFolderPtr)
 {
 	DMS_SE_CALLBACK_BEGIN
 
-	OSRSetPROJSearchPaths(projFolderPtr);
+		OSRSetPROJSearchPaths(projFolderPtr);
 
 	DMS_SE_CALLBACK_END // will throw a DmsException in case a SE was raised, such as "cannot load dll"
 }
@@ -580,7 +580,6 @@ void initializeGDAL()
 		gdalComponentImpl::s_OldErrorHandler = CPLSetErrorHandler(gdalComponentImpl::ErrorHandler); // can throw
 
 	DMS_SE_CALLBACK_END
-
 }
 
 gdalComponent::gdalComponent()

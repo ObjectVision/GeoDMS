@@ -78,7 +78,6 @@ private:
 	DebugOnlyLock* m_PrevLock;
 };
 
-#define dms_is_debuglocked DebugOnlyLock::IsLocked()
 #define dms_check_not_debugonly { DebugOnlyLock::CheckNoLocks(); }
 #define dms_assert_without_debugonly_lock(EXPR) dms_assert_impl(EXPR)
 #define dms_assert(EXPR) do { DebugOnlyLock lockChanges("Call to modifying function while debug-only checking assertion '" #EXPR "'", __FILE__, __LINE__); dms_assert_without_debugonly_lock(EXPR); } while(0)
@@ -87,7 +86,6 @@ private:
 
 #else
 
-#define dms_is_debuglocked false
 #define dms_check_not_debugonly { }
 #define dms_assert_without_debugonly_lock(EXPR) CC_ASSUME(bool(EXPR))
 #define dms_assert(EXPR) dms_assert_without_debugonly_lock(EXPR)

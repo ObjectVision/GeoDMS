@@ -358,7 +358,7 @@ TIC_CALL bool DMS_CONV DMS_TreeItem_VisitSuppliers (const TreeItem* self, Client
 // C style Interface functions for Metadata retrieval
 //----------------------------------------------------------------------
 
-bool TreeItem_HasSubItems_Impl(const TreeItem* self)
+TIC_CALL bool DMS_CONV DMS_TreeItem_HasSubItems(const TreeItem* self)
 {
 	DMS_CALL_BEGIN
 
@@ -366,16 +366,6 @@ bool TreeItem_HasSubItems_Impl(const TreeItem* self)
 		return self->HasSubItems();
 
 	DMS_CALL_END
-	return false;
-}
-
-TIC_CALL bool DMS_CONV DMS_TreeItem_HasSubItems(const TreeItem* self)
-{
-	DMS_SE_CALL_BEGIN
-
-		return TreeItem_HasSubItems_Impl(self);
-
-	DMS_SE_CALL_END
 	return false;
 }
 
@@ -709,24 +699,11 @@ UInt32 TreeItem_GetProgressState(const TreeItem* self)
 	return NC2_Invalidated;
 }
 
-extern "C" TIC_CALL UInt32 DMS_CONV DMS_TreeItem_GetProgressState(const TreeItem* self)
-{
-	DMS_SE_CALL_BEGIN
-
-		if (dms_is_debuglocked)
-			return 0;
-
-		return TreeItem_GetProgressState(self);
-
-	DMS_SE_CALL_END
-	return 0;
-}
-
 bool TreeItem_IsFailed(const TreeItem* self)
 {
 	DMS_CALL_BEGIN
 
-		TreeItemContextHandle checkPtr(self, TreeItem::GetStaticClass(), "DMS_TreeItem_IsFailed");
+		TreeItemContextHandle checkPtr(self, TreeItem::GetStaticClass(), "TreeItem_IsFailed");
 
 		SuspendTrigger::Resume();
 
@@ -736,25 +713,11 @@ bool TreeItem_IsFailed(const TreeItem* self)
 	return true;
 }
 
-extern "C" TIC_CALL bool DMS_CONV DMS_TreeItem_IsFailed(const TreeItem* self)
-{
-	DMS_SE_CALL_BEGIN
-
-		if (dms_is_debuglocked)
-			return true;
-
-		return TreeItem_IsFailed(self);
-
-	DMS_SE_CALL_END
-	return true;
-}
-
 extern "C" TIC_CALL bool DMS_CONV DMS_TreeItem_IsDataFailed(const TreeItem* self)
 {
 	DMS_CALL_BEGIN
 
-		if (dms_is_debuglocked)
-			return true;
+		assert(!DebugOnlyLock::IsLocked());
 
 		TreeItemContextHandle checkPtr(self, TreeItem::GetStaticClass(), "DMS_TreeItem_IsDataFailed");
 
