@@ -42,10 +42,12 @@
 #include "TreeItemClass.h"
 #include "Unit.h"
 #include "UnitClass.h"
+extern leveled_std_section cs_ThreadMessing;
 
 #if defined(MG_DEBUG_DCDATA)
 #define MG_DEBUG_FUNCDC false
 #endif
+
 // *****************************************************************************
 //										TLispRefTreeItemMap
 // *****************************************************************************
@@ -178,8 +180,9 @@ std::shared_ptr<OperationContext> FuncDC::GetOperContext() const
 	return m_OperContext;
 }
 
-std::shared_ptr<OperationContext> FuncDC::ResetOperContextImpl() const
+std::shared_ptr<OperationContext> FuncDC::resetOperContextImpl() const
 {
+	assert(cs_ThreadMessing.isLocked());
 	leveled_critical_section::scoped_lock ocaLock(cs_OperContextAccess);
 
 	assert(
@@ -194,15 +197,28 @@ std::shared_ptr<OperationContext> FuncDC::ResetOperContextImpl() const
 
 	std::shared_ptr<OperationContext> operContext = std::move(m_OperContext);
 	if (operContext) 
+	{
+		assert(operContext->m_Status != task_status::running);
 		operContext->m_FuncDC.reset();
+	}
 	assert(!m_OperContext);
 	return operContext;
+}
+
+garbage_can FuncDC::resetOperContextImplAndStopSupplInterest() const
+{
+	auto res = StopSupplInterest();
+
+	res |= resetOperContextImpl();
+	return res;
 }
 
 garbage_can FuncDC::ResetOperContextImplAndStopSupplInterest() const
 {
 	auto res = StopSupplInterest();
-	res |= ResetOperContextImpl();
+
+	leveled_critical_section::scoped_lock octmLock(cs_ThreadMessing);
+	res |= resetOperContextImpl();
 	return res;
 }
 

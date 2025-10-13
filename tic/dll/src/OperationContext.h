@@ -302,7 +302,7 @@ public:
 
 	// GetFuncDC
 	// Accessor for the bound function DataController, if any.
-	const FuncDC* GetFuncDC() const { return m_FuncDC;  }
+	auto GetFuncDC() const->SharedPtr<const FuncDC>;
 
 	// Operator/Group accessors (valid only if m_FuncDC != nullptr).
 	const Operator*       GetOperator () const { assert(m_FuncDC); return m_FuncDC->m_Operator; }

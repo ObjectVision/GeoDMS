@@ -1177,10 +1177,10 @@ bool OperationContext_ConnectArgs(OperationContext* oc, const FutureSuppliers& a
 // Schedule a single OperationContext (recursively pre-schedules suppliers if needed).
 void OperationContext_scheduleThis(OperationContext* self)
 {
+	assert(!cs_ThreadMessing.try_lock());
+
 	assert(self);
 	assert(!self->m_FuncDC || self->GetOperator()->CanRunParallel());
-
-	assert(!cs_ThreadMessing.try_lock());
 
 	if (self->getStatus() != task_status::none)
 		return;
@@ -1544,7 +1544,7 @@ garbage_can OperationContext::separateResources(task_status status)
 	m_WriteLock = ItemWriteLock();
 
 	if (m_FuncDC)
-		releaseBin |= m_FuncDC->ResetOperContextImplAndStopSupplInterest();
+		releaseBin |= m_FuncDC->resetOperContextImplAndStopSupplInterest();
 
 	assert(!m_FuncDC);
 
@@ -1660,10 +1660,11 @@ std::vector<ItemReadLock> OperationContext::SetReadLocks(const FutureSuppliers& 
 // Connect to all argument suppliers by establishing waiter/supplier links.
 bool OperationContext::connectArgs(const FutureSuppliers& allArgInterests)
 {
-	DBG_START("OperationContext", "connectArgs", MG_DEBUG_FUNCCONTEXT);
-	DBG_TRACE(("FuncDC: %s", m_FuncDC->md_sKeyExpr));
-
 	assert(cs_ThreadMessing.isLocked());
+
+	DBG_START("OperationContext", "connectArgs", MG_DEBUG_FUNCCONTEXT);
+	DBG_TRACE(("FuncDC: %s", m_FuncDC ? m_FuncDC->md_sKeyExpr : SharedStr()));
+
 	bool connected = false;
 	for (const auto& supplierInterest: allArgInterests)
 	{
@@ -1718,7 +1719,7 @@ struct OC_CalcResultFunc {
 	void operator () (OperationContext* self, explain_context_ptr_t context) const
 	{
 		assert(self);
-		SharedPtr<const FuncDC> funcDC = self->m_FuncDC.get();
+		auto funcDC = self->GetFuncDC();
 
 #if defined(MG_DEBUG_OPERATIONS)
 		if (self->m_Result && self->m_Result->m_BackRef && !self->m_Result->m_BackRef->IsCacheItem() && IsDataItem(self->m_Result.get_ptr()) && AsDataItem(self->m_Result.get_ptr())->GetAbstrDomainUnit()->GetNrTiles() > 1)
@@ -1755,33 +1756,38 @@ struct OC_CalcResultFunc {
 				return false;
 			};
 
-		if (failureProcessor())
-			return;
+		if (!failureProcessor())
+		{
 
-		// Acquire read locks for suppliers and stop suppl interest on the FuncDC.
-		auto readLocks = self->SetReadLocks(allInterests);
-		allInterests.clear();
+			// Acquire read locks for suppliers and stop suppl interest on the FuncDC.
+			auto readLocks = self->SetReadLocks(allInterests);
+			allInterests.clear();
 
-		funcDC->StopSupplInterest();
-		self->RunOperator(std::move(argRefs), std::move(readLocks), context); // RunImpl() may destroy this and make m_FuncDC inaccessible // CONTEXT
-		argRefs.clear();
+			funcDC->StopSupplInterest();
+			self->RunOperator(std::move(argRefs), std::move(readLocks), context); // RunImpl() may destroy this and make m_FuncDC inaccessible // CONTEXT
+			argRefs.clear();
 
-		failureProcessor();
+			failureProcessor();
+		}
+		assert(!self->m_FuncDC || IsDataCurrCompleted(self->m_Result->GetCurrUltimateItem()) || self->GetResult()->WasFailed(FR_Data) || s_OcTaskGroupIsCanceling);
 	}
 };
 
 // High-level scheduling for CalcResult with arguments and optional context.
 bool OperationContext::ScheduleCalcResult(ArgRefs&& argRefs, explain_context_ptr_t context)
 {
-	DBG_START("OperationContext", "ScheduleCalcResult", MG_DEBUG_FUNCCONTEXT);
-	DBG_TRACE(("FuncDC: %s", m_FuncDC->md_sKeyExpr));
-
+	auto funcDC = GetFuncDC();
+	assert(funcDC);
 	assert(GetOperator());
 	assert(!SuspendTrigger::DidSuspend());
 
-	OperatorContextHandle operContext(true, m_FuncDC);
+	DBG_START("OperationContext", "ScheduleCalcResult", MG_DEBUG_FUNCCONTEXT);
+	DBG_TRACE(("FuncDC: %s", funcDC->md_sKeyExpr));
 
-	TreeItemDualRef& resultHolder = *const_cast<FuncDC*>(m_FuncDC.get_nonnull());
+
+	OperatorContextHandle operContext(true, funcDC.get());
+
+	TreeItemDualRef& resultHolder = *const_cast<FuncDC*>(funcDC.get_nonnull());
 	assert(resultHolder);
 
 	MG_DEBUGCODE(const TreeItem * oldItem = resultHolder.GetOld());
@@ -1812,15 +1818,15 @@ bool OperationContext::ScheduleCalcResult(ArgRefs&& argRefs, explain_context_ptr
 
 	FutureSuppliers allArgInterests;
 
-	allArgInterests.reserve(argRefs.size() + (m_FuncDC ? m_FuncDC->m_OtherSuppliers.size() : 0)); // TODO G8: count better
+	allArgInterests.reserve(argRefs.size() + (funcDC ? funcDC->m_OtherSuppliers.size() : 0)); // TODO G8: count better
 	for (const auto& argRef : argRefs)
 		if (argRef.index() == 0)
 		{
 			allArgInterests.emplace_back(std::get<FutureData>(argRef));
 			assert(allArgInterests.back());
 		}
-	if (m_FuncDC)
-		for (const DataController* dcPtr : m_FuncDC->m_OtherSuppliers)
+	if (funcDC)
+		for (const DataController* dcPtr : funcDC->m_OtherSuppliers)
 		{
 			auto otherSupplier = dcPtr->CallCalcResult();
 			if (!otherSupplier)
@@ -1839,10 +1845,11 @@ bool OperationContext::ScheduleCalcResult(ArgRefs&& argRefs, explain_context_ptr
 	task_status resultStatus = m_Status;
 	if (!resultHolder.WasFailed(FR_Data) && !SuspendTrigger::DidSuspend())
 	{
+		assert(funcDC);
 		auto func = OC_CalcResultFunc{ std::move(argRefs), allArgInterests }; // TOD: move in, but keep view of ArgInterests array
 
 		m_TaskFunc = std::move(func);
-		resultStatus = Schedule(m_FuncDC->IsNew() ? m_FuncDC->GetNew() : nullptr
+		resultStatus = Schedule(funcDC && funcDC->IsNew() ? funcDC->GetNew() : nullptr
 			, allArgInterests
 			, !doASync
 			, context
@@ -1925,7 +1932,9 @@ task_status OperationContext::JoinSupplOrSuspendTrigger()
 // Query MustCalcArg passthrough.
 bool OperationContext::MustCalcArg(arg_index i, CharPtr firstArgValue) const
 {
-	return m_FuncDC->MustCalcArg(i, true, firstArgValue);
+	auto funcDC = GetFuncDC();
+	assert(funcDC);
+	return funcDC->MustCalcArg(i, true, firstArgValue);
 }
 
 // Take and clear m_TaskFunc under lock to avoid races.
@@ -1952,7 +1961,7 @@ void OperationContext::Run_with_catch(explain_context_ptr_t context) noexcept
 		auto taskFunc = OperationContext_TakeTaskFunc(this);
 		if (taskFunc)
 			taskFunc(this, context); // run the payload functor, set by ScheduleItemWriter
-		assert(!m_WriteLock || IsDataCurrCompleted(m_Result->GetCurrUltimateItem()) || GetResult()->WasFailed(FR_Data) || s_OcTaskGroupIsCanceling);
+		assert(!m_FuncDC || IsDataCurrCompleted(m_Result->GetCurrUltimateItem()) || GetResult()->WasFailed(FR_Data) || s_OcTaskGroupIsCanceling);
 	}
 	catch (const task_canceled&)
 	{
@@ -1965,7 +1974,7 @@ void OperationContext::Run_with_catch(explain_context_ptr_t context) noexcept
 	ItemWriteLock localWriteLock;
 	leveled_std_section::unique_lock lock(cs_ThreadMessing);
 
-	assert(!m_WriteLock || IsDataCurrCompleted(m_Result->GetCurrUltimateItem()) || s_OcTaskGroupIsCanceling || GetResult()->WasFailed(FR_Data) || (getStatus() == task_status::cancelled));
+	assert(!m_FuncDC || IsDataCurrCompleted(m_Result->GetCurrUltimateItem()) || s_OcTaskGroupIsCanceling || GetResult()->WasFailed(FR_Data) || (getStatus() == task_status::cancelled));
 
 	localWriteLock = std::move(m_WriteLock);
 	assert(!m_WriteLock);
@@ -2276,7 +2285,7 @@ task_status OperationContext::Join()
 exit:
 	auto status = GetStatus();
 	assert(status > task_status::running);
-	dbg_assert((m_Result->m_ItemCount < 0) || CheckDataReady(m_Result->GetCurrUltimateItem()) || status == task_status::cancelled || status == task_status::exception || !m_Result->GetInterestCount());
+	dbg_assert((m_Result->m_ItemCount < 0) || CheckDataReady(m_Result->GetCurrUltimateItem()) || status == task_status::cancelled || status == task_status::exception || !m_Result->GetInterestCount() || !m_FuncDC);
 	return status;
 }
 
@@ -2349,7 +2358,7 @@ TIC_CALL void DoWorkWhileWaitingFor(task_status* fenceStatus)
 
 void OperationContext::RunOperator(ArgRefs argRefs, std::vector<ItemReadLock> readLocks, explain_context_ptr_t context)
 {
-	SharedPtr<const FuncDC> funcDC = m_FuncDC.get_ptr();
+	SharedPtr<const FuncDC> funcDC = GetFuncDC();
 	if (!funcDC || funcDC->WasFailed(FR_Data))
 		return;
 
@@ -2410,4 +2419,9 @@ void OperationContext::RunOperator(ArgRefs argRefs, std::vector<ItemReadLock> re
 #endif
 		}
 	}
+}
+auto OperationContext::GetFuncDC() const -> SharedPtr<const FuncDC>
+{ 
+	leveled_critical_section::scoped_lock octmLock(cs_ThreadMessing); 
+	return m_FuncDC.get(); 
 }

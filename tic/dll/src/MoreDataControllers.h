@@ -140,7 +140,8 @@ struct FuncDC : DataController
 	void CancelOperContext() const;
 
 	std::shared_ptr<OperationContext> GetOperContext() const;
-	std::shared_ptr<OperationContext> ResetOperContextImpl() const;
+	std::shared_ptr<OperationContext> resetOperContextImpl() const;
+	garbage_can resetOperContextImplAndStopSupplInterest() const;
 	garbage_can ResetOperContextImplAndStopSupplInterest() const;
 
 	OwningPtr<DcRefListElem>      m_Args;
