@@ -965,7 +965,9 @@ void CreateNonzeroJenksFisherBreakAttr(std::weak_ptr<DataView> dv_wptr, const Ab
 
 	auto siwlPaletteDomain = std::make_shared<ItemWriteLock>(std::move(iwlPaletteDomain));
 	auto siwlBreakAttr = std::make_shared<ItemWriteLock>(std::move(iwlBreakAttr)); // TODO G8: Can this be moved into a functor's data field directly? Requires no functor copy!
-	dv->PostGuiOper([paletteDomain
+
+	// SetCount for a domain that already has attributes can only be called from the MainThread
+	auto setTheResultsAction = [paletteDomain
 			, siwlMovedPaletteDomain = std::move(siwlPaletteDomain)
 			, breakAttrPtr, siwlBreakAttr = std::move(siwlBreakAttr)
 			, nrBreaks
@@ -992,7 +994,9 @@ void CreateNonzeroJenksFisherBreakAttr(std::weak_ptr<DataView> dv_wptr, const Ab
 			if (aNr != AN_LabelText)
 				CreatePaletteData(dv.get(), paletteDomain, AN_LabelText, true, true, begin_ptr(resultCopy), end_ptr(resultCopy));
 		}
-	);
+	;
+//	setTheResultsAction();
+	dv->PostGuiOper(std::move(setTheResultsAction));
 }
 
 const AbstrDataItem* GetSystemPalette(const AbstrUnit* paletteDomain, AspectNr aNr)

@@ -98,6 +98,7 @@ private:
 TIC_CALL Int32 GetItemLockCount(const TreeItem* item);
 TIC_CALL bool IsReadLocked(const TreeItem* item);
 TIC_CALL bool IsCalculating(const TreeItem* item);
+TIC_CALL bool IsDataCurrCompleted(const TreeItem* item);
 TIC_CALL bool IsDataCurrReady(const TreeItem* item);
 TIC_CALL bool IsDataReady(const TreeItem* item);
 TIC_CALL bool IsAllDataReady(const TreeItem* item);

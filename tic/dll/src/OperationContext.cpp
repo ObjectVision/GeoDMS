@@ -586,7 +586,7 @@ TIC_CALL void WakeUpJoiners()
 // *****************************************************************************
 
 static concurrency::task_group* s_OcTaskGroup = nullptr;
-
+static bool s_OcTaskGroupIsCanceling = false;
 
 TIC_CALL tg_maintainer::tg_maintainer()
 {
@@ -604,6 +604,7 @@ TIC_CALL tg_maintainer::tg_maintainer()
 TIC_CALL tg_maintainer::~tg_maintainer()
 {
 	assert(s_OcTaskGroup);
+	s_OcTaskGroupIsCanceling = true;
 	{
 		leveled_std_section::scoped_lock lock(cs_ThreadMessing);
 
@@ -612,14 +613,14 @@ TIC_CALL tg_maintainer::~tg_maintainer()
 		s_ScheduledContextsMap.clear();
 		s_RadioActives.clear();
 
-		assert(s_ScheduledContextsMap.empty()); ;
+		assert(s_ScheduledContextsMap.empty());
 		assert(s_RadioActives.empty());
 	}
 	s_OcTaskGroup->cancel();
 	s_OcTaskGroup->wait();
 
 	assert(sd_RunningOC.empty() || g_IsTerminating);
-	assert(sd_OC.empty() || g_IsTerminating);
+//	assert(sd_OC.empty() || g_IsTerminating); issue with scheduled PrepareDataReadTasks that hold a readInfoPtr that holds a StorageMetaInfo that refCounts the m_Curr item that holds its PrepareDataReadTask in m_ReadAssets until the read has started.
 
 	delete s_OcTaskGroup;
 	s_OcTaskGroup = nullptr;
@@ -1951,6 +1952,7 @@ void OperationContext::Run_with_catch(explain_context_ptr_t context) noexcept
 		auto taskFunc = OperationContext_TakeTaskFunc(this);
 		if (taskFunc)
 			taskFunc(this, context); // run the payload functor, set by ScheduleItemWriter
+		assert(!m_WriteLock || IsDataCurrCompleted(m_Result->GetCurrUltimateItem()) || GetResult()->WasFailed(FR_Data) || s_OcTaskGroupIsCanceling);
 	}
 	catch (const task_canceled&)
 	{
@@ -1962,10 +1964,12 @@ void OperationContext::Run_with_catch(explain_context_ptr_t context) noexcept
 
 	ItemWriteLock localWriteLock;
 	leveled_std_section::unique_lock lock(cs_ThreadMessing);
+
+	assert(!m_WriteLock || IsDataCurrCompleted(m_Result->GetCurrUltimateItem()) || s_OcTaskGroupIsCanceling || GetResult()->WasFailed(FR_Data) || (getStatus() == task_status::cancelled));
+
 	localWriteLock = std::move(m_WriteLock);
 	assert(!m_WriteLock);
 	assert(!localWriteLock || localWriteLock.GetItem() == GetResult());
-
 	// writeLock release here before OnEnd allows Waiters to start
 }
 
@@ -1983,12 +1987,8 @@ void OperationContext::Run_with_cleanup(explain_context_ptr_t context) noexcept
 	{
 		assert(!SuspendTrigger::DidSuspend());
 
-		dbg_assert((m_Result->m_ItemCount < 0) || CheckDataReady(m_Result->GetCurrUltimateItem()) || !m_Result->GetInterestCount());
-
 		OnEnd(task_status::done); // just set status to done and clean-up
 	}
-
-	dbg_assert((m_Result->m_ItemCount < 0) || CheckDataReady(m_Result->GetCurrUltimateItem()) || m_Status == task_status::exception || !m_Result->GetInterestCount());
 
 	// check that clean-up was done. This includes releasing the RunCount
 	assert(!m_WriteLock);

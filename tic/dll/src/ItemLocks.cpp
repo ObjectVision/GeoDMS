@@ -483,7 +483,7 @@ bool IsCalculating(const TreeItem* item)
 	return false;
 }
 
-bool IsDataCurrReady(const TreeItem* item)
+bool IsDataCurrCompleted(const TreeItem* item)
 {
 	assert(item);
 	assert(item->GetCurrRangeItem() == item);
@@ -508,8 +508,17 @@ bool IsDataCurrReady(const TreeItem* item)
 	else // just a container that may have been populated by template instantiation or for_each or other MetaCurryApplicator
 		return item->GetIsInstantiated();
 
+	return true;
+}
+
+bool IsDataCurrReady(const TreeItem* item)
+{
+	if (!IsDataCurrCompleted(item))
+		return false;
+
 	if (item->m_ItemCount < 0) // still being processed ?
 		return false;
+
 	return true;
 }
 
