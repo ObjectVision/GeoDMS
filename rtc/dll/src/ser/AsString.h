@@ -15,6 +15,8 @@
 #include "ser/FormattedStream.h"
 #include "ser/MoreStreamBuff.h"
 #include "utl/Quotes.h"
+struct LispPtr;
+struct LispRef;
 
 #define __SER_ASSTRING_H
 
@@ -35,6 +37,13 @@ inline SharedStr AsString(const T& value, FormattingFlags ff = FormattingFlags::
 	return result;
 }
 
+template <class T>
+inline SharedStr AsString(const std::atomic<T>& value, FormattingFlags ff = FormattingFlags::ThousandSeparator)
+{
+	return AsString(value.load(), ff);
+}
+
+inline SharedStr AsString(Void      value) { return SharedStr(); }
 inline SharedStr AsString(WeakStr   value) { return SharedStr(value); }
 inline SharedStr AsString(SharedStr value) { return value; }
 inline SharedStr AsString(CharPtr   value) { return SharedStr(value MG_DEBUG_ALLOCATOR_SRC("AsString")); }
