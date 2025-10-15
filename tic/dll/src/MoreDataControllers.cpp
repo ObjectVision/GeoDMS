@@ -198,7 +198,6 @@ std::shared_ptr<OperationContext> FuncDC::resetOperContextImpl() const
 	std::shared_ptr<OperationContext> operContext = std::move(m_OperContext);
 	if (operContext) 
 	{
-		assert(operContext->m_Status != task_status::running);
 		operContext->m_FuncDC.reset();
 	}
 	assert(!m_OperContext);

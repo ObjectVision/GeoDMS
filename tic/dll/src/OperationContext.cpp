@@ -1347,13 +1347,10 @@ bool OperationContext::collectTaskImpl()
 {
 	assert(!cs_ThreadMessing.try_lock());
 
-	auto funcDC = m_FuncDC;
-
+	auto res = GetResult();
+	assert(res);
 	SharedActorInterestPtr resKeeper;
-	if (funcDC)
-		resKeeper = funcDC->GetInterestPtrOrNull();
-	else
-		resKeeper = GetResult()->GetInterestPtrOrNull();
+	resKeeper = GetResult()->GetInterestPtrOrNull();
 
 	if (!resKeeper)
 		return false;
