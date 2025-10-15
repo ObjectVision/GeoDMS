@@ -816,8 +816,7 @@ void DataView::DoInvalidate() const
 	dbg_assert( md_IsDrawingCount == 0);
 	dbg_assert( md_InvalidateDrawLock == 0);
 
-	if (m_ViewDeviceSize.x > 0 && m_ViewDeviceSize.y > 0)
-		m_DoneGraphics.Reset( Region(m_ViewDeviceSize) );
+	m_DoneGraphics.Reset( Region(m_ViewDeviceSize) );
 
 	dms_assert(DoesHaveSupplInterest() || !GetInterestCount());
 }

@@ -16,6 +16,7 @@
 #include "AbstrUnit.h"
 #include "DataArray.h"
 
+#include "DataView.h"
 #include "GraphicLayer.h"
 #include "GraphVisitor.h"
 #include "LayerClass.h"
@@ -111,6 +112,11 @@ void LayerSet::ProcessCollectionChange()
 {
 	base_type::ProcessCollectionChange();
 	InvalidateView();
+	if (auto dv = GetDataView().lock())
+	{
+		dv->Invalidate();
+		InvalidateRect(dv->GetHWnd(), nullptr, true);
+	}
 }
 
 void LayerSet::DoUpdateView()
