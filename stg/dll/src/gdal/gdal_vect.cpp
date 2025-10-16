@@ -562,12 +562,7 @@ void ReadPolyData(typename sequence_traits<PolygonType>::seq_t dataArray, OGRLay
 	DBG_TRACE(("firstIndex %d, size %d", firstIndex, size));
 
 	using dataBufType = typename sequence_traits<PolygonType>::container_type;
-	if (!readBuffer)
-	{
-		assert(!firstIndex || !size);
-		readBuffer = makeResource<dataBufType>();
-	}
-	dataBufType& data = GetAs<dataBufType>(readBuffer);
+	dataBufType& data = MakeAs<dataBufType>(readBuffer);
 	data.reset(size, 0 MG_DEBUG_ALLOCATOR_SRC("gdal_vect: ReadPolyData"));
 
 	SizeT i=0;
@@ -679,12 +674,8 @@ void ReadLinestringData(typename sequence_traits<PolygonType>::seq_t dataArray, 
 	DBG_TRACE(("firstIndex %d, size %d", firstIndex, size));
 
 	using dataBufType = typename sequence_traits<PolygonType>::container_type;
-	if (!readBuffer)
-	{
-		assert(!firstIndex || !size);
-		readBuffer = makeResource<dataBufType>();
-	}
-	dataBufType& data = GetAs<dataBufType>(readBuffer);
+
+	dataBufType& data = MakeAs<dataBufType>(readBuffer);
 	data.reset(size, 0 MG_DEBUG_ALLOCATOR_SRC("gdal_vect: ReadLinestringData"));
 
 	SizeT i = 0;
@@ -778,12 +769,7 @@ void ReadStringData(sequence_traits<SharedStr>::seq_t dataArray, OGRLayer* layer
 
 	SizeT numChars = 0;
 	typedef sequence_traits<SharedStr>::container_type dataBufType;
-	if (!readBuffer)
-	{
-		dms_assert(!firstIndex || !size);
-		readBuffer = makeResource<dataBufType>();
-	}
-	dataBufType& data = GetAs<dataBufType>(readBuffer);
+	dataBufType& data = MakeAs<dataBufType>(readBuffer);
 	data.reset(size, 0 MG_DEBUG_ALLOCATOR_SRC("gdal_vect"));
 
 	SizeT i=0;

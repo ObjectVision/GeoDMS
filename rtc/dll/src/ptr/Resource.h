@@ -41,6 +41,12 @@ struct ResourceBase
 	{}
 
 	template <typename R>
+	bool IsA() const
+	{
+		return dynamic_cast<const Resource<R>*>(this);
+	};
+
+	template <typename R>
 	R& GetAs()
 	{
 		return debug_refcast<Resource<R>&>(*this);
@@ -51,6 +57,7 @@ struct ResourceBase
 	{
 		return debug_cast<Resource<R>*>(this);
 	};
+
 
 	template <typename R>
 	const R& GetAs() const 
@@ -114,14 +121,22 @@ void operator <<=(ResourceHandle& oldResource, R&& res)
 template <typename R>
 R& GetAs(ResourceBase* rh)
 {
-	dms_assert(rh);
+	assert(rh);
 	return rh->GetAs<R>();
 }
 
 template <typename R>
 const R& GetAs(const ResourceBase* rh)
 {
-	dms_assert(rh);
+	assert(rh);
+	return rh->GetAs<R>();
+}
+
+template <typename R>
+R& MakeAs(ResourceHandle& rh)
+{
+	if (!rh || !rh->IsA<R>())
+		rh.assign(new Resource<R>);
 	return rh->GetAs<R>();
 }
 
