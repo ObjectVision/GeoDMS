@@ -32,10 +32,10 @@
 //                         Helper Funcs
 // *****************************************************************************
 
-CommonOperGroup cog_dir_index("direct_index", oper_policy::dynamic_result_class);
-CommonOperGroup cog_index    ("index", oper_policy::dynamic_result_class);
+CommonOperGroup cog_dir_index(token::direct_index, oper_policy::dynamic_result_class);
+CommonOperGroup cog_index    (token::index, oper_policy::dynamic_result_class);
 CommonOperGroup cog_ordinal  (token::ordinal);
-CommonOperGroup cog_subindex ("subindex", oper_policy::dynamic_result_class);
+CommonOperGroup cog_subindex (token::subindex, oper_policy::dynamic_result_class);
 
 // *****************************************************************************
 //                         Index

@@ -309,8 +309,9 @@ SizeT TableControl::getRecNo(SizeT rowNr, SizeT nrRows) const
 		rowNr = (nrRows - (rowNr + 1));
 	if (!m_SelIndexAttr)
 		return rowNr;
-	assert(m_SelIndexAttr->m_DataLockCount > 0);
-	return m_SelIndexAttr->GetRefObj()->GetValueAsSizeT(rowNr);
+	auto selIndexAttr = AsDataItem(m_SelIndexAttr->GetUltimateItem());
+	assert(selIndexAttr->m_DataLockCount > 0);
+	return selIndexAttr->GetCurrRefObj()->GetValueAsSizeT(rowNr);
 }
 
 SizeT TableControl::GetRowNr(SizeT recNo) const
@@ -1182,28 +1183,31 @@ bool TableControl::CanContain(const TreeItem* viewCandidate) const
 	return domain && SHV_DataContainer_GetItemCount(viewCandidate, domain, 1, hasAdminMode);
 }
 
-auto TableControl::CreateIndex(const AbstrDataItem* attr) -> FutureData
+void TableControl::CreateIndex(const AbstrDataItem* attr)
 {
-	auto dv = GetDataView().lock(); if (!dv) return nullptr;
+	auto dv = GetDataView().lock(); if (!dv) return;
 	if (attr)
 		attr = GetUltimateSourceItem(attr);
 	if (!attr)
-		return nullptr;
-/*
-	SharedPtr<AbstrDataItem> indexAttr = CreateDataItem(
-		CreateDesktopContainer(dv->GetDesktopContext(), attr)
-		, GetTokenID_mt("Index")
-		, attr->GetAbstrDomainUnit()
-		, Unit<UInt32>::GetStaticClass()->CreateDefault()
-	);
-	indexAttr->SetKeepDataState(true);
-	indexAttr->DisableStorage(true);
-	indexAttr->SetDC( ExprList(GetTokenID("direct_index"), attr->GetAsLispRef() ) );
-	*/
-//	assert(attr->mc_DC);
+	{
+		m_IndexAttr = {};
+		return;
+	}
 
-	auto dc = GetOrCreateDataController(ExprList(GetTokenID("direct_index"), attr->GetCheckedKeyExpr() ));
-	return dc->CallCalcResult();
+	auto e = attr->GetAbstrDomainUnit();
+	const UnitClass* eCls = e->GetUnitClass();
+	const UnitClass* vCls = Unit<UInt32>::GetStaticClass();
+	if (eCls->GetValueType()->GetBitSize() > 32)
+		vCls = Unit<UInt64>::GetStaticClass();
+	const AbstrUnit* v = ((eCls == vCls) ? e : vCls->CreateDefault());
+
+	auto container = CreateDesktopContainer(dv->GetDesktopContext(), attr);
+	m_IndexAttr = CreateDataItem(container, token::index, e, v);
+
+	auto lispExpr = ExprList(token::direct_index, attr->GetCheckedKeyExpr());
+	auto calc = AbstrCalculator::ConstructFromLispRef(m_IndexAttr, lispExpr, CalcRole::Calculator);
+	m_IndexAttr->SetCalculator(calc);
+	m_IndexAttr->UpdateDC();
 }
 
 void TableControl::CreateTableIndex(DataItemColumn* dic, SortOrder so)
@@ -1222,16 +1226,10 @@ void TableControl::UpdateTableIndex()
 	auto attr = dic ? dic->GetActiveTextAttr() : nullptr;
 	MG_CHECK(!attr || attr->GetAbstrDomainUnit()->UnifyDomain(GetRowEntity()));
 	if (attr)
-	{
-		m_fd_Index = CreateIndex(attr);
-		if (m_fd_Index)
-			m_IndexAttr = AsDataItem(m_fd_Index->GetOld());
-		else
-			m_IndexAttr = {};
-	} else {
-		m_fd_Index = {};
+		CreateIndex(attr);
+	else
 		m_IndexAttr = {};
-	}
+
 	SyncIndex(SM_Save);
 	InvalidateDraw();
 	UpdateShowSelOnly();
@@ -1349,7 +1347,7 @@ void TableControl::SetEntity(const AbstrUnit* newDomain)
 
 void TableControl::SyncIndex(ShvSyncMode sm)
 {
-	SyncRef(m_IndexAttr, GetContext(), GetTokenID_mt("Index"), sm);
+	SyncRef(m_IndexAttr, GetContext(), token::index, sm);
 	SyncState(this, GetContext(), GetTokenID_mt("FlipOrder"), TCF_FlipSortOrder, false, sm);
 }
 

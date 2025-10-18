@@ -190,8 +190,15 @@ void Update(const AbstrDataItem* adi)
 	if (adi)
 	{
 		adi->UpdateMetaInfo();
+		adi->UpdateDC();
+#if defined(MG_DEBUG)
+		auto refItem = adi->GetCurrUltimateItem();
+		assert(refItem == adi->GetUltimateItem());
+		assert(refItem == adi->GetCurrRangeItem());
+#endif
 		adi->GetAbstrValuesUnit()->PrepareData();
-		adi->PrepareDataUsage(DrlType::Certain);
+		if (!adi->PrepareDataUsage(DrlType::Certain))
+			adi->ThrowFail();
 	}
 }
 

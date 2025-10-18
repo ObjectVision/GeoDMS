@@ -230,6 +230,9 @@ namespace token {
 	TIC_CALL TokenID Error = GetTokenID_st("Error");
 	TIC_CALL TokenID SigAndSub = GetTokenID_st("SigAndSub");
 
+	TIC_CALL TokenID direct_index = GetTokenID_st("direct_index");
+	TIC_CALL TokenID index = GetTokenID_st("index");
+	TIC_CALL TokenID subindex = GetTokenID_st("subindex");
 }
 
 LispRef CreateStorageSpec(const TreeItem* src)

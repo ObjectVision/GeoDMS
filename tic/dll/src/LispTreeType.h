@@ -164,6 +164,9 @@ namespace token {
 	extern TIC_CALL TokenID Error;
 	extern TIC_CALL TokenID SigAndSub;
 
+	extern TIC_CALL TokenID direct_index;
+	extern TIC_CALL TokenID index;
+	extern TIC_CALL TokenID subindex;
 }
 
 //LispRef CreateLispSubTree(const TreeItem* self, bool inclSubTree);

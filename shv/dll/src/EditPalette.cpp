@@ -589,11 +589,12 @@ void EditPaletteControl::ReLabelRanges()
 	if (!k)
 		return;
 
-	auto breakIndex = m_PaletteControl->CreateIndex(breakAttr);
-	
+	m_PaletteControl->CreateIndex(breakAttr);
+//	auto breakIndex = AsDataItem(m_PaletteControl->GetIndexAttr()->GetUltimateItem());
+	auto breakIndex = m_PaletteControl->GetIndexAttr();
 
 	PreparedDataReadLock  breakLock(breakAttr, "EditPaletteControl::ReLabelRanges()");
-	DataReadLock  breakIndexLock(AsDataItem(GetItem(breakIndex)));
+	PreparedDataReadLock  breakIndexLock(breakIndex, "EditPaletteControl::ReLabelRanges()");
 	DataWriteLock labelLock(labelAttr);
 
 	SharedStr prevBreakStr;

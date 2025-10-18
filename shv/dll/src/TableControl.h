@@ -135,7 +135,7 @@ public:
 	bool  CanContain(const TreeItem* viewCandidate) const;
 	void  AddLayer  (const TreeItem* viewCandidate, bool isDropped);
 	void  AddIdColumn(const AbstrUnit* domain, const AbstrDataItem* exampleAttr);
-	auto  CreateIndex(const AbstrDataItem* attr)->FutureData;
+	void  CreateIndex(const AbstrDataItem* attr);
 	void  CreateTableIndex(DataItemColumn* dic, SortOrder so);
 	void  CreateTableGroupBy(bool activate);
 
@@ -176,7 +176,6 @@ private:
 	void UpdateTableIndex();
 
 	SharedUnitInterestPtr        m_Entity, m_SelEntity, m_GroupByEntity;
-	FutureData                   m_fd_Index;
 	SharedDataItemInterestPtr    m_IndexAttr, m_SelIndexAttr, m_GroupByRel, m_LabelAttr;
 	SharedPtr<FocusElemProvider> m_FocusElemProvider;
 	WeakPtr<TableViewControl>    m_TableView;

@@ -806,11 +806,9 @@ garbage_can OperationContext::disconnect_supplier(OperationContext* supplier)
 	{
 	case task_status::done:
 		assert(supplier->m_Result);
-		assert(IsDataReady(supplier->m_Result->GetCurrUltimateItem()));
+		assert(IsDataReady(supplier->m_Result->GetCurrUltimateItem()) || m_Status >= task_status::running);
 		if (!m_Suppliers.empty())
 			break;
-
-		dbg_assert(m_Suppliers.empty());
 
 		if (m_Status == task_status::waiting_for_suppliers)
 			scheduleRunnableTask(this);

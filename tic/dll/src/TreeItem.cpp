@@ -3608,7 +3608,7 @@ bool TreeItem::PrepareDataUsageImpl(DrlType drlFlags) const
 	if (m_State.IsDataFailed())  // may have been arranged in an alternative thread.
 		goto failed_norefitem;
 	refItem = GetCurrUltimateItem();
-	
+
 	assert(refItem->IsPassor() || HasConfigData() || refItem->m_State.GetProgress() >= PS_MetaInfo || refItem->WasFailed(FR_MetaInfo));
 	assert(GetInterestCount() || !IsDataItem(this)); // interest consistency
 
