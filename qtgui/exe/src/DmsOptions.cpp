@@ -587,7 +587,7 @@ DmsConfigOptionsWindow::DmsConfigOptionsWindow(QWidget* parent)
             SharedDataItemInterestPtr data_item = adi;
 
             PreparedDataReadLock drl(adi, "DmsConfigOptionsWindow"); // interestCount held by m_Options;
-            auto configuredValue = data_item->GetRefObj()->AsString(0, lockHolder);
+            auto configuredValue = data_item->GetRefObj()->AsString(0, lockHolder, FormattingFlags::None);
 
             m_Options.emplace_back(ConfigOption{ std::move(tiName), std::move(configuredValue), option_cbx, option_input });
 

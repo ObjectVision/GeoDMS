@@ -226,7 +226,7 @@ Int32 FeatureLayer::GetMaxLabelStrLen() const
 					SizeT i = labelPalette->GetAbstrDomainUnit()->GetTileFirstIndex(t);
 					SizeT n = i + labelPalette->GetAbstrDomainUnit()->GetTileCount(t);
 					for (;i!=n;++i)
-						MakeMax(result, abstrLabelArray->AsString(i, lock).ssize() );
+						MakeMax(result, abstrLabelArray->AsString(i, lock, FormattingFlags::ThousandSeparator).ssize() );
 				}
 			}
 		}

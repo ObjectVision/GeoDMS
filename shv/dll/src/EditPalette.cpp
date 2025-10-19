@@ -60,7 +60,7 @@ SharedStr NumericEditControl::GetAsText() const
 
 SharedStr NumericEditControl::GetOrgText (SizeT recNo, GuiReadLock& lock) const
 {
-	dms_assert(recNo == 0);
+	assert(recNo == 0);
 	return GetAsText();
 }
 
@@ -573,7 +573,7 @@ void EditPaletteControl::ReLabelValues()
 	const AbstrDataObject* breakObj = breakAttr->GetRefObj();
 	GuiReadLock lockHolder;
 	for (SizeT j =0; j != k; ++j)
-		labelLock->SetValue<SharedStr>(j, breakObj->AsString(j, lockHolder));
+		labelLock->SetValue<SharedStr>(j, breakObj->AsString(j, lockHolder, FormattingFlags::ThousandSeparator));
 	labelLock.Commit();
 }
 
@@ -606,7 +606,7 @@ void EditPaletteControl::ReLabelRanges()
 			? breakIndexLock->GetValue<UInt32>(j)
 			:	j;
 
-		SharedStr breakStr = breakLock->AsString(jj, lock);
+		SharedStr breakStr = breakLock->AsString(jj, lock, FormattingFlags::ThousandSeparator);
 		if (j>0)
 			labelLock->SetValue<SharedStr>(prevJJ, prevBreakStr + " ... " + breakStr);
 		prevBreakStr = breakStr;

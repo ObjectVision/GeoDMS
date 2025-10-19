@@ -638,12 +638,12 @@ bool    DataArrayBase<V>::AsCharArray(SizeT index, char* sink, streamsize_t bufL
 }
 
 template <class V>
-SharedStr  DataArrayBase<V>::AsString(SizeT index, GuiReadLock& lockHolder) const
+SharedStr  DataArrayBase<V>::AsString(SizeT index, GuiReadLock& lockHolder, FormattingFlags ff) const
 {
 	auto ii = GetIndexedIterator(index, lockHolder);
 	if (ii == const_iterator())
-		return ::AsString(Undefined());
-	return ::AsString(*ii);
+		return ::AsString(Undefined(), ff);
+	return ::AsString(*ii, ff);
 }
 
 template <class V>

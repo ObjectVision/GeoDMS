@@ -586,7 +586,7 @@ SharedStr AbstrUnit::GetMissingValueLabel() const
 		{
 			PreparedDataReadLock drl(di, "AbstrUnit::GetMissingValueLabel()");
 			TileCRef lock;
-			return di->GetRefObj()->AsString(0, lock);
+			return di->GetRefObj()->AsString(0, lock, FormattingFlags::ThousandSeparator);
 		}
 	}
 	si = GetSourceItem();

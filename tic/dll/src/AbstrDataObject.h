@@ -115,7 +115,7 @@ public:
 	TIC_CALL virtual bool IsDataRowNull   (SizeT index) const = 0;
 	TIC_CALL virtual bool   AsCharArray(SizeT index, char* sink, streamsize_t buflen, GuiReadLock& lockHolder, FormattingFlags ff) const=0;
 	TIC_CALL virtual SizeT  AsCharArraySize(SizeT index, streamsize_t maxLen, GuiReadLock& lockHolder, FormattingFlags ff) const=0;
-	TIC_CALL virtual SharedStr AsString (SizeT index, GuiReadLock& lockHolder) const=0;
+	TIC_CALL virtual SharedStr AsString (SizeT index, GuiReadLock& lockHolder, FormattingFlags ff) const=0;
 
 // Support for numerics (optional)
 	// TODO G8: add TileCRef& resourceHolder as last parameter to these functions to avold file (un)mapping per row

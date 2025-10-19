@@ -170,16 +170,10 @@ bool TextEditController::OnKeyDown(AbstrTextEditControl* srcTC, SizeT srcRec, UI
 		{
 			virtKey &= KeyInfo::CharMask;
 			switch (virtKey) {
-				case VK_BACK: // Backspace
-					if (m_SelRange.m_Begin && m_SelRange.IsClosed())
-						--m_SelRange.m_Begin;
-
-					m_CurrText.GetAsMutableCharArray()->erase(m_SelRange.m_Begin, m_SelRange.Size());
-					m_SelRange.CloseAt(m_SelRange.m_Begin);
-					InvalidateDraw();
-					return true;
-
-				case VK_TAB: // Process a tab.  
+			case VK_BACK: // Backspace
+			case 0x000: // Backspace echo
+				return false;
+			case VK_TAB: // Process a tab.  
 					dms_assert(false);
 			}
 			if (! m_SelRange.IsClosed())
@@ -196,7 +190,16 @@ bool TextEditController::OnKeyDown(AbstrTextEditControl* srcTC, SizeT srcRec, UI
 		{
 			bool shiftKey = GetKeyState(VK_SHIFT) & 0x8000;
 			switch (KeyInfo::CharOf(virtKey)) {
-      			case VK_ESCAPE: // Escape 
+				case VK_BACK: // Backspace
+					if (m_SelRange.m_Begin && m_SelRange.IsClosed())
+						--m_SelRange.m_Begin;
+
+					m_CurrText.GetAsMutableCharArray()->erase(m_SelRange.m_Begin, m_SelRange.Size());
+					m_SelRange.CloseAt(m_SelRange.m_Begin);
+					InvalidateDraw();
+					return true;
+
+				case VK_ESCAPE: // Escape 
 					Abandon();
 					return true;
 

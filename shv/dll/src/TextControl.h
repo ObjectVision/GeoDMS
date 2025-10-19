@@ -131,6 +131,7 @@ public:
 	virtual void InvalidateDrawnActiveElement() =0;
 	virtual std::weak_ptr<DataView> GetDataView() const=0;
 	virtual SharedStr GetOrgText(SizeT recNo, GuiReadLock& lock) const = 0;
+
 protected:
 	void DrawEditText(
 		HDC          dc, 

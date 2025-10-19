@@ -162,7 +162,7 @@ SharedStr AbstrThemeValueGetter::GetStringValue(SizeT entityIndex, GuiReadLock& 
 	entity_id classIndex = GetClassIndex(entityIndex);
 	if (!IsDefined(classIndex))
 		return UNDEFINED_VALUE(SharedStr);
-	return m_PaletteAttr->GetRefObj()->AsString(classIndex, lock);
+	return m_PaletteAttr->GetRefObj()->AsString(classIndex, lock, FormattingFlags::ThousandSeparator);
 }
 
 TextInfo AbstrThemeValueGetter::GetTextInfo(SizeT entityIndex, GuiReadLock& lock) const
@@ -185,7 +185,7 @@ TextInfo AbstrThemeValueGetter::GetTextInfo(SizeT entityIndex, GuiReadLock& lock
 		static auto undefinedText = SharedStr("null");
 		return TextInfo{ undefinedText, true };
 	}
-	return TextInfo{ refObj->AsString(classIndex, lock), false };
+	return TextInfo{ refObj->AsString(classIndex, lock, FormattingFlags::ThousandSeparator), false };
 }
 
 void AbstrThemeValueGetter::GenerateValueInfo(entity_id entityIndex) const

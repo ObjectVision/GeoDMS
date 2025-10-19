@@ -104,7 +104,7 @@ struct DataArrayBase : AbstrDataObject
 
 	TICTOC_CALL bool        AsCharArray(SizeT index, char* sink, streamsize_t buflen, GuiReadLock& lockHolder, FormattingFlags ff) const override;
 	TICTOC_CALL SizeT       AsCharArraySize(SizeT index, streamsize_t maxLen, GuiReadLock& lockHolder, FormattingFlags ff)     const override;
-	TICTOC_CALL SharedStr   AsString (SizeT index, GuiReadLock& lockHolder)                                const override;
+	TICTOC_CALL SharedStr   AsString (SizeT index, GuiReadLock& lockHolder, FormattingFlags ff)                                const override;
 
 	TICTOC_CALL std::size_t GetNrTileBytesNow(tile_id t, bool calcStreamSize = false) const override;
 	TICTOC_CALL bool        IsSmallerThan(SizeT sz) const override;

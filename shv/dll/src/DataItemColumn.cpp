@@ -935,7 +935,7 @@ SharedStr DataItemColumn::GetOrgText(SizeT recNo, GuiReadLock& lock) const
 	dms_assert(GetActiveTextAttr() && GetActiveTextAttr()->GetInterestCount() > 0);
 	DataReadLock readHandle(GetActiveTextAttr());
 	dms_assert(GetActiveTextAttr() && GetActiveTextAttr()->GetCurrUltimateItem()->m_ItemCount > 0);
-	return readHandle->AsString(recNo, lock);
+	return readHandle->AsString(recNo, lock, FormattingFlags::None);
 }
 
 void DataItemColumn::SetOrgText  (SizeT recNo, CharPtr textData)
