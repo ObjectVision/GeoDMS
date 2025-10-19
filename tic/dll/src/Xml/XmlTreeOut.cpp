@@ -46,6 +46,9 @@
 //											LOCAL HELPER FUNCS
 // *****************************************************************************
 
+bool XML_MetaInfoRefRows(const TreeItem* self, XML_Table& table, CharPtr color = nullptr);
+
+
 SharedStr GetStrRange(const AbstrUnit* unit)
 {
 	try 
@@ -348,9 +351,12 @@ void XML_Table::NameErrRow(CharPtr propName, const ErrMsg& err, const TreeItem* 
 
 // ********** XML_Table::Row                                        *********
 
-void XML_Table::Row::ClickableCell(CharPtr value, CharPtr hRef, bool bold /* = false */)
+void XML_Table::Row::ClickableCell(CharPtr value, CharPtr hRef, bool bold /* = false */, CharPtr color)
 {
 	Cell xmlElemTD(*this);
+	if (color)
+		OutStream().WriteAttr("bgcolor", color);
+
 	if (bold)
 	{
 		auto boldElement = XML_OutElement(OutStream(), "B");
@@ -660,7 +666,8 @@ bool TreeItem_XML_DumpGeneralBody(const TreeItem* self, OutStreamBase* xmlOutStr
 		xmlTable.SingleCellRow(result.c_str(), "#ACE1AF");
 		xmlTable.EmptyRow();
 	}
-		
+
+	XML_MetaInfoRefRows(self, xmlTable, "#ACE1AF");
 
 	result = TreeItemPropertyValue(self, labelPropDefPtr); 
 	if (!result.empty())
@@ -877,6 +884,33 @@ TIC_CALL void TreeItem_XML_ConvertAndDumpDatasetProperties(const TreeItem* self,
 	}
 }
 
+
+bool XML_MetaInfoRefRows(const TreeItem* self, XML_Table& table, CharPtr color)
+{
+	assert(self);
+
+	for (auto cursor = self; cursor; cursor = cursor->GetTreeParent())
+	{
+		auto url = TreeItemPropertyValue(cursor, urlPropDefPtr);
+		if (!url.empty())
+		{
+			XML_Table::Row row(table);
+			row.ItemCell(cursor);
+			auto context = cursor;
+			if (url[0] == '#')
+			{
+				context = self;
+				url = SharedStr(CharPtrRange(url.begin() + 1, url.send()));
+			}
+
+			auto expandedUrl = AbstrStorageManager::GetFullStorageName(context, url);
+			row.ClickableCell(expandedUrl.c_str(), expandedUrl.c_str(), false, color);
+		}
+	}
+
+	return true;
+}
+
 TIC_CALL bool XML_MetaInfoRef(const TreeItem* self, OutStreamBase* xmlOutStrPtr)
 {
 	assert(xmlOutStrPtr);
@@ -886,24 +920,7 @@ TIC_CALL bool XML_MetaInfoRef(const TreeItem* self, OutStreamBase* xmlOutStrPtr)
 	XML_ItemBody xmlItemBody(*xmlOutStrPtr, "Meta information reference", "a link to description or documentation", self);
 	try {
 		XML_Table table(*xmlOutStrPtr);
-		for (auto cursor=self; cursor; cursor = cursor->GetTreeParent())
-		{
-			auto url = TreeItemPropertyValue(cursor, urlPropDefPtr);
-			if (!url.empty())
-			{
-				XML_Table::Row row(table);
-				row.ItemCell(cursor);
-				auto context = cursor;
-				if (url[0] == '#')
-				{
-					context = self;
-					url = SharedStr(CharPtrRange(url.begin() + 1, url.send()));
-				}
-
-				auto expandedUrl = AbstrStorageManager::GetFullStorageName(context, url);
-				row.ClickableCell(expandedUrl.c_str(), expandedUrl.c_str());
-			}
-		}
+		XML_MetaInfoRefRows(self, table, "#ACE1AF");
 	}
 	catch (...)
 	{

@@ -56,7 +56,7 @@ struct XML_Table : XML_OutElement
 			OutStream().WriteTrimmed(value);
 		}
 
-		TIC_CALL void ClickableCell(CharPtr value, CharPtr hRef, bool bold = false);
+		TIC_CALL void ClickableCell(CharPtr value, CharPtr hRef, bool bold = false, CharPtr color = nullptr);
 		TIC_CALL void EditablePropCell(CharPtr propName, CharPtr propLabel = "", const TreeItem* item = nullptr);
 
 		void ItemCell(const TreeItem* item, bool bold = false)
