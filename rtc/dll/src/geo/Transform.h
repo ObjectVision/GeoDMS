@@ -207,7 +207,7 @@ public:
 private:
 	void CheckSingularity()
 	{
-		if (m_Factor.first == 0 || m_Factor.second == 0)
+		if (IsSingular())
 			IllegalSingularity();
 	}
 

@@ -307,7 +307,7 @@ const AbstrUnit* ViewPort::GetWorldCrdUnit() const
 
 CrdRect WorldRect_AddBorderPixels(CrdRect result, CrdRect viewPort, const ScalableObject* go, OrientationType orientation)
 {
-	if (!result.empty())
+	if (!result.empty() && !result.is_max())
 	{
 		TRect border = go->GetBorderLogicalExtents();
 
@@ -315,8 +315,12 @@ CrdRect WorldRect_AddBorderPixels(CrdRect result, CrdRect viewPort, const Scalab
 			&&	IsStrictlyLower(Convert<CrdPoint>(border.Size()), Size(viewPort)))
 		{
 			CrdRect crdBorder = Convert<CrdRect>(border);
-			result +=
-				CrdTransformation(result, Convert<CrdRect>(viewPort) - crdBorder, orientation).WorldScale( crdBorder );
+			auto tr = CrdTransformation(result, Convert<CrdRect>(viewPort) - crdBorder, orientation);
+			if (!tr.IsSingular())
+			{
+				auto worldBorder = tr.WorldScale(crdBorder);
+				result += worldBorder;
+			}
 		}
 	}
 	return result;
