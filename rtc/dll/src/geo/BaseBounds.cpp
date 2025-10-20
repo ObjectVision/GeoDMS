@@ -25,6 +25,6 @@ Float64 AsFloat64(const Void& ) { throwIllegalAbstract(MG_POS, "AsFloat64(Void)"
 {
 	throwErrorD("Transformation",
 		"illegal singular factor\n"
-		"This error may result from vizualising a geographic layer without bounding box or with a bounding box with zero area."
+		"This error may result from visualising a geographic layer without features, for which no bounding box can be determined."
 	);
 }
