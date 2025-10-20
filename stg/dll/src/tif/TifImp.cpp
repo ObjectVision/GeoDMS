@@ -423,7 +423,7 @@ bool TifImp::OpenForWriteDirect(WeakStr name)
 {
 	GetWritePermission(name);
 
-	m_TiffHandle = TIFFOpen(ConvertDmsFileName(name).c_str(), "a");
+	m_TiffHandle = TIFFOpen(ConvertDmsFileName(name).c_str(), "w");
 	if (m_TiffHandle)
 		TIFFSetField(m_TiffHandle, TIFFTAG_SOFTWARE, "GeoDMS " BOOST_STRINGIZE( DMS_VERSION_MAJOR ) );
 	return m_TiffHandle;
