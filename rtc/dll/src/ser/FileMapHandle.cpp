@@ -271,12 +271,19 @@ FileChunkSpec MappedFileHandle::allocChunk(FileChunkSpec& viewSpec, dms::filesiz
 	assert(newCapacity > viewSpec.capacity); // precondition
 
 	auto memPageAllocTable = m_MemPageAllocTable.get();
+	if (!memPageAllocTable)
+	{
+		assert(viewSpec.offset == 0);
+		if (viewSpec.capacity > m_AllocatedSize)
+			allocAtEnd(0, viewSpec.capacity - m_AllocatedSize);
+		return viewSpec;
+	}
 	assert(memPageAllocTable);
 
 	auto newChunk = memPageAllocTable->ReallocChunk(FreeChunk(viewSpec.offset, viewSpec.offset + viewSpec.capacity), newCapacity, m_AllocatedSize);
 	assert(newChunk.first >= memPageAllocTable->m_ViewSpec.capacity);
 	assert(newChunk.first < newChunk.second);
-	assert(newChunk.first + newCapacity  == newChunk.second);
+	assert(newChunk.first + newCapacity == newChunk.second);
 
 	if (newChunk.second > m_AllocatedSize)
 		allocAtEnd(0, newChunk.second - m_AllocatedSize);
