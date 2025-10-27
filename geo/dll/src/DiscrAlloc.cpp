@@ -1609,7 +1609,14 @@ void CreateResultingItems(
 
 		gg->m_diSuitabilityMap = AsCertainDataItem(suitabilitiesSet->GetConstSubTreeItemByID(gg->m_NameID));
 		gg->m_diSuitabilityMap->UpdateMetaInfo();
-		funcDC.AddDependency(gg->m_diSuitabilityMap->GetCheckedDC());
+
+		auto suitMapDc = gg->m_diSuitabilityMap->GetCheckedDC();
+		if (!suitMapDc)
+			if (gg->m_diSuitabilityMap->WasFailed(FailType::FR_MetaInfo))
+				gg->m_diSuitabilityMap->ThrowFail();
+		MG_CHECK(suitMapDc);
+		funcDC.AddDependency(suitMapDc);
+
 		if (!allocUnit->UnifyDomain(gg->m_diSuitabilityMap->GetAbstrDomainUnit(), "AllocUnit (second argument)", "Domain of suitability map", UnifyMode(), &resultMsg))
 			throwErrorF("discrete_alloc", "Domain of suitability map for %s:\n%s\n %s and allocUnit (arg2) incompatible: %s"
 				,	gg->m_NameID, gg->m_diSuitabilityMap->GetSourceName()
