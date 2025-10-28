@@ -361,6 +361,8 @@ void AbstrDataItem::InitAbstrDataItem(TokenID domainUnit, TokenID valuesUnit, Va
 
 const DataItemClass* AbstrDataItem::GetDynamicObjClass() const
 {
+	assert(IsMainThread());
+
 	auto avu = GetAbstrValuesUnit();
 	assert(avu);
 	auto vc = GetValueComposition();
@@ -388,7 +390,7 @@ const Class* AbstrDataItem::GetCurrentObjClass() const
 {
 	return HasDataObj()
 		?	GetDataObj()->GetDynamicClass()
-		:	GetDynamicObjClass();
+		:	GetDynamicClass();
 }
 
 void AbstrDataItem::Unify(const TreeItem* refItem, CharPtr leftRole, CharPtr rightRole) const
