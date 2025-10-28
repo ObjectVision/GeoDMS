@@ -361,8 +361,6 @@ void AbstrDataItem::InitAbstrDataItem(TokenID domainUnit, TokenID valuesUnit, Va
 
 const DataItemClass* AbstrDataItem::GetDynamicObjClass() const
 {
-	assert(IsMainThread());
-
 	auto avu = GetAbstrValuesUnit();
 	assert(avu);
 	auto vc = GetValueComposition();
