@@ -250,6 +250,20 @@ void CheckMemPage(const mempage_table* memPageAllocTable, FreeChunk newChunk)
 		assert(freeChunk.first < freeChunk.second);
 		assert((newChunk.first >= freeChunk.second) || (newChunk.second <= freeChunk.first));
 	}
+	auto currFreeByLexi = memPageAllocTable->m_FreeListByLexi.begin();
+	auto lastFreeByLexi = memPageAllocTable->m_FreeListByLexi.end();
+	if (!(currFreeByLexi == lastFreeByLexi))
+	{
+		while (true)
+		{
+			auto nextFreeByLexi = currFreeByLexi;
+			++nextFreeByLexi;
+			assert(currFreeByLexi->second < nextFreeByLexi->first);
+			if (nextFreeByLexi == lastFreeByLexi)
+				break;
+			currFreeByLexi = nextFreeByLexi;
+		}
+	}
 }
 #endif //defined(MG_DEBUG)
 
@@ -570,6 +584,8 @@ void mempage_table::InitFreeSetsFromChunkSpecs(tile_id tn, dms::filesize_t fileS
 	m_FreeListBySize.clear();
 	for (auto& chunk : m_FreeListByLexi)
 		m_FreeListBySize.insert(chunk);
+
+	assert(m_FreeListByLexi.size() == m_FreeListBySize.size());
 }
 
 void mempage_table::FreeAllocatedChunk(FreeChunk currChunk)
@@ -581,28 +597,50 @@ void mempage_table::FreeAllocatedChunk(FreeChunk currChunk)
 	auto it = m_FreeListByLexi.lower_bound(currChunk);
 	if (it != m_FreeListByLexi.begin())
 	{
+		// merge with previous chunk
 		auto prevIt = it;
 		auto prevChunk = *--prevIt;
+
 		if (prevChunk.second == currChunk.first)
 		{
+			assert(m_FreeListByLexi.size() == m_FreeListBySize.size());
 			m_FreeListBySize.erase(prevChunk);
 			it = m_FreeListByLexi.erase(prevIt);
+			assert(m_FreeListByLexi.size() == m_FreeListBySize.size());
+
 			currChunk.first = prevChunk.first;
 		}
 	}
 	if (it != m_FreeListByLexi.end() && it->first == currChunk.second)
 	{
+		// merge with next chunk
 		auto nextChunk = *it;
+
+		assert(m_FreeListByLexi.size() == m_FreeListBySize.size());
 		it = m_FreeListByLexi.erase(it);
 		m_FreeListBySize.erase(nextChunk);
+		assert(m_FreeListByLexi.size() == m_FreeListBySize.size());
+
 		currChunk.second = nextChunk.second;
 	}
+
+#if defined(MG_DEBUG)
+	CheckMemPage(this, currChunk);
+#endif //defined(MG_DEBUG)
+
+	assert(currChunk.first < currChunk.second);
 	m_FreeListByLexi.insert(it, currChunk);
 	m_FreeListBySize.insert(currChunk);
+
+	assert(m_FreeListByLexi.size() == m_FreeListBySize.size());
 }
 
 FreeChunk mempage_table::ReallocChunk(FreeChunk currChunk, dms::filesize_t newSize, dms::filesize_t fileSize)
 {
+#if defined(MG_DEBUG)
+	CheckMemPage(this, currChunk);
+#endif //defined(MG_DEBUG)
+
 	assert(currChunk.size() < newSize);
 	auto it = m_FreeListByLexi.lower_bound(currChunk);
 	if (it != m_FreeListByLexi.end())
@@ -617,9 +655,12 @@ FreeChunk mempage_table::ReallocChunk(FreeChunk currChunk, dms::filesize_t newSi
 				// grow into the subsequent free chunk
 				it = m_FreeListByLexi.erase(it);
 				m_FreeListBySize.erase(freeChunk);
+				assert(m_FreeListByLexi.size() == m_FreeListBySize.size());
+
 				if (newEnd < freeChunk.second)
 				{
 					freeChunk.first = newEnd;
+					assert(freeChunk.first < freeChunk.second);
 					it = m_FreeListByLexi.insert(it, freeChunk);
 					m_FreeListBySize.insert(freeChunk);
 				}
@@ -646,9 +687,10 @@ FreeChunk mempage_table::ReallocChunk(FreeChunk currChunk, dms::filesize_t newSi
 		it = m_FreeListByLexi.erase(it);
 		auto newChunk = FreeChunk(freeChunk.first, freeChunk.first + newSize);
 
-		if (newSize < it2->size())
+		if (newChunk.second < freeChunk.second)
 		{
-			freeChunk.first = currChunk.first + newSize;
+			freeChunk.first = newChunk.second;
+			assert(freeChunk.first < freeChunk.second);
 			it = m_FreeListByLexi.insert(it, freeChunk);
 			m_FreeListBySize.insert(freeChunk);
 		}
@@ -675,9 +717,19 @@ FreeChunk mempage_table::ReallocChunk(FreeChunk currChunk, dms::filesize_t newSi
 		auto lastChunk = *lastChunkIt;
 		if (currChunk.second == lastChunk.first && lastChunk.second == fileSize)
 		{
+			assert(m_FreeListByLexi.size() == m_FreeListBySize.size());
 			m_FreeListBySize.erase(lastChunk);
 			m_FreeListByLexi.erase(lastChunkIt);
+			assert(m_FreeListByLexi.size() == m_FreeListBySize.size());
+
 			auto newChunk = FreeChunk(currChunk.first, currChunk.first + newSize);
+			if (newChunk.second < lastChunk.first)
+			{
+				lastChunk.first = newChunk.second;
+				m_FreeListByLexi.insert(m_FreeListByLexi.end(), lastChunk);
+				m_FreeListBySize.insert(lastChunk);
+				assert(m_FreeListByLexi.size() == m_FreeListBySize.size());
+			}
 #if defined(MG_DEBUG)
 			CheckMemPage(this, newChunk);
 #endif //defined(MG_DEBUG)
