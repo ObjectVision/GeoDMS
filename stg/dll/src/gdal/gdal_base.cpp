@@ -1277,6 +1277,12 @@ void TryRegisterVectorDriverFromKnownDriverShortName(std::string_view known_driv
 	else if (known_driver_shortname == "GPKG")
 		RegisterOGRGeoPackage();
 
+	else if (known_driver_shortname == "Parquet")
+		RegisterOGRParquet();
+
+	else if (known_driver_shortname == "Arrow")
+		RegisterOGRArrow();
+
 	else if (known_driver_shortname == "CSV")
 		RegisterOGRCSV();
 
@@ -1307,6 +1313,9 @@ void TryRegisterRasterDriverFromKnownDriverShortName(std::string_view known_driv
 
 	if (known_driver_short_name == "GTiff")
 		GDALRegister_GTiff();
+
+	if (known_driver_short_name == "COG")
+		GDALRegister_COG();
 
 	else if (known_driver_short_name == "netCDF")
 		GDALRegister_netCDF();

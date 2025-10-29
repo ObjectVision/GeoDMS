@@ -2,7 +2,13 @@
   "dependencies": [
     "boost",
     "cgal",
-    "gdal",
+    {
+      "name": "gdal",
+      "features": [
+        "arrow",
+        "parquet"
+      ]
+    },
     "geos",
     "openssl",
     "pybind11",
