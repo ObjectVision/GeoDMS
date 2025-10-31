@@ -1415,11 +1415,23 @@ public:
 		}
 		if (adiOrgMaxImp)
 		{
+			MG_USERCHECK2(dynamic_cast<const Unit<MassType>*>(adiOrgMaxImp->GetAbstrValuesUnit())
+				, "value type of orgZone_MaxImp doesn't match with the values type of Impedances"
+			);
+
 			orgZonesOrVoid->UnifyDomain(adiOrgMaxImp->GetAbstrDomainUnit(), "OrgZones", "Domain of orgZone_MaxImp", UnifyMode(UM_Throw | UM_AllowVoidRight));
 			impUnit->UnifyValues(adiOrgMaxImp->GetAbstrValuesUnit(), "ImpedanceUnit", "Values of orgZone_MaxImp", UnifyMode(UM_Throw | UM_AllowDefault));
 		}
 		if (adiOrgMassLimit)
 		{
+			MG_USERCHECK2(dynamic_cast<const Unit<MassType>*>(adiOrgMassLimit->GetAbstrValuesUnit())
+				, "value type of OrgMassLimit doesn't match with the values type of Impedances"
+			);
+			MG_USERCHECK2(dynamic_cast<const Unit<MassType>*>(adiDstMassLimit->GetAbstrValuesUnit())
+				, "value type of DstMassLimit doesn't match with the values type of Impedances"
+			);
+
+
 			assert(adiDstMassLimit);
 			adiOrgMassLimit->GetAbstrValuesUnit()->UnifyValues(adiDstMassLimit->GetAbstrValuesUnit(), "Values of OrgMassLimit", "Values of DstmassLimit", UnifyMode(UM_Throw | UM_AllowDefault));
 			orgZonesOrVoid->UnifyDomain(adiOrgMassLimit->GetAbstrDomainUnit(), "OrgZones", "Domain of OrgMassLimit", UnifyMode(UM_Throw | UM_AllowVoidRight));
@@ -1437,6 +1449,10 @@ public:
 		CharPtr impUnitRef = "ImpUnit";
 		if (adiLinkAltImp)
 		{
+			MG_USERCHECK2(dynamic_cast<const Unit<ImpType>*>(adiLinkAltImp->GetAbstrValuesUnit())
+				, "value type of Alternative Impedances doesn't match with the values type of Impedances"
+			);
+
 			imp2Unit= const_unit_cast<ImpType>(adiLinkAltImp->GetAbstrValuesUnit());
 			impUnitRef = "AltImpUnit";
 			e->UnifyDomain(adiLinkAltImp->GetAbstrDomainUnit(), "Edges", "Domain of Alternative Impedances", UnifyMode(UM_Throw | UM_AllowVoidRight));
@@ -1444,6 +1460,11 @@ public:
 		const Unit<ImpType>* linkAttrUnit = nullptr;
 		if (adiLinkAttr)
 		{
+			MG_USERCHECK2(dynamic_cast<const Unit<MassType>*>(adiLinkAttr->GetAbstrValuesUnit())
+				, "value type of Link Attribute doesn't match with the values type of Impedances"
+			);
+
+
 			linkAttrUnit = const_unit_cast<ImpType>(adiLinkAttr->GetAbstrValuesUnit());
 		}
 		if (adiOrgMinImp)
