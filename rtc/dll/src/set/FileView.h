@@ -63,8 +63,9 @@ struct file_view_base : FVH
 		auto mappedFile = this->m_MappedFile.get();
 		assert(mappedFile);
 		auto memPageAllocTable = this->m_MappedFile->m_MemPageAllocTable.get();
-		assert(memPageAllocTable);
-		(*memPageAllocTable)[m_TileID].size = this->m_ViewSpec.size;
+		assert(memPageAllocTable || m_TileID == 0);
+		if (memPageAllocTable)
+			(*memPageAllocTable)[m_TileID].size = this->m_ViewSpec.size;
 	}
 
 	file_view_base() {}

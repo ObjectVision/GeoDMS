@@ -288,8 +288,10 @@ FileChunkSpec MappedFileHandle::allocChunk(FileChunkSpec& viewSpec, dms::filesiz
 	if (!memPageAllocTable)
 	{
 		assert(viewSpec.offset == 0);
-		if (viewSpec.capacity > m_AllocatedSize)
-			allocAtEnd(0, viewSpec.capacity - m_AllocatedSize);
+		assert(viewSpec.capacity <= m_AllocatedSize);
+		if (newCapacity > m_AllocatedSize)
+			allocAtEnd(0, newCapacity - m_AllocatedSize);
+		MakeMax(viewSpec.capacity, newCapacity);
 		return viewSpec;
 	}
 	assert(memPageAllocTable);

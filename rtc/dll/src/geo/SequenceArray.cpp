@@ -485,8 +485,14 @@ void sequence_array<T>::Resize(typename data_vector_t::size_type expectedDataSiz
 template <typename T>
 bool sequence_array<T>::allocate_data(data_size_type expectedGrowth MG_DEBUG_ALLOCATOR_SRC_ARG)
 {
+	MGD_CHECKDATA(IsLocked());
+
+	auto currCapacity = actual_data_size();
 	locked_sequence<T> oldData(false);
-	return allocate_data(oldData, expectedGrowth MG_DEBUG_ALLOCATOR_SRC_PARAM);
+	auto dataWasMoved =  allocate_data(oldData, expectedGrowth MG_DEBUG_ALLOCATOR_SRC_PARAM);
+
+	assert(currCapacity + expectedGrowth <= m_Values.capacity());
+	return dataWasMoved;
 }
 
 template <typename T>
@@ -508,11 +514,13 @@ bool sequence_array<T>::allocate_data(data_vector_t& oldData, typename data_vect
 	// NYI: doe alleen m_Values en laat m_Indices ongemoeid
 	if (!IsDirty())
 	{
+		assert(actual_data_size() == m_Values.size());
 		if (expectedGrowth + m_Values.size() <= m_Values.capacity())
 			return false;
 		if (!m_Values.IsHeapAllocated())
 		{
 			data_reserve(actual_data_size() + expectedGrowth MG_DEBUG_ALLOCATOR_SRC_PARAM);
+			assert(m_Values.size() + expectedGrowth <= m_Values.capacity());
 			return false;
 		}
 	}
@@ -672,19 +680,17 @@ void sequence_array<T>::allocateSequenceRange(typename base_type::seq_iterator s
 		}
 		else
 		{
-			locked_sequence<T> oldData(false);
-
 			abandon(seqPtr->first, seqPtr->second);
 			*seqPtr = seq_t();
 
-			bool dataWasMoved = allocate_data(oldData, Max<data_size_type>(m_ActualDataSize+2*oldSize, newSize) MG_DEBUG_ALLOCATOR_SRC_PARAM);
+			auto newCapacity = Max<data_size_type>(m_ActualDataSize + 2 * oldSize, newSize);
+			bool dataWasMoved = allocate_data(newCapacity MG_DEBUG_ALLOCATOR_SRC_PARAM);
 			appendValues(first, last MG_DEBUG_ALLOCATOR_SRC_PARAM);
 
 			*seqPtr = seq_t(m_Values.size()-newSize, m_Values.size());
 
 			assert(m_ActualDataSize == calcActualDataSize());
 
-//			MG_DEBUGCODE( checkActualDataSize() );
 		}
 	}
 	else // delta <= 0
