@@ -2724,8 +2724,16 @@ ActorVisitState TreeItem::DoUpdate(ProgressState ps)
 			if (fc->m_OperatorGroup->GetNameID() == token::PhaseContainer)
 				if (auto fd = dc->CallCalcResult())
 					if (auto oc = fc->GetOperContext())
-						if (oc->GetStatus() != task_status::none && oc->Join() != task_status::done)
-							return ActorVisitState::AVS_SuspendedOrFailed;
+						if (oc->GetStatus() != task_status::none)
+						{
+							auto pcResult = oc->Join();
+							if (pcResult != task_status::done)
+							{
+								if (pcResult == task_status::exception)
+									Fail(oc->m_Result);
+								return ActorVisitState::AVS_SuspendedOrFailed;
+							}
+						}
 
 	if (ps < PS_Validated)
 		goto exitReady;
@@ -2761,7 +2769,12 @@ ActorVisitState TreeItem::DoUpdate(ProgressState ps)
 					SharedPtr<const TreeItem> adiCheckerResult = iCheckerResult->GetCurrUltimateItem();
 					assert(adiCheckerResult->GetInterestCount());
 					if (!WaitForReadyOrSuspendTrigger(adiCheckerResult))
+					{
+						if (adiCheckerResult->WasFailed())
+							Fail(adiCheckerResult);
+						assert(SuspendTrigger::DidSuspend() || WasFailed());
 						return AVS_SuspendedOrFailed;
+					}
 
 				}
 				if (!iCheckerResult || !c.Add(iCheckerResult, DrlType::Suspendible))
@@ -2775,6 +2788,7 @@ ActorVisitState TreeItem::DoUpdate(ProgressState ps)
 						Fail(iCheckerResult.get());
 					else
 						Fail("Unknown error in IntegrityCheck: ", FR_MetaInfo);
+					assert(WasFailed());
 					return AVS_SuspendedOrFailed;
 				}
 
