@@ -305,8 +305,8 @@ public:
 	auto GetFuncDC() const->SharedPtr<const FuncDC>;
 
 	// Operator/Group accessors (valid only if m_FuncDC != nullptr).
-	const Operator*       GetOperator () const { assert(m_FuncDC); return m_FuncDC->m_Operator; }
-	const AbstrOperGroup* GetOperGroup() const { assert(m_FuncDC); return m_FuncDC->m_OperatorGroup; }
+	const Operator*       GetOperator () const { assert(m_FuncDC); assert(m_FuncDC->m_Operator);      return m_FuncDC->m_Operator; }
+	const AbstrOperGroup* GetOperGroup() const { assert(m_FuncDC); assert(m_FuncDC->m_OperatorGroup); return m_FuncDC->m_OperatorGroup; }
 
 public:
 	// Weak reference to source FuncDC; may become null if DC is reset.

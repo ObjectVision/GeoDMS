@@ -2376,8 +2376,9 @@ void OperationContext::RunOperator(ArgRefs argRefs, std::vector<ItemReadLock> re
 
 			TreeItemDualRefContextHandle reportProgressAndErr(&resultHolder);
 
-
-			actualResult = GetOperator()->CalcResult(resultHolder, std::move(argRefs), std::move(readLocks), context.get()); // ============== payload
+			auto op = funcDC->m_Operator;
+			MG_CHECK(op);
+			actualResult = op->CalcResult(resultHolder, std::move(argRefs), std::move(readLocks), context.get()); // ============== payload
 
 			assert(resultHolder || IsCanceled());
 			assert(actualResult || SuspendTrigger::DidSuspend());
