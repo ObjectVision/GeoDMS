@@ -153,11 +153,23 @@ void WriteCdf(XML_Table& xmlTable, const TreeItem* ti)
 	row.ClickableCell(result.c_str(), ItemUrl(result.c_str()).c_str());
 }
 
+void TreeItem_XML_DumpDescr(const TreeItem* self, XML_Table& xmlTable)
+{
+	SharedStr result = self->GetDescr();
+	if (!result.empty()) {
+
+		xmlTable.SingleCellRow(result.c_str(), "#ACE1AF");
+		xmlTable.EmptyRow();
+	}
+}
+
 bool WriteUnitProps(XML_Table& xmlTable, const AbstrUnit* unit, bool allTileInfo)
 {
 	assert(unit);
 	assert(!SuspendTrigger::DidSuspend()); // PRECONDITION
 	assert(IsMainThread());
+
+	TreeItem_XML_DumpDescr(unit, xmlTable);
 
 	xmlTable.NameValueRow("ValueType", unit->GetValueType()->GetName().c_str());
 
@@ -269,7 +281,9 @@ bool WriteUnitInfo(XML_Table& xmlTable, CharPtr role, const AbstrUnit* unit)
 			row.ValueCell(unit->GetValueType()->GetName().c_str());
 	}
 	else
+	{
 		xmlTable.EditableNameItemRow(role, unit);
+	}
 	return WriteUnitProps(xmlTable, unit, false);
 }
 
@@ -660,16 +674,12 @@ bool TreeItem_XML_DumpGeneralBody(const TreeItem* self, OutStreamBase* xmlOutStr
 	{
 		xmlTable.NamedItemRow("PartOfTemplate", GetTemplRoot(self));
 	}
-	SharedStr result = self->GetDescr();
-	if (!result.empty()) {
 
-		xmlTable.SingleCellRow(result.c_str(), "#ACE1AF");
-		xmlTable.EmptyRow();
-	}
+	TreeItem_XML_DumpDescr(self, xmlTable);
 
 	XML_MetaInfoRefRows(self, xmlTable, "#ACE1AF");
 
-	result = TreeItemPropertyValue(self, labelPropDefPtr); 
+	auto result = TreeItemPropertyValue(self, labelPropDefPtr); 
 	if (!result.empty())
 		xmlTable.EditableNameValueRow(LABEL_NAME, result.c_str());
 
