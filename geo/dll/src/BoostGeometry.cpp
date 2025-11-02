@@ -1400,7 +1400,7 @@ namespace
 	tl_oper::inst_tuple_templ<typelists::points, BgBufferMultiPointOperator> bgBufferMultiPointOperators(grBgBuffer_multi_point);
 	tl_oper::inst_tuple_templ<typelists::points, CgalBufferPointOperator> cgalBufferPointOperators(grBgBuffer_point);
 	tl_oper::inst_tuple_templ<typelists::points, CgalBufferMultiPointOperator> cgalBufferMultiPointOperators(grCgalBuffer_multi_point);
-	tl_oper::inst_tuple_templ<typelists::points, GeosBufferPointOperator> geosBufferPointOperators(grBgBuffer_point);
+	tl_oper::inst_tuple_templ<typelists::points, GeosBufferPointOperator> geosBufferPointOperators(grGeosBuffer_point);
 	tl_oper::inst_tuple_templ<typelists::points, GeosBufferMultiPointOperator> geosBeosBufferMultiPointOperators(grGeosBuffer_multi_point);
 
 
