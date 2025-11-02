@@ -171,6 +171,35 @@ struct frequencyTableFunc {
 	}
 };
 
+struct asUniqueListFunc {
+	using result_type = SharedStr;
+
+	template <typename CIter>
+	auto operator ()(CIter b, CIter e, auto countF, auto valueF) -> result_type
+	{
+		VectorOutStreamBuff buff;
+		FormattedOutStream out(&buff);
+		bool hasAlreadyWrittenSomething = false;
+		for (auto i = b; i != e; ++i)
+		{
+			auto count = countF(i);
+			if (!count)
+				continue;
+
+			if (hasAlreadyWrittenSomething)
+				out << "; ";
+
+			auto value = valueF(i);
+			if (!IsDefined(value))
+				out << "<null>";
+			else
+				out << value;
+			hasAlreadyWrittenSomething = true;
+		}
+		return SharedStr(CharPtrRange(buff.GetData(), buff.GetDataEnd()));
+	}
+};
+
 // *****************************************************************************
 //											ModusTot
 // *****************************************************************************
@@ -745,6 +774,7 @@ namespace
 	CommonOperGroup cogModusW("modus_weighted", oper_policy::better_not_in_meta_scripting);
 	CommonOperGroup cogFequencyTable("frequency_table", oper_policy::better_not_in_meta_scripting);
 	CommonOperGroup cogFequencyTableWithNull("frequency_table_with_null", oper_policy::better_not_in_meta_scripting);
+	CommonOperGroup cogAsUniqueList("as_unique_list", oper_policy::better_not_in_meta_scripting);
 
 	template <typename V, typename AggrFunc>
 	struct AggrFuncInst
@@ -776,6 +806,7 @@ namespace
 			, m_AvgEntropyFunc(cogAvgEntropy, default_unit_creator<Float64>, true)
 			, m_FreqTable(cogFequencyTable, default_unit_creator<SharedStr>, true)
 			, m_FreqTableWithNull(cogFequencyTableWithNull, default_unit_creator<SharedStr>, false)
+			, m_AsUniqueList(cogAsUniqueList, default_unit_creator<SharedStr>, true)
 		{}
 
 	private:
@@ -795,6 +826,7 @@ namespace
 		AggrFuncInst<V, average_entropyFunc<SizeT> > m_AvgEntropyFunc;
 		AggrFuncInst<V, frequencyTableFunc > m_FreqTable;
 		AggrFuncInst<V, frequencyTableFunc > m_FreqTableWithNull;
+		AggrFuncInst<V, asUniqueListFunc > m_AsUniqueList;
 	};
 
 	// TODO: WeightedModusXXXX ook generaliseren met variabele AggrFunc, conform Modus
