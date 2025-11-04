@@ -84,6 +84,7 @@ static CommonOperGroup grBgSimplify_multi_polygon("bg_simplify_multi_polygon", o
 static CommonOperGroup grBgSimplify_polygon      ("bg_simplify_polygon", oper_policy::better_not_in_meta_scripting);
 static CommonOperGroup grBgSimplify_linestring   ("bg_simplify_linestring", oper_policy::better_not_in_meta_scripting);
 
+static CommonOperGroup grGeosSimplify_linestring   ("geos_simplify_linestring", oper_policy::better_not_in_meta_scripting);
 static CommonOperGroup grGeosSimplify_multi_polygon("geos_simplify_multi_polygon", oper_policy::better_not_in_meta_scripting);
 
 static CommonOperGroup grBgIntersect   ("bg_intersect" ,   oper_policy::better_not_in_meta_scripting);
@@ -559,15 +560,15 @@ struct SimplifyPolygonOperator : public AbstrSimplifyOperator
 	}
 };
 
-template <typename P>
+template <typename P, geometry_library GL>
 struct SimplifyLinestringOperator : public AbstrSimplifyOperator
 {
 	using PointType = P;
 	using PolygonType = sequence_traits<PointType>::container_type;
 	using Arg1Type = DataArray<PolygonType>;
 
-	SimplifyLinestringOperator()
-		: AbstrSimplifyOperator(grBgSimplify_linestring, Arg1Type::GetStaticClass())
+	SimplifyLinestringOperator(AbstrOperGroup& operGroup)
+		: AbstrSimplifyOperator(operGroup, Arg1Type::GetStaticClass())
 	{}
 
 	void Calculate(AbstrDataObject* resItem, const AbstrDataItem* polyItem, Float64 maxError, tile_id t) const override
@@ -583,19 +584,35 @@ struct SimplifyLinestringOperator : public AbstrSimplifyOperator
 
 		for (SizeT i = 0, n = lineStringData.size(); i != n; ++i)
 		{
-			bg_load_multi_linestring(currGeometry, lineStringData[i], helperLineString);
-			resGeometry.resize(0);
-			if (!currGeometry.empty())
+			if constexpr (GL == geometry_library::boost_geometry)
 			{
-				auto lb = MaxValue<DPoint>();
-				MakeLowerBound(lb, currGeometry);
-				move(currGeometry, -lb);
+				bg_load_multi_linestring(currGeometry, lineStringData[i], helperLineString);
+				resGeometry.resize(0);
+				if (!currGeometry.empty())
+				{
+					auto lb = MaxValue<DPoint>();
+					MakeLowerBound(lb, currGeometry);
+					move(currGeometry, -lb);
 
-				boost::geometry::simplify(currGeometry, resGeometry, maxError);
-				move(resGeometry, DPoint(lb));
+					boost::geometry::simplify(currGeometry, resGeometry, maxError);
+					move(resGeometry, DPoint(lb));
 
+				}
+				bg_store_multi_linestring(resData[i], resGeometry);
 			}
-			bg_store_multi_linestring(resData[i], resGeometry);
+			else if constexpr (GL == geometry_library::geos)
+			{
+				auto lineStringRef = lineStringData[i];
+				auto lineString = geos_create_multi_linestring<P>(lineStringRef.begin(), lineStringRef.end());
+				geos::simplify::DouglasPeuckerSimplifier simplifier(lineString.get());
+				simplifier.setDistanceTolerance(maxError);
+				auto simplifiedLinestring = simplifier.getResultGeometry();
+				geos_assign_multi_linestring(resData[i], simplifiedLinestring.get());
+			}
+			else
+			{
+				static_assert(false, "Unsupported geometry library for SimplifyLinestringOperator");
+			}
 		}
 	}
 };
@@ -947,6 +964,10 @@ struct BufferMultiPointOperator : public AbstrBufferOperator
 				if (++i == n)
 					return;
 			}
+			else
+			{
+				static_assert(false, "Unsupported geometry library for BufferMultiPointOperator");
+			}
 		}
 	}
 };
@@ -1082,7 +1103,7 @@ struct BufferLineStringOperator : public AbstrBufferOperator
 			}
 			else
 			{
-//				thisGlIsNotYetImplemented; 
+				static_assert(false, "Unsupported geometry library for BufferLineStringOperator");
 			}
 		}
 	}
@@ -1377,9 +1398,13 @@ struct OuterSinglePolygonOperator : public AbstrOuterOperator
 
 namespace 
 {
+	template <typename P> using BgSimplifyLinestringOperator = SimplifyLinestringOperator<P, geometry_library::boost_geometry>;
+	template <typename P> using GeosSimplifyLinestringOperator = SimplifyLinestringOperator<P, geometry_library::geos>;
 	template <typename P> using BgSimplifyMultiPolygonOperator = SimplifyMultiPolygonOperator<P, geometry_library::boost_geometry>;
 	template <typename P> using GeosSimplifyMultiPolygonOperator = SimplifyMultiPolygonOperator<P, geometry_library::geos>;
-	tl_oper::inst_tuple_templ<typelists::points, SimplifyLinestringOperator> simplifyLineStringOperators;
+
+	tl_oper::inst_tuple_templ<typelists::points, BgSimplifyLinestringOperator> bg_simplifyLineStringOperators(grBgSimplify_linestring);
+	tl_oper::inst_tuple_templ<typelists::points, GeosSimplifyLinestringOperator> geos_simplifyLineStringOperators(grGeosSimplify_linestring);
 	tl_oper::inst_tuple_templ<typelists::points, BgSimplifyMultiPolygonOperator> bg_simplifyMultiPolygonOperators(grBgSimplify_multi_polygon);
 	tl_oper::inst_tuple_templ<typelists::points, GeosSimplifyMultiPolygonOperator> geos_simplifyMultiPolygonOperators(grGeosSimplify_multi_polygon);
 	tl_oper::inst_tuple_templ<typelists::points, SimplifyPolygonOperator> simplifyPolygonOperators;

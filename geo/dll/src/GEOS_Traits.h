@@ -506,6 +506,58 @@ void geos_assign_geometry(E&& ref, const geos::geom::Geometry* geometry)
 	geos_write_geometry(std::forward<E>(ref), geometry);
 }
 
+template <typename E>
+bool geos_write_multi_linestring(E&& ref, const geos::geom::Geometry* geometry, bool wroteSomething)
+{
+	if (!geometry || geometry->isEmpty())
+		return {};
+
+	if (auto mp = dynamic_cast<const geos::geom::MultiPolygon*>(geometry))
+		return wroteSomething;
+
+	if (auto poly = dynamic_cast<const geos::geom::Point*>(geometry))
+		return wroteSomething;
+
+	if (auto poly = dynamic_cast<const geos::geom::Polygon*>(geometry))
+		return wroteSomething;
+
+	if (auto lr = dynamic_cast<const geos::geom::LinearRing*>(geometry))
+		return wroteSomething;
+
+	if (auto gc = dynamic_cast<const geos::geom::GeometryCollection*>(geometry))
+	{
+		for (SizeT i = 0, n = gc->getNumGeometries(); i != n; ++i)
+		{
+			wroteSomething = geos_write_multi_linestring(std::forward<E>(ref), gc->getGeometryN(i), wroteSomething);
+		}
+		return wroteSomething;
+	}
+
+	if (auto lr = dynamic_cast<const geos::geom::LineString*>(geometry))
+	{
+		auto nrPoints = lr->getNumPoints();
+		if (nrPoints < 2)
+			return wroteSomething;
+
+		if (wroteSomething)
+			ref.emplace_back(MG_DEBUG_ALLOCATOR_FIRST("geos_write_multi_linestring") Undefined()); // write a separator
+
+		const auto* coords = lr->getCoordinatesRO();
+		for (SizeT i = 0; i != nrPoints; ++i)
+			geos_write_point(ref, coords->getAt(i));
+
+		return true;
+	}
+
+	throwDmsErrF("geos_write_multi_linestring: unsupported geometry type: %s", geometry->toText().c_str());
+}
+
+template <typename E>
+void geos_assign_multi_linestring(E && ref, const geos::geom::Geometry * geometry)
+{
+	geos_write_multi_linestring(std::forward<E>(ref), geometry, false);
+}
+
 inline auto geos_split_count_mp(const geos::geom::MultiPolygon* mp) -> SizeT
 {
 	SizeT result = 0;
