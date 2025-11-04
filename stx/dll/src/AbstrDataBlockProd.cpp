@@ -217,6 +217,16 @@ void AbstrDataBlockProd::DoSecondPointValue()
 	dmsPoint_SetSecondCfgValue( m_DPointVal, m_FloatVal);
 }
 
+void AbstrDataBlockProd::DoPointXValue()
+{
+	m_DPointVal.X() = m_FloatVal;
+}
+
+void AbstrDataBlockProd::DoPointYValue()
+{
+	m_DPointVal.Y() = m_FloatVal;
+}
+
 void AbstrDataBlockProd::DoNullValue()
 {
 	MakeUndefined(m_IntValAsUInt64);

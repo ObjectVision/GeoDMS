@@ -70,8 +70,11 @@ Section "" ;No components page, name is not important
 
   File ..\bin\Release\${GeoDmsPlatform}\gdal.dll
   File ..\bin\Release\${GeoDmsPlatform}\tiff.dll
-  File ..\bin\Release\${GeoDmsPlatform}\zlib1.dll
-  File ..\bin\Release\${GeoDmsPlatform}\zstd.dll
+  File ..\bin\Release\${GeoDmsPlatform}\arrow.dll
+  File ..\bin\Release\${GeoDmsPlatform}\brotlicommon.dll
+  File ..\bin\Release\${GeoDmsPlatform}\brotlidec.dll
+  File ..\bin\Release\${GeoDmsPlatform}\brotlienc.dll
+  File ..\bin\Release\${GeoDmsPlatform}\bz2.dll
   File ..\bin\Release\${GeoDmsPlatform}\freexl-1.dll
   File ..\bin\Release\${GeoDmsPlatform}\geos.dll
   File ..\bin\Release\${GeoDmsPlatform}\geos_c.dll
@@ -94,17 +97,22 @@ Section "" ;No components page, name is not important
   File ..\bin\Release\${GeoDmsPlatform}\libssl-3-x64.dll
   File ..\bin\Release\${GeoDmsPlatform}\libwebp.dll
   File ..\bin\Release\${GeoDmsPlatform}\libxml2.dll
+  File ..\bin\Release\${GeoDmsPlatform}\lz4.dll
   File ..\bin\Release\${GeoDmsPlatform}\minizip.dll
   File ..\bin\Release\${GeoDmsPlatform}\mpfr-6.dll
   File ..\bin\Release\${GeoDmsPlatform}\netcdf.dll
   File ..\bin\Release\${GeoDmsPlatform}\openjp2.dll
+  File ..\bin\Release\${GeoDmsPlatform}\parquet.dll
   File ..\bin\Release\${GeoDmsPlatform}\pcre2-8.dll
   File ..\bin\Release\${GeoDmsPlatform}\proj_9.dll
   File ..\bin\Release\${GeoDmsPlatform}\python3.dll
   File ..\bin\Release\${GeoDmsPlatform}\qhull_r.dll
+  File ..\bin\Release\${GeoDmsPlatform}\snappy.dll
   File ..\bin\Release\${GeoDmsPlatform}\spatialite.dll
   File ..\bin\Release\${GeoDmsPlatform}\sqlite3.dll
   File ..\bin\Release\${GeoDmsPlatform}\szip.dll
+  File ..\bin\Release\${GeoDmsPlatform}\zlib1.dll
+  File ..\bin\Release\${GeoDmsPlatform}\zstd.dll
 
   File ..\bin\Release\${GeoDmsPlatform}\geodms.pyd
 

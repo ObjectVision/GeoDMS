@@ -33,6 +33,8 @@ struct AbstrDataBlockProd : private geodms::rtc::noncopyable
 
 	void DoFirstPointValue();
 	void DoSecondPointValue();
+	void DoPointXValue();
+	void DoPointYValue();
 	void DoRgbValue1(UInt32);
 	void DoRgbValue2(UInt32);
 	void DoRgbValue3(UInt32);

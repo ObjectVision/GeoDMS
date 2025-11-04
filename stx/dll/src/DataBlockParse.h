@@ -1,32 +1,11 @@
-//<HEADER> 
-/*
-Data & Model Server (DMS) is a server written in C++ for DSS applications. 
-Version: see srv/dms/rtc/dll/src/RtcVersion.h for version info.
+// Copyright (C) 1998-2025 Object Vision b.v. 
+// License: GNU GPL 3
+/////////////////////////////////////////////////////////////////////////////
 
-Copyright (C) 1998-2004  YUSE GSO Object Vision BV. 
-
-Documentation on using the Data & Model Server software can be found at:
-http://www.ObjectVision.nl/DMS/
-
-See additional guidelines and notes in srv/dms/Readme-srv.txt 
-
-This library is free software; you can use, redistribute, and/or
-modify it under the terms of the GNU General Public License version 2 
-(the License) as published by the Free Software Foundation,
-provided that this entire header notice and readme-srv.txt is preserved.
-
-See LICENSE.TXT for terms of distribution or look at our web site:
-http://www.objectvision.nl/DMS/License.txt
-or alternatively at: http://www.gnu.org/copyleft/gpl.html
-
-This library is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
-General Public License for more details. However, specific warranties might be
-granted by an additional written contract for support, assistance and/or development
-*/
-//</HEADER>
+#if defined(_MSC_VER)
 #pragma once
+#endif
+
 
 #if !defined( __STX_PARSEDATABLOCK_H)
 #define __STX_PARSEDATABLOCK_H
@@ -86,7 +65,7 @@ struct datablock_grammar : public boost::spirit::grammar<datablock_grammar>
 		string_definition<ScannerT, StringProd> m_StringDef;
 
 		definition(datablock_grammar const& dbg)
-			:  m_StringDef(dbg.m_DataBlockProd.m_StringVal)
+			: m_StringDef(dbg.m_DataBlockProd.m_StringVal)
 		{
 			AbstrDataBlockProd& currDBP = dbg.m_DataBlockProd;
 
@@ -106,63 +85,68 @@ struct datablock_grammar : public boost::spirit::grammar<datablock_grammar>
 			chlit<> RPAREN(')');
 			chlit<> PERCENT('%');
 
-			chlit<> PLUS ('+');
+			chlit<> PLUS('+');
 			chlit<> MINUS('-');
 			chlit<> EQUAL('=');
 
 			// ==== === Data
 
-			dataBlockProp 
-				=	(	
-							LBRACK
-						>> (!arrayAssignments)
-						>>	assert_d("']' or literals expected after opening bracket")
-							[RBRACK]
+			dataBlockProp
+				= (
+					LBRACK
+					>> (!arrayAssignments)
+					>> assert_d("']' or literals expected after opening bracket")
+					[RBRACK]
 					);
 
 			// ==== Array Assingments
 
 			arrayAssignments = arrayAssignment >> *(',' >> arrayAssignment);
-			arrayAssignment = basicValue[([&](...) { currDBP.DoArrayAssignment();})];
+			arrayAssignment = basicValue[([&](...) { currDBP.DoArrayAssignment(); })];
 
 			// ==== Basic elements
 
 			basicValue
 				= numericValue
-				| m_StringDef.string_value[([&](...) { currDBP.SetValueType(ValueClassID::VT_SharedStr);})]
+				| m_StringDef.string_value[([&](...) { currDBP.SetValueType(ValueClassID::VT_SharedStr); })]
 				| rgbValue
 				| pointValue
+				| xy_pointValue
+				| yx_pointValue
 				| boolValue
-				| as_lower_d["null"][([&](...) { currDBP.DoNullValue();})]
+				| as_lower_d["null"][([&](...) { currDBP.DoNullValue(); })]
 				;
 
-			pointValue 
-				=	bracedPointValue // why did we introduce this??? braced coordinates are out there, so we're stuch with them now.
-				|	parenthesizedPointValue;
+			pointValue
+				= LPAREN
+				>> numericValue[([&](...) { currDBP.DoFirstPointValue(); })]
+				>> ','
+				>> numericValue[([&](...) { currDBP.DoSecondPointValue(); })]
+				>> assert_d("')' after point value expected")[RPAREN]
+				[([&](...) { currDBP.SetValueType(ValueClassID::VT_DPoint); })];
 
-			bracedPointValue
-				= LBRACE
-				>>	assert_d("point value expected")
-					[	numericValue[([&](...) { currDBP.DoFirstPointValue();})]
-					>>	','
-					>>	numericValue[([&](...) { currDBP.DoSecondPointValue();})]
+			xy_pointValue
+				= as_lower_d["xy"] >> LPAREN
+				>> assert_d("xy(numeric, numeric) expected")
+					[  numericValue[([&](...) { currDBP.DoPointXValue(); })]
+					>> ','
+					>> numericValue[([&](...) { currDBP.DoPointYValue(); })]
 					]
-				>>	assert_d("'}' after point value expected")[ RBRACE ]
-					[([&](...) { currDBP.SetValueType(ValueClassID::VT_DPoint);})];
+				>> assert_d("')' after x and y values expected")[RPAREN]
+					[([&](...) { currDBP.SetValueType(ValueClassID::VT_DPoint); })];
 
-				parenthesizedPointValue
-					= LPAREN
-					>> assert_d("point value expected")
-					[numericValue[([&](...) { currDBP.DoFirstPointValue();})]
-					>>	','
-					>> numericValue[([&](...) { currDBP.DoSecondPointValue();})]
+			yx_pointValue
+				= as_lower_d["yx"] >> LPAREN
+				>> assert_d("yx(numeric, numeric) expected")
+					[  numericValue[([&](...) { currDBP.DoPointYValue(); })]
+					>> ','
+					>> numericValue[([&](...) { currDBP.DoPointXValue(); })]
 					]
-				>>	assert_d("')' after point value expected")[ RPAREN ]
-					[([&](...) { currDBP.SetValueType(ValueClassID::VT_DPoint);})];
+				>> assert_d("')' after y and x values expected")[RPAREN]
+					[([&](...) { currDBP.SetValueType(ValueClassID::VT_DPoint); })];
 
 			rgbValue
-				=	as_lower_d["rgb"] 
-				>>	LPAREN
+				=	as_lower_d["rgb"] >> LPAREN
 				>>	assert_d("rgb(RedValue, GreenValue, BlueValue) expected")
 					[	uint_p[([&](UInt32 p) { currDBP.DoRgbValue1(p);})]
 					>>	',' 
@@ -198,7 +182,7 @@ struct datablock_grammar : public boost::spirit::grammar<datablock_grammar>
 			main, dataBlockProp, 
 			arrayAssignments, 
 			arrayAssignment, 
-			basicValue, rgbValue, pointValue, parenthesizedPointValue, bracedPointValue,
+			basicValue, rgbValue, pointValue, xy_pointValue, yx_pointValue,
 			numericValue, floatValue, unsignedInteger, 
 			boolValue;
 

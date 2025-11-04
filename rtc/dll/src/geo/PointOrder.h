@@ -173,10 +173,14 @@ void cfg2dms_order_inplace(Point<F>& cfgPoint)
 template <typename  F>
 void  dmsPoint_SetFirstCfgValue(Point<F>& cfgPoint, F firstVal)
 {
-	reportF(SeverityTypeID::ST_Warning, "depreciated syntax for point data used.\n"
-		"Use the %s operation to unambiguously define points."
-	,	g_cfgColFirst ? "point_xy" : "point_yx"
-	);
+	CharPtr orderStr = g_cfgColFirst ? "xy" : "yx";
+
+//	reportF(SeverityTypeID::ST_Warning, 
+	throwDmsErrF(
+		"depreciated syntax for point data used.\n"
+		"Use the point_%s operation to unambiguously define points or %s(numeric, numeric) syntax in data blocks."
+		,	orderStr, orderStr
+		);
 
 	if (g_cfgColFirst)
 		cfgPoint.Col() = firstVal;
@@ -187,6 +191,8 @@ void  dmsPoint_SetFirstCfgValue(Point<F>& cfgPoint, F firstVal)
 template <typename  F>
 void  dmsPoint_SetSecondCfgValue(Point<F>& cfgPoint, F secondVal)
 {
+	throwDmsErrD("depreciated syntax for point data used.");
+
 	if (g_cfgColFirst)
 		cfgPoint.Row() = secondVal;
 	else
