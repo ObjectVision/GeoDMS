@@ -1,0 +1,14 @@
+unit<DPoint> rdc_meter_base   
+	: DialogData = "ngr_layer"
+	, SpatialReference = "EPSG:28992"
+	, Descr = "Geografisch domain in RD-coordinaten, gedefinieerd in meters.";
+
+unit<DPoint> rdc_meter        
+	:= range(rdc_meter_base, point_xy(0.0, 300000.0,rdc_meter_base), point_xy(280000.0, 625000.0,rdc_meter_base))
+	, Descr = "Geografisch domain in RD-coordinaten, afgebakend tot Nederland.";
+
+unit<IPoint> rdc_mm           
+	:= gridset(rdc_meter,  point_yx(0.001, 0.001), point_yx(0.0, 0.0), ipoint)
+	, Descr = "Geografisch domain in RD-coordinaten, afgebakend tot Nederland, in millimeters (en dus integers)";
+
+#include<ngr_layer.dms> // reference WMS layer

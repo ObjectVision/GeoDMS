@@ -1,0 +1,101 @@
+unit<UInt32> CBS_Gebiedsindelingen_jaren := range(uint32, 2019, 2027)
+, Descr = "Welke CBS Gebiedsindelingen jaren zijn er"
+{
+	attribute<UInt32> jaar            := id(.);
+	attribute<String> name            := 'Y'+string(jaar);
+}
+
+container CBS :=
+	for_each_ne(
+		CBS_Gebiedsindelingen_jaren/name
+		, 'Read_Gebiedsindelingen_gpkg_T('+quote(string(CBS_Gebiedsindelingen_jaren/jaar))+')'
+	), Descr = "Lees de CBS Gebiedsindelingen van het betreffende jaar uit de geopackages."
+{
+	container Last := =last(CBS_Gebiedsindelingen_jaren/name), Descr = "De meest recente CBS Gebiedsindelingen";
+}
+
+Template Read_Gebiedsindelingen_gpkg_T
+{
+	parameter<String> jaar;
+	//
+	
+	parameter<string> SD := replace(Expand(., '%SourceDataDir%'), '/', '\\');
+	parameter<string> local_folder    := SD + '\\RegionalUnits\\cbs';
+	parameter<string> local_file_path := local_folder + '\\gebiedsindelingen'+jaar+'.gpkg';
+	
+	container load_source_data
+	{
+		parameter<string> source_url := 'https://service.pdok.nl/cbs/gebiedsindelingen/atom/v1_0/downloads/cbsgebiedsindelingen'+jaar+'.gpkg';
+//		parameter<string> mkdir_cmd  := 'if not exist "'+SD+'" (mkdir "'+SD+'") && if not exist "'+SD+'\\RegionalUnits" (mkdir "'+SD+'\\RegionalUnits") && if not exist "'+SD+'\\RegionalUnits\\cbs" (mkdir "'+SD+'\\RegionalUnits\\cbs")';
+//		parameter<string> mkdir_cmd  := 'if not exist "'+local_folder+'" mkdir "'+local_folder+'"';
+		parameter<string> mkdir_cmd  := 'mkdir "'+local_folder+'" 2>nul';
+		parameter<string> download_cmd  := mkdir_cmd + '& if not exist "'+local_file_path+'" curl -L -o "'+local_file_path+'" '+source_url;
+		parameter<uint32> WriterCode := exec_ec(Expand(., '%env:ComSpec%'), '/c ' + download_cmd, '');
+		parameter<string> file_path := WriterCode == 0 ? local_file_path : 'Error ''in loading data from the Internet';
+	}
+	
+	container gpkg
+	:	StorageName     = "=load_source_data/file_path"
+	, 	StorageType     = "gdal.vect"
+	,	StorageReadOnly = "True"
+	,	SyncMode        = "AllTables"
+	,	DialogData      = "rdc_meter"
+	,	URL             = "https://www.cbs.nl/nl-nl/dossier/nederland-regionaal/geografische-Data/cbs-gebiedsindelingen"
+	,	KeepData        = "TRUE"
+	{
+	}
+	container impl: IsHidden = "True"
+	{
+		parameter<string> suffix := (jaar <= '2021' ? '_'+jaar : '');
+		unit<UInt32> Buurt     := ='gpkg/buurt_niet_gegeneraliseerd'+suffix;
+		unit<UInt32> Wijk      := ='gpkg/wijk_niet_gegeneraliseerd'+suffix;
+		unit<UInt32> Gemeente  := ='gpkg/gemeente_niet_gegeneraliseerd'+suffix;
+		unit<UInt32> COROP     := ='gpkg/coropgebied_gegeneraliseerd'+suffix;
+		unit<UInt32> Provincie := ='gpkg/Provincie_gegeneraliseerd'+suffix;
+	}
+	
+	unit<UInt32> Buurt     := impl/Buurt
+	, Descr = "CBS Buurtindeling"
+	{
+		attribute<rdc_meter> geometry(poly) := impl/Buurt/geometry[rdc_meter];
+		attribute<String>    Label          := statnaam;
+		attribute<String>    name           := AsItemName(statnaam);
+	}
+	
+	unit<UInt32> Wijk      := impl/Wijk
+	, Descr = "CBS Wijkindeling"
+	{
+		attribute<rdc_meter> geometry(poly) := impl/Wijk/geometry[rdc_meter];
+		attribute<String>    Label          := statnaam;
+		attribute<String>    name           := AsItemName(statnaam);
+	}
+	
+	unit<UInt32> Gemeente  := impl/Gemeente
+	, Descr = "CBS Gemeenteindeling"
+	{
+		attribute<rdc_meter> geometry(poly) := impl/Gemeente/geometry[rdc_meter];
+		attribute<String>    Label          := statnaam;
+		attribute<String>    name           := AsItemName(statnaam);
+		
+		container V := for_each_nedv(name, string(id(.))+'[..]', void, .);
+	}
+
+	unit<UInt32> COROP     := impl/COROP
+	, Descr = "CBS COROP indeling"
+	{
+		attribute<rdc_meter> geometry(poly) := impl/COROP/geometry[rdc_meter];
+		attribute<String>    Label          := statnaam;
+		attribute<String>    name           := AsItemName(statnaam);
+		container V := for_each_nedv(name, string(id(.))+'[..]', void, .);
+	}
+	
+	unit<UInt32> Provincie := impl/Provincie
+	, Descr = "CBS Provincie indeling"
+	{
+		attribute<rdc_meter> geometry(poly) := impl/Provincie/geometry[rdc_meter];
+		attribute<String>    Label          := statnaam;
+		attribute<String>    name           := replace(AsItemName(statnaam), 'Fryslân', 'Friesland');
+		
+		container V := for_each_nedv(name, string(id(.))+'[..]', void, .);
+	}
+}

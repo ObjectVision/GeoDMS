@@ -150,8 +150,20 @@ Section "" ;No components page, name is not important
   SetOutPath $INSTDIR\tls
   File ..\bin\Release\${GeoDmsPlatform}\tls\*.*
   
-;  SetOutPath $INSTDIR\translations
-;  File ..\bin\Release\${GeoDmsPlatform}\translations\*.*
+  SetOutPath $INSTDIR\examples
+  File ..\bin\Release\${GeoDmsPlatform}\examples\*.*
+
+  CreateDirectory $INSTDIR\library
+
+  SetOutPath $INSTDIR\library\basedata_nl
+  File ..\bin\Release\${GeoDmsPlatform}\library\basedata_nl\*.*
+
+  SetOutPath $INSTDIR\library\basedata_nl\rdc
+  File ..\bin\Release\${GeoDmsPlatform}\library\basedata_nl\rdc\*.*
+
+  SetOutPath $INSTDIR\library\geometry
+  File ..\bin\Release\${GeoDmsPlatform}\library\geometry\*.*
+
   IfSilent skip_set_all
     MessageBox MB_YESNO 'Install startmenu shortcuts for all users?' IDNO skip_set_all
     SetShellVarContext all
@@ -186,7 +198,10 @@ Section uninstall
   Delete $INSTDIR\proj4data\*.*
   Delete $INSTDIR\styles\*.*
   Delete $INSTDIR\tls\*.*
-;  Delete $INSTDIR\translations\*.*
+  Delete $INSTDIR\library\geometry
+  Delete $INSTDIR\library\basedata_nl\rdc
+  Delete $INSTDIR\library\basedata_nl
+  Delete $INSTDIR\examples
 
   Delete "$SMPROGRAMS\GeoDMS\version${GeoDmsVersion}\GeoDms Qt GUI ${GeoDmsVersion}.lnk"
   Delete "$SMPROGRAMS\GeoDMS\version${GeoDmsVersion}\uninstall.lnk"
@@ -205,7 +220,12 @@ Section uninstall
   RMDIR $INSTDIR\proj4data
   RMDIR $INSTDIR\styles
   RMDIR $INSTDIR\tls
-;  RMDIR $INSTDIR\translations
+  RMDIR $INSTDIR\library\geometry
+  RMDIR $INSTDIR\library\basedata_nl\rdc
+  RMDIR $INSTDIR\library\basedata_nl
+  RMDIR $INSTDIR\library
+  RMDIR $INSTDIR\examples
+
   RMDIR $INSTDIR
   
 SectionEnd ; end the section

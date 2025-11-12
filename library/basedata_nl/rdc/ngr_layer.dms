@@ -1,0 +1,57 @@
+container ngr_layer
+{
+	parameter<uint32> nr_att := 8;
+	parameter<uint32> nr_row := 15;
+	
+	unit<uint32> TileMatrixElems := range(uint32, 0, nr_att * nr_row)
+	{
+		attribute<string> values:
+		//name          , ScaleDen , Top        , Left     ,Width ,Height, MatrixWidth,MatrixHeight
+		[
+		 'EPSG:28992:0' ,'12288000','-285401.92','903402.0','256' ,'256' ,    '1'     ,    '1'
+		,'EPSG:28992:1' , '6144000','-285401.92','903402.0','256' ,'256' ,    '2'     ,    '2'
+		,'EPSG:28992:2' , '3072000','-285401.92','903402.0','256' ,'256' ,    '4'     ,    '4'
+		,'EPSG:28992:3' , '1536000','-285401.92','903402.0','256' ,'256' ,    '8'     ,    '8'
+		,'EPSG:28992:4' ,  '768000','-285401.92','903402.0','256' ,'256' ,   '16'     ,   '16'
+		,'EPSG:28992:5' ,  '384000','-285401.92','903402.0','256' ,'256' ,   '32'     ,   '32'
+		,'EPSG:28992:6' ,  '192000','-285401.92','903402.0','256' ,'256' ,   '64'     ,   '64'
+		,'EPSG:28992:7' ,   '96000','-285401.92','903402.0','256' ,'256' ,  '128'     ,  '128'
+		,'EPSG:28992:8' ,   '48000','-285401.92','903402.0','256' ,'256' ,  '256'     ,  '256'
+		,'EPSG:28992:9' ,   '24000','-285401.92','903402.0','256' ,'256' ,  '512'     ,  '512'
+		,'EPSG:28992:10',   '12000','-285401.92','903402.0','256' ,'256' , '1024'     , '1024'
+		,'EPSG:28992:11',    '6000','-285401.92','903402.0','256' ,'256' , '2048'     , '2048'
+		,'EPSG:28992:12',    '3000','-285401.92','903402.0','256' ,'256' , '4096'     , '4096'
+		,'EPSG:28992:13',    '1500','-285401.92','903402.0','256' ,'256' , '8192'     , '8192'
+		,'EPSG:28992:14',     '750','-285401.92','903402.0','256' ,'256' ,'16384'     ,'16384'
+		];
+	}
+	
+	unit<uint32> TileMatrix := range(uint32, 0, nr_row)
+	{
+		attribute<.>       id                := id(.);
+		attribute<string>  name              :=         TileMatrixElems/values[value(id * nr_att + 0, TileMatrixElems)];
+		attribute<float64> ScaleDenominator  := float64(TileMatrixElems/values[value(id * nr_att + 1, TileMatrixElems)]);
+		attribute<float64> LeftCoord         := float64(TileMatrixElems/values[value(id * nr_att + 2, TileMatrixElems)]);
+		attribute<float64> TopCoord          := float64(TileMatrixElems/values[value(id * nr_att + 3, TileMatrixElems)]);
+		attribute<uint16>  TileWidth         :=  uint16(TileMatrixElems/values[value(id * nr_att + 4, TileMatrixElems)]);
+		attribute<uint16>  TileHeight        :=  uint16(TileMatrixElems/values[value(id * nr_att + 5, TileMatrixElems)]);
+		attribute<uint32>  MatrixWidth       :=  uint32(TileMatrixElems/values[value(id * nr_att + 6, TileMatrixElems)]);
+		attribute<uint32>  MatrixHeight      :=  uint32(TileMatrixElems/values[value(id * nr_att + 7, TileMatrixElems)]);
+	}
+	
+	parameter<string> layer  := 'BRT-grijs';   parameter<string> layer_src  := 'grijs';
+	parameter<string> image_format := 'png';
+	parameter<string> host   := 'service.pdok.nl';
+	
+	parameter<string> target := '/brt/achtergrondkaart/wmts/v2_0'
+		'?SERVICE=WMTS'
+		'&REQUEST=GetTile'
+		'&VERSION=1.0.0'
+		'&LAYER=' + layer_src + 
+		'&TILEMATRIXSET=EPSG:28992'
+		'&TILEMATRIX=@TM@'
+		'&TILEROW=@TR@'
+		'&TILECOL=@TC@'
+		'&FORMAT=image/' + image_format
+	;
+}
