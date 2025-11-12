@@ -20,6 +20,6 @@ container grid2vector_example
     {
         attribute<CBS_Buurt> buurt_grid  := poly2grid(CBS_Buurt/geometry, domain_10m);
     }
-    container simplied_buurt := grid2poly_ipoint(domain_10m, CBS_Buurt, domain_10m/buurt_grid, rdc_meter, 0.0);
-    attribute<rdc_meter>results(CBS_Buurt, polygon) := simplied_buurt/Results/geometry;
+    container simplified_buurt := grid2poly_ipoint(domain_10m, CBS_Buurt, domain_10m/buurt_grid, rdc_meter, 10.0);
+    attribute<rdc_meter>results(CBS_Buurt, polygon) := simplified_buurt/Results/geometry;
 }
