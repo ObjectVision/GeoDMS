@@ -341,6 +341,7 @@ template grid2poly
 
 		attribute<coordinate_system> geometry(poly) := points2polygon(ClosedZoneRingPoint/geometry, ClosedZoneRingPoint/ZoneRing_rel, ClosedZoneRingPoint/Ring_ordinal);
 		attribute<meter2>       area           := area(geometry, meter2);
+		attribute<coordinate_system> geometry_reversed(poly) := points2polygon(ClosedZoneRingPoint/geometry, ClosedZoneRingPoint/ZoneRing_rel, ClosedZoneRingPoint/Ring_ordinal_reversed);
 	}
 
 	unit<uint32> ZoneRingJunction := range(uint32, 0, sum(ZoneRing/nrJunctions)) 
@@ -376,20 +377,24 @@ template grid2poly
 		attribute<JunctionLink>       JunctionLink_rel     := ZoneRingJunction_rel->JunctionLink_rel;
 		attribute<JFLS2>              JFLS2_rel            := JunctionLink_rel->outJFLS2;
 		attribute<JFLS2_Point>        JFLS2_Point_rel      := JFLS2_rel->JFLS2_Point_Base + RingJunction_ordinal;
-		attribute<coordinate_system> geometry             := JFLS2_Point_rel->geometry;
+		attribute<coordinate_system>  geometry             := JFLS2_Point_rel->geometry;
 	}
 	// add a closing point to each ring equal to the first point of that ring.
 	unit<uint32> ClosedZoneRingPoint := range(uint32, 0, sum(ZoneRingJunction/nrPoints)+#ZoneRing)
 	{
 		 attribute<coordinate_system> geometry     := union_data(., ZoneRingPoint/geometry, ZoneRing/ZoneRingPointBase->geometry);
-		 attribute<ZoneRing>           ZoneRing_rel := union_data(., ZoneRingPoint/ZoneRing_rel, id(ZoneRing));
-		 attribute<uint32>             Ring_ordinal := union_data(., ZoneRingPoint/Ring_ordinal, sum(ZoneRingJunction/nrPoints, ZoneRingJunction/ZoneRing_rel));
-		 attribute<Zone>               Zone_rel     := ZoneRing_rel->FirstZone_rel;
+		 attribute<ZoneRing>          ZoneRing_rel := union_data(., ZoneRingPoint/ZoneRing_rel, id(ZoneRing));
+		 attribute<uint32>            Ring_ordinal := union_data(., ZoneRingPoint/Ring_ordinal, sum(ZoneRingJunction/nrPoints, ZoneRingJunction/ZoneRing_rel));
+		 attribute<Zone>              Zone_rel     := ZoneRing_rel->FirstZone_rel;
 	}
 
 	unit<uint32> RingResults := union_unit(ZoneRing, NonEmptyJFRing, NonEmptyJFRing)
 	{
 		attribute<coordinate_system> geometry(poly) := union_data(., ZoneRing/geometry, NonEmptyJFRing/SimplifiedRing, NonEmptyJFRing/SimplifiedReversedRing);
+		unit<uint32> all_points := sequence2points(geometry);
+		
+		attribute<coordinate_system> geometry_reversed(poly) := points2sequence(all_points/point, all_points/sequence_rel, max(all_points/ordinal, all_points/sequence_rel)[all_points/sequence_rel] - all_points/ordinal);
+		
 		attribute<meter2>            area           := area(geometry, meter2);
 		attribute<Zone>              Zone_rel       := union_data(., ZoneRing/FirstZone_rel, NonEmptyJFRing/RightZone_rel, NonEmptyJFRing/Left_Zone_rel), IntegrityCheck = "ZoneRing/CheckUniqueZonePerRing";
 	}
@@ -397,8 +402,10 @@ template grid2poly
 	unit<uint32> Results := Zone
 	{
 		// Polygonen van dezelfde regio samenvoegen tot multi-polygons, in een afzonderlijke template
-		// TODO: met afzonderlijke punten doen o.b.v. de te checked aanname dat ze niet overlappen.
-		attribute<coordinate_system> geometry(poly) := geos_union_polygon(RingResults/geometry, RingResults/Zone_rel);
+		// TODO: met afzonderlijke ringen samenstellen o.b.v. de te checked aanname dat ze niet overlappen.
+		attribute<coordinate_system> islands (poly) := geos_union_polygon(RingResults/geometry         , RingResults/area > 0.0 ? RingResults/Zone_rel : null_u);
+		attribute<coordinate_system> lakes   (poly) := geos_union_polygon(RingResults/geometry_reversed, RingResults/area < 0.0 ? RingResults/Zone_rel : null_u);
+		attribute<coordinate_system> geometry(poly) := geos_difference   (islands, lakes);
 
 		// check dat result geen overlappende polygonen bevat
 		unit<uint32> overlap_check := geos_polygon_connectivity(geometry)

@@ -128,6 +128,18 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "geometry", "geometry", "{DA
 		library\geometry\Grid2Poly.dms = library\geometry\Grid2Poly.dms
 	EndProjectSection
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "basedata_nl", "basedata_nl", "{4BA5370E-B346-4808-8EB1-FFEA14F95C08}"
+	ProjectSection(SolutionItems) = preProject
+		library\basedata_nl\grids.dms = library\basedata_nl\grids.dms
+		library\basedata_nl\rdc.dms = library\basedata_nl\rdc.dms
+		library\basedata_nl\RegioIndelingen.dms = library\basedata_nl\RegioIndelingen.dms
+	EndProjectSection
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "rdc", "rdc", "{DF48FB24-2017-41E7-AE22-3E7A013014E1}"
+	ProjectSection(SolutionItems) = preProject
+		library\basedata_nl\rdc\ngr_layer.dms = library\basedata_nl\rdc\ngr_layer.dms
+	EndProjectSection
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -459,6 +471,8 @@ Global
 	GlobalSection(NestedProjects) = preSolution
 		{F6034506-5822-49C4-B88A-ECF5818E44C3} = {43041446-F114-4F3C-8750-B147FD69766E}
 		{DAEA2268-E8F4-4B5A-BA92-78B6706573F0} = {5EB69BFA-4450-4654-9D5D-3BD8A6252EFA}
+		{4BA5370E-B346-4808-8EB1-FFEA14F95C08} = {5EB69BFA-4450-4654-9D5D-3BD8A6252EFA}
+		{DF48FB24-2017-41E7-AE22-3E7A013014E1} = {4BA5370E-B346-4808-8EB1-FFEA14F95C08}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {C5FA5874-0ACE-4DE3-8FFD-61207AF7E57B}

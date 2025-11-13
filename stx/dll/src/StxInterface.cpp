@@ -218,7 +218,7 @@ TreeItem* AppendTreeFromConfiguration(CharPtr sourceFileName, TreeItem* context 
 	SharedStr sourcePathNameStrFromCurrent = DelimitedConcat(ConfigurationFilenameContainer::GetConfigLoadDirFromCurrentDir().c_str(), sourcePathName);
 	if (!IsFileOrDirAccessible(sourcePathNameStrFromCurrent))
 		throwErrorF("File Open", "Cannot open configuration file %s.%s"
-			context ? "\nNote that #include statements are relative to the subdir that accompanies the referent" : ""
+			, context ? "\nNote that #include statements are relative to the subdir that accompanies the referent" : ""
 			, sourcePathName);
 
 	// read last changed time in the context of an open file to prevent getting the wrong info.
