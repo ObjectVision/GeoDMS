@@ -15,7 +15,7 @@
     <UseDebugLibraries>false</UseDebugLibraries>
     <WholeProgramOptimization>true</WholeProgramOptimization>
   </PropertyGroup>
-<ItemDefinitionGroup>
+  <ItemDefinitionGroup>
     <Midl>
       <PreprocessorDefinitions>NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </Midl>
@@ -28,6 +28,7 @@
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <WholeProgramOptimization>true</WholeProgramOptimization>
       <EnablePREfast>true</EnablePREfast>
+      <BrowseInformation>false</BrowseInformation>
     </ClCompile>
     <ResourceCompile>
       <PreprocessorDefinitions>NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>

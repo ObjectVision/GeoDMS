@@ -101,12 +101,32 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "doc", "doc", "{1030BDA1-1D3
 	EndProjectSection
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "GeoDmsGuiQt", "qtgui\exe\GeoDmsGuiQt.vcxproj", "{77EDB66F-676D-45ED-8421-044B2689D85A}"
+	ProjectSection(ProjectDependencies) = postProject
+		{12ACDE31-1E1F-4E8A-AF9D-410CB09AA101} = {12ACDE31-1E1F-4E8A-AF9D-410CB09AA101}
+	EndProjectSection
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "PyDms", "python\dll\DmsPython.vcxproj", "{1139CF27-F48D-4B45-992F-0AD8EC1C1ADB}"
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "rtc_linux", "rtc\dll\rtc_linux.vcxproj", "{4E7F6042-90C9-4593-AA37-4174C2057895}"
 EndProject
 Project("{888888A0-9F3D-457C-B088-3A5042F75D52}") = "PyDmsTst", "python\tst\PyDmsTst.pyproj", "{224917D7-29AA-49A2-9DD8-1B0305C92EFF}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "CopyResources", "CopyResources\CopyResources.vcxproj", "{12ACDE31-1E1F-4E8A-AF9D-410CB09AA101}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "examples", "examples", "{02EA681E-C7D8-13C7-8484-4AC65E1B71E8}"
+	ProjectSection(SolutionItems) = preProject
+		examples\grid_to_polygon.dms = examples\grid_to_polygon.dms
+	EndProjectSection
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "library", "library", "{5EB69BFA-4450-4654-9D5D-3BD8A6252EFA}"
+	ProjectSection(SolutionItems) = preProject
+		library\Units.dms = library\Units.dms
+	EndProjectSection
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "geometry", "geometry", "{DAEA2268-E8F4-4B5A-BA92-78B6706573F0}"
+	ProjectSection(SolutionItems) = preProject
+		library\geometry\Grid2Poly.dms = library\geometry\Grid2Poly.dms
+	EndProjectSection
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -402,12 +422,43 @@ Global
 		{224917D7-29AA-49A2-9DD8-1B0305C92EFF}.Release|ARM64.ActiveCfg = Release|Any CPU
 		{224917D7-29AA-49A2-9DD8-1B0305C92EFF}.Release|Win32.ActiveCfg = Release|Any CPU
 		{224917D7-29AA-49A2-9DD8-1B0305C92EFF}.Release|x64.ActiveCfg = Release|Any CPU
+		{12ACDE31-1E1F-4E8A-AF9D-410CB09AA101}.Debug|Any CPU.ActiveCfg = Debug|x64
+		{12ACDE31-1E1F-4E8A-AF9D-410CB09AA101}.Debug|Any CPU.Build.0 = Debug|x64
+		{12ACDE31-1E1F-4E8A-AF9D-410CB09AA101}.Debug|Any CPU.Deploy.0 = Debug|x64
+		{12ACDE31-1E1F-4E8A-AF9D-410CB09AA101}.Debug|ARM.ActiveCfg = Debug|ARM
+		{12ACDE31-1E1F-4E8A-AF9D-410CB09AA101}.Debug|ARM.Build.0 = Debug|ARM
+		{12ACDE31-1E1F-4E8A-AF9D-410CB09AA101}.Debug|ARM.Deploy.0 = Debug|ARM
+		{12ACDE31-1E1F-4E8A-AF9D-410CB09AA101}.Debug|ARM64.ActiveCfg = Debug|ARM64
+		{12ACDE31-1E1F-4E8A-AF9D-410CB09AA101}.Debug|ARM64.Build.0 = Debug|ARM64
+		{12ACDE31-1E1F-4E8A-AF9D-410CB09AA101}.Debug|ARM64.Deploy.0 = Debug|ARM64
+		{12ACDE31-1E1F-4E8A-AF9D-410CB09AA101}.Debug|Win32.ActiveCfg = Debug|x86
+		{12ACDE31-1E1F-4E8A-AF9D-410CB09AA101}.Debug|Win32.Build.0 = Debug|x86
+		{12ACDE31-1E1F-4E8A-AF9D-410CB09AA101}.Debug|Win32.Deploy.0 = Debug|x86
+		{12ACDE31-1E1F-4E8A-AF9D-410CB09AA101}.Debug|x64.ActiveCfg = Debug|x64
+		{12ACDE31-1E1F-4E8A-AF9D-410CB09AA101}.Debug|x64.Build.0 = Debug|x64
+		{12ACDE31-1E1F-4E8A-AF9D-410CB09AA101}.Debug|x64.Deploy.0 = Debug|x64
+		{12ACDE31-1E1F-4E8A-AF9D-410CB09AA101}.Release|Any CPU.ActiveCfg = Release|x64
+		{12ACDE31-1E1F-4E8A-AF9D-410CB09AA101}.Release|Any CPU.Build.0 = Release|x64
+		{12ACDE31-1E1F-4E8A-AF9D-410CB09AA101}.Release|Any CPU.Deploy.0 = Release|x64
+		{12ACDE31-1E1F-4E8A-AF9D-410CB09AA101}.Release|ARM.ActiveCfg = Release|ARM
+		{12ACDE31-1E1F-4E8A-AF9D-410CB09AA101}.Release|ARM.Build.0 = Release|ARM
+		{12ACDE31-1E1F-4E8A-AF9D-410CB09AA101}.Release|ARM.Deploy.0 = Release|ARM
+		{12ACDE31-1E1F-4E8A-AF9D-410CB09AA101}.Release|ARM64.ActiveCfg = Release|ARM64
+		{12ACDE31-1E1F-4E8A-AF9D-410CB09AA101}.Release|ARM64.Build.0 = Release|ARM64
+		{12ACDE31-1E1F-4E8A-AF9D-410CB09AA101}.Release|ARM64.Deploy.0 = Release|ARM64
+		{12ACDE31-1E1F-4E8A-AF9D-410CB09AA101}.Release|Win32.ActiveCfg = Release|x86
+		{12ACDE31-1E1F-4E8A-AF9D-410CB09AA101}.Release|Win32.Build.0 = Release|x86
+		{12ACDE31-1E1F-4E8A-AF9D-410CB09AA101}.Release|Win32.Deploy.0 = Release|x86
+		{12ACDE31-1E1F-4E8A-AF9D-410CB09AA101}.Release|x64.ActiveCfg = Release|x64
+		{12ACDE31-1E1F-4E8A-AF9D-410CB09AA101}.Release|x64.Build.0 = Release|x64
+		{12ACDE31-1E1F-4E8A-AF9D-410CB09AA101}.Release|x64.Deploy.0 = Release|x64
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
 	EndGlobalSection
 	GlobalSection(NestedProjects) = preSolution
 		{F6034506-5822-49C4-B88A-ECF5818E44C3} = {43041446-F114-4F3C-8750-B147FD69766E}
+		{DAEA2268-E8F4-4B5A-BA92-78B6706573F0} = {5EB69BFA-4450-4654-9D5D-3BD8A6252EFA}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {C5FA5874-0ACE-4DE3-8FFD-61207AF7E57B}

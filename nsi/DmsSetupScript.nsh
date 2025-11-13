@@ -153,7 +153,8 @@ Section "" ;No components page, name is not important
   SetOutPath $INSTDIR\examples
   File ..\bin\Release\${GeoDmsPlatform}\examples\*.*
 
-  CreateDirectory $INSTDIR\library
+  SetOutPath $INSTDIR\library
+  File ..\bin\Release\${GeoDmsPlatform}\library\*.*
 
   SetOutPath $INSTDIR\library\basedata_nl
   File ..\bin\Release\${GeoDmsPlatform}\library\basedata_nl\*.*

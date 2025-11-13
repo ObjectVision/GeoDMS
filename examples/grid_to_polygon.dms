@@ -1,0 +1,18 @@
+container grid2polygon_example
+{
+    #include <%exeDir%/library/units.dms>
+    #include <%exeDir%/library/geometry/grid2poly.dms>
+//    #include <%exeDir%/library/basedata_nl/rdc.dms> // already included in grids.dms
+    #include <%exeDir%/library/basedata_nl/grids.dms>
+    #include <%exeDir%/library/basedata_nl/RegioIndelingen.dms>
+
+	unit<uint32> CBS_Buurt := /CBS/Y2025/Buurt;
+	
+    unit<ipoint> domain_grid  := grids/rdc_25m
+    {
+        attribute<CBS_Buurt> buurt_grid  := poly2grid(CBS_Buurt/geometry, domain_grid);
+    }
+    container simplified_buurt := grid2poly(domain_grid, CBS_Buurt, domain_grid/buurt_grid, rdc_meter, 50.0[units/meter]);
+	
+    attribute<rdc_meter> resulting_polygons(CBS_Buurt, polygon) := simplified_buurt/Results/geometry;
+}

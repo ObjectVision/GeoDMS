@@ -64,10 +64,15 @@
       <TreatWChar_tAsBuiltInType>true</TreatWChar_tAsBuiltInType>
       <UseFullPaths>false</UseFullPaths>
       <PreprocessToFile>false</PreprocessToFile>
+      <PreprocessorDefinitions>_WINDOWS;UNICODE;_UNICODE;WIN32;_ENABLE_EXTENDED_ALIGNED_STORAGE;WIN64;%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ClCompile>
     <Link>
       <IgnoreImportLibrary>true</IgnoreImportLibrary>
+      <AdditionalDependencies>shcore.lib;shell32.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
+    <ResourceCompile>
+      <PreprocessorDefinitions>_WINDOWS;UNICODE;_UNICODE;WIN32;_ENABLE_EXTENDED_ALIGNED_STORAGE;WIN64;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+    </ResourceCompile>
     <Midl>
       <AdditionalOptions>"/MANIFESTDEPENDENCY:type='win32' name='Microsoft.Windows.Common-Controls' version='6.0.0.0' publicKeyToken='6595b64144ccf1df' language='*' processorArchitecture='*'" %(AdditionalOptions)</AdditionalOptions>
       <DefaultCharType>Unsigned</DefaultCharType>
@@ -90,39 +95,22 @@
       <ExecutionDescription>Rcc'ing %(Identity)...</ExecutionDescription>
       <QtRccFileName>qrc_%(Filename).cpp</QtRccFileName>
     </QtRcc>
-    <PostBuildEvent>
-      <Command>
-robocopy "$(SolutionDir)library" "$(TargetDir)library" /E /NFL /NDL /NJH /NJS /NP /XO
-robocopy "$(SolutionDir)examples" "$(TargetDir)examples" /E /NFL /NDL /NJH /NJS /NP /XO
-if %errorlevel% LSS 8 exit 0 else exit %errorlevel%
-      </Command>
-    </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <ClCompile>
-      <PreprocessorDefinitions>_WINDOWS;UNICODE;_UNICODE;WIN32;_ENABLE_EXTENDED_ALIGNED_STORAGE;WIN64;NDEBUG;QT_NO_DEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>QT_NO_DEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ClCompile>
     <Link>
-      <AdditionalDependencies>$(QTDIR)\lib\Qt6EntryPoint.lib;shcore.lib;shell32.lib;%(AdditionalDependencies)</AdditionalDependencies>
-      <EnableCOMDATFolding>true</EnableCOMDATFolding>
-      <OptimizeReferences>true</OptimizeReferences>
+      <AdditionalDependencies>$(QTDIR)\lib\Qt6EntryPoint.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
     <ResourceCompile>
-      <PreprocessorDefinitions>_WINDOWS;UNICODE;_UNICODE;WIN32;_ENABLE_EXTENDED_ALIGNED_STORAGE;WIN64;NDEBUG;QT_NO_DEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>QT_NO_DEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ResourceCompile>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
-    <ClCompile>
-      <BrowseInformation>false</BrowseInformation>
-      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
-      <PreprocessorDefinitions>_WINDOWS;UNICODE;_UNICODE;WIN32;_ENABLE_EXTENDED_ALIGNED_STORAGE;WIN64;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-    </ClCompile>
     <Link>
-      <AdditionalDependencies>$(QTDIR)\lib\Qt6EntryPointd.lib;shcore.lib;shell32.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>$(QTDIR)\lib\Qt6EntryPointd.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
-    <ResourceCompile>
-      <PreprocessorDefinitions>_WINDOWS;UNICODE;_UNICODE;WIN32;_ENABLE_EXTENDED_ALIGNED_STORAGE;WIN64;_DEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-    </ResourceCompile>
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="src\DmsActions.cpp" />

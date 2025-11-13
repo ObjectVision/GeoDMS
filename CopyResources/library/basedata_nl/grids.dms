@@ -1,0 +1,69 @@
+#include <%exeDir%/library\basedata_nl\rdc.dms>
+
+container grids
+: Descr = "Definities van de verschillende grid domains die kunnen worden gebruikt in het model, RegioIndelingen, en afstandsmatrices."
+{
+	unit<IPoint> rdc_10m   := impl/perGridsize/size_10m/domain;
+	unit<IPoint> rdc_25m   := impl/perGridsize/size_25m/domain;
+	unit<IPoint> rdc_100m  := impl/perGridsize/size_100m/domain;
+	
+	container impl
+	{
+		parameter<Float64> x_min     := 0d;
+		parameter<Float64> x_max     := 280000d;
+		parameter<Float64> y_min     := 300000d;
+		parameter<Float64> y_max     := 625000d;
+		
+		unit<UInt32> Gridsizes : NrOfRows = 3
+		, Descr = "Verschillende gridsizes die gebruikt kunnen worden in het model, in meters."
+		{
+			attribute<float64>   size     := union_data(., 10.0, 25.0, 100.0);
+			attribute<String>    name     := 'size_'+string(size)+'m';
+		}
+		container perGridsize := for_each_ne(Gridsizes/name, 'Create_GridDomain_T('+string(Gridsizes/size)+'[float64])'), Descr = "Bevat de verschillende grid domains die gebruikt kunnen worden in het model, op basis van de verschillende gridsizes.";
+	
+		Template Create_GridDomain_T
+		{
+			parameter<Float64> gridsize;
+			parameter<Int32>   nr_cols := int32((x_max - x_min) / gridsize);
+			parameter<Int32>   nr_rows := int32((y_max - y_min) / gridsize);
+			
+			unit<IPoint> domain :=
+				range(
+					 gridset(
+						 rdc_meter
+						,point_yx(-gridsize, gridsize, rdc_meter)
+						,point_yx(y_max, x_min, rdc_meter)
+						,ipoint
+					)
+					,point_yx(0i, 0i)
+					,point_yx(nr_rows, nr_cols)
+				),	DialogData = "rdc_meter"
+			{
+				parameter<Float64>              gridsize        := ../gridsize;
+				parameter<Int32>                nr_cols         := ../nr_cols;
+				attribute<rdc_meter>            point           := mapping(., rdc_meter) + point_yx(-0.5d * gridsize, 0.5d * gridsize, rdc_meter);
+				unit<UInt32>                    id_key          := range(uint32, 0, uint32(#domain));
+				attribute<UInt32>               id_rel          := value(uint32(PointRow(id(.))) * uint32(nr_cols) + uint32(PointCol(id(.))), id_key);
+				
+				attribute<rdc_meter> locatie := id(.)[rdc_meter];
+				
+				attribute<rdc_10m>              rdc_10m_rel     := mapping(., rdc_10m);
+				attribute<rdc_25m>              rdc_25m_rel     := mapping(., rdc_25m);
+				attribute<rdc_100m>             rdc_100m_rel    := mapping(., rdc_100m);
+				
+				parameter<meter2>               NrMeter2PerCell := gridsize[meter] * gridsize[meter];
+				parameter<ha>                   NrHaPerCell     := convert(NrMeter2PerCell, ha);
+				parameter<km2>                  NrKm2PerCell    := NrMeter2PerCell[km2];
+			}
+			
+			unit<uint64> points := select_with_org_rel(isDefined(domain/point))
+			{
+				attribute<rdc_meter>            geometry  := org_rel -> point;
+				attribute<Float64>              x         := PointCol(geometry);
+				attribute<Float64>              y         := PointRow(geometry);
+				attribute<domain>               grid_rel  := geometry[domain];	
+			}
+		}	
+	}
+}

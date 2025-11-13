@@ -1,13 +1,8 @@
-container Geography
+#include <%exeDir%/library\basedata_nl\rdc.dms>
+
+container grids
 : Descr = "Definities van de verschillende grid domains die kunnen worden gebruikt in het model, RegioIndelingen, en afstandsmatrices."
 {
-	unit<DPoint> rdc_meter_base   : DialogData = "ngr_layer", SpatialReference = "EPSG:28992", Descr = "Geografisch domain in RD-coordinaten, gedefinieerd in meters.";
-	unit<DPoint> rdc_meter        := range(rdc_meter_base, point_xy(impl/x_min, impl/y_min,rdc_meter_base), point_xy(impl/x_max, impl/y_max,rdc_meter_base)), Descr = "Geografisch domain in RD-coordinaten, afgebakend tot Nederland.";
-	unit<IPoint> rdc_mm           := gridset(rdc_meter,  point_yx(0.001, 0.001), point_yx(0.0, 0.0), ipoint), Descr = "Geografisch domain in RD-coordinaten, afgebakend tot Nederland, in millimeters (en dus integers)";
-	unit<FPoint> LambertEA_base   : SpatialReference = "EPSG:3035", DialogData = "ngr_layer_lea", Descr = "Geografisch domain in Lambert EA coordinaten, gedefinieerd in meters.";
-	unit<FPoint> LambertEA        := range(LambertEA_base, point_yx(2500000f, 1300000f), point_yx(4900000f, 4300000f)), Descr = "Geografisch domain in Lambert EA coordinaten, afgebakend op Europa.";
-	unit<DPoint> wgs84_base       : SpatialReference = "EPSG:4326", Descr = "Geografisch domain in WGS84 coordinaten, gedefinieerd in graden.";
-
 	unit<IPoint> rdc_10m   := impl/perGridsize/size_10m/domain;
 	unit<IPoint> rdc_25m   := impl/perGridsize/size_25m/domain;
 	unit<IPoint> rdc_100m  := impl/perGridsize/size_100m/domain;
@@ -71,5 +66,4 @@ container Geography
 			}
 		}	
 	}
-	//#include<ngr_layer.dms> // reference WMS layer
 }
