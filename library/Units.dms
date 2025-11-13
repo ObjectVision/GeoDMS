@@ -1,0 +1,52 @@
+container Units
+{
+	unit<Float64> meter     := BaseUnit('m', Float64), Label = "meter", Descr = "SI base unit for length: meter";
+	unit<Float64> hm        := 100.0 * meter;
+	unit<Float64> km        := 1000.0 * meter;
+	unit<Float64> cm        := 0.01 * meter;
+	unit<Float64> mm        := 0.001 * meter;
+	unit<Float64> meter2    := meter * meter;
+	unit<Float64> km2       := km * km;
+	unit<Float64> ha        := 10000.0 * meter2;
+	
+	unit<Float64> g         := BaseUnit('g', Float64), Label = "gram", Descr = "SI base unit for mass: gram";
+	unit<Float64> kg        := 1000 * g;
+ 
+	unit<Float64> s         := BaseUnit('s', Float64), Label = "second", Descr = "SI base unit for time: second";
+	unit<Float64> min       := 60 * s;
+	unit<Float64> hour      := 60 * min;
+	unit<Float64> day       := 24 * uur;
+	unit<Float64> year      := BaseUnit('yr', Float64);
+	unit<Float64> month     := (1.0/12.0) * year;
+	unit<Float64> annually  := 1.0 / year;
+	
+	unit<Float64> J         := BaseUnit('J', Float64), Label = "Joule", Descr = "kg * m^2 * s^-2";
+	unit<Float64> kJ        := 1000 * J;
+	unit<Float64> MJ        := 1000 * kJ;
+	unit<Float64> MJ_yr     := MJ / yr;
+	unit<Float64> GJ        := 1000 * MJ;
+	unit<Float64> PJ        := 1000000 * GJ;
+	unit<Float64> W         := J / s, Label = "Watt";
+	unit<Float64> kW        := 1000 * W;
+	unit<Float64> MW        := 1000 * kW;
+	unit<Float64> GW        := 1000 * MW;
+	unit<Float64> TW        := 1000 * GW;
+	unit<Float64> GWh       := hour * GW;
+	unit<Float64> TWh       := hour * TW;
+	
+	unit<Float64> MW_km2    := MW / km2;
+	unit<Float64> MW_ha     := MW / ha;
+	unit<Float64> ha_ha     := ha / ha;
+	
+	unit<Float64> mol       := BaseUnit('mol', Float64), Label = "mole", Descr = "SI unit for amount of substance: mole";
+	unit<Float64> mol_ha    := mol / ha;
+	unit<Float64> mol_ha_yr := mol_ha / yr;
+
+	unit<Float64> m_s       := meter  / s;
+	unit<Float64> km_hr     := km / hour;
+	unit<Float64> kg_m2     := kg / meter2;
+	
+	unit<Float64> K         := BaseUnit('K', Float64), Label = "kelvin", Descr = "SI unit for temperature: Kelvin";
+	unit<Float64> A         := BaseUnit('A', Float64), Label = "ampere", Descr = "SI unit for electric current: Ampere";
+	unit<Float64> cd        := BaseUnit('cd', Float64), Label = "candela", Descr = "SI unit for luminous intensity: Candela";
+} 
