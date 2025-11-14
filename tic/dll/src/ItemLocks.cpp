@@ -24,6 +24,7 @@
 #include "Unit.h"
 
 #include "OperationContext.h"
+SizeT GetNumberOfActivatedOrRunningOperations();
 
 //----------------------------------------------------------------------
 // impl details
@@ -96,8 +97,19 @@ namespace treeitem_production_task
 			}
 		}
 
+	retry:
+		bool noMoreOperationsRunning = (GetNumberOfActivatedOrRunningOperations() == 0);
+
 		leveled_critical_section::unique_lock lock(cs_lockCounterUpdate);
-		cv_lockrelease.wait(lock.m_BaseLock, [self]() {return self->m_ItemCount >= 0;  });
+		if (self->m_ItemCount < 0)
+		{
+			if (noMoreOperationsRunning)
+				throwErrorD("DeadLock", "lock_shared waiting for ItemCount to be unlocked but no active or running operations");
+
+			cv_lockrelease.wait_for(lock.m_BaseLock, std::chrono::milliseconds(500));
+			if (self->m_ItemCount < 0)
+				goto retry;
+		}
 
 		assert(self->m_Producer.expired()); // was cleaned up by producers task
 		assert(self->m_ItemCount >= 0);

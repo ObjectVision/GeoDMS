@@ -519,20 +519,34 @@ static UInt32 sd_OcCount;
 static std::set<OperationContext*> sd_OC;
 static std::map<OperationContext*, phase_number> sd_RunningOC;
 
-// Verify that administrative counters agree.
-void CheckNumberOfRunningOCConsistency()
+SizeT getNumberOfActivatedOrRunningOperations()
 {
-	MG_CHECK(!cs_ThreadMessing.try_lock());
-		
 	SizeT numberOfRunningOCs = 0;
 	for (const auto& levelNumberPair : s_NrActivatedOrRunningOperations)
 		numberOfRunningOCs += levelNumberPair.second;
 	MG_CHECK(numberOfRunningOCs == sd_RunningOC.size());
 
+	return numberOfRunningOCs;
+}
+
+SizeT GetNumberOfActivatedOrRunningOperations()
+{
+	leveled_critical_section::scoped_lock lockToAvoidHasMainThreadTasksToBeMissed(cs_ThreadMessing);
+
+	return getNumberOfActivatedOrRunningOperations();
+}
+
+// Verify that administrative counters agree.
+void CheckNumberOfRunningOCConsistency()
+{
+	MG_CHECK(!cs_ThreadMessing.try_lock());
+		
+	SizeT numberOfRunningOCs = getNumberOfActivatedOrRunningOperations();
+
 	std::map<phase_number, RunningOperationsCounter> recount;
 	for (const auto& runningPair : sd_RunningOC)
 	{
-				MG_CHECK(runningPair.first->m_PhaseNumber == runningPair.second);
+		MG_CHECK(runningPair.first->m_PhaseNumber == runningPair.second);
 		++recount[runningPair.second];
 	}
 	for (const auto& recountPair : recount)
