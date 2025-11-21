@@ -948,11 +948,11 @@ auto CreateFileTileArray(const AbstrDataItem* adi, const SharedObj* abstrValuesR
 	MG_CHECK(adi->GetAbstrValuesUnit());
 
 	auto adu = adi->GetAbstrDomainUnit();
-	assert(adu);
+	MG_CHECK(adu);
 	assert(adu->HasInterest());
 
 	SharedPtr<const AbstrTileRangeData> currTRD = AsUnit(adu->GetCurrRangeItem())->GetTiledRangeData();
-	assert(currTRD);
+	MG_CHECK(currTRD);
 
 	auto avu = AsUnit(adi->GetAbstrValuesUnit()->GetCurrRangeItem());
 	std::unique_ptr<AbstrDataObject> resultHolder;
