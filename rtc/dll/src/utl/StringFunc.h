@@ -54,14 +54,14 @@ UInt32 StrCount(C1 arg1, C2 arg2)
 template <typename StringRef, typename C1, typename C2, typename C3>
 void ReplaceAssign(StringRef res, C1 arg1, C2 arg2, C3 arg3)
 {
-	UInt32 arg2len = arg2.size();
+	auto arg2len = arg2.size();
 	if (!arg2len)
 	{
 		res = arg1;
 		return;
 	}
-	UInt32 arg3len = arg3.size();
-	UInt32 resLen  = arg1.size();
+	auto arg3len = arg3.size();
+	auto resLen  = arg1.size();
 	if (arg3len != arg2len)
 		resLen += StrCount(arg1, arg2) * (arg3len - arg2len);
 
@@ -80,7 +80,7 @@ void ReplaceAssign(StringRef res, C1 arg1, C2 arg2, C3 arg3)
 		r = fast_copy(a3b, a3e, r);
 		i = p + arg2len;
 	}
-	dms_assert(r == end_ptr(res));
+	assert(r == end_ptr(res));
 }
 
 
