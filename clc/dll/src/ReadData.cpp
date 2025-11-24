@@ -279,13 +279,14 @@ inline bool eolch(char ch)
 	return ch ==char(10) || ch == char(13) || ch == char(14) || eofch(ch);
 }
 
+template<typename ReadPosType>
 struct ReadLinesOperator: public TernaryOperator
 {
 
-	typedef DataArray<SharedStr> ResultType;
-	typedef DataArray<SharedStr> Arg1Type; // String to read from
-	typedef AbstrUnit            Arg2Type; // domain of resulting array of lines
-	typedef DataArray<UInt32>    Arg3Type; // readPos to start reading 
+	typedef DataArray<SharedStr>   ResultType;
+	typedef DataArray<SharedStr>   Arg1Type; // String to read from
+	typedef AbstrUnit              Arg2Type; // domain of resulting array of lines
+	typedef DataArray<ReadPosType> Arg3Type; // readPos to start reading 
 
 	ReadLinesOperator(AbstrOperGroup* og)
 		:	TernaryOperator(og
@@ -315,17 +316,17 @@ struct ReadLinesOperator: public TernaryOperator
 
 		AbstrDataItem* resReadPos = CreateDataItem(res, readPosToken
 		,	Unit<Void  >::GetStaticClass()->CreateDefault()
-		,	Unit<UInt32>::GetStaticClass()->CreateDefault()
+		,	Unit<ReadPosType>::GetStaticClass()->CreateDefault()
 		);
 		dms_assert(resReadPos->IsPassor());
 
 		if (!mustCalc)
 			return true;
 
-		UInt32 readPos;
+		ReadPosType readPos;
 		{
 			DataReadLock lock2(AsDataItem(args[2]));
-			readPos = GetTheCurrValue<UInt32>(args[2]);
+			readPos = GetTheCurrValue<ReadPosType>(args[2]);
 		}
 
 		DataReadLock drl0(AsDataItem(args[0]));
@@ -360,7 +361,7 @@ struct ReadLinesOperator: public TernaryOperator
 		dwl.Commit();
 
 		DataWriteLock readPosLock(resReadPos);
-		readPosLock->SetValue<UInt32>(0, ThrowingConvert<UInt32>( readPos + dataValuesStream.CurrPos() ));
+		readPosLock->SetValue<ReadPosType>(0, ThrowingConvert<ReadPosType>( readPos + dataValuesStream.CurrPos() ));
 		readPosLock.Commit();
 
 		return true;
@@ -485,7 +486,8 @@ namespace {
 	//==================================================================================
 	ReadArrayOperator readArray(&cog_ReadArray);
 	ReadElemsOperator readElems(&cog_ReadElems);
-	ReadLinesOperator readLinesOperator(&cog_ReadLines);
+	ReadLinesOperator<UInt32> readLinesOperator32(&cog_ReadLines);
+	ReadLinesOperator<UInt64> readLinesOperator64(&cog_ReadLines);
 
 	auto isEOL = [](char ch) { return eolch(ch); };
 	SplitSequenceOperator<SharedStr, decltype(isEOL)> splitLines(&cog_ReadLines, std::move(isEOL));
