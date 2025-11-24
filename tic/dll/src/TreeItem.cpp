@@ -3130,6 +3130,13 @@ void TreeItem::DoInvalidate() const
 	// =============== invalidate Parts (of cache items)
 	NotifyStateChange(this, NC2_Invalidated);
 
+	for (auto subItem = _GetFirstSubItem(); subItem; subItem = subItem->GetNextItem())
+	{
+		const_cast<TreeItem*>(subItem)->InvalidateAt(GetLastChangeTS());
+		if (subItem->mc_Calculator && subItem->mc_Calculator->IsDcPtr())
+			subItem->mc_Calculator.reset();
+	}
+
 	dms_assert(DoesHaveSupplInterest() || !GetInterestCount() || IsPassor() || WasFailed(FR_Data));
 }
 

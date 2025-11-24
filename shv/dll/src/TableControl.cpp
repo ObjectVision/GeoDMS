@@ -234,8 +234,8 @@ void TableControl::ProcessDIC(DataItemColumn* dic)
 	auto dv = GetDataView().lock(); if (!dv) return;
 	dic->ConnectSelectionsTheme(dv.get());
 	const AbstrUnit* entity = dic->GetActiveEntity();
-	if (m_Entity) {
-		if (entity)
+	if (m_Entity && m_Entity->GetUnitClass() != Unit<Void>::GetStaticClass()) {
+		if (entity && entity->GetUnitClass() != Unit<Void>::GetStaticClass())
 			m_Entity->UnifyDomain(entity, "Table Entity", "Domain of attribute", UM_Throw, 0);
 	}
 	else
@@ -1324,8 +1324,16 @@ void TableControl::CreateTableGroupBy(bool activate)
 
 void TableControl::SetEntity(const AbstrUnit* newDomain)
 {
-	if (newDomain == m_Entity)
+	if (!newDomain)
 		return;
+
+	if (m_Entity)
+	{
+		if (newDomain->GetUnitClass() == Unit<Void>::GetStaticClass())
+			return;
+		if (m_Entity->UnifyDomain(newDomain))
+			return;
+	}
 
 	if (m_FocusElemProvider)
 		m_FocusElemProvider->DelTableControl(this);
@@ -1342,6 +1350,7 @@ void TableControl::SetEntity(const AbstrUnit* newDomain)
 	else
 		m_FocusElemProvider = nullptr;
 
+	InvalidateView();
 	NotifyCaptionChange();
 }
 
