@@ -16,4 +16,8 @@
       <Filter>Source Files</Filter>
     </Text>
   </ItemGroup>
+  <ItemGroup>
+    <CustomBuild Include="..\..\profiler\profiler.py" />
+    <CustomBuild Include="..\..\profiler\regression.py" />
+  </ItemGroup>
 </Project>

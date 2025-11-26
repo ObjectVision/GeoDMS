@@ -14,6 +14,7 @@
 #include "LispRef.h"
 
 #include "CheckedDomain.h"
+#include "LispTreeType.h"
 #include "MoreDataControllers.h"
 #include "OperGroups.h"
 #include "ParallelTiles.h"
@@ -51,7 +52,7 @@
 
 oper_arg_policy oap_SubItem[2] = { oper_arg_policy::calc_subitem_root, oper_arg_policy::calc_always };
 
-SpecialOperGroup sog_SubItem("SubItem", 2, oap_SubItem, oper_policy::existing|oper_policy::dynamic_result_class);
+SpecialOperGroup sog_SubItem(token::subitem, 2, oap_SubItem, oper_policy::existing|oper_policy::dynamic_result_class);
 
 struct SubItemOperator: BinaryOperator
 {
