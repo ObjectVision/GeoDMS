@@ -588,6 +588,8 @@ void ReadPolyData(typename sequence_traits<PolygonType>::seq_t dataArray, OGRLay
 
 		case OGRwkbGeometryType::wkbPoint: 
 		case OGRwkbGeometryType::wkbPoint25D:
+		case OGRwkbGeometryType::wkbPointM:
+		case OGRwkbGeometryType::wkbPointZM:
 			reportF(SeverityTypeID::ST_Warning, "Feature %d is a Point and skipped as only Surfaces, aka (Multi)Polygons, are read.\n"
 				"Hint: Configure another attribute without ValueComposition to read separate points."
 				, i + firstIndex
@@ -597,6 +599,8 @@ void ReadPolyData(typename sequence_traits<PolygonType>::seq_t dataArray, OGRLay
 
 		case OGRwkbGeometryType::wkbMultiPoint: 
 		case OGRwkbGeometryType::wkbMultiPoint25D:
+		case OGRwkbGeometryType::wkbMultiPointM:
+		case OGRwkbGeometryType::wkbMultiPointZM:
 			reportF(SeverityTypeID::ST_Warning, "Feature %d is a MultiPoint and skipped as only Surfaces, aka (Multi)Polygons, are read.\n"
 				"Hint: Configure another attribute with ValueComposition=sequence to read MultiPoints."
 				, i + firstIndex);
@@ -605,6 +609,8 @@ void ReadPolyData(typename sequence_traits<PolygonType>::seq_t dataArray, OGRLay
 
 		case OGRwkbGeometryType::wkbLineString: 
 		case OGRwkbGeometryType::wkbLineString25D:
+		case OGRwkbGeometryType::wkbLineStringM:
+		case OGRwkbGeometryType::wkbLineStringZM:
 			reportF(SeverityTypeID::ST_Warning, "Feature %d is a Linestring and skipped as only Surfaces, aka (Multi)Polygons, are read.\n"
 				"Hint: Configure another attribute with ValueComposition=sequence to read Linestrings."
 				, i + firstIndex);
@@ -627,6 +633,8 @@ void ReadPolyData(typename sequence_traits<PolygonType>::seq_t dataArray, OGRLay
 
 		case OGRwkbGeometryType::wkbPolygon: 
 		case OGRwkbGeometryType::wkbPolygon25D:
+		case OGRwkbGeometryType::wkbPolygonM:
+		case OGRwkbGeometryType::wkbPolygonZM:
 			AddPolygon<PolygonType>(dataElemRef, geo->toPolygon()); break;
 
 		case OGRwkbGeometryType::wkbCurvePolygon: 
@@ -634,6 +642,8 @@ void ReadPolyData(typename sequence_traits<PolygonType>::seq_t dataArray, OGRLay
 
 		case OGRwkbGeometryType::wkbMultiPolygon: 
 		case OGRwkbGeometryType::wkbMultiPolygon25D:
+		case OGRwkbGeometryType::wkbMultiPolygonM:
+		case OGRwkbGeometryType::wkbMultiPolygonZM:
 			AddMultiPolygon<PolygonType>(dataElemRef, geo->toMultiPolygon()); break;
 
 		case OGRwkbGeometryType::wkbMultiLineString: 
@@ -654,14 +664,14 @@ void ReadPolyData(typename sequence_traits<PolygonType>::seq_t dataArray, OGRLay
 			break;
 		}
 
-		dms_assert(data.data_size() == data.actual_data_size()); // no fragmentation
+		assert(data.data_size() == data.actual_data_size()); // no fragmentation
 	}
 
-	dms_assert(data.data_size() == data.actual_data_size()); // no fragmentation
+	assert(data.data_size() == data.actual_data_size()); // no fragmentation
 
 	Assign(dataArray, data);
 
-	dms_assert(dataArray.get_sa().data_size()== data.actual_data_size());
+	assert(dataArray.get_sa().data_size()== data.actual_data_size());
 }
 
 template <typename PolygonType>
@@ -706,9 +716,14 @@ void ReadLinestringData(typename sequence_traits<PolygonType>::seq_t dataArray, 
 			AddMultiPoint<PolygonType>(dataElemRef, geo->toMultiPoint()); break;
 
 		case OGRwkbGeometryType::wkbLineString:
+		case OGRwkbGeometryType::wkbLineString25D:
+		case OGRwkbGeometryType::wkbLineStringZM:
+		case OGRwkbGeometryType::wkbLineStringM:
 			AddLineString<PolygonType>(dataElemRef, geo->toLineString()); break;
+
 		case OGRwkbGeometryType::wkbCircularString:
 			AddLineString<PolygonType>(dataElemRef, geo->getLinearGeometry()->toLineString()); break;
+
 		case OGRwkbGeometryType::wkbCompoundCurve:
 			AddLineString<PolygonType>(dataElemRef, geo->getLinearGeometry()->toLineString()); break;
 
@@ -718,21 +733,26 @@ void ReadLinestringData(typename sequence_traits<PolygonType>::seq_t dataArray, 
 				, i + firstIndex);
 			Assign(dataElemRef, Undefined());
 			break;
+
 		case OGRwkbGeometryType::wkbCurvePolygon:
 			reportF(SeverityTypeID::ST_Warning, "Feature %d is a CurvePolygon and skipped as only Curves, aka (Multi)Linestrings, and (sequences of) Points are read.\n"
 				"Hint: Configure another attribute with ValueComposition=polygon to read it as Polygon."
 				, i + firstIndex);
 			Assign(dataElemRef, Undefined());
 			break;
+
 		case OGRwkbGeometryType::wkbMultiPolygon:
 			reportF(SeverityTypeID::ST_Warning, "Feature %d is a MultiPolygon and skipped as only Curves, aka (Multi)Linestrings, and (sequences of) Points are read.\n"
 				"Hint: Configure another attribute with ValueComposition=polygon to read it."
 				, i + firstIndex);
 			Assign(dataElemRef, Undefined());
 			break;
+
 		case OGRwkbGeometryType::wkbMultiLineString:
-			AddMultiLineString<PolygonType>(dataElemRef, geo->toMultiLineString());
-			break;
+		case OGRwkbGeometryType::wkbMultiLineString25D:
+		case OGRwkbGeometryType::wkbMultiLineStringZM:
+		case OGRwkbGeometryType::wkbMultiLineStringM:
+			AddMultiLineString<PolygonType>(dataElemRef, geo->toMultiLineString()); break;
 
 		case OGRwkbGeometryType::wkbMultiSurface:
 			reportF(SeverityTypeID::ST_Warning, "Feature %d is a MultiSurface and skipped as only Curves, aka (Multi)Linestrings, and (sequences of) Points are read.\n"
