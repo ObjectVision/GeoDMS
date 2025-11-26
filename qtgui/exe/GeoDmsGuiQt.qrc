@@ -77,7 +77,6 @@
         <file>res/images/TV_default_view.bmp</file>
         <file>res/images/ConfigFileList.png</file>
         <file>res/images/TB_pan_button.bmp</file>
-        <file>res/images/HackedWorld.jpg</file>
         <file>res/images/WorldHeatMap.jpg</file>
     </qresource>
 </RCC>
