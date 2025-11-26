@@ -139,6 +139,7 @@
   </ItemGroup>
   <ItemGroup>
     <Image Include="res\icons\GeoDmsGuiQt.ico" />
+    <Image Include="res\images\WorldHeatMap.jpg" />
   </ItemGroup>
   <ItemGroup>
     <QtUic Include="res\ui\DmsConfigOptionsWindow.ui">

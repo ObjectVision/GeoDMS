@@ -56,9 +56,6 @@
   <ImportGroup Condition="Exists('$(QtMsBuild)\qt.props')">
     <Import Project="$(QtMsBuild)\qt.props" />
   </ImportGroup>
-  <PropertyGroup>
-    <CopyCppRuntimeToOutputDir>false</CopyCppRuntimeToOutputDir>
-  </PropertyGroup>
   <ItemDefinitionGroup>
     <ClCompile>
       <AdditionalOptions>-Zc:rvalueCast -Zc:inline -Zc:strictStrings -Zc:throwingNew -permissive- -Zc:__cplusplus -Zc:externConstexpr -utf-8 -w34189 -w44996 -w44456 -w44457 -w44458 %(AdditionalOptions)</AdditionalOptions>
@@ -213,6 +210,7 @@
   </ItemGroup>
   <ItemGroup>
     <Image Include="res\icons\GeoDmsGuiQt.ico" />
+    <Image Include="res\images\WorldHeatMap.jpg" />
   </ItemGroup>
   <ItemGroup>
     <QtUic Include="res\ui\DmsConfigOptionsWindow.ui" />
