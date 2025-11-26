@@ -3092,7 +3092,8 @@ ActorVisitState TreeItem::VisitSuppliers(SupplierVisitFlag svf, const ActorVisit
 
 void TreeItem::DoInvalidate() const
 {
-	dms_assert(!IsCacheItem());
+	assert(!IsCacheItem());
+	assert(IsMainThread());
 
 	// m_State Has already been set to US_Invalidated before DoInvalidate gets called 
 	if (m_SupplCache)
@@ -3102,6 +3103,9 @@ void TreeItem::DoInvalidate() const
 
 	if (IsCacheItem())
 		const_cast<TreeItem*>(this)->DropValue();
+
+	if (m_ReadAssets.has_value())
+		m_ReadAssets.Clear();
 
 	m_State.Clear(ASF_WasLoaded);
 	m_StatusFlags.Clear(TSF_DataInMem);

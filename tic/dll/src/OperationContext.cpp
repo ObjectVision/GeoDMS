@@ -1543,8 +1543,8 @@ garbage_can OperationContext::separateResources(task_status status)
 	}
 	assert(!m_TaskFunc);
 	auto resultItem = GetResult();
-	if (resultItem && resultItem->m_ReadAssets.has_value())
-		releaseBin |= std::move(resultItem->m_ReadAssets);
+//	if (resultItem && resultItem->m_ReadAssets.has_value())
+//		releaseBin |= std::move(resultItem->m_ReadAssets);
 	if (m_ResKeeper)
 		releaseBin |= std::move(m_ResKeeper); // may release interest of FuncDC, probably not a big thing, but it may release ownership of this, which therefore should have been called by a shared_ptr copy.
 	assert(!m_ResKeeper);
