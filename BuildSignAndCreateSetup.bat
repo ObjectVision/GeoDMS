@@ -15,9 +15,6 @@ cd tst
 git pull
 cd %geodms_rootdir%
 
-CHOICE /M "Update RtcGeneratedVersion.h?"
-if ErrorLevel 2 goto :startBuild
-
 echo #define DMS_VERSION_MAJOR %DMS_VERSION_MAJOR% > "rtc/dll/src/RtcGeneratedVersion.h"
 echo #define DMS_VERSION_MINOR %DMS_VERSION_MINOR% >> "rtc/dll/src/RtcGeneratedVersion.h"
 echo #define DMS_VERSION_PATCH %DMS_VERSION_PATCH% >> "rtc/dll/src/RtcGeneratedVersion.h"
@@ -25,7 +22,6 @@ echo #define DMS_VERSION_PATCH %DMS_VERSION_PATCH% >> "rtc/dll/src/RtcGeneratedV
 echo #define DMS_BUILD_DATE "%DATE%" > "rtc/dll/src/buildstamp.h"
 echo #define DMS_BUILD_TIME "%TIME%" >> "rtc/dll/src/buildstamp.h"
 
-:startBuild
 REM CHOICE /M "Build GeoDms %GeoDmsVersion%?"
 REM if ErrorLevel 2 goto :setupCreation
 

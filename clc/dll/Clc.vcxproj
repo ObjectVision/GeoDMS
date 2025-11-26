@@ -44,9 +44,6 @@
   <ImportGroup Condition="'$(Configuration)'=='Release'" Label="PropertySheets">
     <Import Project="..\..\DmsRelease.props" />
   </ImportGroup>
-  <PropertyGroup>
-    <CopyCppRuntimeToOutputDir>false</CopyCppRuntimeToOutputDir>
-  </PropertyGroup>
   <ItemDefinitionGroup>
     <ClCompile>
       <AdditionalIncludeDirectories>../../rtc/dll/src;../../stx/dll/src;../../tic/dll/src;../../stg/dll/src;../../clc/dll/include;../../sym/dll/src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
