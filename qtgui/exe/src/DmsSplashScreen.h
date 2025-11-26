@@ -21,8 +21,6 @@ public:
 
     virtual void drawContents(QPainter* painter);
 
-    void showStatusMessage(const QString& message, const QColor& color = Qt::black);
-
     void setMessageRect(QRect rect, int alignment = Qt::AlignLeft);
 
     QString m_message = DMS_GetVersion();
