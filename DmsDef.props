@@ -10,7 +10,7 @@
 	<Platforms>x64;x86</Platforms>
   </PropertyGroup>
   <PropertyGroup Label="Configuration">
-    <PlatformToolset>v145</PlatformToolset>
+    <PlatformToolset>v143</PlatformToolset>
     <PreferredToolArchitecture>x64</PreferredToolArchitecture>
     <EnableUnitySupport>true</EnableUnitySupport>
     <CharacterSet>Unicode</CharacterSet>
@@ -19,9 +19,6 @@
   <PropertyGroup Label="Vcpkg">
     <VcpkgEnableManifest>true</VcpkgEnableManifest>
     <VcpkgAdditionalInstallOptions>--binarysource=clear;files,$(SolutionDir)\vc_archives,readwrite --downloads-root=$(SolutionDir)\vc_downloads</VcpkgAdditionalInstallOptions>
-  </PropertyGroup>
-  <PropertyGroup>
-    <CopyCppRuntimeToOutputDir>false</CopyCppRuntimeToOutputDir>
   </PropertyGroup>
   <ItemDefinitionGroup>
     <Bscmake>

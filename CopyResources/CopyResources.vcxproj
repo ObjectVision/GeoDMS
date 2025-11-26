@@ -40,8 +40,7 @@ if %errorlevel% LSS 8 exit 0 else exit %errorlevel%
   </PropertyGroup>
   <PropertyGroup Label="Configuration">
     <ConfigurationType>Makefile</ConfigurationType>
-    <PlatformToolset>v145</PlatformToolset>
-    <CopyCppRuntimeToOutputDir>false</CopyCppRuntimeToOutputDir>
+    <PlatformToolset>v143</PlatformToolset>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)'=='Debug'" Label="Configuration">
     <UseDebugLibraries>true</UseDebugLibraries>
@@ -56,7 +55,4 @@ if %errorlevel% LSS 8 exit 0 else exit %errorlevel%
   <PropertyGroup Label="UserMacros" />
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets" />
-  <PropertyGroup>
-    <CopyCppRuntimeToOutputDir>false</CopyCppRuntimeToOutputDir>
-  </PropertyGroup>
 </Project>
