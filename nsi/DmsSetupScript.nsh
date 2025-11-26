@@ -105,7 +105,6 @@ Section "" ;No components page, name is not important
   File ..\bin\Release\${GeoDmsPlatform}\parquet.dll
   File ..\bin\Release\${GeoDmsPlatform}\pcre2-8.dll
   File ..\bin\Release\${GeoDmsPlatform}\proj_9.dll
-  File ..\bin\Release\${GeoDmsPlatform}\python3.dll
   File ..\bin\Release\${GeoDmsPlatform}\qhull_r.dll
   File ..\bin\Release\${GeoDmsPlatform}\snappy.dll
   File ..\bin\Release\${GeoDmsPlatform}\spatialite.dll
