@@ -1459,6 +1459,9 @@ namespace
 	tl_oper::inst_tuple_templ<typelists::points, BgBufferMultiPolygonOperator> bg_bufferMultiPolygonOperators(grBgBuffer_multi_polygon);
 	tl_oper::inst_tuple_templ<typelists::points, GeosBufferMultiPolygonOperator> geos_bufferMultiPolygonOperators(grGeosBuffer_multi_polygon);
 
+	tl_oper::inst_tuple_templ<typelists::points, OuterSinglePolygonOperator> outerSinglePolygonOperators(grOuter_polygon);
+	tl_oper::inst_tuple_templ<typelists::points, OuterMultiPolygonOperator> outerMultiPolygonOperators(grOuter_multi_polygon);
+
 	tl_oper::inst_tuple_templ<typelists::points, OuterSinglePolygonOperator> bg_outerSinglePolygonOperators(grBgOuter_single_polygon);
 	tl_oper::inst_tuple_templ<typelists::points, OuterMultiPolygonOperator> bg_outerMultiPolygonOperators(grBgOuter_multi_polygon);
 
