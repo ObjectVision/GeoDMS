@@ -51,41 +51,55 @@ SpecialOperGroup sog_regCount8 ("reg_count_uint8" , 4, oap_regCount, oper_policy
 typedef UInt32 ActorTypeIndex;
 typedef SizeT  PartitionIndex;
 
-struct RegionInfo
+struct RegionMeta
 {
-	RegionInfo(const AbstrDataItem* partition, AbstrDataItem* result)
+	RegionMeta(const AbstrDataItem* partition, AbstrDataItem* result)
 		:	m_Partition(partition)
-		,	m_NrParts (UNDEFINED_VALUE(SizeT))
 		,	m_Result  (result)
 	{}
 
-	RegionInfo(RegionInfo&& rhs) noexcept // move ctor
-		: m_Partition(std::move(rhs.m_Partition))
-		, m_ReadLock(std::move(rhs.m_ReadLock))
-		, m_IndexGetter(std::move(rhs.m_IndexGetter))
-		, m_NrParts(std::move(rhs.m_NrParts))
-		, m_Result(std::move(rhs.m_Result))
-		, m_WriteLock(std::move(rhs.m_WriteLock))
-	{
-		throwIllegalAbstract(MG_POS, "RegionInfo::move ctor"); // reserve and emplace_back should prevent ever moving or copying this
-	}
+	RegionMeta(const RegionMeta&) noexcept = default;
 
 	SharedPtr<const AbstrDataItem>  m_Partition;
-	DataReadLock                    m_ReadLock;
-	OwningPtr<IndexGetter>          m_IndexGetter;
-	SizeT                           m_NrParts;
 	WeakPtr<AbstrDataItem>          m_Result;
 
+};
+
+struct RegionInfo : RegionMeta
+{
+	RegionInfo(const RegionMeta& meta) noexcept
+		: RegionMeta(meta)
+	{}
+
+	RegionInfo(RegionInfo&&) noexcept = default;
+	RegionInfo(const RegionInfo&) = delete;
+
+	DataReadLock                    m_ReadLock;
+	OwningPtr<IndexGetter>          m_IndexGetter;
+	SizeT                           m_NrParts = UNDEFINED_VALUE(SizeT);
 	DataWriteLock                   m_WriteLock;
-private:
-	RegionInfo(const RegionInfo&);
+
+};
+
+struct RegionMetaArray : std::vector<RegionMeta> 
+{
+	ConstUnitRef m_ResUnit;
 };
 
 struct RegionInfoArray : std::vector<RegionInfo>
 {
 	ConstUnitRef m_ResUnit;
-	RegionInfoArray() = default;
+
+	//	RegionInfoArray() = default;
 	RegionInfoArray(RegionInfoArray&&) = default;
+
+	RegionInfoArray(const RegionMetaArray& metaArray)
+		: m_ResUnit(metaArray.m_ResUnit)
+	{
+		this->reserve(metaArray.size());
+		for (const auto& rm : metaArray)
+			this->emplace_back(rm);
+	}
 
 private:
 	RegionInfoArray(const RegionInfoArray&) = delete;
@@ -185,13 +199,13 @@ struct RegCountOperator : public QuaternaryOperator
 		actorTypeUnit->UnifyDomain(arg2A->GetAbstrDomainUnit(), "v1", "e2", UM_Throw);
 		actorTypeUnit->UnifyDomain(arg4A->GetAbstrDomainUnit(), "v1", "e4", UM_Throw);
 
-		RegionInfoArray regionInfoArray; regionInfoArray.reserve(n);
-		regionInfoArray.m_ResUnit = (m_CountUnitClass)
+		RegionMetaArray regionMetaArray; regionMetaArray.reserve(n);
+		regionMetaArray.m_ResUnit = (m_CountUnitClass)
 			? (gridDomain->GetStaticClass() == m_CountUnitClass)
 			? gridDomain
 			: m_CountUnitClass->CreateDefault()
 			: count_unit_creator(GetItems(args)).get_ptr();
-		assert(regionInfoArray.m_ResUnit);
+		assert(regionMetaArray.m_ResUnit);
 
 		if (!resultHolder)
 			resultHolder = TreeItem::CreateCacheRoot();
@@ -220,24 +234,24 @@ struct RegCountOperator : public QuaternaryOperator
 			TokenID nameID = GetTokenID_mt(className.c_str());
 			assert(nameID);
 			const AbstrUnit* regionalDomain = partition ? partition->GetAbstrValuesUnit() : Unit<Void>::GetStaticClass()->CreateDefault();
-			AbstrDataItem* resultItem = CreateDataItem(resultHolder, nameID, regionalDomain, regionInfoArray.m_ResUnit);
+			AbstrDataItem* resultItem = CreateDataItem(resultHolder, nameID, regionalDomain, regionMetaArray.m_ResUnit);
 			assert(resultItem);
-			regionInfoArray.emplace_back(partition, resultItem);
+			regionMetaArray.emplace_back(partition, resultItem);
 			if (partition)
 			{
 				debug_refcast<FuncDC&>(resultHolder).AddDependency(partition->GetCheckedDC()); // requires Meta info.
 //				debug_refcast<FuncDC&>(resultHolder).AddDependency(partition->GetAbstrValuesUnit()); // and of valuesunit, or is that included?
 			}
 		}
-		resultHolder->m_ReadAssets.emplace<RegionInfoArray>(std::move(regionInfoArray));
+		resultHolder->m_ReadAssets.emplace<RegionMetaArray>(std::move(regionMetaArray));
 	}
 
 	bool CalcResult(TreeItemDualRef& resultHolder, ArgRefs args, std::vector<ItemReadLock> readLocks, Explain::Context* context) const override
 	{
 		assert(resultHolder);
-		RegionInfoArray* regionInfoArrayPtr = rtc::any::any_cast<RegionInfoArray>(&resultHolder->m_ReadAssets);
-		MG_CHECK(regionInfoArrayPtr);
-		RegionInfoArray& regionInfoArray = *regionInfoArrayPtr;
+		const RegionMetaArray* regionMetaArrayPtr = rtc::any::any_cast<RegionMetaArray>(&resultHolder->m_ReadAssets);
+		MG_CHECK(regionMetaArrayPtr);
+		RegionInfoArray regionInfoArray(*regionMetaArrayPtr);
 
 		const AbstrDataItem* arg1A = AsDataItem(args[0]); assert(arg1A);
 		const AbstrDataItem* arg2A = AsDataItem(args[1]); assert(arg2A);

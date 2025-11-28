@@ -488,21 +488,26 @@ struct priority_heap : private std::vector<land_unit_id>
 /// - m_Suitabilities: Sequence of suitability values for all cells.
 /// - Note: Template parameter S represents the suitability value type (e.g., float or double).
 /// </summary>
-/// 
-template <typename S>
-struct ggType_info_t
+
+
+struct ggType_meta_t
 {
 	SharedStr                     m_strName;
 	TokenID                       m_NameID;
-
-	const AbstrDataItem*          m_diMinClaims = nullptr;
-	const AbstrDataItem*          m_diMaxClaims = nullptr;
-
-	const AbstrDataItem*          m_diSuitabilityMap    = nullptr;
-	      AbstrDataItem*          m_diResShadowPrices   = nullptr;
-	      AbstrDataItem*          m_diResTotalAllocated = nullptr;
-
 	UInt32                        m_PartitioningID = 0;
+
+	const AbstrDataItem* m_diMinClaims = nullptr;
+	const AbstrDataItem* m_diMaxClaims = nullptr;
+
+	const AbstrDataItem* m_diSuitabilityMap = nullptr;
+	AbstrDataItem* m_diResShadowPrices = nullptr;
+	AbstrDataItem* m_diResTotalAllocated = nullptr;
+
+};
+
+template <typename S>
+struct ggType_info_t : ggType_meta_t
+{
 	claim_id                      m_FirstClaimID = UNDEFINED_VALUE(claim_id);  // ref into m_Claims array
 	UInt32                        m_NrClaims = 0;      // limits range of m_Claims array for this ggType (aka land use type)
 
@@ -575,28 +580,53 @@ struct ggType_info_t
 //   - Support for partial (tile-based) loading if atomic region space becomes huge.
 //
 // -----------------------------------------------------------------------------
-template <typename AR>
-struct partitioning_info_t
-{
-	using atomic_region_id = AR;
 
-	explicit partitioning_info_t(const AbstrDataItem* atomicRegionPartitioning)
-		:	m_AtomicRegionPartitioningDI (atomicRegionPartitioning)
-		,	m_PartitioningUnit(atomicRegionPartitioning->GetAbstrValuesUnit())
+struct partitioning_meta_t
+{
+	const AbstrDataItem* m_AtomicRegionPartitioningDI = nullptr; // Optional AR->region mapping source
+	const AbstrUnit* m_PartitioningUnit = nullptr;               // Region id unit
+	mutable SharedDataItemInterestPtr m_ValuesLabelLock;         // Label cache lock
+
+	explicit partitioning_meta_t(const AbstrDataItem* atomicRegionPartitioning)
+		: m_AtomicRegionPartitioningDI(atomicRegionPartitioning)
+		, m_PartitioningUnit(atomicRegionPartitioning->GetAbstrValuesUnit())
 	{
 		m_ValuesLabelLock = GetPartitioningUnit()->GetLabelAttr();
 	}
 
-	explicit partitioning_info_t(const AbstrUnit* atomicRegions)
+	explicit partitioning_meta_t(const AbstrUnit* atomicRegions)
 		: m_PartitioningUnit(atomicRegions)
 	{
 		m_ValuesLabelLock = GetPartitioningUnit()->GetLabelAttr();
 	}
 
+
+	// --- Accessors ----------------------------------------------------------
+
+	TokenStr GetName() const
+	{
+		return m_AtomicRegionPartitioningDI
+			? m_AtomicRegionPartitioningDI->GetName()
+			: m_PartitioningUnit->GetName();
+	}
+
+	const AbstrUnit* GetPartitioningUnit() const { return m_PartitioningUnit; }
+};
+
+template <typename AR>
+struct partitioning_info_t : partitioning_meta_t
+{
+	using atomic_region_id = AR;
+
 	partitioning_info_t(partitioning_info_t&& rhs) noexcept = default;
+
 	partitioning_info_t& operator=(partitioning_info_t&&) noexcept = default;
 	partitioning_info_t(const partitioning_info_t&) = delete;
 	partitioning_info_t& operator=(const partitioning_info_t&) = delete;
+
+	explicit partitioning_info_t(const partitioning_meta_t& rhs) noexcept
+		: partitioning_meta_t(rhs)
+	{}
 
 	// Populate region-id mapping when a data item mapping exists.
 	// For identity mappings (no data item) only debug counts are recorded.
@@ -626,15 +656,6 @@ struct partitioning_info_t
 	}
 
 	// --- Accessors ----------------------------------------------------------
-
-	TokenStr GetName() const
-	{
-		return m_AtomicRegionPartitioningDI
-			? m_AtomicRegionPartitioningDI->GetName()
-			: m_PartitioningUnit->GetName();
-	}
-
-	const AbstrUnit* GetPartitioningUnit() const { return m_PartitioningUnit; }
 
 	// Return the (local) region id for atomic region 'ar'.
 	// Pre: GetData() has been called if a data item mapping is used.
@@ -674,12 +695,9 @@ struct partitioning_info_t
 
 	// --- Data Members -------------------------------------------------------
 
-	const AbstrDataItem*              m_AtomicRegionPartitioningDI = nullptr; // Optional AR->region mapping source
-	const AbstrUnit*                  m_PartitioningUnit = nullptr;           // Region id unit
 	OwningPtrSizedArray<UInt32>       m_AtomicRegionPartitioningData;         // Dense AR->region mapping (if DI present)
 	UInt32                            m_NrRegions = static_cast<UInt32>(-1);  // Cached region count
 	atomic_region_id                  m_UniqueRegionOffset = static_cast<atomic_region_id>(-1); // Global offset for unique ids
-	mutable SharedDataItemInterestPtr m_ValuesLabelLock;                      // Label cache lock
 
 #if defined(MG_DEBUG)
 	UInt32                            md_NrAtomicRegions = 0;                 // Debug: #atomic regions observed
@@ -697,7 +715,12 @@ const UInt32 stepFactor = 4;
 // UR = unique region
 // AT = alllocation type (index of ggType, aka land use type).
 
-struct regions_info_base
+struct regions_meta_base
+{
+	SharedPtr<const AbstrDataItem> m_AtomicRegionMap;
+};
+
+struct regions_info_base : regions_meta_base
 {
 	void PreparePermutation(land_unit_id n)
 	{
@@ -750,10 +773,16 @@ struct regions_info_base
 	land_unit_id m_N = 0;
 	mutable SizeT m_StepSize = 1, m_CurrBase = 0, m_PrevStep = 0, m_CurrPI = 0;
 
-	SharedPtr<const AbstrDataItem> m_AtomicRegionMap;
 	DataReadLock                   m_AtomicRegionLock;
 	std::vector<UInt32>            m_AtomicRegionSizes; // 1 per atomic_region containing the number of cells (sums to n)
 	mutable OwningPtr<bi_graph>    m_Ar2Ur;             // bi_graph that represents AR -> UR relation
+};
+
+struct regions_meta_t : regions_meta_base
+{
+	std::vector<partitioning_meta_t >  m_PartitioningMetas;       // 1 per Unique partitioning (==  p )
+
+	UInt32 GetNrPartitionings() const { return m_PartitioningMetas.size(); }
 };
 
 // regions_info_t is used to store the partitioning information of the atomic regions
@@ -764,14 +793,19 @@ struct regions_info_t : regions_info_base
 	using atomic_region_proxy = AR;
 
 	using atomic_region_data_handle = typename DataArray<atomic_region_id>::locked_cseq_t;
-	regions_info_t()
-		:	m_NrUniqueRegions()
-	{}
+
+	regions_info_t(const regions_meta_t& meta)
+		: regions_info_base{ meta }
+	{
+		m_Partitionings.reserve(meta.m_PartitioningMetas.size());
+		for (const auto& pm : meta.m_PartitioningMetas)
+			m_Partitionings.emplace_back(pm);
+	}
 
 	WeakPtr<const TileFunctor<atomic_region_id> > m_AtomicRegionMapObj;
 	atomic_region_data_handle                     m_AtomicRegionMapData; // 1 per grid-cell           (==  n )
 	std::vector<partitioning_info_t<AR> >         m_Partitionings;       // 1 per Unique partitioning (==  p )
-	atomic_region_id                              m_NrUniqueRegions;     // #ur
+	atomic_region_id                              m_NrUniqueRegions = 0; // #ur
 
 	UInt32 GetNrAtomicRegions() const { return m_AtomicRegionSizes.size(); }
 	UInt32 GetNrPartitionings() const { return m_Partitionings.size(); }
@@ -781,7 +815,6 @@ struct regions_info_t : regions_info_base
 	UInt32 GetRegionID(atomic_region_id ar, partitioning_id p)       const { return m_Partitionings[p].GetRegionID(ar);      }
 	UInt32 GetUniqueRegionID(atomic_region_id ar, partitioning_id p) const { return m_Partitionings[p].GetUniqueRegionID(ar);}
 	UInt32 GetUniqueRegionOffset(partitioning_id p)                  const { return m_Partitionings[p].m_UniqueRegionOffset; }
-	const AbstrUnit* GetPartitioningUnit(partitioning_id p)           const { return m_Partitionings[p].GetPartitioningUnit();}
 
 	// ========== ErrorMsg helper funcs
 
@@ -820,6 +853,11 @@ struct regions_info_t<Void> : regions_info_base
 	using atomic_region_id = Void;
 	using atomic_region_proxy = UInt32;
 
+	regions_info_t(const regions_meta_t& meta)
+		: regions_info_base{ meta }
+	{}
+
+
 	UInt32 GetNrAtomicRegions() const { return 1; }
 	UInt32 GetNrPartitionings() const { return 1; }
 	UInt32 GetNrUniqueRegions() const { return 1; }
@@ -828,7 +866,6 @@ struct regions_info_t<Void> : regions_info_base
 	UInt32 GetRegionID      (atomic_region_proxy ar, partitioning_id p) const { assert(ar == 0); assert(p == 0);  return 0; }
 	UInt32 GetUniqueRegionID(atomic_region_proxy ar, partitioning_id p) const { assert(ar == 0); assert(p == 0);  return 0; }
 	UInt32 GetUniqueRegionOffset(partitioning_id p)                  const { assert(p == 0);  return 0; }
-	const AbstrUnit* GetPartitioningUnit(partitioning_id p)           const { return nullptr; }
 
 	// ========== ErrorMsg helper funcs
 
@@ -859,17 +896,38 @@ struct regions_info_t<Void> : regions_info_base
 // AR is the type of the atomic region index, typically UInt16 or Void
 // AT is the type of ggTypes index, typically UInt8
 
+
+template <typename S>
+struct htp_meta_extra 
+{
+	WeakPtr<const AbstrUnit>   m_MapDomain;
+	SharedPtr<const Unit<S> >  m_PriceUnit;
+};
+
+template <typename S>
+struct htp_meta_t : regions_meta_t, htp_meta_extra<S>
+{
+	std::vector<ggType_meta_t> m_ggTypes; // 1 per ggType              (==  k )
+};
+
+
 template <typename S, typename AR, typename AT>
-struct htp_info_t : regions_info_t<AR>
+struct htp_info_t : regions_info_t<AR>, htp_meta_extra<S>
 {
 	using typename regions_info_t<AR>::atomic_region_id;
 	using typename regions_info_t<AR>::atomic_region_proxy;
 
-	htp_info_t() : m_TreeBuilder(*this), m_Threshold() {}
+	htp_info_t(const htp_meta_t<S>& meta)
+		: regions_info_t<AR>{ static_cast<const regions_meta_t&>(meta) }
+		, htp_meta_extra<S>(meta)
+		, m_TreeBuilder(*this), m_Threshold() 
+	{
+		m_ggTypes.reserve(meta.m_ggTypes.size());
+		for (const auto& ggm : meta.m_ggTypes)
+			m_ggTypes.emplace_back(ggm);
+	}
 
 	S                                   m_Threshold;
-
-	WeakPtr<const AbstrUnit>            m_MapDomain;
 
 	DataWriteLock                       m_ResultDataLock;
 	typename 
@@ -945,7 +1003,6 @@ struct htp_info_t : regions_info_t<AR>
 	// ========== more data members
 	directed_dijkstra<htp_info_t> m_TreeBuilder;
 	std::vector<UInt32>           m_ClaimIdList;
-	SharedPtr<const Unit<S> >     m_PriceUnit;
 	land_unit_id                  m_NrBelowThreshold = 0;
 
 #if defined(MG_DEBUG)
@@ -953,6 +1010,12 @@ struct htp_info_t : regions_info_t<AR>
 	UInt32                                md_ReportFindMstDownCounter;
 #endif
 };
+
+template <typename S, typename AR, typename AT>
+struct htp_calc_t //: regions_info_t<AR>
+{
+};
+
 
 // *****************************************************************************
 //									regions_info_t mf
@@ -1412,7 +1475,7 @@ auto GetClaimAttr(const TreeItem* claimSet, TokenID nameID) -> const AbstrDataIt
 	return result;
 }
 
-template <typename S, typename AR, typename AT>
+template <typename S>
 void CreateResultingItems(
 	const AbstrDataItem* ggTypeNamesA,
 	const AbstrUnit* allocUnit,
@@ -1425,12 +1488,13 @@ void CreateResultingItems(
 	const AbstrDataItem* atomicRegionMapA,
 	TreeItem* resShadowPriceContainer,
 	TreeItem* resTotalAllocatedContainer,
-	htp_info_t<S, AR, AT>& htpInfo,
-	bool mustAdjust, FuncDC& funcDC
+	htp_meta_t<S>& htpMeta,
+	bool mustAdjust, FuncDC& funcDC,
+	bool hasPartitionings
 )
 {
 	// init elementary data members
-	htpInfo.m_MapDomain = allocUnit;
+	htpMeta.m_MapDomain = allocUnit;
 	//	dms_assert(atomicRegionUnit);
 	assert(minClaimSet);
 	assert(maxClaimSet);
@@ -1438,18 +1502,19 @@ void CreateResultingItems(
 	SharedStr resultMsg;
 
 	// get array of partitionNames
-	DataReadLock partitioningNamesLock;
-	const DataArray<SharedStr>* partitioningNames = nullptr;
 	UInt32 P = 1;
-	if constexpr (!std::is_same_v<AR, Void>)
+	if (hasPartitionings)
 	{
+		DataReadLock partitioningNamesLock;
+		const DataArray<SharedStr>* partitioningNames = nullptr;
+
 		if (partitioningNamesA)
 		{
 			partitioningNamesLock = DataReadLock(partitioningNamesA);
 			partitioningNames = const_array_cast<SharedStr>(partitioningNamesA);
 			P = partitioningNames->GetDataRead().size();
 		}
-		htpInfo.m_Partitionings.reserve(P);
+		htpMeta.m_PartitioningMetas.reserve(P);
 		for (UInt32 p = 0; p != P; ++p)
 		{
 			SharedStr partitioningName = partitioningNames ? partitioningNames->GetIndexedValue(p) : SharedStr(atomicRegionUnit->GetID());
@@ -1473,21 +1538,18 @@ void CreateResultingItems(
 				);
 
 			if (regioRefDI)
-				htpInfo.m_Partitionings.emplace_back(regioRefDI);
+				htpMeta.m_PartitioningMetas.emplace_back(regioRefDI);
 			else
-				htpInfo.m_Partitionings.emplace_back(atomicRegionUnit);
+				htpMeta.m_PartitioningMetas.emplace_back(atomicRegionUnit);
 
-			if (htpInfo.m_Partitionings.back().m_ValuesLabelLock)
+			if (htpMeta.m_PartitioningMetas.back().m_ValuesLabelLock)
 			{
-				funcDC.AddDependency(htpInfo.m_Partitionings.back().m_ValuesLabelLock->GetCheckedDC());
+				funcDC.AddDependency(htpMeta.m_PartitioningMetas.back().m_ValuesLabelLock->GetCheckedDC());
 			}
 		}
-		assert(htpInfo.m_Partitionings.size() == P);
+		assert(htpMeta.m_PartitioningMetas.size() == P);
 	}
-	else // AR == Void
-	{
-//		htpInfo.m_Partitionings.push_back(partitioning_info_t<AR>(nullptr));
-	}
+	
 
 	// get array of ggTypeNames
 	DataReadLock ggTypesNameLock(ggTypeNamesA);
@@ -1519,11 +1581,11 @@ void CreateResultingItems(
 		}
 //	}
 	UInt32 K = ggTypeNames->GetDataRead().size();
-	htpInfo.m_ggTypes.resize(K);
+	htpMeta.m_ggTypes.resize(K);
 
-	for (UInt32 j=0; j!=K; ++j)
+	for (UInt32 j=0; j<K; ++j)
 	{
-		ggType_info_t<S>* gg = begin_ptr(htpInfo.m_ggTypes) + j;
+		ggType_meta_t* gg = begin_ptr(htpMeta.m_ggTypes) + j;
 		gg->m_strName = ggTypeNames->GetIndexedValue(j);
 		auto contextHandle = MakeLCH([gg]() { return "discrete_alloc_init for Type " + gg->m_strName;  });
 
@@ -1540,12 +1602,12 @@ void CreateResultingItems(
 		funcDC.AddDependency(maxClaims->GetCheckedDC());
 
 		const AbstrUnit* partitioningUnit = nullptr;
-		if constexpr (!std::is_same_v<AR, Void>)
+		if (hasPartitionings)
 		{
 			partitioning_id partitioningID = 0;
 			if (ggTypes2partitionings)
 				partitioningID = ggTypes2partitionings->GetIndexedValue(j);
-			if (partitioningID >= htpInfo.GetNrPartitionings())
+			if (partitioningID >= htpMeta.GetNrPartitionings())
 			{
 				MG_CHECK(partitioningNamesA);
 				if (partitioningNamesA)
@@ -1554,22 +1616,22 @@ void CreateResultingItems(
 
 			gg->m_PartitioningID = partitioningID;
 
-			partitioningUnit = htpInfo.GetPartitioningUnit(gg->m_PartitioningID);
+			partitioningUnit = htpMeta.m_PartitioningMetas[gg->m_PartitioningID].GetPartitioningUnit();
 			assert(partitioningUnit);
 
 			if (ggTypes2partitioningsA && partitioningNamesA)
 			{
 				if (gg->m_diMinClaims && !partitioningUnit->UnifyDomain(gg->m_diMinClaims->GetAbstrDomainUnit(), "Partitioning", "Domain of Minimum Claim attribute", UnifyMode(), &resultMsg))
 					throwErrorF("discrete_alloc", "values of partitioning %s in AtomicRegions (6th argument):\n%s\nand domain of minimum claim for %s (8th argument):\n%s\nincompatible: %s"
-						, htpInfo.m_Partitionings[partitioningID].GetName()
-						, htpInfo.m_Partitionings[partitioningID].m_AtomicRegionPartitioningDI->GetSourceName()
+						, htpMeta.m_PartitioningMetas[partitioningID].GetName()
+						, htpMeta.m_PartitioningMetas[partitioningID].m_AtomicRegionPartitioningDI->GetSourceName()
 						, gg->m_NameID, gg->m_diMinClaims->GetSourceName()
 						, resultMsg
 					);
 				if (gg->m_diMaxClaims && !partitioningUnit->UnifyDomain(gg->m_diMaxClaims->GetAbstrDomainUnit(), "Partitioning", "Domain of Maximum Claim attribute", UnifyMode(), &resultMsg))
 					throwErrorF("discrete_alloc", "values of partitioning %s in AtomicRegions (6th argument):\n%s\nand domain of maximum claim for %s (9th argument):\n%s\nincompatible: %s"
-						, htpInfo.m_Partitionings[partitioningID].GetName()
-						, htpInfo.m_Partitionings[partitioningID].m_AtomicRegionPartitioningDI->GetSourceName()
+						, htpMeta.m_PartitioningMetas[partitioningID].GetName()
+						, htpMeta.m_PartitioningMetas[partitioningID].m_AtomicRegionPartitioningDI->GetSourceName()
 						, gg->m_NameID, gg->m_diMaxClaims->GetSourceName()
 						, resultMsg
 					);
@@ -1626,10 +1688,10 @@ void CreateResultingItems(
 		{
 			FixedContextHandle priceUnitContext("processing the values unit of a suitability map as a unit of utility");
 			const Unit<S>* priceUnit = const_unit_checkedcast<S>(gg->m_diSuitabilityMap->GetAbstrValuesUnit());
-			if (!htpInfo.m_PriceUnit)
-				htpInfo.m_PriceUnit = priceUnit;
+			if (!htpMeta.m_PriceUnit)
+				htpMeta.m_PriceUnit = priceUnit;
 			else
-				if (!htpInfo.m_PriceUnit->UnifyValues(priceUnit, "First non-default suitability values unit", "A subsequence suitability values unit", UnifyMode(), &resultMsg))
+				if (!htpMeta.m_PriceUnit->UnifyValues(priceUnit, "First non-default suitability values unit", "A subsequence suitability values unit", UnifyMode(), &resultMsg))
 					throwErrorF("discrete_alloc", "values of suitability map for %s incompatible with earlier suitability map values:\n%s", gg->m_NameID, resultMsg);
 
 			if (mustAdjust)
@@ -1674,10 +1736,16 @@ void PrepareClaims(htp_info_t<S, AR, AT>& htpInfo)
 	{
 		ggType_info_t<S>& gg = htpInfo.m_ggTypes[j];
 
-		const AbstrUnit* partitioningUnit = htpInfo.GetPartitioningUnit( gg.m_PartitioningID );
 
 		gg.m_FirstClaimID = nrClaims;
-		gg.m_NrClaims = partitioningUnit ? partitioningUnit->GetCount() : 1;
+		if constexpr (std::is_same_v<AR, Void>)
+			gg.m_NrClaims = 1;
+		else
+		{
+			const AbstrUnit* partitioningUnit = htpInfo.m_Partitionings[gg.m_PartitioningID].GetPartitioningUnit();
+			assert(partitioningUnit);
+			gg.m_NrClaims = partitioningUnit->GetCount();
+		}
 		nrClaims += gg.m_NrClaims;
 	}
 
@@ -3141,6 +3209,7 @@ class HitchcockTransportationOperator : public VariadicOperator
 	typedef DataArray<AT> ResultLandUseType; // columnIndex per row
 	typedef ClaimType     ResultTotalType;   
 	typedef PriceType     ResultShadowPriceType; 
+	using htp_meta_type = htp_meta_t<S>;
 	using htp_info_type = htp_info_t<S, AR, AT>;
 	const bool m_MustAdjust;
 
@@ -3258,8 +3327,8 @@ public:
 		TreeItem* resShadowPriceContainer = res->CreateItem(GetTokenID_mt("shadow_prices"));
 		TreeItem* resTotalAllocatedContainer = res->CreateItem(GetTokenID_mt("total_allocated"));
 
-		resultHolder->m_ReadAssets.emplace<htp_info_type>();
-		htp_info_type& htpInfo = *rtc::any::any_cast<htp_info_type>(&resultHolder->m_ReadAssets);
+		resultHolder->m_ReadAssets.emplace<htp_meta_type>();
+		htp_meta_type& htpMeta = *rtc::any::any_cast<htp_meta_type>(&resultHolder->m_ReadAssets);
 
 		// make AtomicRegionsSet and UniqeRegions -> (AtomicRegionsSet -> Region)
 		CreateResultingItems(
@@ -3270,19 +3339,22 @@ public:
 			ggTypes2partitioningsA, regionNamesA, atomicRegionUnit, atomicRegionMapA, // RegionGrids
 			resShadowPriceContainer,
 			resTotalAllocatedContainer,
-			htpInfo,
+			htpMeta,
 			m_MustAdjust, debug_refcast<FuncDC&>(resultHolder)
+		,	!std::is_same_v<AR, Void>
 		);
 
 		AbstrDataItem* resPrices = nullptr;
-		if (htpInfo.m_PriceUnit)
-			resPrices = CreateDataItem(res, GetTokenID_mt("bid_price"), allocUnit, htpInfo.m_PriceUnit);
+		if (htpMeta.m_PriceUnit)
+			resPrices = CreateDataItem(res, GetTokenID_mt("bid_price"), allocUnit, htpMeta.m_PriceUnit);
 	}
 
 	bool CalcResult(TreeItemDualRef& resultHolder, ArgRefs args, std::vector<ItemReadLock> readLocks, Explain::Context* context) const override
 	{
 		assert(args.size() == GetNrArguments());
-		htp_info_type& htpInfo = *rtc::any::any_cast<htp_info_type>(&resultHolder->m_ReadAssets);
+
+		htp_meta_type& htpMeta = *rtc::any::any_cast<htp_meta_type>(&resultHolder->m_ReadAssets);
+		auto htpInfo = htp_info_type(htpMeta);
 
 //	Recreate result MetaInfo
 		TreeItem* res = resultHolder.GetNew();
