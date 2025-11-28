@@ -3090,6 +3090,30 @@ ActorVisitState TreeItem::VisitSuppliers(SupplierVisitFlag svf, const ActorVisit
 	return base_type::VisitSuppliers(svf, visitor);
 }
 
+
+void TreeItem_RemoveDC(const TreeItem* self)
+{
+	assert(self);
+	assert(!self->IsCacheItem());
+	assert(IsMainThread());
+
+	if (!self->mc_DC)
+		return;
+
+	OldRefDecrementer oldDcInterestCounter;
+	DataControllerRef oldDC;
+	{
+		leveled_std_section::scoped_lock globalDataLockCountLock(sg_CountSection); // check and swap or try again
+		if (self->GetInterestCount()) // still interested?
+		{
+			// point of certain return, prepare settlement upon destruction
+			oldDcInterestCounter = self->mc_DC.get(); // decrement interest count upon destruction
+		}
+		oldDC = std::move(self->mc_DC);
+		assert(!self->mc_DC);
+	}
+}
+
 void TreeItem::DoInvalidate() const
 {
 	assert(!IsCacheItem());
@@ -3112,34 +3136,24 @@ void TreeItem::DoInvalidate() const
 
 	mc_IntegrityChecker.reset();
 
-	if (mc_DC)
+	TreeItem_RemoveDC(this);
+	if (!mc_Expr.empty())
 	{
-		OldRefDecrementer oldDcInterestCounter;
-		DataControllerRef oldDC;
+		mc_Calculator.reset();
+		for (auto subItem = _GetFirstSubItem(); subItem; subItem = subItem->GetNextItem())
 		{
-			leveled_std_section::scoped_lock globalDataLockCountLock(sg_CountSection); // check and swap or try again
-			if (m_InterestCount) // still interested?
+			if (subItem->mc_Calculator && subItem->mc_Calculator->IsDcPtr()) // reflection of composite result component?
 			{
-				// point of certain return, prepare settlement upon destruction
-				oldDcInterestCounter = mc_DC.get(); // decrement interest count upon destruction
+				subItem->mc_Calculator.reset();
+				TreeItem_RemoveDC(subItem);
 			}
-			oldDC = std::move(mc_DC);
-			dms_assert(!mc_DC);
 		}
 	}
-	if (!mc_Expr.empty())
-		mc_Calculator.reset();
 
 	Actor::DoInvalidate(); // StartSupplInterest, which might recollect mc_Calculator, mc_IntegrityChecker, mc_RefItem, ClearFail
 	// =============== invalidate Parts (of cache items)
 	NotifyStateChange(this, NC2_Invalidated);
 
-	for (auto subItem = _GetFirstSubItem(); subItem; subItem = subItem->GetNextItem())
-	{
-		const_cast<TreeItem*>(subItem)->InvalidateAt(GetLastChangeTS());
-		if (subItem->mc_Calculator && subItem->mc_Calculator->IsDcPtr())
-			subItem->mc_Calculator.reset();
-	}
 
 	dms_assert(DoesHaveSupplInterest() || !GetInterestCount() || IsPassor() || WasFailed(FR_Data));
 }
