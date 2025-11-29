@@ -886,11 +886,11 @@ struct DomainUnitPropDef : ReadOnlyPropDef<AbstrDataItem, SharedStr>
 	// implement PropDef get/set virtuals
 	auto GetValue(const AbstrDataItem* item) const-> SharedStr override
 	{ 
+		auto adu = item->GetAbstrDomainUnit();
+		if (adu)
+			return adu->GetScriptName(item);
 		assert(IsDefined(item->m_tDomainUnit));
-		if (item->m_tDomainUnit)
-			return SharedStr(item->m_tDomainUnit);
-
-		return  item->GetAbstrDomainUnit()->GetScriptName(item);
+		return SharedStr(item->m_tDomainUnit);
 	}
 	bool HasNonDefaultValue(const Object* self) const override
 	{
@@ -907,11 +907,12 @@ struct ValuesUnitPropDef : ReadOnlyPropDef<AbstrDataItem, SharedStr>
 	// implement PropDef get/set virtuals
 	auto GetValue(const AbstrDataItem* item) const -> SharedStr override
 	{ 
-		assert(IsDefined(item->m_tValuesUnit));
-		if (item->m_tValuesUnit)
-			return SharedStr(item->m_tValuesUnit);
+		auto avu = item->GetAbstrValuesUnit();
+		if (avu)
+			return avu->GetScriptName(item);
 
-		return item->GetAbstrValuesUnit()->GetScriptName(item);
+		assert(IsDefined(item->m_tValuesUnit));
+		return SharedStr(item->m_tValuesUnit);
 	}
 };
 

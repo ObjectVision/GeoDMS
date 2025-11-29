@@ -388,16 +388,20 @@ SharedStr PersistentSharedObj::GetRelativeName(const PersistentSharedObj* contex
 static TokenComponent tokenService;
 static SharedStr str_Dot(".");
 
+const PersistentSharedObj* s_RelativeScope = nullptr;
+
 SharedStr PersistentSharedObj::GetFindableName(const PersistentSharedObj* subItem) const
 {
-	dms_assert(IsMetaThread());
+	assert(IsMetaThread());
 	dms_check_not_debugonly;
 
-	dms_assert(this);
-	dms_assert(subItem);
-	dms_assert(GetRoot() == subItem->GetRoot());
+	assert(this);
+	assert(subItem);
+	assert(GetRoot() == subItem->GetRoot());
 	if (subItem == this)
 		return str_Dot;
+	if (s_RelativeScope && !s_RelativeScope->DoesContain(subItem))
+		return subItem->GetFullName();
 
 	UInt32 upCount = 0;
 	auto self = this;
@@ -405,7 +409,7 @@ SharedStr PersistentSharedObj::GetFindableName(const PersistentSharedObj* subIte
 	{
 		++upCount;
 		self = self->GetParent();
-		dms_assert(self);
+		assert(self);
 	}
 //	if (!self->GetParent())
 //		return subItem->GetFullName();

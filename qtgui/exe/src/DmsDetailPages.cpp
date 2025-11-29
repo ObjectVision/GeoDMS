@@ -318,7 +318,7 @@ void DmsDetailPages::drawPageImpl()
         break;
     case ActiveDetailPage::CONFIGURATION:
     {
-        DMS_TreeItem_XML_Dump(current_item, xmlOut.get());
+        TreeItem_XML_Dump(current_item, xmlOut.get(), true);
         break;
     }
     case ActiveDetailPage::SOURCEDESCR:

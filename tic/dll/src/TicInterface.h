@@ -41,9 +41,6 @@ TIC_CALL const AbstrUnit*  DMS_CONV DMS_GetDefaultUnit(const UnitClass* uc);
 TIC_CALL const UnitClass* DMS_CONV DMS_UnitClass_GetFirstInstance();
 TIC_CALL const UnitClass* DMS_CONV DMS_UnitClass_GetNextInstance(const UnitClass* self);
 
-TIC_CALL AbstrParam* DMS_CONV DMS_CreateParam(TreeItem* context, CharPtr name, 
-		const AbstrUnit* valueUnit, ValueComposition vc);
-
 TIC_CALL AbstrDataItem* DMS_CONV DMS_CreateDataItem(TreeItem* context, CharPtr name, 
 		const AbstrUnit* domainUnit, const AbstrUnit* valuesUnit, ValueComposition vc);
 
@@ -119,7 +116,6 @@ TIC_CALL bool DMS_CONV DMS_TreeItem_HasStorage(TreeItem* self);
 TIC_CALL void DMS_CONV DMS_TreeItem_Commit(TreeItem* self); // stores unsaved primary data of self and descendants
 TIC_CALL void DMS_CONV DMS_TreeItem_DisableStorage(TreeItem* self); // disable storage for 'self' and subitems
 
-TIC_CALL void DMS_CONV DMS_TreeItem_XML_Dump(const TreeItem* self, OutStreamBase* out);
 TIC_CALL bool DMS_CONV DMS_TreeItem_XML_DumpAllProps(const TreeItem* self, OutStreamBase* xmlOutStrPtr, bool showAll);
 TIC_CALL void DMS_CONV DMS_TreeItem_XML_DumpExplore(const TreeItem* self, OutStreamBase* xmlOutStrPtr, bool viewHidden);
 
@@ -317,6 +313,7 @@ TIC_CALL void DMS_CONV DMS_Tic_Load();
 
 } // end extern "C"
 
+TIC_CALL void TreeItem_XML_Dump(const TreeItem* self, OutStreamBase* xmlOutStr, bool notWritingDictionary) noexcept;
 TIC_CALL bool XML_MetaInfoRef(const TreeItem* self, OutStreamBase* xmlOutStrPtr);
 TIC_CALL bool TreeItem_XML_DumpGeneral(const TreeItem* self, OutStreamBase* xmlOutStrPtr);
 TIC_CALL void TreeItem_XML_DumpSourceDescription(const TreeItem* self, SourceDescrMode mode, OutStreamBase* xmlOutStrPtr);

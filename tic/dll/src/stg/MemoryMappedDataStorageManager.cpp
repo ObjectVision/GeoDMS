@@ -26,6 +26,7 @@
 #include "AbstrDataItem.h"
 #include "AbstrDataObject.h"
 #include "DataStoreManagerCaller.h"
+#include "TicInterface.h"
 #include "TreeItemProps.h"
 
 #include "stg/StorageClass.h"
@@ -88,7 +89,7 @@ void MmdStorageManager::DoWriteTree(const TreeItem* storageHolder)
 	auto osb = FileOutStreamBuff(dictFileName, true);
 	auto out = OutStream_DMS(&osb, calcRulePropDefPtr);
 
-	storageHolder->XML_Dump(&out, false);
+	TreeItem_XML_Dump(storageHolder, &out, false);
 }
 
 bool IsInMMD(const AbstrDataItem* cacheItem)

@@ -112,4 +112,7 @@ Suggestions for improvements (non-breaking API suggestions):
 - If ABI stability matters, keep RTC_CALL usage consistent; otherwise consider limiting it to boundary APIs.
 */
 
+// used for determining the scope of relative names in XML_Dump
+RTC_CALL extern const PersistentSharedObj* s_RelativeScope;
+
 #endif // __PTR_PERSISTENTSHAREDOBJ_H`
