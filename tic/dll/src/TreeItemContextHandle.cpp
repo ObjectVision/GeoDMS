@@ -142,7 +142,6 @@ void WriteContextImpl(const TreeItem* curr, OutStreamBuff* osb)
 	GenerateSystemInfo(writer, curr);
 }
 
-//void AbstrStorageManager::ExportMetaInfo(const TreeItem* storageHolder, const TreeItem* curr)
 struct SystemContextHandle : AbstrContextHandle
 {
 	bool Describe(FormattedOutStream& fos) override
@@ -173,6 +172,4 @@ struct SystemContextHandle : AbstrContextHandle
 	}
 };
 
-
-// SystemContextHandle systemContext;
 

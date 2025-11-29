@@ -123,6 +123,12 @@ struct enable_shared_from_this_base : std::enable_shared_from_this<Base>
 
 enum class StorageAction { read, write, updatetree, writetree };
 
+// *****************************************************************************
+// 
+// movable StorageMetaInfo
+//
+// *****************************************************************************
+
 struct StorageMetaInfo : std::enable_shared_from_this<StorageMetaInfo>
 {
 	StorageMetaInfo(NonmappableStorageManager* storageManager)
@@ -170,6 +176,12 @@ struct GdalMetaInfo :StorageMetaInfo
 	SharedTreeItemInterestPtr m_DriverItem;
 	SharedStr m_Driver, m_Options;
 };
+
+// *****************************************************************************
+// 
+// AbstrStorageManager
+//
+// *****************************************************************************
 
 
 class AbstrStorageManager : public PersistentSharedObj
@@ -231,12 +243,16 @@ public:
 	// public interface funcs wrap derived StorageManagers virtual funcs
 	TIC_CALL void UpdateTree(const TreeItem* storageHolder, TreeItem* curr) const;
 
+	TIC_CALL virtual ActorVisitState VisitSuppliers(SupplierVisitFlag svf, const ActorVisitor& visitor, const TreeItem* storageHolder, const TreeItem* self) const;
+
 	// public interface funcs only implemented in NonmappableStorageManagers
 	TIC_CALL virtual bool ReadDataItem(StorageMetaInfoPtr smi, AbstrDataObject* borrowedReadResultHolder, tile_id t);
 	TIC_CALL virtual bool WriteDataItem(StorageMetaInfoPtr&& smiHolder);
 
 	TIC_CALL virtual bool ReadUnitRange(const StorageMetaInfo& smi) const;
 	TIC_CALL virtual bool WriteUnitRange(StorageMetaInfoPtr&& smi);
+
+	TIC_CALL void ExportMetaInfo(const TreeItem* storageHolder, const TreeItem* curr);
 
 protected:
 	// overridable helper functions which are only called from the wrapper funcs 
@@ -277,6 +293,13 @@ private:
 	DECL_ABSTR(TIC_CALL, Class)
 };
 
+// *****************************************************************************
+// 
+// NonmappableStorageManager
+//
+// *****************************************************************************
+
+
 class NonmappableStorageManager : public AbstrStorageManager
 {
 	using base_type = AbstrStorageManager;
@@ -292,7 +315,6 @@ public:
 //	Abstact interface
 	TIC_CALL virtual StorageMetaInfoPtr GetMetaInfo(const TreeItem* storageHolder, TreeItem* curr, StorageAction sa) const;
 
-	TIC_CALL virtual ActorVisitState VisitSuppliers(SupplierVisitFlag svf, const ActorVisitor& visitor, const TreeItem* storageHolder, const TreeItem* self) const;
 	TIC_CALL virtual void StartInterest(const TreeItem* storageHolder, const TreeItem* self) const;
 	TIC_CALL virtual void StopInterest (const TreeItem* storageHolder, const TreeItem* self) const noexcept;
 
@@ -300,7 +322,6 @@ public:
 
 	// public interface funcs wrap derived StorageManagers virtual funcs
 	TIC_CALL virtual AbstrUnit* CreateGridDataDomain(const TreeItem* storageHolder);
-	TIC_CALL void ExportMetaInfo(const TreeItem* storageHolder, const TreeItem* curr);
 
 private:
 	using interest_holders_container = std::vector<InterestPtr<SharedPtr<const Actor>>>;

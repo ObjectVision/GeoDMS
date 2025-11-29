@@ -15,7 +15,6 @@
 #include "ptr/SharedStr.h"
 
 class ViewPort;
-const TreeItem* GetExportSettingsContext(const TreeItem* context);
 SHV_CALL SharedStr GetFullFileNameBase(const TreeItem* context);
 SHV_CALL SharedStr GetFullFolderNameBase(const TreeItem* context);
 

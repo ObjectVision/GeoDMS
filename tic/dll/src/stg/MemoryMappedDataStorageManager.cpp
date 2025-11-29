@@ -84,6 +84,8 @@ void MmdStorageManager::DoWriteTree(const TreeItem* storageHolder)
 	if (!storageHolder)
 		return;
 
+	ExportMetaInfo(storageHolder, storageHolder);
+
 	auto dictFileName = GetFullFileName("0Dictionary.dms");
 
 	auto osb = FileOutStreamBuff(dictFileName, true);

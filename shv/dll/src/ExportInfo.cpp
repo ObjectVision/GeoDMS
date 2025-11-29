@@ -18,15 +18,9 @@
 #include "ShvUtils.h"
 #include "ViewPort.h"
 
-//===================================== support funcs
+TIC_CALL const TreeItem* GetExportSettingsContext(const TreeItem* context); // implemented in AbstrStorageManager.cpp
 
-const TreeItem* GetExportSettingsContext(const TreeItem* context)
-{
-	const TreeItem* exportContext = context->FindItem(CharPtrRange("ExportSettings"));
-	if (exportContext)
-		return exportContext;
-	return context;
-}
+//===================================== support funcs
 
 bool Float64Eq(Float64 a, Float64 b)
 {
@@ -64,20 +58,6 @@ UInt32 FindBest(UInt32 maxNrDotsPerTile, UInt32  nrDots)
 
 SharedStr GetFullFileNameBase(const TreeItem* context)
 {
-	/*const TreeItem* exportSettingsContext = GetExportSettingsContext(context);
-
-	SharedStr dirName = AbstrStorageManager::GetFullStorageName(
-		exportSettingsContext
-	,	LoadValue<SharedStr>(context, GetTokenID_mt("DirName"), SharedStr("%localDataProjDir%"))
-	);
-
-	SharedStr fileNameBase = LoadValue<SharedStr>(exportSettingsContext, GetTokenID_mt("FileNameBase"), MakeFileName(context->GetFullName().c_str()) );
-
-	return AbstrStorageManager::GetFullStorageName(
-		exportSettingsContext
-	,	LoadValue<SharedStr>(exportSettingsContext, GetTokenID_mt("FullFileNameBase"), DelimitedConcat(dirName.c_str(), fileNameBase.c_str()))
-	);*/
-
 	auto local_datadir_folder = AbstrStorageManager::GetFullStorageName(context, SharedStr("%localDataProjDir%"));
 	auto filename = MakeFileName(context->GetFullName().c_str());
 	return local_datadir_folder + "/" + filename;

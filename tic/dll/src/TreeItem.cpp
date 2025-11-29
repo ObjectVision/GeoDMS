@@ -3061,9 +3061,8 @@ ActorVisitState TreeItem::VisitSuppliers(SupplierVisitFlag svf, const ActorVisit
 	// implied DC for indirect storageNames and sqlString prop are set by VisitNextSupplier
 	if (storageParent)
 	{
-		auto sm = storageParent->GetStorageManager(false);
-		if(sm) if (auto nmsm = dynamic_cast<NonmappableStorageManager*>(sm))
-			if (nmsm->VisitSuppliers(svf, visitor, storageParent, this) == AVS_SuspendedOrFailed)
+		if (auto sm = storageParent->GetStorageManager(false))
+			if (sm->VisitSuppliers(svf, visitor, storageParent, this) == AVS_SuspendedOrFailed)
 				return AVS_SuspendedOrFailed;
 	}
 
@@ -4171,8 +4170,8 @@ void TreeItem::XML_Dump(OutStreamBase* xmlOutStr, bool notWritingDictionary) con
 	while (subItem)
 	{
 		if (notWritingDictionary || !subItem->IsDisabledStorage()) // disabled storage items are not dumped in MMD dictionary
-		if (mustDumpEndogenousSubItems || !subItem->IsEndogenous())
-			subItem->XML_Dump(xmlOutStr, notWritingDictionary);
+			if (mustDumpEndogenousSubItems || !subItem->IsEndogenous())
+				subItem->XML_Dump(xmlOutStr, notWritingDictionary);
 		subItem = subItem->GetNextItem();
 	}
 	xmlOutStr->EndSubItems();

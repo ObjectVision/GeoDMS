@@ -82,13 +82,23 @@ void StorageMetaInfo::OnOpenForRead(StorageReadHandle*)
 void StorageMetaInfo::OnClose(StorageCloseHandle*)
 {}
 
+
+TIC_CALL const TreeItem* GetExportSettingsContext(const TreeItem* context)
+{
+	const TreeItem* exportContext = context->FindItem(CharPtrRange("ExportSettings"));
+	if (exportContext)
+		return exportContext;
+	return context;
+}
+
+
 const TreeItem* GetExportSettings(const TreeItem* curr)
 {
 	if (curr) 
 		curr = curr->GetTreeParent();
 	if (!curr)
 		return nullptr;
-	return curr->FindItem("ExportSettings");
+	return GetExportSettingsContext(curr);
 }
 
 const TreeItem* GetExportMetaInfo(const TreeItem* curr)
@@ -811,7 +821,7 @@ bool AbstrStorageManager::WriteUnitRange(StorageMetaInfoPtr&& smi)
 }
 
 
-ActorVisitState NonmappableStorageManager::VisitSuppliers(SupplierVisitFlag svf, const ActorVisitor& visitor, const TreeItem* storageHolder, const TreeItem* self) const
+ActorVisitState AbstrStorageManager::VisitSuppliers(SupplierVisitFlag svf, const ActorVisitor& visitor, const TreeItem* storageHolder, const TreeItem* self) const
 {
 	if (self->IsStorable() && (self->HasCalculator() || self->HasConfigData()))
 	{
@@ -1104,7 +1114,7 @@ void ExportMetaInfoToFileImpl(const TreeItem* curr)
 	}
 }
 
-void NonmappableStorageManager::ExportMetaInfo(const TreeItem* storageHolder, const TreeItem* curr)
+void AbstrStorageManager::ExportMetaInfo(const TreeItem* storageHolder, const TreeItem* curr)
 {
 	ExportMetaInfoToFileImpl(curr);
 }
