@@ -4170,6 +4170,7 @@ void TreeItem::XML_Dump(OutStreamBase* xmlOutStr, bool notWritingDictionary) con
 	subItem = _GetFirstSubItem(); // we don't want UpdateMetaInfo
 	while (subItem)
 	{
+		if (notWritingDictionary || !subItem->IsDisabledStorage()) // disabled storage items are not dumped in MMD dictionary
 		if (mustDumpEndogenousSubItems || !subItem->IsEndogenous())
 			subItem->XML_Dump(xmlOutStr, notWritingDictionary);
 		subItem = subItem->GetNextItem();
