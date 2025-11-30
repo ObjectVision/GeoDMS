@@ -165,7 +165,7 @@ struct CheckOperator : public BinaryOperator
 // the carninality of fenced domains are assumed to be known as part of the fenced results and can be used in the schedule execution plan of the front items
 // When any of a phase result consumers is scheduled, a phase is requested to execute as first part of the schedule execution of everything in front of the phase
 
-oper_arg_policy oap_Phase[2] = { oper_arg_policy::calc_subitem_root,  oper_arg_policy::calc_as_result };
+oper_arg_policy oap_Phase[2] = { oper_arg_policy::calc_never,  oper_arg_policy::calc_as_result };
 SpecialOperGroup sog_PhaseContainer(token::PhaseContainer, 2, oap_Phase, oper_policy::dynamic_result_class);
 
 struct PhaseContainerOperator : BinaryOperator
@@ -263,6 +263,7 @@ struct PhaseContainerOperator : BinaryOperator
 		fence_work_data futureDataContainer;
 
 		auto resultPhaseNumber = resultHolder.m_PhaseNumber;
+		assert(resultPhaseNumber > 0);
 
 		task_status phaseContainerStatus = task_status::activated;
 		std::exception_ptr fenceErrorPtr;
@@ -292,7 +293,7 @@ struct PhaseContainerOperator : BinaryOperator
 
 							auto srcItem = sourceContainer->FindItem(resWalker->GetRelativeName(resultRoot));
 							assert(srcItem);
-
+							assert(srcItem->GetCurrPhaseNumber() < resultPhaseNumber);
 							MG_CHECK(!srcItem->IsCacheItem());
 
 							s_CurrBlockedPhaseItem = srcItem.get();

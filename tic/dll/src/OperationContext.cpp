@@ -2112,17 +2112,27 @@ auto FindAndLicenceOnePriorityTasks() -> OperationContextSPtr
 	leveled_std_section::unique_lock lock(cs_ThreadMessing);
 
 	while (!s_RadioActives.empty()) {
-		auto oc = s_RadioActives.front(); s_RadioActives.pop_front();
-		auto ocSPtr = oc.lock();
-		if (!ocSPtr)
-			continue; // expired
+		auto oc = s_RadioActives.front(); 
 
-		// try to grab the license—only one thread ever wins per OC
-		if (ocSPtr->getUniqueLicenseToRun(false))
-			return ocSPtr; // we can do one piece of inline work—go do it (now you must) and re-check your fences/status
-		else
-			garbage.emplace_back(std::move(ocSPtr)); // maybe we-re the last owner and we dón't wat to destry here 
-		// otherwise, someone else is already running it; try the next one
+		auto ocSPtr = oc.lock();
+		if (ocSPtr) // not expired
+		{
+			if (s_CurrBlockedPhaseNumber && ocSPtr->m_PhaseNumber >= s_CurrBlockedPhaseNumber)
+				return {};
+
+			// try to grab the license—only one thread ever wins per OC
+			if (!ocSPtr->getUniqueLicenseToRun(false))
+			{
+				// otherwise, someone else is already running it; try the next one
+				garbage.emplace_back(std::move(ocSPtr)); // maybe we-re the last owner and we dón't wat to destry here 
+				assert(!ocSPtr);
+			}
+		}
+
+		s_RadioActives.pop_front();
+
+		if (ocSPtr)
+			return ocSPtr; // got one
 	}
 	return {};
 }
