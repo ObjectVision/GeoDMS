@@ -280,7 +280,9 @@ struct PhaseContainerOperator : BinaryOperator
 			if (!resInterestPtr)
 				continue;
 
-			auto srcItem = sourceContainer->FindItem(resWalker->GetRelativeName(resultRoot));
+			auto srcItem = static_cast<const TreeItem*>( resWalker->GetSupplCache()->GetSupplier(0) );
+			assert(srcItem->GetID() == resWalker->GetID());
+
 			assert(srcItem->GetCurrPhaseNumber() < resultPhaseNumber);
 
 			auto dc = srcItem->mc_DC;
