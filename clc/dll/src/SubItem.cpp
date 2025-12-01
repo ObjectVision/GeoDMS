@@ -265,7 +265,7 @@ struct PhaseContainerOperator : BinaryOperator
 		auto resultPhaseNumber = resultHolder.m_PhaseNumber;
 		assert(resultPhaseNumber > 0);
 
-		task_status phaseContainerStatus = task_status::activated;
+		std::atomic<task_status> phaseContainerStatus = task_status::activated;
 		std::exception_ptr fenceErrorPtr;
 
 		auto resWalker = resultRoot;

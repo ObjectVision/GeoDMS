@@ -325,7 +325,7 @@ TIC_CALL auto GetNextPhaseNumber() -> phase_number;
 
 // DoWorkWhileWaitingFor
 // Allow current thread to perform other work while waiting for a phase to complete.
-TIC_CALL void DoWorkWhileWaitingFor(task_status* phaseContainerStatus);
+TIC_CALL void DoWorkWhileWaitingFor(std::atomic<task_status>* phaseContainerStatus);
 
 // WakeUpJoiners
 // Notifies threads/contexts waiting on global join conditions to re-check status.

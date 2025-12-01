@@ -2316,7 +2316,7 @@ exit:
 //
 // *****************************************************************************
 
-TIC_CALL void DoWorkWhileWaitingFor(task_status* fenceStatus)
+TIC_CALL void DoWorkWhileWaitingFor(std::atomic<task_status>* fenceStatus)
 {
 	if (!IsMetaThread())
 		StealOneTileTask(true);
