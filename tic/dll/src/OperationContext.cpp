@@ -2334,26 +2334,24 @@ TIC_CALL void DoWorkWhileWaiting()
 
 	StartOperationContexts();
 	if (!IsMetaThread())
-		while (!fenceStatus || IsActiveOrRunning(*fenceStatus))
-		{
-			if (!StealOneTask())
-				break;
-			if (!fenceStatus)
-				return; // let caller reconsider after one tasks has been done and no explicit termination condition variable is provided
-		}
+	{
+		if (StealOneTask())
+			return; // let caller reconsider after one tasks has been done as no explicit termination condition variable is provided
+	}
 
 	leveled_std_section::unique_lock lock(cs_ThreadMessing);
-	if (fenceStatus && *fenceStatus > task_status::running)
-		break;
 
 	if (currentFinishCount != s_CurrFinishedCount)
-		continue;
-
-	if (IsMetaThread() && HasMainThreadTasks())
-		continue;
-
-	if (SuspendTrigger::MustSuspend())
 		return;
+
+	if (IsMetaThread())
+	{
+		if (HasMainThreadTasks())
+			return;
+
+		if (SuspendTrigger::MustSuspend())
+			return;
+	}
 
 	// wait for conditioin that was certainly not met just after setting the thread messing lock
 	cv_TaskCompleted.wait_for(lock.m_BaseLock, std::chrono::milliseconds(500));
