@@ -216,7 +216,7 @@ struct PhaseContainerOperator : BinaryOperator
 				auto srcPhaseNumber = srcItem->GetPhaseNumber();
 				MG_CHECK(srcPhaseNumber < resultPhaseNumber);
 
-				if (resWalker != resultRoot) // avoid updating all fenced items before getting them
+				if (resWalker != resultRoot) 
 					resWalker->GetOrCreateSupplCache()->InitAt(srcItem);
 
 				assert(!resWalker->HasInterest());
@@ -297,6 +297,7 @@ struct PhaseContainerOperator : BinaryOperator
 							MG_CHECK(!srcItem->IsCacheItem());
 
 							s_CurrBlockedPhaseItem = srcItem.get();
+
 							if (!srcItem->SuspendibleUpdate(PS_Committed))
 							{
 								if (srcItem->WasFailed())
@@ -306,22 +307,23 @@ struct PhaseContainerOperator : BinaryOperator
 							}
 							assert(!SuspendTrigger::DidSuspend());
 
-							if (!IsUnit(resWalker) && !IsDataItem(resWalker))
-								continue;
-
-							//						assert(resWalker->DoesHaveSupplInterest());
-
-							auto dc = srcItem->mc_DC;
-							if (!dc)
-								resWalker->Fail(mySSPrintF("PhaseContainer: Source %s has no calculation rule so its data cannot be collected", srcItem->GetSourceName()).c_str(), FR_Data);
-							else
+							if (IsUnit(resWalker) || IsDataItem(resWalker))
 							{
-								auto fd = dc->CallCalcResult();
-								if (SuspendTrigger::DidSuspend())
-									return false;
+								auto dc = srcItem->mc_DC;
+								if (!dc)
+									resWalker->Fail(mySSPrintF("PhaseContainer: Source %s has no calculation rule so its data cannot be collected", srcItem->GetSourceName()).c_str(), FR_Data);
+								else
+								{
+									auto fd = dc->CallCalcResult();
+									if (SuspendTrigger::DidSuspend())
+										return false;
 
-								futureDataContainer.emplace_back(std::move(resInterestPtr), std::move(fd));
+									futureDataContainer.emplace_back(std::move(resInterestPtr), std::move(fd));
+									continue; // defer processing and StopSupplInterest in WorkerThread below
+								}
 							}
+							if (resWalker != resultRoot)
+								resWalker->StopSupplInterest();
 						}
 					}
 					catch (Concurrency::task_canceled&)
@@ -356,38 +358,39 @@ struct PhaseContainerOperator : BinaryOperator
 			assert(resItem);
 			assert(dc);
 
-			if (!dc)
-				continue;
-
-			if (dc->WasFailed(FR_MetaInfo))
+			if (dc)
 			{
-				resItem->Fail(dc.get_ptr());
-				continue;
-			}
-			WaitReady(dc->GetUlt());
-			if (dc->WasFailed(FR_Data))
-				resItem->Fail(dc.get_ptr());
-			else
-			{
-				auto srcUltItem = dc->GetUlt();
-				assert(srcUltItem);
-				assert(CheckDataReady(srcUltItem));
-				if (IsDataItem(resItem))
-					AsDataItem(resItem)->m_DataObject = AsDataItem(srcUltItem)->m_DataObject;
+				if (dc->WasFailed(FR_MetaInfo))
+					resItem->Fail(dc.get_ptr());
 				else
 				{
-					assert(IsUnit(srcUltItem));
-					visit<typelists::all_unit_types>(AsUnit(srcUltItem), 
-						[&resItem]<typename V>(const Unit<V>*srcUltUnit) { checked_valcast<Unit<V>*>(resItem)->m_RangeDataPtr = srcUltUnit->m_RangeDataPtr; }
-					);
+					WaitReady(dc->GetUlt());
+					if (dc->WasFailed(FR_Data))
+						resItem->Fail(dc.get_ptr());
+					else
+					{
+						auto srcUltItem = dc->GetUlt();
+						assert(srcUltItem);
+						assert(CheckDataReady(srcUltItem));
+						if (IsDataItem(resItem))
+							AsDataItem(resItem)->m_DataObject = AsDataItem(srcUltItem)->m_DataObject;
+						else
+						{
+							assert(IsUnit(srcUltItem));
+							visit<typelists::all_unit_types>(AsUnit(srcUltItem),
+								[&resItem]<typename V>(const Unit<V>*srcUltUnit) { checked_valcast<Unit<V>*>(resItem)->m_RangeDataPtr = srcUltUnit->m_RangeDataPtr; }
+							);
+						}
+						if (dc->WasFailed())
+							resItem->Fail(dc.get_ptr());
+						if (srcUltItem->WasFailed())
+							resItem->Fail(srcUltItem);
+					}
+					resItem->SetIsInstantiated();
 				}
-				if (dc->WasFailed())
-					resItem->Fail(dc.get_ptr());
-				if (srcUltItem->WasFailed())
-					resItem->Fail(srcUltItem);
 			}
-			resItem->SetIsInstantiated();
-			resItem->StopSupplInterest();
+			if (resItem != resultRoot)
+				resItem->StopSupplInterest();
 		}
 
 		DataReadLock msgLock(AsDataItem(args[1]));

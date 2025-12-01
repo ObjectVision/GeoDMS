@@ -2308,6 +2308,56 @@ exit:
 }
 
 // *****************************************************************************
+// Section:     DoWorkWhileWaiting
+// *****************************************************************************
+//
+// Cooperative waiting helper to make progress while waiting for a fence status.
+// Pumps main-thread tasks, steals background work, and honors suspend triggers.
+//
+// *****************************************************************************
+
+TIC_CALL void DoWorkWhileWaiting()
+{
+	if (!IsMetaThread())
+		StealOneTileTask(true);
+
+	if (IsMetaThread())
+	{
+		//			if (SuspendTrigger::MustSuspend())
+		//				return false;
+		ProcessMainThreadOpers();
+		ProcessSuspendibleTasks();
+		SuspendTrigger::MarkProgress();
+	}
+
+	auto currentFinishCount = GetCurrFinishedCount();
+
+	StartOperationContexts();
+	if (!IsMetaThread())
+	{
+		if (StealOneTask())
+			return; // let caller reconsider after one tasks has been done as no explicit termination condition variable is provided
+	}
+
+	leveled_std_section::unique_lock lock(cs_ThreadMessing);
+
+	if (currentFinishCount != s_CurrFinishedCount)
+		return;
+
+	if (IsMetaThread())
+	{
+		if (HasMainThreadTasks())
+			return;
+
+		if (SuspendTrigger::MustSuspend())
+			return;
+	}
+
+	// wait for conditioin that was certainly not met just after setting the thread messing lock
+	cv_TaskCompleted.wait_for(lock.m_BaseLock, std::chrono::milliseconds(500));
+}
+
+// *****************************************************************************
 // Section:     DoWorkWhileWaitingFor
 // *****************************************************************************
 //
@@ -2318,10 +2368,12 @@ exit:
 
 TIC_CALL void DoWorkWhileWaitingFor(std::atomic<task_status>* fenceStatus)
 {
+	assert(fenceStatus);
+
 	if (!IsMetaThread())
 		StealOneTileTask(true);
 
-	while (!fenceStatus || IsActiveOrRunning(*fenceStatus))
+	while (IsActiveOrRunning(*fenceStatus))
 	{
 		if (IsMetaThread())
 		{
@@ -2336,16 +2388,14 @@ TIC_CALL void DoWorkWhileWaitingFor(std::atomic<task_status>* fenceStatus)
 
 		StartOperationContexts();
 		if (!IsMetaThread())
-			while (!fenceStatus || IsActiveOrRunning(*fenceStatus))
+			while (IsActiveOrRunning(*fenceStatus))
 			{
 				if (!StealOneTask())
 					break;
-				if (!fenceStatus)
-					return; // let caller reconsider after one tasks has been done and no explicit termination condition variable is provided
 			}
 
 		leveled_std_section::unique_lock lock(cs_ThreadMessing);
-		if (fenceStatus && *fenceStatus > task_status::running)
+		if (*fenceStatus > task_status::running)
 			break;
 
 		if (currentFinishCount != s_CurrFinishedCount)
@@ -2359,9 +2409,6 @@ TIC_CALL void DoWorkWhileWaitingFor(std::atomic<task_status>* fenceStatus)
 
 		// wait for conditioin that was certainly not met just after setting the thread messing lock
 		cv_TaskCompleted.wait_for(lock.m_BaseLock, std::chrono::milliseconds(500));
-
-		if (!fenceStatus)
-			return; // let caller reconsider after one tasks has been done and no explicit termination condition variable is provided
 	}
 }
 
