@@ -2308,7 +2308,7 @@ exit:
 }
 
 // *****************************************************************************
-// Section:     DoWorkWhileWaitingFor
+// Section:     DoWorkWhileWaiting
 // *****************************************************************************
 //
 // Cooperative waiting helper to make progress while waiting for a fence status.
@@ -2316,53 +2316,47 @@ exit:
 //
 // *****************************************************************************
 
-TIC_CALL void DoWorkWhileWaitingFor(std::atomic<task_status>* fenceStatus)
+TIC_CALL void DoWorkWhileWaiting()
 {
 	if (!IsMetaThread())
 		StealOneTileTask(true);
 
-	while (!fenceStatus || IsActiveOrRunning(*fenceStatus))
+	if (IsMetaThread())
 	{
-		if (IsMetaThread())
-		{
 //			if (SuspendTrigger::MustSuspend())
 //				return false;
-			ProcessMainThreadOpers();
-			ProcessSuspendibleTasks();
-			SuspendTrigger::MarkProgress();
+		ProcessMainThreadOpers();
+		ProcessSuspendibleTasks();
+		SuspendTrigger::MarkProgress();
+	}
+
+	auto currentFinishCount = GetCurrFinishedCount();
+
+	StartOperationContexts();
+	if (!IsMetaThread())
+		while (!fenceStatus || IsActiveOrRunning(*fenceStatus))
+		{
+			if (!StealOneTask())
+				break;
+			if (!fenceStatus)
+				return; // let caller reconsider after one tasks has been done and no explicit termination condition variable is provided
 		}
 
-		auto currentFinishCount = GetCurrFinishedCount();
+	leveled_std_section::unique_lock lock(cs_ThreadMessing);
+	if (fenceStatus && *fenceStatus > task_status::running)
+		break;
 
-		StartOperationContexts();
-		if (!IsMetaThread())
-			while (!fenceStatus || IsActiveOrRunning(*fenceStatus))
-			{
-				if (!StealOneTask())
-					break;
-				if (!fenceStatus)
-					return; // let caller reconsider after one tasks has been done and no explicit termination condition variable is provided
-			}
+	if (currentFinishCount != s_CurrFinishedCount)
+		continue;
 
-		leveled_std_section::unique_lock lock(cs_ThreadMessing);
-		if (fenceStatus && *fenceStatus > task_status::running)
-			break;
+	if (IsMetaThread() && HasMainThreadTasks())
+		continue;
 
-		if (currentFinishCount != s_CurrFinishedCount)
-			continue;
+	if (SuspendTrigger::MustSuspend())
+		return;
 
-		if (IsMetaThread() && HasMainThreadTasks())
-			continue;
-
-		if (SuspendTrigger::MustSuspend())
-			return;
-
-		// wait for conditioin that was certainly not met just after setting the thread messing lock
-		cv_TaskCompleted.wait_for(lock.m_BaseLock, std::chrono::milliseconds(500));
-
-		if (!fenceStatus)
-			return; // let caller reconsider after one tasks has been done and no explicit termination condition variable is provided
-	}
+	// wait for conditioin that was certainly not met just after setting the thread messing lock
+	cv_TaskCompleted.wait_for(lock.m_BaseLock, std::chrono::milliseconds(500));
 }
 
 // *****************************************************************************

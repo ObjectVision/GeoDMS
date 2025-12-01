@@ -323,9 +323,9 @@ public:
 // Global monotonic counter to assign new phase numbers for batch scheduling/waiting.
 TIC_CALL auto GetNextPhaseNumber() -> phase_number;
 
-// DoWorkWhileWaitingFor
-// Allow current thread to perform other work while waiting for a phase to complete.
-TIC_CALL void DoWorkWhileWaitingFor(std::atomic<task_status>* phaseContainerStatus);
+// DoWorkWhileWaiting
+// Allow current thread to perform other work.
+TIC_CALL void DoWorkWhileWaiting();
 
 // WakeUpJoiners
 // Notifies threads/contexts waiting on global join conditions to re-check status.

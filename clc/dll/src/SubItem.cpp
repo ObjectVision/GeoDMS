@@ -203,6 +203,8 @@ struct PhaseContainerOperator : BinaryOperator
 			auto resultRoot = resultHolder.GetNew();
 			for (auto resWalker = resultRoot; resWalker; resWalker = resultRoot->WalkCurrSubTree(resWalker))
 			{
+				assert(!resWalker->HasInterest());
+
 				auto srcItem = sourceContainer->FindItem(resWalker->GetRelativeName(resultHolder.GetNew()));
 				if (!srcItem)
 					continue;
@@ -216,16 +218,18 @@ struct PhaseContainerOperator : BinaryOperator
 				auto srcPhaseNumber = srcItem->GetPhaseNumber();
 				MG_CHECK(srcPhaseNumber < resultPhaseNumber);
 
-				if (resWalker != resultRoot) // avoid updating all fenced items before getting them
-					resWalker->GetOrCreateSupplCache()->InitAt(srcItem);
+				if (srcItem->WasFailed())
+					resWalker->Fail(srcItem);
 
-				assert(!resWalker->HasInterest());
+				if (!IsUnit(resWalker) && !IsDataItem(resWalker))
+					continue;
+
+				if (resWalker != resultRoot)
+					resWalker->GetOrCreateSupplCache()->InitAt(srcItem);
 
 				if (IsUnit(resWalker))
 					resWalker->SetReferredItem(srcItem);
 
-				if (srcItem->WasFailed())
-					resWalker->Fail(srcItem);
 			}
 		}
 		assert(resultHolder);
@@ -258,136 +262,60 @@ struct PhaseContainerOperator : BinaryOperator
 		auto resultRoot = resultHolder.GetNew();
 		assert(resultRoot);
 
-		using fence_member_pair = std::pair<SharedTreeItemInterestPtr, FutureData>;
-		using fence_work_data = std::vector<fence_member_pair>;
-		fence_work_data futureDataContainer;
-
 		auto resultPhaseNumber = resultHolder.m_PhaseNumber;
 		assert(resultPhaseNumber > 0);
 
-		std::atomic<task_status> phaseContainerStatus = task_status::activated;
 		std::exception_ptr fenceErrorPtr;
 
-		auto resWalker = resultRoot;
 		
-		// now, collect all targets that this Phase should calculate and start a Main Thread action to do so.
-		// this should be done before supplier Fences do this and after target collection and interest-setting of consuming Fences.
-		// so each Phase Calculation causes an avalange of interest in targets in higher fences and then their calculation before this calculation starts
-		PostMainThreadTask(resultPhaseNumber, [this, sourceContainer, resultRoot, &resWalker, &phaseContainerStatus, &fenceErrorPtr, &resultHolder, resultPhaseNumber, &futureDataContainer](bool mustCancel)-> bool
-			{
-				phaseContainerStatus = task_status::running;
-
-				// work on exporting stuff from main thread
-				if (!mustCancel)
-				{
-					try {
-						tmp_swapper<phase_number> lockFence(s_CurrBlockedPhaseNumber, resultPhaseNumber);
-						s_CurrPhaseContainer = resultRoot;
-						for (; resWalker; resWalker = resultRoot->WalkCurrSubTree(resWalker))
-						{
-							assert(resWalker->GetCurrPhaseNumber() == resultPhaseNumber);
-
-							auto resInterestPtr = resWalker->GetInterestPtrOrNull();
-							if (!resInterestPtr)
-								continue;
-
-							auto srcItem = sourceContainer->FindItem(resWalker->GetRelativeName(resultRoot));
-							assert(srcItem);
-							assert(srcItem->GetCurrPhaseNumber() < resultPhaseNumber);
-							MG_CHECK(!srcItem->IsCacheItem());
-
-							s_CurrBlockedPhaseItem = srcItem.get();
-							if (!srcItem->SuspendibleUpdate(PS_Committed))
-							{
-								if (srcItem->WasFailed())
-									resWalker->Fail(srcItem);
-								if (SuspendTrigger::DidSuspend())
-									return false;
-							}
-							assert(!SuspendTrigger::DidSuspend());
-
-							if (!IsUnit(resWalker) && !IsDataItem(resWalker))
-								continue;
-
-							//						assert(resWalker->DoesHaveSupplInterest());
-
-							auto dc = srcItem->mc_DC;
-							if (!dc)
-								resWalker->Fail(mySSPrintF("PhaseContainer: Source %s has no calculation rule so its data cannot be collected", srcItem->GetSourceName()).c_str(), FR_Data);
-							else
-							{
-								auto fd = dc->CallCalcResult();
-								if (SuspendTrigger::DidSuspend())
-									return false;
-
-								futureDataContainer.emplace_back(std::move(resInterestPtr), std::move(fd));
-							}
-						}
-					}
-					catch (Concurrency::task_canceled&)
-					{
-						throw;
-					}
-					catch (...)
-					{
-						fenceErrorPtr = std::current_exception();
-						phaseContainerStatus = task_status::exception;
-						return true;
-					}
-				}
-				phaseContainerStatus = task_status::done;
-				WakeUpJoiners();
-				return true;
-			}
-		);
-
-		{
-			DoWorkWhileWaitingFor(&phaseContainerStatus);
-			if (phaseContainerStatus == task_status::exception && fenceErrorPtr)
-				std::rethrow_exception(fenceErrorPtr);
-		}
-
 		// check that all sub-items of result-holder are/become up-to-date or uninteresting
-		for (const auto& fd: futureDataContainer)
+		for (auto resWalker = resultRoot; resWalker; resWalker = resultRoot->WalkCurrSubTree(resWalker))
 		{
-			auto resItem = const_cast<TreeItem*>(fd.first.get_ptr());
-			auto dc = fd.second;
+			assert(resWalker->GetCurrPhaseNumber() == resultPhaseNumber);
 
-			assert(resItem);
-			assert(dc);
+			if (!IsUnit(resWalker) && !IsDataItem(resWalker))
+				continue;
 
+			auto resInterestPtr = resWalker->GetInterestPtrOrNull();
+			if (!resInterestPtr)
+				continue;
+
+			auto srcItem = sourceContainer->FindItem(resWalker->GetRelativeName(resultRoot));
+			assert(srcItem->GetCurrPhaseNumber() < resultPhaseNumber);
+
+			auto dc = srcItem->mc_DC;
 			if (!dc)
-				continue;
-
-			if (dc->WasFailed(FR_MetaInfo))
+				resWalker->Fail(mySSPrintF("PhaseContainer: Source %s has no calculation rule so its data cannot be collected", srcItem->GetSourceName()).c_str(), FR_Data);
+			else if (dc->WasFailed(FR_MetaInfo))
+				resWalker->Fail(dc.get_ptr());
+			else 
 			{
-				resItem->Fail(dc.get_ptr());
-				continue;
-			}
-			WaitReady(dc->GetUlt());
-			if (dc->WasFailed(FR_Data))
-				resItem->Fail(dc.get_ptr());
-			else
-			{
-				auto srcUltItem = dc->GetUlt();
-				assert(srcUltItem);
-				assert(CheckDataReady(srcUltItem));
-				if (IsDataItem(resItem))
-					AsDataItem(resItem)->m_DataObject = AsDataItem(srcUltItem)->m_DataObject;
+				WaitReady(dc->GetUlt());
+				if (dc->WasFailed(FR_Data))
+					resWalker->Fail(dc.get_ptr());
 				else
 				{
-					assert(IsUnit(srcUltItem));
-					visit<typelists::all_unit_types>(AsUnit(srcUltItem), 
-						[&resItem]<typename V>(const Unit<V>*srcUltUnit) { checked_valcast<Unit<V>*>(resItem)->m_RangeDataPtr = srcUltUnit->m_RangeDataPtr; }
-					);
+					auto srcUltItem = dc->GetUlt();
+					assert(srcUltItem);
+					assert(CheckDataReady(srcUltItem));
+					if (IsDataItem(resWalker))
+						AsDataItem(resWalker)->m_DataObject = AsDataItem(srcUltItem)->m_DataObject;
+					else
+					{
+						assert(IsUnit(srcUltItem));
+						visit<typelists::all_unit_types>(AsUnit(srcUltItem),
+							[&resWalker]<typename V>(const Unit<V>*srcUltUnit) { checked_valcast<Unit<V>*>(resWalker)->m_RangeDataPtr = srcUltUnit->m_RangeDataPtr; }
+						);
+					}
+					if (dc->WasFailed())
+						resWalker->Fail(dc.get_ptr());
+					if (srcUltItem->WasFailed())
+						resWalker->Fail(srcUltItem);
+
+					resWalker->SetIsInstantiated();
 				}
-				if (dc->WasFailed())
-					resItem->Fail(dc.get_ptr());
-				if (srcUltItem->WasFailed())
-					resItem->Fail(srcUltItem);
 			}
-			resItem->SetIsInstantiated();
-			resItem->StopSupplInterest();
+			resWalker->StopSupplInterest();
 		}
 
 		DataReadLock msgLock(AsDataItem(args[1]));
