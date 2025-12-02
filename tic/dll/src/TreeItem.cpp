@@ -3702,6 +3702,15 @@ bool TreeItem::PrepareDataUsageImpl(DrlType drlFlags) const
 						}
 						else
 						{
+							// fixes #1028?
+							auto adu = AsDataItem(this)->GetAbstrDomainUnit();
+							if (!adu->PrepareData())
+							{
+								if (adu->WasFailed())
+									Fail(adu);	
+								return false;
+							}
+							assert(adu->GetCount() != -1);
 							auto fh = OpenFileData(AsDataItem(this), avu ? avu->GetTiledRangeData() : nullptr, fn);
 							if (!fh)
 							{

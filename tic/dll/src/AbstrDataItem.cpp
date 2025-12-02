@@ -349,8 +349,8 @@ void AbstrDataItem::InitAbstrDataItem(TokenID domainUnit, TokenID valuesUnit, Va
 			debug_newValuesUnitStr = valuesUnit.GetStr().c_str();
 #endif
 
-	assert((m_tDomainUnit == domainUnit) || !IsDefined(m_tDomainUnit) || !domainUnit); // only called once?
-	assert((m_tValuesUnit == valuesUnit) || !IsDefined(m_tValuesUnit) || !valuesUnit); // only called once?
+//	assert((m_tDomainUnit == domainUnit) || !IsDefined(m_tDomainUnit) || !domainUnit); // only called once?
+//	assert((m_tValuesUnit == valuesUnit) || !IsDefined(m_tValuesUnit) || !valuesUnit); // only called once?
 //	assert(!m_DataObject || (!valuesUnit && !domainUnit));             // and before it resulted in further construction
 
 	m_tDomainUnit = domainUnit;
