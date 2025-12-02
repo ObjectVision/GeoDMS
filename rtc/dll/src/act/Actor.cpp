@@ -1027,6 +1027,7 @@ THREAD_LOCAL UInt32 sd_DecInterestCount = 0;
 UInt32 s_IntCount = 0;
 #endif
 
+
 // Increment interest count (0->1 starts interest).
 // Uses global + per-actor lock to serialize the 0->1 transition while allowing fast >1 increments.
 // TODO: Consider replacing some counting with atomics if lock ordering guarantees remain intact.
@@ -1161,6 +1162,9 @@ garbage_can Actor::DecInterestCount() const noexcept // nothrow, JUST LIKE destr
     return garbage;
 }
 
+RTC_CALL bool s_IsDetectingIncInterest = false;
+
+
 // Lifecycle start when first observer appears.
 // Starts supplier interest accordingly.
 void Actor::StartInterest() const
@@ -1169,6 +1173,8 @@ void Actor::StartInterest() const
 
     assert(m_InterestCount == 0); // PRECONDITION guaranteed by IncInterestCount
     assert( !DoesHaveSupplInterest() ); // PRECONDITION
+
+    MG_CHECK(!s_IsDetectingIncInterest);
 
     StartSupplInterest();
     assert(m_InterestCount == 0); // no recursion

@@ -22,6 +22,7 @@
 #include "SupplCache.h"
 #include "TreeItemClass.h"
 #include "UnitProcessor.h"
+RTC_CALL bool s_IsDetectingIncInterest;
 
 // PhaseContainers are used to separate calculations into groups that are to be executed serially, sequentially and/or consequetively and NOT in parallel.
 // All calculation steps behind the phase are to be completed before calculation steps in front of the phase, i.e. steps that use fenced results, are to be executed
@@ -178,13 +179,16 @@ struct PhaseContainerOperator : BinaryOperator
 							MG_CHECK(!srcItem->IsCacheItem());
 
 							s_CurrBlockedPhaseItem = srcItem.get();
-/*
-							if (!srcItem->SuspendibleUpdate(PS_Committed))
+//*
 							{
-								if (srcItem->WasFailed())
-									resWalker->Fail(srcItem);
-								if (SuspendTrigger::DidSuspend())
-									return false;
+								auto detectInterest = tmp_swapper(s_IsDetectingIncInterest, true);
+								if (!srcItem->SuspendibleUpdate(PS_Committed))
+								{
+									if (srcItem->WasFailed())
+										resWalker->Fail(srcItem);
+									if (SuspendTrigger::DidSuspend())
+										return false;
+								}
 							}
 							assert(!SuspendTrigger::DidSuspend());
 //*/
