@@ -42,7 +42,9 @@ struct SupplCache
 	WeakStr GetSupplString() const { return m_strConfigured; }
 
 	void Reset();
+
 	TIC_CALL void InitAt(const TreeItem* fencedSource);
+	TIC_CALL void InitAt(const ActorCRef* first, const ActorCRef* last);
 
 private:
 

@@ -217,7 +217,25 @@ struct PhaseContainerOperator : BinaryOperator
 				MG_CHECK(srcPhaseNumber < resultPhaseNumber);
 
 				if (resWalker != resultRoot) 
+				{
 					resWalker->GetOrCreateSupplCache()->InitAt(srcItem);
+					/*
+					std::vector< ActorCRef> srcSuppliers;
+					srcSuppliers.emplace_back<const Actor*>(srcItem);
+
+					srcItem->VisitSuppliers(SupplierVisitFlag::Update,
+						MakeDerivedProcVisitor(
+							[&srcSuppliers, resultPhaseNumber](const Actor* srcSuppl)
+							{
+								MG_CHECK(srcSuppl);
+								MG_CHECK(srcSuppl->GetCurrPhaseNumber() < resultPhaseNumber);
+								srcSuppliers.emplace_back(srcSuppl));
+							}
+						)
+					);
+					resWalker->GetOrCreateSupplCache()->InitAt(begin_ptr(srcSuppliers), end_ptr(srcSuppliers));
+					*/
+				}
 
 				assert(!resWalker->HasInterest());
 
@@ -297,7 +315,7 @@ struct PhaseContainerOperator : BinaryOperator
 							MG_CHECK(!srcItem->IsCacheItem());
 
 							s_CurrBlockedPhaseItem = srcItem.get();
-
+/*
 							if (!srcItem->SuspendibleUpdate(PS_Committed))
 							{
 								if (srcItem->WasFailed())
@@ -306,7 +324,7 @@ struct PhaseContainerOperator : BinaryOperator
 									return false;
 							}
 							assert(!SuspendTrigger::DidSuspend());
-
+//*/
 							if (IsUnit(resWalker) || IsDataItem(resWalker))
 							{
 								auto dc = srcItem->mc_DC;

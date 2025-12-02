@@ -68,8 +68,16 @@ void SupplCache::InitAt(const TreeItem* fencedSource)
 {
 	m_NrConfigured = 1;
 	m_IsDirty = false;
-	m_SupplArray.reset( new ActorCRef[1] );
+	m_SupplArray.reset(new ActorCRef[1]);
 	m_SupplArray[0] = fencedSource;
+}
+
+void SupplCache::InitAt(const ActorCRef* first, const ActorCRef* last)
+{
+	m_NrConfigured = last - first;
+	m_IsDirty = false;
+	m_SupplArray.reset( new ActorCRef[m_NrConfigured] );
+	std::copy(first, last, m_SupplArray.get());
 }
 
 void SupplCache::BuildSet(const TreeItem* context) const
