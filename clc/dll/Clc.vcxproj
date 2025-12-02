@@ -61,6 +61,7 @@
     <ClCompile Include="src\AnyAll.cpp" />
     <ClCompile Include="src\CalcClassBreaks.cpp" />
     <ClCompile Include="src\CalcFactory.cpp" />
+    <ClCompile Include="src\Checker.cpp" />
     <ClCompile Include="src\ClassBreak.cpp" />
     <ClCompile Include="src\Classify.cpp" />
     <ClCompile Include="src\ClcInterface.cpp" />
@@ -77,6 +78,7 @@
     <ClCompile Include="src\Modus.cpp" />
     <ClCompile Include="src\Overlay.cpp" />
     <ClCompile Include="src\PCount.cpp" />
+    <ClCompile Include="src\PhaseContainer.cpp" />
     <ClCompile Include="src\Ramp.cpp" />
     <ClCompile Include="src\random.cpp" />
     <ClCompile Include="src\ReadData.cpp" />
