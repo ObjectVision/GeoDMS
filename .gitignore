@@ -15,3 +15,5 @@ todo*.txt
 /splash
 /enc_temp_folder
 /UpgradeLog.htm
+/rtc/dll/src/buildstamp.h
+/rtc/dll/src/RtcGeneratedVersion.h
