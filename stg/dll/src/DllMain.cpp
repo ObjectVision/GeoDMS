@@ -41,6 +41,7 @@
 #include "NameSet.h"
 #include "ViewPortInfoEx.h"
 #include "GridStorageManager.h"
+RTC_CALL bool s_IsDetectingIncInterest;
 
 STGDLL_CALL void DMS_Stg_Load()
 {
@@ -634,6 +635,8 @@ ViewPortInfoProvider::ViewPortInfoProvider(const TreeItem * storageHolder, const
 	assert(adi);
 
 	// Domain of column & grid
+	auto allowDomainCalculation = tmp_swapper(s_IsDetectingIncInterest, false);
+
 	SharedUnitInterestPtr currDomain = CheckedGridDomain(adi); dms_assert(currDomain);
 	SharedUnitInterestPtr gridDomain = GetGridDataDomainRO(storageHolder);
 	if (!gridDomain && mayCreateDomain)

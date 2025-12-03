@@ -577,6 +577,8 @@ bool IsAllInterestedDataReady_impl(const TreeItem* item)
 	return true;
 }
 
+RTC_CALL bool s_IsDetectingIncInterest;
+
 bool IsAllInterestedCalculatingOrDataReady_impl(const TreeItem* item)
 {
 	MGD_PRECONDITION(item);
@@ -591,7 +593,10 @@ bool IsAllInterestedCalculatingOrDataReady_impl(const TreeItem* item)
 		if (IsCalculating(ultimateCacheItem))
 			return true;
 		if (!IsDataCurrReady(ultimateCacheItem))
+		{
+			MG_CHECK(!s_IsDetectingIncInterest);
 			return false;
+		}
 	}
 
 	for (auto subItem = item->_GetFirstSubItem(); subItem; subItem = subItem->GetNextItem())

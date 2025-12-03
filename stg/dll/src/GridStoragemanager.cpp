@@ -103,6 +103,7 @@ AbstrUnit* AbstrGridStorageManager::CreateGridDataDomain(const TreeItem* storage
 	return m_GridDomainUnit;
 }
 
+
 ActorVisitState AbstrGridStorageManager::VisitSuppliers(SupplierVisitFlag svf, const ActorVisitor& visitor, const TreeItem* storageHolder, const TreeItem* self) const
 {
 	if (self != storageHolder && IsDataItem(self) && HasGridDomain(AsDataItem(self)))
@@ -118,6 +119,12 @@ ActorVisitState AbstrGridStorageManager::VisitSuppliers(SupplierVisitFlag svf, c
 		const AbstrUnit* gridDomain = GetGridDataDomainRO(storageHolder);
 		if (gridDomain && visitor(gridDomain) == AVS_SuspendedOrFailed) // self might be readData or readCount that requires the Projection Info of GridData
 			return AVS_SuspendedOrFailed;
+		if (auto selfAsDi = AsDynamicDataItem(self))
+		{
+			auto currDomain = CheckedGridDomain(selfAsDi);
+			if (currDomain && visitor(currDomain) == AVS_SuspendedOrFailed)
+				return AVS_SuspendedOrFailed;
+		}
 	}
 	return NonmappableStorageManager::VisitSuppliers(svf, visitor, storageHolder, self);
 }
