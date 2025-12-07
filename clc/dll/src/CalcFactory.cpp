@@ -41,7 +41,7 @@ AbstrCalculatorRef CalcFactory::ConstructExpr(const TreeItem* context, WeakStr e
 	if (expr.empty())
 	{
 		if (cr == CalcRole::Calculator)
-			context->Fail("Invalid CalculationRule", FR_MetaInfo);
+			context->Fail("Invalid CalculationRule", FailType::MetaInfo);
 		return nullptr;
 	}
 	AbstrCalculatorRef exprCalc = new ExprCalculator(context, expr, cr); // hold resource for now; beware: this line can trigger new inserts/deletes in s_CalcFactory

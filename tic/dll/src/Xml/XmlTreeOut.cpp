@@ -522,7 +522,7 @@ void WriteExprOrSourceDescr(OutStreamBase& stream, const TreeItem* self)
 		si = si->GetSourceItem();
 	}
 
-	if (self->HasCalculator() && !self->WasFailed(FR_MetaInfo))
+	if (self->HasCalculator() && !self->WasFailed(FailType::MetaInfo))
 	{
 		auto c = self->GetCalculator();
 		if (c)
@@ -531,7 +531,7 @@ void WriteExprOrSourceDescr(OutStreamBase& stream, const TreeItem* self)
 			stream << "ParseResult: " << AsFLispSharedStr(c->GetLispExprOrg(), FormattingFlags::ThousandSeparator).c_str();
 		}
 	}
-	if (!self->WasFailed(FR_MetaInfo))
+	if (!self->WasFailed(FailType::MetaInfo))
 	{
 		auto metaInfo = self->GetCurrMetaInfo({});
 		auto calcExpr = GetAsLispRef(metaInfo);

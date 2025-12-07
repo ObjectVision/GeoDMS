@@ -557,11 +557,11 @@ ActorVisitState PrepareThemeData(const AbstrDataItem* adi, const Actor* act)
 		return AVS_Ready;
 
 	// first try to commit.
-	adi->SuspendibleUpdate(PS_Committed);
+	adi->SuspendibleUpdate(ProgressState::Committed);
 	if (SuspendTrigger::DidSuspend())
 		return AVS_SuspendedOrFailed;
 
-	if (!adi->WasFailed(FR_Data))
+	if (!adi->WasFailed(FailType::Data))
 	{
 
 		if (adi->PrepareData())
@@ -571,7 +571,7 @@ ActorVisitState PrepareThemeData(const AbstrDataItem* adi, const Actor* act)
 	}
 	dms_assert(adi->WasFailed()); 
 	act->Fail(adi);
-	return act->WasFailed(FR_Data) ? AVS_SuspendedOrFailed : AVS_Ready;
+	return act->WasFailed(FailType::Data) ? AVS_SuspendedOrFailed : AVS_Ready;
 }
 
 ActorVisitState Theme::PrepareThemeData(const Actor* act) const

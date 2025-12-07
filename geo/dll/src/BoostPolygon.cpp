@@ -842,7 +842,7 @@ protected:
 				auto tn = domain1Unit->GetNrTiles();
 				parallel_tileloop(tn, [this, &resultHolder, resUnit, resDomain, &resGeometryHandle, resNrOrgEntity, argPoly, argPart, argNum1, argNum2, tn, &processTimer](tile_id t) 
 				{
-					if (resultHolder.WasFailed(FR_Data))
+					if (resultHolder.WasFailed(FailType::Data))
 						resultHolder.ThrowFail();
 					ResourceArrayHandle r;
 					ReadableTileLock readArg1Lock (argPoly->GetCurrRefObj(), t);

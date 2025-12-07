@@ -499,7 +499,7 @@ void SpatialReferencesAreCompatibile(const TreeItem* treeitem, const OGRSpatialR
 		, gdal_name, gdal_code
 		, config_name, config_code);
 
-	treeitem->Fail(projection_mismatch_error_message, FailType::FR_MetaInfo);
+	treeitem->Fail(projection_mismatch_error_message, FailType::MetaInfo);
 }
 
 auto ConvertProjectionStrToAuthorityIdentifierAndCode(const std::string projection) -> SharedStr

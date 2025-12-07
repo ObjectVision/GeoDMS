@@ -421,7 +421,7 @@ bool FeatureLayer::Draw(GraphDrawer& d) const
 
 	if (PrepareThemeSetData(this) == AVS_SuspendedOrFailed) // also checks suppliers for changes and calls DoInvalidate if any supplier changed
 	{
-		dms_assert(SuspendTrigger::DidSuspend() || WasFailed(FR_Data));
+		dms_assert(SuspendTrigger::DidSuspend() || WasFailed(FailType::Data));
 		return SuspendTrigger::DidSuspend();
 	}
 

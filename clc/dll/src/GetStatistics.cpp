@@ -364,10 +364,10 @@ CLC_CALL bool NumericDataItem_GetStatistics(const TreeItem* item, vos_buffer_typ
 			os << "Not available since this is not a DataItem";
 			return true;
 		}
-		assert(di->Was(PS_MetaInfo)); // PRECONDITION
+		assert(di->Was(ProgressState::MetaInfo)); // PRECONDITION
 		SharedUnitInterestPtr vu = SharedPtr<const AbstrUnit>(di->GetAbstrValuesUnit());
 		assert(vu);
-		assert(vu->Was(PS_MetaInfo)); // follows from PRECONDITION
+		assert(vu->Was(ProgressState::MetaInfo)); // follows from PRECONDITION
 		bool isReady = vu->PrepareData(); // GetRange needed later
 
 		SizeT d = 0;
@@ -385,7 +385,7 @@ CLC_CALL bool NumericDataItem_GetStatistics(const TreeItem* item, vos_buffer_typ
 			if (isReady)
 				isReady = di->PrepareData();
 
-			if (di->IsFailed(FR_Data))
+			if (di->IsFailed(FailType::Data))
 			{
 				auto fr = di->GetFailReason();
 				if (fr)
@@ -503,7 +503,7 @@ CLC_CALL CharPtr DMS_CONV DMS_NumericDataItem_GetStatistics(const TreeItem* item
 		static TimeStamp        s_LastChangeTS=0;
 
 		assert(!DebugOnlyLock::IsLocked()); // PRECONDITION
-		bool      itemIsValid = TreeItem_GetProgressState(item) >= PS_Validated;
+		bool      itemIsValid = TreeItem_GetProgressState(item) >= NC2_Validated;
 		TimeStamp itemLastChangeTS = item->GetLastChangeTS();
 
 		assert(item->HasInterest()); // PRECONDITION

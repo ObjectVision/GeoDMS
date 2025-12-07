@@ -100,28 +100,28 @@ private:
 //----------------------------------------------------------------------
 // See comments in ActorEnums.txt
 
-enum ProgressState : UInt32 {
-	PS_None      = 0,
-	PS_MetaInfo  = 1,
-	PS_Validated = 2,
-	PS_Committed = 3,
+enum class ProgressState : UInt32 {
+	None      = 0,
+	MetaInfo  = 1,
+	Validated = 2,
+	Committed = 3,
 
-	PS_Mask      = 3
+	Mask      = 3
 };
 
 //----------------------------------------------------------------------
 // enums for Actor types
 //----------------------------------------------------------------------
 
-enum FailType : UInt32 {
-	FR_None      =   0,
-	FR_Determine =   1 * 4,
-	FR_MetaInfo  =   2 * 4,
-	FR_Data      =   3 * 4,
-	FR_Validate  =   4 * 4,
-	FR_Committed =   5 * 4,
+enum class FailType: UInt32 {
+	None      =   0,
+	Determine =   1 * 4,
+	MetaInfo  =   2 * 4,
+	Data      =   3 * 4,
+	Validate  =   4 * 4,
+	Committed =   5 * 4,
 
-	AF_FailedMask =  7 * 4
+	Mask =  7 * 4
 };
 
 enum class SupplierVisitFlag;
@@ -164,22 +164,22 @@ public:
 	};	
 
 
-	FailType GetFailType() const { return FailType( GetBits(AF_FailedMask) ); }
-	bool IsFailed     () const   { return GetBits(AF_FailedMask); }
-	bool IsFailed     (FailType ft) const  { dms_assert((ft & AF_FailedMask) == ft); return IsFailed() && GetBits(AF_FailedMask) <= ft; }
-	bool IsDataFailed () const  { return IsFailed(FR_Data); }
-	void ClearFailed() { Clear(AF_FailedMask); }
+	FailType GetFailType() const { return static_cast<FailType>( GetBits(static_cast<UInt32>(FailType::Mask)) ); }
+	bool IsFailed     () const   { return GetBits(static_cast<UInt32>(FailType::Mask)); }
+	bool IsFailed     (FailType ft) const  { return IsFailed() && GetBits(static_cast<UInt32>(FailType::Mask)) <= static_cast<UInt32>(ft); }
+	bool IsDataFailed () const  { return IsFailed(FailType::Data); }
+	void ClearFailed() { Clear(static_cast<UInt32>(FailType::Mask)); }
 
-	ProgressState GetProgress() const  { return ProgressState(GetBits(PS_Mask)); }
+	ProgressState GetProgress() const  { return ProgressState(GetBits(static_cast<UInt32>(ProgressState::Mask))); }
 	void SetProgress(ProgressState sf) 
 	{ 
-		dms_assert(sf <= PS_Mask); 
-		SetBits(PS_Mask, sf); 
+		assert(sf <= ProgressState::Mask); 
+		SetBits(static_cast<UInt32>(ProgressState::Mask), static_cast<UInt32>(sf));
 	}
 	void SetFailure(FailType ft) 
 	{ 
-		dms_assert((ft & AF_FailedMask) == ft); 
-		SetBits(AF_FailedMask, ft); 
+		assert((static_cast<UInt32>(ft) & static_cast<UInt32>(FailType::Mask)) == static_cast<UInt32>(ft));
+		SetBits(static_cast<UInt32>(FailType::Mask), static_cast<UInt32>(ft));
 	}
 
 	TransState GetTransState() const { return TransState( GetBits(AF_TransientMask) ); }
@@ -203,6 +203,6 @@ public:
 	bool HasInvalidationBlock() const { return Get(AF_InvalidationBlock); }
 };
 
-RTC_CALL CharPtr FailStateName(UInt32 fs);
+RTC_CALL CharPtr FailStateName(FailType fs);
 
 #endif // __RTC_ACT_ENUMS_H

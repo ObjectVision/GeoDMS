@@ -189,10 +189,10 @@ std::shared_ptr<OperationContext> FuncDC::resetOperContextImpl() const
 		(!m_InterestCount) 
 	||	!IsNew() 
 	||	GetNew()->GetIsInstantiated()
-	||	GetNew()->WasFailed(FR_Data)
+	||	GetNew()->WasFailed(FailType::Data)
 	||	CheckDataReady(GetNew())
 	||	DSM::IsCancelling()
-	||	m_State.GetProgress() == PS_None // Just invalidated.
+	||	m_State.GetProgress() == ProgressState::None // Just invalidated.
 	);
 
 	std::shared_ptr<OperationContext> operContext = std::move(m_OperContext);
@@ -303,7 +303,7 @@ SharedTreeItem FuncDC::MakeResult() const // produce signature
 #endif
 
 	DetermineState(); // may trigger DoInvalidate -> reset m_Data, only MainThread may re-MakeResult
-	if (WasFailed(FR_MetaInfo))
+	if (WasFailed(FailType::MetaInfo))
 		return nullptr;
 
 	static UInt32 debug_counter = 0;
@@ -314,7 +314,7 @@ SharedTreeItem FuncDC::MakeResult() const // produce signature
 		DBG_TRACE(("MakeResult starts"));
 		if (!MakeResultImpl())
 		{
-			assert(WasFailed(FR_MetaInfo)); // MakeResult cannot suspend
+			assert(WasFailed(FailType::MetaInfo)); // MakeResult cannot suspend
 			assert(!DoesHaveSupplInterest());
 			return nullptr;
 		}
@@ -324,10 +324,10 @@ SharedTreeItem FuncDC::MakeResult() const // produce signature
 	assert(m_Data);
 	assert(!IsNew() || m_Data->IsCacheRoot());
 
-	if (m_Data && m_Data->WasFailed(FR_MetaInfo))
+	if (m_Data && m_Data->WasFailed(FailType::MetaInfo))
 		Fail(m_Data);
 
-	if (WasFailed(FR_MetaInfo))
+	if (WasFailed(FailType::MetaInfo))
 		return nullptr;
 
 	actor_section_lock_map::ScopedLock specificSectionLock(MG_SOURCE_INFO_CODE("Actor::DecInterestCount") sg_ActorLockMap, this);
@@ -356,7 +356,7 @@ auto FuncDC::CallCalcResult(std::shared_ptr<Explain::Context> context) const -> 
 #endif
 
 	DetermineState(); // may trigger DoInvalidate -> reset m_Data, only MainThread may re-MakeResult
-	if (WasFailed(FR_MetaInfo))
+	if (WasFailed(FailType::MetaInfo))
 		return {};
 
 #if defined(MG_DEBUG)
@@ -367,7 +367,7 @@ auto FuncDC::CallCalcResult(std::shared_ptr<Explain::Context> context) const -> 
 
 	FutureData thisFutureResult = this;
 
-	// precondition if doCalc: Interest, SupplInterest, Not FR_MetaInfo, nor Args; FR_Data may occur in worker threads, but then re-Make is futile.
+	// precondition if doCalc: Interest, SupplInterest, Not FailType::MetaInfo, nor Args; FailType::Data may occur in worker threads, but then re-Make is futile.
 //	dms_assert(m_InterestCount);
 
 	static UInt32 debug_counter = 0;
@@ -378,7 +378,7 @@ auto FuncDC::CallCalcResult(std::shared_ptr<Explain::Context> context) const -> 
 		DBG_TRACE(("MakeResult starts"));
 		if (!MakeResultImpl())
 		{
-			assert(WasFailed(FR_MetaInfo) ); // MakeResult cannot suspend
+			assert(WasFailed(FailType::MetaInfo) ); // MakeResult cannot suspend
 			assert(!m_OperContext);
 			return {};
 		}
@@ -387,10 +387,10 @@ auto FuncDC::CallCalcResult(std::shared_ptr<Explain::Context> context) const -> 
 	}
 	m_Data->UpdateMetaInfo();
 
-	if (m_Data->WasFailed(FR_Data))
+	if (m_Data->WasFailed(FailType::Data))
 		Fail(m_Data);
 
-	if (WasFailed(FR_Data) && !context || WasFailed(FR_MetaInfo))
+	if (WasFailed(FailType::Data) && !context || WasFailed(FailType::MetaInfo))
 		return {};
 
 	assert(m_OperatorGroup);
@@ -442,7 +442,7 @@ auto FuncDC::CallCalcResult(std::shared_ptr<Explain::Context> context) const -> 
 			return {}; // maybe suspended or failed
 		}
 		assert(!SuspendTrigger::DidSuspend());
-		assert(m_OperContext || IsDataReady(m_Data) || m_Data->WasFailed(FR_Data) || SuspendTrigger::DidSuspend());
+		assert(m_OperContext || IsDataReady(m_Data) || m_Data->WasFailed(FailType::Data) || SuspendTrigger::DidSuspend());
 	}
 	return thisFutureResult;
 }
@@ -476,14 +476,14 @@ const Operator* FuncDC::GetOperator() const
 	{
 		assert(IsMetaThread());
 		ArgClsSeqType operandTypeSeq;
-		if (WasFailed(FR_MetaInfo))
+		if (WasFailed(FailType::MetaInfo))
 			ThrowFail();
 
 		arg_index argCount = 0;
 		for (const DcRefListElem* argIter = m_Args; argIter; argIter = argIter->m_Next, ++argCount)
 		{
 			const DataController* argDC = argIter->m_DC;
-			if (argDC->WasFailed(FR_MetaInfo))
+			if (argDC->WasFailed(FailType::MetaInfo))
 			{
 				Fail(argDC);
 				ThrowFail();
@@ -547,7 +547,7 @@ OArgRefs FuncDC::GetArgs(bool doUpdateMetaInfo, bool doCalcData) const
 			assert(!fd || argIter->m_DC->GetInterestCount());
 			if (SuspendTrigger::DidSuspend())
 				return {};
-			assert(!fd || CheckCalculatingOrReady(fd->GetOld()->GetCurrRangeItem()) || fd->WasFailed(FR_Data) || fd->GetOld()->WasFailed(FR_Data) 
+			assert(!fd || CheckCalculatingOrReady(fd->GetOld()->GetCurrRangeItem()) || fd->WasFailed(FailType::Data) || fd->GetOld()->WasFailed(FailType::Data) 
 			|| dynamic_cast<const FuncDC*>(fd.get_ptr()) && dynamic_cast<const FuncDC*>(fd.get_ptr())->m_OperatorGroup->GetNameID() == token::subitem); // the latter can refer to a sub-items of a FenceContainer that has a upstream RangeItem
 			argRef.emplace<FutureData>(std::move(fd));
 			if (currArg == 0 && m_OperatorGroup->HasDynamicArgPolicies())
@@ -558,19 +558,19 @@ OArgRefs FuncDC::GetArgs(bool doUpdateMetaInfo, bool doCalcData) const
 		if (argItem) {
 			if (doUpdateMetaInfo)
 				argItem->UpdateMetaInfo();
-			dms_assert(argItem->m_State.GetProgress() >= PS_MetaInfo || argItem->WasFailed(FR_MetaInfo));
+			dms_assert(argItem->m_State.GetProgress() >= ProgressState::MetaInfo || argItem->WasFailed(FailType::MetaInfo));
 			if (argItem->WasFailed(mustCalcArg))
-				argIter->m_DC->Fail(argItem, mustCalcArg ? FR_Data : FR_MetaInfo);
+				argIter->m_DC->Fail(argItem, mustCalcArg ? FailType::Data : FailType::MetaInfo);
 		}
 
 		if (argIter->m_DC->WasFailed(mustCalcArg))
-			Fail(argIter->m_DC, doCalcData ? FR_Data : FR_MetaInfo);
+			Fail(argIter->m_DC, doCalcData ? FailType::Data : FailType::MetaInfo);
 
 		dms_assert(argItem || WasFailed(doCalcData)); // POSTCONDITION of argIter->m_DC->GetResult();
 
 		if (WasFailed(doCalcData))
 			return {};
-		dms_assert(argItem && !argItem->WasFailed(FR_MetaInfo));
+		dms_assert(argItem && !argItem->WasFailed(FailType::MetaInfo));
 		argSeq.emplace_back(std::move(argRef));
 	}
 	return argSeq;
@@ -605,7 +605,7 @@ bool FuncDC_CreateResult(const FuncDC* funcDC)
 
 	SuspendTrigger::FencedBlocker lockSuspend("FuncDC_CreateResult");
 
-	assert(!funcDC->WasFailed(FR_MetaInfo));
+	assert(!funcDC->WasFailed(FailType::MetaInfo));
 	assert(!SuspendTrigger::DidSuspend());
 
 	TreeItemDualRef& resultHolder = *const_cast<FuncDC*>(funcDC);
@@ -615,7 +615,7 @@ bool FuncDC_CreateResult(const FuncDC* funcDC)
 		assert(!SuspendTrigger::DidSuspend());
 		if (!args)
 		{
-			assert(funcDC->WasFailed(FR_MetaInfo));
+			assert(funcDC->WasFailed(FailType::MetaInfo));
 			return false;
 		}
 		auto oper = funcDC->GetCurrOperator();
@@ -626,7 +626,7 @@ bool FuncDC_CreateResult(const FuncDC* funcDC)
 		}
 		assert(oper);
 
-		assert(!funcDC->WasFailed(FR_MetaInfo));
+		assert(!funcDC->WasFailed(FailType::MetaInfo));
 		assert(!SuspendTrigger::DidSuspend());
 
 		oper->CreateResultCaller(resultHolder, *args, funcDC->GetLispRef().Right()); // may set the fence number of funcDC
@@ -634,11 +634,11 @@ bool FuncDC_CreateResult(const FuncDC* funcDC)
 	catch (...)
 	{
 		if (resultHolder.IsNew())
-			resultHolder->CatchFail(FR_MetaInfo); // also calls resultHolder->StopSupplInterest() (the resulting data).
-		resultHolder.CatchFail(FR_MetaInfo);
+			resultHolder->CatchFail(FailType::MetaInfo); // also calls resultHolder->StopSupplInterest() (the resulting data).
+		resultHolder.CatchFail(FailType::MetaInfo);
 	}
 
-	bool resultingFlag = !resultHolder.WasFailed(FR_MetaInfo);
+	bool resultingFlag = !resultHolder.WasFailed(FailType::MetaInfo);
 	MarkCacheItems(funcDC);
 
 	if (resultHolder)
@@ -650,16 +650,16 @@ bool FuncDC_CreateResult(const FuncDC* funcDC)
 				, resultHolder->GetCurrentObjClass()->GetName()
 				, funcDC->m_Operator->GetResultClass()->GetName()
 			);
-			resultHolder->Fail(msg, FR_MetaInfo);
+			resultHolder->Fail(msg, FailType::MetaInfo);
 		}
-		if (resultHolder->WasFailed(FR_MetaInfo))
+		if (resultHolder->WasFailed(FailType::MetaInfo))
 		{
-			resultHolder.Fail(resultHolder.GetOld(), FR_MetaInfo);
+			resultHolder.Fail(resultHolder.GetOld(), FailType::MetaInfo);
 			resultingFlag = false;
 		}
 	}
 
-	assert(resultingFlag != (SuspendTrigger::DidSuspend() || resultHolder.WasFailed(FR_MetaInfo)));
+	assert(resultingFlag != (SuspendTrigger::DidSuspend() || resultHolder.WasFailed(FailType::MetaInfo)));
 	return resultingFlag;
 }
 
@@ -669,7 +669,7 @@ bool FuncDC::MakeResultImpl() const
 	assert(IsMetaThread());
 	dms_check_not_debugonly; 
 
-	assert(!WasFailed(FR_MetaInfo));
+	assert(!WasFailed(FailType::MetaInfo));
 	assert(!SuspendTrigger::DidSuspend());
 
 	StaticStIncrementalLock<TreeItem::s_MakeEndoLockCount> makeEndoLock;
@@ -680,7 +680,7 @@ bool FuncDC::MakeResultImpl() const
 #if defined(MG_DEBUG_DCDATA)
 	DBG_START("FuncDc::MakeResultImpl", md_sKeyExpr.c_str(), MG_DEBUG_FUNCDC);
 #endif
-	if (WasFailed(FR_MetaInfo))
+	if (WasFailed(FailType::MetaInfo))
 		return false;
 
 	bool result = false;
@@ -690,21 +690,21 @@ bool FuncDC::MakeResultImpl() const
 	
 		// ============== Call the actual operator
 		result = FuncDC_CreateResult(this);
-		assert(result || SuspendTrigger::DidSuspend() || WasFailed(FR_MetaInfo));  // if we asked for MetaInfo and only DataProcesing failed, we should at least get a result
+		assert(result || SuspendTrigger::DidSuspend() || WasFailed(FailType::MetaInfo));  // if we asked for MetaInfo and only DataProcesing failed, we should at least get a result
 	}
 	catch (...)
 	{
 		assert(!result);
-		CatchFail(FR_MetaInfo);
+		CatchFail(FailType::MetaInfo);
 	}
 	if (! result)
 	{
-		assert(SuspendTrigger::DidSuspend() || WasFailed(FR_MetaInfo));  // if we asked for MetaInfo and only DataProcesing failed, we should at least get a result
+		assert(SuspendTrigger::DidSuspend() || WasFailed(FailType::MetaInfo));  // if we asked for MetaInfo and only DataProcesing failed, we should at least get a result
 		return false;
 	}
 
 	assert(m_Data);
-	assert(!SuspendTrigger::DidSuspend() && !WasFailed(FR_MetaInfo) );  // if we asked for MetaInfo and only DataProcesing failed, we should at least get a result
+	assert(!SuspendTrigger::DidSuspend() && !WasFailed(FailType::MetaInfo) );  // if we asked for MetaInfo and only DataProcesing failed, we should at least get a result
 	assert(m_Data->IsCacheItem() || m_Data->IsPassor() || m_OperatorGroup->CanResultToConfigItem() || IsTmp());
 
 	return true;
@@ -721,7 +721,7 @@ void FuncDC::CallCalcResultImpl(std::shared_ptr<Explain::Context> context) const
 	assert(IsMetaThread());
 	dms_check_not_debugonly;
 
-	assert(!WasFailed(FR_Data));
+	assert(!WasFailed(FailType::Data));
 	assert(!SuspendTrigger::DidSuspend());
 	assert(m_Data);
 	assert(GetInterestCount());
@@ -745,14 +745,14 @@ void FuncDC::CallCalcResultImpl(std::shared_ptr<Explain::Context> context) const
 		auto argRefs= GetArgs(false, true);
 		if (!argRefs)
 		{
-			assert(m_Data->WasFailed(FR_Data) || SuspendTrigger::DidSuspend());
+			assert(m_Data->WasFailed(FailType::Data) || SuspendTrigger::DidSuspend());
 			return;
 		}
 		assert(!SuspendTrigger::DidSuspend());
 
 		UpdateMarker::ChangeSourceLock changeStamp(this, "FuncDC::MakeResult");
 
-		assert(!WasFailed(FR_Data)); // should have resulted in exit.
+		assert(!WasFailed(FailType::Data)); // should have resulted in exit.
 
 		UpdateLock lock(this, actor_flag_set::AF_CalculatingData);
 
@@ -783,19 +783,19 @@ void FuncDC::CallCalcResultImpl(std::shared_ptr<Explain::Context> context) const
 	}
 	catch (...)
 	{
-		CatchFail(FR_Data);
+		CatchFail(FailType::Data);
 		return;
 	}
 	if (!result)
 	{
 		if (GetOld()->WasFailed())
 			Fail(GetOld());
-		assert(SuspendTrigger::DidSuspend() || WasFailed(FR_Data));  // if we asked for MetaInfo and only DataProcesing failed, we should at least get a result
+		assert(SuspendTrigger::DidSuspend() || WasFailed(FailType::Data));  // if we asked for MetaInfo and only DataProcesing failed, we should at least get a result
 		return;
 	}
 
 	assert(m_Data);
-	assert(!SuspendTrigger::DidSuspend() && !WasFailed(FR_MetaInfo));  // if we asked for MetaInfo and only DataProcesing failed, we should at least get a result
+	assert(!SuspendTrigger::DidSuspend() && !WasFailed(FailType::MetaInfo));  // if we asked for MetaInfo and only DataProcesing failed, we should at least get a result
 	assert(m_Data->IsCacheItem() || m_Data->IsPassor() || m_OperatorGroup->CanResultToConfigItem() || IsTmp());
 }
 
@@ -955,7 +955,7 @@ SharedTreeItem SymbDC::MakeResult() const
 	if (!m_Data)
 	{
 		auto msg = mySSPrintF("Cannot find Item %s", m_FullNameID.GetStr());
-		Fail(msg, FR_MetaInfo);
+		Fail(msg, FailType::MetaInfo);
 		return nullptr;
 	}
 
@@ -1007,7 +1007,7 @@ ActorVisitState SymbDC::VisitSuppliers(SupplierVisitFlag svf, const ActorVisitor
 {
 	if (base_type::VisitSuppliers(svf, visitor) == AVS_SuspendedOrFailed)
 		return AVS_SuspendedOrFailed;
-	if (WasFailed(FR_Determine))
+	if (WasFailed(FailType::Determine))
 		return AVS_SuspendedOrFailed;
 
 	auto data = MakeResult();

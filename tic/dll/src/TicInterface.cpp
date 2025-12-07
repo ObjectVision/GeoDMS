@@ -625,11 +625,11 @@ bool ItemUpdateImpl(const TreeItem* self, CharPtr context, SharedTreeItemInteres
 {
 	CheckPtr(self, TreeItem::GetStaticClass(), context);
 
-	if (self->InTemplate() || self->Is(PS_Committed) || self->IsFailed())
+	if (self->InTemplate() || self->Is(ProgressState::Committed) || self->IsFailed())
 		return true;
 
 	holder = self;
-	if (!self->Update(PS_Committed, false, context) && SuspendTrigger::DidSuspend())
+	if (!self->Update(ProgressState::Committed, false, context) && SuspendTrigger::DidSuspend())
 		return false;
 
 	return true;
@@ -684,15 +684,15 @@ UInt32 TreeItem_GetProgressState(const TreeItem* self)
 			return NC2_Committed;
 
 		auto treeitem_progress_state = self->m_State.GetProgress();
-		if (IsDataCurrReady(self->GetCurrRangeItem())) // treeitem_progress_state < PS_Committed && 
+		if (IsDataCurrReady(self->GetCurrRangeItem())) // treeitem_progress_state < ProgressState::Committed && 
 			return NC2_DataReady;
 		
 //		self->DetermineState();
 		switch (treeitem_progress_state)//self->m_State.GetProgress())
 		{
-			case PS_Validated: return NC2_Validated;
-			case PS_Committed: return NC2_Committed;
-			case PS_MetaInfo:  return NC2_MetaReady;
+			case ProgressState::Validated: return NC2_Validated;
+			case ProgressState::Committed: return NC2_Committed;
+			case ProgressState::MetaInfo:  return NC2_MetaReady;
 		}
 
 	DMS_CALL_END
@@ -737,7 +737,7 @@ extern "C" TIC_CALL bool DMS_CONV DMS_TreeItem_IsMetaFailed(const TreeItem* self
 
 		SuspendTrigger::Resume();
 
-		return !self || self->IsFailed(FR_MetaInfo);
+		return !self || self->IsFailed(FailType::MetaInfo);
 
 	DMS_CALL_END
 	return true;
@@ -1140,7 +1140,7 @@ TIC_CALL BestItemRef TreeItem_GetErrorSource(const TreeItem* src, bool tryCalcSu
 		return { errorneousItem , {} };
 
 	// if FailReason was > FR_Data, try finding a supplier that fails too when pressed.
-	if (tryCalcSuppliers && src->WasFailed(FR_Data) && !src->WasFailed(FR_MetaInfo))
+	if (tryCalcSuppliers && src->WasFailed(FailType::Data) && !src->WasFailed(FailType::MetaInfo))
 	{
 		if (src->HasCalculator())
 		{

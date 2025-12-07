@@ -1453,7 +1453,7 @@ garbage_can OperationContext::onEnd(task_status status) noexcept
 		return {};
 	}
 
-	assert(status != task_status::exception || m_Result->WasFailed(FR_Data));
+	assert(status != task_status::exception || m_Result->WasFailed(FailType::Data));
 
 	return separateResources(status);
 }
@@ -1588,7 +1588,7 @@ bool OperationContext::HandleFail(const TreeItem* item)
 	if (transientStatus >= task_status::cancelled)
 		return false;
 
-	if (!item->WasFailed(FR_Data)) // this precheck filters out most calls without needing a lock on cs_ThreadMessing
+	if (!item->WasFailed(FailType::Data)) // this precheck filters out most calls without needing a lock on cs_ThreadMessing
 		return false;
 
 	RequestMainThreadOperProcessingBlocker letTheNotificationsComeAfter;
@@ -1604,7 +1604,7 @@ bool OperationContext::HandleFail(const TreeItem* item)
 		return false; 
 
 	m_Result->Fail(item);
-	assert(m_Result->WasFailed(FR_Data));
+	assert(m_Result->WasFailed(FailType::Data));
 	separatedResources = separateResources(task_status::exception);
 	assert(!m_ResKeeper);
 
@@ -1758,7 +1758,7 @@ struct OC_CalcResultFunc {
 					if (statusActor && statusActor->WasFailed())
 						funcDC->Fail(statusActor);
 
-					if (funcDC->WasFailed(FR_Data))
+					if (funcDC->WasFailed(FailType::Data))
 						return true;
 				}
 				return false;
@@ -1777,7 +1777,7 @@ struct OC_CalcResultFunc {
 
 			failureProcessor();
 		}
-		assert(!self->m_FuncDC || IsDataCurrCompleted(self->m_Result->GetCurrUltimateItem()) || self->GetResult()->WasFailed(FR_Data) || s_OcTaskGroupIsCanceling);
+		assert(!self->m_FuncDC || IsDataCurrCompleted(self->m_Result->GetCurrUltimateItem()) || self->GetResult()->WasFailed(FailType::Data) || s_OcTaskGroupIsCanceling);
 	}
 };
 
@@ -1810,7 +1810,7 @@ bool OperationContext::ScheduleCalcResult(ArgRefs&& argRefs, explain_context_ptr
 
 	assert(m_Result);
 
-	if (m_Result->WasFailed(FR_Data))
+	if (m_Result->WasFailed(FailType::Data))
 	{
 		OnException();
 		return false;
@@ -1839,7 +1839,7 @@ bool OperationContext::ScheduleCalcResult(ArgRefs&& argRefs, explain_context_ptr
 			auto otherSupplier = dcPtr->CallCalcResult();
 			if (!otherSupplier)
 			{
-				if (dcPtr->WasFailed(FR_Data))
+				if (dcPtr->WasFailed(FailType::Data))
 				{
 					resultHolder.Fail(dcPtr);
 					break;
@@ -1851,7 +1851,7 @@ bool OperationContext::ScheduleCalcResult(ArgRefs&& argRefs, explain_context_ptr
 		}
 
 	task_status resultStatus = m_Status;
-	if (!resultHolder.WasFailed(FR_Data) && !SuspendTrigger::DidSuspend())
+	if (!resultHolder.WasFailed(FailType::Data) && !SuspendTrigger::DidSuspend())
 	{
 		assert(funcDC);
 		auto func = OC_CalcResultFunc{ std::move(argRefs), allArgInterests }; // TOD: move in, but keep view of ArgInterests array
@@ -1873,7 +1873,7 @@ bool OperationContext::ScheduleCalcResult(ArgRefs&& argRefs, explain_context_ptr
 		if (resultHolder && resultHolder->WasFailed())
 			resultHolder.Fail(resultHolder.GetOld());
 	}
-	if (resultHolder.WasFailed(FR_Data))
+	if (resultHolder.WasFailed(FailType::Data))
 	{
 		m_Result->Fail(resultHolder);
 		assert(m_Status >= task_status::running);
@@ -1918,7 +1918,7 @@ task_status OperationContext::JoinSupplOrSuspendTrigger()
 
 		task_status ocStatus = oc->Join();
 		assert(ocStatus > task_status::running);
-		assert(CheckDataReady(supplResult->GetCurrUltimateItem()) || supplResult->WasFailed(FR_Data) || !supplResult->GetInterestCount() || SuspendTrigger::DidSuspend());
+		assert(CheckDataReady(supplResult->GetCurrUltimateItem()) || supplResult->WasFailed(FailType::Data) || !supplResult->GetInterestCount() || SuspendTrigger::DidSuspend());
 		switch (ocStatus)
 		{
 		case task_status::done:
@@ -1969,20 +1969,24 @@ void OperationContext::Run_with_catch(explain_context_ptr_t context) noexcept
 		auto taskFunc = OperationContext_TakeTaskFunc(this);
 		if (taskFunc)
 			taskFunc(this, context); // run the payload functor, set by ScheduleItemWriter
-		assert(!m_FuncDC || IsDataCurrCompleted(m_Result->GetCurrUltimateItem()) || GetResult()->WasFailed(FR_Data) || s_OcTaskGroupIsCanceling);
+		auto resultItem = GetResult();
+		assert(resultItem);
+		assert(!m_FuncDC || IsDataCurrCompleted(resultItem->GetCurrUltimateItem()) || resultItem->WasFailed(FailType::Data) || s_OcTaskGroupIsCanceling);
+		if (!resultItem->Was(ProgressState::Validated))
+			resultItem->SetProgress(ProgressState::Validated);
 	}
 	catch (const task_canceled&)
 	{
 		assert(getStatus() == task_status::cancelled); // clean-up was done ?
 	}
 	catch (...) {
-		GetResult()->CatchFail(FR_Data);
+		GetResult()->CatchFail(FailType::Data);
 	}
 
 	ItemWriteLock localWriteLock;
 	leveled_std_section::unique_lock lock(cs_ThreadMessing);
 
-	assert(!m_FuncDC || IsDataCurrCompleted(m_Result->GetCurrUltimateItem()) || s_OcTaskGroupIsCanceling || GetResult()->WasFailed(FR_Data) || (getStatus() == task_status::cancelled));
+	assert(!m_FuncDC || IsDataCurrCompleted(m_Result->GetCurrUltimateItem()) || s_OcTaskGroupIsCanceling || GetResult()->WasFailed(FailType::Data) || (getStatus() == task_status::cancelled));
 
 	localWriteLock = std::move(m_WriteLock);
 	assert(!m_WriteLock);
@@ -1998,7 +2002,7 @@ void OperationContext::Run_with_cleanup(explain_context_ptr_t context) noexcept
 	Run_with_catch(context);
 	assert(!m_TaskFunc);
 
-	if (GetResult()->WasFailed(FR_Data))
+	if (GetResult()->WasFailed(FailType::Data))
 		OnException(); // clean-up
 	else
 	{
@@ -2424,10 +2428,10 @@ TIC_CALL void DoWorkWhileWaitingFor(std::atomic<task_status>* fenceStatus)
 void OperationContext::RunOperator(ArgRefs argRefs, std::vector<ItemReadLock> readLocks, explain_context_ptr_t context)
 {
 	SharedPtr<const FuncDC> funcDC = GetFuncDC();
-	if (!funcDC || funcDC->WasFailed(FR_Data))
+	if (!funcDC || funcDC->WasFailed(FailType::Data))
 		return;
 
-	if (m_Result->WasFailed(FR_Data))
+	if (m_Result->WasFailed(FailType::Data))
 	{
 		funcDC->Fail(m_Result.get_ptr());
 		return;
@@ -2438,7 +2442,7 @@ void OperationContext::RunOperator(ArgRefs argRefs, std::vector<ItemReadLock> re
 	if (!CancelIfNoInterestOrForced(false))
 	{
 		bool newResult = false;
-		if (funcDC->WasFailed(FR_MetaInfo))
+		if (funcDC->WasFailed(FailType::MetaInfo))
 			return;
 		try {
 
@@ -2455,7 +2459,7 @@ void OperationContext::RunOperator(ArgRefs argRefs, std::vector<ItemReadLock> re
 			assert(!IsDataItem(resultHolder.GetUlt()) || AsDataItem(resultHolder.GetUlt())->m_DataObject
 				|| !actualResult
 				|| CheckCalculatingOrReady(resultHolder.GetUlt())
-				|| resultHolder->WasFailed(FR_Data)
+				|| resultHolder->WasFailed(FailType::Data)
 			);
 		}
 		catch (const task_canceled&)
@@ -2465,7 +2469,7 @@ void OperationContext::RunOperator(ArgRefs argRefs, std::vector<ItemReadLock> re
 		}
 		catch (...)
 		{
-			resultHolder.CatchFail(FR_Data); // Now done by TreeItemDualRef::DoFail
+			resultHolder.CatchFail(FailType::Data); // Now done by TreeItemDualRef::DoFail
 			auto errPtr = resultHolder.GetFailReason();
 			errPtr->TellExtraF("in function %s", GetOperGroup()->GetName());
 			if (resultHolder.HasBackRef())
@@ -2478,8 +2482,8 @@ void OperationContext::RunOperator(ArgRefs argRefs, std::vector<ItemReadLock> re
 #if defined(MG_DEBUG)
 			const TreeItem* ri = resultHolder.IsOld() ? resultHolder->GetCurrUltimateItem() : resultHolder.GetNew();
 			assert(ri);
-			assert(ri->GetIsInstantiated() || CheckCalculatingOrReady(ri) || resultHolder->WasFailed(FR_Data));
-//			assert(CheckDataReady(ri) || resultHolder->WasFailed(FR_Data));
+			assert(ri->GetIsInstantiated() || CheckCalculatingOrReady(ri) || resultHolder->WasFailed(FailType::Data));
+//			assert(CheckDataReady(ri) || resultHolder->WasFailed(FailType::Data));
 
 			assert(!resultHolder.IsNew() || resultHolder->m_LastChangeTS == resultHolder.m_LastChangeTS); // further changes in the resulting data must have caused resultHolder to invalidate, as IsNew results are passive
 #endif

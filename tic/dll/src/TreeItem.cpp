@@ -426,7 +426,7 @@ void TreeItem::SetIsCacheItem() // does not call UpdateMetaInfo
 
 void TreeItem::InitTreeItem(TreeItem* parent, TokenID id)
 {
-	assert(m_State.GetProgress() < PS_MetaInfo);
+	assert(m_State.GetProgress() < ProgressState::MetaInfo);
 	if (id) CheckTreeItemName( id.GetStr().c_str() );
 	m_ID = id;
 
@@ -537,7 +537,7 @@ const TreeItem* TreeItem::GetFirstSubItem() const noexcept
 
 const TreeItem* TreeItem::GetCurrFirstSubItem() const  noexcept
 {
-	assert(m_State.GetProgress() >= PS_MetaInfo || WasFailed());
+	assert(m_State.GetProgress() >= ProgressState::MetaInfo || WasFailed());
 	return _GetFirstSubItem();
 }
 
@@ -768,7 +768,7 @@ bool TreeItem::HasCalculator() const noexcept
 {
 	dms_check_not_debugonly; 
 
-	if (!IsPassor() && m_Parent && !m_Parent->Was(PS_MetaInfo))
+	if (!IsPassor() && m_Parent && !m_Parent->Was(ProgressState::MetaInfo))
 		m_Parent->UpdateMetaInfo();
 
 	return HasCalculatorImpl();
@@ -858,7 +858,7 @@ static void ApplyCalculator(TreeItem* holder, const AbstrCalculator* ac)
 	if (metaInfo.index() == 0)
 	{
 		std::get<MetaFuncCurry>(metaInfo).operator()(holder, ac);
-		assert(ac->GetHolder()->GetIsInstantiated() || ac->GetHolder()->WasFailed(FR_MetaInfo));
+		assert(ac->GetHolder()->GetIsInstantiated() || ac->GetHolder()->WasFailed(FailType::MetaInfo));
 	}
 }
 
@@ -866,12 +866,12 @@ void TreeItem::MakeCalculator() const noexcept
 {
 	dms_check_not_debugonly;
 
-	if (WasFailed(FR_Determine))
+	if (WasFailed(FailType::Determine))
 		return;
 
-	if (GetTreeParent() && GetTreeParent()->m_State.GetProgress() < PS_MetaInfo && !GetTreeParent()->WasFailed(FR_MetaInfo))
+	if (GetTreeParent() && GetTreeParent()->m_State.GetProgress() < ProgressState::MetaInfo && !GetTreeParent()->WasFailed(FailType::MetaInfo))
 		GetTreeParent()->UpdateMetaInfo();
-	dms_assert(!m_Parent || (m_Parent->m_State.GetProgress() >= PS_MetaInfo) || m_Parent->WasFailed(FR_MetaInfo));
+	dms_assert(!m_Parent || (m_Parent->m_State.GetProgress() >= ProgressState::MetaInfo) || m_Parent->WasFailed(FailType::MetaInfo));
 
 	//	may only be called after HasCalculator (would) return(ed) true
 //	dms_assert(!InTemplate() || (mc_Calculator && mc_Calculator->DelayDataControllerAccess()));
@@ -885,7 +885,7 @@ void TreeItem::MakeCalculator() const noexcept
 		return Fail(
 			"Invalid Recursion in GetCalculator detected.\n"
 			"Check calculation rule of this item"
-			, FR_Determine
+			, FailType::Determine
 		);
 	auto_flag_recursion_lock<ASF_MakeCalculatorLock> lock(m_State);
 
@@ -901,9 +901,9 @@ void TreeItem::MakeCalculator() const noexcept
 	}
 	catch (...)
 	{
-		return CatchFail(FR_Determine);
+		return CatchFail(FailType::Determine);
 	}
-	if (WasFailed(FR_Determine))
+	if (WasFailed(FailType::Determine))
 		return;
 }
 
@@ -924,13 +924,13 @@ static void FailItemType(const TreeItem* self, const TreeItem* refItem)
 	,	self->GetDynamicObjClass()->GetName().c_str()
 	,	refItem->GetDynamicObjClass()->GetName().c_str()
 	);
-	self->Fail(msg, FR_Determine);
+	self->Fail(msg, FailType::Determine);
 }
 
 bool TreeItem::_CheckResultObjType(const TreeItem* refItem) const
 {
 	assert(refItem);
-	if (WasFailed(FR_Determine))
+	if (WasFailed(FailType::Determine))
 		return false;
 	try {
 		if (IsDataItem(refItem) && !IsDataItem(this))
@@ -944,10 +944,10 @@ bool TreeItem::_CheckResultObjType(const TreeItem* refItem) const
 	}
 	catch (...)
 	{
-		if (!WasFailed(FR_Determine))
+		if (!WasFailed(FailType::Determine))
 		{
 			auto err = catchException(true);
-			DoFail(err, FR_Determine);
+			DoFail(err, FailType::Determine);
 		}
 	}
 	return false;
@@ -963,7 +963,7 @@ bool TreeItem::CheckResultItem(const TreeItem* refItem) const
 
 const TreeItem* TreeItem::GetCurrRefItem() const noexcept
 {
-//	assert(Was(PS_MetaInfo) || WasFailed() || IsPassor() || IsUnit(this) && AsUnit(this)->IsDefaultUnit());
+//	assert(Was(ProgressState::MetaInfo) || WasFailed() || IsPassor() || IsUnit(this) && AsUnit(this)->IsDefaultUnit());
 	return mc_RefItem;
 }
 
@@ -1309,7 +1309,7 @@ bool TreeItem::IsLoadableAndExists() const
 
 bool TreeItem::IsCurrLoadable() const
 {
-	assert(!m_Parent || m_Parent->Was(PS_MetaInfo) || m_Parent->WasFailed());
+	assert(!m_Parent || m_Parent->Was(ProgressState::MetaInfo) || m_Parent->WasFailed());
 	if (!IsDataItem(this) && !IsUnit(this))
 		return false;
 
@@ -1596,7 +1596,7 @@ SharedTreeItem TreeItem::FindItem(CharPtrRange subItemNames) const
 	if (!parent)
 		return nullptr;
 	parent->UpdateMetaInfoIfNotAlready();
-//	if (parent->WasFailed(FR_MetaInfo))
+//	if (parent->WasFailed(FailType::MetaInfo))
 //		parent->ThrowFail();
 	return parent->GetConstSubTreeItemByID(GetExistingTokenID(ids.second));
 }
@@ -2113,8 +2113,8 @@ void TreeItem::SetMetaInfoReady() const
 { 
 	dms_assert(m_LastChangeTS || IsPassor()); // PRECONDITION for SetProgress
 
-	if (m_State.GetProgress() < PS_MetaInfo)
-		m_State.SetProgress(PS_MetaInfo);
+	if (m_State.GetProgress() < ProgressState::MetaInfo)
+		m_State.SetProgress(ProgressState::MetaInfo);
 	dbg_assert(IsPassor() || !IsDataItem(this) || (!AsDataItem(this)->GetAbstrDomainUnit()) || AsDataItem(this)->GetAbstrDomainUnit()->CheckMetaInfoReadyOrPassor());
 	dbg_assert(IsPassor() || !IsDataItem(this) || (!AsDataItem(this)->GetAbstrValuesUnit()) || AsDataItem(this)->GetAbstrValuesUnit()->CheckMetaInfoReadyOrPassor());
 }
@@ -2123,7 +2123,7 @@ const bool MG_DEBUG_UPDATEMETAINFO = true;
 
 void TreeItem::UpdateMetaInfoImpl() const
 {
-	assert(!WasFailed(FR_MetaInfo));
+	assert(!WasFailed(FailType::MetaInfo));
 
 	UpdateSupplMetaInfo(); // Update Suppliers, calls MakeCalculator() -> mc_DC
 	GetPhaseNumber();
@@ -2222,7 +2222,7 @@ void TreeItem::UpdateMetaInfoImpl() const
 namespace diagnostic_tests {
 	static bool TreeParenMetaInfoReadyOrFailed(const TreeItem* self)
 	{
-		return !self->GetTreeParent() || self->GetTreeParent()->Was(PS_MetaInfo) || self->GetTreeParent()->WasFailed(FR_MetaInfo);
+		return !self->GetTreeParent() || self->GetTreeParent()->Was(ProgressState::MetaInfo) || self->GetTreeParent()->WasFailed(FailType::MetaInfo);
 	}
 
 	static bool DetermineStateWasCalled(const TreeItem* self)
@@ -2311,7 +2311,7 @@ auto TreeItem::GetOrgDC() const -> std::pair<DataControllerRef, SharedTreeItem>
 	{
 		auto srcItem = std::get<SharedTreeItem>(metaInfo);
 		dms_assert(!srcItem->IsCacheItem()); // if it refers to a cache sub-item, it should have found the endogenous shadow copy in the config tree
-		if (srcItem->WasFailed(FR_MetaInfo))
+		if (srcItem->WasFailed(FailType::MetaInfo))
 			return {};
 		return { std::get<SharedTreeItem>(metaInfo)->GetCheckedDC(), srcItem };
 	}
@@ -2323,7 +2323,7 @@ static auto TreeItem_CreateConvertedExpr(const TreeItem* self, const TreeItem* c
 {
 	if (!self->CheckResultItem(cacheItem))
 	{
-		assert(self->WasFailed(FR_MetaInfo));
+		assert(self->WasFailed(FailType::MetaInfo));
 		return {};
 	}
 	auto dataItemSelf = AsDataItem(self);
@@ -2353,7 +2353,7 @@ static auto TreeItem_CreateCheckedExpr(LispPtr resultExpr, const TreeItem* self)
 	auto icCalc = self->GetIntegrityChecker();
 	if (!icCalc)
 	{
-		self->Fail("Failed to construct IntegryCheck", FR_Validate);
+		self->Fail("Failed to construct IntegryCheck", FailType::Validate);
 		return resultExpr;
 	}
 
@@ -2362,7 +2362,7 @@ static auto TreeItem_CreateCheckedExpr(LispPtr resultExpr, const TreeItem* self)
 	auto ic = GetAsLispRef(icCalc->GetMetaInfo());
 	if (ic.EndP())
 	{
-		self->Fail("Failed to construct IntegryCheck", FR_Validate);
+		self->Fail("Failed to construct IntegryCheck", FailType::Validate);
 		return resultExpr;
 	}
 	return ExprList(token::integrity_check, resultExpr, ic);
@@ -2370,19 +2370,19 @@ static auto TreeItem_CreateCheckedExpr(LispPtr resultExpr, const TreeItem* self)
 
 void TreeItem::UpdateDC() const
 {
-	if (mc_DC || mc_RefItem || WasFailed(FR_MetaInfo) || InTemplate() || IsCacheItem() || IsPassor())
+	if (mc_DC || mc_RefItem || WasFailed(FailType::MetaInfo) || InTemplate() || IsCacheItem() || IsPassor())
 		return;
 
 	auto [resultDC, srcItem] = GetOrgDC();
 	// required for Convert test and subItem moniking, empty for applicators non-calculatable or loadable items (such as some parents).
-	if (resultDC && IsDataItem(this) && !resultDC->WasFailed(FR_MetaInfo))
+	if (resultDC && IsDataItem(this) && !resultDC->WasFailed(FailType::MetaInfo))
 	{
 		if (SharedTreeItem cacheItem = resultDC->MakeResult())
 		{
 			auto keyExpr = TreeItem_CreateConvertedExpr(this, cacheItem, resultDC->GetLispRef());
 			if (!keyExpr)
 			{
-				assert(WasFailed(FR_MetaInfo));
+				assert(WasFailed(FailType::MetaInfo));
 				return;
 			}
 			resultDC = GetOrCreateDataController(keyExpr);
@@ -2470,7 +2470,7 @@ LispRef TreeItem::GetCheckedKeyExpr() const
 #if defined(MG_DEBUG)
 bool TreeItem::CheckMetaInfoReady() const
 {
-	return m_State.GetProgress()>=PS_MetaInfo || WasFailed(FR_MetaInfo);
+	return m_State.GetProgress()>=ProgressState::MetaInfo || WasFailed(FailType::MetaInfo);
 }
 
 bool TreeItem::CheckMetaInfoReadyOrPassor() const
@@ -2505,7 +2505,7 @@ void TreeItem::UpdateMetaInfoImpl2() const
 	dbg_assert(IsMetaThread());
 
 	if (m_LastGetStateTS >= UpdateMarker::LastTS())
-		if ((m_State.GetProgress()>=PS_MetaInfo) || WasFailed(FR_MetaInfo)) // reset by DetermineState when supplier was invalidated
+		if ((m_State.GetProgress()>=ProgressState::MetaInfo) || WasFailed(FailType::MetaInfo)) // reset by DetermineState when supplier was invalidated
 			return;
 
 	try {
@@ -2536,7 +2536,7 @@ void TreeItem::UpdateMetaInfoImpl2() const
 			GetStorageManager();
 
 		DetermineState();
-		if ((m_State.GetProgress()>=PS_MetaInfo) || WasFailed(FR_MetaInfo)) // reset by DetermineState when supplier was invalidated
+		if ((m_State.GetProgress()>=ProgressState::MetaInfo) || WasFailed(FailType::MetaInfo)) // reset by DetermineState when supplier was invalidated
 			return;
 
 
@@ -2553,7 +2553,7 @@ void TreeItem::UpdateMetaInfoImpl2() const
 		StaticStIncrementalLock<TreeItem::s_MakeEndoLockCount> makeEndoLock;
 		UpdateMarker::ChangeSourceLock lock(this, "TreeItem::UpdateMetaInfoImpl");
 
-		assert(!WasFailed(FR_MetaInfo));
+		assert(!WasFailed(FailType::MetaInfo));
 
 		// begin of recursion protected area
 		{
@@ -2566,7 +2566,7 @@ void TreeItem::UpdateMetaInfoImpl2() const
 				m_UsingCache->GetNrUsings();
 		}
 		SetMetaInfoReady();
-		if (!WasFailed(FR_MetaInfo))
+		if (!WasFailed(FailType::MetaInfo))
 		{
 
 			// Update Meta Info according to storage manager
@@ -2583,11 +2583,11 @@ void TreeItem::UpdateMetaInfoImpl2() const
 	catch (...)
 	{
 		// don't try again
-		assert(m_State.GetProgress() <= PS_MetaInfo);
-		m_State.SetProgress(PS_MetaInfo);
-		CatchFail(FR_MetaInfo);
+		assert(m_State.GetProgress() <= ProgressState::MetaInfo);
+		m_State.SetProgress(ProgressState::MetaInfo);
+		CatchFail(FailType::MetaInfo);
 	}
-	assert(m_State.GetProgress() >= PS_MetaInfo);
+	assert(m_State.GetProgress() >= ProgressState::MetaInfo);
 }
 
 #include <future>
@@ -2618,8 +2618,8 @@ void TreeItem::UpdateMetaInfo() const noexcept
 
 ActorVisitState TreeItem::SuspendibleUpdate(ProgressState ps) const
 {
-//	dms_assert((m_State.GetProgress()>=PS_Committed) || (ps < PS_DataReady) || GetInterestCount() || !IsDataItem(this));
-	dms_assert(ps == PS_Committed); // TODO: clean-up if this holds
+//	dms_assert((m_State.GetProgress()>=ProgressState::Committed) || (ps < PS_DataReady) || GetInterestCount() || !IsDataItem(this));
+	dms_assert(ps == ProgressState::Committed); // TODO: clean-up if this holds
 
 	UpdateMetaInfo();
 	auto remainingStackSpace = RemainingStackSpace();
@@ -2692,9 +2692,9 @@ bool IntegrityCheckFailure(const TreeItem* self, const AbstrDataItem* iCheckerRe
 	}
 
 	// will be caught by SuspendibleUpdate who will Fail this.
-	self->Fail(mySSPrintF("%s : %s", ICHECK_NAME, helperText), FR_Validate); // will be caught by SuspendibleUpdate who will Fail this.
+	self->Fail(mySSPrintF("%s : %s", ICHECK_NAME, helperText), FailType::Validate); // will be caught by SuspendibleUpdate who will Fail this.
 
-	assert(self->WasFailed(FR_Validate));
+	assert(self->WasFailed(FailType::Validate));
 	return true;
 }
 
@@ -2702,11 +2702,11 @@ ActorVisitState TreeItem::DoUpdate(ProgressState ps)
 {
 	DBG_START("TreeItem", "DoUpdate", MG_DEBUG_UPDATEMETAINFO && false);
 	DBG_TRACE(("fullname = %s", GetFullName().c_str()));
-	dms_assert(ps > PS_MetaInfo);
+	dms_assert(ps > ProgressState::MetaInfo);
 
-	assert(m_State.GetProgress() >= PS_MetaInfo); //UpdateMetaInfo();
+	assert(m_State.GetProgress() >= ProgressState::MetaInfo); //UpdateMetaInfo();
 
-	assert(m_State.GetProgress()>=PS_MetaInfo);
+	assert(m_State.GetProgress()>=ProgressState::MetaInfo);
 
 	TreeItemContextHandle tich(this, "Update");
 
@@ -2735,10 +2735,10 @@ ActorVisitState TreeItem::DoUpdate(ProgressState ps)
 							}
 						}
 
-	if (ps < PS_Validated)
+	if (ps < ProgressState::Validated)
 		goto exitReady;
 
-	if (m_State.GetProgress() < PS_Validated) 
+	if (m_State.GetProgress() < ProgressState::Validated) 
 	{
 		if (HasIntegrityChecker())
 		{
@@ -2749,63 +2749,69 @@ ActorVisitState TreeItem::DoUpdate(ProgressState ps)
 				auto iCheckerPtr = GetIntegrityChecker();
 				assert(iCheckerPtr);
 
+				auto iCheckerDC = MakeResult(iCheckerPtr);
+				assert(iCheckerDC);
+				if (iCheckerDC->WasFailed(FailType::Validate))
+					Fail(iCheckerDC);
 				//InterestPtr<SharedPtr<const AbstrCalculator>> iChecker = iCheckerPtr;
-				if (WasFailed(FR_Validate))
+				if (WasFailed(FailType::Validate))
 					return AVS_SuspendedOrFailed;
-
-				auto iCheckerDC = CalledCalcHandle(iCheckerPtr, DataArray<Bool>::GetStaticClass()); // @@@SCHEDULE
-
-				if (SuspendTrigger::DidSuspend())
-					return AVS_SuspendedOrFailed;
-
-				assert(iCheckerDC && iCheckerDC->GetInterestCount());
-
-				DataReadLockContainer c;                                                  // @@@USE
-				SharedDataItem iCheckerResult = AsDynamicDataItem(iCheckerDC->GetOld());
-				if (iCheckerResult)
+				if (!iCheckerDC->Was(ProgressState::Validated))
 				{
-					assert(iCheckerResult->GetInterestCount());
+					iCheckerDC = CalledCalcHandle(iCheckerPtr, DataArray<Bool>::GetStaticClass()); // @@@SCHEDULE
 
-					SharedPtr<const TreeItem> adiCheckerResult = iCheckerResult->GetCurrUltimateItem();
-					assert(adiCheckerResult->GetInterestCount());
-					if (!WaitForReadyOrSuspendTrigger(adiCheckerResult))
+					if (SuspendTrigger::DidSuspend())
+						return AVS_SuspendedOrFailed;
+
+						assert(iCheckerDC && iCheckerDC->GetInterestCount());
+
+						DataReadLockContainer c;                                                  // @@@USE
+					SharedDataItem iCheckerResult = AsDynamicDataItem(iCheckerDC->GetOld());
+					if (iCheckerResult)
 					{
-						if (adiCheckerResult->WasFailed())
-							Fail(adiCheckerResult);
-						assert(SuspendTrigger::DidSuspend() || WasFailed());
+						assert(iCheckerResult->GetInterestCount());
+
+						SharedPtr<const TreeItem> adiCheckerResult = iCheckerResult->GetCurrUltimateItem();
+						assert(adiCheckerResult->GetInterestCount());
+						if (!WaitForReadyOrSuspendTrigger(adiCheckerResult))
+						{
+							if (adiCheckerResult->WasFailed())
+								Fail(adiCheckerResult);
+							assert(SuspendTrigger::DidSuspend() || WasFailed());
+							return AVS_SuspendedOrFailed;
+						}
+
+					}
+					if (!iCheckerResult || !c.Add(iCheckerResult, DrlType::Suspendible))
+					{
+						if (SuspendTrigger::DidSuspend())
+							return AVS_SuspendedOrFailed;
+						assert(iCheckerDC->WasFailed(FailType::Data) || !iCheckerResult || iCheckerResult->WasFailed(FailType::Data));
+						if (iCheckerDC->WasFailed(FailType::Data))
+							Fail(iCheckerDC.get_ptr());
+						else if (iCheckerResult && iCheckerResult->WasFailed(FailType::Data))
+							Fail(iCheckerResult.get());
+						else
+							Fail("Unknown error in IntegrityCheck: ", FailType::MetaInfo);
+						assert(WasFailed());
 						return AVS_SuspendedOrFailed;
 					}
 
+					if (IntegrityCheckFailure(this, iCheckerResult, [iCheckerPtr]() { return iCheckerPtr->GetExpr(); }))
+						return AVS_Ready;
 				}
-				if (!iCheckerResult || !c.Add(iCheckerResult, DrlType::Suspendible))
-				{
-					if (SuspendTrigger::DidSuspend())
-						return AVS_SuspendedOrFailed;
-					assert(iCheckerDC->WasFailed(FR_Data) || !iCheckerResult || iCheckerResult->WasFailed(FR_Data));
-					if (iCheckerDC->WasFailed(FR_Data))
-						Fail(iCheckerDC.get_ptr());
-					else if (iCheckerResult && iCheckerResult->WasFailed(FR_Data))
-						Fail(iCheckerResult.get());
-					else
-						Fail("Unknown error in IntegrityCheck: ", FR_MetaInfo);
-					assert(WasFailed());
-					return AVS_SuspendedOrFailed;
-				}
-
-				if (IntegrityCheckFailure(this, iCheckerResult, [iCheckerPtr]() { return iCheckerPtr->GetExpr(); }))
-					return AVS_Ready;
 			}
 			catch (...)
 			{
 				auto err = catchException(false);
-				DoFail(err, FR_Validate);
+				DoFail(err, FailType::Validate);
 				return AVS_Ready;
 			}
 		}
-		SetProgress(PS_Validated);
+		SetProgress(ProgressState::Validated);
 	}
 
-	if (ps >= PS_Committed && m_State.GetProgress() < PS_Committed)
+	if (ps >= ProgressState::Committed && m_State.GetProgress() < ProgressState::Committed)
 	{
 		//	TODO, Uitzoeken wanneer Commit overbodig is (zoals indien in vorige sessie reeds gedaan).
 		//	Voorlopig antwoord: wanneer er geen changes zijn, is er geen cause voor invalidatatie en mag DoUpdate helemaal niet aangeroepen worden.
@@ -2816,9 +2822,9 @@ ActorVisitState TreeItem::DoUpdate(ProgressState ps)
 		if (SuspendTrigger::DidSuspend())
 			return AVS_SuspendedOrFailed;
 
-		assert(result || WasFailed(FR_Committed));
+		assert(result || WasFailed(FailType::Committed));
 
-		SetProgress(PS_Committed);
+		SetProgress(ProgressState::Committed);
 
 		const TreeItem* uti = _GetHistoricUltimateItem(this);
 		actor_section_lock_map::ScopedLock specificSectionLock(MG_SOURCE_INFO_CODE("TreeItem::CommitDataChanges") sg_ActorLockMap, uti);
@@ -2826,7 +2832,7 @@ ActorVisitState TreeItem::DoUpdate(ProgressState ps)
 
 		if (!result) 
 		{
-			assert(WasFailed(FR_Committed));
+			assert(WasFailed(FailType::Committed));
 			return AVS_SuspendedOrFailed;
 		}
 	}
@@ -2845,10 +2851,12 @@ void TreeItem::SetProgress(ProgressState ps) const
 	ProgressState oldProgress = m_State.GetProgress();
 	Actor::SetProgress(ps); // changes m_State to US_Valid
 
-	if (ps > PS_MetaInfo && oldProgress < ps)
+	assert(ps >= oldProgress);
+
+	if (ps > ProgressState::MetaInfo && oldProgress < ps)
 	{
-		dms_assert(ps >= PS_Validated);
-		NotifyStateChange(this, ps == PS_Validated ? NC2_Validated : NC2_Committed);
+		dms_assert(ps >= ProgressState::Validated);
+		NotifyStateChange(this, ps == ProgressState::Validated ? NC2_Validated : NC2_Committed);
 	}
 }
 
@@ -2949,9 +2957,9 @@ ActorVisitState TreeItem::VisitSuppliers(SupplierVisitFlag svf, const ActorVisit
 {
 	assert(!SuspendTrigger::DidSuspend()); // precondition
 
-	if (GetTreeParent() && GetTreeParent()->m_State.GetProgress() < PS_MetaInfo && !GetTreeParent()->WasFailed(FR_MetaInfo))
+	if (GetTreeParent() && GetTreeParent()->m_State.GetProgress() < ProgressState::MetaInfo && !GetTreeParent()->WasFailed(FailType::MetaInfo))
 		GetTreeParent()->UpdateMetaInfo();
-	dms_assert(!GetTreeParent() || GetTreeParent()->m_State.GetProgress() >= PS_MetaInfo || GetTreeParent()->WasFailed(FR_MetaInfo)); // precondition
+	dms_assert(!GetTreeParent() || GetTreeParent()->m_State.GetProgress() >= ProgressState::MetaInfo || GetTreeParent()->WasFailed(FailType::MetaInfo)); // precondition
 
 	// =============== Parent
 	if (Test(svf, SupplierVisitFlag::Parent) && GetTreeParent())
@@ -3075,7 +3083,7 @@ ActorVisitState TreeItem::VisitSuppliers(SupplierVisitFlag svf, const ActorVisit
 			return AVS_SuspendedOrFailed;
 
 		auto dc = MakeResult(ic);
-		if (dc->WasFailed(FR_MetaInfo))
+		if (dc->WasFailed(FailType::MetaInfo))
 		{
 			Fail(dc);
 //			return AVS_SuspendedOrFailed;
@@ -3154,7 +3162,7 @@ void TreeItem::DoInvalidate() const
 	NotifyStateChange(this, NC2_Invalidated);
 
 
-	dms_assert(DoesHaveSupplInterest() || !GetInterestCount() || IsPassor() || WasFailed(FR_Data));
+	dms_assert(DoesHaveSupplInterest() || !GetInterestCount() || IsPassor() || WasFailed(FailType::Data));
 }
 
 void TreeItem::SetDataChanged()
@@ -3168,7 +3176,7 @@ void TreeItem::SetDataChanged()
 #if defined(MG_DEBUG_TS_SOURCE)
 	UpdateMarker::ChangeSourceLock::CheckActivation(m_LastChangeTS, "SetDataChanged");
 #endif
-	SetProgressAt(PS_MetaInfo, UpdateMarker::GetActiveTS(MG_DEBUG_TS_SOURCE_CODE(mySSPrintF("SetDataChanged(%s)", GetFullName().c_str()).c_str()) ) );  // new data not validated nor committed
+	SetProgressAt(ProgressState::MetaInfo, UpdateMarker::GetActiveTS(MG_DEBUG_TS_SOURCE_CODE(mySSPrintF("SetDataChanged(%s)", GetFullName().c_str()).c_str()) ) );  // new data not validated nor committed
 }
 
 garbage_can TreeItem::DropValue()
@@ -3183,10 +3191,10 @@ garbage_can TreeItem::DropValue()
 TimeStamp TreeItem::DetermineLastSupplierChange(ErrMsgPtr& failReason, FailType& ft) const // noexcept
 {
 	assert(IsMetaThread());
-	if (GetTreeParent() && GetTreeParent()->m_State.GetProgress() < PS_MetaInfo && !GetTreeParent()->WasFailed(FR_MetaInfo))
+	if (GetTreeParent() && GetTreeParent()->m_State.GetProgress() < ProgressState::MetaInfo && !GetTreeParent()->WasFailed(FailType::MetaInfo))
 		GetTreeParent()->UpdateMetaInfo();
 	// postcondition of UpdateMetaInfo
-	assert(!GetTreeParent() || GetTreeParent()->m_State.GetProgress() >= PS_MetaInfo || GetTreeParent()->WasFailed(FR_MetaInfo)); 
+	assert(!GetTreeParent() || GetTreeParent()->m_State.GetProgress() >= ProgressState::MetaInfo || GetTreeParent()->WasFailed(FailType::MetaInfo)); 
 
 	TimeStamp lastChangeTS = 0; // DataStoreManager::GetCachedConfigSourceTS(this);
 	if (!lastChangeTS
@@ -3198,7 +3206,7 @@ TimeStamp TreeItem::DetermineLastSupplierChange(ErrMsgPtr& failReason, FailType&
 
 	// Track changes in authentic sources
 //REMOVE	// make sure not to pass changes because item was already last
-	if ((ft == FR_None) && IsDataReadable() && !WasFailed(FR_Determine))
+	if ((ft == FailType::None) && IsDataReadable() && !WasFailed(FailType::Determine))
 	{
 		try {
 			dms_assert(!IsCacheItem());
@@ -3219,7 +3227,7 @@ TimeStamp TreeItem::DetermineLastSupplierChange(ErrMsgPtr& failReason, FailType&
 		catch (...)
 		{
 			failReason = catchException(false);
-			ft         = FR_Determine;
+			ft         = FailType::Determine;
 		}
 	}
 exit:
@@ -3276,7 +3284,7 @@ bool TreeItem::ReadItem(StorageReadHandle&& srh) // TODO: Make this a method of 
 
 	auto keepInterest = GetInterestPtrOrCancel();
 
-	if (WasFailed(FR_Data))
+	if (WasFailed(FailType::Data))
 		return false;
 	if (IsDataReady(this))
 		return true;
@@ -3309,10 +3317,10 @@ bool TreeItem::ReadItem(StorageReadHandle&& srh) // TODO: Make this a method of 
 	{
  		dms_assert(!HasCurrConfigData());
 
-		if (!WasFailed(FR_Data)) {
+		if (!WasFailed(FailType::Data)) {
 			auto err = catchException(true);
 			err->TellExtraF("while reading data from %s", DMS_TreeItem_GetAssociatedFilename(this));
-			DoFail(err, FR_Data);
+			DoFail(err, FailType::Data);
 		}
 		DropValue();
 	}
@@ -3364,7 +3372,7 @@ bool TreeItem::PrepareDataUsage(DrlType drlFlags) const
 //	doesn't suspend when drlType == DrlType::Certain, 
 //	but can still fail, thus IsFailed() == true and return false
 {
-	dms_assert(m_State.GetProgress() >= PS_MetaInfo || IsPassor() || WasFailed(FR_Data));
+	dms_assert(m_State.GetProgress() >= ProgressState::MetaInfo || IsPassor() || WasFailed(FailType::Data));
 	if (UpdateMarker::PrepareDataInvalidatorLock::IsLocked())
 		drlFlags = DrlType(UInt32(drlFlags) & ~UInt32(DrlType::UpdateMask));
 
@@ -3389,7 +3397,7 @@ enum class how_to_proceed { nothing, data_ready, failed, suspended, suspended_or
 
 static how_to_proceed PrepareDataCalc(SharedPtr<const TreeItem> self, const TreeItem* refItem, DrlType drlFlags)
 {
-	dms_assert(!SuspendTrigger::DidSuspend() && !self->WasFailed(FR_Determine)); // Postcondition when CreateResultingTreeItem returns a result
+	dms_assert(!SuspendTrigger::DidSuspend() && !self->WasFailed(FailType::Determine)); // Postcondition when CreateResultingTreeItem returns a result
 
 //				FutureData dc = GetDC(GetCalculator());
 //	self->UpdateDC();
@@ -3408,13 +3416,13 @@ static how_to_proceed PrepareDataCalc(SharedPtr<const TreeItem> self, const Tree
 		if (SuspendTrigger::DidSuspend())
 			return how_to_proceed::suspended;
 
-		dms_assert(dc2 || SuspendTrigger::DidSuspend() || dc->WasFailed(FR_Data));
+		dms_assert(dc2 || SuspendTrigger::DidSuspend() || dc->WasFailed(FailType::Data));
 		if (dc->WasFailed()) //  && !WasFailed())
 		{
 			self->StopSupplInterest();
 			self->Fail(dc.get_ptr());
 		}
-		if (self->WasFailed(FR_Data))
+		if (self->WasFailed(FailType::Data))
 			return how_to_proceed::failed;
 		if (!dc->GetOld())
 		{
@@ -3451,7 +3459,7 @@ static how_to_proceed PrepareDataCalc(SharedPtr<const TreeItem> self, const Tree
 	dms_assert(!SuspendTrigger::DidSuspend()); // PRECONDITION THAT each suspend has been acted upon or we're on Certain mode, which hides MustSuspend
 	if (CheckCalculatingOrReady(refItem))
 	{
-		dms_assert(!self->WasFailed(FR_Data));
+		dms_assert(!self->WasFailed(FailType::Data));
 		return how_to_proceed::data_ready;
 	}
 	dms_assert(!CheckCalculatingOrReady(refItem)); // PrepareDataUsage loads from cache if possible
@@ -3481,7 +3489,7 @@ static how_to_proceed PrepareDataRead(SharedPtr<const TreeItem> self, const Tree
 			auto t = dynamic_cast<const TreeItem*>(a);
 			if (t && !t->PrepareDataUsage(drlFlags))
 			{
-				if (t->WasFailed(FR_Data))
+				if (t->WasFailed(FailType::Data))
 					self->Fail(t);
 				return false;
 			}
@@ -3495,7 +3503,7 @@ static how_to_proceed PrepareDataRead(SharedPtr<const TreeItem> self, const Tree
 			return how_to_proceed::suspended;
 		else
 		{
-			assert(self->WasFailed(FR_Data));
+			assert(self->WasFailed(FailType::Data));
 			return how_to_proceed::failed;
 		}
 	}
@@ -3507,7 +3515,7 @@ static how_to_proceed PrepareDataRead(SharedPtr<const TreeItem> self, const Tree
 		const AbstrUnit* adu = AsDataItem(refItem)->GetAbstrDomainUnit();
 		if (!adu->PrepareDataUsageImpl(drlFlags)) // make sure that the cardinality can be calculated
 		{
-			if (!adu->WasFailed(FR_Data))
+			if (!adu->WasFailed(FailType::Data))
 				return how_to_proceed::suspended;
 			self->Fail(adu);
 			return how_to_proceed::failed;
@@ -3585,7 +3593,7 @@ static how_to_proceed PrepareDataRead(SharedPtr<const TreeItem> self, const Tree
 					self->m_ReadAssets.emplace<std::shared_ptr<OcPtr>>(ocPtrPtr);
 
 			readInfoPtr.reset();
-			assert(CheckCalculatingOrReady(refItem) || refItem->WasFailed(FR_Data) || SuspendTrigger::DidSuspend());
+			assert(CheckCalculatingOrReady(refItem) || refItem->WasFailed(FailType::Data) || SuspendTrigger::DidSuspend());
 			assert(self->GetInterestCount());
 		}
 
@@ -3627,7 +3635,7 @@ bool TreeItem::PrepareDataUsageImpl(DrlType drlFlags) const
 
 	UpdateMarker::ChangeSourceLock changeStamp(this, "PrepareDataUsage");
 
-	assert(IsPassor() || HasConfigData() || (m_State.GetProgress()>=PS_MetaInfo) || WasFailed(FR_MetaInfo)); // reset by DetermineState when supplier was invalidated
+	assert(IsPassor() || HasConfigData() || (m_State.GetProgress()>=ProgressState::MetaInfo) || WasFailed(FailType::MetaInfo)); // reset by DetermineState when supplier was invalidated
 
 	const TreeItem* refItem = nullptr;
 
@@ -3638,7 +3646,7 @@ bool TreeItem::PrepareDataUsageImpl(DrlType drlFlags) const
 			goto suspended_or_failed;
 
 		assert(!SuspendTrigger::DidSuspend());
-		assert(!WasFailed(FR_Data));
+		assert(!WasFailed(FailType::Data));
 		assert(!IsDataItem(this) || HasConfigData() || CheckCalculatingOrReady(GetCurrUltimateItem()));
 		goto data_ready;
 	}
@@ -3647,7 +3655,7 @@ bool TreeItem::PrepareDataUsageImpl(DrlType drlFlags) const
 		goto failed_norefitem;
 	refItem = GetCurrUltimateItem();
 
-	assert(refItem->IsPassor() || HasConfigData() || refItem->m_State.GetProgress() >= PS_MetaInfo || refItem->WasFailed(FR_MetaInfo));
+	assert(refItem->IsPassor() || HasConfigData() || refItem->m_State.GetProgress() >= ProgressState::MetaInfo || refItem->WasFailed(FailType::MetaInfo));
 	assert(GetInterestCount() || !IsDataItem(this)); // interest consistency
 
 	if (CheckCalculatingOrReady(refItem)) // quick route first
@@ -3697,7 +3705,7 @@ bool TreeItem::PrepareDataUsageImpl(DrlType drlFlags) const
 						auto fn = DelimitedConcat(fsn, rn);
 						if (!IsFileOrDirAccessible(fn))
 						{
-							DoFail(std::make_shared<ErrMsg>("Data not found in .MMD storage folder"), FR_Data);
+							DoFail(std::make_shared<ErrMsg>("Data not found in .MMD storage folder"), FailType::Data);
 							goto failed;
 						}
 						else
@@ -3714,7 +3722,7 @@ bool TreeItem::PrepareDataUsageImpl(DrlType drlFlags) const
 							auto fh = OpenFileData(AsDataItem(this), avu ? avu->GetTiledRangeData() : nullptr, fn);
 							if (!fh)
 							{
-								DoFail(std::make_shared<ErrMsg>("Cannot open data in .MMD storage folder"), FR_Data);
+								DoFail(std::make_shared<ErrMsg>("Cannot open data in .MMD storage folder"), FailType::Data);
 								goto failed;
 							}
 							AsDataItem(GetCurrUltimateItem())->m_DataObject.reset(fh.release()); // , !adi->IsPersistent(), true); // calls OpenFileData
@@ -3736,7 +3744,7 @@ bool TreeItem::PrepareDataUsageImpl(DrlType drlFlags) const
 			//		Now try to actually get valid data
 			if (refItem != this && refItem->IsFailed())
 				Fail(refItem);
-			if (WasFailed(FR_Data))
+			if (WasFailed(FailType::Data))
 				goto failed;
 
 			if ((drlType != DrlType::UpdateNever) && HasCalculator())
@@ -3769,7 +3777,7 @@ bool TreeItem::PrepareDataUsageImpl(DrlType drlFlags) const
 
 			//* REMOVE, DEBUG, SOLVES: for_each(xx[SubItem(Combine(...), 'Nr_1')] )
 			if (SuspendTrigger::DidSuspend()) goto suspended;
-			if (WasFailed(FR_Data))           goto failed;
+			if (WasFailed(FailType::Data))           goto failed;
 
 			if (refItem->IsCacheItem() || HasCalculator())
 			{
@@ -3809,17 +3817,17 @@ bool TreeItem::PrepareDataUsageImpl(DrlType drlFlags) const
 	{
 		// REMOVE, TODO: Actor::Fail(const DmsException&) toevoegen in Actor.h en hier gebruiken.
 		auto err = catchException(true);
-		DoFail(err, FR_Data); 
+		DoFail(err, FailType::Data); 
 		goto failed;
 	}
 
 data_ready:
 	assert(!SuspendTrigger::DidSuspend());
-	assert(!IsDataItem(this) || HasConfigData() || CheckCalculatingOrReady(refItem) || WasFailed(FR_Data));
+	assert(!IsDataItem(this) || HasConfigData() || CheckCalculatingOrReady(refItem) || WasFailed(FailType::Data));
 	return SuspendTrigger::BlockerBase::IsBlocked() 
 		|| IsPassor() 
 		|| (m_State.GetTransState() >= actor_flag_set::AF_Committing) 
-		|| SuspendibleUpdate(PS_Committed) 
+		|| SuspendibleUpdate(ProgressState::Committed) 
 		|| !SuspendTrigger::DidSuspend();
 
 suspended_or_failed:
@@ -3846,7 +3854,7 @@ suspended:
 	return false;
 
 nodata:
-	Fail("No calculation rule or storage manager was specified and no specific primary data was provided", FR_Data);
+	Fail("No calculation rule or storage manager was specified and no specific primary data was provided", FailType::Data);
 	goto failed;
 }
 
@@ -3950,12 +3958,12 @@ bool FinalizeFailure(const TreeItem* self, FailReasonFunc&& func)
 	}
 	else
 	{
-		if (self->GetCurrRangeItem()->WasFailed(FR_Committed))
+		if (self->GetCurrRangeItem()->WasFailed(FailType::Committed))
 			self->Fail(self->GetCurrRangeItem());
 
-		if (!self->WasFailed(FR_Committed))
-			self->Fail(func(), FR_Committed);
-		assert(SuspendTrigger::DidSuspend() || self->WasFailed(FR_Committed));
+		if (!self->WasFailed(FailType::Committed))
+			self->Fail(func(), FailType::Committed);
+		assert(SuspendTrigger::DidSuspend() || self->WasFailed(FailType::Committed));
 	}
 	return false; // suspended or failed, try again later
 }
@@ -3964,8 +3972,8 @@ bool TreeItem::CommitDataChanges() const
 {
 	assert(IsMetaThread());
 
-	assert(m_State.GetProgress() >= PS_MetaInfo);
-	if (m_State.GetProgress() >= PS_Committed)
+	assert(m_State.GetProgress() >= ProgressState::MetaInfo);
+	if (m_State.GetProgress() >= ProgressState::Committed)
 		return true;
 	if (!IsStorable())
 		return true;
@@ -3983,7 +3991,7 @@ bool TreeItem::CommitDataChanges() const
 	if (!hasCalculator)
 		return true;
 
-	if (GetCurrRangeItem()->WasFailed(FR_Committed))
+	if (GetCurrRangeItem()->WasFailed(FailType::Committed))
 	{
 		Fail(GetCurrRangeItem());
 		return false;
@@ -3998,11 +4006,11 @@ bool TreeItem::CommitDataChanges() const
 	auto sm = storageHolder->GetStorageManager();
 	assert(sm); // guaranteed by IsStorable();
 
-	if (!IsCalculatingOrReady(GetCurrRangeItem()) && !PrepareDataUsage(DrlType::Suspendible) || GetCurrRangeItem()->WasFailed(FR_Committed))
+	if (!IsCalculatingOrReady(GetCurrRangeItem()) && !PrepareDataUsage(DrlType::Suspendible) || GetCurrRangeItem()->WasFailed(FailType::Committed))
 		// can have failed just because PrepareDataUsage suspended or failed; 
 		return FinalizeFailure(this, [this]() { return mySSPrintF("Unable to start calculating data when trying to store it in %s", DMS_TreeItem_GetAssociatedFilename(this)); });
 
-	if (!WaitForReadyOrSuspendTrigger(GetCurrRangeItem()) || GetCurrRangeItem()->WasFailed(FR_Committed))
+	if (!WaitForReadyOrSuspendTrigger(GetCurrRangeItem()) || GetCurrRangeItem()->WasFailed(FailType::Committed))
 		return FinalizeFailure(this, [this]() { return mySSPrintF("Unable to complete calculating data when trying to store it in %s", DMS_TreeItem_GetAssociatedFilename(this)); });
 
 	assert(!SuspendTrigger::DidSuspend());
@@ -4023,10 +4031,10 @@ bool TreeItem::CommitDataChanges() const
 		return true;
 
 	if (!DoWriteItem(nmsm->GetMetaInfo(storageHolder, const_cast<TreeItem*>(this), StorageAction::write))
-		|| GetCurrRangeItem()->WasFailed(FR_Committed))
+		|| GetCurrRangeItem()->WasFailed(FailType::Committed))
 		return FinalizeFailure(this, [this]() { return mySSPrintF("Unable to write data to storage %s", DMS_TreeItem_GetAssociatedFilename(this)); });
 
-	return !WasFailed(FR_Committed);
+	return !WasFailed(FailType::Committed);
 }
 
 static bool PartOfInterestImpl(const TreeItem* self)

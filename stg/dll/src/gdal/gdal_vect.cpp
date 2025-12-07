@@ -2027,7 +2027,7 @@ void GdalVectSM::CompareConfiguredGeometryWithGdal(AbstrDataItem* geometry, OGRL
 		, AsString(GetValueCompositionID(configured_vc))
 		, OGRGeometryTypeToName(layer_geometry_type)
 	);
-	geometry->Fail(fail_reason, FR_MetaInfo);
+	geometry->Fail(fail_reason, FailType::MetaInfo);
 }
 
 auto GdalVectSM::GetValueComponsitionFromFirstGdalFeature(OGRLayer* layer) const -> ValueComposition {

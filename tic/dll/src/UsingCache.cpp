@@ -357,7 +357,7 @@ void UsingCache::UpdateCache() const
 
 	const TreeItem* refItem = m_Context;
 	while (true) {
-		assert(refItem->m_State.GetProgress() >= PS_MetaInfo || refItem->m_State.GetFailType());
+		assert(refItem->m_State.GetProgress() >= ProgressState::MetaInfo || (refItem->m_State.GetFailType() != FailType::None));
 
 		auto nrSubItems = m_Context->CountNrSubItems();
 		tmpSubItems.clear();

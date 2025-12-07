@@ -80,8 +80,8 @@ redo_b:
 		}
 
 	// Callers guarantee that stuff came from GetWorldCrdUnit that went all the way to the last object
-	assert(a->m_State.GetProgress() >= PS_MetaInfo);
-	assert(b->m_State.GetProgress() >= PS_MetaInfo);
+	assert(a->m_State.GetProgress() >= ProgressState::MetaInfo);
+	assert(b->m_State.GetProgress() >= ProgressState::MetaInfo);
 
 	if (a == b)
 		return true;
@@ -250,7 +250,7 @@ public:
 #if defined(MG_DEBUG)
 				auto* ultimateCU = AsUnit(paletteDomain->GetCurrRangeItem());
 				dbg_assert(ultimateCU->CheckMetaInfoReadyOrPassor());
-				dbg_assert(CheckCalculatingOrReady(ultimateCU) || ultimateCU->WasFailed(FR_Data));
+				dbg_assert(CheckCalculatingOrReady(ultimateCU) || ultimateCU->WasFailed(FailType::Data));
 #endif
 				std::weak_ptr<GraphicLayer> wResLayer = m_Result;
 				std::weak_ptr<LayerSet> wLayerSet = ls->weak_from_base<LayerSet>();

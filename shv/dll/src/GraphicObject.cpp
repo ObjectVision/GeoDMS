@@ -74,7 +74,7 @@ void GraphicObject::SetAllUpdated()
 { 
 #if defined(MG_DEBUG)
 	dms_assert(AllVisible());
-	dms_assert(IsUpdated() || WasFailed(FR_Data));
+	dms_assert(IsUpdated() || WasFailed(FailType::Data));
 	SizeT n = NrEntries();
 	while (n)
 	{
@@ -96,7 +96,7 @@ void GraphicObject::CheckState() const
 
 	assert(m_State.Get(GOF_AllVisible) == allVisible);
 	assert(allVisible || !IsDrawn());
-	assert( m_State.Get(GOF_IsUpdated) || WasFailed(FR_Data) || !m_State.Get(GOF_AllUpdated));
+	assert( m_State.Get(GOF_IsUpdated) || WasFailed(FailType::Data) || !m_State.Get(GOF_AllUpdated));
 
 	if (!IsDrawn())
 		return;
@@ -347,7 +347,7 @@ void GraphicObject::UpdateView() const
 	dbg_assert(!SuspendTrigger::DidSuspend());
 	GetLastChangeTS();
 
-	if (IsUpdated()) // || WasFailed(FR_Data))
+	if (IsUpdated()) // || WasFailed(FailType::Data))
 		return;
 
 	auto dv = GetDataView().lock();
@@ -360,7 +360,7 @@ void GraphicObject::UpdateView() const
 	catch(...)
 	{
 		auto err = catchException(true);
-		DoFail(err, FR_Data);
+		DoFail(err, FailType::Data);
 	}
 }
 

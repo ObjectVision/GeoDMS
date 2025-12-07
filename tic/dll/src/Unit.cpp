@@ -692,9 +692,9 @@ auto RangedUnit<V>::GetRange() const -> range_t
 	dms_assert(refItem == GetCurrRangeItem());
 	if (!WaitReady(refItem)) // may wait for the completion of ItemWriteLock from a generating operation that was started by PrepareDataUsage.
 	{
-		if (WasFailed(FR_Data))
+		if (WasFailed(FailType::Data))
 			ThrowFail(refItem);
-		ThrowFail("Cannot derive value range", FR_Data);
+		ThrowFail("Cannot derive value range", FailType::Data);
 	}
 
 	dms_assert(refItem->DataInMem());
@@ -1060,7 +1060,7 @@ template <typename V>
 auto RangedUnit<V>::GetSegmInfo() const -> const range_data_t *
 {
 	this->PrepareDataUsage(DrlType::Certain);
-	if (this->IsFailed(FR_Data))
+	if (this->IsFailed(FailType::Data))
 		return nullptr;
 
 	return this->GetCurrSegmInfo();
@@ -1073,11 +1073,11 @@ auto RangedUnit<V>::GetCurrSegmInfo() const -> const range_data_t*
 
 	const RangedUnit<V>* ultimateCU = debug_cast<const RangedUnit<V>*>(this->GetCurrRangeItem());
 	dbg_assert(ultimateCU->CheckMetaInfoReadyOrPassor());
-	dbg_assert(CheckCalculatingOrReady(ultimateCU) || ultimateCU->WasFailed(FR_Data));
+	dbg_assert(CheckCalculatingOrReady(ultimateCU) || ultimateCU->WasFailed(FailType::Data));
 
 //	dms_assert(this->PartOfInterestOrKeep() || ultimateCU->DataInMem());
 	WaitReady(ultimateCU);
-	if (ultimateCU->WasFailed(FR_Data))
+	if (ultimateCU->WasFailed(FailType::Data))
 		ultimateCU->ThrowFail();
 	dbg_assert(CheckDataReady(ultimateCU)); // calculation must have been finished
 	return ultimateCU->m_RangeDataPtr.get_ptr();

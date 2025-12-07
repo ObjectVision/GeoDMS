@@ -388,7 +388,7 @@ public:
 					resPartitionRel
 				) 
 			);
-			if (partitioningDI->WasFailed(FR_MetaInfo))
+			if (partitioningDI->WasFailed(FailType::MetaInfo))
 				partitioningDI->ThrowFail();
 
 			auto partitioningDC = partitioningDI->GetCheckedDC(); // requires Meta info.

@@ -330,7 +330,7 @@ void PaletteControl::CreateColumnsImpl()
 	if (!m_LabelTextAttr && m_PaletteDomain)
 	{
 		m_LabelTextAttr = m_PaletteDomain->GetLabelAttr();
-		if (!m_LabelTextAttr && !m_PaletteDomain->IsFailed(FR_Data) && m_PaletteDomain->GetValueType()->GetSize() < 4)
+		if (!m_LabelTextAttr && !m_PaletteDomain->IsFailed(FailType::Data) && m_PaletteDomain->GetValueType()->GetSize() < 4)
 			m_LabelTextAttr = CreateSystemLabelPalette(dv.get(), m_PaletteDomain, AN_LabelText, true);
 	}
 	if (m_LabelTextAttr)

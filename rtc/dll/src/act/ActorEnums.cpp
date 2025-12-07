@@ -43,16 +43,16 @@ void flag_set::Toggle (UInt32 sf)
 	m_DW ^= sf;
 }
 
-RTC_CALL CharPtr FailStateName(UInt32 fs)
+RTC_CALL CharPtr FailStateName(FailType fs)
 {
 	switch (fs)
 	{
-	case FR_None: return "None";
-	case FR_Determine: return "DetermineState Failed";
-	case FR_MetaInfo: return "MetaInfo Failed";
-	case FR_Data: return "Primary Data Derivation Failed";
-	case FR_Validate: return "Validation (Integrity Check) Failed";
-	case FR_Committed: return "Committing Data (writing to storage) Failed";
+	case FailType::None: return "None";
+	case FailType::Determine: return "DetermineState Failed";
+	case FailType::MetaInfo: return "MetaInfo Failed";
+	case FailType::Data: return "Primary Data Derivation Failed";
+	case FailType::Validate: return "Validation (Integrity Check) Failed";
+	case FailType::Committed: return "Committing Data (writing to storage) Failed";
 	}
 	return "unrecognized";
 }

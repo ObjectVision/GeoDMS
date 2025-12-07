@@ -861,7 +861,7 @@ GraphVisitState DataView::UpdateView()
 //	if (SuspendTrigger::MustSuspend())
 //		return GVS_Break;
 
-	SuspendibleUpdate(PS_Committed);
+	SuspendibleUpdate(ProgressState::Committed);
 	if (SuspendTrigger::DidSuspend())
 		return GVS_Break;
 

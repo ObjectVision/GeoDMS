@@ -904,7 +904,7 @@ TextInfo DataItemColumn::GetText(SizeT recNo, SizeT maxLen, GuiReadLockPair& loc
 		GuiReadLock dummy;
 		return theme->GetValueGetter()->GetTextInfo(recNo, dummy);
 	}
-	if (activeTextAttr->WasFailed(FR_Data))
+	if (activeTextAttr->WasFailed(FailType::Data))
 		return TextInfo{ activeTextAttr->GetFailReason()->Why(), true };
 
 	auto  refObj = activeTextAttr->GetRefObj();
@@ -929,7 +929,7 @@ TextInfo DataItemColumn::GetText(SizeT recNo, SizeT maxLen, GuiReadLockPair& loc
 SharedStr DataItemColumn::GetOrgText(SizeT recNo, GuiReadLock& lock) const
 {
 	auto theme = GetTheme(AN_LabelText);
-	if (!theme || theme->IsFailed(FR_MetaInfo))
+	if (!theme || theme->IsFailed(FailType::MetaInfo))
 		return SharedStr();
 
 	dms_assert(GetActiveTextAttr() && GetActiveTextAttr()->GetInterestCount() > 0);

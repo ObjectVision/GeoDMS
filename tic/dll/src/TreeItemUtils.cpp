@@ -107,9 +107,9 @@ NotificationCode NotificationCodeFromProblem(FailType ft)
 {
 	switch (ft)
 	{
-	case FR_Data:  return NC2_DataFailed;
-	case FR_Validate:  return NC2_CheckFailed;
-	case FR_Committed: return NC2_CommitFailed;
+	case FailType::Data:      return NC2_DataFailed;
+	case FailType::Validate:  return NC2_CheckFailed;
+	case FailType::Committed: return NC2_CommitFailed;
 	}
 	return NC2_MetaFailed;
 }

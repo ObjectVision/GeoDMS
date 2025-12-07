@@ -321,7 +321,7 @@ void OGRCheck(OGRSpatialReference* ref, OGRErr result, CharPtr format, const Abs
 		errMsgTxt += "\n";
 		errMsgTxt += projErrStr;
 	}
-	au->Fail(errMsgTxt, FR_Data);
+	au->Fail(errMsgTxt, FailType::Data);
 	au->ThrowFail();
 }
 

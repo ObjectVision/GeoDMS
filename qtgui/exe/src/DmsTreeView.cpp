@@ -54,7 +54,7 @@ namespace {
 		SuspendTrigger::Resume();
 		ObjectMsgGenerator thisMsgGenerator(ti, "CountSubItems");
 		Waiter showWaitingStatus;
-		if (!isWaiting && !p->Was(PS_MetaInfo) && !p->WasFailed())
+		if (!isWaiting && !p->Was(ProgressState::MetaInfo) && !p->WasFailed())
 			showWaitingStatus.start(&thisMsgGenerator);
 
 		auto si = isWaiting ? p->_GetFirstSubItem() : p->GetFirstSubItem(); // update metainfo
@@ -250,10 +250,10 @@ static color_option getColorOption(const TreeItem* ti) {
 	if (isInTemplate)
 		return color_option::tv_template;
 
-	if (ti->Was(PS_MetaInfo)) {
+	if (ti->Was(ProgressState::MetaInfo)) {
 		if (IsDataCurrReady(ti->GetCurrRangeItem()))
 			return color_option::tv_valid;
-		if (ti->m_State.GetProgress() >= PS_Validated)
+		if (ti->m_State.GetProgress() >= ProgressState::Validated)
 			return color_option::tv_exogenic;
 	}
 
@@ -285,7 +285,7 @@ QVariant DmsModel::data(const QModelIndex& index, int role) const {
 			return QVariant();
 
 		SuspendTrigger::Resume();
-		if (!ti->Was(PS_MetaInfo) && !ti->WasFailed(FR_MetaInfo)) {
+		if (!ti->Was(ProgressState::MetaInfo) && !ti->WasFailed(FailType::MetaInfo)) {
 			ObjectMsgGenerator thisMsgGenerator(ti, "UpdateMetaInfo");
 			Waiter showWaitingStatus(&thisMsgGenerator);
 
@@ -293,7 +293,7 @@ QVariant DmsModel::data(const QModelIndex& index, int role) const {
 				ti->UpdateMetaInfo();
 			}
 			catch (...) {
-				ti->CatchFail(FR_MetaInfo);
+				ti->CatchFail(FailType::MetaInfo);
 			}
 		}
 		switch (role) {
@@ -349,7 +349,7 @@ bool DmsModel::hasChildren(const QModelIndex& parent) const {
 		if (!ti)
 			return false;
 
-		if (ti->Was(PS_MetaInfo))
+		if (ti->Was(ProgressState::MetaInfo))
 			return ti->_GetFirstSubItem() != nullptr;
 
 		ObjectMsgGenerator context(ti, "HasSubItems");

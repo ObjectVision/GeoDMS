@@ -75,7 +75,7 @@ public:
 						}
 						catch (const DmsException& x)
 						{
-							res->Fail(x.GetAsText(), FR_Data);
+							res->Fail(x.GetAsText(), FailType::Data);
 						}
 					}
 				);

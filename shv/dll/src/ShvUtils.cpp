@@ -859,7 +859,7 @@ SharedDataItemInterestPtr CreateSystemColorPalette(DataView* dv, const AbstrUnit
 
 SharedDataItemInterestPtr CreateSystemLabelPalette(DataView* dv, const AbstrUnit* paletteDomain, AspectNr aNr, bool always)
 {
-	dms_assert(!paletteDomain->WasFailed(FR_Data));
+	dms_assert(!paletteDomain->WasFailed(FailType::Data));
 	TreeItem* paletteContainer = CreatePaletteContainer(dv, paletteDomain);
 	SharedDataItemInterestPtr result = AsDynamicDataItem( paletteContainer->GetSubTreeItemByID(GetAspectNameID(aNr)) );
 

@@ -171,7 +171,7 @@ TreeItem* AppendTreeFromDictionary(CharPtr sourceFileName, TreeItem* context /*c
 	}
 	catch (...)
 	{
-		context->CatchFail(FR_MetaInfo);
+		context->CatchFail(FailType::MetaInfo);
 	}
 	return context;
 }

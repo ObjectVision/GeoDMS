@@ -241,7 +241,7 @@ struct SelectMetaOperator : public BinaryOperator
 			conditionKeyExpr = conditionDC->GetLispRef();
 
 			auto conditionItem = conditionDC->MakeResult();
-			if (conditionDC->WasFailed(FR_MetaInfo))
+			if (conditionDC->WasFailed(FailType::MetaInfo))
 				conditionDC->ThrowFail();
 			MG_CHECK(conditionItem);
 

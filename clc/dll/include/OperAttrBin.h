@@ -129,7 +129,7 @@ public:
 			, [arg1, arg2, af](tile_id t) { return prepare_data{ arg1->GetFutureTile(af & AF1_ISPARAM ? 0 : t), arg2->GetFutureTile(af & AF2_ISPARAM ? 0 : t) }; }
 			, [resultAdi, this, af MG_DEBUG_ALLOCATOR_SRC_PARAM](sequence_traits<ResultValueType>::seq_t resData, prepare_data futureData)
 			{
-				if (resultAdi->WasFailed(FR_Data))
+				if (resultAdi->WasFailed(FailType::Data))
 					resultAdi->ThrowFail();
 				try {
 					auto futureTileA = throttled_async([&futureData] { return futureData.first->GetTile();  });
@@ -139,7 +139,7 @@ public:
 				}
 				catch (...)
 				{
-					resultAdi->CatchFail(FailType::FR_Data);
+					resultAdi->CatchFail(FailType::Data);
 					throw;
 				}
 			}

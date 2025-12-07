@@ -268,7 +268,7 @@ void CreateAllColumnInfo(
 	catch (...)
 	{
 		auto err = catchException(true);
-		tiRecordSet->DoFail(err, FR_MetaInfo);
+		tiRecordSet->DoFail(err, FailType::MetaInfo);
 	}
 }
 

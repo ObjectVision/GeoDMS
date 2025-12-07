@@ -120,7 +120,7 @@ struct Actor : PersistentSharedObj
 	// - SetProgress: record that progress reached 'ps' at the change source timestamp.
 	RTC_CALL virtual void SetProgress(ProgressState ps) const; // set lastChangeTS to ChangeSource TimeStamp
 	// - RaiseProgress: monotonically raise progress if lower than 'ps'.
-	RTC_CALL void RaiseProgress(ProgressState ps = PS_Committed) const { if (m_State.GetProgress() < ps) SetProgress(ps); }
+	RTC_CALL void RaiseProgress(ProgressState ps = ProgressState::Committed) const { if (m_State.GetProgress() < ps) SetProgress(ps); }
 	// State queries
 	// - Was: true if m_State.GetProgress() >= ps (i.e., progress has reached ps in the past).
 	RTC_CALL bool Was  (ProgressState ps) const; //	true if m_State.GetProgress() >= ps
@@ -130,14 +130,14 @@ struct Actor : PersistentSharedObj
 	RTC_CALL bool IsFailed () const;  //	true if erroneous. IsFailed encapsulates GetState.
 	FailType GetFailType() const { return m_State.GetFailType(); }
 	RTC_CALL bool IsFailed (FailType ps) const;  //	true if erroneous. IsFailed encapsulates GetState.
-          bool IsFailed(bool doCalc) const { return IsFailed(doCalc ? FR_Data : FR_MetaInfo); }
-    bool IsDataFailed () const { return IsFailed(FR_Data); }
+          bool IsFailed(bool doCalc) const { return IsFailed(doCalc ? FailType::Data : FailType::MetaInfo); }
+    bool IsDataFailed () const { return IsFailed(FailType::Data); }
 	RTC_CALL bool WasFailed() const { return m_State.IsFailed(); }
 	RTC_CALL bool WasFailed(FailType fr) const;
 	// WARNING: ambiguous semantics; prefer WasFailed(FailType). See improvement notes.
 	bool WasFailed(ProgressState ps) const; // DON'T CALL THIS ONE
-          bool WasFailed(bool doCalc) const { return WasFailed(doCalc ? FR_Data : FR_MetaInfo); }
-    bool WasValid (ProgressState ps = PS_Committed) const { return m_State.GetProgress() >= ps && !m_State.IsFailed();  }
+          bool WasFailed(bool doCalc) const { return WasFailed(doCalc ? FailType::Data : FailType::MetaInfo); }
+    bool WasValid (ProgressState ps = ProgressState::Committed) const { return m_State.GetProgress() >= ps && !m_State.IsFailed();  }
 
 	// Trigger an evaluation/update cycle proactively (e.g., prefetch).
 	RTC_CALL void TriggerEvaluation() const;

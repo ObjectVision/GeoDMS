@@ -498,7 +498,7 @@ GraphVisitState GraphDrawer::Visit(GraphicObject* go)
 	if (suspendible)
 	{
 		dms_assert(!SuspendTrigger::DidSuspend());
-		go->SuspendibleUpdate(PS_Committed);
+		go->SuspendibleUpdate(ProgressState::Committed);
 		if (SuspendTrigger::DidSuspend())
 			return GVS_Break; // suspend processing, thus: done =  true
 	}
@@ -639,7 +639,7 @@ bool PrepareData(ThemeReadLocks& trl, DataItemColumn* dic, const AbstrDataItem* 
 		trl.push_back(DataReadLock(adi));
 		return true;
 	}
-	if (!adi->WasFailed(FR_Data))
+	if (!adi->WasFailed(FailType::Data))
 		*tryLater = true;
 	if (SuspendTrigger::DidSuspend()) // if failed, Draw must just return false, don't try again.
 		return false; // suspend processing, thus: retry =  true
@@ -749,8 +749,8 @@ GraphVisitState GraphUpdater::DoObject(GraphicObject* go)
 	dms_assert(go);
 	dms_assert(!SuspendTrigger::DidSuspend());
 
-	ActorVisitState ready = go->SuspendibleUpdate(PS_Committed); // returns true if didn't suspend (success or failure, keep going anyway)
-	dms_assert((ready == AVS_SuspendedOrFailed) == (SuspendTrigger::DidSuspend() || go->WasFailed(FR_Committed)) );
+	ActorVisitState ready = go->SuspendibleUpdate(ProgressState::Committed); // returns true if didn't suspend (success or failure, keep going anyway)
+	assert((ready == AVS_SuspendedOrFailed) == (SuspendTrigger::DidSuspend() || go->WasFailed(FailType::Committed)) );
 //	if (ready)
 //		go->SuspendibleUpdate(PS_Committed);
 	return GVS_BreakOnSuspended();
@@ -786,11 +786,11 @@ revisit:
 		while (n)
 		{
 			GraphicObject* child = go->GetEntry(--n);
-			if (child->IsVisible() && (!child->IsFailed(FR_Data)) && !child->AllUpdated())
+			if (child->IsVisible() && (!child->IsFailed(FailType::Data)) && !child->AllUpdated())
 				goto revisit;
 		}
 
-	} while ( !go->IsFailed(FR_Data) && !go->IsUpdated() );
+	} while ( !go->IsFailed(FailType::Data) && !go->IsUpdated() );
 
 	go->SetAllUpdated();
 

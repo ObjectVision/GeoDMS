@@ -1595,8 +1595,8 @@ void CreateResultingItems(
 		gg->m_diMinClaims = minClaims;
 		gg->m_diMaxClaims = maxClaims;
 
-		if (minClaims->WasFailed(FR_Data)) minClaims->ThrowFail();
-		if (maxClaims->WasFailed(FR_Data)) maxClaims->ThrowFail();
+		if (minClaims->WasFailed(FailType::Data)) minClaims->ThrowFail();
+		if (maxClaims->WasFailed(FailType::Data)) maxClaims->ThrowFail();
 
 		funcDC.AddDependency(minClaims->GetCheckedDC());
 		funcDC.AddDependency(maxClaims->GetCheckedDC());
@@ -1674,7 +1674,7 @@ void CreateResultingItems(
 
 		auto suitMapDc = gg->m_diSuitabilityMap->GetCheckedDC();
 		if (!suitMapDc)
-			if (gg->m_diSuitabilityMap->WasFailed(FailType::FR_MetaInfo))
+			if (gg->m_diSuitabilityMap->WasFailed(FailType::MetaInfo))
 				gg->m_diSuitabilityMap->ThrowFail();
 		MG_CHECK(suitMapDc);
 		funcDC.AddDependency(suitMapDc);
@@ -3374,7 +3374,7 @@ public:
 
 		if (!htpInfo.m_PriceUnit)
 		{
-			res->Fail("No suitability maps", FR_Data);
+			res->Fail("No suitability maps", FailType::Data);
 			isFeasible = false;
 		}
 		else
@@ -3496,7 +3496,7 @@ public:
 
 		reportD(SeverityTypeID::ST_MajorTrace, strStatus.c_str() );
 
-		dms_assert(!strStatus.empty() || res->WasFailed(FR_Data));
+		dms_assert(!strStatus.empty() || res->WasFailed(FailType::Data));
 //		DataWriteLock resStatusLock(resStatus, dms_rw_mode::write_only_mustzero);
 		SetTheValue<SharedStr>(resStatus, strStatus);
 //		resStatusLock.Commit();

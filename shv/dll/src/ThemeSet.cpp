@@ -394,7 +394,7 @@ ActorVisitState ThemeSet::PrepareThemeSetData(const Actor* act) const
 			{
 				if (!SuspendTrigger::DidSuspend())
 				{
-					dms_assert(act->WasFailed(FR_Data));
+					dms_assert(act->WasFailed(FailType::Data));
 				}
 				return AVS_SuspendedOrFailed;
 			}

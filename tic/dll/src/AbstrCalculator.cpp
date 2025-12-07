@@ -165,8 +165,8 @@ auto CalledCalcHandle(const AbstrCalculator* calculator, const Class* cls)->calc
 		return {};
 
 	auto dc = MakeResult(calculator);
-	dms_assert(dc);
-	dms_assert(dc->GetOld() || dc->WasFailed(FR_MetaInfo));
+	assert(dc);
+	assert(dc->GetOld() || dc->WasFailed(FR_MetaInfo));
 	if (dc->WasFailed(FR_MetaInfo))
 		return dc;
 	CheckResultingTreeItem(dc->GetOld(), cls);

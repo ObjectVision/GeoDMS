@@ -48,7 +48,7 @@ struct DelayedTileFunctor : TileFunctor<V>
 	}
 	auto GetTile(tile_id t) const->locked_cseq_t override
 	{
-		if (m_ResultAdi->WasFailed(FR_Data))
+		if (m_ResultAdi->WasFailed(FailType::Data))
 			m_ResultAdi->ThrowFail();
 		try
 		{
@@ -58,7 +58,7 @@ struct DelayedTileFunctor : TileFunctor<V>
 		}
 		catch (...)
 		{
-			m_ResultAdi->CatchFail(FailType::FR_Data);
+			m_ResultAdi->CatchFail(FailType::Data);
 			throw;
 		}
 	}
@@ -214,7 +214,7 @@ auto LazyTileFunctor<V, ApplyFunc>::GetWritableTile(tile_id t, dms_rw_mode rwMod
 template <typename V, typename ApplyFunc>
 auto LazyTileFunctor<V, ApplyFunc>::GetTile(tile_id t) const -> locked_cseq_t
 {
-	if (m_ResultAdi->WasFailed(FR_Data))
+	if (m_ResultAdi->WasFailed(FailType::Data))
 		m_ResultAdi->ThrowFail();
 	try {
 		assert(t < this->GetTiledRangeData()->GetNrTiles());
@@ -238,7 +238,7 @@ auto LazyTileFunctor<V, ApplyFunc>::GetTile(tile_id t) const -> locked_cseq_t
 	}
 	catch (...)
 	{
-		m_ResultAdi->CatchFail(FR_Data);
+		m_ResultAdi->CatchFail(FailType::Data);
 		throw;
 	}
 }

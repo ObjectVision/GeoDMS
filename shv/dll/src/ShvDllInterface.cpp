@@ -156,7 +156,7 @@ bool  DMS_CONV SHV_DataView_AddItem(DataView* dv, const TreeItem* viewItem, bool
 
 		UpdateMarker::ChangeSourceLock changeStamp(UpdateMarker::GetActiveTS(MG_DEBUG_TS_SOURCE_CODE("SHV_DataView_AddItem")), "SHV_DataView_AddItem");
 
-		if (viewItem->IsFailed(FR_MetaInfo))
+		if (viewItem->IsFailed(FailType::MetaInfo))
 			viewItem->ThrowFail();
 
 		dv->AddLayer(viewItem, isDropped);
@@ -358,7 +358,7 @@ bool IsMapViewable(const AbstrDataItem* adi)
 {
 	dms_assert(adi);
 	dms_assert(!SuspendTrigger::DidSuspend());
-	if (adi->WasFailed(FR_MetaInfo))
+	if (adi->WasFailed(FailType::MetaInfo))
 		return false;
 
 	const AbstrUnit* adu = adi->GetAbstrDomainUnit();

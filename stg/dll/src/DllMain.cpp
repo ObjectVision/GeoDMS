@@ -80,7 +80,7 @@ void TableDomain_TestDataItem(const AbstrUnit*& domain, const TreeItem* ti, bool
 	if (dataItem)
 	{
 		if (domain && !TableDomain_IsAttr(domain, dataItem))
-			dataItem->Fail("storageManager requires all dataItems to have the same domain", FR_Data);
+			dataItem->Fail("storageManager requires all dataItems to have the same domain", FailType::Data);
 		else
 			domain = dataItem->GetAbstrDomainUnit();
 	}
@@ -114,7 +114,7 @@ const AbstrUnit* StorageHolder_GetTableDomain(const TreeItem* storageHolder)
 		TableDomain_TestDataItem(domain, subItem, true, readOnly);
 		if (domain) goto exit;
 	}
-	storageHolder->ThrowFail("Storage expected an unabiguous domain", FR_MetaInfo);
+	storageHolder->ThrowFail("Storage expected an unabiguous domain", FailType::MetaInfo);
 
 exit:
 	dms_assert(domain); // POSTCONDITION
@@ -523,7 +523,7 @@ bool CreateTreeItemColumnInfo(TreeItem* tiTable, CharPtr colName, const AbstrUni
 				vc->GetName(),
 				dbValuesClass->GetName()
 			);
-			tiColumn->Fail(msg, FR_Data);
+			tiColumn->Fail(msg, FailType::Data);
 		}
 		return res;
 	}
@@ -575,8 +575,8 @@ ViewPortInfoEx<Int>::ViewPortInfoEx(const TreeItem* context, const AbstrUnit* cu
 	}
 	else
 	{
-		assert(!currBase || currBase->Was(PS_MetaInfo));
-		assert(!gridBase || gridBase->Was(PS_MetaInfo));
+		assert(!currBase || currBase->Was(ProgressState::MetaInfo));
+		assert(!gridBase || gridBase->Was(ProgressState::MetaInfo));
 	}
 
 	//	Projections in world coords

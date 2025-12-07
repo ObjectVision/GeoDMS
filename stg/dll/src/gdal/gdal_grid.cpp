@@ -629,7 +629,7 @@ void GdalGridSM::DoUpdateTree(const TreeItem* storageHolder, TreeItem* curr, Syn
 		}
 		catch (...)
 		{
-			gridDataDomain->CatchFail(FR_MetaInfo);
+			gridDataDomain->CatchFail(FailType::MetaInfo);
 		}
 	}
 
@@ -667,7 +667,7 @@ void GdalGridSM::DoUpdateTree(const TreeItem* storageHolder, TreeItem* curr, Syn
 		}
 		catch (...)
 		{
-			gridDataDomain->CatchFail(FR_MetaInfo);
+			gridDataDomain->CatchFail(FailType::MetaInfo);
 		}
 	}
 
@@ -687,7 +687,7 @@ void GdalGridSM::DoUpdateTree(const TreeItem* storageHolder, TreeItem* curr, Syn
 		}
 		catch (...)
 		{
-			gridDataDomain->CatchFail(FR_MetaInfo);
+			gridDataDomain->CatchFail(FailType::MetaInfo);
 		}
 	}
 }

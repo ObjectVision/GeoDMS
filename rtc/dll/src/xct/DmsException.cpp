@@ -104,11 +104,11 @@ SharedStr GenerateContext()
 CharPtr FailTypeStr(FailType ft)
 {
 	switch (ft) {
-	case FR_Determine: return "Determining State";
-	case FR_MetaInfo: return "Deriving item properties and subitems";
-	case FR_Data: return "Deriving primary data";
-	case FR_Validate: return "Validation";
-	case FR_Committed: return "Committing data to storage";
+	case FailType::Determine: return "Determining State";
+	case FailType::MetaInfo: return "Deriving item properties and subitems";
+	case FailType::Data: return "Deriving primary data";
+	case FailType::Validate: return "Validation";
+	case FailType::Committed: return "Committing data to storage";
 	}
 	return "<Unexpected FailType>";
 }

@@ -109,7 +109,7 @@ GridColorPalette::GridColorPalette(const Theme* colorTheme)
 	if (usePalette && m_ClassIdUnit)
 	{
 		m_ClassIdUnit->PrepareDataUsage(DrlType::Certain);
-		if (m_ClassIdUnit->WasFailed(FR_Data))
+		if (m_ClassIdUnit->WasFailed(FailType::Data))
 			m_ClassIdUnit->ThrowFail();
 		m_Count = m_ClassIdUnit->GetCount();
 		if (m_Count >= MaxPaletteSize) 

@@ -1225,7 +1225,7 @@ void ViewPort::SetROI(const CrdRect& r)
 
 	ChangePoint(m_ROI_TL, rr.first , tlIsNew);
 	ChangePoint(m_ROI_BR, rr.second, brIsNew);
-	CertainUpdate(PS_Committed, "ViewPort::SetROI()");
+	CertainUpdate(ProgressState::Committed, "ViewPort::SetROI()");
 	m_ROI = rr;
 
 	DBG_TRACE(("TlChanged: %d", GetContext() ? m_ROI_TL->GetLastChangeTS() : 0 ));
@@ -1264,7 +1264,7 @@ bool ViewPort::HasROI() const
 
 ActorVisitState ViewPort::DoUpdate(ProgressState ps)
 {
-	dms_assert(ps >= PS_Validated);
+	assert(ps >= ProgressState::Validated);
 	if ( HasROI() )
 	{
 		if (!m_ROI_TL->PrepareData() || !m_ROI_BR->PrepareData())
@@ -1290,7 +1290,7 @@ ActorVisitState ViewPort::DoUpdate(ProgressState ps)
 CrdRect ViewPort::GetROI() const
 { 
 	dms_assert(GetContents());
-	CertainUpdate(PS_Committed, "ViewPort::GetROI()");
+	CertainUpdate(ProgressState::Committed, "ViewPort::GetROI()");
 // ISSUE 262, WIP
 //	if (m_ROI.empty())
 //		const_cast<ViewPort*>(this)->ZoomAll();

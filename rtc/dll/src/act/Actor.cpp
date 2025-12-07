@@ -116,7 +116,7 @@ CharPtr GetActorFlagName(actor_flag_set::TransState ts)
 }
 
 // FailType mapping for transient states. Keep aligned with enum layout.
-const FailType failReasonArray[8] = { FR_None, FR_Committed, FR_Validate, FR_Data, FR_MetaInfo, FR_MetaInfo, FR_MetaInfo, FR_MetaInfo };
+const FailType failReasonArray[8] = { FailType::None, FailType::Committed, FailType::Validate, FailType::Data, FailType::MetaInfo, FailType::MetaInfo, FailType::MetaInfo, FailType::MetaInfo };
 
 FailType TransState_FailType(actor_flag_set::TransState ts)
 {
@@ -316,7 +316,7 @@ void Actor::InvalidateAt (TimeStamp invalidate_ts) const
     {
         //  new invalidation (after Update, Suspend or failure) must have a cause
         assert(! m_State.IsFailed() ); 
-        assert(m_State.GetProgress() <= PS_MetaInfo || invalidate_ts == UpdateMarker::tsBereshit); 
+        assert(m_State.GetProgress() <= ProgressState::MetaInfo || invalidate_ts == UpdateMarker::tsBereshit); 
         return;
     }
 
@@ -324,7 +324,7 @@ void Actor::InvalidateAt (TimeStamp invalidate_ts) const
 
     // don't Update or reCheckIntegrity until next Invalidation
     ClearFail();
-    m_State.SetProgress(PS_None);
+    m_State.SetProgress(ProgressState::None);
 
     m_LastChangeTS = invalidate_ts;
     if (m_State.HasInvalidationBlock())
@@ -333,7 +333,7 @@ void Actor::InvalidateAt (TimeStamp invalidate_ts) const
     // Move out supplier interest during invalidation, then call DoInvalidate() to restart interest if required.
     SupplInterestListPtr keepOldInterest = MoveSupplInterest(this);
     DoInvalidate();       // call-back for specific behaviour, which calls StartSupplInterest();
-    assert(DoesHaveSupplInterest() || !m_InterestCount || IsPassor() || WasFailed(FR_Data));
+    assert(DoesHaveSupplInterest() || !m_InterestCount || IsPassor() || WasFailed(FailType::Data));
 }
 
 // Raise progress if strictly increasing; ensures monotonic progress and triggers suspendable fences.
@@ -352,7 +352,7 @@ void Actor::SetProgress(ProgressState ps) const // called by SetProgressAt( Upda
 // Decide whether a further apply/update is needed based on progress/failure state.
 bool Actor::MustApplyImpl() const
 {
-    return (m_State.GetProgress() < PS_Committed) && !WasFailed(FR_Data); // is there still stuff to do with suppliers?
+    return (m_State.GetProgress() < ProgressState::Committed) && !WasFailed(FailType::Data); // is there still stuff to do with suppliers?
 }
 
 // Public invalidation entry that stamps current active TS and calls InvalidateAt.
@@ -390,7 +390,7 @@ bool Actor::WasFailed(FailType fr) const
         return false;
     if (GetFailType() > fr)
         return false;
-    if (fr > FR_Determine)
+    if (fr > FailType::Determine)
         return true;
     return m_LastGetStateTS == UpdateMarker::GetLastTS();
 }
@@ -438,17 +438,17 @@ TimeStamp Actor::GetLastChangeTS () const
 // TODO: Reduce cyclomatic complexity (many branches). Consider splitting into helpers.
 ActorVisitState Actor::SuspendibleUpdate(ProgressState ps) const // returns false in case of failed or suspended
 {
-    dms_assert(!SuspendTrigger::DidSuspend()); // PRECONDITION
+    assert(!SuspendTrigger::DidSuspend()); // PRECONDITION
 
-    dms_assert(ps >= PS_Validated); 
+    assert(ps >= ProgressState::Validated); 
 
-    dms_assert(IsMetaThread());
+    assert(IsMetaThread());
 
     DetermineState(); // go back to US_Invalidated when supplier has changed, call DoInvalidate if nessecary
 
     if (m_State.GetProgress() > ps)
         return AVS_Ready;
-    FailType ft = (ps==PS_Committed) ? FR_Committed : FR_Validate;
+    FailType ft = (ps== ProgressState::Committed) ? FailType::Committed : FailType::Validate;
     if (WasFailed(ft))
         return AVS_SuspendedOrFailed;
     if (m_State.GetProgress() == ps)
@@ -473,7 +473,7 @@ ActorVisitState Actor::SuspendibleUpdate(ProgressState ps) const // returns fals
     }
 
     // Establish transient state (validating/committing) for duration of update.
-    UpdateLock updateLock(this, (ps==PS_Validated) ? actor_flag_set::AF_Validating : actor_flag_set::AF_Committing);
+    UpdateLock updateLock(this, (ps==ProgressState::Validated) ? actor_flag_set::AF_Validating : actor_flag_set::AF_Committing);
 
     dms_assert(!SuspendTrigger::DidSuspend()); // follows on precondition
 
@@ -501,7 +501,7 @@ ActorVisitState Actor::SuspendibleUpdate(ProgressState ps) const // returns fals
         assert(SuspendTrigger::DidSuspend());
         return AVS_SuspendedOrFailed;
     }
-    if (m_State.GetProgress() >= ProgressState::PS_Committed)
+    if (m_State.GetProgress() >= ProgressState::Committed)
         StopSupplInterest();
 
     if (m_State.GetProgress() >= ps) // a supplier could have been a creator/manager
@@ -526,7 +526,7 @@ ActorVisitState Actor::SuspendibleUpdate(ProgressState ps) const // returns fals
         {
             MG_DEBUGCODE(d_WTF = 2);
             updateRes = const_cast<Actor*>(this)->DoUpdate(ps);
-            if (WasFailed(FR_Data))
+            if (WasFailed(FailType::Data))
             {
                 updateRes = AVS_SuspendedOrFailed;
                 MG_DEBUGCODE(d_WTF = 3);
@@ -536,7 +536,7 @@ ActorVisitState Actor::SuspendibleUpdate(ProgressState ps) const // returns fals
         MG_DEBUGCODE( dms_assert( lts == UpdateMarker::LastTS() ); )
         if (updateRes != AVS_SuspendedOrFailed) // DoUpdate can change m_LastState (to valid or failed) and thereby unlock itself
         {
-            dms_assert( !WasFailed(FR_Data) );     // ClearFail(); not failed is implied by positive updateRes
+            assert( !WasFailed(FailType::Data) );     // ClearFail(); not failed is implied by positive updateRes
             if (m_State.GetProgress() < ps) // DoUpdate can raise progress itself
                 SetProgress(ps);
         }
@@ -547,8 +547,8 @@ ActorVisitState Actor::SuspendibleUpdate(ProgressState ps) const // returns fals
     }
     catch (const DmsException& x)
     {
-        dms_assert(ps == PS_Validated || ps == PS_Committed);
-        ft = (ps == PS_Committed) ? FR_Committed : FR_Validate;
+        dms_assert(ps == ProgressState::Validated || ps == ProgressState::Committed);
+        ft = (ps == ProgressState::Committed) ? FailType::Committed : FailType::Validate;
         if (!WasFailed(ft))
             DoFail(x.AsErrMsg(), ft);
         return AVS_SuspendedOrFailed;
@@ -563,14 +563,14 @@ ActorVisitState Actor::SuspendibleUpdate(ProgressState ps) const // returns fals
 void Actor::CertainUpdate(ProgressState ps, CharPtr blockingAction) const
 {
     SuspendTrigger::FencedBlocker lock(blockingAction);
-    assert(ps >= PS_Validated);
+    assert(ps >= ProgressState::Validated);
     ActorVisitState result = SuspendibleUpdate(ps);
     assert(m_State.GetProgress() >= ps || (result==AVS_SuspendedOrFailed));
     if (result==AVS_SuspendedOrFailed)
     {
         // trigger lock should have prevented the following situation
-        assert(WasFailed(ps <= PS_Validated ? FR_Validate : FR_Committed));
-        assert(m_State.GetTransState() < ps * actor_flag_set::AF_TransientBase);
+        assert(WasFailed(ps <= ProgressState::Validated ? FailType::Validate : FailType::Committed));
+        assert(m_State.GetTransState() < static_cast<UInt32>(ps) * actor_flag_set::AF_TransientBase);
         ThrowFail();
     }
 }
@@ -585,9 +585,9 @@ ActorVisitState Actor::DoUpdate(ProgressState ps)
 // NOTE: Keep noexcept behavior: failures convert into failure state.
 void Actor::DoInvalidate () const
 {
-    dms_assert(IsMetaThread());
-    dms_assert(!DoesHaveSupplInterest());
-    dms_assert(!WasFailed(FR_Data));
+    assert(IsMetaThread());
+    assert(!DoesHaveSupplInterest());
+    assert(!WasFailed(FailType::Data));
 
 //    GetLastChangeTS();
     if (m_InterestCount)
@@ -595,8 +595,8 @@ void Actor::DoInvalidate () const
         UpdateLock lock(this, actor_flag_set::AF_ChangingInterest);
         StartSupplInterest();
     }
-    dms_assert(!WasFailed(FR_Data) || !DoesHaveSupplInterest());
-    dms_assert(DoesHaveSupplInterest() || !m_InterestCount || IsPassor() || WasFailed(FR_Data));
+    assert(!WasFailed(FailType::Data) || !DoesHaveSupplInterest());
+    assert(DoesHaveSupplInterest() || !m_InterestCount || IsPassor() || WasFailed(FailType::Data));
 }
 
 // Default meta-info update is empty. Derived classes may override.
@@ -647,7 +647,7 @@ TimeStamp Actor::DetermineLastSupplierChange(ErrMsgPtr& failReason, FailType& fa
 #endif //defined(MG_ITEMLEVEL)
                 dms_assert(UpdateMarker::CheckTS( lastChangeTS ) );
                 FailType supplFailType = supplier->GetFailType();
-                if ((supplFailType != PS_None) && (supplFailType < failType))
+                if ((supplFailType != FailType::None) && (supplFailType < failType))
                 {
                     failReason = supplier->GetFailReason();
                     failType   = supplFailType;
@@ -659,7 +659,7 @@ TimeStamp Actor::DetermineLastSupplierChange(ErrMsgPtr& failReason, FailType& fa
     catch (...)
     {
         failReason = catchException(false);
-        failType   = FR_Determine;
+        failType   = FailType::Determine;
     }
 
     return lastChangeTS;
@@ -700,15 +700,15 @@ ActorVisitState Actor::VisitSuppliers(SupplierVisitFlag svf, const ActorVisitor&
 // TODO: Consider batching/rescheduling to avoid deep recursion for large graphs.
 ActorVisitState Actor::UpdateSuppliers(ProgressState ps) const // returns US_Valid, US_UpdatingElsewhere, US_Suspended, US_FailedData, US_FailedCheck, US_FailedCommit
 {
-    assert((ps == PS_Committed) || (ps == PS_Validated));
-    assert(ps == PS_Committed); // TODO: clean-up if this holds
+    assert((ps == ProgressState::Committed) || (ps == ProgressState::Validated));
+    assert(ps == ProgressState::Committed); // TODO: clean-up if this holds
 
     if (!DoesHaveSupplInterest() && GetInterestCount())
         return AVS_Ready;
 
-    FailType ft = (ps == PS_Committed) ? FR_Committed : FR_Validate;
+    FailType ft = (ps == ProgressState::Committed) ? FailType::Committed : FailType::Validate;
 
-    assert(!WasFailed(FR_MetaInfo));
+    assert(!WasFailed(FailType::MetaInfo));
     assert(!WasFailed(ft)); // precondition
     assert(DoesHaveSupplInterest() || !GetInterestCount());
 
@@ -777,7 +777,7 @@ void Actor::DetermineState() const
         return;
     if (!IsMetaThread())
     {
-        dms_assert(UpdateMarker::IsInActiveState());
+        assert(UpdateMarker::IsInActiveState());
         return;
     }
     if (m_State.IsDeterminingCheck())
@@ -789,7 +789,7 @@ void Actor::DetermineState() const
 
 retry_from_here_after_invalidation:
     ErrMsgPtr failReason;
-    FailType failType = FR_None;
+    FailType failType = FailType::None;
     TimeStamp lastSupplierChange = UpdateMarker::tsBereshit;
     {   
         DetermineStateLock recursionLock(this);    // doesn't really need stack space other than EH frame, will set m_LastGetStateTS at any exit of this frame.
@@ -811,15 +811,15 @@ retry_from_here_after_invalidation:
         }
         else
         {
-            dms_assert(m_State.GetProgress() == PS_None || m_State.IsFailed()); //  Progress is only allowed after DetermineState, which implies m_LastChangeTS
+            assert(m_State.GetProgress() == ProgressState::None || m_State.IsFailed()); //  Progress is only allowed after DetermineState, which implies m_LastChangeTS
             m_LastChangeTS = lastSupplierChange;
         }
-        dms_assert(m_LastChangeTS == lastSupplierChange);
+        assert(m_LastChangeTS == lastSupplierChange);
     }
-    dms_assert(m_LastChangeTS);
-    if (failType)
+    assert(m_LastChangeTS);
+    if (failType != FailType::None)
     {
-        dms_assert(failReason);
+        assert(failReason);
         DoFail(failReason, failType);
     }
 }
@@ -901,13 +901,13 @@ bool Actor::DoFail(ErrMsgPtr msg, FailType ft) const
 
 #endif
     assert(msg);
-    assert(ft != FR_None);
+    assert(ft != FailType::None);
     SupplInterestListPtr supplInterestWaste;
     {
         RequestMainThreadOperProcessingBlocker saveNotificationAfterFail;
         leveled_critical_section::scoped_lock syncFailCalls(sc_FailSection);
         auto prevFT = GetFailType();
-        if (prevFT && prevFT <= ft)
+        if ((prevFT != FailType::None) && (prevFT <= ft))
             return false;
 
         assert(msg->Why().IsDefined() && !msg->Why().empty());
@@ -918,7 +918,7 @@ bool Actor::DoFail(ErrMsgPtr msg, FailType ft) const
             msg->TellWhere(this);
             if (msg->MustReport())
             {
-                auto st = ft <= FR_Data ? SeverityTypeID::ST_Error : SeverityTypeID::ST_Warning;
+                auto st = ft <= FailType::Data ? SeverityTypeID::ST_Error : SeverityTypeID::ST_Warning;
                 if (msg->m_FullName.empty())
                     reportD(st, msg->m_Why.c_str());
                 else
@@ -929,7 +929,7 @@ bool Actor::DoFail(ErrMsgPtr msg, FailType ft) const
         {}
 
         // data generation is no longer needed
-        if (ft <= FR_Data)
+        if (ft <= FailType::Data)
             supplInterestWaste.init( MoveSupplInterest(this).release());
     }
     return true;
@@ -981,12 +981,12 @@ void Actor::CatchFail(FailType ft) const
 // Record a failure with a string reason.
 void Actor::Fail(WeakStr why, FailType ft) const
 {
-    dms_assert((ft & AF_FailedMask) == ft); // Syntax
-    dms_assert(ft);                 // PRE
+    assert((static_cast<UInt32>(ft) & static_cast<UInt32>(FailType::Mask)) == static_cast<UInt32>(ft)); // Syntax
+    assert(ft != FailType::None);                 // PRE
 
     DoFail(std::make_shared<ErrMsg>( why, this ), ft);
 
-    dms_assert(WasFailed()); // follows from PRE2 and m_State.SetBits
+    assert(WasFailed()); // follows from PRE2 and m_State.SetBits
 }
 
 void Actor::Fail(CharPtr str, FailType ft) const
@@ -1003,7 +1003,7 @@ void Actor::Fail(const Actor* src) const
 {
     auto failType = src->GetFailType();
     auto failReason = src->GetFailReason();
-    assert(failType != FR_None);
+    assert(failType != FailType::None);
     assert(failReason);
     DoFail(failReason, failType); 
 }
@@ -1086,7 +1086,7 @@ void Actor::IncInterestCount() const // NO UpdateMetaInfo, Just work on existing
     }
     catch (const DmsException& x)
     {
-        DoFail(x.AsErrMsg(), FR_MetaInfo);
+        DoFail(x.AsErrMsg(), FailType::MetaInfo);
         throw;
         
     }
@@ -1229,7 +1229,7 @@ void Actor::StartSupplInterest() const
 {
     assert(IsMetaThread());
 
-    if (IsPassor() || WasFailed(FR_Data))
+    if (IsPassor() || WasFailed(FailType::Data))
         return;
 
     assert(!DoesHaveSupplInterest() ); // PRECONDITION
@@ -1252,7 +1252,7 @@ void Actor::StartSupplInterest() const
     assert(!DoesHaveSupplInterest()); // POSTCONDITION
 
     // nothrow from here
-    if (!WasFailed(FR_Data))
+    if (!WasFailed(FailType::Data))
     {
         supplInterestListRef.init(supplInterestListPtr.release());
         m_State.Set(actor_flag_set::AF_SupplInterest);
@@ -1280,7 +1280,7 @@ void Actor::RestartSupplInterestIfAny() const
     SupplInterestListPtr& supplInterestListRef = (*s_SupplTreeInterest)[this]; // can insert new and throw bad_alloc
 
     // nothrow from here
-    if (WasFailed(FR_Data))
+    if (WasFailed(FailType::Data))
     {
         assert(!DoesHaveSupplInterest()); // reset by Failure in GetSupplInterest();
     }
