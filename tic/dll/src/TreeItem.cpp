@@ -2910,6 +2910,7 @@ auto TreeItem_VisitConstVisibleSubTree(const TreeItem * self, const ActorVisitor
 
 	// go to subItems of refItem, if any
 	std::unordered_set<TokenID> visitedSubItemNames;
+	assert(!SuspendTrigger::DidSuspend());
 
 	for (const TreeItem* curr = self; curr; curr = curr->GetReferredItem())
 		for (auto subItem = curr->GetFirstSubItem(); subItem; subItem = subItem->GetNextItem())
@@ -2919,7 +2920,9 @@ auto TreeItem_VisitConstVisibleSubTree(const TreeItem * self, const ActorVisitor
 				continue;
 			if (SuspendTrigger::DidSuspend())
 				return ActorVisitState::AVS_SuspendedOrFailed;
-			visitor(subItem);
+			if (visitor(subItem) == ActorVisitState::AVS_SuspendedOrFailed)
+				return ActorVisitState::AVS_SuspendedOrFailed;
+			assert(!SuspendTrigger::DidSuspend());
 			if (TreeItem_VisitConstVisibleSubTree(subItem, visitor, visitedItems) == ActorVisitState::AVS_SuspendedOrFailed)
 				return ActorVisitState::AVS_SuspendedOrFailed;
 		}
