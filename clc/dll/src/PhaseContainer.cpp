@@ -30,7 +30,11 @@ RTC_CALL bool s_IsDetectingIncInterest;
 // When any of a phase result consumers is scheduled, a phase is requested to execute as first part of the schedule execution of everything in front of the phase
 
 oper_arg_policy oap_Phase[2] = { oper_arg_policy::calc_never,  oper_arg_policy::calc_as_result };
+
 SpecialOperGroup sog_PhaseContainer(token::PhaseContainer, 2, oap_Phase, oper_policy::dynamic_result_class);
+using fence_member_pair = std::pair<SharedTreeItemInterestPtr, FutureData>;
+using fence_work_data = std::vector<fence_member_pair>;
+using phase_resource = std::pair<fence_work_data, SharedPtr<TreeItem>>;
 
 struct PhaseContainerOperator : BinaryOperator
 {
@@ -65,7 +69,7 @@ struct PhaseContainerOperator : BinaryOperator
 			assert(sourceContainer->GetCurrPhaseNumber() < resultPhaseNumber);
 
 			auto resultRoot = resultHolder.GetNew();
-			for (auto resWalker = resultRoot; resWalker; resWalker = resultRoot->WalkCurrSubTree(resWalker))
+			for (SharedPtr<TreeItem> resWalker = resultRoot; resWalker; resWalker = resultRoot->WalkCurrSubTree(resWalker))
 			{
 				auto srcItem = sourceContainer->FindItem(resWalker->GetRelativeName(resultHolder.GetNew()));
 				if (!srcItem)
@@ -129,6 +133,79 @@ struct PhaseContainerOperator : BinaryOperator
 	// of a of b, en/of hun domein suppliers zijn van phase, wordt bepaald op moment van phase execution;
 	// op dat moment zijn de targets bekend en kan (re)scheduling bepaald worden; na completering van deze phase zijn de target domain bepaald en kan (re)scheduling van operaties na deze phase (beter) plaats vinden.
 
+	bool PreCalcUpdate(TreeItemDualRef& resultHolder, ArgRefs& args) const override
+	{
+		assert(args.size() == 2);
+
+		SharedTreeItem sourceContainer = GetItem(args[0]);
+
+		auto resultPhaseNumber = resultHolder.m_PhaseNumber;
+		auto resultRoot = resultHolder.GetNew();
+		auto lockFence = tmp_swapper<phase_number>(s_CurrBlockedPhaseNumber, resultPhaseNumber);
+		auto lockCurrPhaseContainer = tmp_swapper(s_CurrPhaseContainer, resultRoot);
+
+		if (!resultRoot->m_ReadAssets.has_value())
+		{
+			resultRoot->m_ReadAssets.emplace<phase_resource>();
+			resultRoot->m_ReadAssets.Get<phase_resource>().second = resultRoot;
+		}
+		auto& futureDataContainer = resultRoot->m_ReadAssets.Get<phase_resource>().first;
+		auto& resWalker = resultRoot->m_ReadAssets.Get<phase_resource>().second;
+
+		// now, collect all targets that this Phase should calculate and start a Main Thread action to do so.
+
+		// this should be done before supplier Fences do this and after target collection and interest-setting of consuming Fences.
+		// so each Phase Calculation causes an avalange of interest in targets in higher fences and then their calculation before this calculation starts
+
+		for (; resWalker; resWalker = resultRoot->WalkCurrSubTree(resWalker))
+		{
+			assert(resWalker->GetCurrPhaseNumber() == resultPhaseNumber);
+
+			auto resInterestPtr = resWalker->GetInterestPtrOrNull();
+			if (!resInterestPtr)
+				continue;
+
+			auto srcItem = sourceContainer->FindItem(resWalker->GetRelativeName(resultRoot));
+			assert(srcItem);
+			assert(srcItem->GetCurrPhaseNumber() < resultPhaseNumber);
+			MG_CHECK(!srcItem->IsCacheItem());
+
+			s_CurrBlockedPhaseItem = srcItem.get();
+			//*
+			{
+//				auto detectInterest = tmp_swapper(s_IsDetectingIncInterest, true);
+				if (!srcItem->SuspendibleUpdate(ProgressState::Committed))
+				{
+					if (srcItem->WasFailed())
+						resWalker->Fail(srcItem);
+					if (SuspendTrigger::DidSuspend())
+						return false;
+				}
+			}
+			assert(!SuspendTrigger::DidSuspend());
+			//*/
+			if (IsUnit(resWalker) || IsDataItem(resWalker))
+			{
+				auto dc = srcItem->mc_DC;
+				if (!dc)
+					resWalker->Fail(mySSPrintF("PhaseContainer: Source %s has no calculation rule so its data cannot be collected", srcItem->GetSourceName()).c_str(), FailType::Data);
+				else
+				{
+					auto fd = dc->CallCalcResult();
+					if (SuspendTrigger::DidSuspend())
+						return false;
+
+					futureDataContainer.emplace_back(std::move(resInterestPtr), std::move(fd));
+					continue; // defer processing and StopSupplInterest in WorkerThread below
+				}
+			}
+			if (resWalker != resultRoot)
+				resWalker->StopSupplInterest();
+		}
+		assert(!SuspendTrigger::DidSuspend());
+		assert(!resWalker);
+		return true;
+	}
 
 	bool CalcResult(TreeItemDualRef& resultHolder, ArgRefs args, std::vector<ItemReadLock> readLocks, Explain::Context * context) const override
 	{
@@ -140,99 +217,12 @@ struct PhaseContainerOperator : BinaryOperator
 		auto resultRoot = resultHolder.GetNew();
 		assert(resultRoot);
 
-		using fence_member_pair = std::pair<SharedTreeItemInterestPtr, FutureData>;
-		using fence_work_data = std::vector<fence_member_pair>;
-		fence_work_data futureDataContainer;
-
 		auto resultPhaseNumber = resultHolder.m_PhaseNumber;
 		assert(resultPhaseNumber > 0);
 
-		std::atomic<task_status> phaseContainerStatus = task_status::activated;
-		std::exception_ptr fenceErrorPtr;
-
-		auto resWalker = resultRoot;
-		
-		// now, collect all targets that this Phase should calculate and start a Main Thread action to do so.
-		// this should be done before supplier Fences do this and after target collection and interest-setting of consuming Fences.
-		// so each Phase Calculation causes an avalange of interest in targets in higher fences and then their calculation before this calculation starts
-		PostMainThreadTask(resultPhaseNumber, [this, sourceContainer, resultRoot, &resWalker, &phaseContainerStatus, &fenceErrorPtr, &resultHolder, resultPhaseNumber, &futureDataContainer](bool mustCancel)-> bool
-			{
-				phaseContainerStatus = task_status::running;
-
-				// work on exporting stuff from main thread
-				if (!mustCancel)
-				{
-					try {
-						tmp_swapper<phase_number> lockFence(s_CurrBlockedPhaseNumber, resultPhaseNumber);
-						s_CurrPhaseContainer = resultRoot;
-						for (; resWalker; resWalker = resultRoot->WalkCurrSubTree(resWalker))
-						{
-							assert(resWalker->GetCurrPhaseNumber() == resultPhaseNumber);
-
-							auto resInterestPtr = resWalker->GetInterestPtrOrNull();
-							if (!resInterestPtr)
-								continue;
-
-							auto srcItem = sourceContainer->FindItem(resWalker->GetRelativeName(resultRoot));
-							assert(srcItem);
-							assert(srcItem->GetCurrPhaseNumber() < resultPhaseNumber);
-							MG_CHECK(!srcItem->IsCacheItem());
-
-							s_CurrBlockedPhaseItem = srcItem.get();
-//*
-							{
-								auto detectInterest = tmp_swapper(s_IsDetectingIncInterest, true);
-								if (!srcItem->SuspendibleUpdate(PS_Committed))
-								{
-									if (srcItem->WasFailed())
-										resWalker->Fail(srcItem);
-									if (SuspendTrigger::DidSuspend())
-										return false;
-								}
-							}
-							assert(!SuspendTrigger::DidSuspend());
-//*/
-							if (IsUnit(resWalker) || IsDataItem(resWalker))
-							{
-								auto dc = srcItem->mc_DC;
-								if (!dc)
-									resWalker->Fail(mySSPrintF("PhaseContainer: Source %s has no calculation rule so its data cannot be collected", srcItem->GetSourceName()).c_str(), FR_Data);
-								else
-								{
-									auto fd = dc->CallCalcResult();
-									if (SuspendTrigger::DidSuspend())
-										return false;
-
-									futureDataContainer.emplace_back(std::move(resInterestPtr), std::move(fd));
-									continue; // defer processing and StopSupplInterest in WorkerThread below
-								}
-							}
-							if (resWalker != resultRoot)
-								resWalker->StopSupplInterest();
-						}
-					}
-					catch (Concurrency::task_canceled&)
-					{
-						throw;
-					}
-					catch (...)
-					{
-						fenceErrorPtr = std::current_exception();
-						phaseContainerStatus = task_status::exception;
-						return true;
-					}
-				}
-				phaseContainerStatus = task_status::done;
-				WakeUpJoiners();
-				return true;
-			}
-		);
-
-		{
-			DoWorkWhileWaitingFor(&phaseContainerStatus);
-			if (phaseContainerStatus == task_status::exception && fenceErrorPtr)
-				std::rethrow_exception(fenceErrorPtr);
-		}
+		MG_CHECK(resultRoot->m_ReadAssets.is_a<phase_resource>());	
+		auto& futureDataContainer = resultRoot->m_ReadAssets.Get<phase_resource>().first;
+		MG_CHECK(!resultRoot->m_ReadAssets.Get<phase_resource>().second);
 
 		// check that all sub-items of result-holder are/become up-to-date or uninteresting
 		for (const auto& fd: futureDataContainer)
@@ -245,12 +235,12 @@ struct PhaseContainerOperator : BinaryOperator
 
 			if (dc)
 			{
-				if (dc->WasFailed(FR_MetaInfo))
+				if (dc->WasFailed(FailType::MetaInfo))
 					resItem->Fail(dc.get_ptr());
 				else
 				{
 					WaitReady(dc->GetUlt());
-					if (dc->WasFailed(FR_Data))
+					if (dc->WasFailed(FailType::Data))
 						resItem->Fail(dc.get_ptr());
 					else
 					{
@@ -285,6 +275,7 @@ struct PhaseContainerOperator : BinaryOperator
 			for (auto msg: msgData)
 				reportF(SeverityTypeID::ST_MajorTrace, "PhaseContainer(%d): %s", resultPhaseNumber, SharedStr(msg));
 
+		futureDataContainer.clear();
 		resultHolder->SetIsInstantiated();
 		resultHolder->StopSupplInterest();
 

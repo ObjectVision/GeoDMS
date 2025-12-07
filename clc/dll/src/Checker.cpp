@@ -63,6 +63,7 @@ struct CheckOperator : public BinaryOperator
 			);
 			if (resultHolder->WasFailed())
 				resultHolder.Fail(resultHolder.GetOld());
+			resultHolder.SetProgress(ProgressState::Validated);
 		}
 		return true;
 	}

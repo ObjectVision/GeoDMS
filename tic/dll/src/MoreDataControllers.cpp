@@ -765,8 +765,12 @@ void FuncDC::CallCalcResultImpl(std::shared_ptr<Explain::Context> context) const
 		{
 			operContext = OperationContext::CreateFuncDC(this);
 			m_OperContext = operContext;
-
-			//			leveled_critical_section::scoped_lock ocaLock(cs_OperContextAccess);
+		}
+		result = GetOperator()->PreCalcUpdate(*const_cast<FuncDC*>(this), *argRefs);
+		if (!result)
+		{
+			assert(SuspendTrigger::DidSuspend());
+			return;
 		}
 		result = operContext->GetStatus() != task_status::exception;
 		if (operContext->GetStatus() == task_status::none || context)

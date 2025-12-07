@@ -74,6 +74,8 @@ public:
 		dms_assert(resultHolder);
 	}
 
+	virtual bool PreCalcUpdate(TreeItemDualRef& resultHolder, ArgRefs& args) const { return true; };
+
 	virtual bool CalcResult(TreeItemDualRef& resultHolder, ArgRefs args, std::vector<ItemReadLock> readLocks, Explain::Context* context = nullptr) const
 	{
 		dms_assert(resultHolder);
