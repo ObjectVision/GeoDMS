@@ -66,6 +66,13 @@ namespace rtc {
 			bool has_value() const { return m_Wrapper.operator bool(); }
 
 			template <typename T>
+			bool is_a() const
+			{
+				auto self = dynamic_cast<Wrapper<T>*>(m_Wrapper.get());
+				return self != nullptr;
+			}
+
+			template <typename T>
 			const T& Get() const
 			{
 				auto self = dynamic_cast<Wrapper<T>*>(m_Wrapper.get());
