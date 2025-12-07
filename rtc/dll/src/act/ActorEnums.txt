@@ -17,8 +17,8 @@
 
 // an actor can become
 // State Ready, indicated by lastCheckTS == UpdateMarker::GetLastTS() -> m_Calculator has been determined
-// MetaData ready, indicated by PS_MetaInfo
-// dataInMem|dataAllocated, which implies PS_MetaInfo
+// MetaData ready, indicated by ProgressState::MetaInfo
+// dataInMem|dataAllocated, which implies ProgressState::MetaInfo
 // Validated or checked
 // Committed, which implies successfull validation
 

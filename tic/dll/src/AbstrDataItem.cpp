@@ -470,7 +470,7 @@ void AbstrDataItem::LoadBlobStream (const InpStreamBuff* f)
 {
 	
 //	assert(IsMetaThread());
-	assert(m_State.GetProgress() >= PS_MetaInfo || IsPassor());
+	assert(m_State.GetProgress() >= ProgressState::MetaInfo || IsPassor());
 	assert(GetCurrDataObj());
 	assert(!m_DataLockCount);
 //	assert(IsSdKnown());

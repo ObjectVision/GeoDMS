@@ -1443,7 +1443,7 @@ void AssignPhaseNumber(const Actor* item) noexcept
     try {
         VisitSupplProcImpl(item, SupplierVisitFlag::FenceNumberScan, [item](const Actor* suppl)
             {
-//              assert(suppl->m_State.GetProgress() >= ProgressState::PS_MetaInfo);
+//              assert(suppl->m_State.GetProgress() >= ProgressState::ProgressState::MetaInfo);
 //              suppl->UpdateMetaInfo();
                 MakeMax<phase_number>(item->m_PhaseNumber, suppl->GetPhaseNumber());
             }
@@ -1456,7 +1456,7 @@ void AssignPhaseNumber(const Actor* item) noexcept
 auto Actor::GetPhaseNumber() const -> phase_number
 {
     assert(IsMainThread());
-//  assert(m_State.GetProgress() >= ProgressState::PS_MetaInfo);
+//  assert(m_State.GetProgress() >= ProgressState::ProgressState::MetaInfo);
     AssignPhaseNumber(this);
     return m_PhaseNumber;
 }

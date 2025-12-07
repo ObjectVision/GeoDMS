@@ -430,7 +430,7 @@ auto DataController::CalcResultWithValuesUnits() const -> FutureData// TODO G8: 
 		return nullptr;
 	}
 	*/
-	assert(!WasFailed(FR_MetaInfo));
+	assert(!WasFailed(FailType::MetaInfo));
 	return result;
 }
 

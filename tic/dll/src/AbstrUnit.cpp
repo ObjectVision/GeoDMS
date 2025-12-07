@@ -316,7 +316,7 @@ bool AbstrUnit::UnifyDomain(const AbstrUnit* cu, CharPtr leftRole, CharPtr right
 
 bool AbstrUnit::UnifyValues(const AbstrUnit* cu, CharPtr leftRole, CharPtr rightRole, UnifyMode um, SharedStr* resultMsg) const
 {
-	// TODO G8: dms_assert(Was(PS_MetaInfo)); dms_assert(cu->Was(PS_MetaInfo));
+	// TODO G8: dms_assert(Was(ProgressState::MetaInfo)); dms_assert(cu->Was(ProgressState::MetaInfo));
 	assert(cu);
 
 	assert(!((um & UM_Throw) && resultMsg));
@@ -406,7 +406,7 @@ TokenID AbstrUnit::GetSpatialReference() const
 
 TokenID AbstrUnit::GetCurrSpatialReference() const
 {
-	assert(m_State.GetProgress() >= PS_MetaInfo); //UpdateMetaInfo();
+	assert(m_State.GetProgress() >= ProgressState::MetaInfo); //UpdateMetaInfo();
 
 	if (GetTSF(USF_HasSpatialReference))
 		return s_SpatialReferenceAssoc.GetExisting(this);
