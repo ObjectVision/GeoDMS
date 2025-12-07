@@ -771,7 +771,7 @@ void AbstrStorageManager::DoUpdateTree(const TreeItem* storageHolder, TreeItem* 
 	if (IsDataItem(curr))
 		if (!curr->IsStorable())
 			if (curr->HasCalculator())
-				curr->Fail("Item has both a Calculation Rule and a read-only storage spec", FR_MetaInfo);
+				curr->Fail("Item has both a Calculation Rule and a read-only storage spec", FailType::MetaInfo);
 }
 
 // ===========================================================================
@@ -879,7 +879,7 @@ bool AbstrStorageManager::OpenForRead(const StorageMetaInfo& smi) const
 	{
 		if (!smi.m_MustRememberFailure)
 			throw;
-		storageHolder->CatchFail(FR_MetaInfo);
+		storageHolder->CatchFail(FailType::MetaInfo);
 		storageHolder->ThrowFail();
 	}
 	return true;
@@ -1057,7 +1057,7 @@ void GenerateMetaInfo(AbstrPropWriter& apw, const TreeItem* curr, const TreeItem
 			const_cast<TreeItem*>(key)->SetKeepDataState(true);
 			irc.Add(key);
 
-			key->CertainUpdate(PS_Committed, "GenerateMetaInfo");
+			key->CertainUpdate(ProgressState::Committed, "GenerateMetaInfo");
 
 			if (!IsDataItem(key))
 				continue;

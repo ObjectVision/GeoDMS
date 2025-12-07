@@ -59,7 +59,7 @@ SharedStr DisplayValue(const AbstrDataItem* adi, SizeT index, bool useMetric, Sh
 	ippHolders.m_ThemeAttr = adi;
 	if (adi->PrepareDataUsage(DrlType::Suspendible) && IsDataReady(adi->GetUltimateItem()))
 	{
-		dms_assert(!adi->IsFailed(FR_Data));
+		assert(!adi->IsFailed(FailType::Data));
 		SharedStr result;
 		try {
 			DataReadLock drl(adi);
@@ -88,13 +88,13 @@ SharedStr DisplayValue(const AbstrDataItem* adi, SizeT index, bool useMetric, Sh
 		}
 		catch (...)
 		{
-			if (adi->IsFailed(FR_Data))
+			if (adi->IsFailed(FailType::Data))
 				goto returnFail;
 			throw;
 		}
 		return result;
 	}
-	if (!adi->IsFailed(FR_Data))
+	if (!adi->IsFailed(FailType::Data))
 	{
 		static SharedStr pendingStr("...");
 		return pendingStr;

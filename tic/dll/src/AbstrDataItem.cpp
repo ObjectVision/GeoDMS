@@ -302,8 +302,8 @@ bool AbstrDataItem::DoReadItem(StorageMetaInfoPtr smi)
 	}
 	catch (const DmsException& x)
 	{
-		if (!WasFailed(FR_Data))
-			DoFail(x.AsErrMsg(), FR_Data);
+		if (!WasFailed(FailType::Data))
+			DoFail(x.AsErrMsg(), FailType::Data);
 		throw;
 	}
 	return true;
@@ -332,8 +332,8 @@ bool AbstrDataItem::DoWriteItem(StorageMetaInfoPtr&& smi) const
 	}
 	catch (const DmsException& x)
 	{
-		if (!WasFailed(FR_Committed))
-			DoFail(x.AsErrMsg(), FR_Committed);
+		if (!WasFailed(FailType::Committed))
+			DoFail(x.AsErrMsg(), FailType::Committed);
 		throw;
 	}
 	return true;
@@ -441,7 +441,7 @@ void AbstrDataItem::CopyProps(TreeItem* result, const CopyTreeContext& copyConte
 		}
 		catch (...)
 		{
-			CatchFail(FR_MetaInfo);
+			CatchFail(FailType::MetaInfo);
 		}
 	}
 	if (copyContext.MustCopyExpr() || !IsDefined(res->m_tValuesUnit))
@@ -454,7 +454,7 @@ void AbstrDataItem::CopyProps(TreeItem* result, const CopyTreeContext& copyConte
 		}
 		catch (...)
 		{
-			CatchFail(FR_MetaInfo);
+			CatchFail(FailType::MetaInfo);
 		}
 	}
 }
@@ -551,7 +551,7 @@ bool AbstrDataItem::CheckResultItem(const TreeItem* refItem) const
 		return true;
 	}
 failResultMsg:
-	Fail(errMsgStr, FR_Determine);
+	Fail(errMsgStr, FailType::Determine);
 	return false;
 }
 
@@ -559,12 +559,12 @@ const AbstrUnit* AbstrDataItem::FindUnit(TokenID t, CharPtr role, ValueCompositi
 {
 	assert(GetTreeParent());
 	if (t == TokenID::GetUndefinedID())
-		ThrowFail(mySSPrintF("Undefined %s unit", role), FR_MetaInfo);
+		ThrowFail(mySSPrintF("Undefined %s unit", role), FailType::MetaInfo);
 	const AbstrUnit* result = UnitClass::GetUnitOrDefault(GetTreeParent(), t, vcPtr);
 	if (!result && !InTemplate())
 	{
 		auto msg = mySSPrintF("Cannot find %s unit %s", role, GetTokenStr(t));
-		ThrowFail(msg, FR_MetaInfo);
+		ThrowFail(msg, FailType::MetaInfo);
 	}
 	return result;
 }
@@ -769,7 +769,7 @@ void AbstrDataItem::OnDomainUnitRangeChange(const DomainChangeInfo* info)
 		}
 		catch (DmsException& x)
 		{
-			DoFail(x.AsErrMsg(), FR_Data);
+			DoFail(x.AsErrMsg(), FailType::Data);
 		}
 	}
 }

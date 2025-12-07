@@ -410,21 +410,21 @@ auto DataController::CalcResultWithValuesUnits() const -> FutureData// TODO G8: 
 {
 	dms_assert(IsMetaThread());
 
-	if (WasFailed(FR_Data))
+	if (WasFailed(FailType::Data))
 		return nullptr;
 
 	auto result = CallCalcResult();
 	if (!result)
 	{
-		dms_assert(WasFailed(FR_Data) || SuspendTrigger::DidSuspend());
+		dms_assert(WasFailed(FailType::Data) || SuspendTrigger::DidSuspend());
 		return nullptr;
 	}
 /*
-	dms_assert(CheckCalculatingOrReady(result->GetCurrRangeItem()) || result->WasFailed(FR_Data));
+	dms_assert(CheckCalculatingOrReady(result->GetCurrRangeItem()) || result->WasFailed(FailType::Data));
 	if (!UpdateValuesUnits(this, m_Data.get_ptr(), useTree))
 		return nullptr;
 
-	if (result->WasFailed(FR_Data))
+	if (result->WasFailed(FailType::Data))
 	{
 		Fail(result.get_ptr());
 		return nullptr;
@@ -454,7 +454,7 @@ const Class* DataController::GetResultCls () const
 	SuspendTrigger::FencedBlocker block("DataController::GetResultCls()");
 
 	auto result = MakeResult();
-	if (WasFailed(FR_MetaInfo))
+	if (WasFailed(FailType::MetaInfo))
 		ThrowFail();
 	dms_assert(result);
 	return result->GetDynamicObjClass();

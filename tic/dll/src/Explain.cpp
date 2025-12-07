@@ -534,7 +534,7 @@ namespace Explain { // local defs
 				{
 					if (!valuesUnit->PrepareDataUsage(DrlType::Suspendible))
 					{
-						if (valuesUnit->WasFailed(FR_Data))
+						if (valuesUnit->WasFailed(FailType::Data))
 							continue;
 						dms_assert(SuspendTrigger::DidSuspend());
 						return false;
@@ -939,7 +939,7 @@ namespace Explain { // local defs
 
 			if (!resultData->PrepareDataUsage(DrlType::Suspendible))
 			{
-				if (resultData->WasFailed(FR_Data))
+				if (resultData->WasFailed(FailType::Data))
 					resultData->ThrowFail();
 				dms_assert(SuspendTrigger::DidSuspend());
 				return nullptr;

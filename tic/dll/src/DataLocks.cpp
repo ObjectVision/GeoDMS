@@ -96,7 +96,7 @@ DataReadLockAtom::DataReadLockAtom(const AbstrDataItem* item)
 {
 	if (!item) //  || (item->m_DataLockCount < 0 && !type))
 		return;
-	if (item->WasFailed(FR_Data))
+	if (item->WasFailed(FailType::Data))
 		item->ThrowFail();
 
 	dms_assert(!item->InTemplate());
@@ -169,7 +169,7 @@ DataReadLock::DataReadLock(const AbstrDataItem* item)
 		return;
 
 	assert(item->m_DataLockCount);
-	if (item->WasFailed(FR_Data))
+	if (item->WasFailed(FailType::Data))
 		item->ThrowFail();
 	MG_CHECK(item->m_DataObject);
 	

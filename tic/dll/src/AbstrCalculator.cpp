@@ -166,8 +166,8 @@ auto CalledCalcHandle(const AbstrCalculator* calculator, const Class* cls)->calc
 
 	auto dc = MakeResult(calculator);
 	assert(dc);
-	assert(dc->GetOld() || dc->WasFailed(FR_MetaInfo));
-	if (dc->WasFailed(FR_MetaInfo))
+	assert(dc->GetOld() || dc->WasFailed(FailType::MetaInfo));
+	if (dc->WasFailed(FailType::MetaInfo))
 		return dc;
 	CheckResultingTreeItem(dc->GetOld(), cls);
 	auto result = dc->CallCalcResult(nullptr);
@@ -177,7 +177,7 @@ auto CalledCalcHandle(const AbstrCalculator* calculator, const Class* cls)->calc
 
 	if (!result)
 	{
-		assert(dc->WasFailed(FR_Data));
+		assert(dc->WasFailed(FailType::Data));
 		dc->ThrowFail();
 	}
 	return result;
@@ -188,8 +188,8 @@ void ExplainResult(const AbstrCalculator* calculator, std::shared_ptr<Explain::C
 	assert(context);
 	auto dc = MakeResult(calculator);
 	dms_assert(dc);
-	dms_assert(dc->GetOld() || dc->WasFailed(FR_MetaInfo));
-	if (dc->WasFailed(FR_MetaInfo))
+	dms_assert(dc->GetOld() || dc->WasFailed(FailType::MetaInfo));
+	if (dc->WasFailed(FailType::MetaInfo))
 		return;
 
 	auto funcDC = dynamic_cast<const FuncDC*>(dc.get());
@@ -593,7 +593,7 @@ SharedStr AbstrCalculator::EvaluateExpr(const TreeItem* context, CharPtrRange ex
 		
 		auto res = CalledCalcHandle(calculator, DataArray<SharedStr>::GetStaticClass());
 		assert(res);
-		if (res->WasFailed(FR_Data))
+		if (res->WasFailed(FailType::Data))
 			res->ThrowFail();
 
 		auto resItem = res->GetOld();
@@ -602,18 +602,18 @@ SharedStr AbstrCalculator::EvaluateExpr(const TreeItem* context, CharPtrRange ex
 		irc.Add(resItem);
 
 		const AbstrDataItem* resDataItem = AsDataItem(resItem);
-		assert(resDataItem || res->WasFailed(FR_Data));
+		assert(resDataItem || res->WasFailed(FailType::Data));
 
-		if (res->WasFailed(FR_Validate))
+		if (res->WasFailed(FailType::Validate))
 			res->ThrowFail();
 
 		assert(resDataItem);
-		if (!resDataItem->WasFailed(FR_Data))
+		if (!resDataItem->WasFailed(FailType::Data))
 			resultStr = GetTheValue<SharedStr>(resDataItem);
-		if (resDataItem->WasFailed(FR_Validate))
-			context->Fail(resDataItem, FR_MetaInfo);
+		if (resDataItem->WasFailed(FailType::Validate))
+			context->Fail(resDataItem, FailType::MetaInfo);
 
-		if (resDataItem->WasFailed(FR_Committed)) // just pass on commit failures.
+		if (resDataItem->WasFailed(FailType::Committed)) // just pass on commit failures.
 			context->Fail(resDataItem);
 
 		auto nrNewEvals = CountIndirections( resultStr.c_str() );
@@ -687,7 +687,7 @@ ActorVisitState AbstrCalculator::VisitImplSuppl(SupplierVisitFlag svf, const Act
 		irc.Add(res->GetOld());
 
 		const AbstrDataItem* resDataItem = AsDataItem(res->GetOld());
-		dms_assert(resDataItem || res->WasFailed(FR_Data));
+		assert(resDataItem || res->WasFailed(FailType::Data));
 
 		if (calculator->VisitSuppliers(svf, visitor) == AVS_SuspendedOrFailed)
 			return AVS_SuspendedOrFailed;
@@ -791,9 +791,9 @@ BestItemRef AbstrCalculator::FindPrimaryDataFailedItem() const
 				}
 				catch (...)
 				{
-					ti->CatchFail(FR_Data);
+					ti->CatchFail(FailType::Data);
 				}
-				if (ti->WasFailed(FR_Data))
+				if (ti->WasFailed(FailType::Data))
 					goto foundError;
 			}
 			return AVS_Ready;
@@ -847,7 +847,7 @@ LispRef AbstrCalculator::slSupplierExpr(SubstitutionBuffer& substBuff, LispPtr s
 				m_BestGuessErrorSuppl = x;
 
 			auto msg = mySSPrintF("Unknown identifier '%s'", supplRefID.GetStr());
-			m_Holder->Fail(msg, FR_MetaInfo);
+			m_Holder->Fail(msg, FailType::MetaInfo);
 		}
 		return supplRef;
 	}
@@ -877,14 +877,14 @@ LispRef AbstrCalculator::slSupplierExprImpl(SubstitutionBuffer& substBuff, const
 	if (m_Holder->DoesContain(supplier))
 	{
 		if (m_CalcRole == CalcRole::Calculator || supplier != m_Holder)
-			m_Holder->ThrowFail("Calulation rule would create a circular dependency", FR_MetaInfo);
+			m_Holder->ThrowFail("Calulation rule would create a circular dependency", FailType::MetaInfo);
 	}
 	else
 		supplier->UpdateMetaInfo();
 	if (supplier->InTemplate() && !(mpf & metainfo_policy_flags::subst_never))
 	{
 		auto msg = mySSPrintF("Calulation rule would create a dependency on %s which is (part of) a template", supplier->GetFullName());
-		m_Holder->ThrowFail(msg, FR_MetaInfo);
+		m_Holder->ThrowFail(msg, FailType::MetaInfo);
 	}
 
 	if (m_Holder != supplier)
@@ -939,7 +939,7 @@ void InstantiateTemplate(TreeItem* holder, const TreeItem* applyItem, LispPtr te
 	// only config items can become template instantiations
 	dms_assert(holder); 
 
-	if (holder->WasFailed(FR_MetaInfo))
+	if (holder->WasFailed(FailType::MetaInfo))
 		return;
 	if (holder->GetIsInstantiated())
 		return;
@@ -997,7 +997,7 @@ OArgRefs ApplyMetaFunc_GetArgs(TreeItem* holder, const AbstrCalculator* ac, cons
 					, currArg + 1
 					, AsFLispSharedStr(argExpr, FormattingFlags::ThousandSeparator)
 				);
-				holder->Fail(errMsgTxt, FR_MetaInfo);
+				holder->Fail(errMsgTxt, FailType::MetaInfo);
 				return {};
 			}
 			TokenID symbID = cursor.Left().GetSymbID();
@@ -1009,12 +1009,12 @@ OArgRefs ApplyMetaFunc_GetArgs(TreeItem* holder, const AbstrCalculator* ac, cons
 				if (!foundItem)
 				{
 					auto msg = SharedStr(symbID.AsStrRange());
-					holder->Fail(mySSPrintF("Cannot find %s", msg), FR_MetaInfo);
+					holder->Fail(mySSPrintF("Cannot find %s", msg), FailType::MetaInfo);
 				}
 				else
 					argRef.emplace<SharedTreeItem>(foundItem);
 			}
-			dms_assert(argRef.index() == 1 && std::get<1>(argRef).has_ptr() || holder->WasFailed(FR_MetaInfo));
+			dms_assert(argRef.index() == 1 && std::get<1>(argRef).has_ptr() || holder->WasFailed(FailType::MetaInfo));
 			dms_assert(!SuspendTrigger::DidSuspend()); // POSTCONDITION of argIter->m_DC->MakeResult();
 		}
 		else
@@ -1035,10 +1035,10 @@ OArgRefs ApplyMetaFunc_GetArgs(TreeItem* holder, const AbstrCalculator* ac, cons
 			FutureData fd = dc->CalcResultWithValuesUnits();
 			dms_assert(!fd || fd->GetInterestCount());
 			dms_assert(!SuspendTrigger::DidSuspend());
-			dms_assert(!fd || CheckCalculatingOrReady(fd->GetOld()->GetCurrRangeItem()) || fd->WasFailed(FR_Data));
-			dms_assert(fd || dc->WasFailed(FR_Data));
-			if (dc->WasFailed(FR_Data))
-				holder->Fail(dc.get_ptr(), FR_MetaInfo);
+			dms_assert(!fd || CheckCalculatingOrReady(fd->GetOld()->GetCurrRangeItem()) || fd->WasFailed(FailType::Data));
+			dms_assert(fd || dc->WasFailed(FailType::Data));
+			if (dc->WasFailed(FailType::Data))
+				holder->Fail(dc.get_ptr(), FailType::MetaInfo);
 			argRef.emplace<FutureData>(std::move(fd));
 			if (currArg == 0 && og->HasDynamicArgPolicies())
 				firstArgValue = const_array_cast<SharedStr>(DataReadLock(AsDataItem(dc->GetOld())))->GetIndexedValue(0);
@@ -1046,16 +1046,16 @@ OArgRefs ApplyMetaFunc_GetArgs(TreeItem* holder, const AbstrCalculator* ac, cons
 		auto argItem = GetItem(argRef);
 		if (argItem) {
 			argItem->UpdateMetaInfo();
-			dms_assert(argItem->m_State.GetProgress() >= PS_MetaInfo || argItem->WasFailed(FR_MetaInfo));
+			assert(argItem->m_State.GetProgress() >= ProgressState::MetaInfo || argItem->WasFailed(FailType::MetaInfo));
 			if (argItem->WasFailed(mustCalcArg))
-				holder->Fail(argItem, FR_MetaInfo);
+				holder->Fail(argItem, FailType::MetaInfo);
 		}
 
-		dms_assert(argItem || holder->WasFailed(FR_MetaInfo)); // POSTCONDITION of argIter->m_DC->GetResult();
+		dms_assert(argItem || holder->WasFailed(FailType::MetaInfo)); // POSTCONDITION of argIter->m_DC->GetResult();
 
-		if (holder->WasFailed(FR_MetaInfo))
+		if (holder->WasFailed(FailType::MetaInfo))
 			return {};
-		dms_assert(argItem && !argItem->WasFailed(FR_MetaInfo));
+		dms_assert(argItem && !argItem->WasFailed(FailType::MetaInfo));
 		argSeq.push_back(argRef);
 	}
 	return argSeq;
@@ -1066,7 +1066,7 @@ bool ApplyMetaFunc_impl(TreeItem* holder, const AbstrCalculator* ac, const Abstr
 {
 	dms_assert(ac);
 	assert(holder);
-	if (holder->WasFailed(FR_MetaInfo))
+	if (holder->WasFailed(FailType::MetaInfo))
 		return false;
 	bool result;
 	try {
@@ -1074,7 +1074,7 @@ bool ApplyMetaFunc_impl(TreeItem* holder, const AbstrCalculator* ac, const Abstr
 		dms_assert(!SuspendTrigger::DidSuspend());
 		if (!args)
 		{
-			dms_assert(holder->WasFailed(FR_MetaInfo));
+			dms_assert(holder->WasFailed(FailType::MetaInfo));
 			return false;
 		}
 
@@ -1086,7 +1086,7 @@ bool ApplyMetaFunc_impl(TreeItem* holder, const AbstrCalculator* ac, const Abstr
 
 		oper->CreateResultCaller(*resultHolder, *args, metaCallArgs);
 
-		bool resultingFlag = !resultHolder->WasFailed(FR_MetaInfo);
+		bool resultingFlag = !resultHolder->WasFailed(FailType::MetaInfo);
 
 		if (!holder->GetDynamicObjClass()->IsDerivedFrom(oper->GetResultClass()))
 		{
@@ -1095,11 +1095,11 @@ bool ApplyMetaFunc_impl(TreeItem* holder, const AbstrCalculator* ac, const Abstr
 				, resultHolder->GetCurrentObjClass()->GetName()
 				, oper->GetResultClass()->GetName()
 			);
-			holder->Fail(msg, FR_MetaInfo);
+			holder->Fail(msg, FailType::MetaInfo);
 		}
-		if (resultHolder->WasFailed(FR_MetaInfo))
+		if (resultHolder->WasFailed(FailType::MetaInfo))
 		{
-			holder->Fail(*resultHolder, FR_MetaInfo);
+			holder->Fail(*resultHolder, FailType::MetaInfo);
 			resultingFlag = false;
 		}
 
@@ -1108,16 +1108,16 @@ bool ApplyMetaFunc_impl(TreeItem* holder, const AbstrCalculator* ac, const Abstr
 	}
 	catch (...)
 	{
-		holder->CatchFail(FR_MetaInfo);
+		holder->CatchFail(FailType::MetaInfo);
 		return false;
 	}
 	if (!result)
 	{
-		dms_assert(SuspendTrigger::DidSuspend() || holder->WasFailed(FR_MetaInfo));  // if we asked for MetaInfo and only DataProcesing failed, we should at least get a result
+		dms_assert(SuspendTrigger::DidSuspend() || holder->WasFailed(FailType::MetaInfo));  // if we asked for MetaInfo and only DataProcesing failed, we should at least get a result
 		return false;
 	}
 
-	dms_assert(!SuspendTrigger::DidSuspend() && !holder->WasFailed(FR_MetaInfo));  // if we asked for MetaInfo and only DataProcesing failed, we should at least get a result
+	dms_assert(!SuspendTrigger::DidSuspend() && !holder->WasFailed(FailType::MetaInfo));  // if we asked for MetaInfo and only DataProcesing failed, we should at least get a result
 	return true;
 }
 
@@ -1132,7 +1132,7 @@ void ApplyAsMetaFunction(TreeItem* holder, const AbstrCalculator* ac, const Abst
 	dms_assert(holder);
 	dms_assert(ac);
 	dms_assert(!SuspendTrigger::DidSuspend());
-	if (holder->WasFailed(FR_MetaInfo))
+	if (holder->WasFailed(FailType::MetaInfo))
 		return;
 	if (holder->GetIsInstantiated())
 		return;
@@ -1151,9 +1151,9 @@ void ApplyAsMetaFunction(TreeItem* holder, const AbstrCalculator* ac, const Abst
 
 	bool resultFlag = ApplyMetaFunc_impl(holder, ac, og, metaCallArgs);
 
-	dms_assert(resultFlag || holder->WasFailed(FR_MetaInfo));
+	dms_assert(resultFlag || holder->WasFailed(FailType::MetaInfo));
 
-	dms_assert(holder->GetIsInstantiated() || holder->WasFailed(FR_MetaInfo));
+	dms_assert(holder->GetIsInstantiated() || holder->WasFailed(FailType::MetaInfo));
 	holder->SetIsInstantiated(); // REMOVE if the above assert is PROVEN.
 }
 
@@ -1357,7 +1357,7 @@ LispRef AbstrCalculator::SubstituteExpr_impl(SubstitutionBuffer& substBuff, Lisp
 				auto supplier = dc->MakeResult();
 				if (!supplier)
 				{
-					dms_assert(dc->WasFailed(FR_MetaInfo));
+					dms_assert(dc->WasFailed(FailType::MetaInfo));
 					m_Holder->ThrowFail(dc);
 				}
 

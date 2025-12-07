@@ -237,7 +237,7 @@ namespace cs_lock {
 		// for opening actual data for shared (readonly) use, non-shared preparation action might be required; i.e LoadBlobIfAny OR read from CalcCache (if IsFnKnown and not DataAllocated).
 		if (!CheckDataReady(item))
 		{
-			if (item->WasFailed(FR_Data))
+			if (item->WasFailed(FailType::Data))
 				item->ThrowFail(); // item will be unlocked at catch section
 			DSM::CancelOrThrow(item);
 		}
@@ -327,7 +327,7 @@ namespace cs_lock {
 
 		// from here nothrow
 		unlockDsmUsageCounter.release();
-		assert(item->WasFailed(FR_Data) || CheckDataReady(item));
+		assert(item->WasFailed(FailType::Data) || CheckDataReady(item));
 	}
 
 	bool TryReadLockInit(const TreeItem* item)
@@ -352,7 +352,7 @@ namespace cs_lock {
 
 		// from here nothrow
 		unlockDsmUsageCounter.release();
-		assert(item->WasFailed(FR_Data) || CheckDataReady(item));
+		assert(item->WasFailed(FailType::Data) || CheckDataReady(item));
 		return true;
 	}
 
@@ -505,7 +505,7 @@ bool IsDataCurrCompleted(const TreeItem* item)
 		auto adi = AsDataItem(item);
 		if (!adi->m_DataObject.has_ptr())
 			return false;
-		if (adi->WasFailed(FR_Data))
+		if (adi->WasFailed(FailType::Data))
 		{
 			adi->m_DataObject.reset();
 			return false;
@@ -791,10 +791,10 @@ bool WaitReady(const TreeItem* item)
 {
 	assert(item);
 	assert(item == item->GetCurrRangeItem());
-	assert(CheckCalculatingOrReady(item) || item->WasFailed(FR_Data));
+	assert(CheckCalculatingOrReady(item) || item->WasFailed(FailType::Data));
 	if (IsDataReady(item))
 		return true;
-	if (item->WasFailed(FR_Data))
+	if (item->WasFailed(FailType::Data))
 		return false;
 
 	dbg_assert(!SuspendTrigger::DidSuspend());
