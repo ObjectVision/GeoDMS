@@ -3704,6 +3704,10 @@ bool TreeItem::PrepareDataUsageImpl(DrlType drlFlags) const
 					{
 						auto fsn = sm->GetNameStr();
 						auto rn = GetRelativeName(sp);
+						if (rn.empty())
+						{
+							rn = "@main";
+						}
 
 						auto fn = DelimitedConcat(fsn, rn);
 						if (!IsFileOrDirAccessible(fn))

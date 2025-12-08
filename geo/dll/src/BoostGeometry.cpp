@@ -1190,6 +1190,14 @@ struct BufferMultiPolygonOperator : public AbstrBufferOperator
 					auto resMP = mp->buffer(bufferDistance, pointsPerCircle);
 					geos_assign_geometry(resData[i], resMP.get());
 				}
+				if (processTimer.PassedSecs())
+				{
+					reportF(SeverityTypeID::ST_MajorTrace, "%s: processed %s / %s sequences of tile %s / %s"
+						, GetGroup()->GetNameStr()
+						, AsString(i), AsString(n)
+						, AsString(t), AsString(resItem->GetTiledRangeData()->GetNrTiles())
+					);
+				}
 				if (++i == n)
 					break;
 			}
