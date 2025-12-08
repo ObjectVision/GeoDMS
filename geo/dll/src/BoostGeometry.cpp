@@ -1055,6 +1055,9 @@ struct BufferLineStringOperator : public AbstrBufferOperator
 				auto lineString = geos_create_multi_linestring<P>(lineStringRef.begin(), lineStringRef.end());
 				auto bufferedLineString = lineString->buffer(bufferDistance, (pointsPerCircle + 3) / 4);
 				geos_assign_geometry(resData[i], bufferedLineString.get());
+				// move to next geometry
+				if (++i == n)
+					return;
 			}
 			else if constexpr (GL == geometry_library::cgal)
 			{
@@ -1072,6 +1075,11 @@ struct BufferLineStringOperator : public AbstrBufferOperator
 						auto offsetPolygons = CGAL::create_offset_polygons_2(bufferDistance, *straight_skeleton);
 						cgal_assign_shared_polygon_vector(resData[i], std::move(offsetPolygons));
 					}
+
+					// move to next geometry
+					if (++i == n)
+						return;
+
 				} while (e2IsVoid);
 			}
 			else if constexpr (GL == geometry_library::boost_polygon)
