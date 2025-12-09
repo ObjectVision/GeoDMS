@@ -966,17 +966,32 @@ auto configIsInRecentFiles(std::string_view cfg, const std::vector<std::string>&
     return -1;
 }
 
-void MainWindow::cleanRecentFilesThatDoNotExist() {
+void MainWindow::cleanRecentFilesThatDoNotExistOrListedBefore() 
+{
+    std::set<std::string> listedFiles;
+
     auto recent_files_from_registry = GetGeoDmsRegKeyMultiString(dms_params::reg_key_RecentFiles);
-    for (auto it_rf = recent_files_from_registry.begin(); it_rf != recent_files_from_registry.end();) {
-        if ((strnicmp(it_rf->c_str(), "file:", 5) != 0)) {
-            auto dosFileName = ConvertDmsFileName(SharedStr(it_rf->c_str()));
-            if (!std::filesystem::exists(dosFileName.c_str()) || it_rf->empty()) {
-                it_rf = recent_files_from_registry.erase(it_rf);
+    for (auto it_rf = recent_files_from_registry.begin(); it_rf != recent_files_from_registry.end();) 
+    {
+		// see if we can keep this file in the recent files list
+        if (!it_rf->empty() && !listedFiles.contains(*it_rf))
+        {
+            listedFiles.insert(*it_rf);
+            if (strnicmp(it_rf->c_str(), "file:", 5) == 0)
+            {
+				++it_rf; // keep this one without checking existence
                 continue;
             }
+            auto dosFileName = ConvertDmsFileName(SharedStr(it_rf->c_str()));
+            if (std::filesystem::exists(dosFileName.c_str())) 
+            {
+                ++it_rf; // and this one
+                continue;
+            }
+
         }
-        ++it_rf;
+		// delete duplicate or non existing entry
+        it_rf = recent_files_from_registry.erase(it_rf);
     }
     SetGeoDmsRegKeyMultiString("RecentFiles", recent_files_from_registry);
 }
@@ -1556,7 +1571,7 @@ void MainWindow::updateFileMenu() {
         delete recent_file_entry;
     }
     m_recent_file_entries.clear();
-    cleanRecentFilesThatDoNotExist();
+    cleanRecentFilesThatDoNotExistOrListedBefore();
     auto recent_files_from_registry = GetGeoDmsRegKeyMultiString("RecentFiles"); 
 
     for (std::string_view recent_file : recent_files_from_registry)
