@@ -131,13 +131,13 @@ bool TiffSM::ReadDataItem(StorageMetaInfoPtr smi, AbstrDataObject* borrowedReadR
 	vpi.SetWritability(adi);
 
 	if (vpi.GetCountColor() != -1)
-		ReadGridCounts(vpi, adi, borrowedReadResultHolder, t);
+		ReadGridCounts(vpi, adi, borrowedReadResultHolder, t, smi);
 	else
-		ReadGridData  (vpi, adi, borrowedReadResultHolder, t);
+		ReadGridData  (vpi, adi, borrowedReadResultHolder, t, smi);
 	return true;
 }
 
-void TiffSM::ReadGridCounts(const StgViewPortInfo& vpi, AbstrDataItem* adi, AbstrDataObject* ado, tile_id t)
+void TiffSM::ReadGridCounts(const StgViewPortInfo& vpi, AbstrDataItem* adi, AbstrDataObject* ado, tile_id t, StorageMetaInfoPtr smi)
 {
 	DBG_START("TiffSM", "ReadGridCounts", true);
 	assert(m_pImp);
@@ -147,7 +147,7 @@ void TiffSM::ReadGridCounts(const StgViewPortInfo& vpi, AbstrDataItem* adi, Abst
 	Grid::ReadGridCounts(*m_pImp, vpi, ado, t, GetNameStr().c_str());
 }
 
-void TiffSM::ReadGridData(const StgViewPortInfo& vpi, AbstrDataItem* adi, AbstrDataObject* ado, tile_id t)
+void TiffSM::ReadGridData(const StgViewPortInfo& vpi, AbstrDataItem* adi, AbstrDataObject* ado, tile_id t, StorageMetaInfoPtr smi)
 {
 	DBG_START("TiffSM", "ReadGridData", false);
 	assert(m_pImp);

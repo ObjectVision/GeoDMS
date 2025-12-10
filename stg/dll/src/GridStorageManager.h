@@ -386,8 +386,7 @@ namespace Grid {
 
 
 	template <typename Imp>
-	void ReadGridData(Imp& imp, const StgViewPortInfo& vpi, AbstrDataObject* ado, tile_id t
-		, CharPtr dataSourceName // for diagnostic purpose
+	void ReadGridData(Imp& imp, const StgViewPortInfo& vpi, AbstrDataObject* ado, tile_id t, CharPtr dataSourceName // for diagnostic purpose
 	)
 	{
 		auto dataHandle = ado->GetDataWriteBegin(t);

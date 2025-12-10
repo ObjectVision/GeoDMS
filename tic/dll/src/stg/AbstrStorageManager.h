@@ -161,7 +161,8 @@ protected:
 	SharedPtr<const TreeItem> m_StorageHolder, m_Curr;
 public:
 	SharedStr m_RelativeName;
-	bool      m_MustRememberFailure = true;
+	bool      m_MustRememberFailure :1 = true;
+	bool      mf_WarningFlag1       :1 = false;
 	std::mutex m_TileReadSection;
 	std::once_flag m_compare_tile_size_flag;
 };

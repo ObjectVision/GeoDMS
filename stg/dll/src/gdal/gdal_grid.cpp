@@ -111,9 +111,9 @@ bool GdalGridSM::ReadDataItem(StorageMetaInfoPtr smi, AbstrDataObject* borrowedR
 		vpi.SetWritability(adi);
 
 		if (vpi.GetCountColor() != -1)
-			ReadGridCounts(vpi, borrowedReadResultHolder, t, gbr->m_SqlString);
+			ReadGridCounts(vpi, borrowedReadResultHolder, t, gbr->m_SqlString, smi);
 		else
-			ReadGridData  (vpi, borrowedReadResultHolder, t, gbr->m_SqlString);
+			ReadGridData  (vpi, borrowedReadResultHolder, t, gbr->m_SqlString, smi);
 	}
 
 	return true;
@@ -124,7 +124,7 @@ bool GdalGridSM::ReadDataItem(StorageMetaInfoPtr smi, AbstrDataObject* borrowedR
 // ------------------------------------------------------------------------
 
 
-GDalGridImp::GDalGridImp(GDALDataset* hDS, const AbstrDataObject* ado, UPoint viewPortSize, SharedStr sqlBandSpecification)
+GDalGridImp::GDalGridImp(GDALDataset* hDS, const AbstrDataObject* ado, UPoint viewPortSize, SharedStr sqlBandSpecification, StorageMetaInfoPtr smi)
 	: m_hDS(hDS)
 	, m_RasterBand(GetRasterBand(sqlBandSpecification))
 	, m_ValueClassID(ado->GetValueClass()->GetValueClassID())
@@ -135,10 +135,20 @@ GDalGridImp::GDalGridImp(GDALDataset* hDS, const AbstrDataObject* ado, UPoint vi
 	auto valueClass = ado->GetValueClass();
 	auto geoDmsDataType = gdalRasterDataType(valueClass->GetValueClassID(), false);
 	if (rasterDataType != geoDmsDataType)
-		reportF(SeverityTypeID::ST_Warning, "gdal.grid: different value types. Storage contains %s values while GeoDms expects %s values"
-			, GDALGetDataTypeName(rasterDataType)
-			, valueClass->GetName()
-		);
+		if (rasterDataType != GDT_Byte || geoDmsDataType != GDT_UInt32 || hDS->GetRasterCount() != 4)
+		{
+			if (smi)
+			{
+				if (smi->mf_WarningFlag1)
+					return;
+				smi->mf_WarningFlag1 = true;
+			}
+
+			reportF(SeverityTypeID::ST_Warning, "gdal.grid: different value types. Storage contains %s values while GeoDms expects %s values"
+				, GDALGetDataTypeName(rasterDataType)
+				, valueClass->GetName()
+			);
+		}
 }
 
 std::vector<int> GDalGridImp::UnpackBandIndicesFromValue(std::string value)
@@ -405,19 +415,19 @@ void GDalGridImp::SetTiled()
 //		TIFFSetField(m_TiffHandle, TIFFTAG_TILELENGTH, UInt32(256));
 }
 
-void GdalGridSM::ReadGridData(StgViewPortInfo& vpi, AbstrDataObject* ado, tile_id t, SharedStr sqlBandSpecification)
+void GdalGridSM::ReadGridData(StgViewPortInfo& vpi, AbstrDataObject* ado, tile_id t, SharedStr sqlBandSpecification, StorageMetaInfoPtr smi)
 {
 	MG_CHECK(m_hDS->GetRasterCount() >=  1 );
 
-	GDalGridImp imp(m_hDS, ado, Size(vpi.GetViewPortExtents()), sqlBandSpecification);
+	GDalGridImp imp(m_hDS, ado, Size(vpi.GetViewPortExtents()), sqlBandSpecification, smi);
 	Grid::ReadGridData(imp, vpi, ado, t, GetNameStr().c_str());
 }
 
-void GdalGridSM::ReadGridCounts(StgViewPortInfo& vpi, AbstrDataObject* ado, tile_id t, SharedStr sqlBandSpecification)
+void GdalGridSM::ReadGridCounts(StgViewPortInfo& vpi, AbstrDataObject* ado, tile_id t, SharedStr sqlBandSpecification, StorageMetaInfoPtr smi)
 {
 	MG_CHECK(m_hDS->GetRasterCount() >= 1);
 
-	GDalGridImp imp(m_hDS, ado, Size(vpi.GetViewPortExtents()), sqlBandSpecification);
+	GDalGridImp imp(m_hDS, ado, Size(vpi.GetViewPortExtents()), sqlBandSpecification, smi);
 	Grid::ReadGridCounts(imp, vpi, ado, t, GetNameStr().c_str());
 }
 
@@ -440,7 +450,7 @@ bool GdalGridSM::WriteDataItem(StorageMetaInfoPtr&& smi)
 	auto x = m_hDS->GetRasterXSize();
 	auto y = m_hDS->GetRasterYSize();
 
-	GDalGridImp imp(m_hDS, adi->GetCurrRefObj(), shp2dms_order(x, y), SharedStr(""));
+	GDalGridImp imp(m_hDS, adi->GetCurrRefObj(), shp2dms_order(x, y), SharedStr(""), smi);
 	ViewPortInfoProvider vpip(storageHolder, adi, false, true);
 
 	Grid::WriteGridData(imp, vpip.GetViewportInfoEx(no_tile, storageHandle.MetaInfo()), storageHolder, adi, adi->GetCurrRefObj()->GetValuesType(), GetNameStr().c_str());

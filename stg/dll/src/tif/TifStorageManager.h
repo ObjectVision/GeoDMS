@@ -59,8 +59,8 @@ struct TiffSM : AbstrGridStorageManager
 	bool CanWriteTiles() const override { return true; }
 
 private:
-	void ReadGridCounts(const StgViewPortInfo& vpi, AbstrDataItem* adi, AbstrDataObject* borrowedReadResultHolder, tile_id t);
-	void ReadGridData  (const StgViewPortInfo& vpi, AbstrDataItem* adi, AbstrDataObject* borrowedReadResultHolder, tile_id t);
+	void ReadGridCounts(const StgViewPortInfo& vpi, AbstrDataItem* adi, AbstrDataObject* borrowedReadResultHolder, tile_id t, StorageMetaInfoPtr smi);
+	void ReadGridData  (const StgViewPortInfo& vpi, AbstrDataItem* adi, AbstrDataObject* borrowedReadResultHolder, tile_id t, StorageMetaInfoPtr smi);
 	bool ReadPalette   (AbstrDataObject* ado);
 
 	void WriteGridData(TifImp& imp, const StgViewPortInfo& vpi, const TreeItem* storageHolder, const AbstrDataItem* adi, const ValueClass* streamType);

@@ -38,8 +38,8 @@ struct GdalGridSM : AbstrGridStorageManager, gdalComponent
 	prop_tables GetPropTables(const TreeItem* storageHolder=nullptr, TreeItem* curr=nullptr) const override;
 
 private:
-	void ReadGridData  (StgViewPortInfo& vip, AbstrDataObject* ado, tile_id t, SharedStr sqlBandSpecification);
-	void ReadGridCounts(StgViewPortInfo& vip, AbstrDataObject* ado, tile_id t, SharedStr sqlBandSpecification);
+	void ReadGridData  (StgViewPortInfo& vip, AbstrDataObject* ado, tile_id t, SharedStr sqlBandSpecification, StorageMetaInfoPtr smi);
+	void ReadGridCounts(StgViewPortInfo& vip, AbstrDataObject* ado, tile_id t, SharedStr sqlBandSpecification, StorageMetaInfoPtr smi);
 	bool ReadPalette(AbstrDataObject* adi);
 //	void WriteGridData(const TreeItem* storageHolder, const AbstrDataItem* adi);
 
@@ -74,7 +74,7 @@ struct GDAL_SimpleReader : gdalComponent
 
 class GDalGridImp {
 public:
-	GDalGridImp(GDALDataset* hDS, const AbstrDataObject* ado, UPoint viewPortSize, SharedStr sqlBandSpecification);
+	GDalGridImp(GDALDataset* hDS, const AbstrDataObject* ado, UPoint viewPortSize, SharedStr sqlBandSpecification, StorageMetaInfoPtr smi);
 	SizeT ReadTile(void* stripBuff, UInt32 tile_x, UInt32 tile_y, UInt32 strip_y, SizeT tileByteSize) const;
 	Int32 WriteTile(void* stripBuff, UInt32 tile_x, UInt32 tile_y);
 	void UnpackCheck(UInt32 nrDmsBitsPerPixel, UInt32 nrRasterBitsPerPixel, CharPtr functionName, CharPtr direction, CharPtr dataSourceName) const;
