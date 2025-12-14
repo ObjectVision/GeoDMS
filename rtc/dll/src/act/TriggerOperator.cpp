@@ -79,8 +79,6 @@ void ProcessLastMsg()
 	assert(IsMetaThread());
 	if (!g_LastMsg)
 		return;
-	if (g_DispatchLockCount)
-		return;
 
 	leveled_critical_section::scoped_lock notifyLock(sc_NotifyTargetCount);
 	auto lastMsg = g_LastMsg.exchange(nullptr);
@@ -91,7 +89,7 @@ void ProcessLastMsg()
 void ProgressNotifyMsg(CharPtr msg)
 {
 	assert(sc_NotifyTargetCount.isLocked());
-	if (IsMainThread())
+	if (IsMainThread() && !g_DispatchLockCount)
 	{
 		g_LastMsg = nullptr;
 		ProgressMsg(msg);
@@ -118,8 +116,6 @@ void NotifyRemainingTargetCount(UInt32 nrCount, UInt32 maxCount)
 	dms_assert(!gd_NotifyReentrantGuard);
 	StaticMtIncrementalLock<gd_NotifyReentrantGuard> reentrantGuard;
 #endif
-
-	StaticMtIncrementalLock<g_DispatchLockCount> dispatchLock;
 
 	clock_t currTime = clock();
 	if (nrCount > 1)

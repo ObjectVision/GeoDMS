@@ -684,16 +684,17 @@ UInt32 TreeItem_GetProgressState(const TreeItem* self)
 			return NC2_Committed;
 
 		auto treeitem_progress_state = self->m_State.GetProgress();
-		if (IsDataCurrReady(self->GetCurrRangeItem())) // treeitem_progress_state < ProgressState::Committed && 
+		if (treeitem_progress_state == ProgressState::Committed)
+			return NC2_Committed;
+
+		if (treeitem_progress_state == ProgressState::Validated)
+			return NC2_Validated;
+
+		if (IsDataCurrReady(self->GetCurrRangeItem()))
 			return NC2_DataReady;
 		
-//		self->DetermineState();
-		switch (treeitem_progress_state)//self->m_State.GetProgress())
-		{
-			case ProgressState::Validated: return NC2_Validated;
-			case ProgressState::Committed: return NC2_Committed;
-			case ProgressState::MetaInfo:  return NC2_MetaReady;
-		}
+		if (treeitem_progress_state == ProgressState::MetaInfo)
+			return NC2_MetaReady;
 
 	DMS_CALL_END
 	return NC2_Invalidated;

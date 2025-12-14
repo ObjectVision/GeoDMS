@@ -552,7 +552,7 @@ std::shared_ptr<Theme> Theme::Create(Theme* src)
 
 ActorVisitState PrepareThemeData(const AbstrDataItem* adi, const Actor* act)
 {
-	dms_assert(act);
+	assert(act);
 	if (!adi || adi->IsPassor())
 		return AVS_Ready;
 
@@ -569,7 +569,7 @@ ActorVisitState PrepareThemeData(const AbstrDataItem* adi, const Actor* act)
 		if (SuspendTrigger::DidSuspend())
 			return AVS_SuspendedOrFailed;
 	}
-	dms_assert(adi->WasFailed()); 
+	assert(adi->WasFailed()); 
 	act->Fail(adi);
 	return act->WasFailed(FailType::Data) ? AVS_SuspendedOrFailed : AVS_Ready;
 }

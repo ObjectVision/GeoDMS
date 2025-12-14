@@ -647,10 +647,13 @@ bool TreeItem_XML_DumpGeneralBody(const TreeItem* self, OutStreamBase* xmlOutStr
 			auto nc = TreeItem_GetProgressState(refItem);
 			xmlTable.NameValueRow(
 				"ProgressState",
-				mySSPrintF("%s at %d for Fence %d, checked at %d for %s"
+				mySSPrintF("%s at %d for Phase %d with interest %d%s%s, checked at %d for %s"
 				,	UpdateStateName(nc)
 				,	refItem->LastChangeTS()
 				,	refItem->m_PhaseNumber
+				,	refItem->GetInterestCount()
+				,   refItem->IsPassor() ? " as Passor " : ""
+				,	refItem->DoesHaveSupplInterest() ? " with SupplInterest " : ""
 				,	refItem->m_LastGetStateTS
 				,	refItem->GetFullName()
 				).c_str()
