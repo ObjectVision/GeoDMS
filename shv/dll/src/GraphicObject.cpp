@@ -295,6 +295,9 @@ bool GraphicObject::PrepareDataOrUpdateViewLater(const TreeItem* item)
 	SharedTreeItemInterestPtr itemHolder(item);
 	assert(item->HasInterest());
 
+	if (!item->SuspendibleUpdate(ProgressState::Committed))
+		return false;
+
 	if (!itemHolder->PrepareDataUsageImpl(DrlType::Suspendible))
 		return false;
 

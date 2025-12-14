@@ -150,6 +150,7 @@ AbstrDataItem* CreateFocusElemIndexParamInDesktop(const FocusElemKey& key)
 		,	Unit<Void >::GetStaticClass()->CreateDefault() 
 		,	Unit<SizeT>::GetStaticClass()->CreateDefault()
 		);
+		result->SetPassor();
 		result->DisableStorage(true);
 		result->UpdateMetaInfo();
 		DataWriteHandle handle(result);
