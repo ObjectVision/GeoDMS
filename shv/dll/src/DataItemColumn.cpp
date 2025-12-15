@@ -1168,17 +1168,37 @@ void DataItemColumn::FindNextValue(SharedStr searchText)
 			if (!IsDefined(row))
 				row = 0;
 			SizeT currRow = row;
-			auto searchData = const_array_cast<value_type>(aa)->GetLockedDataRead();
+			auto searchData = const_array_cast<value_type>(aa)->GetDataRead();
+
+			// first, try to find exact match
 			do{
 				++row;  if (row == nrRows) row = 0; // go to next row modulo nrRows
 				auto recNo = tc->GetRecNo(row);
-				dms_assert(recNo < searchData.size());
+				assert(recNo < searchData.size());
 				if (equal_to(searchData[recNo], searchValue))
 				{
 					this->GotoRow(row);
 					return;
 				}
 			} while (row != currRow);
+
+			if constexpr (std::is_same_v<value_type, SharedStr>)
+			{
+				// then try to find partial match
+				do {
+					++row;  if (row == nrRows) row = 0; // go to next row modulo nrRows
+					auto recNo = tc->GetRecNo(row);
+					assert(recNo < searchData.size());
+
+					auto searchStringCRef = searchData[recNo];
+					if (std::search(searchStringCRef.begin(), searchStringCRef.end(), searchValue.begin(), searchValue.end()) != searchStringCRef.end())
+					{
+						this->GotoRow(row);
+						return;
+					}
+				} while (row != currRow);
+			}
+
 			reportF(SeverityTypeID::ST_Warning, "ViewColumn.FindNext: failed finding value %.80s", AsString(searchValue));
 		}
 	);
