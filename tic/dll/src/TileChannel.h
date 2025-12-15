@@ -98,7 +98,7 @@ struct abstr_tile_write_channel
 	void GetNextTile()
 	{
 		MG_CHECK(m_Cursor.first < GetTiledRangeData()->GetNrTiles());
-		m_LockedSeq = GetTileFunctor()->GetWritableTileLock(++m_Cursor.first);
+		m_LockedSeq = GetTileFunctor()->GetWritableTileLock(++m_Cursor.first, dms_rw_mode::write_only_all);
 		m_Cursor.second = 0;
 	}
 	void SkipEOT()

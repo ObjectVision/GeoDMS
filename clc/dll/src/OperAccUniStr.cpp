@@ -68,13 +68,12 @@ struct OperAccTotUniStr : OperAccTotUni<TAcc1Func>
 		auto result = mutable_array_cast<typename OperAccTotUniStr::ResultValueType>(res);
 		assert(result);
 
-		assert(result->GetDataWrite().size() == 1);
-
-		Assign(result->GetDataWrite()[0], this->m_Acc1Func.InitialValue());
+		Assign(result->GetDataWrite(no_tile, dms_rw_mode::write_only_all)[0], this->m_Acc1Func.InitialValue());
 
 		tile_id tn = arg1A->GetAbstrDomainUnit()->GetNrTiles();
+		auto resultData = result->GetDataWrite(no_tile, dms_rw_mode::write_only_mustzero);
 		for (tile_id t = 0; t!=tn; ++t)
-			this->m_Acc1Func(result->GetDataWrite()[0], arg1->GetTile(t));
+			this->m_Acc1Func(resultData[0], arg1->GetTile(t));
 	}
 };
 
@@ -125,7 +124,7 @@ public:
 			assert(result);
 
 			auto arg2Data = arg2->GetDataRead();
-			auto resData  = result->GetDataWrite();
+			auto resData  = result->GetDataWrite(no_tile, dms_rw_mode::write_only_mustzero);
 			assert(arg2Data.size() == 1);
 			assert(resData .size() == 1);
 

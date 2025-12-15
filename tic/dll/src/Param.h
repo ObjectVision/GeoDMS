@@ -65,7 +65,7 @@ CreateConstParam(const T& value)
 
 	DataWriteLock lock(dataItem);
 	DataObjectType* dataObj = mutable_array_cast<T>(lock);
-	auto data = dataObj->GetDataWrite();
+	auto data = dataObj->GetDataWrite(no_tile, dms_rw_mode::write_only_all);
 	dms_assert(data.size() == 1);
 	Assign(data[0], value);
 

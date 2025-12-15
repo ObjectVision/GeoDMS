@@ -342,7 +342,7 @@ struct ReadLinesOperator: public TernaryOperator
 
 		DataWriteLock dwl(res);
 
-		auto seq = mutable_array_cast<SharedStr>(dwl)->GetDataWrite();
+		auto seq = mutable_array_cast<SharedStr>(dwl)->GetDataWrite(no_tile, dms_rw_mode::write_only_mustzero);
 		for (auto ref: seq)
 		{
 			// read line into ref

@@ -627,7 +627,7 @@ public:
 	{
 		ResultType* result = mutable_array_cast<ResultValueType>(res);
 		assert(result);
-		auto  resData = result->GetDataWrite();
+		auto  resData = result->GetDataWrite(no_tile, dms_rw_mode::write_only_all);
 
 		 ModusTotDispatcher<V, ResultValueType>(const_array_cast<V>(arg1A), OnlyDefinedCheckRequired(arg1A), resData[0], m_AggrFunc);
 	}
@@ -654,7 +654,7 @@ public:
 	{
 		ResultType* result = mutable_array_cast<V>(res);
 		dms_assert(result);
-		auto resData = result->GetDataWrite();
+		auto resData = result->GetDataWrite(no_tile, dms_rw_mode::write_only_mustzero);
 
 		WeightedModusTotDispatcher<V>(const_array_cast<V>(arg1A), OnlyDefinedCheckRequired(arg1A), arg2A, resData[0]);
 	}
@@ -742,7 +742,7 @@ struct WeightedModusPart : public AbstrOperAccPartBin
 	void Calculate(DataWriteLock& res, const AbstrDataItem* arg1A, const AbstrDataItem* arg2A, const AbstrDataItem* arg3A) const override
 	{
 		auto result = mutable_array_cast<ValueType>(res); assert(result);
-		auto resData = result->GetLockedDataWrite();
+		auto resData = result->GetDataWrite(no_tile, dms_rw_mode::write_only_mustzero);
 
 		assert(resData.size() == res->GetTiledRangeData()->GetRangeSize()); // DataWriteLock was set by caller and p3 is domain of res
 

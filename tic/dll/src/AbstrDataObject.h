@@ -86,7 +86,7 @@ public:
 // Abstr Tile retention
 	virtual auto GetFutureAbstrTile(tile_id t) const-> SharedPtr<abstr_future_tile> = 0;
 	virtual auto GetReadableTileLock(tile_id t) const->TileCRef = 0; // TODO G8: REMOVE
-	virtual auto GetWritableTileLock(tile_id t, dms_rw_mode rwMode = dms_rw_mode::read_write)->TileRef = 0; // TODO G8: REMOVE
+	virtual auto GetWritableTileLock(tile_id t, dms_rw_mode rwMode)->TileRef = 0; // TODO G8: REMOVE
 
 //	DomainCardinality
 	TIC_CALL row_id      GetNrFeaturesNow() const;
@@ -106,7 +106,7 @@ public:
 	TIC_CALL virtual auto GetValueClass() const -> const ValueClass * = 0;
 
 	TIC_CALL virtual auto GetDataReadBegin (tile_id = no_tile) const ->data_read_begin_handle =0;
-	TIC_CALL virtual auto GetDataWriteBegin(tile_id = no_tile) ->data_write_begin_handle =0;
+	TIC_CALL virtual auto GetDataWriteBegin(tile_id, dms_rw_mode rwMode) ->data_write_begin_handle =0;
 
 	TIC_CALL virtual void GetAbstrValue   (SizeT index, AbstrValue& valueHolder) const=0;
 	TIC_CALL virtual void SetAbstrValue   (SizeT index, const AbstrValue& valueHolder)=0;
@@ -299,7 +299,7 @@ struct ReadableTileLock : TileCRef // TODO G8: REMOVE
 
 struct WritableTileLock: TileRef // TODO G8: REMOVE
 {
-	WritableTileLock(AbstrDataObject * ado, tile_id t, dms_rw_mode rwMode = dms_rw_mode::read_write)
+	WritableTileLock(AbstrDataObject * ado, tile_id t, dms_rw_mode rwMode)
 		: TileRef(ado->GetWritableTileLock(t, rwMode))
 	{}
 };

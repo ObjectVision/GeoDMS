@@ -84,7 +84,7 @@ struct DistrictOperator : public UnaryOperator
 			district_type nrDistricts = 0;
 
 			auto inputVec  = inputGrid->GetDataRead();
-			auto outputVec = resLock->GetDataWrite();
+			auto outputVec = resLock->GetDataWrite(no_tile, dms_rw_mode::write_only_mustzero);
 
 			IRect rect = domain->GetRangeAsIRect();
 			if (!rect.empty())
@@ -158,7 +158,7 @@ public:
 		if (mustCalc)
 		{
 			const Arg1Type* inputGrid = debug_cast<const Arg1Type*>(inputGridA->GetCurrRefObj());
-			dms_assert(inputGrid);
+			assert(inputGrid);
 
 			DataReadLock arg1Lock(inputGridA);
 
@@ -167,20 +167,20 @@ public:
 
 			ResultType* result= mutable_array_cast<T>(resLock);
 
-			auto inputVec  = inputGrid->GetLockedDataRead();
-			auto outputVec = result   ->GetLockedDataWrite();
+			auto inputVec  = inputGrid->GetDataRead();
+			auto outputVec = result   ->GetDataWrite(no_tile, dms_rw_mode::write_only_mustzero);
 		
 			Range<T> range = values->GetRange();
-			dms_assert(range.first < range.second);
+			assert(range.first < range.second);
 			T inputUpperBound = Cardinality(range);
 
 			IRect rect = domain->GetRangeAsIRect();
 			if (!rect.empty())
 			{
-				dms_assert(rect.first.first < rect.second.first);
-				dms_assert(rect.first.second < rect.second.second);
-				dms_assert(inputVec.size() == Cardinality(rect));
-				dms_assert(outputVec.size() == Cardinality(rect));
+				assert(rect.first.first < rect.second.first);
+				assert(rect.first.second < rect.second.second);
+				assert(inputVec.size() == Cardinality(rect));
+				assert(outputVec.size() == Cardinality(rect));
 
 				UGrid<const Arg1Type::value_type> input(Size(rect), inputVec.begin());
 				UGrid<      Arg1Type::value_type> output(input.GetSize(), outputVec.begin());

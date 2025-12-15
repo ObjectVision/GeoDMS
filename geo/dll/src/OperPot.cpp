@@ -256,8 +256,6 @@ struct AbstrDirectPotentialOperator : public BinaryOperator
                                 if (IsIntersecting(resTileRect, overlapTileRect))
                                 {
                                     // Accumulate or initialize tile portion
-                                    // (WritableTileLock not strictly necessary if Store obtains correct handles)
-                                    // WritableTileLock resTileLock(resDataHandle.get(), tr, resTileInfo.m_WasInitialized ? dms_rw_mode::read_write : dms_rw_mode::write_only_all);
                                     Store(resDataHandle.get(), tr, resTileRect, resTileInfo.m_WasInitialized, overlapTileRect, workingBuffer);
                                     resTileInfo.m_WasInitialized = true;
                                 }

@@ -492,7 +492,7 @@ void GraphicLayer::SelectAll(bool select)
 
 	DataWriteLock lock(selAttr);
 
-	auto selData = mutable_array_cast<SelectionID>(lock)->GetDataWrite();
+	auto selData = mutable_array_cast<SelectionID>(lock)->GetDataWrite(no_tile, dms_rw_mode::write_only_all);
 
 	DataArray<SelectionID>::iterator
 		i = selData.begin(),

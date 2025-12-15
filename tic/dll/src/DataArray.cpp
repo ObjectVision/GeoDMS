@@ -519,9 +519,9 @@ auto DataArrayBase<V>::GetDataReadBegin(tile_id t) const -> data_read_begin_hand
 }
 
 template <class V>
-auto DataArrayBase<V>::GetDataWriteBegin(tile_id t) -> data_write_begin_handle
+auto DataArrayBase<V>::GetDataWriteBegin(tile_id t, dms_rw_mode rwMode) -> data_write_begin_handle
 {
-	auto dwh = GetDataWrite(t, dms_rw_mode::read_write);
+	auto dwh = GetDataWrite(t, rwMode);
 	auto p = ptr<Byte>(data_ptr_traits<typename sequence_traits<V>::seq_t>::begin(dwh));
 	return data_write_begin_handle(std::move(dwh.m_TileHolder), p );
 }

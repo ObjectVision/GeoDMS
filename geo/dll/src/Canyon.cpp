@@ -189,10 +189,10 @@ public:
 
 			if (nrCalcPoints && nrBuildings)
 			{
-				auto r1 = mutable_array_cast<PointType>(res1Lock)->GetDataWrite(); auto ri1 = r1.begin();
-				auto r2 = mutable_array_cast<CoordType>(res2Lock)->GetDataWrite(); auto ri2 = r2.begin();
-				auto r3 = mutable_array_cast<PointType>(res3Lock)->GetDataWrite(); auto ri3 = r3.begin();
-				auto r4 = mutable_array_cast<CoordType>(res4Lock)->GetDataWrite(); auto ri4 = r4.begin();
+				auto r1 = mutable_array_cast<PointType>(res1Lock)->GetDataWrite(no_tile, dms_rw_mode::write_only_mustzero); auto ri1 = r1.begin();
+				auto r2 = mutable_array_cast<CoordType>(res2Lock)->GetDataWrite(no_tile, dms_rw_mode::write_only_mustzero); auto ri2 = r2.begin();
+				auto r3 = mutable_array_cast<PointType>(res3Lock)->GetDataWrite(no_tile, dms_rw_mode::write_only_mustzero); auto ri3 = r3.begin();
+				auto r4 = mutable_array_cast<CoordType>(res4Lock)->GetDataWrite(no_tile, dms_rw_mode::write_only_mustzero); auto ri4 = r4.begin();
 
 				auto buildingPoints = arg6->GetDataRead(); auto buildingPointsBegin = buildingPoints.begin();
 				auto buildingHoogte = arg7->GetDataRead(); auto buildingHoogteBegin = buildingHoogte.begin();

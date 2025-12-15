@@ -241,7 +241,7 @@ public:
 
 			TreeItem* res = resultHolder;
 			DataWriteLock resLock(debug_cast<AbstrDataItem*>(res));
-			auto resultData =  mutable_array_cast<UInt32>(resLock)->GetDataWrite();
+			auto resultData =  mutable_array_cast<UInt32>(resLock)->GetDataWrite(no_tile, dms_rw_mode::write_only_all);
 			dms_assert(resultData.size() == size);
 
 			ResultType::iterator dai = resultData.begin();

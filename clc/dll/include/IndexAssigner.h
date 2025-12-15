@@ -55,7 +55,7 @@ struct IndexAssignerBase : UnitProcessor
 	template <typename E>
 	void VisitImpl(const Unit<E>* inviter) const
 	{
-		auto resData = composite_cast<DataArray<E>*>(m_Res)->GetDataWrite(m_TileID);
+		auto resData = composite_cast<DataArray<E>*>(m_Res)->GetDataWrite(m_TileID, dms_rw_mode::read_write);
 		SizeT sz = resData.size();
 
 		assert(m_Start         <= sz);
@@ -68,7 +68,7 @@ struct IndexAssignerBase : UnitProcessor
 	AbstrDataItem*   m_ResItem;
 	AbstrDataObject* m_Res;
 	tile_id          m_TileID;
-//	WritableTileLock m_resTileLock;
+
 	DataArrayBase<IndexType>::locked_seq_t m_IndexHolder;
 	IndexType*       m_Indices;
 	SizeT            m_Start, m_Len;

@@ -40,7 +40,7 @@ void DoInterpolateLinear(
 	auto data    = dataObj  ->GetDataRead();
 	auto xCoords = xCoordObj->GetDataRead();
 	auto yCoords = yCoordObj->GetDataRead();
-	auto resData = resultObj->GetDataWrite();
+	auto resData = resultObj->GetDataWrite(no_tile, dms_rw_mode::write_only_all);
 
 	dms_assert(   data.size() == resData.size());
 	dms_assert(xCoords.size() == yCoords.size());

@@ -224,7 +224,7 @@ template <typename V, typename Container >
 void StoreValues(AbstrDataItem* adi, Container& c)
 {
 	DataWriteLock lock(adi);
-	auto data = mutable_array_cast<V>(lock)->GetLockedDataWrite();
+	auto data = mutable_array_cast<V>(lock)->GetDataWrite(no_tile, dms_rw_mode::write_only_mustzero);
 	SizeT i=0;
 	for (auto v: c)
 		Assign(data[i++], Convert<V>(v));

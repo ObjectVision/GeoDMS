@@ -166,7 +166,7 @@ struct MergeOperatorBase : public AbstrRasterMergeOperator
 
 	void InitTile(AbstrDataObject* resDataA, tile_id t) const override
 	{
-		auto resultData = mutable_array_cast<ValueType>(resDataA)->GetDataWrite(t);
+		auto resultData = mutable_array_cast<ValueType>(resDataA)->GetDataWrite(t, dms_rw_mode::write_only_all);
 		fast_fill(resultData.begin(), resultData.end(), UNDEFINED_OR_ZERO(ValueType));
 	}
 
@@ -273,7 +273,7 @@ struct RasterImpressOperator: public AbstrRasterMergeOperator
 
 	void InitTile(AbstrDataObject* resDataA, tile_id t) const override
 	{
-		auto resultData = mutable_array_cast<ValueType>(resDataA)->GetDataWrite(t);
+		auto resultData = mutable_array_cast<ValueType>(resDataA)->GetDataWrite(t, dms_rw_mode::write_only_all);
 		fast_fill(resultData.begin(), resultData.end(), UNDEFINED_OR_ZERO(ValueType));
 	}
 

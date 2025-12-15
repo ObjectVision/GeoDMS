@@ -54,7 +54,7 @@ struct FastUndefineBase : UnitProcessor
 	{
 		dms_assert(m_Res);
 
-		auto resData = mutable_array_cast<E>(m_Res)->GetDataWrite(m_TileID);
+		auto resData = mutable_array_cast<E>(m_Res)->GetDataWrite(m_TileID, dms_rw_mode::write_only_all);
 		fast_undefine(resData.begin(), resData.end());
 	}
 public:

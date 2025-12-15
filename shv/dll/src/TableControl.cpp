@@ -885,7 +885,7 @@ void TableControl::SelectAllRows(bool v)
 
 	DataWriteLock writeLock(selThemeAttr);
 
-	auto selData = mutable_array_cast<SelectionID>(writeLock)->GetDataWrite();
+	auto selData = mutable_array_cast<SelectionID>(writeLock)->GetDataWrite(no_tile, dms_rw_mode::write_only_all);
 
 	DataArray<SelectionID>::iterator
 		b = selData.begin(),
@@ -920,7 +920,7 @@ void TableControl::SelectRows()
 
 	PreparedDataReadLock  indexLock(m_IndexAttr, "TableControl::SelectRows()"); // lock is required in GetRecNo in inner-loop
 
-	auto selData = mutable_array_cast<SelectionID>(writeLock)->GetDataWrite();
+	auto selData = mutable_array_cast<SelectionID>(writeLock)->GetDataWrite(no_tile, dms_rw_mode::read_write);
 
 	DataArray<SelectionID>::iterator b = selData.begin();
 	bool isSelected = !ctrlPressed;

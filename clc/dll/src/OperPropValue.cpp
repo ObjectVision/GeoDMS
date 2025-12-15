@@ -198,9 +198,9 @@ struct PropValueOperator : public BinaryOperator
 				lockedRes = res;
 			}
 			ResultType* result = mutable_array_cast<SharedStr>(resLock);
-			dms_assert(result);
+			assert(result);
 
-			auto resData = result->GetDataWrite();
+			auto resData = result->GetDataWrite(no_tile, dms_rw_mode::write_only_mustzero);
 
 			const TreeItem* item = arg1;
 			OwningPtr<AbstrItemSet> itemSet;

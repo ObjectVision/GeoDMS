@@ -213,7 +213,7 @@ bool DbfStorageManager::ReadDataItem(StorageMetaInfoPtr smi, AbstrDataObject* bo
 
 	switch (vcID)
 	{
-#define INSTANTIATE(T) case ValueClassID::VT_##T: return DbfImplStub<T>(&dbf, mutable_array_cast<T>(borrowedReadResultHolder)->GetDataWrite(), fieldName.begin(), vcID).m_Result;
+#define INSTANTIATE(T) case ValueClassID::VT_##T: return DbfImplStub<T>(&dbf, mutable_array_cast<T>(borrowedReadResultHolder)->GetDataWrite(no_tile, dms_rw_mode::write_only_mustzero), fieldName.begin(), vcID).m_Result;
 		INSTANTIATE_NUM_ORG
 		INSTANTIATE_OTHER
 #undef INSTANTIATE

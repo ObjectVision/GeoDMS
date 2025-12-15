@@ -59,7 +59,7 @@ namespace {
 		if constexpr (returnValue)
 		{
 			DataWriteLock dwl(AsDataItem(resultHolder.GetNew()));
-			auto resultItem = mutable_array_cast<ERRORLEVEL>(dwl)->GetLockedDataWrite();
+			auto resultItem = mutable_array_cast<ERRORLEVEL>(dwl)->GetDataWrite(no_tile, dms_rw_mode::write_only_all);
 			resultItem[0] = errorCode;
 			dwl.Commit();
 		}
@@ -297,7 +297,7 @@ public:
 			AbstrDataItem* res = AsDataItem(resultHolder.GetNew());
 			DataWriteLock resLock(res);
 
-			auto resData = mutable_array_cast<SharedStr>(resLock)->GetDataWrite();
+			auto resData = mutable_array_cast<SharedStr>(resLock)->GetDataWrite(no_tile, dms_rw_mode::write_only_all);
 			dms_assert(resData.size() == 1);
 			Assign(resData[0], GetStorageManagerName(args[0]) );
 
@@ -334,12 +334,12 @@ public:
 
 			AbstrDataItem* res = AsDataItem(resultHolder.GetNew());
 			DataWriteLock resLock(res);
-			auto resData = mutable_array_cast<SharedStr>(resLock)->GetDataWrite();
+			auto resData = mutable_array_cast<SharedStr>(resLock)->GetDataWrite(no_tile, dms_rw_mode::write_only_mustzero);
 
-			UInt32 n = resData.size();
-			dms_assert(n == argData.size());
+			auto n = resData.size();
+			assert(n == argData.size());
 
-			for (UInt32  i=0; i!=n; ++i)
+			for (decltype(n) i=0; i!=n; ++i)
 				Assign(
 					resData[i]
 				,	AbstrStorageManager::Expand(

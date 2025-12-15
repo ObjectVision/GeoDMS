@@ -163,7 +163,7 @@ public:
 
 					DataWriteLock resLock(adiTypeName);
 					auto diTypeName = mutable_array_cast<SharedStr>(resLock);
-					auto nameData = diTypeName->GetDataWrite();
+					auto nameData = diTypeName->GetDataWrite(no_tile, dms_rw_mode::write_only_mustzero);
 					if (nrClasses)
 					{
 						const ClassCPtr* src = Class::Begin();
@@ -193,8 +193,8 @@ public:
 					DataWriteLock res1Lock(adiGroupName); 
 					DataWriteLock res2Lock(adiNrOper   ); 
 
-					auto nameData = mutable_array_cast<SharedStr>(res1Lock)->GetDataWrite();
-					auto nrOpData = mutable_array_cast<UInt32>(res2Lock)->GetDataWrite();
+					auto nameData = mutable_array_cast<SharedStr>(res1Lock)->GetDataWrite(no_tile, dms_rw_mode::write_only_mustzero);
+					auto nrOpData = mutable_array_cast<UInt32>(res2Lock)->GetDataWrite(no_tile, dms_rw_mode::write_only_mustzero);
 
 					UInt32 srcI = 0;
 					StringDataItem::iterator
@@ -224,8 +224,8 @@ public:
 					DataWriteLock res1Lock(adiNrGroup);
 					DataWriteLock res2Lock(adiResultType);
 
-					auto nrGroupData = mutable_array_cast<UInt32>(res1Lock)->GetDataWrite();
-					auto resTypeData = mutable_array_cast<UInt32>(res2Lock)->GetDataWrite();
+					auto nrGroupData = mutable_array_cast<UInt32>(res1Lock)->GetDataWrite(no_tile, dms_rw_mode::write_only_mustzero);
+					auto resTypeData = mutable_array_cast<UInt32>(res2Lock)->GetDataWrite(no_tile, dms_rw_mode::write_only_mustzero);
 
 					auto nrGroupDataPtr = nrGroupData.begin();
 					auto resTypeDataPtr = resTypeData.begin();
@@ -263,8 +263,8 @@ public:
 					DataWriteLock res1Lock(adiNrOper);
 					DataWriteLock res2Lock(adiNrType);
 
-					auto nrOperData = mutable_array_cast<UInt32>(res1Lock)->GetDataWrite();
-					auto nrTypeData = mutable_array_cast<UInt32>(res2Lock)->GetDataWrite();
+					auto nrOperData = mutable_array_cast<UInt32>(res1Lock)->GetDataWrite(no_tile, dms_rw_mode::write_only_mustzero);
+					auto nrTypeData = mutable_array_cast<UInt32>(res2Lock)->GetDataWrite(no_tile, dms_rw_mode::write_only_mustzero);
 
 					auto nrOperDataPtr = nrOperData.begin();
 					auto nrTypeDataPtr = nrTypeData.begin();
@@ -353,7 +353,7 @@ public:
 
 				DataWriteLock resLock(adiTypeName, dms_rw_mode::write_only_mustzero);
 				StringDataItem* diTypeName = mutable_array_cast<SharedStr>(resLock);
-				StringDataItem::locked_seq_t nameData = diTypeName->GetLockedDataWrite();
+				StringDataItem::locked_seq_t nameData = diTypeName->GetLockedDataWrite(no_tile, dms_rw_mode::write_only_mustzero);
 				StringDataItem::iterator
 					b = nameData.begin(),
 					e = nameData.end();

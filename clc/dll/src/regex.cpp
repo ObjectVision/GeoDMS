@@ -87,7 +87,7 @@ struct RegexSearchOperator : CommonOperGroup, TernaryOperator
 							totalSize += (matchResult[0].second - matchResult[0].first);
 					}
 
-					DataArray<SharedStr>::locked_seq_t resData = res->GetLockedDataWrite(t);
+					DataArray<SharedStr>::locked_seq_t resData = res->GetLockedDataWrite(t, dms_rw_mode::write_only_mustzero);
 					resData.get_sa().data_reserve(totalSize MG_DEBUG_ALLOCATOR_SRC("res->md_SrcStr"));
 					auto resI = resData.begin();
 
@@ -153,13 +153,13 @@ struct RegexMatchOperator : CommonOperGroup, TernaryOperator
 			const DataArray<SharedStr>* arg1 = const_array_cast<SharedStr>(a1Lock);
 
 			AbstrDataItem* results = AsDataItem(resultHolder.GetNew());
-			DataWriteLock resLock(results, dms_rw_mode::write_only_mustzero);
+			DataWriteLock resLock(results, dms_rw_mode::write_only_all);
 			DataArray<Bool>* res = mutable_array_cast<Bool>(resLock);
 
 			parallel_tileloop(e1->GetNrTiles(), [res, arg1, &rx, flags] (tile_id t)->void 
 				{
-					auto data = arg1->GetLockedDataRead(t);
-					auto resData = res->GetLockedDataWrite(t);
+					auto data = arg1->GetTile(t);
+					auto resData = res->GetWritableTile(t, dms_rw_mode::write_only_all);
 
 					auto resI = resData.begin();
 
@@ -264,7 +264,7 @@ struct RegexReplaceOperator : CommonOperGroup, QuaternaryOperator
 						}
 					}
 
-					DataArray<SharedStr>::locked_seq_t resData = res->GetLockedDataWrite(t);
+					DataArray<SharedStr>::locked_seq_t resData = res->GetWritableTile(t, dms_rw_mode::write_only_mustzero);
 					resData.get_sa().data_reserve(totalSize MG_DEBUG_ALLOCATOR_SRC("res->md_SrcStr + : RegexReplaceOperator.data_reserve()"));
 					auto resI = resData.begin();
 

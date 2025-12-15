@@ -391,10 +391,10 @@ public:
 			for (tile_id t = 0; t!=tn; ++t) if (useShadowTile || !itMap[t].m_IsDone)
 			{
 				auto pseudoTile = useShadowTile ? no_tile : t;
-				auto costData  = diGridImp->GetLockedDataRead(pseudoTile);
-				auto zonalData = diZonalGrid ? diZonalGrid->GetLockedDataRead(pseudoTile) : typename DataArray<ZoneID>::locked_cseq_t();
-				auto resultData    = result   ->GetLockedDataWrite(pseudoTile);
-				auto traceBackData = traceBack->GetLockedDataWrite(pseudoTile);
+				auto costData  = diGridImp->GetDataRead(pseudoTile);
+				auto zonalData = diZonalGrid ? diZonalGrid->GetDataRead(pseudoTile) : typename DataArray<ZoneID>::locked_cseq_t();
+				auto resultData    = result   ->GetDataWrite(pseudoTile, dms_rw_mode::read_write);
+				auto traceBackData = traceBack->GetDataWrite(pseudoTile, dms_rw_mode::read_write);
 
 				Range<GridType> range = useShadowTile ? gridSet->GetRange() : gridSet->GetTileRange(pseudoTile);
 				SizeT nrV = Cardinality(range);
@@ -549,17 +549,17 @@ public:
 					if (intersect.empty()) 
 						continue;
 
-					costData1 = diGridImp->GetLockedDataRead(t1);
-					costData2 = diGridImp->GetLockedDataRead(t2);
+					costData1 = diGridImp->GetTile(t1);
+					costData2 = diGridImp->GetTile(t2);
 
 					if (diZonalGrid)
 					{
-						zonalData1 = diZonalGrid->GetLockedDataRead(t1);
-						zonalData2 = diZonalGrid->GetLockedDataRead(t2);
+						zonalData1 = diZonalGrid->GetTile(t1);
+						zonalData2 = diZonalGrid->GetTile(t2);
 					}
 
-					auto resultData1 = result->GetLockedDataWrite(t1);
-					auto resultData2 = result->GetLockedDataWrite(t2);
+					auto resultData1 = result->GetWritableTile(t1, dms_rw_mode::read_write);
+					auto resultData2 = result->GetWritableTile(t2, dms_rw_mode::read_write);
 
 					SizeT intersectCount = Cardinality(intersect);
 					for (SizeT ii=0; ii!=intersectCount; ++ii)

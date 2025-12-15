@@ -669,10 +669,10 @@ void gdalRaster_CreateMetaInfo(TreeItem* container, bool mustCalc)
 		DataWriteLock res3Lock(adiHelpUrl, dms_rw_mode::write_only_mustzero);
 		DataWriteLock res4Lock(adiOptions, dms_rw_mode::write_only_mustzero);
 
-		auto shortNameData = mutable_array_cast<SharedStr>(res1Lock)->GetDataWrite();
-		auto longNameData = mutable_array_cast<SharedStr>(res2Lock)->GetDataWrite();
-		auto helpUrlData = mutable_array_cast<SharedStr>(res3Lock)->GetDataWrite();
-		auto optionsData = mutable_array_cast<SharedStr>(res4Lock)->GetDataWrite();
+		auto shortNameData = mutable_array_cast<SharedStr>(res1Lock)->GetDataWrite(no_tile, dms_rw_mode::write_only_mustzero);
+		auto longNameData  = mutable_array_cast<SharedStr>(res2Lock)->GetDataWrite(no_tile, dms_rw_mode::write_only_mustzero);
+		auto helpUrlData   = mutable_array_cast<SharedStr>(res3Lock)->GetDataWrite(no_tile, dms_rw_mode::write_only_mustzero);
+		auto optionsData   = mutable_array_cast<SharedStr>(res4Lock)->GetDataWrite(no_tile, dms_rw_mode::write_only_mustzero);
 
 		for (SizeT i = 0; i != nrDrivers; ++i)
 		{
@@ -711,9 +711,9 @@ void gdalVector_CreateMetaInfo(TreeItem* container, bool mustCalc)
 		auto diCanCreate = mutable_array_cast<Bool>(res2Lock);
 		auto diCanDelete = mutable_array_cast<Bool>(res3Lock);
 
-		auto shortNameData = diShortName->GetLockedDataWrite();
-		auto canCreateData = diCanCreate->GetLockedDataWrite();
-		auto canDeleteData = diCanDelete->GetLockedDataWrite();
+		auto shortNameData = diShortName->GetDataWrite(no_tile, dms_rw_mode::write_only_mustzero);
+		auto canCreateData = diCanCreate->GetDataWrite(no_tile, dms_rw_mode::write_only_mustzero);
+		auto canDeleteData = diCanDelete->GetDataWrite(no_tile, dms_rw_mode::write_only_mustzero);
 
 		for (SizeT i = 0; i != nrDrivers; ++i)
 		{

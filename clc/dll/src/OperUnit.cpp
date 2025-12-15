@@ -740,7 +740,7 @@ public:
 	{
 		WeakPtr<ResultType> result = mutable_array_cast<Float64>(res);
 
-		result->GetDataWrite()[0] = e1->GetCurrMetric()->m_Factor;
+		result->GetDataWrite(no_tile, dms_rw_mode::write_only_all)[0] = e1->GetCurrMetric()->m_Factor;
 	}
 };
 
@@ -761,7 +761,7 @@ public:
 		WeakPtr<ResultType> result = mutable_array_cast<DPoint>(res);
 
 		const UnitProjection* p = e1->GetCurrProjection();
-		result->GetDataWrite()[0] = UnitProjection::GetCompositeTransform(p).Factor();
+		result->GetDataWrite(no_tile, dms_rw_mode::write_only_all)[0] = UnitProjection::GetCompositeTransform(p).Factor();
 	}
 };
 
@@ -782,7 +782,7 @@ public:
 		WeakPtr<ResultType> result = mutable_array_cast<DPoint>(res);
 
 		const UnitProjection* p = e1->GetCurrProjection();
-		result->GetDataWrite()[0] = UnitProjection::GetCompositeTransform(p).Offset();
+		result->GetDataWrite(no_tile, dms_rw_mode::write_only_all)[0] = UnitProjection::GetCompositeTransform(p).Offset();
 	}
 };
 
@@ -830,7 +830,7 @@ public:
 		ResultType *result = composite_cast<ResultType*>(res);
 		assert(result);
 
-		result->GetDataWrite()[0] = e1->GetCount();
+		result->GetDataWrite(no_tile, dms_rw_mode::write_only_all)[0] = e1->GetCount();
 	}
 };
 
@@ -908,7 +908,7 @@ public:
 					reportD(SeverityTypeID::ST_Warning, "LowerBoundOperator: start of range of argument is MIN_VALUE");
 			}
 		}
-		result->GetDataWrite()[0] = e1->GetRange().first;
+		result->GetDataWrite(no_tile, dms_rw_mode::write_only_all)[0] = e1->GetRange().first;
 	}
 };
 
@@ -945,7 +945,7 @@ public:
 					reportD(SeverityTypeID::ST_Warning, "UpperBoundOperator: end of range of argument is MIN_VALUE");
 			}
 		}
-		result->GetDataWrite()[0] = e1->GetRange().second;
+		result->GetDataWrite(no_tile, dms_rw_mode::write_only_all)[0] = e1->GetRange().second;
 	}
 };
 
@@ -969,7 +969,7 @@ public:
 		ResultType *result = composite_cast<ResultType*>(res);
 		dms_assert(result);
 
-		result->GetDataWrite()[0] = Size( e1->GetRange() );
+		result->GetDataWrite(no_tile, dms_rw_mode::write_only_all)[0] = Size( e1->GetRange() );
 	}
 };
 
@@ -993,7 +993,7 @@ public:
 		ResultType *result = composite_cast<ResultType*>(res);
 		dms_assert(result);
 
-		result->GetDataWrite()[0] = Center( e1->GetRange() );
+		result->GetDataWrite(no_tile, dms_rw_mode::write_only_all)[0] = Center( e1->GetRange() );
 	}
 };
 

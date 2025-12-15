@@ -56,7 +56,7 @@ public:
 			AbstrDataItem* res = AsDataItem(resultHolder.GetNew());
 			DataWriteLock resLock(res); 
 
-			Assign(mutable_array_cast<SharedStr>(resLock)->GetDataWrite()[0], GetCurrentDir());
+			Assign(mutable_array_cast<SharedStr>(resLock)->GetDataWrite(no_tile, dms_rw_mode::write_only_all)[0], GetCurrentDir());
 
 			resLock.Commit();
 		}
@@ -95,7 +95,7 @@ public:
 
 			DataWriteLock lock(res);
 			ResultType* result = mutable_array_cast<SharedStr>(lock);
-			Assign(result->GetDataWrite()[0], dirName);
+			Assign(result->GetDataWrite(no_tile, dms_rw_mode::write_only_all)[0], dirName);
 			lock.Commit();
 		}
 		return true;
@@ -157,7 +157,7 @@ public:
 			DataWriteLock lock(res);
 			ResultType* result = mutable_array_cast<SharedStr>(lock);
 
-			Assign(result->GetDataWrite()[0], fileDestName);
+			Assign(result->GetDataWrite(no_tile, dms_rw_mode::write_only_all)[0], fileDestName);
 			lock.Commit();
 		}
 		return true;
@@ -192,7 +192,7 @@ public:
 			DataWriteLock lock(res);
 
 			ResultType* result = mutable_array_cast<SharedStr>(lock);
-			auto resultData = result->GetDataWrite();
+			auto resultData = result->GetDataWrite(no_tile, dms_rw_mode::write_only_mustzero);
 
 			auto fileNameData= const_array_cast<SharedStr>(fileNameDataA)->GetDataRead();
 

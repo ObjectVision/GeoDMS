@@ -874,7 +874,7 @@ SharedDataItemInterestPtr CreateSystemLabelPalette(DataView* dv, const AbstrUnit
 		newResult->UpdateMetaInfo();
 		result = newResult.get_ptr();
 		DataWriteLock lock(newResult);
-		auto resultData = mutable_array_cast<SharedStr>(lock)->GetDataWrite();
+		auto resultData = mutable_array_cast<SharedStr>(lock)->GetDataWrite(no_tile, dms_rw_mode::write_only_all);
 
 		visit<typelists::domain_types>(paletteDomain, [n, &resultData]<typename V>(const Unit<V>* pd)
 			{

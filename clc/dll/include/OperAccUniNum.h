@@ -84,7 +84,7 @@ struct OperAccTotUniNum : OperAccTotUni<TAcc1Func>
 
 		auto value = AggregateTiles(values_fta.begin(), 0, nrTiles, maxNrThreads);
 
-		auto resData = result->GetDataWrite();
+		auto resData = result->GetDataWrite(no_tile, dms_rw_mode::write_only_all);
 		assert(resData.size() == 1);
 		this->m_Acc1Func.AssignOutput(resData[0], std::move(value) );
 	}

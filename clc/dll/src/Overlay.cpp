@@ -99,9 +99,9 @@ struct OverlayLayerVisitorBase : UnitProcessor
 		for (tile_id t = 0; t != m_NrTiles; ++t)
 		{
 			auto partitioningData = dataArray->GetLockedDataRead(t);
-			auto prodIdMapData    = m_ProdIdMapDO->GetLockedDataWrite(t);
+			auto prodIdMapData    = m_ProdIdMapDO->GetWritableTile(t, (m_AtomicRegionFactor == 1) ? dms_rw_mode::write_only_all : dms_rw_mode::read_write);
 
-			dbg_assert(partitioningData.size() == prodIdMapData.size());
+			assert(partitioningData.size() == prodIdMapData.size());
 
 			MG_CHECK(!nrRegions || m_AtomicRegionFactor <= MAX_VALUE(ProdID) / nrRegions);
 			auto pd = partitioningData.begin();
@@ -125,7 +125,7 @@ struct OverlayLayerVisitorBase : UnitProcessor
 					for (; prodIdMapIter != prodIdMapEnd; ++prodIdMapIter, ++pd)
 					{
 						ProdID regionId = Convert<ProdID>(*pd);
-						dms_assert(regionId < nrRegions);
+						assert(regionId < nrRegions);
 						*prodIdMapIter = regionId;
 					}
 			}
@@ -139,7 +139,7 @@ struct OverlayLayerVisitorBase : UnitProcessor
 						{
 							if (IsDefined(*prodIdMapIter))
 							{
-								dms_assert(*prodIdMapIter < m_AtomicRegionFactor);
+								assert(*prodIdMapIter < m_AtomicRegionFactor);
 								*prodIdMapIter += (regionId * m_AtomicRegionFactor);
 							}
 						}
@@ -150,8 +150,8 @@ struct OverlayLayerVisitorBase : UnitProcessor
 					for (; prodIdMapIter != prodIdMapEnd; ++prodIdMapIter, ++pd)
 					{
 						ProdID regionId = Convert<ProdID>(*pd);
-						dms_assert(regionId < nrRegions);
-						dms_assert(*prodIdMapIter < m_AtomicRegionFactor);
+						assert(regionId < nrRegions);
+						assert(*prodIdMapIter < m_AtomicRegionFactor);
 						*prodIdMapIter += (regionId * m_AtomicRegionFactor);
 					}
 			}
@@ -203,7 +203,7 @@ void DoOverlay(AbstrDataItem* resAtomicRegionGrid, IterRange<const overlay_parti
 	{
 		for (tile_id t = 0; t != visitor.m_NrTiles; ++t)
 		{
-			DataArray<ProdID>::locked_seq_t prodIdMap = visitor.m_ProdIdMapDO->GetLockedDataWrite(t);
+			DataArray<ProdID>::locked_seq_t prodIdMap = visitor.m_ProdIdMapDO->GetWritableTile(t, dms_rw_mode::write_only_all);
 			fast_undefine(prodIdMap.begin(), prodIdMap.end());
 		}
 	}
@@ -258,7 +258,7 @@ void DoOverlay(AbstrDataItem* resAtomicRegionGrid, IterRange<const overlay_parti
 	DataWriteLock resAtomicRegionGridLock(resAtomicRegionGrid);
 	for (tile_id t = 0; t != visitor.m_NrTiles; ++t)
 	{
-		typename DataArray<ResID>::locked_seq_t atomicRegionMap = mutable_array_cast<ResID>(resAtomicRegionGridLock)->GetLockedDataWrite(t);
+		typename DataArray<ResID>::locked_seq_t atomicRegionMap = mutable_array_cast<ResID>(resAtomicRegionGridLock)->GetDataWrite(t, dms_rw_mode::write_only_mustzero);
 		ResID* arm_iter = atomicRegionMap.begin();
 		ResID* arm_end  = atomicRegionMap.end();
 

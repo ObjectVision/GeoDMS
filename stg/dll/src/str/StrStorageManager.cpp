@@ -67,7 +67,7 @@ bool StrStorageManager::ReadDataItem (StorageMetaInfoPtr smi, AbstrDataObject* b
 		else
 		{
 			MG_CHECK(adi->GetValueComposition() == ValueComposition::Single);
-			dataBeginHolder = ado->GetDataWriteBegin(i);
+			dataBeginHolder = ado->GetDataWriteBegin(i, dms_rw_mode::write_only_all);
 			dataBegin = dataBeginHolder.get_ptr();
 			dataSize  = ado->GetNrTileBytesNow(i, false);
 

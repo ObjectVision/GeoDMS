@@ -75,7 +75,7 @@ public:
 	void Calculate(AbstrDataObject* borrowedDataHandle, const AbstrDataItem* arg1A, tile_id t) const override
 	{
 		auto  argData = const_array_cast  <TR>(arg1A)->GetDataRead();
-		auto resData = mutable_array_cast<TR>(borrowedDataHandle)->GetDataWrite(t);
+		auto resData = mutable_array_cast<TR>(borrowedDataHandle)->GetDataWrite(t, dms_rw_mode::write_only_all);
 
 		assert(argData.size() == 1); // domain of arg1 was checked to be void
 
@@ -1058,8 +1058,8 @@ public:
 
 	void Calculate(AbstrDataObject* borrowedDataHandle, const AbstrDataItem* argDataA, const AbstrUnit* argUnit, tile_id t) const override
 	{
-		auto argData = const_array_cast<TA>(argDataA)->GetDataRead(t);
-		auto resultData = mutable_array_cast<TR>(borrowedDataHandle)->GetDataWrite(t);
+		auto argData = const_array_cast<TA>(argDataA)->GetTile(t);
+		auto resultData = mutable_array_cast<TR>(borrowedDataHandle)->GetWritableTile(t, dms_rw_mode::write_only_all);
 
 		do_transform<TR, TA, TCF>(argUnit, argDataA->GetAbstrValuesUnit(), argData.begin(), argData.end(), resultData.begin());
 	}
@@ -1117,7 +1117,7 @@ public:
 	void Calculate(AbstrDataObject* borrowedDataHandle, const AbstrDataItem* argDataA, const AbstrUnit* argUnit, tile_id t) const override
 	{
 		auto argData = const_array_cast<TA>(argDataA)->GetDataRead(t);
-		auto resultData = mutable_array_cast<TR>(borrowedDataHandle)->GetDataWrite(t);
+		auto resultData = mutable_array_cast<TR>(borrowedDataHandle)->GetDataWrite(t, dms_rw_mode::write_only_all);
 
 		do_convert<TR, TA, ConversionFunctor>(argUnit, argDataA->GetAbstrValuesUnit(), argData.begin(), argData.end(), resultData.begin());
 	}
@@ -1145,7 +1145,7 @@ public:
 	// Override Operator
 	void Calculate(AbstrDataObject* borrowedDataHandle, const AbstrUnit* argDomainUnit, const AbstrUnit* argValuesUnit, tile_id t) const override
 	{
-		auto resultData = mutable_array_cast<TR>(borrowedDataHandle)->GetDataWrite(t);
+		auto resultData = mutable_array_cast<TR>(borrowedDataHandle)->GetDataWrite(t, dms_rw_mode::write_only_all);
 
 		do_mapping<TR, TA, TypeConversionF<std::false_type>>(
 			debug_cast<const Unit<TR>*>(argValuesUnit),
@@ -1268,7 +1268,7 @@ public:
 			DataWriteLock resLock(res);
 			ResultType* result = mutable_array_cast<SharedStr>(resLock);
 
-			Assign(result->GetDataWrite()[0], SharedStr(CharPtrRange(dataBegin, dataBegin + vout.CurrPos())));
+			Assign(result->GetDataWrite(no_tile, dms_rw_mode::write_only_all)[0], SharedStr(CharPtrRange(dataBegin, dataBegin + vout.CurrPos())));
 
 			resLock.Commit();
 		}

@@ -76,7 +76,7 @@ public:
 			ResultUnitType::range_t resultRange = resultUnit->GetRange();
 			auto districtRange = inputGrid->GetValueRangeData()->GetRange();
 
-			auto outputVec = mutable_array_checkedcast<count_type>(resLock)->GetDataWrite();
+			auto outputVec = mutable_array_checkedcast<count_type>(resLock)->GetDataWrite(no_tile, dms_rw_mode::write_only_mustzero);
 			SizeT pos = 0, outputVecSize = outputVec.size();
 			dms_assert(outputVecSize == Cardinality(districtRange));
 			Int32 e = Width(rect), pe = e-1;
@@ -181,7 +181,7 @@ public:
 			auto  resultRange = resultUnit->GetRange();
 			auto  districtRange = inputGrid->GetValueRangeData()->GetRange();
 
-			auto outputVec = mutable_array_checkedcast<R>(resLock)->GetDataWrite();
+			auto outputVec = mutable_array_checkedcast<R>(resLock)->GetDataWrite(no_tile, dms_rw_mode::write_only_mustzero);
 			SizeT pos = 0, outputVecSize = outputVec.size();
 			dms_assert(outputVecSize == Cardinality(districtRange));
 			Int32 e = Width(rect), pe = e-1;

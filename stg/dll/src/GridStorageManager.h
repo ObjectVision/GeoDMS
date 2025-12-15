@@ -389,7 +389,7 @@ namespace Grid {
 	void ReadGridData(Imp& imp, const StgViewPortInfo& vpi, AbstrDataObject* ado, tile_id t, CharPtr dataSourceName // for diagnostic purpose
 	)
 	{
-		auto dataHandle = ado->GetDataWriteBegin(t);
+		auto dataHandle = ado->GetDataWriteBegin(t, dms_rw_mode::write_only_all);
 		void* dataPtr = dataHandle.get_ptr();
 		if (!dataPtr)
 			return;
@@ -397,9 +397,9 @@ namespace Grid {
 		ValueClassID streamTypeID = streamType->GetValueClassID();
 		switch (streamType->GetBitSize())
 		{
-		case 1:  ReadData<Bool  >(imp, vpi, false, mutable_array_cast<Bool>(ado)->GetDataWrite(t).begin(), dataSourceName); return;
-		case 2:  ReadData<UInt2 >(imp, vpi, UInt2(0), mutable_array_cast<UInt2>(ado)->GetDataWrite(t).begin(), dataSourceName); return;
-		case 4:  ReadData<UInt4 >(imp, vpi, UInt4(0), mutable_array_cast<UInt4>(ado)->GetDataWrite(t).begin(), dataSourceName); return;
+		case 1:  ReadData<Bool  >(imp, vpi, false, mutable_array_cast<Bool>(ado)->GetDataWrite(t, dms_rw_mode::write_only_all).begin(), dataSourceName); return;
+		case 2:  ReadData<UInt2 >(imp, vpi, UInt2(0), mutable_array_cast<UInt2>(ado)->GetDataWrite(t, dms_rw_mode::write_only_all).begin(), dataSourceName); return;
+		case 4:  ReadData<UInt4 >(imp, vpi, UInt4(0), mutable_array_cast<UInt4>(ado)->GetDataWrite(t, dms_rw_mode::write_only_all).begin(), dataSourceName); return;
 		case 8:  ReadData<UInt8 >(imp, vpi, Undef08(streamTypeID), reinterpret_cast<UInt8*>(dataPtr), dataSourceName); return;
 		case 16: ReadData<UInt16>(imp, vpi, Undef16(streamTypeID), reinterpret_cast<UInt16*>(dataPtr), dataSourceName); return;
 		case 32: ReadData<UInt32>(imp, vpi, Undef32(streamTypeID), reinterpret_cast<UInt32*>(dataPtr), dataSourceName); return;
@@ -497,10 +497,10 @@ namespace Grid {
 		UInt32 bitsPerPixel = GetStreamType(ado)->GetBitSize();
 
 		switch (bitsPerPixel) {
-		case  1: CountData<Bool  >(imp, vpi, mutable_array_cast<Bool>(ado)->GetDataWrite(t).begin(), dataSourceName); return;
-		case  8: CountData<UInt8 >(imp, vpi, reinterpret_cast<UInt8 *>(ado->GetDataWriteBegin(t).get_ptr()), dataSourceName); return;
-		case 16: CountData<UInt16>(imp, vpi, reinterpret_cast<UInt16*>(ado->GetDataWriteBegin(t).get_ptr()), dataSourceName); return;
-		case 32: CountData<UInt32>(imp, vpi, reinterpret_cast<UInt32*>(ado->GetDataWriteBegin(t).get_ptr()), dataSourceName); return;
+		case  1: CountData<Bool  >(imp, vpi, mutable_array_cast<Bool>(ado)->GetDataWrite(t, dms_rw_mode::write_only_all).begin(), dataSourceName); return;
+		case  8: CountData<UInt8 >(imp, vpi, reinterpret_cast<UInt8 *>(ado->GetDataWriteBegin(t, dms_rw_mode::write_only_all).get_ptr()), dataSourceName); return;
+		case 16: CountData<UInt16>(imp, vpi, reinterpret_cast<UInt16*>(ado->GetDataWriteBegin(t, dms_rw_mode::write_only_all).get_ptr()), dataSourceName); return;
+		case 32: CountData<UInt32>(imp, vpi, reinterpret_cast<UInt32*>(ado->GetDataWriteBegin(t, dms_rw_mode::write_only_all).get_ptr()), dataSourceName); return;
 		}
 		auto streamTypeName = SharedStr(GetStreamType(ado)->GetName());
 		throwErrorF("GRID::ReadGridCounts", "Cannot count raster data into elements of type %s", streamTypeName);

@@ -84,7 +84,7 @@ bool XdbStorageManager::ReadDataItem(StorageMetaInfoPtr smi, AbstrDataObject* bo
 	MG_CHECK(nr_cells == ado->GetNrFeaturesNow());
 
 	return imp.ReadColumn(
-		reinterpret_cast<void *>(ado->GetDataWriteBegin().get_ptr()),
+		reinterpret_cast<void *>(ado->GetDataWriteBegin(no_tile, dms_rw_mode::write_only_mustzero).get_ptr()),
 		nr_cells, 
 		imp.ColIndex(adi->GetRelativeName(smi->StorageHolder()).c_str())
 	);

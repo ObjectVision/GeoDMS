@@ -95,8 +95,8 @@ public:
 			dms_assert(topLeft.second <= botRight.second);
 
 			DataWriteLock resLock(res);
-			auto result = mutable_array_cast<UInt32>(resLock); dms_assert(result);
-			auto resultData = result->GetDataWrite();          dms_assert(resultData.size() == size);
+			auto result = mutable_array_cast<UInt32>(resLock); assert(result);
+			auto resultData = result->GetDataWrite(no_tile, dms_rw_mode::write_only_mustzero); assert(resultData.size() == size);
 
 			ResultType::iterator dai = resultData.begin();
 			DPoint currLoc = origin;

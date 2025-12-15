@@ -740,7 +740,7 @@ bool ODBCStorageManager::ReadDataItem(StorageMetaInfoPtr smi, AbstrDataObject* b
 
 	switch (vc)
 	{
-#define INSTANTIATE(T) case ValueClassID::VT_##T: ::ReadData(ir, mutable_array_cast<T>(borrowedReadResultHolder)->GetDataWrite().get_view()); break;
+#define INSTANTIATE(T) case ValueClassID::VT_##T: ::ReadData(ir, mutable_array_cast<T>(borrowedReadResultHolder)->GetDataWrite(no_tile, dms_rw_mode::write_only_mustzero).get_view()); break;
 		INSTANTIATE_NUM_ORG
 		INSTANTIATE_OTHER
 #undef INSTANTIATE

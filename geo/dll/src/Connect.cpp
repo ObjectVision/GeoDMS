@@ -1136,7 +1136,7 @@ public:
 
 			DataWriteLock resLock(resSub); 
 
-			auto resSubData = mutable_array_cast<PolygonType>(resLock)->GetDataWrite();
+			auto resSubData = mutable_array_cast<PolygonType>(resLock)->GetDataWrite(no_tile, dms_rw_mode::write_only_mustzero);
 
 			MGD_CHECKDATA(resSubData.get_sa().IsLocked());
 			MGD_CHECKDATA(resultSubData.IsLocked());

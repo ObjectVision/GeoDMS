@@ -82,11 +82,11 @@ struct RampOperator : AbstrRampOperator
 		ValuesType firstV = GetTheCurrValue<ValuesType>(adi1);
 		ValuesType lastV = GetTheCurrValue<ValuesType>(adi2);
 
-		auto resData = mutable_array_cast<ValuesType>(res)->GetLockedDataWrite();
+		auto resData = mutable_array_cast<ValuesType>(res)->GetDataWrite(no_tile, dms_rw_mode::write_only_all);
 
 		auto resultIter = resData.begin();
 
-		dms_assert((resData.end() -resultIter) == n);
+		assert((resData.end() -resultIter) == n);
 
 		RampFunc rf(m_IsClosed ? n-1 : n, firstV, lastV);
 		for (UInt32 i=0; i != n; ++i, ++resultIter)

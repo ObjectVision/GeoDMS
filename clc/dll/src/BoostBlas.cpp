@@ -119,7 +119,7 @@ public:
 
 		auto data1Array = matr1->GetDataRead();
 		auto data2Array = matr2->GetDataRead();
-		auto dataRArray = matrR->GetDataWrite();
+		auto dataRArray = matrR->GetDataWrite(no_tile, dms_rw_mode::write_only_all);
 
 		assert(data1Array.size() == resRowCount * collapsedIndexCount);
 		assert(data2Array.size() == resColCount * collapsedIndexCount);
@@ -219,7 +219,7 @@ public:
 		assert(matrR);
 
 		auto data1Array = matr1->GetDataRead();
-		auto  dataRArray = matrR->GetDataWrite();
+		auto  dataRArray = matrR->GetDataWrite(no_tile, dms_rw_mode::write_only_all);
 
 		assert(data1Array.size() == argWidth * argHeight);
 		assert(dataRArray.size() == argWidth * argWidth);
@@ -332,7 +332,7 @@ public:
 		assert(matrR);
 
 		auto data1Array = matr1->GetDataRead();
-		auto dataRArray = matrR->GetDataWrite();
+		auto dataRArray = matrR->GetDataWrite(no_tile, dms_rw_mode::write_only_all);
 
 		assert(data1Array.size() == n * n);
 		assert(dataRArray.size() == n * n);

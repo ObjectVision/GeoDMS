@@ -122,7 +122,7 @@ void ReadSequences(AbstrDataObject* ado, UInt32 shpImpFeatureCount, ShpImp* pImp
 {
 	typedef typename sequence_traits<PointType>::container_type PolygonType;
 
-	auto polyData = debug_valcast<DataArray<PolygonType>*>(ado)->GetDataWrite();
+	auto polyData = debug_valcast<DataArray<PolygonType>*>(ado)->GetDataWrite(no_tile, dms_rw_mode::write_only_mustzero);
 
 	assert(polyData.size() == shpImpFeatureCount);
 	MG_CHECK(pImp->GetShapeType() != ShapeTypes::ST_Point);
@@ -191,7 +191,7 @@ void ReadArray(AbstrDataObject* ado, UInt32 shpImpFeatureCount, ShpImp* pImp)
 	MG_CHECK(pImp->GetShapeType() == ShapeTypes::ST_Point);
 
 	auto pointData 
-		= debug_valcast<DataArray<PointType>*>(ado)->GetDataWrite();
+		= debug_valcast<DataArray<PointType>*>(ado)->GetDataWrite(no_tile, dms_rw_mode::write_only_mustzero);
 
 	convert_copy(
 		pImp->PointSet_GetPointsBegin(), 

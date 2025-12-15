@@ -339,7 +339,7 @@ struct NthElementTot: AbstrPthElementTot<I>
 
 		ResultType* result = mutable_array_cast<V>(res);
 		assert(result);
-		auto resData = result->GetDataWrite();
+		auto resData = result->GetDataWrite(no_tile, dms_rw_mode::write_only_all);
 		assert(resData.size() == 1);
 
 		// Count defined
@@ -402,7 +402,7 @@ struct NthElementPart: AbstrPthElementPart<I>
 		auto arg2Data = arg2->GetDataRead();
 
 		ResultType* result = mutable_array_cast<V>(res);
-		auto resData = result->GetDataWrite();
+		auto resData = result->GetDataWrite(no_tile, dms_rw_mode::write_only_mustzero);
 
 		// Count defined per partition
 		std::vector<SizeT> partCount(nrP, 0);
@@ -445,7 +445,7 @@ struct NthElementPart: AbstrPthElementPart<I>
 		// Per partition nth selection
 		for (SizeT i = 0; i != nrP; ++i)
 		{
-			UInt32 pos = arg2Data[e2Void ? 0 : i], pCount = partCount[i];
+			SizeT pos = arg2Data[e2Void ? 0 : i], pCount = partCount[i];
 			if (pos<pCount)
 			{
 				auto
@@ -540,7 +540,7 @@ struct NthElementWeightedTot: AbstrNthElementWeightedTot<W>
 		const ArgWType* argW = const_array_cast<W>(argWA); assert(argW);
 
 		ResultType* result = mutable_array_cast<V>(res);
-		auto resData = result->GetDataWrite();
+		auto resData = result->GetDataWrite(no_tile, dms_rw_mode::write_only_all);
 
 		SizeT N = 0;
 		for (tile_id t=0, te=argVA->GetAbstrDomainUnit()->GetNrTiles(); t!=te; ++t)
@@ -601,7 +601,7 @@ struct NthElementWeightedPart: AbstrNthElementWeightedPart
 		auto arg2Data = arg2->GetDataRead(); // non-tiled cumulative target(s)
 
 		ResultType* result = mutable_array_cast<V>(res);
-		auto resData = result->GetDataWrite();
+		auto resData = result->GetDataWrite(no_tile, dms_rw_mode::write_only_mustzero);
 
 		// Count defined per partition (ignores weight at this stage)
 		auto partCount = sequence_traits<SizeT>::container_type(nrP, 0 MG_DEBUG_ALLOCATOR_SRC("NthElementWeightedPath index buffer"));
@@ -684,7 +684,7 @@ struct RthElementTot: AbstrPthElementTot<RatioType>
 		assert(argV);
 
 		ResultType* result = mutable_array_cast<V>(res);
-		auto resData = result->GetDataWrite();
+		auto resData = result->GetDataWrite(no_tile, dms_rw_mode::write_only_all);
 
 		// Count defined and fill buffer
 		SizeT N = 0;
@@ -755,7 +755,7 @@ struct RthElementPart: AbstrPthElementPart<RatioType>
 		auto arg2Data = arg2->GetDataRead();
 
 		ResultType* result = mutable_array_cast<V>(res);
-		auto resData = result->GetDataWrite();
+		auto resData = result->GetDataWrite(no_tile, dms_rw_mode::write_only_mustzero);
 
 		std::vector<I> partCount(nrP, 0);
 

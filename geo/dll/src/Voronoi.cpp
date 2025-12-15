@@ -192,13 +192,13 @@ public:
 			DataWriteLock resLock(res, dms_rw_mode::write_only_mustzero);
 
 			ResultType* result = mutable_array_cast<PolygonType>(resLock);
-			auto resData = result->GetDataWrite();
+			auto resData = result->GetDataWrite(no_tile, dms_rw_mode::write_only_mustzero);
 
-			UInt32 nrPoints = pointEntity->GetCount();
+			auto nrPoints = pointEntity->GetCount();
 
-			dms_assert(arg1Data.size() == nrPoints);
+			assert(arg1Data.size() == nrPoints);
 
-			dms_assert(resData.size() == nrPoints);
+			assert(resData.size() == nrPoints);
 
 
 			// planaire graaf heeft max 3n-6 edges
@@ -212,7 +212,7 @@ public:
 
 			//	nrPoints nrTriangles nrLines
 
-			UInt32 maxNrTinLines = nrPoints * 3 - 6;
+			auto maxNrTinLines = nrPoints * 3 - 6;
 
 
 			std::vector<PointIndexPair> tin;

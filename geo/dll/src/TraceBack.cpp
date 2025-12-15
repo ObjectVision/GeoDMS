@@ -100,18 +100,18 @@ struct TraceBackOperator : QuaternaryOperator
 			SizeT nrV = v->GetRangeSize();
 			SizeT nrE = e->GetRangeSize();
 
-			dms_assert(tbData .size()   == nrV);
-			dms_assert(node1Data.size() == nrE);
-			dms_assert(node2Data.size() == nrE);
-			dms_assert(flowData.size()  == nrV);
+			assert(tbData.size()    == nrV);
+			assert(node1Data.size() == nrE);
+			assert(node2Data.size() == nrE);
+			assert(flowData.size()  == nrV);
 
 			AbstrDataItem* res = AsDataItem(resultHolder.GetNew());
 			DataWriteLock resLock(res);
 
 			ResultType* result = mutable_array_cast<FlowType>(resLock);
-			auto resultData = result->GetDataWrite();
+			auto resultData = result->GetDataWrite(no_tile, dms_rw_mode::write_only_mustzero);
 
-			dms_assert(resultData   .size() == nrE);
+			assert(resultData.size() == nrE);
 
 			DBG_START("Operator", "TraceBack", true);
 
@@ -227,7 +227,7 @@ public:
 			DataWriteLock resLock(res, dms_rw_mode::write_only_mustzero);
 
 			ResultType* result = mutable_array_cast<NodeType>(resLock);
-			auto resultData = result->GetDataWrite();
+			auto resultData = result->GetDataWrite(no_tile, dms_rw_mode::write_only_mustzero);
 
 			dms_assert(resultData   .size() == nrV);
 

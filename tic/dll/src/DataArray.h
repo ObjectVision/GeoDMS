@@ -65,13 +65,13 @@ struct DataArrayBase : AbstrDataObject
 	TICTOC_CALL AbstrReadableTileData* CreateReadableTileData(tile_id t) const override;
 
 	TIC_CALL locked_cseq_t GetDataRead(tile_id t = no_tile) const;
-	TIC_CALL locked_seq_t GetDataWrite(tile_id t = no_tile, dms_rw_mode rwMode = dms_rw_mode::read_write);
+	TIC_CALL locked_seq_t GetDataWrite(tile_id t, dms_rw_mode rwMode);
 
 	auto GetReadableTileLock(tile_id t) const->TileCRef override { return GetTile(t).m_TileHolder; } // TODO G8: REMOVE
-	auto GetWritableTileLock(tile_id t, dms_rw_mode rwMode = dms_rw_mode::read_write) ->TileRef override { return GetWritableTile(t, rwMode).m_TileHolder; } // TODO G8: REMOVE
+	auto GetWritableTileLock(tile_id t, dms_rw_mode rwMode) ->TileRef override { return GetWritableTile(t, rwMode).m_TileHolder; } // TODO G8: REMOVE
 
 	auto GetLockedDataRead(tile_id t = no_tile) const { return GetDataRead(t); } // TODO G8: SUBSTITUTE AWAY
-	auto GetLockedDataWrite(tile_id t = no_tile, dms_rw_mode rwMode = dms_rw_mode::read_write) { return GetDataWrite(t, rwMode); } // TODO G8: SUBSTITUTE AWAY
+	auto GetLockedDataWrite(tile_id t, dms_rw_mode rwMode) { return GetDataWrite(t, rwMode); } // TODO G8: SUBSTITUTE AWAY
 
 	TIC_CALL SizeT CountValues(param_t v) const;
 
@@ -90,7 +90,7 @@ struct DataArrayBase : AbstrDataObject
 
 	//	Data Access
 	TICTOC_CALL auto GetDataReadBegin(tile_id = no_tile) const->data_read_begin_handle override;
-	TICTOC_CALL auto GetDataWriteBegin(tile_id = no_tile)->data_write_begin_handle override;
+	TICTOC_CALL auto GetDataWriteBegin(tile_id, dms_rw_mode rwMode)->data_write_begin_handle override;
 
 	TICTOC_CALL const ValueClass* GetValueClass() const override;
 	TICTOC_CALL AbstrValue* CreateAbstrValue()                                     const override;

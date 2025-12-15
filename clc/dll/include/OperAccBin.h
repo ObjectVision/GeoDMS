@@ -119,7 +119,7 @@ struct OperAccTotBin : AbstrOperAccTotBin
 		for (tile_id t = 0, te = e->GetNrTiles(); t!=te; ++t)
 			m_Acc2Func(value, arg1->GetTile(t), arg2->GetTile(t));
 
-		m_Acc2Func.AssignOutput(result->GetDataWrite()[0], value);
+		m_Acc2Func.AssignOutput(result->GetDataWrite(no_tile, dms_rw_mode::write_only_all)[0], value);
 	}
 private:
 	TAcc2Func m_Acc2Func;

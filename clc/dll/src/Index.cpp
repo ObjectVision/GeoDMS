@@ -305,7 +305,7 @@ public:
 				[&resLock, adi1, adi2, di] <typename D> (const Unit<D>* du)
 				{
 					make_subindex_container(
-						mutable_array_cast<D>(resLock)->GetDataWrite(),
+						mutable_array_cast<D>(resLock)->GetDataWrite(no_tile, dms_rw_mode::write_only_mustzero),
 						const_array_cast<D>(adi1)->GetDataRead(),
 						const_array_cast<UInt32>(adi2)->GetDataRead(),
 						di->GetDataRead(),

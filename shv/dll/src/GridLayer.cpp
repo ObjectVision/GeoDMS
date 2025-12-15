@@ -386,7 +386,7 @@ void GridLayer::AssignValues(sequence_traits<Bool>::cseq_t selData)
 	InvalidationBlock dataChangeLock(GetActiveTheme()->GetThemeAttr()); // REMOVE, MOVE TO DataWriteLock as a Generic facility
 	DataWriteLock dwl(adi, DmsRwChangeType(false));
 
-	auto editData = mutable_array_cast<ClassID>(dwl)->GetDataWrite();
+	auto editData = mutable_array_cast<ClassID>(dwl)->GetDataWrite(no_tile, dms_rw_mode::read_write);
 	dms_assert(editData.size() == selData.size());
 	assign_if<ClassID>(editData.begin(), editData.end(), clsID, selData.begin(), selData.end());
 
@@ -494,7 +494,7 @@ void GridLayer::SelectDistrict(CrdPoint pnt, EventID eventID)
 		District(
 			themeAttr, themeAttr->GetRefObj(),
 			gridSize,
-			mutable_array_cast<SelectionID>( dwl )->GetDataWrite(),
+			mutable_array_cast<SelectionID>( dwl )->GetDataWrite(no_tile, dms_rw_mode::read_write),
 			gridLoc,
 			changedRect
 		);
@@ -820,7 +820,7 @@ void GridLayer::PasteNow()
 	AbstrDataItem*      colorAttr = const_cast<AbstrDataItem*>(colorTheme->GetThemeAttrSource());
 	DataWriteLock lock(colorAttr, dms_rw_mode::read_write);
 	DataArray<ClassID>* colorData = mutable_array_cast<ClassID>( lock.get() );
-	ClassID*            colorArray= colorData->GetDataWrite().begin();
+	ClassID*            colorArray= colorData->GetDataWrite(no_tile, dms_rw_mode::read_write).begin();
 
 	IRect pselRect = m_PasteHandler->GetSelValues()->m_Rect;
 	IRect gridRect = colorAttr->GetAbstrDomainUnit()->GetRangeAsIRect();
