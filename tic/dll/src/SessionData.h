@@ -40,8 +40,6 @@ struct SessionData : std::enable_shared_from_this<SessionData>
 {
 	static TIC_CALL std::shared_ptr<SessionData> Create(CharPtr configLoadDir, CharPtr configSubDir); // call this before reading a config in order to set cfgColFirst right
 
-	TIC_CALL void SetConfigPointColFirst(bool cfgColFirst); // call this after create because GetConfigPointColFirst requires the configDir of the Curr SessionData
-
 	TIC_CALL void Open  (const TreeItem* configRoot);       // call this after  reading a config to init the configRoot and open the DataStoreManager
 
 	void ActivateThis();
@@ -93,7 +91,6 @@ private:
 	SharedStr                     m_ConfigSubDir;
 	SharedStr                     m_ConfigDir;
 	TimeStamp                     m_ConfigLoadTS;
-	bool                          m_cfgColFirst;
 	bool                          m_IsCancelling = false;
 };
 

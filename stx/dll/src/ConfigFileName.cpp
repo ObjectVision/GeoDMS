@@ -141,17 +141,3 @@ SharedStr ConfigurationFilenameLockBase::GetConfigDir()
 
 const ConfigurationFilenameLockBase* ConfigurationFilenameLockBase::s_LastFileNameLock =0;
 
-// *****************************************************************************
-// class/module: Implementation of global funcs.
-// *****************************************************************************
-
-bool GetConfigPointColFirst()
-{
-	return
-		GetConfigKeyValue(
-			GetConfigIniFileName(),
-			"general", 
-			"ConfigPointColRow", 
-			false
-		);
-}

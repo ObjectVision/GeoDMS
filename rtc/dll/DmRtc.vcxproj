@@ -356,7 +356,6 @@
     <ClCompile Include="src\ptr\SharedStr.cpp" />
     <ClCompile Include="src\geo\BaseBounds.cpp" />
     <ClCompile Include="src\geo\iterrangefuncs.cpp" />
-    <ClCompile Include="src\geo\PointOrder.cpp" />
     <ClCompile Include="src\geo\SequenceArray.cpp" />
     <ClCompile Include="src\ser\BaseStreamBuff.cpp" />
     <ClCompile Include="src\ser\FileMapHandle.cpp" />

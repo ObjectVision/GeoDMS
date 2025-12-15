@@ -89,10 +89,5 @@ private:
 	ConfigurationFilenameLock(const ConfigurationFilenameLock&);
 };
 
-// *****************************************************************************
-// class/module: Implementation of global funcs.
-// *****************************************************************************
-
-bool GetConfigPointColFirst();
 
 #endif //!defined( __STX_CONFIGFILENAME_H)

@@ -70,7 +70,6 @@ SYNTAX_CALL TreeItem* CreateTreeFromConfiguration(CharPtr sourceFilename)
 		if (configLoadDir.ssize()) fileName += (configLoadDir.ssize() + 1);
 
 		auto currSession = SessionData::Create(configLoadDir.c_str(), getFileNameBase(fileName).c_str());
-		currSession->SetConfigPointColFirst(GetConfigPointColFirst());
 
 		ConfigurationFilenameContainer filenameContainer(configLoadDir, ++s_LoadNumber);
 		{

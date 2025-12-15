@@ -106,8 +106,6 @@ Point<F> rowcol2dms_order(F x, F y)
 	return rowcol_reorder_functor()(Point<F>(x, y));
 }
 
-RTC_CALL extern bool g_cfgColFirst;
-
 template <typename  F>
 Point<F> prj2dms_order(const Point<F>& cfgPoint, bool colFirst)
 {
@@ -167,56 +165,37 @@ Point<F> prj2dms_order(F x, F y, bool colFirst)
 template <typename  F>
 void cfg2dms_order_inplace(Point<F>& cfgPoint)
 {
-	prj2dms_order_inplace(cfgPoint, g_cfgColFirst);
+	throwDmsErrD("obsolete cfg point order function used.");
 }
 
 template <typename  F>
 void  dmsPoint_SetFirstCfgValue(Point<F>& cfgPoint, F firstVal)
 {
-	CharPtr orderStr = g_cfgColFirst ? "xy" : "yx";
-
 //	reportF(SeverityTypeID::ST_Warning, 
-	throwDmsErrF(
-		"depreciated syntax for point data used.\n"
-		"Use the point_%s operation to unambiguously define points or %s(numeric, numeric) syntax in data blocks."
-		,	orderStr, orderStr
+	throwDmsErrD(
+		"obsolete syntax for point data used.\n"
+		"Use the point_yx operation to unambiguously define points or yx(numeric, numeric) syntax in data blocks."
 		);
-
-	if (g_cfgColFirst)
-		cfgPoint.Col() = firstVal;
-	else
-		cfgPoint.Row() = firstVal;
 }
 
 template <typename  F>
 void  dmsPoint_SetSecondCfgValue(Point<F>& cfgPoint, F secondVal)
 {
-	throwDmsErrD("depreciated syntax for point data used.");
-
-	if (g_cfgColFirst)
-		cfgPoint.Row() = secondVal;
-	else
-		cfgPoint.Col() = secondVal;
+	throwDmsErrD("obsolete syntax for point data used.");
 }
 
 template <typename  F>
 typename param_type<F>::type
 dmsPoint_GetFirstCfgValue(const Point<F>& cfgPoint)
 {
-	if (g_cfgColFirst)
-		return cfgPoint.Col();
-	else
-		return cfgPoint.Row();
+	throwDmsErrD("obsolete cfg point order function used.");
 }
 
 template <typename  F>
 typename param_type<F>::type
 dmsPoint_GetSecondCfgValue(const Point<F>& cfgPoint)
 {
-	if (g_cfgColFirst)
-		return cfgPoint.Row();
-	else
-		return cfgPoint.Col();
+	throwDmsErrD("obsolete cfg point order function used.");
 }
 
 

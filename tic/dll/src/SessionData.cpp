@@ -39,7 +39,6 @@ SessionData::SessionData(CharPtr configLoadDir, CharPtr configSubDir)
 	,	m_ConfigSubDir(configSubDir   MG_DEBUG_ALLOCATOR_SRC("SessionData::ConfigSubDir"))
 	,	m_ConfigDir(  DelimitedConcat(configLoadDir, configSubDir) )
 	,	m_ConfigLoadTS(-1)              // set by Open() 
-	,	m_cfgColFirst( g_cfgColFirst )  // set by SetConfigPointColFirst
 {}
 
 SessionData::~SessionData() 
@@ -60,11 +59,6 @@ void SessionData::deactivateThis()
 
 	assert(s_CurrSD.get() == this);
 	
-	// save curr globals to the deactivating session
-	assert(s_CurrSD->m_cfgColFirst == g_cfgColFirst);
-	s_CurrSD->m_cfgColFirst = g_cfgColFirst; // ???
-
-	g_cfgColFirst = false; // back to default value
 	s_CurrSD = nullptr;
 }
 
@@ -80,9 +74,6 @@ void SessionData::ActivateThis()
 
 	s_CurrSD = shared_from_this();
 	assert(s_CurrSD);
-
-	// restore saved globals from the activating session
-	g_cfgColFirst = m_cfgColFirst;
 }
 
 SharedStr SessionData::GetConfigDir() const
@@ -195,16 +186,8 @@ std::shared_ptr<SessionData> SessionData::Create(CharPtr configLoadDir, CharPtr 
 
 	assert(!s_CurrSD);
 	s_CurrSD = std::make_shared<SessionData>(MakeAbsolutePath(configLoadDir).c_str(), configSubDir );
-	g_cfgColFirst = s_CurrSD->m_cfgColFirst;
 	assert(s_CurrSD->m_ConfigRoot == nullptr); // POSTCONDITION of Created but not opend SessionData
 	return s_CurrSD;
-}
-
-void SessionData::SetConfigPointColFirst(bool cfgColFirst)
-{
-	m_cfgColFirst = cfgColFirst;
-	if (s_CurrSD.get() == this)
-		g_cfgColFirst = cfgColFirst;
 }
 
 static TokenID t_ConfigSettings = GetTokenID_st("ConfigSettings");

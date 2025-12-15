@@ -893,9 +893,6 @@
     <ClCompile Include="src\geo\iterrangefuncs.cpp">
       <Filter>Geometry</Filter>
     </ClCompile>
-    <ClCompile Include="src\geo\PointOrder.cpp">
-      <Filter>Geometry</Filter>
-    </ClCompile>
     <ClCompile Include="src\geo\SequenceArray.cpp">
       <Filter>Geometry</Filter>
     </ClCompile>

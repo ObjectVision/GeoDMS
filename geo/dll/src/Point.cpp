@@ -32,7 +32,7 @@
 // *****************************************************************************
 
 enum class convert_order_type { 
-	xy_order, yx_order, cfg_order 
+	xy_order, yx_order
 ,	traditional_gis_order = xy_order
 };
 
@@ -100,7 +100,6 @@ public:
 		{
 			case convert_order_type::xy_order:  colFirst = true; break;
 			case convert_order_type::yx_order:  colFirst = false; break;
-			case convert_order_type::cfg_order: colFirst = g_cfgColFirst; break;
 		}
 		if (colFirst != dms_order_tag::col_first)
 		{
