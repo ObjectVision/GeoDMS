@@ -1425,17 +1425,17 @@ public:
 		if (adiOrgMassLimit)
 		{
 			MG_USERCHECK2(dynamic_cast<const Unit<MassType>*>(adiOrgMassLimit->GetAbstrValuesUnit())
-				, "value type of OrgMassLimit doesn't match with the values type of Impedances"
+				, "value type of OrgZone_max_mass doesn't match with the values type of Impedances"
 			);
 			MG_USERCHECK2(dynamic_cast<const Unit<MassType>*>(adiDstMassLimit->GetAbstrValuesUnit())
-				, "value type of DstMassLimit doesn't match with the values type of Impedances"
+				, "value type of DstZone_mass doesn't match with the values type of Impedances"
 			);
 
 
 			assert(adiDstMassLimit);
-			adiOrgMassLimit->GetAbstrValuesUnit()->UnifyValues(adiDstMassLimit->GetAbstrValuesUnit(), "Values of OrgMassLimit", "Values of DstmassLimit", UnifyMode(UM_Throw | UM_AllowDefault));
-			orgZonesOrVoid->UnifyDomain(adiOrgMassLimit->GetAbstrDomainUnit(), "OrgZones", "Domain of OrgMassLimit", UnifyMode(UM_Throw | UM_AllowVoidRight));
-			dstZones->UnifyDomain(adiDstMassLimit->GetAbstrDomainUnit(), "DstZones", "Domain of DstMassLimit", UnifyMode(UM_Throw | UM_AllowVoidRight));
+			adiOrgMassLimit->GetAbstrValuesUnit()->UnifyValues(adiDstMassLimit->GetAbstrValuesUnit(), "Values of OrgZone_max_mass", "Values of DstmassLimit", UnifyMode(UM_Throw | UM_AllowDefault));
+			orgZonesOrVoid->UnifyDomain(adiOrgMassLimit->GetAbstrDomainUnit(), "OrgZones", "Domain of OrgZone_max_mass", UnifyMode(UM_Throw | UM_AllowVoidRight));
+			dstZones->UnifyDomain(adiDstMassLimit->GetAbstrDomainUnit(), "DstZones", "Domain of DstZone_mass", UnifyMode(UM_Throw | UM_AllowVoidRight));
 		}
 		if (adiEuclidicSqrDist)
 		{
