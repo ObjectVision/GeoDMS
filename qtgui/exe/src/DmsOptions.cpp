@@ -451,9 +451,9 @@ void DmsLocalMachineOptionsWindow::cancel()
 
 void DmsLocalMachineOptionsWindow::apply()
 {
-    SetGeoDmsRegKeyString("LocalDataDir", m_ld_input->text().toStdString());
-    SetGeoDmsRegKeyString("SourceDataDir", m_sd_input->text().toStdString());
-    SetGeoDmsRegKeyString("DmsEditor", (m_editor_input->text() + " " + m_editor_parameters_input->text()).toStdString());
+    SetGeoDmsRegKeyString("LocalDataDir", m_ld_input->text().toStdString().c_str());
+    SetGeoDmsRegKeyString("SourceDataDir", m_sd_input->text().toStdString().c_str());
+    SetGeoDmsRegKeyString("DmsEditor", (m_editor_input->text() + " " + m_editor_parameters_input->text()).toStdString().c_str());
 
     auto dms_reg_status_flags = GetRegStatusFlags();
     setSF(m_pp0->isChecked(), dms_reg_status_flags, RSF_SuspendForGUI);

@@ -19,45 +19,47 @@
 
 bool IsRelativeKey(CharPtr key)
 {
-	dms_assert(key && *key != '/');
+	assert(key && *key != '/');
 	return *key && *key != '\\';
 }
 
 HKEY OpenKeyReadOnly(HKEY baseKey, CharPtr key)
 {
-	dms_assert(IsRelativeKey(key));
+	assert(IsRelativeKey(key));
 	HKEY tempKey = 0;
-	RegOpenKeyEx(baseKey, key, 0, KEY_READ, &tempKey);
+	auto keyW = Utf8_2_wchar(key);
+	RegOpenKeyExW(baseKey, keyW.get(), 0, KEY_READ, &tempKey);
 	return tempKey;
 }
 
 HKEY OpenKey(HKEY baseKey, CharPtr key)
 {
-	dms_assert(IsRelativeKey(key));
+	assert(IsRelativeKey(key));
 	HKEY tempKey = 0;
 
-	RegCreateKeyEx(baseKey, key, 0, NULL, REG_OPTION_NON_VOLATILE, KEY_ALL_ACCESS, NULL, &tempKey, NULL);
+	auto keyW = Utf8_2_wchar(key);
+	RegCreateKeyExW(baseKey, keyW.get(), 0, NULL, REG_OPTION_NON_VOLATILE, KEY_ALL_ACCESS, NULL, &tempKey, NULL);
 
 	return tempKey;
 }
 
-RegDataType DataTypeToRegDataImpl(UInt32 dataType)
+RegDataType DataTypeToRegDataImpl(DWORD dataType)
 {
 	switch (dataType)
 	{
-		case REG_SZ:        return rdString;
-		case REG_EXPAND_SZ: return rdExpandString;
-		case REG_BINARY:    return rdBinary;
-		case REG_DWORD:     return rdDWORD;
-		case REG_MULTI_SZ:  return rdMultiString;
+		case REG_SZ:        return RegDataType::String;
+		case REG_EXPAND_SZ: return RegDataType::ExpandString;
+		case REG_BINARY:    return RegDataType::Binary;
+		case REG_DWORD:     return RegDataType::DWORD;
+		case REG_MULTI_SZ:  return RegDataType::MultiString;
 	}
-	return rdUnknown;
+	return RegDataType::Unknown;
 }
 
-RegDataType DataTypeToRegData(UInt32 dataType)
+RegDataType DataTypeToRegData(DWORD dataType)
 {
 	RegDataType result = DataTypeToRegDataImpl(dataType);
-	dms_assert(result == dataType);
+	assert(static_cast<DWORD>(result) == dataType);
 	return result;
 }
 
@@ -74,14 +76,16 @@ RegistryHandle::~RegistryHandle()
 
 bool RegistryHandle::ValueExists(CharPtr name) const
 {
+	auto nameW = Utf8_2_wchar(name);
 	DWORD dataType;
-	return RegQueryValueEx(m_Key, name, NULL, &dataType, NULL, NULL) == ERROR_SUCCESS;
+	return RegQueryValueExW(m_Key, nameW.get(), NULL, &dataType, NULL, NULL) == ERROR_SUCCESS;
 }
 
 UInt32 RegistryHandle::GetDataSize(CharPtr name) const
 {
+	auto nameW = Utf8_2_wchar(name);
 	DWORD dataSize;
-	if (RegQueryValueEx(m_Key, name, NULL, NULL, NULL, &dataSize) != ERROR_SUCCESS)
+	if (RegQueryValueExW(m_Key, nameW.get(), NULL, NULL, NULL, &dataSize) != ERROR_SUCCESS)
 		throwLastSystemError("GetDataSize failed for RegKey '%s'", name);
 	return dataSize;
 }
@@ -89,46 +93,47 @@ UInt32 RegistryHandle::GetDataSize(CharPtr name) const
 RegDataType RegistryHandle::GetDataType(CharPtr name) const
 {
 	DWORD dataType;
-	if (RegQueryValueEx(m_Key, name, NULL, &dataType, NULL, NULL) != ERROR_SUCCESS)
+	auto nameW = Utf8_2_wchar(name);
+	if (RegQueryValueExW(m_Key, nameW.get(), NULL, &dataType, NULL, NULL) != ERROR_SUCCESS)
 		throwLastSystemError("GetDataType failed for RegKey '%s'", name);
 	return DataTypeToRegData(dataType);
 }
 
-UInt32 RegistryHandle::GetData(CharPtr name, BYTE* buffer, DWORD bufSize, RegDataType& regDataType) const
+UInt32 RegistryHandle::GetDataW(CharPtr name, BYTE* buffer, DWORD bufSize, RegDataType& regDataType) const
 {
 	DWORD dataType = REG_NONE;
-	if (RegQueryValueEx(m_Key, name, NULL, &dataType, buffer, &bufSize) != ERROR_SUCCESS)
+	auto nameW = Utf8_2_wchar(name);
+	if (RegQueryValueExW(m_Key, nameW.get(), NULL, &dataType, buffer, &bufSize) != ERROR_SUCCESS)
 		throwLastSystemError("GetData failed for RegKey '%s'", name);
 	regDataType = DataTypeToRegData(dataType);
 	return bufSize;
 }
 
+/*
 UInt32 RegistryHandle::GetData(CharPtr name, std::vector<BYTE> &buffer, DWORD bufSize, RegDataType& regDataType) const
 {
-	auto retCode = ::RegGetValue(m_Key, NULL, name, RRF_RT_REG_MULTI_SZ, nullptr, &buffer[0], &bufSize);
+	auto nameW = Utf8_2_wchar(name);
+	auto retCode = ::RegGetValueW(m_Key, NULL, nameW.get(), RRF_RT_REG_MULTI_SZ, nullptr, &buffer[0], &bufSize);
 	return bufSize;
 }
+*/
 
 SharedStr RegistryHandle::ReadString(CharPtr name) const
 {
-	UInt32 len = GetDataSize(name);
+	auto len = GetDataSize(name);
 	if (!len)
 		return SharedStr();
-	SharedCharArray* result = SharedCharArray::CreateUninitialized(len MG_DEBUG_ALLOCATOR_SRC("RegistryHandle::ReadString"));
-	SharedStr resultStr = SharedStr( result );
+
+	auto nr_wchars = (len + sizeof(wchar_t) - 1) / sizeof(wchar_t);
+	auto wcharResult = std::make_unique<wchar_t[]>(nr_wchars);
 
 	RegDataType regDataType;
-    GetData(name, reinterpret_cast<BYTE*>(result->begin()), len, regDataType);
-    if ((regDataType != rdString) && (regDataType != rdExpandString))
+    GetDataW(name, reinterpret_cast<BYTE*>(wcharResult.get()), len, regDataType);
+	if ((regDataType != RegDataType::String) && (regDataType != RegDataType::ExpandString))
 		throwErrorF("RegistryHandle.ReadString", "key '%s' has a non string type", name);
-	dms_assert(result->back() == char(0));
-	result->back() = char(0);
-	return resultStr;
-}
 
-void RegistryHandle::WriteString(CharPtr name, std::string str) const
-{
-	RegSetValueEx(m_Key, name, NULL, REG_SZ, (const BYTE*)str.data(), str.size());
+	auto utf8Str = wchar_2_Utf8(wcharResult.get(), nr_wchars);
+	return SharedStr(utf8Str.get());
 }
 
 void RegistryHandle::DeleteValue(CharPtr name) const
@@ -139,53 +144,62 @@ void RegistryHandle::DeleteValue(CharPtr name) const
 
 void RegistryHandle::WriteString(CharPtr name, CharPtrRange str) const
 {
-	RegSetValueEx(m_Key, name, NULL, REG_SZ, (const BYTE*)str.begin(), str.size());
+	auto strW = Utf8_2_wchar(str.begin(), static_cast<int>(str.size()));
+	auto nameW = Utf8_2_wchar(name);
+	RegSetValueExW(m_Key, nameW.get(), NULL, REG_SZ, reinterpret_cast<const BYTE*>(strW.get()), std::wcslen(strW.get()) * sizeof(wchar_t));
 }
 
-std::vector<std::string> RegistryHandle::ReadMultiString(CharPtr name) const
+auto RegistryHandle::ReadMultiString(CharPtr name) const -> std::vector<SharedStr>
 {
 	// get registry entry as byte array
 	RegDataType regDataType;
 	DWORD len = GetDataSize(name);
-	std::vector<BYTE> buf;
-	buf.resize(len/sizeof(BYTE));
-	GetData(name, buf, len, regDataType);
+	if (!len)
+		return {};
+
+	auto nr_wchars = (len + sizeof(wchar_t) - 1) / sizeof(wchar_t);
+	auto wcharResult = std::make_unique<wchar_t[]>(nr_wchars);
+
+	GetDataW(name, reinterpret_cast<BYTE*>(wcharResult.get()), len, regDataType);
+	if (regDataType != RegDataType::MultiString)
+		throwErrorF("RegistryHandle.ReadMultiString", "key '%s' has a non multi string type", name);
 
 	// separate strings
-	std::vector<std::string> result;
-	std::string word;
-	for (auto& c : buf)
+	std::vector<SharedStr> result;
+	std::wstring wcharWord;
+	for (auto* wcPtr = wcharResult.get(); nr_wchars; ++wcPtr, --nr_wchars)
 	{
-		if (c=='\0' && not word.empty())
+		auto wc = *wcPtr;
+		if (wc==L'\0' && not wcharWord.empty())
 		{
-			result.push_back(word);
-			word.clear();
+			auto word = wchar_2_Utf8(wcharWord.c_str(), wcharWord.size());
+			result.emplace_back(word.get());
+			wcharWord.clear();
 			continue;
 		}
-		word+=c;
+		wcharWord += wc;
 	}
 	return result;
 }
 
-std::vector<BYTE> RegistryHandle::PackVectorStringAsVectorBytes(std::vector<std::string> strings) const
+ auto PackVectorStringAsVectorBytes(const std::vector<SharedStr>& strings) -> std::vector<wchar_t>
 {
-	std::vector<BYTE> result;
-	for (auto& s : strings)
+	std::vector<wchar_t> result;
+	for (const auto& s : strings)
 	{
-		for (auto& c : s)
-		{
-			result.push_back(c);
-		}
-		result.push_back('\0');
+		auto ws = Utf8_2_wchar(s.c_str());
+		result.insert(result.end(), ws.get(), ws.get() + std::wcslen(ws.get()));
+		result.emplace_back(L'\0');
 	}
-	result.push_back('\0');
+	result.emplace_back(L'\0');
 	return result;
 }
 
-bool RegistryHandle::WriteMultiString(CharPtr name, std::vector<std::string> strings) const
+bool RegistryHandle::WriteMultiString(CharPtr name, const std::vector<SharedStr>& strings) const
 {
+	auto nameW = Utf8_2_wchar(name);
 	auto reg_value = PackVectorStringAsVectorBytes(strings);
-	RegSetValueEx(m_Key, name, NULL, REG_MULTI_SZ, &reg_value[0], reg_value.size());
+	RegSetValueExW(m_Key, nameW.get(), NULL, REG_MULTI_SZ, reinterpret_cast<BYTE*>(begin_ptr(reg_value)), reg_value.size() * sizeof(wchar_t));
 	return true;
 }
   
@@ -193,14 +207,15 @@ DWORD RegistryHandle::ReadDWORD(CharPtr name) const
 {
 	RegDataType regDataType;
 	DWORD       regData;
-    if ((GetData(name, reinterpret_cast<BYTE*>(&regData), sizeof(DWORD), regDataType) != sizeof(DWORD)) || (regDataType != rdDWORD))
+    if ((GetDataW(name, reinterpret_cast<BYTE*>(&regData), sizeof(DWORD), regDataType) != sizeof(DWORD)) || (regDataType != RegDataType::DWORD))
 		throwErrorF("RegistryHandle.ReadDWORD", "key '%s' has a non DWORD type", name);
 	return regData;
 }
 
 bool RegistryHandle::WriteDWORD(CharPtr name, DWORD dw) const
 {
-	RegSetValueEx(m_Key, name, NULL, REG_DWORD, (const BYTE*)& dw, sizeof(dw));
+	auto nameW = Utf8_2_wchar(name);
+	RegSetValueExW(m_Key, nameW.get(), NULL, REG_DWORD, (const BYTE*)&dw, sizeof(dw));
 	return true;
 }
 

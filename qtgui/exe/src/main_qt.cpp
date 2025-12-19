@@ -94,7 +94,6 @@ std::any init_geodms(QApplication& dms_app, CmdLineSetttings& settingsFrame) { /
     return interpret_command_line_parameters(settingsFrame);
 }
 
-#include "DmsMainWindow.h"
 #include "DmsViewArea.h"
 #include <qmdiarea.h>
 

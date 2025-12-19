@@ -11,16 +11,15 @@
 #include "utl/Environment.h"
 
 #include "dbg/DmsCatch.h"
-#include "geo/MinMax.h"
+#include "geo/Conversions.h"
 #include "geo/Point.h"
+#include "geo/MinMax.h"
 #include "geo/StringBounds.h"
 #include "ptr/IterCast.h"
 #include "set/IndexedStrings.h"
 #include "utl/mySPrintF.h"
 #include "utl/splitPath.h"
-#include "utl/Environment.h"
 #include "LockLevels.h"
-
 #include <thread>
 
 #if defined(_MSC_VER)
@@ -170,34 +169,38 @@ extern "C" RTC_CALL bool DMS_CONV DMS_HasWaitingMessages()
 
 //  -----------------------------------------------------------------------
 
-bool IsDosFileOrDirAccessible(CharPtr doFileOrDirName)
+bool IsDosFileOrDirAccessible(CharPtr dosFileOrDirName)
 {
-	return _access(doFileOrDirName, 0) != -1;
+	auto dosFileOrDirNameW = Utf8_2_wchar(dosFileOrDirName);
+	return _waccess(dosFileOrDirNameW.get(), 0) != -1;
 }
 
 SharedStr GetCurrentDir()
 {
-	DWORD buffSize = GetCurrentDirectory(0, 0);
-	std::vector<char> buffer(buffSize);
-	if (!GetCurrentDirectory(buffSize, begin_ptr(buffer)))
+	DWORD buffSize = GetCurrentDirectoryW(0, nullptr);
+	std::vector<wchar_t> wchar_buffer(buffSize);
+	if (!GetCurrentDirectoryW(buffSize, begin_ptr(wchar_buffer)))
 		throwLastSystemError("GetCurrrentDir");
-	dms_assert(buffer.back() == char(0));
+	assert(wchar_buffer.back() == wchar_t(0));
 
-	if (buffer.empty())
+	if (wchar_buffer.empty())
 		return SharedStr();
-	return ConvertDosFileName(SharedStr(CharPtrRange(begin_ptr(buffer), end_ptr(buffer)-1)));
+	auto buffer = wchar_2_Utf8(begin_ptr(wchar_buffer));
+	return ConvertDosFileName(SharedStr(buffer.get()));
 }
 
 void SetCurrentDir(CharPtr dir)
 {
-	SetCurrentDirectory(dir);
+	auto dirW = Utf8_2_wchar(dir);
+	SetCurrentDirectoryW(dirW.get());
 }
 
 void AddFontResourceExA_checked(_In_ LPCSTR name, _In_ DWORD fl, _Reserved_ PVOID res)
 {
 	while (true)
 	{
-		auto result = AddFontResourceExA(name, fl, res);
+		auto nameW = Utf8_2_wchar(name);
+		auto result = AddFontResourceExW(nameW.get(), fl, res);
 		if (result)
 			break;
 		auto userResponse = MessageBoxA(nullptr, mySSPrintF("Failed to load FontResource %s", name).c_str(), "Warning", MB_ABORTRETRYIGNORE | MB_ICONWARNING);
@@ -211,7 +214,7 @@ void AddFontResourceExA_checked(_In_ LPCSTR name, _In_ DWORD fl, _Reserved_ PVOI
 
 void DMS_Appl_SetExeDir(CharPtr exeDir)
 {
-	dms_assert(g_ExeDir.empty()); // should only called once, exeDirs don't just change during a session
+	assert(g_ExeDir.empty()); // should only called once, exeDirs don't just change during a session
 	g_ExeDir = ConvertDosFileName(SharedStr(exeDir MG_DEBUG_ALLOCATOR_SRC("DMS_Appl_SetExeDir")));
 	
 	SetMainThreadID();
@@ -260,25 +263,19 @@ exit:
 	return SharedStr();
 }
 
-RTC_CALL std::vector<std::string> GetGeoDmsRegKeyMultiString(CharPtr key)
+RTC_CALL auto GetGeoDmsRegKeyMultiString(CharPtr key) -> std::vector<SharedStr>
 {
-	std::vector<std::string> result;
 	try {
 		RegistryHandleLocalMachineRO regLM;
 		if (regLM.ValueExists(key))
-		{
-			result = regLM.ReadMultiString(key);
-			if (result.empty())
-				goto exit;
-			return result;
-		}
+			return regLM.ReadMultiString(key);
+
 		RegistryHandleCurrentUserRO regCU;
 		if (regCU.ValueExists(key))
 			return regCU.ReadMultiString(key);
 	}
 	catch (...) {}
-exit:
-	return result;
+	return {};
 }
 
 RTC_CALL bool SetGeoDmsRegKeyDWord(CharPtr key, DWORD dw, CharPtr section)
@@ -304,7 +301,7 @@ RTC_CALL DWORD GetGeoDmsRegKeyDWord(CharPtr key, DWORD defaultValue, CharPtr sec
 	return defaultValue;
 }
 
-RTC_CALL bool SetGeoDmsRegKeyString(CharPtr key, std::string str)
+RTC_CALL bool SetGeoDmsRegKeyString(CharPtr key, CharPtr str)
 {
 	try {
 		RegistryHandleLocalMachineRW regLM;
@@ -314,7 +311,7 @@ RTC_CALL bool SetGeoDmsRegKeyString(CharPtr key, std::string str)
 	return true;
 }
 
-RTC_CALL bool SetGeoDmsRegKeyMultiString(CharPtr key, std::vector<std::string> strings)
+RTC_CALL bool SetGeoDmsRegKeyMultiString(CharPtr key, const std::vector<SharedStr>& strings)
 {
 	try {
 		RegistryHandleLocalMachineRW regLM;
@@ -583,13 +580,13 @@ extern "C" RTC_CALL void RTC_SetCachedDWord(RegDWordEnum i, DWORD dw)
 
 void MakeDir(WeakStr dirName)
 {
-	if (!CreateDirectory(ConvertDmsFileName(dirName).c_str(), 0))
+	auto dmsDirName = ConvertDmsFileName(dirName);
+	if (!CreateDirectoryW(Utf8_2_wchar(dmsDirName).get(), 0))
 	{
 		if (GetLastError() == ERROR_ALREADY_EXISTS)
 			return;
 		throwLastSystemError("MakeDir('%s')", dirName.c_str());
 	}
-//	reportF(ST_MinorTrace, "MakeDir('%s')", dirName.c_str());
 }
 
 bool IsDosDir(WeakStr dosFileName, CharPtr dmsFileName)
@@ -1054,27 +1051,142 @@ FileDateTime GetFileOrDirDateTime(WeakStr fileOrDirName)
 	return fileInfo.GetFileOrDirDateTime();
 }
 
+//////////////////////////////////////////////////////////////////////
+// utf8 -> wchar_t
+//////////////////////////////////////////////////////////////////////
+
+std::unique_ptr<wchar_t[]> Utf8_2_wchar(const char* utf8str, int sSize)
+{
+	if (!utf8str)
+		return nullptr;
+
+	// If sSize < 0, treat as null-terminated input (include terminator in output).
+	const int inLen = (sSize < 0) ? -1 : sSize;
+
+	// Query required UTF-16 length (including null terminator)
+	int required = MultiByteToWideChar(
+		CP_UTF8,
+		MB_ERR_INVALID_CHARS,
+		utf8str,
+		inLen,  // null-terminated UTF-8 or given size
+		nullptr,
+		0
+	);
+
+	if (required == 0) 
+		throwLastSystemError("MultiByteToWideChar(CP_UTF8) size query failed");
+
+	std::size_t allocSize =
+		(inLen == -1) ? static_cast<std::size_t>(required)
+		: static_cast<std::size_t>(required + 1);
+
+	auto utf16Buff = std::make_unique<wchar_t[]>(allocSize);
+
+	int written = MultiByteToWideChar(
+		CP_UTF8,
+		MB_ERR_INVALID_CHARS,
+		utf8str,
+		sSize,
+		utf16Buff.get(),
+		required
+	);
+
+	if (written == 0)
+		throwLastSystemError("MultiByteToWideChar(CP_UTF8) conversion failed");
+
+	// If inLen != -1, the output is NOT null-terminated by WideCharToMultiByte.
+	// Add a terminator if there's room (there should be, given our sizing).
+	if (inLen != -1) {
+		assert(written < allocSize);
+		utf16Buff[written] = '\0';
+	}
+	return utf16Buff;
+}
+
+std::unique_ptr<wchar_t[]> Utf8_2_wchar(WeakStr utf8str)
+{
+	return Utf8_2_wchar(utf8str.c_str(), ThrowingConvert<int>(utf8str.ssize()));
+}
+
+
+std::unique_ptr<char[]> wchar_2_Utf8(const wchar_t* wCharStr, int sSize)
+{
+	if (!wCharStr)
+		return nullptr;
+
+	// If sSize < 0, treat as null-terminated input (include terminator in output).
+	const int inLen = (sSize < 0) ? -1 : sSize;
+
+	int required = ::WideCharToMultiByte(
+		CP_UTF8,
+		WC_ERR_INVALID_CHARS,
+		wCharStr,
+		inLen,
+		nullptr,
+		0,
+		nullptr,
+		nullptr
+	);
+
+	if (required == 0) {
+		throwLastSystemError("WideCharToMultiByte(CP_UTF8) size query failed");
+	}
+
+	std::size_t allocSize =
+		(inLen == -1) ? static_cast<std::size_t>(required)
+		: static_cast<std::size_t>(required + 1);
+
+	auto utf8Buff = std::make_unique<char[]>(static_cast<size_t>(allocSize));
+
+	int written = ::WideCharToMultiByte(
+		CP_UTF8,
+		WC_ERR_INVALID_CHARS,
+		wCharStr,
+		inLen,
+		utf8Buff.get(),
+		required,
+		nullptr,
+		nullptr
+	);
+
+	if (written == 0) {
+		throwLastSystemError("WideCharToMultiByte(CP_UTF8) conversion failed");
+	}
+
+	// If inLen != -1, the output is NOT null-terminated by WideCharToMultiByte.
+	// Add a terminator if there's room (there should be, given our sizing).
+	if (inLen != -1) {
+		assert(written < allocSize);
+		utf8Buff[written] = '\0';
+	}
+
+	return utf8Buff;
+}
+
 //  -----------------------------------------------------------------------
 
 // Child process used by exec expressions for executables; Create; Execute and Wait for termination
 start_process_result_t StartChildProcess(CharPtr moduleName, Char* cmdLine)
 {
-	STARTUPINFO siStartInfo;
+	STARTUPINFOW siStartInfo;
 	PROCESS_INFORMATION piProcInfo;
 
 	// Set up members of STARTUPINFO structure. 
-	ZeroMemory(&siStartInfo, sizeof(STARTUPINFO));
+	ZeroMemory(&siStartInfo, sizeof(STARTUPINFOW));
 	ZeroMemory(&piProcInfo, sizeof(PROCESS_INFORMATION));
 	siStartInfo.cb = sizeof(STARTUPINFO);
 	//   siStartInfo.dwFlags = STARTF_FORCEONFEEDBACK;
 
 //	MessageBox(nullptr, cmdLine, moduleName, MB_OK);
 
+	auto moduleNameA = Utf8_2_wchar(moduleName);
+	auto cmdLineA = Utf8_2_wchar(cmdLine);
+
 	// Create the child process.
-	BOOL res = CreateProcessA
+	BOOL res = CreateProcessW
 	(
-		moduleName,
-		cmdLine,		// command line can be rewritten
+		moduleNameA.get(),
+		cmdLineA.get(),		// command line can be rewritten
 		NULL,           // process security attributes 
 		NULL,           // primary thread security attributes 
 		TRUE,           // handles are inherited 
@@ -1117,7 +1229,12 @@ Int32 GetConfigKeyValue(WeakStr configFileName, CharPtr sectionName, CharPtr key
 	if (!IsFileOrDirAccessible(configFileName))
 		return defaultValue;
 
-	return GetPrivateProfileInt(sectionName, keyName, defaultValue, ConvertDmsFileName(configFileName).c_str());
+	auto sectionNameW = Utf8_2_wchar(sectionName);
+	auto keyNameW = Utf8_2_wchar(keyName);
+	auto dmsFileName = ConvertDmsFileName(configFileName);
+	auto dmsFileNameW = Utf8_2_wchar(dmsFileName.c_str());
+
+	return GetPrivateProfileIntW(sectionNameW.get(), keyNameW.get(), defaultValue, dmsFileNameW.get());
 }
 
 SharedStr GetConfigKeyString(WeakStr configFileName, CharPtr sectionName, CharPtr keyName, CharPtr defaultValue)

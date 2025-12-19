@@ -128,12 +128,12 @@ extern "C" RTC_CALL bool  DMS_CONV RTC_ParseRegStatusFlag(CharPtr param);
 RTC_CALL void ParseRegStatusFlags(int& argc, char**& argv);
 
 RTC_CALL SharedStr GetGeoDmsRegKey(CharPtr key);
-RTC_CALL std::vector<std::string> GetGeoDmsRegKeyMultiString(CharPtr key);
+RTC_CALL auto GetGeoDmsRegKeyMultiString(CharPtr key) -> std::vector<SharedStr>;
 
 RTC_CALL DWORD GetGeoDmsRegKeyDWord(CharPtr key, DWORD defaultValue, CharPtr section = "");
 RTC_CALL bool SetGeoDmsRegKeyDWord(CharPtr key, DWORD dw, CharPtr section = "");
-RTC_CALL bool SetGeoDmsRegKeyString(CharPtr key, std::string str);
-RTC_CALL bool SetGeoDmsRegKeyMultiString(CharPtr key, std::vector<std::string> strings);
+RTC_CALL bool SetGeoDmsRegKeyString(CharPtr key, CharPtr str);
+RTC_CALL bool SetGeoDmsRegKeyMultiString(CharPtr key, const std::vector<SharedStr>& strings);
 
 //  -----------------------------------------------------------------------
 
@@ -216,5 +216,9 @@ namespace PlatformInfo
 };
 
 RTC_CALL extern std::atomic<UInt32> g_DispatchLockCount;
+
+RTC_CALL std::unique_ptr<wchar_t[]> Utf8_2_wchar(CharPtr utf8str, int strLen = -1);
+RTC_CALL std::unique_ptr<wchar_t[]> Utf8_2_wchar(WeakStr utf8str);
+RTC_CALL std::unique_ptr<char[]> wchar_2_Utf8(const wchar_t* wCharStr, int sSize = -1);
 
 #endif // __RTC_UTL_ENVIRONMENT_H

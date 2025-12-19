@@ -96,9 +96,12 @@ HANDLE CreateFileHandleForRwView(WeakStr fileName, FileCreationMode fcm, bool is
 	HANDLE fileHandle;
 	UInt32 retryCounter = 0;
 
+	auto dosFileName = ConvertDmsFileName(fileName);
+	auto dosFileNameW = Utf8_2_wchar(dosFileName);
+
 	do {
-		fileHandle= CreateFile(
-				ConvertDmsFileName(fileName).c_str()  // file name
+		fileHandle= CreateFileW(
+				dosFileNameW.get()  // file name
 			,	GENERIC_READ | GENERIC_WRITE          // access mode
 			,	FILE_SHARE_DELETE // FILE_SHARE_READ                  // share mode
 			,	NULL                                  // SD
@@ -179,9 +182,13 @@ void FileHandle::OpenForRead(WeakStr fileName, bool throwOnError, bool doRetry, 
 
 	HANDLE fileHandle;
 	UInt32 retryCounter = 0;
+
+	auto dosFileName = ConvertDmsFileName(fileName);
+	auto dosFileNameW = Utf8_2_wchar(dosFileName);
+
 	do {
-		fileHandle = CreateFile(
-				ConvertDmsFileName(fileName).c_str()
+		fileHandle = CreateFileW(
+				dosFileNameW.get()
 			,	GENERIC_READ                            // access mode
 			,	FILE_SHARE_READ                         // share mode
 			,	NULL                                    // SD

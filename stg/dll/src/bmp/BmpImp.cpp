@@ -42,6 +42,7 @@ granted by an additional written contract for support, assistance and/or develop
 #include "set/VectorFunc.h"
 
 #include <windows.h>
+#include <fileapi.h>
 #include <io.h>
 //  ---------------------------------------------------------------------------
 
@@ -167,27 +168,31 @@ BmpImp::~BmpImp()
 //
 //  Returns : Boolean (TRUE on success, FALSE on failure).
 //
-bool BmpImp::Open(WeakStr filename, BmpFileMode mode)
+bool BmpImp::Open(WeakStr fileName, BmpFileMode mode)
 {
 	DWORD size;
 
 	// close bmp if open
 	Close();
 
-	m_FileExisted = IsFileOrDirAccessible(filename);
+	m_FileExisted = IsFileOrDirAccessible(fileName);
 	if ((mode == BMP_READ) && !m_FileExisted)
 		return FALSE;
 
 	if (mode != BMP_READ)
-		GetWritePermission(filename);
+		GetWritePermission(fileName);
 
-	m_FH = CreateFile(ConvertDmsFileName(filename).c_str(), 
-				(mode == BMP_READ) ? GENERIC_READ : GENERIC_WRITE|GENERIC_READ, 
-				(mode == BMP_READ) ? FILE_SHARE_READ : 0, // share mode
-				NULL,            // SD
-				(m_FileExisted ? OPEN_ALWAYS : CREATE_ALWAYS), // how to create
-				FILE_ATTRIBUTE_NORMAL,
-				NULL);
+	auto dosFileName = ConvertDmsFileName(fileName);
+	auto dosFileNameW = Utf8_2_wchar(dosFileName.c_str());
+
+	m_FH = CreateFileW(dosFileNameW.get()
+				, (mode == BMP_READ) ? GENERIC_READ : GENERIC_WRITE|GENERIC_READ
+				, (mode == BMP_READ) ? FILE_SHARE_READ : 0 // share mode
+				, NULL            // SD
+				, m_FileExisted ? OPEN_ALWAYS : CREATE_ALWAYS // how to create
+				, FILE_ATTRIBUTE_NORMAL
+				, NULL
+	);
 	if (m_FH == INVALID_HANDLE_VALUE)
 		return FALSE;
 
