@@ -185,8 +185,8 @@ SharedStr GetCurrentDir()
 
 	if (wchar_buffer.empty())
 		return SharedStr();
-	auto buffer = wchar_2_Utf8(begin_ptr(wchar_buffer));
-	return ConvertDosFileName(SharedStr(buffer.get()));
+	auto buffer = wchar_2_Utf8Str(begin_ptr(wchar_buffer));
+	return ConvertDosFileName(buffer);
 }
 
 void SetCurrentDir(CharPtr dir)
@@ -234,14 +234,6 @@ RTC_CALL SharedStr GetExeDir()     // contains DmsClient.exe (+dlls?) and dms.in
 }
 
 #include "utl/Registry.h"
-static bool s_localDataDirWasUsed = false;
-
-extern "C" 
-RTC_CALL bool DMS_Appl_LocalDataDirWasUsed()
-{
-	return s_localDataDirWasUsed;
-}
-
 
 RTC_CALL SharedStr GetGeoDmsRegKey(CharPtr key)
 {
@@ -330,37 +322,32 @@ SharedStr GetConvertedGeoDmsRegKey(CharPtr key)
 	return result;
 }
 
-RTC_CALL SharedStr GetLocalDataDir()
+SharedStr GetLocalDataDirImpl()
 {
-	static SharedStr localDataDir;
-	if (!DMS_Appl_LocalDataDirWasUsed())
-	{
-		s_localDataDirWasUsed = true;
-		localDataDir = GetConvertedGeoDmsRegKey("LocalDataDir");
-		if (localDataDir.empty())
-			localDataDir = "C:/LocalData";
-	}
+	SharedStr localDataDir = GetConvertedGeoDmsRegKey("LocalDataDir");
+	if (localDataDir.empty())
+		localDataDir = "C:/LocalData";
 	return localDataDir;
 }
 
-static bool s_sourceDataDirWasUsed = false;
-
-extern "C" 
-RTC_CALL bool DMS_Appl_SourceDataDirWasUsed()
+RTC_CALL SharedStr GetLocalDataDir()
 {
-	return s_sourceDataDirWasUsed;
+	static SharedStr localDataDir = GetLocalDataDirImpl();
+	return localDataDir;
+}
+
+SharedStr GetSourceDataDirImpl()
+{
+	SharedStr sourceDataDir = GetConvertedGeoDmsRegKey("SourceDataDir");
+	if (sourceDataDir.empty())
+		sourceDataDir = "C:\\SourceData";
+
+	return sourceDataDir;
 }
 
 RTC_CALL SharedStr GetSourceDataDir()
 {
-	static SharedStr sourceDataDir;
-	if (!DMS_Appl_SourceDataDirWasUsed())
-	{
-		s_sourceDataDirWasUsed = true;
-		sourceDataDir = GetConvertedGeoDmsRegKey("SourceDataDir");
-		if (sourceDataDir.empty())
-			sourceDataDir = "C:\\SourceData";
-	}
+	static SharedStr sourceDataDir = GetSourceDataDirImpl();
 	return sourceDataDir;
 }
 
@@ -1057,8 +1044,14 @@ FileDateTime GetFileOrDirDateTime(WeakStr fileOrDirName)
 
 std::unique_ptr<wchar_t[]> Utf8_2_wchar(const char* utf8str, int sSize)
 {
-	if (!utf8str)
-		return nullptr;
+	assert(utf8str);
+
+	if (!sSize || !*utf8str)
+	{
+		auto result = std::make_unique<wchar_t[]>(1);
+		result.get()[0] = wchar_t(0);
+		return result;
+	}
 
 	// If sSize < 0, treat as null-terminated input (include terminator in output).
 	const int inLen = (sSize < 0) ? -1 : sSize;
@@ -1109,13 +1102,15 @@ std::unique_ptr<wchar_t[]> Utf8_2_wchar(WeakStr utf8str)
 }
 
 
-std::unique_ptr<char[]> wchar_2_Utf8(const wchar_t* wCharStr, int sSize)
+auto wchar_2_Utf8Str(const wchar_t* wCharStr, int strLen) -> SharedStr
 {
-	if (!wCharStr)
-		return nullptr;
+	assert(wCharStr);
 
-	// If sSize < 0, treat as null-terminated input (include terminator in output).
-	const int inLen = (sSize < 0) ? -1 : sSize;
+	if (!strLen || !*wCharStr)
+		return SharedStr();
+
+	// If strLen < 0, treat as null-terminated input (include terminator in output).
+	const int inLen = (strLen < 0) ? -1 : strLen;
 
 	int required = ::WideCharToMultiByte(
 		CP_UTF8,
@@ -1136,31 +1131,47 @@ std::unique_ptr<char[]> wchar_2_Utf8(const wchar_t* wCharStr, int sSize)
 		(inLen == -1) ? static_cast<std::size_t>(required)
 		: static_cast<std::size_t>(required + 1);
 
-	auto utf8Buff = std::make_unique<char[]>(static_cast<size_t>(allocSize));
+	auto utf8Buff = SharedCharArray::CreateUninitialized(allocSize MG_DEBUG_ALLOCATOR_SRC("wchar_2_Utf8Str"));
+	SharedStr result(utf8Buff);
 
 	int written = ::WideCharToMultiByte(
 		CP_UTF8,
 		WC_ERR_INVALID_CHARS,
 		wCharStr,
 		inLen,
-		utf8Buff.get(),
+		utf8Buff->begin(),
 		required,
 		nullptr,
 		nullptr
 	);
 
-	if (written == 0) {
+	if (written == 0)
 		throwLastSystemError("WideCharToMultiByte(CP_UTF8) conversion failed");
-	}
+
 
 	// If inLen != -1, the output is NOT null-terminated by WideCharToMultiByte.
 	// Add a terminator if there's room (there should be, given our sizing).
-	if (inLen != -1) {
-		assert(written < allocSize);
-		utf8Buff[written] = '\0';
+#if defined(MG_DEBUG)
+	auto writtenStrlength = written; if (inLen == -1) writtenStrlength--;
+	for (int i = 0; i != writtenStrlength; ++i)
+	{
+		assert(utf8Buff->begin()[i]);
 	}
+#endif
 
-	return utf8Buff;
+	if (inLen != -1) {
+
+		assert(written < allocSize);
+		utf8Buff->begin()[written] = '\0';
+	}
+#if defined(MG_DEBUG)
+	else
+	{
+		assert(utf8Buff->begin()[writtenStrlength] == char(0));
+	}
+#endif
+
+	return result;
 }
 
 //  -----------------------------------------------------------------------
@@ -1297,25 +1308,26 @@ namespace PlatformInfo
 	RTC_CALL SharedStr GetUserNameA()
 	{
 		DWORD sz = UNLEN+1;
-		char buffer[UNLEN+1];
-		if (!::GetUserNameA(buffer, &sz))
+		wchar_t buffer[UNLEN+1];
+		if (!::GetUserNameW(buffer, &sz))
 			throwLastSystemError("GetUserName");
-		return SharedStr(CharPtrRange(buffer, buffer+sz-1));
+		return SharedStr(wchar_2_Utf8Str(buffer, sz));
 	}
 	RTC_CALL SharedStr GetComputerNameA()
 	{
 		DWORD sz = MAX_COMPUTERNAME_LENGTH+1;
-		char buffer[MAX_COMPUTERNAME_LENGTH + 1]; 
-		if (!::GetComputerNameA(buffer, &sz))
+		wchar_t buffer[MAX_COMPUTERNAME_LENGTH + 1]; 
+		if (!::GetComputerNameW(buffer, &sz))
 			throwLastSystemError("GetComputerName");
-		return SharedStr(CharPtrRange(buffer, buffer+sz));
+		return SharedStr(wchar_2_Utf8Str(buffer, sz));
 	}
 	RTC_CALL bool GetEnv(CharPtr varName, SharedStr& result)
 	{
-		CharPtr resPtr = getenv(varName);
+		auto varNameW = Utf8_2_wchar(varName);
+		const wchar_t* resPtr = _wgetenv(varNameW.get());
 		if (!resPtr)
 			return false;
-		result = SharedStr(resPtr MG_DEBUG_ALLOCATOR_SRC("GetEnv"));
+		result = wchar_2_Utf8Str(resPtr);
 		return true;
 	}
 	RTC_CALL bool GetEnvString(CharPtr section, CharPtr key, SharedStr& result)

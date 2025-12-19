@@ -232,7 +232,7 @@ void SharedStr::resize(SizeT sz MG_DEBUG_ALLOCATOR_SRC_ARG)
 		if (sca)
 			sca->erase(sca->begin()+sz, sca->end()-1);
 		else
-			dms_assert(sz == 0);
+			assert(sz == 0);
 	}
 	else 
 	{

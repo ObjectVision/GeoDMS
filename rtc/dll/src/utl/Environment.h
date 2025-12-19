@@ -219,6 +219,6 @@ RTC_CALL extern std::atomic<UInt32> g_DispatchLockCount;
 
 RTC_CALL std::unique_ptr<wchar_t[]> Utf8_2_wchar(CharPtr utf8str, int strLen = -1);
 RTC_CALL std::unique_ptr<wchar_t[]> Utf8_2_wchar(WeakStr utf8str);
-RTC_CALL std::unique_ptr<char[]> wchar_2_Utf8(const wchar_t* wCharStr, int sSize = -1);
+RTC_CALL auto wchar_2_Utf8Str(const wchar_t* wCharStr, int strLen = -1) -> SharedStr;
 
 #endif // __RTC_UTL_ENVIRONMENT_H

@@ -125,15 +125,17 @@ SharedStr RegistryHandle::ReadString(CharPtr name) const
 		return SharedStr();
 
 	auto nr_wchars = (len + sizeof(wchar_t) - 1) / sizeof(wchar_t);
+	assert(nr_wchars > 0);
 	auto wcharResult = std::make_unique<wchar_t[]>(nr_wchars);
 
 	RegDataType regDataType;
     GetDataW(name, reinterpret_cast<BYTE*>(wcharResult.get()), len, regDataType);
 	if ((regDataType != RegDataType::String) && (regDataType != RegDataType::ExpandString))
 		throwErrorF("RegistryHandle.ReadString", "key '%s' has a non string type", name);
-
-	auto utf8Str = wchar_2_Utf8(wcharResult.get(), nr_wchars);
-	return SharedStr(utf8Str.get());
+	--nr_wchars;
+	assert(wcharResult.get()[nr_wchars] == wchar_t(0));
+	auto utf8Str = wchar_2_Utf8Str(wcharResult.get(), nr_wchars);
+	return utf8Str;
 }
 
 void RegistryHandle::DeleteValue(CharPtr name) const
@@ -172,8 +174,8 @@ auto RegistryHandle::ReadMultiString(CharPtr name) const -> std::vector<SharedSt
 		auto wc = *wcPtr;
 		if (wc==L'\0' && not wcharWord.empty())
 		{
-			auto word = wchar_2_Utf8(wcharWord.c_str(), wcharWord.size());
-			result.emplace_back(word.get());
+			auto word = wchar_2_Utf8Str(wcharWord.c_str(), wcharWord.size());
+			result.emplace_back(std::move(word));
 			wcharWord.clear();
 			continue;
 		}
