@@ -64,8 +64,8 @@ struct DataArrayBase : AbstrDataObject
 
 	TICTOC_CALL AbstrReadableTileData* CreateReadableTileData(tile_id t) const override;
 
-	TIC_CALL locked_cseq_t GetDataRead(tile_id t = no_tile) const;
-	TIC_CALL locked_seq_t GetDataWrite(tile_id t, dms_rw_mode rwMode);
+	TIC_CALL auto GetDataRead(tile_id t = no_tile) const -> locked_cseq_t;
+	TIC_CALL auto GetDataWrite(tile_id t, dms_rw_mode rwMode) -> locked_seq_t;
 
 	auto GetReadableTileLock(tile_id t) const->TileCRef override { return GetTile(t).m_TileHolder; } // TODO G8: REMOVE
 	auto GetWritableTileLock(tile_id t, dms_rw_mode rwMode) ->TileRef override { return GetWritableTile(t, rwMode).m_TileHolder; } // TODO G8: REMOVE
@@ -125,8 +125,8 @@ struct DataArrayBase : AbstrDataObject
 		}
 	};
 
-	TICTOC_CALL virtual auto GetFutureTile(tile_id t) const -> SharedPtr<future_tile> = 0;
-	auto GetFutureAbstrTile(tile_id t) const -> SharedPtr<abstr_future_tile> override
+	TICTOC_CALL virtual auto GetFutureTile(tile_id t) const -> std::shared_ptr<future_tile> = 0;
+	auto GetFutureAbstrTile(tile_id t) const -> std::shared_ptr<abstr_future_tile> override
 	{
 		return GetFutureTile(t);
 	}
@@ -335,9 +335,9 @@ struct GeneratedTileFunctor : TileFunctor<V>
 		SharedPtr<const TileFunctor<V>> self;
 	};
 
-	auto GetFutureTile(tile_id t) const -> SharedPtr<future_tile> override
+	auto GetFutureTile(tile_id t) const -> std::shared_ptr<future_tile> override
 	{
-		return new future_caller{t, this};
+		return std::make_shared<future_caller>(t, this);
 	}
 };
 

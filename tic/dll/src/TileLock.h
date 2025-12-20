@@ -50,7 +50,7 @@ struct locked_seq : non_polluting_base<TileHolderType>, Seq
 	locked_seq& operator =(const locked_seq& rhs) = default;
 	locked_seq& operator =(locked_seq&& rhs) = default;
 
-	operator bool() const { return this->m_TileHolder.get_ptr() != nullptr; }
+	explicit operator bool() const noexcept { return static_cast<bool>(this->m_TileHolder); }
 
 	Seq get_view() const { return *this; }
 };

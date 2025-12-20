@@ -51,7 +51,7 @@ struct ptr : ptr_base<T, copyable>
 	explicit ptr(T* p) : ptr_base<T, copyable>( p ) {}
 };
 
-struct abstr_future_tile : TileBase
+struct abstr_future_tile : std::enable_shared_from_this<abstr_future_tile>
 {
 	virtual auto GetTileCRef() -> TileCRef = 0;
 };
@@ -84,7 +84,7 @@ public:
 	TIC_CALL tile_loc GetTileDataLocation(datarow_id idx) const;
 
 // Abstr Tile retention
-	virtual auto GetFutureAbstrTile(tile_id t) const-> SharedPtr<abstr_future_tile> = 0;
+	virtual auto GetFutureAbstrTile(tile_id t) const-> std::shared_ptr<abstr_future_tile> = 0;
 	virtual auto GetReadableTileLock(tile_id t) const->TileCRef = 0; // TODO G8: REMOVE
 	virtual auto GetWritableTileLock(tile_id t, dms_rw_mode rwMode)->TileRef = 0; // TODO G8: REMOVE
 
@@ -196,7 +196,7 @@ public:
 
 public:
 	SharedPtr<const AbstrTileRangeData> m_TileRangeData; // this replaces m_DomainUnitCopy
-	mutable TileBase* m_shadowTilePtr = nullptr; // a kind of weak ptr
+	mutable std::weak_ptr<void> m_shadowTilePtr; // a kind of weak ptr
 
 	auto GetFailReason() const -> ErrMsgPtr;
 	void SetFailReason(ErrMsgPtr err);

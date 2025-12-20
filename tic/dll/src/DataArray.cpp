@@ -160,12 +160,12 @@ auto MutableShadowTile(DataArrayBase<V>* tileFunctor, dms_rw_mode rwMode MG_DEBU
 	auto trd = tileFunctor->GetTiledRangeData();
 	assert(trd->GetNrTiles() != 1);
 
-	SharedPtr<mutable_shadow_tile<V>> shadowTilePtr = new mutable_shadow_tile<V>;
+	auto shadowTilePtr = std::make_shared<mutable_shadow_tile<V>>();
 
-	InitMutableShadow(tileFunctor, shadowTilePtr.get_ptr(), trd, rwMode MG_DEBUG_ALLOCATOR_SRC_PARAM);
+	InitMutableShadow(tileFunctor, shadowTilePtr.get(), trd, rwMode MG_DEBUG_ALLOCATOR_SRC_PARAM);
 	if (rwMode >= dms_rw_mode::read_write)
 		shadowTilePtr->m_SourceTileArray = tileFunctor;
-	return { TileRef(shadowTilePtr.get_ptr()), GetSeq(*shadowTilePtr) };
+	return { shadowTilePtr, GetSeq(*shadowTilePtr) };
 }
 
 
@@ -181,60 +181,31 @@ static std::mutex              sd_shadowPtrSection;
 template <typename V> 
 struct const_shadow : const_tile_t<V>
 {
-	const DataArrayBase<V>* m_Owner;
 	std::mutex        m_TileGenerationCS;
 	bool              m_TileReady = false;
-
-	const_shadow(const DataArrayBase<V>* owner) : m_Owner(owner) 
-	{
-		assert(!m_Owner->m_shadowTilePtr || !m_Owner->m_shadowTilePtr->IsOwned());
-		m_Owner->m_shadowTilePtr = this;
-	}
-
-	~const_shadow()
-	{
-		auto lockCS = std::unique_lock(sd_shadowPtrSection);
-		if (!m_Owner)
-			return;
-		if (m_Owner->m_shadowTilePtr == this)
-			m_Owner->m_shadowTilePtr = nullptr;
-		m_Owner = nullptr;
-	}
-
-	void DecoupleShadowFromOwner() override
-	{
-		m_Owner = nullptr;
-	}
-
 };
 
 
 AbstrDataObject::~AbstrDataObject()
-{
-	if (!m_shadowTilePtr)
-		return;
-	auto lockCS = std::unique_lock(sd_shadowPtrSection);
-	if (m_shadowTilePtr)
-	{
-		m_shadowTilePtr->DecoupleShadowFromOwner();
-		m_shadowTilePtr = nullptr;
-	}
-}
+{}
 
 template<typename V>
-SharedPtr<const_shadow<V>> GetConstShadowTile(const DataArrayBase<V>* ado)
+std::shared_ptr<const_shadow<V>> GetConstShadowTile(const DataArrayBase<V>* ado)
 {
 	assert(ado);
 
 	auto lockCS = std::unique_lock(sd_shadowPtrSection);
-	auto result = SharedPtr<SharedObj>(ado->m_shadowTilePtr, no_zombies{});
-	if (!result)
-		result.assign( new const_shadow<V>{ ado } );
 
-	auto resultAsConstShadowV = static_cast<const_shadow<V>*>(result.get());
-	assert(resultAsConstShadowV->m_Owner == ado);
-	assert(ado->m_shadowTilePtr == resultAsConstShadowV);
-	return resultAsConstShadowV;
+	auto resultBase = ado->m_shadowTilePtr.lock();
+	if (resultBase)
+	{
+		auto resultAsConstShadowV = std::static_pointer_cast<const_shadow<V>>(resultBase);
+		return resultAsConstShadowV;
+	}
+
+	auto result = std::make_shared<const_shadow<V>>();
+	ado->m_shadowTilePtr = result;
+	return result;
 }
 
 template <fixed_elem V>
@@ -335,8 +306,7 @@ DataArrayBase<V>::CreateReadableTileData(tile_id t) const
 }
 
 template <class V> 
-typename DataArrayBase<V>::locked_cseq_t 
-DataArrayBase<V>::GetDataRead(tile_id t) const
+auto DataArrayBase<V>::GetDataRead(tile_id t) const -> locked_cseq_t
 {
 	ASyncContinueCheck();
 
@@ -352,7 +322,8 @@ DataArrayBase<V>::GetDataRead(tile_id t) const
 				MakeConstShadowTile(cstPtr.get(), this MG_DEBUG_ALLOCATOR_SRC(this->md_SrcStr.c_str()));
 				cstPtr->m_TileReady = true;
 			}
-			return { TileCRef(cstPtr.get_ptr()), GetConstSeq(*cstPtr) };
+			auto constSeq = GetConstSeq(*cstPtr);
+			return { std::static_pointer_cast<const void>(cstPtr), std::move(constSeq) };
 		}
 		t = 0;
 	}
@@ -361,8 +332,7 @@ DataArrayBase<V>::GetDataRead(tile_id t) const
 }
 
 template <class V> 
-typename DataArrayBase<V>::locked_seq_t 
-DataArrayBase<V>::GetDataWrite(tile_id t, dms_rw_mode rwMode)
+auto DataArrayBase<V>::GetDataWrite(tile_id t, dms_rw_mode rwMode) -> locked_seq_t
 {
 	if (t == no_tile)
 	{
@@ -371,7 +341,7 @@ DataArrayBase<V>::GetDataWrite(tile_id t, dms_rw_mode rwMode)
 			return MutableShadowTile(this, rwMode MG_DEBUG_ALLOCATOR_SRC("MutableShadowTile this->md_SrcStr"));
 		t = 0;
 	}
-	dms_assert(t < GetTiledRangeData()->GetNrTiles());
+	assert(t < GetTiledRangeData()->GetNrTiles());
 	return GetWritableTile(t, rwMode);
 }
 
@@ -850,7 +820,7 @@ TIC_CALL auto CreateHeapTileArray_impl(const AbstrTileRangeData* tdr, bool mustC
 	{
 		if (tdr->GetRangeSize() == 1)
 		{
-			dms_assert(tdr->GetNrTiles() == 1);
+			assert(tdr->GetNrTiles() == 1);
 			return std::make_unique<HeapSingleValue<V>>(tdr);
 		}
 	}

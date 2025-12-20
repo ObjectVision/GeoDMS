@@ -163,7 +163,7 @@ public:
 		assert(arg1);
 		std::shared_ptr<std::any> indexBoxPtr = std::make_shared<std::any>(std::move(indexBox));
 
-		using prepare_data = SharedPtr<typename TileFunctor<V>::future_tile>;
+		using prepare_data = std::shared_ptr<typename TileFunctor<V>::future_tile>;
 		std::unique_ptr<AbstrDataObject> futureTileFunctor;
 
 		visit<typelists::domain_elements>(arg2DomainA

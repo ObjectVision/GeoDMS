@@ -6,11 +6,11 @@
 #include "DataArray.h"
 #include "ptr/OwningPtrSizedArray.h"
 
-using abstr_future_tile_ptr = SharedPtr<abstr_future_tile>;
+using abstr_future_tile_ptr = std::shared_ptr<abstr_future_tile>;
 using abstr_future_tile_array = OwningPtrSizedArray< abstr_future_tile_ptr >;
 
 template <typename V> using future_tile = typename DataArrayBase<V>::future_tile;
-template <typename V> using future_tile_ptr = SharedPtr<future_tile<V>>;
+template <typename V> using future_tile_ptr = std::shared_ptr<future_tile<V>>;
 template <typename V> using future_tile_array = OwningPtrSizedArray< future_tile_ptr<V> >;
 
 TIC_CALL auto GetAbstrFutureTileArray(const AbstrDataObject* ado) -> abstr_future_tile_array;

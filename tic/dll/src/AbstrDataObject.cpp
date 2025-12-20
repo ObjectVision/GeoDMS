@@ -233,8 +233,6 @@ IMPL_CLASS(AbstrDataObject, nullptr)
 
 TIC_CALL auto GetAbstrFutureTileArray(const AbstrDataObject* ado) -> abstr_future_tile_array
 {
-	using abstr_future_tile_ptr = SharedPtr<abstr_future_tile>;
-	using abstr_future_tile_array = OwningPtrSizedArray< abstr_future_tile_ptr >;
 	assert(ado); // PRECONDITION
 	auto tn = ado->GetTiledRangeData()->GetNrTiles();
 	auto result = abstr_future_tile_array(tn, ValueConstruct_tag() MG_DEBUG_ALLOCATOR_SRC("GetAbstrFutureTileArray"));

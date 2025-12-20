@@ -48,8 +48,8 @@ struct AbstrReadableTileData {
 template<typename V>
 struct ReadableTileData :AbstrReadableTileData
 {
-	typedef typename DataArrayBase<V>::locked_cseq_t cseq_t;
-	typedef typename DataArrayBase<V>::value_type value_type;
+	using cseq_t = typename DataArrayBase<V>::locked_cseq_t;
+	using value_type = typename DataArrayBase<V>::value_type;
 
 	cseq_t m_CSeq;
 
@@ -60,7 +60,6 @@ struct ReadableTileData :AbstrReadableTileData
 	value_type GetValue(SizeT index) const {
 		dms_assert(index < m_CSeq.size());
 		return Convert<value_type>(m_CSeq[index]);
-//		return m_CSeq[index];
 	}
 
 	void WriteFormattedValue(FormattedOutStream& out, SizeT index) const override

@@ -45,9 +45,9 @@ int main(int argc, char** argv)
 	else for (auto r: result)
 	{
 		std::cout << "outer" << std::endl;
-		for (auto r : r.outer())
+		for (auto p : r.outer())
 		{
-			std::cout << bg::get<0>(r) << " " << bg::get<1>(r) << std::endl;
+			std::cout << bg::get<0>(p) << " " << bg::get<1>(p) << std::endl;
 		}
 	}
 }
