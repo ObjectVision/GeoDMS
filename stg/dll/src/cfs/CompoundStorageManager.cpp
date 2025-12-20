@@ -225,21 +225,6 @@ private:
 	CharPtr                       m_NameStrPtr;
 };
 
-//////////////////////////////////////////////////////////////////////
-// Construction/Destruction
-//////////////////////////////////////////////////////////////////////
-
-std::unique_ptr<wchar_t[]> Utf8_2_wchar(CharPtr utf8str)
-{
-	SizeT textLen = strlen(utf8str);
-	std::unique_ptr<wchar_t[]> uft16Buff( new wchar_t[textLen + 1] );
-	MultiByteToWideChar(utf8CP, 0, utf8str, textLen, uft16Buff.get(), textLen);
-	uft16Buff[textLen] = 0;
-	return uft16Buff;
-}
-
-
-
 /*
  *	Destructor
  */
@@ -273,7 +258,9 @@ void CompoundStorageManager::DoOpenStorage(const StorageMetaInfo& smi, dms_rw_mo
 	// try to open the file
 
 	IStorage* tmp = 0;
-	result = StgOpenStorage(Utf8_2_wchar(GetNameStr().c_str()).get(), NULL, dwMode, NULL, 0, &tmp);
+	auto nameStr  = GetNameStr();
+	auto nameStrW = Utf8_2_wchar(nameStr.c_str());
+	result = StgOpenStorage(nameStrW.get(), NULL, dwMode, NULL, 0, &tmp);
 	m_Root = tmp;
 
 	// check if this is a cs file

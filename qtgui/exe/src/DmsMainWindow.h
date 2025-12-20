@@ -106,8 +106,8 @@ class DmsRecentFileEntry : public QAction {
     Q_OBJECT
 
 public:
-    DmsRecentFileEntry(size_t index, std::string_view dms_file_full_path, QObject* parent = nullptr);
-    std::string m_cfg_file_path;
+    DmsRecentFileEntry(size_t index, WeakStr dms_file_full_path, QObject* parent = nullptr);
+    SharedStr m_cfg_file_path;
     size_t m_index = 0;
     std::unique_ptr<QMenu> m_context_menu;
     bool eventFilter(QObject* obj, QEvent* ev) override;
@@ -156,13 +156,13 @@ public:
     void updateToolbar();
     void openConfigSourceDirectly(std::string_view filename, std::string_view line);
     void cleanRecentFilesThatDoNotExistOrListedBefore();
-    void insertCurrentConfigInRecentFiles(std::string_view cfg);
+    void insertCurrentConfigInRecentFiles(WeakStr cfg);
     void removeRecentFileAtIndex(size_t index);
     void saveRecentFileActionToRegistry();
     auto CreateCodeAnalysisSubMenu(QMenu* menu) const -> std::unique_ptr<QMenu>;
     auto getIconFromViewstyle(ViewStyle vs) const -> QIcon;
     void hideDetailPagesRadioButtonWidgets(bool hide_properties_buttons, bool hide_source_descr_buttons) const;
-    Int32 addRecentFilesEntry(std::string_view recent_file);
+    Int32 addRecentFilesEntry(WeakStr recent_file);
     void onInternalLinkClick(const QUrl& link, QWidget* origin = nullptr);
     void doViewAction(TreeItem* tiContext, CharPtrRange sAction, QWidget* origin = nullptr);
     bool ShowInDetailPage(SharedStr x);

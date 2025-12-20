@@ -64,19 +64,18 @@ void DrawSymbol(HDC dc, GRect rect, HFONT hFont, DmsColor color, DmsColor bkClr,
 
 void TextOutLimited(HDC dc, int x, int y, CharPtr txt, SizeT strLen)
 {
-	SizeT textLen = Min<SizeT>(strLen, MAX_TEXTOUT_SIZE);
-	bool result;
-	do  {
-		wchar_t uft16Buff[MAX_TEXTOUT_SIZE];
-		textLen = MultiByteToWideChar(utf8CP, 0, txt, textLen, uft16Buff, MAX_TEXTOUT_SIZE);
-		result = TextOutW( dc, x, y, uft16Buff, textLen);
+	auto uft16Buff = Utf8_2_wchar(txt, Convert<int>(strLen));
+	SizeT textLen = std::wcslen(uft16Buff.get());
+	MakeMin(textLen, MAX_TEXTOUT_SIZE);
+	while (textLen) {
+		bool result = TextOutW( dc, x, y, uft16Buff.get(), textLen);
 
 		if (result)
 			return;
 		if (GetLastError() != 1450)
 			CheckedGdiCall( result, "TextOut");
 		textLen = textLen / 2;
-	} while (textLen);
+	};
 }
 
 

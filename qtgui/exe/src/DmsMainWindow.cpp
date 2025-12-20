@@ -461,13 +461,13 @@ void DmsConfigTextButton::paintEvent(QPaintEvent* event) {
     p.drawControl(QStyle::CE_PushButton, option);
 }
 
-DmsRecentFileEntry::DmsRecentFileEntry(size_t index, std::string_view dms_file_full_path, QObject* parent)
+DmsRecentFileEntry::DmsRecentFileEntry(size_t index, WeakStr dms_file_full_path, QObject* parent)
     : QAction(parent) {
     m_cfg_file_path = dms_file_full_path;
     m_index = index;
 
     std::string preprending_spaces = index < 9 ? "   &" : "  ";
-    std::string menu_text = preprending_spaces + std::to_string(index + 1) + ". " + std::string(ConvertDosFileName(SharedStr(dms_file_full_path.data())).c_str());
+    std::string menu_text = preprending_spaces + std::to_string(index + 1) + ". " + std::string(ConvertDosFileName(dms_file_full_path).c_str());
     setText(menu_text.c_str());
 }
 
@@ -953,13 +953,13 @@ bool MainWindow::CloseConfig() {
     return has_active_dms_views;
 }
 
-auto configIsInRecentFiles(std::string_view cfg, const std::vector<std::string>& files) -> Int32 {
-    std::string cfg_name = cfg.data();
-    UInt32 pos = 0;
+auto configIsInRecentFiles(WeakStr cfg, const std::vector<SharedStr>& files) -> Int32 
+{
+//    std::string cfg_name = cfg.data();
+    Int32 pos = 0;
     for (auto& recent_file : files) {
-        if (recent_file.compare(cfg_name) == 0) {
+        if (recent_file == cfg)
             return pos;
-        }
         pos++;
     }
     
@@ -968,7 +968,7 @@ auto configIsInRecentFiles(std::string_view cfg, const std::vector<std::string>&
 
 void MainWindow::cleanRecentFilesThatDoNotExistOrListedBefore() 
 {
-    std::set<std::string> listedFiles;
+    std::set<SharedStr> listedFiles;
 
     auto recent_files_from_registry = GetGeoDmsRegKeyMultiString(dms_params::reg_key_RecentFiles);
     for (auto it_rf = recent_files_from_registry.begin(); it_rf != recent_files_from_registry.end();) 
@@ -1015,7 +1015,7 @@ void MainWindow::removeRecentFileAtIndex(size_t index) {
 }
 
 void MainWindow::saveRecentFileActionToRegistry() {
-    std::vector<std::string> recent_files_as_std_strings;
+    std::vector<SharedStr> recent_files_as_std_strings;
     for (auto* recent_file_entry_candidate : m_recent_file_entries) {
         auto recent_file_entry = dynamic_cast<DmsRecentFileEntry*>(recent_file_entry_candidate);
         if (!recent_file_entry)
@@ -1025,7 +1025,7 @@ void MainWindow::saveRecentFileActionToRegistry() {
     SetGeoDmsRegKeyMultiString("RecentFiles", recent_files_as_std_strings);
 }
 
-void MainWindow::insertCurrentConfigInRecentFiles(std::string_view cfg) {
+void MainWindow::insertCurrentConfigInRecentFiles(WeakStr cfg) {
     auto cfg_index_in_recent_files = configIsInRecentFiles(cfg, GetGeoDmsRegKeyMultiString("RecentFiles"));
     if (cfg_index_in_recent_files == -1)
         cfg_index_in_recent_files = addRecentFilesEntry(cfg);
@@ -1075,7 +1075,7 @@ bool MainWindow::LoadConfigImpl(CharPtr configFilePath) {
             for (auto& ch : configFilePathStr)
                 ch = std::tolower(ch);
 
-            insertCurrentConfigInRecentFiles(configFilePathStr.c_str());
+            insertCurrentConfigInRecentFiles(configFilePathStr);
             SetGeoDmsRegKeyString("LastConfigFile", configFilePathStr.c_str());
 
             m_treeview->setItemDelegate(new TreeItemDelegate(m_treeview));
@@ -1254,12 +1254,12 @@ void MainWindow::hideDetailPagesRadioButtonWidgets(bool hide_properties_buttons,
     m_detail_page_source_description_buttons->gridLayoutWidget->setHidden(hide_source_descr_buttons);
 }
 
-Int32 MainWindow::addRecentFilesEntry(std::string_view recent_file) 
+Int32 MainWindow::addRecentFilesEntry(WeakStr recent_file) 
 {
     auto index = m_recent_file_entries.size();
     std::string preprending_spaces = index < 9 ? "   &" : "  ";
-    std::string pushbutton_text = preprending_spaces + std::to_string(index + 1) + ". " + std::string(ConvertDosFileName(SharedStr(recent_file.data())).c_str());
-    DmsRecentFileEntry* new_recent_file_entry = new DmsRecentFileEntry(index, recent_file.data(), this);
+    std::string pushbutton_text = preprending_spaces + std::to_string(index + 1) + ". " + std::string(ConvertDosFileName(recent_file).c_str());
+    DmsRecentFileEntry* new_recent_file_entry = new DmsRecentFileEntry(index, recent_file, this);
 
     m_file_menu->addAction(new_recent_file_entry);
 
@@ -1574,7 +1574,7 @@ void MainWindow::updateFileMenu() {
     cleanRecentFilesThatDoNotExistOrListedBefore();
     auto recent_files_from_registry = GetGeoDmsRegKeyMultiString("RecentFiles"); 
 
-    for (std::string_view recent_file : recent_files_from_registry)
+    for (const auto& recent_file : recent_files_from_registry)
         addRecentFilesEntry(recent_file);
 }
 
