@@ -308,15 +308,10 @@ struct SharedStr;
 struct WeakStr;
 struct CharPtrRange;
 
-namespace std {
-	template <typename T> class shared_ptr;
-	template <typename T> class weak_ptr;
-}
-
 //======================================= pointer destillation
 
-using TileRef = SharedPtr < SharedObj >;
-using TileCRef = SharedPtr < const SharedObj >;
+using TileRef = std::shared_ptr<void>;
+using TileCRef = std::shared_ptr<const void>;
 
 //----------------------------------------------------------------------
 // metafunc : pointer_traits

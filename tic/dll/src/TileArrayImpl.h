@@ -25,7 +25,7 @@ struct HeapTileArray : GeneratedTileFunctor<V>
 	using typename TileFunctor<V>::locked_cseq_t;
 	using typename TileFunctor<V>::locked_seq_t;
 
-	using tiles_t = OwningPtrSizedArray<SharedPtr<tile<V>>>;
+	using tiles_t = OwningPtrSizedArray<std::shared_ptr<tile<V>>>;
 
 	HeapTileArray(const AbstrTileRangeData* trd, bool mustClear); // create heap stuff
 
@@ -123,12 +123,12 @@ HeapTileArray<V>::HeapTileArray(const AbstrTileRangeData* trd, bool mustClear)
 extern std::mutex s_mutableTileRecSection;
 
 template <typename V>
-void InitTile(SharedPtr<tile<V>>& tilePtr, const AbstrTileRangeData* trd, tile_id t, bool mustClear MG_DEBUG_ALLOCATOR_SRC_ARG)
+void InitTile(std::shared_ptr<tile<V>>& tilePtr, const AbstrTileRangeData* trd, tile_id t, bool mustClear MG_DEBUG_ALLOCATOR_SRC_ARG)
 {
 	auto sectionLock = std::unique_lock(s_mutableTileRecSection);
 	if (!tilePtr)
 	{
-		tilePtr = new tile<V>;
+		tilePtr = std::make_shared<tile<V>>();
 		reallocSO(*tilePtr, trd->GetTileSize(t), mustClear MG_DEBUG_ALLOCATOR_SRC_PARAM);
 	}
 	assert(tilePtr);
@@ -144,7 +144,7 @@ auto HeapTileArray<V>::GetWritableTile(tile_id t, dms_rw_mode rwMode) -> locked_
 	auto& tilePtr = m_Seqs[t];
 	InitTile(tilePtr, this->GetTiledRangeData(), t, rwMode != dms_rw_mode::write_only_all MG_DEBUG_ALLOCATOR_SRC(this->md_SrcStr.c_str()));
 
-	return locked_seq_t(TileRef(tilePtr.get_ptr()), GetSeq(*tilePtr));
+	return locked_seq_t(std::static_pointer_cast<void>(tilePtr), GetSeq(*tilePtr));
 }
 
 template <typename V>
@@ -156,7 +156,7 @@ auto HeapTileArray<V>::GetTile(tile_id t) const -> locked_cseq_t
 	auto& tilePtr = m_Seqs[t];
 	InitTile(tilePtr, this->GetTiledRangeData(), t, true MG_DEBUG_ALLOCATOR_SRC(this->md_SrcStr.c_str()));
 
-	return locked_cseq_t(TileCRef(tilePtr.get_ptr()), GetConstSeq(*tilePtr));
+	return locked_cseq_t(std::static_pointer_cast<const void>(tilePtr), GetConstSeq(*tilePtr));
 }
 
 //----------------------------------------------------------------------
@@ -183,7 +183,7 @@ auto HeapSingleArray<V>::GetWritableTile(tile_id t, dms_rw_mode rwMode) -> locke
 	auto tileSize = this->GetTiledRangeData()->GetTileSize(0);
 	dms_assert(m_Seq.size() == this->GetTiledRangeData()->GetTileSize(0));
 
-	return locked_seq_t(TileRef(this), GetSeq(m_Seq));
+	return locked_seq_t(std::make_shared<SharedPtr<AbstrDataObject>>(this), GetSeq(m_Seq));
 }
 
 template <typename V>
@@ -193,7 +193,7 @@ auto HeapSingleArray<V>::GetTile(tile_id t) const -> locked_cseq_t
 	assert(m_Seq.size() == this->GetTiledRangeData()->GetTileSize(0));
 	this->CheckFailure();
 
-	return locked_cseq_t(TileCRef(this), GetConstSeq(m_Seq));
+	return locked_cseq_t(std::make_shared<SharedPtr<const AbstrDataObject>>(this), GetConstSeq(m_Seq));
 }
 
 //----------------------------------------------------------------------
@@ -219,13 +219,13 @@ auto HeapSingleValue<V>::GetWritableTile(tile_id t, dms_rw_mode rwMode) -> locke
 	if constexpr (is_bitvalue_v<V>)
 	{
 		typename sequence_traits<V>::seq_t span(&m_Value, 1);
-		return locked_seq_t(TileRef(nullptr), span);
+		return locked_seq_t(std::make_shared<SharedPtr<AbstrDataObject>>(this), span);
 	}
 	else
 	{
 		typename sequence_traits<V>::seq_t span(&m_Value, &m_Value);
 		++span.second;
-		return locked_seq_t(TileRef(nullptr), span);
+		return locked_seq_t(std::make_shared<SharedPtr<AbstrDataObject>>(this), span);
 	}
 }
 
@@ -239,13 +239,13 @@ auto HeapSingleValue<V>::GetTile(tile_id t) const -> locked_cseq_t
 	if constexpr (is_bitvalue_v<V>)
 	{
 		typename sequence_traits<V>::cseq_t span(&m_Value, 1);
-		return locked_cseq_t(TileCRef(this), span);
+		return locked_cseq_t(std::make_shared<SharedPtr<const AbstrDataObject>>(this), span);
 	}
 	else
 	{
 		typename sequence_traits<V>::cseq_t span(&m_Value, &m_Value);
 		++span.second;
-		return locked_cseq_t(TileCRef(this), span);
+		return locked_cseq_t(std::make_shared<SharedPtr<const AbstrDataObject>>(this), span);
 	}
 }
 
@@ -427,10 +427,10 @@ auto FileTileArray<V>::GetWritableTile(tile_id t, dms_rw_mode rwMode) -> locked_
 	this->CheckFailure();
 
 	auto& file = m_Files[t];
-	auto fileMapHandle = file.get(rwMode);
+	auto fileMapHandle = file.get(this, rwMode);
 	//		fileRef->resizeSO(tileSize, rwMode == dms_rw_mode::write_only_mustzero);
 	assert(file.size() == this->GetTiledRangeData()->GetTileSize(t));
-	return locked_seq_t(make_SharedThing(std::move(fileMapHandle)), GetSeq(file));
+	return locked_seq_t(std::static_pointer_cast<void>(fileMapHandle), GetSeq(file));
 }
 
 template <typename V>
@@ -440,9 +440,9 @@ auto FileTileArray<V>::GetTile(tile_id t) const -> locked_cseq_t
 	this->CheckFailure();
 
 	const auto& file = m_Files[t];
-	auto fileMapHandle = file.get(dms_rw_mode::read_only);
+	auto fileMapHandle = file.get(this, dms_rw_mode::read_only);
 	assert(file.size() == this->GetTiledRangeData()->GetTileSize(t));
-	return locked_cseq_t(TileCRef(make_SharedThing( std::move(fileMapHandle) )), GetConstSeq(file));
+	return locked_cseq_t(std::static_pointer_cast<const void>(fileMapHandle), GetConstSeq(file));
 }
 
 #endif //!defined(__TIC_TILEARRAYIMPL_H)

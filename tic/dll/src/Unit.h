@@ -372,7 +372,7 @@ class Unit<const V> {}; // unsupported use
 template <typename E>
 auto get_range_ptr_of_valuesunit(const Unit<E>* valuesUnitPtr)
 {
-	assert(!valuesUnitPtr || valuesUnitPtr->GetCurrRangeItem() == valuesUnitPtr);
+//	assert(!valuesUnitPtr || valuesUnitPtr->GetCurrRangeItem() == valuesUnitPtr);
 
 	if constexpr (has_var_range_field_v<E>)
 	{

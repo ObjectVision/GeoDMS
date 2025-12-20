@@ -29,13 +29,6 @@ struct bp_poly_oper_base: binary_assign_groupoid<typename sequence_traits<PointT
 	using polygon_set_data_type = typename traits::polygon_set_data_type;
 	mutable typename polygon_set_data_type::clean_resources cleanResources;
 	mutable polygon_set_data_type tmp_ps;
-
-/* REMOVE
-	static void PrepareTile(typename sequence_traits<typename bp_poly_oper_base::assignee_type>::seq_t res, typename sequence_traits<typename bp_poly_oper_base::arg1_type>::cseq_t a1)
-	{
-		// XXX
-	}
-	*/
 };
 
 template <typename PointType> 
@@ -159,7 +152,7 @@ void do_binary_poly_assign(
 		return;
 	}
 
-	dms_assert(arg2Data.size() == resData.size());
+	assert(arg2Data.size() == resData.size());
 
 	transform_assign(
 		resData.begin(), 

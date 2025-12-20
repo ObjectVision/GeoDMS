@@ -24,24 +24,29 @@
 //----------------------------------------------------------------------
 
 template <typename V>
-struct tile : sequence_traits<V>::tile_container_type, TileBase // TODO G8: replace by OwningArrayPtr
+struct tile : sequence_traits<V>::tile_container_type // , TileBase // TODO G8: replace by OwningArrayPtr
 {
-	using TileBase::TileBase;
+//	using TileBase::TileBase;
 };
 
 template <typename V> struct mapped_file_tile;
 template <typename V>
-struct file_tile : sequence_traits<V>::polymorph_vec_t, TileBase // TODO G8: replace by OwningArrayPtr
+struct file_tile : sequence_traits<V>::polymorph_vec_t //, TileBase // TODO G8: replace by OwningArrayPtr
 {
-	using TileBase::TileBase;
+//	using TileBase::TileBase;
 
-	std::shared_ptr<mapped_file_tile<V>> get(dms_rw_mode rwMode) const
+	~file_tile()
+	{
+		assert(m_NrMappedFileTiles == 0);
+	}
+
+	std::shared_ptr<mapped_file_tile<V>> get(const SharedObj* fileTileArray, dms_rw_mode rwMode) const
 	{
 		std::lock_guard guard(cs_file);
 		auto result = m_OpenFile.lock();
 		if (!result)
 		{
-			result = std::make_shared<mapped_file_tile<V>>(this, rwMode);
+			result = std::make_shared<mapped_file_tile<V>>(fileTileArray, this, rwMode);
 			m_OpenFile = result;
 			assert(this->IsLocked());
 		}
@@ -53,12 +58,14 @@ struct file_tile : sequence_traits<V>::polymorph_vec_t, TileBase // TODO G8: rep
 	mutable UInt32 m_NrMappedFileTiles = 0;
 };
 
-template <typename V> struct mapped_file_tile : TileBase
+template <typename V> struct mapped_file_tile
 { 
+	SharedPtr<const SharedObj> m_FileTileArray;
 	const file_tile<V>* m_Info;
 
-	mapped_file_tile(const file_tile<V>* info, dms_rw_mode rwMode)
-		: m_Info(info)
+	mapped_file_tile(const SharedObj* fileTileArray, const file_tile<V>* info, dms_rw_mode rwMode)
+		: m_FileTileArray(fileTileArray)
+		, m_Info(info)
 	{
 		assert(info);
 		if (!info->m_NrMappedFileTiles++)
