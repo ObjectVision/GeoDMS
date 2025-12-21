@@ -18,6 +18,7 @@
 #include "AbstrDataObject.h"
 #include "DataArray.h"
 #include "DataItemClass.h"
+#include "SessionData.h"
 #include "OperationContext.h"
 #include "Unit.h"
 #include "UnitClass.h"
@@ -459,8 +460,11 @@ std::shared_ptr<Theme> Theme::Create(AspectNr aNr, const AbstrDataItem* thematic
 		MakeMax<phase_number>(nbai.breakAttr->m_PhaseNumber, thematicAttrHolder->GetPhaseNumber());
 		MakeMax<phase_number>(nbai.breakAttr->m_PhaseNumber, thematicDomainUnit->GetPhaseNumber());
 
-		PostMainThreadOper([result_wptr, thematicAttrHolder, thematicDomainUnit, dv_wptr, ts, nbai, aNr]
+		auto sdw = SessionData::GetItWeak(dynamic_cast<const TreeItem*>(thematicAttr->GetRoot()));
+		PostMainThreadOper([result_wptr, thematicAttrHolder, thematicDomainUnit, dv_wptr, ts, nbai, aNr, sdw]
 			{
+				if (sdw.expired())
+					return;
 				auto result = result_wptr.lock(); if (!result) return;
 
 				thematicAttrHolder->PrepareDataUsage(DrlType::Certain);

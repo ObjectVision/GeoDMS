@@ -45,9 +45,10 @@ struct SessionData : std::enable_shared_from_this<SessionData>
 	void ActivateThis();
 
 	static void activateIt(const TreeItem* configRoot); // for now, assume session to be a singleton
-	static std::shared_ptr<SessionData> GetIt(const TreeItem* configRoot);
+	TIC_CALL static std::shared_ptr<SessionData> GetIt(const TreeItem* configRoot);
 	static std::shared_ptr<SessionData> getIt(const TreeItem* configRoot);
 	static void ReleaseIt(const TreeItem* configRoot); // WARNING: this might point to a destroyed configRoot
+	static std::weak_ptr<SessionData> GetItWeak(const TreeItem* configRoot) { return GetIt(configRoot); }
 
 	bool IsCancelling() const { return m_IsCancelling;  }
 

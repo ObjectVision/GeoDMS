@@ -30,6 +30,12 @@ std::mutex sd_SessionDataCriticalSection;
 
 static std::shared_ptr<SessionData> s_CurrSD;
 
+std::weak_ptr<SessionData> GetCurrentSessionDataWeakPtr()
+{
+	auto sectionLock = std::scoped_lock(sd_SessionDataCriticalSection);
+	return s_CurrSD;
+}
+
 //----------------------------------------------------------------------
 // struct SessionData for near singleton management: implementation of member functions
 //----------------------------------------------------------------------

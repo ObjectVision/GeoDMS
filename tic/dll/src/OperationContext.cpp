@@ -1019,8 +1019,6 @@ exit:
 	return { std::move(results), std::move(cancelGarbage) };
 }
 
-static std::atomic<bool> s_RunOperationContextsScheduled = false;
-
 // Collect activated contexts (under lock) and return by value.
 auto CollectOperationContextsImpl() -> context_array
 {
@@ -1051,19 +1049,8 @@ void StartCollectedOperationContexts(context_array collectedActivatedContexts)
 // Entry point to advance scheduling and run newly activated contexts.
 TIC_CALL void StartOperationContexts()
 {
-	s_RunOperationContextsScheduled = false;
-
 	auto collectedActivatedContexts = CollectOperationContextsImpl();
 	StartCollectedOperationContexts(std::move(collectedActivatedContexts));
-}
-
-// Post a main-thread request to start contexts and also try to start from here.
-void PostStartOperationContexts()
-{
-	if (s_RunOperationContextsScheduled.exchange(true))
-		return;
-	PostMainThreadOper(StartOperationContexts);
-	StartOperationContexts();
 }
 
 inline bool IsActiveOrRunning(task_status s) { return s >= task_status::activated && s <= task_status::running; }
