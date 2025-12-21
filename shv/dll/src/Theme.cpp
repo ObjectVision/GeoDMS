@@ -467,6 +467,8 @@ std::shared_ptr<Theme> Theme::Create(AspectNr aNr, const AbstrDataItem* thematic
 					return;
 				auto result = result_wptr.lock(); if (!result) return;
 
+				UpdateMarker::ChangeSourceLock changeStamp(ts, "CreateNonzeroJenksFisherBreakAttr");
+
 				thematicAttrHolder->PrepareDataUsage(DrlType::Certain);
 				thematicDomainUnit->PrepareDataUsage(DrlType::Certain);
 				FutureData fta = thematicAttrHolder->GetCheckedDC(); if (fta) fta = fta->CalcResultWithValuesUnits();

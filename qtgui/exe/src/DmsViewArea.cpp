@@ -398,8 +398,8 @@ auto QDmsViewArea::contentsRectInPixelUnits()->QRect {
 }
 
 void QDmsViewArea::keyPressEvent(QKeyEvent* keyEvent) {
-	auto dv = getDataView();
-    if (!dv || dv->OnKeyDown(keyEvent->key() | KeyInfo::Flag::Char))
+    auto dv = getDataView();
+    if (!dv)
         return;
 
     if (keyEvent->key() == Qt::Key_W && keyEvent->modifiers() == Qt::ControlModifier)

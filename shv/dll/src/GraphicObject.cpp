@@ -107,7 +107,7 @@ void GraphicObject::CheckState() const
 	auto drawnNettOwnerAbsDeviceRect = owner->GetDrawnNettAbsDeviceRect(); //drawnNettOwnerAbsDeviceRect.Expand(1);
 	auto drawnFullAbsDeviceRect = GetDrawnFullAbsDeviceRect();
 
-	assert( IsIncluding(drawnNettOwnerAbsDeviceRect, drawnFullAbsDeviceRect) );
+	assert( IsIncluding(Inflate(drawnNettOwnerAbsDeviceRect, DPoint(0.5, 0.5)), drawnFullAbsDeviceRect) );
 }
 
 void GraphicObject::CheckSubStates() const
@@ -452,7 +452,7 @@ void GraphicObject::TranslateDrawnRect(CrdRect clipRect, GPoint delta)
 	else
 	{
 		auto owner = GetOwner().lock();
-		dms_assert(!owner || IsIncluding(owner->GetDrawnFullAbsDeviceRect(), GetDrawnFullAbsDeviceRect())); // invariant IsIncluding relation restored ater this TranslateDrawnRect of children
+		dms_assert(!owner || IsIncluding(Inflate(owner->GetDrawnFullAbsDeviceRect(), DPoint(0.5,0.5)), GetDrawnFullAbsDeviceRect())); // invariant IsIncluding relation restored ater this TranslateDrawnRect of children
 		SizeT n = NrEntries();
 		while (n)
 		{

@@ -206,21 +206,27 @@ void MapControl::ShiftLayerControlSlider(TType delta)
 
 bool MapControl::OnKeyDown(UInt32 virtKey)
 {
-	bool ctrlDown = (GetKeyState(VK_CONTROL) & 0x8000) != 0;
-
-	if (ctrlDown)
+	if (KeyInfo::IsCtrl(virtKey))
 	{
 		auto charKey = KeyInfo::CharOf(virtKey);
+		if (charKey == VK_CONTROL)
+			return true;
 		switch (charKey) {
 			case 'G': return OnCommand(TB_CopyLC);
 
-			case 'S':
-				ShiftLayerControlSliderLeft(); 
-				return true;
+		}
+	}
+	if (KeyInfo::IsShiftCtrl(virtKey))
+	{
+		auto charKey = KeyInfo::CharOf(virtKey);
+		switch (charKey) {
+		case VK_LEFT:
+			ShiftLayerControlSliderLeft();
+			return true;
 
-			case 'D':
-				ShiftLayerControlSliderRight();
-				return true;
+		case VK_RIGHT:
+			ShiftLayerControlSliderRight();
+			return true;
 		}
 	}
 	return base_type::OnKeyDown(virtKey)  || GetViewPort()->OnKeyDown(virtKey);
