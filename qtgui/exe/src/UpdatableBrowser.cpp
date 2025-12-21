@@ -93,7 +93,8 @@ void QUpdatableWebBrowser::restart_updating()
 {
     m_Waiter.start(this);
     QPointer<QUpdatableWebBrowser> self = this;
-    QTimer::singleShot(0, [self]()
+    QTimer::singleShot(0, MainWindow::TheOne(),
+        [self]()
         {
             if (self)
             {
@@ -176,7 +177,8 @@ void QUpdatableTextBrowser::restart_updating()
 {
     m_Waiter.start(this);
     QPointer<QUpdatableTextBrowser> self = this;
-    QTimer::singleShot(0, [self]()
+    QTimer::singleShot(0, MainWindow::TheOne(),
+        [self]()
         {
             if (self)
             {

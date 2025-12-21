@@ -455,34 +455,41 @@ std::shared_ptr<Theme> Theme::Create(AspectNr aNr, const AbstrDataItem* thematic
 		MakeMax<TimeStamp>(ts, layerInfo.m_diAspectOrFeature->GetLastChangeTS());
 		UpdateMarker::ChangeSourceLock changeStamp(ts, "CreateNonzeroJenksFisherBreakAttr");
 
-		thematicAttrHolder->PrepareDataUsage(DrlType::Certain);
-		thematicAttrHolder->GetAbstrDomainUnit()->PrepareDataUsage(DrlType::Certain);
-		auto thematicDomainUnit = thematicAttrHolder->GetAbstrDomainUnit();
-		FutureData fta = thematicAttrHolder->GetCheckedDC(); if (fta) fta = fta->CalcResultWithValuesUnits();
-		FutureData fdu = thematicDomainUnit->GetCheckedDC(); if (fdu) fdu = fdu->CallCalcResult();
+		SharedUnitInterestPtr thematicDomainUnit = thematicAttrHolder->GetAbstrDomainUnit();
 		MakeMax<phase_number>(nbai.breakAttr->m_PhaseNumber, thematicAttrHolder->GetPhaseNumber());
-		MakeMax<phase_number>(nbai.breakAttr->m_PhaseNumber, thematicAttrHolder->GetAbstrDomainUnit()->GetPhaseNumber());
-		FutureSuppliers fs; fs.reserve(2);
-		if (fta) fs.emplace_back(std::move(fta));
-		if (fdu) fs.emplace_back(std::move(fdu));
+		MakeMax<phase_number>(nbai.breakAttr->m_PhaseNumber, thematicDomainUnit->GetPhaseNumber());
 
-		auto etc = OperationContext::CreateItemWriter(nbai.breakAttr.get_ptr(),
-			[dv_wptr, ts, thematicAttrHolder
-				, iwlPaletteDomain = std::make_shared<ItemWriteLock>(nbai.paletteDomain.get_ptr())
-				, breakAttr = nbai.breakAttr
-				, result_wptr, aNr
-				](OperationContext* self, explain_context_ptr_t context)
+		PostMainThreadOper([result_wptr, thematicAttrHolder, thematicDomainUnit, dv_wptr, ts, nbai, aNr]
 			{
-				UpdateMarker::ChangeSourceLock changeStamp(ts, "CreateNonzeroJenksFisherBreakAttr");
-				CreateNonzeroJenksFisherBreakAttr(dv_wptr, thematicAttrHolder, std::move(*iwlPaletteDomain), breakAttr, std::move(self->m_WriteLock), aNr); // async
-				auto r = result_wptr.lock();
-				if (r) r->m_ClassTask.Clear();
-			}
-		,   std::move(fs)
-		,	false
-		);
+				auto result = result_wptr.lock(); if (!result) return;
 
-		result->m_ClassTask.emplace<std::shared_ptr<OperationContext>>(etc);
+				thematicAttrHolder->PrepareDataUsage(DrlType::Certain);
+				thematicDomainUnit->PrepareDataUsage(DrlType::Certain);
+				FutureData fta = thematicAttrHolder->GetCheckedDC(); if (fta) fta = fta->CalcResultWithValuesUnits();
+				FutureData fdu = thematicDomainUnit->GetCheckedDC(); if (fdu) fdu = fdu->CallCalcResult();
+				FutureSuppliers fs; fs.reserve(2);
+				if (fta) fs.emplace_back(std::move(fta));
+				if (fdu) fs.emplace_back(std::move(fdu));
+
+				auto etc = OperationContext::CreateItemWriter(nbai.breakAttr.get_ptr(),
+					[dv_wptr, ts, thematicAttrHolder
+					, iwlPaletteDomain = std::make_shared<ItemWriteLock>(nbai.paletteDomain.get_ptr())
+					, breakAttr = nbai.breakAttr
+					, result_wptr, aNr
+					](OperationContext* self, explain_context_ptr_t context)
+					{
+						UpdateMarker::ChangeSourceLock changeStamp(ts, "CreateNonzeroJenksFisherBreakAttr");
+						CreateNonzeroJenksFisherBreakAttr(dv_wptr, thematicAttrHolder, std::move(*iwlPaletteDomain), breakAttr, std::move(self->m_WriteLock), aNr); // async
+						auto r = result_wptr.lock();
+						if (r) r->m_ClassTask.Clear();
+					}
+					, std::move(fs)
+					, false
+				);
+
+				result->m_ClassTask.emplace<std::shared_ptr<OperationContext>>(etc);
+			}
+		);
 	}
 
 	return result;

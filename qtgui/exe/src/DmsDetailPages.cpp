@@ -190,16 +190,17 @@ auto htmlEncodeTextDoc(CharPtr str) -> SharedStr
 
 void DmsDetailPages::scheduleDrawPageImpl(int milliseconds)
 {
-    if (!m_DrawPageRequestPending.exchange(true))
+    if (!this->m_DrawPageRequestPending.exchange(true))
     {
-        assert(m_DrawPageRequestPending);
-        QTimer::singleShot(milliseconds, [this]
+        assert(this->m_DrawPageRequestPending);
+        QTimer::singleShot(milliseconds, MainWindow::TheOne(),
+            [this]()
             {
                 assert(IsMainThread());
                 if (g_IsTerminating)
                     return;
 
-                if (m_DrawPageRequestPending.exchange(false))
+                if (this->m_DrawPageRequestPending.exchange(false))
                     this->drawPage();
             }
         );

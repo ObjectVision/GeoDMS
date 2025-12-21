@@ -442,8 +442,14 @@ void MainWindow::aboutGeoDms() {
 }
 
 void MainWindow::splashScreen() {
+    assert(IsMainThread());
     auto splash = showSplashScreen();
-    QTimer::singleShot(3000, [splashHandle = std::move(splash)]() { splashHandle->close(); });
+    QTimer::singleShot(3000, 
+        [splashHandle = std::move(splash)]() 
+        { 
+            splashHandle->close(); 
+        }
+    );
 }
 
 void MainWindow::wiki() {
@@ -532,11 +538,14 @@ void MainWindow::onFocusChanged(QWidget* old, QWidget* now) { }
 
 void MainWindow::scheduleUpdateToolbar() {
     //ViewStyle current_toolbar_style = ViewStyle::tvsUndefined, requested_toolbar_viewstyle = ViewStyle::tvsUndefined;
+    assert(IsMainThread());
+
     if (m_UpdateToolbarRequestPending || g_IsTerminating)
         return;
 
     m_UpdateToolbarRequestPending = true;
-    QTimer::singleShot(0, [this]()
+    QTimer::singleShot(0, 
+        [this]()
         {
             if (g_IsTerminating)
                 return;
@@ -571,7 +580,8 @@ void MainWindow::updateToolbar() {
 bool MainWindow::event(QEvent* event) {
     if (event->type() == QEvent::WindowActivate && !s_errorWindowActivationCount)
     {
-        QTimer::singleShot(0, this, [=]() 
+        QTimer::singleShot(0, this, 
+            [=]() 
             { 
                 if (g_IsTerminating)
                     return;
@@ -583,14 +593,17 @@ bool MainWindow::event(QEvent* event) {
 
                     // now allow MsgQueue to process GUI events, such TreeView item activation, 
                     // that initiated the WindowActivate, before showing the FileChangedWindow
-                    QTimer::singleShot(0, this, [=]()
+                    QTimer::singleShot(0, this, 
+                        [=]()
                         {
                             if (g_IsTerminating)
                                 return;
                             m_file_changed_window->show();
-                        });
+                        }
+                    );
                 }
-            });
+            }
+        );
     }
 
     return QMainWindow::event(event);
@@ -1041,12 +1054,14 @@ void MainWindow::LoadConfig(CharPtr configFilePath, CharPtr currentItemPath) {
     SharedStr configFilePathStr(configFilePath);
     SharedStr currentItemPathStr(currentItemPath);
 
-    QTimer::singleShot(hadSubWindows ? 100 : 0, this, [=]()
+    QTimer::singleShot(hadSubWindows ? 100 : 0, this, 
+        [=]()
         { 
             if (g_IsTerminating)
                 return;
             if (LoadConfigImpl(configFilePathStr.c_str()))
-                QTimer::singleShot(0, this, [=]()
+                QTimer::singleShot(0, this, 
+                    [=]()
                     {
                         if (g_IsTerminating)
                             return;
@@ -1458,7 +1473,7 @@ void MainWindow::doViewAction(TreeItem* tiContext, CharPtrRange sAction, QWidget
     }
 }
 
-static bool s_TreeViewRefreshPending = false;
+static std::atomic<bool> s_TreeViewRefreshPending = false;
 void AnyTreeItemStateHasChanged(ClientHandle /*clientHandle*/, const TreeItem* self, NotificationCode notificationCode) {
     auto mainWindow = MainWindow::TheOne();
     if (!mainWindow)
@@ -1488,24 +1503,30 @@ void AnyTreeItemStateHasChanged(ClientHandle /*clientHandle*/, const TreeItem* s
     }
 
     // this actually only invalidates any drawn area and causes repaint later, but time anyway to avoid too many repaints
-    if (!s_TreeViewRefreshPending) {
-        s_TreeViewRefreshPending = true;
-        QTimer::singleShot(1000, []() 
+    if (!s_TreeViewRefreshPending.exchange(true)) 
+    {
+        QTimer::singleShot(1000, mainWindow, 
+            []()
             { 
                 // MainWindow could have been destroyed
                 if (g_IsTerminating)
                     return;
 
-                s_TreeViewRefreshPending = false;
-                auto tv = s_CurrMainWindow->m_treeview;
-                if (tv)
-                    tv->update();
+                if (s_TreeViewRefreshPending.exchange(false))
+                {
+                    auto tv = s_CurrMainWindow->m_treeview;
+                    if (tv)
+                        tv->update();
+                }
             }
         );
     }
 
-    if (s_CurrMainWindow && self == s_CurrMainWindow->getCurrentTreeItem())
-        s_CurrMainWindow->m_detail_pages->onTreeItemStateChange();
+    assert(mainWindow);
+    assert(mainWindow == s_CurrMainWindow);
+
+    if (self == mainWindow->getCurrentTreeItem())
+        mainWindow->m_detail_pages->onTreeItemStateChange();
 }
 
 #include "act/Waiter.h"
@@ -1540,7 +1561,8 @@ void OnEndWaiting(ClientHandle /*clientHandle*/, AbstrMsgGenerator* ach) {
     if (endWaitingPending.exchange(true))
         return;
 
-    QTimer::singleShot(0, [descr = SharedStr(ach->GetDescription())]() 
+    QTimer::singleShot(0, MainWindow::TheOne(),
+        [descr = SharedStr(ach->GetDescription())]()
         { 
             if (g_IsTerminating)
                 return;

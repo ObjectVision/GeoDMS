@@ -292,7 +292,12 @@ void QDmsViewArea::CreateDmsView(QMdiArea* parent, ViewStyle viewStyle)
     RegisterScaleChangeNotifications(DEVICE_PRIMARY, parent_hwnd, UM_SCALECHANGE, &m_cookie);
     setProperty("viewstyle", viewStyle);
 
-    QTimer::singleShot(0, this, [dv_hWnd] { SetFocus(dv_hWnd); });
+    QTimer::singleShot(0, this, 
+        [dv_hWnd]()
+        { 
+            SetFocus(dv_hWnd); 
+        }
+    );
 }
 
 QDmsViewArea::~QDmsViewArea()

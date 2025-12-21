@@ -337,10 +337,12 @@ void EventLogModel::addText(MsgData&& msgData, bool moreToCome)
 
 	// idle time update
 	has_queued_update = true;
-	QTimer::singleShot(500, this, [=]()
+	QTimer::singleShot(500, mainWindow, 
+		[=]()
 		{
 			updateOnNewMessages();
-		});
+		}
+	);
 }
 
 DmsTypeFilter::DmsTypeFilter(QWidget* parent)

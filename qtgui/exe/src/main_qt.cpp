@@ -329,8 +329,8 @@ int main_without_SE_handler(int argc, char *argv[]) {
         bool mustTerminateToken = false;
 
         if (tsn.empty())
-            QTimer::singleShot(1000
-                , [splashHandle = std::move(splash), &main_window]() 
+            QTimer::singleShot(1000, &main_window,
+                [splashHandle = std::move(splash), &main_window]()
                 { 
                     main_window.showMaximized();
                     splashHandle->close();
