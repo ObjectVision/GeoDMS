@@ -671,35 +671,6 @@ auto RangedUnit<V>::GetRange() const -> range_t
 	if (!sm)
 		return range_t();
 	return sm->GetRange();
-/* REMOVE
-	dbg_assert(CheckMetaInfoReadyOrPassor() || HasConfigData());
-	dms_assert(!InTemplate() || GetTSF(TSF_HasConfigData)); // PRECONDITION?
-
-	const RangedUnit<V>* refItem = this;
-	while (true) {
-
- 		dms_assert(refItem->PartOfInterest() || refItem->DataInMem() || refItem->HasConfigData() || GetCurrRangeItem()->IsSdKnown());
-
-		if (refItem->GetTSF(TSF_HasConfigData))
-			return refItem->m_Range; // no interest needed, no wait.
-
-		const RangedUnit<V>* refRefItem = debug_cast<const RangedUnit<V>*>( refItem->GetCurrRefItem() );
-		if (!refRefItem)
-			break;
-		refItem = refRefItem;
-	}
-
-	dms_assert(refItem == GetCurrRangeItem());
-	if (!WaitReady(refItem)) // may wait for the completion of ItemWriteLock from a generating operation that was started by PrepareDataUsage.
-	{
-		if (WasFailed(FailType::Data))
-			ThrowFail(refItem);
-		ThrowFail("Cannot derive value range", FailType::Data);
-	}
-
-	dms_assert(refItem->DataInMem());
-	return refItem->m_Range;
-	*/
 }
 
 template <typename V>
@@ -1070,6 +1041,9 @@ template <typename V>
 auto RangedUnit<V>::GetCurrSegmInfo() const -> const range_data_t*
 {
 	dbg_assert(this->CheckMetaInfoReadyOrPassor());
+
+	if (this->WasFailed(FailType::Data))
+		this->ThrowFail();
 
 	const RangedUnit<V>* ultimateCU = debug_cast<const RangedUnit<V>*>(this->GetCurrRangeItem());
 	dbg_assert(ultimateCU->CheckMetaInfoReadyOrPassor());

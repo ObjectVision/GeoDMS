@@ -786,6 +786,7 @@ BestItemRef AbstrCalculator::FindPrimaryDataFailedItem() const
 					if (IsUnit(ti))
 					{
 						SharedUnitInterestPtr au = AsUnit(ti);
+						au->PrepareDataUsage(DrlType::Certain);
 						au->GetCount();
 					}
 				}
