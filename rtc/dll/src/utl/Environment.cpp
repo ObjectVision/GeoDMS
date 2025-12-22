@@ -1059,7 +1059,7 @@ std::unique_ptr<wchar_t[]> Utf8_2_wchar(const char* utf8str, int sSize)
 	// Query required UTF-16 length (including null terminator)
 	int required = MultiByteToWideChar(
 		CP_UTF8,
-		MB_ERR_INVALID_CHARS,
+		0,
 		utf8str,
 		inLen,  // null-terminated UTF-8 or given size
 		nullptr,
@@ -1077,7 +1077,7 @@ std::unique_ptr<wchar_t[]> Utf8_2_wchar(const char* utf8str, int sSize)
 
 	int written = MultiByteToWideChar(
 		CP_UTF8,
-		MB_ERR_INVALID_CHARS,
+		0,
 		utf8str,
 		sSize,
 		utf16Buff.get(),
@@ -1114,7 +1114,7 @@ auto wchar_2_Utf8Str(const wchar_t* wCharStr, int strLen) -> SharedStr
 
 	int required = ::WideCharToMultiByte(
 		CP_UTF8,
-		WC_ERR_INVALID_CHARS,
+		0,
 		wCharStr,
 		inLen,
 		nullptr,
@@ -1136,7 +1136,7 @@ auto wchar_2_Utf8Str(const wchar_t* wCharStr, int strLen) -> SharedStr
 
 	int written = ::WideCharToMultiByte(
 		CP_UTF8,
-		WC_ERR_INVALID_CHARS,
+		0,
 		wCharStr,
 		inLen,
 		utf8Buff->begin(),
