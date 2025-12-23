@@ -30,7 +30,7 @@ enum class SupplierVisitFlag
 	//	Meta    = 0x0002, // Explicit Suppliers, FuncFC args that don't require delayed updating, such as TemplDC args, and ImplSupplFromIndirectProps
 	//	Calc    = 0x0002, // Data processing and reading, Domain +Values Unit
 
-	Update = DomainValues | ExplicitSuppliers | SourceData | Checker | NamedSuppliers,
+	Update = Calc | DomainValues | ExplicitSuppliers | SourceData | Checker | NamedSuppliers,
 	UpdateSupplMetaInfo = Parent | Update | ScanSupplTree,
 	DetermineState = UpdateSupplMetaInfo | Calc | Checker | ReadyDcsToo | DetermineCalc,
 
@@ -57,7 +57,7 @@ enum class SupplierVisitFlag
 	MetaAll     = Signature | TemplateOrg | CDF | DIALOGDATA | ImplSuppliers | NamedSuppliers,
 	All         = CalcAll | MetaAll,
 	
-	StartSupplInterest = (Update | Calc) & ~Signature// Signature Already explicitly done by StartInterest function
+	StartSupplInterest = Update  & ~Signature// Signature Already explicitly done by StartInterest function
 };
 
 #endif // __RTC_ACT_SUPPLIERVISITFLAG_H
