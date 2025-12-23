@@ -41,12 +41,6 @@ LRESULT CALLBACK DataViewWndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lPa
         SetWindowLongPtr(hWnd, 0, (LONG_PTR)view);
     }
     if (uMsg >= WM_KEYFIRST && uMsg <= WM_KEYLAST) {
-        if (uMsg == WM_KEYDOWN && wParam == 'W')
-            if (GetKeyState(VK_CONTROL) & 0x8000) 
-                if (not (GetKeyState(VK_SHIFT) & 0x8000))
-                    if (not (GetKeyState(VK_MENU) & 0x8000))
-                        wParam = VK_F4;
-
         HWND parent = (HWND)GetWindowLongPtr(hWnd, GWLP_HWNDPARENT);
         if (parent)
             return SendMessage(parent, uMsg, wParam, lParam);
@@ -319,13 +313,11 @@ QDmsViewArea::~QDmsViewArea()
 
 bool QDmsViewArea::nativeEvent(const QByteArray& eventType, void* message, qintptr* result) 
 {
-    if (auto main_window = MainWindow::TheOne())
-    {
-        if (auto mdi_area = main_window->m_mdi_area.get())
-        {
-            MSG* msg = static_cast<MSG*>(message);
-            UInt32 received_message_type = msg->message;
-            if (received_message_type == WM_QT_ACTIVATENOTIFIERS) {
+    MSG* msg = static_cast<MSG*>(message);
+    UInt32 received_message_type = msg->message;
+    if (received_message_type == WM_QT_ACTIVATENOTIFIERS)
+        if (auto main_window = MainWindow::TheOne())
+            if (auto mdi_area = main_window->m_mdi_area.get())
                 while (true) {
                     auto current_active_subwindow = mdi_area->activeSubWindow();
                     if (!current_active_subwindow)
@@ -336,9 +328,6 @@ bool QDmsViewArea::nativeEvent(const QByteArray& eventType, void* message, qintp
 
                     mdi_area->activateNextSubWindow();
                 }
-            }
-        }
-    }
     return false;
 }
 
@@ -395,17 +384,6 @@ auto QDmsViewArea::contentsRectInPixelUnits()->QRect {
     QPoint topLeft (rect.left () * scaleFactors.first, rect.top   () * scaleFactors.second);
     QPoint botRight(rect.right() * scaleFactors.first, rect.bottom() * scaleFactors.second);
     return QRect(topLeft, botRight);
-}
-
-void QDmsViewArea::keyPressEvent(QKeyEvent* keyEvent) {
-    auto dv = getDataView();
-    if (!dv)
-        return;
-
-    if (keyEvent->key() == Qt::Key_W && keyEvent->modifiers() == Qt::ControlModifier)
-        this->close();
-
-    QMdiSubWindow::keyPressEvent(keyEvent);
 }
 
 void QDmsViewArea::UpdatePosAndSize() {

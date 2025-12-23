@@ -257,6 +257,20 @@ bool CustomEventFilter::nativeEventFilter(const QByteArray& /*eventType*/, void*
         }
         return true; // Stop further processing of the message
 
+    case WM_KEYDOWN:
+        if (msg->wParam == 'W' || msg->wParam == VK_F4)
+            if (GetKeyState(VK_CONTROL) & 0x8000)
+                if (not (GetKeyState(VK_SHIFT) & 0x8000))
+                    if (not (GetKeyState(VK_MENU) & 0x8000))
+                        if (auto main_window = MainWindow::TheOne())
+                            if (auto mdi_area = main_window->m_mdi_area.get())
+                                if (auto current_active_subwindow = mdi_area->activeSubWindow())
+                                {
+                                    current_active_subwindow->close();
+                                    return true;
+                                }
+        break;
+
     case UM_PROCESS_MAINTHREAD_OPERS:
         if (auto mw = MainWindow::TheOne())
             mw->ProcessAppOpers();

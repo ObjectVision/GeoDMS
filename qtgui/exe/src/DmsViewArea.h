@@ -68,7 +68,6 @@ private:
     void resizeEvent(QResizeEvent* event) override;
     void paintEvent(QPaintEvent* event) override;
     auto contentsRectInPixelUnits() -> QRect;
-    void keyPressEvent(QKeyEvent* keyEvent) override;
 
     std::weak_ptr<DataView> m_DataView;
     void* m_DataViewHWnd = nullptr;
