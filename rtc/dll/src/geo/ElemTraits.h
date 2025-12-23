@@ -161,7 +161,7 @@ template <typename T> constexpr bool is_bitvalue_v = is_bitvalue<T>::value;
 
 template <typename T>   struct nrbits_of               : std::integral_constant<std::size_t,sizeof(T)*8> {};
 template <bit_size_t N> struct nrbits_of<bit_value<N> >: std::integral_constant<std::size_t, N> {};
-template <>             struct nrbits_of<Void>         : std::integral_constant<std::size_t, 1> {};
+template <>             struct nrbits_of<Void>         : std::integral_constant<std::size_t, 0> {};
 
 template <typename T> const std::size_t nrbits_of_v = nrbits_of<T>::value;
 

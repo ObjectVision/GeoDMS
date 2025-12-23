@@ -276,7 +276,7 @@ template <fixed_elem V>
 SizeT MinimalNrMemPages(const AbstrTileRangeData* trd)
 {
 	assert(trd);
-	return trd->GetNrMemPages(mpf::log2_v<sizeof(V)>);
+	return trd->GetNrMemPages(mpf::log2_v<nrbits_of_v<V>>);
 }
 
 template <sequence_or_string V>
@@ -284,13 +284,13 @@ SizeT MinimalNrMemPages(const AbstrTileRangeData* trd)
 {
 	assert(trd);
 	using seq_t = typename sequence_traits<V>::polymorph_vec_t::seq_t;
-	return trd->GetNrMemPages(mpf::log2_v<sizeof(seq_t)>);
+	return trd->GetNrMemPages(mpf::log2_v<nrbits_of_v<seq_t>>);
 }
 
 SizeT NrAllocTableMemPages(const AbstrTileRangeData* trd)
 {
 	auto nrTiles = trd->GetNrTiles();
-	auto tileFileChuncSize = safe_size_n<sizeof FileChunkSpec>(nrTiles);
+	auto tileFileChuncSize = safe_size_n<nrbits_of_v<FileChunkSpec>>(nrTiles);
 	return NrMemPages(tileFileChuncSize);
 }
 
@@ -304,13 +304,13 @@ SizeT MinimalDatFileSize(const AbstrTileRangeData* trd)
 	SizeT rawSize = 0;
 	if (tn > 1)
 	{
-		rawSize = trd->GetMemPageIndex(mpf::log2_v<sizeof(V)>, tn-1);
+		rawSize = trd->GetMemPageIndex(mpf::log2_v<nrbits_of_v<V>>, tn-1);
 		rawSize <<= GetLog2AllocationGrannularity();
 	}
 	if (tn > 0)
 	{
 		// now add the size of last tile (= tn-1) can be smaller than page size
-		rawSize += safe_size_n<sizeof(V)>(trd->GetTileSize(tn - 1)); 
+		rawSize += safe_size_n<nrbits_of_v<V>>(trd->GetTileSize(tn - 1));
 	}
 	return rawSize;
 }

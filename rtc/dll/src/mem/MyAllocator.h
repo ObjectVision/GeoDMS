@@ -47,19 +47,28 @@ private:
 // Wrapping of my_allocator facilities library
 //=======================================
 
-template<size_t sz> inline
+template<size_t nrBits> inline
 size_t safe_size_n(size_t n)
 {	// gets the size of _Count copies of a type sized sz
-	constexpr size_t max = static_cast<size_t>(-1) / sz;
-	if (n >= max)
-		throwDmsErrF("Cannot represent the size of %d elements of %d bytes each as a size_t, ak.a. a %d bit unsigned integer", n, sz, 8*sizeof(size_t));
-	return n * sz;
-}
+	if constexpr (nrBits == 8)
+		return n;
+	else if constexpr (nrBits > 8)
+	{
+		static_assert(nrBits % 8 == 0, "nrBits must be a multiple of 8");
+		constexpr size_t sz = nrBits / 8;
+		constexpr size_t max = static_cast<size_t>(-1) / sz;
+		if (n > max)
+			throwDmsErrF("Cannot represent the size of %d elements of %d bytes each as a size_t, a.k.a. a %d bit unsigned integer", n, sz, 8 * sizeof(size_t));
 
-template<> inline
-size_t safe_size_n<1>(const size_t n)
-{	
-	return n;
+		return n * sz;
+	}
+	else
+	{
+		static_assert((nrbits_of_v<bit_block_t> % nrBits) == 0, "block_bits must be a multiple of nrBits");
+		auto nrBitsInBlock = sizeof(bit_block_t) * 8 / nrBits;
+		auto ceiledNrBlocks = (n / nrBitsInBlock); if (n % nrBitsInBlock != 0) ++ceiledNrBlocks;
+		return ceiledNrBlocks * sizeof(bit_block_t);
+	}
 }
 
 template <typename T>
@@ -74,7 +83,7 @@ struct my_allocator {
 
 	T* allocate(SizeT n MG_DEBUG_ALLOCATOR_SRC_ARG)
 	{
-		auto result = reinterpret_cast<T*>(AllocateFromStock(safe_size_n<sizeof(T)>(n) MG_DEBUG_ALLOCATOR_SRC_PARAM));
+		auto result = reinterpret_cast<T*>(AllocateFromStock(safe_size_n<nrbits_of_v<T>>(n) MG_DEBUG_ALLOCATOR_SRC_PARAM));
 		return result;
 	}
 	void deallocate(T* ptr, size_t n)

@@ -102,16 +102,26 @@ struct RegularAdapter: Base
 	tile_loc GetTileDataLocation(row_id index) const override;
 	tile_id GetNrTiles() const override;
 
-	SizeT GetNrMemPages(UInt8 log2BytesPerElem) const override
+	SizeT GetNrMemPages(UInt8 log2BitsPerElem) const override
 	{
 		// TODO OPTIMIZE for edge and corner tiles 
-		return GetMemPageIndex(log2BytesPerElem, GetNrTiles());
+		return GetMemPageIndex(log2BitsPerElem, GetNrTiles());
 	}
-	SizeT GetMemPageIndex(UInt8 log2BytesPerElem, tile_id t) const override
+	SizeT GetMemPageIndex(UInt8 log2BitsPerElem, tile_id t) const override
 	{
 		assert(t <= GetNrTiles());
 		// TODO OPTIMIZE for edge and corner tiles 
-		auto maxTileSizeInBytes = SizeT(this->GetMaxTileSize()) << log2BytesPerElem;
+		SizeT maxTileSizeInBytes;
+		if (log2BitsPerElem >= 3)
+		{
+			auto log2BytesPerElem = log2BitsPerElem - 3;
+			maxTileSizeInBytes = SizeT(this->GetMaxTileSize()) << log2BytesPerElem;
+		}
+		else 
+		{
+			SizeT totalBits = SizeT(this->GetMaxTileSize()) * SizeT(1 << log2BitsPerElem);
+			maxTileSizeInBytes = totalBits / 8; if (totalBits % 8 != 0) ++maxTileSizeInBytes;
+		}
 		auto nrMemPagesPertile = NrMemPages(maxTileSizeInBytes);
 		return nrMemPagesPertile * t;
 	}
@@ -135,8 +145,6 @@ struct RegularAdapter: Base
 		else
 			return true;
 	}
-
-
 
 private:
 	tile_extent_t<value_type> m_TilingExtent;
@@ -253,18 +261,34 @@ struct IrregularTileRangeData : TiledRangeData<V>
 		return m_Ranges.size();
 	}
 
-	SizeT GetNrMemPages(UInt8 log2BytesPerElem) const override
-	{
-		return GetMemPageIndex(log2BytesPerElem, GetNrTiles());
+	SizeT GetNrMemPages(UInt8 log2BitsPerElem) const override
+	{		
+		return GetMemPageIndex(log2BitsPerElem, GetNrTiles());
 	}
-	SizeT GetMemPageIndex(UInt8 log2BytesPerElem, tile_id t) const override
+
+	SizeT GetMemPageIndex(UInt8 log2BitsPerElem, tile_id t) const override
 	{
 		assert(t <= GetNrTiles());
 		SizeT result = 0;
-		while (t--)
+
+		if (log2BitsPerElem < 3)
+			while (t--)
+			{
+				auto n = SizeT(this->GetTileSize(t));
+				SizeT tileSizeInBits = n * SizeT(1 << log2BitsPerElem);
+				auto tileSizeInBlocks = tileSizeInBits / nrbits_of_v<bit_block_t>; if (tileSizeInBits % nrbits_of_v<bit_block_t> != 0) ++tileSizeInBlocks;
+				auto tileSizeInBytes = tileSizeInBlocks * sizeof(bit_block_t);
+				result += NrMemPages(tileSizeInBytes);
+			}
+		else
 		{
-			auto tileSizeInBytes = SizeT(this->GetTileSize(t)) << log2BytesPerElem;
-			result += NrMemPages(tileSizeInBytes);
+			auto log2BytesPerElem = log2BitsPerElem - 3;
+			while (t--)
+			{
+				auto n = SizeT(this->GetTileSize(t));
+				auto tileSizeInBytes = n << log2BytesPerElem;
+				result += NrMemPages(tileSizeInBytes);
+			}
 		}
 
 		return result;
