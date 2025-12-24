@@ -305,7 +305,7 @@ SizeT MinimalDatFileSize(const AbstrTileRangeData* trd)
 	if (tn > 1)
 	{
 		rawSize = trd->GetMemPageIndex(mpf::log2_v<nrbits_of_v<V>>, tn-1);
-		rawSize <<= GetLog2AllocationGrannularity();
+		rawSize <<= GetLog2MemPageSize();
 	}
 	if (tn > 0)
 	{

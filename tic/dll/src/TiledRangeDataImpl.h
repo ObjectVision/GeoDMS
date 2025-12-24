@@ -275,7 +275,7 @@ struct IrregularTileRangeData : TiledRangeData<V>
 			while (t--)
 			{
 				auto n = SizeT(this->GetTileSize(t));
-				SizeT tileSizeInBits = n * SizeT(1 << log2BitsPerElem);
+				SizeT tileSizeInBits = n * (SizeT(1) << log2BitsPerElem);
 				auto tileSizeInBlocks = tileSizeInBits / nrbits_of_v<bit_block_t>; if (tileSizeInBits % nrbits_of_v<bit_block_t> != 0) ++tileSizeInBlocks;
 				auto tileSizeInBytes = tileSizeInBlocks * sizeof(bit_block_t);
 				result += NrMemPages(tileSizeInBytes);

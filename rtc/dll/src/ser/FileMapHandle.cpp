@@ -59,7 +59,7 @@ SizeT GetAllocationMajorMask()
 
 UInt8 GetLog2AllocationGrannularityImpl()
 {
-	auto x = GetAllocationGrannularityImpl();
+	auto x = GetAllocationGrannularity();
 	MG_CHECK2(std::popcount(x) == 1, "System Allocation Grannularity is unexpectedly not a power of 2");
 
 	auto y = sizeof(UInt32) * 8 - std::countl_zero(x) -1;
@@ -70,6 +70,36 @@ UInt8 GetLog2AllocationGrannularityImpl()
 UInt8 GetLog2AllocationGrannularity()
 {
 	static auto result = GetLog2AllocationGrannularityImpl();
+	return result;
+}
+
+static UInt32 GetMemPageSizeImpl()
+{
+	SYSTEM_INFO info;
+	GetSystemInfo(&info);
+	return info.dwPageSize;
+}
+
+SizeT GetMemPageSize()
+{
+	static UInt32 pageSize = GetMemPageSizeImpl();
+	MG_CHECK(pageSize == 0x1000); // .mmd file format depends on this assumption
+	return pageSize;
+}
+
+UInt8 GetLog2MemPageSizeImpl()
+{
+	auto x = GetMemPageSize();
+	MG_CHECK2(std::popcount(x) == 1, "System page size is unexpectedly not a power of 2");
+
+	auto y = sizeof(UInt32) * 8 - std::countl_zero(x) - 1;
+	MG_CHECK2(x == (1 << y), "System page size is unexpectedly not a power of 2");
+	return y;
+}
+
+UInt8 GetLog2MemPageSize()
+{
+	static auto result = GetLog2MemPageSizeImpl();
 	return result;
 }
 
