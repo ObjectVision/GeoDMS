@@ -1044,7 +1044,8 @@ FileDateTime GetFileOrDirDateTime(WeakStr fileOrDirName)
 
 std::unique_ptr<wchar_t[]> Utf8_2_wchar(const char* utf8str, int sSize)
 {
-	assert(utf8str);
+	if (!utf8str)
+		return {};
 
 	if (!sSize || !*utf8str)
 	{
@@ -1190,14 +1191,14 @@ start_process_result_t StartChildProcess(CharPtr moduleName, Char* cmdLine)
 
 //	MessageBox(nullptr, cmdLine, moduleName, MB_OK);
 
-	auto moduleNameA = Utf8_2_wchar(moduleName);
-	auto cmdLineA = Utf8_2_wchar(cmdLine);
+	auto moduleNameW = Utf8_2_wchar(moduleName);
+	auto cmdLineW = Utf8_2_wchar(cmdLine);
 
 	// Create the child process.
 	BOOL res = CreateProcessW
 	(
-		moduleNameA.get(),
-		cmdLineA.get(),		// command line can be rewritten
+		moduleNameW.get(),
+		cmdLineW.get(),		// command line can be rewritten
 		NULL,           // process security attributes 
 		NULL,           // primary thread security attributes 
 		TRUE,           // handles are inherited 
