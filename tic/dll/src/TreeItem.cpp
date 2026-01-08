@@ -3868,6 +3868,8 @@ nodata:
 
 bool TreeItem::PrepareData() const
 {
+	assert(IsMainThread());
+
 	if (!PrepareDataUsage(DrlType::Suspendible))
 		return false;
 	auto ultItem = GetCurrUltimateItem();
@@ -3876,7 +3878,7 @@ bool TreeItem::PrepareData() const
 		if (SuspendTrigger::DidSuspend())
 			return false;
 		assert(ultItem->WasFailed());
-		if (ultItem != this)
+		if (ultItem != this && ultItem->WasFailed())
 			this->Fail(ultItem);
 		return false;
 	}
