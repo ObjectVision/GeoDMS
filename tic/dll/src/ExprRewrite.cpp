@@ -97,6 +97,8 @@ LispRef RewriteExprList(LispPtr orgList)
 	for (; !reversedList.EndP(); reversedList = reversedList.Right())
 	{
 		lfs_assert(result == orgListIter);
+		MG_CHECK(reversedList.IsRealList());
+		MG_CHECK(reversedList.Left().EndP() || reversedList.Left()->IsOwned());
 		orgListIter = reversedList.Left();
 		LispRef rewriteExpr = RewriteExpr(orgListIter->Left());
 		if (rewriteExpr != orgListIter->Left() )

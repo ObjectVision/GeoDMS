@@ -91,12 +91,14 @@ struct LispRef : SharedPtrWrap<LispPtr>
   public:
 //	constructors
 	LispRef() noexcept {};  		// Makes a LispRef to NULL
-	LispRef(LispPtr lrb) noexcept : SharedPtrWrap(lrb) {}
-	LispRef(LispObj* lrb) noexcept : SharedPtrWrap(LispPtr(lrb)) {}
-	LispRef(LispPtr lrb, no_zombies nz) noexcept : SharedPtrWrap(lrb, nz) {}
+
+	SYM_CALL LispRef(LispPtr lrb) noexcept;
+	SYM_CALL LispRef(LispObj* lrb) noexcept;
+	SYM_CALL LispRef(LispPtr lrb, no_zombies nz) noexcept;
 
 	LispRef(const LispRef&) = default;
-	LispRef(LispRef&& rhs) noexcept : SharedPtrWrap(std::move(rhs)) {}
+
+	SYM_CALL LispRef(LispRef&& rhs) noexcept;
 
 	LispRef& operator =(const LispRef& rhs) = default;
 	LispRef& operator =(LispRef&& rhs) = default;
@@ -178,8 +180,8 @@ inline CharPtr  LispPtr::GetStrnEnd() const { return get_ptr() ? get_ptr()->GetS
 inline bool     LispPtr::IsList    () const { return get_ptr() ? get_ptr()->IsList()    : true;  }
 inline bool     LispPtr::EndP      () const { return get_ptr() == nullptr; }
 inline bool     LispPtr::IsRealList() const { return get_ptr() ? get_ptr()->IsList()    : false; }
-inline LispPtr  LispPtr::Left      () const { return get_ptr() ? get_ptr()->Left () : LispPtr(); }
-inline LispPtr  LispPtr::Right     () const { return get_ptr() ? get_ptr()->Right() : LispPtr(); }
+inline LispPtr  LispPtr::Left      () const { MG_CHECK(get_ptr()); return get_ptr()->Left(); }
+inline LispPtr  LispPtr::Right     () const { MG_CHECK(get_ptr()); return get_ptr()->Right(); }
 
 /****************** operators for LispRef       *******************/
 

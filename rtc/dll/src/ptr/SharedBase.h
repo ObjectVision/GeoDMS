@@ -29,6 +29,8 @@
 
 #if defined(MG_DEBUG)
 #define MG_DEBUG_REFCOUNT
+#else
+#define MG_DEBUG_REFCOUNT
 #endif
 
 struct SharedBase

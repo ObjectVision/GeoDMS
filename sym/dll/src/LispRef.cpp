@@ -365,6 +365,42 @@ private:
 	DECL_RTTI(SYM_CALL, LispCls);
 };
 
+LispPtr CheckOwned(LispPtr lrb)
+{
+	MG_CHECK(!lrb || lrb->IsOwned());
+	return lrb;
+}
+
+
+LispRef::LispRef(LispPtr lrb) noexcept 
+	: SharedPtrWrap(CheckOwned(lrb))
+{
+	MG_CHECK(!get_ptr() || get_ptr()->IsOwned());
+}
+
+LispRef::LispRef(LispObj* lrb) noexcept 
+	: SharedPtrWrap(LispPtr(lrb))
+{
+	MG_CHECK(get_ptr());
+	MG_CHECK(get_ptr()->IsOwned());
+}
+
+LispRef::LispRef(LispPtr lrb, no_zombies nz) noexcept 
+	: SharedPtrWrap(lrb, nz)
+{
+	MG_CHECK(!get_ptr() || get_ptr()->IsOwned());
+}
+
+LispRef::LispRef(LispRef&& rhs) noexcept 
+	: SharedPtrWrap(std::move(rhs))
+{
+	MG_CHECK(!rhs.get_ptr());
+	MG_CHECK(!get_ptr() || get_ptr()->IsOwned());
+}
+
+
+
+
 
 /****************** LispComponent *******************/
 
@@ -527,13 +563,13 @@ auto GetOrCreateSymbObj(LispCaches* self, TokenID t, ChroID c) -> LispRef
 
 	auto cacheLock = std::lock_guard(sx_TimelessSymbolArrayLock);
 
-	UInt32 tnr = t.GetNr(TokenID::TokenKey());
-	UInt32 reqSize = tnr + 1;
+	TokenT tnr = t.GetNr(TokenID::TokenKey());
 
 	std::size_t s = self->ZeroSymbObjCache.size();
-	if (reqSize > s)
+	if (tnr >= s)
 	{
 		s *= 2;
+		TokenT reqSize = tnr + 1;
 		MakeMax(s, reqSize);
 		self->ZeroSymbObjCache.resize(s, 0);
 	}
@@ -581,7 +617,10 @@ LispComponent::~LispComponent()
 
 LispRef::LispRef(Number value)
 	: SharedPtrWrap( GetLispCaches()->NumbObjCache.apply(value.m_Value) )
-{}
+{
+	MG_CHECK(get_ptr());
+	MG_CHECK(get_ptr()->IsOwned());
+}
 
 NumbObj::~NumbObj() 
 { 
@@ -610,7 +649,10 @@ IMPL_STATIC_LISPCLS(NumbObj)
 
 LispRef::LispRef(UInt64 value)
 	: SharedPtrWrap( GetLispCaches()->UI64ObjCache.apply(value) )
-{}
+{
+	MG_CHECK(get_ptr());
+	MG_CHECK(get_ptr()->IsOwned());
+}
 
 UI64Obj::~UI64Obj() { GetLispCaches()->UI64ObjCache.remove(m_Value); }
 
@@ -637,7 +679,10 @@ LispObj* UI64Obj::ReloadObj(PolymorphInpStream& ar)
 
 LispRef::LispRef(TokenID t, UInt32 c)
 	: SharedPtrWrap(GetOrCreateSymbObj(GetLispCaches(), t, c))
-{}
+{
+	MG_CHECK(get_ptr());
+	MG_CHECK(get_ptr()->IsOwned());
+}
 
 LispRef::LispRef(CharPtr s, UInt32 c)
 	: LispRef(GetTokenID_mt(s), c)
@@ -708,7 +753,10 @@ LispRef::LispRef(CharPtr b, CharPtr e)
 		? StrnObj::GetEmpty()
 		: GetLispCaches()->StrnObjCache.apply(StrnType(b, e))
 	)
-{}
+{
+	MG_CHECK(get_ptr());
+	MG_CHECK(get_ptr()->IsOwned());
+}
 
 StrnObj::~StrnObj()
 {
@@ -776,7 +824,10 @@ void StrnObj::WriteObj(PolymorphOutStream& ar) const
 
 LispRef::LispRef(LispPtr head, LispPtr tail)
 	: SharedPtrWrap<LispPtr>(GetLispCaches()->ListObjCache.apply(ListType(tail, head)))
-{}
+{
+	MG_CHECK(get_ptr());
+	MG_CHECK(get_ptr()->IsOwned());
+}
 
 using zombie_destroyer_stack = std::stack<zombie_destroyer>;
 

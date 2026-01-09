@@ -1440,7 +1440,7 @@ auto AbstrCalculator::GetMetaInfo() const -> MetaInfo
 		MG_SIGNAL_ON_UPDATEMETAINFO
 
 
-		auto lispRefOrg = GetLispExprOrg();
+//		auto lispRefOrg = GetLispExprOrg();
 		if (IsSourceRef())
 		{
 			auto sourceItem = GetSourceItem();

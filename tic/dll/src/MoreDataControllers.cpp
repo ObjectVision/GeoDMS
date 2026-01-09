@@ -155,7 +155,9 @@ FuncDC::FuncDC(LispPtr keyExpr,	const AbstrOperGroup* og)
 		DBG_TRACE(("arg = %s", AsFLispSharedStr(tailPtr->Left(), FormattingFlags::ThousandSeparator).c_str()));
 		DcRefListElem* dcRef = new DcRefListElem;
 		nextArgPtr->assign(dcRef);
+		MG_CHECK(tailPtr->IsOwned());
 		MG_CHECK(tailPtr->Left());
+		MG_CHECK(tailPtr->Left()->IsOwned());
 		dcRef->m_DC = GetOrCreateDataController(tailPtr->Left());
 		assert(dcRef->m_DC);
 		if (dcRef->m_DC->m_State.Get(DCF_CanChange))
