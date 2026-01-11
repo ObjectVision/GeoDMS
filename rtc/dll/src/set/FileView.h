@@ -26,7 +26,10 @@ struct file_view_base : FVH
 	using mapped_file_type = typename FVH::mapped_file_type;
 
 	file_view_base(std::shared_ptr<mapped_file_type> mfh, SizeT nrElem, dms::filesize_t fileOffset = -1, dms::filesize_t fileViewCapacity = -1)
-		: FVH(std::move(mfh), fileOffset, size_calculator<T>().nr_bytes(nrElem), fileViewCapacity == -1 ? size_calculator<T>().nr_bytes(nrElem) : fileViewCapacity)
+		: FVH(std::move(mfh), fileOffset
+			, nrElem  == -1 ? nrElem : size_calculator<T>().nr_bytes(nrElem)
+			, fileViewCapacity == -1 ? size_calculator<T>().nr_bytes(nrElem) : fileViewCapacity
+		)
 		, m_NrElems(nrElem)
 	{}
 
