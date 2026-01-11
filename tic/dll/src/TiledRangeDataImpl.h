@@ -119,7 +119,7 @@ struct RegularAdapter: Base
 		}
 		else 
 		{
-			SizeT totalBits = SizeT(this->GetMaxTileSize()) * SizeT(1 << log2BitsPerElem);
+			SizeT totalBits = SizeT(this->GetMaxTileSize()) << log2BitsPerElem;
 			maxTileSizeInBytes = totalBits / 8; if (totalBits % 8 != 0) ++maxTileSizeInBytes;
 		}
 		auto nrMemPagesPertile = NrMemPages(maxTileSizeInBytes);

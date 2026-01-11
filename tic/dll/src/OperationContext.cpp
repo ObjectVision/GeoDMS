@@ -2106,24 +2106,24 @@ auto FindAndLicenceOnePriorityTasks() -> OperationContextSPtr
 		auto oc = s_RadioActives.front(); 
 
 		auto ocSPtr = oc.lock();
-		if (ocSPtr) // not expired
+		if (!ocSPtr) // expired?
 		{
-			if (s_CurrBlockedPhaseNumber && ocSPtr->m_PhaseNumber >= s_CurrBlockedPhaseNumber)
-				return {};
-
-			// try to grab the license—only one thread ever wins per OC
-			if (!ocSPtr->getUniqueLicenseToRun(false))
-			{
-				// otherwise, someone else is already running it; try the next one
-				garbage.emplace_back(std::move(ocSPtr)); // maybe we-re the last owner and we dón't wat to destry here 
-				assert(!ocSPtr);
-			}
+			s_RadioActives.pop_front();
+			continue;
 		}
 
+		if (s_CurrBlockedPhaseNumber && ocSPtr->m_PhaseNumber >= s_CurrBlockedPhaseNumber) // phase fence?
+			return {};
+
+		// take from the list
 		s_RadioActives.pop_front();
 
-		if (ocSPtr)
-			return ocSPtr; // got one
+		// try to grab the license—only one thread ever wins per OC
+		if (ocSPtr->getUniqueLicenseToRun(false))
+			return ocSPtr; // got it
+		// otherwise, someone else is already running it; try the next one
+		garbage.emplace_back(std::move(ocSPtr)); // maybe we-re the last owner and we dón't wat to destry here 
+		assert(!ocSPtr);
 	}
 	return {};
 }

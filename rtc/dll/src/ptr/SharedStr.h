@@ -212,7 +212,7 @@ struct SharedCharArrayPtr : protected WeakPtrWrap<ptr_wrap<SharedCharArray, copy
 	CharPtr csend () const { return send();  }
 	SizeT   ssize() const { return has_ptr() ?  get_ptr()->size()-1: 0;  }
 	char    sback() const { dms_assert(has_ptr()); return m_Ptr->end()[-2]; }
-	char operator [] (SizeT i) const { dms_assert(m_Ptr && i < m_Ptr->size()); return m_Ptr->begin()[i]; }
+	char operator [] (SizeT i) const { assert(m_Ptr && i < m_Ptr->size()); return m_Ptr->begin()[i]; }
 
 	RTC_CALL CharPtr find(char ch)                     const;
 	RTC_CALL CharPtr find(CharPtr first, CharPtr last) const;

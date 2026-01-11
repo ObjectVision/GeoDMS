@@ -450,7 +450,7 @@ bool GdalGridSM::WriteDataItem(StorageMetaInfoPtr&& smi)
 	auto x = m_hDS->GetRasterXSize();
 	auto y = m_hDS->GetRasterYSize();
 
-	GDalGridImp imp(m_hDS, adi->GetCurrRefObj(), shp2dms_order(x, y), SharedStr(""), smi);
+	GDalGridImp imp(m_hDS, adi->GetCurrRefObj(), shp2dms_order(x, y), SharedStr(""), storageHandle.MetaInfo());
 	ViewPortInfoProvider vpip(storageHolder, adi, false, true);
 
 	Grid::WriteGridData(imp, vpip.GetViewportInfoEx(no_tile, storageHandle.MetaInfo()), storageHolder, adi, adi->GetCurrRefObj()->GetValuesType(), GetNameStr().c_str());
