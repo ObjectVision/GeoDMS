@@ -72,6 +72,9 @@
     <ProjectReference Include="..\..\stx\dll\StxDll.vcxproj">
       <Project>{df25d3ca-dd28-4f0d-870a-09b12eadcb2e}</Project>
     </ProjectReference>
+    <ProjectReference Include="..\..\sym\dll\DmSym.vcxproj">
+      <Project>{6c8c307f-5fe6-4905-a828-1a8e0ae5003d}</Project>
+    </ProjectReference>
     <ProjectReference Include="..\..\tic\dll\DmTic.vcxproj">
       <Project>{ede22514-d90d-4600-aa3c-f2e149e57a4e}</Project>
     </ProjectReference>

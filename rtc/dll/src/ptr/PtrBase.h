@@ -21,15 +21,15 @@
 using copyable = geodms::rtc::copyable;
 using noncopyable = geodms::rtc::noncopyable;
 
-struct movable : geodms::rtc::noncopyable
-{
+struct movable {
 protected:
-	movable() noexcept {}
-	~movable() noexcept {}
-
-private:   // emphasize that the following members should not be default generated to favor move operator with rvalue references
-	void operator = (movable&);
-	movable(movable&);
+	movable() noexcept = default;
+	~movable() noexcept = default;
+public:
+	movable(movable&&) noexcept = default;
+	movable& operator=(movable&&) noexcept = default;
+	movable(movable const&) = delete;
+	movable& operator=(movable const&) = delete;
 };
 
 // ============================

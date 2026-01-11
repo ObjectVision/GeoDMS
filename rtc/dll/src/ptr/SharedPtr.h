@@ -1,4 +1,4 @@
-// Copyright (C) 1998-2023 Object Vision b.v. 
+// Copyright (C) 1998-2026 Object Vision b.v. 
 // License: GNU GPL 3
 /////////////////////////////////////////////////////////////////////////////
 
@@ -32,28 +32,31 @@ struct SharedPtrWrap : Ptr
 		IncCount();
 	}
 
-	SharedPtrWrap(SharedPtrWrap&& rhs) noexcept // we assume no external access to rhs as that would conflict with its rvalue-ness
-		: Ptr() 
-	{ 
-		assert(!this->m_Ptr);
-		swap(rhs);
+	SharedPtrWrap(SharedPtrWrap<Ptr>&& rhs) noexcept // we assume no external access to rhs as that would conflict with its rvalue-ness
+		: Ptr(rhs.release_ptr())
+	{
+		assert(!rhs.m_Ptr);
 	}
 
-	template <class RhsPtr>
+	template<class RhsPtr>
 	SharedPtrWrap(SharedPtrWrap<RhsPtr>&& rhs) noexcept // we assume no external access to rhs as that would conflict with its rvalue-ness
-		: Ptr(rhs.release())
-	{}
+		: Ptr(rhs.release_ptr()) 
+	{ 
+		assert(!rhs.m_Ptr);
+	}
 
 	~SharedPtrWrap() noexcept { DecCount(); }
 
-	void operator = (SharedPtrWrap&& rhs) noexcept
+	SharedPtrWrap& operator = (SharedPtrWrap&& rhs) noexcept
 	{
-		swap(rhs);
+		this->swap(rhs);
+		return *this;
 	}
 
-	void operator = (const SharedPtrWrap& rhs) noexcept
+	SharedPtrWrap& operator = (const SharedPtrWrap& rhs) noexcept
 	{ 
 		*this = SharedPtrWrap(rhs);
+		return *this;
 	}
 
 	void assign(pointer ptr) noexcept // TODO G8: REMOVE, replace by reset
@@ -73,23 +76,28 @@ struct SharedPtrWrap : Ptr
 
 	auto delayed_reset() noexcept -> zombie_destroyer
 	{
-		if (!Ptr::m_Ptr)
+		if (!this->m_Ptr)
 			return {};
-		auto ptr = Ptr::m_Ptr;
-		Ptr::m_Ptr = nullptr;
+		auto ptr = this->m_Ptr;
+		this->m_Ptr = nullptr;
 		return ptr->DelayedRelease();
 	}
 
-	void swap(SharedPtrWrap& rhs) { omni::swap(Ptr::m_Ptr, rhs.m_Ptr); }
-	friend void swap(SharedPtrWrap& a, SharedPtrWrap& b) { a.swap(b); }
+	void swap(SharedPtrWrap& rhs) noexcept 
+	{ 
+		auto tmp = this->m_Ptr;
+		this->m_Ptr = rhs.m_Ptr;
+		rhs.m_Ptr = tmp;
+	}
+	friend void swap(SharedPtrWrap& a, SharedPtrWrap& b) noexcept { a.swap(b); }
 
 protected:
 	constexpr SharedPtrWrap(pointer ptr) : Ptr(ptr) { IncCount(); }
 	SharedPtrWrap(pointer ptr, no_zombies) : Ptr(ptr && ptr->DuplRef() ? ptr : nullptr) {}
 
-	Ptr release() noexcept { auto ptr = this->m_Ptr; this->m_Ptr = nullptr; return Ptr(ptr); }
+	pointer release_ptr() noexcept { auto ptr = this->m_Ptr; this->m_Ptr = nullptr; return ptr; }
 
-	constexpr void IncCount () const noexcept { if (Ptr::m_Ptr) Ptr::m_Ptr->IncRef(); }
+	constexpr void IncCount () const noexcept { if (this->m_Ptr) this->m_Ptr->IncRef(); }
 	constexpr void DecCount () const noexcept 
 	{ 
 		if (!this->m_Ptr)
@@ -127,14 +135,29 @@ struct SharedPtr : SharedPtrWrap<ptr_base<T, copyable> >
 	template <typename SrcPtr>
 	SharedPtr(SharedPtr<SrcPtr>&& rhs) noexcept
 		: base_type(std::move(rhs))
-	{}
+	{
+		assert(!rhs.get_ptr());
+	}
 
 	SharedPtr& operator =(const SharedPtr& rhs) = default;
-	SharedPtr& operator =(SharedPtr&& rhs) = default;
 
-	template <typename SrcPtr>
-	void operator =(SrcPtr&& rhs) noexcept { *this = SharedPtr(std::forward<SrcPtr>(rhs)); }
+	SharedPtr& operator =(SharedPtr&& rhs) noexcept
+	{
+		this->swap(rhs);
+		return *this;
+	}
 
+	template <typename U>
+	SharedPtr& operator =(U* rhs) noexcept
+	{ 
+		if (this->m_Ptr != rhs)   // adjust if pointer types differ
+		{
+			// construct wrapper that calls IncCount that already calls IncRef on the rhs (if non-null)
+			auto tmp = SharedPtr<T>(rhs);
+			this->swap(tmp);     // tmp now holds old pointer, for which Release should be called by DecCount from tmp's dtor
+		}
+		return *this;
+	}
 };
 
 template<typename T>

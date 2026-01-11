@@ -365,15 +365,8 @@ private:
 	DECL_RTTI(SYM_CALL, LispCls);
 };
 
-LispPtr CheckOwned(LispPtr lrb)
-{
-	MG_CHECK(!lrb || lrb->IsOwned());
-	return lrb;
-}
-
-
 LispRef::LispRef(LispPtr lrb) noexcept 
-	: SharedPtrWrap(CheckOwned(lrb))
+	: SharedPtrWrap(lrb)
 {
 	MG_CHECK(!get_ptr() || get_ptr()->IsOwned());
 }

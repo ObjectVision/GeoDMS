@@ -27,78 +27,16 @@
 
 #include <atomic>
 
-#if defined(MG_DEBUG)
-#define MG_DEBUG_REFCOUNT
-#else
-#define MG_DEBUG_REFCOUNT
-#endif
-
 struct SharedBase
 {
 	using ref_count_t = UInt32;
-#if defined(MG_DEBUG_REFCOUNT)
-	static const ref_count_t dangling_object_indicator = -1;
-#endif
 
-	ref_count_t GetRefCount() const noexcept
-	{
-#if defined(MG_DEBUG_REFCOUNT)
-		MG_ASSERT(m_RefCount != dangling_object_indicator);
-#endif
-		return m_RefCount;
-	}
-	bool IsOwned() const noexcept
-	{
-		if (m_RefCount == 0)
-			return false;
-#if defined(MG_DEBUG_REFCOUNT)
-		if (m_RefCount == dangling_object_indicator)
-			return false;
-#endif
-		return true;
-	}
+	RTC_CALL ref_count_t GetRefCount() const noexcept;
+	RTC_CALL bool IsOwned() const noexcept;
 
-	void IncRef() const noexcept
-	{
-#if defined(MG_DEBUG_REFCOUNT)
-		MG_ASSERT(m_RefCount != dangling_object_indicator);
-#endif
-		++m_RefCount;
-		assert(m_RefCount); // POST CONDITION
-	}
-	bool DuplRef() const noexcept
-	{
-		while (true)
-		{
-			ref_count_t refCount = m_RefCount;
-#if defined(MG_DEBUG_REFCOUNT)
-			if (refCount == dangling_object_indicator)
-				return false;
-#endif
-			if (!refCount)
-				return false;
-			if (m_RefCount.compare_exchange_weak(refCount, refCount + 1))
-				return true;
-		}
-	}
-
-	bool DecRef() const noexcept
-	{
-		assert(m_RefCount); // PRE CONDITION
-#if defined(MG_DEBUG_REFCOUNT)
-		MG_ASSERT(m_RefCount !=  0);
-		MG_ASSERT(m_RefCount != dangling_object_indicator);
-#endif
-		auto result = --m_RefCount;
-#if defined(MG_DEBUG_REFCOUNT)
-		if (!result) // last ptr, so no longer MT access possible, only set dangling pointer detector once
-		{
-			result = m_RefCount.exchange(dangling_object_indicator);
-			MG_ASSERT(!result);
-		}
-#endif
-		return result;
-	}
+	RTC_CALL void IncRef() const noexcept;
+	RTC_CALL bool DuplRef() const noexcept;
+	RTC_CALL bool DecRef() const noexcept;
 
 // See Notes above for reasons for non-inclusion of Release method.
 // The following commented method prototype is for derivations that can access the concrete-type destructor

@@ -63,7 +63,7 @@ UInt8 GetLog2AllocationGrannularityImpl()
 	MG_CHECK2(std::popcount(x) == 1, "System Allocation Grannularity is unexpectedly not a power of 2");
 
 	auto y = sizeof(UInt32) * 8 - std::countl_zero(x) -1;
-	MG_CHECK2(x == (1 << y), "System Allocation Grannularity is unexpectedly not a power of 2");
+	MG_CHECK2(x == (SizeT(1) << y), "System Allocation Grannularity is unexpectedly not a power of 2");
 	return y;
 }
 

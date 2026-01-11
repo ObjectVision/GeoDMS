@@ -27,26 +27,6 @@ namespace omni {
 			static const bool value = sizeof(test_for_swap<T>(0) ) == sizeof(char);
 		};
 
-		template<bool b>
-		struct swapper
-		{
-			template <class T>
-			static void swap(T& t1, T& t2)
-			{ 
-				std::swap(t1, t2);
-			}
-		};
-
-		template<>
-		struct swapper<true>
-		{
-			template <class T>
-			static void swap(T& t1, T& t2)
-			{ 
-				t1.swap(t2);
-			};
-		};
-
 #if defined(MG_DEBUG_SWAP)
 		struct CompilerCheckClass1 
 		{ 
@@ -64,9 +44,12 @@ namespace omni {
 	}	//	namespace impl
 
 	template <class T>
-	void swap(T& t1, T& t2)
+	void swap(T& t1, T& t2) noexcept
 	{
-		impl::swapper<impl::has_member_swap<T>::value>::swap(t1, t2);
+		if constexpr (impl::has_member_swap<T>::value)
+			t1.swap(t2);
+		else
+			std::swap(t1, t2);
 	}
 
 }	//	namespace omni

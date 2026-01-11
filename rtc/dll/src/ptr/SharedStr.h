@@ -1,4 +1,4 @@
-// Copyright (C) 1998-2023 Object Vision b.v. 
+// Copyright (C) 1998-2026 Object Vision b.v. 
 // License: GNU GPL 3
 /////////////////////////////////////////////////////////////////////////////
 
@@ -276,7 +276,7 @@ public:
 	void operator = (WeakStr  str) { assign(str.get_ptr()); }
 	RTC_CALL void operator = (const TokenID& id);
 	void operator = (SharedCharArray* id) { assign(id); }
-	void operator = (SharedStr&& str) noexcept { swap(str); }
+	SharedStr& operator = (SharedStr&& str) noexcept { this->swap(str); return *this; }
 	RTC_CALL void operator = (const SA_ConstReference<char>& range);
 
 	SharedStr& operator = (const SharedStr&) = default;
