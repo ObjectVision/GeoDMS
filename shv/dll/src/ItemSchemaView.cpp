@@ -55,7 +55,7 @@ struct SubItemQuery
 	template <typename Action>
 	void operator()(Action&& action)
 	{
-		for(; m_Curr; m_Curr.assign( m_Curr->GetNextItem() ) )
+		for(; m_Curr; m_Curr.reset( m_Curr->GetNextItem() ) )
 			action(m_Curr);
 	}
 

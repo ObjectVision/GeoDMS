@@ -22,16 +22,28 @@
 //  -----------------------------------------------------------------------
 
 #include "ptr/SharedBase.h"
+#include "act/Actor.h"
+#include "act/ActorEnums.h"
 
 #if defined(MG_DEBUG)
 #define MG_DEBUG_REFCOUNT
 #else
-#define MG_DEBUG_REFCOUNT
+//#define MG_DEBUG_REFCOUNT
 #endif
 
 #if defined(MG_DEBUG_REFCOUNT)
 	static const SharedBase::ref_count_t dangling_object_indicator = -1;
 #endif
+
+SharedBase::~SharedBase()
+{ 
+	assert(!IsOwned()); 
+
+#if defined(MG_DEBUG_REFCOUNT)
+	MG_ASSERT(m_RefCount == dangling_object_indicator);
+#endif
+
+}
 
 auto SharedBase::GetRefCount() const noexcept -> ref_count_t
 {
@@ -52,10 +64,17 @@ bool SharedBase::IsOwned() const noexcept
 	return true;
 }
 
+void SharedBase::AdoptRef() const noexcept
+{
+	++m_RefCount;
+	assert(m_RefCount >= 1); // POST CONDITION, no other threads should have accessed yet
+}
+
 void SharedBase::IncRef() const noexcept
 {
 #if defined(MG_DEBUG_REFCOUNT)
-	MG_CHECK(m_RefCount != dangling_object_indicator);
+	MG_ASSERT(m_RefCount != 0);
+	MG_ASSERT(m_RefCount != dangling_object_indicator);
 #endif
 	++m_RefCount;
 	assert(m_RefCount); // POST CONDITION
@@ -77,26 +96,72 @@ bool SharedBase::DuplRef() const noexcept
 	}
 }
 
+void SharedBase::Abandon() const noexcept
+{
+	assert(!m_RefCount); // PRE CONDITION
+	
+#if defined(MG_DEBUG_REFCOUNT)
+
+	MG_ASSERT(m_RefCount == 0);
+	auto result = m_RefCount.exchange(dangling_object_indicator);
+	if (result)
+	{
+		reportF(SeverityTypeID::ST_Error, "Unexepcted RefCount %d at object with ptr %x", result, this);
+		MG_CHECK(!result);
+	}
+
+#endif
+
+}
+
 bool SharedBase::DecRef() const noexcept
 {
 	assert(m_RefCount); // PRE CONDITION
 #if defined(MG_DEBUG_REFCOUNT)
-	MG_CHECK(m_RefCount != 0);
-	MG_CHECK(m_RefCount != dangling_object_indicator);
+	MG_ASSERT(m_RefCount != 0);
+	MG_ASSERT(m_RefCount != dangling_object_indicator);
 #endif
 	auto result = --m_RefCount;
-#if defined(MG_DEBUG_REFCOUNT)
 	if (!result) // last ptr, so no longer MT access possible, only set dangling pointer detector once
-	{
-		result = m_RefCount.exchange(dangling_object_indicator);
-		if (result)
-		{
-			reportF(SeverityTypeID::ST_Error, "Unexepcted RefCount %d at object with ptr %x", result, this);
-			MG_CHECK(!result);
-		}
-	}
-#endif
+		Abandon();
+
 	return result;
+}
+//  -----------------------------------------------------------------------
+//  Name        : SharedObj.h
+//  Description : SharedObj is a possible base class for objects that are
+//                referred to by SharedPtr.
+//                It offers RefCount() and AddRef(), 
+//                but not Release(), which should be implemented
+//                by descending class since SharedObj has no
+//                virtual calls and therefore no virtual dtor to 
+//                allow a descending class to be non-polymorphic
+//	Note:         When your class is polymorphic (has a virtual dtor),
+//                derive from PersistentSharedObj
+//  -----------------------------------------------------------------------
+
+void SharedObj::Release() const  noexcept // dtor of Object is virtual, so destructing from here is OK
+{
+//	if (dynamic_cast<const Actor*>(this) && dynamic_cast<const Actor*>(this)->m_State.Get(actor_flag_set::AFD_PivotElem))
+//	{
+//		reportF(SeverityTypeID::ST_MajorTrace, "Release %x with count %d", this, GetRefCount());
+//	}
+
+	if (DecRef())
+		return;
+
+	delete this;
+}
+auto SharedObj::DelayedRelease()  noexcept -> zombie_destroyer // dtor of Object is virtual, so destructing from here is OK
+{
+//	if (dynamic_cast<const Actor*>(this) && dynamic_cast<const Actor*>(this)->m_State.Get(actor_flag_set::AFD_PivotElem))
+//	{
+//		reportF(SeverityTypeID::ST_MajorTrace, "DelayedRelease %x with count %d", this, GetRefCount());
+//	}
+
+	if (DecRef())
+		return {};
+	return zombie_destroyer(this);
 }
 
 //============================= Parallel

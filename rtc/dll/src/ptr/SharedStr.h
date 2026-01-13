@@ -253,16 +253,16 @@ private:
 public:
 	RTC_CALL SharedStr() noexcept;
 //	SharedStr(CharPtr begin, CharPtr end MG_DEBUG_ALLOCATOR_SRC(CharPtr srcStr = "SharedStr")): base_type(SharedCharArray_Create(begin, end MG_DEBUG_ALLOCATOR_SRC_PARAM) ){}
-	SharedStr(WeakStr str) : base_type(str.get_ptr()) {}
+	SharedStr(WeakStr str) : base_type(str.get_ptr(), no_zombies{}) { assert(get_ptr() || !str.get_ptr()); }
 	SharedStr(SharedStr&& str) noexcept  : base_type(std::move(str)) {}
 
 	explicit SharedStr(const SharedStr& rhs) = default;
-	explicit SharedStr(CharPtr zStr MG_DEBUG_ALLOCATOR_SRC(CharPtr srcStr = "SharedStr")) : base_type(SharedCharArray_Create(zStr MG_DEBUG_ALLOCATOR_SRC_PARAM)) {}
-	explicit SharedStr(const std::string& strStr MG_DEBUG_ALLOCATOR_SRC(CharPtr srcStr = "SharedStr")): base_type(SharedCharArray_Create(begin_ptr(strStr), end_ptr(strStr) MG_DEBUG_ALLOCATOR_SRC_PARAM)) {}
+	explicit SharedStr(CharPtr zStr MG_DEBUG_ALLOCATOR_SRC(CharPtr srcStr = "SharedStr")) : base_type(SharedCharArray_Create(zStr MG_DEBUG_ALLOCATOR_SRC_PARAM), newly_obj{}) {}
+	explicit SharedStr(const std::string& strStr MG_DEBUG_ALLOCATOR_SRC(CharPtr srcStr = "SharedStr")): base_type(SharedCharArray_Create(begin_ptr(strStr), end_ptr(strStr) MG_DEBUG_ALLOCATOR_SRC_PARAM), newly_obj{}) {}
 //	template <unsigned int N> explicit SharedStr(const char(&str)[N] )     : base_type(SharedCharArray_Create(str, str+N-1 MG_DEBUG_ALLOCATOR_SRC("SharedStr::ctor")) ){ dms_assert(!str[N-1]); }
 //	template <unsigned int N> explicit SharedStr(const char8_t(&str)[N])   : base_type(SharedCharArray_Create(reinterpret_cast<CharPtr>(str), reinterpret_cast<CharPtr>(str) + N - 1 MG_DEBUG_ALLOCATOR_SRC("SharedStr::ctor"))) { assert(!str[N - 1]); }
-	explicit SharedStr(SharedCharArray* arrayPtr): base_type(arrayPtr) {}
-	constexpr explicit SharedStr(const Undefined&) : base_type(SharedCharArray_CreateUndefined()) {}
+	explicit SharedStr(SharedCharArray* arrayPtr): base_type(arrayPtr, newly_obj{}) {}
+	constexpr explicit SharedStr(const Undefined&) : base_type(SharedCharArray_CreateUndefined(), newly_obj{}) {}
 	RTC_CALL explicit SharedStr(MutableCharPtrRange range MG_DEBUG_ALLOCATOR_SRC(CharPtr srcStr = "SharedStr::SharedStr(MutableCharPtrRange range)"));
 	RTC_CALL explicit SharedStr(CharPtrRange range MG_DEBUG_ALLOCATOR_SRC(CharPtr srcStr = "SharedStr::SharedStr(CharPtrRange range)"));
 //	RTC_CALL explicit SharedStr(IterRange<CharPtr> range MG_DEBUG_ALLOCATOR_SRC(CharPtr srcStr = "SharedStr::SharedStr(CharPtrRange range)"));
@@ -270,12 +270,12 @@ public:
 	RTC_CALL explicit SharedStr(const struct TokenStr& str MG_DEBUG_ALLOCATOR_SRC(CharPtr srcStr = "SharedStr::SharedStr(const struct TokenStr&)"));
 	RTC_CALL SharedStr(const SA_ConstReference<char>& range MG_DEBUG_ALLOCATOR_SRC(CharPtr srcStr = "SharedStr::SharedStr(const SA_ConstReference<char>&)"));
 
-	void operator = (CharPtr zStr) { assign(SharedCharArray_Create(zStr MG_DEBUG_ALLOCATOR_SRC("SharedStr::operator = (CharPtr)"))); }
-	void operator = (const char8_t* zStr) { assign(SharedCharArray_Create(reinterpret_cast<CharPtr>(zStr) MG_DEBUG_ALLOCATOR_SRC("SharedStr::operator = (const char8_t*)"))); }
+	void operator = (CharPtr zStr) { reset(SharedCharArray_Create(zStr MG_DEBUG_ALLOCATOR_SRC("SharedStr::operator = (CharPtr)"))); }
+	void operator = (const char8_t* zStr) { reset(SharedCharArray_Create(reinterpret_cast<CharPtr>(zStr) MG_DEBUG_ALLOCATOR_SRC("SharedStr::operator = (const char8_t*)"))); }
 
-	void operator = (WeakStr  str) { assign(str.get_ptr()); }
+	void operator = (WeakStr  str) { auto tmp = SharedStr(str); this->swap(tmp); }
 	RTC_CALL void operator = (const TokenID& id);
-	void operator = (SharedCharArray* id) { assign(id); }
+	void operator = (SharedCharArray* id) { reset(id); }
 	SharedStr& operator = (SharedStr&& str) noexcept { this->swap(str); return *this; }
 	RTC_CALL void operator = (const SA_ConstReference<char>& range);
 
@@ -326,7 +326,7 @@ private:
 	RTC_CALL void MakeUnique();
 
 friend WeakStr;
-friend inline void MakeUndefined(SharedStr& v) { v.assign( SharedCharArray_CreateUndefined() ); }
+friend inline void MakeUndefined(SharedStr& v) { v.reset( SharedCharArray_CreateUndefined() ); }
 friend inline SharedStr UndefinedValue(const SharedStr*) { return SharedStr(Undefined()); }
 };
 

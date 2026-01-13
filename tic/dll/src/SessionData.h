@@ -75,9 +75,6 @@ struct SessionData : std::enable_shared_from_this<SessionData>
 	const TreeItem* GetContainer(const TreeItem* context, CharPtr name) const;
 	const TreeItem* GetClassificationContainer(const TreeItem* context) const;
 
-	void SetActiveDesktop(const TreeItem* tiActive);
-	const TreeItem* GetActiveDesktop() const;
-
 public:
 
 	SessionData(CharPtr configLoadDir, CharPtr configSubDir);
@@ -87,7 +84,7 @@ private:
 
 	void deactivateThis();
 
-	SharedPtr<const TreeItem>     m_ConfigRoot, m_ConfigSettings, m_ActiveDesktop;
+	SharedPtr<const TreeItem>     m_ConfigRoot, m_ConfigSettings;
 	SharedStr                     m_ConfigLoadDir;
 	SharedStr                     m_ConfigSubDir;
 	SharedStr                     m_ConfigDir;

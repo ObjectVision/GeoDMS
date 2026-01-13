@@ -47,8 +47,20 @@ SessionData::SessionData(CharPtr configLoadDir, CharPtr configSubDir)
 	,	m_ConfigLoadTS(-1)              // set by Open() 
 {}
 
+#include "act/ActorEnums.h"
+
 SessionData::~SessionData() 
 {
+	if (m_ConfigRoot)
+	{
+		MG_ASSERT(m_ConfigRoot->IsOwned());
+		m_ConfigRoot->m_State.Set(actor_flag_set::AFD_PivotElem);
+	}
+	if (m_ConfigSettings)
+	{
+		MG_ASSERT(m_ConfigSettings->IsOwned());
+		m_ConfigSettings->m_State.Set(actor_flag_set::AFD_PivotElem);
+	}
 }
 
 void SessionData::release()
@@ -173,16 +185,6 @@ const TreeItem* SessionData::GetClassificationContainer(const TreeItem* context)
 	return GetContainer(context, "Classifications");
 }
 
-void SessionData::SetActiveDesktop(const TreeItem* tiActive)
-{
-	m_ActiveDesktop = tiActive;
-}
-
-const TreeItem* SessionData::GetActiveDesktop() const
-{
-	return m_ActiveDesktop;
-}
-
 std::shared_ptr<SessionData> SessionData::Create(CharPtr configLoadDir, CharPtr configSubDir)
 {
 	auto sectionLock = std::scoped_lock(sd_SessionDataCriticalSection);
@@ -207,6 +209,8 @@ void SessionData::Open(const TreeItem* configRoot)
 	SharedPtr<TreeItem> configSettings = const_cast<TreeItem*>(configRoot)->CreateItem(t_ConfigSettings);
 	configSettings->SetIsHidden(true);
 	m_ConfigSettings = configSettings.get_ptr();
+	if (m_ConfigSettings)
+		m_ConfigSettings->m_State.Set(actor_flag_set::AFD_PivotElem);
 }
 
 std::shared_ptr<SessionData> SessionData::Curr()
@@ -266,7 +270,3 @@ const TreeItem* GetCacheRoot(const TreeItem* subItem)
 	return subItem;
 }
 
-extern "C" TIC_CALL void DMS_CONV DMS_Config_SetActiveDesktop(TreeItem* tiActive)
-{
-	SessionData::Curr()->SetActiveDesktop(tiActive);
-}

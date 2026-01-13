@@ -8,8 +8,9 @@
 #pragma hdrstop
 #endif //defined(CC_PRAGMAHDRSTOP)
 
-#include "TextEditController.h"
+#include "utl/scoped_exit.h"
 
+#include "TextEditController.h"
 #include "KeyFlags.h"
 
 #include "DataView.h"
@@ -200,7 +201,7 @@ bool TextEditController::OnKeyDown(AbstrTextEditControl* srcTC, SizeT srcRec, UI
 					return true;
 
 				case VK_ESCAPE: // Escape 
-					Abandon();
+					AbandonEditing();
 					return true;
 
 				case VK_RETURN:
@@ -271,17 +272,14 @@ void TextEditController::CloseCurr()
 {
 	if (!m_IsEditing)
 		return;
-	struct Finalize
-	{
-		Finalize(TextEditController* self) : m_Self(self) {} 
-		~Finalize() { m_Self->Abandon(); } 
-		TextEditController* m_Self;
-	}	callAbandon(this);
+
+	auto onExit = make_scoped_exit([self = this]() { self->AbandonEditing(); });
+
 	if (m_CurrText != m_OrgText)
 		m_CurrTextControl->SetOrgText(m_CurrRec, GetCurrText());
 }
 
-void TextEditController::Abandon()
+void TextEditController::AbandonEditing()
 {
 	if (!m_IsEditing)
 		return;

@@ -69,15 +69,15 @@ struct LispList : SharedPtrWrap<LispListPtr<T> >
 	{}
 
     LispList(elem_ptr head, ptr_type tail) 
-		: base_type(LispRef(head, tail).get_ptr()) 
+		: base_type(LispRef(head, tail).get_ptr(), existing_obj{})
 	{}
 
 	LispList(ptr_type listPtr) 
-		: base_type(listPtr) 
+		: base_type(listPtr, existing_obj{})
 	{}
 
 	LispList(LispPtr  lispPtr) 
-		: base_type(ptr_type(lispPtr) )  // invoke Check
+		: base_type(ptr_type(lispPtr), existing_obj{})  // invoke Check
 	{} 
 
 	operator ptr_type() const { return ptr_type(this->get_ptr()); }

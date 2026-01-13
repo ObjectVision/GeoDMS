@@ -366,13 +366,13 @@ private:
 };
 
 LispRef::LispRef(LispPtr lrb) noexcept 
-	: SharedPtrWrap(lrb)
+	: SharedPtrWrap(lrb, existing_obj{})
 {
 	MG_CHECK(!get_ptr() || get_ptr()->IsOwned());
 }
 
 LispRef::LispRef(LispObj* lrb) noexcept 
-	: SharedPtrWrap(LispPtr(lrb))
+	: SharedPtrWrap(LispPtr(lrb), newly_obj{})
 {
 	MG_CHECK(get_ptr());
 	MG_CHECK(get_ptr()->IsOwned());
@@ -576,7 +576,7 @@ auto GetOrCreateSymbObj(LispCaches* self, TokenID t, ChroID c) -> LispRef
 	}
 	cacheEntry = new SymbObj(t, 0);
 	self->nrActiveZeroSymbObj++;
-	return LispRef(LispPtr(cacheEntry));
+	return LispRef(cacheEntry);
 }
 
 

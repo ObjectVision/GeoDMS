@@ -329,7 +329,7 @@ void TreeItem::DisableAutoDelete() // does not call UpdateMetaInfo
 	}
 
 	SetTSF(TSF_IsAutoDeleteDisabled, true); // call inherited
-	IncRef();
+	AdoptRef();
 }
 
 void TreeItem::EnableAutoDeleteImpl() // does not call UpdateMetaInfo
@@ -338,20 +338,31 @@ void TreeItem::EnableAutoDeleteImpl() // does not call UpdateMetaInfo
 
 	DBG_TRACE(("Item: %s", GetFullName().c_str()));      //  DEBUG Access violation
 
-	dms_assert(IsAutoDeleteDisabled());
+	assert(IsAutoDeleteDisabled());
 	mc_Calculator.reset();
 	mc_IntegrityChecker.reset();
 
 	if (!IsCacheItem())
 		DisableStorage();
 
-	SharedPtr<TreeItem> subItem = _GetFirstSubItem(); 
+	auto subItem = SharedPtr<TreeItem>(_GetFirstSubItem(), no_zombies{});
 	while (subItem)
 	{
+		auto nextItem = SharedPtr<TreeItem>(subItem->GetNextItem(), no_zombies{});
+//		auto nextItemPtr = subItem->GetNextItem();
+
 		if (subItem->IsAutoDeleteDisabled() )
 			subItem->EnableAutoDeleteImpl();
 
-		subItem = subItem->GetNextItem(); // this line may cause the destruction of the old subItem
+//		MG_ASSERT(subItem->IsOwned());
+
+//		auto nextItem = SharedPtr<TreeItem>(subItem->GetNextItem(), no_zombies{});
+//		MG_CHECK(nextItem.get_ptr() == nextItemPtr);
+
+		// subItem = subItem->GetNextItem(); // this line may cause the destruction of the old subItem
+//		subItem = SharedPtr<TreeItem>(subItem->GetNextItem(), no_zombies{});
+
+		subItem.swap(static_cast<SharedPtr<TreeItem>::base_type&>(nextItem));
 	}
 
 //	m_UsingCache.reset();

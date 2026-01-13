@@ -40,7 +40,7 @@ SharedCharArray* SharedCharArray_Create(CharPtr begin, CharPtr end MG_DEBUG_ALLO
 	SharedCharArray* result = SharedCharArray::CreateUninitialized((end-begin)+1 MG_DEBUG_ALLOCATOR_SRC_PARAM);
 	*(fast_copy(begin, end, result->begin())) = char(0);
 
-	dms_assert(result->end()[-1] == char(0));
+	assert(result->end()[-1] == char(0));
 	return result;
 }
 
@@ -56,7 +56,7 @@ SharedCharArray* SharedCharArray_CreateEmptyImpl()
 {
 	static SharedCharArray::allocator_i::value_type emptyArrayBuffer[SharedCharArray::NrAllocations(1)];
 	auto result = new(emptyArrayBuffer) SharedCharArray(1, 1);
-	result->IncRef(); // never destroy again.
+	result->AdoptRef(); // never destroy again.
 	result->begin()[0] = CharType(0);
 	return result;
 }
@@ -145,7 +145,7 @@ bool SharedCharArrayPtr::operator !=(CharPtr b) const
 		return ::IsDefined(b);
 	if (!::IsDefined(b))
 		return true;
-	dms_assert(b && IsDefined());
+	assert(b && IsDefined());
 	if (empty())
 		return *b;
 	assert(m_Ptr);
@@ -178,43 +178,43 @@ RTC_CALL WeakStr::operator CharPtrRange() const
 #include "set/Token.h"
 
 SharedStr::SharedStr() noexcept
-	: base_type(SharedCharArray_CreateEmpty())
+	: base_type(SharedCharArray_CreateEmpty(), no_zombies{})
 {}
 
 SharedStr::SharedStr(const SA_ConstReference<char>& range MG_DEBUG_ALLOCATOR_SRC_ARG)
-	:	base_type(SharedCharArray_Create(range.begin(), range.end() MG_DEBUG_ALLOCATOR_SRC_PARAM))
+	:	base_type(SharedCharArray_Create(range.begin(), range.end() MG_DEBUG_ALLOCATOR_SRC_PARAM), newly_obj{})
 {}
 
 SharedStr::SharedStr(MutableCharPtrRange range MG_DEBUG_ALLOCATOR_SRC_ARG)
-	: base_type(SharedCharArray_Create(range.begin(), range.end() MG_DEBUG_ALLOCATOR_SRC_PARAM))
+	: base_type(SharedCharArray_Create(range.begin(), range.end() MG_DEBUG_ALLOCATOR_SRC_PARAM), newly_obj{})
 {}
 
 SharedStr::SharedStr(CharPtrRange range MG_DEBUG_ALLOCATOR_SRC_ARG) 
-	: base_type(SharedCharArray_Create(range.begin(), range.end() MG_DEBUG_ALLOCATOR_SRC_PARAM))
+	: base_type(SharedCharArray_Create(range.begin(), range.end() MG_DEBUG_ALLOCATOR_SRC_PARAM), newly_obj{})
 {}
 
 SharedStr::SharedStr(TokenID id MG_DEBUG_ALLOCATOR_SRC_ARG)
-	:	base_type(SharedCharArray_Create(id MG_DEBUG_ALLOCATOR_SRC_PARAM))
+	:	base_type(SharedCharArray_Create(id MG_DEBUG_ALLOCATOR_SRC_PARAM), newly_obj{})
 {}
 
 SharedStr::SharedStr(const TokenStr& str MG_DEBUG_ALLOCATOR_SRC_ARG)
-: base_type(SharedCharArray_Create(str.c_str() MG_DEBUG_ALLOCATOR_SRC_PARAM))
+: base_type(SharedCharArray_Create(str.c_str() MG_DEBUG_ALLOCATOR_SRC_PARAM), newly_obj{})
 {}
 
 void SharedStr::operator = (const TokenID& id)
 { 
-	assign(SharedCharArray_Create(id.GetStr().c_str(), id.GetStrEnd().c_str() MG_DEBUG_ALLOCATOR_SRC("SharedStr::operator = ")));
+	reset(SharedCharArray_Create(id.GetStr().c_str(), id.GetStrEnd().c_str() MG_DEBUG_ALLOCATOR_SRC("SharedStr::operator = ")));
 }
 void SharedStr::operator = (const SA_ConstReference<char>& range)
 { 
-	assign(SharedCharArray_Create(range.begin(), range.end() MG_DEBUG_ALLOCATOR_SRC("SharedStr::operator = ")));
+	reset(SharedCharArray_Create(range.begin(), range.end() MG_DEBUG_ALLOCATOR_SRC("SharedStr::operator = ")));
 }
 
 void SharedStr::MakeUnique()
 {
 	if (has_ptr() && get_ptr()->GetRefCount() > 1)
-		assign(SharedCharArray_Create(cbegin(), csend() MG_DEBUG_ALLOCATOR_SRC("SharedStr::MakeUnique ")));
-	dms_assert(!has_ptr() || get_ptr()->GetRefCount() == 1 || !ssize());
+		reset(SharedCharArray_Create(cbegin(), csend() MG_DEBUG_ALLOCATOR_SRC("SharedStr::MakeUnique ")));
+	assert(!has_ptr() || get_ptr()->GetRefCount() == 1 || !ssize());
 }
 
 MutableCharPtrRange SharedStr::GetAsMutableRange() 
@@ -237,7 +237,7 @@ void SharedStr::resize(SizeT sz MG_DEBUG_ALLOCATOR_SRC_ARG)
 	else 
 	{
 		SharedCharArray* result = SharedCharArray::CreateUninitialized(sz+1 MG_DEBUG_ALLOCATOR_SRC_PARAM);
-		assign(result);
+		reset(result);
 		fast_zero(
 			fast_copy(begin(), send(), result->begin())
 		,	result->end()
@@ -263,10 +263,10 @@ bool SharedStr::contains_case_insensitive(CharPtrRange subStr) const
 
 void SharedStr::insert(SizeT pos, char ch) 
 {
-	dms_assert(has_ptr() || !pos);
+	assert(has_ptr() || !pos);
 	SizeT sz = ssize();
 	SharedCharArray* sca = SharedCharArray::CreateUninitialized(sz + 2 MG_DEBUG_ALLOCATOR_SRC("SharedStr::insert")); // 1 ch + 1 termination 0
-	dms_assert(sca);
+	assert(sca);
 	SharedStr result(sca);
 	CharPtr
 		first = begin(), 
@@ -275,7 +275,7 @@ void SharedStr::insert(SizeT pos, char ch)
 	*r = ch;
 	r = fast_copy(mid, first + sz, ++r); // includes terminating zero
 	*r = char(0);
-	dms_assert(++r ==sca->end()); // mutates res ONLY in debug mode but this cannot have side effects
+	assert(++r ==sca->end()); // mutates res ONLY in debug mode but this cannot have side effects
 	swap(result);
 }
 
@@ -300,7 +300,7 @@ RTC_CALL SharedStr SharedStr::replace(CharPtr key, CharPtr val) const
 
 	SharedCharArray* sca = SharedCharArray::CreateUninitialized(ssize() + 1 + (valLen-keyLen)*cnt MG_DEBUG_ALLOCATOR_SRC("SharedStr::replace"));
 	SharedStr result(sca);
-	dms_assert(sca);
+	assert(sca);
 	p = begin();
 	char* r = sca->begin();
 	while (true) {
@@ -312,7 +312,7 @@ RTC_CALL SharedStr SharedStr::replace(CharPtr key, CharPtr val) const
 		p = np +keyLen;
 	}
 	*r = char(0);
-	dms_assert(++r == sca->end()); // mutates res ONLY in debug mode but this cannot have side effects
+	assert(++r == sca->end()); // mutates res ONLY in debug mode but this cannot have side effects
 	return result;
 }
 
@@ -323,7 +323,7 @@ SharedStr::operator CharPtrRange() const
 
 void SharedStr::clear() 
 { 
-	assign(SharedCharArray_CreateEmpty());
+	reset(SharedCharArray_CreateEmpty());
 }
 
 //============================= SharedStr operators
@@ -346,7 +346,7 @@ SharedStr operator + (CharPtrRange lhs, CharPtrRange rhs)
 	if (lhs.empty()) return SharedStr(CharPtrRange(rhs.begin(), rhs.end()));
 	if (rhs.empty()) return SharedStr(lhs);
 
-	dms_assert(lhs.size() > 0 && rhs.size() > 0);
+	assert(lhs.size() > 0 && rhs.size() > 0);
 
 	SharedCharArray* result = SharedCharArray::CreateUninitialized(lhs.size() + rhs.size()+1 MG_DEBUG_ALLOCATOR_SRC("operator +"));
 	SharedStr resultStr(result);
@@ -365,7 +365,7 @@ SharedStr operator + (CharPtr lhs, WeakStr rhs)
 	if (!*lhs)       return rhs;
 	if (rhs.empty()) return SharedStr(lhs MG_DEBUG_ALLOCATOR_SRC("operator +"));
 
-	dms_assert(rhs.ssize());
+	assert(rhs.ssize());
 
 	UInt32 lhsSize = StrLen(lhs);
 	SharedCharArray* result = SharedCharArray::CreateUninitialized(lhsSize + rhs.get_ptr()->size() MG_DEBUG_ALLOCATOR_SRC("operator +"));
@@ -373,7 +373,7 @@ SharedStr operator + (CharPtr lhs, WeakStr rhs)
 
 	char* resPtr = fast_copy(lhs, lhs+lhsSize, result->begin()); // send points to NULL terminator (past string-body)
 	resPtr = fast_copy(rhs.get_ptr()->begin(), rhs.get_ptr()->end(), resPtr); // end is past NULL terminator
-	dms_assert(resPtr[-1] == char(0));
+	assert(resPtr[-1] == char(0));
 	return resultStr;
 }
 
@@ -385,14 +385,14 @@ SharedStr operator + (WeakStr lhs, CharPtr rhs)
 	if (lhs.empty()) return SharedStr(rhs MG_DEBUG_ALLOCATOR_SRC("operator +"));
 	if (!*rhs)       return lhs;
 
-	dms_assert(lhs.ssize());
+	assert(lhs.ssize());
 	UInt32 rhsSize = StrLen(rhs);
 	SharedCharArray* result = SharedCharArray::CreateUninitialized(lhs.get_ptr()->size() + rhsSize MG_DEBUG_ALLOCATOR_SRC("operator +"));
 	SharedStr resultStr(result);
 
 	char* resPtr = fast_copy(lhs.get_ptr()->begin(), lhs.get_ptr()->end()-1, result->begin()); // send points to NULL terminator (past string-body)
 	resPtr = fast_copy(rhs, rhs+rhsSize+1, resPtr); // end is past NULL terminator
-	dms_assert(resPtr[-1] == char(0));
+	assert(resPtr[-1] == char(0));
 	return resultStr;
 }
 

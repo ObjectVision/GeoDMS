@@ -41,9 +41,9 @@ struct Assoc : SharedPtrWrap<AssocPtr>
 	typedef AssocPtr ptr_type;
 
 //	Assoc() {}					//	empty-assoc = Fail
-	Assoc(LispPtr key, LispPtr val): SharedPtrWrap(LispRef(key, val).get_ptr()) {}
+	Assoc(LispPtr key, LispPtr val) : SharedPtrWrap(LispRef(key, val).get_ptr(), existing_obj{}) {}
 
-	Assoc(ptr_type listPtr) : SharedPtrWrap(listPtr) {}
+	Assoc(ptr_type listPtr) : SharedPtrWrap(listPtr, existing_obj{}) {}
 	operator ptr_type() const { return ptr_type(get_ptr()); }
 };
 
@@ -128,11 +128,11 @@ protected: friend struct AssocList;
 
 struct AssocList : SharedPtrWrap<AssocListPtr>
 {
-	typedef AssocListPtr ptr_type;
+	using ptr_type = AssocListPtr;
 
 	AssocList() {};	//	creates an empty AssocList
-	AssocList(ptr_type list) : SharedPtrWrap(list) {}
-	AssocList(LispPtr  list) : SharedPtrWrap(ptr_type(list)) {}  // invoke Check
+	AssocList(ptr_type list) : SharedPtrWrap(list, existing_obj{}) {}
+	AssocList(LispPtr  list) : SharedPtrWrap(ptr_type(list), existing_obj{}) {}  // invoke Check
 
 	AssocList(AssocPtr a, AssocListPtr l):	SharedPtrWrap(LispRef(a, l))
 	{

@@ -34,18 +34,8 @@ protected:
 public:
 	friend std::default_delete<SharedObj>;
 
-	void Release() const // dtor of Object is virtual, so destructing from here is OK
-	{
-		if (DecRef())
-			return;
-		delete this;
-	}
-	auto DelayedRelease() -> zombie_destroyer // dtor of Object is virtual, so destructing from here is OK
-	{
-		if (DecRef())
-			return {};
-		return zombie_destroyer( this );
-	}
+	RTC_CALL void Release() const  noexcept; // dtor of Object is virtual, so destructing from here is OK
+	RTC_CALL auto DelayedRelease()  noexcept -> zombie_destroyer; // dtor of Object is virtual, so destructing from here is OK
 };
 
 template <typename T>

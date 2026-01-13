@@ -34,9 +34,11 @@ struct SharedBase
 	RTC_CALL ref_count_t GetRefCount() const noexcept;
 	RTC_CALL bool IsOwned() const noexcept;
 
+	RTC_CALL void AdoptRef() const noexcept;
 	RTC_CALL void IncRef() const noexcept;
 	RTC_CALL bool DuplRef() const noexcept;
 	RTC_CALL bool DecRef() const noexcept;
+	RTC_CALL void Abandon() const noexcept;
 
 // See Notes above for reasons for non-inclusion of Release method.
 // The following commented method prototype is for derivations that can access the concrete-type destructor
@@ -48,7 +50,7 @@ protected:
 	SharedBase(const SharedBase&) : m_RefCount(0) {}
 	SharedBase(SharedBase&&) = delete;
 
-   ~SharedBase() { assert(!IsOwned()); }
+	RTC_CALL ~SharedBase();
 
 	SharedBase& operator =(const SharedBase&) = delete; // DONT COPY m_RefCount
 	SharedBase& operator =(SharedBase&&) = delete;

@@ -110,7 +110,7 @@ inline PolymorphInpStream& operator >>(PolymorphInpStream& is, const T*& ptr)
 template <typename Ptr> inline
 PolymorphInpStream& operator >>(PolymorphInpStream& ar, SharedPtrWrap<Ptr>& rPtr)
 {
-	rPtr.assign(checked_cast<typename Ptr::pointer>(ar.ReadObj())); // increments counter of referrred object when read of linked; throws exception when dynamic_cast fails
+	rPtr.reset(checked_cast<typename Ptr::pointer>(ar.ReadObj())); // increments counter of referrred object when read of linked; throws exception when dynamic_cast fails
 	return ar;
 }
 

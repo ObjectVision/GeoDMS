@@ -422,6 +422,8 @@ struct RapidXmlOperator : public BinaryOperator
 			}
 		}
 
+		defaultEntity.Abandon();
+
 		return true;
 	}
 };

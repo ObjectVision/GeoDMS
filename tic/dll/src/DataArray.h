@@ -432,7 +432,7 @@ void SetValue(AbstrDataItem* adi, row_id index, typename DataArrayBase<V>::param
 	assert(adi->m_DataLockCount < 0);
 
 	dataHolder->SetValue<V>(index, value);
-	adi->m_DataObject.assign(dataHolder);
+	adi->m_DataObject = std::move(dataHolder);
 }
 
 template <typename V>

@@ -76,7 +76,7 @@ public:
 	void CloseCurr();
 
 	void StartEdit();
-	void Abandon();
+	void AbandonEditing();
 	void InvalidateDraw();
 
 	void InvalidateCaretPos() { InvalidateDraw(); }

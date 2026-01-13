@@ -34,7 +34,6 @@ enum class oper_policy
     dynamic_argument_policies = 0x0100, // 1st arg is a string that influences the policies of the other args.
 	dynamic_result_class   = 0x0200, // MakeResult must be called to find the result class as required for finding a signature
 	calc_requires_metainfo = 0x0400, // after result creation, data creation still requires meta-info and therefore data generation has to be done in the main thread.
-	is_dynamic_group       = 0x0800,
 
 	can_explain_value      = 0x1000, // Calc can be called to epxlain value
 	depreciated            = 0x2000, // warn when used; mention preferred alternative

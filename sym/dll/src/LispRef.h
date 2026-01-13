@@ -96,12 +96,12 @@ struct LispRef : SharedPtrWrap<LispPtr>
 	SYM_CALL LispRef(LispObj* lrb) noexcept;
 	SYM_CALL LispRef(LispPtr lrb, no_zombies nz) noexcept;
 
-	LispRef(const LispRef&) = default;
+	LispRef(const LispRef&) noexcept = default;
 
 	SYM_CALL LispRef(LispRef&& rhs) noexcept;
 
-	LispRef& operator =(const LispRef& rhs) = default;
-	LispRef& operator =(LispRef&& rhs) = default;
+	LispRef& operator =(const LispRef& rhs) noexcept = default;
+	LispRef& operator =(LispRef&& rhs) noexcept = default;
 
 	operator ptr_type() const { return ptr_type(get_ptr()); }
 

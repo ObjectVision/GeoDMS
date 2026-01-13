@@ -741,9 +741,9 @@ void CountableUnitBase<V>::SetRange(const range_t& range)
 		auto lock = std::lock_guard(sc_RangeDataPtrAccess);
 		oldRangeDataPtr = this->m_RangeDataPtr;
 		if constexpr (has_small_range_v<V>)
-			this->m_RangeDataPtr.assign(std::make_unique<SmallRangeData<V>>(range).release());
+			this->m_RangeDataPtr.reset(std::make_unique<SmallRangeData<V>>(range).release());
 		else
-			this->m_RangeDataPtr.assign(std::make_unique<DefaultTileRangeData<V>>(range).release());
+			this->m_RangeDataPtr.reset(std::make_unique<DefaultTileRangeData<V>>(range).release());
 		newRangeDataPtr = this->m_RangeDataPtr;
 	}
 	if (this->IsCacheItem())
@@ -772,7 +772,7 @@ void CountableUnitBase<V>::SetMaxRange()
 	else
 	{
 		auto lock = std::lock_guard(sc_RangeDataPtrAccess);
-		this->m_RangeDataPtr.assign(std::make_unique <MaxRangeData<V>>().release()); // not suitable as domain
+		this->m_RangeDataPtr.reset(std::make_unique <MaxRangeData<V>>().release()); // not suitable as domain
 	}
 }
 
@@ -781,7 +781,7 @@ void FloatUnit<V>::SetRange (const range_t& range)
 {
 	{
 		auto lock = std::lock_guard(sc_RangeDataPtrAccess);
-		this->m_RangeDataPtr.assign(std::make_unique<SimpleRangeData<V>>(range).release());
+		this->m_RangeDataPtr.reset(std::make_unique<SimpleRangeData<V>>(range).release());
 	}
 
 	if (this->IsCacheItem())
@@ -809,7 +809,7 @@ void TileAdapter<Base>::SetIrregularTileRange(std::vector<range_t> optionalTileR
 	{
 		auto lock = std::lock_guard(sc_RangeDataPtrAccess);
 		oldRangeData = std::move(this->m_RangeDataPtr);
-		this->m_RangeDataPtr.assign(newRangeData.release());
+		this->m_RangeDataPtr.reset(newRangeData.release());
 	}
 
 	if (oldRangeData)
@@ -839,7 +839,7 @@ void TileAdapter<Base>::SetRegularTileRange(const range_t& range, extent_t tileE
 
 	if (this->m_RangeDataPtr)
 		NotifyRangeDataChange(this, this->m_RangeDataPtr.get_ptr(), newRangeData.get());
-	this->m_RangeDataPtr.assign(newRangeData.release());
+	this->m_RangeDataPtr.reset(newRangeData.release());
 	MarkUnitChange(this);
 }
 //----------------------------------------------------------------------

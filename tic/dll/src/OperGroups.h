@@ -53,16 +53,14 @@ TIC_CALL const AbstrDataItem* AsDataItem(const ArgRef& ar);
 // operators can be overloaded on argument type and 
 // *****************************************************************************
 
-struct AbstrOperGroup : SharedObj
+struct AbstrOperGroup //: SharedObj
 {
 	TIC_CALL AbstrOperGroup(CharPtr   operName, oper_policy op);
 	TIC_CALL AbstrOperGroup(SharedStr operName, oper_policy op);
 	TIC_CALL AbstrOperGroup(TokenID nameID, oper_policy op);
 	TIC_CALL virtual ~AbstrOperGroup(); 
-	TIC_CALL void Release() const;
 
 	TIC_CALL static const AbstrOperGroup* FindName  (TokenID operID);  // FindLB(operID, 0), but return theTemplGroup if incorrect operID
-	TIC_CALL static AbstrOperGroup* FindOrCreateCOG(TokenID operID);      // calls FindLB, can be fed to Register(); must be matched with Unregister
 
 	TIC_CALL static og_index GetNrOperatorGroups();
 	TIC_CALL static AbstrOperGroup* GetOperatorGroup(og_index i);
@@ -119,7 +117,6 @@ struct AbstrOperGroup : SharedObj
 
 protected: // friend Operator
 	TIC_CALL void Register  (Operator* member); friend class  Operator;
-	TIC_CALL void UnRegister(Operator* member); friend struct ClientDefinedOperator;
 
 private:
 	void Init();

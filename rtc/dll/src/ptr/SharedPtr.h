@@ -14,6 +14,8 @@
 #include "dbg/DebugCast.h"
 #include "ptr/PtrBase.h"
 
+struct newly_obj {};
+struct existing_obj {};
 struct no_zombies {};
 
 template <class Ptr>
@@ -26,7 +28,7 @@ struct SharedPtrWrap : Ptr
 		assert(!this->m_Ptr);
 	}
 
-	SharedPtrWrap(const SharedPtrWrap& rhs) noexcept
+	SharedPtrWrap(const SharedPtrWrap<Ptr>& rhs) noexcept
 		: Ptr(rhs)
 	{ 
 		IncCount();
@@ -47,31 +49,32 @@ struct SharedPtrWrap : Ptr
 
 	~SharedPtrWrap() noexcept { DecCount(); }
 
-	SharedPtrWrap& operator = (SharedPtrWrap&& rhs) noexcept
+	SharedPtrWrap<Ptr>& operator = (SharedPtrWrap<Ptr>&& rhs) noexcept
 	{
 		this->swap(rhs);
 		return *this;
 	}
 
-	SharedPtrWrap& operator = (const SharedPtrWrap& rhs) noexcept
+	SharedPtrWrap<Ptr>& operator = (const SharedPtrWrap<Ptr>& rhs) noexcept
 	{ 
-		*this = SharedPtrWrap(rhs);
+		auto tmp = SharedPtrWrap(rhs);
+		this->swap(tmp);
 		return *this;
 	}
 
-	void assign(pointer ptr) noexcept // TODO G8: REMOVE, replace by reset
-	{ 
-		*this = SharedPtrWrap(ptr);
-	}
+//	void assign(pointer ptr) noexcept // TODO G8: REMOVE, replace by reset
+//	{ 
+//		*this = SharedPtrWrap(ptr);
+//	}
 
 	void reset(pointer ptr) noexcept
 	{
-		*this = SharedPtrWrap(ptr);
+		*this = SharedPtrWrap(ptr, newly_obj{});
 	}
 
 	void reset() noexcept
 	{
-		assign(nullptr);
+		reset(nullptr);
 	}
 
 	auto delayed_reset() noexcept -> zombie_destroyer
@@ -83,17 +86,18 @@ struct SharedPtrWrap : Ptr
 		return ptr->DelayedRelease();
 	}
 
-	void swap(SharedPtrWrap& rhs) noexcept 
+	void swap(SharedPtrWrap<Ptr>& rhs) noexcept
 	{ 
 		auto tmp = this->m_Ptr;
 		this->m_Ptr = rhs.m_Ptr;
 		rhs.m_Ptr = tmp;
 	}
-	friend void swap(SharedPtrWrap& a, SharedPtrWrap& b) noexcept { a.swap(b); }
+	friend void swap(SharedPtrWrap<Ptr>& a, SharedPtrWrap<Ptr>& b) noexcept { a.swap(b); }
 
 protected:
-	constexpr SharedPtrWrap(pointer ptr) : Ptr(ptr) { IncCount(); }
-	SharedPtrWrap(pointer ptr, no_zombies) : Ptr(ptr && ptr->DuplRef() ? ptr : nullptr) {}
+	constexpr SharedPtrWrap(pointer ptr, newly_obj) noexcept : Ptr(ptr) { if (ptr) ptr->AdoptRef(); }
+	SharedPtrWrap(pointer ptr, existing_obj) noexcept : Ptr(ptr) { if (ptr) ptr->IncRef(); }
+	SharedPtrWrap(pointer ptr, no_zombies) noexcept : Ptr(ptr && ptr->DuplRef() ? ptr : nullptr) {}
 
 	pointer release_ptr() noexcept { auto ptr = this->m_Ptr; this->m_Ptr = nullptr; return ptr; }
 
@@ -115,17 +119,26 @@ struct SharedPtr : SharedPtrWrap<ptr_base<T, copyable> >
 
 	SharedPtr(std::nullptr_t = nullptr) noexcept {}
 
-	SharedPtr(SharedPtr&& rhs) noexcept
+	SharedPtr(SharedPtr<T>&& rhs) noexcept
 		: base_type(std::move(rhs))
 	{ 
 		assert(rhs.m_Ptr == nullptr); 
 	}
-	SharedPtr(const SharedPtr& rhs) = default;
+
+	SharedPtr(const SharedPtr<T>& rhs) noexcept
+		: base_type(rhs)
+	{}
 
 	template <typename U>
 	SharedPtr(U* rhs) noexcept
-		:	base_type(rhs)
+		:	base_type(rhs, newly_obj{})
 	{}
+
+	template <typename U>
+	SharedPtr(U* rhs, existing_obj eo) noexcept
+		: base_type(rhs, eo)
+	{
+	}
 
 	template <typename U>
 	SharedPtr(U* rhs, no_zombies nz) noexcept
@@ -139,9 +152,14 @@ struct SharedPtr : SharedPtrWrap<ptr_base<T, copyable> >
 		assert(!rhs.get_ptr());
 	}
 
-	SharedPtr& operator =(const SharedPtr& rhs) = default;
+	SharedPtr<T>& operator =(const SharedPtr<T>& rhs) noexcept
+	{
+		auto tmp = SharedPtr<T>(rhs);
+		this->swap(tmp);
+		return *this;
+	}
 
-	SharedPtr& operator =(SharedPtr&& rhs) noexcept
+	SharedPtr<T>& operator =(SharedPtr<T>&& rhs) noexcept
 	{
 		this->swap(rhs);
 		return *this;

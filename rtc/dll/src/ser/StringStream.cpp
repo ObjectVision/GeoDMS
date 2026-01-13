@@ -222,7 +222,7 @@ BinaryInpStream& operator >>(BinaryInpStream& ar, SharedStr& str)
 	if (len)
 	{
 		SharedCharArray* sca =SharedCharArray::CreateUninitialized(SizeT(len)+1 MG_DEBUG_ALLOCATOR_SRC("operator >>(BinaryInpStream& ar, SharedStr& str)")); sca->back() = char(0);
-		str.assign(sca);
+		str.reset(sca);
 		ar.Buffer().ReadBytes(sca->begin(), len);
 	}
 	else
@@ -239,7 +239,7 @@ BinaryInpStream& operator >>(BinaryInpStream& ar, SharedStr& str)
 FormattedInpStream& operator >> (FormattedInpStream& is, SharedStr& str)
 {
 	CharPtrRange result = is.NextWord();
-	str.assign (SharedCharArray_Create(result.begin(), result.end() MG_DEBUG_ALLOCATOR_SRC("FormattedInpStream::operator >>")) );
+	str.reset(SharedCharArray_Create(result.begin(), result.end() MG_DEBUG_ALLOCATOR_SRC("FormattedInpStream::operator >>")) );
 	return is;
 }
 

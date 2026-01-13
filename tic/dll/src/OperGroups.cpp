@@ -196,22 +196,12 @@ void AbstrOperGroup::Init()
 			, op & oper_policy::dynamic_argument_policies ? "dynamic argument policies" : ""
 			, op & oper_policy::dynamic_result_class ? "dynamic_result_class" : ""
 			, op & oper_policy::calc_requires_metainfo ? "calc_requires_metainfo" : ""
-			, op & oper_policy::is_dynamic_group ? "is_dynamic_group" : ""
 			, op & oper_policy::can_explain_value ? "can_explain_value" : ""
 			, op & oper_policy::obsolete ? "obsolete" : ""
 		);
 	}
 #endif
 */
-}
-
-void AbstrOperGroup::Release() const
-{
-	if (!DecRef()) 
-	{
-		if (m_Policy & oper_policy::is_dynamic_group)
-			delete this;	
-	}
 }
 
 void AbstrOperGroup::UpdateNameID()
@@ -225,40 +215,6 @@ void AbstrOperGroup::Register(Operator* member)
 	dms_assert(member && (member->m_Group == this));
 	member->m_NextGroupMember = m_FirstMember;
 	m_FirstMember = member;
-}
-
-void AbstrOperGroup::UnRegister(Operator* member)
-{
-	dms_assert(member);
-	// remove from linked list of operatorgroup
-	const Operator** opPtr = &m_FirstMember;
-	while (*opPtr != member)
-	{
-		if (*opPtr == 0) return; // unexpected end of list? 
-		// can happen in debug since dtors of CliendDefinedOper AND Operator UnRegister; in release only the former
-
-		opPtr = &((*opPtr)->m_NextGroupMember);
-	}
-	*opPtr = member->GetNextGroupMember(); // actual removal;
-
-	// if group is empty; it was probably dynamically allocated and thus we destroy it
-	if (!m_FirstMember)
-		delete this;
-}
-
-AbstrOperGroup* AbstrOperGroup::FindOrCreateCOG(TokenID operID)
-// calls FindLB, can be fed to Register(); must be matched with Unregister
-{
-	dms_assert(IsMainThread());
-
-	AbstrOperGroupRegImpl::const_iterator result = AbstrOperGroupRegImpl::FindLB(operID);
-	if	(result != AbstrOperGroupRegImpl::GetSortedReg().end() && (*result)->GetNameID() == operID)
-		return *result;
-
-	CommonOperGroup* cog = new CommonOperGroup(operID);
-	cog->m_FirstMember = nullptr; // take care of non-static initialization
-	cog->m_Policy = oper_policy(cog->m_Policy | oper_policy::is_dynamic_group);
-	return cog;
 }
 
 const AbstrOperGroup* AbstrOperGroup::FindName(TokenID operID)

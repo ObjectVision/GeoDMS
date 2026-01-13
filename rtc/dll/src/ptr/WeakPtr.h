@@ -55,10 +55,9 @@ struct WeakPtrWrap : Ptr
 
 	WeakPtrWrap(const WeakPtrWrap& oth    ): Ptr(oth.m_Ptr) {}
 
-	void assign(pointer ptr)                { Ptr::m_Ptr = ptr; }
-	void reset()                            { Ptr::m_Ptr = nullptr;   }
-	void operator =(pointer ptr)            { assign(ptr); }
-	void operator =(const WeakPtrWrap& rhs) { assign(rhs.m_Ptr); }
+	void reset(pointer ptr = nullptr)       { Ptr::m_Ptr = ptr; }
+	void operator =(pointer ptr)            { reset(ptr); }
+	void operator =(const WeakPtrWrap& rhs) { reset(rhs.m_Ptr); }
 
 	void swap(WeakPtrWrap& oth) { omni::swap(Ptr::m_Ptr, oth.m_Ptr); }
 };

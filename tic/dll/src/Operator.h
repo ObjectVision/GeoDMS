@@ -107,7 +107,7 @@ protected:
 	arg_index              m_NrOptionalArgs  = 0;
 
 private:
-	SharedPtr<AbstrOperGroup> m_Group;
+	AbstrOperGroup* m_Group;
 	mutable const Operator*   m_NextGroupMember = nullptr; friend struct AbstrOperGroup;
 };
 

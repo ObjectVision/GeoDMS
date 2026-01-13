@@ -38,7 +38,7 @@ struct LifetimeProtector
 	LifetimeProtector(Args&&... args)
 		: m_Object(std::forward<Args>(args)...)
 	{
-		m_Object.IncRef();
+		m_Object.AdoptRef();
 	}
 	~LifetimeProtector()
 	{

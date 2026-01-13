@@ -74,7 +74,10 @@ Theme::Theme(AspectNr aNr, const AbstrDataItem* themeAttr, const AbstrDataItem* 
 }
 
 Theme::~Theme()
-{}
+{
+	MG_ASSERT(GetRefCount() == 0);
+	Abandon();
+}
 
 //	delayed construction
 void Theme::SetThemeAttr(const AbstrDataItem* attr)

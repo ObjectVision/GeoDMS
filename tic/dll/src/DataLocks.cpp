@@ -178,7 +178,7 @@ DataReadLock::DataReadLock(const AbstrDataItem* item)
 
 	actor_section_lock_map::ScopedLock localDataOpenLock(MG_SOURCE_INFO_CODE("DataReadLock::ctor") sg_ActorLockMap, item);
 
-	assign(item->GetDataObj());
+	*static_cast<SharedPtr<const AbstrDataObject>*>(this) = item->m_DataObject;
 }
 
 //----------------------------------------------------------------------

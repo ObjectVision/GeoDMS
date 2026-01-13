@@ -113,7 +113,6 @@ template <typename DerivedProcVisitor>
 void VisitConstVisibleSubTrees(const TreeItem* context, DerivedProcVisitor&& v)
 {
 	VisitConstVisibleSubTree(SessionData::Curr()->GetClassificationContainer(context), v);
-	VisitConstVisibleSubTree(SessionData::Curr()->GetActiveDesktop(),                  v);
 }
 
 TIC_CALL UInt32 DMS_CONV DMS_DataItem_VisitClassBreakCandidates(const AbstrDataItem* context, TSupplCallbackFunc callback, ClientHandle clientHandle)
