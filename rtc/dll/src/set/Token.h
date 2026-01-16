@@ -118,6 +118,7 @@ struct TokenID
 	RTC_CALL explicit TokenID(CharPtr first, CharPtr last, st_tag*);
 	RTC_CALL explicit TokenID(CharPtr first, CharPtr last, mt_tag*, existing_tag*);
 //	RTC_CALL explicit TokenID(CharPtr first, CharPtr last, st_tag*, existing_tag*);
+	RTC_CALL explicit TokenID(const SharedStr& str);
 	RTC_CALL explicit TokenID(WeakStr str);
 	constexpr explicit TokenID(Undefined) : m_ID(UNDEFINED_VALUE(TokenT)) {}
 //	get id or -1 if not found

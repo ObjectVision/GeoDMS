@@ -573,8 +573,8 @@ ToolButtonID GraphicObject::GetControllerID() const
 void GraphicObject::DoInvalidate() const
 {
 	const_cast<GraphicObject*>(this)->InvalidateView();
-	base_type::DoInvalidate();
-	dms_assert(DoesHaveSupplInterest() || !GetInterestCount());
+	Actor::DoInvalidate();
+	assert(DoesHaveSupplInterest() || !GetInterestCount());
 }
 
 TokenID GraphicObject::GetXmlClassID() const

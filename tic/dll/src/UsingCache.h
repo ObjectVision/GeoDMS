@@ -14,11 +14,11 @@
 
 struct UsingCache
 {
-	typedef TreeItemCRefArray::iterator       usings_iterator;
-	typedef TreeItemCRefArray::const_iterator const_usings_iterator;
+	using usings_iterator = TreeItemCRefArray::iterator;
+	using const_usings_iterator = TreeItemCRefArray::const_iterator;
 
-	typedef TreeItemCPtrArray::iterator       item_array_iterator;
-	typedef TreeItemCPtrArray::const_iterator const_item_array_iterator;
+	using item_array_iterator = TreeItemCPtrArray::iterator;
+	using const_item_array_iterator = TreeItemCPtrArray::const_iterator;
 
 	UsingCache(const TreeItem* context);
 	~UsingCache();
@@ -34,7 +34,7 @@ struct UsingCache
 	UInt32 GetNrUsings() const;
 	const TreeItem* GetUsing(UInt32 i) const;
 
-	TIC_CALL const TreeItem* FindItem(TokenID itemID) const;
+	TIC_CALL auto FindItem(TokenID itemID) const -> SharedTreeItem;
 
 	void OnItemAdded  (const TreeItem* child);
 	void OnItemRemoved(const TreeItem* child) { SetDirty(); }
@@ -61,7 +61,7 @@ private:
 	void DelIncoming(UsingCache* incoming) const;
 	void AddParent();
 
-	const TreeItem* FindNamespace(TokenID url) const;
+	SharedTreeItem FindNamespace(TokenID url) const;
 	bool AddUsingInternal(const TreeItem* ns) const;
 	bool IsDirty() const { return m_CacheState == CacheStateType::DIRTY; }
 	bool IsReady() const { return m_CacheState == CacheStateType::READY; }

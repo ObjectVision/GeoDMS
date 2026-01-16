@@ -16,7 +16,6 @@
 #include "RtcBase.h"
 #include "act/garbage_can.h"
 #include "utl/swap.h"
-struct Actor;
 
 
 //----------------------------------------------------------------------
@@ -29,6 +28,8 @@ template <typename T> garbage_can OptionalInterestDec(T* ptr) noexcept { if (!pt
 //----------------------------------------------------------------------
 // class  : InterestPtr
 //----------------------------------------------------------------------
+
+struct already_incremented_tag {};
 
 template <typename CPtr>
 struct InterestPtr
@@ -53,9 +54,9 @@ struct InterestPtr
 		OptionalInterestInc<IVal>(get_ptr());
 	}
 
-	template <typename T>
-	InterestPtr(T* ptr)
-		: m_Item(ptr)
+	template <typename T, typename OwnershipTag = existing_obj>
+	InterestPtr(T* ptr, OwnershipTag tag = OwnershipTag())
+		: m_Item(ptr, tag)
 	{
 		OptionalInterestInc<IVal>(get_ptr());
 	}
@@ -65,6 +66,14 @@ struct InterestPtr
 	{
 		OptionalInterestInc<IVal>(get_ptr());
 	}
+
+	template <typename T>
+	InterestPtr(SharedPtr<T>&& item, already_incremented_tag)
+		: m_Item(std::move(item))
+	{
+		assert(get_ptr() != nullptr && get_ptr()->GetInterestCount() > 0);
+	}
+
 	template <typename T>
 	InterestPtr(const SharedPtr<T>& item)
 		: m_Item(item)
@@ -140,7 +149,6 @@ private:
 // class  : Specific InterestPtrs
 //----------------------------------------------------------------------
 
-using SharedActorInterestPtr = InterestPtr<SharedPtr<const Actor> >;
 
 
 #endif // __RTC_PTR_INTERESTHOLDER_H

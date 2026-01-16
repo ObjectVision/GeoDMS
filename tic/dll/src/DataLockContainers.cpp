@@ -43,18 +43,18 @@ bool DataReadLockContainer::Add(const AbstrDataItem* adi, DrlType drlType)
 	if	(!adi)
 		return true;
 
-	dms_assert(drlType != DrlType::Certain || SuspendTrigger::BlockerBase::IsBlocked()); // Callers responsibility
-	dms_assert((drlType != DrlType::Suspendible) || !SuspendTrigger::DidSuspend()); // should have been acted upon
+	assert(drlType != DrlType::Certain || SuspendTrigger::BlockerBase::IsBlocked()); // Callers responsibility
+	assert((drlType != DrlType::Suspendible) || !SuspendTrigger::DidSuspend()); // should have been acted upon
 
 	if (!adi->PrepareDataUsage(drlType))
 		return false;
 
-	SharedPtr<const TreeItem> adiCurrItem = adi->GetCurrUltimateItem();
-	dms_assert(adiCurrItem->GetInterestCount());
+	SharedTreeItem adiCurrItem = { adi->GetCurrUltimateItem(), existing_obj{} };
+	assert(adiCurrItem->GetInterestCount());
 	if (!WaitForReadyOrSuspendTrigger(adiCurrItem))
 		return false;
 
-	dms_assert(!SuspendTrigger::DidSuspend()); // PRECONDITION for DataReadLock, POSTCONDITION for WaitForReadyOrSuspendTrigger
+	assert(!SuspendTrigger::DidSuspend()); // PRECONDITION for DataReadLock, POSTCONDITION for WaitForReadyOrSuspendTrigger
 
 	DataReadLock newLock(adi);
 	if (newLock.IsLocked())

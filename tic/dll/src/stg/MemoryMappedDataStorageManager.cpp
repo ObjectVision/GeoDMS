@@ -96,7 +96,7 @@ void MmdStorageManager::DoWriteTree(const TreeItem* storageHolder)
 
 bool IsInMMD(const AbstrDataItem* cacheItem)
 {
-	auto configItem = SharedPtr<const AbstrDataItem>((cacheItem->m_BackRef && IsDataItem(cacheItem->m_BackRef)) ? AsDataItem(cacheItem->m_BackRef) : cacheItem);
+	auto configItem = (cacheItem->m_BackRef && IsDataItem(cacheItem->m_BackRef)) ? AsDataItem(cacheItem->m_BackRef) : cacheItem;
 	if (auto sp = configItem->GetCurrStorageParent(true))
 	{
 		auto sm = sp->GetStorageManager();

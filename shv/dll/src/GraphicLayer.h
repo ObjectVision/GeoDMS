@@ -75,7 +75,7 @@ public:
 
 	const LayerClass* GetLayerClass() const;
 
-	virtual TokenID GetID() const override;
+	virtual TokenID GetID() const;
 
 	virtual void SelectPoint(CrdPoint /*worldPnt*/ , EventID) {};
 	virtual void SelectRect(CrdRect /*worldRect*/, EventID) {};

@@ -36,7 +36,7 @@ class AbstrUnit;
 
 SharedStr AsStrWithLabel(const AbstrUnit* au, const AbstrValue* valuePtr, bool useMetric, SharedDataItemInterestPtr& ipHolder, streamsize_t maxLen, GuiReadLock& lock, WeakStr result)
 {
-	SharedUnitInterestPtr uip = au; // covered by ipHolder soon.
+	SharedUnitInterestPtr uip = { au, existing_obj{} }; // covered by ipHolder soon.
 	if (!ipHolder)
 	{
 		assert(IsMainThread());

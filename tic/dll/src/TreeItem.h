@@ -20,7 +20,6 @@
 #include "act/garbage_can.h"
 #include "mci/SingleLinkedTree.h"
 #include "ptr/InterestHolders.h"
-#include "ptr/PersistentSharedObj.h"
 #include "ptr/OwningPtr.h"
 #include "ptr/SharedPtr.h"
 #include "ptr/SharedStr.h"
@@ -30,7 +29,28 @@
 #include "OperArgPolicy.h"
 
 #include "TreeItemFlags.h"
-
+#include <act/ActorEnums.h>
+#include <act/ActorVisitor.h>
+#include <act/SupplierVisitFlag.h>
+#include <cpc/Types.h>
+#include <dbg/Check.h>
+#include <geo/CharPtrRange.h>
+#include <mci/Class.h>
+#include <mci/Object.h>
+#include <mci/PropDef.h>
+#include <xml/XMLOut.h>
+#include <LispRef.h>
+/*
+#include "AbstrDataItem.h"
+#include "DataLocks.h"
+#include "OperGroups.h"
+#include "TreeItemClass.h"
+#include <atomic>
+#include <functional>
+#include <memory>
+#include <optional>
+#include <utility>
+*/
 //----------------------------------------------------------------------
 // class  : TreeItem Facets
 //----------------------------------------------------------------------
@@ -122,9 +142,10 @@ Lifetime:
 - Subitems manage insertion/removal via AddItem/RemoveItem.
 - Parent is a SharedTreeItem to ensure safe upward traversal without immediate deletion of parents.
 */
-struct TreeItem : Actor, ItemTree
+
+struct TreeItem : PersistentSharedActor, ItemTree
 {
-	using base_type = Actor ;
+	using base_type = PersistentSharedActor;
 
 	friend Object* CreateFunc<TreeItem>();
 
@@ -195,7 +216,7 @@ public:
 	TIC_CALL void SetStorageManager(CharPtr storageName, CharPtr storageType, StorageReadOnlySetting readOnly, CharPtr driver = nullptr, CharPtr options = nullptr);
 	TIC_CALL bool HasStorageManager() const;
 	TIC_CALL AbstrStorageManager* GetStorageManager(bool throwOnFailure = true) const;
-          AbstrStorageManager* GetCurrStorageManager() const { return m_StorageManager; }
+          AbstrStorageManager* GetCurrStorageManager() const { return m_StorageManager.get(); }
 	// Disable storage to force in-memory or calculator-only operation.
 	TIC_CALL void DisableStorage(bool disableStorage=true); // don't use storage
           bool IsDisabledStorage() const { return GetTSF(TSF_DisabledStorage); }
@@ -229,7 +250,7 @@ public:
 	// Parents
 
 	// Parent access (PersistentSharedObj override) and storage parent resolution (for R/W).
-	TIC_CALL [[nodiscard]] const PersistentSharedObj* GetParent () const noexcept override;       // override PersistentSharedObj
+	TIC_CALL [[nodiscard]] const PersistentObject* GetParent () const noexcept override;       // override PersistentSharedObj
           SharedTreeItem GetTreeParent   () const   { return m_Parent; }
 	TIC_CALL SharedTreeItem GetStorageParent(bool alsoForWrite) const;
 	TIC_CALL SharedTreeItem GetCurrStorageParent(bool alsoForWrite) const;

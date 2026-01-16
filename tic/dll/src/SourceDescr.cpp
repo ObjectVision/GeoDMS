@@ -183,7 +183,7 @@ namespace { // local defs
 				m_hasError = true;
 			}
 			if (m_hasError && !m_FirstErrorItem)
-				m_FirstErrorItem = dynamic_cast<const TreeItem*>(act);
+				m_FirstErrorItem = SharedTreeItem(dynamic_cast<const TreeItem*>(act), existing_obj{});
 		}
 		return mi->second;
 	}

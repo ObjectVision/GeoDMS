@@ -33,8 +33,8 @@ granted by an additional written contract for support, assistance and/or develop
 
 /**************** RewriteRules with some type security *****************/
 
-typedef AssocPtr RewriteRulePtr;
-typedef Assoc    RewriteRule;
+using RewriteRulePtr = AssocPtr;
+using RewriteRule = Assoc;
 
 bool CompareRewriteRules(RewriteRulePtr lhs, RewriteRulePtr rhs)
 {
@@ -52,15 +52,15 @@ public:
 //	AssocList() {};	//	creates an empty AssocList
 	RewriteRuleSet(AssocListPtr rewriteRuleList)
 	{
-		dms_assert(!rewriteRuleList.IsFailed());
+		assert(!rewriteRuleList.IsFailed());
 		m_Data.reserve(rewriteRuleList.Length());
 		while (!rewriteRuleList.IsEmpty())
 		{
 			RewriteRulePtr rule = rewriteRuleList.Head();
-			m_Data.push_back(rule);
+			m_Data.emplace_back(rule);
 			rewriteRuleList = rewriteRuleList.Tail();
 		}
-		dms_assert(m_Data.size() == m_Data.capacity());
+		assert(m_Data.size() == m_Data.capacity());
 		std::stable_sort(m_Data.begin(), m_Data.end(), CompareRewriteRules);
 	}
 

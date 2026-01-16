@@ -160,15 +160,19 @@ struct bit_sequence;
 //----------------------------------------------------------------------
 // Forward references 
 //----------------------------------------------------------------------
+template <typename VBase> struct SharedObjWrap;
 
 class  Object;
+class  PersistentObject;
 class  AbstrValue;
 class  AbstrPropDef;
 class  Class;
 class  ValueClass;
-class  SharedObj;
-class  PersistentSharedObj;
-using zombie_destroyer = std::unique_ptr<SharedObj>;
+
+struct Actor;
+
+using SharedObj = SharedObjWrap<Object>;
+using PersistentSharedActor = SharedObjWrap<Actor>;
 
 struct IString;
 struct Undefined;
@@ -317,17 +321,26 @@ using TileCRef = std::shared_ptr<const void>;
 // metafunc : pointer_traits
 //----------------------------------------------------------------------
 
-template <typename T> struct pointer_traits_helper {
-	typedef T value_type; 
-	typedef T* ptr_type; 
-	typedef T& ref_type; 
+template <typename T> struct pointer_traits_helper 
+{
+	using value_type = T;
+	using ptr_type = T*;
+	using ref_type = T&;
 	static T* get_ptr(T* ptr) { return ptr; }
-//	const T* get_ptr(const T* ptr) { return ptr; }
 };
 
 template <typename P> struct pointer_traits;
+
 template <typename T> struct pointer_traits<T*>             : pointer_traits_helper<T> {};
-template <typename T> struct pointer_traits<SharedPtr<T>  > : pointer_traits_helper<T> {};
+template <typename T> struct pointer_traits<SharedPtr<T>  > 
+{
+	using value_type = T;
+	using ptr_type = T*;
+	using ref_type = T&;
+	static T* get_ptr(const SharedPtr<T>& ptr) { return ptr.get(); }
+	//	const T* get_ptr(const T* ptr) { return ptr; }
+};
+
 template <typename T> struct pointer_traits<OwningPtr<T>  > : pointer_traits_helper<T> {};
 template <typename T> struct pointer_traits<WeakPtr  <T>  > : pointer_traits_helper<T> {};
 template <typename P> struct pointer_traits<InterestPtr<P>> : pointer_traits<P> {};

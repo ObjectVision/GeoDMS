@@ -1182,28 +1182,28 @@ auto GetGeometryTypeFromLayerHolder(const TreeItem* subItem) -> OGRwkbGeometryTy
 
 const TreeItem* GetLayerHolderFromDataItem(const TreeItem* storageHolder, const TreeItem* subItem)
 {
-	dms_assert(storageHolder && subItem && storageHolder->DoesContain(subItem)); // PRECONDITION
+	assert(storageHolder && subItem && storageHolder->DoesContain(subItem)); // PRECONDITION
 
 	const TreeItem* unitItem = subItem;
 	while (unitItem && unitItem != storageHolder && not IsUnit(unitItem))
 	{
-		unitItem = unitItem->GetTreeParent();
+		unitItem = unitItem->GetTreeParent().get();
 
-		if (unitItem->GetCurrSourceItem() == unitItem->GetTreeParent()) // case of nested unit.
+		if (unitItem->GetCurrSourceItem() == unitItem->GetTreeParent().get()) // case of nested unit.
 		{
 			if (unitItem == storageHolder)
 				break;
-			unitItem = unitItem->GetTreeParent();
+			unitItem = unitItem->GetTreeParent().get();
 		}
 	}
-	dms_assert(!unitItem || storageHolder->DoesContain(unitItem)); // INVARIANT ?
+	assert(!unitItem || storageHolder->DoesContain(unitItem)); // INVARIANT ?
 	if (!unitItem || !IsUnit(unitItem))
 	{
 		unitItem = subItem;
 		if (subItem != storageHolder)
-			unitItem = subItem->GetTreeParent();
+			unitItem = subItem->GetTreeParent().get();
 	}
-	dms_assert(unitItem && storageHolder->DoesContain(unitItem)); // POSTCONDITION ?
+	assert(unitItem && storageHolder->DoesContain(unitItem)); // POSTCONDITION ?
 	return unitItem;
 }
 

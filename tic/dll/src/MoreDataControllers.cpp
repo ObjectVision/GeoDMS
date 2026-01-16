@@ -27,6 +27,7 @@
 #include "LockLevels.h"
 
 #include "AbstrDataItem.h"
+#include "AbstrUnit.h"
 #include "CopyTreeContext.h"
 #include "DataArray.h"
 #include "DataItemClass.h"
@@ -97,7 +98,7 @@ const TreeItem* GetItem(const ArgRef& ar)
 	return std::get<1>(ar).get_ptr();
 }
 
-const Actor* GetStatusActor(const ArgRef& ar)
+const PersistentSharedActor* GetStatusActor(const ArgRef& ar)
 {
 	if (ar.index() == 0)
 	{

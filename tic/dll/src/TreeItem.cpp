@@ -8,7 +8,7 @@
 #pragma hdrstop
 #endif //defined(CC_PRAGMAHDRSTOP)
 
-
+#include "TreeItem.h"
 //----------------------------------------------------------------------
 // used modules and forward class references
 //----------------------------------------------------------------------
@@ -290,7 +290,7 @@ TreeItem::~TreeItem ()
 	dms_assert( !m_State.Get(actor_flag_set::AF_SupplInterest) );
 
 	if (m_Parent)
-		const_cast<TreeItem*>(m_Parent.get_ptr())->RemoveItem(this);
+		const_cast<TreeItem*>(m_Parent.get())->RemoveItem(this);
 
 	if (GetTSF(TSF_HasStoredProps))
 		RemoveStoredPropValues(this);
@@ -310,7 +310,7 @@ static void ResetAllKeepInterest(TreeItem* item)
 	{
 		walker->SetKeepDataState(false); 
 		if (walker->mc_RefItem)
-			const_cast<TreeItem*>(walker->mc_RefItem.get_ptr())->SetKeepDataState(false); 
+			const_cast<TreeItem*>(walker->mc_RefItem.get())->SetKeepDataState(false); 
 		walker = item->WalkCurrSubTree(walker);
 	} while (walker);
 }
@@ -321,7 +321,7 @@ void TreeItem::DisableAutoDelete() // does not call UpdateMetaInfo
 	if (IsAutoDeleteDisabled())
 		return;
 
-	SharedPtr<TreeItem> subItem = _GetFirstSubItem(); 
+	TreeItem* subItem = _GetFirstSubItem(); 
 	while (subItem)
 	{
 		subItem->DisableAutoDelete();
@@ -348,13 +348,14 @@ void TreeItem::EnableAutoDeleteImpl() // does not call UpdateMetaInfo
 	auto subItem = SharedPtr<TreeItem>(_GetFirstSubItem(), no_zombies{});
 	while (subItem)
 	{
-		auto nextItem = SharedPtr<TreeItem>(subItem->GetNextItem(), no_zombies{});
 //		auto nextItemPtr = subItem->GetNextItem();
+
 
 		if (subItem->IsAutoDeleteDisabled() )
 			subItem->EnableAutoDeleteImpl();
 
-//		MG_ASSERT(subItem->IsOwned());
+		MG_ASSERT(subItem->IsOwned());
+		auto nextItem = SharedPtr<TreeItem>(subItem->GetNextItem(), no_zombies{});
 
 //		auto nextItem = SharedPtr<TreeItem>(subItem->GetNextItem(), no_zombies{});
 //		MG_CHECK(nextItem.get_ptr() == nextItemPtr);
@@ -362,7 +363,8 @@ void TreeItem::EnableAutoDeleteImpl() // does not call UpdateMetaInfo
 		// subItem = subItem->GetNextItem(); // this line may cause the destruction of the old subItem
 //		subItem = SharedPtr<TreeItem>(subItem->GetNextItem(), no_zombies{});
 
-		subItem.swap(static_cast<SharedPtr<TreeItem>::base_type&>(nextItem));
+//		subItem = std::move(nextItem);
+		subItem.swap(nextItem);
 	}
 
 //	m_UsingCache.reset();
@@ -382,7 +384,7 @@ void TreeItem::EnableAutoDeleteRootImpl() // does not call UpdateMetaInfo
 	dbg_assert(ExplainValue_IsClear());
 
 
-	dms_assert(!SessionData::Curr() || !SessionData::Curr()->GetConfigRoot() || SessionData::Curr()->GetConfigRoot() == this );
+	assert(!SessionData::Curr() || !SessionData::Curr()->GetConfigRoot() || SessionData::Curr()->GetConfigRoot().get() == this);
 
 	DBG_TRACE(("START ResetAllKeepIterest(this)"));
 	ResetAllKeepInterest(this);              // neccesary to bring interestCount to 0 and DataInMem to DiskCache         
@@ -497,7 +499,7 @@ auto NameTreeReg_GetParentAndBranchID(CharPtrRange subItemNames) -> name_pair_t
 
 TokenID TreeItem::GetID () const
 {
-	dms_assert(m_Parent.is_null() || m_ID); // All SubItems must have a name
+	assert(m_ID || !m_Parent.has_ptr()); // All SubItems must have a name
 	return m_ID;
 }
 
@@ -748,7 +750,11 @@ void TreeItem::SetCalculator(AbstrCalculatorRef pr) const
 
 SharedTreeItemInterestPtr TreeItem::GetInterestPtrOrNull() const 
 {
-	return static_cast<const TreeItem*>(Actor::GetInterestPtrOrNull().get_ptr()); 
+	auto actorIter = Actor::GetInterestPtrOrNull();
+	auto result = MakeSharedFromBorrowedObjectPtr( 
+		static_cast<const TreeItem*>(actorIter.get_ptr())
+		);
+	return result;
 }
 
 bool TreeItem::HasCalculatorImpl() const  noexcept
@@ -975,7 +981,7 @@ bool TreeItem::CheckResultItem(const TreeItem* refItem) const
 const TreeItem* TreeItem::GetCurrRefItem() const noexcept
 {
 //	assert(Was(ProgressState::MetaInfo) || WasFailed() || IsPassor() || IsUnit(this) && AsUnit(this)->IsDefaultUnit());
-	return mc_RefItem;
+	return mc_RefItem.get();
 }
 
 const TreeItem* TreeItem::GetReferredItem() const  noexcept
@@ -1051,11 +1057,11 @@ const TreeItem* TreeItem::GetCurrUltimateSourceItem() const noexcept
 }
 
 // ============ SetRefItem
-struct OldRefDecrementer : SharedPtr<const Actor>
+struct OldRefDecrementer : SharedPtr<const PersistentSharedActor>
 {
 	~OldRefDecrementer() {
 		if (has_ptr())
-			get_ptr()->DecInterestCount();
+			get()->DecInterestCount();
 	}
 	using SharedPtr::operator=;
 };
@@ -1068,7 +1074,7 @@ void TreeItem::SetReferredItem(const TreeItem* refItem) const
 
 	assert(refItem != this);
 	assert(!refItem || !refItem->InTemplate());
-	if (mc_RefItem == refItem)
+	if (mc_RefItem.get() == refItem)
 		return;
 
 #if defined(MG_DEBUG_INTERESTSOURCE_LOGGING)
@@ -1108,7 +1114,7 @@ void TreeItem::SetReferredItem(const TreeItem* refItem) const
 
 	// remove the old interest
 	OldRefDecrementer oldRefItemCounter;
-	SharedPtr<const TreeItem> tmpRefItemHolder = refItem;
+	auto tmpRefItemHolder = MakeSharedFromBorrowedObjectPtr(refItem);
 	TreeItemInterestPtr newRefItemCounter;
 
 retry:
@@ -1143,9 +1149,9 @@ retry:
 
 	mc_RefItem->DetermineState();
 	if (GetKeepDataState()) 
-		const_cast<TreeItem*>(mc_RefItem.get_ptr())->SetKeepDataState(true); // LET OP: State is niet weggehaald bij vorige refItem (want er zijn misschien nog andere keepers)
+		const_cast<TreeItem*>(mc_RefItem.get())->SetKeepDataState(true); // LET OP: State is niet weggehaald bij vorige refItem (want er zijn misschien nog andere keepers)
 	if (GetLazyCalculatedState())
-		const_cast<TreeItem*>(mc_RefItem.get_ptr())->SetLazyCalculatedState(true); // LET OP: State is niet weggehaald bij vorige refItem (want er zijn misschien nog andere keepers)
+		const_cast<TreeItem*>(mc_RefItem.get())->SetLazyCalculatedState(true); // LET OP: State is niet weggehaald bij vorige refItem (want er zijn misschien nog andere keepers)
 
 	const UInt32 inheritedFlags = TSF_Depreciated | TSF_Categorical;
 	m_StatusFlags.SetBits(inheritedFlags, mc_RefItem->m_StatusFlags.GetBits(inheritedFlags));
@@ -1153,7 +1159,7 @@ retry:
 
 // ============ GetParent
 
-[[nodiscard]] const PersistentSharedObj* TreeItem::GetParent () const noexcept
+[[nodiscard]] const PersistentObject* TreeItem::GetParent () const noexcept
 {
 	return GetTreeParent();
 }
@@ -1256,40 +1262,40 @@ void TreeItem::SetFreeDataState(bool value)
 SharedTreeItem TreeItem::GetStorageParent (bool alsoForWrite) const
 {
 	if (GetTSF(TSF_InTemplate | TSF_IsCacheItem))
-		return nullptr;
+		return {};
 	const TreeItem* storageParent = this;
 	do {
 		if (storageParent->IsDisabledStorage())
-			return nullptr;
+			return {};
 		if (storageParent->HasStorageManager())
 		{
 			if (alsoForWrite && storageParent->GetStorageManager()->IsReadOnly())
-				return nullptr;
-			return storageParent;
+				return {};
+			return MakeSharedFromBorrowedObjectPtr( storageParent );
 		}
-		storageParent = storageParent->m_Parent;
+		storageParent = storageParent->m_Parent.get();
 	} while (storageParent);
-	return nullptr;
+	return {};
 }
 
 SharedTreeItem TreeItem::GetCurrStorageParent(bool alsoForWrite) const
 {
 	if (GetTSF(TSF_InTemplate | TSF_IsCacheItem))
-		return nullptr;
+		return {};
 	const TreeItem* storageParent = this;
 	do {
 		if (storageParent->IsDisabledStorage())
-			return nullptr;
+			return {};
 		auto sm = storageParent->GetCurrStorageManager();
 		if (sm)
 		{
 			if (alsoForWrite && sm->IsReadOnly())
-				return nullptr;
-			return storageParent;
+				return {};
+			return MakeSharedFromBorrowedObjectPtr(storageParent);
 		}
-		storageParent = storageParent->m_Parent;
+		storageParent = storageParent->m_Parent.get();
 	} while (storageParent);
-	return nullptr;
+	return {};
 }
 
 bool TreeItem::IsLoadable() const
@@ -1357,7 +1363,7 @@ bool TreeItem::IsCurrStorable() const
 {
 	if (!IsDataItem(this) && !IsUnit(this))
 		return false;
-	const TreeItem* storageParent = GetCurrStorageParent(true);
+	const TreeItem* storageParent = GetCurrStorageParent(true).get();
 	if (!storageParent || !storageParent->GetStorageManager()->IsWritable())
 		return false;
 	// see if any of the ancestors up to the storageParent has the storageReadOnly property
@@ -1368,7 +1374,7 @@ bool TreeItem::IsCurrStorable() const
 			return false;
 		if (self == storageParent)
 			return true;
-		self = self->GetTreeParent();
+		self = self->GetTreeParent().get();
 		assert(self);
 	}
 }
@@ -4506,7 +4512,7 @@ const SourceLocation* TreeItem::GetLocation() const
 {
 	if (m_Location)
 		return m_Location;
-	return Actor::GetLocation();
+	return base_type::GetLocation();
 }
 
 SharedStr TreeItem::GetConfigFileName() const

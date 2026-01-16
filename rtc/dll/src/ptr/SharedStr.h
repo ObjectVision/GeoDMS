@@ -9,6 +9,7 @@
 
 #include "geo/BaseBounds.h"
 #include "geo/iterrangefuncs.h"
+#include "geo/CharPtrRange.h"
 #include "geo/StringBounds.h"
 #include "geo/Undefined.h"
 #include "ptr/IterCast.h"
@@ -188,21 +189,23 @@ inline constexpr SharedCharArray* SharedCharArray_CreateUndefined() { return nul
 
 inline bool IsDefined(const SharedCharArray* sca) { return sca != nullptr; }
 
-struct SharedCharArrayPtr : protected WeakPtrWrap<ptr_wrap<SharedCharArray, copyable> >
+template <typename BasePtr>
+struct SharedCharArrayPtrWrap : protected BasePtr
 {
 	using array_type = SharedCharArray;
 	using pointer = array_type*;
 	using const_pointer = const array_type*;
 	using iterator = array_type::iterator;
 	using const_iterator = array_type::const_iterator;
+	using this_type = SharedCharArrayPtrWrap<BasePtr>;
 
-	constexpr SharedCharArrayPtr(pointer p=0) noexcept : WeakPtrWrap(p) {}
+	using BasePtr::BasePtr;
 
-	using WeakPtrWrap::has_ptr;
-	const_pointer get_ptr() const { return WeakPtrWrap::get_ptr(); }
-	pointer       get_ptr()       { return WeakPtrWrap::get_ptr(); }
+	using BasePtr::has_ptr;
+	const_pointer get_ptr() const { return BasePtr::get(); }
+	pointer       get_ptr()       { return BasePtr::get(); }
 
-	bool IsDefined() const { return ::IsDefined(get_ptr()); }
+	bool IsDefined() const { return has_ptr(); }
  	bool empty() const { return ssize() == 0; }
 
 	CharPtr c_str() const { return has_ptr() ?  get_ptr()->begin() : ""; }
@@ -211,49 +214,155 @@ struct SharedCharArrayPtr : protected WeakPtrWrap<ptr_wrap<SharedCharArray, copy
 	CharPtr cbegin() const { return begin();  }
 	CharPtr csend () const { return send();  }
 	SizeT   ssize() const { return has_ptr() ?  get_ptr()->size()-1: 0;  }
-	char    sback() const { dms_assert(has_ptr()); return m_Ptr->end()[-2]; }
-	char operator [] (SizeT i) const { assert(m_Ptr && i < m_Ptr->size()); return m_Ptr->begin()[i]; }
+	char    sback() const { assert(has_ptr()); assert(get_ptr()->size() > 1);  return get_ptr()->end()[-2]; }
+	char operator [] (SizeT i) const { assert(get_ptr() && i < get_ptr()->size()); return get_ptr()->begin()[i]; }
 
-	RTC_CALL CharPtr find(char ch)                     const;
-	RTC_CALL CharPtr find(CharPtr first, CharPtr last) const;
-	RTC_CALL CharPtr find(CharPtr str)                 const;
-	RTC_CALL bool operator < (SharedCharArrayPtr b) const;
-	RTC_CALL bool operator ==(SharedCharArrayPtr b) const;
-	RTC_CALL bool operator !=(SharedCharArrayPtr b) const;
+	CharPtr find(char ch)                     const { return std::find(begin(), send(), ch); }
+	CharPtr find(CharPtr first, CharPtr last) const { return Search(CharPtrRange(begin(), send()), CharPtrRange(first, last)); }
+	CharPtr find(CharPtr str)                 const { return find(str, str + StrLen(str)); }
 
-	RTC_CALL bool operator < (CharPtr b) const;
-	RTC_CALL bool operator ==(CharPtr b) const;
-	RTC_CALL bool operator !=(CharPtr b) const;
-	RTC_CALL CharPtrRange AsRange() const;
-	RTC_CALL std::string AsStdString() const;
+	template <typename OthBasePtr>
+	bool operator < (const SharedCharArrayPtrWrap<OthBasePtr>& b) const
+	{
+		if (!IsDefined())
+			return b.IsDefined();
+		if (!b.IsDefined())
+			return false;
+		return lex_compare(begin(), send(), b.begin(), b.send());
+	}
+
+	template <typename OthBasePtr>
+	bool operator ==(const SharedCharArrayPtrWrap<OthBasePtr>& b) const
+	{
+		if (!IsDefined())
+			return !b.IsDefined();
+		if (!b.IsDefined())
+			return false;
+		return equal(begin(), send(), b.begin(), b.send());
+	}
+
+	template <typename OthBasePtr>
+	bool operator !=(const SharedCharArrayPtrWrap<OthBasePtr>& b) const
+	{
+		if (!IsDefined())
+			return b.IsDefined();
+		if (!b.IsDefined())
+			return true;
+		return !equal(begin(), send(), b.begin(), b.send());
+	}
+
+	bool operator < (CharPtr b) const
+	{
+		if (!::IsDefined(b))
+			return false;
+		if (!IsDefined())
+			return true;
+		assert(b && IsDefined());
+		if (empty())
+			return *b;
+		assert(has_ptr());
+		auto sz = get_ptr()->size();
+		assert(sz);
+		assert(begin()[sz - 1] == char(0));
+		return strncmp(begin(), b, sz) < 0;
+	}
+
+	bool operator ==(CharPtr b) const
+	{
+		if (!IsDefined())
+			return !::IsDefined(b);
+		if (!::IsDefined(b))
+			return false;
+		assert(b && IsDefined());
+		if (empty())
+			return !*b;
+		assert(has_ptr());
+		auto sz = get_ptr()->size();
+		assert(sz);
+		assert(begin()[sz - 1] == char(0));
+		return strncmp(begin(), b, sz) == 0 && b[sz] == char(0); // ensure that b is also terminated with 0
+	}
+
+	bool operator !=(CharPtr b) const
+	{
+		if (!IsDefined())
+			return ::IsDefined(b);
+		if (!::IsDefined(b))
+			return true;
+		assert(b && IsDefined());
+		if (empty())
+			return *b;
+		assert(has_ptr());
+		auto sz = get_ptr()->size();
+		assert(sz);
+		assert(begin()[sz - 1] == char(0));
+		return strnicmp(begin(), b, sz) != 0;
+	}
+
+	CharPtrRange AsRange() const
+	{
+		if (!has_ptr())
+			return {};
+		return CharPtrRange(get_ptr()->begin(), get_ptr()->end() - 1);
+	}
+
+
+	std::string AsStdString() const
+	{
+		auto ptr = get_ptr();
+		if (!::IsDefined(ptr))
+			return std::string(UNDEFINED_VALUE_STRING, UNDEFINED_VALUE_STRING_LEN);
+		assert(ptr);
+		assert(ptr->size());
+		return std::string(ptr->begin(), ptr->size() - 1);
+	}
+
+//	template <typename OthBasePtr>
+//	SharedStr operator +(const SharedCharArrayPtrWrap<OthBasePtr>& b) const
+//	{
+//		return this->AsRange() + b.AsRange();
+//	}
+
+	SharedStr operator +(const CharPtrRange& b) const;
+	SharedStr operator +(CharPtr b) const;
+
+	SharedStr operator +(const SharedStr& b) const;
+	SharedStr operator +(const WeakStr& b) const;
 
 	struct hasher {
-		RTC_CALL std::size_t operator()(const SharedCharArrayPtr& v) const noexcept;
+		std::size_t operator()(const this_type& v) const noexcept
+		{
+			AsciiFoldedChunkedCaseInsensitiveHasher hasherFunc;
+			return hasherFunc(CharPtrRange{ v.begin(), v.send() });
+		}
+
 	};
 
-	void swap(SharedCharArrayPtr& oth) { WeakPtrWrap::swap(oth); }
+	void swap(this_type& oth) { BasePtr::swap(oth); }
 };
 
 //----------------------------------------------------------------------
 
-struct WeakStr: WeakPtrWrap<SharedCharArrayPtr>
+struct WeakStr: SharedCharArrayPtrWrap< WeakPtr<SharedCharArray> >
 {
+	using base_type = SharedCharArrayPtrWrap< WeakPtr<SharedCharArray> >;
+
 	WeakStr(const SharedStr& str);
 	RTC_CALL operator CharPtrRange() const;
 };
 
 //----------------------------------------------------------------------
 
-struct SharedStr : SharedPtrWrap<SharedCharArrayPtr> 
+struct SharedStr : SharedCharArrayPtrWrap<SharedPtr<SharedCharArray> >
 {
 private:
-	using base_type = SharedPtrWrap;
+	using base_type = SharedCharArrayPtrWrap<SharedPtr<SharedCharArray> >;
 	using size_t = SharedCharArray::size_t;
 
 public:
 	RTC_CALL SharedStr() noexcept;
 //	SharedStr(CharPtr begin, CharPtr end MG_DEBUG_ALLOCATOR_SRC(CharPtr srcStr = "SharedStr")): base_type(SharedCharArray_Create(begin, end MG_DEBUG_ALLOCATOR_SRC_PARAM) ){}
-	SharedStr(WeakStr str) : base_type(str.get_ptr(), no_zombies{}) { assert(get_ptr() || !str.get_ptr()); }
+	SharedStr(WeakStr str) : base_type(str.get_ptr(), existing_obj{}) { assert(get_ptr() || !str.get_ptr()); }
 	SharedStr(SharedStr&& str) noexcept  : base_type(std::move(str)) {}
 
 	explicit SharedStr(const SharedStr& rhs) = default;
@@ -270,8 +379,8 @@ public:
 	RTC_CALL explicit SharedStr(const struct TokenStr& str MG_DEBUG_ALLOCATOR_SRC(CharPtr srcStr = "SharedStr::SharedStr(const struct TokenStr&)"));
 	RTC_CALL SharedStr(const SA_ConstReference<char>& range MG_DEBUG_ALLOCATOR_SRC(CharPtr srcStr = "SharedStr::SharedStr(const SA_ConstReference<char>&)"));
 
-	void operator = (CharPtr zStr) { reset(SharedCharArray_Create(zStr MG_DEBUG_ALLOCATOR_SRC("SharedStr::operator = (CharPtr)"))); }
-	void operator = (const char8_t* zStr) { reset(SharedCharArray_Create(reinterpret_cast<CharPtr>(zStr) MG_DEBUG_ALLOCATOR_SRC("SharedStr::operator = (const char8_t*)"))); }
+	void operator = (CharPtr zStr) { this->reset(SharedCharArray_Create(zStr MG_DEBUG_ALLOCATOR_SRC("SharedStr::operator = (CharPtr)"))); }
+	void operator = (const char8_t* zStr) { this->reset(SharedCharArray_Create(reinterpret_cast<CharPtr>(zStr) MG_DEBUG_ALLOCATOR_SRC("SharedStr::operator = (const char8_t*)"))); }
 
 	void operator = (WeakStr  str) { auto tmp = SharedStr(str); this->swap(tmp); }
 	RTC_CALL void operator = (const TokenID& id);
@@ -285,15 +394,19 @@ public:
 
 	RTC_CALL void clear();
 
-	RTC_CALL void operator +=(Char    rhs);
-	RTC_CALL void operator +=(CharPtrRange rhs);
+	template <typename RHS>
+	void operator +=(RHS&& rhs) {
+		auto tmp = SharedStr(this->AsRange() + std::forward<RHS>(rhs));
+		this->swap(tmp);
+	}
 
 	using base_type::begin;
 	using base_type::send;
 	using base_type::cbegin;
 	using base_type::csend;
 	using base_type::has_ptr;
-	using base_type::get_ptr;
+
+	auto get_ptr() const { return base_type::get(); }
 
 	char* begin() { MakeUnique(); return has_ptr() ?  get_ptr()->begin() : nullptr;  }
 	char* send () { MakeUnique(); return has_ptr() ?  get_ptr()->end()-1 : nullptr;  }
@@ -331,12 +444,53 @@ friend inline SharedStr UndefinedValue(const SharedStr*) { return SharedStr(Unde
 };
 
 inline WeakStr::WeakStr(const SharedStr& str)
-	:	WeakPtrWrap(str.WeakPtrWrap::get_ptr()) 
+	:	base_type(str.get()) 
 {}
 
 RTC_CALL SharedStr operator + (CharPtrRange lhs, CharPtrRange rhs);
-RTC_CALL SharedStr operator + (CharPtrRange lhs, Char    ch );
-RTC_CALL SharedStr operator + (Char    ch , CharPtrRange rhs);
+inline SharedStr operator + (CharPtr lhs, CharPtrRange rhs) { return CharPtrRange(lhs, StrLen(lhs)) + rhs; }
+inline SharedStr operator + (CharPtrRange lhs, const SharedStr& rhs) { return lhs + rhs.AsRange(); }
+inline SharedStr operator + (CharPtr lhs, const SharedStr& rhs) { return CharPtrRange(lhs, StrLen(lhs)) + rhs.AsRange(); }
+
+//RTC_CALL SharedStr operator + (CharPtrRange lhs, Char    ch );
+//RTC_CALL SharedStr operator + (Char    ch , CharPtrRange rhs);
+
+//----------------------------------------------------------------------
+// Section      : forwarded declarations of template member functions
+//----------------------------------------------------------------------
+
+template <typename BasePtr>
+inline auto SharedCharArrayPtrWrap<BasePtr>::operator +(const CharPtrRange& b) const -> SharedStr
+{
+	return this->AsRange() + b;
+}
+
+template <typename BasePtr>
+inline auto SharedCharArrayPtrWrap<BasePtr>::operator +(CharPtr b) const -> SharedStr
+{
+	return this->AsRange() + CharPtrRange(b, StrLen(b));
+}
+
+template <typename BasePtr>
+inline auto SharedCharArrayPtrWrap<BasePtr>::operator +(const SharedStr& b) const -> SharedStr
+{ 
+	return this->AsRange() + b.AsRange(); 
+}
+
+template <typename BasePtr>
+inline auto SharedCharArrayPtrWrap<BasePtr>::operator +(const WeakStr& b) const -> SharedStr
+{ 
+	return this->AsRange() + b.AsRange(); 
+}
+
+template <typename Char, typename Traits, typename BasePtr>
+std::basic_ostream<Char, Traits>& operator << (std::basic_ostream<Char, Traits>& os, const SharedCharArrayPtrWrap<BasePtr>& x)
+{
+	os.write(x.cbegin(), x.ssize());
+	return os;
+}
+
+
 
 //----------------------------------------------------------------------
 // Section      : helper funcs

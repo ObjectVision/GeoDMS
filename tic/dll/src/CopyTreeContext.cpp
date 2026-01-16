@@ -57,12 +57,12 @@ TokenID CopyTreeContext::GetAbsOrRelUnitID(const AbstrUnit* sourceUnit, const Ab
 
 TokenID CopyTreeContext::GetAbsOrRelNameID(const TreeItem* si, const TreeItem* srcTI, TreeItem* dstTI) const
 {
-	dms_assert(si);
-	dms_assert(m_SrcRoot->DoesContain(srcTI));
+	assert(si);
+	assert(m_SrcRoot->DoesContain(srcTI));
 	if (m_SrcRoot->DoesContain(si))
 		return TokenID(srcTI->GetTreeParent()->GetFindableName(si));
 
-	dms_assert(si);
+	assert(si);
 	while (si->IsCacheItem())
 	{
 		si = si->GetBackRef();
@@ -79,13 +79,13 @@ const TreeItem* CopyTreeContext::FindAnchestor(const TreeItem* src) const
 	for (auto cp = m_AnchestorStack.end(); cp != m_AnchestorStack.begin();)
 	{
 		--cp;
-		if (cp->second == src)
-			return cp->first;
+		if (cp->second.get() == src)
+			return cp->first.get();
 	}
 	for (auto cp = m_AnchestorStack.end(); cp != m_AnchestorStack.begin();)
 	{
 		--cp;
-		if (src->DoesContain(cp->second))
+		if (src->DoesContain(cp->second.get()))
 			return src;
 	}
 	return nullptr;
@@ -93,7 +93,7 @@ const TreeItem* CopyTreeContext::FindAnchestor(const TreeItem* src) const
 
 /********** StoredProperty management **********/
 
-typedef std::set<std::pair<const TreeItem*, AbstrPropDef*> > RemoveRequestSet;
+using RemoveRequestSet = std::set<std::pair<const TreeItem*, AbstrPropDef*> >;
 static_ptr<RemoveRequestSet> g_RemoveRequestSet;
 std::mutex g_RemoveRequestMutex;
 

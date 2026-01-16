@@ -286,9 +286,9 @@ namespace { // local defs
 		{
 			const TreeItem* ti = debug_cast<const TreeItem*>(self);
 			assert(ti);
-			const TreeItem* parent = ti->GetTreeParent();
+			auto parent = ti->GetTreeParent();
 			return parent 
-				? (GetValue(ti) != GetValue(parent))
+				? (GetValue(ti) != GetValue(parent.get()))
 				:  GetValue(ti);
 		}
 	};

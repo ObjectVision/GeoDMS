@@ -337,32 +337,32 @@ bool UnitMetric::operator ==(const UnitMetric& rhs) const
 class AbstrUnit;
 
 UnitProjection::UnitProjection(const AbstrUnit* unit)
-	:	m_BaseUnit(unit)
+	: m_BaseUnit(unit, existing_obj{})
 {
 	dms_assert(unit); 
 	dms_assert(m_BaseUnit); 
 	dbg_assert(m_BaseUnit->m_State.GetProgress() >= ProgressState::MetaInfo || m_BaseUnit->WasFailed(FailType::MetaInfo) || m_BaseUnit->IsPassor()); // PRECONDITION / INVARIANT OF UnitProjection
-	dbg_assert(m_BaseUnit->GetCurrUltimateItem() == m_BaseUnit);
+	dbg_assert(m_BaseUnit->GetCurrUltimateItem() == m_BaseUnit.get());
 }
 
 UnitProjection::UnitProjection(const AbstrUnit* unit, DPoint offset, DPoint factor)
 	:	Transformation(offset, factor)
-	,	m_BaseUnit(unit)
+	,	m_BaseUnit(unit, existing_obj{})
 {
 	dms_assert(unit); 
 	dms_assert(m_BaseUnit); 
 	dbg_assert(m_BaseUnit->m_State.GetProgress() >= ProgressState::MetaInfo || m_BaseUnit->WasFailed(FailType::MetaInfo)  || m_BaseUnit->IsPassor()); // PRECONDITION / INVARIANT OF UnitProjection
-	dbg_assert(m_BaseUnit->GetCurrUltimateItem() == m_BaseUnit);
+	dbg_assert(m_BaseUnit->GetCurrUltimateItem() == m_BaseUnit.get());
 }
 
 UnitProjection::UnitProjection(const AbstrUnit* unit, const CrdTransformation& tr)
 	:	Transformation(tr)
-	,	m_BaseUnit(unit)
+	,	m_BaseUnit(unit, existing_obj{})
 {
 	dms_assert(unit); 
 	dms_assert(m_BaseUnit); 
 	dbg_assert(m_BaseUnit->m_State.GetProgress() >= ProgressState::MetaInfo || m_BaseUnit->WasFailed(FailType::MetaInfo) || m_BaseUnit->IsPassor()); // PRECONDITION / INVARIANT OF UnitProjection
-	dbg_assert(m_BaseUnit->GetCurrUltimateItem() == m_BaseUnit);
+	dbg_assert(m_BaseUnit->GetCurrUltimateItem() == m_BaseUnit.get());
 }
 
 UnitProjection::UnitProjection(const UnitProjection& src)
@@ -371,7 +371,7 @@ UnitProjection::UnitProjection(const UnitProjection& src)
 {
 	dms_assert(m_BaseUnit);
 	dbg_assert(m_BaseUnit->m_State.GetProgress() >= ProgressState::MetaInfo || m_BaseUnit->IsPassor()); // PRECONDITION / INVARIANT OF UnitProjection
-	dbg_assert(m_BaseUnit->GetCurrUltimateItem() == m_BaseUnit);
+	dbg_assert(m_BaseUnit->GetCurrUltimateItem() == m_BaseUnit.get());
 }
 
 UnitProjection::~UnitProjection()
@@ -390,7 +390,7 @@ const AbstrUnit* UnitProjection::GetCompositeBase() const
 	const UnitProjection* curr = this;
 	while (curr)
 	{
-		base = curr->m_BaseUnit;
+		base = curr->m_BaseUnit.get();
 		dms_assert(base); // INVARIANT OF UnitProjection
 		dms_assert(!base->IsDefaultUnit() || !curr->IsIdentity());
 		dbg_assert(base->m_State.GetProgress() >= ProgressState::MetaInfo || base->WasFailed() || base->IsPassor()); // PRECONDITION / INVARIANT OF UnitProjection
@@ -413,7 +413,7 @@ Transformation<Float64> UnitProjection::GetCompositeTransform(const UnitProjecti
 	while (curr)
 	{
 		result *= (*curr);
-		const AbstrUnit* base = curr->m_BaseUnit;
+		const AbstrUnit* base = curr->m_BaseUnit.get();
 		dms_assert(base); // INVARIANT OF UnitProjection
 		dms_assert(!base->IsDefaultUnit() || !curr->IsIdentity());
 		dbg_assert(base->m_State.GetProgress() >= ProgressState::MetaInfo || base->WasFailed() || base->IsPassor()); // PRECONDITION

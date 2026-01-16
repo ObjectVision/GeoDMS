@@ -23,7 +23,6 @@
 RTC_CALL SizeT GetAllocationGrannularity();
 RTC_CALL UInt8 GetLog2AllocationGrannularity();
 
-RTC_CALL SizeT GetMemPageSize();
 RTC_CALL UInt8 GetLog2MemPageSize();
 
 inline SizeT NrMemPages(SizeT nrBytes)

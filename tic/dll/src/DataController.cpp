@@ -68,7 +68,7 @@ TreeItemDualRef::~TreeItemDualRef()
 
 void TreeItemDualRef::Set(const TreeItem* ti, bool isNew)
 {
-	if (ti && m_Data != ti)
+	if (ti && m_Data.get() != ti)
 	{
 		assert(IsMetaThread());
 		assert(!m_State.Get(DCF_IsOld|DCF_IsTmp));
@@ -84,7 +84,7 @@ void TreeItemDualRef::Set(const TreeItem* ti, bool isNew)
 			m_State.Set(DCF_IsOld);
 
 
-		m_Data = ti;
+		m_Data = MakeSharedFromBorrowedObjectPtr( ti );
 		if (GetInterestCount())
 		{
 			try {
@@ -112,14 +112,14 @@ void TreeItemDualRef::SetOld(const TreeItem* oldTI)
 
 void TreeItemDualRef::SetTmp(TreeItem* res)
 {
-	dms_assert(res);
+	assert(res);
 	if (!m_Data)
 	{
-		dms_assert(!m_State.Get(DCF_IsOld|DCF_IsTmp));
-		m_Data = res;
+		assert(!m_State.Get(DCF_IsOld|DCF_IsTmp));
+		m_Data = MakeSharedFromBorrowedObjectPtr( res );
 		m_State.Set(DCF_IsTmp);
 	}
-	dms_assert(GetNew() == res);
+	assert(GetNew() == res);
 }
 
 void TreeItemDualRef::Clear()
@@ -131,7 +131,7 @@ void TreeItemDualRef::Clear()
 			if (GetInterestCount())
 				DecDataInterestCount();
 			if (!m_State.Get(DCF_IsOld))
-				const_cast<TreeItem*>(m_Data.get_ptr())->EnableAutoDelete();
+				const_cast<TreeItem*>(m_Data.get())->EnableAutoDelete();
 		}
 		m_Data = nullptr;
 	}
@@ -259,7 +259,7 @@ namespace {
 		{
 			LispPtr head = keyExpr.Left();
 
-			dms_assert(head.IsSymb());
+			assert(head.IsSymb());
 
 			if (head.GetSymbID() == token::sourceDescr)
 			{
@@ -267,30 +267,30 @@ namespace {
 #if defined(MG_DEBUG_LISP_TREE)
 				reportF(SeverityTypeID::ST_MinorTrace, "head=%s", AsString(head).c_str());
 #endif
-				dms_assert(head.IsSymb());
+				assert(head.IsSymb());
 
 				// Is it obvious that keyExpr describes the item that will be found as head.GetSymbID() ? 
 				// Yes it is: only expressions that have been generated from the current config get evaluated.
 				// CalcCache entry descriptions are passive which are used to match valid requests for cached data
-				return new SymbDC(keyExpr, head.GetSymbID() ); 
+				return MakeSharedForNewlyCreatedObject(new SymbDC(keyExpr, head.GetSymbID()));
 			}
 			const AbstrOperGroup* og = AbstrOperGroup::FindName(head->GetSymbID());
-			dms_assert(og->MustCacheResult());
-			return new FuncDC(keyExpr, og);
+			assert(og->MustCacheResult());
+			return MakeSharedForNewlyCreatedObject(new FuncDC(keyExpr, og));
 		}
 		else if (keyExpr.IsSymb())
-			return new SymbDC(keyExpr, keyExpr.GetSymbID());
+			return MakeSharedForNewlyCreatedObject(new SymbDC(keyExpr, keyExpr.GetSymbID()));
 		else if (keyExpr.IsStrn())
-			return new StringDC(keyExpr);
+			return MakeSharedForNewlyCreatedObject(new StringDC(keyExpr));
 		else if (keyExpr.IsNumb())
 		{
-			dms_assert(keyExpr.IsNumb());
-			return new NumbDC(keyExpr);
+			assert(keyExpr.IsNumb());
+			return MakeSharedForNewlyCreatedObject(new NumbDC(keyExpr));
 		}
 		else
 		{
 			assert(keyExpr.IsUI64());
-			return new UI64DC(keyExpr);
+			return MakeSharedForNewlyCreatedObject(new UI64DC(keyExpr));
 		}
 	}
 }	// anonymous namespace
@@ -342,19 +342,19 @@ GetDataControllerImpl(LispPtr keyExpr, bool mayCreate)
 	{
 		auto dcLock = std::unique_lock(sd_DataControllerMapCriticalSeciton);
 
-	retry:
-		dcPtrLoc = s_DcMap.lower_bound(keyExpr);
-		if (dcPtrLoc != s_DcMap.end() && dcPtrLoc->first == keyExpr)
-		{
-			if (!dcPtrLoc->second->IsOwned()) // destruction is pending, wait for it and retry
-			{
-				sd_DataControllerMapCriticalSectionWasRevisited.wait(dcLock);
-				goto retry;
-			}
-			return dcPtrLoc->second;
+		while (true) {
+			dcPtrLoc = s_DcMap.lower_bound(keyExpr);
+			if (dcPtrLoc == s_DcMap.end() || dcPtrLoc->first != keyExpr)
+				break;
+			auto result = MakeSharedFromWeakPtrInsideSync(dcPtrLoc->second);;
+			if (result)
+				return result;
+			if (!mayCreate)
+				return {};
+			sd_DataControllerMapCriticalSectionWasRevisited.wait(dcLock);
 		}
 		if (!mayCreate)
-			return nullptr;
+			return {};
 	}
 	// we now have uqiue access to dcPtrLoc, as this is only called from one thread and keyExpr cannot be self-referential.
 #if defined(MG_DEBUG_LISP_TREE)
@@ -369,7 +369,7 @@ GetDataControllerImpl(LispPtr keyExpr, bool mayCreate)
 	assert(dcRef->GetLispRef() == keyExpr);
 
 	std::lock_guard scopedcLock(sd_DataControllerMapCriticalSeciton);
-	s_DcMap.insert(dcPtrLoc, DataControllerMap::value_type(keyExpr, dcRef));
+	s_DcMap.insert(dcPtrLoc, DataControllerMap::value_type(keyExpr, dcRef.get()));
 	return dcRef;
 }
 
@@ -387,7 +387,7 @@ DataControllerRef GetExistingDataController(LispPtr keyExpr)
 
 auto DataController::CallCalcResult(std::shared_ptr<Explain::Context> context) const -> FutureData
 {
-	FutureData resultHolder(this);
+	FutureData resultHolder(DataControllerRef(this));
 	assert(GetInterestCount());
 	assert(!SuspendTrigger::DidSuspend());
 

@@ -18,6 +18,7 @@ struct newly_obj {};
 struct existing_obj {};
 struct no_zombies {};
 
+/* REMOVE
 template <class Ptr>
 struct SharedPtrWrap : Ptr
 {
@@ -77,7 +78,8 @@ struct SharedPtrWrap : Ptr
 		reset(nullptr);
 	}
 
-	auto delayed_reset() noexcept -> zombie_destroyer
+	template <typename DRT>
+	auto delayed_reset() noexcept -> std::unique_ptr<DRT>
 	{
 		if (!this->m_Ptr)
 			return {};
@@ -110,46 +112,76 @@ protected:
 	}
 	template <typename T> friend struct SharedPtrWrap;
 };
+*/
 
 template <class T>
-struct SharedPtr : SharedPtrWrap<ptr_base<T, copyable> >
+struct SharedPtr
 {
-	using base_type = SharedPtrWrap<ptr_base<T, copyable> >;
-	using typename base_type::pointer;
+	using pointer = T*;
 
-	SharedPtr(std::nullptr_t = nullptr) noexcept {}
+	constexpr SharedPtr() noexcept = default;
+	~SharedPtr() noexcept
+	{
+		DecCount();
+	}
 
 	SharedPtr(SharedPtr<T>&& rhs) noexcept
-		: base_type(std::move(rhs))
-	{ 
-		assert(rhs.m_Ptr == nullptr); 
+		: m_Ptr(rhs.release_ptr())
+	{
+		assert(!m_Ptr || m_Ptr->IsOwned());
 	}
 
 	SharedPtr(const SharedPtr<T>& rhs) noexcept
-		: base_type(rhs)
-	{}
-
-	template <typename U>
-	SharedPtr(U* rhs) noexcept
-		:	base_type(rhs, newly_obj{})
-	{}
-
-	template <typename U>
-	SharedPtr(U* rhs, existing_obj eo) noexcept
-		: base_type(rhs, eo)
+		: m_Ptr(rhs.m_Ptr)
 	{
+		assert(!rhs || rhs->IsOwned());
+		IncCount();
+		assert(!m_Ptr || m_Ptr->IsOwned());
+	}
+	SharedPtr(const WeakPtr<T>& rhs) noexcept
+		: SharedPtr(rhs.get(), existing_obj{})
+	{}
+
+	// use this constructor for newly created objects
+	template <typename U>
+	constexpr SharedPtr(U* rhs, newly_obj) noexcept
+		: m_Ptr(rhs)
+	{
+		assert(!rhs || !rhs->IsOwned());
+		IncCount();
+	}
+
+	// use this constructor for borrowed existing objects, for which existing Shared Ownership can be be assumed
+	template <typename U>
+	SharedPtr(U* rhs, existing_obj) noexcept
+		: m_Ptr(rhs)
+	{
+		assert(!rhs || rhs->IsOwned());
+		IncCount();
+	}
+
+	// use this constructor for borrowed existing objects, for which existing Shared Ownership cannot be be assumed, such as Cache back pointers or side pointers to objects for which abandonment might have been initited but not yet completed.
+	// this always requires user-side synchronization 
+	template <typename U>
+	SharedPtr(U* rhs, no_zombies nz) noexcept
+		: m_Ptr(rhs && rhs->DuplRef() ? rhs : nullptr)
+	{
+		assert(!m_Ptr || m_Ptr->IsOwned());
 	}
 
 	template <typename U>
-	SharedPtr(U* rhs, no_zombies nz) noexcept
-		: base_type(rhs, nz)
-	{}
-
-	template <typename SrcPtr>
-	SharedPtr(SharedPtr<SrcPtr>&& rhs) noexcept
-		: base_type(std::move(rhs))
+	SharedPtr(SharedPtr<U>&& rhs) noexcept
+		: m_Ptr(rhs.release_ptr())
 	{
-		assert(!rhs.get_ptr());
+		assert(!rhs || rhs->IsOwned());
+	}
+
+	template <typename U>
+	SharedPtr(const SharedPtr<U>& rhs) noexcept
+		: m_Ptr(rhs.get())
+	{
+		assert(!rhs || rhs->IsOwned());
+		IncCount();
 	}
 
 	SharedPtr<T>& operator =(const SharedPtr<T>& rhs) noexcept
@@ -165,23 +197,89 @@ struct SharedPtr : SharedPtrWrap<ptr_base<T, copyable> >
 		return *this;
 	}
 
-	template <typename U>
-	SharedPtr& operator =(U* rhs) noexcept
-	{ 
-		if (this->m_Ptr != rhs)   // adjust if pointer types differ
-		{
-			// construct wrapper that calls IncCount that already calls IncRef on the rhs (if non-null)
-			auto tmp = SharedPtr<T>(rhs);
-			this->swap(tmp);     // tmp now holds old pointer, for which Release should be called by DecCount from tmp's dtor
-		}
-		return *this;
+	void operator =(std::nullptr_t) noexcept
+	{
+		reset();
 	}
+
+	operator pointer() const noexcept { return this->m_Ptr; } // TODO : REMOVE and be more explicit
+	pointer get() const noexcept { return this->m_Ptr; }
+	pointer get_ptr() const noexcept { return this->m_Ptr; }
+	bool has_ptr() const noexcept { return this->m_Ptr != nullptr; }
+	bool is_null() const noexcept { return this->m_Ptr == nullptr; }
+	operator bool() const noexcept { return has_ptr(); }
+
+	pointer get_nonnull() const 
+	{ 
+		assert(this->m_Ptr != nullptr); 
+		return this->m_Ptr; 
+	}
+	pointer operator ->() const noexcept { return get_nonnull(); }
+	
+	auto delayed_reset() noexcept -> std::unique_ptr<T>
+	{
+		if (!this->m_Ptr)
+			return {};
+		auto ptr = this->m_Ptr;
+		this->m_Ptr = nullptr;
+		return ptr->DelayedRelease();
+	}
+
+	void swap(SharedPtr<T>& rhs) noexcept
+	{
+		auto tmp = this->m_Ptr;
+		this->m_Ptr = rhs.m_Ptr;
+		rhs.m_Ptr = tmp;
+	}
+	friend void swap(SharedPtr<T>& a, SharedPtr<T>& b) noexcept { a.swap(b); }
+
+	void reset() noexcept
+	{
+		DecCount();
+		*this = nullptr;
+	}
+	void reset(T* ptr) noexcept
+	{
+		auto tmp = SharedPtr<T>(ptr, newly_obj{});
+		this->swap(tmp);
+	}
+
+	pointer release_ptr() noexcept { auto ptr = this->m_Ptr; this->m_Ptr = nullptr; return ptr; }
+private:
+
+	constexpr void IncCount() const noexcept { if (this->m_Ptr) this->m_Ptr->IncRef(); }
+	constexpr void DecCount() const noexcept
+	{
+		if (!this->m_Ptr)
+			return;
+		this->m_Ptr->Release();
+	}
+
+	T* m_Ptr = nullptr;
 };
 
-template<typename T>
-auto MakeShared(T* ptr) -> SharedPtr<T>
+template<typename T, typename OwningTag>
+auto MakeShared(T* ptr, OwningTag tag) -> SharedPtr<T>
 { 
-	return ptr; 
+	return SharedPtr<T>(ptr, tag);
+}
+
+template<typename T>
+auto MakeSharedForNewlyCreatedObject(T* ptr) -> SharedPtr<T>
+{
+	return MakeShared<T>(ptr, newly_obj{});
+}
+
+template<typename T>
+auto MakeSharedFromBorrowedObjectPtr(T* ptr) -> SharedPtr<T>
+{
+	return MakeShared<T>(ptr, existing_obj{});
+}
+
+template<typename T>
+auto MakeSharedFromWeakPtrInsideSync(T* ptr) -> SharedPtr<T>
+{
+	return MakeShared<T>(ptr, no_zombies{});
 }
 
 

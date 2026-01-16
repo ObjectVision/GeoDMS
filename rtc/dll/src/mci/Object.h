@@ -155,11 +155,31 @@ public:
 	RTC_CALL virtual TokenID GetXmlClassID() const;
 
 	// NON VIRTUAL ROUTINES BASED ON THE ABOVE INTERFACE
-	RTC_CALL TokenStr GetName() const;
-	RTC_CALL bool    IsKindOf(const Class* cls) const;
-	RTC_CALL TokenStr GetClsName() const; // Warning: GetClsName is already a #defined symbol in WINUSER.H
-	RTC_CALL TokenID GetClsID() const;
+	[[nodiscard]] RTC_CALL TokenStr GetName() const;
+	[[nodiscard]] RTC_CALL bool    IsKindOf(const Class* cls) const;
+	[[nodiscard]] RTC_CALL TokenStr GetClsName() const; // Warning: GetClsName is already a #defined symbol in WINUSER.H
+	[[nodiscard]] RTC_CALL TokenID GetClsID() const;
 
+	/// Return the full configuration name; default maps to GetName().
+	/// Override to include configuration-specific qualifiers.
+	[[nodiscard]] RTC_CALL virtual auto GetFullName() const -> SharedStr;
+	[[nodiscard]] RTC_CALL virtual auto GetFullCfgName() const -> SharedStr;
+
+	/// Throw a contextualized item error with a pre-wrapped WeakStr message.
+	[[noreturn]] RTC_CALL void throwItemError(WeakStr msgStr) const;
+
+	/// Throw a contextualized item error from a raw CharPtr by building a SharedStr.
+	/// Uses MG_DEBUG_ALLOCATOR_SRC tag for debug allocation tracking.
+	/// TODO: Prefer strongly-typed string view equivalents
+	[[noreturn]] RTC_CALL void throwItemError(CharPtr msg) const;
+
+	/// Format string error helper; forwards args to ::throwItemErrorF.
+	/// Safety: Ensure msg is a safe format string and args match placeholders.
+	/// TODO: Consider type-safe formatting wrappers or compile-time format checks.
+	template<typename ...Args>
+	[[noreturn]] void throwItemErrorF(CharPtr msg, Args&&... args) const {
+		::throwItemErrorF(this, msg, std::forward<Args>(args)...);
+	}
 	DECL_ABSTR(RTC_CALL, Class);
 };
 

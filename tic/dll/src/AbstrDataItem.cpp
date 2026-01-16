@@ -142,7 +142,7 @@ inline const AbstrDataObject* AbstrDataItem::GetCurrRefObj()      const
 	return debug_cast<const AbstrDataItem*>(GetCurrUltimateItem())->GetDataObj();
 }
 
-inline const AbstrDataObject* AbstrDataItem::GetRefObj()          const 
+inline auto AbstrDataItem::GetRefObj() const -> SharedPtr<const AbstrDataObject>
 {
 	assert(IsMetaThread());
 	MG_SIGNAL_ON_UPDATEMETAINFO
@@ -234,7 +234,7 @@ bool AbstrDataItem::DoReadItem(StorageMetaInfoPtr smi)
 
 	auto* sm_ = smi->StorageManager();
 	assert(sm_);
-	auto sm = MakeShared( dynamic_cast<NonmappableStorageManager*>(sm_) );
+	auto sm = MakeSharedFromBorrowedObjectPtr ( dynamic_cast<NonmappableStorageManager*>(sm_) );
 	MG_CHECK(sm);
 	assert(sm->IsOpen());
 	assert(!sm->m_CriticalSection.try_acquire());
@@ -1205,7 +1205,7 @@ struct InterestReporter : DebugReporter
 	using ActorSet = DemandManagement::ActorSet;
 	using ActorMap = std::map<ActorSet::value_type, interest_count_t>;
 
-	static void ReportTree(ActorSet& done, const Actor* focusItem, UInt32 level, CharPtr role)
+	static void ReportTree(ActorSet& done, const PersistentSharedActor* focusItem, UInt32 level, CharPtr role)
 	{
 		if (!focusItem)
 			return;

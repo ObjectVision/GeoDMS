@@ -97,7 +97,9 @@
     <ClCompile Include="src\StateChangeNotification.cpp" />
     <ClCompile Include="src\SupplCache.cpp" />
     <ClCompile Include="src\TicInterface.cpp" />
-    <ClCompile Include="src\TreeItem.cpp" />
+    <ClCompile Include="src\TreeItem.cpp">
+      <AdditionalOptions Condition="'$(Configuration)|$(Platform)'=='Release|x64'">/showIncludes %(AdditionalOptions)</AdditionalOptions>
+    </ClCompile>
     <ClCompile Include="src\TreeItemClass.cpp" />
     <ClCompile Include="src\TreeItemContextHandle.cpp" />
     <ClCompile Include="src\TreeItemProps.cpp" />

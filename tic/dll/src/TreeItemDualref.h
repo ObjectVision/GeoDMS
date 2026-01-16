@@ -29,15 +29,15 @@ enum DataControllerFlags
 // Section:     TreeItemDualRef Interface
 // *****************************************************************************
 
-struct TreeItemDualRef : Actor
+struct TreeItemDualRef : PersistentSharedActor
 {
 	TIC_CALL TreeItemDualRef();
 	TIC_CALL ~TreeItemDualRef();
 	TreeItemDualRef(const TreeItemDualRef&) = delete;
 	TreeItemDualRef(TreeItemDualRef&&) = delete;
 
-	      TreeItem* GetNew()  const { dms_assert(!IsOld()); return const_cast<TreeItem*>(m_Data.get_ptr()); }
-	const TreeItem* GetOld()  const { return m_Data; }
+	      TreeItem* GetNew()  const { dms_assert(!IsOld()); return const_cast<TreeItem*>(m_Data.get()); }
+	const TreeItem* GetOld()  const { return m_Data.get(); }
 	const TreeItem* GetUlt()  const { if (!m_Data) return nullptr;  return m_Data->GetCurrUltimateItem(); }
 
 	virtual bool IsSymbDC() const { return false; }
@@ -47,7 +47,7 @@ struct TreeItemDualRef : Actor
 	operator       TreeItem* () const { return GetNew(); }
 	operator const TreeItem* () const { return GetOld(); }
 
-	const TreeItem* operator ->() const { dms_assert(m_Data); return m_Data; }
+	const TreeItem* operator ->() const { assert(m_Data); return m_Data.get(); }
 
 	operator       bool      () const { return ( m_Data); }
 	bool operator  !         () const { return (!m_Data); }

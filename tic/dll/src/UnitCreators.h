@@ -106,7 +106,7 @@ inline ConstUnitRef square_unit_creator(const AbstrOperGroup* gr, const ArgSeqTy
 inline ConstUnitRef arg1_values_unit(const ArgSeqType& args)
 {
 	assert(args.size() >=1 && IsDataItem(args[0])); // PRECONDITION
-	return AsDataItem(args[0])->GetAbstrValuesUnit();
+	return { AsDataItem(args[0])->GetAbstrValuesUnit(), existing_obj{} };
 }
 
 inline ConstUnitRef arg1_values_unit(const AbstrOperGroup* gr, const ArgSeqType& args)
@@ -140,7 +140,7 @@ inline ConstUnitRef compare_unit_creator(const AbstrOperGroup* gr, const ArgSeqT
 inline ConstUnitRef domain_unit_creator(const AbstrOperGroup* gr, const ArgSeqType& args)
 {
 	assert(args.size() >= 1 && IsDataItem(args[0])); // PRECONDITION
-	return AsDataItem(args[0])->GetAbstrDomainUnit();
+	return MakeSharedFromBorrowedObjectPtr(AsDataItem(args[0])->GetAbstrDomainUnit());
 }
 
 TIC_CALL ConstUnitRef count_unit_creator(const AbstrDataItem* adi);

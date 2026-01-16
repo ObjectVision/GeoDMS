@@ -164,7 +164,7 @@ SharedStr getFileNameBase(CharPtr full_path)
 	CharPtr full_path_search = full_path_end;
 	while (full_path_search != full_path &&	*full_path_search != '.' && *full_path_search != DELIMITER_CHAR)
 	{
-		dms_assert(*full_path_search != '\\');
+		assert(*full_path_search != '\\');
 		--full_path_search;
 	}
 	if (*full_path_search != '.')
@@ -175,7 +175,7 @@ SharedStr getFileNameBase(CharPtr full_path)
 
 SharedStr replaceFileExtension(CharPtr full_path, CharPtrRange newExt)
 {
-	return getFileNameBase(full_path) + '.' + newExt;
+	return getFileNameBase(full_path) + "." + newExt;
 }
 
 bool IsAbsolutePath(CharPtr full_path)

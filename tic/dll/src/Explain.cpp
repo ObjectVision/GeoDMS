@@ -159,7 +159,7 @@ namespace Explain { // local defs
 		{}
 
 		LispCalcExplanation(DataControllerRef dc, const AbstrCalculator* calcPtr, const AbstrCalcExplanation* parent, arg_index seqNr)
-			: AbstrCalcExplanation(AsDataItem(dc->MakeResult().get_ptr()))
+			: AbstrCalcExplanation(AsDataItem(dc->MakeResult().get()))
 			, m_DC(dc)
 			, m_CalcPtr(calcPtr)
 			, m_Parent(parent)
@@ -170,8 +170,8 @@ namespace Explain { // local defs
 
 		ArgRef GetCalcDataItem(std::shared_ptr<Explain::Context> context) const override
 		{
-			ExplainResult(m_CalcPtr, context);
-			return CalledCalcHandle(m_CalcPtr, AbstrDataItem::GetStaticClass());
+			ExplainResult(m_CalcPtr.get(), context);
+			return CalledCalcHandle(m_CalcPtr.get(), AbstrDataItem::GetStaticClass());
 		}
 
 		void GetDescrImpl(CalcExplImpl* self, OutStreamBase& stream, bool isFirst, bool showHidden) const override;
@@ -790,7 +790,7 @@ namespace Explain { // local defs
 					}
 
 					XML_hRef supplRef(m_OutStream, ItemUrl(suppl).c_str());
-					m_OutStream << supplier->GetFullName().c_str();
+					m_OutStream << suppl->GetFullName().c_str();
 					NewLine(m_OutStream);
 				}
 			);

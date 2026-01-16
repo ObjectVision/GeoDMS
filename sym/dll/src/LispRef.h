@@ -14,6 +14,7 @@
 #include "ptr/SharedPtr.h"
 #include "ptr/WeakPtr.h"
 #include "ptr/PersistentSharedObj.h"
+#include "ser/FormattedStream.h"
 
 /****************** forward decls *******************/
 
@@ -39,71 +40,91 @@ struct LispComponent
 struct LispRef;
 struct LispObj;
 
-struct LispPtr: WeakPtr<LispObj>
+template <typename BasePtr> struct LispPtrWrap;
+using LispPtr = LispPtrWrap< WeakPtr<const LispObj> >;
+
+template <typename BasePtr>
+struct LispPtrWrap: BasePtr
 {
-	LispPtr() {}
-//	LispPtr(const LispRef& src);
+	using BasePtr::BasePtr;
 
-// delegate requests to the LispObj
-	inline bool     IsNumb    () const;
-	inline Number   GetNumbVal() const;
+	auto get() const noexcept { return this->BasePtr::get(); }
 
-	inline bool     IsUI64() const;
-	inline UInt64   GetUI64Val() const;
+	// delegate requests to the LispObj
+	bool     IsNumb() const { return get() ? get()->IsNumb() : false; }
+	Number   GetNumbVal() const { return get() ? get()->GetNumbVal() : Number(0.0); }
 
-	inline bool     IsSymb    () const;
-	inline TokenStr GetSymbStr() const;
-	inline TokenStr GetSymbEnd() const;
-	inline TokenID  GetSymbID () const;
+	bool     IsUI64() const { return get() ? get()->IsUI64() : false; }
+	UInt64   GetUI64Val() const { return get() ? get()->GetUI64Val() : 0; }
 
-	inline bool     IsVar     () const;
-	inline ChroID   GetChroID () const;
+	bool     IsSymb() const { return get() ? get()->IsSymb() : false; }
+	TokenStr GetSymbStr() const { return get() ? get()->GetSymbStr() : TokenID::GetEmptyTokenStr(); }
+	TokenStr GetSymbEnd() const { return get() ? get()->GetSymbEnd() : TokenID::GetEmptyTokenStr(); }
+	TokenID  GetSymbID() const { return get() ? get()->GetSymbID() : TokenID::GetEmptyID(); }
 
-	inline bool     IsStrn    () const;
-	inline CharPtr  GetStrnBeg() const;
-	inline CharPtr  GetStrnEnd() const;
+	bool     IsVar() const { return get() ? get()->IsVar() : false; }
+	ChroID   GetChroID() const { return get() ? get()->GetChroID() : ChroID(); }
 
-	inline bool     IsList    () const;
-	inline bool     EndP      () const;
-	inline bool     IsRealList() const;
-	inline LispPtr  Left      () const;
-	inline LispPtr  Right     () const;
+	bool     IsStrn() const { return get() ? get()->IsStrn() : false; }
+	CharPtr  GetStrnBeg() const { return get() ? get()->GetStrnBeg() : TokenID::GetEmptyStr(); }
+	CharPtr  GetStrnEnd() const { return get() ? get()->GetStrnEnd() : TokenID::GetEmptyStr(); }
+
+	bool     IsList() const { return get() ? get()->IsList() : true; }
+	bool     EndP() const { return get() == nullptr; }
+	bool     IsRealList() const { return get() ? get()->IsList() : false; }
+	LispPtr  Left() const { MG_CHECK(get()); return get()->Left(); }
+	LispPtr  Right() const { MG_CHECK(get()); return get()->Right(); }
+	
+	bool Check() const { return true; }
+	auto AsLispPtr() const -> LispPtr { return LispPtr(this->get()); }
 
 //	Crude printing
-	SYM_CALL void Print(FormattedOutStream& out, UInt32 level) const;
-	SYM_CALL void PrintAsFLisp(FormattedOutStream& out, UInt32 level) const;
+	void Print(FormattedOutStream& out, UInt32 level) const
+	{
+		if (get())
+			get()->Print(out, level);
+		else
+			out << "() ";
+	}
+
+	void PrintAsFLisp(FormattedOutStream& out, UInt32 level) const
+	{
+		if (get())
+			get()->PrintAsFLisp(out, level);
+		else
+			out << "() ";
+	}
+
 	SYM_CALL static UInt32 MAX_PRINT_LEVEL;
 
 //	compare operators
-	inline bool operator ==(LispPtr rhs) const { return get_ptr() == rhs.get_ptr(); }
-	inline bool operator < (LispPtr rhs) const { return get_ptr()  < rhs.get_ptr(); }
-
-	bool Check() const { return true; }
-
-	explicit LispPtr(LispObj* obj) : WeakPtr(obj) {}
+	template <typename OthPtr> bool operator ==(const LispPtrWrap<OthPtr>& rhs) const { return this->get() == rhs.get(); }
+	template <typename OthPtr> bool operator < (const LispPtrWrap<OthPtr>& rhs) const { return this->get() < rhs.get(); }
 };
 
-template <> struct pointer_traits<LispPtr> : pointer_traits_helper<LispObj> {};
+//template <> struct pointer_traits<LispPtr> : pointer_traits_helper<LispObj> {};
 
-struct LispRef : SharedPtrWrap<LispPtr>
+struct LispRef : LispPtrWrap<SharedPtr<const LispObj> >
 {
-	typedef LispPtr ptr_type;
-  public:
+	using base_type = LispPtrWrap<SharedPtr<const LispObj> >;
+
+	using ptr_type = LispPtr;
+
 //	constructors
 	LispRef() noexcept {};  		// Makes a LispRef to NULL
 
-	SYM_CALL LispRef(LispPtr lrb) noexcept;
-	SYM_CALL LispRef(LispObj* lrb) noexcept;
+	SYM_CALL LispRef(LispPtr lrb) noexcept;  // borrowed existing object
+	SYM_CALL LispRef(LispObj* lrb) noexcept; // newly created object
 	SYM_CALL LispRef(LispPtr lrb, no_zombies nz) noexcept;
 
 	LispRef(const LispRef&) noexcept = default;
 
-	SYM_CALL LispRef(LispRef&& rhs) noexcept;
+	SYM_CALL LispRef(SharedPtr<const LispObj>&& rhs) noexcept;
 
 	LispRef& operator =(const LispRef& rhs) noexcept = default;
 	LispRef& operator =(LispRef&& rhs) noexcept = default;
 
-	operator ptr_type() const { return ptr_type(get_ptr()); }
+	operator LispPtr() const { return LispPtr(get()); }
 
 	SYM_CALL LispRef(Number v);	                  // Makes a LispRef to NumbObj
 	SYM_CALL LispRef(UInt64 u);	                  // Makes a LispRef to U64Obj
@@ -116,11 +137,15 @@ struct LispRef : SharedPtrWrap<LispPtr>
 	static const LispRef s_null;
 };
 
+//template <typename BasePtr> bool LispPtrWrap<BasePtr>::operator ==(const LispRef& rhs) const { return this->get() == rhs.get(); }
+//template <typename BasePtr> bool LispPtrWrap<BasePtr>::operator < (const LispRef& rhs) const { return this->get() < rhs.get(); }
+
 /****************** class LispObj                     *******************/
 
-struct LispObj : public PersistentSharedObj
+struct LispObj : public SharedObj
 {
-private: typedef PersistentSharedObj base_type;
+private: 
+	using base_type = SharedObj;
 public:
 	// ctor, dtor
 	         LispObj();
@@ -159,29 +184,6 @@ public:
 
 // delegate requests to the LispObj
 
-inline bool     LispPtr::IsNumb    () const { return get_ptr() ? get_ptr()->IsNumb()    : false; }
-inline Number   LispPtr::GetNumbVal() const { return get_ptr() ? get_ptr()->GetNumbVal(): Number(0.0);     }
-
-inline bool     LispPtr::IsUI64    () const { return get_ptr() ? get_ptr()->IsUI64() : false; }
-inline UInt64   LispPtr::GetUI64Val() const { return get_ptr() ? get_ptr()->GetUI64Val() : 0; }
-
-inline bool     LispPtr::IsSymb    () const { return get_ptr() ? get_ptr()->IsSymb()    : false; }
-inline TokenStr LispPtr::GetSymbStr() const { return get_ptr() ? get_ptr()->GetSymbStr(): TokenID::GetEmptyTokenStr(); }
-inline TokenStr LispPtr::GetSymbEnd() const { return get_ptr() ? get_ptr()->GetSymbEnd(): TokenID::GetEmptyTokenStr(); }
-inline TokenID  LispPtr::GetSymbID () const { return get_ptr() ? get_ptr()->GetSymbID() : TokenID::GetEmptyID();  }
-
-inline bool     LispPtr::IsVar     () const { return get_ptr() ? get_ptr()->IsVar()     : false;    }
-inline ChroID   LispPtr::GetChroID () const { return get_ptr() ? get_ptr()->GetChroID() : ChroID(); }
-
-inline bool     LispPtr::IsStrn    () const { return get_ptr() ? get_ptr()->IsStrn()    : false; }
-inline CharPtr  LispPtr::GetStrnBeg() const { return get_ptr() ? get_ptr()->GetStrnBeg(): TokenID::GetEmptyStr(); }
-inline CharPtr  LispPtr::GetStrnEnd() const { return get_ptr() ? get_ptr()->GetStrnEnd(): TokenID::GetEmptyStr(); }
-
-inline bool     LispPtr::IsList    () const { return get_ptr() ? get_ptr()->IsList()    : true;  }
-inline bool     LispPtr::EndP      () const { return get_ptr() == nullptr; }
-inline bool     LispPtr::IsRealList() const { return get_ptr() ? get_ptr()->IsList()    : false; }
-inline LispPtr  LispPtr::Left      () const { MG_CHECK(get_ptr()); return get_ptr()->Left(); }
-inline LispPtr  LispPtr::Right     () const { MG_CHECK(get_ptr()); return get_ptr()->Right(); }
 
 /****************** operators for LispRef       *******************/
 

@@ -67,104 +67,6 @@ SharedCharArray* SharedCharArray_CreateEmpty()
 	return emptyArray;
 }
 
-//============================= SharedCharArray operators
-
-CharPtr SharedCharArrayPtr::find(char ch)                     const { return std::find(begin(), send(), ch); }
-CharPtr SharedCharArrayPtr::find(CharPtr first, CharPtr last) const { return Search(CharPtrRange(begin(), send()), CharPtrRange(first, last)); }
-CharPtr SharedCharArrayPtr::find(CharPtr str)                 const { return find(str, str+StrLen(str)); }
-
-bool SharedCharArrayPtr::operator < (SharedCharArrayPtr b) const
-{
-	if (!IsDefined())
-		return b.IsDefined();
-	if (!b.IsDefined())
-		return false;
-	return lex_compare(begin(), send(), b.begin(), b.send());
-}
-
-bool SharedCharArrayPtr::operator ==(SharedCharArrayPtr b) const
-{
-	if (!IsDefined())
-		return !b.IsDefined();
-	if (!b.IsDefined())
-		return false;
-	return equal(begin(), send(), b.begin(), b.send());
-}
-
-bool SharedCharArrayPtr::operator !=(SharedCharArrayPtr b) const
-{
-	if (!IsDefined())
-		return b.IsDefined();
-	if (!b.IsDefined())
-		return true;
-	return !equal(begin(), send(), b.begin(), b.send());
-}
-
-bool SharedCharArrayPtr::operator < (CharPtr b) const
-{
-	if (!::IsDefined(b))
-		return false;
-	if (!IsDefined())
-		return true;
-	assert(b && IsDefined());
-	if (empty())
-		return *b;
-	assert(m_Ptr);
-	auto sz = m_Ptr->size();
-	assert(sz);
-	assert(begin()[sz-1] == char(0));
-	return strncmp(begin(), b, sz) < 0;
-}
-
-CharPtrRange SharedCharArrayPtr::AsRange() const
-{ 
-	if (!has_ptr())
-		return {};
-	return CharPtrRange(get_ptr()->begin(), get_ptr()->end() - 1);
-}
-
-bool SharedCharArrayPtr::operator ==(CharPtr b) const
-{ 
-	if (!IsDefined())
-		return !::IsDefined(b);
-	if (!::IsDefined(b))
-		return false;
-	assert(b && IsDefined());
-	if (empty())
-		return !*b;
-	assert(m_Ptr);
-	auto sz = m_Ptr->size();
-	assert(sz);
-	assert(begin()[sz-1] == char(0));
-	return strncmp(begin(), b, sz) == 0 && b[sz] == char(0); // ensure that b is also terminated with 0
-}
-
-bool SharedCharArrayPtr::operator !=(CharPtr b) const
-{ 
-	if (!IsDefined())
-		return ::IsDefined(b);
-	if (!::IsDefined(b))
-		return true;
-	assert(b && IsDefined());
-	if (empty())
-		return *b;
-	assert(m_Ptr);
-	auto sz = m_Ptr->size();
-	assert(sz);
-	assert(begin()[sz-1] == char(0));
-	return strnicmp(begin(), b, sz) != 0;
-}
-
-std::string SharedCharArrayPtr::AsStdString() const 
-{ 
-	auto ptr = get_ptr();
-	if (!::IsDefined(ptr))
-		return std::string(UNDEFINED_VALUE_STRING, UNDEFINED_VALUE_STRING_LEN);
-	assert(ptr);
-	assert(ptr->size());
-	return std::string(ptr->begin(), ptr->size() - 1);
-}
-
 //============================= WeakStr
 
 RTC_CALL WeakStr::operator CharPtrRange() const
@@ -328,16 +230,6 @@ void SharedStr::clear()
 
 //============================= SharedStr operators
 
-void SharedStr::operator +=(CharPtrRange rhs)
-{
-	*this = (*this + rhs);
-}
-
-void SharedStr::operator +=(Char rhs)
-{
-	*this = (*this + rhs);
-}
-
 SharedStr operator + (CharPtrRange lhs, CharPtrRange rhs)
 {
 	if (!lhs.IsDefined()) return SharedStr(Undefined());
@@ -396,6 +288,7 @@ SharedStr operator + (WeakStr lhs, CharPtr rhs)
 	return resultStr;
 }
 
+/*
 SharedStr operator + (CharPtrRange lhs, Char ch)
 {
 	if (!lhs.IsDefined()) return SharedStr(lhs); // Undefined
@@ -423,6 +316,7 @@ SharedStr operator + (Char ch, CharPtrRange rhs)
 	*resPtr = char(0);
 	return resultStr;
 }
+*/
 
 //----------------------------------------------------------------------
 // Section      : helper funcs
@@ -687,11 +581,6 @@ std::size_t AsciiFoldedChunkedCaseInsensitiveHasher::operator()(CharPtrRange str
 		hash_in(hash, fold_ascii_uppercase(chunk));
 	}
 	return avalanche(hash);
-}
-std::size_t SharedCharArrayPtr::hasher::operator()(const SharedCharArrayPtr& v) const noexcept
-{
-	AsciiFoldedChunkedCaseInsensitiveHasher hasherFunc;
-	return hasherFunc(CharPtrRange{ v.begin(), v.send() });
 }
 
 size_t SharedStr::cs_hasher::operator()(const SharedStr& str) const noexcept

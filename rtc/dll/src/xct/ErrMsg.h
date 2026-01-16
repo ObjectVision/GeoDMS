@@ -24,10 +24,10 @@ class Class;
 struct ErrMsg {
 
 	ErrMsg() {}
-	RTC_CALL explicit ErrMsg(WeakStr msg, const PersistentSharedObj* ptr = nullptr);
-	explicit ErrMsg(CharPtr msg, const PersistentSharedObj* ptr = nullptr) : ErrMsg(SharedStr(msg MG_DEBUG_ALLOCATOR_SRC("ErrMsg")), ptr) {}
+	RTC_CALL explicit ErrMsg(WeakStr msg, const Object* ptr = nullptr);
+	explicit ErrMsg(CharPtr msg, const Object* ptr = nullptr) : ErrMsg(SharedStr(msg MG_DEBUG_ALLOCATOR_SRC("ErrMsg")), ptr) {}
 
-	RTC_CALL void TellWhere(const PersistentSharedObj* ptr);
+	RTC_CALL void TellWhere(const Object* ptr);
 
 	void TellExtra(CharPtr msg) { TellExtra(CharPtrRange(msg)); }
 	RTC_CALL void TellExtra(CharPtrRange msg);

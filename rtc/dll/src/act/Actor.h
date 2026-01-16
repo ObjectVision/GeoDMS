@@ -1,4 +1,4 @@
-// Copyright (C) 1998-2025 Object Vision b.v.
+// Copyright (C) 1998-2026 Object Vision b.v.
 // License: GNU GPL 3
 /////////////////////////////////////////////////////////////////////////////
 //
@@ -70,12 +70,14 @@ struct SupplInterestListPtr;
 
 struct ErrMsg;
 using ErrMsgPtr = std::shared_ptr<ErrMsg>;
+using PersistentSharedActor = SharedObjWrap<Actor>;
+using SharedActorInterestPtr = InterestPtr<SharedPtr<const PersistentSharedActor> >;
 
 //  -----------------------------------------------------------------------
 //  struct Actor interface
 //  -----------------------------------------------------------------------
 
-struct Actor : PersistentSharedObj
+struct Actor: PersistentObject
 {
 	// Constructor/Destructor
 	// Note: Many methods are logically const but mutate internal state via 'mutable'.
@@ -219,6 +221,8 @@ public:
 	// - Interest indicates that the actor's value is needed/observed.
 	// - Transition from 0->1 triggers StartInterest; 1->0 triggers StopInterest.
 	RTC_CALL void IncInterestCount() const;
+	RTC_CALL void DuplInterestCount() const;
+
 	RTC_CALL garbage_can DecInterestCount() const noexcept;
 	auto GetInterestCount() const noexcept { return m_InterestCount; }
 	// - Returns true if any supplier interest is active.
@@ -308,6 +312,7 @@ RTC_CALL item_level_type GetItemLevel(const Actor* act);
 
 // Convenience predicate: whether the provided actor was in any failed state.
 RTC_CALL bool WasInFailed(const Actor* a);
+
 
 #endif // __RTC_ACT_ACTOR_H
 

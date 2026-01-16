@@ -181,7 +181,7 @@ TokenID Object::GetID() const
 	if (!cls || cls == this)
 		return TokenID(); // Class::GetID returns m_TypeID, if Class object was destroyed, infinite recursion is at the corner; which happens at ReportExistingObjects()
 #endif // MG_CHECKPTR
-	dms_assert(cls && cls != this); 
+	assert(cls && cls != this); 
 	return cls->GetID();
 }
 
@@ -207,6 +207,27 @@ return cls->GetID();
 TokenStr Object::GetName() const
 {
 	return GetID().GetStr();
+}
+
+auto Object::GetFullName() const -> SharedStr
+{
+	return SharedStr(GetName());
+}
+
+auto Object::GetFullCfgName() const -> SharedStr
+{ 
+	return GetFullName();
+}
+
+[[noreturn]] RTC_CALL void Object::throwItemError(WeakStr msgStr) const
+{ 
+	::throwItemError(this, msgStr); 
+
+}
+
+[[noreturn]] void Object::throwItemError(CharPtr msg) const
+{ 
+	::throwItemError(this, SharedStr(msg MG_DEBUG_ALLOCATOR_SRC("throwItemError"))); 
 }
 
 bool Object::IsKindOf(const Class* cls) const
@@ -256,24 +277,24 @@ const Object* Object::_GetAs(const Class* cls) const
 // Section:     PersistentSharedObj impl
 // *****************************************************************************
 
-[[nodiscard]] const PersistentSharedObj* PersistentSharedObj::GetParent() const noexcept
+[[nodiscard]] auto PersistentObject::GetParent() const noexcept -> const PersistentObject*
 {
 	return nullptr;
 }
 
-const PersistentSharedObj* PersistentSharedObj::GetRoot() const
+auto PersistentObject::GetRoot() const -> const PersistentObject*
 {
-	const PersistentSharedObj* result = this;
+	auto result = this;
 	while (true)
 	{
-		const PersistentSharedObj* r2 = result->GetParent();
+		auto r2 = result->GetParent();
 		if (!r2)
 			return result;
 		result = r2;
 	}
 }
 
-bool PersistentSharedObj::DoesContain(const PersistentSharedObj* subItemCandidate) const noexcept
+bool PersistentObject::DoesContain(const PersistentObject* subItemCandidate) const noexcept
 {
 	while (subItemCandidate)
 	{
@@ -294,7 +315,7 @@ const SourceLocation* Object::GetLocation() const
 	return nullptr;
 }
 
-const SourceLocation* PersistentSharedObj::GetLocation() const
+const SourceLocation* PersistentObject::GetLocation() const
 { 
 	auto parent = GetParent();
 	if (parent)
@@ -302,7 +323,7 @@ const SourceLocation* PersistentSharedObj::GetLocation() const
 	return nullptr;
 }
 
-SharedStr PersistentSharedObj::GetFullName() const
+SharedStr PersistentObject::GetFullName() const
 {
 	dms_assert(this);
 	// calc size
@@ -336,7 +357,7 @@ SharedStr PersistentSharedObj::GetFullName() const
 	return resultStr;
 }
 
-SharedStr PersistentSharedObj::GetPrefixedFullName() const
+SharedStr PersistentObject::GetPrefixedFullName() const
 {
 	auto result = GetFullName();
 	auto rootID = GetRoot()->GetID();
@@ -346,7 +367,7 @@ SharedStr PersistentSharedObj::GetPrefixedFullName() const
 
 }
 
-SharedStr PersistentSharedObj::GetRelativeName(const PersistentSharedObj* context) const
+SharedStr PersistentObject::GetRelativeName(const PersistentObject* context) const
 {
 	MGD_PRECONDITION(context);
 	MGD_PRECONDITION(context->DoesContain(this));
@@ -388,9 +409,9 @@ SharedStr PersistentSharedObj::GetRelativeName(const PersistentSharedObj* contex
 static TokenComponent tokenService;
 static SharedStr str_Dot(".");
 
-const PersistentSharedObj* s_RelativeScope = nullptr;
+const PersistentObject* s_RelativeScope = nullptr;
 
-SharedStr PersistentSharedObj::GetFindableName(const PersistentSharedObj* subItem) const
+SharedStr PersistentObject::GetFindableName(const PersistentObject* subItem) const
 {
 	assert(IsMetaThread());
 	dms_check_not_debugonly;
@@ -429,7 +450,7 @@ void Object::ReadObj (PolymorphInpStream&)
 void Object::WriteObj(PolymorphOutStream&) const
 {}
 
-SharedStr PersistentSharedObj::GetSourceName() const
+SharedStr PersistentObject::GetSourceName() const
 {
 	auto fullCfgName = GetFullCfgName();
 	if (!fullCfgName.empty())
@@ -442,18 +463,17 @@ SharedStr PersistentSharedObj::GetSourceName() const
 		,	GetClsName().c_str()
 		);
 }
-
 [[noreturn]] void throwItemError(ErrMsgPtr msg)
 {
 	DmsException::throwMsg(msg);
 }
 
-[[noreturn]] void throwItemError(const PersistentSharedObj* self, WeakStr msgStr)
+[[noreturn]] void throwItemError(const Object* self, WeakStr msgStr)
 { 
 	throwItemError(std::make_shared<ErrMsg>( msgStr, self ) ); 
 }
 
-[[noreturn]] void throwItemError(const PersistentSharedObj* self, CharPtr msg)
+[[noreturn]] void throwItemError(const Object* self, CharPtr msg)
 {
 	throwItemError(self, SharedStr(msg MG_DEBUG_ALLOCATOR_SRC("throwItemError")));
 }
@@ -477,9 +497,9 @@ const Class* Object::GetStaticClass()
 	return &s_StaticCls;
 }
 
-const Class* PersistentSharedObj::GetStaticClass()
+const Class* PersistentObject::GetStaticClass()
 {
-	static Class s_StaticCls(0, 0, GetTokenID_st("PersistentSharedObj") );
+	static Class s_StaticCls(0, 0, GetTokenID_st("PersistentObject") );
 	return &s_StaticCls;
 } 
 
@@ -487,27 +507,27 @@ const Class* PersistentSharedObj::GetStaticClass()
 
 namespace {
 
-	struct ClassProp : ReadOnlyPropDef < PersistentSharedObj, TokenID >
+	struct ClassProp : ReadOnlyPropDef < PersistentObject, TokenID >
 	{
 		ClassProp()
 			: ReadOnlyPropDef("Class", set_mode::none, xml_mode::attribute)
 		{}
 
 		// override base class
-		TokenID GetValue(const PersistentSharedObj* pd) const override
+		TokenID GetValue(const PersistentObject* pd) const override
 		{
 			MGD_PRECONDITION(pd);
 			return pd->GetClsID();
 		}
 	};
 
-	struct XmlClassProp : ReadOnlyPropDef < PersistentSharedObj, TokenID >
+	struct XmlClassProp : ReadOnlyPropDef < PersistentObject, TokenID >
 	{
 		XmlClassProp()
 			: ReadOnlyPropDef("XmlClass", set_mode::construction, xml_mode::name)
 		{}
 		// override base class
-		TokenID GetValue(const PersistentSharedObj* pd) const override
+		TokenID GetValue(const PersistentObject* pd) const override
 		{
 			MGD_PRECONDITION(pd);
 			return pd->GetXmlClassID();
@@ -520,13 +540,6 @@ namespace {
 	}
 
 } // end anonymous namespace
-
-/**********  PersistentSharedObj Interface ********************/
-
-RTC_CALL const Class* DMS_CONV DMS_GetRootClass()
-{
-	return PersistentSharedObj::GetStaticClass();
-}
 
 // *****************************************************************************
 // Section:     Class CODE
@@ -681,7 +694,7 @@ IMPL_RTTI_METACLASS(MetaClass, "Class", nullptr)
 /********** Interface Implementation **********/
 
 // PersistentSharedObj Composition Interface
-RTC_CALL const PersistentSharedObj* DMS_CONV DMS_Object_GetParent(const PersistentSharedObj* self, UInt32 index)
+RTC_CALL const PersistentObject* DMS_CONV DMS_Object_GetParent(const PersistentObject* self, UInt32 index)
 {
 	DMS_CALL_BEGIN
 
@@ -695,7 +708,7 @@ RTC_CALL const PersistentSharedObj* DMS_CONV DMS_Object_GetParent(const Persiste
 
 
 // PersistentSharedObj Naming Interface
-RTC_CALL CharPtr       DMS_CONV DMS_Object_GetName    (const PersistentSharedObj* self)
+RTC_CALL CharPtr       DMS_CONV DMS_Object_GetName    (const Object* self)
 {
 	DMS_CALL_BEGIN
 
@@ -707,20 +720,8 @@ RTC_CALL CharPtr       DMS_CONV DMS_Object_GetName    (const PersistentSharedObj
 	return nullptr;
 }
 
-RTC_CALL CharPtr DMS_CONV DMS_Object_GetFullName(const PersistentSharedObj* self)
-{
-	DMS_CALL_BEGIN
-
-		CheckPtr(self, NULL, "DMS_Object_GetFullName");
-
-		return self->GetFullName().c_str();
-
-	DMS_CALL_END
-	return nullptr;
-}
-
 // PersistentSharedObj Dynamic Typing Interface
-RTC_CALL const Class*  DMS_CONV DMS_Object_GetDynamicClass(const PersistentSharedObj* self)
+RTC_CALL const Class*  DMS_CONV DMS_Object_GetDynamicClass(const Object* self)
 {
 	DMS_CALL_BEGIN
 

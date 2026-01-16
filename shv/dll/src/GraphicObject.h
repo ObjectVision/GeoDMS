@@ -100,9 +100,9 @@ shared_ptr_producer<Target> make_shared_gr(Args&& ...args)
 	return shared_ptr_producer<Target>{ std::make_shared<Target>(std::forward<Args>(args)...) };
 }
 
-class GraphicObject: public Actor, public enable_shared_from_this_base<GraphicObject>
+class GraphicObject: public Object, public Actor, public enable_shared_from_this_base<GraphicObject>
 {
-	typedef Actor base_type;
+	using base_type = Object;
 
 public:
 	GraphicObject(GraphicObject* owner);

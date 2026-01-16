@@ -92,7 +92,7 @@ void     LispObj::PrintAsFLisp(FormattedOutStream& os, UInt32 level) const
 /****************** struct LispCls                *******************/
 /******************                               *******************/
 
-typedef LispObj* (*CreateFromStreamFunc)(PolymorphInpStream& istr);
+using CreateFromStreamFunc = auto (*)(PolymorphInpStream& istr) -> LispRef;
 
 class LispCls : public Class
 {
@@ -119,19 +119,23 @@ Object* LispCls::CreateObj(PolymorphInpStream* istr) const
 	istr->m_ObjReg.push_back(nullptr);
 
 
-	Object* obj = nullptr;
-	auto callFunc = [this, istr]() -> LispObj*
-	{
-		SetMetaThreadID();
-		assert(IsMetaThread());
-		return m_CreateFromStreamFunc(*istr);
-	};
+	LispRef obj;
 	auto remainingStackSpace = RemainingStackSpace();
 	if (remainingStackSpace > 32768)
-		obj = callFunc();
+	{
+		assert(IsMetaThread());
+		obj = m_CreateFromStreamFunc(*istr);
+	}
 	else
 	{
-		auto future = std::async(callFunc);
+		auto future = std::async(
+			[this, istr]() -> LispObj*
+			{
+				SetMetaThreadID();
+				assert(IsMetaThread());
+				return m_CreateFromStreamFunc(*istr);
+			}
+		);
 		obj = future.get();
 		SetMetaThreadID();
 		assert(IsMetaThread());
@@ -185,7 +189,7 @@ private:
 	virtual Number GetNumbVal() const { return Number(m_Value); }
 
 	virtual void Print(FormattedOutStream& out, UInt32 level)   const { out << m_Value << ' '; }
-	static LispObj* ReloadObj(PolymorphInpStream& ar);
+	static LispRef ReloadObj(PolymorphInpStream& ar);
 	virtual void WriteObj(PolymorphOutStream& ar) const;
 
 	Number_t m_Value;
@@ -217,7 +221,7 @@ private:
 	virtual UInt64 GetUI64Val() const { return m_Value; }
 
 	virtual void Print(FormattedOutStream& out, UInt32 level)   const { out << m_Value << "u64 "; }
-	static LispObj* ReloadObj(PolymorphInpStream& ar);
+	static LispRef ReloadObj(PolymorphInpStream& ar);
 	virtual void WriteObj(PolymorphOutStream& ar) const;
 
 	UInt64 m_Value;
@@ -255,7 +259,7 @@ private:
 	void Print       (FormattedOutStream& out, UInt32 level)  const override;
 	void PrintAsFLisp(FormattedOutStream& out, UInt32 level)  const override;
 	void WriteObj(PolymorphOutStream& ar) const override ;
-	static LispObj* ReloadObj (PolymorphInpStream& ar);
+	static LispRef ReloadObj (PolymorphInpStream& ar);
 
 	TokenID m_TokenID;
 	ChroID  m_ChroID = 0;
@@ -321,7 +325,7 @@ private:
 
 	void Print     (FormattedOutStream& o, UInt32 level)  const override;
 	void WriteObj  (PolymorphOutStream& ar) const override;
-	static LispObj* ReloadObj(PolymorphInpStream& ar);
+	static LispRef ReloadObj(PolymorphInpStream& ar);
 
 
 	StrnType m_Data; 
@@ -356,7 +360,7 @@ private:
 	void Print       (FormattedOutStream&, UInt32 level) const override;
 	void PrintAsFLisp(FormattedOutStream&, UInt32 level) const override;
 
-	static LispObj* ReloadObj (PolymorphInpStream& ar);
+	static LispRef ReloadObj (PolymorphInpStream& ar);
 	void WriteObj(PolymorphOutStream& ar) const override;
 
 	LispRef m_Left;
@@ -366,29 +370,29 @@ private:
 };
 
 LispRef::LispRef(LispPtr lrb) noexcept 
-	: SharedPtrWrap(lrb, existing_obj{})
+	: base_type(lrb.get(), existing_obj{})
 {
-	MG_CHECK(!get_ptr() || get_ptr()->IsOwned());
+	MG_CHECK(!get() || get()->IsOwned());
 }
 
 LispRef::LispRef(LispObj* lrb) noexcept 
-	: SharedPtrWrap(LispPtr(lrb), newly_obj{})
+	: base_type(lrb, newly_obj{})
 {
-	MG_CHECK(get_ptr());
-	MG_CHECK(get_ptr()->IsOwned());
+	MG_CHECK(get());
+	MG_CHECK(get()->IsOwned());
 }
 
 LispRef::LispRef(LispPtr lrb, no_zombies nz) noexcept 
-	: SharedPtrWrap(lrb, nz)
+	: base_type(lrb, nz)
 {
-	MG_CHECK(!get_ptr() || get_ptr()->IsOwned());
+	MG_CHECK(!get() || get()->IsOwned());
 }
 
-LispRef::LispRef(LispRef&& rhs) noexcept 
-	: SharedPtrWrap(std::move(rhs))
+LispRef::LispRef(SharedPtr<const LispObj>&& rhs) noexcept
+	: base_type(std::move(rhs))
 {
-	MG_CHECK(!rhs.get_ptr());
-	MG_CHECK(!get_ptr() || get_ptr()->IsOwned());
+	MG_CHECK(!rhs.get());
+	MG_CHECK(!get() || get()->IsOwned());
 }
 
 
@@ -609,10 +613,10 @@ LispComponent::~LispComponent()
 /****************** NumbObj implementation  *******************/
 
 LispRef::LispRef(Number value)
-	: SharedPtrWrap( GetLispCaches()->NumbObjCache.apply(value.m_Value) )
+	: base_type( GetLispCaches()->NumbObjCache.apply(value.m_Value) )
 {
-	MG_CHECK(get_ptr());
-	MG_CHECK(get_ptr()->IsOwned());
+	MG_CHECK(get());
+	MG_CHECK(get()->IsOwned());
 }
 
 NumbObj::~NumbObj() 
@@ -620,7 +624,7 @@ NumbObj::~NumbObj()
 	GetLispCaches()->NumbObjCache.remove(m_Value); 
 }
 
-LispObj* NumbObj::ReloadObj(PolymorphInpStream& ar)
+LispRef NumbObj::ReloadObj(PolymorphInpStream& ar)
 {
 	DBG_START("NumbObj", "ReloadObj", DBG_LOADOBJ);
 
@@ -641,10 +645,10 @@ IMPL_STATIC_LISPCLS(NumbObj)
 /****************** UI64Obj implementation  *******************/
 
 LispRef::LispRef(UInt64 value)
-	: SharedPtrWrap( GetLispCaches()->UI64ObjCache.apply(value) )
+	: base_type( GetLispCaches()->UI64ObjCache.apply(value) )
 {
-	MG_CHECK(get_ptr());
-	MG_CHECK(get_ptr()->IsOwned());
+	MG_CHECK(get());
+	MG_CHECK(get()->IsOwned());
 }
 
 UI64Obj::~UI64Obj() { GetLispCaches()->UI64ObjCache.remove(m_Value); }
@@ -657,7 +661,7 @@ void UI64Obj::WriteObj(PolymorphOutStream& ar) const
 	ar << value;
 }
 
-LispObj* UI64Obj::ReloadObj(PolymorphInpStream& ar)
+LispRef UI64Obj::ReloadObj(PolymorphInpStream& ar)
 {
 	DBG_START("UI64Obj", "ReloadObj", DBG_LOADOBJ);
 
@@ -671,10 +675,10 @@ LispObj* UI64Obj::ReloadObj(PolymorphInpStream& ar)
 /****************** SymbObj implementation  *******************/
 
 LispRef::LispRef(TokenID t, UInt32 c)
-	: SharedPtrWrap(GetOrCreateSymbObj(GetLispCaches(), t, c))
+	: base_type(GetOrCreateSymbObj(GetLispCaches(), t, c))
 {
-	MG_CHECK(get_ptr());
-	MG_CHECK(get_ptr()->IsOwned());
+	MG_CHECK(get());
+	MG_CHECK(get()->IsOwned());
 }
 
 LispRef::LispRef(CharPtr s, UInt32 c)
@@ -718,7 +722,7 @@ void SymbObj::PrintAsFLisp(FormattedOutStream& out, UInt32 level) const
 		out << ":" << m_ChroID;
 }
 
-LispObj* SymbObj::ReloadObj(PolymorphInpStream& ar)
+LispRef SymbObj::ReloadObj(PolymorphInpStream& ar)
 {
 	DBG_START("SymbObj", "ReloadObj", DBG_LOADOBJ);
 	TokenID t = ar.ReadToken();
@@ -741,14 +745,14 @@ IMPL_STATIC_LISPCLS(SymbObj)
 /****************** StrnObj implementation  *******************/
 
 LispRef::LispRef(CharPtr b, CharPtr e)
-	: SharedPtrWrap(
+	: base_type(
 		(b == e)
 		? StrnObj::GetEmpty()
 		: GetLispCaches()->StrnObjCache.apply(StrnType(b, e))
 	)
 {
-	MG_CHECK(get_ptr());
-	MG_CHECK(get_ptr()->IsOwned());
+	MG_CHECK(get());
+	MG_CHECK(get()->IsOwned());
 }
 
 StrnObj::~StrnObj()
@@ -765,7 +769,7 @@ IMPL_STATIC_LISPCLS(StrnObj)
 StrnObj* StrnObj::GetEmpty()
 {
 	static StrnObj* empty = new StrnObj();
-	static SharedPtr<LispObj> emptyHolder(empty);
+	static SharedPtr<const LispObj> emptyHolder(empty, newly_obj{});
 
 	return empty;
 }
@@ -776,7 +780,7 @@ void StrnObj::Print(FormattedOutStream& o, UInt32 level) const
 	o << " ";
 }
 
-LispObj* StrnObj::ReloadObj(PolymorphInpStream& ar)
+LispRef StrnObj::ReloadObj(PolymorphInpStream& ar)
 {
 	DBG_START("StrnObj", "ReloadObj", DBG_LOADOBJ);
 
@@ -816,22 +820,28 @@ void StrnObj::WriteObj(PolymorphOutStream& ar) const
 /****************** ListObj implementation  *******************/
 
 LispRef::LispRef(LispPtr head, LispPtr tail)
-	: SharedPtrWrap<LispPtr>(GetLispCaches()->ListObjCache.apply(ListType(tail, head)))
+	: base_type(GetLispCaches()->ListObjCache.apply(ListType(tail, head)))
 {
-	MG_CHECK(get_ptr());
-	MG_CHECK(get_ptr()->IsOwned());
+	MG_CHECK(get());
+	MG_CHECK(get()->IsOwned());
 }
 
-using zombie_destroyer_stack = std::stack<zombie_destroyer>;
+using zombie_destroyer_stack = std::stack<std::unique_ptr<const ListObj> >;
 
 void ref_mover(zombie_destroyer_stack& nodes, LispRef& current)
 {
 	// Release children and push them onto the stack
 	if (!current.IsRealList())
 		return;
+//	using base_value_type = std::iterator_traits< zombie_destroyer1::pointer>::value_type;
 	auto resetHandle = current.delayed_reset();
 	if (resetHandle)
-		nodes.push(std::move(resetHandle)); // Detach and push
+	{
+		auto listObjHandle = std::unique_ptr<const ListObj>(
+			checked_cast<const ListObj*>(resetHandle.release())
+		);
+		nodes.push(std::move(listObjHandle)); // Detach and push
+	}
 }
 
 thread_local bool s_LispObjStackActive = false;
@@ -842,7 +852,7 @@ ListObj::~ListObj()
 		return;
 
 	s_LispObjStackActive = true;
-	std::stack<zombie_destroyer> nodes;
+	zombie_destroyer_stack nodes;
 
 	// No need to reset since release already nullifies the unique_ptrs
 	GetLispCaches()->ListObjCache.remove(GetKey());
@@ -853,7 +863,7 @@ ListObj::~ListObj()
 		auto current = std::move(nodes.top());
 		nodes.pop();
 
-		auto currentLispObj = static_cast<ListObj*>(current.get());
+		auto currentLispObj = const_cast<ListObj*>(current.get());
 		assert(currentLispObj);
 		GetLispCaches()->ListObjCache.remove(currentLispObj->GetKey());
 		ref_mover(nodes,currentLispObj->m_Left);
@@ -945,7 +955,7 @@ void ListObj::PrintAsFLisp(FormattedOutStream& out, UInt32 level) const
 	}
 }
 
-LispObj* ListObj::ReloadObj(PolymorphInpStream& ar)
+LispRef ListObj::ReloadObj(PolymorphInpStream& ar)
 {
 	DBG_START("ListObj", "ReloadObj", DBG_LOADOBJ);
 
@@ -965,23 +975,6 @@ void ListObj::WriteObj(PolymorphOutStream& ar) const
 /******************                                   *******************/
 /****************** Print func                        *******************/
 /******************                                   *******************/
-
-
-void LispPtr::Print(FormattedOutStream& out, UInt32 level) const 
-{ 
-	if (get_ptr()) 
-		get_ptr()->Print(out, level); 
-	else 
-		out << "() "; 
-}
-
-void LispPtr::PrintAsFLisp(FormattedOutStream& out, UInt32 level) const
-{ 
-	if (get_ptr()) 
-		get_ptr()->PrintAsFLisp(out, level);
-	else
-		out << "() ";
-}
 
 
 leveled_critical_section gc_FLispUsageGuard(item_level_type(0), ord_level_type::FLispUsageCache, "FLispUsageCache");

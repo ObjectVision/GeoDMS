@@ -94,9 +94,9 @@ UsingCache::~UsingCache()
 
 void UsingCache::AddParent()
 {
-	const TreeItem* contextParent = m_Context->GetTreeParent();
+	auto contextParent = m_Context->GetTreeParent();
 	if (contextParent) 
-		AddUsingInternal(contextParent);
+		AddUsingInternal(contextParent.get());
 }
 
 UInt32 UsingCache::GetNrUsings() const
@@ -108,7 +108,7 @@ const TreeItem* UsingCache::GetUsing(UInt32 i) const
 {
 	assert(m_UsingUrls.empty());
 	MG_PRECONDITION(i < m_Usings.size());
-	return m_Usings[i];
+	return m_Usings[i].get();
 }
 
 
@@ -148,7 +148,7 @@ void UsingCache::CheckSearchSpace(const TreeItem* nameSpace) const
 	TreeItemCRefArray::const_iterator i = nameSpaceUsings.end();
 	TreeItemCRefArray::const_iterator b = nameSpaceUsings.begin();
 	while (i != b)
-		CheckSearchSpace(*--i);
+		CheckSearchSpace((*--i).get());
 }
 
 
@@ -211,12 +211,13 @@ void UsingCache::AddUsings(const TreeItem** firstNameSpace, const TreeItem** las
 	usings_iterator end = m_Usings.end();
 	usings_iterator pos = std::find(m_Usings.begin(), end, *firstNameSpace); // requires nrToAdd>0
 
-	dms_assert(pos <= end);
+	assert(pos <= end);
 	if (UInt32(end - pos) <= nrToAdd) // overlapping range not possible
 	{
 		const TreeItem** i = firstNameSpace;
 		while (pos != end)
-			if (*i++ != *pos++) goto doAdd;
+			if (*i++ != (*pos++).get()) 
+				goto doAdd;
 		firstNameSpace = i; // skip starting range that is equal to end range of m_Usings
 	}
 
@@ -343,7 +344,7 @@ void UsingCache::UpdateCache() const
 	UpdateUsings();
 	UInt32 nrUsings = m_Usings.size();
 	for (UInt32 i = nrUsings; i--; )
-		Update(m_Usings[i]);
+		Update(m_Usings[i].get());
 
 #if defined(MG_DEBUG)
 	MG_LOCKER_NO_UPDATEMETAINFO
@@ -389,14 +390,14 @@ void UsingCache::UpdateCache() const
 	m_SortedItemCache.insert(m_SortedItemCache.begin(), tmpNameSpace.begin(), tmpNameSpace.end());
 }
 
-const TreeItem* UsingCache::FindNamespace(TokenID url) const
+auto UsingCache::FindNamespace(TokenID url) const -> SharedTreeItem
 {
 	UInt32 n = m_Usings.size();
 	SharedStr urlAsString = SharedStr(url);
 	if (!n)
 	{
 		if (!m_Context->GetTreeParent() && !m_Context->IsCacheItem())
-			return nullptr;
+			return {};
 		// we look for context ref of instantiated template in cache
 		dms_assert(!m_Context->GetTreeParent());
 		dms_assert(url.GetStr().c_str()[0] == '/');
@@ -404,21 +405,22 @@ const TreeItem* UsingCache::FindNamespace(TokenID url) const
 	}
 	while (n--)
 	{
-		const TreeItem* foundItem = m_Usings[n]->FindItem(urlAsString); // TODO return 0 if firstName found somewhere
+		auto foundItem = m_Usings[n]->FindItem(urlAsString); // TODO return 0 if firstName found somewhere
 		if (foundItem)
 			return foundItem;
 	}
-	return nullptr;
+	return {};
 }
 
-const TreeItem* UsingCache::FindItem(TokenID itemID) const
+auto UsingCache::FindItem(TokenID itemID) const -> SharedTreeItem
 {
 	if (m_CacheState == CacheStateType::BUSY)
 	{
 		// Get it the old way, look in m_Context, and then in all m_usings in reverse order
 		dms_assert(m_Context);
-		const TreeItem* ti = m_Context->GetConstSubTreeItemByID(itemID);
-		if (ti) return ti;
+		auto ti = m_Context->GetConstSubTreeItemByID(itemID);
+		if (ti) 
+			return ti;
 		return FindNamespace(itemID);
 	}
 
@@ -450,18 +452,18 @@ void UsingCache::OnItemAdded(const TreeItem* child)
 		dms_assert((*ip)->GetID() == child->GetID());
 		if (*ip == child) // as same item; no problem, maybe inserted though other incoming route
 			return;
-		if (child->GetTreeParent() != m_Context) // would have been new
+		if (child->GetTreeParent().get() != m_Context) // would have been new
 		{
-			if ((*ip)->GetTreeParent() == m_Context)  // *ip has best rights
+			if ((*ip)->GetTreeParent().get() == m_Context)  // *ip has best rights
 				return;
 
 			// child was toegevoegd in 1 der usings; kijk of het niet overruled wordt door *ip
 			UInt32 n = m_Usings.size();
-			const TreeItem* foundItem = nullptr;
+			SharedTreeItem foundItem;
 			while (n-- && !foundItem)
 				foundItem = m_Usings[n]->GetUsingCache()->FindItem(child->GetID());
-			dms_assert(foundItem && (foundItem == *ip || foundItem == child));
-			if (foundItem != child)
+			assert(foundItem && (foundItem == *ip || foundItem == child));
+			if (foundItem.get() != child)
 				return; // best rights for existing *ip
 		}
 		*ip = child; // overwrite

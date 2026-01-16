@@ -806,7 +806,7 @@ ActorVisitState DataView::VisitSuppliers(SupplierVisitFlag svf, const ActorVisit
 {
 	if (GetContents()->VisitSuppliers(svf, visitor) == AVS_SuspendedOrFailed)
 		return AVS_SuspendedOrFailed;
-	return base_type::VisitSuppliers(svf, visitor);
+	return Actor::VisitSuppliers(svf, visitor);
 }
 
 void DataView::DoInvalidate() const
@@ -1651,7 +1651,7 @@ void OnControlActivate(DataView* self, const UInt32* first, const UInt32* last)
 		UInt32 i = *first++;
 		reportF(SeverityTypeID::ST_MajorTrace, "At %s %s go to item %s"
 			, mo->GetDynamicClass()->GetName()
-			, mo->GetFullName()
+			, mo->GetFullCfgName()
 			, i
 		);
 		if (!i)
@@ -1674,7 +1674,7 @@ void OnControlActivate(DataView* self, const UInt32* first, const UInt32* last)
 	}
 	reportF(SeverityTypeID::ST_MajorTrace, "Activate %s %s!"
 		, mo->GetDynamicClass()->GetName()
-		, mo->GetFullName()
+		, mo->GetFullCfgName()
 	);
 	self->Activate(mo.get());
 }

@@ -24,22 +24,35 @@
 
 template <class T = LispRef> struct LispList;
 
-template <class T = LispRef>
-struct LispListPtr : LispPtr
-{
-	typedef LispPtr::pointer     pointer;
-    typedef LispList<T>          list_type;
-	typedef typename T::ptr_type elem_ptr;
-    typedef LispListPtr<T>       ptr_type;
+template <class PtrBase, class T = LispRef> struct LispListPtrWrap;
+template <class T> using LispListPtr = LispListPtrWrap<WeakPtr<const LispObj>, T>;
 
-	LispListPtr() {}
-	LispListPtr(LispPtr src) : LispPtr(src) { if (!Check()) LispError("Invalid cast to LispList", src); }
+
+template <class PtrBase, class T>
+struct LispListPtrWrap : LispPtrWrap<PtrBase>
+{
+	using base_type = LispPtrWrap<PtrBase>;
+//	using pointer = LispPtr::pointer;
+    using list_type = LispList<T>;
+	using elem_ptr = typename T::ptr_type;
+	using ptr_type = LispListPtrWrap<WeakPtr<const LispObj>, T>;
+
+	LispListPtrWrap() {}
+	LispListPtrWrap(LispPtr src) : base_type(src) 
+	{ 
+		if (!Check()) 
+			LispError("Invalid cast to LispList", src); 
+	}
+//	LispListPtrWrap(PtrBase ht, existing_obj) : base_type(ht) {}
+
+	template <class RhsPtr>
+	LispListPtrWrap(const LispListPtrWrap<RhsPtr, T>& rhs) : LispPtrWrap<PtrBase>(rhs) {}
 
     list_type Delete(elem_ptr e) const;
     list_type Concat(ptr_type l) const;
 
-    elem_ptr Head() const { return reinterpret_cast<elem_ptr&>(Left());  }
-    ptr_type Tail() const { return reinterpret_cast<ptr_type&>(Right()); }
+    elem_ptr Head() const { return reinterpret_cast<elem_ptr&>(this->Left());  }
+    ptr_type Tail() const { return reinterpret_cast<ptr_type&>(this->Right()); }
 
     elem_ptr First () const {return Head(); };
     elem_ptr Second() const {return Tail().First ();};
@@ -47,84 +60,82 @@ struct LispListPtr : LispPtr
     elem_ptr Fourth() const {return Tail().Third ();};
     elem_ptr Fifth () const {return Tail().Fourth();};
 
-    bool IsEmpty() const { return EndP(); }
+    bool IsEmpty() const { return this->EndP(); }
 
     bool   LengthIs(UInt32 n) const;
     UInt32 Length()  const;
 
-    bool Check() const;
+    bool Check() const
+	{
+		for (ptr_type cursor = *this; !cursor.EndP(); cursor = cursor.Tail())
+		{
+			if (!cursor.IsList())
+				return false;
+			if (!cursor.Head().Check())
+				return false;
+		}
+		return true;
+	}
 
-protected:
-	explicit LispListPtr(LispObj* obj) : LispPtr(obj) {}
+//	auto AsLispPtr() const -> LispPtr { return LispPtr(this->get_ptr()); }
 };
 
 template <class T>
-struct LispList : SharedPtrWrap<LispListPtr<T> >
+struct LispList : LispListPtrWrap<SharedPtr<const LispObj>, T>
 {
-	using base_type = SharedPtrWrap<LispListPtr<T> >;
-	typedef typename T::ptr_type elem_ptr;
-	typedef LispListPtr<T>       ptr_type;
+	using base_type = LispListPtrWrap<SharedPtr<const LispObj>, T>;
+	using elem_ptr = typename T::ptr_type;
+	using ptr_type = LispListPtr<T>;
 
     LispList()
 	{}
 
     LispList(elem_ptr head, ptr_type tail) 
-		: base_type(LispRef(head, tail).get_ptr(), existing_obj{})
+		: base_type(LispRef(head.AsLispPtr(), tail.AsLispPtr()))
 	{}
 
 	LispList(ptr_type listPtr) 
-		: base_type(listPtr, existing_obj{})
+		: base_type(listPtr) 
 	{}
 
-	LispList(LispPtr  lispPtr) 
-		: base_type(ptr_type(lispPtr), existing_obj{})  // invoke Check
-	{} 
+	LispList(LispPtr src)
+		: base_type(src) // invoke Check
+	{}
 
 	operator ptr_type() const { return ptr_type(this->get_ptr()); }
-
 };
 
-typedef LispListPtr<LispRef> LispRefListPtr;
-typedef LispList<LispRef>    LispRefList;
+using LispRefListPtr = LispListPtrWrap<WeakPtr<const LispObj>,LispRef>;
+using LispRefList = LispList<LispRef>;
 
 /*********** function implementations ********************/
 
-template <class T> bool
-LispListPtr<T>::Check() const
-{
-	for (LispListPtr cursor = *this; !cursor.EndP(); cursor = cursor.Tail())
-	{
-		if (!cursor.IsList())
-			return false;
-		if (!cursor.Head().Check())
-			return false;
-	}
-	return true;
-}
 
 // the following functions are easy RECURSIVE
 
-template <class T>
-bool LispListPtr<T>::LengthIs(UInt32 n) const
+template <class PtrBase, class T>
+bool LispListPtrWrap<PtrBase, T>::LengthIs(UInt32 n) const
 {
-	if (IsEmpty()) return (n == 0);
-	if (n==0) return false;
+	if (IsEmpty())
+		return (n == 0);
+	if (n==0) 
+		return false;
 	return Tail().LengthIs(n-1);
 }
 
-template <class T>
-UInt32 LispListPtr<T>::Length() const
+template <class PtrBase, class T>
+UInt32 LispListPtrWrap<PtrBase, T>::Length() const
 {
 	UInt32 argCount = 0;
-	for (LispListPtr cursor = *this; !cursor.EndP(); cursor = cursor.Tail())
+	for (auto cursor = *this; !cursor.EndP(); cursor = cursor.Tail())
 		++argCount;
 	return argCount;
 }
 
 // the following functions are hard RECURSIVE
 
-template <class T> LispList<T>
-LispListPtr<T>::Delete(elem_ptr e) const
+template <class PtrBase, class T>
+auto LispListPtrWrap<PtrBase, T>::Delete(elem_ptr e) const -> LispList<T>
 {
 	if (IsEmpty())
 		return LispList<T>();
@@ -134,8 +145,8 @@ LispListPtr<T>::Delete(elem_ptr e) const
 	return LispList(first, Tail().Delete(e));
 }
 
-template <class T> LispList<T>
-LispListPtr<T>::Concat(ptr_type b) const
+template <class PtrBase, class T>
+auto LispListPtrWrap<PtrBase, T>::Concat(ptr_type b) const -> LispList<T>
 {
 	if (IsEmpty()) return b;
 	return LispList<T>(Head(), Tail().Concat(b));

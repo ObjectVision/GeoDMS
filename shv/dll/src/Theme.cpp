@@ -74,10 +74,7 @@ Theme::Theme(AspectNr aNr, const AbstrDataItem* themeAttr, const AbstrDataItem* 
 }
 
 Theme::~Theme()
-{
-	MG_ASSERT(GetRefCount() == 0);
-	Abandon();
-}
+{}
 
 //	delayed construction
 void Theme::SetThemeAttr(const AbstrDataItem* attr)
@@ -304,12 +301,12 @@ ActorVisitState Theme::VisitSuppliers(SupplierVisitFlag svf, const ActorVisitor&
 	if (visitor.Visit(m_PaletteAttr.get_ptr()   ) == AVS_SuspendedOrFailed) return AVS_SuspendedOrFailed;
 	if (visitor.Visit(m_Classification.get_ptr()) == AVS_SuspendedOrFailed) return AVS_SuspendedOrFailed;
 	if (visitor.Visit(m_ThemeAttr.get_ptr()) == AVS_SuspendedOrFailed) return AVS_SuspendedOrFailed;
-	return base_type::VisitSuppliers(svf, visitor);
+	return Actor::VisitSuppliers(svf, visitor);
 }
 
 void Theme::DoInvalidate () const
 {
-	base_type::DoInvalidate();
+	Actor::DoInvalidate();
 
 	if (m_ValueGetterPtr && m_ValueGetterPtr->MustRecalc())
 		m_ValueGetterPtr.reset();

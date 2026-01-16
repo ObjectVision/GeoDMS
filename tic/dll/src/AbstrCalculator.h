@@ -119,7 +119,7 @@ public:
 
 	TIC_CALL virtual ActorVisitState VisitSuppliers(SupplierVisitFlag svf, const ActorVisitor& visitor) const;
 	TIC_CALL static ActorVisitState VisitImplSuppl(SupplierVisitFlag svf, const ActorVisitor& visitor, const TreeItem* context, WeakStr expr, CalcRole cr);
-	TIC_CALL static const TreeItem* GetSearchContext(const TreeItem* holder, CalcRole cr);
+	TIC_CALL static SharedTreeItem GetSearchContext(const TreeItem* holder, CalcRole cr);
 	auto VisitSourceItem(TokenID supplRefID, SupplierVisitFlag svf, const ActorVisitor& visitor) const->std::optional<SharedTreeItem>;
 
 	TIC_CALL virtual bool CheckSyntax () const;
@@ -144,13 +144,13 @@ public:
 	TIC_CALL bool            HasTemplSource() const;
 	TIC_CALL const TreeItem* GetTemplSource() const;
 
-	TIC_CALL bool            IsForEachTemplHolder()  const;
-	TIC_CALL const TreeItem* GetForEachTemplSource() const;
+	TIC_CALL bool IsForEachTemplHolder () const;
+	TIC_CALL auto GetForEachTemplSource() const -> SharedTreeItem;
 
 	const TreeItem* GetHolder() const { return m_Holder; }
 
-	TIC_CALL const TreeItem* SearchContext() const;
-	TIC_CALL const TreeItem* FindItem(TokenID itemRef) const;
+	TIC_CALL auto SearchContext() const -> SharedTreeItem;
+	TIC_CALL auto FindItem(TokenID itemRef) const -> SharedTreeItem;
 	TIC_CALL auto FindOrVisitItem(SubstitutionBuffer& buff, TokenID itemRef) const -> SharedTreeItem;
 	TIC_CALL BestItemRef FindBestItem(TokenID itemRef) const;
 	MetaInfo SubstituteExpr(SubstitutionBuffer& substBuff, LispPtr localExpr) const;
@@ -164,7 +164,7 @@ public:
 	LispRef SubstituteExpr_impl(SubstitutionBuffer& substBuff, LispRef localExpr, metainfo_policy_flags mpf) const;
 
 	mutable WeakPtr<const TreeItem>   m_Holder;
-	mutable SharedPtr<const TreeItem> m_SearchContext; // parent of instantiatior in case of argument binding
+	mutable SharedTreeItem            m_SearchContext; // parent of instantiatior in case of argument binding
 
 //protected:
 	mutable LispRef m_LispExprOrg; // TODO G8: required for ExprCalculator and DC_Ptr(ArgCalc), but not for DataBlockTask and maybe also not for DC_Ptr(Calc)

@@ -40,10 +40,10 @@ struct DataController : TreeItemDualRef
 	LispPtr GetLispRef()    const { return m_Key; }
 
 //	specific support for Calcrule Source Tracking
-	virtual bool            HasTemplSource() const { return false; }
-	virtual SharedTreeItem  GetTemplSource() const { return {}; }
-	virtual bool            IsForEachTemplHolder()  const { return false; }
-	virtual SharedTreeItem  GetForEachTemplSource() const { return {}; }
+	virtual bool HasTemplSource() const { return false; }
+	virtual auto GetTemplSource() const -> SharedTreeItem { return {}; }
+	virtual bool IsForEachTemplHolder()  const { return false; }
+	virtual auto  GetForEachTemplSource() const -> SharedTreeItem { return {}; }
 
 	virtual bool IsCalculating() const;
 

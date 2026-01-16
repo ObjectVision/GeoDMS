@@ -141,7 +141,7 @@ const AbstrUnit* UnitClass::CreateDefault() const
 			m_DefaultUnit->DisableAutoDelete();
 		}
 	}
-	return m_DefaultUnit;
+	return m_DefaultUnit.get();
 }
 
 void UnitClass::DropDefault() const

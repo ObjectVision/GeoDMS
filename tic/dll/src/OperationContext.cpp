@@ -1732,7 +1732,7 @@ struct OC_CalcResultFunc {
 		assert(self->m_Status == task_status::running);
 		assert(!SuspendTrigger::DidSuspend());
 
-		std::vector<SharedPtr<const Actor>> statusActors; statusActors.reserve(argRefs.size());
+		std::vector<SharedPtr<const PersistentSharedActor>> statusActors; statusActors.reserve(argRefs.size());
 		for (const auto& argRef : argRefs)
 			statusActors.emplace_back(GetStatusActor(argRef));
 

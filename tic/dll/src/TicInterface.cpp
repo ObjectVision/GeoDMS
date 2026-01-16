@@ -257,7 +257,7 @@ TIC_CALL const TreeItem* DMS_CONV DMS_TreeItem_GetItem(const TreeItem* context, 
 	return nullptr;
 }
 
-TIC_CALL auto TreeItem_GetBestItemAndUnfoundPart(const TreeItem* context, CharPtr path) ->BestItemRef
+TIC_CALL auto TreeItem_GetBestItemAndUnfoundPart(const TreeItem* context, CharPtr path) -> BestItemRef
 {
 	assert(context);
 
@@ -1016,13 +1016,13 @@ TIC_CALL BestItemRef TreeItem_GetErrorSource(const TreeItem* src, bool tryCalcSu
 {
 	TreeItemContextHandle checkPtr1(src, TreeItem::GetStaticClass(), "TreeItem_GetErrorSource");
 	if (!src)
-		return { nullptr, {} };
+		return { {}, {} };
 
 	if (!src->WasFailed())
 	{
 		if (WasInFailed(src))
 			return { src->GetTreeParent(), {} };
-		return { nullptr, {} };
+		return { {}, {} };
 	}
 	// parent ?
 	auto context = src->GetTreeParent();

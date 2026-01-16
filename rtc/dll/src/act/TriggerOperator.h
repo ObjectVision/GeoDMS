@@ -27,8 +27,8 @@ RTC_CALL void DecRemainingTargetCount();
 namespace DemandManagement {
 	using ActorSet = std::set<const Actor*>;
 
-	void AddTempTarget    (const Actor* a);
-	void ReleaseTempTarget(const Actor* a);
+	void AddTempTarget    (const PersistentSharedActor* a);
+	void ReleaseTempTarget(const PersistentSharedActor* a);
 
 	struct IncInterestDetector // detect late expression of demand 
 	{

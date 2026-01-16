@@ -156,8 +156,8 @@ AbstrDataItem* DataItemClass::CreateDataItem(
 				);
 
 	dms_assert(result);
-	result->m_DomainUnit = domainUnit;
-	result->m_ValuesUnit = valuesUnit;
+	result->m_DomainUnit = MakeSharedFromBorrowedObjectPtr( domainUnit );
+	result->m_ValuesUnit = MakeSharedFromBorrowedObjectPtr( valuesUnit );
 	return result;
 }
 
@@ -178,8 +178,8 @@ AbstrDataItem* DataItemClass::CreateDataItemFromPath(
 		);
 
 	dms_assert(result);
-	result->m_DomainUnit = domainUnit;
-	result->m_ValuesUnit = valuesUnit;
+	result->m_DomainUnit = MakeSharedFromBorrowedObjectPtr( domainUnit );
+	result->m_ValuesUnit = MakeSharedFromBorrowedObjectPtr( valuesUnit );
 	return result;
 }
 

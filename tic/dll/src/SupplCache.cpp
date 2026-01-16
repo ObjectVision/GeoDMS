@@ -69,7 +69,7 @@ void SupplCache::InitAt(const TreeItem* fencedSource)
 	m_NrConfigured = 1;
 	m_IsDirty = false;
 	m_SupplArray.reset(new ActorCRef[1]);
-	m_SupplArray[0] = fencedSource;
+	m_SupplArray[0] = ActorCRef(fencedSource, existing_obj{});
 }
 
 void SupplCache::InitAt(const ActorCRef* first, const ActorCRef* last)
@@ -111,7 +111,7 @@ void SupplCache::BuildSet(const TreeItem* context) const
 	ActorCRefArray newSupplArray(new ActorCRef[m_NrConfigured]);
 	if (!context->GetTreeParent())
 		context->throwItemError("ExplicitSuppliers property cannot be set on root items");
-	context = context->GetTreeParent();
+	context = context->GetTreeParent().get();
 	UInt32 i=0;
 	while (true)
 	{
@@ -120,12 +120,12 @@ void SupplCache::BuildSet(const TreeItem* context) const
 		{
 			CharPtrRange explicitSupplierName(iBegin, iFirstEnd);
 			Trim(explicitSupplierName);
-			const TreeItem* suppl = context->FindItem(explicitSupplierName);
+			auto suppl = context->FindItem(explicitSupplierName);
 			if (!suppl)
 				context->throwItemErrorF("ExplicitSupplier %s not found", SingleQuote(explicitSupplierName.first, explicitSupplierName.second));
 
 			assert(i<m_NrConfigured);
-			newSupplArray[i++] = ActorCRef(suppl);
+			newSupplArray[i++] = suppl;
 		}
 		if (iFirstEnd == iEnd)
 			break;

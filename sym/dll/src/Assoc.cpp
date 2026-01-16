@@ -18,16 +18,16 @@ AssocPtr AssocPtr::failed() {
 	return result;
 }
 
-AssocListPtr AssocListPtr::empty()
+auto AssocList::empty() -> AssocListPtr
 {
 	static AssocListPtr result = AssocListPtr(LispPtr());
 	return result;
 }
 
-AssocListPtr AssocListPtr::failed()
+auto AssocList::failed() ->AssocListPtr
 {
-	static AssocList assocListFailed = AssocList(AssocPtr::failed(), AssocListPtr::empty());
-	return AssocListPtr(assocListFailed.get_ptr());
+	static AssocList assocListFailed = AssocList(AssocPtr::failed(), AssocList::empty());
+	return AssocListPtr(assocListFailed.get());
 }
 
 /**************** operators      *****************/

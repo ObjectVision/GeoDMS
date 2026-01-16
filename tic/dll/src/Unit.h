@@ -302,8 +302,8 @@ struct VoidUnitBase : UnitBase<Void>
 	using range_t = Range<UInt32>;
 
 	auto GetTiledRangeData() const  -> SharedPtr<const AbstrTileRangeData> override {
-		static SharedPtr<FixedRange<0>> s_RangeData = new FixedRange<0>;
-		return s_RangeData.get();
+		static SharedPtr<FixedRange<0>> s_RangeData = { new FixedRange<0>, newly_obj{} };
+		return s_RangeData;
 	}
 
 	range_t GetRange() const { return range_t(0, 1); }

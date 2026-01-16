@@ -221,8 +221,8 @@ void IndexGetterCreatorBase<TileCreationData>::VisitImpl(const Unit<bit_value<N>
 
 IndexGetterCreator1::IndexGetterCreator1(const AbstrDataItem* adi, tile_id t)
 {
-	m_TileCreationData.m_Adi       = adi;
-	m_TileCreationData.m_TileID    = t;
+	m_TileCreationData.m_Adi    = MakeSharedFromBorrowedObjectPtr( adi );
+	m_TileCreationData.m_TileID = t;
 }
 
 IndexGetterCreator2::IndexGetterCreator2(const AbstrDataItem* adi, abstr_future_tile_ptr aft)

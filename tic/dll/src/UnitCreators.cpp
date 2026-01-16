@@ -42,8 +42,8 @@ ConstUnitRef CastUnit(const UnitClass* uc, ConstUnitRef v)
 
 ConstUnitRef CastUnit(const UnitClass* uc, const ArgSeqType& args)
 {
-	dms_assert(args.size() >= 1);
-	return CastUnit(uc, AsDataItem(args[0])->GetAbstrValuesUnit());
+	assert(args.size() >= 1);
+	return CastUnit(uc, {AsDataItem(args[0])->GetAbstrValuesUnit(), existing_obj{}}	);
 }
 
 
@@ -58,7 +58,7 @@ ConstUnitRef count_unit_creator(const AbstrDataItem* adi)
 	const ValueClass* vc = adu->GetValueType(); assert(vc);
 	const ValueClass* vcCrd = vc->GetCrdClass(); assert(vcCrd);
 	auto uc = UnitClass::Find(vcCrd); assert(uc);
-	return uc->CreateDefault();
+	return { uc->CreateDefault(), existing_obj{} };
 }
 
 ConstUnitRef unique_count_unit_creator(const AbstrDataItem* adi, const AbstrDataItem* groupBy_rel)

@@ -58,7 +58,7 @@ struct SessionData : std::enable_shared_from_this<SessionData>
 
 	TIC_CALL void release();
 
-	const TreeItem* GetConfigRoot   () const { return m_ConfigRoot; } 
+	SharedTreeItem  GetConfigRoot   () const { return m_ConfigRoot; } 
 	WeakStr         GetConfigLoadDir() const { return m_ConfigLoadDir; }
 	SharedStr       GetConfigDir    () const;
 	TIC_CALL bool   IsConfigDirty   () const;

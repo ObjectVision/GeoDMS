@@ -1,4 +1,4 @@
-// Copyright (C) 1998-2024 Object Vision b.v. 
+// Copyright (C) 1998-2026 Object Vision b.v. 
 // License: GNU GPL 3
 /////////////////////////////////////////////////////////////////////////////
 
@@ -54,8 +54,8 @@ dms_transform(
 	static_assert(std::is_same_v<typename UnaOper::arg1_type, bit_value<N> >);
 	static_assert(std::is_same_v<typename UnaOper::res_type, bit_value<N> >);
 
-	dms_assert(!f1.nr_elem());
-	dms_assert(!outIter.nr_elem());
+	assert(!f1.nr_elem());
+	assert(!outIter.nr_elem());
 
 	dms_transform(f1.data_begin(), l1.data_end(), outIter.data_begin(), oper.m_BlockFunc);
 }
@@ -103,9 +103,9 @@ dms_transform(
 	static_assert(std::is_same_v<typename BinOper::arg2_type, bit_value<N> >);
 	static_assert(std::is_same_v<typename BinOper::res_type,  bit_value<N> >);
 
-	dms_assert(!f1.nr_elem());
-	dms_assert(!f2.nr_elem());
-	dms_assert(!outIter.nr_elem());
+	assert(!f1.nr_elem());
+	assert(!f2.nr_elem());
+	assert(!outIter.nr_elem());
 
 	dms_transform(f1.data_begin(), l1.data_end(), f2.data_begin(), outIter.data_begin(), oper.m_BlockFunc);
 }

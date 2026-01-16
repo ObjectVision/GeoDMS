@@ -205,10 +205,10 @@ namespace cs_lock {
 		assert(key);
 		if (!key->IsCacheItem())
 			return;
-		const struct TreeItem* parent = key->GetTreeParent();
+		auto parent = key->GetTreeParent();
 		if (!parent)
 			return;
-		ReadLock(parent); // let assoc_ptr slip here; caller must call FreeReadAccess(key) that will calltreeitem_production_task::unlock(parent); (through ReadFree)
+		ReadLock(parent.get()); // let assoc_ptr slip here; caller must call FreeReadAccess(key) that will calltreeitem_production_task::unlock(parent); (through ReadFree)
 	}
 
 	bool TryPrepareReadAccess(const TreeItem* key) // only works for reader_writer_lock
@@ -227,9 +227,9 @@ namespace cs_lock {
 		assert(key);
 		if (!key->IsCacheItem())
 			return;
-		const struct TreeItem* parent = key->GetTreeParent();
+		auto parent = key->GetTreeParent();
 		if (parent)
-			ReadFree(parent);
+			ReadFree(parent.get());
 	}
 
 	void ThrowIfNotReady(const TreeItem* item)

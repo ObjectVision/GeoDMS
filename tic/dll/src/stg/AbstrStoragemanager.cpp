@@ -62,16 +62,16 @@ StorageMetaInfo::~StorageMetaInfo()
 	}
 }
 
-const AbstrDataItem* StorageMetaInfo::CurrRD() const { return AsDataItem(m_Curr.get_ptr()); }
-const AbstrUnit*     StorageMetaInfo::CurrRU() const { return AsUnit(m_Curr.get_ptr()); }
+auto StorageMetaInfo::CurrRD() const -> SharedPtr<const AbstrDataItem> { return AsDataItem(m_Curr); }
+auto StorageMetaInfo::CurrRU() const -> SharedPtr<const AbstrUnit> { return AsUnit(m_Curr); }
 
 void StorageMetaInfo::OnPreLock()
 {
-	if (IsDataItem(m_Curr.get_ptr()))
+	if (IsDataItem(m_Curr.get()))
 	{
-		SharedPtr<const AbstrUnit> adu = CurrRD()->GetAbstrDomainUnit();
+		SharedPtr<const AbstrUnit> adu = { CurrRD()->GetAbstrDomainUnit(), existing_obj{} };
 		adu->GetCount(); // Prepare for later DataWriteLock->DoCreateMemoryStorage
-		SharedPtr<const AbstrUnit> avu = CurrRD()->GetAbstrValuesUnit();
+		SharedPtr<const AbstrUnit> avu = { CurrRD()->GetAbstrValuesUnit(), existing_obj{} };
 		WaitForReadyOrSuspendTrigger(avu->GetCurrRangeItem());
 	}
 }
@@ -843,7 +843,9 @@ void NonmappableStorageManager::StartInterest(const TreeItem* storageHolder, con
 
 	auto visitorImpl = [&interestHolders](const Actor* item) 
 		{ 
-			if (!item->IsPassorOrChecked()) interestHolders.emplace_back(item); 
+			if (!item->IsPassorOrChecked()) 
+				if (auto sa = dynamic_cast<const PersistentSharedActor*>(item))
+					interestHolders.emplace_back(sa); 
 		};
 	auto visitor = MakeDerivedProcVisitor(std::move(visitorImpl));
 

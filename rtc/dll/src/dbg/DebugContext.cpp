@@ -178,8 +178,7 @@ void ObjectContextPolicy<Base>::GenerateDescription()
 		m_Role = "Object";
 	if (m_Obj)
 	{
-		auto pso = dynamic_cast<const PersistentSharedObj*>(m_Obj);
-		auto name = pso ? pso->GetFullName() : m_Obj->GetSourceName();
+		auto name = m_Obj->GetFullName();
 		this->SetText(
 			mySSPrintF("while in %s for %s"
 				, m_Role

@@ -261,7 +261,7 @@ AbstrCalculator::AbstrCalculator(const TreeItem* context, CalcRole cr)
 
 	if (!m_SearchContext)
 		m_SearchContext = SessionData::Curr()->GetConfigRoot();
-	dms_assert(m_SearchContext);
+	assert(m_SearchContext);
 }
 
 AbstrCalculator::AbstrCalculator(const TreeItem* context, LispPtr lispRefOrg, CalcRole cr)
@@ -292,7 +292,7 @@ bool AbstrCalculator::CheckSyntax () const
 	return true;
 }
 
-const TreeItem* AbstrCalculator::SearchContext() const
+SharedTreeItem AbstrCalculator::SearchContext() const
 {
 	auto searchContext = m_SearchContext;
 	MG_CHECK(searchContext);
@@ -301,7 +301,7 @@ const TreeItem* AbstrCalculator::SearchContext() const
 
 static TokenID thisToken = GetTokenID_st("this");
 
-const TreeItem* AbstrCalculator::FindItem(TokenID itemRef) const
+auto AbstrCalculator::FindItem(TokenID itemRef) const -> SharedTreeItem
 {
 	assert(!itemRef.empty());
 	assert(m_Holder);
@@ -309,7 +309,7 @@ const TreeItem* AbstrCalculator::FindItem(TokenID itemRef) const
 	MG_SIGNAL_ON_UPDATEMETAINFO
 
 	if (itemRef == thisToken)
-		return m_Holder;
+		return { m_Holder.get(), existing_obj{}};
 
 	SharedStr itemRefStr(itemRef.AsStrRange());
 	return SearchContext()->FindItem(itemRefStr);
@@ -323,7 +323,7 @@ auto AbstrCalculator::FindOrVisitItem(SubstitutionBuffer& buff, TokenID itemRef)
 		if (!x)
 		{
 			buff.avs = AVS_SuspendedOrFailed;
-			return nullptr;
+			return {};
 		}
 		return x.value();
 	}
@@ -332,13 +332,13 @@ auto AbstrCalculator::FindOrVisitItem(SubstitutionBuffer& buff, TokenID itemRef)
 
 BestItemRef AbstrCalculator::FindBestItem(TokenID itemRef) const
 {
-	dms_assert(!itemRef.empty());
-	dms_assert(m_Holder);
+	assert(!itemRef.empty());
+	assert(m_Holder);
 
 	MG_SIGNAL_ON_UPDATEMETAINFO
 
 		if (itemRef == thisToken)
-			return { nullptr, {} };
+			return { {}, {} };
 
 	SharedStr itemRefStr(itemRef.AsStrRange());
 
@@ -365,7 +365,7 @@ auto AbstrCalculator::VisitSourceItem(TokenID supplRefID, SupplierVisitFlag svf,
 	assert(IsMetaThread());
 
 	if (supplRefID == thisToken)
-		return nullptr;
+		return SharedTreeItem{};
 
 	SharedStr itemRefStr(supplRefID.AsStrRange());
 	if (Test(svf, SupplierVisitFlag::ImplSuppliers))
@@ -395,7 +395,7 @@ AcConstructor* s_Constructor = nullptr;
 
 AcConstructor* AbstrCalculator::GetConstructor()
 {
-	dms_assert(s_Constructor); // CalcualtionRule parsing module must be registered
+	assert(s_Constructor); // CalcualtionRule parsing module must be registered
 	return s_Constructor;
 }
 
@@ -427,7 +427,7 @@ bool AbstrCalculator::IsForEachTemplHolder() const
 	return std::get<MetaFuncCurry>(metaInfo).og->HasTemplArg();
 }
 
-const TreeItem* AbstrCalculator::GetForEachTemplSource() const
+SharedTreeItem AbstrCalculator::GetForEachTemplSource() const
 { 
 	auto metaInfo = GetMetaInfo();
 
@@ -706,10 +706,10 @@ ActorVisitState AbstrCalculator::VisitImplSuppl(SupplierVisitFlag svf, const Act
 	return AVS_Ready;
 }
 
-const TreeItem* AbstrCalculator::GetSearchContext(const TreeItem* holder, CalcRole cr)
+SharedTreeItem AbstrCalculator::GetSearchContext(const TreeItem* holder, CalcRole cr)
 {
 	assert(holder);
-	const TreeItem* searchContext = holder->GetTreeParent();
+	auto searchContext = holder->GetTreeParent();
 	if (searchContext && cr == CalcRole::ArgCalc)
 		searchContext = searchContext->GetTreeParent();
 	if (!searchContext)
@@ -743,7 +743,7 @@ BestItemRef AbstrCalculator::FindErrorneousItem() const
 							for (auto ri = si; ri; ri = ri->GetCurrRefItem())
 								if (WasInFailed(ri))
 								{
-									errorneousItem = si;
+									errorneousItem = si.get();
 									return  AVS_SuspendedOrFailed;
 								}
 				}
@@ -812,7 +812,7 @@ BestItemRef AbstrCalculator::FindPrimaryDataFailedItem() const
 	}
 	else
 		VisitSuppliers(SupplierVisitFlag::NamedSuppliers, std::move(visitor));
-	return { errorneousItem, {} };
+	return { MakeSharedFromBorrowedObjectPtr(errorneousItem), {} };
 
 }
 
@@ -1250,17 +1250,17 @@ LispRef AbstrCalculator::SubstituteExpr_impl(SubstitutionBuffer& substBuff, Lisp
 				auto indexItem = FindOrVisitItem(substBuff, indexExpr.GetSymbID());
 				if (substBuff.avs == AVS_SuspendedOrFailed)
 					return {};
-				if (!indexItem.get_ptr())
+				if (!indexItem.get())
 					throwErrorF("Calculation Rule Parser", "reference '%s' not found (as left operand of the arrow operator)"
 					, AsString(indexExpr.GetSymbID())
 					);
-				if (!IsDataItem(indexItem.get_ptr()))
+				if (!IsDataItem(indexItem.get()))
 					throwErrorF("Calculation Rule Parser", "DataItem expected as left operand of the arrow operator; '%s' refers to a %s"
 					, AsString(indexExpr.GetSymbID())
 					, AsString(indexItem->GetDynamicClass()->GetID())
 					);
 
-				auto avu = AbstrValuesUnit( AsDataItem(indexItem.get_ptr()) );
+				auto avu = AbstrValuesUnit( AsDataItem(indexItem.get()) );
 				if (!avu)
 				{
 					auto formalDomainUnit = SharedStr(AsDataItem(indexItem.get())->DomainUnitToken());

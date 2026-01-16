@@ -97,7 +97,7 @@ struct FuncDC : DataController
 		while (dcRef)
 		{
 			if (!i--)
-				return dcRef->m_DC;
+				return dcRef->m_DC.get();
 			dcRef = dcRef->m_Next;
 		}
 		dms_assert(0);

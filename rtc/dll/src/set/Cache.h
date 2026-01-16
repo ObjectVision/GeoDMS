@@ -138,27 +138,23 @@ struct UnorderedMapCache
 
 	using umap_type = std::unordered_map<argument_type, result_type, arg_hasher, arg_compare>;
 
+	UnorderedMapCache() noexcept
+		: m_EqComp(), m_Hasher()
+	{}
+
 	LispRef apply(argument_reftype arg)
 	{
-		while (true)
-		{
-			auto cacheLock = std::lock_guard(mx_MapLock);
+		auto cacheLock = std::lock_guard(mx_MapLock);
 
-			MG_DEBUGCODE(md_NrCalls++; )
-				dms_check_not_debugonly;
-			auto i = m_UMap.find(arg);
-			if (i != m_UMap.end() && m_EqComp(arg, i->first))
-			{
-				auto sharedRef = LispRef(LispPtr(i->second), no_zombies{});
-				if (sharedRef)
-					return sharedRef;
-				continue; // retry if the reference is zombie
-			}
-			result_type res = m_Func(arg);
-			m_UMap.insert({ std::move(arg), res });
-			MG_DEBUGCODE(md_NrMisses++; )
-			return res;
-		}
+		MG_DEBUGCODE(md_NrCalls++; )
+			dms_check_not_debugonly;
+		auto i = m_UMap.find(arg);
+		if (i != m_UMap.end() && m_EqComp(arg, i->first))
+			return i->second;
+		result_type res = m_Func(arg);
+		m_UMap.insert({ std::move(arg), res });
+		MG_DEBUGCODE(md_NrMisses++; )
+		return res;
 	}
 
 	//	SizeT size () const { return m_Map.size (); }

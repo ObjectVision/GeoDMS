@@ -230,7 +230,7 @@ template <typename T> inline const AbstrUnit* AsCertainUnit(const T* self) { ret
 template <typename T> inline       AbstrUnit* AsCertainUnit(      T* self) { return checked_valcast<      AbstrUnit*>(self); }
 
 template <typename T> inline bool IsUnit(const SharedPtr<T>& self) { return IsUnit(self.get()); }
-template <typename T> inline auto AsUnit(const SharedPtr<T>& self) { return MakeShared(AsUnit(self.get())); }
+template <typename T> inline auto AsUnit(const SharedPtr<T>& self) { return MakeSharedFromBorrowedObjectPtr(AsUnit(self.get())); }
 template <typename T> inline auto AsDynamicUnit(const SharedPtr<T>& self) { return MakeShared(AsDynamicUnit(self.get())); }
 template <typename T> inline auto AsCheckedUnit(const SharedPtr<T>& self) { return MakeShared(AsCheckedUnit(self.get())); }
 template <typename T> inline auto AsCertainUnit(const SharedPtr<T>& self) { return MakeShared(AsCertainUnit(self.get())); }

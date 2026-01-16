@@ -15,7 +15,7 @@
 #include "ser/FormattedStream.h"
 #include "ser/MoreStreamBuff.h"
 #include "utl/Quotes.h"
-struct LispPtr;
+
 struct LispRef;
 
 #define __SER_ASSTRING_H

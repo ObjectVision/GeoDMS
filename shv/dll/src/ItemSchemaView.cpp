@@ -187,11 +187,14 @@ struct ItemSchemaControllerWriter: ItemSchemaControllerWriterBase
 
 	void WriteNode(const Actor* item)
 	{
-		locationLock->SetValue<SPoint   >(nodeIndex, loc);
-		labelTextLock->SetValue<SharedStr>(nodeIndex, SharedStr(item->GetID()));
-		dms_assert(m_ISC->m_AllItems.size() < m_ISC->m_AllItems.capacity()); // nrItems at construction is assumed to perfectly predict 
-		m_ISC->m_AllItems.push_back( SharedPtr<const Actor>(item) );
-		++nodeIndex;
+		if (auto sa = dynamic_cast<const PersistentSharedActor*>(item))
+		{
+			locationLock->SetValue<SPoint   >(nodeIndex, loc);
+			labelTextLock->SetValue<SharedStr>(nodeIndex, SharedStr(sa->GetID()));
+			assert(m_ISC->m_AllItems.size() < m_ISC->m_AllItems.capacity()); // nrItems at construction is assumed to perfectly predict 
+			m_ISC->m_AllItems.push_back(SharedPtr<const PersistentSharedActor>(sa));
+			++nodeIndex;
+		}
 	}
 	void WriteLink(UInt32 node1, UInt32 node2)
 	{

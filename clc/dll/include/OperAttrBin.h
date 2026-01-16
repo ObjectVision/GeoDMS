@@ -82,7 +82,7 @@ struct AbstrBinaryAttrOper : BinaryOperator
 				parallel_tileloop(tn,
 					[=, &resLock](tile_id t)->void
 					{
-						Calculate(resLock, arg1A, arg2A, af, t);
+						Calculate(resLock.get(), arg1A, arg2A, af, t);
 					}
 				);
 				resLock.Commit();

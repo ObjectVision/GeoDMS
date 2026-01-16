@@ -79,7 +79,7 @@ struct ItemWriteLock // held by creator to manage its unreadyness to prevent oth
 	void operator = (const ItemWriteLock& rhs) = delete;
 
 	operator bool() const { return has_ptr(); }
-	const TreeItem* GetItem() const { return m_ItemPtr;  }
+	const TreeItem* GetItem() const { return m_ItemPtr.get(); }
 	TIC_CALL std::shared_ptr<OperationContext> GetProducer() const
 	{
 		dms_assert(has_ptr());

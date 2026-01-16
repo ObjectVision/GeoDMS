@@ -17,13 +17,14 @@
 // in a base coordinate system, thus m_Factor*p + m_Offset transforms grid to world coords
 // *****************************************************************************
 
-struct UnitProjection : PersistentSharedObj, CrdTransformation
+struct UnitProjection : SharedBase, CrdTransformation
 {
 private:
-	typedef PersistentSharedObj base_type;
 	UnitProjection();
 
 public:
+	void Release() const { if (!DecRef()) delete this; }
+
 	TIC_CALL UnitProjection(const AbstrUnit* unit);
 	TIC_CALL UnitProjection(const AbstrUnit* unit, DPoint offset, DPoint factor);
 	TIC_CALL UnitProjection(const UnitProjection& src);
@@ -31,7 +32,7 @@ public:
 	TIC_CALL ~UnitProjection();
 
 	TIC_CALL SharedStr AsString(FormattingFlags ff) const;
-	const AbstrUnit* GetBaseUnit() const { assert(m_BaseUnit); return m_BaseUnit; }
+	const AbstrUnit* GetBaseUnit() const { assert(m_BaseUnit); return m_BaseUnit.get(); }
 
 	TIC_CALL bool operator ==(const UnitProjection& rhs) const;
 	bool operator !=(const UnitProjection& rhs) const { return !operator ==(rhs); }

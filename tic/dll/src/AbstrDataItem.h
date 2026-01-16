@@ -13,6 +13,7 @@
 #include "dbg/DebugCast.h"
 #include "mci/CompositeCast.h"
 
+
 #include "DataItemClass.h"
 
 //----------------------------------------------------------------------
@@ -43,7 +44,7 @@ public:
 	const Object* _GetAs(const Class* cls) const override;
 
 public:
-	AbstrDataItem();
+	TIC_CALL AbstrDataItem();
 	TIC_CALL ~AbstrDataItem();
 
 	bool HasDataObj() const { return m_DataObject; }
@@ -51,11 +52,11 @@ public:
 
 	void InitAbstrDataItem(TokenID domainUnit, TokenID valuesUnit, ValueComposition vc);
 
-	TIC_CALL const AbstrDataObject* GetDataObj() const;
-	const AbstrDataObject* GetCurrDataObj() const { dms_assert(m_DataObject); return m_DataObject; }
+	TIC_CALL auto GetDataObj() const->SharedPtr<const AbstrDataObject>;
+	auto GetCurrDataObj() const  ->SharedPtr<const AbstrDataObject> { assert(m_DataObject); return m_DataObject; }
 
-	TIC_CALL const AbstrDataObject* GetRefObj() const;
-	TIC_CALL const AbstrDataObject* GetCurrRefObj() const;
+	TIC_CALL auto GetRefObj() const ->SharedPtr<const AbstrDataObject>;
+	TIC_CALL auto GetCurrRefObj() const ->SharedPtr<const AbstrDataObject>;
 
 //	Override Actor
 	TIC_CALL void StartInterest() const override;

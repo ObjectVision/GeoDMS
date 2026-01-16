@@ -64,7 +64,7 @@ AbstrStorageManagerRef StorageClass::CreateStorageManager(CharPtr name, TokenID 
 			return {};
 		throwStorageError(ASM_E_UNKNOWNSTORAGECLASS, GetTokenStr(typeID).c_str());
 	}
-	AbstrStorageManagerRef result = debug_cast<AbstrStorageManager*>(cls->CreateObj());
+	auto  result = AbstrStorageManagerRef(debug_cast<AbstrStorageManager*>(cls->CreateObj()), newly_obj{});
 	assert(result);
 	result->InitStorageManager(name, readOnly);
 	return result;

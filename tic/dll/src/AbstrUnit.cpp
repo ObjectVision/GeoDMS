@@ -137,7 +137,7 @@ inline DataItemRefContainer& AbstrUnit::GetDataItemsAssoc() const
 
 SharedPtr<const AbstrTileRangeData> AbstrUnit::GetTiledRangeData() const
 {
-	return nullptr;
+	return {};
 }
 
 UInt32 AbstrUnit::GetNrDataItemsOut() const
@@ -483,12 +483,12 @@ auto AbstrUnit::GetLabelAttr() const -> SharedDataItemInterestPtr
 {
 	assert(this);
 
-	const TreeItem* si = GetConstSubTreeItemByID(s_LabelID);
+	auto si = GetConstSubTreeItemByID(s_LabelID);
 	if (!si) 
 		si = GetConstSubTreeItemByID(s_LabelTextID); // compatible with newer aspect names
 	if (IsDataItem(si))
 	{
-		SharedDataItemInterestPtr di = MakeShared( AsDataItem(si) );
+		SharedDataItemInterestPtr di = AsDataItem(si);
 		if (di->GetAbstrDomainUnit()->UnifyDomain(this, "Domain of attribute named Label", "Unit that has that attribute"))
 		{
 			di->UpdateMetaInfo();

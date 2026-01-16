@@ -204,9 +204,9 @@ AssocList Match(AssocListPtr aList, LispPtr header, LispPtr expr)
 		if (header==expr)
 			return aList;
 		else
-			return AssocListPtr::failed();
+			return AssocList::failed();
 	if (!expr.IsRealList())
-		return AssocListPtr::failed();
+		return AssocList::failed();
 	AssocList newAssocList = Match(aList, header.Left(), expr.Left());
 	if (newAssocList.IsFailed())
 		return newAssocList;
@@ -461,18 +461,18 @@ LispRef AssocList_RepApplyTopEnvList(AssocListPtr unifier, LispPtr templExprPtr)
 
 	if (templExprPtr.IsVar()) // TAIL var
 	{
-		const Assoc& found = unifier.FindByKey(templExprPtr);
-		dms_assert( !found.IsFailed() ); // all vars should be matched
+		auto found = unifier.FindByKey(templExprPtr);
+		assert( !found.IsFailed() ); // all vars should be matched
 		return found.Val();
 	}
-	dms_assert(templExprPtr.IsList()); // constants cannot be tail in resulting list
+	assert(templExprPtr.IsList()); // constants cannot be tail in resulting list
 	if (!templExprPtr.IsRealList())
 		return templExprPtr;
 	return
- 	LispRef(
-		AssocList_RepApplyTopEnv    (unifier, templExprPtr.Left ()), // EXPR
-		AssocList_RepApplyTopEnvList(unifier, templExprPtr.Right())  // TAIL
-	);
+		LispRef(
+			AssocList_RepApplyTopEnv    (unifier, templExprPtr.Left ()), // EXPR
+			AssocList_RepApplyTopEnvList(unifier, templExprPtr.Right())  // TAIL
+		);
 }
 
 LispRef AssocList_RepApplyTopEnv(AssocListPtr unifier, LispPtr templExpr)
@@ -502,7 +502,7 @@ struct ApplyTopEnvFunc
 	using argument_type = LispRef;
 	using result_type = LispRef;
 	using hasher = std::hash<const LispObj*>;
-	using equality_compare = std::equal_to<const LispObj*>;
+	using equality_compare = std::equal_to<LispPtr>;
 
 	LispRef operator ()(LispPtr expr) const
 	{
@@ -568,11 +568,13 @@ LispRef ApplyTopEnv(LispPtr expr)
 
 LispRef MakeVarsOfUnderscores(LispPtr expr)
 {
-	return expr.IsSymb() && expr.GetSymbStr().c_str()[0]=='_'
-		? LispRef(expr.GetSymbID(), 1)
-		: expr.IsRealList()
-			? LispRef(MakeVarsOfUnderscores(expr.Left()), MakeVarsOfUnderscores(expr.Right()))
-			: expr;
+	if (expr.IsSymb() && expr.GetSymbStr().c_str()[0] == '_')
+		return LispRef(expr.GetSymbID(), 1);
+
+	if (expr.IsRealList())
+		return LispRef(MakeVarsOfUnderscores(expr.Left()), MakeVarsOfUnderscores(expr.Right()));
+
+	return expr;
 }
 
 /****************** renumerate vars               *******************/

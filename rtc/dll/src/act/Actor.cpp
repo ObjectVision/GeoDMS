@@ -223,7 +223,7 @@ bool InterestRetainContextBase::IsActive()
     return sc_RetainContextCount != 0;
 }
 
-void InterestRetainContextBase::Add(const Actor* actor)
+void InterestRetainContextBase::Add(const PersistentSharedActor* actor)
 {
 //  assert(IsActive()); // PRECONDITION
     if (IsActive() && actor) // else it will never be removed; REMOVE IF ASSERT IS PROVEN
@@ -274,7 +274,6 @@ Actor::~Actor ()
 void Actor::MarkTS(TimeStamp ts) const
 {
     DBG_START("Actor", "MarkTS", sd_DebugInvalidations);
-    DBG_TRACE(("self = %s", GetSourceName()));
     DBG_TRACE(("time = %u", ts));
 
     dms_assert(ts >= UpdateMarker::tsBereshit) ;
@@ -301,7 +300,6 @@ void Actor::SetProgressAt(ProgressState ps, TimeStamp ts) const
 void Actor::InvalidateAt (TimeStamp invalidate_ts) const
 {
     DBG_START("Actor", "InvalidateAt", sd_DebugInvalidations);
-    DBG_TRACE(("self = %s", GetSourceName()));
     DBG_TRACE(("time = %u", invalidate_ts));
 
     dms_assert(!m_State.IsCommitting());
@@ -361,7 +359,7 @@ void Actor::Invalidate ()
 {
     if (m_LastChangeTS != 0)
     {
-        TimeStamp invalidate_ts = UpdateMarker::GetActiveTS(MG_DEBUG_TS_SOURCE_CODE(mySSPrintF("Invalidation of %s", GetFullName().c_str()).c_str()));
+        TimeStamp invalidate_ts = UpdateMarker::GetActiveTS(MG_DEBUG_TS_SOURCE_CODE("Invalidation"));
         InvalidateAt( invalidate_ts );
     }
 }
@@ -508,7 +506,7 @@ ActorVisitState Actor::SuspendibleUpdate(ProgressState ps) const // returns fals
         return AVS_Ready;
 
     assert(m_LastGetStateTS == UpdateMarker::LastTS());
-    UpdateMarker::ChangeSourceLock changeStamp(this,  "Update");
+    UpdateMarker::ChangeSourceLock changeStamp(dynamic_cast<const PersistentSharedActor*>(this),  "Update");
 
 #if defined(MG_DEBUG_INTERESTSOURCE)
     DemandManagement::IncInterestDetector incInterestLock("Actor::SuspendibleUpdate()");
@@ -897,9 +895,10 @@ bool Actor::DoFail(ErrMsgPtr msg, FailType ft) const
 #if defined(MG_DEBUG_INTERESTSOURCE_LOGGING)
 
     if (m_State.Get(actor_flag_set::AFD_PivotElem))
-        reportF(SeverityTypeID::ST_MajorTrace, "DoFail(%d) %s %s", int(ft), GetSourceName(), msg->Why());
+        reportF(SeverityTypeID::ST_MajorTrace, "DoFail(%d) %s", int(ft), msg->Why());
 
 #endif
+
     assert(msg);
     assert(ft != FailType::None);
     SupplInterestListPtr supplInterestWaste;
@@ -915,7 +914,7 @@ bool Actor::DoFail(ErrMsgPtr msg, FailType ft) const
         s_ActorFailReasonAssoc.assoc(this, msg);
         m_State.SetFailure(ft);
         try {
-            msg->TellWhere(this);
+            msg->TellWhere(dynamic_cast<const PersistentSharedActor*>(this));
             if (msg->MustReport())
             {
                 auto st = ft <= FailType::Data ? SeverityTypeID::ST_Error : SeverityTypeID::ST_Warning;
@@ -951,7 +950,7 @@ void Actor::ThrowFail(ErrMsgPtr why, FailType ft) const
 
 void Actor::ThrowFail(SharedStr str, FailType ft) const
 {
-    ThrowFail(std::make_shared<ErrMsg>( str, this ), ft);
+    ThrowFail(std::make_shared<ErrMsg>( str, dynamic_cast<const PersistentSharedActor*>(this) ), ft);
 }
 
 void Actor::ThrowFail(CharPtr str, FailType ft) const
@@ -984,7 +983,7 @@ void Actor::Fail(WeakStr why, FailType ft) const
     assert((static_cast<UInt32>(ft) & static_cast<UInt32>(FailType::Mask)) == static_cast<UInt32>(ft)); // Syntax
     assert(ft != FailType::None);                 // PRE
 
-    DoFail(std::make_shared<ErrMsg>( why, this ), ft);
+    DoFail(std::make_shared<ErrMsg>( why, dynamic_cast<const PersistentObject*>(this) ), ft);
 
     assert(WasFailed()); // follows from PRE2 and m_State.SetBits
 }
@@ -1180,7 +1179,7 @@ void Actor::StartInterest() const
     assert(m_InterestCount == 0); // no recursion
 
 #if defined(MG_DEBUG_INTERESTSOURCE)
-    DemandManagement::AddTempTarget(this);
+    DemandManagement::AddTempTarget(dynamic_cast<const PersistentSharedActor*>(this));
 #endif
 }
 
@@ -1189,7 +1188,7 @@ void Actor::StartInterest() const
 garbage_can Actor::StopInterest() const noexcept
 {
 #if defined(MG_DEBUG_INTERESTSOURCE)
-    DemandManagement::ReleaseTempTarget(this);
+    DemandManagement::ReleaseTempTarget(dynamic_cast<const PersistentSharedActor*>(this));
 #endif
     if (SuspendTrigger::DidSuspend() && DoesHaveSupplInterest()) // suspension shouldn't cause loosing interest
         ReportSuspension();
@@ -1215,7 +1214,8 @@ SupplInterestListPtr Actor::GetSupplInterest() const
         [&supplInterestListPtr] (const Actor* supplier)
         {
             if (!supplier->IsPassorOrChecked())
-                push_front(supplInterestListPtr, supplier);
+				if (auto ps = dynamic_cast<PersistentSharedActor*>(const_cast<Actor*>(supplier)))
+                    push_front(supplInterestListPtr, ps);
         }
     );
     return supplInterestListPtr;
@@ -1384,16 +1384,23 @@ SharedActorInterestPtr Actor::GetInterestPtrOrNull() const
 {
     assert(this);
 
+	auto psa = dynamic_cast<const PersistentSharedActor*>(this);
+    assert(psa);
+    if (!psa)
+		return {};  
+
+    assert(psa->IsOwned());
+
     leveled_std_section::scoped_lock globalSectionLock(sg_CountSection);
     if (!m_InterestCount)
         return {};
 
-    SharedPtr<const Actor> result = this;
+    auto result = SharedPtr<const PersistentSharedActor>(psa, existing_obj{});
 
     assert(m_InterestCount);
     ++m_InterestCount;
 
-    return std::move(*reinterpret_cast<SharedActorInterestPtr*>(&result));
+    return SharedActorInterestPtr(std::move(result), already_incremented_tag{});
 }
 
 #if defined(MG_ITEMLEVEL)
@@ -1419,10 +1426,13 @@ bool WasInFailed(const Actor* a)
     assert(a);
     if (a->WasFailed())
         return true;
-    auto p = a->GetParent();
+    auto po = dynamic_cast<const PersistentSharedActor*>(a);
+    if (!po)
+        return false;
+    auto p = po->GetParent();
     if (!p)
         return false;
-    return WasInFailed(debug_cast<const Actor*>(p));
+    return WasInFailed(dynamic_cast<const PersistentSharedActor*>(p));
 }
 
 // Phase numbers provide a simple topological-like ordering among actors.

@@ -64,6 +64,7 @@ Issues
 #include <semaphore>
 
 #include "TicBase.h"
+#include "AbstrUnit.h"
 #include "act/ActorEnums.h"
 #include "TreeItem.h"
 struct ActorVisitor;
@@ -132,29 +133,31 @@ enum class StorageAction { read, write, updatetree, writetree };
 struct StorageMetaInfo : std::enable_shared_from_this<StorageMetaInfo>
 {
 	StorageMetaInfo(NonmappableStorageManager* storageManager)
-		: m_StorageManager(storageManager)
-	{}
+		: m_StorageManager(storageManager, existing_obj{})
+	{
+	}
 
 	StorageMetaInfo(const TreeItem* storageHolder, const TreeItem* curr)
-		: m_StorageManager(storageHolder->GetStorageManager())
-		, m_StorageHolder(storageHolder)
-		, m_Curr(curr)
+		: m_StorageManager(storageHolder->GetStorageManager(), existing_obj{})
+		, m_StorageHolder(storageHolder, existing_obj{})
+		, m_Curr(curr, existing_obj{})
 		, m_RelativeName(storageHolder->DoesContain(curr) ? curr->GetRelativeName(storageHolder) : curr->GetFullName())
-	{}
+	{
+	}
 	TIC_CALL virtual ~StorageMetaInfo();
 	TIC_CALL virtual void OnPreLock();
 	TIC_CALL virtual void OnOpenForRead(StorageReadHandle*);
 	TIC_CALL virtual void OnClose(StorageCloseHandle*);
 
-	TIC_CALL const TreeItem*      CurrRI() const { return m_Curr;  }
-	TIC_CALL const AbstrDataItem* CurrRD() const;
-	TIC_CALL const AbstrUnit*     CurrRU() const;
-	AbstrDataItem* CurrWD() const { return const_cast<AbstrDataItem*>(CurrRD()); }
-	AbstrUnit*     CurrWU() const { return const_cast<AbstrUnit*>(CurrRU()); }
-	TreeItem*      CurrWI() const { return const_cast<TreeItem*>(CurrRI()); }
+	TIC_CALL auto CurrRI() const -> SharedPtr<const TreeItem> { return m_Curr; }
+	TIC_CALL auto CurrRD() const -> SharedPtr<const AbstrDataItem>;
+	TIC_CALL auto CurrRU() const -> SharedPtr<const AbstrUnit>;
+	AbstrDataItem* CurrWD() const { return const_cast<AbstrDataItem*>(CurrRD().get()); }
+	AbstrUnit*     CurrWU() const { return const_cast<AbstrUnit*>(CurrRU().get()); }
+	TreeItem*      CurrWI() const { return const_cast<TreeItem*>(CurrRI().get()); }
 
-	AbstrStorageManager* StorageManager() const { return m_StorageManager; }
-	const TreeItem* StorageHolder() const { return m_StorageHolder; }
+	AbstrStorageManager* StorageManager() const { return m_StorageManager.get(); }
+	const TreeItem* StorageHolder() const { return m_StorageHolder.get(); }
 
 protected:
 	SharedPtr<AbstrStorageManager> m_StorageManager;
@@ -185,9 +188,9 @@ struct GdalMetaInfo :StorageMetaInfo
 // *****************************************************************************
 
 
-class AbstrStorageManager : public PersistentSharedObj
+class AbstrStorageManager : public SharedObj
 {
-	using base_type = PersistentSharedObj;
+	using base_type = SharedObj;
 
 public:
 	//	Static interface functions
@@ -325,7 +328,7 @@ public:
 	TIC_CALL virtual AbstrUnit* CreateGridDataDomain(const TreeItem* storageHolder);
 
 private:
-	using interest_holders_container = std::vector<InterestPtr<SharedPtr<const Actor>>>;
+	using interest_holders_container = std::vector<SharedActorInterestPtr>;
 	using interest_holders_key = Point<SharedTreeItem>;
 	using interest_holders_map = std::map<interest_holders_key, interest_holders_container>;
 	mutable interest_holders_map m_InterestHolders;
@@ -353,9 +356,9 @@ struct StorageCloseHandle
 	StorageMetaInfoPtr MetaInfo() const { return m_MetaInfo; }
 	const TreeItem* StorageHolder() const { return MetaInfo()->StorageHolder(); }
 
-	NonmappableStorageManager* StorageManager() const { return m_StorageManager; }
+	NonmappableStorageManager* StorageManager() const { return m_StorageManager.get(); }
 
-	TreeItem* FocusItem() const { return const_cast<TreeItem*>(MetaInfo()->CurrRI()); }
+	TreeItem* FocusItem() const { return const_cast<TreeItem*>(MetaInfo()->CurrRI().get()); }
 
 protected:
 	SharedPtr<NonmappableStorageManager> m_StorageManager;

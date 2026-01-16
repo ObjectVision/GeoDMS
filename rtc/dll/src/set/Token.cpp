@@ -137,7 +137,12 @@ TokenID::TokenID(CharPtr first, CharPtr last, mt_tag*, existing_tag*)
 }
 
 TokenID::TokenID(WeakStr str)
-:	m_ID(str.IsDefined() ? TokenID(str.begin(), str.send(), (mt_tag*)nullptr).m_ID : UNDEFINED_VALUE(UInt32) )
+	: m_ID(str.IsDefined() ? TokenID(str.begin(), str.send(), (mt_tag*)nullptr).m_ID : UNDEFINED_VALUE(UInt32) )
+{}
+
+
+TokenID::TokenID(const SharedStr& str) 
+	: TokenID(WeakStr(str)) 
 {}
 
 TokenID TokenID::GetExisting(CharPtr tokenStr)

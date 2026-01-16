@@ -115,7 +115,7 @@ CharPtr FailTypeStr(FailType ft)
 
 #include "utl/SourceLocation.h"
 
-ErrMsg::ErrMsg(WeakStr msg, const PersistentSharedObj* ptr)
+ErrMsg::ErrMsg(WeakStr msg, const Object* ptr)
 	:	m_Why(msg)
 {
 	TellWhere(ptr);
@@ -135,7 +135,7 @@ void ErrMsg::TellExtra(CharPtrRange msg)
 		m_Context += mySSPrintF("%s\n%s", m_Context, msg);
 }
 
-void ErrMsg::TellWhere(const PersistentSharedObj* ptr)
+void ErrMsg::TellWhere(const Object* ptr)
 {
 	if (!ptr)
 		return;
@@ -348,7 +348,7 @@ SharedStr ErrLoc(CharPtr sourceFile, int line, bool isInternal)
 	DmsException::throwMsgF("Error: %s", msg);
 }
 
-[[noreturn]] RTC_CALL void throwIllegalAbstract(CharPtr sourceFile, int line, const PersistentSharedObj* obj, CharPtr method)
+[[noreturn]] RTC_CALL void throwIllegalAbstract(CharPtr sourceFile, int line, const Object* obj, CharPtr method)
 {
 	assert(0);
 	obj->throwItemErrorF("Illegal Abstract %s called.\n%s", method, ErrLoc(sourceFile, line, true));

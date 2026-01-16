@@ -41,7 +41,7 @@ struct DataReadLockAtom
 
 	DataReadLockAtom& operator = (DataReadLockAtom&& rhs) noexcept = default;
 
-	const AbstrDataItem* GetItem() const { return m_Item; }
+	const AbstrDataItem* GetItem() const { return m_Item.get(); }
 
 private:
 	SharedPtr<const AbstrDataItem> m_Item;
@@ -139,7 +139,7 @@ struct DataWriteLock : SharedPtr<AbstrDataObject>
 
 	DataWriteLock& operator =(DataWriteLock&& rhs) noexcept = default;
 	bool IsLocked() const { return get() != nullptr; }
-	AbstrDataItem* GetItem() { return m_adi; } // TODO G8: REMOVE
+	AbstrDataItem* GetItem() { return m_adi.get(); } // TODO G8: REMOVE
 
 	TIC_CALL void Commit();
 

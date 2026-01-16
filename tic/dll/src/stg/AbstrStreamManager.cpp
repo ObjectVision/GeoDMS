@@ -115,8 +115,8 @@ bool AbstrStreamManager::ReadUnitRange(const StorageMetaInfo& smi) const
 	auto f = OpenInpStream(smi, ::GetRelativeName(&smi).c_str() );
 	if ( !f )
 		return false;
-	dms_assert(smi.CurrRI() == smi.CurrRI()->GetCurrUltimateItem());
-	const_cast<TreeItem*>(smi.CurrRI())->LoadBlobStream( f.get() );
+	assert(smi.CurrRI().get() == smi.CurrRI()->GetCurrUltimateItem());
+	const_cast<TreeItem*>(smi.CurrRI().get())->LoadBlobStream( f.get() );
 	return true;
 }
 

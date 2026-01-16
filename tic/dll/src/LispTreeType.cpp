@@ -241,38 +241,38 @@ LispRef CreateStorageSpec(const TreeItem* src)
 //	dbg_assert(!src->HasCalculatorImpl()); // PRECONDITION
 	dms_assert(src->IsLoadable());         // PRECONDITION
 
-	const TreeItem* storageParent = src->GetStorageParent(false);
+	auto storageParent = src->GetStorageParent(false);
 	if (!storageParent)
 		return LispRef();
 	auto storageManager = storageParent->GetStorageManager();
-	SharedStr storageName = storageManager ? storageManager->GetNameStr() : TreeItemPropertyValue(storageParent, storageNamePropDefPtr);
-	TokenID   storageType = storageManager ? storageManager->GetDynamicClass()->GetID() : storageTypePropDefPtr->GetValue(storageParent);
-	const TreeItem* sqlStringParent = src;
+	SharedStr storageName = storageManager ? storageManager->GetNameStr() : TreeItemPropertyValue(storageParent.get(), storageNamePropDefPtr);
+	TokenID   storageType = storageManager ? storageManager->GetDynamicClass()->GetID() : storageTypePropDefPtr->GetValue(storageParent.get());
+	auto sqlStringParent = MakeSharedFromBorrowedObjectPtr( src );
 	while (true)
 	{
-		if (sqlStringPropDefPtr->HasNonDefaultValue(sqlStringParent))
+		if (sqlStringPropDefPtr->HasNonDefaultValue(sqlStringParent.get()))
 		{
-			auto sqlString = TreeItemPropertyValue(sqlStringParent, sqlStringPropDefPtr);
+			auto sqlString = TreeItemPropertyValue(sqlStringParent.get(), sqlStringPropDefPtr);
 			return List6<LispRef>(
 				LispRef(readSqlID),
 				LispRef(storageName.c_str()),
 				LispRef(storageType),
-				LispRef(src->GetRelativeName(storageParent).c_str()),
+				LispRef(src->GetRelativeName(storageParent.get()).c_str()),
 				LispRef(sqlString.c_str()),
-				LispRef(src->GetRelativeName(sqlStringParent).c_str())
+				LispRef(src->GetRelativeName(sqlStringParent.get()).c_str())
 			);
 		}
-		if (sqlStringParent == storageParent) 
+		if (sqlStringParent.get() == storageParent.get())
 			break;
 		sqlStringParent = sqlStringParent->GetTreeParent();
-		dms_assert(sqlStringParent);
+		assert(sqlStringParent);
 	}
-	dms_assert(sqlStringParent == storageParent);
+	assert(sqlStringParent == storageParent);
 	return List4<LispRef>(
 		LispRef(readID),
 		LispRef(storageName.c_str()),
 		LispRef(storageType),
-		LispRef(src->GetRelativeName(storageParent).c_str())
+		LispRef(src->GetRelativeName(storageParent.get()).c_str())
 	);
 }
 

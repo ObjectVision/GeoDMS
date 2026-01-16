@@ -62,7 +62,7 @@ public:
 
 	std::shared_ptr<GraphicObject> CreateShvObj(GraphicObject* parent) const
 	{
-		dms_assert(m_ShvCreateFunc);
+		assert(m_ShvCreateFunc);
 		return m_ShvCreateFunc(parent);
 	}
 	bool HasShvCreator() const { return m_ShvCreateFunc != 0; }

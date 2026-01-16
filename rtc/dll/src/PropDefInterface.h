@@ -1,32 +1,10 @@
-//<HEADER> 
-/*
-Data & Model Server (DMS) is a server written in C++ for DSS applications. 
-Version: see srv/dms/rtc/dll/src/RtcVersion.h for version info.
+// Copyright (C) 1998-2026 Object Vision b.v. 
+// License: GNU GPL 3
+/////////////////////////////////////////////////////////////////////////////
 
-Copyright (C) 1998-2004  YUSE GSO Object Vision BV. 
-
-Documentation on using the Data & Model Server software can be found at:
-http://www.ObjectVision.nl/DMS/
-
-See additional guidelines and notes in srv/dms/Readme-srv.txt 
-
-This library is free software; you can use, redistribute, and/or
-modify it under the terms of the GNU General Public License version 2 
-(the License) as published by the Free Software Foundation,
-provided that this entire header notice and readme-srv.txt is preserved.
-
-See LICENSE.TXT for terms of distribution or look at our web site:
-http://www.objectvision.nl/DMS/License.txt
-or alternatively at: http://www.gnu.org/copyleft/gpl.html
-
-This library is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
-General Public License for more details. However, specific warranties might be
-granted by an additional written contract for support, assistance and/or development
-*/
-//</HEADER>
+#if defined(_MSC_VER)
 #pragma once
+#endif
 
 #ifndef __PROPDEF_INTERFACE_H
 #define __PROPDEF_INTERFACE_H
@@ -45,11 +23,10 @@ RTC_CALL void     DMS_CONV DMS_IString_Release  (IStringHandle ptrString);
 RTC_CALL CharPtr  DMS_CONV DMS_IString_AsCharPtr(IStringHandle ptrString);
 
 // Object Composition Interface
-RTC_CALL const PersistentSharedObj* DMS_CONV DMS_Object_GetParent (const PersistentSharedObj* self, UInt32 index);
+RTC_CALL const PersistentObject* DMS_CONV DMS_Object_GetParent (const PersistentObject* self, UInt32 index);
 
 // Object Naming Interface
 RTC_CALL CharPtr       DMS_CONV DMS_Object_GetName    (const Object* self);
-RTC_CALL CharPtr       DMS_CONV DMS_Object_GetFullName(const Object* self);
 
 // Object Dynamic Typing Interface
 RTC_CALL const Class*      DMS_CONV DMS_Object_GetDynamicClass(const Object* self);
@@ -77,7 +54,6 @@ RTC_CALL const Class*      DMS_CONV DMS_PropDef_GetItemClass(const AbstrPropDef*
 
 /********** Static Class interface funcs **********/
 
-RTC_CALL const Class* DMS_CONV DMS_GetRootClass();
 RTC_CALL const Class* DMS_CONV DMS_Class_GetStaticClass();
 RTC_CALL const Class* DMS_CONV DMS_PropDef_GetStaticClass();
 

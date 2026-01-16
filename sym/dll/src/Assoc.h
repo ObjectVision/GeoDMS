@@ -13,56 +13,88 @@
 
 /**************** Assoc with type security *****************/
 
-struct AssocPtr : LispPtr
+template <class BasePtr>
+struct AssocPtrWrap : LispPtrWrap<BasePtr>
 {
-	AssocPtr() {}
-	AssocPtr(LispPtr a): LispPtr(a)
+	using base_type = LispPtrWrap<BasePtr>;
+
+	AssocPtrWrap() {}
+	AssocPtrWrap(LispPtr src)
+		: base_type(std::move(src))
 	{
-	  	dms_assert(Check());
+		if (!Check())
+			LispError("Invalid cast to Assoc", src);
+	}
+	template <class RhsPtr>
+	AssocPtrWrap(const AssocPtrWrap<RhsPtr>& rhs)
+		: base_type(rhs.get(), existing_obj())
+	{}
+
+	template <class RhsPtr>
+	AssocPtrWrap(AssocPtrWrap<RhsPtr>&& rhs)
+		: base_type(std::move(rhs))
+	{
 	}
 
-	LispPtr Key()   const { return Left(); }
-	LispPtr Val()   const { return Right(); }
-	bool IsFailed() const { return EndP(); }
+	LispPtr Key()   const { return this->Left(); }
+	LispPtr Val()   const { return this->Right(); }
+	bool IsFailed() const { return this->EndP(); }
 
-	SYM_CALL static AssocPtr failed();
+	static AssocPtrWrap failed() { return AssocPtrWrap(); }
 
-	bool Check() const { return IsList(); }
+	bool Check() const
+	{ 
+		return this->IsList(); 
+	}
+
+//	auto AsLispPtr() const -> LispPtr { return LispPtr(this->get_ptr()); }
 
 //	AssocPtr(AssocPtr&& rhs) : LispPtr(std::move(rhs)) {}
 //	AssocPtr(const AssocPtr& rhs) : AssocPtr(rhs.get_ptr()) {}
 
-protected: friend struct Assoc;
-	explicit AssocPtr(LispObj* obj) : LispPtr(obj) {}
+//protected: friend struct Assoc;
+//	explicit AssocPtrWrap(BasePtr obj, existing_obj) : base_type(std::move(obj)) {}
 };
 
-struct Assoc : SharedPtrWrap<AssocPtr>
+
+using AssocPtr = AssocPtrWrap<WeakPtr<const LispObj>>;
+
+struct Assoc : AssocPtrWrap<SharedPtr<const LispObj>>
 {
-	typedef AssocPtr ptr_type;
+	using base_type = AssocPtrWrap<SharedPtr<const LispObj>>;
+	using ptr_type = AssocPtr;
 
-//	Assoc() {}					//	empty-assoc = Fail
-	Assoc(LispPtr key, LispPtr val) : SharedPtrWrap(LispRef(key, val).get_ptr(), existing_obj{}) {}
+	Assoc() {}					//	empty-assoc = Fail
+	Assoc(LispPtr key, LispPtr val) : base_type(LispRef(key, val)) {}
 
-	Assoc(ptr_type listPtr) : SharedPtrWrap(listPtr, existing_obj{}) {}
-	operator ptr_type() const { return ptr_type(get_ptr()); }
+	template<typename BasePtr>
+	Assoc(AssocPtrWrap<BasePtr> rhs) : base_type(std::move(rhs)) {}
+
+//	Assoc(ptr_type listPtr) : base_type(listPtr) {}
+	operator ptr_type() const { return ptr_type(get()); }
 };
 
 /**************** Assoc lists with type security *****************/
 
 #include "LispList.h"
 
-//struct AssocList;
+template <class BasePtr> struct AssocListPtrWrap;
+using AssocListPtr = AssocListPtrWrap<WeakPtr<const LispObj>>;
 
-struct AssocListPtr : LispListPtr<Assoc>
+//struct AssocList;
+template <class BasePtr>
+struct AssocListPtrWrap : LispListPtrWrap<BasePtr, Assoc>
 {
-	AssocListPtr(::LispPtr source = ::LispPtr()) : LispListPtr(source) {} // base class does check
+	using base_type = LispListPtrWrap<BasePtr, Assoc>;
+	using base_type::base_type;
+//	AssocListPtrWrap(LispPtr source = LispPtr()) : base_type(source) {} // base class does check
 
 	// override interface of LispList with covariant return types
-	bool IsFailed() const { return (!IsEmpty()) && First().IsFailed(); }
+	bool IsFailed() const { return (!this->IsEmpty()) && this->First().IsFailed(); }
 
-	AssocListPtr Tail() const
+	AssocListPtrWrap Tail() const
 	{
-		return reinterpret_cast<AssocListPtr&>(LispListPtr<Assoc>::Tail());
+		return reinterpret_cast<AssocListPtrWrap&>(base_type::Tail());
 	}
 
 	// new methods
@@ -118,28 +150,37 @@ struct AssocListPtr : LispListPtr<Assoc>
 		return LispRef(ApplyMany(expr.Left()), ApplyMany(expr.Right()));
 	}
 
-	static AssocListPtr failed();
-	static AssocListPtr empty();
-
-protected: friend struct AssocList;
-	explicit AssocListPtr(LispObj* obj) : LispListPtr(obj) {}
+//protected: friend struct AssocList;
+//	explicit AssocListPtrWrap(BasePtr obj, existing_obj) : base_type(std::move(obj), existing_obj{}) {}
 };
 
-
-struct AssocList : SharedPtrWrap<AssocListPtr>
+struct AssocList : AssocListPtrWrap<SharedPtr<const LispObj>>
 {
+	using base_type = AssocListPtrWrap<SharedPtr<const LispObj>>;
 	using ptr_type = AssocListPtr;
 
 	AssocList() {};	//	creates an empty AssocList
-	AssocList(ptr_type list) : SharedPtrWrap(list, existing_obj{}) {}
-	AssocList(LispPtr  list) : SharedPtrWrap(ptr_type(list), existing_obj{}) {}  // invoke Check
+	AssocList(AssocList&& rhs) : base_type(std::move(rhs)) {}
+//	AssocList(AssocListPtr&& rhs) : base_type(std::move(rhs)) {}
+	AssocList(const AssocList& rhs) : base_type(rhs) {}
+//	AssocList(const AssocListPtr& rhs) : base_type(rhs) {}
+	AssocList(ptr_type list) : base_type(list) {}
+	AssocList(LispPtr  list) : base_type(ptr_type(list)) {}  // invoke Check
 
-	AssocList(AssocPtr a, AssocListPtr l):	SharedPtrWrap(LispRef(a, l))
+	AssocList(AssocPtr a, ptr_type l) : base_type(LispRef(a.get(), l.get()))
 	{
-		dms_assert(!l.IsFailed());
+		assert(!l.IsFailed());
 	}
 
-	operator ptr_type() const { return ptr_type(get_ptr()); }
+	void operator =(AssocList&& rhs) { this->swap(rhs); }
+
+	template<typename BasePtr>
+	void operator =(const AssocListPtrWrap<BasePtr>& rhs) { SharedPtr<const LispObj>::operator=(rhs); }
+
+	static auto empty () -> AssocListPtr;
+	static auto failed() -> AssocListPtr;
+
+	operator ptr_type() const { return ptr_type(get()); }
 };
 
 /**************** constructing functions *****************/
@@ -156,7 +197,7 @@ inline AssocList Insert(AssocListPtr self, AssocPtr a)
 		return Add(self, a);
 	if (found.Val()==a.Val())
 		return self;
-	return AssocListPtr::failed();
+	return AssocList::failed();
 }
 
 inline AssocList InsertRecursive(AssocListPtr self, AssocPtr a)
@@ -167,13 +208,13 @@ inline AssocList InsertRecursive(AssocListPtr self, AssocPtr a)
 		return Add(self, Assoc(a.Key(),foundVal));
 	if (self.LookupRecursive(foundAssoc.Val()) == foundVal)
 		return self;
-	return AssocListPtr::failed();
+	return AssocList::failed();
 }
 
 inline AssocList ReverseAssoc(AssocListPtr self)
 {
 	if (self.IsEmpty())
-		return AssocListPtr::empty();
+		return AssocList::empty();
 	AssocPtr top = self.First();
 	return AssocList(Assoc(top.Val(),top.Key()), ReverseAssoc(self.Tail()));
 }

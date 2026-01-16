@@ -156,11 +156,11 @@ template <typename T> inline       AbstrDataItem* AsCheckedDataItem(T* self) { r
 template <typename T> inline const AbstrDataItem* AsCertainDataItem(const T* self) { return checked_valcast<const AbstrDataItem*>(self); }
 template <typename T> inline       AbstrDataItem* AsCertainDataItem(T* self) { return checked_valcast<      AbstrDataItem*>(self); }
 
-template <typename T> inline bool IsDataItem(const SharedPtr<T>& self) { return IsDataItem(self.get()); }
-template <typename T> inline auto AsDataItem(const SharedPtr<T>& self) { return MakeShared(AsDataItem(self.get())); }
-template <typename T> inline auto AsDynamicDataItem(const SharedPtr<T>& self) { return MakeShared(AsDynamicDataItem(self.get())); }
-template <typename T> inline auto AsCheckedDataItem(const SharedPtr<T>& self) { return MakeShared(AsCheckedDataItem(self.get())); }
-template <typename T> inline auto AsCertainDataItem(const SharedPtr<T>& self) { return MakeShared(AsCertainDataItem(self.get())); }
+template <typename T> inline bool IsDataItem       (const SharedPtr<T>& self) { return IsDataItem(self.get()); }
+template <typename T> inline auto AsDataItem       (const SharedPtr<T>& self) { return MakeSharedFromBorrowedObjectPtr(AsDataItem(self.get())); }
+template <typename T> inline auto AsDynamicDataItem(const SharedPtr<T>& self) { return MakeSharedFromBorrowedObjectPtr(AsDynamicDataItem(self.get())); }
+template <typename T> inline auto AsCheckedDataItem(const SharedPtr<T>& self) { return MakeSharedFromBorrowedObjectPtr(AsCheckedDataItem(self.get())); }
+template <typename T> inline auto AsCertainDataItem(const SharedPtr<T>& self) { return MakeSharedFromBorrowedObjectPtr(AsCertainDataItem(self.get())); }
 
 //----------------------------------------------------------------------
 // class  : TreeItemAdmLock, inherit from specific Adm's to ensure order of initialization

@@ -18,13 +18,13 @@
 /// - Hierarchy navigation is via GetParent() and helpers like GetRoot(), DoesContain().
 /// - Error helpers report errors annotated with this item's context.
 /// Ownership through SharedPtr; each object manages the lifetime of its parent by increasing its ref-count.
-class PersistentSharedObj : public SharedObj
+class PersistentObject : public Object
 {
 public:
 	/// Return the logical parent in the persistent hierarchy, or nullptr if this is the root.
 	/// Ownership: non-owning raw pointer.
 	/// Thread-safety: depends on implementation.
-	RTC_CALL virtual [[nodiscard]] const PersistentSharedObj* GetParent() const noexcept;
+	RTC_CALL virtual [[nodiscard]] const PersistentObject* GetParent() const noexcept;
 
 	/// Return the local source/name identifier of this object (without path/ancestor context).
 	/// Contract: Should be stable and suitable for composition by GetFullName().
@@ -48,15 +48,15 @@ public:
 	/// Return the full configuration name; default maps to GetFullName().
 	/// Override to include configuration-specific qualifiers.
 	/// TODO: Consider [[nodiscard]] and noexcept.
-	virtual auto GetFullCfgName() const -> SharedStr { return GetFullName(); }
+	auto GetFullCfgName() const -> SharedStr override { return GetFullName(); }
 
 	/// Ascend to the top-most ancestor (first node with no parent).
 	/// Returns this if already at root.
 	/// TODO: Consider [[nodiscard]] and noexcept.
-	RTC_CALL const PersistentSharedObj* GetRoot() const;
+	RTC_CALL auto GetRoot() const ->const PersistentObject*;
 
 	/// Return true if this object is an ancestor (or equal to) the given subItemCandidate.
-	RTC_CALL bool DoesContain(const PersistentSharedObj* subItemCandidate) const noexcept;
+	RTC_CALL bool DoesContain(const PersistentObject* subItemCandidate) const noexcept;
 
 	/// Return optional source location metadata for diagnostics.
 	/// May return nullptr if location is unknown.
@@ -67,31 +67,13 @@ public:
 	/// E.g., if context is an ancestor, the result may be a shorter path.
 	/// Precondition: context must be within the same hierarchy.
 	/// returs a full path when context is unrelated; define fallback (full name?).
-	RTC_CALL [[nodiscard]] SharedStr GetRelativeName(const PersistentSharedObj* context) const;
+	RTC_CALL [[nodiscard]] SharedStr GetRelativeName(const PersistentObject* context) const;
 
 	/// Produce a name for subItem that is "findable" from this object (e.g., a relative path).
 	/// Typically used to generate references between items.
 	/// Precondition: subItem should be in the same hierarchy.
 	/// TODO: Document the exact naming rules and escaping strategy.
-	RTC_CALL [[nodiscard]] SharedStr GetFindableName(const PersistentSharedObj* subItem) const;
-
-	/// Throw a contextualized item error with a pre-wrapped WeakStr message.
-	/// Note: [[noreturn]] indicates this always throws.
-	/// TODO: Consider unifying overloads to reduce duplication.
-	[[noreturn]] RTC_CALL void throwItemError(WeakStr msgStr) const { ::throwItemError(this, msgStr); }
-
-	/// Throw a contextualized item error from a raw CharPtr by building a SharedStr.
-	/// Uses MG_DEBUG_ALLOCATOR_SRC tag for debug allocation tracking.
-	/// TODO: Prefer strongly-typed string view equivalents if available in this codebase.
-	[[noreturn]] void throwItemError(CharPtr msg) const { ::throwItemError(this, SharedStr(msg MG_DEBUG_ALLOCATOR_SRC("throwItemError"))); }
-
-	/// Format string error helper; forwards args to ::throwItemErrorF.
-	/// Safety: Ensure msg is a safe format string and args match placeholders.
-	/// TODO: Consider type-safe formatting wrappers or compile-time format checks.
-	template<typename ...Args>
-	[[noreturn]] void throwItemErrorF(CharPtr msg, Args&&... args) const {
-		::throwItemErrorF(this, msg, std::forward<Args>(args)...);
-	}
+	RTC_CALL [[nodiscard]] SharedStr GetFindableName(const PersistentObject* subItem) const;
 
 	/// Declare abstract RTTI for this class (macro from project infrastructure).
 	/// Typically provides meta-class registration and introspection facilities.
@@ -113,6 +95,10 @@ Suggestions for improvements (non-breaking API suggestions):
 */
 
 // used for determining the scope of relative names in XML_Dump
-RTC_CALL extern const PersistentSharedObj* s_RelativeScope;
+RTC_CALL extern const PersistentObject* s_RelativeScope;
+
+
+//using PersistentSharedObj = SharedObjWrap< PersistentObject>;
+
 
 #endif // __PTR_PERSISTENTSHAREDOBJ_H`

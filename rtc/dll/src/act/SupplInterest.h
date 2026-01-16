@@ -97,9 +97,9 @@ struct SupplInterestListElem
 
 //typedef SupplInterestListElem::first_ptr_type SupplInterestListPtr;
 
-inline void push_front(SupplInterestListPtr& self, const Actor* actor)
+inline void push_front(SupplInterestListPtr& self, const PersistentSharedActor* actor)
 {
-	self = new SupplInterestListElem(SharedActorInterestPtr(actor), std::move(self));
+	self = new SupplInterestListElem(SharedActorInterestPtr(actor, existing_obj{}), std::move(self));
 };
 
 typedef std::map<const Actor*, SupplInterestListPtr > SupplTreeInterestType;

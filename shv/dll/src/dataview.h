@@ -175,9 +175,9 @@ struct MdiCreateStruct
 // class  : DataView
 //----------------------------------------------------------------------
 
-class DataView : public Actor, public DataViewTree, public enable_shared_from_this_base<DataView>, private MsgGenerator
+class DataView : public Object, public Actor, public DataViewTree, public enable_shared_from_this_base<DataView>, private MsgGenerator
 {
-	typedef Actor base_type;
+	using base_type = Object;
 public:
 	typedef std::vector<SharedPtr<AbstrCaret> >      caret_vector;
 	typedef caret_vector::iterator                   caret_iterator;

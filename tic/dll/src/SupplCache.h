@@ -19,7 +19,7 @@
 // class  : ExplicitSuppliers
 //----------------------------------------------------------------------
 
-using ActorCRef = SharedPtr<const Actor> ;
+using ActorCRef = SharedPtr<const PersistentSharedActor> ;
 using ActorCRefArray = std::unique_ptr<ActorCRef[]>;
 
  // CHECK AND OPTIMIZE ON INVARIANT: all configured suppliers are TreeItems; all implied suppliers are AbstrCalculators
@@ -33,7 +33,7 @@ struct SupplCache
 	{
 		dms_assert(!m_IsDirty);
 		dms_assert(i < m_NrConfigured);
-		return m_SupplArray[i];
+		return m_SupplArray[i].get();
 	}
 	const ActorCRef* begin(const TreeItem* context) const { Update(context); return m_SupplArray.get(); }
 	const ActorCRef* end  (const TreeItem* context) const { Update(context); return m_SupplArray.get() + m_NrConfigured; }

@@ -1906,13 +1906,13 @@ void MainWindow::back() {
     int previous_item_index = m_treeitem_visit_history->currentIndex() - 1;
     m_treeitem_visit_history->setCurrentIndex(previous_item_index);
 
-    auto best_item_ref = TreeItem_GetBestItemAndUnfoundPart(m_root, m_treeitem_visit_history->itemText(previous_item_index).toUtf8());
-    auto found_treeitem = best_item_ref.first.get();
+    auto best_item_ref = TreeItem_GetBestItemAndUnfoundPart(m_root.get(), m_treeitem_visit_history->itemText(previous_item_index).toUtf8());
+    auto found_treeitem = best_item_ref.first;
 
-    if (found_treeitem == m_current_item)
+    if (found_treeitem.get() == m_current_item.get())
         return;
 
-    MainWindow::TheOne()->setCurrentTreeItem(const_cast<TreeItem*>(found_treeitem), false);
+    MainWindow::TheOne()->setCurrentTreeItem(const_cast<TreeItem*>(found_treeitem.get()), false);
 }
 
 void MainWindow::forward() {
@@ -1928,10 +1928,10 @@ void MainWindow::forward() {
     int next_item_index = m_treeitem_visit_history->currentIndex() + 1;
     m_treeitem_visit_history->setCurrentIndex(next_item_index);
     
-    auto best_item_ref = TreeItem_GetBestItemAndUnfoundPart(m_root, m_treeitem_visit_history->itemText(next_item_index).toUtf8());
+    auto best_item_ref = TreeItem_GetBestItemAndUnfoundPart(m_root.get(), m_treeitem_visit_history->itemText(next_item_index).toUtf8());
     auto found_treeitem = best_item_ref.first.get();
 
-    if (found_treeitem == m_current_item)
+    if (found_treeitem == m_current_item.get())
         return;
 
     MainWindow::TheOne()->setCurrentTreeItem(const_cast<TreeItem*>(found_treeitem), false);

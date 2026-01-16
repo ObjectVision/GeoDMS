@@ -68,9 +68,9 @@ const UInt32 THF_IsDisabled = actor_flag_set::AF_Next * 0x0001;
 	// simplicifcations for FeatureThemes are described in LayerInfo.h
 Float64 GetMaxValue(const Theme* theme, Float64 defaultMax);
 
-class Theme : public Actor, public std::enable_shared_from_this<Theme>
+class Theme : public Object, public Actor, public std::enable_shared_from_this<Theme>
 {
-	typedef Actor base_type;
+	using base_type = Object;
 public:
 	Theme(AspectNr aNr, const AbstrDataItem* themeAttr, const AbstrDataItem* classBreaks, const AbstrDataItem* palette);
 	~Theme();

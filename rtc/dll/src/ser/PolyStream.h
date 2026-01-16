@@ -80,7 +80,7 @@ private:
 public:
 	std::unique_ptr<Byte>          m_StrnBuf;
 	UInt32                         m_StrnBufSize;
-	std::vector<Object*> m_ObjReg;
+	std::vector<Object*>           m_ObjReg;
 	UInt8                          m_FormatID;
 
 private:
@@ -107,10 +107,10 @@ inline PolymorphInpStream& operator >>(PolymorphInpStream& is, const T*& ptr)
 	return is;
 }
 
-template <typename Ptr> inline
-PolymorphInpStream& operator >>(PolymorphInpStream& ar, SharedPtrWrap<Ptr>& rPtr)
+template <typename T> inline
+PolymorphInpStream& operator >>(PolymorphInpStream& ar, SharedPtr<T>& rPtr)
 {
-	rPtr.reset(checked_cast<typename Ptr::pointer>(ar.ReadObj())); // increments counter of referrred object when read of linked; throws exception when dynamic_cast fails
+	rPtr.reset(checked_cast<T*>(ar.ReadObj())); // increments counter of referrred object when read of linked; throws exception when dynamic_cast fails
 	return ar;
 }
 

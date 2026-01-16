@@ -75,14 +75,14 @@ void VisitAllVisibleSubItems(const TreeItem* context, Func f, TreeItemSetType& d
 		UInt32 i=uc->GetNrUsings();
 		if(!i)
 		{
-			dms_assert(!context->GetTreeParent());
+			assert(!context->GetTreeParent());
 			return;
 		}
 		while (true)
 		{
 			if (!--i)
 			{
-				dms_assert(!context->GetTreeParent() || context->GetTreeParent() == uc->GetUsing(0));
+				assert(!context->GetTreeParent() || context->GetTreeParent().get() == uc->GetUsing(0));
 				break;
 			}
 			VisitAllVisibleSubItems<Func>(uc->GetUsing(i), f, doneItems);

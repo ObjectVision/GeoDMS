@@ -127,42 +127,6 @@ bool SharedBase::DecRef() const noexcept
 
 	return result;
 }
-//  -----------------------------------------------------------------------
-//  Name        : SharedObj.h
-//  Description : SharedObj is a possible base class for objects that are
-//                referred to by SharedPtr.
-//                It offers RefCount() and AddRef(), 
-//                but not Release(), which should be implemented
-//                by descending class since SharedObj has no
-//                virtual calls and therefore no virtual dtor to 
-//                allow a descending class to be non-polymorphic
-//	Note:         When your class is polymorphic (has a virtual dtor),
-//                derive from PersistentSharedObj
-//  -----------------------------------------------------------------------
-
-void SharedObj::Release() const  noexcept // dtor of Object is virtual, so destructing from here is OK
-{
-//	if (dynamic_cast<const Actor*>(this) && dynamic_cast<const Actor*>(this)->m_State.Get(actor_flag_set::AFD_PivotElem))
-//	{
-//		reportF(SeverityTypeID::ST_MajorTrace, "Release %x with count %d", this, GetRefCount());
-//	}
-
-	if (DecRef())
-		return;
-
-	delete this;
-}
-auto SharedObj::DelayedRelease()  noexcept -> zombie_destroyer // dtor of Object is virtual, so destructing from here is OK
-{
-//	if (dynamic_cast<const Actor*>(this) && dynamic_cast<const Actor*>(this)->m_State.Get(actor_flag_set::AFD_PivotElem))
-//	{
-//		reportF(SeverityTypeID::ST_MajorTrace, "DelayedRelease %x with count %d", this, GetRefCount());
-//	}
-
-	if (DecRef())
-		return {};
-	return zombie_destroyer(this);
-}
 
 //============================= Parallel
 

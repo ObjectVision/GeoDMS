@@ -80,7 +80,7 @@ static UInt32 GetMemPageSizeImpl()
 	return info.dwPageSize;
 }
 
-SizeT GetMemPageSize()
+UInt32 GetMemPageSize()
 {
 	static UInt32 pageSize = GetMemPageSizeImpl();
 	MG_CHECK(pageSize == 0x1000); // .mmd file format depends on this assumption
