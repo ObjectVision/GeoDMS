@@ -444,12 +444,6 @@ SharedStr PersistentObject::GetFindableName(const PersistentObject* subItem) con
 	return result;
 }
 
-void Object::ReadObj (PolymorphInpStream&)
-{}
-
-void Object::WriteObj(PolymorphOutStream&) const
-{}
-
 SharedStr PersistentObject::GetSourceName() const
 {
 	auto fullCfgName = GetFullCfgName();

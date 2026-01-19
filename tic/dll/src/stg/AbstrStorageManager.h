@@ -64,12 +64,11 @@ Issues
 #include <semaphore>
 
 #include "TicBase.h"
+#include "AbstrDataItem.h"
 #include "AbstrUnit.h"
+
 #include "act/ActorEnums.h"
-#include "TreeItem.h"
-struct ActorVisitor;
-		
-#include "ptr/InterestHolders.h"
+struct ActorVisitor;		
 #include "ptr/SharedStr.h"
 
 class NonmappableStorageManager;

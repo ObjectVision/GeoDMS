@@ -158,7 +158,7 @@ public:
 		auto tileRangeData = AsUnit(arg1A->GetAbstrDomainUnit()->GetCurrRangeItem())->GetTiledRangeData();
 		auto valuesUnit = debug_cast<const Unit<field_of_t<V>>*>(valuesA->GetCurrRangeItem());
 
-		auto arg1 = MakeShared(const_array_cast<T>(arg1A)); assert(arg1);
+		auto arg1 = MakeSharedFromBorrowedObjectPtr(const_array_cast<T>(arg1A)); assert(arg1);
 
 		auto arg2_DomainUnit = debug_cast<const Unit<T>*>(arg2DomainA->GetCurrRangeItem());
 		assert(arg2_DomainUnit);

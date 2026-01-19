@@ -10,7 +10,6 @@
 
 #include "dbg/DebugCast.h"
 #include "ser/BinaryStream.h"
-#include "ser/PolyStream.h"
 #include "ser/FormattedStream.h"
 #include "ptr/SharedStr.h"
 
@@ -20,18 +19,6 @@
 
 RTC_CALL BinaryOutStream& operator <<(BinaryOutStream& ar, WeakStr    str);
 RTC_CALL BinaryInpStream& operator >>(BinaryInpStream& ar, SharedStr& str);
-
-inline PolymorphOutStream& operator <<(PolymorphOutStream& ar, WeakStr str)
-{
-	typesafe_cast<BinaryOutStream&>(ar) << str;
-	return ar;
-}
-
-inline PolymorphInpStream& operator >>(PolymorphInpStream& ar, SharedStr& str)
-{
-	typesafe_cast<BinaryInpStream&>(ar) >> str;
-	return ar;
-}
 
 RTC_CALL FormattedInpStream& operator >> (FormattedInpStream& is, SharedStr& cap);
 

@@ -13,8 +13,9 @@
 #include "ser/FormattedStream.h"
 
 
-AssocPtr AssocPtr::failed() {
-	static  AssocPtr result = AssocPtr(LispPtr());
+auto Assoc::failed() -> AssocPtr
+{
+	static AssocPtr result = AssocPtr(LispPtr());
 	return result;
 }
 
@@ -26,7 +27,7 @@ auto AssocList::empty() -> AssocListPtr
 
 auto AssocList::failed() ->AssocListPtr
 {
-	static AssocList assocListFailed = AssocList(AssocPtr::failed(), AssocList::empty());
+	static AssocList assocListFailed = AssocList(Assoc::failed(), AssocList::empty());
 	return AssocListPtr(assocListFailed.get());
 }
 

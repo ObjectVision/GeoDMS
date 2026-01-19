@@ -188,7 +188,7 @@ struct MulMetricFunctor {
 			if (IsEmpty(arg2))
 			{
 				if (IsEmpty(arg1))
-					return nullptr;
+					return {};
 				return arg1;
 			}
 
@@ -210,7 +210,7 @@ struct DivMetricFunctor {
 			if (IsEmpty(arg2))
 			{
 				if (IsEmpty(arg1))
-					return nullptr;
+					return {};
 				return arg1;
 			}
 		}
@@ -263,7 +263,7 @@ public:
 
 		const UnitMetric* arg1SI = arg1A->GetMetric();
 		if (IsEmpty(arg1SI))
-			result->SetMetric(nullptr);
+			result->SetMetric({});
 		else
 		{
 			auto metric = std::make_unique<UnitMetric>(*arg1SI);

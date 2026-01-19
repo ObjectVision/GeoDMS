@@ -1,4 +1,4 @@
-// Copyright (C) 1998-2024 Object Vision b.v. 
+// Copyright (C) 1998-2026 Object Vision b.v. 
 // License: GNU GPL 3
 /////////////////////////////////////////////////////////////////////////////
 
@@ -40,8 +40,6 @@ struct AssocPtrWrap : LispPtrWrap<BasePtr>
 	LispPtr Val()   const { return this->Right(); }
 	bool IsFailed() const { return this->EndP(); }
 
-	static AssocPtrWrap failed() { return AssocPtrWrap(); }
-
 	bool Check() const
 	{ 
 		return this->IsList(); 
@@ -69,6 +67,8 @@ struct Assoc : AssocPtrWrap<SharedPtr<const LispObj>>
 
 	template<typename BasePtr>
 	Assoc(AssocPtrWrap<BasePtr> rhs) : base_type(std::move(rhs)) {}
+
+	static auto failed() -> AssocPtr;
 
 //	Assoc(ptr_type listPtr) : base_type(listPtr) {}
 	operator ptr_type() const { return ptr_type(get()); }
@@ -108,7 +108,7 @@ struct AssocListPtrWrap : LispListPtrWrap<BasePtr, Assoc>
 				return a;
 			cursor = cursor.Tail();
 		}
-		return AssocPtr::failed();
+		return Assoc::failed();
 	}
 
 	::LispPtr Lookup(::LispPtr x) const

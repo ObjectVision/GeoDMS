@@ -47,6 +47,11 @@ template <typename BasePtr>
 struct LispPtrWrap: BasePtr
 {
 	using BasePtr::BasePtr;
+	// wrap an existing BasePtr
+	LispPtrWrap(BasePtr const& p) : BasePtr(p) {}
+	LispPtrWrap(BasePtr&& p) noexcept(std::is_nothrow_move_constructible_v<BasePtr>)
+		: BasePtr(std::move(p)) 
+	{}
 
 	auto get() const noexcept { return this->BasePtr::get(); }
 
@@ -95,7 +100,6 @@ struct LispPtrWrap: BasePtr
 			out << "() ";
 	}
 
-	SYM_CALL static UInt32 MAX_PRINT_LEVEL;
 
 //	compare operators
 	template <typename OthPtr> bool operator ==(const LispPtrWrap<OthPtr>& rhs) const { return this->get() == rhs.get(); }
@@ -134,7 +138,8 @@ struct LispRef : LispPtrWrap<SharedPtr<const LispObj> >
 	SYM_CALL LispRef(LispPtr head, LispPtr tail); // Makes a LispRef to ListObj
 
 //	static constants
-	static const LispRef s_null;
+	SYM_CALL static LispRef s_null;
+	SYM_CALL static UInt32 MAX_PRINT_LEVEL;
 };
 
 //template <typename BasePtr> bool LispPtrWrap<BasePtr>::operator ==(const LispRef& rhs) const { return this->get() == rhs.get(); }

@@ -5,6 +5,8 @@
 #include "TicPCH.h"
 #pragma hdrstop
 
+#include <set>
+
 #include "mci/PropDef.h"
 #include "mci/ValueClass.h"
 

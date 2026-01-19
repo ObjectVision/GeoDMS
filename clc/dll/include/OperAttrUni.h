@@ -115,8 +115,8 @@ public:
 		auto tileRangeData = AsUnit(arg1A->GetAbstrDomainUnit()->GetCurrRangeItem())->GetTiledRangeData();
 		auto valuesUnit = debug_cast<const Unit<field_of_t<ResultValueType>>*>(valuesUnitA);
 
-		auto arg1 = MakeShared(const_array_cast<Arg1ValueType>(arg1A)); assert(arg1);
-		auto arg1VU = MakeShared(arg1A->GetAbstrValuesUnit());
+		auto arg1 = MakeSharedFromBorrowedObjectPtr(const_array_cast<Arg1ValueType>(arg1A)); assert(arg1);
+		auto arg1VU = MakeSharedFromBorrowedObjectPtr(arg1A->GetAbstrValuesUnit());
 
 		using prepare_data = std::shared_ptr<typename Arg1Type::future_tile>;
 		auto futureTileFunctor = make_unique_FutureTileFunctor<ResultValueType, prepare_data, false>(resultAdi, lazy, tileRangeData, get_range_ptr_of_valuesunit(valuesUnit)

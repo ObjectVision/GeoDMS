@@ -106,15 +106,13 @@ struct SharedArray : SharedBase
 
 	void Release() const
 	{
-		if (!DecRef())
-		{
-			size_t allocSize = m_AllocSize;
-			const_cast<SharedArray*>(this)->SharedArray::~SharedArray();
-			allocator_i().deallocate(
-				reinterpret_cast<typename allocator_i::value_type*>( const_cast<SharedArray*>(this) )
-			,	allocSize
-			);
-		}
+		assert(!IsOwned());
+		size_t allocSize = m_AllocSize;
+		const_cast<SharedArray*>(this)->SharedArray::~SharedArray();
+		allocator_i().deallocate(
+			reinterpret_cast<typename allocator_i::value_type*>( const_cast<SharedArray*>(this) )
+		,	allocSize
+		);
 	}
 
 private: // copying this is not allowed

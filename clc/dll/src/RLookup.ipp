@@ -159,7 +159,7 @@ public:
 		auto tileRangeData = AsUnit(arg1A->GetAbstrDomainUnit()->GetCurrRangeItem())->GetTiledRangeData();
 //		auto valuesUnit = debug_cast<const Unit<field_of_t<ResultValueType>>*>(valuesUnitA);
 
-		auto arg1 = MakeShared(const_array_cast<V>(arg1A));
+		auto arg1 = MakeSharedFromBorrowedObjectPtr(const_array_cast<V>(arg1A));
 		assert(arg1);
 		std::shared_ptr<std::any> indexBoxPtr = std::make_shared<std::any>(std::move(indexBox));
 

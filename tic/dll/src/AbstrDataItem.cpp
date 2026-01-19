@@ -576,11 +576,17 @@ void AbstrDataItem::InitDataItem(const AbstrUnit* du, const AbstrUnit* vu, const
 	m_ValuesUnit = vu;
 }
 
-const AbstrDataObject* AbstrDataItem::GetDataObj() const
+auto AbstrDataItem::GetDataObj() const -> SharedPtr<const AbstrDataObject>
 {
-	auto dataObj = m_DataObject.get();
+	auto dataObj = m_DataObject;
 	assert(dataObj);
 	return dataObj;
+}
+
+auto AbstrDataItem::GetCurrDataObj() const -> SharedPtr<const AbstrDataObject>
+{ 
+	assert(m_DataObject); 
+	return m_DataObject; 
 }
 
 const Object* AbstrDataItem::_GetAs(const Class* cls) const

@@ -372,7 +372,7 @@ public:
 		resultHolder = result;
 
 		if (baseUnitName.empty())
-			result->SetMetric(nullptr);
+			result->SetMetric({});
 		else
 		{
 			auto m = std::make_unique<UnitMetric>();

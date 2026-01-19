@@ -18,102 +18,6 @@ struct newly_obj {};
 struct existing_obj {};
 struct no_zombies {};
 
-/* REMOVE
-template <class Ptr>
-struct SharedPtrWrap : Ptr
-{
-	using typename Ptr::pointer;
-
-	constexpr SharedPtrWrap() noexcept : Ptr()
-	{
-		assert(!this->m_Ptr);
-	}
-
-	SharedPtrWrap(const SharedPtrWrap<Ptr>& rhs) noexcept
-		: Ptr(rhs)
-	{ 
-		IncCount();
-	}
-
-	SharedPtrWrap(SharedPtrWrap<Ptr>&& rhs) noexcept // we assume no external access to rhs as that would conflict with its rvalue-ness
-		: Ptr(rhs.release_ptr())
-	{
-		assert(!rhs.m_Ptr);
-	}
-
-	template<class RhsPtr>
-	SharedPtrWrap(SharedPtrWrap<RhsPtr>&& rhs) noexcept // we assume no external access to rhs as that would conflict with its rvalue-ness
-		: Ptr(rhs.release_ptr()) 
-	{ 
-		assert(!rhs.m_Ptr);
-	}
-
-	~SharedPtrWrap() noexcept { DecCount(); }
-
-	SharedPtrWrap<Ptr>& operator = (SharedPtrWrap<Ptr>&& rhs) noexcept
-	{
-		this->swap(rhs);
-		return *this;
-	}
-
-	SharedPtrWrap<Ptr>& operator = (const SharedPtrWrap<Ptr>& rhs) noexcept
-	{ 
-		auto tmp = SharedPtrWrap(rhs);
-		this->swap(tmp);
-		return *this;
-	}
-
-//	void assign(pointer ptr) noexcept // TODO G8: REMOVE, replace by reset
-//	{ 
-//		*this = SharedPtrWrap(ptr);
-//	}
-
-	void reset(pointer ptr) noexcept
-	{
-		*this = SharedPtrWrap(ptr, newly_obj{});
-	}
-
-	void reset() noexcept
-	{
-		reset(nullptr);
-	}
-
-	template <typename DRT>
-	auto delayed_reset() noexcept -> std::unique_ptr<DRT>
-	{
-		if (!this->m_Ptr)
-			return {};
-		auto ptr = this->m_Ptr;
-		this->m_Ptr = nullptr;
-		return ptr->DelayedRelease();
-	}
-
-	void swap(SharedPtrWrap<Ptr>& rhs) noexcept
-	{ 
-		auto tmp = this->m_Ptr;
-		this->m_Ptr = rhs.m_Ptr;
-		rhs.m_Ptr = tmp;
-	}
-	friend void swap(SharedPtrWrap<Ptr>& a, SharedPtrWrap<Ptr>& b) noexcept { a.swap(b); }
-
-protected:
-	constexpr SharedPtrWrap(pointer ptr, newly_obj) noexcept : Ptr(ptr) { if (ptr) ptr->AdoptRef(); }
-	SharedPtrWrap(pointer ptr, existing_obj) noexcept : Ptr(ptr) { if (ptr) ptr->IncRef(); }
-	SharedPtrWrap(pointer ptr, no_zombies) noexcept : Ptr(ptr && ptr->DuplRef() ? ptr : nullptr) {}
-
-	pointer release_ptr() noexcept { auto ptr = this->m_Ptr; this->m_Ptr = nullptr; return ptr; }
-
-	constexpr void IncCount () const noexcept { if (this->m_Ptr) this->m_Ptr->IncRef(); }
-	constexpr void DecCount () const noexcept 
-	{ 
-		if (!this->m_Ptr)
-			return;
-		this->m_Ptr->Release();
-	}
-	template <typename T> friend struct SharedPtrWrap;
-};
-*/
-
 template <class T>
 struct SharedPtr
 {
@@ -153,7 +57,7 @@ struct SharedPtr
 
 	// use this constructor for borrowed existing objects, for which existing Shared Ownership can be be assumed
 	template <typename U>
-	SharedPtr(U* rhs, existing_obj) noexcept
+	SharedPtr(U* rhs, existing_obj = existing_obj{}) noexcept
 		: m_Ptr(rhs)
 	{
 		assert(!rhs || rhs->IsOwned());
@@ -215,14 +119,17 @@ struct SharedPtr
 		return this->m_Ptr; 
 	}
 	pointer operator ->() const noexcept { return get_nonnull(); }
-	
-	auto delayed_reset() noexcept -> std::unique_ptr<T>
+
+	bool operator ==(const SharedPtr<T>& rhs) const noexcept { return this->m_Ptr == rhs.m_Ptr; }
+
+	struct releaser_ftor { void operator()(T* p) const noexcept { p->Release(); } };	
+
+	auto delayed_reset() noexcept -> std::unique_ptr<T, releaser_ftor>
 	{
-		if (!this->m_Ptr)
-			return {};
-		auto ptr = this->m_Ptr;
-		this->m_Ptr = nullptr;
-		return ptr->DelayedRelease();
+		auto ptr = release_ptr();
+		if (ptr && !ptr->DecRef())
+			return std::unique_ptr<T, releaser_ftor>{ptr};
+		return {};
 	}
 
 	void swap(SharedPtr<T>& rhs) noexcept
@@ -247,12 +154,12 @@ struct SharedPtr
 	pointer release_ptr() noexcept { auto ptr = this->m_Ptr; this->m_Ptr = nullptr; return ptr; }
 private:
 
-	constexpr void IncCount() const noexcept { if (this->m_Ptr) this->m_Ptr->IncRef(); }
-	constexpr void DecCount() const noexcept
+	constexpr void IncCount() noexcept { if (this->m_Ptr) this->m_Ptr->IncRef(); }
+	constexpr void DecCount() noexcept
 	{
-		if (!this->m_Ptr)
-			return;
-		this->m_Ptr->Release();
+		auto ptr = release_ptr();
+		if (ptr && !ptr->DecRef())
+			ptr->Release();
 	}
 
 	T* m_Ptr = nullptr;

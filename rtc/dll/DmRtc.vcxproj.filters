@@ -392,9 +392,6 @@
     <ClInclude Include="src\ser\PointStream.h">
       <Filter>Serialization</Filter>
     </ClInclude>
-    <ClInclude Include="src\ser\PolyStream.h">
-      <Filter>Serialization</Filter>
-    </ClInclude>
     <ClInclude Include="src\ser\RangeStream.h">
       <Filter>Serialization</Filter>
     </ClInclude>
@@ -924,9 +921,6 @@
       <Filter>Serialization</Filter>
     </ClCompile>
     <ClCompile Include="src\ser\MoreStreamBuff.cpp">
-      <Filter>Serialization</Filter>
-    </ClCompile>
-    <ClCompile Include="src\ser\PolyStream.cpp">
       <Filter>Serialization</Filter>
     </ClCompile>
     <ClCompile Include="src\ser\StringStream.cpp">

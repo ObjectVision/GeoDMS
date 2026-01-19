@@ -22,7 +22,6 @@
 #include "ptr/PtrBase.h"
 #include "ser/AsString.h"
 #include "ser/DebugOutStream.h"
-#include "ser/PolyStream.h"
 #include "ser/StringStream.h"
 #include "ser/VectorStream.h"
 #include "set/Cache.h"
@@ -92,60 +91,17 @@ void     LispObj::PrintAsFLisp(FormattedOutStream& os, UInt32 level) const
 /****************** struct LispCls                *******************/
 /******************                               *******************/
 
-using CreateFromStreamFunc = auto (*)(PolymorphInpStream& istr) -> LispRef;
-
 class LispCls : public Class
 {
 public:
-	LispCls(
-		CreateFromStreamFunc createFromStreamFunc, 
-		TokenID clsNameID)
+	LispCls(TokenID clsNameID)
 		:	Class(0, LispObj::GetStaticClass(), clsNameID)
-		,	m_CreateFromStreamFunc(createFromStreamFunc)
 	{}
-
-	virtual Object* CreateObj(PolymorphInpStream*) const override;
-private:
-	CreateFromStreamFunc m_CreateFromStreamFunc;
 };
 
 /****************** Avoid stack overflow *******************/
 
 #include <future>
-
-Object* LispCls::CreateObj(PolymorphInpStream* istr) const
-{
-	SizeT n = istr->m_ObjReg.size();
-	istr->m_ObjReg.push_back(nullptr);
-
-
-	LispRef obj;
-	auto remainingStackSpace = RemainingStackSpace();
-	if (remainingStackSpace > 32768)
-	{
-		assert(IsMetaThread());
-		obj = m_CreateFromStreamFunc(*istr);
-	}
-	else
-	{
-		auto future = std::async(
-			[this, istr]() -> LispObj*
-			{
-				SetMetaThreadID();
-				assert(IsMetaThread());
-				return m_CreateFromStreamFunc(*istr);
-			}
-		);
-		obj = future.get();
-		SetMetaThreadID();
-		assert(IsMetaThread());
-	}
-
-	assert(obj);
-	istr->m_ObjReg[n] = obj;
-	return obj;
-}
-
 
 //----------------------------------------------------------------------
 // Serialization and rtti
@@ -153,14 +109,14 @@ Object* LispCls::CreateObj(PolymorphInpStream* istr) const
 
 IMPL_CLASS(LispObj, 0)
 
-#define IMPL_LISPCLS(cls, createFromStreamFunc) \
+#define IMPL_LISPCLS(cls) \
 	const LispCls* cls::GetStaticClass() \
-	{ \
-		static LispCls s_Cls(createFromStreamFunc, GetTokenID_st(#cls) ); \
+	{  \
+		static LispCls s_Cls(GetTokenID_st(#cls) ); \
 		return &s_Cls; \
 	}  \
 
-#define IMPL_STATIC_LISPCLS(cls) IMPL_RTTI(cls, LispCls) IMPL_LISPCLS(cls, cls::ReloadObj)
+#define IMPL_STATIC_LISPCLS(cls) IMPL_RTTI(cls, LispCls) IMPL_LISPCLS(cls)
 
 /******************                               *******************/
 /****************** class NumbObj                 *******************/
@@ -189,8 +145,6 @@ private:
 	virtual Number GetNumbVal() const { return Number(m_Value); }
 
 	virtual void Print(FormattedOutStream& out, UInt32 level)   const { out << m_Value << ' '; }
-	static LispRef ReloadObj(PolymorphInpStream& ar);
-	virtual void WriteObj(PolymorphOutStream& ar) const;
 
 	Number_t m_Value;
 
@@ -221,8 +175,6 @@ private:
 	virtual UInt64 GetUI64Val() const { return m_Value; }
 
 	virtual void Print(FormattedOutStream& out, UInt32 level)   const { out << m_Value << "u64 "; }
-	static LispRef ReloadObj(PolymorphInpStream& ar);
-	virtual void WriteObj(PolymorphOutStream& ar) const;
 
 	UInt64 m_Value;
 
@@ -258,8 +210,6 @@ private:
 
 	void Print       (FormattedOutStream& out, UInt32 level)  const override;
 	void PrintAsFLisp(FormattedOutStream& out, UInt32 level)  const override;
-	void WriteObj(PolymorphOutStream& ar) const override ;
-	static LispRef ReloadObj (PolymorphInpStream& ar);
 
 	TokenID m_TokenID;
 	ChroID  m_ChroID = 0;
@@ -324,9 +274,6 @@ private:
 	CharPtr GetStrnEnd() const override { return m_Data.second; }
 
 	void Print     (FormattedOutStream& o, UInt32 level)  const override;
-	void WriteObj  (PolymorphOutStream& ar) const override;
-	static LispRef ReloadObj(PolymorphInpStream& ar);
-
 
 	StrnType m_Data; 
 
@@ -360,9 +307,6 @@ private:
 	void Print       (FormattedOutStream&, UInt32 level) const override;
 	void PrintAsFLisp(FormattedOutStream&, UInt32 level) const override;
 
-	static LispRef ReloadObj (PolymorphInpStream& ar);
-	void WriteObj(PolymorphOutStream& ar) const override;
-
 	LispRef m_Left;
 	LispRef m_Right;
 
@@ -383,7 +327,7 @@ LispRef::LispRef(LispObj* lrb) noexcept
 }
 
 LispRef::LispRef(LispPtr lrb, no_zombies nz) noexcept 
-	: base_type(lrb, nz)
+	: base_type(lrb.get(), nz)
 {
 	MG_CHECK(!get() || get()->IsOwned());
 }
@@ -516,8 +460,8 @@ struct LispCaches {
 			{
 				constexpr std::size_t prime = 0x100000001b3;
 
-				std::size_t h1 = std::hash<LispObj*>()(v.first);
-				std::size_t h2 = std::hash<LispObj*>()(v.second);
+				std::size_t h1 = std::hash<const LispObj*>()(v.first .get());
+				std::size_t h2 = std::hash<const LispObj*>()(v.second.get());
 				return (h1 * prime) ^ h2;
 			}
 		};
@@ -624,22 +568,6 @@ NumbObj::~NumbObj()
 	GetLispCaches()->NumbObjCache.remove(m_Value); 
 }
 
-LispRef NumbObj::ReloadObj(PolymorphInpStream& ar)
-{
-	DBG_START("NumbObj", "ReloadObj", DBG_LOADOBJ);
-
-	double value;
-	ar >> value;
-	DBG_TRACE(("numb = %lf", value));
-	return GetLispCaches()->NumbObjCache.apply(value);
-}
-
-void NumbObj::WriteObj(PolymorphOutStream& ar) const
-{
-	double value = m_Value;
-	ar << value;
-}
-
 IMPL_STATIC_LISPCLS(NumbObj)
 
 /****************** UI64Obj implementation  *******************/
@@ -652,25 +580,6 @@ LispRef::LispRef(UInt64 value)
 }
 
 UI64Obj::~UI64Obj() { GetLispCaches()->UI64ObjCache.remove(m_Value); }
-
-/****************** UI64Obj Serialization and rtti *******************/
-
-void UI64Obj::WriteObj(PolymorphOutStream& ar) const
-{
-	UInt64 value = m_Value;
-	ar << value;
-}
-
-LispRef UI64Obj::ReloadObj(PolymorphInpStream& ar)
-{
-	DBG_START("UI64Obj", "ReloadObj", DBG_LOADOBJ);
-
-	UInt64 value;
-	ar >> value;
-	DBG_TRACE(("ui64 = %lf", value));
-
-	return GetLispCaches()->UI64ObjCache.apply(value);
-}
 
 /****************** SymbObj implementation  *******************/
 
@@ -722,24 +631,6 @@ void SymbObj::PrintAsFLisp(FormattedOutStream& out, UInt32 level) const
 		out << ":" << m_ChroID;
 }
 
-LispRef SymbObj::ReloadObj(PolymorphInpStream& ar)
-{
-	DBG_START("SymbObj", "ReloadObj", DBG_LOADOBJ);
-	TokenID t = ar.ReadToken();
-	DBG_TRACE(("Token=%s", t.GetStr().c_str()));
-
-	UInt32  c;
-	c = ar.ReadUInt32();
-
-	return GetOrCreateSymbObj(GetLispCaches(), t, c);
-}
-
-void SymbObj::WriteObj(PolymorphOutStream& ar) const
-{
-	ar.WriteToken(GetSymbID());
-	ar.WriteUInt32(m_ChroID);
-}
-
 IMPL_STATIC_LISPCLS(SymbObj)
 
 /****************** StrnObj implementation  *******************/
@@ -778,40 +669,6 @@ void StrnObj::Print(FormattedOutStream& o, UInt32 level) const
 {
 	DoubleQuote(o, GetStrnBeg(), GetStrnEnd());
 	o << " ";
-}
-
-LispRef StrnObj::ReloadObj(PolymorphInpStream& ar)
-{
-	DBG_START("StrnObj", "ReloadObj", DBG_LOADOBJ);
-
-	UInt32 len = ar.ReadUInt32();
-	if (!len)
-		return StrnObj::GetEmpty();
-
-	if (ar.m_StrnBufSize < len)
-		ar.m_StrnBuf.reset(new Byte[Max<UInt32>(len, 2 * ar.m_StrnBufSize)]);
-
-	Byte
-		* b = ar.m_StrnBuf.get(),
-		* e = b + len;
-
-	ReadBinRangeImpl(ar, b, e, TYPEID(directcpy_streamable_tag));
-
-#if defined(MG_DEBUG)
-	if (debugContext.m_Active)
-	{
-		DebugOutStream::scoped_lock lock(g_DebugStream);
-		g_DebugStream->Buffer().WriteBytes(b, e - b);
-	}
-#endif
-
-	return GetLispCaches()->StrnObjCache.apply(StrnType(b, e));
-}
-
-void StrnObj::WriteObj(PolymorphOutStream& ar) const
-{
-	ar.WriteUInt32(m_Data.size());
-	WriteBinRangeImpl(ar, m_Data.first, m_Data.second, TYPEID(directcpy_streamable_tag));
 }
 
 /****************** UI64Obj implementation         *******************/
@@ -877,7 +734,8 @@ ListObj::~ListObj()
 
 IMPL_STATIC_LISPCLS(ListObj)
 
-UInt32 LispPtr::MAX_PRINT_LEVEL = 5;
+LispRef LispRef::s_null = LispRef{};
+UInt32 LispRef::MAX_PRINT_LEVEL = 5;
 
 #include "utl/IncrementalLock.h"
 
@@ -953,23 +811,6 @@ void ListObj::PrintAsFLisp(FormattedOutStream& out, UInt32 level) const
 		out << ", "; m_Right.PrintAsFLisp(out, level);
 		out << "]";
 	}
-}
-
-LispRef ListObj::ReloadObj(PolymorphInpStream& ar)
-{
-	DBG_START("ListObj", "ReloadObj", DBG_LOADOBJ);
-
-	LispRef head, tail;
-	ar >> head;
-	DBG_TRACE(("head = %s", AsString(head).c_str()));
-	ar >> tail;
-	DBG_TRACE(("tail = %s", AsString(tail).c_str()));
-	return GetLispCaches()->ListObjCache.apply(ListType(tail, head));
-}
-
-void ListObj::WriteObj(PolymorphOutStream& ar) const
-{
-	ar << m_Left << m_Right;
 }
 
 /******************                                   *******************/

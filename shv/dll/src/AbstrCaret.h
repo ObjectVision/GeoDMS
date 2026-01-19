@@ -19,7 +19,7 @@
 // used modules and forward class references
 //----------------------------------------------------------------------
 
-#include "ptr/PersistentSharedObj.h"
+#include "ptr/SharedObj.h"
 #include "geo/Geometry.h"
 
 class AbstrCaretOperator;
@@ -35,9 +35,9 @@ class GraphicObject;
 //      CircleCaret
 //		PolyLineCaret
 
-class AbstrCaret : public PersistentSharedObj
+class AbstrCaret : public SharedObj
 {
-	using base_type = PersistentSharedObj;
+	using base_type = SharedObj;
 public:
 
   	virtual void Reverse(HDC dc, bool newVisibleState) =0;

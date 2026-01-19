@@ -53,7 +53,7 @@ public:
 	void InitAbstrDataItem(TokenID domainUnit, TokenID valuesUnit, ValueComposition vc);
 
 	TIC_CALL auto GetDataObj() const->SharedPtr<const AbstrDataObject>;
-	auto GetCurrDataObj() const  ->SharedPtr<const AbstrDataObject> { assert(m_DataObject); return m_DataObject; }
+	TIC_CALL auto GetCurrDataObj() const -> SharedPtr<const AbstrDataObject>;
 
 	TIC_CALL auto GetRefObj() const ->SharedPtr<const AbstrDataObject>;
 	TIC_CALL auto GetCurrRefObj() const ->SharedPtr<const AbstrDataObject>;

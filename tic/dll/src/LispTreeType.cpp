@@ -327,7 +327,7 @@ static auto lspFalse = ExprList(token::false_);
 
 auto AsLispRef(Bool v, LispPtr valuesUnitKeyExpr) -> LispRef
 {
-	return v ? lspTrue : lspFalse;
+	return v ? lspTrue.AsLispPtr() : lspFalse.AsLispPtr();
 }
 
 

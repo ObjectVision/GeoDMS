@@ -307,7 +307,7 @@ SharedTreeItem FuncDC::MakeResult() const // produce signature
 
 	DetermineState(); // may trigger DoInvalidate -> reset m_Data, only MainThread may re-MakeResult
 	if (WasFailed(FailType::MetaInfo))
-		return nullptr;
+		return {};
 
 	static UInt32 debug_counter = 0;
 	DBG_TRACE(("%s m_Data %s m_OperContext %s", debug_counter++, bool(m_Data), bool(m_OperContext)));
@@ -319,7 +319,7 @@ SharedTreeItem FuncDC::MakeResult() const // produce signature
 		{
 			assert(WasFailed(FailType::MetaInfo)); // MakeResult cannot suspend
 			assert(!DoesHaveSupplInterest());
-			return nullptr;
+			return {};
 		}
 		MG_CHECK(m_Data);
 		DBG_TRACE(("MakeResult completed well"));
@@ -331,7 +331,7 @@ SharedTreeItem FuncDC::MakeResult() const // produce signature
 		Fail(m_Data);
 
 	if (WasFailed(FailType::MetaInfo))
-		return nullptr;
+		return {};
 
 	actor_section_lock_map::ScopedLock specificSectionLock(MG_SOURCE_INFO_CODE("Actor::DecInterestCount") sg_ActorLockMap, this);
 
@@ -963,7 +963,7 @@ SharedTreeItem SymbDC::MakeResult() const
 	{
 		auto msg = mySSPrintF("Cannot find Item %s", m_FullNameID.GetStr());
 		Fail(msg, FailType::MetaInfo);
-		return nullptr;
+		return {};
 	}
 
 	dms_assert( m_Data );

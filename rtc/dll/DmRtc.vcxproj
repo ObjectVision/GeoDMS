@@ -261,7 +261,6 @@
     <ClInclude Include="src\ser\MoreStreamBuff.h" />
     <ClInclude Include="src\ser\PairStream.h" />
     <ClInclude Include="src\ser\PointStream.h" />
-    <ClInclude Include="src\ser\PolyStream.h" />
     <ClInclude Include="src\ser\RangeStream.h" />
     <ClInclude Include="src\ser\SequenceArrayStream.h" />
     <ClInclude Include="src\ser\StreamException.h" />
@@ -362,7 +361,6 @@
     <ClCompile Include="src\ser\FileStreamBuff.cpp" />
     <ClCompile Include="src\ser\FormattedStream.cpp" />
     <ClCompile Include="src\ser\MoreStreamBuff.cpp" />
-    <ClCompile Include="src\ser\PolyStream.cpp" />
     <ClCompile Include="src\ser\StringStream.cpp" />
     <ClCompile Include="src\mci\persistent.cpp" />
     <ClCompile Include="src\mci\PropDef.cpp" />

@@ -18,7 +18,6 @@
 #include "ptr/IterCast.h"
 #include "ser/FormattedStream.h"
 #include "ser/PointStream.h"
-#include "ser/PolyStream.h"
 #include "ser/StreamTraits.h"
 #include "set/VectorFunc.h"
 #include "xct/DmsException.h"
@@ -117,51 +116,6 @@ BinaryOutStream& operator << (BinaryOutStream& ar, const std::vector<T, A>& vec)
 	return ar;
 }
 
-// required to do PolymorphInpStream& >> TreeItem* for vector<TreeItem*>
-template <typename T, typename A> inline
-PolymorphInpStream& operator >> (PolymorphInpStream& ar, std::vector<T, A>& vec)
-{
-	ReadBinRange(ar, vec);
-	return ar;
-}
-
-// required to do PolymorphOutStream& << TreeItem* for vector<TreeItem*>
-template <typename T, typename A> inline
-PolymorphOutStream& operator << (PolymorphOutStream& ar, const std::vector<T, A>& vec)
-{
-	WriteBinRange(ar, vec);
-	return ar;
-}
-
-template <typename T> inline
-PolymorphInpStream& operator >> (PolymorphInpStream& ar, locked_sequence<T>& vec)
-{
-	ReadBinRange(ar, vec);
-	return ar;
-}
-
-// required to do PolymorphOutStream& << TreeItem* for vector<TreeItem*>
-template <typename T> inline
-PolymorphOutStream& operator << (PolymorphOutStream& ar, const locked_sequence<T>& vec)
-{
-	WriteBinRange(ar, vec);
-	return ar;
-}
-
-template <typename T> inline
-PolymorphInpStream& operator >> (PolymorphInpStream& ar, my_vector<T>& vec)
-{
-	ReadBinRange(ar, vec);
-	return ar;
-}
-
-// required to do PolymorphOutStream& << TreeItem* for vector<TreeItem*>
-template <typename T> inline
-PolymorphOutStream& operator << (PolymorphOutStream& ar, const my_vector<T>& vec)
-{
-	WriteBinRange(ar, vec);
-	return ar;
-}
 
 template <typename Vector> inline
 void WriteFormattedRange(FormattedOutStream& os, const Vector& vec)

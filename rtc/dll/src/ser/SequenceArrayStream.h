@@ -134,20 +134,6 @@ BinaryInpStream& operator >> (BinaryInpStream& ar, sequence_array<T>& sa)
 	return ar;
 }
 
-template <typename T>
-PolymorphInpStream& operator >> (PolymorphInpStream& ar, sequence_array<T>& vec)
-{
-	typesafe_cast<BinaryInpStream&>(ar) >> vec;
-	return ar;
-}
-
-template <typename T>
-PolymorphOutStream& operator << (PolymorphOutStream& ar, const sequence_array<T>& vec)
-{
-	typesafe_cast<BinaryOutStream&>(ar) << vec;
-	return ar;
-}
-
 // ====================================== FormattedStream sequences
 
 template <typename T>

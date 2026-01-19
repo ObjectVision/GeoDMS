@@ -249,7 +249,7 @@ struct OperAccPartUniWithCFTA : OperAccPartUni<V, R> // with consumable tile arr
 	void Calculate(DataWriteLock& res, const AbstrDataItem* arg1A, const AbstrDataItem* arg2A, ArgRefs args, std::vector<ItemReadLock> readLocks) const override
 	{
 		assert(arg2A);
-		auto arg1 = (DataReadLock(arg1A), MakeShared< const DataArray<V> >(const_array_cast<V>(arg1A)));
+		auto arg1 = (DataReadLock(arg1A), MakeSharedFromBorrowedObjectPtr< const DataArray<V> >(const_array_cast<V>(arg1A)));
 		assert(arg1);
 		auto pdi = ProcessDataInfo{
 			.arg2A = arg2A,

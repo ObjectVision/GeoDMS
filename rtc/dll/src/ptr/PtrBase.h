@@ -121,19 +121,4 @@ struct ref_base : ptr_wrap<T, CTorBase>
 };
 
 
-//  -----------------------------------------------------------------------
-// Serialization support 
-//  -----------------------------------------------------------------------
-
-struct PolymorphOutStream;
-
-template <typename T, typename CTorBase> inline
-PolymorphOutStream& operator <<(PolymorphOutStream& ar, const ptr_base<T, CTorBase>& rPtr)
-{
-	ar << rPtr.get_ptr();
-	return ar;
-}
-
-//  -----------------------------------------------------------------------
-
 #endif // __PTR_PTR_BASE_H

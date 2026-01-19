@@ -13,9 +13,10 @@
 // used modules and forward class references
 //----------------------------------------------------------------------
 
+#include <set>
+
 #include "mci/PropDef.h"
 #include "mci/PropdefEnums.h"
-#include "ser/MapStream.h"
 
 #include "StateChangeNotification.h"
 

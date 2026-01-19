@@ -35,35 +35,15 @@ struct SharedObjWrap : VBase, SharedBase
 	virtual ~SharedObjWrap() noexcept = default;
 
 	friend std::default_delete<this_type>;
+
 	void Release() const  noexcept // dtor of Object is virtual, so destructing from here is OK
 	{
-		if (!this->DecRef())
-			delete this;
-	}
-	auto DelayedRelease()  noexcept -> std::unique_ptr<SharedObjWrap<VBase>>// dtor of Object is virtual, so destructing from here is OK
-	{
-		if (DecRef())
-			return {};
-		return std::make_unique<SharedObjWrap<VBase>>(this);
+		assert(!IsOwned());
+		delete this;
 	}
 };
 
 using SharedObj = SharedObjWrap<Object>;
-
-/*
-class SharedObj : public Object,  public SharedBase
-{	
-protected:
-	SharedObj() = default;
-	virtual ~SharedObj() noexcept = default;
-
-public:
-	friend std::default_delete<SharedObj>;
-
-	RTC_CALL void Release() const  noexcept; // dtor of Object is virtual, so destructing from here is OK
-	RTC_CALL auto DelayedRelease()  noexcept -> zombie_destroyer1; // dtor of Object is virtual, so destructing from here is OK
-};
-*/
 
 template <typename T>
 class SharedThing : public SharedObj

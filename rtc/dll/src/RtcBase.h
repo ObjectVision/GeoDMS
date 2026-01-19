@@ -192,8 +192,6 @@ using streamsize_t = std::size_t;
 
 struct BinaryInpStream;
 struct BinaryOutStream;
-struct PolymorphInpStream;
-struct PolymorphOutStream;
 struct FormattedInpStream;
 struct FormattedOutStream;
 struct OutStreamBase;

@@ -72,7 +72,6 @@ public:
 
 	RTC_CALL bool IsDerivedFrom(const Class* base) const;
 	RTC_CALL Object*         CreateObj() const;
-	RTC_CALL virtual Object* CreateObj(PolymorphInpStream*) const;
 	RTC_CALL         bool    HasDefaultCreator() const;
 	RTC_CALL virtual bool    IsDataObjType() const;
 

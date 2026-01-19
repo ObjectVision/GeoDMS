@@ -272,9 +272,9 @@ SharedUnit FindProjectionBase(const TreeItem* storageHolder, const AbstrUnit* gr
 {
 	assert(storageHolder); // PRECONDITION
 	if (!gridDataDomain)
-		return nullptr;
+		return {};
 	if (!storageHolder->DoesContain(gridDataDomain) && (gridDataDomain->GetTreeParent() || !gridDataDomain->IsPassor() ) )
-		return nullptr;
+		return {};
 	auto uBase = FindProjectionRef(storageHolder, gridDataDomain);
 	if (uBase == nullptr)
 	{

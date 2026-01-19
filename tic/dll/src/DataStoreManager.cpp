@@ -8,32 +8,15 @@
 
 #include "DataStoreManagerCaller.h"
 
-#include "act/ActorLock.h"
 #include "act/SupplierVisitFlag.h"
-#include "act/TriggerOperator.h"
-#include "dbg/debug.h"
 #include "dbg/DmsCatch.h"
-#include "geo/PointOrder.h"
-#include "ptr/SharedBase.h"
-#include "ser/PolyStream.h"
-#include "ser/PointStream.h"
-#include "set/IndexedStrings.h"
 #include "set/Token.h"
-#include "utl/Environment.h"
-#include "utl/SplitPath.h"
 
-#include "stg/AbstrStreamManager.h"
 
-#include "AbstrUnit.h"
-#include "DataLocks.h"
-#include "DataController.h"
-#include "FreeDataManager.h"
-#include "ItemLocks.h"
 #include "OperationContext.h"
 #include "SessionData.h"
 
 #include "LispRef.h"
-#include "LispTreeType.h"
 
 //----------------------------------------------------------------------
 // DSM
@@ -42,7 +25,6 @@
 // ===============  DataStoreManager Persistence
 
 
-#include "xct/DmsException.h"
 
 [[noreturn]] void DSM::CancelOrThrow(const TreeItem* item)
 {
@@ -95,7 +77,7 @@ static void ProcessDeletion(ClientHandle clientHandle, const TreeItem* self, Not
 bool MarkSources(const Actor* a, supplier_level level)
 {
 	assert(a);
-	SharedTreeItem ti = dynamic_cast<const TreeItem*>(a); // block a frfom deletion when in process
+	SharedTreeItem ti = dynamic_cast<const TreeItem*>(a); // block a from deletion when in process
 	if (a->IsPassorOrChecked())
 		if (!ti || ti->IsCacheItem())
 			return false;

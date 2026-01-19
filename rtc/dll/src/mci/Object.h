@@ -142,11 +142,6 @@ public:
 	RTC_CALL virtual const Object* _GetAs(const Class* cls) const;
 	const Object* GetAs(const Class* cls) const { return _GetAs(cls); }
 
-	// TODO G8: Move to AbstrDataItem
-	// serialization
-	RTC_CALL virtual void ReadObj (PolymorphInpStream&);
-	RTC_CALL virtual void WriteObj(PolymorphOutStream&) const;
-
 	// XML Support; what does it depend on, how does it vary
 	RTC_CALL virtual void XML_Dump(OutStreamBase* xmlOutStr) const;
 	RTC_CALL virtual void XML_DumpData(OutStreamBase* xmlOutStr) const;

@@ -989,7 +989,7 @@ auto DataItemsWriteStatusInfo::GetExampleAdiFromLayerID(TokenID layerID) -> Shar
 		if (auto dh = SharedDataItem(fieldInfo.second.m_DataHolder.get_ptr(), no_zombies{}))
 			return dh;
 
-	return nullptr;
+	return {};
 }
 
 CPLStringList GetOptionArray(const TreeItem* optionsItem)

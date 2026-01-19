@@ -121,7 +121,8 @@ struct EventInfo
 
 class AbstrController : public SharedObj
 {
-	typedef PersistentSharedObj base_type;
+	using base_type = SharedObj;
+
 public:
 	AbstrController(DataView* owner, GraphicObject* target
 	,	EventID moveEvents  // = EventID::MOUSEMOVE|EventID::MOUSEDRAG
