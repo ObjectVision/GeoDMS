@@ -62,7 +62,7 @@ void GraphicContainer<ElemType>::Sync(TreeItem* viewContext, ShvSyncMode sm)
 				GraphicObject* g = m_Array[i].get(); dms_assert(g);
 				TreeItem* gvc = g->GetContext();
 				if (!gvc)
-					g->Sync(viewContext->CreateItem(UniqueName(viewContext, g->GetDynamicClass())), SM_Save);
+					g->Sync(viewContext->CreateItem(UniqueName(viewContext, g->GetDynamicClass())).release(), SM_Save);
 				else if (!gvc->IsEndogenous())
 					g->Sync(gvc, SM_Save);
 			}
@@ -108,7 +108,7 @@ inline void ConnectObject(GraphicObject* g, TreeItem* viewContext)
 {
 	if (viewContext)
 		g->Sync(
-			viewContext->CreateItem(UniqueName(viewContext, g->GetDynamicClass())),
+			viewContext->CreateItem(UniqueName(viewContext, g->GetDynamicClass())).release(),
 			SM_Save
 		);
 }

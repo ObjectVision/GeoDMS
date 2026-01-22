@@ -77,7 +77,7 @@ void Wrapper::Sync(TreeItem* context, ShvSyncMode sm)
 	base_type::Sync(context, sm);
 	const TreeItem* contents = FindTreeItemByID(context, s_ContentsTokenID);
 	if (!contents)
-		contents= context->CreateItem(s_ContentsTokenID);
+		contents= context->CreateItem(s_ContentsTokenID).release();
 	m_Contents->Sync(const_cast<TreeItem*>(contents), sm);
 }
 

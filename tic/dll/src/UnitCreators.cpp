@@ -31,12 +31,11 @@ ConstUnitRef CastUnit(const UnitClass* uc, ConstUnitRef v)
 
 	if (!v->UnifyValues(u, "", "", UM_AllowTypeDiff))
 	{
-		AbstrUnit* newArg2 = uc->CreateTmpUnit(nullptr);
-		u = newArg2;
-
+		auto newArg2 = uc->CreateTmpUnit(nullptr);
 		newArg2->DuplFrom(v);
+		u = newArg2.release();
 	}
-	dms_assert(u);
+	assert(u);
 	return u;
 }
 

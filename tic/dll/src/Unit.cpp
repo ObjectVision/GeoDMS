@@ -1325,7 +1325,7 @@ extern "C" {
 			CheckPtr(uc, UnitClass::GetStaticClass(), "DMS_CreateUnit");
 			assert(!parent->IsCacheItem());
 
-			return uc->CreateUnit(parent, GetTokenID_mt(name));
+			return uc->CreateUnit(parent, GetTokenID_mt(name)).release();
 
 		DMS_CALL_END
 		return nullptr;

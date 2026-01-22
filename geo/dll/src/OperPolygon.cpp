@@ -1562,7 +1562,7 @@ protected:
 
 		values1Unit->UnifyValues(values2Unit, "v1", "v2", UM_Throw);
 
-		AbstrUnit* res = Unit<UInt32>::GetStaticClass()->CreateResultUnit(resultHolder);
+		AbstrUnit* res = Unit<UInt32>::GetStaticClass()->CreateResultUnit(resultHolder).release();
 		resultHolder = res;
 
 		AbstrDataItem* res1 = e1IsVoid ? nullptr : CreateDataItem(res, s_tFR, res, domain1Unit);

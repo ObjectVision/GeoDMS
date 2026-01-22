@@ -3324,8 +3324,8 @@ public:
 			);
 		resStatusFlag->SetKeepDataState(true);
 
-		TreeItem* resShadowPriceContainer = res->CreateItem(GetTokenID_mt("shadow_prices"));
-		TreeItem* resTotalAllocatedContainer = res->CreateItem(GetTokenID_mt("total_allocated"));
+		TreeItem* resShadowPriceContainer = res->CreateItem(GetTokenID_mt("shadow_prices")).release();
+		TreeItem* resTotalAllocatedContainer = res->CreateItem(GetTokenID_mt("total_allocated")).release();
 
 		resultHolder->m_ReadAssets.emplace<htp_meta_type>();
 		htp_meta_type& htpMeta = *rtc::any::any_cast<htp_meta_type>(&resultHolder->m_ReadAssets);

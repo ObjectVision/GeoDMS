@@ -105,7 +105,7 @@ void ThemeSet::SyncThemes(TreeItem* viewContext, ShvSyncMode sm)
 		{
 			assert(sm == SM_Save);
 			if (m_Themes[aNr])
-				m_Themes[aNr]->Sync( viewContext->CreateItem( GetAspectNameID(aNr) ), SM_Save );
+				m_Themes[aNr]->Sync( viewContext->CreateItem( GetAspectNameID(aNr) ).release(), SM_Save );
 		}
 	}
 
@@ -209,7 +209,7 @@ void ThemeSet::SetTheme(Theme* theme, TreeItem* context)
 	m_Themes[aNr] = theme->shared_from_this();
 
 	if (context)
-		theme->Sync( context->CreateItem( GetAspectNameID(aNr) ), SM_Save);
+		theme->Sync( context->CreateItem( GetAspectNameID(aNr) ).release(), SM_Save);
 }
 
 ActorVisitState ThemeSet::VisitSuppliers(SupplierVisitFlag svf, const ActorVisitor& visitor, bool isActive) const

@@ -335,8 +335,8 @@ void MapControl::Sync(TreeItem* context, ShvSyncMode sm)
 
 	SilentInterestRetainContext irc("MapControl::Sync");
 
-	GetViewPort    ()->Sync( context->CreateItem(s_ViewPortTokenID), sm );
-	GetOverviewPort()->Sync( context->CreateItem(s_OverviewTokenID), sm );
+	GetViewPort    ()->Sync( context->CreateItem(s_ViewPortTokenID).release(), sm );
+	GetOverviewPort()->Sync( context->CreateItem(s_OverviewTokenID).release(), sm);
 
 	dms_assert(GetViewPort    ()->GetOwner().lock().get() == this);
 	dms_assert(GetOverviewPort()->GetOwner().lock().get() == this);

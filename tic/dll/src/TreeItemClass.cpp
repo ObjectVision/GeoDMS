@@ -32,7 +32,7 @@ Object* TreeItemClass::CreateFromXml(Object* context, struct XmlElement& elem)
 		return TreeItem::CreateConfigRoot(GetTokenID_mt(name));
 	CheckPtr(context, TreeItem::GetStaticClass(), "TreeItemClass::CreateFromXml");
 	TreeItem* container= debug_cast<TreeItem*>(context);
-	return container->CreateItemFromPath(name);
+	return container->CreateItemFromPath(name).release();
 }
 
 

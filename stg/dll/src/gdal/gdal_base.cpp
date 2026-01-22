@@ -652,7 +652,7 @@ typedef DataArray<Bool> BoolDataItem;
 
 void gdalRaster_CreateMetaInfo(TreeItem* container, bool mustCalc)
 {
-	AbstrUnit* auTableGroups = Unit<UInt32>::GetStaticClass()->CreateUnit(container, GetTokenID_mt("gdal_grid"));
+	AbstrUnit* auTableGroups = Unit<UInt32>::GetStaticClass()->CreateUnit(container, GetTokenID_mt("gdal_grid")).release();
 	AbstrDataItem* adiShortName = CreateDataItem(auTableGroups, GetTokenID_mt("ShortName"), auTableGroups, Unit<SharedStr>::GetStaticClass()->CreateDefault());
 	AbstrDataItem* adiLongName = CreateDataItem(auTableGroups, GetTokenID_mt("LongName"), auTableGroups, Unit<SharedStr>::GetStaticClass()->CreateDefault());
 	AbstrDataItem* adiHelpUrl = CreateDataItem(auTableGroups, GetTokenID_mt("HelpUrl"), auTableGroups, Unit<SharedStr>::GetStaticClass()->CreateDefault());
@@ -693,7 +693,7 @@ void gdalRaster_CreateMetaInfo(TreeItem* container, bool mustCalc)
 
 void gdalVector_CreateMetaInfo(TreeItem* container, bool mustCalc)
 {
-	AbstrUnit* auTableGroups = Unit<UInt32>::GetStaticClass()->CreateUnit(container, GetTokenID_mt("gdal_vect"));
+	AbstrUnit* auTableGroups = Unit<UInt32>::GetStaticClass()->CreateUnit(container, GetTokenID_mt("gdal_vect")).release();
 	AbstrDataItem* adiShortName = CreateDataItem(auTableGroups, GetTokenID_mt("Name"), auTableGroups, Unit<SharedStr>::GetStaticClass()->CreateDefault());
 	AbstrDataItem* adiCanCreate = CreateDataItem(auTableGroups, GetTokenID_mt("CanCreate"), auTableGroups, Unit<Bool     >::GetStaticClass()->CreateDefault());
 	AbstrDataItem* adiCanDelete = CreateDataItem(auTableGroups, GetTokenID_mt("CanDelete"), auTableGroups, Unit<Bool     >::GetStaticClass()->CreateDefault());

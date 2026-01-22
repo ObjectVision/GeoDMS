@@ -147,8 +147,8 @@ protected:
 
 		values1Unit->UnifyValues(values2Unit, "v1", "v2", UM_Throw);
 
-		auto res = Unit<ResultingDomainType>::GetStaticClass()->CreateResultUnit(resultHolder);
-		resultHolder = res.release();
+		auto res = Unit<ResultingDomainType>::GetStaticClass()->CreateResultUnit(resultHolder).release();
+		resultHolder = res;
 
 		AbstrDataItem* resG = (!m_MustCreateGeometries) ? nullptr : CreateDataItem(res, s_tGM, res, values1Unit, ValueComposition::Polygon);
 		AbstrDataItem* res1 = e1IsVoid                  ? nullptr : CreateDataItem(res, s_tFR, res, domain1Unit);
@@ -793,7 +793,7 @@ protected:
 
 		if (m_Flags & PolygonFlags::F_DoSplit)
 		{
-			resUnit = Unit<UInt32>::GetStaticClass()->CreateResultUnit(resultHolder);
+			resUnit = Unit<UInt32>::GetStaticClass()->CreateResultUnit(resultHolder).release();
 			resUnit->SetTSF(TSF_Categorical);
 
 			resultHolder = resUnit;
@@ -1630,20 +1630,20 @@ protected:
 
 		const AbstrUnit* domain1Unit = arg1A->GetAbstrDomainUnit();
 
-		AbstrUnit* res = Unit<ResultingDomainType>::GetStaticClass()->CreateResultUnit(resultHolder);
+		auto res = Unit<ResultingDomainType>::GetStaticClass()->CreateResultUnit(resultHolder);
 		res->SetTSF(TSF_Categorical);
 
-		resultHolder = res;
 
-		AbstrDataItem* resF1 = CreateDataItem(res, tF1, res, domain1Unit);
-		AbstrDataItem* resF2 = CreateDataItem(res, tF2, res, domain1Unit);
+		AbstrDataItem* resF1 = CreateDataItem(res.get(), tF1, res.get(), domain1Unit);
+		AbstrDataItem* resF2 = CreateDataItem(res.get(), tF2, res.get(), domain1Unit);
 
 		if (mustCalc)
 		{
 			DataReadLock arg1Lock(arg1A);
 
-			Calculate(res, resF1, resF2, arg1A);
+			Calculate(res.get(), resF1, resF2, arg1A);
 		}
+		resultHolder = res.release();
 		return true;
 	}
 	virtual void Calculate(AbstrUnit* res, AbstrDataItem* resF1, AbstrDataItem* resF2, const AbstrDataItem*arg1A) const=0;
@@ -1767,21 +1767,21 @@ protected:
 			e->UnifyDomain(arg2A->GetAbstrDomainUnit(), "e1", "e2", UM_Throw);
 
 
-		AbstrUnit* res = Unit<ResultingDomainType>::GetStaticClass()->CreateResultUnit(resultHolder);
+		auto res = Unit<ResultingDomainType>::GetStaticClass()->CreateResultUnit(resultHolder);
 		res->SetTSF(TSF_Categorical);
 
-		resultHolder = res;
 
-		AbstrDataItem* resF1 = CreateDataItem(res, tF1, res, e);
-		AbstrDataItem* resF2 = CreateDataItem(res, tF2, res, e);
+		AbstrDataItem* resF1 = CreateDataItem(res.get(), tF1, res.get(), e);
+		AbstrDataItem* resF2 = CreateDataItem(res.get(), tF2, res.get(), e);
 
 		if (mustCalc)
 		{
 			DataReadLock arg1Lock(arg1A);
 			DataReadLock arg2Lock(arg2A);
 
-			Calculate(res, resF1, resF2, arg1A, arg2A);
+			Calculate(res.get(), resF1, resF2, arg1A, arg2A);
 		}
+		resultHolder = res.release();
 		return true;
 	}
 	virtual void Calculate(AbstrUnit* res, AbstrDataItem* resF1, AbstrDataItem* resF2, const AbstrDataItem* arg1A, const AbstrDataItem* arg2A) const = 0;

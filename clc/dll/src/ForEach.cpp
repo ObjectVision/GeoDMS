@@ -271,7 +271,7 @@ bool ForEach_CreateResult(TreeItemDualRef& resultHolder, const ArgSeqType& args,
 		if (subItemName.empty())
 			continue;
 
-		TreeItem* iter = 0;
+		TreeItem* iter = nullptr;
 		if (optTempl)
 		{
 			dms_assert(!optDuContext);
@@ -288,7 +288,7 @@ bool ForEach_CreateResult(TreeItemDualRef& resultHolder, const ArgSeqType& args,
 					domainUnit->GetFullName().c_str()
 				);
 
-			iter = CopyTreeContext(resultHolder, templ, subItemName.c_str(), DataCopyMode::CopyExpr).Apply();
+			iter = CopyTreeContext(resultHolder, templ, subItemName.c_str(), DataCopyMode::CopyExpr).Apply().release();
 		}
 		else if (optDuContext)
 		{
@@ -302,12 +302,12 @@ bool ForEach_CreateResult(TreeItemDualRef& resultHolder, const ArgSeqType& args,
 		{
 			const AbstrUnit* unit = FindUnitInContainer(optUnitContext, optUnitNames, i, "unit");
 
-			iter = unit->GetUnitClass()->CreateUnitFromPath(resultHolder, subItemName.c_str());
+			iter = unit->GetUnitClass()->CreateUnitFromPath(resultHolder, subItemName.c_str()).release();
 		}
 		else
 		{
 			assert(!optVuContext);
-			iter = resultHolder.GetNew()->CreateItemFromPath(subItemName.c_str());
+			iter = resultHolder.GetNew()->CreateItemFromPath(subItemName.c_str()).release();
 		}
 
 		assert(iter);

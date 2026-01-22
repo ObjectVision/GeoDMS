@@ -70,13 +70,12 @@ TIC_CALL AbstrDataItem* CreateAbstrDataItemFromPath(
 	TokenID          tValuesUnit,
 	ValueComposition vc)
 {
-	AbstrDataItem*
-		result = debug_cast<AbstrDataItem*>(
+	auto result = debug_cast<AbstrDataItem*>(
 			parent->CreateItemFromPath(path, AbstrDataItem::GetStaticClass())
 		);
-	dms_assert(result);
+	assert(result);
 	result->InitAbstrDataItem(tDomainUnit, tValuesUnit, vc);
-	return result;
+	return result.release();
 }
 
 // static

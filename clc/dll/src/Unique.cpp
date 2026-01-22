@@ -342,7 +342,7 @@ public:
 			resDomainCls = UnitClass::Find(vc->GetCrdClass());
 		}
 
-		AbstrUnit* res = resDomainCls->CreateResultUnit(resultHolder);
+		AbstrUnit* res = resDomainCls->CreateResultUnit(resultHolder).release();
 		assert(res);
 		res->SetTSF(TSF_Categorical);
 		resultHolder = res;

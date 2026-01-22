@@ -1902,7 +1902,7 @@ auto TreeItem::CreateItemFromPath(CharPtr subItemNames, const Class* requiredCla
 
 	if (!foundSubItem) // create something
 	{
-		foundSubItem = CreateAndInitItem(this, firstSubItemID, (hasRestSubItems || !requiredClass) ? TreeItem::GetStaticClass() : requiredClass);
+		foundSubItem = CreateAndInitItem(this, firstSubItemID, (hasRestSubItems || !requiredClass) ? TreeItem::GetStaticClass() : requiredClass).release();
 		if (!hasRestSubItems)
 			return foundSubItem;
 	}
@@ -1964,7 +1964,7 @@ OwningPtr<TreeItem> TreeItem::Copy(TreeItem* dest, TokenID id, CopyTreeContext& 
 	{
 		assert(!isArg);
 		assert(dest == copyContext.m_DstContext || copyContext.m_DstContext == nullptr);
-		copyContext.m_DstRoot = result;
+		copyContext.m_DstRoot = result.get();
 		mustCopyProps = copyContext.MustCopyRoot();
 	}
 
@@ -2013,13 +2013,13 @@ OwningPtr<TreeItem> TreeItem::Copy(TreeItem* dest, TokenID id, CopyTreeContext& 
 	assert(mustCopyProps || dstIsRoot || !copyContext.InFenceOperator());
 	if (mustCopyProps)
 	{
-		if (isArg || (copyContext.SetInheritFlag() && !HasOwnCalculatorNow(result)))
+		if (isArg || (copyContext.SetInheritFlag() && !HasOwnCalculatorNow(result.get())))
 			result->SetTSF(TSF_InheritedRef);
 
 		if (GetTSF(TSF_Categorical))
 			result->SetTSF(TSF_Categorical);
 
-		CopyProps(result, copyContext);
+		CopyProps(result.get(), copyContext);
 
 		//	Now, copy data if requested
 		if (isArg)
@@ -2028,7 +2028,7 @@ OwningPtr<TreeItem> TreeItem::Copy(TreeItem* dest, TokenID id, CopyTreeContext& 
 			assert(copyContext.m_ArgList.IsRealList());
 			assert(!copyContext.InFenceOperator());
 
-			result->SetCalculator(AbstrCalculator::ConstructFromLispRef(result, copyContext.m_ArgList.Left(), CalcRole::ArgCalc));
+			result->SetCalculator(AbstrCalculator::ConstructFromLispRef(result.get(), copyContext.m_ArgList.Left(), CalcRole::ArgCalc));
 			result->SetIsHidden(true);
 			assert(result != copyContext.m_DstRoot);
 			assert(copyContext.m_DstRoot != nullptr);
@@ -2043,7 +2043,7 @@ OwningPtr<TreeItem> TreeItem::Copy(TreeItem* dest, TokenID id, CopyTreeContext& 
 		if (isNew && copyContext.MergeProps())
 			result->DisableStorage();
 
-		CopyPropsContext(result, this, copyContext.MinCpyMode(dstIsRoot), !copyContext.MergeProps()).Apply();
+		CopyPropsContext(result.get(), this, copyContext.MinCpyMode(dstIsRoot), !copyContext.MergeProps()).Apply();
 		if (!result->m_Location)
 			result->m_Location = this->m_Location;
 
@@ -2055,12 +2055,12 @@ OwningPtr<TreeItem> TreeItem::Copy(TreeItem* dest, TokenID id, CopyTreeContext& 
 				// subItems van referees dmv case-parameter value of gewoon expr-ref. aangeroepen vanuit UpdateMetaInfo 
 				// Case-Parameter := itemRef OF result of compound-expr  (met DC_Ptr)
 				if (!result->mc_Calculator)
-					result->SetCalculator(CreateCalculatorForTreeItem(result, this, copyContext));
+					result->SetCalculator(CreateCalculatorForTreeItem(result.get(), this, copyContext));
 			}
 			else
 			{
 				if (mc_Calculator && mc_Calculator->IsDataBlock())
-					result->SetCalculator(AbstrCalculator::ConstructFromDBT(AsDataItem(result), mc_Calculator));
+					result->SetCalculator(AbstrCalculator::ConstructFromDBT(AsDataItem(result.get()), mc_Calculator));
 			}
 		}
 	}	// if (mustCopyProps)
@@ -2070,7 +2070,7 @@ OwningPtr<TreeItem> TreeItem::Copy(TreeItem* dest, TokenID id, CopyTreeContext& 
 	{
 		for (const TreeItem* subItem = GetCurrFirstSubItem(); subItem; subItem = subItem->GetNextItem())
 			if (!copyContext.InFenceOperator() || !subItem->IsTemplate())
-				subItem->Copy(result, subItem->GetID(), copyContext).release();
+				subItem->Copy(result.get(), subItem->GetID(), copyContext).release();
 
 		// Now, copy from refItem; maybe more sub-items should be copied
 		if (copyContext.CopyReferredItems())
@@ -2095,7 +2095,7 @@ OwningPtr<TreeItem> TreeItem::Copy(TreeItem* dest, TokenID id, CopyTreeContext& 
 					{
 						auto subID = subItem->GetID();
 						if (result->GetSubTreeItemByID(subID) == nullptr)
-							subItem->Copy(result, subItem->GetID(), copyContext).release();
+							subItem->Copy(result.get(), subItem->GetID(), copyContext).release();
 					}
 				}
 				refItem = refItem->GetCurrRefItem();

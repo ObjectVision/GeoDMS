@@ -17,39 +17,67 @@
 #include "ptr/PtrBase.h"
 
 template <class T>
-struct OwningPtr : ptr_base<T, movable>
+struct OwningPtr
 {
-	using base_type = ptr_base<T, movable>;
-	using typename base_type::pointer;
+	using pointer = T*;
+
+	static_assert(sizeof(T) != 0, "Type must be complete");
 
 	OwningPtr(pointer ptr = nullptr) noexcept
-		: base_type(ptr)
-	{}
+		: m_Ptr(ptr)
+	{
+		assert(!m_Ptr || m_Ptr->GetRefCount() == 0);
+	}
+
 	OwningPtr(OwningPtr&& org) noexcept
-		: base_type(org.release())
-	{}
+		: m_Ptr(org.release())
+	{
+		assert(!org);
+		assert(!m_Ptr || m_Ptr->GetRefCount() == 0);
+	}
 
 	~OwningPtr () noexcept { reset(); }
 
-	void    init   (pointer ptr)       noexcept { dms_assert(this->is_null()); this->m_Ptr = ptr; }
+	void operator = (OwningPtr&& rhs) noexcept { assign(rhs.release()); }
+
+	void    init   (pointer ptr)       noexcept { assert(this->is_null()); this->m_Ptr = ptr; }
 	pointer release()                  noexcept { pointer tmp_ptr = this->m_Ptr; this->m_Ptr = nullptr; return tmp_ptr; }
 	void    reset  ()                  noexcept { assign(nullptr); }
 	void    assign (pointer ptr)       noexcept 
 	{ 
 		assert(this->m_Ptr != ptr || !ptr); 
-		std::swap(this->m_Ptr, ptr); 
-		static_assert(sizeof(T) != 0, "Type must be complete");
+		assert(!ptr || ptr->GetRefCount() == 0);
+		std::swap(this->m_Ptr, ptr);
+
 		if (ptr)
+		{
+			ptr->Abandon();
 			ptr->Release();
+		}
 	}
-	void    swap   (OwningPtr<T>& oth) noexcept { std::swap(this->m_Ptr, oth.m_Ptr); }
+	pointer   operator ->() const { return this->get_nonnull(); }
+	auto& operator * () const { return *(this->get_nonnull()); }
+	explicit operator bool() const { return has_ptr(); }
 
-	void operator = (OwningPtr&& rhs) noexcept { assign(rhs.release()); }
+	bool operator <  (pointer right) const { return m_Ptr < right; }
+	bool operator == (pointer right) const { return m_Ptr == right; }
+	bool operator != (pointer right) const { return m_Ptr != right; }
 
+	bool has_ptr() const { return m_Ptr != nullptr; }
+	bool is_null() const { return m_Ptr == nullptr; }
+
+	pointer   get_ptr() const { return m_Ptr; }
+	pointer   get() const { return m_Ptr; }
+	pointer   get_nonnull() const { MG_CHECK(m_Ptr != nullptr); return m_Ptr; }
+
+	void swap(OwningPtr& oth) { std::swap(this->m_Ptr, oth.m_Ptr); }
 	friend void swap(OwningPtr& a, OwningPtr& b) noexcept { a.swap(b); }
 
 	// illegal copy ctors
 	OwningPtr(const OwningPtr<T>& oth) = delete;
+
+private:
+	T* m_Ptr = nullptr;
 };
 
 template<typename T, typename U = T, typename ...Args>

@@ -834,7 +834,7 @@ struct Poly2AllGridsOperator : public BinaryOperator
 		assert(polyDomainUnit);
 
 		// Setup synthetic domain and result attributes.
-		resultHolder = Unit< DomainType>::GetStaticClass()->CreateResultUnit(resultHolder);
+		resultHolder = Unit< DomainType>::GetStaticClass()->CreateResultUnit(resultHolder).release();
 		auto resDomain = AsUnit(resultHolder.GetNew()); assert(resDomain);
 		AbstrDataItem* resPolyRelAttr = nullptr;
 		if (polyDomainUnit->GetValueType() != ValueWrap<Void>::GetStaticClass())

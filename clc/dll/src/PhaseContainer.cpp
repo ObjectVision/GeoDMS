@@ -57,7 +57,7 @@ struct PhaseContainerOperator : BinaryOperator
 				, DataCopyMode::MakeEndogenous | DataCopyMode::InFenceOperator | DataCopyMode::CopyReferredItems
 			);
 
-			resultHolder = context.Apply(); // might generate upstream FenceNumbers, hidden upstream
+			resultHolder = context.Apply().release(); // might generate upstream FenceNumbers, hidden upstream
 
 #if defined(MG_DEBUG)
 			resultHolder->m_State.Set(actor_flag_set::AFD_PivotElem);

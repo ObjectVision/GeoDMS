@@ -186,7 +186,7 @@ SharedStr GetViewData(const TreeItem* item)         // look  at DialogData of su
 void SetViewData(TreeItem* item, CharPtr data) // store at DialogData of subItem "ViewData"
 {
 	dms_assert(item);
-	TreeItem_SetDialogData(item->CreateItem(GetTokenID_mt("ViewData")), data);
+	TreeItem_SetDialogData(item->CreateItem(GetTokenID_mt("ViewData")).release(), data);
 }
 
 const TreeItem* GetNextDialogDataRef(const TreeItem* item, CharPtr& i, CharPtr e)
@@ -252,7 +252,7 @@ void SyncRefImpl(T& ptr, TreeItem* context, TokenID id, ShvSyncMode sm)
 	if(sm == SM_Save && (ptr || subItem) ) 
 	{
 		if (!subItem)
-			subItem = context->CreateItem(id);
+			subItem = context->CreateItem(id).release();
 		SetDialogDataRef(const_cast<TreeItem*>(subItem), ptr.get_ptr());
 	}
 }
@@ -636,7 +636,7 @@ Point<Float64> GetWindowPix2DipFactors(HWND hWnd)
 // desktop data section
 //----------------------------------------------------------------------
 
-inline TreeItem* SafeCreateItem(TreeItem* context, TokenID pathID)
+inline OwningPtr<TreeItem> SafeCreateItem(TreeItem* context, TokenID pathID)
 {
 	MG_DEBUGCODE(StaticMtIncrementalLock<gd_TokenCreationBlockCount> tokenCreationLock; )
 		auto result = context->CreateItem(pathID);
@@ -644,7 +644,7 @@ inline TreeItem* SafeCreateItem(TreeItem* context, TokenID pathID)
 	return result;
 }
 
-inline TreeItem* SafeCreateItemFromPath(TreeItem* context, CharPtr path)
+inline OwningPtr<TreeItem> SafeCreateItemFromPath(TreeItem* context, CharPtr path)
 {
 	MG_DEBUGCODE(StaticMtIncrementalLock<gd_TokenCreationBlockCount> tokenCreationLock; )
 	auto result = context->CreateItemFromPath(path);
@@ -665,7 +665,7 @@ TreeItem* GetDefaultDesktopContainer(const TreeItem* ti)
 	while (pi = ti->GetTreeParent())
 		ti = pi;
 	auto desktops = const_cast<TreeItem*>(ti)->CreateItem(desktopsID);
-	return desktops->CreateItem(defaultID);
+	return desktops->CreateItem(defaultID).release();
 }
 
 TreeItem* GetExportsContainer(TreeItem* desktopItem)
@@ -673,7 +673,7 @@ TreeItem* GetExportsContainer(TreeItem* desktopItem)
 	assert(desktopItem && !desktopItem->IsCacheItem());
 	auto result = desktopItem->CreateItem(exportsID);
 	assert(result && !result->IsCacheItem());
-	return result;
+	return result.release();
 }
 
 TreeItem* GetViewDataContainer(TreeItem* desktopItem)
@@ -681,10 +681,10 @@ TreeItem* GetViewDataContainer(TreeItem* desktopItem)
 	assert(desktopItem && !desktopItem->IsCacheItem());
 	auto result = desktopItem->CreateItem(viewDataID);
 	assert(result && !result->IsCacheItem());
-	return result;
+	return result.release();
 }
 
-TreeItem* CreateContainer_impl(TreeItem* container, const TreeItem* item)
+OwningPtr<TreeItem> CreateContainer_impl(TreeItem* container, const TreeItem* item)
 {
 	assert(item);
 	if (!item->IsCacheItem())
@@ -713,7 +713,7 @@ TreeItem* CreateContainer_impl(TreeItem* container, const TreeItem* item)
 	return container->CreateItem(GetTokenID(name.c_str()));
 }
 
-TreeItem* CreateContainer(TreeItem* container, const TreeItem* item)
+OwningPtr<TreeItem> CreateContainer(TreeItem* container, const TreeItem* item)
 {
 	auto result = CreateContainer_impl(container, item);
 	result->UpdateMetaInfo();
@@ -722,7 +722,7 @@ TreeItem* CreateContainer(TreeItem* container, const TreeItem* item)
 
 TreeItem* CreateDesktopContainer(TreeItem* desktopItem, const TreeItem* item)
 {
-	return CreateContainer(GetViewDataContainer(desktopItem), item);
+	return CreateContainer(GetViewDataContainer(desktopItem), item).release();
 }
 
 static TokenID paletteDomainID = GetTokenID_st("PaletteDomain");
@@ -1167,7 +1167,7 @@ void UpdateShowSelOnlyImpl(
 		const UnitClass*  resDomainCls = UnitClass::Find(vc->GetCrdClass());
 
 
-		AbstrUnit* newSelEntity = resDomainCls->CreateUnit(self->GetContext(), selSetID);
+		AbstrUnit* newSelEntity = resDomainCls->CreateUnit(self->GetContext(), selSetID).release();
 		selEntity = newSelEntity;
 		newSelEntity->SetExpr(SharedStr(expr) );
 

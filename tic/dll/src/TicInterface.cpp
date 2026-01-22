@@ -80,7 +80,7 @@ TIC_CALL TreeItem* DMS_CONV DMS_CreateTreeItem(TreeItem* context, CharPtr name)
 	DMS_CALL_BEGIN
 
 		CheckPtr(context, TreeItem::GetStaticClass(), "DMS_CreateTreeItem");
-		return context->CreateItemFromPath(name);
+		return context->CreateItemFromPath(name).release();
 
 	DMS_CALL_END
 	return nullptr;
@@ -292,7 +292,7 @@ TIC_CALL TreeItem* DMS_CONV DMS_TreeItem_CreateItem(TreeItem* context, CharPtr p
 	DMS_CALL_BEGIN
 
 		TreeItemContextHandle checkPtr(context, TreeItem::GetStaticClass(), "DMS_TreeItem_CreateItem");
-		return context->CreateItemFromPath(path, requiredClass);
+		return context->CreateItemFromPath(path, requiredClass).release();
 
 	DMS_CALL_END
 	return nullptr;
@@ -821,7 +821,7 @@ TIC_CALL TreeItem* DMS_CONV DMS_TreeItem_Copy(TreeItem* dest, const TreeItem* sr
 		}
 
 		CopyTreeContext copyContext(dest, src, name, DataCopyMode::CopyExpr);
-		return copyContext.Apply();
+		return copyContext.Apply().release();
 
 	DMS_CALL_END
 	return dest;

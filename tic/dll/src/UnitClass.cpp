@@ -203,7 +203,7 @@ Object* UnitClass::CreateFromXml(Object* context, struct XmlElement& elem)
 	if (!vc) throwDmsErrF("Unknown ValueType '%s' for Unit '%s'", valueTypeName, itemName);
 	const UnitClass* uc = UnitClass::Find(vc);
 	if (!uc) throwDmsErrF("UnitClass for found for ValueType %s", vc->GetName());
-	return uc->CreateUnit(container, GetTokenID_mt(itemName));
+	return uc->CreateUnit(container, GetTokenID_mt(itemName)).release();
 }
 
 //----------------------------------------------------------------------

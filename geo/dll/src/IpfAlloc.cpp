@@ -437,10 +437,10 @@ public:
 
 
 		TreeItem* resShadowPriceContainer = 
-			resultHolder.GetNew()->CreateItem(GetTokenID_mt("shadow_prices"));
+			resultHolder.GetNew()->CreateItem(GetTokenID_mt("shadow_prices")).release();
 
 		TreeItem* resTotalAllocatedContainer = 
-			resultHolder.GetNew()->CreateItem(GetTokenID_mt("total_allocated"));
+			resultHolder.GetNew()->CreateItem(GetTokenID_mt("total_allocated")).release();
 
 //		htp_info_t<S> htpInfo;
 		SharedStr strStatus;

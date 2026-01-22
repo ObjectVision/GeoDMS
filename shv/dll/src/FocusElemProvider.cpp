@@ -83,7 +83,7 @@ void SelThemeCreator::CreateSelectionsThemeInDesktop(DataView* dv, const AbstrUn
 	TreeItem* selectionParent = CreateDesktopContainer(desktopItem, entity);
 //	dms_assert(selectionParent && !selectionParent->GetSubTreeItemByID(GetAspectNameID(AN_Selections)));
 
-	AbstrUnit* userValuesUnit = Unit<SelectionID>::GetStaticClass()->CreateUnit(desktopItem, valuesUnitID);
+	AbstrUnit* userValuesUnit = Unit<SelectionID>::GetStaticClass()->CreateUnit(desktopItem, valuesUnitID).release();
 
 	AbstrDataItem* newSelData = CreateDataItem(selectionParent, GetAspectNameID(AN_Selections), entity, userValuesUnit);
 	SharedDataItemInterestPtr newSelDataManager = newSelData;

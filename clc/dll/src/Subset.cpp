@@ -131,7 +131,7 @@ struct SubsetOperator: public UnaryOperator
 		if (!resDomainCls)
 			resDomainCls = UnitClass::Find(vc->GetCrdClass());
 
-		AbstrUnit* res  = resDomainCls->CreateResultUnit(resultHolder);
+		AbstrUnit* res  = resDomainCls->CreateResultUnit(resultHolder).release();
 		assert(res);
 		res->SetTSF(TSF_Categorical);
 
@@ -258,7 +258,7 @@ struct SelectMetaOperator : public BinaryOperator
 		if (!resDomainCls)
 			resDomainCls = UnitClass::Find(vc->GetCrdClass());
 
-		AbstrUnit* res = resDomainCls->CreateResultUnit(resultHolder); // does this set result to Failed when 
+		AbstrUnit* res = resDomainCls->CreateResultUnit(resultHolder).release(); // does this set result to Failed when 
 		assert(res);
 		auto resExpr = ExprList(m_SelectOper, conditionKeyExpr);
 		assert(!resExpr.EndP());

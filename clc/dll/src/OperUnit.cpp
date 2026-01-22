@@ -198,7 +198,7 @@ public:
 		if (!resultHolder)
 		{
 			assert(!mustCalc);
-			resultHolder = ResultType::GetStaticClass()->CreateResultUnit(resultHolder);
+			resultHolder = ResultType::GetStaticClass()->CreateResultUnit(resultHolder).release();
 		}
 		auto resUnit = AsUnit(resultHolder.GetNew());
 		assert(resUnit);
@@ -247,7 +247,7 @@ bool CastUnitOperatorBase::CreateResult(TreeItemDualRef& resultHolder, const Arg
 	if (!resultHolder)
 	{
 		assert(!mustCalc);
-		resultHolder = m_ResultUnitClass->CreateTmpUnit(resultHolder);
+		resultHolder = m_ResultUnitClass->CreateTmpUnit(resultHolder).release();
 		auto resUnit = AsUnit(resultHolder.GetNew());
 		dms_assert(resUnit);
 		resUnit->DuplFrom(arg1);
@@ -368,7 +368,7 @@ public:
 		checked_domain<Void>(args[0], "a1");
 
 		SharedStr baseUnitName = GetCurrValue<Arg1Type::value_type>(args[0], 0);
-		AbstrUnit* result = arg2->GetUnitClass()->CreateTmpUnit(resultHolder);
+		AbstrUnit* result = arg2->GetUnitClass()->CreateTmpUnit(resultHolder).release();
 		resultHolder = result;
 
 		if (baseUnitName.empty())
@@ -460,7 +460,7 @@ public:
 		if (!resultHolder)
 		{
 			dms_assert(!mustCalc);
-			AbstrUnit* result = AsUnit(args[3])->GetUnitClass()->CreateResultUnit(resultHolder);
+			AbstrUnit* result = AsUnit(args[3])->GetUnitClass()->CreateResultUnit(resultHolder).release();
 			dms_assert(result);
 			resultHolder = result;
 		}
@@ -1026,7 +1026,7 @@ struct AbstrTiledUnitOper: BinaryOperator
 		if (!resultHolder)
 		{
 			assert(!mustCalc);
-			AbstrUnit* result = debug_cast<const UnitClass*>(GetResultClass())->CreateResultUnit(resultHolder);
+			AbstrUnit* result = debug_cast<const UnitClass*>(GetResultClass())->CreateResultUnit(resultHolder).release();
 			assert(result);
 			result->SetTSF(TSF_Categorical);
 
@@ -1104,7 +1104,7 @@ struct AbstrTiledUnitFromSizeOper: UnaryOperator
 		if (!resultHolder)
 		{
 			assert(!mustCalc);
-			AbstrUnit* result = debug_cast<const UnitClass*>(GetResultClass())->CreateResultUnit(resultHolder);
+			AbstrUnit* result = debug_cast<const UnitClass*>(GetResultClass())->CreateResultUnit(resultHolder).release();
 			assert(result);
 			result->SetTSF(TSF_Categorical);
 

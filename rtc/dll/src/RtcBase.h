@@ -339,7 +339,10 @@ template <typename T> struct pointer_traits<SharedPtr<T>  >
 	//	const T* get_ptr(const T* ptr) { return ptr; }
 };
 
-template <typename T> struct pointer_traits<OwningPtr<T>  > : pointer_traits_helper<T> {};
+template <typename T> struct pointer_traits<OwningPtr<T>  > : pointer_traits_helper<T> 
+{
+	static T* get_ptr(const OwningPtr<T>& ptr) { return ptr.get(); }
+};
 template <typename T> struct pointer_traits<WeakPtr  <T>  > : pointer_traits_helper<T> {};
 template <typename P> struct pointer_traits<InterestPtr<P>> : pointer_traits<P> {};
 template <typename T> struct pointer_traits<std::shared_ptr<T>  > : pointer_traits_helper<T> {

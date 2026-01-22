@@ -367,7 +367,7 @@ void PaletteControl::CreateColumnsImpl()
 		TreeItem* container = CreateDesktopContainer(dv->GetDesktopContext(), GetUltimateSourceItem(m_ThemeAttr.get_ptr()));
 		// there could be different counts for the same ThemeAttr due to different classifications; assume one classification per class entity
 		if (m_BreakAttr) 
-			container = CreateContainer(container, GetUltimateSourceItem(m_BreakAttr.get_ptr()) );
+			container = CreateContainer(container, GetUltimateSourceItem(m_BreakAttr.get_ptr()) ).release();
 
 		auto countingUnitClass = UnitClass::Find(m_ThemeAttr->GetAbstrDomainUnit()->GetValueType()->GetCrdClass());
 		auto countingUnit = countingUnitClass->CreateDefault();
@@ -475,7 +475,7 @@ void PaletteControl::Sync(TreeItem* viewContext, ShvSyncMode sm)
 	if (viewContext2 || sm == SM_Save)
 	{
 		if (!viewContext2)
-			viewContext2 = viewContext->CreateItem(paletteCtrlID);
+			viewContext2 = viewContext->CreateItem(paletteCtrlID).release();
 		SyncRef(m_ThemeAttr, viewContext2, GetTokenID_mt("ThemeAttr"), sm);
 		SyncRef(m_BreakAttr, viewContext2, GetTokenID_mt("ClassBreaks"), sm);
 		SyncRef(m_PaletteAttr, viewContext2, GetTokenID_mt("PaletteAttr"), sm);

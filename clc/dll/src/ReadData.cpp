@@ -390,7 +390,7 @@ struct SplitSequenceOperator : public UnaryOperator
 		assert(arg1);
 
 		if (!resultHolder)
-			resultHolder = ResultType::GetStaticClass()->CreateResultUnit(resultHolder);
+			resultHolder = ResultType::GetStaticClass()->CreateResultUnit(resultHolder).release();
 
 		auto res = AsUnit(resultHolder.GetNew());
 		assert(res->IsPassor());

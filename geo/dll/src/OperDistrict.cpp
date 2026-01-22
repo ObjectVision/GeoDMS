@@ -57,17 +57,12 @@ struct DistrictOperator : public UnaryOperator
 		if (domain->GetValueType()->GetNrDims() != 2)
 			throwErrorD("district", "domain of input grid-data is not a raster");
 
-		auto resUnit = ResultUnitType::GetStaticClass()->CreateResultUnit(resultHolder);
+		auto resUnit = ResultUnitType::GetStaticClass()->CreateResultUnit(resultHolder).release();
 		resUnit->SetTSF(TSF_Categorical);
 
 		assert(resUnit);
-		resultHolder = resUnit;
 
-		AbstrDataItem*
-			resSub = 
-				CreateDataItem(resUnit, s_Districts, 
-					domain, resUnit
-				);
+		AbstrDataItem* resSub = CreateDataItem(resUnit, s_Districts, domain, resUnit);
 		assert(resSub);
 
 		assert(resSub->GetAbstrDomainUnit() == domain);
@@ -106,6 +101,7 @@ struct DistrictOperator : public UnaryOperator
 			resLock->InitValueRangeData( resultUnit->m_RangeDataPtr );
 			resSub->m_DataObject = resLock.get();
 		}
+		resultHolder = resUnit;
 		return true;
 	}
 };

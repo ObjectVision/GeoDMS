@@ -849,7 +849,7 @@ void MainWindow::createView(ViewStyle viewStyle) {
 
         SuspendTrigger::Resume();
 
-        auto dms_mdi_subwindow = std::make_unique<QDmsViewArea>(m_mdi_area.get(), viewContextItem, currItem, viewStyle);
+        auto dms_mdi_subwindow = std::make_unique<QDmsViewArea>(m_mdi_area.get(), viewContextItem.release(), currItem, viewStyle);
         dms_mdi_subwindow->setFocusPolicy(Qt::FocusPolicy::ClickFocus);
         connect(dms_mdi_subwindow.get(), &QDmsViewArea::windowStateChanged, dms_mdi_subwindow.get(), &QDmsViewArea::onWindowStateChanged);
 

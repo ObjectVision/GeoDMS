@@ -147,7 +147,7 @@ public:
 //		table of ObjectTypes
 		std::map<ClassCPtr, UInt32> classNrs;
 
-			AbstrUnit* auTableTypes = Unit<UInt32>::GetStaticClass()->CreateUnit(result, GetTokenID_mt("ObjectTypes"));
+			AbstrUnit* auTableTypes = Unit<UInt32>::GetStaticClass()->CreateUnit(result, GetTokenID_mt("ObjectTypes")).release();
 			{
 				AbstrDataItem* adiTypeName = CreateDataItem(
 						auTableTypes
@@ -181,7 +181,7 @@ public:
 				}
 			}
 //		table of OperGroups
-			AbstrUnit* auTableGroups = Unit<UInt32>::GetStaticClass()->CreateUnit(result, GetTokenID_mt("OperatorGroups"));
+			AbstrUnit* auTableGroups = Unit<UInt32>::GetStaticClass()->CreateUnit(result, GetTokenID_mt("OperatorGroups")).release();
 			{
 				AbstrDataItem* adiGroupName = CreateDataItem(auTableGroups, GetTokenID_mt("name"       ), auTableGroups, Unit<SharedStr>::GetStaticClass()->CreateDefault());
 				AbstrDataItem* adiNrOper    = CreateDataItem(auTableGroups, GetTokenID_mt("NrOperators"), auTableGroups, Unit<UInt32>::GetStaticClass()->CreateDefault());
@@ -212,7 +212,7 @@ public:
 					res2Lock.Commit();
 				}
 			}
-			AbstrUnit* auTableFuncs = Unit<UInt32>::GetStaticClass()->CreateUnit(result, GetTokenID_mt("Operators"));
+			AbstrUnit* auTableFuncs = Unit<UInt32>::GetStaticClass()->CreateUnit(result, GetTokenID_mt("Operators")).release();
 			{
 				AbstrDataItem* adiNrGroup    = CreateDataItem(auTableFuncs, GetTokenID_mt("nr_Group"  ), auTableFuncs, auTableGroups);
 				AbstrDataItem* adiResultType = CreateDataItem(auTableFuncs, GetTokenID_mt("nr_ResType"), auTableFuncs, auTableTypes );
@@ -251,7 +251,7 @@ public:
 					res2Lock.Commit();
 				}
 			}
-			AbstrUnit* auTableArgs = Unit<UInt32>::GetStaticClass()->CreateUnit(result, GetTokenID_mt("OperatorArgs"));
+			AbstrUnit* auTableArgs = Unit<UInt32>::GetStaticClass()->CreateUnit(result, GetTokenID_mt("OperatorArgs")).release();
 			{
 				AbstrDataItem* adiNrOper = CreateDataItem(auTableArgs, GetTokenID_mt("nr_Operator"), auTableArgs, auTableFuncs);
 				AbstrDataItem* adiNrType = CreateDataItem(auTableArgs, GetTokenID_mt("nr_ArgType" ), auTableArgs, auTableTypes);
@@ -337,7 +337,7 @@ public:
 
 	//	table of StorageManagers
 		{
-			AbstrUnit* auSmTypes = Unit<UInt32>::GetStaticClass()->CreateUnit(result, GetTokenID_mt("StorageManagers"));
+			AbstrUnit* auSmTypes = Unit<UInt32>::GetStaticClass()->CreateUnit(result, GetTokenID_mt("StorageManagers")).release();
 
 			AbstrDataItem* adiTypeName = CreateDataItem(
 					auSmTypes

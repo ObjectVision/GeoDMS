@@ -66,7 +66,7 @@ public:
 
 		for (loop_count_t i=0; i!= maxNrIter; ++i)
 		{
-			TreeItem* iter = result->CreateItem(GetTokenID_mt(mySSPrintF("iter%d", i).c_str()));
+			TreeItem* iter = result->CreateItem(GetTokenID_mt(mySSPrintF("iter%d", i).c_str())).release();
 			dms_assert(iter);
 
 			SharedStr expr = SharedStr( loopContents->GetID() );
@@ -93,7 +93,7 @@ public:
 			}
 			lastIterName = SharedStr(iter->GetID());
 		}
-		TreeItem* lastIter = result->CreateItem(GetTokenID_mt("lastIter"));
+		TreeItem* lastIter = result->CreateItem(GetTokenID_mt("lastIter")).release();
 		lastIter->SetExpr(SharedStr(lastIterName));
 		result->SetIsInstantiated();
 
@@ -157,17 +157,19 @@ public:
 				iterName.c_str(), 
 				DataCopyMode::CopyExpr
 			);
-			TreeItem* iterItem = ctc.Apply();
+			auto iterItem = ctc.Apply();
 			if (!iterItem)
 				throwErrorF("Iterate", "Failed to instantiate %s", loopContents->GetSourceName().c_str());
 			TreeItem* currValue = iterItem->_GetFirstSubItem();
 			if (currValue)
 				currValue->SetExpr(currValueExprStr);
 			currValueExprStr = iterName + "/nextValue";
+			iterItem.release();
 		}
-		TreeItem* lastIter = result->CreateItem(lastValueToken);
+		auto lastIter = result->CreateItem(lastValueToken);
 		lastIter->SetExpr(currValueExprStr);
 		result->SetIsInstantiated();
+		lastIter.release();
 
 		return true;
 	}

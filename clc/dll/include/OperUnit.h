@@ -87,7 +87,7 @@ public:
 		else
 		{
 
-			AbstrUnit* res = resultUnitClass->CreateTmpUnit(resultHolder);
+			AbstrUnit* res = resultUnitClass->CreateTmpUnit(resultHolder).release();
 			resultHolder = res;
 
 			dms_assert(res);
@@ -161,9 +161,8 @@ public:
 		dms_assert(arg2A->GetUnitClass() == GetArgClass(1));
 		dms_assert(arg2A->GetUnitClass() == GetResultClass());
 
-		AbstrUnit* result = arg2A->GetUnitClass()->CreateTmpUnit(resultHolder);
+		auto result = arg2A->GetUnitClass()->CreateTmpUnit(resultHolder);
 		dms_assert(result);
-		resultHolder = result;
 
 		InterestPtr<const TreeItem*> hackToFixFuncDcMakeResultDueToUnderspecifiedOperatorgroup(adi); // REMOVE, FIX
 		DataReadLock lck(adi);
@@ -175,6 +174,7 @@ public:
 			,	adi->GetCurrRefObj()->GetValueAsFloat64(0)
 			)
 		);
+		resultHolder = result.release();
 		return true;
 	}
 	MetricFunctor m_MetricFunctor;
@@ -258,7 +258,7 @@ public:
 
 		checked_domain<Void>(args[1], "a2");
 
-		AbstrUnit* result = arg1A->GetUnitClass()->CreateTmpUnit(resultHolder);
+		AbstrUnit* result = arg1A->GetUnitClass()->CreateTmpUnit(resultHolder).release();
 		resultHolder = result;
 
 		const UnitMetric* arg1SI = arg1A->GetMetric();
@@ -315,7 +315,7 @@ public:
 			resultHolder = ResultType::GetStaticClass()->CreateDefault();
 		else
 		{
-			AbstrUnit* result = ResultType::GetStaticClass()->CreateTmpUnit(resultHolder.GetNew());
+			AbstrUnit* result = ResultType::GetStaticClass()->CreateTmpUnit(resultHolder.GetNew()).release();
 			resultHolder = result;
 
 			const UnitMetric* arg1SI = arg1->GetMetric();

@@ -316,7 +316,7 @@ struct RapidXmlOperator : public BinaryOperator
 		InstantiateTemplate(resultHolder.GetNew(), args[1], metaCallArgs.Right().Right()); // GetArgList()->m_Next->m_Next) is the remainder of the nul-terminated left-right list after taking the first two elements out
 //		TemplDC::Instantiate(resultHolder, args[1], debug_cast<FuncDC*>(&resultHolder)->GetArgList()->m_Next->m_Next);
 
-		AbstrUnit* entityTable = Unit<UInt32>::GetStaticClass()->CreateUnit(resultHolder, GetTokens().entityTableID);
+		AbstrUnit* entityTable = Unit<UInt32>::GetStaticClass()->CreateUnit(resultHolder, GetTokens().entityTableID).release();
 		CreateDataItem(entityTable, GetTokens().valuesID, entityTable, Unit<SharedStr>::GetStaticClass()->CreateDefault());
 
 		TreeItem* walkRoot = resultHolder.GetNew();
@@ -336,7 +336,7 @@ struct RapidXmlOperator : public BinaryOperator
 					CreateDataItem(entityDomain, GetTokens().parentEntityTableRelID, entityDomain, entityTable);
 				CreateDataItem(entityDomain, GetTokens().parentRelID, entityDomain, Unit<entity_index>::GetStaticClass()->CreateDefault());
 
-				AbstrUnit* valueSet = Unit<entity_index>::GetStaticClass()->CreateUnit(entityDomain, GetTokens().valuesTableID);
+				AbstrUnit* valueSet = Unit<entity_index>::GetStaticClass()->CreateUnit(entityDomain, GetTokens().valuesTableID).release();
 				CreateDataItem(valueSet, GetTokens().valuesID, valueSet, Unit<SharedStr>::GetStaticClass()->CreateDefault());
 				CreateDataItem(entityDomain, GetTokens().valueRelID, entityDomain, valueSet);
 			}
@@ -367,7 +367,7 @@ struct RapidXmlOperator : public BinaryOperator
 			pc.ProcessNode(&doc, nullptr, entity_id(UNDEFINED_VALUE(SizeT), UNDEFINED_VALUE(SizeT)));
 		}
 		// =========== store results
-		AbstrUnit* entityTable = Unit<UInt32>::GetStaticClass()->CreateUnit(resultHolder, GetTokens().entityTableID);
+		AbstrUnit* entityTable = Unit<UInt32>::GetStaticClass()->CreateUnit(resultHolder, GetTokens().entityTableID).release();
 		entityTable->SetCount(pc.m_EntityNames.size());
 
 		InterestPtr<SharedPtr<AbstrDataItem>> entityNames = CreateDataItem(entityTable, GetTokens().valuesID, entityTable,  Unit<SharedStr>::GetStaticClass()->CreateDefault());
@@ -405,7 +405,7 @@ struct RapidXmlOperator : public BinaryOperator
 				InterestPtr<SharedPtr<AbstrDataItem>> parentRelAdi = CreateDataItem(entityDomain, GetTokens().parentRelID, entityDomain, Unit<entity_index>::GetStaticClass()->CreateDefault());
 				StoreValues<entity_index>(parentRelAdi, entity->m_ParentRel);
 
-				AbstrUnit* valueSet = Unit<entity_index>::GetStaticClass()->CreateUnit(entityDomain, GetTokens().valuesTableID);
+				AbstrUnit* valueSet = Unit<entity_index>::GetStaticClass()->CreateUnit(entityDomain, GetTokens().valuesTableID).release();
 				valueSet->SetCount(entity ? entity->m_Values.size() : 0);
 
 					InterestPtr<SharedPtr<AbstrDataItem>> valuesIdAdi = CreateDataItem(valueSet, GetTokens().valuesID, valueSet, Unit<SharedStr>::GetStaticClass()->CreateDefault());
