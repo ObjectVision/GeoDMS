@@ -187,7 +187,11 @@ struct TEnvironment : SharedBase
 	TEnvironment();
 	~TEnvironment();
 	
-	void Release() const { if (!DecRef()) delete this; }
+	void Release() const
+	{
+		assert(!IsOwned());
+		delete this;
+	}
 	static TEnvironment	*GetDefaultEnvironment();
 	
 	SQLHENV	EnvironmentHandle()        { return m_HENV; };
@@ -317,7 +321,11 @@ public:
 	STGIMPL_CALL ~TRecordSet();
 
 	void Init();  // afer this, the column info, cursor, bindings, and abstr recordset are destroyed
-	void Release() const { if (!DecRef()) delete this;	} // TRecordSet is a final class ?!
+	void Release() const
+	{
+		assert(!IsOwned());
+		delete this;
+	}
 
 
 	// structural

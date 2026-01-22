@@ -202,7 +202,8 @@ void FocusElemProvider::SetIndex(SizeT newIndex)
 
 void FocusElemProvider::Release() const
 {
-	if (!DecRef()) delete this;	
+	assert(!IsOwned());
+	delete this;	
 }
 
 void FocusElemProvider::AddThemeSet(ThemeSet* ts)

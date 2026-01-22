@@ -68,7 +68,7 @@ FileDescrPtr ConfigurationFilenameContainer::GetFileRef(CharPtr name)
 		if (!stricmp( (*i)->GetFileName().c_str(), name))
 			return *i;
 
-	m_FileRefs.push_back( new FileDescr( SharedStr(name MG_DEBUG_ALLOCATOR_SRC("ConfigurationFilenameContainer::GetFileRef")), 0, m_LoadNumber ));
+	m_FileRefs.emplace_back(new FileDescr(SharedStr(name MG_DEBUG_ALLOCATOR_SRC("ConfigurationFilenameContainer::GetFileRef")), 0, m_LoadNumber), newly_obj{});
 	return m_FileRefs.back();
 }
 

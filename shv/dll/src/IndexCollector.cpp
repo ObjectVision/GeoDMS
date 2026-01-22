@@ -100,8 +100,7 @@ IndexCollector::~IndexCollector()
 
 void IndexCollector::Release()
 {
-	if (!DecRef())
-		delete this;
+	delete this;
 }
 
 DataReadLock IndexCollector::GetDataItemReadLock() const

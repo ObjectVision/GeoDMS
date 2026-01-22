@@ -379,7 +379,7 @@ struct SpatialRefBlock : SharedBase, gdalComponent
 		m_Transformer = OGRCreateCoordinateTransformation(&m_Src, &m_Dst, options); // http://www.gdal.org/ogr/ogr__spatialref_8h.html#aae11bd08e45cdb2e71e1d9c31f1e550f
 	}
 
-	void Release() const { if (!DecRef()) delete this; }
+	void Release() const { delete this; }
 };
 
 // *****************************************************************************

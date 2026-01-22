@@ -174,8 +174,8 @@ SourceLocation::SourceLocation(FileDescrPtr configFileDescr, UInt32 lineNr, UInt
 
 void SourceLocation::Release() const //most descendant dtor visible from here
 {
-	if (!DecRef())
-		delete this;
+	assert(!IsOwned());
+	delete this;
 } 
 
 SharedStr SourceLocation::AsText() const

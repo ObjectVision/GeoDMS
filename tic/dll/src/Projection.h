@@ -23,7 +23,11 @@ private:
 	UnitProjection();
 
 public:
-	void Release() const { if (!DecRef()) delete this; }
+	void Release() const
+	{
+		assert(!IsOwned());
+		delete this;
+	}
 
 	TIC_CALL UnitProjection(const AbstrUnit* unit);
 	TIC_CALL UnitProjection(const AbstrUnit* unit, DPoint offset, DPoint factor);

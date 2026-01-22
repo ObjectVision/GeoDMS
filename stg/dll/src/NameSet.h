@@ -71,7 +71,11 @@ struct TNameSet : SharedBase
 {
 	STGDLL_CALL TNameSet(UInt32 len);
 
-	void Release() const { if (!DecRef()) delete this;	}
+	void Release() const
+	{
+		assert(!IsOwned());
+		delete this;
+	}
 
 	void InsertItem(const AbstrDataItem* ti);
 	STGDLL_CALL SharedStr InsertFieldName(CharPtr fieldName);

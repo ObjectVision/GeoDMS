@@ -69,7 +69,7 @@ struct Element : SharedBase
 		m_DmsFullName = item->GetFullName();
 	}
 	virtual ~Element() {}
-	void Release() const { if (!DecRef()) delete this;	}
+	void Release() const { delete this;	}
 	virtual void AddValue(entity_id parentID, CharPtr begin, CharPtr end) {}
 
 	SharedStr GetNameStr() const { return m_DmsFullName.empty() ? SharedStr() : SharedStr(CharPtrRange(m_DmsFullName.begin()+1, m_DmsFullName.send())); }

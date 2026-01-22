@@ -370,7 +370,8 @@ void TreeItem::EnableAutoDeleteImpl() // does not call UpdateMetaInfo
 //	m_UsingCache.reset();
 
 	SetTSF(TSF_IsAutoDeleteDisabled, false); // call inherited
-	Release();
+	if (!DecRef())
+		Release();
 }
 
 #if defined(MG_DEBUG)
@@ -4505,7 +4506,7 @@ bool TreeItem::CheckBlobBuffer(const BlobBuffer& rs) const
 
 void TreeItem::SetLocation(const SourceLocation* loc)
 {
-	m_Location = loc;
+	m_Location = MakeSharedForNewlyCreatedObject( loc );
 }
 
 const SourceLocation* TreeItem::GetLocation() const

@@ -60,7 +60,11 @@ struct FileDescr : SharedBase
 		return m_ReadFdt;
 	}
 
-	void Release() const { if (!DecRef()) delete this; }
+	void Release() const 
+	{ 
+		assert(!IsOwned()); 
+		delete this; 
+	}
 
 private:
 	SharedStr m_FileName;

@@ -43,8 +43,6 @@ struct SharedBase
 // See Notes above for reasons for non-inclusion of Release method.
 // The following commented method prototype is for derivations that can access the concrete-type destructor
 
-//	void Release() const { if (!DecRef()) delete this;	}
-
 protected:
 	SharedBase() noexcept = default;
 	SharedBase(const SharedBase&) : m_RefCount(0) {}

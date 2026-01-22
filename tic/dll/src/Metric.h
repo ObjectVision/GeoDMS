@@ -21,7 +21,11 @@ struct UnitMetric : SharedBase
 	using BaseUnitsIterator = BaseUnitsMapType::iterator;
 
 
-	void Release() const { if (!DecRef()) delete this;	}
+	void Release() const
+	{
+		assert(!IsOwned());
+		delete this;
+	}
 
 	TIC_CALL UnitMetric() : m_Factor(1.0) {}
 

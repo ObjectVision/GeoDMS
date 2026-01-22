@@ -56,7 +56,7 @@ TIC_CALL AbstrDataItem* CreateAbstrDataItem(
 {
 	AbstrDataItem* 
 		result = debug_cast<AbstrDataItem*>(
-			parent->CreateItem(nameID, AbstrDataItem::GetStaticClass())
+			parent->CreateItem(nameID, AbstrDataItem::GetStaticClass()).release()
 		);
 	dms_assert(result);
 	result->InitAbstrDataItem(tDomainUnit, tValuesUnit, vc);

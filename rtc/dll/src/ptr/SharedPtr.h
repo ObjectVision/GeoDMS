@@ -48,7 +48,7 @@ struct SharedPtr
 
 	// use this constructor for newly created objects
 	template <typename U>
-	constexpr SharedPtr(U* rhs, newly_obj) noexcept
+	constexpr SharedPtr(U* rhs, newly_obj = newly_obj{}) noexcept
 		: m_Ptr(rhs)
 	{
 //		assert(!rhs || !rhs->IsOwned());
@@ -58,7 +58,7 @@ struct SharedPtr
 
 	// use this constructor for borrowed existing objects, for which existing Shared Ownership can be be assumed
 	template <typename U>
-	SharedPtr(U* rhs, existing_obj = existing_obj{}) noexcept
+	SharedPtr(U* rhs, existing_obj) noexcept
 		: m_Ptr(rhs)
 	{
 		assert(!rhs || rhs->IsOwned());

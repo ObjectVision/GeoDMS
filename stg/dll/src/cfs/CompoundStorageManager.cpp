@@ -104,7 +104,11 @@ struct cfsptr : SharedBase {
 		m_Resource->Commit(STGC_DEFAULT);
 	}
 
-	void Release() const { if (!DecRef()) delete this;	}
+	void Release() const
+	{
+		assert(!IsOwned());
+		delete this;
+	}
 
 	T* operator ->() { return m_Resource; }
 
