@@ -201,7 +201,7 @@ bool BmpImp::Open(WeakStr fileName, BmpFileMode mode)
 	if (m_FileExisted)
 	{
 		// Read file header
-		if	(		!	ReadFile(m_FH, m_FileHeader, sizeof(BITMAPFILEHEADER))
+		if	(		!	ReadFile(m_FH, m_FileHeader.get(), sizeof(BITMAPFILEHEADER))
 			// Check for BMP-format
 				||	m_FileHeader->bfType != BMP_ID
 			// Read info header size
@@ -223,7 +223,7 @@ bool BmpImp::Open(WeakStr fileName, BmpFileMode mode)
 				m_BmpFileType = BMP_INFO;
 
 				// Read info header
-				if (! ReadFile(m_FH, m_InfoHeader, sizeof(BITMAPINFOHEADER)))
+				if (! ReadFile(m_FH, m_InfoHeader.get(), sizeof(BITMAPINFOHEADER)))
 					Error("Open", "Cannot read BITMAPINFOHEADER");
 
 				// Number of colors NOT yet given
@@ -351,9 +351,9 @@ Boolean BmpImp::Close()
 		m_InfoHeader->biSizeImage = dataSize - m_FileHeader->bfOffBits;
 
 		SetFilePointer(m_FH, 0, NULL, FILE_BEGIN);
-		if (! WriteFile(m_FH, m_FileHeader, sizeof(BITMAPFILEHEADER)))
+		if (! WriteFile(m_FH, m_FileHeader.get(), sizeof(BITMAPFILEHEADER)))
 			Error("Close", "Cannot write BitmapFileHeader");
-		if (! WriteFile(m_FH, m_InfoHeader, sizeof(BITMAPINFOHEADER)))
+		if (! WriteFile(m_FH, m_InfoHeader.get(), sizeof(BITMAPINFOHEADER)))
 			Error("Close", "Cannot write BitmapInfoHeader");
 	}
 

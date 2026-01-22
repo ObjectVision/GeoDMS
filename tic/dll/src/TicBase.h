@@ -155,6 +155,7 @@ template <typename T> inline const AbstrDataItem* AsCheckedDataItem(const T* sel
 template <typename T> inline       AbstrDataItem* AsCheckedDataItem(T* self) { return checked_cast<AbstrDataItem*>(self); }
 template <typename T> inline const AbstrDataItem* AsCertainDataItem(const T* self) { return checked_valcast<const AbstrDataItem*>(self); }
 template <typename T> inline       AbstrDataItem* AsCertainDataItem(T* self) { return checked_valcast<      AbstrDataItem*>(self); }
+template <typename T> inline auto AsDataItem(OwningPtr<T>& self) { return OwningPtr<AbstrDataItem>( AsDataItem(self.release())); }
 
 template <typename T> inline bool IsDataItem       (const SharedPtr<T>& self) { return IsDataItem(self.get()); }
 template <typename T> inline auto AsDataItem       (const SharedPtr<T>& self) { return MakeSharedFromBorrowedObjectPtr(AsDataItem(self.get())); }

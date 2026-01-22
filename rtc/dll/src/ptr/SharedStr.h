@@ -202,6 +202,7 @@ struct SharedCharArrayPtrWrap : protected BasePtr
 	using BasePtr::BasePtr;
 
 	using BasePtr::has_ptr;
+	using BasePtr::operator bool;
 	const_pointer get_ptr() const { return BasePtr::get(); }
 	pointer       get_ptr()       { return BasePtr::get(); }
 
@@ -396,8 +397,11 @@ public:
 
 	template <typename RHS>
 	void operator +=(RHS&& rhs) {
-		auto tmp = SharedStr(this->AsRange() + std::forward<RHS>(rhs));
-		this->swap(tmp);
+		if (IsDefined())
+		{
+			auto tmp = this->AsRange() + std::forward<RHS>(rhs);
+			this->swap(tmp);
+		}
 	}
 
 	using base_type::begin;
@@ -447,10 +451,13 @@ inline WeakStr::WeakStr(const SharedStr& str)
 	:	base_type(str.get()) 
 {}
 
+RTC_CALL SharedStr operator + (CharPtr lhs, WeakStr rhs);
 RTC_CALL SharedStr operator + (CharPtrRange lhs, CharPtrRange rhs);
+RTC_CALL SharedStr operator + (CharPtrRange lhs, Char rhs);
+RTC_CALL SharedStr operator + (Char lhs, CharPtrRange rhs);
 inline SharedStr operator + (CharPtr lhs, CharPtrRange rhs) { return CharPtrRange(lhs, StrLen(lhs)) + rhs; }
-inline SharedStr operator + (CharPtrRange lhs, const SharedStr& rhs) { return lhs + rhs.AsRange(); }
-inline SharedStr operator + (CharPtr lhs, const SharedStr& rhs) { return CharPtrRange(lhs, StrLen(lhs)) + rhs.AsRange(); }
+inline SharedStr operator + (CharPtrRange lhs, const SharedStr& rhs) { return IsDefined(lhs) && rhs.IsDefined() ? lhs + rhs.AsRange() : SharedStr(Undefined{}); }
+inline SharedStr operator + (CharPtr lhs, const SharedStr& rhs)      { return lhs            && rhs.IsDefined() ? CharPtrRange(lhs, StrLen(lhs)) + rhs.AsRange() : SharedStr(Undefined{}); }
 
 //RTC_CALL SharedStr operator + (CharPtrRange lhs, Char    ch );
 //RTC_CALL SharedStr operator + (Char    ch , CharPtrRange rhs);

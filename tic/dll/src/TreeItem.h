@@ -201,8 +201,8 @@ public:
 //	Suppliers
 
 	// Suppliers cache (configured and implied dependencies).
-	bool HasSupplCache() const { return m_SupplCache; }
-	const SupplCache* GetSupplCache() const { dms_assert(m_SupplCache); return m_SupplCache; }
+	bool HasSupplCache() const { return bool(m_SupplCache); }
+	const SupplCache* GetSupplCache() const { dms_assert(m_SupplCache); return m_SupplCache.get(); }
 	TIC_CALL SupplCache* GetOrCreateSupplCache() const;
 
 // Dumping 
@@ -282,8 +282,8 @@ public:
 // Creation
 
 	// Dynamic creation of items based on path or explicit id and class.
-	TIC_CALL TreeItem* CreateItemFromPath(CharPtr subItemNames, const Class* cls = 0);
-	TIC_CALL TreeItem* CreateItem        (TokenID id,           const Class* cls = 0);
+	TIC_CALL auto CreateItemFromPath(CharPtr subItemNames, const Class* cls = 0) -> OwningPtr<TreeItem>;
+	TIC_CALL auto CreateItem        (TokenID id,           const Class* cls = 0) -> OwningPtr<TreeItem>;
 
 	// Special roots for config and cache trees.
 	static TIC_CALL TreeItem* CreateConfigRoot(TokenID id);
@@ -332,7 +332,7 @@ public:
 //	Copying
 
 	// Deep copy into dest with specified id and context; CopyProps customizable.
-	TIC_CALL SharedPtr<TreeItem> Copy(TreeItem* dest, TokenID id, CopyTreeContext& copyContext) const;
+	TIC_CALL [[nodiscard]] OwningPtr<TreeItem> Copy(TreeItem* dest, TokenID id, CopyTreeContext& copyContext) const;
 	void UpdateMetaInfoImpl2() const; // sort of const
 	TIC_CALL void UpdateMetaInfo() const noexcept override; // sort of const
 	TIC_CALL void UpdateMetaInfoIfNotAlready() const noexcept;
@@ -479,7 +479,7 @@ public:
 	bool   PartOfInterestOrKeep() const { return PartOfInterest() || GetKeepDataState(); }
 
 	// Namespace “using” cache accessors.
-	bool CurrHasUsingCache() const { return m_UsingCache;  }
+	bool CurrHasUsingCache() const { return bool(m_UsingCache);  }
                 UsingCache* GetUsingCache();
 	TIC_CALL const UsingCache* GetUsingCache() const;
 
@@ -570,10 +570,10 @@ public:
 
 
 	// optional pointers to various services
-	mutable OwningPtr<SupplCache>  m_SupplCache;
-	mutable OwningPtr<UsingCache>  m_UsingCache;
-	mutable AbstrStorageManagerRef m_StorageManager; 
-	mutable rtc::any::Any          m_ReadAssets; friend struct OperationContext;
+	mutable std::unique_ptr<SupplCache>  m_SupplCache;
+	mutable std::unique_ptr<UsingCache>  m_UsingCache;
+	mutable AbstrStorageManagerRef       m_StorageManager; 
+	mutable rtc::any::Any                m_ReadAssets; friend struct OperationContext;
 
 public: // TODO G8: encapsulate and move config attr (aka mc_ ) into a separate ConfigTreeItem class
 

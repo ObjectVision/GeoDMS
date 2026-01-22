@@ -76,6 +76,8 @@ SharedStr AsRgbStr(UInt32 v)
 
 #if defined(MG_DEBUG)
 
+#include <set>
+
 namespace {
 
 	typedef std::set<CharPtr> IStringSet;
@@ -83,7 +85,7 @@ namespace {
 	UInt32                 s_nrIStringComponentLocks = 0;
 	void IStringCheck(const IString* p)
 	{
-		dms_assert(s_AllocatedStrings && s_AllocatedStrings->find(p->c_str()) != s_AllocatedStrings->end());
+		assert(s_AllocatedStrings && s_AllocatedStrings->find(p->c_str()) != s_AllocatedStrings->end());
 	}
 
 }	//	anonymous namespace
@@ -96,7 +98,7 @@ IStringComponentLock::IStringComponentLock()
 
 IStringComponentLock::~IStringComponentLock()
 {
-	dms_assert(s_AllocatedStrings);
+	assert(s_AllocatedStrings);
 	if (--s_nrIStringComponentLocks)
 		return;
 

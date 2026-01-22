@@ -81,10 +81,10 @@ struct DataBlockProd : AbstrDataBlockProd
 	void Commit();
 
 private:
-	DataWriteLock         m_Lock;
-	TileRef               m_TileLock;
-	SizeT                 m_ElemCount;
-	OwningPtr<AbstrValue> m_AbstrValue;
+	DataWriteLock               m_Lock;
+	TileRef                     m_TileLock;
+	SizeT                       m_ElemCount;
+	std::unique_ptr<AbstrValue> m_AbstrValue;
 
 	[[noreturn]] void throwSemanticError(CharPtr msg) override;
 

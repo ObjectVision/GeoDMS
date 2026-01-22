@@ -350,8 +350,8 @@ void ItemSchemaView::SetContents(std::shared_ptr<MovableObject> contents, ShvSyn
 		TreeItem* gnlContext = gnl->GetContext();
 		dms_assert(gnlContext);
 		StaticStIncrementalLock<TreeItem::s_MakeEndoLockCount> makeEndoLock;
-		m_SchemaNodes    = Unit<UInt32>::GetStaticClass()->CreateUnit(gnlContext, GetTokenID_mt("Nodes"));
-		m_SchemaLinks    = Unit<UInt32>::GetStaticClass()->CreateUnit(gnlContext, GetTokenID_mt("Links"));
+		m_SchemaNodes    = Unit<UInt32>::GetStaticClass()->CreateUnit(gnlContext, GetTokenID_mt("Nodes")).release();
+		m_SchemaLinks    = Unit<UInt32>::GetStaticClass()->CreateUnit(gnlContext, GetTokenID_mt("Links")).release();
 
 		m_SchemaLocation = CreateDataItem(m_SchemaNodes.get_ptr(), GetTokenID_mt("Location") , m_SchemaNodes, Unit<SPoint   >::GetStaticClass()->CreateDefault());
 		m_SchemaLabelText= CreateDataItem(m_SchemaNodes.get_ptr(), GetTokenID_mt("LabelText"), m_SchemaNodes, Unit<SharedStr>::GetStaticClass()->CreateDefault());
@@ -370,14 +370,14 @@ void ItemSchemaView::SetContents(std::shared_ptr<MovableObject> contents, ShvSyn
 	{
 		case tvsUpdateTree:
 		case tvsSubItemSchema:
-			m_Controller.assign( new SubItemSchemaController );
+			m_Controller = std::make_unique<SubItemSchemaController>();
 			return;
 		case tvsUpdateItem:
 		case tvsSupplierSchema:
-			m_Controller.assign( new SupplierSchemaController );
+			m_Controller = std::make_unique<SupplierSchemaController>();
 			return;
 		case tvsExprSchema:
-			m_Controller.assign( new ExprSchemaController );
+			m_Controller = std::make_unique<ExprSchemaController>();
 			return;
 	}
 }
@@ -410,7 +410,7 @@ GraphVisitState ItemSchemaView::UpdateView()
 
 	if (MustUpdate())
 	{
-		ItemSchemaController* isc = m_Controller;
+		ItemSchemaController* isc = m_Controller.get();
 		for(auto i = 0; i < isc->m_RootItems.size(); ++i)
 		{
 			const TreeItem* theItem = isc->m_RootItems[i];

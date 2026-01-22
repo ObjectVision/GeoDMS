@@ -59,9 +59,9 @@ public:
 	virtual void ResetDataLock() const;
 
 private:
-	const AbstrDataItem*                      m_PaletteAttr;
-	mutable SharedDataItemInterestPtrTuple    m_DisplayInterest;
-	mutable OwningPtr<const AbstrThemeValueGetter> m_PaletteGetter;
+	const AbstrDataItem*                                 m_PaletteAttr;
+	mutable SharedDataItemInterestPtrTuple               m_DisplayInterest;
+	mutable std::unique_ptr<const AbstrThemeValueGetter> m_PaletteGetter;
 //	mutable ReadableTileLock m_PaletteLock;
 };
 

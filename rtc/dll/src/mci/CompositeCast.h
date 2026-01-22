@@ -1,32 +1,10 @@
-//<HEADER> 
-/*
-Data & Model Server (DMS) is a server written in C++ for DSS applications. 
-Version: see srv/dms/rtc/dll/src/RtcVersion.h for version info.
+// Copyright (C) 1998-2026 Object Vision b.v. 
+// License: GNU GPL 3
+/////////////////////////////////////////////////////////////////////////////
 
-Copyright (C) 1998-2004  YUSE GSO Object Vision BV. 
-
-Documentation on using the Data & Model Server software can be found at:
-http://www.ObjectVision.nl/DMS/
-
-See additional guidelines and notes in srv/dms/Readme-srv.txt 
-
-This library is free software; you can use, redistribute, and/or
-modify it under the terms of the GNU General Public License version 2 
-(the License) as published by the Free Software Foundation,
-provided that this entire header notice and readme-srv.txt is preserved.
-
-See LICENSE.TXT for terms of distribution or look at our web site:
-http://www.objectvision.nl/DMS/License.txt
-or alternatively at: http://www.gnu.org/copyleft/gpl.html
-
-This library is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
-General Public License for more details. However, specific warranties might be
-granted by an additional written contract for support, assistance and/or development
-*/
-//</HEADER>
+#if defined(_MSC_VER)
 #pragma once
+#endif
 
 #ifndef __RTC_MCI_COMPOSITECAST_H
 #define __RTC_MCI_COMPOSITECAST_H
@@ -40,10 +18,9 @@ template <typename T> struct SharedPtr;
 //**********   pointer destillation **********
 
 template <typename P> 
-typename raw_ptr<P>::type
-AsPtr(P const& ptr)
+auto AsPtr(P const& ptr) -> typename raw_ptr<P>::type
 {
-	return ptr;
+	return pointer_traits<P>::get_ptr(ptr);
 }
 
 //********** DMS specific casts **********
@@ -89,11 +66,17 @@ mutable_unit_checkedcast(P const& ptr)
 	return checked_cast<Unit<V>*>( AsPtr(ptr) );
 }
 
-template<typename V, typename P> const TileFunctor<V>*
-const_array_cast(P const& ptr)
+template<typename V, typename P> 
+auto const_array_cast(const AbstrDataObject* ptr) -> const TileFunctor<V>*
 {
-	return debug_valcast<const TileFunctor<V>*>(
-		debug_valcast<const AbstrDataItem*>(AsPtr(ptr))->GetCurrRefObj()
+	return debug_valcast<const TileFunctor<V>*>(ptr);
+}
+
+template<typename V, typename P> 
+auto const_array_cast(P const& ptr) -> const TileFunctor<V>*
+{
+	return const_array_cast<V>(
+		debug_valcast<const AbstrDataItem*>(AsPtr(ptr))->GetCurrRefObj().get()
 	);
 }
 
@@ -107,7 +90,7 @@ template<typename V, typename P>
 auto const_array_dynacast(P const& ptr) -> const TileFunctor<V>*
 {
 	return dynamic_cast<const TileFunctor<V>*>(
-		debug_valcast<const AbstrDataItem*>(AsPtr(ptr))->GetCurrRefObj()
+		debug_valcast<const AbstrDataItem*>(AsPtr(ptr))->GetCurrRefObj().get()
 	);
 }
 
@@ -115,7 +98,7 @@ template<typename V, typename P>
 auto const_array_checked_cast(P const& ptr) -> const TileFunctor<V>*
 {
 	return checked_cast<const TileFunctor<V>*>(
-		checked_valcast<const AbstrDataItem*>(AsPtr(ptr))->GetCurrRefObj()
+		checked_valcast<const AbstrDataItem*>(AsPtr(ptr))->GetCurrRefObj().get()
 	);
 }
 
@@ -131,7 +114,7 @@ template<typename V, typename P>
 auto mutable_array_cast(P const& ptr) -> TileFunctor<V>*
 {
 	return debug_valcast<TileFunctor<V>*>(
-		debug_valcast<AbstrDataItem*>(AsPtr(ptr))->GetDataObj()
+		debug_valcast<AbstrDataItem*>(AsPtr(ptr))->GetDataObj().get()
 	);
 }
 
@@ -139,7 +122,7 @@ template<typename V, typename P>
 auto mutable_array_dynacast(P const& ptr) -> TileFunctor<V>*
 {
 	return dynamic_cast<TileFunctor<V>*>(
-		debug_valcast<AbstrDataItem*>(AsPtr(ptr))->GetDataObj()
+		debug_valcast<AbstrDataItem*>(AsPtr(ptr))->GetDataObj().get()
 	);
 }
 
@@ -147,7 +130,7 @@ template<typename V, typename P>
 auto mutable_array_checkedcast(P const& ptr) -> TileFunctor<V>*
 {
 	return checked_cast<TileFunctor<V>*>(
-		checked_valcast<AbstrDataItem*>(AsPtr(ptr))->GetDataObj()
+		checked_valcast<AbstrDataItem*>(AsPtr(ptr))->GetDataObj().get()
 	);
 }
 

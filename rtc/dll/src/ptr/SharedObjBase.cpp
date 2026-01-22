@@ -67,7 +67,7 @@ bool SharedBase::IsOwned() const noexcept
 void SharedBase::AdoptRef() const noexcept
 {
 	++m_RefCount;
-	assert(m_RefCount >= 1); // POST CONDITION, no other threads should have accessed yet
+	assert(m_RefCount >= 1); // POST CONDITION, no other threads should have access yet
 }
 
 void SharedBase::IncRef() const noexcept

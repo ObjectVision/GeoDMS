@@ -152,7 +152,7 @@ QModelIndex DmsModel::parent(const QModelIndex& child) const {
 	if (!parent)
 		return{};
 
-	return createIndex(GetRow(parent), 0, parent);
+	return createIndex(GetRow(parent), 0, parent.get());
 }
 
 int DmsModel::rowCount(const QModelIndex& parent) const {

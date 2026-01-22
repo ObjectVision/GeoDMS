@@ -132,8 +132,8 @@ private:
 	DmsColor& UpdateDefaultColor(DmsColor& mutableDefaultPaletteColor) const;
 
 	CrdRect                                  m_FeatureDataExtents;
-	mutable OwningPtr<FontIndexCache>        m_FontIndexCaches[FR_Count];
-	mutable OwningPtr<PenIndexCache>         m_PenIndexCache;
+	mutable std::unique_ptr<FontIndexCache>  m_FontIndexCaches[FR_Count];
+	mutable std::unique_ptr<PenIndexCache>   m_PenIndexCache;
 	mutable UInt32                           m_MaxLabelStrLen;
 protected:
 	mutable DmsColor m_DefaultPointColor = -2, m_DefaultArcColor=-2, m_DefaultBrushColor=-2;

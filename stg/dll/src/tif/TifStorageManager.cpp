@@ -74,7 +74,7 @@ void TiffSM::DoOpenStorage(const StorageMetaInfo& smi, dms_rw_mode rwMode) const
 
 	DBG_TRACE(("storageName =  %s", GetNameStr().c_str()));
 
-	assert(m_pImp.is_null());
+	assert(!m_pImp);
 
 	auto imp = std::make_unique<TifImp>();
 	if (rwMode > dms_rw_mode::read_only)
@@ -90,7 +90,7 @@ void TiffSM::DoOpenStorage(const StorageMetaInfo& smi, dms_rw_mode rwMode) const
 		bool result = imp->Open(GetNameStr(), TifFileMode::READ);
 		MG_CHECK(result); // false after TIFF open error
 	}
-	m_pImp = imp.release();
+	m_pImp = std::move(imp);
 }
 
 // Close any open file and forget about it
@@ -99,12 +99,12 @@ void TiffSM::DoCloseStorage(bool mustCommit) const
 	DBG_START("TiffSM", "DoCloseStorage", true);
 
 	dms_assert(IsOpen());
-	assert(m_pImp.has_ptr());
+	assert(m_pImp);
 
 	DBG_TRACE(("storageName=  %s", GetNameStr().c_str()));
 
 	m_pImp.reset();
-	assert(m_pImp.is_null());
+	assert(!m_pImp);
 }
 
 bool TiffSM::ReadDataItem(StorageMetaInfoPtr smi, AbstrDataObject* borrowedReadResultHolder, tile_id t)
@@ -242,7 +242,7 @@ bool TiffSM::WriteDataItem(StorageMetaInfoPtr&& smiHolder)
 
 	StorageWriteHandle storageHandle(this, std::move(smiHolder));
 	{
-		dms_assert(m_pImp.has_ptr());
+		dms_assert(m_pImp);
 
 		dms_assert(smi->CurrRI()->GetInterestCount()); // Precondition that 
 		const AbstrDataItem* adi = smi->CurrRD();
@@ -390,7 +390,7 @@ void TiffSM::DoUpdateTree(const TreeItem* storageHolder, TreeItem* curr, SyncMod
 	auto sch = StorageCloseHandle(const_cast<TiffSM*>(this), std::move(smi));
 
 	this->OpenForRead(*sch.MetaInfo());
-	if (this->m_pImp.is_null())
+	if (!this->m_pImp)
 		return;
 
 	// Obtain pixel to world transformation obtained form GeoTiff tags

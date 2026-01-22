@@ -39,7 +39,8 @@ struct OwningPtr : ptr_base<T, movable>
 		assert(this->m_Ptr != ptr || !ptr); 
 		std::swap(this->m_Ptr, ptr); 
 		static_assert(sizeof(T) != 0, "Type must be complete");
-		delete ptr;
+		if (ptr)
+			ptr->Release();
 	}
 	void    swap   (OwningPtr<T>& oth) noexcept { std::swap(this->m_Ptr, oth.m_Ptr); }
 

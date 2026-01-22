@@ -87,7 +87,7 @@ bool MarkSources(const Actor* a, supplier_level level)
 
 	supplier_level& currLevel = s_SupplierLevels[a];
 
-	bool hasSource = (a == s_SourceItem);
+	bool hasSource = (a == s_SourceItem.get());
 
 	if ((currLevel & supplier_level::usage_flags) < level) // Source bit is also already determined and irrelevant for the decision to search for next level.
 	{

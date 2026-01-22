@@ -38,7 +38,7 @@ struct SharedObjWrap : VBase, SharedBase
 
 	void Release() const  noexcept // dtor of Object is virtual, so destructing from here is OK
 	{
-		assert(!IsOwned());
+		MG_CHECK(!IsOwned());
 		delete this;
 	}
 };

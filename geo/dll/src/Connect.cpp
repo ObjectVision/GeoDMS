@@ -125,13 +125,13 @@ struct AbstrConnectNeighbourPointOperator : VariadicOperator
 				SizeT count = res->GetAbstrDomainUnit()->GetCount();
 				if (count)
 				{
-					OwningPtr<const IndexGetter> indexGetter;
+					std::unique_ptr<const IndexGetter> indexGetter;
 					if (arg2A)
-						indexGetter = IndexGetterCreator::Create(arg2A, no_tile);
+						indexGetter.reset( IndexGetterCreator::Create(arg2A, no_tile) );
 
 					IndexAssigner32 indexAssigner(res, resLock.get(), no_tile, 0, count);
 
-					Calculate(spi, indexAssigner.m_Indices, count, arg1A, no_tile, indexGetter);
+					Calculate(spi, indexAssigner.m_Indices, count, arg1A, no_tile, indexGetter.get());
 
 					indexAssigner.Store();
 				}
@@ -295,7 +295,7 @@ struct AbstrConnectPointOperator : VariadicOperator
 			ResourceHandle spi;
 			auto arg1DataHolder = CreateIndex(arg1A, spi);
 
-			OwningPtr<WeightGetter> weights1Getter(arg1W ? WeightGetterCreator::Create(arg1W) : nullptr);
+			std::unique_ptr<WeightGetter> weights1Getter(arg1W ? WeightGetterCreator::Create(arg1W) : nullptr);
 
 			parallel_tileloop(point2Entity->GetNrTiles(), [res, resObj = resLock.get(), arg2A, arg2W, &spi, &weights1Getter, this](tile_id t)->void
 			{
@@ -304,14 +304,14 @@ struct AbstrConnectPointOperator : VariadicOperator
 					return;
 
 				IndexAssigner32 indexAssigner(res, resObj, t, 0, tileSize);
-				if (spi.is_null())
+				if (!spi)
 				{
 					fast_undefine(indexAssigner.m_Indices, indexAssigner.m_Indices + tileSize);
 				}
 				else
 				{
-					OwningPtr<WeightGetter> weights2Getter(arg2W ? WeightGetterCreator::Create(arg2W, t) : nullptr);
-					Calculate(spi, indexAssigner.m_Indices, tileSize, weights1Getter, arg2A, t, weights2Getter);
+					std::unique_ptr<WeightGetter> weights2Getter(arg2W ? WeightGetterCreator::Create(arg2W, t) : nullptr);
+					Calculate(spi, indexAssigner.m_Indices, tileSize, weights1Getter.get(), arg2A, t, weights2Getter.get());
 				}
 
 				indexAssigner.Store();
@@ -358,7 +358,7 @@ struct ConnectPointOperator : AbstrConnectPointOperator
 
 		assert(arg2);
 		assert(resSize);
-		assert(!spi.is_null());
+		assert(spi);
 
 		SpatialIndexType& spIndex = GetAs<SpatialIndexType>(spi);
 				

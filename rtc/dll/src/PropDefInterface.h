@@ -43,7 +43,6 @@ RTC_CALL AbstrPropDef* DMS_CONV DMS_PropDef_GetPrevPropDef(const AbstrPropDef* s
 
 /********** Property          Definition (non-polymorphic) **********/
 
-RTC_CALL AbstrValue*       DMS_CONV DMS_PropDef_CreateValue(const AbstrPropDef* self);
 RTC_CALL void              DMS_CONV DMS_PropDef_GetValue(const AbstrPropDef* self, const Object* me, AbstrValue* value);
 RTC_CALL IStringHandle     DMS_CONV DMS_PropDef_GetValueAsIString(const AbstrPropDef* self, const Object* me);
 RTC_CALL void              DMS_CONV DMS_PropDef_SetValue(AbstrPropDef* self, Object* me, const AbstrValue* value);

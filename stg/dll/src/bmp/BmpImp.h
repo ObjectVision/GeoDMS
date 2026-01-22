@@ -63,8 +63,8 @@ public:
 
 private:
 
-	OwningPtr<BITMAPFILEHEADER>   m_FileHeader;
-	OwningPtr<BITMAPINFOHEADER>   m_InfoHeader;
+	std::unique_ptr<BITMAPFILEHEADER>   m_FileHeader;
+	std::unique_ptr<BITMAPINFOHEADER>   m_InfoHeader;
 	        std::vector<RGBQUAD>   m_RgbQuads;
 	mutable std::vector<filepos_t> m_FileRowOffsets;
 	mutable std::vector<UByte>     m_CodedBuf;

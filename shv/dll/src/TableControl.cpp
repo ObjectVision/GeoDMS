@@ -1135,11 +1135,11 @@ SharedPtr<AbstrDataItem> TableControl::CreateIdAttr(const AbstrUnit* domain, con
 	dms_assert(HasSortOptions());
 
 	if (!domain || domain->GetValueType() == ValueWrap<Void>::GetStaticClass())
-		return nullptr;
+		return {};
 
 //	domain = GetUltimateSourceItem(domain);
 
-	auto dv = GetDataView().lock(); if (!dv) return nullptr;
+	auto dv = GetDataView().lock(); if (!dv) return {};
 
 	SharedPtr<AbstrDataItem> idAttr = CreateDataItem(
 		CreateDesktopContainer(dv->GetDesktopContext(), domain)
@@ -1290,7 +1290,7 @@ void TableControl::CreateTableGroupBy(bool activate)
 		const auto* vc = m_Entity->GetUnitClass()->GetValueType();
 		const auto* resDomainCls = UnitClass::Find(vc->GetCrdClass());
 
-		SharedPtr<AbstrUnit> groupByEntity = resDomainCls->CreateUnit(GetContext(), GetTokenID_mt("GroupBy"));
+		SharedPtr<AbstrUnit> groupByEntity = resDomainCls->CreateUnit(GetContext(), GetTokenID_mt("GroupBy")).release();
 		groupByEntity->DisableStorage();
 		auto keysMustBeDefined = m_State.Get(TCF_MustBeDefined);
 		auto uniqueExprFormat = keysMustBeDefined ? "unique(%s)" : "unique_with_null(%s)";

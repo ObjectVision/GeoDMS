@@ -40,7 +40,7 @@ granted by an additional written contract for support, assistance and/or develop
 
 //  -----------------------------------------------------------------------
 
-typedef cs_lock_map<const Actor*> actor_section_lock_map;
+using actor_section_lock_map = cs_lock_map<const Actor*>;
 
 extern RTC_CALL leveled_std_section sg_CountSection;
 extern RTC_CALL actor_section_lock_map sg_ActorLockMap;

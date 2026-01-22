@@ -79,14 +79,14 @@ struct DcRefListElem
 		// mitigate stack overflow issues
 		while (m_Next)
 		{
-			OwningPtr<DcRefListElem> next = m_Next.release();
-			m_Next.assign(next->m_Next.release());
+			std::unique_ptr<DcRefListElem> next = std::move(m_Next);
+			m_Next = std::move(next->m_Next);
 			// next will be deleted by its destructor
 		}
 	}
 
-	DataControllerRef        m_DC;
-	OwningPtr<DcRefListElem> m_Next;
+	DataControllerRef              m_DC;
+	std::unique_ptr<DcRefListElem> m_Next;
 };
 
 /********** DataControllerContextHandle **********/

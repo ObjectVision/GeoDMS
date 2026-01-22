@@ -227,7 +227,7 @@ struct IndexableUnitAdapter : U
 	row_id GetDimSize(DimType dimNr) const override;
 
 	// use U::GetValueAtIndex and U:GetIndexForValue
-	TIC_CALL AbstrValue* CreateAbstrValueAtIndex(SizeT i) const override;
+	TIC_CALL auto CreateAbstrValueAtIndex(SizeT i) const ->std::unique_ptr<AbstrValue> override;
 	TIC_CALL SizeT GetIndexForAbstrValue(const AbstrValue&) const override;
 };
 

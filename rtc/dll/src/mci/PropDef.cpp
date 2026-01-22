@@ -79,9 +79,9 @@ bool AbstrPropDef::HasNonDefaultValue(const Object* self) const
 	return true; // best guess.
 }
 
-AbstrValue* AbstrPropDef::CreateValue() const
+auto AbstrPropDef::CreateValue() const -> std::unique_ptr<AbstrValue>
 {
-	return debug_cast<AbstrValue*>(m_ValueClass->CreateObj());
+	return std::unique_ptr<AbstrValue>( debug_cast<AbstrValue*>(m_ValueClass->CreateObj()) );
 }
 
 IMPL_RTTI_CLASS(AbstrPropDef)
@@ -351,18 +351,6 @@ RTC_CALL IStringHandle DMS_CONV DMS_PropDef_GetValueAsIString(const AbstrPropDef
 	return nullptr;
 }
 
-
-RTC_CALL AbstrValue*  DMS_CONV DMS_PropDef_CreateValue(const AbstrPropDef* self)
-{
-	DMS_CALL_BEGIN
-
-		CheckPtr(self, AbstrPropDef::GetStaticClass(), "DMS_PropDef_CreateValue");
-
-		return self->CreateValue();
-
-	DMS_CALL_END
-	return nullptr;
-}
 
 RTC_CALL void         DMS_CONV DMS_PropDef_SetValue(AbstrPropDef* self, Object* me, const AbstrValue* value)
 {

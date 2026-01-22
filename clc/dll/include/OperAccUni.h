@@ -331,9 +331,9 @@ struct OperAccPartUniBuffered : FuncOperAccPartUni<TAcc1Func, OperAccPartUniWith
 		for (; t < te; ++t)
 		{
 			auto arg1Data = pdi.values_fta[t]->GetTile(); pdi.values_fta[t] = nullptr;
-			OwningPtr<IndexGetter> indexGetter = IndexGetterCreator::Create(pdi.arg2A, pdi.part_fta[t]); pdi.part_fta[t] = nullptr;
+			auto indexGetter = std::unique_ptr<IndexGetter>( IndexGetterCreator::Create(pdi.arg2A, pdi.part_fta[t])); pdi.part_fta[t] = nullptr;
 
-			this->m_Acc1Func(AccumulationSeq(&resBuffer), arg1Data, indexGetter);
+			this->m_Acc1Func(AccumulationSeq(&resBuffer), arg1Data, indexGetter.get());
 		}
 		return resBuffer;
 	}
@@ -408,9 +408,9 @@ struct OperAccPartUniDirect : FuncOperAccPartUni<TAcc1Func, OperAccPartUniWithCF
 		for (; t < te; ++t)
 		{
 			auto arg1Data = pdi.values_fta[t]->GetTile(); pdi.values_fta[t] = nullptr;
-			OwningPtr<IndexGetter> indexGetter = IndexGetterCreator::Create(pdi.arg2A, pdi.part_fta[t]); pdi.part_fta[t] = nullptr;
+			auto indexGetter = std::unique_ptr<IndexGetter>( IndexGetterCreator::Create(pdi.arg2A, pdi.part_fta[t]) );
 
-			m_Acc1Func(resData, arg1Data, indexGetter);
+			m_Acc1Func(resData, arg1Data, indexGetter.get());
 		}
 	}
 
@@ -469,9 +469,9 @@ void CalcOperAccPartUniSer(DataWriteLock& res, const AbstrDataItem* arg1A, const
 		for (tile_id t = 0; t != nrTiles; ++t)
 		{
 			typename DataArray<ValueType>::locked_cseq_t arg1Data = arg1->GetTile(t);
-			OwningPtr<IndexGetter> indexGetter = IndexGetterCreator::Create(arg2A, t);
+			auto indexGetter = std::unique_ptr<IndexGetter>( IndexGetterCreator::Create(arg2A, t) );
 
-			acc1Func.InspectData(lengthFinderArray, arg1Data, indexGetter);
+			acc1Func.InspectData(lengthFinderArray, arg1Data, indexGetter.get());
 		}
 		// allocate sufficent space in outputs
 		InitOutput(resData, lengthFinderArray);
@@ -485,9 +485,9 @@ void CalcOperAccPartUniSer(DataWriteLock& res, const AbstrDataItem* arg1A, const
 	for (tile_id t = 0; t != nrTiles; ++t)
 	{
 		auto arg1Data = arg1->GetTile(t);
-		OwningPtr<IndexGetter> indexGetter = IndexGetterCreator::Create(arg2A, t);
+		auto indexGetter = std::unique_ptr<IndexGetter>( IndexGetterCreator::Create(arg2A, t) );
 
-		acc1Func.ProcessTileData(outStreamArray, arg1Data, indexGetter);
+		acc1Func.ProcessTileData(outStreamArray, arg1Data, indexGetter.get());
 	}
 }
 

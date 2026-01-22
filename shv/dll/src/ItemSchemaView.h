@@ -36,7 +36,7 @@ private:
 
 	ViewStyle m_ViewStyle;
 
-	OwningPtr<ItemSchemaController> m_Controller;
+	std::unique_ptr<ItemSchemaController> m_Controller;
 
 	SharedTreeItemInterestPtr m_InterestHolder;
 	bool                m_ZoomAll;

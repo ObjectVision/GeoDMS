@@ -11,7 +11,6 @@
 #include "dbg/debug.h"
 #include "geo/Pair.h"
 #include "mci/CompositeCast.h"
-#include "ptr/OwningPtr.h"
 #include "set/CompareFirst.h"
 
 #include "DataItemClass.h"

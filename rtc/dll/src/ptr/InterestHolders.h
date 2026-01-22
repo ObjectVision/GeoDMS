@@ -54,8 +54,15 @@ struct InterestPtr
 		OptionalInterestInc<IVal>(get_ptr());
 	}
 
-	template <typename T, typename OwnershipTag = existing_obj>
-	InterestPtr(T* ptr, OwnershipTag tag = OwnershipTag())
+	template <typename T>
+	InterestPtr(T* ptr)
+		: m_Item(ptr)
+	{
+		OptionalInterestInc<IVal>(get_ptr());
+	}
+
+	template <typename T, typename OwnershipTag>
+	InterestPtr(T* ptr, OwnershipTag tag)
 		: m_Item(ptr, tag)
 	{
 		OptionalInterestInc<IVal>(get_ptr());

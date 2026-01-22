@@ -930,9 +930,9 @@ LispRef AbstrCalculator::SubstituteArgs(SubstitutionBuffer& substBuff, LispPtr l
 	if (substBuff.optionalVisitor)
 		return {};
 
-	return (right == localArgs.Right() && left == localArgs.Left())
-		? localArgs
-		: LispRef(left, right);
+	if (right == localArgs.Right() && left == localArgs.Left())
+		return localArgs;
+	return LispRef(left, right);
 }
 
 void InstantiateTemplate(TreeItem* holder, const TreeItem* applyItem, LispPtr templCallArgList)
@@ -964,9 +964,9 @@ OArgRefs ApplyMetaFunc_GetArgs(TreeItem* holder, const AbstrCalculator* ac, cons
 	SubstitutionBuffer substBuff;
 
 	arg_index currArg = 0;
-	ArgRefs argSeq; argSeq.reserve(LispListPtr(metaCallArgs).Length());
+	ArgRefs argSeq; argSeq.reserve(4);
 	SharedStr firstArgValue;
-	for (LispListPtr cursor = metaCallArgs; !cursor.EndP(); cursor = cursor.Tail(), ++currArg)
+	for (auto cursor = metaCallArgs; !cursor.EndP(); cursor = cursor.Right(), ++currArg)
 	{
 		auto oap = og->GetArgPolicy(currArg, firstArgValue.begin());
 		bool mustCalcArg = FuncDC::MustCalcArg(oap, false);
@@ -979,12 +979,12 @@ OArgRefs ApplyMetaFunc_GetArgs(TreeItem* holder, const AbstrCalculator* ac, cons
 			{
 				// skip condition argument for select_with_attr_xxxx meta functions
 				assert(currArg == 1); // only this one
-				assert(cursor.Tail().EndP()); // no next args, argSeq must remain consistent with the first args..
+				assert(cursor.Right().EndP()); // no next args, argSeq must remain consistent with the first args..
 				continue;
 			}
 			if (oap == oper_arg_policy::calc_at_subitem)
 			{
-				assert(cursor.Tail().EndP()); // no next args, argSeq must remain consistent with the first args..
+				assert(cursor.Right().EndP()); // no next args, argSeq must remain consistent with the first args..
 				continue;
 			}
 
@@ -1024,8 +1024,8 @@ OArgRefs ApplyMetaFunc_GetArgs(TreeItem* holder, const AbstrCalculator* ac, cons
 			auto substResult = ac->SubstituteExpr(substBuff, cursor.Left());
 			if (substResult.index() == 0)
 				throwDmsErrF("in ApplyMetaFunc_GetArgs the sub expression '%s' is a MetaFunc('%s') and cannot be substituted"
-					, AsString(cursor.Left())
-					, AsString(std::get<0>(substResult).GetAsLispRef())
+					, AsString(cursor.Left().AsLispPtr())
+					, AsString(std::get<0>(substResult).GetAsLispRef().AsLispPtr())
 				);
 			if (substResult.index() == 2)
 				throwDmsErrF("in ApplyMetaFunc_GetArgs the sub expression %s is a SourceItem reference that cannot be substituted", AsString(cursor.Left()));
@@ -1244,7 +1244,7 @@ LispRef AbstrCalculator::SubstituteExpr_impl(SubstitutionBuffer& substBuff, Lisp
 				LispRef indexExpr = localExpr.Right().Left();
 				if (!indexExpr.IsSymb())
 					throwErrorF("Calculation Rule Parser", "named DataItem expected as left operand of the arrow operator: try defining an attribute with calculation rule '%s'"
-					, AsString(indexExpr)
+					, AsString(indexExpr.AsLispPtr())
 					);
 
 				auto indexItem = FindOrVisitItem(substBuff, indexExpr.GetSymbID());

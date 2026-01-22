@@ -322,7 +322,7 @@ void MainWindow::updateTreeItemVisitHistory() const {
 
 void MainWindow::setCurrentTreeItem(TreeItem* target_item, bool update_history) 
 {
-    if (m_current_item == target_item)
+    if (m_current_item.get() == target_item)
         return;
 
     if (!target_item)
@@ -369,7 +369,7 @@ void MainWindow::removeTreeItem(const TreeItem* destructing_item)
     assert(destructing_item);
 
     m_treeview->removeItem(destructing_item);
-    if (m_current_item == destructing_item)
+    if (m_current_item.get() == destructing_item)
 		setCurrentTreeItem(const_cast<TreeItem*>(destructing_item->GetTreeParent().get()));
 }
 
@@ -800,7 +800,7 @@ void MainWindow::code_analysis_clr_targets() {
 bool MainWindow::reportErrorAndAskToReload(ErrMsgPtr error_message_ptr) {
     VectorOutStreamBuff buffer;
     auto streamType = OutStreamBase::ST_HTM;
-    auto msgOut = std::unique_ptr<OutStreamBase>(XML_OutStream_Create(&buffer, streamType, "", calcRulePropDefPtr));
+    auto msgOut = XML_OutStream_Create(&buffer, streamType, "", calcRulePropDefPtr);
 
     *msgOut << *error_message_ptr;
     buffer.WriteByte(0);

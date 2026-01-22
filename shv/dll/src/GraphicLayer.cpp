@@ -264,7 +264,7 @@ void AddClassificationMenu(MenuData& menuData, AspectNr a, Theme* classifiedThem
 
 	menuData.push_back(
 		MenuItem(mySSPrintF("Unique Values of %s", themeAttr->GetFullName())
-			, MakeOwned<AbstrCmd, ActivateUniqueValuesPaletteCmd>(a, themeAttr)
+			, std::make_unique<ActivateUniqueValuesPaletteCmd>(a, themeAttr)
 		,	layer
 		,	0
 		)
@@ -286,7 +286,7 @@ void AddClassificationMenu(MenuData& menuData, AspectNr a, Theme* classifiedThem
 			assert(adi);
 			menuData.push_back(
 				MenuItem(adi->GetFullName()
-				,	MakeOwned<AbstrCmd, ActivateClassificationCmd>(adi, classifiedTheme)
+				, std::make_unique<ActivateClassificationCmd>(adi, classifiedTheme)
 				,	layer
 				,	(adi == classification) ? MF_CHECKED : 0
 				)
@@ -313,7 +313,7 @@ void GraphicLayer::FillLcMenu(MenuData& menuData)
 	if (GetThemeDisplayItem()) // false if ThemeSet has just been initialized
 		menuData.emplace_back(
 				"Show Statistics of " + GetThemeDisplayName(this), 
-				new RequestClientCmd(GetThemeDisplayItem(), CC_ShowStatistics),
+				std::make_unique<RequestClientCmd>(GetThemeDisplayItem(), CC_ShowStatistics),
 				this
 		);
 

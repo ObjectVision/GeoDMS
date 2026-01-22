@@ -93,7 +93,7 @@ struct DataArrayBase : AbstrDataObject
 	TICTOC_CALL auto GetDataWriteBegin(tile_id, dms_rw_mode rwMode)->data_write_begin_handle override;
 
 	TICTOC_CALL const ValueClass* GetValueClass() const override;
-	TICTOC_CALL AbstrValue* CreateAbstrValue()                                     const override;
+	TICTOC_CALL auto CreateAbstrValue() const ->std::unique_ptr<AbstrValue> override;
 	TICTOC_CALL void GetAbstrValue(row_id index, AbstrValue& valueHolder)    const override;
 	TICTOC_CALL void SetAbstrValue(row_id index, const AbstrValue& valueHolder)   override;
 	TICTOC_CALL void        SetNull      (row_id index)                                 override;

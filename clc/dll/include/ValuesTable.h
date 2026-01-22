@@ -385,7 +385,7 @@ auto GetPartitionedWallCounts(future_tile_array<V>& values_fta, const AbstrDataI
 	if (nrTiles == 1)
 	{
 		auto tileData = values_fta[t]->GetTile(); values_fta[t] = nullptr;
-		OwningPtr<IndexGetter> indexGetter = IndexGetterCreator::Create(indicesItem, part_fta[t]); part_fta[t] = nullptr;
+		auto indexGetter = std::unique_ptr<IndexGetter>( IndexGetterCreator::Create(indicesItem, part_fta[t])); part_fta[t] = nullptr;
 		return GetPartitionedTileCounts<V, C>(tileData, indexGetter.get(), 0, tileData.size(), pCount, valueMustBeDefined);
 	}
 

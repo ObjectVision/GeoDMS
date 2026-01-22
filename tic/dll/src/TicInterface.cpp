@@ -1156,7 +1156,7 @@ TIC_CALL BestItemRef TreeItem_GetErrorSource(const TreeItem* src, bool tryCalcSu
 			return { sourceItem, {} };
 	}
 	
-	return { nullptr, {} };
+	return { {}, {} };
 }
 
 TIC_CALL BestItemRef TreeItem_GetErrorSourceCaller(const TreeItem* src)

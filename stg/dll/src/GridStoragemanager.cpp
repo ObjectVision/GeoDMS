@@ -90,7 +90,7 @@ AbstrUnit* AbstrGridStorageManager::CreateGridDataDomain(const TreeItem* storage
 {
 	if (!m_GridDomainUnit)
 	{
-		m_GridDomainUnit = Unit<IPoint>::GetStaticClass()->CreateResultUnit(nullptr);
+		m_GridDomainUnit = Unit<IPoint>::GetStaticClass()->CreateResultUnit(nullptr).release();
 		try {
 			StorageReadHandle storageHandle(this, storageHolder, m_GridDomainUnit, StorageAction::read, false);
 			ReadUnitRange(*storageHandle.MetaInfo());
@@ -308,7 +308,7 @@ SharedDataItem GetGridData(const TreeItem* storageHolder) // Look up the 'GridDa
 
 	SharedDataItem pData = AsDynamicDataItem(storageHolder->GetConstSubTreeItemByID(GRID_DATA_ID));
 	if (pData && !GridDomain(pData)) 
-		return nullptr;
+		return {};
 
 	return pData;
 }

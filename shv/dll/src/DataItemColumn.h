@@ -172,8 +172,8 @@ private:
 	void RampColors(AbstrDataObject* ado, SizeT firstRow, SizeT lastRow);
 	void RampValues(AbstrDataObject* ado, SizeT firstRow, SizeT lastRow);
 
-	mutable OwningPtr<FontIndexCache> m_FontIndexCache;
-	mutable OwningPtr<FontArray>      m_FontArray;
+	mutable std::unique_ptr<FontIndexCache> m_FontIndexCache;
+	mutable std::unique_ptr<FontArray>      m_FontArray;
 
 	SharedDataItemInterestPtr m_FutureSrcAttr, m_FutureAggrAttr;
 

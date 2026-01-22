@@ -516,7 +516,7 @@ std::shared_ptr<Theme> Theme::Create(AspectNr aNr,
 std::shared_ptr<Theme> Theme::Create(AspectNr aNr, TreeItem* themeContext)
 {
 	auto newTheme = std::make_shared<Theme>(aNr, nullptr, nullptr, nullptr);
-	dms_assert(newTheme);
+	assert(newTheme);
 	newTheme->Sync(themeContext, SM_Load);
 
 	return newTheme;
@@ -524,12 +524,12 @@ std::shared_ptr<Theme> Theme::Create(AspectNr aNr, TreeItem* themeContext)
 
 std::shared_ptr<Theme> Theme::Create(AspectNr aNr, AbstrThemeValueGetter* avg)
 {
-	dms_assert(avg);
+	assert(avg);
 
 	auto newTheme = std::make_shared<Theme>(aNr, nullptr, nullptr, nullptr);
-	dms_assert(newTheme);
+	assert(newTheme);
 
-	newTheme->m_ValueGetterPtr.assign( avg );
+	newTheme->m_ValueGetterPtr.reset( avg );
 
 	return newTheme;
 }
@@ -537,18 +537,16 @@ std::shared_ptr<Theme> Theme::Create(AspectNr aNr, AbstrThemeValueGetter* avg)
 template <typename V>
 static std::shared_ptr<Theme> Theme::CreateValue(AspectNr aNr, V value)
 {
-	OwningPtr<AbstrThemeValueGetter> constValueGetter = new ConstValueGetter<V>(value);
-	auto result =  Theme::Create(aNr, constValueGetter);
-	constValueGetter.release();
+	auto constValueGetter = std::make_unique<ConstValueGetter<V>>(value);
+	auto result =  Theme::Create(aNr, constValueGetter.release());
 	return result;
 }
 
 template <typename V>
 static std::shared_ptr<Theme> Theme::CreateVar(AspectNr aNr, V* valuePtr, GraphicObject* go)
 {
-	OwningPtr<AbstrThemeValueGetter> constValueGetter = new ConstVarGetter<V>(valuePtr, go);
-	auto result = Theme::Create(aNr, constValueGetter);
-	constValueGetter.release();
+	auto constValueGetter = std::make_unique<ConstVarGetter<V>>(valuePtr, go);
+	auto result = Theme::Create(aNr, constValueGetter.release());
 	return result;
 }
 

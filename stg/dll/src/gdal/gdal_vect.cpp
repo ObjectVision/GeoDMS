@@ -2066,7 +2066,7 @@ auto GdalVectSM::CreateGeometryDataItemFromGdal(const TreeItem* storageHolder, c
 			vu_tmp->SetSpatialReference(GetTokenID_mt(wkt));
 			vu_tmp->DisableStorage(true); // used to avoid reentrance on DoUpdateTree
 			if (!vu)
-				vu = vu_tmp;
+				vu = vu_tmp.release();
 		}
 	}
 	else if (!vu) // default value

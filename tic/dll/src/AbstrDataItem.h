@@ -65,7 +65,7 @@ public:
 //	wrapper funcs that forward to DataObject
 	TIC_CALL auto GetAbstrDomainUnit() const -> const AbstrUnit*;
 	TIC_CALL auto GetAbstrValuesUnit() const -> const AbstrUnit*;
-	TIC_CALL auto CreateAbstrValue() const->AbstrValue*;
+	TIC_CALL auto CreateAbstrValue() const -> std::unique_ptr<AbstrValue>;
 
 	TIC_CALL auto GetNonDefaultDomainUnit() const -> const AbstrUnit*;
 	TIC_CALL auto GetNonDefaultValuesUnit() const -> const AbstrUnit*;

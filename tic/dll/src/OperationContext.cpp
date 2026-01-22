@@ -436,7 +436,7 @@ void OperatorContextHandle::GenerateDescription()
 			? "calculating data"
 			: "creating a result item"));
 
-	for (auto argi = m_FuncDC->GetArgList(); argi; argi = argi->m_Next)
+	for (auto argi = m_FuncDC->GetArgList(); argi; argi = argi->m_Next.get())
 	{
 		auto arg = argi->m_DC->GetOld();
 		msg += mySSPrintF(

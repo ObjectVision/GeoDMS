@@ -78,9 +78,9 @@ SharedStr DisplayValue(const AbstrDataItem* adi, SizeT index, bool useMetric, Sh
 				SharedDataItemInterestPtr labelAttr = avu->GetLabelAttr();
 				if (labelAttr)
 				{
-					OwningPtr<AbstrValue> valuePtr(drl->CreateAbstrValue());
+					auto valuePtr = drl->CreateAbstrValue();
 					drl->GetAbstrValue(index, *valuePtr);
-					return AsStrWithLabel(avu, valuePtr, useMetric, ippHolders.m_valuesLabel, maxLen, locks.second, result);
+					return AsStrWithLabel(avu, valuePtr.get(), useMetric, ippHolders.m_valuesLabel, maxLen, locks.second, result);
 				}
 				if (useMetric)
 					return result + avu->GetFormattedMetricStr();
@@ -141,8 +141,8 @@ SharedStr DisplayValue(const AbstrUnit* au, const AbstrValue* valuePtr, bool use
 
 SharedStr DisplayValue(const AbstrUnit* au, SizeT index, bool useMetric, SharedDataItemInterestPtr& ipHolder, streamsize_t maxLen, GuiReadLock& lock)
 {
-	OwningPtr<AbstrValue> valuePtr = au->CreateAbstrValueAtIndex(index);
-	return DisplayValue(au, valuePtr, useMetric, ipHolder, maxLen, lock);
+	auto valuePtr = au->CreateAbstrValueAtIndex(index);
+	return DisplayValue(au, valuePtr.get(), useMetric, ipHolder, maxLen, lock);
 }
 
 extern "C" TIC_CALL CharPtr DMS_CONV DMS_AbstrDataItem_DisplayValue(const AbstrDataItem* adi, UInt32 index, bool useMetric)

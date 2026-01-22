@@ -118,8 +118,8 @@ SupplCache* TreeItem::GetOrCreateSupplCache() const
 {
 	assert(IsMetaThread());
 	if (!HasSupplCache())
-		m_SupplCache.assign( new SupplCache );
-	return m_SupplCache;
+		m_SupplCache = std::make_unique<SupplCache>();
+	return m_SupplCache.get();
 }
 
 //----------------------------------------------------------------------
@@ -1393,15 +1393,15 @@ void TreeItem::AddUsings(const TreeItem** firstNameSpace, const TreeItem** lastN
 UsingCache* TreeItem::GetUsingCache()
 {
 	if (!m_UsingCache)
-		m_UsingCache.assign(new UsingCache(this));
-	return m_UsingCache;
+		m_UsingCache = std::make_unique<UsingCache>(this);
+	return m_UsingCache.get();
 }
 
 const UsingCache* TreeItem::GetUsingCache() const
 {
 	if (!m_UsingCache)
-		m_UsingCache.assign(new UsingCache(this));
-	return m_UsingCache;
+		m_UsingCache = std::make_unique<UsingCache>(this);
+	return m_UsingCache.get();
 }
 
 void TreeItem::RemoveFromConfig() const
@@ -1463,7 +1463,7 @@ SharedTreeItem TreeItem::GetConstSubTreeItemByID(TokenID subItemID) const
 	assert(this);
 
 	if (!this) 
-		return nullptr;
+		return {};
 
 	const TreeItem* subItem = GetFirstSubItem(); // calls UpdateMetaInfo
 	while (true)
@@ -1475,7 +1475,7 @@ SharedTreeItem TreeItem::GetConstSubTreeItemByID(TokenID subItemID) const
 				assert(mc_RefItem != this);
 				return mc_RefItem->GetConstSubTreeItemByID(subItemID);
 			}
-			return nullptr;
+			return {};
 		}
 
 		if	(subItem->GetID() == subItemID)
@@ -1489,7 +1489,7 @@ SharedTreeItem TreeItem::GetCurrSubTreeItemByID(TokenID subItemID) const
 	assert(this);
 
 	if (!this)
-		return nullptr;
+		return {};
 
 	auto subItem = GetCurrFirstSubItem(); // requires UpdateMetaInfo to have been called
 	while (true)
@@ -1501,7 +1501,7 @@ SharedTreeItem TreeItem::GetCurrSubTreeItemByID(TokenID subItemID) const
 				assert(mc_RefItem != this);
 				return mc_RefItem->GetCurrSubTreeItemByID(subItemID);
 			}
-			return nullptr;
+			return {};
 		}
 
 		if (subItem->GetID() == subItemID)
@@ -1513,7 +1513,7 @@ SharedTreeItem TreeItem::GetCurrSubTreeItemByID(TokenID subItemID) const
 TreeItem* TreeItem::GetSubTreeItemByID(TokenID subItemID) // does not UpdateMetaInfo
 {
 	if (!this) 
-		return nullptr;
+		return {};
 
 	TreeItem* subItem = _GetFirstSubItem(); // doesn't call UpdateMetaInfo (non const)
 
@@ -1598,10 +1598,10 @@ SharedTreeItem TreeItem::FindItem(CharPtrRange subItemNames) const
 
 		TokenID existingToken = GetExistingTokenID<mt_tag>(ids.second); //to be found token was already created if asserts hold
 		if (!IsDefined(existingToken))
-			return nullptr;
+			return {};
 		return FindTreeItemByID(this, existingToken);
 	}
-	SharedTreeItem parent = nullptr;
+	SharedTreeItem parent = {};
 	if (ids.first.empty()) // We start at root.
 	{
 		MG_CHECK(!IsCacheItem());
@@ -1611,7 +1611,7 @@ SharedTreeItem TreeItem::FindItem(CharPtrRange subItemNames) const
 		parent = FindItem(ids.first);
 
 	if (!parent)
-		return nullptr;
+		return {};
 	parent->UpdateMetaInfoIfNotAlready();
 //	if (parent->WasFailed(FailType::MetaInfo))
 //		parent->ThrowFail();
@@ -1625,7 +1625,7 @@ auto TreeItem::FindAndVisitItem(CharPtrRange subItemNames, SupplierVisitFlag svf
 	assert(Test(svf, SupplierVisitFlag::ImplSuppliers));
 
 	if (subItemNames.empty())
-		return nullptr;
+		return {};
 
 	auto ids = NameTreeReg_GetParentAndBranchID(subItemNames);
 	assert(ids.first.first == subItemNames.first);
@@ -1644,13 +1644,13 @@ auto TreeItem::FindAndVisitItem(CharPtrRange subItemNames, SupplierVisitFlag svf
 		UpdateMetaInfo();
 		TokenID existingToken = GetExistingTokenID<mt_tag>(ids.second); //to be found token was already created if asserts hold
 		if (!IsDefined(existingToken))
-			return nullptr;
+			return {};
 		auto item = FindTreeItemByID(this, existingToken);
 		if (visitor.Visit(item) == AVS_SuspendedOrFailed)
 			return {};
 		return item;
 	}
-	SharedTreeItem parent = nullptr;
+	SharedTreeItem parent;
 	if (ids.first.empty()) // We start at root.
 	{
 		parent = SessionData::Curr()->GetConfigRoot();
@@ -1666,7 +1666,7 @@ auto TreeItem::FindAndVisitItem(CharPtrRange subItemNames, SupplierVisitFlag svf
 		parent = optionalParent.value();
 	}
 	if (!parent)
-		return nullptr;
+		return {};
 	parent->UpdateMetaInfo();
 
 	auto result = parent->GetConstSubTreeItemByID(GetExistingTokenID(ids.second));
@@ -1830,21 +1830,21 @@ TreeItem* CheckedAs(TreeItem* self, const Class* requiredClass)
 	return self; 
 }
 
-TreeItem* CreateAndInitItem(TreeItem* self, TokenID id, const Class* requiredClass)
+auto CreateAndInitItem(TreeItem* self, TokenID id, const Class* requiredClass) -> OwningPtr<TreeItem>
 {
 	assert(requiredClass);
 
-	OwningPtr<TreeItem> newSubItem = debug_cast<TreeItem*>(requiredClass->CreateObj());
+	auto newSubItem = OwningPtr<TreeItem>(debug_cast<TreeItem*>(requiredClass->CreateObj()));
 	assert(newSubItem);
 
 	newSubItem->InitTreeItem(self, id);
 
-	return newSubItem.release();
+	return newSubItem;
 }
 
-TreeItem* TreeItem::CreateItem(TokenID id, const Class* requiredClass)
+auto TreeItem::CreateItem(TokenID id, const Class* requiredClass) -> OwningPtr<TreeItem>
 {
-	dms_assert(!requiredClass || requiredClass->IsDerivedFrom(TreeItem::GetStaticClass()));
+	assert(!requiredClass || requiredClass->IsDerivedFrom(TreeItem::GetStaticClass()));
 
 	if (this)
 	{
@@ -1866,7 +1866,7 @@ TreeItem* TreeItem::CreateItem(TokenID id, const Class* requiredClass)
 	return CreateAndInitItem(this, id, (requiredClass) ? requiredClass : TreeItem::GetStaticClass());
 }
 
-TreeItem* TreeItem::CreateItemFromPath(CharPtr subItemNames, const Class* requiredClass)
+auto TreeItem::CreateItemFromPath(CharPtr subItemNames, const Class* requiredClass) -> OwningPtr<TreeItem>
 {
 	if (!requiredClass)
 		requiredClass = TreeItem::GetStaticClass();
@@ -1905,7 +1905,7 @@ TreeItem* TreeItem::CreateItemFromPath(CharPtr subItemNames, const Class* requir
 		if (!hasRestSubItems)
 			return foundSubItem;
 	}
-	dms_assert(foundSubItem);
+	assert(foundSubItem);
 	return foundSubItem->CreateItemFromPath(restSubItemNames, requiredClass);
 }
 
@@ -1933,15 +1933,15 @@ static bool HasOwnCalculatorNow(TreeItem* result)
 	return (!result->mc_Expr.empty()) || (result->mc_Calculator && result->mc_Calculator->IsDataBlock());
 }
 
-SharedPtr<TreeItem> TreeItem::Copy(TreeItem* dest, TokenID id, CopyTreeContext& copyContext) const
+OwningPtr<TreeItem> TreeItem::Copy(TreeItem* dest, TokenID id, CopyTreeContext& copyContext) const
 {
 	const Class* cls = GetDynamicClass();
 
 	assert(dest || !id);
 	bool isNew = (!dest) || (id && !dest->GetSubTreeItemByID(id));
 	if (isNew && copyContext.DontCreateNew())
-		return nullptr; 
-	SharedPtr<TreeItem> result = dest->CreateItem(id, cls);
+		return {};
+	auto result = dest->CreateItem(id, cls);
 	if (isNew)
 	{
 		result->DisableAutoDelete();
@@ -1994,13 +1994,13 @@ SharedPtr<TreeItem> TreeItem::Copy(TreeItem* dest, TokenID id, CopyTreeContext& 
 					if (nameSpaceBuffer.CurrPos())
 						nameSpaceStream << ';';
 					nameSpaceStream << copyContext.GetAbsOrRelNameID(sns, this, dest).GetStr().c_str();
-					dms_assert(nameSpaceBuffer.GetData()[nameSpaceBuffer.CurrPos()-1] != ';');
+					assert(nameSpaceBuffer.GetData()[nameSpaceBuffer.CurrPos()-1] != ';');
 				}
 			}
 			CharPtr dataBegin = nameSpaceBuffer.GetData();
 			if (dataBegin)
 			{
-				dms_assert(nameSpaceBuffer.CurrPos());
+				assert(nameSpaceBuffer.CurrPos());
 				result->AddUsingUrls(dataBegin, dataBegin+nameSpaceBuffer.CurrPos());
 			}
 		}
@@ -2069,12 +2069,12 @@ SharedPtr<TreeItem> TreeItem::Copy(TreeItem* dest, TokenID id, CopyTreeContext& 
 	{
 		for (const TreeItem* subItem = GetCurrFirstSubItem(); subItem; subItem = subItem->GetNextItem())
 			if (!copyContext.InFenceOperator() || !subItem->IsTemplate())
-				subItem->Copy(result, subItem->GetID(), copyContext);
+				subItem->Copy(result, subItem->GetID(), copyContext).release();
 
 		// Now, copy from refItem; maybe more sub-items should be copied
 		if (copyContext.CopyReferredItems())
 		{
-			AnchestorStackGuard guard(copyContext, result, this);
+			AnchestorStackGuard guard(copyContext, result.get(), this);
 
 			const TreeItem* refItem = GetCurrRefItem();
 //			copyContext.m_Dcm = DataCopyMode(copyContext.GetDCM() | DataCopyMode::DontUpdateMetaInfo);
@@ -2094,7 +2094,7 @@ SharedPtr<TreeItem> TreeItem::Copy(TreeItem* dest, TokenID id, CopyTreeContext& 
 					{
 						auto subID = subItem->GetID();
 						if (result->GetSubTreeItemByID(subID) == nullptr)
-							subItem->Copy(result, subItem->GetID(), copyContext);
+							subItem->Copy(result, subItem->GetID(), copyContext).release();
 					}
 				}
 				refItem = refItem->GetCurrRefItem();
@@ -3545,7 +3545,7 @@ static how_to_proceed PrepareDataRead(SharedPtr<const TreeItem> self, const Tree
 
 	const TreeItem* storageParent = refItem->GetStorageParent(false); assert(storageParent);
 	SharedPtr<AbstrStorageManager> sm = storageParent->GetStorageManager(); assert(sm);
-	if (auto nmsm = MakeShared(dynamic_cast<NonmappableStorageManager*>(sm.get())))
+	if (auto nmsm = MakeSharedFromBorrowedObjectPtr(dynamic_cast<NonmappableStorageManager*>(sm.get())))
 		if (StorageMetaInfoPtr readInfo = nmsm->GetMetaInfo(storageParent, const_cast<TreeItem*>(refItem), StorageAction::read))
 		{
 			auto readInfoPtr = std::make_shared<std::atomic<StorageMetaInfoPtr>>(std::move(readInfo));

@@ -165,7 +165,7 @@ private:
 
 	AspectNr
 		m_AspectNr;
-	mutable OwningPtr<AbstrThemeValueGetter>
+	mutable std::unique_ptr<AbstrThemeValueGetter>
 		m_ValueGetterPtr;
 	mutable Float64 m_MaxValue;
 

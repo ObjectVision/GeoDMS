@@ -77,7 +77,7 @@ UnitClass::~UnitClass()
 	m_ValueType->m_UnitClass = nullptr;
 }
 
-AbstrUnit* UnitClass::CreateUnit(TreeItem* context, TokenID id) const
+auto UnitClass::CreateUnit(TreeItem* context, TokenID id) const -> OwningPtr<AbstrUnit>
 {
 	if (ValueClass::FindByScriptName(id) )
 	{
@@ -89,7 +89,7 @@ AbstrUnit* UnitClass::CreateUnit(TreeItem* context, TokenID id) const
 	return AsUnit(context->CreateItem(id, this));
 }
 
-AbstrUnit* UnitClass::CreateUnitFromPath(TreeItem* context, CharPtr path) const
+auto UnitClass::CreateUnitFromPath(TreeItem* context, CharPtr path) const ->  OwningPtr<AbstrUnit>
 {
 	if (ValueClass::FindByScriptName(TokenID::GetExisting(path)))
 	{
@@ -101,19 +101,19 @@ AbstrUnit* UnitClass::CreateUnitFromPath(TreeItem* context, CharPtr path) const
 	return AsUnit(context->CreateItemFromPath(path, this));
 }
 
-AbstrUnit* UnitClass::CreateResultUnit(TreeItem* context) const
+auto UnitClass::CreateResultUnit(TreeItem* context) const -> OwningPtr<AbstrUnit>
 {
 	if (context)
 		return AsUnit(context);
-	AbstrUnit* result = CreateUnit(nullptr, TokenID::GetEmptyID());
+	auto result = CreateUnit(nullptr, TokenID::GetEmptyID());
 	result->SetPassor();
 	result->DisableStorage();
 	return result;
 }
 
-AbstrUnit* UnitClass::CreateTmpUnit(TreeItem* context) const
+auto UnitClass::CreateTmpUnit(TreeItem* context) const -> OwningPtr<AbstrUnit>
 {
-	AbstrUnit* result = CreateResultUnit(context);
+	auto result = CreateResultUnit(context);
 	if (!context)
 		result->SetMaxRange();
 	result->SetKeepDataState(true);
@@ -136,8 +136,8 @@ const AbstrUnit* UnitClass::CreateDefault() const
 			DemandManagement::IncInterestDetector incInterestLock("UnitClass::CreateDefault()");
 #endif // MG_DEBUG_INTERESTSOURCE
 
-			m_DefaultUnit = CreateTmpUnit(nullptr);
-			dms_assert(m_DefaultUnit);
+			m_DefaultUnit = MakeSharedForNewlyCreatedObject( CreateTmpUnit(nullptr).release() );
+			assert(m_DefaultUnit);
 			m_DefaultUnit->DisableAutoDelete();
 		}
 	}

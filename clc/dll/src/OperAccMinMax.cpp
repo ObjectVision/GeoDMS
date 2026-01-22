@@ -96,9 +96,9 @@ public:
 
 		auto valueData = const_array_cast<V>(arg1A)->GetLockedDataRead();
 
-		OwningPtr<IndexGetter> indexGetter;
+		std::unique_ptr<IndexGetter> indexGetter;
 		if (arg2A)
-			indexGetter = IndexGetterCreator::Create(arg2A, no_tile);
+			indexGetter.reset( IndexGetterCreator::Create(arg2A, no_tile) );
 		SizeT p = 0;
 		Comparator comp;
 		for (SizeT i = 0, e = valueData.size(); i != e; ++i)

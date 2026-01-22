@@ -753,7 +753,7 @@ void GridLayer::PasteSelValuesDirect()
 	if (m_PasteHandler)
 		InvalidatePasteArea();
 
-	m_PasteHandler.assign(new PasteHandler(dataHandle) );
+	m_PasteHandler = std::make_unique<PasteHandler>(dataHandle);
 
 	PasteNow();
 	ClearPaste();
@@ -769,7 +769,7 @@ void GridLayer::PasteSelValues()
 	if (m_PasteHandler)
 		InvalidatePasteArea();
 
-	m_PasteHandler.assign(new PasteHandler(dataHandle) );
+	m_PasteHandler = std::make_unique<PasteHandler>(dataHandle);
 	
 	GetViewPort()->PasteGrid(m_PasteHandler->GetSelValues(), this);
 	InvalidatePasteArea();
@@ -1280,7 +1280,7 @@ void GridLayer::FillMenu(MouseEventDispatcher& med)
 			hasEditAttr && IsDefined(GetCurrClassID())
 				?	"Fill District with " + GetCurrClassLabel()
 				:	SharedStr("Select District"),
-			new CmdSelectDistrict( med.m_WorldCrd ), 
+			std::make_unique<CmdSelectDistrict>( med.m_WorldCrd ),
 			this
 		)
 	);	

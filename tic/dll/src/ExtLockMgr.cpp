@@ -36,25 +36,25 @@
 #include "set/QuickContainers.h"
 
 namespace {
-	typedef std::multiset<const TreeItem*> TreeItemMultiSetType;
+	using TreeItemMultiSetType = std::multiset<const TreeItem*>;
 
-	struct ItemCountAdm : OwningPtr<TreeItemMultiSetType>
+	struct ItemCountAdm : std::unique_ptr<TreeItemMultiSetType>
 	{
 		ItemCountAdm(CharPtr objName)
-			:	OwningPtr(new TreeItemMultiSetType)
+			:	std::unique_ptr<TreeItemMultiSetType>(new TreeItemMultiSetType)
 			,	m_ObjName(objName)
 		{}
 
 		~ItemCountAdm()
 		{
-			assert(has_ptr());
+			assert(get());
 
-			UInt32 n = get_ptr()->size();
+			UInt32 n = get()->size();
 			if (!n) 
 				return;
 
-			TreeItemMultiSetType::iterator i = get_ptr()->begin();
-			TreeItemMultiSetType::iterator e = get_ptr()->end();
+			TreeItemMultiSetType::iterator i = get()->begin();
+			TreeItemMultiSetType::iterator e = get()->end();
 			while (i!=e)
 			{
 				const TreeItem* ti = *i++;

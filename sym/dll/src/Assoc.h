@@ -23,7 +23,7 @@ struct AssocPtrWrap : LispPtrWrap<BasePtr>
 		: base_type(std::move(src))
 	{
 		if (!Check())
-			LispError("Invalid cast to Assoc", src);
+			LispError("Invalid cast to Assoc", this->AsLispPtr());
 	}
 	template <class RhsPtr>
 	AssocPtrWrap(const AssocPtrWrap<RhsPtr>& rhs)
@@ -159,12 +159,10 @@ struct AssocList : AssocListPtrWrap<SharedPtr<const LispObj>>
 	using base_type = AssocListPtrWrap<SharedPtr<const LispObj>>;
 	using ptr_type = AssocListPtr;
 
-	AssocList() {};	//	creates an empty AssocList
-	AssocList(AssocList&& rhs) : base_type(std::move(rhs)) {}
-//	AssocList(AssocListPtr&& rhs) : base_type(std::move(rhs)) {}
-	AssocList(const AssocList& rhs) : base_type(rhs) {}
-//	AssocList(const AssocListPtr& rhs) : base_type(rhs) {}
-	AssocList(ptr_type list) : base_type(list) {}
+	AssocList()  noexcept {};	//	creates an empty AssocList
+	AssocList(AssocList&& rhs) noexcept : base_type(std::move(rhs)) {}
+	AssocList(const AssocList& rhs)  noexcept : base_type(rhs) {}
+	AssocList(ptr_type list)  noexcept : base_type(list) {}
 	AssocList(LispPtr  list) : base_type(ptr_type(list)) {}  // invoke Check
 
 	AssocList(AssocPtr a, ptr_type l) : base_type(LispRef(a.get(), l.get()))
@@ -172,7 +170,7 @@ struct AssocList : AssocListPtrWrap<SharedPtr<const LispObj>>
 		assert(!l.IsFailed());
 	}
 
-	void operator =(AssocList&& rhs) { this->swap(rhs); }
+	void operator =(AssocList&& rhs)  noexcept { this->swap(rhs); }
 
 	template<typename BasePtr>
 	void operator =(const AssocListPtrWrap<BasePtr>& rhs) { SharedPtr<const LispObj>::operator=(rhs); }

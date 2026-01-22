@@ -135,7 +135,7 @@ TIC_CALL auto AbstrDataItem::GetNonDefaultValuesUnit() const -> const AbstrUnit*
 }
 
 
-inline const AbstrDataObject* AbstrDataItem::GetCurrRefObj()      const 
+inline auto AbstrDataItem::GetCurrRefObj() const ->SharedPtr<const AbstrDataObject>
 {
 	dbg_assert(CheckMetaInfoReadyOrPassor());
 
@@ -159,7 +159,7 @@ Int32 AbstrDataItem::GetDataRefLockCount() const
 // class  : AbstrDataItem (non inline) functions that forward to DataObject
 //----------------------------------------------------------------------
 
-AbstrValue* AbstrDataItem::CreateAbstrValue  () const 
+auto AbstrDataItem::CreateAbstrValue  () const -> std::unique_ptr<AbstrValue>
 { 
 	return GetDynamicObjClass()->GetValuesType()->CreateValue();
 }
@@ -484,20 +484,15 @@ void AbstrDataItem::LoadBlobStream (const InpStreamBuff* f)
 	assert(CheckCalculatingOrReady(adr));
 
 	assert(IsReadLocked(this) || !IsMultiThreaded2());
-	DataWriteLock lock(const_cast<AbstrDataItem*>(this));
-	//	assert(m_DataLockCount < 0);
+
 	BinaryInpStream ar(f);
 
-//	auto adu = GetAbstrDomainUnit()->GetTiledRangeData();
-//	auto avu = GetAbstrValuesUnit()->GetTiledRangeData();
-//	auto vc = GetValueComposition();
 	DataWriteLock writeHandle(this);
 
-	AbstrDataObject* ado = const_cast<AbstrDataObject*>(GetCurrDataObj());
 	for (tile_id t = 0, e = GetAbstrDomainUnit()->GetNrTiles(); t != e; ++t)
 		writeHandle->DoReadData(ar, t);
 
-	lock.Commit();
+	writeHandle.Commit();
 }
 
 void AbstrDataItem::StoreBlobStream(OutStreamBuff* f) const
@@ -663,7 +658,7 @@ DataCheckMode AbstrDataItem::DetermineRawCheckModeImpl() const
 	return ado->DoDetermineCheckMode();
 }
 
-typedef cs_lock_map<const AbstrDataItem*> data_flags_lock_map;
+using data_flags_lock_map = cs_lock_map<const AbstrDataItem*>;
 data_flags_lock_map sg_DataFlagsLockMap("DataItemFlags");
 
 DataCheckMode AbstrDataItem::GetRawCheckMode() const
@@ -1080,7 +1075,7 @@ TIC_CALL void DMS_CONV Table_Dump(OutStreamBuff* out, const TableColumnSpec* col
 		if (columnSpecIter->m_RelativeDisplay)
 			columnSpecIter->m_ColumnTotal = columnSpecIter->m_DataItem->GetRefObj()->GetSumAsFloat64();
 	}
-	std::vector<OwningPtr<const AbstrReadableTileData>> tileLocks; tileLocks.reserve(nrDataItems);
+	std::vector<std::unique_ptr<const AbstrReadableTileData>> tileLocks; tileLocks.reserve(nrDataItems);
 	for (const auto& drl : readLocks)
 		tileLocks.emplace_back(drl.GetRefObj()->CreateReadableTileData(no_tile));
 

@@ -75,7 +75,7 @@ struct RegionInfo : RegionMeta
 	RegionInfo(const RegionInfo&) = delete;
 
 	DataReadLock                    m_ReadLock;
-	OwningPtr<IndexGetter>          m_IndexGetter;
+	std::unique_ptr<IndexGetter>    m_IndexGetter;
 	SizeT                           m_NrParts = UNDEFINED_VALUE(SizeT);
 	DataWriteLock                   m_WriteLock;
 
@@ -110,7 +110,7 @@ void PrepareTile(RegionInfoArray* regionInfoArrayPtr, tile_id t)
 {
 	for (auto i=regionInfoArrayPtr->begin(), e=regionInfoArrayPtr->end(); i!=e; ++i)
 		if (i->m_Partition)
-			i->m_IndexGetter.assign( IndexGetterCreator::Create(i->m_Partition, t) );
+			i->m_IndexGetter.reset( IndexGetterCreator::Create(i->m_Partition, t) );
 }
 
 template <typename ActorType>

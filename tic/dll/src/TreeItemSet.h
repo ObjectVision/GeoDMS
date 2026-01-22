@@ -47,7 +47,7 @@ using TreeItemCRefArray = std::vector< SharedPtr<const TreeItem> >;
 // Section:     TreeItemSet
 // *****************************************************************************
 
-struct TreeItemSetType : public std::set<const TreeItem*> { std::mutex critical_section;  };
-struct TreeItemVectorType  : public TreeItemCPtrArray              {};
+struct TreeItemSetType : std::set<const TreeItem*> { std::mutex critical_section;  };
+struct TreeItemVectorType  : TreeItemCPtrArray              {};
 
 #endif //!defined(__TIC_TREEITEMSET_H)

@@ -254,7 +254,7 @@ LispRef ApplySubstList(LispPtr expr, AssocListPtr substList)
 			dms_assert(expr == assocList.ApplyOnce(subst.Key()));
 			LispRef result = assocList.ApplyOnce(subst.Val());
 
-			DBG_TRACE(("result = %s", AsString(result).c_str()));
+			DBG_TRACE(("result = %s", AsString(result.AsLispPtr()).c_str()));
 
 //	 		dms_assert(!HasAnyVar(result));
 			return result;
@@ -446,11 +446,11 @@ LispRef RepeatedApply(LispPtr expr, AssocListPtr env)
 #include "RewriteRules.h"
 #include "ptr/OwningPtr.h"
 
-static OwningPtr<RewriteRuleSet> g_RewriteRuleSetPtr;
+static std::unique_ptr<RewriteRuleSet> g_RewriteRuleSetPtr;
 
 void SetEnv(AssocListPtr env)
 {
-	g_RewriteRuleSetPtr.assign( new RewriteRuleSet(env) );
+	g_RewriteRuleSetPtr.reset(new RewriteRuleSet(env));
 }
 LispRef AssocList_RepApplyTopEnv(AssocListPtr unifier, LispPtr templExpr); // forward decl 
 
@@ -535,7 +535,7 @@ struct ApplyTopEnvFunc
 
 				LispRef result = AssocList_RepApplyTopEnv(unifier, rewriteRulePtr->Val());
 
-				DBG_TRACE(("result = %s", AsString(result).c_str()));
+				DBG_TRACE(("result = %s", AsString(result.AsLispPtr()).c_str()));
 
 				return result;
 			}

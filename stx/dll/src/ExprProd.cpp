@@ -102,8 +102,8 @@ void ExprProd::ProdFunctionCall()
 	m_Result.repl_back2(
 		RewriteExprTop_InParse(
 			LispRefList(
-				m_Result.Second()
-			,	m_Result.First()
+				m_Result.Second().AsLispPtr()
+			,	m_Result.First().AsLispPtr()
 			)
 		)
 	);

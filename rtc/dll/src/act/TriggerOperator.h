@@ -11,7 +11,6 @@
 
 #include "act/UpdateMark.h"
 #include "Parallel.h"
-#include "ptr/OwningPtr.h"
 
 //----------------------------------------------------------------------
 // DemandManagement:: IncInterestDetector and LiftInterest; detect late expression of demand and promises
@@ -105,7 +104,7 @@ struct SilentBlockerGate : SilentBlocker
 	RTC_CALL ~SilentBlockerGate();
 
 
-	OwningPtr<DemandManagement::IncInterestGate> m_InterestGate;
+	std::unique_ptr<DemandManagement::IncInterestGate> m_InterestGate;
 };
 
 struct FencedBlocker : SilentBlocker
@@ -113,7 +112,7 @@ struct FencedBlocker : SilentBlocker
 		RTC_CALL FencedBlocker (CharPtr blockingAction);
 		RTC_CALL ~FencedBlocker ();
 
-		OwningPtr<DemandManagement::IncInterestFence> m_InterestFence;
+		std::unique_ptr<DemandManagement::IncInterestFence> m_InterestFence;
 	};
 
 #else

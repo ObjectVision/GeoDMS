@@ -221,9 +221,9 @@ RTC_CALL ValueClass* ValueClass::FindByScriptName(TokenID valueTypeID)
 	return g_ValueClassRegister.Find(valueTypeID);
 }
 
-AbstrValue* ValueClass::CreateValue() const
+auto ValueClass::CreateValue() const -> std::unique_ptr<AbstrValue>
 {
-	return debug_cast<AbstrValue*>(CreateObj());
+	return std::unique_ptr<AbstrValue>( debug_cast<AbstrValue*>(CreateObj()) );
 }
 
 bool ValueClass::IsRange   () const { return m_ValueComposition == ValueComposition::Range; }
@@ -289,7 +289,7 @@ INSTANTIATE_NUM_ORG
 template <typename T> 
 const ValueClass* ValueWrap<T>::GetStaticClass()
 {
-	static OwningPtr<ValueClass> s_StaticCls;
+	static std::unique_ptr<ValueClass> s_StaticCls;
 	if (!s_StaticCls) {
 		static T s_UndefinedValue;
 		ValueClass::InviterFunc inviterFunc = [](const ValueClassVisitor* vcp) -> void
@@ -297,7 +297,7 @@ const ValueClass* ValueWrap<T>::GetStaticClass()
 			vcp->Visit((const T*)nullptr);
 		};
 		MakeUndefinedOrZero(s_UndefinedValue);
-		s_StaticCls.assign(
+		s_StaticCls.reset(
 			new ValueClass(
 				CreateFunc<ValueWrap<T> >, inviterFunc, GetTokenID_st(GetScriptName<T>() ), GetTypeID<T>(),
 				Int32(has_fixed_elem_size_v<T> ? sizeof(T)      : -1),
@@ -317,7 +317,7 @@ const ValueClass* ValueWrap<T>::GetStaticClass()
 			)
 		);
 	}
-	return s_StaticCls;
+	return s_StaticCls.get();
 }
 
 template <typename T> 

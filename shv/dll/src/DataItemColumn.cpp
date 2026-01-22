@@ -871,11 +871,11 @@ void DataItemColumn::SetOrgColor(SizeT recNo, AspectNr a, DmsColor color)
 	else
 	{
 		dms_assert(theme->m_ValueGetterPtr);
-		auto vg = dynamic_cast<ConstVarGetter<DmsColor>*>(theme->m_ValueGetterPtr.get_ptr());
+		auto vg = dynamic_cast<ConstVarGetter<DmsColor>*>(theme->m_ValueGetterPtr.get());
 		if (vg)
 			vg->SetValue(color);
 		else
-			theme->m_ValueGetterPtr.assign(new ConstValueGetter<DmsColor>(color));
+			theme->m_ValueGetterPtr = std::make_unique<ConstValueGetter<DmsColor> >(color);
 	}
 	InvalidateDraw();
 }
@@ -946,7 +946,7 @@ void DataItemColumn::SetOrgText  (SizeT recNo, CharPtr textData)
 	AbstrDataItem* adi = const_cast<AbstrDataItem*>(theme->GetThemeAttrSource());
 	DataWriteLock dwl(adi, dms_rw_mode::read_write);
 		AbstrDataObject* ado = dwl.get();
-		OwningPtr<AbstrValue> av = ado->CreateAbstrValue();
+		auto av = ado->CreateAbstrValue();
 		av->AssignFromCharPtr(textData);
 		ado->SetAbstrValue(recNo, *av);
 	dwl.Commit();
@@ -977,8 +977,8 @@ HFONT DataItemColumn::GetFont(SizeT recNo, FontRole fr, Float64 subPixelFactor) 
 		if (!m_FontIndexCache) // no custom font(s) set in FeatureLayer::GetFontIndexCache(FontRole fr), set default
 		{
 			auto font_height = GetDefaultFontHeightDIP(FontSizeCategory::MEDIUM); // alternative value: cellHeight + 2
-			m_FontIndexCache.assign( // default font
-				new FontIndexCache(
+			m_FontIndexCache = // default font
+				std::make_unique<FontIndexCache>(
 					nullptr,         // fontSizeTheme
 					nullptr,         // worldSizeTheme
 					fontTheme.get(), // fontNameTheme
@@ -986,16 +986,15 @@ HFONT DataItemColumn::GetFont(SizeT recNo, FontRole fr, Float64 subPixelFactor) 
 					fontTheme ? fontTheme->GetThemeEntityUnit() : Unit<Void>::GetStaticClass()->CreateDefault(), // theme domain entity
 					nullptr,		 // projectionBaseUnit
 					font_height,	 // defFontSize
-					0,			     // defWorldSize
+					0.0,		     // defWorldSize
 					GetTokenID_mt(defFontNames[fr]), // defFontNameID
 					0				 // defFontAngle
-				)
-			);
+				);
 		}
 		m_FontIndexCache->UpdateForZoomLevel(subPixelFactor, subPixelFactor);
-		m_FontArray.assign(new FontArray(m_FontIndexCache, true) );
+		m_FontArray = std::make_unique<FontArray>(m_FontIndexCache.get(), true);
 	}
-	dms_assert(m_FontArray);
+	assert(m_FontArray);
 
 	if (m_FontArray->IsSingleton())
 		recNo = 0;
@@ -1442,7 +1441,13 @@ void DataItemColumn::FillMenu(MouseEventDispatcher& med)
 	auto sa = GetSrcAttr();
 	if (sa)
 	{
-		med.m_MenuData.emplace_back(mySSPrintF("Show Statistics of '%s'", caption.c_str()), new RequestClientCmd(sa, CC_ShowStatistics), this);
+		med.m_MenuData.emplace_back(
+			mySSPrintF("Show Statistics of '%s'"
+		,	caption.c_str())
+		,	std::make_unique<RequestClientCmd>(sa, CC_ShowStatistics)
+		,	this
+		);
+
 		if (tc->HasSortOptions() && sa->GetValueComposition() == ValueComposition::Single)
 		{
 			med.m_MenuData.emplace_back(SharedStr("Sort"), make_MembFuncCmd(&DataItemColumn::SortAsc), this);

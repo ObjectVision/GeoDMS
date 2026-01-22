@@ -51,8 +51,9 @@ struct SharedPtr
 	constexpr SharedPtr(U* rhs, newly_obj) noexcept
 		: m_Ptr(rhs)
 	{
-		assert(!rhs || !rhs->IsOwned());
-		IncCount();
+//		assert(!rhs || !rhs->IsOwned());
+		if (rhs) 
+			rhs->AdoptRef();
 	}
 
 	// use this constructor for borrowed existing objects, for which existing Shared Ownership can be be assumed
@@ -120,7 +121,10 @@ struct SharedPtr
 	}
 	pointer operator ->() const noexcept { return get_nonnull(); }
 
+	bool operator <(const SharedPtr<T>& rhs) const noexcept { return this->m_Ptr < rhs.m_Ptr; }
+	bool operator <(T* rhs) const noexcept { return this->m_Ptr < rhs; }
 	bool operator ==(const SharedPtr<T>& rhs) const noexcept { return this->m_Ptr == rhs.m_Ptr; }
+	bool operator ==(T* rhs) const noexcept { return this->m_Ptr == rhs; }
 
 	struct releaser_ftor { void operator()(T* p) const noexcept { p->Release(); } };	
 
@@ -143,7 +147,7 @@ struct SharedPtr
 	void reset() noexcept
 	{
 		DecCount();
-		*this = nullptr;
+		m_Ptr = nullptr;
 	}
 	void reset(T* ptr) noexcept
 	{

@@ -85,22 +85,22 @@ struct FuncDC : DataController
 	FutureData CallCalcResult(std::shared_ptr<Explain::Context> context) const override;
 	bool                      CanResultToConfigItem() const override
 	{ 
-		dms_assert(m_OperatorGroup);
+		assert(m_OperatorGroup);
 		return m_OperatorGroup->CanResultToConfigItem();
 	}
 	TokenID GetID          () const override { return GetLispRef()->Left()->GetID(); }
 
-	DcRefListElem* GetArgList() const { return m_Args; }
+	DcRefListElem* GetArgList() const { return m_Args.get(); }
 	const DataController* GetArgDC(arg_index i) const
 	{
-		DcRefListElem* dcRef = m_Args;
+		DcRefListElem* dcRef = m_Args.get();
 		while (dcRef)
 		{
 			if (!i--)
 				return dcRef->m_DC.get();
-			dcRef = dcRef->m_Next;
+			dcRef = dcRef->m_Next.get();
 		}
-		dms_assert(0);
+		assert(0);
 		return nullptr;
 	}
 	bool MustCalcArg(arg_index argNr, bool doCalc, CharPtr firstArgValue) const { return MustCalcArg(GetArgPolicy(argNr, firstArgValue), doCalc); }
@@ -108,7 +108,7 @@ struct FuncDC : DataController
 	arg_index GetNrArgs() const
 	{
 		arg_index result = 0;
-		for (DcRefListElem* dcRef = m_Args; dcRef; dcRef = dcRef->m_Next)
+		for (DcRefListElem* dcRef = m_Args.get(); dcRef; dcRef = dcRef->m_Next.get())
 			++result;
 		return result;
  	}
@@ -144,8 +144,8 @@ struct FuncDC : DataController
 	garbage_can resetOperContextImplAndStopSupplInterest() const;
 	garbage_can ResetOperContextImplAndStopSupplInterest() const;
 
-	OwningPtr<DcRefListElem>      m_Args;
-	WeakPtr<const AbstrOperGroup> m_OperatorGroup;
+	std::unique_ptr<DcRefListElem>   m_Args;
+	WeakPtr<const AbstrOperGroup>    m_OperatorGroup;
 	mutable WeakPtr<const Operator>  m_Operator;
 
 private: friend struct OperationContext;

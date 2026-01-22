@@ -63,7 +63,7 @@ public:
 
 	void SetDepreciated() { m_Depreciated = true;  }
 
-	RTC_CALL AbstrValue* CreateValue() const;
+	RTC_CALL auto CreateValue() const ->std::unique_ptr<AbstrValue>;
 
 	RTC_CALL TokenID GetID() const override;
 

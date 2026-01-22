@@ -1321,8 +1321,8 @@ void ItemSave(const TreeItem* self, CharPtr fileName, bool copyDir)
 	FormattedOutStream fout(&fileOut, FormattingFlags::None);
 	fout << commentedHeader;
 
-	OwningPtr<OutStreamBase> xmlOutStr = XML_OutStream_Create(&fileOut, syntax, "DMS", calcRulePropDefPtr);
-	TreeItem_XML_Dump(self, xmlOutStr, true);
+	auto xmlOutStr = XML_OutStream_Create(&fileOut, syntax, "DMS", calcRulePropDefPtr);
+	TreeItem_XML_Dump(self, xmlOutStr.get(), true);
 }
 
 void IncludeFileSave(const TreeItem* self, CharPtr fileName)

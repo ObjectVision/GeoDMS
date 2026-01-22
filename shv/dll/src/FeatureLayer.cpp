@@ -357,10 +357,11 @@ FontIndexCache* FeatureLayer::GetFontIndexCache(FontRole fr) const
 	assert(fr < FR_Count);
 //	dms_assert( WasValid() ); // we should only get here from after successful update in Draw
 
-	if (!m_FontIndexCaches[fr])
+	auto& ficRef = m_FontIndexCaches[fr];
+	if (!ficRef)
 	{
-		m_FontIndexCaches[fr].assign(
-			new FontIndexCache(
+		ficRef =
+			std::make_unique<FontIndexCache>(
 				GetEnabledTheme(fontSizeAspect [fr]).get()
 			,	GetEnabledTheme(worldSizeAspect[fr]).get()
 			,	GetEnabledTheme(fontNameAspect [fr]).get()
@@ -371,10 +372,9 @@ FontIndexCache* FeatureLayer::GetFontIndexCache(FontRole fr) const
 			,	defFontWorldSize[fr]
 			,	GetTokenID_mt(defFontNames[fr])
 			,	0
-			)
-		);
+			);
 	}
-	return m_FontIndexCaches[fr];
+	return ficRef.get();
 }
 
 PenIndexCache* FeatureLayer::GetPenIndexCache(DmsColor defaultColor) const
@@ -383,8 +383,7 @@ PenIndexCache* FeatureLayer::GetPenIndexCache(DmsColor defaultColor) const
 
 	if (!m_PenIndexCache)
 	{
-		m_PenIndexCache.assign(
-			new PenIndexCache(
+		m_PenIndexCache = std::make_unique<PenIndexCache>(
 				GetEnabledTheme(AN_PenWidth).get()
 			,	GetEnabledTheme(AN_PenWorldWidth).get()
 			,	GetEnabledTheme(AN_PenColor).get()
@@ -392,10 +391,9 @@ PenIndexCache* FeatureLayer::GetPenIndexCache(DmsColor defaultColor) const
 			,	GetThemeDomainEntity()
 			,	defaultColor
 			,	GetBaseProjectionUnitFromValuesUnit(GetFeatureAttr())
-			)
-		);
+			);
 	}
-	return m_PenIndexCache;
+	return m_PenIndexCache.get();
 }
 
 bool FeatureLayer::ShowSelectedOnlyEnabled() const

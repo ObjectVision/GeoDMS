@@ -1,32 +1,10 @@
-//<HEADER> 
-/*
-Data & Model Server (DMS) is a server written in C++ for DSS applications. 
-Version: see srv/dms/rtc/dll/src/RtcVersion.h for version info.
+// Copyright (C) 1998-2026 Object Vision b.v. 
+// License: GNU GPL 3
+/////////////////////////////////////////////////////////////////////////////
 
-Copyright (C) 1998-2004  YUSE GSO Object Vision BV. 
-
-Documentation on using the Data & Model Server software can be found at:
-http://www.ObjectVision.nl/DMS/
-
-See additional guidelines and notes in srv/dms/Readme-srv.txt 
-
-This library is free software; you can use, redistribute, and/or
-modify it under the terms of the GNU General Public License version 2 
-(the License) as published by the Free Software Foundation,
-provided that this entire header notice and readme-srv.txt is preserved.
-
-See LICENSE.TXT for terms of distribution or look at our web site:
-http://www.objectvision.nl/DMS/License.txt
-or alternatively at: http://www.gnu.org/copyleft/gpl.html
-
-This library is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
-General Public License for more details. However, specific warranties might be
-granted by an additional written contract for support, assistance and/or development
-*/
-//</HEADER>
+#if defined(_MSC_VER)
 #pragma once
+#endif
 
 #if !defined(__RTC_PTR_RESOURCE_H)
 #define __RTC_PTR_RESOURCE_H
@@ -84,13 +62,13 @@ struct Resource : ResourceBase, R
 };
 
 
-using ResourceHandle = OwningPtr<ResourceBase>;
+using ResourceHandle = std::unique_ptr<ResourceBase>;
 
 
 template <typename R>
 ResourceHandle makeResource(R&& res)
 {
-	return new Resource<R>(std::forward<R>(res));
+	return std::make_unique<Resource<R>>(std::forward<R>(res));
 }
 
 inline ResourceHandle makeResource(ResourceHandle&& res)
@@ -101,7 +79,7 @@ inline ResourceHandle makeResource(ResourceHandle&& res)
 template <typename R, typename... Args>
 ResourceHandle makeResource(Args&& ...args)
 {
-	return new Resource<R>(std::forward<Args>(args)...);
+	return ResourceHandle(new Resource<R>(std::forward<Args>(args)...));
 }
 
 inline void operator <<=(ResourceHandle& oldResource, ResourceHandle&& newResource)
@@ -126,6 +104,20 @@ R& GetAs(ResourceBase* rh)
 }
 
 template <typename R>
+R& GetAs(ResourceHandle& rh)
+{
+	assert(rh);
+	return rh->GetAs<R>();
+}
+
+template <typename R>
+const R& GetAs(const ResourceHandle& rh)
+{
+	assert(rh);
+	return rh->GetAs<R>();
+}
+
+template <typename R>
 const R& GetAs(const ResourceBase* rh)
 {
 	assert(rh);
@@ -136,12 +128,24 @@ template <typename R>
 R& MakeAs(ResourceHandle& rh)
 {
 	if (!rh || !rh->IsA<R>())
-		rh.assign(new Resource<R>);
+		rh.reset(new Resource<R>);
 	return rh->GetAs<R>();
 }
 
 template <typename R>
 R* GetOptional(ResourceBase* rh)
+{
+	return rh->GetOptional<R>();
+}
+
+template <typename R>
+R* GetOptional(ResourceHandle& rh)
+{
+	return rh->GetOptional<R>();
+}
+
+template <typename R>
+const R* GetOptional(const ResourceHandle& rh)
 {
 	return rh->GetOptional<R>();
 }

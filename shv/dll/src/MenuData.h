@@ -72,16 +72,16 @@ struct MenuItem : movable
 {
 	MenuItem();
 	MenuItem(WeakStr caption);
-	MenuItem(WeakStr caption, OwningPtr<AbstrCmd> cmd, GraphicObject* host, UInt32 flags = 0);
+	MenuItem(WeakStr caption, std::unique_ptr<AbstrCmd> cmd, GraphicObject* host, UInt32 flags = 0);
 	MenuItem(MenuItem&& rhs) noexcept;
 
 	bool Execute() const;
 
-	SharedStr                 m_Caption;
-	OwningPtr<AbstrCmd>       m_Cmd;
-	std::weak_ptr<GraphicObject>  m_Host;
-	UInt32                    m_Flags = 0;
-	UInt32                    m_Level = 0;
+	SharedStr                   m_Caption;
+	std::unique_ptr<AbstrCmd>   m_Cmd;
+	std::weak_ptr<GraphicObject>m_Host;
+	UInt32                      m_Flags = 0;
+	UInt32                      m_Level = 0;
 };
 
 struct SubMenu

@@ -90,7 +90,7 @@ DMS_AnyDataItem_SetValueAsCharArray(
 
 		DataWriteLock lock(self, dms_rw_mode::read_write);
 
-		OwningPtr<AbstrValue> value = self->CreateAbstrValue();
+		auto value = self->CreateAbstrValue();
 		value->AssignFromCharPtr(clientBuffer);
 		lock->SetAbstrValue(index, *value);
 

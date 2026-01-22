@@ -41,7 +41,7 @@ struct AbstrItemSetProvider
 
 	virtual SizeT CountItems(const TreeItem* focus) const
 	{
-		OwningPtr<AbstrItemSet> set = CreateItemSet(focus);
+		auto set = std::unique_ptr<AbstrItemSet>( CreateItemSet(focus) );
 		SizeT count = 0;
 		for (; **set; ++*set)
 			++count;
@@ -62,7 +62,7 @@ struct SubItemSet: AbstrItemSet
 
 	void operator ++() override
 	{
-		dms_assert(m_CurrItem);
+		assert(m_CurrItem);
 		m_CurrItem = m_CurrItem->GetNextItem();
 	}
 };
@@ -76,7 +76,7 @@ struct SubTreeSet: AbstrItemSet
 
 	void operator ++() override
 	{
-		dms_assert(m_CurrItem);
+		assert(m_CurrItem);
 		m_CurrItem = const_cast<TreeItem*>(m_Focus)->WalkCurrSubTree(const_cast<TreeItem*>(m_CurrItem));
 	}
 	const TreeItem* m_Focus;
@@ -139,17 +139,17 @@ struct PropValueOperator : public BinaryOperator
 		,	m_ItemSetProvider(itemSetProvider)
 		{}
 
-	OwningPtr<const AbstrItemSetProvider> m_ItemSetProvider;
+	std::unique_ptr<const AbstrItemSetProvider> m_ItemSetProvider;
 
 	// Override Operator
 	bool CreateResult(TreeItemDualRef& resultHolder, const ArgSeqType& args, bool mustCalc) const override
 	{
-		dms_assert(args.size() == 2);
+		assert(args.size() == 2);
 
 		const TreeItem* arg1  = args[0];
 		const AbstrDataItem* arg2A = debug_cast<const AbstrDataItem*>(args[1]);
 
-		dms_assert(arg1);
+		assert(arg1);
 
 		const AbstrUnit* argDomain = arg2A->GetAbstrDomainUnit();
 
@@ -203,10 +203,10 @@ struct PropValueOperator : public BinaryOperator
 			auto resData = result->GetDataWrite(no_tile, dms_rw_mode::write_only_mustzero);
 
 			const TreeItem* item = arg1;
-			OwningPtr<AbstrItemSet> itemSet;
+			std::unique_ptr<AbstrItemSet> itemSet;
 			if (m_ItemSetProvider)
 			{
-				itemSet.assign(m_ItemSetProvider->CreateItemSet(arg1));
+				itemSet.reset(m_ItemSetProvider->CreateItemSet(arg1));
 				item = **itemSet;
 				ri = 0;
 			}

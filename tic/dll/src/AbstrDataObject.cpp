@@ -30,50 +30,6 @@
 //  -----------------------------------------------------------------------
 //  Class  : AbstrDataObject
 //  -----------------------------------------------------------------------
-/* REMOVE
-void AbstrDataObject::InitDataObj(const AbstrDataItem* owner,
-	const AbstrUnit* domainUnit,
-	const AbstrUnit* valuesUnit)
-{
-	if (m_DomainUnitCopy)
-	{
-		if (m_DomainUnitCopy != domainUnit)
-		{
-			dms_assert(m_DomainUnitCopy->GetUltimateItem() == domainUnit->GetUltimateItem());
-			m_DomainUnitCopy->UnifyDomain(domainUnit, UM_Throw);
-			// TODO: NOG BETER: ValidateRange subtieler maken (IsContaining in goede richting)
-		}
-	}
-	else
-	{
-		m_DomainUnitCopy = domainUnit;
-		if (owner && !owner->IsEndogenous() && domainUnit)
-			m_DomainUnitCopy->AddDataItemOut(owner);
-	}
-
-	if (m_ValuesUnitCopy)
-	{
-		if (m_ValuesUnitCopy != valuesUnit)
-			m_ValuesUnitCopy->UnifyValues(valuesUnit, UnifyMode(UM_Throw));
-	}
-	else
-	{
-		if (!CheckValuesUnit(valuesUnit))
-		{
-			PersistentSharedObj::throwItemErrorF(owner,
-				"InitDataObj: unexpected type %s of values unit %s ",
-				valuesUnit->GetValueType()->GetName(),
-				valuesUnit->GetFullName().c_str()
-			);
-		}
-		m_ValuesUnitCopy = valuesUnit;
-	}
-
-	dms_assert(m_DomainUnitCopy);
-	dms_assert(m_ValuesUnitCopy);
-
-}
-*/
 
 SharedPtr<const AbstrTileRangeData> AbstrDataObject::GetTiledRangeData() const
 { 

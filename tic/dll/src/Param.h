@@ -60,7 +60,7 @@ CreateConstParam(const T& value)
 	StaticStIncrementalLock<TreeItem::s_MakeEndoLockCount> makeEndoLock;
 	SharedPtr<AbstrDataItem> dataItem = CreateCacheParam<T>();
 
-	UpdateMarker::ChangeSourceLock changeStamp( dataItem, "CreateConstParam");
+	UpdateMarker::ChangeSourceLock changeStamp( dataItem.get(), "CreateConstParam");
 	SuspendTrigger::FencedBlocker progressLock("CreateConstParam");
 
 	DataWriteLock lock(dataItem);

@@ -43,7 +43,6 @@ PSEUDOCODE PLAN (documentation-only, no behavior changes)
 
 #include "dbg/DmsCatch.h"
 #include "mci/Class.h"
-#include "ptr/OwningPtr.h"
 #include "ptr/InterestHolders.h"
 #include "ptr/SharedStr.h"
 #include "set/StaticQuickAssoc.h"
@@ -1370,11 +1369,11 @@ bool Actor::IsShvObj() const
 // Ensures proper deletion of list elements and their values.
 SupplInterestListPtr::~SupplInterestListPtr()
 {
-    while (has_ptr())
+    while (static_cast<bool>(get()))
     {
         // two step forwarding to prevent the creation of self-owned leaked SupplInterestListElem's
-        dms_assert(get_ptr()->m_Value); // class invariant
-        OwningPtr::assign( release_ptr(get_ptr()->m_NextPtr) );  // acquire nextPtr and destroy currently owned SupplInterestListElem, which includes destructing its m_Value
+        assert(get()->m_Value); // class invariant
+        base_type::reset( release_ptr(get()->m_NextPtr) );  // acquire nextPtr and destroy currently owned SupplInterestListElem, which includes destructing its m_Value
     }
 }
 

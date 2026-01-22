@@ -102,6 +102,22 @@ inline DerivedPtr debug_cast(Base* basePtr)
     return static_cast<DerivedPtr>(basePtr);
 }
 
+template <typename DerivedPtr, typename Base>
+inline auto debug_cast(OwningPtr<Base> basePtr) -> OwningPtr<typename pointer_traits<DerivedPtr>::value_type>
+{
+	// polymorphic_downcast okays casting NULL to NULL; as dynamic_cast for pointers does
+	MG_CHECK(dynamic_cast<DerivedPtr>(basePtr.get()) == basePtr.get());  // detect logic error
+	return static_cast<DerivedPtr>(basePtr.release());
+}
+
+template <typename DerivedPtr, typename Base>
+inline auto debug_cast(std::unique_ptr<Base> basePtr) -> std::unique_ptr<typename pointer_traits<DerivedPtr>::value_type>
+{
+	// polymorphic_downcast okays casting NULL to NULL; as dynamic_cast for pointers does
+	MG_CHECK(dynamic_cast<DerivedPtr>(basePtr.get()) == basePtr.get());  // detect logic error
+	return std::unique_ptr<typename pointer_traits<DerivedPtr>::value_type>( static_cast<DerivedPtr>(basePtr.release()) );
+}
+
 template <typename Derived, typename Base>
 inline std::shared_ptr<Derived> debug_pointer_cast(std::shared_ptr<Base> basePtr)
 {

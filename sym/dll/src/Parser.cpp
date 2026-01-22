@@ -104,12 +104,7 @@ LispRef GetExpr(FormattedInpStream& istr)
 
 FormattedInpStream& operator >>(FormattedInpStream& is, LispRef& expr)
 {
-	DBG_START("Parser", "operator >>", true);
-
 	expr = GetExpr(is);
-
-	DBG_TRACE(("result = %s", AsString(expr).c_str()));
-
 	return is;
 }
 

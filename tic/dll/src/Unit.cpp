@@ -115,7 +115,7 @@ LispRef UnitBase<V>::GetKeyExprImpl() const
 	}
 
 #if defined(MG_DEBUG)
-	auto resultStr = AsString(result);
+	auto resultStr = AsString(result.AsLispPtr());
 #endif
 
 	// present as metric-less BaseUnit with a unique keyExpr.
@@ -160,14 +160,14 @@ LispRef UnitBase<V>::GetKeyExprImpl() const
 				);
 
 #if defined(MG_DEBUG)
-				auto resultStr2 = AsString(result);
+				auto resultStr2 = AsString(result.AsLispPtr());
 #endif
 			}
 		}
 	}
 
 #if defined(MG_DEBUG_LISP_TREE)
-	reportF(SeverityTypeID::ST_MinorTrace, "AbstrUnit::GetAsLispRef -> %s", AsString(result).c_str());
+	reportF(SeverityTypeID::ST_MinorTrace, "AbstrUnit::GetAsLispRef -> %s", AsString(result.AsLispPtr()).c_str());
 	dms_assert(IsExpr(result));
 #endif
 	// add range or tile spec to keyExpr
@@ -175,7 +175,7 @@ LispRef UnitBase<V>::GetKeyExprImpl() const
 		result = GetRangeDataAsLispRef(m_RangeDataPtr, GetTSF(TSF_Categorical), result); // enforce [expr(x) == expr(y)] => [range(x) == range(y)];
 
 #if defined(MG_DEBUG_LISP_TREE)
-	reportF(SeverityTypeID::ST_MinorTrace, "-> %s", AsString(result).c_str());
+	reportF(SeverityTypeID::ST_MinorTrace, "-> %s", AsString(result.AsLispPtr()).c_str());
 	dms_assert(IsExpr(result));
 #endif
 
@@ -705,7 +705,7 @@ void RangedUnit<V>::SetMetric(SharedPtr<const UnitMetric> m)
 static void MarkUnitChange(AbstrUnit* au) {
 	auto ts = UpdateMarker::GetActiveTS(MG_DEBUG_TS_SOURCE_CODE("SetRange"));
 	au->MarkTS(ts);
-	au->SetDC(nullptr);
+	au->SetDC({});
 }
 
 
@@ -1177,9 +1177,9 @@ row_id IndexableUnitAdapter<U>::GetDimSize(DimType dimNr) const
 }
 
 template <typename U> 
-AbstrValue* IndexableUnitAdapter<U>::CreateAbstrValueAtIndex(SizeT i) const
+auto IndexableUnitAdapter<U>::CreateAbstrValueAtIndex(SizeT i) const -> std::unique_ptr<AbstrValue>
 {
-	return new ValueWrap<typename U::value_t>(IsDefined(i) ? this->GetValueAtIndex(i) : UNDEFINED_OR_ZERO(typename U::value_t));
+	return std::make_unique<ValueWrap<typename U::value_t>>(IsDefined(i) ? this->GetValueAtIndex(i) : UNDEFINED_OR_ZERO(typename U::value_t));
 }
 
 

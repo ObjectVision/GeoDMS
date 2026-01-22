@@ -152,7 +152,7 @@ public:
 	TIC_CALL bool IsOrdinalAndZeroBased() const;
 	TIC_CALL row_id GetEstimatedCount() const;
 
-	virtual AbstrValue* CreateAbstrValueAtIndex(SizeT i) const;
+	virtual auto CreateAbstrValueAtIndex(SizeT i) const -> std::unique_ptr<AbstrValue>;
 	virtual SizeT GetIndexForAbstrValue(const AbstrValue&) const;
 
 // Support for ordinals
@@ -208,11 +208,11 @@ private:
 	void      UnifyError(const AbstrUnit* cu, CharPtr reason, CharPtr leftRole, CharPtr rightRole, UnifyMode um, SharedStr* resultMsg, bool isDomain) const;
 	SharedStr GetProjMetrString() const;
 
-	bool                  HasDataItemsAssoc() const { return m_DataItemsAssocPtr.has_ptr(); }
+	bool                  HasDataItemsAssoc() const { return m_DataItemsAssocPtr != nullptr; }
 	DataItemRefContainer& GetDataItemsAssoc() const;
 
 private:
-	mutable OwningPtr<DataItemRefContainer>    m_DataItemsAssocPtr;
+	mutable std::unique_ptr<DataItemRefContainer>    m_DataItemsAssocPtr;
 
 	DECL_ABSTR(TIC_CALL, Class)
 };
@@ -229,11 +229,15 @@ template <typename T> inline       AbstrUnit* AsCheckedUnit(      T* self) { ret
 template <typename T> inline const AbstrUnit* AsCertainUnit(const T* self) { return checked_valcast<const AbstrUnit*>(self); }
 template <typename T> inline       AbstrUnit* AsCertainUnit(      T* self) { return checked_valcast<      AbstrUnit*>(self); }
 
+template <typename T> inline       OwningPtr<AbstrUnit> AsUnit(OwningPtr<T> self) { return debug_cast<AbstrUnit*>(self.release()); }
+template <typename T> inline       SharedPtr<const AbstrUnit> AsUnit(const SharedPtr<const T>& self) { return MakeSharedFromBorrowedObjectPtr( debug_cast  <const AbstrUnit*>(self.get()) ); }
+
+
 template <typename T> inline bool IsUnit(const SharedPtr<T>& self) { return IsUnit(self.get()); }
 template <typename T> inline auto AsUnit(const SharedPtr<T>& self) { return MakeSharedFromBorrowedObjectPtr(AsUnit(self.get())); }
-template <typename T> inline auto AsDynamicUnit(const SharedPtr<T>& self) { return MakeShared(AsDynamicUnit(self.get())); }
-template <typename T> inline auto AsCheckedUnit(const SharedPtr<T>& self) { return MakeShared(AsCheckedUnit(self.get())); }
-template <typename T> inline auto AsCertainUnit(const SharedPtr<T>& self) { return MakeShared(AsCertainUnit(self.get())); }
+template <typename T> inline auto AsDynamicUnit(const SharedPtr<T>& self) { return MakeSharedFromBorrowedObjectPtr(AsDynamicUnit(self.get())); }
+template <typename T> inline auto AsCheckedUnit(const SharedPtr<T>& self) { return MakeSharedFromBorrowedObjectPtr(AsCheckedUnit(self.get())); }
+template <typename T> inline auto AsCertainUnit(const SharedPtr<T>& self) { return MakeSharedFromBorrowedObjectPtr(AsCertainUnit(self.get())); }
 
 
 #endif // !defined(__TIC_ABSTRUNIT_H)

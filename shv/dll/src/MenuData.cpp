@@ -12,8 +12,6 @@
 #include "Theme.h"
 
 #include "TreeItem.h"
-#include "utl/IncrementalLock.h"
-
 
 #include "GraphicObject.h"
 #include "AbstrCmd.h"
@@ -25,7 +23,7 @@ MenuItem::MenuItem(WeakStr caption)
 	: m_Caption(caption)
 {}
 
-MenuItem::MenuItem(WeakStr caption, OwningPtr<AbstrCmd> cmd, GraphicObject* host, UInt32 flags)
+MenuItem::MenuItem(WeakStr caption, std::unique_ptr<AbstrCmd> cmd, GraphicObject* host, UInt32 flags)
 	:	m_Caption(caption)
 	,	m_Cmd(std::move(cmd))
 	,	m_Host((m_Cmd && host) ? host->shared_from_this() : nullptr)
@@ -81,8 +79,8 @@ SubMenu::~SubMenu()
 		auto& subMenu = m_MenuDataRef.end()[-2];
 		auto& subMenuItem = m_MenuDataRef.back();
 
-		dms_assert(subMenu.m_Level < subMenuItem.m_Level);
-		dms_assert(subMenu.m_Cmd.is_null());
+		assert(subMenu.m_Level < subMenuItem.m_Level);
+		assert(!subMenu.m_Cmd);
 
 		subMenu.m_Caption = subMenu.m_Caption + ' ' + subMenuItem.m_Caption;
 		subMenu.m_Cmd = std::move(subMenuItem.m_Cmd);
@@ -124,7 +122,7 @@ void InsertItemRequests(MenuData& menuData, const TreeItem* item, GraphicObject*
 		menuData.push_back(
 			MenuItem(
 				item->GetFullName(),
-				new RequestClientCmd(item, CC_Activate), 
+				std::make_unique<RequestClientCmd>(item, CC_Activate),
 				host
 			) 
 		);

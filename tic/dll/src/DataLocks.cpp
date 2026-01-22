@@ -83,7 +83,7 @@ bool CheckCalculatingOrRangeKnown(const AbstrUnit* au)
 DataReadLockAtom::DataReadLockAtom(DataReadLockAtom&& rhs) noexcept
 	:	m_Item(std::move(rhs.m_Item))
 {
-	dms_assert(rhs.m_Item == 0);
+	assert(rhs.m_Item.is_null());
 	if (!m_Item)
 		return;
 
@@ -144,7 +144,7 @@ DataReadLockAtom::~DataReadLockAtom() noexcept
 		}
 	}
 
-	actor_section_lock_map::ScopedLock specificSectionLock(MG_SOURCE_INFO_CODE("DataReadLockAtom::dtor") sg_ActorLockMap, m_Item); // datalockcount 1->0 or drop of interest is 
+	actor_section_lock_map::ScopedLock specificSectionLock(MG_SOURCE_INFO_CODE("DataReadLockAtom::dtor") sg_ActorLockMap, m_Item.get()); // datalockcount 1->0 or drop of interest is 
 	dms_assert(m_Item->m_DataLockCount > 0);
 	{
 		leveled_std_section::scoped_lock globalDataLockCountLock(sg_CountSection);
@@ -339,7 +339,7 @@ TIC_CALL void DataWriteLock::Commit()
 
 	if (adi->mc_Calculator)
 	{
-		adi->SetDC(nullptr, nullptr);
+		adi->SetDC(DataControllerRef{}, nullptr);
 		adi->mc_Calculator.reset();
 		adi->SetExpr(SharedStr{});
 	}
@@ -363,7 +363,7 @@ TIC_CALL DataReadLock*  DMS_CONV DMS_DataReadLock_Create(const AbstrDataItem* se
 
 		if (self->PrepareDataUsage(mustUpdateCertain ? DrlType::Certain : DrlType::Suspendible))
 		{
-			OwningPtr<DataReadLock> result = new DataReadLock(self);
+			auto result = std::make_unique<DataReadLock>(self);
 			if (result->IsLocked())
 				return result.release();
 		}

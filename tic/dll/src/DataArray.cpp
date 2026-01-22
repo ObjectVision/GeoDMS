@@ -475,7 +475,7 @@ const ValueClass* DataArrayBase<V>::GetValueClass() const
 }
 
 template <class V>
-AbstrValue* DataArrayBase<V>::CreateAbstrValue() const
+auto DataArrayBase<V>::CreateAbstrValue() const -> std::unique_ptr<AbstrValue>
 {
 	return GetValueClass()->CreateValue();
 }

@@ -649,7 +649,7 @@ XML_hRef::XML_hRef(OutStreamBase& xmlStream, CharPtrRange url)
 XML_DataBracket::XML_DataBracket(OutStreamBase& xmlStream) : m_Stream(xmlStream)
 {
 	if (xmlStream.GetSyntaxType() != OutStreamBase::ST_DMS)
-		m_DataElement.assign(new XML_OutElement(xmlStream, "DATA", ""));
+		m_DataElement.reset(new XML_OutElement(xmlStream, "DATA", ""));
 	else
 		m_Stream << "[";
 }
@@ -665,15 +665,15 @@ XML_DataBracket::~XML_DataBracket()
 // C-Style interface 
 //----------------------------------------------------------------------
 
-RTC_CALL struct OutStreamBase*
-DMS_CONV XML_OutStream_Create(OutStreamBuff* out, OutStreamBase::SyntaxType st, CharPtr docType, const AbstrPropDef* primaryPropDef)
+RTC_CALL auto
+DMS_CONV XML_OutStream_Create(OutStreamBuff* out, OutStreamBase::SyntaxType st, CharPtr docType, const AbstrPropDef* primaryPropDef) -> std::unique_ptr<OutStreamBase>
 {
 	DMS_CALL_BEGIN
 		switch (st)
 		{
-			case OutStreamBase::ST_XML: return new OutStream_XML(out, docType, primaryPropDef);
-			case OutStreamBase::ST_HTM: return new OutStream_HTM(out, docType, primaryPropDef);
-			case OutStreamBase::ST_DMS: return new OutStream_DMS(out, primaryPropDef);
+			case OutStreamBase::ST_XML: return std::make_unique<OutStream_XML>(out, docType, primaryPropDef);
+			case OutStreamBase::ST_HTM: return std::make_unique<OutStream_HTM>(out, docType, primaryPropDef);
+			case OutStreamBase::ST_DMS: return std::make_unique<OutStream_DMS>(out, primaryPropDef);
 		}
 	DMS_CALL_END
 	return nullptr;

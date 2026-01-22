@@ -773,9 +773,9 @@ struct regions_info_base : regions_meta_base
 	land_unit_id m_N = 0;
 	mutable SizeT m_StepSize = 1, m_CurrBase = 0, m_PrevStep = 0, m_CurrPI = 0;
 
-	DataReadLock                   m_AtomicRegionLock;
-	std::vector<UInt32>            m_AtomicRegionSizes; // 1 per atomic_region containing the number of cells (sums to n)
-	mutable OwningPtr<bi_graph>    m_Ar2Ur;             // bi_graph that represents AR -> UR relation
+	DataReadLock                      m_AtomicRegionLock;
+	std::vector<UInt32>               m_AtomicRegionSizes; // 1 per atomic_region containing the number of cells (sums to n)
+	mutable std::unique_ptr<bi_graph> m_Ar2Ur;             // bi_graph that represents AR -> UR relation
 };
 
 struct regions_meta_t : regions_meta_base
@@ -1031,7 +1031,7 @@ const bi_graph& GetAr2UrBiGraph(const regions_info_t<AR>* self)
 	UInt32 nrUniqueRegions = self->GetNrUniqueRegions();
 	UInt32 P = self->GetNrPartitionings();
 
-	self->m_Ar2Ur.assign( new bi_graph(nrAtomicRegions, nrUniqueRegions, P * nrAtomicRegions) );
+	self->m_Ar2Ur.reset(new bi_graph(nrAtomicRegions, nrUniqueRegions, P * nrAtomicRegions));
 	bi_graph& gr = *(self->m_Ar2Ur);
 
 	// fill graph with links(atomicRegionID, unique region id)

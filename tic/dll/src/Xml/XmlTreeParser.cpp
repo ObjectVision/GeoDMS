@@ -175,9 +175,9 @@ bool XmlTreeParser::ReadElemCallback(XmlElement& element)
 	}
 	else if (thisItem)
 	{
-		dms_assert(thisItem == m_CurrItem);
+		assert(thisItem == m_CurrItem);
 		// Pop m_CurrItem if curr element is related to item.
-		dms_assert(parentItem == m_CurrItem->GetTreeParent());
+		assert(parentItem == m_CurrItem->GetTreeParent().get());
 		if (parentItem) // don't loose the root
 			m_CurrItem = parentItem;
 	}

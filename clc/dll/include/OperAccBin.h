@@ -242,12 +242,12 @@ struct OperAccPartBin : AbstrOperAccPartBin
 
 			assert(arg1Data.size() == arg2Data.size());
 
-			OwningPtr<IndexGetter> indexGetter = IndexGetterCreator::Create(arg3A, t);
+			auto indexGetter = std::unique_ptr<IndexGetter>( IndexGetterCreator::Create(arg3A, t) );
 	
 			m_Acc2Func(
 				AccumulationSeq( &resBuffer ) // explicit constructor
 			,	arg1Data, arg2Data
-			,	indexGetter
+			,	indexGetter.get()
 			);
 		}
 		using buffered_assigner_functor = assign_partial_output_from_buffer<assign_output_direct<ResultValueType>>;

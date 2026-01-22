@@ -29,7 +29,7 @@ void AspectGroupMenuFunc(GraphicLayer* layer, AspectGroup ag, MenuData& menuData
 	if (ag != AG_Other)
 	{
 		bool isDisabled = layer->IsDisabledAspectGroup(ag);
-		menuData.push_back( MenuItem(SharedStr("Visible"), new SubLayerCmd(ag, isDisabled), layer, isDisabled ? 0 : MF_CHECKED) );
+		menuData.push_back( MenuItem(SharedStr("Visible"), std::make_unique<SubLayerCmd>(ag, isDisabled), layer, isDisabled ? 0 : MF_CHECKED) );
 	}
 
 	for (AspectNr a = AN_First; a != AN_AspectCount; ++reinterpret_cast<UInt32&>(a))
@@ -37,12 +37,12 @@ void AspectGroupMenuFunc(GraphicLayer* layer, AspectGroup ag, MenuData& menuData
 		{
 			auto theme = layer->GetTheme(a);
 
-			AbstrCmd* themeCmd = 0;
+			std::unique_ptr<AbstrCmd> themeCmd;
 			UInt32    flags = 0;
 
 			if (theme)
 			{
-				themeCmd = new ThemeCmd(
+				themeCmd = std::make_unique<ThemeCmd>(
 					theme->IsDisabled() 
 					?	&Theme::Enable
 					:	&Theme::Disable,
@@ -53,7 +53,7 @@ void AspectGroupMenuFunc(GraphicLayer* layer, AspectGroup ag, MenuData& menuData
 			}
 			else 
 				flags = MFS_GRAYED;
-			menuData.push_back( MenuItem(SharedStr(AspectArray[a].name), themeCmd, layer, flags) );
+			menuData.push_back( MenuItem(SharedStr(AspectArray[a].name), std::move(themeCmd), layer, flags) );
 		}
 }
 

@@ -159,7 +159,7 @@ void FillFontMenu(MenuData& md, LayerControlBase* self)
 		md.push_back(
 			MenuItem(
 				SharedStr(GetDefaultFontName(FontSizeCategory(i))),
-				new SetFontCmd(FontSizeCategory(i)),
+				std::make_unique<SetFontCmd>(FontSizeCategory(i)),
 				self,
 				(FontSizeCategory(i) == self->GetFontSizeCategory()) ? MFS_CHECKED : 0
 			)

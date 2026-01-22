@@ -251,11 +251,15 @@ SharedStr operator + (CharPtrRange lhs, CharPtrRange rhs)
 
 SharedStr operator + (CharPtr lhs, WeakStr rhs)
 {
-	if (!lhs) return SharedStr(Undefined() );
-	if (!rhs.IsDefined()) return rhs;
+	if (!lhs) 
+		return SharedStr(Undefined() );
+	if (!rhs.IsDefined()) 
+		return rhs;
 
-	if (!*lhs)       return rhs;
-	if (rhs.empty()) return SharedStr(lhs MG_DEBUG_ALLOCATOR_SRC("operator +"));
+	if (!*lhs)       
+		return rhs;
+	if (rhs.empty()) 
+		return SharedStr(lhs MG_DEBUG_ALLOCATOR_SRC("operator +"));
 
 	assert(rhs.ssize());
 
@@ -288,10 +292,11 @@ SharedStr operator + (WeakStr lhs, CharPtr rhs)
 	return resultStr;
 }
 
-/*
+
 SharedStr operator + (CharPtrRange lhs, Char ch)
 {
-	if (!lhs.IsDefined()) return SharedStr(lhs); // Undefined
+	if (!lhs.IsDefined()) 
+		return SharedStr(lhs); // Undefined
 
 	SharedCharArray* result = SharedCharArray::CreateUninitialized(lhs.size() + 2 MG_DEBUG_ALLOCATOR_SRC("operator +"));
 	SharedStr resultStr(result);
@@ -316,7 +321,7 @@ SharedStr operator + (Char ch, CharPtrRange rhs)
 	*resPtr = char(0);
 	return resultStr;
 }
-*/
+
 
 //----------------------------------------------------------------------
 // Section      : helper funcs

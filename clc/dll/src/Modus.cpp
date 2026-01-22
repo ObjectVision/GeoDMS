@@ -325,7 +325,7 @@ void ModusPartByTable(const AbstrDataItem* indicesItem, future_tile_array<V> val
 		auto valuesIter = values.begin(),
 		     valuesEnd  = values.end();
 
-		OwningPtr<IndexGetter> indexGetter = IndexGetterCreator::Create(indicesItem, part_afta[t]); part_afta[t] = nullptr;
+		auto indexGetter = std::unique_ptr<IndexGetter>( IndexGetterCreator::Create(indicesItem, part_afta[t])); part_afta[t] = nullptr;
 		SizeT i=0;
 
 		for (; valuesIter != valuesEnd; ++i, ++valuesIter)
@@ -366,7 +366,7 @@ void WeightedModusTotBySet(const DataArray<V>* valuesTF, const AbstrDataItem* we
 	{
 		auto valuesLock  = valuesTF->GetLockedDataRead(t);
 		auto valuesIter  = valuesLock.begin(), valuesEnd   = valuesLock.end();
-		OwningPtr<AbstrValueGetter<Float64>> weightsGetter = WeightGetterCreator::Create(weightItem, t);
+		auto weightsGetter = std::unique_ptr<AbstrValueGetter<Float64>>( WeightGetterCreator::Create(weightItem, t) );
 
 		SizeT weightsIter = 0;
 		for (; valuesIter != valuesEnd; ++weightsIter, ++valuesIter)
@@ -395,7 +395,7 @@ void WeightedModusTotByTable(const DataArray<V>* valuesTF, const AbstrDataItem* 
 		auto valuesLock  = valuesTF->GetLockedDataRead(t);
 		auto valuesIter  = valuesLock.begin(),
 		     valuesEnd   = valuesLock.end();
-		OwningPtr<AbstrValueGetter<Float64>> weightsGetter = WeightGetterCreator(weightItem, t).Create();
+		auto weightsGetter = std::unique_ptr<AbstrValueGetter<Float64>>( WeightGetterCreator(weightItem, t).Create() );
 
 		SizeT weightIter  = 0;
 
@@ -475,8 +475,8 @@ void WeightedModusPartBySet(const DataArray<V>* valuesTF, const AbstrDataItem* w
 		auto valuesIter  = valuesLock.begin(),
 			 valuesEnd   = valuesLock.end();
 
-		OwningPtr<IndexGetter> indexGetter = IndexGetterCreator::Create(indicesItem, t);
-		OwningPtr<AbstrValueGetter<Float64>> weightsGetter = WeightGetterCreator::Create(weightItem, t);
+		auto indexGetter = std::unique_ptr<IndexGetter>( IndexGetterCreator::Create(indicesItem, t) );
+		auto weightsGetter = std::unique_ptr<AbstrValueGetter<Float64>>( WeightGetterCreator::Create(weightItem, t) );
 
 		SizeT i=0;
 		for (; valuesIter != valuesEnd; ++i, ++valuesIter)
@@ -529,8 +529,8 @@ void WeightedModusPartByTable(const DataArray<V>* valuesTF, const AbstrDataItem*
 		auto valuesIter  = valuesLock.begin(),
 		     valuesEnd   = valuesLock.end();
 
-		OwningPtr<IndexGetter> indexGetter = IndexGetterCreator::Create(indicesItem, t);
-		OwningPtr<AbstrValueGetter<Float64>> weightsGetter = WeightGetterCreator::Create(weightItem, t);
+		auto indexGetter = std::unique_ptr<IndexGetter>( IndexGetterCreator::Create(indicesItem, t) );
+		auto weightsGetter = std::unique_ptr<AbstrValueGetter<Float64>>( WeightGetterCreator::Create(weightItem, t) );
 
 		SizeT weightIter = 0;
 		Float64 weight;

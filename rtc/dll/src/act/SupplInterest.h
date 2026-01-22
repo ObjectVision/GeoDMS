@@ -50,31 +50,35 @@ Ptr release_ptr(Ptr& p)
 
 struct SupplInterestListElem;
 
-struct SupplInterestListPtr: private OwningPtr<SupplInterestListElem>
+struct SupplInterestListPtr: private std::unique_ptr<SupplInterestListElem>
 {
+	using base_type = std::unique_ptr<SupplInterestListElem>;
 	SupplInterestListPtr() noexcept
 	{}
 
 	SupplInterestListPtr(SupplInterestListPtr&& rhs) noexcept
-		:	OwningPtr(std::move(rhs))
+		: base_type(std::move(rhs))
 	{}
 
 	RTC_CALL ~SupplInterestListPtr() noexcept;
 
 	void init(SupplInterestListElem* ptr)
 	{
-		OwningPtr::init(ptr);
+		base_type::reset(ptr);
 	}
 
 	void operator =(SupplInterestListElem* ptr)
 	{
-		assert(ptr != get_ptr());
-		OwningPtr<SupplInterestListElem> src = release();
-		OwningPtr::init(ptr);
+		assert(ptr != get());
+		base_type src = std::move(*this);
+		assert(get() == nullptr);
+		base_type::reset(ptr);
 	}
 
-	using OwningPtr::release;
-	operator SupplInterestListElem* () const noexcept { return get_ptr(); }
+	using base_type::release;
+	using base_type::operator bool;
+
+	operator SupplInterestListElem* () const noexcept { return get(); }
 };
 
 struct SupplInterestListElem

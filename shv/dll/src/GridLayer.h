@@ -82,9 +82,9 @@ private:
 	void CreateSelCaretInfo () const;
 	IRect CalcSelectedGeoRect()  const;
 
-	mutable SharedPtr<const AbstrUnit> m_GeoCoordUnit;
-	mutable SelCaretPtr                m_SelCaret;
-	mutable OwningPtr<PasteHandler>    m_PasteHandler;
+	mutable SharedPtr<const AbstrUnit>    m_GeoCoordUnit;
+	mutable SelCaretPtr                   m_SelCaret;
+	mutable std::unique_ptr<PasteHandler> m_PasteHandler;
 
 	DECL_RTTI(SHV_CALL, LayerClass);
 };

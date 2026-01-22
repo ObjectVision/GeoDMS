@@ -330,7 +330,7 @@ public:
 			const AbstrUnit* argDU = argA->GetAbstrDomainUnit();
 
 			DataReadLock argLock(argA);
-			const ArgType* arg = debug_cast<const ArgType*>(argA->GetCurrRefObj());
+			const ArgType* arg = debug_cast<const ArgType*>(argA->GetCurrRefObj().get());
 			for (tile_id t = 0, tn = argDU->GetNrTiles(); t != tn; ++t)
 			{
 				auto argData = arg->GetLockedDataRead(t);

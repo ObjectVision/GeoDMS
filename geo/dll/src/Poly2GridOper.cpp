@@ -521,7 +521,7 @@ namespace poly2grid
 			,	m_RasterTileId(tg)
 			,	m_ViewPortInfo(polyAttr, resDomain, tg, AsUnit(polyAttr->GetAbstrValuesUnit()->GetCurrRangeItem()), no_tile, nullptr, false, false, countcolor_t(-1), false)
 		{
-			m_SequenceGetter = CreateSequenceGetter(m_PolyAttr->GetAbstrValuesUnit());
+			m_SequenceGetter.reset( CreateSequenceGetter(m_PolyAttr->GetAbstrValuesUnit()) );
 		}
 
 
@@ -533,7 +533,7 @@ namespace poly2grid
 		// tile and sub-tile dependent
 		ViewPortInfoEx<Int32>          m_ViewPortInfo;
 		tile_id                        m_RasterTileId;
-		OwningPtr<AbstrSequenceGetter> m_SequenceGetter;
+		std::unique_ptr<AbstrSequenceGetter> m_SequenceGetter;
 
 		// Template over domain E: map polygon domain indices to burn values and write into raster tile.
 		template <typename E>
@@ -664,7 +664,7 @@ namespace poly2grid
 			auto rleInfo = RLE_Info<scalar_of_t<RT>>(Convert<RasterSizeType>(size));
 
 			// Per-tile sequence getter.
-			OwningPtr<AbstrSequenceGetter> sg = CreateSequenceGetter(m_PolyAttr->GetAbstrValuesUnit());
+			auto sg = std::unique_ptr<AbstrSequenceGetter>( CreateSequenceGetter(m_PolyAttr->GetAbstrValuesUnit()) );
 			assert(sg);
 			sg->OpenTile(polyData, tp);
 

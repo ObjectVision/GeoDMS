@@ -134,7 +134,7 @@ MetaInfo DataBlockTask::GetMetaInfo() const
 	,	domainUnit->GetCheckedKeyExpr()
 	,	valuesUnit->GetCheckedKeyExpr()
 	,	m_DataBlock
-	);
+	).AsLispPtr();
 }
 
 

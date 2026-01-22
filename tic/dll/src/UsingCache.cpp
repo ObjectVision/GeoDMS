@@ -433,7 +433,7 @@ auto UsingCache::FindItem(TokenID itemID) const -> SharedTreeItem
 	std::vector<const TreeItem*>::const_iterator
 		result = std::lower_bound(m_SortedItemCache.begin(), m_SortedItemCache.end(), itemID, cmp);
 	if (result == m_SortedItemCache.end() || cmp(itemID, *result))
-		return nullptr;
+		return {};
 	return *result;
 }
 

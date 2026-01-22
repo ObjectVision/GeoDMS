@@ -234,14 +234,14 @@ void ScalableObject::FillLcMenu(MenuData& menuData)
 		bool isNearBack  = isBack  || (n < 2) || (ls->GetEntry(1) == this);
 
 
-		menuData.push_back( MenuItem(SharedStr("to &Top"   ), new LayerShuffleCmd(this, ElemShuffleCmd::ToFront ), ls.get(), isFront     ? MFS_GRAYED : 0 ) );
-		menuData.push_back( MenuItem(SharedStr("to &Bottom"), new LayerShuffleCmd(this, ElemShuffleCmd::ToBack  ), ls.get(), isBack      ? MFS_GRAYED : 0 ) );
-		menuData.push_back( MenuItem(SharedStr("&Up"       ), new LayerShuffleCmd(this, ElemShuffleCmd::Forward ), ls.get(), isNearFront ? MFS_GRAYED : 0 ) );
-		menuData.push_back( MenuItem(SharedStr("&Down"     ), new LayerShuffleCmd(this, ElemShuffleCmd::Backward), ls.get(), isNearBack  ? MFS_GRAYED : 0 ) );
+		menuData.push_back( MenuItem(SharedStr("to &Top"   ), std::make_unique<LayerShuffleCmd>(this, ElemShuffleCmd::ToFront ), ls.get(), isFront     ? MFS_GRAYED : 0 ) );
+		menuData.push_back( MenuItem(SharedStr("to &Bottom"), std::make_unique<LayerShuffleCmd>(this, ElemShuffleCmd::ToBack  ), ls.get(), isBack      ? MFS_GRAYED : 0 ) );
+		menuData.push_back( MenuItem(SharedStr("&Up"       ), std::make_unique<LayerShuffleCmd>(this, ElemShuffleCmd::Forward ), ls.get(), isNearFront ? MFS_GRAYED : 0 ) );
+		menuData.push_back( MenuItem(SharedStr("&Down"     ), std::make_unique<LayerShuffleCmd>(this, ElemShuffleCmd::Backward), ls.get(), isNearBack  ? MFS_GRAYED : 0 ) );
 	}
 
 //	Remove Layer
-	menuData.push_back( MenuItem(SharedStr("&Remove Layer"), new LayerShuffleCmd(this, ElemShuffleCmd::Remove), ls.get() ));
+	menuData.push_back( MenuItem(SharedStr("&Remove Layer"), std::make_unique<LayerShuffleCmd>(this, ElemShuffleCmd::Remove), ls.get() ));
 }
 
 IMPL_ABSTR_CLASS(ScalableObject)

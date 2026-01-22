@@ -338,7 +338,7 @@ void ProcessNameValue(TreeItem* context, WeakStr name, WeakStr value)
 	SharedStr decodedValue = UrlDecode(value);
 	DataWriteLock dwl(adi, dms_rw_mode::write_only_mustzero);
 
-	OwningPtr<AbstrValue> av = dwl->CreateAbstrValue();
+	auto av = dwl->CreateAbstrValue();
 
 	av->AssignFromCharPtrs(decodedValue.begin(), decodedValue.send());
 	dwl->SetAbstrValue(0, *av);

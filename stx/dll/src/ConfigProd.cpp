@@ -304,7 +304,7 @@ void ConfigProd::CreateContainer(TokenID nameID)
 		throwDmsErrD("Illegal domain-unit at container definition");
 
 	auto contextItem = GetContextOrRootItem(nameID);
-	m_pCurrent = contextItem->CreateItem(nameID);
+	m_pCurrent = contextItem->CreateItem(nameID).release();
 }
 
 void ConfigProd::CreateTemplate(TokenID nameID)
@@ -334,7 +334,7 @@ void ConfigProd::CreateUnit(TokenID nameID)
 
 	const UnitClass* uc = UnitClass::Find(m_eValueClass);
 	dms_assert(m_eValueClass);
-	m_pCurrent = uc->CreateUnit(contextItem, nameID);
+	m_pCurrent = uc->CreateUnit(contextItem, nameID).release();
 	assert(m_pCurrent);
 }
 

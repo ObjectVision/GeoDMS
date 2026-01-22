@@ -102,7 +102,7 @@ public:
 
 //	Data Access
 	TIC_CALL virtual auto CreateReadableTileData(tile_id t) const ->AbstrReadableTileData * = 0;
-	TIC_CALL virtual auto CreateAbstrValue() const ->AbstrValue * = 0;
+	TIC_CALL virtual auto CreateAbstrValue() const -> std::unique_ptr<AbstrValue> = 0;
 	TIC_CALL virtual auto GetValueClass() const -> const ValueClass * = 0;
 
 	TIC_CALL virtual auto GetDataReadBegin (tile_id = no_tile) const ->data_read_begin_handle =0;
@@ -224,7 +224,13 @@ auto const_array_cast(const AbstrDataObject* ptr) -> const TileFunctor<V>*
 	return debug_valcast<const TileFunctor<V>*>(ptr);
 }
 
-template<typename V> 
+template<typename V>
+auto const_array_cast(const SharedPtr<const AbstrDataObject>& ptr) -> const TileFunctor<V>*
+{
+	return const_array_cast<V>(ptr.get());
+}
+
+template<typename V>
 auto const_opt_array_cast(const AbstrDataObject* ptr) -> const TileFunctor<V>*
 {
 	return (ptr != nullptr) ? const_array_cast<V>(ptr) : nullptr;

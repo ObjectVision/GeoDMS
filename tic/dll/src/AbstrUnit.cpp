@@ -131,7 +131,7 @@ inline DataItemRefContainer& AbstrUnit::GetDataItemsAssoc() const
 {
 	leveled_std_section::scoped_lock lock(s_DataItemRefContainer);
 	if (!HasDataItemsAssoc())
-		m_DataItemsAssocPtr.assign(new DataItemRefContainer);
+		m_DataItemsAssocPtr.reset(new DataItemRefContainer);
 	return *m_DataItemsAssocPtr;
 }
 
@@ -144,7 +144,7 @@ UInt32 AbstrUnit::GetNrDataItemsOut() const
 {
 	if (HasDataItemsAssoc())
 	{
-		DataItemRefContainer* rc = m_DataItemsAssocPtr;
+		DataItemRefContainer* rc = m_DataItemsAssocPtr.get();
 		if (rc)
 			return rc->size();
 	}
@@ -165,7 +165,7 @@ void AbstrUnit::AddDataItemOut(const AbstrDataItem* item) const
 
 void AbstrUnit::DelDataItemOut(const AbstrDataItem* item) const
 {
-	DataItemRefContainer* rc = m_DataItemsAssocPtr;
+	DataItemRefContainer* rc = m_DataItemsAssocPtr.get();
 //	dms_assert(rc); // once added, it must have an assoc
 	if (rc)
 		rc->Del(item);
@@ -174,7 +174,7 @@ void AbstrUnit::DelDataItemOut(const AbstrDataItem* item) const
 #if defined(MG_DEBUG)
 bool AbstrUnit::HasDataItemOut(const AbstrDataItem* item) const
 {
-	DataItemRefContainer* rc = m_DataItemsAssocPtr;
+	DataItemRefContainer* rc = m_DataItemsAssocPtr.get();
 	if (rc)
 		return rc->Has(item);
 
@@ -878,7 +878,7 @@ void CheckNrTiles(SizeT nrTiles)
 		); 
 }
 
-AbstrValue* AbstrUnit::CreateAbstrValueAtIndex(SizeT i) const
+auto AbstrUnit::CreateAbstrValueAtIndex(SizeT i) const -> std::unique_ptr<AbstrValue>
 {
 	throwIllegalAbstract(MG_POS, this, "CreateAbstrValueAtIndex"); 
 }

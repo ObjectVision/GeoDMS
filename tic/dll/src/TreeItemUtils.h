@@ -54,7 +54,7 @@ TIC_CALL bool HasVisibleSubItems(const TreeItem* refItem) noexcept;
 
 TIC_CALL TreeItem* CheckedAs(TreeItem* self, const Class* requiredClass);
 
-TIC_CALL TreeItem* CreateAndInitItem(TreeItem* self, TokenID id, const Class* requiredClass);
+TIC_CALL auto CreateAndInitItem(TreeItem* self, TokenID id, const Class* requiredClass) -> OwningPtr<TreeItem>;
 
 TIC_CALL NotificationCode NotificationCodeFromProblem(FailType ft);
 

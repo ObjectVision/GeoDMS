@@ -547,7 +547,7 @@ namespace SuspendTrigger {
 		:	SilentBlocker(blockingAction)
 	{
 		if (!IsMultiThreaded2() && IsMetaThread())
-			m_InterestGate.assign(new DemandManagement::IncInterestGate);
+			m_InterestGate.reset( new DemandManagement::IncInterestGate );
 	}
 
 	SilentBlockerGate::~SilentBlockerGate()
@@ -557,7 +557,7 @@ namespace SuspendTrigger {
 		: SilentBlocker(blockingAction)
 	{ 
 		if (!InterestRetainContextBase::IsActive() && !IsMultiThreaded2() && IsMetaThread())
-			m_InterestFence.assign(new DemandManagement::IncInterestFence );
+			m_InterestFence.reset(new DemandManagement::IncInterestFence );
 	}
 
 	FencedBlocker::~FencedBlocker()

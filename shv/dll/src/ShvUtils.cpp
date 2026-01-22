@@ -729,7 +729,7 @@ static TokenID paletteDomainID = GetTokenID_st("PaletteDomain");
 
 SharedMutableUnitInterestPtr CreatePaletteDomain(TreeItem* themeContainer, SizeT n)
 {
-	SharedMutableUnit paletteDomain = Unit<UInt8>::GetStaticClass()->CreateUnit(themeContainer, paletteDomainID);
+	SharedMutableUnit paletteDomain = Unit<UInt8>::GetStaticClass()->CreateUnit(themeContainer, paletteDomainID).release();
 	ItemWriteLock  xx(paletteDomain.get_ptr());
 	if (!paletteDomain->GetTSF(USF_HasConfigRange))
 	{

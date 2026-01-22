@@ -150,12 +150,12 @@ FuncDC::FuncDC(LispPtr keyExpr,	const AbstrOperGroup* og)
 //		m_State.Set(DCF_IsTmp);
 
 	// for each subexpr in keyExpr do add arg
-	OwningPtr<DcRefListElem>* nextArgPtr = &m_Args;
+	std::unique_ptr<DcRefListElem>* nextArgPtr = &m_Args;
 	for (LispPtr tailPtr = keyExpr.Right(); !tailPtr.EndP(); tailPtr = tailPtr.Right()) 
 	{
 		DBG_TRACE(("arg = %s", AsFLispSharedStr(tailPtr->Left(), FormattingFlags::ThousandSeparator).c_str()));
 		DcRefListElem* dcRef = new DcRefListElem;
-		nextArgPtr->assign(dcRef);
+		nextArgPtr->reset(dcRef);
 		MG_CHECK(tailPtr->IsOwned());
 		MG_CHECK(tailPtr->Left());
 		MG_CHECK(tailPtr->Left()->IsOwned());
@@ -483,7 +483,7 @@ const Operator* FuncDC::GetOperator() const
 			ThrowFail();
 
 		arg_index argCount = 0;
-		for (const DcRefListElem* argIter = m_Args; argIter; argIter = argIter->m_Next, ++argCount)
+		for (const DcRefListElem* argIter = m_Args.get(); argIter; argIter = argIter->m_Next.get(), ++argCount)
 		{
 			const DataController* argDC = argIter->m_DC;
 			if (argDC->WasFailed(FailType::MetaInfo))
@@ -533,7 +533,7 @@ OArgRefs FuncDC::GetArgs(bool doUpdateMetaInfo, bool doCalcData) const
 	ArgRefs argSeq; argSeq.reserve(GetNrArgs());
 
 	SharedStr firstArgValue; // may be filled with first arg value that encoded the role of consecutive arguments for OperatorGroups with Dyanmic Arguments
-	for (const DcRefListElem* argIter = m_Args; argIter; ++currArg, argIter = argIter->m_Next) 
+	for (const DcRefListElem* argIter = m_Args.get(); argIter; ++currArg, argIter = argIter->m_Next.get()) 
 	{
 		assert(argIter->m_DC); // DcRefListElem invariant
 
@@ -817,9 +817,9 @@ void FuncDC::CallCalcResultImpl(std::shared_ptr<Explain::Context> context) const
 
 ActorVisitState FuncDC::VisitSuppliers(SupplierVisitFlag svf, const ActorVisitor& visitor) const
 {
-	DcRefListElem* dcRefElem = m_Args.get_ptr(); // points to currently uniquely owned DcRefListElem
+	DcRefListElem* dcRefElem = m_Args.get(); // points to currently uniquely owned DcRefListElem
 	SharedStr firstArgValue;  // may be filled with first arg value that encoded the role of consecutive arguments for OperatorGroups with Dyanmic Arguments
-	for (arg_index argNr = 0; dcRefElem; dcRefElem = dcRefElem->m_Next, ++argNr)
+	for (arg_index argNr = 0; dcRefElem; dcRefElem = dcRefElem->m_Next.get(), ++argNr)
 	{
 		auto firstArgValueCPtr = firstArgValue.cbegin();
 		assert(m_OperatorGroup);

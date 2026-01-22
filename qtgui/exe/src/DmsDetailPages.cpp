@@ -182,7 +182,7 @@ auto htmlEncodeTextDoc(CharPtr str) -> SharedStr
 
     auto xmlOut = XML_OutStream_Create(&outBuff, OutStreamBase::SyntaxType::ST_HTM, "", nullptr);
 
-    XML_OutStream_WriteText(xmlOut, str);
+    XML_OutStream_WriteText(xmlOut.get(), str);
 
     outBuff.OutStreamBuff::WriteBytes("</PRE></BODY></HTML>");
     return SharedStr(CharPtrRange(outBuff.GetData(), outBuff.GetDataEnd()));
@@ -301,7 +301,7 @@ void DmsDetailPages::drawPageImpl()
     // stream general info for current_item to htm
     VectorOutStreamBuff buffer;
     auto streamType = m_active_detail_page == ActiveDetailPage::CONFIGURATION ? OutStreamBase::ST_DMS : OutStreamBase::ST_HTM;
-    auto xmlOut = std::unique_ptr<OutStreamBase>(XML_OutStream_Create(&buffer, streamType, "", calcRulePropDefPtr));
+    auto xmlOut = XML_OutStream_Create(&buffer, streamType, "", calcRulePropDefPtr);
     bool result = true;
     bool showAll = true;
     main_window->hideDetailPagesRadioButtonWidgets(true, true);

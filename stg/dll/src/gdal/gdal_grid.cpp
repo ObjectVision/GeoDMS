@@ -474,7 +474,7 @@ bool GdalGridSM::ReadUnitRange(const StorageMetaInfo& smi) const
 
 bool GdalGridSM::WriteUnitRange(StorageMetaInfoPtr&& smi)
 {
-	return smi->CurrRU() == smi->StorageHolder();
+	return smi->CurrRU().get() == smi->StorageHolder();
 }
 
 prop_tables GdalGridSM::GetPropTables(const TreeItem* storageHolder, TreeItem* curr) const

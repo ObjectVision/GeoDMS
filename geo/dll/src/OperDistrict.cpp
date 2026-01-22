@@ -75,11 +75,11 @@ struct DistrictOperator : public UnaryOperator
 		if (mustCalc)
 		{
 			DataReadLock arg1Lock(inputGridA);
-			const ArgType* inputGrid = debug_cast<const ArgType*>(inputGridA->GetCurrRefObj());
+			const ArgType* inputGrid = debug_cast<const ArgType*>(inputGridA->GetCurrRefObj().get());
 			assert(inputGrid);
 
 			auto resLockUnique = CreateHeapTileArrayV<district_type>(inputGrid->GetTiledRangeData(), nullptr, false MG_DEBUG_ALLOCATOR_SRC("OperDistrict: resLock"));
-			auto resLock = MakeShared(resLockUnique.release());
+			auto resLock = MakeSharedForNewlyCreatedObject(resLockUnique.release());
 
 			district_type nrDistricts = 0;
 
@@ -99,8 +99,8 @@ struct DistrictOperator : public UnaryOperator
 
 				nrDistricts = Districting(input, output, this->m_Use8Neighbours);
 			}
-			ResultUnitType* resultUnit = debug_cast<ResultUnitType*>(resUnit);
-			dms_assert(resultUnit);
+			auto resultUnit = debug_cast<ResultUnitType*>(std::move(resUnit));
+			assert(resultUnit);
 			resultUnit->SetRange(Unit<R>::range_t(0, nrDistricts));
 
 			resLock->InitValueRangeData( resultUnit->m_RangeDataPtr );
@@ -157,7 +157,7 @@ public:
 
 		if (mustCalc)
 		{
-			const Arg1Type* inputGrid = debug_cast<const Arg1Type*>(inputGridA->GetCurrRefObj());
+			const Arg1Type* inputGrid = debug_cast<const Arg1Type*>(inputGridA->GetCurrRefObj().get());
 			assert(inputGrid);
 
 			DataReadLock arg1Lock(inputGridA);

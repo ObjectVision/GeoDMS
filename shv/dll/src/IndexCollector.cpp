@@ -35,7 +35,7 @@ namespace {
 SharedPtr<IndexCollector> IndexCollector::Create(index_collector_key key)
 {
 	if  (!key.first && !key.second)
-		return 0;
+		return {};
 	IndexCollector*& ref = s_IndexCollectorMap[key];
 	if (!ref)
 		ref = new IndexCollector(key);
@@ -45,7 +45,7 @@ SharedPtr<IndexCollector> IndexCollector::Create(index_collector_key key)
 SharedPtr<IndexCollector> IndexCollector::Create(const Theme* featureTheme)
 {
 	if  (!featureTheme)
-		return nullptr;
+		return {};
 	return Create(index_collector_key(featureTheme->GetClassification(), featureTheme->GetThemeAttr()));
 }
 

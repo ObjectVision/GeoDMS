@@ -409,8 +409,8 @@ struct NthElementPart: AbstrPthElementPart<I>
 		for (tile_id t=0, te=argVA->GetAbstrDomainUnit()->GetNrTiles(); t!=te; ++t)
 		{
 			auto argVData = argV->GetTile(t);
-			OwningPtr<IndexGetter> indexGetter = IndexGetterCreator::Create(argPA, t);
-			count_best_partial_best(partCount.begin(), argVData.begin(), argVData.end(), indexGetter );
+			auto indexGetter = std::unique_ptr<IndexGetter>( IndexGetterCreator::Create(argPA, t) );
+			count_best_partial_best(partCount.begin(), argVData.begin(), argVData.end(), indexGetter.get() );
 		}
 
 		// Compute cumulative offsets
@@ -428,7 +428,7 @@ struct NthElementPart: AbstrPthElementPart<I>
 		for (tile_id t=0, te=argVA->GetAbstrDomainUnit()->GetNrTiles(); t!=te; ++t)
 		{
 			auto argVData = argV->GetTile(t);
-			OwningPtr<IndexGetter> indexGetter = IndexGetterCreator::Create(argPA, t);
+			auto indexGetter = std::unique_ptr<IndexGetter>( IndexGetterCreator::Create(argPA, t) );
 
 			SizeT j=0;
 			for (auto i = argVData.begin(), e = argVData.end(); i != e; ++j, ++i)
@@ -608,8 +608,8 @@ struct NthElementWeightedPart: AbstrNthElementWeightedPart
 		for (tile_id t=0, te=argVA->GetAbstrDomainUnit()->GetNrTiles(); t!=te; ++t)
 		{
 			auto argVData = argV->GetLockedDataRead(t);
-			OwningPtr<IndexGetter> indexGetter = IndexGetterCreator::Create(argPA, t);
-			count_best_partial_best(partCount.begin(), argVData.begin(), argVData.end(), indexGetter);
+			auto indexGetter = std::unique_ptr<IndexGetter>( IndexGetterCreator::Create(argPA, t) );
+			count_best_partial_best(partCount.begin(), argVData.begin(), argVData.end(), indexGetter.get());
 		}
 
 		// Build cumulative offsets (pre-weights filter)
@@ -630,7 +630,7 @@ struct NthElementWeightedPart: AbstrNthElementWeightedPart
 		auto argWData = argW->GetLockedDataRead();
 		SizeT ie = argVData.size();
 
-		OwningPtr<IndexGetter> indexGetter = IndexGetterCreator::Create(argPA, no_tile);
+		auto indexGetter = std::unique_ptr<IndexGetter>( IndexGetterCreator::Create(argPA, no_tile) );
 		for (SizeT ii = 0; ii != ie; ++i, ++ii)
 		{
 			if (IsDefined(argVData[ii]))
@@ -763,8 +763,8 @@ struct RthElementPart: AbstrPthElementPart<RatioType>
 		for (tile_id t=0, te=argVA->GetAbstrDomainUnit()->GetNrTiles(); t!=te; ++t)
 		{
 			auto argVData = argV->GetTile(t);
-			OwningPtr<IndexGetter> indexGetter = IndexGetterCreator::Create(argPA, t);
-			count_best_partial_best(partCount.begin(), argVData.begin(), argVData.end(), indexGetter);
+			auto indexGetter = std::unique_ptr<IndexGetter>( IndexGetterCreator::Create(argPA, t) );
+			count_best_partial_best(partCount.begin(), argVData.begin(), argVData.end(), indexGetter.get());
 		}
 
 		// Cumulative offsets
@@ -783,7 +783,7 @@ struct RthElementPart: AbstrPthElementPart<RatioType>
 		{
 			auto argVData = argV->GetLockedDataRead(t);
 
-			OwningPtr<IndexGetter> indexGetter = IndexGetterCreator::Create(argPA, t);
+			auto indexGetter = std::unique_ptr<IndexGetter>( IndexGetterCreator::Create(argPA, t) );
 			SizeT j=0;
 			for (auto i = argVData.begin(), e = argVData.end(); i != e; ++j, ++i)
 			{

@@ -161,7 +161,7 @@ void ViewPort::InitWorldCrdUnit(const AbstrUnit* worldCrdUnit)
 				Unit<CrdPoint>::GetStaticClass()->CreateUnit(
 					context 
 				,	t_WCU
-				);
+				).release();
 	}
 	Invalidate();
 }

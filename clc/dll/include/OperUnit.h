@@ -320,7 +320,7 @@ public:
 
 			const UnitMetric* arg1SI = arg1->GetMetric();
 			if (IsEmpty(arg1SI))
-				result->SetMetric(nullptr);
+				result->SetMetric({});
 			else
 			{
 				auto metric = std::make_unique<UnitMetric>(*arg1SI);

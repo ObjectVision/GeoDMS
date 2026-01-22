@@ -271,8 +271,8 @@ struct XML_DataBracket
 	RTC_CALL ~XML_DataBracket();
 
 private:
-	OwningPtr<XML_OutElement> m_DataElement;
-	OutStreamBase&            m_Stream;
+	std::unique_ptr<XML_OutElement> m_DataElement;
+	OutStreamBase&                  m_Stream;
 };
 
 class AbstrPropDef;
@@ -300,10 +300,9 @@ inline SharedStr ItemUrl(CharPtrRange itemName)
 // C-Style interface 
 //----------------------------------------------------------------------
 
-extern "C" {
 
-RTC_CALL struct OutStreamBase*
-DMS_CONV XML_OutStream_Create(OutStreamBuff* streamBuff, OutStreamBase::SyntaxType st, CharPtr docType, const AbstrPropDef* primaryPropDef);
+RTC_CALL auto
+	DMS_CONV XML_OutStream_Create(OutStreamBuff* streamBuff, OutStreamBase::SyntaxType st, CharPtr docType, const AbstrPropDef* primaryPropDef)->std::unique_ptr<OutStreamBase>;
 
 RTC_CALL void 
 DMS_CONV XML_OutStream_Destroy(OutStreamBase*);
@@ -315,11 +314,7 @@ RTC_CALL void
 DMS_CONV XML_ReportPropDef(OutStreamBase* xmlStr, AbstrPropDef* pd);
 
 RTC_CALL void 
-DMS_CONV XML_ReportSchema(
-	OutStreamBase* xmlStr, 
-	const Class* cls, 
-	bool withSubclasses );
+DMS_CONV XML_ReportSchema(OutStreamBase* xmlStr, const Class* cls, bool withSubclasses );
 
-} // extern "C"
 
 #endif // __XML_XMLOUT_H

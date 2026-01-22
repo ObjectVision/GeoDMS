@@ -391,7 +391,7 @@ namespace Explain { // local defs
 
 	
 	using QueueEntry        = std::pair<const AbstrUnit*, SizeT>;
-	using ExplArrayEntry    = OwningPtr<AbstrCalcExplanation>;
+	using ExplArrayEntry    = std::unique_ptr<AbstrCalcExplanation>;
 	using ExplArray         = std::vector<ExplArrayEntry>;
 	using ItemInterestArray = std::vector<SharedTreeItemInterestPtr>;
 	using CalcInterestArray = std::vector<CalcInterestPtr>;
@@ -521,7 +521,7 @@ namespace Explain { // local defs
 				CoordinateType* coordPtr = explanation->AddIndex(entry.second);
 				if (!coordPtr || !IsDefined(coordPtr->first))
 					continue;
-				assert(coordPtr->second.is_null()); // we don't expect to process the same entry twice
+				assert(!coordPtr->second); // we don't expect to process the same entry twice
 
 				auto context = std::make_shared<Context>( this, entry.first, coordPtr );
 
@@ -571,7 +571,7 @@ namespace Explain { // local defs
 
 		m_KnownExpr.insert(lispExprOrg);
 
-		OwningPtr<LispCalcExplanation> newExpl;
+		std::unique_ptr<LispCalcExplanation> newExpl;
 		LispCalcExplanation* newExplPtr = nullptr;
 		try {
 
@@ -592,12 +592,12 @@ namespace Explain { // local defs
 
 			bool mustCalcNextLevel = true;
 			if (SumOfTermsExplanation::CanHandle(lispExprOrg))
-				newExpl = new  SumOfTermsExplanation(calc, parent, seqNr);
+				newExpl = std::make_unique<SumOfTermsExplanation>(calc, parent, seqNr);
 			else if (UnionOfAndsExplanation::CanHandle(lispExprOrg))
-				newExpl = new  UnionOfAndsExplanation(calc, parent, seqNr);
+				newExpl = std::make_unique<UnionOfAndsExplanation>(calc, parent, seqNr);
 			else
 			{
-				newExpl = new LispCalcExplanation(calc, parent, seqNr);
+				newExpl = std::make_unique<LispCalcExplanation>(calc, parent, seqNr);
 				mustCalcNextLevel = false;
 			}
 			auto matchInfo = newExpl->MatchesExtraInfo(m_ExprRelPath);
@@ -856,7 +856,7 @@ namespace Explain { // local defs
 		if (isFirst)
 		{
 			SizeT recno = m_Coordinates[0].first;
-			const AbstrValue* valuesValue = m_Coordinates[0].second;
+			const AbstrValue* valuesValue = m_Coordinates[0].second.get();
 			auto val_str = GetDisplayValueString(calculatingStr, m_DataItem->GetAbstrValuesUnit(), valuesValue, true, m_Interests.m_valuesLabel, MAX_TEXTOUT_SIZE, m_UnitLabelLocks.second);
 			auto explaining_string = is_parameter ? SharedStr("Explaining parameter value ") : SharedStr("Explaining row: ") + AsString(recno).c_str() + " with value ";
 			stream << explaining_string.c_str();
@@ -948,7 +948,7 @@ namespace Explain { // local defs
 			if (!IsDefined(entityNr))
 			{
 				static SharedStr nullStr("<null>");
-				crd->second.assign(new ValueWrap<SharedStr>(nullStr));
+				crd->second.reset(new ValueWrap<SharedStr>(nullStr));
 			}
 			else
 			{
@@ -962,11 +962,11 @@ namespace Explain { // local defs
 				if (not (entityNr < resultObj->GetTiledRangeData()->GetRangeSize()))
 				{
 					static SharedStr oorStr("<OutOfRange>");
-					crd->second = new ValueWrap<SharedStr>(oorStr);
+					crd->second.reset(new ValueWrap<SharedStr>(oorStr));
 				}
 				else
 				{
-					OwningPtr<AbstrValue> valuePtr(resultObj->CreateAbstrValue());
+					auto valuePtr = resultObj->CreateAbstrValue();
 
 					resultObj->GetAbstrValue(crd->first, *valuePtr);
 
@@ -976,11 +976,11 @@ namespace Explain { // local defs
 		}
 		catch (const DmsException& x)
 		{
-			crd->second = OwningPtr<AbstrValue>(new ValueWrap<SharedStr>(x.GetAsText()));
+			crd->second = std::unique_ptr<AbstrValue>(new ValueWrap<SharedStr>(x.GetAsText()));
 		}
 
-		dms_assert(crd->second);
-		return crd->second;
+		assert(crd->second);
+		return crd->second.get();
 	}
 
 	TokenStr ItemOrValueTypeName(const AbstrUnit* au)
@@ -1027,7 +1027,7 @@ namespace Explain { // local defs
 					m_Interests.m_DomainLabel, MAX_TEXTOUT_SIZE, m_UnitLabelLocks.first
 				);
 
-			const AbstrValue* valuesValue = m_Coordinates[i].second;
+			const AbstrValue* valuesValue = m_Coordinates[i].second.get();
 			auto valStr = GetDisplayValueString(calculatingStr, valuesUnit, valuesValue, true, m_Interests.m_valuesLabel, MAX_TEXTOUT_SIZE, m_UnitLabelLocks.second);
 
 			if (n == 1 && isFirst)
@@ -1130,7 +1130,7 @@ namespace Explain { // local defs
 		}
 
 		SharedStr valStr;
-		const AbstrValue* valuesValue = m_Coordinates[0].second;
+		const AbstrValue* valuesValue = m_Coordinates[0].second.get();
 		if (valuesValue)
 			valStr = DisplayValue(m_UltimateValuesUnit, valuesValue, true, m_Interests.m_valuesLabel, MAX_TEXTOUT_SIZE, m_UnitLabelLocks.second);
 		else

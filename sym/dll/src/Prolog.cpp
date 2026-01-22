@@ -255,13 +255,13 @@ AnswerList Prove(
 			DBG_TRACE(("Unified at : %s", AsString(chr).c_str()));
 			DBG_TRACE(("Predicate  : %s", AsString(rule.Head()).c_str()));
 			DBG_TRACE(("Goal       : %s", AsString(g).c_str()));
-			DBG_TRACE(("Unification: %s", AsString(uni).c_str()));
-			DBG_TRACE(("Conditions : %s", AsString(rule.Tail()).c_str()));
+			DBG_TRACE(("Unification: %s", AsString(uni.AsLispPtr()).c_str()));
+			DBG_TRACE(("Conditions : %s", AsString(rule.Tail().AsLispPtr()).c_str()));
 #endif
 			sol = Prove(ruleBase, rule.Tail().Concat(r), uni, chr+1).Concat(sol);
 #ifdef MG_DEBUG_PROLOG
 			DBG_TRACE(("Solved level: %s", AsString(chr).c_str()));
-			DBG_TRACE(("Solutions   : %s", AsString(sol).c_str()));
+			DBG_TRACE(("Solutions   : %s", AsString(sol.AsLispPtr()).c_str()));
 #endif
 		}
 		p = p.Tail();

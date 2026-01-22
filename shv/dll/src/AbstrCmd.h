@@ -99,13 +99,13 @@ private:
 template <typename Func>
 auto make_LambdaCmd(Func&& f)
 {
-	return MakeOwned<AbstrCmd, LambdaCmd<Func>>(std::forward<Func>(f));
+	return std::make_unique<LambdaCmd<Func>>(std::forward<Func>(f));
 }
 
 template <typename GO, typename RT, typename ...Args>
 auto make_MembFuncCmd(RT(GO::* mf)(Args...), Args ...args)
 {
-	return MakeOwned<AbstrCmd, MembFuncCmd<GO, RT, Args...>>(mf, std::forward<Args>(args)...);
+	return std::make_unique<MembFuncCmd<GO, RT, Args...>>(mf, std::forward<Args>(args)...);
 }
 
 #endif // __SHV_ABSTRCMD_H

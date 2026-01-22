@@ -147,8 +147,8 @@ protected:
 
 		values1Unit->UnifyValues(values2Unit, "v1", "v2", UM_Throw);
 
-		AbstrUnit* res = Unit<ResultingDomainType>::GetStaticClass()->CreateResultUnit(resultHolder);
-		resultHolder = res;
+		auto res = Unit<ResultingDomainType>::GetStaticClass()->CreateResultUnit(resultHolder);
+		resultHolder = res.release();
 
 		AbstrDataItem* resG = (!m_MustCreateGeometries) ? nullptr : CreateDataItem(res, s_tGM, res, values1Unit, ValueComposition::Polygon);
 		AbstrDataItem* res1 = e1IsVoid                  ? nullptr : CreateDataItem(res, s_tFR, res, domain1Unit);
@@ -639,10 +639,10 @@ void UnionPolygon(ResourceArrayHandle& r, SizeT n, const AbstrDataItem* polyData
 	assert(polyData);
 	assert(whosCalling);
 
-	OwningPtr<IndexGetter> vg;
+	std::unique_ptr<IndexGetter> vg;
 
 	if (permDataA)
-		vg = IndexGetterCreator::Create(permDataA, t);
+		vg.reset( IndexGetterCreator::Create(permDataA, t) );
 
 	auto polyArray = polyData->GetTile(t);
 

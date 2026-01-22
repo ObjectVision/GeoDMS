@@ -68,7 +68,7 @@ MakeClassIndexArray(ThemeClassPairType tcp)
 
 	//	Prepare loop
 	PreparedDataReadLock drl2(tcp.first, "ThemeValueGeter::MakeClassIndexArray");
-	auto themeData = debug_cast<const DataArray<ThemeValuesType>*>(tcp.first->GetRefObj())->GetDataRead();
+	auto themeData = debug_cast<const DataArray<ThemeValuesType>*>(tcp.first->GetRefObj().get())->GetDataRead();
 
 	SharedArrayPtr<typename sequence_traits<ClassIdType>::value_type> 
 		resultingArray(SharedArray<typename sequence_traits<ClassIdType>::value_type>::Create(themeData.size(), false MG_DEBUG_ALLOCATOR_SRC("MakeClassIndexArray")) );
@@ -210,9 +210,9 @@ const AbstrThemeValueGetter* AbstrThemeValueGetter::CreatePaletteGetter() const
 	assert(m_PaletteAttr);
 	if (IsDirectGetter())
 		return this;
-	if (m_PaletteGetter.is_null() || m_PaletteAttr != m_PaletteGetter->GetPaletteAttr())
-		m_PaletteGetter.assign( new DirectGetter(m_PaletteAttr) );
-	return m_PaletteGetter;
+	if (!m_PaletteGetter || m_PaletteAttr != m_PaletteGetter->GetPaletteAttr())
+		m_PaletteGetter = std::make_unique<DirectGetter>(m_PaletteAttr);
+	return m_PaletteGetter.get();
 }
 
 void AbstrThemeValueGetter::GridFillDispatch(const GridDrawer* drawer, tile_id t, Range<SizeT> themeArrayIndexRange, bool isLastRun) const
@@ -540,7 +540,7 @@ struct ClassifiedGetterCreator : UnitProcessor
 		template <typename ThemeValuesType>
 		void VisitImpl() const
 		{
-			m_ValueGetter.assign(new LazyClassifyGetter<ThemeValuesType, ClassIdType>(m_ThemeClassPair, m_PaletteAttr) );
+			m_ValueGetter = std::make_unique<LazyClassifyGetter<ThemeValuesType, ClassIdType>>(m_ThemeClassPair, m_PaletteAttr);
 		}
 
 		#define INSTANTIATE(V) \
@@ -553,7 +553,7 @@ struct ClassifiedGetterCreator : UnitProcessor
 	private:
 		ThemeClassPairType                  m_ThemeClassPair;
 		const AbstrDataItem*                m_PaletteAttr;
-		mutable OwningPtr<AbstrThemeValueGetter> m_ValueGetter;
+		mutable std::unique_ptr<AbstrThemeValueGetter> m_ValueGetter;
 	};
 
 	template <typename ClassIdType>
@@ -579,7 +579,7 @@ struct ClassifiedGetterCreator : UnitProcessor
 
 		DBG_TRACE(("Count %d", arrayPtrRef->GetRefCount())); 
 
-		OwningPtr< ArrayValueGetter<ClassIdType> > resultingGetter( new ArrayValueGetter<ClassIdType>(m_PaletteAttr) );
+		auto resultingGetter = std::make_unique<ArrayValueGetter<ClassIdType>>( m_PaletteAttr);
 
 		resultingGetter->Assign(m_ThemeClassPair, arrayPtrRef);
 
@@ -636,15 +636,15 @@ WeakPtr<const AbstrThemeValueGetter> Theme::GetValueGetter() const
 	if (!m_ValueGetterPtr)
 	{
 		if (IsIdentity())
-			m_ValueGetterPtr.assign(new IdentityGetter());           // no theme or classification
+			m_ValueGetterPtr = std::make_unique<IdentityGetter>();           // no theme or classification
 		else if (IsAspectParameter())
-			m_ValueGetterPtr.assign(new NullGetter(GetThemeAttr())); // no theme or classification
+			m_ValueGetterPtr = std::make_unique<NullGetter>(GetThemeAttr()); // no theme or classification
 		else if (GetClassification())
 		{
 			dms_assert(GetPaletteAttr());
 			dms_assert(GetThemeAttr());
 			if (GetThemeAttr())
-				m_ValueGetterPtr.assign(
+				m_ValueGetterPtr.reset(
 					ClassifiedGetterCreator(
 						GetThemeAttr(), 
 						GetClassification(), 
@@ -659,7 +659,7 @@ WeakPtr<const AbstrThemeValueGetter> Theme::GetValueGetter() const
 			dms_assert(GetThemeAttr());
 			if (GetPaletteAttr())
 			{
-				m_ValueGetterPtr.assign(
+				m_ValueGetterPtr.reset(
 					IndirectGetterCreator(
 						GetThemeAttr(), 
 						GetPaletteAttr()
@@ -667,13 +667,11 @@ WeakPtr<const AbstrThemeValueGetter> Theme::GetValueGetter() const
 				);
 			}
 			else // no paletteAttr, thus themeAttr contains aspects directly
-				m_ValueGetterPtr.assign(
-					new DirectGetter( GetThemeAttr() )
-				);
+				m_ValueGetterPtr = std::make_unique<DirectGetter>( GetThemeAttr() );
 		}
 	}
-	dms_assert(m_ValueGetterPtr);
-	return m_ValueGetterPtr.get_ptr();
+	assert(m_ValueGetterPtr);
+	return m_ValueGetterPtr.get();
 }
 
 

@@ -263,9 +263,9 @@ TIC_CALL const TreeItemVectorType* DMS_CONV DMS_TreeItem_CreateSimilarItemSet(
 		if (mustMatchValuesUnit) flags += CSS_MatchValues;
 		if (exactValuesUnit    ) flags += CSS_ExactValues;
 		if (expandMetaInfo     ) flags += CSS_ExpandMeta;
-		
-		OwningPtr<TreeItemVectorType> itemSetPtr = new TreeItemVectorType;
-		createSimilarSet(searchLoc, pattern, *(itemSetPtr.get_nonnull()), static_cast<CSS_FLAGS>(flags));
+
+		auto itemSetPtr = std::make_unique<TreeItemVectorType>();
+		createSimilarSet(searchLoc, pattern, *itemSetPtr, static_cast<CSS_FLAGS>(flags));
 		return itemSetPtr.release();
 
 	DMS_CALL_END

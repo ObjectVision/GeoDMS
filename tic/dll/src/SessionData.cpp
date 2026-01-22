@@ -206,11 +206,9 @@ void SessionData::Open(const TreeItem* configRoot)
 	m_ConfigRoot = configRoot;
 	dms_assert(this);
 	m_ConfigLoadTS = UpdateMarker::GetLastTS();
-	SharedPtr<TreeItem> configSettings = const_cast<TreeItem*>(configRoot)->CreateItem(t_ConfigSettings);
+	auto configSettings = const_cast<TreeItem*>(configRoot)->CreateItem(t_ConfigSettings);
 	configSettings->SetIsHidden(true);
-	m_ConfigSettings = configSettings.get_ptr();
-	if (m_ConfigSettings)
-		m_ConfigSettings->m_State.Set(actor_flag_set::AFD_PivotElem);
+	m_ConfigSettings = configSettings.release();
 }
 
 std::shared_ptr<SessionData> SessionData::Curr()

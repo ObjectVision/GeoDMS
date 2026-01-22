@@ -235,7 +235,7 @@ template <typename Container >
 void StoreAttrValues(AbstrDataItem* adi, Container& c)
 {
 	DataWriteLock lock(adi, dms_rw_mode::write_only_mustzero); 
-	OwningPtr<AbstrValue> aval = lock->GetValuesType()->CreateValue();
+	auto aval = lock->GetValuesType()->CreateValue();
 	SizeT i=0;
 	for (auto& v: c)
 	{

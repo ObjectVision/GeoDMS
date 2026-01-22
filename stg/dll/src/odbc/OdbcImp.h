@@ -309,7 +309,7 @@ class TRecordSet final : public SharedBase
 	friend TColumns;
 	friend TDatabase;
 
-	typedef PersistentSharedObj base_type;
+	using base_type = SharedBase;
 
 public:
 

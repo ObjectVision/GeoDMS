@@ -337,7 +337,7 @@ struct OdbcMetaInfo : StorageMetaInfo
 {
 	OdbcMetaInfo(const ODBCStorageManager* sm, const TreeItem* storageHolder, const TreeItem* curr)
 		: StorageMetaInfo(storageHolder, curr)
-		, m_TableHolder(IsDataItem(curr) ? curr->GetTreeParent() : MakeShared(curr))
+		, m_TableHolder(IsDataItem(curr) ? curr->GetTreeParent() : MakeSharedFromBorrowedObjectPtr(curr))
 	{
 		if (m_TableHolder)
 			m_SqlString = GetOrCreateSqlString(m_TableHolder);
@@ -641,9 +641,9 @@ void GetDatabaseLocationArguments(const ODBCStorageManager* osm, TDatabase& data
 TDatabase* ODBCStorageManager::DatabaseInstance(const TreeItem* storageHolder) const
 {
 	dms_assert(storageHolder);
-	if (m_Database.is_null())
+	if (!m_Database)
 	{
-		m_Database.assign( new TDatabase(SessionData::Curr()->GetConfigLoadDir().c_str() ) );
+		m_Database = std::make_unique<TDatabase>(SessionData::Curr()->GetConfigLoadDir().c_str());
 		m_TiDatabase= NULL;
 	}
 	if(m_TiDatabase != storageHolder)
@@ -652,7 +652,7 @@ TDatabase* ODBCStorageManager::DatabaseInstance(const TreeItem* storageHolder) c
 		GetDatabaseLocationArguments(this, *m_Database);
 		m_TiDatabase = storageHolder;
 	}
-	return m_Database;
+	return m_Database.get();
 }
 
 TDatabase* ODBCStorageManager::OpenDatabaseInstance(const TreeItem* storageHolder) const

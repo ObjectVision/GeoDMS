@@ -157,7 +157,7 @@ public:
 	// Factory to create an AbstrValue instance of this class.
 	// Ownership: Returns a raw pointer; caller likely assumes ownership.
 	// Suggestion: Consider returning std::unique_ptr<AbstrValue> if ABI allows.
-	RTC_CALL AbstrValue*  CreateValue() const;
+	RTC_CALL auto CreateValue() const->std::unique_ptr<AbstrValue>;
 
 	// Invite a visitor to process this value class via the InviterFunc indirection.
 	// Requires m_iFunc to be non-null (asserted).

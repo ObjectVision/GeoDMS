@@ -72,7 +72,7 @@ struct XmlPropWriterBase : AbstrPropWriter
 
 	void OpenSection(CharPtr name) override
 	{
-		m_CurrSection.assign(new XML_OutElement(m_Xml, name));
+		m_CurrSection.reset(new XML_OutElement(m_Xml, name));
 	}
 	void CloseSection() override
 	{
@@ -85,7 +85,7 @@ struct XmlPropWriterBase : AbstrPropWriter
 	}
 
 	OutStream_XML m_Xml;
-	OwningPtr<XML_OutElement> m_CurrSection;
+	std::unique_ptr<XML_OutElement> m_CurrSection;
 };
 
 struct XmlPropWriter : FileOutStreamBuff, XmlPropWriterBase

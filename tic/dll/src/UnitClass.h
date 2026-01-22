@@ -41,10 +41,10 @@ public:
 	~UnitClass();
 
     // Constructs a new Unit of the type indicated by this UnitClass in context with given name
-	TIC_CALL AbstrUnit* CreateUnit      (TreeItem* context, TokenID typeID) const;
-	TIC_CALL AbstrUnit* CreateUnitFromPath(TreeItem* context, CharPtr path) const;
-	TIC_CALL AbstrUnit* CreateResultUnit(TreeItem* context) const;
-	TIC_CALL AbstrUnit* CreateTmpUnit   (TreeItem* context) const;
+	TIC_CALL auto CreateUnit        (TreeItem* context, TokenID typeID) const -> OwningPtr<AbstrUnit>;
+	TIC_CALL auto CreateUnitFromPath(TreeItem* context, CharPtr path) const -> OwningPtr<AbstrUnit>;
+	TIC_CALL auto CreateResultUnit  (TreeItem* context) const -> OwningPtr<AbstrUnit>;
+	TIC_CALL auto CreateTmpUnit     (TreeItem* context) const -> OwningPtr<AbstrUnit>;;
 
 	TIC_CALL const AbstrUnit* CreateDefault() const;
 	TIC_CALL void             DropDefault  () const;

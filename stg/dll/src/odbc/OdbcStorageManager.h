@@ -82,7 +82,7 @@ private:
 		m_TableTimestampCache.clear();
 	}
 
-	mutable OwningPtr<TDatabase>        m_Database;
+	mutable std::unique_ptr<TDatabase>  m_Database;
 	mutable const TreeItem*             m_TiDatabase;
 	mutable std::map<TreeItem*, TRecordSetRef> m_RecordSets;
 	bool                                m_HasAccessSysObjectsCopy;

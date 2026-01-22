@@ -67,7 +67,7 @@ private:
 	void WritePalette (TifImp& imp, const TreeItem* storageHolder, const AbstrDataItem* adi);
 
 private:
-	mutable OwningPtr<TifImp> m_pImp;
+	mutable std::unique_ptr<TifImp> m_pImp;
 
 	DECL_RTTI(STGDLL_CALL, StorageClass)
 };

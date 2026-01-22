@@ -32,7 +32,7 @@ granted by an additional written contract for support, assistance and/or develop
 
 #include "TicBase.h"
 
-using AbstrValueRef = OwningPtr<AbstrValue>;
+using AbstrValueRef = std::unique_ptr<AbstrValue>;
 
 namespace Explain {
 	struct CalcExplImpl;

@@ -412,10 +412,10 @@ namespace {
 	{
 		auto resultUnitClass = ResultDomainClass(tcf);
 
-		auto* resDomain = resultUnitClass->CreateResultUnit(resultHolder);
+		auto resDomain = resultUnitClass->CreateResultUnit(resultHolder);
 		assert(resDomain);
 		resDomain->SetTSF(TSF_Categorical);
-		return resDomain;
+		return resDomain.release();
 	}
 }	//	end of anonimous namespace
 
