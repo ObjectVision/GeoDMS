@@ -330,11 +330,9 @@ void DmsDetailPages::drawPageImpl()
         {
             // Disable or enable dataset information radio button
             auto has_storage_manager = DumpSourceDescriptionDatasetInfo(current_item, xmlOut.get());
+            main_window->m_detail_page_source_description_buttons->sd_dataset_information->setDisabled(!has_storage_manager);
             if (!has_storage_manager)
-            {
-                main_window->m_detail_page_source_description_buttons->sd_dataset_information->setDisabled(!has_storage_manager);
-                main_window->m_detail_page_source_description_buttons->sd_configured->setChecked(true);
-            }
+                main_window->m_detail_page_source_description_buttons->sd_configured->setChecked(false);
         }
         else
             TreeItem_XML_DumpSourceDescription(current_item, m_SDM, xmlOut.get());
