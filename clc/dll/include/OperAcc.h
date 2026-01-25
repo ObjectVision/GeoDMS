@@ -29,10 +29,12 @@ void AssignResult(ResultType* result, const AccumulationContainer& resBuffer)
 		Assign( *ri, Convert<ResultType::value_type>( make_result( *i ) ) );
 }
 
+/*
 template<typename ResultType, typename AccumulationContainer>
 void AssignResult(composite_cast<ResultType*> caster, const AccumulationContainer& resBuffer)
 {
 	AssignResult(caster.get_ptr(), resBuffer);
 }
+*/
 
 #endif

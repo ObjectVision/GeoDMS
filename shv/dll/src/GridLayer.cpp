@@ -401,7 +401,7 @@ void GridLayer::AssignSelValues()
 	assert(selAttr);                // PRECONDITION
 
 	PreparedDataReadLock drl(selAttr, "@GridLayer::AssignSelValues()");
-	AssignValues(composite_cast<const DataArray<Bool>*>(selAttr)->GetDataRead(no_tile));
+	AssignValues(const_array_cast<Bool>(selAttr)->GetDataRead(no_tile));
 }
 
 void District(

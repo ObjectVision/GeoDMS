@@ -554,7 +554,7 @@ bool CreateRangeUnit(TreeItemDualRef& resultHolder, const AbstrOperGroup* whoCal
 		checked_domain<Void>(ubItem, "UpperBound");
 
 		assert(!mustCalc);
-		auto result = mutable_unit_cast<T>(Unit<T>::GetStaticClass()->CreateResultUnit(resultHolder));
+		auto result = mutable_unit_cast<T>(Unit<T>::GetStaticClass()->CreateResultUnit(resultHolder).release());
 		assert(result);
 		resultHolder = result;
 		if (arg1)
@@ -827,7 +827,7 @@ public:
 
 	void Calculate(AbstrDataObject* res, const AbstrUnit* e1) const override
 	{
-		ResultType *result = composite_cast<ResultType*>(res);
+		ResultType *result = mutable_array_cast<ResultValueType>(res);
 		assert(result);
 
 		result->GetDataWrite(no_tile, dms_rw_mode::write_only_all)[0] = e1->GetCount();
@@ -892,7 +892,7 @@ public:
 		const Arg1Type *e1 = debug_cast<const Arg1Type*>(e);
 		assert(e1);
 
-		ResultType *result = composite_cast<ResultType*>(res);
+		ResultType *result = mutable_array_cast<E1>(res);
 		assert(result);
 
 		if constexpr (!is_bitvalue_v<E1>)
@@ -929,7 +929,7 @@ public:
 		const Arg1Type *e1 = debug_cast<const Arg1Type*>(e);
 		dms_assert(e1);
 
-		ResultType *result = composite_cast<ResultType*>(res);
+		ResultType *result = mutable_array_cast<E1>(res);
 		dms_assert(result);
 
 		if constexpr (!is_bitvalue_v<E1>)
@@ -966,7 +966,7 @@ public:
 		const Arg1Type *e1 = debug_cast<const Arg1Type*>(e);
 		dms_assert(e1);
 
-		ResultType *result = composite_cast<ResultType*>(res);
+		ResultType *result = mutable_array_cast<E1>(res);
 		dms_assert(result);
 
 		result->GetDataWrite(no_tile, dms_rw_mode::write_only_all)[0] = Size( e1->GetRange() );
@@ -990,7 +990,7 @@ public:
 		const Arg1Type *e1 = debug_cast<const Arg1Type*>(e);
 		dms_assert(e1);
 
-		ResultType *result = composite_cast<ResultType*>(res);
+		ResultType *result = mutable_array_cast<E1>(res);
 		dms_assert(result);
 
 		result->GetDataWrite(no_tile, dms_rw_mode::write_only_all)[0] = Center( e1->GetRange() );

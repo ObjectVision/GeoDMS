@@ -114,6 +114,8 @@ struct UnorderedSetCache
 private:
 
 #if defined(MG_DEBUG)
+	friend struct LispCaches;
+
 	SizeT md_NrCalls = 0;
 	SizeT md_NrMisses = 0;
 #endif

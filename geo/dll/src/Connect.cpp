@@ -703,7 +703,7 @@ public:
 						return;
 
 					auto data1 = mutable_array_cast<SqrtDistType>(res1Lock)->GetWritableTile(t); auto r1 = data1.begin();
-					//				auto data2 = composite_cast<ResSubType2*>(resSub2)->GetDataWrite(); auto r2 = data2.begin();
+
 					AbstrDataObject* ado2 = OnlyDistResult ? nullptr : res2Lock.get();
 
 					std::optional<WritableTileLock> arcIdDataLock;

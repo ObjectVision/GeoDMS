@@ -26,14 +26,16 @@ struct OwningPtr
 	OwningPtr(pointer ptr = nullptr) noexcept
 		: m_Ptr(ptr)
 	{
-		assert(!m_Ptr || m_Ptr->GetRefCount() == 0);
+		assert(!m_Ptr || m_Ptr->GetRefCount() >= 0);
+		if (m_Ptr)
+			m_Ptr->AdoptRef();
 	}
 
 	OwningPtr(OwningPtr&& org) noexcept
 		: m_Ptr(org.release())
 	{
 		assert(!org);
-		assert(!m_Ptr || m_Ptr->GetRefCount() == 0);
+		assert(!m_Ptr || m_Ptr->GetRefCount() >= 0);
 	}
 
 	~OwningPtr () noexcept { reset(); }
@@ -49,9 +51,8 @@ struct OwningPtr
 		assert(!ptr || ptr->GetRefCount() == 0);
 		std::swap(this->m_Ptr, ptr);
 
-		if (ptr)
+		if (ptr && !ptr->DecRef())
 		{
-			ptr->Abandon();
 			ptr->Release();
 		}
 	}

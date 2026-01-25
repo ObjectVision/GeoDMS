@@ -140,7 +140,7 @@ auto mutable_array_checkedcast(P const& ptr) -> TileFunctor<V>*
 // ======================================================================
 // use partial template class specialisation to choose the right strategy
 //	The resulting class pretents to be a simple pointer
-
+/* REMOVE
 template <typename T> struct composite_cast;
 
 template <typename V> 
@@ -182,6 +182,6 @@ struct composite_cast<const Unit<V>*> : ptr_base<const Unit<V>, copyable >
 		:	base_type(const_unit_cast<V>(ptr))
 	{}
 };
-
+*/
 
 #endif // __RTC_MCI_COMPOSITECAST_H

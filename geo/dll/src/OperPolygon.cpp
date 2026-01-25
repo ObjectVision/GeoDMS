@@ -1163,7 +1163,7 @@ class PointInPolygonOperator : public AbstrPointInPolygonOperator
 			}
 
 			point_in_polygon(
-				composite_cast<DataArray<Bool>*>(m_Data->m_ResObj)->GetDataWrite(m_Data->m_PointTileID, dms_rw_mode::write_only_all),
+				mutable_array_cast<Bool>(m_Data->m_ResObj)->GetDataWrite(m_Data->m_PointTileID, dms_rw_mode::write_only_all),
 				m_Data->m_PointData,
 				m_Data->m_PolyData,
 				resValueRange,
@@ -1449,7 +1449,7 @@ class PointInRankedPolygonOperator : public AbstrPointInRankedPolygonOperator
 		{
 			assert(m_Data);
 			point_in_ranked_polygon(
-				composite_cast<DataArray<E>*>(m_Data->m_ResObj)->GetDataWrite(m_Data->m_PointTileID, dms_rw_mode::read_write),
+				mutable_array_cast<E>(m_Data->m_ResObj)->GetDataWrite(m_Data->m_PointTileID, dms_rw_mode::read_write),
 				m_Data->m_PointData,
 				m_Data->m_PolyTileData,
 				(m_Data->m_PolyTileID == no_tile) ? inviter->GetRange() : inviter->GetTileRange(m_Data->m_PolyTileID),

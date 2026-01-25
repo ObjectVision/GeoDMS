@@ -55,7 +55,7 @@ struct IndexAssignerBase : UnitProcessor
 	template <typename E>
 	void VisitImpl(const Unit<E>* inviter) const
 	{
-		auto resData = composite_cast<DataArray<E>*>(m_Res)->GetDataWrite(m_TileID, dms_rw_mode::read_write);
+		auto resData = mutable_array_cast<E>(m_Res)->GetDataWrite(m_TileID, dms_rw_mode::read_write);
 		SizeT sz = resData.size();
 
 		assert(m_Start         <= sz);
@@ -94,7 +94,7 @@ struct IdAssignerBase : UnitProcessor
 	template <typename E>
 	void VisitImpl(const Unit<E>* inviter) const
 	{
-		auto resData = composite_cast<DataArray<E>*>(m_Res)->GetDataWrite(m_TileID, dms_rw_mode::read_write);
+		auto resData = mutable_array_cast<E>(m_Res)->GetDataWrite(m_TileID, dms_rw_mode::read_write);
 		SizeT sz = resData.size();
 
 		assert(m_Start         <= sz);
@@ -132,7 +132,7 @@ struct NullAssignerBase : UnitProcessor
 	template <typename E>
 	void VisitImpl(const Unit<E>* inviter) const
 	{
-		auto resData = composite_cast<DataArray<E>*>(m_Res)->GetDataWrite(m_TileID, dms_rw_mode::read_write);
+		auto resData = mutable_array_cast<E>(m_Res)->GetDataWrite(m_TileID, dms_rw_mode::read_write);
 		SizeT sz = resData.size();
 
 		assert(m_Start         <= sz);

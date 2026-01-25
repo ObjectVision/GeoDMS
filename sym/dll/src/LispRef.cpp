@@ -136,6 +136,8 @@ public:
 	Number_t GetKey() { return m_Value; }
 
 private:
+	friend struct LispCaches;
+
 	NumbObj() = delete;
 	NumbObj(const NumbObj&) = delete;
 	NumbObj(NumbObj&&) = delete;
@@ -167,6 +169,8 @@ public:
 	UInt64 GetKey() { return m_Value; }	
 
 private:
+	friend struct LispCaches;
+
 	UI64Obj() = delete;
 	UI64Obj(const UI64Obj&) = delete;
 	UI64Obj(UI64Obj&&) = delete;
@@ -197,7 +201,9 @@ public:
 
 	SymbType GetKey() { return { m_TokenID, m_ChroID }; }
 
-private:
+private: 	
+	friend struct LispCaches;
+
 	SymbObj() : m_TokenID(TokenID::GetUndefinedID()) { NeverLinkThis(); }
 	SymbObj(const SymbObj&) : m_TokenID(TokenID::GetUndefinedID()) { NeverLinkThis(); }
 
@@ -265,7 +271,9 @@ public:
 
 	const StrnType& GetKey() const { return m_Data; }
 
-private:
+private: 	
+	friend struct LispCaches;
+
 	StrnObj() { }
 	StrnObj(const StrnObj& oth): m_Data(oth.m_Data) { NeverLinkThis(); }
 
@@ -297,6 +305,8 @@ public:
 	ListType GetKey() const { return { m_Right, m_Left }; }
 
 private:
+	friend struct LispCaches;
+
 	ListObj()                { NeverLinkThis(); }
 	ListObj(const ListObj& ) { NeverLinkThis(); }
 
@@ -487,12 +497,48 @@ struct LispCaches {
 		if (g_IsTerminating)
 			return;
 
+#if defined(MG_DEBUG)
+		for (const auto& x : NumbObjCache.m_USet)
+		{
+			auto str = AsString(*x);
+			reportD(SeverityTypeID::ST_Warning, str.c_str());
+		}
+		for (const auto& x : StrnObjCache.m_USet)
+		{
+			auto str = AsString(*x);
+			reportD(SeverityTypeID::ST_Warning, str.c_str());
+		}
+		for (const auto& x : SymbObjCache.m_USet)
+		{
+			auto str = AsString(*x);
+			reportD(SeverityTypeID::ST_Warning, str.c_str());
+		}
+		for (const auto& x : UI64ObjCache.m_USet)
+		{
+			auto str = AsString(*x);
+			reportD(SeverityTypeID::ST_Warning, str.c_str());
+		}
+		for (const auto& x : ListObjCache.m_USet)
+		{
+			auto str = AsString(*x);
+			reportD(SeverityTypeID::ST_Warning, str.c_str());
+		}
+		if (nrActiveZeroSymbObj)
+			for (const auto& x : ZeroSymbObjCache)
+				if (x)
+				{
+					auto str = AsString(*x);
+					reportD(SeverityTypeID::ST_Warning, str.c_str());
+				}
+		ProcessMainThreadOpers();
 		assert(NumbObjCache.empty());
 		assert(StrnObjCache.empty());
+		assert(SymbObjCache.empty());
+		assert(nrActiveZeroSymbObj == 0);
 		assert(UI64ObjCache.empty());
 		assert(ListObjCache.empty());
-		assert(ListObjCache.empty());
 		assert(!nrActiveZeroSymbObj);
+#endif
 	}
 };
 
@@ -579,7 +625,10 @@ LispRef::LispRef(UInt64 value)
 	MG_CHECK(get()->IsOwned());
 }
 
-UI64Obj::~UI64Obj() { GetLispCaches()->UI64ObjCache.remove(m_Value); }
+UI64Obj::~UI64Obj() 
+{ 
+	GetLispCaches()->UI64ObjCache.remove(m_Value); 
+}
 
 /****************** SymbObj implementation  *******************/
 

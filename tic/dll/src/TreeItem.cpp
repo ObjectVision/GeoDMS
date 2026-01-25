@@ -348,23 +348,11 @@ void TreeItem::EnableAutoDeleteImpl() // does not call UpdateMetaInfo
 	auto subItem = SharedPtr<TreeItem>(_GetFirstSubItem(), no_zombies{});
 	while (subItem)
 	{
-//		auto nextItemPtr = subItem->GetNextItem();
-
-
 		if (subItem->IsAutoDeleteDisabled() )
 			subItem->EnableAutoDeleteImpl();
 
-		MG_ASSERT(subItem->IsOwned());
-		auto nextItem = SharedPtr<TreeItem>(subItem->GetNextItem(), no_zombies{});
-
-//		auto nextItem = SharedPtr<TreeItem>(subItem->GetNextItem(), no_zombies{});
-//		MG_CHECK(nextItem.get_ptr() == nextItemPtr);
-
-		// subItem = subItem->GetNextItem(); // this line may cause the destruction of the old subItem
-//		subItem = SharedPtr<TreeItem>(subItem->GetNextItem(), no_zombies{});
-
-//		subItem = std::move(nextItem);
-		subItem.swap(nextItem);
+//		MG_ASSERT(subItem->IsOwned());
+		subItem = subItem->GetNextItem();
 	}
 
 //	m_UsingCache.reset();
