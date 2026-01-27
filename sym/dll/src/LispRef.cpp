@@ -428,6 +428,17 @@ struct LispCaches {
 	UnorderedSetCache<MakeSymbFunc> SymbObjCache;
 	std::vector<SymbObj*> ZeroSymbObjCache;
 
+	UInt32 GetListLevel(LispPtr curr) const
+	{
+		UInt32 level = 0;
+		while (curr && curr->IsList())
+		{
+			MakeMax(level, GetListLevel(curr->Left()) + 1);
+			curr = curr->Right();
+		}
+		return level;
+	}
+
 	// ================ Strings ================
 
 	struct MakeStrnFunc
@@ -521,6 +532,7 @@ struct LispCaches {
 		for (const auto& x : ListObjCache.m_USet)
 		{
 			auto str = AsString(*x);
+			str = AsString(GetListLevel(x)) + ": " + str;
 			reportD(SeverityTypeID::ST_Warning, str.c_str());
 		}
 		if (nrActiveZeroSymbObj)
