@@ -54,6 +54,18 @@ mutable_unit_cast(P const& ptr)
 	return debug_valcast<Unit<V>*>(AsPtr(ptr));
 }
 
+template<typename V, typename T> 
+auto mutable_unit_cast(OwningPtr<T>&& ptr) -> OwningPtr<Unit<V>>
+{
+	auto result = OwningPtr<Unit<V>>(debug_valcast<Unit<V>*>(ptr.get()));
+	ptr.release();
+	return result;
+}
+
+template<typename V, typename T>
+auto mutable_unit_cast(const OwningPtr<T>& ptr) -> OwningPtr<void>;
+
+
 template<typename V, typename P> Unit<V>*
 mutable_unit_dynacast(P const& ptr)
 {

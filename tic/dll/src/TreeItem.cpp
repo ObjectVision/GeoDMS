@@ -414,8 +414,12 @@ void TreeItem::EnableAutoDelete() // does not call UpdateMetaInfo
 void TreeItem::SetIsCacheItem() // does not call UpdateMetaInfo
 {
 	assert(IsEndogenous());
-	assert(! IsCacheItem());
-	assert(! GetTreeParent()); // only call on root
+	assert(!GetTreeParent()); // only call on root
+	if (IsCacheItem())
+	{
+		assert(IsAutoDeleteDisabled());
+		return;
+	}
 
 	DisableAutoDelete();
 

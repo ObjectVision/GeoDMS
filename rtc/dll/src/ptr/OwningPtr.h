@@ -28,22 +28,34 @@ struct OwningPtr
 	{
 		assert(!m_Ptr || m_Ptr->GetRefCount() >= 0);
 		if (m_Ptr)
-			m_Ptr->AdoptRef();
+			m_Ptr->IncMutableRef();
 	}
 
 	OwningPtr(OwningPtr&& org) noexcept
-		: m_Ptr(org.release())
+		: m_Ptr(org.m_Ptr)
 	{
+		org.drop();
 		assert(!org);
 		assert(!m_Ptr || m_Ptr->GetRefCount() >= 0);
 	}
 
 	~OwningPtr () noexcept { reset(); }
 
-	void operator = (OwningPtr&& rhs) noexcept { assign(rhs.release()); }
+	void operator = (OwningPtr&& rhs) noexcept 
+	{ 
+		assert(!m_Ptr || m_Ptr != rhs.m_Ptr);
+		this->swap(rhs); //rhs.reset(); 
+	}
 
 	void    init   (pointer ptr)       noexcept { assert(this->is_null()); this->m_Ptr = ptr; }
-	pointer release()                  noexcept { pointer tmp_ptr = this->m_Ptr; this->m_Ptr = nullptr; return tmp_ptr; }
+	pointer release()                  noexcept 
+	{ 
+		pointer tmp_ptr = this->m_Ptr; 
+		this->m_Ptr = nullptr; 
+		if (tmp_ptr)
+			tmp_ptr->DecMutableRef();
+		return tmp_ptr; 
+	}
 	void    reset  ()                  noexcept { assign(nullptr); }
 	void    assign (pointer ptr)       noexcept 
 	{ 
@@ -78,6 +90,7 @@ struct OwningPtr
 	OwningPtr(const OwningPtr<T>& oth) = delete;
 
 private:
+	void drop() { m_Ptr = nullptr; }
 	T* m_Ptr = nullptr;
 };
 

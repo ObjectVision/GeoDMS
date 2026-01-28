@@ -1914,7 +1914,7 @@ task_status OperationContext::JoinSupplOrSuspendTrigger()
 
 		task_status ocStatus = oc->Join();
 		assert(ocStatus > task_status::running);
-		assert(CheckDataReady(supplResult->GetCurrUltimateItem()) || supplResult->WasFailed(FailType::Data) || !supplResult->GetInterestCount() || SuspendTrigger::DidSuspend());
+		assert(CheckDataReady(supplResult->GetCurrUltimateItem()) || m_Status == task_status::exception || supplResult->WasFailed(FailType::Data) || !supplResult->GetInterestCount() || SuspendTrigger::DidSuspend());
 		switch (ocStatus)
 		{
 		case task_status::done:

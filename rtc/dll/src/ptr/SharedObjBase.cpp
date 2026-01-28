@@ -80,6 +80,11 @@ void SharedBase::IncRef() const noexcept
 	assert(m_RefCount); // POST CONDITION
 }
 
+void SharedBase::IncMutableRef() const noexcept
+{
+	AdoptRef();
+}
+
 bool SharedBase::DuplRef() const noexcept
 {
 	while (true)
@@ -114,7 +119,7 @@ void SharedBase::Abandon() const noexcept
 
 }
 
-bool SharedBase::DecRef() const noexcept
+bool SharedBase::decrement_count() const noexcept
 {
 	assert(m_RefCount); // PRE CONDITION
 #if defined(MG_DEBUG_REFCOUNT)
@@ -122,10 +127,22 @@ bool SharedBase::DecRef() const noexcept
 	MG_ASSERT(m_RefCount != dangling_object_indicator);
 #endif
 	auto result = --m_RefCount;
-	if (!result) // last ptr, so no longer MT access possible, only set dangling pointer detector once
-		Abandon();
-
 	return result;
+}
+
+void SharedBase::DecMutableRef() const noexcept
+{
+	decrement_count(); // return to newly created object state if not already shared
+}
+
+bool SharedBase::DecRef() const noexcept
+{
+	if (decrement_count()) 
+		return true;
+
+	// last shared ptr, so no longer shared access possible, only set dangling pointer detector once
+	Abandon();
+	return false;
 }
 
 //============================= Parallel

@@ -39,6 +39,8 @@ struct SharedBase
 	RTC_CALL bool DuplRef() const noexcept;
 	RTC_CALL bool DecRef() const noexcept;
 	RTC_CALL void Abandon() const noexcept;
+	RTC_CALL void IncMutableRef() const noexcept;
+	RTC_CALL void DecMutableRef() const noexcept;
 
 // See Notes above for reasons for non-inclusion of Release method.
 // The following commented method prototype is for derivations that can access the concrete-type destructor
@@ -54,7 +56,13 @@ protected:
 	SharedBase& operator =(SharedBase&&) = delete;
 
 private:
+	bool decrement_count() const noexcept;
+
 	mutable std::atomic<ref_count_t> m_RefCount = 0;
+#if defined(MG_DEBUG)
+public:
+	bool md_Pivot = false;
+#endif
 };
 
 

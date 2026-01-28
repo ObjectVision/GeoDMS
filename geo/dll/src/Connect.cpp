@@ -933,7 +933,7 @@ public:
 		bool hasNonVoidMinDist = HasMinDist && !(argMinDist->HasVoidDomainGuarantee());
 		bool hasNonVoidMaxDist = HasMaxDist && !(argMaxDist->HasVoidDomainGuarantee());
 
-		ResultUnitType* resDomain = mutable_unit_cast<R>(ResultUnitType::GetStaticClass()->CreateResultUnit(resultHolder));
+		ResultUnitType* resDomain = mutable_unit_cast<R>(ResultUnitType::GetStaticClass()->CreateResultUnit(resultHolder)).release();
 		dms_assert(resDomain);
 		bool createNewResult = !resultHolder;
 		resultHolder = resDomain;
