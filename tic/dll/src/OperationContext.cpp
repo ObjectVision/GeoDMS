@@ -1208,11 +1208,50 @@ void OperationContext_scheduleThis(OperationContext* self)
 }
 
 // Thread-safe wrapper to schedule this context.
-void OperationContext_ScheduleThis(OperationContext* self)
+task_status OperationContext_ScheduleThis(OperationContext* self, bool runDirect, explain_context_ptr_t context)
 {
-	leveled_std_section::scoped_lock lock(cs_ThreadMessing);
+	assert(self);
+	if (self->m_FuncDC && !self->GetOperator()->CanRunParallel())
+		runDirect = true;
 
-	OperationContext_scheduleThis(self);
+	if (runDirect)
+	{
+		// Inline path: ensure suppliers are resolved or suspended.
+		if (self->GetStatus() < task_status::scheduled)
+		{
+			auto supplStatus = self->JoinSupplOrSuspendTrigger();
+			assert(supplStatus > task_status::running);
+			if (supplStatus == task_status::suspended)
+				return task_status::suspended;
+			assert(self->m_Suppliers.empty() || context);
+			if (supplStatus != task_status::done)
+			{
+				assert(supplStatus == task_status::suspended || supplStatus == self->GetStatus());
+				return supplStatus;
+			}
+		}
+		bool canRun = false;
+		{
+			leveled_std_section::scoped_lock lock(cs_ThreadMessing);
+
+			if (self->m_Status < task_status::activated)
+				OperationContex_setActivated(self);
+			canRun = self->getUniqueLicenseToRun(true);
+		}
+		if (canRun)
+			self->Run_with_cleanup(context);
+	}
+	else
+	{
+		// Async path: enqueue for activation.
+		assert(!context);
+
+		assert(!self->m_FuncDC || self->GetOperator()->CanRunParallel());
+		leveled_std_section::scoped_lock lock(cs_ThreadMessing);
+
+		OperationContext_scheduleThis(self);
+	}
+	return self->GetStatus();
 }
 
 // Core scheduling entry: sets up phase/result/write lock, connects suppliers,
@@ -1261,37 +1300,7 @@ task_status OperationContext::Schedule(TreeItem* item, const FutureSuppliers& al
 
 	bool connectedArgs = (!allArgInterest.empty()) && OperationContext_ConnectArgs(this, allArgInterest);
 
-	if (runDirect)
-	{
-		// Inline path: ensure suppliers are resolved or suspended.
-		auto supplStatus = JoinSupplOrSuspendTrigger();
-		assert(supplStatus > task_status::running);
-		if (supplStatus == task_status::suspended)
-			return task_status::suspended;
-		assert(m_Suppliers.empty() || context);
-		if (supplStatus != task_status::done)
-		{
-			assert(supplStatus == task_status::suspended || supplStatus == GetStatus());
-			return supplStatus;
-		}
-		assert(GetStatus() == task_status::none);
-		{
-			leveled_std_section::scoped_lock lock(cs_ThreadMessing);
-
-			OperationContex_setActivated(this);
-			bool running = getUniqueLicenseToRun(true); assert(running);
-		}
-		Run_with_cleanup(context);
-	}
-	else
-	{
-		// Async path: enqueue for activation.
-		assert(!context);
-
-		assert(!m_FuncDC || GetOperator()->CanRunParallel());
-		OperationContext_ScheduleThis(this);
-	}
-	return GetStatus();
+	return OperationContext_ScheduleThis(this, runDirect, context);
 }
 
 // *****************************************************************************
@@ -2185,9 +2194,10 @@ task_status OperationContext::Join()
 		,	s_CurrBlockedPhaseItem->GetFullName()
 		,	s_CurrPhaseContainer->GetFullName()
 		);
-	OperationContext_ScheduleThis(this);
+	
+	OperationContext_ScheduleThis(this, true, nullptr);
 
-	MG_CHECK(GetStatus() != task_status::none); // being scheduled is a precondition
+	//MG_CHECK(GetStatus() != task_status::none); // being scheduled is a precondition
 
 	std::weak_ptr<OperationContext> firstSupplier;
 
