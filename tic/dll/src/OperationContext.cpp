@@ -1232,11 +1232,15 @@ task_status OperationContext_ScheduleThis(OperationContext* self, bool runDirect
 		}
 		bool canRun = false;
 		{
+			if (SuspendTrigger::DidSuspend())
+				return task_status::suspended;
+
 			leveled_std_section::scoped_lock lock(cs_ThreadMessing);
 
 			if (self->m_Status < task_status::activated)
 				OperationContex_setActivated(self);
 			canRun = self->getUniqueLicenseToRun(true);
+			assert(!SuspendTrigger::DidSuspend());
 		}
 		if (canRun)
 			self->Run_with_cleanup(context);
@@ -2195,7 +2199,7 @@ task_status OperationContext::Join()
 		,	s_CurrPhaseContainer->GetFullName()
 		);
 	
-	OperationContext_ScheduleThis(this, true, nullptr);
+	OperationContext_ScheduleThis(this, false, nullptr);
 
 	//MG_CHECK(GetStatus() != task_status::none); // being scheduled is a precondition
 
