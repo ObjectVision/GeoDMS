@@ -4347,7 +4347,7 @@ void TreeItem::StartInterest() const
 	UpdateMetaInfo();
 	dms_assert(GetInterestCount() == 0);
 
-//	SharedTreeItemInterestPtr parentHolder = GetTreeParent(); //  IsCacheItem() ? GetTreeParent() : nullptr;
+	SharedTreeItemInterestPtr parentHolder = GetTreeParent();
 
 	Actor::StartInterest(); // -> StartSupplInterest() -> VisitSuppl -> UpdateDC -. SetReferredItem
 
@@ -4369,7 +4369,7 @@ void TreeItem::StartInterest() const
 		undoActorInterest.release();
 
 	// nothrow from here, avoid rollbacks and release the InterestHolders without releasing the interest
-//	parentHolder.release();
+	parentHolder.release();
 	refItemHolder.release();
 	calcHolder.release();
 	unlockDsmUsageCounter.release();
@@ -4387,8 +4387,8 @@ garbage_can TreeItem::StopInterest() const noexcept
 
 	auto garbage = Actor::StopInterest();
 
-//	if (GetTreeParent())
-//		garbage |= GetTreeParent()->DecInterestCount();
+	if (GetTreeParent())
+		garbage |= GetTreeParent()->DecInterestCount();
 	if (mc_DC)
 		garbage |= mc_DC->DecInterestCount();
 
