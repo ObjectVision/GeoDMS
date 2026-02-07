@@ -748,7 +748,7 @@ bool DataView::DispatchMsg(const MsgStruct& msg)
 		}
 
 		case WM_KEYDOWN:
-			if (OnKeyDown(msg.m_wParam))
+			if (OnKeyDown(msg.m_wParam | KeyInfo::Flag::Char))
 				goto completed;
 //			if (TranslateMessage(msg))
 //				goto completed;
@@ -761,8 +761,8 @@ bool DataView::DispatchMsg(const MsgStruct& msg)
 //				goto completed;
 			goto defaultProcessing;
 		case WM_CHAR:
-			if (OnKeyDown(msg.m_wParam | KeyInfo::Flag::Char))
-				goto completed;
+//			if (OnKeyDown(msg.m_wParam | KeyInfo::Flag::Char))
+//				goto completed;
 			goto defaultProcessing;
 			
 		case WM_SYSCHAR:

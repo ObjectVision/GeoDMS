@@ -164,93 +164,81 @@ bool TextEditController::OnKeyDown(AbstrTextEditControl* srcTC, SizeT srcRec, UI
 			MessageBeep(-1);
 		return true;
 	}
+	assert(m_IsEditing);
+	if (!KeyInfo::IsChar(virtKey))
+		return false;
 
-	if (m_IsEditing)
-	{
-		if ( KeyInfo::IsChar(virtKey) )
+	bool shiftKey = GetKeyState(VK_SHIFT) & 0x8000;
+	virtKey &= KeyInfo::CharMask;
+	switch (virtKey) {
+		case VK_BACK: // Backspace
+			if (m_SelRange.m_Begin && m_SelRange.IsClosed())
+				--m_SelRange.m_Begin;
+
+			m_CurrText.GetAsMutableCharArray()->erase(m_SelRange.m_Begin, m_SelRange.Size());
+			m_SelRange.CloseAt(m_SelRange.m_Begin);
+			InvalidateDraw();
+			return true;
+
+		case 0x000: // Backspace echo
+			return false;
+		case VK_ESCAPE: // Escape 
+			AbandonEditing();
+			return true;
+
+		case VK_RETURN:
+			CloseCurr();
+			return true;
+
+		case VK_TAB:
+		case VK_UP:
+		case VK_DOWN:
+			CloseCurr();
+			return false;
+
+		case VK_LEFT:
+			m_SelRange.GoLeft(shiftKey, 1);
+			InvalidateCaretPos();
+			return true;
+
+		case VK_RIGHT:
+			m_SelRange.GoRight(shiftKey, 1, m_CurrText.ssize());
+			InvalidateCaretPos();
+			return true;
+
+		case VK_HOME:
+			m_SelRange.GoHome(shiftKey);
+			InvalidateCaretPos();
+			return true;
+
+		case VK_END:
+			m_SelRange.GoEnd(shiftKey, m_CurrText.ssize());
+			InvalidateCaretPos();
+			return true;
+
+		case VK_DELETE:
 		{
-			virtKey &= KeyInfo::CharMask;
-			switch (virtKey) {
-			case VK_BACK: // Backspace
-			case 0x000: // Backspace echo
-				return false;
-			case VK_TAB: // Process a tab.  
-					dms_assert(false);
-			}
-			if (! m_SelRange.IsClosed())
-			{
-				m_CurrText.GetAsMutableCharArray()->erase(m_SelRange.m_Begin, m_SelRange.Size());
-				m_SelRange.m_Curr = m_SelRange.m_Begin;
-			}
-			m_CurrText.insert(m_SelRange.m_Curr++, virtKey);
-			m_SelRange.Close();
+			if (m_SelRange.m_End < m_CurrText.ssize() && m_SelRange.IsClosed())
+				++m_SelRange.m_End;
+
+			if (m_SelRange.m_Begin == m_SelRange.m_End)
+				return true;
+
+			m_CurrText.GetAsMutableCharArray()->erase(m_SelRange.m_Begin, m_SelRange.m_End - m_SelRange.m_Begin);
+			m_SelRange.m_End = m_SelRange.m_Curr = m_SelRange.m_Begin;
 			InvalidateDraw();
 			return true;
 		}
-		else if (KeyInfo::IsSpec(virtKey))
-		{
-			bool shiftKey = GetKeyState(VK_SHIFT) & 0x8000;
-			switch (KeyInfo::CharOf(virtKey)) {
-				case VK_BACK: // Backspace
-					if (m_SelRange.m_Begin && m_SelRange.IsClosed())
-						--m_SelRange.m_Begin;
-
-					m_CurrText.GetAsMutableCharArray()->erase(m_SelRange.m_Begin, m_SelRange.Size());
-					m_SelRange.CloseAt(m_SelRange.m_Begin);
-					InvalidateDraw();
-					return true;
-
-				case VK_ESCAPE: // Escape 
-					AbandonEditing();
-					return true;
-
-				case VK_RETURN:
-					CloseCurr();
-					return true;
-
-				case VK_TAB:
-				case VK_UP:
-				case VK_DOWN:
-					CloseCurr();
-					return false;
-
-				case VK_LEFT: 
-					m_SelRange.GoLeft(shiftKey, 1 );
-					InvalidateCaretPos();
-					return true;
-
-				case VK_RIGHT: 
-					m_SelRange.GoRight(shiftKey, 1, m_CurrText.ssize() );
-					InvalidateCaretPos();
-					return true;
-
-				case VK_HOME:
-					m_SelRange.GoHome(shiftKey);
-					InvalidateCaretPos();
-					return true;
-
-				case VK_END:
-					m_SelRange.GoEnd(shiftKey, m_CurrText.ssize());
-					InvalidateCaretPos();
-					return true;
-
-				case VK_DELETE:
-				{
-					if (m_SelRange.m_End < m_CurrText.ssize() && m_SelRange.IsClosed() )
-						++m_SelRange.m_End;
-
-					if (m_SelRange.m_Begin == m_SelRange.m_End)
-						return true;
-
-					m_CurrText.GetAsMutableCharArray()->erase(m_SelRange.m_Begin, m_SelRange.m_End - m_SelRange.m_Begin);
-					m_SelRange.m_End = m_SelRange.m_Curr = m_SelRange.m_Begin;
-					InvalidateDraw();
-					return true;
-				}
-			}
-		}
 	}
-	return false;
+	if (! m_SelRange.IsClosed())
+	{
+		m_CurrText.GetAsMutableCharArray()->erase(m_SelRange.m_Begin, m_SelRange.Size());
+		m_SelRange.m_Curr = m_SelRange.m_Begin;
+	}
+	m_CurrText.insert(m_SelRange.m_Curr++, virtKey);
+	m_SelRange.Close();
+	InvalidateDraw();
+	return true;
 }
 
 void TextEditController::OnActivate(AbstrTextEditControl* srcTC, SizeT srcRec)
