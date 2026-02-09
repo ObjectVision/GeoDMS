@@ -232,7 +232,7 @@ namespace DemandManagement {
 		IncInterestFence();
 		~IncInterestFence();
 
-		std::map<const PersistentSharedActor*, UInt32> m_TempTargets;
+		std::map<const SharedActor*, UInt32> m_TempTargets;
 		IncInterestFence*  m_PrevFence;
 	};
 
@@ -288,7 +288,7 @@ namespace DemandManagement {
 		s_CurrFence = m_PrevFence;
 	}
 
-	void AddTempTarget(const PersistentSharedActor* a)
+	void AddTempTarget(const SharedActor* a)
 	{
 		assert(IsMetaThread());
 
@@ -302,7 +302,7 @@ namespace DemandManagement {
 		sd_InterestSet.insert(a);
 	}
 
-	void ReleaseTempTarget(const PersistentSharedActor* a)
+	void ReleaseTempTarget(const SharedActor* a)
 	{
 		if (!a)
 			return;

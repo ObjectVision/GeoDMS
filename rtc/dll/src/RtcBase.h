@@ -172,7 +172,7 @@ class  ValueClass;
 struct Actor;
 
 using SharedObj = SharedObjWrap<Object>;
-using PersistentSharedActor = SharedObjWrap<Actor>;
+using SharedActor = SharedObjWrap<Actor>;
 
 struct IString;
 struct Undefined;

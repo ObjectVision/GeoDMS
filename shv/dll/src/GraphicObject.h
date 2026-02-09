@@ -1,8 +1,10 @@
-// Copyright (C) 1998-2023 Object Vision b.v. 
+// Copyright (C) 1998-2026 Object Vision b.v. 
 // License: GNU GPL 3
 /////////////////////////////////////////////////////////////////////////////
 
-#pragma once
+#if defined(_MSC_VER)
+#pragma once // MSVC fast include guard
+#endif
 
 #ifndef __SHV_GRAPHICOBJECT_H
 #define __SHV_GRAPHICOBJECT_H

@@ -29,7 +29,7 @@ enum DataControllerFlags
 // Section:     TreeItemDualRef Interface
 // *****************************************************************************
 
-struct TreeItemDualRef : PersistentSharedActor
+struct TreeItemDualRef : SharedActor
 {
 	TIC_CALL TreeItemDualRef();
 	TIC_CALL ~TreeItemDualRef();

@@ -37,7 +37,7 @@ using OArgRefs = std::optional<ArgRefs>;
 using FutureSuppliers = std::vector<FutureData>;
 
 TIC_CALL const TreeItem* GetItem(const ArgRef& ar);
-TIC_CALL const PersistentSharedActor* GetStatusActor(const ArgRef& ar);
+TIC_CALL const SharedActor* GetStatusActor(const ArgRef& ar);
 TIC_CALL ArgSeqType GetItems(const ArgRefs& ar);
 TIC_CALL const AbstrDataItem* AsDataItem(const ArgRef& ar);
 

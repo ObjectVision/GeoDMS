@@ -70,8 +70,8 @@ struct SupplInterestListPtr;
 
 struct ErrMsg;
 using ErrMsgPtr = std::shared_ptr<ErrMsg>;
-using PersistentSharedActor = SharedObjWrap<Actor>;
-using SharedActorInterestPtr = InterestPtr<SharedPtr<const PersistentSharedActor> >;
+using SharedActor = SharedObjWrap<Actor>;
+using SharedActorInterestPtr = InterestPtr<SharedPtr<const SharedActor> >;
 
 //  -----------------------------------------------------------------------
 //  struct Actor interface

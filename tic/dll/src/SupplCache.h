@@ -19,7 +19,7 @@
 // class  : ExplicitSuppliers
 //----------------------------------------------------------------------
 
-using ActorCRef = SharedPtr<const PersistentSharedActor> ;
+using ActorCRef = SharedPtr<const SharedActor> ;
 using ActorCRefArray = std::unique_ptr<ActorCRef[]>;
 
  // CHECK AND OPTIMIZE ON INVARIANT: all configured suppliers are TreeItems; all implied suppliers are AbstrCalculators

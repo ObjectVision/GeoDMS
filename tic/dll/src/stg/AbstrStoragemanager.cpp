@@ -844,7 +844,7 @@ void NonmappableStorageManager::StartInterest(const TreeItem* storageHolder, con
 	auto visitorImpl = [&interestHolders](const Actor* item) 
 		{ 
 			if (!item->IsPassorOrChecked()) 
-				if (auto sa = dynamic_cast<const PersistentSharedActor*>(item))
+				if (auto sa = dynamic_cast<const SharedActor*>(item))
 					interestHolders.emplace_back(sa); 
 		};
 	auto visitor = MakeDerivedProcVisitor(std::move(visitorImpl));

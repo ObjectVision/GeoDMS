@@ -101,7 +101,7 @@ struct SupplInterestListElem
 
 //typedef SupplInterestListElem::first_ptr_type SupplInterestListPtr;
 
-inline void push_front(SupplInterestListPtr& self, const PersistentSharedActor* actor)
+inline void push_front(SupplInterestListPtr& self, const SharedActor* actor)
 {
 	self = new SupplInterestListElem(SharedActorInterestPtr(actor, existing_obj{}), std::move(self));
 };

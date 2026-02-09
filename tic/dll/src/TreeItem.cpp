@@ -1050,7 +1050,7 @@ const TreeItem* TreeItem::GetCurrUltimateSourceItem() const noexcept
 }
 
 // ============ SetRefItem
-struct OldRefDecrementer : SharedPtr<const PersistentSharedActor>
+struct OldRefDecrementer : SharedPtr<const SharedActor>
 {
 	~OldRefDecrementer() {
 		if (has_ptr())
