@@ -12,9 +12,6 @@
 
 #include "ptr/SharedStr.h"
 #include "ptr/SharedPtr.h"
-#include "ptr/WeakPtr.h"
-#include "ptr/PersistentSharedObj.h"
-#include "utl/SourceLocation.h"
 
 struct FormattedOutStream;
 struct OutStreamBase;

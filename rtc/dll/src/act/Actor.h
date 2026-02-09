@@ -61,10 +61,9 @@
 
 #include "act/ActorEnums.h"
 #include "ptr/InterestHolders.h"
-#include "ptr/PersistentSharedObj.h"
+#include "ptr/PersistentObject.h"
 #include "ptr/SharedStr.h"
 
-#include <any>
 struct ActorVisitor;
 struct SupplInterestListPtr;
 

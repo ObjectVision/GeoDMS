@@ -9,14 +9,11 @@
 #endif //defined(CC_PRAGMAHDRSTOP)
 
 #include "SessionData.h"
-#include "DataStoreManager.h"
 
 #include "act/UpdateMark.h"
 #include "dbg/DmsCatch.h"
-#include "geo/PointOrder.h"
+#include "utl/Environment.h"
 #include "utl/splitPath.h"
-
-#include "stg/AbstrStreamManager.h"
 
 #include "Param.h"
 

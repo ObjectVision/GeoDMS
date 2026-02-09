@@ -314,7 +314,7 @@
     <ClInclude Include="src\ptr\OwningPtr.h">
       <Filter>Smart Pointers</Filter>
     </ClInclude>
-    <ClInclude Include="src\ptr\PersistentSharedObj.h">
+    <ClInclude Include="src\ptr\PersistentObject.h">
       <Filter>Smart Pointers</Filter>
     </ClInclude>
     <ClInclude Include="src\ptr\PtrBase.h">

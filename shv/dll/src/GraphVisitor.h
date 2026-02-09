@@ -9,7 +9,6 @@
 
 #include "ptr/WeakPtr.h"
 #include "ptr/SharedPtr.h"
-#include "ptr/PersistentSharedObj.h"
 
 #include "Region.h"
 #include "ShvUtils.h"

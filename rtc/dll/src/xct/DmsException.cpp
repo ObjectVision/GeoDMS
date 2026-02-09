@@ -11,13 +11,12 @@
 
 #include "xct/DmsException.h"
 
-#include "act/TriggerOperator.h"
+#include "act/ActorEnums.h"
 #include "dbg/debug.h"
 #include "dbg/DmsCatch.h"
 #include "dbg/SeverityType.h"
 #include "geo/iterrangefuncs.h"
 #include "mci/Object.h"
-#include "ptr/PersistentSharedObj.h"
 #include "ser/DebugOutStream.h"
 #include "ser/MoreStreamBuff.h"
 #include "utl/Environment.h"
@@ -26,9 +25,6 @@
 #include "utl/Quotes.h"
 #include "xml/XMLOut.h"
 #include "Parallel.h"
-
-#include <stdarg.h>
-#include <time.h>
 
 THREAD_LOCAL UInt32    g_DumpContextCount = 0;
 

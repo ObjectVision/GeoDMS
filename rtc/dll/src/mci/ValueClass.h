@@ -23,7 +23,7 @@
 // used modules and forward class references
 //----------------------------------------------------------------------
 
-#include "geo/BitValue.h"     // Bit-sized value helpers (sub-byte storage).
+//#include "geo/BitValue.h"     // Bit-sized value helpers (sub-byte storage).
 #include "mci/AbstrValue.h"   // Abstract value interface created by ValueClass::CreateValue.
 #include "mci/Class.h"        // Base Class type providing core meta information.
 

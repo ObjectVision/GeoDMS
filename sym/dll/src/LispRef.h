@@ -11,9 +11,9 @@
 
 #include "SymBase.h"
 
+#include "ptr/SharedObj.h"
 #include "ptr/SharedPtr.h"
 #include "ptr/WeakPtr.h"
-#include "ptr/PersistentSharedObj.h"
 #include "ser/FormattedStream.h"
 
 /****************** forward decls *******************/

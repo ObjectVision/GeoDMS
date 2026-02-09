@@ -204,7 +204,7 @@
     <ClInclude Include="src\ptr\IterCast.h" />
     <ClInclude Include="src\ptr\OLEPtr.h" />
     <ClInclude Include="src\ptr\OwningPtr.h" />
-    <ClInclude Include="src\ptr\PersistentSharedObj.h" />
+    <ClInclude Include="src\ptr\PersistentObject.h" />
     <ClInclude Include="src\ptr\PtrBase.h" />
     <ClInclude Include="src\ptr\SharedArray.h" />
     <ClInclude Include="src\ptr\SharedArrayPtr.h" />

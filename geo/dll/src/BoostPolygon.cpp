@@ -1,4 +1,4 @@
-// Copyright (C) 1998-2024 Object Vision b.v. 
+// Copyright (C) 1998-2026 Object Vision b.v. 
 // License: GNU GPL 3
 /////////////////////////////////////////////////////////////////////////////
 
@@ -16,9 +16,9 @@
 #include "geo/BoostPolygon.h"
 #include "geo/SpatialIndex.h"
 #include "mci/ValueWrap.h"
-#include "mem/LockedSequenceObj.h"
 #include "ptr/Resource.h"
 #include "ptr/ResourceArray.h"
+#include "utl/Environment.h"
 #include "utl/mySPrintF.h"
 
 #include "ParallelTiles.h"
@@ -28,7 +28,6 @@
 #include "TreeItemClass.h"
 #include "Unit.h"
 #include "UnitClass.h"
-#include "UnitProcessor.h"
 
 //#pragma warning (disable: 4146 4267)
 //#define MG_DEBUG_POLYGON

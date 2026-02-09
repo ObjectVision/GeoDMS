@@ -20,16 +20,14 @@
 #include <gdal.h>
 #include <proj.h>
 #include <ogr_api.h>
-#include <cpl_csv.h>
 #include <ogrsf_frmts.h>
-#include <boost/algorithm/string.hpp>
 
-#include "dbg/debug.h"
 #include "dbg/DmsCatch.h"
 #include "geo/PointOrder.h"
 #include "geo/StringArray.h"
 #include "mci/ValueClass.h"
 #include "mci/ValueClassID.h"
+#include "utl/Environment.h"
 #include "utl/mySPrintF.h"
 #include "utl/splitPath.h"
 
@@ -40,13 +38,10 @@
 #include "DataItemClass.h"
 #include "DataLocks.h"
 #include "LispTreeType.h"
-#include "TreeItemContextHandle.h"
-#include "TreeItemProps.h"
 #include "TreeItemUtils.h"
 #include "Unit.h"
 #include "UnitClass.h"
 
-#include "stg/StorageClass.h"
 #include <filesystem>
 #include "Projection.h"
 
@@ -1028,7 +1023,7 @@ GDAL_ConfigurationOptionsFrame::~GDAL_ConfigurationOptionsFrame()
 
 auto GetUnitSizeInMetersFromAngularProjection(std::pair<CharPtr, Float64>& angular_unit) -> Float64
 {
-	if (boost::iequals(angular_unit.first, "degree"))
+	if (stricmp(angular_unit.first, "degree")==0)
 	{
 		if (angular_unit.second > 0.017 && angular_unit.second < 0.018)
 			// wierdly, the size of degree is given in radians an not the number of degrees per unit, which should be 1.0 in case of normal lat-long
@@ -1036,7 +1031,7 @@ auto GetUnitSizeInMetersFromAngularProjection(std::pair<CharPtr, Float64>& angul
 		else
 			return angular_unit.second *= (40000.0 / 360.0) * 1000.0;
 	}
-	if (boost::iequals(angular_unit.first, "radian")) {
+	if (stricmp(angular_unit.first, "radian")==0) {
 		return angular_unit.second *= (40000.0 / (2.0 * std::numbers::pi_v<Float64>)) * 1000.0;
 	}
 	throwErrorF("GetUnitSizeInMetersFromAngularProjection", "unknown OGRSpatialReference unitName: '%s'", angular_unit.first);
@@ -1046,7 +1041,7 @@ auto GetUnitSizeInMetersFromLinearProjection(std::pair<CharPtr, Float64>& linear
 {
 	if (!strcmp(linear_unit.first, "km"))
 		return linear_unit.second *= 1000.0;
-	if (!strcmp(linear_unit.first, "m") || boost::iequals(linear_unit.first, "meter") || boost::iequals(linear_unit.first, "metre"))
+	if (!strcmp(linear_unit.first, "m") || strcmp(linear_unit.first, "meter")==0 || strcmp(linear_unit.first, "metre")==0)
 		return linear_unit.second;
 	throwErrorF("GetUnitSizeInMetersFromLinearProjection", "unknown OGRSpatialReference unitName: '%s'", linear_unit.first);
 }

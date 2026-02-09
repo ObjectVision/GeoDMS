@@ -12,10 +12,6 @@
 #include "mci/PropDef.h"
 #include "mci/PropdefEnums.h"
 #include "mci/ValueClass.h"
-#include "ptr/PersistentSharedObj.h"
-#include "ser/StringStream.h"
-
-#include <set>
 
 /********** PropDef Interface **********/
 
