@@ -98,7 +98,7 @@ const TreeItem* GetItem(const ArgRef& ar)
 	return std::get<1>(ar).get_ptr();
 }
 
-const PersistentSharedActor* GetStatusActor(const ArgRef& ar)
+const SharedActor* GetStatusActor(const ArgRef& ar)
 {
 	if (ar.index() == 0)
 	{

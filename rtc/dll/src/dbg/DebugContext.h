@@ -17,7 +17,7 @@
 #include "DbgInterface.h"
 
 #include "dbg/CheckPtr.h"
-#include "ptr/PersistentSharedObj.h"
+#include "ptr/PersistentObject.h"
 #include "ptr/SharedStr.h"
 #include "set/Token.h"
 struct FormattedOutStream;

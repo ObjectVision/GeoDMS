@@ -8,14 +8,10 @@
 #pragma hdrstop
 #endif //defined(CC_PRAGMAHDRSTOP)
 
-#include "PropDefInterface.h"
-
-#include "ptr/PersistentSharedObj.h"
 #include "mci/Class.h"
 #include "mci/PropDef.h"
 #include "mci/PropdefEnums.h"
 #include "ptr/SharedStr.h"
-#include "set/VectorFunc.h"
 #include "xml/XMLOut.h"
 
 #include "dbg/DmsCatch.h"
@@ -23,8 +19,6 @@
 #include "utl/splitPath.h"
 #include "utl/mySPrintF.h"
 #include "xct/DmsException.h"
-#include "LockLevels.h"
-#include <stdarg.h>
 
 // *****************************************************************************
 // Section:     Annotated Object register for CheckPtr

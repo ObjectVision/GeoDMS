@@ -9,7 +9,6 @@
 #ifndef __TIC_PROJECTION_H
 #define __TIC_PROJECTION_H
 
-#include "ptr/PersistentSharedObj.h"
 #include "geo/Transform.h"
 
 // *****************************************************************************

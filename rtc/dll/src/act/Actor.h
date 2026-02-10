@@ -61,17 +61,16 @@
 
 #include "act/ActorEnums.h"
 #include "ptr/InterestHolders.h"
-#include "ptr/PersistentSharedObj.h"
+#include "ptr/PersistentObject.h"
 #include "ptr/SharedStr.h"
 
-#include <any>
 struct ActorVisitor;
 struct SupplInterestListPtr;
 
 struct ErrMsg;
 using ErrMsgPtr = std::shared_ptr<ErrMsg>;
-using PersistentSharedActor = SharedObjWrap<Actor>;
-using SharedActorInterestPtr = InterestPtr<SharedPtr<const PersistentSharedActor> >;
+using SharedActor = SharedObjWrap<Actor>;
+using SharedActorInterestPtr = InterestPtr<SharedPtr<const SharedActor> >;
 
 //  -----------------------------------------------------------------------
 //  struct Actor interface

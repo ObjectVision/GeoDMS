@@ -23,7 +23,7 @@ struct InterestRetainContextBase
 	RTC_CALL InterestRetainContextBase();
 	RTC_CALL ~InterestRetainContextBase();
 
-	RTC_CALL void Add(const PersistentSharedActor* actor); // only allow for Add when there is a context visible
+	RTC_CALL void Add(const SharedActor* actor); // only allow for Add when there is a context visible
 	RTC_CALL static bool IsActive();
 };
 

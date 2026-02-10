@@ -85,7 +85,7 @@ namespace UpdateMarker
 		TimeStamp m_OldTimeStamp;
 
 		RTC_CALL ChangeSourceLock(TimeStamp ts, CharPtr contextDescr);
-		RTC_CALL ChangeSourceLock(const PersistentSharedActor* actor, CharPtr contextDescr);
+		RTC_CALL ChangeSourceLock(const SharedActor* actor, CharPtr contextDescr);
 		RTC_CALL ~ChangeSourceLock();
 
 #if defined(MG_DEBUG_TS_SOURCE)
@@ -94,7 +94,7 @@ namespace UpdateMarker
 
 	private:
 		CharPtr      m_OldContextDescr;
-		const PersistentSharedActor* m_OldActor;
+		const SharedActor* m_OldActor;
 #endif
 
 	};

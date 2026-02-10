@@ -143,9 +143,9 @@ Lifetime:
 - Parent is a SharedTreeItem to ensure safe upward traversal without immediate deletion of parents.
 */
 
-struct TreeItem : PersistentSharedActor, ItemTree
+struct TreeItem : SharedActor, ItemTree
 {
-	using base_type = PersistentSharedActor;
+	using base_type = SharedActor;
 
 	friend Object* CreateFunc<TreeItem>();
 

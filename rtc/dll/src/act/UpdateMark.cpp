@@ -99,7 +99,7 @@ namespace UpdateMarker {
 #if defined(MG_DEBUG_TS_SOURCE)
 
 	THREAD_LOCAL CharPtr       g_CurrChangedContext = "";
-	THREAD_LOCAL const PersistentSharedActor* g_CurrChangedActor   = nullptr;
+	THREAD_LOCAL const SharedActor* g_CurrChangedActor   = nullptr;
 
 	std::map<TimeStamp, SharedStr> s_ChangeSources;
 
@@ -133,7 +133,7 @@ namespace UpdateMarker {
 		g_CurrChangedActor   = nullptr;
 	}
 
-	ChangeSourceLock::ChangeSourceLock(const PersistentSharedActor* actor, CharPtr contextDescr)
+	ChangeSourceLock::ChangeSourceLock(const SharedActor* actor, CharPtr contextDescr)
 		: ChangeSourceLock(GetLastChangeTS(actor), contextDescr)
 	{
 //		dms_assert(IsMainThread());
@@ -177,7 +177,7 @@ ChangeSourceLock::ChangeSourceLock(TimeStamp ts, CharPtr)
 	impl::tsActive = ts;
 }
 
-ChangeSourceLock::ChangeSourceLock(const PersistentSharedActor* actor, CharPtr x)
+ChangeSourceLock::ChangeSourceLock(const SharedActor* actor, CharPtr x)
 	:	ChangeSourceLock(GetLastChangeTS(actor), x)
 {}
 

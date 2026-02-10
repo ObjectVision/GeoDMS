@@ -1,19 +1,19 @@
-// Copyright (C) 1998-2023 Object Vision b.v. 
+// Copyright (C) 1998-2026 Object Vision b.v. 
 // License: GNU GPL 3
 /////////////////////////////////////////////////////////////////////////////
 
+#if defined(_MSC_VER)
 #pragma once
+#endif
+
 
 #ifndef __RTC_CS_LOCK_MAP_H
 #define __RTC_CS_LOCK_MAP_H
 
-//#include <concrt.h>
-
 #include <optional>
 #include "dbg/debug.h"
-#include "utl/Environment.h"
 
-#include "set/QuickContainers.h"
+#include "LockLevels.h"
 
 #if defined(MG_DEBUG)
 	const bool MG_DEBUG_LOCKS = false;

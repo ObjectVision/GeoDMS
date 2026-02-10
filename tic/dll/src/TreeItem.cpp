@@ -19,14 +19,11 @@
 #include "act/SupplierVisitFlag.h"
 #include "act/TriggerOperator.h"
 #include "act/UpdateMark.h"
-#include "act/UpdateMark.h"
 #include "act/Waiter.h"
 #include "dbg/debug.h"
 #include "dbg/DmsCatch.h"
 #include "mci/SingleLinkedTree.inc"
 #include "mci/PropDef.h"
-#include "ser/VectorStream.h"
-#include "set/VectorFunc.h"
 #include "stg/AbstrStorageManager.h"
 #include "utl/Encodes.h"
 #include "utl/Environment.h"
@@ -34,12 +31,10 @@
 #include "utl/mySPrintF.h"
 #include "utl/SplitPath.h"
 #include "utl/scoped_exit.h"
-#include "utl/Swapper.h"
+#include "utl/SourceLocation.h"
 #include "xct/DmsException.h"
 
 #include "LispList.h"
-
-#include "LockLevels.h"
 
 #include "AbstrCalculator.h"
 #include "AbstrDataItem.h"
@@ -50,16 +45,11 @@
 #include "CopyTreeContext.h"
 #include "DataArray.h"
 #include "DataController.h"
-#include "DataItemClass.h"
 #include "DataLocks.h"
-#include "DataStoreManager.h"
-#include "FreeDataManager.h"
 #include "LispTreeType.h"
 #include "OperationContext.h"
-#include "Operator.h"
 #include "OperGroups.h"
 #include "PropFuncs.h"
-#include "ExprRewrite.h"
 #include "SessionData.h"
 #include "SupplCache.h"
 #include "StateChangeNotification.h"
@@ -73,7 +63,6 @@
 #include "UsingCache.h"
 #include "stg/MemoryMappeddataStorageManager.h"
 
-#include <stdarg.h>
 #include <unordered_set>
 
 using TreeItemInterestPtr = InterestPtr<const TreeItem*>;
@@ -1050,7 +1039,7 @@ const TreeItem* TreeItem::GetCurrUltimateSourceItem() const noexcept
 }
 
 // ============ SetRefItem
-struct OldRefDecrementer : SharedPtr<const PersistentSharedActor>
+struct OldRefDecrementer : SharedPtr<const SharedActor>
 {
 	~OldRefDecrementer() {
 		if (has_ptr())

@@ -1206,7 +1206,7 @@ struct InterestReporter : DebugReporter
 	using ActorSet = DemandManagement::ActorSet;
 	using ActorMap = std::map<ActorSet::value_type, interest_count_t>;
 
-	static void ReportTree(ActorSet& done, const PersistentSharedActor* focusItem, UInt32 level, CharPtr role)
+	static void ReportTree(ActorSet& done, const SharedActor* focusItem, UInt32 level, CharPtr role)
 	{
 		if (!focusItem)
 			return;

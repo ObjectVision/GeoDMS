@@ -222,7 +222,7 @@ bool InterestRetainContextBase::IsActive()
     return sc_RetainContextCount != 0;
 }
 
-void InterestRetainContextBase::Add(const PersistentSharedActor* actor)
+void InterestRetainContextBase::Add(const SharedActor* actor)
 {
 //  assert(IsActive()); // PRECONDITION
     if (IsActive() && actor) // else it will never be removed; REMOVE IF ASSERT IS PROVEN
@@ -505,7 +505,7 @@ ActorVisitState Actor::SuspendibleUpdate(ProgressState ps) const // returns fals
         return AVS_Ready;
 
     assert(m_LastGetStateTS == UpdateMarker::LastTS());
-    UpdateMarker::ChangeSourceLock changeStamp(dynamic_cast<const PersistentSharedActor*>(this),  "Update");
+    UpdateMarker::ChangeSourceLock changeStamp(dynamic_cast<const SharedActor*>(this),  "Update");
 
 #if defined(MG_DEBUG_INTERESTSOURCE)
     DemandManagement::IncInterestDetector incInterestLock("Actor::SuspendibleUpdate()");
@@ -913,7 +913,7 @@ bool Actor::DoFail(ErrMsgPtr msg, FailType ft) const
         s_ActorFailReasonAssoc.assoc(this, msg);
         m_State.SetFailure(ft);
         try {
-            msg->TellWhere(dynamic_cast<const PersistentSharedActor*>(this));
+            msg->TellWhere(dynamic_cast<const SharedActor*>(this));
             if (msg->MustReport())
             {
                 auto st = ft <= FailType::Data ? SeverityTypeID::ST_Error : SeverityTypeID::ST_Warning;
@@ -949,7 +949,7 @@ void Actor::ThrowFail(ErrMsgPtr why, FailType ft) const
 
 void Actor::ThrowFail(SharedStr str, FailType ft) const
 {
-    ThrowFail(std::make_shared<ErrMsg>( str, dynamic_cast<const PersistentSharedActor*>(this) ), ft);
+    ThrowFail(std::make_shared<ErrMsg>( str, dynamic_cast<const SharedActor*>(this) ), ft);
 }
 
 void Actor::ThrowFail(CharPtr str, FailType ft) const
@@ -1178,7 +1178,7 @@ void Actor::StartInterest() const
     assert(m_InterestCount == 0); // no recursion
 
 #if defined(MG_DEBUG_INTERESTSOURCE)
-    DemandManagement::AddTempTarget(dynamic_cast<const PersistentSharedActor*>(this));
+    DemandManagement::AddTempTarget(dynamic_cast<const SharedActor*>(this));
 #endif
 }
 
@@ -1187,7 +1187,7 @@ void Actor::StartInterest() const
 garbage_can Actor::StopInterest() const noexcept
 {
 #if defined(MG_DEBUG_INTERESTSOURCE)
-    DemandManagement::ReleaseTempTarget(dynamic_cast<const PersistentSharedActor*>(this));
+    DemandManagement::ReleaseTempTarget(dynamic_cast<const SharedActor*>(this));
 #endif
     if (SuspendTrigger::DidSuspend() && DoesHaveSupplInterest()) // suspension shouldn't cause loosing interest
         ReportSuspension();
@@ -1213,7 +1213,7 @@ SupplInterestListPtr Actor::GetSupplInterest() const
         [&supplInterestListPtr] (const Actor* supplier)
         {
             if (!supplier->IsPassorOrChecked())
-				if (auto ps = dynamic_cast<PersistentSharedActor*>(const_cast<Actor*>(supplier)))
+				if (auto ps = dynamic_cast<SharedActor*>(const_cast<Actor*>(supplier)))
                     push_front(supplInterestListPtr, ps);
         }
     );
@@ -1383,7 +1383,7 @@ SharedActorInterestPtr Actor::GetInterestPtrOrNull() const
 {
     assert(this);
 
-	auto psa = dynamic_cast<const PersistentSharedActor*>(this);
+	auto psa = dynamic_cast<const SharedActor*>(this);
     assert(psa);
     if (!psa)
 		return {};  
@@ -1394,7 +1394,7 @@ SharedActorInterestPtr Actor::GetInterestPtrOrNull() const
     if (!m_InterestCount)
         return {};
 
-    auto result = SharedPtr<const PersistentSharedActor>(psa, existing_obj{});
+    auto result = SharedPtr<const SharedActor>(psa, existing_obj{});
 
     assert(m_InterestCount);
     ++m_InterestCount;
@@ -1425,13 +1425,13 @@ bool WasInFailed(const Actor* a)
     assert(a);
     if (a->WasFailed())
         return true;
-    auto po = dynamic_cast<const PersistentSharedActor*>(a);
+    auto po = dynamic_cast<const SharedActor*>(a);
     if (!po)
         return false;
     auto p = po->GetParent();
     if (!p)
         return false;
-    return WasInFailed(dynamic_cast<const PersistentSharedActor*>(p));
+    return WasInFailed(dynamic_cast<const SharedActor*>(p));
 }
 
 // Phase numbers provide a simple topological-like ordering among actors.

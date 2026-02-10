@@ -9,8 +9,11 @@
 #endif //defined(CC_PRAGMAHDRSTOP)
 
 #include "geo/StringBounds.h"
+#include "ptr/SharedStr.h"
+#include "utl/Environment.h"
 
 #include "ClipBoard.h"
+#include "ShvUtils.h"
 
 static UInt32    s_ClipBoardOpenCount = 0;
 static SharedStr s_ClipBoardBuff;
