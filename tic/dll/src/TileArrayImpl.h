@@ -366,11 +366,6 @@ FileTileArray<V>::FileTileArray(const AbstrTileRangeData* trd, SharedStr filenam
 					pageRange = (*memPageAllocTable)[t];
 					pageRange.size = capacity_calculator<elem_type>::Byte2Size(pageRange.size);
 				}
-				else 
-				{
-					pageRange.capacity = cmfh_sequences->GetFileSize();
-					pageRange.size = capacity_calculator<elem_type>::Byte2Size( pageRange.capacity );
-				}
 				assert(pageRange.size <= pageRange.capacity);
 				auto ms_values = std::make_unique<mappable_const_sequence<elem_type> >(cmfh_sequences, t, pageRange.size, pageRange.offset, pageRange.capacity);
 				seqs[t].ResetAllocators(ms_index.release(), ms_values.release());
