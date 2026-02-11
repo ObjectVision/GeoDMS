@@ -14,61 +14,57 @@
 #include "mci/CompositeCast.h"
 #include "mth/Mathlib.h"
 #include "ptr/OwningPtrSizedArray.h"
-#include "ser/PairStream.h"
 #include "utl/mySPrintF.h"
-#include "xml/XmlTreeOut.h"
 
 #include "CheckedDomain.h"
 #include "DataArray.h"
-#include "DataLockContainers.h"
 #include "DisplayValue.h"
-#include "OperationContext.h"
+#include "MoreDataControllers.h"
 #include "TreeItemClass.h"
 #include "UnitClass.h"
 
-#include "bi_graph.h"
+#include "bi_graph.h" // used to apply Dijkstra on a bi_graph, needed for finding an shortest route through a graph of facets when adjusting the splitter.
 #include "PCount.h"
 
 /*
 	discrete allocation, O(n*k), see:
 		Tokuyama, T., & Nakano, J.(1995). Efficient algorithms for the Hitchcock transportation problem. SIAM Journal on Computing, 24(3), 563–578.
 		Koomen, E., Hilferink, M., & Borsboom-van Beurden, J. (2011). Introducing land use scanner (pp. 3-21). Springer Netherlands. paragraph 1.3.3
+
+	See Abstract. The described splitter finding and scaling has been inspiration for this implementation
 */
 
 /*
 HTP<S> takes the following arguments:
 
-	suitabilities: for each ggType (aka land use type)
+	suitabilities: for each ggType (a.k.a land use type)
 		{
-			allocUnit -> Eur/m2: S
+			allocUnit -> S
 		}
-
 
 	claims: for each ggType:
 		{	
-			RegioGrid:	allocUnit->RegioSet
-			minClaim:	RegioSet->UInt32
-			maxClaim:	RegioSet->UInt32 
+			RegioGrid:	allocUnit->RegioSet[ggType]
+			minClaim:	RegioSet[ggType]->UInt32
+			maxClaim:	RegioSet[ggType]->UInt32 
 		}
 
-	free_land: allocUnit -> bool 
-
-
 results in:
-	landuse:	     allocUnit->ggType
+	landuse:	  allocUnit->ggType
 	allocResults: for each ggType:
 		{
-			totalLand:	RegioSet->UInt32
-			shadowPrice:RegioSet->S
+			totalLand:	RegioSet[ggType]->UInt32
+			shadowPrice:RegioSet[ggType]->S
 		}
 
 */
 /* 
 *	summary of the algorithm:
-*   - a solution if defined by a shadow price for each claim, such that alocation of all cells according to the suitabilities augmented by the shadow prices of the related claims, will meet the claim constraints.
+*   - a solution of this HTP is a resulting assignment of land use and related allocResults that does not conflict with claims (i.e. is feasible) and that has a maximum total suitability, i.e. that no other feasible assignment exists with a higher total suitability.
+*   - a solution is defined by a shadow price for each claim, such that alocation of all cells according to the suitabilities augmented by the shadow prices of the related claims, will meet the claim constraints.
 *   - to quickly find almost correct shadow prices, the algorithm starts with a downscaled version of the problem, where the the number of land units (preferably by pseudo random selection) and claims have been reduced by a power of 4
 *   - during each scale up, the shadow prices are adjusted when maximum claims are exceeded abnd after each scale up, minimum claims are satisfied by sufficient reallocation.
-*   - for each claim pair that relate to overlapping land units, keep a priority queue of cells ordered by increasing cost of reallocation from the first ggType (aka land use type) to the second ggType.
+*   - for each claim pair that relate to overlapping land units, a.k.a. facet, keep a priority queue of cells ordered by non-decreasing cost of reallocation from the first ggType (aka land use type) to the second ggType.
 *   - when a max claim is exceeded, the cell with the lowest reallocation cost is reallocated. 
 *	- As each claim can have multiple facets and destination claims may also be saturated, a cheapest path is searched throught the graph of facets to the first accessible non-saturated destination claim. 
 *	- The cost of each facet in this path is the difference between the augmented suitability of the source ggType and the augmented suitability of the destination ggType of the first valid land unit that is on top of the facet's priority queue.
@@ -3511,7 +3507,7 @@ public:
 };
 
 // *****************************************************************************
-//											INSTANTIATION
+//	INSTANTIATION of the various previously defined HitchcockTransportationOperators
 // *****************************************************************************
 
 namespace 
