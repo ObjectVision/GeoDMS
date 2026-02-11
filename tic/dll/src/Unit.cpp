@@ -511,7 +511,7 @@ bool IsRegular(const auto& range, const auto& tileRanges)
 		return false; // caught by earlier checks or range != tileRanges[0]
 
 	auto firstTileExtents = Size(tileRanges[0]);
-	RegularTileRangeData<V> exemplar(range, firstTileExtents);
+	RegularTileRangeData<V> exemplar(range, firstTileExtents); exemplar.Abandon();
 	if (exemplar.GetNrTiles() != tileRanges.size())
 		return false;
 
