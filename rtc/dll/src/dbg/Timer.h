@@ -44,10 +44,10 @@ struct Timer
 		bool result = PassedSecs_impl(nextWaitTime);
 		if (result)
 		{
-			if (nextWaitTime < 300)
+			if (nextWaitTime < 30)
 				nextWaitTime *= 2;
 			else
-				nextWaitTime = 600;
+				nextWaitTime = 60;
 		}
 		return result;
 	}
