@@ -383,6 +383,17 @@ void LayerControl::Init()
 	base_type::Init();
 	m_InfoControl = std::make_shared<LayerInfoControl>(this);
 	InsertEntry(m_InfoControl.get());
+
+	PostMainThreadTask(0,
+		[wptr = this->weak_from_this()] (bool mustCancel) -> bool
+		{
+			if (mustCancel) return true;
+			auto sptr = wptr.lock(); if (!sptr) return true;
+
+			sptr->SuspendibleUpdate(ProgressState::Committed);
+			return !SuspendTrigger::DidSuspend();
+		}
+	);
 }
 
 LayerControl::~LayerControl()
