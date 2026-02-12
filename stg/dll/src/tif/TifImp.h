@@ -96,13 +96,13 @@ public:
 
 	STGIMPL_CALL void UnpackStrip(void* stripBuf, Int32 currDataSize, UInt32 nrBitsPerPixel) const;
 
-	STGIMPL_CALL void UnpackStrip(UInt32* pixelData, void* stripBuff, UInt32 nrBitsPerPixel, Int32& currNrProcesedBytes, UInt32 nrBytesPerRow, UInt32 tw, UInt32 th, UInt32 defaultColor)  const;
-	STGIMPL_CALL void UnpackStrip(UInt8* pixelData, void* stripBuff, UInt32 nrBitsPerPixel, Int32& currNrProcesedBytes, UInt32 nrBytesPerRow, UInt32 tw, UInt32 th, UInt8 defaultColor)  const;
-	void UnpackStrip(UInt16* pixelData, void* stripBuff, UInt32 nrBitsPerPixel, Int32& currNrProcesedBytes, UInt32 nrBytesPerRow, UInt32 tw, UInt32 th, UInt16 defaultColor)  const {}
-	void UnpackStrip(Float64* pixelData, void* stripBuff, UInt32 nrBitsPerPixel, Int32& currNrProcesedBytes, UInt32 nrBytesPerRow, UInt32 tw, UInt32 th, Float64 defaultColor)  const {}
+	STGIMPL_CALL void UnpackStrip(UInt32* pixelData, void* stripBuff, UInt32 nrBitsPerPixel, Int32& currNrProcesedBytes, UInt32 nrBytesPerRow, UInt32 tw, UInt32 th, UInt32 tw_aligned, UInt32 defaultColor)  const;
+	STGIMPL_CALL void UnpackStrip(UInt8* pixelData, void* stripBuff, UInt32 nrBitsPerPixel, Int32& currNrProcesedBytes, UInt32 nrBytesPerRow, UInt32 tw, UInt32 th, UInt32 tw_aligned, UInt8 defaultColor)  const;
+	void UnpackStrip(UInt16* pixelData, void* stripBuff, UInt32 nrBitsPerPixel, Int32& currNrProcesedBytes, UInt32 nrBytesPerRow, UInt32 tw, UInt32 th, UInt32 tw_aligned, UInt16 defaultColor)  const {}
+	void UnpackStrip(Float64* pixelData, void* stripBuff, UInt32 nrBitsPerPixel, Int32& currNrProcesedBytes, UInt32 nrBytesPerRow, UInt32 tw, UInt32 th, UInt32 tw_aligned, Float64 defaultColor)  const {}
 
 	template <int N>
-	void UnpackStrip(bit_iterator<N, bit_block_t> pixelData, void* stripBuff, UInt32 nrBitsPerPixel, Int32& currNrProcesedBytes, UInt32 nrBytesPerRow, UInt32 tw, UInt32 th, bit_value<N> defaultColor)  const
+	void UnpackStrip(bit_iterator<N, bit_block_t> pixelData, void* stripBuff, UInt32 nrBitsPerPixel, Int32& currNrProcesedBytes, UInt32 nrBytesPerRow, UInt32 tw, UInt32 th, UInt32 tw_aligned, bit_value<N> defaultColor)  const
 	{
 		if (nrBitsPerPixel == 8)
 		{

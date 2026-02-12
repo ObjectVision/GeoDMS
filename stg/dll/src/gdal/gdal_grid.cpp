@@ -351,20 +351,25 @@ void GDalGridImp::UnpackCheck(UInt32 nrDmsBitsPerPixel, UInt32 nrRasterBitsPerPi
 }
 
 template <int N>
-void GDalGridImp::UnpackStrip(bit_iterator<N, bit_block_t> pixelData, void* stripBuff, UInt32 nrBitsPerPixel, Int32& currNrProcesedBytes, UInt32 nrBytesPerRow, UInt32 tw, UInt32 th, bit_value<N> defaultColor) const
+void GDalGridImp::UnpackStrip(bit_iterator<N, bit_block_t> pixelData, void* stripBuff, UInt32 nrBitsPerPixel, Int32& currNrProcesedBytes, UInt32 nrBytesPerRow, UInt32 tw, UInt32 th, UInt32 tw_aligned, bit_value<N> defaultColor) const
 {
+	constexpr bit_block_t bint_mask = ((1 << N) - 1);
+
 	if (nrBitsPerPixel == 8)
 	{
 		char* byteBuff = reinterpret_cast<char*>(stripBuff);
 		for (; th; --th, byteBuff += nrBytesPerRow)
+		{
 			for (Int32 i = 0; i != tw; ++i)
-				*pixelData++ = byteBuff[i] & ((1 << N) - 1);
+				*pixelData++ = byteBuff[i] & bint_mask;
+			pixelData += (tw_aligned - tw);
+		}
 
 		currNrProcesedBytes = (N * currNrProcesedBytes + 7) / 8;
 	}
 }
 
-void GDalGridImp::UnpackStrip(UInt32* pixelData, void* stripBuff, UInt32 nrBitsPerPixel, Int32& currNrProcesedBytes, UInt32 nrBytesPerRow, UInt32 tw, UInt32 th, UInt32 defaultColor)  const
+void GDalGridImp::UnpackStrip(UInt32* pixelData, void* stripBuff, UInt32 nrBitsPerPixel, Int32& currNrProcesedBytes, UInt32 nrBytesPerRow, UInt32 tw, UInt32 th, UInt32 tw_aligned, UInt32 defaultColor)  const
 {
 /*
 	if (m_RasterBand->GetRasterDataType() == GDT_UInt32)

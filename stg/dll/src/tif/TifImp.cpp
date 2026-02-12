@@ -597,7 +597,7 @@ void TifImp::UnpackStrip(void* stripBuff, Int32 currDataSize, UInt32 nrBitsPerPi
 }
 
 //  --FUNCS ------------------------------------------------------------------
-void TifImp::UnpackStrip(UInt32* pixelData, void* stripBuff, UInt32 nrBitsPerPixel, Int32& currNrProcesedBytes, UInt32 nrBytesPerRow, UInt32 tw, UInt32 th, UInt32 defaultColor)  const
+void TifImp::UnpackStrip(UInt32* pixelData, void* stripBuff, UInt32 nrBitsPerPixel, Int32& currNrProcesedBytes, UInt32 nrBytesPerRow, UInt32 tw, UInt32 th, UInt32 tw_aligned, UInt32 defaultColor)  const
 {
 	if (nrBitsPerPixel == 24) // expand to 32 bit values
 	{
@@ -661,7 +661,7 @@ void TifImp::UnpackStrip(UInt32* pixelData, void* stripBuff, UInt32 nrBitsPerPix
 	}
 }
 
-void TifImp::UnpackStrip(UInt8* pixelData, void* stripBuff, UInt32 nrBitsPerPixel, Int32& currNrProcesedBytes, UInt32 nrBytesPerRow, UInt32 tw, UInt32 th, UInt8 defaultColor)  const
+void TifImp::UnpackStrip(UInt8* pixelData, void* stripBuff, UInt32 nrBitsPerPixel, Int32& currNrProcesedBytes, UInt32 nrBytesPerRow, UInt32 tw, UInt32 th, UInt32 tw_aligned, UInt8 defaultColor)  const
 {
 	if (nrBitsPerPixel == 4)
 	{
