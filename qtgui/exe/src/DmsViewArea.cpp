@@ -31,9 +31,12 @@ LRESULT CALLBACK DataViewWndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lPa
 
     DataView* view = reinterpret_cast<DataView*>(GetWindowLongPtr(hWnd, 0)); // retrieve pointer to DataView obj.
 
-    LRESULT result = 0;
-    if (view && SHV_DataView_DispatchMessage(view, hWnd, uMsg, wParam, lParam, &result))
-        return result;
+    if (view)
+    {
+        auto r = SHV_DataView_DispatchMessage(view, hWnd, uMsg, wParam, lParam);
+        if (r.handled)
+            return r.result;
+    }
 
     if (uMsg == WM_DESTROY) {
         SHV_DataView_Destroy(view); // delete view; 

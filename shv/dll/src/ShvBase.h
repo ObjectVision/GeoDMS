@@ -103,6 +103,11 @@ struct GridCoord;
 struct SelCaret;
 struct IndexCollector;
 
+struct MsgResult {
+	bool handled;
+	LRESULT result;
+};
+
 //----------------------------------------------------------------------
 // typedefs
 //----------------------------------------------------------------------

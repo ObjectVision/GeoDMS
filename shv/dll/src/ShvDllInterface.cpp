@@ -166,10 +166,9 @@ bool  DMS_CONV SHV_DataView_AddItem(DataView* dv, const TreeItem* viewItem, bool
 	return false;
 }
 
-static LRESULT dummyResultLoc;
 #include "dbg/debug.h"
 
-bool DMS_CONV SHV_DataView_DispatchMessage(DataView* dv, HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam, LRESULT* resultPtr)
+MsgResult DMS_CONV SHV_DataView_DispatchMessage(DataView* dv, HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
 {
 	DMS_CALL_BEGIN
 
@@ -178,12 +177,10 @@ bool DMS_CONV SHV_DataView_DispatchMessage(DataView* dv, HWND hWnd, UINT msg, WP
 		DBG_TRACE(("msg = %x",  msg));
 		DBG_TRACE(("WP  = %x",  wParam));
 		DBG_TRACE(("LP  = %x",  lParam));
-		DBG_TRACE(("LR  = %x", *resultPtr));
 		DBG_TRACE(("dv  = %x",  dv));
 		DBG_TRACE(("hWnd= %x",  hWnd));
 
-		dms_assert(resultPtr);
-		dms_assert(hWnd != 0);
+		assert(hWnd != 0);
 
 		if (dv)
 		{
@@ -200,18 +197,18 @@ bool DMS_CONV SHV_DataView_DispatchMessage(DataView* dv, HWND hWnd, UINT msg, WP
 					)
 				{
 					bool incSuspendIfPushBackSucceeds = g_MsgQueue.empty();
-					g_MsgQueue.push_back(MsgStruct(dv, msg, wParam, lParam, &dummyResultLoc));
+					g_MsgQueue.push_back(MsgStruct(dv, msg, wParam, lParam));
 					if (incSuspendIfPushBackSucceeds)
 						SuspendTrigger::IncSuspendLevel();
 					DBG_TRACE(("Queue the msg and returns true without changing LR"));
-					return true; // consider message handled.
+					return { true, 0 }; // consider message handled.
 				}
 				if (msg == WM_NCHITTEST
 					|| msg == WM_NCCALCSIZE
 					|| msg == WM_NCPAINT
 					|| msg == WM_NCACTIVATE
 				)
-					return false; // lets try defaultWindowProc
+					return { false, 0 }; // lets try defaultWindowProc
 			}
 			CheckPtr(dv, DataView::GetStaticClass(), "SHV_DataView_DispatchMessage");
 
@@ -240,18 +237,17 @@ bool DMS_CONV SHV_DataView_DispatchMessage(DataView* dv, HWND hWnd, UINT msg, WP
 					}
 				SuspendTrigger::Resume();
 			}
-			bool result = MsgStruct(dv, msg, wParam, lParam, resultPtr).Send();
+			auto r = MsgStruct(dv, msg, wParam, lParam).Send();
 
-			DBG_TRACE(("LR = %x", *resultPtr));
-			DBG_TRACE(("res= %d", result));
-			return result;
+			DBG_TRACE(("res= %d", r.result));
+			return r;
 		}
 
 		DBG_TRACE(("no dv, return false"));
 
 	DMS_CALL_END
 
-	return false; // lets try defaultWindowProc after exception
+	return { false, 0 }; // lets try defaultWindowProc after exception
 }
 
 void OnDestroyDataView(DataView* self)

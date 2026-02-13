@@ -100,21 +100,19 @@ enum ViewStyleFlags {
 
 struct MsgStruct
 { 
-	MsgStruct(DataView* dv, UINT msg, WPARAM wParam, LPARAM lParam, LRESULT* resultPtr)
+	MsgStruct(DataView* dv, UINT msg, WPARAM wParam, LPARAM lParam)
 		:	m_DataView(dv)
 		,	m_Msg(msg)
 		,	m_wParam(wParam)
 		,	m_lParam(lParam)
-		,	m_ResultPtr(resultPtr)
 	{}
 
 	DataView* m_DataView;
 	UINT      m_Msg;
 	WPARAM    m_wParam;
 	LPARAM    m_lParam;
-	LRESULT*  m_ResultPtr;
 
-	bool Send() const;  // calls DataView::DispachMsg, and returns true if processed; else caller must call DefWindowProc
+	MsgResult Send() const;  // calls DataView::DispachMsg, and returns true if processed; else caller must call DefWindowProc
 };
 
 const UInt32 DVF_InUpdateView     = actor_flag_set::AF_Next * 0x0001;
@@ -198,7 +196,7 @@ public:
 	bool CreateMdiChild  (ViewStyle ct,     CharPtr caption);
 
 //	Operations
-	bool DispatchMsg(const MsgStruct& msg);
+	MsgResult DispatchMsg(const MsgStruct& msg);
 	SHV_CALL bool OnKeyDown(UInt32 nVirtKey);
 
 //	Attributes

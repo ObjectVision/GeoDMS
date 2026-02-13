@@ -103,7 +103,7 @@ SHV_CALL CharPtr GetViewStyleName(ViewStyle ct)
 // struct : MsgStruct
 //----------------------------------------------------------------------
 
-bool MsgStruct::Send() const
+MsgResult MsgStruct::Send() const
 {
 	#if defined(MG_DEBUG_DATAVIEWSET)
 	MG_CHECK(m_DataView->IsInActiveDataViewSet());
@@ -569,7 +569,7 @@ void DataView::XOrSelCaret(const Region& newSelCaret)
 /////////////////////////////////////////////////////////////////////////////
 // DataView event handlers
 
-bool DataView::DispatchMsg(const MsgStruct& msg)
+MsgResult DataView::DispatchMsg(const MsgStruct& msg)
 {
 	DBG_START("DataView", "DispatchMsg", MG_DEBUG_WNDPROC);
 		DBG_TRACE(("msg: %x(%x, %x)", msg.m_Msg, msg.m_wParam, msg.m_lParam));
@@ -579,11 +579,13 @@ bool DataView::DispatchMsg(const MsgStruct& msg)
 		case WM_PAINT:
 //			dbg_assert(!md_IsDrawingCount); can be Sent when Peeking msg in Update.
 			OnPaint();
-			return true;
+			goto completed;
+
 		case WM_TIMER:
 		{
-			if (msg.m_wParam == UPDATE_TIMER_ID)
-			{
+			if (msg.m_wParam != UPDATE_TIMER_ID)
+				goto defaultProcessing;
+
 				if (!IsProcessingMainThreadOpers())
 				{
 
@@ -607,10 +609,7 @@ bool DataView::DispatchMsg(const MsgStruct& msg)
 				}
 				goto completed;
 			}
-			goto defaultProcessing;
-		}
 		case WM_ERASEBKGND:
-			assert(msg.m_ResultPtr);
 			goto completed;
 
 		case WM_SETFOCUS:
@@ -648,7 +647,7 @@ bool DataView::DispatchMsg(const MsgStruct& msg)
 				if (!DispatchMouseEvent(EventID::SETCURSOR, 0, cursorPos.ScreenToClient(m_hWnd)) )
 					SetCursor( LoadCursor(NULL, IDC_ARROW) );
 			}
-			return true;
+			goto completed;
 
 		case WM_MOUSELEAVE:
 			OnMouseMove(0, UNDEFINED_VALUE(GPoint) );
@@ -665,8 +664,7 @@ bool DataView::DispatchMsg(const MsgStruct& msg)
 		}
 		case WM_RBUTTONDOWN:
 			DispatchMouseEvent(EventID::RBUTTONDOWN,   msg.m_wParam, LParam2Point(msg.m_lParam) );
-			*msg.m_ResultPtr = 0;
-			return true;
+			goto completed;
 
 		case WM_LBUTTONUP:
 		 	DispatchMouseEvent(EventID::LBUTTONUP,     msg.m_wParam, LParam2Point(msg.m_lParam) );
@@ -724,17 +722,8 @@ bool DataView::DispatchMsg(const MsgStruct& msg)
 			goto completed;
 
 		case WM_MOUSEACTIVATE:
-//			if (GetActiveWindow() != GetWindowParent(m_hWnd) )
-//			{
-//				SetFocus(m_hWnd);
-//				SetActiveWindow(m_hWnd);
-//				MessageBeep(-1);
-//				*msg.m_ResultPtr = MA_ACTIVATEANDEAT;
-//			}
 			SetFocus(m_hWnd);
-			*msg.m_ResultPtr = MA_ACTIVATE;
-			return true;
-
+			return { true, MA_ACTIVATE };
 		case WM_ACTIVATE:
 			OnActivate(LOWORD(msg.m_wParam) != WA_INACTIVE); // bool minimized = (HIWORD(msg.m_wParam) != 0);
 			goto completed;
@@ -750,15 +739,11 @@ bool DataView::DispatchMsg(const MsgStruct& msg)
 		case WM_KEYDOWN:
 			if (OnKeyDown(msg.m_wParam | KeyInfo::Flag::Char))
 				goto completed;
-//			if (TranslateMessage(msg))
-//				goto completed;
 			goto defaultProcessing;
 
 		case WM_SYSKEYDOWN:
 			if (OnKeyDown(msg.m_wParam | (msg.m_lParam & KeyInfo::Flag::Menu) | KeyInfo::Flag::Syst))
 				goto completed;
-//			if (TranslateMessage(msg))
-//				goto completed;
 			goto defaultProcessing;
 		case WM_CHAR:
 //			if (OnKeyDown(msg.m_wParam | KeyInfo::Flag::Char))
@@ -782,11 +767,10 @@ bool DataView::DispatchMsg(const MsgStruct& msg)
 			goto completed;
 	}
 defaultProcessing:
-	return false; // send to default processing
+	return { false, 0 }; // send to default processing
 
 completed:
-	*msg.m_ResultPtr = 0; // don't dispatch any further if processed
-	return true;
+	return { true, 0 }; // don't dispatch any further
 }
 
 bool DataView::OnKeyDown(UInt32 nVirtKey)
