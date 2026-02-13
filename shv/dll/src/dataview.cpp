@@ -586,29 +586,29 @@ MsgResult DataView::DispatchMsg(const MsgStruct& msg)
 			if (msg.m_wParam != UPDATE_TIMER_ID)
 				goto defaultProcessing;
 
-				if (!IsProcessingMainThreadOpers())
-				{
+			if (!IsProcessingMainThreadOpers())
+			{
 
-					KillTimer(m_hWnd, UPDATE_TIMER_ID);
-					if (IdleTimer::IsInIdleMode())
-					{
-						IdleTimer::Subscribe(shared_from_this());
-						m_Waiter.end();
-					}
-					else
-					{
-						auto status = GVS_Ready;
-						auto curr = SessionData::Curr();
-						if (curr)
-							status = UpdateView();
-						if (status == GraphVisitState::GVS_Break)
-							SetUpdateTimer();
-						else
-							m_Waiter.end();
-					}
+				KillTimer(m_hWnd, UPDATE_TIMER_ID);
+				if (IdleTimer::IsInIdleMode())
+				{
+					IdleTimer::Subscribe(shared_from_this());
+					m_Waiter.end();
 				}
-				goto completed;
+				else
+				{
+					auto status = GVS_Ready;
+					auto curr = SessionData::Curr();
+					if (curr)
+						status = UpdateView();
+					if (status == GraphVisitState::GVS_Break)
+						SetUpdateTimer();
+					else
+						m_Waiter.end();
+				}
 			}
+			goto completed;
+		}
 		case WM_ERASEBKGND:
 			goto completed;
 
@@ -737,7 +737,7 @@ MsgResult DataView::DispatchMsg(const MsgStruct& msg)
 		}
 
 		case WM_KEYDOWN:
-			if (OnKeyDown(msg.m_wParam | KeyInfo::Flag::Char))
+			if (OnKeyDown(msg.m_wParam))
 				goto completed;
 			goto defaultProcessing;
 
@@ -746,8 +746,8 @@ MsgResult DataView::DispatchMsg(const MsgStruct& msg)
 				goto completed;
 			goto defaultProcessing;
 		case WM_CHAR:
-//			if (OnKeyDown(msg.m_wParam | KeyInfo::Flag::Char))
-//				goto completed;
+			if (OnKeyDown(msg.m_wParam | KeyInfo::Flag::Char))
+				goto completed;
 			goto defaultProcessing;
 			
 		case WM_SYSCHAR:

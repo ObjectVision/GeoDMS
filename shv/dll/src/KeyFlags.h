@@ -1,35 +1,11 @@
-//<HEADER> 
-/*
-Data & Model Server (DMS) is a server written in C++ for DSS applications. 
-Version: see srv/dms/rtc/dll/src/RtcVersion.h for version info.
+// Copyright (C) 1998-2026 Object Vision B.V. 
+// License: GNU GPL 3
+/////////////////////////////////////////////////////////////////////////////
 
-Copyright (C) 1998-2004  YUSE GSO Object Vision BV. 
+#if defined(_MSC_VER)
+#pragma once
+#endif
 
-Documentation on using the Data & Model Server software can be found at:
-http://www.ObjectVision.nl/DMS/
-
-See additional guidelines and notes in srv/dms/Readme-srv.txt 
-
-This library is free software; you can use, redistribute, and/or
-modify it under the terms of the GNU General Public License version 2 
-(the License) as published by the Free Software Foundation,
-provided that this entire header notice and readme-srv.txt is preserved.
-
-See LICENSE.TXT for terms of distribution or look at our web site:
-http://www.objectvision.nl/DMS/License.txt
-or alternatively at: http://www.gnu.org/copyleft/gpl.html
-
-This library is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
-General Public License for more details. However, specific warranties might be
-granted by an additional written contract for support, assistance and/or development
-*/
-//</HEADER>
-// stdafx.h : include file for standard system include files,
-//  or project specific include files that are used frequently, but
-//      are changed infrequently
-//
 
 #if !defined(__SHV_KEYFLAGS_H)
 #define __SHV_KEYFLAGS_H
@@ -51,13 +27,14 @@ namespace KeyInfo {
 		const UInt32 Shift= 0x08000000; // true for WM_SYS*, can also be sent without KF_MENU when curr=Active and no control has key-focus
 
 		const UInt32 CCM = Char|Ctrl|Menu|Shift;
+		const UInt32 IsCharMask = Char | Ctrl | Menu;
 	}
 
 	inline UInt32 FlagsOf  (UInt32 virtKey) { return virtKey & FlagsMask; }
 	inline UInt32 CharOf   (UInt32 virtKey) { return virtKey & CharMask; }
 	inline UInt32 CcmOf    (UInt32 virtKey) { return virtKey & Flag::CCM; }
 
-	inline bool IsChar     (UInt32 virtKey) { return  FlagsOf(virtKey) == Flag::Char; } // nonsystem normal char
+	inline bool IsChar     (UInt32 virtKey) { return  (virtKey & Flag::IsCharMask) == Flag::Char; } // nonsystem normal char or shifted char
 	inline bool IsSpec     (UInt32 virtKey) { return  CcmOf(virtKey) == 0; }
 	inline bool IsCtrl     (UInt32 virtKey) { return  CcmOf(virtKey) == Flag::Ctrl; }
 	inline bool IsShiftCtrl(UInt32 virtKey) { return  CcmOf(virtKey) == (Flag::Ctrl|Flag::Shift); }

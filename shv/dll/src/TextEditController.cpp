@@ -135,20 +135,35 @@ bool TextEditController::OnKeyDown(AbstrTextEditControl* srcTC, SizeT srcRec, UI
 	dms_assert(srcTC);
 	OnActivate(srcTC, srcRec);
 
-	if (!m_IsEditing) 
+	if (GetKeyState(VK_MENU) & 0x8000)
+		return false; // let Qt receive this
+	if (GetKeyState(VK_CONTROL) & 0x8000)
+		return false; // let Qt receive this
+
+	auto isWmChar = KeyInfo::IsChar(virtKey);
+	auto vk = KeyInfo::CharOf(virtKey);
+
+	if (!m_IsEditing)
 	{
-		if (KeyInfo::IsChar(virtKey))
-		{
-			virtKey = KeyInfo::CharOf(virtKey);
-			if (virtKey == VK_ESCAPE)
-				return false;
-			m_CurrText = SharedStr();
-			if (virtKey != VK_BACK)
-				m_CurrText += char(virtKey);
-		}
-		else if (virtKey != VK_F2)
+		if (vk == VK_RETURN)
 			return false;
 
+		if (vk == VK_TAB)
+			return false;
+
+		if (!isWmChar)
+		{
+			// we're in WM_KeyDown; these virtual keys may trickle down the GraphicObject tree and then to Qt Controls 
+			if (vk == VK_UP    ) return false;
+			if (vk == VK_DOWN  ) return false;
+			if (vk == VK_LEFT  ) return false;
+			if (vk == VK_RIGHT ) return false;
+			if (vk == VK_ESCAPE) return false;
+			if (vk == VK_DELETE) return false;
+
+			if (virtKey != VK_F2)
+				return true; // mark as handled as we want to process a subsequent WM_CHAR if that would follow, but ignore non-char keys otherwise
+		}
 		if (m_CurrTextControl->IsEditable(AN_LabelText))
 		{
 			GuiReadLock lock;
@@ -156,6 +171,12 @@ bool TextEditController::OnKeyDown(AbstrTextEditControl* srcTC, SizeT srcRec, UI
 			StartEdit();
 			if (virtKey == VK_F2)
 				m_CurrText = m_OrgText;
+			else
+			{
+				m_CurrText = SharedStr();
+				if (virtKey != VK_BACK)
+					m_CurrText += char(virtKey);
+			}
 
 			m_SelRange.m_End = m_SelRange.m_Begin = m_SelRange.m_Curr = m_CurrText.ssize();
 			InvalidateCaretPos();
@@ -165,13 +186,12 @@ bool TextEditController::OnKeyDown(AbstrTextEditControl* srcTC, SizeT srcRec, UI
 		return true;
 	}
 	assert(m_IsEditing);
-	if (!KeyInfo::IsChar(virtKey))
-		return false;
 
 	bool shiftKey = GetKeyState(VK_SHIFT) & 0x8000;
-	virtKey &= KeyInfo::CharMask;
-	switch (virtKey) {
+	switch (vk) {
 		case VK_BACK: // Backspace
+			if (shiftKey)
+				return false;
 			if (m_SelRange.m_Begin && m_SelRange.IsClosed())
 				--m_SelRange.m_Begin;
 
@@ -180,13 +200,15 @@ bool TextEditController::OnKeyDown(AbstrTextEditControl* srcTC, SizeT srcRec, UI
 			InvalidateDraw();
 			return true;
 
-		case 0x000: // Backspace echo
-			return false;
-		case VK_ESCAPE: // Escape 
+		case VK_ESCAPE:
+			if (shiftKey)
+				return false;
 			AbandonEditing();
 			return true;
 
 		case VK_RETURN:
+			if (shiftKey)
+				return false;
 			CloseCurr();
 			return true;
 
@@ -195,6 +217,13 @@ bool TextEditController::OnKeyDown(AbstrTextEditControl* srcTC, SizeT srcRec, UI
 		case VK_DOWN:
 			CloseCurr();
 			return false;
+
+		// swallow subsequent semi control chars as char
+		case VK_RETURN | KeyInfo::Flag::Char:
+		case VK_BACK | KeyInfo::Flag::Char:
+		case VK_TAB | KeyInfo::Flag::Char:
+		case 0x7F | KeyInfo::Flag::Char: // DEL char
+			return true;
 
 		case VK_LEFT:
 			m_SelRange.GoLeft(shiftKey, 1);
@@ -217,7 +246,6 @@ bool TextEditController::OnKeyDown(AbstrTextEditControl* srcTC, SizeT srcRec, UI
 			return true;
 
 		case VK_DELETE:
-		{
 			if (m_SelRange.m_End < m_CurrText.ssize() && m_SelRange.IsClosed())
 				++m_SelRange.m_End;
 
@@ -228,16 +256,18 @@ bool TextEditController::OnKeyDown(AbstrTextEditControl* srcTC, SizeT srcRec, UI
 			m_SelRange.m_End = m_SelRange.m_Curr = m_SelRange.m_Begin;
 			InvalidateDraw();
 			return true;
-		}
 	}
-	if (! m_SelRange.IsClosed())
+	if (isWmChar)
 	{
-		m_CurrText.GetAsMutableCharArray()->erase(m_SelRange.m_Begin, m_SelRange.Size());
-		m_SelRange.m_Curr = m_SelRange.m_Begin;
+		if (!m_SelRange.IsClosed())
+		{
+			m_CurrText.GetAsMutableCharArray()->erase(m_SelRange.m_Begin, m_SelRange.Size());
+			m_SelRange.m_Curr = m_SelRange.m_Begin;
+		}
+		m_CurrText.insert(m_SelRange.m_Curr++, vk);
+		m_SelRange.Close();
+		InvalidateDraw();
 	}
-	m_CurrText.insert(m_SelRange.m_Curr++, virtKey);
-	m_SelRange.Close();
-	InvalidateDraw();
 	return true;
 }
 
