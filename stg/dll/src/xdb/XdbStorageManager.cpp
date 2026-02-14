@@ -61,7 +61,7 @@ granted by an additional written contract for support, assistance and/or develop
 
 #define MG_DEBUG_XDB false
 
-bool XdbStorageManager::ReadDataItem(StorageMetaInfoPtr smi, AbstrDataObject* borrowedReadResultHolder, tile_id t)
+FileResult XdbStorageManager::ReadDataItem(StorageMetaInfoPtr smi, AbstrDataObject* borrowedReadResultHolder, tile_id t)
 {
 	AbstrDataItem* adi = smi->CurrWD();
 	dms_assert(!t);
@@ -72,25 +72,28 @@ bool XdbStorageManager::ReadDataItem(StorageMetaInfoPtr smi, AbstrDataObject* bo
 	XdbImp imp;
 	UpdateColInfo(imp);
 
-	bool result = imp.OpenForRead(GetNameStr(), m_DatExtension, false);
+	auto result = imp.OpenForRead(GetNameStr(), m_DatExtension, false);
+	if (!result)
+		return result;
 
-	MG_CHECK2(result, "Cannot open Xdb for reading");
-
-	dms_assert(adi->GetDataObjLockCount() < 0);
+	assert(adi->GetDataObjLockCount() < 0);
 	AbstrDataObject* ado = borrowedReadResultHolder;
 	const ValueClass* vc = ado->GetValuesType();
 	ValueClassID valueTypeID = vc->GetValueClassID();
 	auto nr_cells = imp.NrOfRows();
 	MG_CHECK(nr_cells == ado->GetNrFeaturesNow());
 
-	return imp.ReadColumn(
-		reinterpret_cast<void *>(ado->GetDataWriteBegin(no_tile, dms_rw_mode::write_only_mustzero).get_ptr()),
-		nr_cells, 
-		imp.ColIndex(adi->GetRelativeName(smi->StorageHolder()).c_str())
+	return FileResult::require(
+		imp.ReadColumn(
+			reinterpret_cast<void *>(ado->GetDataWriteBegin(no_tile, dms_rw_mode::write_only_mustzero).get_ptr()),
+			nr_cells, 
+			imp.ColIndex(adi->GetRelativeName(smi->StorageHolder()).c_str())
+		)
+		, "failed to xdb.ReadColumn"
 	);
 }
 
-bool XdbStorageManager::WriteDataItem(StorageMetaInfoPtr&& smiHolder)
+FileResult XdbStorageManager::WriteDataItem(StorageMetaInfoPtr&& smiHolder)
 {
 	auto smi = smiHolder.get();
 	StorageWriteHandle storageHandle(this, std::move(smiHolder));
@@ -98,7 +101,7 @@ bool XdbStorageManager::WriteDataItem(StorageMetaInfoPtr&& smiHolder)
 	XdbImp imp;
 	UpdateColInfo(imp);
 
-	bool result = imp.Open  (GetNameStr(), FCM_OpenRwFixed, m_DatExtension, false);
+	auto result = imp.Open  (GetNameStr(), FCM_OpenRwFixed, m_DatExtension, false);
 	if (!result)
 		result  = imp.Create(GetNameStr(), m_DatExtension, false);
 	MG_CHECK2(result, "Cannot open Xdb");

@@ -35,7 +35,7 @@
 
 
 // ================ Read / Write data
-bool StrStorageManager::ReadDataItem (StorageMetaInfoPtr smi, AbstrDataObject* borrowedReadResultHolder, tile_id t)
+FileResult StrStorageManager::ReadDataItem (StorageMetaInfoPtr smi, AbstrDataObject* borrowedReadResultHolder, tile_id t)
 {
 	MG_CHECK(t == 0);
 
@@ -44,15 +44,16 @@ bool StrStorageManager::ReadDataItem (StorageMetaInfoPtr smi, AbstrDataObject* b
 	void* dataBegin;
 	const TreeItem* storageHolder = smi->StorageHolder();
 	AbstrDataItem* adi = smi->CurrWD();
-	dms_assert(adi);
+	assert(adi);
 	AbstrDataObject* ado = borrowedReadResultHolder;
-	dms_assert(ado);
+	assert(ado);
 	DataArray<SharedStr>* sdo = dynamic_cast<DataArray<SharedStr>*>(ado);
 	for (SizeT i=0, n = GetNrFiles(storageHolder, adi); i!=n; ++i) {
 		FilePtrHandle file;
 		auto strFileName = GetFileName(storageHolder, adi, i);
-		if (!file.OpenFH(strFileName, FCM_OpenReadOnly, false, NR_PAGES_DIRECTIO))
-			throwErrorF("StrStorageManager", "Cannot open file '%s'", strFileName);
+		auto r = file.OpenFH(strFileName, FCM_OpenReadOnly, false, NR_PAGES_DIRECTIO);
+		if (!r)
+			r.Throw("StrStorageManager");
 
 		dms::filesize_t fileSize = file.GetFileSize();
 		if (sdo)
@@ -75,10 +76,10 @@ bool StrStorageManager::ReadDataItem (StorageMetaInfoPtr smi, AbstrDataObject* b
 		}
 		fread(dataBegin, dataSize, 1, file);
 	}
-	return true;
+	return {};
 }
 
-bool StrStorageManager::WriteDataItem(StorageMetaInfoPtr&& smiHolder)
+FileResult StrStorageManager::WriteDataItem(StorageMetaInfoPtr&& smiHolder)
 {
 	auto smi = smiHolder.get();
 	StorageWriteHandle hnd(this, std::move(smiHolder));
@@ -97,8 +98,9 @@ bool StrStorageManager::WriteDataItem(StorageMetaInfoPtr&& smiHolder)
 		{
 
 			FilePtrHandle file;
-			if (!file.OpenFH(GetFileName(storageHolder, adi, i), FCM_CreateAlways, false, NR_PAGES_DIRECTIO))
-				return false;
+			auto r = file.OpenFH(GetFileName(storageHolder, adi, i), FCM_CreateAlways, false, NR_PAGES_DIRECTIO);
+			if (!r)
+				return r;
 
 			auto dataBegin = sdData[i].begin();
 			auto dataSize  = sdData[i].size();
@@ -111,8 +113,9 @@ bool StrStorageManager::WriteDataItem(StorageMetaInfoPtr&& smiHolder)
 		for (SizeT i = 0; i != n; ++i)
 		{
 			FilePtrHandle file;
-			if (!file.OpenFH(GetFileName(storageHolder, adi, i), FCM_CreateAlways, false, NR_PAGES_DIRECTIO))
-				return false;
+			auto r = file.OpenFH(GetFileName(storageHolder, adi, i), FCM_CreateAlways, false, NR_PAGES_DIRECTIO);
+			if (!r)
+				return r;
 			MG_CHECK(adi->GetValueComposition() == ValueComposition::Single);
 
 			auto dataBegin = ado->GetDataReadBegin(i); // TODO G8: maake van dataBegin een tileHandle met void pointer
@@ -120,7 +123,7 @@ bool StrStorageManager::WriteDataItem(StorageMetaInfoPtr&& smiHolder)
 			fwrite(dataBegin, dataSize, 1, file);
 		}
 	}
-	return true;
+	return {};
 }
 
 void StrStorageManager::DoUpdateTree(const TreeItem* storageHolder, TreeItem* curr, SyncMode sm) const
@@ -195,13 +198,13 @@ StorageMetaInfoPtr StrFilesStorageManager::GetMetaInfo(const TreeItem* storageHo
 	return base_type::GetMetaInfo(storageHolder, curr, sa);
 }
 
-bool StrFilesStorageManager::ReadDataItem(StorageMetaInfoPtr smi, AbstrDataObject* borrowedReadResultHolder, tile_id t)
+FileResult StrFilesStorageManager::ReadDataItem(StorageMetaInfoPtr smi, AbstrDataObject* borrowedReadResultHolder, tile_id t)
 {
 	DataReadLock drl(GetFileNameAttr(smi->StorageHolder(), smi->CurrRD()));
 	return base_type::ReadDataItem(smi, borrowedReadResultHolder, t);
 }
 
-bool StrFilesStorageManager::WriteDataItem(StorageMetaInfoPtr&& smi)
+FileResult StrFilesStorageManager::WriteDataItem(StorageMetaInfoPtr&& smi)
 {
 	PreparedDataReadLock drl(GetFileNameAttr(smi->StorageHolder(), smi->CurrRD()), "@StrFilesStorageManager::WriteDataItem");
 	return base_type::WriteDataItem(std::move(smi));

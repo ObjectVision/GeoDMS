@@ -179,13 +179,15 @@ namespace Bmp
 		if (!gridUnit || gridUnit->GetNrDimensions() != 2)
 			self->throwItemErrorF("%s has no grid domain ", gridData->GetFullName().c_str() );
 
-		WriteGeoRefFile(gridData, replaceFileExtension(self->GetNameStr().c_str(), "bmpw") );
+		auto r = WriteGeoRefFile(gridData, replaceFileExtension(self->GetNameStr().c_str(), "bmpw") );
+		if (!r)
+			r.Throw("WriteGeoRefFile");
 		
 		// Set width and height
 		UInt32 h = gridUnit->GetDimSize(0);
 		UInt32 w = gridUnit->GetDimSize(1);
 		UInt32 n = gridUnit->GetCount();
-		dms_assert( w*h == n );
+		assert( w*h == n );
 
 		imp.SetHeight(h); 
 		imp.SetWidth (w); 
@@ -312,7 +314,7 @@ namespace Bmp
 //
 // ------------------------------------------------------------------------
 
-bool BmpPalStorageManager::ReadDataItem(StorageMetaInfoPtr smi, AbstrDataObject* borrowedReadResultHolder, tile_id t)
+FileResult BmpPalStorageManager::ReadDataItem(StorageMetaInfoPtr smi, AbstrDataObject* borrowedReadResultHolder, tile_id t)
 {
 	dms_assert(t == no_tile);
 
@@ -325,23 +327,19 @@ bool BmpPalStorageManager::ReadDataItem(StorageMetaInfoPtr smi, AbstrDataObject*
 //	dms_assert(f);
 //	f->ReadData(this, &imp, adi);
 	AbstrDataItem* adi = smi->CurrWD();
-	switch (adi->GetAbstrDomainUnit()->GetValueType()->GetNrDims())
+	auto nrDims = adi->GetAbstrDomainUnit()->GetValueType()->GetNrDims();
+	if (nrDims == 2)
 	{
-	case 2: 
-		{
-			Bmp::GridDataHandler().ReadData(this, imp, borrowedReadResultHolder);
-			return true;
-		}
-	case 1: 
-		{
-			Bmp::PaletteDataHandler().ReadData(this, imp, borrowedReadResultHolder);
-			return true;
-		}
+		Bmp::GridDataHandler().ReadData(this, imp, borrowedReadResultHolder);
+		return {};
 	}
-	return false;
+	assert(nrDims == 1);
+
+	Bmp::PaletteDataHandler().ReadData(this, imp, borrowedReadResultHolder);
+	return {};
 }
 
-bool BmpPalStorageManager::WriteDataItem(StorageMetaInfoPtr&& smiHolder)
+FileResult BmpPalStorageManager::WriteDataItem(StorageMetaInfoPtr&& smiHolder)
 {
 	auto smi = smiHolder.get();
 	StorageWriteHandle hnd(const_cast<BmpPalStorageManager*>(this), std::move(smiHolder));
@@ -357,7 +355,7 @@ bool BmpPalStorageManager::WriteDataItem(StorageMetaInfoPtr&& smiHolder)
 			Bmp::GridDataHandler().WriteData(this, imp, adi);
 			adi = GetPaletteData(smi->StorageHolder());
 			if (!adi)
-				return true;
+				return {};
 		}
 		[[fallthrough]];
 		case 1:
@@ -366,10 +364,10 @@ bool BmpPalStorageManager::WriteDataItem(StorageMetaInfoPtr&& smiHolder)
 			PreparedDataReadLock paletteLock(adi, "@BmpPalStorageManager::WritePaletteData");
 
 			Bmp::PaletteDataHandler().WriteData(this, imp, adi);
-			return true;
+			return {};
 		}
 	}
-	throwItemErrorF("WriteDataItem(): Cannot create DataHandler for %s",	adi->GetFullName().c_str() );
+	return std::unexpected(mySSPrintF("Cannot create DataHandler for %s", adi->GetFullName().c_str()));
 }
 
 bool BmpPalStorageManager::ReadUnitRange(const StorageMetaInfo& smi) const

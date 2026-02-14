@@ -1,4 +1,4 @@
-// Copyright (C) 1998-2023 Object Vision b.v. 
+// Copyright (C) 1998-2026 Object Vision B.V. 
 // License: GNU GPL 3
 
 #include "RtcPCH.h"
@@ -468,7 +468,7 @@ RTC_CALL void catchAndProcessException()
 
 SharedStr GetLastErrorMsgStr()
 {
-	dms_assert(IsMainThread());
+	assert(IsMainThread());
 	if (!IsMainThread())
 		return {};
 
@@ -758,5 +758,17 @@ RTC_CALL SharedStr GetFirstLine(WeakStr msg)
 	if (eolPtr == msg.csend())
 		return msg;
 	return SharedStr(CharPtrRange(msg.begin(), eolPtr));
+}
+
+
+//======================================= FileResult
+#include "FileResult.h"
+
+[[noreturn]] void FileResult::Throw(CharPtr context) const
+{
+	if (this->has_value())
+		throwErrorF(context, "Operation succeeded but was expected to fail");
+	else
+		throwErrorF(context, "Operation failed with error: %s", context, this->error().c_str());
 }
 

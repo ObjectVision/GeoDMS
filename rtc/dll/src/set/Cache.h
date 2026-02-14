@@ -120,11 +120,12 @@ private:
 	SizeT md_NrMisses = 0;
 #endif
 
-	hasher           m_Hasher;
-	equality_compare m_EqComp;
 	Func             m_Func;
 	uset_type        m_USet;
 	std::mutex       mx_MapLock;
+
+	[[no_unique_address]] hasher           m_Hasher{};
+	[[no_unique_address]] equality_compare m_EqComp{};
 };
 
 

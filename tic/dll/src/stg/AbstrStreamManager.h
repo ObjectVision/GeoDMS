@@ -54,8 +54,8 @@ public:
 	TIC_CALL std::unique_ptr<OutStreamBuff> OpenOutStream(const StorageMetaInfo& smi, CharPtr path, tile_id t);
 	TIC_CALL std::unique_ptr<InpStreamBuff> OpenInpStream(const StorageMetaInfo& smi, CharPtr path) const;
 
-	TIC_CALL bool ReadDataItem(StorageMetaInfoPtr smi, AbstrDataObject* borrowedReadResultHolder, tile_id t) override;
-	TIC_CALL bool WriteDataItem(StorageMetaInfoPtr&& smi) override;
+	TIC_CALL FileResult ReadDataItem(StorageMetaInfoPtr smi, AbstrDataObject* borrowedReadResultHolder, tile_id t) override;
+	TIC_CALL FileResult WriteDataItem(StorageMetaInfoPtr&& smi) override;
 
 protected:
 	TIC_CALL virtual std::unique_ptr<OutStreamBuff> DoOpenOutStream(const StorageMetaInfo& smi, CharPtr, tile_id t) = 0;

@@ -1,36 +1,16 @@
-//<HEADER> 
-/*
-Data & Model Server (DMS) is a server written in C++ for DSS applications. 
-Version: see srv/dms/rtc/dll/src/RtcVersion.h for version info.
+// Copyright (C) 1998-2026 Object Vision b.v. 
+// License: GNU GPL 3
+/////////////////////////////////////////////////////////////////////////////
 
-Copyright (C) 1998-2004  YUSE GSO Object Vision BV. 
-
-Documentation on using the Data & Model Server software can be found at:
-http://www.ObjectVision.nl/DMS/
-
-See additional guidelines and notes in srv/dms/Readme-srv.txt 
-
-This library is free software; you can use, redistribute, and/or
-modify it under the terms of the GNU General Public License version 2 
-(the License) as published by the Free Software Foundation,
-provided that this entire header notice and readme-srv.txt is preserved.
-
-See LICENSE.TXT for terms of distribution or look at our web site:
-http://www.objectvision.nl/DMS/License.txt
-or alternatively at: http://www.gnu.org/copyleft/gpl.html
-
-This library is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
-General Public License for more details. However, specific warranties might be
-granted by an additional written contract for support, assistance and/or development
-*/
-//</HEADER>
 // *****************************************************************************
 //
 // Non DMS-based class used to stream to and from Xdb tables
 //
 // *****************************************************************************
+
+#if defined(_MSC_VER)
+#pragma once
+#endif
 
 
 #ifndef _XdbImp_H_
@@ -65,22 +45,22 @@ struct XdbColDescription
 
 class XdbImp : FilePtrHandle
 {
-	typedef UInt32 column_index;
-	typedef UInt32 width_t;
-	typedef UInt32 recno_t;
+	using column_index = UInt32;
+	using width_t = UInt32;
+	using recno_t = UInt32;
 
 public:
 	STGIMPL_CALL  XdbImp();
 	STGIMPL_CALL ~XdbImp();
 
 	// read/write functions
-	STGIMPL_CALL [[nodiscard]] bool Open       (WeakStr name, FileCreationMode mode, CharPtr datExtension, bool saveColInfo);
-	STGIMPL_CALL [[nodiscard]] bool OpenForRead(WeakStr name, CharPtr datExtension, bool saveColInfo);
-	STGIMPL_CALL [[nodiscard]] bool Create     (WeakStr name, CharPtr datExtension, bool saveColInfo);
+	STGIMPL_CALL [[nodiscard]] FileResult Open       (WeakStr name, FileCreationMode mode, CharPtr datExtension, bool saveColInfo);
+	STGIMPL_CALL [[nodiscard]] FileResult OpenForRead(WeakStr name, CharPtr datExtension, bool saveColInfo);
+	STGIMPL_CALL [[nodiscard]] FileResult Create     (WeakStr name, CharPtr datExtension, bool saveColInfo);
 
-	STGIMPL_CALL [[nodiscard]] bool ReadColumn (      void* data, recno_t cnt, column_index col_index);
-	STGIMPL_CALL [[nodiscard]] bool WriteColumn(const void* data, recno_t cnt, column_index col_index);
-	STGIMPL_CALL [[nodiscard]] bool AppendColumn(CharPtr name, width_t size, ValueClassID type, recno_t rows, bool saveColInfo);
+	STGIMPL_CALL [[nodiscard]] bool       ReadColumn (      void* data, recno_t cnt, column_index col_index);
+	STGIMPL_CALL [[nodiscard]] FileResult WriteColumn(const void* data, recno_t cnt, column_index col_index);
+	STGIMPL_CALL [[nodiscard]] FileResult AppendColumn(CharPtr name, width_t size, ValueClassID type, recno_t rows, bool saveColInfo);
 	STGIMPL_CALL void Close();
 
 	// info functions

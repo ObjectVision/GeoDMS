@@ -93,14 +93,14 @@ bool GdalGridSM::ReadPalette(AbstrDataObject* ado)
 	return true;
 }
 
-bool GdalGridSM::ReadDataItem(StorageMetaInfoPtr smi, AbstrDataObject* borrowedReadResultHolder, tile_id t)
+FileResult GdalGridSM::ReadDataItem(StorageMetaInfoPtr smi, AbstrDataObject* borrowedReadResultHolder, tile_id t)
 {
 	assert(IsOpen());
 
 	AbstrDataItem* adi = smi->CurrWD();
 
 	if (adi->GetID() == PALETTE_DATA_ID)
-		return ReadPalette(borrowedReadResultHolder);
+		return FileResult::require(ReadPalette(borrowedReadResultHolder), "Error reading PaletetData");
 
 	if (HasGridDomain(adi))
 	{
@@ -116,7 +116,7 @@ bool GdalGridSM::ReadDataItem(StorageMetaInfoPtr smi, AbstrDataObject* borrowedR
 			ReadGridData  (vpi, borrowedReadResultHolder, t, gbr->m_SqlString, smi);
 	}
 
-	return true;
+	return {};
 }
 
 // ------------------------------------------------------------------------
@@ -436,14 +436,17 @@ void GdalGridSM::ReadGridCounts(StgViewPortInfo& vpi, AbstrDataObject* ado, tile
 	Grid::ReadGridCounts(imp, vpi, ado, t, GetNameStr().c_str());
 }
 
-bool GdalGridSM::WriteDataItem(StorageMetaInfoPtr&& smi)
+FileResult GdalGridSM::WriteDataItem(StorageMetaInfoPtr&& smi)
 {
 	auto adi = smi->CurrRD();
-	if (!HasGridDomain(adi))
-		return false;
+
+	if (auto r = FileResult::require(HasGridDomain(adi), "HasGridDomain failed"); !r)
+		return r;
+
 	auto gridStorageDomain = AsDynamicUnit(smi->StorageHolder());
-	if (gridStorageDomain && !adi->GetAbstrDomainUnit()->UnifyDomain(gridStorageDomain))
-		return false;
+	if (gridStorageDomain)
+		if (auto r = FileResult::require(adi->GetAbstrDomainUnit()->UnifyDomain(gridStorageDomain), "UnifyDomain failed"); !r)
+			return r;
 
 	auto storageHolder = smi->StorageHolder();
 
@@ -459,7 +462,7 @@ bool GdalGridSM::WriteDataItem(StorageMetaInfoPtr&& smi)
 	ViewPortInfoProvider vpip(storageHolder, adi, false, true);
 
 	Grid::WriteGridData(imp, vpip.GetViewportInfoEx(no_tile, storageHandle.MetaInfo()), storageHolder, adi, adi->GetCurrRefObj()->GetValuesType(), GetNameStr().c_str());
-	return true;
+	return {};
 }
 
 

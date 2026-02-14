@@ -1267,11 +1267,11 @@ StorageMetaInfoPtr GdalVectSM::GetMetaInfo(const TreeItem* storageHolder, TreeIt
 	return std::make_unique<GdalVectlMetaInfo>(this, storageHolder, adi);
 }
 
-bool GdalVectSM::ReadDataItem(StorageMetaInfoPtr smi, AbstrDataObject* borrowedReadResultHolder, tile_id t)
+FileResult GdalVectSM::ReadDataItem(StorageMetaInfoPtr smi, AbstrDataObject* borrowedReadResultHolder, tile_id t)
 {
 	dms_assert(IsOpen());
 
-	return ReadLayerData(debug_cast<const GdalVectlMetaInfo*>(smi.get()), borrowedReadResultHolder, t);
+	return FileResult::require(ReadLayerData(debug_cast<const GdalVectlMetaInfo*>(smi.get()), borrowedReadResultHolder, t), "faied to read layer data");
 }
 
 OGRLayer* GetLayerFromDataItem(GDALDatasetHandle& m_hDS, SharedStr layername)
@@ -1914,7 +1914,7 @@ void GdalVectSM::WriteLayer(TokenID layer_id, const GdalMetaInfo& gmi)
 	m_DataItemsStatusInfo.m_continueWrite = true;
 }
 
-bool GdalVectSM::WriteDataItem(StorageMetaInfoPtr&& smiHolder)
+FileResult GdalVectSM::WriteDataItem(StorageMetaInfoPtr&& smiHolder)
 {
 	DBG_START("gdalwrite.vect", "WriteDataItem", false);
 
@@ -1929,7 +1929,7 @@ bool GdalVectSM::WriteDataItem(StorageMetaInfoPtr&& smiHolder)
 	const AbstrDataItem* adi = smi->CurrRD();
 
 	if (not adi->IsStorable())
-		return true;
+		return {};
 
 	const AbstrDataObject* ado = adi->GetRefObj();
 	auto				   adu = adi->GetAbstrDomainUnit();
@@ -1951,12 +1951,12 @@ bool GdalVectSM::WriteDataItem(StorageMetaInfoPtr&& smiHolder)
 	m_DataItemsStatusInfo.SetInterestForDataHolder(layer_id, fieldID, adi); // write once all dataitems are ready
 
 	if (not m_DataItemsStatusInfo.LayerIsReadyForWriting(layer_id))
-		return true;
+		return {};
 
 	bool dataset_is_ready_for_writing = m_DataItemsStatusInfo.DatasetIsReadyForWriting();
 	bool driver_supports_update = DriverSupportsUpdate(data_source_name.begin(), driver_array);
 	if (not driver_supports_update and not dataset_is_ready_for_writing)
-		return true;
+		return {};
 
 	StorageWriteHandle storageHandle(this, std::move(smiHolder)); // open dataset
 
@@ -1967,7 +1967,7 @@ bool GdalVectSM::WriteDataItem(StorageMetaInfoPtr&& smiHolder)
 			WriteLayer(layer.first, gmi);
 	}
 
-	return true;
+	return {};
 }
 
 bool GdalVectSM::ReadUnitRange(const StorageMetaInfo& smi) const

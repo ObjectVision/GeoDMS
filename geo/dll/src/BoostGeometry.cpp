@@ -184,7 +184,8 @@ struct BgMultiPolygonOperator : BinaryMapAlgebraicOperator<P>
 			bg_store_multi_polygon(resData[i], resMP);
 		}
 	}
-	BinaryBgMpOper m_Oper;
+
+	[[no_unique_address]] BinaryBgMpOper m_Oper{};
 };
 
 // *****************************************************************************
@@ -237,7 +238,7 @@ struct CGAL_MultiPolygonOperator : BinaryMapAlgebraicOperator<P>
 			cgal_assign_polygon_set(resData[i], resMP);
 		}
 	}
-	BinaryBgMpOper m_Oper;
+	[[no_unique_address]] BinaryBgMpOper m_Oper;
 };
 
 // *****************************************************************************
@@ -286,7 +287,7 @@ struct GEOS_MultiPolygonOperator : BinaryMapAlgebraicOperator<P>
 			geos_assign_geometry(resData[i], resMP.get());
 		}
 	}
-	BinaryBgMpOper m_Oper;
+	[[no_unique_address]] BinaryBgMpOper m_Oper;
 };
 
 // *****************************************************************************

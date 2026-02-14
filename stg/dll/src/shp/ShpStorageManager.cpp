@@ -200,10 +200,10 @@ void ReadArray(AbstrDataObject* ado, UInt32 shpImpFeatureCount, ShpImp* pImp)
 	);
 }
 
-bool ShpStorageManager::ReadDataItem(StorageMetaInfoPtr smi, AbstrDataObject* borrowedReadResultHolder, tile_id t)
+FileResult ShpStorageManager::ReadDataItem(StorageMetaInfoPtr smi, AbstrDataObject* borrowedReadResultHolder, tile_id t)
 {
 	if (t)
-		return true;
+		return {};
 
 	const TreeItem* storageHolder = smi->StorageHolder();
 	AbstrDataItem*   adi = smi->CurrWD();
@@ -212,8 +212,8 @@ bool ShpStorageManager::ReadDataItem(StorageMetaInfoPtr smi, AbstrDataObject* bo
 
 	ShpImp impl;
 
-	if (!impl.Read( GetNameStr()) )
-		return false;
+	if (auto r= FileResult::require(impl.Read( GetNameStr()), "Read error" ); !r)
+		return r;
 	
 	const ValueClass* vc = borrowedReadResultHolder->GetValuesType();
 	ValueClassID    vtId = vc->GetValueClassID();
@@ -240,7 +240,7 @@ bool ShpStorageManager::ReadDataItem(StorageMetaInfoPtr smi, AbstrDataObject* bo
 		);
 	}
 	assert(borrowedReadResultHolder->GetNrFeaturesNow() == shpImpFeatureCount);
-	return true;
+	return {};
 }
 
 template <typename InIter, typename UnaryOper>
@@ -364,7 +364,7 @@ void WriteArray(const AbstrDataObject* ado, ShpImp* pImp, WeakStr nameStr, const
 		adi->throwItemErrorF("ShpStorage error: Cannot write to %s", nameStr.c_str());
 }
 
-bool ShpStorageManager::WriteDataItem(StorageMetaInfoPtr&& smiHolder)
+FileResult ShpStorageManager::WriteDataItem(StorageMetaInfoPtr&& smiHolder)
 {
 	auto smi = smiHolder.get();
 	StorageWriteHandle hnd(this, std::move(smiHolder));
@@ -379,8 +379,8 @@ bool ShpStorageManager::WriteDataItem(StorageMetaInfoPtr&& smiHolder)
 	const ValueClass*      vClass     = ado->GetValuesType();
 	ValueClassID           vtId       = vClass->GetValueClassID();
 	ValueComposition       vComp    =   adi->GetValueComposition();
-	if (vClass->GetNrDims() != 2)
-		::throwItemError(adi, "ShpStorage error: Cannot write attribute data to a .shp file");
+	if (auto r = FileResult::require(vClass->GetNrDims() == 2, "ShpStorage error: Cannot write attribute data to a .shp file"); !r)
+		return r;
 
 	ShapeTypes shapeType = ShapeTypes::ST_Point;
 	if (vComp == ValueComposition::Sequence)
@@ -412,7 +412,7 @@ bool ShpStorageManager::WriteDataItem(StorageMetaInfoPtr&& smiHolder)
 			}
 		);
 	}
-	return true;
+	return {};
 }
 
 

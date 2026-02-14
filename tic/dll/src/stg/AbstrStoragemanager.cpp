@@ -800,12 +800,12 @@ StorageMetaInfoPtr NonmappableStorageManager::GetMetaInfo(const TreeItem* storag
 	return std::make_unique<StorageMetaInfo>(storageHolder, focusItem);
 }
 
-bool AbstrStorageManager::ReadDataItem  (StorageMetaInfoPtr smi, AbstrDataObject* borrowedReadResultHolder, tile_id t) 
+FileResult AbstrStorageManager::ReadDataItem  (StorageMetaInfoPtr smi, AbstrDataObject* borrowedReadResultHolder, tile_id t) 
 { 
 	throwIllegalAbstract(MG_POS, "AbstrStorageManager::ReadDataItem");
 }
 
-bool AbstrStorageManager::WriteDataItem(StorageMetaInfoPtr&& smi)
+FileResult AbstrStorageManager::WriteDataItem(StorageMetaInfoPtr&& smi)
 {
 	throwIllegalAbstract(MG_POS, "AbstrStorageManager::WriteDataItem");
 }

@@ -191,7 +191,7 @@ void DbfStorageManager::DoWriteTree(const TreeItem* storageHolder)
 
 // REMOVE return dbf.ReadData(&(debug_cast<DataArray<type>*>(ado)->GetDataWrite()), fieldName.begin(), vcID);
 
-bool DbfStorageManager::ReadDataItem(StorageMetaInfoPtr smi, AbstrDataObject* borrowedReadResultHolder, tile_id t)
+FileResult DbfStorageManager::ReadDataItem(StorageMetaInfoPtr smi, AbstrDataObject* borrowedReadResultHolder, tile_id t)
 {
 	TreeItemContextHandle och2(smi->StorageHolder(), "StorageParent");
 	dms_assert(!t);
@@ -219,17 +219,15 @@ bool DbfStorageManager::ReadDataItem(StorageMetaInfoPtr smi, AbstrDataObject* bo
 #undef INSTANTIATE
 
 		default:
-			smi->CurrRI()->throwItemErrorF(
+			return std::unexpected(mySSPrintF(
 				"DbfStorageManager::ReadDataItem not implemented for DataItem with ValuesUnitType: %s"
 			,	vc->GetName().c_str()
-			);
+			));
 	} // switch
-
-	return false;
 } // ReadData
 
 
-bool DbfStorageManager::WriteDataItem(StorageMetaInfoPtr&& smiHolder)
+FileResult DbfStorageManager::WriteDataItem(StorageMetaInfoPtr&& smiHolder)
 {
 	DBG_START("DbfStorageManager", "WriteDataItem", false);
 
@@ -257,7 +255,6 @@ bool DbfStorageManager::WriteDataItem(StorageMetaInfoPtr&& smiHolder)
 		default:
 			throwItemErrorF("WriteDataItem not implemented for dbf data with ValuesUnitType: %s", vc->GetName());
 	}
-	return false;
 }
 
 IMPL_DYNC_STORAGECLASS(DbfStorageManager, "dbf")

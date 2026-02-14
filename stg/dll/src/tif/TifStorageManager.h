@@ -53,8 +53,8 @@ struct TiffSM : AbstrGridStorageManager
 	void DoUpdateTree(const TreeItem* storageHolder, TreeItem* curr, SyncMode sm) const override;
 	bool ReadUnitRange(const StorageMetaInfo& smi) const override;
 
-	bool ReadDataItem (StorageMetaInfoPtr smi, AbstrDataObject* borrowedReadResultHolder, tile_id t) override;
-	bool WriteDataItem(StorageMetaInfoPtr&& smiHolder) override;
+	FileResult ReadDataItem (StorageMetaInfoPtr smi, AbstrDataObject* borrowedReadResultHolder, tile_id t) override;
+	FileResult WriteDataItem(StorageMetaInfoPtr&& smiHolder) override;
 
 	bool CanWriteTiles() const override { return true; }
 

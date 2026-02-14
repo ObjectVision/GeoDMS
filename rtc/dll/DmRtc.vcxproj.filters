@@ -852,6 +852,7 @@
     <ClInclude Include="src\act\garbage_can.h">
       <Filter>Actor Update Mechanism</Filter>
     </ClInclude>
+    <ClInclude Include="src\FileResult.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\act\Actor.cpp">

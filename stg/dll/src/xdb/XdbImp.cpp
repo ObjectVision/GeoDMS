@@ -97,7 +97,7 @@ XdbImp::~XdbImp()
 
 // Opens the indicated Xdb-table for reading. 
 // The header is read.
-bool XdbImp::OpenForRead(WeakStr name, CharPtr datExtension, bool saveColInfo)
+FileResult XdbImp::OpenForRead(WeakStr name, CharPtr datExtension, bool saveColInfo)
 {
 	return Open(name, FCM_OpenReadOnly, datExtension, saveColInfo);
 }
@@ -105,7 +105,7 @@ bool XdbImp::OpenForRead(WeakStr name, CharPtr datExtension, bool saveColInfo)
 
 // Opens the indicated Xdb-table for reading. 
 // The header is read.
-bool XdbImp::Open(WeakStr name, FileCreationMode fileMode, CharPtr datExtension, bool saveColInfo)
+FileResult XdbImp::Open(WeakStr name, FileCreationMode fileMode, CharPtr datExtension, bool saveColInfo)
 {
 	DBG_START("XdbImp", "Open", MG_DEBUG_XDB);
 	
@@ -116,8 +116,12 @@ bool XdbImp::Open(WeakStr name, FileCreationMode fileMode, CharPtr datExtension,
 	// Open files
 	Close();
 
-	if (saveColInfo && !OpenFH(m_FileName, FCM_OpenReadOnly, true, NR_PAGES_HDRFILE))
-		return false;
+	if (saveColInfo)
+	{
+		auto r = OpenFH(m_FileName, FCM_OpenReadOnly, true, NR_PAGES_HDRFILE);
+		if (!r)
+			return r;
+	}
 
 	bool alsoWrite = (fileMode != FCM_OpenReadOnly);
 	MG_USERCHECK2(!alsoWrite, "writing to .xdb is no longer supported");
@@ -125,14 +129,16 @@ bool XdbImp::Open(WeakStr name, FileCreationMode fileMode, CharPtr datExtension,
 	m_FHD.MapView();
 
 	// Read header info
-	return (!saveColInfo) || ReadHeader();
+	if (!saveColInfo)
+		return {};
+	return FileResult::require(ReadHeader(), "Cannot read Header");
 }
 
 
 
 
 // Creates a new file
-bool XdbImp::Create(WeakStr name, CharPtr datExtension, bool saveColInfo)
+FileResult XdbImp::Create(WeakStr name, CharPtr datExtension, bool saveColInfo)
 {
 	DBG_START("XdbImp", "Create", MG_DEBUG_XDB);
 	
@@ -144,13 +150,18 @@ bool XdbImp::Create(WeakStr name, CharPtr datExtension, bool saveColInfo)
 
 	GetWritePermission(m_FileName);
 
-	if (saveColInfo && ! OpenFH(m_FileName, FCM_CreateAlways, true, NR_PAGES_HDRFILE) ) 
-		return false;
+	if (saveColInfo)
+	{
+		auto r = OpenFH(m_FileName, FCM_CreateAlways, true, NR_PAGES_HDRFILE);
+		if (!r)
+			return r;
+	}
 
-	if ( ! FilePtrHandle().OpenFH( m_DatFileName, FCM_CreateAlways, false, NR_PAGES_DIRECTIO) )
+	auto r = FilePtrHandle().OpenFH(m_DatFileName, FCM_CreateAlways, false, NR_PAGES_DIRECTIO);
+	if (!r)
 	{
 		Close();
-		return false;
+		return r;
 	}
 
 	// Write rec-count = 0 and nr header-lines = 0 to first line
@@ -232,7 +243,7 @@ bool XdbImp::ReadColumn(void * buf, recno_t cnt, column_index col_index)
 
 
 // Write the provided shorts to the table
-bool XdbImp::WriteColumn(const void * buf, recno_t cnt, column_index col_index)
+FileResult XdbImp::WriteColumn(const void * buf, recno_t cnt, column_index col_index)
 {
 	DBG_START("XdbImp", "WriteColumn", MG_DEBUG_XDB);
 	DBG_TRACE(("cnt		  : %ld", cnt));
@@ -241,8 +252,8 @@ bool XdbImp::WriteColumn(const void * buf, recno_t cnt, column_index col_index)
 	throwErrorD("Xdb", "XdbWriteColumn::Temporary Disabled Due To Maintenance");
 	// Must be open
 
-	if (UInt32(col_index) >= ColDescriptions.size())
-		return false;
+	if (auto r= FileResult::require(UInt32(col_index) >= ColDescriptions.size(), "column index error"); !r)
+		return r;
 
 	// Get column offset and total width in bytes of record
 	long width  = RecSize();
@@ -257,7 +268,7 @@ bool XdbImp::WriteColumn(const void * buf, recno_t cnt, column_index col_index)
 	if (stripped > 0) cnt = cnt - stripped;
     DBG_TRACE(("stripped  : %ld", stripped));
 	// Done
-	return true;
+	return {};
 }
 
 void freadln(FILE* fp)
@@ -439,7 +450,7 @@ ValueClassID XdbImp::ColType(column_index i) const
 }
 
 // Add a new column or create the first column in a fresh table
-bool XdbImp::AppendColumn
+FileResult XdbImp::AppendColumn
 (
 	CharPtr      fldName
 ,	width_t      size
@@ -451,8 +462,10 @@ bool XdbImp::AppendColumn
 	DBG_START("XdbImp", "AppendColumn", MG_DEBUG_XDB);
 
 	// Columnnames should be unique
-	if (ColIndex(fldName) != -1) return false;
-	if (size < 1) return false;
+	if (auto r = FileResult::require(ColIndex(fldName) == -1, "Column alredy exists"); !r)
+		return r;
+	if (size < 1) 
+		return std::unexpected(SharedStr("invalid size"));
 
 	assert(m_FHD.IsUsable()|| NrOfCols() == 0);
 	// Close open files
@@ -462,9 +475,9 @@ bool XdbImp::AppendColumn
 	if (NrOfCols() == 0) 
 	{
 		DBG_TRACE(("new file"));
-		if (rows <= 0) return false;
-		if (!Create(m_FileName, m_DatExtension, true))
-			return false;
+		auto r = Create(m_FileName, m_DatExtension, true);
+		if (!r)
+			return r; 
 		Close();
 		nrows = rows;
 	}
@@ -477,8 +490,9 @@ bool XdbImp::AppendColumn
 	SharedStr tmpDatFile =  m_DatFileName + ".tmp";
 
 	// Open dat-files
-	if (!src.OpenFH( m_DatFileName, FCM_OpenReadOnly, true, NR_PAGES_DATFILE))
-		return false;
+	auto r = src.OpenFH(m_DatFileName, FCM_OpenReadOnly, true, NR_PAGES_DATFILE);
+	if (!r)
+		return r;
 
 	DBG_TRACE(("padding data"));
 
@@ -493,8 +507,9 @@ bool XdbImp::AppendColumn
 	width_t srcfilesize = ftell(src);
 	if (srcfilesize > headersize)
 	{
-		if(!dst.OpenFH(tmpDatFile, FCM_CreateAlways, true, NR_PAGES_DATFILE)) 
-			return false;
+		auto r = dst.OpenFH(tmpDatFile, FCM_CreateAlways, true, NR_PAGES_DATFILE);
+		if (!r)
+			return r;
 
 		fseek(src, 0, 0);
 		copyMade = true;
@@ -549,7 +564,9 @@ bool XdbImp::AppendColumn
 		local.ColDescriptions[local.ColDescriptions.size()-1].m_Type   = type;
 
 		// Write new header
-		local.OpenFH(m_FileName, FCM_CreateAlways, true, NR_PAGES_HDRFILE);
+		auto r = local.OpenFH(m_FileName, FCM_CreateAlways, true, NR_PAGES_HDRFILE);
+		if (!r)
+			return r;
 		local.WriteHeader();
 	}
 
@@ -558,7 +575,7 @@ bool XdbImp::AppendColumn
 	{
 		remove(m_DatFileName.c_str());
 		if (rename(tmpDatFile.c_str(), m_DatFileName.c_str()))
-			return false;
+			return std::unexpected(mySSPrintF("unable to rename %s to %s", tmpDatFile.c_str(), m_DatFileName.c_str()));
 	}
 
 	// Reopen

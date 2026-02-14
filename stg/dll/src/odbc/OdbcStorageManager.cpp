@@ -722,7 +722,7 @@ void ReadData(ODBCStorageReader& isb, sequence_traits<SharedStr>::seq_t data)
 
 typedef SharedStr String;
 
-bool ODBCStorageManager::ReadDataItem(StorageMetaInfoPtr smi, AbstrDataObject* borrowedReadResultHolder, tile_id t)
+FileResult ODBCStorageManager::ReadDataItem(StorageMetaInfoPtr smi, AbstrDataObject* borrowedReadResultHolder, tile_id t)
 {
 	dms_assert(t == 0);
 
@@ -746,11 +746,9 @@ bool ODBCStorageManager::ReadDataItem(StorageMetaInfoPtr smi, AbstrDataObject* b
 #undef INSTANTIATE
 
 		default	:
-			adi->throwItemErrorF("OdbcStorageManager::ReadDataItem not implemented for odbc data with ValuesUnitType: %s"
-			,	borrowedReadResultHolder->GetValuesType()->GetName()
-			);
+			return std::unexpected(mySSPrintF("OdbcStorageManager::ReadDataItem not implemented for odbc data with ValuesUnitType: %s",	borrowedReadResultHolder->GetValuesType()->GetName()));
 	} // switch
-	return true;
+	return {};
 }
 
 bool ODBCStorageManager::ReadUnitRange(const StorageMetaInfo& smi) const

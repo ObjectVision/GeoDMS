@@ -119,27 +119,30 @@ void ShpImp::Close()
 }
 
 
-bool ShpImp::Open(WeakStr name, bool alsoWrite, bool writePrj)
+FileResult ShpImp::Open(WeakStr name, bool alsoWrite, bool writePrj)
 {
 	assert(!m_FH.IsOpen());
 	Close();
 
 	FileCreationMode fcm = alsoWrite ? FCM_CreateAlways : FCM_OpenReadOnly;
-	if (!m_FH.OpenFH(name, fcm, false, NR_PAGES_DATFILE))
-		return false;
+	auto r = m_FH.OpenFH(name, fcm, false, NR_PAGES_DATFILE);
+	if (!r)
+		return r;
 
-	if (!m_FHX.OpenFH(CalcShxName(name.c_str()), fcm, false, NR_PAGES_HDRFILE) && alsoWrite)
+	r = m_FHX.OpenFH(CalcShxName(name.c_str()), fcm, false, NR_PAGES_HDRFILE);
+	if (!r && alsoWrite)
 	{
 		Close();      // Don't accept not creating FHX if we need to create and write
-		return false;
+		return r;
 	}
 
 	if (writePrj) // Create .prj file for shapefiles only when writing
 	{
-		if (!m_PRJ.OpenFH(CalcPrjName(name.c_str()), fcm, true, NR_PAGES_HDRFILE) && alsoWrite)
+		r = m_PRJ.OpenFH(CalcPrjName(name.c_str()), fcm, true, NR_PAGES_HDRFILE);
+		if (!r && alsoWrite)
 		{
 			Close();
-			return false;
+			return r;
 		}
 		assert(m_PRJ.IsOpen());
 	}
@@ -147,7 +150,7 @@ bool ShpImp::Open(WeakStr name, bool alsoWrite, bool writePrj)
 	assert(m_FH.IsOpen());
 	assert(m_FHX.IsOpen());
 
-	return true;
+	return {}; // success, even if .shx and .prj files could not be created as we will read from whatever was found
 }
 
 // Read the complete file to memory (only polygons for now)

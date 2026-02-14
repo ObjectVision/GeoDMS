@@ -54,13 +54,17 @@ FilePtrHandle::~FilePtrHandle()
 		fclose(m_FP);
 }
 
-bool FilePtrHandle::OpenFH(WeakStr name, FileCreationMode fcm, bool translate, UInt32 nrPagesInBuffer)
+FileResult FilePtrHandle::OpenFH(WeakStr name, FileCreationMode fcm, bool translate, UInt32 nrPagesInBuffer)
 {
 	bool createNew = MakeNew(fcm);
 	if (createNew)
 		GetWritePermission(name);
 	assert(createNew || UseExisting(fcm));
 	CloseFH();
+
+	m_TranslateText = translate;
+	m_CanRead = !createNew;
+	m_CanWrite = (fcm != FCM_OpenReadOnly);
 
 	CharPtr mode = createNew
 		? translate ? "wt" : "wb"
@@ -72,33 +76,19 @@ bool FilePtrHandle::OpenFH(WeakStr name, FileCreationMode fcm, bool translate, U
 	auto fileName = ConvertDmsFileName(name);
 	m_FP = _fsopen(fileName.c_str(), mode, fcm != FCM_OpenReadOnly ? _SH_DENYRW : _SH_DENYWR);
 
-	if (m_FP == nullptr)
-	{
-		// only emit a warning when open for write or filename too long, as Open for read failure is a common occurence in DoUpdateTree with a not yet existing storage
-		CharPtr hint = "";
-		if (fileName.ssize() > _MAX_PATH)
-			hint = " Note that the filename is longer than _MAX_PATH, which is 260 characters";
-		if (createNew || *hint)
-		{
-			auto errMsg = mySSPrintF("_fsopen('%s', '%s')\nreturned error %d: %s.%s"
-				, fileName.c_str(), mode
-				, errno, strerror(errno)
-				, hint
-			);
-			reportD(SeverityTypeID::ST_Warning, errMsg.c_str());
-		}
-	}
-	m_TranslateText = translate;
-	m_CanRead       = !createNew;
-	m_CanWrite      = (fcm != FCM_OpenReadOnly);
-	SetBufferSize(nrPagesInBuffer);
-	return m_FP;
-}
+	if (m_FP != nullptr)
+		return {}; // success
 
-void FilePtrHandle::SetBufferSize(UInt32 nrPagesInBuffer)
-{
-//	if (m_FP)
-//		setvbuf(m_FP, NULL, nrPagesInBuffer ? _IOFBF : _IONBF, nrPagesInBuffer * 4096);
+	// emit a detailed error message, including the filename and the reason for failure
+	CharPtr hint = "";
+	if (fileName.ssize() > _MAX_PATH)
+		hint = " Note that the filename is longer than _MAX_PATH, which is 260 characters";
+	auto errMsg = mySSPrintF("_fsopen('%s', '%s')\nreturned error %d: %s.%s"
+		, fileName.c_str(), mode
+		, errno, strerror(errno)
+		, hint
+	);
+	return std::unexpected(errMsg);
 }
 
 void FilePtrHandle::CloseFH()

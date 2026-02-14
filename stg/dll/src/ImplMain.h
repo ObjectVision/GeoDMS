@@ -1,28 +1,29 @@
-// Copyright (C) 1998-2023 Object Vision b.v. 
+// Copyright (C) 1998-2026 Object Vision b.v. 
 // License: GNU GPL 3
 /////////////////////////////////////////////////////////////////////////////
 
+#if defined(_MSC_VER)
 #pragma once
+#endif
 
 #if !defined(__STGIMPL_IMPLMAIN_H)
 #define __STGIMPL_IMPLMAIN_H
 
 #include "RtcBase.h"
 #include "StgBase.h"
-#include "ptr/SharedStr.h"
 
 //	define coulore locale
-typedef bool           Boolean;
-
-typedef UInt8          UByte;
-typedef short          Short;
-typedef unsigned short UShort;
-typedef long           Long;
-typedef double         Double;
-typedef float          Float;
+using Boolean = bool;
+using UByte = UInt8;
+using Short = short;
+using UShort = unsigned short;
+using Long = long;
+using Double = double;
+using Float = float;
 
 //	define common OS dependent structures
-typedef struct tagRGBQUAD RGBQUAD;
+struct tagRGBQUAD;
+using RGBQUAD = tagRGBQUAD;
 
 
 struct SAMPLEFORMAT
@@ -38,7 +39,6 @@ struct SAMPLEFORMAT
 
 	STGIMPL_CALL SAMPLEFORMAT(bool isSigned, bool isFloat, bool isComplex);
 	STGIMPL_CALL SAMPLEFORMAT(const ValueClass* vc);
-	//	operator ENUM () const { return m_Value; }
 };
 
 

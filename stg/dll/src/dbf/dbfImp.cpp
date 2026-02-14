@@ -225,16 +225,26 @@ void DbfImpl::Clear()
 } // Clear
 
 // Opens the indicated (existing) dbf file for reading; the header is read.
-bool DbfImpl::Open(WeakStr filename, FileCreationMode filemode)
+FileResult DbfImpl::Open(WeakStr filename, FileCreationMode filemode)
 {
 	DBG_START("DbfImpl::Open", filename.c_str(), MG_DEBUG_DBF);
 	
 	Close();
 	
-	return 
-		OpenFH(filename, filemode, false, NR_PAGES_DATFILE)
-	&&	ReadHeader();
+	auto r = OpenFH(filename, filemode, false, NR_PAGES_DATFILE);
+	if (!r)
+		return r;
+	return ReadHeader();
 } // Open
+
+FileResult DbfImpl::OpenForAppend(WeakStr filename)
+{ 
+	auto r = Open(filename, FCM_OpenRwGrowable); 
+	if (r)
+		if (!GoEnd())
+			r = std::unexpected<SharedStr>("Cannot seek to end");
+	return r;
+}
 
 bool DbfImpl::CreateFromSource(WeakStr filename, const DbfImpl& srcDbf)
 {
@@ -254,7 +264,7 @@ bool DbfImpl::GoBegin()
 
 bool DbfImpl::GoEnd()
 {
-	dms_assert(GetFP());
+	assert(GetFP());
 	return fseek(GetFP(), ActualPosition(m_RecordCount), SEEK_SET) == 0;
 }
 
@@ -287,11 +297,11 @@ bool DbfImpl::AppendRecord(const void* buffer)
 	return true;
 }
 
-bool DbfImpl::Create(WeakStr filename)
+FileResult DbfImpl::Create(WeakStr filename)
 {
 	DBG_START("DbfImpl", "Create", MG_DEBUG_DBF);
 	
-	dms_assert(!IsOpen());
+	assert(!IsOpen());
 
 	return OpenFH(filename, FCM_CreateAlways, false, NR_PAGES_DATFILE);
 } // Create
@@ -419,7 +429,7 @@ void DbfImpl::ColumnDescriptionReplace(UInt32 columnindex, TDbfType dbftype, UIn
 		colDescrPtr->m_Offset += deltaLength;
 } // ColumnDescriptionReplace
 
-bool DbfImpl::ReadHeader()
+FileResult DbfImpl::ReadHeader()
 {
 	DBG_START("DbfImpl", "ReadHeader", MG_DEBUG_DBF);
 
@@ -445,7 +455,8 @@ bool DbfImpl::ReadHeader()
 	MG_CHECK(((m_HeaderSize - 1) % DBF_HEADER_BLOCK_SIZE) == 0);
 
 	if (m_HeaderSize <= DBF_HEADER_BLOCK_SIZE)
-		return false;
+		return std::unexpected(SharedStr("Error Reading Header"));
+
 	auto nrColumns = m_HeaderSize;
 	--nrColumns; assert(nrColumns >= DBF_HEADER_BLOCK_SIZE);
 	nrColumns /= DBF_HEADER_BLOCK_SIZE; assert(nrColumns >= 1);
@@ -483,7 +494,7 @@ bool DbfImpl::ReadHeader()
 	MG_CHECK(m_RecordSize == RecordLength());
 
 	GoBegin();
-	return true;
+	return {};
 } // ReadHeader
 
 bool WriteByte(FILE *fp, char byte)
@@ -745,15 +756,15 @@ INSTANTIATE_OTHER
 //										DbfImplStub
 /*****************************************************************************/
 
-template<class T> bool DbfImplStub<T>::ReadData(VecType vec, CharPtr columnName, ValueClassID vc)
+template<class T> FileResult DbfImplStub<T>::ReadData(VecType vec, CharPtr columnName, ValueClassID vc)
 {
 	DBG_START("DbfImplStub", "ReadData", MG_DEBUG_DBF);
 
 	 // BEGIN TODO, OPT: Move to caller(s)
 	UInt32 columnindex = m_DbfImpl->ColumnNameToIndex(NameToDbfColumnName(columnName).c_str());
 
-	if (! m_DbfImpl->ColumnIndexDefined(columnindex) )
-		return false;
+	if (auto r = FileResult::require(m_DbfImpl->ColumnIndexDefined(columnindex), "ColumnIndex not found"); !r)
+		return r;
 
 	SharedStr formatspec;
 	FormatSpecification(vc, m_DbfImpl->ColumnWidth(columnindex), m_DbfImpl->ColumnDecimalCount(columnindex), true, formatspec);
@@ -769,18 +780,17 @@ template<class T> bool DbfImplStub<T>::ReadData(VecType vec, CharPtr columnName,
 		m_DbfImpl->ReadDataElement(boost::addressof(ref), recordindex, columnindex, vc, formatspecCharPtr);
 	}
 
-	return true;
+	return {};
 } // ReadData
 
-template<class T> bool DbfImplStub<T>::WriteDataOverwrite(WeakStr filename, CVecType vec, UInt32 columnindex, ValueClassID vc)
+template<class T> FileResult DbfImplStub<T>::WriteDataOverwrite(WeakStr filename, CVecType vec, UInt32 columnindex, ValueClassID vc)
 {
 	DBG_START("DbfImplStub", "WriteDataOverwrite", MG_DEBUG_DBF);
 
 	 // BEGIN TODO, OPT: Move to caller(s)
-	if (! m_DbfImpl->Open(filename, FCM_OpenRwFixed))
-		return false;
+	if (auto r = m_DbfImpl->Open(filename, FCM_OpenRwFixed); !r)
+		return r;
 
-	bool res = true;
 	SharedStr	formatspec;
 	UInt8 width = m_DbfImpl->ColumnWidth(columnindex);
 	FormatSpecification(vc, width, m_DbfImpl->ColumnDecimalCount(columnindex), false, formatspec);
@@ -794,19 +804,17 @@ template<class T> bool DbfImplStub<T>::WriteDataOverwrite(WeakStr filename, CVec
 	{
 		fseek(m_DbfImpl->GetFP(), m_DbfImpl->ActualPosition(recordindex, columnindex), 0);
 		typename CVecType::const_reference ref = vec[recordindex];
-		if (!m_DbfImpl->WriteDataElement(boost::addressof(ref), recordindex, columnindex, vc, formatspecCharPtr, width))
-		{
-			res = false;
-			break;
-		}
+		auto r = FileResult::require(m_DbfImpl->WriteDataElement(boost::addressof(ref), recordindex, columnindex, vc, formatspecCharPtr, width), "WriteDataElemet failed");
+		if (!r)
+			return r;
 	}
 
 	m_DbfImpl->Close(); // TODO, OPT: Move to caller(s)
 
-	return	res;
+	return {};
 }
 
-template<class T> bool DbfImplStub<T>::WriteDataReplace(WeakStr filename, CVecType vec, UInt32 columnindex, ValueClassID vc, TDbfType dbftype, UInt8 len, UInt8 deccount)
+template<class T> FileResult DbfImplStub<T>::WriteDataReplace(WeakStr filename, CVecType vec, UInt32 columnindex, ValueClassID vc, TDbfType dbftype, UInt8 len, UInt8 deccount)
 {
 	DBG_START("DbfImplStub", "WriteDataReplace", MG_DEBUG_DBF);
 
@@ -814,12 +822,13 @@ template<class T> bool DbfImplStub<T>::WriteDataReplace(WeakStr filename, CVecTy
 	DbfImpl	dbftarget;
 	SharedStr	filename_target	= SharedStr(filename) + ".replace";
    
-	if (! dbftarget.Create(filename_target))
-		return false;
+	if (auto r = dbftarget.Create(filename_target); !r)
+		return r;
 
-	m_DbfImpl->OpenForRead(filename);
+	if (auto r = m_DbfImpl->OpenForRead(filename); !r)
+		return r;
 
-	dms_assert(m_DbfImpl->IsOpen()&& m_DbfImpl->RecordLength() > 0); // we are replacing something, not?
+	assert(m_DbfImpl->IsOpen()&& m_DbfImpl->RecordLength() > 0); // we are replacing something, not?
 
 	dbftarget.m_RecordCount        = vec.size();
 	dbftarget.m_ColumnDescriptions = m_DbfImpl->m_ColumnDescriptions;
@@ -847,19 +856,19 @@ template<class T> bool DbfImplStub<T>::WriteDataReplace(WeakStr filename, CVecTy
 	for (; recordindex < nrRecs && res; recordindex++)
 	{
 		typename CVecType::const_reference ref = vec[recordindex];
-		res =	fread (buf, sizeof(char), buflen, m_DbfImpl->GetFP()) == buflen 
-			&&	fwrite(buf, sizeof(char), offset, dbftarget. GetFP()) == offset
-			&&	dbftarget.WriteDataElement(boost::addressof(ref), recordindex, columnindex, vc, formatspecCharPtr, len)
-			&&	fwrite(buf+nextoffset, sizeof(char), restwidth, dbftarget.GetFP() ) == restwidth;
+		if (auto r = FileResult::require(fread(buf, sizeof(char), buflen, m_DbfImpl->GetFP()) == buflen, "fread(buflen) failed"); !r) return r;
+		if (auto r = FileResult::require(fwrite(buf, sizeof(char), offset, dbftarget.GetFP()) == offset, "fwrite(offset) failed"); !r) return r;
+		if (auto r = FileResult::require(dbftarget.WriteDataElement(boost::addressof(ref), recordindex, columnindex, vc, formatspecCharPtr, len), "WriteDataElement failed"); !r) return r;
+		if (auto r = FileResult::require(fwrite(buf + nextoffset, sizeof(char), restwidth, dbftarget.GetFP()) == restwidth, "fwrite(restwidth) failed"); !r) return r;
 	}
 
 	fast_fill(buf, buf+buflen, char(32));
 	for (; recordindex < vec.size() && res; recordindex++)
 	{
 		typename CVecType::const_reference ref = vec[recordindex];
-		res =	fwrite(buf, sizeof(char), offset, dbftarget.GetFP() ) == offset
-			&&	dbftarget.WriteDataElement(boost::addressof(ref), recordindex, columnindex, vc, formatspecCharPtr, len)
-			&&	fwrite(buf+nextoffset, sizeof(char), restwidth, dbftarget.GetFP() ) == restwidth;
+		if (auto r = FileResult::require(fwrite(buf, sizeof(char), offset, dbftarget.GetFP()) == offset, "fwrite(offset) failed"); !r) return r;
+		if (auto r = FileResult::require(dbftarget.WriteDataElement(boost::addressof(ref), recordindex, columnindex, vc, formatspecCharPtr, len), "WriteDataElement failed"); !r) return r;
+		if (auto r = FileResult::require(fwrite(buf + nextoffset, sizeof(char), restwidth, dbftarget.GetFP()) == restwidth, "fwrite(restwidth) failed"); !r) return r;
 	}
 
 	m_DbfImpl->Close();
@@ -867,22 +876,22 @@ template<class T> bool DbfImplStub<T>::WriteDataReplace(WeakStr filename, CVecTy
 
 	CommitFile(filename, filename_target);
 
-	return res;
+	return {};
 }
 
-template<class T> bool DbfImplStub<T>::WriteDataAppend(WeakStr filename, CVecType vec, CharPtr columnName, ValueClassID vc, TDbfType dbftype, UInt8 len, UInt8 deccount)
+template<class T> FileResult DbfImplStub<T>::WriteDataAppend(WeakStr filename, CVecType vec, CharPtr columnName, ValueClassID vc, TDbfType dbftype, UInt8 len, UInt8 deccount)
 {
 	DBG_START("DbfImplStub", "WriteDataAppend", MG_DEBUG_DBF);
 
-	bool		res	=	true;
 	DbfImpl	dbftarget;
 	SharedStr	filename_target	= filename + ".append";
    
 	MakeDirsForFile(filename);
-	if (! dbftarget.Create(filename_target))
-		return false;
+	if (auto r = dbftarget.Create(filename_target); !r)
+		return r;
 
-	m_DbfImpl->OpenForRead(filename);
+	if (auto r= m_DbfImpl->OpenForRead(filename); !r)
+		return r;
 
 	dbftarget.m_RecordCount         = vec.size();
 	dbftarget.m_ColumnDescriptions	= m_DbfImpl->m_ColumnDescriptions;
@@ -908,20 +917,21 @@ template<class T> bool DbfImplStub<T>::WriteDataAppend(WeakStr filename, CVecTyp
 
 	MakeMin(nrRecs, vec.size());
 	UInt32 recordindex = 0;
-	for (; recordindex != nrRecs && res; recordindex++)
+	for (; recordindex != nrRecs; recordindex++)
 	{
 		typename CVecType::const_reference ref = vec[recordindex];
-		res =	fread (buf, sizeof(char), buflen, m_DbfImpl->GetFP()) == buflen
-			&&	fwrite(buf, sizeof(char), buflen, dbftarget.GetFP()) == buflen
-			&&	dbftarget.WriteDataElement(boost::addressof(ref), recordindex, columnindex, vc, formatspecCharPtr, len);
+		if (auto r = FileResult::require(fread(buf, 1, buflen, m_DbfImpl->GetFP()) == buflen, "fread failed"); !r) return r;
+		if (auto r = FileResult::require(fwrite(buf, 1, buflen, dbftarget.GetFP()) == buflen, "fwrite failed"); !r) return r;
+		if (auto r = FileResult::require(dbftarget.WriteDataElement(boost::addressof(ref), recordindex, columnindex, vc, formatspecCharPtr, len), "WriteDataElement failed"); !r) return r;
+
 	}
 
 	std::fill(buf, buf+buflen, char(32));
-	for (;recordindex < vec.size() && res; recordindex++)
+	for (;recordindex < vec.size(); recordindex++)
 	{
 		typename CVecType::const_reference ref = vec[recordindex];
-		res =	fwrite(buf, sizeof(char), buflen, dbftarget.GetFP()) == buflen
-			&&	dbftarget.WriteDataElement(boost::addressof(ref), recordindex, columnindex, vc, formatspecCharPtr, len);
+		if (auto r = FileResult::require(fwrite(buf, sizeof(char), buflen, dbftarget.GetFP()) == buflen, "fwrite failed"); !r) return r;
+		if (auto r = FileResult::require(dbftarget.WriteDataElement(boost::addressof(ref), recordindex, columnindex, vc, formatspecCharPtr, len), "WriteDataElement failed"); !r) return r;	
 	}
 
 	m_DbfImpl->Close();
@@ -929,7 +939,7 @@ template<class T> bool DbfImplStub<T>::WriteDataAppend(WeakStr filename, CVecTyp
 
 	CommitFile(filename, filename_target);
 
-	return	res;
+	return {};
 }
 
 template<class T> void DbfImplStub<T>::DbfTypeInfo(CVecType vec, ValueClassID vc, TDbfType& dbftype, UInt8& len, UInt8& deccount)
@@ -949,7 +959,7 @@ template<class T> bool DbfImplStub<T>::TypeResolution(TDbfType dbftype, UInt8 le
 			);
 } // TypeResolution
 
-template<class T> bool DbfImplStub<T>::WriteData(WeakStr filename, CVecType vec, CharPtr columnName, ValueClassID vc)
+template<class T> FileResult DbfImplStub<T>::WriteData(WeakStr filename, CVecType vec, CharPtr columnName, ValueClassID vc)
 {
 	DBG_START("DbfImplStub", "WriteData", MG_DEBUG_DBF);
 

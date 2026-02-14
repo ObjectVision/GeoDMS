@@ -66,6 +66,7 @@ Issues
 #include "TicBase.h"
 #include "AbstrDataItem.h"
 #include "AbstrUnit.h"
+#include "FileResult.h"
 
 #include "act/ActorEnums.h"
 struct ActorVisitor;		
@@ -249,8 +250,8 @@ public:
 	TIC_CALL virtual ActorVisitState VisitSuppliers(SupplierVisitFlag svf, const ActorVisitor& visitor, const TreeItem* storageHolder, const TreeItem* self) const;
 
 	// public interface funcs only implemented in NonmappableStorageManagers
-	TIC_CALL virtual bool ReadDataItem(StorageMetaInfoPtr smi, AbstrDataObject* borrowedReadResultHolder, tile_id t);
-	TIC_CALL virtual bool WriteDataItem(StorageMetaInfoPtr&& smiHolder);
+	TIC_CALL virtual FileResult ReadDataItem(StorageMetaInfoPtr smi, AbstrDataObject* borrowedReadResultHolder, tile_id t);
+	TIC_CALL virtual FileResult WriteDataItem(StorageMetaInfoPtr&& smiHolder);
 
 	TIC_CALL virtual bool ReadUnitRange(const StorageMetaInfo& smi) const;
 	TIC_CALL virtual bool WriteUnitRange(StorageMetaInfoPtr&& smi);

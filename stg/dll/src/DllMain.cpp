@@ -174,16 +174,17 @@ auto GetAffineTransformationFromGridDataItem(const AbstrDataItem* grid_adi, bool
 	return affine_transformation;
 }
 
-bool WriteGeoRefFile(const AbstrDataItem* grid_adi, WeakStr geoRefFileName)
+FileResult WriteGeoRefFile(const AbstrDataItem* grid_adi, WeakStr geoRefFileName)
 {
 	dms_assert(grid_adi);
 	const AbstrUnit* colDomain = grid_adi->GetAbstrDomainUnit();
 	dms_assert(grid_adi);
 
-	FilePtrHandle bmpwHnd; bmpwHnd.OpenFH(geoRefFileName, FCM_CreateAlways, true, NR_PAGES_HDRFILE);
+	FilePtrHandle bmpwHnd; 
+	auto r = bmpwHnd.OpenFH(geoRefFileName, FCM_CreateAlways, true, NR_PAGES_HDRFILE);
 
-	if (bmpwHnd == NULL)
-		return false;
+	if (!r)
+		return r;
 
 	DMS_CALL_BEGIN
 		// MapObjects coordinate system is in cartesian order (LeftBottom -> RightTop)
@@ -199,46 +200,43 @@ bool WriteGeoRefFile(const AbstrDataItem* grid_adi, WeakStr geoRefFileName)
 		fprintf(bmpwHnd, "%.9G\n", affine_transformation.Offset().X());
 		fprintf(bmpwHnd, "%.9G\n", affine_transformation.Offset().Y());
 
+		return {};
+
 	DMS_CALL_END
 
-	return true;
+	return std::unexpected(GetLastErrorMsgStr());
 }
 
 #include "ser/MoreStreamBuff.h"
 
 void ReadGeoRefFile(WeakStr geoRefFileName, AbstrUnit* uDomain, const AbstrUnit* uBase)
 {
-	dms_assert(uDomain != uBase);
+	assert(uDomain != uBase);
 	std::vector<Byte> buffer;
 	{
 		FilePtrHandle file;
 
-		file.OpenFH(geoRefFileName, FCM_OpenReadOnly, false, NR_PAGES_HDRFILE);
-		if(file)
-		{
-			SizeT size = file.GetFileSize();
-			buffer.resize(size+1, 0);
-			fread( begin_ptr( buffer ), size, 1, file);
-		}
+		auto r = file.OpenFH(geoRefFileName, FCM_OpenReadOnly, false, NR_PAGES_HDRFILE);
+		if (!r)
+			r.Throw("ReadGeoRefFile");
+		SizeT size = file.GetFileSize();
+		buffer.resize(size + 1, 0);
+		fread(begin_ptr(buffer), size, 1, file);
 	}
-	if (buffer.size())
-	{
-		std::replace(buffer.begin(), buffer.end(), ',','.');
-		MemoInpStreamBuff inpBuf(begin_ptr( buffer ), end_ptr( buffer ) );
-		FormattedInpStream str(&inpBuf);
+	assert(buffer.size());
 
-		DPoint factor, dummy, offset;
+	std::replace(buffer.begin(), buffer.end(), ',','.');
+	MemoInpStreamBuff inpBuf(begin_ptr( buffer ), end_ptr( buffer ) );
+	FormattedInpStream str(&inpBuf);
 
-		str >> factor.X() >> dummy.X() >> dummy.Y() >> factor.Y() >> offset.X() >> offset.Y();
-		dms_assert(factor.X() > 0);
-		dms_assert(factor.Y() < 0);
+	DPoint factor, dummy, offset;
 
-		uBase->UpdateMetaInfo();
-		uDomain->SetProjection(new UnitProjection(AsUnit(uBase->GetCurrUltimateItem()), offset - 0.5 * factor, factor));
+	str >> factor.X() >> dummy.X() >> dummy.Y() >> factor.Y() >> offset.X() >> offset.Y();
+	assert(factor.X() > 0);
+	assert(factor.Y() < 0);
 
-		return;
-	}
-	uDomain->throwItemErrorF("Error reading geographic reference info from %s", geoRefFileName.c_str());
+	uBase->UpdateMetaInfo();
+	uDomain->SetProjection(new UnitProjection(AsUnit(uBase->GetCurrUltimateItem()), offset - 0.5 * factor, factor));
 }
 
 SharedUnit FindProjectionRef(const TreeItem* storageHolder, const AbstrUnit* gridDataDomain)

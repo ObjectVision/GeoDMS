@@ -107,7 +107,7 @@ void TiffSM::DoCloseStorage(bool mustCommit) const
 	assert(!m_pImp);
 }
 
-bool TiffSM::ReadDataItem(StorageMetaInfoPtr smi, AbstrDataObject* borrowedReadResultHolder, tile_id t)
+FileResult TiffSM::ReadDataItem(StorageMetaInfoPtr smi, AbstrDataObject* borrowedReadResultHolder, tile_id t)
 {
 	assert(smi);
 	assert(borrowedReadResultHolder);
@@ -122,7 +122,7 @@ bool TiffSM::ReadDataItem(StorageMetaInfoPtr smi, AbstrDataObject* borrowedReadR
 	assert(m_pImp->IsOpen());
 
 	if (adi->GetID() == PALETTE_DATA_ID)
-		return ReadPalette(borrowedReadResultHolder);
+		return FileResult::require(ReadPalette(borrowedReadResultHolder), "failed to Read Palette data");
 
 	// Collect zoom info
 	const GridStorageMetaInfo* gbr = debug_cast<const GridStorageMetaInfo*>(smi.get());
@@ -134,7 +134,7 @@ bool TiffSM::ReadDataItem(StorageMetaInfoPtr smi, AbstrDataObject* borrowedReadR
 		ReadGridCounts(vpi, adi, borrowedReadResultHolder, t, smi);
 	else
 		ReadGridData  (vpi, adi, borrowedReadResultHolder, t, smi);
-	return true;
+	return {};
 }
 
 void TiffSM::ReadGridCounts(const StgViewPortInfo& vpi, AbstrDataItem* adi, AbstrDataObject* ado, tile_id t, StorageMetaInfoPtr smi)
@@ -205,7 +205,7 @@ bool TiffSM::ReadPalette(AbstrDataObject* ado)
 	return true;
 }
 
-bool TiffSM::WriteDataItem(StorageMetaInfoPtr&& smiHolder)
+FileResult TiffSM::WriteDataItem(StorageMetaInfoPtr&& smiHolder)
 {
 	auto smi = smiHolder.get();
 	SharedPtr<const TreeItem> storageHolder = smi->StorageHolder();
@@ -218,11 +218,11 @@ bool TiffSM::WriteDataItem(StorageMetaInfoPtr&& smiHolder)
 	if (pd.is_null() && number_of_dims != 2)
 	{
 		current_writable_dataitem->throwItemError("Domain should be 2-dimensional.");
-		return true;
+		return {};
 	}
 
 	if (number_of_dims != 2)
-		return true;
+		return {};
 
 	if (pd)
 	{
@@ -258,14 +258,16 @@ bool TiffSM::WriteDataItem(StorageMetaInfoPtr&& smiHolder)
 			WritePalette(*m_pImp, storageHolder, pd); // Long stream, palette colors
 		}
 
-	return true;
+	return {};
 }
 
 void TiffSM::WriteGridData(TifImp& imp, const StgViewPortInfo& vpi, const TreeItem* storageHolder, const AbstrDataItem* adi, const ValueClass* streamType)
 {
 	DBG_START("TiffSM", "WriteGridData", true);
 
-	WriteGeoRefFile(adi, replaceFileExtension(GetNameStr().c_str(), "tfw"));
+	auto r = WriteGeoRefFile(adi, replaceFileExtension(GetNameStr().c_str(), "tfw"));
+	if (!r)
+		r.Throw("WriteGeoRefFile");
 
 	Grid::WriteGridData(imp, vpi, storageHolder, adi, streamType, GetNameStr().c_str());
 }

@@ -269,8 +269,8 @@ bool AbstrDataItem::DoReadItem(StorageMetaInfoPtr smi)
 				auto& readerClonePtr = readerFarm->m_ClonePtrs[token];
 				if (!readerClonePtr)
 					readerClonePtr = sm->ReaderClone(smi);
-				if (!readerClonePtr->StorageManager()->ReadDataItem(smi, self, t))
-					this->throwItemError("Failure during Reading from storage");
+				if (auto r = readerClonePtr->StorageManager()->ReadDataItem(smi, self, t); !r)
+					r.Throw("Failure during Reading from storage");
 			};
 			auto rangeDomainUnit = AsUnit(GetAbstrDomainUnit()->GetCurrRangeItem()); assert(rangeDomainUnit);
 			auto tileRangeData = rangeDomainUnit->GetTiledRangeData();
@@ -292,8 +292,9 @@ bool AbstrDataItem::DoReadItem(StorageMetaInfoPtr smi)
 			serial_for<tile_id>(0, GetAbstrDomainUnit()->GetNrTiles(),
 				[sm, smi, this, &readResultHolder](tile_id t)->void
 				{
-					if (!sm->ReadDataItem(smi, readResultHolder.get_ptr(), t))
-						throwItemError("Failure during Reading from storage");
+					auto r = sm->ReadDataItem(smi, readResultHolder.get_ptr(), t);
+					if (!r)
+						r.Throw("Failure during Reading from storage");
 				}
 			);
 			readResultHolder.Commit();

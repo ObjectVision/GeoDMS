@@ -68,8 +68,8 @@ struct GdalVectSM : NonmappableStorageManager, gdalVectComponent
 	bool WriteUnitRange(StorageMetaInfoPtr&& smi) override;
 
 	StorageMetaInfoPtr GetMetaInfo(const TreeItem* storageHolder, TreeItem* adi, StorageAction) const override;
-	bool ReadDataItem(StorageMetaInfoPtr smi, AbstrDataObject* borrowedReadResultHolder, tile_id t) override;
-	bool WriteDataItem(StorageMetaInfoPtr&& smiHolder) override;
+	FileResult ReadDataItem(StorageMetaInfoPtr smi, AbstrDataObject* borrowedReadResultHolder, tile_id t) override;
+	FileResult WriteDataItem(StorageMetaInfoPtr&& smiHolder) override;
 	void WriteLayer(TokenID layer_id, const GdalMetaInfo& gmi);
 	void DoUpdateTable(const TreeItem* storageHolder, AbstrUnit* curr, OGRLayer* layer) const;
 	prop_tables GetPropTables(const TreeItem* storageHolder = nullptr, TreeItem* curr = nullptr) const override;

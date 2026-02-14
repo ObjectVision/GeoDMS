@@ -1,42 +1,21 @@
-//<HEADER> 
-/*
-Data & Model Server (DMS) is a server written in C++ for DSS applications. 
-Version: see srv/dms/rtc/dll/src/RtcVersion.h for version info.
+// Copyright (C) 1998-2026 Object Vision b.v. 
+// License: GNU GPL 3
+/////////////////////////////////////////////////////////////////////////////
 
-Copyright (C) 1998-2004  YUSE GSO Object Vision BV. 
-
-Documentation on using the Data & Model Server software can be found at:
-http://www.ObjectVision.nl/DMS/
-
-See additional guidelines and notes in srv/dms/Readme-srv.txt 
-
-This library is free software; you can use, redistribute, and/or
-modify it under the terms of the GNU General Public License version 2 
-(the License) as published by the Free Software Foundation,
-provided that this entire header notice and readme-srv.txt is preserved.
-
-See LICENSE.TXT for terms of distribution or look at our web site:
-http://www.objectvision.nl/DMS/License.txt
-or alternatively at: http://www.gnu.org/copyleft/gpl.html
-
-This library is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
-General Public License for more details. However, specific warranties might be
-granted by an additional written contract for support, assistance and/or development
-*/
-//</HEADER>
-
+#if defined(_MSC_VER)
 #pragma once
+#endif
+
 
 #ifndef __STGIMPL_DBFIMPL_H
 #define __STGIMPL_DBFIMPL_H
 
 #include "ImplMain.h"
 
-#include <vector>		// ColDescriptions
+#include <vector>	// ColDescriptions
 #include "stdio.h"	// m_FP
 
+#include "FileResult.h"
 #include "geo/BaseBounds.h"
 #include "geo/iterrange.h"
 #include "ptr/SharedStr.h"
@@ -90,9 +69,9 @@ public:
 	STGIMPL_CALL ~DbfImpl();
 
 	// read/write functions
-	STGIMPL_CALL bool Open(WeakStr filename, FileCreationMode filemode);
-	             bool OpenForRead  (WeakStr filename) { return Open(filename, FCM_OpenReadOnly); }
-	             bool OpenForAppend(WeakStr filename) { return Open(filename, FCM_OpenRwGrowable) && GoEnd(); }
+	STGIMPL_CALL FileResult Open(WeakStr filename, FileCreationMode filemode);
+	FileResult OpenForRead  (WeakStr filename) { return Open(filename, FCM_OpenReadOnly); }
+	STGIMPL_CALL FileResult OpenForAppend(WeakStr filename);
 	STGIMPL_CALL void Close();
 	STGIMPL_CALL bool CreateFromSource(WeakStr filename, const DbfImpl& srcDbf);
 	STGIMPL_CALL bool GoBegin();
@@ -131,8 +110,8 @@ private:
 	void    ColumnDescriptionReplace(UInt32 columnindex, TDbfType dbftype, UInt8 len, UInt8 deccount);
 
 	// helper functions
-	bool    ReadHeader();                             // read from dbf file
-	bool    Create(WeakStr filename);
+	FileResult ReadHeader();                             // read from dbf file
+	FileResult Create(WeakStr filename);
 	void    Clear();                                  // reset all
 	UInt32	ColumnOffset(UInt32 columnindex) const;
 	UInt32  ActualPosition(UInt32 recordindex) const;
@@ -151,7 +130,7 @@ template<class T> class	DbfImplStub
 public:
 	typedef typename sequence_traits<T>::seq_t  VecType;
 	typedef typename sequence_traits<T>::cseq_t CVecType;
-	bool		m_Result;
+	FileResult m_Result;
 
 	STGIMPL_CALL DbfImplStub(DbfImpl* p, VecType vec, CharPtr columnname, ValueClassID vc);
 	STGIMPL_CALL DbfImplStub(DbfImpl* p, WeakStr filename, CVecType vec, CharPtr columnname, ValueClassID vc);
@@ -159,11 +138,11 @@ public:
 private:
 	DbfImpl* m_DbfImpl;
 
-	bool	ReadData(VecType vec, CharPtr columnname, ValueClassID vc);
-	bool	WriteData(WeakStr filename, CVecType vec, CharPtr columnname, ValueClassID vc);
-	bool	WriteDataOverwrite(WeakStr filename, CVecType vec, UInt32 columnindex, ValueClassID vc);
-	bool	WriteDataAppend(WeakStr filename, CVecType vec, CharPtr columnname, ValueClassID vc, TDbfType dbftype, UInt8 len, UInt8 deccount);
-	bool	WriteDataReplace(WeakStr filename, CVecType vec, UInt32 columnindex, ValueClassID vc, TDbfType dbftype, UInt8 len, UInt8 deccount);
+	FileResult ReadData(VecType vec, CharPtr columnname, ValueClassID vc);
+	FileResult WriteData(WeakStr filename, CVecType vec, CharPtr columnname, ValueClassID vc);
+	FileResult WriteDataOverwrite(WeakStr filename, CVecType vec, UInt32 columnindex, ValueClassID vc);
+	FileResult WriteDataAppend(WeakStr filename, CVecType vec, CharPtr columnname, ValueClassID vc, TDbfType dbftype, UInt8 len, UInt8 deccount);
+	FileResult WriteDataReplace(WeakStr filename, CVecType vec, UInt32 columnindex, ValueClassID vc, TDbfType dbftype, UInt8 len, UInt8 deccount);
 
 	void	DbfTypeInfo(CVecType vec, ValueClassID vc, TDbfType& dbftype, UInt8& len, UInt8& deccount);
 	bool	TypeResolution(TDbfType dbftype, UInt8 len, UInt8 deccount, UInt32 columnindex);

@@ -46,8 +46,8 @@ class StrStorageManager : public NonmappableStorageManager
 	void DoUpdateTree(const TreeItem* storageHolder, TreeItem* curr, SyncMode sm) const override;
 
 protected:
-	bool ReadDataItem(StorageMetaInfoPtr smi, AbstrDataObject* borrowedReadResultHolder, tile_id t) override;
-	bool WriteDataItem(StorageMetaInfoPtr&& smiHolder) override;
+	FileResult ReadDataItem(StorageMetaInfoPtr smi, AbstrDataObject* borrowedReadResultHolder, tile_id t) override;
+	FileResult WriteDataItem(StorageMetaInfoPtr&& smiHolder) override;
 
 	virtual SharedStr GetFileName(const TreeItem* storageHolder, const TreeItem* curr, SizeT recNo) const;
 	virtual SizeT     GetNrFiles (const TreeItem* storageHolder, const TreeItem* curr) const;
@@ -63,8 +63,8 @@ public:
 	void DoUpdateTree (const TreeItem* storageHolder, TreeItem* curr, SyncMode sm) const override;
 
 	StorageMetaInfoPtr GetMetaInfo(const TreeItem* storageHolder, TreeItem* adi, StorageAction) const override;
-	bool ReadDataItem(StorageMetaInfoPtr smi, AbstrDataObject* borrowedReadResultHolder, tile_id t) override;
-	bool WriteDataItem(StorageMetaInfoPtr&& smiHolder) override;
+	FileResult ReadDataItem(StorageMetaInfoPtr smi, AbstrDataObject* borrowedReadResultHolder, tile_id t) override;
+	FileResult WriteDataItem(StorageMetaInfoPtr&& smiHolder) override;
 
 protected:
 	ActorVisitState VisitSuppliers(SupplierVisitFlag svf, const ActorVisitor& visitor, const TreeItem* storageHolder, const TreeItem* self) const override;

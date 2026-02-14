@@ -259,8 +259,8 @@ public:
 	// Debug
 	void Render(long width, long height);
 
-	UInt32     GetFileLength() const { return m_FileLength;    }
-	FILE*      GetFP        () const { return m_FH;            }
+	UInt32     GetFileLength() const { return m_FileLength;  }
+	FILE*      GetFP        () const { return m_FH.GetFP();  }
 	const ShpPolygon& GetPolygon(UInt32 recNr) const
 	{
 		dms_assert(recNr < m_Polygons.size());
@@ -274,7 +274,7 @@ public:
 
 private:
 	// Helper functions
-	bool Open(WeakStr name, bool alsoWrite, bool writePrj);
+	FileResult Open(WeakStr name, bool alsoWrite, bool writePrj);
 	void Clear();                                   // reset
 
 	UInt32 CalcNrWordsInShx() const;                // nr of (16 bit) words in index file

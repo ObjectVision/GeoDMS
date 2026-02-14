@@ -22,8 +22,8 @@ class ShpStorageManager : public NonmappableStorageManager
 
 public:
 //	implement AbstrStorageManager interface
-	bool ReadDataItem(StorageMetaInfoPtr smi, AbstrDataObject* borrowedReadResultHolder, tile_id t) override;
-	bool WriteDataItem(StorageMetaInfoPtr&& smiHolder) override;
+	FileResult ReadDataItem(StorageMetaInfoPtr smi, AbstrDataObject* borrowedReadResultHolder, tile_id t) override;
+	FileResult WriteDataItem(StorageMetaInfoPtr&& smiHolder) override;
 
 	bool ReadUnitRange(const StorageMetaInfo& smi) const override;
 

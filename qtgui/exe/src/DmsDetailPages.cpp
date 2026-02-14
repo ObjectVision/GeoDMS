@@ -348,13 +348,18 @@ void DmsDetailPages::drawPageImpl()
             if (main_window->ShowInDetailPage(url))
             {
                 FilePtrHandle file;
-                if (file.OpenFH(url, FCM_OpenReadOnly, false, NR_PAGES_DIRECTIO))
+                auto r = file.OpenFH(url, FCM_OpenReadOnly, false, NR_PAGES_DIRECTIO);
+                if (r)
                 {
                     dms::filesize_t fileSize = file.GetFileSize();
                     OwningPtrSizedArray<char> dataBuffer(fileSize + 1, dont_initialize MG_DEBUG_ALLOCATOR_SRC("METADATA"));
                     fread(dataBuffer.begin(), fileSize, 1, file);
                     dataBuffer[fileSize] = char(0);
                     setHtml(dataBuffer.begin());
+                }
+                else
+                {
+					setHtml(QString("Failed to open URL: %1\n%2").arg(url.c_str(), r.error().c_str()));
                 }
                 return;
             }

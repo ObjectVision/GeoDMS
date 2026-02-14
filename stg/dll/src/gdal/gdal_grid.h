@@ -33,8 +33,8 @@ struct GdalGridSM : AbstrGridStorageManager, gdalComponent
 	bool ReadUnitRange(const StorageMetaInfo& smi) const override;
 	bool WriteUnitRange(StorageMetaInfoPtr&& smi) override;
 
-	bool ReadDataItem(StorageMetaInfoPtr smi, AbstrDataObject* borrowedReadResultHolder, tile_id t) override;
-	bool WriteDataItem(StorageMetaInfoPtr&& smiHolder) override;
+	FileResult ReadDataItem(StorageMetaInfoPtr smi, AbstrDataObject* borrowedReadResultHolder, tile_id t) override;
+	FileResult WriteDataItem(StorageMetaInfoPtr&& smiHolder) override;
 	prop_tables GetPropTables(const TreeItem* storageHolder=nullptr, TreeItem* curr=nullptr) const override;
 
 private:
