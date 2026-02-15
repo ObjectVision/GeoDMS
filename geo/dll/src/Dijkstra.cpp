@@ -1934,26 +1934,24 @@ private:
 
 namespace
 {
-	bool OldDijstraOperatorNamesStillValid()
+	oper_policy OldDijstraOperatorFlags()
 	{
 		// Dijkstra operator is renamed to impedance_table/matrix, but we want to keep the old name working for a while with a warning, 
 		// so we mark it as depreciated in v19, obsolete in v20 and this code should be removed in v21.
 		if (DMS_GetMajorVersionNumber() < 20)
-			return true;
+			return oper_policy::depreciated;
 		if (DMS_GetMajorVersionNumber() == 20)
-			return false;
+			return oper_policy::obsolete;
 
 		throwDmsErrD("This code should be removed in v21");
 	}
 
-	const oper_policy DIJKSTRA_PHASE_OUT_FLAG = OldDijstraOperatorNamesStillValid() ? oper_policy::depreciated : oper_policy::obsolete;
-
 	using DistTypeList = tl::type_list<Float64, Float32, UInt32, UInt64>;
 	using DijkstraOperListType = tl_oper::inst_tuple_templ< DistTypeList, DijkstraMatrOperator>;
 
-	Obsolete < CommonOperGroup> dsGroup("use impedance_table", "dijkstra_s", oper_policy::allow_extra_args | oper_policy::better_not_in_meta_scripting|DIJKSTRA_PHASE_OUT_FLAG);
-	Obsolete < CommonOperGroup> dm32Group("use impedance_matrix", "dijkstra_m", oper_policy::allow_extra_args | oper_policy::better_not_in_meta_scripting|DIJKSTRA_PHASE_OUT_FLAG);
-	Obsolete < CommonOperGroup> dm64Group("use impedance_matrix_od64", "dijkstra_m64", oper_policy::allow_extra_args | oper_policy::better_not_in_meta_scripting | DIJKSTRA_PHASE_OUT_FLAG);
+	Obsolete < CommonOperGroup> dsGroup("use impedance_table", "dijkstra_s", oper_policy::allow_extra_args | oper_policy::better_not_in_meta_scripting| OldDijstraOperatorFlags());
+	Obsolete < CommonOperGroup> dm32Group("use impedance_matrix", "dijkstra_m", oper_policy::allow_extra_args | oper_policy::better_not_in_meta_scripting| OldDijstraOperatorFlags());
+	Obsolete < CommonOperGroup> dm64Group("use impedance_matrix_od64", "dijkstra_m64", oper_policy::allow_extra_args | oper_policy::better_not_in_meta_scripting | OldDijstraOperatorFlags());
 
 	CommonOperGroup itGroup("impedance_table", oper_policy::allow_extra_args | oper_policy::better_not_in_meta_scripting);
 	CommonOperGroup im32Group("impedance_matrix", oper_policy::allow_extra_args | oper_policy::better_not_in_meta_scripting);

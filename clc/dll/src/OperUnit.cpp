@@ -118,7 +118,7 @@ bool UnitCombine_impl(AbstrUnit* res, const ArgSeqType& args, bool mustCalc, boo
 	if (!mustCreateBackRefs)
 		return true;
 
-	// assign all combinations of nr_OrgEntity in lexicographical order
+	// assign all combinations of domain elements in lexicographical order
 	arg_index i = n;
 	SizeT groupSize = 1;
 	static TokenID subItemNameID[] = {

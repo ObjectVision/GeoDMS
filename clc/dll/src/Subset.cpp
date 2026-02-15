@@ -660,7 +660,7 @@ struct RecollectByCondOperator : AbstrRecollectByCondOperator
 // *****************************************************************************
 
 #include "LispTreeType.h"
-
+#include "RtcInterface.h"
 namespace {
 
 	CommonOperGroup cog_select(token::select, oper_policy::dynamic_result_class);
@@ -676,7 +676,15 @@ namespace {
 	CommonOperGroup cog_select_64_with_org_rel(token::select_uint64_with_org_rel);
 
 	// Partly DEPRECIATED VARIANTS of select BEGIN
-	Obsolete<CommonOperGroup> cog_subset_xx("use select_with_org_rel or select and use collect_by_cond for collecting selected attribute values", "subset", oper_policy::dynamic_result_class| oper_policy::depreciated);
+	oper_policy ObsoleteOperatorsFlag()
+	{
+		if (DMS_GetMajorVersionNumber() < 20)
+			return oper_policy::obsolete;
+
+		throwDmsErrD("This code should be removed in v20"); // also remove token::nrOrgEntity and  OrgRelCreationMode::nr_OrgEntity
+	}
+
+	Obsolete<CommonOperGroup> cog_subset_xx("use select_with_org_rel or select and use collect_by_cond for collecting selected attribute values", "subset", oper_policy::dynamic_result_class| ObsoleteOperatorsFlag());
 	// Partly DEPRECIATED VARIANTS of select END
 
 
