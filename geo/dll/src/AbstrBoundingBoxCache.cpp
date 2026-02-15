@@ -10,7 +10,6 @@
 
 #include "BoundingBoxCache.h"
 
-#include "set/QuickContainers.h"
 #include "LockLevels.h"
 
 //----------------------------------------------------------------------

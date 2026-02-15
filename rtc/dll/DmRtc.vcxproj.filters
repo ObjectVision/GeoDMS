@@ -356,9 +356,6 @@
     <ClInclude Include="src\rtctypemodel.h">
       <Filter>Interface Files</Filter>
     </ClInclude>
-    <ClInclude Include="src\RtcVersion.h">
-      <Filter>Interface Files</Filter>
-    </ClInclude>
     <ClInclude Include="src\ser\AsString.h">
       <Filter>Serialization</Filter>
     </ClInclude>
@@ -426,9 +423,6 @@
       <Filter>Set oriented functions&amp;classes</Filter>
     </ClInclude>
     <ClInclude Include="src\set\IndexedStrings.h">
-      <Filter>Set oriented functions&amp;classes</Filter>
-    </ClInclude>
-    <ClInclude Include="src\set\QuickContainers.h">
       <Filter>Set oriented functions&amp;classes</Filter>
     </ClInclude>
     <ClInclude Include="src\set\rangefuncs.h">

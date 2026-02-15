@@ -16,7 +16,6 @@
 #include "act/ActorVisitor.h"
 #include "act/SupplierVisitFlag.h"
 #include "mci/Class.h"
-#include "set/QuickContainers.h"
 #include "set/StackUtil.h"
 
 #include "AbstrUnit.h"

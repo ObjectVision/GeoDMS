@@ -1,3 +1,5 @@
+#include <iostream>
+
 #include "DmsMainWindow.h"
 
 #include "ser/FormattedStream.h"

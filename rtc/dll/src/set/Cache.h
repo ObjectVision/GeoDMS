@@ -1,4 +1,4 @@
-// Copyright (C) 1998-2025 Object Vision b.v. 
+// Copyright (C) 1998-2026 Object Vision B.V. 
 // License: GNU GPL 3
 /////////////////////////////////////////////////////////////////////////////
 
@@ -6,10 +6,10 @@
 #pragma once
 #endif
 
+
 #if !defined(__SET_CACHE_H)
 #define __SET_CACHE_H
 
-#include "set/QuickContainers.h"
 #include "utl/Environment.h"
 
 #include <functional>

@@ -287,7 +287,6 @@
     <ClInclude Include="src\set\CompareFirst.h" />
     <ClInclude Include="src\set\FileView.h" />
     <ClInclude Include="src\set\IndexedStrings.h" />
-    <ClInclude Include="src\set\QuickContainers.h" />
     <ClInclude Include="src\set\rangefuncs.h" />
     <ClInclude Include="src\set\SetOper.h" />
     <ClInclude Include="src\set\StackUtil.h" />
@@ -323,7 +322,6 @@
     <ClInclude Include="src\RtcInterface.h" />
     <ClInclude Include="src\RtcTypeLists.h" />
     <ClInclude Include="src\rtctypemodel.h" />
-    <ClInclude Include="src\RtcVersion.h" />
     <ClInclude Include="src\StreamBuffInterface.h" />
     <ClInclude Include="src\dllimp\RunDllProc.h" />
     <ClInclude Include="src\utl\case.h" />

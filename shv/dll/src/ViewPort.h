@@ -16,8 +16,6 @@
 
 #include "ShvBase.h"
 
-#include "set/QuickContainers.h"
-
 #include "ExportInfo.h"
 #include "Wrapper.h"
 

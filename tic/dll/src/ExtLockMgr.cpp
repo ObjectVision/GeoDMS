@@ -33,8 +33,6 @@
 
 #if defined(MG_DEBUG)
 
-#include "set/QuickContainers.h"
-
 namespace {
 	using TreeItemMultiSetType = std::multiset<const TreeItem*>;
 

@@ -9,6 +9,7 @@
 #include <QThread> // TODO: remove
 
 #include <memory>
+#include <iostream>
 
 #include "RtcInterface.h"
 
