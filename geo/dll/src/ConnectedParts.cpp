@@ -38,7 +38,6 @@ namespace {
 	CommonOperGroup cogSCC("strongly_connected_components", oper_policy::better_not_in_meta_scripting);
 }
 
-static TokenID s_PartNr = GetTokenID_st("PartNr");
 static TokenID s_PartRel = GetTokenID_st("part_rel");
 static TokenID s_PartLink = GetTokenID_st("PartLink");
 static TokenID s_PartFromRel = GetTokenID_st("from_rel");
@@ -85,14 +84,6 @@ public:
 
 		AbstrDataItem* resSub = CreateDataItem(res, s_PartRel, arg1A->GetAbstrValuesUnit(), res);
 		resSub->SetTSF(TSF_Categorical);
-
-		if (!mustCalc)
-		{
-			AbstrDataItem* resSub_depreciated = CreateDataItem(res, s_PartNr, arg1A->GetAbstrValuesUnit(), res);
-			resSub_depreciated->SetReferredItem(resSub);
-			resSub_depreciated->SetTSF(TSF_Categorical);
-			resSub_depreciated->SetTSF(TSF_Depreciated);
-		}
 
 		MG_CHECK(resSub);
 
@@ -379,14 +370,6 @@ public:
 
 		AbstrDataItem* resSub = CreateDataItem(res, s_PartRel, arg1A->GetAbstrValuesUnit(), res);
 		resSub->SetTSF(TSF_Categorical);
-
-		if (!mustCalc)
-		{
-			AbstrDataItem* resSub_depreciated = CreateDataItem(res, s_PartNr, arg1A->GetAbstrValuesUnit(), res);
-			resSub_depreciated->SetReferredItem(resSub);
-			resSub_depreciated->SetTSF(TSF_Categorical);
-			resSub_depreciated->SetTSF(TSF_Depreciated);
-		}
 
 		MG_CHECK(resSub);
 
