@@ -506,6 +506,7 @@ public:
 // *****************************************************************************
 //											INSTANTIATION
 // *****************************************************************************
+#include "RtcInterface.h"
 
 namespace 
 {
@@ -527,22 +528,31 @@ namespace
 
 	CharPtr rewriteObsoleteWarning = "claim correction related rewrite rules have been removed from RewriteExpr.lsp";
 
+	oper_policy ClaimOperatorsFlag()
+	{
+		if (DMS_GetMajorVersionNumber() < 20)
+			return oper_policy::obsolete;;
+
+		throwDmsErrD("This code should be removed in v20");
+	}
+
+	const oper_policy PHASE_OUT_FLAG = ClaimOperatorsFlag();
+
+
 	Obsolete< CommonOperGroup > whatever[] =
 	{
-		Obsolete< CommonOperGroup >(rewriteObsoleteWarning, "claim_div", oper_policy::better_not_in_meta_scripting | oper_policy::depreciated),
-//		Obsolete< CommonOperGroup >(rewriteObsoleteWarning, "claim_divF32", oper_policy::better_not_in_meta_scripting | oper_policy::depreciated),
-		Obsolete< CommonOperGroup >(rewriteObsoleteWarning, "claim_divF64", oper_policy::better_not_in_meta_scripting | oper_policy::depreciated),
-		Obsolete< CommonOperGroup >(rewriteObsoleteWarning, "claim_divF32D", oper_policy::better_not_in_meta_scripting | oper_policy::depreciated),
-		Obsolete< CommonOperGroup >(rewriteObsoleteWarning, "claim_corr", oper_policy::better_not_in_meta_scripting | oper_policy::depreciated),
-//		Obsolete< CommonOperGroup >(rewriteObsoleteWarning, "claim_corrF32", oper_policy::better_not_in_meta_scripting | oper_policy::depreciated),
-		Obsolete< CommonOperGroup >(rewriteObsoleteWarning, "claim_corrF32D", oper_policy::better_not_in_meta_scripting | oper_policy::depreciated),
-		Obsolete< CommonOperGroup >(rewriteObsoleteWarning, "claim_corrF32DL", oper_policy::better_not_in_meta_scripting | oper_policy::depreciated),
+		Obsolete< CommonOperGroup >(rewriteObsoleteWarning, "claim_div", oper_policy::better_not_in_meta_scripting | PHASE_OUT_FLAG),
+		Obsolete< CommonOperGroup >(rewriteObsoleteWarning, "claim_divF64", oper_policy::better_not_in_meta_scripting | PHASE_OUT_FLAG),
+		Obsolete< CommonOperGroup >(rewriteObsoleteWarning, "claim_divF32D", oper_policy::better_not_in_meta_scripting | PHASE_OUT_FLAG),
+		Obsolete< CommonOperGroup >(rewriteObsoleteWarning, "claim_corr", oper_policy::better_not_in_meta_scripting | PHASE_OUT_FLAG),
+		Obsolete< CommonOperGroup >(rewriteObsoleteWarning, "claim_corrF32D", oper_policy::better_not_in_meta_scripting | PHASE_OUT_FLAG),
+		Obsolete< CommonOperGroup >(rewriteObsoleteWarning, "claim_corrF32DL", oper_policy::better_not_in_meta_scripting | PHASE_OUT_FLAG),
 
-		Obsolete< CommonOperGroup >(rewriteObsoleteWarning, "claim_minmax_corrF32", oper_policy::better_not_in_meta_scripting | oper_policy::depreciated),
-		Obsolete< CommonOperGroup >(rewriteObsoleteWarning, "claim_minmax_corrF64", oper_policy::better_not_in_meta_scripting | oper_policy::depreciated),
+		Obsolete< CommonOperGroup >(rewriteObsoleteWarning, "claim_minmax_corrF32", oper_policy::better_not_in_meta_scripting | PHASE_OUT_FLAG),
+		Obsolete< CommonOperGroup >(rewriteObsoleteWarning, "claim_minmax_corrF64", oper_policy::better_not_in_meta_scripting | PHASE_OUT_FLAG),
 
-		Obsolete< CommonOperGroup >(rewriteObsoleteWarning, "claim_minmax_corrF32D", oper_policy::better_not_in_meta_scripting | oper_policy::depreciated),
-		Obsolete< CommonOperGroup >(rewriteObsoleteWarning, "claim_minmax_corrF32L", oper_policy::better_not_in_meta_scripting | oper_policy::depreciated)
+		Obsolete< CommonOperGroup >(rewriteObsoleteWarning, "claim_minmax_corrF32D", oper_policy::better_not_in_meta_scripting | PHASE_OUT_FLAG),
+		Obsolete< CommonOperGroup >(rewriteObsoleteWarning, "claim_minmax_corrF32L", oper_policy::better_not_in_meta_scripting | PHASE_OUT_FLAG)
 	};
 }
 
