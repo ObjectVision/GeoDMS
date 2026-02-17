@@ -52,7 +52,7 @@ TIC_CALL const AbstrDataItem* AsDataItem(const ArgRef& ar);
 // operators can be overloaded on argument type and 
 // *****************************************************************************
 
-struct AbstrOperGroup //: SharedObj
+struct AbstrOperGroup
 {
 	TIC_CALL AbstrOperGroup(CharPtr   operName, oper_policy op);
 	TIC_CALL AbstrOperGroup(SharedStr operName, oper_policy op);

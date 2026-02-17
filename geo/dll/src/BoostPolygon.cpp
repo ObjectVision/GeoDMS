@@ -79,6 +79,15 @@ static bool coords_using_more_than_25_bits(const Rect& rect)
 	return coords_using_more_than_25_bits(boost::polygon::ll(rect)) || coords_using_more_than_25_bits(boost::polygon::ur(rect));
 }
 
+oper_policy GetGeosNonDPointDepreciationFlag()
+{
+	if (DMS_GetMajorVersionNumber() > 20)
+		throwDmsErrD("Remove the instantiation of non-DPoint versions of geos-code");
+	if (DMS_GetMajorVersionNumber() >= 20)
+		return oper_policy::obsolete;
+	return oper_policy::depreciated;
+}
+
 // *****************************************************************************
 //	boost::polygon serialization
 // *****************************************************************************
@@ -249,7 +258,12 @@ class PolygonOverlayOperator : public AbstrPolygonOverlayOperator
 public:
 	PolygonOverlayOperator(AbstrOperGroup& gr, bool unaryOperation)
 		:	AbstrPolygonOverlayOperator(gr, ArgType::GetStaticClass(), MustProduceGeometries, unaryOperation)
-	{}
+	{
+		if constexpr (GL == geometry_library::geos && (!std::is_floating_point_v<scalar_of<P> > || sizeof( scalar_of<P> ) < 8))
+		{
+			GetGeosNonDPointDepreciationFlag(); // throw when version > 20
+		}
+	}
 
 	// Override Operator
 	void CreatePolyHandle(const AbstrDataItem* polyDataA, tile_id u, ResourceHandle& polyInfoHandle) const override
@@ -285,6 +299,12 @@ public:
 
 	void Calculate(ResourceHandle& resDataHandle, leveled_critical_section& resInsertSection, const AbstrDataItem* poly1DataA, const AbstrDataItem* poly2DataA, tile_id t, tile_id u, const ResourceHandle& polyInfoHandle) const override
 	{
+		if constexpr (GL == geometry_library::geos && (!std::is_floating_point_v<scalar_of<P> > || sizeof(scalar_of<P>) < 8))
+		{
+			if (GetGeosNonDPointDepreciationFlag() == oper_policy::obsolete)
+				throwDmsErrF("PolygonOverlayOperator", "GEOS-based polygon operation %s are no longer supported for non-double-precision point types", this->GetGroup()->GetNameStr());
+			reportF(SeverityTypeID::ST_Warning, "GEOS-based polygon operation %s are no longer supported for non-double-precision point types", this->GetGroup()->GetNameStr());
+		}
 		auto poly1Data = const_array_cast<PolygonType>(poly1DataA);
 		auto poly2Data = const_array_cast<PolygonType>(poly2DataA);
 
@@ -1526,10 +1546,21 @@ class GEOS_PolygonOperator : public AbstrPolygonOperator
 public:
 	GEOS_PolygonOperator(AbstrOperGroup* aog, PolygonFlags flags)
 		: AbstrPolygonOperator(aog, ArgPolyType::GetStaticClass(), ArgNumType::GetStaticClass(), flags)
-	{}
+	{
+		if constexpr (!std::is_floating_point_v<scalar_of<P> > || sizeof( scalar_of<P> ) < 8)
+		{
+			GetGeosNonDPointDepreciationFlag(); // throw when version > 20
+		}
+	}
 
 	void Calculate(ResourceArrayHandle& r, SizeT domainCount, const AbstrDataItem* polyDataA, const AbstrDataItem* partitionDataA, tile_id t, Timer& processTimer) const override
 	{
+		if constexpr (!std::is_floating_point_v<scalar_of<P> > || sizeof(scalar_of<P>) < 8)
+		{
+			if (GetGeosNonDPointDepreciationFlag() == oper_policy::obsolete)
+				throwDmsErrF("GEOS_PolygonOperator", "GEOS-based polygon operation %s are no longer supported for non-double-precision point types", this->GetGroup()->GetNameStr());
+			reportF(SeverityTypeID::ST_Warning, "GEOS-based polygon operation %s are no longer supported for non-double-precision point types", this->GetGroup()->GetNameStr());
+		}
 		UnionPolygon<P, SequenceType, MultiPolygonTower>(r, domainCount, polyDataA, partitionDataA, t, GetGroup(), processTimer);
 	}
 
