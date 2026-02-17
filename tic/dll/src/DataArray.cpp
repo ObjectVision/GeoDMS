@@ -869,12 +869,16 @@ auto CreateAbstrHeapTileFunctor(const AbstrDataItem* adi, SharedPtr<const Shared
 	dbg_assert(adi->GetAbstrValuesUnit()->CheckMetaInfoReadyOrPassor());
 
 	auto adu = adi->GetAbstrDomainUnit();   MG_CHECK(adu);
-	auto cri = adu->GetCurrRangeItem();     MG_CHECK(cri);
-	MG_CHECK(IsUnit(cri));
-	auto aduCRI = AsUnit(cri);
-
-	SharedPtr<const AbstrTileRangeData> currTRD = aduCRI->GetTiledRangeData();
+	SharedPtr<const AbstrTileRangeData> currTRD = adu->GetTiledRangeData();
+	while (!currTRD)
+	{
+		adu = AsUnit(adu->GetCurrRefItem());
+		if (!adu)
+			adi->throwItemError("Domain has no defined range");
+		currTRD = adu->GetTiledRangeData();
+	}
 	MG_CHECK(currTRD);
+
 	SharedPtr<const AbstrUnit> valuesUnit = AsUnit(adi->GetAbstrValuesUnit()->GetCurrRangeItem());
 
 	// DEBUG: SEVERE TILING
@@ -921,7 +925,14 @@ auto CreateFileTileArray(const AbstrDataItem* adi, const SharedObj* abstrValuesR
 	MG_CHECK(adu);
 	assert(adu->HasInterest());
 
-	SharedPtr<const AbstrTileRangeData> currTRD = AsUnit(adu->GetCurrRangeItem())->GetTiledRangeData();
+	SharedPtr<const AbstrTileRangeData> currTRD = adu->GetTiledRangeData();
+	while (!currTRD)
+	{
+		adu = AsUnit(adu->GetCurrRefItem());
+		if (!adu)
+			adi->throwItemError("Domain has no defined range");
+		currTRD = adu->GetTiledRangeData();
+	}
 	MG_CHECK(currTRD);
 
 	auto avu = AsUnit(adi->GetAbstrValuesUnit()->GetCurrRangeItem());

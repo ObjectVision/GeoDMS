@@ -39,10 +39,6 @@ SharedBase::~SharedBase()
 { 
 	assert(!IsOwned()); 
 
-#if defined(MG_DEBUG_REFCOUNT)
-	MG_ASSERT(m_RefCount == dangling_object_indicator);
-#endif
-
 }
 
 auto SharedBase::GetRefCount() const noexcept -> ref_count_t
