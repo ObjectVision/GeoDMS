@@ -20,23 +20,15 @@
 #include "mci/ValueClass.h"
 #include "mci/ValueWrap.h"
 #include "mem/Grid.h"
-#include "mem/HeapSequenceProvider.h"
-#include "mem/MappedSequenceProvider.h"
 #include "mem/RectCopy.h"
-#include "mem/SeqLock.h"
 #include "mem/TileData.h"
 #include "ser/SequenceArrayStream.h"
-#include "ser/StreamTraits.h"
-#include "utl/splitPath.h"
 #include "xml/XmlOut.h"
 
 #include "AbstrDataItem.h"
 #include "AbstrDataObject.h"
 #include "DataCheckMode.h"
 #include "DataItemClass.h"
-#include "DataLocks.h"
-#include "DataStoreManagerCaller.h"
-#include "FreeDataManager.h"
 #include "LispTreeType.h"
 #include "UnitProcessor.h"
 #include "TileAccess.h"
@@ -1001,75 +993,3 @@ namespace  {
 template SizeT DataArrayBase<Bool>::CountValues(Bool v) const;
 template SizeT NumericArray<Bool>::FindPos(Bool v, SizeT startPos) const;
 
-//----------------------------------------------------------------------
-// DMS interface functions
-//----------------------------------------------------------------------
-
-/*
-#include "dbg/DmsCatch.h"
-#include "TreeItemContextHandle.h"
-*/
-
-/*********************************** DMS_##T##AttrGetValue *************************************/
-/*********************************** DMS_##T##AttrGetValueArray *************************************/
-/*
-#define INSTANTIATE(T) \
-TIC_CALL api_type<T>::type DMS_CONV DMS_##T##Attr_GetValue(const AbstrDataItem* self, SizeT index) \
-{ \
-	DMS_CALL_BEGIN \
-		TreeItemContextHandle checkPtr(self, DataArray<T>::GetStaticClass(), "DMS_" #T "Attr_GetValue"); \
-		dms_assert(self->GetInterestCount()); \
-		PreparedDataReadLock lock(self, "DMS_" #T "Attr_GetValue"); \
-		return const_array_cast<T>(self)->GetIndexedValue(index); \
-	DMS_CALL_END \
-	return UNDEFINED_OR_ZERO(T); \
-} \
- \
-TIC_CALL void DMS_CONV DMS_##T##Attr_GetValueArray(const AbstrDataItem* self, SizeT firstRow, SizeT len, api_type<T>::type* valueBuffer) \
-{ \
-	DMS_CALL_BEGIN \
-		TreeItemContextHandle checkPtr(self, DataArray<T>::GetStaticClass(), "DMS_" #T "Attr_GetValueArray"); \
-		dms_assert(self->GetInterestCount()); \
-		PreparedDataReadLock lock(self, "DMS_" #T "Attr_GetValueArray"); \
-		return const_array_cast<T>(self)->GetIndexedValueArray(firstRow, len, valueBuffer); \
-	DMS_CALL_END \
-}
-
-INSTANTIATE_NUM_ORG
-INSTANTIATE(Bool)
-INSTANTIATE(SharedStr)
-
-#undef INSTANTIATE
-
-static_assert(sizeof(bool) == 1);
-*/
-
-/*********************************** DMS_##T##Attr_SetValue *************************************/
-/*********************************** DMS_##T##Attr_SetValueArray *************************************/
-
-/*
-#define INSTANTIATE(T) \
-TIC_CALL void DMS_CONV DMS_##T##Attr_SetValue(AbstrDataItem* self, SizeT index, api_type<T>::type value) \
-{ \
-	DMS_CALL_BEGIN \
-		TreeItemContextHandle checkPtr(self, DataArray<T>::GetStaticClass(), "DMS_" #T "Attr_SetValue"); \
-		DataWriteLock lock(self, dms_rw_mode::read_write); \
-		mutable_array_cast<T>(lock)->SetIndexedValue(index, value); \
-		lock.Commit(); \
-	DMS_CALL_END \
-} \
-TIC_CALL void DMS_CONV DMS_##T##Attr_SetValueArray(AbstrDataItem* self, SizeT firstRow, SizeT len, const api_type<T>::type* values) \
-{ \
-	DMS_CALL_BEGIN \
-		TreeItemContextHandle checkPtr(self, DataArray<T>::GetStaticClass(), "DMS_" #T "Attr_SetValueArray"); \
-		DataWriteLock lock(self, (firstRow > 0) || (len < self->GetAbstrDomainUnit()->GetCount()) ? dms_rw_mode::read_write : dms_rw_mode::write_only_all); \
-		mutable_array_cast<T>(lock)->SetIndexedValueArray(firstRow, len, values); \
-		lock.Commit(); \
-	DMS_CALL_END \
-} 
-
-INSTANTIATE_NUM_ORG
-INSTANTIATE(Bool)
-
-#undef INSTANTIATE
-*/
