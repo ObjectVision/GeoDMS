@@ -122,17 +122,52 @@ namespace gdalVectImpl {
 	{
 		switch (geoType) {
 		case wkbPoint:           
-		case wkbPoint25D:
+		case wkbPointM:
 		case wkbPointZM:
+		case wkbPoint25D:
+
 			return ValueComposition::Single;
-		case wkbMultiPoint:      return ValueComposition::Sequence;
-		case wkbCircularString:	 return ValueComposition::Sequence;
-		case wkbCompoundCurve:	 return ValueComposition::Sequence;
-		case wkbLineString:      return ValueComposition::Sequence;
-		case wkbMultiLineString: return ValueComposition::Sequence;
-		case wkbPolygon:         return ValueComposition::Polygon;
-		case wkbMultiPolygon:    return ValueComposition::Polygon;
-		case wkbCurvePolygon:	 return ValueComposition::Polygon;
+
+		case wkbMultiPoint:
+		case wkbCircularString:
+		case wkbCompoundCurve:
+		case wkbLineString:
+		case wkbMultiLineString: 
+
+		case wkbMultiPointM:
+		case wkbCircularStringM:
+		case wkbCompoundCurveM:
+		case wkbLineStringM:
+		case wkbMultiLineStringM:
+
+		case wkbMultiPointZM:
+		case wkbCircularStringZM:
+		case wkbCompoundCurveZM:
+		case wkbLineStringZM:
+		case wkbMultiLineStringZM:
+
+		case wkbMultiPoint25D:
+		case wkbLineString25D:
+		case wkbMultiLineString25D:
+
+			return ValueComposition::Sequence;
+
+		case wkbPolygon:
+		case wkbMultiPolygon:
+		case wkbCurvePolygon:
+
+		case wkbPolygonM:
+		case wkbMultiPolygonM:
+		case wkbCurvePolygonM:
+
+		case wkbPolygonZM:
+		case wkbMultiPolygonZM:
+		case wkbCurvePolygonZM:
+
+		case wkbPolygon25D:
+		case wkbMultiPolygon25D:
+
+			return ValueComposition::Polygon;
 		}
 		return ValueComposition::Unknown;
 	}
@@ -638,6 +673,8 @@ void ReadPolyData(typename sequence_traits<PolygonType>::seq_t dataArray, OGRLay
 			AddPolygon<PolygonType>(dataElemRef, geo->toPolygon()); break;
 
 		case OGRwkbGeometryType::wkbCurvePolygon: 
+		case OGRwkbGeometryType::wkbCurvePolygonM:
+		case OGRwkbGeometryType::wkbCurvePolygonZM:
 			AddPolygon<PolygonType>(dataElemRef, geo->getLinearGeometry()->toPolygon()); break;
 
 		case OGRwkbGeometryType::wkbMultiPolygon: 
@@ -722,12 +759,19 @@ void ReadLinestringData(typename sequence_traits<PolygonType>::seq_t dataArray, 
 			AddLineString<PolygonType>(dataElemRef, geo->toLineString()); break;
 
 		case OGRwkbGeometryType::wkbCircularString:
+		case OGRwkbGeometryType::wkbCircularStringM:
+		case OGRwkbGeometryType::wkbCircularStringZM:
 			AddLineString<PolygonType>(dataElemRef, geo->getLinearGeometry()->toLineString()); break;
 
 		case OGRwkbGeometryType::wkbCompoundCurve:
+		case OGRwkbGeometryType::wkbCompoundCurveM:
+		case OGRwkbGeometryType::wkbCompoundCurveZM:
 			AddLineString<PolygonType>(dataElemRef, geo->getLinearGeometry()->toLineString()); break;
 
 		case OGRwkbGeometryType::wkbPolygon:
+		case OGRwkbGeometryType::wkbPolygonM:
+		case OGRwkbGeometryType::wkbPolygonZM:
+		case OGRwkbGeometryType::wkbPolygon25D:
 			reportF(SeverityTypeID::ST_Warning, "Feature %d is a Polygon and skipped as only Curves, aka (Multi)Linestrings, and (sequences of) Points are read.\n"
 				"Hint: Configure another attribute with ValueComposition=polygon to read it."
 				, i + firstIndex);
@@ -735,6 +779,8 @@ void ReadLinestringData(typename sequence_traits<PolygonType>::seq_t dataArray, 
 			break;
 
 		case OGRwkbGeometryType::wkbCurvePolygon:
+		case OGRwkbGeometryType::wkbCurvePolygonM:
+		case OGRwkbGeometryType::wkbCurvePolygonZM:
 			reportF(SeverityTypeID::ST_Warning, "Feature %d is a CurvePolygon and skipped as only Curves, aka (Multi)Linestrings, and (sequences of) Points are read.\n"
 				"Hint: Configure another attribute with ValueComposition=polygon to read it as Polygon."
 				, i + firstIndex);
@@ -742,6 +788,9 @@ void ReadLinestringData(typename sequence_traits<PolygonType>::seq_t dataArray, 
 			break;
 
 		case OGRwkbGeometryType::wkbMultiPolygon:
+		case OGRwkbGeometryType::wkbMultiPolygon25D:
+		case OGRwkbGeometryType::wkbMultiPolygonM:
+		case OGRwkbGeometryType::wkbMultiPolygonZM:
 			reportF(SeverityTypeID::ST_Warning, "Feature %d is a MultiPolygon and skipped as only Curves, aka (Multi)Linestrings, and (sequences of) Points are read.\n"
 				"Hint: Configure another attribute with ValueComposition=polygon to read it."
 				, i + firstIndex);
@@ -750,8 +799,8 @@ void ReadLinestringData(typename sequence_traits<PolygonType>::seq_t dataArray, 
 
 		case OGRwkbGeometryType::wkbMultiLineString:
 		case OGRwkbGeometryType::wkbMultiLineString25D:
-		case OGRwkbGeometryType::wkbMultiLineStringZM:
 		case OGRwkbGeometryType::wkbMultiLineStringM:
+		case OGRwkbGeometryType::wkbMultiLineStringZM:
 			AddMultiLineString<PolygonType>(dataElemRef, geo->toMultiLineString()); break;
 
 		case OGRwkbGeometryType::wkbMultiSurface:
@@ -2120,7 +2169,8 @@ void GdalVectSM::DoUpdateTableGeometry(const TreeItem* storageHolder, AbstrUnit*
 	CheckSpatialReference(ogrSR, geometry, const_cast<AbstrUnit*>(gvu));
 
 	// add geometry_z attribute if available
-	if (layer_geometry_type == wkbPoint25D || layer_geometry_type == wkbPointZM) {
+	if (layer_geometry_type == wkbPoint25D || layer_geometry_type == wkbPointM || layer_geometry_type == wkbPointZM) 
+	{
 		auto geometry_z_vt = gvu->GetValueType()->GetScalarClass();
 		CreateTreeItemColumnInfo(layerDomain, token::geometry_z.AsSharedStr().c_str(), layerDomain, geometry_z_vt);
 	}
