@@ -1870,6 +1870,7 @@ public:
 // *****************************************************************************
 //											INSTANTIATION
 // *****************************************************************************
+#include "RtcInterface.h"
 
 namespace 
 {
@@ -1881,7 +1882,14 @@ namespace
 		{
 			SetBetterNotInMetaScripting();
 			if (isDepreciated)
-				m_Policy = oper_policy(m_Policy | oper_policy::depreciated);
+			{
+				if (DMS_GetMajorVersionNumber() >= 21)
+					throwDmsErrD("The obsolte unprefixed boost::polygon operations should be removed from v21");
+				if (DMS_GetMajorVersionNumber() >= 20)
+					m_Policy = oper_policy(m_Policy | oper_policy::obsolete);
+				else
+					m_Policy = oper_policy(m_Policy | oper_policy::depreciated);
+			}
 		}
 
 		tl_oper::inst_tuple_templ<typelists::sint_points, BpPolygonOperator>
@@ -2031,10 +2039,12 @@ namespace
 	};
 	struct BpPolyOperatorGroupss
 	{
-		BpPolyOperatorGroups 
-			simple = BpPolyOperatorGroups(SharedStr("bp_%spolygon"), PolygonFlags())
-		,   split = BpPolyOperatorGroups(SharedStr("bp_split_%spolygon"), PolygonFlags::F_DoSplit)
-		;
+		BpPolyOperatorGroups simple, split;
+
+		BpPolyOperatorGroupss(CharPtr suffix, PolygonFlags flags)
+			: simple( BpPolyOperatorGroups(SharedStr("bp_%spolygon")+ suffix, flags) )
+			, split( BpPolyOperatorGroups(SharedStr("bp_split_%spolygon") + suffix, flags | PolygonFlags::F_DoSplit) )
+		{}
 	};
 	struct BgPolyOperatorGroupss
 	{
@@ -2128,7 +2138,24 @@ namespace
 
 
 	PolyOperatorGroupss simple("", PolygonFlags());
-	BpPolyOperatorGroupss bp_simple;
+
+	BpPolyOperatorGroupss bp_simple("", PolygonFlags());
+	BpPolyOperatorGroupss bp_f1("_filtered", PolygonFlags::F_Filter1);
+	BpPolyOperatorGroupss bp_f2("_inflated", PolygonFlags::F_Inflate1);
+	BpPolyOperatorGroupss bp_f3("_deflated", PolygonFlags::F_Deflate1);
+	BpPolyOperatorGroupss bp_f4("_i4HV", PolygonFlags::F_I4HV1);
+	BpPolyOperatorGroupss bp_f5("_i4D", PolygonFlags::F_I4D1);
+	BpPolyOperatorGroupss bp_f6("_i8D", PolygonFlags::F_I8D1);
+	BpPolyOperatorGroupss bp_f7("_i16D", PolygonFlags::F_I16D1);
+	BpPolyOperatorGroupss bp_f8("_iXHV", PolygonFlags::F_IXHV1);
+	BpPolyOperatorGroupss bp_f9("_iXD", PolygonFlags::F_IXD1);
+	BpPolyOperatorGroupss bp_fa("_d4HV", PolygonFlags::F_D4HV1);
+	BpPolyOperatorGroupss bp_fb("_d4D", PolygonFlags::F_D4D1);
+	BpPolyOperatorGroupss bp_fc("_d8D", PolygonFlags::F_D8D1);
+	BpPolyOperatorGroupss bp_fd("_d16D", PolygonFlags::F_D16D1);
+	BpPolyOperatorGroupss bp_fe("_dXHV", PolygonFlags::F_DXHV1);
+	BpPolyOperatorGroupss bp_ff("_dXD", PolygonFlags::F_DXD1);
+
 	BgPolyOperatorGroupss bg_simple;
 	CGAL_PolyOperatorGroupss cgal_simple;
 	GEOS_PolyOperatorGroupss geos_simple;
