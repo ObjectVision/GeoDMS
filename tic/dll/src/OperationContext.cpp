@@ -344,6 +344,8 @@ void tile_task_group::DoWork(IndexType i, bool doMore)
 				RegisterCompletion(); // release this slot of the task_group, so from here, this may be destroyed
 				break;
 			}
+			if (SuspendTrigger::MustSuspend())
+				return;
 			i = RegisterCompletionAndGetNextCommissioned(); // release this slot and obtain the next one, or none if this task group is done.
 		}
 	}

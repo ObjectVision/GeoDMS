@@ -679,6 +679,8 @@ namespace {
 	oper_policy ObsoleteOperatorsFlag()
 	{
 		if (DMS_GetMajorVersionNumber() < 20)
+			return oper_policy::depreciated;
+		if (DMS_GetMajorVersionNumber() <= 20)
 			return oper_policy::obsolete;
 
 		throwDmsErrD("This code should be removed in v20"); // also remove token::nrOrgEntity and  OrgRelCreationMode::nr_OrgEntity

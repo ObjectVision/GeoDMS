@@ -13,6 +13,7 @@
 // used modules and forward class references
 //----------------------------------------------------------------------
 
+#include "RtcInterface.h"
 #include "act/ActorLock.h"
 #include "act/ActorVisitor.h"
 #include "act/InterestRetainContext.h"
@@ -2151,7 +2152,10 @@ void TreeItem::UpdateMetaInfoImpl() const
 				,	prevItem->GetID()
 				,	refItem->GetID()
 				);
-				reportD(SeverityTypeID::ST_Warning, msg.AsRange());
+				if (DMS_GetMajorVersionNumber() < 20)
+					reportD(SeverityTypeID::ST_Warning, msg.AsRange());
+				else
+					throwItemError(msg);
 			}
 			return true;
 		}

@@ -531,6 +531,8 @@ namespace
 	oper_policy ClaimOperatorsFlag()
 	{
 		if (DMS_GetMajorVersionNumber() < 20)
+			return oper_policy::depreciated;
+		if (DMS_GetMajorVersionNumber() <= 20)
 			return oper_policy::obsolete;
 
 		throwDmsErrD("This code should be removed in v20");

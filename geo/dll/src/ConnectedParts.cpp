@@ -32,10 +32,21 @@ void InvertIntoLinkedList(LinkType edgeCount, NodeType nodeCount,
 // *****************************************************************************
 //									ConnectedParts
 // *****************************************************************************
+#include "RtcInterface.h"
 
 namespace {
 	CommonOperGroup cogCP("connected_parts", oper_policy::better_not_in_meta_scripting);
 	CommonOperGroup cogSCC("strongly_connected_components", oper_policy::better_not_in_meta_scripting);
+
+	// REMOVE: Obsolte PartNr support
+	static TokenID s_PartNr = GetTokenID_st("PartNr");	
+	TreeItemStatusFlags PartNrTSF()
+	{
+		if (DMS_GetMajorVersionNumber() <= 20)
+			return TSF_Depreciated;
+
+		throwErrorD("GeoDMS", "This code should be removed in v21");
+	}
 }
 
 static TokenID s_PartRel = GetTokenID_st("part_rel");
@@ -85,6 +96,13 @@ public:
 		AbstrDataItem* resSub = CreateDataItem(res, s_PartRel, arg1A->GetAbstrValuesUnit(), res);
 		resSub->SetTSF(TSF_Categorical);
 
+		if (!mustCalc)
+		{
+			AbstrDataItem* resSub_depreciated = CreateDataItem(res, s_PartNr, arg1A->GetAbstrValuesUnit(), res);
+			resSub_depreciated->SetReferredItem(resSub);
+			resSub_depreciated->SetTSF(TSF_Categorical);
+			resSub_depreciated->SetTSF(PartNrTSF());
+		}
 		MG_CHECK(resSub);
 
 		if (mustCalc)
@@ -370,6 +388,14 @@ public:
 
 		AbstrDataItem* resSub = CreateDataItem(res, s_PartRel, arg1A->GetAbstrValuesUnit(), res);
 		resSub->SetTSF(TSF_Categorical);
+
+		if (!mustCalc)
+		{
+			AbstrDataItem* resSub_depreciated = CreateDataItem(res, s_PartNr, arg1A->GetAbstrValuesUnit(), res);
+			resSub_depreciated->SetReferredItem(resSub);
+			resSub_depreciated->SetTSF(TSF_Categorical);
+			resSub_depreciated->SetTSF(PartNrTSF());
+		}
 
 		MG_CHECK(resSub);
 
