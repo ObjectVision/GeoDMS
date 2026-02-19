@@ -190,15 +190,17 @@ public:
 		using prepare_data = std::shared_ptr<typename TileFunctor<V>::future_tile>;
 		std::unique_ptr<AbstrDataObject> futureTileFunctor;
 
+		auto prepareTileDataFunc = [arg1](tile_id t) { return arg1->GetFutureTile(t); }; // only depends on V
+
 		visit<typelists::domain_elements>(arg2DomainA
-		,	[&futureTileFunctor, resultAdi, lazy, arg2DomainRange, arg1, hasIndex, indexBoxPtr, tileRangeData MG_DEBUG_ALLOCATOR_SRC_PARAM]<typename E>(const Unit<E>* arg2Domain)
+		,	[&futureTileFunctor, &prepareTileDataFunc, resultAdi, lazy, arg2DomainRange, arg1, hasIndex, indexBoxPtr, tileRangeData MG_DEBUG_ALLOCATOR_SRC_PARAM]<typename E>(const Unit<E>*arg2Domain)
 		{
 			futureTileFunctor = make_unique_FutureTileFunctor<E, prepare_data, false>(resultAdi, lazy, tileRangeData, get_range_ptr_of_valuesunit(arg2Domain)
-				, [arg1](tile_id t) { return arg1->GetFutureTile(t); }
-				, [arg2DomainRange = dynamic_cast<const typename Unit<E>::range_data_t*>(arg2DomainRange)->GetRange(), hasIndex, indexBoxPtr](typename sequence_traits<E>::seq_t resData, prepare_data arg1FutureData)
+				, std::move(prepareTileDataFunc)  // only depends on V
+				, [arg2DomainRange = dynamic_cast<const typename Unit<E>::range_data_t*>(arg2DomainRange)->GetRange(), hasIndex, indexBoxPtr](typename sequence_traits<E>::seq_t resData, prepare_data arg1FutureData) // depends on E and V
 				{
-					auto arg1Data = arg1FutureData->GetTile();
-					CreateTileData<E>(resData, arg1Data, hasIndex, indexBoxPtr.get(), arg2DomainRange);
+					auto arg1Data = arg1FutureData->GetTile(); // only depends on V
+					CreateTileData<E>(resData, arg1Data, hasIndex, indexBoxPtr.get(), arg2DomainRange); // allready called
 				}
 				MG_DEBUG_ALLOCATOR_SRC_PARAM
 			);
