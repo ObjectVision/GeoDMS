@@ -153,6 +153,30 @@ public:
 		return result;
 	}
 
+	template <typename E>
+	static auto CreateTileData(typename sequence_traits<E>::seq_t resData, typename sequence_traits<V>::cseq_t arg1Data, bool hasIndex, const std::any* indexBoxPtr, typename Unit<E>::range_t arg2DomainRange)
+	{
+		using index_type = index_type_t<E>;
+		using index_tile = indexed_tile_t<index_type, V>;
+		using res_seq_t = sequence_traits<E>::seq_t;
+
+
+		static_assert(!std::is_same_v<E, WPoint> || std::is_same_v<index_type, UInt32>);
+		static_assert(std::is_same_v<index_type, typename index_tile::first_type::value_type>);
+
+		if (hasIndex)
+		{
+			auto indexPtr = std::any_cast<index_tile>(indexBoxPtr);
+			assert(indexPtr);
+			CalcTileWithIndex<E>(resData, arg1Data, indexPtr, arg2DomainRange);
+		}
+		else
+		{
+			auto keyValuesPtr = std::any_cast<typename DataArray<V>::locked_cseq_t>(indexBoxPtr);
+			assert(keyValuesPtr);
+			CalcTileWithKeyValues< E>(resData, arg1Data, keyValuesPtr, arg2DomainRange);
+		}
+	}
 
 	auto CreateFutureTileIndexer(SharedPtr<AbstrDataItem> resultAdi, bool lazy, const AbstrUnit* valuesUnitA, const AbstrDataItem* arg1A, const AbstrUnit* arg2DomainA, const AbstrTileRangeData* arg2DomainRange, bool hasIndex, std::any indexBox MG_DEBUG_ALLOCATOR_SRC(SharedStr srcStr)) const -> SharedPtr<const AbstrDataObject> override
 	{
@@ -169,31 +193,12 @@ public:
 		visit<typelists::domain_elements>(arg2DomainA
 		,	[&futureTileFunctor, resultAdi, lazy, arg2DomainRange, arg1, hasIndex, indexBoxPtr, tileRangeData MG_DEBUG_ALLOCATOR_SRC_PARAM]<typename E>(const Unit<E>* arg2Domain)
 		{
-			using index_type = index_type_t<E>;
-			using index_tile = indexed_tile_t<index_type, V>;
-			using res_seq_t = sequence_traits<E>::seq_t;
-
 			futureTileFunctor = make_unique_FutureTileFunctor<E, prepare_data, false>(resultAdi, lazy, tileRangeData, get_range_ptr_of_valuesunit(arg2Domain)
 				, [arg1](tile_id t) { return arg1->GetFutureTile(t); }
-				, [arg2DomainRange = dynamic_cast<const typename Unit<E>::range_data_t*>(arg2DomainRange)->GetRange(), hasIndex, indexBoxPtr](res_seq_t resData, prepare_data arg1FutureData)
+				, [arg2DomainRange = dynamic_cast<const typename Unit<E>::range_data_t*>(arg2DomainRange)->GetRange(), hasIndex, indexBoxPtr](typename sequence_traits<E>::seq_t resData, prepare_data arg1FutureData)
 				{
 					auto arg1Data = arg1FutureData->GetTile();
-
-					static_assert(!std::is_same_v<E, WPoint> || std::is_same_v<index_type, UInt32>);
-					static_assert(std::is_same_v<index_type, index_tile::first_type::value_type>);
-
-					if (hasIndex)
-					{
-						auto indexPtr = std::any_cast<index_tile>(indexBoxPtr.get());
-						assert(indexPtr);
-						CalcTileWithIndex<res_seq_t, E>(resData, arg1Data, indexPtr, arg2DomainRange);
-					}
-					else
-					{
-						auto keyValuesPtr = std::any_cast<DataArray<V>::locked_cseq_t>(indexBoxPtr.get());
-						assert(keyValuesPtr);
-						CalcTileWithKeyValues<res_seq_t, E>(resData, arg1Data, keyValuesPtr, arg2DomainRange);
-					}
+					CreateTileData<E>(resData, arg1Data, hasIndex, indexBoxPtr.get(), arg2DomainRange);
 				}
 				MG_DEBUG_ALLOCATOR_SRC_PARAM
 			);
@@ -202,21 +207,20 @@ public:
 		return futureTileFunctor.release();
 	}
 
-	template <typename ResultIndexView, typename E>
-	static void CalcTileWithIndex(ResultIndexView resData, typename sequence_traits<V>::cseq_t arg1Data, const indexed_tile_t<index_type_t<E>, V>* indexPtr, typename Unit<E>::range_t arg2DomainRange)
+	template <typename E>
+	static void CalcTileWithIndex(typename sequence_traits<E>::seq_t resData, typename sequence_traits<V>::cseq_t arg1Data, const indexed_tile_t<index_type_t<E>, V>* indexPtr, typename Unit<E>::range_t arg2DomainRange)
 	{
 		IndexApplicator applicator;
-		applicator.applyIndexedSearch<ResultIndexView, typename sequence_traits<V>::cseq_t>(resData, std::move(arg1Data), indexPtr->second.get_view(), arg2DomainRange, indexPtr->first);
+		applicator.applyIndexedSearch<typename sequence_traits<E>::seq_t, typename sequence_traits<V>::cseq_t>(resData, std::move(arg1Data), indexPtr->second.get_view(), arg2DomainRange, indexPtr->first);
 
 		assert(resData.size() == arg1Data.size());
 	}
 
-	template <typename ResultIndexView, typename E>
-	static void CalcTileWithKeyValues(ResultIndexView resData, typename sequence_traits<V>::cseq_t arg1Data, const DataArray<V>::locked_cseq_t* keyValuesPtr, typename Unit<E>::range_t arg2DomainRange)
+	template <typename E>
+	static void CalcTileWithKeyValues(typename sequence_traits<E>::seq_t resData, typename sequence_traits<V>::cseq_t arg1Data, const DataArray<V>::locked_cseq_t* keyValuesPtr, typename Unit<E>::range_t arg2DomainRange)
 	{
 		IndexApplicator applicator;
-		applicator.applyBinarySearch<ResultIndexView, typename sequence_traits<V>::cseq_t>(resData, std::move(arg1Data), keyValuesPtr->get_view(), arg2DomainRange);
-
+		applicator.applyBinarySearch<typename sequence_traits<E>::seq_t, typename sequence_traits<V>::cseq_t>(resData, std::move(arg1Data), keyValuesPtr->get_view(), arg2DomainRange);
 		assert(resData.size() == arg1Data.size());
 	}
 
@@ -231,19 +235,7 @@ public:
 				using index_tile = indexed_tile_t<index_type, V>;
 				using res_seq_t = sequence_traits<E>::seq_t;
 
-				if (hasIndex)
-				{
-					auto indexPtr = std::any_cast<index_tile>(&indexBox);
-					assert(indexPtr);
-
-					CalcTileWithIndex<res_seq_t, E>(resData.get_view(), arg1Data.get_view(), indexPtr, arg2Domain->GetRange());
-				}
-				else
-				{
-					auto keyValuesPtr = std::any_cast<typename DataArray<V>::locked_cseq_t>(&indexBox);
-					assert(keyValuesPtr);
-					CalcTileWithKeyValues<res_seq_t, E>(resData.get_view(), arg1Data.get_view(), keyValuesPtr, arg2Domain->GetRange());
-				}
+				CreateTileData<E>(resData.get_view(), arg1Data.get_view(), hasIndex, &indexBox, arg2Domain->GetRange());
 			}
 		);
 	}
