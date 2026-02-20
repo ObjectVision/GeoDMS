@@ -194,6 +194,7 @@ public:
 			{
 				CalcTile(resData, futureData->GetTile().get_view(), dcmArg1, actualIndexRange, valuesData);
 			}
+			MG_DEBUG_ALLOCATOR_SRC(srcStr)
 		);
 
 		return futureTileFunctor.release();
