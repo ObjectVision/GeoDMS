@@ -117,6 +117,24 @@ public:
 //                         LookupOperators
 // *****************************************************************************
 
+template <typename V> struct same_size_type { using type = V; };
+template <> struct same_size_type<Int8> { using type = UInt8; };
+template <> struct same_size_type<Int16> { using type = UInt16; };
+template <> struct same_size_type<Int32> { using type = UInt32; };
+template <> struct same_size_type<Int64> { using type = UInt64; };
+template <> struct same_size_type<Float32> { using type = UInt32; };
+template <> struct same_size_type<Float64> { using type = UInt64; };
+
+template <> struct same_size_type<SPoint> { using type = UInt32; };
+template <> struct same_size_type<WPoint> { using type = UInt32; };
+template <> struct same_size_type<IPoint> { using type = UInt64; };
+template <> struct same_size_type<UPoint> { using type = UInt64; };
+template <> struct same_size_type<FPoint> { using type = UInt64; };
+
+template <typename V> using same_size_type_t = typename same_size_type<V>::type;
+
+template <typename E, typename A> struct same_size_type<std::vector<E, A> > { using type = std::vector<same_size_type_t<E>, A>; };
+
 template <class T, class V>
 class LookupOperator : public AbstrLookupOperator
 {
@@ -169,13 +187,13 @@ public:
 		assert(valuesData);
 
 		using prepare_data = std::shared_ptr<typename Arg1Type::future_tile>;
+
 		auto futureTileFunctor = make_unique_FutureTileFunctor<V, prepare_data, false>(resultAdi, lazy, tileRangeData, get_range_ptr_of_valuesunit(valuesUnit)
 			, [arg1](tile_id t) { return arg1->GetFutureTile(t); }
-			, [this, dcmArg1, actualIndexRange, valuesData  MG_DEBUG_ALLOCATOR_SRC_PARAM](sequence_traits<V>::seq_t resData, prepare_data futureData)
+			, [dcmArg1, actualIndexRange, valuesData](sequence_traits<V>::seq_t resData, prepare_data futureData)
 			{
-				this->CalcTile(resData, futureData->GetTile().get_view(), dcmArg1, actualIndexRange, valuesData  MG_DEBUG_ALLOCATOR_SRC(srcStr.c_str()));
+				CalcTile(resData, futureData->GetTile().get_view(), dcmArg1, actualIndexRange, valuesData);
 			}
-			MG_DEBUG_ALLOCATOR_SRC_PARAM
 		);
 
 		return futureTileFunctor.release();
@@ -197,10 +215,10 @@ public:
 		auto valuesData = std::any_cast<typename DataArrayBase<V>::locked_cseq_t>(wrappedValuesArray);
 		assert(valuesData);
 
-		CalcTile(resultData, indexData, dcmArg1, actualIndexRange, valuesData  MG_DEBUG_ALLOCATOR_SRC("res->md_SrcStr"));
+		CalcTile(resultData, indexData, dcmArg1, actualIndexRange, valuesData);
 	}
 
-	void CalcTile(sequence_traits<V>::seq_t resultData, sequence_traits<T>::cseq_t indexData, DataCheckMode dcmArg1, Arg1RangeType actualIndexRange, sequence_traits<V>::cseq_t valuesData MG_DEBUG_ALLOCATOR_SRC_ARG) const
+	static void CalcTile(sequence_traits<V>::seq_t resultData, sequence_traits<T>::cseq_t indexData, DataCheckMode dcmArg1, Arg1RangeType actualIndexRange, sequence_traits<V>::cseq_t valuesData)
 	{
 		assert(resultData.size() == indexData.size());
 		if (!indexData.size())
@@ -208,7 +226,10 @@ public:
 
 		assert(valuesData.size() == Cardinality(actualIndexRange));// <= domain of valid indexData
 
-		lookup_best(resultData.begin(), resultData.end(), indexData.begin(), valuesData.begin(), actualIndexRange, dcmArg1);
+		auto sameSizeValuesData = reinterpret_cast<typename sequence_traits<same_size_type_t<V>>::cseq_t&>(valuesData);	
+		auto sameSizeResultData = reinterpret_cast<typename sequence_traits<same_size_type_t<V>>::seq_t&>(resultData);
+
+		lookup_best(sameSizeResultData.begin(), sameSizeResultData.end(), indexData.begin(), sameSizeValuesData.begin(), actualIndexRange, dcmArg1);
 	}
 };
 
