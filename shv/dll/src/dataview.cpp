@@ -1237,9 +1237,23 @@ void ChangeActivation(MovableObject*  oldAct, MovableObject* newAct)
 
 void DataView::Activate(MovableObject* src)
 {
-	dms_assert(src);
-	ChangeActivation(m_ActivationInfo.get(), ActivationInfo(src).get());
-	m_ActivationInfo = ActivationInfo(src);
+	assert(src);
+	if (m_ActivationInfo.get() == src)
+		return;
+
+	m_PrevActivated = m_ActivationInfo;
+	auto activationInfo = ActivationInfo(src);
+	ChangeActivation(m_ActivationInfo.get(), activationInfo.get());
+	m_ActivationInfo = std::move(activationInfo);
+}
+
+void DataView::ActivatePrev()
+{
+	auto prevActivated = m_PrevActivated.lock(); 
+	if (!prevActivated)
+		return;
+	Activate(prevActivated.get());
+	m_PrevActivated = {};
 }
 
 void DataView::SetCursorPos(GPoint clientPoint)

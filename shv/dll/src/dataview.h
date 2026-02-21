@@ -247,6 +247,7 @@ public:
 	void ScrollDevice(GPoint delta, GRect rcScroll, GRect rcClip, const MovableObject* src);
 
 	void Activate(MovableObject* src);
+	void ActivatePrev();
 	void SetCursorPos(GPoint clientPoint);
 
 	GRect ViewDeviceRect() const { return GRect(GPoint(0, 0), m_ViewDeviceSize); }
@@ -328,6 +329,7 @@ private:
 public:
 	ToolButtonID                  m_ControllerID = TB_Neutral;
 	ActivationInfo                m_ActivationInfo;
+	std::weak_ptr<MovableObject>  m_PrevActivated;
 	SharedPtr<FocusCaret>         m_FocusCaret;
 	TextEditController            m_TextEditController;
 
