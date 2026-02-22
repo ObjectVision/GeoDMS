@@ -74,13 +74,14 @@ void TableViewControl::ProcessSize(CrdPoint newSize)
 	TType  headerHeight = TType(isColOriented ? DEF_TEXT_PIX_HEIGHT : DEF_TEXT_PIX_WIDTH) + DOUBLE_BORDERSIZE;
 	MakeMin(headerHeight, newSize.FlippableY(isColOriented));
 
-	m_TableHeaderPort->SetClientRect( CrdRect( Point<CrdType>(0, 0), prj2dms_order<CrdType>(newSize.FlippableX(isColOriented), headerHeight, isColOriented)) );
 	m_TableScrollPort->SetClientRect(CrdRect( prj2dms_order<CrdType>(0, headerHeight, isColOriented), newSize) );
 	assert(IsIncluding(GetCurrFullAbsLogicalRect(),  m_TableHeaderPort->GetCurrFullAbsLogicalRect()));
 	assert(IsIncluding(GetCurrFullAbsLogicalRect(),  m_TableScrollPort->GetCurrFullAbsLogicalRect()));
 
 	if (m_TableControl)
 		m_TableControl->ShowActiveCell();
+
+	OnTableScrolled();
 }
 
 void TableViewControl::FillMenu(MouseEventDispatcher& med)
@@ -161,11 +162,18 @@ CrdPoint TableViewControl::CalcMaxSize() const
 
 void TableViewControl::OnTableScrolled()
 {
-	auto clientSize = shp2dms_order<TType>(m_TableScrollPort->GetCurrNettLogicalSize().X(), m_TableHeaderPort->GetCurrClientSize().Y());
-	m_TableHeaderPort->SetClientSize(clientSize);
+	m_TableScrollPort->CalcNettSize();
 
-	auto delta = shp2dms_order<TType>(m_TableControl->GetCurrClientRelPos().X(), 0);
-	m_TableHeaderPort->ScrollLogicalTo( delta);
+	bool isColOriented = m_TableControl->IsColOriented();
+
+	TType  headerHeight = m_TableScrollPort->GetCurrClientRelPos().FlippableY(isColOriented);
+	TType headerWidth = m_TableScrollPort->GetCurrNettLogicalSize().FlippableX(isColOriented);
+	auto headerSize = prj2dms_order<TType>(headerWidth, headerHeight, isColOriented);
+
+	m_TableHeaderPort->SetClientRect(CrdRect(CrdPoint(0,0), headerSize));
+
+	auto scrollPos = prj2dms_order<TType>(m_TableControl->GetCurrClientRelPos().FlippableX(isColOriented), 0, isColOriented);
+	m_TableHeaderPort->ScrollLogicalTo(scrollPos);
 }
 
 IMPL_RTTI_CLASS(TableViewControl)
