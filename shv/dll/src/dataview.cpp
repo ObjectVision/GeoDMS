@@ -60,11 +60,6 @@
 #include "CommCtrl.h"
 ActorVisitState UpdateChildViews(DataViewTree* dvl);
 
-////////////////////////////////////////////////////////////////////////////
-// const
-
-const int UPDATE_TIMER_ID = 3;
-
 GPoint LParam2Point(LPARAM lParam)
 {
 	return GPoint(GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam));
@@ -569,10 +564,18 @@ void DataView::XOrSelCaret(const Region& newSelCaret)
 /////////////////////////////////////////////////////////////////////////////
 // DataView event handlers
 
+auto IsTooltipKiller(UINT msg) -> bool
+{
+	return msg == WM_LBUTTONDOWN || msg == WM_RBUTTONDOWN || msg == WM_MBUTTONDOWN || msg == WM_MOUSEWHEEL;
+}
+
 MsgResult DataView::DispatchMsg(const MsgStruct& msg)
 {
 	DBG_START("DataView", "DispatchMsg", MG_DEBUG_WNDPROC);
 		DBG_TRACE(("msg: %x(%x, %x)", msg.m_Msg, msg.m_wParam, msg.m_lParam));
+
+	if (IsTooltipKiller(msg.m_Msg))
+		HideActiveTooltip();
 
 	switch (msg.m_Msg)
 	{
@@ -583,6 +586,27 @@ MsgResult DataView::DispatchMsg(const MsgStruct& msg)
 
 		case WM_TIMER:
 		{
+			if (msg.m_wParam == TIP_WATCH_TIMER_ID)
+			{
+				auto attObj = m_activeTooltipObj.lock();
+				if (!attObj) 
+					StopTipWatchdog();
+				else
+					if (!IsCursorInsideObject(*attObj))
+						HideActiveTooltip();
+				goto completed;
+			}
+			if (msg.m_wParam == HOVER_TIMER_ID)
+			{
+				auto hoverObj = m_hoveredObject.lock();	
+				if (hoverObj)
+					hoverObj->OnHoverTimer();
+
+				KillTimer(GetHWnd(), HOVER_TIMER_ID);
+				m_hovered = false;
+
+				goto completed;
+			}
 			if (msg.m_wParam != UPDATE_TIMER_ID)
 				goto defaultProcessing;
 
@@ -1779,4 +1803,80 @@ void Keep(const std::shared_ptr<DataView>& self)
 void Unkeep(DataView* self)
 {
 	g_DataViewMap.erase(self);
+}
+
+// =============================================== ToolTip
+
+#include <commctrl.h>
+#pragma comment(lib, "comctl32.lib")
+
+HWND DataView::EnsureTooltipWindow()
+{
+	if (m_hwndTooltip) return m_hwndTooltip;
+
+	// Ensure common controls are initialized somewhere in your app startup too
+	INITCOMMONCONTROLSEX icc{ sizeof(icc), ICC_WIN95_CLASSES };
+	InitCommonControlsEx(&icc);
+
+	m_hwndTooltip = CreateWindowExW(
+		WS_EX_TOPMOST, TOOLTIPS_CLASSW, nullptr,
+		WS_POPUP | TTS_ALWAYSTIP | TTS_NOPREFIX,
+		CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT,
+		GetHWnd(), nullptr, GetModuleHandleW(nullptr), nullptr);
+
+	SetWindowPos(m_hwndTooltip, HWND_TOPMOST, 0, 0, 0, 0,
+		SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
+
+	SendMessageW(m_hwndTooltip, TTM_SETMAXTIPWIDTH, 0, 400);
+	return m_hwndTooltip;
+}
+
+void DataView::StartTipWatchdog()
+{
+	SetTimer(GetHWnd(), TIP_WATCH_TIMER_ID, kTipWatchPeriodMs, nullptr);
+}
+
+void DataView::StopTipWatchdog()
+{
+	KillTimer(GetHWnd(), TIP_WATCH_TIMER_ID);
+}
+
+void DataView::SetActiveTooltipObject(GraphicObject* obj) noexcept
+{
+	m_activeTooltipObj = obj->shared_from_this();
+	StartTipWatchdog();
+}
+
+void DataView::ClearActiveTooltipObject(GraphicObject* obj) noexcept
+{
+	if (m_activeTooltipObj.lock().get() == obj)
+		m_activeTooltipObj = {};
+
+	if (!m_activeTooltipObj.lock())
+		StopTipWatchdog();
+}
+
+void DataView::HideActiveTooltip()
+{
+	auto attObj = m_activeTooltipObj.lock();
+	if (!attObj) 
+		return;
+
+	// Ask the object to hide its own tooltip (keeps ownership in object)
+	attObj->ForceHideTooltip();
+
+	attObj = {};
+	StopTipWatchdog();
+}
+
+bool DataView::IsCursorInsideObject(const GraphicObject& obj) const noexcept
+{
+	POINT ptScreen{};
+	if (!GetCursorPos(&ptScreen)) return false;
+
+	POINT ptClient = ptScreen;
+	ScreenToClient(GetHWnd(), &ptClient);
+	return true;
+
+	return obj.HitTest(ptClient);
 }

@@ -53,6 +53,8 @@ enum class EventID : EventIdType  {
 	RBUTTONUP     = 0x040,
 	RBUTTONDBLCLK = 0x080,
 
+	MOUSEEVENTS   = 0x0FF,
+
 	CAPTURECHANGED= 0x100,
 	SCROLLED      = 0x200,
 	PANNED        = 0x200,
@@ -77,6 +79,8 @@ inline EventID operator | (EventID a, EventID b) { return EventID(EventIdType(a)
 inline bool    operator & (EventID a, EventID b) { return EventIdType(a) & EventIdType(b); }
 inline void operator |= (EventID& a, EventID b) { a = a | b; }
 inline EventID operator - (EventID a, EventID b) { return EventID(EventIdType(a) & ~EventIdType(b)); }
+
+inline EventID MouseEventFlags(EventID a) { return EventID(EventIdType(a) & EventIdType(EventID::MOUSEEVENTS)); }
 
 inline bool IsCreateNewEvent(EventID eid) { return not(eid & (EventID::SHIFTKEY| EventID::CTRLKEY)); }
 inline auto CompoundWriteType(EventID eid) { return DmsRwChangeType(IsCreateNewEvent(eid)); }

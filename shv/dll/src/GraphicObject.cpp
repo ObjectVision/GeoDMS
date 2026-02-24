@@ -708,6 +708,20 @@ FontSizeCategory GraphicObject::GetFontSizeCategory() const
 
 bool GraphicObject::MouseEvent(MouseEventDispatcher& med)
 {
+	auto dv = GetDataView().lock();
+	if (!dv)
+		return false;
+
+
+	if (MouseEventFlags(med.GetEventInfo().GetID()) == EventID::MOUSEMOVE)
+	{
+		if (!dv->m_hovered) {
+			dv->m_hovered = true;
+			dv->m_hoverStart = CrdPoint2GPoint( med.GetClientLogicalAbsPos() );
+			dv->m_hoveredObject = std::weak_ptr<GraphicObject>(shared_from_this());
+			SetTimer(dv->GetHWnd(), HOVER_TIMER_ID, 700, nullptr);
+		}
+	}
 	return false;
 }
 
@@ -809,3 +823,124 @@ bool GraphicObject::IsOwnerOf(GraphicObject* obj) const
 #include "ViewPort.h"
 
 IMPL_ABSTR_CLASS(GraphicObject)
+
+// =============================================== ToolTip
+
+#include <commctrl.h>
+
+auto GetMovableViewport(GraphicObject* obj) -> MovableObject*
+{
+	if (auto vp = dynamic_cast<ViewPort*>(obj))
+		return vp;
+
+	auto owner = obj->GetOwner().lock();
+	if (!owner)
+		return nullptr;
+	return GetMovableViewport(owner.get());
+}
+
+bool GraphicObject::HitTest(POINT ptClient) const noexcept
+{
+	if (!IsDrawn())
+		return false;
+	auto owner = GetOwner().lock();
+	if (!owner)
+		return false;
+	return owner->HitTest(ptClient); // bounding box thing; find a MovableObject for this; TODO: clip also on world coords and bounding box of enclosing ViewPort
+}
+
+void GraphicObject::OnHoverTimer()
+{
+	auto dv = GetDataView().lock();
+	if (!dv)
+		return;
+
+	POINT pt;
+	GetCursorPos(&pt);
+	ScreenToClient(dv->GetHWnd(), &pt);
+
+	if (HitTest(pt))
+		ShowTooltipAt(pt);
+}
+
+void GraphicObject::ShowTooltipAt(POINT ptClient)
+{
+	auto dv = GetDataView().lock();
+	if (!dv) 
+		return;
+
+	auto vp = GetMovableViewport(this);
+	if (!vp)
+		return;
+
+	HWND hwndTT = dv->EnsureTooltipWindow();
+	auto devRect = vp->GetCurrClientAbsDeviceRect();
+
+	dv->m_ToolTipText = Utf8_2_wchar(GetTooltipText(ptClient));
+	// Ensure tool exists / update rect + text
+	TOOLINFOW ti{};
+	ti.cbSize = sizeof(ti);
+	ti.uFlags = TTF_TRACK | TTF_ABSOLUTE;
+	ti.hwnd = dv->GetHWnd();
+	ti.uId = ToolId();
+
+	ti.rect = CrdRect2GRect(devRect);
+
+	ti.lpszText = dv->m_ToolTipText.get();
+
+	// Add if missing, else update
+	if (!SendMessageW(hwndTT, TTM_UPDATETIPTEXTW, 0, (LPARAM)&ti))
+		SendMessageW(hwndTT, TTM_ADDTOOLW, 0, (LPARAM)&ti);
+	else
+		SendMessageW(hwndTT, TTM_NEWTOOLRECTW, 0, (LPARAM)&ti);
+
+	// Position near cursor (screen coords)
+	POINT ptScreen = ptClient;
+	ClientToScreen(dv->GetHWnd(), &ptScreen);
+	ptScreen.x += 14;
+	ptScreen.y += 20;
+
+	SendMessageW(hwndTT, TTM_TRACKPOSITION, 0, MAKELONG(ptScreen.x, ptScreen.y));
+	SendMessageW(hwndTT, TTM_TRACKACTIVATE, TRUE, (LPARAM)&ti);
+
+	m_State.Set(GOF_ToolTipVisible);
+	dv->SetActiveTooltipObject(this);
+}
+
+void GraphicObject::HideTooltipNoWatchdog() noexcept
+{
+	if (!IsTooltipVisible())
+		return;
+
+	auto dv = GetDataView().lock();
+	if (!dv)
+		return;
+
+	if (!dv->m_hwndTooltip)
+		return;
+
+	HWND hwndTT = dv->EnsureTooltipWindow();
+
+	TOOLINFOW ti{};
+	ti.cbSize = sizeof(ti);
+	ti.hwnd = dv->GetHWnd();
+	ti.uId = ToolId();
+
+	SendMessageW(hwndTT, TTM_TRACKACTIVATE, FALSE, (LPARAM)&ti);
+	m_State.Clear(GOF_ToolTipVisible);
+}
+
+void GraphicObject::ForceHideTooltip() noexcept
+{
+	HideTooltipNoWatchdog();
+
+	auto dv = GetDataView().lock();
+	if (!dv)
+		return;
+	dv->ClearActiveTooltipObject(this);
+}
+
+CharPtr GraphicObject::GetTooltipText(POINT ptClient) const
+{
+	return GetDynamicClass()->GetName().c_str();
+}

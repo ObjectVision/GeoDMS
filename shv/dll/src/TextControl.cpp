@@ -252,6 +252,11 @@ bool TextControl::Draw(GraphDrawer& d) const
 	return false;
 }
 
+CharPtr TextControl::GetTooltipText(POINT ptClient) const
+{
+	return GetCaption().c_str();
+}
+
 IMPL_RTTI_CLASS(TextControl)
 
 //----------------------------------------------------------------------
@@ -390,4 +395,3 @@ void EditableTextControl::SetRevBorder(bool revBorder)
 {
 	base_type::SetRevBorder(revBorder);
 }
-

@@ -262,7 +262,7 @@ void EditPaletteControl::DoInvalidate () const
 
 	m_SortedUniqueValueCache = {};
 
-	m_State.Clear(PCF_CountsUpdated);
+	m_CountsUpdated = false;
 
 	dms_assert(DoesHaveSupplInterest() || !GetInterestCount());
 }
@@ -274,7 +274,7 @@ bool EditPaletteControl::OnCommand(ToolButtonID id)
 
 void EditPaletteControl::UpdateCounts()
 {
-	if (m_State.Get(PCF_CountsUpdated))
+	if (m_CountsUpdated)
 		return;
 	dms_assert(m_SortedUniqueValueCache.first.empty());
 
@@ -283,7 +283,7 @@ void EditPaletteControl::UpdateCounts()
 		m_SortedUniqueValueCache = PrepareWeededCounts(adi, MAX_PAIR_COUNT);
 	else
 		m_SortedUniqueValueCache = {};
-	m_State.Set(PCF_CountsUpdated);
+	m_CountsUpdated = true;
 }
 
 void EditPaletteControl::FillMenu(MouseEventDispatcher& med)
@@ -355,7 +355,7 @@ UInt32 EditPaletteControl::GetNrRequestedClasses() const
 
 SizeT EditPaletteControl::GetNrElements() const
 {
-	assert(m_State.Get(PCF_CountsUpdated));
+	assert(m_CountsUpdated);
 	return GetTotalCount(m_SortedUniqueValueCache.first);
 }
 

@@ -43,6 +43,13 @@ class AbstrCmd;
 class FocusCaret;
 class DataView;
 
+////////////////////////////////////////////////////////////////////////////
+// const WM_TIMER IDs
+
+const int UPDATE_TIMER_ID = 3;
+const int HOVER_TIMER_ID = 4;
+const int TIP_WATCH_TIMER_ID = 5;
+
 //----------------------------------------------------------------------
 // ViewStyle
 //----------------------------------------------------------------------
@@ -343,6 +350,38 @@ public:
 	DmsColor GetNextDmsColor() const;
 
 	DECL_RTTI(SHV_CALL, Class);
+
+	// =============================================== ToolTip
+
+public:
+	// Called by GraphicObject when it shows/hides a tooltip
+	void SetActiveTooltipObject(GraphicObject* obj) noexcept;
+	void ClearActiveTooltipObject(GraphicObject* obj) noexcept;
+
+	// Called by GraphicObject (lazy init) to access the tooltip HWND
+	HWND EnsureTooltipWindow();
+
+	// Helpers used by watchdog
+	bool IsCursorInsideObject(const GraphicObject& obj) const noexcept;
+
+	bool m_hovered = false;
+	POINT m_hoverStart;
+	std::weak_ptr<GraphicObject> m_hoveredObject; // non-owning pointer to the currently hovered object (if any)
+
+	// Watchdog state
+	std::weak_ptr<GraphicObject> m_activeTooltipObj;
+
+	static constexpr UINT_PTR kTipWatchTimerId = 2001;
+	static constexpr UINT     kTipWatchPeriodMs = 50;
+
+	void StartTipWatchdog();
+	void StopTipWatchdog();
+
+	void HideActiveTooltip();
+
+	// Tooltip window (TOOLTIPS_CLASS)
+	HWND m_hwndTooltip = nullptr;
+	std::unique_ptr<wchar_t[]> m_ToolTipText;
 };
 
 

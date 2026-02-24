@@ -47,8 +47,9 @@ const UInt32 GOF_IsUpdated           = actor_flag_set::AF_Next * 0x0080;
 const UInt32 GOF_AllUpdated          = actor_flag_set::AF_Next * 0x0100;
 //REMOVE const UInt32 GOF_AllDataReady        = actor_flag_set::AF_Next * 0x0200; // Used only by TableControl and Control
 const UInt32 GOF_ShowSelectedOnly    = actor_flag_set::AF_Next * 0x0400; // Used only by TableControl and Control
+const UInt32 GOF_ToolTipVisible      = actor_flag_set::AF_Next * 0x0800; // Used only by TableControl and Control
 
-const UInt32 GOF_Next                = actor_flag_set::AF_Next * 0x0800;
+const UInt32 GOF_Next                = actor_flag_set::AF_Next * 0x1000;
 
 const UInt32 SOF_DetailsVisible      = GOF_Next * 0x0001; // ScalableObject Only
 const UInt32 SOF_DetailsTooLong      = GOF_Next * 0x0002; // ScalableObject Only
@@ -69,7 +70,6 @@ const UInt32 TCF_HideSortOptions     = MOF_Next * 0x01; // TableControl ONLY ( P
 const UInt32 TCF_FlipSortOrder       = MOF_Next * 0x02; // TableControl ONLY ( PaletteControl is derived from TableControl)
 const UInt32 TCF_HideCount           = MOF_Next * 0x04; // TableControl ONLY ( PaletteControl is derived from TableControl)
 const UInt32 TCF_MustBeDefined       = MOF_Next * 0x08; // TableControl ONLY ( PaletteControl is derived from TableControl)
-const UInt32 PCF_CountsUpdated       = MOF_Next * 0x10; // PaletteControl ONLY:
 
 const UInt32 DIC_HasElemBorder       = MOF_Next * 0x01; // DataItemColumn ONLY
 const UInt32 DIC_RelativeDisplay     = MOF_Next * 0x02; // DataItemColumn ONLY
@@ -102,7 +102,7 @@ shared_ptr_producer<Target> make_shared_gr(Args&& ...args)
 	return shared_ptr_producer<Target>{ std::make_shared<Target>(std::forward<Args>(args)...) };
 }
 
-class GraphicObject: public Actor, public enable_shared_from_this_base<GraphicObject>
+class GraphicObject : public Actor, public enable_shared_from_this_base<GraphicObject>
 {
 	using base_type = Object;
 
@@ -113,20 +113,20 @@ public:
 	virtual GraphicClassFlags GetGraphicClassFlags() const { return GraphicClassFlags::None; }
 
 	bool MustPushVisibility() const { return GetGraphicClassFlags() & GraphicClassFlags::PushVisibility; }
-	bool MustClip          () const { return GetGraphicClassFlags() & GraphicClassFlags::ClipExtents;    }
-	bool IsChildCovered    () const { return GetGraphicClassFlags() & GraphicClassFlags::ChildCovered;   }
+	bool MustClip() const { return GetGraphicClassFlags() & GraphicClassFlags::ClipExtents; }
+	bool IsChildCovered() const { return GetGraphicClassFlags() & GraphicClassFlags::ChildCovered; }
 
-	bool IsVisible          () const { return  m_State.Get(GOF_IsVisible);        }
-	bool AllVisible         () const { return  m_State.Get(GOF_AllVisible);       }
-	bool IsActive           () const { return  m_State.Get(GOF_Active);           }
-	bool IsDrawn            () const { return  m_State.Get(GOF_IsDrawn);          }
-	bool IsUpdated          () const { return  m_State.Get(GOF_IsUpdated);        }
-	bool IgnoreActivation   () const { return  m_State.Get(GOF_IgnoreActivation); }
-	bool IsTransparent      () const { return  m_State.Get(GOF_Transparent);      }
-	bool MustFill           () const { return (!IsTransparent()) && (!IsChildCovered()); }
-	bool ShowSelectedOnly   () const { return  m_State.Get(GOF_ShowSelectedOnly);  }
+	bool IsVisible() const { return  m_State.Get(GOF_IsVisible); }
+	bool AllVisible() const { return  m_State.Get(GOF_AllVisible); }
+	bool IsActive() const { return  m_State.Get(GOF_Active); }
+	bool IsDrawn() const { return  m_State.Get(GOF_IsDrawn); }
+	bool IsUpdated() const { return  m_State.Get(GOF_IsUpdated); }
+	bool IgnoreActivation() const { return  m_State.Get(GOF_IgnoreActivation); }
+	bool IsTransparent() const { return  m_State.Get(GOF_Transparent); }
+	bool MustFill() const { return (!IsTransparent()) && (!IsChildCovered()); }
+	bool ShowSelectedOnly() const { return  m_State.Get(GOF_ShowSelectedOnly); }
 
-	bool AllUpdated         () const { MG_DEBUGCODE( CheckState(); ) return m_State.Get(GOF_AllUpdated); }
+	bool AllUpdated() const { MG_DEBUGCODE(CheckState(); ) return m_State.Get(GOF_AllUpdated); }
 
 	void InvalidateDraw();
 	void InvalidateView();
@@ -146,7 +146,7 @@ public:
 #endif
 
 	weakPtrCGO GetOwner() const { return m_Owner; }
-	weakPtrGO  GetOwner()       { return m_Owner; }
+	weakPtrGO  GetOwner() { return m_Owner; }
 
 	bool IsOwnerOf(GraphicObject* obj) const;
 
@@ -155,26 +155,26 @@ public:
 
 	void ClearContext();
 
-//	define new virtuals for accessing sub-entries (composition pattern)
+	//	define new virtuals for accessing sub-entries (composition pattern)
 	virtual gr_elem_index  NrEntries() const;
 	virtual GraphicObject* GetEntry(gr_elem_index i);
 	virtual SharedStr GetCaption() const;
 	const GraphicObject* GetConstEntry(gr_elem_index i) const { return const_cast<GraphicObject*>(this)->GetEntry(i); }
 
-//	define new virtuals for invitation of GraphicObjects (visitor pattern)
+	//	define new virtuals for invitation of GraphicObjects (visitor pattern)
 	void ToggleVisibility();
 	virtual void SetIsVisible(bool value);
 	virtual void OnVisibilityChanged();
 
-  	virtual GraphVisitState InviteGraphVistor(AbstrVisitor&);
-  	virtual void SetActive(bool newState);
+	virtual GraphVisitState InviteGraphVistor(AbstrVisitor&);
+	virtual void SetActive(bool newState);
 
-//	ShowSelectedOny stuff
+	//	ShowSelectedOny stuff
 	virtual bool ShowSelectedOnlyEnabled() const;
 	virtual void UpdateShowSelOnly();
 	void SetShowSelectedOnly(bool on);
 
-//	define new virtuals for display of GraphicObjects
+	//	define new virtuals for display of GraphicObjects
 	virtual void DrawBackground(const GraphDrawer& d) const;
 	virtual COLORREF GetBkColor() const;
 	virtual FontSizeCategory GetFontSizeCategory() const;
@@ -193,11 +193,13 @@ public:
 	// various EventHandlers
 	virtual void FillMenu(MouseEventDispatcher& med);
 
-//	Size and Position
-	virtual CrdRect GetCurrFullAbsDeviceRect(const GraphVisitor&) const=0;
+	bool IsTooltipVisible() { return m_State.Get(GOF_ToolTipVisible); }
+
+	//	Size and Position
+	virtual CrdRect GetCurrFullAbsDeviceRect(const GraphVisitor&) const = 0;
 
 	CrdRect GetClippedCurrFullAbsDeviceRect(const GraphVisitor& v) const;
-	CrdRect GetDrawnFullAbsDeviceRect  () const;
+	CrdRect GetDrawnFullAbsDeviceRect() const;
 
 	virtual CrdRect GetDrawnNettAbsDeviceRect() const { return GetDrawnFullAbsDeviceRect(); }
 	virtual bool HasDefinedExtent() const { return true; }
@@ -205,12 +207,12 @@ public:
 	void SetOwner(GraphicObject* owner);
 	void ClearOwner();
 
-	static DmsColor GetDefaultTextColor      () { return CombineRGB(0, 0, 0); }
-	static DmsColor GetDefaultBackColor      () { return COLORREF2DmsColor(TRANSPARENT_COLORREF); }
+	static DmsColor GetDefaultTextColor() { return CombineRGB(0, 0, 0); }
+	static DmsColor GetDefaultBackColor() { return COLORREF2DmsColor(TRANSPARENT_COLORREF); }
 
 	void TranslateDrawnRect(CrdRect clipRect, GPoint delta);
-	void ClipDrawnRect     (CrdRect clipRect);
-	void ResizeDrawnRect   (CrdRect clipRect, GPoint delta, GPoint invarantLimit);
+	void ClipDrawnRect(CrdRect clipRect);
+	void ResizeDrawnRect(CrdRect clipRect, GPoint delta, GPoint invarantLimit);
 
 	//  helper functions
 	bool PrepareDataOrUpdateViewLater(const TreeItem* item);
@@ -218,11 +220,11 @@ public:
 protected:
 	virtual void OnSizeChanged();
 
-//	override Actor interface
+	//	override Actor interface
 	void DoInvalidate() const override;
 	TokenID GetXmlClassID() const override;
 
-//	new callback interface
+	//	new callback interface
 	virtual void OnChildSizeChanged();
 	virtual void DoUpdateView();
 
@@ -235,7 +237,7 @@ private:
 	friend void SyncState(GraphicObject* obj, TreeItem* context, TokenID stateID, UInt32 state, bool defaultValue, ShvSyncMode sm);
 	friend class DataView;
 
-	MG_DEBUGCODE( bool IsShvObj() const override { return true; } )
+	MG_DEBUGCODE(bool IsShvObj() const override { return true; })
 
 private:
 	SharedPtr<TreeItem> m_ViewContext;
@@ -243,8 +245,24 @@ private:
 	CrdRect   m_DrawnFullAbsRect; friend GraphDrawer; friend MovableObject;
 
 	DECL_ABSTR(SHV_CALL, Class);
-};
 
+	// =============================================== ToolTip
+	// Called by DataView watchdog and by object itself
+	void ForceHideTooltip() noexcept;
+
+	// Used by DataView watchdog hit-test
+	virtual bool HitTest(POINT ptClient) const noexcept;
+
+	// Tooltip text source (simple version)
+	virtual CharPtr GetTooltipText(POINT ptClient) const; // can be location specific
+private:
+	// Tooltip “tool id” can be this pointer
+	UINT_PTR ToolId() const noexcept { return (UINT_PTR)this; }
+
+	void OnHoverTimer();
+	void ShowTooltipAt(POINT ptClient);
+	void HideTooltipNoWatchdog() noexcept; // internal hide that doesn't call back twice};
+};
 
 #endif // __SHV_GRAPHICOBJECT_H
 

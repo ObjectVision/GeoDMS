@@ -107,6 +107,7 @@ public:
 
 //	override virtual of GraphicObject
 	bool    Draw(GraphDrawer& d) const override;
+	CharPtr GetTooltipText(POINT ptClient) const override; // can be location specific
 
 private:
 	SharedStr   m_Caption;
@@ -173,6 +174,7 @@ protected:
 	void SetActive(bool newState) override;
 	bool MouseEvent(MouseEventDispatcher& med) override;
 	bool OnKeyDown(UInt32 virtKey) override;
+
 	void SetRevBorder(bool revBorder) override;
 
 private:

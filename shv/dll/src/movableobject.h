@@ -123,6 +123,9 @@ private:
 	CrdPoint m_RelPos            = Point<CrdType>(0, 0); // position of clients (0,0) in parents coordinate system, managed by container
 	CrdPoint m_ClientLogicalSize = Point<CrdType>(0, 0); // should be determined by DoUpdateView
 	HCURSOR m_Cursor;
+
+	// =============================================== ToolTip
+	bool HitTest(POINT ptClient) const noexcept override;
 };
 
 #endif // __SHV_MOVABLEOBJECT_H

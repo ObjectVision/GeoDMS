@@ -730,3 +730,12 @@ void MovableObject::StartResize(MouseEventDispatcher& med)
 	);
 }
 
+// =============================================== ToolTip
+
+bool MovableObject::HitTest(POINT ptClient) const noexcept
+{
+	auto rect = GetCurrClientAbsDeviceRect();
+	return IsIntersecting(rect, CrdPoint(ptClient.x, ptClient.y));
+}
+
+

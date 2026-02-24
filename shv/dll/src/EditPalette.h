@@ -140,6 +140,7 @@ private:
 
 	mutable CountsResultType            m_SortedUniqueValueCache;
 	mutable UInt32                      m_NrValues = 0;
+	mutable bool                        m_CountsUpdated = false;
 };
 
 //----------------------------------------------------------------------
