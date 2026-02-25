@@ -715,12 +715,15 @@ bool GraphicObject::MouseEvent(MouseEventDispatcher& med)
 
 	if (MouseEventFlags(med.GetEventInfo().GetID()) == EventID::MOUSEMOVE)
 	{
-		if (!dv->m_hovered) {
-			dv->m_hovered = true;
-			dv->m_hoverStart = CrdPoint2GPoint( med.GetClientLogicalAbsPos() );
+		auto hoveredObject = dv->m_hoveredObject.lock();
+		if (!hoveredObject || hoveredObject.get() != this || dv->m_hoverStartLocation != med.r_EventInfo.m_Point)
+		{
+			dv->HideActiveTooltip();
+			dv->m_hoverStartLocation = med.r_EventInfo.m_Point;
 			dv->m_hoveredObject = std::weak_ptr<GraphicObject>(shared_from_this());
 			SetTimer(dv->GetHWnd(), HOVER_TIMER_ID, 700, nullptr);
 		}
+		return true;
 	}
 	return false;
 }
@@ -828,15 +831,15 @@ IMPL_ABSTR_CLASS(GraphicObject)
 
 #include <commctrl.h>
 
-auto GetMovableViewport(GraphicObject* obj) -> MovableObject*
+auto GetMovableObject(GraphicObject* obj) -> MovableObject*
 {
-	if (auto vp = dynamic_cast<ViewPort*>(obj))
+	if (auto vp = dynamic_cast<MovableObject*>(obj))
 		return vp;
 
 	auto owner = obj->GetOwner().lock();
 	if (!owner)
 		return nullptr;
-	return GetMovableViewport(owner.get());
+	return GetMovableObject(owner.get());
 }
 
 bool GraphicObject::HitTest(POINT ptClient) const noexcept
@@ -869,7 +872,7 @@ void GraphicObject::ShowTooltipAt(POINT ptClient)
 	if (!dv) 
 		return;
 
-	auto vp = GetMovableViewport(this);
+	auto vp = GetMovableObject(this);
 	if (!vp)
 		return;
 
@@ -879,7 +882,7 @@ void GraphicObject::ShowTooltipAt(POINT ptClient)
 	dv->m_ToolTipText = Utf8_2_wchar(GetTooltipText(ptClient));
 	// Ensure tool exists / update rect + text
 	TOOLINFOW ti{};
-	ti.cbSize = sizeof(ti);
+	ti.cbSize = TTTOOLINFOW_V2_SIZE; // sizeof(ti);
 	ti.uFlags = TTF_TRACK | TTF_ABSOLUTE;
 	ti.hwnd = dv->GetHWnd();
 	ti.uId = ToolId();
@@ -890,7 +893,10 @@ void GraphicObject::ShowTooltipAt(POINT ptClient)
 
 	// Add if missing, else update
 	if (!SendMessageW(hwndTT, TTM_UPDATETIPTEXTW, 0, (LPARAM)&ti))
-		SendMessageW(hwndTT, TTM_ADDTOOLW, 0, (LPARAM)&ti);
+	{
+		BOOL addOk = SendMessageW(hwndTT, TTM_ADDTOOLW, 0, (LPARAM)&ti);
+		assert(addOk);
+	}
 	else
 		SendMessageW(hwndTT, TTM_NEWTOOLRECTW, 0, (LPARAM)&ti);
 

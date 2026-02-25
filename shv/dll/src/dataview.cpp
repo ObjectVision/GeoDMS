@@ -589,6 +589,7 @@ MsgResult DataView::DispatchMsg(const MsgStruct& msg)
 			if (msg.m_wParam == TIP_WATCH_TIMER_ID)
 			{
 				auto attObj = m_activeTooltipObj.lock();
+				m_hoveredObject.reset();
 				if (!attObj) 
 					StopTipWatchdog();
 				else
@@ -603,7 +604,6 @@ MsgResult DataView::DispatchMsg(const MsgStruct& msg)
 					hoverObj->OnHoverTimer();
 
 				KillTimer(GetHWnd(), HOVER_TIMER_ID);
-				m_hovered = false;
 
 				goto completed;
 			}
@@ -1812,17 +1812,22 @@ void Unkeep(DataView* self)
 
 HWND DataView::EnsureTooltipWindow()
 {
-	if (m_hwndTooltip) return m_hwndTooltip;
+	if (m_hwndTooltip) 
+		return m_hwndTooltip;
 
 	// Ensure common controls are initialized somewhere in your app startup too
 	INITCOMMONCONTROLSEX icc{ sizeof(icc), ICC_WIN95_CLASSES };
-	InitCommonControlsEx(&icc);
+	BOOL ok = InitCommonControlsEx(&icc);
+	assert(ok);
 
+	auto hWnd = GetHWnd();
+	assert(hWnd);
 	m_hwndTooltip = CreateWindowExW(
 		WS_EX_TOPMOST, TOOLTIPS_CLASSW, nullptr,
 		WS_POPUP | TTS_ALWAYSTIP | TTS_NOPREFIX,
 		CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT,
-		GetHWnd(), nullptr, GetModuleHandleW(nullptr), nullptr);
+		hWnd, nullptr, GetModuleHandleW(nullptr), nullptr);
+	assert(m_hwndTooltip);
 
 	SetWindowPos(m_hwndTooltip, HWND_TOPMOST, 0, 0, 0, 0,
 		SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
@@ -1876,7 +1881,6 @@ bool DataView::IsCursorInsideObject(const GraphicObject& obj) const noexcept
 
 	POINT ptClient = ptScreen;
 	ScreenToClient(GetHWnd(), &ptClient);
-	return true;
 
 	return obj.HitTest(ptClient);
 }

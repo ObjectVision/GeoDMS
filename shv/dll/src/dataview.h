@@ -364,8 +364,7 @@ public:
 	// Helpers used by watchdog
 	bool IsCursorInsideObject(const GraphicObject& obj) const noexcept;
 
-	bool m_hovered = false;
-	POINT m_hoverStart;
+	GPoint m_hoverStartLocation{};
 	std::weak_ptr<GraphicObject> m_hoveredObject; // non-owning pointer to the currently hovered object (if any)
 
 	// Watchdog state
