@@ -879,7 +879,7 @@ void GraphicObject::ShowTooltipAt(POINT ptClient)
 	HWND hwndTT = dv->EnsureTooltipWindow();
 	auto devRect = vp->GetCurrClientAbsDeviceRect();
 
-	dv->m_ToolTipText = Utf8_2_wchar(GetTooltipText(ptClient));
+	dv->m_ToolTipText = Utf8_2_wchar(GetTooltipText(ptClient).c_str());
 	// Ensure tool exists / update rect + text
 	TOOLINFOW ti{};
 	ti.cbSize = TTTOOLINFOW_V2_SIZE; // sizeof(ti);
@@ -903,7 +903,7 @@ void GraphicObject::ShowTooltipAt(POINT ptClient)
 	// Position near cursor (screen coords)
 	POINT ptScreen = ptClient;
 	ClientToScreen(dv->GetHWnd(), &ptScreen);
-	ptScreen.x += 14;
+	ptScreen.x += 32;
 	ptScreen.y += 20;
 
 	SendMessageW(hwndTT, TTM_TRACKPOSITION, 0, MAKELONG(ptScreen.x, ptScreen.y));
@@ -946,7 +946,7 @@ void GraphicObject::ForceHideTooltip() noexcept
 	dv->ClearActiveTooltipObject(this);
 }
 
-CharPtr GraphicObject::GetTooltipText(POINT ptClient) const
+auto GraphicObject::GetTooltipText(POINT ptClient) const -> SharedStr
 {
-	return GetDynamicClass()->GetName().c_str();
+	return SharedStr(GetDynamicClass()->GetName());
 }

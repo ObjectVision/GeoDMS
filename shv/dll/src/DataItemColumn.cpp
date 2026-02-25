@@ -929,12 +929,14 @@ TextInfo DataItemColumn::GetText(SizeT recNo, SizeT maxLen, GuiReadLockPair& loc
 SharedStr DataItemColumn::GetOrgText(SizeT recNo, GuiReadLock& lock) const
 {
 	auto theme = GetTheme(AN_LabelText);
+	if (!theme)
+		theme = GetActiveTheme();
 	if (!theme || theme->IsFailed(FailType::MetaInfo))
 		return SharedStr();
 
-	dms_assert(GetActiveTextAttr() && GetActiveTextAttr()->GetInterestCount() > 0);
+	assert(GetActiveTextAttr() && GetActiveTextAttr()->GetInterestCount() > 0);
 	DataReadLock readHandle(GetActiveTextAttr());
-	dms_assert(GetActiveTextAttr() && GetActiveTextAttr()->GetCurrUltimateItem()->m_ItemCount > 0);
+	assert(GetActiveTextAttr() && GetActiveTextAttr()->GetCurrUltimateItem()->m_ItemCount > 0);
 	return readHandle->AsString(recNo, lock, FormattingFlags::None);
 }
 
@@ -1311,7 +1313,7 @@ bool DataItemColumn::MouseEvent(MouseEventDispatcher& med)
 
 	if ((med.GetEventInfo().m_EventID & (EventID::LBUTTONDOWN|EventID::LBUTTONDBLCLK) ) && !IgnoreActivation())
 	{
-		dms_assert(tc->GetColumn(m_ColumnNr) == this);
+		assert(tc->GetColumn(m_ColumnNr) == this);
 
 		CrdPoint relClientPos = Convert<CrdPoint>(med.GetLogicalSize(med.GetEventInfo().m_Point)) - (med.GetClientLogicalAbsPos() + GetCurrClientRelPos());
 		auto logicalHeight = m_ElemSize.FlippableY(isColOriented) + RowSepHeight();
@@ -1689,6 +1691,30 @@ DataItemColumn* DataItemColumn::GetPrevControl()
 	auto tc = GetTableControl().lock(); if (!tc) return nullptr;
 	return debug_cast<DataItemColumn*>(tc->GetEntry(colNr));
 }
+
+auto DataItemColumn::GetTooltipText(POINT ptClient) const -> SharedStr
+{
+	auto dv = GetDataView().lock(); if (!dv) return {};
+
+	auto logicalPos = dv->Reverse(GPoint2CrdPoint(GPoint(ptClient.x, ptClient.y)));
+	auto relClientPos = logicalPos - GetCurrClientAbsLogicalPos();
+
+	auto tc = GetTableControl().lock(); if (!tc) return {};
+	bool isColOriented = tc->IsColOriented();
+	auto logicalHeight = m_ElemSize.FlippableY(isColOriented) + RowSepHeight();
+	if (HasElemBorder())
+		logicalHeight += DOUBLE_BORDERSIZE;
+
+	SizeT rowNr = relClientPos.FlippableY(isColOriented) / logicalHeight; if (rowNr >= tc->NrRows()) return {};
+
+	auto recNr = tc->GetRecNo(rowNr);
+
+	GuiReadLock lock;
+	auto txt = GetOrgText(recNr, lock);
+	return txt;
+}
+
+
 
 #include "LayerClass.h"
 

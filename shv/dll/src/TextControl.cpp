@@ -252,9 +252,9 @@ bool TextControl::Draw(GraphDrawer& d) const
 	return false;
 }
 
-CharPtr TextControl::GetTooltipText(POINT ptClient) const
+auto TextControl::GetTooltipText(POINT ptClient) const -> SharedStr
 {
-	return GetCaption().c_str();
+	return GetCaption();
 }
 
 IMPL_RTTI_CLASS(TextControl)

@@ -254,7 +254,7 @@ private:
 	virtual bool HitTest(POINT ptClient) const noexcept;
 
 	// Tooltip text source (simple version)
-	virtual CharPtr GetTooltipText(POINT ptClient) const; // can be location specific
+	virtual auto GetTooltipText(POINT ptClient) const -> SharedStr; // can be location specific
 private:
 	// Tooltip “tool id” can be this pointer
 	UINT_PTR ToolId() const noexcept { return (UINT_PTR)this; }

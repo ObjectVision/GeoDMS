@@ -107,7 +107,7 @@ public:
 
 //	override virtual of GraphicObject
 	bool    Draw(GraphDrawer& d) const override;
-	CharPtr GetTooltipText(POINT ptClient) const override; // can be location specific
+	auto GetTooltipText(POINT ptClient) const -> SharedStr override; // can be location specific
 
 private:
 	SharedStr   m_Caption;
