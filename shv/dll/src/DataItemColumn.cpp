@@ -934,9 +934,15 @@ SharedStr DataItemColumn::GetOrgText(SizeT recNo, GuiReadLock& lock) const
 	if (!theme || theme->IsFailed(FailType::MetaInfo))
 		return SharedStr();
 
+	if (!GetActiveTextAttr())
+		return {};
+
 	assert(GetActiveTextAttr() && GetActiveTextAttr()->GetInterestCount() > 0);
-	DataReadLock readHandle(GetActiveTextAttr());
+
+	DataReadLock readHandle(GetActiveTextAttr()); if (!readHandle) return {};
+
 	assert(GetActiveTextAttr() && GetActiveTextAttr()->GetCurrUltimateItem()->m_ItemCount > 0);
+
 	return readHandle->AsString(recNo, lock, FormattingFlags::None);
 }
 
