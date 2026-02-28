@@ -76,6 +76,7 @@ class AbstrVisitor;
 		class GraphDrawer;
 		class GraphInvalidator;
 		class MouseEventDispatcher;
+			struct TooltipCollector;
 
 class DataView;
 class ShvClass;

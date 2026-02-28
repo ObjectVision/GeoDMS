@@ -192,9 +192,6 @@ public:
 
 	virtual auto GetViewType() const->ViewStyle = 0;
 
-//	void StopOwning() { m_SelfOwned.reset(); }
-//	std::shared_ptr<DataView> shared_from_this() { return m_SelfOwned; }
-
 	virtual void SetContents(std::shared_ptr<MovableObject> contents, ShvSyncMode sm);
 
 //	composition
@@ -248,7 +245,6 @@ public:
 	SHV_CALL void InvalidateDeviceRect(GRect  rect);
 	void InvalidateRgn (const Region& rgn );
 	void ValidateRect  (const GRect& pixRect);
-//	void ValidateRgn   (Region rgn );
 
 	virtual GraphVisitState UpdateView();
 	void ScrollDevice(GPoint delta, GRect rcScroll, GRect rcClip, const MovableObject* src);
@@ -355,8 +351,8 @@ public:
 
 public:
 	// Called by GraphicObject when it shows/hides a tooltip
-	void SetActiveTooltipObject(GraphicObject* obj) noexcept;
-	void ClearActiveTooltipObject(GraphicObject* obj) noexcept;
+	void SetActiveTooltipObject(const GraphicObject* obj) noexcept;
+	void ClearActiveTooltipObject(const GraphicObject* obj) noexcept;
 
 	// Called by GraphicObject (lazy init) to access the tooltip HWND
 	HWND EnsureTooltipWindow();
@@ -365,10 +361,9 @@ public:
 	bool IsCursorInsideObject(const GraphicObject& obj) const noexcept;
 
 	GPoint m_hoverStartLocation{};
-	std::weak_ptr<GraphicObject> m_hoveredObject; // non-owning pointer to the currently hovered object (if any)
 
 	// Watchdog state
-	std::weak_ptr<GraphicObject> m_activeTooltipObj;
+	std::weak_ptr<const GraphicObject> m_activeTooltipObj;
 
 	static constexpr UINT_PTR kTipWatchTimerId = 2001;
 	static constexpr UINT     kTipWatchPeriodMs = 50;

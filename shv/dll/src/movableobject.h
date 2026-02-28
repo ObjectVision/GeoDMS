@@ -116,6 +116,8 @@ public:
 
 protected:
 	HCURSOR SetViewPortCursor(HCURSOR hCursor); friend class PasteGridController;
+	bool GetTooltipText(TooltipCollector& ttc) const;
+
 private:
 	bool UpdateCursor() const;
 

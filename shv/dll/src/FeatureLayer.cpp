@@ -44,6 +44,7 @@
 #include "FontIndexCache.h"
 #include "FontRole.h"
 #include "IndexCollector.h"
+#include "MouseEventDispatcher.h"
 #include "PenIndexCache.h"
 #include "GraphVisitor.h"
 #include "LayerClass.h"
@@ -181,12 +182,12 @@ GraphVisitState FeatureLayer::InviteGraphVistor(class AbstrVisitor& v)
 	return v.DoFeatureLayer(this);
 }
 
-SizeT FeatureLayer::FindFeatureByPoint(const CrdPoint& geoPnt)
+SizeT FeatureLayer::FindFeatureByPoint(const CrdPoint& geoPnt) const
 {
 	throwIllegalAbstract(MG_POS, "FindFeatureByPoint");
 }
 
-SizeT FeatureLayer::FindNextFeatureByPoint(const CrdPoint& geoPnt, SizeT featureIndex)
+SizeT FeatureLayer::FindNextFeatureByPoint(const CrdPoint& geoPnt, SizeT featureIndex) const
 {
 	if (IsDefined(featureIndex))
 		return UNDEFINED_VALUE(SizeT);
@@ -696,7 +697,7 @@ void FeatureLayer::SelectPoint(CrdPoint worldPnt, EventID eventID)
 	}
 }
 
-SizeT GraphicPointLayer::FindFeatureByPoint(const CrdPoint& geoPnt)
+SizeT GraphicPointLayer::FindFeatureByPoint(const CrdPoint& geoPnt)  const
 {
 	return visit_and_return_result<typelists::points, SizeT>(GetFeatureAttr()->GetAbstrValuesUnit(), 
 		[this, &geoPnt] <typename P> (const Unit<P>*) 
@@ -1571,7 +1572,7 @@ GraphicArcLayer::GraphicArcLayer(GraphicObject* owner)
 	:	FeatureLayer(owner, GetStaticClass()) 
 {}
 
-SizeT GraphicArcLayer::FindFeatureByPoint(const CrdPoint& geoPnt)
+SizeT GraphicArcLayer::FindFeatureByPoint(const CrdPoint& geoPnt) const
 {
 	auto result = UNDEFINED_VALUE(SizeT);
 
@@ -2025,7 +2026,7 @@ GraphicPolygonLayer::GraphicPolygonLayer(GraphicObject* owner)
 	:	FeatureLayer(owner, GetStaticClass()) 
 {}
 
-SizeT GraphicPolygonLayer::FindNextFeatureByPoint(const CrdPoint& geoPnt, SizeT currFeatureIndex)
+SizeT GraphicPolygonLayer::FindNextFeatureByPoint(const CrdPoint& geoPnt, SizeT currFeatureIndex) const
 {
 	visit<typelists::seq_points>(GetFeatureAttr()->GetAbstrValuesUnit(),
 		[this, &geoPnt, &currFeatureIndex] <typename P> (const Unit<P>*)
@@ -2171,5 +2172,47 @@ CrdRect GraphicPolygonLayer::GetFeatureWorldExtents() const
 	}
 	return rect;
 }
+
+#include "MouseEventDispatcher.h"
+#include "ser/FormattedStream.h"
+
+bool GraphicPolygonLayer::GetTooltipText(TooltipCollector& ttc) const
+{
+	base_type::GetTooltipText(ttc);
+
+	auto ptClient = ttc.m_Point;
+	auto geoPoint = ttc.GetTransformation().Reverse(GPoint2CrdPoint(GPoint(ptClient.x, ptClient.y)));
+
+	GuiReadLock lockHolder;
+	const AbstrDataItem* attrItem = nullptr;
+	auto activeTheme = GetActiveTheme();
+	if (activeTheme && !activeTheme->IsAspectParameter())
+		attrItem = activeTheme->GetThemeOrPaletteAttr();
+	if (!attrItem || attrItem->HasVoidDomainGuarantee())
+		attrItem = GetFeatureAttr();
+
+	const AbstrDataObject* ado = nullptr;
+	if (attrItem)
+		ado = attrItem->GetCurrRefObj();
+
+	SizeT featureIndex = UNDEFINED_VALUE(SizeT);
+	while (true)
+	{
+		featureIndex = FindNextFeatureByPoint(geoPoint, featureIndex);
+		if (!IsDefined(featureIndex))
+			break;
+
+		ttc.m_Stream << "Feature " << featureIndex;
+		if (ado)
+		{
+			auto attrValue = ado->AsString(featureIndex, lockHolder, FormattingFlags::ThousandSeparator);
+			if (IsDefined(attrValue))
+				ttc.m_Stream << ": " << attrValue;
+		}
+		ttc.m_Stream << "\n";
+	}
+	return false; // try to collect more
+}
+
 
 IMPL_DYNC_LAYERCLASS(GraphicPolygonLayer, ASE_Feature|ASE_OrderBy|ASE_Label|ASE_Brush|ASE_Pen|ASE_PixSizes|ASE_Selections, AN_BrushColor, 2)

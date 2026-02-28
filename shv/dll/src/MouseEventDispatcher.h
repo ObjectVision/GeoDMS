@@ -72,5 +72,22 @@ public:
 	std::shared_ptr<GraphicObject>  m_FoundObject;
 };
 
+struct TooltipCollector : EventInfo, MouseEventDispatcher
+{
+	TooltipCollector(DataView* owner, GPoint pt)
+		: EventInfo(EventID::HOVERED, 0, pt)
+		, MouseEventDispatcher(owner, *this)
+		, m_Stream(&m_Buff, FormattingFlags::ThousandSeparator)
+	{
+	}
+
+	GraphVisitState DoObject(GraphicObject* go);
+
+	VectorOutStreamBuff m_Buff;
+	FormattedOutStream  m_Stream;
+
+	CrdRect m_DevRect;
+};
+
 #endif // __SHV_MOUSEEVENTDISPATCHER_H
 

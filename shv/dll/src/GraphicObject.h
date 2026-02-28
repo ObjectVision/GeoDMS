@@ -47,9 +47,8 @@ const UInt32 GOF_IsUpdated           = actor_flag_set::AF_Next * 0x0080;
 const UInt32 GOF_AllUpdated          = actor_flag_set::AF_Next * 0x0100;
 //REMOVE const UInt32 GOF_AllDataReady        = actor_flag_set::AF_Next * 0x0200; // Used only by TableControl and Control
 const UInt32 GOF_ShowSelectedOnly    = actor_flag_set::AF_Next * 0x0400; // Used only by TableControl and Control
-const UInt32 GOF_ToolTipVisible      = actor_flag_set::AF_Next * 0x0800; // Used only by TableControl and Control
 
-const UInt32 GOF_Next                = actor_flag_set::AF_Next * 0x1000;
+const UInt32 GOF_Next                = actor_flag_set::AF_Next * 0x0800;
 
 const UInt32 SOF_DetailsVisible      = GOF_Next * 0x0001; // ScalableObject Only
 const UInt32 SOF_DetailsTooLong      = GOF_Next * 0x0002; // ScalableObject Only
@@ -184,6 +183,10 @@ public:
 	virtual bool OnKeyDown(UInt32 nVirtKey);
 	virtual bool OnCommand(ToolButtonID id);
 	virtual CommandStatus OnCommandEnable(ToolButtonID id)  const;
+
+	virtual bool HitTest(POINT ptClient) const noexcept;      // Used by DataView watchdog hit-test
+	virtual bool GetTooltipText(TooltipCollector& ttc) const; // can be location specific
+
 	virtual std::weak_ptr<DataView> GetDataView() const;
 	CrdPoint GetScaleFactors() const;
 
@@ -192,8 +195,6 @@ public:
 
 	// various EventHandlers
 	virtual void FillMenu(MouseEventDispatcher& med);
-
-	bool IsTooltipVisible() { return m_State.Get(GOF_ToolTipVisible); }
 
 	//	Size and Position
 	virtual CrdRect GetCurrFullAbsDeviceRect(const GraphVisitor&) const = 0;
@@ -245,23 +246,6 @@ private:
 	CrdRect   m_DrawnFullAbsRect; friend GraphDrawer; friend MovableObject;
 
 	DECL_ABSTR(SHV_CALL, Class);
-
-	// =============================================== ToolTip
-	// Called by DataView watchdog and by object itself
-	void ForceHideTooltip() noexcept;
-
-	// Used by DataView watchdog hit-test
-	virtual bool HitTest(POINT ptClient) const noexcept;
-
-	// Tooltip text source (simple version)
-	virtual auto GetTooltipText(POINT ptClient) const -> SharedStr; // can be location specific
-private:
-	// Tooltip “tool id” can be this pointer
-	UINT_PTR ToolId() const noexcept { return (UINT_PTR)this; }
-
-	void OnHoverTimer();
-	void ShowTooltipAt(POINT ptClient);
-	void HideTooltipNoWatchdog() noexcept; // internal hide that doesn't call back twice};
 };
 
 #endif // __SHV_GRAPHICOBJECT_H

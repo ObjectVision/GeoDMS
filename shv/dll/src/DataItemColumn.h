@@ -150,7 +150,7 @@ private:
 	void SetRevBorder(bool revBorder)                override;
 	std::weak_ptr<DataView> GetDataView()      const override { return base_type::GetDataView(); } // redirects AbstrTextEditControl::GetDataView()
 	SharedStr GetOrgText (SizeT recNo, GuiReadLock& lock) const override;
-	auto GetTooltipText(POINT ptClient) const -> SharedStr override;
+	bool GetTooltipText(TooltipCollector& ttc) const override;
 
 private:
 	friend class TextEditController;

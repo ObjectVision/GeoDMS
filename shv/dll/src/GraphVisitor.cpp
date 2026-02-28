@@ -847,6 +847,13 @@ GraphVisitState MouseEventDispatcher::DoObject(GraphicObject* go)
 	return go->MouseEvent(*this) ? GVS_Handled : GVS_UnHandled;
 }
 
+GraphVisitState TooltipCollector::DoObject(GraphicObject* go)
+{
+	return go->GetTooltipText(*this) 
+		? GVS_Handled 
+		: GVS_UnHandled;
+}
+
 GraphVisitState MouseEventDispatcher::DoMovable(MovableObject* obj)
 {
 	GraphVisitState result = base_type::DoMovable(obj);

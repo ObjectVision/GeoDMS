@@ -50,7 +50,8 @@ bool LayerHeaderControl::MouseEvent(MouseEventDispatcher& med)
 				if (auto layer = lc->GetLayer())
 					if (auto attr = layer->GetActiveAttr())
 						CreateGotoAction(attr);
-	return false;
+
+	return TextControl::MouseEvent(med);
 }
 
 //----------------------------------------------------------------------
@@ -550,7 +551,7 @@ ActorVisitState LayerControl::DoUpdate(ProgressState ps)
 		else
 		{
 			GuiReadLock lock;
-			dms_assert(m_Layer->GetActiveAttr() == m_Layer->GetTheme(AN_Feature)->GetPaletteAttr());
+			assert(m_Layer->GetActiveAttr() == m_Layer->GetTheme(AN_Feature)->GetPaletteAttr());
 			text +=
 				DisplayValue(m_Layer->GetTheme(AN_Feature)->GetThemeEntityUnit(), selectedID, true,
 					m_LabelLocks.m_DomainLabel, MAX_TEXTOUT_SIZE, lock

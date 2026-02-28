@@ -14,6 +14,7 @@
 #include "geo/StringBounds.h"
 #include "mci/Class.h"
 #include "ser/AsString.h"
+#include "ser/FormattedStream.h"
 
 #include "DataView.h"
 #include "GraphVisitor.h"
@@ -252,9 +253,11 @@ bool TextControl::Draw(GraphDrawer& d) const
 	return false;
 }
 
-auto TextControl::GetTooltipText(POINT ptClient) const -> SharedStr
+bool TextControl::GetTooltipText(TooltipCollector& ttc) const
 {
-	return GetCaption();
+	base_type::GetTooltipText(ttc);
+	ttc.m_Stream << GetCaption() << "\n";
+	return true;
 }
 
 IMPL_RTTI_CLASS(TextControl)

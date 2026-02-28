@@ -16,6 +16,7 @@
 #include "utl/mySPrintF.h"
 #include "mci/Class.h"
 #include "dbg/DmsCatch.h"
+#include "ser/FormattedStream.h"
 #include "LockLevels.h"
 
 #include "DataStoreManagerCaller.h"
@@ -712,15 +713,13 @@ bool GraphicObject::MouseEvent(MouseEventDispatcher& med)
 	if (!dv)
 		return false;
 
-
-	if (MouseEventFlags(med.GetEventInfo().GetID()) == EventID::MOUSEMOVE)
+	auto eventInfoID = MouseEventFlags(med.GetEventInfo().GetID());
+	if (eventInfoID == EventID::MOUSEMOVE)
 	{
-		auto hoveredObject = dv->m_hoveredObject.lock();
-		if (!hoveredObject || hoveredObject.get() != this || dv->m_hoverStartLocation != med.r_EventInfo.m_Point)
+		if (dv->m_hoverStartLocation != med.r_EventInfo.m_Point)
 		{
 			dv->HideActiveTooltip();
 			dv->m_hoverStartLocation = med.r_EventInfo.m_Point;
-			dv->m_hoveredObject = std::weak_ptr<GraphicObject>(shared_from_this());
 			SetTimer(dv->GetHWnd(), HOVER_TIMER_ID, 700, nullptr);
 		}
 		return true;
@@ -852,101 +851,9 @@ bool GraphicObject::HitTest(POINT ptClient) const noexcept
 	return owner->HitTest(ptClient); // bounding box thing; find a MovableObject for this; TODO: clip also on world coords and bounding box of enclosing ViewPort
 }
 
-void GraphicObject::OnHoverTimer()
+bool GraphicObject::GetTooltipText(TooltipCollector& ttc) const
 {
-	auto dv = GetDataView().lock();
-	if (!dv)
-		return;
+	ttc.m_Stream << GetDynamicClass()->GetName().c_str() << "\n";
+	return false;
+};
 
-	POINT pt;
-	GetCursorPos(&pt);
-	ScreenToClient(dv->GetHWnd(), &pt);
-
-	if (HitTest(pt))
-		ShowTooltipAt(pt);
-}
-
-void GraphicObject::ShowTooltipAt(POINT ptClient)
-{
-	auto dv = GetDataView().lock();
-	if (!dv) 
-		return;
-
-	auto vp = GetMovableObject(this);
-	if (!vp)
-		return;
-
-	HWND hwndTT = dv->EnsureTooltipWindow();
-	auto devRect = vp->GetCurrClientAbsDeviceRect();
-
-	dv->m_ToolTipText = Utf8_2_wchar(GetTooltipText(ptClient).c_str());
-	// Ensure tool exists / update rect + text
-	TOOLINFOW ti{};
-	ti.cbSize = TTTOOLINFOW_V2_SIZE; // sizeof(ti);
-	ti.uFlags = TTF_TRACK | TTF_ABSOLUTE;
-	ti.hwnd = dv->GetHWnd();
-	ti.uId = ToolId();
-
-	ti.rect = CrdRect2GRect(devRect);
-
-	ti.lpszText = dv->m_ToolTipText.get();
-
-	// Add if missing, else update
-	if (!SendMessageW(hwndTT, TTM_UPDATETIPTEXTW, 0, (LPARAM)&ti))
-	{
-		BOOL addOk = SendMessageW(hwndTT, TTM_ADDTOOLW, 0, (LPARAM)&ti);
-		assert(addOk);
-	}
-	else
-		SendMessageW(hwndTT, TTM_NEWTOOLRECTW, 0, (LPARAM)&ti);
-
-	// Position near cursor (screen coords)
-	POINT ptScreen = ptClient;
-	ClientToScreen(dv->GetHWnd(), &ptScreen);
-	ptScreen.x += 32;
-	ptScreen.y += 20;
-
-	SendMessageW(hwndTT, TTM_TRACKPOSITION, 0, MAKELONG(ptScreen.x, ptScreen.y));
-	SendMessageW(hwndTT, TTM_TRACKACTIVATE, TRUE, (LPARAM)&ti);
-
-	m_State.Set(GOF_ToolTipVisible);
-	dv->SetActiveTooltipObject(this);
-}
-
-void GraphicObject::HideTooltipNoWatchdog() noexcept
-{
-	if (!IsTooltipVisible())
-		return;
-
-	auto dv = GetDataView().lock();
-	if (!dv)
-		return;
-
-	if (!dv->m_hwndTooltip)
-		return;
-
-	HWND hwndTT = dv->EnsureTooltipWindow();
-
-	TOOLINFOW ti{};
-	ti.cbSize = sizeof(ti);
-	ti.hwnd = dv->GetHWnd();
-	ti.uId = ToolId();
-
-	SendMessageW(hwndTT, TTM_TRACKACTIVATE, FALSE, (LPARAM)&ti);
-	m_State.Clear(GOF_ToolTipVisible);
-}
-
-void GraphicObject::ForceHideTooltip() noexcept
-{
-	HideTooltipNoWatchdog();
-
-	auto dv = GetDataView().lock();
-	if (!dv)
-		return;
-	dv->ClearActiveTooltipObject(this);
-}
-
-auto GraphicObject::GetTooltipText(POINT ptClient) const -> SharedStr
-{
-	return SharedStr(GetDynamicClass()->GetName());
-}

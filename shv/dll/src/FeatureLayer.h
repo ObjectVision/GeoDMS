@@ -105,8 +105,8 @@ protected: friend FeatureDrawer; friend struct LabelDrawer;
 
 //	new interface
 	virtual bool DrawImpl(FeatureDrawer& fd) const =0;
-	virtual SizeT FindFeatureByPoint(const CrdPoint& geoPnt);
-	virtual SizeT FindNextFeatureByPoint(const CrdPoint& geoPnt, SizeT featureIndex);
+	virtual SizeT FindFeatureByPoint(const CrdPoint& geoPnt) const;
+	virtual SizeT FindNextFeatureByPoint(const CrdPoint& geoPnt, SizeT featureIndex) const;
 
 	std::shared_ptr<const AbstrBoundingBoxCache> GetBoundingBoxCache() const;
 
@@ -164,7 +164,7 @@ protected:
 
 	CrdRect CalcSelectedClientWorldRect() const override; // specialization that doesn't use BoundinBox
 
-	SizeT FindFeatureByPoint(const CrdPoint& geoPnt) override;
+	SizeT FindFeatureByPoint(const CrdPoint& geoPnt) const override;
 	void   InvalidateFeature(SizeT featureIndex) override;
 
 private:
@@ -212,7 +212,7 @@ protected:
 	void SelectCircle (CrdPoint worldPnt, CrdType worldRadius, EventID eventID) override;
 	void SelectPolygon(const CrdPoint* first, const CrdPoint* last, EventID eventID) override;
 
-	SizeT FindFeatureByPoint(const CrdPoint& geoPnt) override;
+	SizeT FindFeatureByPoint(const CrdPoint& geoPnt) const override;
 	void  InvalidateFeature(SizeT featureIndex) override;
 
 	DECL_RTTI(SHV_CALL, LayerClass);
@@ -241,8 +241,10 @@ protected:
 	void SelectCircle (CrdPoint worldPnt, CrdType worldRadius, EventID eventID) override;
 	void SelectPolygon(const CrdPoint* first, const CrdPoint* last, EventID eventID) override;
 
-	SizeT FindNextFeatureByPoint(const CrdPoint& geoPnt, SizeT currFeatureIndex) override;
+	SizeT FindNextFeatureByPoint(const CrdPoint& geoPnt, SizeT currFeatureIndex) const override;
 	void  InvalidateFeature(SizeT featureIndex) override;
+
+	bool GetTooltipText(TooltipCollector& med) const override;
 
 	DECL_RTTI(SHV_CALL, LayerClass);
 };

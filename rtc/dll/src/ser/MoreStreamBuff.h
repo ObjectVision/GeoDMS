@@ -16,6 +16,7 @@
 #include "ptr/IterCast.h"
 #include "ser/BaseStreamBuff.h"
 #include "geo/iterrange.h"
+#include "geo/CharPtrRange.h"
 
 using ByteRange = IterRange<BytePtr>;
 using CByteRange = IterRange<CBytePtr>;
@@ -161,6 +162,8 @@ public:
 
 	const Byte* GetData   () const { return begin_ptr(m_Data); }
 	const Byte* GetDataEnd() const { return end_ptr  (m_Data); }
+	auto AsCharPtrRange   () const { return CharPtrRange(GetData(), GetDataEnd()); }
+	auto AsString         () const { return SharedStr(AsCharPtrRange()); }
 
 	RTC_CALL void WriteBytes(const Byte* data, streamsize_t size) override;
 	RTC_CALL streamsize_t CurrPos() const override;

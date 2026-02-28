@@ -738,4 +738,12 @@ bool MovableObject::HitTest(POINT ptClient) const noexcept
 	return IsIntersecting(rect, CrdPoint(ptClient.x, ptClient.y));
 }
 
+bool MovableObject::GetTooltipText(TooltipCollector& ttc) const
+{
+	auto dv = ttc.GetOwner().lock(); if (!dv) return false;
+	dv->SetActiveTooltipObject(this);
+	ttc.m_DevRect = GetCurrClientAbsDeviceRect();
+	base_type::GetTooltipText(ttc);
+	return true;
+};
 

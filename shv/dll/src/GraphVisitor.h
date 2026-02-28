@@ -80,7 +80,7 @@ public:
 	GraphVisitState DoMovableContainer(MovableContainer* goc) override;
 	GraphVisitState DoDataItemColumn(DataItemColumn* dic) override;
 
-	CrdTransformation GetTransformation() const { return m_Transformation; }
+	CrdTransformation GetTransformation       () const { return m_Transformation; }
 	CrdTransformation GetLogicalTransformation() const { return m_Transformation / CrdTransformation(CrdPoint(0.0, 0.0), GetSubPixelFactors()); }
 	CrdPoint GetClientLogicalAbsPos() const { return m_ClientLogicalAbsPos; }
 	GRect   GetAbsClipDeviceRect() const { return m_ClipDeviceRect; }

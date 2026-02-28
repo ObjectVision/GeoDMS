@@ -1698,12 +1698,18 @@ DataItemColumn* DataItemColumn::GetPrevControl()
 	return debug_cast<DataItemColumn*>(tc->GetEntry(colNr));
 }
 
-auto DataItemColumn::GetTooltipText(POINT ptClient) const -> SharedStr
-{
-	auto dv = GetDataView().lock(); if (!dv) return {};
+#include "MouseEventDispatcher.h"
 
-	auto logicalPos = dv->Reverse(GPoint2CrdPoint(GPoint(ptClient.x, ptClient.y)));
-	auto relClientPos = logicalPos - GetCurrClientAbsLogicalPos();
+bool DataItemColumn::GetTooltipText(TooltipCollector& ttc) const
+{
+	base_type::GetTooltipText(ttc);
+	auto tr = ttc.GetTransformation();
+
+	auto ptClient =ttc.m_Point;
+
+	auto relClientPos = tr.Reverse(GPoint2CrdPoint(ptClient));
+	relClientPos -= ttc.GetClientLogicalAbsPos();
+	relClientPos -= GetCurrClientRelPos();
 
 	auto tc = GetTableControl().lock(); if (!tc) return {};
 	bool isColOriented = tc->IsColOriented();
@@ -1717,7 +1723,9 @@ auto DataItemColumn::GetTooltipText(POINT ptClient) const -> SharedStr
 
 	GuiReadLock lock;
 	auto txt = GetOrgText(recNr, lock);
-	return txt;
+	ttc.m_Stream << txt << "\n";
+
+	return true;
 }
 
 

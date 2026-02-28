@@ -589,8 +589,7 @@ MsgResult DataView::DispatchMsg(const MsgStruct& msg)
 			if (msg.m_wParam == TIP_WATCH_TIMER_ID)
 			{
 				auto attObj = m_activeTooltipObj.lock();
-				m_hoveredObject.reset();
-				if (!attObj) 
+				if (!attObj)
 					StopTipWatchdog();
 				else
 					if (!IsCursorInsideObject(*attObj))
@@ -599,11 +598,54 @@ MsgResult DataView::DispatchMsg(const MsgStruct& msg)
 			}
 			if (msg.m_wParam == HOVER_TIMER_ID)
 			{
-				auto hoverObj = m_hoveredObject.lock();	
-				if (hoverObj)
-					hoverObj->OnHoverTimer();
-
 				KillTimer(GetHWnd(), HOVER_TIMER_ID);
+
+				GPoint ptScreen;
+				GetCursorPos(&ptScreen);
+				GPoint ptClient = ptScreen;
+				ScreenToClient(GetHWnd(), &ptClient);
+				if (ptClient == m_hoverStartLocation)
+				{
+					TooltipCollector ttc(this, ptClient);
+					SuspendTrigger::Resume();
+					if (ttc.Visit(GetContents().get()))
+					{
+						assert(m_activeTooltipObj.lock().get());
+
+						m_ToolTipText = Utf8_2_wchar(ttc.m_Buff.AsString());
+
+						HWND hwndTT = EnsureTooltipWindow();
+
+						// Ensure tool exists / update rect + text
+						TOOLINFOW ti{};
+						ti.cbSize = TTTOOLINFOW_V2_SIZE; // sizeof(ti);
+						ti.uFlags = TTF_TRACK | TTF_ABSOLUTE;
+						ti.hwnd = GetHWnd();
+						ti.uId = (UINT_PTR)this;
+
+						ti.rect = CrdRect2GRect(ttc.m_DevRect);
+
+						ti.lpszText = m_ToolTipText.get();
+
+						// Add if missing, else update
+						if (!SendMessageW(hwndTT, TTM_UPDATETIPTEXTW, 0, (LPARAM)&ti))
+						{
+							BOOL addOk = SendMessageW(hwndTT, TTM_ADDTOOLW, 0, (LPARAM)&ti);
+							assert(addOk);
+						}
+						else
+							SendMessageW(hwndTT, TTM_NEWTOOLRECTW, 0, (LPARAM)&ti);
+
+						// Position near cursor (screen coords)
+						ptScreen.x += 32;
+						ptScreen.y += 20;
+
+						SendMessageW(hwndTT, TTM_TRACKPOSITION, 0, MAKELONG(ptScreen.x, ptScreen.y));
+						SendMessageW(hwndTT, TTM_TRACKACTIVATE, TRUE, (LPARAM)&ti);
+
+						StartTipWatchdog();
+					}
+				}
 
 				goto completed;
 			}
@@ -1846,13 +1888,13 @@ void DataView::StopTipWatchdog()
 	KillTimer(GetHWnd(), TIP_WATCH_TIMER_ID);
 }
 
-void DataView::SetActiveTooltipObject(GraphicObject* obj) noexcept
+void DataView::SetActiveTooltipObject(const GraphicObject* obj) noexcept
 {
 	m_activeTooltipObj = obj->shared_from_this();
 	StartTipWatchdog();
 }
 
-void DataView::ClearActiveTooltipObject(GraphicObject* obj) noexcept
+void DataView::ClearActiveTooltipObject(const GraphicObject* obj) noexcept
 {
 	if (m_activeTooltipObj.lock().get() == obj)
 		m_activeTooltipObj = {};
@@ -1867,10 +1909,19 @@ void DataView::HideActiveTooltip()
 	if (!attObj) 
 		return;
 
-	// Ask the object to hide its own tooltip (keeps ownership in object)
-	attObj->ForceHideTooltip();
+	if (!m_hwndTooltip)
+		return;
 
-	attObj = {};
+	HWND hwndTT = m_hwndTooltip;
+
+	TOOLINFOW ti{};
+	ti.cbSize = sizeof(ti);
+	ti.hwnd = GetHWnd();
+	ti.uId = (UINT_PTR)this;
+
+	SendMessageW(hwndTT, TTM_TRACKACTIVATE, FALSE, (LPARAM)&ti);
+	m_activeTooltipObj.reset();
+
 	StopTipWatchdog();
 }
 
