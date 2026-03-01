@@ -1875,6 +1875,8 @@ HWND DataView::EnsureTooltipWindow()
 		SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
 
 	SendMessageW(m_hwndTooltip, TTM_SETMAXTIPWIDTH, 0, 400);
+	SendMessageW(m_hwndTooltip, TTM_SETTIPBKCOLOR, (WPARAM)GetSysColor(COLOR_INFOBK), 0);
+	SendMessageW(m_hwndTooltip, TTM_SETTIPTEXTCOLOR, (WPARAM)GetSysColor(COLOR_INFOTEXT), 0);
 	return m_hwndTooltip;
 }
 
