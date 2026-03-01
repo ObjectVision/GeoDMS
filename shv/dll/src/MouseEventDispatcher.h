@@ -58,6 +58,8 @@ public:
 		  std::weak_ptr<DataView> GetOwner()     const { return m_Owner;     }
 		  bool       IsActivating() const;
 
+	auto GetGeoPoint() const { return GetTransformation().Reverse(GPoint2CrdPoint(GetEventInfo().m_Point)); }
+
 protected:
 	virtual bool ReverseLayerVisitationOrder() const { return true; }
 
@@ -82,6 +84,7 @@ struct TooltipCollector : EventInfo, MouseEventDispatcher
 	}
 
 	GraphVisitState DoObject(GraphicObject* go);
+
 
 	VectorOutStreamBuff m_Buff;
 	FormattedOutStream  m_Stream;

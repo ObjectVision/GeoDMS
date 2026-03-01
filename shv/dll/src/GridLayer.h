@@ -48,6 +48,7 @@ protected:
 	void SelectRect   (CrdRect worldRect, EventID eventID) override;
 	void SelectCircle (CrdPoint worldPnt, CrdType worldRadius, EventID eventID) override;
 	void SelectPolygon(const CrdPoint* first, const CrdPoint* last, EventID eventID) override;
+	bool GetTooltipText(TooltipCollector& ttc) const override;
 
 	CrdRect CalcSelectedFullWorldRect() const    override;
 

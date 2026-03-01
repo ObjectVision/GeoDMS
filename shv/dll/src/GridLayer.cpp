@@ -330,6 +330,43 @@ void GridLayer::SelectPolygon(const CrdPoint* first, const CrdPoint* last, Event
 	SelectRegionWithShape<PolygonRowProcessor>(this, worldRect, eventID, first, last);
 }
 
+bool GridLayer::GetTooltipText(TooltipCollector& ttc) const
+{
+	base_type::GetTooltipText(ttc);
+
+	auto geoPoint = ttc.GetGeoPoint();
+
+	CrdTransformation tr = GetGeoTransformation(); // grid to world transformer
+	IRect gridRect = GetGeoCrdUnit()->GetRangeAsIRect();
+
+	IPoint gridLoc = RoundDown<4>(tr.Reverse(geoPoint));
+	ttc.m_Stream << "[" << gridLoc.X() << ", " << gridLoc.Y() << "]";
+
+	auto gridIdx = Range_GetIndex_naked(gridRect, gridLoc);
+	ttc.m_Stream << ", Index: " << gridIdx;
+
+	auto gridDataRow = AsUnit(GetGeoCrdUnit()->GetCurrRangeItem())->GetTiledRangeData()->Shadow2DataRow(gridIdx);
+	if (gridIdx != gridDataRow)
+		ttc.m_Stream << ", DataRow: " << gridDataRow;
+
+	SizeT i = Feature2EntityIndex(gridDataRow);
+	if (i != gridDataRow)
+		ttc.m_Stream << ", Entity: " << i;
+	if (auto aa = GetActiveTheme())
+	{
+		if (auto adi = aa->GetThemeAttrSource())
+		{
+			if (auto ado = adi->GetCurrRefObj())
+			{
+				GuiReadLock lockHolder;
+				ttc.m_Stream << ", Value: " << ado->AsString(gridDataRow, lockHolder, FormattingFlags::ThousandSeparator);
+			}
+		}
+	}
+	ttc.m_Stream << "\n";
+	return false;
+}
+
 typedef sequence_traits<Bool>::const_pointer CBoolIter;
 
 template <typename T>

@@ -2180,8 +2180,7 @@ bool GraphicPolygonLayer::GetTooltipText(TooltipCollector& ttc) const
 {
 	base_type::GetTooltipText(ttc);
 
-	auto ptClient = ttc.m_Point;
-	auto geoPoint = ttc.GetTransformation().Reverse(GPoint2CrdPoint(GPoint(ptClient.x, ptClient.y)));
+	auto geoPoint = ttc.GetGeoPoint();
 
 	GuiReadLock lockHolder;
 	const AbstrDataItem* attrItem = nullptr;
