@@ -85,10 +85,10 @@ struct TooltipCollector : EventInfo, MouseEventDispatcher
 
 	GraphVisitState DoObject(GraphicObject* go);
 
-
 	VectorOutStreamBuff m_Buff;
 	FormattedOutStream  m_Stream;
 
+	bool    m_WantsMoreContext = true;
 	CrdRect m_DevRect;
 };
 

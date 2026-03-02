@@ -125,6 +125,8 @@ protected: friend FeatureDrawer; friend struct LabelDrawer;
 //	override virtuals of Actor
 	void DoInvalidate () const override;
 
+	bool GetTooltipText(TooltipCollector& med) const override;
+
 public:
 	mutable std::shared_ptr<const AbstrBoundingBoxCache> m_BoundingBoxCache;
 
@@ -243,8 +245,6 @@ protected:
 
 	SizeT FindNextFeatureByPoint(const CrdPoint& geoPnt, SizeT currFeatureIndex) const override;
 	void  InvalidateFeature(SizeT featureIndex) override;
-
-	bool GetTooltipText(TooltipCollector& med) const override;
 
 	DECL_RTTI(SHV_CALL, LayerClass);
 };

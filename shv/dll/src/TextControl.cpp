@@ -255,6 +255,7 @@ bool TextControl::Draw(GraphDrawer& d) const
 
 bool TextControl::GetTooltipText(TooltipCollector& ttc) const
 {
+	ttc.m_WantsMoreContext = false;
 	base_type::GetTooltipText(ttc);
 	ttc.m_Stream << GetCaption() << "\n";
 	return true;

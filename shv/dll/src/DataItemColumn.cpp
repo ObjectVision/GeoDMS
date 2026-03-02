@@ -1702,6 +1702,7 @@ DataItemColumn* DataItemColumn::GetPrevControl()
 
 bool DataItemColumn::GetTooltipText(TooltipCollector& ttc) const
 {
+	ttc.m_WantsMoreContext = false;
 	base_type::GetTooltipText(ttc);
 	auto tr = ttc.GetTransformation();
 
@@ -1725,7 +1726,7 @@ bool DataItemColumn::GetTooltipText(TooltipCollector& ttc) const
 	auto txt = GetOrgText(recNr, lock);
 	ttc.m_Stream << txt << "\n";
 
-	return true;
+	return true; // tipping stops here !
 }
 
 

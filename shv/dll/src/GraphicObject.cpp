@@ -853,7 +853,8 @@ bool GraphicObject::HitTest(POINT ptClient) const noexcept
 
 bool GraphicObject::GetTooltipText(TooltipCollector& ttc) const
 {
-	ttc.m_Stream << GetDynamicClass()->GetName().c_str() << "\n";
+	if (ttc.m_WantsMoreContext)
+		ttc.m_Stream << GetDynamicClass()->GetName().c_str() << "\n";
 	return false;
 };
 

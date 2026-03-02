@@ -2176,7 +2176,7 @@ CrdRect GraphicPolygonLayer::GetFeatureWorldExtents() const
 #include "MouseEventDispatcher.h"
 #include "ser/FormattedStream.h"
 
-bool GraphicPolygonLayer::GetTooltipText(TooltipCollector& ttc) const
+bool FeatureLayer::GetTooltipText(TooltipCollector& ttc) const
 {
 	base_type::GetTooltipText(ttc);
 

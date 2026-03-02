@@ -743,7 +743,9 @@ bool MovableObject::GetTooltipText(TooltipCollector& ttc) const
 	auto dv = ttc.GetOwner().lock(); if (!dv) return false;
 	dv->SetActiveTooltipObject(this);
 	ttc.m_DevRect = GetCurrClientAbsDeviceRect();
+
 	base_type::GetTooltipText(ttc);
+
 	return true;
 };
 

@@ -23,6 +23,7 @@
 #include "LayerControl.h"
 #include "LayerInfo.h"
 #include "LayerSet.h"
+#include "MouseEventDispatcher.h"
 #include "Theme.h"
 #include "ThemeSet.h"
 
@@ -117,6 +118,13 @@ void LayerSet::ProcessCollectionChange()
 		dv->Invalidate();
 		InvalidateRect(dv->GetHWnd(), nullptr, true);
 	}
+}
+
+bool LayerSet::GetTooltipText(TooltipCollector& ttc) const
+{
+	ttc.m_WantsMoreContext = false;
+	base_type::GetTooltipText(ttc);
+	return false; // we still needs to get a rectangle from a MovalbeObject, so return false to indicate that tooltip text is not yet ready
 }
 
 void LayerSet::DoUpdateView()

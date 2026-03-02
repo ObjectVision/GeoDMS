@@ -638,7 +638,7 @@ MsgResult DataView::DispatchMsg(const MsgStruct& msg)
 
 						// Position near cursor (screen coords)
 						ptScreen.x += 32;
-						ptScreen.y += 20;
+						ptScreen.y += 10;
 
 						SendMessageW(hwndTT, TTM_TRACKPOSITION, 0, MAKELONG(ptScreen.x, ptScreen.y));
 						SendMessageW(hwndTT, TTM_TRACKACTIVATE, TRUE, (LPARAM)&ti);
