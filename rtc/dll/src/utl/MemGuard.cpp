@@ -29,6 +29,15 @@ struct memory_info {
 		memStat.dwLength = sizeof(MEMORYSTATUSEX);
 		if (!GlobalMemoryStatusEx(&memStat))
 			throwLastSystemError("GlobalMemoryStatusEx");
+
+		SizeT max_phycical_memory = RTC_GetRegDWord(RegDWordEnum::MemoryRAM_MAX_GB);
+		max_phycical_memory *= (1024 * 1024 * 1024); // GB -> # bytes
+		if (memStat.ullTotalPhys > max_phycical_memory)
+		{
+			auto reduction = memStat.ullTotalPhys - max_phycical_memory;
+			memStat.ullTotalPhys -= reduction;
+			memStat.ullAvailPhys -= reduction;
+		}
 	}
 
 	percentage_type ExpectedMemoryLoad(std::size_t requestedSize) const
@@ -42,6 +51,7 @@ struct memory_info {
 		return ExpectedMemoryLoad(0);
 	}
 
+	percentage_type MaxPhysMemoryGB  () const { return RTC_GetRegDWord(RegDWordEnum::MemoryRAM_MAX_GB); }
 	percentage_type MaxPhysMemoryLoad() const { return RTC_GetRegDWord(RegDWordEnum::MemoryFlushThreshold); }
 
 	bool SufficientFreeSpace(std::size_t requestedSize) const

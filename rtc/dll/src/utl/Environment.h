@@ -118,7 +118,8 @@ enum class RegDWordEnum
 {
 	MemoryFlushThreshold = 0,
 	SwapFileMinSize = 1,
-	DrawingSizeInPixels = 2
+	DrawingSizeInPixels = 2,
+	MemoryRAM_MAX_GB = 3, 
 };
 
 extern "C" RTC_CALL DWORD DMS_CONV RTC_GetRegDWord(RegDWordEnum i);
