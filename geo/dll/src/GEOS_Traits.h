@@ -630,6 +630,9 @@ auto geos_split_write_geometry(RI resIter, const geos::geom::Geometry* geometry)
 		if (backTrackPoint)
 			return ++resIter;
 	}
+	if (auto gc = dynamic_cast<const geos::geom::LineString*>(geometry))
+		return resIter;
+
 	if (auto gc = dynamic_cast<const geos::geom::Point*>(geometry))
 		return resIter;
 
