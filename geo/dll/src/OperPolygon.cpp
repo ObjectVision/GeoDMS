@@ -136,11 +136,7 @@ struct MidFunc : Sequence2PointFunc<P>
 // *****************************************************************************
 
 template <class P>
-struct Sequence2ScalarFunc
-	:	unary_func<
-			typename scalar_of<P>::type
-		,	typename sequence_traits<P>::container_type
-		>
+struct Sequence2ScalarFunc:	unary_func<scalar_of_t<P>, typename sequence_traits<P>::container_type>
 {};
 
 // *****************************************************************************
@@ -744,7 +740,7 @@ template <class T>
 class DynaPointOperator : public AbstrDynaPointOperator
 {
 	typedef T                                   PointType;
-	typedef typename scalar_of<PointType>::type DistType;
+	typedef scalar_of_t<PointType>              DistType;
 	typedef Unit<PointType>                     PointUnitType;
 	typedef Unit<DistType>                      DistUnitType;
 
@@ -958,9 +954,9 @@ void point_in_polygon(
 		firstPolygon = polyData.begin(),
 		lastPolygon  = polyData.end();
 
-	typedef PointArray::value_type      PointType;
-	typedef scalar_of<PointType>::type  ScalarType;
-	typedef ResSequence::value_type     ResValueType;
+	typedef PointArray::value_type  PointType;
+	typedef scalar_of_t<PointType>  ScalarType;
+	typedef ResSequence::value_type ResValueType;
 
 	SizeT count = resData.size();
 	dms_assert(count == pointData.size());
@@ -1096,7 +1092,7 @@ class PointInPolygonOperator : public AbstrPointInPolygonOperator
 	using Arg2Type = DataArray<PolygonType>;
 	using BoxArrayType = std::vector<BoxType>;
 
-	typedef typename scalar_of<PointType>::type  ScalarType;
+	typedef scalar_of_t<PointType>  ScalarType;
 	using SpatialIndexType = SpatialIndex<ScalarType, typename Arg2Type::const_iterator>;
 
 	using ResourceType = std::pair<SpatialIndexType, typename Arg2Type::locked_cseq_t>;
@@ -1256,7 +1252,7 @@ void point_in_ranked_polygon(
 		lastPolygon = polyData.end();
 
 	typedef PointArray::value_type      PointType;
-	typedef scalar_of<PointType>::type  ScalarType;
+	typedef scalar_of_t<PointType>  ScalarType;
 	typedef ResSequence::value_type     ResValueType;
 
 	SizeT count = resData.size();
@@ -1408,7 +1404,7 @@ class PointInRankedPolygonOperator : public AbstrPointInRankedPolygonOperator
 
 	using BoxArrayType = std::vector<BoxType>;
 
-	typedef typename scalar_of<PointType>::type  ScalarType;
+	typedef scalar_of_t<PointType>  ScalarType;
 	typedef SpatialIndex<ScalarType, typename Arg2Type::const_iterator> SpatialIndexType;
 
 	using ResourceType = std::pair<SpatialIndexType, typename Arg2Type::locked_cseq_t>;
@@ -1644,7 +1640,7 @@ class PointInAllPolygonsOperator : public AbstrPointInAllPolygonsOperator
 	using DualTileKey = std::pair<tile_id, tile_id>;
 	using ResDataType     = std::map<DualTileKey, ResTileDataType>;
 
-	typedef typename scalar_of<PointType>::type  ScalarType;
+	typedef scalar_of_t<PointType>  ScalarType;
 	typedef SpatialIndex<ScalarType, typename Arg2Type::const_iterator> SpatialIndexType;
 	typedef std::vector<SpatialIndexType> SpatialIndexArrayType;
 
@@ -1699,7 +1695,7 @@ public:
 		const SpatialIndexType* spIndexPtr = GetOptional<SpatialIndexType>(polyInfoHandle);
 
 		using box_iter_type   = typename SpatialIndexType::template iterator<BoxType> ;
-		using coordinate_type = typename scalar_of<P>::type ;
+		using coordinate_type = scalar_of_t<P> ;
 		using res_data_elem_type = ResDataElemType;
 
 		ResTileDataType* resTileData = nullptr;

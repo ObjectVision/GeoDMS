@@ -113,8 +113,8 @@ template <typename res_type, typename T>
 res_type sqrt_func_checked_f(const Point<T>& arg)
 {
 	return res_type(
-		sqrt_func_checked_f<typename scalar_of<res_type>::type>(arg.first), 
-		sqrt_func_checked_f<typename scalar_of<res_type>::type>(arg.second)
+		sqrt_func_checked_f<scalar_of_t<res_type>>(arg.first), 
+		sqrt_func_checked_f<scalar_of_t<res_type>>(arg.second)
 	);
 }
 

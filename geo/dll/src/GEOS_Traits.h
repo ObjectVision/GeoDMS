@@ -195,7 +195,7 @@ auto geos_create_polygons(SA_ConstReference<DmsPointType> polyRef, bool mustInse
 			if (!mustInsertInnerRings)
 			{
 				SizeT polygonIndex = 0;
-				while (polygonIndex < resMP.size())
+				while (polygonIndex < resMP.size())F
 				{
 					auto currPolygon = resMP.begin() + polygonIndex;
 					if (boost::geometry::intersects(currPolygon->outer(), helperPolygon.outer()))

@@ -476,10 +476,10 @@ struct mean_partial_best : exp_partial_best< ident_function<T> >, assign_partial
 template <typename T> 
 struct var_accumulation_type
 {
-	typedef typename SizeT                     count_type;
-	typedef typename acc_type<T>::type         sum_type;
-	typedef typename aggr_type<sum_type>::type var_type;
-	typedef typename scalar_of<var_type>::type var_scalar_type;
+	using count_type = SizeT;
+	using sum_type = acc_type_t<T>;
+	using var_type = aggr_type_t<sum_type>;
+	using var_scalar_type = scalar_of_t<var_type>;
 
 	var_accumulation_type() {}
 	var_accumulation_type(count_type n_, sum_type x_, sum_type xx_): n(n_), x(x_), xx(xx_) {}

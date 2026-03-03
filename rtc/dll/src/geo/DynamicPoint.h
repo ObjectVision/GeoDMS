@@ -99,7 +99,7 @@ PointType DynamicPoint(ConstPointPtr arcBegin, ConstPointPtr arcEnd, Float64 rat
 		Float64 delta = sqrt(SqrDist<Float64>(*arcBegin, *j));
 		sofar += delta;
 		if (sofar >= length)
-			return *j + (*arcBegin - *j) * typesafe_cast<typename scalar_of<PointType>::type>( (sofar - length) / delta );
+			return *j + (*arcBegin - *j) * typesafe_cast<scalar_of_t<PointType>>( (sofar - length) / delta );
 	}
 	return *arcBegin;
 }

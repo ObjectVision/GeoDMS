@@ -318,7 +318,7 @@ namespace
 	template <typename P>
 	struct PointOpers
 	{
-		typedef typename scalar_of<P>::type S;
+		typedef scalar_of_t<P> S;
 
 		PointOpers()
 			: ca2PointXY(&cog_PointXY, 2, convert_order_type::xy_order)

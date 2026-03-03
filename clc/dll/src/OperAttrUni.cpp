@@ -77,7 +77,7 @@ namespace
 		UnaryAttrSpecialFuncOperator<RoundDnWrap> m_RoundDn;
 		UnaryAttrSpecialFuncOperator<RoundTZWrap> m_RoundTZ;
 
-		static const bool result_more_than_4_bytes = (sizeof(typename scalar_of<TR>::type) > 4);
+		static const bool result_more_than_4_bytes = (sizeof(scalar_of_t<TR>) > 4);
 		RoundOpers()
 			: m_Round(result_more_than_4_bytes ? &cog_Round_64 : &cog_Round)
 			, m_RoundUp(result_more_than_4_bytes ? &cog_RoundUp_64 : &cog_RoundUp)

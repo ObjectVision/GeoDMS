@@ -259,7 +259,7 @@ public:
 	PolygonOverlayOperator(AbstrOperGroup& gr, bool unaryOperation)
 		:	AbstrPolygonOverlayOperator(gr, ArgType::GetStaticClass(), MustProduceGeometries, unaryOperation)
 	{
-		if constexpr (GL == geometry_library::geos && (!std::is_floating_point_v<scalar_of<P> > || sizeof( scalar_of<P> ) < 8))
+		if constexpr (GL == geometry_library::geos && (!std::is_floating_point_v<ScalarType> || sizeof(ScalarType) < 8))
 		{
 			GetGeosNonDPointDepreciationFlag(); // throw when version > 20
 		}
@@ -299,7 +299,7 @@ public:
 
 	void Calculate(ResourceHandle& resDataHandle, leveled_critical_section& resInsertSection, const AbstrDataItem* poly1DataA, const AbstrDataItem* poly2DataA, tile_id t, tile_id u, const ResourceHandle& polyInfoHandle) const override
 	{
-		if constexpr (GL == geometry_library::geos && (!std::is_floating_point_v<scalar_of<P> > || sizeof(scalar_of<P>) < 8))
+		if constexpr (GL == geometry_library::geos && (!std::is_floating_point_v<scalar_of_t<P> > || sizeof(scalar_of_t<P>) < 8))
 		{
 			if (GetGeosNonDPointDepreciationFlag() == oper_policy::obsolete)
 				throwDmsErrF("PolygonOverlayOperator", "GEOS-based polygon operation %s are no longer supported for non-double-precision point types", this->GetGroup()->GetNameStr());
@@ -1547,7 +1547,7 @@ public:
 	GEOS_PolygonOperator(AbstrOperGroup* aog, PolygonFlags flags)
 		: AbstrPolygonOperator(aog, ArgPolyType::GetStaticClass(), ArgNumType::GetStaticClass(), flags)
 	{
-		if constexpr (!std::is_floating_point_v<scalar_of<P> > || sizeof( scalar_of<P> ) < 8)
+		if constexpr (!std::is_floating_point_v<scalar_of_t<P> > || sizeof( scalar_of_t<P> ) < 8)
 		{
 			GetGeosNonDPointDepreciationFlag(); // throw when version > 20
 		}
@@ -1555,7 +1555,7 @@ public:
 
 	void Calculate(ResourceArrayHandle& r, SizeT domainCount, const AbstrDataItem* polyDataA, const AbstrDataItem* partitionDataA, tile_id t, Timer& processTimer) const override
 	{
-		if constexpr (!std::is_floating_point_v<scalar_of<P> > || sizeof(scalar_of<P>) < 8)
+		if constexpr (!std::is_floating_point_v<scalar_of_t<P> > || sizeof(scalar_of_t<P>) < 8)
 		{
 			if (GetGeosNonDPointDepreciationFlag() == oper_policy::obsolete)
 				throwDmsErrF("GEOS_PolygonOperator", "GEOS-based polygon operation %s are no longer supported for non-double-precision point types", this->GetGroup()->GetNameStr());

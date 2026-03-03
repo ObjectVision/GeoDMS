@@ -267,6 +267,7 @@ template <typename T> struct sqr_acc_type : unsigned_type<typename acc_type<T>::
 template <typename T> struct aggr_type            { typedef Float64 type; };
 template <typename T> struct aggr_type<Point<T> > { typedef Point<typename aggr_type<T>::type> type; };
 template <typename T> struct aggr_type<const T>   {}; // illegal use
+template <typename T> using aggr_type_t = typename aggr_type<T>::type;
 
 // use div_type<T> as result type of operations that involve division. 
 // Aggregation operations combine this with aggr_type for intermediate results

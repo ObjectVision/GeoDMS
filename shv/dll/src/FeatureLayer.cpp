@@ -1048,7 +1048,7 @@ void GraphicPointLayer::SelectPolygon(const CrdPoint* first, const CrdPoint* las
 		visit<typelists::points>(valuesItem->GetAbstrValuesUnit(),
 			[this, valuesItem, first, last, polyRect, eventID, &result] <typename P> (const Unit<P>*)
 			{
-				result = SelectPointsInPolygon< typename scalar_of<P>::type >(this, valuesItem->GetRefObj(), polyRect, first, last, eventID);
+				result = SelectPointsInPolygon< scalar_of_t<P> >(this, valuesItem->GetRefObj(), polyRect, first, last, eventID);
 			}
 		);
 	}
@@ -1320,7 +1320,7 @@ bool GraphicPointLayer::DrawImpl(FeatureDrawer& fd) const
 	visit<typelists::points>(valuesItem->GetAbstrValuesUnit(), 
 		[this, valuesItem, fontIndices, &fd, &result] <typename P> (const Unit<P>*) 
 		{
-			result = DrawPoints< typename scalar_of<P>::type >(fd, this, valuesItem, fontIndices);
+			result = DrawPoints< scalar_of_t<P> >(fd, this, valuesItem, fontIndices);
 		}
 	);
 	return result;
