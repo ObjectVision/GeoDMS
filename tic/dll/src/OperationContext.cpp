@@ -451,6 +451,10 @@ void tile_task_group::AwaitRunningSlots() noexcept
 		if (m_NrCompleted >= m_Last)
 			break;
 
+		if (m_CallingContext)
+			DSM::CancelIfOutOfInterest();
+		ASyncContinueCheck();
+
 		m_TileTasksDone.wait_for(lock, std::chrono::milliseconds(500));
 	}
 }
