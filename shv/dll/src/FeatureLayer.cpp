@@ -624,7 +624,10 @@ SizeT FindNearestPoint(const GraphicPointLayer* layer, const CrdPoint& geoPnt)
 	SizeT entityID = UNDEFINED_VALUE(SizeT);
 	Float64 sqrDist = MAX_VALUE(Float64);
 
-	auto featureData = layer->GetFeatureAttr()->GetRefObj();
+	auto featureData = layer->GetFeatureAttr()->GetCurrRefObj();
+	if (!featureData)
+		return entityID;
+
 	auto trd = featureData->GetTiledRangeData();
 	auto da = const_array_cast<PointType>(featureData);
 
@@ -1955,7 +1958,10 @@ row_id FindNextPolygonByPoint(const GraphicPolygonLayer* layer, Point<ScalarType
 	using PointType = Point<ScalarType>;
 	using PointSequenceType = typename sequence_traits<PointType>::container_type;
 
-	auto featureData = layer->GetFeatureAttr()->GetRefObj();
+	auto featureData = layer->GetFeatureAttr()->GetCurrRefObj();
+	if (!featureData)
+		return UNDEFINED_VALUE(SizeT);
+
 	auto da = const_array_cast<PointSequenceType>(featureData);
 
 	auto bbCache = GetSequenceBoundingBoxCache<ScalarType>(layer);
