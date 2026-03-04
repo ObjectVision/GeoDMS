@@ -122,6 +122,7 @@ concurrency::task_group& GetTaskGroup();
 // *****************************************************************************
 
 #include "ParallelTiles.h"
+#include <numeric>
 
 // Global registry of tile task groups for work stealing.
 static std::vector<tile_task_group*> s_TileTaskGroups;
@@ -133,10 +134,34 @@ static bool s_IsCancelled = false;
 // Number of worker threads currently running DoThisOrThatAndDecommission loop.
 static UInt32 s_NrRunningTileTaskThreads = 0;
 
+static concurrency::task_group* s_OcTaskGroup = nullptr;
+static bool s_OcTaskGroupIsCanceling = false;
+
+
+void CheckThis(tile_task_group* self)
+{
+#if defined(MG_DEBUG)
+	assert(!s_TileTaskGroupsMutex.try_lock()); // don't let the notification fall outside a waiter lock
+
+	auto nrCompleted = std::accumulate(self->md_CompletedWork.begin(), self->md_CompletedWork.end(), 0, std::plus<>());
+	assert(nrCompleted == self->m_NrCompleted);
+
+	if (self->m_Commissioned == 858 && self->m_Last == 857)
+	{
+		reportD(SeverityTypeID::ST_Warning, "Daar gaan we");
+	}
+	if (self->m_NrCompleted == 856 && self->m_Last == 857)
+	{
+		reportD(SeverityTypeID::ST_Warning, "KoekKoek");
+	}
+#endif
+}
+
 // Internal: pop a valid commissioned slot from any registered tile_task_group.
 // Requires s_TileTaskGroupsMutex to be held.
 auto takeOneTileTask() -> std::pair<tile_task_group*, tile_task_group::IndexType>
 {
+	assert(!SuspendTrigger::DidSuspend());
 	assert(!s_TileTaskGroupsMutex.try_lock());
 	while (!s_TileTaskGroups.empty())
 	{
@@ -146,6 +171,8 @@ auto takeOneTileTask() -> std::pair<tile_task_group*, tile_task_group::IndexType
 			auto i = taskGroup->getNextCommissioned();
 			if (IsDefined(i))
 				return { taskGroup, i };
+			if (SuspendTrigger::DidSuspend())
+				break;
 		}
 		s_TileTaskGroups.pop_back();
 	}
@@ -155,6 +182,8 @@ auto takeOneTileTask() -> std::pair<tile_task_group*, tile_task_group::IndexType
 // Try to take a tile task. Thread-safe wrapper.
 auto TakeOneTileTask() -> std::pair<tile_task_group*, tile_task_group::IndexType>
 {
+	assert(!SuspendTrigger::DidSuspend());
+
 	auto lock = std::unique_lock<std::mutex>(s_TileTaskGroupsMutex);
 	return takeOneTileTask();
 }
@@ -164,35 +193,42 @@ auto TakeOneTaskOrDecommissionThread() -> std::pair<tile_task_group*, tile_task_
 {
 	auto lock = std::unique_lock<std::mutex>(s_TileTaskGroupsMutex);
 	auto tileTask = takeOneTileTask();
-	if (!tileTask.first)
-	{
-		assert(s_NrRunningTileTaskThreads > 0);
-		--s_NrRunningTileTaskThreads; // no task available, caller must decommission this thread
-	}
+	if (!SuspendTrigger::DidSuspend())
+		if (!tileTask.first)
+		{
+			assert(s_NrRunningTileTaskThreads > 0);
+			--s_NrRunningTileTaskThreads; // no task available, caller must decommission this thread
+		}
 	return tileTask;
 }
 
 // Attempt to steal and execute a single tile task. Returns true if did work.
-bool StealOneTileTask(bool doMore)
+void StealTasks()
 {
 	auto tileTask = TakeOneTileTask();
-	if (!tileTask.first)
-		return false;
-	assert(IsDefined(tileTask.second)); // we assume starting with a valid ticket to a slot, or else this tile_task_group may already be destroyed.
-	tileTask.first->DoWork(tileTask.second, doMore);
-	return true;
+	if (tileTask.first)
+	{
+		assert(!SuspendTrigger::DidSuspend());
+		assert(IsDefined(tileTask.second)); // we assume starting with a valid ticket to a slot, or else this tile_task_group may already be destroyed.
+		tileTask.first->DoWork(tileTask.second);
+	}
 }
 
 // Worker loop that executes tile tasks until no tasks remain, then exits.
 void DoThisOrThatAndDecommission()
 {
+	SuspendTrigger::SilentBlocker blockSuspensionInWorkerTask("DoThisOrThatAndDecommission");
+	assert(!SuspendTrigger::DidSuspend());
+
 	while(true)
 	{
 		auto tileTask = TakeOneTaskOrDecommissionThread();
+		assert(!SuspendTrigger::DidSuspend());
 		if (!tileTask.first)
 			return;
 		assert(IsDefined(tileTask.second)); // we assume starting with a valid ticket to a slot, or else this tile_task_group may already be destroyed.
-		tileTask.first->DoWork(tileTask.second, true);
+		tileTask.first->DoWork(tileTask.second);
+		assert(!SuspendTrigger::DidSuspend());
 	}
 }
 
@@ -203,6 +239,10 @@ tile_task_group::tile_task_group(IndexType last, task_func func)
 	, m_Func(func)
 	, m_CallingContext(CancelableFrame::CurrActive())
 {
+#if defined(MG_DEBUG)
+	md_CompletedWork.resize(m_Last);
+#endif
+
 	UInt32 nrThreadsToCommission = 0;
 	if (m_Last > 0)
 	{
@@ -236,6 +276,7 @@ tile_task_group::~tile_task_group()
 	{
 		auto remainingTasks = (m_Last - m_Commissioned); // current slot still has to be registered as completed, after which this task_group may be destructed.
 		m_Commissioned += remainingTasks;
+		CheckThis(this);
 		assert(m_Commissioned == m_Last);
 		decommission(); // stop handing out slots for this task group, so that no new tasks will be started, but the current ones can still finish.
 		registerCompletions(remainingTasks); // other tasks in flight might still come in before m_TileTasksDone can be notified.
@@ -271,12 +312,17 @@ void tile_task_group::decommission()
 // Commission next slot if available and return the ticket; otherwise undefined.
 auto tile_task_group::getNextCommissioned() -> IndexType
 {
+	assert(!SuspendTrigger::DidSuspend());
 	assert(!s_TileTaskGroupsMutex.try_lock()); // don't let the notification fall outside a waiter lock
 
 	if (m_Commissioned >= m_Last)
 		return UNDEFINED_VALUE(IndexType);
 
+	if (SuspendTrigger::MustSuspend())
+		return UNDEFINED_VALUE(IndexType);
+
 	auto result = m_Commissioned++; // ownership of this slot of the task_group is now obtained and will continue until this thread causes m_NrCompleted to increment accordingly
+	CheckThis(this);
 	assert(result < m_Last);
 	if (m_Commissioned >= m_Last)
 		decommission(); // stop handing out slots for this task group, so that no new tasks will be started, but the current ones, including the slot that the caller must complete, can still finish.
@@ -294,38 +340,61 @@ auto tile_task_group::GetNextCommissioned() -> IndexType
 void tile_task_group::registerCompletions(IndexType nr)
 {
 	assert(!s_TileTaskGroupsMutex.try_lock()); // don't let the notification fall outside a waiter lock
+
 	assert(nr);
 	m_NrCompleted += nr;
+	CheckThis(this);
 	assert(m_NrCompleted <= m_Last);
 	if (m_NrCompleted == m_Last)
 		m_TileTasksDone.notify_all();
 }
 
-// Register a single completion.
-void tile_task_group::RegisterCompletion()
+bool tile_task_group::registerCompletion(IndexType i)
 {
-	auto lock = std::unique_lock<std::mutex>(s_TileTaskGroupsMutex); // don't let the notification fall outside a waiter lock
+	assert(!s_TileTaskGroupsMutex.try_lock()); // don't let the notification fall outside a waiter lock
+
 	assert(m_NrCompleted < m_Last);
-	if (++m_NrCompleted == m_Last) // don't increment outside lock as it may cause another thread to Join and destruct
-		m_TileTasksDone.notify_all();
+
+#if defined(MG_DEBUG)
+	assert(md_CompletedWork[i] == 0);
+	md_CompletedWork[i] = 1;
+#endif
+
+	auto nrCompleted = ++m_NrCompleted; // don't increment outside lock as it may cause another thread to Join and destruct
+	CheckThis(this);
+	if (nrCompleted != m_Last) 
+		return false;
+	m_TileTasksDone.notify_all();
+	return true;
 }
 
-// Register completion and immediately try to commission a next slot (if any).
-auto tile_task_group::RegisterCompletionAndGetNextCommissioned()->IndexType
+/*
+// Register a single completion.
+void tile_task_group::RegisterCompletion(IndexType i)
 {
 	auto lock = std::unique_lock<std::mutex>(s_TileTaskGroupsMutex); // don't let the notification fall outside a waiter lock
-	assert(m_NrCompleted < m_Last);
-	if (++m_NrCompleted == m_Last)
-	{
-		m_TileTasksDone.notify_all();
+
+	registerCompletion(i); // perform debug checks and bookkeeping for this completion
+}
+*/
+
+// Register completion and immediately try to commission a next slot (if any).
+auto tile_task_group::RegisterCompletionAndGetNextCommissioned(IndexType i)->IndexType
+{
+	assert(!SuspendTrigger::DidSuspend());
+	auto lock = std::unique_lock<std::mutex>(s_TileTaskGroupsMutex); // don't let the notification fall outside a waiter lock
+
+	auto isCompleted = registerCompletion(i); // perform debug checks and bookkeeping for this completion
+
+	if (isCompleted)
 		return UNDEFINED_VALUE(IndexType);
-	}
+
 	return getNextCommissioned();
 }
 
 // Execute slot 'i' and optionally continue with more slots (doMore=true).
 // Handles cancellation and exception paths, ensuring proper decommissioning.
-void tile_task_group::DoWork(IndexType i, bool doMore)
+void tile_task_group::DoWork(IndexType i)
 {
 	assert(!std::uncaught_exceptions());
 	assert(IsDefined(i)); // we assume starting with a valid ticket to a slot, or else this tile_task_group may already be destroyed.
@@ -333,21 +402,17 @@ void tile_task_group::DoWork(IndexType i, bool doMore)
 		CancelableFrame frame(m_CallingContext);
 		while (IsDefined(i))
 		{
-			if (m_CallingContext)
-				DSM::CancelIfOutOfInterest();
-			ASyncContinueCheck();
+			DSM::CancelIfOutOfInterest(); // don't continue if m_CallingContext or Process is cancelling
+			ASyncContinueCheck(); // additional check, set from CloseConfig
+			if (s_OcTaskGroupIsCanceling)
+				throw task_canceled{};
 
 			UpdateMarker::PrepareDataInvalidatorLock preventInvalidations;
 			m_Func(i);
-			if (!doMore)
-			{
-				RegisterCompletion(); // release this slot of the task_group, so from here, this may be destroyed
-				break;
-			}
-			if (SuspendTrigger::MustSuspend())
-				return;
-			i = RegisterCompletionAndGetNextCommissioned(); // release this slot and obtain the next one, or none if this task group is done.
+
+			i = RegisterCompletionAndGetNextCommissioned(i); // release this slot and obtain the next one, or none if this task group is done.
 		}
+		assert((m_Commissioned == m_Last) || SuspendTrigger::DidSuspend()); // post condition
 	}
 	catch (...)
 	{
@@ -359,17 +424,19 @@ void tile_task_group::DoWork(IndexType i, bool doMore)
 			m_ExceptionPtr = std::current_exception();
 			auto remainingTasks = m_Last - m_Commissioned; // current slot still has to be registered as completed, after which this task_group may be destructed.
 			m_Commissioned += remainingTasks;
+			CheckThis(this);
 			assert(m_Commissioned == m_Last);
 			decommission(); // stop handing out slots for this task group, so that no new tasks will be started, but the current ones can still finish.
 			registerCompletions(1 + remainingTasks); // other tasks in flight might still come in before m_TileTasksDone can be notified.
 		}
+		assert(m_Commissioned == m_Last); // post condition
 	}
 }
 
 // Wait until all commissioned slots are completed. No exceptions thrown.
 void tile_task_group::AwaitRunningSlots() noexcept
 {
-	assert(m_Commissioned == m_Last); // post condition of DoWork
+	MG_CHECK(m_Commissioned == m_Last); // post condition of DoWork
 
 	while (true)
 	{
@@ -391,9 +458,14 @@ void tile_task_group::AwaitRunningSlots() noexcept
 // Join ensures completion of all tasks and rethrows any stored exception.
 void tile_task_group::Join()
 {
+	assert(!SuspendTrigger::DidSuspend());
+	SuspendTrigger::SilentBlocker dontSuspendThis("tile_task_group::Join()");
+
 	IndexType nextSlot = GetNextCommissioned();
 	if (IsDefined(nextSlot))
-		DoWork(nextSlot, true);
+		DoWork(nextSlot);
+	assert(!SuspendTrigger::DidSuspend());
+	assert(m_Commissioned == m_Last); // post condition of DoWork
 
 	AwaitRunningSlots();
 	// no more other worker threads can access this task group, so we can safely access m_ExceptionPtr now.
@@ -600,9 +672,6 @@ TIC_CALL void WakeUpJoiners()
 // note: GetTaskGroup() returns a singleton, but calls to GetTaskGroup().run(...) can be made from different threads
 // 
 // *****************************************************************************
-
-static concurrency::task_group* s_OcTaskGroup = nullptr;
-static bool s_OcTaskGroupIsCanceling = false;
 
 TIC_CALL tg_maintainer::tg_maintainer()
 {
@@ -1392,7 +1461,7 @@ bool OperationContext::collectTaskImpl()
 bool OperationContext::TryRunningTaskInline()
 {
 	assert(m_Suppliers.empty());
-	StealOneTileTask(true);
+	StealTasks();
 
 	if (!GetUniqueLicenseToRun())
 		return false;
@@ -2147,8 +2216,8 @@ auto FindAndLicenceOnePriorityTasks() -> OperationContextSPtr
 // Try to steal and execute any single unit of work; returns true if did work.
 bool StealOneTask()
 {
-	StealOneTileTask(true)
-		;
+	StealTasks();
+
 	auto ocSPtr = FindAndLicenceOnePriorityTasks();
 	if (!ocSPtr)
 		return false; // no work to do
@@ -2185,7 +2254,7 @@ bool CurrActiveTaskHasRunCount()
 task_status OperationContext::Join()
 {
 	if (!IsMetaThread())
-		StealOneTileTask(true);
+		StealTasks();
 
 	if (CurrActiveTaskHasRunCount())
 	{
@@ -2326,7 +2395,7 @@ exit:
 TIC_CALL void DoWorkWhileWaiting()
 {
 	if (!IsMetaThread())
-		StealOneTileTask(true);
+		StealTasks();
 
 	if (IsMetaThread())
 	{
@@ -2378,7 +2447,7 @@ TIC_CALL void DoWorkWhileWaitingFor(std::atomic<task_status>* fenceStatus)
 	assert(fenceStatus);
 
 	if (!IsMetaThread())
-		StealOneTileTask(true);
+		StealTasks();
 
 	while (IsActiveOrRunning(*fenceStatus))
 	{

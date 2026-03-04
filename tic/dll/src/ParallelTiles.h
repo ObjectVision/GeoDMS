@@ -54,15 +54,24 @@ private:
 	IndexType getNextCommissioned();
 	IndexType GetNextCommissioned();
 	void registerCompletions(IndexType nr);
-	void RegisterCompletion();
-	auto RegisterCompletionAndGetNextCommissioned()->IndexType;
+//	void RegisterCompletion(IndexType i);
+	auto RegisterCompletionAndGetNextCommissioned(IndexType i)->IndexType;
 
-	void DoWork(IndexType i, bool doMore);
+	bool registerCompletion(IndexType i);
+
+
+	void DoWork(IndexType i);
 
 	friend auto takeOneTileTask() -> std::pair<tile_task_group*, tile_task_group::IndexType>;
-	friend bool StealOneTileTask(bool doMore);
+	friend void StealTasks();
 	friend void DoThisOrThatAndDecommission();
 	template <typename R> friend struct tile_task_result;
+	friend void CheckThis(tile_task_group* self);
+
+#if defined(MG_DEBUG)
+	std::vector<int> md_CompletedWork;
+#endif
+
 };
 
 
