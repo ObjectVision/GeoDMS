@@ -25,6 +25,7 @@ public:
 	RTC_CALL ~CDebugLog();
 
 private:
+	CDebugLog(WeakStr name, bool tag); // called from the public constructor with a DatedFileName
 	static void DMS_CONV DebugMsgCallback(ClientHandle clientHandle, const MsgData* msgData, bool moreToCome);
 
 	FileOutStreamBuff   m_FileBuff;

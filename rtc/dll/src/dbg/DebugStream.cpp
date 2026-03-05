@@ -17,6 +17,7 @@
 #include "dbg/DebugLog.h"
 #include "utl/MemGuard.h"
 #include "utl/mySPrintF.h"
+#include "utl/splitPath.h"
 
 #include "dbg/DmsCatch.h"
 #include "set/VectorFunc.h"
@@ -604,7 +605,32 @@ int write_now_str(char* buff, SizeT n)
 	return write_time_str(buff, n, t);
 }
 
+#include <chrono>
+
+SharedStr DatedName(WeakStr fileName)
+{
+	auto nameStart = fileName.c_str();
+	auto ext = getFileNameExtension(nameStart);
+	auto nameEnd = ext; if (nameEnd != nameStart && nameEnd[-1] == '.') 
+		--nameEnd;
+
+	int year, month, day_of_month;
+
+	auto today = std::chrono::floor<std::chrono::days>(std::chrono::system_clock::now());
+
+	std::chrono::year_month_day ymd{ today };
+
+	year = int(ymd.year());
+	month = unsigned(ymd.month());
+	day_of_month = unsigned(ymd.day());
+	return mySSPrintF("%s_%04d-%02d-%02d%s", CharPtrRange(nameStart, nameEnd), year, month, day_of_month, nameEnd);
+}
+
 CDebugLog::CDebugLog(WeakStr name)
+	: CDebugLog(DatedName(name), true)
+{}
+
+CDebugLog::CDebugLog(WeakStr name, bool tag)
 	:	m_FileBuff(name, true, true), m_Stream(&m_FileBuff, FormattingFlags::ThousandSeparator)
 {
 	bool isOpened = m_FileBuff.IsOpen();
