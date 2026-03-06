@@ -103,9 +103,12 @@ struct XML_Table : XML_OutElement
 		OutStream().WriteValue(value);
 	}
 
-	void EditableNameValueRow(CharPtr propName, CharPtr propValue, const TreeItem* context = 0)
+	void EditableNameValueRow(CharPtr propName, CharPtr propValue, const TreeItem* context = 0, CharPtr color = nullptr)
 	{
 		Row row(*this);
+		if (color)
+			OutStream().WriteAttr("bgcolor", color);
+
 			row.EditablePropCell(propName, propName, context);
 			row.ValueCell(propValue);
 	}

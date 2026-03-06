@@ -45,6 +45,7 @@
 // *****************************************************************************
 //											LOCAL HELPER FUNCS
 // *****************************************************************************
+const CharPtr GreenBackgroundColor = "#ACE1AF";
 
 bool XML_MetaInfoRefRows(const TreeItem* self, XML_Table& table, CharPtr color = nullptr);
 
@@ -158,7 +159,7 @@ void TreeItem_XML_DumpDescr(const TreeItem* self, XML_Table& xmlTable)
 	SharedStr result = self->GetDescr();
 	if (!result.empty()) {
 
-		xmlTable.SingleCellRow(result.c_str(), "#ACE1AF");
+		xmlTable.SingleCellRow(result.c_str(), GreenBackgroundColor);
 		xmlTable.EmptyRow();
 	}
 }
@@ -188,7 +189,7 @@ bool WriteUnitProps(XML_Table& xmlTable, const AbstrUnit* unit, bool allTileInfo
 			try {
 				SharedStr metricStr = unit->GetMetricStr(xmlTable.GetFormattingFlags());
 				if (!metricStr.empty())
-					xmlTable.EditableNameValueRow(METRIC_NAME, metricStr.c_str(), unit);
+					xmlTable.EditableNameValueRow(METRIC_NAME, metricStr.c_str(), unit, GreenBackgroundColor);
 			}
 			catch (...)
 			{
@@ -678,7 +679,7 @@ bool TreeItem_XML_DumpGeneralBody(const TreeItem* self, OutStreamBase* xmlOutStr
 
 	TreeItem_XML_DumpDescr(self, xmlTable);
 
-	XML_MetaInfoRefRows(self, xmlTable, "#ACE1AF");
+	XML_MetaInfoRefRows(self, xmlTable, GreenBackgroundColor);
 
 	auto result = TreeItemPropertyValue(self, labelPropDefPtr); 
 	if (!result.empty())
@@ -931,7 +932,7 @@ TIC_CALL bool XML_MetaInfoRef(const TreeItem* self, OutStreamBase* xmlOutStrPtr)
 	XML_ItemBody xmlItemBody(*xmlOutStrPtr, "Meta information reference", "a link to description or documentation", self);
 	try {
 		XML_Table table(*xmlOutStrPtr);
-		XML_MetaInfoRefRows(self, table, "#ACE1AF");
+		XML_MetaInfoRefRows(self, table, GreenBackgroundColor);
 	}
 	catch (...)
 	{

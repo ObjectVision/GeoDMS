@@ -30,10 +30,11 @@
 #include "DataStoreManagerCaller.h"
 #include "Metric.h"
 #include "Projection.h"
+#include "PropFuncs.h"
 #include "TiledUnit.h"
 #include "TreeItemClass.h"
 #include "TreeItemContextHandle.h"
-#include "PropFuncs.h"
+#include "TreeItemProps.h"
 #include "Unit.h"
 #include "UnitClass.h"
 
@@ -423,10 +424,20 @@ TokenID AbstrUnit::GetCurrSpatialReference() const
 
 SharedStr AbstrUnit::GetMetricStr(FormattingFlags ff) const
 {
+	auto labelStr = labelPropDefPtr->GetValue(this);
+
 	auto m = GetMetric();
-	if (m) 
-		return m->AsString(ff);
-	return SharedStr();
+	if (m)
+	{
+		auto metricStr = m->AsString(ff);
+		if (!metricStr.empty())
+		{
+			if (labelStr.empty())
+				return metricStr;
+			return mySSPrintF("%s [ %s ]", labelStr, metricStr);
+		}
+	}
+	return labelStr;
 }
 
 SharedStr AbstrUnit::GetCurrMetricStr(FormattingFlags ff) const
