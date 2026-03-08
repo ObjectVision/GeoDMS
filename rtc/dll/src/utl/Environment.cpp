@@ -458,6 +458,11 @@ RTC_CALL bool ShowThousandSeparator()
 	return GetRegStatusFlags() & RSF_ShowThousandSeparator;
 }
 
+RTC_CALL bool EventLog_HideDepreciatedCaseMixupWarnings()
+{
+	return GetRegStatusFlags() & RSF_EventLog_HideDepreciated;
+}
+
 extern "C" RTC_CALL bool DMS_CONV RTC_ParseRegStatusFlag(const char* param)
 {
 	dms_assert(param);
@@ -487,7 +492,8 @@ extern "C" RTC_CALL bool DMS_CONV RTC_ParseRegStatusFlag(const char* param)
 		case '2': SetCachedStatusFlag(RSF_MultiThreading2, newValue); break;
 		case '3': SetCachedStatusFlag(RSF_MultiThreading3, newValue); break;
 		case 'H': SetCachedStatusFlag(RSF_ShowThousandSeparator, newValue); break;
-		default: 
+		case 'W': SetCachedStatusFlag(RSF_EventLog_HideDepreciated, !newValue); break; // the command line option is /SW to Show (not hide) deprecated events, but the flag is HideDepreciated, so invert the value
+		default:
 			reportF(SeverityTypeID::ST_Warning, "Unrecognised command line %s option %s",  (newValue ? "Set" : "Clear"), param);
 			return true;
 	}

@@ -101,7 +101,8 @@ enum RegStatusFlags
 	RSF_EventLog_ClearOnReLoad = 0x80000,
 
 	RSF_TreeView_FollowOSLayout = 0x100000,
-	
+	RSF_EventLog_HideDepreciated= 0x200000,
+
 	RSF_WasRead = 0x80000000,
 	RSF_Default = RSF_AdminMode | RSF_ShowStateColors | RSF_AllPanelsVisible | RSF_AllMultiThreading
 		| RSF_EventLog_ClearOnLoad | RSF_EventLog_ShowDateTime | RSF_EventLog_ShowCategory,
@@ -111,6 +112,8 @@ RTC_CALL UInt32 GetRegStatusFlags();
 RTC_CALL void SetCachedStatusFlag(UInt32 newSF, bool newVal = true);
 RTC_CALL bool HasDynamicROI();
 RTC_CALL bool ShowThousandSeparator();
+RTC_CALL bool EventLog_HideDepreciatedCaseMixupWarnings();
+
 
 //  -----------------------------------------------------------------------
 

@@ -1,17 +1,18 @@
-// Copyright (C) 1998-2025 Object Vision b.v. 
+// Copyright (C) 1998-2026 Object Vision b.v. 
 // License: GNU GPL 3
 /////////////////////////////////////////////////////////////////////////////
 
 #include "RtcPCH.h"
 
-
-/****************** IndexedStrings *******************/
+#if defined(_MSC_VER)
+#pragma hdrstop
+#endif //defined(_MSC_VER)
 
 #include "set/IndexedStrings.h"
+#include "utl/Environment.h"
 #include "LockLevels.h"
 
-//  -----------------------------------------------------------------------
-
+/****************** IndexedStrings *******************/
 
 template<bool MustZeroTerminate>
 CharPtrRange StringIndexer::GetPtrs(index_type x) const noexcept
@@ -114,12 +115,14 @@ IndexedStrings<MustZeroTerminate, CharPtrRangeEqCmp, CharPtrRangeHasher>::GetOrC
 						s_AlreadyReportedBitmap.resize(newSize);
 					}
 					s_AlreadyReportedBitmap[foundIndex] = true;
-
-					auto warningStr = mgFormat2string("Depreciated mix-up of cases, tokenized '%s' as token %d and then seen '%s'", foundValue, foundIndex, keyValue);
-					PostMainThreadOper([warningStr] {
-						reportD(SeverityTypeID::ST_Warning, warningStr.c_str());
-						}
-					);
+					if (!EventLog_HideDepreciatedCaseMixupWarnings())
+					{
+						auto warningStr = mgFormat2string("Depreciated mix-up of cases, tokenized '%s' as token %d and then seen '%s'", foundValue, foundIndex, keyValue);
+						PostMainThreadOper([warningStr] {
+							reportD(SeverityTypeID::ST_Warning, warningStr.c_str());
+							}
+						);
+					}
 				}
 			}
 		}

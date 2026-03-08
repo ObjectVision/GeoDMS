@@ -409,12 +409,15 @@ DmsEventLog::DmsEventLog(QWidget* parent)
 	m_eventlog_filter->m_thread   ->setChecked(dms_reg_status_flags & RSF_EventLog_ShowThreadID);
 	m_eventlog_filter->m_category ->setChecked(dms_reg_status_flags & RSF_EventLog_ShowCategory);
 
-	connect(m_eventlog_filter.get()->m_minor_trace_filter, &QCheckBox::toggled, eventlog_model_ptr, &EventLogModel::refilter);
-	connect(m_eventlog_filter.get()->m_major_trace_filter, &QCheckBox::toggled, eventlog_model_ptr, &EventLogModel::refilter);
-	connect(m_eventlog_filter.get()->m_warning_filter, &QCheckBox::toggled, eventlog_model_ptr, &EventLogModel::refilter);
-	connect(m_eventlog_filter.get()->m_error_filter, &QCheckBox::toggled, eventlog_model_ptr, &EventLogModel::refilter);
-	connect(m_eventlog_filter.get()->m_read_filter, &QCheckBox::toggled, eventlog_model_ptr, &EventLogModel::refilter);
-	connect(m_eventlog_filter.get()->m_write_filter, &QCheckBox::toggled, eventlog_model_ptr, &EventLogModel::refilter);
+	connect(m_eventlog_filter->m_minor_trace_filter, &QCheckBox::toggled, eventlog_model_ptr, &EventLogModel::refilter);
+	connect(m_eventlog_filter->m_major_trace_filter, &QCheckBox::toggled, eventlog_model_ptr, &EventLogModel::refilter);
+	connect(m_eventlog_filter->m_warning_filter, &QCheckBox::toggled, eventlog_model_ptr, &EventLogModel::refilter);
+	connect(m_eventlog_filter->m_error_filter, &QCheckBox::toggled, eventlog_model_ptr, &EventLogModel::refilter);
+	connect(m_eventlog_filter->m_read_filter, &QCheckBox::toggled, eventlog_model_ptr, &EventLogModel::refilter);
+	connect(m_eventlog_filter->m_write_filter, &QCheckBox::toggled, eventlog_model_ptr, &EventLogModel::refilter);
+
+	m_eventlog_filter->m_case_mixup_warning_filter->setChecked(!EventLog_HideDepreciatedCaseMixupWarnings());
+	connect(m_eventlog_filter->m_case_mixup_warning_filter, &QCheckBox::toggled, [](bool checkedState) { SetCachedStatusFlag(RSF_EventLog_HideDepreciated, !checkedState); });
 
 	connect(m_eventlog_filter.get()->m_category_filter_commands, &QCheckBox::toggled, eventlog_model_ptr, &EventLogModel::refilter);
 	connect(m_eventlog_filter.get()->m_category_filter_memory, &QCheckBox::toggled, eventlog_model_ptr, &EventLogModel::refilter);

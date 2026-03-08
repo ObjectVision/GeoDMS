@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>1373</width>
-    <height>133</height>
+    <width>1369</width>
+    <height>125</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -16,7 +16,7 @@
   <widget class="QGroupBox" name="groupBox">
    <property name="geometry">
     <rect>
-     <x>10</x>
+     <x>20</x>
      <y>0</y>
      <width>520</width>
      <height>121</height>
@@ -44,13 +44,13 @@
      </sizepolicy>
     </property>
     <property name="frameShadow">
-     <enum>QFrame::Sunken</enum>
+     <enum>QFrame::Shadow::Sunken</enum>
     </property>
     <property name="lineWidth">
      <number>2</number>
     </property>
     <property name="orientation">
-     <enum>Qt::Horizontal</enum>
+     <enum>Qt::Orientation::Horizontal</enum>
     </property>
    </widget>
    <widget class="Line" name="line_2">
@@ -63,13 +63,13 @@
      </rect>
     </property>
     <property name="frameShadow">
-     <enum>QFrame::Sunken</enum>
+     <enum>QFrame::Shadow::Sunken</enum>
     </property>
     <property name="lineWidth">
      <number>2</number>
     </property>
     <property name="orientation">
-     <enum>Qt::Vertical</enum>
+     <enum>Qt::Orientation::Vertical</enum>
     </property>
    </widget>
    <widget class="QLabel" name="lbl_calculation_progress">
@@ -136,13 +136,13 @@
      </rect>
     </property>
     <property name="frameShadow">
-     <enum>QFrame::Sunken</enum>
+     <enum>QFrame::Shadow::Sunken</enum>
     </property>
     <property name="lineWidth">
      <number>2</number>
     </property>
     <property name="orientation">
-     <enum>Qt::Vertical</enum>
+     <enum>Qt::Orientation::Vertical</enum>
     </property>
    </widget>
    <widget class="QCheckBox" name="m_major_trace_filter">
@@ -196,8 +196,8 @@
    <widget class="QCheckBox" name="m_warning_filter">
     <property name="geometry">
      <rect>
-      <x>140</x>
-      <y>85</y>
+      <x>210</x>
+      <y>90</y>
       <width>141</width>
       <height>20</height>
      </rect>
@@ -211,7 +211,7 @@
      <string notr="true">color: darkorange;</string>
     </property>
     <property name="text">
-     <string>warning</string>
+     <string>other warnings</string>
     </property>
     <property name="checked">
      <bool>true</bool>
@@ -220,9 +220,9 @@
    <widget class="QCheckBox" name="m_error_filter">
     <property name="geometry">
      <rect>
-      <x>320</x>
-      <y>85</y>
-      <width>161</width>
+      <x>370</x>
+      <y>90</y>
+      <width>141</width>
       <height>20</height>
      </rect>
     </property>
@@ -337,6 +337,19 @@
      <bool>false</bool>
     </property>
    </widget>
+   <widget class="QCheckBox" name="m_case_mixup_warning_filter">
+    <property name="geometry">
+     <rect>
+      <x>20</x>
+      <y>90</y>
+      <width>78</width>
+      <height>20</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>Depreciated case mixup warnings</string>
+    </property>
+   </widget>
   </widget>
   <widget class="QCheckBox" name="m_category_filter_commands">
    <property name="geometry">
@@ -406,13 +419,13 @@
     </rect>
    </property>
    <property name="frameShadow">
-    <enum>QFrame::Sunken</enum>
+    <enum>QFrame::Shadow::Sunken</enum>
    </property>
    <property name="lineWidth">
     <number>2</number>
    </property>
    <property name="orientation">
-    <enum>Qt::Vertical</enum>
+    <enum>Qt::Orientation::Vertical</enum>
    </property>
   </widget>
   <widget class="QLabel" name="lbl_background_layer_2">
@@ -503,13 +516,13 @@
     </rect>
    </property>
    <property name="frameShadow">
-    <enum>QFrame::Sunken</enum>
+    <enum>QFrame::Shadow::Sunken</enum>
    </property>
    <property name="lineWidth">
     <number>2</number>
    </property>
    <property name="orientation">
-    <enum>Qt::Vertical</enum>
+    <enum>Qt::Orientation::Vertical</enum>
    </property>
   </widget>
   <widget class="QCheckBox" name="m_thread">
@@ -687,13 +700,13 @@
     </rect>
    </property>
    <property name="frameShadow">
-    <enum>QFrame::Sunken</enum>
+    <enum>QFrame::Shadow::Sunken</enum>
    </property>
    <property name="lineWidth">
     <number>2</number>
    </property>
    <property name="orientation">
-    <enum>Qt::Vertical</enum>
+    <enum>Qt::Orientation::Vertical</enum>
    </property>
   </widget>
  </widget>
