@@ -423,7 +423,7 @@ template <typename T>
 struct FixedRangeConverter {
 	FixedRangeConverter(const range_data_ptr_or_void<T>& src) {}
 
-	template <typename I> T GetValue(I i) const { return Convert<T>(i); }
+	template <typename I> T GetValue(I i) const { return ThrowingConvert<T>(i); }
 	template <typename I> I GetScalar(T v) const { return Convert<I>(v); }
 };
 
@@ -432,7 +432,7 @@ struct CountableVarRangeConverter
 {
 	CountableVarRangeConverter(const range_data_ptr_or_void<T>& src) : m_Range(src->GetRange()) {}
 
-	template <typename I> T GetValue(I i) const { return Range_GetValue_checked(m_Range, Convert<row_id>(i)); }
+	template <typename I> T GetValue(I i) const { return Range_GetValue_checked(m_Range, ThrowingConvert<row_id>(i)); }
 	template <typename I> I GetScalar(const Point<T>& v) const { return Convert<I>(Range_GetIndex_checked(m_Range, v)); }
 private:
 	Range<T> m_Range;
