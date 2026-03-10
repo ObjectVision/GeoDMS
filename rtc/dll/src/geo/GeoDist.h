@@ -11,6 +11,7 @@
 #define __GEO_GEODIST_H
 
 #include "geo/Conversions.h"
+#include "geo/RingIterator.h"
 
 using seq_elem_index_type = UInt32;
 
@@ -93,15 +94,16 @@ struct ArcProjectionHandle
 	sqrdist_type  m_MinSqrDist = 0;
 
 	// result vars
-	bool         m_FoundAny = false, m_InArc = false, m_InSegm = false;
+	bool         m_FoundAny = false, m_InArc = false, m_InSegm = false, m_IsPossiblyMultiPolygon = false;
 	seq_elem_index_type m_SegmIndex = UNDEFINED_VALUE(seq_elem_index_type);
 	PointType    m_CutPoint;
 	
 	ArcProjectionHandle() {}
 
-	ArcProjectionHandle(PointType p, sqrdist_type minSqrDist)
+	ArcProjectionHandle(PointType p, sqrdist_type minSqrDist, bool isPossiblyMultiPolygon)
 		:	m_Point(p)
 		,	m_MinSqrDist(minSqrDist)
+		, m_IsPossiblyMultiPolygon(isPossiblyMultiPolygon)
 	{}
 
 	bool CanSkip(const RectType& bb)
@@ -120,34 +122,49 @@ struct ArcProjectionHandle
 		return !m_FoundAny && newDist == m_MinSqrDist;
 	}
 
-	bool Project2Arc(ConstPointPtr arcBegin, ConstPointPtr arcEnd);
-}; 
+	bool Project2LineString(ConstPointPtr arcBegin, ConstPointPtr arcEnd);
+	bool Project2MultiLinestring(ConstPointPtr arcBegin, ConstPointPtr arcEnd);
+	bool Project2MultiPolygon(ConstPointPtr arcBegin, ConstPointPtr arcEnd);
+
+	bool Project2Arc(ConstPointPtr arcBegin, ConstPointPtr arcEnd)
+	{
+		if (m_IsPossiblyMultiPolygon)
+			return Project2MultiPolygon(arcBegin, arcEnd);
+		else
+			return Project2MultiLinestring(arcBegin, arcEnd);
+	}
+};
 
 template <typename R, typename T>
-bool ArcProjectionHandle<R, T>::Project2Arc(ConstPointPtr arcBegin, ConstPointPtr arcEnd)
+bool ArcProjectionHandle<R, T>::Project2LineString(ConstPointPtr arcBegin, ConstPointPtr arcEnd)
 {
 	if (arcBegin == arcEnd)
 		return false;
 
-	ConstPointPtr 
-		j = arcBegin, 
-		i = j, 
+	assert(IsDefined(arcBegin[0]));
+
+	ConstPointPtr
+		j = arcBegin,
+		i = j,
 		nearestSegm = nullptr;
 
-	if	( MakeSafeMin(Norm<sqrdist_type>(m_Point - *arcBegin) ) )
+	if (MakeSafeMin(Norm<sqrdist_type>(m_Point - *arcBegin)))
 		nearestSegm = arcBegin;
 
-	for ( ; ++j != arcEnd ; i = j)
-		if (MakeSafeMin( SqrDist2Segm<sqrdist_type>(m_Point, *i, *j)) )
+	for (; ++j != arcEnd; i = j)
+	{
+		assert(IsDefined(*j));
+		if (MakeSafeMin(SqrDist2Segm<sqrdist_type>(m_Point, *i, *j)))
 			nearestSegm = i;
+	}
 
 	if (nearestSegm == nullptr)
 		return false;
 
-	assert(i+1 == arcEnd);
+	assert(i + 1 == arcEnd);
 
 	m_SegmIndex = nearestSegm - arcBegin;
-	ConstPointPtr nearestSegmEnd = nearestSegm+1;
+	ConstPointPtr nearestSegmEnd = nearestSegm + 1;
 	if (nearestSegmEnd == arcEnd) // only possible when linestring is only one point
 	{
 		assert(nearestSegm == arcBegin);
@@ -157,18 +174,73 @@ bool ArcProjectionHandle<R, T>::Project2Arc(ConstPointPtr arcBegin, ConstPointPt
 	}
 	else
 	{
-		m_CutPoint= Project2Segm<R>(m_Point, *nearestSegm, *nearestSegmEnd);
-		m_InArc   = (nearestSegm != arcBegin || m_CutPoint != *arcBegin) 
-				 && (nearestSegm != i-1      || m_CutPoint != *i);
+		m_CutPoint = Project2Segm<R>(m_Point, *nearestSegm, *nearestSegmEnd);
+		m_InArc = (nearestSegm != arcBegin || m_CutPoint != *arcBegin)
+			&& (nearestSegm != i - 1 || m_CutPoint != *i);
 	}
-	m_InSegm  = m_InArc && (*nearestSegmEnd != m_CutPoint);
+	m_InSegm = m_InArc && (*nearestSegmEnd != m_CutPoint);
 	m_FoundAny = true;
 
 	assert(m_InArc
-		?	arcBegin + m_SegmIndex +  (m_InSegm ? 1 : 2) < arcEnd
-		:	(m_SegmIndex == 0 || arcBegin + m_SegmIndex + 2 == arcEnd)
+		? arcBegin + m_SegmIndex + (m_InSegm ? 1 : 2) < arcEnd
+		: (m_SegmIndex == 0 || arcBegin + m_SegmIndex + 2 == arcEnd)
 	);
 	return true;
+};
+
+template<typename ConstPointPtr>
+auto FindLineStringSeparator(ConstPointPtr begin, ConstPointPtr end) -> ConstPointPtr
+{
+	while (begin != end && IsDefined(*begin))
+		++begin;
+	return begin;
+}
+
+template <typename R, typename T>
+bool ArcProjectionHandle<R, T>::Project2MultiLinestring(ConstPointPtr arcBegin, ConstPointPtr arcEnd)
+{
+	if (arcBegin == arcEnd)
+		return false;
+
+	bool foundAny = false;
+	auto arcCursor = arcBegin;
+	while (arcCursor != arcEnd)
+	{
+		auto nextCursor = FindLineStringSeparator(arcCursor, arcEnd);
+		if (Project2LineString(arcCursor, nextCursor))
+		{
+			m_SegmIndex += arcCursor - arcBegin;
+			foundAny = true;
+		}
+		if (nextCursor == arcEnd)
+			break;
+		arcCursor = nextCursor+1;
+	}
+	return foundAny;
+}
+
+template <typename R, typename T>
+bool ArcProjectionHandle<R, T>::Project2MultiPolygon(ConstPointPtr arcBegin, ConstPointPtr arcEnd)
+{
+	if (arcBegin == arcEnd)
+		return false;
+
+	auto mpRef = IterRange<const PointType*>(arcBegin, arcEnd);
+	auto ringIter = SA_ConstRingIterator<PointType>(mpRef,  0);
+	auto ringEnd  = SA_ConstRingIterator<PointType>(mpRef, -1);
+
+	bool foundAny = false;
+	while (ringIter != ringEnd)
+	{
+		SA_ConstRing<PointType> ring = *ringIter;
+		if (Project2LineString(ring.begin(), ring.end()))
+		{
+			m_SegmIndex += ring.begin() - arcBegin;
+			foundAny = true;
+		}
+		++ringIter;
+	}
+	return foundAny;
 }
 
 // *****************************************************************************
@@ -191,8 +263,8 @@ struct ArcProjectionHandleWithDist : ArcProjectionHandle<R, T>
 
 	ArcProjectionHandleWithDist() {}
 
-	ArcProjectionHandleWithDist(typename ArcProjectionHandleWithDist::PointType p, typename ArcProjectionHandleWithDist::sqrdist_type minSqrDist)
-		:	ArcProjectionHandle<R, T>(p, minSqrDist)
+	ArcProjectionHandleWithDist(typename ArcProjectionHandleWithDist::PointType p, typename ArcProjectionHandleWithDist::sqrdist_type minSqrDist, bool isPossiblyMultiPolygon)
+		:	ArcProjectionHandle<R, T>(p, minSqrDist, isPossiblyMultiPolygon)
 		,	m_Dist(CalcDist())
 	{}
 

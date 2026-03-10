@@ -48,21 +48,21 @@ template<typename PointType>
 Range<PointType>
 RangeFromPtr(typename sequence_traits<std::vector<PointType> >::seq_t::iterator polygon)
 {
-	return RangeFromSequence(polygon->begin(), polygon->end());
+	return RangeFromSequence_SkipUndefined(polygon->begin(), polygon->end());
 }
 
 template<typename PointType>
 Range<PointType>
 RangeFromPtr(typename sequence_traits<std::vector<PointType> >::cseq_t::const_iterator polygon)
 {
-	return RangeFromSequence(polygon->begin(), polygon->end());
+	return RangeFromSequence_SkipUndefined(polygon->begin(), polygon->end());
 }
 
 template<typename PointType>
 Range<PointType>
 RangeFromPtr(typename sequence_array_index<PointType> polygon)
 {
-	return RangeFromSequence((*polygon).begin(), (*polygon).end());
+	return RangeFromSequence_SkipUndefined((*polygon).begin(), (*polygon).end());
 }
 
 // *****************************************************************************

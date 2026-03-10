@@ -1528,8 +1528,9 @@ SizeT FindArcByPoint(const GraphicArcLayer* layer, const Point<ScalarType>& pnt)
 	assert(bbCache);
 
 	SizeT entityID = UNDEFINED_VALUE(SizeT);
+	bool isPossiblyMultiPolgyon = layer->GetFeatureAttr()->GetValueComposition() == ValueComposition::Polygon;
 
-	ArcProjectionHandle<Float64, ScalarType> aph(pnt, MAX_VALUE(Float64));
+	ArcProjectionHandle<Float64, ScalarType> aph(pnt, MAX_VALUE(Float64), isPossiblyMultiPolgyon);
 
 	auto trd = featureData->GetTiledRangeData();
 	for (tile_id t=trd->GetNrTiles(); t--; )

@@ -418,10 +418,10 @@ template <typename R, typename T, typename ResObjectPtr>
 struct IndexedArcProjectionHandle : ArcProjectionHandleWithDist<R, T>
 {
 	template <typename SpatialIndexType>
-	IndexedArcProjectionHandle(const Point<T>* p, const SpatialIndexType& spIndex, const R* optionalMaxSqrDistPtr)
-		: ArcProjectionHandle(p, spIndex.GetSqrProximityUpperBound<R>(*p, 0xFFFFFFFF, optionalMaxSqrDistPtr))
+	IndexedArcProjectionHandle(const Point<T>* p, const SpatialIndexType& spIndex, const R* optionalMaxSqrDistPtr, bool isPossiblyMultiPolygon)
+		: ArcProjectionHandle(p, spIndex.GetSqrProximityUpperBound<R>(*p, 0xFFFFFFFF, optionalMaxSqrDistPtr), isPossiblyMultiPolygon)
 	{
-		dms_assert(spIndex.size());		
+		assert(spIndex.size());		
 		for (auto iter = spIndex.begin(Inflate(*p, Point<T>(this->m_Dist, this->m_Dist))); iter; ++iter)
 		{
 			ResObjectPtr streetPtr = (*iter)->get_ptr();
@@ -432,22 +432,22 @@ struct IndexedArcProjectionHandle : ArcProjectionHandleWithDist<R, T>
 			}
 		}
 
-		dms_assert(this->m_FoundAny);
+		assert(this->m_FoundAny);
 	}
 
 	template <typename SpatialIndexType, typename Filter>
-	IndexedArcProjectionHandle(Point<T> p, const SpatialIndexType& spIndex,  const Filter& filter, const R* optionalMaxSqrDistPtr)
+	IndexedArcProjectionHandle(Point<T> p, const SpatialIndexType& spIndex,  const Filter& filter, const R* optionalMaxSqrDistPtr, bool isPossiblyMultiPolygon)
 	{
 		UInt32 maxDepth = 0xFFFFFFFF;
 		while (true) {
 	
-			ArcProjectionHandleWithDist<R, T> aph(p, spIndex.GetSqrProximityUpperBound<R>(p, maxDepth, optionalMaxSqrDistPtr));
+			ArcProjectionHandleWithDist<R, T> aph(p, spIndex.GetSqrProximityUpperBound<R>(p, maxDepth, optionalMaxSqrDistPtr), isPossiblyMultiPolygon);
 			for (auto iter = spIndex.begin(Inflate(p, Point<T>(aph.m_Dist, aph.m_Dist))); iter; ++iter)
 			{
 				ResObjectPtr streetPtr = (*iter)->get_ptr();
 				if (!filter(streetPtr))
 					continue;
-				if (aph.Project2Arc(begin_ptr(*streetPtr), end_ptr(*streetPtr)))
+				if (aph.Project2MultiLinestring(begin_ptr(*streetPtr), end_ptr(*streetPtr)))
 				{
 					m_ArcPtr = streetPtr;
 					iter.RefineSearch( Inflate(p, Point<T>(aph.m_Dist, aph.m_Dist)) );
@@ -603,12 +603,13 @@ public:
 
 		const AbstrDataItem* argMaxDist = (HasMaxDist) ? AsDataItem(args[argCount++]) : nullptr;
 		const AbstrDataItem* argMinDist = (HasMinDist) ? AsDataItem(args[argCount++]) : nullptr;
-		dms_assert(args.size() == argCount);
+		assert(args.size() == argCount);
 
 		const AbstrUnit* polyUnit    = arg1A->GetAbstrValuesUnit();
 		const AbstrUnit* pointUnit   = arg2A->GetAbstrValuesUnit();
 		const AbstrUnit* polyEntity  = arg1A->GetAbstrDomainUnit();
 		const AbstrUnit* pointEntity = arg2A->GetAbstrDomainUnit();
+
 		polyUnit->UnifyValues (pointUnit, "Values of polygon attribute", "Values of point attribute", UM_Throw);
 
 		if (CT != compare_type::none)
@@ -659,8 +660,10 @@ public:
 			const Arg1Type* arg1 = const_array_cast<PolygonType>(arg1A);
 			const Arg2Type* arg2 = const_array_cast<  PointType>(arg2A);
 
-			dms_assert(arg1);
-			dms_assert(arg2);
+			bool isPossiblyMultiPolygon = arg1A->GetValueComposition() == ValueComposition::Polygon;
+
+			assert(arg1);
+			assert(arg2);
 
 			DataReadLock arg1Lock(arg1A);
 			DataReadLock arg2Lock(arg2A);
@@ -674,7 +677,7 @@ public:
 			std::atomic<SizeT> nrArg2 = 0;
 
 			auto arg1Data = arg1->GetLockedDataRead();
-			dms_assert(arg1Count == arg1Data.size());
+			assert(arg1Count == arg1Data.size());
 			SpatialIndexType spIndex(arg1Data.begin(), arg1Data.end(), 0);
 
 			const E* polyIDsPtr = nullptr;
@@ -687,7 +690,7 @@ public:
 			DataWriteLock res5Lock(resSub5);
 			DataWriteLock res6Lock(resSub6);
 
-			parallel_tileloop(pointEntity->GetNrTiles(), [&, this](tile_id t)
+			parallel_tileloop(pointEntity->GetNrTiles(), [&, isPossiblyMultiPolygon, this](tile_id t)
 				{
 					auto arg2Data = arg2->GetLockedDataRead(t);
 
@@ -771,7 +774,7 @@ public:
 							auto point = *pointPtr;
 							if (IsDefined(point))
 							{
-								IndexedArcProjectionHandle<SqrDistType, CoordType, typename Arg1Type::const_iterator> arcHnd(point, spIndex, filter, maxSqrDistPtr);
+								IndexedArcProjectionHandle<SqrDistType, CoordType, typename Arg1Type::const_iterator> arcHnd(point, spIndex, filter, maxSqrDistPtr, isPossiblyMultiPolygon);
 								if (arcHnd.m_FoundAny)
 								{
 									if (!maxSqrDistPtr || *maxSqrDistPtr > arcHnd.m_MinSqrDist)
@@ -918,7 +921,6 @@ public:
 		const AbstrUnit* polyEntity = arg1A->GetAbstrDomainUnit();
 		const AbstrUnit* pointEntity = arg2A->GetAbstrDomainUnit();
 		polyUnit->UnifyValues(pointUnit, "polygon coordinates", "points", UM_Throw);
-
 		if (CT != compare_type::none)
 		{
 			polyEntity->UnifyDomain(arg1_ID->GetAbstrDomainUnit(), "e1", "e2", UM_Throw);
@@ -948,6 +950,8 @@ public:
 		if (mustCalc)
 		{
 			Timer processTimer;
+
+			bool isPossiblyMultiPolygon = arg1A->GetValueComposition() == ValueComposition::Polygon;
 
 			DataReadLock arg1Lock(arg1A);
 			DataReadLock arg2Lock(arg2A);
@@ -981,7 +985,7 @@ public:
 			R* nrOrgEntityDataPtr = nrOrgEntityData.begin();
 			R* nrOrgEntityIter = nrOrgEntityDataPtr;
 
-			dms_assert(resultSubData.size() == maxResCount);
+			assert(resultSubData.size() == maxResCount);
 
 			auto resStreetBegin= resultSubData.begin();
 			auto resStreetEnd  = resStreetBegin;
@@ -1033,15 +1037,15 @@ public:
 					if constexpr (CT == compare_type::none)
 						return true;
 					seq_index_type streetIndex = streetPtr - resStreetBegin;
-					dms_assert(streetIndex < arg1Count + 2 * arg2Count);
+					assert(streetIndex < arg1Count + 2 * arg2Count);
 					if (streetIndex >= arg1Count)
 					{
-						dms_assert(streetIndex >= arg1Count + arg2Count);
+						assert(streetIndex >= arg1Count + arg2Count);
 						streetIndex -= (arg1Count + arg2Count);
-						dms_assert(streetIndex < arg2Count);
+						assert(streetIndex < arg2Count);
 						streetIndex = nrOrgEntityDataPtr[streetIndex];
 					}
-					dms_assert(streetIndex < arg1Count);
+					assert(streetIndex < arg1Count);
 					E pointID = pointIDsPtr[pointPtr - pointBegin];
 
 					if constexpr (CT == compare_type::eq)
@@ -1054,18 +1058,18 @@ public:
 					auto point = *pointPtr;
 					if (!IsDefined(point))
 						continue;
-					dms_assert(resStreetEnd < resCutBegin);
+					assert(resStreetEnd < resCutBegin);
 
-					IndexedArcProjectionHandle<SqrDistType, CoordType, ResultSubType::iterator> arcHnd(point, spIndex, filter, maxSqrDistPtr);
+					IndexedArcProjectionHandle<SqrDistType, CoordType, ResultSubType::iterator> arcHnd(point, spIndex, filter, maxSqrDistPtr, isPossiblyMultiPolygon);
 					if (arcHnd.m_FoundAny)
 					{
 						// add Arc with connection
-						dms_assert(resStreetEnd->empty());
+						assert(resStreetEnd->empty());
 						resStreetEnd->resize_uninitialized(2 MG_DEBUG_ALLOCATOR_SRC("Connect resStreetEnd"));
 						auto resPointPtr = resStreetEnd->begin();
 						resPointPtr[0] = point;
 						resPointPtr[1] = arcHnd.m_CutPoint;
-						dms_assert(resPointPtr + 2 == resStreetEnd->end());
+						assert(resPointPtr + 2 == resStreetEnd->end());
 
 						// split Arc if neccessary
 						if (arcHnd.m_InArc)
