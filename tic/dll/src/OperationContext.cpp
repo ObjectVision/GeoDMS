@@ -412,7 +412,7 @@ void tile_task_group::DoWork(IndexType i)
 
 			i = RegisterCompletionAndGetNextCommissioned(i); // release this slot and obtain the next one, or none if this task group is done.
 		}
-		assert((m_Commissioned == m_Last) || SuspendTrigger::DidSuspend()); // post condition
+//		assert((m_Commissioned == m_Last) || SuspendTrigger::DidSuspend()); // post condition, but this task_group may already be destructed by owner
 	}
 	catch (...)
 	{
@@ -429,7 +429,7 @@ void tile_task_group::DoWork(IndexType i)
 			decommission(); // stop handing out slots for this task group, so that no new tasks will be started, but the current ones can still finish.
 			registerCompletions(1 + remainingTasks); // other tasks in flight might still come in before m_TileTasksDone can be notified.
 		}
-		assert(m_Commissioned == m_Last); // post condition
+//		assert(m_Commissioned == m_Last); // post condition, but this task_group may already be destructed by owner
 	}
 }
 
