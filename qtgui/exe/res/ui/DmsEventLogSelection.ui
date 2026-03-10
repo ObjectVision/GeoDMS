@@ -198,7 +198,7 @@
      <rect>
       <x>210</x>
       <y>90</y>
-      <width>141</width>
+      <width>121</width>
       <height>20</height>
      </rect>
     </property>
@@ -222,7 +222,7 @@
      <rect>
       <x>370</x>
       <y>90</y>
-      <width>141</width>
+      <width>81</width>
       <height>20</height>
      </rect>
     </property>
@@ -342,12 +342,12 @@
      <rect>
       <x>20</x>
       <y>90</y>
-      <width>78</width>
+      <width>261</width>
       <height>20</height>
      </rect>
     </property>
     <property name="text">
-     <string>Depreciated case mixup warnings</string>
+     <string>Case mix-up warnings</string>
     </property>
    </widget>
   </widget>
