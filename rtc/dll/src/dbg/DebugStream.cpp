@@ -105,9 +105,6 @@ void MsgDispatch(MsgData* msgData, bool moreToCome)
 	assert((msgData->m_SeverityType == SeverityTypeID::ST_Nothing) || IsMainThread());
 	if (!g_MsgCallbacks)
 		return;
-	if (g_IsTerminating)
-		return;
-
 	if (msgData->m_Txt.ssize() > 256)
 		msgData->m_Txt = SharedStr(CharPtrRange(msgData->m_Txt.begin(), msgData->m_Txt.begin() + 256)) + "...";
 
@@ -664,6 +661,7 @@ CDebugLog::~CDebugLog()
 			*g_DebugStream << "@@@@@ Logging ended for " << m_FileBuff.FileName().c_str() << " at " << buff;
 		}
 	}
+	ProcessMsgDataPipeline();
 	DMS_ReleaseMsgCallback(DebugMsgCallback, typesafe_cast<ClientHandle>(this));
 }
 
