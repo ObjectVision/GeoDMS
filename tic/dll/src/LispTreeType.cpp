@@ -311,7 +311,6 @@ LispRef CreateLispSubTree(const TreeItem* self, bool inclSubTree)
 		if (!self)
 			return {};
 
-		self->DetermineState();
 		if (inclSubTree)
 			for (const TreeItem* subItem = self->GetFirstSubItem(); subItem; subItem = subItem->GetNextItem())
 			{

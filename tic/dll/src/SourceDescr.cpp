@@ -138,7 +138,7 @@ namespace { // local defs
 
 		auto merger = [&](const Actor* supplier)
 		{
-			if (supplier->IsPassorOrChecked())
+			if (supplier->IsPassor())
 				return;
 			tmpTokenSequence.swap(resultingTokenSequence);
 			resultingTokenSequence.clear();

@@ -769,7 +769,7 @@ namespace Explain { // local defs
 			VisitSupplProcImpl(studyObject, SupplierVisitFlag::Explain,
 				[&] (const Actor* supplier)
 				{
-					if (supplier->IsPassorOrChecked())
+					if (supplier->IsPassor())
 						return;
 					const TreeItem* suppl = dynamic_cast<const TreeItem*>(supplier);
 					if (!suppl)
