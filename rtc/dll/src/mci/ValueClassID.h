@@ -55,22 +55,21 @@ enum class ValueClassID : UInt8 {
 	VT_FRect = VT_FPoint + NrPointTypes,
 	VT_DRect = VT_DPoint + NrPointTypes,
 
-#if defined(DMS_TM_HAS_INT_SEQ)
 	VT_SArc = VT_SPoint + 2 * NrPointTypes,
 	VT_WArc = VT_WPoint + 2 * NrPointTypes,
 	VT_IArc = VT_IPoint + 2 * NrPointTypes,
 	VT_UArc = VT_UPoint + 2 * NrPointTypes,
-#endif
+
 	VT_FArc = VT_FPoint + 2 * NrPointTypes,
 	VT_DArc = VT_DPoint + 2 * NrPointTypes, // 31
 
 	VT_FirstPolygon = 32,
-#if defined(DMS_TM_HAS_INT_SEQ)
+
 	VT_SPolygon = VT_SArc + NrPointTypes,
 	VT_WPolygon = VT_WArc + NrPointTypes,
 	VT_IPolygon = VT_IArc + NrPointTypes,
 	VT_UPolygon = VT_UArc + NrPointTypes,
-#endif
+
 	VT_FPolygon = VT_FArc + NrPointTypes,
 	VT_DPolygon = VT_DArc + NrPointTypes, // 37
 	VT_FirstAfterPolygon = 38,

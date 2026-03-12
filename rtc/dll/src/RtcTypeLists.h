@@ -58,7 +58,6 @@ namespace typelists {
 	typedef jv2_t<sint_points, uint_points>        int_points;
 //	typedef type_list<SRect, WRect, IRect, URect, FRect, DRect > rects;
 
-#if defined (DMS_TM_HAS_INT_SEQ)
 	typedef type_list<UInt64Seq, UInt32Seq, UInt16Seq, UInt8Seq> uint_sequences;
 	typedef type_list<Int64Seq, Int32Seq, Int16Seq, Int8Seq> sint_sequences;
 	typedef type_list<Float32Seq, Float64Seq> float_sequences;
@@ -72,11 +71,6 @@ namespace typelists {
 	typedef jv2_t<uint_points, float_points>                                               seq_unsinged_points;
 	typedef jv2_t<sint_points, float_points>                                               seq_signed_points;
 	typedef jv2_t<int_points,  float_points>                                               seq_points;
-#else
-	typedef boost::mpl::vector2<FPolygon,  DPolygon > sequences;
-	typedef boost::mpl::vector2<FPoint,    DPoint   > seq_points;
-	typedef seq_points                                seq_signed_points;
-#endif
 
 	typedef type_list<SharedStr>           strings;
 	typedef type_list<Void>                voids;
