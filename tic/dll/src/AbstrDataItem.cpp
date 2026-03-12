@@ -139,7 +139,7 @@ inline auto AbstrDataItem::GetCurrRefObj() const ->SharedPtr<const AbstrDataObje
 {
 	dbg_assert(CheckMetaInfoReadyOrPassor());
 
-	return debug_cast<const AbstrDataItem*>(GetCurrUltimateItem())->GetDataObj();
+	return debug_cast<const AbstrDataItem*>(GetCurrUltimateItem())->GetCurrDataObj();
 }
 
 inline auto AbstrDataItem::GetRefObj() const -> SharedPtr<const AbstrDataObject>

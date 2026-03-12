@@ -179,9 +179,9 @@ namespace Bmp
 		if (!gridUnit || gridUnit->GetNrDimensions() != 2)
 			self->throwItemErrorF("%s has no grid domain ", gridData->GetFullName().c_str() );
 
-		auto r = WriteGeoRefFile(gridData, replaceFileExtension(self->GetNameStr().c_str(), "bmpw") );
-		if (!r)
-			r.Throw("WriteGeoRefFile");
+		auto geoRefFileResult = WriteGeoRefFile(gridData, replaceFileExtension(self->GetNameStr().c_str(), "bmpw") );
+		if (!geoRefFileResult)
+			geoRefFileResult.Throw("WriteGeoRefFile");
 		
 		// Set width and height
 		UInt32 h = gridUnit->GetDimSize(0);

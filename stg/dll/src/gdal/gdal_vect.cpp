@@ -2650,15 +2650,31 @@ void GdalVectSM::DoUpdateTableGeometry(const TreeItem* storageHolder, AbstrUnit*
 	CheckSpatialReference(ogrSR, geometry, const_cast<AbstrUnit*>(gvu));
 
 	// add geometry_z attribute if available
-	if (layer_geometry_type == wkbPoint25D || layer_geometry_type == wkbPointZM) 
-	{
-		auto geometry_z_vt = gvu->GetValueType()->GetScalarClass();
-		CreateTreeItemColumnInfo(layerDomain, token::geometry_z.AsSharedStr().c_str(), layerDomain, geometry_z_vt);
-	}
 	if (layer_geometry_type == wkbPointM || layer_geometry_type == wkbPointZM)
 	{
 		auto geometry_m_vt = gvu->GetValueType()->GetScalarClass();
 		CreateTreeItemColumnInfo(layerDomain, token::geometry_m.AsSharedStr().c_str(), layerDomain, geometry_m_vt);
+	}
+	if (layer_geometry_type == wkbPoint25D || layer_geometry_type == wkbPointZM)
+	{
+		auto geometry_z_vt = gvu->GetValueType()->GetScalarClass();
+		CreateTreeItemColumnInfo(layerDomain, token::geometry_z.AsSharedStr().c_str(), layerDomain, geometry_z_vt);
+	}
+	if  (	layer_geometry_type == wkbMultiPolygonM || layer_geometry_type == wkbMultiPolygonZM || layer_geometry_type == wkbPolygonM || layer_geometry_type == wkbPolygonZM || layer_geometry_type == wkbCurvePolygonM || layer_geometry_type == wkbCurvePolygonZM
+		||	layer_geometry_type == wkbCircularStringM || layer_geometry_type == wkbCircularStringZM || layer_geometry_type == wkbCompoundCurveM || layer_geometry_type == wkbCompoundCurveZM
+		||	layer_geometry_type == wkbMultiLineStringM || layer_geometry_type == wkbMultiLineStringZM || layer_geometry_type == wkbLineStringM || layer_geometry_type == wkbLineStringZM)
+	{
+		auto geometry_m_vt = gvu->GetValueType()->GetScalarClass();
+		bool isPolygon = layer_geometry_type == wkbMultiPolygonM || layer_geometry_type == wkbMultiPolygonZM || layer_geometry_type == wkbPolygonM || layer_geometry_type == wkbPolygonZM || layer_geometry_type == wkbCurvePolygonM || layer_geometry_type == wkbCurvePolygonZM;
+		CreateTreeItemColumnInfo(layerDomain, token::geometry_m.AsSharedStr().c_str(), layerDomain, geometry_m_vt, isPolygon ? ValueComposition::Polygon : ValueComposition::Sequence);
+	}
+	if  (	layer_geometry_type == wkbMultiPolygon25D || layer_geometry_type == wkbMultiPolygonZM || layer_geometry_type == wkbPolygon25D || layer_geometry_type == wkbPolygonZM || layer_geometry_type == wkbCurvePolygonZM
+		|| layer_geometry_type == wkbCircularStringZM || layer_geometry_type == wkbCompoundCurveZM
+		|| layer_geometry_type == wkbMultiLineString25D || layer_geometry_type == wkbMultiLineStringZM || layer_geometry_type == wkbLineString25D || layer_geometry_type == wkbLineStringZM)
+	{
+		auto geometry_z_vt = gvu->GetValueType()->GetScalarClass();
+		bool isPolygon = layer_geometry_type == wkbMultiPolygon25D || layer_geometry_type == wkbMultiPolygonZM || layer_geometry_type == wkbPolygon25D || layer_geometry_type == wkbPolygonZM || layer_geometry_type == wkbCurvePolygonZM;
+		CreateTreeItemColumnInfo(layerDomain, token::geometry_z.AsSharedStr().c_str(), layerDomain, geometry_z_vt, isPolygon ? ValueComposition::Polygon : ValueComposition::Sequence);
 	}
 	return;
 }

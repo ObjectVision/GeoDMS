@@ -67,6 +67,6 @@ extern "C" STGDLL_CALL void DMS_Stg_Load();
 
 bool CompatibleTypes(const ValueClass* dbCls, const ValueClass* configCls);
 bool TreeItemIsColumn(TreeItem *ti);
-STGDLL_CALL bool CreateTreeItemColumnInfo(TreeItem* tiTable, CharPtr colName, const AbstrUnit* domainUnit, const ValueClass* dbValuesClass);
+STGDLL_CALL bool CreateTreeItemColumnInfo(TreeItem* tiTable, CharPtr colName, const AbstrUnit* domainUnit, const ValueClass* dbValuesClass, ValueComposition vc = ValueComposition::Single);
 
 #endif __STG_BASE_H

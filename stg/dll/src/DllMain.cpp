@@ -500,7 +500,7 @@ bool CompatibleTypes(const ValueClass* dbCls, const ValueClass* configCls)
 		||	dbCls == configCls);
 }
 
-bool CreateTreeItemColumnInfo(TreeItem* tiTable, CharPtr colName, const AbstrUnit *domainUnit, const ValueClass *dbValuesClass)
+bool CreateTreeItemColumnInfo(TreeItem* tiTable, CharPtr colName, const AbstrUnit *domainUnit, const ValueClass *dbValuesClass, ValueComposition vc)
 {
 	if (dbValuesClass == nullptr)
 		return false;
@@ -527,7 +527,7 @@ bool CreateTreeItemColumnInfo(TreeItem* tiTable, CharPtr colName, const AbstrUni
 	}
 	const AbstrUnit* valuesUnit = UnitClass::Find(dbValuesClass)->CreateDefault();
 	assert(valuesUnit);
-	return CreateDataItem(tiTable, GetTokenID_mt(colName),	domainUnit, valuesUnit) != nullptr;
+	return CreateDataItem(tiTable, GetTokenID_mt(colName),	domainUnit, valuesUnit, vc) != nullptr;
 }
 
 // ------------------------------------------------------------------------
