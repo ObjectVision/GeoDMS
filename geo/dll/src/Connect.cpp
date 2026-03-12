@@ -447,7 +447,7 @@ struct IndexedArcProjectionHandle : ArcProjectionHandleWithDist<R, T>
 				ResObjectPtr streetPtr = (*iter)->get_ptr();
 				if (!filter(streetPtr))
 					continue;
-				if (aph.Project2MultiLinestring(begin_ptr(*streetPtr), end_ptr(*streetPtr)))
+				if (aph.Project2Arc(begin_ptr(*streetPtr), end_ptr(*streetPtr)), isPossiblyMultiPolygon)
 				{
 					m_ArcPtr = streetPtr;
 					iter.RefineSearch( Inflate(p, Point<T>(aph.m_Dist, aph.m_Dist)) );
