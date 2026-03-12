@@ -321,7 +321,7 @@ struct SpatialIndex
 		}
 		void RefineSearch(SelType newSearchObj)
 		{
-			dms_assert(IsIncluding(m_SearchObj, newSearchObj));
+			assert(IsIncluding(m_SearchObj, newSearchObj));
 			m_SearchObj = newSearchObj;
 		}
 
