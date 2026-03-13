@@ -1,0 +1,202 @@
+{
+  "name": "GeoDMS",
+  "scopeName": "source.geodms",
+  "patterns": [
+    {
+      "include": "#comments"
+    },
+    {
+      "include": "#doubleQuoted"
+    },
+    {
+      "include": "#singleQuoted"
+    },
+    {
+      "include": "#numbers"
+    },
+    {
+      "include": "#declarations"
+    },
+    {
+      "include": "#declaredNames"
+    },
+    {
+      "include": "#properties"
+    },
+    {
+      "include": "#types"
+    },
+    {
+      "include": "#booleans"
+    },
+    {
+      "include": "#functionCalls"
+    },
+    {
+      "include": "#operators"
+    },
+    {
+      "include": "#genericAngles"
+    },
+    {
+      "include": "#otherBrackets"
+    }
+  ],
+  "repository": {
+    "comments": {
+      "patterns": [
+        {
+          "name": "comment.line.double-slash.geodms",
+          "match": "//.*$"
+        },
+        {
+          "name": "comment.block.geodms",
+          "begin": "/\\*",
+          "end": "\\*/"
+        }
+      ]
+    },
+    "doubleQuoted": {
+      "patterns": [
+        {
+          "name": "string.quoted.double.geodms",
+          "begin": "\"",
+          "end": "\""
+        }
+      ]
+    },
+    "singleQuoted": {
+      "patterns": [
+        {
+          "name": "string.quoted.single.geodms",
+          "begin": "'",
+          "end": "'"
+        }
+      ]
+    },
+    "numbers": {
+      "patterns": [
+        {
+          "name": "constant.numeric.geodms",
+          "match": "\\b\\d+(?:\\.\\d+)?(?:[eE][+-]?\\d+)?\\b"
+        }
+      ]
+    },
+    "declarations": {
+      "patterns": [
+        {
+          "name": "keyword.control.declaration.primary.geodms",
+          "match": "\\b(?i:Container|Template)\\b"
+        },
+        {
+          "name": "keyword.control.declaration.secondary.geodms",
+          "match": "\\b(?i:Attribute|Parameter)\\b"
+        },
+        {
+          "name": "keyword.control.declaration.unit.geodms",
+          "match": "\\b(?i:Unit)\\b"
+        }
+      ]
+    },
+    "declaredNames": {
+      "patterns": [
+        {
+          "name": "entity.name.identifier.geodms",
+          "match": "(?<=\\b(?i:Attribute)\\s*<[^>\\n]+>\\s+)[A-Za-z_][A-Za-z0-9_]*"
+        },
+        {
+          "name": "entity.name.identifier.geodms",
+          "match": "(?<=\\b(?i:Parameter)\\s*<[^>\\n]+>\\s+)[A-Za-z_][A-Za-z0-9_]*"
+        },
+        {
+          "name": "entity.name.identifier.geodms",
+          "match": "(?<=\\b(?i:Container|Template|Unit)\\s+)[A-Za-z_][A-Za-z0-9_]*"
+        }
+      ]
+    },
+    "properties": {
+      "patterns": [
+        {
+          "name": "support.type.property.geodms",
+          "match": "\\b(?i:explicitsuppliers|storagereadonly|disablestorage|integritycheck|storagename|storagetype|dialogdata|dialogtype|sqlstring|storedata|freedata|ishidden|keepdata|nrofrows|syncmode|source|descr|label|using|expr|cdf|url)\\b(?=\\s*[:=,])"
+        }
+      ]
+    },
+    "types": {
+      "patterns": [
+        {
+          "name": "storage.type.geodms",
+          "match": "\\bFloat32Seq|Float64Seq|UInt16Seq|UInt32Seq|UInt64Seq|DPolygon|FPolygon|Int16Seq|Int32Seq|Int64Seq|IPolygon|SPolygon|UInt8Seq|UPolygon|WPolygon|Float32|Float64|Int8Seq|DPoint|FPoint|IPoint|SPoint|String|UInt16|UInt32|UInt64|UPoint|WPoint|Int16|Int32|Int64|UInt2|UInt4|UInt8|Bool|Int8|Void\\b"
+        }
+      ]
+    },
+    "booleans": {
+      "patterns": [
+        {
+          "name": "constant.language.boolean.geodms",
+          "match": "\\bfalse|False|FALSE|TRUE|true|True\\b"
+        }
+      ]
+    },
+    "functionCalls": {
+      "patterns": [
+        {
+          "name": "entity.name.function.geodms",
+          "match": "\\b(?:griddist_zonal_maximp_untiled_latitude_specific|select_uint16_with_org_rel_with_attr_by_cond|select_uint32_with_org_rel_with_attr_by_cond|select_uint64_with_org_rel_with_attr_by_cond|select_uint8_with_org_rel_with_attr_by_cond|griddist_maximp_untiled_latitude_specific|griddist_zonal_untiled_latitude_specific|griddist_zonal_maximp_latitude_specific|select_with_org_rel_with_attr_by_cond|griddist_untiled_latitude_specific|select_uint16_with_attr_by_org_rel|select_uint32_with_attr_by_org_rel|select_uint64_with_attr_by_org_rel|griddist_maximp_latitude_specific|select_uint8_with_attr_by_org_rel|griddist_zonal_latitude_specific|select_uint16_with_attr_by_cond|select_uint32_with_attr_by_cond|select_uint64_with_attr_by_cond|select_uint8_with_attr_by_cond|dyna_segment_with_ends_uint64|griddist_zonal_maximp_untiled|strongly_connected_components|ClassifyNonzeroEqualInterval|dyna_point_with_ends_uint64|geos_simplify_multi_polygon|select_with_attr_by_org_rel|ClassifyNonzeroJenksFisher|griddist_latitude_specific|select_uint16_with_org_rel|select_uint32_with_org_rel|select_uint64_with_org_rel|bg_simplify_multi_polygon|cgal_polygon_connectivity|ClassifyNonzeroEqualCount|frequency_table_with_null|geos_buffer_multi_polygon|geos_polygon_connectivity|select_uint8_with_org_rel|argmax_alldefined_uint16|argmin_alldefined_uint16|bg_buffer_single_polygon|cgal_split_union_polygon|GeoDmsMajorVersionNumber|GeoDmsMinorVersionNumber|geos_simplify_linestring|geos_split_union_polygon|join_equal_values_uint16|join_equal_values_uint32|join_equal_values_uint64|select_with_attr_by_cond|argmax_alldefined_uint8|argmax_ifdefined_uint16|argmin_alldefined_uint8|argmin_ifdefined_uint16|bg_buffer_multi_polygon|bg_outer_single_polygon|bg_polygon_connectivity|bp_buffer_multi_polygon|bp_polygon_connectivity|cgal_buffer_multi_point|collect_attr_by_org_rel|geos_buffer_multi_point|griddist_maximp_untiled|join_equal_values_uint8|join_near_values_uint16|join_near_values_uint32|join_near_values_uint64|point_in_ranked_polygon|unique_uint16_with_null|unique_uint32_with_null|unique_uint64_with_null|argmax_ifdefined_uint8|argmin_ifdefined_uint8|bg_outer_multi_polygon|bg_simplify_linestring|bg_split_union_polygon|bp_split_union_polygon|cgal_buffer_linestring|dyna_segment_with_ends|geos_buffer_linestring|griddist_zonal_untiled|join_near_values_uint8|sequence2points_uint64|unique_uint8_with_null|bg_buffer_multi_point|bp_buffer_multi_point|ClassifyEqualInterval|griddist_zonal_maximp|impedance_matrix_od64|point_in_all_polygons|asExprList_with_null|asItemList_with_null|bg_buffer_linestring|bp_buffer_linestring|cgal_overlay_polygon|ClassifyUniqueValues|collect_attr_by_cond|discrete_alloc_np_16|discrete_alloc_sp_16|dyna_point_with_ends|geos_overlay_polygon|Inherited_PropValues|nth_element_weighted|poly2allgrids_uint64|polygon_connectivity|bg_simplify_polygon|capacitated_connect|ClassifyJenksFisher|ClassifyLogInterval|combine_unit_uint16|combine_unit_uint32|combine_unit_uint64|dyna_segment_uint64|GetProjectionFactor|GetProjectionOffset|max_elem_alldefined|min_elem_alldefined|points2sequence_pso|select_with_org_rel|unique_count_uint16|unique_count_uint32|unique_count_uint64|bg_overlay_polygon|bp_overlay_polygon|cgal_split_polygon|cgal_union_polygon|ClassifyEqualCount|collect_by_org_rel|combine_unit_uint8|DocStorageManagers|geos_split_polygon|geos_union_polygon|interpolate_linear|max_elem_ifdefined|min_elem_ifdefined|modus_count_uint17|modus_count_uint32|modus_count_uint64|perimeter_weighted|points2polygon_pso|points2sequence_po|points2sequence_ps|potentialRawPacked|split_piped_string|SubItem_PropValues|SubTree_PropValues|unique_count_uint8|argmax_alldefined|argmin_alldefined|cgal_buffer_point|connect_neighbour|discrete_alloc_16|discrete_alloc_np|discrete_alloc_sp|district_4_uint16|district_4_uint32|district_4_uint64|district_8_uint16|district_8_uint32|district_8_uint64|dyna_point_uint64|GeoDmsBuildConfig|GeoDmsPatchNumber|geos_buffer_point|GetProjectionBase|join_equal_values|modus_count_uint8|points2polygon_po|points2polygon_ps|points2sequence_p|poly2grid_untiled|recollect_by_cond|rlookup_with_null|union_unit_uint16|union_unit_uint32|union_unit_uint64|argmax_ifdefined|argmin_ifdefined|bg_split_polygon|bg_union_polygon|box_connectivity|bp_split_polygon|bp_union_polygon|district_4_uint8|district_8_uint8|griddist_untiled|impedance_matrix|join_near_values|point_in_polygon|points2polygon_p|reg_count_uint16|reg_count_uint32|union_unit_uint8|unique_with_null|arc2segm_uint64|average_entropy|bg_buffer_point|bp_buffer_point|centroid_or_mid|cgal_difference|collect_by_cond|connect_info_eq|connect_info_ne|connected_parts|district_uint16|district_uint32|district_uint64|for_each_nedvat|frequency_table|geos_difference|GetMetricFactor|griddist_maximp|impedance_table|LatLongWgs842RD|points2sequence|potentialIpps64|potentialPacked|RD2LatLongWgs84|reg_count_uint8|rnd_permutation|rounded_convert|sequence2points|as_unique_list|cgal_intersect|combine_uint16|combine_uint32|combine_uint64|discrete_alloc|district_uint8|for_each_nedva|GenerateDirect|GeoDmsPlatform|geos_intersect|griddist_zonal|modus_weighted|PhaseContainer|points2polygon|potentialRaw64|RD2LatLongEd50|RoundToZero_64|argmax_uint16|argmin_uint16|bg_difference|bp_difference|combine_uint8|for_each_nedv|GeoDmsVersion|mapping_count|max_elem_fast|min_elem_fast|pcount_uint16|pcount_uint32|pcount_uint64|poly2allgrids|potentialSlow|ramp_open_rgb|regex_replace|select_uint16|select_uint32|select_uint64|SequenceArray|unique_uint16|unique_uint32|unique_uint64|argmax_uint8|argmin_uint8|asDataString|bg_intersect|bp_intersect|center_bound|cgal_polygon|combine_unit|connect_info|count_uint16|count_uint32|count_uint64|direct_index|dist_info_eq|dist_info_ne|dyna_segment|ExistingFile|for_each_ind|for_each_nex|fullPathName|geos_polygon|pcount_uint8|raster_merge|RD2LatLongGE|regex_search|RoundDown_64|select_uint8|service_area|spatialIndex|storage_name|triangualize|unique_uint8|add_or_null|argmax_fast|argmin_fast|BoundCenter|count_uint8|DefaultUnit|first_point|for_each_ne|lower_bound|mul_or_null|nth_element|regex_match|rnd_uniform|RoundToZero|rth_element|sub_or_null|sum_float32|sum_float64|upper_bound|arc_length|asExprList|asItemList|AsItemName|bg_polygon|BoundRange|bp_polygon|cgal_union|complement|connect_eq|connect_ne|CreateFile|currentDir|district_4|district_8|DomainUnit|dyna_point|for_each_n|geos_union|HtmlDecode|HtmlEncode|isNegative|isPositive|last_point|LowerBound|Mandelbrot|mls_length|RD2LatLong|RoundUp_64|sum_dpoint|sum_ipoint|sum_uint16|sum_uint32|sum_uint64|sum_upoint|trace_back|union_data|union_unit|UpperBound|ValuesUnit|cat_range|DataArray|dist_info|diversity|invertAll|ipf_alloc|IsDefined|LowerCase|max_index|min_index|overlay32|overlay64|parse_xml|perimeter|poly2grid|potential|PropValue|proximity|ramp_open|ReadArray|ReadElems|ReadLines|reg_count|RoundDown|sum_int16|sum_int32|sum_int64|sum_uint8|TiledUnit|UpperCase|UrlDecode|UrlEncode|arc2segm|BaseUnit|bg_union|bp_union|centroid|cgal_xor|classify|CopyFile|cumulate|district|from_utf|Generate|geos_xor|griddist|InitFile|matr_inv|matr_mul|matr_var|max_elem|min_elem|null_i64|null_str|null_u64|point_xy|point_yx|pointcol|pointrow|ramp_rgb|Round_64|strcount|strlen64|subindex|sum_int8|undquote|combine|connect|convert|DocData|entropy|EXEC_EC|gridset|has_any|iterate|makeDir|mapping|null_dp|null_fp|null_ip|null_sp|null_up|null_wp|ordinal|overlay|polygon|replace|rlookup|RoundUp|sqrdist|strrpos|SubItem|unquote|argmax|argmin|asList|bg_xor|bitand|bitxor|bp_xor|canyon|dquote|expand|invert|IsNull|isZero|lookup|null_b|null_c|null_d|null_f|null_i|null_s|null_u|null_w|pcount|repeat|select|strlen|strpos|subset|substr|to_utf|unique|AsHex|bitor|const|count|dist2|first|get_x|get_y|index|ltrim|merge|modus|quote|range|right|Round|rtrim|union|area|atan|corr|dist|last|left|loop|mean|name|ramp|sort|sqrt|trim|add|all|and|any|cos|cov|div|exp|iif|log|max|mid|min|mod|mul|neg|not|pow|rgb|sin|sub|sum|tan|var|do|eq|ge|gt|id|le|lt|ne|or|pi|sd)\\("
+        }
+      ]
+    },
+    "operators": {
+      "patterns": [
+        {
+          "name": "keyword.operator.assignment.geodms",
+          "match": ":="
+        },
+        {
+          "name": "keyword.operator.logical.geodms",
+          "match": "\\|\\||&&|!"
+        },
+        {
+          "name": "keyword.operator.arithmetic.geodms",
+          "match": "\\+|-|\\*|%|\\^|#"
+        },
+        {
+          "name": "keyword.operator.division.geodms",
+          "match": "(?<=\\s)/(?!/)(?=\\s)"
+        },
+        {
+          "name": "keyword.operator.comparison.geodms",
+          "match": "<=|>=|<>|<|>|="
+        },
+        {
+          "name": "keyword.operator.ternary.geodms",
+          "match": "\\?|:"
+        },
+        {
+          "name": "punctuation.separator.comma.geodms",
+          "match": ","
+        },
+        {
+          "name": "keyword.operator.path.geodms",
+          "match": "(?<=\\b(?:for_each_[A-Za-z0-9_]*|bg_[A-Za-z0-9_]*|bp_[A-Za-z0-9_]*|cgal_[A-Za-z0-9_]*|geos_[A-Za-z0-9_]*)\\()\\s*/"
+        }
+      ]
+    },
+    "genericAngles": {
+      "patterns": [
+        {
+          "name": "keyword.operator.bracket.geodms",
+          "match": "(?<=\\b(?:Attribute|Parameter|Unit)\\s)<|>"
+        }
+      ]
+    },
+    "otherBrackets": {
+      "patterns": [
+        {
+          "name": "keyword.operator.bracket.geodms",
+          "match": "[\\[\\]{}]"
+        }
+      ]
+    }
+  }
+}

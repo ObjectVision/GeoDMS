@@ -25,7 +25,7 @@ Page instfiles
 ;--------------------------------
 
 ; The stuff to install
-Section "" ;No components page, name is not important
+Section "GeoDMS Program Folder" ;No components page, name is not important
 
   ; Set output path to the installation directory.
   SetOutPath $INSTDIR
@@ -65,8 +65,8 @@ Section "" ;No components page, name is not important
   File ..\bin\Release\${GeoDmsPlatform}\msvcp140_atomic_wait.dll
   File ..\bin\Release\${GeoDmsPlatform}\msvcp140_codecvt_ids.dll
 
-  File ..\bin\Release\${GeoDmsPlatform}\boost_locale-vc143-mt-x64-1_88.dll
-  File ..\bin\Release\${GeoDmsPlatform}\boost_thread-vc143-mt-x64-1_88.dll
+  File ..\bin\Release\${GeoDmsPlatform}\boost_locale-vc145-mt-x64-1_88.dll
+  File ..\bin\Release\${GeoDmsPlatform}\boost_thread-vc145-mt-x64-1_88.dll
 
   File ..\bin\Release\${GeoDmsPlatform}\gdal.dll
   File ..\bin\Release\${GeoDmsPlatform}\tiff.dll
@@ -175,6 +175,20 @@ Section "" ;No components page, name is not important
  
   
 SectionEnd ; end the section
+
+Section "Install VSCode extension"
+
+    ; gebruik context zoals eerder ingesteld
+    ; (current of all)
+
+    CreateDirectory "$PROFILE\.vscode"
+    CreateDirectory "$PROFILE\.vscode\extensions"
+    CreateDirectory "$PROFILE\.vscode\extensions\local.geodms-language-0.0.2"
+
+    SetOutPath "$PROFILE\.vscode\extensions\local.geodms-language-0.0.2"
+    File /r "..\res\Visual Studio Code\local.geodms-language-0.0.2\*"
+
+SectionEnd
 
 
 Section uninstall

@@ -1,0 +1,45 @@
+{
+  "editor.tokenColorCustomizations": {
+    "textMateRules": [
+      {
+        "scope": "comment.block.single-quoted.geodms",
+        "settings": {
+          "foreground": "#808080",
+          "fontStyle": "italic"
+        }
+      },
+      {
+        "scope": "string.quoted.double.geodms",
+        "settings": {
+          "foreground": "#E21F1F"
+        }
+      },
+      {
+        "scope": "support.type.property-name.geodms",
+        "settings": {
+          "foreground": "#FF9C00"
+        }
+      },
+      {
+        "scope": "entity.name.function.geodms, keyword.operator.geodms, keyword.operator.assignment.geodms",
+        "settings": {
+          "foreground": "#FF00FF",
+          "fontStyle": "bold"
+        }
+      },
+      {
+        "scope": "keyword.control.geodms",
+        "settings": {
+          "foreground": "#0000AA",
+          "fontStyle": "bold"
+        }
+      },
+      {
+        "scope": "storage.type.geodms",
+        "settings": {
+          "foreground": "#5537FF"
+        }
+      }
+    ]
+  }
+}

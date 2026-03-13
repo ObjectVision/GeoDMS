@@ -1,0 +1,109 @@
+{
+  "name": "GeoDMS Light",
+  "type": "light",
+  "semanticHighlighting": false,
+  "colors": {
+    "editor.background": "#FFFFFF",
+    "editor.foreground": "#000000",
+    "editorLineNumber.foreground": "#808080",
+    "editorCursor.foreground": "#000000",
+    "editor.selectionBackground": "#CFE8FF",
+    "editor.inactiveSelectionBackground": "#E8F2FF"
+  },
+  "tokenColors": [
+    {
+      "scope": [
+        "comment.line.double-slash.geodms",
+        "comment.block.geodms"
+      ],
+      "settings": {
+        "foreground": "#008000",
+        "fontStyle": "italic"
+      }
+    },
+    {
+      "scope": "constant.numeric.geodms",
+      "settings": {
+        "foreground": "#804000"
+      }
+    },
+    {
+      "scope": [
+        "keyword.control.declaration.primary.geodms",
+        "keyword.control.declaration.unit.geodms"
+      ],
+      "settings": {
+        "foreground": "#0000AA",
+        "fontStyle": "bold"
+      }
+    },
+    {
+      "scope": "keyword.control.declaration.secondary.geodms",
+      "settings": {
+        "foreground": "#0000FF"
+      }
+    },
+    {
+      "scope": "support.type.property.geodms",
+      "settings": {
+        "foreground": "#FF9C00"
+      }
+    },
+    {
+      "scope": "storage.type.geodms",
+      "settings": {
+        "foreground": "#5537FF"
+      }
+    },
+    {
+      "scope": [
+        "entity.name.function.geodms",
+        "keyword.operator.assignment.geodms",
+        "keyword.operator.logical.geodms",
+        "keyword.operator.arithmetic.geodms",
+        "keyword.operator.division.geodms",
+        "keyword.operator.comparison.geodms",
+        "keyword.operator.ternary.geodms",
+        "keyword.operator.bracket.geodms",
+        "keyword.operator.path.geodms"
+      ],
+      "settings": {
+        "foreground": "#FF00FF",
+        "fontStyle": "bold"
+      }
+    },
+    {
+      "scope": "entity.name.identifier.geodms",
+      "settings": {
+        "foreground": "#000000"
+      }
+    },
+    {
+      "scope": "punctuation.separator.comma.geodms",
+      "settings": {
+        "foreground": "#000000"
+      }
+    },
+    {
+      "scope": "string.quoted.single.geodms",
+      "settings": {
+        "foreground": "#444444",
+        "fontStyle": "italic"
+      }
+    },
+    {
+      "scope": "string.quoted.double.geodms",
+      "settings": {
+        "foreground": "#E21F1F",
+        "fontStyle": "italic"
+      }
+    },
+    {
+      "scope": "constant.language.boolean.geodms",
+      "settings": {
+        "foreground": "#FF00FF",
+        "fontStyle": "bold"
+      }
+    }
+  ]
+}

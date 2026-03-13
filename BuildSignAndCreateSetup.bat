@@ -15,6 +15,9 @@ cd tst
 git pull
 cd %geodms_rootdir%
 
+CHOICE /M "Write lastest version number and date into header files?"
+if ErrorLevel 2 goto :retryBuild
+
 echo #define DMS_VERSION_MAJOR %DMS_VERSION_MAJOR% > "rtc/dll/src/RtcGeneratedVersion.h"
 echo #define DMS_VERSION_MINOR %DMS_VERSION_MINOR% >> "rtc/dll/src/RtcGeneratedVersion.h"
 echo #define DMS_VERSION_PATCH %DMS_VERSION_PATCH% >> "rtc/dll/src/RtcGeneratedVersion.h"
@@ -49,6 +52,7 @@ if ErrorLevel 2 goto retryBuild
 REM CHOICE /M  "Run setup creation %GeoDmsVersion%?"
 REM if ErrorLevel 2 goto :afterNSIS
 
+mkdir distr
 cd nsi
 "C:\Program Files (x86)\NSIS\makensis.exe" DmsSetupScriptX64.nsi
 cd ..

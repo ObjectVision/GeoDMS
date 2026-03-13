@@ -1,0 +1,51 @@
+{
+  "name": "geodms-language",
+  "displayName": "GeoDMS Language Support",
+  "version": "0.0.2",
+  "publisher": "local",
+  "engines": {
+    "vscode": "^1.80.0"
+  },
+  "main": "./extension.js",
+  "activationEvents": [
+    "onLanguage:geodms"
+  ],
+  "categories": [
+    "Programming Languages",
+    "Themes"
+  ],
+  "contributes": {
+    "languages": [
+      {
+        "id": "geodms",
+        "aliases": [
+          "GeoDMS"
+        ],
+        "extensions": [
+          ".dms"
+        ],
+        "configuration": "./language-configuration.json"
+      }
+    ],
+    "grammars": [
+      {
+        "language": "geodms",
+        "scopeName": "source.geodms",
+        "path": "./syntaxes/geodms.tmLanguage.json"
+      }
+    ],
+    "themes": [
+      {
+        "label": "GeoDMS Light",
+        "uiTheme": "vs",
+        "path": "./themes/geodms-color-theme.json"
+      }
+    ],
+    "snippets": [
+      {
+        "language": "geodms",
+        "path": "./snippets/geodms.code-snippets"
+      }
+    ]
+  }
+}

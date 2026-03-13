@@ -1,0 +1,46 @@
+{
+  "unit": {
+    "prefix": "unit",
+    "body": [
+      "unit<${1:UInt32}> ${2:name}"
+    ],
+    "description": "GeoDMS unit<type> name"
+  },
+  "container": {
+    "prefix": "cont",
+    "body": [
+      "container ${1:Name} :=",
+      "{",
+      "\t$0",
+      "}"
+    ],
+    "description": "GeoDMS container"
+  },
+  "attribute": {
+    "prefix": "attr",
+    "body": [
+      "attribute<${1:Domain}> ${2:Name} (${3:ValuesUnit}) :=",
+      "\t${0:expr};"
+    ],
+    "description": "GeoDMS attribute"
+  },
+  "parameter": {
+    "prefix": "param",
+    "body": [
+      "parameter<${1:Domain}> ${2:Name} :=",
+      "\t${0:value};"
+    ],
+    "description": "GeoDMS parameter"
+  },
+  "for_each_nedv": {
+    "prefix": "for_each_nedv",
+    "body": [
+      "for_each_nedv(",
+      "\t${1:name},",
+      "\t${2:expr},",
+      "\t${0:domain}",
+      ")"
+    ],
+    "description": "GeoDMS for_each_nedv"
+  }
+}
