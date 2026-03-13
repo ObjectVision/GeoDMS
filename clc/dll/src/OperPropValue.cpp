@@ -294,7 +294,7 @@ struct GenerateOperator : public UnaryOperator
 namespace {
 
 	oper_arg_policy oap_PropValue [2] = { oper_arg_policy::calc_never, oper_arg_policy::calc_as_result };
-	oper_arg_policy oap_PropValues[2] = { oper_arg_policy::subst_with_subitems, oper_arg_policy::calc_always };
+	oper_arg_policy oap_PropValues[2] = { oper_arg_policy::calc_never, oper_arg_policy::calc_always };
 
 	oper_arg_policy oap_Generate[1] = { oper_arg_policy::calc_never };
 
