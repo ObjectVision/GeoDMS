@@ -164,8 +164,7 @@ struct Actor: PersistentObject
 	bool IsPassor() const { return m_State.IsPassor(); }
 	RTC_CALL void SetPassor();
 	// - PassorOrChecked: either pass-through or has determining check semantics.
-	bool IsPassorOrChecked() const { return IsPassor() || m_State.IsDeterminingCheck(); }
-
+	
 	// Supplier traversal
 	// - Override to enumerate/traverse suppliers; visitor returns an ActorVisitState to control traversal.
 	RTC_CALL virtual ActorVisitState VisitSuppliers    (SupplierVisitFlag svf, const ActorVisitor& visitor) const;

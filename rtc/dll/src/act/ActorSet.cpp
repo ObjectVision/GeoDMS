@@ -31,7 +31,7 @@ static void storeAllSuppliers(const Actor* self, SupplierVisitFlags svf, ActorSe
 	VisitSupplProcImpl(self, svf, 
 		[&] (const Actor* supplier)
 		{
-			if (supplier->IsPassorOrChecked())
+			if (supplier->IsPassor())
 				return;
 			ActorSetType::iterator i = itemSet.lower_bound(supplier);
 			if (i == itemSet.end() || (*i) != supplier)

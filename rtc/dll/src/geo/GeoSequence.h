@@ -22,8 +22,6 @@
 	typedef sequence_traits<PointType>::container_type PolyType; \
 	typedef sequence_traits<PolyType >::container_type PolyType##Array; \
 
-#if defined (DMS_TM_HAS_INT_SEQ)
-
 DEFINE_POINTTYPES(UInt64Seq, UInt64)
 DEFINE_POINTTYPES(UInt32Seq, UInt32)
 DEFINE_POINTTYPES(UInt16Seq, UInt16)
@@ -39,8 +37,6 @@ DEFINE_POINTTYPES(SPolygon, SPoint)
 DEFINE_POINTTYPES(WPolygon, WPoint)
 DEFINE_POINTTYPES(IPolygon, IPoint)
 DEFINE_POINTTYPES(UPolygon, UPoint)
-
-#endif
 
 DEFINE_POINTTYPES(FPolygon, FPoint)
 DEFINE_POINTTYPES(DPolygon, DPoint)

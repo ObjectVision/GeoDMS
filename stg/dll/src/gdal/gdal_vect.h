@@ -39,6 +39,9 @@ struct GdalVectlMetaInfo : GdalMetaInfo
 	void OnOpenForRead(StorageReadHandle*) override;
 	void OnClose(StorageCloseHandle*) override;
 
+	auto GetGeometryDataItem() const -> const AbstrDataItem*;
+	auto GetValueComposition() const -> ValueComposition;
+
 	WeakPtr<const GdalVectSM> m_GdalVectSM;
 	SharedStr                 m_SqlString;
 	TokenID                   m_NameID;
@@ -87,7 +90,7 @@ private:
 
 	bool ReadLayerData(const GdalVectlMetaInfo* br, AbstrDataObject* ado, tile_id t);
 	bool ReadGeometry (const GdalVectlMetaInfo* br, AbstrDataObject* ado, tile_id t, SizeT firstIndex, SizeT size);
-	bool ReadGeometryZ(const GdalVectlMetaInfo* br, AbstrDataObject* ado, tile_id t, SizeT firstIndex, SizeT size);
+	bool ReadGeometryZM(const GdalVectlMetaInfo* br, AbstrDataObject* ado, tile_id t, SizeT firstIndex, SizeT size, bool isZ, ValueComposition geometryComposition);
 	bool ReadAttrData (const GdalVectlMetaInfo* br, AbstrDataObject* ado, tile_id t, SizeT firstIndex, SizeT size);
 	bool WriteGeometryElement(const AbstrDataItem* adi, OGRFeature* feature, tile_id t, SizeT featureIndex);
 	bool WriteFieldElement   (const AbstrDataItem* adi, int field_index, OGRFeature* feature, tile_id t, SizeT featureIndex);

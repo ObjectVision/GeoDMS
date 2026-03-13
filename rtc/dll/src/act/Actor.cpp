@@ -103,7 +103,6 @@ CharPtr GetActorFlagName(actor_flag_set::TransState ts)
     switch (ts)
     {
         case actor_flag_set::AF_IsPassor:         return "Passor";
-        case actor_flag_set::AF_DeterminingCheck: return "DetermineCheck";
         case actor_flag_set::AF_DeterminingState: return "DetermineState";
         case actor_flag_set::AF_UpdatingMetaInfo: return "MetaInfo";
         case actor_flag_set::AF_ChangingInterest: return "ChangeInterest";
@@ -419,7 +418,7 @@ void Actor::TriggerEvaluation() const
 TimeStamp Actor::GetLastChangeTS () const
 {
     DetermineState();
-    assert(m_LastChangeTS || IsPassor() || WasFailed() || m_State.IsDeterminingCheck()); // must have been set by DetermineState unless it was a Passor or DetermineState Failed
+    assert(m_LastChangeTS || IsPassor() || WasFailed() || m_State.IsDeterminingState()); // must have been set by DetermineState unless it was a Passor or DetermineState Failed
     return m_LastChangeTS;
 }
 
@@ -633,9 +632,11 @@ TimeStamp Actor::DetermineLastSupplierChange(ErrMsgPtr& failReason, FailType& fa
         VisitSupplBoolImpl(this, SupplierVisitFlag::DetermineState,
             [&](const Actor* supplier) -> bool
             {
-                if (supplier->IsPassor() || supplier->m_State.IsDeterminingCheck())
+                if (supplier->IsPassor())
                     return true;
-            #if defined(MG_DEBUG_UPDATESOURCE)
+                if (supplier->m_State.IsDeterminingState())
+                    return true;
+#if defined(MG_DEBUG_UPDATESOURCE)
                 dms_assert( SupplInclusionTester::ActiveDoesContain(supplier) );
             #endif
                 MakeMax(lastChangeTS, supplier->GetLastChangeTS()); // recursive call
@@ -713,7 +714,7 @@ ActorVisitState Actor::UpdateSuppliers(ProgressState ps) const // returns US_Val
         VisitSupplBoolImpl(this, SupplierVisitFlag::Update,
             [this, ps, ft] (const Actor* supplier) -> ActorVisitState
                 {
-                    if (supplier->IsPassorOrChecked())
+                    if (supplier->IsPassor())
                         return AVS_Ready;
                     if (supplier->SuspendibleUpdate(ps)!=AVS_SuspendedOrFailed)
                     {
@@ -777,7 +778,7 @@ void Actor::DetermineState() const
         assert(UpdateMarker::IsInActiveState());
         return;
     }
-    if (m_State.IsDeterminingCheck())
+    if (m_State.IsDeterminingState())
         return;
 
     if ( m_LastGetStateTS >= UpdateMarker::LastTS() ) // recursive Change Determinations disabled if no new timestamp was issued
@@ -798,7 +799,7 @@ retry_from_here_after_invalidation:
         // ===== disable any recursive Change Determinations until a new timestamp is issued
     }
     // ===== change if supplier changed after this instance last invalidation
-    dms_assert(lastSupplierChange);
+    assert(lastSupplierChange);
     if (m_LastChangeTS < lastSupplierChange)
     {
         if (m_LastChangeTS)
@@ -819,6 +820,7 @@ retry_from_here_after_invalidation:
         assert(failReason);
         DoFail(failReason, failType);
     }
+    assert(m_LastChangeTS || IsPassor() || WasFailed() || m_State.IsDeterminingState()); // must have been set by DetermineState unless it was a Passor or DetermineState Failed
 }
 
 #if defined(MG_DEBUG_DATA)
@@ -1212,7 +1214,7 @@ SupplInterestListPtr Actor::GetSupplInterest() const
     VisitSupplProcImpl(this, SupplierVisitFlag(SupplierVisitFlag::StartSupplInterest),
         [&supplInterestListPtr] (const Actor* supplier)
         {
-            if (!supplier->IsPassorOrChecked())
+            if (!supplier->IsPassor())
 				if (auto ps = dynamic_cast<SharedActor*>(const_cast<Actor*>(supplier)))
                     push_front(supplInterestListPtr, ps);
         }

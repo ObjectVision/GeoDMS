@@ -78,7 +78,7 @@ bool MarkSources(const Actor* a, supplier_level level)
 {
 	assert(a);
 	SharedTreeItem ti = dynamic_cast<const TreeItem*>(a); // block a from deletion when in process
-	if (a->IsPassorOrChecked())
+	if (a->IsPassor())
 		if (!ti || ti->IsCacheItem())
 			return false;
 

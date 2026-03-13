@@ -38,7 +38,7 @@ static void storeAllSuppliers(const TreeItem* self, SupplierVisitFlag svf, TreeI
 	VisitSupplProcImpl(self, svf,
 		[&] (const Actor* supplier)
 		{
-			if (supplier->IsPassorOrChecked())
+			if (supplier->IsPassor())
 				return;
 			const TreeItem* suppl = dynamic_cast<const TreeItem*>(supplier);
 			if (suppl)

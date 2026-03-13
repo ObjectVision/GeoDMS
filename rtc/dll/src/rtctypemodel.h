@@ -23,8 +23,6 @@
 #	define DMS_TM_HAS_UINT64_AS_DOMAIN
 #endif
 
-#define DMS_TM_HAS_INT_SEQ
-
 #define DMS_TM_HAS_UINT4
 #define DMS_TM_HAS_UINT2
 #define DMS_TM_HAS_INT64

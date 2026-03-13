@@ -427,12 +427,12 @@ struct IndexedArcProjectionHandle : ArcProjectionHandleWithDist<R, T>
 			ResObjectPtr streetPtr = (*iter)->get_ptr();
 			if (Project2Arc(begin_ptr(*streetPtr), end_ptr(*streetPtr)))
 			{
-				m_ArcPtr = streetPtr;
-				iter.m_SearchObj = Inflate(*p, Point<T>(this->m_Dist, this->m_Dist));
+				this->m_ArcPtr = streetPtr;
+				iter.RefineSearch( Inflate(*p, Point<T>(this->m_Dist, this->m_Dist)) );
 			}
 		}
 
-		assert(this->m_FoundAny);
+		assert(!this->m_ArcPtr.is_null() || !this->m_FoundAny);
 	}
 
 	template <typename SpatialIndexType, typename Filter>
@@ -442,22 +442,25 @@ struct IndexedArcProjectionHandle : ArcProjectionHandleWithDist<R, T>
 		while (true) {
 	
 			ArcProjectionHandleWithDist<R, T> aph(p, spIndex.GetSqrProximityUpperBound<R>(p, maxDepth, optionalMaxSqrDistPtr), isPossiblyMultiPolygon);
+			assert(!aph.m_FoundAny);
 			for (auto iter = spIndex.begin(Inflate(p, Point<T>(aph.m_Dist, aph.m_Dist))); iter; ++iter)
 			{
 				ResObjectPtr streetPtr = (*iter)->get_ptr();
 				if (!filter(streetPtr))
 					continue;
-				if (aph.Project2MultiLinestring(begin_ptr(*streetPtr), end_ptr(*streetPtr)))
+				if (aph.Project2Arc(begin_ptr(*streetPtr), end_ptr(*streetPtr)))
 				{
-					m_ArcPtr = streetPtr;
+					this->m_ArcPtr = streetPtr;
 					iter.RefineSearch( Inflate(p, Point<T>(aph.m_Dist, aph.m_Dist)) );
 				}
 			}
 			if (aph.m_FoundAny || !maxDepth)
 			{
+				assert(!this->m_ArcPtr.is_null());
 				ArcProjectionHandleWithDist<R, T>::operator =(aph);
 				break;
 			}
+			assert(!this->m_ArcPtr.is_null() || !this->m_FoundAny);
 		}
 	}
 

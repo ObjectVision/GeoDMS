@@ -197,6 +197,7 @@ namespace token {
 	TIC_CALL TokenID spatial_reference = GetTokenID_st("spatial_reference");
 	TIC_CALL TokenID geometry = GetTokenID_st("geometry");
 	TIC_CALL TokenID geometry_z = GetTokenID_st("geometry_z");
+	TIC_CALL TokenID geometry_m = GetTokenID_st("geometry_m");
 	TIC_CALL TokenID PhaseContainer = GetTokenID_st("PhaseContainer");
 
 	TIC_CALL TokenID SubItems = GetTokenID_st("SubItems");
@@ -311,7 +312,6 @@ LispRef CreateLispSubTree(const TreeItem* self, bool inclSubTree)
 		if (!self)
 			return {};
 
-		self->DetermineState();
 		if (inclSubTree)
 			for (const TreeItem* subItem = self->GetFirstSubItem(); subItem; subItem = subItem->GetNextItem())
 			{

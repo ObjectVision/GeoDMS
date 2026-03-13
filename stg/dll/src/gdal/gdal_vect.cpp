@@ -193,6 +193,47 @@ gdalVectComponent::~gdalVectComponent()
 //		;
 }
 
+bool IsValidGeometry(const TreeItem* geometry_item, bool isReadonly)
+{
+	if (!IsDataItem(geometry_item))
+		return false;
+	if (AsDataItem(geometry_item)->GetAbstrValuesUnit()->GetValueType()->GetNrDims() != 2)
+		return false;
+	if (geometry_item->IsDisabledStorage())
+		return false;
+	if (geometry_item->HasCalculator() && isReadonly)
+		return false;
+	return true;
+}
+
+auto GetGeometry(const TreeItem* storageHolder, AbstrUnit* layerDomain, bool isReadonly) -> AbstrDataItem*
+{
+	auto geometry_item = layerDomain->GetSubTreeItemByID(token::geometry);
+	if (geometry_item && !IsValidGeometry(geometry_item, isReadonly))
+		geometry_item = nullptr;
+
+	if (!geometry_item)
+		for (geometry_item = layerDomain->_GetFirstSubItem(); geometry_item; geometry_item = geometry_item->GetNextItem())
+			if (IsValidGeometry(geometry_item, isReadonly))
+				break;
+
+	return AsDynamicDataItem(geometry_item);
+}
+
+auto GetGeometry(const TreeItem* storageHolder, const AbstrUnit* layerDomain) -> const AbstrDataItem*
+{
+	auto geometry_item = layerDomain->GetCurrSubTreeItemByID(token::geometry);
+	if (geometry_item && !IsValidGeometry(geometry_item, true))
+		geometry_item = nullptr;
+
+	if (!geometry_item)
+		for (geometry_item = layerDomain->_GetFirstSubItem(); geometry_item; geometry_item = geometry_item->GetNextItem())
+			if (IsValidGeometry(geometry_item, true))
+				break;
+
+	return AsDynamicDataItem(geometry_item);
+}
+
 // *****************************************************************************
 //
 // Implementations of GdaVectlMetaInfo
@@ -322,6 +363,23 @@ void GdalVectlMetaInfo::OnClose(StorageCloseHandle* self)
 	gdv->m_CurrFieldIndex = -1;
 }
 
+auto GdalVectlMetaInfo::GetGeometryDataItem() const -> const AbstrDataItem*
+{
+	auto sh = StorageHolder();
+	if (!sh)
+		return nullptr;
+	return GetGeometry(sh, CurrRD()->GetAbstrDomainUnit());
+}
+
+auto GdalVectlMetaInfo::GetValueComposition() const -> ValueComposition
+{
+	auto geometryItem = GetGeometryDataItem();
+	if (!geometryItem)
+		return ValueComposition::Single;
+	return geometryItem->GetValueComposition();
+}
+
+
 // *****************************************************************************
 //
 // Implementations of GdalVectSM
@@ -372,16 +430,28 @@ void AddPoint(typename DataArray<PolygonType>::reference dataElemRef, OGRPoint* 
 	dataElemRef.push_back(shp2dms_order(point->getX(), point->getY()) MG_DEBUG_ALLOCATOR_SRC("AddPoint"));
 }
 
+template <typename SeqType>
+void AddPointZM(typename DataArray<SeqType>::reference dataElemRef, OGRPoint* point, bool isZ)
+{
+	dataElemRef.push_back(isZ ? point->getZ() : point->getM() MG_DEBUG_ALLOCATOR_SRC("AddPointZM"));
+}
+
 template <typename PolygonType>
 void AddLinePoint(typename DataArray<PolygonType>::reference dataElemRef, OGRLineString* lineString, SizeT p)
 {
 	dataElemRef.push_back(shp2dms_order(lineString->getX(p), lineString->getY(p)) MG_DEBUG_ALLOCATOR_SRC("AddLinePoint"));
 }
 
+template <typename SeqType>
+void AddLinePointZM(typename DataArray<SeqType>::reference dataElemRef, OGRLineString* lineString, SizeT p, bool isZ)
+{
+	dataElemRef.push_back(isZ ? lineString->getZ(p) : lineString->getM(p) MG_DEBUG_ALLOCATOR_SRC("AddLinePointZM"));
+}
+
 template <typename PolygonType>
 void AddSeparator(typename DataArray<PolygonType>::reference dataElemRef)
 {
-	dataElemRef.emplace_back(MG_DEBUG_ALLOCATOR_FIRST("AddSeparator") Undefined());
+	dataElemRef.emplace_back(MG_DEBUG_ALLOCATOR_FIRST("AddSeparator") UNDEFINED_VALUE(field_of_t<PolygonType>));
 }
 
 template <typename PolygonType>
@@ -390,6 +460,14 @@ void AddLineString(typename DataArray<PolygonType>::reference dataElemRef, OGRLi
 	SizeT numPoints = lineString->getNumPoints();
 	for (SizeT p = 0; p!= numPoints; ++p)
 		AddLinePoint<PolygonType>(dataElemRef, lineString, p);
+}
+
+template <typename SeqType>
+void AddLineStringZM(typename DataArray<SeqType>::reference dataElemRef, OGRLineString* lineString, bool isZ)
+{
+	SizeT numPoints = lineString->getNumPoints();
+	for (SizeT p = 0; p != numPoints; ++p)
+		AddLinePointZM<SeqType>(dataElemRef, lineString, p, isZ);
 }
 
 template <typename PolygonType>
@@ -405,6 +483,21 @@ void AddLinearRing(typename DataArray<PolygonType>::reference dataElemRef, OGRLi
 	MG_CHECK(ring->getY(0) == ring->getY(numPoints-1));
 	for (SizeT p = 0; p != numPoints; ++p)
 		AddLinePoint<PolygonType>(dataElemRef, ring, isExterior ? p : (numPoints - p - 1));
+}
+
+template <typename SeqType>
+void AddLinearRingZM(typename DataArray<SeqType>::reference dataElemRef, OGRLinearRing* ring, bool isExterior, bool isZ)
+{
+	if (!ring)
+		return;
+
+	if (!(ring->isClockwise()))
+		isExterior = !isExterior;
+	SizeT numPoints = ring->getNumPoints();
+	MG_CHECK(ring->getX(0) == ring->getX(numPoints - 1));
+	MG_CHECK(ring->getY(0) == ring->getY(numPoints - 1));
+	for (SizeT p = 0; p != numPoints; ++p)
+		AddLinePointZM<SeqType>(dataElemRef, ring, isExterior ? p : (numPoints - p - 1), isZ);
 }
 
 template <typename PolygonType>
@@ -424,10 +517,33 @@ void AddLinearRing(typename DataArray<PolygonType>::reference dataElemRef, OGRLi
 		AddLinePoint<PolygonType>(dataElemRef, lineString, numPoints);
 }
 
+template <typename SeqType>
+void AddLinearRingZM(typename DataArray<SeqType>::reference dataElemRef, OGRLineString* lineString, bool isZ)
+{
+	if (!lineString)
+		return;
+
+	SizeT numPoints = lineString->getNumPoints();
+	if (!numPoints)
+		return;
+
+	for (SizeT p = 0; p != numPoints; ++p)
+		AddLinePointZM<SeqType>(dataElemRef, lineString, p, isZ);
+
+	while (--numPoints)
+		AddLinePointZM<SeqType>(dataElemRef, lineString, numPoints, isZ);
+}
+
 template <typename PolygonType>
 void AddLineBegin(typename DataArray<PolygonType>::reference dataElemRef, OGRLineString* lineString)
 {
 	AddLinePoint<PolygonType>(dataElemRef, lineString, 0);
+}
+
+template <typename SeqType>
+void AddLineBeginZM(typename DataArray<SeqType>::reference dataElemRef, OGRLineString* lineString, bool isZ)
+{
+	AddLinePointZM<SeqType>(dataElemRef, lineString, 0, isZ);
 }
 
 template <typename PolygonType>
@@ -447,10 +563,33 @@ void AddPolygon(typename DataArray<PolygonType>::reference dataElemRef, OGRPolyg
 	}
 }
 
+template <typename SeqType>
+void AddPolygonZM(typename DataArray<SeqType>::reference dataElemRef, OGRPolygon* geoPoly, bool isZ)
+{
+	AddLinearRingZM<SeqType>(dataElemRef, geoPoly->getExteriorRing(), true, isZ);
+
+	SizeT numInteriorRings = geoPoly->getNumInteriorRings();
+	if (numInteriorRings)
+	{
+		for (SizeT i = 0; i != numInteriorRings; ++i)
+			AddLinearRingZM<SeqType>(dataElemRef, geoPoly->getInteriorRing(i), false, isZ);
+		--numInteriorRings;
+		while (numInteriorRings--)
+			AddLineBeginZM<SeqType>(dataElemRef, geoPoly->getInteriorRing(numInteriorRings), isZ);
+		AddLineBeginZM<SeqType>(dataElemRef, geoPoly->getExteriorRing(), isZ);
+	}
+}
+
 template <typename PolygonType>
 void AddPolygon(typename DataArray<PolygonType>::reference dataElemRef, OGRLineString* geoLineString)
 {
 	AddLinearRing<PolygonType>(dataElemRef, geoLineString);
+}
+
+template <typename SeqType>
+void AddPolygonZM(typename DataArray<SeqType>::reference dataElemRef, OGRLineString* geoLineString, bool isZ)
+{
+	AddLinearRingZM<SeqType>(dataElemRef, geoLineString, isZ);
 }
 
 template <typename PolygonType>
@@ -464,6 +603,19 @@ void AddMultiPolygon(typename DataArray<PolygonType>::reference dataElemRef, OGR
 	--numPolygons;
 	while (numPolygons--)
 		AddLineBegin<PolygonType>(dataElemRef, debug_cast<OGRPolygon*>(geoMultiPolygon->getGeometryRef(numPolygons))->getExteriorRing());
+}
+
+template <typename SeqType>
+void AddMultiPolygonZM(typename DataArray<SeqType>::reference dataElemRef, OGRMultiPolygon* geoMultiPolygon, bool isZ)
+{
+	SizeT numPolygons = geoMultiPolygon->getNumGeometries();
+	if (!numPolygons)
+		return;
+	for (SizeT i = 0; i != numPolygons; ++i)
+		AddPolygonZM<SeqType>(dataElemRef, debug_cast<OGRPolygon*>(geoMultiPolygon->getGeometryRef(i)), isZ);
+	--numPolygons;
+	while (numPolygons--)
+		AddLineBeginZM<SeqType>(dataElemRef, debug_cast<OGRPolygon*>(geoMultiPolygon->getGeometryRef(numPolygons))->getExteriorRing(), isZ);
 }
 
 template <typename PolygonType>
@@ -480,6 +632,20 @@ void AddMultiPolygon(typename DataArray<PolygonType>::reference dataElemRef, OGR
 		AddLineBegin<PolygonType>(dataElemRef, debug_cast<OGRLineString*>(geoMultiLineString->getGeometryRef(numLineStrings)));
 }
 
+template <typename SeqType>
+void AddMultiPolygonZM(typename DataArray<SeqType>::reference dataElemRef, OGRMultiLineString* geoMultiLineString, bool isZ)
+{
+	SizeT numLineStrings = geoMultiLineString->getNumGeometries();
+	if (!numLineStrings)
+		return;
+
+	for (SizeT i = 0; i != numLineStrings; ++i)
+		AddPolygonZM<SeqType>(dataElemRef, debug_cast<OGRLineString*>(geoMultiLineString->getGeometryRef(i)), isZ);
+	--numLineStrings;
+	while (numLineStrings--)
+		AddLineBeginZM<SeqType>(dataElemRef, debug_cast<OGRLineString*>(geoMultiLineString->getGeometryRef(numLineStrings)), isZ);
+}
+
 template <typename PolygonType>
 void AddMultiLineString(typename DataArray<PolygonType>::reference dataElemRef, OGRMultiLineString* geoMultiLineString)
 {
@@ -492,12 +658,32 @@ void AddMultiLineString(typename DataArray<PolygonType>::reference dataElemRef, 
 	}
 }
 
+template <typename SeqType>
+void AddMultiLineStringZM(typename DataArray<SeqType>::reference dataElemRef, OGRMultiLineString* geoMultiLineString, bool isZ)
+{
+	SizeT numLineStrings = geoMultiLineString->getNumGeometries();
+	for (SizeT i = 0; i != numLineStrings; ++i)
+	{
+		if (i)
+			AddSeparator<SeqType>(dataElemRef);
+		AddLineStringZM<SeqType>(dataElemRef, debug_cast<OGRLineString*>(geoMultiLineString->getGeometryRef(i)), isZ);
+	}
+}
+
 template <typename PolygonType>
 void AddMultiPoint(typename DataArray<PolygonType>::reference dataElemRef, OGRMultiPoint* multiPoint)
 {
 	SizeT numPoints = multiPoint->getNumGeometries();
 	for (SizeT p = 0; p!= numPoints; ++p)
 		AddPoint<PolygonType>(dataElemRef, debug_cast<OGRPoint*>(multiPoint->getGeometryRef(p)));
+}
+
+template <typename SeqType>
+void AddMultiPointZM(typename DataArray<SeqType>::reference dataElemRef, OGRMultiPoint* multiPoint, bool isZ)
+{
+	SizeT numPoints = multiPoint->getNumGeometries();
+	for (SizeT p = 0; p != numPoints; ++p)
+		AddPointZM<SeqType>(dataElemRef, debug_cast<OGRPoint*>(multiPoint->getGeometryRef(p)), isZ);
 }
 
 OGRFeature* GetNextFeatureInterleaved(OGRLayer* layer, WeakPtr<GDALDataset> hDS)
@@ -520,38 +706,6 @@ OGRFeature* GetNextFeatureInterleaved(OGRLayer* layer, WeakPtr<GDALDataset> hDS)
 	}
 
 	return nextFeature;
-}
-
-template <typename T>
-void ReadPointZData(typename sequence_traits<T>::seq_t data, OGRLayer* layer, SizeT firstIndex, SizeT size, GDALDataset* hDS)
-{
-	dms_assert(layer);
-
-	DBG_START("ReadPointZData", typeid(T).name(), true);
-
-	SizeT numPoints = 0;
-
-	dms_assert(data.size() == size);
-
-	SizeT i = 0;
-	auto lch = MakeLCH(
-		[firstIndex, &i]() -> SharedStr { return mySSPrintF("Reading Point Feature %d", i + firstIndex); }
-	);
-
-	for (; i != size; ++i)
-	{
-		typename DataArray<T>::reference dataElemRef = data[i];
-		gdalVectImpl::FeaturePtr  feat = hDS->TestCapability(ODsCRandomLayerRead) ? GetNextFeatureInterleaved(layer, hDS) : layer->GetNextFeature();
-		OGRGeometry* geo = feat ? feat->GetGeometryRef() : nullptr;
-		if (geo)
-		{
-			OGRPoint* point = dynamic_cast<OGRPoint*>(geo);
-			MG_CHECK(point);
-			dataElemRef = point->getZ();
-		}
-		else
-			Assign(dataElemRef, Undefined());
-	}
 }
 
 template <typename PointType>
@@ -584,6 +738,39 @@ void ReadPointData(typename sequence_traits<PointType>::seq_t data, OGRLayer* la
 					continue;
 				}
 		Assign( dataElemRef, Undefined() );
+	}
+}
+
+template <typename T>
+void ReadPointZM(typename sequence_traits<T>::seq_t data, OGRLayer* layer, SizeT firstIndex, SizeT size, GDALDataset* hDS, bool isZ)
+{
+	assert(layer);
+
+	DBG_START("ReadPointZM", typeid(T).name(), false);
+
+	SizeT numPoints = 0;
+
+	assert(data.size() == size);
+
+	SizeT i = 0;
+	auto lch = MakeLCH(
+		[firstIndex, &i, isZ]() -> SharedStr { return mySSPrintF("Reading %s coordinate of Point Feature %d", isZ ? "Z" : "M", i + firstIndex); }
+	);
+
+	for (; i != size; ++i)
+	{
+		typename DataArray<T>::reference dataElemRef = data[i];
+		gdalVectImpl::FeaturePtr feat = hDS->TestCapability(ODsCRandomLayerRead) ? GetNextFeatureInterleaved(layer, hDS) : layer->GetNextFeature();
+		OGRGeometry* geo = feat ? feat->GetGeometryRef() : nullptr;
+		if (geo)
+		{
+			OGRPoint* point = dynamic_cast<OGRPoint*>(geo);
+			MG_CHECK(point);
+
+			dataElemRef = isZ ? point->getZ() : point->getM();
+		}
+		else
+			Assign(dataElemRef, Undefined());
 	}
 }
 
@@ -711,6 +898,130 @@ void ReadPolyData(typename sequence_traits<PolygonType>::seq_t dataArray, OGRLay
 	assert(dataArray.get_sa().data_size()== data.actual_data_size());
 }
 
+template <typename SeqType>
+void ReadPolyZM(typename sequence_traits<SeqType>::seq_t dataArray, OGRLayer* layer, SizeT firstIndex, SizeT size, ResourceHandle& readBuffer, GDALDataset* m_hDS, bool isZ)
+{
+	assert(layer);
+
+	DBG_START("ReadPolyZM", typeid(SeqType).name(), true);
+
+	DBG_TRACE(("firstIndex %d, size %d", firstIndex, size));
+
+	using dataBufType = typename sequence_traits<SeqType>::container_type;
+	dataBufType& data = MakeAs<dataBufType>(readBuffer);
+	data.reset(size, 0 MG_DEBUG_ALLOCATOR_SRC("gdal_vect: ReadPolyData"));
+
+	SizeT i = 0;
+	auto lch = MakeLCH(
+		[firstIndex, &i, isZ]() -> SharedStr { return mySSPrintF("reading %s coordinates of Feature %d", isZ ? "Z": "M", i + firstIndex); }
+	);
+
+	for (; i != size; ++i)
+	{
+		typename DataArray<SeqType>::reference dataElemRef = data[i];
+
+		gdalVectImpl::FeaturePtr feat = m_hDS->TestCapability(ODsCRandomLayerRead) ? GetNextFeatureInterleaved(layer, m_hDS) : layer->GetNextFeature();
+		OGRGeometry* geo = feat ? feat->GetGeometryRef() : nullptr;
+
+		if (!geo) {
+			Assign(dataElemRef, Undefined());
+			continue;
+		}
+
+		auto geometry_type = geo->getGeometryType();
+
+		switch (geometry_type) {
+
+		case OGRwkbGeometryType::wkbPoint:
+		case OGRwkbGeometryType::wkbPoint25D:
+		case OGRwkbGeometryType::wkbPointM:
+		case OGRwkbGeometryType::wkbPointZM:
+			reportF(SeverityTypeID::ST_Warning, "Feature %d is a Point and skipped as only Surfaces, aka (Multi)Polygons, are read.\n"
+				"Hint: Configure another attribute without ValueComposition to read separate points."
+				, i + firstIndex
+			);
+			Assign(dataElemRef, Undefined());
+			break;
+
+		case OGRwkbGeometryType::wkbMultiPoint:
+		case OGRwkbGeometryType::wkbMultiPoint25D:
+		case OGRwkbGeometryType::wkbMultiPointM:
+		case OGRwkbGeometryType::wkbMultiPointZM:
+			reportF(SeverityTypeID::ST_Warning, "Feature %d is a MultiPoint and skipped as only Surfaces, aka (Multi)Polygons, are read.\n"
+				"Hint: Configure another attribute with ValueComposition=sequence to read MultiPoints."
+				, i + firstIndex);
+			Assign(dataElemRef, Undefined());
+			break;
+
+		case OGRwkbGeometryType::wkbLineString:
+		case OGRwkbGeometryType::wkbLineString25D:
+		case OGRwkbGeometryType::wkbLineStringM:
+		case OGRwkbGeometryType::wkbLineStringZM:
+			reportF(SeverityTypeID::ST_Warning, "Feature %d is a Linestring and skipped as only Surfaces, aka (Multi)Polygons, are read.\n"
+				"Hint: Configure another attribute with ValueComposition=sequence to read Linestrings."
+				, i + firstIndex);
+			Assign(dataElemRef, Undefined());
+			break;
+
+		case OGRwkbGeometryType::wkbCircularString:
+			reportF(SeverityTypeID::ST_Warning, "Feature %d is a CircularString and skipped as only Surfaces, aka (Multi)Polygons, are read.\n"
+				"Hint: Configure another attribute with ValueComposition=sequence to read it as Linestring."
+				, i + firstIndex);
+			Assign(dataElemRef, Undefined());
+			break;
+
+		case OGRwkbGeometryType::wkbCompoundCurve:
+			reportF(SeverityTypeID::ST_Warning, "Feature %d is a CompoundCurve and skipped as only Surfaces, aka (Multi)Polygons, are read.\n"
+				"Hint: Configure another attribute with ValueComposition=sequence to read it as Linestring."
+				, i + firstIndex);
+			Assign(dataElemRef, Undefined());
+			break;
+
+		case OGRwkbGeometryType::wkbPolygon:
+		case OGRwkbGeometryType::wkbPolygon25D:
+		case OGRwkbGeometryType::wkbPolygonM:
+		case OGRwkbGeometryType::wkbPolygonZM:
+			AddPolygonZM<SeqType>(dataElemRef, geo->toPolygon(), isZ); break;
+
+		case OGRwkbGeometryType::wkbCurvePolygon:
+		case OGRwkbGeometryType::wkbCurvePolygonM:
+		case OGRwkbGeometryType::wkbCurvePolygonZM:
+			AddPolygonZM<SeqType>(dataElemRef, geo->getLinearGeometry()->toPolygon(), isZ); break;
+
+		case OGRwkbGeometryType::wkbMultiPolygon:
+		case OGRwkbGeometryType::wkbMultiPolygon25D:
+		case OGRwkbGeometryType::wkbMultiPolygonM:
+		case OGRwkbGeometryType::wkbMultiPolygonZM:
+			AddMultiPolygonZM<SeqType>(dataElemRef, geo->toMultiPolygon(), isZ); break;
+
+		case OGRwkbGeometryType::wkbMultiLineString:
+			reportF(SeverityTypeID::ST_Warning, "Feature %d is a MultiLineString and skipped as only Surfaces, aka (Multi)Polygons, are read.\n"
+				"Hint: Configure another attribute with ValueComposition=sequence to read it as Linestring."
+				, i + firstIndex);
+			Assign(dataElemRef, Undefined());
+			break;
+
+		case OGRwkbGeometryType::wkbMultiSurface:
+			AddMultiPolygonZM<SeqType>(dataElemRef, geo->getLinearGeometry()->toMultiPolygon(), isZ); break;
+
+		default:
+			reportF(SeverityTypeID::ST_Warning, "Feature %d has type %s, which cannot be represented as GeoDMS Polygon.\n"
+				"Hint: Configure a geometry attribute with ValueType=string and no ValueComposition to read the features as WKTs."
+				, i + firstIndex, OGRGeometryTypeToName(geometry_type));
+			Assign(dataElemRef, Undefined());
+			break;
+		}
+
+		assert(data.data_size() == data.actual_data_size()); // no fragmentation
+	}
+
+	assert(data.data_size() == data.actual_data_size()); // no fragmentation
+
+	Assign(dataArray, data);
+
+	assert(dataArray.get_sa().data_size() == data.actual_data_size());
+}
+
 template <typename PolygonType>
 void ReadLinestringData(typename sequence_traits<PolygonType>::seq_t dataArray, OGRLayer* layer, SizeT firstIndex, SizeT size, ResourceHandle& readBuffer, GDALDataset* m_hDS)
 {
@@ -828,9 +1139,126 @@ void ReadLinestringData(typename sequence_traits<PolygonType>::seq_t dataArray, 
 	dms_assert(dataArray.get_sa().data_size() == data.actual_data_size());
 }
 
+template <typename SeqType>
+void ReadLinestringZM(typename sequence_traits<SeqType>::seq_t dataArray, OGRLayer* layer, SizeT firstIndex, SizeT size, ResourceHandle& readBuffer, GDALDataset* m_hDS, bool isZ)
+{
+	assert(layer);
+
+	DBG_START("ReadLinestringData", typeid(SeqType).name(), false);
+
+	DBG_TRACE(("firstIndex %d, size %d", firstIndex, size));
+
+	using dataBufType = typename sequence_traits<SeqType>::container_type;
+
+	dataBufType& data = MakeAs<dataBufType>(readBuffer);
+	data.reset(size, 0 MG_DEBUG_ALLOCATOR_SRC("gdal_vect: ReadLinestringData"));
+
+	SizeT i = 0;
+	auto lch = MakeLCH(
+		[firstIndex, &i, isZ]() -> SharedStr { return mySSPrintF("reading %s coordinates of Feature %d", isZ ? "Z": "M", i + firstIndex); }
+	);
+
+	for (; i != size; ++i)
+	{
+		typename DataArray<SeqType>::reference dataElemRef = data[i];
+
+		gdalVectImpl::FeaturePtr feat = m_hDS->TestCapability(ODsCRandomLayerRead) ? GetNextFeatureInterleaved(layer, m_hDS) : layer->GetNextFeature();
+		OGRGeometry* geo = feat ? feat->GetGeometryRef() : nullptr;
+
+		if (!geo) {
+			Assign(dataElemRef, Undefined());
+			continue;
+		}
+
+		auto geometry_type = geo->getGeometryType();
+
+		switch (geometry_type) {
+
+		case OGRwkbGeometryType::wkbPoint:
+			AddPointZM<SeqType>(dataElemRef, geo->toPoint(), isZ); break;
+
+		case OGRwkbGeometryType::wkbMultiPoint:
+			AddMultiPointZM<SeqType>(dataElemRef, geo->toMultiPoint(), isZ); break;
+
+		case OGRwkbGeometryType::wkbLineString:
+		case OGRwkbGeometryType::wkbLineString25D:
+		case OGRwkbGeometryType::wkbLineStringZM:
+		case OGRwkbGeometryType::wkbLineStringM:
+			AddLineStringZM<SeqType>(dataElemRef, geo->toLineString(), isZ); break;
+
+		case OGRwkbGeometryType::wkbCircularString:
+		case OGRwkbGeometryType::wkbCircularStringM:
+		case OGRwkbGeometryType::wkbCircularStringZM:
+			AddLineStringZM<SeqType>(dataElemRef, geo->getLinearGeometry()->toLineString(), isZ); break;
+
+		case OGRwkbGeometryType::wkbCompoundCurve:
+		case OGRwkbGeometryType::wkbCompoundCurveM:
+		case OGRwkbGeometryType::wkbCompoundCurveZM:
+			AddLineStringZM<SeqType>(dataElemRef, geo->getLinearGeometry()->toLineString(), isZ); break;
+
+		case OGRwkbGeometryType::wkbPolygon:
+		case OGRwkbGeometryType::wkbPolygonM:
+		case OGRwkbGeometryType::wkbPolygonZM:
+		case OGRwkbGeometryType::wkbPolygon25D:
+			reportF(SeverityTypeID::ST_Warning, "Feature %d is a Polygon and skipped as only Curves, aka (Multi)Linestrings, and (sequences of) Points are read.\n"
+				"Hint: Configure another attribute with ValueComposition=polygon to read it."
+				, i + firstIndex);
+			Assign(dataElemRef, Undefined());
+			break;
+
+		case OGRwkbGeometryType::wkbCurvePolygon:
+		case OGRwkbGeometryType::wkbCurvePolygonM:
+		case OGRwkbGeometryType::wkbCurvePolygonZM:
+			reportF(SeverityTypeID::ST_Warning, "Feature %d is a CurvePolygon and skipped as only Curves, aka (Multi)Linestrings, and (sequences of) Points are read.\n"
+				"Hint: Configure another attribute with ValueComposition=polygon to read it as Polygon."
+				, i + firstIndex);
+			Assign(dataElemRef, Undefined());
+			break;
+
+		case OGRwkbGeometryType::wkbMultiPolygon:
+		case OGRwkbGeometryType::wkbMultiPolygon25D:
+		case OGRwkbGeometryType::wkbMultiPolygonM:
+		case OGRwkbGeometryType::wkbMultiPolygonZM:
+			reportF(SeverityTypeID::ST_Warning, "Feature %d is a MultiPolygon and skipped as only Curves, aka (Multi)Linestrings, and (sequences of) Points are read.\n"
+				"Hint: Configure another attribute with ValueComposition=polygon to read it."
+				, i + firstIndex);
+			Assign(dataElemRef, Undefined());
+			break;
+
+		case OGRwkbGeometryType::wkbMultiLineString:
+		case OGRwkbGeometryType::wkbMultiLineString25D:
+		case OGRwkbGeometryType::wkbMultiLineStringM:
+		case OGRwkbGeometryType::wkbMultiLineStringZM:
+			AddMultiLineStringZM<SeqType>(dataElemRef, geo->toMultiLineString(), isZ); break;
+
+		case OGRwkbGeometryType::wkbMultiSurface:
+			reportF(SeverityTypeID::ST_Warning, "Feature %d is a MultiSurface and skipped as only Curves, aka (Multi)Linestrings, and (sequences of) Points are read.\n"
+				"Hint: Configure another attribute with ValueComposition=polygon to read it as MultiPolygon."
+				, i + firstIndex);
+			Assign(dataElemRef, Undefined());
+			break;
+
+		default:
+			reportF(SeverityTypeID::ST_Warning, "Feature %d has type %s, which cannot be represented as GeoDMS Point Sequence.\n"
+				"Hint: Configure a geometry attribute with ValueType=string and no ValueComposition to read the features as WKTs."
+				, i + firstIndex, OGRGeometryTypeToName(geometry_type));
+			Assign(dataElemRef, Undefined());
+			break;
+		}
+
+		assert(data.data_size() == data.actual_data_size()); // no fragmentation
+	}
+
+	assert(data.data_size() == data.actual_data_size()); // no fragmentation
+
+	Assign(dataArray, data);
+
+	assert(dataArray.get_sa().data_size() == data.actual_data_size());
+}
+
 void ReadStringData(sequence_traits<SharedStr>::seq_t dataArray, OGRLayer* layer, SizeT firstIndex, SizeT size, ResourceHandle& readBuffer, GDALDataset* hDS)
 {
-	dms_assert(layer);
+	assert(layer);
 
 	DBG_START("ReadStringData", "", true);
 
@@ -864,16 +1292,16 @@ void ReadStringData(sequence_traits<SharedStr>::seq_t dataArray, OGRLayer* layer
 		else
 			Assign( dataElemRef, Undefined() );
 	}
-	dms_assert(data.data_size() == data.actual_data_size()); // no holes
+	assert(data.data_size() == data.actual_data_size()); // no holes
 
 	Assign(dataArray, data);
 
-	dms_assert(dataArray.get_sa().data_size() == data.actual_data_size());
+	assert(dataArray.get_sa().data_size() == data.actual_data_size());
 }
 
 SizeT LayerFieldEnable(OGRLayer* layer, CharPtrRange itemName, const Actor* context)
 {
-	dms_assert(layer);
+	assert(layer);
 	SizeT fieldID ;
 
 	WeakPtr<OGRFeatureDefn> featureDefn = layer->GetLayerDefn();
@@ -905,25 +1333,87 @@ found:
 	return fieldID;
 }
 
-bool GdalVectSM::ReadGeometryZ(const GdalVectlMetaInfo* br, AbstrDataObject* ado, tile_id t, SizeT firstIndex, SizeT size)
+bool GdalVectSM::ReadGeometryZM(const GdalVectlMetaInfo* br, AbstrDataObject* ado, tile_id t, SizeT firstIndex, SizeT size, bool isZ, ValueComposition geometryComposition)
 {
-	dms_assert(br);
+	assert(br);
 	OGRLayer* layer = m_Layer;
 	if (!t)
 		LayerFieldEnable(layer, CharPtrRange(""), nullptr); // only set once
 
 	const ValueClass* vc = ado->GetValuesType();
-	switch (vc->GetValueClassID())
+	auto vcId = vc->GetValueClassID();
+	if (IsPolygonType(vcId))
 	{
-	case ValueClassID::VT_Float64: ReadPointZData<Float64>(mutable_array_cast<Float64>(ado)->GetWritableTile(t), layer, firstIndex, size, m_hDS); break;
-	case ValueClassID::VT_Float32: ReadPointZData<Float32>(mutable_array_cast<Float32>(ado)->GetWritableTile(t), layer, firstIndex, size, m_hDS); break;
-	case ValueClassID::VT_Int32: ReadPointZData<Int32>(mutable_array_cast<Int32>(ado)->GetWritableTile(t), layer, firstIndex, size, m_hDS); break;
-	case ValueClassID::VT_UInt32: ReadPointZData<UInt32>(mutable_array_cast<UInt32>(ado)->GetWritableTile(t), layer, firstIndex, size, m_hDS); break;
-	case ValueClassID::VT_Int16: ReadPointZData<Int16>(mutable_array_cast<Int16>(ado)->GetWritableTile(t), layer, firstIndex, size, m_hDS); break;
-	case ValueClassID::VT_UInt16: ReadPointZData<UInt16>(mutable_array_cast<UInt16>(ado)->GetWritableTile(t), layer, firstIndex, size, m_hDS); break;
+		auto vComposition = br->CurrWD()->GetValueComposition();
+		if (vComposition == ValueComposition::Sequence) // not a polygon, but a (multi) linestring or multipoint
+			reinterpret_cast<UInt8&>(vcId) -= static_cast<UInt8>(ValueClassID::NrPointTypes); // xPolygon -> xArc
+	}
+	switch (vcId)
+	{
+	case ValueClassID::VT_UInt32:
+		ReadPointZM<UInt32>(mutable_array_cast<UInt32>(ado)->GetWritableTile(t), layer, firstIndex, size, m_hDS, isZ);
+		break;
+
+	case ValueClassID::VT_Int32:
+		ReadPointZM<Int32>(mutable_array_cast<Int32>(ado)->GetWritableTile(t), layer, firstIndex, size, m_hDS, isZ);
+		break;
+
+	case ValueClassID::VT_UInt16:
+		ReadPointZM<UInt16>(mutable_array_cast<UInt16>(ado)->GetWritableTile(t), layer, firstIndex, size, m_hDS, isZ);
+		break;
+
+	case ValueClassID::VT_Int16:
+		ReadPointZM<Int16>(mutable_array_cast<Int16>(ado)->GetWritableTile(t), layer, firstIndex, size, m_hDS, isZ);
+		break;
+
+	case ValueClassID::VT_Float64:
+		ReadPointZM<Float64>(mutable_array_cast<Float64>(ado)->GetWritableTile(t), layer, firstIndex, size, m_hDS, isZ);
+		break;
+
+	case ValueClassID::VT_Float32:
+		ReadPointZM<Float32>(mutable_array_cast<Float32>(ado)->GetWritableTile(t), layer, firstIndex, size, m_hDS, isZ);
+		break;
+
+	case ValueClassID::VT_Float64Seq:
+		if (geometryComposition == ValueComposition::Polygon)
+			ReadPolyZM<Float64Seq>(mutable_array_cast<Float64Seq>(ado)->GetWritableTile(t), layer, firstIndex, size, m_ReadBuffer, m_hDS, isZ);
+		else
+			ReadLinestringZM<Float64Seq>(mutable_array_cast<Float64Seq>(ado)->GetWritableTile(t), layer, firstIndex, size, m_ReadBuffer, m_hDS, isZ);
+		break;
+	case ValueClassID::VT_Float32Seq:
+		if (geometryComposition == ValueComposition::Polygon)
+			ReadPolyZM<Float32Seq>(mutable_array_cast<Float32Seq>(ado)->GetWritableTile(t), layer, firstIndex, size, m_ReadBuffer, m_hDS, isZ);
+		else
+			ReadLinestringZM<Float32Seq>(mutable_array_cast<Float32Seq>(ado)->GetWritableTile(t), layer, firstIndex, size, m_ReadBuffer, m_hDS, isZ);
+		break;
+	case ValueClassID::VT_Int32Seq:
+		if (geometryComposition == ValueComposition::Polygon)
+			ReadPolyZM<Int32Seq>(mutable_array_cast<Int32Seq>(ado)->GetWritableTile(t), layer, firstIndex, size, m_ReadBuffer, m_hDS, isZ);
+		else
+			ReadLinestringZM<Int32Seq>(mutable_array_cast<Int32Seq>(ado)->GetWritableTile(t), layer, firstIndex, size, m_ReadBuffer, m_hDS, isZ);
+		break;
+	case ValueClassID::VT_UInt32Seq:
+		if (geometryComposition == ValueComposition::Polygon)
+			ReadPolyZM<UInt32Seq>(mutable_array_cast<UInt32Seq>(ado)->GetWritableTile(t), layer, firstIndex, size, m_ReadBuffer, m_hDS, isZ);
+		else
+			ReadLinestringZM<UInt32Seq>(mutable_array_cast<UInt32Seq>(ado)->GetWritableTile(t), layer, firstIndex, size, m_ReadBuffer, m_hDS, isZ);
+		break;
+	case ValueClassID::VT_Int16Seq:
+		if (geometryComposition == ValueComposition::Polygon)
+			ReadPolyZM<Int16Seq>(mutable_array_cast<Int16Seq>(ado)->GetWritableTile(t), layer, firstIndex, size, m_ReadBuffer, m_hDS, isZ);
+		else
+			ReadLinestringZM<Int16Seq>(mutable_array_cast<Int16Seq>(ado)->GetWritableTile(t), layer, firstIndex, size, m_ReadBuffer, m_hDS, isZ);
+		break;
+	case ValueClassID::VT_UInt16Seq:
+		if (geometryComposition == ValueComposition::Polygon)
+			ReadPolyZM<UInt16Seq>(mutable_array_cast<UInt16Seq>(ado)->GetWritableTile(t), layer, firstIndex, size, m_ReadBuffer, m_hDS, isZ);
+		else
+			ReadLinestringZM<UInt16Seq>(mutable_array_cast<UInt16Seq>(ado)->GetWritableTile(t), layer, firstIndex, size, m_ReadBuffer, m_hDS, isZ);
+		break;
+
 	default:
 		ado->throwItemErrorF(
-			"GdalVectSM::ReadGeometryZ not implemented for DataItems with ValuesUnitType: %s",
+			"GdalVectSM::ReadGeometryZM not implemented for DataItems with ValuesUnitType: %s",
 			vc->GetName()
 		);
 	}
@@ -947,8 +1437,8 @@ bool GdalVectSM::ReadGeometry(const GdalVectlMetaInfo* br, AbstrDataObject* ado,
 	if (IsPolygonType(vcId))
 	{
 		auto vComposition = br->CurrWD()->GetValueComposition();
-		if (vComposition == ValueComposition::Sequence)
-			reinterpret_cast<UInt8&>(vcId) -= static_cast<UInt8>(ValueClassID::NrPointTypes);
+		if (vComposition == ValueComposition::Sequence) // not a polygon, but a (multi) linestring or multipoint
+			reinterpret_cast<UInt8&>(vcId) -= static_cast<UInt8>(ValueClassID::NrPointTypes); // xPolygon -> xArc
 	}
 	switch (vcId)
 	{
@@ -957,7 +1447,6 @@ bool GdalVectSM::ReadGeometry(const GdalVectlMetaInfo* br, AbstrDataObject* ado,
 		case ValueClassID::VT_FArc:     ReadLinestringData<FPolygon>(mutable_array_cast<FPolygon>(ado)->GetWritableTile(t), layer, firstIndex, size, m_ReadBuffer, m_hDS); break;
 		case ValueClassID::VT_FPolygon: ReadPolyData      <FPolygon>(mutable_array_cast<FPolygon>(ado)->GetWritableTile(t), layer, firstIndex, size, m_ReadBuffer, m_hDS); break;
 
-#if defined (DMS_TM_HAS_INT_SEQ)
 		case ValueClassID::VT_IArc:     ReadLinestringData<IPolygon>(mutable_array_cast<IPolygon>(ado)->GetWritableTile(t), layer, firstIndex, size, m_ReadBuffer, m_hDS); break;
 		case ValueClassID::VT_IPolygon: ReadPolyData      <IPolygon>(mutable_array_cast<IPolygon>(ado)->GetWritableTile(t), layer, firstIndex, size, m_ReadBuffer, m_hDS); break;
 		case ValueClassID::VT_UArc:     ReadLinestringData<UPolygon>(mutable_array_cast<UPolygon>(ado)->GetWritableTile(t), layer, firstIndex, size, m_ReadBuffer, m_hDS); break;
@@ -966,7 +1455,7 @@ bool GdalVectSM::ReadGeometry(const GdalVectlMetaInfo* br, AbstrDataObject* ado,
 		case ValueClassID::VT_WPolygon: ReadPolyData      <WPolygon>(mutable_array_cast<WPolygon>(ado)->GetWritableTile(t), layer, firstIndex, size, m_ReadBuffer, m_hDS); break;
 		case ValueClassID::VT_SArc:     ReadLinestringData<SPolygon>(mutable_array_cast<SPolygon>(ado)->GetWritableTile(t), layer, firstIndex, size, m_ReadBuffer, m_hDS); break;
 		case ValueClassID::VT_SPolygon: ReadPolyData      <SPolygon>(mutable_array_cast<SPolygon>(ado)->GetWritableTile(t), layer, firstIndex, size, m_ReadBuffer, m_hDS); break;
-#endif
+
 		case ValueClassID::VT_DPoint: ReadPointData<DPoint>(mutable_array_cast<DPoint>(ado)->GetWritableTile(t), layer, firstIndex, size, m_hDS); break;
 		case ValueClassID::VT_FPoint: ReadPointData<FPoint>(mutable_array_cast<FPoint>(ado)->GetWritableTile(t), layer, firstIndex, size, m_hDS); break;
 		case ValueClassID::VT_IPoint: ReadPointData<IPoint>(mutable_array_cast<IPoint>(ado)->GetWritableTile(t), layer, firstIndex, size, m_hDS); break;
@@ -1307,7 +1796,9 @@ bool GdalVectSM::ReadLayerData(const GdalVectlMetaInfo* br, AbstrDataObject* ado
 	if (adi->GetID() == token::geometry || adi->GetAbstrValuesUnit()->GetValueType()->GetNrDims() == 2)
 		return ReadGeometry(br, ado, t, firstIndex, size);
 	if (adi->GetID() == token::geometry_z)
-		return ReadGeometryZ(br, ado, t, firstIndex, size);
+		return ReadGeometryZM(br, ado, t, firstIndex, size, true, br->GetValueComposition());
+	if (adi->GetID() == token::geometry_m)
+		return ReadGeometryZM(br, ado, t, firstIndex, size, false, br->GetValueComposition());
 	return ReadAttrData(br, ado, t, firstIndex, size);
 }
 
@@ -2133,26 +2624,16 @@ auto GdalVectSM::CreateGeometryDataItemFromGdal(const TreeItem* storageHolder, c
 	return geometry;
 }
 
-void GdalVectSM::DoUpdateTableGeometry(const TreeItem* storageHolder, AbstrUnit* layerDomain, OGRLayer* layer) const {
+void GdalVectSM::DoUpdateTableGeometry(const TreeItem* storageHolder, AbstrUnit* layerDomain, OGRLayer* layer) const 
+{
 	auto layer_geometry_type = layer->GetGeomType();
 	if (layer_geometry_type == OGRwkbGeometryType::wkbNone)
 		return;
+
 	ValueComposition gdal_vc = gdalVectImpl::OGR2ValueComposition(layer_geometry_type);
 
-	auto geometry_item = layerDomain->GetSubTreeItemByID(token::geometry);
-	if (geometry_item)
-	{
-		if (geometry_item->IsDisabledStorage() || geometry_item->HasCalculator() && IsReadOnly())
-			geometry_item = nullptr;
-	}
-	if (!geometry_item)
-	{
-		for (geometry_item = layerDomain->_GetFirstSubItem(); geometry_item; geometry_item = geometry_item->GetNextItem())
-			if (IsDataItem(geometry_item) && AsDataItem(geometry_item)->GetAbstrValuesUnit()->GetValueType()->GetNrDims() == 2)
-				if (!geometry_item->IsDisabledStorage() && (!geometry_item->HasCalculator() || !IsReadOnly()))
-					break;
-	}
-	AbstrDataItem* geometry = AsDynamicDataItem(geometry_item);
+	auto geometry = GetGeometry(storageHolder, layerDomain, IsReadOnly());
+
 	const OGRSpatialReference* ogrSR_ptr = layer->GetSpatialRef();
 
 	if (geometry) {
@@ -2169,12 +2650,32 @@ void GdalVectSM::DoUpdateTableGeometry(const TreeItem* storageHolder, AbstrUnit*
 	CheckSpatialReference(ogrSR, geometry, const_cast<AbstrUnit*>(gvu));
 
 	// add geometry_z attribute if available
-	if (layer_geometry_type == wkbPoint25D || layer_geometry_type == wkbPointM || layer_geometry_type == wkbPointZM) 
+	if (layer_geometry_type == wkbPointM || layer_geometry_type == wkbPointZM)
+	{
+		auto geometry_m_vt = gvu->GetValueType()->GetScalarClass();
+		CreateTreeItemColumnInfo(layerDomain, token::geometry_m.AsSharedStr().c_str(), layerDomain, geometry_m_vt);
+	}
+	if (layer_geometry_type == wkbPoint25D || layer_geometry_type == wkbPointZM)
 	{
 		auto geometry_z_vt = gvu->GetValueType()->GetScalarClass();
 		CreateTreeItemColumnInfo(layerDomain, token::geometry_z.AsSharedStr().c_str(), layerDomain, geometry_z_vt);
 	}
-
+	if  (	layer_geometry_type == wkbMultiPolygonM || layer_geometry_type == wkbMultiPolygonZM || layer_geometry_type == wkbPolygonM || layer_geometry_type == wkbPolygonZM || layer_geometry_type == wkbCurvePolygonM || layer_geometry_type == wkbCurvePolygonZM
+		||	layer_geometry_type == wkbCircularStringM || layer_geometry_type == wkbCircularStringZM || layer_geometry_type == wkbCompoundCurveM || layer_geometry_type == wkbCompoundCurveZM
+		||	layer_geometry_type == wkbMultiLineStringM || layer_geometry_type == wkbMultiLineStringZM || layer_geometry_type == wkbLineStringM || layer_geometry_type == wkbLineStringZM)
+	{
+		auto geometry_m_vt = gvu->GetValueType()->GetScalarClass();
+		bool isPolygon = layer_geometry_type == wkbMultiPolygonM || layer_geometry_type == wkbMultiPolygonZM || layer_geometry_type == wkbPolygonM || layer_geometry_type == wkbPolygonZM || layer_geometry_type == wkbCurvePolygonM || layer_geometry_type == wkbCurvePolygonZM;
+		CreateTreeItemColumnInfo(layerDomain, token::geometry_m.AsSharedStr().c_str(), layerDomain, geometry_m_vt, isPolygon ? ValueComposition::Polygon : ValueComposition::Sequence);
+	}
+	if  (	layer_geometry_type == wkbMultiPolygon25D || layer_geometry_type == wkbMultiPolygonZM || layer_geometry_type == wkbPolygon25D || layer_geometry_type == wkbPolygonZM || layer_geometry_type == wkbCurvePolygonZM
+		|| layer_geometry_type == wkbCircularStringZM || layer_geometry_type == wkbCompoundCurveZM
+		|| layer_geometry_type == wkbMultiLineString25D || layer_geometry_type == wkbMultiLineStringZM || layer_geometry_type == wkbLineString25D || layer_geometry_type == wkbLineStringZM)
+	{
+		auto geometry_z_vt = gvu->GetValueType()->GetScalarClass();
+		bool isPolygon = layer_geometry_type == wkbMultiPolygon25D || layer_geometry_type == wkbMultiPolygonZM || layer_geometry_type == wkbPolygon25D || layer_geometry_type == wkbPolygonZM || layer_geometry_type == wkbCurvePolygonZM;
+		CreateTreeItemColumnInfo(layerDomain, token::geometry_z.AsSharedStr().c_str(), layerDomain, geometry_z_vt, isPolygon ? ValueComposition::Polygon : ValueComposition::Sequence);
+	}
 	return;
 }
 
@@ -2200,7 +2701,7 @@ void GdalVectSM::DoUpdateTableAttributes(AbstrUnit* layerDomain, OGRLayer* layer
 
 void GdalVectSM::DoUpdateTable(const TreeItem* storageHolder, AbstrUnit* layerDomain, OGRLayer* layer) const
 {
-	dms_assert(layer);
+	assert(layer);
 	GDAL_ErrorFrame gdal_error_frame;
 	bool create_vu_from_datasource = false;
 

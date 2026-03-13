@@ -140,7 +140,6 @@ public:
 		AF_ChangingInterest  = 4 * AF_TransientBase,
 		AF_UpdatingMetaInfo  = 5 * AF_TransientBase,
 		AF_DeterminingState  = 6 * AF_TransientBase,
-		AF_DeterminingCheck  = 7 * AF_TransientBase,
 
 		AF_TransientMask     = 0x07 * AF_TransientBase,
 	};
@@ -189,7 +188,6 @@ public:
 	void ClearPassor() { Clear(AF_IsPassor); }
 	bool IsPassor   () const { return Get(AF_IsPassor); }
 
-	bool IsDeterminingCheck() const { return GetTransState()==AF_DeterminingCheck; }
 	bool IsDeterminingState() const { return GetTransState()==AF_DeterminingState; }
 	bool IsUpdatingMetaInfo() const { return GetTransState()==AF_UpdatingMetaInfo; }
 	bool IsCalculatingData () const { return GetTransState()==AF_CalculatingData ; }

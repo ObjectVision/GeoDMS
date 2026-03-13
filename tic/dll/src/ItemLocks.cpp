@@ -767,13 +767,14 @@ bool WaitForReadyOrSuspendTrigger(const TreeItem* item)
 			leveled_critical_section::scoped_lock lock(treeitem_production_task::cs_lockCounterUpdate);
 			producer = item->m_Producer.lock();
 			if (!producer && item->IsCacheItem())
-				do
+			{
+				for (auto parent = item->GetTreeParent(); parent; parent = parent->GetTreeParent())
 				{
-					auto parent  = item->GetTreeParent();
-					if (!parent)
-						break;
 					producer = parent->m_Producer.lock();
-				} while (!producer);
+					if (producer)
+						break;
+				}
+			}
 		}
 		if (producer)
 		{

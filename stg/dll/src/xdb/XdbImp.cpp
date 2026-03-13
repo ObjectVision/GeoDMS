@@ -490,9 +490,9 @@ FileResult XdbImp::AppendColumn
 	SharedStr tmpDatFile =  m_DatFileName + ".tmp";
 
 	// Open dat-files
-	auto r = src.OpenFH(m_DatFileName, FCM_OpenReadOnly, true, NR_PAGES_DATFILE);
-	if (!r)
-		return r;
+	auto srcFileResult = src.OpenFH(m_DatFileName, FCM_OpenReadOnly, true, NR_PAGES_DATFILE);
+	if (!srcFileResult)
+		return srcFileResult;
 
 	DBG_TRACE(("padding data"));
 
@@ -507,9 +507,9 @@ FileResult XdbImp::AppendColumn
 	width_t srcfilesize = ftell(src);
 	if (srcfilesize > headersize)
 	{
-		auto r = dst.OpenFH(tmpDatFile, FCM_CreateAlways, true, NR_PAGES_DATFILE);
-		if (!r)
-			return r;
+		auto dstFileResult = dst.OpenFH(tmpDatFile, FCM_CreateAlways, true, NR_PAGES_DATFILE);
+		if (!dstFileResult)
+			return dstFileResult;
 
 		fseek(src, 0, 0);
 		copyMade = true;
@@ -564,9 +564,9 @@ FileResult XdbImp::AppendColumn
 		local.ColDescriptions[local.ColDescriptions.size()-1].m_Type   = type;
 
 		// Write new header
-		auto r = local.OpenFH(m_FileName, FCM_CreateAlways, true, NR_PAGES_HDRFILE);
-		if (!r)
-			return r;
+		auto headerFileResult = local.OpenFH(m_FileName, FCM_CreateAlways, true, NR_PAGES_HDRFILE);
+		if (!headerFileResult)
+			return headerFileResult;
 		local.WriteHeader();
 	}
 
