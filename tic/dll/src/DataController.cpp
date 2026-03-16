@@ -460,7 +460,7 @@ const Class* DataController::GetResultCls () const
 	return result->GetDynamicObjClass();
 }
 
-ActorVisitState DataController::DoUpdate(ProgressState ps)
+ActorVisitState DataController::DoUpdate()
 {
 	return AVS_Ready;
 }

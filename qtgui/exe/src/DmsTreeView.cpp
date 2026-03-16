@@ -214,7 +214,7 @@ QVariant DmsModel::getTreeItemIcon(const QModelIndex& index) const {
 		if (IsDataCurrStandby(ti->GetCurrRangeItem()) && ti->m_State.GetProgress() != ProgressState::Committed)
 			PostMainThreadTask(0, [sti = MakeSharedFromBorrowedObjectPtr<const TreeItem>(ti)](bool)->bool
 				{
-					sti->SuspendibleUpdate(ProgressState::Committed);
+					sti->SuspendibleUpdate();
 					return !SuspendTrigger::DidSuspend();
 				}
 			);

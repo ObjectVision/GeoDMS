@@ -459,7 +459,7 @@ public:
 
 //	override Actor callbacks
 	// Update/invalidate hooks from Actor; handle suspended updates via SuspendibleUpdate.
-	TIC_CALL ActorVisitState DoUpdate(ProgressState ps) override;
+	TIC_CALL ActorVisitState DoUpdate() override;
 	TIC_CALL void DoInvalidate  () const override;
 
 	// Determine last supplier change for caching and invalidation decisions.
@@ -470,7 +470,7 @@ private:
 
 public:
 	// Update that can suspend; returns appropriate visit state to scheduler.
-	TIC_CALL ActorVisitState SuspendibleUpdate(ProgressState ps) const override;
+	TIC_CALL ActorVisitState SuspendibleUpdate() const override;
 
 // InterestCount management
 	// Interest drives resource lifetime; “KeepDataState” maintains data aside from interest count.

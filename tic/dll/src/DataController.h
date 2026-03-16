@@ -54,7 +54,7 @@ protected:
 	DataController(LispPtr keyExpr);
 	virtual ~DataController();
 public:
-	TIC_CALL ActorVisitState DoUpdate(ProgressState ps) override;
+	TIC_CALL ActorVisitState DoUpdate() override;
 
 #if defined(MG_DEBUG_DCDATA)
 public:

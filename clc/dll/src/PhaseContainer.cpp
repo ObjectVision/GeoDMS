@@ -174,7 +174,7 @@ struct PhaseContainerOperator : BinaryOperator
 			//*
 			{
 //				auto detectInterest = tmp_swapper(s_IsDetectingIncInterest, true);
-				if (!srcItem->SuspendibleUpdate(ProgressState::Committed))
+				if (!srcItem->SuspendibleUpdate())
 				{
 					if (srcItem->WasFailed())
 						resWalker->Fail(srcItem);

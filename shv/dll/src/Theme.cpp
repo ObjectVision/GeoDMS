@@ -568,7 +568,7 @@ ActorVisitState PrepareThemeData(const AbstrDataItem* adi, const Actor* act)
 		return AVS_Ready;
 
 	// first try to commit.
-	adi->SuspendibleUpdate(ProgressState::Committed);
+	adi->SuspendibleUpdate();
 	if (SuspendTrigger::DidSuspend())
 		return AVS_SuspendedOrFailed;
 

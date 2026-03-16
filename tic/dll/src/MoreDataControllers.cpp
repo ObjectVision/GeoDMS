@@ -573,7 +573,7 @@ OArgRefs FuncDC::GetArgs(bool doUpdateMetaInfo, bool doCalcData) const
 
 		if (WasFailed(doCalcData))
 			return {};
-		dms_assert(argItem && !argItem->WasFailed(FailType::MetaInfo));
+		assert(argItem && !argItem->WasFailed(FailType::MetaInfo));
 		argSeq.emplace_back(std::move(argRef));
 	}
 	return argSeq;
@@ -993,7 +993,7 @@ auto SymbDC::CallCalcResult(std::shared_ptr<Explain::Context> context) const -> 
 	FutureData resultHolder( this );
 	dms_assert(!SuspendTrigger::DidSuspend());
 	//		if (m_Data->m_State.GetTransState() < actor_flag_set::AF_Validating)
-	//			m_Data->SuspendibleUpdate(PS_Committed);
+	//			m_Data->SuspendibleUpdate();
 	bool suspended = !m_Data->PrepareDataUsage(DrlType::Suspendible);
 
 	if (m_Data->WasFailed())

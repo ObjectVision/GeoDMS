@@ -402,7 +402,7 @@ void LayerControl::Init()
 			if (mustCancel) return true;
 			auto sptr = wptr.lock(); if (!sptr) return true;
 
-			sptr->SuspendibleUpdate(ProgressState::Committed);
+			sptr->SuspendibleUpdate();
 			return !SuspendTrigger::DidSuspend();
 		}
 	);
@@ -513,7 +513,7 @@ ActorVisitState LayerControl::VisitSuppliers(SupplierVisitFlag svf, const ActorV
 }
 
 
-ActorVisitState LayerControl::DoUpdate(ProgressState ps)
+ActorVisitState LayerControl::DoUpdate()
 {
 	SizeT selectedID = m_Layer->IsTopographic()
 		?	UNDEFINED_VALUE(SizeT)

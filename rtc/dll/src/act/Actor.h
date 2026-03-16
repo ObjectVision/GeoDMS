@@ -89,22 +89,22 @@ struct Actor: PersistentObject
 	// - Performs an update that is allowed to suspend or fail gracefully.
 	// - Return value indicates whether the update completed or was suspended/failed.
 	// - Should be side-effect free on failure and leave state consistent on suspend.
-	RTC_CALL virtual ActorVisitState SuspendibleUpdate(ProgressState ps) const;
+	RTC_CALL virtual ActorVisitState SuspendibleUpdate() const;
 
 	// CertainUpdate:
 	// - Performs an update that must complete (does not suspend).
 	// - Calls UpdateMetaInfo, acquires MustSuspend() interrupter lock, then DoUpdate.
 	// - 'blockingAction' describes the action for diagnostic/progress reporting.
-	RTC_CALL void CertainUpdate(ProgressState ps, CharPtr blockingAction) const;
+	RTC_CALL void CertainUpdate(CharPtr blockingAction) const;
 
 	// Update orchestration helper:
 	// - If mustUpdate is false: attempts SuspendibleUpdate; returns false only if suspended/failed.
 	// - If mustUpdate is true: forces a CertainUpdate (non-suspendible) and returns true.
-	bool Update(ProgressState ps, bool mustUpdate, CharPtr blockingAction) const
+	bool Update(bool mustUpdate, CharPtr blockingAction) const
 	{
 		if (!mustUpdate)
-			return SuspendibleUpdate(ps) != AVS_SuspendedOrFailed;
-		CertainUpdate(ps, blockingAction);
+			return SuspendibleUpdate() != AVS_SuspendedOrFailed;
+		CertainUpdate(blockingAction);
 		return true;
 	}
 
@@ -136,8 +136,8 @@ struct Actor: PersistentObject
 	RTC_CALL bool WasFailed() const { return m_State.IsFailed(); }
 	RTC_CALL bool WasFailed(FailType fr) const;
 	// WARNING: ambiguous semantics; prefer WasFailed(FailType). See improvement notes.
-	bool WasFailed(ProgressState ps) const; // DON'T CALL THIS ONE
-          bool WasFailed(bool doCalc) const { return WasFailed(doCalc ? FailType::Data : FailType::MetaInfo); }
+//	bool WasFailed(ProgressState ps) const; // DON'T CALL THIS ONE
+    bool WasFailed(bool doCalc) const { return WasFailed(doCalc ? FailType::Data : FailType::MetaInfo); }
     bool WasValid (ProgressState ps = ProgressState::Committed) const { return m_State.GetProgress() >= ps && !m_State.IsFailed();  }
 
 	// Trigger an evaluation/update cycle proactively (e.g., prefetch).
@@ -190,14 +190,14 @@ struct Actor: PersistentObject
 	// Recompute state based on suppliers and change detection heuristics.
 	RTC_CALL void DetermineState () const;
 	// Update suppliers for a given progress state; returns visit/update outcome.
-	RTC_CALL ActorVisitState UpdateSuppliers(ProgressState ps) const;
+	RTC_CALL ActorVisitState UpdateSuppliers() const;
 
 protected:
 	// Apply decision hook used by update flow to decide if an apply-like action is needed.
 	RTC_CALL bool MustApplyImpl() const;
 
 	// Actual update implementation for derived classes; default may orchestrate meta/data updates.
-	RTC_CALL virtual ActorVisitState DoUpdate(ProgressState ps);
+	RTC_CALL virtual ActorVisitState DoUpdate();
 	// Handle failure reporting in derived classes; return true if failure is handled.
 	RTC_CALL virtual bool DoFail(ErrMsgPtr msg, FailType ft) const;
 

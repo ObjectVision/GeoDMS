@@ -2619,21 +2619,18 @@ void TreeItem::UpdateMetaInfo() const noexcept
 		UpdateMetaInfoImpl2();
 }
 
-ActorVisitState TreeItem::SuspendibleUpdate(ProgressState ps) const
+ActorVisitState TreeItem::SuspendibleUpdate() const
 {
-//	dms_assert((m_State.GetProgress()>=ProgressState::Committed) || (ps < PS_DataReady) || GetInterestCount() || !IsDataItem(this));
-	dms_assert(ps == ProgressState::Committed); // TODO: clean-up if this holds
-
 	UpdateMetaInfo();
 	auto remainingStackSpace = RemainingStackSpace();
 	if (remainingStackSpace <= 327680)
 	{
 		// just use async to start a new thread.
-		auto future = std::async([this, ps]()->ActorVisitState
+		auto future = std::async([this]()->ActorVisitState
 			{
 				SetMetaThreadID();
 				assert(IsMetaThread());
-				return this->base_type::SuspendibleUpdate(ps);
+				return this->base_type::SuspendibleUpdate();
 			}
 		);
 		ActorVisitState result = future.get();
@@ -2641,7 +2638,7 @@ ActorVisitState TreeItem::SuspendibleUpdate(ProgressState ps) const
 		assert(IsMetaThread());
 		return result;
 	}
-	return base_type::SuspendibleUpdate(ps);
+	return base_type::SuspendibleUpdate();
 }
 
 void TreeItem::UpdateMetaInfoIfNotAlready() const noexcept
@@ -2701,11 +2698,10 @@ bool IntegrityCheckFailure(const TreeItem* self, const AbstrDataItem* iCheckerRe
 	return true;
 }
 
-ActorVisitState TreeItem::DoUpdate(ProgressState ps)
+ActorVisitState TreeItem::DoUpdate()
 {
 	DBG_START("TreeItem", "DoUpdate", MG_DEBUG_UPDATEMETAINFO && false);
 	DBG_TRACE(("fullname = %s", GetFullName().c_str()));
-	dms_assert(ps > ProgressState::MetaInfo);
 
 	assert(m_State.GetProgress() >= ProgressState::MetaInfo); //UpdateMetaInfo();
 
@@ -2737,9 +2733,6 @@ ActorVisitState TreeItem::DoUpdate(ProgressState ps)
 								return ActorVisitState::AVS_SuspendedOrFailed;
 							}
 						}
-
-	if (ps < ProgressState::Validated)
-		goto exitReady;
 
 	if (m_State.GetProgress() < ProgressState::Validated) 
 	{
@@ -2824,7 +2817,7 @@ ActorVisitState TreeItem::DoUpdate(ProgressState ps)
 		SetProgress(ProgressState::Validated);
 	}
 
-	if (ps >= ProgressState::Committed && m_State.GetProgress() < ProgressState::Committed)
+	if (m_State.GetProgress() < ProgressState::Committed)
 	{
 		//	TODO, Uitzoeken wanneer Commit overbodig is (zoals indien in vorige sessie reeds gedaan).
 		//	Voorlopig antwoord: wanneer er geen changes zijn, is er geen cause voor invalidatatie en mag DoUpdate helemaal niet aangeroepen worden.
@@ -3846,8 +3839,8 @@ data_ready:
 	assert(!IsDataItem(this) || HasConfigData() || CheckCalculatingOrReady(refItem) || WasFailed(FailType::Data));
 	return SuspendTrigger::BlockerBase::IsBlocked() 
 		|| IsPassor() 
-		|| (m_State.GetTransState() >= actor_flag_set::AF_Committing) 
-		|| SuspendibleUpdate(ProgressState::Committed) 
+		|| (m_State.GetTransState() >= actor_flag_set::AF_ValidatingAndCommitting) 
+		|| SuspendibleUpdate() 
 		|| !SuspendTrigger::DidSuspend();
 
 suspended_or_failed:
