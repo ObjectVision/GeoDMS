@@ -2741,6 +2741,7 @@ ActorVisitState TreeItem::DoUpdate()
 	{
 		if (HasIntegrityChecker())
 		{
+			m_State.Set(actor_flag_set::AF_IntegrityChecked);
 			try
 			{
 				TreeItemContextHandle tich2(this, "IntegrityCheck Evaluation");

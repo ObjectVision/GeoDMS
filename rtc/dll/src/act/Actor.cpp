@@ -733,6 +733,8 @@ ActorVisitState Actor::UpdateSuppliers() const // returns US_Valid, US_UpdatingE
                             this->Fail(supplier);
 						if (this->WasFailed(FailType::Validate))
                             return AVS_SuspendedOrFailed; // then, suspend or fail
+                        if (SuspendTrigger::DidSuspend())
+                            return AVS_SuspendedOrFailed;
                     }
                     return AVS_Ready;
                 }
