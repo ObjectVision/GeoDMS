@@ -333,6 +333,10 @@ SharedTreeItem FuncDC::MakeResult() const // produce signature
 	if (WasFailed(FailType::MetaInfo))
 		return {};
 
+	for (auto* arg = m_Args.get(); arg; arg = arg->m_Next.get())
+		if (arg->m_DC->m_State.Get(actor_flag_set::AF_IntegrityChecked))
+			m_State.Set(actor_flag_set::AF_IntegrityChecked);
+
 	actor_section_lock_map::ScopedLock specificSectionLock(MG_SOURCE_INFO_CODE("Actor::DecInterestCount") sg_ActorLockMap, this);
 
 	if (GetInterestCount())

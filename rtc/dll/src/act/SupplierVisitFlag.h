@@ -24,7 +24,7 @@ enum class SupplierVisitFlag
 	SourceData = 0x0100, // result of a SubItem main-expression or main-reference
 	Checker = 0x0200,
 	ReadyDcsToo = 0x0400,
-	ScanSupplTree =0x0800,
+	ScanSupplTree = 0x0800,
 
 	Calc = DataController | DcArgs,
 	//	Meta    = 0x0002, // Explicit Suppliers, FuncFC args that don't require delayed updating, such as TemplDC args, and ImplSupplFromIndirectProps
@@ -38,6 +38,8 @@ enum class SupplierVisitFlag
 
 	//	UpdateMetaInfo = 0x0010,
 	Inspect = Explain | Checker | DetermineCalc,
+
+	IntegrityChecked = Inspect,
 
 	//	Check  = 0x0004, // IntegrityCheck
 //	Commit = 0x0008, // Specific additional items such as PaletteData, 
@@ -57,7 +59,7 @@ enum class SupplierVisitFlag
 	MetaAll     = Signature | TemplateOrg | CDF | DIALOGDATA | ImplSuppliers | NamedSuppliers,
 	All         = CalcAll | MetaAll,
 
-StartSupplInterest = DetermineState & ~Signature // Signature Already explicitly done by StartInterest function
+	StartSupplInterest = DetermineState & ~Signature // Signature Already explicitly done by StartInterest function
 };
 
 #endif // __RTC_ACT_SUPPLIERVISITFLAG_H

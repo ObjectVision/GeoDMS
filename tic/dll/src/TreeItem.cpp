@@ -718,6 +718,8 @@ void TreeItem::SetDC(DataControllerRef newDC, const TreeItem* newRefItem) const
 	}
 	mc_DC = std::move(newDC);
 	SetReferredItem(newRI);
+	if (mc_DC && mc_DC->m_State.Get(actor_flag_set::AF_IntegrityChecked))
+		m_State.Set(actor_flag_set::AF_IntegrityChecked);
 }
 
 void TreeItem::SetCalculator(AbstrCalculatorRef pr) const
@@ -2125,7 +2127,8 @@ void TreeItem::UpdateMetaInfoImpl() const
 {
 	assert(!WasFailed(FailType::MetaInfo));
 
-	UpdateSupplMetaInfo(); // Update Suppliers, calls MakeCalculator() -> mc_DC
+	Actor::UpdateMetaInfo();
+
 	GetPhaseNumber();
 
 	VisitSupplBoolImpl(this, SupplierVisitFlag::NamedSuppliers,

@@ -149,9 +149,7 @@ public:
 		AF_SupplInterest     = 0x0400, 
 		AF_CommitInterest    = 0x0800,
 
-		#if defined(MG_DEBUG)
-		AFD_ProcessCounted   = 0x1000,
-		#endif
+		AF_IntegrityChecked = 0x1000, // true if any of its suppliers has an IntegrityCheck
 
 		AFD_PivotElem        = 0x2000,
 

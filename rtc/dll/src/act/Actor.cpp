@@ -77,20 +77,12 @@ PSEUDOCODE PLAN (documentation-only, no behavior changes)
 
 inline void IncRemainingTargetCount(const Actor* self)
 {
-    dbg_assert(! self->m_State.Get(actor_flag_set::AFD_ProcessCounted) );
-
     IncRemainingTargetCount();
-
-    MG_DEBUGCODE( self->m_State.Set(actor_flag_set::AFD_ProcessCounted); )
 }
 
 inline void DecRemainingTargetCount(const Actor* self)
 {
-    dbg_assert(  self->m_State.Get(actor_flag_set::AFD_ProcessCounted) );
-
     DecRemainingTargetCount();
-
-    MG_DEBUGCODE( self->m_State.Clear(actor_flag_set::AFD_ProcessCounted); )
 }
 
 
@@ -252,8 +244,7 @@ Actor::Actor ()
 
 Actor::~Actor ()
 {
-    dms_assert(!m_InterestCount);
-    dbg_assert(!m_State.Get(actor_flag_set::AFD_ProcessCounted));
+    assert(!m_InterestCount);
 
     ClearFail();
     #if defined(MG_DEBUG)
@@ -524,7 +515,7 @@ ActorVisitState Actor::SuspendibleUpdate() const // returns false in case of fai
                 MG_DEBUGCODE(d_WTF = 3);
             }
 
-            VisitSupplBoolImpl(this, SupplierVisitFlag::Calc,
+            VisitSupplBoolImpl(this, SupplierVisitFlag::IntegrityChecked,
                 [this](const Actor* suppl) 
                 { 
                     if (suppl->WasFailed(FailType::Committed))
@@ -600,7 +591,21 @@ void Actor::DoInvalidate () const
 // Default meta-info update is empty. Derived classes may override.
 // NOTE: Must be noexcept to preserve state invariants during metadata refresh.
 void Actor::UpdateMetaInfo() const noexcept
-{}
+{
+    UpdateSupplMetaInfo(); // Update Suppliers, calls MakeCalculator() -> mc_DC
+
+    // collect IntegrityCheck Related MetaInfo
+
+//    static_assert((UInt32(SupplierVisitFlag::IntegrityChecked) & UInt32(SupplierVisitFlag::UpdateSupplMetaInfo)) == UInt32(SupplierVisitFlag::IntegrityChecked)); // require that all inspected suppliers for check were also MetaInfo updated.
+
+    VisitSupplProcImpl(this, SupplierVisitFlag::IntegrityChecked, [this](const Actor* supplier)
+        {
+            assert(supplier);
+            if (supplier->m_State.Get(actor_flag_set::AF_IntegrityChecked))
+                this->m_State.Set(actor_flag_set::AF_IntegrityChecked);
+        }
+    );
+}
 
 // Propagate meta-info update to suppliers and record failures.
 void Actor::UpdateSupplMetaInfo() const
