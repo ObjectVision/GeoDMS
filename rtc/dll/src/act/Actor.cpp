@@ -948,12 +948,10 @@ bool Actor::DoFail(ErrMsgPtr msg, FailType ft) const
 bool Actor::DoFailCaller(ErrMsgPtr msg, FailType failType) const
 {
     auto result = DoFail(msg, failType);
-/*
-    if (failType == FailType::Validate)
-        m_State.SetProgress(ProgressState::Validated);
-    if (failType == FailType::Committed)
+
+    if (failType >= FailType::Validate)
         m_State.SetProgress(ProgressState::Committed);
-*/
+
     return result;
 }
 

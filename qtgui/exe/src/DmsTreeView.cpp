@@ -209,6 +209,17 @@ QVariant DmsModel::getTreeItemIcon(const QModelIndex& index) const {
 	bool isInTemplate = ti->InTemplate();
 	auto vsflags = SHV_GetViewStyleFlags(ti);
 
+	if (!isInTemplate)
+	{
+		if (IsDataCurrStandby(ti->GetCurrRangeItem()) && ti->m_State.GetProgress() != ProgressState::Committed)
+			PostMainThreadTask(0, [sti = MakeSharedFromBorrowedObjectPtr<const TreeItem>(ti)](bool)->bool
+				{
+					sti->SuspendibleUpdate(ProgressState::Committed);
+					return !SuspendTrigger::DidSuspend();
+				}
+			);
+	}
+
 	if (vsflags & ViewStyleFlags::vsfMapView) 
 		return isInTemplate 
 		? QVariant::fromValue(QPixmap(":/res/images/TV_globe_bw.bmp")) 
@@ -474,21 +485,25 @@ void TreeItemDelegate::paint(QPainter* painter, const QStyleOptionViewItem& opti
 				QColor color;
 				QString validationIcon;
 
-				static auto validIcon  = QString("\u2713"); // ✓
-				static auto failedIcon = QString("\u2717"); // ✗
-
+				static auto thisSucceededIcon  = QString("\u2713"); // ✓
+				static auto upstreamFailedIcon = QString("↯"); // ↯
+				static auto thisFailedIcon = QString("✖"); // ✖
+				static auto upstreamSucceededIcon = QString("◦"); // ◦
+				static auto nonfalsifiable = QString("∅"); // ◦
+				bool thisValidated = integrityCheckPropDefPtr->HasNonDefaultValue(ti);
 				if (valid)
 				{
-					color = QColor(0, 150, 0);   // groen
-					validationIcon = validIcon;
+	//				color = thisValidated ? QColor(0x2E, 0x7D, 0x32) : QColor(0x60, 0x60, 0x60);
+					color = QColor(0x2E, 0x7D, 0x32);
+					validationIcon = thisValidated ? thisSucceededIcon : upstreamSucceededIcon;
 				}
 				else
 				{
-					color = QColor(200, 0, 0);   // rood
-					validationIcon = failedIcon;
+					color = thisValidated ? QColor(0xC6, 0x28, 0x28) : QColor(0xEF, 0x6c, 0x00);
+					validationIcon = thisValidated ? thisFailedIcon : upstreamFailedIcon;
 				}
 
-				painter->setOpacity(1.0);               // validation moet altijd duidelijk zijn
+				painter->setOpacity(thisValidated ? 1.0 : 1.0);               // validation moet altijd duidelijk zijn
 				painter->setPen(color);
 
 				painter->drawText(QPoint(offset, rect.center().y() + 5), validationIcon);
