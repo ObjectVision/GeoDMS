@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>762</width>
-    <height>517</height>
+    <height>572</height>
    </rect>
   </property>
   <property name="sizePolicy">
@@ -288,12 +288,12 @@
         </font>
        </property>
        <property name="text">
-        <string>Valid:</string>
+        <string>Data standby</string>
        </property>
       </widget>
      </item>
      <item row="8" column="3">
-      <widget class="QPushButton" name="m_not_calculated_color_ti_button">
+      <widget class="QPushButton" name="m_data_ready_color_ti_button">
        <property name="font">
         <font>
          <pointsize>10</pointsize>
@@ -348,7 +348,7 @@
       </widget>
      </item>
      <item row="9" column="3">
-      <widget class="QPushButton" name="m_valid_color_ti_button">
+      <widget class="QPushButton" name="m_standby_color_ti_button">
        <property name="font">
         <font>
          <pointsize>10</pointsize>
@@ -448,7 +448,7 @@
         </font>
        </property>
        <property name="text">
-        <string>Not yet calculated:</string>
+        <string>Data ready</string>
        </property>
       </widget>
      </item>
@@ -487,6 +487,34 @@
        </property>
        <property name="text">
         <string>Debug</string>
+       </property>
+      </widget>
+     </item>
+     <item row="6" column="3">
+      <widget class="QPushButton" name="m_idle_color_ti_button">
+       <property name="text">
+        <string/>
+       </property>
+      </widget>
+     </item>
+     <item row="7" column="3">
+      <widget class="QPushButton" name="m_scheduled_color_ti_button">
+       <property name="text">
+        <string/>
+       </property>
+      </widget>
+     </item>
+     <item row="6" column="2">
+      <widget class="QLabel" name="lbl_NotCalculated">
+       <property name="text">
+        <string>Idle; not calculated nor requested</string>
+       </property>
+      </widget>
+     </item>
+     <item row="7" column="2">
+      <widget class="QLabel" name="lbl_scheduled">
+       <property name="text">
+        <string>Scheduled or calculating</string>
        </property>
       </widget>
      </item>

@@ -48,6 +48,7 @@
     <ClCompile>
       <AdditionalIncludeDirectories>../../rtc/dll/src;../../stx/dll/src;../../tic/dll/src;../../stg/dll/src;../../clc/dll/include;../../sym/dll/src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>DMCLC_EXPORTS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <AdditionalOptions Condition="'$(Configuration)|$(Platform)'=='Release|x64'">/MP4 /utf-8 /bigobj /analyze:stacksize 32768 %(AdditionalOptions)</AdditionalOptions>
     </ClCompile>
     <Link />
     <Link>

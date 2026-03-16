@@ -3345,7 +3345,7 @@ public:
 			resPrices = CreateDataItem(res, GetTokenID_mt("bid_price"), allocUnit, htpMeta.m_PriceUnit);
 	}
 
-	bool CalcResult(TreeItemDualRef& resultHolder, ArgRefs args, std::vector<ItemReadLock> readLocks, Explain::Context* context) const override
+	bool CalcResult(TreeItemDualRef& resultHolder, const ArgRefs& args, std::vector<ItemReadLock> readLocks, Explain::Context* context) const override
 	{
 		assert(args.size() == GetNrArguments());
 

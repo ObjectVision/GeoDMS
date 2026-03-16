@@ -499,6 +499,7 @@ bool IsDataCurrCompleted(const TreeItem* item)
 {
 	assert(item);
 	assert(item->GetCurrRangeItem() == item);
+	assert(item->HasInterest()); // or else result would be volatile
 
 	if (IsDataItem(item))
 	{
@@ -525,6 +526,9 @@ bool IsDataCurrCompleted(const TreeItem* item)
 
 bool IsDataCurrReady(const TreeItem* item)
 {
+	assert(item);
+	assert(item->HasInterest()); // or else result would be volatile
+
 	if (!IsDataCurrCompleted(item))
 		return false;
 
@@ -534,13 +538,41 @@ bool IsDataCurrReady(const TreeItem* item)
 	return true;
 }
 
-bool IsAllDataCurrReady(const TreeItem* item)
+bool IsDataCurrStandby(const TreeItem* item)
 {
-	if (!IsDataCurrReady(item))
+	assert(item);
+	assert(item->GetCurrRangeItem() == item);
+
+	if (IsDataItem(item))
+	{
+		auto adi = AsDataItem(item);
+		if (!adi->m_DataObject.has_ptr())
+			return false;
+	}
+	else if (IsUnit(item))
+	{
+		auto u = AsUnit(item);
+		if (!u->HasTiledRangeData() and !u->IsDefaultUnit())
+			return false;
+	}
+	else // just a container that may have been populated by template instantiation or for_each or other MetaCurryApplicator
+		return item->GetIsInstantiated();
+
+	if (item->m_ItemCount < 0) // still being processed ?
+		return false;
+
+	return true;
+}
+
+bool IsAllDataCurrStandby(const TreeItem* item)
+{
+	assert(item);
+
+	if (!IsDataCurrStandby(item))
 		return false;
 	if (item->IsCacheItem())
 		for (auto subItem = item->_GetFirstSubItem(); subItem; subItem = subItem->GetNextItem())
-			if (!IsAllDataCurrReady(subItem->GetCurrUltimateItem()))
+			if (!IsAllDataCurrStandby(subItem->GetCurrUltimateItem()))
 				return false;
 	return true;
 }
@@ -549,15 +581,10 @@ bool IsDataReady(const TreeItem* item)
 {
 	assert(item);
 	assert(item->HasInterest()); // or else result would be volatile
+
 	bool result = IsDataCurrReady(item);
 	assert(result || item->GetInterestCount());
 	return result;
-}
-
-bool IsAllDataReady(const TreeItem* item)
-{
-	assert(item->GetInterestCount()); // or else result would be volatile
-	return IsAllDataCurrReady(item);
 }
 
 bool IsAllInterestedDataReady_impl(const TreeItem* item)

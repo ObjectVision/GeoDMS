@@ -304,7 +304,7 @@ bool AbstrDataItem::DoReadItem(StorageMetaInfoPtr smi)
 	catch (const DmsException& x)
 	{
 		if (!WasFailed(FailType::Data))
-			DoFail(x.AsErrMsg(), FailType::Data);
+			DoFailCaller(x.AsErrMsg(), FailType::Data);
 		throw;
 	}
 	return true;
@@ -334,7 +334,7 @@ bool AbstrDataItem::DoWriteItem(StorageMetaInfoPtr&& smi) const
 	catch (const DmsException& x)
 	{
 		if (!WasFailed(FailType::Committed))
-			DoFail(x.AsErrMsg(), FailType::Committed);
+			DoFailCaller(x.AsErrMsg(), FailType::Committed);
 		throw;
 	}
 	return true;
@@ -771,7 +771,7 @@ void AbstrDataItem::OnDomainUnitRangeChange(const DomainChangeInfo* info)
 		}
 		catch (DmsException& x)
 		{
-			DoFail(x.AsErrMsg(), FailType::Data);
+			DoFailCaller(x.AsErrMsg(), FailType::Data);
 		}
 	}
 }

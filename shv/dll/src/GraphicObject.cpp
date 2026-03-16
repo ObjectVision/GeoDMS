@@ -284,24 +284,33 @@ bool GraphicObject::PrepareDataOrUpdateViewLater(const TreeItem* item)
 {
 	assert(IsMainThread());
 	assert(item);
-//	dms_assert(IsDataItem(item));
 
 	item->UpdateMetaInfo();
 	assert(item->GetInterestCount());
-
-	if (IsDataReady(item->GetCurrRangeItem()))
-		return true;
 
 	SuspendTrigger::FencedBlocker lockSuspend("@GraphicObject::PrepareDataOrUpdateViewLater");
 	SharedTreeItemInterestPtr itemHolder(item);
 	assert(item->HasInterest());
 
-	if (!item->SuspendibleUpdate(ProgressState::Committed))
-		return false;
+	if (item->SuspendibleUpdate(ProgressState::Committed))
+	{
+		assert(!SuspendTrigger::DidSuspend());
+		if (IsDataReady(item->GetCurrRangeItem()))
+			return true;
+	}
+
+	if (item->m_State.GetProgress() < ProgressState::Committed)
+	{
+		return item->m_State.GetProgress() == ProgressState::Validated && item->WasFailed(FailType::Validate) && IsDataReady(item->GetCurrRangeItem());
+	}
+	if (IsDataReady(item->GetCurrRangeItem()))
+		return true;
 
 	if (!itemHolder->PrepareDataUsageImpl(DrlType::Suspendible))
-		return false;
-
+	{
+		if (SuspendTrigger::DidSuspend())
+			return false;
+	}
 	if (!IsMultiThreaded2())
 		return true;
 
@@ -364,7 +373,7 @@ void GraphicObject::UpdateView() const
 	catch(...)
 	{
 		auto err = catchException(true);
-		DoFail(err, FailType::Data);
+		DoFailCaller(err, FailType::Data);
 	}
 }
 

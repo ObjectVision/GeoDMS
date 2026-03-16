@@ -2528,7 +2528,8 @@ void OperationContext::RunOperator(ArgRefs argRefs, std::vector<ItemReadLock> re
 
 			auto op = funcDC->m_Operator;
 			MG_CHECK(op);
-			actualResult = op->CalcResult(resultHolder, std::move(argRefs), std::move(readLocks), context.get()); // ============== payload
+
+			actualResult = op->CalcResult(resultHolder, argRefs, std::move(readLocks), context.get()); // ============== payload
 
 			assert(resultHolder || IsCanceled());
 			assert(actualResult || SuspendTrigger::DidSuspend());
@@ -2537,6 +2538,12 @@ void OperationContext::RunOperator(ArgRefs argRefs, std::vector<ItemReadLock> re
 				|| CheckCalculatingOrReady(resultHolder.GetUlt())
 				|| resultHolder->WasFailed(FailType::Data)
 			);
+			for (const auto& argRef : argRefs)
+			{
+				auto item = GetItem(argRef);
+				if (item && item->WasFailed(FailType::Committed))
+					resultHolder.Fail(item);
+			}
 		}
 		catch (const task_canceled&)
 		{

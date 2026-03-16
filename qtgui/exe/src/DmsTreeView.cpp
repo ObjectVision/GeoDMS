@@ -243,34 +243,61 @@ QVariant DmsModel::getTreeItemIcon(const QModelIndex& index) const {
 	return QVariant::fromValue(QPixmap(":/res/images/TV_unit_transparant.bmp"));
 }
 
-static color_option getColorOption(const TreeItem* ti) {
+static color_option getTextColorOption(const TreeItem* ti) {
 	assert(ti);
 	bool isInTemplate = ti->InTemplate();
 
 	if (isInTemplate)
-		return color_option::tv_template;
+		return color_option::src_template_def;
 
-	if (ti->Was(ProgressState::MetaInfo)) {
-		if (IsDataCurrReady(ti->GetCurrRangeItem()))
-			return color_option::tv_valid;
-		if (ti->m_State.GetProgress() >= ProgressState::Validated)
-			return color_option::tv_exogenic;
-	}
-
-	return color_option::tv_not_calculated;
+	if (ti->HasCalculator())
+		return color_option::src_calculated;
+	if (ti->GetStorageParent(false))
+		return color_option::src_exogenic;	
+	return color_option::src_none;
 }
 
-QVariant DmsModel::getTreeItemColor(const QModelIndex& index) const {
+static color_option getBackColorOption(const TreeItem* ti) 
+{
+	assert(ti);
+	if (ti->WasFailed(FailType::Data))
+		return color_option::st_failed;
+
+	bool isInTemplate = ti->InTemplate();
+
+	if (isInTemplate)
+		return color_option::st_not_calculated;
+
+	if (ti->Was(ProgressState::MetaInfo)) {
+		auto iLock = ti->GetInterestPtrOrNull();
+		if (iLock)
+		{
+			if (IsDataCurrReady(iLock->GetCurrRangeItem()))
+				return color_option::st_valid;
+			return color_option::st_scheduled;
+		}
+		if(IsDataCurrStandby(ti->GetCurrRangeItem()))
+			return color_option::st_standby;
+	}
+
+	return color_option::st_not_calculated;
+}
+
+QVariant DmsModel::getTreeItemTextColor(const QModelIndex& index) const {
 	auto ti = GetTreeItemOrRoot(index);
 	assert(ti);
 	
-	if (!show_state_colors)
-		return QColor(0,0,0); // black
+	auto co = getTextColorOption(ti);
+	return GetUserQColor(co);
+}
 
-	if (ti->WasFailed())
-		return QColor(255, 255, 255); // white
+QVariant DmsModel::getTreeItemBackColor(const QModelIndex& index) const {
+	auto ti = GetTreeItemOrRoot(index);
+	assert(ti);
 
-	auto co = getColorOption(ti);
+	auto co = color_option::st_not_calculated;
+	if (show_state_colors)
+		co = getBackColorOption(ti);
 	return GetUserQColor(co);
 }
 
@@ -305,24 +332,28 @@ QVariant DmsModel::data(const QModelIndex& index, int role) const {
 			return QString(ti->GetName().c_str());
 
 		case Qt::ForegroundRole:
-			return getTreeItemColor(index);
+			return getTreeItemTextColor(index);
 
 		case Qt::BackgroundRole:
-			if (ti->WasFailed() && !MainWindow::TheOne()->m_treeview->selectionModel()->selectedIndexes().empty()
-				&& MainWindow::TheOne()->m_treeview->selectionModel()->selectedIndexes().at(0) == index) {
+/*
+			if (ti->WasFailed() 
+				&& !MainWindow::TheOne()->m_treeview->selectionModel()->selectedIndexes().empty()
+				&&  MainWindow::TheOne()->m_treeview->selectionModel()->selectedIndexes().at(0) == index) {
 				return QColor(150, 0, 0);
 			}
+			*/
+			if (ti->WasFailed(FailType::Data))
+				return GetUserQColor(color_option::st_failed);
 
-			if (ti->WasFailed())
-				return QColor(255, 0, 0);
-
-			switch (TreeItem_GetSupplierLevel(ti)) {
+			switch (TreeItem_GetSupplierLevel(ti)) 
+			{
 			case supplier_level::calc: return QColor(158, 201, 226); // clSkyBlue;
 			case supplier_level::meta: return QColor(192, 220, 192); // $C0DCC0 clMoneyGreen;
 			case supplier_level::calc_source: return QColor(000, 000, 255); // clBlue;
 			case supplier_level::meta_source: return QColor(000, 255, 000); // clGreen;
 			}
-			break; // default background color
+
+			return getTreeItemBackColor(index);
 
 		case Qt::SizeHintRole: {
 			auto font = QApplication::font();
@@ -382,55 +413,91 @@ void TreeItemDelegate::paint(QPainter* painter, const QStyleOptionViewItem& opti
 
 	auto painter_exit_guard = make_scoped_exit([painter] { painter->restore(); });
 
-	// last job: draw storage icon if needed or return if not needed
+	// last jobs: 
+	// - draw storage icon if needed
+	// - draw validated or validation failed if available
 	TreeItem* ti = nullptr;
 	try {
 		ti = GetTreeItem(index);
 		if (!ti)
 			return;
+		bool is_read_only = false;
 
 		const TreeItem* storageHolder = ti->GetStorageParent(false);
-		if (!storageHolder)
-			return;
-		assert(!ti->IsDisabledStorage());
+		if (storageHolder)
+		{
+			assert(!ti->IsDisabledStorage());
 
-		bool is_read_only = storageHolder->GetStorageManager()->IsReadOnly();
-		if (is_read_only && ti->HasCalculator())
-			return;
+			is_read_only = storageHolder->GetStorageManager()->IsReadOnly();
+			if (is_read_only && ti->HasCalculator())
+				storageHolder = nullptr;
+		}
+		bool show_validation_icon = ti->m_State.GetProgress() >= ProgressState::Validated;
 
-		// from here on we have to draw the storage icon, but which color and opacity ?
+		if (storageHolder || show_validation_icon)
+		{
+			// from here on we have to draw the storage icon, but which color and opacity ?
 
-		QFontMetrics fm(QApplication::font());
-		int offset_item_text = fm.horizontalAdvance(index.data(Qt::DisplayRole).toString());
+			QFontMetrics fm(QApplication::font());
+			int offset_item_text = fm.horizontalAdvance(index.data(Qt::DisplayRole).toString());
 
-		auto item_icon = MainWindow::TheOne()->m_dms_model->getTreeItemIcon(index).value<QImage>();
-		int offset_icon = item_icon.width();
-		auto rect = option.rect;
-//		auto cur_brush = painter->brush(); NOT USED, REMOVE, if used, prefer a const auto&
-		auto offset = rect.topLeft().x() + offset_icon + offset_item_text + 15;
+			auto item_icon = MainWindow::TheOne()->m_dms_model->getTreeItemIcon(index).value<QImage>();
+			int offset_icon = item_icon.width();
+			auto rect = option.rect;
+			//		auto cur_brush = painter->brush(); NOT USED, REMOVE, if used, prefer a const auto&
+			auto offset = rect.topLeft().x() + offset_icon + offset_item_text + 15;
 
-		static QFont font = CreateRemixFont();
-		painter->setFont(font);
+			static QFont font = CreateRemixFont();
+			painter->setFont(font);
+			if (storageHolder)
+			{
+				// set transparancy if not committed yet
+				NotificationCode ti_state = static_cast<NotificationCode>(TreeItem_GetProgressState(ti));
+				if (ti_state < NotificationCode::NC2_Committed)
+					painter->setOpacity(0.5);
 
-		// set transparancy if not committed yet
-		NotificationCode ti_state = static_cast<NotificationCode>(TreeItem_GetProgressState(ti));
-		if (ti_state < NotificationCode::NC2_DataReady)
-			painter->setOpacity(0.5);
+				// draw storage icon
+				if (ti->WasFailed(FailType::Committed))
+					painter->setPen(QColor(255, 0, 0, 255));
 
-		// draw storage icon
-		if (ti->IsDataFailed())
-			painter->setPen(QColor(255,0,0,255));
+				static auto dbIcon = QString("\uEC15");
+				static auto disketteIcon = QString("\uF0B0");
+				auto storageIcon = is_read_only ? dbIcon : disketteIcon;
 
-		static auto dbIcon = QString("\uEC15");
-		static auto disketteIcon = QString("\uF0B0");
+				painter->drawText(QPoint(offset, rect.center().y() + 5), storageIcon);
+				offset += fm.horizontalAdvance(storageIcon);
+			}
+			if (show_validation_icon)
+			{
+				bool valid = !ti->WasFailed(FailType::Validate);
 
-		painter->drawText(QPoint(offset, rect.center().y() + 5), is_read_only ?  dbIcon : disketteIcon);
+				QColor color;
+				QString validationIcon;
+
+				static auto validIcon  = QString("\u2713"); // ✓
+				static auto failedIcon = QString("\u2717"); // ✗
+
+				if (valid)
+				{
+					color = QColor(0, 150, 0);   // groen
+					validationIcon = validIcon;
+				}
+				else
+				{
+					color = QColor(200, 0, 0);   // rood
+					validationIcon = failedIcon;
+				}
+
+				painter->setOpacity(1.0);               // validation moet altijd duidelijk zijn
+				painter->setPen(color);
+
+				painter->drawText(QPoint(offset, rect.center().y() + 5), validationIcon);
+//				offset += fm.horizontalAdvance(icon);
+			}
+		}
 	}
 	catch (...) {
-//		catchException(false);	// doesn't do anything and return values isn't used; reporting is not desired as this is a paint method
 	}
-
-	return;
 }
 
 void DmsTreeView::currentChanged(const QModelIndex& current, const QModelIndex& previous) {

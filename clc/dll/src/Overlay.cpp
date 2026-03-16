@@ -400,7 +400,7 @@ public:
 		resultHolder->m_ReadAssets.emplace<overlay_partitioning_info_array>(std::move(partitionInfo));
 	}
 
-	bool CalcResult(TreeItemDualRef& resultHolder, ArgRefs args, std::vector<ItemReadLock> readLocks, Explain::Context* context) const override
+	bool CalcResult(TreeItemDualRef& resultHolder, const ArgRefs& args, std::vector<ItemReadLock> readLocks, Explain::Context* context) const override
 	{
 		dms_assert(resultHolder);
 		const overlay_partitioning_info_array& partitionInfo = *any_cast<overlay_partitioning_info_array>(&resultHolder->m_ReadAssets);

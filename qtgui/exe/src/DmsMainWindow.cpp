@@ -264,7 +264,8 @@ MainWindow* MainWindow::TheOne() {
 
 bool MainWindow::openErrorOnFailedCurrentItem() {
     auto currItem = getCurrentTreeItem();
-    if (currItem->WasFailed() || currItem->IsFailed()) {
+    if (currItem->WasFailed(FailType::Data) || currItem->IsFailed(FailType::Data)) 
+    {
         auto fail_reason = currItem->GetFailReason();
         reportErrorAndTryReload(fail_reason);
         return true;

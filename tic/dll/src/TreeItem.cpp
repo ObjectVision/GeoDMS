@@ -947,7 +947,7 @@ bool TreeItem::_CheckResultObjType(const TreeItem* refItem) const
 		if (!WasFailed(FailType::Determine))
 		{
 			auto err = catchException(true);
-			DoFail(err, FailType::Determine);
+			DoFailCaller(err, FailType::Determine);
 		}
 	}
 	return false;
@@ -2756,9 +2756,13 @@ ActorVisitState TreeItem::DoUpdate(ProgressState ps)
 				assert(iCheckerDC);
 				if (iCheckerDC->WasFailed(FailType::Validate))
 					Fail(iCheckerDC);
+
 				//InterestPtr<SharedPtr<const AbstrCalculator>> iChecker = iCheckerPtr;
 				if (WasFailed(FailType::Validate))
+				{
+					m_State.SetProgress(ProgressState::Validated);
 					return AVS_SuspendedOrFailed;
+				}
 				if (!iCheckerDC->Was(ProgressState::Validated))
 				{
 					iCheckerDC = CalledCalcHandle(iCheckerPtr, DataArray<Bool>::GetStaticClass()); // @@@SCHEDULE
@@ -2766,9 +2770,9 @@ ActorVisitState TreeItem::DoUpdate(ProgressState ps)
 					if (SuspendTrigger::DidSuspend())
 						return AVS_SuspendedOrFailed;
 
-						assert(iCheckerDC && iCheckerDC->GetInterestCount());
+					assert(iCheckerDC && iCheckerDC->GetInterestCount());
 
-						DataReadLockContainer c;                                                  // @@@USE
+					DataReadLockContainer c;                                                  // @@@USE
 					SharedDataItem iCheckerResult = AsDynamicDataItem(iCheckerDC->GetOld());
 					if (iCheckerResult)
 					{
@@ -2779,7 +2783,10 @@ ActorVisitState TreeItem::DoUpdate(ProgressState ps)
 						if (!WaitForReadyOrSuspendTrigger(adiCheckerResult))
 						{
 							if (adiCheckerResult->WasFailed())
+							{
+								m_State.SetProgress(ProgressState::Validated);
 								Fail(adiCheckerResult);
+							}
 							assert(SuspendTrigger::DidSuspend() || WasFailed());
 							return AVS_SuspendedOrFailed;
 						}
@@ -2796,7 +2803,9 @@ ActorVisitState TreeItem::DoUpdate(ProgressState ps)
 							Fail(iCheckerResult.get());
 						else
 							Fail("Unknown error in IntegrityCheck: ", FailType::MetaInfo);
+						m_State.SetProgress(ProgressState::Validated);
 						assert(WasFailed());
+						m_State.SetProgress(ProgressState::Validated);
 						return AVS_SuspendedOrFailed;
 					}
 
@@ -2807,7 +2816,8 @@ ActorVisitState TreeItem::DoUpdate(ProgressState ps)
 			catch (...)
 			{
 				auto err = catchException(false);
-				DoFail(err, FailType::Validate);
+				DoFailCaller(err, FailType::Validate);
+				m_State.SetProgress(ProgressState::Validated);
 				return AVS_Ready;
 			}
 		}
@@ -3268,7 +3278,7 @@ bool TreeItem::DoFail(ErrMsgPtr msg, FailType ft) const
 		auto si = _GetFirstSubItem();
 		while (si)
 		{
-			si->DoFail(msg, ft);
+			si->DoFailCaller(msg, ft);
 			si = si->GetNextItem();
 		}
 	}
@@ -3326,7 +3336,7 @@ bool TreeItem::ReadItem(StorageReadHandle&& srh) // TODO: Make this a method of 
 		if (!WasFailed(FailType::Data)) {
 			auto err = catchException(true);
 			err->TellExtraF("while reading data from %s", DMS_TreeItem_GetAssociatedFilename(this));
-			DoFail(err, FailType::Data);
+			DoFailCaller(err, FailType::Data);
 		}
 		DropValue();
 	}
@@ -3715,7 +3725,7 @@ bool TreeItem::PrepareDataUsageImpl(DrlType drlFlags) const
 						auto fn = DelimitedConcat(fsn, rn);
 						if (!IsFileOrDirAccessible(fn))
 						{
-							DoFail(std::make_shared<ErrMsg>("Data not found in .MMD storage folder"), FailType::Data);
+							DoFailCaller(std::make_shared<ErrMsg>("Data not found in .MMD storage folder"), FailType::Data);
 							goto failed;
 						}
 						else
@@ -3732,7 +3742,7 @@ bool TreeItem::PrepareDataUsageImpl(DrlType drlFlags) const
 							auto fh = OpenFileData(AsDataItem(this), avu ? avu->GetTiledRangeData() : nullptr, fn);
 							if (!fh)
 							{
-								DoFail(std::make_shared<ErrMsg>("Cannot open data in .MMD storage folder"), FailType::Data);
+								DoFailCaller(std::make_shared<ErrMsg>("Cannot open data in .MMD storage folder"), FailType::Data);
 								goto failed;
 							}
 							AsDataItem(GetCurrUltimateItem())->m_DataObject.reset(fh.release()); // , !adi->IsPersistent(), true); // calls OpenFileData
@@ -3827,7 +3837,7 @@ bool TreeItem::PrepareDataUsageImpl(DrlType drlFlags) const
 	{
 		// REMOVE, TODO: Actor::Fail(const DmsException&) toevoegen in Actor.h en hier gebruiken.
 		auto err = catchException(true);
-		DoFail(err, FailType::Data); 
+		DoFailCaller(err, FailType::Data);
 		goto failed;
 	}
 
@@ -4092,9 +4102,9 @@ bool TreeItem::TryCleanupMemImpl(garbage_can& garbageCan) const
 	if (m_ItemCount < 0)
 		return false;
 
-	ClearTSF(TSF_DataInMem);
-	if (!IsUnit(this))
-		ClearData(garbageCan);
+	if (IsDataItem(this))
+		if (!AsDataItem(this)->HasVoidDomainGuarantee())
+			ClearData(garbageCan);
 
 	if (IsCacheItem())
 		for (const TreeItem* subTI = _GetFirstSubItem(); subTI; subTI = subTI->GetNextItem())

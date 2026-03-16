@@ -282,7 +282,7 @@ public:
 			resultHolder->m_StatusFlags.SetHasSortedValues();
 	}
 
-	bool CalcResult(TreeItemDualRef& resultHolder, ArgRefs args, std::vector<ItemReadLock> readLocks, Explain::Context* context) const override
+	bool CalcResult(TreeItemDualRef& resultHolder, const ArgRefs& args, std::vector<ItemReadLock> readLocks, Explain::Context* context) const override
 	{
 		dms_assert(resultHolder);
 

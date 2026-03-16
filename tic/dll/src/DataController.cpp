@@ -150,7 +150,7 @@ bool TreeItemDualRef::DoFail(ErrMsgPtr msg, FailType ft) const
 	if (!Actor::DoFail(msg, ft))
 		return false;
 	if (IsNew())
-		GetNew()->DoFail(msg, ft);
+		GetNew()->DoFailCaller(msg, ft);
 	return true;
 }
 

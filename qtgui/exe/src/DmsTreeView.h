@@ -59,7 +59,8 @@ public:
 	bool updateChachedDisplayFlags();
 
 private:
-	QVariant getTreeItemColor(const QModelIndex& index) const;
+	QVariant getTreeItemTextColor(const QModelIndex& index) const;
+	QVariant getTreeItemBackColor(const QModelIndex& index) const;
 	const TreeItem* GetTreeItemOrRoot(const QModelIndex& index) const;
 
 public:

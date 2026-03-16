@@ -20,15 +20,27 @@ enum string_option
 
 enum class color_option
 {
-    tv_valid,
-    tv_not_calculated,
-    tv_failed,
-    tv_exogenic,
-    tv_template,
+    // background colors indicating processing status
+    st_not_calculated, // aka idle, could be after an invalidation due to a last change event
+    st_scheduled, // aka has insterest / is of interest, could be after an invalidation due to a last change event
+    st_valid, // has interest and is calculated or available for usage
+    st_standby, // lost interest, but is still available for usag
+    st_failed, // rule or data failed: data is not available, i.e. FailType::Determine, FailType::MetaInfo (rule errro), FailType::Data, but not FailType::Validate or FailType::Commited
 
+
+    // text colors indicating (static) origin
+    src_none,
+    src_calculated,
+    src_exogenic,
+    src_template_def,
+
+    // mapview
     mapview_background,
+    // ramping
     mapview_ramp_start,
     mapview_ramp_end,
+
+
     count
 };
 
@@ -54,9 +66,12 @@ public:
     DmsGuiOptionsWindow(QWidget* parent = nullptr);
 
 private slots:
-    void changeValidTreeItemColor();
-    void changeNotCalculatedTreeItemColor();
+    void changeNotCalculatedColor();
+    void changeScheduledColor();
+    void changeDataReadyColor();
+    void changeDataStandbyColor();
     void changeFailedTreeItemColor();
+
     void changeMapviewBackgroundColor();
     void changeClassificationStartColor();
     void changeClassificationEndColor();

@@ -75,7 +75,7 @@ struct JoinNearValuesOperator : AbstrJoinNearValuesOperator
 	{
 	}
 
-	bool CalcResult(TreeItemDualRef& resultHolder, ArgRefs args, std::vector<ItemReadLock> readLocks, Explain::Context* context = nullptr) const override
+	bool CalcResult(TreeItemDualRef& resultHolder, const ArgRefs& args, std::vector<ItemReadLock> readLocks, Explain::Context* context = nullptr) const override
 	{
 		const AbstrDataItem* axRef = AsDataItem(args[0]);
 		const AbstrDataItem* bxRef = AsDataItem(args[1]);

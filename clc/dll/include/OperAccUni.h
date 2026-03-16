@@ -54,7 +54,7 @@ struct AbstrOperAccTotUni: UnaryOperator
 		);
 	}
 
-	bool CalcResult(TreeItemDualRef& resultHolder, ArgRefs args, std::vector<ItemReadLock> readLocks, Explain::Context* context) const override
+	bool CalcResult(TreeItemDualRef& resultHolder, const ArgRefs& args, std::vector<ItemReadLock> readLocks, Explain::Context* context) const override
 	{
 		assert(resultHolder);
 		AbstrDataItem* res = AsDataItem(resultHolder.GetNew());
@@ -70,7 +70,7 @@ struct AbstrOperAccTotUni: UnaryOperator
 		{
 			DataReadLock arg1Lock(arg1A);
 			DataWriteLock resLock(res, dms_rw_mode::write_only_mustzero); 
-			Calculate(resLock, arg1A, std::move(args), std::move(readLocks));
+			Calculate(resLock, arg1A, args, std::move(readLocks));
 			resLock.Commit();
 		}
 		if (context)
@@ -154,7 +154,7 @@ struct AbstrOperAccPartUni: BinaryOperator
 		resultHolder = CreateCacheDataItem(p2, (*m_UnitCreatorPtr)(GetGroup(), argSeq), m_ValueComposition);
 	}
 
-	bool CalcResult(TreeItemDualRef& resultHolder, ArgRefs args, std::vector<ItemReadLock> readLocks, Explain::Context* context) const override
+	bool CalcResult(TreeItemDualRef& resultHolder, const ArgRefs& args, std::vector<ItemReadLock> readLocks, Explain::Context* context) const override
 	{
 		const AbstrDataItem* arg1A = AsDataItem(args[0]);
 		const AbstrDataItem* arg2A = AsDataItem(args[1]);

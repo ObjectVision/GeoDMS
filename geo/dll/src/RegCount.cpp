@@ -246,7 +246,7 @@ struct RegCountOperator : public QuaternaryOperator
 		resultHolder->m_ReadAssets.emplace<RegionMetaArray>(std::move(regionMetaArray));
 	}
 
-	bool CalcResult(TreeItemDualRef& resultHolder, ArgRefs args, std::vector<ItemReadLock> readLocks, Explain::Context* context) const override
+	bool CalcResult(TreeItemDualRef& resultHolder, const ArgRefs& args, std::vector<ItemReadLock> readLocks, Explain::Context* context) const override
 	{
 		assert(resultHolder);
 		const RegionMetaArray* regionMetaArrayPtr = rtc::any::any_cast<RegionMetaArray>(&resultHolder->m_ReadAssets);

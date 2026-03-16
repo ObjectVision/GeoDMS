@@ -436,7 +436,7 @@ ActorVisitState Actor::SuspendibleUpdate(ProgressState ps) const // returns fals
 {
     assert(!SuspendTrigger::DidSuspend()); // PRECONDITION
 
-    assert(ps >= ProgressState::Validated); 
+    assert(ps == ProgressState::Committed); // TODO REMOVE parameterization if this holds
 
     assert(IsMetaThread());
 
@@ -449,18 +449,18 @@ ActorVisitState Actor::SuspendibleUpdate(ProgressState ps) const // returns fals
         return AVS_SuspendedOrFailed;
     if (m_State.GetProgress() == ps)
         return AVS_Ready;
-    dms_assert(m_State.GetProgress() < ps);
+    assert(m_State.GetProgress() < ps);
 
-    dms_assert(! IsPassor());
+    assert(! IsPassor());
     if (IsPassor())
         return AVS_Ready;
 
-    dms_assert(m_LastChangeTS); // must have been set by DetermineState
+    assert(m_LastChangeTS); // must have been set by DetermineState
 
      // we can try (to resume) to update now
     MG_DEBUGCODE( TimeStamp lts = UpdateMarker::LastTS() );
 
-    dms_assert(!WasFailed(ft));
+    assert(!WasFailed(ft));
 
     if (!MustApplyImpl())
     {
@@ -527,6 +527,15 @@ ActorVisitState Actor::SuspendibleUpdate(ProgressState ps) const // returns fals
                 updateRes = AVS_SuspendedOrFailed;
                 MG_DEBUGCODE(d_WTF = 3);
             }
+
+            VisitSupplBoolImpl(this, SupplierVisitFlag::Calc,
+                [this](const Actor* suppl) 
+                { 
+                    if (suppl->WasFailed(FailType::Committed))
+                        this->Fail(suppl);
+                    return suppl->WasFailed(FailType::Validate);
+                }
+            );
         }
 
         MG_DEBUGCODE( dms_assert( lts == UpdateMarker::LastTS() ); )
@@ -546,7 +555,7 @@ ActorVisitState Actor::SuspendibleUpdate(ProgressState ps) const // returns fals
         dms_assert(ps == ProgressState::Validated || ps == ProgressState::Committed);
         ft = (ps == ProgressState::Committed) ? FailType::Committed : FailType::Validate;
         if (!WasFailed(ft))
-            DoFail(x.AsErrMsg(), ft);
+            DoFailCaller(x.AsErrMsg(), ft);
         return AVS_SuspendedOrFailed;
     }
     if (WasFailed(ft) || (m_State.GetProgress() < ps) || SuspendTrigger::DidSuspend())
@@ -818,7 +827,7 @@ retry_from_here_after_invalidation:
     if (failType != FailType::None)
     {
         assert(failReason);
-        DoFail(failReason, failType);
+        DoFailCaller(failReason, failType);
     }
     assert(m_LastChangeTS || IsPassor() || WasFailed() || m_State.IsDeterminingState()); // must have been set by DetermineState unless it was a Passor or DetermineState Failed
 }
@@ -935,6 +944,19 @@ bool Actor::DoFail(ErrMsgPtr msg, FailType ft) const
     return true;
 }
 
+
+bool Actor::DoFailCaller(ErrMsgPtr msg, FailType failType) const
+{
+    auto result = DoFail(msg, failType);
+/*
+    if (failType == FailType::Validate)
+        m_State.SetProgress(ProgressState::Validated);
+    if (failType == FailType::Committed)
+        m_State.SetProgress(ProgressState::Committed);
+*/
+    return result;
+}
+
 // Throw with the currently recorded failure.
 void Actor::ThrowFail() const
 {
@@ -945,7 +967,7 @@ void Actor::ThrowFail() const
 // Overloads: record then throw.
 void Actor::ThrowFail(ErrMsgPtr why, FailType ft) const
 {
-    DoFail(why, ft);
+    DoFailCaller(why, ft);
     ThrowFail();
 }
 
@@ -961,7 +983,7 @@ void Actor::ThrowFail(CharPtr str, FailType ft) const
 
 void Actor::ThrowFail(const Actor* src, FailType ft) const
 {
-    DoFail(src->GetFailReason(), ft); 
+    DoFailCaller(src->GetFailReason(), ft); 
     ThrowFail();
 }
 
@@ -975,16 +997,16 @@ void Actor::ThrowFail(const Actor* src) const
 void Actor::CatchFail(FailType ft) const
 {
     if (!WasFailed(ft))
-        DoFail(catchException(true), ft);
+        DoFailCaller(catchException(true), ft);
 }
 
 // Record a failure with a string reason.
-void Actor::Fail(WeakStr why, FailType ft) const
+void Actor::Fail(WeakStr why, FailType failType) const
 {
-    assert((static_cast<UInt32>(ft) & static_cast<UInt32>(FailType::Mask)) == static_cast<UInt32>(ft)); // Syntax
-    assert(ft != FailType::None);                 // PRE
+    assert((static_cast<UInt32>(failType) & static_cast<UInt32>(FailType::Mask)) == static_cast<UInt32>(failType)); // Syntax
+    assert(failType != FailType::None);                 // PRE
 
-    DoFail(std::make_shared<ErrMsg>( why, dynamic_cast<const PersistentObject*>(this) ), ft);
+    DoFailCaller(std::make_shared<ErrMsg>( why, dynamic_cast<const PersistentObject*>(this) ), failType);
 
     assert(WasFailed()); // follows from PRE2 and m_State.SetBits
 }
@@ -994,18 +1016,18 @@ void Actor::Fail(CharPtr str, FailType ft) const
     Fail(SharedStr(str MG_DEBUG_ALLOCATOR_SRC("Actor::Fail")), ft);
 }
 
-void Actor::Fail(const Actor* src, FailType ft) const
+void Actor::Fail(const Actor* src, FailType failType) const
 {
-    DoFail(src->GetFailReason(), ft); 
+    assert(failType != FailType::None);
+    auto failReason = src->GetFailReason();
+    assert(failReason);
+    DoFailCaller(failReason, failType);
 }
 
 void Actor::Fail(const Actor* src) const
 {
     auto failType = src->GetFailType();
-    auto failReason = src->GetFailReason();
-    assert(failType != FailType::None);
-    assert(failReason);
-    DoFail(failReason, failType); 
+    Fail(src, failType); 
 }
 
 //----------------------------------------------------------------------
@@ -1086,7 +1108,7 @@ void Actor::IncInterestCount() const // NO UpdateMetaInfo, Just work on existing
     }
     catch (const DmsException& x)
     {
-        DoFail(x.AsErrMsg(), FailType::MetaInfo);
+        DoFailCaller(x.AsErrMsg(), FailType::MetaInfo);
         throw;
         
     }

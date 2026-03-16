@@ -207,7 +207,7 @@ struct PhaseContainerOperator : BinaryOperator
 		return true;
 	}
 
-	bool CalcResult(TreeItemDualRef& resultHolder, ArgRefs args, std::vector<ItemReadLock> readLocks, Explain::Context * context) const override
+	bool CalcResult(TreeItemDualRef& resultHolder, const ArgRefs& args, std::vector<ItemReadLock> readLocks, Explain::Context * context) const override
 	{
 		assert(args.size() == 2);
 
@@ -261,7 +261,7 @@ struct PhaseContainerOperator : BinaryOperator
 						if (srcUltItem->WasFailed())
 							resItem->Fail(srcUltItem);
 					}
-					resItem->SetIsInstantiated();
+//					resItem->SetIsInstantiated();
 				}
 			}
 			if (resItem != resultRoot)

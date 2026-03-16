@@ -263,7 +263,10 @@ SizeT TableControl::NrRows() const
 		return 8;
 
 	dbg_assert(!SuspendTrigger::DidSuspend());
-	return const_cast<TableControl*>(this)->PrepareDataOrUpdateViewLater(rowEntity) ? rowEntity->GetDataCount() : UNDEFINED_VALUE(SizeT);
+	auto prepareReady = const_cast<TableControl*>(this)->PrepareDataOrUpdateViewLater(rowEntity);
+	if (!prepareReady)
+		return UNDEFINED_VALUE(SizeT);
+	return rowEntity->GetDataCount();
 }
 
 SizeT TableControl::GetRecNo(SizeT rowNr) const

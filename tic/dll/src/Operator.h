@@ -76,7 +76,7 @@ public:
 
 	virtual bool PreCalcUpdate(TreeItemDualRef& resultHolder, ArgRefs& args) const { return true; };
 
-	virtual bool CalcResult(TreeItemDualRef& resultHolder, ArgRefs args, std::vector<ItemReadLock> readLocks, Explain::Context* context = nullptr) const
+	virtual bool CalcResult(TreeItemDualRef& resultHolder, const ArgRefs& args, std::vector<ItemReadLock> readLocks, Explain::Context* context = nullptr) const
 	{
 		dms_assert(resultHolder);
 		dms_assert(!CanExplainValue()); // or this method should be overridden.

@@ -45,23 +45,39 @@ struct colorOptionAttr {
     }
 };
 
-static DmsColor salmon = CombineRGB(255, 128, 114);
-static DmsColor darkGrey = CombineRGB(100, 100, 100);
-static DmsColor cool_blue = CombineRGB(82, 136, 219);
-static DmsColor cool_green = CombineRGB(0, 153, 51);
-static DmsColor white = CombineRGB(255, 255, 255);
+static DmsColor white = CombineRGB(0xFF, 0xFF, 0xFF);
+static DmsColor lightYellow = CombineRGB(0xFF, 0xF2, 0xCC);
+static DmsColor lightGreen = CombineRGB(0xDF, 0xF5, 0xE1);
+static DmsColor lightBlue  = CombineRGB(0xE6, 0xF2, 0xFF);
+static DmsColor lightRed = CombineRGB(0xFF, 0xD6, 0xD6);
+
+static DmsColor darkGrey = CombineRGB(0x30, 0x30, 0x30);
+static DmsColor darkBlue = CombineRGB(0x1F, 0x4E, 0x79);
 static DmsColor black = CombineRGB(0, 0, 0);
+static DmsColor purple = CombineRGB(0x6A, 0x3D, 0x9A);
 
 colorOptionAttr sColorOptionData[(int)color_option::count] =
 {
-    { "Valid", "Pick the TreeItem valid status color", cool_blue},
-    { "Invalidated", "Pick the color for not calcualate, status", salmon},
-    { "Failed", "Pick the TreeItem failed status color", DmsRed},
-    { "Exogenic", "Pick the color for exogenic items", cool_green},
-    { "Operator", "Pick the color for template items", darkGrey},
+    // status background colors
+    { "Idle", "Background color for non requested data", white},
+    { "Scheduled", "Background color for requested but not yet calcualated data", lightYellow},
+    { "DataReady", "Background color for valid data, i.e. requested and calculated", lightGreen},
+    { "DataStandby", "Background color for standby data, i.e. calculated but currently no longer requested", lightBlue},
+    { "DataFailed", "background color for rule or data processing failure", lightRed},
+
+    // source text colors
+    { "Container", "Text color for items that have no assiciated value(s)", darkGrey},
+    { "Calculated", "Text color for items with a calculation rule", black},
+    { "SourceData", "Text color for exogenic value items, i.e. read from database or defined in the configuration", darkBlue},
+    { "Template", "Text color for template defintion items", purple},
+
+    // map color(s)
     { "Background", "Pick the Mapview background color", white, 256},
+
+    // ramping
     { "RampStart", "Pick the classification ramp start color", DmsRed, 257},
     { "RampEnd", "Pick the classification ramp end color", DmsBlue, 258},
+
 };
 
 auto backgroundColor2StyleSheet(QColor clr) -> QString
@@ -136,19 +152,29 @@ void DmsGuiOptionsWindow::changeColor(QPushButton* btn, color_option co)
 
 //======== BEGIN GUI OPTIONS WINDOW ========
 
-void DmsGuiOptionsWindow::changeValidTreeItemColor()
+void DmsGuiOptionsWindow::changeNotCalculatedColor()
 {
-    changeColor(m_valid_color_ti_button, color_option::tv_valid);
+    changeColor(m_idle_color_ti_button, color_option::st_valid);
 }
 
-void DmsGuiOptionsWindow::changeNotCalculatedTreeItemColor()
+void DmsGuiOptionsWindow::changeScheduledColor()
 {
-    changeColor(m_not_calculated_color_ti_button, color_option::tv_not_calculated);
- }
+    changeColor(m_scheduled_color_ti_button, color_option::st_not_calculated);
+}
+
+void DmsGuiOptionsWindow::changeDataReadyColor()
+{
+    changeColor(m_data_ready_color_ti_button, color_option::st_not_calculated);
+}
+
+void DmsGuiOptionsWindow::changeDataStandbyColor()
+{
+    changeColor(m_standby_color_ti_button, color_option::st_not_calculated);
+}
 
 void DmsGuiOptionsWindow::changeFailedTreeItemColor()
 {
-    changeColor(m_failed_color_ti_button, color_option::tv_failed);
+    changeColor(m_failed_color_ti_button, color_option::st_failed);
 }
 
 void DmsGuiOptionsWindow::changeMapviewBackgroundColor()
@@ -175,8 +201,10 @@ DmsGuiOptionsWindow::DmsGuiOptionsWindow(QWidget* parent)
     connect(m_show_thousand_separator, &QCheckBox::stateChanged, this, &DmsGuiOptionsWindow::hasChanged);
     connect(m_toggle_debug_mode, &QCheckBox::stateChanged, this, &DmsGuiOptionsWindow::hasChanged);
     connect(m_show_state_colors_in_treeview, &QCheckBox::stateChanged, this, &DmsGuiOptionsWindow::hasChanged);
-    connect(m_valid_color_ti_button, &QPushButton::released, this, &DmsGuiOptionsWindow::changeValidTreeItemColor);
-    connect(m_not_calculated_color_ti_button, &QPushButton::released, this, &DmsGuiOptionsWindow::changeNotCalculatedTreeItemColor);
+    connect(m_idle_color_ti_button, &QPushButton::released, this, &DmsGuiOptionsWindow::changeNotCalculatedColor);
+    connect(m_scheduled_color_ti_button, &QPushButton::released, this, &DmsGuiOptionsWindow::changeScheduledColor);
+    connect(m_data_ready_color_ti_button, &QPushButton::released, this, &DmsGuiOptionsWindow::changeDataReadyColor);
+    connect(m_standby_color_ti_button, &QPushButton::released, this, &DmsGuiOptionsWindow::changeDataStandbyColor);
     connect(m_failed_color_ti_button, &QPushButton::released, this, &DmsGuiOptionsWindow::changeFailedTreeItemColor);
     connect(m_background_color_button, &QPushButton::released, this, &DmsGuiOptionsWindow::changeMapviewBackgroundColor);
     connect(m_start_color_button, &QPushButton::released, this, &DmsGuiOptionsWindow::changeClassificationStartColor);
@@ -213,9 +241,11 @@ void DmsGuiOptionsWindow::apply()
     setSF(m_show_state_colors_in_treeview->isChecked(), dms_reg_status_flags, RSF_ShowStateColors);
     SetRegStatusFlags(dms_reg_status_flags);
 
-    saveBackgroundColor(m_valid_color_ti_button, color_option::tv_valid);
-    saveBackgroundColor(m_not_calculated_color_ti_button, color_option::tv_not_calculated);
-    saveBackgroundColor(m_failed_color_ti_button, color_option::tv_failed);
+    saveBackgroundColor(m_idle_color_ti_button, color_option::st_not_calculated);
+    saveBackgroundColor(m_scheduled_color_ti_button, color_option::st_scheduled);
+    saveBackgroundColor(m_data_ready_color_ti_button, color_option::st_valid);
+    saveBackgroundColor(m_standby_color_ti_button, color_option::st_standby);
+    saveBackgroundColor(m_failed_color_ti_button, color_option::st_failed);
 
     saveBackgroundColor(m_background_color_button, color_option::mapview_background);
     saveBackgroundColor(m_start_color_button, color_option::mapview_ramp_start);
@@ -259,9 +289,11 @@ void DmsGuiOptionsWindow::restoreOptions()
     auto drawing_size_in_pixels = GetDrawingSizeInPixels();
     m_drawing_size->setValue(drawing_size_in_pixels);
 
-    setBackgroundColor(m_valid_color_ti_button, color_option::tv_valid);
-    setBackgroundColor(m_not_calculated_color_ti_button, color_option::tv_not_calculated);
-    setBackgroundColor(m_failed_color_ti_button, color_option::tv_failed);
+    setBackgroundColor(m_idle_color_ti_button, color_option::st_not_calculated);
+    setBackgroundColor(m_scheduled_color_ti_button, color_option::st_scheduled);
+    setBackgroundColor(m_data_ready_color_ti_button, color_option::st_valid);
+    setBackgroundColor(m_standby_color_ti_button, color_option::st_standby);
+    setBackgroundColor(m_failed_color_ti_button, color_option::st_failed);
     setBackgroundColor(m_background_color_button, color_option::mapview_background);
     setBackgroundColor(m_start_color_button, color_option::mapview_ramp_start);
     setBackgroundColor(m_end_color_button, color_option::mapview_ramp_end);

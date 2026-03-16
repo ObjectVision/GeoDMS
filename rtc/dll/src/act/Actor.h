@@ -185,6 +185,7 @@ struct Actor: PersistentObject
 	RTC_CALL void Fail(const Actor* src) const;
 	// Catch/normalize a failure for a given fail type (e.g., clear or downgrade)
 	RTC_CALL void CatchFail(FailType ft) const;
+	RTC_CALL bool DoFailCaller(ErrMsgPtr msg, FailType ft) const;
 
 	// Recompute state based on suppliers and change detection heuristics.
 	RTC_CALL void DetermineState () const;
