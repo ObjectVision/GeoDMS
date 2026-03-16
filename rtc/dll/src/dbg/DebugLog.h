@@ -24,8 +24,8 @@ public:
 	RTC_CALL CDebugLog(WeakStr name);
 	RTC_CALL ~CDebugLog();
 
+	RTC_CALL CDebugLog(WeakStr name, bool tag); // called from the public constructor with a DatedFileName
 private:
-	CDebugLog(WeakStr name, bool tag); // called from the public constructor with a DatedFileName
 	static void DMS_CONV DebugMsgCallback(ClientHandle clientHandle, const MsgData* msgData, bool moreToCome);
 
 	FileOutStreamBuff   m_FileBuff;

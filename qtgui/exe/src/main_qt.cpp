@@ -55,7 +55,7 @@ std::any interpret_command_line_parameters(CmdLineSetttings& settingsFrame) {
     if ((argc > 0) && (*argv)[0] == '/' && (*argv)[1] == 'L') {
         SharedStr dmsLogFileName = ConvertDosFileName(SharedStr((*argv) + 2));
 
-        auto log_file_handle = std::make_unique<CDebugLog>(MakeAbsolutePath(dmsLogFileName.c_str()));
+        auto log_file_handle = std::make_unique<CDebugLog>(MakeAbsolutePath(dmsLogFileName.c_str()), true);
         result = make_noncopyable_any<decltype(log_file_handle)>(std::move(log_file_handle));
         argc--; argv++;
     }
