@@ -209,6 +209,20 @@ QVariant DmsModel::getTreeItemIcon(const QModelIndex& index) const {
 	bool isInTemplate = ti->InTemplate();
 	auto vsflags = SHV_GetViewStyleFlags(ti);
 
+	if (!isInTemplate)
+	{
+		if (auto siti = ti->GetInterestPtrOrNull())
+			if (IsDataCurrReady(siti->GetCurrRangeItem()) && siti->m_State.GetProgress() != ProgressState::Committed)
+			{
+				PostMainThreadTask(0, [siti](bool)->bool
+					{
+						siti->SuspendibleUpdate();
+						return !SuspendTrigger::DidSuspend();
+					}
+				);
+			}
+	}
+
 	if (vsflags & ViewStyleFlags::vsfMapView) 
 		return isInTemplate 
 		? QVariant::fromValue(QPixmap(":/res/images/TV_globe_bw.bmp")) 
@@ -432,7 +446,7 @@ void TreeItemDelegate::paint(QPainter* painter, const QStyleOptionViewItem& opti
 			if (is_read_only && ti->HasCalculator())
 				storageHolder = nullptr;
 		}
-		bool show_validation_icon = ti->m_State.GetProgress() >= ProgressState::Validated;
+		bool show_validation_icon = ti->m_State.Get(actor_flag_set::AF_IntegrityChecked) && !ti->WasFailed(FailType::Data);
 
 		if (storageHolder || show_validation_icon)
 		{
@@ -469,26 +483,38 @@ void TreeItemDelegate::paint(QPainter* painter, const QStyleOptionViewItem& opti
 			}
 			if (show_validation_icon)
 			{
+				bool wasValidated = ti->m_State.GetProgress() >= ProgressState::Validated;
 				bool valid = !ti->WasFailed(FailType::Validate);
 
 				QColor color;
 				QString validationIcon;
 
-				static auto validIcon  = QString("\u2713"); // ✓
-				static auto failedIcon = QString("\u2717"); // ✗
-
-				if (valid)
+				static auto failedIcon = QString("✖"); // ✖
+				static auto thisSucceededIcon  = QString("\u2713"); // ✓
+				static auto upstreamSucceededIcon = QString("◦"); // ◦
+				static auto nonfalsifiable = QString("∅"); // ◦
+				bool thisValidated = integrityCheckPropDefPtr->HasNonDefaultValue(ti);
+				if (!wasValidated)
 				{
-					color = QColor(0, 150, 0);   // groen
-					validationIcon = validIcon;
+					validationIcon = u8"…";
+					color = QColor(0x60, 0x7D, 0x8B);
+				}
+				else if (valid)
+				{
+					color = QColor(0x2E, 0x7D, 0x32);
+					if (ti->m_State.Get(actor_flag_set::AF_IntegrityChecked))
+						validationIcon = thisValidated ? thisSucceededIcon : upstreamSucceededIcon;
+					else
+						validationIcon = nonfalsifiable;
 				}
 				else
 				{
-					color = QColor(200, 0, 0);   // rood
+					assert(ti->m_State.Get(actor_flag_set::AF_IntegrityChecked));
+					color = thisValidated ? QColor(0xC6, 0x28, 0x28) : QColor(0xEF, 0x6c, 0x00);
 					validationIcon = failedIcon;
 				}
 
-				painter->setOpacity(1.0);               // validation moet altijd duidelijk zijn
+				painter->setOpacity(1.0);
 				painter->setPen(color);
 
 				painter->drawText(QPoint(offset, rect.center().y() + 5), validationIcon);

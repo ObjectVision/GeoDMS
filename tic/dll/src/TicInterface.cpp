@@ -629,7 +629,7 @@ bool ItemUpdateImpl(const TreeItem* self, CharPtr context, SharedTreeItemInteres
 		return true;
 
 	holder = self;
-	if (!self->Update(ProgressState::Committed, false, context) && SuspendTrigger::DidSuspend())
+	if (!self->Update(false, context) && SuspendTrigger::DidSuspend())
 		return false;
 
 	return true;

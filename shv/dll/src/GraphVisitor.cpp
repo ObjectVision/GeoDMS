@@ -498,7 +498,7 @@ GraphVisitState GraphDrawer::Visit(GraphicObject* go)
 	if (suspendible)
 	{
 		dms_assert(!SuspendTrigger::DidSuspend());
-		go->SuspendibleUpdate(ProgressState::Committed);
+		go->SuspendibleUpdate();
 		if (SuspendTrigger::DidSuspend())
 			return GVS_Break; // suspend processing, thus: done =  true
 	}
@@ -749,10 +749,10 @@ GraphVisitState GraphUpdater::DoObject(GraphicObject* go)
 	dms_assert(go);
 	dms_assert(!SuspendTrigger::DidSuspend());
 
-	ActorVisitState ready = go->SuspendibleUpdate(ProgressState::Committed); // returns true if didn't suspend (success or failure, keep going anyway)
+	ActorVisitState ready = go->SuspendibleUpdate(); // returns true if didn't suspend (success or failure, keep going anyway)
 	assert((ready == AVS_SuspendedOrFailed) == (SuspendTrigger::DidSuspend() || go->WasFailed(FailType::Committed)) );
 //	if (ready)
-//		go->SuspendibleUpdate(PS_Committed);
+//		go->SuspendibleUpdate();
 	return GVS_BreakOnSuspended();
 }
 

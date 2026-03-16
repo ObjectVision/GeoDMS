@@ -1059,7 +1059,7 @@ void GenerateMetaInfo(AbstrPropWriter& apw, const TreeItem* curr, const TreeItem
 			const_cast<TreeItem*>(key)->SetKeepDataState(true);
 			irc.Add(key);
 
-			key->CertainUpdate(ProgressState::Committed, "GenerateMetaInfo");
+			key->CertainUpdate("GenerateMetaInfo");
 
 			if (!IsDataItem(key))
 				continue;

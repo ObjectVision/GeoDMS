@@ -230,7 +230,7 @@ int main1(int argc, char** argv)
 	{
 		SharedStr dmsLogFileName = ConvertDosFileName(SharedStr(firstParam + 2));
 
-		CDebugLog log(MakeAbsolutePath(dmsLogFileName.c_str()));
+		CDebugLog log(MakeAbsolutePath(dmsLogFileName.c_str()), true);
 		SetCachedStatusFlag(RSF_TraceLogFile);
 		return main2(argc - 1, argv + 1);
 	}

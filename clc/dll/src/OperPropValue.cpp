@@ -273,7 +273,7 @@ struct GenerateOperator : public UnaryOperator
 
 		if (m_DoAsMetaInfo || mustCalc)
 		{
-			ActorVisitState result = arg1->SuspendibleUpdate(ProgressState::Committed);
+			ActorVisitState result = arg1->SuspendibleUpdate();
 
 			if (result == AVS_SuspendedOrFailed)
 			{

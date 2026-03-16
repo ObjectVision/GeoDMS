@@ -116,7 +116,7 @@ public:
 
 	// override virtuals of Actor
 	ActorVisitState VisitSuppliers(SupplierVisitFlag svf, const ActorVisitor& visitor) const override;
-	ActorVisitState DoUpdate(ProgressState ps) override;
+	ActorVisitState DoUpdate() override;
 
 //	size, extents and transformations
 	CrdTransformation CalcWorldToClientTransformation() const; // calls DoUpdateView -> AdjustTargetViewport

@@ -134,12 +134,11 @@ public:
 	enum TransState : UInt32 {
 		AF_TransientBase     = 0x0020,
 
-		AF_Committing        = 1 * AF_TransientBase,
-		AF_Validating        = 2 * AF_TransientBase,
-		AF_CalculatingData   = 3 * AF_TransientBase,
-		AF_ChangingInterest  = 4 * AF_TransientBase,
-		AF_UpdatingMetaInfo  = 5 * AF_TransientBase,
-		AF_DeterminingState  = 6 * AF_TransientBase,
+		AF_ValidatingAndCommitting = 1 * AF_TransientBase,
+		AF_CalculatingData   = 2 * AF_TransientBase,
+		AF_ChangingInterest  = 3 * AF_TransientBase,
+		AF_UpdatingMetaInfo  = 4 * AF_TransientBase,
+		AF_DeterminingState  = 5 * AF_TransientBase,
 
 		AF_TransientMask     = 0x07 * AF_TransientBase,
 	};
@@ -150,9 +149,7 @@ public:
 		AF_SupplInterest     = 0x0400, 
 		AF_CommitInterest    = 0x0800,
 
-		#if defined(MG_DEBUG)
-		AFD_ProcessCounted   = 0x1000,
-		#endif
+		AF_IntegrityChecked = 0x1000, // true if any of its suppliers has an IntegrityCheck
 
 		AFD_PivotElem        = 0x2000,
 
@@ -191,8 +188,7 @@ public:
 	bool IsDeterminingState() const { return GetTransState()==AF_DeterminingState; }
 	bool IsUpdatingMetaInfo() const { return GetTransState()==AF_UpdatingMetaInfo; }
 	bool IsCalculatingData () const { return GetTransState()==AF_CalculatingData ; }
-	bool IsValidating      () const { return GetTransState()==AF_Validating      ; }
-	bool IsCommitting      () const { return GetTransState()==AF_Committing      ; }
+	bool IsValidatingAndCommitting() const { return GetTransState()==AF_ValidatingAndCommitting; }
 
 	void SetInvalidationBlock()       { Set  (AF_InvalidationBlock); }
 	void ClearInvalidationBlock()     { Clear(AF_InvalidationBlock); }

@@ -77,20 +77,12 @@ PSEUDOCODE PLAN (documentation-only, no behavior changes)
 
 inline void IncRemainingTargetCount(const Actor* self)
 {
-    dbg_assert(! self->m_State.Get(actor_flag_set::AFD_ProcessCounted) );
-
     IncRemainingTargetCount();
-
-    MG_DEBUGCODE( self->m_State.Set(actor_flag_set::AFD_ProcessCounted); )
 }
 
 inline void DecRemainingTargetCount(const Actor* self)
 {
-    dbg_assert(  self->m_State.Get(actor_flag_set::AFD_ProcessCounted) );
-
     DecRemainingTargetCount();
-
-    MG_DEBUGCODE( self->m_State.Clear(actor_flag_set::AFD_ProcessCounted); )
 }
 
 
@@ -107,8 +99,7 @@ CharPtr GetActorFlagName(actor_flag_set::TransState ts)
         case actor_flag_set::AF_UpdatingMetaInfo: return "MetaInfo";
         case actor_flag_set::AF_ChangingInterest: return "ChangeInterest";
         case actor_flag_set::AF_CalculatingData:  return "PrimaryData";
-        case actor_flag_set::AF_Validating:       return "Validation";
-        case actor_flag_set::AF_Committing:       return "Commit";
+        case actor_flag_set::AF_ValidatingAndCommitting: return "ValidationAndCommit";
     }
     return "Unknown progress";
 }
@@ -253,8 +244,7 @@ Actor::Actor ()
 
 Actor::~Actor ()
 {
-    dms_assert(!m_InterestCount);
-    dbg_assert(!m_State.Get(actor_flag_set::AFD_ProcessCounted));
+    assert(!m_InterestCount);
 
     ClearFail();
     #if defined(MG_DEBUG)
@@ -300,8 +290,8 @@ void Actor::InvalidateAt (TimeStamp invalidate_ts) const
     DBG_START("Actor", "InvalidateAt", sd_DebugInvalidations);
     DBG_TRACE(("time = %u", invalidate_ts));
 
-    dms_assert(!m_State.IsCommitting());
-    dms_assert(!m_State.IsCalculatingData());
+    assert(!m_State.IsValidatingAndCommitting());
+    assert(!m_State.IsCalculatingData());
 
 #if defined(MG_DEBUG)
     MGD_CHECKDATA(!sd_InvalidationProtectCount);
@@ -382,12 +372,17 @@ bool Actor::Is(ProgressState ps) const
 // For FR <= FR_Determine track against last DetermineState epoch.
 bool Actor::WasFailed(FailType fr) const 
 {
+    assert(fr != FailType::None);
+
     if (!m_State.IsFailed())
         return false;
     if (GetFailType() > fr)
         return false;
     if (fr > FailType::Determine)
         return true;
+
+    assert(fr == FailType::Determine);
+    assert(GetFailType() == FailType::Determine);
     return m_LastGetStateTS == UpdateMarker::GetLastTS();
 }
 
@@ -432,54 +427,46 @@ TimeStamp Actor::GetLastChangeTS () const
 // 4) If suppliers ready, attempt own DoUpdate, respecting suspension.
 // 5) Propagate failure or raise own progress to 'ps'.
 // TODO: Reduce cyclomatic complexity (many branches). Consider splitting into helpers.
-ActorVisitState Actor::SuspendibleUpdate(ProgressState ps) const // returns false in case of failed or suspended
+ActorVisitState Actor::SuspendibleUpdate() const // returns false in case of failed or suspended
 {
     assert(!SuspendTrigger::DidSuspend()); // PRECONDITION
-
-    assert(ps == ProgressState::Committed); // TODO REMOVE parameterization if this holds
 
     assert(IsMetaThread());
 
     DetermineState(); // go back to US_Invalidated when supplier has changed, call DoInvalidate if nessecary
 
-    if (m_State.GetProgress() > ps)
-        return AVS_Ready;
-    FailType ft = (ps== ProgressState::Committed) ? FailType::Committed : FailType::Validate;
-    if (WasFailed(ft))
-        return AVS_SuspendedOrFailed;
-    if (m_State.GetProgress() == ps)
-        return AVS_Ready;
-    assert(m_State.GetProgress() < ps);
-
-    assert(! IsPassor());
     if (IsPassor())
         return AVS_Ready;
+
+    if (m_State.GetProgress() >= ProgressState::Committed)
+		return this->WasFailed(FailType::Committed) ? AVS_SuspendedOrFailed : AVS_Ready;
+
 
     assert(m_LastChangeTS); // must have been set by DetermineState
 
      // we can try (to resume) to update now
     MG_DEBUGCODE( TimeStamp lts = UpdateMarker::LastTS() );
 
-    assert(!WasFailed(ft));
+    assert(!WasFailed());
 
-    if (!MustApplyImpl())
+    if (!MustApplyImpl()) // must data be calculated, i.e. must supplier data be kept available?
     {
-        SetProgress(ps);
+        SetProgress(ProgressState::Committed);
         return AVS_Ready;
     }
 
     // Establish transient state (validating/committing) for duration of update.
-    UpdateLock updateLock(this, (ps==ProgressState::Validated) ? actor_flag_set::AF_Validating : actor_flag_set::AF_Committing);
+    UpdateLock updateLock(this, actor_flag_set::AF_ValidatingAndCommitting);
 
     dms_assert(!SuspendTrigger::DidSuspend()); // follows on precondition
 
-    dms_assert(!WasFailed(ft));
+    assert(!WasFailed());
 
     // ===========================
-    ActorVisitState updateRes = UpdateSuppliers(ps); 
+    ActorVisitState updateRes = UpdateSuppliers(); 
     // ===========================
 
-    dms_assert(updateRes || WasFailed(ft) || SuspendTrigger::DidSuspend());
+    assert(updateRes || WasFailed() || SuspendTrigger::DidSuspend());
     // don't leave now on !updateRes since a failed supplier will have to cause CheckInvalidate to fail this
 
     // UpdateSuppliers may have resulted in a (new) fail reason: supplier failed, or any other fail
@@ -487,10 +474,10 @@ ActorVisitState Actor::SuspendibleUpdate(ProgressState ps) const // returns fals
     // or derived classes might decide to ignore supplier fails
     // also when updateRes == true, we need to CheckIntegrity since overridden impl may check preconditions for DoUpdate
 
-    if (WasFailed(ft))
+    if (WasFailed())
         return AVS_SuspendedOrFailed;
 
-    dms_assert(m_State.GetProgress() < ps); // UpdateSuppliers only could affect Progress in case of failure
+    assert(m_State.GetProgress() < ProgressState::Committed); // UpdateSuppliers only could affect Progress in case of failure
 
     if (updateRes == AVS_SuspendedOrFailed)
     {
@@ -498,10 +485,10 @@ ActorVisitState Actor::SuspendibleUpdate(ProgressState ps) const // returns fals
         return AVS_SuspendedOrFailed;
     }
     if (m_State.GetProgress() >= ProgressState::Committed)
+    {
         StopSupplInterest();
-
-    if (m_State.GetProgress() >= ps) // a supplier could have been a creator/manager
         return AVS_Ready;
+    }
 
     assert(m_LastGetStateTS == UpdateMarker::LastTS());
     UpdateMarker::ChangeSourceLock changeStamp(dynamic_cast<const SharedActor*>(this),  "Update");
@@ -521,14 +508,14 @@ ActorVisitState Actor::SuspendibleUpdate(ProgressState ps) const // returns fals
         else
         {
             MG_DEBUGCODE(d_WTF = 2);
-            updateRes = const_cast<Actor*>(this)->DoUpdate(ps);
+            updateRes = const_cast<Actor*>(this)->DoUpdate();
             if (WasFailed(FailType::Data))
             {
                 updateRes = AVS_SuspendedOrFailed;
                 MG_DEBUGCODE(d_WTF = 3);
             }
 
-            VisitSupplBoolImpl(this, SupplierVisitFlag::Calc,
+            VisitSupplBoolImpl(this, SupplierVisitFlag::IntegrityChecked,
                 [this](const Actor* suppl) 
                 { 
                     if (suppl->WasFailed(FailType::Committed))
@@ -542,46 +529,43 @@ ActorVisitState Actor::SuspendibleUpdate(ProgressState ps) const // returns fals
         if (updateRes != AVS_SuspendedOrFailed) // DoUpdate can change m_LastState (to valid or failed) and thereby unlock itself
         {
             assert( !WasFailed(FailType::Data) );     // ClearFail(); not failed is implied by positive updateRes
-            if (m_State.GetProgress() < ps) // DoUpdate can raise progress itself
-                SetProgress(ps);
+            if (m_State.GetProgress() < ProgressState::Committed) // DoUpdate can raise progress itself
+                SetProgress(ProgressState::Committed);
         }
         else
         {
-            dms_assert(SuspendTrigger::DidSuspend() || WasFailed(ft));
+            assert(SuspendTrigger::DidSuspend() || WasFailed());
         }
     }
     catch (const DmsException& x)
     {
-        dms_assert(ps == ProgressState::Validated || ps == ProgressState::Committed);
-        ft = (ps == ProgressState::Committed) ? FailType::Committed : FailType::Validate;
-        if (!WasFailed(ft))
-            DoFailCaller(x.AsErrMsg(), ft);
+        if (!WasFailed())
+            DoFailCaller(x.AsErrMsg(), FailType::Committed);
         return AVS_SuspendedOrFailed;
     }
-    if (WasFailed(ft) || (m_State.GetProgress() < ps) || SuspendTrigger::DidSuspend())
+    if (WasFailed() || (m_State.GetProgress() < ProgressState::Committed) || SuspendTrigger::DidSuspend())
         return AVS_SuspendedOrFailed;
     return AVS_Ready;
 }
 
 // Non-suspendible wrapper: fences suspension and throws on failure.
 // 'blockingAction' describes operation for external observers.
-void Actor::CertainUpdate(ProgressState ps, CharPtr blockingAction) const
+void Actor::CertainUpdate(CharPtr blockingAction) const
 {
     SuspendTrigger::FencedBlocker lock(blockingAction);
-    assert(ps >= ProgressState::Validated);
-    ActorVisitState result = SuspendibleUpdate(ps);
-    assert(m_State.GetProgress() >= ps || (result==AVS_SuspendedOrFailed));
+    ActorVisitState result = SuspendibleUpdate();
+    assert(m_State.GetProgress() >= ProgressState::Committed || (result==AVS_SuspendedOrFailed));
     if (result==AVS_SuspendedOrFailed)
     {
         // trigger lock should have prevented the following situation
-        assert(WasFailed(ps <= ProgressState::Validated ? FailType::Validate : FailType::Committed));
-        assert(m_State.GetTransState() < static_cast<UInt32>(ps) * actor_flag_set::AF_TransientBase);
+        assert(WasFailed());
+        assert(m_State.GetTransState() < static_cast<UInt32>(ProgressState::Committed) * actor_flag_set::AF_TransientBase);
         ThrowFail();
     }
 }
 
 // Default no-op update body. Derived classes override this.
-ActorVisitState Actor::DoUpdate(ProgressState ps)
+ActorVisitState Actor::DoUpdate()
 {
     return AVS_Ready;
 }
@@ -607,7 +591,21 @@ void Actor::DoInvalidate () const
 // Default meta-info update is empty. Derived classes may override.
 // NOTE: Must be noexcept to preserve state invariants during metadata refresh.
 void Actor::UpdateMetaInfo() const noexcept
-{}
+{
+    UpdateSupplMetaInfo(); // Update Suppliers, calls MakeCalculator() -> mc_DC
+
+    // collect IntegrityCheck Related MetaInfo
+
+//    static_assert((UInt32(SupplierVisitFlag::IntegrityChecked) & UInt32(SupplierVisitFlag::UpdateSupplMetaInfo)) == UInt32(SupplierVisitFlag::IntegrityChecked)); // require that all inspected suppliers for check were also MetaInfo updated.
+
+    VisitSupplProcImpl(this, SupplierVisitFlag::IntegrityChecked, [this](const Actor* supplier)
+        {
+            assert(supplier);
+            if (supplier->m_State.Get(actor_flag_set::AF_IntegrityChecked))
+                this->m_State.Set(actor_flag_set::AF_IntegrityChecked);
+        }
+    );
+}
 
 // Propagate meta-info update to suppliers and record failures.
 void Actor::UpdateSupplMetaInfo() const
@@ -705,48 +703,46 @@ ActorVisitState Actor::VisitSuppliers(SupplierVisitFlag svf, const ActorVisitor&
 // Update all suppliers to at least the given progress state.
 // Fails/suspends if any supplier fails/suspends.
 // TODO: Consider batching/rescheduling to avoid deep recursion for large graphs.
-ActorVisitState Actor::UpdateSuppliers(ProgressState ps) const // returns US_Valid, US_UpdatingElsewhere, US_Suspended, US_FailedData, US_FailedCheck, US_FailedCommit
+ActorVisitState Actor::UpdateSuppliers() const // returns US_Valid, US_UpdatingElsewhere, US_Suspended, US_FailedData, US_FailedCheck, US_FailedCommit
 {
-    assert((ps == ProgressState::Committed) || (ps == ProgressState::Validated));
-    assert(ps == ProgressState::Committed); // TODO: clean-up if this holds
-
     if (!DoesHaveSupplInterest() && GetInterestCount())
         return AVS_Ready;
 
-    FailType ft = (ps == ProgressState::Committed) ? FailType::Committed : FailType::Validate;
+//    FailType ft = (ps == ProgressState::Committed) ? FailType::Committed : FailType::Validate;
 
     assert(!WasFailed(FailType::MetaInfo));
-    assert(!WasFailed(ft)); // precondition
+    assert(!WasFailed()); // precondition
     assert(DoesHaveSupplInterest() || !GetInterestCount());
 
     ActorVisitState updateRes = 
         VisitSupplBoolImpl(this, SupplierVisitFlag::Update,
-            [this, ps, ft] (const Actor* supplier) -> ActorVisitState
+            [this] (const Actor* supplier) -> ActorVisitState
                 {
                     if (supplier->IsPassor())
                         return AVS_Ready;
-                    if (supplier->SuspendibleUpdate(ps)!=AVS_SuspendedOrFailed)
+                    if (supplier->SuspendibleUpdate() != AVS_SuspendedOrFailed)
                     {
-                        dms_assert(!SuspendTrigger::DidSuspend());
-                        dms_assert(supplier->m_State.GetProgress() >= ps || supplier->IsPassor());
+                        assert(!SuspendTrigger::DidSuspend());
+                        assert(supplier->m_State.GetProgress() >= ProgressState::Committed || supplier->IsPassor());
                     }
                     else
                     {
-                        dms_assert(supplier->WasFailed(ft) || SuspendTrigger::DidSuspend()); // POSTCONDITION of SuspendibleUpdate
+                        assert(supplier->WasFailed(FailType::Committed) || SuspendTrigger::DidSuspend()); // POSTCONDITION of SuspendibleUpdate
                         // first, propagate err
-                        if (supplier->WasFailed(ft))
+                        if (supplier->WasFailed(FailType::Committed))
                             this->Fail(supplier);
-
-                        // then, suspend or fail
-                        return AVS_SuspendedOrFailed;
+						if (this->WasFailed(FailType::Validate))
+                            return AVS_SuspendedOrFailed; // then, suspend or fail
+                        if (SuspendTrigger::DidSuspend())
+                            return AVS_SuspendedOrFailed;
                     }
                     return AVS_Ready;
                 }
         );
-    if (WasFailed(ft))
-        updateRes = AVS_SuspendedOrFailed;
+    if (this->WasFailed(FailType::Committed))
+        updateRes = AVS_SuspendedOrFailed; // then, suspend or fail
 
-    dms_assert(updateRes || WasFailed(ft) || SuspendTrigger::DidSuspend());
+    dms_assert(updateRes == AVS_Ready || this->WasFailed(FailType::Committed) || SuspendTrigger::DidSuspend());
     return updateRes;
 }
 
@@ -948,12 +944,10 @@ bool Actor::DoFail(ErrMsgPtr msg, FailType ft) const
 bool Actor::DoFailCaller(ErrMsgPtr msg, FailType failType) const
 {
     auto result = DoFail(msg, failType);
-/*
-    if (failType == FailType::Validate)
-        m_State.SetProgress(ProgressState::Validated);
-    if (failType == FailType::Committed)
+
+    if (failType >= FailType::Validate)
         m_State.SetProgress(ProgressState::Committed);
-*/
+
     return result;
 }
 

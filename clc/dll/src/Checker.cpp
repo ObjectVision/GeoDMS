@@ -41,6 +41,8 @@ struct CheckOperator : public BinaryOperator
 		if (!resultHolder) {
 			assert(!mustCalc);
 			resultHolder = arg1;
+			resultHolder->m_State.Set(actor_flag_set::AF_IntegrityChecked);
+			resultHolder.m_State.Set(actor_flag_set::AF_IntegrityChecked);
 		}
 		assert(resultHolder);
 
