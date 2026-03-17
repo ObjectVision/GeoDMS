@@ -634,13 +634,14 @@ bool PrepareData(ThemeReadLocks& trl, DataItemColumn* dic, const AbstrDataItem* 
 {
 	if (!adi)
 		return true;
-	if (dic->PrepareDataOrUpdateViewLater(adi))
+	if (dic->PrepareDataOrUpdateViewLater(adi) && !adi->WasFailed(FailType::Data))
 	{
 		trl.push_back(DataReadLock(adi));
 		return true;
 	}
 	if (!adi->WasFailed(FailType::Data))
 		*tryLater = true;
+
 	if (SuspendTrigger::DidSuspend()) // if failed, Draw must just return false, don't try again.
 		return false; // suspend processing, thus: retry =  true
 

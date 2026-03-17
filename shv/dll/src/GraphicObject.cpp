@@ -307,12 +307,15 @@ bool GraphicObject::PrepareDataOrUpdateViewLater(const TreeItem* item)
 	}
 	if (IsDataReady(item->GetCurrRangeItem()))
 		return true;
+	if (itemHolder->WasFailed(FailType::Data))
+		return true;
 
 	if (!itemHolder->PrepareDataUsageImpl(DrlType::Suspendible))
 	{
 		if (SuspendTrigger::DidSuspend())
 			return false;
 	}
+
 	if (!IsMultiThreaded2())
 		return true;
 
@@ -333,6 +336,9 @@ bool GraphicObject::PrepareDataOrUpdateViewLater(const TreeItem* item)
 			UpdateMarker::ChangeSourceLock tsLock(tsActive, "UpdateViewLater.impl");
 
 			auto iReadLock = std::make_shared<ItemReadLock>(itemHolder.get_ptr()->GetCurrRangeItem()); // TODO, avoid heap alloc by making ItemReadLock const copyable
+			if (itemHolder->WasFailed(FailType::Data))
+				return;
+
 			auto dReadLock = std::make_shared<DataReadLock>(AsDynamicDataItem(itemHolder.get_ptr()));
 			auto dv_sptr = objSPtr->GetDataView().lock();
 			if (dv_sptr)
