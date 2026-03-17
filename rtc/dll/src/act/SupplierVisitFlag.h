@@ -39,7 +39,6 @@ enum class SupplierVisitFlag
 	//	UpdateMetaInfo = 0x0010,
 	Inspect = Explain | Checker | DetermineCalc,
 
-	IntegrityChecked = Inspect,
 
 	//	Check  = 0x0004, // IntegrityCheck
 //	Commit = 0x0008, // Specific additional items such as PaletteData, 
@@ -58,6 +57,8 @@ enum class SupplierVisitFlag
 
 	MetaAll     = Signature | TemplateOrg | CDF | DIALOGDATA | ImplSuppliers | NamedSuppliers,
 	All         = CalcAll | MetaAll,
+
+	IntegrityChecked = All | DetermineCalc,
 
 	StartSupplInterest = DetermineState & ~Signature // Signature Already explicitly done by StartInterest function
 };

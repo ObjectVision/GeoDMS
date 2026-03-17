@@ -2127,7 +2127,10 @@ void TreeItem::UpdateMetaInfoImpl() const
 {
 	assert(!WasFailed(FailType::MetaInfo));
 
-	Actor::UpdateMetaInfo();
+	Actor::UpdateMetaInfo(); // calls UpdateMetaInfo for all xxx Suppliers.
+
+	if (HasIntegrityChecker())
+		m_State.Set(actor_flag_set::AF_IntegrityChecked);
 
 	GetPhaseNumber();
 
@@ -2741,7 +2744,7 @@ ActorVisitState TreeItem::DoUpdate()
 	{
 		if (HasIntegrityChecker())
 		{
-			m_State.Set(actor_flag_set::AF_IntegrityChecked);
+//			m_State.Set(actor_flag_set::AF_IntegrityChecked);
 			try
 			{
 				TreeItemContextHandle tich2(this, "IntegrityCheck Evaluation");
