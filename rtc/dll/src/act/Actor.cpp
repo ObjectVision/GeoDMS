@@ -611,12 +611,28 @@ void Actor::UpdateMetaInfo() const noexcept
 // Propagate meta-info update to suppliers and record failures.
 void Actor::UpdateSupplMetaInfo() const
 {
-    VisitSupplProcImpl(this, SupplierVisitFlag::UpdateSupplMetaInfo, [this](const Actor* supplier)
+    VisitSupplProcImpl(this, SupplierVisitFlag::UpdateSupplMetaInfoForDataPrep, [this](const Actor* supplier)
         {
             assert(supplier);
             supplier->UpdateMetaInfo();
             if (supplier->WasFailed())
                 this->Fail(supplier);
+        }
+    );
+    VisitSupplProcImpl(this, SupplierVisitFlag::UpdateSupplMetaInfoForValidation, [this](const Actor* supplier)
+        {
+            assert(supplier);
+            supplier->UpdateMetaInfo();
+            if (supplier->WasFailed())
+                this->Fail(supplier, FailType::Validate);
+        }
+    );
+    VisitSupplProcImpl(this, SupplierVisitFlag::UpdateSupplMetaInfoForCommit, [this](const Actor* supplier)
+        {
+            assert(supplier);
+            supplier->UpdateMetaInfo();
+            if (supplier->WasFailed())
+                this->Fail(supplier, FailType::Committed);
         }
     );
 }

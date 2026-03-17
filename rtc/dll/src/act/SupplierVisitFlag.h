@@ -25,13 +25,17 @@ enum class SupplierVisitFlag
 	Checker = 0x0200,
 	ReadyDcsToo = 0x0400,
 	ScanSupplTree = 0x0800,
+	ExportInfo = 0x1000,
 
 	Calc = DataController | DcArgs,
 	//	Meta    = 0x0002, // Explicit Suppliers, FuncFC args that don't require delayed updating, such as TemplDC args, and ImplSupplFromIndirectProps
 	//	Calc    = 0x0002, // Data processing and reading, Domain +Values Unit
 
-	Update = DomainValues | ExplicitSuppliers | SourceData | NamedSuppliers,
+	Update = DomainValues | ExplicitSuppliers | SourceData | NamedSuppliers | ExportInfo,
 	UpdateSupplMetaInfo = Parent | Update | ScanSupplTree,
+	UpdateSupplMetaInfoForDataPrep = Calc,
+	UpdateSupplMetaInfoForCommit = ExportInfo,
+	UpdateSupplMetaInfoForValidation = UpdateSupplMetaInfo & (~UpdateSupplMetaInfoForDataPrep) & (~UpdateSupplMetaInfoForCommit),
 	DetermineState = UpdateSupplMetaInfo | Calc | Checker | ReadyDcsToo | DetermineCalc,
 
 	Explain = NamedSuppliers | SourceData,
@@ -49,16 +53,19 @@ enum class SupplierVisitFlag
 	FenceNumberScan = CalcAll | ScanSupplTree,
 
 	TemplateOrg = 0x1000, // use to visit also the template origin
-	CDF         = 0x2000, // use to visit the cdf source item and its palette
-	DIALOGDATA  = 0x4000,
+	CDF = 0x2000, // use to visit the cdf source item and its palette
+	DIALOGDATA = 0x4000,
 	ImplSuppliers = 0x8000, // implicit suppliers
 
-	CalcErrorSearch   = Update | ImplSuppliers | Checker | ScanSupplTree,
+	CalcErrorSearch = Update | ImplSuppliers | Checker | ScanSupplTree,
 
-	MetaAll     = Signature | TemplateOrg | CDF | DIALOGDATA | ImplSuppliers | NamedSuppliers,
-	All         = CalcAll | MetaAll,
+	MetaAll = Signature | TemplateOrg | CDF | DIALOGDATA | ImplSuppliers | NamedSuppliers,
+	All = CalcAll | MetaAll,
 
 	IntegrityChecked = All | DetermineCalc,
+	IntegrityCheckedForDataPrep = Calc,
+	IntegrityCheckedForCommit = ExportInfo,
+	IntegrityCheckedForValidation = IntegrityChecked & (~IntegrityCheckedForDataPrep) & (~IntegrityCheckedForCommit),
 
 	StartSupplInterest = DetermineState & ~Signature // Signature Already explicitly done by StartInterest function
 };
