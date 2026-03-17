@@ -823,7 +823,7 @@ bool AbstrStorageManager::WriteUnitRange(StorageMetaInfoPtr&& smi)
 
 ActorVisitState AbstrStorageManager::VisitSuppliers(SupplierVisitFlag svf, const ActorVisitor& visitor, const TreeItem* storageHolder, const TreeItem* self) const
 {
-	if (self->IsStorable() && (self->HasCalculator() || self->HasConfigData()))
+	if (Test(svf, SupplierVisitFlag::ExportInfo) && self->IsStorable() && (self->HasCalculator() || self->HasConfigData()))
 	{
 		const TreeItem* metaInfo = GetExportMetaInfo(self);
 		if (metaInfo && metaInfo->VisitConstVisibleSubTree(visitor)== AVS_SuspendedOrFailed)
