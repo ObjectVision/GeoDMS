@@ -300,7 +300,7 @@ SharedTreeItem FuncDC::MakeResult() const // produce signature
 #if defined(MG_DEBUG_DCDATA)
 	DBG_START("FuncDc::MakeResult", md_sKeyExpr.c_str(), MG_DEBUG_FUNCDC);
 
-	const TreeItem* dContext = m_Data;
+	const TreeItem* dContext = m_Data.get();
 
 	assert(IsMetaThread());
 #endif
@@ -328,7 +328,7 @@ SharedTreeItem FuncDC::MakeResult() const // produce signature
 	assert(!IsNew() || m_Data->IsCacheRoot());
 
 	if (m_Data && m_Data->WasFailed(FailType::MetaInfo))
-		Fail(m_Data);
+		Fail(m_Data.get());
 
 	if (WasFailed(FailType::MetaInfo))
 		return {};
@@ -356,7 +356,7 @@ auto FuncDC::CallCalcResult(std::shared_ptr<Explain::Context> context) const -> 
 #if defined(MG_DEBUG_DCDATA)
 	DBG_START("FuncDc::CallCalcResult", md_sKeyExpr.c_str(), MG_DEBUG_FUNCDC);
 
-	const TreeItem* dContext = m_Data;
+	const TreeItem* dContext = m_Data.get();
 
 	assert(IsMetaThread());
 	assert(!SuspendTrigger::DidSuspend());
@@ -395,7 +395,7 @@ auto FuncDC::CallCalcResult(std::shared_ptr<Explain::Context> context) const -> 
 	m_Data->UpdateMetaInfo();
 
 	if (m_Data->WasFailed(FailType::Data))
-		Fail(m_Data);
+		Fail(m_Data.get());
 
 	if (WasFailed(FailType::Data) && !context || WasFailed(FailType::MetaInfo))
 		return {};
@@ -434,9 +434,9 @@ auto FuncDC::CallCalcResult(std::shared_ptr<Explain::Context> context) const -> 
 	bool mustStartCalc = (context != nullptr);
 	if (!mustStartCalc)
 		if (IsNew() && GetOperator()->CanRunParallel())
-			mustStartCalc = !IsAllInterestedCalculatingOrDataReady(m_Data);
+			mustStartCalc = !IsAllInterestedCalculatingOrDataReady(m_Data.get());
 		else
-			mustStartCalc = !IsAllDataCurrStandby(m_Data); // condition required for operations such as parse_xml as first argument of a SubItem
+			mustStartCalc = !IsAllDataCurrStandby(m_Data.get()); // condition required for operations such as parse_xml as first argument of a SubItem
 
 	if (mustStartCalc)
 	{
@@ -449,7 +449,7 @@ auto FuncDC::CallCalcResult(std::shared_ptr<Explain::Context> context) const -> 
 			return {}; // maybe suspended or failed
 		}
 		assert(!SuspendTrigger::DidSuspend());
-		assert(m_OperContext || IsDataReady(m_Data) || m_Data->WasFailed(FailType::Data) || SuspendTrigger::DidSuspend());
+		assert(m_OperContext || IsDataReady(m_Data.get()) || m_Data->WasFailed(FailType::Data) || SuspendTrigger::DidSuspend());
 	}
 	return thisFutureResult;
 }
@@ -489,7 +489,7 @@ const Operator* FuncDC::GetOperator() const
 		arg_index argCount = 0;
 		for (const DcRefListElem* argIter = m_Args.get(); argIter; argIter = argIter->m_Next.get(), ++argCount)
 		{
-			const DataController* argDC = argIter->m_DC;
+			const DataController* argDC = argIter->m_DC.get();
 			if (argDC->WasFailed(FailType::MetaInfo))
 			{
 				Fail(argDC);
@@ -571,7 +571,7 @@ OArgRefs FuncDC::GetArgs(bool doUpdateMetaInfo, bool doCalcData) const
 		}
 
 		if (argIter->m_DC->WasFailed(mustCalcArg))
-			Fail(argIter->m_DC, doCalcData ? FailType::Data : FailType::MetaInfo);
+			Fail(argIter->m_DC.get(), doCalcData ? FailType::Data : FailType::MetaInfo);
 
 		dms_assert(argItem || WasFailed(doCalcData)); // POSTCONDITION of argIter->m_DC->GetResult();
 
@@ -790,7 +790,7 @@ void FuncDC::CallCalcResultImpl(std::shared_ptr<Explain::Context> context) const
 		if (result)
 			SuspendTrigger::MarkProgress();
 
-		assert(!result || operContext || CheckDataReady(m_Data) || (!IsNew() && CheckCalculatingOrReady(GetCacheRoot(m_Data))));
+		assert(!result || operContext || CheckDataReady(m_Data.get()) || (!IsNew() && CheckCalculatingOrReady(GetCacheRoot(m_Data.get()))));
 	}
 	catch (...)
 	{
@@ -832,7 +832,7 @@ ActorVisitState FuncDC::VisitSuppliers(SupplierVisitFlag svf, const ActorVisitor
 			&& !m_OperatorGroup->MustSupplyTree(argNr, firstArgValueCPtr))
 			continue;
 
-		const DataController* dc = dcRefElem->m_DC; // borrow shared owned dc;
+		const DataController* dc = dcRefElem->m_DC.get(); // borrow shared owned dc;
 
 		if (visitor(dc) == AVS_SuspendedOrFailed)
 			return AVS_SuspendedOrFailed;
@@ -841,7 +841,7 @@ ActorVisitState FuncDC::VisitSuppliers(SupplierVisitFlag svf, const ActorVisitor
 		if (!dcResult)
 			continue;
 
-		if (visitor(dcResult) == AVS_SuspendedOrFailed)
+		if (visitor(dcResult.get()) == AVS_SuspendedOrFailed)
 			return AVS_SuspendedOrFailed;
 
 		if (m_OperatorGroup->MustSupplyTree(argNr, firstArgValueCPtr) || 
@@ -855,7 +855,7 @@ ActorVisitState FuncDC::VisitSuppliers(SupplierVisitFlag svf, const ActorVisitor
 	}
 
 	for (auto& s : m_OtherSuppliers)
-		if (visitor.Visit(s) == AVS_SuspendedOrFailed)
+		if (visitor.Visit(s.get()) == AVS_SuspendedOrFailed)
 			return AVS_SuspendedOrFailed;
 
 	return AVS_Ready;
@@ -959,7 +959,7 @@ SharedTreeItem SymbDC::MakeResult() const
 		}
 		const_cast<SymbDC*>(this)->SetNew(res); // copy will be done by UpdateMetaInfo
 */
-		const_cast<SymbDC*>(this)->SetOld(sourceItem); // copy will be done by UpdateMetaInfo
+		const_cast<SymbDC*>(this)->SetOld(sourceItem.get()); // copy will be done by UpdateMetaInfo
 	}
 	dms_assert( !SuspendTrigger::DidSuspend() ); // Follows from previous assert and FindItem doesn't call MustSuspend();
 
@@ -1001,7 +1001,7 @@ auto SymbDC::CallCalcResult(std::shared_ptr<Explain::Context> context) const -> 
 	bool suspended = !m_Data->PrepareDataUsage(DrlType::Suspendible);
 
 	if (m_Data->WasFailed())
-		Fail(m_Data);
+		Fail(m_Data.get());
 
 	if (suspended)
 	{
@@ -1022,7 +1022,7 @@ ActorVisitState SymbDC::VisitSuppliers(SupplierVisitFlag svf, const ActorVisitor
 		return AVS_SuspendedOrFailed;
 
 	auto data = MakeResult();
-	if (!data || visitor(data) == AVS_SuspendedOrFailed)
+	if (!data || visitor(data.get()) == AVS_SuspendedOrFailed)
 		return AVS_SuspendedOrFailed;
 
 	return AVS_Ready;

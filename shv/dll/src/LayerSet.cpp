@@ -300,7 +300,7 @@ std::shared_ptr<GraphicLayer> LayerSet::CreateLayer(const AbstrDataItem* viewIte
 		result->ToggleDetailsVisibility(); // make palette invisible
 		dms_assert(result->IsVisible());
 
-		const TreeItem* bdvp = viewItem->GetConstSubTreeItemByID(GetTokenID_mt("BackgroundDefaultVisibility"));
+		auto bdvp = viewItem->GetConstSubTreeItemByID(GetTokenID_mt("BackgroundDefaultVisibility"));
 
 
 		if (bdvp && IsDataItem(bdvp) && AsDataItem(bdvp)->HasVoidDomainGuarantee())

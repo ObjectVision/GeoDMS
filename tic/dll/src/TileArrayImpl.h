@@ -142,7 +142,7 @@ auto HeapTileArray<V>::GetWritableTile(tile_id t, dms_rw_mode rwMode) -> locked_
 	this->CheckFailure();
 
 	auto& tilePtr = m_Seqs[t];
-	InitTile(tilePtr, this->GetTiledRangeData(), t, rwMode != dms_rw_mode::write_only_all MG_DEBUG_ALLOCATOR_SRC(this->md_SrcStr.c_str()));
+	InitTile(tilePtr, this->GetTiledRangeData().get(), t, rwMode != dms_rw_mode::write_only_all MG_DEBUG_ALLOCATOR_SRC(this->md_SrcStr.c_str()));
 
 	return locked_seq_t(std::static_pointer_cast<void>(tilePtr), GetSeq(*tilePtr));
 }
@@ -154,7 +154,7 @@ auto HeapTileArray<V>::GetTile(tile_id t) const -> locked_cseq_t
 	this->CheckFailure();
 
 	auto& tilePtr = m_Seqs[t];
-	InitTile(tilePtr, this->GetTiledRangeData(), t, true MG_DEBUG_ALLOCATOR_SRC(this->md_SrcStr.c_str()));
+	InitTile(tilePtr, this->GetTiledRangeData().get(), t, true MG_DEBUG_ALLOCATOR_SRC(this->md_SrcStr.c_str()));
 
 	return locked_cseq_t(std::static_pointer_cast<const void>(tilePtr), GetConstSeq(*tilePtr));
 }

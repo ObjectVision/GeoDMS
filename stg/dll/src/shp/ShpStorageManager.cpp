@@ -81,7 +81,7 @@ static const AbstrDataItem* GetPolyData(const TreeItem* storageHolder)
 		pData = nullptr;
 
 	if (!pData)
-		pData = AsDynamicDataItem(storageHolder->GetConstSubTreeItemByID(POLYGON_DATA_ID));
+		pData = AsDynamicDataItem(storageHolder->GetConstSubTreeItemByID(POLYGON_DATA_ID).get());
 	if (!IsPolyData(pData))
 		pData = nullptr;
 	return pData;
@@ -97,7 +97,7 @@ static const AbstrDataItem* GetPointData(const TreeItem* storageHolder)
 
 	// Look up in 'griddata' item
 	if (!pData)
-		pData = AsDynamicDataItem(storageHolder->GetConstSubTreeItemByID(POINT_DATA_ID));
+		pData = AsDynamicDataItem(storageHolder->GetConstSubTreeItemByID(POINT_DATA_ID).get());
 	if (!IsPointData(pData))
 		pData = nullptr;
 	return pData;
@@ -370,11 +370,11 @@ FileResult ShpStorageManager::WriteDataItem(StorageMetaInfoPtr&& smiHolder)
 	StorageWriteHandle hnd(this, std::move(smiHolder));
 
 	const TreeItem* storageHolder = smi->StorageHolder();
-	const AbstrDataItem* adi = smi->CurrRD();
+	const AbstrDataItem* adi = smi->CurrRD().get();
 	dms_assert(adi);
 	dms_assert(adi->GetDataRefLockCount() > 0); // Read lock already set
 
-	const AbstrDataObject* ado        = adi->GetRefObj();
+	const AbstrDataObject* ado        = adi->GetRefObj().get();
 	const AbstrUnit*       valuesUnit = adi->GetAbstrValuesUnit();
 	const ValueClass*      vClass     = ado->GetValuesType();
 	ValueClassID           vtId       = vClass->GetValueClassID();

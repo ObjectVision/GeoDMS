@@ -96,9 +96,9 @@ void ThemeSet::SyncThemes(TreeItem* viewContext, ShvSyncMode sm)
 			if (aspectContext)
 			{
 				if (!m_Themes[aNr])
-					m_Themes[aNr] = Theme::Create(aNr, aspectContext);
+					m_Themes[aNr] = Theme::Create(aNr, aspectContext.get());
 				else
-					m_Themes[aNr]->Sync(aspectContext, SM_Load);
+					m_Themes[aNr]->Sync(aspectContext.get(), SM_Load);
 			}
 		}
 		else 

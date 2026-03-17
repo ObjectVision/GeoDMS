@@ -113,8 +113,8 @@ auto FindName(const TreeItem* context, const SharedStrArray* nameArray, arg_inde
 		return context;
 
 	SharedStr itemName = nameArray->GetIndexedValue(i);
-	const TreeItem* result = context->FindItem(itemName);
-	if (!result || mustBeUnit && !IsUnit(result))
+	auto result = context->FindItem(itemName);
+	if (!result || mustBeUnit && !IsUnit(result.get()))
 	{
 		auto contextName = SharedStr(context->GetName());
 		if (!result)
@@ -129,7 +129,7 @@ auto FindName(const TreeItem* context, const SharedStrArray* nameArray, arg_inde
 		);
 	}
 
-	return result;
+	return result.get();
 }
 
 auto FindUnitInContainer(const TreeItem* context, const SharedStrArray* optNames, arg_index i, CharPtr role) -> const AbstrUnit*

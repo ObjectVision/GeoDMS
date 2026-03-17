@@ -73,7 +73,7 @@ struct SubItemOperator: BinaryOperator
 			checked_domain<Void>(args[1], "a2");
 
 			SharedStr subItemName = GetCurrValue<SharedStr>(args[1], 0);
-			const TreeItem* subItem = arg1->GetCurrItem(subItemName);
+			const TreeItem* subItem = arg1->GetCurrItem(subItemName).get();
 			if (subItem && subItem->IsCacheItem())
 				subItem = subItem->GetCurrUltimateItem(); // "/nr_OrgEntity" -> "/org_rel"
 

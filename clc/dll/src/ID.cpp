@@ -67,9 +67,9 @@ public:
 			resultHolder->m_StatusFlags.SetHasSortedValues(trd->HasSortedValues());
 
 			auto lazyFunctorCreator = [idOper, res, trd]<typename V>(const Unit<V>*domainUnit) {
-				auto lazyTileFunctor = make_unique_LazyTileFunctor<V>(res, trd, domainUnit->m_RangeDataPtr
+				auto lazyTileFunctor = make_unique_LazyTileFunctor<V>(res, trd.get(), domainUnit->m_RangeDataPtr
 				,	[idOper, res, trd](AbstrDataObject* self, tile_id t) {
-						idOper->Calculate(self, trd, t); // write into the same tile.
+						idOper->Calculate(self, trd.get(), t); // write into the same tile.
 					}
 					MG_DEBUG_ALLOCATOR_SRC(res->md_FullName +  ": = id()")
 				);

@@ -152,7 +152,7 @@ QModelIndex DmsModel::parent(const QModelIndex& child) const {
 	if (!parent)
 		return{};
 
-	return createIndex(GetRow(parent), 0, parent.get());
+	return createIndex(GetRow(parent.get()), 0, parent.get());
 }
 
 int DmsModel::rowCount(const QModelIndex& parent) const {
@@ -437,7 +437,7 @@ void TreeItemDelegate::paint(QPainter* painter, const QStyleOptionViewItem& opti
 			return;
 		bool is_read_only = false;
 
-		const TreeItem* storageHolder = ti->GetStorageParent(false);
+		const TreeItem* storageHolder = ti->GetStorageParent(false).get();
 		if (storageHolder)
 		{
 			assert(!ti->IsDisabledStorage());
@@ -536,7 +536,7 @@ void DmsTreeView::currentChanged(const QModelIndex& current, const QModelIndex& 
 }
 
 bool isAncestor(const TreeItem* ancestorTarget, const TreeItem* descendant) {
-	for (auto ancestorCandidate = descendant; ancestorCandidate; ancestorCandidate = ancestorCandidate->GetTreeParent())
+	for (auto ancestorCandidate = descendant; ancestorCandidate; ancestorCandidate = ancestorCandidate->GetTreeParent().get())
 		if (ancestorCandidate == ancestorTarget)
 			return true;
 
@@ -781,7 +781,7 @@ void DmsTreeView::setNewCurrentItem(TreeItem* target_item)
 			do {
 				if (!visible_parent->GetTSF(TSF_InHidden))
 					break;
-				visible_parent = visible_parent->GetTreeParent();
+				visible_parent = visible_parent->GetTreeParent().get();
 				if (!visible_parent)
 					break;
 			} while (visible_parent != nullptr);

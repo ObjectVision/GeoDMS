@@ -55,7 +55,7 @@ struct ClassifyFixedOperator: public BinaryOperator
 
 			auto vcpc = GetCounts<Float64, typelists::num_objects, CountType>(arg1A);
 
-			m_ClassBreakFunc(res, vcpc.first, vcpc.second);
+			m_ClassBreakFunc(res, vcpc.first, vcpc.second.get());
 		}
 		return true;
 	}

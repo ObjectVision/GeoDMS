@@ -125,7 +125,7 @@ std::shared_ptr<Theme> SelThemeCreator::GetSelectionsThemeInDesktop(DataView* dv
 	TreeItem* selectionParent = CreateDesktopContainer(dv->GetDesktopContext(), GetUltimateSourceItem(entity));
 	if (selectionParent)
 	{
-		const AbstrDataItem* selData = AsDynamicDataItem(selectionParent->GetConstSubTreeItemByID(GetAspectNameID(AN_Selections)));
+		const AbstrDataItem* selData = AsDynamicDataItem(selectionParent->GetConstSubTreeItemByID(GetAspectNameID(AN_Selections)).get());
 		if (selData)
 			return Theme::Create(AN_Selections, selData, 0, GetSystemPalette(selData->GetAbstrValuesUnit(), AN_BrushColor));
 	}

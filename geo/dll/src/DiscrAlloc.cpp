@@ -1468,7 +1468,7 @@ auto GetClaimAttr(const TreeItem* claimSet, TokenID nameID) -> const AbstrDataIt
 
 	if (result->GetDynamicObjClass() != DataItemClass::Find(ValueWrap<UInt32>::GetStaticClass()))
 		result->throwItemError("Claim attribute should contain UInt32 values");
-	return result;
+	return result.get();
 }
 
 template <typename S>
@@ -1519,11 +1519,11 @@ void CreateResultingItems(
 			const AbstrDataItem* regioRefDI = nullptr;
 			if (partitioningNamesA)
 			{
-				regioRefDI = AsCheckedDataItem(atomicRegionUnit->GetConstSubTreeItemByID(GetTokenID_mt(partitioningName.c_str())));
+				regioRefDI = AsCheckedDataItem(atomicRegionUnit->GetConstSubTreeItemByID(GetTokenID_mt(partitioningName.c_str())).get());
 				if (!regioRefDI)
 					atomicRegionUnit->throwItemErrorF("SubItem expected with the name %s", partitioningName.c_str());
 				regioRefDI->UpdateMetaInfo();
-				funcDC.AddDependency(regioRefDI->GetCheckedDC());
+				funcDC.AddDependency(regioRefDI->GetCheckedDC().get());
 			}
 
 			if (regioRefDI && !atomicRegionUnit->UnifyDomain(regioRefDI->GetAbstrDomainUnit(), "atomicRegionUnit", "Domain of regional partitioning thereof", UnifyMode(), &resultMsg))
@@ -1540,7 +1540,7 @@ void CreateResultingItems(
 
 			if (htpMeta.m_PartitioningMetas.back().m_ValuesLabelLock)
 			{
-				funcDC.AddDependency(htpMeta.m_PartitioningMetas.back().m_ValuesLabelLock->GetCheckedDC());
+				funcDC.AddDependency(htpMeta.m_PartitioningMetas.back().m_ValuesLabelLock->GetCheckedDC().get());
 			}
 		}
 		assert(htpMeta.m_PartitioningMetas.size() == P);
@@ -1594,8 +1594,8 @@ void CreateResultingItems(
 		if (minClaims->WasFailed(FailType::Data)) minClaims->ThrowFail();
 		if (maxClaims->WasFailed(FailType::Data)) maxClaims->ThrowFail();
 
-		funcDC.AddDependency(minClaims->GetCheckedDC());
-		funcDC.AddDependency(maxClaims->GetCheckedDC());
+		funcDC.AddDependency(minClaims->GetCheckedDC().get());
+		funcDC.AddDependency(maxClaims->GetCheckedDC().get());
 
 		const AbstrUnit* partitioningUnit = nullptr;
 		if (hasPartitionings)
@@ -1665,7 +1665,7 @@ void CreateResultingItems(
 				);
 		}
 
-		gg->m_diSuitabilityMap = AsCertainDataItem(suitabilitiesSet->GetConstSubTreeItemByID(gg->m_NameID));
+		gg->m_diSuitabilityMap = AsCertainDataItem(suitabilitiesSet->GetConstSubTreeItemByID(gg->m_NameID).get());
 		gg->m_diSuitabilityMap->UpdateMetaInfo();
 
 		auto suitMapDc = gg->m_diSuitabilityMap->GetCheckedDC();
@@ -1673,7 +1673,7 @@ void CreateResultingItems(
 			if (gg->m_diSuitabilityMap->WasFailed(FailType::MetaInfo))
 				gg->m_diSuitabilityMap->ThrowFail();
 		MG_CHECK(suitMapDc);
-		funcDC.AddDependency(suitMapDc);
+		funcDC.AddDependency(suitMapDc.get());
 
 		if (!allocUnit->UnifyDomain(gg->m_diSuitabilityMap->GetAbstrDomainUnit(), "AllocUnit (second argument)", "Domain of suitability map", UnifyMode(), &resultMsg))
 			throwErrorF("discrete_alloc", "Domain of suitability map for %s:\n%s\n %s and allocUnit (arg2) incompatible: %s"
@@ -3342,7 +3342,7 @@ public:
 
 		AbstrDataItem* resPrices = nullptr;
 		if (htpMeta.m_PriceUnit)
-			resPrices = CreateDataItem(res, GetTokenID_mt("bid_price"), allocUnit, htpMeta.m_PriceUnit);
+			resPrices = CreateDataItem(res, GetTokenID_mt("bid_price"), allocUnit, htpMeta.m_PriceUnit.get());
 	}
 
 	bool CalcResult(TreeItemDualRef& resultHolder, const ArgRefs& args, std::vector<ItemReadLock> readLocks, Explain::Context* context) const override

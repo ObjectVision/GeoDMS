@@ -247,7 +247,7 @@ TIC_CALL const TreeItem* DMS_CONV DMS_TreeItem_GetItem(const TreeItem* context, 
 		SuspendTrigger::Resume();
 
 		TreeItemContextHandle tich(context, TreeItem::GetStaticClass(), "DMS_TreeItem_GetItem");
-		const TreeItem* result = context->FindItem(path);
+		const TreeItem* result = context->FindItem(path).get();
 		if	(	!requiredClass 
 			||	result && result->GetDynamicObjClass()->IsDerivedFrom(requiredClass)
 			)
@@ -281,7 +281,7 @@ TIC_CALL const TreeItem* DMS_CONV DMS_TreeItem_GetBestItemAndUnfoundPart(const T
 
 		auto itemRef = TreeItem_GetBestItemAndUnfoundPart(context, path);
 		*unfoundPart = IString::Create(itemRef.second);
-		return itemRef.first;
+		return itemRef.first.get();
 
 	DMS_CALL_END
 	return nullptr;
@@ -314,7 +314,7 @@ TIC_CALL const TreeItem* DMS_CONV DMS_TreeItem_GetParent(const TreeItem* self)
 	DMS_CALL_BEGIN
 
 		TreeItemContextHandle checkPtr(self, TreeItem::GetStaticClass(), "DMS_TreeItem_GetParent");
-		return self->GetTreeParent();
+		return self->GetTreeParent().get();
 
 	DMS_CALL_END
 	return nullptr;
@@ -522,8 +522,8 @@ TIC_CALL IStringHandle DMS_CONV DMS_TreeItem_GetStoredNameAsIString(const TreeIt
 		TreeItemContextHandle checkPtr(self, TreeItem::GetStaticClass(), "DMS_TreeItem_GetStoredNameAsIString");
 		DBG_TRACE(("self = %s", self->GetName().c_str()));
 		
-		const TreeItem* parent = self->GetStorageParent(false);
-		return IString::Create(parent ? self->GetRelativeName(parent).c_str() : "");
+		auto parent = self->GetStorageParent(false);
+		return IString::Create(parent ? self->GetRelativeName(parent.get()).c_str() : "");
 
 	DMS_CALL_END
 	return nullptr;
@@ -551,11 +551,11 @@ TIC_CALL CharPtr DMS_CONV DMS_TreeItem_GetAssociatedFilename(const TreeItem* sel
 		TreeItemContextHandle checkPtr(self, TreeItem::GetStaticClass(), "DMS_TreeItem_GetAssociatedFilename");
 		DBG_TRACE(("self = %s", self->GetName().c_str()));
 
-		const TreeItem* storageParent = self->GetStorageParent(false);
+		auto storageParent = self->GetStorageParent(false);
 		if (storageParent)
 		{
 			const AbstrStorageManager* sm = storageParent->GetStorageManager();
-			dms_assert(sm); // because of POSTCONDITION of GetStorageParant
+			assert(sm); // because of POSTCONDITION of GetStorageParant
 			static SharedStr nameBuffer; // TODO QT: Return string.
 			nameBuffer = sm->GetNameStr();
 			return nameBuffer.c_str();
@@ -573,7 +573,7 @@ TIC_CALL CharPtr DMS_CONV DMS_TreeItem_GetAssociatedFiletype(const TreeItem* sel
 		TreeItemContextHandle checkPtr(self, TreeItem::GetStaticClass(), "DMS_TreeItem_GetAssociatedFiletype");
 		DBG_TRACE(("self = %s", self->GetName().c_str()));
 
-		const TreeItem* storageParent = self->GetStorageParent(false);
+		auto storageParent = self->GetStorageParent(false);
 		if (storageParent && storageParent->GetStorageManager())
 			return storageParent->GetStorageManager()->GetClsName().c_str();
 
@@ -602,7 +602,7 @@ TIC_CALL const TreeItem* DMS_CONV DMS_TreeItem_GetStorageParent (const TreeItem*
 		TreeItemContextHandle checkPtr(self, TreeItem::GetStaticClass(), "DMS_TreeItem_GetStorageParent");
 		DBG_TRACE(("self = %s", self->GetName().c_str()));
 
-		return self->GetStorageParent(false);
+		return self->GetStorageParent(false).get();
 
 	DMS_CALL_END
 	return nullptr;
@@ -873,7 +873,7 @@ TIC_CALL const TreeItem* DMS_CONV DMS_TreeItem_GetCreator(const TreeItem* x)
 		if (!x->IsEndogenous())
 			return nullptr;
 		do {
-			x = x->GetTreeParent();
+			x = x->GetTreeParent().get();
 		}
 		while (x && ! x->HasCalculator());
 		return x;
@@ -895,7 +895,7 @@ TIC_CALL const TreeItem* DMS_CONV DMS_TreeItem_GetTemplInstantiator(const TreeIt
 			if (!x->IsEndogenous())
 				return nullptr;
 
-			const TreeItem* p = x->GetTreeParent();
+			const TreeItem* p = x->GetTreeParent().get();
 			dms_assert(p); // endogenous x cannot be root of configuration
 			if (p->HasCalculator() && p->GetCalculator() && p->GetCalculator()->IsForEachTemplHolder())
 				return x;
@@ -920,11 +920,11 @@ TIC_CALL const TreeItem* DMS_CONV DMS_TreeItem_GetTemplSource(const TreeItem* x)
 			return x->GetCalculator()->GetTemplSource();
 
 
-		const TreeItem* p = x->GetTreeParent();
+		auto p = x->GetTreeParent();
 //		dms_assert(!p || !p->HasCalculator() || !p->GetCalculator() && p->GetCalculator()->IsForEachTemplHolder());
 
 		if (p)
-			DMS_TreeItem_GetTemplSource(p);
+			DMS_TreeItem_GetTemplSource(p.get());
 
 	DMS_CALL_END
 	return nullptr;
@@ -1028,7 +1028,7 @@ TIC_CALL BestItemRef TreeItem_GetErrorSource(const TreeItem* src, bool tryCalcSu
 	auto context = src->GetTreeParent();
 	if (context)
 	{
-		if (WasInFailed(context))
+		if (WasInFailed(context.get()))
 			return { context, {} };
 
 		// using refs ?
@@ -1040,7 +1040,7 @@ TIC_CALL BestItemRef TreeItem_GetErrorSource(const TreeItem* src, bool tryCalcSu
 			{
 				auto usingUrlStr = SharedStr(usingUrl);
 				auto ur = context->FindBestItem(usingUrlStr);
-				if (ur.first && WasInFailed(ur.first))
+				if (ur.first && WasInFailed(ur.first.get()))
 					return ur;
 			}
 		}
@@ -1067,7 +1067,7 @@ TIC_CALL BestItemRef TreeItem_GetErrorSource(const TreeItem* src, bool tryCalcSu
 			if (!explicitSupplierName.empty())
 			{
 				auto ur = context->FindBestItem(explicitSupplierName);
-				if (ur.first && WasInFailed(ur.first))
+				if (ur.first && WasInFailed(ur.first.get()))
 					return ur;
 			}
 			if (iFirstEnd == iEnd)
@@ -1083,13 +1083,13 @@ TIC_CALL BestItemRef TreeItem_GetErrorSource(const TreeItem* src, bool tryCalcSu
 		if (!result.first)
 			result = src->FindBestItem(AsDataItem(src)->m_tDomainUnit.AsStrRange());
 
-		if (result.first && WasInFailed(result.first))
+		if (result.first && WasInFailed(result.first.get()))
 			return result;
 
 		result = { AsDataItem(src)->GetAbstrValuesUnit(), {} };
 		if (!result.first)
 			result = src->FindBestItem(AsDataItem(src)->m_tValuesUnit.AsStrRange());
-		if (result.first && WasInFailed(result.first))
+		if (result.first && WasInFailed(result.first.get()))
 			return result;
 	}
 
@@ -1107,7 +1107,7 @@ TIC_CALL BestItemRef TreeItem_GetErrorSource(const TreeItem* src, bool tryCalcSu
 		if (sc)
 		{
 			BestItemRef si = sc->FindErrorneousItem();
-			if (si.first && WasInFailed(si.first))
+			if (si.first && WasInFailed(si.first.get()))
 				return si;
 		}
 	}
@@ -1118,7 +1118,7 @@ TIC_CALL BestItemRef TreeItem_GetErrorSource(const TreeItem* src, bool tryCalcSu
 	{
 		assert(!sourceItem->IsCacheItem());
 		assert(sourceItem != src);
-		if (WasInFailed(sourceItem))
+		if (WasInFailed(sourceItem.get()))
 			return { sourceItem, {} };
 	}
 
@@ -1151,7 +1151,7 @@ TIC_CALL BestItemRef TreeItem_GetErrorSource(const TreeItem* src, bool tryCalcSu
 	}
 	if (auto dc = src->mc_DC)
 	{
-		sourceItem = DataController_GetErrorSource(dc, 2, true);
+		sourceItem = DataController_GetErrorSource(dc.get(), 2, true);
 		if (sourceItem)
 			return { sourceItem, {} };
 	}
@@ -1178,7 +1178,7 @@ extern "C" TIC_CALL const TreeItem* DMS_CONV DMS_TreeItem_GetErrorSource(const T
 		BestItemRef result = TreeItem_GetErrorSourceCaller(src);
 		if (unfoundPart)
 			*unfoundPart = IString::Create(result.second);
-		return result.first;
+		return result.first.get();
 
 	DMS_CALL_END
 

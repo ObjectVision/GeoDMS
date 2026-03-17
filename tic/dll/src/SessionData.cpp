@@ -155,7 +155,7 @@ SharedStr SessionData::ReadConfigString(CharPtr section, CharPtr key, CharPtr de
 	if (PlatformInfo::GetEnvString(section, key, result))
 		return result;
 
-	const AbstrDataItem* adi = AsDataItem(GetConfigSettings(section, key));
+	const AbstrDataItem* adi = AsDataItem(GetConfigSettings(section, key).get());
 	if (adi)
 		return adi->LockAndGetValue<SharedStr>(0);
 	return GetConfigKeyString(GetConfigIniFile(), section, key, defaultValue ); // Backward compatibility, REMOVE
@@ -164,7 +164,7 @@ SharedStr SessionData::ReadConfigString(CharPtr section, CharPtr key, CharPtr de
 Int32 SessionData::ReadConfigValue(CharPtr section, CharPtr key, Int32 defaultValue) const
 {
 	dms_assert(this);
-	const AbstrDataItem* adi = AsDataItem(GetConfigSettings(section, key));
+	const AbstrDataItem* adi = AsDataItem(GetConfigSettings(section, key).get());
 	if (adi)
 		return NumericParam_GetValueAsInt32(adi);
 	return GetConfigKeyValue(GetConfigIniFile(), section, key, defaultValue ); // Backward compatibility, REMOVE
@@ -174,7 +174,7 @@ const TreeItem* SessionData::GetContainer(const TreeItem* context, CharPtr name)
 {
     SharedStr fullName = ReadConfigString("configuration", name, name);
 	CharPtrRange searchKey = fullName.empty() ? CharPtrRange(name): fullName.AsRange();
-    return context->FindItem(searchKey);
+    return context->FindItem(searchKey).get();
 }
 
 const TreeItem* SessionData::GetClassificationContainer(const TreeItem* context) const
@@ -259,8 +259,8 @@ const TreeItem* GetCacheRoot(const TreeItem* subItem)
 	if (subItem->IsCacheItem())
 	{
 		while (auto parent = subItem->GetTreeParent())
-			subItem = parent;
-		dms_assert(subItem->IsCacheRoot());
+			subItem = parent.get();
+		assert(subItem->IsCacheRoot());
 	}
 	return subItem;
 }

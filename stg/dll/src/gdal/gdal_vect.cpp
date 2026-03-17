@@ -223,15 +223,15 @@ auto GetGeometry(const TreeItem* storageHolder, AbstrUnit* layerDomain, bool isR
 auto GetGeometry(const TreeItem* storageHolder, const AbstrUnit* layerDomain) -> const AbstrDataItem*
 {
 	auto geometry_item = layerDomain->GetCurrSubTreeItemByID(token::geometry);
-	if (geometry_item && !IsValidGeometry(geometry_item, true))
+	if (geometry_item && !IsValidGeometry(geometry_item.get(), true))
 		geometry_item = nullptr;
 
 	if (!geometry_item)
 		for (geometry_item = layerDomain->_GetFirstSubItem(); geometry_item; geometry_item = geometry_item->GetNextItem())
-			if (IsValidGeometry(geometry_item, true))
+			if (IsValidGeometry(geometry_item.get(), true))
 				break;
 
-	return AsDynamicDataItem(geometry_item);
+	return AsDynamicDataItem(geometry_item.get());
 }
 
 // *****************************************************************************
@@ -258,7 +258,7 @@ GdalVectlMetaInfo::GdalVectlMetaInfo(const GdalVectSM* gdv, const TreeItem* stor
 			assert(m_NameID == TokenID());
 			break;
 		}
-		adiParent = adiParent->GetTreeParent();
+		adiParent = adiParent->GetTreeParent().get();
 		assert(adiParent != nullptr); // follows from PRECONDITION
 	}
 
@@ -274,7 +274,7 @@ GdalVectlMetaInfo::GdalVectlMetaInfo(const GdalVectSM* gdv, const TreeItem* stor
 			assert(m_NameID == TokenID());
 			break;
 		}
-		adiParent = adiParent->GetTreeParent();
+		adiParent = adiParent->GetTreeParent().get();
 		assert(adiParent != nullptr); // follows from PRECONDITION
 	}
 	adiParent = adi;
@@ -290,7 +290,7 @@ GdalVectlMetaInfo::GdalVectlMetaInfo(const GdalVectSM* gdv, const TreeItem* stor
 			assert(m_NameID == TokenID());
 			break;
 		}
-		adiParent = adi->GetTreeParent();
+		adiParent = adi->GetTreeParent().get();
 		assert(adiParent != nullptr); // follows from PRECONDITION
 	}
 }
@@ -1929,7 +1929,7 @@ void SetPolygonGeometryForFeature(OGRFeature* feature, SA_ConstReference<PointTy
 
 bool GdalVectSM::WriteGeometryElement(const AbstrDataItem* adi, OGRFeature* feature, tile_id t, SizeT tileFeatureIndex)
 {
-	const AbstrDataObject* ado = adi->GetRefObj();
+	const AbstrDataObject* ado = adi->GetRefObj().get();
 	auto				   avu = adi->GetAbstrValuesUnit();
 
 	GDAL_ErrorFrame frame;
@@ -2023,7 +2023,7 @@ void SetField(OGRFeature* feature, int i, UInt64 b)
 
 bool GdalVectSM::WriteFieldElement(const AbstrDataItem* adi, int field_index, OGRFeature* feature, tile_id t, SizeT tileFeatureIndex)
 {
-	const AbstrDataObject* ado = adi->GetRefObj();
+	const AbstrDataObject* ado = adi->GetRefObj().get();
 	auto				   avu = adi->GetAbstrValuesUnit();
 
 	GDAL_ErrorFrame frame;
@@ -2054,7 +2054,7 @@ std::vector<DataReadLock> ReadableDataHandles(TokenID layer_id, DataItemsWriteSt
 			continue;
 
 		auto adi_n = SharedDataItem(writableField.second.m_DataHolder.get_ptr(), no_zombies{});
-		dataReadLocks.emplace_back(adi_n);
+		dataReadLocks.emplace_back(adi_n.get());
 	}
 	return dataReadLocks;
 }
@@ -2350,7 +2350,7 @@ void GdalVectSM::WriteLayer(TokenID layer_id, const GdalMetaInfo& gmi)
 	MG_CHECK(adi);  // should be guaranteed by an earlier call to DoWriteDataItem
 	auto adu = adi->GetAbstrDomainUnit();
 
-	auto unit_item = GetLayerHolderFromDataItem(storage_holder, adi);
+	auto unit_item = GetLayerHolderFromDataItem(storage_holder, adi.get());
 	assert(unit_item);
 
 	auto dataReadLocks = ReadableDataHandles(layer_id, m_DataItemsStatusInfo);
@@ -2417,11 +2417,11 @@ void GdalVectSM::WriteLayer(TokenID layer_id, const GdalMetaInfo& gmi)
 
 				auto adi_n = SharedDataItem(writableField.second.m_DataHolder.get_ptr(), no_zombies{});
 				if (writableField.second.isGeometry)
-					WriteGeometryElement(adi_n, curFeature, t, tileFeatureIndex);
+					WriteGeometryElement(adi_n.get(), curFeature, t, tileFeatureIndex);
 				else
 				{
 					dbg_assert(writableField.second.field_index == curFeature->GetFieldIndex(writableField.second.nameID.GetStr().c_str()));
-					WriteFieldElement(adi_n, writableField.second.field_index, curFeature, t, tileFeatureIndex);
+					WriteFieldElement(adi_n.get(), writableField.second.field_index, curFeature, t, tileFeatureIndex);
 				}
 			}
 
@@ -2466,18 +2466,18 @@ FileResult GdalVectSM::WriteDataItem(StorageMetaInfoPtr&& smiHolder)
 	SharedStr data_source_name = smi->StorageManager()->GetNameStr();
 
 	const TreeItem* storage_holder = smi->StorageHolder();
-	const AbstrDataItem* adi = smi->CurrRD();
+	auto adi = smi->CurrRD();
 
 	if (not adi->IsStorable())
 		return {};
 
-	const AbstrDataObject* ado = adi->GetRefObj();
+	const AbstrDataObject* ado = adi->GetRefObj().get();
 	auto				   adu = adi->GetAbstrDomainUnit();
 	auto				   avu = adi->GetAbstrValuesUnit();
 	const ValueClass* vc = ado->GetValuesType();
 	ValueClassID           vcID = vc->GetValueClassID();
 
-	auto unit_item = GetLayerHolderFromDataItem(storage_holder, adi);
+	auto unit_item = GetLayerHolderFromDataItem(storage_holder, adi.get());
 	auto layer_id = unit_item->GetID();
 	auto fieldID = adi->GetID();
 
@@ -2488,7 +2488,7 @@ FileResult GdalVectSM::WriteDataItem(StorageMetaInfoPtr&& smiHolder)
 	}
 
 	m_DataItemsStatusInfo.RefreshInterest(storage_holder); // user may have set other iterests at this point.
-	m_DataItemsStatusInfo.SetInterestForDataHolder(layer_id, fieldID, adi); // write once all dataitems are ready
+	m_DataItemsStatusInfo.SetInterestForDataHolder(layer_id, fieldID, adi.get()); // write once all dataitems are ready
 
 	if (not m_DataItemsStatusInfo.LayerIsReadyForWriting(layer_id))
 		return {};
@@ -2618,7 +2618,7 @@ auto GdalVectSM::CreateGeometryDataItemFromGdal(const TreeItem* storageHolder, c
 
 	auto geometry = CreateDataItem(
 		layerDomain, token::geometry,
-		layerDomain, vu, gdal_vc
+		layerDomain, vu.get(), gdal_vc
 	);
 
 	return geometry;

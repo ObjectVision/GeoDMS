@@ -581,7 +581,7 @@ struct ClassifiedGetterCreator : UnitProcessor
 
 		auto resultingGetter = std::make_unique<ArrayValueGetter<ClassIdType>>( m_PaletteAttr);
 
-		resultingGetter->Assign(m_ThemeClassPair, arrayPtrRef);
+		resultingGetter->Assign(m_ThemeClassPair, arrayPtrRef.get());
 
 		m_ResultingGetter = resultingGetter.release();
 	}

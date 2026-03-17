@@ -912,7 +912,7 @@ garbage_can OperationContext::disconnect_supplier(OperationContext* supplier)
 				{
 					if (auto selfSPtr = self.lock())
 					{
-						selfSPtr->GetResult()->Fail(supplResult);
+						selfSPtr->GetResult()->Fail(supplResult.get());
 						selfSPtr->OnEnd(task_status::exception);
 					}
 				}
@@ -1831,7 +1831,7 @@ struct OC_CalcResultFunc {
 				for (const auto& statusActor : statusActors)
 				{
 					if (statusActor && statusActor->WasFailed())
-						funcDC->Fail(statusActor);
+						funcDC->Fail(statusActor.get());
 
 					if (funcDC->WasFailed(FailType::Data))
 						return true;
@@ -1909,14 +1909,14 @@ bool OperationContext::ScheduleCalcResult(ArgRefs&& argRefs, explain_context_ptr
 			assert(allArgInterests.back());
 		}
 	if (funcDC)
-		for (const DataController* dcPtr : funcDC->m_OtherSuppliers)
+		for (const auto& dcPtr : funcDC->m_OtherSuppliers)
 		{
 			auto otherSupplier = dcPtr->CallCalcResult();
 			if (!otherSupplier)
 			{
 				if (dcPtr->WasFailed(FailType::Data))
 				{
-					resultHolder.Fail(dcPtr);
+					resultHolder.Fail(dcPtr.get());
 					break;
 				}
 				assert(SuspendTrigger::DidSuspend());
@@ -1986,7 +1986,7 @@ task_status OperationContext::JoinSupplOrSuspendTrigger()
 		assert(oc);
 		assert(oc->GetStatus() >= task_status::waiting_for_suppliers);
 
-		const TreeItem* supplResult = oc->GetResult();
+		const TreeItem* supplResult = oc->GetResult().get();
 		assert(supplResult); 
 		if (SuspendTrigger::DidSuspend())
 			return task_status::suspended;
@@ -2001,7 +2001,7 @@ task_status OperationContext::JoinSupplOrSuspendTrigger()
 		case task_status::suspended:
 			return task_status::suspended;
 		case task_status::exception:
-			HandleFail(oc->GetResult());
+			HandleFail(oc->GetResult().get());
 			break;
 		case task_status::cancelled:
 			assert(m_Status == task_status::cancelled); // MUST HAVE BEEN ALL RESET AS ATOMIC OPERATION

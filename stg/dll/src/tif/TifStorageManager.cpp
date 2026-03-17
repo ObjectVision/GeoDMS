@@ -80,7 +80,7 @@ void TiffSM::DoOpenStorage(const StorageMetaInfo& smi, dms_rw_mode rwMode) const
 	if (rwMode > dms_rw_mode::read_only)
 	{
 		if (!GetGridData(smi.StorageHolder(), false))
-			if (!smi.CurrRD() || !GetGridData(smi.CurrRD(), false))
+			if (!smi.CurrRD() || !GetGridData(smi.CurrRD().get(), false))
 				smi.StorageHolder()->throwItemErrorF("TiffSM %s has no GridData sub item of the expected type and domain", GetNameStr().c_str());
 		if (!imp->Open(GetNameStr(), TifFileMode::WRITE) )
 			throwItemError("Unable to open for Write");
@@ -208,7 +208,7 @@ bool TiffSM::ReadPalette(AbstrDataObject* ado)
 FileResult TiffSM::WriteDataItem(StorageMetaInfoPtr&& smiHolder)
 {
 	auto smi = smiHolder.get();
-	SharedPtr<const TreeItem> storageHolder = smi->StorageHolder();
+	auto storageHolder = smi->StorageHolder();
 	SharedPtr<const AbstrDataItem> pd = GetPaletteData(storageHolder);
 
 	InterestRetainContextBase irc;
@@ -227,13 +227,13 @@ FileResult TiffSM::WriteDataItem(StorageMetaInfoPtr&& smiHolder)
 	if (pd)
 	{
 		pd->UpdateMetaInfo();
-		ValueClassID streamTypeID = GetStreamType(pd)->GetValueClassID();
+		ValueClassID streamTypeID = GetStreamType(pd.get())->GetValueClassID();
 		if (streamTypeID == ValueClassID::VT_UInt32 || streamTypeID == ValueClassID::VT_Int32
 			&& pd->GetID() == PALETTE_DATA_ID
 			&& m_pImp->GetNrBitsPerPixel() <= MAX_BITS_PAL
 			)
 		{
-			irc.Add(pd);
+			irc.Add(pd.get());
 			pd->PrepareDataUsage(DrlType::CertainOrThrow);
 		}
 		else
@@ -245,17 +245,17 @@ FileResult TiffSM::WriteDataItem(StorageMetaInfoPtr&& smiHolder)
 		dms_assert(m_pImp);
 
 		dms_assert(smi->CurrRI()->GetInterestCount()); // Precondition that 
-		const AbstrDataItem* adi = smi->CurrRD();
+		const AbstrDataItem* adi = smi->CurrRD().get();
 		const ValueClass* streamType = GetStreamType(adi);
 		ViewPortInfoProvider vpip(smi->StorageHolder(), adi, false, true);
-		WriteGridData(*m_pImp, vpip.GetViewportInfoEx(no_tile, storageHandle.MetaInfo()), storageHolder, adi, streamType);     // Byte stream, full image 
+		WriteGridData(*m_pImp.get(), vpip.GetViewportInfoEx(no_tile, storageHandle.MetaInfo()), storageHolder, adi, streamType);     // Byte stream, full image 
 	}
 
 	if (pd)
 		if (auto nmsm = dynamic_cast<NonmappableStorageManager*>(storageHolder->GetStorageManager()))
 		{
-			auto paletteWriteMetaInfo = nmsm->GetMetaInfo(storageHolder, const_cast<AbstrDataItem*>(pd.get_ptr()), StorageAction::write);
-			WritePalette(*m_pImp, storageHolder, pd); // Long stream, palette colors
+			auto paletteWriteMetaInfo = nmsm->GetMetaInfo(storageHolder, const_cast<AbstrDataItem*>(pd.get()), StorageAction::write);
+			WritePalette(*m_pImp.get(), storageHolder, pd.get()); // Long stream, palette colors
 		}
 
 	return {};
@@ -362,7 +362,7 @@ void TiffSM::DoUpdateTree(const TreeItem* storageHolder, TreeItem* curr, SyncMod
 	auto curr_has_calculator = curr->HasCalculator();
 	if (curr_is_storable && curr->HasCalculator())
 		return;
-	const AbstrDataItem* configGridData = GetGridData(storageHolder);
+	const AbstrDataItem* configGridData = GetGridData(storageHolder).get();
 	if (configGridData && configGridData->HasCalculator())
 		return;
 
@@ -375,8 +375,8 @@ void TiffSM::DoUpdateTree(const TreeItem* storageHolder, TreeItem* curr, SyncMod
 	std::vector<Float64> pixel_to_world_transform = {};
 
 	// GridData item && GridPalette item
-	const AbstrDataItem* gridData  = GetGridData(storageHolder, tfw_file_exists || !pixel_to_world_transform.empty());
-	const AbstrDataItem* paletteData = GetPaletteData(storageHolder);
+	const AbstrDataItem* gridData  = GetGridData(storageHolder, tfw_file_exists || !pixel_to_world_transform.empty()).get();
+	const AbstrDataItem* paletteData = GetPaletteData(storageHolder).get();
 
 	//if (!gridData || !paletteData)
 	//	storageHolder->throwItemErrorF("No user defined GridData or PaletteData attribute found for storage item %s.", storageHolder->GetFullName().c_str());
@@ -403,7 +403,7 @@ void TiffSM::DoUpdateTree(const TreeItem* storageHolder, TreeItem* curr, SyncMod
 		if (!gridDataDomainRW)
 			return;
 
-		const AbstrUnit* uBase = FindProjectionBase(storageHolder, gridDataDomainRW);
+		auto uBase = FindProjectionBase(storageHolder, gridDataDomainRW);
 		if (!uBase)
 			return;
 		uBase->UpdateMetaInfo();

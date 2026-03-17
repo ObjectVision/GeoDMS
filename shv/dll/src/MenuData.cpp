@@ -106,7 +106,7 @@ SubMenu::~SubMenu()
 GraphVisitState RequestClientCmd::Visit(GraphicObject* go)
 {
 	assert(m_TI);
-	NotifyStateChange(m_TI, m_NC);
+	NotifyStateChange(m_TI.get(), m_NC);
 	return GVS_Handled;
 }
 
@@ -117,7 +117,7 @@ GraphVisitState RequestClientCmd::Visit(GraphicObject* go)
 void InsertItemRequests(MenuData& menuData, const TreeItem* item, GraphicObject* host)
 {
 	assert(item);
-	while (const TreeItem* parent = item->GetTreeParent())
+	while (const TreeItem* parent = item->GetTreeParent().get())
 	{
 		menuData.push_back(
 			MenuItem(

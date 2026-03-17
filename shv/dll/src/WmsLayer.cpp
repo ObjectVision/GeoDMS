@@ -594,7 +594,7 @@ void WmsLayer::SetSpecContainer(const TreeItem* specContainer)
 
 	SharedPtr<const TreeItem> tileMatrices = specContainer->GetConstSubTreeItemByID(GetTokenID_mt("TileMatrix"));
 	{
-		Table tab(tileMatrices, "name", "ScaleDenominator", "LeftCoord", "TopCoord", "TileWidth", "TileHeight", "MatrixWidth", "MatrixHeight");
+		Table tab(tileMatrices.get(), "name", "ScaleDenominator", "LeftCoord", "TopCoord", "TileWidth", "TileHeight", "MatrixWidth", "MatrixHeight");
 
 		auto nameArray = const_array_cast<SharedStr>(tab[0].m_Ptr)->GetLockedDataRead();
 		auto sdArray = const_array_cast<Float64>(tab[1].m_Ptr)->GetLockedDataRead();
@@ -833,7 +833,7 @@ void WmsLayer::Sync(TreeItem* viewContext, ShvSyncMode sm)
 		SharedPtr<const TreeItem> specContainer;
 		SyncRef(specContainer, viewContext, GetTokenID_mt("SpecContainer"), sm);
 		if (specContainer)
-			SetSpecContainer(specContainer);
+			SetSpecContainer(specContainer.get());
 	}
 	else
 		SyncRef(m_SpecContainer, viewContext, GetTokenID_mt("SpecContainer"), sm);

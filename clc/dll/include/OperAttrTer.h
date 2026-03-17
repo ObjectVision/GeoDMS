@@ -60,7 +60,7 @@ struct AbstrTernaryAttrOper : TernaryOperator
 		if (!e3Void && e!=e3) e->UnifyDomain(e3, "e0", "e3", UM_Throw);
 
 		if (!resultHolder)
-			resultHolder = CreateCacheDataItem(e, (*m_UnitCreatorPtr)(GetGroup(), args), m_ValueComposition);
+			resultHolder = CreateCacheDataItem(e, (*m_UnitCreatorPtr)(GetGroup(), args).get(), m_ValueComposition);
 
 		if (mustCalc)
 		{
@@ -134,7 +134,7 @@ public:
 		auto arg3 = MakeSharedFromBorrowedObjectPtr(const_array_cast<Arg3ValueType>(arg3A)); assert(arg3);
 
 		using prepare_data = std::tuple<std::shared_ptr<typename Arg1Type::future_tile>, std::shared_ptr<typename Arg2Type::future_tile>, std::shared_ptr<typename Arg3Type::future_tile>>;
-		auto futureTileFunctor = make_unique_FutureTileFunctor<ResultValueType, prepare_data, false>(resultAdi, lazy, tileRangeData, get_range_ptr_of_valuesunit(valuesUnit)
+		auto futureTileFunctor = make_unique_FutureTileFunctor<ResultValueType, prepare_data, false>(resultAdi, lazy, tileRangeData.get(), get_range_ptr_of_valuesunit(valuesUnit)
 			, [arg1, arg2, arg3, af](tile_id t) { return prepare_data{ arg1->GetFutureTile(af & AF1_ISPARAM ? 0 : t), arg2->GetFutureTile(af & AF2_ISPARAM ? 0 : t), arg3->GetFutureTile(af & AF3_ISPARAM ? 0 : t) }; }
 			, [this, af MG_DEBUG_ALLOCATOR_SRC_PARAM](sequence_traits<ResultValueType>::seq_t resData, prepare_data futureData)
 			{

@@ -45,7 +45,7 @@ namespace Cumulate
 			if (!resultHolder)
 				resultHolder = CreateCacheDataItem(
 					arg1A->GetAbstrDomainUnit(),
-					(*m_UnitCreatorPtr)(GetGroup(), args), 
+					(*m_UnitCreatorPtr)(GetGroup(), args).get(),
 					m_ValueComposition
 				);
 
@@ -154,7 +154,7 @@ namespace Cumulate
 			if (!resultHolder)
 				resultHolder = CreateCacheDataItem(
 					arg1A->GetAbstrDomainUnit(),
-					(*m_UnitCreatorPtr)(GetGroup(), args), 
+					(*m_UnitCreatorPtr)(GetGroup(), args).get(),
 					m_ValueComposition
 				);
 

@@ -249,7 +249,7 @@ const TreeItem* WriteHtmlLink(OutStreamBase& outStream, const TreeItem* searchCo
 		if (!ValueClass::FindByScriptName(itemRef))
 		{
 			try {
-				const TreeItem* item = searchContext->FindItem(CharPtrRange(first, last));
+				const TreeItem* item = searchContext->FindItem(CharPtrRange(first, last)).get();
 				if (item)
 				{
 					XML_hRef xmlElemA(outStream, ItemUrl(item).c_str());

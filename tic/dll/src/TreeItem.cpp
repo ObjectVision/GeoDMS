@@ -717,7 +717,7 @@ void TreeItem::SetDC(DataControllerRef newDC, const TreeItem* newRefItem) const
 		}
 	}
 	mc_DC = std::move(newDC);
-	SetReferredItem(newRI);
+	SetReferredItem(newRI.get());
 	if (mc_DC && mc_DC->m_State.Get(actor_flag_set::AF_IntegrityChecked))
 		m_State.Set(actor_flag_set::AF_IntegrityChecked);
 }
@@ -978,7 +978,7 @@ const TreeItem* TreeItem::GetReferredItem() const  noexcept
 	if (!mc_RefItem && HasCalculator())
 		MakeCalculator();
 
-	return mc_RefItem;
+	return mc_RefItem.get();
 }
 
 const TreeItem* TreeItem::GetCurrUltimateItem() const noexcept
@@ -1024,7 +1024,7 @@ const TreeItem* TreeItem::GetCurrSourceItem() const noexcept
 	const TreeItem* sourceItem = this;
 	do
 	{
-		sourceItem = sourceItem->mc_RefItem;
+		sourceItem = sourceItem->mc_RefItem.get();
 	}
 	while (sourceItem && sourceItem->IsCacheItem());
 
@@ -1069,7 +1069,7 @@ void TreeItem::SetReferredItem(const TreeItem* refItem) const
 		while (curr) // propagate PivotElem to the ultimate item
 		{
 			curr->m_State.Set(actor_flag_set::AFD_PivotElem);
-			curr = curr->mc_RefItem;
+			curr = curr->mc_RefItem.get();
 		}
 	}
 	if (refItem && refItem->m_State.Get(actor_flag_set::AFD_PivotElem))
@@ -1146,7 +1146,7 @@ retry:
 
 [[nodiscard]] const PersistentObject* TreeItem::GetParent () const noexcept
 {
-	return GetTreeParent();
+	return GetTreeParent().get();
 }
 
 void TreeItem::SetInHidden(bool value)
@@ -1321,14 +1321,14 @@ bool TreeItem::IsCurrLoadable() const
 	auto sm = sp->GetCurrStorageManager();
 	assert(sm);
 
-	return sm->DoCheckExistence(sp, this);
+	return sm->DoCheckExistence(sp.get(), this);
 }
 
 bool TreeItem::IsStorable() const
 {
 	if (!IsDataItem(this) && !IsUnit(this)) 
 		return false;
-	const TreeItem* storageParent = GetStorageParent(true);
+	auto storageParent = GetStorageParent(true);
 	if (!storageParent || !storageParent->GetStorageManager()->IsWritable())
 		return false;
 	// see if any of the ancestors up to the storageParent has the storageReadOnly property
@@ -1339,7 +1339,7 @@ bool TreeItem::IsStorable() const
 			return false;
 		if (self == storageParent)
 			return true;
-		self = self->GetTreeParent();
+		self = self->GetTreeParent().get();
 		assert(self);
 	}
 }
@@ -1558,7 +1558,7 @@ SharedTreeItem TreeItem::GetCurrItem(CharPtrRange subItemNames) const
 		return GetCurrSubTreeItemByID(GetTokenID(ids.second));
 	}
 	auto parent = GetCurrItem(ids.first);
-	return (parent) ? parent->GetCurrSubTreeItemByID(GetTokenID(ids.second)) : nullptr;
+	return (parent) ? parent->GetCurrSubTreeItemByID(GetTokenID(ids.second)).get() : nullptr;
 }
 
 
@@ -1639,7 +1639,7 @@ auto TreeItem::FindAndVisitItem(CharPtrRange subItemNames, SupplierVisitFlag svf
 	if (ids.first.empty()) // We start at root.
 	{
 		parent = SessionData::Curr()->GetConfigRoot();
-		if (visitor.Visit(parent) == AVS_SuspendedOrFailed)
+		if (visitor.Visit(parent.get()) == AVS_SuspendedOrFailed)
 			return {};
 	}
 	else
@@ -1655,7 +1655,7 @@ auto TreeItem::FindAndVisitItem(CharPtrRange subItemNames, SupplierVisitFlag svf
 	parent->UpdateMetaInfo();
 
 	auto result = parent->GetConstSubTreeItemByID(GetExistingTokenID(ids.second));
-	if (visitor.Visit(result) == AVS_SuspendedOrFailed)
+	if (visitor.Visit(result.get()) == AVS_SuspendedOrFailed)
 		return {};
 	return result;
 }
@@ -1675,7 +1675,7 @@ static auto FollowBestDots(const TreeItem* self, CharPtrRange dots) noexcept -> 
 		auto parent = self->GetTreeParent();
 		if (!parent)
 			return { self, SharedStr(dots.first - 1 MG_DEBUG_ALLOCATOR_SRC("FollowBestDots")) };
-		self = parent;
+		self = parent.get();
 	}
 }
 
@@ -1709,10 +1709,10 @@ auto TreeItem::FindBestItem(CharPtrRange subItemNames) const -> BestItemRef
 	if (ids.first.empty()) 
 	{
 		// We start at root, first characted was '/'
-		dms_assert(subItemNames[0] == DELIMITER_CHAR);
-		dms_assert(ids.second.first = subItemNames.first + 1);
+		assert(subItemNames[0] == DELIMITER_CHAR);
+		assert(ids.second.first = subItemNames.first + 1);
 
-		const TreeItem* configRoot = SessionData::Curr()->GetConfigRoot();
+		auto configRoot = SessionData::Curr()->GetConfigRoot();
 		if (configRoot)
 		{
 			configRoot->UpdateMetaInfo();
@@ -1728,7 +1728,7 @@ auto TreeItem::FindBestItem(CharPtrRange subItemNames) const -> BestItemRef
 	}
 
 	// ===== we have first and second here, so we'd have to recurse and combine
-	dms_assert(!ids.first.empty());
+	assert(!ids.first.empty());
 	//dms_assert(!ids.second.empty()); Wrong if path contains '//' 
 
 	auto parentRef = FindBestItem(ids.first);
@@ -1791,7 +1791,7 @@ const TreeItem* TreeItem::FollowDots(CharPtrRange dots) const
 		if (dots.first == dots.second)
 			return result;
 
-		result = result->GetTreeParent();
+		result = result->GetTreeParent().get();
 		if (!result)
 			throwItemError("FollowDots: relative pathname ascended above root");
 	}
@@ -2044,7 +2044,7 @@ OwningPtr<TreeItem> TreeItem::Copy(TreeItem* dest, TokenID id, CopyTreeContext& 
 			else
 			{
 				if (mc_Calculator && mc_Calculator->IsDataBlock())
-					result->SetCalculator(AbstrCalculator::ConstructFromDBT(AsDataItem(result.get()), mc_Calculator));
+					result->SetCalculator(AbstrCalculator::ConstructFromDBT(AsDataItem(result.get()), mc_Calculator.get()));
 			}
 		}
 	}	// if (mustCopyProps)
@@ -2176,14 +2176,14 @@ void TreeItem::UpdateMetaInfoImpl() const
 	}
 
 	if (mc_Calculator && !mc_Calculator->IsDataBlock())
-		ApplyCalculator(const_cast<TreeItem*>(this), mc_Calculator);
+		ApplyCalculator(const_cast<TreeItem*>(this), mc_Calculator.get());
 
 //	UpdateDC();
 
 	if (mc_DC)
 	{
 		if (mc_DC->WasFailed())
-			Fail(mc_DC);
+			Fail(mc_DC.get());
 	}
 
 	if (HasConfigData() && mc_Calculator && mc_Calculator->IsDataBlock())
@@ -2209,8 +2209,8 @@ void TreeItem::UpdateMetaInfoImpl() const
 			if (!this->IsCacheItem())
 			{
 				SharedTreeItem cacheItem = mc_RefItem;
-				if (HasVisibleSubItems(cacheItem))
-					CopyTreeContext(const_cast<TreeItem*>(this), cacheItem, "", DataCopyMode::NoRoot | DataCopyMode::MakeEndogenous | DataCopyMode::SetInheritFlag | DataCopyMode::MergeProps).Apply();
+				if (HasVisibleSubItems(cacheItem.get()))
+					CopyTreeContext(const_cast<TreeItem*>(this), cacheItem.get(), "", DataCopyMode::NoRoot | DataCopyMode::MakeEndogenous | DataCopyMode::SetInheritFlag | DataCopyMode::MergeProps).Apply();
 			}
 		}
 	}
@@ -2254,7 +2254,7 @@ MetaInfo TreeItem::GetCurrMetaInfo(metainfo_policy_flags mpf) const
 	if (HasCalculatorImpl())
 	{
 		//		if (IsCacheItem() && (!HasSupplCache() || GetSupplCache()->GetNrConfigured(this) == 0) )
-		const AbstrCalculator* calc = mc_Calculator;
+		const AbstrCalculator* calc = mc_Calculator.get();
 		if (!calc)
 		{
 //			dms_assert(IsUnit(this)); // follows from CanSubstituteByCalcSpec()
@@ -2385,7 +2385,7 @@ void TreeItem::UpdateDC() const
 	{
 		if (SharedTreeItem cacheItem = resultDC->MakeResult())
 		{
-			auto keyExpr = TreeItem_CreateConvertedExpr(this, cacheItem, resultDC->GetLispRef());
+			auto keyExpr = TreeItem_CreateConvertedExpr(this, cacheItem.get(), resultDC->GetLispRef());
 			if (!keyExpr)
 			{
 				assert(WasFailed(FailType::MetaInfo));
@@ -2403,7 +2403,7 @@ void TreeItem::UpdateDC() const
 			resultExpr = CreateLispTree(this, false);
 		resultDC = GetOrCreateDataController(TreeItem_CreateCheckedExpr(resultExpr, this));
 	}
-	SetDC(resultDC, srcItem);
+	SetDC(resultDC, srcItem.get());
 }
 
 static auto TreeItem_GetCheckedDC_impl(const TreeItem* self) ->DataControllerRef
@@ -2576,11 +2576,11 @@ void TreeItem::UpdateMetaInfoImpl2() const
 		{
 
 			// Update Meta Info according to storage manager
-			const TreeItem* storageParent = GetStorageParent(false);
+			auto storageParent = GetStorageParent(false);
 			if (storageParent)
 			{
 				auto sm = storageParent->GetStorageManager();
-				sm->UpdateTree(storageParent, const_cast<TreeItem*>(this));
+				sm->UpdateTree(storageParent.get(), const_cast<TreeItem*>(this));
 			}
 			// validate units with refObject if it wasn't copied by the parent
 		}
@@ -2749,10 +2749,10 @@ ActorVisitState TreeItem::DoUpdate()
 				auto iCheckerPtr = GetIntegrityChecker();
 				assert(iCheckerPtr);
 
-				auto iCheckerDC = MakeResult(iCheckerPtr);
+				auto iCheckerDC = MakeResult(iCheckerPtr.get());
 				assert(iCheckerDC);
 				if (iCheckerDC->WasFailed(FailType::Validate))
-					Fail(iCheckerDC);
+					Fail(iCheckerDC.get());
 
 				//InterestPtr<SharedPtr<const AbstrCalculator>> iChecker = iCheckerPtr;
 				if (WasFailed(FailType::Validate))
@@ -2762,7 +2762,7 @@ ActorVisitState TreeItem::DoUpdate()
 				}
 				if (!iCheckerDC->Was(ProgressState::Validated))
 				{
-					iCheckerDC = CalledCalcHandle(iCheckerPtr, DataArray<Bool>::GetStaticClass()); // @@@SCHEDULE
+					iCheckerDC = CalledCalcHandle(iCheckerPtr.get(), DataArray<Bool>::GetStaticClass()); // @@@SCHEDULE
 
 					if (SuspendTrigger::DidSuspend())
 						return AVS_SuspendedOrFailed;
@@ -2777,19 +2777,19 @@ ActorVisitState TreeItem::DoUpdate()
 
 						SharedPtr<const TreeItem> adiCheckerResult = iCheckerResult->GetCurrUltimateItem();
 						assert(adiCheckerResult->GetInterestCount());
-						if (!WaitForReadyOrSuspendTrigger(adiCheckerResult))
+						if (!WaitForReadyOrSuspendTrigger(adiCheckerResult.get()))
 						{
 							if (adiCheckerResult->WasFailed())
 							{
 								m_State.SetProgress(ProgressState::Validated);
-								Fail(adiCheckerResult);
+								Fail(adiCheckerResult.get());
 							}
 							assert(SuspendTrigger::DidSuspend() || WasFailed());
 							return AVS_SuspendedOrFailed;
 						}
 
 					}
-					if (!iCheckerResult || !c.Add(iCheckerResult, DrlType::Suspendible))
+					if (!iCheckerResult || !c.Add(iCheckerResult.get(), DrlType::Suspendible))
 					{
 						if (SuspendTrigger::DidSuspend())
 							return AVS_SuspendedOrFailed;
@@ -2806,7 +2806,7 @@ ActorVisitState TreeItem::DoUpdate()
 						return AVS_SuspendedOrFailed;
 					}
 
-					if (IntegrityCheckFailure(this, iCheckerResult, [iCheckerPtr]() { return iCheckerPtr->GetExpr(); }))
+					if (IntegrityCheckFailure(this, iCheckerResult.get(), [iCheckerPtr]() { return iCheckerPtr->GetExpr(); }))
 						return AVS_Ready;
 				}
 			}
@@ -2889,7 +2889,7 @@ const TreeItem* TreeItem::GetNextVisibleItem() const noexcept
 	const TreeItem* nextItem = GetNextItem();
 	if (nextItem)
 		return nextItem;
-	nextItem = m_Parent->mc_RefItem;
+	nextItem = m_Parent->mc_RefItem.get();
 	dms_assert(nextItem != m_Parent);
 	if (!nextItem)
 		return nullptr;
@@ -2907,7 +2907,7 @@ const TreeItem* TreeItem::WalkConstSubTree(const TreeItem* curr) const noexcept 
 		const TreeItem* next = curr->GetNextItem();
 		if (next)
 			return next;
-		curr = curr->GetTreeParent();
+		curr = curr->GetTreeParent().get();
 	}
 	return nullptr;
 }
@@ -2977,7 +2977,7 @@ ActorVisitState TreeItem::VisitSuppliers(SupplierVisitFlag svf, const ActorVisit
 	// =============== Parent
 	if (Test(svf, SupplierVisitFlag::Parent) && GetTreeParent())
 	{
-		if (visitor(GetTreeParent()) == AVS_SuspendedOrFailed)
+		if (visitor(GetTreeParent().get()) == AVS_SuspendedOrFailed)
 			return AVS_SuspendedOrFailed;
 	}
 
@@ -2988,7 +2988,7 @@ ActorVisitState TreeItem::VisitSuppliers(SupplierVisitFlag svf, const ActorVisit
 
 	if (Test(svf,  SupplierVisitFlag::TemplateOrg) && mc_OrgItem)
 	{
-		if (visitor(mc_OrgItem) == AVS_SuspendedOrFailed)
+		if (visitor(mc_OrgItem.get()) == AVS_SuspendedOrFailed)
 			return AVS_SuspendedOrFailed;
 	}
 
@@ -3012,7 +3012,7 @@ ActorVisitState TreeItem::VisitSuppliers(SupplierVisitFlag svf, const ActorVisit
 		if (!dialogData.empty())
 		{
 			auto dialogDataItem = FindItem(dialogData.AsRange());
-			if (dialogDataItem && visitor(dialogDataItem) == AVS_SuspendedOrFailed)
+			if (dialogDataItem && visitor(dialogDataItem.get()) == AVS_SuspendedOrFailed)
 				return AVS_SuspendedOrFailed;
 		}
 	}
@@ -3025,15 +3025,15 @@ ActorVisitState TreeItem::VisitSuppliers(SupplierVisitFlag svf, const ActorVisit
 		auto n = GetSupplCache()->GetNrConfigured(this); // only ConfigSuppliers, Implied suppliers come after this, Calculator & StorageManager have added them
 		for  (decltype(n) i = 0; i < n; ++i)
 		{
-			const Actor* supplier = GetSupplCache()->begin(this)[i];
+			auto supplier = GetSupplCache()->begin(this)[i];
 			assert(!SuspendTrigger::DidSuspend()); // precondition
 			if (!supplier)
 				continue;
-			 if (visitor(supplier) == AVS_SuspendedOrFailed)
+			 if (visitor(supplier.get()) == AVS_SuspendedOrFailed)
 				return AVS_SuspendedOrFailed;
 
 			assert(!SuspendTrigger::DidSuspend()); // precondition
-			auto supplTI = debug_cast<const TreeItem*>(supplier); // all configured suppliers are TreeItems; all implied suppliers are AbstrCalculators
+			auto supplTI = debug_cast<const TreeItem*>(supplier.get()); // all configured suppliers are TreeItems; all implied suppliers are AbstrCalculators
 			if (supplTI->VisitConstVisibleSubTree(visitor) == AVS_SuspendedOrFailed)
 				return AVS_SuspendedOrFailed;
 		}
@@ -3058,7 +3058,7 @@ ActorVisitState TreeItem::VisitSuppliers(SupplierVisitFlag svf, const ActorVisit
 	if (mc_DC)
 	{
 		if (Test(svf, SupplierVisitFlag::DataController))
-			if (visitor.Visit(mc_DC) != AVS_Ready)
+			if (visitor.Visit(mc_DC.get()) != AVS_Ready)
 				return AVS_SuspendedOrFailed;
 		if (Test(svf, SupplierVisitFlag::SourceData))
 		{
@@ -3071,19 +3071,19 @@ ActorVisitState TreeItem::VisitSuppliers(SupplierVisitFlag svf, const ActorVisit
 	if (mc_RefItem)
 	{
 		if (Test(svf, SupplierVisitFlag::SourceData))
-			if (visitor(mc_RefItem) != AVS_Ready)
+			if (visitor(mc_RefItem.get()) != AVS_Ready)
 				return AVS_SuspendedOrFailed;
 	}
 
 	// =============== StorageManager of parent
 
-	const TreeItem* storageParent = GetStorageParent(false);
+	auto storageParent = GetStorageParent(false);
 
 	// implied DC for indirect storageNames and sqlString prop are set by VisitNextSupplier
 	if (storageParent)
 	{
 		if (auto sm = storageParent->GetStorageManager(false))
-			if (sm->VisitSuppliers(svf, visitor, storageParent, this) == AVS_SuspendedOrFailed)
+			if (sm->VisitSuppliers(svf, visitor, storageParent.get(), this) == AVS_SuspendedOrFailed)
 				return AVS_SuspendedOrFailed;
 	}
 
@@ -3095,13 +3095,13 @@ ActorVisitState TreeItem::VisitSuppliers(SupplierVisitFlag svf, const ActorVisit
 		if (ic->VisitSuppliers(svf, visitor) == AVS_SuspendedOrFailed)
 			return AVS_SuspendedOrFailed;
 
-		auto dc = MakeResult(ic);
+		auto dc = MakeResult(ic.get());
 		if (dc->WasFailed(FailType::MetaInfo))
 		{
-			Fail(dc);
+			Fail(dc.get());
 //			return AVS_SuspendedOrFailed;
 		}
-		if (visitor.Visit(dc) != AVS_Ready)
+		if (visitor.Visit(dc.get()) != AVS_Ready)
 			return AVS_SuspendedOrFailed;
 		if (visitor.Visit(dc->GetOld()) == AVS_SuspendedOrFailed)
 			return AVS_SuspendedOrFailed;
@@ -3222,14 +3222,14 @@ TimeStamp TreeItem::DetermineLastSupplierChange(ErrMsgPtr& failReason, FailType&
 	if ((ft == FailType::None) && IsDataReadable() && !WasFailed(FailType::Determine))
 	{
 		try {
-			dms_assert(!IsCacheItem());
-			const TreeItem* storageParent = GetStorageParent(false); if (!storageParent) goto exit;
-			dms_assert(storageParent);
+			assert(!IsCacheItem());
+			auto storageParent = GetStorageParent(false); if (!storageParent) goto exit;
+			assert(storageParent);
 
 			AbstrStorageManager* sm = storageParent->GetStorageManager(); if (!sm) goto exit;
-			dms_assert(sm);
+			assert(sm);
 
-			FileDateTime lastFileChange = sm->GetCachedChangeDateTime( storageParent, GetRelativeName(storageParent).c_str() );
+			FileDateTime lastFileChange = sm->GetCachedChangeDateTime( storageParent.get(), GetRelativeName(storageParent.get()).c_str() );
 
 			if (lastFileChange)
 			{
@@ -3302,7 +3302,7 @@ bool TreeItem::ReadItem(StorageReadHandle&& srh) // TODO: Make this a method of 
 	if (IsDataReady(this))
 		return true;
 
-	const TreeItem* storageParent = GetCurrStorageParent(false);
+	const TreeItem* storageParent = GetCurrStorageParent(false).get();
 	if (!storageParent)
 		return false;
 	
@@ -3351,13 +3351,13 @@ bool TreeItem::DoWriteItem(StorageMetaInfoPtr&&) const
 	// caller must check state and suspend trigger to find out
 	if (HasCalculator())
 	{
-		const AbstrCalculator* apr = GetCalculator();
+		auto apr = GetCalculator();
 		if (!apr)
 		{
-			dms_assert(IsUnit(this));
+			assert(IsUnit(this));
 			return true;
 		}
-		auto result = CalledCalcHandle(apr, GetDynamicObjClass());
+		auto result = CalledCalcHandle(apr.get(), GetDynamicObjClass());
 		if (result->IsFailed())
 		{
 			Fail(result.get_ptr());
@@ -3497,7 +3497,7 @@ static how_to_proceed PrepareDataRead(SharedPtr<const TreeItem> self, const Tree
 	MG_DEBUGCODE(dms_assert(!refItem->HasCalculatorImpl())); // implied by IsDataReadable
 	dms_assert(!refItem->IsCacheItem());        // how else to derive data
 
-	auto supplResult = VisitSupplBoolImpl(self, SupplierVisitFlag::Calc, [self, drlFlags](auto a) -> bool
+	auto supplResult = VisitSupplBoolImpl(self.get(), SupplierVisitFlag::Calc, [self, drlFlags](auto a) -> bool
 		{
 			auto t = dynamic_cast<const TreeItem*>(a);
 			if (t && !t->PrepareDataUsage(drlFlags))
@@ -3536,10 +3536,10 @@ static how_to_proceed PrepareDataRead(SharedPtr<const TreeItem> self, const Tree
 	}
 	dms_assert(!CheckCalculatingOrReady(refItem)); // was tested before and nothing could have started the calculation
 
-	const TreeItem* storageParent = refItem->GetStorageParent(false); assert(storageParent);
+	auto storageParent = refItem->GetStorageParent(false); assert(storageParent);
 	SharedPtr<AbstrStorageManager> sm = storageParent->GetStorageManager(); assert(sm);
 	if (auto nmsm = MakeSharedFromBorrowedObjectPtr(dynamic_cast<NonmappableStorageManager*>(sm.get())))
-		if (StorageMetaInfoPtr readInfo = nmsm->GetMetaInfo(storageParent, const_cast<TreeItem*>(refItem), StorageAction::read))
+		if (StorageMetaInfoPtr readInfo = nmsm->GetMetaInfo(storageParent.get(), const_cast<TreeItem*>(refItem), StorageAction::read))
 		{
 			auto readInfoPtr = std::make_shared<std::atomic<StorageMetaInfoPtr>>(std::move(readInfo));
 			assert(!CheckCalculatingOrReady(refItem));
@@ -3593,7 +3593,7 @@ static how_to_proceed PrepareDataRead(SharedPtr<const TreeItem> self, const Tree
 					assert(readInfoPtr);
 					assert(readInfoPtr->load());
 					(*readInfoPtr).load()->OnPreLock();
-					StorageReadHandle sHandle(nmsm, readInfoPtr->exchange(StorageMetaInfoPtr())); // locks storage manager
+					StorageReadHandle sHandle(nmsm.get(), readInfoPtr->exchange(StorageMetaInfoPtr())); // locks storage manager
 					assert(!readInfoPtr->load());
 					sHandle.FocusItem()->ReadItem(std::move(sHandle)); // Read Item
 				}
@@ -3703,7 +3703,7 @@ bool TreeItem::PrepareDataUsageImpl(DrlType drlFlags) const
 						else
 						{
 							auto lock = AbstrStorageManager::lock_t(mmd->m_CriticalSection);
-							auto smi = StorageMetaInfo(parent, this);
+							auto smi = StorageMetaInfo(parent.get(), this);
 							if (mustWrite)
 								mmd->OpenForWrite(smi);
 							else
@@ -3713,7 +3713,7 @@ bool TreeItem::PrepareDataUsageImpl(DrlType drlFlags) const
 					if (!mustSkip && !mustWrite)
 					{
 						auto fsn = sm->GetNameStr();
-						auto rn = GetRelativeName(sp);
+						auto rn = GetRelativeName(sp.get());
 						if (rn.empty())
 						{
 							rn = "@main";
@@ -3736,7 +3736,7 @@ bool TreeItem::PrepareDataUsageImpl(DrlType drlFlags) const
 								return false;
 							}
 							assert(adu->GetCount() != -1);
-							auto fh = OpenFileData(AsDataItem(this), avu ? avu->GetTiledRangeData() : nullptr, fn);
+							auto fh = OpenFileData(AsDataItem(this), avu ? avu->GetTiledRangeData().get() : nullptr, fn);
 							if (!fh)
 							{
 								DoFailCaller(std::make_shared<ErrMsg>("Cannot open data in .MMD storage folder"), FailType::Data);
@@ -3922,7 +3922,7 @@ TIC_CALL void TreeItem::DisableStorage(bool disabledStorage) // does not call Up
 
 static bool HasCfsStorage(const TreeItem* obj)
 {
-	const TreeItem* storageHolder = obj->GetStorageParent(false);
+	auto storageHolder = obj->GetStorageParent(false);
 
 	return storageHolder && !stricmp(storageHolder->GetStorageManager()->GetClsName().c_str(), "cfs");
 }
@@ -4003,7 +4003,7 @@ bool TreeItem::CommitDataChanges() const
 
 	MG_DEBUGCODE( assert(! Actor::m_State.Get(ASF_WasLoaded) ); )
 
-	const TreeItem* storageHolder = GetStorageParent(true);
+	auto storageHolder = GetStorageParent(true);
 	assert(storageHolder); // guaranteed by IsStorable();
 
 	bool hasCalculator = HasCalculator();
@@ -4049,7 +4049,7 @@ bool TreeItem::CommitDataChanges() const
 	if (!nmsm)
 		return true;
 
-	if (!DoWriteItem(nmsm->GetMetaInfo(storageHolder, const_cast<TreeItem*>(this), StorageAction::write))
+	if (!DoWriteItem(nmsm->GetMetaInfo(storageHolder.get(), const_cast<TreeItem*>(this), StorageAction::write))
 		|| GetCurrRangeItem()->WasFailed(FailType::Committed))
 		return FinalizeFailure(this, [this]() { return mySSPrintF("Unable to write data to storage %s", DMS_TreeItem_GetAssociatedFilename(this)); });
 
@@ -4062,7 +4062,7 @@ static bool PartOfInterestImpl(const TreeItem* self)
 	{
 		if (self->GetInterestCount())
 			return true;
-		self = self->GetTreeParent();
+		self = self->GetTreeParent().get();
 	}
 	return false;
 }
@@ -4074,7 +4074,7 @@ bool TreeItem::PartOfInterest() const
 	if (!IsCacheItem())
 		return false;
 
-	return PartOfInterestImpl(GetTreeParent());
+	return PartOfInterestImpl(GetTreeParent().get());
 }
 
 garbage_can TreeItem::TryCleanupMem() const
@@ -4257,11 +4257,11 @@ AbstrStorageManager* TreeItem::GetStorageManager(bool throwOnFailure) const
 		}
 		auto_flag_recursion_lock< ASF_GetStorageManagerLock, true> lockit(m_State);
 
-		dms_assert(HasStorageManager()); // prcondition: GetStorageManager may only be called when HasStorageManager() returns true
-		dms_assert(!IsCacheItem());        // implied by HasStorageManager()
-		dms_assert(!InTemplate());         // implied by HasStorageManager()
-		dms_assert(!IsDisabledStorage());  // implied by HasStorageManager()
-		dms_assert(storageNamePropDefPtr->HasNonDefaultValue(this));
+		assert(HasStorageManager()); // prcondition: GetStorageManager may only be called when HasStorageManager() returns true
+		assert(!IsCacheItem());        // implied by HasStorageManager()
+		assert(!InTemplate());         // implied by HasStorageManager()
+		assert(!IsDisabledStorage());  // implied by HasStorageManager()
+		assert(storageNamePropDefPtr->HasNonDefaultValue(this));
 
 		SharedStr storageName = TreeItemPropertyValue(this, storageNamePropDefPtr);
 		auto sm = AbstrStorageManager::Construct(this
@@ -4273,12 +4273,12 @@ AbstrStorageManager* TreeItem::GetStorageManager(bool throwOnFailure) const
 			, throwOnFailure
 		);
 
-		dms_assert(sm || !throwOnFailure); // guaranteed by AbstrStorageManager::Construct
+		assert(sm || !throwOnFailure); // guaranteed by AbstrStorageManager::Construct
 		if (sm)
-			const_cast<TreeItem*>(this)->SetStorageManager(sm); // resets m_DisabledStorage
+			const_cast<TreeItem*>(this)->SetStorageManager(sm.get()); // resets m_DisabledStorage
 	}
 	assert(m_StorageManager || !throwOnFailure);
-	return m_StorageManager;
+	return m_StorageManager.get();
 }
 
 void TreeItem::SetStorageManager(CharPtr storageName, CharPtr storageType, StorageReadOnlySetting readOnly, CharPtr driver, CharPtr options)
@@ -4306,19 +4306,19 @@ void TreeItem::SetStorageManager(CharPtr storageName, CharPtr storageType, Stora
 
 const TreeItem* FindTreeItemByID(const TreeItem* searchLoc, TokenID subItemID)
 {
-	dms_assert(searchLoc);
-	dms_assert(!subItemID.empty());
-	dms_assert(GetTokenStr(subItemID).c_str()[0] != '.');
+	assert(searchLoc);
+	assert(!subItemID.empty());
+	assert(GetTokenStr(subItemID).c_str()[0] != '.');
 
 	while (searchLoc) {
 		if (searchLoc->m_UsingCache)
-			return searchLoc->m_UsingCache->FindItem(subItemID);
+			return searchLoc->m_UsingCache->FindItem(subItemID).get();
 
-		const TreeItem* foundSubItem = searchLoc->GetConstSubTreeItemByID(subItemID);
+		auto foundSubItem = searchLoc->GetConstSubTreeItemByID(subItemID);
 		if (foundSubItem)
-			return foundSubItem;
+			return foundSubItem.get();
 
-		searchLoc = searchLoc->GetTreeParent();
+		searchLoc = searchLoc->GetTreeParent().get();
 	};
 	return nullptr;
 }
@@ -4357,16 +4357,16 @@ void TreeItem::StartInterest() const
 	SharedActorInterestPtr    calcHolder = mc_DC.get_ptr();
 	SharedTreeItemInterestPtr refItemHolder = refItem;
 
-	const TreeItem* storageParent = GetStorageParent(false);
+	auto storageParent = GetStorageParent(false);
 	if (storageParent)
 	{
 		if (auto nmsm = dynamic_cast<NonmappableStorageManager*>(storageParent->GetStorageManager()))
-			nmsm->StartInterest(storageParent, this);
+			nmsm->StartInterest(storageParent.get(), this);
 
 	}
 
-		// nothrow from here
-		undoActorInterest.release();
+	// nothrow from here
+	undoActorInterest.release();
 
 	// nothrow from here, avoid rollbacks and release the InterestHolders without releasing the interest
 	parentHolder.release();
@@ -4380,10 +4380,10 @@ void TreeItem::StartInterest() const
 
 garbage_can TreeItem::StopInterest() const noexcept
 {
-	const TreeItem* storageParent = GetCurrStorageParent(false);
+	auto storageParent = GetCurrStorageParent(false);
 	if (storageParent)
 		if (auto nmsm = dynamic_cast<NonmappableStorageManager*>(storageParent->GetStorageManager()))
-			nmsm->StopInterest(storageParent, this);
+			nmsm->StopInterest(storageParent.get(), this);
 
 	auto garbage = Actor::StopInterest();
 
@@ -4504,7 +4504,7 @@ void TreeItem::SetLocation(const SourceLocation* loc)
 const SourceLocation* TreeItem::GetLocation() const
 {
 	if (m_Location)
-		return m_Location;
+		return m_Location.get();
 	return base_type::GetLocation();
 }
 

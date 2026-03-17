@@ -169,7 +169,7 @@ const AbstrUnit* UnitClass::GetUnitOrDefault(const TreeItem* context, TokenID id
 			return uc->CreateDefault();
 	}
 	SharedStr unitName(id);
-	return AsDynamicUnit( context->FindItem(unitName));
+	return AsDynamicUnit( context->FindItem(unitName).get());
 }
 
 const UnitClass* UnitClass::Find(const ValueClass* valueClass)

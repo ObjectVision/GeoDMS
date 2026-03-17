@@ -252,7 +252,7 @@ bool DrawPolygons(const GraphicPolygonLayer* layer, const FeatureDrawer& fd, con
 	typedef polygon_traits<ScalarType> p_traits;
 	const GraphDrawer& d = fd.m_Drawer;
 
-	const AbstrDataObject* featureData = featureItem->GetRefObj();
+	const AbstrDataObject* featureData = featureItem->GetRefObj().get();
 	auto da = const_array_cast<typename p_traits::PolygonType>(featureData);
 	auto trd = da->GetTiledRangeData();
 	tile_id tn = trd->GetNrTiles();
@@ -303,7 +303,7 @@ bool DrawPolygons(const GraphicPolygonLayer* layer, const FeatureDrawer& fd, con
 					, layer->GetEnabledTheme(AN_BrushColor).get()
 					, layer->GetEnabledTheme(AN_HatchStyle).get()
 					, d, boundingBoxCache.get()
-					, trd, t
+					, trd.get(), t
 					, data
 					,	fd
 					,	pointBuffer

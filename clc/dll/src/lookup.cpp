@@ -98,7 +98,7 @@ public:
 
 				parallel_tileloop(tn, [this, &resLock, arg1A, dcmArg1, arg2DomainA, &wrappedValuesArray](tile_id t)->void
 					{
-						Calculate(resLock, arg1A, dcmArg1, arg2DomainA, wrappedValuesArray, t);
+						Calculate(resLock.get(), arg1A, dcmArg1, arg2DomainA, wrappedValuesArray, t);
 					});
 
 				resLock.Commit();
@@ -188,7 +188,7 @@ public:
 
 		using prepare_data = std::shared_ptr<typename Arg1Type::future_tile>;
 
-		auto futureTileFunctor = make_unique_FutureTileFunctor<V, prepare_data, false>(resultAdi, lazy, tileRangeData, get_range_ptr_of_valuesunit(valuesUnit)
+		auto futureTileFunctor = make_unique_FutureTileFunctor<V, prepare_data, false>(resultAdi, lazy, tileRangeData.get(), get_range_ptr_of_valuesunit(valuesUnit)
 			, [arg1](tile_id t) { return arg1->GetFutureTile(t); }
 			, [dcmArg1, actualIndexRange, valuesData](sequence_traits<V>::seq_t resData, prepare_data futureData)
 			{

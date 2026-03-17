@@ -95,7 +95,7 @@ auto AbstrDataItem::GetAbstrDomainUnit() const -> const AbstrUnit*
 { 
 	if (!m_DomainUnit && IsMetaThread())
 		m_DomainUnit = FindUnit(m_tDomainUnit, "Domain", nullptr);
-	return m_DomainUnit;
+	return m_DomainUnit.get();
 }
 
 auto AbstrDataItem::GetAbstrValuesUnit() const -> const AbstrUnit*
@@ -105,7 +105,7 @@ auto AbstrDataItem::GetAbstrValuesUnit() const -> const AbstrUnit*
 		ValueComposition vc = GetValueComposition();
 		m_ValuesUnit = FindUnit(m_tValuesUnit, "Values", &vc);
 	}
-	return m_ValuesUnit;
+	return m_ValuesUnit.get();
 }
 
 TIC_CALL auto AbstrDataItem::GetNonDefaultDomainUnit() const -> const AbstrUnit*
@@ -279,7 +279,7 @@ bool AbstrDataItem::DoReadItem(StorageMetaInfoPtr smi)
 			if (true || sm->EasyRereadTiles())
 			{
 				visit<typelists::numerics>(rangeValuesUnit, [this, tileRangeData, &tileGenerator]<typename V>(const Unit<V>*valuesUnit) {
-					this->m_DataObject = make_unique_LazyTileFunctor<V>(this, tileRangeData, valuesUnit->m_RangeDataPtr, std::move(tileGenerator)
+					this->m_DataObject = make_unique_LazyTileFunctor<V>(this, tileRangeData.get(), valuesUnit->m_RangeDataPtr, std::move(tileGenerator)
 						MG_DEBUG_ALLOCATOR_SRC(md_FullName + ".AbstrDataItem::DoReadItem of random rereadable tiles")
 					).release();
 				});
@@ -326,7 +326,7 @@ bool AbstrDataItem::DoWriteItem(StorageMetaInfoPtr&& smi) const
 	FencedInterestRetainContext irc("AbstrDataItem::DoWriteItem");
 	try {
 		SharedPtr<const TreeItem> storageHolder = smi->StorageHolder();
-		sm->ExportMetaInfo(storageHolder, this);
+		sm->ExportMetaInfo(storageHolder.get(), this);
 		if (!sm->WriteDataItem(std::move(smi)))
 			throwItemError("Failure during Writing");
 		reportF(MsgCategory::storage_write, SeverityTypeID::ST_MajorTrace, "Writing to %s", sm->GetNameStr().c_str());
@@ -556,7 +556,7 @@ const AbstrUnit* AbstrDataItem::FindUnit(TokenID t, CharPtr role, ValueCompositi
 	assert(GetTreeParent());
 	if (t == TokenID::GetUndefinedID())
 		ThrowFail(mySSPrintF("Undefined %s unit", role), FailType::MetaInfo);
-	const AbstrUnit* result = UnitClass::GetUnitOrDefault(GetTreeParent(), t, vcPtr);
+	const AbstrUnit* result = UnitClass::GetUnitOrDefault(GetTreeParent().get(), t, vcPtr);
 	if (!result && !InTemplate())
 	{
 		auto msg = mySSPrintF("Cannot find %s unit %s", role, GetTokenStr(t));
@@ -646,7 +646,7 @@ bool AbstrDataItem::HasUndefinedValues() const // REMOVE, XXX TRY TO REPLACE BY 
 void AbstrDataItem::GetRawCheckModeImpl() const
 {
 	assert(!GetTSF(DSF_ValuesChecked)); // PRECONDITION
-	const AbstrDataObject* ado = GetDataObj();
+	const AbstrDataObject* ado = GetDataObj().get();
 	DataCheckMode dcm = ado->DoGetCheckMode();
 
 	assert(!GetTSF(DSF_ValuesChecked)); // NO CONCURRENCY
@@ -655,7 +655,7 @@ void AbstrDataItem::GetRawCheckModeImpl() const
 
 DataCheckMode AbstrDataItem::DetermineRawCheckModeImpl() const
 {
-	const AbstrDataObject* ado = GetDataObj();
+	const AbstrDataObject* ado = GetDataObj().get();
 	return ado->DoDetermineCheckMode();
 }
 
@@ -765,7 +765,7 @@ void AbstrDataItem::OnDomainUnitRangeChange(const DomainChangeInfo* info)
 			auto oldDataObject = GetDataObj();
 			
 			DataWriteLock lock(this); // calls CreateAbstrHeapTileFunctor(); is dan nu ineens info->newDataRange "actief" ?
-			CopyData(oldDataObject, lock.get(), info); // can I reuse tiles ?
+			CopyData(oldDataObject.get(), lock.get(), info); // can I reuse tiles ?
 			lock.Commit();
 			assert(!mc_Calculator); // DataWriteLock::Commit() destroyed DataBlockTask
 		}
@@ -1243,16 +1243,16 @@ struct InterestReporter : DebugReporter
 		{
 #if defined(MG_DEBUG_DCDATA)
 			if (tidr->m_State.Get(DCFD_DataCounted))
-				ReportTree(done, tidr->m_Data, level, "CACHEDATA");
+				ReportTree(done, tidr->m_Data.get(), level, "CACHEDATA");
 #endif
 		}
 		if (ti)
 		{
 
 			if (ti->IsCacheItem())
-				ReportTree(done, ti->GetTreeParent(), level, "PARENT");
-			ReportTree(done, ti->mc_RefItem, level, "REF_ITEM");
-			ReportTree(done, ti->mc_DC, level, "CALC");
+				ReportTree(done, ti->GetTreeParent().get(), level, "PARENT");
+			ReportTree(done, ti->mc_RefItem.get(), level, "REF_ITEM");
+			ReportTree(done, ti->mc_DC.get(), level, "CALC");
 	
 
 			if (IsDataItem(ti))
@@ -1302,7 +1302,7 @@ struct InterestReporter : DebugReporter
 		if (tidr)
 		{
 			if (tidr->m_State.Get(DCFD_DataCounted))
-				ReduceInterest(interestRoots, tidr->m_Data);
+				ReduceInterest(interestRoots, tidr->m_Data.get());
 			return;
 		}
 
@@ -1310,9 +1310,9 @@ struct InterestReporter : DebugReporter
 		if (!ti)
 			return;
 //		if (ti->IsCacheItem())
-		ReduceInterest(interestRoots, ti->GetTreeParent());
-		ReduceInterest(interestRoots, ti->mc_RefItem);
-		ReduceInterest(interestRoots, ti->mc_DC);
+		ReduceInterest(interestRoots, ti->GetTreeParent().get());
+		ReduceInterest(interestRoots, ti->mc_RefItem.get());
+		ReduceInterest(interestRoots, ti->mc_DC.get());
 //		ReduceInterest(interestRoots, ti->mc_IntegrityChecker);
 
 		if (IsDataItem(ti))

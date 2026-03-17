@@ -39,7 +39,7 @@ SelCaret::~SelCaret()
 	auto owner = m_Owner.lock(); if (!owner) return;
 
 	ForwardDiff(m_SelCaretRgn);
-	owner->m_SelCaretMap.erase(sel_caret_key(m_SelAttr, m_EntityIndexCollectorPtr));
+	owner->m_SelCaretMap.erase(sel_caret_key(m_SelAttr.get(), m_EntityIndexCollectorPtr));
 }
 
 std::weak_ptr<ViewPort> SelCaret::GetOwner() const
@@ -183,7 +183,7 @@ void SelCaret::UpdateRgn(const Region& updateRgn)
 	DBG_START("SelCaret", "UpdateSelCaret", MG_DEBUG_REGION);
 
 	// =========== Get DataReadLocks
-	PreparedDataReadLock readLock(m_SelAttr, "SelCaret::UpdateRgn");
+	PreparedDataReadLock readLock(m_SelAttr.get(), "SelCaret::UpdateRgn");
 
 	m_GridCoords->UpdateUnscaled();
 	Region clippedUpdateRgn = Region( m_GridCoords->GetClippedRelDeviceRect() );

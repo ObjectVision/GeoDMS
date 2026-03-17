@@ -94,7 +94,7 @@ bool MarkSources(const Actor* a, supplier_level level)
 		currLevel = level; // if Source bit was set, it will be set again.
 
 		if (ti)
-			NotifyStateChange(ti, NC2_InterestChange);
+			NotifyStateChange(ti.get(), NC2_InterestChange);
 
 		if (level == supplier_level::calc)
 		{

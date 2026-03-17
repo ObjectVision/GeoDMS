@@ -172,7 +172,7 @@ protected:
 
 			for (tile_id t=0, te = domain1Unit->GetNrTiles(); t != te; ++t)
 			{
-				ReadableTileLock readPointLock (arg1A->GetCurrRefObj(), t);
+				ReadableTileLock readPointLock (arg1A->GetCurrRefObj().get(), t);
 				CreatePointHandle(arg1A, t, pointBoxDataHandle);
 			}
 
@@ -180,7 +180,7 @@ protected:
 
 			for (tile_id u=0, ue = domain2Unit->GetNrTiles(); u != ue; ++u)
 			{
-				ReadableTileLock readPolyLock (arg2A->GetCurrRefObj(), u);
+				ReadableTileLock readPolyLock (arg2A->GetCurrRefObj().get(), u);
 				ResourceHandle polyInfoHandle;
 				CreatePolyHandle(arg2A, u, polyInfoHandle);
 
@@ -191,7 +191,7 @@ protected:
 					{
 						if (this->IsIntersecting(t, u, pointBoxDataHandle, polyInfoHandle))
 						{
-							ReadableTileLock readPoly1Lock (arg1A->GetCurrRefObj(), t);
+							ReadableTileLock readPoly1Lock (arg1A->GetCurrRefObj().get(), t);
 
 							Calculate(resData, resInsertSection, arg1A, arg2A, t, u, polyInfoHandle);
 
@@ -846,8 +846,8 @@ protected:
 				ResourceArrayHandle r;
 				for (tile_id t=0, te = domain1Unit->GetNrTiles(); t != te; ++t)
 				{
-					ReadableTileLock readArg1Lock (argPoly->GetCurrRefObj(), t);
-					ReadableTileLock readArg2Lock (argPart ? argPart->GetCurrRefObj() : nullptr, t);
+					ReadableTileLock readArg1Lock (argPoly->GetCurrRefObj().get(), t);
+					ReadableTileLock readArg2Lock (argPart ? argPart->GetCurrRefObj().get() : nullptr, t);
 
 					Calculate(r, domainCount, argPoly, argPart, t, processTimer);
 				}
@@ -864,8 +864,8 @@ protected:
 					if (resultHolder.WasFailed(FailType::Data))
 						resultHolder.ThrowFail();
 					ResourceArrayHandle r;
-					ReadableTileLock readArg1Lock (argPoly->GetCurrRefObj(), t);
-					ReadableTileLock readArg2Lock (argPart ? argPart->GetCurrRefObj() : nullptr, t);
+					ReadableTileLock readArg1Lock (argPoly->GetCurrRefObj().get(), t);
+					ReadableTileLock readArg2Lock (argPart ? argPart->GetCurrRefObj().get() : nullptr, t);
 
 					Calculate(r, resDomain->GetTileCount(t), argPoly, argPart, t, processTimer);
 					Store(resUnit, nullptr, resGeometryHandle, resNrOrgEntity, t, tn, r, argNum1, argNum2, processTimer);
@@ -887,7 +887,7 @@ protected:
 		assert(r);
 		assert(argNum);
 
-		ReadableTileLock readNum1Lock (argNum ? argNum->GetCurrRefObj() : nullptr, !argNum || argNum->HasVoidDomainGuarantee() ? 0 : t);
+		ReadableTileLock readNum1Lock (argNum ? argNum->GetCurrRefObj().get() : nullptr, !argNum || argNum->HasVoidDomainGuarantee() ? 0 : t);
 
 		switch (f) {
 			case PolygonFlags::F_Inflate1:

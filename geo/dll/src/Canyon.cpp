@@ -131,12 +131,12 @@ public:
 			resultRef->MarkTS(resultHolder.GetLastChangeTS());
 
 			cog_div.FindOperByArgs(tmpArgs)->CreateResultCaller(*resultRef, tmpArgs);
-			ConstUnitRef rcUnit = debug_cast<const AbstrUnit*>(resultRef->GetOld()); dms_assert(rcUnit);
+			ConstUnitRef rcUnit = debug_cast<const AbstrUnit*>(resultRef->GetOld()); assert(rcUnit);
 
-			CreateDataItem(resultHolder, s_RLoc, calcPointEntity, pointUnit);
-			CreateDataItem(resultHolder, s_RRC,  calcPointEntity, rcUnit);
-			CreateDataItem(resultHolder, s_LLoc, calcPointEntity, pointUnit);
-			CreateDataItem(resultHolder, s_LRC,  calcPointEntity, rcUnit);
+			CreateDataItem(resultHolder.GetNew(), s_RLoc, calcPointEntity, pointUnit);
+			CreateDataItem(resultHolder.GetNew(), s_RRC,  calcPointEntity, rcUnit.get());
+			CreateDataItem(resultHolder.GetNew(), s_LLoc, calcPointEntity, pointUnit);
+			CreateDataItem(resultHolder.GetNew(), s_LRC,  calcPointEntity, rcUnit.get());
 		}
 		if (mustCalc)
 		{

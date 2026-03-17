@@ -65,7 +65,7 @@ ConfigProd::~ConfigProd()
 		}
 		while( m_stackContexts.size() )
 		{
-			TreeItem* ti = m_stackContexts.back();
+			TreeItem* ti = m_stackContexts.back().get();
 			if (ti)
 				ti->EnableAutoDelete();
 			m_stackContexts.pop_back();
@@ -77,7 +77,7 @@ TreeItem* ConfigProd::GetContextItem() const
 {
 	return CurrentIsRoot() 
 		?	nullptr
-		:	m_stackContexts.back1(); 
+		:	m_stackContexts.back().get(); 
 }
 
 TreeItem* ConfigProd::GetContextOrRootItem(TokenID& nameID) const
@@ -85,7 +85,7 @@ TreeItem* ConfigProd::GetContextOrRootItem(TokenID& nameID) const
 	auto contextItem = GetContextItem();
 	if (!contextItem && m_MergeIntoExisting)
 	{
-		contextItem = m_pCurrent;
+		contextItem = m_pCurrent.get();
 		nameID = {};
 	}
 	return contextItem;
@@ -483,7 +483,7 @@ void ConfigProd::DoUnitRangeProp(bool isCategorical)
 void ConfigProd::DoStorageProp()
 {
 	DMS_TreeItem_SetStorageManager(
-		m_pCurrent, 
+		m_pCurrent.get(), 
 		m_strIdentifierID.GetStr().c_str(),
 		m_sPropFileTypeID.GetStr().c_str(),
 		StorageReadOnlySetting::Default
@@ -523,7 +523,7 @@ void ConfigProd::DoAnyProp()
 			"Unknown property '%s'", 
 			GetTokenStr(m_strIdentifierID).c_str()
 		);
-	pd->SetValueAsCharRange(m_pCurrent, m_StringVal.begin(), m_StringVal.send());
+	pd->SetValueAsCharRange(m_pCurrent.get(), m_StringVal.begin(), m_StringVal.send());
 }
 
 void ConfigProd::DoExprProp(iterator_t first, iterator_t last)
@@ -563,10 +563,10 @@ void ConfigProd::DoNrOfRowsProp()
 
 void ConfigProd::throwSemanticError(CharPtr msg)
 {
-	TreeItem* curr = m_pCurrent;
+	TreeItem* curr = m_pCurrent.get();
 	UInt32 i = m_stackContexts.size();
 	while (!curr && i--)
-		curr = m_stackContexts[i];
+		curr = m_stackContexts[i].get();
 
 	throwItemErrorF(curr, "Semantic error %s", msg);
 }

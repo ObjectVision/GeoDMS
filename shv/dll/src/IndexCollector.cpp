@@ -86,7 +86,7 @@ IndexCollector::IndexCollector(index_collector_key key)
 	if (HasGeoRel())
 		adi = AsDataItem(m_DC->MakeResult().get_ptr());
 	else
-		adi = m_ExtKeyAttr;
+		adi = m_ExtKeyAttr.get();
 	assert(adi);
 
 	m_TileData = AsUnit(adi->GetAbstrDomainUnit()->GetCurrRangeItem())->GetTiledRangeData();
@@ -95,7 +95,7 @@ IndexCollector::IndexCollector(index_collector_key key)
 
 IndexCollector::~IndexCollector()
 {
-	s_IndexCollectorMap.erase(index_collector_key(m_ExtKeyAttr, m_GeoRelAttr));
+	s_IndexCollectorMap.erase(index_collector_key(m_ExtKeyAttr.get(), m_GeoRelAttr.get()));
 }
 
 void IndexCollector::Release()

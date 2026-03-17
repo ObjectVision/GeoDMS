@@ -68,7 +68,7 @@ protected:
 		if (!resultHolder)
 		{
 			ConstUnitRef resValuesUnit = mulx_unit_creator(GetGroup(), args);
-			resultHolder = CreateCacheDataItem(resDomainUnit, resValuesUnit);
+			resultHolder = CreateCacheDataItem(resDomainUnit, resValuesUnit.get());
 		}
 
 		if (mustCalc)
@@ -171,7 +171,7 @@ protected:
 		if (!resultHolder)
 		{
 			ConstUnitRef resValuesUnit = square_unit_creator(GetGroup(), args);
-			resultHolder = CreateCacheDataItem(resDomainUnit, resValuesUnit);
+			resultHolder = CreateCacheDataItem(resDomainUnit, resValuesUnit.get());
 		}
 
 		if (mustCalc)
@@ -263,7 +263,7 @@ protected:
 		{
 
 			ConstUnitRef resValuesUnit = inv_unit_creator(GetGroup(), args);
-			resultHolder = CreateCacheDataItem(domain1Unit, resValuesUnit);
+			resultHolder = CreateCacheDataItem(domain1Unit, resValuesUnit.get());
 		}
 
 		if (mustCalc)

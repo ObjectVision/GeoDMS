@@ -275,7 +275,7 @@ public:
 		if (resultHolder)
 			return;
 
-		resultHolder = CreateCacheDataItem(resultDomain, constUnitRef, vc );
+		resultHolder = CreateCacheDataItem(resultDomain, constUnitRef.get(), vc );
 		if (isCategorical)
 			resultHolder->SetTSF(TSF_Categorical);
 		if (m_IsOrdered)

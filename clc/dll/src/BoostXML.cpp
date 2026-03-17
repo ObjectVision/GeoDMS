@@ -165,7 +165,7 @@ struct ParseContext
 				entity_map::key_type key(TokenID::GetEmptyID(), id);
 				auto iter = m_Map.lower_bound(key);
 				if (iter != m_Map.end() && iter->first == key)
-					return iter->second;
+					return iter->second.get();
 				parent = nullptr;
 			}
 		}
@@ -196,7 +196,7 @@ struct ParseContext
 			if (!iter->second->m_DmsFullName.empty())
 				m_KnownEntities.insert(std::make_pair(iter->second->m_DmsFullName, iter->second.get_ptr()));
 		}
-		Element* element = iter->second;
+		Element* element = iter->second.get();
 		assert(element);
 		CharPtr value = basePtr->value(), valueEnd = value + basePtr->value_size();
 		element->AddValue(parentID, value, valueEnd);

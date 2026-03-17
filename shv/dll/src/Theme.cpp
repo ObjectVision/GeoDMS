@@ -45,7 +45,7 @@ Float64 Theme::GetMaxValue() const
 		UInt32  n      = paletteAttr->GetAbstrDomainUnit()->GetCount();
 
 		PreparedDataReadLock lock(paletteAttr, "Theme::GetMaxValue()");
-		const AbstrDataObject* paletteObj = paletteAttr->GetRefObj();
+		auto paletteObj = paletteAttr->GetRefObj();
 
 		for (UInt32 i = 0; i!=n; ++i)
 		{
@@ -421,7 +421,7 @@ std::shared_ptr<Theme> Theme::Create(AspectNr aNr, const AbstrDataItem* thematic
 
 			[[fallthrough]];
 			case LayerInfo::PaletteMissing:
-				layerInfo.m_diAspectOrFeature = CreatePaletteData(dv, paletteDomain, aNr, layerInfo.m_diClassBreaksOrExtKey.get_ptr(), false, nullptr, nullptr);
+				layerInfo.m_diAspectOrFeature = CreatePaletteData(dv, paletteDomain.get(), aNr, layerInfo.m_diClassBreaksOrExtKey.get_ptr(), false, nullptr, nullptr);
 				if (layerInfo.m_diAspectOrFeature) 
 					break;
 

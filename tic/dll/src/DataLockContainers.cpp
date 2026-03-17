@@ -51,7 +51,7 @@ bool DataReadLockContainer::Add(const AbstrDataItem* adi, DrlType drlType)
 
 	SharedTreeItem adiCurrItem = { adi->GetCurrUltimateItem(), existing_obj{} };
 	assert(adiCurrItem->GetInterestCount());
-	if (!WaitForReadyOrSuspendTrigger(adiCurrItem))
+	if (!WaitForReadyOrSuspendTrigger(adiCurrItem.get()))
 		return false;
 
 	assert(!SuspendTrigger::DidSuspend()); // PRECONDITION for DataReadLock, POSTCONDITION for WaitForReadyOrSuspendTrigger

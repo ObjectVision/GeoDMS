@@ -107,7 +107,6 @@ struct SharedPtr
 		reset();
 	}
 
-	operator pointer() const noexcept { return this->m_Ptr; } // TODO : REMOVE and be more explicit
 	pointer get() const noexcept { return this->m_Ptr; }
 	pointer get_ptr() const noexcept { return this->m_Ptr; }
 	bool has_ptr() const noexcept { return this->m_Ptr != nullptr; }

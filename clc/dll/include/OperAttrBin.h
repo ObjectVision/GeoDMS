@@ -59,7 +59,7 @@ struct AbstrBinaryAttrOper : BinaryOperator
 		if (!resultHolder)
 		{
 			assert(!mustCalc);
-			resultHolder = CreateCacheDataItem(e, (*m_UnitCreatorPtr)(GetGroup(), args), m_ValueComposition);
+			resultHolder = CreateCacheDataItem(e, (*m_UnitCreatorPtr)(GetGroup(), args).get(), m_ValueComposition);
 		}
 		if (mustCalc)
 		{
@@ -125,7 +125,7 @@ public:
 		auto arg2 = MakeSharedFromBorrowedObjectPtr(const_array_cast<Arg2ValueType>(arg2A)); assert(arg2);
 
 		using prepare_data = std::pair<std::shared_ptr<typename Arg1Type::future_tile>, std::shared_ptr<typename Arg2Type::future_tile>>;
-		auto futureTileFunctor = make_unique_FutureTileFunctor<ResultValueType, prepare_data, false>(resultAdi, lazy, tileRangeData, get_range_ptr_of_valuesunit(valuesUnit)
+		auto futureTileFunctor = make_unique_FutureTileFunctor<ResultValueType, prepare_data, false>(resultAdi, lazy, tileRangeData.get(), get_range_ptr_of_valuesunit(valuesUnit)
 			, [arg1, arg2, af](tile_id t) { return prepare_data{ arg1->GetFutureTile(af & AF1_ISPARAM ? 0 : t), arg2->GetFutureTile(af & AF2_ISPARAM ? 0 : t) }; }
 			, [resultAdi, this, af MG_DEBUG_ALLOCATOR_SRC_PARAM](sequence_traits<ResultValueType>::seq_t resData, prepare_data futureData)
 			{

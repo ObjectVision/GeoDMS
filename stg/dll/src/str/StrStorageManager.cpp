@@ -84,8 +84,8 @@ FileResult StrStorageManager::WriteDataItem(StorageMetaInfoPtr&& smiHolder)
 	auto smi = smiHolder.get();
 	StorageWriteHandle hnd(this, std::move(smiHolder));
 
-	const AbstrDataItem  * adi = smi->CurrRD();
-	const AbstrDataObject* ado = adi->GetRefObj();
+	const AbstrDataItem  * adi = smi->CurrRD().get();
+	const AbstrDataObject* ado = adi->GetRefObj().get();
 	const TreeItem* storageHolder = smi->StorageHolder();
 
 	auto sda = const_array_dynacast<SharedStr>(ado);
@@ -165,14 +165,14 @@ const AbstrDataItem* StrFilesStorageManager::GetFileNameAttr(const TreeItem* sto
 	assert(storageHolder == self);
 	if (!m_FileNameAttr) {
 		if (storageHolder == self)
-			storageHolder = storageHolder->GetTreeParent();
+			storageHolder = storageHolder->GetTreeParent().get();
 		assert(storageHolder);
 		auto fileNameItem = storageHolder->FindItem("FileName");
 		if (!fileNameItem)
 			storageHolder->throwItemError("StrFilesStorageManager requires an attribute<string> FileName with the same domain as this to be in its parent namespace");
 		m_FileNameAttr = AsCheckedDataItem(fileNameItem);
 	}
-	return m_FileNameAttr;
+	return m_FileNameAttr.get();
 }
 
 CharPtrRange AsRange(const SA_ConstReference<char>& rhs) { return CharPtrRange(rhs.begin(), rhs.end()); }
@@ -200,13 +200,13 @@ StorageMetaInfoPtr StrFilesStorageManager::GetMetaInfo(const TreeItem* storageHo
 
 FileResult StrFilesStorageManager::ReadDataItem(StorageMetaInfoPtr smi, AbstrDataObject* borrowedReadResultHolder, tile_id t)
 {
-	DataReadLock drl(GetFileNameAttr(smi->StorageHolder(), smi->CurrRD()));
+	DataReadLock drl(GetFileNameAttr(smi->StorageHolder(), smi->CurrRD().get()));
 	return base_type::ReadDataItem(smi, borrowedReadResultHolder, t);
 }
 
 FileResult StrFilesStorageManager::WriteDataItem(StorageMetaInfoPtr&& smi)
 {
-	PreparedDataReadLock drl(GetFileNameAttr(smi->StorageHolder(), smi->CurrRD()), "@StrFilesStorageManager::WriteDataItem");
+	PreparedDataReadLock drl(GetFileNameAttr(smi->StorageHolder(), smi->CurrRD().get()), "@StrFilesStorageManager::WriteDataItem");
 	return base_type::WriteDataItem(std::move(smi));
 }
 

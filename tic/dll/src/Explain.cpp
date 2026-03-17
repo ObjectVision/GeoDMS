@@ -575,7 +575,7 @@ namespace Explain { // local defs
 		LispCalcExplanation* newExplPtr = nullptr;
 		try {
 
-			AbstrCalculatorRef calc = AbstrCalculator::ConstructFromLispRef(m_StudyObject, lispExprOrg, CalcRole::Calculator); // lispExpr already substitited ?
+			AbstrCalculatorRef calc = AbstrCalculator::ConstructFromLispRef(m_StudyObject.get(), lispExprOrg, CalcRole::Calculator); // lispExpr already substitited ?
 			auto metaInfo = calc->GetMetaInfo();
 
 			//				if (metaInfo.index() == 2)
@@ -592,12 +592,12 @@ namespace Explain { // local defs
 
 			bool mustCalcNextLevel = true;
 			if (SumOfTermsExplanation::CanHandle(lispExprOrg))
-				newExpl = std::make_unique<SumOfTermsExplanation>(calc, parent, seqNr);
+				newExpl = std::make_unique<SumOfTermsExplanation>(calc.get(), parent, seqNr);
 			else if (UnionOfAndsExplanation::CanHandle(lispExprOrg))
-				newExpl = std::make_unique<UnionOfAndsExplanation>(calc, parent, seqNr);
+				newExpl = std::make_unique<UnionOfAndsExplanation>(calc.get(), parent, seqNr);
 			else
 			{
-				newExpl = std::make_unique<LispCalcExplanation>(calc, parent, seqNr);
+				newExpl = std::make_unique<LispCalcExplanation>(calc.get(), parent, seqNr);
 				mustCalcNextLevel = false;
 			}
 			auto matchInfo = newExpl->MatchesExtraInfo(m_ExprRelPath);
@@ -651,8 +651,8 @@ namespace Explain { // local defs
 	}
 	void CalcExplImpl::AddExplanations()
 	{
-		AddExplanation(m_StudyObject);
-		AddExplanations(m_StudyObject);
+		AddExplanation(m_StudyObject.get());
+		AddExplanations(m_StudyObject.get());
 
 		if (m_StudyObject->HasCalculator())
 		{
@@ -825,7 +825,7 @@ namespace Explain { // local defs
 
 	void NonStaticCalcExplanations::WriteDescr()
 	{
-		m_Interface->GetDescr(m_StudyObject);
+		m_Interface->GetDescr(m_StudyObject.get());
 	}
 
 

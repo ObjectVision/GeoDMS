@@ -49,7 +49,7 @@ struct AbstrOperAccTotUni: UnaryOperator
 		auto argSeq = GetItems(args);
 		resultHolder = CreateCacheDataItem(
 			Unit<Void>::GetStaticClass()->CreateDefault(),
-			(*m_UnitCreatorPtr)(GetGroup(), argSeq),
+			(*m_UnitCreatorPtr)(GetGroup(), argSeq).get(),
 			m_ValueComposition
 		);
 	}
@@ -151,7 +151,7 @@ struct AbstrOperAccPartUni: BinaryOperator
 		MG_PRECONDITION(p2);
 
 		auto argSeq = GetItems(args);
-		resultHolder = CreateCacheDataItem(p2, (*m_UnitCreatorPtr)(GetGroup(), argSeq), m_ValueComposition);
+		resultHolder = CreateCacheDataItem(p2, (*m_UnitCreatorPtr)(GetGroup(), argSeq).get(), m_ValueComposition);
 	}
 
 	bool CalcResult(TreeItemDualRef& resultHolder, const ArgRefs& args, std::vector<ItemReadLock> readLocks, Explain::Context* context) const override
@@ -184,7 +184,7 @@ struct AbstrOperAccPartUni: BinaryOperator
 			SizeT f = context->m_Coordinate->first;
 
 			// search in partitioning for values with index f.
-			const AbstrDataObject* ado = arg2A->GetCurrRefObj();
+			const AbstrDataObject* ado = arg2A->GetCurrRefObj().get();
 			SizeT i = 0, k = 0, n = ado->GetTiledRangeData()->GetElemCount();
 			while (i < n) {
 				i = ado->FindPosOfSizeT(f, i);
@@ -254,7 +254,7 @@ struct OperAccPartUniWithCFTA : OperAccPartUni<V, R> // with consumable tile arr
 		auto pdi = ProcessDataInfo{
 			.arg2A = arg2A,
 			.values_fta = GetFutureTileArray(arg1.get()),
-			.part_fta = (DataReadLock(arg2A), GetAbstrFutureTileArray(arg2A->GetCurrRefObj())),
+			.part_fta = (DataReadLock(arg2A), GetAbstrFutureTileArray(arg2A->GetCurrRefObj().get())),
 			.n = arg1A->GetAbstrDomainUnit()->GetDataCount(),
 			.nrTiles = arg1A->GetAbstrDomainUnit()->GetNrTiles(),
 			.valuesRangeData = arg1->GetValueRangeData(),

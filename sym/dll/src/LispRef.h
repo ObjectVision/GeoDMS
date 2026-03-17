@@ -129,6 +129,7 @@ struct LispRef : LispPtrWrap<SharedPtr<const LispObj> >
 	LispRef& operator =(LispRef&& rhs) noexcept = default;
 
 	operator LispPtr() const { return LispPtr(get()); }
+	operator const LispObj* () const { return get(); }
 
 	SYM_CALL LispRef(Number v);	                  // Makes a LispRef to NumbObj
 	SYM_CALL LispRef(UInt64 u);	                  // Makes a LispRef to U64Obj

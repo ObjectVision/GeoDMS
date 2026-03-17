@@ -46,7 +46,7 @@ const AbstrUnit* GetGridDataDomainRO(const TreeItem * storageHolder)
 	const AbstrDataItem* gridData = AsDynamicDataItem(const_cast<TreeItem*>(storageHolder)->GetSubTreeItemByID(GRID_DATA_ID));
 
 	if (gridData)
-		return CheckedGridDomain(gridData);
+		return CheckedGridDomain(gridData).get();
 	gdd = AsDynamicUnit(const_cast<TreeItem*>(storageHolder)->GetSubTreeItemByID(GRID_DOMAIN_ID));
 	return gdd;
 }
@@ -92,7 +92,7 @@ AbstrUnit* AbstrGridStorageManager::CreateGridDataDomain(const TreeItem* storage
 	{
 		m_GridDomainUnit = Unit<IPoint>::GetStaticClass()->CreateResultUnit(nullptr).release();
 		try {
-			StorageReadHandle storageHandle(this, storageHolder, m_GridDomainUnit, StorageAction::read, false);
+			StorageReadHandle storageHandle(this, storageHolder, m_GridDomainUnit.get(), StorageAction::read, false);
 			ReadUnitRange(*storageHandle.MetaInfo());
 		}
 		catch (...)
@@ -100,7 +100,7 @@ AbstrUnit* AbstrGridStorageManager::CreateGridDataDomain(const TreeItem* storage
 			m_GridDomainUnit = nullptr;
 		}
 	}
-	return m_GridDomainUnit;
+	return m_GridDomainUnit.get();
 }
 
 
@@ -108,10 +108,10 @@ ActorVisitState AbstrGridStorageManager::VisitSuppliers(SupplierVisitFlag svf, c
 {
 	if (self != storageHolder && IsDataItem(self) && HasGridDomain(AsDataItem(self)))
 	{
-		const TreeItem* gridData = GetGridData(storageHolder);
-		if (gridData && gridData != self && gridData != storageHolder)
+		auto gridData = GetGridData(storageHolder);
+		if (gridData && gridData.get() != self && gridData.get() != storageHolder)
 		{
-			dms_assert(!self->DoesContain(gridData)); // gridData is storageHolder or direct subItem thereof
+			assert(!self->DoesContain(gridData.get())); // gridData is storageHolder or direct subItem thereof
 // FIX: The following lines caused reading big GridData 
 //			if (visitor(gridData) == AVS_SuspendedOrFailed) // self might be readData or readCount that requires the Projection Info of GridData
 //				return AVS_SuspendedOrFailed;
@@ -122,7 +122,7 @@ ActorVisitState AbstrGridStorageManager::VisitSuppliers(SupplierVisitFlag svf, c
 		if (auto selfAsDi = AsDynamicDataItem(self))
 		{
 			auto currDomain = CheckedGridDomain(selfAsDi);
-			if (currDomain && visitor(currDomain) == AVS_SuspendedOrFailed)
+			if (currDomain && visitor(currDomain.get()) == AVS_SuspendedOrFailed)
 				return AVS_SuspendedOrFailed;
 		}
 	}
@@ -306,8 +306,8 @@ SharedDataItem GetGridData(const TreeItem* storageHolder) // Look up the 'GridDa
 {
 	dms_assert(storageHolder);
 
-	SharedDataItem pData = AsDynamicDataItem(storageHolder->GetConstSubTreeItemByID(GRID_DATA_ID));
-	if (pData && !GridDomain(pData)) 
+	auto pData = AsDynamicDataItem(storageHolder->GetConstSubTreeItemByID(GRID_DATA_ID));
+	if (pData && !GridDomain(pData.get()))
 		return {};
 
 	return pData;
@@ -323,7 +323,7 @@ SharedDataItem GetGridData(const TreeItem* storageHolder, bool projectionSpecsAv
 		if (!projectionSpecsAvailable || storageHolder->IsStorable() )
 		{
 			pData = AsDynamicDataItem(storageHolder);
-			if (pData && !GridDomain(pData)) 
+			if (pData && !GridDomain(pData.get())) 
 				pData = nullptr;
 		}
 	}

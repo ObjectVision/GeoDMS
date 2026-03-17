@@ -360,7 +360,7 @@ void XML_Table::NameErrRow(CharPtr propName, const ErrMsg& err, const TreeItem* 
 			OutStream().WriteTrimmed("(F2 target)");
 		}
 //		row.ValueCell("Also Failed (F2 target)");
-		row.ItemCell(errSrc.first);
+		row.ItemCell(errSrc.first.get());
 	}
 }
 
@@ -438,7 +438,7 @@ const TreeItem* WriteExprOrSourceDescrAndReturnSourceItem(OutStreamBase& stream,
 	if (!exprStr.empty())
 	{
 		assert(s_AnnotateExprFunc);
-		s_AnnotateExprFunc(stream, AbstrCalculator::GetSearchContext(ti, CalcRole::Calculator), exprStr);
+		s_AnnotateExprFunc(stream, AbstrCalculator::GetSearchContext(ti, CalcRole::Calculator).get(), exprStr);
 		if (AbstrCalculator::MustEvaluate(exprStr.begin()))
 		{
 			NewLine(stream);
@@ -460,7 +460,7 @@ const TreeItem* WriteExprOrSourceDescrAndReturnSourceItem(OutStreamBase& stream,
 	}
 	if (!ti->HasCalculator())
 	{
-		const TreeItem* storageParent = ti->GetStorageParent(false);
+		auto storageParent = ti->GetStorageParent(false);
 		if (storageParent && (IsUnit(ti) || IsDataItem(ti)))
 		{
 			const AbstrStorageManager* sm = storageParent->GetStorageManager();
@@ -478,7 +478,7 @@ const TreeItem* WriteExprOrSourceDescrAndReturnSourceItem(OutStreamBase& stream,
 		assert(!si->IsCacheItem());
 		stream << "assigned by ";
 		{
-			XML_hRef parentRef(stream, ItemUrl(ti->GetTreeParent()).c_str());
+			XML_hRef parentRef(stream, ItemUrl(ti->GetTreeParent().get()).c_str());
 			stream << "parent";
 		}
 		stream << " to ";
@@ -496,7 +496,7 @@ const TreeItem* WriteExprOrSourceDescrAndReturnSourceItem(OutStreamBase& stream,
 		else
 		{
 			auto flispExprStr = calc->GetAsFLispExprOrg(FormattingFlags::None);
-			s_AnnotateExprFunc(stream, AbstrCalculator::GetSearchContext(ti, CalcRole::Calculator), flispExprStr);
+			s_AnnotateExprFunc(stream, AbstrCalculator::GetSearchContext(ti, CalcRole::Calculator).get(), flispExprStr);
 		}
 	}
 	return nullptr;
@@ -603,7 +603,7 @@ const TreeItem* GetTemplRoot(const TreeItem* self)
 	while (!self->IsTemplate())
 	{
 		dms_assert(self->InTemplate());
-		self = self->GetTreeParent();
+		self = self->GetTreeParent().get();
 		dms_assert(self);
 	}
 	return self;
@@ -614,7 +614,7 @@ void TraceConfigSource(const TreeItem* self, XML_Table& xmlTable)
 	if (!self)
 		return;
 	xmlTable.NamedItemRow("Instantiated from", self);
-	TraceConfigSource(self->mc_OrgItem, xmlTable);
+	TraceConfigSource(self->mc_OrgItem.get(), xmlTable);
 }
 
 // *****************************************************************************
@@ -642,7 +642,7 @@ bool TreeItem_XML_DumpGeneralBody(const TreeItem* self, OutStreamBase* xmlOutStr
 
 	if (IsInDebugMode() && !self->InTemplate())
 	{
-		for( auto refItem = self; refItem; refItem = refItem->mc_RefItem)
+		for( auto refItem = self; refItem; refItem = refItem->mc_RefItem.get())
 		{
 			assert(!DebugOnlyLock::IsLocked()); // PRECONDITION
 			auto nc = TreeItem_GetProgressState(refItem);
@@ -710,13 +710,13 @@ bool TreeItem_XML_DumpGeneralBody(const TreeItem* self, OutStreamBase* xmlOutStr
 			return false;
 	}
 
-	TraceConfigSource(self->mc_OrgItem, xmlTable);
+	TraceConfigSource(self->mc_OrgItem.get(), xmlTable);
 
 	// ==================== Calculation rule and/or Storage description
 	xmlTable.LinedRow();
 	WriteExprOrSourceDescrRow(xmlTable, self);
 
-	const TreeItem* sp = self->GetStorageParent(false);
+	auto sp = self->GetStorageParent(false);
 	if (sp)
 	{
 		AbstrStorageManager* sm = sp->GetStorageManager();
@@ -738,9 +738,9 @@ bool TreeItem_XML_DumpGeneralBody(const TreeItem* self, OutStreamBase* xmlOutStr
 			{
 				XML_Table::Row row(xmlTable);
 				row.ValueCell("assigned to");
-				row.ItemCell(sp);
+				row.ItemCell(sp.get());
 			}
-			result = storageTypePropDefPtr->GetValue(sp);
+			result = storageTypePropDefPtr->GetValue(sp.get());
 			if (!result.empty())
 				xmlTable.NameValueRow(STORAGETYPE_NAME, result.c_str());
 
@@ -817,8 +817,8 @@ bool TreeItem_XML_DumpGeneralBody(const TreeItem* self, OutStreamBase* xmlOutStr
 			auto n = self->GetSupplCache()->GetNrConfigured(self); // only ConfigSuppliers, Implied suppliers come after this, Calculator & StorageManager have added them
 			for (decltype(n) i = 0; i < n; ++i)
 			{
-				const Actor* supplier = self->GetSupplCache()->begin(self)[i];
-				auto supplTI = debug_cast<const TreeItem*>(supplier);
+				auto supplier = self->GetSupplCache()->begin(self)[i];
+				auto supplTI = debug_cast<const TreeItem*>(supplier.get());
 				if (supplTI)
 				{
 					NewLine(out);
@@ -901,7 +901,7 @@ bool XML_MetaInfoRefRows(const TreeItem* self, XML_Table& table, CharPtr color)
 {
 	assert(self);
 
-	for (auto cursor = self; cursor; cursor = cursor->GetTreeParent())
+	for (auto cursor = self; cursor; cursor = cursor->GetTreeParent().get())
 	{
 		auto url = TreeItemPropertyValue(cursor, urlPropDefPtr);
 		if (!url.empty())
@@ -1148,9 +1148,9 @@ void TreeItem_XML_DumpExploreThisAndParents_impl(const TreeItem* self, OutStream
 	}
 	else
 	{
-		const TreeItem* parent = self->GetTreeParent();
+		auto parent = self->GetTreeParent();
 		if (parent)
-			TreeItem_XML_DumpExploreThisAndParents_impl(parent, xmlOutStrPtr, viewHidden, doneItems, self, "is parent of");
+			TreeItem_XML_DumpExploreThisAndParents_impl(parent.get(), xmlOutStrPtr, viewHidden, doneItems, self, "is parent of");
 	}
 	return;
 
@@ -1347,7 +1347,7 @@ TIC_CALL bool DMS_CONV DMS_TreeItem_Dump(const TreeItem* self, CharPtr fileName)
 
 		bool isRoot = !(self->GetTreeParent());
 		if (!isRoot)
-			fileNameStr = DelimitedConcat(GetCaseDir(self->GetTreeParent()).c_str(), fileNameStr.c_str());
+			fileNameStr = DelimitedConcat(GetCaseDir(self->GetTreeParent().get()).c_str(), fileNameStr.c_str());
 		else
 		{
 			assert(s_gDumpFolder.empty() );

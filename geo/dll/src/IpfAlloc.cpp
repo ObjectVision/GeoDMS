@@ -414,7 +414,7 @@ public:
 		const AbstrUnit* atomicRegionUnit = debug_cast<const Arg6Type*>(args[5]);
 		dms_assert(atomicRegionUnit);
 
-		const AbstrDataItem* atomicRegionMapA = AsCertainDataItem( atomicRegionUnit->GetConstSubTreeItemByID(GetTokenID_mt("UnionData")) );
+		const AbstrDataItem* atomicRegionMapA = AsCertainDataItem( atomicRegionUnit->GetConstSubTreeItemByID(GetTokenID_mt("UnionData")).get());
 
 		if (!resultHolder)
 			resultHolder = TreeItem::CreateCacheRoot();

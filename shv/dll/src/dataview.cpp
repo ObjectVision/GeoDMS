@@ -252,7 +252,7 @@ DataView::DataView(TreeItem* viewContext)
 
 	assert(viewContext);
 
-	InsertCaret(m_FocusCaret);
+	InsertCaret(m_FocusCaret.get());
 	m_State.Set(DVF_CaretsVisible); // Paint will draw them.if true; we assume application and view has focus.
 
 #if defined(MG_DEBUG_DATAVIEWSET)
@@ -414,7 +414,7 @@ auto DataView::OnCommandEnable(ToolButtonID id) const->CommandStatus
 	auto result = GetContents()->OnCommandEnable(id);
 	if (result == CommandStatus::ENABLED)
 	{
-		for (AbstrController* ctrlPtr: m_ControllerVector)
+		for (auto ctrlPtr: m_ControllerVector)
 		{
 			switch (ctrlPtr->GetPressStatus(id))
 			{
@@ -1388,7 +1388,7 @@ void DataView::SetFocusRect(GRect focusRect)
 			return;
 
 		MoveCaret(
-			m_FocusCaret,
+			m_FocusCaret.get(),
 			DualPointCaretOperator(focusRect.LeftTop(), focusRect.RightBottom(), 0)
 		);	
 	}

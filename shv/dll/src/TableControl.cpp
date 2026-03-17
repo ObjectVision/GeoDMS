@@ -1161,7 +1161,7 @@ SharedPtr<AbstrDataItem> TableControl::CreateIdAttr(const AbstrUnit* domain, con
 		idAttr->SetDC(GetOrCreateDataController(keyExpr));
 	}
 	else
-		idAttr->SetExpr( mySSPrintF("id(%s)", domain->GetScriptName(idAttr).c_str() ) );
+		idAttr->SetExpr( mySSPrintF("id(%s)", domain->GetScriptName(idAttr.get()).c_str() ) );
 	return idAttr;
 }
 
@@ -1171,7 +1171,7 @@ void TableControl::AddIdColumn(const AbstrUnit* domain, const AbstrDataItem* exa
 	if ( idAttr )
 	{
 		idAttr->UpdateMetaInfo();
-		auto column = std::make_shared<DataItemColumn>(this,  idAttr );
+		auto column = std::make_shared<DataItemColumn>(this,  idAttr.get());
 		column->m_State.Set(GOF_IgnoreActivation);
 		InsertColumn(column.get());
 	}
@@ -1301,7 +1301,7 @@ void TableControl::CreateTableGroupBy(bool activate)
 
 		m_GroupByEntity = groupByEntity.get_ptr();
 
-		SharedPtr<AbstrDataItem> groupByRel = CreateDataItem(groupByEntity, GetTokenID_mt("per_Row"), GetEntity(), m_GroupByEntity);
+		SharedPtr<AbstrDataItem> groupByRel = CreateDataItem(groupByEntity.get(), GetTokenID_mt("per_Row"), GetEntity(), m_GroupByEntity);
 		groupByRel->DisableStorage();
 		auto rlookupExprFormat = keysMustBeDefined ? "rlookup(%s, values)" : "rlookup_with_null(%s, values)";
 		groupByRel->SetExpr(mgFormat2SharedStr(rlookupExprFormat, expr));

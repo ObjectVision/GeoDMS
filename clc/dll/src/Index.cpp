@@ -136,7 +136,7 @@ public:
 			AbstrDataItem* res = AsDataItem(resultHolder.GetNew());
 			DataWriteLock resLock(res);
 
-			Calculate(v, resLock, adi);
+			Calculate(v, resLock.get(), adi);
 
 			resLock.Commit();
 		}

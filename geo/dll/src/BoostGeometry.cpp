@@ -334,7 +334,7 @@ protected:
 
 			parallel_tileloop(domain1Unit->GetNrTiles(), [this, resObj = resLock.get(), arg1A, maxError](tile_id t)->void
 				{
-					ReadableTileLock readPoly1Lock (arg1A->GetCurrRefObj(), t);
+					ReadableTileLock readPoly1Lock (arg1A->GetCurrRefObj().get(), t);
 
 					Calculate(resObj, arg1A, maxError, t);
 				}
@@ -1321,7 +1321,7 @@ protected:
 
 			parallel_tileloop(domain1Unit->GetNrTiles(), [this, resObj = resLock.get(), arg1A](tile_id t)->void
 				{
-					ReadableTileLock readPoly1Lock(arg1A->GetCurrRefObj(), t);
+					ReadableTileLock readPoly1Lock(arg1A->GetCurrRefObj().get(), t);
 
 					Calculate(resObj, arg1A, t);
 				}

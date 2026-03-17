@@ -55,7 +55,7 @@ struct AbstrUnaryAttrOperator: UnaryOperator
 		assert(e);
 
 		if (!resultHolder)
-			resultHolder = CreateCacheDataItem(e, (*m_UnitCreatorPtr)(GetGroup(), args), m_VC);
+			resultHolder = CreateCacheDataItem(e, (*m_UnitCreatorPtr)(GetGroup(), args).get(), m_VC);
 
 		if (mustCalc)
 		{
@@ -79,7 +79,7 @@ struct AbstrUnaryAttrOperator: UnaryOperator
 				parallel_tileloop(tn,
 					[&resLock, this, arg1A, af](tile_id t)->void
 					{
-						Calculate(resLock, arg1A, af, t);
+						this->Calculate(resLock.get(), arg1A, af, t);
 					}
 				);
 
@@ -119,11 +119,11 @@ public:
 		auto arg1VU = MakeSharedFromBorrowedObjectPtr(arg1A->GetAbstrValuesUnit());
 
 		using prepare_data = std::shared_ptr<typename Arg1Type::future_tile>;
-		auto futureTileFunctor = make_unique_FutureTileFunctor<ResultValueType, prepare_data, false>(resultAdi, lazy, tileRangeData, get_range_ptr_of_valuesunit(valuesUnit)
+		auto futureTileFunctor = make_unique_FutureTileFunctor<ResultValueType, prepare_data, false>(resultAdi.get(), lazy, tileRangeData.get(), get_range_ptr_of_valuesunit(valuesUnit)
 			, [arg1, af](tile_id t) { return arg1->GetFutureTile(t); }
 			, [this, arg1VU, af MG_DEBUG_ALLOCATOR_SRC_PARAM](sequence_traits<ResultValueType>::seq_t resData, prepare_data futureData)
 			{
-				this->CalcTile(resData, futureData->GetTile().get_view(), arg1VU, af MG_DEBUG_ALLOCATOR_SRC(srcStr.c_str()));
+				this->CalcTile(resData, futureData->GetTile().get_view(), arg1VU.get(), af MG_DEBUG_ALLOCATOR_SRC(srcStr.c_str()));
 			}
 			MG_DEBUG_ALLOCATOR_SRC_PARAM
 		);

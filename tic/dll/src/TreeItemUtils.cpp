@@ -57,10 +57,10 @@ const TreeItem* _GetHistoricUltimateItem(const TreeItem* ti) noexcept
 
 	while (true)
 	{
-		const TreeItem* refItem = ti->mc_RefItem;
+		auto refItem = ti->mc_RefItem;
 		if (!refItem)
 			return ti;
-		ti = refItem;
+		ti = refItem.get();
 	}
 }
 
@@ -124,12 +124,12 @@ SharedStr GetPartialName(const TreeItem* themeDisplayItem, UInt32 nameLevel)
 
 	for (; nameLevel; --nameLevel)
 	{
-		const TreeItem* parent = themeDisplayItem->GetTreeParent();
+		auto parent = themeDisplayItem->GetTreeParent();
 		if (!parent)
 			return themeDisplayItemCopy->GetFullName();
 
 		result = DelimitedConcat(themeDisplayItem->GetName().c_str(), result.c_str());
-		themeDisplayItem = parent;
+		themeDisplayItem = parent.get();
 		dms_assert(themeDisplayItem); // not root
 	}
 	return result;

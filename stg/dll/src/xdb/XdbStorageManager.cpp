@@ -106,11 +106,11 @@ FileResult XdbStorageManager::WriteDataItem(StorageMetaInfoPtr&& smiHolder)
 		result  = imp.Create(GetNameStr(), m_DatExtension, false);
 	MG_CHECK2(result, "Cannot open Xdb");
 
-	const AbstrDataItem* adi = smi->CurrRD();
+	auto adi = smi->CurrRD();
 
 	assert(adi->GetDataRefLockCount());
 
-	const AbstrDataObject* ado = adi->GetRefObj();
+	const AbstrDataObject* ado = adi->GetRefObj().get();
 	ValueClassID  vclsid = ado->GetValuesType()->GetValueClassID();
 
 	MG_CHECK(ado->GetNrFeaturesNow() == imp.NrOfRows());

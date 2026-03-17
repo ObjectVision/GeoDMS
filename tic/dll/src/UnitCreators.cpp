@@ -29,10 +29,10 @@ ConstUnitRef CastUnit(const UnitClass* uc, ConstUnitRef v)
 
 	ConstUnitRef u = uc->CreateDefault();
 
-	if (!v->UnifyValues(u, "", "", UM_AllowTypeDiff))
+	if (!v->UnifyValues(u.get(), "", "", UM_AllowTypeDiff))
 	{
 		auto newArg2 = uc->CreateTmpUnit(nullptr);
-		newArg2->DuplFrom(v);
+		newArg2->DuplFrom(v.get());
 		u = newArg2.release();
 	}
 	assert(u);

@@ -174,7 +174,7 @@ public:
 			AbstrDataItem* res = AsDataItem(resultHolder.GetNew());
 			DataWriteLock resLock(res);
 
-			Calculate(resLock.get(), arg1A->GetCurrRefObj(), xCoordA->GetCurrRefObj(), yCoordA->GetCurrRefObj());
+			Calculate(resLock.get(), arg1A->GetCurrRefObj().get(), xCoordA->GetCurrRefObj().get(), yCoordA->GetCurrRefObj().get());
 			resLock.Commit();
 		}
 		return true;

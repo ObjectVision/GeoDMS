@@ -92,7 +92,7 @@ namespace {
 					resValuesUnit = count_unit_creator(args);
 				else
 					resValuesUnit = default_unit_creator< ResultCountType>();
-				resultHolder = CreateCacheDataItem(e1, resValuesUnit);
+				resultHolder = CreateCacheDataItem(e1, resValuesUnit.get());
 			}
 
 			// Perform calculation if requested
@@ -197,7 +197,7 @@ namespace {
 			{
 				SharedPtr<const AbstrUnit> resValuesUnit;
 				resValuesUnit = default_unit_creator<Bool>();
-				resultHolder = CreateCacheDataItem(e1, resValuesUnit);
+				resultHolder = CreateCacheDataItem(e1, resValuesUnit.get());
 			}
 
 			// Perform calculation if requested

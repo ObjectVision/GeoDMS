@@ -543,7 +543,7 @@ namespace poly2grid
 			IPoint base = m_ViewPortInfo.GetViewPortOrigin();
 
 			const AbstrDataItem* polyAttr = m_PolyAttr;
-			const AbstrDataObject* polyData = polyAttr->GetCurrRefObj();
+			const AbstrDataObject* polyData = polyAttr->GetCurrRefObj().get();
 			const AbstrUnit* abstrPolyDomain = polyAttr->GetAbstrDomainUnit(); // could be void domain.
 			assert(abstrPolyDomain);
 			const Unit<E>* polyDomain = dynamic_cast<const Unit<E>*>(abstrPolyDomain); // could be nullptr
@@ -648,7 +648,7 @@ namespace poly2grid
 			IPoint base = m_ViewPortInfo.GetViewPortOrigin();
 
 			const AbstrDataItem* polyAttr = m_PolyAttr;
-			const AbstrDataObject* polyData = polyAttr->GetCurrRefObj();
+			const AbstrDataObject* polyData = polyAttr->GetCurrRefObj().get();
 			const AbstrUnit* abstrPolyDomain = polyAttr->GetAbstrDomainUnit(); // could be void domain.
 			assert(abstrPolyDomain);
 

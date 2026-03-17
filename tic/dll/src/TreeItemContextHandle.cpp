@@ -155,7 +155,7 @@ struct SystemContextHandle : AbstrContextHandle
 			ach = ach->GetPrev();
 		}
 		if (!curr && SessionData::Curr())
-			curr = SessionData::Curr()->GetConfigRoot();
+			curr = SessionData::Curr()->GetConfigRoot().get();
 		if (curr)
 		{
 			try {

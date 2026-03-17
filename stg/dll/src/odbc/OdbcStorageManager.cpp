@@ -340,7 +340,7 @@ struct OdbcMetaInfo : StorageMetaInfo
 		, m_TableHolder(IsDataItem(curr) ? curr->GetTreeParent() : MakeSharedFromBorrowedObjectPtr(curr))
 	{
 		if (m_TableHolder)
-			m_SqlString = GetOrCreateSqlString(m_TableHolder);
+			m_SqlString = GetOrCreateSqlString(m_TableHolder.get());
 	}
 
 	SharedTreeItem m_TableHolder;
@@ -393,7 +393,7 @@ public:
 	{
 		if (!m_RecordSet)
 		{
-			m_RecordSet = m_ODBCStorageManager->GetRecordSet(m_OdbcInfo->StorageHolder(), m_TableHolder, m_OdbcInfo->m_SqlString);
+			m_RecordSet = m_ODBCStorageManager->GetRecordSet(m_OdbcInfo->StorageHolder(), m_TableHolder.get(), m_OdbcInfo->m_SqlString);
 			dms_assert(m_RecordSet);
 			dms_assert(!m_RecordSet->IsLocked());
 			m_RecordSet->SetMaxRows(0);
@@ -471,7 +471,7 @@ public:
 	}
 	UInt32 ReadNrRecs()
 	{
-		OdbcTableContextHandle odbcTCG(m_TableHolder);
+		OdbcTableContextHandle odbcTCG(m_TableHolder.get());
 		dms_assert(!IsDefined(UInt32(SQL_NULL_DATA))); // we assume SQL_NULL_DATA to be equal to the dms null data value
 
 		// ============== Get and check valid recordset, do not yet open.
@@ -489,7 +489,7 @@ public:
 	}
 	void BindData(Byte* data, UInt32 size)
 	{
-		OdbcTableContextHandle odbcTCG(m_TableHolder);
+		OdbcTableContextHandle odbcTCG(m_TableHolder.get());
 		MG_CHECK(GetColumn()->CType() != SQL_C_CHAR);
 
 		TRecordSet* recordSet = GetRecordSet();
@@ -507,7 +507,7 @@ public:
 	}
 	void ReadData()
 	{
-		OdbcTableContextHandle odbcTCG(m_TableHolder);
+		OdbcTableContextHandle odbcTCG(m_TableHolder.get());
 		// get the stuff
 		GetOpenRecordSet()->Next(GetRecordCount());
 		dms_assert(!m_RecordSet->EndOfFile());
@@ -516,7 +516,7 @@ public:
 	void ConvertNullData(Byte* data, UInt32 size)
 	{
 		// ============== SetFrameSize: applied once only on closed rs, then open in case of chars
-		OdbcTableContextHandle odbcTCG(m_TableHolder);
+		OdbcTableContextHandle odbcTCG(m_TableHolder.get());
 		dms_assert(GetColumn()->CType() != SQL_C_CHAR);
 		UInt32       elemSize          = GetInternalValueClass()->GetSize();
 		const Byte*  undefinedValuePtr = GetInternalValueClass()->GetUndefinedValuePtr();
@@ -538,7 +538,7 @@ public:
 
 	void ReadStrings(sequence_traits<SharedStr>::seq_t data)
 	{
-		OdbcTableContextHandle odbcTCG(m_TableHolder);
+		OdbcTableContextHandle odbcTCG(m_TableHolder.get());
 
 		// ============== Get and check valid recordset, do not yet open.
 		TRecordSet* recordSet = GetRecordSet(); // does not open the recordset
@@ -675,7 +675,7 @@ TRecordSet* ODBCStorageManager::GetRecordSet(const TreeItem* storageHolder, Tree
 		rsRef = new TRecordSet(DatabaseInstance(storageHolder));
 		rsRef->CreateRecordSet(sqlString.c_str());
 	}
-	return rsRef;
+	return rsRef.get();
 }
 
 bool ODBCStorageManager::DoCheckExistence(const TreeItem* storageHolder, const TreeItem* storageItem) const
@@ -732,7 +732,7 @@ FileResult ODBCStorageManager::ReadDataItem(StorageMetaInfoPtr smi, AbstrDataObj
 	SharedPtr<TreeItem> tableHolder = const_cast<TreeItem*>(adi->GetTreeParent().get());
 
 	leveled_critical_section::scoped_lock lock(s_OdbcSection);
-	ODBCStorageReader ir(this, debug_cast<const OdbcMetaInfo*>(smi.get()), tableHolder, adi->GetName().c_str(), adi);
+	ODBCStorageReader ir(this, debug_cast<const OdbcMetaInfo*>(smi.get()), tableHolder.get(), adi->GetName().c_str(), adi);
 
 	adi->GetAbstrDomainUnit()->ValidateCount(ir.GetRecordCount());
 

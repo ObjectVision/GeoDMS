@@ -71,7 +71,7 @@ public:
 				parallel_tileloop(nrTiles, [this, argDataA, argUnitA, &resLock, res](tile_id t)->void
 					{
 						try {
-							this->Calculate(resLock, argDataA, argUnitA, t);
+							this->Calculate(resLock.get(), argDataA, argUnitA, t);
 						}
 						catch (const DmsException& x)
 						{
@@ -131,7 +131,7 @@ public:
 				visit<typelists::fields>(valuesUnit, [binaryOper, res, argDomainUnit, argValuesUnit, tileRangeData]<typename V>(const Unit<V>*valuesUnit) {
 					SharedUnitInterestPtr retainedArgDomainUnit = argDomainUnit;
 					SharedUnitInterestPtr retainedArgValuesUnit = argValuesUnit;
-					auto lazyTileFunctor = make_unique_LazyTileFunctor<V>(res, tileRangeData, valuesUnit->m_RangeDataPtr
+					auto lazyTileFunctor = make_unique_LazyTileFunctor<V>(res, tileRangeData.get(), valuesUnit->m_RangeDataPtr
 						, [binaryOper, res, retainedArgDomainUnit, retainedArgValuesUnit](AbstrDataObject* self, tile_id t) {
 							binaryOper->Calculate(self, retainedArgDomainUnit, retainedArgValuesUnit, t); // write into the same tile.
 						}
@@ -147,7 +147,7 @@ public:
 
 				parallel_tileloop(argDomainUnit->GetNrTiles(), [this, argDomainUnit, argValuesUnit, &resLock](tile_id t)->void
 					{
-						this->Calculate(resLock, argDomainUnit, argValuesUnit, t);
+						this->Calculate(resLock.get(), argDomainUnit, argValuesUnit, t);
 					}
 				);
 				resLock.Commit();
@@ -241,7 +241,7 @@ public:
 
 		using prepare_data = std::shared_ptr<Arg1Type::future_tile>;
 	
-		auto futureTileFunctor = make_unique_FutureTileFunctor<ResultValueType, prepare_data, false>(resultAdi, lazy, tileRangeData, get_range_ptr_of_valuesunit(valuesUnit)
+		auto futureTileFunctor = make_unique_FutureTileFunctor<ResultValueType, prepare_data, false>(resultAdi.get(), lazy, tileRangeData.get(), get_range_ptr_of_valuesunit(valuesUnit)
 			, [arg1](tile_id t) { return arg1->GetFutureTile(t); }
 			, [](sequence_traits<ResultValueType>::seq_t resData, prepare_data arg1FutureData)
 			{

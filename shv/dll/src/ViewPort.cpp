@@ -302,7 +302,7 @@ const ScalableObject* ViewPort::GetContents() const
 
 const AbstrUnit* ViewPort::GetWorldCrdUnit() const
 {
-	return m_WorldCrdUnit;
+	return m_WorldCrdUnit.get();
 }
 
 CrdRect WorldRect_AddBorderPixels(CrdRect result, CrdRect viewPort, const ScalableObject* go, OrientationType orientation)
@@ -1102,7 +1102,7 @@ void ViewPort::PasteGrid(SelValuesData* svd, GridLayer* gl)
 {
 	auto dv = GetDataView().lock(); if (!dv) return;
 	SharedPtr<PasteGridController> pasteController = new PasteGridController(dv.get(), this, gl, gl->GetGridCoordInfo(this), svd);
-	dv->InsertController(pasteController);
+	dv->InsertController(pasteController.get());
 	pasteController->m_OrgCursor = SetViewPortCursor(LoadCursor(g_ShvDllInstance, MAKEINTRESOURCE(IDC_PAN)));
 }
 
@@ -1175,12 +1175,12 @@ AbstrDataItem* GetPointParam(SharedMutableDataItemInterestPtr& param, ViewPort* 
 Float64 GetSubItemValue(const TreeItem* context, TokenID id, Float64 defaultVal)
 {
 	dms_assert(context);
-	const TreeItem* si = context->GetConstSubTreeItemByID(id);
+	auto si = context->GetConstSubTreeItemByID(id);
 	if (!si || !IsDataItem(si))
 		return defaultVal;
 
-	InterestPtr<const TreeItem*> tii(si);
-	PreparedDataReadLock drl(AsDataItem(si), "GetSubItemValue");
+	InterestPtr<const TreeItem*> tii(si.get());
+	PreparedDataReadLock drl(AsDataItem(si.get()), "GetSubItemValue");
 	return AsDataItem(si)->GetRefObj()->GetValueAsFloat64(0);
 }
 
@@ -1216,10 +1216,10 @@ void ViewPort::SetROI(const CrdRect& r)
 	DBG_TRACE(("TlChanged: %d", GetContext() ? m_ROI_TL->GetLastChangeTS() : 0 ));
 	DBG_TRACE(("BrChanged: %d", GetContext() ? m_ROI_BR->GetLastChangeTS() : 0 ));
 
-	CrdType minSize = GetSubItemValue(m_WorldCrdUnit,  vpminsID, -1.0);
-	CrdType maxSize = GetSubItemValue(m_WorldCrdUnit,  vpmaxsID, 40000.0e+9);
+	CrdType minSize = GetSubItemValue(m_WorldCrdUnit.get(),  vpminsID, -1.0);
+	CrdType maxSize = GetSubItemValue(m_WorldCrdUnit.get(),  vpmaxsID, 40000.0e+9);
 	if (minSize == -1.0)
-		minSize = 10.0 / GetUnitSizeInMeters(m_WorldCrdUnit);
+		minSize = 10.0 / GetUnitSizeInMeters(m_WorldCrdUnit.get());
 	CrdRect rr = r;
 	LimitRange(rr.first.Row(), rr.second.Row(), minSize, maxSize);
 	LimitRange(rr.first.Col(), rr.second.Col(), minSize, maxSize);
@@ -1242,7 +1242,7 @@ void SetRoiParam(TreeItem* context, SharedMutableDataItemInterestPtr& param, Tok
 	dms_assert(context);
 	if (!param)
 	{
-		const AbstrDataItem* res = AsDynamicDataItem( context->GetConstSubTreeItemByID(id) );
+		const AbstrDataItem* res = AsDynamicDataItem( context->GetConstSubTreeItemByID(id).get() );
 
 		if (res && res->GetAbstrValuesUnit()->UnifyValues(worldCrdUnit, res->GetFullName().c_str(), "WorldCrdUnit", UM_AllowDefault))
 			param = const_cast<AbstrDataItem*>(res);
@@ -1257,8 +1257,8 @@ bool ViewPort::HasROI() const
 	if (!context)
 		return false;
 
-	SetRoiParam(context, m_ROI_TL, t_RoiTL, m_WorldCrdUnit);
-	SetRoiParam(context, m_ROI_BR, t_RoiBR, m_WorldCrdUnit);
+	SetRoiParam(context, m_ROI_TL, t_RoiTL, m_WorldCrdUnit.get());
+	SetRoiParam(context, m_ROI_BR, t_RoiBR, m_WorldCrdUnit.get());
 
 	return m_ROI_TL && m_ROI_BR; 
 }

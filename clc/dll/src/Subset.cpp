@@ -182,7 +182,7 @@ struct SubsetOperator: public UnaryOperator
 
 		if (resSub)
 		{
-			DataWriteLock resSubLock(resSub, dms_rw_mode::write_only_all, arg1Domain->GetTiledRangeData());
+			DataWriteLock resSubLock(resSub, dms_rw_mode::write_only_all, arg1Domain->GetTiledRangeData().get());
 
 			assert(resSub->GetAbstrValuesUnit()->UnifyDomain(arg1A->GetAbstrDomainUnit(), "values of resSub", "e1"));
 
@@ -233,7 +233,7 @@ struct SelectMetaOperator : public BinaryOperator
 		auto conditionExprStr = AsFLispSharedStr(conditionExpr, FormattingFlags::NoLimitInLispExpr);
 		auto conditionCalc = AbstrCalculator::ConstructFromLispRef(resultHolder.GetOld(), conditionExpr, CalcRole::Other);
 		MG_CHECK(conditionCalc);
-		auto conditionDC = GetDC(conditionCalc);
+		auto conditionDC = GetDC(conditionCalc.get());
 		LispRef conditionKeyExpr;
 		const AbstrDataItem* conditionA = nullptr;
 		if (conditionDC)
@@ -460,7 +460,7 @@ struct CollectWithAttrOperator : public BinaryOperator
 			condOrOrgRelExprStr = AsFLispSharedStr(condOrOrgRelExpr, FormattingFlags::NoLimitInLispExpr);
 
 			auto condOrOrgRelCalc = AbstrCalculator::ConstructFromLispRef(resultHolder.GetOld(), condOrOrgRelExpr, CalcRole::Other);
-			condOrOrgRelDC = GetDC(condOrOrgRelCalc);
+			condOrOrgRelDC = GetDC(condOrOrgRelCalc.get());
 			MG_CHECK(condOrOrgRelDC);
 			//		condOrOrgRelExpr = condOrOrgRelDC->GetLispRef();
 			auto condOrOrgRelItem = condOrOrgRelDC->MakeResult();

@@ -447,8 +447,6 @@ ActorVisitState Actor::SuspendibleUpdate() const // returns false in case of fai
      // we can try (to resume) to update now
     MG_DEBUGCODE( TimeStamp lts = UpdateMarker::LastTS() );
 
-    assert(!WasFailed());
-
     if (!MustApplyImpl()) // must data be calculated, i.e. must supplier data be kept available?
     {
         SetProgress(ProgressState::Committed);
@@ -459,8 +457,6 @@ ActorVisitState Actor::SuspendibleUpdate() const // returns false in case of fai
     UpdateLock updateLock(this, actor_flag_set::AF_ValidatingAndCommitting);
 
     dms_assert(!SuspendTrigger::DidSuspend()); // follows on precondition
-
-    assert(!WasFailed());
 
     // ===========================
     ActorVisitState updateRes = UpdateSuppliers(); 

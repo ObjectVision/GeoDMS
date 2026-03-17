@@ -258,7 +258,7 @@ struct OperExecDllN : public VariadicOperator
 SharedStr GetStorageManagerName(const TreeItem* ti)
 {
 	dms_assert(ti);
-	const TreeItem* storageHolder = ti->GetStorageParent(false);
+	auto storageHolder = ti->GetStorageParent(false);
 	if (!storageHolder)
 		return SharedStr();
 
@@ -268,7 +268,7 @@ SharedStr GetStorageManagerName(const TreeItem* ti)
 
 	if (storageManager->GetDynamicClass() == ODBCStorageManager::GetStaticClass())
 	{
-		return debug_cast<ODBCStorageManager*>(storageManager)->GetDatabaseFilename(storageHolder);
+		return debug_cast<ODBCStorageManager*>(storageManager)->GetDatabaseFilename(storageHolder.get());
 	}
 	else
 		return storageManager->GetNameStr();

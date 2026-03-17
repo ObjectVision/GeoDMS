@@ -216,10 +216,10 @@ namespace cs_lock {
 		assert(key);
 		if (!key->IsCacheItem())
 			return true;
-		const struct TreeItem* parent = key->GetTreeParent();
+		auto parent = key->GetTreeParent();
 		if (!parent)
 			return true;
-		return TryReadLock(parent); // let assoc_ptr slip here; caller must call FreeReadAccess(key) that will calltreeitem_production_task::unlock(parent); (through ReadFree)
+		return TryReadLock(parent.get()); // let assoc_ptr slip here; caller must call FreeReadAccess(key) that will calltreeitem_production_task::unlock(parent); (through ReadFree)
 	}
 
 	void FreeReadAccess(const TreeItem* key)
@@ -459,7 +459,7 @@ ItemWriteLock::~ItemWriteLock()
 
 	SharedPtr<const TreeItem> garbage = GetItem();
 
-	treeitem_production_task::unlock_unique(m_ItemPtr);
+	treeitem_production_task::unlock_unique(m_ItemPtr.get());
 	s_SessionUsageCounter.unlock_shared();
 #if defined(MG_DEBUG_DATASTORELOCK)
 	--sd_ItemWriteLockCounter;
@@ -489,7 +489,7 @@ bool IsCalculating(const TreeItem* item)
 			return false; // read locks active
 		if (!item->IsCacheItem())
 			return false;
-		item = item->GetTreeParent();
+		item = item->GetTreeParent().get();
 		assert(!item || item->IsCacheItem());
 	} while (item);
 	return false;
@@ -762,7 +762,7 @@ bool IsInWriteLock(const TreeItem* item)
 			return true;
 		if (!item->IsCacheItem())
 			return false;
-		item = item->GetTreeParent(); // cache items can inherit write rights from parent
+		item = item->GetTreeParent().get(); // cache items can inherit write rights from parent
 	}	while (item);
 	return false;
 }
@@ -850,7 +850,7 @@ std::shared_ptr<OperationContext> GetOperationContext(const TreeItem* item)
 			break;
 		if (IsDataReady(item))
 			break;
-		item = item->GetTreeParent(); // cache items can inherit write rights from parent
+		item = item->GetTreeParent().get(); // cache items can inherit write rights from parent
 	}	while (item);
 	assert(!item || CheckDataReady(item) || item->IsDataReadable() || item->WasFailed());
 	return std::shared_ptr<OperationContext>();

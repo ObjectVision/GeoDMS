@@ -146,7 +146,7 @@ public:
 
 	~CompoundStorageOutStreamBuff()
 	{
-		(*m_IStream)->Commit(STGC_DEFAULT);
+		(*m_IStream.get())->Commit(STGC_DEFAULT);
 	}
 
 	void WriteBytes(const Byte* data, streamsize_t size) override
@@ -157,7 +157,7 @@ public:
 		while (size)
 		{
 			ULONG chunkSize = size > 0x40000000 ? 0x40000000 : size;
-			HRESULT result = (*m_IStream)->Write(data, size, nullptr);
+			HRESULT result = (*m_IStream.get())->Write(data, size, nullptr);
 			dms_assert(chunkSize <= size);
 			size -= chunkSize;
 			m_CurrPos += chunkSize;
@@ -198,7 +198,7 @@ public:
 		,	m_Size(0)
 	{
 		STATSTG stat;
-		(*m_IStream)->Stat(&stat, STATFLAG_NONAME);
+		(*m_IStream.get())->Stat(&stat, STATFLAG_NONAME);
 #if defined(DMS_64)
 		m_Size = stat.cbSize.QuadPart;
 #else
@@ -211,7 +211,7 @@ public:
 	{
 		if (!size) return;
 		// read the data
-		HRESULT result = (*m_IStream)->Read(data, ThrowingConvert<ULONG>(size), NULL);
+		HRESULT result = (*m_IStream.get())->Read(data, ThrowingConvert<ULONG>(size), NULL);
 		// convert result to ASM defined result
 		m_CSM->CheckResult(result, "ReadBytes", m_NameStrPtr);
 		m_CurrPos += size;
@@ -304,7 +304,7 @@ std::unique_ptr<OutStreamBuff> CompoundStorageManager::DoOpenOutStream(const Sto
 
 	dms_assert(stream);
 
-	return std::make_unique<CompoundStorageOutStreamBuff>(stream, this, path);
+	return std::make_unique<CompoundStorageOutStreamBuff>(stream.get(), this, path);
 }
 
 std::unique_ptr<InpStreamBuff> CompoundStorageManager::DoOpenInpStream(const StorageMetaInfo&, CharPtr path) const
@@ -315,7 +315,7 @@ std::unique_ptr<InpStreamBuff> CompoundStorageManager::DoOpenInpStream(const Sto
 	SharedPtr<cfsptr<IStream> > stream( const_cast<CompoundStorageManager*>(this)->GetStream(path, false) );
 	if (stream.is_null()) 
 		return {};
-	return std::make_unique<CompoundStorageInpStreamBuff>(stream, this, path);
+	return std::make_unique<CompoundStorageInpStreamBuff>(stream.get(), this, path);
 }
 
 /*
@@ -396,13 +396,13 @@ cfsptr<IStream>* CompoundStorageManager::GetStream(CharPtr path, bool mayCreate)
 		// POST: sub->refCount == 1 || sub==0
 		if (!sub)
 			return nullptr;
-		subStorage = new cfsptr<IStorage>(subStorage, sub); // sub->refCount == 1
+		subStorage = new cfsptr<IStorage>(subStorage.get(), sub); // sub->refCount == 1
 		path = new_path;
 	}
 	IStream* stream = OpenDataStream(subStorage->m_Resource, mayCreate); 
 	// POST: stream->refCount == 1 || stream==0
 	if (!stream) return nullptr;
-	return new cfsptr<IStream>(subStorage, stream); // stream->refCount == 1
+	return new cfsptr<IStream>(subStorage.get(), stream); // stream->refCount == 1
 }
 
 /*

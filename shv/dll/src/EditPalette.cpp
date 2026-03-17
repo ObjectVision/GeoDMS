@@ -382,7 +382,7 @@ void EditPaletteControl::ClassifyUniqueValues ()
 		const_cast<AbstrUnit*>(GetDomain())->SetCount(m);
 	}
 
-	::ClassifyUniqueValues(const_cast<AbstrDataItem*>(m_PaletteControl->GetBreakAttr()), m_SortedUniqueValueCache.first, m_SortedUniqueValueCache.second);
+	::ClassifyUniqueValues(const_cast<AbstrDataItem*>(m_PaletteControl->GetBreakAttr()), m_SortedUniqueValueCache.first, m_SortedUniqueValueCache.second.get());
 
 	ReLabelValues();
 	UpdateNrClasses();
@@ -411,7 +411,7 @@ void EditPaletteControl::ClassifyEqualCount()
 	dms_assert(breakAttr);
 	dms_assert(breakAttr->HasInterest());
 
-	auto ba = ::ClassifyEqualCount(breakAttr, m_SortedUniqueValueCache.first, m_SortedUniqueValueCache.second);
+	auto ba = ::ClassifyEqualCount(breakAttr, m_SortedUniqueValueCache.first, m_SortedUniqueValueCache.second.get());
 
 	ReLabelRanges();
 	UpdateNrClasses();
@@ -440,7 +440,7 @@ void EditPaletteControl::ClassifyNZEqualCount()
 	dms_assert(breakAttr);
 	dms_assert(breakAttr->HasInterest());
 
-	auto ba = ::ClassifyNZEqualCount(breakAttr, m_SortedUniqueValueCache.first, m_SortedUniqueValueCache.second);
+	auto ba = ::ClassifyNZEqualCount(breakAttr, m_SortedUniqueValueCache.first, m_SortedUniqueValueCache.second.get());
 
 	ReLabelRanges();
 	UpdateNrClasses();
@@ -463,7 +463,7 @@ void EditPaletteControl::ClassifyEqualInterval()
 	assert(breakAttr);
 	assert(breakAttr->HasInterest());
 
-	auto ba = ::ClassifyEqualInterval(breakAttr, m_SortedUniqueValueCache.first, m_SortedUniqueValueCache.second);
+	auto ba = ::ClassifyEqualInterval(breakAttr, m_SortedUniqueValueCache.first, m_SortedUniqueValueCache.second.get());
 
 	ReLabelRanges();
 	UpdateNrClasses();
@@ -486,7 +486,7 @@ void EditPaletteControl::ClassifyNZEqualInterval()
 	assert(breakAttr);
 	assert(breakAttr->HasInterest());
 
-	auto ba = ::ClassifyNZEqualInterval(breakAttr, m_SortedUniqueValueCache.first, m_SortedUniqueValueCache.second);
+	auto ba = ::ClassifyNZEqualInterval(breakAttr, m_SortedUniqueValueCache.first, m_SortedUniqueValueCache.second.get());
 
 	ReLabelRanges();
 	UpdateNrClasses();
@@ -532,7 +532,7 @@ void EditPaletteControl::ClassifyJenksFisher(bool separateZero)
 	dms_assert(breakAttr);
 	dms_assert(breakAttr->HasInterest());
 
-	auto ba = ::ClassifyJenksFisher(breakAttr, m_SortedUniqueValueCache.first, m_SortedUniqueValueCache.second, separateZero);
+	auto ba = ::ClassifyJenksFisher(breakAttr, m_SortedUniqueValueCache.first, m_SortedUniqueValueCache.second.get(), separateZero);
 
 	ReLabelRanges();
 	UpdateNrClasses();
@@ -570,7 +570,7 @@ void EditPaletteControl::ReLabelValues()
 
 	PreparedDataReadLock  breakLock(breakAttr, "EditPaletteControl::ReLabelValues()");
 	DataWriteLock labelLock(labelAttr);
-	const AbstrDataObject* breakObj = breakAttr->GetRefObj();
+	auto breakObj = breakAttr->GetRefObj();
 	GuiReadLock lockHolder;
 	for (SizeT j =0; j != k; ++j)
 		labelLock->SetValue<SharedStr>(j, breakObj->AsString(j, lockHolder, FormattingFlags::ThousandSeparator));
@@ -718,8 +718,8 @@ void CreateEditPaletteMdiChild(GraphicLayer* layer, const AbstrDataItem* themeAt
 		TreeItem* viewContext = desktopItem->CreateItem(UniqueName(desktopItem, EditPaletteView::GetStaticClass())).release();
 		dms_assert(viewContext);
 
-		auto editPaletteView = std::make_shared<EditPaletteView>(viewContext, layer.get(), themeAttrSPtr);
-		editPaletteView->SetContents(make_shared_gr<EditPaletteControl>(editPaletteView.get(), themeAttrSPtr)(editPaletteView.get(), layer.get()), SM_Save);
+		auto editPaletteView = std::make_shared<EditPaletteView>(viewContext, layer.get(), themeAttrSPtr.get());
+		editPaletteView->SetContents(make_shared_gr<EditPaletteControl>(editPaletteView.get(), themeAttrSPtr.get())(editPaletteView.get(), layer.get()), SM_Save);
 
 		SharedStr caption = "PaletteEditor for " + themeAttrSPtr->GetDisplayName();
 

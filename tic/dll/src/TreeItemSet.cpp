@@ -255,7 +255,7 @@ TIC_CALL const TreeItemVectorType* DMS_CONV DMS_TreeItem_CreateSimilarItemSet(
 		MG_SIGNAL_ON_UPDATEMETAINFO
 
 		if (searchLoc == 0)
-			searchLoc = SessionData::Curr()->GetConfigRoot();
+			searchLoc = SessionData::Curr()->GetConfigRoot().get();
 
 		UInt32 flags = 0;
 		if (mustMatchName      ) flags += CSS_MatchName;

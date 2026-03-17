@@ -111,7 +111,7 @@ const AbstrDataItem* PaletteControl::GetThemeAttr() const
 
 const AbstrUnit* PaletteControl::GetPaletteDomain() const
 {
-	return m_PaletteDomain;
+	return m_PaletteDomain.get();
 }
 
 void PaletteControl::CreateSymbolColumnFromLayer()
@@ -174,7 +174,7 @@ void PaletteControl::CreateSymbolColumnFromLayer()
 					column->SetTheme(Theme::CreateVar<DmsColor>(AN_LabelTextColor, value, m_Layer.get()).get(), nullptr);
 				}
 			}
-			else if (theme->HasCompatibleDomain(m_PaletteDomain)) // this theme is void or active theme is attr-only domain
+			else if (theme->HasCompatibleDomain(m_PaletteDomain.get())) // this theme is void or active theme is attr-only domain
 				if (!((1<<a) & ASE_AnyColor & ~ASE_LabelTextColor))
 					if  (a == AN_LabelText)
 						m_LabelTextAttr = theme->GetThemeAttr();
@@ -228,7 +228,7 @@ void PaletteControl::CreateSymbolColumnFromLayer()
 	auto columnActiveTheme = column->GetActiveTheme();
 	if (columnActiveTheme && !columnActiveTheme->IsAspectParameter())
 	{
-		dms_assert(!column->GetActiveEntity() || column->GetActiveEntity()->UnifyDomain(m_PaletteDomain) );
+		dms_assert(!column->GetActiveEntity() || column->GetActiveEntity()->UnifyDomain(m_PaletteDomain.get()) );
 		// further provider logic
 	}
 	InsertColumn(column.get());
@@ -254,9 +254,9 @@ void PaletteControl::CreateSymbolColumnFromAttr()
 		if ((1<<a) & ASE_AllDrawAspects)
 		{
 
-			const AbstrDataItem* paletteData = FindAspectAttr(a, firstContext, m_PaletteDomain, 0);
+			const AbstrDataItem* paletteData = FindAspectAttr(a, firstContext, m_PaletteDomain.get(), 0);
 			if (!paletteData)
-				paletteData = FindAspectAttr(a, m_PaletteDomain, m_PaletteDomain, 0);
+				paletteData = FindAspectAttr(a, m_PaletteDomain.get(), m_PaletteDomain.get(), 0);
 			if (!paletteData)
 				continue;
 
@@ -277,7 +277,7 @@ void PaletteControl::CreateSymbolColumnFromAttr()
 	dms_assert(!column->GetTheme(AN_LabelText));
 	if (column->GetActiveTheme() && !column->GetActiveTheme()->IsAspectParameter())
 	{
-		dms_assert(column->GetActiveEntity()->UnifyDomain(m_PaletteDomain) );
+		dms_assert(column->GetActiveEntity()->UnifyDomain(m_PaletteDomain.get()) );
 		// further provider logic
 		if ( ! column->GetTheme(AN_SymbolIndex) )
 			column->SetElemBorder(true);
@@ -291,7 +291,7 @@ void PaletteControl::CreateColorColumn()
 	auto column = make_shared_gr<DataItemColumn>(this, nullptr, ASE_LabelTextColor, AN_LabelTextColor)();
 	column->SetTheme(
 		Theme::Create(AN_LabelTextColor
-			, CreateSystemColorPalette(dv.get(), m_PaletteDomain, AN_LabelTextColor, m_BreakAttr.has_ptr(), false, true, nullptr, nullptr)
+			, CreateSystemColorPalette(dv.get(), m_PaletteDomain.get(), AN_LabelTextColor, m_BreakAttr.has_ptr(), false, true, nullptr, nullptr)
 		,	nullptr
 		,	nullptr
 		).get()
@@ -331,7 +331,7 @@ void PaletteControl::CreateColumnsImpl()
 	{
 		m_LabelTextAttr = m_PaletteDomain->GetLabelAttr();
 		if (!m_LabelTextAttr && !m_PaletteDomain->IsFailed(FailType::Data) && m_PaletteDomain->GetValueType()->GetSize() < 4)
-			m_LabelTextAttr = CreateSystemLabelPalette(dv.get(), m_PaletteDomain, AN_LabelText, true);
+			m_LabelTextAttr = CreateSystemLabelPalette(dv.get(), m_PaletteDomain.get(), AN_LabelText, true);
 	}
 	if (m_LabelTextAttr)
 		CreateLabelTextColumn();
@@ -357,7 +357,7 @@ void PaletteControl::CreateColumnsImpl()
 	assert(classIds || ! m_ThemeAttr); // Follows from definitioin, assumed in next if.
 
 	if	(	m_ThemeAttr 
-		&&	classIds->UnifyDomain(m_PaletteDomain)
+		&&	classIds->UnifyDomain(m_PaletteDomain.get())
 		&&	classIds->CanBeDomain()  && classIds->GetPreparedCount() <= 256
 		&&	(!m_Layer || (!m_Layer->IsTopographic() && !m_Layer->HasEditAttr()))
 		)
@@ -372,7 +372,7 @@ void PaletteControl::CreateColumnsImpl()
 		auto countingUnitClass = UnitClass::Find(m_ThemeAttr->GetAbstrDomainUnit()->GetValueType()->GetCrdClass());
 		auto countingUnit = countingUnitClass->CreateDefault();
 
-		SharedPtr<AbstrDataItem> countAttr = CreateDataItem(container, GetTokenID_mt("Count"), m_PaletteDomain, countingUnit);
+		SharedPtr<AbstrDataItem> countAttr = CreateDataItem(container, GetTokenID_mt("Count"), m_PaletteDomain.get(), countingUnit);
 		countAttr->SetKeepDataState(true);
 		countAttr->DisableStorage(true);
 		countAttr->SetExpr( mySSPrintF("pcount(%s)", exprStr.c_str() ) );
@@ -432,7 +432,7 @@ void PaletteControl::CreateSelCountColumn()
 			auto countingUnitClass = UnitClass::Find(m_ThemeAttr->GetAbstrDomainUnit()->GetValueType()->GetCrdClass());
 			auto countingUnit = countingUnitClass->CreateDefault();
 
-			SharedPtr<AbstrDataItem> selCountAttr = CreateDataItem(container, GetTokenID_mt("SelCount"), m_PaletteDomain, countingUnit);
+			SharedPtr<AbstrDataItem> selCountAttr = CreateDataItem(container, GetTokenID_mt("SelCount"), m_PaletteDomain.get(), countingUnit);
 			selCountAttr->SetKeepDataState(true);
 			selCountAttr->DisableStorage(true);
 
@@ -440,7 +440,7 @@ void PaletteControl::CreateSelCountColumn()
 			auto aggrMethodName = mySSPrintF("sum_%s", clsName);
 			auto selAttrRef = CreateLispTree(selectionAttr, false);
 			keyExpr = ExprList(GetTokenID_mt(aggrMethodName.c_str()), selAttrRef, keyExpr);
-			selCountAttr->SetCalculator(AbstrCalculator::ConstructFromLispRef(selCountAttr, keyExpr, CalcRole::Calculator));
+			selCountAttr->SetCalculator(AbstrCalculator::ConstructFromLispRef(selCountAttr.get(), keyExpr, CalcRole::Calculator));
 
 			m_SelCountAttr = selCountAttr.get_ptr();
 			auto selCountColumn = make_shared_gr<DataItemColumn>(this, m_SelCountAttr)();

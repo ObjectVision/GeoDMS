@@ -206,7 +206,7 @@ namespace Bmp
 
 		std::vector<UInt8> buffer(w, 0);
 		UInt8* buffPtr = begin_ptr(buffer);
-		const AbstrDataObject* ado = gridData->GetCurrRefObj();
+		auto ado = gridData->GetCurrRefObj();
 
 		if (ado->GetTiledRangeData()->GetNrTiles() > 1)
 		{
@@ -232,7 +232,7 @@ namespace Bmp
 		}
 		else
 		{
-			ReadableTileLock tileLock(ado, no_tile);
+			ReadableTileLock tileLock(ado.get(), no_tile);
 			for (UInt32 r=h, rw = h*w; r>0;)
 			{
 				--r; rw -= w;
@@ -347,13 +347,13 @@ FileResult BmpPalStorageManager::WriteDataItem(StorageMetaInfoPtr&& smiHolder)
 	InterestRetainContextBase irc;
 
 	BmpImp imp;
-	const AbstrDataItem* adi = smi->CurrRD();
+	const AbstrDataItem* adi = smi->CurrRD().get();
 	switch (adi->GetAbstrDomainUnit()->GetValueType()->GetNrDims())
 	{
 		case 2:
 		{
 			Bmp::GridDataHandler().WriteData(this, imp, adi);
-			adi = GetPaletteData(smi->StorageHolder());
+			adi = GetPaletteData(smi->StorageHolder()).get();
 			if (!adi)
 				return {};
 		}
@@ -403,8 +403,8 @@ void BmpPalStorageManager::DoUpdateTree(const TreeItem* storageHolder, TreeItem*
 
 	SharedStr projectionFileName = replaceFileExtension(storageHolder->GetStorageManager()->GetNameStr().c_str(), "bmpw");
 	// GridData item && GridPalette item 
-	const AbstrDataItem* gridData  = GetGridData(storageHolder, IsFileOrDirAccessible(projectionFileName));
-	const AbstrDataItem* paletteData = GetPaletteData(storageHolder);
+	const AbstrDataItem* gridData  = GetGridData(storageHolder, IsFileOrDirAccessible(projectionFileName)).get();
+	const AbstrDataItem* paletteData = GetPaletteData(storageHolder).get();
 
 	MG_CHECK(!gridData || !paletteData || gridData->GetAbstrValuesUnit() == paletteData->GetAbstrDomainUnit());
 

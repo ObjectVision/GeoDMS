@@ -170,7 +170,7 @@ void AccumulateNumericData(f64_accumulator& accu, bin_count_type& binCounts, con
 
 	for (tile_id t = 0, tn = domain->GetNrTiles(); t != tn; ++t)
 	{
-		ReadableTileLock tileLck(di->GetRefObj(), t);
+		ReadableTileLock tileLck(di->GetRefObj().get(), t);
 
 		visit<typelists::numerics>(vu,
 			[di, t, &accu] <typename V> (const Unit<V>*)
@@ -241,7 +241,7 @@ void AccumulatePointData(point64_accumulator& accu, const AbstrDataItem* di)
 	auto vc = di->GetValueComposition();
 	for (tile_id t = 0, tn = domain->GetNrTiles(); t != tn; ++t)
 	{
-		ReadableTileLock tileLck(di->GetRefObj(), t);
+		ReadableTileLock tileLck(di->GetRefObj().get(), t);
 
 		if (vc == ValueComposition::Single)
 		{

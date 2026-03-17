@@ -204,9 +204,9 @@ public:
 	SHV_CALL bool OnKeyDown(UInt32 nVirtKey);
 
 //	Attributes
-	std::shared_ptr<MovableObject> GetContents()             { dms_assert(m_Contents); return m_Contents; }
-	std::shared_ptr<const MovableObject> GetContents() const { dms_assert(m_Contents); return m_Contents; }
-	TreeItem*      GetViewContext   () const { dms_assert(m_ViewContext); return m_ViewContext; }
+	std::shared_ptr<MovableObject> GetContents()             { assert(m_Contents); return m_Contents; }
+	std::shared_ptr<const MovableObject> GetContents() const { assert(m_Contents); return m_Contents; }
+	TreeItem*      GetViewContext   () const { assert(m_ViewContext); return m_ViewContext.get(); }
 	TreeItem*      GetDesktopContext() const;
 
 	SHV_CALL void ResetHWnd(HWND hWnd);

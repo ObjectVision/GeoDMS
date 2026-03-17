@@ -681,7 +681,7 @@ RangedUnit<V>::GetMetric() const
 	if (refItem)
 		return refItem->GetMetric();
 
-	return m_Metric;
+	return m_Metric.get();
 }
 
 template <typename V>
@@ -693,7 +693,7 @@ RangedUnit<V>::GetCurrMetric() const
 	if (refItem)
 		return refItem->GetCurrMetric();
 
-	return m_Metric;
+	return m_Metric.get();
 }
 
 template <typename V>
@@ -979,7 +979,7 @@ const UnitProjection* GeoUnitAdapter<U>::GetProjection() const
 
 //	dbg_assert(IsMetaInfoReadyOrPassor()); // caused by call to GetReferredItem
 
-	return m_Projection;
+	return m_Projection.get();
 }
 
 template <class U>
@@ -992,7 +992,7 @@ const UnitProjection* GeoUnitAdapter<U>::GetCurrProjection() const
 	if (refItem)
 		return refItem->GetCurrProjection();
 
-	return m_Projection;
+	return m_Projection.get();
 }
 
 template <class U>

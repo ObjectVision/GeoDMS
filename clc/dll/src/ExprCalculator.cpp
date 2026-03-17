@@ -68,7 +68,7 @@ void DecArrayInterestCount(const TreeItemCRefArray& supplierArray)
 
 void ExprCalculator::WriteHtmlExpr(OutStreamBase& outStream) const 
 {
-	annotateExpr(outStream, SearchContext(), m_Expression);
+	annotateExpr(outStream, SearchContext().get(), m_Expression);
 }
 
 //----------------------------------------------------------------------
@@ -90,8 +90,8 @@ CLC_CALL bool ExprCalculatorTest()
 		"	parameter<UInt32> Item2: Expr = \"Item1\"; "
 		"}"
 	);
-	const TreeItem* item1 = testConfig->FindItem("Item1");
-	const TreeItem* item2 = testConfig->FindItem("Item2");
+	const TreeItem* item1 = testConfig->FindItem("Item1").get();
+	const TreeItem* item2 = testConfig->FindItem("Item2").get();
 	bool result = true;
 	result &= DBG_TEST("SourceItem", item2->GetSourceItem() == item1);
 	result &= DBG_TEST("RefObj",     AsDataItem(item2)->LockAndGetValue<UInt32>(0) == 8);

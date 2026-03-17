@@ -228,7 +228,7 @@ SharedStr FindURL(const TreeItem* ti)
         auto result = TreeItemPropertyValue(ti, urlPropDefPtr);
         if (!result.empty())
             return result;
-        ti = ti->GetTreeParent();
+        ti = ti->GetTreeParent().get();
     }
     return {};
 }
@@ -260,7 +260,7 @@ bool DumpSourceDescriptionDatasetInfo(const TreeItem* studyObject, OutStreamBase
     prop_tables dataset_properties = {};
     try
     {
-        dataset_properties = storage_manager->GetPropTables(storage_parent, const_cast<TreeItem*>(studyObject));
+        dataset_properties = storage_manager->GetPropTables(storage_parent.get(), const_cast<TreeItem*>(studyObject));
     }
     catch (...)
     {

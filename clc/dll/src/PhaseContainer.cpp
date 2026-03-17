@@ -53,7 +53,7 @@ struct PhaseContainerOperator : BinaryOperator
 		{
 			MG_CHECK(resultHolder.m_PhaseNumber == 0);
 
-			CopyTreeContext context(nullptr, sourceContainer, ""
+			CopyTreeContext context(nullptr, sourceContainer.get(), ""
 				, DataCopyMode::MakeEndogenous | DataCopyMode::InFenceOperator | DataCopyMode::CopyReferredItems
 			);
 
@@ -69,7 +69,7 @@ struct PhaseContainerOperator : BinaryOperator
 			assert(sourceContainer->GetCurrPhaseNumber() < resultPhaseNumber);
 
 			auto resultRoot = resultHolder.GetNew();
-			for (SharedPtr<TreeItem> resWalker = resultRoot; resWalker; resWalker = resultRoot->WalkCurrSubTree(resWalker))
+			for (SharedPtr<TreeItem> resWalker = resultRoot; resWalker; resWalker = resultRoot->WalkCurrSubTree(resWalker.get()))
 			{
 				auto srcItem = sourceContainer->FindItem(resWalker->GetRelativeName(resultHolder.GetNew()));
 				if (!srcItem)
@@ -86,10 +86,10 @@ struct PhaseContainerOperator : BinaryOperator
 
 				if (resWalker != resultRoot) 
 				{
-					resWalker->GetOrCreateSupplCache()->InitAt(srcItem);
+					resWalker->GetOrCreateSupplCache()->InitAt(srcItem.get());
 					/*
 					std::vector< ActorCRef> srcSuppliers;
-					srcSuppliers.emplace_back<const Actor*>(srcItem);
+					srcSuppliers.emplace_back<const Actor*>(srcItem.get());
 
 					srcItem->VisitSuppliers(SupplierVisitFlag::Update,
 						MakeDerivedProcVisitor(
@@ -108,10 +108,10 @@ struct PhaseContainerOperator : BinaryOperator
 				assert(!resWalker->HasInterest());
 
 				if (IsUnit(resWalker))
-					resWalker->SetReferredItem(srcItem);
+					resWalker->SetReferredItem(srcItem.get());
 
 				if (srcItem->WasFailed())
-					resWalker->Fail(srcItem);
+					resWalker->Fail(srcItem.get());
 			}
 		}
 		assert(resultHolder);
@@ -157,7 +157,7 @@ struct PhaseContainerOperator : BinaryOperator
 		// this should be done before supplier Fences do this and after target collection and interest-setting of consuming Fences.
 		// so each Phase Calculation causes an avalange of interest in targets in higher fences and then their calculation before this calculation starts
 
-		for (; resWalker; resWalker = resultRoot->WalkCurrSubTree(resWalker))
+		for (; resWalker; resWalker = resultRoot->WalkCurrSubTree(resWalker.get()))
 		{
 			assert(resWalker->GetCurrPhaseNumber() == resultPhaseNumber);
 
@@ -177,7 +177,7 @@ struct PhaseContainerOperator : BinaryOperator
 				if (!srcItem->SuspendibleUpdate())
 				{
 					if (srcItem->WasFailed())
-						resWalker->Fail(srcItem);
+						resWalker->Fail(srcItem.get());
 					if (SuspendTrigger::DidSuspend())
 						return false;
 				}

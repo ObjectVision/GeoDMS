@@ -51,7 +51,7 @@ struct AbstrOperAccTotBin : public BinaryOperator
 		if (!resultHolder)
 			resultHolder = CreateCacheDataItem(
 				Unit<Void>::GetStaticClass()->CreateDefault(), 
-				(*m_UnitCreatorPtr)(GetGroup(), args), 
+				(*m_UnitCreatorPtr)(GetGroup(), args).get(),
 				m_ValueComposition
 			);
 
@@ -165,7 +165,7 @@ struct AbstrOperAccPartBin: TernaryOperator
 			resultHolder
 				=	CreateCacheDataItem(
 						p3,
-						(*m_UnitCreatorPtr)(GetGroup(), args),
+						(*m_UnitCreatorPtr)(GetGroup(), args).get(),
 						m_ValueComposition
 					);
 

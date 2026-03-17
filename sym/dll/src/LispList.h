@@ -46,7 +46,7 @@ struct LispListPtrWrap : LispPtrWrap<PtrBase>
 //	LispListPtrWrap(PtrBase ht, existing_obj) : base_type(ht) {}
 
 	template <class RhsPtr>
-	LispListPtrWrap(const LispListPtrWrap<RhsPtr, T>& rhs) : LispPtrWrap<PtrBase>(rhs) {}
+	LispListPtrWrap(const LispListPtrWrap<RhsPtr, T>& rhs) : LispPtrWrap<PtrBase>(rhs.get()) {}
 
     list_type Delete(elem_ptr e) const;
     list_type Concat(ptr_type l) const;

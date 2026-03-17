@@ -806,12 +806,12 @@ void GraphicObject::SetOwner(GraphicObject* owner)
 
 TreeItem* GraphicObject::GetContext()
 {
-	return m_ViewContext; 
+	return m_ViewContext.get(); 
 }
 
 const TreeItem* GraphicObject::GetContext() const
 {
-	return m_ViewContext;
+	return m_ViewContext.get();
 }
 
 void GraphicObject::ClearOwner()

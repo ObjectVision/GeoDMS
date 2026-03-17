@@ -69,7 +69,7 @@ bool MainWindow::ShowInDetailPage(SharedStr x) {
 
 void MainWindow::SaveValueInfoImpl(CharPtr filename) {
     auto dmsFileName = ConvertDosFileName(SharedStr(filename));
-    auto expandedFilename = AbstrStorageManager::Expand(m_current_item, dmsFileName);
+    auto expandedFilename = AbstrStorageManager::Expand(m_current_item.get(), dmsFileName);
     FileOutStreamBuff buff(SharedStr(expandedFilename), true, false);
     for (auto& child_object : children()) {
         auto value_info_window_candidate = dynamic_cast<ValueInfoWindow*>(child_object);
@@ -329,12 +329,12 @@ void MainWindow::setCurrentTreeItem(TreeItem* target_item, bool update_history)
     if (!target_item)
         return;
 
-    MG_CHECK(!m_root || !target_item || isAncestor(m_root, target_item));
+    MG_CHECK(!m_root || !target_item || isAncestor(m_root.get(), target_item));
     if (target_item && !m_dms_model->show_hidden_items) {
         if (target_item->GetTSF(TSF_InHidden)) {
             const TreeItem* visible_parent = target_item;
             while (visible_parent && visible_parent->GetTSF(TSF_InHidden))
-                visible_parent = visible_parent->GetTreeParent();
+                visible_parent = visible_parent->GetTreeParent().get();
             reportF(MsgCategory::other, SeverityTypeID::ST_Warning, "cannnot set '%1%' as Current Item, as it is a hidden sub-item of '%2%'"
                 "\nHint: you can make hidden items visible in the Settings->GUI Options Dialog"
                 , target_item->GetFullName().c_str()
@@ -845,7 +845,7 @@ void MainWindow::createView(ViewStyle viewStyle) {
         if (!currItem)
             return;
 
-        auto desktopItem = GetDefaultDesktopContainer(m_root); // rootItem->CreateItemFromPath("DesktopInfo");
+        auto desktopItem = GetDefaultDesktopContainer(m_root.get()); // rootItem->CreateItemFromPath("DesktopInfo");
         auto viewContextItem = desktopItem->CreateItem(UniqueName(desktopItem, s_ViewToken));
 
         SuspendTrigger::Resume();
@@ -869,9 +869,9 @@ void MainWindow::defaultViewOrAddItemToCurrentView() {
     try {
         if (auto active_mdi_subwindow = dynamic_cast<QDmsViewArea*>(m_mdi_area->activeSubWindow()))
         {
-            if (active_mdi_subwindow->getDataView()->CanContain(m_current_item))
+            if (active_mdi_subwindow->getDataView()->CanContain(m_current_item.get()))
             {
-                SHV_DataView_AddItem(active_mdi_subwindow->getDataView().get(), m_current_item, false);
+                SHV_DataView_AddItem(active_mdi_subwindow->getDataView().get(), m_current_item.get(), false);
                 return;
             }
         }
@@ -889,7 +889,7 @@ void MainWindow::defaultView() {
         return;
 
     reportF(MsgCategory::commands, SeverityTypeID::ST_MajorTrace, "defaultView // for item %s", currItem->GetFullName());
-    auto default_view_style = SHV_GetDefaultViewStyle(m_current_item);
+    auto default_view_style = SHV_GetDefaultViewStyle(m_current_item.get());
     if (default_view_style == ViewStyle::tvsPaletteEdit)
         default_view_style = ViewStyle::tvsTableView;
     if (default_view_style == ViewStyle::tvsDefault) {
@@ -1111,7 +1111,7 @@ bool MainWindow::LoadConfigImpl(CharPtr configFilePath) {
             return false;
         goto retry;
     }
-    m_dms_model->setRoot(m_root);
+    m_dms_model->setRoot(m_root.get());
     clearActionsForEmptyCurrentItem();
     //setCurrentTreeItem(m_root); // as an example set current item to root, which emits signal currentItemChanged
     
@@ -1384,7 +1384,7 @@ void MainWindow::onInternalLinkClick(const QUrl& link, QWidget* origin) {
         auto sPrefix = Realm(linkStr);
         if (!strncmp(sPrefix.begin(), "dms", sPrefix.size())) {
             auto sAction = CharPtrRange(begin_ptr(linkStr) + 4, end_ptr(linkStr));
-            doViewAction(m_current_item, sAction, origin ? origin : nullptr);
+            doViewAction(m_current_item.get(), sAction, origin ? origin : nullptr);
             return;
         }
     }

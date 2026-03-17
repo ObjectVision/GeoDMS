@@ -267,7 +267,7 @@ TreeItem* ConfigProd::ParseString(CharPtr configString)
 	if (s_AuthErrorDisplayLockCatchCount)
 		return nullptr;
 	m_ResultCommitted = true;
-	return m_pCurrent;
+	return m_pCurrent.get();
 }
 
 TreeItem* ConfigProd::ParseFile(CharPtr fileName)
@@ -310,5 +310,5 @@ TreeItem* ConfigProd::ParseFile(CharPtr fileName)
 	if (s_AuthErrorDisplayLockCatchCount)
 		return nullptr;
 	m_ResultCommitted = true;
-	return m_pCurrent;
+	return m_pCurrent.get();
 }

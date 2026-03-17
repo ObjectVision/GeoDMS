@@ -121,7 +121,7 @@ struct AbstrConstOperator : public BinaryOperator
 
 				for (tile_id t = 0; t != tn; ++t)
 				{
-					Calculate(resLock, arg1A, t);
+					Calculate(resLock.get(), arg1A, t);
 				}
 				resLock.Commit();
 			}

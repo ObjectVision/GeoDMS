@@ -85,7 +85,7 @@ void StorageMetaInfo::OnClose(StorageCloseHandle*)
 
 TIC_CALL const TreeItem* GetExportSettingsContext(const TreeItem* context)
 {
-	const TreeItem* exportContext = context->FindItem(CharPtrRange("ExportSettings"));
+	const TreeItem* exportContext = context->FindItem(CharPtrRange("ExportSettings")).get();
 	if (exportContext)
 		return exportContext;
 	return context;
@@ -95,7 +95,7 @@ TIC_CALL const TreeItem* GetExportSettingsContext(const TreeItem* context)
 const TreeItem* GetExportSettings(const TreeItem* curr)
 {
 	if (curr) 
-		curr = curr->GetTreeParent();
+		curr = curr->GetTreeParent().get();
 	if (!curr)
 		return nullptr;
 	return GetExportSettingsContext(curr);
@@ -106,7 +106,7 @@ const TreeItem* GetExportMetaInfo(const TreeItem* curr)
 	const TreeItem* exportSettings = GetExportSettings(curr);
 	if (!exportSettings)
 		return nullptr;
-	return exportSettings->FindItem("MetaInfo");
+	return exportSettings->FindItem("MetaInfo").get();
 }
 
 // *****************************************************************************
@@ -188,17 +188,17 @@ SharedStr GetRegConfigSetting(const TreeItem* configRoot, CharPtr key, CharPtr d
 		return result;
 
 	// read from configuration as last resort
-	const TreeItem* configSettings = SessionData::getIt(configRoot)->GetConfigSettings();
+	const TreeItem* configSettings = SessionData::getIt(configRoot)->GetConfigSettings().get();
 	if (configSettings)
 	{
 		TokenID tidKey = GetTokenID_mt(key);
 		const TreeItem* keyTi = nullptr;
 
-		const TreeItem* overridable = configSettings->GetConstSubTreeItemByID(t_Overridable);
+		const TreeItem* overridable = configSettings->GetConstSubTreeItemByID(t_Overridable).get();
 		if (overridable)
-			keyTi = overridable->GetConstSubTreeItemByID(tidKey);
+			keyTi = overridable->GetConstSubTreeItemByID(tidKey).get();
 		if (!keyTi)
-			keyTi = configSettings->GetConstSubTreeItemByID(tidKey);
+			keyTi = configSettings->GetConstSubTreeItemByID(tidKey).get();
 		if (keyTi && IsDataItem( keyTi) )
 		{
 			const_cast<TreeItem*>(keyTi)->SetKeepDataState(true);
@@ -246,7 +246,7 @@ SharedStr GetCaseDir(const TreeItem* configStore)
 				return caseDir;
 		}
 		configRoot = configStore;
-		configStore = configStore->GetTreeParent();
+		configStore = configStore->GetTreeParent().get();
 	}
 	dms_assert(configRoot);
 	dms_assert(SessionData::Curr() && SessionData::Curr()->GetConfigRoot() == configRoot);
@@ -259,7 +259,7 @@ SharedStr GetStorageBaseName(const TreeItem* configStore)
 {
 	if (configStore)
 	{
-		configStore = configStore->GetStorageParent(false);
+		configStore = configStore->GetStorageParent(false).get();
 		if (configStore)
 			return getFileNameBase(TreeItemPropertyValue(configStore, storageNamePropDefPtr).c_str());
 	}
@@ -411,14 +411,14 @@ SharedStr GetPlaceholderValue(const TreeItem* configStore, CharPtr placeHolder)
 	if (!stricmp(placeHolder, "storageBaseName"  )) return GetStorageBaseName(configStore);
 	if (!stricmp(placeHolder, "currDir"))           return SharedStr( SessionData::Curr()->GetConfigLoadDir() );
 
-	if (!stricmp(placeHolder, "sourceDataProjDir")) return GetSourceDataProjDir(SessionData::Curr()->GetConfigRoot());
-	if (!stricmp(placeHolder, "dataDir"          )) return GetDataDir          (SessionData::Curr()->GetConfigRoot());
+	if (!stricmp(placeHolder, "sourceDataProjDir")) return GetSourceDataProjDir(SessionData::Curr()->GetConfigRoot().get());
+	if (!stricmp(placeHolder, "dataDir"          )) return GetDataDir          (SessionData::Curr()->GetConfigRoot().get());
 
 	SharedStr result = GetPlaceholderValue(SessionData::Curr()->GetConfigDir().c_str(), placeHolder, false);
 	if (!result.empty())
 		return result;
 
-	result = GetConvertedRegConfigSetting(SessionData::Curr()->GetConfigRoot(), placeHolder, "");
+	result = GetConvertedRegConfigSetting(SessionData::Curr()->GetConfigRoot().get(), placeHolder, "");
 	if (!result.empty())
 		return result;
 
@@ -535,7 +535,7 @@ SharedStr AbstrStorageManager::GetFullStorageName(const TreeItem* configStore, S
 		TokenID configStoreName = configStorePropDefPtr->GetValue(configStore);
 		if (configStoreName)
 			storageName = DelimitedConcat(getFileNameBase(configStoreName.GetStr().c_str()).c_str(), storageName.c_str());
-		configStore = configStore->GetTreeParent();
+		configStore = configStore->GetTreeParent().get();
 	}
 	if (!IsAbsolutePath(storageName.c_str()))
 		storageName = MakeAbsolutePath(storageName.c_str());
@@ -581,7 +581,7 @@ SyncMode AbstrStorageManager::GetSyncMode(const TreeItem* storageHolder)
 			if (syncMode == st_None)      return SyncMode::None;
 			break;
 		}
-		storageHolder = storageHolder->GetTreeParent();
+		storageHolder = storageHolder->GetTreeParent().get();
 	}
 	while (storageHolder);
 	return SyncMode::AllTables; // default
@@ -606,7 +606,7 @@ bool AbstrStorageManager::DoesExistEx(CharPtr storageName, TokenID storageType, 
 	if (!sm)
 		return false;
 
-	ObjectContextHandle dch2(sm);
+	ObjectContextHandle dch2(sm.get());
 	return sm->DoesExist(storageHolder);
 }
 
@@ -792,7 +792,7 @@ auto NonmappableStorageManager::ReaderClone(StorageMetaInfoPtr smi) const -> std
 	assert(result);
 
 	result->InitStorageManager(GetNameStr().c_str(), true);
-	return std::make_unique<StorageReadHandle>(result, std::move(smi));
+	return std::make_unique<StorageReadHandle>(result.get(), std::move(smi));
 }
 
 StorageMetaInfoPtr NonmappableStorageManager::GetMetaInfo(const TreeItem* storageHolder, TreeItem* focusItem, StorageAction) const
@@ -938,10 +938,10 @@ TIC_CALL const Class* DMS_CONV DMS_AbstrStorageManager_GetStaticClass()
 
 GdalMetaInfo::GdalMetaInfo(const TreeItem* storageHolder, const TreeItem* curr)
 	: StorageMetaInfo(storageHolder, curr)
-	, m_OptionsItem(storageOptionsPropDefPtr->HasNonDefaultValue(storageHolder) ? nullptr : storageHolder->FindItem("GDAL_Options"))
-	, m_DriverItem (storageDriverPropDefPtr ->HasNonDefaultValue(storageHolder) ? nullptr : storageHolder->FindItem("GDAL_Driver"))
-	, m_LayerCreationOptions(storageHolder->FindItem("GDAL_LayerCreationOptions"))
-	, m_ConfigurationOptions(storageHolder->FindItem("GDAL_ConfigurationOptions"))
+	, m_OptionsItem(storageOptionsPropDefPtr->HasNonDefaultValue(storageHolder) ? nullptr : storageHolder->FindItem("GDAL_Options").get())
+	, m_DriverItem (storageDriverPropDefPtr ->HasNonDefaultValue(storageHolder) ? nullptr : storageHolder->FindItem("GDAL_Driver").get())
+	, m_LayerCreationOptions(storageHolder->FindItem("GDAL_LayerCreationOptions").get())
+	, m_ConfigurationOptions(storageHolder->FindItem("GDAL_ConfigurationOptions").get())
 {
 	if (storageOptionsPropDefPtr->HasNonDefaultValue(storageHolder))
 		m_Options = storageOptionsPropDefPtr->GetValue(storageHolder).c_str();
@@ -1088,15 +1088,15 @@ void ExportMetaInfoToFileImpl(const TreeItem* curr)
 		return;
 
 	const_cast<TreeItem*>(metaInfo)->SetKeepDataState(true);
-	const TreeItem* contents = metaInfo->GetConstSubTreeItemByID(contentsID);
+	const TreeItem* contents = metaInfo->GetConstSubTreeItemByID(contentsID).get();
 	if (!contents)
 		return;
 
-	const TreeItem* fileNameItem = metaInfo->GetConstSubTreeItemByID(fileNameID);
+	const TreeItem* fileNameItem = metaInfo->GetConstSubTreeItemByID(fileNameID).get();
 	if (!fileNameItem)
 		return;
 
-	const TreeItem* fileTypeItem = metaInfo->GetConstSubTreeItemByID(fileTypeID);
+	const TreeItem* fileTypeItem = metaInfo->GetConstSubTreeItemByID(fileTypeID).get();
 
 	bool isXml = (fileTypeItem != nullptr) && (stricmp(GetTheValue<SharedStr>(fileTypeItem).c_str(), "xml") == 0);
 

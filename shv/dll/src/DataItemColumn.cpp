@@ -310,10 +310,10 @@ static CharPtr OperExprFormat(const AbstrDataItem* adi, const AbstrDataItem* gro
 		if (adi->GetValueComposition() != ValueComposition::Single)
 			return "mean(centroid(%2%), %3%))";
 		break;
-	case AggrMethod::count: return SelectCardinality(count_unit_creator(adi), "count_uint8(%2%, %3%)", "count_uint16(%2%, %3%)", "count_uint32(%2%, %3%)", "count_uint64(%2%, %3%)");
-	case AggrMethod::nr_undefined_values: return SelectCardinality(count_unit_creator(adi), "sum_uint8(not(IsDefined(%2%)), %3%)", "sum_uint16(not(IsDefined(%2%)), %3%)", "sum_uint32(not(IsDefined(%2%)), %3%)", "sum_uint64(not(IsDefined(%2%)), %3%)");
-	case AggrMethod::modus_count: return SelectCardinality(count_unit_creator(adi), "modus_count_uint8(%2%, %3%)", "modus_count_uint16(%2%, %3%)", "modus_count_uint32(%2%, %3%)", "modus_count_uint64(%2%, %3%)");
-	case AggrMethod::unique_count: return SelectCardinality(unique_count_unit_creator(adi, groupBy_rel), "unique_count_uint8(%2%, %3%)", "unique_count_uint16(%2%, %3%)", "unique_count_uint32(%2%, %3%)", "unique_count_uint64(%2%, %3%)");
+	case AggrMethod::count: return SelectCardinality(count_unit_creator(adi).get(), "count_uint8(%2%, %3%)", "count_uint16(%2%, %3%)", "count_uint32(%2%, %3%)", "count_uint64(%2%, %3%)");
+	case AggrMethod::nr_undefined_values: return SelectCardinality(count_unit_creator(adi).get(), "sum_uint8(not(IsDefined(%2%)), %3%)", "sum_uint16(not(IsDefined(%2%)), %3%)", "sum_uint32(not(IsDefined(%2%)), %3%)", "sum_uint64(not(IsDefined(%2%)), %3%)");
+	case AggrMethod::modus_count: return SelectCardinality(count_unit_creator(adi).get(), "modus_count_uint8(%2%, %3%)", "modus_count_uint16(%2%, %3%)", "modus_count_uint32(%2%, %3%)", "modus_count_uint64(%2%, %3%)");
+	case AggrMethod::unique_count: return SelectCardinality(unique_count_unit_creator(adi, groupBy_rel).get(), "unique_count_uint8(%2%, %3%)", "unique_count_uint16(%2%, %3%)", "unique_count_uint32(%2%, %3%)", "unique_count_uint64(%2%, %3%)");
 	case AggrMethod::bounding_box:
 		if (adi->GetValueComposition() != ValueComposition::Single)
 			return "'['+String(min(lower_bound(%2%), %3%))+'...'+String(max(upper_bound(%2%), %3%))+']'";
@@ -375,13 +375,13 @@ void DataItemColumn::UpdateTheme()
 		m_AggrMethod = aggrMethod;
 
 		auto aggrValuesSpec = ValuesUnitAndComposition(GetSrcAttr(), tc->m_GroupByRel, aggrMethod);
-		SharedPtr<AbstrDataItem> aggrAttr = CreateDataItem(GetContext(), UniqueName(GetContext(), aggrID), tc->m_GroupByEntity, aggrValuesSpec.first, aggrValuesSpec.second);
+		SharedPtr<AbstrDataItem> aggrAttr = CreateDataItem(GetContext(), UniqueName(GetContext(), aggrID), tc->m_GroupByEntity, aggrValuesSpec.first.get(), aggrValuesSpec.second);
 		aggrAttr->SetKeepDataState(false);
 		aggrAttr->DisableStorage(true);
 		aggrAttr->SetExpr(OperExpr(GetSrcAttr(), tc->m_GroupByRel, aggrMethod));
 
 		m_FutureAggrAttr = aggrAttr.get_ptr();
-		attr = aggrAttr;
+		attr = aggrAttr.get();
 	}
 	else
 		m_FutureAggrAttr = nullptr;
@@ -923,7 +923,7 @@ TextInfo DataItemColumn::GetText(SizeT recNo, SizeT maxLen, GuiReadLockPair& loc
 			return TextInfo{ mySSPrintF("%lg %%", 100.0 * relValue), false };
 		}
 	}
-	return TextInfo{ DisplayValue(activeTextAttr, recNo, false, m_DisplayInterest, maxLen, locks), false };
+	return TextInfo{ DisplayValue(activeTextAttr.get(), recNo, false, m_DisplayInterest, maxLen, locks), false };
 }
 
 SharedStr DataItemColumn::GetOrgText(SizeT recNo, GuiReadLock& lock) const

@@ -195,7 +195,7 @@ GetSequenceBoundingBoxCache(WeakPtr<const AbstrDataItem> featureAttr, bool mustP
 	DataReadLock readLock(featureAttr);
 	assert(featureAttr->GetDataRefLockCount() > 0);
 
-	const AbstrDataObject* featureData = featureAttr->GetCurrRefObj();
+	const AbstrDataObject* featureData = featureAttr->GetCurrRefObj().get();
 	auto& bbCache = g_BB_Register[featureData];
 	auto result = bbCache.lock();
 	if (!result)
@@ -215,7 +215,7 @@ GetPointBoundingBoxCache(WeakPtr<const AbstrDataItem> featureAttr, bool mustPrep
 	DataReadLock readLock(featureAttr);
 	assert(featureAttr->GetDataRefLockCount() > 0);
 
-	const AbstrDataObject* featureData = featureAttr->GetCurrRefObj();
+	const AbstrDataObject* featureData = featureAttr->GetCurrRefObj().get();
 	auto& bbCache = g_BB_Register[featureData];
 	auto result = bbCache.lock();
 	if (!result)

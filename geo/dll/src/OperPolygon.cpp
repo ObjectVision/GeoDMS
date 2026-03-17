@@ -1038,7 +1038,7 @@ protected:
 			tile_id te = domainUnit->GetNrTiles();
 			for (tile_id t=0; t != te; ++t)
 			{
-				ReadableTileLock readPointLock (arg1A->GetCurrRefObj(), t);
+				ReadableTileLock readPointLock (arg1A->GetCurrRefObj().get(), t);
 				CreatePointHandle(arg1A, t, pointBoxDataHandle);
 			}
 
@@ -1348,7 +1348,7 @@ protected:
 			tile_id te = domainUnit->GetNrTiles();
 			for (tile_id t = 0; t != te; ++t)
 			{
-				ReadableTileLock readPointLock(arg1A->GetCurrRefObj(), t);
+				ReadableTileLock readPointLock(arg1A->GetCurrRefObj().get(), t);
 				CreatePointHandle(arg1A, t, pointBoxDataHandle);
 			}
 
@@ -1576,7 +1576,7 @@ protected:
 
 			for (tile_id t = 0, te = domain1Unit->GetNrTiles(); t != te; ++t)
 			{
-				ReadableTileLock readPointLock(arg1A->GetCurrRefObj(), t);
+				ReadableTileLock readPointLock(arg1A->GetCurrRefObj().get(), t);
 				CreatePointHandle(arg1A, t, pointBoxDataHandle);
 			}
 
@@ -1584,7 +1584,7 @@ protected:
 
 			for (tile_id u = 0, ue = domain2Unit->GetNrTiles(); u != ue; ++u)
 			{
-				ReadableTileLock readPolyLock(arg2A->GetCurrRefObj(), u);
+				ReadableTileLock readPolyLock(arg2A->GetCurrRefObj().get(), u);
 				ResourceHandle polyInfoHandle;
 				CreatePolyHandle(arg2A, u, polyInfoHandle);
 
@@ -1596,7 +1596,7 @@ protected:
 					{
 						if (this->IsIntersecting(t, u, pointBoxDataHandle, polyInfoHandle))
 						{
-							ReadableTileLock readPoly1Lock(arg1A->GetCurrRefObj(), t);
+							ReadableTileLock readPoly1Lock(arg1A->GetCurrRefObj().get(), t);
 
 							Calculate(resData, resInsertSection, arg1A, arg2A, t, u, polyInfoHandle);
 

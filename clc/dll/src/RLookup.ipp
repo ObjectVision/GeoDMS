@@ -86,7 +86,7 @@ public:
 
 
 			if (IsMultiThreaded3() && (nrTiles > 1) && !IsInMMD(res) && (LTF_ElementWeight(arg1A) <= LTF_ElementWeight(res)) && (nrTiles > arg2DomainRange->GetNrTiles()))
-				AsDataItem(resultHolder.GetOld())->m_DataObject = CreateFutureTileIndexer(res, res->GetLazyCalculatedState(), arg2_DomainUnit, arg1A, arg2Domain, arg2DomainRange, hasIndex, std::move(index) MG_DEBUG_ALLOCATOR_SRC(res->md_FullName + " := RLookup()"));
+				AsDataItem(resultHolder.GetOld())->m_DataObject = CreateFutureTileIndexer(res, res->GetLazyCalculatedState(), arg2_DomainUnit, arg1A, arg2Domain, arg2DomainRange.get(), hasIndex, std::move(index) MG_DEBUG_ALLOCATOR_SRC(res->md_FullName + " := RLookup()"));
 			else
 			{
 				DataWriteLock resLock(res);
@@ -195,7 +195,7 @@ public:
 		visit<typelists::domain_elements>(arg2DomainA
 		,	[&futureTileFunctor, &prepareTileDataFunc, resultAdi, lazy, arg2DomainRange, arg1, hasIndex, indexBoxPtr, tileRangeData MG_DEBUG_ALLOCATOR_SRC_PARAM]<typename E>(const Unit<E>*arg2Domain)
 		{
-			futureTileFunctor = make_unique_FutureTileFunctor<E, prepare_data, false>(resultAdi, lazy, tileRangeData, get_range_ptr_of_valuesunit(arg2Domain)
+			futureTileFunctor = make_unique_FutureTileFunctor<E, prepare_data, false>(resultAdi, lazy, tileRangeData.get(), get_range_ptr_of_valuesunit(arg2Domain)
 				, std::move(prepareTileDataFunc)  // only depends on V
 				, [arg2DomainRange = dynamic_cast<const typename Unit<E>::range_data_t*>(arg2DomainRange)->GetRange(), hasIndex, indexBoxPtr](typename sequence_traits<E>::seq_t resData, prepare_data arg1FutureData) // depends on E and V
 				{

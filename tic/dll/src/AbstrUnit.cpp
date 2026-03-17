@@ -561,7 +561,7 @@ SharedStr AbstrUnit::GetLabelAtIndex(SizeT index, SharedDataItemInterestPtr& ipH
 	try {
 		DataReadLock drl(ipHolder);
 
-		const AbstrDataObject* ado = ipHolder->GetCurrRefObj();
+		const AbstrDataObject* ado = ipHolder->GetCurrRefObj().get();
 
 		MakeMin(maxLen, ado->AsCharArraySize(index, maxLen, lock, FormattingFlags::ThousandSeparator));
 		SharedStr result = SharedStr(SharedArray<char>::Create(maxLen + 1, false MG_DEBUG_ALLOCATOR_SRC("AbstrUnit::GetLabelAtIndex")));
@@ -589,7 +589,7 @@ SharedStr AbstrUnit::GetMissingValueLabel() const
 {
 	dms_assert(this);
 
-	const TreeItem* si = GetConstSubTreeItemByID(s_MissingValueLabelID);
+	const TreeItem* si = GetConstSubTreeItemByID(s_MissingValueLabelID).get();
 	if (IsDataItem(si))
 	{
 		const AbstrDataItem* di = AsDataItem(si);
@@ -774,7 +774,7 @@ row_id AbstrUnit::GetEstimatedCount() const
 			throwDmsErrF("SizeEstimator must define a single result, but is defined as %s"
 				, se->GetExpr()
 			);
-		DataReadLock drl(ari);
+		DataReadLock drl(ari.get());
 		auto ado = ari->GetRefObj();
 		assert(ado);
 		return ado->GetValueAsSizeT(0);

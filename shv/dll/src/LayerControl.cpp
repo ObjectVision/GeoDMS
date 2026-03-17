@@ -89,7 +89,7 @@ void LayerInfoControl::SetExplainableValue(WeakStr text, SharedPtr<const AbstrDa
 void LayerInfoControl::ExplainValue()
 {
 	if (m_ThemeAttr && IsDefined(m_FocusID))
-		CreateViewValueAction(m_ThemeAttr, m_FocusID, true);
+		CreateViewValueAction(m_ThemeAttr.get(), m_FocusID, true);
 }
 
 //----------------------------------------------------------------------
@@ -535,7 +535,7 @@ ActorVisitState LayerControl::DoUpdate()
 					return AVS_SuspendedOrFailed;
 				GuiReadLockPair locks;
 				text += 
-					DisplayValue(themeAttr, selectedID, true,
+					DisplayValue(themeAttr.get(), selectedID, true,
 						m_LabelLocks, MAX_TEXTOUT_SIZE, locks
 					);
 			}

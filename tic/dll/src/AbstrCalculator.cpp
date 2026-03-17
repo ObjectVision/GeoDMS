@@ -118,7 +118,7 @@ SharedTreeItem FindSubItem(const TreeItem* sourceItem, SharedStr relPath)
 		if (!subItem)
 			throwErrorF("FindSubItem", "Cannot find %s from %s", SharedStr(CharPtrRange(begin, delimPos)), sourceItem->GetFullName().c_str());
 		MG_CHECK(!subItem->IsCacheItem());
-		sourceItem = subItem;
+		sourceItem = subItem.get();
 		begin = delimPos;
 		if (begin != end)
 		{
@@ -372,7 +372,7 @@ auto AbstrCalculator::VisitSourceItem(TokenID supplRefID, SupplierVisitFlag svf,
 		return SearchContext()->FindAndVisitItem(itemRefStr, svf, visitor);
 	auto searchResult = SearchContext()->FindItem(itemRefStr);
 	if (Test(svf, SupplierVisitFlag::NamedSuppliers))
-		if (visitor.Visit(searchResult) == AVS_SuspendedOrFailed)
+		if (visitor.Visit(searchResult.get()) == AVS_SuspendedOrFailed)
 			return {};
 	return searchResult;
 
@@ -532,7 +532,7 @@ BestItemRef AbstrCalculator::GetErrorSource(const TreeItem* context, WeakStr exp
 		{
 			AbstrCalculatorRef calculator = ConstructFromDirectStr(context, resultStr, CalcRole::Other);
 			assert(calculator);
-			auto res = CalledCalcHandle(calculator, DataArray<SharedStr>::GetStaticClass());
+			auto res = CalledCalcHandle(calculator.get(), DataArray<SharedStr>::GetStaticClass());
 			assert(res);
 			if (res->WasFailed())
 				return calculator->FindErrorneousItem();
@@ -588,10 +588,10 @@ SharedStr AbstrCalculator::EvaluateExpr(const TreeItem* context, CharPtrRange ex
 	while (nrEvals-- && !resultStr.empty())
 	{
 		AbstrCalculatorRef calculator = ConstructFromDirectStr(context, resultStr, cr);
-		auto dc = MakeResult(calculator);
-		irc.Add(dc);
+		auto dc = MakeResult(calculator.get());
+		irc.Add(dc.get());
 		
-		auto res = CalledCalcHandle(calculator, DataArray<SharedStr>::GetStaticClass());
+		auto res = CalledCalcHandle(calculator.get(), DataArray<SharedStr>::GetStaticClass());
 		assert(res);
 		if (res->WasFailed(FailType::Data))
 			res->ThrowFail();
@@ -644,7 +644,7 @@ ActorVisitState AbstrCalculator::VisitSuppliers(SupplierVisitFlag svf, const Act
 	{
 		for (const auto& suppl : m_NamedSuppliers)
 		{
-			auto visitResult = visitor(suppl);
+			auto visitResult = visitor(suppl.get());
 			if (visitResult == AVS_SuspendedOrFailed)
 				return AVS_SuspendedOrFailed;
 		}
@@ -679,10 +679,10 @@ ActorVisitState AbstrCalculator::VisitImplSuppl(SupplierVisitFlag svf, const Act
 	while (!resultStr.empty())
 	{
 		AbstrCalculatorRef calculator = ConstructFromDirectStr(const_cast<TreeItem*>(context), resultStr, cr);
-		auto dc = MakeResult(calculator);
-		irc.Add(dc);
+		auto dc = MakeResult(calculator.get());
+		irc.Add(dc.get());
 
-		auto res = CalledCalcHandle(calculator, DataArray<SharedStr>::GetStaticClass());
+		auto res = CalledCalcHandle(calculator.get(), DataArray<SharedStr>::GetStaticClass());
 		irc.Add(res.get_ptr());
 		irc.Add(res->GetOld());
 
@@ -741,7 +741,7 @@ BestItemRef AbstrCalculator::FindErrorneousItem() const
 					if (miDcPtr->IsSourceRef())
 						if (auto si = miDcPtr->GetSourceItem())
 							for (auto ri = si; ri; ri = ri->GetCurrRefItem())
-								if (WasInFailed(ri))
+								if (WasInFailed(ri.get()))
 								{
 									errorneousItem = si.get();
 									return  AVS_SuspendedOrFailed;
@@ -853,7 +853,7 @@ LispRef AbstrCalculator::slSupplierExpr(SubstitutionBuffer& substBuff, LispPtr s
 		return supplRef;
 	}
 
-	return slSupplierExprImpl(substBuff, supplier, mpf);
+	return slSupplierExprImpl(substBuff, supplier.get(), mpf);
 }
 
 void registerSupplier(SubstitutionBuffer& substBuff, const TreeItem* supplier)
@@ -1195,19 +1195,19 @@ auto DeriveSubItem(const AbstrCalculator* ac, SubstitutionBuffer& substBuff, Lis
 		throwErrorD("ExprParser", "left operand of SubExpr doesn't resolve to a configurartion item");
 	assert(!container->IsCacheItem());
 	container->UpdateMetaInfo();
-	registerSupplier(substBuff, container);
+	registerSupplier(substBuff, container.get());
 
 	auto subItemNameExpr = subItemExprTail.Right().Left();
 	AbstrCalculatorRef calculator = AbstrCalculator::ConstructFromLispRef(ac->GetHolder(), subItemNameExpr, CalcRole::Other);
-	auto res = CalledCalcHandle(calculator, DataArray<SharedStr>::GetStaticClass());
+	auto res = CalledCalcHandle(calculator.get(), DataArray<SharedStr>::GetStaticClass());
 	auto subItemPath = GetCurrValue<SharedStr>(AsDataItem(res), 0);
-	auto subItem = FindSubItem(container, subItemPath);
+	auto subItem = FindSubItem(container.get(), subItemPath);
 	assert(subItem);
 	assert(!subItem->IsCacheItem());
 	subItem->UpdateMetaInfo();
 
 	if (substBuff.optionalVisitor && Test(substBuff.svf, SupplierVisitFlag::NamedSuppliers))
-		if (substBuff.optionalVisitor->Visit(subItem) == AVS_SuspendedOrFailed)
+		if (substBuff.optionalVisitor->Visit(subItem.get()) == AVS_SuspendedOrFailed)
 			substBuff.avs = AVS_SuspendedOrFailed;
 
 	return subItem;
@@ -1270,7 +1270,7 @@ LispRef AbstrCalculator::SubstituteExpr_impl(SubstitutionBuffer& substBuff, Lisp
 						, AsString(indexExpr.GetSymbID()), formalDomainUnit.c_str(), formalValuesUnit.c_str()
 					);
 				}
-				indexExpr = slSupplierExprImpl(substBuff, indexItem, mpf); // now process left before re-assigning search context
+				indexExpr = slSupplierExprImpl(substBuff, indexItem.get(), mpf); // now process left before re-assigning search context
 
 				tmp_swapper<SharedPtr<const TreeItem>> swap(m_SearchContext, avu);
 				SubstitutionBuffer localBuffer; localBuffer.svf = substBuff.svf; localBuffer.optionalVisitor = substBuff.optionalVisitor;
@@ -1359,12 +1359,12 @@ LispRef AbstrCalculator::SubstituteExpr_impl(SubstitutionBuffer& substBuff, Lisp
 				if (!supplier)
 				{
 					dms_assert(dc->WasFailed(FailType::MetaInfo));
-					m_Holder->ThrowFail(dc);
+					m_Holder->ThrowFail(dc.get());
 				}
 
 				if (!supplier->IsCacheItem())
 				{
-					localExpr = slSupplierExprImpl(substBuff, supplier, mpf);
+					localExpr = slSupplierExprImpl(substBuff, supplier.get(), mpf);
 				}
 			}
 			bufferValue = localExpr;
@@ -1419,8 +1419,8 @@ MetaInfo AbstrCalculator::SubstituteExpr(SubstitutionBuffer& substBuff, LispPtr 
 				);
 
 			// calculation scheme: isTempl, dont-subst templ
-			registerSupplier(substBuff, templateItem);
-			return MetaFuncCurry{ .fullLispExpr = localExpr, .applyItem = templateItem };
+			registerSupplier(substBuff, templateItem.get());
+			return MetaFuncCurry{ .fullLispExpr = localExpr, .applyItem = templateItem.get() };
 		}
 		if (!og->MustCacheResult())
 			return MetaFuncCurry{ .fullLispExpr = localExpr, .og = og };

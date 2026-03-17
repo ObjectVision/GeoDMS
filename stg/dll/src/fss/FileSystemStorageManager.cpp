@@ -64,7 +64,7 @@ FileDateTime FileSystemStorageManager::GetLastChangeDateTime(const TreeItem* sto
 
 std::unique_ptr<OutStreamBuff> FileSystemStorageManager::DoOpenOutStream(const StorageMetaInfo& smi, CharPtr path, tile_id t)
 {
-	const AbstrDataItem* adi = AsDynamicDataItem(smi.CurrRI());
+	const AbstrDataItem* adi = AsDynamicDataItem(smi.CurrRI().get());
 
 	assert(!m_IsReadOnly);
 
@@ -74,7 +74,7 @@ std::unique_ptr<OutStreamBuff> FileSystemStorageManager::DoOpenOutStream(const S
 	if (adi)
 	{
 		assert(t != no_tile);
-		const AbstrDataObject* ado = adi->GetRefObj();
+		const AbstrDataObject* ado = adi->GetRefObj().get();
 
 		return std::make_unique<MappedFileOutStreamBuff>(fullName, ado->GetNrTileBytesNow(t, true));
 	}

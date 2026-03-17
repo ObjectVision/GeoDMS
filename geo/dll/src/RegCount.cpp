@@ -110,7 +110,7 @@ void PrepareTile(RegionInfoArray* regionInfoArrayPtr, tile_id t)
 {
 	for (auto i=regionInfoArrayPtr->begin(), e=regionInfoArrayPtr->end(); i!=e; ++i)
 		if (i->m_Partition)
-			i->m_IndexGetter.reset( IndexGetterCreator::Create(i->m_Partition, t) );
+			i->m_IndexGetter.reset( IndexGetterCreator::Create(i->m_Partition.get(), t) );
 }
 
 template <typename ActorType>
@@ -234,12 +234,12 @@ struct RegCountOperator : public QuaternaryOperator
 			TokenID nameID = GetTokenID_mt(className.c_str());
 			assert(nameID);
 			const AbstrUnit* regionalDomain = partition ? partition->GetAbstrValuesUnit() : Unit<Void>::GetStaticClass()->CreateDefault();
-			AbstrDataItem* resultItem = CreateDataItem(resultHolder, nameID, regionalDomain, regionMetaArray.m_ResUnit);
+			auto resultItem = CreateDataItem(resultHolder, nameID, regionalDomain, regionMetaArray.m_ResUnit.get());
 			assert(resultItem);
-			regionMetaArray.emplace_back(partition, resultItem);
+			regionMetaArray.emplace_back(partition.get(), resultItem);
 			if (partition)
 			{
-				debug_refcast<FuncDC&>(resultHolder).AddDependency(partition->GetCheckedDC()); // requires Meta info.
+				debug_refcast<FuncDC&>(resultHolder).AddDependency(partition->GetCheckedDC().get()); // requires Meta info.
 //				debug_refcast<FuncDC&>(resultHolder).AddDependency(partition->GetAbstrValuesUnit()); // and of valuesunit, or is that included?
 			}
 		}
@@ -269,7 +269,7 @@ struct RegCountOperator : public QuaternaryOperator
 		{
 			RegionInfo& ri = regionInfoArray[i];
 			ri.m_NrParts  = ri.m_Partition ? ri.m_Partition->GetAbstrValuesUnit()->GetCount() : 1;
-			ri.m_ReadLock  = DataReadLock(ri.m_Partition);
+			ri.m_ReadLock  = DataReadLock(ri.m_Partition.get());
 			ri.m_WriteLock = DataWriteLock(ri.m_Result, dms_rw_mode::write_only_mustzero);
 		}
 

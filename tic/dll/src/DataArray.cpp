@@ -76,7 +76,7 @@ struct mutable_shadow_tile : tile<V>
 		if (std::uncaught_exceptions())
 			return;
 		try {
-			CloseMutableShadow<V>(m_SourceTileArray, GetConstSeq(*this)); // can throw memory error
+			CloseMutableShadow<V>(m_SourceTileArray.get(), GetConstSeq(*this)); // can throw memory error
 		}
 		catch (...) 
 		{
@@ -154,7 +154,7 @@ auto MutableShadowTile(DataArrayBase<V>* tileFunctor, dms_rw_mode rwMode MG_DEBU
 
 	auto shadowTilePtr = std::make_shared<mutable_shadow_tile<V>>();
 
-	InitMutableShadow(tileFunctor, shadowTilePtr.get(), trd, rwMode MG_DEBUG_ALLOCATOR_SRC_PARAM);
+	InitMutableShadow(tileFunctor, shadowTilePtr.get(), trd.get(), rwMode MG_DEBUG_ALLOCATOR_SRC_PARAM);
 	if (rwMode >= dms_rw_mode::read_write)
 		shadowTilePtr->m_SourceTileArray = tileFunctor;
 	return { shadowTilePtr, GetSeq(*shadowTilePtr) };
@@ -206,7 +206,7 @@ void MakeConstShadowTile(const_shadow<V>* shadowTilePtr, const DataArrayBase<V>*
 	auto trd = tileFunctor->GetTiledRangeData();
 	assert(trd->GetNrTiles() != 1);
 
-	InitConstShadow<V>(tileFunctor, shadowTilePtr, trd MG_DEBUG_ALLOCATOR_SRC_PARAM);
+	InitConstShadow<V>(tileFunctor, shadowTilePtr, trd.get() MG_DEBUG_ALLOCATOR_SRC_PARAM);
 }
 
 template <sequence_or_string V>
@@ -884,21 +884,21 @@ auto CreateAbstrHeapTileFunctor(const AbstrDataItem* adi, SharedPtr<const Shared
 	switch (adi->GetValueComposition())
 	{
 	case ValueComposition::Single:
-		visit<typelists::fields>(valuesUnit, 
+		visit<typelists::fields>(valuesUnit.get(),
 			[&resultHolder, adi, currTRD, abstrValuesRangeData, mustClear MG_DEBUG_ALLOCATOR_SRC_PARAM] <typename value_type> (const Unit<value_type>* valuesUnitPtr)
 			{
-				resultHolder.reset(CreateHeapTileArrayV<value_type>(currTRD, dynamic_cast<const range_or_void_data<value_type>*>(abstrValuesRangeData.get()), mustClear MG_DEBUG_ALLOCATOR_SRC_PARAM).release());
+				resultHolder.reset(CreateHeapTileArrayV<value_type>(currTRD.get(), dynamic_cast<const range_or_void_data<value_type>*>(abstrValuesRangeData.get()), mustClear MG_DEBUG_ALLOCATOR_SRC_PARAM).release());
 			}
 		);
 		break;
 	case ValueComposition::Sequence:
 	case ValueComposition::Polygon:
-		visit<typelists::sequence_fields>(valuesUnit, 
+		visit<typelists::sequence_fields>(valuesUnit.get(),
 			[&resultHolder, adi, currTRD, abstrValuesRangeData, mustClear MG_DEBUG_ALLOCATOR_SRC_PARAM] <typename value_type> (const Unit<value_type>*valuesUnitPtr)
 			{
 				using element_type = typename sequence_traits<value_type>::container_type;
 
-				resultHolder.reset(CreateHeapTileArrayV<element_type>(currTRD, dynamic_cast<const range_or_void_data<value_type>*>(abstrValuesRangeData.get()), mustClear MG_DEBUG_ALLOCATOR_SRC_PARAM).release());
+				resultHolder.reset(CreateHeapTileArrayV<element_type>(currTRD.get(), dynamic_cast<const range_or_void_data<value_type>*>(abstrValuesRangeData.get()), mustClear MG_DEBUG_ALLOCATOR_SRC_PARAM).release());
 			}
 		);
 		break;
@@ -935,7 +935,7 @@ auto CreateFileTileArray(const AbstrDataItem* adi, const SharedObj* abstrValuesR
 			{
 				using sequence_t = sequence_traits<value_type>::container_type;
 
-				auto newTileFunctor = std::make_unique<FileTileArray<sequence_t>>(currTRD, filenameBase, rwMode, isTmp);
+				auto newTileFunctor = std::make_unique<FileTileArray<sequence_t>>(currTRD.get(), filenameBase, rwMode, isTmp);
 				newTileFunctor->InitValueRangeData(get_range_ptr_of_valuesunit(valuesUnitPtr));
 				resultHolder.reset(newTileFunctor.release());
 			}
@@ -945,7 +945,7 @@ auto CreateFileTileArray(const AbstrDataItem* adi, const SharedObj* abstrValuesR
 		visit<typelists::strings>(avu,
 			[&resultHolder, adi, currTRD, rwMode, filenameBase, isTmp] <typename value_type> (const Unit<value_type>*valuesUnitPtr)
 			{
-				auto newTileFunctor = std::make_unique<FileTileArray<value_type>>(currTRD, filenameBase, rwMode, isTmp);
+				auto newTileFunctor = std::make_unique<FileTileArray<value_type>>(currTRD.get(), filenameBase, rwMode, isTmp);
 				newTileFunctor->InitValueRangeData(get_range_ptr_of_valuesunit(valuesUnitPtr));
 				resultHolder.reset(newTileFunctor.release());
 			}
@@ -955,7 +955,7 @@ auto CreateFileTileArray(const AbstrDataItem* adi, const SharedObj* abstrValuesR
 		visit<typelists::bints>(avu,
 			[&resultHolder, adi, currTRD, rwMode, filenameBase, isTmp] <typename value_type> (const Unit<value_type>*valuesUnitPtr)
 			{
-				auto newTileFunctor = std::make_unique<FileTileArray<value_type>>(currTRD, filenameBase, rwMode, isTmp);
+				auto newTileFunctor = std::make_unique<FileTileArray<value_type>>(currTRD.get(), filenameBase, rwMode, isTmp);
 				newTileFunctor->InitValueRangeData(get_range_ptr_of_valuesunit(valuesUnitPtr));
 				resultHolder.reset(newTileFunctor.release());
 			}
@@ -964,7 +964,7 @@ auto CreateFileTileArray(const AbstrDataItem* adi, const SharedObj* abstrValuesR
 		visit<typelists::sequence_fields>(avu,
 			[&resultHolder, adi, currTRD, rwMode, filenameBase, isTmp] <typename value_type> (const Unit<value_type>*valuesUnitPtr)
 			{
-				auto newTileFunctor = std::make_unique<FileTileArray<value_type>>(currTRD, filenameBase, rwMode, isTmp);
+				auto newTileFunctor = std::make_unique<FileTileArray<value_type>>(currTRD.get(), filenameBase, rwMode, isTmp);
 				newTileFunctor->InitValueRangeData(get_range_ptr_of_valuesunit(valuesUnitPtr));
 				resultHolder.reset(newTileFunctor.release());
 			}

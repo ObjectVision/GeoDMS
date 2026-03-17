@@ -638,7 +638,7 @@ LayerInfo GetAspectInfo(AspectNr aNr, const AbstrDataItem* adi, const LayerInfo&
 #		if defined(SHV_SUPPORT_OLDNAMES)
 			if (featureInfo.m_diAspectOrFeature)
 			{
-				res = AsDynamicDataItem(featureInfo.m_diAspectOrFeature->GetAbstrDomainUnit()->GetConstSubTreeItemByID(GetTokenID_mt("ExternalKeyData")));
+				res = AsDynamicDataItem(featureInfo.m_diAspectOrFeature->GetAbstrDomainUnit()->GetConstSubTreeItemByID(GetTokenID_mt("ExternalKeyData")).get());
 				if (res)
 				{
 					const AbstrUnit* adu = res->GetAbstrValuesUnit();

@@ -63,7 +63,7 @@ CreateConstParam(const T& value)
 	UpdateMarker::ChangeSourceLock changeStamp( dataItem.get(), "CreateConstParam");
 	SuspendTrigger::FencedBlocker progressLock("CreateConstParam");
 
-	DataWriteLock lock(dataItem);
+	DataWriteLock lock(dataItem.get());
 	DataObjectType* dataObj = mutable_array_cast<T>(lock);
 	auto data = dataObj->GetDataWrite(no_tile, dms_rw_mode::write_only_all);
 	dms_assert(data.size() == 1);

@@ -183,7 +183,7 @@ void DoOverlay(AbstrDataItem* resAtomicRegionGrid, IterRange<const overlay_parti
 	auto trd = domain->GetTiledRangeData();
 	OverlayLayerVisitor visitor;
 	visitor.m_NrTiles     = domain->GetNrTiles();
-	visitor.m_ProdIdMapDO = CreateHeapTileArrayV<ProdID>(trd, nullptr, false MG_DEBUG_ALLOCATOR_SRC("Overlay: m_ProdIdMapDO")).release();
+	visitor.m_ProdIdMapDO = CreateHeapTileArrayV<ProdID>(trd.get(), nullptr, false MG_DEBUG_ALLOCATOR_SRC("Overlay: m_ProdIdMapDO")).release();
 //		std::make_unique<HeapTileArray<ProdID>>(trd, false);
 
 //	REMOVE DataWriteLock prodIdMapLock(visitor.m_ProdIdMap);
@@ -369,7 +369,7 @@ public:
 
 			CDebugContextHandle context("overlay", partName.c_str(), true);
 
-			const TreeItem* partitioningTI = GetItem(args[2])->GetConstSubTreeItemByID(partNameID);
+			const TreeItem* partitioningTI = GetItem(args[2])->GetConstSubTreeItemByID(partNameID).get();
 			if (!partitioningTI)
 				throwErrorF("Overlay", "%s not found in %s", partNameID.GetStr().c_str(), GetItem(args[2])->GetSourceName().c_str());
 			const AbstrDataItem* partitioningDI = AsCheckedDataItem(partitioningTI);
@@ -394,8 +394,8 @@ public:
 			auto partitioningDC = partitioningDI->GetCheckedDC(); // requires Meta info.
 			MG_CHECK(partitioningDC);
 
-			debug_refcast<FuncDC&>(resultHolder).AddDependency(partitioningDC);
-//			debug_refcast<FuncDC&>(resultHolder).AddDependency(partitioningDI->GetAbstrValuesUnit()); // and of valuesunit, or is that included?
+			debug_refcast<FuncDC&>(resultHolder).AddDependency(partitioningDC.get());
+//			debug_refcast<FuncDC&>(resultHolder).AddDependency(partitioningDI->GetAbstrValuesUnit().get()); // and of valuesunit, or is that included?
 		}
 		resultHolder->m_ReadAssets.emplace<overlay_partitioning_info_array>(std::move(partitionInfo));
 	}

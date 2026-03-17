@@ -216,7 +216,7 @@ public:
 
 	
 	// structural
-	TEnvironment&         Environment()            { return *m_Environment; };
+	TEnvironment&         Environment()            { return *m_Environment.get(); };
 	SQLHDBC               Handle()                 { return m_HDBC; };
 	bool                  HandleDefined()          { return m_HDBC != SQL_NULL_HDBC; }	
 

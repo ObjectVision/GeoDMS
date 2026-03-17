@@ -88,9 +88,9 @@ void VisitAllVisibleSubItems(const TreeItem* context, Func f, TreeItemSetType& d
 			VisitAllVisibleSubItems<Func>(uc->GetUsing(i), f, doneItems);
 		}
 	}
-	const TreeItem* parent = context->GetTreeParent();
+	auto parent = context->GetTreeParent();
 	if (parent)
-		VisitAllVisibleSubItems<Func>(parent, f, doneItems);
+		VisitAllVisibleSubItems<Func>(parent.get(), f, doneItems);
 }
 
 // ==================================== dedicated query functions

@@ -278,13 +278,13 @@ void UsingCache::UpdateUsings() const
 	for (auto i = m_UsingUrls.begin(), e = m_UsingUrls.end(); i!=e; ++i)
 	{
 		TokenID url = *i;
-		const TreeItem* ns = FindNamespace(url);
+		auto ns = FindNamespace(url);
 	   	if (!ns)
 			throwErrorF("UsingCache", "Cannot find reference in Using = \"%s\"\n%s"
 			,	GetTokenStr(url).c_str()
 			,	m_Context->GetSourceName().c_str()
 			);
-		AddUsingInternal(ns);
+		AddUsingInternal(ns.get());
 	}
 	vector_clear(m_UsingUrls);
 }

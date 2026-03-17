@@ -146,9 +146,9 @@ public:
     MainWindow(CmdLineSetttings& cmdLineSettings);
     ~MainWindow();
 
-    auto getRootTreeItem() -> TreeItem* { return m_root; }
-    auto getCurrentTreeItem() -> TreeItem* { return m_current_item; }
-    auto getCurrentTreeItemOrRoot() -> TreeItem* { return m_current_item ? m_current_item : m_root; }
+    auto getRootTreeItem() -> TreeItem* { return m_root.get(); }
+    auto getCurrentTreeItem() -> TreeItem* { return m_current_item.get(); }
+    auto getCurrentTreeItemOrRoot() -> TreeItem* { return m_current_item ? m_current_item.get() : m_root.get(); }
     void setCurrentTreeItem(TreeItem* target_item, bool update_history=true);
     void removeTreeItem(const TreeItem* destructing_item);
     void LoadConfig(CharPtr configFilePath, CharPtr currentItemPath = "");

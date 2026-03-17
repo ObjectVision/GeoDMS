@@ -234,13 +234,13 @@ struct ActivateUniqueValuesPaletteCmd : AbstrCmd
 		dms_assert(m_ThemeAttr);
 		auto paletteDomain = m_ThemeAttr->GetAbstrValuesUnit();
 
-		SharedDataItemInterestPtr palette = FindAspectAttr(m_AspectNr, m_ThemeAttr, paletteDomain, gl->GetLayerClass());
+		SharedDataItemInterestPtr palette = FindAspectAttr(m_AspectNr, m_ThemeAttr.get(), paletteDomain, gl->GetLayerClass());
 		if (!palette) {
 			auto dv = gl->GetDataView().lock(); if (!dv) return GVS_Handled;
 			palette = CreatePaletteData(dv.get(), paletteDomain, m_AspectNr, false, false, nullptr, nullptr);
 		}
 		gl->ChangeTheme(
-			Theme::Create(m_AspectNr, m_ThemeAttr, nullptr, palette).get()
+			Theme::Create(m_AspectNr, m_ThemeAttr.get(), nullptr, palette).get()
 		);
 		gl->Invalidate();
 		return GVS_Handled;
@@ -430,7 +430,7 @@ const IndexCollector* GraphicLayer::GetIndexCollector() const
 			m_EntityIndexCollector = IndexCollector::Create( m_Themes[AN_Feature].get() );
 		m_State.Set(GLF_EntityIndexReady);
 	}
-	return m_EntityIndexCollector;
+	return m_EntityIndexCollector.get();
 }
 
 bool GraphicLayer::HasEntityIndex() const
@@ -475,7 +475,7 @@ SizeT GraphicLayer::Entity2FeatureIndex(SizeT entityIndex) const
 	if (IsDefined(entityIndex) && HasEntityIndex())
 	{
 		const IndexCollector* ic = GetIndexCollector();
-		DataReadLock lock(ic->GetGeoRel());
+		DataReadLock lock(ic->GetGeoRel().get());
 		return ic->GetFeatureIndex(entityIndex);
 	}
 	return entityIndex;

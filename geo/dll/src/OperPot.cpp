@@ -164,7 +164,7 @@ struct AbstrDirectPotentialOperator : public BinaryOperator
 
         // Lazy creation of result cache item (same domain, value unit derived via mul2_unit_creator)
         if (!resultHolder)
-            resultHolder = CreateCacheDataItem(resDomainUnit, mul2_unit_creator(GetGroup(), args));
+            resultHolder = CreateCacheDataItem(resDomainUnit, mul2_unit_creator(GetGroup(), args).get());
 
         if (mustCalc)
         {
@@ -239,7 +239,7 @@ struct AbstrDirectPotentialOperator : public BinaryOperator
                             overlapTileRect.second -= IPoint(1, 1); // Adjust: (inclusive / exclusive reconciliation)
 
                             // Read data tile for computation
-                            ReadableTileLock readLock(dataGridA->GetCurrRefObj(), ti);
+                            ReadableTileLock readLock(dataGridA->GetCurrRefObj().get(), ti);
                             Calculate(workingBuffer, kernelInfo, dataGridA, af, ti, Size(dataTileRect), overlapTileRect);
 
                             // Deterministic accumulation across all result tiles

@@ -68,7 +68,7 @@ public:
 		auto valuesUnitA = AsUnit(arg1A->GetAbstrValuesUnit()->GetCurrRangeItem());
 		auto valuesUnit = debug_cast<const Unit<field_of_t<TR>>*>(valuesUnitA);
 
-		auto constTileFunctor = make_unique_ConstTileFunctor<TR>(tileDataRange, valuesUnit->m_RangeDataPtr, maxTileSize, const_array_cast<TR>(arg1A)->GetIndexedValue(0) MG_DEBUG_ALLOCATOR_SRC_PARAM);
+		auto constTileFunctor = make_unique_ConstTileFunctor<TR>(tileDataRange.get(), valuesUnit->m_RangeDataPtr, maxTileSize, const_array_cast<TR>(arg1A)->GetIndexedValue(0) MG_DEBUG_ALLOCATOR_SRC_PARAM);
 		return constTileFunctor.release();
 	}
 
@@ -1043,12 +1043,12 @@ public:
 		assert(arg1);
 
 		using prepare_data = std::shared_ptr<Arg1Type::future_tile>;
-		auto futureTileFunctor = make_unique_FutureTileFunctor<TR, prepare_data, false>(resultAdi, lazy, tileRangeData, get_range_ptr_of_valuesunit(valuesUnit)
+		auto futureTileFunctor = make_unique_FutureTileFunctor<TR, prepare_data, false>(resultAdi, lazy, tileRangeData.get(), get_range_ptr_of_valuesunit(valuesUnit)
 			, [arg1](tile_id t) { return arg1->GetFutureTile(t); }
 			, [arg2, arg1A](sequence_traits<TR>::seq_t resData, prepare_data arg1FutureData)
 			{
 				auto argData = arg1FutureData->GetTile();
-				do_transform<TR, TA, TCF>(arg2, arg1A->GetAbstrValuesUnit(), argData.begin(), argData.end(), resData.begin());
+				do_transform<TR, TA, TCF>(arg2.get(), arg1A->GetAbstrValuesUnit(), argData.begin(), argData.end(), resData.begin());
 			}
 			MG_DEBUG_ALLOCATOR_SRC_PARAM
 		);
@@ -1102,12 +1102,12 @@ public:
 		assert(arg1);
 
 		using prepare_data = std::shared_ptr<Arg1Type::future_tile>;
-		auto futureTileFunctor = make_unique_FutureTileFunctor<TR, prepare_data, false>(resultAdi, lazy, tileRangeData, get_range_ptr_of_valuesunit(valuesUnit)
+		auto futureTileFunctor = make_unique_FutureTileFunctor<TR, prepare_data, false>(resultAdi.get(), lazy, tileRangeData.get(), get_range_ptr_of_valuesunit(valuesUnit)
 			, [arg1](tile_id t) { return arg1->GetFutureTile(t); }
 			, [srcUnit, dstUnit](sequence_traits<TR>::seq_t resData, prepare_data arg1FutureData)
 			{
 				auto argData = arg1FutureData->GetTile();
-				do_convert<TR, TA, ConversionFunctor>(dstUnit, srcUnit, argData.begin(), argData.end(), resData.begin());
+				do_convert<TR, TA, ConversionFunctor>(dstUnit.get(), srcUnit.get(), argData.begin(), argData.end(), resData.begin());
 			}
 			MG_DEBUG_ALLOCATOR_SRC_PARAM
 		);

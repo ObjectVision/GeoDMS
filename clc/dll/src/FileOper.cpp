@@ -84,7 +84,7 @@ public:
 		if (mustCalc)
 		{
 			SharedStr dirName = AbstrStorageManager::GetFullStorageName(
-				SessionData::Curr()->GetConfigRoot()
+				SessionData::Curr()->GetConfigRoot().get()
 			,	GetTheCurrValue<SharedStr>(args[0])
 			);
 			
@@ -130,7 +130,7 @@ public:
 
 		if (mustCalc)
 		{
-			const TreeItem* configRoot = SessionData::Curr()->GetConfigRoot();
+			const TreeItem* configRoot = SessionData::Curr()->GetConfigRoot().get();
 			SharedStr fileSrcName  = GetTheCurrValue<SharedStr>(args[0]);
 			SharedStr fileDestName = GetTheCurrValue<SharedStr>(args[1]);
 			if (!IsDefined(fileSrcName )) throwErrorD(GetGroup()->GetName().c_str(), "Source file name is undefined");

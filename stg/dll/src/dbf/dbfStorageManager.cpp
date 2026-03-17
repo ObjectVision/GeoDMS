@@ -55,9 +55,9 @@ TNameSet* DbfStorageManager::BuildNameSet(const TreeItem* storageHolder)  const
 
 		OwningPtr<TNameSet> nameset = new TNameSet(DBF_COLNAME_SIZE);
 
-		nameset->InsertIfColumn(storageHolder, tableDomain);
+		nameset->InsertIfColumn(storageHolder, tableDomain.get());
 		for (const TreeItem* subItem = storageHolder->_GetFirstSubItem(); subItem; subItem = subItem->GetNextItem())
-			nameset->InsertIfColumn(subItem, tableDomain);
+			nameset->InsertIfColumn(subItem, tableDomain.get());
 
 		m_TableDomain          = tableDomain;
 		m_NameSet              = nameset.release();
@@ -65,7 +65,7 @@ TNameSet* DbfStorageManager::BuildNameSet(const TreeItem* storageHolder)  const
 	}
 	dms_assert(m_NameSet); // POSTCONDITION
 	dms_assert(m_TableDomain);
-	return m_NameSet;
+	return m_NameSet.get();
 }
 
 bool DbfStorageManager::ReadUnitRange(const StorageMetaInfo& smi) const
@@ -83,7 +83,7 @@ bool DbfStorageManager::WriteUnitRange(StorageMetaInfoPtr&& smi)
 void DbfStorageManager::TestDomain(const AbstrDataItem* adi) const
 {
 	dms_assert(adi);
-	if (!TableDomain_IsAttr(m_TableDomain, adi))
+	if (!TableDomain_IsAttr(m_TableDomain.get(), adi))
 		adi->throwItemErrorF(
 			"DataItem %s has a domain that is incompatible with the table domain %s", 
 			adi->GetName().c_str(), 
@@ -173,7 +173,7 @@ void DbfStorageManager::DoUpdateTree(const TreeItem* storageHolder, TreeItem* cu
 			CreateDataItem(
 				curr
 			,	GetTokenID_mt(itemName.c_str())
-			,	m_TableDomain
+			,	m_TableDomain.get()
 			,	UnitClass::Find(ValueClass::FindByValueClassID(dbf.ColumnType(i)))->CreateDefault()
 			);
 			;
@@ -199,7 +199,7 @@ FileResult DbfStorageManager::ReadDataItem(StorageMetaInfoPtr smi, AbstrDataObje
 	DbfImplRead dbf(GetNameStr(), smi->StorageHolder());
 
 	SharedPtr<TNameSet> nameset = debug_cast<const DbfMetaInfo*>(smi.get())->m_NameSet;
-	TestDomain(smi->CurrRD());
+	TestDomain(smi->CurrRD().get());
 
 	AbstrDataObject* ado = borrowedReadResultHolder;
 
@@ -235,8 +235,8 @@ FileResult DbfStorageManager::WriteDataItem(StorageMetaInfoPtr&& smiHolder)
 	StorageWriteHandle storageHandle(this, std::move(smiHolder));
 
 	const TreeItem* storageHolder = smi->StorageHolder();
-	const AbstrDataItem*   adi     = smi->CurrRD();
-	const AbstrDataObject* ado     = adi->GetRefObj();
+	const AbstrDataItem*   adi     = smi->CurrRD().get();
+	const AbstrDataObject* ado     = adi->GetRefObj().get();
 	const ValueClass*      vc      = ado->GetValuesType();
 	ValueClassID           vcID    = vc->GetValueClassID();		
 	SharedPtr<TNameSet>    nameset = debug_cast<DbfMetaInfo*>(smi)->m_NameSet;

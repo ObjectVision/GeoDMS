@@ -44,10 +44,10 @@ public:
 
 		const AbstrUnit* regionsUnit = inputGridA->GetAbstrValuesUnit();
 
-		const AbstrUnit* resUnit = count_unit_creator(args);
+		auto resUnit = count_unit_creator(args);
 		assert(resUnit);
 		if (!resultHolder)
-			resultHolder = CreateCacheDataItem(regionsUnit, resUnit);
+			resultHolder = CreateCacheDataItem(regionsUnit, resUnit.get());
 
 		if (mustCalc)
 		{
@@ -72,7 +72,7 @@ public:
 			typedef Unit     <count_type> ResultUnitType;
 			typedef DataArray<count_type> ResultType;
 
-			const ResultUnitType* resultUnit = debug_cast<const ResultUnitType*>(resUnit);
+			const ResultUnitType* resultUnit = debug_cast<const ResultUnitType*>(resUnit.get());
 			ResultUnitType::range_t resultRange = resultUnit->GetRange();
 			auto districtRange = inputGrid->GetValueRangeData()->GetRange();
 

@@ -440,7 +440,7 @@ FileResult GdalGridSM::WriteDataItem(StorageMetaInfoPtr&& smi)
 {
 	auto adi = smi->CurrRD();
 
-	if (auto r = FileResult::require(HasGridDomain(adi), "HasGridDomain failed"); !r)
+	if (auto r = FileResult::require(HasGridDomain(adi.get()), "HasGridDomain failed"); !r)
 		return r;
 
 	auto gridStorageDomain = AsDynamicUnit(smi->StorageHolder());
@@ -458,10 +458,10 @@ FileResult GdalGridSM::WriteDataItem(StorageMetaInfoPtr&& smi)
 	auto x = m_hDS->GetRasterXSize();
 	auto y = m_hDS->GetRasterYSize();
 
-	GDalGridImp imp(m_hDS, adi->GetCurrRefObj(), shp2dms_order(x, y), SharedStr(""), storageHandle.MetaInfo());
-	ViewPortInfoProvider vpip(storageHolder, adi, false, true);
+	GDalGridImp imp(m_hDS, adi->GetCurrRefObj().get(), shp2dms_order(x, y), SharedStr(""), storageHandle.MetaInfo());
+	ViewPortInfoProvider vpip(storageHolder, adi.get(), false, true);
 
-	Grid::WriteGridData(imp, vpip.GetViewportInfoEx(no_tile, storageHandle.MetaInfo()), storageHolder, adi, adi->GetCurrRefObj()->GetValuesType(), GetNameStr().c_str());
+	Grid::WriteGridData(imp, vpip.GetViewportInfoEx(no_tile, storageHandle.MetaInfo()), storageHolder, adi.get(), adi->GetCurrRefObj()->GetValuesType(), GetNameStr().c_str());
 	return {};
 }
 
@@ -652,7 +652,7 @@ void GdalGridSM::DoUpdateTree(const TreeItem* storageHolder, TreeItem* curr, Syn
 	}
 
 	// Get or create projection base
-	const AbstrUnit* uBase = FindProjectionBase(storageHolder, gridDataDomain);
+	auto uBase = FindProjectionBase(storageHolder, gridDataDomain);
 	if (!uBase)
 		uBase = FindProjectionBase(curr, gridDataDomain);
 
@@ -698,8 +698,8 @@ void GdalGridSM::DoUpdateTree(const TreeItem* storageHolder, TreeItem* curr, Syn
 
 			// Pixel- to world coordinates transformation
 			m_hDS->GetGeoTransform(gdalTr);
-			gridDataDomain->SetProjection(new UnitProjection(uBase, GetTransformation(gdalTr)));
-			m_hDS.UpdateBaseProjection(curr, uBase);
+			gridDataDomain->SetProjection(new UnitProjection(uBase.get(), GetTransformation(gdalTr)));
+			m_hDS.UpdateBaseProjection(curr, uBase.get());
 
 			frame.ThrowUpWhateverCameUp();
 		}

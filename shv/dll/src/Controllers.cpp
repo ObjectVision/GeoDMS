@@ -491,7 +491,7 @@ void SelectPoint(GraphicLayer* layer, const CrdPoint& worldPoint, EventID eventI
 			const_cast<AbstrDataItem*>(layer->CreateSelectionsTheme()->GetThemeAttr()),
 			CompoundWriteType(eventID)
 		);
-		if (layer->SelectFeatureIndex(writeLock, UNDEFINED_VALUE(SizeT), eventID))
+		if (layer->SelectFeatureIndex(writeLock.get(), UNDEFINED_VALUE(SizeT), eventID))
 		{
 			writeLock.Commit();
 			lock.ProcessChange();

@@ -66,7 +66,7 @@ struct ConfigurationFilenameLockBase
 	static CharPtr GetCurrentDirNameFromConfigLoadDir();
 	static SharedStr GetConfigDir();
 
-	FileDescr* GetFileRef() const { return m_SourceFileRef; }
+	FileDescr* GetFileRef() const { return m_SourceFileRef.get(); }
 
 private:
 	ConfigurationFilenameLockBase();

@@ -318,11 +318,11 @@ void GetImageToWorldTransformFromFile(TreeItem* storageHolder, WeakStr geoRefFil
 	if (!gridDataDomainRW)
 		return;
 
-	const AbstrUnit* uBase = FindProjectionBase(storageHolder, gridDataDomainRW);
+	auto uBase = FindProjectionBase(storageHolder, gridDataDomainRW);
 	if (!uBase)
 		return;
 
-	ReadGeoRefFile(geoRefFileName, gridDataDomainRW, uBase);
+	ReadGeoRefFile(geoRefFileName, gridDataDomainRW, uBase.get());
 }
 
 // ------------------------------------------------------------------------
@@ -511,7 +511,7 @@ bool CreateTreeItemColumnInfo(TreeItem* tiTable, CharPtr colName, const AbstrUni
 	{
 		if (!TreeItemIsColumn(tiColumn))
 			return false;
-		const ValueClass *vc = debug_cast<AbstrDataItem*>(tiColumn)->GetAbstrValuesUnit()->GetValueType();
+		const ValueClass *vc = AsDataItem(tiColumn)->GetAbstrValuesUnit()->GetValueType();
 		bool res = CompatibleTypes(dbValuesClass, vc);
 		if (!res)
 		{
@@ -688,7 +688,7 @@ ViewPortInfoEx<Int32> ViewPortInfoProvider::GetViewportInfoEx(tile_id tc, Storag
 	auto curr_range_unit = AsUnit(m_CurrDomain->GetCurrRangeItem());
 	auto grid_range_unit = AsUnit(m_GridDomain->GetCurrRangeItem());
 
-	return ViewPortInfoEx<Int32>(m_ADI, curr_range_unit, tc, grid_range_unit, tg, smi, true, false, m_CountColor, m_QueryActualGridDomain);
+	return ViewPortInfoEx<Int32>(m_ADI.get(), curr_range_unit, tc, grid_range_unit, tg, smi, true, false, m_CountColor, m_QueryActualGridDomain);
 }
 
 template ViewPortInfoEx<Int32>;

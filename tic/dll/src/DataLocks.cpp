@@ -261,7 +261,7 @@ DataWriteLock::DataWriteLock(AbstrDataItem* adi, dms_rw_mode rwm, const SharedOb
 			if (auto mmd = dynamic_cast<MmdStorageManager*>(sm))
 			{
 				auto fsn = sm->GetNameStr();
-				auto rn = configItem->GetRelativeName(sp);
+				auto rn = configItem->GetRelativeName(sp.get());
 				if (rn.empty())
 				{
 					rn = "@main";
@@ -294,7 +294,7 @@ afterReset:
 
 	dms_assert(get());
 	if (rwm == dms_rw_mode::read_write)
-		CopyData(adi->GetRefObj(), get());
+		CopyData(adi->GetRefObj().get(), get());
 
 	leveled_std_section::scoped_lock globalDataLockCountLock(sg_CountSection);
 	dms_assert(!adi->m_DataLockCount);
@@ -316,7 +316,7 @@ DataWriteLock::~DataWriteLock()
 {
 	if (!m_adi)
 		return;
-	DataWrite_Unlock(m_adi);
+	DataWrite_Unlock(m_adi.get());
 }
 
 SharedStr incompletedWriteTransactionMsg("Exception occured during generating operation.");
@@ -343,10 +343,10 @@ TIC_CALL void DataWriteLock::Commit()
 		adi->mc_Calculator.reset();
 		adi->SetExpr(SharedStr{});
 	}
-	DataWrite_Unlock(adi);
+	DataWrite_Unlock(adi.get());
 	adi->MarkTS(UpdateMarker::GetActiveTS(MG_DEBUG_TS_SOURCE_CODE("DataWriteLock::Commit")));
 	if (!adi->IsEndogenous())
-		adi->GetAbstrDomainUnit()->AddDataItemOut(adi);
+		adi->GetAbstrDomainUnit()->AddDataItemOut(adi.get());
 }
 
 //----------------------------------------------------------------------

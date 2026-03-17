@@ -130,7 +130,7 @@ bool UnitCombine_impl(AbstrUnit* res, const ArgSeqType& args, bool mustCalc, boo
 	for (; i; --i)
 	{
 		SharedPtr<const AbstrUnit> ithUnit = AsCertainUnit(args[i - 1]);
-		AbstrDataItem* resSub = CreateDataItem(res, subItemNameID[i-1], res, ithUnit);
+		AbstrDataItem* resSub = CreateDataItem(res, subItemNameID[i-1], res, ithUnit.get());
 		resSub->SetTSF(TSF_Categorical);
 
 		if (!mustCalc)
@@ -144,7 +144,7 @@ bool UnitCombine_impl(AbstrUnit* res, const ArgSeqType& args, bool mustCalc, boo
 			[resSub, trd, groupSize, cycleSize, unitCount MG_DEBUG_ALLOCATOR_SRC(res)] <typename V> (const Unit<V>*valuesUnit)
 			{
 				auto conv = CountableValueConverter<V>(valuesUnit->m_RangeDataPtr);
-				auto lazyTileFunctor = make_unique_LazyTileFunctor<V>(resSub, trd, valuesUnit->m_RangeDataPtr
+				auto lazyTileFunctor = make_unique_LazyTileFunctor<V>(resSub, trd.get(), valuesUnit->m_RangeDataPtr
 					, [trd, groupSize, cycleSize, unitCount, conv](AbstrDataObject* self, tile_id t) {
 						tile_offset  tileSize = trd->GetTileSize(t);
 						SizeT tileStart = trd->GetFirstRowIndex(t);

@@ -122,7 +122,7 @@ void GridLayer::SelectPoint(CrdPoint pnt, EventID eventID)
 		auto gridIdx = Range_GetIndex_naked(gridRect, gridLoc);
 		gridIdx = AsUnit(GetGeoCrdUnit()->GetCurrRangeItem())->GetTiledRangeData()->Shadow2DataRow(gridIdx);
 
-		changed = SelectFeatureIndex(writeLock, gridIdx, eventID);
+		changed = SelectFeatureIndex(writeLock.get(), gridIdx, eventID);
 		if (changed)
 			writeLock.Commit();
 	}
@@ -529,7 +529,7 @@ void GridLayer::SelectDistrict(CrdPoint pnt, EventID eventID)
 		DataWriteLock dwl(selAttr, dwlt);
 
 		District(
-			themeAttr, themeAttr->GetRefObj(),
+			themeAttr, themeAttr->GetRefObj().get(),
 			gridSize,
 			mutable_array_cast<SelectionID>( dwl )->GetDataWrite(no_tile, dms_rw_mode::read_write),
 			gridLoc,
@@ -712,10 +712,10 @@ const AbstrUnit* GridLayer::GetGeoCrdUnit() const
 		const AbstrDataItem* basisGrid = GetGridAttr();
 		dms_assert(basisGrid && HasGridDomain(basisGrid)); // POSTCONDITION of GetGridAttr()
 		m_GeoCoordUnit = basisGrid->GetAbstrDomainUnit();
-		MG_CHECK(m_GeoCoordUnit && IsGridDomain(m_GeoCoordUnit));
+		MG_CHECK(m_GeoCoordUnit && IsGridDomain(m_GeoCoordUnit.get()));
 		dms_assert(m_GeoCoordUnit);
 	}
-	return m_GeoCoordUnit;
+	return m_GeoCoordUnit.get();
 }
 
 GraphVisitState GridLayer::InviteGraphVistor(AbstrVisitor& v)
@@ -1023,7 +1023,7 @@ bool GridLayer::DrawAllRects(GraphDrawer& d, const GridColorPalette& colorPalett
 			if (!IsIntersecting(tileGridRect, gridRect))
 				continue;
 
-			ReadableTileLock lock(grid->GetRefObj(), t);
+			ReadableTileLock lock(grid->GetRefObj().get(), t);
 
 			doneAnything = true;
 			GridDrawer drawer(

@@ -617,7 +617,7 @@ namespace Grid {
 		}
 		
 		// complete rows (don't cache)
-		const AbstrDataObject* ado = adi->GetRefObj();
+		const AbstrDataObject* ado = adi->GetRefObj().get();
 		switch (streamType->GetValueClassID())
 		{
 		case ValueClassID::VT_Bool:    WriteTiles< Bool  >(imp, entireRect, segmentationInfoCount, segmentationInfoPtr, const_array_cast< Bool  >(ado), dataSourceName); return;

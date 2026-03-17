@@ -114,7 +114,7 @@ FileDescr* ConfigurationFilenameLockBase::GetCurrentFileDescrFromConfigLoadDir()
 {
 	if (!s_LastFileNameLock)
 		return nullptr;
-	return s_LastFileNameLock->m_SourceFileRef;
+	return s_LastFileNameLock->m_SourceFileRef.get();
 }
 
 CharPtr ConfigurationFilenameLockBase::GetCurrentDirNameFromConfigLoadDir()

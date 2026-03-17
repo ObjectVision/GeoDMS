@@ -177,7 +177,7 @@ CrdRect AsWorldExtents(const CrdRect& geoExtents, const AbstrUnit* geoUnit)
 SharedStr GetViewData(const TreeItem* item)         // look  at DialogData of subItem "ViewData"
 {
 	dms_assert(item);
-	item = item->GetConstSubTreeItemByID(GetTokenID_mt("ViewData"));
+	item = item->GetConstSubTreeItemByID(GetTokenID_mt("ViewData")).get();
 	if (item)
 		return TreeItem_GetDialogData(item );
 	return SharedStr();
@@ -195,7 +195,7 @@ const TreeItem* GetNextDialogDataRef(const TreeItem* item, CharPtr& i, CharPtr e
 	CharPtr newI = std::find(i, e, ';');
 	i = newI;
 	if (newI != e) ++i;
-	return item->FindItem( CharPtrRange(orgI, newI) );
+	return item->FindItem( CharPtrRange(orgI, newI) ).get();
 }
 
 const TreeItem* GetDialogDataRef(const TreeItem* item)
@@ -274,7 +274,7 @@ void SaveValue(TreeItem* context, TokenID nameID, typename param_type<V>::type v
 	adi->DisableStorage();
 	adi->SetKeepDataState(true);
 	adi->UpdateMetaInfo();
-	::SetTheValue<V>(adi, value);
+	::SetTheValue<V>(adi.get(), value);
 }
 
 template <typename T>
@@ -662,7 +662,7 @@ TreeItem* GetDefaultDesktopContainer(const TreeItem* ti)
 	assert(ti);
 	assert(!ti->IsCacheItem());
 	const TreeItem* pi = nullptr;
-	while (pi = ti->GetTreeParent())
+	while (pi = ti->GetTreeParent().get())
 		ti = pi;
 	auto desktops = const_cast<TreeItem*>(ti)->CreateItem(desktopsID);
 	return desktops->CreateItem(defaultID).release();
@@ -765,14 +765,14 @@ SharedDataItemInterestPtr CreateColorPalette(DataView* dv, const AbstrUnit* pale
 		result = CreateDataItem(paletteContainer, name, paletteDomain, Unit<UInt32>::GetStaticClass()->CreateDefault());
 	dms_assert(result);
 
-	TreeItem_SetDialogType(result, GetAspectNameID(aNr));
+	TreeItem_SetDialogType(result.get(), GetAspectNameID(aNr));
 
 	result->DisableStorage();
 	result->UpdateMetaInfo();
 
 	paletteDomain->PrepareDataUsage(DrlType::Certain);
 	auto n = paletteDomain->GetCount();
-	DataWriteLock lock(result);
+	DataWriteLock lock(result.get());
 	for (row_id i = 0; i != n; ++i)
 		lock->SetValue<UInt32>(i, clr);
 	lock.Commit();
@@ -810,13 +810,13 @@ SharedDataItemInterestPtr CreateSystemColorPalette(DataView* dv, const AbstrUnit
 			name = UniqueName(paletteContainer, uniqueNameStr.c_str());
 		}
 		result = CreateDataItem(paletteContainer, name, paletteDomain, Unit<UInt32>::GetStaticClass()->CreateDefault() );
-		TreeItem_SetDialogType(result, GetAspectNameID(aNr) );
+		TreeItem_SetDialogType(result.get(), GetAspectNameID(aNr) );
 
 		result->DisableStorage();
 		result->UpdateMetaInfo();
 		paletteDomain->PrepareDataUsage(DrlType::Certain);
 		SizeT n = paletteDomain->GetCount();
-		DataWriteLock lock(result);
+		DataWriteLock lock(result.get());
 		if (n == 2)
 		{
 			lock->SetValue<UInt32>(0, DmsWhite);
@@ -867,13 +867,13 @@ SharedDataItemInterestPtr CreateSystemLabelPalette(DataView* dv, const AbstrUnit
 	{
 		SizeT n = paletteDomain->GetPreparedCount();
 		SharedMutableDataItem newResult = CreateDataItem(paletteContainer, GetAspectNameID(aNr), paletteDomain, Unit<SharedStr>::GetStaticClass()->CreateDefault() );
-		TreeItem_SetDialogType(newResult, GetAspectNameID(aNr) );
+		TreeItem_SetDialogType(newResult.get(), GetAspectNameID(aNr) );
 
 		newResult->DisableStorage();
 //			newResult->SetConfigData();
 		newResult->UpdateMetaInfo();
 		result = newResult.get_ptr();
-		DataWriteLock lock(newResult);
+		DataWriteLock lock(newResult.get());
 		auto resultData = mutable_array_cast<SharedStr>(lock)->GetDataWrite(no_tile, dms_rw_mode::write_only_all);
 
 		visit<typelists::domain_types>(paletteDomain, [n, &resultData]<typename V>(const Unit<V>* pd)
@@ -918,7 +918,7 @@ SharedDataItemInterestPtr CreateEqualIntervalBreakAttr(std::weak_ptr<DataView> d
 	sortedUniqueValueCache.push_back(ValueCountPair<Float64>(range.first,  1) MG_DEBUG_ALLOCATOR_SRC("CreateEqualIntervalBreakAttr"));
 	sortedUniqueValueCache.push_back(ValueCountPair<Float64>(range.second, 1) MG_DEBUG_ALLOCATOR_SRC("CreateEqualIntervalBreakAttr"));
 
-	ClassifyEqualInterval(breakAttr, sortedUniqueValueCache, themeUnit->GetTiledRangeData());
+	ClassifyEqualInterval(breakAttr.get_ptr(), sortedUniqueValueCache, themeUnit->GetTiledRangeData().get());
 
 	return breakAttr.get_ptr();
 }
@@ -935,7 +935,7 @@ SharedDataItemInterestPtr CreateEqualCountBreakAttr(DataView* dv, const AbstrDat
 
 
 	if (!sortedUniqueValueCache.first.empty())
-		ClassifyEqualCount(breakAttr, sortedUniqueValueCache.first, sortedUniqueValueCache.second);
+		ClassifyEqualCount(breakAttr.get_ptr(), sortedUniqueValueCache.first, sortedUniqueValueCache.second.get());
 
 	return breakAttr.get_ptr();
 }
@@ -987,12 +987,12 @@ void CreateNonzeroJenksFisherBreakAttr(std::weak_ptr<DataView> dv_wptr, const Ab
 			if (!tryReadLock.has_ptr())
 				return; // no accces because of other classifying action, pray for the other action to fill this palette
 
-			FillBreakAttrFromArray(breakAttrPtr, resultCopy, thematicValuesRangeData);
+			FillBreakAttrFromArray(breakAttrPtr.get(), resultCopy, thematicValuesRangeData.get());
 			auto dv = dv_wptr.lock(); if (!dv) return;
 			if (aNr != AN_AspectCount)
-				CreatePaletteData(dv.get(), paletteDomain, aNr, true, true, begin_ptr( resultCopy ), end_ptr( resultCopy ));
+				CreatePaletteData(dv.get(), paletteDomain.get(), aNr, true, true, begin_ptr( resultCopy ), end_ptr( resultCopy ));
 			if (aNr != AN_LabelText)
-				CreatePaletteData(dv.get(), paletteDomain, AN_LabelText, true, true, begin_ptr(resultCopy), end_ptr(resultCopy));
+				CreatePaletteData(dv.get(), paletteDomain.get(), AN_LabelText, true, true, begin_ptr(resultCopy), end_ptr(resultCopy));
 		}
 	;
 //	setTheResultsAction();
@@ -1002,7 +1002,7 @@ void CreateNonzeroJenksFisherBreakAttr(std::weak_ptr<DataView> dv_wptr, const Ab
 const AbstrDataItem* GetSystemPalette(const AbstrUnit* paletteDomain, AspectNr aNr)
 {
 	assert(paletteDomain);
-	return  AsDynamicDataItem( paletteDomain->GetConstSubTreeItemByID(GetAspectNameID(aNr)) );
+	return  AsDynamicDataItem( paletteDomain->GetConstSubTreeItemByID(GetAspectNameID(aNr)).get());
 }
 
 //----------------------------------------------------------------------
@@ -1090,7 +1090,7 @@ auto DataContainer_NextItem(const TreeItem* ti, const TreeItem* si, const AbstrU
 				const TreeItem* next;
 				while ((next = si->GetNextItem()) == nullptr) // skip sub-tree
 				{
-					si = si->GetTreeParent();
+					si = si->GetTreeParent().get();
 					if (si == ti)
 						return nullptr;
 					assert(si);
