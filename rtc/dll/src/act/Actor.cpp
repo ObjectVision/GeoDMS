@@ -1374,16 +1374,6 @@ bool Actor::DoesHaveSupplInterest() const noexcept
     return m_State.Get(actor_flag_set::AF_SupplInterest);
 }
 
-MG_DEBUGCODE(
-
-bool Actor::IsShvObj() const
-{
-    return false;
-}
-
-
-)
-
 // Destroy list by iterative two-step forwarding to avoid creating self-owned cycles.
 // Ensures proper deletion of list elements and their values.
 SupplInterestListPtr::~SupplInterestListPtr()

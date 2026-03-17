@@ -295,7 +295,6 @@ protected:
 
 #if defined(MG_DEBUG)
 	// Debug helpers
-	RTC_CALL virtual bool IsShvObj() const; 
 	RTC_CALL virtual SharedStr GetExpr() const { return SharedStr(); }
 #endif
 

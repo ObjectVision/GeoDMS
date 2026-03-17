@@ -298,7 +298,6 @@ private:
 	void GenerateDescription() override;
 
 	// rtti
-	MG_DEBUGCODE( bool IsShvObj() const override { return true; } )
 public:
 	void OnCaptionChanged() const;
 

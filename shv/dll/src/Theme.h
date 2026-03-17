@@ -153,8 +153,6 @@ protected: friend struct ThemeSet;
 	void DoInvalidate () const override;
 	TokenID GetID() const override;
 
-	MG_DEBUGCODE( bool IsShvObj() const { return true; } )
-
 private: 
 	friend class DataItemColumn;
 	rtc::any::Any m_ClassTask;

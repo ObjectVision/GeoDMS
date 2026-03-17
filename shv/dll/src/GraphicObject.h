@@ -238,8 +238,6 @@ private:
 	friend void SyncState(GraphicObject* obj, TreeItem* context, TokenID stateID, UInt32 state, bool defaultValue, ShvSyncMode sm);
 	friend class DataView;
 
-	MG_DEBUGCODE(bool IsShvObj() const override { return true; })
-
 private:
 	SharedPtr<TreeItem> m_ViewContext;
 	weakPtrGO m_Owner;
