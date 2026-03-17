@@ -402,7 +402,6 @@ struct StorageWriteHandle : StorageCloseHandle
 
 TIC_CALL SharedStr GetConfigIniFileName();
 TIC_CALL SharedStr GetCaseDir(const TreeItem* configStore);
-TIC_CALL bool GetEnvStr(CharPtr section, CharPtr key, SharedStr& result);
 TIC_CALL bool IsInMMD(const AbstrDataItem*);
 
 extern "C" TIC_CALL bool DMS_CONV DMS_IsConfigDirty(const TreeItem* configRoot);
