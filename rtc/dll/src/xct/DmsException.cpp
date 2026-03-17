@@ -769,6 +769,6 @@ RTC_CALL SharedStr GetFirstLine(WeakStr msg)
 	if (this->has_value())
 		throwErrorF(context, "Operation succeeded but was expected to fail");
 	else
-		throwErrorF(context, "Operation failed with error: %s", context, this->error().c_str());
+		throwErrorF(context, "Operation failed with error: %s", this->error().c_str());
 }
 
