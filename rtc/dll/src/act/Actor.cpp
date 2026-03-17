@@ -514,7 +514,10 @@ ActorVisitState Actor::SuspendibleUpdate() const // returns false in case of fai
             VisitSupplBoolImpl(this, SupplierVisitFlag::IntegrityChecked,
                 [this](const Actor* suppl) 
                 { 
-                    assert(suppl->m_State.GetProgress() >= ProgressState::MetaInfo);
+                    if (suppl->IsPassor())
+                        return false;
+
+//                    assert(suppl->m_State.GetProgress() >= ProgressState::MetaInfo);
 
                     if (suppl->WasFailed(FailType::Committed))
                         this->Fail(suppl);
