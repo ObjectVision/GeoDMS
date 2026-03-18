@@ -174,7 +174,7 @@ struct AbstrOperAccPartUni: BinaryOperator
 			DataReadLock arg2Lock(arg2A);
 			DataWriteLock resLock(res);
 
-			Calculate(resLock, arg1A, arg2A, std::move(args), std::move(readLocks));
+			Calculate(resLock, arg1A, arg2A, args, std::move(readLocks));
 
 			resLock.Commit();
 		}

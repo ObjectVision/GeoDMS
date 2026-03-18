@@ -166,7 +166,10 @@ auto AbstrDataItem::CreateAbstrValue  () const -> std::unique_ptr<AbstrValue>
 
 void AbstrDataItem::ClearData(garbage_can& garbage) const
 {
-	assert(GetDataObjLockCount() == 0);
+	MG_CHECK(GetDataObjLockCount() == 0);
+	MG_CHECK(m_ItemCount == 0);
+	MG_CHECK(m_InterestCount == 0);
+
 	garbage |= std::move(m_DataObject);
 	assert(!m_DataObject);
 
