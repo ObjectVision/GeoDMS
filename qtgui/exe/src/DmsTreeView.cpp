@@ -445,6 +445,8 @@ void TreeItemDelegate::paint(QPainter* painter, const QStyleOptionViewItem& opti
 			is_read_only = storageHolder->GetStorageManager()->IsReadOnly();
 			if (is_read_only && ti->HasCalculator())
 				storageHolder = nullptr;
+			if (!ti->HasCalculator())
+				is_read_only = true;
 		}
 		bool show_validation_icon = ti->m_State.Get(actor_flag_set::AF_IntegrityChecked) && !ti->WasFailed(FailType::Data);
 
@@ -463,11 +465,11 @@ void TreeItemDelegate::paint(QPainter* painter, const QStyleOptionViewItem& opti
 
 			static QFont font = CreateRemixFont();
 			painter->setFont(font);
-			if (storageHolder)
+			if (storageHolder && is_read_only)
 			{
 				// set transparancy if not committed yet
 				NotificationCode ti_state = static_cast<NotificationCode>(TreeItem_GetProgressState(ti));
-				if (ti_state < NotificationCode::NC2_Committed)
+				if (ti_state < NotificationCode::NC2_DataReady)
 					painter->setOpacity(0.5);
 
 				// draw storage icon
@@ -475,11 +477,9 @@ void TreeItemDelegate::paint(QPainter* painter, const QStyleOptionViewItem& opti
 					painter->setPen(QColor(255, 0, 0, 255));
 
 				static auto dbIcon = QString("\uEC15");
-				static auto disketteIcon = QString("\uF0B0");
-				auto storageIcon = is_read_only ? dbIcon : disketteIcon;
 
-				painter->drawText(QPoint(offset, rect.center().y() + 5), storageIcon);
-				offset += fm.horizontalAdvance(storageIcon);
+				painter->drawText(QPoint(offset, rect.center().y() + 5), dbIcon);
+				offset += fm.horizontalAdvance(dbIcon);
 			}
 			if (show_validation_icon)
 			{
@@ -492,7 +492,7 @@ void TreeItemDelegate::paint(QPainter* painter, const QStyleOptionViewItem& opti
 				static auto failedIcon = QString("✖"); // ✖
 				static auto thisSucceededIcon  = QString("\u2713"); // ✓
 				static auto upstreamSucceededIcon = QString("◦"); // ◦
-				static auto nonfalsifiable = QString("∅"); // ◦
+//				static auto nonfalsifiable = QString("∅"); // ◦
 				bool thisValidated = integrityCheckPropDefPtr->HasNonDefaultValue(ti);
 				if (!wasValidated)
 				{
@@ -502,10 +502,10 @@ void TreeItemDelegate::paint(QPainter* painter, const QStyleOptionViewItem& opti
 				else if (valid)
 				{
 					color = QColor(0x2E, 0x7D, 0x32);
-					if (ti->m_State.Get(actor_flag_set::AF_IntegrityChecked))
+//					if (ti->m_State.Get(actor_flag_set::AF_IntegrityChecked))
 						validationIcon = thisValidated ? thisSucceededIcon : upstreamSucceededIcon;
-					else
-						validationIcon = nonfalsifiable;
+//					else
+//						validationIcon = nonfalsifiable;
 				}
 				else
 				{
@@ -518,7 +518,23 @@ void TreeItemDelegate::paint(QPainter* painter, const QStyleOptionViewItem& opti
 				painter->setPen(color);
 
 				painter->drawText(QPoint(offset, rect.center().y() + 5), validationIcon);
-//				offset += fm.horizontalAdvance(icon);
+				offset += fm.horizontalAdvance(validationIcon);
+			}
+			if (storageHolder && !is_read_only)
+			{
+				// set transparancy if not committed yet
+				NotificationCode ti_state = static_cast<NotificationCode>(TreeItem_GetProgressState(ti));
+				if (ti_state < NotificationCode::NC2_Committed)
+					painter->setOpacity(0.5);
+
+				// draw storage icon
+				if (ti->WasFailed(FailType::Committed))
+					painter->setPen(QColor(255, 0, 0, 255));
+
+				static auto disketteIcon = QString("\uF0B0");
+
+				painter->drawText(QPoint(offset, rect.center().y() + 5), disketteIcon);
+				offset += fm.horizontalAdvance(disketteIcon);
 			}
 		}
 	}
