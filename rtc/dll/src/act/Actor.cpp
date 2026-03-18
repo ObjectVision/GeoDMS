@@ -597,21 +597,28 @@ void Actor::UpdateMetaInfo() const noexcept
 
     if (m_State.GetProgress() >= ProgressState::MetaInfo)
         return;
+    try {
+        UpdateSupplMetaInfo(); // Update Suppliers, calls MakeCalculator() -> mc_DC
 
-    UpdateSupplMetaInfo(); // Update Suppliers, calls MakeCalculator() -> mc_DC
+        // collect IntegrityCheck Related MetaInfo
 
-    // collect IntegrityCheck Related MetaInfo
+    //    static_assert((UInt32(SupplierVisitFlag::IntegrityChecked) & UInt32(SupplierVisitFlag::UpdateSupplMetaInfo)) == UInt32(SupplierVisitFlag::IntegrityChecked)); // require that all inspected suppliers for check were also MetaInfo updated.
 
-//    static_assert((UInt32(SupplierVisitFlag::IntegrityChecked) & UInt32(SupplierVisitFlag::UpdateSupplMetaInfo)) == UInt32(SupplierVisitFlag::IntegrityChecked)); // require that all inspected suppliers for check were also MetaInfo updated.
-
-    VisitSupplProcImpl(this, SupplierVisitFlag::IntegrityChecked, [this](const Actor* supplier)
-        {
-            assert(supplier);
-            if (supplier->m_State.Get(actor_flag_set::AF_IntegrityChecked))
-                this->m_State.Set(actor_flag_set::AF_IntegrityChecked);
-        }
-    );
-
+        VisitSupplProcImpl(this, SupplierVisitFlag::IntegrityChecked, [this](const Actor* supplier)
+            {
+                assert(supplier);
+                if (supplier->m_State.Get(actor_flag_set::AF_IntegrityChecked))
+                    this->m_State.Set(actor_flag_set::AF_IntegrityChecked);
+            }
+        );
+    }
+    catch (...)
+    {
+        // don't try again
+        assert(m_State.GetProgress() <= ProgressState::MetaInfo);
+        m_State.SetProgress(ProgressState::MetaInfo);
+        CatchFail(FailType::MetaInfo);
+    }
     assert(m_LastChangeTS || IsPassor()); // PRECONDITION for SetProgress
 
     if (m_State.GetProgress() < ProgressState::MetaInfo)
