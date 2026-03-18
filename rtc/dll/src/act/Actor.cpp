@@ -593,6 +593,11 @@ void Actor::DoInvalidate () const
 // NOTE: Must be noexcept to preserve state invariants during metadata refresh.
 void Actor::UpdateMetaInfo() const noexcept
 {
+    assert(m_LastChangeTS || IsPassor()); // PRECONDITION for SetProgress
+
+    if (m_State.GetProgress() >= ProgressState::MetaInfo)
+        return;
+
     UpdateSupplMetaInfo(); // Update Suppliers, calls MakeCalculator() -> mc_DC
 
     // collect IntegrityCheck Related MetaInfo
@@ -606,6 +611,12 @@ void Actor::UpdateMetaInfo() const noexcept
                 this->m_State.Set(actor_flag_set::AF_IntegrityChecked);
         }
     );
+
+    assert(m_LastChangeTS || IsPassor()); // PRECONDITION for SetProgress
+
+    if (m_State.GetProgress() < ProgressState::MetaInfo)
+        m_State.SetProgress(ProgressState::MetaInfo);
+
 }
 
 // Propagate meta-info update to suppliers and record failures.
@@ -731,35 +742,69 @@ ActorVisitState Actor::UpdateSuppliers() const // returns US_Valid, US_UpdatingE
     assert(!WasFailed()); // precondition
     assert(DoesHaveSupplInterest() || !GetInterestCount());
 
-    ActorVisitState updateRes = 
+    ActorVisitState updateRes =
         VisitSupplBoolImpl(this, SupplierVisitFlag::Update,
-            [this] (const Actor* supplier) -> ActorVisitState
+            [this](const Actor* supplier) -> ActorVisitState
+            {
+                if (!supplier->IsPassor())
                 {
-                    if (supplier->IsPassor())
-                        return AVS_Ready;
-                    if (supplier->SuspendibleUpdate() != AVS_SuspendedOrFailed)
-                    {
-                        assert(!SuspendTrigger::DidSuspend());
-                        assert(supplier->m_State.GetProgress() >= ProgressState::Committed || supplier->IsPassor());
-                    }
-                    else
-                    {
-                        assert(supplier->WasFailed(FailType::Committed) || SuspendTrigger::DidSuspend()); // POSTCONDITION of SuspendibleUpdate
-                        // first, propagate err
-                        if (supplier->WasFailed(FailType::Committed))
-                            this->Fail(supplier);
-						if (this->WasFailed(FailType::Validate))
-                            return AVS_SuspendedOrFailed; // then, suspend or fail
-                        if (SuspendTrigger::DidSuspend())
-                            return AVS_SuspendedOrFailed;
-                    }
-                    return AVS_Ready;
+                    supplier->SuspendibleUpdate();
+                    if (SuspendTrigger::DidSuspend())
+                        return AVS_SuspendedOrFailed;
                 }
+                return AVS_Ready;
+            }
         );
-    if (this->WasFailed(FailType::Committed))
-        updateRes = AVS_SuspendedOrFailed; // then, suspend or fail
+    if (updateRes == AVS_SuspendedOrFailed)
+        return updateRes;
 
-    dms_assert(updateRes == AVS_Ready || this->WasFailed(FailType::Committed) || SuspendTrigger::DidSuspend());
+    updateRes =
+        VisitSupplBoolImpl(this, SupplierVisitFlag::UpdateForDataPrep,
+            [this](const Actor* supplier) -> ActorVisitState
+            {
+                if (!supplier->IsPassor())
+                {
+                    if (supplier->WasFailed(FailType::Committed))
+                        this->Fail(supplier);
+                }
+                return AVS_Ready;
+            }
+        );
+
+    if (updateRes == AVS_SuspendedOrFailed)
+        return updateRes;
+
+    updateRes =
+        VisitSupplBoolImpl(this, SupplierVisitFlag::UpdateForValidation,
+            [this](const Actor* supplier) -> ActorVisitState
+            {
+                if (!supplier->IsPassor())
+                    if (supplier->WasFailed(FailType::Committed))
+                    {
+                        this->Fail(supplier, FailType::Validate);
+                        return AVS_SuspendedOrFailed;
+                    }
+                return AVS_Ready;
+            }
+        );
+
+    if (updateRes == AVS_SuspendedOrFailed)
+        return updateRes;
+
+    updateRes =
+        VisitSupplBoolImpl(this, SupplierVisitFlag::UpdateForCommit,
+            [this](const Actor* supplier) -> ActorVisitState
+            {
+                if (!supplier->IsPassor())
+                    if (supplier->WasFailed(FailType::Committed))
+                    {
+                        this->Fail(supplier, FailType::Committed);
+                        return AVS_SuspendedOrFailed;
+                    }
+                return AVS_Ready;
+            }
+        );
+
     return updateRes;
 }
 

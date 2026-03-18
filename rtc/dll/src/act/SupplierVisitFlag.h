@@ -32,6 +32,10 @@ enum class SupplierVisitFlag
 	//	Calc    = 0x0002, // Data processing and reading, Domain +Values Unit
 
 	Update = DomainValues | ExplicitSuppliers | SourceData | NamedSuppliers | ExportInfo,
+	UpdateForDataPrep = Calc,
+	UpdateForCommit = ExportInfo,
+	UpdateForValidation = Update & ~Calc & ~ExportInfo,
+
 	UpdateSupplMetaInfo = Parent | Update | ScanSupplTree,
 	UpdateSupplMetaInfoForDataPrep = Calc,
 	UpdateSupplMetaInfoForCommit = ExportInfo,
