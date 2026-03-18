@@ -2302,7 +2302,7 @@ task_status OperationContext::Join()
 		{
 			SuspendTrigger::MarkProgress();
 			ProcessMainThreadOpers();
-			ProcessSuspendibleTasks();
+//			ProcessSuspendibleTasks();
 			if (SuspendTrigger::DidSuspend())
 				return task_status::suspended;
 		}
