@@ -834,7 +834,7 @@ void connect(OperationContext* waiter, OperationContextSPtr supplier)
 void scheduleRunnableTask(OperationContext* self)
 {
 	assert(!cs_ThreadMessing.try_lock());
-	assert(self->m_Status < task_status::scheduled);
+	assert(self->m_Status < task_status::scheduled || self->m_Status == task_status::activated);
 
 	// next StartOperationContexts() must not start scheduling tasks with phase numbers higher than this task.
 	auto fn = self->m_PhaseNumber;
