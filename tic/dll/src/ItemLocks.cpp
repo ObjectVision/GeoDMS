@@ -388,6 +388,7 @@ ItemReadLock::ItemReadLock(SharedTreeItemInterestPtr&& rhs)
 
 	cs_lock::ReadLockInit(rhs);
 	m_Ptr = std::move(rhs);
+	assert(IsCalculatingOrReady(m_Ptr.get_ptr()));
 	MG_CHECK(!IsDataItem(m_Ptr.get_ptr()) || AsDataItem(m_Ptr.get_ptr())->GetCurrRefObj());
 
 #if defined(MG_DEBUG_DATASTORELOCK)
