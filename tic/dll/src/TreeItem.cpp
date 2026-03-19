@@ -2470,6 +2470,7 @@ LispRef TreeItem::GetCheckedKeyExpr() const
 		);
 	}
 	// required for Convert test and subItem moniking, empty for applicators non-calculatable or loadable items (such as some parents).
+	this->DetermineState();
 	result = CreateLispTree(this, false);
 	if (HasIntegrityChecker())
 		result = TreeItem_CreateCheckedExpr(result, this);
@@ -3327,18 +3328,17 @@ bool TreeItem::ReadItem(StorageReadHandle&& srh) // TODO: Make this a method of 
 			return true;
 		else if (!SuspendTrigger::DidSuspend())
 			throwItemError("DoReadItem returned Failure");
-		dms_assert(GetInterestCount());
+		assert(GetInterestCount());
 	} 
 	catch (...)
 	{
- 		dms_assert(!HasCurrConfigData());
+ 		assert(!HasCurrConfigData());
 
 		if (!WasFailed(FailType::Data)) {
 			auto err = catchException(true);
 			err->TellExtraF("while reading data from %s", DMS_TreeItem_GetAssociatedFilename(this));
 			DoFailCaller(err, FailType::Data);
 		}
-		DropValue();
 	}
 	return false;
 }
