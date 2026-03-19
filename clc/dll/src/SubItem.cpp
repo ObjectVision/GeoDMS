@@ -86,7 +86,9 @@ struct SubItemOperator: BinaryOperator
 			resultHolder = subItem;
 		}
 		assert(resultHolder);
-
+		assert(!mustCalc || !IsDataItem(resultHolder.GetUlt()) || AsDataItem(resultHolder.GetUlt())->m_DataObject
+			|| resultHolder->WasFailed(FailType::Data)
+		);
 		return true;
 	}
 };
