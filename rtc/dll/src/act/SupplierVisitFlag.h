@@ -66,7 +66,7 @@ enum class SupplierVisitFlag
 	MetaAll = Signature | TemplateOrg | CDF | DIALOGDATA | ImplSuppliers | NamedSuppliers,
 	All = CalcAll | MetaAll,
 
-	IntegrityChecked = All | DetermineCalc,
+	IntegrityChecked = (All | DetermineCalc) & ~CDF & ~DIALOGDATA,
 	IntegrityCheckedForDataPrep = Calc,
 	IntegrityCheckedForCommit = ExportInfo,
 	IntegrityCheckedForValidation = IntegrityChecked & (~IntegrityCheckedForDataPrep) & (~IntegrityCheckedForCommit),
