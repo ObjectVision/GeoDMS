@@ -434,7 +434,7 @@ void tile_task_group::DoWork(IndexType i)
 }
 
 // Wait until all commissioned slots are completed. No exceptions thrown.
-void tile_task_group::AwaitRunningSlots() noexcept
+void tile_task_group::AwaitRunningSlots()
 {
 	MG_CHECK(m_Commissioned == m_Last); // post condition of DoWork
 
@@ -453,7 +453,7 @@ void tile_task_group::AwaitRunningSlots() noexcept
 
 		if (m_CallingContext)
 			DSM::CancelIfOutOfInterest();
-		ASyncContinueCheck();
+		ASyncContinueCheck(); // can throw !
 
 		m_TileTasksDone.wait_for(lock, std::chrono::milliseconds(500));
 	}

@@ -48,7 +48,7 @@ private:
 	tile_task_group& operator=(const tile_task_group&) = delete;
 	tile_task_group& operator=(tile_task_group&&) = delete;
 
-	void AwaitRunningSlots() noexcept;
+	void AwaitRunningSlots();
 
 	void decommission();
 	IndexType getNextCommissioned();

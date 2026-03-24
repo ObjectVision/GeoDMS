@@ -437,8 +437,11 @@ namespace wms {
 		auto owner = m_Owner.lock();
 		if (owner)
 		{
-			owner->m_TileCache->EndLoading(m_Key);
-			owner->RunTileLoads(true); // load next
+			try {
+				owner->m_TileCache->EndLoading(m_Key);
+				owner->RunTileLoads(true); // load next
+			}
+			catch (...) {}
 		}
 	}
 

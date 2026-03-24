@@ -31,7 +31,8 @@ RTC_CALL bool s_IsDetectingIncInterest;
 
 oper_arg_policy oap_Phase[2] = { oper_arg_policy::calc_never,  oper_arg_policy::calc_as_result };
 
-SpecialOperGroup sog_PhaseContainer(token::PhaseContainer, 2, oap_Phase, oper_policy::dynamic_result_class);
+SpecialOperGroup sog_PhaseContainer(token::PhaseContainer, 2, oap_Phase, oper_policy::dynamic_result_class | oper_policy::better_not_in_meta_scripting);
+
 using fence_member_pair = std::pair<SharedTreeItemInterestPtr, FutureData>;
 using fence_work_data = std::vector<fence_member_pair>;
 using phase_resource = std::pair<fence_work_data, SharedPtr<TreeItem>>;

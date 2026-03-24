@@ -68,33 +68,45 @@ TreeItemDualRef::~TreeItemDualRef()
 
 void TreeItemDualRef::Set(const TreeItem* ti, bool isNew)
 {
-	if (ti && m_Data.get() != ti)
+	assert(ti);
+	if (m_Data.get() != ti)
 	{
 		assert(IsMetaThread());
 		assert(!m_State.Get(DCF_IsOld|DCF_IsTmp));
 
-		if (GetInterestCount() && m_Data)
-			DecDataInterestCount();
-
-		m_Data = nullptr;
-
 		if (isNew)
-			const_cast<TreeItem*>(ti)->SetIsCacheItem();
+		{
+			if (ti) const_cast<TreeItem*>(ti)->SetIsCacheItem();
+			assert(!m_State.Get(DCF_IsOld));
+		}
 		else
 			m_State.Set(DCF_IsOld);
 
 
-		m_Data = MakeSharedFromBorrowedObjectPtr( ti );
-		if (GetInterestCount())
+		auto dataPtr = MakeSharedFromBorrowedObjectPtr( ti );
+		if (auto x = GetInterestPtrOrNull())
 		{
+			if (m_Data)
+				DecDataInterestCount();
+			m_Data = nullptr;
+
 			try {
+				// StopInterest cannot be asynchronysly be called now as x also holds interest
+				m_Data = dataPtr;
 				IncDataInterestCount();
+				assert(GetInterestCount());
 			}
 			catch (...)
 			{
 				m_Data = nullptr;
 				throw;
 			}
+		}
+		else
+		{
+			// IncInterest can only be called in MetaThread no interest can be gained or lost as it is already zero
+			m_Data = dataPtr;
+			assert(!GetInterestCount()); 
 		}
 	}
 	assert(!ti || GetOld() == ti);
@@ -158,6 +170,7 @@ bool TreeItemDualRef::DoFail(ErrMsgPtr msg, FailType ft) const
 void TreeItemDualRef::IncDataInterestCount() const
 {
 	assert(IsMetaThread());
+	assert(m_Data);
 	dbg_assert(!m_State.Get(DCFD_DataCounted));
 	m_Data->IncInterestCount();
 	MG_DEBUGCODE( m_State.Set(DCFD_DataCounted));

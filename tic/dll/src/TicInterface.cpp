@@ -1098,9 +1098,15 @@ TIC_CALL BestItemRef TreeItem_GetErrorSource(const TreeItem* src, bool tryCalcSu
 	{
 		if (AbstrCalculator::MustEvaluate(src->mc_Expr.c_str()))
 		{
+			try {
 			auto result = AbstrCalculator::GetErrorSource(src, src->mc_Expr);
 			if (result.first)
 				return result;
+		}
+			catch (...)
+			{
+				return {};
+			}
 		}
 
 		auto sc = src->GetCalculator();
