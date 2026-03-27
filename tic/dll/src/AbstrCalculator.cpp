@@ -629,7 +629,7 @@ ActorVisitState AbstrCalculator::VisitSuppliers(SupplierVisitFlag svf, const Act
 	assert(IsMainThread());
 	GetMetaInfo();
 
-	assert(Test(svf, SupplierVisitFlag::NamedSuppliers) || Test(svf, SupplierVisitFlag::ImplSuppliers));
+	assert(Test(svf, SupplierVisitFlag::NamedSuppliers) || Test(svf, SupplierVisitFlag::ImplSuppliers) || Test(svf, SupplierVisitFlag::Checker));
 	if (dynamic_cast<const DC_Ptr*>(this))
 		return AVS_Ready;
 

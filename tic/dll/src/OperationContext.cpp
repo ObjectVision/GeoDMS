@@ -434,7 +434,7 @@ void tile_task_group::DoWork(IndexType i)
 }
 
 // Wait until all commissioned slots are completed. No exceptions thrown.
-void tile_task_group::AwaitRunningSlots()
+void tile_task_group::AwaitRunningSlots() 
 {
 	MG_CHECK(m_Commissioned == m_Last); // post condition of DoWork
 

@@ -40,7 +40,7 @@ enum class SupplierVisitFlag
 	UpdateSupplMetaInfoForDataPrep = Calc,
 	UpdateSupplMetaInfoForCommit = ExportInfo,
 	UpdateSupplMetaInfoForValidation = UpdateSupplMetaInfo & (~UpdateSupplMetaInfoForDataPrep) & (~UpdateSupplMetaInfoForCommit),
-	DetermineState = UpdateSupplMetaInfo | Calc | Checker | ReadyDcsToo | DetermineCalc,
+	DetermineState = UpdateSupplMetaInfoForDataPrep | UpdateSupplMetaInfoForValidation | Calc | Checker | ReadyDcsToo | DetermineCalc,
 
 	Explain = NamedSuppliers | SourceData,
 

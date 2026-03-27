@@ -276,9 +276,10 @@ struct PhaseContainerOperator : BinaryOperator
 			for (auto msg: msgData)
 				reportF(SeverityTypeID::ST_MajorTrace, "PhaseContainer(%d): %s", resultPhaseNumber, SharedStr(msg));
 
-		futureDataContainer.clear();
 		resultHolder->SetIsInstantiated();
 		resultHolder->StopSupplInterest();
+		futureDataContainer.clear();
+		resultRoot->m_ReadAssets.Clear();
 
 		return true;
 	}

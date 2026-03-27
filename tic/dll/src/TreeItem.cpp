@@ -261,8 +261,6 @@ void RemoveStoredPropValues(TreeItem* item); // defined in CopyTreeContext.cpp
 
 TreeItem::~TreeItem ()
 {
-//	dbg_assert(!IsDcKnown()); // this destruction implies that no DCs refer to it anymore 
-//	dms_assert(!IsKnown()); // this destruction implies that no DCs refer to it anymore 
 	DisableStorage();
 
 	MG_LOCKER_NO_UPDATEMETAINFO

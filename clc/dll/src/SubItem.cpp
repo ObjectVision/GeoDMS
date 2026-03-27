@@ -84,9 +84,10 @@ struct SubItemOperator: BinaryOperator
 				);
 			assert(subItem->IsCacheItem());
 			resultHolder = subItem;
+			MG_CHECK(subItem->GetInterestCount() || !resultHolder.GetInterestCount());
 		}
 		assert(resultHolder);
-		assert(!mustCalc || !IsDataItem(resultHolder.GetUlt()) || AsDataItem(resultHolder.GetUlt())->m_DataObject
+		MG_CHECK(!mustCalc || !IsDataItem(resultHolder.GetUlt()) || AsDataItem(resultHolder.GetUlt())->m_DataObject
 			|| resultHolder->WasFailed(FailType::Data)
 		);
 		return true;
