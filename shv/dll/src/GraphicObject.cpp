@@ -244,7 +244,7 @@ void GraphicObject::OnChildSizeChanged()
 
 #include "OperationContext.h"
 
-typedef std::pair<GraphicObject*, SharedPtr<const TreeItem>> UpdateActionType;
+using UpdateActionType = std::pair<GraphicObject*, SharedPtr<const TreeItem>>;
 
 static std::set<UpdateActionType> s_UpdateActionSet;
 leveled_critical_section sm_UAS(item_level_type(0), ord_level_type::UpdateActionSet, "UpdateActionSet");
@@ -268,7 +268,8 @@ struct PairRemover
 
 auto RegisterNew(GraphicObject* obj, const TreeItem* item) -> std::shared_ptr<PairRemover>
 {
-	UpdateActionType itemPair(obj, item);
+    // construct SharedPtr<const TreeItem> from raw pointer as a borrowed/existing object
+	UpdateActionType itemPair(obj, MakeSharedFromBorrowedObjectPtr<const TreeItem>(item));
 
 	leveled_critical_section::scoped_lock lock(sm_UAS);
 	auto pos = s_UpdateActionSet.lower_bound(itemPair);

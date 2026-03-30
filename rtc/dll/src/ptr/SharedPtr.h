@@ -13,6 +13,7 @@
 #include "dbg/Check.h"
 #include "dbg/DebugCast.h"
 #include "ptr/PtrBase.h"
+#include <compare>
 
 struct newly_obj {};
 struct existing_obj {};
@@ -124,6 +125,13 @@ struct SharedPtr
 	bool operator <(T* rhs) const noexcept { return this->m_Ptr < rhs; }
 	bool operator ==(const SharedPtr<T>& rhs) const noexcept { return this->m_Ptr == rhs.m_Ptr; }
 	bool operator ==(T* rhs) const noexcept { return this->m_Ptr == rhs; }
+
+	// Provide explicit three-way comparisons to ensure comparisons use the
+	// underlying pointer values instead of any implicit conversions (for
+	// example to bool). This prevents synthesized comparisons from picking
+	// undesired overloads that could call `operator bool()`.
+	auto operator<=>(const SharedPtr<T>& rhs) const noexcept { return this->m_Ptr <=> rhs.m_Ptr; }
+	auto operator<=>(T* rhs) const noexcept { return this->m_Ptr <=> rhs; }
 
 	struct releaser_ftor { void operator()(T* p) const noexcept { p->Release(); } };	
 
