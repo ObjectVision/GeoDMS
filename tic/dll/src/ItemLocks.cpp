@@ -388,8 +388,11 @@ ItemReadLock::ItemReadLock(SharedTreeItemInterestPtr&& rhs)
 
 	cs_lock::ReadLockInit(rhs);
 	m_Ptr = std::move(rhs);
-	MG_CHECK(IsCalculatingOrReady(m_Ptr.get_ptr()) || m_Ptr->WasFailed(FailType::Data));
-	MG_CHECK(!IsDataItem(m_Ptr.get_ptr()) || m_Ptr->WasFailed(FailType::Data) || AsDataItem(m_Ptr.get_ptr())->GetCurrRefObj());
+	if (IsDataItem(m_Ptr.get_ptr()) || IsUnit(m_Ptr.get_ptr()))
+	{
+		MG_CHECK(IsCalculatingOrReady(m_Ptr.get_ptr()) || m_Ptr->WasFailed(FailType::Data));
+		MG_CHECK(!IsDataItem(m_Ptr.get_ptr()) || m_Ptr->WasFailed(FailType::Data) || AsDataItem(m_Ptr.get_ptr())->GetCurrRefObj());
+	}
 
 #if defined(MG_DEBUG_DATASTORELOCK)
 	++sd_ItemReadLockCounter;
