@@ -959,7 +959,8 @@ SharedTreeItem SymbDC::MakeResult() const
 		}
 		const_cast<SymbDC*>(this)->SetNew(res); // copy will be done by UpdateMetaInfo
 */
-		const_cast<SymbDC*>(this)->SetOld(sourceItem.get()); // copy will be done by UpdateMetaInfo
+		if (sourceItem)
+			const_cast<SymbDC*>(this)->SetOld(sourceItem.get()); // copy will be done by UpdateMetaInfo
 	}
 	dms_assert( !SuspendTrigger::DidSuspend() ); // Follows from previous assert and FindItem doesn't call MustSuspend();
 

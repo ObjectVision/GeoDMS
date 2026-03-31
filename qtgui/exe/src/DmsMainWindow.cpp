@@ -185,8 +185,11 @@ MainWindow::MainWindow(CmdLineSetttings& cmdLineSettings) {
     m_treeitem_visit_history->setFrame(false);
     m_treeitem_visit_history->setStyleSheet(dms_params::stylesheet_treeitem_visit_history);
     m_treeitem_visit_history->setFocusPolicy(Qt::FocusPolicy::ClickFocus);
-    connect(m_treeitem_visit_history.get(), &QComboBox::currentTextChanged, m_address_bar.get(), &DmsAddressBar::setPathDirectly);
-
+    connect(m_treeitem_visit_history.get(), &QComboBox::activated,
+        this, [this](int index) {
+            auto text = m_treeitem_visit_history->itemText(index);
+            m_address_bar->setPathDirectly(text);
+        });
     // address bar
     m_address_bar_container->addWidget(m_treeitem_visit_history.get());
     m_address_bar = std::make_unique<DmsAddressBar>(this);
