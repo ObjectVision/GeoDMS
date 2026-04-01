@@ -76,6 +76,7 @@ void createDmsActions() {
     main_window->connect(main_window->m_find_treeitem_action.get(), &QAction::triggered, main_window, &MainWindow::findTreeItem);
     main_window->m_edit_menu->addAction(main_window->m_find_treeitem_action.get());
     main_window->m_find_treeitem_action->setShortcut(QKeySequence(QObject::tr("Ctrl+F")));
+    main_window->m_find_treeitem_action->setShortcutContext(Qt::ApplicationShortcut);
 
     // update treeitem
     main_window->m_update_treeitem_action = std::make_unique<QAction>(QObject::tr("&Update TreeItem"));
