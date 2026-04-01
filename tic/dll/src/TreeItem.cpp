@@ -2771,7 +2771,19 @@ ActorVisitState TreeItem::DoUpdate()
 
 					assert(iCheckerDC && iCheckerDC->GetInterestCount());
 
-					DataReadLockContainer c;                                                  // @@@USE
+					DataReadLockContainer c;
+					auto iCheckerFD = iCheckerDC->CallCalcResult(nullptr);// @@@USE
+					if (!iCheckerFD)
+					{
+						if (SuspendTrigger::DidSuspend())
+							return AVS_SuspendedOrFailed;
+						assert(iCheckerDC->WasFailed(FailType::Data));
+						Fail(iCheckerDC.get_ptr());
+						m_State.SetProgress(ProgressState::Validated);
+						assert(WasFailed());
+						return AVS_SuspendedOrFailed;
+					}
+
 					SharedDataItem iCheckerResult = AsDynamicDataItem(iCheckerDC->GetOld());
 					if (iCheckerResult)
 					{
@@ -2804,7 +2816,6 @@ ActorVisitState TreeItem::DoUpdate()
 							Fail("Unknown error in IntegrityCheck: ", FailType::MetaInfo);
 						m_State.SetProgress(ProgressState::Validated);
 						assert(WasFailed());
-						m_State.SetProgress(ProgressState::Validated);
 						return AVS_SuspendedOrFailed;
 					}
 
