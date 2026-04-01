@@ -215,6 +215,7 @@ public slots:
     void debugReports();
     void expandActiveNode(bool doExpand);
     void expandRecursiveFromCurrentItem();
+    void findTreeItem();
 
 public slots:
     void fileOpen();
@@ -284,7 +285,7 @@ public:
 
     // shared actions
     std::unique_ptr<QAction> m_export_primary_data_action
-        , m_step_to_failreason_action, m_go_to_causa_prima_action, m_edit_config_source_action
+		, m_step_to_failreason_action, m_go_to_causa_prima_action, m_edit_config_source_action, m_find_treeitem_action
         , m_update_treeitem_action, m_update_subtree_action, m_invalidate_action
         , m_defaultview_action, m_tableview_action, m_mapview_action, m_statistics_action
         //    , m_histogramview_action
@@ -324,6 +325,7 @@ public:
     QPointer<DmsExportWindow> m_export_window;
     QPointer<DmsErrorWindow> m_error_window;
     QPointer<DmsFileChangedWindow> m_file_changed_window;
+    QPointer<class FindTextWindow> m_find_treeitem_window;
 
     using processing_record = std::tuple<std::time_t, std::time_t, SharedStr>;
     //QList<QWidgetAction*> m_recent_files_actions;

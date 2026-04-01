@@ -28,22 +28,30 @@
 
 class FindTextWindow : public QWidget
 {
+
 public:
     FindTextWindow(QWidget* parent);
     void findInText(bool backwards = false);
+    void setSearchMode(bool treeViewMode);
 
 public slots:
     void nextClicked(bool checked = false);
     void previousClicked(bool checked = false);
+    void onSourceGroupChanged(QAbstractButton* button, bool checked);
 
     void findInQTextBrowser(bool backwards = false);
+    void findInTreeView();
 
     QLineEdit* find_text = nullptr;
+
     QCheckBox* match_whole_word = nullptr;
     QCheckBox* match_case = nullptr;
     QPushButton* previous = nullptr;
     QPushButton* next = nullptr;
     QLabel* result_info = nullptr;
+
+private:
+    bool m_treeViewMode = false;
 };
 
 struct QUpdatableWebBrowser : QTextBrowser, MsgGenerator

@@ -4611,7 +4611,7 @@ auto TreeItem_FindItem_impl(template_set& visitedSet, const TreeItem* searchLoc,
 	return {};
 }
 
-auto TreeItem_FindItem(const TreeItem* searchLoc, TokenID id) -> SharedTreeItem
+TIC_CALL auto TreeItem_FindItem(const TreeItem* searchLoc, TokenID id) -> SharedTreeItem
 {
 	if (!searchLoc)
 		return {};
