@@ -423,7 +423,7 @@ bool AbstrCalculator::IsForEachTemplHolder() const
 		return false;
 	if (std::get<MetaFuncCurry>(metaInfo).applyItem)
 		return false;
-	dms_assert(std::get<MetaFuncCurry>(metaInfo).og);
+	assert(std::get<MetaFuncCurry>(metaInfo).og);
 	return std::get<MetaFuncCurry>(metaInfo).og->HasTemplArg();
 }
 

@@ -4535,3 +4535,93 @@ UInt32  TreeItem::GetConfigFileColNr() const
 		? m_Parent->GetConfigFileColNr()
 		: 0;
 }
+
+
+using template_set = std::set<SharedTreeItem>;
+
+bool TreeItem_IsTemplateInstantiaton(const TreeItem* item)	
+{
+	assert(item);
+	if (!item->HasCalculator())
+		return false;
+
+	auto calculator = item->GetCalculator();
+	if (!calculator)
+		return false;
+	if (calculator->HasTemplSource())
+		return true;
+	return calculator->IsForEachTemplHolder();
+}
+
+auto TreeItem_GetTemplateSource(const TreeItem* item) -> SharedTreeItem
+{
+	assert(item);
+	assert(item->HasCalculator());
+
+	auto calculator = item->GetCalculator();
+	assert(calculator);
+	if (calculator->HasTemplSource())
+		return calculator->GetTemplSource();
+	return calculator->GetForEachTemplSource();
+}
+
+auto TreeItem_FindItem_impl(template_set& visitedSet, const TreeItem* searchLoc, TokenID id, const TreeItem* blockedSubItem = nullptr) -> SharedTreeItem
+{
+	if (searchLoc->GetID() == id)
+		return searchLoc;
+	if (TreeItem_IsTemplateInstantiaton(searchLoc))
+	{
+		if (auto templateSource = TreeItem_GetTemplateSource(searchLoc))
+		{
+			if (visitedSet.find(templateSource) != visitedSet.end())
+				return {};
+
+			visitedSet.insert(templateSource);
+			const TreeItem* templItem = nullptr;
+			while (true)
+			{
+				templItem = templateSource->WalkConstSubTree(templItem);
+				if (!templItem)
+					break;
+
+				if (templItem->GetID() == id)
+					return templItem;
+			}
+		}
+	}
+	for (auto subItem = searchLoc->_GetFirstSubItem(); subItem; subItem = subItem->GetNextItem())
+		if (subItem != blockedSubItem)
+		{
+			auto result = TreeItem_FindItem_impl(visitedSet, subItem, id);
+			if (result)
+				return result;
+		}
+
+	return {};
+}
+
+auto TreeItem_FindItem(const TreeItem* searchLoc, TokenID id) -> SharedTreeItem
+{
+	if (!searchLoc)
+		return {};
+	if (auto cache = searchLoc->m_UsingCache.get())
+	{
+		auto result = cache->FindItem(id);
+		if (result)
+			return result;
+	}
+	
+	template_set alreadyVisited;
+	auto result = TreeItem_FindItem_impl(alreadyVisited, searchLoc, id);
+	if (result)
+		return result;	
+
+	while (auto parent = searchLoc->GetTreeParent().get())
+	{
+		auto result = TreeItem_FindItem_impl(alreadyVisited, parent, id, searchLoc);
+		if (result)
+			return result;
+		searchLoc = parent;
+	}
+	return {};
+}
