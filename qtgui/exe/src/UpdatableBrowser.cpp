@@ -152,26 +152,29 @@ void FindTextWindow::previousClicked(bool checked)
     findInText(true);
 }
 
-void QUpdatableWebBrowser::onAnchorClicked(const QUrl& url) {
+void QUpdatableBrowser::onAnchorClicked(const QUrl& url) {
     MainWindow::TheOne()->onInternalLinkClick(url, dynamic_cast<QWidget*>(parent()));
 }
 
-QUpdatableWebBrowser::QUpdatableWebBrowser(QWidget* parent)
+QUpdatableBrowser::QUpdatableBrowser(QWidget* parent, bool handleAnchors)
     : QTextBrowser(parent)
+    , m_handleAnchors(handleAnchors)
 {
     setOpenLinks(false);
     setOpenExternalLinks(false);
     setProperty("DmsHelperWindowType", DmsHelperWindowType::HW_UNKNOWN);
 
     find_shortcut = new QShortcut(QKeySequence(tr("Ctrl+F", "Find")), this);
-    connect(find_shortcut, &QShortcut::activated, this, &QUpdatableWebBrowser::openFindWindow);
-    connect(this, &QTextBrowser::anchorClicked, this, &QUpdatableWebBrowser::onAnchorClicked);
+    connect(find_shortcut, &QShortcut::activated, this, &QUpdatableBrowser::openFindWindow);
+
+    if (m_handleAnchors)
+        connect(this, &QTextBrowser::anchorClicked, this, &QUpdatableBrowser::onAnchorClicked);
 }
 
-void QUpdatableWebBrowser::restart_updating()
+void QUpdatableBrowser::restart_updating()
 {
     m_Waiter.start(this);
-    QPointer<QUpdatableWebBrowser> self = this;
+    QPointer<QUpdatableBrowser> self = this;
     QTimer::singleShot(0, MainWindow::TheOne(),
         [self]()
         {
@@ -186,7 +189,7 @@ void QUpdatableWebBrowser::restart_updating()
     );
 }
 
-void QUpdatableWebBrowser::GenerateDescription()
+void QUpdatableBrowser::GenerateDescription()
 {
     auto pw = dynamic_cast<QMdiSubWindow*>(parentWidget());
     if (!pw)
@@ -194,91 +197,7 @@ void QUpdatableWebBrowser::GenerateDescription()
     SetText(SharedStr(pw->windowTitle().toStdString().c_str()));
 }
 
-void QUpdatableWebBrowser::contextMenuEvent(QContextMenuEvent* event)
-{
-    /*if (!context_menu)
-    {
-		context_menu = new QMenu(this);
-        context_menu->addAction("View page source", [this, event]()
-            {
-                page()->toHtml([this](const QString& result)
-                    {
-                        auto* page_source_dialog = new QDialog(this);
-                        auto* layout = new QVBoxLayout(page_source_dialog);
-                        auto* page_source_widget = new QTextEdit(page_source_dialog);
-                        layout->addWidget(page_source_widget);
-                        page_source_widget->setPlainText(result);
-                        page_source_widget->setWindowModality(Qt::ApplicationModal);
-                        page_source_widget->setAttribute(Qt::WA_DeleteOnClose);
-                        page_source_dialog->show();
-                    });
-
-            }
-        );
-	}
-
-	context_menu->exec(event->globalPos());*/
-}
-
-void QUpdatableWebBrowser::openFindWindow()
-{
-    if (!find_window)
-    {
-        find_window = new FindTextWindow(this);
-    }
-
-    // update title
-    DmsHelperWindowType helper_window_type = static_cast<DmsHelperWindowType>(property("DmsHelperWindowType").value<QVariant>().toInt());
-
-    switch (helper_window_type)
-    {
-    case DmsHelperWindowType::HW_DETAILPAGES: find_window->setWindowTitle("Find in Detail pages"); break;
-    case DmsHelperWindowType::HW_STATISTICS: find_window->setWindowTitle("Find in Statistics"); break;
-    case DmsHelperWindowType::HW_VALUEINFO: find_window->setWindowTitle("Find in Value info"); break;
-    default: find_window->setWindowTitle("Find in.."); break;
-    }
-
-    find_window->show();
-}
-
-QUpdatableTextBrowser::QUpdatableTextBrowser(QWidget* parent)
-    : QTextBrowser(parent)
-{
-    setOpenLinks(false);
-    setOpenExternalLinks(false);
-    setProperty("DmsHelperWindowType", DmsHelperWindowType::HW_UNKNOWN);
-
-    find_shortcut = new QShortcut(QKeySequence(tr("Ctrl+F", "Find")), this);
-    connect(find_shortcut, &QShortcut::activated, this, &QUpdatableTextBrowser::openFindWindow);
-}
-
-void QUpdatableTextBrowser::restart_updating()
-{
-    m_Waiter.start(this);
-    QPointer<QUpdatableTextBrowser> self = this;
-    QTimer::singleShot(0, MainWindow::TheOne(),
-        [self]()
-        {
-            if (self)
-            {
-                if (!self->update())
-                    self->restart_updating();
-                else
-                    self->m_Waiter.end();
-            }
-        }
-    );
-}
-
-void QUpdatableTextBrowser::GenerateDescription()
-{
-    auto pw = dynamic_cast<QMdiSubWindow*>(parentWidget());
-    if (!pw)
-        return;
-    SetText(SharedStr(pw->windowTitle().toStdString().c_str()));
-}
-
-void QUpdatableTextBrowser::openFindWindow()
+void QUpdatableBrowser::openFindWindow()
 {
     if (!find_window)
     {

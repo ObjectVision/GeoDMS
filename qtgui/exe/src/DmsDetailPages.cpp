@@ -406,7 +406,7 @@ auto DmsDetailPages::activeDetailPageFromName(CharPtrRange sName) -> ActiveDetai
 }
 
 DmsDetailPages::DmsDetailPages(QWidget* parent)
-    : QUpdatableWebBrowser(parent)
+    : QUpdatableBrowser(parent, true)  // handleAnchors = true
 {
     setProperty("DmsHelperWindowType", DmsHelperWindowType::HW_DETAILPAGES);
     setSizePolicy(QSizePolicy::MinimumExpanding, QSizePolicy::Expanding);

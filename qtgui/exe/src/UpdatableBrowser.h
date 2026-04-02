@@ -54,12 +54,11 @@ private:
     bool m_treeViewMode = false;
 };
 
-struct QUpdatableWebBrowser : QTextBrowser, MsgGenerator
+struct QUpdatableBrowser : QTextBrowser, MsgGenerator
 {
-    QUpdatableWebBrowser(QWidget* parent);
+    QUpdatableBrowser(QWidget* parent, bool handleAnchors = false);
     void restart_updating();
     void GenerateDescription() override;
-    void contextMenuEvent(QContextMenuEvent* event) override;
     QShortcut* find_shortcut = nullptr;
     FindTextWindow* find_window = nullptr;
 
@@ -69,42 +68,31 @@ public slots:
 
 protected:
     void focusInEvent(QFocusEvent* event) override {
-        event->ignore();
+        if (m_handleAnchors)
+            event->ignore();
+        else
+            QTextBrowser::focusInEvent(event);
     }
 
     void focusOutEvent(QFocusEvent* event) override {
-        event->ignore();
+        if (m_handleAnchors)
+            event->ignore();
+        else
+            QTextBrowser::focusOutEvent(event);
     }
 
     void keyPressEvent(QKeyEvent* e) override {
-        if (e->key() == Qt::Key_Tab)
+        if (m_handleAnchors && e->key() == Qt::Key_Tab)
             e->ignore();
+        else
+            QTextBrowser::keyPressEvent(e);
     }
 
     Waiter m_Waiter;
     virtual bool update() = 0;
 
 private:
-    QMenu* context_menu = nullptr;
-};
-
-struct QUpdatableTextBrowser : QTextBrowser, MsgGenerator
-{
-    QUpdatableTextBrowser(QWidget* parent);
-    void restart_updating();
-    void GenerateDescription() override;
-
-public slots:
-    void openFindWindow();
-
-
-protected:
-    Waiter m_Waiter;
-    virtual bool update() = 0;
-
-private:
-    QShortcut* find_shortcut = nullptr;
-    FindTextWindow* find_window = nullptr;
+    bool m_handleAnchors = false;
 };
 
 #endif //!defined(DMS_QT_UPDATABLE_BROWSER_H)

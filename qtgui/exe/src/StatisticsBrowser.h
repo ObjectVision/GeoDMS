@@ -10,10 +10,10 @@
 #include "UpdatableBrowser.h"
 #include "DmsMainWindow.h"
 
-struct StatisticsBrowser : QUpdatableTextBrowser
+struct StatisticsBrowser : QUpdatableBrowser
 {
     StatisticsBrowser(QWidget* parent = nullptr)
-        : QUpdatableTextBrowser(parent)
+        : QUpdatableBrowser(parent)  // handleAnchors = false (default)
     {
         setProperty("DmsHelperWindowType", DmsHelperWindowType::HW_STATISTICS);
         setProperty("viewstyle", ViewStyle::tvsStatistics);

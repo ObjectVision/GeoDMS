@@ -129,7 +129,7 @@ ValueInfoWindow::ValueInfoWindow(SharedDataItemInterestPtr studyObject, SizeT in
 }
 
 ValueInfoBrowser::ValueInfoBrowser(QWidget* parent, SharedDataItemInterestPtr studyObject, SizeT index, SharedStr extraInfo)//, QWidget* window)
-    : QUpdatableTextBrowser(parent)
+    : QUpdatableBrowser(parent)  // handleAnchors = false (default)
 {
     m_history.insert(studyObject, index, extraInfo);
     setProperty("DmsHelperWindowType", DmsHelperWindowType::HW_VALUEINFO);

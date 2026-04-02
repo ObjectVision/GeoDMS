@@ -57,7 +57,7 @@ public:
     ValueInfoBrowser* m_browser = nullptr;
 };
 
-struct ValueInfoBrowser : QUpdatableTextBrowser
+struct ValueInfoBrowser : QUpdatableBrowser
 {
     ValueInfoBrowser(QWidget* parent, SharedDataItemInterestPtr studyObject, SizeT index, SharedStr extraInfo);// , QWidget* window);
     bool update() override;
