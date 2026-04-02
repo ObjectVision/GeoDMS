@@ -2591,8 +2591,8 @@ void TreeItem::UpdateMetaInfoImpl2() const
 	catch (...)
 	{
 		// don't try again
-		assert(m_State.GetProgress() <= ProgressState::MetaInfo);
-		m_State.SetProgress(ProgressState::MetaInfo);
+		if (m_State.GetProgress() <= ProgressState::MetaInfo)
+			m_State.SetProgress(ProgressState::MetaInfo);
 		CatchFail(FailType::MetaInfo);
 	}
 	assert(m_State.GetProgress() >= ProgressState::MetaInfo);

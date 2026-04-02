@@ -223,11 +223,8 @@ void MetaFuncCurry::operator ()(TreeItem* target, const AbstrCalculator* ac) con
 {
 	if (applyItem)
 		InstantiateTemplate(target, applyItem, fullLispExpr.Right());
-	else
-	{
-		dms_assert(og);
+	else if (og)
 		ApplyAsMetaFunction(target, ac, og, fullLispExpr.Right());
-	}
 }
 
 LispRef MetaFuncCurry::GetAsLispRef() const
@@ -406,8 +403,14 @@ void AbstrCalculator::SetConstructor(AcConstructor* constructor)
 
 bool AbstrCalculator::HasTemplSource() const
 {
-	auto metaInfo = GetMetaInfo();
-	return metaInfo.index() == 0 && std::get<MetaFuncCurry>(metaInfo).applyItem != nullptr;
+	try {
+		auto metaInfo = GetMetaInfo();
+		return metaInfo.index() == 0 && std::get<MetaFuncCurry>(metaInfo).applyItem != nullptr;
+	}
+	catch (...)
+	{
+		return false;
+	}
 }
 
 const TreeItem* AbstrCalculator::GetTemplSource() const
@@ -423,8 +426,10 @@ bool AbstrCalculator::IsForEachTemplHolder() const
 		return false;
 	if (std::get<MetaFuncCurry>(metaInfo).applyItem)
 		return false;
-	assert(std::get<MetaFuncCurry>(metaInfo).og);
-	return std::get<MetaFuncCurry>(metaInfo).og->HasTemplArg();
+	auto og = std::get<MetaFuncCurry>(metaInfo).og;
+	if (!og)
+		return false;
+	return og->HasTemplArg();
 }
 
 SharedTreeItem AbstrCalculator::GetForEachTemplSource() const
