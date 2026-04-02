@@ -27,11 +27,7 @@
 // Section      : has_equivalent_null
 //----------------------------------------------------------------------
 
-template <typename T, typename U> constexpr bool has_equivalent_null_v = 
-	(is_bitvalue_v<T> || is_bitvalue_v<U> 
-		? is_bitvalue_v<T> && is_bitvalue_v<U> 
-		: U(UNDEFINED_OR_ZERO(T)) == UNDEFINED_OR_ZERO(U)
-	);
+template <typename T, typename U> constexpr bool has_equivalent_null_v = is_bitvalue_v<T> && is_bitvalue_v<U>;
 
 template <typename T, typename U> struct has_equivalent_null : std::bool_constant<has_equivalent_null_v<T, U>> {};
 template <typename T>             struct has_equivalent_null<T, T> : std::true_type {};
@@ -98,7 +94,7 @@ struct check_max_func
 
 template <typename T, typename U>
 struct check_def_mf
-	:	std::conditional< (is_bitvalue<T>::value || has_equivalent_null<T,U>::value)
+	:	std::conditional< (is_bitvalue<T>::value || std::is_same_v<T,U>)
 		,	ok_func
 		,	check_defined_func<T>
 	>
