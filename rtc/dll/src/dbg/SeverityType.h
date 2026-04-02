@@ -17,13 +17,14 @@
 // The priority of an error is given by the following classification:
 
 enum class SeverityTypeID : UInt8 {
-	ST_MinorTrace = 0,
-	ST_MajorTrace = 1,
-	ST_Warning    = 2,
-	ST_Error      = 3,
-	ST_FatalError = 4,
-	ST_DispError  = 5,
-	ST_Nothing    = 6
+	ST_Nothing    = 0,
+	ST_MinorTrace = 1,
+	ST_MajorTrace = 2,
+	ST_CaseMixup  = 3,
+	ST_Warning    = 4,
+	ST_Error      = 5,
+	ST_FatalError = 6,
+	ST_DispError  = 7,
 };
 
 enum class MsgCategory : UInt8 {

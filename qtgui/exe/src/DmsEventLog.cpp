@@ -149,6 +149,7 @@ bool EventLogModel::itemPassesTypeFilter(const MsgData& msgLine) const
 	{
 	case SeverityTypeID::ST_MinorTrace: {return eventlog->m_eventlog_filter->m_minor_trace_filter->isChecked(); };
 	case SeverityTypeID::ST_MajorTrace: {return eventlog->m_eventlog_filter->m_major_trace_filter->isChecked(); };
+	case SeverityTypeID::ST_CaseMixup: { return eventlog->m_eventlog_filter->m_case_mixup_warning_filter->isChecked(); };
 	case SeverityTypeID::ST_Warning: {return eventlog->m_eventlog_filter->m_warning_filter->isChecked(); };
 	case SeverityTypeID::ST_Error: {return eventlog->m_eventlog_filter->m_error_filter->isChecked(); };
 	default: return true;
@@ -184,13 +185,19 @@ bool EventLogModel::itemPassesTextFilter(const MsgData& msgLine) const
 bool EventLogModel::itemPassesFilter(const MsgData& msgLine) const
 {
 	auto item_passes_type_filter = itemPassesTypeFilter(msgLine);
-	auto item_passes_category_filter = itemPassesCategoryFilter(msgLine);
-	auto item_passes_text_filter = itemPassesTextFilter(msgLine);
-	auto item_is_warning_or_error = (msgLine.m_SeverityType == SeverityTypeID::ST_Warning || msgLine.m_SeverityType == SeverityTypeID::ST_Error);
+	auto item_is_warning_or_error = (msgLine.m_SeverityType == SeverityTypeID::ST_CaseMixup || msgLine.m_SeverityType == SeverityTypeID::ST_Warning || msgLine.m_SeverityType == SeverityTypeID::ST_Error);
 	if (msgLine.m_MsgCategory == MsgCategory::progress || item_is_warning_or_error)
-		return item_passes_type_filter && item_passes_text_filter;
+		if (!item_passes_type_filter)
+			return false;
+	else
+	{
+		auto item_passes_category_filter = itemPassesCategoryFilter(msgLine);
+		if (!item_passes_category_filter)
+			return false;
+	}
 
-	return item_passes_category_filter && item_passes_text_filter;
+	auto item_passes_text_filter = itemPassesTextFilter(msgLine);
+	return item_passes_text_filter;
 }
 
 void EventLogModel::scanFilter(msg_line_index_t index)

@@ -63,7 +63,7 @@ SeverityTypeID gdalSeverity(CPLErr st)
 	switch (st) {
 	case CE_None:    return SeverityTypeID::ST_Nothing;
 	case CE_Debug:   return SeverityTypeID::ST_MinorTrace;
-	case CE_Warning:return SeverityTypeID::ST_Warning;
+	case CE_Warning: return SeverityTypeID::ST_Warning;
 	case CE_Failure: return SeverityTypeID::ST_Error;
 	case CE_Fatal:   return SeverityTypeID::ST_FatalError;
 	default: throwIllegalAbstract(MG_POS, "gdalSeverity");
@@ -74,7 +74,7 @@ CharPtr gdal2CharPtr(CPLErr st)
 {
 	switch (st) {
 	case CE_Debug:   return "Debug";
-	case CE_Warning:return "Warning";
+	case CE_Warning: return "Warning";
 	case CE_Failure: return "Failure";
 	case CE_Fatal:   return "Fatal";
 	default: throwIllegalAbstract(MG_POS, "gdalSeverity");
