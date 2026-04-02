@@ -4576,10 +4576,10 @@ auto TreeItem_GetTemplateSource(const TreeItem* item) -> SharedTreeItem
 	return calculator->GetForEachTemplSource();
 }
 
-auto TreeItem_FindItem_impl(template_set& visitedSet, const TreeItem* searchLoc, TokenID id, const TreeItem* blockedSubItem = nullptr) -> SharedTreeItem
+auto TreeItem_FindItem_impl(template_set& visitedSet, const TreeItem* searchLoc, TokenID id, const TreeItem* blockedSubItem = nullptr, bool findNextMode = false) -> SharedTreeItem
 {
-	if (searchLoc->GetID() == id)
-		return searchLoc;
+//	if (searchLoc->GetID() == id)
+//		return searchLoc;
 	if (TreeItem_IsTemplateInstantiaton(searchLoc))
 	{
 		if (auto templateSource = TreeItem_GetTemplateSource(searchLoc))
@@ -4601,35 +4601,49 @@ auto TreeItem_FindItem_impl(template_set& visitedSet, const TreeItem* searchLoc,
 		}
 	}
 	for (auto subItem = searchLoc->_GetFirstSubItem(); subItem; subItem = subItem->GetNextItem())
-		if (subItem != blockedSubItem)
+	{
+		if (subItem == blockedSubItem)
+			findNextMode = false; // start deep searching after this subItem
+		else if (!findNextMode)
 		{
+			if (subItem->GetID() == id)
+				return subItem;
+
 			auto result = TreeItem_FindItem_impl(visitedSet, subItem, id);
 			if (result)
 				return result;
 		}
+	}
 
 	return {};
 }
 
 TIC_CALL auto TreeItem_FindItem(const TreeItem* searchLoc, TokenID id) -> SharedTreeItem
 {
-	if (!searchLoc)
+	if (!searchLoc || searchLoc->IsCacheItem())
 		return {};
-	if (auto cache = searchLoc->m_UsingCache.get())
+	bool findNextMode = searchLoc->GetID() == id;
+	if (!findNextMode) // else we're to do the FindNext 
 	{
-		auto result = cache->FindItem(id);
-		if (result)
-			return result;
+		if (auto cache = searchLoc->m_UsingCache.get())
+		{
+			auto result = cache->FindItem(id);
+			if (result)
+				return result;
+		}
 	}
 	
 	template_set alreadyVisited;
-	auto result = TreeItem_FindItem_impl(alreadyVisited, searchLoc, id);
+	auto result = TreeItem_FindItem_impl(alreadyVisited, searchLoc, id, nullptr, false);
 	if (result)
 		return result;	
 
 	while (auto parent = searchLoc->GetTreeParent().get())
 	{
-		auto result = TreeItem_FindItem_impl(alreadyVisited, parent, id, searchLoc);
+		if (!findNextMode && parent->GetID() == id)
+			return parent;
+
+		auto result = TreeItem_FindItem_impl(alreadyVisited, parent, id, searchLoc, findNextMode);
 		if (result)
 			return result;
 		searchLoc = parent;
