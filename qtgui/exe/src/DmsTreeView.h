@@ -93,7 +93,6 @@ public:
 	void setDmsStyleSheet(bool connecting_lines = true);
 
 	int m_default_size = 0;
-	class FindTextWindow* find_window = nullptr;
 
 public slots:
 	void onDoubleClick(const QModelIndex& index);

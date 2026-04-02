@@ -7,16 +7,12 @@
 #include <QLayout>
 #include <qfontdatabase.h>
 
-#include "TicInterface.h"
-
-// Forward declaration of TreeItem_FindItem from TreeItem.cpp
-TIC_CALL SharedTreeItem TreeItem_FindItem(const TreeItem* searchLoc, TokenID id);
-
 FindTextWindow::FindTextWindow(QWidget* parent)
     : QWidget(parent)
 {
     setWindowFlag(Qt::Window, true);
-    setFixedSize(300, 200);
+    setMinimumSize(250, 180);
+    resize(300, 200);
 
     auto* layout = new QVBoxLayout(this);
     find_text = new QLineEdit(this);
@@ -46,69 +42,6 @@ FindTextWindow::FindTextWindow(QWidget* parent)
     setLayout(layout);
 }
 
-void FindTextWindow::findInTreeView()
-{
-    auto search_text = find_text->text();
-    if (search_text.isEmpty())
-    {
-        result_info->setText("Please enter search text");
-        return;
-    }
-
-    auto main_window = MainWindow::TheOne();
-    if (!main_window)
-    {
-        result_info->setText("Main window not available");
-        return;
-    }
-
-    auto current_item = main_window->getCurrentTreeItem();
-    if (!current_item)
-    {
-        result_info->setText("No current item");
-        return;
-    }
-
-    try {
-        TokenID search_token = GetTokenID_mt(search_text.toUtf8().constData());
-        auto found_item = TreeItem_FindItem(current_item, search_token);
-
-        if (found_item)
-        {
-            main_window->setCurrentTreeItem(const_cast<TreeItem*>(found_item.get()));
-            result_info->setText(QString("Found: %1").arg(found_item->GetFullName().c_str()));
-        }
-        else
-        {
-            result_info->setText("Item not found");
-        }
-    }
-    catch (...)
-    {
-        auto x = catchException(false);
-        result_info->setText(x->GetAsText().c_str());
-    }
-}
-
-void FindTextWindow::setSearchMode(bool treeViewMode)
-{
-    m_treeViewMode = treeViewMode;
-    if (treeViewMode)
-    {
-        match_whole_word->setChecked(false);
-        match_case->setChecked(false);
-        match_whole_word->setEnabled(false);
-        match_case->setEnabled(false);
-        previous->setEnabled(false);
-    }
-    else
-    {
-        match_whole_word->setEnabled(true);
-        match_case->setEnabled(true);
-        previous->setEnabled(true);
-    }
-}
-
 void FindTextWindow::findInQTextBrowser(bool backwards)
 {
     auto* updatable_text_browser = dynamic_cast<QTextBrowser*>(parent());
@@ -129,17 +62,7 @@ void FindTextWindow::findInText(bool backwards)
     if (find_text->text().isEmpty())
         return;
 
-    if (m_treeViewMode)
-    {
-        findInTreeView();
-    }
-    else
-    {
-        auto* current_parent = parent();
-        auto* updatable_text_browser = dynamic_cast<QTextBrowser*>(current_parent);
-        MG_CHECK(updatable_text_browser);
-        findInQTextBrowser(backwards);
-    }
+    findInQTextBrowser(backwards);
 }
 
 void FindTextWindow::nextClicked(bool checked)

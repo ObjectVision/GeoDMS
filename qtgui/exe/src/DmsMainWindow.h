@@ -325,6 +325,7 @@ public:
     QPointer<DmsExportWindow> m_export_window;
     QPointer<DmsErrorWindow> m_error_window;
     QPointer<DmsFileChangedWindow> m_file_changed_window;
+    QPointer<class FindTreeItemWindow> m_find_treeitem_window;
 
     using processing_record = std::tuple<std::time_t, std::time_t, SharedStr>;
     //QList<QWidgetAction*> m_recent_files_actions;

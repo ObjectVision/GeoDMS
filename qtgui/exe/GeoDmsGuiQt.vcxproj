@@ -1,4 +1,4 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup Label="ProjectConfigurations">
     <ProjectConfiguration Include="Release|x64">
@@ -144,6 +144,7 @@
     <ClCompile Include="src\DmsTreeView.cpp" />
     <ClCompile Include="src\DmsValueInfo.cpp" />
     <ClCompile Include="src\DmsViewArea.cpp" />
+    <ClCompile Include="src\FindTreeItemWindow.cpp" />
     <ClCompile Include="src\main_qt.cpp">
       <DynamicSource Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">input</DynamicSource>
       <QtMocFileName Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">%(Filename).moc</QtMocFileName>
@@ -163,6 +164,7 @@
     <ClInclude Include="src\DmsGuiParameters.h" />
     <QtMoc Include="src\DmsToolbar.h" />
     <ClInclude Include="src\DmsSplashScreen.h" />
+    <QtMoc Include="src\FindTreeItemWindow.h" />
     <ClInclude Include="src\StatisticsBrowser.h" />
     <ClInclude Include="src\TestScript.h" />
     <ClInclude Include="src\UpdatableBrowser.h" />
