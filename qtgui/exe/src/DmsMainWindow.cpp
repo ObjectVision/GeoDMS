@@ -1856,45 +1856,13 @@ void MainWindow::expandRecursiveFromCurrentItem() {
 }
 
 void MainWindow::findTreeItem() {
-    // Check if focus is on a widget that has its own find functionality
-    auto focusWidget = QApplication::focusWidget();
-
-    // Don't open tree item search if detail pages, statistics, or value info has focus
-    // (they have their own Ctrl+F handlers)
-    if (focusWidget)
-    {
-        // Check if the focus widget is or is a child of a widget with its own find handler
-        auto parent = focusWidget;
-        while (parent)
-        {
-            auto helperWindowType = parent->property("DmsHelperWindowType").value<QVariant>().toInt();
-            if (helperWindowType == DmsHelperWindowType::HW_DETAILPAGES 
-                || helperWindowType == DmsHelperWindowType::HW_STATISTICS 
-                || helperWindowType == DmsHelperWindowType::HW_VALUEINFO)
-            {
-                // Let the widget handle Ctrl+F itself
-                return;
-            }
-
-            // Check if it's a DataView (table view, map view, etc.)
-            if (dynamic_cast<QDmsViewArea*>(parent))
-            {
-                // DataView might have its own find functionality
-                return;
-            }
-
-            parent = parent->parentWidget();
-        }
-    }
-
     // Focus is on treeview, address bar, or main window - open tree item search
     if (!m_treeview->find_window)
     {
         m_treeview->find_window = new FindTextWindow(m_treeview);
+        m_treeview->find_window->setWindowTitle("Find in configured TreeItems");
+        m_treeview->find_window->setSearchMode(true); // Set to TreeView mode
     }
-
-    m_treeview->find_window->setWindowTitle("Find in configured TreeItems");
-    m_treeview->find_window->setSearchMode(true); // Set to TreeView mode
     m_treeview->find_window->show();
     m_treeview->find_window->find_text->setFocus();
 }

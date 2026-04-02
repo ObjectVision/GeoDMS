@@ -1,4 +1,7 @@
 #include "UpdatableBrowser.h"
+
+#include "dbg/DmsCatch.h"
+
 #include <QContextMenuEvent>
 #include <QDialog>
 #include <QLayout>
@@ -82,7 +85,8 @@ void FindTextWindow::findInTreeView()
     }
     catch (...)
     {
-        result_info->setText("Error during search");
+        auto x = catchException(false);
+        result_info->setText(x->GetAsText().c_str());
     }
 }
 
