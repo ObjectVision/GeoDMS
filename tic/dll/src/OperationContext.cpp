@@ -2554,7 +2554,8 @@ void OperationContext::RunOperator(ArgRefs argRefs, std::vector<ItemReadLock> re
 		{
 			resultHolder.CatchFail(FailType::Data); // Now done by TreeItemDualRef::DoFail
 			auto errPtr = resultHolder.GetFailReason();
-			errPtr->TellExtraF("in function %s", GetOperGroup()->GetName());
+			if (m_FuncDC)
+				errPtr->TellExtraF("in function %s", GetOperGroup()->GetName());
 			if (resultHolder.HasBackRef())
 				errPtr->TellExtraF("while calculating %s", resultHolder.GetBackRefStr());
 			HandleFail(resultHolder);
