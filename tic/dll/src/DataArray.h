@@ -397,7 +397,7 @@ auto GetTheValue(const AbstrDataItem* adi)
 	if (!adi->HasVoidDomainGuarantee())
 	{
 		auto adu = adi->GetAbstrDomainUnit();
-		throwDmsErrF("GetTheValue was called on %s, but it has a domain %s, which is non-void and thus has or could have multiple values"
+		throwDmsErrF("GetTheValue was called on %s, which assumes it to have a void domain, but it has a domain %s, which is non-void and thus has or could have multiple values"
 			, adi->GetSourceName()
 			, adu ? adu->GetSourceName() : SharedStr("Undefined")
 		);
