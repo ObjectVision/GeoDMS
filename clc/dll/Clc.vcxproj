@@ -63,7 +63,6 @@
     <ClCompile Include="src\CalcFactory.cpp" />
     <ClCompile Include="src\Checker.cpp" />
     <ClCompile Include="src\ClassBreak.cpp" />
-    <ClCompile Include="src\Classify.cpp" />
     <ClCompile Include="src\ClcInterface.cpp" />
     <ClCompile Include="src\Cumulate.cpp" />
     <ClCompile Include="src\ExprCalculator.cpp" />
@@ -83,7 +82,6 @@
     <ClCompile Include="src\random.cpp" />
     <ClCompile Include="src\ReadData.cpp" />
     <ClCompile Include="src\RLookup.cpp" />
-    <ClCompile Include="src\RLookupWithNull.cpp" />
     <ClCompile Include="src\Sort.cpp" />
     <ClCompile Include="src\SubItem.cpp" />
     <ClCompile Include="src\Subset.cpp" />
@@ -180,7 +178,6 @@
     <ClInclude Include="include\CalcClassBreaks.h" />
     <ClInclude Include="include\ValuesTable.h" />
     <ClInclude Include="include\ValuesTableTypes.h" />
-    <ClInclude Include="src\RLookup.ipp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

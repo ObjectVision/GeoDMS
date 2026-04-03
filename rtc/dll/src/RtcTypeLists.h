@@ -112,6 +112,15 @@ namespace typelists {
 	typedef jv2_t<domain_int_objects, domain_points>     domain_objects;
 	typedef jv2_t<tiled_domain_ints, domain_points>      tiled_domain_elements;
 
+	// Split domain objects by index size (index_type_t yields UInt32 or UInt64 based on cardinality)
+	// Points: SPoint/WPoint use UInt32 (square_type<UInt16>=UInt32), IPoint/UPoint use UInt64 (square_type<UInt32>=UInt64)
+	typedef jv2_t<type_list<Int8, Int16, Int32, UInt8, UInt16, UInt32>, bints> domain_ints_32;
+	typedef type_list<Int64, UInt64>                     domain_ints_64;
+	typedef type_list<SPoint, WPoint>                    domain_points_32; // cardinality fits in UInt32
+	typedef type_list<IPoint, UPoint>                    domain_points_64; // cardinality requires UInt64
+	typedef jv2_t<domain_ints_32, domain_points_32>      domain_objects_32; // index_type_t<E> = UInt32
+	typedef jv2_t<domain_ints_64, domain_points_64>      domain_objects_64; // index_type_t<E> = UInt64
+
 	typedef domain_elements				                   partition_elements;
 
 	typedef jv2_t<domain_elements, voids>                domain_types;

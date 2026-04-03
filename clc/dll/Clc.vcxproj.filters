@@ -19,9 +19,6 @@
     <ClCompile Include="src\ClassBreak.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="src\Classify.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="src\ClcInterface.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -140,9 +137,6 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="src\Unique.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="src\RLookupWithNull.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="src\PhaseContainer.cpp">
@@ -268,9 +262,6 @@
       <Filter>Clc Header Files</Filter>
     </ClInclude>
     <ClInclude Include="include\rlookup.h">
-      <Filter>Clc Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="src\RLookup.ipp">
       <Filter>Clc Header Files</Filter>
     </ClInclude>
     <ClInclude Include="include\Prototypes.h">
