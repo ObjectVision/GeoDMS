@@ -130,10 +130,29 @@ template <> struct same_size_type<WPoint> { using type = UInt32; };
 template <> struct same_size_type<IPoint> { using type = UInt64; };
 template <> struct same_size_type<UPoint> { using type = UInt64; };
 template <> struct same_size_type<FPoint> { using type = UInt64; };
+// DPoint (16 bytes) has no equivalent unsigned type, so default template maps it to itself
 
 template <typename V> using same_size_type_t = typename same_size_type<V>::type;
 
 template <typename E, typename A> struct same_size_type<std::vector<E, A> > { using type = std::vector<same_size_type_t<E>, A>; };
+
+// *****************************************************************************
+// CalcTileSized: Size-based lookup calculation helper
+// Instantiated only for (T, SizeType) pairs, reducing template bloat
+// for the core lookup_best operation
+// *****************************************************************************
+
+template <typename T, typename SameSize>
+void CalcTileSized(typename sequence_traits<SameSize>::seq_t resultData, typename sequence_traits<T>::cseq_t indexData, DataCheckMode dcmArg1, typename Unit<T>::range_t actualIndexRange, typename sequence_traits<SameSize>::cseq_t valuesData)
+{
+	assert(resultData.size() == indexData.size());
+	if (!indexData.size())
+		return;
+
+	assert(valuesData.size() == Cardinality(actualIndexRange));// <= domain of valid indexData
+
+	lookup_best(resultData.begin(), resultData.end(), indexData.begin(), valuesData.begin(), actualIndexRange, dcmArg1);
+}
 
 template <class T, class V>
 class LookupOperator : public AbstrLookupOperator
@@ -142,7 +161,7 @@ class LookupOperator : public AbstrLookupOperator
 	typedef typename Unit<T>::range_t Arg1RangeType;
 	typedef DataArray<V>              Arg2Type;  // classification sheet
 	typedef DataArray<V>              ResultType;
-         
+
 public:
 	LookupOperator(AbstrOperGroup& aog) : AbstrLookupOperator(aog, Arg1Type::GetStaticClass(), Arg2Type::GetStaticClass()) 
 	{}
@@ -221,16 +240,10 @@ public:
 
 	static void CalcTile(sequence_traits<V>::seq_t resultData, sequence_traits<T>::cseq_t indexData, DataCheckMode dcmArg1, Arg1RangeType actualIndexRange, sequence_traits<V>::cseq_t valuesData)
 	{
-		assert(resultData.size() == indexData.size());
-		if (!indexData.size())
-			return;
-
-		assert(valuesData.size() == Cardinality(actualIndexRange));// <= domain of valid indexData
-
-		auto sameSizeValuesData = reinterpret_cast<typename sequence_traits<same_size_type_t<V>>::cseq_t&>(valuesData);	
-		auto sameSizeResultData = reinterpret_cast<typename sequence_traits<same_size_type_t<V>>::seq_t&>(resultData);
-
-		lookup_best(sameSizeResultData.begin(), sameSizeResultData.end(), indexData.begin(), sameSizeValuesData.begin(), actualIndexRange, dcmArg1);
+		using SameSize = same_size_type_t<V>;
+		auto sameSizeValuesData = reinterpret_cast<typename sequence_traits<SameSize>::cseq_t&>(valuesData);
+		auto sameSizeResultData = reinterpret_cast<typename sequence_traits<SameSize>::seq_t&>(resultData);
+		CalcTileSized<T, SameSize>(sameSizeResultData, indexData, dcmArg1, actualIndexRange, sameSizeValuesData);
 	}
 };
 
