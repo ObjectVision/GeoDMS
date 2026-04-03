@@ -351,7 +351,21 @@ auto AbstrCalculator::GetSourceItem() const -> SharedTreeItem  // directly refer
 	auto foundItem = FindItem(supplRefID);
 	if (!foundItem)
 	{
-		auto errMsg = mySSPrintF("cannot find %s", supplRefID.GetStr().c_str());
+		auto supplRefStr = supplRefID.AsSharedStr();
+		auto errMsg = mySSPrintF("Unknown identifier '%s'", supplRefStr);
+		auto x = FindBestItem(supplRefID);
+		if (x.first)
+		{
+			auto supplRefStrSize = supplRefStr.AsRange().size();
+			auto notFoundPartSize = x.second.AsRange().size();
+			if (notFoundPartSize < supplRefStrSize)
+				errMsg += mySSPrintF("\n(did you mean '%s' that refers to '%s'? the '%s' part was not found there)"
+					, CharPtrRange(supplRefStr.begin(), supplRefStrSize - notFoundPartSize)
+					, x.first->GetFullName().c_str()
+					, x.second
+				);
+		}
+
 		throwDmsErrD(errMsg.c_str());
 	}
 	return foundItem;
@@ -852,8 +866,20 @@ LispRef AbstrCalculator::slSupplierExpr(SubstitutionBuffer& substBuff, LispPtr s
 			if (x.first && !x.first->IsCacheItem() && x.first->WasFailed())
 				m_BestGuessErrorSuppl = x;
 
-			auto msg = mySSPrintF("Unknown identifier '%s'", supplRefID.GetStr());
-			m_Holder->Fail(msg, FailType::MetaInfo);
+			auto supplRefStr = supplRefID.AsSharedStr();
+			auto errMsg = mySSPrintF("Unknown identifier '%s'", supplRefStr);
+			if (x.first)
+			{
+				auto supplRefStrSize = supplRefStr.AsRange().size();
+				auto notFoundPartSize = x.second.AsRange().size();
+				if (notFoundPartSize < supplRefStrSize)
+					errMsg += mySSPrintF("\n(did you mean '%s' that refers to '%s'? the '%s' part was not found there)"
+						, CharPtrRange(supplRefStr.begin(), supplRefStrSize - notFoundPartSize)
+						, x.first->GetFullName().c_str()
+						, x.second
+					);
+			}
+			m_Holder->Fail(errMsg, FailType::MetaInfo);
 		}
 		return supplRef;
 	}
