@@ -83,6 +83,23 @@ void AbstrCalculator::WriteHtmlExpr(OutStreamBase& stream) const
 // Definition of public helper funcs
 //----------------------------------------------------------------------
 
+SharedStr MakeUnknownIdentifierErrorMsg(SharedStr supplRefStr, BestItemRef bestItemRef)
+{
+	auto errMsg = mySSPrintF("Unknown identifier '%s'", supplRefStr);
+	if (bestItemRef.first)
+	{
+		auto supplRefStrSize = supplRefStr.AsRange().size();
+		auto notFoundPartSize = bestItemRef.second.AsRange().size();
+		if (notFoundPartSize < supplRefStrSize)
+			errMsg += mySSPrintF("\nDid you mean '%s' that refers to [[%s]]?\nThe '%s' part was not found there.)"
+				, CharPtrRange(supplRefStr.begin(), supplRefStrSize - notFoundPartSize)
+				, bestItemRef.first->GetFullName().c_str()
+				, bestItemRef.second
+			);
+	}
+	return errMsg;
+}
+
 LispRef GetLispRefForTreeItem(const TreeItem* sourceObject, const CopyTreeContext& copyContext)
 {
 	if (!sourceObject->IsCacheItem() || sourceObject->HasCalculator())
@@ -351,7 +368,7 @@ auto AbstrCalculator::GetSourceItem() const -> SharedTreeItem  // directly refer
 	auto foundItem = FindItem(supplRefID);
 	if (!foundItem)
 	{
-		auto errMsg = mySSPrintF("cannot find %s", supplRefID.GetStr().c_str());
+		auto errMsg = MakeUnknownIdentifierErrorMsg(supplRefID.AsSharedStr(), FindBestItem(supplRefID));
 		throwDmsErrD(errMsg.c_str());
 	}
 	return foundItem;
@@ -852,8 +869,8 @@ LispRef AbstrCalculator::slSupplierExpr(SubstitutionBuffer& substBuff, LispPtr s
 			if (x.first && !x.first->IsCacheItem() && x.first->WasFailed())
 				m_BestGuessErrorSuppl = x;
 
-			auto msg = mySSPrintF("Unknown identifier '%s'", supplRefID.GetStr());
-			m_Holder->Fail(msg, FailType::MetaInfo);
+			auto errMsg = MakeUnknownIdentifierErrorMsg(supplRefID.AsSharedStr(), x);
+			m_Holder->Fail(errMsg, FailType::MetaInfo);
 		}
 		return supplRef;
 	}
