@@ -145,6 +145,21 @@
     <ClCompile Include="src\Checker.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="src\OperConvNumeric.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\OperConvPoint.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\OperConvSequence.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\OperConvMapping.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\OperConvTransform.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="include\AggrBinStructNum.h">
@@ -282,6 +297,7 @@
     <ClInclude Include="include\ValuesTableTypes.h">
       <Filter>Clc Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="include\OperConv.h" />
   </ItemGroup>
   <ItemGroup>
     <Filter Include="Source Files">
