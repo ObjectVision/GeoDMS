@@ -11,6 +11,7 @@
 #include <QLineEdit>
 #include <QPushButton>
 #include <QLabel>
+#include <QKeyEvent>
 
 class FindTreeItemWindow : public QWidget
 {
@@ -19,9 +20,13 @@ class FindTreeItemWindow : public QWidget
 public:
     FindTreeItemWindow(QWidget* parent);
 
+protected:
+    void keyPressEvent(QKeyEvent* event) override;
+
 public slots:
     void nextClicked(bool checked = false);
     void findInTreeView();
+    void onFindTextChanged(const QString& text);
 
 public:
     QLineEdit* find_text = nullptr;

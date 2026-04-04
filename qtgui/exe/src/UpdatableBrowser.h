@@ -33,6 +33,9 @@ public:
     FindTextWindow(QWidget* parent);
     void findInText(bool backwards = false);
 
+protected:
+    void keyPressEvent(QKeyEvent* event) override;
+
 public slots:
     void nextClicked(bool checked = false);
     void previousClicked(bool checked = false);

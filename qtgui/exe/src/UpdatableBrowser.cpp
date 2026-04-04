@@ -75,6 +75,14 @@ void FindTextWindow::previousClicked(bool checked)
     findInText(true);
 }
 
+void FindTextWindow::keyPressEvent(QKeyEvent* event)
+{
+    if (event->key() == Qt::Key_Escape)
+        close();
+    else
+        QWidget::keyPressEvent(event);
+}
+
 void QUpdatableBrowser::onAnchorClicked(const QUrl& url) {
     MainWindow::TheOne()->onInternalLinkClick(url, dynamic_cast<QWidget*>(parent()));
 }
