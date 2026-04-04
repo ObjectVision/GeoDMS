@@ -33,6 +33,7 @@ FindTreeItemWindow::FindTreeItemWindow(QWidget* parent)
     // connections
     connect(next, &QPushButton::clicked, this, &FindTreeItemWindow::nextClicked);
     connect(find_text, &QLineEdit::returnPressed, this, &FindTreeItemWindow::findInTreeView);
+    connect(find_text, &QLineEdit::textChanged, this, &FindTreeItemWindow::onFindTextChanged);
 
     // fill layout
     layout->addWidget(find_text);
@@ -74,6 +75,7 @@ void FindTreeItemWindow::findInTreeView()
         {
             main_window->setCurrentTreeItem(const_cast<TreeItem*>(found_item.get()));
             result_info->setText(QString("Found: %1").arg(found_item->GetFullName().c_str()));
+            onFindTextChanged(search_text);
         }
         else
         {
@@ -90,4 +92,29 @@ void FindTreeItemWindow::findInTreeView()
 void FindTreeItemWindow::nextClicked(bool checked)
 {
     findInTreeView();
+}
+
+void FindTreeItemWindow::onFindTextChanged(const QString& text)
+{
+    auto main_window = MainWindow::TheOne();
+    if (!main_window)
+        return;
+
+    auto current_item = main_window->getCurrentTreeItem();
+    if (!current_item)
+        return;
+
+    auto current_id = current_item->GetID();
+    if (text.compare(current_id.GetStr().c_str(), Qt::CaseInsensitive) == 0)
+        next->setText("Find next");
+    else
+        next->setText("Find");
+}
+
+void FindTreeItemWindow::keyPressEvent(QKeyEvent* event)
+{
+    if (event->key() == Qt::Key_Escape)
+        close();
+    else
+        QWidget::keyPressEvent(event);
 }

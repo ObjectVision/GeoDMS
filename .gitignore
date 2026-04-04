@@ -6,14 +6,11 @@
 Thumbs.db
 /filelist*.txt
 todo*.txt
-/qtgui/exe/res/images/down_arrow.xcf
 /msbuild_linux/obj
 /rtc/dll/obj
 /vcpkg_installed
 /vc_archives
 /vc_downloads
 /splash
-/enc_temp_folder
-/UpgradeLog.htm
 /rtc/dll/src/buildstamp.h
 /rtc/dll/src/RtcGeneratedVersion.h
