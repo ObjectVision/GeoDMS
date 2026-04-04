@@ -422,14 +422,33 @@ static QFont CreateRemixFont()
 }
 
 void TreeItemDelegate::paint(QPainter* painter, const QStyleOptionViewItem& option, const QModelIndex& index) const {
-	QStyledItemDelegate::paint(painter, option, index);
 	painter->save();
-
 	auto painter_exit_guard = make_scoped_exit([painter] { painter->restore(); });
 
-	// last jobs: 
-	// - draw storage icon if needed
-	// - draw validated or validation failed if available
+	// 1. Always fill background first to clear any previous drawing artifacts (expand by 1px for DPI scaling)
+	QRect fillRect = option.rect; // .adjusted(0, 0, 1, 1);
+	QVariant backColor = index.data(Qt::BackgroundRole);
+	if (backColor.isValid())
+		painter->fillRect(option.rect, backColor.value<QColor>());
+	else
+		painter->fillRect(option.rect, option.widget ? option.widget->palette().base() : QColor(Qt::white));
+
+	// 2. Draw selection/hover as border overlay (preserves status background)
+	if (option.state & QStyle::State_Selected) {
+		painter->setPen(QPen(QColor(0, 120, 215), 2));
+		painter->drawRect(option.rect.adjusted(1, 1, -2, -2));
+	} else if (option.state & QStyle::State_MouseOver) {
+		painter->setPen(QPen(QColor(100, 100, 100), 1, Qt::DashLine));
+		painter->drawRect(option.rect.adjusted(1, 1, -2, -2));
+	}
+
+	// 3. Draw text/icon without default background painting
+	QStyleOptionViewItem opt = option;
+	opt.state &= ~(QStyle::State_Selected | QStyle::State_MouseOver);
+	opt.backgroundBrush = Qt::NoBrush;
+	QStyledItemDelegate::paint(painter, opt, index);
+
+	// 4. Draw badges: storage icon and validation status
 	TreeItem* ti = nullptr;
 	try {
 		ti = GetTreeItem(index);
@@ -684,6 +703,7 @@ DmsTreeView::DmsTreeView(QWidget* parent)
 	setUniformRowHeights(true);
 	setItemsExpandable(true);
 	setDragEnabled(true);
+	setMouseTracking(true);
 	setDragDropMode(QAbstractItemView::DragOnly);
 	setContextMenuPolicy(Qt::CustomContextMenu);
 	setAttribute(Qt::WA_OpaquePaintEvent);
