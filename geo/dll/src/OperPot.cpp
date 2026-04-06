@@ -6,7 +6,7 @@
 // Purpose:
 //   Implements tile-based "potential" (convolution-like) computations and
 //   proximity analysis over gridded data. The implementation supports multiple
-//   algorithm variants (IPP accelerated, packed, raw, slow fallback, proximity)
+//   algorithm variants (FFTW-accelerated, packed, raw, slow fallback, proximity)
 //   selected via AnalysisType. It performs kernel preparation once, then
 //   processes each data tile in parallel, accumulating overlapping contributions
 //   into result tiles with strict ordering to guarantee deterministic results.
@@ -59,7 +59,7 @@
 // Memory & Buffer Strategy (Kernel):
 // -----------------------------------------------------------------------------
 // - kernel_info precomputes size relationships and stores alternative weight
-//   layouts (e.g., packed IPP format) keyed by data column padding size.
+//   layouts (e.g., packed FFTW format) keyed by data column padding size.
 // - The overlapping output region for each data tile is computed so only
 //   necessary result portions are generated and merged.
 //
@@ -449,14 +449,7 @@ namespace
     // Default group (auto-selects fastest feasible backend)
     CommonOperGroup potentialDefault("potential", oper_policy::better_not_in_meta_scripting);
 
-#if defined(DMS_USE_INTEL_IPPS)
     CommonOperGroup potentialIpps64("potentialIpps64", oper_policy::better_not_in_meta_scripting);
-#endif // defined(DMS_USE_INTEL_IPPS)
-
-#if defined(DMS_USE_INTEL_IPPI)
-    CommonOperGroup potentialIppi32("potentialIppi32", oper_policy::better_not_in_meta_scripting);
-#endif // defined(DMS_USE_INTEL_IPPI)
-
     CommonOperGroup potentialRaw64    ("potentialRaw64",    oper_policy::better_not_in_meta_scripting);
     CommonOperGroup potentialSlow     ("potentialSlow",     oper_policy::better_not_in_meta_scripting);
     CommonOperGroup potentialPacked   ("potentialPacked",   oper_policy::better_not_in_meta_scripting);
@@ -470,27 +463,11 @@ namespace
     DirectPotentialOperator<Float32> potDF32P    (&potentialPacked  , AnalysisType::PotentialIppsPacked);
     DirectPotentialOperator<Float32> potDF32RP   (&potentialRawPacked, AnalysisType::PotentialRawIppsPacked);
 
-#if defined(DMS_USE_INTEL_IPPI)
-    DirectPotentialOperator<Float32> potDF32Ippi (&potentialIppi32  , AnalysisType::PotentialIppi);
-#endif // defined(DMS_USE_INTEL_IPPI)
-
     // Float64 variants
     DirectPotentialOperator<Float64> potDF64Def  (&potentialDefault , AnalysisType::PotentialDefault);
     DirectPotentialOperator<Float64> potDF64Ipps (&potentialIpps64  , AnalysisType::PotentialIpps64);
     DirectPotentialOperator<Float64> potDF64IppsR(&potentialRaw64   , AnalysisType::PotentialRawIpps64);
     DirectPotentialOperator<Float64> potDF64Slow (&potentialSlow    , AnalysisType::PotentialSlow);
-
-#if defined(DMS_POTENTIAL_I16)
-    // Int16 variants (mapped onto packed / raw / ipps64 backends)
-    DirectPotentialOperator<Int16>   potDS16Def  (&potentialDefault , AnalysisType::PotentialRawIppsPacked);
-    DirectPotentialOperator<Int16>   potDS16RP   (&potentialRawPacked, AnalysisType::PotentialRawIppsPacked);
-    DirectPotentialOperator<Int16>   potDS16Ipps (&potentialIpps64  , AnalysisType::PotentialIpps64);
-    DirectPotentialOperator<Int16>   potDS16IppsR(&potentialRaw64   , AnalysisType::PotentialRawIpps64);
-    DirectPotentialOperator<Int16>   potDS16Slow (&potentialSlow    , AnalysisType::PotentialSlow);
-#if defined(DMS_USE_INTEL_IPPI)
-    DirectPotentialOperator<Int16>   potDS16Ippi (&potentialIppi32  , AnalysisType::PotentialIppi);
-#endif // defined(DMS_USE_INTEL_IPPI)
-#endif // defined(DMS_POTENTIAL_I16)
 
     // Proximity (max-based accumulation) group
     CommonOperGroup proximity("proximity", oper_policy::better_not_in_meta_scripting);

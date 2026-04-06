@@ -2,6 +2,7 @@
   "dependencies": [
     "boost",
     "cgal",
+    "fftw3",
     {
       "name": "gdal",
       "features": [

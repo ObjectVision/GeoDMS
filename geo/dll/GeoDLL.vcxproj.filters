@@ -31,13 +31,7 @@
     <ClInclude Include="src\GeoInterface.h">
       <Filter>Geo Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="src\UseIpp.h">
-      <Filter>Ipp Files</Filter>
-    </ClInclude>
     <ClInclude Include="src\IppiUtils.h">
-      <Filter>Ipp Files</Filter>
-    </ClInclude>
-    <ClInclude Include="src\IppBase.h">
       <Filter>Ipp Files</Filter>
     </ClInclude>
     <ClInclude Include="src\minkowski.h">
@@ -134,9 +128,6 @@
     </ClCompile>
     <ClCompile Include="src\GeoInterface.cpp">
       <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="src\UseIpp.cpp">
-      <Filter>Ipp Files</Filter>
     </ClCompile>
     <ClCompile Include="src\Potential.cpp">
       <Filter>Ipp Files</Filter>

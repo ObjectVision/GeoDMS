@@ -5,7 +5,7 @@
 // Defines data structures and interfaces for various "Potential" / convolution / proximity
 // style analyses over 2D grids. Abstractions provide:
 //  - Kernel preparation (weight / mask pre-processing)
-//  - Memory buffers for IPP(S) accelerated convolution variants (packed / raw)
+//  - Memory buffers for FFTW-accelerated convolution variants (packed / raw)
 //  - Context objects for float32 / float64 processing
 //  - Support for slower fallback and proximity calculation
 // The design separates kernel (immutable across tiles) from per-tile processing
@@ -21,7 +21,6 @@
 
 #include "GeoBase.h"
 #include "mem/Grid.h"
-#include "IppBase.h"
 
 //#define DMS_POTENTIAL_I16
 const bool MG_DEBUG_POTENTIAL = false; // Enable extra debug logging when needed.
@@ -35,28 +34,20 @@ using TileSize = SizeT;   // Represents buffer element counts (potentially large
 
 // Enumeration of analysis implementation variants.
 // Naming:
-//  - Ipps64 / Packed -> IPP Signal Processing optimized versions for Float64 / packed layout
+//  - Ipps64 / Packed -> FFT-based optimized versions for Float64 / packed layout
 //  - Raw -> un-packed intermediate handling (explicit padding)
 //  - Proximity -> distance/proximity specific computation (non-convolution path)
-//  - PotentialSlow -> reference / fallback (no IPP)
-//  - PotentialIppi -> (conditional) IPP Image Processing route
-// PotentialDefault resolves to fastest available depending on build defines.
+//  - PotentialSlow -> reference / fallback
+// PotentialDefault resolves to fastest available implementation.
 enum class AnalysisType {
 	PotentialIpps64 = 0, 
 	PotentialRawIpps64 = 1, 
 	PotentialIppsPacked = 2, 
 	PotentialRawIppsPacked = 3, 
 	Proximity = 4, 
-#if defined(DMS_USE_INTEL_IPPI)
-	PotentialIppi = 5,
-#endif //defined(DMS_USE_INTEL_IPPI)
 	PotentialSlow = 6,
 
-#if defined(DMS_USE_INTEL_IPPS)
 	PotentialDefault = PotentialIpps64
-#else
-	AT_PotentialDefault = PotentialSlow
-#endif
 };
 
 // *****************************************************************************
@@ -85,9 +76,9 @@ MDL_CALL bool DMS_CONV MDL_Potential64(AnalysisType at,
 
 #endif
 
-//================================================== IppsArray
-// Small RAII wrapper for aligned (implementation-dependent) dynamically allocated
-// linear buffers used by IPP code paths.
+//================================================== AlignedArray (legacy name: IppsArray)
+// Small RAII wrapper for aligned dynamically allocated linear buffers 
+// used by FFTW convolution code paths.
 // Characteristics:
 //  - Move-only semantic (copy ctor steals pointer; no explicit copy assignment).
 //  - reserve() allocates (or reuses) capacity >= requested.
@@ -175,6 +166,11 @@ struct kernel_info
 	std::map<SideSize, IppsArray<Float32>> weightBuffers32; // Float32 kernel expansions.
 	std::map<SideSize, IppsArray<Float64>> weightBuffers64; // Float64 kernel expansions.
 
+	// Pre-computed kernel FFTs keyed by column count (padding size).
+	// Stored as std::any to avoid exposing FFTW types in header.
+	// Actual type: std::map<SideSize, KernelFft> (defined in Potential.cpp)
+	mutable std::any kernelFfts;
+
 	std::any orgWeightGrid;            // Holds UGrid<const T> (erased); used by slow/proximity paths.
 	TileCRef weightShadowTile;         // Original tile reference for weight grid.
 
@@ -231,10 +227,9 @@ MDL_CALL void AddConvolutionKernel(kernel_info& self, AnalysisType at, SideSize 
 // potential_context:
 //  - Per-tile (or per-execution) buffers needed for convolution runtime.
 //  - paddedInput: Input data transformed with horizontal padding & vertical replication scheme
-//                 to match IPP packed convolution layout.
+//                 to match packed convolution layout.
 //  - overlappingOutput: Temporary buffer holding the full overlapped convolution result
 //                       (before trimming to actual output region).
-//  - ippsBuffer: Workspace required by specific IPP convolution kernels (library provided size).
 //  - WasInitialized(): indicates that required buffers have been allocated.
 template <typename A>
 struct potential_context
@@ -244,7 +239,6 @@ struct potential_context
 
 	IppsArray<A> paddedInput;       // size: (nx+kx-1)*(ny-1)+nx = nx*ny + (kx-1)*(ny-1); not used for PotentialSlow and Proximity
 	IppsArray<A> overlappingOutput; // size: (nx+kx-1)*(ny+ky-1)
-	IppsArray<UInt8> ippsBuffer;    // Auxiliary algorithm-specific scratch space.
 
 	bool WasInitialized() const { return overlappingOutput.WasInitialized(); }
 };

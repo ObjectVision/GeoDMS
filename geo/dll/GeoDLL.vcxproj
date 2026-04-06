@@ -1,4 +1,4 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <Project DefaultTargets="Build" ToolsVersion="14.3" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup Label="ProjectConfigurations">
     <ProjectConfiguration Include="Debug|Win32">
@@ -47,17 +47,20 @@
   </PropertyGroup>
   <ItemDefinitionGroup>
     <ClCompile>
-      <AdditionalIncludeDirectories>C:\Program Files (x86)\Intel\oneAPI\ipp\latest\include\ipp;../../clc/dll/include;../../rtc/dll/src;../../stx/dll/src;../../tic/dll/src;../../stg/dll/src;../../sym/dll/src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>../../clc/dll/include;../../rtc/dll/src;../../stx/dll/src;../../tic/dll/src;../../stg/dll/src;../../sym/dll/src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
+    <Link>
+      <AdditionalDependencies>fftw3.lib;%(AdditionalDependencies)</AdditionalDependencies>
+    </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Platform)'=='Win32'">
     <Link>
-      <AdditionalLibraryDirectories>C:\Program Files (x86)\Intel\oneAPI\ipp\latest\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Platform)'=='x64'">
     <Link>
-      <AdditionalLibraryDirectories>C:\Program Files (x86)\Intel\oneAPI\ipp\latest\lib\intel64;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      
       <DelayLoadDLLs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">gdald.dll;proj_d.dll</DelayLoadDLLs>
       <DelayLoadDLLs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">gdal.dll;proj.dll</DelayLoadDLLs>
     </Link>
@@ -92,7 +95,6 @@
     <ClInclude Include="src\GeoInterface.h" />
     <ClInclude Include="src\GeoPCH.h" />
     <ClInclude Include="src\GEOS_Traits.h" />
-    <ClInclude Include="src\IppBase.h" />
     <ClInclude Include="src\IppiUtils.h" />
     <ClInclude Include="src\minkowski.h" />
     <ClInclude Include="src\PolyOper.h" />
@@ -101,7 +103,6 @@
     <ClInclude Include="src\SpatialBase.h" />
     <ClInclude Include="src\SpatialInterface.h" />
     <ClInclude Include="src\TreeBuilder.h" />
-    <ClInclude Include="src\UseIpp.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\AbstrBoundingBoxCache.cpp" />
@@ -132,7 +133,6 @@
     <ClCompile Include="src\RegCount.cpp" />
     <ClCompile Include="src\SpatialAnalyzer.cpp" />
     <ClCompile Include="src\TraceBack.cpp" />
-    <ClCompile Include="src\UseIpp.cpp" />
     <ClCompile Include="src\Voronoi.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
