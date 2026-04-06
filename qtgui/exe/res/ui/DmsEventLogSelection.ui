@@ -198,7 +198,7 @@
      <rect>
       <x>210</x>
       <y>90</y>
-      <width>121</width>
+      <width>141</width>
       <height>20</height>
      </rect>
     </property>
@@ -342,9 +342,54 @@
      <rect>
       <x>20</x>
       <y>90</y>
-      <width>261</width>
+      <width>181</width>
       <height>20</height>
      </rect>
+    </property>
+    <property name="palette">
+     <palette>
+      <active>
+       <colorrole role="WindowText">
+        <brush brushstyle="SolidPattern">
+         <color alpha="228">
+          <red>168</red>
+          <green>168</green>
+          <blue>0</blue>
+         </color>
+        </brush>
+       </colorrole>
+       <colorrole role="Text">
+        <brush brushstyle="SolidPattern">
+         <color alpha="228">
+          <red>168</red>
+          <green>168</green>
+          <blue>0</blue>
+         </color>
+        </brush>
+       </colorrole>
+      </active>
+      <inactive>
+       <colorrole role="WindowText">
+        <brush brushstyle="SolidPattern">
+         <color alpha="228">
+          <red>168</red>
+          <green>168</green>
+          <blue>0</blue>
+         </color>
+        </brush>
+       </colorrole>
+       <colorrole role="Text">
+        <brush brushstyle="SolidPattern">
+         <color alpha="228">
+          <red>168</red>
+          <green>168</green>
+          <blue>0</blue>
+         </color>
+        </brush>
+       </colorrole>
+      </inactive>
+      <disabled/>
+     </palette>
     </property>
     <property name="text">
      <string>Case mix-up warnings</string>
