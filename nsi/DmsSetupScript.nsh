@@ -68,6 +68,7 @@ Section "GeoDMS Program Folder" ;No components page, name is not important
   File ..\bin\Release\${GeoDmsPlatform}\boost_locale-vc145-mt-x64-1_88.dll
   File ..\bin\Release\${GeoDmsPlatform}\boost_thread-vc145-mt-x64-1_88.dll
 
+  File ..\bin\Release\${GeoDmsPlatform}\fftw3.dll
   File ..\bin\Release\${GeoDmsPlatform}\gdal.dll
   File ..\bin\Release\${GeoDmsPlatform}\tiff.dll
   File ..\bin\Release\${GeoDmsPlatform}\arrow.dll
