@@ -416,6 +416,34 @@ RTC_CALL void SetCachedStatusFlag(UInt32 newSF, bool newVal)
 		g_OvrStatusFlags |= newSF; // set
 	else
 		g_OvrStatusFlags &= ~newSF; // clear
+
+
+}
+
+RTC_CALL void SetRegStatusFlags(UInt32 newSF)
+{
+	SetGeoDmsRegKeyDWord("StatusFlags", newSF);
+	DMS_Appl_SetRegStatusFlags(newSF);
+}
+
+RTC_CALL void SetStatusFlag(UInt32 newSF, bool newVal)
+{
+	leveled_critical_section::scoped_lock lock(s_RegAccess);
+	g_OvrStatusMask |= newSF;
+	if (newVal)
+		g_OvrStatusFlags |= newSF; // set
+	else
+		g_OvrStatusFlags &= ~newSF; // clear
+
+	auto sf = ReadOnceRegisteredStatusFlags();
+	if (newVal)
+		sf |= newSF; // set
+	else
+		sf &= ~newSF; // clear
+
+	sf &= ~RSF_WasRead;
+	SetGeoDmsRegKeyDWord("StatusFlags", sf);
+	g_RegStatusFlags = (sf | RSF_WasRead);
 }
 
 RTC_CALL bool IsInDebugMode()

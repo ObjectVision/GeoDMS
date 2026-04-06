@@ -34,6 +34,7 @@ static QColor html_purple = QColor(128, 0, 128); // EventLog: request in Backgro
 static QColor html_black = QColor(0, 0, 0); // EventLog: commands
 static QColor html_gray = QColor(128, 128, 128); // EventLog: other
 static QColor html_darkorange = QColor(255, 140, 0); // EventLog: warning
+static QColor html_darkyellow = QColor(168, 168, 0); // EventLog: warning
 static QColor html_red = QColor(255, 0, 0); // EventLog: error
 static QColor html_brown = QColor(165, 42, 42); // EventLog: memory
 
@@ -102,12 +103,13 @@ QVariant EventLogModel::data(const QModelIndex& index, int role) const
 		auto return_color = QColor();
 		switch (item_data.m_SeverityType) 
 		{
-		case SeverityTypeID::ST_DispError:// error
+		case SeverityTypeID::ST_DispError:
 		case SeverityTypeID::ST_FatalError:
 		case SeverityTypeID::ST_Error: {return html_red; }
-		case SeverityTypeID::ST_Warning: {return html_darkorange; }// warning
-		case SeverityTypeID::ST_MinorTrace: {return_color = html_ForestGreen; break; } // minor trace							  
-		case SeverityTypeID::ST_MajorTrace: { return_color = html_DarkGreen; break; }// major trace
+		case SeverityTypeID::ST_Warning: {return html_darkorange; }
+		case SeverityTypeID::ST_CaseMixup: { return html_darkyellow; }
+		case SeverityTypeID::ST_MinorTrace: {return_color = html_ForestGreen; break; }
+		case SeverityTypeID::ST_MajorTrace: { return_color = html_DarkGreen; break; }
 		}
 
 		switch (item_data.m_MsgCategory)
@@ -187,8 +189,10 @@ bool EventLogModel::itemPassesFilter(const MsgData& msgLine) const
 	auto item_passes_type_filter = itemPassesTypeFilter(msgLine);
 	auto item_is_warning_or_error = (msgLine.m_SeverityType == SeverityTypeID::ST_CaseMixup || msgLine.m_SeverityType == SeverityTypeID::ST_Warning || msgLine.m_SeverityType == SeverityTypeID::ST_Error);
 	if (msgLine.m_MsgCategory == MsgCategory::progress || item_is_warning_or_error)
+	{
 		if (!item_passes_type_filter)
 			return false;
+	}
 	else
 	{
 		auto item_passes_category_filter = itemPassesCategoryFilter(msgLine);
@@ -238,6 +242,7 @@ void EventLogModel::refilter()
 	m_filtered_indices.clear();
 
 	auto eventlog = MainWindow::TheOne()->m_eventlog.get();
+	assert(eventlog);
 
 	auto text_filter_string = eventlog->m_eventlog_filter->m_text_filter->text();
 	m_TextFilterAsByteArray = text_filter_string.toUtf8();
@@ -252,15 +257,20 @@ void EventLogModel::refilter()
 
 void EventLogModel::refilterForTextFilter()
 {
-	MainWindow::TheOne()->m_eventlog->m_text_filter_active = true;
-	MainWindow::TheOne()->m_eventlog->m_eventlog_filter->m_clear_text_filter->setDisabled(false);
-	MainWindow::TheOne()->m_eventlog->m_eventlog_filter->m_activate_text_filter->setDisabled(true);
+	auto eventlog = MainWindow::TheOne()->m_eventlog.get();
+	assert(eventlog);
+
+	eventlog->m_text_filter_active = true;
+	eventlog->m_eventlog_filter->m_clear_text_filter->setDisabled(false);
+	eventlog->m_eventlog_filter->m_activate_text_filter->setDisabled(true);
 	refilter();
 }
 
 void EventLogModel::writeSettingsOnToggle(bool newValue)
 {
 	auto eventlog = MainWindow::TheOne()->m_eventlog.get();
+	assert(eventlog);
+
 	auto eventlog_filter_ptr = eventlog->m_eventlog_filter.get();
 	bool clearOnOpen = eventlog_filter_ptr->m_opening_new_configuration->isChecked();
 	bool clearOnReopen = eventlog_filter_ptr->m_reopening_current_configuration->isChecked();
@@ -272,10 +282,8 @@ void EventLogModel::writeSettingsOnToggle(bool newValue)
 		eventlog_filter_ptr->m_reopening_current_configuration->setChecked(newValue);
 	}
 
-	auto dms_reg_status_flags = GetRegStatusFlags();
-	setSF(clearOnOpen, dms_reg_status_flags, RSF_EventLog_ClearOnLoad);
-	setSF(clearOnReopen, dms_reg_status_flags, RSF_EventLog_ClearOnReLoad);
-	SetRegStatusFlags(dms_reg_status_flags);
+	SetStatusFlag(RSF_EventLog_ClearOnLoad, clearOnOpen);
+	SetStatusFlag(RSF_EventLog_ClearOnReLoad, clearOnReopen);
 }
 
 void EventLogModel::updateOnNewMessages()
@@ -412,25 +420,32 @@ DmsEventLog::DmsEventLog(QWidget* parent)
 	m_eventlog_filter->setFocusPolicy(Qt::ClickFocus);
 	auto dms_reg_status_flags = GetRegStatusFlags();
 
-	m_eventlog_filter->m_date_time->setChecked(dms_reg_status_flags & RSF_EventLog_ShowDateTime);
-	m_eventlog_filter->m_thread   ->setChecked(dms_reg_status_flags & RSF_EventLog_ShowThreadID);
-	m_eventlog_filter->m_category ->setChecked(dms_reg_status_flags & RSF_EventLog_ShowCategory);
+	m_eventlog_filter->m_minor_trace_filter->setChecked(GetRegStatusFlags() & RSF_EventLog_ShowMinorTrace);
+	m_eventlog_filter->m_major_trace_filter->setChecked(!(GetRegStatusFlags() & RSF_EventLog_HideMajorTrace));
+	m_eventlog_filter->m_case_mixup_warning_filter->setChecked(!(GetRegStatusFlags() & RSF_EventLog_HideDepreciated));
+	m_eventlog_filter->m_warning_filter->setChecked(!(GetRegStatusFlags() & RSF_EventLog_HideWarning));
+	m_eventlog_filter->m_error_filter->setChecked(!(GetRegStatusFlags() & RSF_EventLog_HideError));
+	m_eventlog_filter->m_read_filter->setChecked(!(GetRegStatusFlags() & RSF_EventLog_HideStorageRead));
+	m_eventlog_filter->m_write_filter->setChecked(!(GetRegStatusFlags() & RSF_EventLog_HideStorageWrite));
 
-	connect(m_eventlog_filter->m_minor_trace_filter, &QCheckBox::toggled, eventlog_model_ptr, &EventLogModel::refilter);
-	connect(m_eventlog_filter->m_major_trace_filter, &QCheckBox::toggled, eventlog_model_ptr, &EventLogModel::refilter);
-	connect(m_eventlog_filter->m_warning_filter, &QCheckBox::toggled, eventlog_model_ptr, &EventLogModel::refilter);
-	connect(m_eventlog_filter->m_error_filter, &QCheckBox::toggled, eventlog_model_ptr, &EventLogModel::refilter);
-	connect(m_eventlog_filter->m_read_filter, &QCheckBox::toggled, eventlog_model_ptr, &EventLogModel::refilter);
-	connect(m_eventlog_filter->m_write_filter, &QCheckBox::toggled, eventlog_model_ptr, &EventLogModel::refilter);
+	connect(m_eventlog_filter->m_minor_trace_filter, &QCheckBox::toggled, [eventlog_model_ptr](bool checkedState) { SetStatusFlag(RSF_EventLog_ShowMinorTrace, checkedState); eventlog_model_ptr->refilter(); });
+	connect(m_eventlog_filter->m_major_trace_filter, &QCheckBox::toggled, [eventlog_model_ptr](bool checkedState) { SetStatusFlag(RSF_EventLog_HideMajorTrace, !checkedState); eventlog_model_ptr->refilter(); });
+	connect(m_eventlog_filter->m_case_mixup_warning_filter, &QCheckBox::toggled, [eventlog_model_ptr](bool checkedState) { SetStatusFlag(RSF_EventLog_HideDepreciated, !checkedState); eventlog_model_ptr->refilter(); });
+	connect(m_eventlog_filter->m_warning_filter, &QCheckBox::toggled, [eventlog_model_ptr](bool checkedState) { SetStatusFlag(RSF_EventLog_HideWarning, !checkedState); eventlog_model_ptr->refilter(); });
+	connect(m_eventlog_filter->m_error_filter, &QCheckBox::toggled, [eventlog_model_ptr](bool checkedState) { SetStatusFlag(RSF_EventLog_HideError, !checkedState); eventlog_model_ptr->refilter(); });
+	connect(m_eventlog_filter->m_read_filter, &QCheckBox::toggled, [eventlog_model_ptr](bool checkedState) { SetStatusFlag(RSF_EventLog_HideStorageRead, !checkedState); eventlog_model_ptr->refilter(); });
+	connect(m_eventlog_filter->m_write_filter, &QCheckBox::toggled, [eventlog_model_ptr](bool checkedState) { SetStatusFlag(RSF_EventLog_HideStorageWrite, !checkedState); eventlog_model_ptr->refilter(); });
 
-	m_eventlog_filter->m_case_mixup_warning_filter->setChecked(!EventLog_HideDepreciatedCaseMixupWarnings());
-	connect(m_eventlog_filter->m_case_mixup_warning_filter, &QCheckBox::toggled, [](bool checkedState) { SetCachedStatusFlag(RSF_EventLog_HideDepreciated, !checkedState); });
 
-	connect(m_eventlog_filter.get()->m_category_filter_commands, &QCheckBox::toggled, eventlog_model_ptr, &EventLogModel::refilter);
-	connect(m_eventlog_filter.get()->m_category_filter_memory, &QCheckBox::toggled, eventlog_model_ptr, &EventLogModel::refilter);
-	connect(m_eventlog_filter.get()->m_connection_filter, &QCheckBox::toggled, eventlog_model_ptr, &EventLogModel::refilter);
-	connect(m_eventlog_filter.get()->m_request_filter, &QCheckBox::toggled, eventlog_model_ptr, &EventLogModel::refilter);
-	connect(m_eventlog_filter.get()->m_category_filter_other, &QCheckBox::toggled, eventlog_model_ptr, &EventLogModel::refilter);
+	m_eventlog_filter->m_category_filter_commands->setChecked(!(GetRegStatusFlags() & RSF_EventLog_HideCommands));
+	m_eventlog_filter->m_category_filter_memory->setChecked(GetRegStatusFlags() & RSF_EventLog_ShowMemory);
+	m_eventlog_filter->m_category_filter_other->setChecked(!(GetRegStatusFlags() & RSF_EventLog_HideOther));
+
+	connect(m_eventlog_filter.get()->m_category_filter_commands, &QCheckBox::toggled, [eventlog_model_ptr](bool checkedState) { SetStatusFlag(RSF_EventLog_HideCommands, !checkedState); eventlog_model_ptr->refilter(); });
+	connect(m_eventlog_filter.get()->m_category_filter_memory, &QCheckBox::toggled, [eventlog_model_ptr](bool checkedState) { SetStatusFlag(RSF_EventLog_ShowMemory, checkedState); eventlog_model_ptr->refilter(); });
+	connect(m_eventlog_filter.get()->m_connection_filter, &QCheckBox::toggled, [eventlog_model_ptr](bool checkedState) { eventlog_model_ptr->refilter(); });
+	connect(m_eventlog_filter.get()->m_request_filter, &QCheckBox::toggled, [eventlog_model_ptr](bool checkedState) { eventlog_model_ptr->refilter(); });
+	connect(m_eventlog_filter.get()->m_category_filter_other, &QCheckBox::toggled, [eventlog_model_ptr](bool checkedState) { SetStatusFlag(RSF_EventLog_HideOther, !checkedState); eventlog_model_ptr->refilter(); });
 
 	m_eventlog_filter->m_clear_text_filter->setDisabled(true);
 	m_eventlog_filter->m_activate_text_filter->setDisabled(true);
@@ -439,6 +454,10 @@ DmsEventLog::DmsEventLog(QWidget* parent)
 	connect(m_eventlog_filter->m_activate_text_filter, &QPushButton::released, eventlog_model_ptr, &EventLogModel::refilterForTextFilter);
 	connect(m_eventlog_filter->m_text_filter, &QLineEdit::textChanged, this, &DmsEventLog::onTextChanged);
 	connect(m_eventlog_filter->m_clear_text_filter, &QPushButton::released, this, &DmsEventLog::clearTextFilter);
+
+	m_eventlog_filter->m_date_time->setChecked(dms_reg_status_flags & RSF_EventLog_ShowDateTime);
+	m_eventlog_filter->m_thread   ->setChecked(dms_reg_status_flags & RSF_EventLog_ShowThreadID);
+	m_eventlog_filter->m_category ->setChecked(dms_reg_status_flags & RSF_EventLog_ShowCategory);
 
 	connect(m_eventlog_filter->m_date_time, &QCheckBox::toggled, this, &DmsEventLog::invalidateOnVisualChange);
 	connect(m_eventlog_filter->m_thread   , &QCheckBox::toggled, this, &DmsEventLog::invalidateOnVisualChange);
@@ -599,11 +618,9 @@ void DmsEventLog::toggleFilter(bool toggled)
 
 void DmsEventLog::invalidateOnVisualChange()
 {
-	auto dms_reg_status_flags = GetRegStatusFlags();
-	setSF(m_eventlog_filter->m_date_time->isChecked(), dms_reg_status_flags, RSF_EventLog_ShowDateTime);
-	setSF(m_eventlog_filter->m_thread->isChecked(), dms_reg_status_flags, RSF_EventLog_ShowThreadID);
-	setSF(m_eventlog_filter->m_category->isChecked(), dms_reg_status_flags, RSF_EventLog_ShowCategory);
-	SetRegStatusFlags(dms_reg_status_flags);
+	SetStatusFlag(RSF_EventLog_ShowDateTime, m_eventlog_filter->m_date_time->isChecked());
+	SetStatusFlag(RSF_EventLog_ShowThreadID, m_eventlog_filter->m_thread   ->isChecked());
+	SetStatusFlag(RSF_EventLog_ShowCategory, m_eventlog_filter->m_category ->isChecked());
 
 	auto* eventlog_model = MainWindow::TheOne()->m_eventlog_model.get();
 	eventlog_model->cached_reg_flags = GetRegStatusFlags();

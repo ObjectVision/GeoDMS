@@ -119,7 +119,7 @@ IndexedStrings<MustZeroTerminate, CharPtrRangeEqCmp, CharPtrRangeHasher>::GetOrC
 					{
 						auto warningStr = mgFormat2string("Depreciated mix-up of cases, tokenized '%s' as token %d and then seen '%s'", foundValue, foundIndex, keyValue);
 						PostMainThreadOper([warningStr] {
-							reportD(SeverityTypeID::ST_Warning, warningStr.c_str());
+							reportD(SeverityTypeID::ST_CaseMixup, warningStr.c_str());
 							}
 						);
 					}
