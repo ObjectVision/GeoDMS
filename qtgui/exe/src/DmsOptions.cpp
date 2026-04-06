@@ -233,13 +233,11 @@ void SetDrawingSizeTresholdValue(Float32 drawing_size)
 
 void DmsGuiOptionsWindow::apply()
 {
-    auto dms_reg_status_flags = GetRegStatusFlags();
-    setSF(m_follow_os_layout->isChecked(), dms_reg_status_flags, RSF_TreeView_FollowOSLayout);
-    setSF(m_show_hidden_items->isChecked(), dms_reg_status_flags, RSF_AdminMode);
-    setSF(m_show_thousand_separator->isChecked(), dms_reg_status_flags, RSF_ShowThousandSeparator);
-    setSF(m_toggle_debug_mode->isChecked(), dms_reg_status_flags, RSF_DebugMode);
-    setSF(m_show_state_colors_in_treeview->isChecked(), dms_reg_status_flags, RSF_ShowStateColors);
-    SetRegStatusFlags(dms_reg_status_flags);
+    SetStatusFlag(RSF_TreeView_FollowOSLayout, m_follow_os_layout             ->isChecked());
+    SetStatusFlag(RSF_AdminMode,               m_show_hidden_items            ->isChecked());
+    SetStatusFlag(RSF_ShowThousandSeparator,   m_show_thousand_separator      ->isChecked());
+    SetStatusFlag(RSF_DebugMode,               m_toggle_debug_mode            ->isChecked());
+    SetStatusFlag(RSF_ShowStateColors,         m_show_state_colors_in_treeview->isChecked());
 
     saveBackgroundColor(m_idle_color_ti_button, color_option::st_not_calculated);
     saveBackgroundColor(m_scheduled_color_ti_button, color_option::st_scheduled);
@@ -254,10 +252,10 @@ void DmsGuiOptionsWindow::apply()
     auto main_window = MainWindow::TheOne();
 
     // treeview follow os layout
-    main_window->m_treeview->setDmsStyleSheet(dms_reg_status_flags & RSF_TreeView_FollowOSLayout);
+    main_window->m_treeview->setDmsStyleSheet(GetRegStatusFlags() & RSF_TreeView_FollowOSLayout);
 
     // hidden items and state colors
-    main_window->m_eventlog_model->cached_reg_flags = dms_reg_status_flags;
+    main_window->m_eventlog_model->cached_reg_flags = GetRegStatusFlags();
     if (main_window->m_dms_model->updateChachedDisplayFlags())
         main_window->m_dms_model->reset();
 
@@ -487,13 +485,11 @@ void DmsLocalMachineOptionsWindow::apply()
     SetGeoDmsRegKeyString("SourceDataDir", m_sd_input->text().toStdString().c_str());
     SetGeoDmsRegKeyString("DmsEditor", (m_editor_input->text() + " " + m_editor_parameters_input->text()).toStdString().c_str());
 
-    auto dms_reg_status_flags = GetRegStatusFlags();
-    setSF(m_pp0->isChecked(), dms_reg_status_flags, RSF_SuspendForGUI);
-    setSF(m_pp1->isChecked(), dms_reg_status_flags, RSF_MultiThreading1);
-    setSF(m_pp2->isChecked(), dms_reg_status_flags, RSF_MultiThreading2);
-    setSF(m_pp3->isChecked(), dms_reg_status_flags, RSF_MultiThreading3);
-    setSF(m_tracelog->isChecked(), dms_reg_status_flags, RSF_TraceLogFile);
-    SetRegStatusFlags(dms_reg_status_flags);
+    SetStatusFlag(RSF_SuspendForGUI, m_pp0->isChecked());
+    SetStatusFlag(RSF_MultiThreading1, m_pp1->isChecked());
+    SetStatusFlag(RSF_MultiThreading2, m_pp2->isChecked());
+    SetStatusFlag(RSF_MultiThreading3, m_pp3->isChecked());
+    SetStatusFlag(RSF_TraceLogFile, m_tracelog->isChecked());
 
     MainWindow::TheOne()->updateTracelogHandle();
 
@@ -782,11 +778,5 @@ void DmsConfigOptionsWindow::cancel()
     done(QDialog::Rejected);
 }
 
-
-void SetRegStatusFlags(UInt32 newSF)
-{
-    SetGeoDmsRegKeyDWord("StatusFlags", newSF);
-    DMS_Appl_SetRegStatusFlags(newSF);
-}
 
 //======== END CONFIG OPTIONS WINDOW ========
