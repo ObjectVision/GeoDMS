@@ -1510,6 +1510,648 @@ bool GraphicNetworkLayer::DrawImpl(FeatureDrawer& fd) const
 IMPL_DYNC_LAYERCLASS(GraphicNetworkLayer, ASE_Feature|ASE_OrderBy|ASE_Label|ASE_Network|ASE_PixSizes|ASE_Selections, AN_PenColor, 0)
 
 //----------------------------------------------------------------------
+// class  : GraphicMultiPointLayer
+//----------------------------------------------------------------------
+
+GraphicMultiPointLayer::GraphicMultiPointLayer(GraphicObject* owner)
+	:	FeatureLayer(owner, GetStaticClass()) 
+{}
+
+template <typename ScalarType>
+SizeT FindNearestMultiPoint(const GraphicMultiPointLayer* layer, const CrdPoint& geoPnt)
+{
+	using PointType = Point<ScalarType>;
+	using PointSequenceType = typename sequence_traits<PointType>::container_type;
+
+	SizeT entityID = UNDEFINED_VALUE(SizeT);
+	Float64 sqrDist = MAX_VALUE(Float64);
+
+	auto featureData = layer->GetFeatureAttr()->GetCurrRefObj();
+	if (!featureData)
+		return entityID;
+
+	auto trd = featureData->GetTiledRangeData();
+	auto da = const_array_cast<PointSequenceType>(featureData);
+
+	auto bbCache = GetSequenceBoundingBoxCache<ScalarType>(layer);
+	assert(bbCache);
+
+	for (tile_id t = 0, tn = trd->GetNrTiles(); t != tn; ++t)
+	{
+		const auto& rectArray = bbCache->GetBoxData(t);
+		auto geoRect = Convert<Range<PointType>>(CrdRect(geoPnt, geoPnt));
+		if (!IsIntersecting(geoRect, rectArray.m_TotalBound))
+			continue;
+
+		auto data = da->GetTile(t);
+		tile_offset ts = data.size();
+
+		for (tile_offset i = ts; i--; )
+		{
+			if (!IsIntersecting(geoRect, rectArray.m_FeatBoundArray[i]))
+				continue;
+
+			auto pointSeq = data[i];
+			for (const auto& p : pointSeq)
+			{
+				if (MakeMin(sqrDist, SqrDist<Float64>(Convert<CrdPoint>(p), geoPnt)))
+				{
+					entityID = trd->GetRowIndex(t, i);
+				}
+			}
+		}
+	}
+	return entityID;
+}
+
+SizeT GraphicMultiPointLayer::FindFeatureByPoint(const CrdPoint& geoPnt) const
+{
+	return visit_and_return_result<typelists::seq_points, SizeT>(GetFeatureAttr()->GetAbstrValuesUnit(),
+		[this, &geoPnt] <typename P> (const Unit<P>*)
+		{
+			return FindNearestMultiPoint<scalar_of_t<P>>(this, geoPnt);
+		}
+	);
+}
+
+template <typename ScalarType>
+bool SelectMultiPointsInRect(GraphicMultiPointLayer* layer, const AbstrDataObject* multiPoints, Range<Point<ScalarType>> geoRect, EventID eventID)
+{
+	using PointType = Point<ScalarType>;
+	using PointSequenceType = typename sequence_traits<PointType>::container_type;
+
+	DataWriteLock writeLock(const_cast<AbstrDataItem*>(layer->CreateSelectionsTheme()->GetThemeAttr()), CompoundWriteType(eventID));
+	bool result = false;
+
+	auto da = const_array_cast<PointSequenceType>(multiPoints);
+	auto trd = multiPoints->GetTiledRangeData();
+
+	auto bbCache = GetSequenceBoundingBoxCache<ScalarType>(layer);
+	assert(bbCache);
+
+	parallel_tileloop_if(!layer->HasEntityIndex(), trd->GetNrTiles(), [da, trd, layer, bbCache, geoRect, &writeLock, &result, eventID](tile_id t)
+		{
+			const auto& rectArray = bbCache->GetBoxData(t);
+			if (!IsIntersecting(geoRect, rectArray.m_TotalBound))
+				return;
+
+			auto data = da->GetTile(t);
+			tile_offset ts = data.size();
+			for (tile_offset i = 0; i != ts; ++i)
+			{
+				if (i % AbstrBoundingBoxCache::c_BlockSize == 0)
+					while (!IsIntersecting(geoRect, rectArray.m_BlockBoundArray[i / AbstrBoundingBoxCache::c_BlockSize]))
+						if ((i += AbstrBoundingBoxCache::c_BlockSize) >= ts)
+							return;
+
+				if (IsIntersecting(geoRect, rectArray.m_FeatBoundArray[i]))
+				{
+					auto pointSeq = data[i];
+					for (const auto& p : pointSeq)
+					{
+						if (IsIncluding(geoRect, p))
+						{
+							SizeT entityID = trd->GetRowIndex(t, i);
+							if (layer->SelectFeatureIndex(writeLock.get(), entityID, eventID))
+								result = true;
+							break;
+						}
+					}
+				}
+			}
+		}
+	);
+	if (result)
+		writeLock.Commit();
+	return result;
+}
+
+template <typename ScalarType>
+bool SelectMultiPointsInCircle(GraphicMultiPointLayer* layer, const AbstrDataObject* multiPoints, Point<ScalarType> geoPnt, ScalarType geoRadius, EventID eventID)
+{
+	using PointType = Point<ScalarType>;
+	using RangeType = Range<PointType>;
+	using PointSequenceType = typename sequence_traits<PointType>::container_type;
+
+	auto radialDelta = PointType(geoRadius, geoRadius);
+	auto geoRect = Inflate(geoPnt, radialDelta);
+	auto geoRadius2 = Norm<CrdType>(radialDelta);
+
+	DataWriteLock writeLock(const_cast<AbstrDataItem*>(layer->CreateSelectionsTheme()->GetThemeAttr()), CompoundWriteType(eventID));
+	bool result = false;
+
+	auto da = const_array_cast<PointSequenceType>(multiPoints);
+	auto trd = multiPoints->GetTiledRangeData();
+
+	auto bbCache = GetSequenceBoundingBoxCache<ScalarType>(layer);
+	assert(bbCache);
+
+	parallel_tileloop_if(!layer->HasEntityIndex(), trd->GetNrTiles(), [da, trd, layer, bbCache, geoRect, geoPnt, geoRadius2, &writeLock, &result, eventID](tile_id t)
+		{
+			const auto& rectArray = bbCache->GetBoxData(t);
+			if (!IsIntersecting(geoRect, rectArray.m_TotalBound))
+				return;
+
+			auto data = da->GetTile(t);
+			tile_offset ts = data.size();
+			for (tile_offset i = 0; i != ts; ++i)
+			{
+				if (i % AbstrBoundingBoxCache::c_BlockSize == 0)
+					while (!IsIntersecting(geoRect, rectArray.m_BlockBoundArray[i / AbstrBoundingBoxCache::c_BlockSize]))
+						if ((i += AbstrBoundingBoxCache::c_BlockSize) >= ts)
+							return;
+
+				if (IsIntersecting(geoRect, rectArray.m_FeatBoundArray[i]))
+				{
+					auto pointSeq = data[i];
+					for (const auto& p : pointSeq)
+					{
+						if (IsIncluding(geoRect, p) && SqrDist<CrdType>(geoPnt, p) <= geoRadius2)
+						{
+							SizeT entityID = trd->GetRowIndex(t, i);
+							if (layer->SelectFeatureIndex(writeLock.get(), entityID, eventID))
+								result = true;
+							break;
+						}
+					}
+				}
+			}
+		}
+	);
+	if (result)
+		writeLock.Commit();
+	return result;
+}
+
+template <typename ScalarType>
+bool SelectMultiPointsInPolygon(GraphicMultiPointLayer* layer, const AbstrDataObject* multiPoints, CrdRect worldRect, const CrdPoint* first, const CrdPoint* last, EventID eventID)
+{
+	using PointType = Point<ScalarType>;
+	using RangeType = Range<PointType>;
+	using PointSequenceType = typename sequence_traits<PointType>::container_type;
+
+	CrdTransformation geo2worldTr = layer->GetGeoTransformation();
+	auto geoRect = Convert<RangeType>(geo2worldTr.Reverse(worldRect));
+
+	DataWriteLock writeLock(const_cast<AbstrDataItem*>(layer->CreateSelectionsTheme()->GetThemeAttr()), CompoundWriteType(eventID));
+	bool result = false;
+
+	auto da = const_array_cast<PointSequenceType>(multiPoints);
+	auto trd = multiPoints->GetTiledRangeData();
+
+	auto bbCache = GetSequenceBoundingBoxCache<ScalarType>(layer);
+	assert(bbCache);
+
+	parallel_tileloop_if(!layer->HasEntityIndex(), trd->GetNrTiles(), [da, trd, layer, bbCache, geoRect, first, last, geo2worldTr, &writeLock, &result, eventID](tile_id t)
+		{
+			const auto& rectArray = bbCache->GetBoxData(t);
+			if (!IsIntersecting(geoRect, rectArray.m_TotalBound))
+				return;
+
+			auto data = da->GetTile(t);
+			tile_offset ts = data.size();
+			for (tile_offset i = 0; i != ts; ++i)
+			{
+				if (i % AbstrBoundingBoxCache::c_BlockSize == 0)
+					while (!IsIntersecting(geoRect, rectArray.m_BlockBoundArray[i / AbstrBoundingBoxCache::c_BlockSize]))
+						if ((i += AbstrBoundingBoxCache::c_BlockSize) >= ts)
+							return;
+
+				if (IsIntersecting(geoRect, rectArray.m_FeatBoundArray[i]))
+				{
+					auto pointSeq = data[i];
+					for (const auto& geoPnt : pointSeq)
+					{
+						if (IsIncluding(geoRect, geoPnt))
+						{
+							CrdPoint worldPnt = geo2worldTr.Apply(geoPnt);
+							if (IsInside(first, last, worldPnt))
+							{
+								SizeT entityID = trd->GetRowIndex(t, i);
+								result |= layer->SelectFeatureIndex(writeLock.get(), entityID, eventID);
+								break;
+							}
+						}
+					}
+				}
+			}
+		}
+	);
+	if (result)
+		writeLock.Commit();
+	return result;
+}
+
+void GraphicMultiPointLayer::SelectRect(CrdRect worldRect, EventID eventID)
+{
+	const AbstrDataItem* featureAttr = GetFeatureAttr();
+	dms_assert(featureAttr);
+
+	InvalidationBlock lock1(this);
+
+	dms_assert(  eventID & EventID::REQUEST_SEL  );
+	dms_assert(!(eventID & EventID::REQUEST_INFO));
+
+	bool result = false;
+
+	if (featureAttr->PrepareData())
+	{
+		auto layer2worldTransformation = GetGeoTransformation();
+		CrdRect geoRect = layer2worldTransformation.Reverse(worldRect);
+
+		DataReadLock lck(featureAttr); 
+		dms_assert(lck.IsLocked());
+
+		result = visit_and_return_result<typelists::seq_points, bool>(featureAttr->GetAbstrValuesUnit(), 
+			[this, featureAttr, geoRect, eventID, &result] <typename P> (const Unit<P>*) 
+			{
+				return SelectMultiPointsInRect< scalar_of_t<P> >(this, featureAttr->GetRefObj().get(), Convert<Range<P>>(geoRect), eventID);
+			}
+		);
+	}
+	if	(result && !HasEntityAggr())
+	{
+		lock1.ProcessChange();
+		InvalidateWorldRect(worldRect + GetFeatureWorldExtents(), nullptr);
+	}
+}
+
+void GraphicMultiPointLayer::SelectCircle(CrdPoint worldPnt, CrdType worldRadius, EventID eventID)
+{
+	const AbstrDataItem* valuesItem = GetFeatureAttr();
+	dms_assert(valuesItem);
+
+	InvalidationBlock lock1(this);
+
+	dms_assert(  eventID & EventID::REQUEST_SEL  );
+	dms_assert(!(eventID & EventID::REQUEST_INFO));
+
+	bool result = false;
+
+	if (valuesItem->PrepareData())
+	{
+		auto layer2worldTransformation = GetGeoTransformation();
+		CrdPoint geoPnt = layer2worldTransformation.Reverse(worldPnt);
+		CrdType  geoRadius = worldRadius;
+		if (!layer2worldTransformation.IsSingular())
+			geoRadius /= std::abs(layer2worldTransformation.Factor().X());
+
+		DataReadLock lck(valuesItem);
+		dms_assert(lck.IsLocked());
+
+		result = visit_and_return_result<typelists::seq_points, bool>(valuesItem->GetAbstrValuesUnit(), 
+			[this, valuesItem, geoRadius, eventID, geoPnt, &result] <typename P> (const Unit<P>*) 
+			{
+				return SelectMultiPointsInCircle< scalar_of_t<P> >(this, valuesItem->GetRefObj().get(), Convert<P>(geoPnt), Convert<scalar_of_t<P>>(geoRadius), eventID);
+			}
+		);
+	}
+	if	(result && !HasEntityAggr())
+	{
+		lock1.ProcessChange();
+		InvalidateWorldRect(Inflate(worldPnt, CrdPoint(worldRadius, worldRadius)) + GetFeatureWorldExtents(), nullptr);
+	}
+}
+
+void GraphicMultiPointLayer::SelectPolygon(const CrdPoint* first, const CrdPoint* last, EventID eventID)
+{
+	const AbstrDataItem* valuesItem = GetFeatureAttr();
+	dms_assert(valuesItem);
+
+	InvalidationBlock lock1(this);
+
+	dms_assert(  eventID & EventID::REQUEST_SEL  );
+	dms_assert(!(eventID & EventID::REQUEST_INFO));
+
+	bool result = false;
+
+	CrdRect polyRect = Range<CrdPoint>(first, last, false, true);
+
+	if (valuesItem->PrepareData())
+	{
+		DataReadLock lck(valuesItem); 
+		dms_assert(lck.IsLocked());
+		visit<typelists::seq_points>(valuesItem->GetAbstrValuesUnit(),
+			[this, valuesItem, first, last, polyRect, eventID, &result] <typename P> (const Unit<P>*)
+			{
+				result = SelectMultiPointsInPolygon< scalar_of_t<P> >(this, valuesItem->GetRefObj().get(), polyRect, first, last, eventID);
+			}
+		);
+	}
+	if	(result && !HasEntityAggr())
+	{
+		lock1.ProcessChange();
+		InvalidateWorldRect(polyRect + GetFeatureWorldExtents(), nullptr);
+	}
+}
+
+void GraphicMultiPointLayer::InvalidateFeature(SizeT featureIndex)
+{
+	dms_assert(IsDefined(featureIndex));
+
+	const AbstrDataItem* valuesItem = GetFeatureAttr();
+	dms_assert(valuesItem);
+
+	auto bbCache = GetBoundingBoxCache();
+	if (!bbCache)
+		return;
+
+	auto rect = bbCache->GetBounds(featureIndex);
+	InvalidateWorldRect(GetFeatureWorldExtents() + GetGeoTransformation().Apply(rect), nullptr);
+}
+
+template <typename ScalarType>
+bool DrawMultiPoints(
+	const FeatureDrawer&              fd,
+	const GraphicMultiPointLayer*     layer,
+	const AbstrDataItem*              multipointsItem,
+	const FontIndexCache*             fontIndices)
+{
+	typedef Point<ScalarType>          PointType;
+	typedef Range<PointType>           RangeType;
+	typedef typename sequence_traits<PointType>::container_type PointSequenceType;
+	typedef DataArray<PointSequenceType> DataArrayType;
+
+	const DataArrayType* da = const_array_cast<PointSequenceType>(multipointsItem);
+	auto trd = da->GetTiledRangeData();
+	tile_id tn = trd->GetNrTiles();
+
+	const GraphDrawer& d = fd.m_Drawer;
+
+	DcTextAlignSelector selectCenterAlignment(d.GetDC(), TA_CENTER|TA_BASELINE|TA_NOUPDATECP);
+
+	CrdTransformation transformer = d.GetTransformation();
+
+	auto bbCache = GetSequenceBoundingBoxCache<ScalarType>(layer);
+	assert(bbCache);
+
+	RangeType geoRect = Convert<RangeType>(layer->GetWorldClipRect(d));
+
+	ResumableCounter mainCount(d.GetCounterStacks(), false);
+
+	SizeT focusElem = UNDEFINED_VALUE(SizeT);
+	if (layer->IsActive())
+		focusElem = layer->GetFocusElemIndex();
+
+	SelectionIdCPtr selectionsArray; dms_assert(!selectionsArray);
+	if (fd.m_SelValues) {
+		selectionsArray = fd.m_SelValues.value().begin();
+		MG_CHECK(selectionsArray);
+	}
+	bool selectedOnly = layer->ShowSelectedOnly();
+	dms_assert(selectionsArray || !selectedOnly);
+
+	if (mainCount == 0)
+	{
+		if (!layer->IsDisabledAspectGroup(AG_Symbol))
+		{
+			SelectingFontArray fontStock(d.GetDC(), fontIndices, false);
+			if (fontStock.SelectSingleton()) 
+				fontIndices = nullptr;
+
+			DmsColor defaultColor = layer->GetDefaultPointColor();
+			WCHAR defaultSymbol = defSymbol;
+			WeakPtr<const AbstrThemeValueGetter> symbolIdGetter;
+			if (layer->GetEnabledTheme(AN_SymbolIndex))
+			{
+				auto theme = layer->GetTheme(AN_SymbolIndex);
+				dms_assert(theme);
+				if (theme->IsAspectParameter())
+					defaultSymbol = theme->GetOrdinalAspectValue();
+				else
+					symbolIdGetter = theme->GetValueGetter();
+			}
+
+			WeakPtr<const AbstrThemeValueGetter> colorGetter;
+			if (layer->GetEnabledTheme(AN_SymbolColor))
+			{
+				auto theme = layer->GetTheme(AN_SymbolColor);
+				dms_assert(theme);
+				if (theme->IsAspectParameter())
+					defaultColor = theme->GetColorAspectValue();
+				else
+					colorGetter = theme->GetValueGetter();
+			}
+
+			DcTextColorSelector selectTextColor(d.GetDC(), defaultColor);
+
+			ResumableCounter tileCounter(d.GetCounterStacks(), true);
+			for (tile_id t = tileCounter.Value(); t != tn; ++t)
+			{
+				const auto& rectArray = bbCache->GetBoxData(t);
+				if (!IsIntersecting(geoRect, rectArray.m_TotalBound))
+					goto nextTile;
+
+				{
+					auto data = da->GetTile(t);
+					tile_offset ts = data.size();
+
+					ResumableCounter itemCounter(d.GetCounterStacks(), true);
+
+					for (tile_offset i = itemCounter; i != ts; ++i)
+					{
+						if (i % AbstrBoundingBoxCache::c_BlockSize == 0)
+							while (!IsIntersecting(geoRect, rectArray.m_BlockBoundArray[i / AbstrBoundingBoxCache::c_BlockSize]))
+								if ((i += AbstrBoundingBoxCache::c_BlockSize) >= ts)
+									goto endOfTile;
+
+						if (!IsIntersecting(geoRect, rectArray.m_FeatBoundArray[i]))
+							goto nextMultiPoint;
+
+						{
+							entity_id entityIndex = trd->GetRowIndex(t, i);
+
+							entityIndex = fd.m_IndexCollector.GetEntityIndex(entityIndex);
+							if (!IsDefined(entityIndex))
+								goto nextMultiPoint;
+
+							if (fontIndices)
+								if (!fontStock.SelectFontHandle(fontIndices->GetKeyIndex(entityIndex)))
+									goto nextMultiPoint;
+
+							bool isSelected = selectionsArray && SelectionID(selectionsArray[entityIndex]);
+							if (selectedOnly)
+							{
+								if (!isSelected) goto nextMultiPoint;
+								isSelected = false;
+							}
+
+							DmsColor textColor = defaultColor;
+							if (entityIndex == focusElem)
+								textColor = GetFocusClr();
+							else if (isSelected)
+								textColor = GetSelectedClr();
+							else if (colorGetter)
+								textColor = colorGetter->GetColorValue(entityIndex);
+
+							if (textColor == TRANSPARENT_COLORREF)
+								goto nextMultiPoint;
+
+							CheckColor(textColor);
+							SetTextColor(d.GetDC(), DmsColor2COLORREF(textColor));
+
+							if (symbolIdGetter)
+								defaultSymbol = symbolIdGetter->GetOrdinalValue(entityIndex);
+
+							auto pointSeq = data[i];
+							for (const auto& p : pointSeq)
+							{
+								if (IsIncluding(geoRect, p))
+								{
+									auto viewPoint = Convert<TPoint>(transformer.Apply(p));
+
+									CheckedGdiCall(
+										TextOutW(
+											d.GetDC(),
+											viewPoint.X(), viewPoint.Y(),
+											&defaultSymbol, 1
+										)
+										, "DrawMultiPoint");
+								}
+							}
+						}
+					nextMultiPoint:
+						++itemCounter; if (itemCounter.MustBreakOrSuspend100()) return true;
+					}
+				endOfTile:
+					itemCounter.Close();
+				}
+			nextTile:
+				++tileCounter; if (tileCounter.MustBreakOrSuspend()) return true;
+			}
+			tileCounter.Close();
+		}
+		++mainCount; if (mainCount.MustBreakOrSuspend()) return true;
+	}
+
+	// Draw labels
+	if (mainCount == 1 && fd.HasLabelText() && !layer->IsDisabledAspectGroup(AG_Label))
+	{
+		LabelDrawer ld(fd);
+
+		ResumableCounter tileCounter(d.GetCounterStacks(), true);
+		for (tile_id t = tileCounter; t != tn; ++t)
+		{
+			const auto& rectArray = bbCache->GetBoxData(t);
+			auto data = da->GetTile(t);
+			tile_offset ts = data.size();
+
+			ResumableCounter itemCounter(d.GetCounterStacks(), true);
+
+			while (itemCounter < ts)
+			{
+				if (itemCounter.MustBreakOrSuspend100())
+					return true;
+
+				if (!IsIntersecting(geoRect, rectArray.m_FeatBoundArray[itemCounter]))
+				{
+					++itemCounter;
+					continue;
+				}
+
+				SizeT entityIndex = trd->GetRowIndex(t, itemCounter);
+				entityIndex = fd.m_IndexCollector.GetEntityIndex(entityIndex);
+				if (!IsDefined(entityIndex))
+				{
+					++itemCounter;
+					continue;
+				}
+
+				auto pointSeq = data[itemCounter];
+				if (!pointSeq.empty())
+				{
+					// Draw label at centroid of multi-point
+					DPoint centroid;
+					for (const auto& p : pointSeq)
+						centroid += DPoint(p);
+					centroid = centroid / Float64(pointSeq.size());
+					auto viewPoint = transformer.Apply(centroid);
+					ld.DrawLabel(entityIndex, GPoint(viewPoint.X(), viewPoint.Y()));
+				}
+
+				++itemCounter;
+				if (itemCounter.MustBreakOrSuspend100())
+					return true;
+			}
+			itemCounter.Close();
+			++tileCounter; if (tileCounter.MustBreakOrSuspend()) return true;
+		}
+		tileCounter.Close();
+	}
+	mainCount.Close();
+	return false;
+}
+
+bool GraphicMultiPointLayer::DrawImpl(FeatureDrawer& fd) const
+{
+	const AbstrDataItem* valuesItem = GetFeatureAttr();
+	dms_assert(valuesItem);
+
+	const FontIndexCache* fontIndices = GetFontIndexCache(FR_Symbol);
+	if (!fontIndices)
+		return false;
+
+	fontIndices->UpdateForZoomLevel(fd.m_WorldZoomLevel, fd.m_Drawer.GetSubPixelFactor());
+
+	bool result = false;
+	visit<typelists::seq_points>(valuesItem->GetAbstrValuesUnit(),
+		[this, valuesItem, fontIndices, &fd, &result] <typename P> (const Unit<P>*)
+		{
+			result = DrawMultiPoints< scalar_of_t<P> >(fd, this, valuesItem, fontIndices);
+		}
+	);
+	return result;
+}
+
+TRect GraphicMultiPointLayer::GetFeatureLogicalExtents() const
+{
+	TRect rect = base_type::GetFeatureLogicalExtents();
+	if (!IsDisabledAspectGroup(AG_Symbol))
+	{
+		Int32 
+			maxFontSizeY = GetMaxValue( GetEnabledTheme(AN_SymbolSize).get(), DEFAULT_SYMB_PIXEL_SIZE ),
+			maxFontSizeX = (maxFontSizeY*6)/10;
+
+		rect |= TRect(
+			- ((SYMB_DECIFONTSIZE_LEFT *maxFontSizeX)/10+1), 
+			- ((SYMB_DECIFONTSIZE_ABOVE*maxFontSizeY)/10+1),
+			+ ((SYMB_DECIFONTSIZE_RIGHT*maxFontSizeX)/10+1), 
+			+ ((SYMB_DECIFONTSIZE_BELOW*maxFontSizeY)/10+1)
+		);
+	}
+	return rect;
+}
+
+CrdRect GraphicMultiPointLayer::GetFeatureWorldExtents() const
+{
+	CrdRect rect = base_type::GetFeatureWorldExtents();
+
+	if (!IsDisabledAspectGroup(AG_Symbol))
+	{
+		CrdType 
+			maxFontSizeY = GetMaxValue( GetEnabledTheme(AN_SymbolWorldSize).get(), DEFAULT_SYMB_WORLD_SIZE ),
+			maxFontSizeX = maxFontSizeY;
+
+		if (maxFontSizeY)
+			rect |= shp2dms_order(
+				CrdRect(
+					CrdPoint(
+						- ((SYMB_DECIFONTSIZE_HOR*maxFontSizeX)/10+1), 
+						- ((SYMB_DECIFONTSIZE_VER*maxFontSizeY)/10+1)
+					),
+					CrdPoint(
+						+ ((SYMB_DECIFONTSIZE_HOR*maxFontSizeX)/10+1), 
+						+ ((SYMB_DECIFONTSIZE_VER*maxFontSizeY)/10+1)
+					)
+				)
+			);
+	}
+	return rect;
+}
+
+IMPL_DYNC_LAYERCLASS(GraphicMultiPointLayer, ASE_Feature|ASE_OrderBy|ASE_Label|ASE_Symbol|ASE_PixSizes|ASE_Selections, AN_SymbolColor, 0)
+
+//----------------------------------------------------------------------
 // class  : GraphicArcLayer
 //----------------------------------------------------------------------
 

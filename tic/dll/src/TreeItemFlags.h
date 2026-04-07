@@ -54,7 +54,7 @@ const TreeItemStatusFlags TSF_HasConfigData               = 0x0080;
 const TreeItemStatusFlags TSF_InheritedRef                = 0x0100;
 const TreeItemStatusFlags TSF_HasPseudonym                = 0x0200;
 const TreeItemStatusFlags TSF_HasStoredProps              = 0x0400;
-const DataItemStatusFlags TSF_THA_Keep                    = 0x0800; // this data-item is referred to by a repetitive tile users and therefore memoization of all tiles is advised.
+// bits 11-13 (0x0800, 0x1000, 0x2000) reserved for ValueComposition
 
 //----------------------------------------------------------------------
 // DataItemStatusFlags
@@ -83,8 +83,8 @@ const DataItemStatusFlags DSF_ValuesChecked          = 0x08000000;
 const DataItemStatusFlags DSF_CachedByStorageManager = 0x10000000;
 const DataItemStatusFlags DSF_HasSortedValues        = 0x20000000;
 
-const int VC2DSF_SHIFT = DCM2DSF_SHIFT + 5;
-const int VC_MASK = 0x03U;
+const int VC2DSF_SHIFT = 11; // bits 11-13 (0x3800) for ValueComposition (Single, Polygon, Sequence, MultiPoint)
+const int VC_MASK = 0x07U;   // 3 bits
 
 struct treeitem_flag_set : flag_set
 {

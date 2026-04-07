@@ -407,11 +407,12 @@ void ConfigProd::DoBasicType()
 		throwErrorD( "ConfigProd::DoBasicType: Unknown ValueType", m_strIdentifierID.GetStr().c_str());
 }
 
-TokenID st_Arc      = GetTokenID_st("arc");
-TokenID st_Single   = GetTokenID_st("single");
-TokenID st_Sequence = GetTokenID_st("sequence");
-TokenID st_Poly     = GetTokenID_st("poly");
-TokenID st_Polygon  = GetTokenID_st("polygon");
+TokenID st_Arc        = GetTokenID_st("arc");
+TokenID st_Single     = GetTokenID_st("single");
+TokenID st_Sequence   = GetTokenID_st("sequence");
+TokenID st_Poly       = GetTokenID_st("poly");
+TokenID st_Polygon    = GetTokenID_st("polygon");
+TokenID st_MultiPoint = GetTokenID_st("multipoint");
 
 void ConfigProd::DoEntityParam()
 {
@@ -420,6 +421,7 @@ void ConfigProd::DoEntityParam()
 	else if (m_strIdentifierID == st_Sequence) SetVC(ValueComposition::Sequence);
 	else if (m_strIdentifierID == st_Poly    ) SetVC(ValueComposition::Polygon);
 	else if (m_strIdentifierID == st_Polygon ) SetVC(ValueComposition::Polygon);
+	else if (m_strIdentifierID == st_MultiPoint) SetVC(ValueComposition::MultiPoint);
 	else
 		m_pParamEntity = m_strIdentifierID;
 }

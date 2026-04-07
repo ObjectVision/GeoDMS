@@ -129,24 +129,27 @@ namespace gdalVectImpl {
 			return ValueComposition::Single;
 
 		case wkbMultiPoint:
+		case wkbMultiPointM:
+		case wkbMultiPointZM:
+		case wkbMultiPoint25D:
+
+			return ValueComposition::MultiPoint;
+
 		case wkbCircularString:
 		case wkbCompoundCurve:
 		case wkbLineString:
 		case wkbMultiLineString: 
 
-		case wkbMultiPointM:
 		case wkbCircularStringM:
 		case wkbCompoundCurveM:
 		case wkbLineStringM:
 		case wkbMultiLineStringM:
 
-		case wkbMultiPointZM:
 		case wkbCircularStringZM:
 		case wkbCompoundCurveZM:
 		case wkbLineStringZM:
 		case wkbMultiLineStringZM:
 
-		case wkbMultiPoint25D:
 		case wkbLineString25D:
 		case wkbMultiLineString25D:
 

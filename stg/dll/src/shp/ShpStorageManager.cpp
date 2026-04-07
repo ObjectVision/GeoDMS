@@ -440,7 +440,7 @@ void ShpStorageManager::DoUpdateTree(const TreeItem* storageHolder, TreeItem* cu
 
 	switch (shapeType)
 	{
-		case ShapeTypes::ST_MultiPoint:
+		case ShapeTypes::ST_MultiPoint: vc = ValueComposition::MultiPoint; pData = GetPolyData(storageHolder); dataNameID = POLYGON_DATA_ID; break;
 		case ShapeTypes::ST_Polyline: vc = ValueComposition::Sequence; pData = GetPolyData(storageHolder); dataNameID = POLYGON_DATA_ID; break;
 		case ShapeTypes::ST_Polygon:  vc = ValueComposition::Polygon;  pData = GetPolyData(storageHolder); dataNameID = POLYGON_DATA_ID; break;
 		case ShapeTypes::ST_Point:    pData=GetPointData(storageHolder);dataNameID = POINT_DATA_ID;   break;

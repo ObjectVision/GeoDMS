@@ -741,21 +741,21 @@ struct geos_operator_wrapper
 		std::unique_ptr<geos::geom::Geometry> result;
 		if (!a || a->isValid())
 			if (!b || b->isValid())
-				result = m_Oper(a, b);
+				result = m_BinOper(a, b);
 			else
 			{
 				auto bClean = clean_geos_geometry(b);
-				result = m_Oper(a, bClean.get());
+				result = m_BinOper(a, bClean.get());
 			}
 		else
 		{
 			auto aClean = clean_geos_geometry(a);
 			if (!b || b->isValid())
-				result = m_Oper(aClean.get(), b);
+				result = m_BinOper(aClean.get(), b);
 			else
 			{
 				auto bClean = clean_geos_geometry(b);
-				result = m_Oper(aClean.get(), bClean.get());
+				result = m_BinOper(aClean.get(), bClean.get());
 			}
 		}
 		if (result && !result->isValid())
@@ -763,7 +763,7 @@ struct geos_operator_wrapper
 		return result;
 	}
 
-	POper m_Oper;
+	[[no_unique_address]] POper m_BinOper = {};
 };
 
 using geos_intersection = geos_operator_wrapper< geos_intersection_base>;

@@ -214,8 +214,9 @@ const LayerClass* GetLayerClassFromFeatureType(const AbstrDataItem* adi)
 {
 	switch (adi->GetValueComposition())
 	{
-		case ValueComposition::Sequence: return GraphicArcLayer::GetStaticClass();
-		case ValueComposition::Polygon:  return GraphicPolygonLayer::GetStaticClass();
+		case ValueComposition::Sequence:   return GraphicArcLayer::GetStaticClass();
+		case ValueComposition::Polygon:    return GraphicPolygonLayer::GetStaticClass();
+		case ValueComposition::MultiPoint: return GraphicMultiPointLayer::GetStaticClass();
 	}
 	dms_assert(adi->GetValueComposition() == ValueComposition::Single);
 	return GraphicPointLayer::GetStaticClass();

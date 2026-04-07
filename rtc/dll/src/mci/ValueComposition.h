@@ -16,13 +16,14 @@
 // An enumeration type that represents the values that can be put in a unit
 
 enum class ValueComposition : UInt8 {
-	Single   = 0
-,	Polygon  = 1
-,	Sequence = 2
+	Single     = 0
+,	Polygon    = 1
+,	Sequence   = 2
+,	MultiPoint = 3
 
-,	Count    = 3
-,	Unknown  = 3  // unit may choose
-,	Range = 4  // can never be used as ValuesType
+,	Count      = 4
+,	Unknown    = 7  // unit may choose
+,	Range      = 5  // can never be used as ValuesType
 
 ,	Void   = Single
 ,	String = Single
@@ -30,7 +31,7 @@ enum class ValueComposition : UInt8 {
 
 inline bool IsAcceptableValuesComposition(ValueComposition vc)
 {
-	return vc == ValueComposition::Sequence || vc == ValueComposition::Polygon;
+	return vc == ValueComposition::Sequence || vc == ValueComposition::Polygon || vc == ValueComposition::MultiPoint;
 }
 
 RTC_CALL void Unify(ValueComposition& vc, ValueComposition rhs);

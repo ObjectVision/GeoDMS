@@ -192,6 +192,34 @@ public:
 };
 
 //----------------------------------------------------------------------
+// class  : GraphicMultiPointLayer
+//----------------------------------------------------------------------
+
+class GraphicMultiPointLayer : public FeatureLayer
+{
+	typedef FeatureLayer base_type;
+
+public:
+	GraphicMultiPointLayer(GraphicObject* owner);
+
+	TRect   GetFeatureLogicalExtents() const override;
+	CrdRect GetFeatureWorldExtents() const override;
+
+protected:
+//	override virtual of FeatureLayer
+	bool DrawImpl(FeatureDrawer& fd) const override;
+
+	void SelectRect   (CrdRect worldRect, EventID eventID) override;
+	void SelectCircle (CrdPoint worldPnt, CrdType worldRadius, EventID eventID) override;
+	void SelectPolygon(const CrdPoint* first, const CrdPoint* last, EventID eventID) override;
+
+	SizeT FindFeatureByPoint(const CrdPoint& geoPnt) const override;
+	void  InvalidateFeature(SizeT featureIndex) override;
+
+	DECL_RTTI(SHV_CALL, LayerClass);
+};
+
+//----------------------------------------------------------------------
 // class  : GraphicArcLayer
 //----------------------------------------------------------------------
 

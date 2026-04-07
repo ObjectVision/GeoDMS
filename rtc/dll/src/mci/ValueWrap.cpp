@@ -64,14 +64,15 @@ ValueComposition DetermineValueComposition(CharPtr featureType)
 {
 	if (!featureType || !*featureType || !stricmp(featureType, "single"))
 		return ValueComposition::Single;
-	else if (!stricmp(featureType, "arc"))     return ValueComposition::Sequence;
-	else if (!stricmp(featureType, "polygon")) return ValueComposition::Polygon;
-	else if (!stricmp(featureType, "poly"))    return ValueComposition::Polygon;
+	else if (!stricmp(featureType, "arc"))        return ValueComposition::Sequence;
+	else if (!stricmp(featureType, "polygon"))    return ValueComposition::Polygon;
+	else if (!stricmp(featureType, "poly"))       return ValueComposition::Polygon;
+	else if (!stricmp(featureType, "multipoint")) return ValueComposition::MultiPoint;
 	return ValueComposition::Unknown;
 }
 
 namespace {
-	TokenID st_VC[int(ValueComposition::Count)] = { GetTokenID_st("single"), GetTokenID_st("poly"), GetTokenID_st("arc") };
+	TokenID st_VC[int(ValueComposition::Count)] = { GetTokenID_st("single"), GetTokenID_st("poly"), GetTokenID_st("arc"), GetTokenID_st("multipoint") };
 }
 
 TokenID GetValueCompositionID(ValueComposition vc)
@@ -79,6 +80,7 @@ TokenID GetValueCompositionID(ValueComposition vc)
 	static_assert(int(ValueComposition::Single) == 0);
 	static_assert(int(ValueComposition::Polygon) == 1);
 	static_assert(int(ValueComposition::Sequence) == 2);
+	static_assert(int(ValueComposition::MultiPoint) == 3);
 	return (UInt32(vc) < UInt32(ValueComposition::Count))
 		? st_VC[UInt32(vc)]
 		: TokenID(Undefined());
