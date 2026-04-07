@@ -8,6 +8,9 @@
 #pragma hdrstop
 #endif
 
+#include <atomic>
+#include <map>
+
 #include "dbg/SeverityType.h"
 #include "dbg/Timer.h"
 #include "mci/CompositeCast.h"
@@ -48,6 +51,31 @@ typedef UInt32 seq_index_type;
 
 enum class compare_type {
 	none, eq, ne, count
+};
+
+// *****************************************************************************
+//                          CutInfo for parallel connect
+// *****************************************************************************
+
+template <typename PointType, typename R = UInt32>
+struct CutInfo
+{
+	R        pointIndex;      // source point index (global, across tiles)
+	R        arcIndex;        // original arc being cut
+	UInt32   segmIndex;       // segment within arc
+	PointType cutPoint;       // exact cut location
+	Float64  segmFraction;    // position along segment [0,1] for deterministic ordering
+	bool     inArc;           // needs splitting (not just connecting to existing node)
+	bool     inSegm;          // cut point is within segment (not at endpoint)
+	bool     foundAny;        // whether a valid connection was found
+
+	// For sorting: first by arc, then by segment, then by position along segment
+	bool operator<(const CutInfo& rhs) const
+	{
+		if (arcIndex != rhs.arcIndex) return arcIndex < rhs.arcIndex;
+		if (segmIndex != rhs.segmIndex) return segmIndex < rhs.segmIndex;
+		return segmFraction < rhs.segmFraction;
+	}
 };
 
 template<typename PointType, typename SpatialIndexType>
@@ -966,8 +994,6 @@ public:
 			R arg1Count = arg1A->GetAbstrDomainUnit()->GetCount(); 
 			R arg2Count = arg2A->GetAbstrDomainUnit()->GetCount();
 
-			R maxResCount = arg1Count + 2*arg2Count;
-			
 			if(!arg1Count) 
 			{
 				resDomain->SetCount(0);
@@ -976,32 +1002,16 @@ public:
 				return true;
 			}
 
-			typename sequence_traits<typename ResultSubType::value_type>::container_type
-				resultSubData(maxResCount MG_DEBUG_ALLOCATOR_SRC("Connect: resultSubData.indices"));
-			SizeT actualDataSize = 0;
-			for (tile_id t=0, tn = arg1A->GetAbstrDomainUnit()->GetNrTiles(); t!=tn; ++t)
-				actualDataSize += const_array_cast<PolygonType>(arg1A)->GetLockedDataRead(t).get_sa().actual_data_size();
+			// ============================================================
+			// PHASE 0: Copy original arcs and build read-only spatial index
+			// ============================================================
 
-			resultSubData.data_reserve( actualDataSize + arg2Count MG_DEBUG_ALLOCATOR_SRC("Connect: resultSubData.sequences"));
+			using OriginalSpatialIndexType = SpatialIndex<CoordType, typename Arg1Type::const_iterator>;
 
-			OwningPtrSizedArray<R> nrOrgEntityData(arg2Count, dont_initialize MG_DEBUG_ALLOCATOR_SRC("Connect: nrOrgEntityData"));
-			R* nrOrgEntityDataPtr = nrOrgEntityData.begin();
-			R* nrOrgEntityIter = nrOrgEntityDataPtr;
+			auto arg1Data = const_array_cast<PolygonType>(arg1A)->GetLockedDataRead();
+			assert(arg1Count == arg1Data.size());
 
-			assert(resultSubData.size() == maxResCount);
-
-			auto resStreetBegin= resultSubData.begin();
-			auto resStreetEnd  = resStreetBegin;
-			for (tile_id t=0, tn = arg1A->GetAbstrDomainUnit()->GetNrTiles(); t!=tn; ++t)
-			{
-				auto arg1Data = const_array_cast<PolygonType>(arg1A)->GetLockedDataRead(t);
-				resStreetEnd = std::copy(arg1Data.begin(), arg1Data.end(), resStreetEnd);
-			}
-			auto
-				resCutIter    = resStreetEnd + arg2Count, // will be incremented when a street-cut was made
-				resCutBegin   = resCutIter,
-				resCutEnd     = resultSubData.end();
-//				arcPtr; // arcPtr is only assigned in inner loop;
+			OriginalSpatialIndexType spIndexOriginal(arg1Data.begin(), arg1Data.end(), 0);
 
 			const E* polyIDsPtr = nullptr;
 			typename DataArray<E>::locked_cseq_t polyIDs;
@@ -1010,163 +1020,289 @@ public:
 				polyIDsPtr = polyIDs.begin();
 			}
 
-			SpatialIndexType spIndex(
-				sequence_array_index<PointType>(resStreetBegin),
-				sequence_array_index<PointType>(resStreetEnd  ),
-				2*SizeT(arg2Count)
-			);
+			// ============================================================
+			// PHASE 1: Parallel Discovery - find cut info for each point
+			// ============================================================
 
-			for (tile_id t=0, tn = arg2A->GetAbstrDomainUnit()->GetNrTiles(); t!=tn; ++t)
+			using CutInfoType = CutInfo<PointType, R>;
+			tile_id nrTiles = arg2A->GetAbstrDomainUnit()->GetNrTiles();
+
+			// Per-tile cut info vectors
+			std::vector<std::vector<CutInfoType>> perTileCutInfos(nrTiles);
+			std::vector<R> tileOffsets(nrTiles + 1, 0);
+
+			// Calculate tile offsets for global point indexing
+			for (tile_id t = 0; t < nrTiles; ++t)
+				tileOffsets[t + 1] = tileOffsets[t] + arg2A->GetAbstrDomainUnit()->GetTileCount(t);
+
+			std::atomic<SizeT> nrProcessedPoints = 0;
+
+			parallel_tileloop(nrTiles, [&, isPossiblyMultiPolygon, this](tile_id t)
 			{
-				auto arg2Data = const_array_cast<PointType  >(arg2A)->GetLockedDataRead(t);
+				auto arg2Data = const_array_cast<PointType>(arg2A)->GetLockedDataRead(t);
+				auto tileSize = arg2Data.size();
+				if (!tileSize)
+					return;
 
 				const E* pointIDsPtr = nullptr;
-				typename DataArray<E>::locked_cseq_t pointIDs; 
+				typename DataArray<E>::locked_cseq_t pointIDs;
 				if (arg2_ID) {
-					pointIDs = const_array_cast<E>(arg2_ID)->GetLockedDataRead(t); pointIDsPtr = pointIDs.begin();
+					pointIDs = const_array_cast<E>(arg2_ID)->GetLockedDataRead(t);
+					pointIDsPtr = pointIDs.begin();
 				}
 
-				const PointType* pointBegin = arg2Data.begin();
-				const PointType* pointEnd   = arg2Data.end();
-				const PointType* pointPtr   = pointBegin;
-				const SqrDistType* minSqrDistPtr = nullptr;
 				const SqrDistType* maxSqrDistPtr = nullptr;
+				typename DataArray<SqrtDistType>::locked_cseq_t maxSqrDists;
+				if (argMaxDist) {
+					maxSqrDists = const_array_cast<SqrtDistType>(argMaxDist)->GetLockedDataRead(hasNonVoidMaxDist ? t : 0);
+					maxSqrDistPtr = maxSqrDists.begin();
+				}
 
-				typename DataArray<SqrtDistType>::locked_cseq_t minSqrDists; if (argMinDist) { minSqrDists = const_array_cast<SqrtDistType>(argMinDist)->GetLockedDataRead(hasNonVoidMinDist ? t : 0); minSqrDistPtr = minSqrDists.begin(); }
-				typename DataArray<SqrtDistType>::locked_cseq_t maxSqrDists; if (argMaxDist) { maxSqrDists = const_array_cast<SqrtDistType>(argMaxDist)->GetLockedDataRead(hasNonVoidMaxDist ? t : 0); maxSqrDistPtr = maxSqrDists.begin(); }
+				auto streetBegin = arg1Data.begin();
+				R globalOffset = tileOffsets[t];
 
-				auto filter = [arg1Count, arg2Count, nrOrgEntityDataPtr, pointIDsPtr, polyIDsPtr, resStreetBegin, pointBegin, &pointPtr](typename ResultSubType::iterator streetPtr) ->bool
+				std::vector<CutInfoType>& tileCutInfos = perTileCutInfos[t];
+				tileCutInfos.reserve(tileSize);
+
+				for (SizeT i = 0; i < tileSize; ++i)
 				{
-					if constexpr (CT == compare_type::none)
-						return true;
-					seq_index_type streetIndex = streetPtr - resStreetBegin;
-					assert(streetIndex < arg1Count + 2 * arg2Count);
-					if (streetIndex >= arg1Count)
+					auto point = arg2Data[i];
+					CutInfoType cutInfo;
+					cutInfo.pointIndex = globalOffset + i;
+					cutInfo.foundAny = false;
+
+					if (IsDefined(point))
 					{
-						assert(streetIndex >= arg1Count + arg2Count);
-						streetIndex -= (arg1Count + arg2Count);
-						assert(streetIndex < arg2Count);
-						streetIndex = nrOrgEntityDataPtr[streetIndex];
-					}
-					assert(streetIndex < arg1Count);
-					E pointID = pointIDsPtr[pointPtr - pointBegin];
-
-					if constexpr (CT == compare_type::eq)
-						return pointID == polyIDsPtr[streetIndex] || !IsDefined(pointID);
-					else
-						return pointID != polyIDsPtr[streetIndex] || !IsDefined(pointID);
-				};
-				for (;pointPtr != pointEnd; ++pointPtr)
-				{
-					auto point = *pointPtr;
-					if (!IsDefined(point))
-						continue;
-					assert(resStreetEnd < resCutBegin);
-
-					IndexedArcProjectionHandle<SqrDistType, CoordType, ResultSubType::iterator> arcHnd(point, spIndex, filter, maxSqrDistPtr, isPossiblyMultiPolygon);
-					if (arcHnd.m_FoundAny)
-					{
-						// add Arc with connection
-						assert(resStreetEnd->empty());
-						resStreetEnd->resize_uninitialized(2 MG_DEBUG_ALLOCATOR_SRC("Connect resStreetEnd"));
-						auto resPointPtr = resStreetEnd->begin();
-						resPointPtr[0] = point;
-						resPointPtr[1] = arcHnd.m_CutPoint;
-						assert(resPointPtr + 2 == resStreetEnd->end());
-
-						// split Arc if neccessary
-						if (arcHnd.m_InArc)
+						auto filter = [&](typename Arg1Type::const_iterator streetPtr) -> bool
 						{
-							typename ResultSubType::reference arcRef = *(arcHnd.m_ArcPtr);
-
-							dms_assert(resCutIter < resCutEnd);              // still space available in last segment of results
-							dms_assert(arcHnd.m_SegmIndex < arcRef.size() - 1);// segmIndex < #segm = #points -1
-							dms_assert(resCutIter->empty());
-							(*resCutIter).resize_uninitialized(arcRef.size() - arcHnd.m_SegmIndex - (arcHnd.m_InSegm ? 0 : 1) MG_DEBUG_ALLOCATOR_SRC("Connect resCut"));
-							dms_assert((*resCutIter).size() > 1); // if match was made on lastNode, then inArc was false.
-
-							resPointPtr = resCutIter->begin();
-
-							if (arcHnd.m_InSegm)
-								*resPointPtr++ = arcHnd.m_CutPoint;
-
-							typename sequence_traits<PointType>::pointer
-								arcCut = arcRef.begin() + arcHnd.m_SegmIndex + 1,
-								arcEnd = arcRef.end();
-							resPointPtr = fast_copy(arcCut, arcEnd, resPointPtr);
-							dms_assert(resPointPtr == resCutIter->end());
-
-							spIndex.Add(sequence_array_index<PointType>(resCutIter));
-							++resCutIter;
-
-							arcRef.erase(arcCut + 1, arcEnd); // if !isSegm then also cutPoint is removed
-							*arcCut = arcHnd.m_CutPoint;
-							dms_assert(arcRef.size() > 1 && (arcCut + 1) == arcRef.end()); // if match was made on firstNode, then inArc was false.
-
-							R nrArc = arcHnd.m_ArcPtr - resStreetBegin;
-							if (nrArc >= arg1Count)
+							if constexpr (CT == compare_type::none)
+								return true;
+							else
 							{
-								dms_assert(nrArc >= arg1Count + arg2Count); // nrArc may not point to second segment which are only connections
-								nrArc -= (arg1Count + arg2Count);
-								dms_assert(nrArc < R(nrOrgEntityIter - nrOrgEntityData.begin()));
-								nrArc = nrOrgEntityData[nrArc];
+								R streetIndex = streetPtr - streetBegin;
+								assert(streetIndex < arg1Count);
+								E pointID = pointIDsPtr[i];
+								if constexpr (CT == compare_type::eq)
+									return pointID == polyIDsPtr[streetIndex] || !IsDefined(pointID);
+								else
+									return pointID != polyIDsPtr[streetIndex] || !IsDefined(pointID);
 							}
-							*nrOrgEntityIter++ = nrArc;
-						}
-#if defined(MG_DEBUG)
-						R nrNewStreets = nrOrgEntityIter - nrOrgEntityDataPtr;
-						dms_assert(nrNewStreets + arg1Count + arg2Count == (resCutIter - resultSubData.begin()));
-#endif
-						++resStreetEnd;
+						};
 
+						const SqrDistType* currMaxDistPtr = hasNonVoidMaxDist ? (maxSqrDistPtr + i) : maxSqrDistPtr;
+						IndexedArcProjectionHandle<SqrDistType, CoordType, typename Arg1Type::const_iterator> arcHnd(
+							point, spIndexOriginal, filter, currMaxDistPtr, isPossiblyMultiPolygon);
+
+						if (arcHnd.m_FoundAny)
+						{
+							cutInfo.foundAny = true;
+							cutInfo.arcIndex = arcHnd.m_ArcPtr - streetBegin;
+							cutInfo.segmIndex = arcHnd.m_SegmIndex;
+							cutInfo.cutPoint = arcHnd.m_CutPoint;
+							cutInfo.inArc = arcHnd.m_InArc;
+							cutInfo.inSegm = arcHnd.m_InSegm;
+
+							// Calculate fraction along segment for deterministic ordering
+							if (arcHnd.m_InSegm && cutInfo.arcIndex < arg1Count)
+							{
+								auto arc = arg1Data[cutInfo.arcIndex];
+								if (cutInfo.segmIndex + 1 < arc.size())
+								{
+									auto p1 = arc[cutInfo.segmIndex];
+									auto p2 = arc[cutInfo.segmIndex + 1];
+									auto segLen = sqrt(SqrDist<Float64>(p1, p2));
+									if (segLen > 0)
+										cutInfo.segmFraction = sqrt(SqrDist<Float64>(p1, cutInfo.cutPoint)) / segLen;
+									else
+										cutInfo.segmFraction = 0.0;
+								}
+								else
+									cutInfo.segmFraction = 1.0;
+							}
+							else
+								cutInfo.segmFraction = arcHnd.m_InSegm ? 0.5 : (arcHnd.m_InArc ? 0.0 : 1.0);
+						}
 					}
-					if (hasNonVoidMinDist)
-						++minSqrDistPtr;
-					if (hasNonVoidMaxDist)
-						++maxSqrDistPtr;
+					tileCutInfos.push_back(cutInfo);
+
 					if (processTimer.PassedSecs())
-						reportF(SeverityTypeID::ST_MajorTrace, "Connect %s / %s points of tile %s / %s done"
-							, AsString(pointPtr - pointBegin), AsString(pointEnd - pointBegin)
-							, AsString(t), AsString(tn));
+					{
+						nrProcessedPoints += 1;
+						reportF(SeverityTypeID::ST_MajorTrace, "Connect discovery: %s / %s points done"
+							, AsString(nrProcessedPoints.load()), AsString(arg2Count));
+					}
+				}
+			});
+
+			// ============================================================
+			// PHASE 2: Consolidation - group cuts by arc, sort, assign indices
+			// ============================================================
+
+			// Flatten all cut infos and count valid connections
+			std::vector<CutInfoType> allCutInfos;
+			allCutInfos.reserve(arg2Count);
+			R nrValidConnections = 0;
+
+			for (tile_id t = 0; t < nrTiles; ++t)
+			{
+				for (auto& ci : perTileCutInfos[t])
+				{
+					allCutInfos.push_back(ci);
+					if (ci.foundAny)
+						++nrValidConnections;
 				}
 			}
-			dms_assert(!(resCutBegin < resStreetEnd));
-			dms_assert(!(resCutEnd < resCutIter));
-			seq_elem_index_type nrOmittedPoints = resCutBegin - resStreetEnd;
 
-			R nrNewStreets = nrOrgEntityIter - nrOrgEntityData.begin();
+			// Group cuts that need splitting by original arc
+			std::map<R, std::vector<CutInfoType*>> cutsPerArc;
+			for (auto& ci : allCutInfos)
+			{
+				if (ci.foundAny && ci.inArc)
+					cutsPerArc[ci.arcIndex].push_back(&ci);
+			}
 
-			assert(resStreetEnd - resultSubData.begin() == arg1Count + (arg2Count - nrOmittedPoints));
-			assert(resCutIter - resCutBegin == nrNewStreets);
+			// Sort cuts within each arc by position (segment index, then fraction)
+			for (auto& [arcIdx, cuts] : cutsPerArc)
+			{
+				std::sort(cuts.begin(), cuts.end(), [](const CutInfoType* a, const CutInfoType* b) {
+					if (a->segmIndex != b->segmIndex) return a->segmIndex < b->segmIndex;
+					return a->segmFraction < b->segmFraction;
+				});
+			}
 
-			resDomain->SetCount(arg1Count + (SizeT(arg2Count) - nrOmittedPoints) + nrNewStreets);
+			// Count total number of new tail arcs (one per split point, but accounting for multiple cuts on same arc)
+			R nrNewTails = 0;
+			for (auto& [arcIdx, cuts] : cutsPerArc)
+				nrNewTails += cuts.size();
 
-			DataWriteLock resLock(resSub); 
+			// ============================================================
+			// PHASE 3: Build result geometry
+			// ============================================================
 
+			R maxResCount = arg1Count + nrValidConnections + nrNewTails;
+
+			typename sequence_traits<typename ResultSubType::value_type>::container_type
+				resultSubData(maxResCount MG_DEBUG_ALLOCATOR_SRC("Connect: resultSubData.indices"));
+
+			// Calculate data size for reservation
+			SizeT actualDataSize = 0;
+			for (tile_id t = 0; t < arg1A->GetAbstrDomainUnit()->GetNrTiles(); ++t)
+				actualDataSize += const_array_cast<PolygonType>(arg1A)->GetLockedDataRead(t).get_sa().actual_data_size();
+			actualDataSize += nrValidConnections * 2; // connection edges have 2 points each
+			actualDataSize += nrNewTails * 4; // rough estimate for tail points
+
+			resultSubData.data_reserve(actualDataSize MG_DEBUG_ALLOCATOR_SRC("Connect: resultSubData.sequences"));
+
+			// Copy original arcs (they will be modified for splits)
+			auto resIter = resultSubData.begin();
+			for (tile_id t = 0; t < arg1A->GetAbstrDomainUnit()->GetNrTiles(); ++t)
+			{
+				auto arg1TileData = const_array_cast<PolygonType>(arg1A)->GetLockedDataRead(t);
+				resIter = std::copy(arg1TileData.begin(), arg1TileData.end(), resIter);
+			}
+			auto resOriginalArcsEnd = resIter;
+
+			// Reserve space for connection edges
+			auto resConnectionsBegin = resIter;
+			resIter += nrValidConnections;
+			auto resConnectionsEnd = resIter;
+
+			// Reserve space for tail arcs
+			auto resTailsBegin = resIter;
+
+			// Prepare arc_rel data
+			OwningPtrSizedArray<R> nrOrgEntityData(nrNewTails, dont_initialize MG_DEBUG_ALLOCATOR_SRC("Connect: nrOrgEntityData"));
+
+			// Process cuts per arc and create tails (sequential, maintains deterministic order)
+			R tailIndex = 0;
+			for (auto& [originalArcIdx, cuts] : cutsPerArc)
+			{
+				// Process cuts in spatial order along the arc
+				typename ResultSubType::reference arcRef = resultSubData[originalArcIdx];
+
+				for (SizeT cutIdx = cuts.size(); cutIdx > 0; --cutIdx)
+				{
+					// Process from end to beginning to preserve segment indices
+					CutInfoType* ci = cuts[cutIdx - 1];
+
+					if (ci->segmIndex + 1 >= arcRef.size())
+						continue; // Invalid segment index
+
+					// Create tail from cut point to end
+					auto tailIter = resTailsBegin + tailIndex;
+					SizeT tailSize = arcRef.size() - ci->segmIndex - (ci->inSegm ? 0 : 1);
+					if (tailSize > 1)
+					{
+						tailIter->resize_uninitialized(tailSize MG_DEBUG_ALLOCATOR_SRC("Connect tail"));
+						auto tailPtr = tailIter->begin();
+
+						if (ci->inSegm)
+							*tailPtr++ = ci->cutPoint;
+
+						auto arcCut = arcRef.begin() + ci->segmIndex + 1;
+						auto arcEnd = arcRef.end();
+						fast_copy(arcCut, arcEnd, tailPtr);
+
+						// Truncate original arc
+						arcRef.erase(arcCut + 1, arcEnd);
+						*(arcRef.begin() + ci->segmIndex + 1) = ci->cutPoint;
+
+						nrOrgEntityData[tailIndex] = originalArcIdx;
+						++tailIndex;
+					}
+				}
+			}
+			auto resTailsEnd = resTailsBegin + tailIndex;
+
+			// Create connection edges (can be done in parallel)
+			R connectionIndex = 0;
+			for (auto& ci : allCutInfos)
+			{
+				if (ci.foundAny)
+				{
+					auto& connEdge = *(resConnectionsBegin + connectionIndex);
+					connEdge.resize_uninitialized(2 MG_DEBUG_ALLOCATOR_SRC("Connect edge"));
+
+					// Get original point from the tile
+					tile_id t = 0;
+					R localIdx = ci.pointIndex;
+					while (t < nrTiles && localIdx >= arg2A->GetAbstrDomainUnit()->GetTileCount(t))
+					{
+						localIdx -= arg2A->GetAbstrDomainUnit()->GetTileCount(t);
+						++t;
+					}
+					auto arg2Data = const_array_cast<PointType>(arg2A)->GetLockedDataRead(t);
+
+					connEdge[0] = arg2Data[localIdx];
+					connEdge[1] = ci.cutPoint;
+					++connectionIndex;
+				}
+			}
+
+			// Set result counts
+			R actualNrTails = tailIndex;
+			resDomain->SetCount(arg1Count + nrValidConnections + actualNrTails);
+
+			// Write results
+			DataWriteLock resLock(resSub);
 			auto resSubData = mutable_array_cast<PolygonType>(resLock)->GetDataWrite(no_tile, dms_rw_mode::write_only_mustzero);
 
-			MGD_CHECKDATA(resSubData.get_sa().IsLocked());
-			MGD_CHECKDATA(resultSubData.IsLocked());
-
-			resSubData.get_sa().data_reserve(resultSubData.actual_data_size() MG_DEBUG_ALLOCATOR_SRC("Connect: resultSubData.data_reserve"));
+			resSubData.get_sa().data_reserve(resultSubData.actual_data_size() MG_DEBUG_ALLOCATOR_SRC("Connect: resSubData.data_reserve"));
 
 			auto ri = resSubData.begin();
-			ri = fast_copy(resultSubData.begin(), resStreetEnd, ri);
-			ri = fast_copy(resCutBegin, resCutIter, ri);
-
-			dms_assert(ri == resSubData.end());
-			dms_assert(resSubData.get_sa().actual_data_size() == resultSubData.actual_data_size());
-			dms_assert(!resSubData.get_sa().IsDirty());
+			ri = fast_copy(resultSubData.begin(), resOriginalArcsEnd, ri); // Original arcs (modified)
+			ri = fast_copy(resConnectionsBegin, resConnectionsEnd, ri);     // Connection edges
+			ri = fast_copy(resTailsBegin, resTailsEnd, ri);                 // Tail arcs
 
 			resLock.Commit();
 
+			// Write arc_rel results
 			DataWriteLock resNrOrgLock(resNrOrg);
 
 			tile_id t = no_tile;
-			// TODO G8: use TileWriteChannel en visitor to avoid multiple shadowing.
-			arg1A->GetAbstrDomainUnit()->InviteUnitProcessor( IdAssigner     (resNrOrgLock.get(), t, 0, 0, arg1Count));
-			arg1A->GetAbstrDomainUnit()->InviteUnitProcessor( NullAssigner   (resNrOrgLock.get(), t, arg1Count, arg2Count - nrOmittedPoints) );
-			arg1A->GetAbstrDomainUnit()->InviteUnitProcessor( IndexAssigner32(resNrOrg, resNrOrgLock.get(), t, SizeT(arg1Count) + arg2Count  - nrOmittedPoints, nrNewStreets, nrOrgEntityData.begin() ) );
+			arg1A->GetAbstrDomainUnit()->InviteUnitProcessor(IdAssigner(resNrOrgLock.get(), t, 0, 0, arg1Count));
+			arg1A->GetAbstrDomainUnit()->InviteUnitProcessor(NullAssigner(resNrOrgLock.get(), t, arg1Count, nrValidConnections));
+			arg1A->GetAbstrDomainUnit()->InviteUnitProcessor(IndexAssigner32(resNrOrg, resNrOrgLock.get(), t, SizeT(arg1Count) + nrValidConnections, actualNrTails, nrOrgEntityData.begin()));
 
 			resNrOrgLock.Commit();
 		}
