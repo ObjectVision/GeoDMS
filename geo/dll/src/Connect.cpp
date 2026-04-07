@@ -60,13 +60,13 @@ enum class compare_type {
 template <typename PointType, typename R = seq_index_type>
 struct CutInfo
 {
-	R        pointIndex;      // source point index (global, across tiles)
+	row_id   pointIndex;      // source point index (global, across tiles)
 	R        arcIndex;        // original arc being cut
 	UInt32   segmIndex;       // segment within arc
 	PointType cutPoint;       // exact cut location
-	bool     inArc    : 1;           // needs splitting (not just connecting to existing node)
-	bool     inSegm   : 1;          // cut point is within segment (not at endpoint)
-	bool     foundAny : 1;        // whether a valid connection was found
+	bool     inArc    : 1;    // needs splitting (not just connecting to existing node)
+	bool     inSegm   : 1;    // cut point is within segment (not at endpoint)
+	bool     foundAny : 1;    // whether a valid connection was found
 	Float64  segmFraction;    // position along segment [0,1] for deterministic ordering
 
 	// For sorting: first by arc, then by segment, then by position along segment
@@ -508,12 +508,12 @@ static TokenID s_InSegm = GetTokenID_st("InSegm");
 static TokenID s_SegmID = GetTokenID_st("SegmID");
 
 template <compare_type CT, bool HasMaxDist, bool HasMinDist>
-using ConnectInfoBaseClass = std::conditional_t < CT == compare_type::none,
+using ConnectInfoBaseType = std::conditional_t < CT == compare_type::none,
 	std::conditional_t<HasMaxDist, std::conditional_t<HasMinDist, QuaternaryOperator, TernaryOperator>, BinaryOperator>
 	, std::conditional_t<HasMaxDist, std::conditional_t<HasMinDist, SexenaryOperator, QuinaryOperator>, QuaternaryOperator>>;
 
 template <typename P, typename E = UInt32, compare_type CT = compare_type::none, typename SegmID = UInt32, typename SqrtDistType = Float64, bool HasMaxDist = false, bool HasMinDist = false, bool OnlyDistResult = false>
-class ConnectInfoOperator : ConnectInfoBaseClass<CT, HasMaxDist, HasMinDist>
+class ConnectInfoOperator : ConnectInfoBaseType<CT, HasMaxDist, HasMinDist>
 {
 	using PointType = P;
 	using PolygonType = sequence_traits<PointType>::container_type;
@@ -873,10 +873,7 @@ public:
 // *****************************************************************************
 
 template <class T, class R = seq_index_type, compare_type CT = compare_type::none, typename E= UInt32, typename SqrtDistType = Float64, bool HasMaxDist = false, bool HasMinDist = false>
-class FastConnectOperator : std::conditional_t<CT == compare_type::none
-	,	std::conditional_t<HasMaxDist, std::conditional_t<HasMinDist, QuaternaryOperator, TernaryOperator>, BinaryOperator>
-	,	std::conditional_t<HasMaxDist, std::conditional_t<HasMinDist, SexenaryOperator, QuinaryOperator>, QuaternaryOperator>
-	>
+class FastConnectOperator : ConnectInfoBaseType<CT, HasMaxDist, HasMinDist>
 {
 	using PointType = T;
 	using PolygonType = sequence_traits<PointType>::container_type;
@@ -1029,7 +1026,7 @@ public:
 
 			// Per-tile cut info vectors
 			std::vector<std::vector<CutInfoType>> perTileCutInfos(nrTiles);
-			std::vector<R> tileOffsets(nrTiles + 1, 0);
+			std::vector<SizeT> tileOffsets(nrTiles + 1, 0);
 
 			// Calculate tile offsets for global point indexing
 			for (tile_id t = 0; t < nrTiles; ++t)
@@ -1059,7 +1056,7 @@ public:
 				}
 
 				auto streetBegin = arg1Data.begin();
-				R globalOffset = tileOffsets[t];
+				row_id globalOffset = tileOffsets[t];
 
 				std::vector<CutInfoType>& tileCutInfos = perTileCutInfos[t];
 				tileCutInfos.reserve(tileSize);
