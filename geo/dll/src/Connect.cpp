@@ -60,14 +60,14 @@ enum class compare_type {
 template <typename PointType, typename R = seq_index_type>
 struct CutInfo
 {
-	row_id   pointIndex;      // source point index (global, across tiles)
-	R        arcIndex;        // original arc being cut
-	UInt32   segmIndex;       // segment within arc
-	PointType cutPoint;       // exact cut location
-	bool     inArc    : 1;    // needs splitting (not just connecting to existing node)
-	bool     inSegm   : 1;    // cut point is within segment (not at endpoint)
-	bool     foundAny : 1;    // whether a valid connection was found
-	Float64  segmFraction;    // position along segment [0,1] for deterministic ordering
+	row_id   pointIndex = -1;       // source point index (global, across tiles)
+	R        arcIndex  = 0;         // original arc being cut
+	UInt32   segmIndex = 0;         // segment within arc
+	PointType cutPoint;             // exact cut location
+	bool     inArc    : 1 = false;  // needs splitting (not just connecting to existing node)
+	bool     inSegm   : 1 = false;  // cut point is within segment (not at endpoint)
+	bool     foundAny : 1 = false;  // whether a valid connection was found
+	Float64  segmFraction = 0.0;    // position along segment [0,1] for deterministic ordering
 
 	// For sorting: first by arc, then by segment, then by position along segment
 	bool operator<(const CutInfo& rhs) const
