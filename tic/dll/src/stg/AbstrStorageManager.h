@@ -232,6 +232,7 @@ public:
 	TIC_CALL virtual bool AllowRandomTileAccess() const { return false; }
 	TIC_CALL virtual bool EasyRereadTiles() const { return false; }
 	TIC_CALL virtual bool CanWriteTiles() const { return false;  }
+	TIC_CALL virtual bool IsWriteOnlyStorage() const { return false; }
 	TIC_CALL virtual bool DoCheckFactorSimilarity(StorageMetaInfoPtr smi) const { return true; }
 	TIC_CALL virtual bool DoCheck50PercentExtentOverlap(StorageMetaInfoPtr smi) const { return true; }
 

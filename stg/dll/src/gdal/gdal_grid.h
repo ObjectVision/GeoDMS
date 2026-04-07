@@ -52,6 +52,7 @@ private:
 struct GdalWritableGridSM : GdalGridSM
 {
 	bool IsWritableGDAL() const override { return true; }
+	bool IsWriteOnlyStorage() const override { return true; }
 
 	DECL_RTTI(STGDLL_CALL, StorageClass)
 };

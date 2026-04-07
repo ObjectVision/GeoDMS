@@ -1288,6 +1288,9 @@ bool TreeItem::IsLoadable() const
 	auto sp = GetStorageParent(false);
 	if (!sp)
 		return false;
+	auto sm = sp->GetStorageManager();
+	if (sm && sm->IsWriteOnlyStorage())
+		return false;
 	return true;
 }
 
