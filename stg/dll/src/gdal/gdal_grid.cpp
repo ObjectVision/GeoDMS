@@ -43,6 +43,7 @@
 #include "mci/ValueClassID.h"
 #include "stg/StorageClass.h"
 
+#include <set>
 #include <sstream>
 
 // ------------------------------------------------------------------------
@@ -137,12 +138,15 @@ GDalGridImp::GDalGridImp(GDALDataset* hDS, const AbstrDataObject* ado, UPoint vi
 	if (rasterDataType != geoDmsDataType)
 		if (rasterDataType != GDT_Byte || geoDmsDataType != GDT_UInt32 || hDS->GetRasterCount() != 4)
 		{
-			if (smi)
-			{
-				if (smi->mf_WarningFlag1)
-					return;
-				smi->mf_WarningFlag1 = true;
-			}
+			// Use static set to track already-warned combinations of (hDS, rasterDataType, valueClassID)
+			// to avoid repeating the same warning for each tile
+			using WarningKey = std::tuple<const GDALDataset*, GDALDataType, ValueClassID>;
+			static std::set<WarningKey> s_IssuedWarnings;
+
+			auto warningKey = WarningKey(hDS, rasterDataType, valueClass->GetValueClassID());
+			if (s_IssuedWarnings.find(warningKey) != s_IssuedWarnings.end())
+				return;
+			s_IssuedWarnings.insert(warningKey);
 
 			reportF(SeverityTypeID::ST_Warning, "gdal.grid: different value types. Storage contains %s values while GeoDms expects %s values"
 				, GDALGetDataTypeName(rasterDataType)
