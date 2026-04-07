@@ -47,7 +47,7 @@ CommonOperGroup cogCONINFO_NE("connect_info_ne", oper_policy::better_not_in_meta
 CommonOperGroup cogDISTINFO_EQ("dist_info_eq", oper_policy::better_not_in_meta_scripting);
 CommonOperGroup cogDISTINFO_NE("dist_info_ne", oper_policy::better_not_in_meta_scripting);
 
-typedef UInt32 seq_index_type;
+using seq_index_type = UInt32;
 
 enum class compare_type {
 	none, eq, ne, count
@@ -57,17 +57,17 @@ enum class compare_type {
 //                          CutInfo for parallel connect
 // *****************************************************************************
 
-template <typename PointType, typename R = UInt32>
+template <typename PointType, typename R = seq_index_type>
 struct CutInfo
 {
 	R        pointIndex;      // source point index (global, across tiles)
 	R        arcIndex;        // original arc being cut
 	UInt32   segmIndex;       // segment within arc
 	PointType cutPoint;       // exact cut location
+	bool     inArc    : 1;           // needs splitting (not just connecting to existing node)
+	bool     inSegm   : 1;          // cut point is within segment (not at endpoint)
+	bool     foundAny : 1;        // whether a valid connection was found
 	Float64  segmFraction;    // position along segment [0,1] for deterministic ordering
-	bool     inArc;           // needs splitting (not just connecting to existing node)
-	bool     inSegm;          // cut point is within segment (not at endpoint)
-	bool     foundAny;        // whether a valid connection was found
 
 	// For sorting: first by arc, then by segment, then by position along segment
 	bool operator<(const CutInfo& rhs) const
