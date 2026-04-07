@@ -479,7 +479,7 @@ SharedTreeItem AbstrCalculator::GetForEachTemplSource() const
 		}
 		argRef = argRef.Right(); ++i;
 	}
-	MG_CHECK(false);
+	return {};
 }
 
 AbstrCalculatorRef AbstrCalculator::ConstructFromStr(const TreeItem* context, WeakStr expr, CalcRole cr)
