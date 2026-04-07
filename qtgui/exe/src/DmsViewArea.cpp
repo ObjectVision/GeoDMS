@@ -76,6 +76,7 @@ void DMS_CONV OnStatusText(ClientHandle clientHandle, SeverityTypeID st, CharPtr
     assert(dva);
     if (st == SeverityTypeID::ST_MajorTrace) {
         dva->setWindowTitle(msg);
+        MainWindow::TheOne()->m_mdi_area->updateTabTooltips();
     }
     else {
         MainWindow::TheOne()->m_statusbar_coordinates->setText(QString(msg));
@@ -95,11 +96,27 @@ QDmsMdiArea::QDmsMdiArea(QWidget* parent)
 
     mdi_tabbar->setElideMode(Qt::ElideMiddle);
     mdi_tabbar->setSelectionBehaviorOnRemove(QTabBar::SelectionBehavior::SelectLeftTab);
+    mdi_tabbar->setUsesScrollButtons(true);
+}
+
+void QDmsMdiArea::updateTabTooltips()
+{
+    QTabBar* mdi_tabbar = getTabBar();
+    if (!mdi_tabbar)
+        return;
+
+    auto windows = subWindowList();
+    for (int i = 0; i < mdi_tabbar->count() && i < windows.size(); ++i)
+    {
+        mdi_tabbar->setTabToolTip(i, windows[i]->windowTitle());
+    }
 }
 
 QMdiSubWindow* QDmsMdiArea::addDmsSubWindow(QWidget* widget)
 {
-    return addSubWindow(widget);
+    auto* subWindow = addSubWindow(widget);
+    updateTabTooltips();
+    return subWindow;
 }
 
 void QDmsMdiArea::dragEnterEvent(QDragEnterEvent* event) {

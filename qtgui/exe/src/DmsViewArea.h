@@ -31,6 +31,7 @@ public:
     void setTabbedViewModeStyle();
     QSize sizeHint() const override;
     auto getTabBar() -> QTabBar*;
+    void updateTabTooltips();
 
 public slots:
     void testCloseSubWindow();
