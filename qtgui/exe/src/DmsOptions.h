@@ -124,6 +124,7 @@ private:
 struct ConfigOption {
     SharedStr                 name, configured_value;
     QPointer< QCheckBox>      override_cbx;
+    QPointer< QCheckBox>      session_only_cbx;
     QPointer< QLineEdit>      override_value;
 };
 
@@ -142,6 +143,7 @@ private slots:
     void resetValues();
     void onTextChange();
     void onCheckboxToggle();
+    void onSessionOnlyToggle();
 
 private:
     static auto getFirstOverridableOption() -> const TreeItem*;

@@ -582,12 +582,17 @@ DmsConfigOptionsWindow::DmsConfigOptionsWindow(QWidget* parent)
 {
     setupUi(this);
 
-    /*auto grid_layout = new QGridLayout(this);
-    grid_layout->addWidget(new QLabel("Option", this), 0, 0);
-    grid_layout->addWidget(new QLabel("Override", this), 0, 1);
-    grid_layout->addWidget(new QLabel("Configured value or User and LocalMachine specific overridden value", this), 0, 2);
-    */
     unsigned int nrRows = 4;
+
+    // Add "Session" column header programmatically
+    auto lbl_session_only = new QLabel("Session", this);
+    lbl_session_only->setFont(QFont(QApplication::font().family(), 10));
+    lbl_session_only->setToolTip("When checked, the override is only stored for the current session and not persisted to the registry");
+    gridLayout->addWidget(lbl_session_only, 3, 2);
+
+    // Move the configured value label to column 3
+    gridLayout->removeWidget(lbl_configured_or_overridden_value);
+    gridLayout->addWidget(lbl_configured_or_overridden_value, 3, 3);
 
     auto tiCursor = getFirstOverridableOption();
     if (tiCursor)
@@ -598,35 +603,38 @@ DmsConfigOptionsWindow::DmsConfigOptionsWindow(QWidget* parent)
             if (!IsOverridableConfigSetting(tiCursor))
                 continue;
             auto adi = AsDataItem(tiCursor);
-            
-//            auto box_layout = new QHBoxLayout(this);
+
             auto tiName = SharedStr(tiCursor->GetName());
             auto label= new QLabel(tiName.c_str(), this);
 
             auto option_cbx = new QCheckBox(this);
+            auto session_only_cbx = new QCheckBox(this);
+            session_only_cbx->setToolTip("When checked, the override is only stored for the current session and not persisted to the registry");
             auto option_input = new QLineEdit(this);
             connect(option_cbx, &QCheckBox::toggled, this, &DmsConfigOptionsWindow::onCheckboxToggle);
+            connect(session_only_cbx, &QCheckBox::toggled, this, &DmsConfigOptionsWindow::onSessionOnlyToggle);
             connect(option_input, &QLineEdit::textChanged, this, &DmsConfigOptionsWindow::onTextChange);
 
             gridLayout->addWidget(label, nrRows, 0);
             gridLayout->addWidget(option_cbx, nrRows, 1);
-            gridLayout->addWidget(option_input, nrRows, 2);
+            gridLayout->addWidget(session_only_cbx, nrRows, 2);
+            gridLayout->addWidget(option_input, nrRows, 3);
 
             SharedDataItemInterestPtr data_item = adi;
 
             PreparedDataReadLock drl(adi, "DmsConfigOptionsWindow"); // interestCount held by m_Options;
             auto configuredValue = data_item->GetRefObj()->AsString(0, lockHolder, FormattingFlags::None);
 
-            m_Options.emplace_back(ConfigOption{ std::move(tiName), std::move(configuredValue), option_cbx, option_input });
+            m_Options.emplace_back(ConfigOption{ std::move(tiName), std::move(configuredValue), option_cbx, session_only_cbx, option_input });
 
             nrRows++;
         }
     }
-    
+
     // default height of window
     QFontMetrics fm(QApplication::font());
     auto window_height = nrRows*fm.height() + 250;
-    resize(500, window_height);
+    resize(800, window_height);
 
     // ok/cancel/undo buttons
     auto box_layout = new QHBoxLayout(this);
@@ -645,7 +653,7 @@ DmsConfigOptionsWindow::DmsConfigOptionsWindow(QWidget* parent)
 
     QWidget* spacer = new QWidget(this);
     spacer->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
-    gridLayout->addWidget(spacer, nrRows+1, 0, 1, 3);
+    gridLayout->addWidget(spacer, nrRows+1, 0, 1, 4);
 
     QWidget* button_spacer = new QWidget(this);
     button_spacer->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Minimum);
@@ -653,7 +661,7 @@ DmsConfigOptionsWindow::DmsConfigOptionsWindow(QWidget* parent)
     box_layout->addWidget(m_ok);
     box_layout->addWidget(m_cancel);
     box_layout->addWidget(m_undo);
-    gridLayout->addLayout(box_layout, nrRows+2, 2, 1, 1);
+    gridLayout->addLayout(box_layout, nrRows+2, 3, 1, 1);
 
     setWindowModality(Qt::ApplicationModal);
     setAttribute(Qt::WA_DeleteOnClose);
@@ -703,8 +711,11 @@ void DmsConfigOptionsWindow::resetValues()
         RegistryHandleLocalMachineRO regLM;
         for (auto& option : m_Options)
         {
-            bool valueExists = regLM.ValueExists(option.name.c_str());
+            bool hasSessionLocalOverride = HasSessionLocalOverride(option.name.c_str());
+            bool hasRegistryOverride = regLM.ValueExists(option.name.c_str());
+            bool valueExists = hasSessionLocalOverride || hasRegistryOverride;
             option.override_cbx->setChecked(valueExists);
+            option.session_only_cbx->setChecked(hasSessionLocalOverride);
         }
     }
     updateAccordingToCheckboxStates();
@@ -719,14 +730,27 @@ void DmsConfigOptionsWindow::updateAccordingToCheckboxStates()
         RegistryHandleLocalMachineRO regLM;
         for (auto& option : m_Options)
         {
-            bool valueExists = regLM.ValueExists(option.name.c_str());
+            bool hasSessionLocalOverride = HasSessionLocalOverride(option.name.c_str());
+            bool hasRegistryOverride = regLM.ValueExists(option.name.c_str());
             bool valueOverridden = option.override_cbx->isChecked();
-            if (valueOverridden && valueExists)
-                option.override_value->setText(regLM.ReadString(option.name.c_str()).c_str());
+
+            if (valueOverridden)
+            {
+                if (hasSessionLocalOverride)
+                    option.override_value->setText(GetSessionLocalOverride(option.name.c_str()).c_str());
+                else if (hasRegistryOverride)
+                    option.override_value->setText(regLM.ReadString(option.name.c_str()).c_str());
+                else
+                    option.override_value->setText(option.configured_value.c_str());
+            }
             else
+            {
                 option.override_value->setText(option.configured_value.c_str());
+                option.session_only_cbx->setChecked(false);  // Uncheck Session when Override is unchecked
+            }
 
             option.override_value->setEnabled(valueOverridden);
+            option.session_only_cbx->setEnabled(valueOverridden);
         }
     }
 }
@@ -742,6 +766,11 @@ void DmsConfigOptionsWindow::onCheckboxToggle()
     setChanged(true);
 }
 
+void DmsConfigOptionsWindow::onSessionOnlyToggle()
+{
+    setChanged(true);
+}
+
 void DmsConfigOptionsWindow::apply()
 {
     if (m_Options.size())
@@ -749,15 +778,36 @@ void DmsConfigOptionsWindow::apply()
         RegistryHandleLocalMachineRW regLM;
         for (auto& option : m_Options)
         {
-            bool valueExists = regLM.ValueExists(option.name.c_str());
+            bool hasRegistryOverride = regLM.ValueExists(option.name.c_str());
             bool valueOverridden = option.override_cbx->isChecked();
+            bool isSessionOnly = option.session_only_cbx->isChecked();
+
             if (valueOverridden)
             {
                 QByteArray overrideValue = option.override_value->text().toUtf8();
-                regLM.WriteString(option.name.c_str(), CharPtrRange(overrideValue.cbegin(), overrideValue.cend()));
+                if (isSessionOnly)
+                {
+                    // Store in session-local cache only
+                    SetSessionLocalOverride(option.name.c_str(), overrideValue.constData());
+                    // Remove from registry if it exists
+                    if (hasRegistryOverride)
+                        regLM.DeleteValue(option.name.c_str());
+                }
+                else
+                {
+                    // Store in registry
+                    regLM.WriteString(option.name.c_str(), CharPtrRange(overrideValue.cbegin(), overrideValue.cend()));
+                    // Clear session-local override if it exists
+                    ClearSessionLocalOverride(option.name.c_str());
+                }
             }
-            else if (valueExists)
-                regLM.DeleteValue(option.name.c_str());
+            else
+            {
+                // Clear both session-local and registry overrides
+                ClearSessionLocalOverride(option.name.c_str());
+                if (hasRegistryOverride)
+                    regLM.DeleteValue(option.name.c_str());
+            }
         }
     }
 

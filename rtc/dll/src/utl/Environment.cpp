@@ -235,8 +235,47 @@ RTC_CALL SharedStr GetExeDir()     // contains DmsClient.exe (+dlls?) and dms.in
 
 #include "utl/Registry.h"
 
+// Session-local overrides (not persisted to registry)
+static std::map<SharedStr, SharedStr> s_SessionLocalOverrides;
+static std::mutex s_SessionLocalMutex;
+
+RTC_CALL void SetSessionLocalOverride(CharPtr key, CharPtr value)
+{
+	std::lock_guard lock(s_SessionLocalMutex);
+	s_SessionLocalOverrides[SharedStr(key)] = SharedStr(value);
+}
+
+RTC_CALL void ClearSessionLocalOverride(CharPtr key)
+{
+	std::lock_guard lock(s_SessionLocalMutex);
+	s_SessionLocalOverrides.erase(SharedStr(key));
+}
+
+RTC_CALL bool HasSessionLocalOverride(CharPtr key)
+{
+	std::lock_guard lock(s_SessionLocalMutex);
+	return s_SessionLocalOverrides.contains(SharedStr(key));
+}
+
+RTC_CALL SharedStr GetSessionLocalOverride(CharPtr key)
+{
+	std::lock_guard lock(s_SessionLocalMutex);
+	auto it = s_SessionLocalOverrides.find(SharedStr(key));
+	if (it != s_SessionLocalOverrides.end())
+		return it->second;
+	return SharedStr();
+}
+
 RTC_CALL SharedStr GetGeoDmsRegKey(CharPtr key)
 {
+	// First check session-local overrides
+	{
+		std::lock_guard lock(s_SessionLocalMutex);
+		auto it = s_SessionLocalOverrides.find(SharedStr(key));
+		if (it != s_SessionLocalOverrides.end())
+			return it->second;
+	}
+
 	try {
 		RegistryHandleLocalMachineRO regLM;
 		if (regLM.ValueExists(key))

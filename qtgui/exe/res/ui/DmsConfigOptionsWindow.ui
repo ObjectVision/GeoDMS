@@ -36,7 +36,7 @@
         </font>
        </property>
        <property name="text">
-        <string>Configured or overriden value</string>
+        <string>Configured or overridden value</string>
        </property>
       </widget>
      </item>
@@ -77,7 +77,7 @@
         <number>2</number>
        </property>
        <property name="orientation">
-        <enum>Qt::Horizontal</enum>
+        <enum>Qt::Orientation::Horizontal</enum>
        </property>
       </widget>
      </item>
@@ -89,7 +89,7 @@
         </font>
        </property>
        <property name="text">
-        <string>Settings for user and local machine specific overriden values</string>
+        <string>Settings for user and local machine specific overridden values</string>
        </property>
       </widget>
      </item>

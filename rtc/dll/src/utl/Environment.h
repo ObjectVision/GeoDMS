@@ -147,6 +147,12 @@ RTC_CALL void ParseRegStatusFlags(int& argc, char**& argv);
 RTC_CALL SharedStr GetGeoDmsRegKey(CharPtr key);
 RTC_CALL auto GetGeoDmsRegKeyMultiString(CharPtr key) -> std::vector<SharedStr>;
 
+// Session-local overrides (not persisted to registry, only affects current session)
+RTC_CALL void SetSessionLocalOverride(CharPtr key, CharPtr value);
+RTC_CALL void ClearSessionLocalOverride(CharPtr key);
+RTC_CALL bool HasSessionLocalOverride(CharPtr key);
+RTC_CALL SharedStr GetSessionLocalOverride(CharPtr key);
+
 RTC_CALL DWORD GetGeoDmsRegKeyDWord(CharPtr key, DWORD defaultValue, CharPtr section = "");
 RTC_CALL bool SetGeoDmsRegKeyDWord(CharPtr key, DWORD dw, CharPtr section = "");
 RTC_CALL bool SetGeoDmsRegKeyString(CharPtr key, CharPtr str);
