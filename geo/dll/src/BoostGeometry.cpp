@@ -666,6 +666,7 @@ protected:
 			DataReadLock arg3Lock(arg3A);
 
 			Timer processTimer;
+			auto itemRef = resultHolder.HasBackRef() ? resultHolder.GetBackRefStr() + " " : SharedStr();
 
 			Float64 bufferDistance = e2IsVoid ? const_array_cast<Float64>(arg2A)->GetLockedDataRead()[0] : 0;
 			UInt8 nrPointsInCircle = e3IsVoid ? const_array_cast<UInt8  >(arg3A)->GetLockedDataRead()[0] : 0;
@@ -673,12 +674,12 @@ protected:
 			auto resItem = AsDataItem(resultHolder.GetNew());
 			DataWriteLock resLock(resItem, dms_rw_mode::write_only_mustzero);
 
-			parallel_tileloop(domain1Unit->GetNrTiles(), [=, this, resObj = resLock.get(), &processTimer](tile_id t)->void
+			parallel_tileloop(domain1Unit->GetNrTiles(), [=, this, resObj = resLock.get(), &processTimer, itemRefPtr = itemRef.c_str()](tile_id t)->void
 				{
 					this->Calculate(resObj, arg1A
 						, e2IsVoid, arg2A, bufferDistance
 						, e3IsVoid, arg3A, nrPointsInCircle
-						, t, processTimer);
+						, t, processTimer, itemRefPtr);
 				}
 			);
 
@@ -690,7 +691,7 @@ protected:
 		, const AbstrDataItem* polyItem
 		, bool e2IsVoid, const AbstrDataItem* bufDistItem, Float64 bufferDistance
 		, bool e3IsVoid, const AbstrDataItem* ppcItem, UInt8 pointsPerCircle
-		, tile_id t, Timer& processTimer) const = 0;
+		, tile_id t, Timer& processTimer, CharPtr itemRef = "") const = 0;
 };
 
 template <typename CoordType>
@@ -728,7 +729,7 @@ struct BufferPointOperator : public AbstrBufferOperator
 	void Calculate(AbstrDataObject* resObj, const AbstrDataItem* pointItem
 		, bool e2IsVoid, const AbstrDataItem* bufDistItem, Float64 bufferDistance
 		, bool e3IsVoid, const AbstrDataItem* ppcItem, UInt8 pointsPerCircle
-		, tile_id t, Timer& processTimer) const override
+		, tile_id t, Timer& processTimer, CharPtr itemRef = "") const override
 	{
 		auto pointData = const_array_cast<PointType>(pointItem)->GetTile(t);
 		auto bufDistData = e2IsVoid ? DataArray<Float64>::locked_cseq_t{} : const_array_cast<Float64>(bufDistItem)->GetTile(t);
@@ -844,7 +845,7 @@ struct BufferMultiPointOperator : public AbstrBufferOperator
 	void Calculate(AbstrDataObject* resObj, const AbstrDataItem* polyItem
 		, bool e2IsVoid, const AbstrDataItem* bufDistItem, Float64 bufferDistance
 		, bool e3IsVoid, const AbstrDataItem* ppcItem, UInt8 pointsPerCircle
-		, tile_id t, Timer& processTimer) const override
+		, tile_id t, Timer& processTimer, CharPtr itemRef = "") const override
 	{
 		auto polyData = const_array_cast<PolygonType>(polyItem)->GetTile(t);
 		auto bufDistData = e2IsVoid ? DataArray<Float64>::locked_cseq_t{} : const_array_cast<Float64>(bufDistItem)->GetTile(t);
@@ -997,7 +998,7 @@ struct BufferLineStringOperator : public AbstrBufferOperator
 	void Calculate(AbstrDataObject* resItem, const AbstrDataItem* lineStringItem
 		, bool e2IsVoid, const AbstrDataItem* bufDistItem, Float64 bufferDistance
 		, bool e3IsVoid, const AbstrDataItem* ppcItem, UInt8 pointsPerCircle
-		, tile_id t, Timer& processTimer) const override
+		, tile_id t, Timer& processTimer, CharPtr itemRef = "") const override
 	{
 		assert(lineStringItem->GetValueComposition() == ValueComposition::Sequence);
 
@@ -1132,7 +1133,7 @@ struct BufferMultiPolygonOperator : public AbstrBufferOperator
 	void Calculate(AbstrDataObject* resItem, const AbstrDataItem* polyItem
 		, bool e2IsVoid, const AbstrDataItem* bufDistItem, Float64 bufferDistance
 		, bool e3IsVoid, const AbstrDataItem* ppcItem, UInt8 pointsPerCircle
-		, tile_id t, Timer& processTimer) const override
+		, tile_id t, Timer& processTimer, CharPtr itemRef = "") const override
 	{
 		auto polyData = const_array_cast<PolygonType>(polyItem)->GetTile(t);
 		auto bufDistData = e2IsVoid ? DataArray<Float64>::locked_cseq_t{} : const_array_cast<Float64>(bufDistItem)->GetTile(t);
@@ -1180,7 +1181,8 @@ struct BufferMultiPolygonOperator : public AbstrBufferOperator
 
 					if (processTimer.PassedSecs())
 					{
-						reportF(SeverityTypeID::ST_MajorTrace, "%s: processed %s / %s sequences of tile %s / %s"
+						reportF(SeverityTypeID::ST_MajorTrace, "%s%s: processed %s / %s sequences of tile %s / %s"
+							, itemRef
 							, GetGroup()->GetNameStr()
 							, AsString(i), AsString(n)
 							, AsString(t), AsString(resItem->GetTiledRangeData()->GetNrTiles())
@@ -1201,7 +1203,8 @@ struct BufferMultiPolygonOperator : public AbstrBufferOperator
 				}
 				if (processTimer.PassedSecs())
 				{
-					reportF(SeverityTypeID::ST_MajorTrace, "%s: processed %s / %s sequences of tile %s / %s"
+					reportF(SeverityTypeID::ST_MajorTrace, "%s%s: processed %s / %s sequences of tile %s / %s"
+						, itemRef
 						, GetGroup()->GetNameStr()
 						, AsString(i), AsString(n)
 						, AsString(t), AsString(resItem->GetTiledRangeData()->GetNrTiles())
@@ -1228,7 +1231,7 @@ struct BufferSinglePolygonOperator : public AbstrBufferOperator
 	void Calculate(AbstrDataObject* resObj, const AbstrDataItem* polyItem
 		, bool e2IsVoid, const AbstrDataItem* bufDistItem, Float64 bufferDistance
 		, bool e3IsVoid, const AbstrDataItem* ppcItem, UInt8 pointsPerCircle
-		, tile_id t, Timer& processTimer) const override
+		, tile_id t, Timer& processTimer, CharPtr itemRef = "") const override
 	{
 		auto polyData = const_array_cast<PolygonType>(polyItem)->GetTile(t);
 		auto bufDistData = e2IsVoid ? DataArray<Float64>::locked_cseq_t{} : const_array_cast<Float64>(bufDistItem)->GetTile(t);

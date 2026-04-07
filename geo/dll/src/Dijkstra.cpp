@@ -613,6 +613,8 @@ SizeT ProcessDijkstra(TreeItemDualRef& resultHolder
 
 	Timer processTimer;
 	std::atomic<SizeT> resultCount = 0, zoneCount = 0;
+	auto itemRefStr = resultHolder.HasBackRef() ? resultHolder.GetBackRefStr() + " " : SharedStr();
+	CharPtr itemRef = itemRefStr.c_str();
 
 	assert(altLinkWeights || !res.od_AltLinkImp);
 
@@ -1174,7 +1176,8 @@ SizeT ProcessDijkstra(TreeItemDualRef& resultHolder
 
 			zoneCount++;
 			if (processTimer.PassedSecs())
-				reportF(SeverityTypeID::ST_MajorTrace, "impedance_matrix %s %s of %s sources: resulted in %s od-pairs"
+				reportF(SeverityTypeID::ST_MajorTrace, "%simpedance_matrix %s %s of %s sources: resulted in %s od-pairs"
+					, itemRef
 					, actionMsg
 					, AsString(zoneCount), AsString(ni.nrOrgZones), AsString(resultCount));
 		};
@@ -1194,7 +1197,8 @@ SizeT ProcessDijkstra(TreeItemDualRef& resultHolder
 	if (CancelableFrame::CurrActiveCanceled())
 		return UNDEFINED_VALUE(SizeT);
 
-	reportF(SeverityTypeID::ST_MajorTrace, "impedance_matrix %s all %d sources: resulted in %s od-pairs"
+	reportF(SeverityTypeID::ST_MajorTrace, "%simpedance_matrix %s all %d sources: resulted in %s od-pairs"
+		, itemRef
 		, actionMsg
 		, AsString(ni.nrOrgZones), AsString(resultCount));
 

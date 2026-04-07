@@ -324,8 +324,9 @@ struct AbstrConnectPointOperator : VariadicOperator
 			auto arg1DataHolder = CreateIndex(arg1A, spi);
 
 			std::unique_ptr<WeightGetter> weights1Getter(arg1W ? WeightGetterCreator::Create(arg1W) : nullptr);
+			auto itemRef = resultHolder.HasBackRef() ? resultHolder.GetBackRefStr() + " " : SharedStr();
 
-			parallel_tileloop(point2Entity->GetNrTiles(), [res, resObj = resLock.get(), arg2A, arg2W, &spi, &weights1Getter, this](tile_id t)->void
+			parallel_tileloop(point2Entity->GetNrTiles(), [res, resObj = resLock.get(), arg2A, arg2W, &spi, &weights1Getter, &itemRef, this](tile_id t)->void
 			{
 				SizeT tileSize = resObj->GetTiledRangeData()->GetTileSize(t);
 				if (!tileSize)
@@ -339,7 +340,7 @@ struct AbstrConnectPointOperator : VariadicOperator
 				else
 				{
 					std::unique_ptr<WeightGetter> weights2Getter(arg2W ? WeightGetterCreator::Create(arg2W, t) : nullptr);
-					Calculate(spi, indexAssigner.m_Indices, tileSize, weights1Getter.get(), arg2A, t, weights2Getter.get());
+					Calculate(spi, indexAssigner.m_Indices, tileSize, weights1Getter.get(), arg2A, t, weights2Getter.get(), itemRef.c_str());
 				}
 
 				indexAssigner.Store();
@@ -351,7 +352,7 @@ struct AbstrConnectPointOperator : VariadicOperator
 	}
 
 	virtual std::any CreateIndex(const AbstrDataItem* arg1, ResourceHandle& spi) const=0;
-	virtual void Calculate(ResourceHandle& spi, UInt32* resBuffer, SizeT resSize, const WeightGetter* weights1, const AbstrDataItem* arg2A, tile_id t, const WeightGetter* weights2) const=0;
+	virtual void Calculate(ResourceHandle& spi, UInt32* resBuffer, SizeT resSize, const WeightGetter* weights1, const AbstrDataItem* arg2A, tile_id t, const WeightGetter* weights2, CharPtr itemRef = "") const=0;
 };
 
 template <typename T, typename E = UInt32>
@@ -378,7 +379,7 @@ struct ConnectPointOperator : AbstrConnectPointOperator
 	}
 
 	// Override Operator
-	void Calculate(ResourceHandle& spi, UInt32* resBuffer, SizeT resSize, const WeightGetter* weights1, const AbstrDataItem* arg2A, tile_id t, const WeightGetter* weights2) const override
+	void Calculate(ResourceHandle& spi, UInt32* resBuffer, SizeT resSize, const WeightGetter* weights1, const AbstrDataItem* arg2A, tile_id t, const WeightGetter* weights2, CharPtr itemRef = "") const override
 	{
 		Timer processTimer;
 
@@ -400,9 +401,10 @@ struct ConnectPointOperator : AbstrConnectPointOperator
 		auto
 			destBegin = spIndex.first_leaf();
 
-		auto reporter = [&processTimer, point2Begin, point2End, t, tn = arg2A->GetAbstrDomainUnit()->GetNrTiles()](auto i) {
+		auto reporter = [&processTimer, point2Begin, point2End, t, tn = arg2A->GetAbstrDomainUnit()->GetNrTiles(), itemRef](auto i) {
 			if (processTimer.PassedSecs())
-				reportF(SeverityTypeID::ST_MajorTrace, "Connect %s / %s points of tile %s / %s done"
+				reportF(SeverityTypeID::ST_MajorTrace, "%sConnect %s / %s points of tile %s / %s done"
+					, itemRef
 					, AsString(i), AsString(point2End - point2Begin)
 					, AsString(t), AsString(tn));
 		};
@@ -687,6 +689,7 @@ public:
 		if (mustCalc)
 		{
 			Timer processTimer;
+			auto itemRef = resultHolder.HasBackRef() ? resultHolder.GetBackRefStr() + " " : SharedStr();
 
 			const Arg1Type* arg1 = const_array_cast<PolygonType>(arg1A);
 			const Arg2Type* arg2 = const_array_cast<  PointType>(arg2A);
@@ -847,7 +850,8 @@ public:
 							{
 								nrArg2 += nrUnreportedPoints;
 								nrUnreportedPoints = 0;
-								reportF(SeverityTypeID::ST_MajorTrace, "%s %s / %s points done"
+								reportF(SeverityTypeID::ST_MajorTrace, "%s%s %s / %s points done"
+									, itemRef.c_str()
 									, this->GetGroup()->GetName()
 									, AsString(nrArg2), AsString(arg2Count));
 							}
@@ -978,6 +982,7 @@ public:
 		if (mustCalc)
 		{
 			Timer processTimer;
+			auto itemRef = resultHolder.HasBackRef() ? resultHolder.GetBackRefStr() + " " : SharedStr();
 
 			bool isPossiblyMultiPolygon = arg1A->GetValueComposition() == ValueComposition::Polygon;
 
@@ -1125,7 +1130,8 @@ public:
 					if (processTimer.PassedSecs())
 					{
 						nrProcessedPoints += 1;
-						reportF(SeverityTypeID::ST_MajorTrace, "Connect discovery: %s / %s points done"
+						reportF(SeverityTypeID::ST_MajorTrace, "%sConnect discovery: %s / %s points done"
+							, itemRef.c_str()
 							, AsString(nrProcessedPoints.load()), AsString(arg2Count));
 					}
 				}

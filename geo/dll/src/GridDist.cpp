@@ -270,6 +270,8 @@ public:
 		if (!mustCalc)
 			return true;
 
+		auto itemRef = resultHolder.HasBackRef() ? resultHolder.GetBackRefStr() + " " : SharedStr();
+
 //      ================================= Calculate Primary data results =================================
 
 		DataReadLock arg1Lock(adiGridImp);
@@ -634,7 +636,7 @@ public:
 			for (auto i=itMap.begin(), e=itMap.end(); i!=e; ++i)
 				numBorderCases += i->m_NumBorderCases;
 
-			reportF(SeverityTypeID::ST_MajorTrace, "GridDist completed iteration %d; %d of the %d tiles need reprocessing for %d border cases (%d extra)", ++nrIterations, nrTilesRemaining, tn, numBorderCases, numBorderCases - nrPrevBorderCases);
+			reportF(SeverityTypeID::ST_MajorTrace, "%sGridDist completed iteration %d; %d of the %d tiles need reprocessing for %d border cases (%d extra)", itemRef.c_str(), ++nrIterations, nrTilesRemaining, tn, numBorderCases, numBorderCases - nrPrevBorderCases);
 			nrPrevBorderCases = numBorderCases;
 		}	// next iteration 
 		resLock.Commit();
