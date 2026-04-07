@@ -1570,6 +1570,7 @@ protected:
 		{
 			DataReadLock arg1Lock(arg1A);
 			DataReadLock arg2Lock(arg2A);
+			auto itemRef = resultHolder.HasBackRef() ? resultHolder.GetBackRefStr() + " " : SharedStr();
 
 			ResourceHandle resData;
 			ResourceHandle pointBoxDataHandle;
@@ -1605,7 +1606,8 @@ protected:
 					}
 				);
 
-				reportF(SeverityTypeID::ST_MajorTrace, "point_in_all_polygons with %d point tiles after processing %d/%d polygon tiles resulted in %d matches"
+				reportF(SeverityTypeID::ST_MajorTrace, "%spoint_in_all_polygons with %d point tiles after processing %d/%d polygon tiles resulted in %d matches"
+					, itemRef.c_str()
 					, domain1Unit->GetNrTiles()
 					, u+1, ue
 					, intersectCount

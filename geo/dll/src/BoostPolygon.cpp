@@ -166,6 +166,7 @@ protected:
 		{
 			DataReadLock arg1Lock(arg1A);
 			DataReadLock arg2Lock(arg2A);
+			auto itemRef = resultHolder.HasBackRef() ? resultHolder.GetBackRefStr() + " " : SharedStr();
 
 			ResourceHandle resData;
 			ResourceHandle pointBoxDataHandle;
@@ -199,7 +200,8 @@ protected:
 						}
 					}
 				);
-				reportF(SeverityTypeID::ST_MajorTrace, "%s with %s tiles of first argument and after matching %s / %s tiles of second argument, %s intersecting tiles were processed."
+				reportF(SeverityTypeID::ST_MajorTrace, "%s%s with %s tiles of first argument and after matching %s / %s tiles of second argument, %s intersecting tiles were processed."
+					, itemRef.c_str()
 					, GetGroup()->GetNameStr()
 					, AsString(domain1Unit->GetNrTiles())
 					, AsString(u+1), AsString(ue)
@@ -652,7 +654,7 @@ void dms_assign(bp::polygon_set_data<C>& lvalue, const GT2& rvalue)
 }
 
 template <typename P, typename SequenceType, typename MPT>
-void UnionPolygon(ResourceArrayHandle& r, SizeT n, const AbstrDataItem* polyDataA, const AbstrDataItem* permDataA, tile_id t, const AbstrOperGroup* whosCalling, Timer& processTimer)
+void UnionPolygon(ResourceArrayHandle& r, SizeT n, const AbstrDataItem* polyDataA, const AbstrDataItem* permDataA, tile_id t, const AbstrOperGroup* whosCalling, Timer& processTimer, CharPtr itemRef = "")
 {
 	auto polyData = const_array_cast<SequenceType>(polyDataA);
 	assert(polyData);
@@ -704,7 +706,8 @@ void UnionPolygon(ResourceArrayHandle& r, SizeT n, const AbstrDataItem* polyData
 
 		if (processTimer.PassedSecs())
 		{
-			reportF(SeverityTypeID::ST_MajorTrace, "%s: processed %s / %s sequences of tile %s / %s"
+			reportF(SeverityTypeID::ST_MajorTrace, "%s%s: processed %s / %s sequences of tile %s / %s"
+				, itemRef
 				, whosCalling->GetNameStr()
 				, AsString(pi - pb), AsString(pe - pb)
 				, AsString(t), AsString(polyDataA->GetAbstrDomainUnit()->GetNrTiles())
@@ -839,6 +842,7 @@ protected:
 			DataReadLock arg4Lock(argNum2);
 
 			Timer processTimer;
+			auto itemRef = resultHolder.HasBackRef() ? resultHolder.GetBackRefStr() + " " : SharedStr();
 
 			if (DoDelayStore())
 			{
@@ -849,17 +853,17 @@ protected:
 					ReadableTileLock readArg1Lock (argPoly->GetCurrRefObj().get(), t);
 					ReadableTileLock readArg2Lock (argPart ? argPart->GetCurrRefObj().get() : nullptr, t);
 
-					Calculate(r, domainCount, argPoly, argPart, t, processTimer);
+					Calculate(r, domainCount, argPoly, argPart, t, processTimer, itemRef.c_str());
 				}
 				DataWriteLock resGeometryHandle; // will be assigned after establishing the count of resUnit
-				Store(resUnit, resGeometry, resGeometryHandle, resNrOrgEntity, no_tile, 1, r, argNum1, argNum2, processTimer);
+				Store(resUnit, resGeometry, resGeometryHandle, resNrOrgEntity, no_tile, 1, r, argNum1, argNum2, processTimer, itemRef.c_str());
 				resGeometryHandle.Commit();
 			}
 			else
 			{
 				DataWriteLock resGeometryHandle(resGeometry);
 				auto tn = domain1Unit->GetNrTiles();
-				parallel_tileloop(tn, [this, &resultHolder, resUnit, resDomain, &resGeometryHandle, resNrOrgEntity, argPoly, argPart, argNum1, argNum2, tn, &processTimer](tile_id t) 
+				parallel_tileloop(tn, [this, &resultHolder, resUnit, resDomain, &resGeometryHandle, resNrOrgEntity, argPoly, argPart, argNum1, argNum2, tn, &processTimer, itemRefPtr = itemRef.c_str()](tile_id t) 
 				{
 					if (resultHolder.WasFailed(FailType::Data))
 						resultHolder.ThrowFail();
@@ -867,8 +871,8 @@ protected:
 					ReadableTileLock readArg1Lock (argPoly->GetCurrRefObj().get(), t);
 					ReadableTileLock readArg2Lock (argPart ? argPart->GetCurrRefObj().get() : nullptr, t);
 
-					Calculate(r, resDomain->GetTileCount(t), argPoly, argPart, t, processTimer);
-					Store(resUnit, nullptr, resGeometryHandle, resNrOrgEntity, t, tn, r, argNum1, argNum2, processTimer);
+					Calculate(r, resDomain->GetTileCount(t), argPoly, argPart, t, processTimer, itemRefPtr);
+					Store(resUnit, nullptr, resGeometryHandle, resNrOrgEntity, t, tn, r, argNum1, argNum2, processTimer, itemRefPtr);
 				});
 				resGeometryHandle.Commit();
 			}
@@ -879,7 +883,7 @@ protected:
 	{
 		return m_Flags & (PolygonFlags::F_DoSplit | PolygonFlags::F_DoUnion);
 	}
-	void ProcessNumOper( ResourceArrayHandle& r, const AbstrDataItem* argNum, tile_id t, tile_id tn, PolygonFlags f, Timer& processTimer) const
+	void ProcessNumOper( ResourceArrayHandle& r, const AbstrDataItem* argNum, tile_id t, tile_id tn, PolygonFlags f, Timer& processTimer, CharPtr itemRef = "") const
 	{
 		if (f == PolygonFlags::none)
 			return;
@@ -891,37 +895,37 @@ protected:
 
 		switch (f) {
 			case PolygonFlags::F_Inflate1:
-				reportF(SeverityTypeID::ST_MajorTrace, "%s.Inflate tile %d", GetGroup()->GetNameStr(), t);
+				reportF(SeverityTypeID::ST_MajorTrace, "%s%s.Inflate tile %d", itemRef, GetGroup()->GetNameStr(), t);
 				break;
 			case PolygonFlags::F_Deflate1:
-				reportF(SeverityTypeID::ST_MajorTrace, "%s.Deflate tile %d", GetGroup()->GetNameStr(), t);
+				reportF(SeverityTypeID::ST_MajorTrace, "%s%s.Deflate tile %d", itemRef, GetGroup()->GetNameStr(), t);
 				break;
 			case PolygonFlags::F_Filter1:
-				reportF(SeverityTypeID::ST_MajorTrace, "%s.Filter tile %d", GetGroup()->GetNameStr(), t);
+				reportF(SeverityTypeID::ST_MajorTrace, "%s%s.Filter tile %d", itemRef, GetGroup()->GetNameStr(), t);
 				break;
 			default:
-				reportF(SeverityTypeID::ST_MajorTrace, "%s.Operation %d tile %d", GetGroup()->GetNameStr(), int(f) / int(PolygonFlags::F_Inflate1), t); // DEBUG
+				reportF(SeverityTypeID::ST_MajorTrace, "%s%s.Operation %d tile %d", itemRef, GetGroup()->GetNameStr(), int(f) / int(PolygonFlags::F_Inflate1), t); // DEBUG
 				break;
 		}
 
-		ProcessNumOperImpl(r, argNum, t, tn, f, processTimer);
+		ProcessNumOperImpl(r, argNum, t, tn, f, processTimer, itemRef);
 	}
-	void Store (AbstrUnit* resUnit, AbstrDataItem* resGeometry, DataWriteHandle& resGeometryHandle, AbstrDataItem* resNrOrgEntity, tile_id t, tile_id tn, ResourceArrayHandle& r, const AbstrDataItem* argNum1, const AbstrDataItem* argNum2, Timer& processTimer) const
+	void Store (AbstrUnit* resUnit, AbstrDataItem* resGeometry, DataWriteHandle& resGeometryHandle, AbstrDataItem* resNrOrgEntity, tile_id t, tile_id tn, ResourceArrayHandle& r, const AbstrDataItem* argNum1, const AbstrDataItem* argNum2, Timer& processTimer, CharPtr itemRef = "") const
 	{
 		if (r)
 		{
 			constexpr int mask_ratio = int(PolygonFlags::F_Mask2) / int(PolygonFlags::F_Mask1);
-			ProcessNumOper(r, argNum1, t, tn, PolygonFlags( int(m_Flags) & int(PolygonFlags::F_Mask1)), processTimer);
-			ProcessNumOper(r, argNum2, t, tn, PolygonFlags((int(m_Flags) & int(PolygonFlags::F_Mask2)) / mask_ratio), processTimer);
+			ProcessNumOper(r, argNum1, t, tn, PolygonFlags( int(m_Flags) & int(PolygonFlags::F_Mask1)), processTimer, itemRef);
+			ProcessNumOper(r, argNum2, t, tn, PolygonFlags((int(m_Flags) & int(PolygonFlags::F_Mask2)) / mask_ratio), processTimer, itemRef);
 		}
 #if defined(MG_DEBUG_POLYGON)
 		reportF(ST_MajorTrace, "UnionPolygon.Store %d", t);
 #endif //defined(MG_DEBUG_POLYGON)
 		StoreImpl(resUnit, resGeometry, resGeometryHandle, resNrOrgEntity, t, r);
 	}
-	virtual void Calculate(ResourceArrayHandle& r, SizeT domainCount, const AbstrDataItem* polyDataA, const AbstrDataItem* partitionDataA, tile_id t, Timer& processTimer) const=0;
+	virtual void Calculate(ResourceArrayHandle& r, SizeT domainCount, const AbstrDataItem* polyDataA, const AbstrDataItem* partitionDataA, tile_id t, Timer& processTimer, CharPtr itemRef = "") const=0;
 	virtual void StoreImpl(AbstrUnit* resUnit, AbstrDataItem* resGeometry, DataWriteHandle& resLock, AbstrDataItem* resNrOrgEntity, tile_id t, ResourceArrayHandle& r) const=0;
-	virtual void ProcessNumOperImpl(ResourceArrayHandle& r, const AbstrDataItem* argNum, tile_id numT, tile_id tn, PolygonFlags f, Timer& processTimer) const {}
+	virtual void ProcessNumOperImpl(ResourceArrayHandle& r, const AbstrDataItem* argNum, tile_id numT, tile_id tn, PolygonFlags f, Timer& processTimer, CharPtr itemRef = "") const {}
 };
 
 template <typename C>
@@ -1087,12 +1091,12 @@ public:
 		:	AbstrPolygonOperator(aog, ArgPolyType::GetStaticClass(), ArgNumType::GetStaticClass(), flags)
 	{}
 
-	void Calculate(ResourceArrayHandle& r, SizeT domainCount, const AbstrDataItem* polyDataA, const AbstrDataItem* partitionDataA, tile_id t, Timer& processTimer) const override
+	void Calculate(ResourceArrayHandle& r, SizeT domainCount, const AbstrDataItem* polyDataA, const AbstrDataItem* partitionDataA, tile_id t, Timer& processTimer, CharPtr itemRef = "") const override
 	{
-		UnionPolygon<P, SequenceType, PolygonSetTower>(r, domainCount, polyDataA, partitionDataA, t, GetGroup(), processTimer);
+		UnionPolygon<P, SequenceType, PolygonSetTower>(r, domainCount, polyDataA, partitionDataA, t, GetGroup(), processTimer, itemRef);
 	}
 
-	void ProcessNumOperImpl(ResourceArrayHandle& r, const AbstrDataItem* argNum, tile_id t, tile_id tn, PolygonFlags flag, Timer& processTimer) const override
+	void ProcessNumOperImpl(ResourceArrayHandle& r, const AbstrDataItem* argNum, tile_id t, tile_id tn, PolygonFlags flag, Timer& processTimer, CharPtr itemRef = "") const override
 	{
 		assert(r);
 		assert(argNum);
@@ -1184,7 +1188,8 @@ public:
 
 			if (processTimer.PassedSecs())
 			{
-				reportF(SeverityTypeID::ST_MajorTrace, "%s: processed %s / %s sequences of tile %s / %s"
+				reportF(SeverityTypeID::ST_MajorTrace, "%s%s: processed %s / %s sequences of tile %s / %s"
+					, itemRef
 					, GetGroup()->GetName()
 					, AsString(i), AsString(domainCount)
 					, AsString(t), AsString(tn)
@@ -1335,9 +1340,9 @@ public:
 		: AbstrPolygonOperator(aog, ArgPolyType::GetStaticClass(), ArgNumType::GetStaticClass(), flags)
 	{}
 
-	void Calculate(ResourceArrayHandle& r, SizeT domainCount, const AbstrDataItem* polyDataA, const AbstrDataItem* partitionDataA, tile_id t, Timer& processTimer) const override
+	void Calculate(ResourceArrayHandle& r, SizeT domainCount, const AbstrDataItem* polyDataA, const AbstrDataItem* partitionDataA, tile_id t, Timer& processTimer, CharPtr itemRef = "") const override
 	{
-		UnionPolygon<P, SequenceType, MultiPolygonTower>(r, domainCount, polyDataA, partitionDataA, t, GetGroup(), processTimer);
+		UnionPolygon<P, SequenceType, MultiPolygonTower>(r, domainCount, polyDataA, partitionDataA, t, GetGroup(), processTimer, itemRef);
 	}
 
 	void StoreImpl(AbstrUnit* resUnit, AbstrDataItem* resGeometry, DataWriteHandle& resGeometryLock, AbstrDataItem* resNrOrgEntity, tile_id t, ResourceArrayHandle& r) const override
@@ -1444,9 +1449,9 @@ public:
 		: AbstrPolygonOperator(aog, ArgPolyType::GetStaticClass(), ArgNumType::GetStaticClass(), flags)
 	{}
 
-	void Calculate(ResourceArrayHandle& r, SizeT domainCount, const AbstrDataItem* polyDataA, const AbstrDataItem* partitionDataA, tile_id t, Timer& processTimer) const override
+	void Calculate(ResourceArrayHandle& r, SizeT domainCount, const AbstrDataItem* polyDataA, const AbstrDataItem* partitionDataA, tile_id t, Timer& processTimer, CharPtr itemRef = "") const override
 	{
-		UnionPolygon<P, SequenceType, MultiPolygonTower>(r, domainCount, polyDataA, partitionDataA, t, GetGroup(), processTimer);
+		UnionPolygon<P, SequenceType, MultiPolygonTower>(r, domainCount, polyDataA, partitionDataA, t, GetGroup(), processTimer, itemRef);
 	}
 
 	void StoreImpl(AbstrUnit* resUnit, AbstrDataItem* resGeometry, DataWriteHandle& resGeometryLock, AbstrDataItem* resNrOrgEntity, tile_id t, ResourceArrayHandle& r) const override
@@ -1553,7 +1558,7 @@ public:
 		}
 	}
 
-	void Calculate(ResourceArrayHandle& r, SizeT domainCount, const AbstrDataItem* polyDataA, const AbstrDataItem* partitionDataA, tile_id t, Timer& processTimer) const override
+	void Calculate(ResourceArrayHandle& r, SizeT domainCount, const AbstrDataItem* polyDataA, const AbstrDataItem* partitionDataA, tile_id t, Timer& processTimer, CharPtr itemRef = "") const override
 	{
 		if constexpr (!std::is_floating_point_v<scalar_of_t<P> > || sizeof(scalar_of_t<P>) < 8)
 		{
@@ -1561,7 +1566,7 @@ public:
 				throwDmsErrF("GEOS_PolygonOperator", "GEOS-based polygon operation %s are no longer supported for non-double-precision point types", this->GetGroup()->GetNameStr());
 			reportF(SeverityTypeID::ST_Warning, "GEOS-based polygon operation %s are no longer supported for non-double-precision point types", this->GetGroup()->GetNameStr());
 		}
-		UnionPolygon<P, SequenceType, MultiPolygonTower>(r, domainCount, polyDataA, partitionDataA, t, GetGroup(), processTimer);
+		UnionPolygon<P, SequenceType, MultiPolygonTower>(r, domainCount, polyDataA, partitionDataA, t, GetGroup(), processTimer, itemRef);
 	}
 
 	void StoreImpl(AbstrUnit* resUnit, AbstrDataItem* resGeometry, DataWriteHandle& resGeometryLock, AbstrDataItem* resNrOrgEntity, tile_id t, ResourceArrayHandle& r) const override
@@ -1670,13 +1675,14 @@ protected:
 		if (mustCalc)
 		{
 			DataReadLock arg1Lock(arg1A);
+			auto itemRef = resultHolder.HasBackRef() ? resultHolder.GetBackRefStr() + " " : SharedStr();
 
-			Calculate(res.get(), resF1, resF2, arg1A);
+			Calculate(res.get(), resF1, resF2, arg1A, itemRef.c_str());
 		}
 		resultHolder = res.release();
 		return true;
 	}
-	virtual void Calculate(AbstrUnit* res, AbstrDataItem* resF1, AbstrDataItem* resF2, const AbstrDataItem*arg1A) const=0;
+	virtual void Calculate(AbstrUnit* res, AbstrDataItem* resF1, AbstrDataItem* resF2, const AbstrDataItem*arg1A, CharPtr itemRef = "") const=0;
 };
 
 template <typename P>
@@ -1692,7 +1698,7 @@ public:
 	PolygonConnectivityOperator()
 		:	AbstrPolygonConnectivityOperator(&cogPC, Arg1Type::GetStaticClass())
 	{}
-	void Calculate(AbstrUnit* res, AbstrDataItem* resF1, AbstrDataItem* resF2, const AbstrDataItem* arg1A) const override
+	void Calculate(AbstrUnit* res, AbstrDataItem* resF1, AbstrDataItem* resF2, const AbstrDataItem* arg1A, CharPtr itemRef = "") const override
 	{
 		Timer processTimer;
 
@@ -1719,7 +1725,8 @@ public:
 					domain_rel.emplace_back(i);
 				}
 				if (processTimer.PassedSecs())
-					reportF(SeverityTypeID::ST_MajorTrace, "%s: inserted %s / %s sequences"
+					reportF(SeverityTypeID::ST_MajorTrace, "%s%s: inserted %s / %s sequences"
+						, itemRef
 						, GetGroup()->GetNameStr()
 						, AsString(i), AsString(nrVertices)
 					);
@@ -1758,7 +1765,8 @@ public:
 					++e;
 				}
 			if (processTimer.PassedSecs())
-				reportF(SeverityTypeID::ST_MajorTrace, "%s: extracted %s / %s sequences"
+				reportF(SeverityTypeID::ST_MajorTrace, "%s%s: extracted %s / %s sequences"
+					, itemRef
 					, GetGroup()->GetNameStr()
 					, AsString(gi - graph.begin()), AsString(graph.size())
 				);
