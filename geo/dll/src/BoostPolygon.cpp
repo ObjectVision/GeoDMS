@@ -166,6 +166,7 @@ protected:
 		{
 			DataReadLock arg1Lock(arg1A);
 			DataReadLock arg2Lock(arg2A);
+			auto itemRef = resultHolder.HasBackRef() ? resultHolder.GetBackRefStr() + " " : SharedStr();
 
 			ResourceHandle resData;
 			ResourceHandle pointBoxDataHandle;
@@ -199,7 +200,8 @@ protected:
 						}
 					}
 				);
-				reportF(SeverityTypeID::ST_MajorTrace, "%s with %s tiles of first argument and after matching %s / %s tiles of second argument, %s intersecting tiles were processed."
+				reportF(SeverityTypeID::ST_MajorTrace, "%s%s with %s tiles of first argument and after matching %s / %s tiles of second argument, %s intersecting tiles were processed."
+					, itemRef.c_str()
 					, GetGroup()->GetNameStr()
 					, AsString(domain1Unit->GetNrTiles())
 					, AsString(u+1), AsString(ue)
