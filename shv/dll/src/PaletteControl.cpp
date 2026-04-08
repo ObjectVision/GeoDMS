@@ -447,13 +447,16 @@ void PaletteControl::CreateAreaOrLengthColumn(TreeItem* container, SharedStr exp
 			return;
 
 		attrName = "Area";
+		funcExpr = mySSPrintF("sum(Float64(area(%s, %s)), %s)"
+			, featureAttr->GetFullName().c_str()
+			, featureAttr->GetAbstrValuesUnit()->GetValueType()->GetScalarClass()->GetID()
+			, exprStr.c_str()
+		);
 		if (useKm)
 		{
 			attrLabel = "Area [km2]";
-			funcExpr = mySSPrintF("sum(area(%s), %s) / 1e6", featureAttr->GetFullName().c_str(), exprStr.c_str());
+			funcExpr += " / 1000000.0";
 		}
-		else
-			funcExpr = mySSPrintF("sum(area(%s), %s)", featureAttr->GetFullName().c_str(), exprStr.c_str());
 	}
 	else if (layerClass == GraphicArcLayer::GetStaticClass())
 	{
