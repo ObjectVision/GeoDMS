@@ -25,7 +25,7 @@ protected:
 
 public slots:
     void nextClicked(bool checked = false);
-    void findInTreeView();
+    void findInTreeView(bool closeOnSuccess = false);
     void onFindTextChanged(const QString& text);
 
 public:

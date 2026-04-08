@@ -1,4 +1,4 @@
-// Copyright (C) 1998-2025 Object Vision b.v. 
+﻿// Copyright (C) 1998-2025 Object Vision b.v. 
 // License: GNU GPL 3
 /////////////////////////////////////////////////////////////////////////////
 
@@ -32,7 +32,7 @@ FindTreeItemWindow::FindTreeItemWindow(QWidget* parent)
 
     // connections
     connect(next, &QPushButton::clicked, this, &FindTreeItemWindow::nextClicked);
-    connect(find_text, &QLineEdit::returnPressed, this, &FindTreeItemWindow::findInTreeView);
+    connect(find_text, &QLineEdit::returnPressed, this, [this]() { findInTreeView(true); });
     connect(find_text, &QLineEdit::textChanged, this, &FindTreeItemWindow::onFindTextChanged);
 
     // fill layout
@@ -44,7 +44,7 @@ FindTreeItemWindow::FindTreeItemWindow(QWidget* parent)
     setLayout(layout);
 }
 
-void FindTreeItemWindow::findInTreeView()
+void FindTreeItemWindow::findInTreeView(bool closeOnSuccess)
 {
     auto search_text = find_text->text();
     if (search_text.isEmpty())
@@ -76,6 +76,8 @@ void FindTreeItemWindow::findInTreeView()
             main_window->setCurrentTreeItem(const_cast<TreeItem*>(found_item.get()));
             result_info->setText(QString("Found: %1").arg(found_item->GetFullName().c_str()));
             onFindTextChanged(search_text);
+            if (closeOnSuccess)
+                close();
         }
         else
         {
