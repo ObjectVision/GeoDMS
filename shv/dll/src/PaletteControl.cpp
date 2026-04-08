@@ -26,6 +26,9 @@
 #include "LayerControl.h"
 #include "Theme.h"
 
+#include "StgBase.h"
+#include "gdal/gdal_base.h"
+
 
 //----------------------------------------------------------------------
 // class  : PaletteControl
@@ -369,6 +372,12 @@ void PaletteControl::CreateColumnsImpl()
 		if (m_BreakAttr) 
 			container = CreateContainer(container, GetUltimateSourceItem(m_BreakAttr.get_ptr()) ).release();
 
+		// Add Area or Length column based on layer type (before Count column)
+		try {
+			CreateAreaOrLengthColumn(container, exprStr);
+		}
+		catch (...) {} // fail gracefully, don't prevent Count column
+
 		auto countingUnitClass = UnitClass::Find(m_ThemeAttr->GetAbstrDomainUnit()->GetValueType()->GetCrdClass());
 		auto countingUnit = countingUnitClass->CreateDefault();
 
@@ -384,9 +393,102 @@ void PaletteControl::CreateColumnsImpl()
 	{
 		m_CountAttr = nullptr;
 		m_SelCountAttr = nullptr;
+		m_AreaOrLengthAttr = nullptr;
 	}
 	if (!GetEntity())
 		SetEntity( Unit<Void>::GetStaticClass()->CreateDefault() ); 
+}
+
+void PaletteControl::CreateAreaOrLengthColumn(TreeItem* container, SharedStr exprStr)
+{
+	if (!m_Layer)
+		return;
+
+	auto dv = GetDataView().lock(); if (!dv) return;
+
+	const LayerClass* layerClass = m_Layer->GetLayerClass();
+	const AbstrUnit* geoCrdUnit = m_Layer->GetGeoCrdUnit();
+	if (!geoCrdUnit)
+		return;
+
+	// Get the base projection unit to check if it uses metres
+	const AbstrUnit* baseUnit = GetWorldCrdUnitFromGeoUnit(geoCrdUnit);
+	Float64 unitSizeInMeters = baseUnit ? GetUnitSizeInMeters(baseUnit) : 1.0;
+	bool useKm = (unitSizeInMeters > 0.99 && unitSizeInMeters < 1.01); // unit is metres
+
+	SharedStr attrName, attrLabel;
+	SharedStr funcExpr;
+
+	if (layerClass == GridLayer::GetStaticClass())
+	{
+		// For GridLayers: Area = Count * CellSize (FactorProd from projection)
+		CrdTransformation geoTr = m_Layer->GetGeoTransformation();
+		Float64 cellArea = geoTr.FactorProd();
+		if (cellArea < 0) cellArea = -cellArea; // absolute value
+
+		attrName = "Area";
+		if (useKm)
+		{
+			attrLabel = "Area [km2]";
+			cellArea /= 1e6; // convert m2 to km2
+		}
+		else
+			attrLabel = attrName;
+		funcExpr = mySSPrintF("Float64(pcount(%s)) * Float64(%g)", exprStr.c_str(), cellArea);
+	}
+	else if (layerClass == GraphicPolygonLayer::GetStaticClass())
+	{
+		// For PolygonLayers: Area = sum(area(geometry), classification)
+		auto featureLayer = dynamic_cast<const FeatureLayer*>(m_Layer.get());
+		if (!featureLayer)
+			return;
+		auto featureAttr = featureLayer->GetFeatureAttr();
+		if (!featureAttr)
+			return;
+
+		attrName = "Area";
+		if (useKm)
+		{
+			attrLabel = "Area [km2]";
+			funcExpr = mySSPrintF("sum(area(%s), %s) / 1e6", featureAttr->GetFullName().c_str(), exprStr.c_str());
+		}
+		else
+			funcExpr = mySSPrintF("sum(area(%s), %s)", featureAttr->GetFullName().c_str(), exprStr.c_str());
+	}
+	else if (layerClass == GraphicArcLayer::GetStaticClass())
+	{
+		// For ArcLayers: Length = sum(arc_length(geometry), classification)
+		auto featureLayer = dynamic_cast<const FeatureLayer*>(m_Layer.get());
+		if (!featureLayer)
+			return;
+		auto featureAttr = featureLayer->GetFeatureAttr();
+		if (!featureAttr)
+			return;
+
+		attrName = "Length";
+		if (useKm)
+		{
+			attrLabel = "Length [km]";
+			funcExpr = mySSPrintF("sum(arc_length(%s), %s) / 1e3", featureAttr->GetFullName().c_str(), exprStr.c_str());
+		}
+		else
+			funcExpr = mySSPrintF("sum(arc_length(%s), %s)", featureAttr->GetFullName().c_str(), exprStr.c_str());
+	}
+	else
+		return; // Other layer types: no area or length column
+
+	// Create a Float64 unit for the area/length values
+	auto areaUnit = Unit<Float64>::GetStaticClass()->CreateDefault();
+
+	SharedPtr<AbstrDataItem> areaOrLengthAttr = CreateDataItem(container, GetTokenID_mt(attrName.c_str()), m_PaletteDomain.get(), areaUnit);
+	areaOrLengthAttr->SetDescr(attrLabel);
+
+	areaOrLengthAttr->SetKeepDataState(true);
+	areaOrLengthAttr->DisableStorage(true);
+	areaOrLengthAttr->SetExpr(funcExpr);
+	m_AreaOrLengthAttr = areaOrLengthAttr.get_ptr();
+	auto areaOrLengthColumn = make_shared_gr<DataItemColumn>(this, m_AreaOrLengthAttr)();
+	InsertColumn(areaOrLengthColumn.get());
 }
 
 void PaletteControl::CreateSelCountColumn()

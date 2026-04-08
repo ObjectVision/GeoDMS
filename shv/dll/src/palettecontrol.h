@@ -49,6 +49,7 @@ private:
 	void CreateSymbolColumnFromAttr();
 	void CreateColorColumn();
 	void CreateLabelTextColumn();
+	void CreateAreaOrLengthColumn(TreeItem* container, SharedStr exprStr);
 
 	std::shared_ptr<GraphicLayer>  m_Layer;
 	SharedDataItemInterestPtr  m_LabelTextAttr;
@@ -57,6 +58,7 @@ private:
 	SharedDataItemInterestPtr  m_BreakAttr;
 	SharedDataItemInterestPtr  m_PaletteAttr;
 	SharedDataItemInterestPtr  m_CountAttr, m_SelCountAttr;
+	SharedDataItemInterestPtr  m_AreaOrLengthAttr;
 	SharedPtr<const AbstrUnit> m_PaletteDomain;
 	SharedUnitInterestPtr      m_ThemeUnit;
 
