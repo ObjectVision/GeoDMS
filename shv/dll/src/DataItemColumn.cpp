@@ -1722,6 +1722,16 @@ bool DataItemColumn::GetTooltipText(TooltipCollector& ttc) const
 
 	auto recNr = tc->GetRecNo(rowNr);
 
+	auto activeTextAttr = GetActiveTextAttr();
+	if (!activeTextAttr)
+		return true;
+	if (!activeTextAttr->GetRefObj())
+		return true;
+
+	assert(activeTextAttr && activeTextAttr->GetInterestCount() > 0);
+
+	DataReadLock readHandle(activeTextAttr); if (!readHandle) return {};
+
 	GuiReadLock lock;
 	auto txt = GetOrgText(recNr, lock);
 	ttc.m_Stream << txt << "\n";
