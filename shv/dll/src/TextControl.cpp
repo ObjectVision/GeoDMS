@@ -257,7 +257,7 @@ bool TextControl::GetTooltipText(TooltipCollector& ttc) const
 {
 	ttc.m_WantsMoreContext = false;
 	base_type::GetTooltipText(ttc);
-	ttc.m_Stream << GetCaption() << "\n";
+	ttc.m_Stream << GetCaption();
 	return true;
 }
 

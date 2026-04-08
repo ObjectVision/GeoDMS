@@ -80,6 +80,24 @@ public:
 		auto dic = GetDic(); if (!dic) return false;
 		return dic->OnKeyDown(virtKey);
 	}
+
+	bool GetTooltipText(TooltipCollector& ttc) const override
+	{
+		TextControl::GetTooltipText(ttc);
+		auto dic = GetDic();                            if (!dic) return true;
+		auto activeTextAttr = dic->GetActiveTextAttr(); if (!activeTextAttr) return true;
+		auto descr = activeTextAttr->GetDescr();
+		if (!descr.empty())
+			ttc.m_Stream << ": "  << descr;
+		auto adu = activeTextAttr->GetAbstrDomainUnit();
+		auto avu = activeTextAttr->GetAbstrValuesUnit();
+		if (adu && avu)
+			ttc.m_Stream << "\n" << adu->GetName().c_str() << " -> " << avu->GetName().c_str() << avu->GetFormattedMetricStr();
+
+		return true;
+	}
+
+
 	std::shared_ptr<DataItemColumn> GetDic() const { return m_Dic;  }
 
 protected:
@@ -338,3 +356,4 @@ bool TableHeaderControl::OnKeyDown(UInt32 virtKey)
 {
 	return m_TableControl->OnKeyDown(virtKey);
 }
+
