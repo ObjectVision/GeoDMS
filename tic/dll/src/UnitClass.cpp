@@ -182,7 +182,7 @@ const ValueClass* UnitClass::GetValueType(ValueComposition vc) const
 { 
 	if (vc == ValueComposition::Single)
 		return m_ValueType;
-	assert(vc == ValueComposition::Polygon || vc == ValueComposition::Sequence);
+	assert(vc == ValueComposition::Polygon || vc == ValueComposition::Sequence || vc == ValueComposition::MultiPoint);
 	return m_ValueType->GetSequenceClass();
 }
 
