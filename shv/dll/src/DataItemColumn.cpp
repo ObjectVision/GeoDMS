@@ -1726,7 +1726,11 @@ bool DataItemColumn::GetTooltipText(TooltipCollector& ttc) const
 	if (!activeTextAttr)
 		return true;
 	if (!activeTextAttr->GetRefObj())
+	{
+		if (activeTextAttr->WasFailed(FailType::Data))
+			ttc.m_Stream << activeTextAttr->GetFailReason()->GetAsText() << "\n";
 		return true;
+	}
 
 	assert(activeTextAttr && activeTextAttr->GetInterestCount() > 0);
 

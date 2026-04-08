@@ -91,7 +91,7 @@ SharedStr MakeUnknownIdentifierErrorMsg(SharedStr supplRefStr, BestItemRef bestI
 		auto supplRefStrSize = supplRefStr.AsRange().size();
 		auto notFoundPartSize = bestItemRef.second.AsRange().size();
 		if (notFoundPartSize < supplRefStrSize)
-			errMsg += mySSPrintF("\nDid you mean '%s' that refers to [[%s]]?\nThe '%s' part was not found there.)"
+			errMsg += mySSPrintF("\nDid you mean '%s' that refers to [[%s]]?\nThe '%s' part was not found there."
 				, CharPtrRange(supplRefStr.begin(), supplRefStrSize - notFoundPartSize)
 				, bestItemRef.first->GetFullName().c_str()
 				, bestItemRef.second
