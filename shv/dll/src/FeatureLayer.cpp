@@ -2842,6 +2842,8 @@ bool FeatureLayer::GetTooltipText(TooltipCollector& ttc) const
 	const AbstrDataObject* ado = nullptr;
 	if (attrItem)
 		ado = attrItem->GetCurrRefObj().get();
+	if (!ado)
+		return false;
 
 	SizeT featureIndex = UNDEFINED_VALUE(SizeT);
 	while (true)
