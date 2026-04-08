@@ -72,14 +72,24 @@ enum class ValueClassID : UInt8 {
 
 	VT_FPolygon = VT_FArc + NrPointTypes,
 	VT_DPolygon = VT_DArc + NrPointTypes, // 37
+
 	VT_FirstAfterPolygon = 38,
 
-	VT_SharedStr = 38,
-	VT_String = VT_SharedStr,
-	VT_TokenID = 39,
-	VT_Void = 40,
+	VT_SMultiPoint = VT_SPolygon + NrPointTypes,
+	VT_WMultiPoint = VT_WPolygon + NrPointTypes,
+	VT_IMultiPoint = VT_IPolygon + NrPointTypes,
+	VT_UMultiPoint = VT_UPolygon + NrPointTypes,
 
-	VT_FirstRange = 41,
+	VT_FMultiPoint = VT_FPolygon + NrPointTypes,
+	VT_DMultiPoint = VT_DPolygon + NrPointTypes, // 43
+
+
+	VT_SharedStr = 44,
+	VT_String = VT_SharedStr,
+	VT_TokenID = 45,
+	VT_Void = 46,
+
+	VT_FirstRange = 47,
 	VT_RangeUInt32 = VT_UInt32 + VT_FirstRange,
 	VT_RangeInt32 = VT_Int32 + VT_FirstRange,
 	VT_RangeUInt16 = VT_UInt16 + VT_FirstRange,
@@ -91,25 +101,25 @@ enum class ValueClassID : UInt8 {
 	VT_RangeInt64 = VT_Int64 + VT_FirstRange,
 
 	VT_RangeFloat64 = VT_Float64 + VT_FirstRange,
-	VT_RangeFloat32 = VT_Float32 + VT_FirstRange, // 50
-	VT_RangeFloat80 = VT_Float80 + VT_FirstRange, // 51
+	VT_RangeFloat32 = VT_Float32 + VT_FirstRange, // 56
+	VT_RangeFloat80 = VT_Float80 + VT_FirstRange, // 57
 
-	VT_NumSeqBase = 52,
-	VT_UInt32Seq = VT_UInt32 + VT_NumSeqBase, // 52
-	VT_Int32Seq = VT_Int32 + VT_NumSeqBase, // 53
-	VT_UInt16Seq = VT_UInt16 + VT_NumSeqBase, // 54
-	VT_Int16Seq = VT_Int16 + VT_NumSeqBase, // 55
-	VT_UInt8Seq = VT_UInt8 + VT_NumSeqBase, // 56
-	VT_Int8Seq = VT_Int8 + VT_NumSeqBase, // 57
+	VT_NumSeqBase = 58,
+	VT_UInt32Seq = VT_UInt32 + VT_NumSeqBase, // 58
+	VT_Int32Seq = VT_Int32 + VT_NumSeqBase, // 59
+	VT_UInt16Seq = VT_UInt16 + VT_NumSeqBase, // 60
+	VT_Int16Seq = VT_Int16 + VT_NumSeqBase, // 61
+	VT_UInt8Seq = VT_UInt8 + VT_NumSeqBase, // 62
+	VT_Int8Seq = VT_Int8 + VT_NumSeqBase, // 63
 
-	VT_UInt64Seq = VT_UInt64 + VT_NumSeqBase, // 58
-	VT_Int64Seq = VT_Int64 + VT_NumSeqBase, // 59
+	VT_UInt64Seq = VT_UInt64 + VT_NumSeqBase, // 64
+	VT_Int64Seq = VT_Int64 + VT_NumSeqBase, // 65
 
-	VT_Float64Seq = VT_Float64 + VT_NumSeqBase, // 60
-	VT_Float32Seq = VT_Float32 + VT_NumSeqBase, // 61
-	VT_Float80Seq = VT_Float80 + VT_NumSeqBase, // 62
-	VT_Count = 63,
-	VT_Unknown  = 64
+	VT_Float64Seq = VT_Float64 + VT_NumSeqBase, // 66
+	VT_Float32Seq = VT_Float32 + VT_NumSeqBase, // 67
+	VT_Float80Seq = VT_Float80 + VT_NumSeqBase, // 68
+	VT_Count = 69,
+	VT_Unknown  = 70
 };
 
 

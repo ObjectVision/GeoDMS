@@ -893,6 +893,7 @@ auto CreateAbstrHeapTileFunctor(const AbstrDataItem* adi, SharedPtr<const Shared
 		break;
 	case ValueComposition::Sequence:
 	case ValueComposition::Polygon:
+	case ValueComposition::MultiPoint:
 		visit<typelists::sequence_fields>(valuesUnit.get(),
 			[&resultHolder, adi, currTRD, abstrValuesRangeData, mustClear MG_DEBUG_ALLOCATOR_SRC_PARAM] <typename value_type> (const Unit<value_type>*valuesUnitPtr)
 			{

@@ -901,6 +901,115 @@ void ReadPolyData(typename sequence_traits<PolygonType>::seq_t dataArray, OGRLay
 	assert(dataArray.get_sa().data_size()== data.actual_data_size());
 }
 
+template <typename PolygonType>
+void ReadMultiPointData(typename sequence_traits<PolygonType>::seq_t dataArray, OGRLayer* layer, SizeT firstIndex, SizeT size, ResourceHandle& readBuffer, GDALDataset* m_hDS)
+{
+	assert(layer);
+
+	DBG_START("ReadPolyData", typeid(PolygonType).name(), true);
+
+	DBG_TRACE(("firstIndex %d, size %d", firstIndex, size));
+
+	using dataBufType = typename sequence_traits<PolygonType>::container_type;
+	dataBufType& data = MakeAs<dataBufType>(readBuffer);
+	data.reset(size, 0 MG_DEBUG_ALLOCATOR_SRC("gdal_vect: ReadPolyData"));
+
+	SizeT i = 0;
+	auto lch = MakeLCH(
+		[firstIndex, &i]() -> SharedStr { return mySSPrintF("reading Points of Feature %d", i + firstIndex); }
+	);
+
+	for (; i != size; ++i)
+	{
+		typename DataArray<PolygonType>::reference dataElemRef = data[i];
+
+		gdalVectImpl::FeaturePtr feat = m_hDS->TestCapability(ODsCRandomLayerRead) ? GetNextFeatureInterleaved(layer, m_hDS) : layer->GetNextFeature();
+		OGRGeometry* geo = feat ? feat->GetGeometryRef() : nullptr;
+
+		if (!geo) {
+			Assign(dataElemRef, Undefined());
+			continue;
+		}
+
+		auto geometry_type = geo->getGeometryType();
+
+		switch (geometry_type) {
+
+		case OGRwkbGeometryType::wkbPoint:
+		case OGRwkbGeometryType::wkbPoint25D:
+		case OGRwkbGeometryType::wkbPointM:
+		case OGRwkbGeometryType::wkbPointZM:
+			AddMultiPoint(dataElemRef, geo->toMultiPoint());
+			break;
+
+		case OGRwkbGeometryType::wkbMultiPoint:
+		case OGRwkbGeometryType::wkbMultiPoint25D:
+		case OGRwkbGeometryType::wkbMultiPointM:
+		case OGRwkbGeometryType::wkbMultiPointZM:
+			AddMultiPoint(dataElemRef, geo->toMultiPoint());
+			break;
+
+		case OGRwkbGeometryType::wkbLineString:
+		case OGRwkbGeometryType::wkbLineString25D:
+		case OGRwkbGeometryType::wkbLineStringM:
+		case OGRwkbGeometryType::wkbLineStringZM:
+			AddMultiPoint(dataElemRef, geo->toMultiPoint());
+			break;
+
+		case OGRwkbGeometryType::wkbCircularString:
+			AddMultiPoint(dataElemRef, geo->toMultiPoint());
+			break;
+
+		case OGRwkbGeometryType::wkbCompoundCurve:
+			AddMultiPoint(dataElemRef, geo->toMultiPoint());
+			break;
+
+		case OGRwkbGeometryType::wkbPolygon:
+		case OGRwkbGeometryType::wkbPolygon25D:
+		case OGRwkbGeometryType::wkbPolygonM:
+		case OGRwkbGeometryType::wkbPolygonZM:
+			AddMultiPoint(dataElemRef, geo->toMultiPoint());
+			break;
+
+		case OGRwkbGeometryType::wkbCurvePolygon:
+		case OGRwkbGeometryType::wkbCurvePolygonM:
+		case OGRwkbGeometryType::wkbCurvePolygonZM:
+			AddMultiPoint(dataElemRef, geo->toMultiPoint());
+			break;
+
+		case OGRwkbGeometryType::wkbMultiPolygon:
+		case OGRwkbGeometryType::wkbMultiPolygon25D:
+		case OGRwkbGeometryType::wkbMultiPolygonM:
+		case OGRwkbGeometryType::wkbMultiPolygonZM:
+			AddMultiPoint(dataElemRef, geo->toMultiPoint());
+			break;
+
+		case OGRwkbGeometryType::wkbMultiLineString:
+			AddMultiPoint(dataElemRef, geo->toMultiPoint());
+			break;
+
+		case OGRwkbGeometryType::wkbMultiSurface:
+			AddMultiPoint(dataElemRef, geo->toMultiPoint());
+			break;
+
+		default:
+			reportF(SeverityTypeID::ST_Warning, "Feature %d has type %s, which cannot be represented as GeoDMS MultiPoint.\n"
+				"Hint: Configure a geometry attribute with ValueType=string and no ValueComposition to read the features as WKTs."
+				, i + firstIndex, OGRGeometryTypeToName(geometry_type));
+			Assign(dataElemRef, Undefined());
+			break;
+		}
+
+		assert(data.data_size() == data.actual_data_size()); // no fragmentation
+	}
+
+	assert(data.data_size() == data.actual_data_size()); // no fragmentation
+
+	Assign(dataArray, data);
+
+	assert(dataArray.get_sa().data_size() == data.actual_data_size());
+}
+
 template <typename SeqType>
 void ReadPolyZM(typename sequence_traits<SeqType>::seq_t dataArray, OGRLayer* layer, SizeT firstIndex, SizeT size, ResourceHandle& readBuffer, GDALDataset* m_hDS, bool isZ)
 {
@@ -1440,24 +1549,32 @@ bool GdalVectSM::ReadGeometry(const GdalVectlMetaInfo* br, AbstrDataObject* ado,
 	if (IsPolygonType(vcId))
 	{
 		auto vComposition = br->CurrWD()->GetValueComposition();
-		if (vComposition == ValueComposition::Sequence) // not a polygon, but a (multi) linestring or multipoint
+		if (vComposition == ValueComposition::Sequence) // not a polygon, but a (multi) linestring
 			reinterpret_cast<UInt8&>(vcId) -= static_cast<UInt8>(ValueClassID::NrPointTypes); // xPolygon -> xArc
+		if (vComposition == ValueComposition::MultiPoint) // not a polygon, but a multipoint
+			reinterpret_cast<UInt8&>(vcId) += static_cast<UInt8>(ValueClassID::NrPointTypes); // xPolygon -> xMultiPoint
 	}
 	switch (vcId)
 	{
 		case ValueClassID::VT_DArc:     ReadLinestringData<DPolygon>(mutable_array_cast<DPolygon>(ado)->GetWritableTile(t), layer, firstIndex, size, m_ReadBuffer, m_hDS); break;
 		case ValueClassID::VT_DPolygon: ReadPolyData      <DPolygon>(mutable_array_cast<DPolygon>(ado)->GetWritableTile(t), layer, firstIndex, size, m_ReadBuffer, m_hDS); break;
+		case ValueClassID::VT_DMultiPoint: ReadMultiPointData      <DPolygon>(mutable_array_cast<DPolygon>(ado)->GetWritableTile(t), layer, firstIndex, size, m_ReadBuffer, m_hDS); break;
 		case ValueClassID::VT_FArc:     ReadLinestringData<FPolygon>(mutable_array_cast<FPolygon>(ado)->GetWritableTile(t), layer, firstIndex, size, m_ReadBuffer, m_hDS); break;
 		case ValueClassID::VT_FPolygon: ReadPolyData      <FPolygon>(mutable_array_cast<FPolygon>(ado)->GetWritableTile(t), layer, firstIndex, size, m_ReadBuffer, m_hDS); break;
+		case ValueClassID::VT_FMultiPoint: ReadMultiPointData      <FPolygon>(mutable_array_cast<DPolygon>(ado)->GetWritableTile(t), layer, firstIndex, size, m_ReadBuffer, m_hDS); break;
 
 		case ValueClassID::VT_IArc:     ReadLinestringData<IPolygon>(mutable_array_cast<IPolygon>(ado)->GetWritableTile(t), layer, firstIndex, size, m_ReadBuffer, m_hDS); break;
 		case ValueClassID::VT_IPolygon: ReadPolyData      <IPolygon>(mutable_array_cast<IPolygon>(ado)->GetWritableTile(t), layer, firstIndex, size, m_ReadBuffer, m_hDS); break;
+		case ValueClassID::VT_IMultiPoint: ReadMultiPointData      <IPolygon>(mutable_array_cast<DPolygon>(ado)->GetWritableTile(t), layer, firstIndex, size, m_ReadBuffer, m_hDS); break;
 		case ValueClassID::VT_UArc:     ReadLinestringData<UPolygon>(mutable_array_cast<UPolygon>(ado)->GetWritableTile(t), layer, firstIndex, size, m_ReadBuffer, m_hDS); break;
 		case ValueClassID::VT_UPolygon: ReadPolyData      <UPolygon>(mutable_array_cast<UPolygon>(ado)->GetWritableTile(t), layer, firstIndex, size, m_ReadBuffer, m_hDS); break;
+		case ValueClassID::VT_UMultiPoint: ReadMultiPointData      <UPolygon>(mutable_array_cast<DPolygon>(ado)->GetWritableTile(t), layer, firstIndex, size, m_ReadBuffer, m_hDS); break;
 		case ValueClassID::VT_WArc:     ReadLinestringData<WPolygon>(mutable_array_cast<WPolygon>(ado)->GetWritableTile(t), layer, firstIndex, size, m_ReadBuffer, m_hDS); break;
 		case ValueClassID::VT_WPolygon: ReadPolyData      <WPolygon>(mutable_array_cast<WPolygon>(ado)->GetWritableTile(t), layer, firstIndex, size, m_ReadBuffer, m_hDS); break;
+		case ValueClassID::VT_WMultiPoint: ReadMultiPointData      <WPolygon>(mutable_array_cast<DPolygon>(ado)->GetWritableTile(t), layer, firstIndex, size, m_ReadBuffer, m_hDS); break;
 		case ValueClassID::VT_SArc:     ReadLinestringData<SPolygon>(mutable_array_cast<SPolygon>(ado)->GetWritableTile(t), layer, firstIndex, size, m_ReadBuffer, m_hDS); break;
 		case ValueClassID::VT_SPolygon: ReadPolyData      <SPolygon>(mutable_array_cast<SPolygon>(ado)->GetWritableTile(t), layer, firstIndex, size, m_ReadBuffer, m_hDS); break;
+		case ValueClassID::VT_SMultiPoint: ReadMultiPointData      <SPolygon>(mutable_array_cast<DPolygon>(ado)->GetWritableTile(t), layer, firstIndex, size, m_ReadBuffer, m_hDS); break;
 
 		case ValueClassID::VT_DPoint: ReadPointData<DPoint>(mutable_array_cast<DPoint>(ado)->GetWritableTile(t), layer, firstIndex, size, m_hDS); break;
 		case ValueClassID::VT_FPoint: ReadPointData<FPoint>(mutable_array_cast<FPoint>(ado)->GetWritableTile(t), layer, firstIndex, size, m_hDS); break;
