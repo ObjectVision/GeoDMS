@@ -16,12 +16,17 @@
 
 struct Timer
 {
+	Timer() {}
+
+	Timer(const Timer&)	= delete;
+	Timer(Timer&&) = delete;
+/*
 	void Reset()
 	{
 		time_t curr_time = time(nullptr);
 		last_time = curr_time;
 	}
-
+*/
 	bool PassedSecs_impl(time_t nrSecs)
 	{
 		time_t curr_time = time(nullptr);

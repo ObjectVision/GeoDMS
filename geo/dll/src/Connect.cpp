@@ -1126,10 +1126,10 @@ public:
 						}
 					}
 					tileCutInfos.push_back(cutInfo);
+					nrProcessedPoints += 1;
 
 					if (processTimer.PassedSecs())
 					{
-						nrProcessedPoints += 1;
 						reportF(SeverityTypeID::ST_MajorTrace, "%sConnect discovery: %s / %s points done"
 							, itemRef.c_str()
 							, AsString(nrProcessedPoints.load()), AsString(arg2Count));

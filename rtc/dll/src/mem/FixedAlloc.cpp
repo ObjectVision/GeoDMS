@@ -881,7 +881,7 @@ static std::atomic<UInt32> s_ConsiderReportingReentranceCounter = 0;
 
 void ConsiderReporting()
 {
-	static Timer t{ 0 };
+	static Timer t;
 	
 	if (s_ConsiderReportingReentranceCounter)
 		return;
