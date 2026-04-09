@@ -460,6 +460,7 @@ struct SA_ConstIterator: std::iterator<std::random_access_iterator_tag
 
 	using SA_ConstReference<T>::m_CSeqPtr;
 	using SA_ConstReference<T>::m_Container;
+	using SA_ConstReference<T>::is_null;
 
 	// redefine boost::iterator typedefs
 	typedef typename sequence_traits<T>::container_type value_type;
