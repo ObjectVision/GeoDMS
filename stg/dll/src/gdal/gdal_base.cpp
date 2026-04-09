@@ -45,9 +45,6 @@
 #include <filesystem>
 #include "Projection.h"
 
-// include windows for LoadLibrary
-#include <windows.h>
-
 // forward declarations
 void TryRegisterRasterDriverFromKnownDriverShortName(std::string_view known_driver_short_name);
 void GDALRegisterTrustedDriverFromKnownDriverShortName(std::string_view known_driver_short_name);
@@ -136,7 +133,7 @@ namespace gdalComponentImpl
 			throwErrorF("gdal", "error(%d): %s", err_no, msg);
 	}
 
-	void __stdcall ErrorHandler(CPLErr eErrClass, int err_no, const char* msg)
+	void CPL_STDCALL ErrorHandler(CPLErr eErrClass, int err_no, const char* msg)
 	{
 		//		AbstrContextHandle* ach = AbstrContextHandle::GetLast();
 		SeverityTypeID st = gdalSeverity(eErrClass);

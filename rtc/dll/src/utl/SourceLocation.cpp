@@ -34,14 +34,6 @@ granted by an additional written contract for support, assistance and/or develop
 
 #include "RtcInterface.h"
 
-#if defined(WIN32)
-
-#include <windows.h>
-#include "timezoneapi.h"
-
-#endif //defined(WIN32)
-
-
 //----------------------------------------------------------------------
 // used modules and forward class references
 //----------------------------------------------------------------------
