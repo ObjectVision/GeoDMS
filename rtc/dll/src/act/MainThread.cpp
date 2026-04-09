@@ -9,11 +9,10 @@
 #endif //defined(CC_PRAGMAHDRSTOP)
 
 #if defined(WIN32)
-
 #include <windows.h>
-
 #else
-
+#include <pthread.h>
+#include <signal.h>
 #endif
 
 #include "LockLevels.h"
@@ -31,7 +30,6 @@ namespace { // local defs
 	dms_thread_id sMainThreadID = 0;
 	dms_thread_id sMetaThreadID = 0;
 	std::atomic<dms_thread_id> sLastThreadID = 0;
-	HANDLE sPriorityThread = 0;
 
 } // end anonymous namespace
 
@@ -43,6 +41,8 @@ dms_thread_id GetThreadID()
 }
 
 #if defined(WIN32)
+
+static HANDLE sPriorityThread = 0;
 
 void SetPriority()  noexcept
 {
@@ -60,18 +60,24 @@ bool IsElevatedThread()
 
 #else //defined(WIN32)
 
-// GNU TODO
-
-void SetPriority() {}
+void SetPriority() noexcept
+{
+	struct sched_param param;
+	param.sched_priority = sched_get_priority_min(SCHED_RR) + 1;
+	pthread_setschedparam(pthread_self(), SCHED_RR, &param);
+}
 
 bool IsElevatedThread()
 {
-	return false;
+	struct sched_param param;
+	int policy;
+	pthread_getschedparam(pthread_self(), &policy, &param);
+	return param.sched_priority > sched_get_priority_min(policy);
 }
 
 #endif //defined(WIN32)
 
-DWORD sMainThreadHnd = 0;
+static UInt32 sMainThreadHnd = 0;
 
 void SetMainThreadID()  noexcept
 {
@@ -79,7 +85,11 @@ void SetMainThreadID()  noexcept
 	sMainThreadID = GetThreadID();
 	sMetaThreadID = GetThreadID();
 	assert(sMainThreadID == 1);
+#if defined(WIN32)
 	sMainThreadHnd = GetCurrentThreadId();
+#else
+	sMainThreadHnd = static_cast<UInt32>(getpid());
+#endif
 	assert(sMainThreadHnd);
 
 	SetPriority();
@@ -155,8 +165,10 @@ RTC_CALL void RequestMainThreadOperProcessing()
 			return;
 		lastPostTime = currTime; // only post again every 5 second
 	}
-	if (sMainThreadHnd)  // not yet initialized.
-		PostThreadMessage(sMainThreadHnd, UM_PROCESS_MAINTHREAD_OPERS, 0, 0); // only effective when MainThread has MessageQueue, ie in GeoDmsGui, and not in GeoDmsRun or python process
+	#if defined(WIN32)
+		if (sMainThreadHnd)  // not yet initialized.
+			PostThreadMessage(sMainThreadHnd, UM_PROCESS_MAINTHREAD_OPERS, 0, 0); // only effective when MainThread has MessageQueue, ie in GeoDmsGui, and not in GeoDmsRun or python process
+	#endif
 }
 
 RTC_CALL void ConfirmMainThreadOperProcessing()

@@ -67,13 +67,15 @@
 #pragma hdrstop
 #endif //defined(CC_PRAGMAHDRSTOP)
 
-#include <windows.h>
-
 #include "OperationContext.h"
 
+#if defined(WIN32)
+#include <windows.h>
 #include <agents.h>
-#include <deque>
 #include <ppl.h>
+#endif
+
+#include <deque>
 
 #include "Parallel.h"
 #include "dbg/Check.h"

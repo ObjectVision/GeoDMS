@@ -129,7 +129,11 @@ constexpr alloc_index_t highest_bit_rank(Unsigned value)
 
 // =========================================  VirtualAlloc section
 
+#if defined(WIN32)
 #include <Windows.h>
+#else
+#include <sys/mman.h>
+#endif
 
 struct VirtualAllocChunk
 {
@@ -140,7 +144,12 @@ struct VirtualAllocChunk
 			throw MemoryAllocFailure();
 
 		WaitForAvailableMemory(chunkSize_);
+#if defined(WIN32)
 		chunkPtr = reinterpret_cast<BYTE_PTR>(VirtualAlloc(nullptr, chunkSize_, MEM_RESERVE, PAGE_NOACCESS));
+#else
+		chunkPtr = reinterpret_cast<BYTE_PTR>(mmap(nullptr, chunkSize_, PROT_NONE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0));
+		if (chunkPtr == MAP_FAILED) chunkPtr = nullptr;
+#endif
 	}
 
 	VirtualAllocChunk(VirtualAllocChunk&& rhs) noexcept
@@ -153,7 +162,11 @@ struct VirtualAllocChunk
 	~VirtualAllocChunk()
 	{
 		if (chunkPtr)
+#if defined(WIN32)
 			VirtualFree(chunkPtr, 0, MEM_RELEASE);
+#else
+			munmap(chunkPtr, chunkSize);
+#endif
 	}
 
 	SizeT   ChunkSize() const { return chunkSize; }
@@ -165,18 +178,27 @@ struct VirtualAllocChunk
 	static void commit(BYTE_PTR objectPtr, object_size_t objectSize, object_size_t objectStoreSize)
 	{
 		assert(std::popcount(objectStoreSize) == 1); // objectStoreSize is assumed to be a power of 2
-		//		VirtualAlloc(objectPtr, objectSize, MEM_COMMIT, PAGE_READWRITE);
+#if defined(WIN32)
 		VirtualAlloc(objectPtr, objectStoreSize, MEM_COMMIT, PAGE_READWRITE); // next occupant may use more of this store
+#else
+		mprotect(objectPtr, objectStoreSize, PROT_READ | PROT_WRITE);
+#endif
 	}
 
 	static void release(BYTE_PTR objectPtr, object_size_t objectSize)
 	{
+#if defined(WIN32)
 //		VirtualAlloc(objectPtr, objectSize, MEM_RESET, PAGE_NOACCESS);
+#else
+//		madvise(objectPtr, objectSize, MADV_DONTNEED);
+#endif
 	}
 
 	static void recommit(BYTE_PTR objectPtr, object_size_t objectSize)
 	{
+#if defined(WIN32)
 //		VirtualAlloc(objectPtr, objectSize, MEM_RESET_UNDO, PAGE_READWRITE);
+#endif
 	}
 
 private:
@@ -687,18 +709,39 @@ void LeaveToStock(void* objectPtr, size_t objectSize) {
 #if defined(MG_CACHE_ALLOC)
 
 #include "utl/mySPrintF.h"
+
+#if defined(WIN32)
 #include <Psapi.h>
+#else
+#include <unistd.h>
+#include <fstream>
+#include <string>
+#endif
 
 std::atomic<bool> s_ReportingRequestPending = false;
 std::atomic<bool> s_BlockNewAllocations = false;
 
 SizeT CommittedSize()
 {
+#if defined(WIN32)
 	PROCESS_MEMORY_COUNTERS processInfo;
-
 	GetProcessMemoryInfo(GetCurrentProcess(), &processInfo, sizeof(PROCESS_MEMORY_COUNTERS));
-
 	return processInfo.PagefileUsage;
+#else
+	// Read VmRSS from /proc/self/status as a proxy for committed memory
+	std::ifstream status("/proc/self/status");
+	std::string line;
+	while (std::getline(status, line))
+	{
+		if (line.compare(0, 6, "VmRSS:") == 0)
+		{
+			SizeT kb = 0;
+			std::sscanf(line.c_str(), "VmRSS: %zu", &kb);
+			return kb * 1024;
+		}
+	}
+	return 0;
+#endif
 }
 
 static FreeStackAllocSummary maxCumulBytes = FreeStackAllocSummary(0, 0, 0, 0, 0);
@@ -737,14 +780,26 @@ RTC_CALL auto GetFixedAllocStatus(const FreeStackAllocSummary& cumulBytes) -> Sh
 
 RTC_CALL auto GetMemoryStatus() -> SharedStr
 {
+#if defined(WIN32)
 	PROCESS_MEMORY_COUNTERS processInfo;
-
 	GetProcessMemoryInfo(GetCurrentProcess(), &processInfo, sizeof(PROCESS_MEMORY_COUNTERS));
-
 	return mySSPrintF("%d[MB] committed of peak %d[MB]"
 		, processInfo.PagefileUsage >> 20
 		, processInfo.PeakPagefileUsage >> 20
 	);
+#else
+	SizeT vmRSS = 0, vmPeak = 0;
+	std::ifstream status("/proc/self/status");
+	std::string line;
+	while (std::getline(status, line))
+	{
+		if (line.compare(0, 6, "VmRSS:") == 0)
+			std::sscanf(line.c_str(), "VmRSS: %zu", &vmRSS);
+		else if (line.compare(0, 7, "VmPeak:") == 0)
+			std::sscanf(line.c_str(), "VmPeak: %zu", &vmPeak);
+	}
+	return mySSPrintF("%zu[MB] committed of peak %zu[MB]", vmRSS / 1024, vmPeak / 1024);
+#endif
 }
 
 static UInt8 reportThrottler = 0;

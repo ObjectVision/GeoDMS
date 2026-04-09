@@ -47,15 +47,15 @@ struct DllHandle
 
 		m_hDLL = NULL;
 	}
-	
-	FARPROC GetProc(CharPtr dllProcName)
+
+	void* GetProc(CharPtr dllProcName)
 	{
 		DllProcCacheType::iterator i = m_DllProcCache.find(SharedStr(dllProcName MG_DEBUG_ALLOCATOR_SRC("GetProc")));
 		if (i != m_DllProcCache.end())
 			return i->second;
 
-		FARPROC& proc = m_DllProcCache[SharedStr(dllProcName MG_DEBUG_ALLOCATOR_SRC("GetProc"))];
-		proc = GetProcAddress(m_hDLL, dllProcName);
+		void*& proc = m_DllProcCache[SharedStr(dllProcName MG_DEBUG_ALLOCATOR_SRC("GetProc"))];
+		proc = reinterpret_cast<void*>(GetProcAddress(m_hDLL, dllProcName));
 		return proc;
 	}
 
@@ -69,16 +69,80 @@ struct DllHandle
 	DllHandle(const DllHandle& src) // FORBIDDEN to copy when dll is loaded since destructor does unload!
 	{
 		MG_CHECK(src.m_hDLL == NULL);
-//		src.m_hDLL = NULL;
 		m_hDLL = src.m_hDLL;
 	}
 
 private:
-	typedef std::map<SharedStr, FARPROC> DllProcCacheType;
+	typedef std::map<SharedStr, void*> DllProcCacheType;
 
 	DllProcCacheType m_DllProcCache;
 	HINSTANCE        m_hDLL;
 };
+
+static void LoadDll(DllHandle& hnd, CharPtr dllname)
+{
+	hnd.SetInstance(LoadLibrary(dllname));
+}
+
+#else //defined(WIN32)
+
+#include <dlfcn.h>
+
+struct DllHandle 
+{
+	DllHandle() : m_hDLL(nullptr) {}
+	~DllHandle()
+	{
+		if (!m_hDLL)
+			return;
+
+		DMS_CALL_BEGIN
+			LPFNDLLFUNC0 finalizeProc = LPFNDLLFUNC0(GetProc("CloseAll"));
+			if (finalizeProc)
+				(*finalizeProc)();
+			dlclose(m_hDLL);
+		DMS_CALL_END
+
+		m_hDLL = nullptr;
+	}
+
+	void* GetProc(CharPtr dllProcName)
+	{
+		DllProcCacheType::iterator i = m_DllProcCache.find(SharedStr(dllProcName MG_DEBUG_ALLOCATOR_SRC("GetProc")));
+		if (i != m_DllProcCache.end())
+			return i->second;
+
+		void*& proc = m_DllProcCache[SharedStr(dllProcName MG_DEBUG_ALLOCATOR_SRC("GetProc"))];
+		proc = dlsym(m_hDLL, dllProcName);
+		return proc;
+	}
+
+	bool IsLoaded() const { return m_hDLL != nullptr; }
+
+	void SetHandle(void* hDLL) 
+	{
+		m_hDLL = hDLL;
+	}
+
+	DllHandle(const DllHandle& src) // FORBIDDEN to copy when dll is loaded since destructor does unload!
+	{
+		MG_CHECK(src.m_hDLL == nullptr);
+		m_hDLL = src.m_hDLL;
+	}
+
+private:
+	typedef std::map<SharedStr, void*> DllProcCacheType;
+
+	DllProcCacheType m_DllProcCache;
+	void*            m_hDLL;
+};
+
+static void LoadDll(DllHandle& hnd, CharPtr dllname)
+{
+	hnd.SetHandle(dlopen(dllname, RTLD_LAZY));
+}
+
+#endif //defined(WIN32)
 
 
 namespace {
@@ -121,7 +185,7 @@ DllHandle* RTC_GetDll(CharPtr dllname)
 		return &(i->second);
 
 	DllHandle& hnd = (*s_DllHandleCache)[SharedStr(dllname MG_DEBUG_ALLOCATOR_SRC("RTC_GetDll"))];
-	hnd.SetInstance(LoadLibrary(dllname));
+	LoadDll(hnd, dllname);
 	return &hnd;
 }
 
@@ -191,8 +255,6 @@ RTC_CALL UInt32 RunDllProc3(CharPtr dllName, CharPtr procName, CharPtr arg1, Cha
 	LPFNDLLFUNC3 runFunc = (LPFNDLLFUNC3) GetProcChecked(dllName, procName);
 	return (*runFunc)(arg1, arg2, arg3);
 }
-
-#endif //defined(WIN32)
 
 bool g_IsTerminating = false;
 

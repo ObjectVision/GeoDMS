@@ -17,7 +17,9 @@
 #include "DataStoreManagerCaller.h" 
 #include "OperationContext.h" 
 
+#if defined(WIN32)
 #include <ppl.h>
+#endif
 
 struct tile_task_group
 {
