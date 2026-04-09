@@ -659,7 +659,7 @@ LayerInfo GetAspectInfo(AspectNr aNr, const AbstrDataItem* adi, const LayerInfo&
 			? LayerInfo::ClassificationMissing
 			: LayerInfo::NotNumeric;
 
-		if (classIdUnit->CanBeDomain() && classIdUnit->GetValueType()->GetBitSize() <= 8)
+		if (classIdUnit->CanBeDomain() && (classIdUnit->GetValueType()->GetBitSize() <= 8 || classIdUnit->GetTSF(TSF_Categorical)))
 			state = LayerInfo::PaletteMissing;
 		else
 			mapItem2 = nullptr;
