@@ -170,5 +170,5 @@ IndexedStrings<MustZeroTerminate, CharPtrRangeEqCmp, CharPtrRangeHasher>::GetExi
 
 using IndexedStringValues = IndexedStrings<false, GenericEqual, GenericHasher>;
 
-template class IndexedStrings<true, AsciiFoldedCaseInsensitiveEqual, AsciiFoldedChunkedCaseInsensitiveHasher>;
-template class IndexedStrings<false, GenericEqual, GenericHasher>;
+template struct IndexedStrings<true, AsciiFoldedCaseInsensitiveEqual, AsciiFoldedChunkedCaseInsensitiveHasher>;
+template struct IndexedStrings<false, GenericEqual, GenericHasher>;
