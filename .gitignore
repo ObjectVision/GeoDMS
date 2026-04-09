@@ -14,3 +14,5 @@ todo*.txt
 /splash
 /rtc/dll/src/buildstamp.h
 /rtc/dll/src/RtcGeneratedVersion.h
+
+/build/
