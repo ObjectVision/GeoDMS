@@ -7,6 +7,8 @@
 #if !defined(__RTC_SER_READVALUE_H)
 #define __RTC_SER_READVALUE_H
 
+#include <charconv>
+
 
 // *****************************************************************************
 // Section:     Helper Funcs

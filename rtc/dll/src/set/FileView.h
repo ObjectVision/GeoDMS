@@ -156,7 +156,7 @@ struct rw_file_view : file_view_base<T, FileViewHandle>
 		if (this->GetFileSize() != size_calculator<T>().nr_bytes(nrElems)
 			|| size_calculator<T>().nr_blocks(nrElems) != this->GetFileSize() / sizeof(sequence_traits<T>::block_type)) // catches overflow error on nrBytes calculation
 		{
-			file_view_base<T>::CloseFVB();
+			base_type::CloseFVB();
 			throwErrorF("rw_file_view", "FileSize of %u expected but file %s has a size of %u for %u elements"
 			,	size_calculator<T>().nr_bytes(nrElems)
 			,	fileName.c_str()

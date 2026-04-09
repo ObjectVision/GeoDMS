@@ -10,6 +10,7 @@
 #include "TreeItem.h"
 
 #include "act/InterestRetainContext.h"
+#include "DataCheckMode.h"
 #include "dbg/DebugCast.h"
 #include "mci/CompositeCast.h"
 

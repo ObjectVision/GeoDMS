@@ -11,6 +11,7 @@
 #define __RTC_GEO_GEOMETRY_H
 
 #include "RtcBase.h"
+#include "geo/ConversionBase.h"
 #include "geo/PointOrder.h"
 #include "Range.h"
 

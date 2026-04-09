@@ -12,12 +12,16 @@
 #ifndef __SYM_BASE_H
 #define __SYM_BASE_H
 
-#ifdef DMSYM_EXPORTS
-#	define SYM_CALL __declspec(dllexport)
-#elif DMSYM_STATIC
-#	define SYM_CALL
+#ifdef _MSC_VER
+#  ifdef DMSYM_EXPORTS
+#    define SYM_CALL __declspec(dllexport)
+#  elif defined(DMSYM_STATIC)
+#    define SYM_CALL
+#  else
+#    define SYM_CALL __declspec(dllimport)
+#  endif
 #else
-#	define SYM_CALL __declspec(dllimport)
+#  define SYM_CALL
 #endif
 
 #include "RtcBase.h"

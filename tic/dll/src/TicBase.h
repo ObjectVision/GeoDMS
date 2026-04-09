@@ -22,7 +22,9 @@
 #include "RtcBase.h"
 #include "SymBase.h"
 
-#if defined(DMTIC_EXPORTS)
+#if !defined(_MSC_VER)
+#	define TIC_CALL
+#elif defined(DMTIC_EXPORTS)
 #	define TIC_CALL __declspec(dllexport)
 #else
 #	define TIC_CALL __declspec(dllimport)

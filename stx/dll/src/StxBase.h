@@ -11,7 +11,9 @@
 
 #include "TicBase.h"
 
-#if defined(DMSTX_EXPORTS)
+#if !defined(_MSC_VER)
+#	define SYNTAX_CALL
+#elif defined(DMSTX_EXPORTS)
 #	define SYNTAX_CALL __declspec(dllexport)
 #else
 #	define SYNTAX_CALL __declspec(dllimport)

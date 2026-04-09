@@ -161,7 +161,7 @@ IndexedStringsBase::index_type
 IndexedStrings<MustZeroTerminate, CharPtrRangeEqCmp, CharPtrRangeHasher>::GetExisting_impl(CharPtr keyFirst, CharPtr keyLast) const
 {
 	CharPtrRange keyValue(keyFirst, keyLast);
-	index_iterator i = m_Idx.find(keyValue);
+	auto i = m_Idx.find(keyValue);
 	if (i != m_Idx.end() && m_Idx.key_eq()(keyValue, *i))
 		return *i; //	return found ID.
 
@@ -170,5 +170,5 @@ IndexedStrings<MustZeroTerminate, CharPtrRangeEqCmp, CharPtrRangeHasher>::GetExi
 
 using IndexedStringValues = IndexedStrings<false, GenericEqual, GenericHasher>;
 
-template TokenStrings;
-template IndexedStringValues;
+template class IndexedStrings<true, AsciiFoldedCaseInsensitiveEqual, AsciiFoldedChunkedCaseInsensitiveHasher>;
+template class IndexedStrings<false, GenericEqual, GenericHasher>;

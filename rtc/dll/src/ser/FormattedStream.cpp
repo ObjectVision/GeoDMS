@@ -10,6 +10,7 @@
 
 #include <stdio.h>
 #include <ctype.h>
+#include <charconv>
 
 #include "geo/Conversions.h"
 #include "geo/iterrange.h"
@@ -76,7 +77,7 @@ char FormattedInpStream::ReadChar()
 	if (!m_AtEnd)
 	{
 		assert(m_InpStreamBuff);
-		assert(md_LastPos == m_InpStreamBuff->CurrPos());
+		MG_DEBUGCODE(assert(md_LastPos == m_InpStreamBuff->CurrPos()));
 
 		if (m_NextChar == '\n')
 		{

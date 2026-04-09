@@ -94,7 +94,8 @@ struct AssocListPtrWrap : LispListPtrWrap<BasePtr, Assoc>
 
 	AssocListPtrWrap Tail() const
 	{
-		return reinterpret_cast<AssocListPtrWrap&>(base_type::Tail());
+		auto tmp = base_type::Tail();
+		return reinterpret_cast<AssocListPtrWrap&>(tmp);
 	}
 
 	// new methods

@@ -24,7 +24,7 @@ public:
 	/// Return the logical parent in the persistent hierarchy, or nullptr if this is the root.
 	/// Ownership: non-owning raw pointer.
 	/// Thread-safety: depends on implementation.
-	RTC_CALL virtual [[nodiscard]] const PersistentObject* GetParent() const noexcept;
+	RTC_CALL [[nodiscard]] virtual const PersistentObject* GetParent() const noexcept;
 
 	/// Return the local source/name identifier of this object (without path/ancestor context).
 	/// Contract: Should be stable and suitable for composition by GetFullName().

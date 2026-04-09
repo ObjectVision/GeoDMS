@@ -51,8 +51,8 @@ struct LispListPtrWrap : LispPtrWrap<PtrBase>
     list_type Delete(elem_ptr e) const;
     list_type Concat(ptr_type l) const;
 
-    elem_ptr Head() const { return reinterpret_cast<elem_ptr&>(this->Left());  }
-    ptr_type Tail() const { return reinterpret_cast<ptr_type&>(this->Right()); }
+	elem_ptr Head() const { auto tmp = this->Left();  return reinterpret_cast<elem_ptr&>(tmp);  }
+	ptr_type Tail() const { auto tmp = this->Right(); return reinterpret_cast<ptr_type&>(tmp); }
 
     elem_ptr First () const {return Head(); };
     elem_ptr Second() const {return Tail().First ();};

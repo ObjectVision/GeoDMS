@@ -44,6 +44,8 @@ struct ErrMsg;
 struct SourceLocation;
 using ErrMsgPtr = std::shared_ptr<ErrMsg>;
 
+#include "throwItemError.h"
+
 //----------------------------------------------------------------------
 // Macro's for RunTimeTypeInfo (introspection) and dynamic creation
 //----------------------------------------------------------------------

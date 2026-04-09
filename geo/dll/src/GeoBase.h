@@ -11,9 +11,11 @@
 
 #include "ClcBase.h"
 
-#if defined(GEO_EXPORTS)
+#if !defined(_MSC_VER)
+#	define GEO_CALL
+#elif defined(GEO_EXPORTS)
 #	define GEO_CALL __declspec(dllexport)
-#elif GEO_STATIC
+#elif defined(GEO_STATIC)
 #	define GEO_CALL
 #else
 #	define GEO_CALL __declspec(dllimport)

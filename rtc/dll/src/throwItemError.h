@@ -7,6 +7,8 @@
 #if !defined(__RTC_THROWITEMERROR_H)
 #define __RTC_THROWITEMERROR_H
 
+#include "ptr/SharedStr.h"
+
 class Object;
 
 	//	====================== Why here, TODO G8 move to separate header

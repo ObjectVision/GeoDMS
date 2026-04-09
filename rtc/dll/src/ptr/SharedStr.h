@@ -410,15 +410,15 @@ public:
 	using base_type::csend;
 	using base_type::has_ptr;
 
-	auto get_ptr() const { return base_type::get(); }
+	const SharedCharArray* get_ptr() const { return base_type::get(); }
 
-	char* begin() { MakeUnique(); return has_ptr() ?  get_ptr()->begin() : nullptr;  }
-	char* send () { MakeUnique(); return has_ptr() ?  get_ptr()->end()-1 : nullptr;  }
+	char* begin() { MakeUnique(); return has_ptr() ?  const_cast<SharedCharArray*>(get_ptr())->begin() : nullptr;  }
+	char* send () { MakeUnique(); return has_ptr() ?  const_cast<SharedCharArray*>(get_ptr())->end()-1 : nullptr;  }
 
 	char* end()   { return send(); }
 	const char* end() const { return send(); }
 
-	void erase(SizeT pos, SizeT c=1) { MakeUnique(); assert(has_ptr()); return get_ptr()->erase (pos, c); }
+	void erase(SizeT pos, SizeT c=1) { MakeUnique(); assert(has_ptr()); return const_cast<SharedCharArray*>(get_ptr())->erase (pos, c); }
 	RTC_CALL void insert(SizeT pos, char ch);
 	RTC_CALL SharedStr replace(CharPtr key, CharPtr val) const;
 

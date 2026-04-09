@@ -38,7 +38,9 @@ granted by an additional written contract for support, assistance and/or develop
 #include "geo/color.h"
 #include "geo/transform.h"
 
-#ifdef DMSTGDLL_EXPORTS
+#if !defined(_MSC_VER)
+#	define STGDLL_CALL
+#elif defined(DMSTGDLL_EXPORTS)
 #	define STGDLL_CALL __declspec(dllexport)
 #else
 #	ifdef DMSTGDLL_STATIC
