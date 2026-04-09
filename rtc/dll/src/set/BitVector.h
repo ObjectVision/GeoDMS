@@ -401,7 +401,7 @@ struct bit_sequence : bit_sequence_base<N, Block>
 
 		typename bit_info_t::bit_index_type elemIndex = bit_info_t::elem_index(this->m_NrElems);
 		if (elemIndex)
-			*afterLastFullBlock &= ~((bit_info_t::block_type(1) << (elemIndex*N))-1);
+			*afterLastFullBlock &= ~((typename bit_info_t::block_type(1) << (elemIndex*N))-1);
 	}
 
 	template <typename OthBlock>

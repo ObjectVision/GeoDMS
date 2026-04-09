@@ -10,7 +10,6 @@
 #define __STG_MMD_STORAGEMANAGER_H
 
 
-#include "ptr/OlePtr.h"
 #include "ser/FileMapHandle.h"
 
 #include "mci/Object.h"

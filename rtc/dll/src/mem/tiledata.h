@@ -47,8 +47,7 @@ struct file_tile : sequence_traits<V>::polymorph_vec_t //, TileBase // TODO G8: 
 		if (!result)
 		{
 			result = std::make_shared<mapped_file_tile<V>>(fileTileArray, this, rwMode);
-			m_OpenFile = result;
-			assert(this->IsLocked());
+				m_OpenFile = result;
 		}
 		return result;
 	}

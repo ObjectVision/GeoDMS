@@ -93,14 +93,14 @@ DataArrayBase<V>::GetIndexedIterator(SizeT index, GuiReadLock& lockHolder) const
 template <class V>
 SizeT DataArrayBase<V>::CountValues(param_t v) const
 {
-	Concurrency::combinable<SizeT> counts;
-	
-	parallel_tileloop(GetTiledRangeData()->GetNrTiles(), [v, this, &counts](tile_id t)->void
+	std::atomic<SizeT> count{0};
+
+	parallel_tileloop(this->GetTiledRangeData()->GetNrTiles(), [v, this, &count](tile_id t)->void
 	{
-		auto data = GetTile(t);
-		counts.local() += std::count(data.begin(), data.end(), v);
+		auto data = this->GetTile(t);
+		count += std::count(data.begin(), data.end(), v);
 	});
-	return counts.combine(std::plus<SizeT>());
+	return count.load();
 }
 
 // override AbstrDataItem
@@ -178,7 +178,7 @@ template <class V>
 Float64 NumericArray<V>::GetValueAsFloat64(SizeT index) const
 {
 	CountablePointConverter<V> conv(this->m_ValueRangeDataPtr);
-	return conv.GetScalar<Float64>(this->GetIndexedValue(index));
+	return conv.template GetScalar<Float64>(this->GetIndexedValue(index));
 }
 
 template <class V>
@@ -199,7 +199,7 @@ template <class V>
 Int32 NumericArray<V>::GetValueAsInt32(SizeT index) const
 {
 	CountablePointConverter<V> conv(this->m_ValueRangeDataPtr);
-	return conv.GetScalar<Int32>(this->GetIndexedValue(index));
+	return conv.template GetScalar<Int32>(this->GetIndexedValue(index));
 }
 
 template <class V>
@@ -213,14 +213,14 @@ template <class V>
 UInt32 NumericArray<V>::GetValueAsUInt32(SizeT index) const
 {
 	CountablePointConverter<V> conv(this->m_ValueRangeDataPtr);
-	return conv.GetScalar<UInt32>(this->GetIndexedValue(index));
+	return conv.template GetScalar<UInt32>(this->GetIndexedValue(index));
 }
 
 template <class V>
 SizeT NumericArray<V>::GetValueAsSizeT(SizeT index) const
 {
 	CountablePointConverter<V> conv(this->m_ValueRangeDataPtr);
-	return conv.GetScalar<SizeT>(this->GetIndexedValue(index));
+	return conv.template GetScalar<SizeT>(this->GetIndexedValue(index));
 }
 
 template <class V>
@@ -248,7 +248,7 @@ template <class V>
 UInt8 NumericArray<V>::GetValueAsUInt8(SizeT index) const
 {
 	CountablePointConverter<V> conv(this->m_ValueRangeDataPtr);
-	return conv.GetScalar<UInt8>(this->GetIndexedValue(index));
+	return conv.template GetScalar<UInt8>(this->GetIndexedValue(index));
 }
 
 template <class V>
@@ -298,7 +298,7 @@ SizeT NumericArray<V>::GetValuesAsFloat64Array(tile_loc tl, SizeT len, Float64* 
 		pi = elemData.begin() + tl.second,
 		pe = pi + len;
 	for (; pi != pe; ++pi, ++data)
-		*data = conv.GetScalar<Float64>(*pi);
+		*data = conv.template GetScalar<Float64>(*pi);
 	return len;
 }
 
@@ -315,7 +315,7 @@ SizeT NumericArray<V>::GetValuesAsUInt32Array  (tile_loc tl, SizeT len, UInt32* 
 		pi = elemData.begin() + tl.second,
 		pe = pi + len;
 	for (; pi != pe; ++pi, ++data)
-		*data = conv.GetScalar<UInt32>(*pi);
+		*data = conv.template GetScalar<UInt32>(*pi);
 	return len;
 }
 
@@ -332,7 +332,7 @@ SizeT NumericArray<V>::GetValuesAsInt32Array(tile_loc tl, SizeT len, Int32* data
 		pi = elemData.begin() + tl.second,
 		pe = pi + len;
 	for (; pi != pe; ++pi, ++data)
-		*data = conv.GetScalar<Int32>(*pi);
+		*data = conv.template GetScalar<Int32>(*pi);
 	return len;
 }
 
@@ -349,7 +349,7 @@ SizeT NumericArray<V>::GetValuesAsUInt8Array  (tile_loc tl, SizeT len, UInt8* da
 		pi = elemData.begin() + tl.second,
 		pe = pi + len;
 	for (; pi != pe; ++pi, ++data)
-		*data = conv.GetScalar<UInt8>(*pi);
+		*data = conv.template GetScalar<UInt8>(*pi);
 	return len;
 }
 

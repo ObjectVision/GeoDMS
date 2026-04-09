@@ -15,8 +15,7 @@ template <typename R> struct Resource;
 
 struct ResourceBase
 {
-	virtual ~ResourceBase() = 0
-	{}
+	virtual ~ResourceBase() = 0;
 
 	template <typename R>
 	bool IsA() const
@@ -51,6 +50,8 @@ struct ResourceBase
 
 
 };
+
+inline ResourceBase::~ResourceBase() {}
 
 template <typename R>
 struct Resource : ResourceBase, R

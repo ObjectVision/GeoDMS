@@ -646,7 +646,7 @@ bool CountableUnitBase<V>::ContainsUndefined(tile_id t) const
 }
 
 template <class V>
-typename Range<V>
+Range<V>
 RangedUnit<V>::GetPreparedRange() const
 {
 	dbg_assert(this->CheckMetaInfoReadyOrPassor() || this->HasConfigData());
@@ -1107,7 +1107,7 @@ V OrderedUnit<V>::GetTileValue (tile_id t, tile_offset localIndex) const
 	return Range_GetValue_checked(si->GetTileRange(t), localIndex);
 }
 
-template <typename V> typename
+template <typename V>
 auto CountableUnitBase<V>::GetTileRange(tile_id t) const -> range_t
 {
 	assert(t != no_tile);

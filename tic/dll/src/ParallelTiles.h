@@ -18,7 +18,10 @@
 #include "OperationContext.h" 
 
 #if defined(WIN32)
+#include <condition_variable>
+#if defined(_MSC_VER)
 #include <ppl.h>
+#endif
 #endif
 
 struct tile_task_group
