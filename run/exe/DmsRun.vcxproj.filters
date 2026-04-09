@@ -15,6 +15,7 @@
     <Text Include="DebugSettings.txt">
       <Filter>Source Files</Filter>
     </Text>
+    <Text Include="CMakeLists.txt" />
   </ItemGroup>
   <ItemGroup>
     <CustomBuild Include="..\..\profiler\profiler.py" />

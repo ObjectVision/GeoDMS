@@ -55,12 +55,10 @@
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Platform)'=='Win32'">
     <Link>
-      
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Platform)'=='x64'">
     <Link>
-      
       <DelayLoadDLLs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">gdald.dll;proj_d.dll</DelayLoadDLLs>
       <DelayLoadDLLs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">gdal.dll;proj.dll</DelayLoadDLLs>
     </Link>
@@ -134,6 +132,9 @@
     <ClCompile Include="src\SpatialAnalyzer.cpp" />
     <ClCompile Include="src\TraceBack.cpp" />
     <ClCompile Include="src\Voronoi.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <Text Include="CMakeLists.txt" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
