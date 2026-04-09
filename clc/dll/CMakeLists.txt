@@ -12,4 +12,13 @@ target_include_directories(DmClc
 
 target_compile_definitions(DmClc PRIVATE DMCLC_EXPORTS)
 
+find_package(GDAL)
+find_package(PROJ CONFIG)
+
 target_link_libraries(DmClc PUBLIC DmRtc DmSym DmTic DmStx DmStg)
+if(GDAL_FOUND)
+    target_link_libraries(DmClc PRIVATE GDAL::GDAL)
+endif()
+if(PROJ_FOUND)
+    target_link_libraries(DmClc PRIVATE PROJ::proj)
+endif()

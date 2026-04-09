@@ -12,6 +12,8 @@ target_include_directories(DmRtc
 target_compile_definitions(DmRtc PRIVATE DMRTC_EXPORTS)
 
 target_link_libraries(DmRtc PUBLIC Boost::boost)
+find_package(Boost REQUIRED COMPONENTS locale)
+target_link_libraries(DmRtc PRIVATE Boost::locale)
 
 if(WIN32)
     target_link_libraries(DmRtc PRIVATE psapi)

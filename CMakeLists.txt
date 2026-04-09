@@ -27,21 +27,13 @@ add_compile_definitions(
 # Platform-specific settings
 if(MSVC)
     add_compile_options(/utf-8 /bigobj /W3 /EHsc /GR)
-    add_compile_options($<$<CONFIG:Debug>:/Od /Zi>)
-    add_compile_options($<$<CONFIG:Release>:/O2 /Ob2 /DNDEBUG>)
 else()
-    add_compile_options(-Wall -Wextra -Wpedantic)
-    add_compile_options($<$<CONFIG:Debug>:-O0 -g>)
-    add_compile_options($<$<CONFIG:Release>:-O2 -DNDEBUG>)
+    add_compile_options(-Wall -Wextra -Wpedantic -pthread)
     add_link_options(-pthread)
 endif()
 
 # Find third-party packages (via vcpkg or system)
 find_package(Boost REQUIRED)
-find_package(GDAL REQUIRED)
-find_package(FFTW3 CONFIG REQUIRED)
-find_package(CGAL CONFIG REQUIRED)
-find_package(GEOS CONFIG REQUIRED)
 
 # Library projects (dependency order)
 add_subdirectory(rtc/dll)
