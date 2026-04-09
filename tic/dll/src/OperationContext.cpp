@@ -108,7 +108,9 @@ const bool MG_DEBUGCONNECTIONS = false;
 const bool MG_DEBUGCONNECTIONS = false;
 #endif //defined(MG_DEBUG)
 
+#if defined(_MSC_VER)
 concurrency::task_group& GetTaskGroup();
+#endif
 
 // *****************************************************************************
 // Section:     tile_task_group
@@ -136,7 +138,9 @@ static bool s_IsCancelled = false;
 // Number of worker threads currently running DoThisOrThatAndDecommission loop.
 static UInt32 s_NrRunningTileTaskThreads = 0;
 
+#if defined(_MSC_VER)
 static concurrency::task_group* s_OcTaskGroup = nullptr;
+#endif
 static bool s_OcTaskGroupIsCanceling = false;
 
 
@@ -267,7 +271,11 @@ tile_task_group::tile_task_group(IndexType last, task_func func)
 
 	// Launch workers outside of lock.
 	while (nrThreadsToCommission-- > 0)
+#if defined(_MSC_VER)
 		GetTaskGroup().run([] { DoThisOrThatAndDecommission(); });
+#else
+		std::thread([] { DoThisOrThatAndDecommission(); }).detach();
+#endif
 }
 
 // Destructor waits for all commissioned slots to complete and propagates exceptions.
@@ -681,6 +689,7 @@ TIC_CALL void WakeUpJoiners()
 
 TIC_CALL tg_maintainer::tg_maintainer()
 {
+#if defined(_MSC_VER)
 	// build policy: pin min/max concurrency to number of vCPUs
 	concurrency::SchedulerPolicy policy(2, concurrency::MinConcurrency, GetNrVCPUs(), concurrency::MaxConcurrency, GetNrVCPUs());
 
@@ -690,10 +699,12 @@ TIC_CALL tg_maintainer::tg_maintainer()
 
 	assert(!s_OcTaskGroup);
 	s_OcTaskGroup = new concurrency::task_group;
+#endif
 }
 
 TIC_CALL tg_maintainer::~tg_maintainer()
 {
+#if defined(_MSC_VER)
 	assert(s_OcTaskGroup);
 	s_OcTaskGroupIsCanceling = true;
 	{
@@ -711,18 +722,20 @@ TIC_CALL tg_maintainer::~tg_maintainer()
 	s_OcTaskGroup->wait();
 
 	assert(sd_RunningOC.empty() || g_IsTerminating);
-//	assert(sd_OC.empty() || g_IsTerminating); issue with scheduled PrepareDataReadTasks that hold a readInfoPtr that holds a StorageMetaInfo that refCounts the m_Curr item that holds its PrepareDataReadTask in m_ReadAssets until the read has started.
 
 	delete s_OcTaskGroup;
 	s_OcTaskGroup = nullptr;
+#endif
 }
 
+#if defined(_MSC_VER)
 // Global access to the task group, must be initialized by tg_maintainer.
 concurrency::task_group& GetTaskGroup()
 {
 	assert(s_OcTaskGroup);
 	return *s_OcTaskGroup;
 }
+#endif
 
 // *****************************************************************************
 // Section: PhaseNumbers
@@ -1119,7 +1132,11 @@ void StartCollectedOperationContexts(context_array collectedActivatedContexts)
 						self->TryRunningTaskInline();
 				};
 
+#if defined(_MSC_VER)
 			GetTaskGroup().run(selfCaller);
+#else
+			std::thread(selfCaller).detach();
+#endif
 		}
 }
 
@@ -1501,7 +1518,7 @@ bool  OperationContext::getUniqueLicenseToRun(bool runDirect)
 		}
 
 	DSM::CancelIfOutOfInterest(m_Result);
-	if (GetTaskGroup().is_canceling())
+	if (s_OcTaskGroupIsCanceling)
 		throw task_canceled{};
 
 	m_Status = task_status::running;
@@ -1952,7 +1969,7 @@ bool OperationContext::ScheduleCalcResult(ArgRefs&& argRefs, explain_context_ptr
 	}
 	if (resultHolder.WasFailed(FailType::Data))
 	{
-		m_Result->Fail(resultHolder);
+		m_Result->Fail(resultHolder.GetOld());
 		assert(m_Status >= task_status::running);
 		OnException();
 		resultStatus = task_status::exception;

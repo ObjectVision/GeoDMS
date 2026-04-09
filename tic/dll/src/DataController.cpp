@@ -20,6 +20,8 @@
 #include "LispTreeType.h"
 #include "OperationContext.h"
 
+#include <condition_variable>
+
 // *****************************************************************************
 //										TLispRefTreeItemMap
 // *****************************************************************************

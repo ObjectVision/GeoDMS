@@ -26,8 +26,9 @@
 template <class T>
 struct RangeProp : PropDef<Unit<T>, typename Unit<T>::range_t >
 {
-	using typename RangeProp::ApiType;
-	using typename RangeProp::ParamType;
+	using base_type = PropDef<Unit<T>, typename Unit<T>::range_t>;
+	using typename base_type::ApiType;
+	using typename base_type::ParamType;
 
 	typedef          Unit<T>         unit_t;
 	typedef typename unit_t::range_t range_t;

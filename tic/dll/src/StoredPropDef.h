@@ -31,10 +31,11 @@ extern std::mutex g_RemoveRequestMutex;
 template <class ItemType, class PropType>
 class StoredPropDef: public PropDef<ItemType, PropType>
 {
+public:
 	using base_type = PropDef<ItemType, PropType>;
 	using typename base_type::ApiType;
 	using typename base_type::ParamType;
-
+private:
 	using DataType = std::map<const ItemType*, PropType>;
 
 public:

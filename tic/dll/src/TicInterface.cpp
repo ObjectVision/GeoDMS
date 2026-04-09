@@ -718,7 +718,7 @@ extern "C" TIC_CALL bool DMS_CONV DMS_TreeItem_IsDataFailed(const TreeItem* self
 {
 	DMS_CALL_BEGIN
 
-		assert(!DebugOnlyLock::IsLocked());
+		MG_DEBUGCODE( assert(!DebugOnlyLock::IsLocked()) );
 
 		TreeItemContextHandle checkPtr(self, TreeItem::GetStaticClass(), "DMS_TreeItem_IsDataFailed");
 

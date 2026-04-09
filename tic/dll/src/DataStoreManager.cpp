@@ -31,7 +31,7 @@
 [[noreturn]] void DSM::CancelOrThrow(const TreeItem* item)
 {
 	if (CancelableFrame::CurrActive())
-		concurrency::cancel_current_task(); // assume it was cancelled due to outdated suppliers
+		throw task_canceled{}; // assume it was cancelled due to outdated suppliers
 
 	if (item)
 		throwPreconditionFailed(item->GetConfigFileName().c_str(), item->GetConfigFileLineNr(), "CancelOrThrow requested without CancelableFrame");

@@ -644,7 +644,7 @@ bool TreeItem_XML_DumpGeneralBody(const TreeItem* self, OutStreamBase* xmlOutStr
 	{
 		for( auto refItem = self; refItem; refItem = refItem->mc_RefItem.get())
 		{
-			assert(!DebugOnlyLock::IsLocked()); // PRECONDITION
+			MG_DEBUGCODE( assert(!DebugOnlyLock::IsLocked()) ); // PRECONDITION
 			auto nc = TreeItem_GetProgressState(refItem);
 			xmlTable.NameValueRow(
 				"ProgressState",

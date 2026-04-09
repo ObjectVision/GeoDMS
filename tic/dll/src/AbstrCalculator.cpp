@@ -1122,7 +1122,7 @@ bool ApplyMetaFunc_impl(TreeItem* holder, const AbstrCalculator* ac, const Abstr
 		}
 		if (resultHolder->WasFailed(FailType::MetaInfo))
 		{
-			holder->Fail(*resultHolder, FailType::MetaInfo);
+			holder->Fail(resultHolder->GetOld(), FailType::MetaInfo);
 			resultingFlag = false;
 		}
 

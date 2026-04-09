@@ -23,6 +23,8 @@
 #include "Parallel.h"
 #include "Unit.h"
 
+#include <condition_variable>
+
 #include "OperationContext.h"
 SizeT GetNumberOfActivatedOrRunningOperations();
 
@@ -717,7 +719,11 @@ bool RunTask(const TreeItem* item)
 			if (!s_RunTaskActive)
 			{
 				s_RunTaskActive = true;
+#if defined(_MSC_VER)
 				s_RunTask = dms_task(&RunTasks);
+#else
+				std::thread(RunTasks).detach();
+#endif
 			}
 		}
 //		else

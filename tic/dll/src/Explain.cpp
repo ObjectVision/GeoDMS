@@ -421,7 +421,7 @@ namespace Explain { // local defs
 		ItemInterestArray        m_ItemInterests;
 		CalcInterestArray        m_CalcInterests;
 
-		SharedDataItem           m_StudyObject = 0;
+		SharedDataItem           m_StudyObject;
 		SizeT                    m_StudyIdx = -1;
 		std::string              m_ExtraInfo;
 		std::string_view         m_ExprRelPath;
@@ -1268,7 +1268,7 @@ namespace Explain
 
 	context_handle CreateContext()
 	{
-		return context_handle{ new Explain::CalcExplImpl, DeleteContext };
+		return context_handle( new Explain::CalcExplImpl, DeleteContext );
 	}
 
 	void AddQueueEntry(Explain::CalcExplImpl* explImpl, const AbstrUnit * domain, SizeT index)
