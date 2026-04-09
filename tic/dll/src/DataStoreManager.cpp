@@ -4,7 +4,9 @@
 #pragma hdrstop
 #endif //defined(CC_PRAGMAHDRSTOP)
 
+#if defined(_MSC_VER)
 #include "ppltasks.h"
+#endif
 
 #include "DataStoreManagerCaller.h"
 

@@ -62,10 +62,10 @@ struct UnitProcessor;
 struct DataReadLock;
 struct DataWriteLock;
 
-enum   NotificationCode;
+enum   NotificationCode : int;
 enum   class DrlType : UInt8;
 enum class CalcRole : UInt8;
-enum   DataCheckMode;
+enum   DataCheckMode : int;
 
 // Forward Declarations
 class AbstrStorageManager;

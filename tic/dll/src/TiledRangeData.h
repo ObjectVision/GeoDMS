@@ -106,6 +106,9 @@ struct AbstrTileRangeData : SharedObj
 	TIC_CALL row_id GetElemCount() const;
 };
 
+template<typename T>
+inline constexpr bool has_small_range_v = (sizeof(T) <= 2);
+
 template <typename V>
 struct SmallRangeData : AbstrTileRangeData
 {
@@ -343,13 +346,13 @@ struct tiled_range_provider {
 struct fixed_range_provider {
 	template <typename T> struct apply { using type = Void; };
 	template <typename T> struct apply_ptr { using type = Void; };
-
-	template <> struct apply<Void> { using type = FixedRange<0>; };
-	template <> struct apply_ptr<Void> { using type = Void; };
-
-	template <bit_size_t N> struct apply<bit_value<N>> { using type = FixedRange<N>;  };
-	template <bit_size_t N> struct apply_ptr<bit_value<N>> { using type = Void; };
 };
+
+template <> struct fixed_range_provider::apply<Void> { using type = FixedRange<0>; };
+template <> struct fixed_range_provider::apply_ptr<Void> { using type = Void; };
+
+template <bit_size_t N> struct fixed_range_provider::apply<bit_value<N>> { using type = FixedRange<N>;  };
+template <bit_size_t N> struct fixed_range_provider::apply_ptr<bit_value<N>> { using type = Void; };
 
 struct void_provider {
 	template <typename T> struct apply { using type = Void; };
@@ -358,9 +361,6 @@ struct void_provider {
 
 template<typename T>
 const bool has_simple_range_v = std::is_floating_point_v< scalar_of_t<T> >;
-
-template<typename T>
-const bool has_small_range_v = (sizeof(T) <= 2);
 
 template<typename T>
 using domain_range_provider = std::conditional_t<has_small_range_v<T>, small_range_provider, tiled_range_provider>;
@@ -450,15 +450,15 @@ private:
 
 template <typename T>
 struct fixed_range_converter_provider {
-	template <typename T> struct apply {
-		using type = FixedRangeConverter<T>;
+	template <typename U> struct apply {
+		using type = FixedRangeConverter<U>;
 	};
 };
 
 template <typename T>
 struct countable_range_converter_provider {
-	template <typename T> struct apply {
-		using type = CountableVarRangeConverter<T>;
+	template <typename U> struct apply {
+		using type = CountableVarRangeConverter<U>;
 	};
 };
 

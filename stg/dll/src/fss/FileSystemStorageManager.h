@@ -13,7 +13,6 @@
 
 
 #include "StgBase.h"
-#include "ptr/OlePtr.h"
 #include "ser/FileMapHandle.h"
 
 #include "stg/AsmUtil.h"
@@ -25,8 +24,6 @@
 
 class FileSystemStorageManager : public AbstrStreamManager
 {
-	friend class CompoundStorageOutStreamBuff; // can only be accessed by this class
-
 public:
 
 	STGDLL_CALL ~FileSystemStorageManager();

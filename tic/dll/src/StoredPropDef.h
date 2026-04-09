@@ -80,7 +80,7 @@ public:
 				return false;
 
 			// insert
-			m_Data.insert(i, DataType::value_type(item, value));
+			m_Data.insert(i, typename DataType::value_type(item, value));
 			item->AddPropAssoc(this);
 			return true;
 		}
@@ -301,7 +301,7 @@ public:
 		if (i == m_Data.end() || i->first != item)
 		{
 			// insert
-			m_Data.insert(i, DataType::value_type(item, value));
+			m_Data.insert(i, typename DataType::value_type(item, value));
 			item->AddPropAssoc(this);
 			return true;
 		}
@@ -365,7 +365,8 @@ private:
 template <class ItemType, class PropType>
 struct MF_RoPropDef : ReadOnlyPropDef<ItemType, PropType>
 {
-	using typename MF_RoPropDef::ApiType;
+	using base_type = ReadOnlyPropDef<ItemType, PropType>;
+	using typename base_type::ApiType;
 //	using MF_RoPropDef::ParamType;
 
 	using GetFunc = ApiType(ItemType::*)() const;

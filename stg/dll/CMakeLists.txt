@@ -3,7 +3,6 @@
 set(STG_SOURCES
     src/bmp/BmpImp.cpp
     src/bmp/BmpStorageManager.cpp
-    src/cfs/CompoundStorageManager.cpp
     src/dbf/dbfImp.cpp
     src/dbf/dbfStorageManager.cpp
     src/DllMain.cpp

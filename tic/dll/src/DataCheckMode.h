@@ -13,7 +13,7 @@
 // enumeration Check Modes
 //----------------------------------------------------------------------
 
-enum DataCheckMode{
+enum DataCheckMode : int{
 	DCM_None = 0
 ,	DCM_CheckDefined= 1
 ,	DCM_CheckRange= 2

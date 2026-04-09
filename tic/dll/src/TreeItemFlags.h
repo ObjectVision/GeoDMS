@@ -14,6 +14,7 @@
 //----------------------------------------------------------------------
 
 #include "TicBase.h"
+#include "DataCheckMode.h"
 
 #if defined(MG_DEBUG)
 #	define CHECK_FLAG_INVARIANTS CheckFlagInvariants()

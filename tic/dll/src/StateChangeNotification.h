@@ -12,7 +12,7 @@
 //----------------------------------------------------------------------
 
 #include "TicBase.h"
-enum NotificationCode {
+enum NotificationCode : int {
 	NC2_Invalidated    = 0,
 	NC2_DetermineChange= 1,
 	NC2_DetermineState = 2,

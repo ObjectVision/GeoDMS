@@ -46,8 +46,8 @@ struct DataArrayBase : AbstrDataObject
 	typedef typename api_type<value_type>::type                  api_t;
 	typedef typename sequence_traits<value_type>:: seq_t         seq_t_HIDE;
 	typedef typename sequence_traits<value_type>::cseq_t         cseq_t_HIDE;
-	typedef typename locked_seq< seq_t_HIDE, TileRef>            locked_seq_t;
-	typedef typename locked_seq<cseq_t_HIDE, TileCRef>           locked_cseq_t;
+	typedef locked_seq< seq_t_HIDE, TileRef>            locked_seq_t;
+	typedef locked_seq<cseq_t_HIDE, TileCRef>           locked_cseq_t;
 
 	typedef typename sequence_traits<value_type>::container_type container_t;
 
@@ -67,8 +67,8 @@ struct DataArrayBase : AbstrDataObject
 	TIC_CALL auto GetDataRead(tile_id t = no_tile) const -> locked_cseq_t;
 	TIC_CALL auto GetDataWrite(tile_id t, dms_rw_mode rwMode) -> locked_seq_t;
 
-	auto GetReadableTileLock(tile_id t) const->TileCRef override { return GetTile(t).m_TileHolder; } // TODO G8: REMOVE
-	auto GetWritableTileLock(tile_id t, dms_rw_mode rwMode) ->TileRef override { return GetWritableTile(t, rwMode).m_TileHolder; } // TODO G8: REMOVE
+	auto GetReadableTileLock(tile_id t) const->TileCRef override { return this->GetTile(t).m_TileHolder; } // TODO G8: REMOVE
+	auto GetWritableTileLock(tile_id t, dms_rw_mode rwMode) ->TileRef override { return this->GetWritableTile(t, rwMode).m_TileHolder; } // TODO G8: REMOVE
 
 	auto GetLockedDataRead(tile_id t = no_tile) const { return GetDataRead(t); } // TODO G8: SUBSTITUTE AWAY
 	auto GetLockedDataWrite(tile_id t, dms_rw_mode rwMode) { return GetDataWrite(t, rwMode); } // TODO G8: SUBSTITUTE AWAY

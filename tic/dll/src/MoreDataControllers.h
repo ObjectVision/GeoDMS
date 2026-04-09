@@ -9,8 +9,8 @@
 #if !defined(__TIC_MOREDATACONTROLLERS_H)
 #define __TIC_MOREDATACONTROLLERS_H
 
-#include "ptr\Resource.h" 
-#include "ptr\WeakPtr.h" 
+#include "ptr/Resource.h" 
+#include "ptr/WeakPtr.h" 
 
 #include "AbstrCalculator.h"
 #include "DataController.h"

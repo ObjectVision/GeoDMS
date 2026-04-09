@@ -19,7 +19,7 @@
 template <typename V>
 struct ZeroIndexGetter : IndexGetter
 {
-	ZeroIndexGetter(DataArray<V>::locked_cseq_t&& data, V upperBound)
+	ZeroIndexGetter(typename DataArray<V>::locked_cseq_t&& data, V upperBound)
 		: m_Data(std::move(data))
 		, m_UpperBound(upperBound)
 	{}
@@ -35,13 +35,13 @@ struct ZeroIndexGetter : IndexGetter
 	}
 
 	typename DataArray<V>::locked_cseq_t m_Data;
-	typename V                           m_UpperBound;
+	V                                    m_UpperBound;
 };
 
 template <typename V>
 struct NakedIndexGetter : IndexGetter
 {
-	NakedIndexGetter(DataArray<V>::locked_cseq_t&& data, typename Unit<V>::range_t range)
+	NakedIndexGetter(typename DataArray<V>::locked_cseq_t&& data, typename Unit<V>::range_t range)
 		: m_Data(std::move(data))
 		, m_Range(range)
 	{}
