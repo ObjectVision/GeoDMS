@@ -9,7 +9,11 @@
 #if !defined(__STG_GDAL_BASE_H)
 #define __STG_GDAL_BASE_H
 
+#if defined(_MSC_VER)
 #define CPL_DLL __declspec(dllimport)
+#else
+#define CPL_DLL
+#endif
 #define CPL_INTERNAL
 
 #include "StgBase.h"
