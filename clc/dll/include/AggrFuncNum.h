@@ -57,6 +57,10 @@ template<typename R> void SafeIncrement(R& assignee) // see the similarity with 
 	}
 }
 
+// Forward declarations needed for GCC (ADL doesn't find these for built-in types)
+template<typename R, typename T> void SafeAccumulate(R& assignee, T arg);
+template<typename R, typename T> void SafeAccumulate(Point<R>& assignee, const Point<T>& arg);
+
 template <typename T, typename I>
 struct unary_assign_inc : unary_assign<I, T>
 {

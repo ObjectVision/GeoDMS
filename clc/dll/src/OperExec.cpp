@@ -250,7 +250,10 @@ struct OperExecDllN : public VariadicOperator
 //											OperExecDll (4 params)
 // *****************************************************************************
 
+#if defined(_MSC_VER)
 #include "odbc/OdbcStorageManager.h"
+#endif
+#include "stg/AbstrStorageManager.h"
 #include "Unit.h"
 #include "UnitClass.h"
 #include "stg/StorageClass.h"
@@ -266,11 +269,13 @@ SharedStr GetStorageManagerName(const TreeItem* ti)
 	if (!storageManager)
 		return SharedStr();
 
+#if defined(_MSC_VER)
 	if (storageManager->GetDynamicClass() == ODBCStorageManager::GetStaticClass())
 	{
 		return debug_cast<ODBCStorageManager*>(storageManager)->GetDatabaseFilename(storageHolder.get());
 	}
 	else
+#endif
 		return storageManager->GetNameStr();
 }
 

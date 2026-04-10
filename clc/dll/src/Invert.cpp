@@ -147,7 +147,7 @@ public:
 					else
 					{
 						if (rt_n > 1)
-							valueRange = Unit<T>::range_t(arg1Data.begin(), arg1Data.end(), dcm != DCM_None, true);
+							valueRange = typename Unit<T>::range_t(arg1Data.begin(), arg1Data.end(), dcm != DCM_None, true);
 					}
 					DataCheckMode dcm2 = IsIncluding(arg1TileRange, entityRange) ? dcm: DCM_CheckRange;
 

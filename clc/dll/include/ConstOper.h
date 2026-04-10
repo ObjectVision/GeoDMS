@@ -52,7 +52,7 @@ struct ConstTileFunctor : GeneratedTileFunctor<V>
 		tile_offset currTileSize = this->GetTiledRangeData()->GetTileSize(t);
 		assert(tileSPtr->size() >= currTileSize);
 
-		return locked_cseq_t(tileSPtr, sequence_traits<V>::cseq_t(tileSPtr->begin(), tileSPtr->begin()+currTileSize));
+		return locked_cseq_t(tileSPtr, typename sequence_traits<V>::cseq_t(tileSPtr->begin(), tileSPtr->begin()+currTileSize));
 	}
 
 	tile_offset m_MaxTileSize;

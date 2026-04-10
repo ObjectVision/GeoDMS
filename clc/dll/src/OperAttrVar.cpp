@@ -138,8 +138,8 @@ struct ArgMinMaxOper : UnaryOperator
 					auto n = e1->GetTileCount(t);
 					auto arg1 = AsDataItem(args[0]);
 
-					auto valueSoFarContainer = sequence_traits<ArgValue>::container_type();
-					auto valueSoFar = sequence_traits<ArgValue>::seq_t();
+					auto valueSoFarContainer = typename sequence_traits<ArgValue>::container_type();
+					auto valueSoFar = typename sequence_traits<ArgValue>::seq_t();
 
 					auto resTile = mutable_array_cast<ResValue>(resLock)->GetWritableTile(t, IsArgIndex ? dms_rw_mode::write_only_mustzero : dms_rw_mode::write_only_all);
 					InitializeResTile<ResValue, ArgValue, NP, IsArgIndex>(valueSoFarContainer, valueSoFar, resTile.get_view(), arg1, t, n);

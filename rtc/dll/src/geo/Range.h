@@ -222,7 +222,7 @@ inline bool IsIncluding(Range<UInt32> a, bit_value<N> e)
 {
 	dms_assert(a.first  == 0);
 	dms_assert(a.second == (1 << N));
-	dms_assert(UInt32(bit_value<N>::base_type(e)) <  (1 << N));
+	dms_assert(UInt32(typename bit_value<N>::base_type(e)) <  (1 << N));
 	return true;
 }
 

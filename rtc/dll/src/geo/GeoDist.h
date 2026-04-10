@@ -13,6 +13,8 @@
 #include "geo/Conversions.h"
 #include "geo/RingIterator.h"
 
+#include <cmath>
+
 using seq_elem_index_type = UInt32;
 
 //----------------------------------------------------------------------

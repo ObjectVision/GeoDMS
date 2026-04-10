@@ -954,9 +954,9 @@ void point_in_polygon(
 		firstPolygon = polyData.begin(),
 		lastPolygon  = polyData.end();
 
-	typedef PointArray::value_type  PointType;
+	typedef typename PointArray::value_type  PointType;
 	typedef scalar_of_t<PointType>  ScalarType;
-	typedef ResSequence::value_type ResValueType;
+	typedef typename ResSequence::value_type ResValueType;
 
 	SizeT count = resData.size();
 	dms_assert(count == pointData.size());
@@ -1251,9 +1251,9 @@ void point_in_ranked_polygon(
 		firstPolygon = polyData.begin(),
 		lastPolygon = polyData.end();
 
-	typedef PointArray::value_type      PointType;
+	typedef typename PointArray::value_type      PointType;
 	typedef scalar_of_t<PointType>  ScalarType;
-	typedef ResSequence::value_type     ResValueType;
+	typedef typename ResSequence::value_type     ResValueType;
 
 	SizeT count = resData.size();
 	assert(count == pointData.size());

@@ -54,7 +54,7 @@ struct sqrx_func: unary_func<acc_type_t<T>, T>
 {
 	static ConstUnitRef unit_creator(const AbstrOperGroup* gr, const ArgSeqType& args) { return square_unit_creator(gr, args); }
 
-	typename sqrx_func::res_type operator()(typename sqrx_func::arg1_cref arg) const { return sqrx_func::res_type(arg) * sqrx_func::res_type(arg); }
+	typename sqrx_func::res_type operator()(typename sqrx_func::arg1_cref arg) const { return typename sqrx_func::res_type(arg) * typename sqrx_func::res_type(arg); }
 };
 
 template<typename T>
@@ -74,7 +74,7 @@ struct exp_func_checked: unary_func<product_type_t<T>, T>
 {
 	typename exp_func_checked::res_type operator()(typename exp_func_checked::arg1_cref arg) const
 	{ 
-		static const T s_MaxExp = log(MAX_VALUE(exp_func_checked::res_type));
+		static const T s_MaxExp = log(MAX_VALUE(typename exp_func_checked::res_type));
 		if (arg >= s_MaxExp || arg == UNDEFINED_VALUE(T))
 			return UNDEFINED_VALUE(typename exp_func_checked::res_type);
 		return std::exp(typename exp_func_checked::res_type(arg));

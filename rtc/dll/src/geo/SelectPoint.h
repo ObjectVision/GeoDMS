@@ -14,6 +14,8 @@
 #include "geo/Area.h"
 #include "set/VectorFunc.h"
 #include "geo/CalcWidth.h"
+
+#include <cmath>
 #include "ser/PointStream.h"
 #include "set/IndexCompare.h"
 
