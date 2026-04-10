@@ -220,16 +220,16 @@ public:
 	static void CalcTileWithIndex(typename sequence_traits<E>::seq_t resData, typename sequence_traits<V>::cseq_t arg1Data, const indexed_tile_t<index_type_t<E>, V>* indexPtr, typename Unit<E>::range_t arg2DomainRange)
 	{
 		IndexApplicator applicator;
-		applicator.applyIndexedSearch<typename sequence_traits<E>::seq_t, typename sequence_traits<V>::cseq_t>(resData, std::move(arg1Data), indexPtr->second.get_view(), arg2DomainRange, indexPtr->first);
+		applicator.template applyIndexedSearch<typename sequence_traits<E>::seq_t, typename sequence_traits<V>::cseq_t>(resData, std::move(arg1Data), indexPtr->second.get_view(), arg2DomainRange, indexPtr->first);
 
 		assert(resData.size() == arg1Data.size());
 	}
 
 	template <typename E>
-	static void CalcTileWithKeyValues(typename sequence_traits<E>::seq_t resData, typename sequence_traits<V>::cseq_t arg1Data, const DataArray<V>::locked_cseq_t* keyValuesPtr, typename Unit<E>::range_t arg2DomainRange)
+	static void CalcTileWithKeyValues(typename sequence_traits<E>::seq_t resData, typename sequence_traits<V>::cseq_t arg1Data, const typename DataArray<V>::locked_cseq_t* keyValuesPtr, typename Unit<E>::range_t arg2DomainRange)
 	{
 		IndexApplicator applicator;
-		applicator.applyBinarySearch<typename sequence_traits<E>::seq_t, typename sequence_traits<V>::cseq_t>(resData, std::move(arg1Data), keyValuesPtr->get_view(), arg2DomainRange);
+		applicator.template applyBinarySearch<typename sequence_traits<E>::seq_t, typename sequence_traits<V>::cseq_t>(resData, std::move(arg1Data), keyValuesPtr->get_view(), arg2DomainRange);
 		assert(resData.size() == arg1Data.size());
 	}
 

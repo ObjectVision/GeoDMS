@@ -65,7 +65,7 @@ template <typename T> struct assign_null_or_zero: nullary_assign<T>
 		MakeUndefinedOrZero(res);
 	}
 	void operator()(nullable_t<typename nullary_assign<T>::assignee_type>& res) const
-		requires !can_be_undefined_v<T>
+		requires (!can_be_undefined_v<T>)
 	{
 		MakeUndefined(res);
 	}

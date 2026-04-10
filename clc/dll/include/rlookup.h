@@ -32,7 +32,7 @@ namespace {
 			if (i != ie && classBoundsPtr[*i] == dataValue)
 				return *i;
 		}
-		return UNDEFINED_VALUE(std::iterator_traits<II>::value_type);
+		return UNDEFINED_VALUE(typename std::iterator_traits<II>::value_type);
 	}
 
 	template <typename T, typename TI>
@@ -56,7 +56,7 @@ namespace {
 		II i = indexed_lowerbound_with_null(ib, ie, classBoundsPtr, dataValue);
 		if (i != ie && eqCmp(classBoundsPtr[*i], dataValue))
 			return *i;
-		return UNDEFINED_VALUE(std::iterator_traits<II>::value_type);
+		return UNDEFINED_VALUE(typename std::iterator_traits<II>::value_type);
 	}
 
 	template <typename T, typename TI>
@@ -241,7 +241,7 @@ namespace {
 				return i[-1];
 			}
 		}
-		return UNDEFINED_VALUE(std::iterator_traits<II>::value_type);
+		return UNDEFINED_VALUE(typename std::iterator_traits<II>::value_type);
 	}
 
 	template <typename T, typename TI>

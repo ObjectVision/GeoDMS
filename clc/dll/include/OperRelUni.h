@@ -172,8 +172,10 @@ InIt indexed_upperbound(InIt first, InIt last, vIt beginData, const V& value)
 //                         UNARY RELATIONAL FUNCTIONS
 // *****************************************************************************
 
+#if defined(_MSC_VER)
 template <typename V>
 using execution_policy = std::conditional_t < sizeof(V) < 4, std::execution::sequenced_policy, std::execution::parallel_policy >;
+#endif
 
 template<typename IndexContainer, typename ConstDataIter>
 void make_index_skip_null(IndexContainer& resData, SizeT n, ConstDataIter unsortedDataBegin)
@@ -189,7 +191,12 @@ void make_index_skip_null(IndexContainer& resData, SizeT n, ConstDataIter unsort
 		if (IsDefined(unsortedDataBegin[i]))
 			resData.emplace_back(i);
 
-	std::stable_sort(execution_policy<IndexValue>(), resData.begin(), resData.end(), NonnullIndexCompareOper<ConstDataIter, IndexValue>(unsortedDataBegin));
+	#if defined(_MSC_VER)
+	std::stable_sort(execution_policy<IndexValue>(), 
+#else
+	std::stable_sort(
+#endif
+		resData.begin(), resData.end(), NonnullIndexCompareOper<ConstDataIter, IndexValue>(unsortedDataBegin));
 }
 
 template<typename IndexContainer, typename ConstDataIter>
@@ -204,7 +211,12 @@ void make_index_non_null_values(IndexContainer& resData, SizeT n, ConstDataIter 
 		resData.emplace_back(i);
 	}
 
-	std::stable_sort(execution_policy<IndexValue>(), resData.begin(), resData.end(), NonnullIndexCompareOper<ConstDataIter, IndexValue>(unsortedDataBegin));
+	#if defined(_MSC_VER)
+	std::stable_sort(execution_policy<IndexValue>(), 
+#else
+	std::stable_sort(
+#endif
+		resData.begin(), resData.end(), NonnullIndexCompareOper<ConstDataIter, IndexValue>(unsortedDataBegin));
 }
 
 template<typename IndexContainer, typename ConstDataIter>
@@ -216,7 +228,12 @@ void make_index_all_values(IndexContainer& resData, SizeT n, ConstDataIter unsor
 	for (SizeT i = 0; i != n; ++i)
 		resData.emplace_back(i);
 
-	std::stable_sort(execution_policy<IndexValue>(), resData.begin(), resData.end(), IndexCompareOper<ConstDataIter, IndexValue>(unsortedDataBegin));
+	#if defined(_MSC_VER)
+	std::stable_sort(execution_policy<IndexValue>(), 
+#else
+	std::stable_sort(
+#endif
+		resData.begin(), resData.end(), IndexCompareOper<ConstDataIter, IndexValue>(unsortedDataBegin));
 }
 
 template<typename IndexIter, typename ConstDataIter>
@@ -224,7 +241,12 @@ void make_index_in_existing_span(IndexIter resDataBegin, IndexIter resDataEnd, C
 {
 	using IndexValue = typename std::iterator_traits<IndexIter>::value_type ;
 	span_fill_sequential_index_numbers(resDataBegin, resDataEnd);
-	std::stable_sort(execution_policy<IndexValue>(), resDataBegin, resDataEnd, IndexCompareOper<ConstDataIter, IndexValue>(unsortedDataBegin));
+	#if defined(_MSC_VER)
+	std::stable_sort(execution_policy<IndexValue>(), 
+#else
+	std::stable_sort(
+#endif
+		resDataBegin, resDataEnd, IndexCompareOper<ConstDataIter, IndexValue>(unsortedDataBegin));
 }
 
 template<typename IndexIter, bit_size_t N, typename CB>
@@ -280,7 +302,7 @@ void make_subindex(
 		ConstDataIter unsortedDataBegin
 	)
 {
-	typedef std::iterator_traits<IndexIter>::value_type IndexValue;
+	typedef typename std::iterator_traits<IndexIter>::value_type IndexValue;
 
 	UInt32 size = resDataEnd - resDataBegin;
 	ConstIndexIter prevIndexEnd = prevIndexBegin + size;

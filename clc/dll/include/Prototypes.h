@@ -346,7 +346,7 @@ struct unary_partial_accumulation
 {
 	using this_type = unary_partial_accumulation;
 
-	typedef typename TAccumulationType            result_type;       // ie. Int32,             bit_value<N>,                 SharedStr
+	typedef TAccumulationType                    result_type;       // ie. Int32,             bit_value<N>,                 SharedStr
 	typedef typename this_type::assignee_type     accumulation_seq;  // ie. IterRange<Int32*>, bit_sequence<N, block_type>,  sequence_array_ref <char>
 	typedef typename accumulation_seq::value_type accumulation_type; // ie. Int32,             bit_reference<N, block_type>, SA_Reference<char>
 

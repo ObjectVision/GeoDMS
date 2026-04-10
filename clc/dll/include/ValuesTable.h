@@ -139,7 +139,7 @@ auto GetPartitionedCountsDirect(typename sequence_traits<V>::cseq_t data, const 
 		if (!IsDefined(part_i))
 			continue;
 
-		*bufferPtr++ = partition_value_pair(part_i, *valuesIter);
+		*bufferPtr++ = partition_value_pair(part_i, V(*valuesIter));
 	}
 
 	size = bufferPtr - buffer;
@@ -547,7 +547,7 @@ auto GetWeededCountsOfV(const DataArray<V>* valuesTF, bool noOutOfRangeValues,  
 			ValueCountPairContainerT<R, C> result; result.reserve(vcxxx.size() MG_DEBUG_ALLOCATOR_SRC("GetWeededCountsOfV"));
 			CountablePointConverter<V> conv(valuesTF->m_ValueRangeDataPtr);
 			for (const auto& vcp : vcxxx)
-				result.emplace_back(MG_DEBUG_ALLOCATOR_FIRST("GetWeededCountsOfV") conv.GetScalar<R>(vcp.first), vcp.second);
+				result.emplace_back(MG_DEBUG_ALLOCATOR_FIRST("GetWeededCountsOfV") conv.template GetScalar<R>(vcp.first), vcp.second);
 			return result;
 		}
 	}

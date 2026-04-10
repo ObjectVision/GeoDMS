@@ -65,7 +65,7 @@ void invert2values_best(ResIter  resultPtr
 	}
 }
 
-template<typename E, typename ResIter, typename bit_size_t N, typename B>
+template<typename E, typename ResIter, bit_size_t N, typename B>
 void invert2values_best(ResIter resultPtr
 	,	bit_iterator<N, B> curr, bit_iterator<N, B> last
 	,	Range<UInt32>             domainRange
@@ -165,7 +165,7 @@ void invertAll2values_best(ResIter  resultPerV, ResIter resultPerE
 	}
 }
 
-template<typename E, typename ResIter, typename bit_size_t N, typename B>
+template<typename E, typename ResIter, bit_size_t N, typename B>
 void invertAll2values_best(ResIter resultPerV, ResIter resultPerE
 	,	bit_iterator<N, B> curr, bit_iterator<N, B> last
 	,	Range<UInt32> domainRange

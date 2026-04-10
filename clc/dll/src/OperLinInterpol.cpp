@@ -44,11 +44,11 @@ void DoInterpolateLinear(
 	dms_assert(   data.size() == resData.size());
 	dms_assert(xCoords.size() == yCoords.size());
 
-	typedef DataArray<T>::const_iterator iter_x_t;
-	typedef DataArray<V>::iterator       iter_r_t;
+	typedef typename DataArray<T>::const_iterator iter_x_t;
+	typedef typename DataArray<V>::iterator       iter_r_t;
 	typedef Pair<T, V>                   chart_elem;
 	typedef std::vector<chart_elem>      chart_t;
-	typedef chart_t::iterator            chart_iter_t;
+	typedef typename chart_t::iterator            chart_iter_t;
 
 	iter_r_t
 		resultI = resData.begin(),
@@ -71,7 +71,7 @@ void DoInterpolateLinear(
 	chart.reserve(n);
 
 	for(; indexBegin != indexEnd; ++indexBegin)
-		chart.push_back(chart_t::value_type(xCoords[*indexBegin], yCoords[*indexBegin]));
+		chart.push_back(typename chart_t::value_type(xCoords[*indexBegin], yCoords[*indexBegin]));
 	chart_iter_t
 		chartB = chart.begin(),
 		chartE = chart.end();

@@ -20,7 +20,7 @@ struct MatrExprModel : boost::numeric::ublas::matrix_expression<MatrExprModel<T>
 {
 	typedef boost::numeric::ublas::container_reference<MatrExprModel> closure_type;
 
-	MatrExprModel(SizeT n1, SizeT n2, typename UGrid<T>::data_ptr data) : UGrid(UGridPoint(n1, n2), data) {}
+	MatrExprModel(SizeT n1, SizeT n2, typename UGrid<T>::data_ptr data) : UGrid<T>(UGridPoint(n1, n2), data) {}
 
 	void insert_element(SizeT i, SizeT j, T t) { * this->elemptr(UGridPoint(i, j)) = t; }
 	void erase_element (SizeT i, SizeT j)      { * this->elemptr(UGridPoint(i, j)) = 0; }

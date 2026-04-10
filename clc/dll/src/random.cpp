@@ -213,7 +213,8 @@ public:
 		parallel_tileloop(te, [result, seed, range](tile_id t)
 			{
 				using uniform_engine_t = uniform_engine<T> ;
-				auto seeds = std::seed_seq{ seed, t };
+				std::array<UInt32, 2> seedArr = { seed, static_cast<UInt32>(t) };
+				auto seeds = std::seed_seq(seedArr.begin(), seedArr.end());
 				uniform_engine_t rndEngine(seeds, range.first, range.second); // let each tile have its own seed
 
 				auto resultData = result->GetWritableTile(t);

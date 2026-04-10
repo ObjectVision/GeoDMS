@@ -96,7 +96,7 @@ struct FutureTileFunctor : DelayedTileFunctor<V>
 				tile_data resData;
 				reallocSO(resData, tf.tileSize, MustZero MG_DEBUG_ALLOCATOR_SRC(md_SrcStr.c_str()));
 				tf.aFunc(GetSeq(resData), tf.pState);
-				m_State.emplace<1>(std::move(resData));
+					m_State.template emplace<1>(std::move(resData));
 			}
 			assert(m_State.index() == 1);
 			return locked_cseq_t(this->shared_from_this(), GetConstSeq(std::get<1>(m_State)));

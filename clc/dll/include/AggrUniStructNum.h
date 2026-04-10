@@ -75,10 +75,10 @@ struct null_wrap : private std::pair<T, bool>
 		Assign(this->first, rhs);
 		this->second = true;
 	}
-	template <typename T>
-	void operator =(const T&& rhs)
+	template <typename U>
+	void operator =(const U&& rhs)
 	{
-		AssignValue(std::forward<T>(rhs));
+		AssignValue(std::forward<U>(rhs));
 	}
 	      T* operator ->()       { assert(IsDefined()); return &this->first; }
 	const T* operator ->() const { assert(IsDefined()); return &this->first; }
@@ -168,7 +168,7 @@ void Assign(null_wrap<T>& output, U&& rhs) requires (!is_null_wrap_v<std::remove
 			return;
 		}
 	}
-	output.AssignValue(rhs);
+	output.AssignValue(T(rhs));
 }
 
 // END MOVE
@@ -237,7 +237,7 @@ struct sum_func_generator
 	template <typename T> struct total : sum_total_in<Res, Acc, T> {};
 	template <typename T> struct partial : sum_partial_in<Res, Acc, T> 
 	{
-		static_assert(std::is_same_v<typename partial::result_type, Acc>);
+		static_assert(std::is_same_v<typename sum_partial_in<Res, Acc, T>::result_type, Acc>);
 	};
 };
 
@@ -350,10 +350,10 @@ struct last_total_best
 			}
 		}
 	}
-	template <typename T>
-	void CombineValues(T& accumulator, T rhs) const
+	template <typename U>
+	void CombineValues(U& accumulator, U rhs) const
 	{
-		if constexpr (has_undefines_v<T>)
+		if constexpr (has_undefines_v<U>)
 			if (!IsDefined(rhs))
 				return;
 		accumulator = rhs;
@@ -396,7 +396,7 @@ struct last_partial_best : std::conditional_t<has_undefines_v<T>, last_partial_b
 template <typename T>
 struct expectation_accumulation_type
 {
-	typedef typename SizeT              count_type;
+	typedef SizeT              count_type;
 	typedef typename acc_type<T>::type  sum_type;
 	typedef typename aggr_type<T>::type exp_type;
 	expectation_accumulation_type(): n(), total() {}

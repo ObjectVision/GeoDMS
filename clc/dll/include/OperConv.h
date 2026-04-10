@@ -685,10 +685,10 @@ public:
 		auto arg2 = MakeSharedFromBorrowedObjectPtr(debug_cast<const Arg2Type*>(argUnitA));
 		assert(arg1);
 
-		using prepare_data = std::shared_ptr<Arg1Type::future_tile>;
+		using prepare_data = std::shared_ptr<typename Arg1Type::future_tile>;
 		auto futureTileFunctor = make_unique_FutureTileFunctor<TR, prepare_data, false>(resultAdi, lazy, tileRangeData.get(), get_range_ptr_of_valuesunit(valuesUnit)
 			, [arg1](tile_id t) { return arg1->GetFutureTile(t); }
-			, [arg2, arg1A](sequence_traits<TR>::seq_t resData, prepare_data arg1FutureData)
+			, [arg2, arg1A](typename sequence_traits<TR>::seq_t resData, prepare_data arg1FutureData)
 			{
 				auto argData = arg1FutureData->GetTile();
 				do_transform<TR, TA, TCF>(arg2.get(), arg1A->GetAbstrValuesUnit(), argData.begin(), argData.end(), resData.begin());
@@ -738,10 +738,10 @@ public:
 		auto srcUnit = MakeSharedFromBorrowedObjectPtr(arg1A->GetAbstrValuesUnit());
 		assert(arg1);
 
-		using prepare_data = std::shared_ptr<Arg1Type::future_tile>;
+		using prepare_data = std::shared_ptr<typename Arg1Type::future_tile>;
 		auto futureTileFunctor = make_unique_FutureTileFunctor<TR, prepare_data, false>(resultAdi.get(), lazy, tileRangeData.get(), get_range_ptr_of_valuesunit(valuesUnit)
 			, [arg1](tile_id t) { return arg1->GetFutureTile(t); }
-			, [srcUnit, dstUnit](sequence_traits<TR>::seq_t resData, prepare_data arg1FutureData)
+			, [srcUnit, dstUnit](typename sequence_traits<TR>::seq_t resData, prepare_data arg1FutureData)
 			{
 				auto argData = arg1FutureData->GetTile();
 				do_convert<TR, TA, ConversionFunctor>(dstUnit.get(), srcUnit.get(), argData.begin(), argData.end(), resData.begin());
@@ -774,7 +774,7 @@ struct CastAttrOperator : UnaryAttrOperator<TR, TA>
 		: UnaryAttrOperator<TR, TA>(gr, ArgFlags(), cast_unit_creator_field<TR>, composition_of_v<TR>)
 	{}
 
-	void CalcTile(sequence_traits<TR>::seq_t resData, sequence_traits<TA>::cseq_t arg1Data, const AbstrUnit* argVU, ArgFlags af MG_DEBUG_ALLOCATOR_SRC_ARG) const override
+	void CalcTile(typename sequence_traits<TR>::seq_t resData, sequence_traits<TA>::cseq_t arg1Data, const AbstrUnit* argVU, ArgFlags af MG_DEBUG_ALLOCATOR_SRC_ARG) const override
 	{
 		assert(arg1Data.size() == resData.size());
 

@@ -239,11 +239,11 @@ public:
 		auto arg1 = MakeSharedFromBorrowedObjectPtr(const_array_cast<Arg1Values>(arg1A));
 		assert(arg1);
 
-		using prepare_data = std::shared_ptr<Arg1Type::future_tile>;
-	
+		using prepare_data = std::shared_ptr<typename Arg1Type::future_tile>;
+
 		auto futureTileFunctor = make_unique_FutureTileFunctor<ResultValueType, prepare_data, false>(resultAdi.get(), lazy, tileRangeData.get(), get_range_ptr_of_valuesunit(valuesUnit)
 			, [arg1](tile_id t) { return arg1->GetFutureTile(t); }
-			, [](sequence_traits<ResultValueType>::seq_t resData, prepare_data arg1FutureData)
+			, [](typename sequence_traits<ResultValueType>::seq_t resData, prepare_data arg1FutureData)
 			{
 				auto arg1Data = arg1FutureData->GetTile();
 				auto oper = TUniOper();

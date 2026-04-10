@@ -165,7 +165,7 @@ struct corr_accumulation_type : cov_accumulation_type<T>
 
 	operator corr_type() const
 	{
-		typename aggr_type<T>::type cov = cov_accumulation_type<T>::operator cov_type();
+		typename aggr_type<T>::type cov = static_cast<typename cov_accumulation_type<T>::cov_type>(static_cast<const cov_accumulation_type<T>&>(*this));
 		var_accumulation_type<T> sx(this->n, this->x, xx);
 		var_accumulation_type<T> sy(this->n, this->y, yy);
 

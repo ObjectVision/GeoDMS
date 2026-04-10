@@ -89,7 +89,7 @@ public:
 
 	void Calculate(SizeT nr_p, ResourceHandle& valueArray, SizeT* indices, const AbstrDataItem* arg1A, bool arg1HasUndefined, const AbstrDataItem* arg2A) const override
 	{
-		typedef sequence_traits<V>::container_type valueContainer;
+		typedef typename sequence_traits<V>::container_type valueContainer;
 		if (!valueArray)
 			valueArray = makeResource<valueContainer>(nr_p, Comparator::template StartValue<V>() MG_DEBUG_ALLOCATOR_SRC("Accumulation array for MinMaxIndexOperator"));
 		valueContainer& values = GetAs<valueContainer>(valueArray);

@@ -35,6 +35,8 @@
 
 #include "pcount.h"
 
+#include <cmath>
+
 
 SharedStr ReplaceChar(SharedStr src, char ch, char esc)
 {
@@ -502,7 +504,9 @@ CLC_CALL CharPtr DMS_CONV DMS_NumericDataItem_GetStatistics(const TreeItem* item
 		static const TreeItem*  s_LastItem = 0;
 		static TimeStamp        s_LastChangeTS=0;
 
-		assert(!DebugOnlyLock::IsLocked()); // PRECONDITION
+		#if defined(MG_DEBUG)
+				assert(!DebugOnlyLock::IsLocked()); // PRECONDITION
+		#endif
 		bool      itemIsValid = TreeItem_GetProgressState(item) >= NC2_Validated;
 		TimeStamp itemLastChangeTS = item->GetLastChangeTS();
 

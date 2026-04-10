@@ -153,8 +153,8 @@ template<typename R, typename T> void SafeAccumulate(Point<R>& assignee, const P
 template <typename R, typename T>
 struct unary_assign_add : unary_assign<R, T>
 {
-	template <typename R>
-	static ConstUnitRef unit_creator(const AbstrOperGroup* gr, const ArgSeqType& args) { return cast_unit_creator<R>(args); }
+	template <typename R2>
+	static ConstUnitRef unit_creator(const AbstrOperGroup* gr, const ArgSeqType& args) { return cast_unit_creator<R2>(args); }
 
 	void operator()(typename unary_assign_add::assignee_ref assignee, cref_t<T> arg) const
 	{ 	
