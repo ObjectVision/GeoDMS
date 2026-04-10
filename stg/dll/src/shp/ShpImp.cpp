@@ -29,7 +29,9 @@
 #include "mem/SeqLock.h"
 
 #include <string.h>
+#if defined(_MSC_VER)
 #include <share.h>
+#endif
 
 
 // -----------------------------------------------------

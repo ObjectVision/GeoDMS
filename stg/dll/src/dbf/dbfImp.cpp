@@ -33,9 +33,13 @@
 #include "Parallel.h"
 
 #include <string.h>
+#if defined(_MSC_VER)
 #include <share.h>
+#endif
 #include <time.h>
+#if defined(_MSC_VER)
 #include <minmax.h>
+#endif
 #include <math.h>
 
 /*****************************************************************************/
@@ -391,7 +395,7 @@ UInt32 DbfImpl::ColumnNameToIndex(CharPtr name)
 	SharedStr s = NameToDbfColumnName(name);
 
 	for (UInt32 index = 0; ColumnIndexDefined(index); index++) 
-		if (_stricmp(s.c_str(), m_ColumnDescriptions[index].m_Name.c_str()) == 0)	
+		if (stricmp(s.c_str(), m_ColumnDescriptions[index].m_Name.c_str()) == 0)	
 			return index;
 	return UNDEFINED_VALUE(UInt32);
 } // ColumnNameToIndex

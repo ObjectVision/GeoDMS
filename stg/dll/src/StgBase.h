@@ -33,6 +33,7 @@ granted by an additional written contract for support, assistance and/or develop
 
 #include "TicBase.h"
 #include "stg/AbstrStorageManager.h"
+#include "stg/StorageClass.h"
 
 #include <set>
 #include "geo/color.h"

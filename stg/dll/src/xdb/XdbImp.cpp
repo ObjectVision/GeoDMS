@@ -52,7 +52,9 @@ granted by an additional written contract for support, assistance and/or develop
 #include "utl/splitPath.h"
 
 #include <string.h>
+#if defined(_MSC_VER)
 #include <share.h>
+#endif
 
 #define MG_DEBUG_XDB false
 
@@ -420,7 +422,7 @@ XdbImp::column_index XdbImp::ColIndex(CharPtr col_name) const
 	{
 		if (i == ColDescriptions.size()) 
 			return -1;
-		if (! _stricmp(col_name, ColDescriptions[i].m_Name.c_str()) ) 
+		if (! stricmp(col_name, ColDescriptions[i].m_Name.c_str()) ) 
 			return i;
 		++i;
 	}

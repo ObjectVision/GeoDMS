@@ -28,7 +28,6 @@
 #include <format>
 struct pj_ctx;
 
-enum dms_CPLErr;
 class GDALDataset;
 class OGRLayer;
 
@@ -57,7 +56,7 @@ struct GDAL_ErrorFrame : gdalThread
 	STGDLL_CALL GDAL_ErrorFrame();
 	STGDLL_CALL ~GDAL_ErrorFrame() noexcept(false);
 
-	void RegisterError(dms_CPLErr eErrClass, int err_no, const char *msg);
+	void RegisterError(CPLErr eErrClass, int err_no, const char *msg);
 	STGDLL_CALL void ThrowUpWhateverCameUp();
 	auto ReleaseError()
 	{
@@ -72,7 +71,7 @@ struct GDAL_ErrorFrame : gdalThread
 	}
 	bool HasError() const { return m_eErrClass >= CE_Failure; }
 
-	dms_CPLErr m_eErrClass;
+	CPLErr m_eErrClass;
 	int m_nr_uncaught_exceptions = 0;
 	int m_err_no = 0, m_prev_proj_err_no = 0;
 	SharedStr m_msg;

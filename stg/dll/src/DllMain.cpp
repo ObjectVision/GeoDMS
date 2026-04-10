@@ -34,9 +34,10 @@
 #include "Unit.h"
 #include "UnitClass.h"
 
+#if defined(_MSC_VER)
 #include <minmax.h>
-
 #include <share.h>
+#endif
 
 #include "NameSet.h"
 #include "ViewPortInfoEx.h"
@@ -549,7 +550,7 @@ ViewPortInfoEx<Int>::ViewPortInfoEx(const TreeItem* context, const AbstrUnit* cu
 	if (queryActualGridDomain && gridDomain)
 		m_GridExtents = ThrowingConvert<rect_type>(gridDomain->GetTileSizeAsI64Rect(tg));
 	else
-		m_GridExtents = rect_type(MIN_VALUE(ViewPortInfoEx::point_type), MAX_VALUE(ViewPortInfoEx::point_type));
+		m_GridExtents = rect_type(MIN_VALUE(typename ViewPortInfoEx::point_type), MAX_VALUE(typename ViewPortInfoEx::point_type));
 
 	const AbstrUnit* currBase = GetCurrWorldCrdUnitFromGeoUnit(currDomain);
 	const AbstrUnit* gridBase = GetCurrWorldCrdUnitFromGeoUnit(gridDomain);
@@ -612,7 +613,7 @@ ViewPortInfoEx<Int>::ViewPortInfoEx(const TreeItem* context, const AbstrUnit* cu
 		}
 	}
 	else
-		this->m_ViewPortExtents = rect_type(MIN_VALUE(ViewPortInfoEx::point_type), MAX_VALUE(ViewPortInfoEx::point_type));
+		this->m_ViewPortExtents = rect_type(MIN_VALUE(typename ViewPortInfoEx::point_type), MAX_VALUE(typename ViewPortInfoEx::point_type));
 	this->m_CountColor = cc;
 }
 
@@ -691,5 +692,5 @@ ViewPortInfoEx<Int32> ViewPortInfoProvider::GetViewportInfoEx(tile_id tc, Storag
 	return ViewPortInfoEx<Int32>(m_ADI.get(), curr_range_unit, tc, grid_range_unit, tg, smi, true, false, m_CountColor, m_QueryActualGridDomain);
 }
 
-template ViewPortInfoEx<Int32>;
-template ViewPortInfoEx<Int64>;
+template struct ViewPortInfoEx<Int32>;
+template struct ViewPortInfoEx<Int64>;

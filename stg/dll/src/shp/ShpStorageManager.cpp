@@ -248,9 +248,9 @@ struct FuncIter
 { 
 	using value_type = typename std::iterator_traits<InIter>::value_type;
 	using pointer = typename std::iterator_traits<InIter>::pointer;
-	using reference = UnaryOper::result_type;
-	using difference_type = std::iterator_traits<InIter>::difference_type;
-	using iterator_category = std::iterator_traits<InIter>::iterator_category;
+	using reference = typename UnaryOper::result_type;
+	using difference_type = typename std::iterator_traits<InIter>::difference_type;
+	using iterator_category = typename std::iterator_traits<InIter>::iterator_category;
 
 	FuncIter(InIter i, UnaryOper oper = UnaryOper())
 		:	m_Iter(i)
@@ -258,7 +258,7 @@ struct FuncIter
 	{}
 
 	// dereference wrapping
-	typename reference operator *() const { return m_Oper(*m_Iter); }
+	reference operator *() const { return m_Oper(*m_Iter); }
 
 	// iter API wrapping
 	difference_type operator - (const FuncIter& oth) const { return m_Iter -  oth.m_Iter; }

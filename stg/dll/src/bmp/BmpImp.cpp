@@ -41,9 +41,11 @@ granted by an additional written contract for support, assistance and/or develop
 #include "ptr/OwningPtrSizedArray.h"
 #include "set/VectorFunc.h"
 
+#if defined(_MSC_VER)
 #include <windows.h>
 #include <fileapi.h>
 #include <io.h>
+#endif
 //  ---------------------------------------------------------------------------
 
 //  --DEFINES------------------------------------------------------------------

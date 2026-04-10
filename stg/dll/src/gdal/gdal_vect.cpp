@@ -2096,11 +2096,28 @@ bool GdalVectSM::WriteGeometryElement(const AbstrDataItem* adi, OGRFeature* feat
 	return true;
 }
 
-template<typename T>
-void SetField(OGRFeature* feature, int i, T b)
+void SetField(OGRFeature* feature, int i, Int32 b)
 {
 	if (IsDefined(b))
 		feature->SetField(i, b);
+}
+
+void SetField(OGRFeature* feature, int i, Int64 b)
+{
+	if (IsDefined(b))
+		feature->SetField(i, static_cast<GIntBig>(b));
+}
+
+void SetField(OGRFeature* feature, int i, Float64 b)
+{
+	if (IsDefined(b))
+		feature->SetField(i, b);
+}
+
+void SetField(OGRFeature* feature, int i, Float32 b)
+{
+	if (IsDefined(b))
+		feature->SetField(i, static_cast<double>(b));
 }
 
 void SetField(OGRFeature* feature, int i, SA_ConstReference<char> b)
@@ -2137,7 +2154,7 @@ void SetField(OGRFeature* feature, int i, UInt32 b)
 void SetField(OGRFeature* feature, int i, UInt64 b)
 {
 	if (IsDefined(b))
-		feature->SetField(i, ThrowingConvert<Int64>(b));
+		feature->SetField(i, static_cast<GIntBig>(ThrowingConvert<Int64>(b)));
 }
 
 

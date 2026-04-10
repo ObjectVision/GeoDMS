@@ -176,7 +176,7 @@ inline void vector_cut(Vector& vec, typename Vector::size_type  n)
 template <typename Vector>
 void vector_resize(Vector& vec, typename Vector::size_type  n)
 {
-	CheckAllocSize(n, sizeof(Vector::value_type), "vector_resize");
+	CheckAllocSize(n, sizeof(typename Vector::value_type), "vector_resize");
 	if (vec.size() > n)
 		vector_cut(vec, n);
 	else if (vec.size() < n)
@@ -187,7 +187,7 @@ void vector_resize(Vector& vec, typename Vector::size_type  n)
 template <typename Vector>
 void vector_resize_uninitialized(Vector& vec, typename Vector::size_type n MG_DEBUG_ALLOCATOR_SRC_ARG)
 {
-	CheckAllocSize(n, sizeof(Vector::value_type), "vector_resize");
+	CheckAllocSize(n, sizeof(typename Vector::value_type), "vector_resize");
 	if (vec.size() > n)
 		vector_cut(vec, n);
 	else if (vec.size() < n)
@@ -198,7 +198,7 @@ void vector_resize_uninitialized(Vector& vec, typename Vector::size_type n MG_DE
 template <typename Vector>
 void vector_resize(Vector& vec, typename Vector::size_type n, typename Vector::const_reference zero_value MG_DEBUG_ALLOCATOR_SRC_ARG)
 {
-	CheckAllocSize(n, sizeof(Vector::value_type), "vector_resize");
+	CheckAllocSize(n, sizeof(typename Vector::value_type), "vector_resize");
 	if (vec.size() > n)
 		vector_cut(vec, n);
 	else if (vec.size() < n)
@@ -209,7 +209,7 @@ void vector_resize(Vector& vec, typename Vector::size_type n, typename Vector::c
 template <typename Vector>
 void vector_resize(Vector& vec, typename Vector::size_type n, Undefined MG_DEBUG_ALLOCATOR_SRC_ARG)
 {
-	CheckAllocSize(n, sizeof(Vector::value_type), "vector_resize");
+	CheckAllocSize(n, sizeof(typename Vector::value_type), "vector_resize");
 	if (vec.size() > n)
 		vector_cut(vec, n);
 	else if (vec.size() < n)
@@ -267,7 +267,7 @@ inline void vector_clear(sequence_obj<V>& vec)
 template <typename Vector>
 void vector_fill_n(Vector& vec, typename Vector::size_type n, typename Vector::const_reference fill_value)
 {
-	dms_assert(n < (DBG_MAX_ALLOC / sizeof(Vector::value_type)) );
+	dms_assert(n < (DBG_MAX_ALLOC / sizeof(typename Vector::value_type)) );
 
 	if (vec.capacity() < n || n <= vec.capacity()/2)
 	{
@@ -296,13 +296,13 @@ void vector_fill_n(Vector& vec, typename Vector::size_type n, typename Vector::c
 template <typename Vector>
 void vector_zero_n_reuse(Vector& vec, typename Vector::size_type n)
 {
-	dms_assert(n < (DBG_MAX_ALLOC / sizeof(Vector::value_type)));
+	dms_assert(n < (DBG_MAX_ALLOC / sizeof(typename Vector::value_type)));
 
 	if (vec.size() > n)
 		vec.erase(vec.begin() + n, vec.end());
 	fast_zero(vec.begin(), vec.end());
 	if (vec.size() < n)
-		vec.insert(vec.end(), n - vec.size(), Vector::value_type());
+		vec.insert(vec.end(), n - vec.size(), typename Vector::value_type());
 
 	dms_assert(vec.size() == n);
 }
@@ -310,7 +310,7 @@ void vector_zero_n_reuse(Vector& vec, typename Vector::size_type n)
 template <typename Vector>
 void vector_zero_n(Vector& vec, typename Vector::size_type n)
 {
-	dms_assert(n < (DBG_MAX_ALLOC / sizeof(Vector::value_type)) );
+	dms_assert(n < (DBG_MAX_ALLOC / sizeof(typename Vector::value_type)) );
 
 	if (vec.capacity() < n || n <= vec.capacity() / 2)
 		vec = Vector(n);
@@ -333,7 +333,7 @@ void vector_zero_n(Vector& vec, typename Vector::size_type n)
 template <typename Vector, typename Iterator>
 void _vector_copy(Vector& vec, Iterator first, Iterator last, typename Vector::size_type n)
 {
-	dms_assert(n < (DBG_MAX_ALLOC / sizeof(Vector::value_type)) );
+	dms_assert(n < (DBG_MAX_ALLOC / sizeof(typename Vector::value_type)) );
 
 	if (vec.capacity() < n)
 	{

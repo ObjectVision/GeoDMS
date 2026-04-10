@@ -17,7 +17,7 @@
 
 // ============================= FilePtrHandle (non-polymorphic base class for specific handles
 
-using FILE = struct _iobuf; // defined in stdio.h
+#include <cstdio>
 
 #define NR_PAGES_DATFILE 16
 #define NR_PAGES_HDRFILE  1

@@ -14,7 +14,9 @@
 #include "utl/Environment.h"
 #include "utl/mySPrintF.h"
 
+#if defined(_MSC_VER)
 #include <share.h>
+#endif
 
 // ============================= SAMPLEFORMAT
 
@@ -74,16 +76,24 @@ FileResult FilePtrHandle::OpenFH(WeakStr name, FileCreationMode fcm, bool transl
 			: translate ? "rt+" : "rb+"
 			);
 	auto fileName = ConvertDmsFileName(name);
+#if defined(_MSC_VER)
 	m_FP = _fsopen(fileName.c_str(), mode, fcm != FCM_OpenReadOnly ? _SH_DENYRW : _SH_DENYWR);
+#else
+	m_FP = fopen(fileName.c_str(), mode);
+#endif
 
 	if (m_FP != nullptr)
 		return {}; // success
 
 	// emit a detailed error message, including the filename and the reason for failure
 	CharPtr hint = "";
+#if defined(_MSC_VER)
 	if (fileName.ssize() > _MAX_PATH)
 		hint = " Note that the filename is longer than _MAX_PATH, which is 260 characters";
 	auto errMsg = mySSPrintF("_fsopen('%s', '%s')\nreturned error %d: %s.%s"
+#else
+	auto errMsg = mySSPrintF("fopen('%s', '%s')\nreturned error %d: %s.%s"
+#endif
 		, fileName.c_str(), mode
 		, errno, strerror(errno)
 		, hint
@@ -108,7 +118,11 @@ SizeT FilePtrHandle::GetFileSize() const
 	fgetpos(m_FP, &currPos);
 
 	fseek(m_FP, 0, SEEK_END);
+#if defined(_MSC_VER)
 	SizeT fileSize = _ftelli64(m_FP);
+#else
+	SizeT fileSize = ftello(m_FP);
+#endif
 
 	fsetpos(m_FP, &currPos);
 

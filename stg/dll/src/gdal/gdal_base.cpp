@@ -146,7 +146,7 @@ namespace gdalComponentImpl
 		);
 
 		if (s_ErrorFramePtr)
-			s_ErrorFramePtr->RegisterError(dms_CPLErr(eErrClass), err_no, msg);
+			s_ErrorFramePtr->RegisterError(CPLErr(eErrClass), err_no, msg);
 	}
 
 }	// namespace gdalComponentImpl
@@ -163,7 +163,7 @@ int safe_proj_context_errno()
 }
 
 GDAL_ErrorFrame::GDAL_ErrorFrame()
-	: m_eErrClass(dms_CPLErr(CE_None))
+	: m_eErrClass(CPLErr(CE_None))
 	, m_Prev(gdalComponentImpl::s_ErrorFramePtr)
 	, m_prev_proj_err_no(safe_proj_context_errno())
 {
@@ -198,7 +198,7 @@ GDAL_ErrorFrame::~GDAL_ErrorFrame()  noexcept(false)
 		ThrowUpWhateverCameUp();
 }
 
-void GDAL_ErrorFrame::RegisterError(dms_CPLErr eErrClass, int err_no, const char* msg)
+void GDAL_ErrorFrame::RegisterError(CPLErr eErrClass, int err_no, const char* msg)
 {
 	if (eErrClass > m_eErrClass)
 	{

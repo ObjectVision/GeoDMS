@@ -29,7 +29,7 @@ template<unsigned N> inline void byte_reverse_n(void* t)
 	);
 };
 
-#if defined(CC_PROCESSOR_INTEL) && !defined(DMS_64)
+#if defined(_MSC_VER) && defined(CC_PROCESSOR_INTEL) && !defined(DMS_64)
 
 template<> inline void byte_reverse_n<4>(void* t)
 {
@@ -65,7 +65,7 @@ template<class T> inline void byte_reverse(T& t)
 	template <class Iter> inline void ConvertLittleEndian(Iter f, Iter l) {}
 	template <class Iter> inline void ConvertBigEndian   (Iter f, Iter l)
 	{ 
-		typedef std::iterator_traits<Iter>::value_type T;
+		typedef typename std::iterator_traits<Iter>::value_type T;
 		std::for_each(f, l, &byte_reverse<T>); 
 	}
 
@@ -83,7 +83,7 @@ template<class T> inline void byte_reverse(T& t)
 	template <class Iter> inline void ConvertBigEndian   (Iter f, Iter l) {}
 	template <class Iter> inline void ConvertLittleEndian(Iter f, Iter l)
 	{ 
-		typedef std::iterator_traits<Iter>::value_type T;
+		typedef typename std::iterator_traits<Iter>::value_type T;
 		std::for_each(f, l, &byte_reverse<T>); 
 	}
 #endif
@@ -137,7 +137,7 @@ inline UInt32 BitReverse(UInt32 dWord)
 template <typename Iter>
 inline void NibbleSwap(Iter b, Iter e)
 {
-	static_assert(sizeof(std::iterator_traits<Iter>::value_type)==4);
+	static_assert(sizeof(typename std::iterator_traits<Iter>::value_type)==4);
 
 	dms_assert(SizeT(&*b) % 4 == 0); // alignment requirement
 	dms_assert(SizeT(&*e) % 4 == 0); // alignment requirement
@@ -149,7 +149,7 @@ inline void NibbleSwap(Iter b, Iter e)
 template <typename Iter>
 inline void TwipSwap(Iter b, Iter e)
 {
-	static_assert(sizeof(std::iterator_traits<Iter>::value_type)==4);
+	static_assert(sizeof(typename std::iterator_traits<Iter>::value_type)==4);
 
 	dms_assert(SizeT(&*b) % 4 == 0); // alignment requirement
 	dms_assert(SizeT(&*e) % 4 == 0); // alignment requirement
@@ -161,7 +161,7 @@ inline void TwipSwap(Iter b, Iter e)
 template <typename Iter>
 inline void BitSwap(Iter b, Iter e)
 {
-	static_assert(sizeof(std::iterator_traits<Iter>::value_type)==4);
+	static_assert(sizeof(typename std::iterator_traits<Iter>::value_type)==4);
 
 	dms_assert(SizeT(&*b) % 4 == 0); // alignment requirement
 	dms_assert(SizeT(&*e) % 4 == 0); // alignment requirement
@@ -173,7 +173,7 @@ inline void BitSwap(Iter b, Iter e)
 template <typename Iter>
 inline void BitReverse(Iter b, Iter e)
 {
-	static_assert(sizeof(std::iterator_traits<Iter>::value_type)==4);
+	static_assert(sizeof(typename std::iterator_traits<Iter>::value_type)==4);
 
 	dms_assert(b==e || SizeT(&b[ 0]) % 4 == 0); // alignment requirement
 	dms_assert(b==e || SizeT(&e[-1]) % 4 == 0); // alignment requirement
