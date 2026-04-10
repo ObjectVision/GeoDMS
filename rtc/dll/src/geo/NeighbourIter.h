@@ -21,9 +21,9 @@ SqrMinDistTo(T c, T a, T b)
 {
 	dms_assert(a <= b);
 	if (c<a)
-		return Sqr(sqr_acc_type<T>::type(a-c));
+		return Sqr(typename sqr_acc_type<T>::type(a-c));
 	if (c>b)
-		return Sqr(sqr_acc_type<T>::type(c-b));
+		return Sqr(typename sqr_acc_type<T>::type(c-b));
 	return 0;
 }
 
@@ -149,7 +149,7 @@ private:
 	}
 	void AddNode(SizeT nodeID)
 	{
-		const SpatialIndexType::Node& node = m_SPI->m_Nodes[nodeID];
+		const typename SpatialIndexType::Node& node = m_SPI->m_Nodes[nodeID];
 		if (!node.IsNonEmpty())
 			return;
 		SqrDistType sqrDist = MinDist(m_Center, node.m_BoundingBox);
@@ -169,7 +169,7 @@ private:
 		std::pop_heap(m_NodeHeap.begin(), m_NodeHeap.end());
 		m_NodeHeap.pop_back();
 
-		const SpatialIndexType::Node& node = m_SPI->m_Nodes[nodeID];
+		const typename SpatialIndexType::Node& node = m_SPI->m_Nodes[nodeID];
 		SizeT offset = node.m_OffsetToFirstQuadrant;
 		if (offset)
 		{

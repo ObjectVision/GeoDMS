@@ -89,14 +89,14 @@ struct DistrictOperator : public UnaryOperator
 				assert(inputVec.size() == Cardinality(rect));
 				assert(outputVec.size() == Cardinality(rect));
 
-				UGrid<const ArgType::value_type> input(Size(rect), inputVec.begin());
-				UGrid<ResultSubType::value_type> output(input.GetSize(), outputVec.begin());
+				UGrid<const typename ArgType::value_type> input(Size(rect), inputVec.begin());
+				UGrid<typename ResultSubType::value_type> output(input.GetSize(), outputVec.begin());
 
 				nrDistricts = Districting(input, output, this->m_Use8Neighbours);
 			}
 			auto resultUnit = debug_cast<ResultUnitType*>(std::move(resUnit));
 			assert(resultUnit);
-			resultUnit->SetRange(Unit<R>::range_t(0, nrDistricts));
+			resultUnit->SetRange(typename Unit<R>::range_t(0, nrDistricts));
 
 			resLock->InitValueRangeData( resultUnit->m_RangeDataPtr );
 			resSub->m_DataObject = resLock.get();
@@ -178,15 +178,15 @@ public:
 				assert(inputVec.size() == Cardinality(rect));
 				assert(outputVec.size() == Cardinality(rect));
 
-				UGrid<const Arg1Type::value_type> input(Size(rect), inputVec.begin());
-				UGrid<      Arg1Type::value_type> output(input.GetSize(), outputVec.begin());
+				UGrid<const typename Arg1Type::value_type> input(Size(rect), inputVec.begin());
+					UGrid<      typename Arg1Type::value_type> output(input.GetSize(), outputVec.begin());
 
-				Diversity(
-					input,
-					inputUpperBound,
-					GetCurrValue<Arg2Type::value_type>(radiusA, 0),
-					GetCurrValue<Arg3Type::value_type>(isCircleA, 0),
-					output
+					Diversity(
+						input,
+						inputUpperBound,
+						GetCurrValue<typename Arg2Type::value_type>(radiusA, 0),
+						GetCurrValue<typename Arg3Type::value_type>(isCircleA, 0),
+						output
 				);
 			}
 			resLock.Commit();

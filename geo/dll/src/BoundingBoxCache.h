@@ -28,13 +28,13 @@ typename RectArrayType::value_type MakeBlockBoundArray(RectArrayType& blockArray
 	while (nrFullBlocks--)
 	{
 		auto blockEnd = i + AbstrBoundingBoxCache::c_BlockSize;
-		blockArray.push_back(RectArrayType::value_type(i, blockEnd, false, true));
+		blockArray.push_back(typename RectArrayType::value_type(i, blockEnd, false, true));
 		i = blockEnd;
 	}
 	if (i!=e)
-		blockArray.push_back(RectArrayType::value_type(i, e, false, true));
+		blockArray.push_back(typename RectArrayType::value_type(i, e, false, true));
 	assert(blockArray.size() == blockArray.capacity());
-	return RectArrayType::value_type(blockArray.begin(), blockArray.end(), false, false);
+	return typename RectArrayType::value_type(blockArray.begin(), blockArray.end(), false, false);
 }
 
 template <typename F>

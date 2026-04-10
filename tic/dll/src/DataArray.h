@@ -316,6 +316,13 @@ struct TileFunctor : data_array_traits<V>::type
 
 };
 
+// Void specialization: should never be instantiated in practice
+template <>
+struct TileFunctor<Void> : AbstrDataObject
+{
+	TileFunctor() {}
+};
+
 template <typename V>
 struct GeneratedTileFunctor : TileFunctor<V>
 {

@@ -73,6 +73,8 @@
 #include "mci/ValueClassID.h"
 #include "utl/scoped_exit.h"
 
+#include <cmath>
+
 #include "LockLevels.h"
 
 #include "CheckedDomain.h"
@@ -1730,29 +1732,29 @@ public:
 			auto linkImpData           = argLinkImp->GetLockedDataRead();
 			auto linkF1Data            = argLinkF1->GetLockedDataRead();
 			auto linkF2Data            = argLinkF2->GetLockedDataRead();
-			auto linkBidirFlagData     = argLinkBidirFlag       ? argLinkBidirFlag      ->GetLockedDataRead() : ArgFlagType ::locked_cseq_t();
-			auto startpointNodeData    = argStartPointNode      ? argStartPointNode     ->GetLockedDataRead() : SrcNodeType ::locked_cseq_t();
-			auto startpointImpData     = argStartPointImpedance ? argStartPointImpedance->GetLockedDataRead() : SrcDistType ::locked_cseq_t();
-			auto startpointOrgZoneData = argStartPoinOrgZone    ? argStartPoinOrgZone   ->GetLockedDataRead() : SrcZoneType ::locked_cseq_t();
-			auto orgZoneLocationData   = argOrgZoneLocation     ? argOrgZoneLocation    ->GetLockedDataRead() : ZoneLocType ::locked_cseq_t();
-			auto endPoint_Node_rel_Data= argEndPointNode        ? argEndPointNode       ->GetLockedDataRead() : DstNodeType ::locked_cseq_t();
-			auto endpointImpData       = argEndPointImpedance   ? argEndPointImpedance  ->GetLockedDataRead() : DstDistType ::locked_cseq_t();
-			auto endpointDstZoneData   = argEndPointDstZone     ? argEndPointDstZone    ->GetLockedDataRead() : DstZoneType ::locked_cseq_t();
-			auto dstZoneLocationData   = argDstZoneLocation     ? argDstZoneLocation    ->GetLockedDataRead() : ZoneLocType ::locked_cseq_t();
-			auto orgMinImpData         = argOrgMinImp           ? argOrgMinImp          ->GetLockedDataRead() : ArgImpType  ::locked_cseq_t();
-			auto dstMinImpData         = argDstMinImp           ? argDstMinImp          ->GetLockedDataRead() : ArgImpType  ::locked_cseq_t();
-			auto orgMaxImpedances      = argOrgMaxImp           ? argOrgMaxImp          ->GetLockedDataRead() : ArgImpType  ::locked_cseq_t();
-			auto orgMassLimit          = argOrgMassLimit        ? argOrgMassLimit       ->GetLockedDataRead() : ArgMassType ::locked_cseq_t();
-			auto dstMassLimit          = argDstMassLimit        ? argDstMassLimit       ->GetLockedDataRead() : ArgMassType ::locked_cseq_t();
-			auto altWeight             = argLinkAltImp          ? argLinkAltImp         ->GetLockedDataRead() : ArgImpType  ::locked_cseq_t();
-			auto linkAttr              = argLinkAttr            ? argLinkAttr           ->GetLockedDataRead() : ArgImpType  ::locked_cseq_t();
-			auto tgOrgMass             = argOrgMass             ? argOrgMass            ->GetLockedDataRead() : ArgSMType   ::locked_cseq_t();
-			auto tgDstMass             = argDstMass             ? argDstMass            ->GetLockedDataRead() : ArgDMType   ::locked_cseq_t();
-			auto tgDistDecayBetaParam  = argDistDecayBetaParam  ? argDistDecayBetaParam ->GetLockedDataRead() : ArgParamType::locked_cseq_t();
-			auto tgDistLogitA          = argDistLogitAlphaParam ? argDistLogitAlphaParam->GetLockedDataRead() : ArgParamType::locked_cseq_t();
-			auto tgDistLogitB          = argDistLogitBetaParam  ? argDistLogitBetaParam ->GetLockedDataRead() : ArgParamType::locked_cseq_t();
-			auto tgDistLogitC          = argDistLogitGammaParam ? argDistLogitGammaParam->GetLockedDataRead() : ArgParamType::locked_cseq_t();
-			auto tgOrgAlpha            = argOrgAlpha            ? argOrgAlpha           ->GetLockedDataRead() : ArgParamType::locked_cseq_t();
+			auto linkBidirFlagData     = argLinkBidirFlag       ? argLinkBidirFlag      ->GetLockedDataRead() : typename ArgFlagType ::locked_cseq_t();
+			auto startpointNodeData    = argStartPointNode      ? argStartPointNode     ->GetLockedDataRead() : typename SrcNodeType ::locked_cseq_t();
+			auto startpointImpData     = argStartPointImpedance ? argStartPointImpedance->GetLockedDataRead() : typename SrcDistType ::locked_cseq_t();
+			auto startpointOrgZoneData = argStartPoinOrgZone    ? argStartPoinOrgZone   ->GetLockedDataRead() : typename SrcZoneType ::locked_cseq_t();
+			auto orgZoneLocationData   = argOrgZoneLocation     ? argOrgZoneLocation    ->GetLockedDataRead() : typename ZoneLocType ::locked_cseq_t();
+			auto endPoint_Node_rel_Data= argEndPointNode        ? argEndPointNode       ->GetLockedDataRead() : typename DstNodeType ::locked_cseq_t();
+			auto endpointImpData       = argEndPointImpedance   ? argEndPointImpedance  ->GetLockedDataRead() : typename DstDistType ::locked_cseq_t();
+			auto endpointDstZoneData   = argEndPointDstZone     ? argEndPointDstZone    ->GetLockedDataRead() : typename DstZoneType ::locked_cseq_t();
+			auto dstZoneLocationData   = argDstZoneLocation     ? argDstZoneLocation    ->GetLockedDataRead() : typename ZoneLocType ::locked_cseq_t();
+			auto orgMinImpData         = argOrgMinImp           ? argOrgMinImp          ->GetLockedDataRead() : typename ArgImpType ::locked_cseq_t();
+			auto dstMinImpData         = argDstMinImp           ? argDstMinImp          ->GetLockedDataRead() : typename ArgImpType ::locked_cseq_t();
+			auto orgMaxImpedances      = argOrgMaxImp           ? argOrgMaxImp          ->GetLockedDataRead() : typename ArgImpType ::locked_cseq_t();
+			auto orgMassLimit          = argOrgMassLimit        ? argOrgMassLimit       ->GetLockedDataRead() : typename ArgMassType ::locked_cseq_t();
+			auto dstMassLimit          = argDstMassLimit        ? argDstMassLimit       ->GetLockedDataRead() : typename ArgMassType ::locked_cseq_t();
+			auto altWeight             = argLinkAltImp          ? argLinkAltImp         ->GetLockedDataRead() : typename ArgImpType ::locked_cseq_t();
+			auto linkAttr              = argLinkAttr            ? argLinkAttr           ->GetLockedDataRead() : typename ArgImpType ::locked_cseq_t();
+			auto tgOrgMass             = argOrgMass             ? argOrgMass            ->GetLockedDataRead() : typename ArgSMType ::locked_cseq_t();
+			auto tgDstMass             = argDstMass             ? argDstMass            ->GetLockedDataRead() : typename ArgDMType ::locked_cseq_t();
+			auto tgDistDecayBetaParam  = argDistDecayBetaParam  ? argDistDecayBetaParam ->GetLockedDataRead() : typename ArgParamType ::locked_cseq_t();
+			auto tgDistLogitA          = argDistLogitAlphaParam ? argDistLogitAlphaParam->GetLockedDataRead() : typename ArgParamType ::locked_cseq_t();
+			auto tgDistLogitB          = argDistLogitBetaParam  ? argDistLogitBetaParam ->GetLockedDataRead() : typename ArgParamType ::locked_cseq_t();
+			auto tgDistLogitC          = argDistLogitGammaParam ? argDistLogitGammaParam->GetLockedDataRead() : typename ArgParamType ::locked_cseq_t();
+			auto tgOrgAlpha            = argOrgAlpha            ? argOrgAlpha           ->GetLockedDataRead() : typename ArgParamType ::locked_cseq_t();
 
 			NetworkInfo<NodeType, ZoneType, ImpType> networkInfo(
 				v->GetCount(), e->GetCount()

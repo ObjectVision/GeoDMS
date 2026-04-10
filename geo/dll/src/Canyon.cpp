@@ -13,6 +13,8 @@
 #include "geo/SpatialIndex.h"
 #include "ptr/LifetimeProtector.h"
 
+#include <cmath>
+
 #include "DataController.h"
 #include "TreeItemClass.h"
 #include "Unit.h"

@@ -213,11 +213,17 @@ struct TreeRelations
 		return NextRoot(++tn);
 	}
 
-	UInt32 NrOfNode(this auto& self, const TreeNode* tn)
+	UInt32 NrOfNode(const TreeNode* tn) const
 	{
 		if (!tn)
 			return UNDEFINED_VALUE(UInt32);
-		return tn - &*self.m_TreeNodes.begin();
+		return tn - &*m_TreeNodes.begin();
+	}
+	UInt32 NrOfNode(const TreeNode* tn)
+	{
+		if (!tn)
+			return UNDEFINED_VALUE(UInt32);
+		return tn - &*m_TreeNodes.begin();
 	}
 
 	/*

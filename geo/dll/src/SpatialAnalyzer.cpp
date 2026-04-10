@@ -13,6 +13,8 @@
 #include "dbg/debug.h"
 #include "geo/Conversions.h"
 #include "geo/Point.h"
+
+#include <cmath>
 #include "geo/PointOrder.h"
 #include "mth/Mathlib.h"
 

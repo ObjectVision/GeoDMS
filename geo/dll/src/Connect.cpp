@@ -449,7 +449,7 @@ struct IndexedArcProjectionHandle : ArcProjectionHandleWithDist<R, T>
 {
 	template <typename SpatialIndexType>
 	IndexedArcProjectionHandle(const Point<T>* p, const SpatialIndexType& spIndex, const R* optionalMaxSqrDistPtr, bool isPossiblyMultiPolygon)
-		: ArcProjectionHandle(p, spIndex.GetSqrProximityUpperBound<R>(*p, 0xFFFFFFFF, optionalMaxSqrDistPtr), isPossiblyMultiPolygon)
+		: ArcProjectionHandleWithDist<R, T>(p, spIndex.template GetSqrProximityUpperBound<R>(*p, 0xFFFFFFFF, optionalMaxSqrDistPtr), isPossiblyMultiPolygon)
 	{
 		assert(spIndex.size());		
 		for (auto iter = spIndex.begin(Inflate(*p, Point<T>(this->m_Dist, this->m_Dist))); iter; ++iter)
@@ -471,7 +471,7 @@ struct IndexedArcProjectionHandle : ArcProjectionHandleWithDist<R, T>
 		UInt32 maxDepth = 0xFFFFFFFF;
 		while (true) {
 	
-			ArcProjectionHandleWithDist<R, T> aph(p, spIndex.GetSqrProximityUpperBound<R>(p, maxDepth, optionalMaxSqrDistPtr), isPossiblyMultiPolygon);
+			ArcProjectionHandleWithDist<R, T> aph(p, spIndex.template GetSqrProximityUpperBound<R>(p, maxDepth, optionalMaxSqrDistPtr), isPossiblyMultiPolygon);
 			assert(!aph.m_FoundAny);
 			for (auto iter = spIndex.begin(Inflate(p, Point<T>(aph.m_Dist, aph.m_Dist))); iter; ++iter)
 			{

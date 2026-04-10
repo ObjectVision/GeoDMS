@@ -492,7 +492,21 @@ namespace nth {
 		IndexIter originalLast = last;
 		while(1 < last - first)
 		{
-			std::pair<IndexIter, IndexIter> mid = std::_Partition_by_median_guess_unchecked(first, last, IndexCompareOper<RankIter>(firstRank));
+			#if defined(_MSC_VER)
+						std::pair<IndexIter, IndexIter> mid = std::_Partition_by_median_guess_unchecked(first, last, IndexCompareOper<RankIter>(firstRank));
+			#else
+						// Portable median-of-three partitioning
+						IndexCompareOper<RankIter> comp(firstRank);
+						auto pivot = first + (last - first) / 2;
+						if (comp(*pivot, *first)) std::iter_swap(first, pivot);
+						if (comp(*(last-1), *first)) std::iter_swap(first, last-1);
+						if (comp(*pivot, *(last-1))) std::iter_swap(pivot, last-1);
+						// Partition around last-1
+						auto pivotVal = *(last-1);
+						auto partIt = std::partition(first, last-1, [&](const auto& v) { return comp(v, pivotVal); });
+						std::iter_swap(partIt, last-1);
+						auto mid = std::make_pair(partIt, partIt + 1);
+			#endif
 
 			WeightType midFirstWeight = accumulate_ptr<WeightType>(first, mid.first, firstWeight);
 

@@ -58,7 +58,7 @@ struct ConstTileIter
 	typedef          SizeT                                size_type;
 	typedef          DiffT                                difference_type;
 	typedef typename sequence_traits<V>::cseq_t           cseq_t;
-	typedef typename locked_seq<cseq_t, ReadableTileLock> locked_cseq_t;
+	typedef          locked_seq<cseq_t, ReadableTileLock> locked_cseq_t;
 	typedef typename sequence_traits<V>::const_pointer    const_pointer;
 	typedef typename sequence_traits<V>::const_reference  const_reference;
 	typedef typename sequence_traits<V>::const_pointer    pointer;

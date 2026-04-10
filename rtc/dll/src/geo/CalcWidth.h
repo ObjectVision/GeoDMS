@@ -98,7 +98,7 @@ ScalarType GetScanPoint(ConstPointIter polyBegin, ConstPointIter polyEnd, Scalar
 {
 	dms_assert(std::distance(polyBegin, polyEnd) > 2);
 	typedef Point<ScalarType>                                ResPointType;
-	typedef std::iterator_traits<ConstPointIter>::value_type InpPointType;
+	typedef typename std::iterator_traits<ConstPointIter>::value_type InpPointType;
 
 
 	ResPointType basePoint = shp2dms_order<ScalarType>(polyBegin->Col(), row);              // use *polyBegin as base for numerical stability
