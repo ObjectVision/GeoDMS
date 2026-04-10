@@ -213,7 +213,7 @@ struct AbstrDirectPotentialOperator : public BinaryOperator
                 AddKernel(kernelInfo, Size(resDomainUnit->GetTileRangeAsIRect(ti)).Col());
 
             // Thread-local working buffers to avoid reallocation
-            concurrency::combinable< potential_contexts > workingBuffers;
+            dms_combinable< potential_contexts > workingBuffers;
 
             if (weightRect.empty())
             {

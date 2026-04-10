@@ -4,22 +4,11 @@
 #define __RTC_PARALLEL_H
 
 #include "dbg/Check.h"
+#include "parallel/portable_task_group.h"
 
 #include <thread>
 #include <mutex>
 #include <shared_mutex>
-
-#if defined(WIN32)
-
-#include "pplinterface.h"
-using task_canceled = Concurrency::task_canceled;
-
-#else
-
-struct task_canceled : std::exception
-{};
-
-#endif
 
 #define THREAD_LOCAL thread_local
 

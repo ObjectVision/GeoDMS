@@ -680,7 +680,7 @@ bool IsCalculatingOrReady(const TreeItem* item)
 static std::set< SharedPtr<const TreeItem>>  s_ActiveProducerSet;
 leveled_critical_section s_ActiveProducerSetMutex(item_level_type(0), ord_level_type::ActiveProducerSet, "ActiveProducerSet");
 std::atomic<bool> s_RunTaskActive = false;
-dms_task s_RunTask;
+
 
 SharedPtr<const TreeItem> GetATask()
 {
@@ -719,11 +719,11 @@ bool RunTask(const TreeItem* item)
 			if (!s_RunTaskActive)
 			{
 				s_RunTaskActive = true;
-#if defined(_MSC_VER)
-				s_RunTask = dms_task(&RunTasks);
-#else
-				std::thread(RunTasks).detach();
-#endif
+GetPortableTaskGroup().run(RunTasks);
+
+
+
+
 			}
 		}
 //		else

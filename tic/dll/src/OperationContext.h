@@ -49,9 +49,6 @@ Diagnostics:
 #include "ItemLocks.h"
 #include "MoreDataControllers.h"
 
-#if defined(_MSC_VER)
-#include <ppltasks.h>
-#endif
 #include <optional>
 
 // tg_maintainer
@@ -77,17 +74,6 @@ struct CancelableFrame {
 private:
 	OperationContext* m_Prev; // previously active OperationContext (for nesting)
 };
-
-// dms_task
-// Alias for a PPL task producing no direct value; used to chain async work units.
-#if defined(_MSC_VER)
-using dms_task = concurrency::task<void>;
-inline bool is_empty(const dms_task& x) { return x == dms_task();  }
-#else
-// Linux placeholder: PPL not available, tasks run synchronously
-struct dms_task {};
-inline bool is_empty(const dms_task&) { return true; }
-#endif
 
 // explain_context_ptr_t
 // Shared pointer to an explanation context used to capture "why/how" results are produced.

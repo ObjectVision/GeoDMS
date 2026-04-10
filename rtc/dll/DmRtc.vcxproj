@@ -157,6 +157,7 @@
     <ClInclude Include="src\mem\resize.h" />
     <ClInclude Include="src\mem\tiledata.h" />
     <ClInclude Include="src\Parallel.h" />
+    <ClInclude Include="src\parallel\portable_task_group.h" />
     <ClInclude Include="src\ptr\InterestHolders.h" />
     <ClInclude Include="src\ptr\LifetimeProtector.h" />
     <ClInclude Include="src\ptr\OwningPtrArray.h" />
@@ -339,6 +340,7 @@
     <ClCompile Include="src\geo\Transform.cpp" />
     <ClCompile Include="src\mem\FixedAlloc.cpp" />
     <ClCompile Include="src\mem\HeapSequenceProvider.cpp" />
+    <ClCompile Include="src\parallel\portable_task_group.cpp" />
     <ClCompile Include="src\ptr\SharedObjBase.cpp" />
     <ClCompile Include="src\RtcMain.cpp" />
     <ClCompile Include="src\ser\AsString.cpp" />

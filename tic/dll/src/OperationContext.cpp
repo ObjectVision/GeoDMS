@@ -69,12 +69,6 @@
 
 #include "OperationContext.h"
 
-#if defined(WIN32)
-#include <windows.h>
-#include <agents.h>
-#include <ppl.h>
-#endif
-
 #include <deque>
 
 #include "Parallel.h"
@@ -108,9 +102,7 @@ const bool MG_DEBUGCONNECTIONS = false;
 const bool MG_DEBUGCONNECTIONS = false;
 #endif //defined(MG_DEBUG)
 
-#if defined(_MSC_VER)
-concurrency::task_group& GetTaskGroup();
-#endif
+
 
 // *****************************************************************************
 // Section:     tile_task_group
@@ -138,9 +130,6 @@ static bool s_IsCancelled = false;
 // Number of worker threads currently running DoThisOrThatAndDecommission loop.
 static UInt32 s_NrRunningTileTaskThreads = 0;
 
-#if defined(_MSC_VER)
-static concurrency::task_group* s_OcTaskGroup = nullptr;
-#endif
 static bool s_OcTaskGroupIsCanceling = false;
 
 
@@ -271,11 +260,11 @@ tile_task_group::tile_task_group(IndexType last, task_func func)
 
 	// Launch workers outside of lock.
 	while (nrThreadsToCommission-- > 0)
-#if defined(_MSC_VER)
-		GetTaskGroup().run([] { DoThisOrThatAndDecommission(); });
-#else
-		std::thread([] { DoThisOrThatAndDecommission(); }).detach();
-#endif
+		GetPortableTaskGroup().run([] { DoThisOrThatAndDecommission(); });
+
+
+
+
 }
 
 // Destructor waits for all commissioned slots to complete and propagates exceptions.
@@ -676,36 +665,22 @@ TIC_CALL void WakeUpJoiners()
 }
 
 // *****************************************************************************
-// Section: GetTaskGroup() en tg_maintainer
+// *****************************************************************************
+// Section: tg_maintainer
 // 
 // Purpose:
-//  - Initialize the default PPL scheduler with vCPU based policy.
-//  - Maintain a global task_group used by OperationContext and tile tasks.
-// 
-// note: caller is responsible for having exactly one tg_maintainer object in main() or at least during calls to GetTaskGroup();
-// note: GetTaskGroup() returns a singleton, but calls to GetTaskGroup().run(...) can be made from different threads
+//  - Initialize the portable_task_group with vCPU based concurrency.
+//  - Maintain the global task group used by OperationContext and tile tasks.
 // 
 // *****************************************************************************
 
 TIC_CALL tg_maintainer::tg_maintainer()
 {
-#if defined(_MSC_VER)
-	// build policy: pin min/max concurrency to number of vCPUs
-	concurrency::SchedulerPolicy policy(2, concurrency::MinConcurrency, GetNrVCPUs(), concurrency::MaxConcurrency, GetNrVCPUs());
-
-	// install that policy as the DEFAULT scheduler’s policy --
-	// must do this *before* any parallel work runs
-	concurrency::Scheduler::SetDefaultSchedulerPolicy(policy);
-
-	assert(!s_OcTaskGroup);
-	s_OcTaskGroup = new concurrency::task_group;
-#endif
+	InitPortableTaskGroup(GetNrVCPUs());
 }
 
 TIC_CALL tg_maintainer::~tg_maintainer()
 {
-#if defined(_MSC_VER)
-	assert(s_OcTaskGroup);
 	s_OcTaskGroupIsCanceling = true;
 	{
 		leveled_std_section::scoped_lock lock(cs_ThreadMessing);
@@ -718,24 +693,13 @@ TIC_CALL tg_maintainer::~tg_maintainer()
 		assert(s_ScheduledContextsMap.empty());
 		assert(s_RadioActives.empty());
 	}
-	s_OcTaskGroup->cancel();
-	s_OcTaskGroup->wait();
+	GetPortableTaskGroup().cancel();
+	GetPortableTaskGroup().wait();
 
 	assert(sd_RunningOC.empty() || g_IsTerminating);
 
-	delete s_OcTaskGroup;
-	s_OcTaskGroup = nullptr;
-#endif
+	DestroyPortableTaskGroup();
 }
-
-#if defined(_MSC_VER)
-// Global access to the task group, must be initialized by tg_maintainer.
-concurrency::task_group& GetTaskGroup()
-{
-	assert(s_OcTaskGroup);
-	return *s_OcTaskGroup;
-}
-#endif
 
 // *****************************************************************************
 // Section: PhaseNumbers
@@ -1133,7 +1097,7 @@ void StartCollectedOperationContexts(context_array collectedActivatedContexts)
 				};
 
 #if defined(_MSC_VER)
-			GetTaskGroup().run(selfCaller);
+			GetPortableTaskGroup().run(selfCaller);
 #else
 			std::thread(selfCaller).detach();
 #endif

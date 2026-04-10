@@ -847,6 +847,7 @@
       <Filter>Actor Update Mechanism</Filter>
     </ClInclude>
     <ClInclude Include="src\FileResult.h" />
+    <ClInclude Include="src\parallel\portable_task_group.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\act\Actor.cpp">
@@ -995,6 +996,9 @@
     </ClCompile>
     <ClCompile Include="src\act\garbage_can.cpp">
       <Filter>Actor Update Mechanism</Filter>
+    </ClCompile>
+    <ClCompile Include="src\parallel\portable_task_group.cpp">
+      <Filter>Mathematic Utilities</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

@@ -18,9 +18,7 @@
 #include "OperationContext.h" 
 
 #include <condition_variable>
-#if defined(_MSC_VER)
-#include <ppl.h>
-#endif
+#include "parallel/dms_combinable.h"
 
 struct tile_task_group
 {

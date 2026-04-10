@@ -114,7 +114,7 @@ namespace {
 				// Use parallel processing if input is large
 				if (tn > 1 && arg1A->GetAbstrDomainUnit()->GetCount() > 8 * nrRes)
 				{
-					Concurrency::combinable<std::vector<SizeT>> counts;
+					dms_combinable<std::vector<SizeT>> counts;
 					parallel_tileloop(arg1A->GetAbstrDomainUnit()->GetNrTiles(), [nrRes, arg1, indexRange = e1->GetRange(), dcm, &counts](tile_id t)
 						{
 							auto& localCounts = counts.local();
@@ -221,7 +221,7 @@ namespace {
 				// Use parallel processing if input is large
 				if (tn > 1 && arg1A->GetAbstrDomainUnit()->GetCount() > 8 * nrRes)
 				{
-					Concurrency::combinable<sequence_traits<Bool>::container_type> hasAnies;
+					dms_combinable<sequence_traits<Bool>::container_type> hasAnies;
 					parallel_tileloop(arg1A->GetAbstrDomainUnit()->GetNrTiles(), [nrRes, arg1, indexRange = e1->GetRange(), dcm, &hasAnies](tile_id t)
 						{
 							auto& localHasAnies = hasAnies.local();

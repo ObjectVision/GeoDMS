@@ -116,7 +116,7 @@ SYNTAX_CALL TreeItem* DMS_CONV DMS_CreateTreeFromString(CharPtr configString)
 		CDebugContextHandle debugContext("DMS_CreateTreeFromString", configString, false);
 
 		SessionData::Create(GetCurrentDir().c_str(), "" );
-		ConfigurationFilenameContainer filenameContainer(SharedStr::SharedStr(), ++s_LoadNumber);
+		ConfigurationFilenameContainer filenameContainer(SharedStr(), ++s_LoadNumber);
 		{
 			StaticMtIncrementalLock<TreeItem::s_NotifyChangeLockCount> dontNotify;
 			StaticStIncrementalLock<TreeItem::s_ConfigReadLockCount  > dontCommit;
@@ -353,7 +353,11 @@ bool DMS_ProcessPostData(TreeItem* context, CharPtr postData, UInt32 dataSize)
 		TreeItemContextHandle checkPtr(context, "DMS_ProcessPostData");
 
 		assert( (StrLen(postData) + 1) == dataSize );
+#if defined(_MSC_VER)
 		if (_strnicmp(postData, "DMSPOST=",8))
+#else
+		if (strncasecmp(postData, "DMSPOST=",8))
+#endif
 			return false;
 
 		MemoInpStreamBuff inpBuff(postData, postData+dataSize);

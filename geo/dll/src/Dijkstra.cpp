@@ -627,12 +627,12 @@ SizeT ProcessDijkstra(TreeItemDualRef& resultHolder
 	WriteBlock writeBlocks;
 
 	// Thread-local combinables (one copy per worker thread)
-	concurrency::combinable<NodeZoneConnector<NodeType, LinkType, ZoneType, ImpType>> nzcC;
-	concurrency::combinable<OwningDijkstraHeap<NodeType, LinkType, ZoneType, ImpType>> dhC;
-	concurrency::combinable<TreeRelations> trC;
-	concurrency::combinable< std::vector<ImpType>> pot_ijC;
+	dms_combinable<NodeZoneConnector<NodeType, LinkType, ZoneType, ImpType>> nzcC;
+	dms_combinable<OwningDijkstraHeap<NodeType, LinkType, ZoneType, ImpType>> dhC;
+	dms_combinable<TreeRelations> trC;
+	dms_combinable< std::vector<ImpType>> pot_ijC;
 
-	concurrency::combinable<std::vector<MassType> >  resLinkFlowC;
+	dms_combinable<std::vector<MassType> >  resLinkFlowC;
 
 	// Default masses if void-domain singletons
 	MassType orgMass = 1.0; if (tgOrgMass && tgOrgMassHasVoidDomain)
