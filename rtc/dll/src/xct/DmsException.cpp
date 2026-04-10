@@ -719,8 +719,8 @@ void debugBreak()
 {
 #if defined(_MSC_VER)
 	__debugbreak();
-#else defined(_MSC_VER)
-	// GNU TODO
+#else
+	__builtin_trap();
 #endif //defined(_MSC_VER)
 
 }

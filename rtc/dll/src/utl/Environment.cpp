@@ -1436,6 +1436,957 @@ struct WindowsComponent : AbstrVersionComponent {
 
 #else //defined(_MSC_VER)
 
-// GNU TODO
+// =====================================================================
+// Linux implementations of Environment.h declarations
+// =====================================================================
+
+#include <cstdlib>
+#include <cstring>
+#include <ctime>
+#include <cerrno>
+#include <climits>
+#include <unistd.h>
+#include <sys/stat.h>
+#include <sys/types.h>
+#include <sys/resource.h>
+#include <sys/utsname.h>
+#include <dirent.h>
+#include <fcntl.h>
+#include <pwd.h>
+#include <spawn.h>
+#include <sys/wait.h>
+
+#include <vector>
+#include <map>
+#include <mutex>
+#include <filesystem>
+#include <atomic>
+
+#include "utl/IncrementalLock.h"
+
+// =====================================================================
+// platform namespace
+// =====================================================================
+
+SharedStr platform::GetSystemErrorText(DWORD lastErr)
+{
+	return SharedStr(strerror(lastErr));
+}
+
+RTC_CALL bool platform::isCharPtrAndExceeds_MAX_PATH(CharPtr xFileName)
+{
+	return strnlen(xFileName, PATH_MAX) >= PATH_MAX;
+}
+
+RTC_CALL DWORD platform::GetLastError()
+{
+	return errno;
+}
+
+// =====================================================================
+// Stack / Wait / Yield
+// =====================================================================
+
+SizeT RemainingStackSpace()
+{
+	struct rlimit rl;
+	getrlimit(RLIMIT_STACK, &rl);
+	// Approximate: distance from current stack variable to estimated stack bottom
+	char stackVar;
+	// This is a rough approximation; for a more precise solution, use pthread_attr_getstack
+	SizeT stackSize = rl.rlim_cur;
+	return stackSize / 2; // conservative estimate
+}
+
+void Wait(UInt32 nrMillisecs)
+{
+	std::this_thread::sleep_for(std::chrono::milliseconds(nrMillisecs));
+}
+
+void DmsYield(UInt32 nrMillisecs)
+{
+	std::this_thread::yield();
+	if (nrMillisecs > 0)
+		Wait(nrMillisecs);
+}
+
+bool ManageSystemError(UInt32& retryCounter, CharPtr format, CharPtr fileName, bool throwOnError, bool doRetry)
+{
+	int lastErr = errno;
+	if (doRetry && (lastErr == EACCES || lastErr == EBUSY))
+	{
+		if (++retryCounter <= 10)
+		{
+			UInt32 nrWaitSecs = (1 << retryCounter);
+			reportF(SeverityTypeID::ST_MajorTrace,
+				"System Error %s:\nErrorCode %d: %s\nWaiting %d seconds before retry #%d",
+				mySSPrintF(format, fileName).c_str(),
+				lastErr,
+				strerror(lastErr),
+				nrWaitSecs,
+				retryCounter
+			);
+			Wait(1000 * nrWaitSecs);
+			return true;
+		}
+	}
+	if (throwOnError)
+		throwSystemError(lastErr, format, fileName);
+	return false;
+}
+
+// =====================================================================
+// Main Window Handle (stub on Linux)
+// =====================================================================
+
+static void* s_GlobalMainWindow = nullptr;
+
+RTC_CALL void* GetGlobalMainWindowHandle() { return s_GlobalMainWindow; }
+
+RTC_CALL void* SetGlobalMainWindowHandle(void* hWindow)
+{
+	auto oldHandle = s_GlobalMainWindow;
+	s_GlobalMainWindow = hWindow;
+	return oldHandle;
+}
+
+// =====================================================================
+// Message Queue (stubs on Linux - no GUI message loop)
+// =====================================================================
+
+std::atomic<UInt32> g_DispatchLockCount = 0;
+
+bool HasWaitingMessages() { return false; }
+
+extern "C" RTC_CALL bool DMS_CONV DMS_HasWaitingMessages() { return false; }
+
+// =====================================================================
+// File Path Utilities
+// =====================================================================
+
+bool IsDosFileOrDirAccessible(CharPtr dosFileOrDirName)
+{
+	return access(dosFileOrDirName, F_OK) == 0;
+}
+
+SharedStr GetCurrentDir()
+{
+	char buf[PATH_MAX];
+	if (!getcwd(buf, sizeof(buf)))
+		throwErrorD("Environment", "getcwd failed");
+	return ConvertDosFileName(SharedStr(buf));
+}
+
+void SetCurrentDir(CharPtr dir)
+{
+	chdir(dir);
+}
+
+static SharedStr g_ExeDir;
+
+void DMS_Appl_SetExeDir(CharPtr exeDir)
+{
+	assert(g_ExeDir.empty());
+	g_ExeDir = ConvertDosFileName(SharedStr(exeDir));
+	SetMainThreadID();
+}
+
+RTC_CALL void DMS_CONV DMS_Appl_SetFont()
+{
+	// No-op on Linux (no Windows font resource loading)
+}
+
+RTC_CALL SharedStr GetExeDir()
+{
+	assert(!g_ExeDir.empty());
+	return g_ExeDir;
+}
+
+SharedStr ConvertDosFileName(WeakStr fileName)
+{
+	// On Linux, '/' is already the native delimiter; just return as-is
+	SharedStr result(fileName);
+	// Still handle backslashes from cross-platform config files
+	auto range = result.GetAsMutableRange();
+	while (range.first != range.second)
+	{
+		if (*range.first == '\\')
+			*range.first = '/';
+		++range.first;
+	}
+	return result;
+}
+
+SharedStr ConvertDmsFileNameAlways(SharedStr&& path)
+{
+	// On Linux, no conversion needed (/ is native)
+	return std::move(path);
+}
+
+SharedStr ConvertDmsFileName(WeakStr path)
+{
+	if (path.empty())
+		return path;
+	// Strip file: prefix if present
+	if (!strncmp(path.begin(), "file:", 5))
+		return SharedStr(CharPtrRange(path.begin() + 5, path.send()));
+	return path;
+}
+
+void ReplaceSpecificDelimiters(MutableCharPtrRange range, const char delimiter)
+{
+	while (range.first != range.second)
+	{
+		if (*range.first == delimiter)
+			*range.first = '/';
+		++range.first;
+	}
+}
+
+bool HasDosDelimiters(CharPtr source)
+{
+	assert(source);
+	while (*source)
+	{
+		if (*source == '\\')
+			return true;
+		++source;
+	}
+	return false;
+}
+
+bool HasDosDelimiters(CharPtrRange source)
+{
+	while (source.first != source.second)
+	{
+		if (*source.first == '\\')
+			return true;
+		++source.first;
+	}
+	return false;
+}
+
+bool IsRelative(CharPtr source)
+{
+	assert(source);
+	while (*source)
+	{
+		if (*source == '/' || *source == ':' || *source == '%')
+			return false;
+		++source;
+	}
+	return true;
+}
+
+// =====================================================================
+// Directory / File Operations
+// =====================================================================
+
+void MakeDir(WeakStr dirName)
+{
+	auto path = ConvertDmsFileName(dirName);
+	if (mkdir(path.c_str(), 0755) != 0)
+	{
+		if (errno == EEXIST)
+			return;
+		throwLastSystemError("MakeDir('%s')", dirName.c_str());
+	}
+}
+
+void MakeDirsForFileImpl(WeakStr fullFileName)
+{
+	SharedStr pathStr = splitFullPath(fullFileName.c_str());
+	if (IsFileOrDirAccessible(pathStr))
+		return;
+	if (pathStr.empty())
+		return;
+	char ch = pathStr.send()[-1];
+	if (ch == ':' || ch == '/')
+		return;
+	MakeDirsForFileImpl(pathStr);
+	MakeDir(pathStr);
+}
+
+void MakeDirsForFile(WeakStr fullFileName)
+{
+	assert(fullFileName.c_str());
+	MakeDirsForFileImpl(fullFileName);
+}
+
+extern "C" RTC_CALL void DMS_CONV DMS_MakeDirsForFile(CharPtr fileName)
+{
+	MakeDirsForFile(ConvertDosFileName(SharedStr(fileName)));
+}
+
+bool IsFileOrDirAccessible(WeakStr fileOrDirName)
+{
+	return access(ConvertDmsFileName(fileOrDirName).c_str(), F_OK) == 0;
+}
+
+bool IsFileOrDirWritable(WeakStr fileOrDirName)
+{
+	return access(ConvertDmsFileName(fileOrDirName).c_str(), W_OK) == 0;
+}
+
+void GetWritePermission(WeakStr fileName)
+{
+	if (IsFileOrDirAccessible(fileName))
+	{
+		if (!IsFileOrDirWritable(fileName))
+			throwErrorF("FileSystem", "Write permission for '%s' denied", fileName);
+	}
+	else
+		MakeDirsForFile(fileName);
+}
+
+// =====================================================================
+// FindFileBlock (uses opendir/readdir on Linux)
+// =====================================================================
+
+#include <fnmatch.h>
+
+struct FindFileBlockData
+{
+	DIR* dir = nullptr;
+	struct dirent* entry = nullptr;
+	SharedStr dirPath;
+	SharedStr pattern;
+	SharedStr currentFullPath;
+};
+
+FindFileBlock::FindFileBlock(WeakStr fileSearchSpec)
+	: m_Data(new Byte[sizeof(FindFileBlockData)])
+	, m_Handle(nullptr)
+{
+	auto* data = new (m_Data.get()) FindFileBlockData();
+	SharedStr spec(fileSearchSpec);
+	// Split into directory and pattern
+	auto lastSlash = spec.send();
+	for (auto p = spec.begin(); p != spec.send(); ++p)
+		if (*p == '/' || *p == '\\')
+			lastSlash = p;
+
+	if (lastSlash != spec.send())
+	{
+		data->dirPath = SharedStr(CharPtrRange(spec.begin(), lastSlash));
+		data->pattern = SharedStr(CharPtrRange(lastSlash + 1, spec.send()));
+	}
+	else
+	{
+		data->dirPath = SharedStr(".");
+		data->pattern = spec;
+	}
+
+	data->dir = opendir(data->dirPath.c_str());
+	if (!data->dir)
+	{
+		m_Handle = reinterpret_cast<HANDLE>(static_cast<intptr_t>(-1));
+		return;
+	}
+	m_Handle = data->dir;
+	// Advance to first matching entry
+	if (!Next())
+		m_Handle = reinterpret_cast<HANDLE>(static_cast<intptr_t>(-1));
+}
+
+FindFileBlock::FindFileBlock(FindFileBlock&& src) noexcept
+	: m_Data(std::move(src.m_Data))
+	, m_Handle(src.m_Handle)
+{
+	src.m_Handle = reinterpret_cast<HANDLE>(static_cast<intptr_t>(-1));
+}
+
+FindFileBlock::~FindFileBlock() noexcept
+{
+	if (IsValid())
+	{
+		auto* data = reinterpret_cast<FindFileBlockData*>(m_Data.get());
+		if (data->dir)
+			closedir(data->dir);
+		data->~FindFileBlockData();
+	}
+}
+
+bool FindFileBlock::IsValid() const
+{
+	return m_Handle != reinterpret_cast<HANDLE>(static_cast<intptr_t>(-1)) && m_Handle != nullptr;
+}
+
+DWORD FindFileBlock::GetFileAttr() const
+{
+	assert(IsValid());
+	auto* data = reinterpret_cast<const FindFileBlockData*>(m_Data.get());
+	struct stat st;
+	if (stat(data->currentFullPath.c_str(), &st) != 0)
+		return 0;
+	// Emulate FILE_ATTRIBUTE_DIRECTORY
+	return S_ISDIR(st.st_mode) ? 0x10 : 0; // FILE_ATTRIBUTE_DIRECTORY = 0x10
+}
+
+bool FindFileBlock::IsDirectory() const
+{
+	return GetFileAttr() & 0x10;
+}
+
+CharPtr FindFileBlock::GetCurrFileName() const
+{
+	auto* data = reinterpret_cast<const FindFileBlockData*>(m_Data.get());
+	return data->entry ? data->entry->d_name : "";
+}
+
+bool FindFileBlock::Next()
+{
+	auto* data = reinterpret_cast<FindFileBlockData*>(m_Data.get());
+	if (!data->dir)
+		return false;
+	while ((data->entry = readdir(data->dir)) != nullptr)
+	{
+		if (fnmatch(data->pattern.c_str(), data->entry->d_name, 0) == 0)
+		{
+			data->currentFullPath = DelimitedConcat(data->dirPath.c_str(), data->entry->d_name);
+			return true;
+		}
+	}
+	return false;
+}
+
+// =====================================================================
+// FileDateTime
+// =====================================================================
+
+FileDateTime AsFileDateTime(UInt32 hiDW, UInt32 loDW)
+{
+	return (static_cast<UInt64>(hiDW) << 32) | loDW;
+}
+
+FileDateTime GetFileOrDirDateTime(WeakStr fileOrDirName)
+{
+	struct stat st;
+	SharedStr path = ConvertDmsFileName(fileOrDirName);
+	if (stat(path.c_str(), &st) != 0)
+		return 0;
+	// Convert timespec to 100-nanosecond intervals (Windows FILETIME-compatible)
+	return static_cast<FileDateTime>(st.st_mtime) * 10000000ULL + 116444736000000000ULL;
+}
+
+SharedStr AsDateTimeString(FileDateTime t64)
+{
+	// Convert from Windows FILETIME to Unix time
+	if (t64 < 116444736000000000ULL)
+		return SharedStr("unknown");
+	time_t unixTime = (t64 - 116444736000000000ULL) / 10000000ULL;
+	struct tm tm;
+	localtime_r(&unixTime, &tm);
+	return mySSPrintF("%04d/%02d/%02d  %02d:%02d:%02d",
+		tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday,
+		tm.tm_hour, tm.tm_min, tm.tm_sec
+	);
+}
+
+// =====================================================================
+// Copy / Move / Kill File Operations
+// =====================================================================
+
+void CopyFileOrDir(CharPtr srcFileOrDirName, CharPtr destFileOrDirName, bool mayBeMissing)
+{
+	try {
+		std::filesystem::copy(srcFileOrDirName, destFileOrDirName,
+			std::filesystem::copy_options::recursive | std::filesystem::copy_options::overwrite_existing);
+	} catch (const std::filesystem::filesystem_error& e) {
+		if (!mayBeMissing)
+			throwErrorF("FileSystem", "CopyFileOrDir(%s, %s) failed: %s", srcFileOrDirName, destFileOrDirName, e.what());
+	}
+}
+
+bool MoveFileOrDir(CharPtr srcFileOrDirName, CharPtr destFileOrDirName, bool mayBeMissing)
+{
+	std::error_code ec;
+	std::filesystem::rename(srcFileOrDirName, destFileOrDirName, ec);
+	if (ec)
+	{
+		if (!mayBeMissing)
+			throwErrorF("FileSystem", "MoveFileOrDir(%s, %s) failed: %s", srcFileOrDirName, destFileOrDirName, ec.message().c_str());
+		return false;
+	}
+	return true;
+}
+
+bool KillFileOrDir(WeakStr fileOrDirName, bool canBeDir)
+{
+	std::error_code ec;
+	auto path = std::filesystem::path(ConvertDmsFileName(fileOrDirName).c_str());
+	if (!std::filesystem::exists(path, ec))
+		return true;
+	if (canBeDir && std::filesystem::is_directory(path, ec))
+		std::filesystem::remove_all(path, ec);
+	else
+		std::filesystem::remove(path, ec);
+	return !ec;
+}
+
+// =====================================================================
+// Child Process
+// =====================================================================
+
+start_process_result_t StartChildProcess(CharPtr moduleName, Char* cmdLine)
+{
+	pid_t pid;
+	char* argv[] = { const_cast<char*>(moduleName), cmdLine, nullptr };
+	int status = posix_spawn(&pid, moduleName, nullptr, nullptr, argv, environ);
+	if (status != 0)
+		throwErrorF("Environment", "posix_spawn(%s) failed: %s", moduleName, strerror(status));
+	// Return pid in the HANDLE pair (process, thread=0 on Linux)
+	return { reinterpret_cast<HANDLE>(static_cast<intptr_t>(pid)), nullptr };
+}
+
+DWORD ExecuteChildProcess(CharPtr moduleName, Char* cmdLine)
+{
+	auto result = StartChildProcess(moduleName, cmdLine);
+	pid_t pid = static_cast<pid_t>(reinterpret_cast<intptr_t>(result.first));
+	int status;
+	waitpid(pid, &status, 0);
+	return WIFEXITED(status) ? WEXITSTATUS(status) : 1;
+}
+
+// =====================================================================
+// Registry / Config (use environment variables on Linux)
+// =====================================================================
+
+static std::map<SharedStr, SharedStr> s_SessionLocalOverrides;
+static std::mutex s_SessionLocalMutex;
+
+RTC_CALL void SetSessionLocalOverride(CharPtr key, CharPtr value)
+{
+	std::lock_guard lock(s_SessionLocalMutex);
+	s_SessionLocalOverrides[SharedStr(key)] = SharedStr(value);
+}
+
+RTC_CALL void ClearSessionLocalOverride(CharPtr key)
+{
+	std::lock_guard lock(s_SessionLocalMutex);
+	s_SessionLocalOverrides.erase(SharedStr(key));
+}
+
+RTC_CALL bool HasSessionLocalOverride(CharPtr key)
+{
+	std::lock_guard lock(s_SessionLocalMutex);
+	return s_SessionLocalOverrides.contains(SharedStr(key));
+}
+
+RTC_CALL SharedStr GetSessionLocalOverride(CharPtr key)
+{
+	std::lock_guard lock(s_SessionLocalMutex);
+	auto it = s_SessionLocalOverrides.find(SharedStr(key));
+	if (it != s_SessionLocalOverrides.end())
+		return it->second;
+	return SharedStr();
+}
+
+RTC_CALL SharedStr GetGeoDmsRegKey(CharPtr key)
+{
+	// Check session-local overrides first
+	{
+		std::lock_guard lock(s_SessionLocalMutex);
+		auto it = s_SessionLocalOverrides.find(SharedStr(key));
+		if (it != s_SessionLocalOverrides.end())
+			return it->second;
+	}
+	// On Linux, use environment variable GEODMS_<key>
+	SharedStr envName = mySSPrintF("GEODMS_%s", key);
+	const char* val = getenv(envName.c_str());
+	if (val)
+		return SharedStr(val);
+	return SharedStr();
+}
+
+RTC_CALL auto GetGeoDmsRegKeyMultiString(CharPtr key) -> std::vector<SharedStr>
+{
+	SharedStr val = GetGeoDmsRegKey(key);
+	if (val.empty())
+		return {};
+	// Split on ';' for multi-value
+	std::vector<SharedStr> result;
+	const char* p = val.c_str();
+	const char* start = p;
+	while (*p)
+	{
+		if (*p == ';')
+		{
+			result.emplace_back(CharPtrRange(start, p));
+			start = p + 1;
+		}
+		++p;
+	}
+	if (start != p)
+		result.emplace_back(CharPtrRange(start, p));
+	return result;
+}
+
+RTC_CALL bool SetGeoDmsRegKeyDWord(CharPtr key, DWORD dw, CharPtr section)
+{
+	// On Linux, persist to env (session-only)
+	SharedStr envName = mySSPrintF("GEODMS_%s", key);
+	SharedStr val = mySSPrintF("%u", dw);
+	setenv(envName.c_str(), val.c_str(), 1);
+	return true;
+}
+
+RTC_CALL DWORD GetGeoDmsRegKeyDWord(CharPtr key, DWORD defaultValue, CharPtr section)
+{
+	SharedStr envName = mySSPrintF("GEODMS_%s", key);
+	const char* val = getenv(envName.c_str());
+	if (val)
+		return strtoul(val, nullptr, 10);
+	return defaultValue;
+}
+
+RTC_CALL bool SetGeoDmsRegKeyString(CharPtr key, CharPtr str)
+{
+	SharedStr envName = mySSPrintF("GEODMS_%s", key);
+	setenv(envName.c_str(), str, 1);
+	return true;
+}
+
+RTC_CALL bool SetGeoDmsRegKeyMultiString(CharPtr key, const std::vector<SharedStr>& strings)
+{
+	SharedStr val;
+	for (size_t i = 0; i < strings.size(); ++i)
+	{
+		if (i > 0) val += ";";
+		val += strings[i];
+	}
+	return SetGeoDmsRegKeyString(key, val.c_str());
+}
+
+SharedStr GetConvertedGeoDmsRegKey(CharPtr key)
+{
+	SharedStr result;
+	if (!PlatformInfo::GetEnvString("directories", key, result))
+		result = GetGeoDmsRegKey(key);
+	return result;
+}
+
+SharedStr GetLocalDataDirImpl()
+{
+	SharedStr localDataDir = GetConvertedGeoDmsRegKey("LocalDataDir");
+	if (localDataDir.empty())
+		localDataDir = "/tmp/geodms/LocalData";
+	return localDataDir;
+}
+
+RTC_CALL SharedStr GetLocalDataDir()
+{
+	static SharedStr localDataDir = GetLocalDataDirImpl();
+	return localDataDir;
+}
+
+SharedStr GetSourceDataDirImpl()
+{
+	SharedStr sourceDataDir = GetConvertedGeoDmsRegKey("SourceDataDir");
+	if (sourceDataDir.empty())
+		sourceDataDir = "/tmp/geodms/SourceData";
+	return sourceDataDir;
+}
+
+RTC_CALL SharedStr GetSourceDataDir()
+{
+	static SharedStr sourceDataDir = GetSourceDataDirImpl();
+	return sourceDataDir;
+}
+
+// =====================================================================
+// Status Flags (same logic, env-var backed on Linux)
+// =====================================================================
+
+UInt32 g_RegStatusFlags = 0;
+UInt32 g_OvrStatusFlags = 0;
+UInt32 g_OvrStatusMask  = 0;
+
+leveled_critical_section s_RegAccess(item_level_type(0), ord_level_type::RegisterAccess, "RegisterAccess");
+
+RTC_CALL void DMS_Appl_SetRegStatusFlags(UInt32 newSF)
+{
+	leveled_critical_section::scoped_lock lock(s_RegAccess);
+	g_RegStatusFlags = (newSF | RSF_WasRead);
+}
+
+UInt32 ReadOnceRegisteredStatusFlags()
+{
+	if (g_RegStatusFlags & RSF_WasRead)
+		return g_RegStatusFlags;
+
+	leveled_critical_section::scoped_lock lock(s_RegAccess);
+	if (g_RegStatusFlags & RSF_WasRead)
+		return g_RegStatusFlags;
+
+	g_RegStatusFlags |= RSF_WasRead;
+	DWORD val = GetGeoDmsRegKeyDWord("StatusFlags", 0);
+	if (val)
+		g_RegStatusFlags |= val;
+	else
+		g_RegStatusFlags |= RSF_Default;
+	return g_RegStatusFlags;
+}
+
+RTC_CALL UInt32 GetRegStatusFlags()
+{
+	auto registeredFlags = ReadOnceRegisteredStatusFlags();
+	return (registeredFlags & ~(g_OvrStatusMask | RSF_WasRead)) | (g_OvrStatusFlags & g_OvrStatusMask);
+}
+
+RTC_CALL UInt32 DMS_Appl_GetRegStatusFlags()
+{
+	return GetRegStatusFlags();
+}
+
+RTC_CALL void SetCachedStatusFlag(UInt32 newSF, bool newVal)
+{
+	leveled_critical_section::scoped_lock lock(s_RegAccess);
+	g_OvrStatusMask |= newSF;
+	if (newVal) g_OvrStatusFlags |= newSF;
+	else        g_OvrStatusFlags &= ~newSF;
+}
+
+RTC_CALL void SetRegStatusFlags(UInt32 newSF)
+{
+	SetGeoDmsRegKeyDWord("StatusFlags", newSF);
+	DMS_Appl_SetRegStatusFlags(newSF);
+}
+
+RTC_CALL void SetStatusFlag(UInt32 newSF, bool newVal)
+{
+	leveled_critical_section::scoped_lock lock(s_RegAccess);
+	g_OvrStatusMask |= newSF;
+	if (newVal) g_OvrStatusFlags |= newSF;
+	else        g_OvrStatusFlags &= ~newSF;
+
+	auto sf = ReadOnceRegisteredStatusFlags();
+	if (newVal) sf |= newSF;
+	else        sf &= ~newSF;
+	sf &= ~RSF_WasRead;
+	SetGeoDmsRegKeyDWord("StatusFlags", sf);
+	g_RegStatusFlags = (sf | RSF_WasRead);
+}
+
+RTC_CALL bool IsInDebugMode()       { return GetRegStatusFlags() & RSF_DebugMode; }
+RTC_CALL bool IsMultiThreaded0()    { return GetRegStatusFlags() & RSF_SuspendForGUI; }
+RTC_CALL bool IsMultiThreaded1()    { return GetRegStatusFlags() & RSF_MultiThreading1; }
+RTC_CALL bool IsMultiThreaded2()    { return GetRegStatusFlags() & RSF_MultiThreading2; }
+RTC_CALL bool IsMultiThreaded3()    { return GetRegStatusFlags() & RSF_MultiThreading3; }
+RTC_CALL bool IsMultiThreaded1or2() { return GetRegStatusFlags() & (RSF_MultiThreading1 | RSF_MultiThreading2); }
+RTC_CALL bool HasDynamicROI()       { return GetRegStatusFlags() & RSF_DynamicROI; }
+RTC_CALL bool ShowThousandSeparator() { return GetRegStatusFlags() & RSF_ShowThousandSeparator; }
+RTC_CALL bool EventLog_HideDepreciatedCaseMixupWarnings() { return GetRegStatusFlags() & RSF_EventLog_HideDepreciated; }
+
+extern "C" RTC_CALL bool DMS_CONV RTC_ParseRegStatusFlag(const char* param)
+{
+	assert(param);
+	if (param[0] != '/') return false;
+	char cmd = param[1];
+	if (cmd != 'S' && cmd != 'C') return false;
+	bool newValue = (cmd == 'S');
+	switch (param[2])
+	{
+		case 'A': SetCachedStatusFlag(RSF_AdminMode, newValue); break;
+		case 'C': SetCachedStatusFlag(RSF_ShowStateColors, newValue); break;
+		case 'V': SetCachedStatusFlag(RSF_TreeViewVisible, newValue); break;
+		case 'D': SetCachedStatusFlag(RSF_DetailsVisible, newValue); break;
+		case 'E': SetCachedStatusFlag(RSF_EventLogVisible, newValue); break;
+		case 'T': SetCachedStatusFlag(RSF_ToolBarVisible, newValue); break;
+		case 'I': SetCachedStatusFlag(RSF_CurrentItemBarHidden, newValue); break;
+		case 'R': SetCachedStatusFlag(RSF_DynamicROI, newValue); break;
+		case 'S': case '0': SetCachedStatusFlag(RSF_SuspendForGUI, newValue); break;
+		case '1': SetCachedStatusFlag(RSF_MultiThreading1, newValue); break;
+		case '2': SetCachedStatusFlag(RSF_MultiThreading2, newValue); break;
+		case '3': SetCachedStatusFlag(RSF_MultiThreading3, newValue); break;
+		case 'H': SetCachedStatusFlag(RSF_ShowThousandSeparator, newValue); break;
+		case 'W': SetCachedStatusFlag(RSF_EventLog_HideDepreciated, !newValue); break;
+		default:
+			reportF(SeverityTypeID::ST_Warning, "Unrecognised command line %s option %s", (newValue ? "Set" : "Clear"), param);
+			return true;
+	}
+	return true;
+}
+
+RTC_CALL void ParseRegStatusFlags(int& argc, char**& argv)
+{
+	while (argc)
+	{
+		if (!RTC_ParseRegStatusFlag(argv[0]))
+			return;
+		++argv;
+		--argc;
+	}
+}
+
+// =====================================================================
+// RegDWord
+// =====================================================================
+
+struct RegDWordAttr { CharPtr key; DWORD value; bool wasRead; };
+
+static RegDWordAttr s_RegDWordAttrs[] =
+{
+	{ "MemoryFlushThreshold", 80, false },
+	{ "SwapFileMinSize", 0, false },
+	{ "DrawingSizeInPixels", 0, false },
+	{ "MemoryMaxRAM_GB", 64, false }
+};
+
+extern "C" RTC_CALL DWORD RTC_GetRegDWord(RegDWordEnum i)
+{
+	auto ui = UInt32(i);
+	MG_CHECK(ui < sizeof(s_RegDWordAttrs) / sizeof(RegDWordAttr));
+	leveled_critical_section::scoped_lock lock(s_RegAccess);
+	RegDWordAttr& regAttr = s_RegDWordAttrs[ui];
+	if (!regAttr.wasRead)
+	{
+		regAttr.wasRead = true;
+		DWORD val = GetGeoDmsRegKeyDWord(regAttr.key, regAttr.value);
+		regAttr.value = val;
+	}
+	return regAttr.value;
+}
+
+extern "C" RTC_CALL void RTC_SetCachedDWord(RegDWordEnum i, DWORD dw)
+{
+	auto ui = UInt32(i);
+	assert(ui < sizeof(s_RegDWordAttrs) / sizeof(RegDWordAttr));
+	leveled_critical_section::scoped_lock lock(s_RegAccess);
+	s_RegDWordAttrs[ui].wasRead = true;
+	s_RegDWordAttrs[ui].value = dw;
+}
+
+// =====================================================================
+// Config files (use simple file I/O on Linux)
+// =====================================================================
+
+Int32 GetConfigKeyValue(WeakStr configFileName, CharPtr sectionName, CharPtr keyName, Int32 defaultValue)
+{
+	// Simplified: on Linux, config key lookup from INI not implemented; return default
+	return defaultValue;
+}
+
+SharedStr GetConfigKeyString(WeakStr configFileName, CharPtr sectionName, CharPtr keyName, CharPtr defaultValue)
+{
+	return SharedStr(defaultValue);
+}
+
+void SetConfigKeyString(WeakStr configFileName, CharPtr sectionName, CharPtr keyName, CharPtr keyValue)
+{
+	// Simplified: INI write not implemented on Linux
+}
+
+#include <time.h>
+
+Int64 GetSecsSince1970()
+{
+	return time(nullptr);
+}
+
+// =====================================================================
+// PlatformInfo
+// =====================================================================
+
+namespace PlatformInfo
+{
+	RTC_CALL SharedStr GetVersionStr()
+	{
+		struct utsname buf;
+		if (uname(&buf) == 0)
+			return mySSPrintF("Linux %s %s", buf.release, buf.machine);
+		return SharedStr("Linux (unknown version)");
+	}
+
+	RTC_CALL SharedStr GetUserNameA()
+	{
+		const char* user = getenv("USER");
+		if (user) return SharedStr(user);
+		struct passwd* pw = getpwuid(getuid());
+		if (pw) return SharedStr(pw->pw_name);
+		return SharedStr("unknown");
+	}
+
+	RTC_CALL SharedStr GetComputerNameA()
+	{
+		char hostname[256];
+		if (gethostname(hostname, sizeof(hostname)) == 0)
+			return SharedStr(hostname);
+		return SharedStr("unknown");
+	}
+
+	RTC_CALL bool GetEnv(CharPtr varName, SharedStr& result)
+	{
+		const char* val = getenv(varName);
+		if (!val) return false;
+		result = SharedStr(val);
+		return true;
+	}
+
+	RTC_CALL bool GetEnvString(CharPtr section, CharPtr key, SharedStr& result)
+	{
+		SharedStr varName = mySSPrintF("GEODMS_%s_%s", section, key);
+		return GetEnv(varName.c_str(), result);
+	}
+
+	RTC_CALL SharedStr GetProgramFiles32()
+	{
+		return SharedStr("/usr/local");
+	}
+}
+
+// =====================================================================
+// Utf8 / wchar conversions (trivial on Linux where wchar_t is UTF-32)
+// =====================================================================
+
+std::unique_ptr<wchar_t[]> Utf8_2_wchar(const char* utf8str, int sSize)
+{
+	if (!utf8str || (!sSize && !*utf8str))
+	{
+		auto result = std::make_unique<wchar_t[]>(1);
+		result[0] = 0;
+		return result;
+	}
+
+	size_t len = (sSize < 0) ? strlen(utf8str) : static_cast<size_t>(sSize);
+	auto result = std::make_unique<wchar_t[]>(len + 1);
+
+	mbstate_t state{};
+	const char* src = utf8str;
+	size_t converted = mbsrtowcs(result.get(), &src, len + 1, &state);
+	if (converted == static_cast<size_t>(-1))
+	{
+		// Fallback: byte-by-byte copy
+		for (size_t i = 0; i < len; ++i)
+			result[i] = static_cast<wchar_t>(static_cast<unsigned char>(utf8str[i]));
+		result[len] = 0;
+	}
+	return result;
+}
+
+std::unique_ptr<wchar_t[]> Utf8_2_wchar(WeakStr utf8str)
+{
+	return Utf8_2_wchar(utf8str.c_str(), static_cast<int>(utf8str.ssize()));
+}
+
+auto wchar_2_Utf8Str(const wchar_t* wCharStr, int strLen) -> SharedStr
+{
+	if (!wCharStr || !*wCharStr)
+		return SharedStr();
+
+	size_t len = (strLen < 0) ? wcslen(wCharStr) : static_cast<size_t>(strLen);
+
+	// Each wchar_t can produce up to 4 UTF-8 bytes
+	size_t bufSize = len * 4 + 1;
+	auto buf = std::make_unique<char[]>(bufSize);
+
+	mbstate_t state{};
+	const wchar_t* src = wCharStr;
+	size_t converted = wcsrtombs(buf.get(), &src, bufSize, &state);
+	if (converted == static_cast<size_t>(-1))
+		return SharedStr();
+
+	return SharedStr(CharPtrRange(buf.get(), buf.get() + converted));
+}
 
 #endif //defined(_MSC_VER)

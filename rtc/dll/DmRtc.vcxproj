@@ -157,6 +157,7 @@
     <ClInclude Include="src\mem\resize.h" />
     <ClInclude Include="src\mem\tiledata.h" />
     <ClInclude Include="src\Parallel.h" />
+    <ClInclude Include="src\parallel\dms_combinable.h" />
     <ClInclude Include="src\parallel\portable_task_group.h" />
     <ClInclude Include="src\ptr\InterestHolders.h" />
     <ClInclude Include="src\ptr\LifetimeProtector.h" />

@@ -110,7 +110,7 @@ void ConsiderMakingFreeSpace(SizeT sz)
 	}
 #else //defined(WIN32)
 
-	// GNU TODO
+	// On Linux, memory management is handled by the OS; no explicit working set trimming needed.
 
 #endif //defined(WIN32)
 

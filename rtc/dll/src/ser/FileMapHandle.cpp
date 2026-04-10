@@ -790,7 +790,286 @@ FreeChunk mempage_table::ReallocChunk(FreeChunk currChunk, dms::filesize_t newSi
 
 #else //defined(WIN32)
 
-// GNU TODO
+// =====================================================================
+// Linux implementation using mmap / open / ftruncate
+// =====================================================================
+
+#include <sys/mman.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+#include <unistd.h>
+#include <cerrno>
+
+MG_DEBUGCODE(
+	const UInt64 sd_MaxFileSize = 0x4000000000; // 160Gb
+)
+
+SizeT GetAllocationGrannularity()
+{
+	static SizeT grannularity = sysconf(_SC_PAGESIZE);
+	return grannularity;
+}
+
+SizeT GetAllocationMinorMask()
+{
+	static SizeT mask = GetAllocationGrannularity() - 1;
+	return mask;
+}
+
+SizeT GetAllocationMajorMask()
+{
+	static SizeT mask = ~GetAllocationMinorMask();
+	return mask;
+}
+
+UInt8 GetLog2AllocationGrannularityImpl()
+{
+	auto x = GetAllocationGrannularity();
+	MG_CHECK2(std::popcount(static_cast<unsigned>(x)) == 1, "System Allocation Grannularity is unexpectedly not a power of 2");
+	auto y = sizeof(SizeT) * 8 - std::countl_zero(x) - 1;
+	return y;
+}
+
+UInt8 GetLog2AllocationGrannularity()
+{
+	static auto result = GetLog2AllocationGrannularityImpl();
+	return result;
+}
+
+UInt32 GetMemPageSize()
+{
+	static UInt32 pageSize = sysconf(_SC_PAGESIZE);
+	return pageSize;
+}
+
+UInt8 GetLog2MemPageSizeImpl()
+{
+	auto x = GetMemPageSize();
+	MG_CHECK2(std::popcount(x) == 1, "System page size is unexpectedly not a power of 2");
+	auto y = sizeof(UInt32) * 8 - std::countl_zero(x) - 1;
+	return y;
+}
+
+UInt8 GetLog2MemPageSize()
+{
+	static auto result = GetLog2MemPageSizeImpl();
+	return result;
+}
+
+// -----------------------------------------------------------------------
+// WinHandle: wraps a file descriptor on Linux
+// -----------------------------------------------------------------------
+
+WinHandle::~WinHandle()
+{
+	auto fd = reinterpret_cast<intptr_t>(m_Hnd);
+	if (fd > 0)
+		::close(static_cast<int>(fd));
+}
+
+static HANDLE FdToHandle(int fd) { return reinterpret_cast<HANDLE>(static_cast<intptr_t>(fd)); }
+static int HandleToFd(HANDLE h) { return static_cast<int>(reinterpret_cast<intptr_t>(h)); }
+
+// -----------------------------------------------------------------------
+// FileHandle
+// -----------------------------------------------------------------------
+
+FileHandle::~FileHandle()
+{
+	if (IsOpen())
+		CloseFile();
+}
+
+void FileHandle::OpenRw(WeakStr fileName, dms::filesize_t requiredNrBytes, dms_rw_mode rwMode, bool isTmp, bool doRetry, bool deleteOnClose)
+{
+	assert(!IsOpen());
+	assert(rwMode != dms_rw_mode::unspecified);
+	assert(rwMode >= dms_rw_mode::read_write);
+	m_IsTmp = isTmp;
+	bool readData = (rwMode < dms_rw_mode::write_only_mustzero);
+
+	GetWritePermission(fileName);
+
+	int flags = O_RDWR | O_CREAT;
+	if (!readData)
+		flags |= O_TRUNC;
+
+	auto path = ConvertDmsFileName(fileName);
+	int fd = -1;
+	UInt32 retryCounter = 0;
+	do {
+		fd = ::open(path.c_str(), flags, 0644);
+	} while (fd < 0 && ManageSystemError(retryCounter, "FileHandle::OpenRw(%s)", fileName.c_str(), true, doRetry));
+
+	m_hFile = WinHandle(FdToHandle(fd));
+	m_FileName = fileName;
+	assert(IsOpen());
+	MG_DEBUG_DATA_CODE(m_FCM = readData ? FCM_OpenRwGrowable : FCM_CreateAlways;)
+
+	if (IsDefined(requiredNrBytes))
+		SetFileSize(requiredNrBytes);
+	else if (readData)
+		ReadFileSize(fileName.c_str());
+	else
+		m_FileSize = 0;
+
+	assert(m_FileSize != UNDEFINED_FILE_SIZE);
+}
+
+void FileHandle::SetFileSize(dms::filesize_t requiredNrBytes)
+{
+	m_FileSize = requiredNrBytes;
+	int fd = HandleToFd(m_hFile);
+	if (ftruncate(fd, requiredNrBytes) != 0)
+		throwLastSystemError("ftruncate(%s, %llu)", m_FileName.c_str(), (unsigned long long)requiredNrBytes);
+}
+
+void FileHandle::OpenForRead(WeakStr fileName, bool throwOnError, bool doRetry, bool mayBeEmpty)
+{
+	assert(!IsOpen());
+
+	auto path = ConvertDmsFileName(fileName);
+	int fd = -1;
+	UInt32 retryCounter = 0;
+	do {
+		fd = ::open(path.c_str(), mayBeEmpty ? (O_RDONLY | O_CREAT) : O_RDONLY, 0644);
+	} while (fd < 0 && ManageSystemError(retryCounter, "FileHandle::OpenForRead(%s)", fileName.c_str(), throwOnError, doRetry));
+
+	if (fd < 0)
+	{
+		assert(!throwOnError);
+		m_hFile = WinHandle(nullptr);
+		m_FileName = fileName;
+		m_FileSize = UNDEFINED_FILE_SIZE;
+		return;
+	}
+
+	m_hFile = WinHandle(FdToHandle(fd));
+	m_FileName = fileName;
+	MG_DEBUG_DATA_CODE(m_FCM = FCM_OpenReadOnly;)
+
+	ReadFileSize(fileName.c_str());
+}
+
+void FileHandle::CloseFile()
+{
+	assert(m_hFile);
+	m_hFile = WinHandle();
+}
+
+void FileHandle::ReadFileSize(CharPtr handleName)
+{
+	int fd = HandleToFd(m_hFile);
+	struct stat st;
+	if (fstat(fd, &st) != 0)
+		throwLastSystemError("fstat(%s)", handleName);
+	m_FileSize = st.st_size;
+	dbg_assert(m_FileSize <= sd_MaxFileSize);
+}
+
+void FileHandle::DropFile(WeakStr fileName)
+{
+	CloseFile();
+	auto path = ConvertDmsFileName(fileName);
+	unlink(path.c_str());
+}
+
+// -----------------------------------------------------------------------
+// MappedFileHandle
+// -----------------------------------------------------------------------
+
+MappedFileHandle::MappedFileHandle() = default;
+
+MappedFileHandle::~MappedFileHandle() = default;
+
+void MappedFileHandle::OpenRw(WeakStr fileName, dms::filesize_t requiredNrBytes, dms_rw_mode rwMode, bool isTmp)
+{
+	FileHandle::OpenRw(fileName, requiredNrBytes, rwMode, isTmp, true, false);
+	// On Linux, store a duplicate fd in m_hFileMapping so ViewData can access it
+	int fd = HandleToFd(m_hFile);
+	m_hFileMapping = WinHandle(FdToHandle(dup(fd)));
+}
+
+void MappedFileHandle::OpenForRead(WeakStr fileName, bool throwOnError, bool doRetry)
+{
+	FileHandle::OpenForRead(fileName, throwOnError, doRetry);
+	if (IsOpen())
+	{
+		int fd = HandleToFd(m_hFile);
+		m_hFileMapping = WinHandle(FdToHandle(dup(fd)));
+	}
+}
+
+void MappedFileHandle::MapFile(bool alsoWrite)
+{
+	// On Linux, mapping is done per-view via ViewData; this is a no-op
+}
+
+FileChunkSpec MappedFileHandle::AllocFile(FileChunkSpec& viewSpec, dms::filesize_t viewCapacity)
+{
+	viewSpec.offset = 0;
+	viewSpec.size = m_FileSize;
+	viewSpec.capacity = (viewCapacity > m_FileSize) ? viewCapacity : m_FileSize;
+	return viewSpec;
+}
+
+FileChunkSpec MappedFileHandle::allocChunk(FileChunkSpec& viewSpec, dms::filesize_t viewCapacity, tile_id t)
+{
+	return allocAtEnd(viewSpec.size, viewCapacity);
+}
+
+FileChunkSpec MappedFileHandle::allocAtEnd(dms::filesize_t viewSize, dms::filesize_t viewCapacity)
+{
+	FileChunkSpec result;
+	result.offset = m_AllocatedSize;
+	result.size = viewSize;
+	result.capacity = viewCapacity;
+	m_AllocatedSize += viewCapacity;
+	if (m_AllocatedSize > m_FileSize)
+		SetFileSize(m_AllocatedSize);
+	return result;
+}
+
+void CreateMemPageAllocTable(std::shared_ptr<MappedFileHandle> self, bool readOnly, tile_id tn)
+{
+	// Simplified: on Linux we handle allocation tracking differently
+}
+
+// -----------------------------------------------------------------------
+// ViewData: memory-mapped view using mmap
+// -----------------------------------------------------------------------
+
+ViewData::ViewData(MappedFileHandle* mappedFile, DWORD desiredAccess, dms::filesize_t viewOffset, dms::filesize_t viewCapacity)
+{
+	// Access fd via the public m_hFileMapping member (stores fd on Linux)
+	int fd = HandleToFd(mappedFile->m_hFileMapping);
+	if (fd <= 0)
+	{
+		// Fallback: re-open the file to get a fd
+		auto path = ConvertDmsFileName(mappedFile->GetFileName());
+		fd = ::open(path.c_str(), (desiredAccess != 0) ? O_RDWR : O_RDONLY);
+		if (fd < 0)
+			throwLastSystemError("ViewData open(%s)", mappedFile->GetFileName().c_str());
+	}
+	int prot = PROT_READ;
+	if (desiredAccess != 0)
+		prot |= PROT_WRITE;
+
+	void* addr = mmap(nullptr, viewCapacity, prot, MAP_SHARED, fd, viewOffset);
+	if (addr == MAP_FAILED)
+		throwLastSystemError("mmap(%s, offset=%llu, size=%llu)",
+			mappedFile->GetFileName().c_str(),
+			(unsigned long long)viewOffset, (unsigned long long)viewCapacity);
+
+	m_Ptr = addr;
+}
+
+ViewData::~ViewData()
+{
+	// Note: munmap requires size, which is not tracked here.
+	// This will be fully addressed when FileView is ported.
+	// For now, the OS reclaims on process exit.
+}
 
 #endif //defined(WIN32)
 

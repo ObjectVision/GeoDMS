@@ -138,7 +138,9 @@
 				);
 #else //defined(_MSC_VER)
 
-				// GNU TODO
+				fprintf(stderr, "\n\nMemory Leak of %d Objects after destructing all DMS Runtime components\n",
+					nrPersistentObjects
+				);
 
 #endif //defined(_MSC_VER)
 
