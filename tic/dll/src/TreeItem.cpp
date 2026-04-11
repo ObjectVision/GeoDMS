@@ -1828,28 +1828,33 @@ auto CreateAndInitItem(TreeItem* self, TokenID id, const Class* requiredClass) -
 	return newSubItem;
 }
 
-auto TreeItem::CreateItem(TokenID id, const Class* requiredClass) -> OwningPtr<TreeItem>
+auto TreeItem_CreateItem(TreeItem* self, TokenID id, const Class* requiredClass) -> OwningPtr<TreeItem>
 {
 	assert(!requiredClass || requiredClass->IsDerivedFrom(TreeItem::GetStaticClass()));
 
-	if (this)
+	if (self)
 	{
 		if (!id)
-			return CheckedAs(this, requiredClass);
+			return CheckedAs(self, requiredClass);
 
 		// find foundSubItem according to firstSubItemName
-		TreeItem* foundSubItem = GetSubTreeItemByID(id);
+		TreeItem* foundSubItem = self->GetSubTreeItemByID(id);
 		if (foundSubItem)
 		{
 			// inherit some TreeItem State Flags and reset AutoDeleteDisabled
-			if (IsAutoDeleteDisabled() && !IsCacheItem())
+			if (self->IsAutoDeleteDisabled() && !self->IsCacheItem())
 				foundSubItem->DisableAutoDelete();
 			return CheckedAs(foundSubItem, requiredClass);
 		}
 	}
 
 	// create something
-	return CreateAndInitItem(this, id, (requiredClass) ? requiredClass : TreeItem::GetStaticClass());
+	return CreateAndInitItem(self, id, (requiredClass) ? requiredClass : TreeItem::GetStaticClass());
+}
+
+auto TreeItem::CreateItem(TokenID id, const Class* requiredClass) -> OwningPtr<TreeItem>
+{
+	return TreeItem_CreateItem(this, id, requiredClass);
 }
 
 auto TreeItem::CreateItemFromPath(CharPtr subItemNames, const Class* requiredClass) -> OwningPtr<TreeItem>

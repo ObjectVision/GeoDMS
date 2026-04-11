@@ -89,7 +89,7 @@ auto UnitClass::CreateUnit(TreeItem* context, TokenID id) const -> OwningPtr<Abs
 		,	GetTokenStr(id).c_str()
 		);
 	}
-	return AsUnit(context->CreateItem(id, this));
+	return AsUnit(TreeItem_CreateItem(context, id, this));
 }
 
 auto UnitClass::CreateUnitFromPath(TreeItem* context, CharPtr path) const ->  OwningPtr<AbstrUnit>

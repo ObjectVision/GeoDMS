@@ -601,6 +601,9 @@ private:
 	friend TIC_CALL const TreeItem* FindTreeItemByID(const TreeItem* searchLoc, TokenID subItemID);
 };
 
+// Free function that allows self==nullptr (avoids UB from calling member on nullptr).
+TIC_CALL auto TreeItem_CreateItem(TreeItem* self, TokenID id, const Class* cls = nullptr) -> OwningPtr<TreeItem>;
+
 using SharedTreeItem = SharedPtr<const TreeItem>;
 /*
 Utility to handle integrity check failures; iCheckerResult is expected from a checker calculator.
