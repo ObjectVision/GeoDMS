@@ -55,7 +55,6 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="src\cfs\CompoundStorageManager.cpp" />
     <ClCompile Include="src\bmp\BmpStorageManager.cpp" />
     <ClCompile Include="src\gdal\gdal_base.cpp" />
     <ClCompile Include="src\gdal\gdal_grid.cpp" />
@@ -88,7 +87,6 @@
     <ClInclude Include="src\dbf\dbfImpl.h" />
     <ClInclude Include="src\FilePtrHandle.h" />
     <ClInclude Include="src\ImplMain.h" />
-    <ClInclude Include="src\cfs\CompoundStorageManager.h" />
     <ClInclude Include="src\bmp\BmpStorageManager.h" />
     <ClInclude Include="src\gdal\gdal_base.h" />
     <ClInclude Include="src\gdal\gdal_grid.h" />

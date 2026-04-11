@@ -36,9 +36,6 @@
     <ClCompile Include="src\bmp\BmpStorageManager.cpp">
       <Filter>Bmp</Filter>
     </ClCompile>
-    <ClCompile Include="src\cfs\CompoundStorageManager.cpp">
-      <Filter>Compound Storage Manager</Filter>
-    </ClCompile>
     <ClCompile Include="src\dbf\dbfStorageManager.cpp">
       <Filter>dbf</Filter>
     </ClCompile>
@@ -94,9 +91,6 @@
   <ItemGroup>
     <ClInclude Include="src\bmp\BmpStorageManager.h">
       <Filter>Bmp</Filter>
-    </ClInclude>
-    <ClInclude Include="src\cfs\CompoundStorageManager.h">
-      <Filter>Compound Storage Manager</Filter>
     </ClInclude>
     <ClInclude Include="src\dbf\dbfStorageManager.h">
       <Filter>dbf</Filter>

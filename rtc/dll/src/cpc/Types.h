@@ -128,7 +128,11 @@ using interest_count_t = UInt32;
 typedef long          LONG;
 typedef int           DMS_LONG;
 typedef unsigned int  UINT;
-typedef unsigned long DWORD;
+#if defined(_MSC_VER)
+typedef unsigned long DWORD;    // Windows LLP64: unsigned long is 32-bit
+#else
+typedef unsigned int  DWORD;    // Linux LP64: unsigned long is 64-bit, use unsigned int for 32-bit DWORD
+#endif
 //	typedef unsigned char UByte;
 
 /* Types use for passing & returning polymorphic values */
@@ -153,8 +157,8 @@ typedef void* HANDLE;
 
 #if defined(DMS_64)
 
-	typedef unsigned __int64 UINT_PTR;
-	typedef __int64          LONG_PTR;
+	typedef uint64_t UINT_PTR;
+	typedef int64_t  LONG_PTR;
 
 #endif //defined(DMS_64)
 

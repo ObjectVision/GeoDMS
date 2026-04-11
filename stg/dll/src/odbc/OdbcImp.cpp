@@ -11,7 +11,9 @@
 
 #include "OdbcImp.h"
 
+#if defined(_MSC_VER)
 #pragma warning( disable : 4200) // zero-sized array in struct, was set again somewhere
+#endif
 
 #include "dbg/debug.h"
 #include "dbg/SeverityType.h"

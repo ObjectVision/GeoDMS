@@ -1,5 +1,7 @@
 # Stg - Storage library
-# Source list matches StgDll.vcxproj (E00 is excluded)
+# Source list matches StgDll.vcxproj
+# Excluded: cfs/CompoundStorageManager.cpp (Windows COM/OLE Structured Storage)
+#           e00/ sources (not used)
 set(STG_SOURCES
     src/bmp/BmpImp.cpp
     src/bmp/BmpStorageManager.cpp
@@ -12,6 +14,8 @@ set(STG_SOURCES
     src/gdal/gdal_vect.cpp
     src/GridStoragemanager.cpp
     src/ImplMain.cpp
+    src/odbc/OdbcImp.cpp
+    src/odbc/OdbcStorageManager.cpp
     src/shp/ShpImp.cpp
     src/shp/ShpStorageManager.cpp
     src/str/StrStorageManager.cpp
@@ -20,12 +24,6 @@ set(STG_SOURCES
     src/xdb/XdbImp.cpp
     src/xdb/XdbStorageManager.cpp
 )
-if(WIN32)
-    list(APPEND STG_SOURCES
-        src/odbc/OdbcImp.cpp
-        src/odbc/OdbcStorageManager.cpp
-    )
-endif()
 file(GLOB_RECURSE STG_HEADERS src/*.h)
 
 add_library(DmStg SHARED ${STG_SOURCES} ${STG_HEADERS})
@@ -66,4 +64,6 @@ endif()
 
 if(WIN32)
     target_link_libraries(DmStg PRIVATE odbc32 odbccp32 ole32)
+else()
+    target_link_libraries(DmStg PRIVATE odbc)
 endif()

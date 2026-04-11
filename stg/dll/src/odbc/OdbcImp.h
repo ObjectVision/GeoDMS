@@ -38,7 +38,11 @@ granted by an additional written contract for support, assistance and/or develop
 
 #include <vector>
 #include <set>
+
+#if defined(_MSC_VER)
 #include <windows.h>
+#endif
+
 #include <sqlext.h>
 
 #include "ptr/SharedPtr.h"
