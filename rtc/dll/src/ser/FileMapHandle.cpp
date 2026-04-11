@@ -1045,18 +1045,20 @@ constexpr DWORD FILE_MAP_WRITE = 2;
 
 ViewData::ViewData(MappedFileHandle* mappedFile, DWORD desiredAccess, dms::filesize_t viewOffset, dms::filesize_t viewCapacity)
 {
+	bool wantWrite = (desiredAccess & FILE_MAP_WRITE) != 0;
+
 	// Access fd via the public m_hFileMapping member (stores fd on Linux)
 	int fd = HandleToFd(mappedFile->m_hFileMapping);
 	if (fd <= 0)
 	{
 		// Fallback: re-open the file to get a fd
 		auto path = ConvertDmsFileName(mappedFile->GetFileName());
-		fd = ::open(path.c_str(), (desiredAccess != 0) ? O_RDWR : O_RDONLY);
+		fd = ::open(path.c_str(), wantWrite ? O_RDWR : O_RDONLY);
 		if (fd < 0)
 			throwLastSystemError("ViewData open(%s)", mappedFile->GetFileName().c_str());
 	}
 	int prot = PROT_READ;
-	if (desiredAccess != 0)
+	if (wantWrite)
 		prot |= PROT_WRITE;
 
 	void* addr = mmap(nullptr, viewCapacity, prot, MAP_SHARED, fd, viewOffset);
