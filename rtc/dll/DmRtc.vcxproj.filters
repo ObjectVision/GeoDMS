@@ -848,6 +848,7 @@
     </ClInclude>
     <ClInclude Include="src\FileResult.h" />
     <ClInclude Include="src\parallel\portable_task_group.h" />
+    <ClInclude Include="src\parallel\dms_task.h" />
     <ClInclude Include="src\parallel\dms_combinable.h" />
   </ItemGroup>
   <ItemGroup>
