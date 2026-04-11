@@ -49,3 +49,6 @@ add_subdirectory(geo/dll)
 
 # Executables
 add_subdirectory(run/exe)
+
+# Deploy resource files next to executables
+file(COPY ${CMAKE_SOURCE_DIR}/res/RewriteExpr.lsp DESTINATION ${CMAKE_RUNTIME_OUTPUT_DIRECTORY})
