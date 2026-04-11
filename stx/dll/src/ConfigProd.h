@@ -107,8 +107,8 @@ private:
 	void CreateAttribute(TokenID nameID);
 	void CreateParameter(TokenID nameID);
 
-MG_DEBUGCODE(	void    ClearSignature(); )
-	void                ClearPropData();
+void    ClearSignature();
+void                ClearPropData();
 	TokenID             RetrieveEntity();
 
 	[[noreturn]] virtual void throwSemanticError(CharPtr msg) override;

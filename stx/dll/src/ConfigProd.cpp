@@ -51,7 +51,7 @@ ConfigProd::ConfigProd(TreeItem* context, bool rootIsFirstItem)
 			m_stackContexts.push_back(context);
 	}
 
-	MG_DEBUGCODE( ClearSignature(); )
+	ClearSignature();
 }
 
 ConfigProd::~ConfigProd()
@@ -151,7 +151,7 @@ void ConfigProd::DoItemHeading(iterator_t first, iterator_t last)
 {
 	CreateItem(m_ItemNameID, first);
 
-	MG_DEBUGCODE( ClearSignature(); )
+	ClearSignature();
 	ClearPropData();
 }
 
@@ -169,15 +169,11 @@ void ConfigProd::DoEntitySignature()
 	m_eValueClass = ValueWrap<UInt32>::GetStaticClass();
 }
 
-#if defined(MG_DEBUG)
-// syntax guarantees the processing and resetting of the correct signature for data-items and units
-// thus checking for invalid signatures is redundant
 void ConfigProd::ClearSignature()
 {
 	m_eValueClass    = 0;
 	m_pSignatureUnit = TokenID::GetEmptyID();
 }
-#endif
 
 void ConfigProd::DoAttrSignature()
 {
