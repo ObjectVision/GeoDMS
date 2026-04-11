@@ -121,7 +121,7 @@
 #include "Potential.h"
 #include "AggrFuncNum.h"
 
-#include <minmax.h>
+#include <algorithm>
 
 // *****************************************************************************
 //                                    Potential

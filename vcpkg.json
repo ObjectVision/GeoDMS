@@ -12,7 +12,10 @@
     },
     "geos",
     "openssl",
-    "pybind11",
+    {
+      "name": "pybind11",
+      "platform": "windows"
+    },
     {
       "name": "sqlite3",
       "features": [

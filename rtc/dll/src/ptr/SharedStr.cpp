@@ -438,6 +438,10 @@ std::size_t Utf8CaseInsensitiveHasher::operator()(CharPtrRange input) const noex
 #include <immintrin.h>
 #include <cstdint>
 
+#if !defined(_MSC_VER)
+#pragma GCC target("sse4.1")
+#endif
+
 using chunk_t = __m128i;
 
 // Fold ASCII uppercase letters in a 16-byte __m128i chunk

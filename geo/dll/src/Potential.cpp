@@ -838,8 +838,8 @@ bool Potential(AnalysisType at, potential_contexts& context, const kernel_info& 
 }
 
 // Explicit template instantiations for IppsArray and AddConvolutionKernel.
-template IppsArray<Float32>;
-template IppsArray<Float64>;
+template class IppsArray<Float32>;
+template class IppsArray<Float64>;
 
 template void AddConvolutionKernel<Float32>(kernel_info& self, AnalysisType at, SideSize nrDataCols);
 template void AddConvolutionKernel<Float64>(kernel_info& self, AnalysisType at, SideSize nrDataCols);

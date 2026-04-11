@@ -174,15 +174,17 @@ struct kernel_info
 	std::any orgWeightGrid;            // Holds UGrid<const T> (erased); used by slow/proximity paths.
 	TileCRef weightShadowTile;         // Original tile reference for weight grid.
 
-	// Generic accessor (const) - specialization below.
-	template <typename T> auto weightBuffer(SideSize paddingSize) const;
-	template <> auto weightBuffer<Float32>(SideSize paddingSize) const { return &weightBuffers32.at(paddingSize); }
-	template <> auto weightBuffer<Float64>(SideSize paddingSize) const { return &weightBuffers64.at(paddingSize); }
+	// Generic accessor (const).
+	template <typename T> auto weightBuffer(SideSize paddingSize) const {
+		if constexpr (std::is_same_v<T, Float32>) return &weightBuffers32.at(paddingSize);
+		else if constexpr (std::is_same_v<T, Float64>) return &weightBuffers64.at(paddingSize);
+	}
 
 	// Generic accessor (mutable) - inserts on demand.
-	template <typename T> auto weightBuffer(SideSize paddingSize);
-	template <> auto weightBuffer<Float32>(SideSize paddingSize) { return &weightBuffers32[paddingSize]; }
-	template <> auto weightBuffer<Float64>(SideSize paddingSize) { return &weightBuffers64[paddingSize]; }
+	template <typename T> auto weightBuffer(SideSize paddingSize) {
+		if constexpr (std::is_same_v<T, Float32>) return &weightBuffers32[paddingSize];
+		else if constexpr (std::is_same_v<T, Float64>) return &weightBuffers64[paddingSize];
+	}
 
 #if defined(DMS_POTENTIAL_I16)
 	IppsArray<Int16> weightBufferI16;      // Single Int16 kernel buffer (no map variant).
@@ -264,9 +266,10 @@ struct potential_contexts
 	potential_context<Float64> F64;
 
 	// Type-based accessor (const) for active context.
-	template <typename> auto F() const;
-	template <> auto F<Float32>() const { return &F32; };
-	template <> auto F<Float64>() const { return &F64; };
+	template <typename T> auto F() const {
+		if constexpr (std::is_same_v<T, Float32>) return &F32;
+		else if constexpr (std::is_same_v<T, Float64>) return &F64;
+	}
 
 	UPoint zeroInfo;
 };

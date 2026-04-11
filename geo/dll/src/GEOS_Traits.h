@@ -99,19 +99,14 @@ auto geos_circle(double radius, int pointsPerCircle) -> std::unique_ptr<geos::ge
 	if (pointsPerCircle < 3)
 		pointsPerCircle = 3;
 	auto anglePerPoint = 2.0 * std::numbers::pi_v<double> / pointsPerCircle;
-//	auto points = create_circle_points<CoordType>(radius, pointsPerCircle);
-	std::vector<geos::geom::Coordinate> points;
-	points.reserve(pointsPerCircle+1);
+	auto seq = geos::geom::CoordinateSequence::XY(pointsPerCircle + 1);
 	for (int i = 0; i < pointsPerCircle; ++i) {
 		double angle = i * anglePerPoint;
 		int x = static_cast<int>(radius * std::cos(angle));
 		int y = static_cast<int>(radius * std::sin(angle));
-		points.emplace_back(x, y);
+		seq[i] = geos::geom::CoordinateXY{static_cast<double>(x), static_cast<double>(y)};
 	}
-	points.emplace_back(points.front());
-	auto seq = geos::geom::CoordinateSequence::XY(points.size());
-	for (std::size_t i = 0; i < points.size(); ++i)
-		seq[i] = points[i];
+	seq[pointsPerCircle] = seq[0]; // close ring
 	return geos_factory()->createLinearRing(seq);
 }
 
