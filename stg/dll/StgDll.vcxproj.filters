@@ -33,9 +33,6 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="src\bmp\BmpDefaultPalette.cpp">
-      <Filter>Bmp</Filter>
-    </ClCompile>
     <ClCompile Include="src\bmp\BmpStorageManager.cpp">
       <Filter>Bmp</Filter>
     </ClCompile>
