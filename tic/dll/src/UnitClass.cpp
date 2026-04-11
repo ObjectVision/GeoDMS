@@ -66,7 +66,10 @@ UnitClass::UnitClass(Constructor cFunc, TokenID typeID, const ValueClass* valueT
 	g_UnitClassRegister.Register(this);
 	dms_assert(valueType && !valueType->m_UnitClass);
 	valueType->m_UnitClass = this;
-	CreateDefault();
+	// CreateDefault() is deferred to first access (called lazily from CreateDefault()).
+	// Eager creation here caused a static initialization order crash on Linux:
+	// UnitClass ctor -> CreateDefault -> CreateTmpUnit -> TreeItem::CreateItem
+	// -> TreeItem::GetStaticClass() which may not be initialized yet across TUs.
 }
 
 UnitClass::~UnitClass()

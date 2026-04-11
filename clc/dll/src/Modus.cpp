@@ -239,12 +239,10 @@ void ModusTotByTable(const DataArray<V>* tileFunctor, typename sequence_traits<R
 // then Table time O(n+v*p) <= O(2n) < O(n*log(min(n,v))
 // Thus, tradeof is made at v*p <= n.
 
-#if defined(_MSC_VER)
-template<typename V> using map_node_type = std::_Tree_node<std::pair<std::pair<SizeT, V>, SizeT>, void*>;
-template <typename V> constexpr UInt32 map_node_type_size = sizeof(map_node_type<V>);
-#else
+// Conservative estimate of std::map node size for table-vs-set heuristic.
+// Exact size is implementation-defined; the payload plus 4 pointer-sized
+// fields (parent, left, right, color/bookkeeping) is a portable upper bound.
 template <typename V> constexpr UInt32 map_node_type_size = sizeof(std::pair<std::pair<SizeT, V>, SizeT>) + 4 * sizeof(void*);
-#endif
 
 template <typename V, typename R, typename AggrFunc>
 void ModusTotDispatcher(const DataArray<V>* valuesTF, bool noOutOfRangeValues, typename sequence_traits<R>::container_type::reference resData, AggrFunc aggrFunc)

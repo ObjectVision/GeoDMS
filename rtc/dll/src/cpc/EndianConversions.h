@@ -29,21 +29,6 @@ template<unsigned N> inline void byte_reverse_n(void* t)
 	);
 };
 
-#if defined(_MSC_VER) && defined(CC_PROCESSOR_INTEL) && !defined(DMS_64)
-
-template<> inline void byte_reverse_n<4>(void* t)
-{
-	__asm 
-	{
-		mov eax, DWORD PTR t
-		mov edx, DWORD PTR [eax]
-		bswap edx
-		mov DWORD PTR [eax], edx
-	}
-};
-
-#endif
-
 template<class T> inline void byte_reverse(T& t)
 {
 	byte_reverse_n<sizeof(T)>(&t);
