@@ -56,7 +56,7 @@ struct poly_or: bp_poly_oper_base<PointType>
 template <typename PointType> 
 struct poly_xor: bp_poly_oper_base<PointType>
 {
-	void Apply(typename typename poly_xor::assignee_ref res, const typename poly_xor::polygon_set_data_type& pa, const typename poly_xor::polygon_set_data_type& pb) const
+	void Apply(typename poly_xor::assignee_ref res, const typename poly_xor::polygon_set_data_type& pa, const typename poly_xor::polygon_set_data_type& pb) const
 	{
 		using namespace bp::operators;
 		bp::assign(this->tmp_ps, pa ^ pb, this->cleanResources);

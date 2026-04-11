@@ -293,7 +293,7 @@ auto stronglyConnectedComponentsIterativeWithInvertedLinks(NodeType nrV, LinkTyp
 				NodeType w;
 				do {
 					w = nodeStack.back(); nodeStack.pop_back();
-					assert(onStackFlag[w]);
+						assert(onStackFlag[w].value());
 					onStackFlag[w] = false;
 					resSubData[w] = nrParts; // add w to current strongly connected component
 

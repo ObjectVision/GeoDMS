@@ -1129,43 +1129,44 @@ class PointInPolygonOperator : public AbstrPointInPolygonOperator
 		void VisitImpl(const Unit<E>* inviter) const
 		{
 			assert(m_Data);
-			point_in_polygon(
-				mutable_array_cast<E>(m_Data->m_ResObj)->GetDataWrite(m_Data->m_PointTileID, dms_rw_mode::read_write),
-				m_Data->m_PointData,
-				m_Data->m_PolyData,
-				(m_Data->m_PolyTileID == no_tile) ? inviter->GetRange() : inviter->GetTileRange(m_Data->m_PolyTileID),
-				m_Data->m_SpIndexPtr,
-				m_Data->m_IsFirstPolyTile
-			);
-		}
-		template <>
-		void VisitImpl<Bool>(const Unit<Bool>* inviter) const
-		{
-			assert(m_Data);
-			Range<UInt32> resValueRange = inviter->GetTileRange(m_Data->m_PolyTileID);
-
-			 // result has boolean values
-			dms_assert(resValueRange.first == 0);
-			dms_assert(resValueRange.second == 2);
-			dms_assert(m_Data->m_PolyTileID == 0); // boolean and void units are never tiled.
-			dms_assert(m_Data->m_IsFirstPolyTile); // boolean and void units are never tiled.
-
-			UInt32 polyDataSize = m_Data->m_PolyData.size();
-			dms_assert(polyDataSize <= 2); // domain of polyDataSize is either bool or void.
-			if (polyDataSize < Cardinality(resValueRange))
+			if constexpr (std::is_same_v<E, Bool>)
 			{
-				dms_assert(polyDataSize == 1); // domain of polyDataSize was void.
-				resValueRange.first =resValueRange.second - polyDataSize; // set resValue to 'true' when inside the one polygon (for points outside the polygon, the value will remain the initial UNDEFINED_OR_ZERO(Bool), which is 'false'.
-			}
+				Range<UInt32> resValueRange = inviter->GetTileRange(m_Data->m_PolyTileID);
 
-			point_in_polygon(
-				mutable_array_cast<Bool>(m_Data->m_ResObj)->GetDataWrite(m_Data->m_PointTileID, dms_rw_mode::write_only_all),
-				m_Data->m_PointData,
-				m_Data->m_PolyData,
-				resValueRange,
-				m_Data->m_SpIndexPtr,
-				true
-			);
+				 // result has boolean values
+				dms_assert(resValueRange.first == 0);
+				dms_assert(resValueRange.second == 2);
+				dms_assert(m_Data->m_PolyTileID == 0); // boolean and void units are never tiled.
+				dms_assert(m_Data->m_IsFirstPolyTile); // boolean and void units are never tiled.
+
+				UInt32 polyDataSize = m_Data->m_PolyData.size();
+				dms_assert(polyDataSize <= 2); // domain of polyDataSize is either bool or void.
+				if (polyDataSize < Cardinality(resValueRange))
+				{
+					dms_assert(polyDataSize == 1); // domain of polyDataSize was void.
+					resValueRange.first =resValueRange.second - polyDataSize; // set resValue to 'true' when inside the one polygon (for points outside the polygon, the value will remain the initial UNDEFINED_OR_ZERO(Bool), which is 'false'.
+				}
+
+				point_in_polygon(
+					mutable_array_cast<Bool>(m_Data->m_ResObj)->GetDataWrite(m_Data->m_PointTileID, dms_rw_mode::write_only_all),
+					m_Data->m_PointData,
+					m_Data->m_PolyData,
+					resValueRange,
+					m_Data->m_SpIndexPtr,
+					true
+				);
+			}
+			else
+			{
+				point_in_polygon(
+					mutable_array_cast<E>(m_Data->m_ResObj)->GetDataWrite(m_Data->m_PointTileID, dms_rw_mode::read_write),
+					m_Data->m_PointData,
+					m_Data->m_PolyData,
+					(m_Data->m_PolyTileID == no_tile) ? inviter->GetRange() : inviter->GetTileRange(m_Data->m_PolyTileID),
+					m_Data->m_SpIndexPtr,
+					m_Data->m_IsFirstPolyTile
+				);
+			}
 		}
 		DispatcherData* m_Data = nullptr;
 	};
@@ -1758,9 +1759,9 @@ public:
 				});
 			if (res1)
 				visit<typelists::domain_elements>(res1->GetAbstrValuesUnit()
-				,	[res1, &resTileDataArray]<typename P>(const Unit<P>* resValuesUnit)
+				,	[res1, &resTileDataArray]<typename ResP>(const Unit<ResP>* resValuesUnit)
 					{
-						locked_tile_write_channel<P> resWriter(res1);
+						locked_tile_write_channel<ResP> resWriter(res1);
 						auto tileRangeDataPtr = resValuesUnit->GetCurrSegmInfo();
 						MG_CHECK(tileRangeDataPtr);
 
@@ -1777,9 +1778,9 @@ public:
 				);
 			if (res2)
 				visit<typelists::domain_elements>(res2->GetAbstrValuesUnit()
-				,	[res2, &resTileDataArray]<typename P>(const Unit<P>*resValuesUnit)
+				,	[res2, &resTileDataArray]<typename ResP>(const Unit<ResP>*resValuesUnit)
 					{
-						locked_tile_write_channel<P> resWriter(res2);
+						locked_tile_write_channel<ResP> resWriter(res2);
 						auto tileRangeDataPtr = resValuesUnit->GetCurrSegmInfo();
 						MG_CHECK(tileRangeDataPtr);
 

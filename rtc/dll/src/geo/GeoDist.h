@@ -285,8 +285,12 @@ private:
 
 	bool MakeSafeMin(typename ArcProjectionHandleWithDist::sqrdist_type newDist)
 	{
-		if (ArcProjectionHandle::MakeSafeMin(newDist))
+		if (ArcProjectionHandle<R, T>::MakeSafeMin(newDist))
+		{
 			m_Dist = CalcDist();
+			return true;
+		}
+		return false;
 	}
 
 };

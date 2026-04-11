@@ -14,7 +14,7 @@
 
 #include "RemoveAdjacentsAndSpikes.h"
 
-#if defined(DMS_HAS_GEOS) || defined(_MSC_VER)
+#if defined(DMS_HAS_GEOS)
 
 //============================  GEOS  ============================
 #include <geos/geom/GeometryFactory.h>
@@ -109,7 +109,10 @@ auto geos_circle(double radius, int pointsPerCircle) -> std::unique_ptr<geos::ge
 		points.emplace_back(x, y);
 	}
 	points.emplace_back(points.front());
-	return geos_factory()->createLinearRing(std::move(points));
+	auto seq = geos::geom::CoordinateSequence::XY(points.size());
+	for (std::size_t i = 0; i < points.size(); ++i)
+		seq[i] = points[i];
+	return geos_factory()->createLinearRing(seq);
 }
 
 
@@ -806,6 +809,6 @@ void dms_insert(std::unique_ptr<geos::geom::Geometry>& lhs, E&& ref)
 
 
 
-#endif // defined(DMS_HAS_GEOS) || defined(_MSC_VER)
+#endif // defined(DMS_HAS_GEOS)
 
 #endif //!defined(DMS_GEO_GEOS_TRAITS_H)

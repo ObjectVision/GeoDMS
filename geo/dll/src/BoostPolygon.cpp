@@ -944,82 +944,82 @@ void SetKernel(typename bp_union_poly_traits<C>::ring_type& kernel, Float64 valu
 	case PolygonFlags::F_I4HV1:
 	case PolygonFlags::F_D4HV1:
 		kernel.reserve(5);
-		kernel.push_back(traits_t::point_type(value, value));
-		kernel.push_back(traits_t::point_type(value, -value));
-		kernel.push_back(traits_t::point_type(-value, -value));
-		kernel.push_back(traits_t::point_type(-value, value));
+		kernel.push_back(typename traits_t::point_type(value, value));
+		kernel.push_back(typename traits_t::point_type(value, -value));
+		kernel.push_back(typename traits_t::point_type(-value, -value));
+		kernel.push_back(typename traits_t::point_type(-value, value));
 		kernel.push_back(kernel.front());
 		break;
 	case PolygonFlags::F_I4D1:
 	case PolygonFlags::F_D4D1:
 		kernel.reserve(5);
-		kernel.push_back(traits_t::point_type(c0, value));
-		kernel.push_back(traits_t::point_type(value, c0));
-		kernel.push_back(traits_t::point_type(c0, -value));
-		kernel.push_back(traits_t::point_type(-value, c0));
+		kernel.push_back(typename traits_t::point_type(c0, value));
+		kernel.push_back(typename traits_t::point_type(value, c0));
+		kernel.push_back(typename traits_t::point_type(c0, -value));
+		kernel.push_back(typename traits_t::point_type(-value, c0));
 		kernel.push_back(kernel.front());
 		break;
 	case PolygonFlags::F_I8D1:
 	case PolygonFlags::F_D8D1:
 		kernel.reserve(9);
-		kernel.push_back(traits_t::point_type(c0, value));
-		kernel.push_back(traits_t::point_type(csqrtHalf * value, csqrtHalf * value));
-		kernel.push_back(traits_t::point_type(value, c0));
-		kernel.push_back(traits_t::point_type(csqrtHalf * value, -csqrtHalf * value));
-		kernel.push_back(traits_t::point_type(c0, -value));
-		kernel.push_back(traits_t::point_type(-csqrtHalf * value, -csqrtHalf * value));
-		kernel.push_back(traits_t::point_type(-value, c0));
-		kernel.push_back(traits_t::point_type(-csqrtHalf * value, csqrtHalf * value));
+		kernel.push_back(typename traits_t::point_type(c0, value));
+		kernel.push_back(typename traits_t::point_type(csqrtHalf * value, csqrtHalf * value));
+		kernel.push_back(typename traits_t::point_type(value, c0));
+		kernel.push_back(typename traits_t::point_type(csqrtHalf * value, -csqrtHalf * value));
+		kernel.push_back(typename traits_t::point_type(c0, -value));
+		kernel.push_back(typename traits_t::point_type(-csqrtHalf * value, -csqrtHalf * value));
+		kernel.push_back(typename traits_t::point_type(-value, c0));
+		kernel.push_back(typename traits_t::point_type(-csqrtHalf * value, csqrtHalf * value));
 		kernel.push_back(kernel.front());
 		break;
 
 	case PolygonFlags::F_I16D1:
 	case PolygonFlags::F_D16D1:
 		kernel.reserve(17);
-		kernel.push_back(traits_t::point_type(c0, value));
-		kernel.push_back(traits_t::point_type(0.3826834 * value, 0.9238795 * value));
-		kernel.push_back(traits_t::point_type(csqrtHalf * value, csqrtHalf * value));
-		kernel.push_back(traits_t::point_type(0.9238795 * value, 0.3826834 * value));
-		kernel.push_back(traits_t::point_type(value, c0));
-		kernel.push_back(traits_t::point_type(0.9238795 * value, -0.3826834 * value));
-		kernel.push_back(traits_t::point_type(csqrtHalf * value, -csqrtHalf * value));
-		kernel.push_back(traits_t::point_type(0.3826834 * value, -0.9238795 * value));
-		kernel.push_back(traits_t::point_type(c0, -value));
-		kernel.push_back(traits_t::point_type(-0.3826834 * value, -0.9238795 * value));
-		kernel.push_back(traits_t::point_type(-csqrtHalf * value, -csqrtHalf * value));
-		kernel.push_back(traits_t::point_type(-0.9238795 * value, -0.3826834 * value));
-		kernel.push_back(traits_t::point_type(-value, c0));
-		kernel.push_back(traits_t::point_type(-0.9238795 * value, 0.3826834 * value));
-		kernel.push_back(traits_t::point_type(-csqrtHalf * value, csqrtHalf * value));
-		kernel.push_back(traits_t::point_type(-0.3826834 * value, 0.9238795 * value));
+		kernel.push_back(typename traits_t::point_type(c0, value));
+		kernel.push_back(typename traits_t::point_type(0.3826834 * value, 0.9238795 * value));
+		kernel.push_back(typename traits_t::point_type(csqrtHalf * value, csqrtHalf * value));
+		kernel.push_back(typename traits_t::point_type(0.9238795 * value, 0.3826834 * value));
+		kernel.push_back(typename traits_t::point_type(value, c0));
+		kernel.push_back(typename traits_t::point_type(0.9238795 * value, -0.3826834 * value));
+		kernel.push_back(typename traits_t::point_type(csqrtHalf * value, -csqrtHalf * value));
+		kernel.push_back(typename traits_t::point_type(0.3826834 * value, -0.9238795 * value));
+		kernel.push_back(typename traits_t::point_type(c0, -value));
+		kernel.push_back(typename traits_t::point_type(-0.3826834 * value, -0.9238795 * value));
+		kernel.push_back(typename traits_t::point_type(-csqrtHalf * value, -csqrtHalf * value));
+		kernel.push_back(typename traits_t::point_type(-0.9238795 * value, -0.3826834 * value));
+		kernel.push_back(typename traits_t::point_type(-value, c0));
+		kernel.push_back(typename traits_t::point_type(-0.9238795 * value, 0.3826834 * value));
+		kernel.push_back(typename traits_t::point_type(-csqrtHalf * value, csqrtHalf * value));
+		kernel.push_back(typename traits_t::point_type(-0.3826834 * value, 0.9238795 * value));
 		kernel.push_back(kernel.front());
 		break;
 
 	case PolygonFlags::F_IXHV1:
 	case PolygonFlags::F_DXHV1:
 		kernel.reserve(9);
-		kernel.push_back(traits_t::point_type(0.1 * value, 0.1 * value));
-		kernel.push_back(traits_t::point_type(+value, c0));
-		kernel.push_back(traits_t::point_type(0.1 * value, -0.1 * value));
-		kernel.push_back(traits_t::point_type(c0, -value));
-		kernel.push_back(traits_t::point_type(-0.1 * value, -0.1 * value));
-		kernel.push_back(traits_t::point_type(-value, c0));
-		kernel.push_back(traits_t::point_type(-0.1 * value, 0.1 * value));
-		kernel.push_back(traits_t::point_type(c0, +value));
+		kernel.push_back(typename traits_t::point_type(0.1 * value, 0.1 * value));
+		kernel.push_back(typename traits_t::point_type(+value, c0));
+		kernel.push_back(typename traits_t::point_type(0.1 * value, -0.1 * value));
+		kernel.push_back(typename traits_t::point_type(c0, -value));
+		kernel.push_back(typename traits_t::point_type(-0.1 * value, -0.1 * value));
+		kernel.push_back(typename traits_t::point_type(-value, c0));
+		kernel.push_back(typename traits_t::point_type(-0.1 * value, 0.1 * value));
+		kernel.push_back(typename traits_t::point_type(c0, +value));
 		kernel.push_back(kernel.front());
 		break;
 
 	case PolygonFlags::F_IXD1:
 	case PolygonFlags::F_DXD1:
 		kernel.reserve(9);
-		kernel.push_back(traits_t::point_type(value, value));
-		kernel.push_back(traits_t::point_type(0.1 * value, c0));
-		kernel.push_back(traits_t::point_type(value, -value));
-		kernel.push_back(traits_t::point_type(c0, -0.1 * value));
-		kernel.push_back(traits_t::point_type(-value, -value));
-		kernel.push_back(traits_t::point_type(-0.1 * value, c0));
-		kernel.push_back(traits_t::point_type(-value, value));
-		kernel.push_back(traits_t::point_type(c0, 0.1 * value));
+		kernel.push_back(typename traits_t::point_type(value, value));
+		kernel.push_back(typename traits_t::point_type(0.1 * value, c0));
+		kernel.push_back(typename traits_t::point_type(value, -value));
+		kernel.push_back(typename traits_t::point_type(c0, -0.1 * value));
+		kernel.push_back(typename traits_t::point_type(-value, -value));
+		kernel.push_back(typename traits_t::point_type(-0.1 * value, c0));
+		kernel.push_back(typename traits_t::point_type(-value, value));
+		kernel.push_back(typename traits_t::point_type(c0, 0.1 * value));
 		kernel.push_back(kernel.front());
 		break;
 	}
@@ -1168,9 +1168,9 @@ public:
 					break;
 				case PolygonFlags::F_Filter1:
 					bp::keep(geometryData, 
-						value, MAX_VALUE(traits_t::area_type), 
-						0, MAX_VALUE(traits_t::unsigned_area_type), 
-						0, MAX_VALUE(traits_t::unsigned_area_type)
+							value, MAX_VALUE(typename traits_t::area_type), 
+							0, MAX_VALUE(typename traits_t::unsigned_area_type), 
+							0, MAX_VALUE(typename traits_t::unsigned_area_type)
 					, cleanResources
 					);
 					break;

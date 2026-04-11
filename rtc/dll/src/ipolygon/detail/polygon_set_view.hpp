@@ -72,7 +72,7 @@ namespace boost { namespace polygon{
     insert_into_view_arg(linput_, lvalue_);
     insert_into_view_arg(rinput_, rvalue_);
     arbitrary_boolean_op<coordinate_type> abo;
-    abo.execute<op_type>(output_, linput_.begin(), linput_.end(),
+    abo.template execute<op_type>(output_, linput_.begin(), linput_.end(),
                 rinput_.begin(), rinput_.end(), executeResources);
   }
 

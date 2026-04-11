@@ -60,7 +60,7 @@ RangeFromPtr(typename sequence_traits<std::vector<PointType> >::cseq_t::const_it
 
 template<typename PointType>
 Range<PointType>
-RangeFromPtr(typename sequence_array_index<PointType> polygon)
+RangeFromPtr(sequence_array_index<PointType> polygon)
 {
 	return RangeFromSequence_SkipUndefined((*polygon).begin(), (*polygon).end());
 }

@@ -172,7 +172,7 @@ struct RasterizeInfo : AbstrRasterizeInfo
 		fast_fill(startLinePtr + nxStart, startLinePtr + nxEnd, v);
 	}
 
-	typename pointer_type m_ChunkBuf;
+	pointer_type m_ChunkBuf;
 };
 
 // RLE collector; collect spans as rows of start/end for later usage.
@@ -539,6 +539,13 @@ namespace poly2grid
 		template <typename E>
 		void GetBitmap(typename Unit<E>::range_t indexRange) // corresponding with the indices of m_PolyData
 		{
+			if constexpr (std::is_same_v<E, Void>)
+			{
+				GetBitmap<Bool>(typename Unit<Bool>::range_t(1, 2));
+				return;
+			}
+			else
+			{
 			RasterSizeType size = m_ViewPortInfo.GetViewPortSize();
 			IPoint base = m_ViewPortInfo.GetViewPortOrigin();
 
@@ -616,13 +623,7 @@ namespace poly2grid
 				}
 			end_of_tile_loop: ;
 			}
-		}
-
-		// Specialization for Void domain: map to Bool domain with trivial range.
-		template <>
-		void GetBitmap<Void>(typename Unit<Void>::range_t /*indexRange*/)
-		{
-			GetBitmap<Bool>(Unit<Bool>::range_t(1, 2));
+			} // else
 		}
 
 	};

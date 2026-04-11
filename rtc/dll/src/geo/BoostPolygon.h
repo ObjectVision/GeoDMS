@@ -228,7 +228,11 @@ template <typename S> struct geometry_concept<std::vector<bp::point_data<S>> > {
 template <typename S> struct geometry_concept<locked_sequence<bp::point_data<S>> > { using type = polygon_concept; };
 template <typename S> struct geometry_concept<my_vector<bp::point_data<S>> > { using type = polygon_concept; };
 
+} } // close boost::polygon temporarily
+
 template <typename S> struct scalar_of<bp::point_data<S>> { using type = scalar_of_t<S>; };
+
+namespace boost { namespace polygon {
 
 template <typename E>
 struct point_sequence_traits
@@ -236,7 +240,7 @@ struct point_sequence_traits
 	typedef E                                        elem_type;
 	typedef typename elem_type::value_type           value_type;
 	typedef typename std::remove_const_t<value_type> point_type;
-	typedef typename scalar_of_t<point_type>         coordinate_type;
+	typedef scalar_of_t<point_type>                  coordinate_type;
 	typedef typename elem_type::const_iterator       iterator_type;
 
 	static inline iterator_type     begin_points(const elem_type& t) { return t.begin(); }

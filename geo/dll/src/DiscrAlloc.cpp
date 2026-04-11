@@ -2650,11 +2650,11 @@ struct DistFromOpt
 		nrLandUnits += N;
 //			nrOptions   += (K-1)*N;
 
-		const ArOrVoid<AR>::type* armIter = nullptr;
+		const typename ArOrVoid<AR>::type* armIter = nullptr;
 		if constexpr (!std::is_same<AR, Void>::value)
 			armIter = htpInfo.m_AtomicRegionMapData.begin();
 
-		for(land_unit_id i=0; i < N; ArOrVoid<AR>::Inc(armIter), ++i) // cell index 0..N 
+		for(land_unit_id i=0; i < N; ArOrVoid<AR>::Inc(armIter), ++i) // cell index 0..N
 		{
 			AT currBuyer = htpInfo.m_ResultArray[i];
 			if (!IsDefined(currBuyer))

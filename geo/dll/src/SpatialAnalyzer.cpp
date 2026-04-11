@@ -338,5 +338,5 @@ bool DiversityCalculator<T>::NextBorderPoint(UGridPoint& point, TTranslation tra
 }
 
 
-template DiversityCalculator<UInt32>;
-template DiversityCalculator<UInt8>;
+template class DiversityCalculator<UInt32>;
+template class DiversityCalculator<UInt8>;

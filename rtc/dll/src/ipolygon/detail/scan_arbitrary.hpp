@@ -2646,7 +2646,7 @@ pts.push_back(Point(12344171, 6695983 )); pts.push_back(Point(12287208, 6672388 
 
 	struct execute_resources {
 		property_merge_data tmp_pmd;
-		line_intersection<Unit>::validate_scan_property_resources<property_type> vspr;
+		typename line_intersection<Unit>::template validate_scan_property_resources<property_type> vspr;
 	};
 
 	template <typename result_type, typename iT1, typename iT2>
@@ -2722,7 +2722,7 @@ pts.push_back(Point(12344171, 6695983 )); pts.push_back(Point(12287208, 6672388 
 	inline void clear() 
 	{
 		pmd.clear();
-		evalAtXforYPack_ = arbitrary_boolean_op::evalAtXforYPack();
+		evalAtXforYPack_ = typename arbitrary_boolean_op::evalAtXforYPack();
 	}
 
   private:

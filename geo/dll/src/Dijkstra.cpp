@@ -1766,7 +1766,7 @@ public:
 
 			auto linkImpDataPtr = linkImpData.begin();
 			GraphInfo<NodeType, LinkType, ImpType> graph{ linkF1Data.begin(), linkF2Data.begin(), linkImpDataPtr };
-			graph.node_link1_inv.Init<NodeType>(linkF1Data.begin(), networkInfo.nrE, networkInfo.nrV);
+			graph.node_link1_inv.template Init<NodeType>(linkF1Data.begin(), networkInfo.nrE, networkInfo.nrV);
 			if (isBidirectional)
 			{
 				if (flags(df & DijkstraFlag::Bidirectional))

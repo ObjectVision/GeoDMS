@@ -48,7 +48,13 @@ using ResourceArrayHandle = std::unique_ptr<ResourceArrayBase, destroyResourceAr
 template <typename R>
 struct ResourceArray : ResourceArrayBase
 {
+#if defined(_MSC_VER)
 	R m_Data[];
+#else
+	// GCC: flexible array members with non-trivial types not supported
+	// Use placement storage; begin()/end() provide typed access
+	alignas(R) char m_DataStorage[];
+#endif
 
 	void destroy() override
 	{
@@ -66,10 +72,22 @@ struct ResourceArray : ResourceArrayBase
 		resHandle.release();
 		return result;
 	}
-	R* begin() { return m_Data; }
-	R* end()   { return m_Data + m_N; }
-	const R* begin() const { return m_Data; }
-	const R* end()   const { return m_Data + m_N; }
+	R* begin() { 
+#if defined(_MSC_VER)
+		return m_Data;
+#else
+		return reinterpret_cast<R*>(m_DataStorage);
+#endif
+	}
+	R* end()   { return begin() + m_N; }
+	const R* begin() const {
+#if defined(_MSC_VER)
+		return m_Data;
+#else
+		return reinterpret_cast<const R*>(m_DataStorage);
+#endif
+	}
+	const R* end()   const { return begin() + m_N; }
 
 private:
 	static SizeT ByteSize(SizeT n)
@@ -80,7 +98,7 @@ private:
 	void construct(SizeT n)
 	{
 		for (SizeT i = 0; i < n; ++i)
-			new (m_Data + i) R;
+			new (begin() + i) R;
 		m_N = n;
 	}
 
@@ -88,7 +106,7 @@ private:
 	{
 		SizeT i = m_N; 
 		while (i > 0)
-			m_Data[--i].~R();
+			begin()[--i].~R();
 		m_N = 0;
 	}
 };

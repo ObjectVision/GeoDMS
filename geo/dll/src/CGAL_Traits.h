@@ -282,6 +282,17 @@ void cgal_assign_shared_polygon_vector(E&& ref, std::vector<std::shared_ptr<Poly
 	assert(ref.size() == count);
 }
 
+template <dms_sequence E, typename Polygon>
+void cgal_assign_shared_polygon_vector(E&& ref, std::vector<boost::shared_ptr<Polygon>>&& polyVec)
+{
+	// Convert boost::shared_ptr vector to std::shared_ptr vector and delegate
+	std::vector<std::shared_ptr<Polygon>> stdVec;
+	stdVec.reserve(polyVec.size());
+	for (auto& p : polyVec)
+		stdVec.push_back(std::shared_ptr<Polygon>(p.get(), [p](Polygon*) mutable { p.reset(); }));
+	cgal_assign_shared_polygon_vector(std::forward<E>(ref), std::move(stdVec));
+}
+
 template <dms_sequence E>
 void cgal_assign_polygon_set(E&& ref, const CGAL_Traits::Polygon_set& polyData)
 {
