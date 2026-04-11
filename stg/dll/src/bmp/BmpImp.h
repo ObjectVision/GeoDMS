@@ -33,14 +33,12 @@ granted by an additional written contract for support, assistance and/or develop
 
 #include "ImplMain.h"
 
+#include "bmp/BmpCompat.h"
 #include "geo/color.h"
 #include "ptr/OwningPtr.h"
 
 #include <vector>
 #include "geo/BaseBounds.h"
-
-typedef struct tagBITMAPFILEHEADER BITMAPFILEHEADER;
-typedef struct tagBITMAPINFOHEADER BITMAPINFOHEADER;
 
 //  ---------------------------------------------------------------------------
 

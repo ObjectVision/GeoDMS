@@ -40,12 +40,6 @@ granted by an additional written contract for support, assistance and/or develop
 #include "ptr/SharedStr.h"
 #include "ptr/OwningPtrSizedArray.h"
 #include "set/VectorFunc.h"
-
-#if defined(_MSC_VER)
-#include <windows.h>
-#include <fileapi.h>
-#include <io.h>
-#endif
 //  ---------------------------------------------------------------------------
 
 //  --DEFINES------------------------------------------------------------------
@@ -185,6 +179,8 @@ bool BmpImp::Open(WeakStr fileName, BmpFileMode mode)
 		GetWritePermission(fileName);
 
 	auto dosFileName = ConvertDmsFileName(fileName);
+
+#if defined(_MSC_VER)
 	auto dosFileNameW = Utf8_2_wchar(dosFileName.c_str());
 
 	m_FH = CreateFileW(dosFileNameW.get()
@@ -195,6 +191,12 @@ bool BmpImp::Open(WeakStr fileName, BmpFileMode mode)
 				, FILE_ATTRIBUTE_NORMAL
 				, NULL
 	);
+#else
+	m_FH = BmpCompat_OpenFile(dosFileName.c_str(),
+				(mode == BMP_READ) ? GENERIC_READ : GENERIC_WRITE|GENERIC_READ,
+				m_FileExisted ? OPEN_ALWAYS : CREATE_ALWAYS
+	);
+#endif
 	if (m_FH == INVALID_HANDLE_VALUE)
 		return FALSE;
 

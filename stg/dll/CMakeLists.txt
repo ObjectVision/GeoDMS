@@ -1,6 +1,8 @@
 # Stg - Storage library
 # Source list matches StgDll.vcxproj (E00 is excluded)
 set(STG_SOURCES
+    src/bmp/BmpImp.cpp
+    src/bmp/BmpStorageManager.cpp
     src/dbf/dbfImp.cpp
     src/dbf/dbfStorageManager.cpp
     src/DllMain.cpp
@@ -20,14 +22,8 @@ set(STG_SOURCES
 )
 if(WIN32)
     list(APPEND STG_SOURCES
-        src/bmp/BmpImp.cpp
-        src/bmp/BmpStorageManager.cpp
         src/odbc/OdbcImp.cpp
         src/odbc/OdbcStorageManager.cpp
-    )
-else()
-    list(APPEND STG_SOURCES
-        src/bmp/BmpDefaultPalette.cpp
     )
 endif()
 file(GLOB_RECURSE STG_HEADERS src/*.h)

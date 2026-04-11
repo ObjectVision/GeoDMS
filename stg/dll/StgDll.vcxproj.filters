@@ -155,6 +155,7 @@
     <ClInclude Include="src\tif\TifImp.h">
       <Filter>TIF</Filter>
     </ClInclude>
+    <ClInclude Include="src\bmp\BmpCompat.h" />
   </ItemGroup>
   <ItemGroup>
     <Text Include="CMakeLists.txt" />

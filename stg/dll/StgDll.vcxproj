@@ -78,6 +78,7 @@
     <ClCompile Include="src\DllMain.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="src\bmp\BmpCompat.h" />
     <ClInclude Include="src\bmp\BmpImp.h" />
     <ClInclude Include="src\odbc\OdbcImp.h" />
     <ClInclude Include="src\viewportinfo.h" />
