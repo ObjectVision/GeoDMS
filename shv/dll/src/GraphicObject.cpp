@@ -243,6 +243,7 @@ void GraphicObject::OnChildSizeChanged()
 
 
 #include "OperationContext.h"
+#include "parallel/dms_task.h"
 
 using UpdateActionType = std::pair<GraphicObject*, SharedPtr<const TreeItem>>;
 

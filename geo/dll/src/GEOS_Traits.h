@@ -14,8 +14,6 @@
 
 #include "RemoveAdjacentsAndSpikes.h"
 
-#if defined(DMS_HAS_GEOS)
-
 //============================  GEOS  ============================
 #include <geos/geom/GeometryFactory.h>
 #include <geos/geom/Geometry.h>
@@ -802,8 +800,5 @@ void dms_insert(std::unique_ptr<geos::geom::Geometry>& lhs, E&& ref)
 	union_operator(lhs, std::move(res));
 }
 
-
-
-#endif // defined(DMS_HAS_GEOS)
 
 #endif //!defined(DMS_GEO_GEOS_TRAITS_H)

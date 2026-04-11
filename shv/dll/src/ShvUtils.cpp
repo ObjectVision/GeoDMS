@@ -9,7 +9,6 @@
 #endif //defined(CC_PRAGMAHDRSTOP)
 
 #include <format>
-#include <ppltasks.h>
 #include "ShvUtils.h"
 
 #include "dbg/debug.h"

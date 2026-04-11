@@ -19,6 +19,12 @@
 #include <windows.h>
 #include <psapi.h>
 
+#else
+
+#include <fstream>
+#include <string>
+#include <cstring>
+
 #endif
 
 using percentage_type = UInt32;
@@ -65,11 +71,44 @@ struct memory_info {
 	bool IsLowOnFreeRAM() const
 	{
 		return !SufficientFreeSpace(0);
-//		return memStat.ullAvailPhys / (memStat.ullTotalPhys / 256) < (256 / 8);
 	}
 
 	MEMORYSTATUSEX memStat;
 };
+
+#else // !WIN32
+
+struct memory_info {
+	memory_info() {
+		std::ifstream meminfo("/proc/meminfo");
+		std::string line;
+		while (std::getline(meminfo, line))
+		{
+			if (line.compare(0, 9, "MemTotal:") == 0)
+				std::sscanf(line.c_str(), "MemTotal: %zu", &totalPhysKB);
+			else if (line.compare(0, 13, "MemAvailable:") == 0)
+				std::sscanf(line.c_str(), "MemAvailable: %zu", &availPhysKB);
+		}
+	}
+
+	bool SufficientFreeSpace(std::size_t requestedSize) const
+	{
+		if (!totalPhysKB)
+			return true;
+		auto requestedKB = requestedSize / 1024;
+		return availPhysKB > requestedKB && (availPhysKB - requestedKB) * 100 / totalPhysKB > 12;
+	}
+
+	bool IsLowOnFreeRAM() const
+	{
+		return !SufficientFreeSpace(0);
+	}
+
+	SizeT totalPhysKB = 0;
+	SizeT availPhysKB = 0;
+};
+
+#endif // WIN32
 
 bool SufficientFreeSpace(std::size_t requestedSize) {
 	memory_info info;
@@ -82,8 +121,6 @@ bool IsLowOnFreeRAM() {
 }
 
 std::atomic<SizeT> s_CumulativeMemoryAllocCount = 0;
-
-#endif //defined(WIN32)
 
 void ConsiderMakingFreeSpace(SizeT sz)
 {

@@ -1298,6 +1298,20 @@ template auto CountableUnitBase<UInt32>::GetTileRange(tile_id t) const->range_t;
 template auto CountableUnitBase<UInt64>::GetTileRange(tile_id t) const->range_t;
 template auto CountableUnitBase<UInt16>::GetTileRange(tile_id t) const->range_t;
 template auto CountableUnitBase<UInt8>::GetTileRange(tile_id t) const->range_t;
+template auto CountableUnitBase<SPoint>::GetTileRange(tile_id t) const->range_t;
+template auto CountableUnitBase<WPoint>::GetTileRange(tile_id t) const->range_t;
+template auto CountableUnitBase<IPoint>::GetTileRange(tile_id t) const->range_t;
+template auto CountableUnitBase<UPoint>::GetTileRange(tile_id t) const->range_t;
+
+// Explicit class instantiations for GCC/Linux (MSVC exports all members via dllexport)
+#if !defined(_MSC_VER)
+#include "utl/Instantiate.h"
+using String = SharedStr;
+#define INSTANTIATE(T) template class Unit<T>;
+INSTANTIATE_FLD_ELEM
+INSTANTIATE_VOID
+#undef INSTANTIATE
+#endif
 
 //----------------------------------------------------------------------
 // C style Interface functions for StaticClass retrieval

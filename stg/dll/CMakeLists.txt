@@ -25,6 +25,10 @@ if(WIN32)
         src/odbc/OdbcImp.cpp
         src/odbc/OdbcStorageManager.cpp
     )
+else()
+    list(APPEND STG_SOURCES
+        src/bmp/BmpDefaultPalette.cpp
+    )
 endif()
 file(GLOB_RECURSE STG_HEADERS src/*.h)
 

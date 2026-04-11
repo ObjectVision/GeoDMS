@@ -1175,7 +1175,7 @@ const AbstrUnit* AbstrValuesUnit(const AbstrDataItem* adi)
 // Building blocks for LazyTileFunctor heristics
 //----------------------------------------------------------------------
 
-inline UInt32 ElementWeight(const AbstrDataItem* adi)
+UInt32 ElementWeight(const AbstrDataItem* adi)
 {
 	if (adi->HasVoidDomainGuarantee())
 		return 0;

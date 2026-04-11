@@ -9,7 +9,7 @@
 #endif //defined(CC_PRAGMAHDRSTOP)
 
 #include <memory>
-#include <ppltasks.h>
+#include "parallel/dms_task.h"
 
 #include "GraphDataView.h"
 

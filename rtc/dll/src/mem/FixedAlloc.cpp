@@ -66,9 +66,7 @@
 
 #include <memory>
 
-#if defined(WIN32)
 #define MG_CACHE_ALLOC
-#endif //defined(WIN32)
 
 //#define MG_CACHE_ALLOC_SMALL
 #define MG_CACHE_ALLOC_ONLY_SPECIALSIZE

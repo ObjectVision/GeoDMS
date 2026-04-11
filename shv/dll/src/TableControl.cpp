@@ -29,6 +29,7 @@
 #include "DataStoreManagerCaller.h"
 #include "LispTreeType.h"
 #include "OperationContext.h"
+#include "parallel/dms_task.h"
 #include "PropFuncs.h"
 #include "TicInterface.h"
 #include "Unit.h"

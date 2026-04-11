@@ -994,3 +994,17 @@ namespace  {
 template SizeT DataArrayBase<Bool>::CountValues(Bool v) const;
 template SizeT NumericArray<Bool>::FindPos(Bool v, SizeT startPos) const;
 
+// Explicit member instantiations for GCC/Linux (MSVC exports all members via dllexport on the class)
+// Note: we cannot use 'template class' because DataArray.ipp contains dead code (GetLockedDataWrite with no args).
+#if !defined(_MSC_VER)
+using String = SharedStr;
+#define INSTANTIATE(T) \
+	template auto DataArrayBase<T>::GetDataWrite(tile_id, dms_rw_mode) -> locked_seq_t; \
+	template auto DataArrayBase<T>::GetDataRead(tile_id) const -> locked_cseq_t; \
+	template const Class* TileFunctor<T>::GetDynamicClass() const; \
+	template const DataItemClass* TileFunctor<T>::GetStaticClass(); \
+	template auto CreateHeapTileArrayV<T>(const AbstrTileRangeData*, const range_or_void_data<field_of_t<T>>*, bool MG_DEBUG_ALLOCATOR_SRC_ARG) -> std::unique_ptr<TileFunctor<T>>;
+INSTANTIATE_ALL_ELEM
+#undef INSTANTIATE
+#endif
+

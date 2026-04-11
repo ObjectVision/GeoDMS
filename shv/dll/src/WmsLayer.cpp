@@ -25,6 +25,7 @@
 #include "ShvBase.h"
 
 #include "WmsLayer.h"
+#include "parallel/dms_task.h"
 #include "DataView.h"
 #include "GraphVisitor.h"
 #include "GridDrawer.h"
