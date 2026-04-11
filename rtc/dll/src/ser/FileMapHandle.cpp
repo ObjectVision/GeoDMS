@@ -1039,6 +1039,10 @@ void CreateMemPageAllocTable(std::shared_ptr<MappedFileHandle> self, bool readOn
 // ViewData: memory-mapped view using mmap
 // -----------------------------------------------------------------------
 
+// Windows compatibility constants for ViewData::desiredAccess
+constexpr DWORD FILE_MAP_READ  = 4;
+constexpr DWORD FILE_MAP_WRITE = 2;
+
 ViewData::ViewData(MappedFileHandle* mappedFile, DWORD desiredAccess, dms::filesize_t viewOffset, dms::filesize_t viewCapacity)
 {
 	// Access fd via the public m_hFileMapping member (stores fd on Linux)
@@ -1069,6 +1073,101 @@ ViewData::~ViewData()
 	// Note: munmap requires size, which is not tracked here.
 	// This will be fully addressed when FileView is ported.
 	// For now, the OS reclaims on process exit.
+}
+
+// -----------------------------------------------------------------------
+// FileViewHandle / ConstFileViewHandle
+// -----------------------------------------------------------------------
+// The logic is platform-independent; only ViewData wraps the OS mapping.
+
+FileViewHandle::FileViewHandle(std::shared_ptr<MappedFileHandle> mfh, dms::filesize_t viewOffset, dms::filesize_t viewSize, dms::filesize_t viewCapacity)
+	: m_MappedFile(mfh)
+{
+	if (viewOffset == -1)
+	{
+		assert(mfh);
+		auto lock = std::scoped_lock(mfh->m_ResizeMutex);
+		m_ViewSpec = mfh->allocAtEnd(viewSize, viewCapacity);
+	}
+	else
+		m_ViewSpec = { viewOffset, viewSize, viewCapacity };
+	assert(m_ViewSpec.size <= m_ViewSpec.capacity);
+}
+
+ConstFileViewHandle::ConstFileViewHandle(std::shared_ptr<ConstMappedFileHandle> cmfh, dms::filesize_t viewOffset, dms::filesize_t viewSize, dms::filesize_t viewCapacity)
+	: m_MappedFile(cmfh)
+{
+	auto lock = std::scoped_lock(cmfh->m_ResizeMutex);
+
+	if (viewOffset == -1)
+		m_ViewSpec = cmfh->allocAtEnd(viewSize, viewCapacity);
+	else
+		m_ViewSpec = { viewOffset, viewSize, viewCapacity };
+
+	assert(m_ViewSpec.size <= m_ViewSpec.capacity);
+
+	MakeMin(m_ViewSpec.capacity, cmfh->GetFileSize() - m_ViewSpec.offset);
+
+	if (m_ViewSpec.size == -1)
+		m_ViewSpec.size = m_ViewSpec.capacity;
+
+	MG_CHECK(m_ViewSpec.size <= m_ViewSpec.capacity);
+}
+
+void FileViewHandle::operator =(FileViewHandle&& rhs) noexcept
+{
+	m_MappedFile = std::move(rhs.m_MappedFile); assert(!rhs.m_MappedFile);
+	std::swap(m_ViewSpec, rhs.m_ViewSpec);
+	m_ViewData = std::move(rhs.m_ViewData);
+
+	assert(m_ViewSpec.size <= m_ViewSpec.capacity);
+}
+
+void ConstFileViewHandle::operator =(ConstFileViewHandle&& rhs) noexcept
+{
+	m_MappedFile = std::move(rhs.m_MappedFile); assert(!rhs.m_MappedFile);
+	std::swap(m_ViewSpec, rhs.m_ViewSpec);
+	m_ViewData = std::move(rhs.m_ViewData);
+
+	assert(m_ViewSpec.size <= m_ViewSpec.capacity);
+}
+
+void FileViewHandle::MapView(bool alsoWrite)
+{
+	MG_CHECK(m_MappedFile);
+
+	m_ViewData = ViewData();
+
+	if (!m_ViewSpec.capacity)
+		return;
+
+	m_AlsoWrite = alsoWrite;
+
+	m_ViewData = ViewData(m_MappedFile.get(), alsoWrite ? FILE_MAP_WRITE : FILE_MAP_READ, m_ViewSpec.offset, m_ViewSpec.capacity);
+}
+
+void ConstFileViewHandle::MapView()
+{
+	MG_CHECK(m_MappedFile);
+
+	assert(!m_ViewData);
+
+	m_ViewData = ViewData();
+	if (!m_ViewSpec.capacity)
+		return;
+
+	m_ViewData = ViewData(m_MappedFile.get(), FILE_MAP_READ, m_ViewSpec.offset, m_ViewSpec.capacity);
+}
+
+void FileViewHandle::allocAndMapChunk(dms::filesize_t capacity, tile_id t)
+{
+	assert(m_MappedFile);
+	assert(capacity > m_ViewSpec.capacity);
+	assert(!m_MappedFile->m_ResizeMutex.try_lock_shared());
+
+	m_ViewSpec = m_MappedFile->allocChunk(m_ViewSpec, capacity, t);
+
+	MapView(true);
 }
 
 #endif //defined(WIN32)

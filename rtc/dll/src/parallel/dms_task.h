@@ -4,22 +4,24 @@
 
 #pragma once
 
-// Portable fire-and-forget async task, replacing concurrency::task<void> from ppltasks.h.
+// Portable fire-and-forget async task, replacing:
+//   using dms_task = concurrency::task<void>;  (from OperationContext.h / ppltasks.h)
+//
 // Usage: dms_task t(callable);  // runs callable asynchronously
-// The task runs detached; the dms_task object does not block on destruction.
+// Like concurrency::task<void>, the destructor does NOT block; the thread is detached.
 
-#include <future>
+#include <thread>
 #include <utility>
 
 class dms_task {
-	std::future<void> m_future;
 public:
 	dms_task() = default;
 
 	template <typename F>
 	explicit dms_task(F&& f)
-		: m_future(std::async(std::launch::async, std::forward<F>(f)))
-	{}
+	{
+		std::thread(std::forward<F>(f)).detach();
+	}
 
 	dms_task(dms_task&&) = default;
 	dms_task& operator=(dms_task&&) = default;

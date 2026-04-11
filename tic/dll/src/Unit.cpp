@@ -1289,6 +1289,10 @@ template auto RangedUnit<UInt8>::GetCurrSegmInfo() const -> const range_data_t*;
 template auto RangedUnit<Int8>::GetCurrSegmInfo() const -> const range_data_t*;
 template auto RangedUnit<UInt16>::GetCurrSegmInfo() const -> const range_data_t*;
 template auto RangedUnit<Int16>::GetCurrSegmInfo() const -> const range_data_t*;
+template auto RangedUnit<Float32>::GetCurrSegmInfo() const -> const range_data_t*;
+template auto RangedUnit<Float64>::GetCurrSegmInfo() const -> const range_data_t*;
+template auto RangedUnit<FPoint>::GetCurrSegmInfo() const -> const range_data_t*;
+template auto RangedUnit<DPoint>::GetCurrSegmInfo() const -> const range_data_t*;
 
 template auto CountableUnitBase<Int32>::GetTileRange(tile_id t) const->range_t;
 template auto CountableUnitBase<Int64>::GetTileRange(tile_id t) const->range_t;
@@ -1303,6 +1307,20 @@ template auto CountableUnitBase<WPoint>::GetTileRange(tile_id t) const->range_t;
 template auto CountableUnitBase<IPoint>::GetTileRange(tile_id t) const->range_t;
 template auto CountableUnitBase<UPoint>::GetTileRange(tile_id t) const->range_t;
 
+// CountableUnitBase::GetValueAtIndex — needed by DmClc
+template SPoint CountableUnitBase<SPoint>::GetValueAtIndex(row_id) const;
+template WPoint CountableUnitBase<WPoint>::GetValueAtIndex(row_id) const;
+template IPoint CountableUnitBase<IPoint>::GetValueAtIndex(row_id) const;
+template UPoint CountableUnitBase<UPoint>::GetValueAtIndex(row_id) const;
+template Int8   CountableUnitBase<Int8>::GetValueAtIndex(row_id) const;
+template Int16  CountableUnitBase<Int16>::GetValueAtIndex(row_id) const;
+template Int32  CountableUnitBase<Int32>::GetValueAtIndex(row_id) const;
+template Int64  CountableUnitBase<Int64>::GetValueAtIndex(row_id) const;
+template UInt8  CountableUnitBase<UInt8>::GetValueAtIndex(row_id) const;
+template UInt16 CountableUnitBase<UInt16>::GetValueAtIndex(row_id) const;
+template UInt32 CountableUnitBase<UInt32>::GetValueAtIndex(row_id) const;
+template UInt64 CountableUnitBase<UInt64>::GetValueAtIndex(row_id) const;
+
 // Explicit class instantiations for GCC/Linux (MSVC exports all members via dllexport)
 #if !defined(_MSC_VER)
 #include "utl/Instantiate.h"
@@ -1311,6 +1329,25 @@ using String = SharedStr;
 INSTANTIATE_FLD_ELEM
 INSTANTIATE_VOID
 #undef INSTANTIATE
+
+// TileAdapter member instantiations — needed because template class Unit<T>
+// does not instantiate base-class template members on GCC.
+template void TileAdapter<VarNumRangeUnitAdapter<OrdinalUnit<UInt32>>>::SetRegularTileRange(const range_t&, extent_t);
+template void TileAdapter<VarNumRangeUnitAdapter<OrdinalUnit<UInt32>>>::SetIrregularTileRange(std::vector<range_t>);
+template void TileAdapter<VarNumRangeUnitAdapter<OrdinalUnit<UInt64>>>::SetRegularTileRange(const range_t&, extent_t);
+template void TileAdapter<VarNumRangeUnitAdapter<OrdinalUnit<UInt64>>>::SetIrregularTileRange(std::vector<range_t>);
+template void TileAdapter<VarNumRangeUnitAdapter<OrderedUnit<Int32>>>::SetRegularTileRange(const range_t&, extent_t);
+template void TileAdapter<VarNumRangeUnitAdapter<OrderedUnit<Int32>>>::SetIrregularTileRange(std::vector<range_t>);
+template void TileAdapter<VarNumRangeUnitAdapter<OrderedUnit<Int64>>>::SetRegularTileRange(const range_t&, extent_t);
+template void TileAdapter<VarNumRangeUnitAdapter<OrderedUnit<Int64>>>::SetIrregularTileRange(std::vector<range_t>);
+template void TileAdapter<CountableUnit<SPoint>>::SetRegularTileRange(const range_t&, extent_t);
+template void TileAdapter<CountableUnit<SPoint>>::SetIrregularTileRange(std::vector<range_t>);
+template void TileAdapter<CountableUnit<WPoint>>::SetRegularTileRange(const range_t&, extent_t);
+template void TileAdapter<CountableUnit<WPoint>>::SetIrregularTileRange(std::vector<range_t>);
+template void TileAdapter<CountableUnit<IPoint>>::SetRegularTileRange(const range_t&, extent_t);
+template void TileAdapter<CountableUnit<IPoint>>::SetIrregularTileRange(std::vector<range_t>);
+template void TileAdapter<CountableUnit<UPoint>>::SetRegularTileRange(const range_t&, extent_t);
+template void TileAdapter<CountableUnit<UPoint>>::SetIrregularTileRange(std::vector<range_t>);
 #endif
 
 //----------------------------------------------------------------------

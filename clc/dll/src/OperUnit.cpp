@@ -9,6 +9,7 @@
 #endif
 
 #include "OperUnit.h"
+#include "OperConv.h"
 
 //#include "RtcGeneratedVersion.h"
 #include "geo/GeoSequence.h"

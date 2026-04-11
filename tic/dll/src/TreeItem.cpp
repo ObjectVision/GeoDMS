@@ -2961,7 +2961,7 @@ auto TreeItem::VisitConstVisibleSubTree(const ActorVisitor& visitor) const -> Ac
 	return TreeItem_VisitConstVisibleSubTree(this, visitor, visitedSet);
 }
 
-inline TreeItem* TreeItem::WalkNext(TreeItem* curr) noexcept // this acts as subTreeRoot
+TreeItem* TreeItem::WalkNext(TreeItem* curr) noexcept // this acts as subTreeRoot
 {
 	while (curr && curr != this)
 	{

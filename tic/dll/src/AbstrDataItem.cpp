@@ -135,14 +135,14 @@ TIC_CALL auto AbstrDataItem::GetNonDefaultValuesUnit() const -> const AbstrUnit*
 }
 
 
-inline auto AbstrDataItem::GetCurrRefObj() const ->SharedPtr<const AbstrDataObject>
+auto AbstrDataItem::GetCurrRefObj() const ->SharedPtr<const AbstrDataObject>
 {
 	dbg_assert(CheckMetaInfoReadyOrPassor());
 
 	return debug_cast<const AbstrDataItem*>(GetCurrUltimateItem())->GetCurrDataObj();
 }
 
-inline auto AbstrDataItem::GetRefObj() const -> SharedPtr<const AbstrDataObject>
+auto AbstrDataItem::GetRefObj() const -> SharedPtr<const AbstrDataObject>
 {
 	assert(IsMetaThread());
 	MG_SIGNAL_ON_UPDATEMETAINFO

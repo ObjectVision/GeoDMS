@@ -13,6 +13,6 @@
 // *****************************************************************************
 
 struct CommonOperGroup;
-template <typename V> extern CommonOperGroup* GetUnitGroup();
+template <typename V> CommonOperGroup* GetUnitGroup();
 
 #endif //!defined(__CLC_UNITGROUP_H)
