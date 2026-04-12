@@ -24,8 +24,8 @@
 
 GraphicGrid::GraphicGrid(ScalableObject* owner)
 	:	base_type(owner)
-	,	m_Brush( CreateSolidBrush(      RGB(0xFF, 0xFF, 0x80)), "GraphicGrid::CreateSolidBrush" )
-	,	m_Pen  ( CreatePen(PS_SOLID, 0, RGB(0x0,  0x0,  0xFF)), "GraphicGrid::CreatePen" )
+	,	m_BrushColor( CombineRGB(0xFF, 0xFF, 0x80) )
+	,	m_PenColor  ( CombineRGB(0x0,  0x0,  0xFF) )
 {
 }
 
@@ -56,7 +56,7 @@ void GraphicGrid::DoUpdateView()
 
 bool GraphicGrid::Draw(GraphDrawer& d) const
 {
-	HDC dc = d.GetDC();
+	auto* drawCtx = d.GetDrawContext();
 	CrdRect wr = CalcWorldClientRect();
 
 	wr &= d.GetWorldClipRect();
@@ -66,7 +66,7 @@ bool GraphicGrid::Draw(GraphDrawer& d) const
 	if (counter.Value() == 0)
 	{
 		GRect sr = DRect2GRect(wr, d.GetTransformation());
-		FillRect(dc, &AsRECT(sr), m_Brush);
+		drawCtx->FillRect(sr, m_BrushColor);
 	}
 	++counter;
 	if (counter.MustBreakOrSuspend())
@@ -80,17 +80,12 @@ bool GraphicGrid::Draw(GraphDrawer& d) const
 	assert(factor.second > 0);
 	MakeMax(factor, CrdPoint(1, 1));
 
-	GdiObjectSelector<HPEN> penHolder(dc, m_Pen);
-
 	CrdType right  = sr.right  + factor.first;
 	CrdType bottom = sr.bottom + factor.second;
 	if (counter.Value() == 1)
 	{
 		for (CrdType i=sr.top;  i <= bottom; i += factor.second)
-		{
-			MoveToEx(dc, sr.left, i, NULL);
-			LineTo  (dc,right,   i);
-		}
+			drawCtx->DrawLine(GPoint(sr.left, i), GPoint(right, i), m_PenColor);
 		++counter;
 		if (counter.MustBreakOrSuspend()) 
 			return true;
@@ -98,10 +93,7 @@ bool GraphicGrid::Draw(GraphDrawer& d) const
 	if (counter.Value() == 2)
 	{
 		for (CrdType j=sr.left; j <= right;  j += factor.first)
-		{
-			MoveToEx(dc, j, sr.top, NULL);
-			LineTo  (dc, j, bottom);
-		}
+			drawCtx->DrawLine(GPoint(j, sr.top), GPoint(j, bottom), m_PenColor);
 	}
 	counter.Close();
 	return false;

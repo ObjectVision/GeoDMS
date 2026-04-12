@@ -591,7 +591,6 @@ void DataItemColumn::DoUpdateView()
 void DataItemColumn::DrawBackground(const GraphDrawer& d) const
 {
 	assert(d.DoDrawBackground()); // PRECONDITION
-	assert(d.GetDC()); // implied by prev
 	assert(IsMainThread());
 	base_type::DrawBackground(d);
 
@@ -616,7 +615,7 @@ void DataItemColumn::DrawBackground(const GraphDrawer& d) const
 
 	auto penTheme = GetEnabledTheme(AN_PenColor);
 
-	GdiHandle<HBRUSH> br( CreateSolidBrush( DmsColor2COLORREF(0) ) );
+	DmsColor borderColor = CombineRGB(0, 0, 0);
 
 	auto absFullDeviceRect = GetClippedCurrFullAbsDeviceRect(d); 
 
@@ -636,18 +635,19 @@ void DataItemColumn::DrawBackground(const GraphDrawer& d) const
 		SuspendTrigger::BlockerBase block("DataItemColumn::DrawBackground");
 		trl.push_back(penTheme.get(), DrlType::Certain);
 
-		br = GdiHandle<HBRUSH>(CreateSolidBrush(DmsColor2COLORREF(penTheme->GetValueGetter()->GetColorValue(Min<SizeT>(recNo, nrRows-1)))));
+		borderColor = penTheme->GetValueGetter()->GetColorValue(Min<SizeT>(recNo, nrRows-1));
 	}
 //	TType currRowLogicalY = clientLogicalAbsPosRow + recNo * logicalRowHeight;
 	auto currRowDeviceY = clientDeviceAbsPosRow + recNo * deviceRowHeight;
 	auto clipEndRow = isColOriented ? d.GetAbsClipDeviceRect().Bottom() : d.GetAbsClipDeviceRect().Right();
 
-	auto drawHorizontalBorder = [&absFullDeviceRect, &d, deviceRowSep, isColOriented, &br, &currRowDeviceY]()
+	auto* drawCtx = d.GetDrawContext();
+	auto drawHorizontalBorder = [&absFullDeviceRect, drawCtx, deviceRowSep, isColOriented, &borderColor, &currRowDeviceY]()
 	{
 		absFullDeviceRect.first.FlippableY(isColOriented) = currRowDeviceY;
 		absFullDeviceRect.second.FlippableY(isColOriented) = currRowDeviceY + deviceRowSep;
 		auto intFullDeviceRect = CrdRect2GRect(absFullDeviceRect);
-		FillRect(d.GetDC(), &AsRECT(intFullDeviceRect), br);
+		drawCtx->FillRect(intFullDeviceRect, borderColor);
 	};
 
 	while ( recNo < nrRows)
@@ -710,7 +710,6 @@ void DataItemColumn::DrawElement(GraphDrawer& d, SizeT rowNr, GRect elemDeviceEx
 {
 	assert(!SuspendTrigger::DidSuspend());
 	assert(d.DoDrawData()); // PRECONDITION
-	assert(d.GetDC()); // implied by prev
 
 // TODO: Set scaled Font size, Set TextAlignMode
 //	CrdPoint base = d.GetTransformation().GetOffset();

@@ -30,47 +30,10 @@
 #include "ViewPort.h"
 #include "WmsLayer.h"
 
-HBITMAP CreateBlender()
-{
-	BITMAPINFOHEADER bmiHeader;
-	bmiHeader.biSize          = sizeof(BITMAPINFOHEADER);
-	bmiHeader.biWidth         = 1;
-	bmiHeader.biHeight        = 1;
-	bmiHeader.biPlanes        = 1;
-	bmiHeader.biBitCount      = 24;
-	bmiHeader.biCompression   = BI_RGB;
-	bmiHeader.biSizeImage     = 0;
-	bmiHeader.biXPelsPerMeter = 0;
-	bmiHeader.biYPelsPerMeter = 0;
-	bmiHeader.biClrUsed       = 0;
-	bmiHeader.biClrImportant  = 0;
-
-	BYTE* pvBits = 0;
-	
-	HBITMAP result = CreateDIBSection(
-		0, // m_hDC,
-		reinterpret_cast<BITMAPINFO*>(&bmiHeader),
-		DIB_RGB_COLORS,
-		&reinterpret_cast<void*&>(pvBits),
-		NULL, 0
-	);
-	CheckedGdiCall(result, "CreateDIBSection");
-	dms_assert(pvBits);
-
-	*pvBits++ = 0x80; // BLUE
-	*pvBits++ = 0x00; // GREEN
-	*pvBits++ = 0xFF; // RED
-	return result;
-}
-
 GraphicRect::GraphicRect(ScalableObject* owner)
 	:	ScalableObject(owner)
-	,	m_Pen  ( CreatePen       (PS_SOLID, 0,  RGB(0x0,  0x00, 0xFF)), "GraphicRect::CreatePen" )
-#if defined(SHV_ALPHABLEND_NOT_SUPPORTED)
-	,	m_Brush( CreateHatchBrush(HS_DIAGCROSS, RGB(0xFF, 0x00, 0x80)), "GraphicRect::CreateSolidBrush" )
-#else
-	,	m_BlendBitmap(CreateBlender())
-#endif
+	,	m_PenColor  ( CombineRGB(0x0,  0x00, 0xFF) )
+	,	m_BlendColor( CombineRGB(0xFF, 0x00, 0x80) )
 {}
 
 GraphicRect::~GraphicRect()
@@ -241,11 +204,9 @@ bool GraphicRect::DrawRect(GraphDrawer& d, const CrdRect& wr, const CrdRect& cr,
 	if (Width(clientRect) <= 0 || Height(clientRect) <= 0)
 		return false;
 
-	HDC dc = d.GetDC();
+	auto* drawCtx = d.GetDrawContext();
 
 	{
-		GdiObjectSelector<HPEN> penHolder(dc, m_Pen);
-
 		OrientationType orientation = d.GetTransformation().Orientation();
 
 		CrdType topRow = MustNegateY(orientation) ? wr.second.Row() : wr.first .Row();
@@ -255,19 +216,13 @@ bool GraphicRect::DrawRect(GraphDrawer& d, const CrdRect& wr, const CrdRect& cr,
 
 		// top line
 		if (topRow >= cr.first.Row() && topRow <= cr.second.Row())
-		{
-			MoveToEx(dc, clientRect.left,  clientRect.top, NULL);
-			LineTo  (dc, clientRect.right, clientRect.top);
-		}
+			drawCtx->DrawLine(GPoint(clientRect.left, clientRect.top), GPoint(clientRect.right, clientRect.top), m_PenColor);
 		if (++clientRect.top == clientRect.bottom)
 			return false;
 
 		// left line
 		if (lefCol >= cr.first.Col() && lefCol <= cr.second.Col())
-		{
-			MoveToEx(dc, clientRect.left, clientRect.top, NULL);
-			LineTo  (dc, clientRect.left, clientRect.bottom);
-		}
+			drawCtx->DrawLine(GPoint(clientRect.left, clientRect.top), GPoint(clientRect.left, clientRect.bottom), m_PenColor);
 		if (++clientRect.left == clientRect.right)
 			return false;
 
@@ -275,8 +230,7 @@ bool GraphicRect::DrawRect(GraphDrawer& d, const CrdRect& wr, const CrdRect& cr,
 		if (botRow >= cr.first.Row() && botRow <= cr.second.Row())
 		{
 			--clientRect.bottom;
-			MoveToEx(dc, clientRect.left,  clientRect.bottom, NULL);
-			LineTo  (dc, clientRect.right, clientRect.bottom);
+			drawCtx->DrawLine(GPoint(clientRect.left, clientRect.bottom), GPoint(clientRect.right, clientRect.bottom), m_PenColor);
 		}
 		if (clientRect.top == clientRect.bottom)
 			return false;
@@ -285,46 +239,15 @@ bool GraphicRect::DrawRect(GraphDrawer& d, const CrdRect& wr, const CrdRect& cr,
 		if (rigCol >= cr.first.Col() && rigCol <= cr.second.Col())
 		{
 			--clientRect.right;
-			MoveToEx(dc, clientRect.right, clientRect.top, NULL);
-			LineTo  (dc, clientRect.right, clientRect.bottom);
+			drawCtx->DrawLine(GPoint(clientRect.right, clientRect.top), GPoint(clientRect.right, clientRect.bottom), m_PenColor);
 		}
 		if (clientRect.left == clientRect.right)
 			return false;
 	}
 	if ( (Width(clientRect) > 2 && Height(clientRect) > 2) || !IsIncluding(cr, wr) )
 	{
-
-#if defined(SHV_ALPHABLEND_NOT_SUPPORTED)
-
-		DcBkModeSelector xxx(dc, TRANSPARENT);
-		FillRect(dc, &AsRECT(sr), m_Brush);
-
-#else
-
-		CompatibleDcHandle memDC(NULL, 0);
-		GdiObjectSelector<HBITMAP> selectBitmap(memDC, m_BlendBitmap);
-
-		BLENDFUNCTION blendFunction;
-			blendFunction.BlendOp             = AC_SRC_OVER;
-			blendFunction.BlendFlags          = 0;
-			blendFunction.SourceConstantAlpha = 0x20;
-			blendFunction.AlphaFormat         = 0; // not AC_SRC_ALPHA
-
-
-		CheckedGdiCall(
-			AlphaBlend(
-				dc, 
-					clientRect.left, 
-					clientRect.top, 
-					Width(clientRect), 
-					Height(clientRect),
-				memDC, 0,0, 1,1,
-				blendFunction
-			),
-			"AlphaBlend"
-		);
-
-#endif
+		DmsColor blendColor = CombineRGB(GetRed(m_BlendColor), GetGreen(m_BlendColor), GetBlue(m_BlendColor), 0xDF);
+		drawCtx->FillRect(clientRect, blendColor);
 	}
 	return true;
 }

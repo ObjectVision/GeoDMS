@@ -91,16 +91,11 @@ private:
 	bool DrawRect(GraphDrawer& d, const CrdRect& wr, const CrdRect& cr, GRect clientRect) const;
 
 private: friend class LayerSet;
-	GdiHandle<HPEN>                m_Pen;
+	DmsColor                       m_PenColor;
+	DmsColor                       m_BlendColor;
 	CrdRect                        m_ROI;
 	mutable std::weak_ptr<ViewPort> m_SourceVP;
 	mutable std::weak_ptr<ViewPort> m_TargetVP;
-
-#if defined(SHV_ALPHABLEND_NOT_SUPPORTED)
-	GdiHandle<HBRUSH>              m_Brush;
-#else
-	GdiHandle<HBITMAP>             m_BlendBitmap;
-#endif
 
 
 	DECL_RTTI(SHV_CALL, ShvClass);

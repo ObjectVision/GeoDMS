@@ -36,7 +36,7 @@ granted by an additional written contract for support, assistance and/or develop
 //----------------------------------------------------------------------
 
 #include "ScalableObject.h"
-#include "DcHandle.h"
+#include "geo/color.h"
 
 //----------------------------------------------------------------------
 // class  : GraphicGrid
@@ -63,8 +63,8 @@ public:
 	SharedDataItemInterestPtr m_Source_TL;
 	SharedDataItemInterestPtr m_Source_BR;
 private:
-	GdiHandle<HBRUSH>              m_Brush;
-	GdiHandle<HPEN>                m_Pen;
+	DmsColor m_BrushColor;
+	DmsColor m_PenColor;
 
 	DECL_RTTI(SHV_CALL, ShvClass);
 };

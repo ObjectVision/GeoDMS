@@ -241,14 +241,16 @@ bool TextControl::Draw(GraphDrawer& d) const
 	{
 		auto clientAbsRect = ScaleCrdRect(GetCurrClientRelLogicalRect() + d.GetClientLogicalAbsPos(), d.GetSubPixelFactors());
 		auto clientIntRect = CrdRect2GRect(clientAbsRect);
-		DrawText(d.GetDC(), clientIntRect,
-			0, // use font of current DC
-			GetColor(),
-			GetBkColor(),
-			GetCaption().c_str()
-		);
+		auto* dc = d.GetDrawContext();
+		DmsColor bk = GetBkColor();
+		if (IsDefined(bk))
+			dc->FillRect(clientIntRect, bk);
+		DmsColor clr = GetColor();
+		if (!IsDefined(clr))
+			clr = GraphicObject::GetDefaultTextColor();
+		dc->TextOut(GPoint(clientIntRect.left, clientIntRect.top), GetCaption().c_str(), StrLen(GetCaption().c_str()), clr);
 		if (m_IsInverted)
-			d.GetDrawContext()->InvertRect(clientIntRect);
+			dc->InvertRect(clientIntRect);
 	}
 	return false;
 }
@@ -332,16 +334,18 @@ bool EditableTextControl::Draw(GraphDrawer& d) const
 	{
 		auto clientAbsRect = ScaleCrdRect(GetCurrClientRelLogicalRect() + d.GetClientLogicalAbsPos(), GetScaleFactors() );
 		auto clientIntRect = CrdRect2GRect(clientAbsRect);
+		auto* dc = d.GetDrawContext();
 
-		DrawEditText(d.GetDC(), clientIntRect,
-			0, // // use font of current DC
-			GetColor(),
-			GetBkColor(),
-			GetCaption().c_str(),
-			IsActive()
-		);
+		DmsColor bk = GetBkColor();
+		if (IsDefined(bk))
+			dc->FillRect(clientIntRect, bk);
+		DmsColor clr = GetColor();
+		if (!IsDefined(clr))
+			clr = GraphicObject::GetDefaultTextColor();
+		dc->TextOut(GPoint(clientIntRect.left, clientIntRect.top), GetCaption().c_str(), StrLen(GetCaption().c_str()), clr);
+
 		if (m_IsInverted)
-			InvertRect(d.GetDC(), &AsRECT(clientIntRect));
+			dc->InvertRect(clientIntRect);
 	}
 	return false;
 }
