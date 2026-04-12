@@ -1448,7 +1448,7 @@ bool DrawNetwork(
 					CheckedGdiCall(
 						Polyline(
 							d.GetDC(),
-							&pointBuffer[0],
+							&AsPOINT(pointBuffer[0]),
 							2
 						)
 					,	"DrawLink"

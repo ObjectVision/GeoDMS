@@ -66,7 +66,7 @@ bool GraphicGrid::Draw(GraphDrawer& d) const
 	if (counter.Value() == 0)
 	{
 		GRect sr = DRect2GRect(wr, d.GetTransformation());
-		FillRect(dc, &sr, m_Brush);
+		FillRect(dc, &AsRECT(sr), m_Brush);
 	}
 	++counter;
 	if (counter.MustBreakOrSuspend())

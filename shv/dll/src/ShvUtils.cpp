@@ -112,13 +112,12 @@ void CreateGotoAction(const TreeItem* tiContext)
 // section : TPoint & TRect
 //----------------------------------------------------------------------
 
-GPoint GPoint::ScreenToClient(HWND hWnd) const 
+GPoint ScreenToClientGPoint(GPoint pt, HWND hWnd)
 {
-	GPoint result = *this;
-	CheckedGdiCall( ::ScreenToClient(hWnd, &result),
+	CheckedGdiCall( ::ScreenToClient(hWnd, &AsPOINT(pt)),
 		"ScreenToClient"
 	);
-	return result;
+	return pt;
 }		
 
 //----------------------------------------------------------------------
@@ -558,7 +557,7 @@ void FillRectDmsColor(HDC dc, const GRect& rect, DmsColor color)
 		"FillRectDmsColor::CreateSolidBrush"
 	);
 
-	FillRect(dc, &rect, brushHandle );
+	FillRect(dc, &AsRECT(rect), brushHandle );
 }
 
 

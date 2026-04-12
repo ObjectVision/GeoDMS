@@ -184,7 +184,7 @@ public:
 	virtual bool OnCommand(ToolButtonID id);
 	virtual CommandStatus OnCommandEnable(ToolButtonID id)  const;
 
-	virtual bool HitTest(POINT ptClient) const noexcept;      // Used by DataView watchdog hit-test
+	virtual bool HitTest(GPoint ptClient) const noexcept;      // Used by DataView watchdog hit-test
 	virtual bool GetTooltipText(TooltipCollector& ttc) const; // can be location specific
 
 	virtual std::weak_ptr<DataView> GetDataView() const;

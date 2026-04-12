@@ -76,7 +76,7 @@ bool ScaleBarBase::Draw(HDC dc, CrdRect devAbsRect) const
 				dc, 
 				mySSPrintF("%1.0lf%s", botVal, m_UnitLabel.c_str()).c_str(),
 				-1,
-				&bottomRect,
+				&AsRECT(bottomRect),
 				DT_CENTER|DT_VCENTER
 			);
 		}
@@ -93,7 +93,7 @@ bool ScaleBarBase::Draw(HDC dc, CrdRect devAbsRect) const
 					dc, 
 					mySSPrintF("%1.0lf", topVal).c_str(),
 					-1,
-					&topRect,
+					&AsRECT(topRect),
 					DT_CENTER|DT_VCENTER
 				);
 

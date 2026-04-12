@@ -18,7 +18,7 @@
 void GdiDrawContext::FillRect(const GRect& rect, DmsColor color)
 {
 	GdiHandle<HBRUSH> br(CreateSolidBrush(DmsColor2COLORREF(color)));
-	::FillRect(m_hDC, &rect, br);
+	::FillRect(m_hDC, &AsRECT(rect), br);
 }
 
 void GdiDrawContext::FillRegion(const Region& rgn, DmsColor color)
@@ -30,10 +30,10 @@ void GdiDrawContext::FillRegion(const Region& rgn, DmsColor color)
 
 void GdiDrawContext::InvertRect(const GRect& rect)
 {
-	::InvertRect(m_hDC, &rect);
+	::InvertRect(m_hDC, &AsRECT(rect));
 }
 
 void GdiDrawContext::DrawFocusRect(const GRect& rect)
 {
-	::DrawFocusRect(m_hDC, &rect);
+	::DrawFocusRect(m_hDC, &AsRECT(rect));
 }

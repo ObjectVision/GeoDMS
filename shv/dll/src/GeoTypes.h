@@ -16,17 +16,18 @@
 // section : TPoint & TRect
 //----------------------------------------------------------------------
 
-typedef LONG GType;
+using GType = Int32;
 
-struct GPoint : POINT
+struct GPoint
 {
-	GPoint() { x = y = UNDEFINED_VALUE(GType); }
-	GPoint(GType _x, GType _y) { x = _x, y = _y; }
+	GType x = UNDEFINED_VALUE(GType);
+	GType y = UNDEFINED_VALUE(GType);
 
-	GPoint ScreenToClient(HWND hWnd) const;
+	GPoint() = default;
+	GPoint(GType _x, GType _y) : x(_x), y(_y) {}
 
-	void operator -=(POINT rhs)       { x -= rhs.x; y-=rhs.y; }
-	void operator +=(POINT rhs)       { x += rhs.x; y+=rhs.y; }
+	void operator -=(GPoint rhs)       { x -= rhs.x; y-=rhs.y; }
+	void operator +=(GPoint rhs)       { x += rhs.x; y+=rhs.y; }
 	void operator *=(DPoint scaleFactor) {
 		x = Float64(x) * scaleFactor.first;
 		y = Float64(y) * scaleFactor.second;
@@ -36,8 +37,8 @@ struct GPoint : POINT
 		y = Float64(y) / scaleFactor.second;
 	}
 
-	bool operator ==(POINT rhs) const { return x == rhs.x && y == rhs.y; }
-	bool operator !=(POINT rhs) const { return x != rhs.x || y != rhs.y; }
+	bool operator ==(GPoint rhs) const { return x == rhs.x && y == rhs.y; }
+	bool operator !=(GPoint rhs) const { return x != rhs.x || y != rhs.y; }
 	bool IsSingular() const { return !x || !y; }
 	auto FlippableX(bool isColOridented) const { return isColOridented ? x : y; }
 	auto FlippableY(bool isColOridented) const { return isColOridented ? y : x; }
@@ -54,9 +55,9 @@ using TType = Int64;
 using TType = Int32;
 #endif //defined(DMS_TM_HAS_UINT64_AS_DOMAIN)
 
-inline GPoint operator + (GPoint a, POINT b) { a += b; return a; }
-inline GPoint operator - (GPoint a, POINT b) { a -= b; return a; }
-inline GPoint operator - (POINT b) { return GPoint(-b.x, -b.y); }
+inline GPoint operator + (GPoint a, GPoint b) { a += b; return a; }
+inline GPoint operator - (GPoint a, GPoint b) { a -= b; return a; }
+inline GPoint operator - (GPoint b) { return GPoint(-b.x, -b.y); }
 
 
 struct TPoint : Point<TType> //: POINT
@@ -67,12 +68,12 @@ struct TPoint : Point<TType> //: POINT
 	bool IsSingular() const { return !first || !second; }
 };
 
-inline GPoint UpperBound(POINT lhs, POINT rhs) 
+inline GPoint UpperBound(GPoint lhs, GPoint rhs) 
 {
 	return GPoint(Max<GType>(lhs.x, rhs.x), Max<GType>(lhs.y, rhs.y));
 }
 
-inline GPoint LowerBound(POINT lhs, POINT rhs) 
+inline GPoint LowerBound(GPoint lhs, GPoint rhs) 
 {
 	return GPoint(Min<GType>(lhs.x, rhs.x), Min<GType>(lhs.y, rhs.y));
 }
@@ -87,13 +88,13 @@ inline TPoint LowerBound(TPoint lhs, TPoint rhs)
 	return Point<TType>(Min<TType>(lhs.first, rhs.first), Min<TType>(lhs.second, rhs.second));
 }
 
-inline void MakeUpperBound(POINT& lhs, POINT rhs) 
+inline void MakeUpperBound(GPoint& lhs, GPoint rhs) 
 {
 	MakeMax(lhs.x, rhs.x);
 	MakeMax(lhs.y, rhs.y);
 }
 
-inline void MakeLowerBound(POINT& lhs, POINT rhs) 
+inline void MakeLowerBound(GPoint& lhs, GPoint rhs) 
 {
 	MakeMin(lhs.x, rhs.x);
 	MakeMin(lhs.y, rhs.y);
@@ -104,12 +105,12 @@ inline void MakeLowerBound(POINT& lhs, POINT rhs)
 //inline TPoint operator - (TPoint a, TPoint b) { a -= b; return a; }
 inline TPoint operator - (TPoint b) { return Point<TType>(-b.first, -b.second); }
 
-inline bool IsLowerBound(POINT a, POINT b)
+inline bool IsLowerBound(GPoint a, GPoint b)
 { 
 	return IsLowerBound(DMS_LONG(a.x), DMS_LONG(b.x)) && IsLowerBound(DMS_LONG(a.y), DMS_LONG(b.y));
 }
 
-inline bool IsStrictlyLower(POINT a, POINT b)
+inline bool IsStrictlyLower(GPoint a, GPoint b)
 { 
 	return IsStrictlyLower(DMS_LONG(a.x), DMS_LONG(b.x)) && IsStrictlyLower(DMS_LONG(a.y), DMS_LONG(b.y));
 }
@@ -125,34 +126,29 @@ inline CrdPoint ConcatHorizontal(CrdPoint a, CrdPoint b)
 }
 
 
-struct GRect : RECT
+struct GRect
 {
-	GRect() { left = top = right = bottom = UNDEFINED_VALUE(GType); }
+	GType left   = UNDEFINED_VALUE(GType);
+	GType top    = UNDEFINED_VALUE(GType);
+	GType right  = UNDEFINED_VALUE(GType);
+	GType bottom = UNDEFINED_VALUE(GType);
+
+	GRect() = default;
 
 	GRect(GType left_, GType top_, GType right_, GType bottom_)
+		: left(left_), top(top_), right(right_), bottom(bottom_)
 	{
 		assert(IsDefined(left_));
 		assert(IsDefined(top_));
 		assert(IsDefined(right_));
 		assert(IsDefined(bottom_));
-
-		left   = left_;
-		top    = top_;
-		right  = right_;
-		bottom = bottom_;
 	}
 	GRect(GPoint topLeft, GPoint bottomRight)
+		: left(topLeft.x), top(topLeft.y), right(bottomRight.x), bottom(bottomRight.y)
 	{
 		assert(IsDefined(topLeft.x) && IsDefined(topLeft.y) && IsDefined(bottomRight.x) && IsDefined(bottomRight.y) 
 			|| !IsDefined(topLeft) && !IsDefined(bottomRight));
-
-		left   = topLeft.x;
-		top    = topLeft.y;
-		right  = bottomRight.x;
-		bottom = bottomRight.y;
 	}
-
-	GRect(const RECT& src) : RECT(src) {}
 
 	bool empty() const { return left >= right || top >= bottom; }
 	const GType&  Left  () const { return left; }
@@ -171,18 +167,18 @@ struct GRect : RECT
 	GType  Width () const { return right - left; }
 	GType  Height() const { return bottom - top; }
 
-	bool operator ==(const RECT& rhs) const
+	bool operator ==(const GRect& rhs) const
 	{
 		return left   == rhs.left 
 			&& right  == rhs.right
 			&& top    == rhs.top
 			&& bottom == rhs.bottom;
 	}
-	bool operator !=(const RECT& rhs) const
+	bool operator !=(const GRect& rhs) const
 	{
 		return !this->operator ==(rhs);
 	}
-	void operator &=(const RECT& rhs) 
+	void operator &=(const GRect& rhs)
 	{
 		assert(IsDefined(left));
 		assert(IsDefined(top));
@@ -199,7 +195,7 @@ struct GRect : RECT
 		MakeMin(right,  rhs.right);
 		MakeMin(bottom, rhs.bottom);
 	}
-	void operator |=(const RECT& rhs) 
+	void operator |=(const GRect& rhs)
 	{
 		assert(IsDefined(left));
 		assert(IsDefined(top));
@@ -216,7 +212,7 @@ struct GRect : RECT
 		MakeMax(right,  rhs.right);
 		MakeMax(bottom, rhs.bottom);
 	}
-	void operator +=(const POINT& delta) 
+	void operator +=(const GPoint& delta) 
 	{
 		assert(IsDefined(left));
 		assert(IsDefined(top));
@@ -232,7 +228,7 @@ struct GRect : RECT
 		bottom+= delta.y;
 	}
 
-	void operator -=(const POINT& delta) 
+	void operator -=(const GPoint& delta)
 	{
 		assert(IsDefined(left));
 		assert(IsDefined(top));
@@ -252,7 +248,7 @@ struct GRect : RECT
 		assert(IsDefined(right));
 		assert(IsDefined(bottom));
 	}
-	void operator +=(const RECT& rhs) 
+	void operator +=(const GRect& rhs)
 	{
 		assert(IsDefined(left));
 		assert(IsDefined(top));
@@ -275,7 +271,7 @@ struct GRect : RECT
 		assert(IsDefined(bottom));
 	}
 
-	void operator -=(const RECT& rhs) 
+	void operator -=(const GRect& rhs)
 	{
 		assert(IsDefined(left));
 		assert(IsDefined(top));
@@ -340,7 +336,7 @@ struct GRect : RECT
 		assert(IsDefined(right));
 		assert(IsDefined(bottom));
 	}
-	void Expand(POINT delta)
+	void Expand(GPoint delta)
 	{
 		assert(IsDefined(delta.x));
 		assert(IsDefined(delta.y));
@@ -382,7 +378,7 @@ struct GRect : RECT
 		assert(IsDefined(right));
 		assert(IsDefined(bottom));
 	}
-	void Shrink(POINT delta) 
+	void Shrink(GPoint delta) 
 	{
 		assert(IsDefined(left));
 		assert(IsDefined(top));
@@ -435,13 +431,13 @@ inline auto g2dms_order(GRect p)
 	return Range<Point<F>>(g2dms_order<F>(p.LeftTop()), g2dms_order<F>(p.RightBottom()));
 }
 
-inline GRect operator + (GRect a, POINT b) { a += b; return a; }
-inline GRect operator - (GRect a, POINT b) { a -= b; return a; }
-inline GRect operator + (GRect a, RECT  b) { a += b; return a; }
-inline GRect operator - (GRect a, RECT  b) { a -= b; return a; }
-inline GRect operator & (GRect a, RECT  b) { a &= b; return a; }
+inline GRect operator + (GRect a, GPoint b) { a += b; return a; }
+inline GRect operator - (GRect a, GPoint b) { a -= b; return a; }
+inline GRect operator + (GRect a, GRect  b) { a += b; return a; }
+inline GRect operator - (GRect a, GRect  b) { a -= b; return a; }
+inline GRect operator & (GRect a, GRect  b) { a &= b; return a; }
 
-inline bool IsIncluding(GRect a, POINT p)
+inline bool IsIncluding(GRect a, GPoint p)
 {
 	return IsLowerBound(a.LeftTop(), p) && IsStrictlyLower(p, a.RightBottom());
 }
@@ -649,8 +645,8 @@ Range<T> Convert4(const TRect& rect, const Range<T>*, const ExceptFunc* ef, cons
 	);
 }
 
-inline LONG Width (const RECT& r) { return r.right  - r.left; }
-inline LONG Height(const RECT& r) { return r.bottom - r.top;  }
+inline GType Width (const GRect& r) { return r.right  - r.left; }
+inline GType Height(const GRect& r) { return r.bottom - r.top;  }
 
 //----------------------------------------------------------------------
 // section : Streaming of TPoint, TRect
@@ -661,6 +657,26 @@ FormattedOutStream& operator <<(FormattedOutStream& os, const GPoint& point);
 
 //REMOVE FormattedOutStream& operator <<(FormattedOutStream& os, const TRect&  rect );
 FormattedOutStream& operator <<(FormattedOutStream& os, const TPoint& point);
+
+//----------------------------------------------------------------------
+// section : Win32 interop
+//----------------------------------------------------------------------
+
+#ifdef _WIN32
+
+#include <windows.h>
+
+// Layout-compatible casts — valid on Windows where sizeof(Int32) == sizeof(LONG)
+static_assert(sizeof(Int32) == sizeof(LONG), "GType and LONG must have the same size for Win32 interop");
+
+inline       POINT& AsPOINT(      GPoint& p) { return reinterpret_cast<      POINT&>(p); }
+inline const POINT& AsPOINT(const GPoint& p) { return reinterpret_cast<const POINT&>(p); }
+inline       RECT&  AsRECT (      GRect&  r) { return reinterpret_cast<      RECT& >(r); }
+inline const RECT&  AsRECT (const GRect&  r) { return reinterpret_cast<const RECT& >(r); }
+
+// Value conversions
+inline GPoint POINTToGPoint(POINT p) { return GPoint(p.x, p.y); }
+inline GRect  RECTToGRect(const RECT& r) { return GRect(r.left, r.top, r.right, r.bottom); }
 
 //----------------------------------------------------------------------
 // section : RGBQUAD
@@ -692,6 +708,18 @@ inline DmsColor Convert4(RGBQUAD quad, const DmsColor*, const ExceptFunc*, const
 inline COLORREF DmsColor2COLORREF(DmsColor dmsColor) { return dmsColor; }
 inline DmsColor COLORREF2DmsColor(COLORREF colorref) { return colorref; }
 const COLORREF TRANSPARENT_COLORREF = 0xFFFFFFFF;
+
+#else // !_WIN32
+
+#include "geo/color.h"
+
+// Portable replacements for COLORREF
+using COLORREF = UInt32;
+inline COLORREF DmsColor2COLORREF(DmsColor dmsColor) { return dmsColor; }
+inline DmsColor COLORREF2DmsColor(COLORREF colorref) { return colorref; }
+const COLORREF TRANSPARENT_COLORREF = 0xFFFFFFFF;
+
+#endif // _WIN32
 
 
 #endif // !defined(__SHV_GEOTYPES_H)

@@ -859,14 +859,14 @@ auto GetMovableObject(GraphicObject* obj) -> MovableObject*
 	return GetMovableObject(owner.get());
 }
 
-bool GraphicObject::HitTest(POINT ptClient) const noexcept
+bool GraphicObject::HitTest(GPoint ptClient) const noexcept
 {
 	if (!IsDrawn())
 		return false;
 	auto owner = GetOwner().lock();
 	if (!owner)
 		return false;
-	return owner->HitTest(ptClient); // bounding box thing; find a MovableObject for this; TODO: clip also on world coords and bounding box of enclosing ViewPort
+	return owner->HitTest(ptClient);
 }
 
 bool GraphicObject::GetTooltipText(TooltipCollector& ttc) const

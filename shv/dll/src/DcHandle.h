@@ -79,7 +79,7 @@ struct PaintDcHandle : private geodms::rtc::noncopyable
 
 	HDC GetHDC()   { return m_PaintInfo.hdc; }
 	operator HDC() { return m_PaintInfo.hdc; }
-	GRect GetClipRect() const { return m_PaintInfo.rcPaint; }
+	GRect GetClipRect() const { return RECTToGRect(m_PaintInfo.rcPaint); }
 	bool  MustEraseBkgnd() const { return m_PaintInfo.fErase; }
 
 private:

@@ -90,7 +90,7 @@ class PolygonCaret : public AbstrCaret
 {
 	typedef DualPointCaret base_type;
 public:	
-	PolygonCaret(const POINT* first, const POINT* last, DmsColor clr = CombineRGB(0, 0, 0))
+	PolygonCaret(const GPoint* first, const GPoint* last, DmsColor clr = CombineRGB(0, 0, 0))
 	:	m_First(first)
 	,	m_Count(last-first)
 	,	m_FillColor(clr) {}
@@ -99,7 +99,7 @@ public:
 	void Reverse(HDC dc, bool newVisibleState) override;
 
 private:
-	const POINT* m_First;
+	const GPoint* m_First;
 	SizeT        m_Count;
 	DmsColor     m_FillColor;
 };

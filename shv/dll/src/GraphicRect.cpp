@@ -297,7 +297,7 @@ bool GraphicRect::DrawRect(GraphDrawer& d, const CrdRect& wr, const CrdRect& cr,
 #if defined(SHV_ALPHABLEND_NOT_SUPPORTED)
 
 		DcBkModeSelector xxx(dc, TRANSPARENT);
-		FillRect(dc, &sr, m_Brush);
+		FillRect(dc, &AsRECT(sr), m_Brush);
 
 #else
 

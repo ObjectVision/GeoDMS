@@ -644,10 +644,10 @@ MsgResult DataView::DispatchMsg(const MsgStruct& msg)
 				if (m_ViewHost)
 					m_ViewHost->VH_GetCursorScreenPos(ptScreen);
 				else
-					GetCursorPos(&ptScreen);
+					GetCursorPos(&AsPOINT(ptScreen));
 				GPoint ptClient = m_ViewHost
 					? m_ViewHost->VH_ScreenToClient(ptScreen)
-					: [&]() { GPoint p = ptScreen; ScreenToClient(GetHWnd(), &p); return p; }();
+					: [&]() { GPoint p = ptScreen; ScreenToClient(GetHWnd(), &AsPOINT(p)); return p; }();
 				if (ptClient == m_hoverStartLocation)
 				{
 					TooltipCollector ttc(this, ptClient);
@@ -667,7 +667,7 @@ MsgResult DataView::DispatchMsg(const MsgStruct& msg)
 						ti.hwnd = GetHWnd();
 						ti.uId = (UINT_PTR)this;
 
-						ti.rect = CrdRect2GRect(ttc.m_DevRect);
+						ti.rect = AsRECT(CrdRect2GRect(ttc.m_DevRect));
 
 						ti.lpszText = m_ToolTipText.get();
 
@@ -744,7 +744,7 @@ MsgResult DataView::DispatchMsg(const MsgStruct& msg)
 			GPoint pt = LParam2Point(msg.m_lParam);
 			GPoint clientPt = m_ViewHost
 				? m_ViewHost->VH_ScreenToClient(pt)
-				: pt.ScreenToClient(m_hWnd);
+				: ScreenToClientGPoint(pt, m_hWnd);
 			DispatchMouseEvent(EventID::MOUSEWHEEL, msg.m_wParam, clientPt);
 			goto completed;
 		}
@@ -771,10 +771,10 @@ MsgResult DataView::DispatchMsg(const MsgStruct& msg)
 				else
 				{
 					CheckedGdiCall(
-						GetCursorPos(&cursorPos),
+						GetCursorPos(&AsPOINT(cursorPos)),
 						"GetCursorPos"
 					);
-					if (!DispatchMouseEvent(EventID::SETCURSOR, 0, cursorPos.ScreenToClient(m_hWnd)) )
+					if (!DispatchMouseEvent(EventID::SETCURSOR, 0, ScreenToClientGPoint(cursorPos, m_hWnd)) )
 						SetCursor( LoadCursor(NULL, IDC_ARROW) );
 				}
 			}
@@ -1209,8 +1209,8 @@ void DataView::ScrollDevice(GPoint delta, GRect rcScroll, GRect rcClip, const Mo
 			GdiHandle<HRGN> hDrawRgn(CreateRectRgn(0, 0, 0, 0), nullptr);
 			ScrollWindowEx(GetHWnd(),
 				delta.x , delta.y,
-				&rcClippedScroll,      // prcScrill
-				&rcClip,               // prcClip
+				&AsRECT(rcClippedScroll),      // prcScrill
+				&AsRECT(rcClip),               // prcClip
 				hDrawRgn,              // HRGN hrgnUpdate,  // handle to update region
 				NULL,                  // LPRECT prcUpdate, // address of structure for update rectangle
 				0                      // SW_SCROLLCHILDREN //SW_ERASE|SW_INVALIDATE // |SW_SMOOTHSCROLL + 0x00010000
@@ -1338,7 +1338,7 @@ void DataView::ShowPopupMenu(GPoint point, const MenuData& menuData) const
 		screenPoint = m_ViewHost->VH_ClientToScreen(screenPoint);
 	else
 		CheckedGdiCall(
-			ClientToScreen(m_hWnd, &screenPoint),
+			ClientToScreen(m_hWnd, &AsPOINT(screenPoint)),
 			"ShowPopupMenu"
 		);
 
@@ -1432,9 +1432,9 @@ void DataView::SetCursorPos(GPoint clientPoint)
 	}
 	else
 	{
-		ClientToScreen(m_hWnd, &clientPoint);
+		ClientToScreen(m_hWnd, &AsPOINT(clientPoint));
 		GPoint currPos;
-		if (!::GetCursorPos(&currPos) || !(currPos == clientPoint))
+		if (!::GetCursorPos(&AsPOINT(currPos)) || !(currPos == clientPoint))
 			::SetCursorPos(clientPoint.x, clientPoint.y);
 	}
 }
@@ -1521,7 +1521,7 @@ void DataView::OnEraseBkgnd(HDC dc)
 	DBG_START("DataView", "OnEraseBkgnd", MG_DEBUG_CARET || MG_DEBUG_REGION);
 
 	GRect rect;
-	int clipStatus = GetClipBox(dc, &rect);
+	int clipStatus = GetClipBox(dc, &AsRECT(rect));
 	if (clipStatus == NULLREGION)
 		return;
 	if (clipStatus == ERROR)
@@ -1529,7 +1529,7 @@ void DataView::OnEraseBkgnd(HDC dc)
 
 	DBG_TRACE(("FillRect [(%d,%d)-(%d,%d)]", rect.left, rect.top, rect.right, rect.bottom));
 
-	FillRect(dc, &rect, (HBRUSH) (COLOR_WINDOW+1) );
+	FillRect(dc, &AsRECT(rect), (HBRUSH) (COLOR_WINDOW+1) );
 }
 
 std::atomic<UInt32> s_DataViewOnPaintRecursionCount = 0;
@@ -1562,7 +1562,7 @@ void DataView::OnPaint()
 	{
 		GRect rect(GPoint(0, 0), m_ViewDeviceSize);
 		GdiHandle<HBRUSH> br1( CreateSolidBrush( DmsColor2COLORREF(DmsYellow) ) );
-		::FillRect(paintDC, &rect, br1 );
+		::FillRect(paintDC, &AsRECT(rect), br1 );
 	}
 #endif
 	GdiDrawContext paintDrawContext(paintDC);
@@ -1663,8 +1663,8 @@ void DataView::OnSize(WPARAM nType, GPoint deviceSize)
 		GRect rect1(GPoint(m_ViewDeviceSize.x, 0), UpperBound(m_ViewDeviceSize, deviceSize));
 		GRect rect2(GPoint(0, m_ViewDeviceSize.y), UpperBound(m_ViewDeviceSize, deviceSize));
 
-		::FillRect(dc, &rect1, GdiHandle<HBRUSH>(CreateSolidBrush(DmsColor2COLORREF(DmsBlue))));
-		::FillRect(dc, &rect2, GdiHandle<HBRUSH>(CreateSolidBrush(DmsColor2COLORREF(DmsGreen))));
+		::FillRect(dc, &AsRECT(rect1), GdiHandle<HBRUSH>(CreateSolidBrush(DmsColor2COLORREF(DmsBlue))));
+		::FillRect(dc, &AsRECT(rect2), GdiHandle<HBRUSH>(CreateSolidBrush(DmsColor2COLORREF(DmsGreen))));
 	}
 #endif
 
@@ -1734,13 +1734,13 @@ void DataView::InvalidateDeviceRect(GRect rect)
 	if (m_ViewHost)
 		m_ViewHost->VH_InvalidateRect(rect, true);
 	else
-		::InvalidateRect(m_hWnd, &rect, true);
+		::InvalidateRect(m_hWnd, &AsRECT(rect), true);
 #if defined(MG_DEBUG)
 	if (MG_DEBUG_INVALIDATE || true)
 	{
 		DcHandle dc(GetHWnd(), 0);
 		GdiHandle<HBRUSH> br( CreateSolidBrush( DmsColor2COLORREF(DmsRed) ) );
-		::FillRect(dc, &rect, br );
+		::FillRect(dc, &AsRECT(rect), br );
 	}
 #endif
 }
@@ -1771,13 +1771,13 @@ void DataView::ValidateRect(const GRect& pixRect)
 	if (m_ViewHost)
 		m_ViewHost->VH_ValidateRect(pixRect);
 	else
-		::ValidateRect(m_hWnd, &pixRect);
+		::ValidateRect(m_hWnd, &AsRECT(pixRect));
 #if defined(MG_DEBUG)
 	if (MG_DEBUG_INVALIDATE && false)
 	{
 		DcHandle dc(GetHWnd(), 0);
 		GdiHandle<HBRUSH> br( CreateSolidBrush( DmsColor2COLORREF(DmsBlue) ) );
-		::FillRect(dc, &pixRect, br );
+		::FillRect(dc, &AsRECT(pixRect), br );
 	}
 #endif
 }
@@ -2081,9 +2081,9 @@ bool DataView::IsCursorInsideObject(const GraphicObject& obj) const noexcept
 	}
 	else
 	{
-		if (!GetCursorPos(&ptScreen)) return false;
-		POINT ptClient = ptScreen;
+		if (!GetCursorPos(&AsPOINT(ptScreen))) return false;
+		POINT ptClient = AsPOINT(ptScreen);
 		ScreenToClient(GetHWnd(), &ptClient);
-		return obj.HitTest(ptClient);
+		return obj.HitTest(POINTToGPoint(ptClient));
 	}
 }

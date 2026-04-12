@@ -183,7 +183,7 @@ bool DrawPolygonInterior(
 					CheckedGdiCall(
 						Polygon(
 							d.GetDC(),
-							&*pointBuffer.begin(),
+							&AsPOINT(*pointBuffer.begin()),
 							pointBuffer.size()
 						)
 					,	"DrawPolygon"
@@ -391,7 +391,7 @@ bool DrawPolygons(const GraphicPolygonLayer* layer, const FeatureDrawer& fd, con
 								CheckedGdiCall(
 									Polyline(
 										d.GetDC(), 
-										&*bufferOffset, 
+										&AsPOINT(*bufferOffset), 
 										lineSize
 									)
 								,	"DrawPolyline"

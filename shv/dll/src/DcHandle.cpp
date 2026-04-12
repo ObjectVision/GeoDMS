@@ -373,17 +373,17 @@ DcBrushOrgSelector::DcBrushOrgSelector(HDC hdc, GPoint brushOrg)
 {
 	dms_assert(hdc);
 	
-	CheckedGdiCall(GetBrushOrgEx(hdc, &m_oldBrushOrg), "DcBrushOrgSelector");
+	CheckedGdiCall(GetBrushOrgEx(hdc, &AsPOINT(m_oldBrushOrg)), "DcBrushOrgSelector");
 	brushOrg += m_oldBrushOrg;
 
-	SetBrushOrgEx(hdc, brushOrg.x, brushOrg.y, &m_oldBrushOrg);
+	SetBrushOrgEx(hdc, brushOrg.x, brushOrg.y, &AsPOINT(m_oldBrushOrg));
 }
 
 DcBrushOrgSelector::~DcBrushOrgSelector()
 {
 #if defined(MG_DEBUG)
 	GPoint currBrushOrg;
-	GetBrushOrgEx(m_hDC, &currBrushOrg);
+	GetBrushOrgEx(m_hDC, &AsPOINT(currBrushOrg));
 	dms_assert(currBrushOrg == m_selBrushOrg + m_oldBrushOrg);
 #endif
 	int result = SetBrushOrgEx(m_hDC, m_oldBrushOrg.x, m_oldBrushOrg.y, NULL);

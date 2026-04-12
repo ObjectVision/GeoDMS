@@ -99,7 +99,7 @@ inline Region RegionFromSystemClipRgn(HDC hdc, HWND hWnd)
 inline Region RegionFromDCClipBox(HDC hdc, const GRect& rect)
 {
 	GRect clipRect;
-	switch (GetClipBox(hdc, &clipRect))
+	switch (GetClipBox(hdc, &AsRECT(clipRect)))
 	{
 		case SIMPLEREGION:
 		case COMPLEXREGION:

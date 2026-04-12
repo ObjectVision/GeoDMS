@@ -647,7 +647,7 @@ void DataItemColumn::DrawBackground(const GraphDrawer& d) const
 		absFullDeviceRect.first.FlippableY(isColOriented) = currRowDeviceY;
 		absFullDeviceRect.second.FlippableY(isColOriented) = currRowDeviceY + deviceRowSep;
 		auto intFullDeviceRect = CrdRect2GRect(absFullDeviceRect);
-		FillRect(d.GetDC(), &intFullDeviceRect, br);
+		FillRect(d.GetDC(), &AsRECT(intFullDeviceRect), br);
 	};
 
 	while ( recNo < nrRows)

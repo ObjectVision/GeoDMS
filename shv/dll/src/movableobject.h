@@ -127,7 +127,7 @@ private:
 	HCURSOR m_Cursor;
 
 	// =============================================== ToolTip
-	bool HitTest(POINT ptClient) const noexcept override;
+	bool HitTest(GPoint ptClient) const noexcept override;
 };
 
 #endif // __SHV_MOVABLEOBJECT_H

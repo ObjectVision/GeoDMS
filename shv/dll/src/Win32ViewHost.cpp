@@ -47,18 +47,18 @@ void Win32ViewHost::VH_SetFocus()
 
 bool Win32ViewHost::VH_GetCursorScreenPos(GPoint& pos) const
 {
-	return ::GetCursorPos(&pos);
+	return ::GetCursorPos(&AsPOINT(pos));
 }
 
 GPoint Win32ViewHost::VH_ScreenToClient(GPoint screenPt) const
 {
-	::ScreenToClient(m_hWnd, &screenPt);
+	::ScreenToClient(m_hWnd, &AsPOINT(screenPt));
 	return screenPt;
 }
 
 GPoint Win32ViewHost::VH_ClientToScreen(GPoint clientPt) const
 {
-	::ClientToScreen(m_hWnd, &clientPt);
+	::ClientToScreen(m_hWnd, &AsPOINT(clientPt));
 	return clientPt;
 }
 
@@ -79,7 +79,7 @@ void Win32ViewHost::VH_SetCursorWait()
 
 void Win32ViewHost::VH_InvalidateRect(const GRect& rect, bool erase)
 {
-	::InvalidateRect(m_hWnd, &rect, erase);
+	::InvalidateRect(m_hWnd, &AsRECT(rect), erase);
 }
 
 void Win32ViewHost::VH_InvalidateRgn(const Region& rgn, bool erase)
@@ -90,7 +90,7 @@ void Win32ViewHost::VH_InvalidateRgn(const Region& rgn, bool erase)
 
 void Win32ViewHost::VH_ValidateRect(const GRect& rect)
 {
-	::ValidateRect(m_hWnd, &rect);
+	::ValidateRect(m_hWnd, &AsRECT(rect));
 }
 
 void Win32ViewHost::VH_UpdateWindow()
@@ -174,13 +174,13 @@ void Win32ViewHost::VH_ScrollWindow(GPoint delta, const GRect& scrollRect, const
 	Region& updateRgn, const GRect& validRect)
 {
 	if (!validRect.empty())
-		::ValidateRect(m_hWnd, &validRect);
+		::ValidateRect(m_hWnd, &AsRECT(validRect));
 
 	GdiHandle<HRGN> hUpdateRgn(CreateRectRgn(0, 0, 0, 0), nullptr);
 	ScrollWindowEx(m_hWnd,
 		delta.x, delta.y,
-		&scrollRect,
-		&clipRect,
+		&AsRECT(scrollRect),
+		&AsRECT(clipRect),
 		hUpdateRgn,
 		NULL,
 		0

@@ -60,8 +60,8 @@ void NeedleCaret::Reverse(HDC dc, bool newVisibleState)
 
 	dms_assert(dc);
 
-	RECT clipRect;
-	int clipStatus = GetClipBox(dc, &clipRect);
+	GRect clipRect;
+	int clipStatus = GetClipBox(dc, &AsRECT(clipRect));
 	if (clipStatus == NULLREGION)
 		return;
 	if (clipStatus == ERROR)
@@ -98,7 +98,7 @@ void NeedleCaret::Move(const AbstrCaretOperator& caret_operator, HDC dc)
 
 	if (m_StartPoint != prevStartPoint || rectChanged )
 	{
-		RECT clipRect; GetClipBox(dc, &clipRect);
+		GRect clipRect; GetClipBox(dc, &AsRECT(clipRect));
 		assert(IsDefined(clipRect.left) && IsDefined(clipRect.top) && IsDefined(clipRect.right) && IsDefined(clipRect.bottom));
 		if (wasVisible)
 		{
@@ -166,7 +166,7 @@ void FocusCaret::Reverse(HDC dc, bool newVisibleState)
 		&&	m_StartPoint.y != m_EndPoint.y)
 	{
 		GRect rect(m_StartPoint, m_EndPoint);
-		DrawFocusRect(dc, &rect);
+		DrawFocusRect(dc, &AsRECT(rect));
 	}
 #endif
 }
@@ -207,7 +207,7 @@ void PolygonCaret::Reverse(HDC dc, bool newVisibleState)
 	CheckedGdiCall(
 		Polygon(
 			dc,
-			m_First,
+			&AsPOINT(*m_First),
 			m_Count
 		)
 	,	"DrawPolygon"

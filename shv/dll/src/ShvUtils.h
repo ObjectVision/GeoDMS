@@ -122,6 +122,8 @@ std::shared_ptr<GraphicObject> CreateFromContext(TreeItem* context, GraphicObjec
 
 void CheckedGdiCall(bool result, CharPtr context);
 
+GPoint ScreenToClientGPoint(GPoint pt, HWND hWnd);
+
 COLORREF GetFocusClr();
 COLORREF GetDefaultClr(UInt32 i);
 COLORREF GetSysPaletteColor(UInt8& counter);

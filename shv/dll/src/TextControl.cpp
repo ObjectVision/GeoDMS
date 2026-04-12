@@ -104,21 +104,21 @@ UInt32 DrawTextWithCursor(HDC dc, GRect rect, HFONT hFont, DmsColor color, DmsCo
 
 	if (sp.m_Begin)
 		TextOutLimited( dc, 0, 0, txt, sp.m_Begin);
-	GPoint ptBegin; ::GetCurrentPositionEx(dc, &ptBegin);
+	GPoint ptBegin; ::GetCurrentPositionEx(dc, &AsPOINT(ptBegin));
 	UInt32 result = ptBegin.x;
 	if (sp.m_Begin < sp.m_End)
 	{
 		TextOutLimited( dc, 0, 0, txt+sp.m_Begin, sp.m_End-sp.m_Begin);
-		GPoint ptEnd; ::GetCurrentPositionEx(dc, &ptEnd);
+		GPoint ptEnd; ::GetCurrentPositionEx(dc, &AsPOINT(ptEnd));
 		GRect selRect(ptBegin.x, rect.top, ptEnd.x, rect.bottom);
-		FillRect(dc, &selRect, (HBRUSH) (COLOR_HIGHLIGHT+1) );
+		FillRect(dc, &AsRECT(selRect), (HBRUSH) (COLOR_HIGHLIGHT+1) );
 
 		::MoveToEx(dc, ptBegin.x, ptBegin.y, 0);
 
 		DcTextColorSelector selColorSelector(dc, COLORREF2DmsColor( ::GetSysColor(COLOR_HIGHLIGHTTEXT) ) );
 		if (sp.m_Begin < sp.m_Curr)
 			TextOutLimited( dc, 0, 0, txt+sp.m_Begin, sp.m_Curr-sp.m_Begin);
-		::GetCurrentPositionEx(dc, &ptEnd);
+		::GetCurrentPositionEx(dc, &AsPOINT(ptEnd));
 		result = ptEnd.x;
 		if (sp.m_Curr  < sp.m_End)
 			TextOutLimited( dc, 0, 0, txt+sp.m_Curr,  sp.m_End -sp.m_Curr );
@@ -341,7 +341,7 @@ bool EditableTextControl::Draw(GraphDrawer& d) const
 			IsActive()
 		);
 		if (m_IsInverted)
-			InvertRect(d.GetDC(), &clientIntRect);
+			InvertRect(d.GetDC(), &AsRECT(clientIntRect));
 	}
 	return false;
 }
