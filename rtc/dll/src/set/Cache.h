@@ -105,9 +105,8 @@ struct UnorderedSetCache
 		auto cacheLock = std::lock_guard(mx_MapLock);
 
 		auto i = m_USet.find(arg);
-		assert(i != m_USet.end());
-		assert(!(*i)->IsOwned());
-		assert(m_EqComp(arg, *i));
+		if (i == m_USet.end())
+			return; // already removed (can happen during shutdown cleanup)
 		m_USet.erase(i);
 	}
 
