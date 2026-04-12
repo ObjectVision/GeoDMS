@@ -137,6 +137,7 @@
     <ClInclude Include="src\DataItemColumn.h" />
     <ClInclude Include="src\dataview.h" />
     <ClInclude Include="src\DcHandle.h" />
+    <ClInclude Include="src\DrawContext.h" />
     <ClInclude Include="src\ViewHost.h" />
     <ClInclude Include="src\Win32ViewHost.h" />
     <ClInclude Include="src\DrawPolygons.h" />

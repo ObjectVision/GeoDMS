@@ -10,6 +10,7 @@
 #include "ptr/WeakPtr.h"
 #include "ptr/SharedPtr.h"
 
+#include "DrawContext.h"
 #include "Region.h"
 #include "ShvUtils.h"
 
@@ -156,7 +157,8 @@ public:
 	void DoElement         (DataItemColumn* dic, SizeT i, const GRect& absElemDeviceRect) override;
 	WeakPtr<CounterStacks> GetCounterStacks() const override;
 
-	HDC GetDC() const { return m_hDC; }
+	HDC GetDC() const { return m_DrawContext.GetHDC(); }
+	DrawContext*  GetDrawContext() const { return &m_DrawContext; }
 	const Region& GetAbsClipRegion() const { return m_AbsClipRegion; }
 	ViewPort*     GetViewPortPtr  () const { return m_ViewPortPtr; }
 
@@ -174,7 +176,7 @@ private:
 
 private:
 	mutable Region          m_AbsClipRegion;
-  	mutable HDC             m_hDC;
+	mutable GdiDrawContext  m_DrawContext;
 	mutable CounterStacks*  m_DoneGraphics;
 	DataView*               m_ViewPtr;
 	ViewPort*               m_ViewPortPtr;
