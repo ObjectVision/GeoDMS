@@ -144,6 +144,7 @@
     <ClCompile Include="src\DmsTreeView.cpp" />
     <ClCompile Include="src\DmsValueInfo.cpp" />
     <ClCompile Include="src\DmsViewArea.cpp" />
+    <ClCompile Include="src\QtDrawContext.cpp" />
     <ClCompile Include="src\FindTreeItemWindow.cpp" />
     <ClCompile Include="src\main_qt.cpp">
       <DynamicSource Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">input</DynamicSource>
@@ -168,6 +169,7 @@
     <ClInclude Include="src\StatisticsBrowser.h" />
     <ClInclude Include="src\TestScript.h" />
     <ClInclude Include="src\UpdatableBrowser.h" />
+    <ClInclude Include="src\QtDrawContext.h" />
     <QtMoc Include="src\DmsEventLog.h" />
     <QtMoc Include="src\DmsViewArea.h" />
     <QtMoc Include="src\DmsOptions.h" />

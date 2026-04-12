@@ -442,10 +442,10 @@ GraphVisitState GraphObjLocator::DoMovable(MovableObject* obj)
 
 #include "utl/IncrementalLock.h"
 
-GraphDrawer::GraphDrawer(HDC hDC, CounterStacks& doneGraphics, DataView* dv, GdMode gdMode, CrdPoint scaleFactors)
+GraphDrawer::GraphDrawer(DrawContext* dc, CounterStacks& doneGraphics, DataView* dv, GdMode gdMode, CrdPoint scaleFactors)
 	:	GraphVisitor( doneGraphics.CurrRegion().BoundingBox(), scaleFactors)
 //	,	SuspendTrigger::FencedBlocker("@GraphDrawer")
-	,	m_DrawContext(hDC)
+	,	m_DrawContext(dc)
 	,	m_AbsClipRegion(doneGraphics.CurrRegion().Clone())
 	,	m_DoneGraphics(&doneGraphics)
 	,	m_ViewPtr(dv)
@@ -456,13 +456,13 @@ GraphDrawer::GraphDrawer(HDC hDC, CounterStacks& doneGraphics, DataView* dv, GdM
 
 	dms_assert(! m_AbsClipRegion.Empty());
 	dms_assert(DoUpdateData() || !DoDrawData());
-	dms_assert( (GetDC() != 0) ==  (DoDrawBackground() || DoDrawData()) );
+	dms_assert( (GetDrawContext() != nullptr) ==  (DoDrawBackground() || DoDrawData()) );
 }
 
-GraphDrawer::GraphDrawer(HDC hDC, const Region&  rgn, DataView* dv, GdMode gdMode, CrdPoint scaleFactors)
+GraphDrawer::GraphDrawer(DrawContext* dc, const Region&  rgn, DataView* dv, GdMode gdMode, CrdPoint scaleFactors)
 	:	GraphVisitor(rgn.BoundingBox(), scaleFactors)
 //	,	SuspendTrigger::FencedBlocker("@GraphDrawer")
-	,	m_DrawContext(hDC)
+	,	m_DrawContext(dc)
 	,	m_AbsClipRegion( rgn.Clone() )
 	,	m_DoneGraphics(0)
 	,	m_ViewPtr(dv)
@@ -472,7 +472,7 @@ GraphDrawer::GraphDrawer(HDC hDC, const Region&  rgn, DataView* dv, GdMode gdMod
 
 	dms_assert(! m_AbsClipRegion.Empty());
 	dms_assert(DoUpdateData() || !DoDrawData());
-	dms_assert( (GetDC() != 0) ==  (DoDrawBackground() || DoDrawData()) );
+	dms_assert( (GetDrawContext() != nullptr) ==  (DoDrawBackground() || DoDrawData()) );
 }
 
 GraphVisitState GraphDrawer::Visit(GraphicObject* go)

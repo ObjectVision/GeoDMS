@@ -142,8 +142,8 @@ class GraphDrawer : public GraphVisitor
 {
 	typedef GraphVisitor base_type;
 public:
-	GraphDrawer(HDC hDC, CounterStacks& doneGraphics, DataView* viewPtr, GdMode gdMode, CrdPoint scaleFactors);
-	GraphDrawer(HDC hDC, const Region&  doneGraphics, DataView* viewPtr, GdMode gdMode, CrdPoint scaleFactors);
+	GraphDrawer(DrawContext* dc, CounterStacks& doneGraphics, DataView* viewPtr, GdMode gdMode, CrdPoint scaleFactors);
+	GraphDrawer(DrawContext* dc, const Region&  doneGraphics, DataView* viewPtr, GdMode gdMode, CrdPoint scaleFactors);
 
 	GraphVisitState Visit(GraphicObject* go) override;
 
@@ -157,8 +157,8 @@ public:
 	void DoElement         (DataItemColumn* dic, SizeT i, const GRect& absElemDeviceRect) override;
 	WeakPtr<CounterStacks> GetCounterStacks() const override;
 
-	HDC GetDC() const { return m_DrawContext.GetHDC(); }
-	DrawContext*  GetDrawContext() const { return &m_DrawContext; }
+	HDC GetDC() const { return m_DrawContext ? m_DrawContext->GetHDC() : NULL; }
+	DrawContext*  GetDrawContext() const { return m_DrawContext; }
 	const Region& GetAbsClipRegion() const { return m_AbsClipRegion; }
 	ViewPort*     GetViewPortPtr  () const { return m_ViewPortPtr; }
 
@@ -176,7 +176,7 @@ private:
 
 private:
 	mutable Region          m_AbsClipRegion;
-	mutable GdiDrawContext  m_DrawContext;
+	DrawContext*            m_DrawContext;
 	mutable CounterStacks*  m_DoneGraphics;
 	DataView*               m_ViewPtr;
 	ViewPort*               m_ViewPortPtr;

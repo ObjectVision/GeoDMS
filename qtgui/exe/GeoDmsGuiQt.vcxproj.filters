@@ -27,6 +27,9 @@
     <ClCompile Include="src\DmsViewArea.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="src\QtDrawContext.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
     <ClCompile Include="src\DmsEventLog.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -132,6 +135,9 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="src\UpdatableBrowser.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\QtDrawContext.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <QtMoc Include="src\FindTreeItemWindow.h"><Filter>Header Files</Filter></QtMoc>

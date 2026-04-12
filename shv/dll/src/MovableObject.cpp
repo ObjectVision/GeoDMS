@@ -330,7 +330,8 @@ HBITMAP MovableObject::GetAsDDBitmap(DataView* dv, CrdType subPixelFactor, Movab
 	scaleFactors.first  *= subPixelFactor;
 	scaleFactors.second *= subPixelFactor;
 
-	GraphDrawer drawer(memDC, rgn, dv, GdMode(GD_DrawBackground|GD_UpdateData|GD_DrawData), scaleFactors);
+	GdiDrawContext memDrawContext(memDC);
+	GraphDrawer drawer(&memDrawContext, rgn, dv, GdMode(GD_DrawBackground|GD_UpdateData|GD_DrawData), scaleFactors);
 
 	AddClientLogicalOffset useZeroBase(&drawer, -m_RelPos);
 	bool suspended = drawer.Visit(this); //DrawBackgroud && DrawData
