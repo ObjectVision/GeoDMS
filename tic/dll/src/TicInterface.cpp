@@ -52,7 +52,7 @@ const TreeItem* GetCaseItem(const TreeItem* context)
 AbstrDataItem* GetCaseNameItem(TreeItem* context)
 {
 	return checked_cast<AbstrDataItem*>(
-		context->GetItem("Case/Name")->CheckCls(DataArray<SharedStr>::GetStaticClass()));
+		TreeItem_CheckCls(context->GetItem("Case/Name"), DataArray<SharedStr>::GetStaticClass()));
 }
 
 SharedStr GetCaseName(TreeItem* context)

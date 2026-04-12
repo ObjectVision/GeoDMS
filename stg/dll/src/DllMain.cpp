@@ -506,7 +506,7 @@ bool CreateTreeItemColumnInfo(TreeItem* tiTable, CharPtr colName, const AbstrUni
 	if (dbValuesClass == nullptr)
 		return false;
 
-	TreeItem* tiColumn = tiTable->GetItem(colName)->CheckCls(AbstrDataItem::GetStaticClass());
+	TreeItem* tiColumn = TreeItem_CheckCls(tiTable->GetItem(colName), AbstrDataItem::GetStaticClass());
 
 	if (tiColumn)
 	{

@@ -1746,38 +1746,48 @@ auto TreeItem::FindBestItem(CharPtrRange subItemNames) const -> BestItemRef
 	return { result, {} };
 }
 
-const TreeItem* TreeItem::CheckObjCls(const Class* requiredClass) const
+const TreeItem* TreeItem_CheckObjCls(const TreeItem* self, const Class* requiredClass)
 {
 	dms_assert(requiredClass);
-	if (!this)
-		return 0; //requiredClass->throwItemError("Illegal cast of null pointer");
+	if (!self)
+		return nullptr;
 	const Class* thisClass = requiredClass->IsDataObjType()
-			?	GetDynamicObjClass()
-			:	GetDynamicClass();
+			?	self->GetDynamicObjClass()
+			:	self->GetDynamicClass();
 
 	if	(!	thisClass->IsDerivedFrom(requiredClass))
-		throwItemErrorF("Cannot cast to the requested type: %s", 
+		self->throwItemErrorF("Cannot cast to the requested type: %s", 
 			requiredClass->GetName()
 		);
-	return this;
+	return self;
+}
+
+const TreeItem* TreeItem::CheckObjCls(const Class* requiredClass) const
+{
+	return TreeItem_CheckObjCls(this, requiredClass);
+}
+
+TreeItem* TreeItem_CheckCls(TreeItem* self, const Class* requiredClass)
+{
+	if (!self)
+		return nullptr;
+	dms_assert(requiredClass);
+
+	const Class* thisClass = requiredClass->IsDataObjType()
+			?	self->GetCurrentObjClass()
+			:	self->GetDynamicClass();
+
+	if (!	thisClass->IsDerivedFrom(requiredClass))
+		self->throwItemErrorF(
+			"Cannot cast to the requested type: %s", 
+			requiredClass->GetName()
+		);
+	return self;
 }
 
 TreeItem* TreeItem::CheckCls(const Class* requiredClass)
 {
-	if (!this)
-		return 0; //throwItemError("Illegal cast of null pointer");
-	dms_assert(requiredClass);
-
-	const Class* thisClass = requiredClass->IsDataObjType()
-			?	GetCurrentObjClass()
-			:	GetDynamicClass();
-
-	if (!	thisClass->IsDerivedFrom(requiredClass))
-		throwItemErrorF(
-			"Cannot cast to the requested type: %s", 
-			requiredClass->GetName()
-		);
-	return this;
+	return TreeItem_CheckCls(this, requiredClass);
 }
 
 const TreeItem* TreeItem::FollowDots(CharPtrRange dots) const

@@ -603,6 +603,8 @@ private:
 
 // Free function that allows self==nullptr (avoids UB from calling member on nullptr).
 TIC_CALL auto TreeItem_CreateItem(TreeItem* self, TokenID id, const Class* cls = nullptr) -> OwningPtr<TreeItem>;
+TIC_CALL TreeItem* TreeItem_CheckCls(TreeItem* self, const Class* requiredClass);
+TIC_CALL const TreeItem* TreeItem_CheckObjCls(const TreeItem* self, const Class* requiredClass);
 
 using SharedTreeItem = SharedPtr<const TreeItem>;
 /*

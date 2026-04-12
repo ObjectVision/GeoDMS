@@ -337,15 +337,16 @@ bool AbstrUnit::UnifyValues(const AbstrUnit* cu, CharPtr leftRole, CharPtr right
 	if ((um & UM_AllowDefaultLeft ) &&     IsDefaultUnit()) return true;
 	if ((um & UM_AllowDefaultRight) && cu->IsDefaultUnit()) return true;
 
-	if (*GetCurrMetric() != *cu->GetCurrMetric())
+	auto lhsMetric = GetCurrMetric(), rhsMetric = cu->GetCurrMetric();
+	if (lhsMetric != rhsMetric && (!lhsMetric || !rhsMetric || *lhsMetric != *rhsMetric))
 	{
 		UnifyError(cu, " (incompatible Metrics)", leftRole, rightRole, um, resultMsg, false);
 		return false;
 	}
 
 	// Projection unification
-	if (*GetCurrProjection() != *cu->GetCurrProjection())
-		// TODO: specific error, generalise Metric & Projection
+	auto lhsProj = GetCurrProjection(), rhsProj = cu->GetCurrProjection();
+	if (lhsProj != rhsProj && (!lhsProj || !rhsProj || *lhsProj != *rhsProj))
 	{
 		UnifyError(cu, " (incompatible Projections)", leftRole, rightRole, um, resultMsg, false);
 		return false;

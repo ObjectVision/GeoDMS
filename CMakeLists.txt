@@ -33,6 +33,9 @@ if(MSVC)
 else()
     add_compile_options(-Wall -Wextra -Wpedantic -pthread)
     add_link_options(-pthread)
+    # GCC/Clang Debug builds: define _DEBUG to match MSVC convention,
+    # which triggers MG_DEBUG in RtcBase.h for debug-only diagnostics.
+    add_compile_definitions($<$<CONFIG:Debug>:_DEBUG>)
 endif()
 
 # Find third-party packages (via vcpkg or system)
