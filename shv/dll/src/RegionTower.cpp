@@ -23,7 +23,7 @@ void RegionTower::Add(Region&& rgn) // move semantics
 		++currRgnPtr
 		)
 	{
-		if (!currRgnPtr->GetHandle())
+		if (currRgnPtr->Empty())
 		{
 			currRgnPtr->swap(rgn);
 			dms_assert(rgn.Empty()); // post-condition

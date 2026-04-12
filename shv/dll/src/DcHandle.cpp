@@ -16,6 +16,7 @@
 #include "utl/Environment.h"
 
 #include "DataView.h"
+#include "GdiRegionUtil.h"
 #include "GraphVisitor.h"
 #include "GraphicObject.h"
 
@@ -132,7 +133,8 @@ CaretHider::~CaretHider()
 ClippedDC::ClippedDC(DataView* dv, const Region& rgn)
 	:	DcHandle(dv->GetHWnd(), dv->GetDefaultFont(FontSizeCategory::MEDIUM) )
 {
-	m_Empty = ( SelectClipRgn(GetHDC(), rgn.GetHandle() ) == NULLREGION );
+	auto hrgn = RegionToHRGN(rgn);
+	m_Empty = ( SelectClipRgn(GetHDC(), hrgn) == NULLREGION );
 }
 
 //----------------------------------------------------------------------
@@ -190,7 +192,8 @@ DcClipRegionSelector::DcClipRegionSelector(HDC hdc, Region& currClipRegion, cons
 
 	if (! currClipRegion.Empty() )
 	{
-		int result = SelectClipRgn(hdc, currClipRegion.GetHandle() );
+		auto hrgn = RegionToHRGN(currClipRegion);
+		int result = SelectClipRgn(hdc, hrgn);
 
 		if (result == ERROR && GetLastError() )
 			throwLastSystemError("DcClipRegionSelector");
@@ -203,10 +206,8 @@ DcClipRegionSelector::~DcClipRegionSelector()
 
 	if (! m_OrgRegionPtr->Empty() )
 	{
-		SelectClipRgn(
-			m_hDC, 
-			m_OrgRegionCopy.GetHandle()
-		);
+		auto hrgn = RegionToHRGN(m_OrgRegionCopy);
+		SelectClipRgn(m_hDC, hrgn);
 	}
 	m_OrgRegionPtr->swap(m_OrgRegionCopy);
 

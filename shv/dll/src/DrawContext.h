@@ -11,7 +11,7 @@
 #include "geo/color.h"
 
 struct GRect;
-class  Region;
+struct Region;
 
 //----------------------------------------------------------------------
 // class  : DrawContext

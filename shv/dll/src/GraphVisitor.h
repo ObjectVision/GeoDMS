@@ -11,6 +11,7 @@
 #include "ptr/SharedPtr.h"
 
 #include "DrawContext.h"
+#include "DcHandle.h"
 #include "Region.h"
 #include "ShvUtils.h"
 

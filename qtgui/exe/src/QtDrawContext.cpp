@@ -17,11 +17,6 @@ static QColor DmsColor2QColor(DmsColor c)
 	return QColor(GetRed(c), GetGreen(c), GetBlue(c), 255 - GetTrans(c));
 }
 
-static QRect GRect2QRect(const GRect& r)
-{
-	return QRect(r.left, r.top, r.right - r.left, r.bottom - r.top);
-}
-
 void QtDrawContext::FillRect(const GRect& rect, DmsColor color)
 {
 	if (!m_Painter)
@@ -33,12 +28,10 @@ void QtDrawContext::FillRegion(const Region& rgn, DmsColor color)
 {
 	if (!m_Painter)
 		return;
-	// TODO: convert Region (HRGN) to QRegion for proper clipping.
-	// For now, fill the bounding box of the region using Win32 GetRgnBox
-	// to avoid a linker dependency on Region::BoundingBox() in shv.dll.
-	GRect bbox;
-	GetRgnBox(rgn.GetHandle(), &bbox);
-	m_Painter->fillRect(GRect2QRect(bbox), DmsColor2QColor(color));
+	const QRegion& qrgn = rgn.GetQRegion();
+	m_Painter->setClipRegion(qrgn);
+	m_Painter->fillRect(qrgn.boundingRect(), DmsColor2QColor(color));
+	m_Painter->setClipping(false);
 }
 
 void QtDrawContext::InvertRect(const GRect& rect)

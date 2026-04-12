@@ -11,8 +11,6 @@
 #include "Region.h"
 
 #include "dbg/debug.h"
-#include "dllimp/RunDllProc.h"
-#include "geo/geometry.h"
 #include "ser/AsString.h"
 
 #include "GeoTypes.h"
@@ -41,9 +39,6 @@ void CheckRgnLimits(const GRect& rect)
 GRect ClipRect(const GRect& rect)
 {
 	GRect result = rect & s_WindowClipRect;
-//#if defined(MG_DEBUG)
-//	CheckRgnLimits(result);
-//#endif
 	if (result.empty())
 		return s_EmptyRect;
 	return result;
@@ -54,100 +49,38 @@ GRect ClipRect(const GRect& rect)
 //----------------------------------------------------------------------
 
 Region::Region()
-	:	m_Rgn(NULL, 0)
 {}
 
-Region::Region(HRGN hRgn)
-	:	m_Rgn(hRgn)
-{}
-
-GRect ClipSize(GPoint size)
+static QRegion ClipSizeToQRegion(GPoint size)
 {
 	dms_assert(size.x >= 0);
 	dms_assert(size.y >= 0);
-
 	MakeLowerBound(size, s_WindowClipRect.RightBottom());
-	return GRect(GPoint(0,0), size);
-}
-
-HRGN CreateRectRgn(RECT&& rect)
-{
-	return CreateRectRgnIndirect(&rect);
+	if (size.x <= 0 || size.y <= 0)
+		return QRegion();
+	return QRegion(QRect(0, 0, size.x, size.y));
 }
 
 Region::Region(GPoint size)
-	:	m_Rgn( CreateRectRgn( ClipSize(size) ) )
+	: m_Rgn(ClipSizeToQRegion(size))
 {
 }
 
 Region::Region(const GRect& rect)
-	:	m_Rgn( CreateRectRgn( ClipRect(rect) ) )
 {
-}		
-
-Region::Region(HWND hWnd)
-	:	m_Rgn( CreateRectRgn(0,0,0,0) )
-{
-	GetUpdateRgn(hWnd, m_Rgn, false);
+	GRect clipped = ClipRect(rect);
+	if (!clipped.empty())
+		m_Rgn = QRegion(GRect2QRect(clipped));
 }
 
-Region::Region(HDC hdc, const GRect& rect)
+Region::Region(QRegion qrgn)
+	: m_Rgn(std::move(qrgn))
 {
-	GRect clipRect;
-	switch (GetClipBox(hdc, &clipRect))
-	{
-		case SIMPLEREGION:
-		case COMPLEXREGION:
-			clipRect &= rect;
-			if (!clipRect.empty())
-				*this = Region(clipRect);
-			break;
-
-		case ERROR:
-		case NULLREGION:
-			break;
-	}
-}
-
-Region::Region(HDC hdc, HWND hWnd)
-	:	m_Rgn( CreateRectRgn(0,0,0,0) )
-{
-	DBG_START("Region", "ctor(HDC, HWND)", MG_DEBUG_REGION);
-
-	assert(hWnd); // PRECONDITION
-
-	GetRandomRgn(hdc, m_Rgn, SYSRGN);
-
-	// The region returned by GetRandomRgn is in screen coordinates
-	(*this) += GPoint(0, 0).ScreenToClient(hWnd); // ::OffsetRgn(hRgn, pt.x, pt.y);
-
-	DBG_TRACE(("Region = %s", AsString().c_str()));
-}
-
-Region::Region(Region&& src) noexcept // Move ctor
-	:	m_Rgn(NULL, 0)
-{
-	m_Rgn.swap(src.m_Rgn);
-}
-
-Region::Region(const Region& src1, const Region& src2, int fCombineMode) // Combine
-	:	m_Rgn( CreateRectRgn(0,0,0,0) )
-{
-	assert( src1.m_Rgn!=0 );
-	assert((src2.m_Rgn!=0) == (fCombineMode != RGN_COPY));
-
-	if (CombineRgn(m_Rgn, src1.m_Rgn, src2.m_Rgn, fCombineMode) == ERROR)
-		throwLastSystemError("CombineRgn");
-}
-
-Region::~Region()
-{
-	Clear();
 }
 
 void Region::Clear() noexcept
 {
-	m_Rgn = GdiHandle<HRGN>();
+	m_Rgn = QRegion();
 }
 
 void Region::swap(Region& oth) noexcept
@@ -157,139 +90,112 @@ void Region::swap(Region& oth) noexcept
 
 Region Region::Clone() const
 {
-	if (!m_Rgn)
-		return Region();
-	return Region(*this, Region(), RGN_COPY);
+	return *this; // QRegion is implicitly shared (copy-on-write)
 }
 
 GRect Region::BoundingBox() const
 {
-	assert(m_Rgn!=0);
-
-	GRect result;
-	::GetRgnBox(m_Rgn, &result);
-	return result;
+	assert(!m_Rgn.isEmpty());
+	return QRect2GRect(m_Rgn.boundingRect());
 }
 
 bool Region::IsIntersecting(const GRect& rect) const
 {
-	if (!m_Rgn) 
+	if (m_Rgn.isEmpty()) 
 		return false;
-
-	return ::RectInRegion(m_Rgn, &rect);
+	return m_Rgn.intersects(GRect2QRect(rect));
 }
 
 bool Region::IsIntersecting(const Region& rhs) const
 {
-	if (!m_Rgn || !rhs.m_Rgn)
+	if (m_Rgn.isEmpty() || rhs.m_Rgn.isEmpty())
 		return false;
-
-	return ! Region(*this, rhs, RGN_AND).Empty();
+	return m_Rgn.intersects(rhs.m_Rgn);
 }
 
 bool Region::IsIncluding(const GRect& rect) const
 {
-	if (!m_Rgn)
+	if (m_Rgn.isEmpty())
 		return false;
-
-	return IsIncluding( Region(rect) );
+	return IsIncluding(Region(rect));
 }
 
-bool Region::IsIncluding   (const Region& rhs) const
+bool Region::IsIncluding(const Region& rhs) const
 {
-	if (!rhs.m_Rgn)
+	if (rhs.m_Rgn.isEmpty())
 		return true;
-	if (!m_Rgn)
+	if (m_Rgn.isEmpty())
 		return false;
-
-	return Region(*this, rhs, RGN_AND) == rhs;
+	// a includes b iff (a & b) == b
+	return m_Rgn.intersected(rhs.m_Rgn) == rhs.m_Rgn;
 }
 
 bool Region::IsBoundedBy(const GRect& rect) const
 {
-	dms_assert(m_Rgn!=0);
+	if (m_Rgn.isEmpty())
+		return true;
 
-	GRect bbox;
-	
-	return 
-		GetRgnBox(m_Rgn, &bbox) == NULLREGION 
-	||	::IsIncluding(g2dms_order<Int32>(rect), g2dms_order<Int32>(bbox));
+	QRect bbox = m_Rgn.boundingRect();
+	QRect qrect = GRect2QRect(rect);
+	return qrect.contains(bbox);
 }
 
-void Region::operator ^=(const Region&  src)
+void Region::operator ^=(const Region& src)
 {
-	if (m_Rgn)
-	{
-		if (src.m_Rgn)
-			if (CombineRgn(m_Rgn, m_Rgn, src.m_Rgn, RGN_XOR) == ERROR)
-				throwLastSystemError("CombineRgn");
-	}
-	else
-		if (src.m_Rgn)
-			operator = (Region(src, Region(), RGN_COPY) );
+	if (m_Rgn.isEmpty())
+		m_Rgn = src.m_Rgn;
+	else if (!src.m_Rgn.isEmpty())
+		m_Rgn = m_Rgn.xored(src.m_Rgn);
 }
 
 void Region::operator |=(const Region& src)
 {
-	if (m_Rgn)
-	{
-		if (src.m_Rgn)
-			if (CombineRgn(m_Rgn, m_Rgn, src.m_Rgn, RGN_OR) == ERROR)
-				throwLastSystemError("CombineRgn");
-	}
+	if (m_Rgn.isEmpty())
+		m_Rgn = src.m_Rgn;
+	else if (!src.m_Rgn.isEmpty())
+		m_Rgn = m_Rgn.united(src.m_Rgn);
+}
+
+void Region::operator &=(const Region& src)
+{
+	if (m_Rgn.isEmpty())
+		return;
+	if (src.m_Rgn.isEmpty())
+		m_Rgn = QRegion();
 	else
-		if (src.m_Rgn)
-			operator =(Region(src, Region(), RGN_COPY) );
+		m_Rgn = m_Rgn.intersected(src.m_Rgn);
 }
 
-void Region::operator &=(const Region&  src)
+void Region::operator &=(const GRect& src)
 {
-	if (!m_Rgn)
+	operator &=(Region(src));
+}
+
+void Region::operator -=(const Region& src)
+{
+	if (m_Rgn.isEmpty() || src.m_Rgn.isEmpty())
 		return;
-	if (!src.m_Rgn)
-		m_Rgn = GdiHandle<HRGN>();
-	else if (CombineRgn(m_Rgn, m_Rgn, src.m_Rgn, RGN_AND) == ERROR)
-		throwLastSystemError("CombineRgn");
-}
-
-void Region::operator &=(const GRect&  src)
-{
-	operator &=( Region(src) );
-}
-
-void Region::operator -=(const Region&  src)
-{
-	if (!m_Rgn || !src.m_Rgn)
-		return;
-
-	if (CombineRgn(m_Rgn, m_Rgn, src.m_Rgn, RGN_DIFF) == ERROR)
-		throwLastSystemError("CombineRgn");
+	m_Rgn = m_Rgn.subtracted(src.m_Rgn);
 }
 
 void Region::operator +=(const GPoint& delta)
 {
-	if (m_Rgn)
-		::OffsetRgn(m_Rgn, delta.x, delta.y);
+	if (!m_Rgn.isEmpty())
+		m_Rgn.translate(delta.x, delta.y);
 }
 
 bool Region::operator ==(const Region& rhs) const
 {
-	if (!m_Rgn)
+	if (m_Rgn.isEmpty())
 		return rhs.Empty();
-	if (!rhs.m_Rgn)
+	if (rhs.m_Rgn.isEmpty())
 		return Empty();
-
-	return ::EqualRgn(m_Rgn, rhs.m_Rgn);
+	return m_Rgn == rhs.m_Rgn;
 }
 
 bool Region::Empty() const
 {
-	if (!m_Rgn)
-		return true;
-
-	int result = CombineRgn(m_Rgn, m_Rgn, NULL, RGN_COPY);
-	assert(result != ERROR);
-	return result == NULLREGION;
+	return m_Rgn.isEmpty();
 }
 
 //	ScrollDevice(delta, scrollRect, clipRgn)[pict]:
@@ -304,7 +210,6 @@ void Region::ScrollDevice(GPoint delta, const GRect& scrollRect, const Region& c
 	DBG_TRACE( ("OrgRegion : %s",  AsString().c_str() ) );
 
 	dms_assert( IsIntersecting(clipRgn) ); // guaranteed by caller
-//	dms_assert(scrollClipRgn.IsBoundedBy(scrollRect)); // guaranteed by caller that scrollRectRgn == Region(scrollRect) given for performance purposes
 
 	if (IsBoundedBy(scrollRect))
 	{
@@ -337,8 +242,8 @@ void Region::ScrollDevice(GPoint delta, const GRect& scrollRect, const Region& c
 			scrolledRegion &= clipRgn;
 			DBG_TRACE( ("After Clipping   : %s",  scrolledRegion.AsString().c_str()) );
 
-			*this -= Region(clipRgn, Region(scrollRect        ), RGN_AND);
-			*this -= Region(clipRgn, Region(scrollRect + delta), RGN_AND);
+			*this -= Region(clipRgn.GetQRegion().intersected(Region(scrollRect        ).GetQRegion()));
+			*this -= Region(clipRgn.GetQRegion().intersected(Region(scrollRect + delta).GetQRegion()));
 			DBG_TRACE( ("SR removed       : %s",  AsString().c_str()) );
 
 			*this |= scrolledRegion;
@@ -351,32 +256,13 @@ void Region::ScrollDevice(GPoint delta, const GRect& scrollRect, const Region& c
 
 void Region::FillRectArray(RectArray& ra) const
 {
-	static std::vector<BYTE> rgnDataBuffer;
-	UInt32 regionDataSize = GetRegionData(m_Rgn, 0, 0);
-	rgnDataBuffer.resize( regionDataSize ); 
-	if (!regionDataSize)
-	{
-		ra.clear();
+	ra.clear();
+	if (m_Rgn.isEmpty())
 		return;
-	}
-	RGNDATA* rgnData = reinterpret_cast<RGNDATA*>(begin_ptr(rgnDataBuffer));
 
-	GetRegionData(
-		m_Rgn,
-		regionDataSize,
-		rgnData
-	);
-	assert(rgnData->rdh.iType == RDH_RECTANGLES);
-	assert(rgnData->rdh.dwSize >= 32);
-
-	//	GRect* rects = reinterpret_cast<GRect*>( &(rgnData->Buffer[0]) );
-	RECT* rects = reinterpret_cast<RECT*>(&(rgnData->Buffer[0]));
-
-	UInt32 n = rgnData->rdh.nCount;
-
-	ra.assign(rects, rects + n);
+	for (const QRect& qr : m_Rgn)
+		ra.push_back(QRect2GRect(qr));
 }
-
 
 SharedStr Region::AsString() const
 {
@@ -389,4 +275,10 @@ SharedStr Region::AsString() const
 		result += ::AsString(ra[i]) + "; ";
 	}
 	return result;
+}
+
+Region Region::FromEllipse(const GRect& boundingRect)
+{
+	QRect qr = GRect2QRect(boundingRect);
+	return Region(QRegion(qr, QRegion::Ellipse));
 }

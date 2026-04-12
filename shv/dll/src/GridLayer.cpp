@@ -44,6 +44,7 @@
 #include "LayerClass.h"
 #include "MouseEventDispatcher.h"
 #include "RegionTower.h"
+#include "GdiRegionUtil.h"
 #include "SelCaret.h"
 #include "Theme.h"
 #include "ThemeReadLocks.h"
@@ -1204,10 +1205,17 @@ bool GridLayer::Draw(GraphDrawer& d) const
 		}
 
 		DcMixModeSelector xorMode(d.GetDC());
-		FrameRgn(d.GetDC(), focusViewRgn.GetHandle(), GetSysColorBrush(COLOR_HIGHLIGHT), subPixelFactor, subPixelFactor);
-		FrameRgn(d.GetDC(), focusBordRgn.GetHandle(), GetSysColorBrush(COLOR_HIGHLIGHT), FOCUS_BORDER_FRAMEWIDTH* subPixelFactor, FOCUS_BORDER_FRAMEWIDTH* subPixelFactor);
+		{
+			auto hFocusViewRgn = RegionToHRGN(focusViewRgn);
+			auto hFocusBordRgn = RegionToHRGN(focusBordRgn);
+			FrameRgn(d.GetDC(), hFocusViewRgn, GetSysColorBrush(COLOR_HIGHLIGHT), subPixelFactor, subPixelFactor);
+			FrameRgn(d.GetDC(), hFocusBordRgn, GetSysColorBrush(COLOR_HIGHLIGHT), FOCUS_BORDER_FRAMEWIDTH* subPixelFactor, FOCUS_BORDER_FRAMEWIDTH* subPixelFactor);
+		}
 		focusBordRgn -= focusViewRgn;
-		FillRgn (d.GetDC(), focusBordRgn.GetHandle(), GdiHandle<HBRUSH>( CreateHatchBrush(HS_BDIAGONAL, DmsColor2COLORREF(DmsRed)))); 
+		{
+			auto hFocusBordRgn2 = RegionToHRGN(focusBordRgn);
+			FillRgn (d.GetDC(), hFocusBordRgn2, GdiHandle<HBRUSH>( CreateHatchBrush(HS_BDIAGONAL, DmsColor2COLORREF(DmsRed))));
+		}
 	}
 skipDrawFocus:
 	return false;

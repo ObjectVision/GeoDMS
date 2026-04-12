@@ -1,31 +1,7 @@
-//<HEADER> 
-/*
-Data & Model Server (DMS) is a server written in C++ for DSS applications. 
-Version: see srv/dms/rtc/dll/src/RtcVersion.h for version info.
+// Copyright (C) 1998-2025 Object Vision b.v. 
+// License: GNU GPL 3
+/////////////////////////////////////////////////////////////////////////////
 
-Copyright (C) 1998-2004  YUSE GSO Object Vision BV. 
-
-Documentation on using the Data & Model Server software can be found at:
-http://www.ObjectVision.nl/DMS/
-
-See additional guidelines and notes in srv/dms/Readme-srv.txt 
-
-This library is free software; you can use, redistribute, and/or
-modify it under the terms of the GNU General Public License version 2 
-(the License) as published by the Free Software Foundation,
-provided that this entire header notice and readme-srv.txt is preserved.
-
-See LICENSE.TXT for terms of distribution or look at our web site:
-http://www.objectvision.nl/DMS/License.txt
-or alternatively at: http://www.gnu.org/copyleft/gpl.html
-
-This library is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
-General Public License for more details. However, specific warranties might be
-granted by an additional written contract for support, assistance and/or development
-*/
-//</HEADER>
 #pragma once
 
 #if !defined(__SHV_REGION_H)
@@ -35,8 +11,10 @@ granted by an additional written contract for support, assistance and/or develop
 // used modules and forward class references
 //----------------------------------------------------------------------
 
-#include "DcHandle.h"
 #include "ShvUtils.h"
+
+#include <QRegion>
+#include <QRect>
 
 using RectArray = std::vector<GRect>;
 
@@ -45,25 +23,37 @@ void CheckRgnLimits(const GRect& rect);
 #endif
 
 //----------------------------------------------------------------------
+// GRect <-> QRect conversion helpers
+//----------------------------------------------------------------------
+
+inline QRect GRect2QRect(const GRect& r)
+{
+	return QRect(r.left, r.top, r.right - r.left, r.bottom - r.top);
+}
+
+inline GRect QRect2GRect(const QRect& r)
+{
+	return GRect(r.x(), r.y(), r.x() + r.width(), r.y() + r.height());
+}
+
+//----------------------------------------------------------------------
 // class  : Region
 //----------------------------------------------------------------------
 
 struct Region
 {
 	Region();
-	explicit Region(HRGN hRgn);
-	explicit Region(HWND hWnd);
 	explicit Region(GPoint size);
-	explicit Region(const GRect&  rect);
-	explicit Region(HDC hdc, const GRect& rect);
-	explicit Region(HDC hdc, HWND hWnd);
+	explicit Region(const GRect& rect);
+	explicit Region(QRegion qrgn);
 
-	Region(Region&& src) noexcept; // Move ctor
+	Region(const Region& src) = default;
+	Region(Region&& src) noexcept = default;
+	~Region() = default;
 
-	Region(const Region& src1, const Region& src2, int fCombineMode);
+	Region& operator =(const Region& rhs) = default;
+	Region& operator =(Region&& rhs) noexcept = default;
 
-	~Region();
-	
 	void Clear() noexcept;
 
 	void swap(Region& oth) noexcept;
@@ -77,14 +67,12 @@ struct Region
 	bool IsIncluding   (const Region& rhs) const;
 	bool IsBoundedBy   (const GRect& rect) const;
 
-	void operator = (Region&& rhs) noexcept { Clear(); swap(rhs); }
-
-	void operator ^=(const Region& src); // RGN_XOR
-	void operator |=(const Region& src); // RGN_OR
-	void operator &=(const Region& src); // RGN_AND
+	void operator ^=(const Region& src);
+	void operator |=(const Region& src);
+	void operator &=(const Region& src);
 	void operator &=(const GRect&  src);
 
-	void operator -=(const Region&  src);
+	void operator -=(const Region& src);
 
 	void operator +=(const GPoint& delta);
 	bool operator ==(const Region& rhs) const;
@@ -96,12 +84,12 @@ struct Region
 	void FillRectArray(RectArray& ra) const;
 	SharedStr AsString() const;
 
+	const QRegion& GetQRegion() const { return m_Rgn; }
 
-	HRGN GetHandle() const { return m_Rgn; }
+	static Region FromEllipse(const GRect& boundingRect);
 
 private:
-	Region(const Region&); // no implementation
-	GdiHandle<HRGN> m_Rgn;
+	QRegion m_Rgn;
 };
 
 inline Region operator &(const Region& a, const Region& b)
@@ -109,37 +97,39 @@ inline Region operator &(const Region& a, const Region& b)
 	if (a.Empty() || b.Empty())
 		return Region();
 
-	return Region(a, b, RGN_AND);
+	return Region(a.GetQRegion().intersected(b.GetQRegion()));
 }
 
 inline Region operator |(const Region& a, const Region& b)
 {
-	if (a.Empty()) return b.Clone();
-	if (b.Empty()) return a.Clone();
+	if (a.Empty()) return b;
+	if (b.Empty()) return a;
 
-	return Region(a, b, RGN_OR);
+	return Region(a.GetQRegion().united(b.GetQRegion()));
 }
 
 inline Region operator ^(const Region& a, const Region& b)
 {
-	if (a.Empty()) return b.Clone();
-	if (b.Empty()) return a.Clone();
+	if (a.Empty()) return b;
+	if (b.Empty()) return a;
 
-	return Region(a, b, RGN_XOR);
+	return Region(a.GetQRegion().xored(b.GetQRegion()));
 }
 
 inline Region operator -(const Region& a, const Region& b)
 {
 	if (a.Empty())
 		return Region();
-	if (b.Empty() )
-		return a.Clone();
+	if (b.Empty())
+		return a;
 
-	return Region(a, b, RGN_DIFF);
+	return Region(a.GetQRegion().subtracted(b.GetQRegion()));
 }
 
 //----------------------------------------------------------------------
 // DcClipRegionSelector
+// GDI-specific: modifies HDC clip region on construction, restores on destruction.
+// Will be removed when rendering fully moves to Qt.
 //----------------------------------------------------------------------
 
 struct DcClipRegionSelector

@@ -22,17 +22,26 @@
     <ProjectGuid>{BA9FD377-1EE3-45AA-8A7B-2AC7BE68E989}</ProjectGuid>
     <ProjectName>Shv</ProjectName>
     <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
+    <Keyword>QtVS_v304</Keyword>
+    <QtMsBuild Condition="'$(QtMsBuild)'=='' or !Exists('$(QtMsBuild)\qt.targets')">$(MSBuildProjectDirectory)\QtMsBuild</QtMsBuild>
   </PropertyGroup>
   <PropertyGroup Label="Configuration">
     <ConfigurationType>DynamicLibrary</ConfigurationType>
     <PlatformToolset>v145</PlatformToolset>
     <UseOfMfc>false</UseOfMfc>
+    <CharacterSet>MultiByte</CharacterSet>
   </PropertyGroup>
   <PropertyGroup>
     <_ProjectFileVersion>10.0.21006.1</_ProjectFileVersion>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <Target Name="QtMsBuildNotFound" BeforeTargets="CustomBuild;ClCompile" Condition="!Exists('$(QtMsBuild)\qt.targets') or !Exists('$(QtMsBuild)\qt.props')">
+    <Message Importance="High" Text="QtMsBuild: could not locate qt.targets, qt.props; project may not build correctly." />
+  </Target>
+  <ImportGroup Condition="Exists('$(QtMsBuild)\qt_defaults.props')">
+    <Import Project="$(QtMsBuild)\qt_defaults.props" />
+  </ImportGroup>
   <ImportGroup Label="ExtensionSettings">
   </ImportGroup>
   <ImportGroup Label="PropertySheets">
@@ -44,10 +53,18 @@
   <ImportGroup Condition="'$(Configuration)'=='Release'" Label="PropertySheets">
     <Import Project="..\..\DmsRelease.props" />
   </ImportGroup>
+  <PropertyGroup Label="QtSettings">
+    <QtInstall>6.9.0_msvc2022_64</QtInstall>
+    <QtModules>core;gui</QtModules>
+  </PropertyGroup>
+  <ImportGroup Condition="Exists('$(QtMsBuild)\qt.props')">
+    <Import Project="$(QtMsBuild)\qt.props" />
+  </ImportGroup>
   <ItemDefinitionGroup>
     <ClCompile>
       <AdditionalIncludeDirectories>./src;../../rtc/dll/src;../../sym/dll/src;../../tic/dll/src;../../stgimpl/dll/src;../../stg/dll/src;../../clc/dll/include;../../geo/dll/src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>SHVDLL_EXPORTS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <UndefinePreprocessorDefinitions>UNICODE;_UNICODE;%(UndefinePreprocessorDefinitions)</UndefinePreprocessorDefinitions>
     </ClCompile>
     <CustomBuildStep>
       <Command>"C:\Program Files (x86)\NSIS\makensisw.exe" "..\..\..\nsi\DmsSetupScriptW32.nsi"</Command>
@@ -139,6 +156,7 @@
     <ClInclude Include="src\dataview.h" />
     <ClInclude Include="src\DcHandle.h" />
     <ClInclude Include="src\DrawContext.h" />
+    <ClInclude Include="src\GdiRegionUtil.h" />
     <ClInclude Include="src\ViewHost.h" />
     <ClInclude Include="src\Win32ViewHost.h" />
     <ClInclude Include="src\DrawPolygons.h" />
@@ -231,6 +249,9 @@
     </ProjectReference>
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+  <ImportGroup Condition="Exists('$(QtMsBuild)\qt.targets')">
+    <Import Project="$(QtMsBuild)\qt.targets" />
+  </ImportGroup>
   <ImportGroup Label="ExtensionTargets">
   </ImportGroup>
   <Target Name="AfterBuild">

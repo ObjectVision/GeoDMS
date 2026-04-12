@@ -11,6 +11,7 @@
 #include "Win32ViewHost.h"
 
 #include "Region.h"
+#include "GdiRegionUtil.h"
 #include "windowsx.h"
 #include "CommCtrl.h"
 
@@ -83,7 +84,8 @@ void Win32ViewHost::VH_InvalidateRect(const GRect& rect, bool erase)
 
 void Win32ViewHost::VH_InvalidateRgn(const Region& rgn, bool erase)
 {
-	::InvalidateRgn(m_hWnd, rgn.GetHandle(), erase);
+	auto hrgn = RegionToHRGN(rgn);
+	::InvalidateRgn(m_hWnd, hrgn, erase);
 }
 
 void Win32ViewHost::VH_ValidateRect(const GRect& rect)
@@ -174,14 +176,16 @@ void Win32ViewHost::VH_ScrollWindow(GPoint delta, const GRect& scrollRect, const
 	if (!validRect.empty())
 		::ValidateRect(m_hWnd, &validRect);
 
+	GdiHandle<HRGN> hUpdateRgn(CreateRectRgn(0, 0, 0, 0), nullptr);
 	ScrollWindowEx(m_hWnd,
 		delta.x, delta.y,
 		&scrollRect,
 		&clipRect,
-		updateRgn.GetHandle(),
+		hUpdateRgn,
 		NULL,
 		0
 	);
+	updateRgn = Region(HRGNToQRegion(hUpdateRgn));
 }
 
 HWND Win32ViewHost::VH_GetHWnd() const

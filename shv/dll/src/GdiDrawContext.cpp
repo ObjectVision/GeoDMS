@@ -13,6 +13,7 @@
 #include "DcHandle.h"
 #include "GeoTypes.h"
 #include "Region.h"
+#include "GdiRegionUtil.h"
 
 void GdiDrawContext::FillRect(const GRect& rect, DmsColor color)
 {
@@ -23,7 +24,8 @@ void GdiDrawContext::FillRect(const GRect& rect, DmsColor color)
 void GdiDrawContext::FillRegion(const Region& rgn, DmsColor color)
 {
 	GdiHandle<HBRUSH> br(CreateSolidBrush(DmsColor2COLORREF(color)));
-	::FillRgn(m_hDC, rgn.GetHandle(), br);
+	auto hrgn = RegionToHRGN(rgn);
+	::FillRgn(m_hDC, hrgn, br);
 }
 
 void GdiDrawContext::InvertRect(const GRect& rect)

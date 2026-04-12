@@ -218,6 +218,7 @@ void PolygonCaret::Reverse(HDC dc, bool newVisibleState)
 // class  :	InvertRgnCaret
 //----------------------------------------------------------------------
 #include "Region.h"
+#include "GdiRegionUtil.h"
 
 // override AbstrCaret interface
 void InvertRgnCaret::Reverse(HDC dc, bool newVisibleState)
@@ -226,7 +227,8 @@ void InvertRgnCaret::Reverse(HDC dc, bool newVisibleState)
 
 	Region rgn;
 	GetRgn(rgn, dc);
-	InvertRgn(dc, rgn.GetHandle());
+	auto hrgn = RegionToHRGN(rgn);
+	InvertRgn(dc, hrgn);
 }
 
 void InvertRgnCaret::Move(const AbstrCaretOperator& caret_operator, HDC dc)
@@ -245,7 +247,10 @@ void InvertRgnCaret::Move(const AbstrCaretOperator& caret_operator, HDC dc)
 		orgRegion ^= newRegion;
 	}
 	if (!orgRegion.Empty())
-		InvertRgn(dc, orgRegion.GetHandle());
+	{
+		auto hrgn = RegionToHRGN(orgRegion);
+		InvertRgn(dc, hrgn);
+	}
 }
 
 //----------------------------------------------------------------------
@@ -280,9 +285,9 @@ void MovableRectCaret::GetRgn(Region& rgn, HDC dc) const
 	if (m_StartPoint != m_EndPoint)
 	{
 		GPoint diff = GPoint(m_EndPoint) - GPoint(m_StartPoint);
-		rgn = Region(dc, m_ObjRect + diff );
+		rgn = RegionFromDCClipBox(dc, m_ObjRect + diff );
 		if (!m_SubRect.empty())
-			rgn ^= Region(dc, m_SubRect + diff );
+			rgn ^= RegionFromDCClipBox(dc, m_SubRect + diff );
 	}
 }
 
@@ -346,13 +351,12 @@ void CircleCaret::GetRgn(Region& rgn, HDC dc) const
 {
 	auto radius = Radius();
 
-	rgn = 
-		Region(
-			CreateEllipticRgn(
-				m_StartPoint.x - radius, m_StartPoint.y - radius,
-				m_StartPoint.x + radius, m_StartPoint.y + radius
-			)
-		);
+	rgn = Region::FromEllipse(
+		GRect(
+			m_StartPoint.x - radius, m_StartPoint.y - radius,
+			m_StartPoint.x + radius, m_StartPoint.y + radius
+		)
+	);
 }
 
 

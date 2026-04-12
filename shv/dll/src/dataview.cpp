@@ -39,6 +39,7 @@
 #include "KeyFlags.h"
 #include "MouseEventDispatcher.h"
 #include "ScrollPort.h"
+#include "GdiRegionUtil.h"
 
 #include "windowsx.h"
 
@@ -578,10 +579,12 @@ void DataView::ReverseSelCaretImpl(HDC hdc, const Region& selCaretRgn)
 
 		m_BrdBrush = GdiHandle<HBRUSH>(CreateDIBPatternBrushPt(&packedDIB, DIB_RGB_COLORS));
 	}
-	FillRgn (hdc, selCaretRgn.GetHandle(), m_SelBrush);
+	auto hSelRgn = RegionToHRGN(selCaretRgn);
+	FillRgn (hdc, hSelRgn, m_SelBrush);
 
 //	SELCARET
-//	FrameRgn(hdc, selCaretRgn.GetHandle(), m_BrdBrush, 4, 4);
+//	auto hSelRgn2 = RegionToHRGN(selCaretRgn);
+//	FrameRgn(hdc, hSelRgn2, m_BrdBrush, 4, 4);
 }
 
 void DataView::SetSelCaret(Region& newSelCaret)
@@ -1029,7 +1032,7 @@ GraphVisitState DataView::UpdateView()
 #if defined(MG_DEBUG)
 			if (MG_DEBUG_REGION)
 			{
-				Region dcRegion(dc, m_hWnd);
+				Region dcRegion = RegionFromSystemClipRgn(dc, m_hWnd);
 				Region combRegion = dcRegion & drawRegion;
 
 				DBG_TRACE(("drawRegion = %s", drawRegion.AsString().c_str()));
@@ -1037,20 +1040,23 @@ GraphVisitState DataView::UpdateView()
 				DBG_TRACE(("combRegion = %s", combRegion.AsString().c_str()));
 			}
 #endif
-			if	( ExtSelectClipRgn(dc, drawRegion.GetHandle(), RGN_AND) == NULLREGION )
 			{
-#if defined(MG_DEBUG)
-				if (MG_DEBUG_REGION)
+				auto hDrawRgn = RegionToHRGN(drawRegion);
+				if ( ExtSelectClipRgn(dc, hDrawRgn, RGN_AND) == NULLREGION )
 				{
-					Region dcRegion2(dc, m_hWnd);
-					if (!dcRegion2.Empty())
+#if defined(MG_DEBUG)
+					if (MG_DEBUG_REGION)
 					{
-						DBG_TRACE(("dc2 Region = %s", dcRegion2.AsString().c_str()));
+						Region dcRegion2 = RegionFromSystemClipRgn(dc, m_hWnd);
+						if (!dcRegion2.Empty())
+						{
+							DBG_TRACE(("dc2 Region = %s", dcRegion2.AsString().c_str()));
+						}
 					}
-				}
 #endif
-				m_DoneGraphics.PopBack();
-				continue;
+					m_DoneGraphics.PopBack();
+					continue;
+				}
 			}
 
 			GdiDrawContext drawContext(dc);
@@ -1177,7 +1183,10 @@ void DataView::ScrollDevice(GPoint delta, GRect rcScroll, GRect rcClip, const Mo
 	{
 		DcHandle dc(m_hWnd, GetDefaultFont(FontSizeCategory::MEDIUM)); // we could clip on the rcScroll|rcClip region
 		Region   rgnClip(rcClip);
-		SelectClipRgn(dc, rgnClip.GetHandle());
+		{
+			auto hClip = RegionToHRGN(rgnClip);
+			SelectClipRgn(dc, hClip);
+		}
 
 		CaretHider caretHider(this, dc);
 
@@ -1185,7 +1194,7 @@ void DataView::ScrollDevice(GPoint delta, GRect rcScroll, GRect rcClip, const Mo
 		rcClippedScroll &= rcScroll; // prepare for making rcScrolll TRect
 
 		Region drawRgn(GPoint(0, 0));
-		Region invalidRgn( GetHWnd() );
+		Region invalidRgn = RegionFromUpdateRgn( GetHWnd() );
 
 		DBG_TRACE(("invr = %s", invalidRgn.AsString().c_str()));
 
@@ -1196,14 +1205,18 @@ void DataView::ScrollDevice(GPoint delta, GRect rcScroll, GRect rcClip, const Mo
 		if (m_ViewHost)
 			m_ViewHost->VH_ScrollWindow(delta, rcClippedScroll, rcClip, drawRgn, GRect());
 		else
+		{
+			GdiHandle<HRGN> hDrawRgn(CreateRectRgn(0, 0, 0, 0), nullptr);
 			ScrollWindowEx(GetHWnd(),
 				delta.x , delta.y,
 				&rcClippedScroll,      // prcScrill
 				&rcClip,               // prcClip
-				drawRgn.GetHandle(),   // HRGN hrgnUpdate,  // handle to update region
+				hDrawRgn,              // HRGN hrgnUpdate,  // handle to update region
 				NULL,                  // LPRECT prcUpdate, // address of structure for update rectangle
 				0                      // SW_SCROLLCHILDREN //SW_ERASE|SW_INVALIDATE // |SW_SMOOTHSCROLL + 0x00010000
 			);
+			drawRgn = Region(HRGNToQRegion(hDrawRgn));
+		}
 /*
 		Region drawRgn(rcClippedScroll);                         // source region of scroll
 		if (rcScroll != rcClippedScroll)
@@ -1537,7 +1550,7 @@ void DataView::OnPaint()
 
 //	SuspendTrigger::Resume();
 //	dms_assert(! SuspendTrigger::DidSuspend() );
-	Region rgn(paintDC, m_hWnd);
+	Region rgn = RegionFromSystemClipRgn(paintDC, m_hWnd);
 	if (rgn.Empty())
 		return;
 
@@ -1737,13 +1750,17 @@ void DataView::InvalidateRgn (const Region& rgn)
 	if (m_ViewHost)
 		m_ViewHost->VH_InvalidateRgn(rgn, true);
 	else
-		::InvalidateRgn(m_hWnd, rgn.GetHandle(), true);
+	{
+		auto hrgn = RegionToHRGN(rgn);
+		::InvalidateRgn(m_hWnd, hrgn, true);
+	}
 #if defined(MG_DEBUG)
 	if (MG_DEBUG_INVALIDATE || true)
 	{
 		DcHandle dc(GetHWnd(), 0);
 		GdiHandle<HBRUSH> br( CreateSolidBrush( DmsColor2COLORREF(DmsOrange) ) );
-		::FillRgn(dc, rgn.GetHandle(), br );
+		auto hrgn = RegionToHRGN(rgn);
+		::FillRgn(dc, hrgn, br );
 	}
 #endif
 }
