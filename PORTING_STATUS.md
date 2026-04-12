@@ -110,15 +110,32 @@ The Win32 `ViewHost` implementation is kept temporarily but will be removed once
   - `DataItemColumn.cpp` — DrawBackground uses DrawContext::FillRect
 - Added `PenIndexCache::GetPenKey()`/`IsPenVisible()` for portable pen property lookup
 
-#### Step 4b: Remaining GDI migrations (TODO)
-Files with remaining `GetDC()` calls to migrate (37 callsites):
-- `FeatureLayer.cpp` (15) — label drawing: DcTextAlignSelector, SelectingFontArray, DcTextColorSelector, SetTextColor
-- `GraphVisitor.cpp` (6) — DcClipRegionSelector, DrawBorder, font/text color selectors
-- `GridLayer.cpp` (6) — StretchDIBits, DIB bitmap operations, FocusRgn
-- `DataItemColumn.cpp` (3) — DrawButtonBorder, DrawSymbol, DrawEditText
-- `WmsLayer.cpp` (2) — WMS tile rendering (StretchDIBits)
-- `GraphicPoint.h` (1) — Ellipse()
-- `DrawPolygons.h` (1) — commented-out code block
+#### Step 4b: All remaining GetDC() calls migrated or guarded [72c3ce19..6b03e6b8]
+- DrawContext extended with: SetClipRegion/SetClipRect/ResetClip, DrawButtonBorder/DrawReversedBorder, DrawEllipse
+- DcClipRegionSelector: changed from HDC to DrawContext* (portable clipping)
+- GraphVisitor.cpp: clip regions, borders, text color all via DrawContext
+- FeatureLayer.cpp: LabelDrawer uses DrawContext (no DcTextColorSelector/DcBackColorSelector)
+- DrawPoints/DrawMultiPoints: SetTextColor via DrawContext, font/TextOutW in _WIN32
+- DataItemColumn.cpp: DrawButtonBorder via DrawContext, symbol/text in _WIN32
+- GraphicPoint.h: DrawEllipse via DrawContext
+- GridLayer.cpp: focus drawing via DrawContext::FillRegion, GridDrawer HDC in _WIN32
+- WmsLayer.cpp: GridDrawer HDC in _WIN32
+- dataview.cpp: UpdateView draw loop, Scroll, InvalidateRgn, SelCaret all in _WIN32
+
+**Result:** All `GetDC()` calls in shv/dll/src are now either:
+- Behind `#if defined(_WIN32)` guards
+- Inside comment blocks (dead code)
+- In `GraphVisitor.h` definition (already _WIN32 guarded)
+
+Linux clean rebuild (230/230 targets) and operator tests pass.
+
+#### Step 4c: Cleanup (TODO)
+Remaining work:
+- Remove unused GDI utility functions from ShvUtils.h/cpp (DrawBorder, FillRectDmsColor etc.)
+- Guard DcHandle.h contents with _WIN32
+- Guard PenArray in _WIN32 (only used by legacy code now)
+- Clean up FontIndexCache/SelectingFontArray for portable font handling
+- Replace GridDrawer StretchDIBits with portable QImage rendering for Qt path
 
 ### Step 5: Linux build (CMake)
 **Goal:** Build shv.dll and GeoDmsGuiQt on Linux via CMake + WSL.
