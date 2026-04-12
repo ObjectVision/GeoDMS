@@ -85,6 +85,7 @@
     <ClCompile Include="src\DataItemColumn.cpp" />
     <ClCompile Include="src\dataview.cpp" />
     <ClCompile Include="src\DcHandle.cpp" />
+    <ClCompile Include="src\DrawContext.cpp" />
     <ClCompile Include="src\GdiDrawContext.cpp" />
     <ClCompile Include="src\Win32ViewHost.cpp" />
     <ClCompile Include="src\EditPalette.cpp" />

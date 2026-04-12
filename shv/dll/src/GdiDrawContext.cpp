@@ -224,39 +224,4 @@ void GdiDrawContext::DrawImage(const GRect& destRect, const void* pixelData, int
 		pixelData, bmi, DIB_RGB_COLORS, SRCCOPY);
 }
 
-static void ShadowRectDC(HDC dc, GRect rect, HBRUSH lightBrush, HBRUSH darkBrush)
-{
-	if (rect.top >= rect.bottom || rect.left >= rect.right)
-		return;
-	Int32 nextLeft = rect.left + 1, nextTop = rect.top + 1;
-	Int32 prevRight = rect.right - 1, prevBottom = rect.bottom - 1;
-	auto fill = [dc](const GRect& r, HBRUSH br) {
-		GdiHandle<HPEN> pen(CreatePen(PS_NULL, 0, RGB(0,0,0)));
-		GdiObjectSelector<HPEN> ps(dc, pen);
-		GdiObjectSelector<HBRUSH> bs(dc, br);
-		::Rectangle(dc, r.left, r.top, r.right+1, r.bottom+1);
-	};
-	fill(GRect(prevRight, rect.top, rect.right, rect.bottom), darkBrush);
-	fill(GRect(rect.left, prevBottom, prevRight, rect.bottom), darkBrush);
-	if (rect.top >= prevBottom || rect.left >= prevRight) return;
-	fill(GRect(rect.left, rect.top, prevRight, nextTop), lightBrush);
-	fill(GRect(rect.left, nextTop, nextLeft, prevBottom), lightBrush);
-}
-
-void GdiDrawContext::DrawButtonBorder(GRect& rect)
-{
-	ShadowRectDC(m_hDC, rect, GetSysColorBrush(COLOR_3DLIGHT), GetSysColorBrush(COLOR_3DDKSHADOW));
-	rect.Shrink(1);
-	ShadowRectDC(m_hDC, rect, GetSysColorBrush(COLOR_3DHIGHLIGHT), GetSysColorBrush(COLOR_3DSHADOW));
-	rect.Shrink(1);
-}
-
-void GdiDrawContext::DrawReversedBorder(GRect& rect)
-{
-	ShadowRectDC(m_hDC, rect, GetSysColorBrush(COLOR_3DDKSHADOW), GetSysColorBrush(COLOR_3DLIGHT));
-	rect.Shrink(1);
-	ShadowRectDC(m_hDC, rect, GetSysColorBrush(COLOR_3DSHADOW), GetSysColorBrush(COLOR_3DHIGHLIGHT));
-	rect.Shrink(1);
-}
-
 #endif // _WIN32

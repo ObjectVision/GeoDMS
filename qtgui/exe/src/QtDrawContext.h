@@ -50,15 +50,13 @@ public:
 
 	void DrawImage(const GRect& destRect, const void* pixelData, int width, int height, int bitsPerPixel, const void* paletteRGBQuads, int paletteCount) override;
 
-	void DrawButtonBorder(GRect& rect) override;
-	void DrawReversedBorder(GRect& rect) override;
-
 	QPainter* GetPainter() const { return m_Painter; }
 
 private:
 	QPainter* m_Painter;
 	bool m_CenterH = false;
 	bool m_Baseline = false;
+	double m_FontRotation = 0.0; // current rotation in degrees (to undo on next SetFont)
 };
 
 #endif // __QT_DRAWCONTEXT_H

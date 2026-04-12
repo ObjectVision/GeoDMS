@@ -91,8 +91,8 @@ public:
 	virtual void DrawImage(const GRect& destRect, const void* pixelData, int width, int height, int bitsPerPixel, const void* paletteRGBQuads = nullptr, int paletteCount = 0) = 0;
 
 	// === 3D Borders ===
-	virtual void DrawButtonBorder(GRect& rect) = 0;
-	virtual void DrawReversedBorder(GRect& rect) = 0;
+	void DrawButtonBorder(GRect& rect);
+	void DrawReversedBorder(GRect& rect);
 	void DrawBorder(GRect& rect, bool reversed) { if (reversed) DrawReversedBorder(rect); else DrawButtonBorder(rect); }
 };
 
@@ -142,13 +142,10 @@ public:
 
 	void DrawImage(const GRect& destRect, const void* pixelData, int width, int height, int bitsPerPixel, const void* paletteRGBQuads, int paletteCount) override;
 
-	void DrawButtonBorder(GRect& rect) override;
-	void DrawReversedBorder(GRect& rect) override;
-
 private:
 	HDC   m_hDC;
 	HFONT m_OwnedFont;
 };
 #endif // _WIN32
 
-#endif // __SHV_DRAWCONTEXT_H#endif // __SHV_DRAWCONTEXT_H
+#endif // __SHV_DRAWCONTEXT_H

@@ -168,7 +168,8 @@ void QtDrawContext::TextOut(GPoint pos, CharPtr text, int len, DmsColor color)
 		return;
 	auto oldPen = m_Painter->pen();
 	m_Painter->setPen(DmsColor2QColor(color));
-	m_Painter->drawText(pos.x, pos.y + m_Painter->fontMetrics().ascent(), QString::fromUtf8(text, len));
+	int yOffset = m_Baseline ? 0 : m_Painter->fontMetrics().ascent();
+	m_Painter->drawText(pos.x, pos.y + yOffset, QString::fromUtf8(text, len));
 	m_Painter->setPen(oldPen);
 }
 
@@ -179,7 +180,7 @@ void QtDrawContext::TextOutW(GPoint pos, const wchar_t* text, int len, DmsColor 
 	auto oldPen = m_Painter->pen();
 	m_Painter->setPen(DmsColor2QColor(color));
 	QString str = QString::fromWCharArray(text, len);
-	int yOffset = m_CenterH ? 0 : m_Painter->fontMetrics().ascent();
+	int yOffset = m_Baseline ? 0 : m_Painter->fontMetrics().ascent();
 	m_Painter->drawText(pos.x, pos.y + yOffset, str);
 	m_Painter->setPen(oldPen);
 }
@@ -190,13 +191,19 @@ void QtDrawContext::SetFont(CharPtr fontName, int pixelHeight, UInt16 angleDegTe
 		return;
 	QFont font(QString::fromUtf8(fontName));
 	font.setPixelSize(abs(pixelHeight));
+	m_Painter->setFont(font);
+
+	// Undo any previous rotation, then apply new one
+	if (m_FontRotation != 0.0)
+	{
+		m_Painter->rotate(m_FontRotation); // undo previous
+		m_FontRotation = 0.0;
+	}
 	if (angleDegTenths)
 	{
-		QTransform t;
-		t.rotate(-angleDegTenths / 10.0);
-		// Qt doesn't directly support rotated fonts on QFont, rotation is handled via QPainter transform
+		m_FontRotation = angleDegTenths / 10.0;
+		m_Painter->rotate(-m_FontRotation);
 	}
-	m_Painter->setFont(font);
 }
 
 void QtDrawContext::SetTextAlign(bool centerH, bool baseline)
@@ -326,37 +333,4 @@ void QtDrawContext::DrawImage(const GRect& destRect, const void* pixelData, int 
 		return; // unsupported format
 
 	m_Painter->drawImage(GRect2QRect(destRect), img);
-}
-
-static void DrawShadowRect(QPainter* p, GRect rect, QColor light, QColor dark)
-{
-	if (rect.top >= rect.bottom || rect.left >= rect.right)
-		return;
-	int nextLeft = rect.left + 1, nextTop = rect.top + 1;
-	int prevRight = rect.right - 1, prevBottom = rect.bottom - 1;
-	p->fillRect(QRect(prevRight, rect.top, 1, rect.bottom - rect.top), dark);
-	p->fillRect(QRect(rect.left, prevBottom, prevRight - rect.left, 1), dark);
-	if (rect.top >= prevBottom || rect.left >= prevRight) return;
-	p->fillRect(QRect(rect.left, rect.top, prevRight - rect.left, 1), light);
-	p->fillRect(QRect(rect.left, nextTop, 1, prevBottom - nextTop), light);
-}
-
-void QtDrawContext::DrawButtonBorder(GRect& rect)
-{
-	if (!m_Painter)
-		return;
-	DrawShadowRect(m_Painter, rect, QColor(227, 227, 227), QColor(64, 64, 64));
-	rect.Shrink(1);
-	DrawShadowRect(m_Painter, rect, QColor(255, 255, 255), QColor(160, 160, 160));
-	rect.Shrink(1);
-}
-
-void QtDrawContext::DrawReversedBorder(GRect& rect)
-{
-	if (!m_Painter)
-		return;
-	DrawShadowRect(m_Painter, rect, QColor(64, 64, 64), QColor(227, 227, 227));
-	rect.Shrink(1);
-	DrawShadowRect(m_Painter, rect, QColor(160, 160, 160), QColor(255, 255, 255));
-	rect.Shrink(1);
 }
