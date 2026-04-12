@@ -552,6 +552,7 @@ void DataView::ReverseCaretsImpl(DrawContext& dc, bool newVisibleState)
 
 void DataView::ReverseSelCaretImpl(HDC hdc, const Region& selCaretRgn)
 {
+#if defined(_WIN32)
 	if (!m_SelBrush)
 	{
 		struct {
@@ -562,11 +563,7 @@ void DataView::ReverseSelCaretImpl(HDC hdc, const Region& selCaretRgn)
 		{
 			{ sizeof(BITMAPINFOHEADER), 8, 8, 1, 1, BI_RGB, 0 },
 			{ {255,255,255, 0}, {0,0,0,0}, },
-//			{ 0xAA, 0x55, 0xAA, 0x55, 0xAA, 0x55, 0xAA, 0x55, }
-//			{ 0xAA, 0x00, 0xAA, 0x00, 0xAA, 0x00, 0xAA, 0x00, }
-//			{ 0xCC, 0xCC, 0x33, 0x33, 0xCC, 0xCC, 0x33, 0x33, }
 			{ 0xCC, 0xCC, 0x00, 0x00, 0xCC, 0xCC, 0x00, 0x00, }
-//			{ 0xF0, 0xF0, 0xF0, 0xF0, 0x00, 0x00, 0x00, 0x00  }
 		};
 
 		m_SelBrush = GdiHandle<HBRUSH>(CreateDIBPatternBrushPt(&packedDIB, DIB_RGB_COLORS));
@@ -580,10 +577,7 @@ void DataView::ReverseSelCaretImpl(HDC hdc, const Region& selCaretRgn)
 	}
 	auto hSelRgn = RegionToHRGN(selCaretRgn);
 	FillRgn (hdc, hSelRgn, m_SelBrush);
-
-//	SELCARET
-//	auto hSelRgn2 = RegionToHRGN(selCaretRgn);
-//	FrameRgn(hdc, hSelRgn2, m_BrdBrush, 4, 4);
+#endif
 }
 
 void DataView::SetSelCaret(Region& newSelCaret)
@@ -1015,6 +1009,7 @@ GraphVisitState DataView::UpdateView()
 
 	if (!m_DoneGraphics.Empty())
 	{
+#if defined(_WIN32)
 		dbg_assert(md_IsDrawingCount == 0);
 		MG_DEBUGCODE( DynamicIncrementalLock<decltype(md_IsDrawingCount)> lock(md_IsDrawingCount); )
 
@@ -1087,6 +1082,7 @@ GraphVisitState DataView::UpdateView()
 			if (SuspendTrigger::DidSuspend())
 				return GVS_Break;
 		}
+#endif // _WIN32
 	}
 	dms_assert(m_DoneGraphics.Empty()); // post condition of while loop
 
@@ -1180,6 +1176,7 @@ void DataView::ScrollDevice(GPoint delta, GRect rcScroll, GRect rcClip, const Mo
 	dbg_assert( md_InvalidateDrawLock == 0);
 	assert(src);
 	{
+#if defined(_WIN32)
 		DcHandle dc(m_hWnd, GetDefaultFont(FontSizeCategory::MEDIUM)); // we could clip on the rcScroll|rcClip region
 		Region   rgnClip(rcClip);
 		{
@@ -1188,6 +1185,9 @@ void DataView::ScrollDevice(GPoint delta, GRect rcScroll, GRect rcClip, const Mo
 		}
 
 		CaretHider caretHider(this, dc);
+#else
+		Region   rgnClip(rcClip);
+#endif
 
 		GRect rcClippedScroll = rcClip; 
 		rcClippedScroll &= rcScroll; // prepare for making rcScrolll TRect
@@ -1203,6 +1203,7 @@ void DataView::ScrollDevice(GPoint delta, GRect rcScroll, GRect rcClip, const Mo
 
 		if (m_ViewHost)
 			m_ViewHost->VH_ScrollWindow(delta, rcClippedScroll, rcClip, drawRgn, GRect());
+#if defined(_WIN32)
 		else
 		{
 			GdiHandle<HRGN> hDrawRgn(CreateRectRgn(0, 0, 0, 0), nullptr);
@@ -1216,6 +1217,7 @@ void DataView::ScrollDevice(GPoint delta, GRect rcScroll, GRect rcClip, const Mo
 			);
 			drawRgn = Region(HRGNToQRegion(hDrawRgn));
 		}
+#endif
 /*
 		Region drawRgn(rcClippedScroll);                         // source region of scroll
 		if (rcScroll != rcClippedScroll)
@@ -1748,11 +1750,13 @@ void DataView::InvalidateRgn (const Region& rgn)
 {
 	if (m_ViewHost)
 		m_ViewHost->VH_InvalidateRgn(rgn, true);
+#if defined(_WIN32)
 	else
 	{
 		auto hrgn = RegionToHRGN(rgn);
 		::InvalidateRgn(m_hWnd, hrgn, true);
 	}
+#endif
 #if defined(MG_DEBUG)
 	if (MG_DEBUG_INVALIDATE || true)
 	{
