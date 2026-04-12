@@ -283,6 +283,51 @@ void QtDrawContext::ResetClip()
 	m_Painter->setClipping(false);
 }
 
+void QtDrawContext::DrawImage(const GRect& destRect, const void* pixelData, int width, int height, int bitsPerPixel, const void* paletteRGBQuads, int paletteCount)
+{
+	if (!m_Painter || !pixelData || width <= 0 || height <= 0)
+		return;
+
+	// DIB is bottom-up; Qt QImage is top-down. Build a 32-bit ARGB image.
+	QImage img(width, abs(height), QImage::Format_ARGB32);
+
+	if (bitsPerPixel == 32)
+	{
+		// pixelData is BGRA (RGBQUAD order), bottom-up
+		auto src = static_cast<const quint32*>(pixelData);
+		for (int y = 0; y < abs(height); ++y)
+		{
+			int srcY = (height > 0) ? (abs(height) - 1 - y) : y; // bottom-up → top-down
+			memcpy(img.scanLine(y), src + srcY * width, width * 4);
+		}
+	}
+	else if (bitsPerPixel == 8 && paletteRGBQuads && paletteCount > 0)
+	{
+		struct RGBQ { quint8 b, g, r, reserved; };
+		auto palette = static_cast<const RGBQ*>(paletteRGBQuads);
+		auto src = static_cast<const quint8*>(pixelData);
+		int stride = (width + 3) & ~3; // DWORD-aligned
+		for (int y = 0; y < abs(height); ++y)
+		{
+			int srcY = (height > 0) ? (abs(height) - 1 - y) : y;
+			auto* scanline = reinterpret_cast<quint32*>(img.scanLine(y));
+			const quint8* row = src + srcY * stride;
+			for (int x = 0; x < width; ++x)
+			{
+				quint8 idx = row[x];
+				if (idx < paletteCount)
+					scanline[x] = qRgba(palette[idx].r, palette[idx].g, palette[idx].b, 255);
+				else
+					scanline[x] = 0; // transparent for out-of-range
+			}
+		}
+	}
+	else
+		return; // unsupported format
+
+	m_Painter->drawImage(GRect2QRect(destRect), img);
+}
+
 static void DrawShadowRect(QPainter* p, GRect rect, QColor light, QColor dark)
 {
 	if (rect.top >= rect.bottom || rect.left >= rect.right)

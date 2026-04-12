@@ -87,6 +87,9 @@ public:
 	virtual void SetClipRect(const GRect& rect) = 0;
 	virtual void ResetClip() = 0;
 
+	// === Raster Image ===
+	virtual void DrawImage(const GRect& destRect, const void* pixelData, int width, int height, int bitsPerPixel, const void* paletteRGBQuads = nullptr, int paletteCount = 0) = 0;
+
 	// === 3D Borders ===
 	virtual void DrawButtonBorder(GRect& rect) = 0;
 	virtual void DrawReversedBorder(GRect& rect) = 0;
@@ -141,6 +144,8 @@ public:
 	void SetClipRegion(const Region& rgn) override;
 	void SetClipRect(const GRect& rect) override;
 	void ResetClip() override;
+
+	void DrawImage(const GRect& destRect, const void* pixelData, int width, int height, int bitsPerPixel, const void* paletteRGBQuads, int paletteCount) override;
 
 	void DrawButtonBorder(GRect& rect) override;
 	void DrawReversedBorder(GRect& rect) override;

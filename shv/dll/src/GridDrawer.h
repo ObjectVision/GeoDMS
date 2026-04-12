@@ -15,6 +15,7 @@
 struct GridCoord;
 struct IndexCollector;
 class  Theme;
+class  DrawContext;
 
 template <typename HandleType> struct GdiHandle;
 
@@ -66,13 +67,13 @@ struct GridDrawer: UnitProcessor
 	,	const IndexCollector*   entityIndex
 	,	const GridColorPalette* colorPalette
 	,	const SelValuesData*    selValues
-	,	HDC                     hDC
+	,	DrawContext*            drawContext
 	,	const GRect&            viewExtents
 	,	tile_id                 t        = no_tile
 	,	const IRect&            tileRect = IRect()
 	);
 
-	GdiHandle<HBITMAP> Apply() const;
+	void Apply() const;
 
 	template <typename ClassIdType> void  VisitImpl(const Unit<ClassIdType>* classIdUnit) const;
 	template <typename ClassIdType> void _VisitImpl(const Unit<ClassIdType>* classIdUnit) const;
@@ -87,9 +88,8 @@ struct GridDrawer: UnitProcessor
 	INSTANTIATE_DOMAIN_INTS
 	#undef INSTANTIATE
 
-	HBITMAP CreateDIBSectionFromPalette() const;
-
-	void CopyDIBSection(HBITMAP  hBitmap, GPoint viwePortOffset, DWORD dwRop) const;
+	void AllocatePixelBuffer() const;
+	void CopyToDrawContext(GPoint viewportOffset) const;
 
 	bool empty() const;
 
@@ -99,9 +99,10 @@ struct GridDrawer: UnitProcessor
 	const SelValuesData*    m_SelValues;
 
 	mutable GRect           m_sViewRect;
-	HDC                     m_hDC;
+	DrawContext*            m_DC;
 
 	mutable VOID*           m_pvBits; // DWORD Alignment per row
+	mutable std::vector<Byte> m_PixelBuffer; // portable pixel storage (used when no HDC)
 	mutable tile_id         m_TileID;
 	mutable IRect           m_TileRect;
 };

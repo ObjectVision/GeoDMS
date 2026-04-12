@@ -19,6 +19,7 @@
 #include "StgBase.h"
 
 #include "DcHandle.h"
+#include "DrawContext.h"
 #include "IndexCollector.h"
 #include "GridCoord.h"
 #include "GridFill.h"
@@ -194,7 +195,7 @@ GridDrawer::GridDrawer(
 ,	const IndexCollector*   entityIndex
 ,	const GridColorPalette* colorPalette
 ,	const SelValuesData*    selValues
-,	HDC                     hDC
+,	DrawContext*            drawContext
 ,	const GRect&            viewExtents
 ,	tile_id                 t
 ,	const IRect&            tileRect
@@ -203,7 +204,7 @@ GridDrawer::GridDrawer(
 	,	m_ColorPalette (colorPalette)
 	,	m_SelValues    (selValues)
 	,	m_sViewRect    (viewExtents)
-	,	m_hDC          (hDC)
+	,	m_DC           (drawContext)
 	,	m_TileID       (t)
 	,	m_TileRect     (tileRect)
 	,	m_pvBits       (nullptr)
@@ -212,17 +213,14 @@ GridDrawer::GridDrawer(
 	dms_assert(colorPalette && colorPalette->IsReady());
 	dms_assert(!m_GridCoords->IsDirty());
 }
-
-GdiHandle<HBITMAP> GridDrawer::Apply() const
+void GridDrawer::Apply() const
 {
 	dms_assert(!m_sViewRect.empty()); // PRECONDITION, Callers responsibility
-	GdiHandle<HBITMAP> hBitmap( CreateDIBSectionFromPalette() );
+	AllocatePixelBuffer();
 	dms_assert(m_ColorPalette);
 	dms_assert(m_pvBits != nullptr);
 	if ((m_pvBits != nullptr))
 		m_ColorPalette->m_ClassIdUnit->InviteUnitProcessor(*this);
-
-	return hBitmap;
 }
 
 template <typename ClassIdType>
@@ -394,38 +392,36 @@ void GridDrawer::Visit(const Unit<E>* classIdUnit) const { VisitImpl<E>(classIdU
 INSTANTIATE_DOMAIN_INTS
 #undef INSTANTIATE
 
-HBITMAP GridDrawer::CreateDIBSectionFromPalette() const
+void GridDrawer::AllocatePixelBuffer() const
 {
 	dms_assert(m_ColorPalette);
 	BITMAPINFO* bitmapInfo = m_ColorPalette->GetBitmapInfo(m_sViewRect.Width(), m_sViewRect.Height());
+	int bitsPerPixel = bitmapInfo->bmiHeader.biBitCount;
+	int width = m_sViewRect.Width();
+	int height = m_sViewRect.Height();
 
-	dms_assert(m_pvBits == nullptr);
-	HBITMAP bitmap =
-		CreateDIBSection(
-			m_hDC,
-			bitmapInfo,
-			DIB_RGB_COLORS,
-			&m_pvBits,
-			NULL, 0
-		);
-	dms_assert(m_pvBits != nullptr);
-	dms_assert(bitmap != 0);
-	return bitmap;
+	// Calculate row stride (DWORD-aligned)
+	int bytesPerRow = ((width * bitsPerPixel + 31) / 32) * 4;
+	int bufferSize = bytesPerRow * height;
+
+	m_PixelBuffer.resize(bufferSize, 0);
+	m_pvBits = m_PixelBuffer.data();
 }
 
-void GridDrawer::CopyDIBSection(HBITMAP hBitmap, GPoint viewportOffset, DWORD dwRop) const
+void GridDrawer::CopyToDrawContext(GPoint viewportOffset) const
 {
-	CompatibleDcHandle memDC(NULL, 0);
-	GdiObjectSelector<HBITMAP> selectBitmap(memDC, hBitmap);
+	if (!m_DC || !m_pvBits)
+		return;
 
-	GRect bitmapRect = m_sViewRect + viewportOffset;
-	BitBlt(m_hDC, 
-		bitmapRect.left, 
-		bitmapRect.top , 
-		bitmapRect.Width(), 
-		bitmapRect.Height(), 
-		memDC, 0, 0, dwRop
-	);
+	dms_assert(m_ColorPalette);
+	BITMAPINFO* bitmapInfo = m_ColorPalette->GetBitmapInfo(m_sViewRect.Width(), m_sViewRect.Height());
+	int bitsPerPixel = bitmapInfo->bmiHeader.biBitCount;
+	int paletteCount = bitmapInfo->bmiHeader.biClrUsed;
+	const void* palette = (paletteCount > 0) ? bitmapInfo->bmiColors : nullptr;
+
+	GRect destRect = m_sViewRect + viewportOffset;
+	m_DC->DrawImage(destRect, m_pvBits, m_sViewRect.Width(), m_sViewRect.Height(),
+		bitsPerPixel, palette, paletteCount);
 }
 
 bool GridDrawer::empty() const { return m_sViewRect.empty(); }

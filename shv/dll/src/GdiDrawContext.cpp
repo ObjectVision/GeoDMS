@@ -199,6 +199,31 @@ void GdiDrawContext::ResetClip()
 	::SelectClipRgn(m_hDC, NULL);
 }
 
+void GdiDrawContext::DrawImage(const GRect& destRect, const void* pixelData, int width, int height, int bitsPerPixel, const void* paletteRGBQuads, int paletteCount)
+{
+	int paletteBytes = paletteCount * sizeof(RGBQUAD);
+	std::vector<Byte> bmiBuffer(sizeof(BITMAPINFOHEADER) + paletteBytes);
+	BITMAPINFO* bmi = reinterpret_cast<BITMAPINFO*>(bmiBuffer.data());
+	bmi->bmiHeader.biSize          = sizeof(BITMAPINFOHEADER);
+	bmi->bmiHeader.biWidth         = width;
+	bmi->bmiHeader.biHeight        = height; // bottom-up
+	bmi->bmiHeader.biPlanes        = 1;
+	bmi->bmiHeader.biBitCount      = bitsPerPixel;
+	bmi->bmiHeader.biCompression   = BI_RGB;
+	bmi->bmiHeader.biSizeImage     = 0;
+	bmi->bmiHeader.biXPelsPerMeter = 0;
+	bmi->bmiHeader.biYPelsPerMeter = 0;
+	bmi->bmiHeader.biClrUsed       = paletteCount;
+	bmi->bmiHeader.biClrImportant  = paletteCount;
+	if (paletteCount > 0 && paletteRGBQuads)
+		memcpy(bmi->bmiColors, paletteRGBQuads, paletteBytes);
+
+	::StretchDIBits(m_hDC,
+		destRect.left, destRect.top, destRect.Width(), destRect.Height(),
+		0, 0, width, height,
+		pixelData, bmi, DIB_RGB_COLORS, SRCCOPY);
+}
+
 static void ShadowRectDC(HDC dc, GRect rect, HBRUSH lightBrush, HBRUSH darkBrush)
 {
 	if (rect.top >= rect.bottom || rect.left >= rect.right)

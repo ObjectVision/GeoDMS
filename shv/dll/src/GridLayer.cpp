@@ -929,13 +929,27 @@ void GridLayer::CopySelValuesToBitmap()
 	,	GetIndexCollector()
 	,	&colorPalette
 	,	nullptr	// selValues
-	,	0	// HDC hDC
+	,	nullptr	// DrawContext: not needed for clipboard copy
 	,	GRect(GPoint(0,0), selectGRect.Size()) // viewExtents
 	);
 
-	GdiHandle<HBITMAP> 
-		hPaletteBitmap = drawer.Apply(),
-		hCompatibleBitmap = GdiHandle(CreateCompatibleBitmap(DcHandleBase(dv->GetHWnd()), selectGRect.Width(), selectGRect.Height())); // memDC,
+	drawer.Apply(); // fills pixel buffer
+
+#if defined(_WIN32)
+	// Create compatible bitmap for clipboard from the pixel buffer
+	BITMAPINFO* bmi = colorPalette.GetBitmapInfo(selectGRect.Width(), selectGRect.Height());
+	VOID* pvBits = nullptr;
+	GdiHandle<HBITMAP> hPaletteBitmap(
+		CreateDIBSection(NULL, bmi, DIB_RGB_COLORS, &pvBits, NULL, 0)
+	);
+	if (pvBits && drawer.m_pvBits)
+	{
+		int bytesPerRow = ((selectGRect.Width() * bmi->bmiHeader.biBitCount + 31) / 32) * 4;
+		memcpy(pvBits, drawer.m_pvBits, bytesPerRow * selectGRect.Height());
+	}
+
+	GdiHandle<HBITMAP>
+		hCompatibleBitmap = GdiHandle(CreateCompatibleBitmap(DcHandleBase(dv->GetHWnd()), selectGRect.Width(), selectGRect.Height()));
 
 	CompatibleDcHandle 
 		memPaletteDC(NULL, 0),
@@ -948,6 +962,7 @@ void GridLayer::CopySelValuesToBitmap()
 	BitBlt(memCompatibleDC, 0, 0, selectGRect.Width(), selectGRect.Height(), memPaletteDC, 0, 0, SRCCOPY);
 
 	clipBoard.SetBitmap( hCompatibleBitmap );
+#endif // _WIN32
 }
 
 bool GridLayer::DrawAllRects(GraphDrawer& d, const GridColorPalette& colorPalette) const
@@ -989,10 +1004,8 @@ bool GridLayer::DrawAllRects(GraphDrawer& d, const GridColorPalette& colorPalett
 
 	GridCoordPtr drawGridCoords = GetGridCoordInfo(d.GetViewPortPtr() );
 	drawGridCoords->UpdateToScale(d.GetSubPixelFactors());
-#if defined(_WIN32)
-	if (!d.GetDC())
+	if (!d.GetDrawContext())
 		return false;
-#endif
 
 	RectArray ra;
 	d.GetAbsClipRegion().FillRectArray(ra);
@@ -1028,23 +1041,22 @@ bool GridLayer::DrawAllRects(GraphDrawer& d, const GridColorPalette& colorPalett
 
 			ReadableTileLock lock(grid->GetRefObj().get(), t);
 
-					doneAnything = true;
-						GridDrawer drawer(
-							drawGridCoords.get()
-						,	GetIndexCollector()
-						,	&colorPalette 
-						,	nullptr	// selValues
-			#if defined(_WIN32)
-						,	d.GetDC()
-			#else
-						,	nullptr
-			#endif
-						,	tileRelRect
-						,	t
-						,	tileGridRect - drawGridCoords->GetGridRect().first // adjusted tileRect
-						);
+			doneAnything = true;
+			GridDrawer drawer(
+				drawGridCoords.get()
+			,	GetIndexCollector()
+			,	&colorPalette 
+			,	nullptr	// selValues
+			,	d.GetDrawContext()
+			,	tileRelRect
+			,	t
+			,	tileGridRect - drawGridCoords->GetGridRect().first // adjusted tileRect
+			);
 			if (!drawer.empty())
-				drawer.CopyDIBSection( drawer.Apply(), viewportDeviceOffset, SRCAND );
+			{
+				drawer.Apply();
+				drawer.CopyToDrawContext(viewportDeviceOffset);
+			}
 		}
 		++tileCounter; 
 		if (tileCounter.MustBreak()) return true;
@@ -1100,15 +1112,14 @@ void GridLayer::DrawPaste(GraphDrawer& d, const GridColorPalette& colorPalette) 
 		,	GetIndexCollector()
 		,	&colorPalette
 		,	m_PasteHandler->GetSelValues()
-#if defined(_WIN32)
-		,	d.GetDC() 
-#else
-		,	nullptr
-#endif
+		,	d.GetDrawContext()
 		,	*rectPtr
 		);
 		if (!drawer.empty())
-			drawer.CopyDIBSection( drawer.Apply(), viewportOffset, SRCCOPY );
+		{
+			drawer.Apply();
+			drawer.CopyToDrawContext(viewportOffset);
+		}
 	}
 }
 
