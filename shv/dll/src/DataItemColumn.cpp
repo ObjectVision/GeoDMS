@@ -776,19 +776,19 @@ void DataItemColumn::DrawElement(GraphDrawer& d, SizeT rowNr, GRect elemDeviceEx
 	{
 		if (HasElemBorder())
 		{
-			elemDeviceExtents.Expand(1); DrawFocusRect(d.GetDC(), &elemDeviceExtents);
-			elemDeviceExtents.Expand(1); DrawFocusRect(d.GetDC(), &elemDeviceExtents);
+			elemDeviceExtents.Expand(1); d.GetDrawContext()->DrawFocusRect(elemDeviceExtents);
+			elemDeviceExtents.Expand(1); d.GetDrawContext()->DrawFocusRect(elemDeviceExtents);
 		}
 	}
 	else
 	{
 		if (tc->InSelRange(rowNr, m_ColumnNr) )
 		{
-			InvertRect(d.GetDC(), &elemDeviceExtents);
+			d.GetDrawContext()->InvertRect(elemDeviceExtents);
 			if (HasElemBorder())
 			{
 				elemDeviceExtents.Expand(BORDERSIZE);
-				InvertRect(d.GetDC(), &elemDeviceExtents);
+				d.GetDrawContext()->InvertRect(elemDeviceExtents);
 			}
 		}
 	}

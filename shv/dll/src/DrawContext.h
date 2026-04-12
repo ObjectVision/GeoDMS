@@ -8,19 +8,28 @@
 #define __SHV_DRAWCONTEXT_H
 
 #include "ShvBase.h"
+#include "geo/color.h"
+
+struct GRect;
+class  Region;
 
 //----------------------------------------------------------------------
 // class  : DrawContext
 //----------------------------------------------------------------------
-// Abstract drawing context. Step 2a: wraps HDC for backward compat.
-// Step 2b will add abstract drawing methods (FillRect, TextOut, etc.)
-// Step 2c will add QtDrawContext backed by QPainter.
+// Abstract drawing context.
+// GetHDC() provides backward compat for callers not yet migrated.
+// Abstract drawing methods allow backend-agnostic rendering.
 
 class DrawContext
 {
 public:
 	virtual ~DrawContext() = default;
 	virtual HDC GetHDC() const = 0;
+
+	virtual void FillRect(const GRect& rect, DmsColor color) = 0;
+	virtual void FillRegion(const Region& rgn, DmsColor color) = 0;
+	virtual void InvertRect(const GRect& rect) = 0;
+	virtual void DrawFocusRect(const GRect& rect) = 0;
 };
 
 //----------------------------------------------------------------------
@@ -37,6 +46,11 @@ public:
 
 	HDC GetHDC() const override { return m_hDC; }
 	void SetHDC(HDC hdc) { m_hDC = hdc; }
+
+	void FillRect(const GRect& rect, DmsColor color) override;
+	void FillRegion(const Region& rgn, DmsColor color) override;
+	void InvertRect(const GRect& rect) override;
+	void DrawFocusRect(const GRect& rect) override;
 
 private:
 	HDC m_hDC;

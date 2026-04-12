@@ -130,7 +130,6 @@ void AutoSizeContainer::DrawBackground(const GraphDrawer& d) const
 		while (recNo < n && GetConstEntry(recNo)->GetCurrFullAbsDeviceRect(d).first.Y() <= clipStartRow)
 			++recNo;
 
-		GdiHandle<HBRUSH> br(CreateSolidBrush(DmsColor2COLORREF(0)));
 		while (recNo < n)
 		{
 			absFullRect.second.Y() = GetConstEntry(recNo)->GetCurrFullAbsDeviceRect(d).first.Y();
@@ -140,7 +139,7 @@ void AutoSizeContainer::DrawBackground(const GraphDrawer& d) const
 				return;
 
 			auto intFullRect = CrdRect2GRect(absFullRect);
-			FillRect(d.GetDC(), &intFullRect, br);
+			d.GetDrawContext()->FillRect(intFullRect, DmsColor(0));
 			++recNo;
 		}
 		assert(recNo == n);
@@ -153,7 +152,7 @@ void AutoSizeContainer::DrawBackground(const GraphDrawer& d) const
 		if (absFullRect.second.Y() <= clipStartRow)
 			return;
 		auto  intFullRect = CrdRect2GRect(absFullRect);
-		FillRect(d.GetDC(), &intFullRect, br);
+		d.GetDrawContext()->FillRect(intFullRect, DmsColor(0));
 	}
 	else
 	{
@@ -169,7 +168,6 @@ void AutoSizeContainer::DrawBackground(const GraphDrawer& d) const
 		while (recNo < n && GetConstEntry(recNo)->GetCurrFullAbsDeviceRect(d).first.X() <= clipStartCol)
 			++recNo;
 
-		GdiHandle<HBRUSH> br(CreateSolidBrush(DmsColor2COLORREF(0)));
 		while (recNo < n)
 		{
 			absFullRect.second.X() = GetConstEntry(recNo)->GetCurrFullAbsDeviceRect(d).first.X();
@@ -179,7 +177,7 @@ void AutoSizeContainer::DrawBackground(const GraphDrawer& d) const
 				return;
 
 			auto intFullRect = CrdRect2GRect(absFullRect);
-			FillRect(d.GetDC(), &intFullRect, br);
+			d.GetDrawContext()->FillRect(intFullRect, DmsColor(0));
 			++recNo;
 		}
 		dms_assert(recNo == n);
@@ -193,7 +191,7 @@ void AutoSizeContainer::DrawBackground(const GraphDrawer& d) const
 			return;
 
 		auto intFullRect = CrdRect2GRect(absFullRect);
-		FillRect(d.GetDC(), &intFullRect, br);
+		d.GetDrawContext()->FillRect(intFullRect, DmsColor(0));
 	}
 }
 

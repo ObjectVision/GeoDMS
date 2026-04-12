@@ -709,8 +709,7 @@ void GraphicObject::DrawBackground(const GraphDrawer& d) const
 
 	CheckColor(bkColor);
 
-	GdiHandle<HBRUSH> br( CreateSolidBrush( bkColor ) );
-	FillRgn(d.GetDC(), d.GetAbsClipRegion().GetHandle(), br);
+	d.GetDrawContext()->FillRegion(d.GetAbsClipRegion(), bkColor);
 }
 
 COLORREF GraphicObject::GetBkColor() const

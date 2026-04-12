@@ -248,7 +248,7 @@ bool TextControl::Draw(GraphDrawer& d) const
 			GetCaption().c_str()
 		);
 		if (m_IsInverted)
-			InvertRect(d.GetDC(), &clientIntRect);
+			d.GetDrawContext()->InvertRect(clientIntRect);
 	}
 	return false;
 }
