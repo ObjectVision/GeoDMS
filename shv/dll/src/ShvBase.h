@@ -104,10 +104,12 @@ struct GridCoord;
 struct SelCaret;
 struct IndexCollector;
 
+#ifdef _WIN32
 struct MsgResult {
 	bool handled;
 	LRESULT result;
 };
+#endif
 
 //----------------------------------------------------------------------
 // typedefs
@@ -191,14 +193,17 @@ enum GraphVisitState: unsigned char // see also the DIFFERENT used ActorVisitSta
 GraphVisitState GVS_BreakOnSuspended();
 
 
+#ifdef _WIN32
 #define MG_SKIP_WINDOWPOSCHANGED 1
 #if defined(MG_SKIP_WINDOWPOSCHANGED)
 #define MG_WM_SIZE WM_SIZE
 #else
 #define MG_WM_SIZE WM_WINDOWPOSCHANGED
 #endif
+#endif
 
 
+#ifdef _WIN32
 #include <windows.h>
 
 // somehow windows.h enabled warning 4200
@@ -210,5 +215,6 @@ GraphVisitState GVS_BreakOnSuspended();
 #undef CreateDC
 
 extern HINSTANCE g_ShvDllInstance;
+#endif // _WIN32
 
 #endif // !defined(__SHV_BASE_H)

@@ -16,3 +16,19 @@ todo*.txt
 /rtc/dll/src/RtcGeneratedVersion.h
 
 /build/
+/rtc/dll/bin
+/rtc/dll/obj
+/sym/dll/bin
+/sym/dll/obj
+/tic/dll/obj
+/tic/dll/bin
+/shv/dll/bin
+/shv/dll/obj
+/clc/dll/bin
+/clc/dll/obj
+/geo/dll/bin
+/geo/dll/obj
+/stg/dll/bin
+/stg/dll/obj
+/stx/dll/bin
+/stx/dll/obj
